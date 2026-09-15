@@ -17,8 +17,8 @@ function bindForms(base,param){
 }
 let googleScriptPromise;
 async function prepareGoogle(){
- const old=document.querySelector('.social-login.google');if(!old)return;
- const host=document.createElement('div');host.id='google-signin';old.replaceWith(host);
+ const old=document.querySelector('.social-login.google');let host=$('#google-signin');if(!old&&!host)return;
+ if(old){host=document.createElement('div');host.id='google-signin';old.replaceWith(host);}else host.replaceChildren();
  const {nonce}=await api('/api/auth/google/nonce','POST');
  googleScriptPromise ||=new Promise((resolve,reject)=>{if(window.google?.accounts?.id)return resolve();const script=document.createElement('script');script.src='https://accounts.google.com/gsi/client';script.async=true;script.onload=resolve;script.onerror=()=>{googleScriptPromise=null;reject(new Error('Google 로그인 버튼을 불러오지 못했습니다.'));};document.head.appendChild(script);});
  await googleScriptPromise;if(!host.isConnected)return;

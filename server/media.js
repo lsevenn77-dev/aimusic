@@ -93,6 +93,9 @@ export async function mediaRoute(req,env,path,user){
 }
 export async function internalRoute(req,env,path){
  if(!env.TRANSCODER_TOKEN||req.headers.get('authorization')!==`Bearer ${env.TRANSCODER_TOKEN}`)fail(401,'인증이 필요합니다.');
+ if(path==='/internal/health'&&req.method==='GET'){
+  await one(env,'SELECT 1 healthy');await env.BUCKET.head('__aifect_healthcheck__');return json({database:true,storage:true});
+ }
  if(path==='/internal/jobs/claim'&&req.method==='POST'){
   await run(env,"UPDATE tracks SET status='failed',error='변환 시간이 초과됐습니다. 다시 시도해주세요.' WHERE status='processing' AND lease_until<? AND attempts>=3",now());
   const token=id();const job=await query(env,"UPDATE tracks SET status='processing',lease_until=?,lease_token=?,attempts=attempts+1 WHERE id=(SELECT id FROM tracks WHERE (status='queued' OR (status='processing' AND lease_until<?)) AND attempts<3 ORDER BY created LIMIT 1) RETURNING id,original_ext,has_cover,lease_token",now()+900,token,now()).first();return json({job});
