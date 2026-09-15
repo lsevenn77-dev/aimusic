@@ -1,6 +1,6 @@
 import { sqliteTable, text, integer, real, primaryKey, index, uniqueIndex } from 'drizzle-orm/sqlite-core';
 export const users=sqliteTable('users',{
- id:text('id').primaryKey(), email:text('email').notNull(), name:text('name').notNull(), password:text('password'), provider:text('provider').notNull().default('email'), subject:text('subject'), created:integer('created').notNull()
+ id:text('id').primaryKey(), email:text('email').notNull(), name:text('name').notNull(), password:text('password'), provider:text('provider').notNull().default('email'), subject:text('subject'), created:integer('created').notNull(), premiumUntil:integer('premium_until').notNull().default(0), playlistSelection:text('playlist_selection').notNull().default('[]')
 },t=>[uniqueIndex('users_identity').on(t.provider,t.subject),uniqueIndex('users_email_provider').on(t.email,t.provider)]);
 export const sessions=sqliteTable('sessions',{token:text('token').primaryKey(),userId:text('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),expires:integer('expires').notNull()});
 export const oauth=sqliteTable('oauth_states',{state:text('state').primaryKey(),provider:text('provider').notNull(),verifier:text('verifier').notNull(),nonce:text('nonce').notNull(),expires:integer('expires').notNull()});

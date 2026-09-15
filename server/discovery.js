@@ -1,6 +1,7 @@
 import {rows,one,run,query,now,fail,str,json} from './db.js';
 import {requireUser} from './auth.js';
 import {trackList,published,GENRES} from './catalog.js';
+import {activePlaylistSQL,membership} from './membership.js';
 
 export const MOODS=[
  {id:'comfort',name:'우울할 때',caption:'마음을 다독이는 음악',keywords:['우울','위로','감성','슬픔'],symbol:'☁'},
@@ -13,7 +14,7 @@ export const MOODS=[
 function moodFilter(mood){return {sql:'('+mood.keywords.map(()=>"lower(t.tags) LIKE ?").join(' OR ')+')',args:mood.keywords.map(k=>'%'+k.toLowerCase()+'%')};}
 
 export async function playlistSummaries(env,userId='',where='p.is_public=1',args=[],sort='p.created DESC,p.id',limit=100){
- const data=await rows(env,`SELECT p.id,p.user_id,p.name,p.description,p.is_public,p.created,u.name owner_name,
+ const data=await rows(env,`SELECT p.id,p.user_id,p.name,p.description,p.is_public,p.created,u.name owner_name,${activePlaylistSQL()} active,
  (SELECT count(*) FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id WHERE pt.playlist_id=p.id AND t.status='published') tracks,
  (SELECT COALESCE(sum(t.duration),0) FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id WHERE pt.playlist_id=p.id AND t.status='published') duration,
  (SELECT count(*) FROM playlist_saves s WHERE s.playlist_id=p.id) saves,
@@ -23,11 +24,11 @@ export async function playlistSummaries(env,userId='',where='p.is_public=1',args
  FROM playlists p JOIN users u ON u.id=p.user_id
  LEFT JOIN playlist_saves ps ON ps.playlist_id=p.id AND ps.user_id=?
  LEFT JOIN playlist_preferences pref ON pref.playlist_id=p.id AND pref.user_id=?
- WHERE ${where} ORDER BY ${sort} LIMIT ${limit}`,userId,userId,...args);
- return data.map(({covers_json,...p})=>({...p,covers:JSON.parse(covers_json||'[]')}));
+ WHERE (${where}) AND (p.user_id=? OR ${activePlaylistSQL()}) ORDER BY ${sort} LIMIT ${limit}`,userId,userId,...args,userId);
+ return data.map(({covers_json,...p})=>({...p,locked:!p.active,covers:JSON.parse(covers_json||'[]')}));
 }
 async function accessibleLibrary(env,uid){return playlistSummaries(env,uid,'(p.user_id=? OR (p.is_public=1 AND ps.user_id IS NOT NULL))',[uid],'pinned DESC,position ASC,p.created DESC,p.id',500);}
-async function libraryMember(env,uid,pid){const p=await one(env,'SELECT p.* FROM playlists p WHERE p.id=? AND (p.user_id=? OR (p.is_public=1 AND EXISTS(SELECT 1 FROM playlist_saves s WHERE s.playlist_id=p.id AND s.user_id=?)))',pid,uid,uid);if(!p)fail(404,'보관함에서 이 플레이리스트를 찾을 수 없습니다.');return p;}
+async function libraryMember(env,uid,pid){const p=await one(env,`SELECT p.* FROM playlists p WHERE p.id=? AND (p.user_id=? OR (p.is_public=1 AND ${activePlaylistSQL()} AND EXISTS(SELECT 1 FROM playlist_saves s WHERE s.playlist_id=p.id AND s.user_id=?)))`,pid,uid,uid);if(!p)fail(404,'보관함에서 이 플레이리스트를 찾을 수 없습니다.');return p;}
 
 export async function discoveryRoute(req,env,path,user){
  const url=new URL(req.url),method=req.method;
@@ -47,16 +48,16 @@ export async function discoveryRoute(req,env,path,user){
    tracks:await trackList(env,"t.status='published' AND (t.title LIKE ? OR a.name LIKE ? OR p.name LIKE ? OR t.genre LIKE ? OR t.tags LIKE ?)",Array(5).fill(pattern),'t.created DESC',100),
    artists:await rows(env,"SELECT a.*,(SELECT count(*) FROM follows f WHERE f.kind='artist' AND f.target_id=a.id) followers FROM artists a WHERE (a.name LIKE ? OR a.bio LIKE ?) AND EXISTS(SELECT 1 FROM tracks t WHERE t.artist_id=a.id AND t.status='published') ORDER BY a.name LIMIT 100",pattern,pattern),
    producers:await rows(env,"SELECT p.id,p.name,p.bio,p.image_version,(SELECT count(*) FROM follows f WHERE f.kind='producer' AND f.target_id=p.id) followers FROM producers p WHERE (p.name LIKE ? OR p.bio LIKE ?) AND EXISTS(SELECT 1 FROM tracks t WHERE t.producer_id=p.id AND t.status='published') ORDER BY p.name LIMIT 100",pattern,pattern),
-   playlists:await playlistSummaries(env,user?.id||'',"p.is_public=1 AND (p.name LIKE ? OR p.description LIKE ? OR u.name LIKE ?)",[pattern,pattern,pattern])
+   playlists:await playlistSummaries(env,user?.id||'',`p.is_public=1 AND ${activePlaylistSQL()} AND (p.name LIKE ? OR p.description LIKE ? OR u.name LIKE ?)`,[pattern,pattern,pattern])
   });
  }
  if(path==='/api/playlists'&&method==='GET'){
   const q=(url.searchParams.get('q')||'').slice(0,100),sort=url.searchParams.get('sort')==='popular'?'saves DESC,p.created DESC,p.id':'p.created DESC,p.id';
-  return json({playlists:await playlistSummaries(env,user?.id||'',"p.is_public=1 AND EXISTS(SELECT 1 FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id WHERE pt.playlist_id=p.id AND t.status='published') AND (p.name LIKE ? OR p.description LIKE ? OR u.name LIKE ?)",Array(3).fill('%'+q+'%'),sort)});
+  return json({playlists:await playlistSummaries(env,user?.id||'',`p.is_public=1 AND ${activePlaylistSQL()} AND EXISTS(SELECT 1 FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id WHERE pt.playlist_id=p.id AND t.status='published') AND (p.name LIKE ? OR p.description LIKE ? OR u.name LIKE ?)`,Array(3).fill('%'+q+'%'),sort)});
  }
  if(path==='/api/library'&&method==='GET'){
   requireUser(user);const items=await accessibleLibrary(env,user.id);
-  return json({likes:await trackList(env,"t.status='published' AND t.id IN (SELECT track_id FROM likes WHERE user_id=?)",[user.id],'t.created DESC',500),playlists:items.filter(p=>p.user_id===user.id),saved:items.filter(p=>p.user_id!==user.id),collections:items,
+  return json({membership:await membership(env,user),likes:await trackList(env,"t.status='published' AND t.id IN (SELECT track_id FROM likes WHERE user_id=?)",[user.id],'t.created DESC',500),playlists:items.filter(p=>p.user_id===user.id),saved:items.filter(p=>p.user_id!==user.id),collections:items,
    follows:await rows(env,"SELECT f.*,COALESCE(a.name,p.name) name,COALESCE(a.bio,p.bio) bio,COALESCE(a.image_version,p.image_version) image_version FROM follows f LEFT JOIN artists a ON f.kind='artist' AND a.id=f.target_id LEFT JOIN producers p ON f.kind='producer' AND p.id=f.target_id WHERE f.user_id=?",user.id)});
  }
  let m=path.match(/^\/api\/playlists\/([\w-]+)\/save$/);
@@ -64,7 +65,7 @@ export async function discoveryRoute(req,env,path,user){
   requireUser(user);
   if(method==='DELETE'){await run(env,'DELETE FROM playlist_saves WHERE user_id=? AND playlist_id=?',user.id,m[1]);await run(env,'DELETE FROM playlist_preferences WHERE user_id=? AND playlist_id=? AND NOT EXISTS(SELECT 1 FROM playlists WHERE id=? AND user_id=?)',user.id,m[1],m[1],user.id);return json({ok:true});}
   if(method!=='PUT')fail(405,'지원하지 않는 요청입니다.');
-  const p=await one(env,'SELECT * FROM playlists WHERE id=? AND is_public=1',m[1]);if(!p)fail(404,'공개 플레이리스트를 찾을 수 없습니다.');if(p.user_id===user.id)fail(400,'내 플레이리스트는 이미 보관함에 있습니다.');
+  const p=await one(env,`SELECT p.* FROM playlists p WHERE id=? AND is_public=1 AND ${activePlaylistSQL()}`,m[1]);if(!p)fail(404,'공개 플레이리스트를 찾을 수 없습니다.');if(p.user_id===user.id)fail(400,'내 플레이리스트는 이미 보관함에 있습니다.');
   await run(env,'INSERT OR IGNORE INTO playlist_saves(user_id,playlist_id,created) VALUES(?,?,?)',user.id,p.id,now());return json({ok:true});
  }
  if(path==='/api/library/playlists/order'&&method==='PUT'){

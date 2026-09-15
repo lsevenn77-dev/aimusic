@@ -2,6 +2,8 @@ import {json,fail,rate,query,now} from './db.js';
 import {viewer,authRoute,hash} from './auth.js';
 import {catalogRoute} from './catalog.js';
 import {mediaRoute,internalRoute} from './media.js';
+import {membershipRoute} from './membership.js';
+import {lyricsRoute} from './lyrics.js';
 export default {async fetch(req,env,ctx){
  const url=new URL(req.url),path=url.pathname;
  try{
@@ -25,7 +27,7 @@ export default {async fetch(req,env,ctx){
    query(env,'DELETE FROM oauth_states WHERE expires<?',now()),
    query(env,'DELETE FROM rate_limits WHERE expires<?',now())
   ]).catch(()=>console.error('Expired authentication state cleanup failed')));
-  const result=await authRoute(req,env,path,user)||await catalogRoute(req,env,path,user)||await mediaRoute(req,env,path,user);
+  const result=await authRoute(req,env,path,user)||await membershipRoute(req,env,path,user)||await lyricsRoute(req,env,path,user)||await catalogRoute(req,env,path,user)||await mediaRoute(req,env,path,user);
   if(result)return result;
   return json({error:'페이지를 찾을 수 없습니다.'},404);
  }catch(e){

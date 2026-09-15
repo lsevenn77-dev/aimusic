@@ -36,6 +36,13 @@
       "when": 1789470637436,
       "tag": "0004_even_red_skull",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1789474913161,
+      "tag": "0005_unique_goblin_queen",
+      "breakpoints": true
     }
   ]
 }
