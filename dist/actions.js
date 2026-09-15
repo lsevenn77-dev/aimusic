@@ -13,7 +13,7 @@ function bindForms(base,param){
  }
  if($('#new-playlist'))$('#new-playlist').onclick=()=>playlistDialog();
  if($('#upload-form'))$('#upload-form').onsubmit=busyForm($('#upload-form'),upload);
- if($('#producer-form')){const form=$('#producer-form');form.onsubmit=busyForm(form,async fd=>{await api('/api/studio/profile','PUT',Object.fromEntries(fd));toast('프로필을 저장했습니다.');});}
+ bindStudioForms();
 }
 let googleScriptPromise;
 async function prepareGoogle(){
@@ -27,10 +27,16 @@ async function prepareGoogle(){
 }
 async function reloadComments(tid){const {comments}=await api(`/api/tracks/${tid}/comments?sort=${$('#comment-sort')?.value||'latest'}`);if($('#comments'))$('#comments').innerHTML=commentsHTML(comments,trackMap.get(tid));}
 async function upload(fd){
- const file=fd.get('audio'),image=fd.get('cover');if(!file?.size)throw new Error('음원 파일을 선택해주세요.');if(file.size>80*1024*1024)throw new Error('음원은 80MB 이하로 업로드해주세요.');if(image?.size>5*1024*1024)throw new Error('커버는 5MB 이하로 업로드해주세요.');
- const body={...Object.fromEntries(fd),participation:fd.getAll('participation').join(', '),rights:fd.has('rights'),is_ai:fd.has('is_ai'),extension:file.name.split('.').pop().toLowerCase(),bytes:file.size};delete body.audio;delete body.cover;
+ const file=fd.get('audio'),image=fd.get('cover');if(!file?.size)throw new Error('음원 파일을 선택해주세요.');if(file.size>80*1024*1024)throw new Error('음원은 80MB 이하로 업로드해주세요.');
+ for(const name of ['cover','artist_image','producer_image'])await validateImage(fd.get(name));
+ const body={...textFields(fd),participation:fd.getAll('participation').join(', '),rights:fd.has('rights'),is_ai:fd.has('is_ai'),extension:file.name.split('.').pop().toLowerCase(),bytes:file.size};
  const progress=$('.upload-progress');progress.hidden=false;progress.querySelector('p').textContent='업로드를 준비하고 있습니다.';
- const {id}=await api('/api/uploads','POST',body);
+ const form=$('#upload-form'),fingerprint=JSON.stringify([body,file.name,file.lastModified]);
+ let draft=form._draft;if(!draft||draft.fingerprint!==fingerprint){draft={...await api('/api/uploads','POST',body),fingerprint};form._draft=draft;}
+ const {id,artist_id,producer_id}=draft;
+ await api('/api/studio/profile','PUT',{name:body.producer,bio:body.producer_bio});
+ await api(`/api/studio/artists/${artist_id}`,'PUT',{name:body.artist,bio:body.artist_bio,genre:body.genre});
+ for(const [name,kind,entityId] of [['artist_image','artists',artist_id],['producer_image','producers',producer_id]]){if(fd.get(name)?.size){progress.querySelector('p').textContent='프로필 사진을 업로드하고 있습니다.';await uploadFile(`/api/studio/${kind}/${entityId}/image`,fd.get(name));}}
  await uploadFile(`/api/uploads/${id}/audio`,file,value=>{progress.querySelector('progress').value=value;progress.querySelector('p').textContent=`음원 업로드 ${Math.round(value)}%`;});
  if(image?.size){progress.querySelector('p').textContent='커버를 업로드하고 있습니다.';await uploadFile(`/api/uploads/${id}/cover`,image);}
  await api(`/api/uploads/${id}/complete`,'POST');toast('업로드 완료! 음원 변환이 끝나면 공개됩니다.');location.hash='studio';

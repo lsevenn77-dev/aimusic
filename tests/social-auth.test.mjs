@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
-import {readFileSync} from 'node:fs';
+import {readFileSync,readdirSync} from 'node:fs';
 import {generateKeyPair,exportJWK,exportPKCS8,SignJWT,jwtVerify} from 'jose';
 import worker from '../server/index.js';
 import {appleClientSecret,providers} from '../server/auth.js';
@@ -14,7 +14,7 @@ const jwk={...await exportJWK(keys.publicKey),kid:'test-key',alg:'RS256',use:'si
 
 function fixture(t,extra={}){
  const sqlite=new DatabaseSync(':memory:');
- sqlite.exec(readFileSync(new URL('../drizzle/0000_natural_black_tom.sql',import.meta.url),'utf8'));
+ for(const file of readdirSync(new URL('../drizzle/',import.meta.url)).filter(x=>x.endsWith('.sql')).sort())sqlite.exec(readFileSync(new URL('../drizzle/'+file,import.meta.url),'utf8'));
  t.after(()=>sqlite.close());
  const DB={prepare(sql){return {bind(...args){const stmt=sqlite.prepare(sql);return {
   async first(){return stmt.get(...args)||null;},async all(){return {results:stmt.all(...args)};},async run(){stmt.run(...args);return {success:true};}

@@ -1,6 +1,6 @@
 # AIFECT
 
-Public AI music MVP at https://aifect.co.kr. The approved static design now uses a Cloudflare Worker, Sites-managed D1 (`DB`) and a private R2 binding (`BUCKET`). Originals never have a public route. The separate transcoder on the existing server produces AAC 128kbps M4A, a 60-second preview and sanitized JPEG covers.
+Public AI music MVP at https://aifect.co.kr. The approved static design now uses a Cloudflare Worker, Sites-managed D1 (`DB`) and a private R2 binding (`BUCKET`). Originals never have a public route. The separate transcoder on the existing server produces AAC 128kbps M4A and a 60-second preview. Images use versioned R2 objects; legacy transcoder JPEG covers remain supported.
 
 ## Local development
 
@@ -16,7 +16,7 @@ Google uses Google Identity Services with server signature/issuer/audience/nonce
 
 Kakao uses authorization code with browser-bound one-use state. Configure `KAKAO_CLIENT_ID` (REST API key), optional `KAKAO_CLIENT_SECRET` according to the developer console, and redirect `https://aifect.co.kr/api/auth/kakao/callback`.
 
-Apple requires a web Services ID, its configured return URL `https://aifect.co.kr/api/auth/apple/callback`, and an Apple-generated signed client secret in `APPLE_CLIENT_ID` / `APPLE_CLIENT_SECRET`. Native App Store API keys and mobile bundle IDs are not a substitute. Apple client secrets expire and must be renewed by the operator. OAuth provider identities are separate; matching email alone never links accounts.
+Apple requires a web Services ID in `APPLE_CLIENT_ID`, its configured return URL `https://aifect.co.kr/api/auth/apple/callback`, and `APPLE_PRIVATE_KEY`, `APPLE_KEY_ID`, `APPLE_TEAM_ID`. The backend signs a fresh five-minute client secret for each exchange. A static `APPLE_CLIENT_SECRET` remains supported as a legacy fallback, with operator-managed expiry. Native App Store API keys and mobile bundle IDs are not substitutes. OAuth provider identities are separate; matching email alone never links accounts.
 
 Unconfigured providers show an explicit disabled state. Store all runtime values in Sites environment variables, never the hosting manifest or browser bundle.
 
@@ -27,6 +27,10 @@ Deploy only `transcoder/` to `/root/aifect` on the existing server, with `.env` 
 Limits: WAV/FLAC/MP3 up to 80MB; JPEG/PNG/WebP cover up to 5MB; 5 seconds–20 minutes. Guests only receive the physically truncated preview. Members can stream the full encoded version, never the private original. Tracks can be unpublished from Studio, invalidating media access. There is no public admin endpoint.
 
 ## Charts and scope
+
+Upload includes an album/single cover, AI artist photo/name/bio, and composer/producer photo/name/bio. Existing owned artists can be selected for another release. Shared profiles can be edited in Studio; track metadata and covers can be changed without retranscoding audio or interrupting publication. Images are optional JPEG/PNG/WebP, up to 5MB each, with browser previews and server body-size/signature checks. Artist/producer introductions support 1,000 characters; track descriptions support 4,000. Owner-only image routes accept uploads; private R2 files become readable only for the owner or an associated published track. Versioned URLs refresh replaced artwork. Prior versions are retained in private storage.
+
+Migration `0001_gigantic_spectrum.sql` adds profile image and cover version/type fields without changing existing rows. `dist/studio.js` and `dist/studio.css` hold creator forms and styling. The real local API suite verifies image storage/reads, ownership, hidden images, forged types, size limits, and metadata changes in addition to the authentication tests.
 
 TOP100 uses qualified unique listener-days plus likes/comments; rising ranks the last 7 days' unique listeners; newcomers require recent producers with fewer than 1,000 followers. Qualification requires 30 seconds or 60% of a short song and is bounded by elapsed server time. These are initial transparent rules, not a mature fraud detector. Payments, tips, licensing, generation and mobile apps are intentionally outside this MVP.
 

@@ -1,0 +1,37 @@
+.form-section-heading{display:flex;align-items:center;gap:12px;margin:34px 0 20px;padding-top:25px;border-top:1px solid #3a4932}
+.form-section-heading:first-child{margin-top:0;padding-top:0;border-top:0}
+.form-section-heading>span{font-size:12px;color:var(--lime);border:1px solid #526442;border-radius:50%;width:31px;height:31px;display:grid;place-items:center;flex-shrink:0}
+.upload-form .form-section-heading h2{margin:0;font-size:20px}
+.image-field{display:flex;align-items:center;gap:22px;margin:22px 0 26px;padding:20px;border:1px solid #405136;border-radius:12px;background:#172014}
+.image-preview{width:132px;height:132px;flex-shrink:0;overflow:hidden;display:grid;place-items:center;border-radius:10px;background:#2b3923;border:1px dashed #5d734e;color:var(--lime)}
+.is-portrait .image-preview{border-radius:50%}
+.image-preview img{display:block;width:100%;height:100%;object-fit:cover}
+.image-preview svg{width:27px;height:27px}
+.image-field-controls{min-width:0;flex:1}
+.image-field .form-field{margin:0;gap:12px}
+.image-field input{width:100%;min-width:0;background:transparent;border:0;padding:0;font-size:12px}
+.image-field input::file-selector-button{background:#34482a;color:#e2f2d7;border:1px solid #597046;border-radius:6px;padding:9px 12px;cursor:pointer;margin:0 10px 6px 0;font-family:inherit}
+.field-help{display:block;font-size:12px;font-weight:400;color:#a3b598;line-height:1.85;margin:9px 0 0}
+.image-selection{display:block;font-size:12px;color:var(--lime);overflow-wrap:anywhere;line-height:1.7}
+.image-field .text-link{margin-top:7px;font-size:12px}
+.upload-guide hr{border:0;border-top:1px solid #435539;margin:24px 0}
+.profile-editor,.track-editor{max-width:850px}
+.track-editor{margin-top:22px}
+.artist-editors{display:grid;gap:16px}
+.artist-editor>summary{display:flex;align-items:center;gap:18px;cursor:pointer;list-style:none}
+.artist-editor>summary::-webkit-details-marker{display:none}
+.artist-editor>summary .artist-portrait{height:65px;width:65px;flex-shrink:0;font-size:24px;margin:0}
+.artist-editor>summary>div:not(.artist-portrait){flex:1;min-width:0}
+.artist-editor>summary strong{font-size:18px;overflow-wrap:anywhere}
+.artist-editor>summary span{display:block;color:#a3b598;font-size:13px;margin-top:8px}
+.artist-editor>summary>svg{width:20px;height:20px;color:var(--lime)}
+.artist-editor[open]>summary>svg{transform:rotate(90deg)}
+.artist-editor .artist-form{max-width:800px;padding:10px 0 0}
+.studio-track-title{display:flex;align-items:center;gap:16px;min-width:0}
+.studio-track-title .mini-cover{width:60px;height:60px;flex-shrink:0}
+.studio-track-title strong{overflow-wrap:anywhere}
+.profile-hero p{white-space:pre-wrap;overflow-wrap:anywhere}
+.artist-card>p{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.artist-portrait{overflow:hidden}
+.artist-portrait img{width:100%;height:100%;object-fit:cover}
+@media(max-width:580px){.image-field{gap:15px;padding:15px;align-items:flex-start}.image-preview{width:82px;height:82px}.image-field .form-field{font-size:13px}.image-field input{font-size:11px}.form-section-heading{margin-top:26px;padding-top:22px}.upload-form .form-section-heading h2{font-size:18px}.profile-hero{flex-wrap:wrap}.artist-editor{padding:20px}.artist-editor>summary .artist-portrait{width:52px;height:52px}.image-field .field-help{font-size:11px}.artist-editor>summary strong{font-size:16px}}

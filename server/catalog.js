@@ -1,7 +1,7 @@
 import {rows,one,run,query,now,id,fail,str,json,rate} from './db.js';
 import {requireUser,hash} from './auth.js';
 export const GENRES=['K-POP','Ballad','R&B','Hip-Hop','Rock','EDM','City Pop','OST','Instrumental'];
-const SELECT=`SELECT t.id,t.title,t.genre,t.tags,t.description,t.ai_tool,t.participation,t.duration,t.created,t.has_cover,t.artist_id,t.producer_id,a.name artist,p.name producer,t.user_id,
+const SELECT=`SELECT t.id,t.title,t.genre,t.tags,t.description,t.ai_tool,t.participation,t.duration,t.created,t.has_cover,t.cover_version,t.artist_id,t.producer_id,a.name artist,p.name producer,t.user_id,
  (SELECT count(*) FROM likes l WHERE l.track_id=t.id) likes,
  (SELECT count(*) FROM comments c WHERE c.track_id=t.id) comments,
  (SELECT count(DISTINCT listener||day) FROM listens l WHERE l.track_id=t.id AND l.qualified=1) plays
@@ -19,7 +19,7 @@ export async function catalogRoute(req,env,path,user){
   if(chart==='top')sort='(plays+likes*3+comments*2) DESC,t.created DESC';
   if(chart==='rising')sort="(SELECT count(DISTINCT listener) FROM listens l WHERE l.track_id=t.id AND l.qualified=1 AND l.started>unixepoch()-604800) DESC,t.created DESC";
   if(chart==='newcomers')where+=' AND p.created>unixepoch()-2592000 AND (SELECT count(*) FROM follows f WHERE f.kind=\'producer\' AND f.target_id=p.id)<1000';
-  return json({tracks:await trackList(env,where,args,sort),artists:await rows(env,`SELECT a.*, (SELECT count(*) FROM follows f WHERE f.kind='artist' AND f.target_id=a.id) followers FROM artists a WHERE EXISTS(SELECT 1 FROM tracks t WHERE t.artist_id=a.id AND t.status='published') ORDER BY created DESC LIMIT 100`),producers:await rows(env,`SELECT p.id,p.name,p.bio,p.created,(SELECT count(*) FROM follows f WHERE f.kind='producer' AND f.target_id=p.id) followers FROM producers p WHERE EXISTS(SELECT 1 FROM tracks t WHERE t.producer_id=p.id AND t.status='published') ORDER BY created DESC LIMIT 100`)});
+  return json({tracks:await trackList(env,where,args,sort),artists:await rows(env,`SELECT a.*, (SELECT count(*) FROM follows f WHERE f.kind='artist' AND f.target_id=a.id) followers FROM artists a WHERE EXISTS(SELECT 1 FROM tracks t WHERE t.artist_id=a.id AND t.status='published') ORDER BY created DESC LIMIT 100`),producers:await rows(env,`SELECT p.id,p.name,p.bio,p.created,p.image_version,(SELECT count(*) FROM follows f WHERE f.kind='producer' AND f.target_id=p.id) followers FROM producers p WHERE EXISTS(SELECT 1 FROM tracks t WHERE t.producer_id=p.id AND t.status='published') ORDER BY created DESC LIMIT 100`)});
  }
  let m=path.match(/^\/api\/tracks\/([\w-]+)(?:\/(like|comments))?$/);
  if(m){
@@ -61,7 +61,7 @@ export async function catalogRoute(req,env,path,user){
  m=path.match(/^\/api\/(artists|producers)\/([\w-]+)(\/follow)?$/);
  if(m){
   const kind=m[1]==='artists'?'artist':'producer';
-  const entity=await one(env,`SELECT id,name,bio,created FROM ${m[1]} WHERE id=?`,m[2]);if(!entity)fail(404,'프로필을 찾을 수 없습니다.');
+  const entity=await one(env,`SELECT id,name,bio,created,image_version FROM ${m[1]} WHERE id=?`,m[2]);if(!entity)fail(404,'프로필을 찾을 수 없습니다.');
   if(!m[3]&&method==='GET')return json({profile:entity,tracks:await trackList(env,`t.status='published' AND t.${kind}_id=?`,[entity.id]),followers:(await one(env,'SELECT count(*) n FROM follows WHERE kind=? AND target_id=?',kind,entity.id)).n});
   requireUser(user);
   if(method==='PUT')await run(env,'INSERT OR IGNORE INTO follows(user_id,kind,target_id,created) VALUES(?,?,?,?)',user.id,kind,entity.id,now());
@@ -69,7 +69,7 @@ export async function catalogRoute(req,env,path,user){
   return json({ok:true});
  }
  if(path==='/api/library'&&method==='GET'){
-  requireUser(user);return json({likes:await trackList(env,"t.status='published' AND t.id IN (SELECT track_id FROM likes WHERE user_id=?)",[user.id]),playlists:await rows(env,'SELECT p.*,(SELECT count(*) FROM playlist_tracks pt WHERE pt.playlist_id=p.id) tracks FROM playlists p WHERE user_id=? ORDER BY created DESC',user.id),follows:await rows(env,'SELECT f.*,COALESCE(a.name,p.name) name FROM follows f LEFT JOIN artists a ON f.kind=\'artist\' AND a.id=f.target_id LEFT JOIN producers p ON f.kind=\'producer\' AND p.id=f.target_id WHERE f.user_id=?',user.id)});
+  requireUser(user);return json({likes:await trackList(env,"t.status='published' AND t.id IN (SELECT track_id FROM likes WHERE user_id=?)",[user.id]),playlists:await rows(env,'SELECT p.*,(SELECT count(*) FROM playlist_tracks pt WHERE pt.playlist_id=p.id) tracks FROM playlists p WHERE user_id=? ORDER BY created DESC',user.id),follows:await rows(env,'SELECT f.*,COALESCE(a.name,p.name) name,COALESCE(a.bio,p.bio) bio,COALESCE(a.image_version,p.image_version) image_version FROM follows f LEFT JOIN artists a ON f.kind=\'artist\' AND a.id=f.target_id LEFT JOIN producers p ON f.kind=\'producer\' AND p.id=f.target_id WHERE f.user_id=?',user.id)});
  }
  if(path==='/api/history'&&method==='GET'){requireUser(user);return json({tracks:await trackList(env,"t.status='published' AND t.id IN (SELECT track_id FROM listens WHERE user_id=?)",[user.id],`(SELECT MAX(started) FROM listens l WHERE l.track_id=t.id AND l.user_id='${user.id.replaceAll("'",'')}') DESC`)});}
  if(path==='/api/playlists'&&method==='POST'){

@@ -2,7 +2,7 @@ import { build } from 'esbuild';
 import { mkdir, cp, writeFile } from 'node:fs/promises';
 await mkdir('dist/server',{recursive:true});
 await mkdir('dist/client',{recursive:true});
-for (const file of ['index.html','app.js','icons.js','views.js','actions.js','style.css','assets']) await cp(`dist/${file}`,`dist/client/${file}`,{recursive:true});
+for (const file of ['index.html','app.js','icons.js','views.js','studio.js','actions.js','style.css','studio.css','assets']) await cp(`dist/${file}`,`dist/client/${file}`,{recursive:true});
 await build({entryPoints:['server/index.js'], outfile:'dist/server/index.js', bundle:true, format:'esm', platform:'neutral', target:'es2022', external:['cloudflare:workers'], minify:false});
 await mkdir('dist/.openai',{recursive:true});
 await cp('.openai/hosting.json','dist/.openai/hosting.json');
