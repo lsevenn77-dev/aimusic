@@ -1,8 +1,14 @@
 import { build } from 'esbuild';
-import { mkdir, cp, writeFile } from 'node:fs/promises';
+import { mkdir, cp, writeFile, readFile } from 'node:fs/promises';
+import {businessFooterHTML} from '../shared/site-info.js';
 await mkdir('dist/server',{recursive:true});
 await mkdir('dist/client',{recursive:true});
-for (const file of ['index.html','app.js','icons.js','views.js','studio.js','lyrics.js','library.js','explorer.js','membership.js','actions.js','style.css','studio.css','lyrics.css','discovery.css','explorer.css','membership.css','assets']) await cp(`dist/${file}`,`dist/client/${file}`,{recursive:true});
+for (const file of ['index.html','app.js','icons.js','views.js','studio.js','lyrics.js','library.js','explorer.js','membership.js','alignment.js','actions.js','style.css','studio.css','lyrics.css','discovery.css','explorer.css','membership.css','alignment.css','policies.css','assets']) await cp(`dist/${file}`,`dist/client/${file}`,{recursive:true});
+const indexHTML=await readFile('dist/index.html','utf8');
+if(!indexHTML.includes('<!--BUSINESS_FOOTER-->'))throw new Error('Business footer placeholder is missing');
+await writeFile('dist/client/index.html',indexHTML.replace('<!--BUSINESS_FOOTER-->',businessFooterHTML()));
+await build({entryPoints:['shared/site-info.js'],outfile:'dist/client/site-info.js',bundle:true,format:'iife',globalName:'AifectSite',target:'es2022',minify:true});
+await build({entryPoints:['shared/alignment.js'],outfile:'dist/client/alignment-core.js',bundle:true,format:'iife',globalName:'AifectAlignment',target:'es2022',minify:true});
 await build({entryPoints:['shared/queue.js'],outfile:'dist/client/queue-core.js',bundle:true,format:'iife',globalName:'AifectQueue',target:'es2022',minify:true});
 await build({entryPoints:['shared/lyrics.js'],outfile:'dist/client/lyrics-core.js',bundle:true,format:'iife',globalName:'AifectLyrics',target:'es2022',minify:true});
 await build({entryPoints:['server/index.js'], outfile:'dist/server/index.js', bundle:true, format:'esm', platform:'neutral', target:'es2022', external:['cloudflare:workers'], minify:false});

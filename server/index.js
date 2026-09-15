@@ -4,10 +4,13 @@ import {catalogRoute} from './catalog.js';
 import {mediaRoute,internalRoute} from './media.js';
 import {membershipRoute} from './membership.js';
 import {lyricsRoute} from './lyrics.js';
+import {alignmentRoute} from './alignment.js';
+import {publicPageRoute} from './public-pages.js';
 export default {async fetch(req,env,ctx){
  const url=new URL(req.url),path=url.pathname;
  try{
   if(path.startsWith('/internal/'))return await internalRoute(req,env,path);
+  const publicResponse=publicPageRoute(req,path);if(publicResponse)return publicResponse;
   if(!path.startsWith('/api/')&&!path.startsWith('/media/')){
    if(!['GET','HEAD'].includes(req.method))return json({error:'허용되지 않는 요청입니다.'},405);
    return env.ASSETS.fetch(req);
@@ -19,7 +22,7 @@ export default {async fetch(req,env,ctx){
    if(origin!==url.origin||req.headers.get('sec-fetch-site')==='cross-site')fail(403,'사이트에서 다시 요청해주세요.');
   }
   if(path.startsWith('/api/auth/')&&!path.endsWith('/callback'))await rate(env,'auth-ip:'+await hash(req.headers.get('cf-connecting-ip')||'local'),40,900);
-  const maxJson=path==='/api/uploads'||/^\/api\/studio\/tracks\/[^/]+$/.test(path)?131072:32768;
+  const maxJson=path==='/api/uploads'||/^\/api\/studio\/tracks\/[^/]+(?:\/lyrics\/align)?$/.test(path)?131072:32768;
   if(Number(req.headers.get('content-length')||0)>maxJson&&!/^\/api\/uploads\/[^/]+\/(audio|cover)$/.test(path)&&!/^\/api\/studio\/(artists|producers|tracks)\/[^/]+\/image$/.test(path))fail(413,'요청이 너무 큽니다.');
   const user=await viewer(req,env);
   if(Math.random()<.005)ctx.waitUntil(env.DB.batch([
@@ -27,7 +30,7 @@ export default {async fetch(req,env,ctx){
    query(env,'DELETE FROM oauth_states WHERE expires<?',now()),
    query(env,'DELETE FROM rate_limits WHERE expires<?',now())
   ]).catch(()=>console.error('Expired authentication state cleanup failed')));
-  const result=await authRoute(req,env,path,user)||await membershipRoute(req,env,path,user)||await lyricsRoute(req,env,path,user)||await catalogRoute(req,env,path,user)||await mediaRoute(req,env,path,user);
+  const result=await authRoute(req,env,path,user)||await membershipRoute(req,env,path,user)||await alignmentRoute(req,env,path,user)||await lyricsRoute(req,env,path,user)||await catalogRoute(req,env,path,user)||await mediaRoute(req,env,path,user);
   if(result)return result;
   return json({error:'페이지를 찾을 수 없습니다.'},404);
  }catch(e){

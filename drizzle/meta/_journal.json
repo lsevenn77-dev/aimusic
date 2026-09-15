@@ -43,6 +43,13 @@
       "when": 1789474913161,
       "tag": "0005_unique_goblin_queen",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1789476834862,
+      "tag": "0006_nervous_otto_octavius",
+      "breakpoints": true
     }
   ]
 }

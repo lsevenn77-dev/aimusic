@@ -4,6 +4,7 @@ import {published,GENRES} from './catalog.js';
 import {storeImage} from './images.js';
 import {studioRoute} from './studio.js';
 import {lyricsFields} from './lyrics.js';
+import {alignmentInternalRoute,alignmentWrite} from './alignment.js';
 const MAX_AUDIO=80*1024*1024;
 export async function listener(req,user){return user?.id||await hash((req.headers.get('cf-connecting-ip')||'local')+'|'+(req.headers.get('user-agent')||'')+'|'+new Date().toISOString().slice(0,10));}
 async function put(env,key,req,max,type){
@@ -31,7 +32,7 @@ export async function mediaRoute(req,env,path,user){
  const method=req.method;
  const studio=await studioRoute(req,env,path,user);if(studio)return studio;
  if(path==='/api/studio'&&method==='GET'){
-  requireUser(user);return json({producer:await one(env,'SELECT * FROM producers WHERE user_id=?',user.id),artists:await rows(env,'SELECT a.* FROM artists a JOIN producers p ON a.producer_id=p.id WHERE p.user_id=?',user.id),tracks:await rows(env,'SELECT id,title,status,error,created,duration,has_cover,cover_version,artist_id FROM tracks WHERE user_id=? ORDER BY created DESC LIMIT 100',user.id)});
+  requireUser(user);return json({producer:await one(env,'SELECT * FROM producers WHERE user_id=?',user.id),artists:await rows(env,'SELECT a.* FROM artists a JOIN producers p ON a.producer_id=p.id WHERE p.user_id=?',user.id),tracks:await rows(env,'SELECT t.id,t.title,t.status,t.error,t.created,t.duration,t.has_cover,t.cover_version,t.artist_id,j.state alignment_state FROM tracks t LEFT JOIN lyric_jobs j ON j.track_id=t.id WHERE t.user_id=? ORDER BY t.created DESC LIMIT 100',user.id)});
  }
  if(path==='/api/studio/profile'&&method==='PUT'){
   requireUser(user);const b=await req.json(),p=await one(env,'SELECT id FROM producers WHERE user_id=?',user.id),pid=p?.id||id();
@@ -49,7 +50,8 @@ export async function mediaRoute(req,env,path,user){
   let artist=b.artist_id?await one(env,'SELECT id FROM artists WHERE producer_id=? AND id=?',producer.id,str(b.artist_id,80)):await one(env,'SELECT id FROM artists WHERE producer_id=? AND name=?',producer.id,artistName);
   if(b.artist_id&&!artist)fail(404,'내 AI 아티스트를 선택해주세요.');
   if(!artist){artist={id:id()};await run(env,'INSERT INTO artists(id,producer_id,name,bio,genre,created) VALUES(?,?,?,?,?,?)',artist.id,producer.id,artistName,str(b.artist_bio||'',1000,false),b.genre,now());}
-  const tid=id();await run(env,'INSERT INTO tracks(id,user_id,artist_id,producer_id,title,genre,tags,description,ai_tool,participation,rights_accepted,original_ext,original_bytes,created,lyrics,lyrics_mode) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',tid,user.id,artist.id,producer.id,title,b.genre,str(b.tags||'',300,false),str(b.description||'',4000,false),tool,str(b.participation||'',100,false),now(),b.extension,b.bytes,now(),lyricData.lyrics,lyricData.mode);
+  const tid=id(),jobWrites=lyricData.auto?await alignmentWrite(env,tid,user.id,lyricData):[];
+  await env.DB.batch([query(env,'INSERT INTO tracks(id,user_id,artist_id,producer_id,title,genre,tags,description,ai_tool,participation,rights_accepted,original_ext,original_bytes,created,lyrics,lyrics_mode) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',tid,user.id,artist.id,producer.id,title,b.genre,str(b.tags||'',300,false),str(b.description||'',4000,false),tool,str(b.participation||'',100,false),now(),b.extension,b.bytes,now(),lyricData.lyrics,lyricData.mode),...jobWrites]);
   return json({id:tid,artist_id:artist.id,producer_id:producer.id},201);
  }
  let m=path.match(/^\/api\/uploads\/([\w-]+)\/(audio|cover|complete|retry|unpublish)$/);
@@ -106,6 +108,7 @@ export async function mediaRoute(req,env,path,user){
 }
 export async function internalRoute(req,env,path){
  if(!env.TRANSCODER_TOKEN||req.headers.get('authorization')!==`Bearer ${env.TRANSCODER_TOKEN}`)fail(401,'인증이 필요합니다.');
+ const alignment=await alignmentInternalRoute(req,env,path);if(alignment)return alignment;
  if(path==='/internal/health'&&req.method==='GET'){
   await one(env,'SELECT 1 healthy');await env.BUCKET.head('__aifect_healthcheck__');return json({database:true,storage:true});
  }
