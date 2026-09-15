@@ -17,7 +17,8 @@ export default {async fetch(req,env,ctx){
    if(origin!==url.origin||req.headers.get('sec-fetch-site')==='cross-site')fail(403,'사이트에서 다시 요청해주세요.');
   }
   if(path.startsWith('/api/auth/')&&!path.endsWith('/callback'))await rate(env,'auth-ip:'+await hash(req.headers.get('cf-connecting-ip')||'local'),40,900);
-  if(Number(req.headers.get('content-length')||0)>32768&&!/^\/api\/uploads\/[^/]+\/(audio|cover)$/.test(path)&&!/^\/api\/studio\/(artists|producers|tracks)\/[^/]+\/image$/.test(path))fail(413,'요청이 너무 큽니다.');
+  const maxJson=path==='/api/uploads'||/^\/api\/studio\/tracks\/[^/]+$/.test(path)?131072:32768;
+  if(Number(req.headers.get('content-length')||0)>maxJson&&!/^\/api\/uploads\/[^/]+\/(audio|cover)$/.test(path)&&!/^\/api\/studio\/(artists|producers|tracks)\/[^/]+\/image$/.test(path))fail(413,'요청이 너무 큽니다.');
   const user=await viewer(req,env);
   if(Math.random()<.005)ctx.waitUntil(env.DB.batch([
    query(env,'DELETE FROM sessions WHERE expires<?',now()),

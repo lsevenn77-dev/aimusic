@@ -3,6 +3,7 @@ import {requireUser,hash} from './auth.js';
 import {published,GENRES} from './catalog.js';
 import {storeImage} from './images.js';
 import {studioRoute} from './studio.js';
+import {lyricsFields} from './lyrics.js';
 const MAX_AUDIO=80*1024*1024;
 export async function listener(req,user){return user?.id||await hash((req.headers.get('cf-connecting-ip')||'local')+'|'+(req.headers.get('user-agent')||'')+'|'+new Date().toISOString().slice(0,10));}
 async function put(env,key,req,max,type){
@@ -40,7 +41,7 @@ export async function mediaRoute(req,env,path,user){
  }
  if(path==='/api/uploads'&&method==='POST'){
   requireUser(user);await rate(env,'upload:'+user.id,20,86400);
-  const b=await req.json(),title=str(b.title,120),artistName=str(b.artist,60),producerName=str(b.producer,60),tool=str(b.ai_tool,100);
+  const b=await req.json(),title=str(b.title,120),artistName=str(b.artist,60),producerName=str(b.producer,60),tool=str(b.ai_tool,100),lyricData=lyricsFields(b);
   if(b.rights!==true||b.is_ai!==true)fail(400,'AI 제작 여부와 음원 권리 보유 확인이 필요합니다.');
   if(!GENRES.includes(b.genre)||!['wav','flac','mp3'].includes(b.extension)||!Number.isInteger(b.bytes)||b.bytes<100||b.bytes>MAX_AUDIO)fail(400,'지원하는 장르와 80MB 이하 WAV·FLAC·MP3 파일을 선택해주세요.');
   let producer=await one(env,'SELECT * FROM producers WHERE user_id=?',user.id);
@@ -48,7 +49,7 @@ export async function mediaRoute(req,env,path,user){
   let artist=b.artist_id?await one(env,'SELECT id FROM artists WHERE producer_id=? AND id=?',producer.id,str(b.artist_id,80)):await one(env,'SELECT id FROM artists WHERE producer_id=? AND name=?',producer.id,artistName);
   if(b.artist_id&&!artist)fail(404,'내 AI 아티스트를 선택해주세요.');
   if(!artist){artist={id:id()};await run(env,'INSERT INTO artists(id,producer_id,name,bio,genre,created) VALUES(?,?,?,?,?,?)',artist.id,producer.id,artistName,str(b.artist_bio||'',1000,false),b.genre,now());}
-  const tid=id();await run(env,'INSERT INTO tracks(id,user_id,artist_id,producer_id,title,genre,tags,description,ai_tool,participation,rights_accepted,original_ext,original_bytes,created) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',tid,user.id,artist.id,producer.id,title,b.genre,str(b.tags||'',300,false),str(b.description||'',4000,false),tool,str(b.participation||'',100,false),now(),b.extension,b.bytes,now());
+  const tid=id();await run(env,'INSERT INTO tracks(id,user_id,artist_id,producer_id,title,genre,tags,description,ai_tool,participation,rights_accepted,original_ext,original_bytes,created,lyrics,lyrics_mode) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',tid,user.id,artist.id,producer.id,title,b.genre,str(b.tags||'',300,false),str(b.description||'',4000,false),tool,str(b.participation||'',100,false),now(),b.extension,b.bytes,now(),lyricData.lyrics,lyricData.mode);
   return json({id:tid,artist_id:artist.id,producer_id:producer.id},201);
  }
  let m=path.match(/^\/api\/uploads\/([\w-]+)\/(audio|cover|complete|retry|unpublish)$/);

@@ -13,7 +13,7 @@ test('real API: sessions, ownership, R2, preview, likes, comments, follows, play
  assert.equal((await call('/api/me',{cookie:owner.cookie})).data.user.id,owner.user.id);
  assert.equal((await call('/api/library')).r.status,401);
  assert.equal((await call('/api/playlists',{method:'POST',body:{name:'CSRF'},cookie:owner.cookie,headers:{Origin:'https://evil.invalid'}})).r.status,403);
- const upload={title:'API 검증용 신호',artist:'검증 아티스트',producer:'검증 제작자',genre:'Instrumental',tags:'test',description:'Local test fixture',ai_tool:'Test fixture',participation:'',rights:true,is_ai:true,extension:'wav',bytes:128};
+ const upload={title:'API 검증용 신호',artist:'검증 아티스트',producer:'검증 제작자',genre:'Instrumental',tags:'test',description:'Local test fixture',ai_tool:'Test fixture',participation:'',rights:true,is_ai:true,extension:'wav',bytes:128,lyrics_mode:'synced',lyrics:'[00:01]처음\n[00:12.250]다음'};
  assert.equal((await call('/api/uploads',{method:'POST',cookie:owner.cookie,body:{...upload,rights:false}})).r.status,400);
  out=await call('/api/uploads',{method:'POST',cookie:owner.cookie,body:upload});assert.equal(out.r.status,201,JSON.stringify(out.data));const tid=out.data.id;
  assert.equal((await putImage(`/api/uploads/${tid}/cover`,owner.cookie)).status,200);
@@ -28,6 +28,7 @@ test('real API: sessions, ownership, R2, preview, likes, comments, follows, play
  for(const kind of ['stream','preview']){r=await fetch(origin+`/internal/jobs/${tid}/${kind}`,{method:'PUT',headers:{...internal,'x-job-token':token},body:new Uint8Array(kind==='stream'?2000:1000)});assert.equal(r.status,200,await r.text());}
  out=await call(`/internal/jobs/${tid}/finish`,{method:'POST',body:{duration:70},headers:{...internal,'x-job-token':token}});assert.equal(out.r.status,200,JSON.stringify(out.data));
  const tr=(await call('/api/tracks/'+tid)).data.track;
+ assert.equal(tr.lyrics,'[00:01.000]처음\n[00:12.250]다음');assert.equal(tr.lyrics_mode,'synced');
  assert.equal((await call(`/media/${tid}/stream`)).r.status,401);
  r=await fetch(origin+`/media/${tid}/preview`,{headers:{Range:'bytes=0-99'}});assert.equal(r.status,206);assert.equal((await r.arrayBuffer()).byteLength,100);assert.equal(r.headers.get('content-range'),'bytes 0-99/1000');
  assert.equal((await fetch(origin+`/media/${tid}/stream`,{headers:{Cookie:owner.cookie}})).status,200);
@@ -66,6 +67,11 @@ test('real API: sessions, ownership, R2, preview, likes, comments, follows, play
  assert.equal((await call(`/api/studio/tracks/${tid}`,{method:'PUT',cookie:owner.cookie,body:editBody})).r.status,200);
  assert.equal((await putImage(`/api/studio/tracks/${tid}/image`,owner.cookie)).status,200);
  const updated=(await call('/api/tracks/'+tid)).data.track;assert.equal(updated.title,editBody.title);assert.equal(updated.description,editBody.description);assert.ok(updated.cover_version);assert.equal(updated.has_cover,1);
+ assert.equal((await call(`/api/studio/tracks/${tid}`,{method:'PUT',cookie:owner.cookie,body:{...editBody,lyrics_mode:'synced',lyrics:'시간이 없는 가사'}})).r.status,400);
+ assert.equal((await call(`/api/studio/tracks/${tid}`,{method:'PUT',cookie:owner.cookie,body:{...editBody,lyrics_mode:'synced',lyrics:'[01:11]곡을 넘는 가사'}})).r.status,400);
+ assert.equal((await call(`/api/studio/tracks/${tid}`,{method:'PUT',cookie:owner.cookie,body:{...editBody,lyrics_mode:'synced',lyrics:'[00:04.250]수정된 가사'}})).r.status,200);
+ assert.equal((await call('/api/tracks/'+tid)).data.track.lyrics,'[00:04.250]수정된 가사');
+ const catalogTrack=(await call('/api/catalog')).data.tracks.find(t=>t.id===tid);assert.equal(catalogTrack.likes,1);assert.equal(catalogTrack.comments,2);assert.equal(typeof catalogTrack.plays,'number');assert.equal(catalogTrack.lyrics,undefined);
  assert.equal((await fetch(origin+`/media/${tid}/cover`)).status,200);
  assert.equal((await call(`/api/uploads/${tid}/unpublish`,{method:'POST',cookie:owner.cookie})).r.status,200);
  assert.equal((await fetch(origin+`/media/${tid}/preview`)).status,404);

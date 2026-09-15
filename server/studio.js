@@ -2,6 +2,7 @@ import {one,run,str,fail,json,rate} from './db.js';
 import {requireUser} from './auth.js';
 import {GENRES} from './catalog.js';
 import {storeImage} from './images.js';
+import {lyricsFields} from './lyrics.js';
 
 export async function studioRoute(req,env,path,user){
  const m=path.match(/^\/api\/studio\/(artists|producers|tracks)\/([\w-]+)(\/image)?$/);if(!m)return null;
@@ -20,9 +21,10 @@ export async function studioRoute(req,env,path,user){
  if(req.method!=='PUT')fail(405,'지원하지 않는 요청입니다.');
  const b=await req.json();
  if(table==='tracks'){
+  const lyricData=lyricsFields(b,entity);
   if(!GENRES.includes(b.genre))fail(400,'장르를 선택해주세요.');
   if(!await one(env,'SELECT id FROM artists WHERE id=? AND producer_id=?',str(b.artist_id,80),entity.producer_id))fail(404,'내 AI 아티스트를 선택해주세요.');
-  await run(env,'UPDATE tracks SET title=?,genre=?,tags=?,description=?,ai_tool=?,participation=?,artist_id=? WHERE id=?',str(b.title,120),b.genre,str(b.tags||'',300,false),str(b.description||'',4000,false),str(b.ai_tool,100),str(b.participation||'',100,false),b.artist_id,entityId);
+  await run(env,'UPDATE tracks SET title=?,genre=?,tags=?,description=?,ai_tool=?,participation=?,artist_id=?,lyrics=?,lyrics_mode=? WHERE id=?',str(b.title,120),b.genre,str(b.tags||'',300,false),str(b.description||'',4000,false),str(b.ai_tool,100),str(b.participation||'',100,false),b.artist_id,lyricData.lyrics,lyricData.mode,entityId);
  }else{
   const name=str(b.name,60),bio=str(b.bio||'',1000,false);
   if(table==='artists'){

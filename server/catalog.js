@@ -1,7 +1,7 @@
 import {rows,one,run,query,now,id,fail,str,json,rate} from './db.js';
 import {requireUser,hash} from './auth.js';
 export const GENRES=['K-POP','Ballad','R&B','Hip-Hop','Rock','EDM','City Pop','OST','Instrumental'];
-const SELECT=`SELECT t.id,t.title,t.genre,t.tags,t.description,t.ai_tool,t.participation,t.duration,t.created,t.has_cover,t.cover_version,t.artist_id,t.producer_id,a.name artist,p.name producer,t.user_id,
+const SELECT=`SELECT t.id,t.title,t.genre,t.tags,t.description,t.lyrics_mode,t.ai_tool,t.participation,t.duration,t.created,t.has_cover,t.cover_version,t.artist_id,t.producer_id,a.name artist,p.name producer,t.user_id,
  (SELECT count(*) FROM likes l WHERE l.track_id=t.id) likes,
  (SELECT count(*) FROM comments c WHERE c.track_id=t.id) comments,
  (SELECT count(DISTINCT listener||day) FROM listens l WHERE l.track_id=t.id AND l.qualified=1) plays
@@ -23,8 +23,8 @@ export async function catalogRoute(req,env,path,user){
  }
  let m=path.match(/^\/api\/tracks\/([\w-]+)(?:\/(like|comments))?$/);
  if(m){
-  const tid=m[1];await published(env,tid);
-  if(!m[2]&&method==='GET')return json({track:(await trackList(env,"t.id=? AND t.status='published'",[tid]))[0]});
+  const tid=m[1],detail=await published(env,tid);
+  if(!m[2]&&method==='GET')return json({track:{...(await trackList(env,"t.id=? AND t.status='published'",[tid]))[0],lyrics:detail.lyrics}});
   if(m[2]==='like'){
    requireUser(user);
    if(method==='PUT')await run(env,'INSERT OR IGNORE INTO likes(user_id,track_id,created) VALUES(?,?,?)',user.id,tid,now());
@@ -73,15 +73,28 @@ export async function catalogRoute(req,env,path,user){
  }
  if(path==='/api/history'&&method==='GET'){requireUser(user);return json({tracks:await trackList(env,"t.status='published' AND t.id IN (SELECT track_id FROM listens WHERE user_id=?)",[user.id],`(SELECT MAX(started) FROM listens l WHERE l.track_id=t.id AND l.user_id='${user.id.replaceAll("'",'')}') DESC`)});}
  if(path==='/api/playlists'&&method==='POST'){
-  requireUser(user);await rate(env,'playlist:'+user.id,20,86400);const b=await req.json(),pid=id();await run(env,'INSERT INTO playlists(id,user_id,name,is_public,created) VALUES(?,?,?,?,?)',pid,user.id,str(b.name,80),b.is_public===true?1:0,now());return json({id:pid},201);
+  requireUser(user);await rate(env,'playlist:'+user.id,20,86400);const b=await req.json(),pid=id(),ids=b.track_ids??[];
+  if(!Array.isArray(ids)||ids.length>500||new Set(ids).size!==ids.length||ids.some(x=>typeof x!=='string'))fail(400,'플레이리스트에 담을 곡을 확인해주세요.');
+  for(const tid of ids)await published(env,tid);
+  await env.DB.batch([query(env,'INSERT INTO playlists(id,user_id,name,is_public,created) VALUES(?,?,?,?,?)',pid,user.id,str(b.name,80),b.is_public===true?1:0,now()),...ids.map((tid,i)=>query(env,'INSERT INTO playlist_tracks(playlist_id,track_id,created,position) VALUES(?,?,?,?)',pid,tid,now(),i))]);return json({id:pid},201);
+ }
+ m=path.match(/^\/api\/playlists\/([\w-]+)\/order$/);
+ if(m&&method==='PUT'){
+  requireUser(user);const p=await one(env,'SELECT * FROM playlists WHERE id=?',m[1]);if(!p||p.user_id!==user.id)fail(403,'내 플레이리스트만 편집할 수 있습니다.');
+  const b=await req.json(),ids=b.track_ids;if(!Array.isArray(ids)||ids.length>500||ids.some(x=>typeof x!=='string')||new Set(ids).size!==ids.length)fail(400,'곡 순서를 다시 확인해주세요.');
+  const stored=await rows(env,"SELECT pt.track_id,t.status FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id WHERE pt.playlist_id=? ORDER BY pt.position,pt.created,pt.track_id",p.id),visible=stored.filter(x=>x.status==='published').map(x=>x.track_id);
+  if(visible.length!==ids.length||ids.some(x=>!visible.includes(x)))fail(409,'플레이리스트가 변경됐습니다. 다시 열어 순서를 확인해주세요.');
+  let next=0;const all=stored.map(x=>x.status==='published'?ids[next++]:x.track_id);
+  if(all.length)await env.DB.batch(all.map((tid,i)=>query(env,'UPDATE playlist_tracks SET position=? WHERE playlist_id=? AND track_id=?',i,p.id,tid)));
+  return json({ok:true});
  }
  m=path.match(/^\/api\/playlists\/([\w-]+)(?:\/tracks\/([\w-]+))?$/);
  if(m){
   const p=await one(env,'SELECT * FROM playlists WHERE id=?',m[1]);if(!p||(!p.is_public&&p.user_id!==user?.id))fail(404,'플레이리스트를 찾을 수 없습니다.');
-  if(!m[2]&&method==='GET')return json({playlist:p,tracks:await trackList(env,"t.status='published' AND t.id IN (SELECT track_id FROM playlist_tracks WHERE playlist_id=?)",[p.id],`(SELECT created FROM playlist_tracks pt WHERE pt.track_id=t.id AND pt.playlist_id='${p.id}') ASC`)});
+  if(!m[2]&&method==='GET')return json({playlist:p,tracks:await trackList(env,"t.status='published' AND t.id IN (SELECT track_id FROM playlist_tracks WHERE playlist_id=?)",[p.id],`(SELECT position FROM playlist_tracks pt WHERE pt.track_id=t.id AND pt.playlist_id='${p.id}') ASC,t.created,t.id`,500)});
   requireUser(user);if(p.user_id!==user.id)fail(403,'내 플레이리스트만 변경할 수 있습니다.');
   if(m[2]){
-   if(method==='PUT'){await published(env,m[2]);await run(env,'INSERT OR IGNORE INTO playlist_tracks(playlist_id,track_id,created) VALUES(?,?,?)',p.id,m[2],now());}
+   if(method==='PUT'){await published(env,m[2]);if((await one(env,'SELECT count(*) n FROM playlist_tracks WHERE playlist_id=?',p.id)).n>=500)fail(400,'플레이리스트에는 최대 500곡까지 담을 수 있습니다.');await run(env,'INSERT OR IGNORE INTO playlist_tracks(playlist_id,track_id,created,position) SELECT ?,?,?,COALESCE(MAX(position)+1,0) FROM playlist_tracks WHERE playlist_id=?',p.id,m[2],now(),p.id);}
    else if(method==='DELETE')await run(env,'DELETE FROM playlist_tracks WHERE playlist_id=? AND track_id=?',p.id,m[2]);else fail(405,'지원하지 않는 요청입니다.');
   }else if(method==='PATCH'){const b=await req.json();await run(env,'UPDATE playlists SET name=?,is_public=? WHERE id=?',str(b.name,80),b.is_public===true?1:0,p.id);}
   else if(method==='DELETE')await run(env,'DELETE FROM playlists WHERE id=?',p.id);else fail(405,'지원하지 않는 요청입니다.');

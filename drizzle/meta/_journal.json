@@ -15,6 +15,20 @@
       "when": 1789465143595,
       "tag": "0001_gigantic_spectrum",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1789467299924,
+      "tag": "0002_silly_terrax",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1789467786713,
+      "tag": "0003_steep_speed",
+      "breakpoints": true
     }
   ]
 }

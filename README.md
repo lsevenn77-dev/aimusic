@@ -34,6 +34,14 @@ Migration `0001_gigantic_spectrum.sql` adds profile image and cover version/type
 
 TOP100 uses qualified unique listener-days plus likes/comments; rising ranks the last 7 days' unique listeners; newcomers require recent producers with fewer than 1,000 followers. Qualification requires 30 seconds or 60% of a short song and is bounded by elapsed server time. These are initial transparent rules, not a mature fraud detector. Payments, tips, licensing, generation and mobile apps are intentionally outside this MVP.
 
+## Lyrics and personal library
+
+Creators can import UTF-8 LRC/TXT lyrics in upload or track editing, or paste lyrics and stamp each line against the audio preview. Synced lyrics require valid line timestamps. The shared parser normalizes LRC metadata, offsets and repeated timestamps, with a 12,000-character limit. This is creator-supplied line synchronization, not automatic transcription or word alignment. During playback the current line highlights and follows the audio, including seeks and repeats; clicking a line seeks to its timestamp. Guests remain limited to the 60-second preview. Migration `0002_silly_terrax.sql` adds the optional lyrics fields.
+
+Song cards and lists show real qualified play, like and comment counts publicly. Comment counts link to the discussion. Artist and producer cards retain compact widths even with one result.
+
+Likes and personal playlists are stored per account in the library. Users can select liked tracks together, create named mood playlists, add songs directly from a song, rename lists, remove members, and save the playback order. Lists default to private, with optional public links. Migration `0003_steep_speed.sql` backfills stable playlist positions. Playlist creation with selected songs is atomic; order edits require ownership and matching membership and preserve hidden tracks for later republication. SQLite-backed tests verify ordering, privacy, ownership, invalid selections and hidden members; local browser QA covers creation, playback and responsive layouts.
+
 ## Publishing
 
 Keep the existing Sites project in `.openai/hosting.json`, with `d1: "DB"` and `r2: "BUCKET"`. Generate and inspect Drizzle migrations; never edit an applied migration. Build, commit/push the exact source, use the official Sites packager and native Sites version/deploy tools, preserving public access and the custom domain. D1 and R2 are provisioned by Sites; do not run Wrangler remote deployment against a different account.
