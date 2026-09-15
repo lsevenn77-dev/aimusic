@@ -1,4 +1,4 @@
-import {createRemoteJWKSet,jwtVerify} from 'jose';
+import {createRemoteJWKSet,jwtVerify,SignJWT,importPKCS8} from 'jose';
 import {one,run,query,now,id,fail,str,json,rate} from './db.js';
 const enc=new TextEncoder();
 export const hash=async s=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',enc.encode(s))),x=>x.toString(16).padStart(2,'0')).join('');
@@ -14,7 +14,15 @@ async function passwordHash(password,salt,env){
 }
 function equal(a,b){if(a.length!==b.length)return false;let n=0;for(let i=0;i<a.length;i++)n|=a.charCodeAt(i)^b.charCodeAt(i);return n===0;}
 export async function session(env,user,secure=true){const token=id()+id();await run(env,'INSERT INTO sessions(token,user_id,expires) VALUES(?,?,?)',await hash(token),user.id,now()+86400*30);return cookie('aifect_session',token,86400*30,secure);}
-export function providers(env){return ['google','kakao','apple'].filter(p=>env[`${p.toUpperCase()}_CLIENT_ID`]&&(p==='google'||p==='kakao'||env.APPLE_CLIENT_SECRET));}
+const appleKeyReady=env=>!!(env.APPLE_PRIVATE_KEY&&env.APPLE_KEY_ID&&env.APPLE_TEAM_ID);
+export async function appleClientSecret(env){
+ if(!appleKeyReady(env))return env.APPLE_CLIENT_SECRET;
+ // Issue a short-lived server token per exchange, avoiding a six-month login outage.
+ const key=await importPKCS8(env.APPLE_PRIVATE_KEY.replace(/\\n/g,'\n'),'ES256');
+ return new SignJWT({}).setProtectedHeader({alg:'ES256',kid:env.APPLE_KEY_ID}).setIssuer(env.APPLE_TEAM_ID)
+  .setSubject(env.APPLE_CLIENT_ID).setAudience('https://appleid.apple.com').setIssuedAt().setExpirationTime('5m').sign(key);
+}
+export function providers(env){return ['google','kakao','apple'].filter(p=>env[`${p.toUpperCase()}_CLIENT_ID`]&&(p==='google'||p==='kakao'||env.APPLE_CLIENT_SECRET||appleKeyReady(env)));}
 export async function authRoute(req,env,path,user){
  const url=new URL(req.url),secure=url.protocol==='https:';
  if(path==='/api/me')return json({user,providers:providers(env),googleClientId:env.GOOGLE_CLIENT_ID||null,emailEnabled:!!env.AUTH_PEPPER});
@@ -69,7 +77,7 @@ export async function authRoute(req,env,path,user){
  const match=path.match(/^\/api\/auth\/(google|kakao|apple)(\/callback)?$/);
  if(!match)return null;
  const p=match[1],client=env[`${p.toUpperCase()}_CLIENT_ID`],secret=env[`${p.toUpperCase()}_CLIENT_SECRET`];
- if(!client||(p!=='kakao'&&!secret))fail(503,'이 로그인 서비스의 AIFECT 주소 등록을 준비하고 있습니다.');
+ if(!client||(p==='google'&&!secret)||(p==='apple'&&!secret&&!appleKeyReady(env)))fail(503,'이 로그인 서비스의 AIFECT 주소 등록을 준비하고 있습니다.');
  const redirect=`${url.origin}/api/auth/${p}/callback`;
  if(!match[2]){
   const state=id()+id(),verifier=id()+id(),nonce=id();
@@ -87,7 +95,8 @@ export async function authRoute(req,env,path,user){
  const st=await query(env,'DELETE FROM oauth_states WHERE state=? AND provider=? AND expires>? RETURNING *',await hash(state),p,now()).first();
  if(!st)fail(400,'로그인 요청이 만료됐습니다.');
  const tokenURL={google:'https://oauth2.googleapis.com/token',kakao:'https://kauth.kakao.com/oauth/token',apple:'https://appleid.apple.com/auth/token'}[p];
- const response=await fetch(tokenURL,{method:'POST',body:new URLSearchParams({grant_type:'authorization_code',code,client_id:client,...(secret?{client_secret:secret}:{}),redirect_uri:redirect})});
+ const exchangeSecret=p==='apple'?await appleClientSecret(env):secret;
+ const response=await fetch(tokenURL,{method:'POST',body:new URLSearchParams({grant_type:'authorization_code',code,client_id:client,...(exchangeSecret?{client_secret:exchangeSecret}:{}),redirect_uri:redirect})});
  if(!response.ok)fail(502,'로그인 제공자 인증에 실패했습니다.');
  const token=await response.json();let identity;
  if(p==='kakao'){
@@ -96,8 +105,10 @@ export async function authRoute(req,env,path,user){
  }else{
   const jwks=createRemoteJWKSet(new URL(p==='google'?'https://www.googleapis.com/oauth2/v3/certs':'https://appleid.apple.com/auth/keys'));
   const {payload}=await jwtVerify(token.id_token,jwks,{issuer:p==='google'?['https://accounts.google.com','accounts.google.com']:'https://appleid.apple.com',audience:client});
-  if(payload.nonce!==st.nonce)fail(400,'로그인 인증 정보가 일치하지 않습니다.');
-  identity={sub:payload.sub,name:payload.name||'AIFECT 리스너',email:payload.email_verified?payload.email:null};
+  if(payload.nonce!==st.nonce||!payload.sub)fail(400,'로그인 인증 정보가 일치하지 않습니다.');
+  let name=payload.name;
+  if(p==='apple'&&params.get('user')){try{const v=JSON.parse(params.get('user'));name=[v.name?.firstName,v.name?.lastName].filter(x=>typeof x==='string').join(' ');}catch{}}
+  identity={sub:payload.sub,name:name||'AIFECT 리스너',email:[true,'true'].includes(payload.email_verified)?payload.email:null};
  }
  let u=await one(env,'SELECT id FROM users WHERE provider=? AND subject=?',p,identity.sub);
  if(!u){u={id:id()};await run(env,'INSERT INTO users(id,email,name,provider,subject,created) VALUES(?,?,?,?,?,?)',u.id,identity.email||`${p}-${identity.sub}@identity.aifect.invalid`,String(identity.name).slice(0,40),p,identity.sub,now());}
