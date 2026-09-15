@@ -57,6 +57,11 @@ document.addEventListener('click',async ev=>{
   else if(el.dataset.hideTrack){if(confirm('이 곡을 비공개로 전환할까요?')){await api(`/api/uploads/${el.dataset.hideTrack}/unpublish`,'POST');await render();}}
   else if(el.dataset.retryTrack){await api(`/api/uploads/${el.dataset.retryTrack}/retry`,'POST');await render();}
   else if(el.hasAttribute('data-share')){await navigator.clipboard.writeText(location.href);toast('공개 링크를 복사했습니다.');}
+  else if(el.dataset.playerAction&&['shuffle','repeat','previous'].includes(el.dataset.playerAction)){
+   $('#'+el.dataset.playerAction).click();
+   if(el.dataset.playerAction==='shuffle')el.textContent=shuffle?'셔플 켜짐':'셔플 끔';
+   if(el.dataset.playerAction==='repeat')el.textContent=['반복 끔','전체 반복','한 곡 반복'][repeatMode];
+  }
   else if(el.hasAttribute('data-oauth'))saveResume();
  }catch(e){toast(e.message);}finally{el.disabled=false;}
 });
@@ -72,7 +77,7 @@ $('#next').onclick=()=>nextTrack(1).catch(e=>toast(e.message));$('#previous').on
 $('#shuffle').onclick=()=>{shuffle=!shuffle;$('#shuffle').classList.toggle('is-active',shuffle);$('#shuffle').setAttribute('aria-pressed',String(shuffle));};
 $('#repeat').onclick=()=>{repeatMode=(repeatMode+1)%3;$('#repeat').classList.toggle('is-active',!!repeatMode);$('#repeat').setAttribute('aria-pressed',String(!!repeatMode));const label=['반복 끔','전체 반복','한 곡 반복'][repeatMode];$('#repeat').setAttribute('aria-label',label);toast(label);};
 $('#volume').oninput=e=>audio.volume=Number(e.target.value);$('#seek').oninput=e=>{if(current)audio.currentTime=Number(e.target.value);};
-$('#queue-toggle').onclick=()=>dialog(`<h2>다음에 들을 음악</h2>${queue.length?`<div class="dialog-list">${queue.map((id,i)=>`<button class="small-button" data-play="${id}">${i+1}. ${esc(trackMap.get(id)?.title||'음악')}${id===current?.id?' · 재생 중':''}</button>`).join('')}</div>`:'<p>재생할 곡을 먼저 선택해주세요.</p>'}`);
+$('#queue-toggle').onclick=()=>dialog(`<h2>다음에 들을 음악</h2><div class="inline-actions playlist-actions"><button class="small-button" data-player-action="previous">이전 곡</button><button class="small-button" data-player-action="shuffle">${shuffle?'셔플 켜짐':'셔플 끔'}</button><button class="small-button" data-player-action="repeat">${['반복 끔','전체 반복','한 곡 반복'][repeatMode]}</button></div>${queue.length?`<div class="dialog-list">${queue.map((id,i)=>`<button class="small-button" data-play="${id}">${i+1}. ${esc(trackMap.get(id)?.title||'음악')}${id===current?.id?' · 재생 중':''}</button>`).join('')}</div>`:'<p>재생할 곡을 먼저 선택해주세요.</p>'}`);
 $('#dialog-close').onclick=()=>$('#dialog').close();$('#menu-toggle').onclick=()=>$('.sidebar').classList.toggle('open');
 window.addEventListener('hashchange',render);window.addEventListener('pagehide',saveResume);
 async function boot(){try{authConfig=await api('/api/me');me=authConfig.user;await refreshLibrary();updateAccount();await render();if(me&&pendingResume)await resumeAfterLogin();}catch(e){toast(e.message);await render();}}
