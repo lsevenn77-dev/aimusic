@@ -42,6 +42,14 @@ Song cards and lists show real qualified play, like and comment counts publicly.
 
 Likes and personal playlists are stored per account in the library. Users can select liked tracks together, create named mood playlists, add songs directly from a song, rename lists, remove members, and save the playback order. Lists default to private, with optional public links. Migration `0003_steep_speed.sql` backfills stable playlist positions. Playlist creation with selected songs is atomic; order edits require ownership and matching membership and preserve hidden tracks for later republication. SQLite-backed tests verify ordering, privacy, ownership, invalid selections and hidden members; local browser QA covers creation, playback and responsive layouts.
 
+## Discovery and listening controls
+
+Discovery supports genre filters, six mood/activity tags and releases from followed artists or producers. Mood membership comes from creator tags; recommendation order uses actual plays and likes. Search separates tracks, artists, producers and public playlists. Public playlist browsing supports name/description/creator search and save-count or newest sorting.
+
+Users can bookmark public playlists, which stay linked to the owner's current selections. Private lists and hidden tracks are excluded from other users' search, library summaries and cover collages. The library supports search, own/saved filters, per-user pins and persisted custom playlist order. Playlists have descriptions and automatic cover collages; song selection supports likes, recent history and search with duplicate prevention. Migration `0004_even_red_skull.sql` adds descriptions, bookmarks and per-user library preferences.
+
+Song menus support play-next and queue append. The active queue supports move, remove and clear-waiting controls without changing a saved playlist. Queue IDs and minimal display metadata persist for the browser tab session; playback fetches current server permissions. Queue helpers are tested alongside SQLite routing tests for public visibility, bookmarking, ordering and discovery.
+
 ## Publishing
 
 Keep the existing Sites project in `.openai/hosting.json`, with `d1: "DB"` and `r2: "BUCKET"`. Generate and inspect Drizzle migrations; never edit an applied migration. Build, commit/push the exact source, use the official Sites packager and native Sites version/deploy tools, preserving public access and the custom domain. D1 and R2 are provisioned by Sites; do not run Wrangler remote deployment against a different account.

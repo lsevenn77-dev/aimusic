@@ -13,7 +13,7 @@ function bindForms(base,param){
  }
  if($('#new-playlist'))$('#new-playlist').onclick=()=>playlistDialog();
  if($('#upload-form'))$('#upload-form').onsubmit=busyForm($('#upload-form'),upload);
- bindStudioForms();bindLyricsPanel();
+ bindStudioForms();bindMoodFields();bindLyricsPanel();
 }
 let googleScriptPromise;
 async function prepareGoogle(){
@@ -43,7 +43,7 @@ async function upload(fd){
  await api(`/api/uploads/${id}/complete`,'POST');toast('업로드 완료! 음원 변환이 끝나면 공개됩니다.');location.hash='studio';
 }
 function uploadFile(url,file,onprogress=()=>{}){return new Promise((resolve,reject)=>{const xhr=new XMLHttpRequest();xhr.open('PUT',url);xhr.setRequestHeader('Content-Type',file.type||'application/octet-stream');xhr.upload.onprogress=e=>{if(e.lengthComputable)onprogress(e.loaded/e.total*100);};xhr.onload=()=>{if(xhr.status>=200&&xhr.status<300)resolve();else{let message='업로드에 실패했습니다. 다시 시도해주세요.';try{message=JSON.parse(xhr.responseText).error||message;}catch{}reject(new Error(message));}};xhr.onerror=()=>reject(new Error('연결이 끊어졌습니다. 파일을 유지한 상태로 다시 업로드해주세요.'));xhr.send(file);});}
-function playlistDialog(existing=null,initialTrack=null){dialog(`<h2>${existing?'플레이리스트 설정':'새 플레이리스트'}</h2><form id="playlist-form">${formField('이름','name','text',existing?.name||'','required maxlength="80"')}<label class="checkbox-line"><input name="is_public" type="checkbox" ${existing?.is_public?'checked':''}> 링크로 누구나 볼 수 있게 공개</label><button class="primary-button">저장</button><p class="form-error" role="alert"></p></form>`);const form=$('#playlist-form');form.onsubmit=busyForm(form,async fd=>{const d=await api(existing?`/api/playlists/${existing.id}`:'/api/playlists',existing?'PATCH':'POST',{name:fd.get('name'),is_public:fd.has('is_public'),...(!existing&&initialTrack?{track_ids:[initialTrack]}:{})});$('#dialog').close();await refreshLibrary();location.hash='playlist/'+(existing?.id||d.id);await render();});}
+function playlistDialog(existing=null,initialTrack=null){dialog(`<h2>${existing?'플레이리스트 설정':'새 플레이리스트'}</h2><form id="playlist-form">${formField('이름','name','text',existing?.name||'','required maxlength="80"')}<label class="form-field">소개<textarea name="description" maxlength="600" placeholder="어떤 순간에 들으면 좋을까요?">${esc(existing?.description||'')}</textarea></label><label class="checkbox-line"><input name="is_public" type="checkbox" ${existing?.is_public?'checked':''}> 링크로 누구나 볼 수 있게 공개</label><button class="primary-button">저장</button><p class="form-error" role="alert"></p></form>`);const form=$('#playlist-form');form.onsubmit=busyForm(form,async fd=>{const d=await api(existing?`/api/playlists/${existing.id}`:'/api/playlists',existing?'PATCH':'POST',{name:fd.get('name'),description:fd.get('description'),is_public:fd.has('is_public'),...(!existing&&initialTrack?{track_ids:[initialTrack]}:{})});$('#dialog').close();await refreshLibrary();location.hash='playlist/'+(existing?.id||d.id);await render();});}
 async function addToPlaylist(tid){if(!me)return askLogin();await refreshLibrary();dialog(`<h2>플레이리스트에 추가</h2><div class="dialog-list">${library.playlists.map(p=>`<button class="small-button" data-save-track="${tid}" data-playlist="${p.id}">${esc(p.name)} <span>${p.tracks}곡</span></button>`).join('')}</div><button class="primary-button" id="dialog-new-playlist">새 플레이리스트 만들기</button>`);$('#dialog-new-playlist').onclick=()=>playlistDialog(null,tid);}
 async function playlistOrderDialog(pid){
  const data=await api('/api/playlists/'+pid);let tracks=[...data.tracks];if(!tracks.length){toast('플레이리스트에 곡을 먼저 담아주세요.');return;}
@@ -63,7 +63,7 @@ document.addEventListener('click',async ev=>{
   else if(el.dataset.saveTrack){await api(`/api/playlists/${el.dataset.playlist}/tracks/${el.dataset.saveTrack}`,'PUT');$('#dialog').close();toast('플레이리스트에 추가했습니다.');}
   else if(el.dataset.removeTrack){await api(`/api/playlists/${el.dataset.playlist}/tracks/${el.dataset.removeTrack}`,'DELETE');await render();}
   else if(el.hasAttribute('data-organize-likes'))await playlistFromLikes();
-  else if(el.dataset.pickPlaylist)await playlistFromLikes(el.dataset.pickPlaylist);
+  else if(el.dataset.pickPlaylist)await trackPicker(el.dataset.pickPlaylist);
   else if(el.dataset.orderPlaylist)await playlistOrderDialog(el.dataset.orderPlaylist);
   else if(el.dataset.editPlaylist){const d=await api('/api/playlists/'+el.dataset.editPlaylist);playlistDialog(d.playlist);}
   else if(el.dataset.deletePlaylist){if(confirm('이 플레이리스트를 삭제할까요?')){await api('/api/playlists/'+el.dataset.deletePlaylist,'DELETE');location.hash='library/playlists';}}
@@ -89,12 +89,12 @@ audio.onended=()=>{report();if(preview&&current.duration>=60){saveResume();dialo
 audio.onerror=()=>{if(audio.src)toast('음원을 불러오지 못했습니다. 재생을 다시 눌러주세요.');};
 setInterval(()=>{if(!audio.paused&&!audio.seeking&&audio.readyState>=3){const n=performance.now();if(lastTick)heard+=Math.min((n-lastTick)/1000,1.1);lastTick=n;}else lastTick=0;},1000);
 setInterval(report,10000);
-$('#play-toggle').onclick=async()=>{try{if(!current){if(routeTracks.length)await play(routeTracks[0].id,routeTracks);else toast('먼저 음악을 선택해주세요.');}else if(!playSession||preview!==!me)await play(current.id,null,audio.currentTime);else if(audio.paused)await audio.play();else audio.pause();}catch(e){toast(e.message);}};
+$('#play-toggle').onclick=async()=>{try{if(!current){if(queue.length)await play(queue[0]);else if(routeTracks.length)await play(routeTracks[0].id,routeTracks);else toast('먼저 음악을 선택해주세요.');}else if(!playSession||preview!==!me)await play(current.id,null,audio.currentTime);else if(audio.paused)await audio.play();else audio.pause();}catch(e){toast(e.message);}};
 $('#next').onclick=()=>nextTrack(1).catch(e=>toast(e.message));$('#previous').onclick=()=>{if(audio.currentTime>3)audio.currentTime=0;else nextTrack(-1).catch(e=>toast(e.message));};
 $('#shuffle').onclick=()=>{shuffle=!shuffle;$('#shuffle').classList.toggle('is-active',shuffle);$('#shuffle').setAttribute('aria-pressed',String(shuffle));};
 $('#repeat').onclick=()=>{repeatMode=(repeatMode+1)%3;$('#repeat').classList.toggle('is-active',!!repeatMode);$('#repeat').setAttribute('aria-pressed',String(!!repeatMode));const label=['반복 끔','전체 반복','한 곡 반복'][repeatMode];$('#repeat').setAttribute('aria-label',label);toast(label);};
 $('#volume').oninput=e=>audio.volume=Number(e.target.value);$('#seek').oninput=e=>{if(current)audio.currentTime=Number(e.target.value);};
-$('#queue-toggle').onclick=()=>dialog(`<h2>다음에 들을 음악</h2><div class="inline-actions playlist-actions"><button class="small-button" data-player-action="previous">이전 곡</button><button class="small-button" data-player-action="shuffle">${shuffle?'셔플 켜짐':'셔플 끔'}</button><button class="small-button" data-player-action="repeat">${['반복 끔','전체 반복','한 곡 반복'][repeatMode]}</button></div>${queue.length?`<div class="dialog-list">${queue.map((id,i)=>`<button class="small-button" data-play="${id}">${i+1}. ${esc(trackMap.get(id)?.title||'음악')}${id===current?.id?' · 재생 중':''}</button>`).join('')}</div>`:'<p>재생할 곡을 먼저 선택해주세요.</p>'}`);
+$('#queue-toggle').onclick=queueDialog;
 $('#dialog-close').onclick=()=>$('#dialog').close();$('#menu-toggle').onclick=()=>$('.sidebar').classList.toggle('open');
 window.addEventListener('hashchange',render);window.addEventListener('pagehide',saveResume);
 async function boot(){try{authConfig=await api('/api/me');me=authConfig.user;await refreshLibrary();updateAccount();await render();if(me&&pendingResume)await resumeAfterLogin();}catch(e){toast(e.message);await render();}}
