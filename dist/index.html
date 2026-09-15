@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AIFECT — 상상이 음악이 되는 곳</title>
-  <meta name="description" content="AI 음악의 발견과 창작자를 위한 AIFECT 웹 디자인 시안">
+  <meta name="description" content="상상이 음악이 되는 곳, AIFECT. AI 음악을 발견하고 창작자와 연결되세요. 무료 회원가입 후 전체곡을 감상할 수 있습니다.">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23cbfa75'/%3E%3Cpath d='m14 47 18-32 18 32M21 36h22' fill='none' stroke='%23121416' stroke-width='6'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -31,7 +31,6 @@
     <div class="sidebar-bottom">
       <div class="creator-callout"><span class="tiny-eyebrow">FOR CREATORS</span><p>당신의 음악,<br>누군가의 새로운 취향.</p><a href="#upload">첫 곡 업로드하기 <i data-icon="arrow"></i></a></div>
       <a class="profile" href="#account"><span class="avatar">A</span><span><strong>무료로 시작하기</strong><small>로그인 · 회원가입</small></span><i data-icon="chevron"></i></a>
-      <a href="#admin" class="admin-link">운영자 화면 시안 <i data-icon="external"></i></a>
     </div>
   </aside>
   <div class="page-wrap">
@@ -39,17 +38,17 @@
       <button class="icon-button mobile-menu" aria-label="메뉴 열기" id="menu-toggle"><i data-icon="menu"></i></button>
       <div class="crumb">상상이 음악이 되는 곳</div>
       <a href="#search" class="search-box"><i data-icon="search"></i><span>곡, 아티스트, 제작자 검색</span><span class="search-key">⌕</span></a>
-      <div class="top-actions"><span class="design-badge">DESIGN PREVIEW</span><a href="#account" class="header-login">로그인</a><a href="#upload" class="upload-button"><i data-icon="plus"></i>음원 업로드</a></div>
+      <div class="top-actions"><span class="design-badge">FREE STREAMING</span><a href="#account" class="header-login">로그인</a><a href="#upload" class="upload-button"><i data-icon="plus"></i>음원 업로드</a></div>
     </header>
     <main id="main" tabindex="-1"></main>
-    <footer class="page-footer"><span>AIFECT · AI + EFFECT</span><span>디자인 시안 · 음악, 인물, 활동 수치는 모두 예시입니다.</span></footer>
+    <footer class="page-footer"><span>AIFECT · AI + EFFECT</span><span>AI로 만든 음악, 함께 만드는 새로운 취향.</span></footer>
   </div>
-  <section class="player" aria-label="공통 음악 플레이어 시안">
-    <div class="now-playing"><a href="#song/0" class="mini-cover cover cover-ocean" aria-label="파도가 잠든 밤 곡 상세"></a><div><strong>파도가 잠든 밤</strong><span>NOVA <b class="ai-mini">AI</b> · 60초 미리 듣기</span></div><button class="icon-button like-button" aria-label="좋아요" data-demo="로그인 후 좋아요"><i data-icon="heart"></i></button></div>
-    <div class="player-center"><div class="player-buttons"><button class="icon-button" aria-label="셔플" data-demo="셔플"><i data-icon="shuffle"></i></button><button class="icon-button" aria-label="이전 곡" data-demo="이전 곡"><i data-icon="previous"></i></button><button class="play-button" aria-label="재생 시안" data-demo="음악 재생"><i data-icon="play"></i></button><button class="icon-button" aria-label="다음 곡" data-demo="다음 곡"><i data-icon="next"></i></button><button class="icon-button" aria-label="반복 재생" data-demo="반복 재생"><i data-icon="repeat"></i></button></div><div class="timeline"><span>0:00</span><div class="timeline-track"><div></div></div><span>3:42</span></div></div>
-    <div class="player-right"><a href="#account" class="free-listen">무료 전체곡 듣기</a><button class="icon-button" aria-label="음량" data-demo="음량"><i data-icon="volume"></i></button><div class="volume-track"></div><button class="icon-button" aria-label="재생 목록" data-demo="재생 목록"><i data-icon="list"></i></button></div>
-  </section>
+  <section class="player" aria-label="음악 플레이어">
+<div class="now-playing" id="now-playing"><div class="mini-cover cover cover-lime">A</div><div><strong>새로운 음악을 만나보세요</strong><span>곡을 선택하면 재생됩니다</span></div></div>
+<div class="player-center"><div class="player-buttons"><button class="icon-button" id="shuffle" aria-label="셔플" aria-pressed="false"><i data-icon="shuffle"></i></button><button class="icon-button" id="previous" aria-label="이전 곡"><i data-icon="previous"></i></button><button class="play-button" id="play-toggle" aria-label="재생"><i data-icon="play"></i></button><button class="icon-button" id="next" aria-label="다음 곡"><i data-icon="next"></i></button><button class="icon-button" id="repeat" aria-label="반복 끔" aria-pressed="false"><i data-icon="repeat"></i></button></div><div class="timeline"><span id="elapsed">0:00</span><input id="seek" type="range" min="0" max="0" step="0.1" value="0" aria-label="재생 위치"><span id="duration">0:00</span></div></div>
+<div class="player-right"><span class="free-listen" id="listen-mode">회원은 전체곡 무료</span><i data-icon="volume"></i><input id="volume" type="range" min="0" max="1" value="0.75" step="0.01" aria-label="음량"><button class="icon-button" id="queue-toggle" aria-label="재생 목록"><i data-icon="list"></i></button></div></section>
   <div class="toast" id="toast" role="status"></div>
-  <script src="app.js"></script>
+  <dialog id="dialog" aria-label="AIFECT"><div id="dialog-content"></div><button class="dialog-close" aria-label="닫기" id="dialog-close">×</button></dialog>
+<script src="icons.js"></script><script src="app.js"></script><script src="views.js"></script><script src="actions.js"></script>
 </body>
 </html>

@@ -1,0 +1,79 @@
+function busyForm(form,work){return async ev=>{ev.preventDefault();const button=form.querySelector('button.primary-button'),error=form.querySelector('.form-error');if(button?.disabled)return;if(button)button.disabled=true;if(error)error.textContent='';try{await work(new FormData(form));}catch(e){if(error)error.textContent=e.message;else toast(e.message);}finally{if(button)button.disabled=false;}};}
+function bindForms(base,param){
+ if($('#search-form'))$('#search-form').onsubmit=e=>{e.preventDefault();location.hash='search/'+encodeURIComponent(new FormData(e.target).get('q'));};
+ if($('#auth-form')){
+  const form=$('#auth-form');$('#auth-switch').onclick=()=>{const signup=form.dataset.mode!=='register';form.dataset.mode=signup?'register':'login';$('#signup-name').hidden=!signup;form.elements.name.required=signup;form.elements.password.autocomplete=signup?'new-password':'current-password';$('#auth-title').textContent=signup?'무료 회원가입':'이메일로 로그인';$('#auth-submit').textContent=signup?'가입하고 음악 듣기':'로그인';$('#auth-switch').textContent=signup?'이미 회원이신가요? 로그인':'처음 오셨나요? 무료 회원가입';};
+  form.onsubmit=busyForm(form,async fd=>{const d=await api('/api/auth/'+form.dataset.mode,'POST',Object.fromEntries(fd));me=d.user;await refreshLibrary();updateAccount();toast('반가워요! 이제 전체곡을 들을 수 있습니다.');try{await resumeAfterLogin();}catch(e){toast(e.message);}if(location.hash===returnRoute)await render();else location.hash=returnRoute;});
+  if(authConfig.googleClientId)prepareGoogle().catch(e=>toast(e.message));
+ }
+ if($('#logout'))$('#logout').onclick=async()=>{try{await api('/api/auth/logout','POST');audio.pause();audio.removeAttribute('src');me=null;playSession=null;library={likes:[],playlists:[],follows:[]};sessionStorage.removeItem('aifect-player-resume');pendingResume=null;updateAccount();await render();toast('로그아웃했습니다.');}catch(e){toast(e.message);}};
+ if($('#comment-form')){
+  const form=$('#comment-form');form.onsubmit=busyForm(form,async fd=>{if(!me){askLogin();return;}const ts=fd.has('with_time')&&current?.id===param?Math.floor(audio.currentTime):null;await api(`/api/tracks/${param}/comments`,'POST',{body:fd.get('body'),timestamp:ts});form.reset();await reloadComments(param);toast('댓글을 등록했습니다.');});
+  $('#comment-sort').onchange=()=>reloadComments(param).catch(e=>toast(e.message));
+ }
+ if($('#new-playlist'))$('#new-playlist').onclick=()=>playlistDialog();
+ if($('#upload-form'))$('#upload-form').onsubmit=busyForm($('#upload-form'),upload);
+ if($('#producer-form')){const form=$('#producer-form');form.onsubmit=busyForm(form,async fd=>{await api('/api/studio/profile','PUT',Object.fromEntries(fd));toast('프로필을 저장했습니다.');});}
+}
+let googleScriptPromise;
+async function prepareGoogle(){
+ const old=document.querySelector('.social-login.google');if(!old)return;
+ const host=document.createElement('div');host.id='google-signin';old.replaceWith(host);
+ const {nonce}=await api('/api/auth/google/nonce','POST');
+ googleScriptPromise ||=new Promise((resolve,reject)=>{if(window.google?.accounts?.id)return resolve();const script=document.createElement('script');script.src='https://accounts.google.com/gsi/client';script.async=true;script.onload=resolve;script.onerror=()=>{googleScriptPromise=null;reject(new Error('Google 로그인 버튼을 불러오지 못했습니다.'));};document.head.appendChild(script);});
+ await googleScriptPromise;if(!host.isConnected)return;
+ google.accounts.id.initialize({client_id:authConfig.googleClientId,nonce,auto_select:false,callback:async result=>{try{saveResume();const d=await api('/api/auth/google/token','POST',{credential:result.credential});me=d.user;await refreshLibrary();updateAccount();await resumeAfterLogin();location.hash=returnRoute;await render();toast('Google 계정으로 로그인했습니다.');}catch(e){toast(e.message);await prepareGoogle();}}});
+ google.accounts.id.renderButton(host,{theme:'outline',size:'large',type:'standard',text:'continue_with',width:Math.min(host.parentElement.clientWidth-60,340),locale:'ko'});
+}
+async function reloadComments(tid){const {comments}=await api(`/api/tracks/${tid}/comments?sort=${$('#comment-sort')?.value||'latest'}`);if($('#comments'))$('#comments').innerHTML=commentsHTML(comments,trackMap.get(tid));}
+async function upload(fd){
+ const file=fd.get('audio'),image=fd.get('cover');if(!file?.size)throw new Error('음원 파일을 선택해주세요.');if(file.size>80*1024*1024)throw new Error('음원은 80MB 이하로 업로드해주세요.');if(image?.size>5*1024*1024)throw new Error('커버는 5MB 이하로 업로드해주세요.');
+ const body={...Object.fromEntries(fd),participation:fd.getAll('participation').join(', '),rights:fd.has('rights'),is_ai:fd.has('is_ai'),extension:file.name.split('.').pop().toLowerCase(),bytes:file.size};delete body.audio;delete body.cover;
+ const progress=$('.upload-progress');progress.hidden=false;progress.querySelector('p').textContent='업로드를 준비하고 있습니다.';
+ const {id}=await api('/api/uploads','POST',body);
+ await uploadFile(`/api/uploads/${id}/audio`,file,value=>{progress.querySelector('progress').value=value;progress.querySelector('p').textContent=`음원 업로드 ${Math.round(value)}%`;});
+ if(image?.size){progress.querySelector('p').textContent='커버를 업로드하고 있습니다.';await uploadFile(`/api/uploads/${id}/cover`,image);}
+ await api(`/api/uploads/${id}/complete`,'POST');toast('업로드 완료! 음원 변환이 끝나면 공개됩니다.');location.hash='studio';
+}
+function uploadFile(url,file,onprogress=()=>{}){return new Promise((resolve,reject)=>{const xhr=new XMLHttpRequest();xhr.open('PUT',url);xhr.setRequestHeader('Content-Type',file.type||'application/octet-stream');xhr.upload.onprogress=e=>{if(e.lengthComputable)onprogress(e.loaded/e.total*100);};xhr.onload=()=>{if(xhr.status>=200&&xhr.status<300)resolve();else{let message='업로드에 실패했습니다. 다시 시도해주세요.';try{message=JSON.parse(xhr.responseText).error||message;}catch{}reject(new Error(message));}};xhr.onerror=()=>reject(new Error('연결이 끊어졌습니다. 파일을 유지한 상태로 다시 업로드해주세요.'));xhr.send(file);});}
+function playlistDialog(existing=null){dialog(`<h2>${existing?'플레이리스트 설정':'새 플레이리스트'}</h2><form id="playlist-form">${formField('이름','name','text',existing?.name||'','required maxlength="80"')}<label class="checkbox-line"><input name="is_public" type="checkbox" ${existing?.is_public?'checked':''}> 링크로 누구나 볼 수 있게 공개</label><button class="primary-button">저장</button><p class="form-error" role="alert"></p></form>`);const form=$('#playlist-form');form.onsubmit=busyForm(form,async fd=>{const d=await api(existing?`/api/playlists/${existing.id}`:'/api/playlists',existing?'PATCH':'POST',{name:fd.get('name'),is_public:fd.has('is_public')});$('#dialog').close();await refreshLibrary();location.hash='playlist/'+(existing?.id||d.id);await render();});}
+async function addToPlaylist(tid){if(!me)return askLogin();await refreshLibrary();dialog(`<h2>플레이리스트에 추가</h2><div class="dialog-list">${library.playlists.map(p=>`<button class="small-button" data-save-track="${tid}" data-playlist="${p.id}">${esc(p.name)} <span>${p.tracks}곡</span></button>`).join('')}</div><button class="primary-button" id="dialog-new-playlist">새 플레이리스트 만들기</button>`);$('#dialog-new-playlist').onclick=()=>playlistDialog();}
+document.addEventListener('click',async ev=>{
+ const el=ev.target.closest('button,a');if(!el||el.disabled)return;
+ try{
+  if(el.hasAttribute('data-play')){if($('#dialog').open)$('#dialog').close();await play(el.dataset.play,routeTracks.some(t=>t.id===el.dataset.play)?routeTracks:null);}
+  else if(el.hasAttribute('data-play-all')){if(routeTracks.length)await play(routeTracks[0].id,routeTracks);else toast('먼저 곡을 추가해주세요.');}
+  else if(el.dataset.like){if(!me)return askLogin();el.disabled=true;await api(`/api/tracks/${el.dataset.like}/like`,liked(el.dataset.like)?'DELETE':'PUT');await refreshLibrary();el.classList.toggle('is-active',liked(el.dataset.like));el.setAttribute('aria-pressed',String(liked(el.dataset.like)));toast(liked(el.dataset.like)?'좋아요에 저장했습니다.':'좋아요를 취소했습니다.');}
+  else if(el.dataset.follow){if(!me)return askLogin();const [kind,id]=el.dataset.follow.split('/');await api(`/api/${kind==='artist'?'artists':'producers'}/${id}/follow`,followed(kind,id)?'DELETE':'PUT');await refreshLibrary();el.textContent=followed(kind,id)?'팔로잉':'팔로우';}
+  else if(el.dataset.add)await addToPlaylist(el.dataset.add);
+  else if(el.dataset.saveTrack){await api(`/api/playlists/${el.dataset.playlist}/tracks/${el.dataset.saveTrack}`,'PUT');$('#dialog').close();toast('플레이리스트에 추가했습니다.');}
+  else if(el.dataset.removeTrack){await api(`/api/playlists/${el.dataset.playlist}/tracks/${el.dataset.removeTrack}`,'DELETE');await render();}
+  else if(el.dataset.editPlaylist){const d=await api('/api/playlists/'+el.dataset.editPlaylist);playlistDialog(d.playlist);}
+  else if(el.dataset.deletePlaylist){if(confirm('이 플레이리스트를 삭제할까요?')){await api('/api/playlists/'+el.dataset.deletePlaylist,'DELETE');location.hash='library/playlists';}}
+  else if(el.dataset.commentLike){if(!me)return askLogin();await api(`/api/comments/${el.dataset.commentLike}/like`,el.dataset.liked==='true'?'DELETE':'PUT');await reloadComments(location.hash.split('/')[1]);}
+  else if(el.dataset.deleteComment){if(confirm('댓글을 삭제할까요?')){await api('/api/comments/'+el.dataset.deleteComment,'DELETE');await reloadComments(location.hash.split('/')[1]);}}
+  else if(el.dataset.editComment||el.dataset.reply){if(!me)return askLogin();const edit=el.dataset.editComment;dialog(`<h2>${edit?'댓글 수정':'답글 남기기'}</h2><form id="reply-form"><textarea name="body" required maxlength="2000" aria-label="${edit?'댓글 수정':'답글'}">${esc(edit?el.dataset.body:'')}</textarea><button class="primary-button">등록</button><p class="form-error" role="alert"></p></form>`);const form=$('#reply-form');form.onsubmit=busyForm(form,async fd=>{await api(edit?`/api/comments/${edit}`:`/api/tracks/${el.dataset.track}/comments`,edit?'PATCH':'POST',{body:fd.get('body'),parent_id:el.dataset.reply||null});$('#dialog').close();await reloadComments(location.hash.split('/')[1]);});}
+  else if(el.hasAttribute('data-seek')){if(current?.id!==el.dataset.track)await play(el.dataset.track);const seconds=Number(el.dataset.seek);if(preview&&seconds>=60){askLogin();return;}audio.currentTime=seconds;await audio.play();}
+  else if(el.dataset.hideTrack){if(confirm('이 곡을 비공개로 전환할까요?')){await api(`/api/uploads/${el.dataset.hideTrack}/unpublish`,'POST');await render();}}
+  else if(el.dataset.retryTrack){await api(`/api/uploads/${el.dataset.retryTrack}/retry`,'POST');await render();}
+  else if(el.hasAttribute('data-share')){await navigator.clipboard.writeText(location.href);toast('공개 링크를 복사했습니다.');}
+  else if(el.hasAttribute('data-oauth'))saveResume();
+ }catch(e){toast(e.message);}finally{el.disabled=false;}
+});
+audio.ontimeupdate=()=>{$('#elapsed').textContent=time(audio.currentTime);$('#seek').value=audio.currentTime;};
+audio.onplay=()=>{lastTick=performance.now();$('#play-toggle').innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg>';$('#play-toggle').setAttribute('aria-label','일시정지');};
+audio.onpause=()=>{$('#play-toggle').innerHTML=icon('play');$('#play-toggle').setAttribute('aria-label','재생');report();};
+audio.onended=()=>{report();if(preview&&current.duration>=60){saveResume();dialog('<h2>좋은 음악은 끝까지.</h2><p>무료 회원가입 후 60초 지점부터 이어 들으세요.</p><a class="primary-button" href="#account" id="preview-login">무료 회원가입 후 전체곡 듣기</a>');$('#preview-login').onclick=()=>{$('#dialog').close();returnRoute='#song/'+current.id;};return;}if(repeatMode===2)play(current.id).catch(e=>toast(e.message));else nextTrack(1,true).catch(e=>toast(e.message));};
+audio.onerror=()=>{if(audio.src)toast('음원을 불러오지 못했습니다. 재생을 다시 눌러주세요.');};
+setInterval(()=>{if(!audio.paused&&!audio.seeking&&audio.readyState>=3){const n=performance.now();if(lastTick)heard+=Math.min((n-lastTick)/1000,1.1);lastTick=n;}else lastTick=0;},1000);
+setInterval(report,10000);
+$('#play-toggle').onclick=async()=>{try{if(!current){if(routeTracks.length)await play(routeTracks[0].id,routeTracks);else toast('먼저 음악을 선택해주세요.');}else if(!playSession||preview!==!me)await play(current.id,null,audio.currentTime);else if(audio.paused)await audio.play();else audio.pause();}catch(e){toast(e.message);}};
+$('#next').onclick=()=>nextTrack(1).catch(e=>toast(e.message));$('#previous').onclick=()=>{if(audio.currentTime>3)audio.currentTime=0;else nextTrack(-1).catch(e=>toast(e.message));};
+$('#shuffle').onclick=()=>{shuffle=!shuffle;$('#shuffle').classList.toggle('is-active',shuffle);$('#shuffle').setAttribute('aria-pressed',String(shuffle));};
+$('#repeat').onclick=()=>{repeatMode=(repeatMode+1)%3;$('#repeat').classList.toggle('is-active',!!repeatMode);$('#repeat').setAttribute('aria-pressed',String(!!repeatMode));const label=['반복 끔','전체 반복','한 곡 반복'][repeatMode];$('#repeat').setAttribute('aria-label',label);toast(label);};
+$('#volume').oninput=e=>audio.volume=Number(e.target.value);$('#seek').oninput=e=>{if(current)audio.currentTime=Number(e.target.value);};
+$('#queue-toggle').onclick=()=>dialog(`<h2>다음에 들을 음악</h2>${queue.length?`<div class="dialog-list">${queue.map((id,i)=>`<button class="small-button" data-play="${id}">${i+1}. ${esc(trackMap.get(id)?.title||'음악')}${id===current?.id?' · 재생 중':''}</button>`).join('')}</div>`:'<p>재생할 곡을 먼저 선택해주세요.</p>'}`);
+$('#dialog-close').onclick=()=>$('#dialog').close();$('#menu-toggle').onclick=()=>$('.sidebar').classList.toggle('open');
+window.addEventListener('hashchange',render);window.addEventListener('pagehide',saveResume);
+async function boot(){try{authConfig=await api('/api/me');me=authConfig.user;await refreshLibrary();updateAccount();await render();if(me&&pendingResume)await resumeAfterLogin();}catch(e){toast(e.message);await render();}}
+icons();boot();
