@@ -2,7 +2,7 @@
 export const BUSINESS = Object.freeze({
   name: '모티브', registration: '832-29-01450',
   address: '경기도 안산시 상록구 구룡체육관로 22 403호',
-  email: 'lsevenn88@gmail.com', representative: '이종석', phone: '',
+  email: 'lsevenn88@gmail.com', representative: '이종석', phone: '070-8098-8730',
   commerceRegistration: '', commerceStatus: '미신고',
 });
 export const PREMIUM = Object.freeze({name: 'AIFECT Premium', price: 4900, currency: 'KRW', interval: 'month', taxIncluded: true, checkoutAvailable: false});
