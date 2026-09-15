@@ -39,7 +39,9 @@ function applyLyrics(fd){
  const normalized=AifectLyrics.serializeLrc(AifectLyrics.parseLrc(text,Number(lyricEditor.root.dataset.duration)));if(normalized.length>AifectLyrics.MAX_LYRICS)throw new Error('시간을 포함한 가사는 최대 12,000자까지 등록할 수 있습니다.');fd.set('lyrics',normalized);if(lyricEditor.loadedJobId)fd.set('lyrics_job_id',lyricEditor.loadedJobId);
 }
 const hasFullLyrics=t=>!!me&&t?.lyrics_access==='full'&&Number(t.lyrics_access_until)*1000>Date.now();
-let lyricLine=null,lyricRequest=0,lyricBusy=false,lyricRetryAt=0;
+let lyricLines=[],lyricDisplay=null,lyricRequest=0,lyricPending=null,lyricRetryAt=0;
+const LYRIC_PREFETCH_SECONDS=3,LYRIC_TRANSITION_GRACE=1.5;
+function resetLyricLines(){lyricLines=[];lyricDisplay=null;lyricRequest++;lyricPending=null;lyricRetryAt=0;}
 function lyricsPanel(t){
  if(t.lyrics_mode!=='synced')return `<section class="surface lyrics-panel"><h2>가사</h2><p class="field-help">아직 등록된 가사가 없습니다.</p></section>`;
  const full=hasFullLyrics(t);let cues=[];if(full){try{cues=AifectLyrics.parseLrc(t.lyrics);}catch{}}
@@ -47,36 +49,51 @@ function lyricsPanel(t){
 }
 function clearFullLyrics(){
  for(const [id,t] of trackMap)if(t.lyrics_access==='full')trackMap.set(id,{...t,lyrics:'',lyrics_access:'line',lyrics_access_until:null});
- if(current?.lyrics_access==='full'){current={...current,lyrics:'',lyrics_access:'line',lyrics_access_until:null};currentCues=[];lyricLine=null;lyricRequest++;lyricBusy=false;}
+ if(current?.lyrics_access==='full'){current={...current,lyrics:'',lyrics_access:'line',lyrics_access_until:null};currentCues=[];resetLyricLines();}
  const panel=$('#song-lyrics');if(panel?.dataset.mode==='full'){const t=trackMap.get(panel.dataset.track);if(t){panel.outerHTML=lyricsPanel(t);bindLyricsPanel();}}
 }
 function refreshLyricsPanel(){const panel=$('#song-lyrics');if(panel&&current?.id===panel.dataset.track){panel.outerHTML=lyricsPanel(current);bindLyricsPanel();}}
-function setCurrentLyrics(t){lyricLine=null;lyricRequest++;lyricBusy=false;lyricRetryAt=0;try{currentCues=hasFullLyrics(t)&&t.lyrics_mode==='synced'?AifectLyrics.parseLrc(t.lyrics):[];}catch{currentCues=[];}updateSyncedLyrics(true);}
+function setCurrentLyrics(t){resetLyricLines();try{currentCues=hasFullLyrics(t)&&t.lyrics_mode==='synced'?AifectLyrics.parseLrc(t.lyrics):[];}catch{currentCues=[];}updateSyncedLyrics(true);}
 function bindLyricsPanel(){
  const panel=$('#song-lyrics');if(!panel)return;const track=trackMap.get(panel.dataset.track);if(current?.id===track?.id){current=track;try{currentCues=hasFullLyrics(track)?AifectLyrics.parseLrc(track.lyrics):[];}catch{currentCues=[];}}
  const state=lyricPanelState={panel,follow:true,index:-2};const follow=$('#lyrics-follow'),scroller=panel.querySelector('.lyrics-scroll');
  if(follow&&scroller){const setFollow=value=>{state.follow=value;follow.textContent=value?'자동 따라가기 켜짐':'자동 따라가기 꺼짐';follow.setAttribute('aria-pressed',String(value));};follow.onclick=()=>{setFollow(!state.follow);updateSyncedLyrics(true);};for(const event of ['wheel','touchmove'])scroller.addEventListener(event,()=>setFollow(false),{passive:true});}
  updateSyncedLyrics(true);
 }
-function lineAtCurrentTime(){return lyricLine?.id===current?.id&&audio.currentTime>=lyricLine.from&&(audio.currentTime<lyricLine.until||(lyricLine.until>=current.duration&&audio.currentTime<=current.duration))?lyricLine:null;}
-async function fetchCurrentLine(){
- if(!current||lyricBusy||Date.now()<lyricRetryAt||lineAtCurrentTime())return;
- const t=current,token=++lyricRequest;lyricBusy=true;
- try{const seconds=Math.floor(Math.max(0,Math.min(audio.currentTime,t.duration))*1000)/1000;const d=await api(`/api/tracks/${t.id}/lyrics/line?at=${seconds}`);if(token!==lyricRequest||t.id!==current?.id)return;lyricLine=d.line?{...d.line,id:t.id}:{id:t.id,from:0,until:t.duration,text:'',intro:false};}
+function containsLyricTime(line,seconds){return line?.id===current?.id&&seconds>=line.from&&(seconds<line.until||(line.until>=current.duration&&seconds<=current.duration));}
+function lineAtTime(seconds=audio.currentTime){return lyricLines.find(line=>containsLyricTime(line,seconds))||null;}
+async function fetchCurrentLine(seconds=audio.currentTime,prefetch=false){
+ if(!current||hasFullLyrics(current)||lyricPending||Date.now()<lyricRetryAt||lineAtTime(seconds))return;
+ const t=current;seconds=Math.max(0,Math.min(seconds,t.duration));if(!me&&seconds>=60)return;
+ const token=++lyricRequest;lyricPending={token,seconds,prefetch};
+ try{
+  const d=await api(`/api/tracks/${t.id}/lyrics/line?at=${seconds}`);if(token!==lyricRequest||t.id!==current?.id)return;
+  const line=d.line?{...d.line,id:t.id}:{id:t.id,from:0,until:me?t.duration:Math.min(t.duration,60),text:'',intro:false};
+  if(!containsLyricTime(line,seconds))throw new Error('Invalid lyric interval');
+  // Only keep nearby lines in memory; free listeners never receive a full transcript.
+  lyricLines=[...lyricLines.filter(c=>c.from!==line.from),line].slice(-3);lyricRetryAt=0;
+ }
  catch{if(token===lyricRequest)lyricRetryAt=Date.now()+5000;}
- finally{if(token===lyricRequest){lyricBusy=false;updateSyncedLyrics(true);}}
+ finally{if(token===lyricRequest){lyricPending=null;updateSyncedLyrics(true);}}
 }
 function updateSyncedLyrics(force=false){
  if(current?.lyrics_access==='full'&&!hasFullLyrics(current))clearFullLyrics();
  const limitReached=!me&&audio.currentTime>=60,full=hasFullLyrics(current),hasLyrics=current?.lyrics_mode==='synced',index=limitReached?-1:AifectLyrics.activeCueIndex(currentCues,audio.currentTime),cue=currentCues[index],hud=$('#player-lyric');
- const line=lineAtCurrentTime(),text=limitReached?'로그인하고 전체곡을 이어 들으세요':full?(cue?.text||'♪ '+(index<0?'전주':'간주')):line?(line.text||'♪ '+(line.intro?'전주':'간주')):lyricRetryAt>Date.now()?'가사를 불러오지 못했어요. 잠시 후 다시 시도합니다.':'가사를 불러오는 중…';
+ const line=lineAtTime();if(line)lyricDisplay=line;
+ // Bridge a slow natural transition briefly, but never carry a line across a seek.
+ const display=line||(lyricDisplay?.id===current?.id&&audio.currentTime>=lyricDisplay.from&&audio.currentTime<lyricDisplay.until+LYRIC_TRANSITION_GRACE?lyricDisplay:null);
+ const text=limitReached?'로그인하고 전체곡을 이어 들으세요':full?(cue?.text||'♪ '+(index<0?'전주':'간주')):display?(display.text||'♪ '+(display.intro?'전주':'간주')):'♪';
  if(hud){hud.hidden=!hasLyrics;hud.href=current?'#song/'+current.id:'#home';hud.textContent=hasLyrics?text:'';}
  const state=lyricPanelState;if(state?.panel.isConnected){const active=current?.id===state.panel.dataset.track,indexHere=active?index:-1;
-  if(state.panel.dataset.mode==='line'){const el=$('#current-lyric-line');if(el)el.textContent=active?text:'♪ 음악을 재생해주세요';const status=$('#lyrics-play-status');if(status)status.textContent=active?'음악에 맞춰 현재 가사 한 줄이 바뀝니다.':'이 곡을 재생하면 현재 가사가 표시됩니다.';}
+  if(state.panel.dataset.mode==='line'){const el=$('#current-lyric-line');if(el)el.textContent=active?text:'♪ 음악을 재생해주세요';const status=$('#lyrics-play-status');if(status)status.textContent=active?(lyricRetryAt>Date.now()&&!line?'가사를 불러오지 못했어요. 잠시 후 다시 시도합니다.':'음악에 맞춰 현재 가사 한 줄이 바뀝니다.'):'이 곡을 재생하면 현재 가사가 표시됩니다.';}
   else if(force||state.index!==indexHere){state.index=indexHere;state.panel.querySelectorAll('.lyric-line').forEach((line,i)=>{line.classList.toggle('is-current',i===indexHere);if(i===indexHere)line.setAttribute('aria-current','true');else line.removeAttribute('aria-current');});$('#lyrics-play-status').textContent=!active?'이 곡을 재생하면 현재 가사를 따라갑니다.':index<0?'♪ 첫 가사를 기다리고 있어요.':'가사를 누르면 해당 구간으로 이동해요.';
    if(state.follow&&indexHere>=0){const scroller=state.panel.querySelector('.lyrics-scroll'),el=scroller.children[indexHere];if(el){const top=el.getBoundingClientRect().top-scroller.getBoundingClientRect().top+scroller.scrollTop-scroller.clientHeight/2+el.clientHeight/2;scroller.scrollTo({top,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});}}
   }
  }
- if(hasLyrics&&!full&&!limitReached&&!line)void fetchCurrentLine();
+ if(hasLyrics&&!full&&!limitReached){
+  if(!line)void fetchCurrentLine();
+  else if(!audio.paused&&line.until-audio.currentTime<=LYRIC_PREFETCH_SECONDS&&line.until<current.duration&&(me||line.until<60)&&!lineAtTime(line.until))void fetchCurrentLine(line.until,true);
+ }
 }
+audio.addEventListener('seeking',()=>{lyricDisplay=null;lyricRequest++;lyricPending=null;lyricRetryAt=0;updateSyncedLyrics(true);});
 for(const event of ['timeupdate','seeked','loadedmetadata','ended','emptied'])audio.addEventListener(event,()=>updateSyncedLyrics());
