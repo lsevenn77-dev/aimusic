@@ -1,4 +1,4 @@
-import {createRemoteJWKSet,jwtVerify,SignJWT,importPKCS8} from 'jose';
+import {createRemoteJWKSet,jwtVerify} from 'jose';
 import {one,run,query,now,id,fail,str,json,rate} from './db.js';
 const enc=new TextEncoder();
 export const hash=async s=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',enc.encode(s))),x=>x.toString(16).padStart(2,'0')).join('');
@@ -22,18 +22,28 @@ export async function authRoute(req,env,path,user){
   if(!env.GOOGLE_CLIENT_ID)fail(503,'Google 로그인을 준비하고 있습니다.');
   const state=id()+id(),nonce=id();
   await run(env,'INSERT INTO oauth_states(state,provider,verifier,nonce,expires) VALUES(?,?,?,?,?)',await hash(state),'google-id','',nonce,now()+600);
-  return json({nonce},200,{'set-cookie':cookie('aifect_oauth',state,600,secure)});
+  // Google returns credentials with a cross-site POST in redirect mode.
+  const binding=secure?`aifect_google_oauth=${state}; Path=/; HttpOnly; SameSite=None; Secure; Max-Age=600`:cookie('aifect_google_oauth',state,600,false);
+  return json({nonce},200,{'set-cookie':binding});
  }
- if(path==='/api/auth/google/token'&&req.method==='POST'){
-  const state=cookies(req).aifect_oauth||'';
+ if((path==='/api/auth/google/token'||path==='/api/auth/google/callback')&&req.method==='POST'){
+  const isRedirect=path.endsWith('/callback'),jar=cookies(req);
+  const b=isRedirect?Object.fromEntries(new URLSearchParams(await req.text())):await req.json();
+  if(isRedirect&&(!jar.g_csrf_token||!b.g_csrf_token||!equal(jar.g_csrf_token,b.g_csrf_token)))fail(403,'로그인 요청을 확인할 수 없습니다. 다시 시도해주세요.');
+  const state=jar.aifect_google_oauth||'';
   const st=await query(env,"DELETE FROM oauth_states WHERE state=? AND provider='google-id' AND expires>? RETURNING *",await hash(state),now()).first();
   if(!st||!env.GOOGLE_CLIENT_ID)fail(400,'로그인 요청이 만료됐습니다.');
-  const b=await req.json();const jwks=createRemoteJWKSet(new URL('https://www.googleapis.com/oauth2/v3/certs'));
+  const jwks=createRemoteJWKSet(new URL('https://www.googleapis.com/oauth2/v3/certs'));
   let payload;try{({payload}=await jwtVerify(str(b.credential,10000),jwks,{issuer:['https://accounts.google.com','accounts.google.com'],audience:env.GOOGLE_CLIENT_ID}));}catch{fail(401,'Google 인증을 확인할 수 없습니다.');}
-  if(payload.nonce!==st.nonce||!payload.email_verified||!payload.sub)fail(401,'Google 인증 정보가 일치하지 않습니다.');
+  if(payload.nonce!==st.nonce||payload.email_verified!==true||!payload.email||!payload.sub)fail(401,'Google 인증 정보가 일치하지 않습니다.');
   let u=await one(env,"SELECT id,name,email,provider FROM users WHERE provider='google' AND subject=?",payload.sub);
   if(!u){u={id:id(),name:String(payload.name||'AIFECT 리스너').slice(0,40),email:payload.email,provider:'google'};await run(env,'INSERT INTO users(id,email,name,provider,subject,created) VALUES(?,?,?,?,?,?)',u.id,u.email,u.name,'google',payload.sub,now());}
-  return json({user:u},200,{'set-cookie':await session(env,u,secure)});
+  const headers=new Headers({'cache-control':'no-store'});
+  headers.append('set-cookie',await session(env,u,secure));
+  headers.append('set-cookie',cookie('aifect_google_oauth','',0,secure));
+  if(isRedirect){headers.set('location','/#account?welcome=1');return new Response(null,{status:303,headers});}
+  headers.set('content-type','application/json; charset=utf-8');
+  return new Response(JSON.stringify({user:u}),{headers});
  }
  if(path==='/api/auth/logout'&&req.method==='POST'){
   const token=cookies(req).aifect_session;if(token)await run(env,'DELETE FROM sessions WHERE token=?',await hash(token));

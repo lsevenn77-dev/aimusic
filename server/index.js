@@ -10,7 +10,8 @@ export default {async fetch(req,env,ctx){
    if(!['GET','HEAD'].includes(req.method))return json({error:'허용되지 않는 요청입니다.'},405);
    return env.ASSETS.fetch(req);
   }
-  const oauthCallback=/^\/api\/auth\/apple\/callback$/.test(path);
+  // Provider form POSTs have their own browser binding and token checks.
+  const oauthCallback=/^\/api\/auth\/(google|apple)\/callback$/.test(path);
   if(!['GET','HEAD','OPTIONS'].includes(req.method)&&!oauthCallback){
    const origin=req.headers.get('origin');
    if(origin!==url.origin||req.headers.get('sec-fetch-site')==='cross-site')fail(403,'사이트에서 다시 요청해주세요.');
