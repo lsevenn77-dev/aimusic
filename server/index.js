@@ -6,9 +6,12 @@ import {membershipRoute} from './membership.js';
 import {lyricsRoute} from './lyrics.js';
 import {alignmentRoute} from './alignment.js';
 import {publicPageRoute} from './public-pages.js';
+import {billingRoute,billingWebhook,billingTick} from './billing.js';
 export default {async fetch(req,env,ctx){
  const url=new URL(req.url),path=url.pathname;
  try{
+  if(path==='/api/billing/nicepay/webhook')return await billingWebhook(req,env);
+  if(path==='/internal/billing/tick')return await billingTick(req,env);
   if(path.startsWith('/internal/'))return await internalRoute(req,env,path);
   const publicResponse=publicPageRoute(req,path);if(publicResponse)return publicResponse;
   if(!path.startsWith('/api/')&&!path.startsWith('/media/')){
@@ -30,11 +33,11 @@ export default {async fetch(req,env,ctx){
    query(env,'DELETE FROM oauth_states WHERE expires<?',now()),
    query(env,'DELETE FROM rate_limits WHERE expires<?',now())
   ]).catch(()=>console.error('Expired authentication state cleanup failed')));
-  const result=await authRoute(req,env,path,user)||await membershipRoute(req,env,path,user)||await alignmentRoute(req,env,path,user)||await lyricsRoute(req,env,path,user)||await catalogRoute(req,env,path,user)||await mediaRoute(req,env,path,user);
+  const result=await authRoute(req,env,path,user)||await billingRoute(req,env,path,user)||await membershipRoute(req,env,path,user)||await alignmentRoute(req,env,path,user)||await lyricsRoute(req,env,path,user)||await catalogRoute(req,env,path,user)||await mediaRoute(req,env,path,user);
   if(result)return result;
   return json({error:'페이지를 찾을 수 없습니다.'},404);
  }catch(e){
-  if(!e.status)console.error(JSON.stringify({path,error:e.name,message:String(e.message).slice(0,300)}));
+  if(!e.status)console.error(JSON.stringify({path,error:e.name,...(path.includes('/billing/')?{}:{message:String(e.message).slice(0,300)})}));
   const status=e.status||500,message=e.status?e.message:'잠시 연결이 원활하지 않습니다. 입력 내용은 유지되니 다시 시도해주세요.';
   if(path.includes('/auth/')&&path.endsWith('/callback'))return new Response(null,{status:303,headers:{location:'/#account?error='+encodeURIComponent(message),'cache-control':'no-store'}});
   return json({error:message},status);

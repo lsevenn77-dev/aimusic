@@ -8,7 +8,7 @@ function discoveryTabs(active){return `<div class="tabs explorer-tabs">${[['','�
 function moodCards(moods,selected=''){return `<div class="mood-grid">${moods.map((m,i)=>`<a class="mood-card mood-${i} ${selected===m.id?'selected':''}" href="#discover/mood?m=${m.id}" ${selected===m.id?'aria-current="page"':''}><span aria-hidden="true">${m.symbol}</span><strong>${esc(m.name)}</strong><small>${esc(m.caption)}</small><em>${m.count}곡</em></a>`).join('')}</div>`;}
 async function explorerView(base,param,raw){
  const params=new URLSearchParams(raw.split('?')[1]||'');
- if(base==='membership'){if(me)await refreshLibrary();return {html:membershipHTML()};}
+ if(base==='membership'){if(me)await refreshLibrary();let billing;try{billing=await api('/api/billing/status');}catch{}return {html:membershipHTML(billing)};}
  if(base==='discover'){
   const active=param==='mood'?'themes':genres.includes(decodeURIComponent(param||''))?'genres':param||'',mood=params.get('m')||'',genre=params.get('g')||(genres.includes(decodeURIComponent(param||''))?decodeURIComponent(param):'전체');
   if(active==='following'&&!me){returnRoute=location.hash;return {html:heading('팔로잉 신곡','좋아하는 창작자의 새 음악을 만나보세요.')+discoveryTabs(active)+gate()};}

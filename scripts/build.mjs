@@ -3,6 +3,7 @@ import { mkdir, cp, writeFile, readFile } from 'node:fs/promises';
 import {businessFooterHTML} from '../shared/site-info.js';
 await mkdir('dist/server',{recursive:true});
 await mkdir('dist/client',{recursive:true});
+await cp('dist/billing.js','dist/client/billing.js');
 for (const file of ['index.html','app.js','icons.js','views.js','studio.js','lyrics.js','library.js','explorer.js','membership.js','alignment.js','actions.js','style.css','studio.css','lyrics.css','discovery.css','explorer.css','membership.css','alignment.css','policies.css','assets']) await cp(`dist/${file}`,`dist/client/${file}`,{recursive:true});
 const indexHTML=await readFile('dist/index.html','utf8');
 if(!indexHTML.includes('<!--BUSINESS_FOOTER-->'))throw new Error('Business footer placeholder is missing');

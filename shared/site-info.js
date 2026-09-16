@@ -6,7 +6,7 @@ export const BUSINESS = Object.freeze({
   commerceRegistration: '', commerceStatus: '미신고',
 });
 export const PREMIUM = Object.freeze({name: 'AIFECT Premium', price: 4900, currency: 'KRW', interval: 'month', taxIncluded: true, checkoutAvailable: false});
-export const POLICY_VERSION = '2026-09-15';
+export const POLICY_VERSION = '2026-09-16';
 export const escapeHTML = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export const policyLinks = [['/pricing','이용권 · 가격'],['/terms','이용약관'],['/privacy','개인정보처리방침'],['/refund','환불 · 해지 정책'],['/contact','고객센터']];
 export function businessDetailsHTML(){
@@ -14,5 +14,5 @@ export function businessDetailsHTML(){
   return `<dl class="business-details">${items.filter(([,value])=>value).map(([label,value])=>`<div><dt>${label}</dt><dd>${escapeHTML(value)}</dd></div>`).join('')}<div><dt>고객센터 이메일</dt><dd><a href="mailto:${BUSINESS.email}">${BUSINESS.email}</a></dd></div></dl>`;
 }
 export function businessFooterHTML(){
-  return `<div class="footer-heading"><strong>AIFECT</strong><span>AI + EFFECT</span></div><p class="footer-product">전체곡 무료 감상 · <a href="/pricing" target="_blank" rel="noopener">Premium 월 ${PREMIUM.price.toLocaleString('ko-KR')}원</a> (부가세 포함 · 출시 예정)</p><nav class="policy-links" aria-label="서비스 정책">${policyLinks.map(([url,label])=>`<a href="${url}" target="_blank" rel="noopener"${url==='/privacy'?' class="privacy-link"':''}>${label}</a>`).join('')}</nav>${businessDetailsHTML()}<p class="footer-copyright">© ${POLICY_VERSION.slice(0,4)} ${BUSINESS.name}. AIFECT.</p>`;
+  return `<div class="footer-heading"><strong>AIFECT</strong><span>AI + EFFECT</span></div><p class="footer-product">전체곡 무료 감상 · <a href="/pricing" target="_blank" rel="noopener">Premium 월 ${PREMIUM.price.toLocaleString('ko-KR')}원</a> (부가세 포함)</p><nav class="policy-links" aria-label="서비스 정책">${policyLinks.map(([url,label])=>`<a href="${url}" target="_blank" rel="noopener"${url==='/privacy'?' class="privacy-link"':''}>${label}</a>`).join('')}</nav>${businessDetailsHTML()}<p class="footer-copyright">© ${POLICY_VERSION.slice(0,4)} ${BUSINESS.name}. AIFECT.</p>`;
 }
