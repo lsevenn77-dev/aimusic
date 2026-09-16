@@ -133,3 +133,11 @@ test('cancelling an unsent order closes it and blocks the worker from charging i
  assert.equal(f.sql.prepare('SELECT status FROM billing_payments').get().status,'failed');
  assert.equal(f.calls.filter(c=>c.path.endsWith('/payments')).length,1);
 });
+
+test('unsigned registration probes and unknown orders are acknowledged without creating payment or access',async t=>{
+ const f=await setup(t);
+ for(const body of [{},{orderId:'sample-order',amount:4900,status:'paid'}])assert.equal((await f.invoke('/api/billing/nicepay/webhook',body)).body,'OK');
+ assert.equal(f.sql.prepare('SELECT COUNT(*) AS n FROM billing_payments').get().n,0);
+ assert.equal(f.sql.prepare("SELECT premium_until FROM users WHERE id='owner'").get().premium_until,0);
+ assert.equal(f.calls.filter(c=>c.path.endsWith('/payments')).length,0);
+});

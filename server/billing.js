@@ -31,8 +31,9 @@ async function readBody(req){
 async function workerReady(env){return Number((await one(env,"SELECT last_seen FROM billing_worker WHERE id='runner'"))?.last_seen)>now()-180;}
 export async function billingStatus(env,user){
  const s=user?await subscription(env,user):null;
+ const starts=now(),day=new Date((starts+9*3600)*1000).getUTCDate();
  const payments=s?await rows(env,'SELECT id,amount,status,period_start,period_end,created,refunded FROM billing_payments WHERE subscription_id=? ORDER BY cycle DESC LIMIT 24',s.id):[];
- return {checkout_available:checkoutEnabled(env)&&await workerReady(env),price:PREMIUM.price,currency:'KRW',interval:'month',subscription:s?{state:s.state,renewing:s.state==='active'&&!s.cancel_requested,period_end:s.period_end||null,card_name:s.card_name,payment_pending:payments.some(p=>['processing','review'].includes(p.status))}:null,payments};
+ return {checkout_available:checkoutEnabled(env)&&await workerReady(env),price:PREMIUM.price,currency:'KRW',interval:'month',starts_at:starts,first_renewal_at:nextBillingMonth(starts,day),billing_day:day,subscription:s?{state:s.state,renewing:s.state==='active'&&!s.cancel_requested,period_end:s.period_end||null,card_name:s.card_name,payment_pending:payments.some(p=>['processing','review'].includes(p.status))}:null,payments};
 }
 export async function billingTerms(env){
  const terms=[];
@@ -163,9 +164,11 @@ export async function billingRoute(req,env,path,user){
 export async function billingWebhook(req,env){
  if(req.method!=='POST')fail(405,'허용되지 않는 요청입니다.');
  const body=await readBody(req);
- if(!await verifyNiceSignature(env,body))fail(401,'결제 알림 인증에 실패했습니다.');
  const p=await one(env,'SELECT * FROM billing_payments WHERE id=?',String(body.orderId||''));
+ // NICE registration probes use sample orders. Unknown orders are ignored;
+ // no membership or payment is created from a webhook payload.
  if(!p)return ACK();
+ if(!await verifyNiceSignature(env,body))fail(401,'결제 알림 인증에 실패했습니다.');
  if(body.amount!==p.amount)fail(400,'결제 금액이 일치하지 않습니다.');
  const s=await lock(env,p.subscription_id);if(!s)fail(503,'결제 내역을 처리 중입니다.');
  try{await reconcilePayment(env,s,p);}finally{await unlock(env,s);}
