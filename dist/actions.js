@@ -55,6 +55,7 @@ async function playlistOrderDialog(pid){
 document.addEventListener('click',async ev=>{
  const el=ev.target.closest('button,a');if(!el||el.disabled)return;
  try{
+  if(el.matches('[data-play],[data-play-all],[data-like],[data-follow],[data-add],[data-seek]'))await accountReady;
   if(el.hasAttribute('data-play')){if($('#dialog').open)$('#dialog').close();await play(el.dataset.play,routeTracks.some(t=>t.id===el.dataset.play)?routeTracks:null);}
   else if(el.hasAttribute('data-play-all')){if(routeTracks.length)await play(routeTracks[0].id,routeTracks);else toast('먼저 곡을 추가해주세요.');}
   else if(el.dataset.like){if(!me)return askLogin();el.disabled=true;const tid=el.dataset.like,wasLiked=liked(tid),prior=trackMap.get(tid);await api(`/api/tracks/${tid}/like`,wasLiked?'DELETE':'PUT');await refreshLibrary();const count=library.likes.find(t=>t.id===tid)?.likes??Math.max(0,(prior?.likes||0)-1);if(prior)trackMap.set(tid,{...prior,likes:count});document.querySelectorAll('[data-like]').forEach(b=>{if(b.dataset.like!==tid)return;b.classList.toggle('is-active',liked(tid));b.setAttribute('aria-pressed',String(liked(tid)));const label=b.querySelector('[data-like-count]');if(label){label.textContent=number(count);b.setAttribute('aria-label',`좋아요 ${number(count)}개`);}});document.querySelectorAll('[data-stat-track]').forEach(s=>{if(s.dataset.statTrack!==tid)return;const item=s.children[1];item.setAttribute('aria-label',`좋아요 ${number(count)}개`);item.querySelector('span').textContent=number(count);});toast(liked(el.dataset.like)?'좋아요에 저장했습니다.':'좋아요를 취소했습니다.');}
@@ -97,5 +98,10 @@ $('#volume').oninput=e=>audio.volume=Number(e.target.value);$('#seek').oninput=e
 $('#queue-toggle').onclick=queueDialog;
 $('#dialog-close').onclick=()=>$('#dialog').close();$('#menu-toggle').onclick=()=>$('.sidebar').classList.toggle('open');
 window.addEventListener('hashchange',render);window.addEventListener('pagehide',saveResume);
-async function boot(){try{authConfig=await api('/api/me');me=authConfig.user;await refreshLibrary();updateAccount();await render();if(me&&pendingResume)await resumeAfterLogin();}catch(e){toast(e.message);await render();}}
+async function boot(){
+ accountReady=(async()=>{try{authConfig=await api('/api/me');me=authConfig.user;await refreshLibrary();}catch(e){toast(e.message);}finally{updateAccount();updateHomeAccount();}})();
+ const firstRender=render();await accountReady;
+ if(me&&pendingResume)try{await resumeAfterLogin();}catch(e){toast(e.message);}
+ await firstRender;
+}
 icons();boot();

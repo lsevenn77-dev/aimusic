@@ -4,6 +4,7 @@ const time=s=>`${Math.floor((Number(s)||0)/60)}:${String(Math.floor((Number(s)||
 const number=n=>Number(n||0).toLocaleString('ko-KR');
 const genres=['전체','K-POP','Ballad','R&B','Hip-Hop','Rock','EDM','City Pop','OST','Instrumental'];
 let me=null,authConfig={},library={likes:[],playlists:[],follows:[]},trackMap=new Map(),renderId=0,routeTracks=[],returnRoute='#home',toastTimer;
+let accountReady=Promise.resolve();
 const audio=new Audio();audio.preload='metadata';audio.volume=.75;
 let queue=[],current=null,playSession=null,preview=false,heard=0,lastTick=0,repeatMode=0,shuffle=false,playSerial=0,pendingResume=null,reportBusy=false;
 try{pendingResume=JSON.parse(sessionStorage.getItem('aifect-player-resume')||'null');}catch{}
@@ -13,7 +14,7 @@ async function api(path,method='GET',body){const r=await fetch(path,{method,cred
 function remember(tracks){tracks.forEach(t=>trackMap.set(t.id,t));return tracks;}
 const liked=id=>library.likes.some(t=>t.id===id);
 const followed=(kind,id)=>library.follows.some(f=>f.kind===kind&&f.target_id===id);
-function cover(t,cls='album-art'){return `<div class="${cls} cover cover-${t.has_cover?'custom':'lime'}">${t.has_cover?`<img src="/media/${esc(t.id)}/cover?v=${esc(t.cover_version||'original')}" alt="${esc(t.title)} 커버" loading="lazy">`:`<span class="cover-word">${esc((t.title||'A').slice(0,2))}</span>`}</div>`;}
+function cover(t,cls='album-art'){return `<div class="${cls} cover cover-${t.has_cover?'custom':'lime'}">${t.has_cover?`<img decoding="async" src="/media/${esc(t.id)}/cover?v=${esc(t.cover_version||'original')}" alt="${esc(t.title)} 커버" loading="lazy">`:`<span class="cover-word">${esc((t.title||'A').slice(0,2))}</span>`}</div>`;}
 const heading=(title,desc='')=>`<div class="page-heading"><div><span class="eyebrow">AI + EFFECT</span><h1>${title}</h1>${desc?`<p>${desc}</p>`:''}</div><span class="free-badge">${icon('sparkles')} 전체곡 무료 감상</span></div>`;
 const empty=(title,desc,href='#upload',label='첫 곡 업로드하기')=>`<div class="surface empty-design"><div class="empty-symbol">${icon('sparkles')}</div><h2>${title}</h2><p>${desc}</p><a href="${href}" class="primary-button">${label} ${icon('arrow')}</a></div>`;
 const section=(title,href)=>`<div class="section-heading"><h2>${title}</h2>${href?`<a href="${href}">모두 보기 ${icon('chevron')}</a>`:''}</div>`;
@@ -44,6 +45,6 @@ async function resumeAfterLogin(){if(pendingResume){const r=pendingResume;sessio
 async function report(){if(!playSession||heard<1||reportBusy)return;reportBusy=true;try{await api('/api/listens/'+playSession,'PATCH',{seconds:Math.floor(heard)});}catch{}finally{reportBusy=false;}}
 async function nextTrack(delta,automatic=false){if(!queue.length){if(automatic)setPlayerVisible(false);return;}let i=queue.indexOf(current?.id);if(shuffle&&queue.length>1){const choices=queue.filter(id=>id!==current?.id);await play(choices[Math.floor(Math.random()*choices.length)]);return;}i+=delta;if(automatic&&i>=queue.length&&!repeatMode){setPlayerVisible(false);return;}i=(i+queue.length)%queue.length;await play(queue[i]);}
 
-function portrait(p,kind){return '<div class="artist-portrait cover '+(p.image_version?'cover-custom':'cover-lime')+'">'+(p.image_version?'<img src="/media/'+kind+'/'+esc(p.id)+'?v='+esc(p.image_version)+'" alt="'+esc(p.name)+' 프로필" loading="lazy">':'<span>'+esc(p.name.slice(0,2))+'</span>')+'</div>';}
+function portrait(p,kind){return '<div class="artist-portrait cover '+(p.image_version?'cover-custom':'cover-lime')+'">'+(p.image_version?'<img decoding="async" src="/media/'+kind+'/'+esc(p.id)+'?v='+esc(p.image_version)+'" alt="'+esc(p.name)+' 프로필" loading="lazy">':'<span>'+esc(p.name.slice(0,2))+'</span>')+'</div>';}
 
 function trackStats(t,cls='card-stats'){return '<div class="public-track-stats '+cls+'" data-stat-track="'+t.id+'" aria-label="곡 활동"><span aria-label="재생 '+number(t.plays)+'회">'+icon('play')+'<span>'+number(t.plays)+'</span></span><span aria-label="좋아요 '+number(t.likes)+'개">'+icon('heart')+'<span>'+number(t.likes)+'</span></span><a href="#song/'+t.id+'?comments=1" aria-label="댓글 '+number(t.comments)+'개 보기">'+icon('message')+'<span>'+number(t.comments)+'</span></a></div>';}

@@ -22,7 +22,16 @@ export async function catalogRoute(req,env,path,user){
   if(chart==='top')sort='(plays+likes*3+comments*2) DESC,t.created DESC';
   if(chart==='rising')sort="(SELECT count(DISTINCT listener) FROM listens l WHERE l.track_id=t.id AND l.qualified=1 AND l.started>unixepoch()-604800) DESC,t.created DESC";
   if(chart==='newcomers')where+=' AND p.created>unixepoch()-2592000 AND (SELECT count(*) FROM follows f WHERE f.kind=\'producer\' AND f.target_id=p.id)<1000';
-  return json({tracks:await trackList(env,where,args,sort),artists:await rows(env,`SELECT a.*, (SELECT count(*) FROM follows f WHERE f.kind='artist' AND f.target_id=a.id) followers FROM artists a WHERE EXISTS(SELECT 1 FROM tracks t WHERE t.artist_id=a.id AND t.status='published') ORDER BY created DESC LIMIT 100`),producers:await rows(env,`SELECT p.id,p.name,p.bio,p.created,p.image_version,(SELECT count(*) FROM follows f WHERE f.kind='producer' AND f.target_id=p.id) followers FROM producers p WHERE EXISTS(SELECT 1 FROM tracks t WHERE t.producer_id=p.id AND t.status='published') ORDER BY created DESC LIMIT 100`)});
+  const section=url.searchParams.get('section')||'all';
+  if(!['all','tracks','artists','producers'].includes(section))fail(400,'목록 종류를 확인해주세요.');
+  const requested=Number(url.searchParams.get('limit')||100),limit=Number.isFinite(requested)?Math.max(1,Math.min(100,Math.trunc(requested))):100;
+  const loaders={
+   tracks:()=>trackList(env,where,args,sort,limit),
+   artists:()=>rows(env,`SELECT a.*, (SELECT count(*) FROM follows f WHERE f.kind='artist' AND f.target_id=a.id) followers FROM artists a WHERE EXISTS(SELECT 1 FROM tracks t WHERE t.artist_id=a.id AND t.status='published') ORDER BY created DESC LIMIT ${limit}`),
+   producers:()=>rows(env,`SELECT p.id,p.name,p.bio,p.created,p.image_version,(SELECT count(*) FROM follows f WHERE f.kind='producer' AND f.target_id=p.id) followers FROM producers p WHERE EXISTS(SELECT 1 FROM tracks t WHERE t.producer_id=p.id AND t.status='published') ORDER BY created DESC LIMIT ${limit}`)
+  };
+  const sections=section==='all'?Object.keys(loaders):[section];
+  return json(Object.fromEntries(await Promise.all(sections.map(async key=>[key,await loaders[key]()]))));
  }
  let m=path.match(/^\/api\/tracks\/([\w-]+)(?:\/(like|comments))?$/);
  if(m){

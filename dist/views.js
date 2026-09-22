@@ -4,16 +4,17 @@ async function render(){
  $('.sidebar').classList.remove('open');document.querySelectorAll('.nav-link[data-view]').forEach(el=>el.classList.toggle('active',el.dataset.view===base));
  $('#main').setAttribute('aria-busy','true');let html='';
  try{
+  if(base==='home')return await renderHome(ticket);
+  await accountReady;if(ticket!==renderId)return;
   const explorer=await explorerView(base,param,raw);
   if(explorer){html=explorer.html;routeTracks=remember(explorer.tracks||[]);}
-  else if(['home','discover','charts','artists','producers','search'].includes(base)){
+  else if(['discover','charts','artists','producers','search'].includes(base)){
    let query='';const genre=base==='discover'?decodeURIComponent(param||'전체'):'전체',searchValue=base==='search'?decodeURIComponent(param||''):'';
    if(base==='charts')query='?chart='+({rising:'rising',newcomers:'newcomers',releases:'releases'}[param]||'top');
    if(base==='discover'&&genre!=='전체')query='?genre='+encodeURIComponent(genre);
    if(base==='search')query='?q='+encodeURIComponent(searchValue);
    const data=await api('/api/catalog'+query);routeTracks=remember(data.tracks);
-   if(base==='home')html=heading('오늘, 어떤 음악을 만나볼까요?','취향을 넓히는 새로운 음악과 창작자를 발견하세요.')+`<section class="hero aifect-hero"><div class="hero-copy"><span class="eyebrow">THE NEXT SOUND</span><h2>상상이 음악이 되는 곳.<br>당신의 다음 플레이리스트.</h2><p>AI가 열어준 가능성, 창작자가 담아낸 감성.<br>마음에 닿는 새로운 사운드를 만나보세요.</p><div class="hero-actions"><a class="primary-button" href="#discover">음악 둘러보기 ${icon('play')}</a><a href="#upload" class="text-link">내 음악 공개하기 ${icon('arrow')}</a></div><span class="hero-bottom">DISCOVER · LISTEN · CONNECT</span></div><div class="live-hero-art" aria-hidden="true"><div>A<span>IFECT</span></div></div></section>`+`<nav class="home-explorer-links" aria-label="새로운 음악 찾기"><a href="#discover/themes"><span>MOOD</span><strong>오늘 기분에 맞는 음악</strong><small>위로부터 기분 전환까지 →</small></a><a href="#collections"><span>PLAYLIST</span><strong>함께 나누는 플레이리스트</strong><small>다른 사람의 선곡 만나기 →</small></a><a href="#discover/following"><span>FOLLOWING</span><strong>내가 팔로우한 창작자</strong><small>새롭게 공개된 음악 듣기 →</small></a></nav>`+section('새롭게 도착한 음악','#charts/releases')+grid(data.tracks.slice(0,5))+section('새로운 목소리를 만나보세요','#artists')+identityCards(data.artists.slice(0,4),'artist')+`<div class="preview-notice"><div><span class="tiny-eyebrow">YOUR NEXT FAVORITE</span><p>60초의 첫 만남, 회원은 전체곡을 무료로.</p></div><a class="primary-button" href="#${me?'discover':'account'}">${me?'음악 발견하기':'무료로 시작하기'} ${icon('arrow')}</a></div>`;
-   else if(base==='discover')html=heading('음악 발견','장르를 넘나들며 새로운 취향을 찾아보세요.')+`<div class="genre-chips">${genres.map(g=>`<a class="genre-chip ${g===genre?'active':''}" href="#discover/${encodeURIComponent(g)}">${g}</a>`).join('')}</div>`+grid(data.tracks);
+   if(base==='discover')html=heading('음악 발견','장르를 넘나들며 새로운 취향을 찾아보세요.')+`<div class="genre-chips">${genres.map(g=>`<a class="genre-chip ${g===genre?'active':''}" href="#discover/${encodeURIComponent(g)}">${g}</a>`).join('')}</div>`+grid(data.tracks);
    else if(base==='charts')html=heading('AIFECT 차트','실제 감상과 좋아요·댓글로 함께 만드는 차트입니다.')+`<div class="tabs">${[['','TOP 100'],['rising','급상승'],['newcomers','신인'],['releases','신곡']].map(([k,v])=>`<a class="tab ${(param||'')===k?'active':''}" href="#charts${k?'/'+k:''}">${v}</a>`).join('')}</div>`+list(data.tracks);
    else if(base==='artists'||base==='producers')html=heading(base==='artists'?'AI 아티스트':'제작자',base==='artists'?'새로운 목소리, 새로운 세계.':'당신이 좋아하는 음악을 만드는 사람들.')+identityCards(data[base],base==='artists'?'artist':'producer');
    else html=heading('음악 검색')+`<form id="search-form" class="aifect-search">${icon('search')}<input name="q" aria-label="곡, 아티스트, 제작자 검색" placeholder="곡, 아티스트, 제작자, 태그" value="${esc(searchValue)}" maxlength="100"><button class="primary-button">검색</button></form><p class="search-caption">${searchValue?`“${esc(searchValue)}” 검색 결과 ${data.tracks.length}곡`:'어떤 음악을 찾고 계신가요?'}</p>`+list(data.tracks);
