@@ -1,6 +1,14 @@
 /* Short, quiet transitions; no recurring animation or scroll-linked movement. */
 :root{--motion-ease:cubic-bezier(.22,1,.36,1)}
 
+/* Give unused player space back to the page, including the mobile sidebar. */
+body{--player-height:96px;--player-space:0px}
+body.has-player{--player-space:var(--player-height)}
+.page-wrap{padding-bottom:var(--player-space)}
+.sidebar{bottom:var(--player-space)}
+.toast{bottom:calc(var(--player-space) + 20px + env(safe-area-inset-bottom,0px))}
+@media(max-width:800px){body{--player-height:110px}}
+
 /* Keep the artwork and its controls together when a music card is lifted. */
 .album-card:hover .album-art{transform:none}
 .album-art-wrap,
@@ -37,6 +45,7 @@
 }
 
 @media(prefers-reduced-motion:no-preference){
+  .player:not([hidden]){animation:aifect-player-in 220ms var(--motion-ease)}
   .motion-enter>.page-heading{animation:aifect-arrive 360ms var(--motion-ease) both}
   .motion-enter .aifect-hero .hero-copy{animation:aifect-arrive 480ms 35ms var(--motion-ease) both}
   .motion-enter .aifect-hero .live-hero-art{animation:aifect-art-settle 700ms var(--motion-ease) both}
@@ -50,6 +59,7 @@
 @keyframes aifect-art-settle{from{transform:scale(1.025)}to{transform:scale(1)}}
 @keyframes aifect-dialog{from{opacity:.6;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
 @keyframes aifect-backdrop{from{opacity:0}to{opacity:1}}
+@keyframes aifect-player-in{from{opacity:.65;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 
 /* OS accessibility preferences also remove existing hover movement. */
 @media(prefers-reduced-motion:reduce){

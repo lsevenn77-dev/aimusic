@@ -81,7 +81,7 @@ function updateSyncedLyrics(force=false){
  const limitReached=!me&&audio.currentTime>=60,full=hasFullLyrics(current),hasLyrics=current?.lyrics_mode==='synced',index=limitReached?-1:AifectLyrics.activeCueIndex(currentCues,audio.currentTime),cue=currentCues[index],hud=$('#player-lyric');
  const line=lineAtTime();if(line)lyricDisplay=line;
  // Bridge a slow natural transition briefly, but never carry a line across a seek.
- const display=line||(lyricDisplay?.id===current?.id&&audio.currentTime>=lyricDisplay.from&&audio.currentTime<lyricDisplay.until+LYRIC_TRANSITION_GRACE?lyricDisplay:null);
+ const display=line||(lyricDisplay&&lyricDisplay.id===current?.id&&audio.currentTime>=lyricDisplay.from&&audio.currentTime<lyricDisplay.until+LYRIC_TRANSITION_GRACE?lyricDisplay:null);
  const text=limitReached?'로그인하고 전체곡을 이어 들으세요':full?(cue?.text||'♪ '+(index<0?'전주':'간주')):display?(display.text||'♪ '+(display.intro?'전주':'간주')):'♪';
  if(hud){hud.hidden=!hasLyrics;hud.href=current?'#song/'+current.id:'#home';hud.textContent=hasLyrics?text:'';}
  const state=lyricPanelState;if(state?.panel.isConnected){const active=current?.id===state.panel.dataset.track,indexHere=active?index:-1;

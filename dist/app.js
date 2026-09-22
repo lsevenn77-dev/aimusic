@@ -27,6 +27,7 @@ function updateAccount(){$('.profile').innerHTML=`<span class="avatar">${esc(me?
 function askLogin(){returnRoute=location.hash;saveResume();location.hash='account';toast('무료로 가입하고 음악을 이어 들어보세요.');return false;}
 function saveResume(){saveQueue();if(current){pendingResume={id:current.id,time:preview?Math.min(audio.currentTime,60):audio.currentTime};sessionStorage.setItem('aifect-player-resume',JSON.stringify(pendingResume));}}
 function dialog(html){$('#dialog-content').innerHTML=html;if(!$('#dialog').open)$('#dialog').showModal();}
+function setPlayerVisible(visible){$('.player').hidden=!visible;document.body.classList.toggle('has-player',visible);}
 function formField(label,name,type='text',value='',extra=''){return `<label class="form-field">${label}<input type="${type}" name="${name}" value="${esc(value)}" ${extra}></label>`;}
 async function play(tid,tracks=null,start=0){
  const serial=++playSerial;audio.pause();await report();const t=(await api('/api/tracks/'+tid)).track;if(serial!==playSerial)return;remember([t]);
@@ -36,12 +37,12 @@ async function play(tid,tracks=null,start=0){
  audio.src=session.src;$('#now-playing').innerHTML=`<a href="#song/${t.id}">${cover(t,'mini-cover')}</a><div><strong>${esc(t.title)}</strong><span>${esc(t.artist)} · ${preview?'60초 미리 듣기':'전체곡 AAC 128'}</span></div><button class="icon-button" data-like="${t.id}" aria-label="좋아요">${icon('heart')}</button>`;
  $('#listen-mode').textContent=preview?'60초 미리 듣기':'전체곡 무료';$('#seek').max=preview?Math.min(t.duration,60):t.duration;$('#duration').textContent=time($('#seek').max);
  if(start)audio.currentTime=Math.min(start,preview?59.9:t.duration);
- setCurrentLyrics(t);refreshLyricsPanel();
+ setCurrentLyrics(t);refreshLyricsPanel();setPlayerVisible(true);
  try{await audio.play();}catch(e){if(e.name==='NotAllowedError')toast('재생 버튼을 눌러 음악을 이어 들어보세요.');else if(e.name!=='AbortError')throw new Error('음원을 재생할 수 없습니다. 잠시 후 다시 시도해주세요.');}
 }
 async function resumeAfterLogin(){if(pendingResume){const r=pendingResume;sessionStorage.removeItem('aifect-player-resume');pendingResume=null;await play(r.id,null,r.time);}}
 async function report(){if(!playSession||heard<1||reportBusy)return;reportBusy=true;try{await api('/api/listens/'+playSession,'PATCH',{seconds:Math.floor(heard)});}catch{}finally{reportBusy=false;}}
-async function nextTrack(delta,automatic=false){if(!queue.length)return;let i=queue.indexOf(current?.id);if(shuffle&&queue.length>1){const choices=queue.filter(id=>id!==current?.id);await play(choices[Math.floor(Math.random()*choices.length)]);return;}i+=delta;if(automatic&&i>=queue.length&&!repeatMode)return;i=(i+queue.length)%queue.length;await play(queue[i]);}
+async function nextTrack(delta,automatic=false){if(!queue.length){if(automatic)setPlayerVisible(false);return;}let i=queue.indexOf(current?.id);if(shuffle&&queue.length>1){const choices=queue.filter(id=>id!==current?.id);await play(choices[Math.floor(Math.random()*choices.length)]);return;}i+=delta;if(automatic&&i>=queue.length&&!repeatMode){setPlayerVisible(false);return;}i=(i+queue.length)%queue.length;await play(queue[i]);}
 
 function portrait(p,kind){return '<div class="artist-portrait cover '+(p.image_version?'cover-custom':'cover-lime')+'">'+(p.image_version?'<img src="/media/'+kind+'/'+esc(p.id)+'?v='+esc(p.image_version)+'" alt="'+esc(p.name)+' 프로필" loading="lazy">':'<span>'+esc(p.name.slice(0,2))+'</span>')+'</div>';}
 
