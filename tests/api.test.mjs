@@ -13,7 +13,7 @@ test('real API: sessions, ownership, R2, preview, likes, comments, follows, play
  assert.equal((await call('/api/me',{cookie:owner.cookie})).data.user.id,owner.user.id);
  assert.equal((await call('/api/library')).r.status,401);
  assert.equal((await call('/api/playlists',{method:'POST',body:{name:'CSRF'},cookie:owner.cookie,headers:{Origin:'https://evil.invalid'}})).r.status,403);
- const upload={title:'API 검증용 신호',artist:'검증 아티스트',producer:'검증 제작자',genre:'Instrumental',tags:'test',description:'Local test fixture',ai_tool:'Test fixture',participation:'',rights:true,is_ai:true,extension:'wav',bytes:128,lyrics_mode:'synced',lyrics:'[00:01]처음\n[00:12.250]다음'};
+ const upload={title:'API 검증용 신호',artist:'검증 아티스트',producer:'검증 제작자',genre:'Instrumental',tags:'test',description:'Local test fixture',ai_tool:'Test fixture',participation:'',rights:true,is_ai:true,karaoke:true,extension:'wav',bytes:128,lyrics_mode:'synced',lyrics:'[00:01]처음\n[00:12.250]다음'};
  assert.equal((await call('/api/uploads',{method:'POST',cookie:owner.cookie,body:{...upload,rights:false}})).r.status,400);
  out=await call('/api/uploads',{method:'POST',cookie:owner.cookie,body:upload});assert.equal(out.r.status,201,JSON.stringify(out.data));const tid=out.data.id;
  assert.equal((await putImage(`/api/uploads/${tid}/cover`,owner.cookie)).status,200);

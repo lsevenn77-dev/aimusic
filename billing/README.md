@@ -52,10 +52,12 @@ renews. Do not expose any other path or proxy arbitrary destinations.
 
 ## Launch and operations
 
-As of 2026-09-16, NICEPAY's billing review explicitly says that recurring
-billing has **not been applied for**. Ordinary merchant creation is insufficient.
-Confirm the added billing contract and enabled card brands before enabling
-checkout. Real card registration/charges have not been tested.
+On 2026-09-24, the payment-flow document was emailed to NICEPAY in reply to
+the original contract email. NICEPAY had stated that card-company review had
+not started because the document was missing. Acceptance of the new submission
+and recurring billing approval are still pending. Confirm the added billing
+contract and enabled card brands before enabling checkout. Real card
+registration/charges have not been tested.
 
 The merchant can cancel/refund payments in NICEPAY; signed notifications and
 periodic lookups reconcile AIFECT access. Unknown outcomes stay pending for

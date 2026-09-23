@@ -37,7 +37,7 @@ async function render(){
    html=heading(esc(d.playlist.name),`${d.tracks.length}곡 · ${d.playlist.is_public?'공개 플레이리스트':'나만 보는 플레이리스트'}`)+`<div class="inline-actions playlist-actions"><button class="primary-button" data-play-all>전체 재생 ${icon('play')}</button>${owned?`<button class="small-button" data-pick-playlist="${param}">좋아요한 곡 담기</button><button class="small-button" data-order-playlist="${param}">곡 순서 편집</button><button class="small-button" data-edit-playlist="${param}">이름 · 공개 설정</button><button class="small-button" data-delete-playlist="${param}">삭제</button>`:''}${d.playlist.is_public?`<button class="small-button" data-share>링크 복사</button>`:''}</div>`+list(d.tracks,owned?param:null);
   }else if(base==='account')html=accountHTML();
   else if(base==='upload'){studioData=await api('/api/studio');html=uploadHTML(studioData);}
-  else if(base==='manage'&&param){studioData=await api('/api/studio');const {profile,alignment}=await api('/api/studio/tracks/'+param);html=trackEditHTML({...profile,alignment},studioData);}
+  else if(base==='manage'&&param){studioData=await api('/api/studio');const {profile,alignment,karaoke}=await api('/api/studio/tracks/'+param);html=trackEditHTML({...profile,alignment,karaoke},studioData);}
   else if(base==='studio'||base==='manage'){
    const d=await api('/api/studio');
    studioData=d;html=studioHTML(d);

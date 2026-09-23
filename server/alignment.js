@@ -43,7 +43,8 @@ export async function alignmentInternalRoute(req,env,path){
  const m=path.match(/^\/internal\/lyrics\/([\w-]+)\/(audio|finish|fail)$/);if(!m)fail(404,'작업 경로를 찾을 수 없습니다.');
  const job=await one(env,"SELECT j.*,t.duration FROM lyric_jobs j JOIN tracks t ON t.id=j.track_id WHERE j.id=? AND j.state='processing' AND j.lease_token=? AND j.lease_until>?",m[1],req.headers.get('x-job-token')||'',now());if(!job)fail(409,'가사 작업이 변경되었거나 만료됐습니다.');
  if(m[2]==='audio'&&req.method==='GET'){
-  const obj=await env.BUCKET.get(`stream/${job.track_id}.m4a`);if(!obj)fail(404,'감상용 음원을 찾을 수 없습니다.');
+  // Separated vocals align far better than the full mix; fall back to the mix before the karaoke build exists.
+  const obj=await env.BUCKET.get(`karaoke/${job.track_id}/vocals.m4a`)||await env.BUCKET.get(`stream/${job.track_id}.m4a`);if(!obj)fail(404,'감상용 음원을 찾을 수 없습니다.');
   return new Response(obj.body,{headers:{'content-type':'audio/mp4','content-length':String(obj.size),'cache-control':'private, no-store'}});
  }
  if(m[2]==='finish'&&req.method==='POST'){

@@ -7,6 +7,9 @@ export const BUSINESS = Object.freeze({
 });
 export const PREMIUM = Object.freeze({name: 'AIFECT Premium', price: 4900, currency: 'KRW', interval: 'month', taxIncluded: true, checkoutAvailable: false});
 export const POLICY_VERSION = '2026-09-16';
+// Karaoke MR / cover license accepted per track. Bump when the clause text changes; older consents keep their version.
+export const KARAOKE_TERMS_VERSION = '2026-09-24';
+export const KARAOKE_TERMS_TEXT = '이 곡을 AIFECT 노래방에 MR(반주)로 제공하고, 다른 이용자가 이 곡을 커버해 AIFECT에 공개하는 것을 허락합니다. 이 허락에 필요한 권리를 보유하고 있습니다.';
 export const escapeHTML = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export const policyLinks = [['/pricing','이용권 · 가격'],['/terms','이용약관'],['/privacy','개인정보처리방침'],['/refund','환불 · 해지 정책'],['/contact','고객센터']];
 export function businessDetailsHTML(){

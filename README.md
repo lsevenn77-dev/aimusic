@@ -6,7 +6,7 @@ Public AI music MVP at https://aifect.co.kr. The approved static design now uses
 
 Use Node 22+ and install the package-lock dependencies. Create an ignored `.dev.vars` with a random `AUTH_PEPPER` and `TRANSCODER_TOKEN`. Generate schema changes with `npm run db:generate`, build with `npm run build`, apply `wrangler d1 migrations apply DB --local`, then `npm run dev` (port 4174). The browser source is `dist/index.html`, `dist/app.js`, `dist/views.js`, `dist/actions.js`, `dist/icons.js`, `dist/style.css`, and existing assets. Build copies these into `dist/client` and bundles the Worker into `dist/server/index.js`.
 
-`npm test` targets only localhost:4174. It creates disposable local accounts and verifies auth, CSRF, ownership, upload transitions, private playlists, R2 range responses and guest/full-track access. Test fixtures are never seeded into production.
+`npm test` includes isolated fixture tests and an integration suite in `tests/api.test.mjs` that targets localhost:4174. It creates disposable local accounts and verifies auth, CSRF, ownership, upload transitions, private playlists, R2 range responses and guest/full-track access. Test fixtures are never seeded into production.
 
 ## Authentication
 
@@ -32,15 +32,19 @@ Upload includes an album/single cover, AI artist photo/name/bio, and composer/pr
 
 Migration `0001_gigantic_spectrum.sql` adds profile image and cover version/type fields without changing existing rows. `dist/studio.js` and `dist/studio.css` hold creator forms and styling. The real local API suite verifies image storage/reads, ownership, hidden images, forged types, size limits, and metadata changes in addition to the authentication tests.
 
-TOP100 uses qualified unique listener-days plus likes/comments; rising ranks the last 7 days' unique listeners; newcomers require recent producers with fewer than 1,000 followers. Qualification requires 30 seconds or 60% of a short song and is bounded by elapsed server time. These are initial transparent rules, not a mature fraud detector. Payments, tips, licensing, generation and mobile apps are intentionally outside this MVP.
+TOP100 uses qualified unique listener-days plus likes/comments; rising ranks the last 7 days' unique listeners; newcomers require recent producers with fewer than 1,000 followers. Qualification requires 30 seconds or 60% of a short song and is bounded by elapsed server time. These are initial transparent rules, not a mature fraud detector. Direct NICEPAY monthly subscription code is implemented but checkout remains disabled pending the merchant review process. Tips, licensing, music generation and native mobile apps are outside this web MVP. See `docs/NICEPAY-제출현황.md` for the latest submission status.
 
 ## Lyrics and personal library
 
-Creators can import UTF-8 LRC/TXT lyrics in upload or track editing, or paste lyrics and stamp each line against the audio preview. Synced lyrics require valid line timestamps. The shared parser normalizes LRC metadata, offsets and repeated timestamps, with a 12,000-character limit. This is creator-supplied line synchronization, not automatic transcription or word alignment. During playback the current line highlights and follows the audio, including seeks and repeats; clicking a line seeks to its timestamp. Guests remain limited to the 60-second preview. Migration `0002_silly_terrax.sql` adds the optional lyrics fields.
+Creators can import UTF-8 LRC/TXT lyrics in upload or track editing, or paste lyrics and stamp each line against the audio preview. Synced lyrics require valid line timestamps. The shared parser normalizes LRC metadata, offsets and repeated timestamps, with a 12,000-character limit. Creators can also request automatic synchronization of their supplied lyrics. `alignment/` runs the separate alignment worker, and Studio lets the creator review and apply the result. Generated timing may need manual correction. During playback the current line highlights and follows the audio, including seeks and repeats; clicking a line seeks to its timestamp. Guests remain limited to the 60-second preview. Migration `0002_silly_terrax.sql` adds the optional lyrics fields.
 
 Song cards and lists show real qualified play, like and comment counts publicly. Comment counts link to the discussion. Artist and producer cards retain compact widths even with one result.
 
 Likes and personal playlists are stored per account in the library. Users can select liked tracks together, create named mood playlists, add songs directly from a song, rename lists, remove members, and save the playback order. Lists default to private, with optional public links. Migration `0003_steep_speed.sql` backfills stable playlist positions. Playlist creation with selected songs is atomic; order edits require ownership and matching membership and preserve hidden tracks for later republication. SQLite-backed tests verify ordering, privacy, ownership, invalid selections and hidden members; local browser QA covers creation, playback and responsive layouts.
+
+## Karaoke MR
+
+Uploads require the karaoke clause (`KARAOKE_TERMS_VERSION`); each track stores the accepted version and time, and earlier tracks opt in from track editing. After a consented track is transcoded, `karaoke_jobs` queues a build: the `alignment/` worker separates vocals with htdemucs, stores `karaoke/{track}/mr.m4a` and `vocals.m4a` in private R2, then aligns the creator's synced lyrics on the separated vocals and keeps word timings. The same worker handles lyric jobs first, then karaoke builds, strictly one song at a time. Lyric edits re-align words on the kept MR; a new transcode rebuilds the MR. Creators can listen to the MR in Studio, regenerate it, or replace it with their own WAV/FLAC/MP3 of matching length (±3 s). Songs over 10 minutes are refused. Migrations `0008_karaoke_consent.sql` and `0009_karaoke_jobs.sql`; plan and revenue decisions in `docs/노래방-기획.md`.
 
 ## Discovery and listening controls
 
@@ -53,3 +57,7 @@ Song menus support play-next and queue append. The active queue supports move, r
 ## Publishing
 
 Keep the existing Sites project in `.openai/hosting.json`, with `d1: "DB"` and `r2: "BUCKET"`. Generate and inspect Drizzle migrations; never edit an applied migration. Build, commit/push the exact source, use the official Sites packager and native Sites version/deploy tools, preserving public access and the custom domain. D1 and R2 are provisioned by Sites; do not run Wrangler remote deployment against a different account.
+
+## Git snapshot
+
+This project is stored under `ai음원사이트/`. Run commands from this directory. Source, migrations, tests, deployment configuration and the submitted NICEPAY payment-flow PDF are included. Runtime secrets, local databases, uploaded user media and generated build outputs are excluded. See `docs/인수인계.md`.

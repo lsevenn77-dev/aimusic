@@ -56,7 +56,7 @@ test('changing source or choosing manual lyrics invalidates old work; expired le
 });
 test('automatic lyrics submitted during upload wait for audio conversion',async t=>{
  const {call,sql,internal}=await jobsFixture(t);
- const body={title:'가사 자동 싱크',artist:'AI',producer:'Creator',genre:'Rock',ai_tool:'QA',extension:'wav',bytes:128,rights:true,is_ai:true,lyrics_mode:'auto',...source};
+ const body={title:'가사 자동 싱크',artist:'AI',producer:'Creator',genre:'Rock',ai_tool:'QA',extension:'wav',bytes:128,rights:true,is_ai:true,karaoke:true,lyrics_mode:'auto',...source};
  const out=await call('/api/uploads','POST',body);assert.equal(out.status,201);
  const track=sql.prepare('SELECT * FROM tracks WHERE id=?').get(out.body.id);assert.equal(track.lyrics,'');assert.equal(track.lyrics_mode,'none');
  assert.equal((await internal('/internal/lyrics/claim')).body.job,null);

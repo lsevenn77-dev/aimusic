@@ -57,6 +57,20 @@
       "when": 1789524858999,
       "tag": "0007_large_baron_strucker",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1790177052943,
+      "tag": "0008_karaoke_consent",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1790177612762,
+      "tag": "0009_karaoke_jobs",
+      "breakpoints": true
     }
   ]
 }
