@@ -13,6 +13,7 @@ function bindForms(base,param){
  }
  if($('#new-playlist'))$('#new-playlist').onclick=()=>playlistDialog().catch(e=>toast(e.message));
  if($('#upload-form'))$('#upload-form').onsubmit=busyForm($('#upload-form'),upload);
+ if($('#cover-upload-form'))$('#cover-upload-form').onsubmit=busyForm($('#cover-upload-form'),uploadCover);
  bindStudioForms();bindMoodFields();bindLyricsPanel();
 }
 let googleScriptPromise;
@@ -41,6 +42,18 @@ async function upload(fd){
  await uploadFile(`/api/uploads/${id}/audio`,file,value=>{progress.querySelector('progress').value=value;progress.querySelector('p').textContent=`음원 업로드 ${Math.round(value)}%`;});
  if(image?.size){progress.querySelector('p').textContent='커버를 업로드하고 있습니다.';await uploadFile(`/api/uploads/${id}/cover`,image);}
  await api(`/api/uploads/${id}/complete`,'POST');toast('업로드 완료! 음원 변환이 끝나면 공개됩니다.');location.hash='studio';
+}
+// Same three steps as a song upload: create the draft, send the audio, then mark it complete for transcoding.
+async function uploadCover(fd){
+ const form=$('#cover-upload-form'),file=fd.get('audio'),image=fd.get('cover');
+ if(!file?.size)throw new Error('커버 녹음 파일을 선택해주세요.');if(file.size>80*1024*1024)throw new Error('녹음 파일은 80MB 이하로 올려주세요.');
+ await validateImage(image);
+ const body={original_id:form.dataset.original,description:fd.get('description')||'',own_voice:fd.has('own_voice'),rights:fd.has('rights'),extension:file.name.split('.').pop().toLowerCase(),bytes:file.size};
+ const progress=form.querySelector('.upload-progress');progress.hidden=false;progress.querySelector('p').textContent='업로드를 준비하고 있습니다.';
+ const fingerprint=JSON.stringify([body,file.name,file.lastModified]);let draft=form._draft;if(!draft||draft.fingerprint!==fingerprint){draft={...await api('/api/covers','POST',body),fingerprint};form._draft=draft;}
+ await uploadFile(`/api/uploads/${draft.id}/audio`,file,value=>{progress.querySelector('progress').value=value;progress.querySelector('p').textContent=`녹음 업로드 ${Math.round(value)}%`;});
+ if(image?.size){progress.querySelector('p').textContent='이미지를 업로드하고 있습니다.';await uploadFile(`/api/uploads/${draft.id}/cover`,image);}
+ await api(`/api/uploads/${draft.id}/complete`,'POST');toast('커버곡을 올렸어요! 변환이 끝나면 공개됩니다.');location.hash='studio';
 }
 function uploadFile(url,file,onprogress=()=>{}){return new Promise((resolve,reject)=>{const xhr=new XMLHttpRequest();xhr.open('PUT',url);xhr.setRequestHeader('Content-Type',file.type||'application/octet-stream');xhr.upload.onprogress=e=>{if(e.lengthComputable)onprogress(e.loaded/e.total*100);};xhr.onload=()=>{if(xhr.status>=200&&xhr.status<300)resolve();else{let message='업로드에 실패했습니다. 다시 시도해주세요.';try{message=JSON.parse(xhr.responseText).error||message;}catch{}reject(new Error(message));}};xhr.onerror=()=>reject(new Error('연결이 끊어졌습니다. 파일을 유지한 상태로 다시 업로드해주세요.'));xhr.send(file);});}
 async function playlistDialog(existing=null,initialTrack=null){if(!me)return askLogin();await refreshLibrary();if(!existing&&!canCreatePlaylist())return;if(existing?.locked)return selectActivePlaylists();dialog(`<h2>${existing?'플레이리스트 설정':'새 플레이리스트'}</h2><form id="playlist-form">${formField('이름','name','text',existing?.name||'','required maxlength="80"')}<label class="form-field">소개<textarea name="description" maxlength="600" placeholder="어떤 순간에 들으면 좋을까요?">${esc(existing?.description||'')}</textarea></label><label class="checkbox-line"><input name="is_public" type="checkbox" ${existing?.is_public?'checked':''}> 링크로 누구나 볼 수 있게 공개</label><button class="primary-button">저장</button><p class="form-error" role="alert"></p></form>`);const form=$('#playlist-form');form.onsubmit=busyForm(form,async fd=>{const d=await api(existing?`/api/playlists/${existing.id}`:'/api/playlists',existing?'PATCH':'POST',{name:fd.get('name'),description:fd.get('description'),is_public:fd.has('is_public'),...(!existing&&initialTrack?{track_ids:[initialTrack]}:{})});$('#dialog').close();await refreshLibrary();location.hash='playlist/'+(existing?.id||d.id);await render();});}

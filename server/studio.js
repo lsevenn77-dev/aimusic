@@ -7,13 +7,20 @@ import {alignmentStatus,alignmentWrite} from './alignment.js';
 import {karaokeQueue,karaokeStatus} from './karaoke.js';
 
 export async function studioRoute(req,env,path,user){
- const m=path.match(/^\/api\/studio\/(artists|producers|tracks)\/([\w-]+)(\/image)?$/);if(!m)return null;
+ const m=path.match(/^\/api\/studio\/(artists|producers|tracks)\/([\w-]+)(\/image|\/banner)?$/);if(!m)return null;
  requireUser(user);const [,,entityId]=m,table=m[1],kind={artists:'artist',producers:'producer',tracks:'track'}[table];
  const entity=await one(env,table==='artists'?'SELECT a.* FROM artists a JOIN producers p ON p.id=a.producer_id WHERE a.id=? AND p.user_id=?':`SELECT * FROM ${table} WHERE id=? AND user_id=?`,entityId,user.id);
  if(!entity)fail(404,'내 스튜디오 항목을 찾을 수 없습니다.');
  if(m[3]){
   if(req.method!=='PUT')fail(405,'지원하지 않는 요청입니다.');
   await rate(env,'image:'+user.id,60,3600);
+  if(m[3]==='/banner'){
+   // The wide image at the top of a person's profile; only people (producers) have one.
+   if(table!=='producers')fail(404,'대표 이미지는 프로필에만 등록할 수 있습니다.');
+   const banner=await storeImage(req,env,'banner',entityId);
+   await run(env,'UPDATE producers SET banner_version=?,banner_type=? WHERE id=?',banner.version,banner.type,entityId);
+   return json({ok:true,version:banner.version});
+  }
   const image=await storeImage(req,env,kind,entityId);
   if(table==='tracks')await run(env,'UPDATE tracks SET has_cover=1,cover_version=?,cover_type=? WHERE id=?',image.version,image.type,entityId);
   else await run(env,`UPDATE ${table} SET image_version=?,image_type=? WHERE id=?`,image.version,image.type,entityId);
@@ -22,6 +29,11 @@ export async function studioRoute(req,env,path,user){
  if(req.method==='GET')return json({profile:entity,...(table==='tracks'?{alignment:await alignmentStatus(env,entity.id),karaoke:await karaokeStatus(env,entity.id)}:{})});
  if(req.method!=='PUT')fail(405,'지원하지 않는 요청입니다.');
  const b=await req.json();
+ if(table==='tracks'&&entity.kind==='cover'){
+  // A cover takes its title, genre and credits from the original; the singer edits the note and artwork.
+  await run(env,'UPDATE tracks SET description=? WHERE id=?',str(b.description||'',1000,false),entityId);
+  return json({ok:true,id:entityId});
+ }
  if(table==='tracks'){
   const lyricData=lyricsFields(b,entity);
   if(!GENRES.includes(b.genre))fail(400,'장르를 선택해주세요.');

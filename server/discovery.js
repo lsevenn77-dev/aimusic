@@ -1,6 +1,6 @@
 import {rows,one,run,query,now,fail,str,json} from './db.js';
 import {requireUser} from './auth.js';
-import {trackList,published,GENRES} from './catalog.js';
+import {trackList,published,GENRES,VISIBLE} from './catalog.js';
 import {activePlaylistSQL,membership} from './membership.js';
 
 export const MOODS=[
@@ -15,12 +15,12 @@ function moodFilter(mood){return {sql:'('+mood.keywords.map(()=>"lower(t.tags) L
 
 export async function playlistSummaries(env,userId='',where='p.is_public=1',args=[],sort='p.created DESC,p.id',limit=100){
  const data=await rows(env,`SELECT p.id,p.user_id,p.name,p.description,p.is_public,p.created,u.name owner_name,${activePlaylistSQL()} active,
- (SELECT count(*) FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id WHERE pt.playlist_id=p.id AND t.status='published') tracks,
- (SELECT COALESCE(sum(t.duration),0) FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id WHERE pt.playlist_id=p.id AND t.status='published') duration,
+ (SELECT count(*) FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id WHERE pt.playlist_id=p.id AND ${VISIBLE()}) tracks,
+ (SELECT COALESCE(sum(t.duration),0) FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id WHERE pt.playlist_id=p.id AND ${VISIBLE()}) duration,
  (SELECT count(*) FROM playlist_saves s WHERE s.playlist_id=p.id) saves,
  (ps.user_id IS NOT NULL) saved,COALESCE(pref.pinned,0) pinned,COALESCE(pref.position,0) position,
  (SELECT json_group_array(json_object('id',c.id,'title',c.title,'has_cover',c.has_cover,'cover_version',c.cover_version)) FROM
-  (SELECT t.id,t.title,t.has_cover,t.cover_version FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id WHERE pt.playlist_id=p.id AND t.status='published' ORDER BY pt.position,pt.created,pt.track_id LIMIT 4) c) covers_json
+  (SELECT t.id,t.title,t.has_cover,t.cover_version FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id WHERE pt.playlist_id=p.id AND ${VISIBLE()} ORDER BY pt.position,pt.created,pt.track_id LIMIT 4) c) covers_json
  FROM playlists p JOIN users u ON u.id=p.user_id
  LEFT JOIN playlist_saves ps ON ps.playlist_id=p.id AND ps.user_id=?
  LEFT JOIN playlist_preferences pref ON pref.playlist_id=p.id AND pref.user_id=?
@@ -35,29 +35,29 @@ export async function discoveryRoute(req,env,path,user){
  if(path==='/api/discovery'&&method==='GET'){
   const mood=MOODS.find(m=>m.id===url.searchParams.get('mood')),genre=url.searchParams.get('genre'),following=url.searchParams.get('following')==='1';
   if(url.searchParams.has('mood')&&!mood)fail(400,'분위기를 다시 선택해주세요.');
-  let where="t.status='published'",args=[];
+  let where=VISIBLE()+" AND t.kind='original'",args=[];
   if(mood){const f=moodFilter(mood);where+=' AND '+f.sql;args.push(...f.args);}
   if(genre&&GENRES.includes(genre)){where+=' AND t.genre=?';args.push(genre);}
   if(following){requireUser(user);where+=" AND EXISTS(SELECT 1 FROM follows f WHERE f.user_id=? AND ((f.kind='artist' AND f.target_id=t.artist_id) OR (f.kind='producer' AND f.target_id=t.producer_id)))";args.push(user.id);}
-  const filters=MOODS.map(moodFilter),counts=await one(env,`SELECT ${filters.map((f,i)=>`COALESCE(sum(CASE WHEN ${f.sql} THEN 1 ELSE 0 END),0) n${i}`).join(',')} FROM tracks t WHERE t.status='published'`,...filters.flatMap(f=>f.args));
+  const filters=MOODS.map(moodFilter),counts=await one(env,`SELECT ${filters.map((f,i)=>`COALESCE(sum(CASE WHEN ${f.sql} THEN 1 ELSE 0 END),0) n${i}`).join(',')} FROM tracks t WHERE ${VISIBLE()} AND t.kind='original'`,...filters.flatMap(f=>f.args));
   return json({tracks:await trackList(env,where,args,following?'t.created DESC':'(plays+likes*3) DESC,t.created DESC'),moods:MOODS.map((m,i)=>({id:m.id,name:m.name,caption:m.caption,symbol:m.symbol,count:counts['n'+i]})),basis:following?'following':mood?'tags':'popular'});
  }
  if(path==='/api/search'&&method==='GET'){
   const q=(url.searchParams.get('q')||'').trim().slice(0,100);if(!q)return json({tracks:[],artists:[],producers:[],playlists:[]});const pattern='%'+q+'%';
   return json({
-   tracks:await trackList(env,"t.status='published' AND (t.title LIKE ? OR a.name LIKE ? OR p.name LIKE ? OR t.genre LIKE ? OR t.tags LIKE ?)",Array(5).fill(pattern),'t.created DESC',100),
-   artists:await rows(env,"SELECT a.*,(SELECT count(*) FROM follows f WHERE f.kind='artist' AND f.target_id=a.id) followers FROM artists a WHERE (a.name LIKE ? OR a.bio LIKE ?) AND EXISTS(SELECT 1 FROM tracks t WHERE t.artist_id=a.id AND t.status='published') ORDER BY a.name LIMIT 100",pattern,pattern),
-   producers:await rows(env,"SELECT p.id,p.name,p.bio,p.image_version,(SELECT count(*) FROM follows f WHERE f.kind='producer' AND f.target_id=p.id) followers FROM producers p WHERE (p.name LIKE ? OR p.bio LIKE ?) AND EXISTS(SELECT 1 FROM tracks t WHERE t.producer_id=p.id AND t.status='published') ORDER BY p.name LIMIT 100",pattern,pattern),
+   tracks:await trackList(env,VISIBLE()+" AND t.kind='original' AND (t.title LIKE ? OR a.name LIKE ? OR p.name LIKE ? OR t.genre LIKE ? OR t.tags LIKE ?)",Array(5).fill(pattern),'t.created DESC',100),
+   artists:await rows(env,"SELECT a.*,(SELECT count(*) FROM follows f WHERE f.kind='artist' AND f.target_id=a.id) followers FROM artists a WHERE (a.name LIKE ? OR a.bio LIKE ?) AND EXISTS(SELECT 1 FROM tracks t WHERE t.artist_id=a.id AND t.kind='original' AND t.status='published') ORDER BY a.name LIMIT 100",pattern,pattern),
+   producers:await rows(env,`SELECT p.id,p.name,p.bio,p.image_version,(SELECT count(*) FROM follows f WHERE f.kind='producer' AND f.target_id=p.id) followers FROM producers p WHERE (p.name LIKE ? OR p.bio LIKE ?) AND EXISTS(SELECT 1 FROM tracks t WHERE t.producer_id=p.id AND ${VISIBLE()}) ORDER BY p.name LIMIT 100`,pattern,pattern),
    playlists:await playlistSummaries(env,user?.id||'',`p.is_public=1 AND ${activePlaylistSQL()} AND (p.name LIKE ? OR p.description LIKE ? OR u.name LIKE ?)`,[pattern,pattern,pattern])
   });
  }
  if(path==='/api/playlists'&&method==='GET'){
   const q=(url.searchParams.get('q')||'').slice(0,100),sort=url.searchParams.get('sort')==='popular'?'saves DESC,p.created DESC,p.id':'p.created DESC,p.id';
-  return json({playlists:await playlistSummaries(env,user?.id||'',`p.is_public=1 AND ${activePlaylistSQL()} AND EXISTS(SELECT 1 FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id WHERE pt.playlist_id=p.id AND t.status='published') AND (p.name LIKE ? OR p.description LIKE ? OR u.name LIKE ?)`,Array(3).fill('%'+q+'%'),sort)});
+  return json({playlists:await playlistSummaries(env,user?.id||'',`p.is_public=1 AND ${activePlaylistSQL()} AND EXISTS(SELECT 1 FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id WHERE pt.playlist_id=p.id AND ${VISIBLE()}) AND (p.name LIKE ? OR p.description LIKE ? OR u.name LIKE ?)`,Array(3).fill('%'+q+'%'),sort)});
  }
  if(path==='/api/library'&&method==='GET'){
   requireUser(user);const items=await accessibleLibrary(env,user.id);
-  return json({membership:await membership(env,user),likes:await trackList(env,"t.status='published' AND t.id IN (SELECT track_id FROM likes WHERE user_id=?)",[user.id],'t.created DESC',500),playlists:items.filter(p=>p.user_id===user.id),saved:items.filter(p=>p.user_id!==user.id),collections:items,
+  return json({membership:await membership(env,user),likes:await trackList(env,VISIBLE()+" AND t.id IN (SELECT track_id FROM likes WHERE user_id=?)",[user.id],'t.created DESC',500),playlists:items.filter(p=>p.user_id===user.id),saved:items.filter(p=>p.user_id!==user.id),collections:items,
    follows:await rows(env,"SELECT f.*,COALESCE(a.name,p.name) name,COALESCE(a.bio,p.bio) bio,COALESCE(a.image_version,p.image_version) image_version FROM follows f LEFT JOIN artists a ON f.kind='artist' AND a.id=f.target_id LEFT JOIN producers p ON f.kind='producer' AND p.id=f.target_id WHERE f.user_id=?",user.id)});
  }
  let m=path.match(/^\/api\/playlists\/([\w-]+)\/save$/);
