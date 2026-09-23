@@ -1,0 +1,6 @@
+{
+  "name":"aifect-local", "main":"server/index.js", "compatibility_date":"2026-09-01",
+  "assets":{"directory":"dist/client","binding":"ASSETS","run_worker_first":true},
+  "d1_databases":[{"binding":"DB","database_name":"aifect-local","database_id":"local","migrations_dir":"drizzle"}],
+  "r2_buckets":[{"binding":"BUCKET","bucket_name":"aifect-local"}]
+}

@@ -1,0 +1,62 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1789456903585,
+      "tag": "0000_natural_black_tom",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1789465143595,
+      "tag": "0001_gigantic_spectrum",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1789467299924,
+      "tag": "0002_silly_terrax",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1789467786713,
+      "tag": "0003_steep_speed",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1789470637436,
+      "tag": "0004_even_red_skull",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1789474913161,
+      "tag": "0005_unique_goblin_queen",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1789476834862,
+      "tag": "0006_nervous_otto_octavius",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1789524858999,
+      "tag": "0007_large_baron_strucker",
+      "breakpoints": true
+    }
+  ]
+}

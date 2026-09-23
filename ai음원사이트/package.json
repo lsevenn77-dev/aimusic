@@ -1,0 +1,6 @@
+{
+  "name": "aifect", "private": true, "type": "module",
+  "scripts": {"build":"node scripts/build.mjs", "dev":"wrangler dev --port 4174", "db:generate":"drizzle-kit generate", "test":"node --test tests/*.test.mjs"},
+  "dependencies": {"jose":"^6.1.0"},
+  "devDependencies": {"drizzle-kit":"^0.31.4", "drizzle-orm":"^0.44.5", "esbuild":"^0.25.9", "wrangler":"^4.32.0"}
+}

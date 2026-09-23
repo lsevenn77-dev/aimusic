@@ -1,0 +1,77 @@
+/* Short, quiet transitions; no recurring animation or scroll-linked movement. */
+:root{--motion-ease:cubic-bezier(.22,1,.36,1)}
+
+/* Give unused player space back to the page, including the mobile sidebar. */
+body{--player-height:96px;--player-space:0px}
+body.has-player{--player-space:var(--player-height)}
+.page-wrap{padding-bottom:var(--player-space)}
+.sidebar{bottom:var(--player-space)}
+.toast{bottom:calc(var(--player-space) + 20px + env(safe-area-inset-bottom,0px))}
+@media(max-width:800px){body{--player-height:110px}}
+
+/* Keep the artwork and its controls together when a music card is lifted. */
+.album-card:hover .album-art{transform:none}
+.album-art-wrap,
+.artist-grid .artist-card,
+.collection-card,
+.playlist-card,
+.mood-card,
+.home-explorer-links>a{
+  transition:transform 280ms var(--motion-ease),border-color 220ms ease,box-shadow 280ms ease;
+}
+.primary-button,.small-button,.upload-button,.card-play,.play-button{
+  transition:transform 180ms var(--motion-ease),background-color 180ms ease,border-color 180ms ease,box-shadow 220ms ease;
+}
+.text-link,.icon-button,.tab,.genre-chip,.live-track{transition:color 180ms ease,background-color 180ms ease,border-color 180ms ease}
+
+@media(hover:hover) and (pointer:fine){
+  .album-card:hover .album-art-wrap{transform:translateY(-3px)}
+  .artist-grid .artist-card:hover,.collection-card:hover,.playlist-card:hover,
+  .mood-card:hover,.home-explorer-links>a:hover{
+    transform:translateY(-2px);
+    border-color:#71875b;
+    box-shadow:0 8px 20px #0002;
+  }
+  .primary-button:not(:disabled):hover,.card-play:not(:disabled):hover,.play-button:not(:disabled):hover{
+    transform:translateY(-1px);
+    box-shadow:0 3px 14px #cbfa7515;
+  }
+  .live-track:hover{background-color:#cbfa7506}
+}
+.primary-button:not(:disabled):active,.small-button:not(:disabled):active,
+.upload-button:active,.card-play:not(:disabled):active,.play-button:not(:disabled):active{
+  transform:scale(.98);
+  transition-duration:100ms;
+}
+
+@media(prefers-reduced-motion:no-preference){
+  .home-ready>:is(.album-grid,.artist-grid)>*{animation:aifect-card-ready 220ms var(--motion-ease) both}
+  .home-ready>:is(.album-grid,.artist-grid)>:nth-child(2){animation-delay:35ms}
+  .home-ready>:is(.album-grid,.artist-grid)>:nth-child(3){animation-delay:70ms}
+  .home-ready>:is(.album-grid,.artist-grid)>:nth-child(n+4){animation-delay:105ms}
+  .player:not([hidden]){animation:aifect-player-in 220ms var(--motion-ease)}
+  .motion-enter>.page-heading{animation:aifect-arrive 360ms var(--motion-ease) both}
+  .motion-enter .aifect-hero .hero-copy{animation:aifect-arrive 480ms 35ms var(--motion-ease) both}
+  .motion-enter .aifect-hero .live-hero-art{animation:aifect-art-settle 700ms var(--motion-ease) both}
+  .motion-enter>:is(.album-grid,.artist-grid,.collection-grid,.home-explorer-links,.membership-grid,.mood-grid,.collection-hero,.profile-hero,.song-detail){
+    animation:aifect-arrive 420ms 45ms var(--motion-ease) both;
+  }
+  dialog[open]{animation:aifect-dialog 180ms var(--motion-ease)}
+  dialog[open]::backdrop{animation:aifect-backdrop 180ms ease}
+}
+@keyframes aifect-arrive{from{opacity:.55;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes aifect-art-settle{from{transform:scale(1.025)}to{transform:scale(1)}}
+@keyframes aifect-dialog{from{opacity:.6;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+@keyframes aifect-backdrop{from{opacity:0}to{opacity:1}}
+@keyframes aifect-player-in{from{opacity:.65;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes aifect-card-ready{from{opacity:.8;translate:0 3px}to{opacity:1;translate:0 0}}
+
+/* OS accessibility preferences also remove existing hover movement. */
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+  .album-card:hover .album-art,.album-card:hover .album-art-wrap,
+  .artist-grid .artist-card:hover,.collection-card:hover,.playlist-card:hover,
+  .mood-card:hover,.home-explorer-links>a:hover,
+  .primary-button:not(:disabled),.small-button:not(:disabled),.upload-button,.card-play,.play-button,
+  .hero:hover .hero-art{transform:none!important}
+}

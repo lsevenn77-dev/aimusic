@@ -1,0 +1,81 @@
+import {BUSINESS, PREMIUM, POLICY_VERSION, businessFooterHTML, businessDetailsHTML, policyLinks, escapeHTML as esc} from '../shared/site-info.js';
+
+const mail=(subject,label='이메일로 문의하기')=>`<a href="mailto:${BUSINESS.email}?subject=${encodeURIComponent('[AIFECT] '+subject)}">${label}</a>`;
+const section=(id,title,body)=>`<section id="${id}"><h2>${title}</h2>${body}</section>`;
+const table=(heads,rows)=>`<div class="legal-table-wrap"><table><thead><tr>${heads.map(h=>`<th scope="col">${h}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr>${row.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+const effective=`<p class="legal-fine">시행일: ${POLICY_VERSION} · 유료 이용권 관련 조항은 유료 서비스 개시 후 체결하는 계약에 적용됩니다.</p>`;
+const contact=`<p>운영자: ${BUSINESS.name} · ${mail('고객센터 문의',BUSINESS.email)}${BUSINESS.phone?` · 전화 ${esc(BUSINESS.phone)}`:''}</p>`;
+
+function pricing(){return {
+ title:'이용권 · 가격', lead:'회원은 모든 곡을 무료로. 더 많은 플레이리스트와 전체 가사는 Premium으로.',
+ body:`<div class="legal-plans"><article class="legal-plan"><span class="legal-kicker">FREE</span><h2>AIFECT 무료</h2><p class="plan-price">0원</p><ul><li>로그인 후 공개된 전체곡 무료 스트리밍</li><li>재생 중인 가사 한 줄 표시</li><li>내 플레이리스트 최대 2개</li><li>좋아요 · 창작자 팔로우 · 댓글 · 공개 플레이리스트 저장</li></ul><a href="/#account">무료로 시작하기</a></article><article class="legal-plan premium"><span class="legal-kicker">PREMIUM</span><h2>${PREMIUM.name}</h2><p class="plan-price">월 ${PREMIUM.price.toLocaleString('ko-KR')}원</p><p>부가세 포함 · 1개월 이용권 · 매월 정기결제</p><ul><li>내 플레이리스트 최대 10개</li><li>전체 가사 · 현재 줄 강조 · 자동 스크롤</li><li>가사를 누르면 해당 구간으로 이동</li><li>무료 회원의 모든 감상·보관 기능</li></ul><a href="/#membership">가입 가능 여부 · 내 구독 확인</a></article></div>`+
+ section('details','Premium 상품 정보',table(['항목','내용'],[
+ ['판매자',esc(BUSINESS.name)],['상품명',PREMIUM.name],['판매 가격',`${PREMIUM.price.toLocaleString('ko-KR')}원 / 월 (부가세 포함)`],['이용 기간','결제일부터 1개월. 결제 전 화면과 결제 내역에서 정확한 시작·종료일 및 다음 결제일을 안내합니다.'],['제공 방법','AIFECT 웹사이트의 로그인 계정에 디지털 이용권을 제공합니다. 결제 완료 후 Premium 권한을 적용하며 배송비는 없습니다.'],['갱신 방법','정기결제에 동의한 경우 매월 갱신됩니다. 유료 서비스 개시 전에는 카드 등록이나 결제를 받지 않습니다.'],['해지·환불','다음 결제 전 언제든 해지를 요청할 수 있습니다. 미사용 청약철회와 이용 중 환불 기준은 환불 정책에서 확인할 수 있습니다.'],['이용 환경','인터넷 연결이 가능한 PC·모바일 웹브라우저. 통신사 데이터 요금은 이용자 부담입니다.'],['가사 제공 범위','제작자가 등록하고 확인한 시간 정보가 있는 곡에서 동기화 가사를 제공합니다. 가사가 없거나 싱크가 등록되지 않은 곡은 해당 기능이 제공되지 않을 수 있습니다.'],['플레이리스트 범위','직접 만든 플레이리스트의 생성 한도입니다. 다른 회원이 공개한 플레이리스트를 저장하는 것은 한도에 포함되지 않습니다.']]))+
+ section('cancel','해지 후에도 내 음악은 보관됩니다','<p>정기결제만 해지하면 이미 결제한 기간의 종료일까지 이용할 수 있습니다. 무료 전환 후 기존 플레이리스트는 보관되며, 사용할 2개를 직접 선택할 수 있습니다. 환불로 이용권이 종료되면 환불 처리 시점부터 무료 혜택이 적용됩니다.</p>')+
+ `<div class="support-actions"><a href="/refund">환불 · 해지 정책</a><a href="/terms">이용약관</a>${mail('Premium 이용권 문의')}</div>`
+};}
+
+function terms(){return {
+ title:'이용약관',lead:'AIFECT에서 음악을 듣고, 모으고, 공개할 때 적용되는 이용 기준입니다.',
+ body:effective+
+ section('purpose','1. 서비스와 운영자',`<p>이 약관은 ${BUSINESS.name}(이하 “운영자”)가 제공하는 AIFECT의 음악 스트리밍, 보관함, 커뮤니티, 창작자 업로드 및 유료 이용권 서비스의 이용 조건을 정합니다. 이용자는 공개 음악을 감상하는 방문자와 계정을 등록한 회원을 포함합니다.</p>${contact}`)+
+ section('account','2. 계정과 회원 정보','<p>회원은 이메일 또는 지원되는 소셜 계정으로 가입할 수 있습니다. 필요한 정보는 정확하게 제공하고, 계정과 비밀번호를 안전하게 관리해야 합니다. 다른 사람의 계정 사용, 신원 도용, 서비스 이용 권한의 무단 판매는 허용되지 않습니다.</p><p>개인정보를 처리하는 범위와 방법은 개인정보처리방침에 따릅니다. 만 14세 미만 이용자의 개인정보 처리가 필요한 경우 법정대리인의 동의 등 관계 법령에 따른 절차가 필요합니다. 운영자는 적법한 절차가 확인되지 않은 계정의 이용을 제한하거나 해당 정보를 삭제할 수 있습니다.</p>')+
+ section('service','3. 무료 및 유료 서비스',`<p>비회원은 공개 음원의 60초 미리듣기를, 로그인한 회원은 전체곡 무료 스트리밍과 기본 보관함 기능을 이용할 수 있습니다. 무료 회원의 직접 생성 플레이리스트는 2개, Premium 회원은 10개까지입니다.</p><p>${PREMIUM.name}의 가격은 월 ${PREMIUM.price.toLocaleString('ko-KR')}원(부가세 포함)입니다. 제공 기능과 이용 환경은 <a href="/pricing">이용권 · 가격</a> 페이지에 게시합니다. 가입 가능 여부와 내 구독 상태는 <a href="/#membership">이용 혜택</a> 화면에서 확인할 수 있습니다.</p><p>가사는 곡별 등록 상태에 따라 제공됩니다. 자동으로 생성한 싱크는 오차가 있을 수 있으며, 제작자의 확인과 수정이 필요합니다. 업로드 음원은 서비스에서 재생할 수 있는 형식으로 변환됩니다.</p>`)+
+ section('billing','4. 정기결제와 계약','<p>유료 서비스 개시 후 결제 전 상품명, 총금액, 이용 기간, 결제 주기, 다음 결제일, 제공 기능 및 환불 기준을 안내합니다. 이용자가 해당 조건에 동의하고 결제가 완료되면 이용권이 제공됩니다. 결제 실패 시 결제되지 않은 기간의 이용권이 자동으로 부여되지는 않습니다.</p><p>이용자가 정기결제에 동의한 경우 매월 안내된 날짜에 갱신됩니다. 가격 인상이나 무료에서 유료 정기결제로 전환할 때에는 관계 법령에 따른 사전 안내와 동의 절차를 거칩니다. 동의하지 않은 변경 금액을 임의로 청구하지 않습니다.</p>')+
+ section('refund','5. 해지·청약철회·환불','<p>정기결제 해지와 이미 지급한 금액의 환불은 구분됩니다. 해지는 다음 결제를 중단하며, 이미 결제한 기간은 종료일까지 이용할 수 있습니다. 청약철회와 이용 중 환불은 <a href="/refund">환불 · 해지 정책</a>에 따릅니다. 관계 법령에 따라 보장되는 소비자의 권리는 이 약관보다 우선합니다.</p>')+
+ section('creator','6. 창작물 업로드와 권리','<p>제작자는 자신이 AIFECT에 공개하고 스트리밍할 권리를 가진 음원, 이미지, 가사만 업로드해야 합니다. AI 도구의 이용 조건, 타인의 저작권·상표권·초상권·음성 등 관련 권리를 확인해야 하며, AI 활용 여부와 제작 참여 정보를 사실대로 기재해야 합니다.</p><p>업로드한 콘텐츠의 권리는 해당 권리자에게 남습니다. 제작자는 운영자에게 AIFECT 안에서 콘텐츠를 보관·변환·전송·재생하고, 검색 결과와 서비스 내 소개에 표시할 수 있는 비독점적 이용 권한을 허락합니다. 별도의 합의 없이 외부 광고나 AI 모델 학습을 위한 권리까지 넘기는 것은 아닙니다.</p><p>제작자는 창작자 스튜디오에서 곡을 비공개로 전환할 수 있습니다. 원본 및 계정 데이터의 완전한 삭제는 고객센터로 요청할 수 있습니다. 공개 중단 이후에도 분쟁 처리 또는 법정 보관 의무에 필요한 정보는 필요한 범위에서 보관될 수 있습니다. 업로드만으로 제작자 정산이나 수익 배분이 약속되는 것은 아닙니다.</p>')+
+ section('conduct','7. 게시물과 서비스 이용 기준','<p>권리 침해, 불법 콘텐츠, 타인 사칭, 괴롭힘, 개인정보 무단 공개, 악성코드, 스팸, 허위 재생·좋아요·댓글 및 시스템 공격을 금지합니다. 운영자는 신고나 객관적인 사유에 따라 콘텐츠를 제한할 수 있으며, 긴급한 법적·보안상 사유가 아니라면 사유와 이의제기 방법을 안내합니다.</p><p>권리 침해 신고 시 대상 곡이나 게시물 주소, 침해 사유, 권리 관계를 확인할 수 있는 자료 및 회신 받을 연락처를 고객센터로 보내주세요. 운영자는 신고 내용을 확인하고 필요한 조치를 안내합니다.</p>')+
+ section('withdrawal','8. 탈퇴와 정보 삭제',`<p>회원은 ${mail('회원 탈퇴·개인정보 삭제 요청','고객센터 이메일')}로 탈퇴와 개인정보 삭제를 요청할 수 있습니다. 본인 확인에 필요한 최소 정보를 확인한 뒤 처리합니다. 유료 계약이 있는 경우 향후 정기결제 중단과 잔여 이용권 정산을 함께 안내합니다. 탈퇴를 이유로 법정 환불 권리가 사라지지 않습니다.</p>`)+
+ section('changes','9. 서비스 변경·중단과 약관 변경','<p>점검, 장애, 권리자의 요청 등으로 특정 곡이나 서비스의 일부가 중단될 수 있습니다. 예정된 중요한 변경은 사이트 또는 등록된 연락 수단으로 안내합니다. 유료 기능을 제공하지 못한 경우 미제공 기간과 원인을 확인하여 이용 기간 연장 또는 환불 등 적절한 조치를 합니다.</p><p>약관을 바꿀 때에는 적용일과 변경 내용을 미리 게시합니다. 회원에게 불리한 중요한 변경은 충분한 사전 안내와 필요한 동의 절차를 거치며, 변경에 동의하지 않는 회원은 해지·탈퇴를 요청할 수 있습니다.</p>')+
+ section('disputes','10. 책임과 분쟁 처리','<p>운영자와 이용자는 자신에게 책임 있는 사유로 상대방에게 발생한 손해에 대해 관계 법령에 따라 책임을 부담합니다. 운영자의 고의 또는 중대한 과실에 대한 책임을 배제하지 않습니다. 분쟁은 먼저 고객센터를 통해 해결하도록 노력하며, 해결되지 않는 경우 소비자 상담·분쟁조정 또는 관계 법령상 관할 법원의 절차를 이용할 수 있습니다.</p>')
+};}
+
+function refund(){return {
+ title:'환불 · 해지 정책',lead:'다음 결제를 멈추는 방법과 이미 결제한 이용권의 환불 기준을 안내합니다.',
+ body:effective+`<div class="callout">아래 기준은 월 ${PREMIUM.price.toLocaleString('ko-KR')}원 이용권에 적용됩니다.</div>`+
+ section('cancel','1. 정기결제 해지',`<p>다음 결제 전에 <a href="/#membership">이용 혜택 · 내 구독</a>에서 “자동갱신 해지”를 선택하거나 ${mail('정기결제 해지 요청','고객센터')}로 해지 의사를 보내주세요. 운영자는 요청 접수 시각을 기준으로 다음 결제를 중단하고 처리 결과를 안내합니다. 정기결제만 해지하면 이미 결제한 이용 기간 종료일까지 Premium을 사용할 수 있습니다. 회원 탈퇴 없이도 구독을 해지할 수 있습니다.</p>`)+
+ section('withdraw','2. 미사용 이용권의 청약철회','<p>결제 후 7일 이내에 Premium 유료 기능을 이용하지 않았다면 결제 금액 전액을 환불합니다. 계약 내용이나 서비스 공급이 뒤늦게 제공된 경우 등에는 관계 법령에서 정한 청약철회 기산일과 기간을 적용합니다. 상품 설명과 다르게 제공되거나 계약대로 이행되지 않은 경우에는 법령에서 보장하는 기간과 범위에 따라 청약철회·환불을 요청할 수 있습니다.</p><p>무료 전체곡 감상만 한 것을 Premium 유료 기능의 사용으로 간주하지 않습니다. 단순히 디지털 서비스라는 이유만으로 모든 환불을 거절하지 않으며, 미제공 부분과 소비자의 법정 권리를 함께 확인합니다.</p>')+
+ section('during','3. 이용 중 해지·환불','<p>청약철회 전액 환불 대상이 아닌 경우에도 남은 이용 기간에 대한 환불을 요청할 수 있습니다. 별도 해지 위약금 없이 실제 결제 금액에서 이미 이용한 기간의 금액만 일할 계산해 공제합니다.</p><p><strong>환불액 = 실제 결제 금액 − (실제 결제 금액 × 이용한 일수 ÷ 해당 결제 회차의 전체 일수)</strong></p><p>이용 일수는 해당 회차 이용 시작 시각부터 환불 요청 접수 시각까지의 경과 시간을 24시간으로 나누어 계산하고, 공제액은 원 미만을 버립니다. 총 공제액은 결제 금액을 넘지 않습니다. 예를 들어 30일 이용권을 4,900원에 결제하고 10일 경과 후 환불을 요청하면 1,633원을 공제하고 3,267원을 환불합니다.</p><p>운영자에게 책임 있는 장애나 서비스 종료로 사용하지 못한 기간은 이용 기간 공제 대상에서 제외합니다. 중복 결제나 제공되지 않은 이용권은 사실관계를 확인해 해당 금액을 환불합니다.</p>')+
+ section('request','4. 요청 방법과 처리',`<p>${mail('환불 요청',BUSINESS.email)}로 가입 이메일 또는 소셜 로그인 종류·닉네임, 결제일, 환불 대상 상품, 요청 내용을 보내주세요. 결제 내역에 주문번호가 있으면 함께 적어주세요. 전체 카드번호, 카드 비밀번호, 소셜 계정 비밀번호는 보내지 마세요.</p><p>본인 확인은 처리에 필요한 최소한의 정보로 진행합니다. 관계 법령이 정한 환급 기한에 따라 환급 사유 발생일로부터 3영업일 이내 환급 절차를 진행하며, 원결제 수단으로 취소·환급합니다. 카드사 등의 실제 입금·승인 취소 반영 시점은 다를 수 있습니다. 다른 환급 방법이 필요한 경우 이용자에게 사유와 절차를 안내합니다.</p>`)+
+ section('after','5. 환불 이후의 이용','<p>환불이 처리되면 해당 Premium 이용권과 이후 정기결제가 종료됩니다. 무료 회원 기능은 계속 이용할 수 있고, 기존 플레이리스트를 보관한 상태에서 사용할 2개를 선택할 수 있습니다. 전액 환불, 이용 중 정산 등 실제 처리 금액과 이용권 종료 시점은 결과 안내에서 확인할 수 있습니다.</p>')+
+ section('support','6. 이의제기와 분쟁 해결',`<p>처리 결과에 이견이 있다면 근거와 함께 ${mail('환불 처리 이의제기','고객센터')}로 재검토를 요청할 수 있습니다. 이 정책보다 관계 법령이나 적용 가능한 분쟁해결기준이 소비자에게 유리한 경우 해당 기준을 적용합니다.</p><p>외부 상담·조정: <a href="https://www.ccn.go.kr/" target="_blank" rel="noopener">1372 소비자상담센터</a>, <a href="https://www.kca.go.kr/" target="_blank" rel="noopener">한국소비자원</a></p>`)
+};}
+
+function privacy(){return {
+ title:'개인정보처리방침',lead:'AIFECT가 처리하는 정보와 이용자의 개인정보 권리를 안내합니다.',
+ body:`<p class="legal-fine">시행일: ${POLICY_VERSION}</p><p>${BUSINESS.name}는 AIFECT 운영에 필요한 개인정보를 목적에 맞는 범위에서 처리합니다. 개인정보 처리에 관한 문의와 권리 행사는 아래 연락처로 접수할 수 있습니다.</p>${contact}`+
+ section('data','1. 처리 목적과 항목',table(['이용 상황','처리하는 정보','이용 목적'],[
+ ['이메일 가입·로그인','이메일, 닉네임, 비밀번호의 단방향 해시, 계정 식별자, 가입 일시','계정 생성, 인증, 회원 관리 및 서비스 제공'],
+ ['Google·카카오·Apple 로그인','선택한 제공자, 제공자별 회원 식별자, 이름 또는 닉네임, 제공자가 전달한 이메일(제공·동의 범위에 따름)','간편 로그인과 동일 회원 식별. 소셜 서비스의 비밀번호는 받지 않습니다.'],
+ ['음악 감상·보관함·커뮤니티','감상한 곡, 재생 시각·구간, 좋아요, 팔로우, 플레이리스트·공개 설정, 댓글 및 작성 시각','감상 기록, 보관함, 공개 차트·반응 집계와 커뮤니티 제공'],
+ ['창작자 업로드','제작자·아티스트명, 소개, 프로필·앨범 이미지, 음원, 가사, AI 도구·제작 참여·권리 확인 정보','콘텐츠 보관·변환·공개, 창작자 관리, 요청한 가사 싱크 처리'],
+ ['카드 등록·정기결제','카드번호, 유효기간, 생년월일 6자리 또는 법인 사업자번호, 비밀번호 앞 2자리(카드 등록 요청에만 일시 처리); 암호화한 빌링키, 카드사명, 주문번호·거래번호, 금액·결제·환불 상태, 이용 기간, 약관 동의 내용·일시','NICEPAY 카드 등록, 매월 정기결제, 이용권 제공, 해지·환불 확인 및 거래 기록 보관'],
+ ['접속·보안','로그인 세션, 인증 요청값, 접속 IP에서 생성한 요청 제한용 해시, 브라우저 요청·오류 정보','인증 유지, 부정 요청 방지와 장애 대응'],
+ ['고객센터','회신 이메일, 본인이 제공한 계정·문의·증빙 내용','문의 응대, 본인 확인, 탈퇴·권리 침해·환불 처리']
+ ]))+`<p>카드 정보는 결제 화면에서 동의하고 제출할 때만 일시 처리하여 NICEPAY에 암호화 전송하며, 전체 카드번호·유효기간·생년월일·비밀번호 앞 2자리를 AIFECT 데이터베이스나 로그에 저장하지 않습니다. 정기결제에는 별도의 암호화한 빌링키를 사용하며 구독 해지·종료 후 미확정 결제가 정리되면 해당 키를 폐기합니다. 거래·환불 내역과 계약 동의 기록은 아래 법정 기간에 따라 보관합니다. 선택 기능의 정보는 해당 기능을 이용할 때만 입력하며, 마케팅 수신은 별도 동의 없이 신청되지 않습니다.</p>`+
+ section('basis','2. 처리의 근거와 공개 범위','<p>회원 계약 체결·이행, 이용자가 요청한 서비스 제공, 법령상 의무 이행 등 해당하는 적법한 근거에 따라 처리하며, 별도의 동의가 필요한 처리는 동의를 받은 범위에서 수행합니다.</p><p>회원이 공개한 제작자·아티스트 프로필, 공개 음원과 가사, 댓글·닉네임, 공개 플레이리스트는 다른 이용자와 비회원이 열람할 수 있습니다. 이메일과 비공개 플레이리스트는 일반 공개 목록에 표시하지 않습니다. 업로드 내용에 타인의 개인정보나 공개를 원하지 않는 정보를 포함하지 않도록 주의해주세요.</p>')+
+ section('retention','3. 보유 기간과 파기','<p>계정 및 서비스 이용 정보는 회원 관계가 유지되는 동안 보관하고, 탈퇴·삭제 요청 또는 처리 목적 달성 시 지체 없이 삭제합니다. 일부 게시물이나 거래 자료에 별도 법정 보관 사유가 있는 경우 해당 정보만 다른 목적으로 사용하지 않도록 분리·제한하여 보관합니다.</p>'+table(['기록','법정 보관 기간'],[['계약·청약철회 기록, 대금 결제·서비스 공급 기록(해당 거래 발생 시)','5년'],['소비자 불만·분쟁 처리 기록','3년'],['표시·광고 기록','6개월']])+'<p>로그인 세션의 유효기간은 최대 30일, 소셜 로그인 인증 요청의 유효기간은 10분이며, 만료된 서버 기록은 정리 대상이 됩니다. 브라우저에 보관한 재생 위치·재생 목록은 세션 저장소에 저장됩니다. 전자 파일은 복구·재생하기 어려운 방법으로 삭제하고, 종이 자료가 있는 경우 분쇄 등 적절한 방법으로 파기합니다.</p>')+
+ section('providers','4. 외부 서비스와 처리위탁',table(['업체·서비스','처리 업무'],[['나이스페이먼츠(NICEPAY)','카드 등록·정기결제 승인, 결제 조회·취소 및 결제 결과 통보'],['OpenAI의 Sites 및 Cloudflare 인프라','웹사이트 호스팅·요청 처리, 데이터베이스·파일 보관 및 전송'],['Google·카카오·Apple (이용자가 선택한 로그인 제공자)','소셜 계정 인증 및 회원 정보 전달'],['Google Gmail','고객센터 이메일 수신·회신과 문의 자료 보관'],['Google Fonts','웹폰트 로드. 브라우저에서 폰트 제공자에게 접속 IP·브라우저 요청 정보가 전달될 수 있습니다.']])+'<p>로그인 제공자의 정보 처리에는 해당 제공자의 약관·개인정보 정책도 적용됩니다. 운영자는 서비스 운영 목적을 벗어난 제3자 제공을 하지 않으며, 별도 제공이 필요한 경우 동의 또는 법령상 근거를 확인합니다. 위탁 범위나 업체가 바뀌면 이 방침에 반영합니다.</p>')+
+ section('overseas','5. 국외 처리에 관한 안내','<p>위 외부 서비스 중 글로벌 인프라와 로그인·이메일 서비스는 개인정보를 국외에서 처리할 수 있습니다. 현재 배포 인프라의 실제 보관 국가와 재위탁·보유 조건은 확인 중입니다. 이 방침을 모든 국외이전 고지 항목의 확인 완료로 보지 않으며, 확인되는 항목을 구체화하고 관계 법령상 필요한 고지·동의 절차를 보완합니다.</p><p>국외 처리 또는 외부 서비스 이용을 원하지 않는 경우 고객센터로 문의하거나 처리정지·탈퇴를 요청할 수 있습니다. 필수 인프라의 이용을 제한하면 일부 또는 전체 서비스 이용이 어려울 수 있습니다.</p>')+
+ section('rights','6. 이용자의 권리와 행사 방법',`<p>본인의 개인정보 열람, 정정·삭제, 처리정지, 동의 철회 및 회원 탈퇴를 ${mail('개인정보 권리 행사 요청',BUSINESS.email)}로 요청할 수 있습니다. 적법한 대리인도 권한을 확인할 수 있는 자료와 함께 요청할 수 있습니다. 최소한의 본인·대리권 확인 후 법령상 기한에 따라 처리 결과를 안내합니다.</p><p>법령에 따라 삭제·처리정지가 제한되는 정보가 있다면 그 사유와 범위를 설명합니다. 만 14세 미만 아동의 정보가 적법한 동의 절차 없이 처리된 사실을 알게 되면 법정대리인의 권리 행사를 포함하여 필요한 보호 조치를 진행합니다.</p>`)+
+ section('cookies','7. 쿠키와 브라우저 저장소','<p>AIFECT는 로그인 유지와 인증 요청 확인에 필요한 쿠키를 사용합니다. 재생 중 로그인하더라도 이어 들을 수 있도록 재생 위치와 재생 목록을 브라우저의 세션 저장소에 보관합니다. Google 로그인 화면에서는 Google의 인증 스크립트가 로드될 수 있습니다.</p><p>브라우저 설정의 개인정보·사이트 데이터 메뉴에서 쿠키를 차단하거나 저장 데이터를 삭제할 수 있습니다. 필수 쿠키를 차단하면 로그인과 일부 기능이 작동하지 않을 수 있습니다. 현재 AIFECT 자체 기능에는 맞춤형 광고 추적이나 마케팅 분석을 위한 별도 추적 도구를 연결하지 않았습니다.</p>')+
+ section('security','8. 보호 조치','<p>전송 구간의 HTTPS, 비밀번호 단방향 해시, 인증 세션의 서버 검증, 비공개 파일 접근 제한 및 반복 요청 제한을 적용합니다. 개인정보 접근은 서비스 운영과 문의 처리에 필요한 범위로 제한하고, 개인정보가 로그나 공개 콘텐츠에 불필요하게 남지 않도록 관리합니다.</p>')+
+ section('officer','9. 개인정보 문의·책임자',`${businessDetailsHTML()}<p>개인정보 보호 업무는 ${BUSINESS.representative?esc(BUSINESS.representative)+' 대표자':'모티브 운영자'}가 담당합니다. ${mail('개인정보 보호 문의','개인정보 문의 접수')}</p><p>외부 권리구제 기관: <a href="https://privacy.kisa.or.kr/" target="_blank" rel="noopener">개인정보침해 신고센터</a>, <a href="https://www.kopico.go.kr/" target="_blank" rel="noopener">개인정보분쟁조정위원회</a></p>`)+
+ section('notice','10. 방침 변경','<p>처리 항목, 목적, 업체, 보유 기간 등 중요한 내용이 바뀌면 시행일과 변경 내용을 사이트에 안내합니다. 별도 동의가 필요한 변경은 안내만으로 동의를 대신하지 않습니다.</p>')
+};}
+
+function support(){return {title:'고객센터 · 사업자 정보',lead:'이용 문의부터 콘텐츠 신고, 구독 해지와 개인정보 요청까지.',body:`<section class="callout">${businessDetailsHTML()}</section><div class="support-actions">${mail('서비스 이용 문의')}${mail('환불·정기결제 해지 요청','환불 · 해지 요청')}${mail('개인정보 열람·삭제·탈퇴 요청','개인정보 · 탈퇴 요청')}${mail('콘텐츠 권리 침해 신고','콘텐츠 신고')}</div><p>회신 가능한 이메일과 문의 대상 곡·페이지 주소를 함께 보내주시면 확인에 도움이 됩니다. 비밀번호, 전체 카드번호, 주민등록번호 등 불필요한 민감정보는 보내지 마세요. 이메일 문의는 접수 순서에 따라 확인하며, 법정 처리 기한이 있는 요청은 해당 기한에 따라 처리합니다.</p><h2>자주 찾는 안내</h2><ul>${policyLinks.filter(([url])=>url!=='/contact').map(([url,label])=>`<li><a href="${url}">${label}</a></li>`).join('')}</ul><h2>현재 유료 서비스 상태</h2><p>Premium은 월 4,900원(부가세 포함)입니다. 가입 가능 여부와 결제·해지 내역은 <a href="/#membership">이용 혜택 · 내 구독</a>에서 확인할 수 있습니다. 통신판매업 신고 상태는 미신고이며, 유료 결제 개시 전 필요한 사업자·결제 절차를 확인합니다.</p>`};}
+
+const routes = {'/pricing':pricing,'/terms':terms,'/privacy':privacy,'/refund':refund,'/contact':support,'/business':support};
+export function publicPage(path){
+ const route=routes[path.replace(/\/$/,'')];if(!route)return null;
+ const {title,lead,body}=route();
+ return `<!doctype html><html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)} | AIFECT</title><meta name="description" content="${esc(lead)}"><link rel="canonical" href="https://aifect.co.kr${path.replace(/\/$/,'')}"><link rel="stylesheet" href="/policies.css"><meta name="theme-color" content="#101415"></head><body class="legal-site"><header class="legal-header"><a class="legal-brand" href="/#home" aria-label="AIFECT 홈"><span class="legal-logo"><img src="/assets/aifect-logo.png" alt="aifect" width="1536" height="1024"></span></a><a href="/#home">음악으로 돌아가기</a></header><main class="legal-content"><p class="legal-kicker">AIFECT · AI + EFFECT</p><h1>${esc(title)}</h1><p class="legal-lead">${esc(lead)}</p><nav class="legal-toc" aria-label="정책 페이지">${policyLinks.map(([url,label])=>`<a href="${url}"${url===path?' aria-current="page"':''}>${label}</a>`).join('')}</nav>${body}</main><footer class="page-footer">${businessFooterHTML()}</footer></body></html>`;
+}
+export function publicPageRoute(req,path){
+ if(!['GET','HEAD'].includes(req.method))return null;
+ if(path==='/robots.txt')return new Response(req.method==='HEAD'?null:'User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /internal/\nSitemap: https://aifect.co.kr/sitemap.xml\n',{headers:{'content-type':'text/plain; charset=utf-8'}});
+ if(path==='/sitemap.xml')return new Response(req.method==='HEAD'?null:`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${['/',...Object.keys(routes).filter(p=>p!=='/business')].map(p=>`<url><loc>https://aifect.co.kr${p}</loc></url>`).join('')}</urlset>`,{headers:{'content-type':'application/xml; charset=utf-8'}});
+ const html=publicPage(path);if(!html)return null;
+ return new Response(req.method==='HEAD'?null:html,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'public, max-age=60','x-content-type-options':'nosniff','content-security-policy':"default-src 'none'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",'referrer-policy':'strict-origin-when-cross-origin'}});
+}
