@@ -30,7 +30,7 @@ async function upload(fd){
  applyLyrics(fd);
  const file=fd.get('audio'),image=fd.get('cover');if(!file?.size)throw new Error('음원 파일을 선택해주세요.');if(file.size>80*1024*1024)throw new Error('음원은 80MB 이하로 업로드해주세요.');
  for(const name of ['cover','artist_image','producer_image'])await validateImage(fd.get(name));
- const body={...textFields(fd),participation:fd.getAll('participation').join(', '),rights:fd.has('rights'),is_ai:fd.has('is_ai'),extension:file.name.split('.').pop().toLowerCase(),bytes:file.size};
+ const body={...textFields(fd),participation:fd.getAll('participation').join(', '),rights:fd.has('rights'),is_ai:fd.has('is_ai'),karaoke:fd.has('karaoke'),extension:file.name.split('.').pop().toLowerCase(),bytes:file.size};
  const progress=$('.upload-progress');progress.hidden=false;progress.querySelector('p').textContent='업로드를 준비하고 있습니다.';
  const form=$('#upload-form'),fingerprint=JSON.stringify([body,file.name,file.lastModified]);
  let draft=form._draft;if(!draft||draft.fingerprint!==fingerprint){draft={...await api('/api/uploads','POST',body),fingerprint};form._draft=draft;}
@@ -73,6 +73,7 @@ document.addEventListener('click',async ev=>{
   else if(el.dataset.editComment||el.dataset.reply){if(!me)return askLogin();const edit=el.dataset.editComment;dialog(`<h2>${edit?'댓글 수정':'답글 남기기'}</h2><form id="reply-form"><textarea name="body" required maxlength="2000" aria-label="${edit?'댓글 수정':'답글'}">${esc(edit?el.dataset.body:'')}</textarea><button class="primary-button">등록</button><p class="form-error" role="alert"></p></form>`);const form=$('#reply-form');form.onsubmit=busyForm(form,async fd=>{await api(edit?`/api/comments/${edit}`:`/api/tracks/${el.dataset.track}/comments`,edit?'PATCH':'POST',{body:fd.get('body'),parent_id:el.dataset.reply||null});$('#dialog').close();await reloadComments(location.hash.split('/')[1]?.split('?')[0]);});}
   else if(el.hasAttribute('data-seek')){if(current?.id!==el.dataset.track)await play(el.dataset.track);if(el.hasAttribute('data-lyric-index')&&!hasFullLyrics(current)){refreshLyricsPanel();toast('전체 싱크 가사는 Premium에서 이용할 수 있어요.');return;}const seconds=Number(el.dataset.seek);if(preview&&seconds>=60){askLogin();return;}audio.currentTime=seconds;await audio.play();}
   else if(el.dataset.hideTrack){if(confirm('이 곡을 비공개로 전환할까요?')){await api(`/api/uploads/${el.dataset.hideTrack}/unpublish`,'POST');await render();}}
+  else if(el.dataset.karaokeTrack){if(!$('#karaoke-accept')?.checked){toast('동의 항목을 먼저 체크해주세요.');return;}await api(`/api/uploads/${el.dataset.karaokeTrack}/karaoke`,'POST',{accept:true});toast('노래방 MR 제공 · 커버 허락에 동의했습니다.');await render();}
   else if(el.dataset.retryTrack){await api(`/api/uploads/${el.dataset.retryTrack}/retry`,'POST');await render();}
   else if(el.hasAttribute('data-share')){await navigator.clipboard.writeText(location.href);toast('공개 링크를 복사했습니다.');}
   else if(el.dataset.playerAction&&['shuffle','repeat','previous'].includes(el.dataset.playerAction)){

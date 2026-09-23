@@ -5,6 +5,7 @@ import {storeImage} from './images.js';
 import {studioRoute} from './studio.js';
 import {lyricsFields} from './lyrics.js';
 import {alignmentInternalRoute,alignmentWrite} from './alignment.js';
+import {KARAOKE_TERMS_VERSION} from '../shared/site-info.js';
 const MAX_AUDIO=80*1024*1024;
 export async function listener(req,user){return user?.id||await hash((req.headers.get('cf-connecting-ip')||'local')+'|'+(req.headers.get('user-agent')||'')+'|'+new Date().toISOString().slice(0,10));}
 async function put(env,key,req,max,type){
@@ -44,6 +45,7 @@ export async function mediaRoute(req,env,path,user){
   requireUser(user);await rate(env,'upload:'+user.id,20,86400);
   const b=await req.json(),title=str(b.title,120),artistName=str(b.artist,60),producerName=str(b.producer,60),tool=str(b.ai_tool,100),lyricData=lyricsFields(b);
   if(b.rights!==true||b.is_ai!==true)fail(400,'AI 제작 여부와 음원 권리 보유 확인이 필요합니다.');
+  if(b.karaoke!==true)fail(400,'노래방 MR 제공과 커버 허락에 동의해야 업로드할 수 있습니다.');
   if(!GENRES.includes(b.genre)||!['wav','flac','mp3'].includes(b.extension)||!Number.isInteger(b.bytes)||b.bytes<100||b.bytes>MAX_AUDIO)fail(400,'지원하는 장르와 80MB 이하 WAV·FLAC·MP3 파일을 선택해주세요.');
   let producer=await one(env,'SELECT * FROM producers WHERE user_id=?',user.id);
   if(!producer){producer={id:id()};await run(env,'INSERT INTO producers(id,user_id,name,bio,created) VALUES(?,?,?,?,?)',producer.id,user.id,producerName,str(b.producer_bio||'',1000,false),now());}
@@ -51,13 +53,19 @@ export async function mediaRoute(req,env,path,user){
   if(b.artist_id&&!artist)fail(404,'내 AI 아티스트를 선택해주세요.');
   if(!artist){artist={id:id()};await run(env,'INSERT INTO artists(id,producer_id,name,bio,genre,created) VALUES(?,?,?,?,?,?)',artist.id,producer.id,artistName,str(b.artist_bio||'',1000,false),b.genre,now());}
   const tid=id(),jobWrites=lyricData.auto?await alignmentWrite(env,tid,user.id,lyricData):[];
-  await env.DB.batch([query(env,'INSERT INTO tracks(id,user_id,artist_id,producer_id,title,genre,tags,description,ai_tool,participation,rights_accepted,original_ext,original_bytes,created,lyrics,lyrics_mode) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',tid,user.id,artist.id,producer.id,title,b.genre,str(b.tags||'',300,false),str(b.description||'',4000,false),tool,str(b.participation||'',100,false),now(),b.extension,b.bytes,now(),lyricData.lyrics,lyricData.mode),...jobWrites]);
+  await env.DB.batch([query(env,'INSERT INTO tracks(id,user_id,artist_id,producer_id,title,genre,tags,description,ai_tool,participation,rights_accepted,original_ext,original_bytes,created,lyrics,lyrics_mode,karaoke_terms,karaoke_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',tid,user.id,artist.id,producer.id,title,b.genre,str(b.tags||'',300,false),str(b.description||'',4000,false),tool,str(b.participation||'',100,false),now(),b.extension,b.bytes,now(),lyricData.lyrics,lyricData.mode,KARAOKE_TERMS_VERSION,now()),...jobWrites]);
   return json({id:tid,artist_id:artist.id,producer_id:producer.id},201);
  }
- let m=path.match(/^\/api\/uploads\/([\w-]+)\/(audio|cover|complete|retry|unpublish)$/);
+ let m=path.match(/^\/api\/uploads\/([\w-]+)\/(audio|cover|complete|retry|unpublish|karaoke)$/);
  if(m){
   requireUser(user);const t=await one(env,'SELECT * FROM tracks WHERE id=? AND user_id=?',m[1],user.id);if(!t)fail(404,'내 업로드를 찾을 수 없습니다.');
   const action=m[2];
+  if(action==='karaoke'&&method==='POST'){
+   // Tracks uploaded before the clause existed opt in here; an existing consent keeps its original version and time.
+   if((await req.json().catch(()=>({}))).accept!==true)fail(400,'노래방 MR 제공과 커버 허락에 동의해주세요.');
+   if(!t.karaoke_at)await run(env,"UPDATE tracks SET karaoke_terms=?,karaoke_at=? WHERE id=? AND karaoke_at=0",KARAOKE_TERMS_VERSION,now(),t.id);
+   return json({ok:true});
+  }
   if(action==='unpublish'&&method==='POST'){await run(env,"UPDATE tracks SET status='hidden' WHERE id=?",t.id);return json({ok:true});}
   if(action==='retry'&&method==='POST'){
    if(!['failed','hidden'].includes(t.status)||!await env.BUCKET.head(`original/${t.id}.${t.original_ext}`))fail(409,'다시 처리할 원본이 없습니다.');
