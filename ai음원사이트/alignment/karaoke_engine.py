@@ -38,7 +38,7 @@ def separate(root):
     with torch.no_grad():
         sources=apply_model(model,((wav-mean)/std)[None],device='cpu',shifts=1,split=True,overlap=0.25,progress=False)[0]
     del wav
-    sources=sources*std+mean
+    sources.mul_(std).add_(mean)
     vocals=sources[model.sources.index('vocals')]
     mr=sources.sum(0)-vocals
     del sources
