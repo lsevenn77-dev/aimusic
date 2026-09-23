@@ -86,9 +86,9 @@ document.addEventListener('click',async ev=>{
  }catch(e){toast(e.message);}finally{el.disabled=false;}
 });
 audio.ontimeupdate=()=>{$('#elapsed').textContent=time(audio.currentTime);$('#seek').value=audio.currentTime;};
-audio.onplay=()=>{setPlayerVisible(true);lastTick=performance.now();$('#play-toggle').innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg>';$('#play-toggle').setAttribute('aria-label','일시정지');};
+audio.onplay=()=>{if(!current||!playSession){audio.pause();return;}setPlayerVisible(true);lastTick=performance.now();$('#play-toggle').innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg>';$('#play-toggle').setAttribute('aria-label','일시정지');};
 audio.onpause=()=>{$('#play-toggle').innerHTML=icon('play');$('#play-toggle').setAttribute('aria-label','재생');report();};
-audio.onended=()=>{report();if(preview&&current.duration>=60){setPlayerVisible(false);saveResume();dialog('<h2>좋은 음악은 끝까지.</h2><p>무료 회원가입 후 60초 지점부터 이어 들으세요.</p><a class="primary-button" href="#account" id="preview-login">무료 회원가입 후 전체곡 듣기</a>');$('#preview-login').onclick=()=>{$('#dialog').close();returnRoute='#song/'+current.id;};return;}if(repeatMode===2)play(current.id).catch(e=>toast(e.message));else nextTrack(1,true).catch(e=>toast(e.message));};
+audio.onended=()=>{if(!current||!playSession)return;report();if(preview&&current.duration>=60){setPlayerVisible(false);saveResume();dialog('<h2>좋은 음악은 끝까지.</h2><p>무료 회원가입 후 60초 지점부터 이어 들으세요.</p><a class="primary-button" href="#account" id="preview-login">무료 회원가입 후 전체곡 듣기</a>');$('#preview-login').onclick=()=>{$('#dialog').close();returnRoute='#song/'+current.id;};return;}if(repeatMode===2)play(current.id).catch(e=>toast(e.message));else nextTrack(1,true).catch(e=>toast(e.message));};
 audio.onerror=()=>{if(audio.src)toast('음원을 불러오지 못했습니다. 재생을 다시 눌러주세요.');};
 setInterval(()=>{if(!audio.paused&&!audio.seeking&&audio.readyState>=3){const n=performance.now();if(lastTick)heard+=Math.min((n-lastTick)/1000,1.1);lastTick=n;}else lastTick=0;},1000);
 setInterval(report,10000);
@@ -98,6 +98,7 @@ $('#shuffle').onclick=()=>{shuffle=!shuffle;$('#shuffle').classList.toggle('is-a
 $('#repeat').onclick=()=>{repeatMode=(repeatMode+1)%3;$('#repeat').classList.toggle('is-active',!!repeatMode);$('#repeat').setAttribute('aria-pressed',String(!!repeatMode));const label=['반복 끔','전체 반복','한 곡 반복'][repeatMode];$('#repeat').setAttribute('aria-label',label);toast(label);};
 $('#volume').oninput=e=>audio.volume=Number(e.target.value);$('#seek').oninput=e=>{if(current)audio.currentTime=Number(e.target.value);};
 $('#queue-toggle').onclick=queueDialog;
+$('#player-close').onclick=closePlayer;
 $('#dialog-close').onclick=()=>$('#dialog').close();$('#menu-toggle').onclick=()=>$('.sidebar').classList.toggle('open');
 window.addEventListener('hashchange',render);window.addEventListener('pagehide',saveResume);
 async function boot(){
