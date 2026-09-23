@@ -55,7 +55,7 @@ test('a cover lives on its original and on the singer profile, not in charts or 
  assert.ok(!(await f.call('/api/catalog?section=tracks')).body.tracks.some(x=>x.id===c.id),'charts list originals');
  assert.ok(!(await f.call('/api/artists/artist')).body.tracks.some(x=>x.id===c.id),'AI artist pages list originals');
  const singer=(await f.call('/api/producers/'+c.producer_id)).body;
- assert.deepEqual(singer.covers.map(x=>x.id),[c.id]);assert.equal(singer.tracks.length,0);assert.equal(singer.gifts.available,false);
+ assert.deepEqual(singer.covers.map(x=>x.id),[c.id]);assert.equal(singer.tracks.length,0);assert.deepEqual(singer.gifts.ranking,[]);
  const creator=(await f.call('/api/producers/producer')).body;
  assert.ok(creator.tracks.some(x=>x.id==='one'));assert.equal(creator.covers.length,0);
  assert.ok((await f.call('/api/catalog?section=producers')).body.producers.some(p=>p.id===c.producer_id),'cover singers are people too');
