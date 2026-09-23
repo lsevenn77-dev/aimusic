@@ -1,4 +1,5 @@
-import { sqliteTable, text, integer, real, primaryKey, index, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, real, primaryKey, index, uniqueIndex, check } from 'drizzle-orm/sqlite-core';
+import { sql } from 'drizzle-orm';
 export const users=sqliteTable('users',{
  id:text('id').primaryKey(), email:text('email').notNull(), name:text('name').notNull(), password:text('password'), provider:text('provider').notNull().default('email'), subject:text('subject'), created:integer('created').notNull(), premiumUntil:integer('premium_until').notNull().default(0), playlistSelection:text('playlist_selection').notNull().default('[]')
 },t=>[uniqueIndex('users_identity').on(t.provider,t.subject),uniqueIndex('users_email_provider').on(t.email,t.provider)]);
@@ -34,3 +35,15 @@ export const lyricJobs=sqliteTable('lyric_jobs',{
 export const karaokeJobs=sqliteTable('karaoke_jobs',{
  trackId:text('track_id').primaryKey().references(()=>tracks.id,{onDelete:'cascade'}),id:text('id').notNull(),state:text('state').notNull().default('queued'),mrSource:text('mr_source').notNull().default('auto'),mrExt:text('mr_ext').notNull().default(''),mrBytes:integer('mr_bytes').notNull().default(0),mrReady:integer('mr_ready').notNull().default(0),vocalsReady:integer('vocals_ready').notNull().default(0),lyricsText:text('lyrics_text').notNull().default(''),language:text('language').notNull().default('ko'),words:text('words').notNull().default(''),wordsState:text('words_state').notNull().default('none'),attempts:integer('attempts').notNull().default(0),leaseUntil:integer('lease_until').notNull().default(0),leaseToken:text('lease_token'),error:text('error'),created:integer('created').notNull(),updated:integer('updated').notNull()
 },t=>[uniqueIndex('karaoke_jobs_id').on(t.id),index('karaoke_jobs_queue').on(t.state,t.leaseUntil,t.created)]);
+// Gold is bought in lots; gifts spend the oldest paid lots first. The check keeps a lot from being overspent
+// or spent once refunded, so a concurrent gift or refund rolls its whole batch back instead of corrupting balances.
+export const goldPurchases=sqliteTable('gold_purchases',{
+ id:text('id').primaryKey(),userId:text('user_id').notNull().references(()=>users.id),channel:text('channel').notNull(),gold:integer('gold').notNull(),used:integer('used').notNull().default(0),priceKrw:integer('price_krw').notNull(),feeKrw:integer('fee_krw').notNull().default(0),status:text('status').notNull().default('pending'),providerRef:text('provider_ref'),created:integer('created').notNull(),paidAt:integer('paid_at').notNull().default(0)
+},t=>[index('gold_purchases_user').on(t.userId,t.status,t.paidAt),uniqueIndex('gold_purchases_ref').on(t.channel,t.providerRef),check('gold_purchases_usage',sql`${t.used} >= 0 AND ${t.used} <= ${t.gold} AND (${t.status} = 'paid' OR ${t.used} = 0)`)]);
+// Shares are frozen per gift in milli-won: the cover singer, the original's creator and the platform.
+export const gifts=sqliteTable('gifts',{
+ id:text('id').primaryKey(),senderId:text('sender_id').notNull().references(()=>users.id),trackId:text('track_id').notNull().references(()=>tracks.id),gold:integer('gold').notNull(),netMw:integer('net_mw').notNull(),singerProfileId:text('singer_profile_id'),creatorProfileId:text('creator_profile_id').notNull(),singerMw:integer('singer_mw').notNull().default(0),creatorMw:integer('creator_mw').notNull(),platformMw:integer('platform_mw').notNull(),month:text('month').notNull(),created:integer('created').notNull()
+},t=>[index('gifts_track').on(t.trackId,t.created),index('gifts_sender').on(t.senderId,t.created),index('gifts_singer').on(t.singerProfileId,t.month),index('gifts_creator').on(t.creatorProfileId,t.month)]);
+export const giftLots=sqliteTable('gift_lots',{
+ giftId:text('gift_id').notNull().references(()=>gifts.id),purchaseId:text('purchase_id').notNull().references(()=>goldPurchases.id),gold:integer('gold').notNull(),netMw:integer('net_mw').notNull()
+},t=>[primaryKey({columns:[t.giftId,t.purchaseId]})]);

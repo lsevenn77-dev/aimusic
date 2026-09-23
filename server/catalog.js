@@ -3,6 +3,7 @@ import {requireUser,hash} from './auth.js';
 import {discoveryRoute,playlistSummaries} from './discovery.js';
 import {isPremium,playlistLimit,activePlaylistSQL,requireActivePlaylist} from './membership.js';
 import {listenerLyrics} from './lyrics.js';
+import {profileGifts} from './gifts.js';
 export const GENRES=['K-POP','Ballad','R&B','Hip-Hop','Rock','EDM','City Pop','OST','Instrumental'];
 // A cover is public only while its original is public and still offered for karaoke (terms: hiding the original hides its covers).
 export const VISIBLE=(t='t')=>`(${t}.status='published' AND (${t}.original_id IS NULL OR EXISTS(SELECT 1 FROM tracks v WHERE v.id=${t}.original_id AND v.status='published' AND v.karaoke_at>0)))`;
@@ -12,11 +13,12 @@ const SELECT=`SELECT t.id,t.title,t.genre,t.tags,t.description,t.lyrics_mode,t.a
  o.title original_title,o.has_cover original_has_cover,o.cover_version original_cover_version,a.name original_artist,o.producer_id original_producer_id,op.name original_producer,
  (SELECT count(*) FROM likes l WHERE l.track_id=t.id) likes,
  (SELECT count(*) FROM comments c WHERE c.track_id=t.id) comments,
- (SELECT count(DISTINCT listener||day) FROM listens l WHERE l.track_id=t.id AND l.qualified=1) plays
+ (SELECT count(DISTINCT listener||day) FROM listens l WHERE l.track_id=t.id AND l.qualified=1) plays,
+ (SELECT COALESCE(sum(g.gold),0) FROM gifts g WHERE g.track_id=t.id) gift_gold
  FROM tracks t JOIN artists a ON a.id=t.artist_id JOIN producers p ON p.id=t.producer_id LEFT JOIN tracks o ON o.id=t.original_id LEFT JOIN producers op ON op.id=o.producer_id`;
 export const trackList=(env,where=VISIBLE(),args=[],sort='t.created DESC',limit=100)=>rows(env,`${SELECT} WHERE ${where} ORDER BY ${sort} LIMIT ${limit}`,...args);
 export async function published(env,tid){const t=await one(env,`SELECT t.* FROM tracks t WHERE t.id=? AND ${VISIBLE()}`,tid);if(!t)fail(404,'공개된 곡을 찾을 수 없습니다.');return t;}
-const COVER_SORTS={popular:'likes DESC,plays DESC,t.created DESC',plays:'plays DESC,likes DESC,t.created DESC',recent:'t.created DESC'};
+const COVER_SORTS={popular:'likes DESC,plays DESC,t.created DESC',gifts:'gift_gold DESC,likes DESC,t.created DESC',plays:'plays DESC,likes DESC,t.created DESC',recent:'t.created DESC'};
 export async function catalogRoute(req,env,path,user){
  const url=new URL(req.url),method=req.method;const discovery=await discoveryRoute(req,env,path,user);if(discovery)return discovery;
  if(path==='/api/catalog'&&method==='GET'){
@@ -89,8 +91,7 @@ export async function catalogRoute(req,env,path,user){
    const followers=(await one(env,'SELECT count(*) n FROM follows WHERE kind=? AND target_id=?',kind,entity.id)).n;
    const tracks=await trackList(env,`${VISIBLE()} AND t.kind='original' AND t.${kind}_id=?`,[entity.id]);
    if(kind==='artist')return json({profile:entity,tracks,followers});
-   // Gifts arrive in a later step; the ranking slot is already part of the profile.
-   return json({profile:entity,tracks,covers:await trackList(env,`${VISIBLE()} AND t.kind='cover' AND t.producer_id=?`,[entity.id]),followers,gifts:{available:false,ranking:[]}});
+   return json({profile:entity,tracks,covers:await trackList(env,`${VISIBLE()} AND t.kind='cover' AND t.producer_id=?`,[entity.id]),followers,gifts:await profileGifts(env,entity.id)});
   }
   requireUser(user);
   if(method==='PUT')await run(env,'INSERT OR IGNORE INTO follows(user_id,kind,target_id,created) VALUES(?,?,?,?)',user.id,kind,entity.id,now());
