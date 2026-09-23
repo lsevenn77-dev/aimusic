@@ -1,6 +1,6 @@
 import {one,rows,run,query,now,id,fail,str,json,rate} from './db.js';
 import {requireUser,hash} from './auth.js';
-import {published,GENRES} from './catalog.js';
+import {published,GENRES,VISIBLE} from './catalog.js';
 import {storeImage} from './images.js';
 import {studioRoute} from './studio.js';
 import {lyricsFields} from './lyrics.js';
@@ -14,7 +14,7 @@ export async function mediaRoute(req,env,path,user){
  const method=req.method;
  const studio=await studioRoute(req,env,path,user);if(studio)return studio;
  if(path==='/api/studio'&&method==='GET'){
-  requireUser(user);return json({producer:await one(env,'SELECT * FROM producers WHERE user_id=?',user.id),artists:await rows(env,'SELECT a.* FROM artists a JOIN producers p ON a.producer_id=p.id WHERE p.user_id=?',user.id),tracks:await rows(env,'SELECT t.id,t.title,t.status,t.error,t.created,t.duration,t.has_cover,t.cover_version,t.artist_id,j.state alignment_state FROM tracks t LEFT JOIN lyric_jobs j ON j.track_id=t.id WHERE t.user_id=? ORDER BY t.created DESC LIMIT 100',user.id)});
+  requireUser(user);return json({producer:await one(env,'SELECT * FROM producers WHERE user_id=?',user.id),artists:await rows(env,'SELECT a.* FROM artists a JOIN producers p ON a.producer_id=p.id WHERE p.user_id=?',user.id),tracks:await rows(env,'SELECT t.id,t.title,t.status,t.error,t.created,t.duration,t.has_cover,t.cover_version,t.artist_id,t.kind,t.original_id,o.title original_title,o.has_cover original_has_cover,o.cover_version original_cover_version,j.state alignment_state FROM tracks t LEFT JOIN tracks o ON o.id=t.original_id LEFT JOIN lyric_jobs j ON j.track_id=t.id WHERE t.user_id=? ORDER BY t.created DESC LIMIT 100',user.id)});
  }
  if(path==='/api/studio/profile'&&method==='PUT'){
   requireUser(user);const b=await req.json(),p=await one(env,'SELECT id FROM producers WHERE user_id=?',user.id),pid=p?.id||id();
@@ -42,6 +42,7 @@ export async function mediaRoute(req,env,path,user){
   requireUser(user);const t=await one(env,'SELECT * FROM tracks WHERE id=? AND user_id=?',m[1],user.id);if(!t)fail(404,'내 업로드를 찾을 수 없습니다.');
   const action=m[2];
   if(action==='karaoke'&&method==='POST'){
+   if(t.kind==='cover')fail(400,'커버곡은 노래방 MR 대상이 아닙니다.');
    // Tracks uploaded before the clause existed opt in here; an existing consent keeps its original version and time.
    if((await req.json().catch(()=>({}))).accept!==true)fail(400,'노래방 MR 제공과 커버 허락에 동의해주세요.');
    if(!t.karaoke_at){
@@ -70,17 +71,18 @@ export async function mediaRoute(req,env,path,user){
  }
  m=path.match(/^\/media\/([\w-]+)\/(cover|preview|stream)$/);
  if(m&&['GET','HEAD'].includes(method)){
-  const kind=m[2],t=kind==='cover'?await one(env,"SELECT * FROM tracks WHERE id=? AND (status='published' OR user_id=?)",m[1],user?.id||''):await published(env,m[1]);if(!t)fail(404,'커버를 찾을 수 없습니다.');if(kind==='stream')requireUser(user);
-  if(kind==='cover'&&t.cover_version)return objectResponse(req,env,`images/track/${t.id}/${t.cover_version}`,t.cover_type,t.status==='published');
-  return objectResponse(req,env,`${kind}/${t.id}.${kind==='cover'?'jpg':'m4a'}`,kind==='cover'?'image/jpeg':'audio/mp4',kind==='cover'&&t.status==='published');
+  const kind=m[2],t=kind==='cover'?await one(env,`SELECT t.*,${VISIBLE()} visible FROM tracks t WHERE t.id=? AND (${VISIBLE()} OR t.user_id=?)`,m[1],user?.id||''):await published(env,m[1]);if(!t)fail(404,'커버를 찾을 수 없습니다.');if(kind==='stream')requireUser(user);
+  if(kind==='cover'&&t.cover_version)return objectResponse(req,env,`images/track/${t.id}/${t.cover_version}`,t.cover_type,!!t.visible);
+  return objectResponse(req,env,`${kind}/${t.id}.${kind==='cover'?'jpg':'m4a'}`,kind==='cover'?'image/jpeg':'audio/mp4',kind==='cover'&&!!t.visible);
  }
- m=path.match(/^\/media\/(artist|producer)\/([\w-]+)$/);
+ m=path.match(/^\/media\/(artist|producer|banner)\/([\w-]+)$/);
  if(m&&['GET','HEAD'].includes(method)){
-  const kind=m[1],p=await one(env,kind==='artist'?'SELECT a.*,p.user_id FROM artists a JOIN producers p ON p.id=a.producer_id WHERE a.id=?':'SELECT * FROM producers WHERE id=?',m[2]);
-  if(!p?.image_version)fail(404,'프로필 이미지를 찾을 수 없습니다.');
-  const isPublic=!!await one(env,`SELECT id FROM tracks WHERE ${kind}_id=? AND status='published' LIMIT 1`,p.id);
+  const kind=m[1],owner=kind==='artist'?'artist':'producer',p=await one(env,kind==='artist'?'SELECT a.*,p.user_id FROM artists a JOIN producers p ON p.id=a.producer_id WHERE a.id=?':'SELECT * FROM producers WHERE id=?',m[2]);
+  const version=kind==='banner'?p?.banner_version:p?.image_version;
+  if(!version)fail(404,'프로필 이미지를 찾을 수 없습니다.');
+  const isPublic=!!await one(env,`SELECT t.id FROM tracks t WHERE t.${owner}_id=? AND ${VISIBLE()} LIMIT 1`,p.id);
   if(!isPublic&&p.user_id!==user?.id)fail(404,'프로필 이미지를 찾을 수 없습니다.');
-  return objectResponse(req,env,`images/${kind}/${p.id}/${p.image_version}`,p.image_type,isPublic);
+  return objectResponse(req,env,`images/${kind}/${p.id}/${version}`,kind==='banner'?p.banner_type:p.image_type,isPublic);
  }
  m=path.match(/^\/api\/playback\/([\w-]+)$/);
  if(m&&method==='POST'){

@@ -71,6 +71,13 @@
       "when": 1790177612762,
       "tag": "0009_karaoke_jobs",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1790181985989,
+      "tag": "0010_covers_and_profiles",
+      "breakpoints": true
     }
   ]
 }

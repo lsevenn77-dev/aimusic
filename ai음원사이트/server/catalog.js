@@ -4,18 +4,24 @@ import {discoveryRoute,playlistSummaries} from './discovery.js';
 import {isPremium,playlistLimit,activePlaylistSQL,requireActivePlaylist} from './membership.js';
 import {listenerLyrics} from './lyrics.js';
 export const GENRES=['K-POP','Ballad','R&B','Hip-Hop','Rock','EDM','City Pop','OST','Instrumental'];
-const SELECT=`SELECT t.id,t.title,t.genre,t.tags,t.description,t.lyrics_mode,t.ai_tool,t.participation,t.duration,t.created,t.has_cover,t.cover_version,t.artist_id,t.producer_id,a.name artist,p.name producer,t.user_id,
+// A cover is public only while its original is public and still offered for karaoke (terms: hiding the original hides its covers).
+export const VISIBLE=(t='t')=>`(${t}.status='published' AND (${t}.original_id IS NULL OR EXISTS(SELECT 1 FROM tracks v WHERE v.id=${t}.original_id AND v.status='published' AND v.karaoke_at>0)))`;
+// Covers keep the original's AI artist in artist_id; their performer is the uploader's profile.
+const SELECT=`SELECT t.id,t.title,t.genre,t.tags,t.description,t.lyrics_mode,t.ai_tool,t.participation,t.duration,t.created,t.has_cover,t.cover_version,t.artist_id,t.producer_id,
+ CASE WHEN t.kind='cover' THEN p.name||' · 커버' ELSE a.name END artist,p.name producer,t.user_id,t.kind,t.original_id,(t.kind='original' AND t.karaoke_at>0) accepts_covers,
+ o.title original_title,o.has_cover original_has_cover,o.cover_version original_cover_version,a.name original_artist,o.producer_id original_producer_id,op.name original_producer,
  (SELECT count(*) FROM likes l WHERE l.track_id=t.id) likes,
  (SELECT count(*) FROM comments c WHERE c.track_id=t.id) comments,
  (SELECT count(DISTINCT listener||day) FROM listens l WHERE l.track_id=t.id AND l.qualified=1) plays
- FROM tracks t JOIN artists a ON a.id=t.artist_id JOIN producers p ON p.id=t.producer_id`;
-export const trackList=(env,where='t.status=\'published\'',args=[],sort='t.created DESC',limit=100)=>rows(env,`${SELECT} WHERE ${where} ORDER BY ${sort} LIMIT ${limit}`,...args);
-export async function published(env,tid){const t=await one(env,"SELECT * FROM tracks WHERE id=? AND status='published'",tid);if(!t)fail(404,'공개된 곡을 찾을 수 없습니다.');return t;}
+ FROM tracks t JOIN artists a ON a.id=t.artist_id JOIN producers p ON p.id=t.producer_id LEFT JOIN tracks o ON o.id=t.original_id LEFT JOIN producers op ON op.id=o.producer_id`;
+export const trackList=(env,where=VISIBLE(),args=[],sort='t.created DESC',limit=100)=>rows(env,`${SELECT} WHERE ${where} ORDER BY ${sort} LIMIT ${limit}`,...args);
+export async function published(env,tid){const t=await one(env,`SELECT t.* FROM tracks t WHERE t.id=? AND ${VISIBLE()}`,tid);if(!t)fail(404,'공개된 곡을 찾을 수 없습니다.');return t;}
+const COVER_SORTS={popular:'likes DESC,plays DESC,t.created DESC',plays:'plays DESC,likes DESC,t.created DESC',recent:'t.created DESC'};
 export async function catalogRoute(req,env,path,user){
  const url=new URL(req.url),method=req.method;const discovery=await discoveryRoute(req,env,path,user);if(discovery)return discovery;
  if(path==='/api/catalog'&&method==='GET'){
   const q=(url.searchParams.get('q')||'').slice(0,100),genre=url.searchParams.get('genre'),chart=url.searchParams.get('chart');
-  let where="t.status='published'",args=[];
+  let where=VISIBLE()+" AND t.kind='original'",args=[];
   if(q){where+=' AND (t.title LIKE ? OR a.name LIKE ? OR p.name LIKE ? OR t.genre LIKE ? OR t.tags LIKE ?)';args=Array(5).fill('%'+q+'%');}
   if(genre&&GENRES.includes(genre)){where+=' AND t.genre=?';args.push(genre);}
   let sort='t.created DESC';
@@ -27,16 +33,21 @@ export async function catalogRoute(req,env,path,user){
   const requested=Number(url.searchParams.get('limit')||100),limit=Number.isFinite(requested)?Math.max(1,Math.min(100,Math.trunc(requested))):100;
   const loaders={
    tracks:()=>trackList(env,where,args,sort,limit),
-   artists:()=>rows(env,`SELECT a.*, (SELECT count(*) FROM follows f WHERE f.kind='artist' AND f.target_id=a.id) followers FROM artists a WHERE EXISTS(SELECT 1 FROM tracks t WHERE t.artist_id=a.id AND t.status='published') ORDER BY created DESC LIMIT ${limit}`),
-   producers:()=>rows(env,`SELECT p.id,p.name,p.bio,p.created,p.image_version,(SELECT count(*) FROM follows f WHERE f.kind='producer' AND f.target_id=p.id) followers FROM producers p WHERE EXISTS(SELECT 1 FROM tracks t WHERE t.producer_id=p.id AND t.status='published') ORDER BY created DESC LIMIT ${limit}`)
+   artists:()=>rows(env,`SELECT a.*, (SELECT count(*) FROM follows f WHERE f.kind='artist' AND f.target_id=a.id) followers FROM artists a WHERE EXISTS(SELECT 1 FROM tracks t WHERE t.artist_id=a.id AND t.kind='original' AND t.status='published') ORDER BY created DESC LIMIT ${limit}`),
+   producers:()=>rows(env,`SELECT p.id,p.name,p.bio,p.created,p.image_version,(SELECT count(*) FROM follows f WHERE f.kind='producer' AND f.target_id=p.id) followers FROM producers p WHERE EXISTS(SELECT 1 FROM tracks t WHERE t.producer_id=p.id AND ${VISIBLE()}) ORDER BY created DESC LIMIT ${limit}`)
   };
   const sections=section==='all'?Object.keys(loaders):[section];
   return json(Object.fromEntries(await Promise.all(sections.map(async key=>[key,await loaders[key]()]))));
  }
- let m=path.match(/^\/api\/tracks\/([\w-]+)(?:\/(like|comments))?$/);
+ let m=path.match(/^\/api\/tracks\/([\w-]+)(?:\/(like|comments|covers))?$/);
  if(m){
   const tid=m[1],detail=await published(env,tid);
-  if(!m[2]&&method==='GET')return json({track:{...(await trackList(env,"t.id=? AND t.status='published'",[tid]))[0],...listenerLyrics(detail,user)}});
+  if(!m[2]&&method==='GET')return json({track:{...(await trackList(env,`t.id=? AND ${VISIBLE()}`,[tid]))[0],...listenerLyrics(detail,user),covers:(await one(env,`SELECT count(*) n FROM tracks t WHERE t.original_id=? AND ${VISIBLE()}`,tid)).n}});
+  if(m[2]==='covers'){
+   if(method!=='GET')fail(405,'지원하지 않는 요청입니다.');
+   const sort=url.searchParams.get('sort')||'popular';if(!Object.hasOwn(COVER_SORTS,sort))fail(400,'정렬 기준을 확인해주세요.');
+   return json({covers:await trackList(env,`t.original_id=? AND ${VISIBLE()}`,[tid],COVER_SORTS[sort],100),sort,accepts_covers:detail.kind==='original'&&detail.karaoke_at>0});
+  }
   if(m[2]==='like'){
    requireUser(user);
    if(method==='PUT')await run(env,'INSERT OR IGNORE INTO likes(user_id,track_id,created) VALUES(?,?,?)',user.id,tid,now());
@@ -73,14 +84,20 @@ export async function catalogRoute(req,env,path,user){
  m=path.match(/^\/api\/(artists|producers)\/([\w-]+)(\/follow)?$/);
  if(m){
   const kind=m[1]==='artists'?'artist':'producer';
-  const entity=await one(env,`SELECT id,name,bio,created,image_version FROM ${m[1]} WHERE id=?`,m[2]);if(!entity)fail(404,'프로필을 찾을 수 없습니다.');
-  if(!m[3]&&method==='GET')return json({profile:entity,tracks:await trackList(env,`t.status='published' AND t.${kind}_id=?`,[entity.id]),followers:(await one(env,'SELECT count(*) n FROM follows WHERE kind=? AND target_id=?',kind,entity.id)).n});
+  const entity=await one(env,`SELECT id,name,bio,created,image_version${kind==='producer'?',banner_version':''} FROM ${m[1]} WHERE id=?`,m[2]);if(!entity)fail(404,'프로필을 찾을 수 없습니다.');
+  if(!m[3]&&method==='GET'){
+   const followers=(await one(env,'SELECT count(*) n FROM follows WHERE kind=? AND target_id=?',kind,entity.id)).n;
+   const tracks=await trackList(env,`${VISIBLE()} AND t.kind='original' AND t.${kind}_id=?`,[entity.id]);
+   if(kind==='artist')return json({profile:entity,tracks,followers});
+   // Gifts arrive in a later step; the ranking slot is already part of the profile.
+   return json({profile:entity,tracks,covers:await trackList(env,`${VISIBLE()} AND t.kind='cover' AND t.producer_id=?`,[entity.id]),followers,gifts:{available:false,ranking:[]}});
+  }
   requireUser(user);
   if(method==='PUT')await run(env,'INSERT OR IGNORE INTO follows(user_id,kind,target_id,created) VALUES(?,?,?,?)',user.id,kind,entity.id,now());
   else if(method==='DELETE')await run(env,'DELETE FROM follows WHERE user_id=? AND kind=? AND target_id=?',user.id,kind,entity.id);else fail(405,'지원하지 않는 요청입니다.');
   return json({ok:true});
  }
- if(path==='/api/history'&&method==='GET'){requireUser(user);return json({tracks:await trackList(env,"t.status='published' AND t.id IN (SELECT track_id FROM listens WHERE user_id=?)",[user.id],`(SELECT MAX(started) FROM listens l WHERE l.track_id=t.id AND l.user_id='${user.id.replaceAll("'",'')}') DESC`)});}
+ if(path==='/api/history'&&method==='GET'){requireUser(user);return json({tracks:await trackList(env,VISIBLE()+" AND t.id IN (SELECT track_id FROM listens WHERE user_id=?)",[user.id],`(SELECT MAX(started) FROM listens l WHERE l.track_id=t.id AND l.user_id='${user.id.replaceAll("'",'')}') DESC`)});}
  if(path==='/api/playlists'&&method==='POST'){
   requireUser(user);await rate(env,'playlist:'+user.id,20,86400);const b=await req.json(),pid=id(),ids=b.track_ids??[];
   if(!Array.isArray(ids)||ids.length>500||new Set(ids).size!==ids.length||ids.some(x=>typeof x!=='string'))fail(400,'플레이리스트에 담을 곡을 확인해주세요.');
@@ -96,16 +113,16 @@ export async function catalogRoute(req,env,path,user){
  if(m&&method==='PUT'){
   requireUser(user);const p=await one(env,'SELECT * FROM playlists WHERE id=?',m[1]);if(!p||p.user_id!==user.id)fail(403,'내 플레이리스트만 편집할 수 있습니다.');await requireActivePlaylist(env,p);
   const b=await req.json(),ids=b.track_ids;if(!Array.isArray(ids)||ids.length>500||ids.some(x=>typeof x!=='string')||new Set(ids).size!==ids.length)fail(400,'곡 순서를 다시 확인해주세요.');
-  const stored=await rows(env,"SELECT pt.track_id,t.status FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id WHERE pt.playlist_id=? ORDER BY pt.position,pt.created,pt.track_id",p.id),visible=stored.filter(x=>x.status==='published').map(x=>x.track_id);
+  const stored=await rows(env,`SELECT pt.track_id,${VISIBLE()} visible FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id WHERE pt.playlist_id=? ORDER BY pt.position,pt.created,pt.track_id`,p.id),visible=stored.filter(x=>x.visible).map(x=>x.track_id);
   if(visible.length!==ids.length||ids.some(x=>!visible.includes(x)))fail(409,'플레이리스트가 변경됐습니다. 다시 열어 순서를 확인해주세요.');
-  let next=0;const all=stored.map(x=>x.status==='published'?ids[next++]:x.track_id);
+  let next=0;const all=stored.map(x=>x.visible?ids[next++]:x.track_id);
   if(all.length)await env.DB.batch(all.map((tid,i)=>query(env,'UPDATE playlist_tracks SET position=? WHERE playlist_id=? AND track_id=?',i,p.id,tid)));
   return json({ok:true});
  }
  m=path.match(/^\/api\/playlists\/([\w-]+)(?:\/tracks\/([\w-]+))?$/);
  if(m){
   const p=await one(env,`SELECT p.*,${activePlaylistSQL()} active FROM playlists p WHERE p.id=?`,m[1]);if(!p||((!p.is_public||!p.active)&&p.user_id!==user?.id))fail(404,'플레이리스트를 찾을 수 없습니다.');
-  if(!m[2]&&method==='GET')return json({playlist:(await playlistSummaries(env,user?.id||'','p.id=?',[p.id]))[0],tracks:p.active?await trackList(env,"t.status='published' AND t.id IN (SELECT track_id FROM playlist_tracks WHERE playlist_id=?)",[p.id],`(SELECT position FROM playlist_tracks pt WHERE pt.track_id=t.id AND pt.playlist_id='${p.id}') ASC,t.created,t.id`,500):[]});
+  if(!m[2]&&method==='GET')return json({playlist:(await playlistSummaries(env,user?.id||'','p.id=?',[p.id]))[0],tracks:p.active?await trackList(env,VISIBLE()+" AND t.id IN (SELECT track_id FROM playlist_tracks WHERE playlist_id=?)",[p.id],`(SELECT position FROM playlist_tracks pt WHERE pt.track_id=t.id AND pt.playlist_id='${p.id}') ASC,t.created,t.id`,500):[]});
   requireUser(user);if(p.user_id!==user.id)fail(403,'내 플레이리스트만 변경할 수 있습니다.');
   if(m[2]||method!=='DELETE')await requireActivePlaylist(env,p);
   if(m[2]){
