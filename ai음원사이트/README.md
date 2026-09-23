@@ -42,6 +42,10 @@ Song cards and lists show real qualified play, like and comment counts publicly.
 
 Likes and personal playlists are stored per account in the library. Users can select liked tracks together, create named mood playlists, add songs directly from a song, rename lists, remove members, and save the playback order. Lists default to private, with optional public links. Migration `0003_steep_speed.sql` backfills stable playlist positions. Playlist creation with selected songs is atomic; order edits require ownership and matching membership and preserve hidden tracks for later republication. SQLite-backed tests verify ordering, privacy, ownership, invalid selections and hidden members; local browser QA covers creation, playback and responsive layouts.
 
+## Karaoke MR
+
+Uploads require the karaoke clause (`KARAOKE_TERMS_VERSION`); each track stores the accepted version and time, and earlier tracks opt in from track editing. After a consented track is transcoded, `karaoke_jobs` queues a build: the `alignment/` worker separates vocals with htdemucs, stores `karaoke/{track}/mr.m4a` and `vocals.m4a` in private R2, then aligns the creator's synced lyrics on the separated vocals and keeps word timings. The same worker handles lyric jobs first, then karaoke builds, strictly one song at a time. Lyric edits re-align words on the kept MR; a new transcode rebuilds the MR. Creators can listen to the MR in Studio, regenerate it, or replace it with their own WAV/FLAC/MP3 of matching length (±3 s). Songs over 10 minutes are refused. Migrations `0008_karaoke_consent.sql` and `0009_karaoke_jobs.sql`; plan and revenue decisions in `docs/노래방-기획.md`.
+
 ## Discovery and listening controls
 
 Discovery supports genre filters, six mood/activity tags and releases from followed artists or producers. Mood membership comes from creator tags; recommendation order uses actual plays and likes. Search separates tracks, artists, producers and public playlists. Public playlist browsing supports name/description/creator search and save-count or newest sorting.

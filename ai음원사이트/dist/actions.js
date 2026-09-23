@@ -74,6 +74,7 @@ document.addEventListener('click',async ev=>{
   else if(el.hasAttribute('data-seek')){if(current?.id!==el.dataset.track)await play(el.dataset.track);if(el.hasAttribute('data-lyric-index')&&!hasFullLyrics(current)){refreshLyricsPanel();toast('전체 싱크 가사는 Premium에서 이용할 수 있어요.');return;}const seconds=Number(el.dataset.seek);if(preview&&seconds>=60){askLogin();return;}audio.currentTime=seconds;await audio.play();}
   else if(el.dataset.hideTrack){if(confirm('이 곡을 비공개로 전환할까요?')){await api(`/api/uploads/${el.dataset.hideTrack}/unpublish`,'POST');await render();}}
   else if(el.dataset.karaokeTrack){if(!$('#karaoke-accept')?.checked){toast('동의 항목을 먼저 체크해주세요.');return;}await api(`/api/uploads/${el.dataset.karaokeTrack}/karaoke`,'POST',{accept:true});toast('노래방 MR 제공 · 커버 허락에 동의했습니다.');await render();}
+  else if(el.dataset.karaokeRegenerate){if(confirm('지금 노래방 MR을 지우고 원곡에서 보컬을 다시 분리할까요?')){await api(`/api/studio/tracks/${el.dataset.karaokeRegenerate}/karaoke`,'POST',{});toast('노래방 MR을 다시 만들기 시작했어요.');await render();}}
   else if(el.dataset.retryTrack){await api(`/api/uploads/${el.dataset.retryTrack}/retry`,'POST');await render();}
   else if(el.hasAttribute('data-share')){await navigator.clipboard.writeText(location.href);toast('공개 링크를 복사했습니다.');}
   else if(el.dataset.playerAction&&['shuffle','repeat','previous'].includes(el.dataset.playerAction)){

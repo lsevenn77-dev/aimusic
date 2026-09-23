@@ -6,29 +6,10 @@ import {studioRoute} from './studio.js';
 import {lyricsFields} from './lyrics.js';
 import {alignmentInternalRoute,alignmentWrite} from './alignment.js';
 import {KARAOKE_TERMS_VERSION} from '../shared/site-info.js';
-const MAX_AUDIO=80*1024*1024;
+import {MAX_AUDIO,put,objectResponse,parseRange} from './storage.js';
+import {karaokeQueue,karaokeInternalRoute} from './karaoke.js';
+export {parseRange};
 export async function listener(req,user){return user?.id||await hash((req.headers.get('cf-connecting-ip')||'local')+'|'+(req.headers.get('user-agent')||'')+'|'+new Date().toISOString().slice(0,10));}
-async function put(env,key,req,max,type){
- const len=Number(req.headers.get('content-length'));if(!len||len>max)fail(413,`파일 용량은 ${Math.round(max/1024/1024)}MB 이하여야 합니다.`);
- const stream=new FixedLengthStream(len);
- const pumping=req.body.pipeTo(stream.writable);
- await Promise.all([env.BUCKET.put(key,stream.readable,{httpMetadata:{contentType:type}}),pumping]);
-}
-export function parseRange(value,size){
- if(!value)return null;
- const m=/^bytes=(\d*)-(\d*)$/.exec(value);if(!m||(!m[1]&&!m[2]))return false;
- let start=m[1]?Number(m[1]):Math.max(0,size-Number(m[2]));let end=m[1]?(m[2]?Number(m[2]):size-1):size-1;
- if(!Number.isSafeInteger(start)||!Number.isSafeInteger(end)||start>=size||end<start)return false;
- end=Math.min(end,size-1);return {offset:start,length:end-start+1};
-}
-async function objectResponse(req,env,key,type,isPublic=false){
- const head=await env.BUCKET.head(key);if(!head)fail(404,'파일을 찾을 수 없습니다.');
- const range=parseRange(req.headers.get('range'),head.size);if(range===false)return new Response(null,{status:416,headers:{'content-range':`bytes */${head.size}`}});
- const headers={'content-type':type,'accept-ranges':'bytes','content-length':String(range?.length||head.size),'cache-control':isPublic?'public, max-age=3600':'private, no-store','x-content-type-options':'nosniff'};
- if(range)headers['content-range']=`bytes ${range.offset}-${range.offset+range.length-1}/${head.size}`;
- if(req.method==='HEAD')return new Response(null,{status:range?206:200,headers});
- const obj=await env.BUCKET.get(key,range?{range}:undefined);return new Response(obj.body,{status:range?206:200,headers});
-}
 export async function mediaRoute(req,env,path,user){
  const method=req.method;
  const studio=await studioRoute(req,env,path,user);if(studio)return studio;
@@ -63,7 +44,10 @@ export async function mediaRoute(req,env,path,user){
   if(action==='karaoke'&&method==='POST'){
    // Tracks uploaded before the clause existed opt in here; an existing consent keeps its original version and time.
    if((await req.json().catch(()=>({}))).accept!==true)fail(400,'노래방 MR 제공과 커버 허락에 동의해주세요.');
-   if(!t.karaoke_at)await run(env,"UPDATE tracks SET karaoke_terms=?,karaoke_at=? WHERE id=? AND karaoke_at=0",KARAOKE_TERMS_VERSION,now(),t.id);
+   if(!t.karaoke_at){
+    const at=now();await run(env,"UPDATE tracks SET karaoke_terms=?,karaoke_at=? WHERE id=? AND karaoke_at=0",KARAOKE_TERMS_VERSION,at,t.id);
+    const writes=await karaokeQueue(env,{...t,karaoke_at:at});if(writes.length)await env.DB.batch(writes);
+   }
    return json({ok:true});
   }
   if(action==='unpublish'&&method==='POST'){await run(env,"UPDATE tracks SET status='hidden' WHERE id=?",t.id);return json({ok:true});}
@@ -117,6 +101,7 @@ export async function mediaRoute(req,env,path,user){
 export async function internalRoute(req,env,path){
  if(!env.TRANSCODER_TOKEN||req.headers.get('authorization')!==`Bearer ${env.TRANSCODER_TOKEN}`)fail(401,'인증이 필요합니다.');
  const alignment=await alignmentInternalRoute(req,env,path);if(alignment)return alignment;
+ const karaoke=await karaokeInternalRoute(req,env,path);if(karaoke)return karaoke;
  if(path==='/internal/health'&&req.method==='GET'){
   await one(env,'SELECT 1 healthy');await env.BUCKET.head('__aifect_healthcheck__');return json({database:true,storage:true});
  }
@@ -133,7 +118,10 @@ export async function internalRoute(req,env,path){
  if(action==='finish'&&req.method==='POST'){
   const b=await req.json(),duration=Number(b.duration);if(!Number.isFinite(duration)||duration<5||duration>1200)fail(400,'음원은 5초 이상 20분 이하여야 합니다.');
   for(const kind of ['stream','preview',...(t.has_cover&&!t.cover_version?['cover']:[])])if(!await env.BUCKET.head(`${kind}/${t.id}.${kind==='cover'?'jpg':'m4a'}`))fail(409,'변환 파일이 누락됐습니다.');
-  await run(env,"UPDATE tracks SET status='published',duration=?,error=NULL,lease_until=0,lease_token=NULL WHERE id=? AND lease_token=?",duration,t.id,t.lease_token);return json({ok:true});
+  await run(env,"UPDATE tracks SET status='published',duration=?,error=NULL,lease_until=0,lease_token=NULL WHERE id=? AND lease_token=?",duration,t.id,t.lease_token);
+  // A fresh transcode means fresh audio, so any earlier MR no longer matches it.
+  const writes=await karaokeQueue(env,{...t,status:'published',duration},{mr:'auto'});if(writes.length)await env.DB.batch(writes);
+  return json({ok:true});
  }
  if(action==='fail'&&req.method==='POST'){await run(env,"UPDATE tracks SET status='failed',error='파일을 변환하지 못했습니다. 음원 형식과 파일을 확인해주세요.',lease_until=0 WHERE id=? AND lease_token=?",t.id,t.lease_token);return json({ok:true});}
  fail(405,'지원하지 않는 요청입니다.');
