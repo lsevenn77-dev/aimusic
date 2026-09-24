@@ -23,8 +23,16 @@ JAVA_HOME="C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot" ./gradlew.b
 
 로컬 개발 서버로 앱을 시험하려면 `AIFECT_APP_URL=http://localhost:4174 npx cap sync android` 로 빌드하고 `adb reverse tcp:4174 tcp:4174` 로 포트를 넘긴다. 다시 `npx cap sync android` 하면 운영 사이트로 돌아간다.
 
+## 노래 부르기
+
+사이트의 `dist/karaoke.js` 가 앱 안에서만 켜진다(`inApp`). 메뉴에 「노래방」이 생기고, MR과 단어별 싱크가 준비된 곡 페이지에 「노래 부르기」 버튼이 뜬다.
+
+- MR 재생과 녹음을 한 AudioContext(32kHz)에서 해서 같은 시계로 맞춘다. 남는 기기 지연(이어폰 · 블루투스)은 싱크 슬라이더로 맞춘다(기본값은 기기 지연 추정 + 40ms).
+- 녹음은 AudioWorklet 으로 받는다. 에코 제거 · 잡음 제거 · 자동 음량은 끈다(이어폰 권장).
+- 다시 듣기에서 싱크 · 목소리 · MR 크기를 바꾸고, 올릴 때 OfflineAudioContext 로 합쳐 16비트 스테레오 WAV(10분 곡도 80MB 이하)로 기존 커버곡 업로드 경로에 올린다.
+- 마이크 권한은 사이트가 요청할 때 Capacitor 가 안드로이드 권한(RECORD_AUDIO · MODIFY_AUDIO_SETTINGS)을 대신 묻는다.
+
 ## 남은 것
 
-- 노래 부르기(MR 재생 + 가사 + 녹음 → 커버곡 올리기)
 - 출시용 서명 키(업로드 키) 만들기와 백업 — 키는 git 에 넣지 않는다(`keystore/`, `keystore.properties` 는 .gitignore)
 - 골드 인앱결제, 네이티브 Google 로그인

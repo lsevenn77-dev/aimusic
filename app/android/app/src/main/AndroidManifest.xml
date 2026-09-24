@@ -34,4 +34,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Background playback: the media session plugin runs a mediaPlayback foreground service, which Android 14+ requires this for. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <!-- Singing: the site records the singer's voice with getUserMedia; Capacitor asks for these at that moment. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 </manifest>

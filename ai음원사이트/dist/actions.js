@@ -14,7 +14,7 @@ function bindForms(base,param){
  if($('#new-playlist'))$('#new-playlist').onclick=()=>playlistDialog().catch(e=>toast(e.message));
  if($('#upload-form'))$('#upload-form').onsubmit=busyForm($('#upload-form'),upload);
  if($('#cover-upload-form'))$('#cover-upload-form').onsubmit=busyForm($('#cover-upload-form'),uploadCover);
- bindStudioForms();bindMoodFields();bindLyricsPanel();
+ bindStudioForms();bindMoodFields();bindLyricsPanel();if(base==='sing')bindSing(param);
 }
 let googleScriptPromise;
 async function prepareGoogle(){

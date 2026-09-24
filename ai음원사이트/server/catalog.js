@@ -7,6 +7,8 @@ import {profileGifts} from './gifts.js';
 export const GENRES=['K-POP','Ballad','R&B','Hip-Hop','Rock','EDM','City Pop','OST','Instrumental'];
 // A cover is public only while its original is public and still offered for karaoke (terms: hiding the original hides its covers).
 export const VISIBLE=(t='t')=>`(${t}.status='published' AND (${t}.original_id IS NULL OR EXISTS(SELECT 1 FROM tracks v WHERE v.id=${t}.original_id AND v.status='published' AND v.karaoke_at>0)))`;
+// A song can be sung once its MR and word timings are built and its creator still offers it for karaoke.
+export const SINGABLE=(t='t')=>`(${t}.kind='original' AND ${t}.karaoke_at>0 AND EXISTS(SELECT 1 FROM karaoke_jobs k WHERE k.track_id=${t}.id AND k.state='ready' AND k.mr_ready=1 AND k.words_state IN ('ready','attention')))`;
 // Covers keep the original's AI artist in artist_id; their performer is the uploader's profile.
 const SELECT=`SELECT t.id,t.title,t.genre,t.tags,t.description,t.lyrics_mode,t.ai_tool,t.participation,t.duration,t.created,t.has_cover,t.cover_version,t.artist_id,t.producer_id,
  CASE WHEN t.kind='cover' THEN p.name||' · 커버' ELSE a.name END artist,p.name producer,t.user_id,t.kind,t.original_id,(t.kind='original' AND t.karaoke_at>0) accepts_covers,
@@ -44,7 +46,7 @@ export async function catalogRoute(req,env,path,user){
  let m=path.match(/^\/api\/tracks\/([\w-]+)(?:\/(like|comments|covers))?$/);
  if(m){
   const tid=m[1],detail=await published(env,tid);
-  if(!m[2]&&method==='GET')return json({track:{...(await trackList(env,`t.id=? AND ${VISIBLE()}`,[tid]))[0],...listenerLyrics(detail,user),covers:(await one(env,`SELECT count(*) n FROM tracks t WHERE t.original_id=? AND ${VISIBLE()}`,tid)).n}});
+  if(!m[2]&&method==='GET')return json({track:{...(await trackList(env,`t.id=? AND ${VISIBLE()}`,[tid]))[0],...listenerLyrics(detail,user),covers:(await one(env,`SELECT count(*) n FROM tracks t WHERE t.original_id=? AND ${VISIBLE()}`,tid)).n,karaoke_ready:!!await one(env,`SELECT 1 FROM tracks t WHERE t.id=? AND ${SINGABLE()}`,tid)}});
   if(m[2]==='covers'){
    if(method!=='GET')fail(405,'지원하지 않는 요청입니다.');
    const sort=url.searchParams.get('sort')||'popular';if(!Object.hasOwn(COVER_SORTS,sort))fail(400,'정렬 기준을 확인해주세요.');
