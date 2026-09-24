@@ -1,6 +1,7 @@
 # AIFECT AI 음악 사이트
 
 AIFECT의 웹사이트 소스는 [ai음원사이트](ai음원사이트/) 폴더에 있습니다.
+안드로이드 · iOS 앱(Capacitor)은 [app](app/) 폴더에 있습니다.
 
 - 서비스: https://aifect.co.kr
 - [실행 및 개발 안내](ai음원사이트/README.md)

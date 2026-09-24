@@ -1,0 +1,12 @@
+{
+  "appId": "kr.co.aifect.app",
+  "appName": "AIFECT",
+  "webDir": "www",
+  "backgroundColor": "#000000",
+  "appendUserAgent": "AIFECTApp/1",
+  "server": {
+    "url": "https://aifect.co.kr",
+    "errorPath": "offline.html",
+    "allowNavigation": ["aifect.co.kr", "kauth.kakao.com", "accounts.kakao.com", "logins.daum.net", "appleid.apple.com"]
+  }
+}

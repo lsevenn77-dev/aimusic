@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">AIFECT</string>
+    <string name="title_activity_main">AIFECT</string>
+    <string name="package_name">kr.co.aifect.app</string>
+    <string name="custom_url_scheme">kr.co.aifect.app</string>
+</resources>

@@ -1,0 +1,4 @@
+node_modules/
+# Signing material stays out of git; back it up separately (losing it blocks app updates).
+keystore/
+keystore.properties
