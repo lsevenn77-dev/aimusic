@@ -2,6 +2,7 @@ import {one,run,query,now,id,fail,json,rate} from './db.js';
 import {requireUser} from './auth.js';
 import {MAX_AUDIO,put,objectResponse} from './storage.js';
 import {KARAOKE_MAX_SECONDS,karaokeLyrics,karaokeWords} from '../shared/karaoke.js';
+import {trackList,VISIBLE,SINGABLE} from './catalog.js';
 
 const MR_TYPES=['wav','flac','mp3'];
 const key=(trackId,name)=>`karaoke/${trackId}/${name}`;
@@ -21,7 +22,27 @@ export async function karaokeQueue(env,track,{mr='keep',ext='',bytes=0}={}){
   track.id,id(),tooLong?'failed':'queued',mr==='keep'?'auto':mr,ext,bytes,lyrics,language,tooLong?`노래방 MR은 ${KARAOKE_MAX_SECONDS/60}분 이하 곡만 만들 수 있습니다.`:null,now(),now())];
 }
 
+// Singing: the list of singable songs is public; the words and the MR need a signed-in singer.
+async function singRoute(req,env,path,user){
+ if(path==='/api/karaoke'&&req.method==='GET')return json({tracks:await trackList(env,`${VISIBLE()} AND ${SINGABLE()}`,[],'(plays+likes*3) DESC,t.created DESC',100)});
+ let s=path.match(/^\/api\/karaoke\/([\w-]+)$/);
+ if(s&&req.method==='GET'){
+  requireUser(user);
+  const track=(await trackList(env,`t.id=? AND ${VISIBLE()} AND ${SINGABLE()}`,[s[1]]))[0];if(!track)fail(404,'부를 수 있는 곡을 찾을 수 없어요.');
+  const job=await one(env,'SELECT words FROM karaoke_jobs WHERE track_id=?',track.id);
+  return json({track,words:JSON.parse(job.words),mr:`/media/${track.id}/mr`});
+ }
+ s=path.match(/^\/media\/([\w-]+)\/mr$/);
+ if(s&&['GET','HEAD'].includes(req.method)){
+  requireUser(user);
+  if(!await one(env,`SELECT t.id FROM tracks t WHERE t.id=? AND ${VISIBLE()} AND ${SINGABLE()}`,s[1]))fail(404,'노래방 MR을 찾을 수 없어요.');
+  return objectResponse(req,env,key(s[1],'mr.m4a'),'audio/mp4');
+ }
+ return null;
+}
+
 export async function karaokeRoute(req,env,path,user){
+ const sing=await singRoute(req,env,path,user);if(sing)return sing;
  const m=path.match(/^\/api\/studio\/tracks\/([\w-]+)\/karaoke(\/mr)?$/);if(!m)return null;
  requireUser(user);const track=await one(env,'SELECT * FROM tracks WHERE id=? AND user_id=?',m[1],user.id);if(!track)fail(404,'내 음원을 찾을 수 없습니다.');
  const method=req.method;
