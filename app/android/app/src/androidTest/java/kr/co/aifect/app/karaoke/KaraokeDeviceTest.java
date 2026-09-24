@@ -27,7 +27,7 @@ public class KaraokeDeviceTest {
     private Context context;private ServerSocket server;private Thread serving;private ActivityScenario<KaraokeActivity> screen;
     @Before public void setup()throws Exception{
         context=InstrumentationRegistry.getInstrumentation().getTargetContext();server=new ServerSocket(0,8,InetAddress.getByName("127.0.0.1"));
-        ByteArrayOutputStream wav=new ByteArrayOutputStream();PcmFiles.wavHeader(wav,96000,48000,2);wav.write(new byte[96000*4]);byte[] audio=wav.toByteArray();
+        ByteArrayOutputStream wav=new ByteArrayOutputStream();PcmFiles.wavHeader(wav,48000*30,48000,2);wav.write(new byte[48000*30*4]);byte[] audio=wav.toByteArray();
         byte[] json=("{\"track\":{\"title\":\"네이티브 노래방 테스트\",\"artist\":\"AIFECT\",\"duration\":2},\"words\":[{\"s\":0,\"e\":2,\"w\":[{\"t\":\"내 목소리로\",\"s\":0,\"e\":1},{\"t\":\"노래해요\",\"s\":1,\"e\":2}]}]}").getBytes(StandardCharsets.UTF_8);
         serving=new Thread(()->{while(!server.isClosed())try(Socket client=server.accept()){
             BufferedReader in=new BufferedReader(new InputStreamReader(client.getInputStream(),StandardCharsets.US_ASCII));String request=in.readLine(),line;while((line=in.readLine())!=null&&!line.isEmpty()){}
@@ -41,12 +41,33 @@ public class KaraokeDeviceTest {
     }
     @After public void cleanup()throws Exception{if(screen!=null)screen.close();if(server!=null)server.close();if(serving!=null)serving.join(2000);}
     @Test public void nativeControlsLoadWithoutOpeningMicrophone()throws Exception{
+        onView(withText("이어폰으로 내 목소리 듣기")).check(matches(isDisplayed()));
         onView(withContentDescription("에코")).check(matches(isEnabled()));onView(withContentDescription("룸 리버브")).check(matches(isEnabled()));
         onView(withText("이어폰으로 내 목소리 듣기")).perform(scrollTo(),click()).check(matches(isNotChecked()));
         assertEquals(PackageManager.PERMISSION_DENIED,ContextCompat.checkSelfPermission(context,Manifest.permission.RECORD_AUDIO));
         onView(withText("네이티브 노래방 테스트\nAIFECT")).perform(scrollTo());
         Bitmap image=InstrumentationRegistry.getInstrumentation().getUiAutomation().takeScreenshot();
         try(FileOutputStream out=new FileOutputStream(new File(context.getExternalFilesDir(null),"karaoke-native.png"))){image.compress(Bitmap.CompressFormat.PNG,100,out);}image.recycle();
+    }
+    @Test public void reviewSyncRemainsEditableWhileAudioKeepsPlaying()throws Exception{
+        AtomicReference<KaraokeEngine> holder=new AtomicReference<>();
+        screen.onActivity(activity->{try{
+            java.lang.reflect.Field dryField=KaraokeActivity.class.getDeclaredField("dry");dryField.setAccessible(true);
+            try(FileOutputStream out=new FileOutputStream((File)dryField.get(activity))){out.write(new byte[48000*30*2]);}
+            java.lang.reflect.Method finished=KaraokeActivity.class.getDeclaredMethod("audioFinished",boolean.class,String.class);finished.setAccessible(true);finished.invoke(activity,true,null);
+            java.lang.reflect.Field engineField=KaraokeActivity.class.getDeclaredField("engine");engineField.setAccessible(true);holder.set((KaraokeEngine)engineField.get(activity));
+        }catch(Exception e){throw new RuntimeException(e);}});
+        onView(withText("녹음 들어보기")).perform(click());
+        onView(withContentDescription("목소리 싱크")).perform(scrollTo()).check(matches(isEnabled()));
+        onView(withContentDescription("목소리를 10ms 빠르게")).perform(scrollTo(),click());
+        assertEquals(90,holder.get().settings.offsetMs);
+        onView(withText("다시 듣기 멈추기")).check(matches(isDisplayed()));
+        double before=holder.get().position();Thread.sleep(200);assertTrue("Adjusting sync does not stop/restart the MR",holder.get().position()>before);
+        onView(withContentDescription("목소리를 10ms 느리게")).perform(click());assertEquals(80,holder.get().settings.offsetMs);
+        assertEquals(PackageManager.PERMISSION_DENIED,ContextCompat.checkSelfPermission(context,Manifest.permission.RECORD_AUDIO));
+        Bitmap image=InstrumentationRegistry.getInstrumentation().getUiAutomation().takeScreenshot();
+        try(FileOutputStream out=new FileOutputStream(new File(context.getExternalFilesDir(null),"karaoke-live-sync.png"))){image.compress(Bitmap.CompressFormat.PNG,100,out);}image.recycle();
+        onView(withText("다시 듣기 멈추기")).perform(click());
     }
     @Test public void nativeReviewStopsAndRestartsWithoutMicrophone()throws Exception{
         File dir=new File(context.getCacheDir(),"engine-test");dir.mkdirs();File mr=new File(dir,"mr"),dry=new File(dir,"dry");

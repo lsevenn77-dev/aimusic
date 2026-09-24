@@ -74,7 +74,7 @@ final class KaraokeEngine {
         AudioTrack output=null;AudioRecord input=null;ArrayList<AudioEffect> automaticEffects=new ArrayList<>();String error=null;
         try(InputStream backing=new BufferedInputStream(new FileInputStream(mr));
             OutputStream take=record?new BufferedOutputStream(new FileOutputStream(dry)):null;
-            PcmFiles.VoiceReader saved=record?null:new PcmFiles.VoiceReader(dry,settings.offsetMs)){
+            PcmFiles.LiveVoiceReader saved=record?null:new PcmFiles.LiveVoiceReader(dry,settings.offsetMs)){
             int burst=192;try{burst=Math.max(96,Math.min(1024,Integer.parseInt(manager.getProperty(AudioManager.PROPERTY_OUTPUT_FRAMES_PER_BUFFER))));}catch(Exception ignored){}
             int minOut=AudioTrack.getMinBufferSize(PcmFiles.RATE,AudioFormat.CHANNEL_OUT_STEREO,AudioFormat.ENCODING_PCM_16BIT);
             if(minOut<=0)throw new IOException("이 기기의 오디오 출력을 열 수 없어요.");
@@ -113,11 +113,11 @@ final class KaraokeEngine {
             long total=mr.length()/4;
             while(running&&frames<total){
                 int count=(int)Math.min(burst,total-frames);
+                VocalEffects.Settings s=settings;
                 if(record){int n=input.read(captured,0,count,AudioRecord.READ_BLOCKING);if(n<=0){if(!running)break;throw new IOException("마이크 연결이 끊겼어요.");}count=n;
                     for(int i=0;i<count;i++){vocals[i]=captured[i]/32768f;dryBytes[i*2]=(byte)captured[i];dryBytes[i*2+1]=(byte)(captured[i]>>8);}take.write(dryBytes,0,count*2);
-                }else saved.read(frames,vocals,count);
+                }else saved.read(frames,vocals,count,s.offsetMs);
                 int n=PcmFiles.read(backing,mrBytes,count*4);count=n/4;if(count==0)break;
-                VocalEffects.Settings s=settings;
                 // Route is verified on the audio thread too. Never send microphone audio to a speaker.
                 boolean hear=!record||(monitor&&headphone(output.getRoutedDevice()));
                 for(int i=0;i<count;i++){

@@ -51,6 +51,13 @@ public final class PcmFiles {
         private final byte[] bytes=new byte[2048];
         public VoiceReader(File path,int offsetMs)throws IOException{file=new RandomAccessFile(path,"r");shift=(long)offsetMs*RATE/1000;}
         public void read(long frame,float[] out,int count)throws IOException{
+            readShifted(frame,out,count,shift);
+        }
+        public void read(long frame,float[] out,int count,int offsetMs)throws IOException{
+            readShifted(frame,out,count,(long)offsetMs*RATE/1000);
+        }
+        private void readShifted(long frame,float[] out,int count,long shift)throws IOException{
+            if(count<0||count>out.length||count>bytes.length/2)throw new IllegalArgumentException("Invalid audio block size");
             java.util.Arrays.fill(out,0,count,0);
             long at=frame+shift;int pad=(int)Math.min(count,Math.max(0,-at));at=Math.max(0,at);
             if(at*2>=file.length()||pad==count)return;
@@ -58,6 +65,24 @@ public final class PcmFiles {
             for(int i=0;i<n/2;i++)out[pad+i]=sample(bytes,i*2)/32768f;
         }
         public void close()throws IOException{file.close();}
+    }
+    /** Crossfade timing changes over 20 ms without restarting the MR or changing the dry take. */
+    public static final class LiveVoiceReader implements Closeable {
+        private static final int FADE_FRAMES=RATE/50;
+        private final VoiceReader reader;
+        private final float[] previous=new float[1024];
+        private int from,to,fade=FADE_FRAMES;
+        public LiveVoiceReader(File path,int offsetMs)throws IOException{reader=new VoiceReader(path,0);from=to=offsetMs;}
+        public void read(long frame,float[] out,int count,int offsetMs)throws IOException{
+            if(fade>=FADE_FRAMES&&offsetMs!=to){from=to;to=offsetMs;fade=0;}
+            reader.read(frame,out,count,to);
+            if(fade<FADE_FRAMES){
+                reader.read(frame,previous,count,from);
+                for(int i=0;i<count;i++){float weight=Math.min(1,(fade+i+1)/(float)FADE_FRAMES);out[i]=previous[i]+(out[i]-previous[i])*weight;}
+                fade+=count;
+            }
+        }
+        public void close()throws IOException{reader.close();}
     }
     /** Mixes with exactly the review DSP; output is stereo 32 kHz WAV, <= 76.8 MB for ten minutes. */
     public static void export(File mr,File dry,File dest,VocalEffects.Settings settings)throws IOException{

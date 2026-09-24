@@ -47,12 +47,12 @@ public class KaraokeActivity extends AppCompatActivity {
     private ScrollView scroll;
     private TextView status,title,previous,line,next,clock,routeLabel;
     private ProgressBar progress;
-    private Button record,stop,preview,upload;
+    private Button record,stop,preview,upload,slower,faster,resetSync;
     private SwitchCompat monitor;
     private SeekBar echo,room,size,voice,backing,hear,offset;
     private EditText description;
     private CheckBox ownVoice,rights;
-    private LinearLayout reviewFields;
+    private LinearLayout reviewFields,syncFields;
     private AudioManager audioManager;
     private ActivityResultLauncher<String> microphone;
     private final AudioDeviceCallback devices=new AudioDeviceCallback(){
@@ -115,17 +115,7 @@ public class KaraokeActivity extends AppCompatActivity {
         LinearLayout header=new LinearLayout(this);header.setGravity(Gravity.CENTER_VERTICAL);
         TextView top=text("aifect  /  노래방",16,LIME);top.setTypeface(null,Typeface.BOLD);header.addView(top,new LinearLayout.LayoutParams(0,-2,1));
         Button close=button("닫기",false);close.setOnClickListener(v->getOnBackPressedDispatcher().onBackPressed());header.addView(close);content.addView(header);
-        title=text("노래를 준비하고 있어요",23,Color.WHITE);title.setTypeface(null,Typeface.BOLD);add(title,20);
-        routeLabel=text("이어폰 연결을 확인하고 있어요",13,MUTED);add(routeLabel,8);
-        LinearLayout lyrics=box();previous=text("",15,MUTED);line=text("♪",29,Color.WHITE);next=text("",15,MUTED);
-        line.setTypeface(null,Typeface.BOLD);line.setMinHeight(dp(100));line.setGravity(Gravity.CENTER);previous.setGravity(Gravity.CENTER);next.setGravity(Gravity.CENTER);
-        lyrics.addView(previous);lyrics.addView(line);lyrics.addView(next);add(lyrics,20);
-        progress=new ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);progress.setMax(1000);progress.setProgressTintList(ColorStateList.valueOf(LIME));add(progress,14);
-        clock=text("0:00",13,MUTED);add(clock,4);
-        LinearLayout fx=box();fx.addView(text("내 목소리",18,Color.WHITE));
-        echo=slider(fx,"에코",65,18,"%",0);room=slider(fx,"룸 리버브",65,16,"%",0);
-        size=slider(fx,"룸 크기 · 작게 → 넓게",100,50,"%",0);
-        voice=slider(fx,"목소리",200,100,"%",0);backing=slider(fx,"반주",150,80,"%",0);
+        LinearLayout monitoring=box();
         monitor=new SwitchCompat(this);monitor.setText("이어폰으로 내 목소리 듣기");monitor.setTextColor(Color.WHITE);monitor.setTextSize(15);monitor.setPadding(0,dp(14),0,dp(14));
         monitor.setOnCheckedChangeListener((b,enabled)->{
             if(updatingMonitor||engine==null)return;
@@ -136,16 +126,34 @@ public class KaraokeActivity extends AppCompatActivity {
                 new AlertDialog.Builder(this).setTitle("블루투스 청음 안내").setMessage("목소리가 늦게 들릴 수 있어요. 실시간 청음에는 유선·USB 이어폰을 권장해요.")
                     .setNegativeButton("끄기",null).setPositiveButton("그래도 켜기",(d,w)->{if(engine.headphones()!=null)setMonitor(true);}).show();
             }else engine.setMonitor(enabled);
-        });fx.addView(monitor);hear=slider(fx,"청음 음량",80,30,"%",0);add(fx,18);
+        });monitoring.addView(monitor);
+        routeLabel=text("이어폰 연결을 확인하고 있어요",13,MUTED);monitoring.addView(routeLabel);
+        hear=slider(monitoring,"청음 음량",80,30,"%",0);add(monitoring,12);
+        title=text("노래를 준비하고 있어요",23,Color.WHITE);title.setTypeface(null,Typeface.BOLD);add(title,20);
+        LinearLayout lyrics=box();previous=text("",15,MUTED);line=text("♪",29,Color.WHITE);next=text("",15,MUTED);
+        line.setTypeface(null,Typeface.BOLD);line.setMinHeight(dp(100));line.setGravity(Gravity.CENTER);previous.setGravity(Gravity.CENTER);next.setGravity(Gravity.CENTER);
+        lyrics.addView(previous);lyrics.addView(line);lyrics.addView(next);add(lyrics,20);
+        progress=new ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);progress.setMax(1000);progress.setProgressTintList(ColorStateList.valueOf(LIME));add(progress,14);
+        clock=text("0:00",13,MUTED);add(clock,4);
+        syncFields=box();syncFields.addView(text("들으면서 싱크 맞추기",18,Color.WHITE));
+        syncFields.addView(text("녹음 들어보기를 누른 뒤 조절하세요. 목소리가 늦게 들리면 빠르게, 먼저 들리면 느리게 맞춰주세요. 재생 중에도 바로 반영돼요.",13,MUTED));
+        offset=slider(syncFields,"목소리 싱크",1100,380,"ms",-300);
+        LinearLayout fineSync=new LinearLayout(this);
+        slower=button("느리게",false);slower.setContentDescription("목소리를 10ms 느리게");slower.setOnClickListener(v->offset.setProgress(Math.max(0,offset.getProgress()-10)));
+        resetSync=button("기본값",false);resetSync.setContentDescription("목소리 싱크 기본값 80ms");resetSync.setOnClickListener(v->offset.setProgress(380));
+        faster=button("빠르게",false);faster.setContentDescription("목소리를 10ms 빠르게");faster.setOnClickListener(v->offset.setProgress(Math.min(offset.getMax(),offset.getProgress()+10)));
+        for(Button b:new Button[]{slower,resetSync,faster})fineSync.addView(b,new LinearLayout.LayoutParams(0,-2,1));syncFields.addView(fineSync);add(syncFields,18);
+        LinearLayout fx=box();fx.addView(text("목소리 효과와 음량",18,Color.WHITE));
+        echo=slider(fx,"에코",65,18,"%",0);room=slider(fx,"룸 리버브",65,16,"%",0);
+        size=slider(fx,"룸 크기 · 작게 → 넓게",100,50,"%",0);
+        voice=slider(fx,"목소리",200,100,"%",0);backing=slider(fx,"반주",150,80,"%",0);add(fx,18);
         status=text("반주와 가사를 불러오고 있어요…",13,MUTED);status.setTag("karaoke-status");status.setMinHeight(dp(42));add(status,16);
         record=button("노래 시작",true);record.setOnClickListener(v->{
             if(hasTake)new AlertDialog.Builder(this).setMessage("기존 녹음 대신 다시 부를까요?").setNegativeButton("취소",null).setPositiveButton("다시 부르기",(d,w)->requestRecord()).show();else requestRecord();
         });add(record,10);
         stop=button("그만 부르기",false);stop.setOnClickListener(v->{if(state==State.COUNTDOWN){setState(hasTake?State.REVIEW:State.READY);message("시작을 취소했어요.");}else if(engine!=null)engine.stop();});add(stop,8);
         preview=button("녹음 들어보기",false);preview.setOnClickListener(v->{try{engine.start(false);setState(State.PLAYING);}catch(Exception e){message(friendly(e));}});add(preview,8);
-        reviewFields=box();reviewFields.addView(text("다시 듣고 완성하기",18,Color.WHITE));
-        reviewFields.addView(text("목소리가 늦으면 + 방향으로 싱크를 맞춰주세요. 에코·룸·음량은 녹음 후에도 바꿀 수 있어요.",13,MUTED));
-        offset=slider(reviewFields,"목소리 싱크",1100,380,"ms",-300);
+        reviewFields=box();reviewFields.addView(text("내 커버곡 공개하기",18,Color.WHITE));
         description=new EditText(this);description.setTextColor(Color.WHITE);description.setHintTextColor(MUTED);description.setHint("커버곡 소개 (선택)");description.setMaxLines(4);description.setFilters(new InputFilter[]{new InputFilter.LengthFilter(1000)});reviewFields.addView(description);
         ownVoice=check("제가 직접 부른 목소리이며 AI 음성 복제가 아닙니다.");rights=check("원곡자의 허용 범위 안에서 이 녹음을 공개할 권리가 있습니다.");reviewFields.addView(ownVoice);reviewFields.addView(rights);
         upload=button("커버곡으로 올리기",true);upload.setOnClickListener(v->upload());reviewFields.addView(upload);
@@ -177,11 +185,15 @@ public class KaraokeActivity extends AppCompatActivity {
         record.setVisibility(recording||playing||state==State.COUNTDOWN?View.GONE:View.VISIBLE);record.setEnabled(!busy);record.setText(hasTake?"다시 부르기":"노래 시작");
         stop.setVisibility(recording||playing||state==State.COUNTDOWN?View.VISIBLE:View.GONE);stop.setText(playing?"다시 듣기 멈추기":state==State.COUNTDOWN?"취소":"그만 부르기");
         preview.setVisibility(hasTake&&!recording&&!playing&&state!=State.COUNTDOWN?View.VISIBLE:View.GONE);preview.setEnabled(!busy);
-        reviewFields.setVisibility(hasTake&&!recording&&state!=State.COUNTDOWN?View.VISIBLE:View.GONE);offset.setEnabled(state==State.REVIEW);
+        boolean reviewing=hasTake&&(state==State.REVIEW||playing);
+        syncFields.setVisibility(hasTake&&!recording&&state!=State.COUNTDOWN?View.VISIBLE:View.GONE);offset.setEnabled(reviewing);
+        for(Button b:new Button[]{slower,resetSync,faster})b.setEnabled(reviewing);
+        reviewFields.setVisibility(hasTake&&!recording&&state!=State.COUNTDOWN?View.VISIBLE:View.GONE);
         upload.setEnabled(state==State.REVIEW);description.setEnabled(!busy);ownVoice.setEnabled(!busy);rights.setEnabled(!busy);
         for(SeekBar bar:new SeekBar[]{echo,room,size,voice,backing,hear})bar.setEnabled(!busy);
         monitor.setEnabled(!busy&&!playing);if(recording||playing)getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);else getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        if(recording||playing)scroll.post(()->scroll.smoothScrollTo(0,0));
+        if(recording)scroll.post(()->scroll.smoothScrollTo(0,0));
+        else if(playing)scroll.post(()->scroll.smoothScrollTo(0,Math.max(0,syncFields.getTop()-dp(12))));
     }
     private void applySettings(){if(engine!=null&&offset!=null)engine.settings=new VocalEffects.Settings(echo.getProgress()/100f,room.getProgress()/100f,size.getProgress()/100f,voice.getProgress()/100f,backing.getProgress()/100f,hear.getProgress()/100f,offset.getProgress()-300);}
     private void setMonitor(boolean enabled){updatingMonitor=true;monitor.setChecked(enabled);updatingMonitor=false;if(engine!=null)engine.setMonitor(enabled);}

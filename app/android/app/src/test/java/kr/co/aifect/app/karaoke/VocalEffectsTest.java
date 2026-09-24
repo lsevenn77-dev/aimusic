@@ -47,6 +47,24 @@ public class VocalEffectsTest {
             assertTrue(44L+600*32000*4<80L*1024*1024);
         }finally{for(File f:dir.listFiles())f.delete();dir.delete();}
     }
+    @Test public void liveSyncCrossfadesThenUsesNewOffsetWithoutReopeningTake()throws Exception{
+        File dir=Files.createTempDirectory("aifect-live-sync").toFile(),dry=new File(dir,"dry");
+        byte[] raw=new byte[12000*2];ByteBuffer data=ByteBuffer.wrap(raw).order(ByteOrder.LITTLE_ENDIAN);
+        for(int i=0;i<12000;i++)data.putShort((short)(i-6000));Files.write(dry.toPath(),raw);
+        try(PcmFiles.LiveVoiceReader reader=new PcmFiles.LiveVoiceReader(dry,0)){
+            float[] out=new float[512];reader.read(0,out,512,0);assertEquals(-6000/32768f,out[0],0);
+            reader.read(512,out,512,10);
+            assertTrue("The first changed sample blends instead of jumping",out[0]>(512-6000)/32768f);
+            assertTrue(out[0]<(512+480-6000)/32768f);
+            reader.read(1024,out,512,10);reader.read(1536,out,512,10);
+            assertEquals((1536+480-6000)/32768f,out[0],0);
+            reader.read(2048,out,512,-10);reader.read(2560,out,512,-10);reader.read(3072,out,512,-10);
+            assertEquals((3072-480-6000)/32768f,out[0],0);
+            reader.read(0,out,512,-10);assertEquals(0,out[479],0);assertEquals(-6000/32768f,out[480],0);
+            reader.read(13000,out,512,-10);assertEquals(0,out[0],0);
+            assertArrayEquals(raw,Files.readAllBytes(dry.toPath()));
+        }finally{dry.delete();dir.delete();}
+    }
     @Test public void resamplingPreservesFrameCountAndStereo()throws Exception{
         ByteArrayOutputStream out=new ByteArrayOutputStream();PcmFiles.Resampler r=new PcmFiles.Resampler(44100,48000,out);
         for(int i=0;i<44100;i++)r.accept(.1f,-.1f);
