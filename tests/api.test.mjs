@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {parseRange} from '../server/media.js';
-const origin='http://127.0.0.1:4174';
+const origin=process.env.AIFECT_TEST_ORIGIN||'http://127.0.0.1:4174';
 const stamp=Date.now();
 const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=','base64');
 const putImage=(path,cookie,body=png,type='image/png')=>fetch(origin+path,{method:'PUT',headers:{Origin:origin,Cookie:cookie,'Content-Type':type},body});

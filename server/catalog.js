@@ -23,6 +23,13 @@ export async function published(env,tid){const t=await one(env,`SELECT t.* FROM 
 const COVER_SORTS={popular:'likes DESC,plays DESC,t.created DESC',gifts:'gift_gold DESC,likes DESC,t.created DESC',plays:'plays DESC,likes DESC,t.created DESC',recent:'t.created DESC'};
 export async function catalogRoute(req,env,path,user){
  const url=new URL(req.url),method=req.method;const discovery=await discoveryRoute(req,env,path,user);if(discovery)return discovery;
+ if(path==='/api/community'&&method==='GET'){
+  const kind=url.searchParams.get('kind'),following=url.searchParams.get('following')==='1';
+  let where=VISIBLE(),args=[];
+  if(kind){if(!['cover','original'].includes(kind))fail(400,'곡 종류를 확인해주세요.');where+=' AND t.kind=?';args.push(kind);}
+  if(following){requireUser(user);where+=" AND EXISTS(SELECT 1 FROM follows f WHERE f.user_id=? AND ((f.kind='producer' AND f.target_id=t.producer_id) OR (f.kind='artist' AND f.target_id=t.artist_id)))";args.push(user.id);}
+  return json({tracks:await trackList(env,where,args,'t.created DESC',60)});
+ }
  if(path==='/api/catalog'&&method==='GET'){
   const q=(url.searchParams.get('q')||'').slice(0,100),genre=url.searchParams.get('genre'),chart=url.searchParams.get('chart');
   let where=VISIBLE()+" AND t.kind='original'",args=[];
