@@ -1,0 +1,42 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createHash,randomBytes} from 'node:crypto';
+const origin=process.env.AIFECT_TEST_ORIGIN||'http://127.0.0.1:4174';
+if(!/^http:\/\/127\.0\.0\.1:\d+$/.test(origin))throw Error('Only isolated local test servers are allowed');
+const call=async(path,method='GET',body,cookie='',headers={})=>{
+ const r=await fetch(origin+path,{method,headers:{Origin:origin,Cookie:cookie,...headers,...(body?{'Content-Type':'application/json'}:{})},body:body?JSON.stringify(body):undefined,redirect:'manual'});
+ const text=await r.text();let data;try{data=JSON.parse(text)}catch{data={html:text}}return {r,data};
+};
+test('mobile login: browser consent, verifier binding, single-use exchange and cookie isolation',async()=>{
+ const verifier=randomBytes(48).toString('base64url'),challenge=createHash('sha256').update(verifier).digest('hex');
+ const start=await call('/api/auth/mobile/start','POST',{challenge});assert.equal(start.r.status,200,JSON.stringify(start.data));
+ const {ticket,url}=start.data;assert.equal(new URL(url).origin,origin);assert.ok(!url.includes(verifier));assert.ok(!url.includes(challenge));
+ assert.equal((await call('/api/auth/mobile/exchange','POST',{ticket,verifier})).r.status,409);
+ assert.equal((await call('/api/auth/mobile/exchange','POST',{ticket,verifier:randomBytes(48).toString('base64url')})).r.status,401);
+ const user=await call('/api/auth/register','POST',{email:'native-'+Date.now()+'@example.test',password:'Native-only-test-password',name:'Native QA'});
+ assert.equal(user.r.status,200);const cookie=user.r.headers.get('set-cookie').split(';')[0];
+ const browser=await call(new URL(url).pathname+new URL(url).search,'GET',undefined,cookie);
+ assert.equal(browser.r.status,200);assert.match(browser.data.html,/이 계정으로 계속하기/);assert.match(browser.r.headers.get('set-cookie'),/HttpOnly/);
+ assert.equal(browser.r.headers.get('x-frame-options'),'DENY');
+ const mobileCookie=browser.r.headers.get('set-cookie').split(';')[0],jar=cookie+'; '+mobileCookie;
+ assert.equal((await call('/api/auth/mobile/approve','POST',{ticket},cookie)).r.status,403,'browser ticket must be bound');
+ assert.equal((await call('/api/auth/mobile/approve','POST',{ticket},jar,{Origin:'https://evil.invalid'})).r.status,403);
+ const approved=await call('/api/auth/mobile/approve','POST',{ticket},jar);assert.equal(approved.r.status,200);
+ assert.ok(approved.data.mobileRedirect.startsWith('kr.co.aifect.app://auth?ticket='));
+ assert.ok(!approved.data.mobileRedirect.includes('session'));
+ const wrong=await call('/api/auth/mobile/exchange','POST',{ticket,verifier:randomBytes(48).toString('base64url')});assert.equal(wrong.r.status,401);
+ const exchanged=await call('/api/auth/mobile/exchange','POST',{ticket,verifier});assert.equal(exchanged.r.status,200);
+ const nativeCookie=exchanged.r.headers.get('set-cookie').split(';')[0];assert.notEqual(nativeCookie,cookie);
+ assert.equal((await call('/api/me','GET',undefined,nativeCookie)).data.user.id,user.data.user.id);
+ assert.equal((await call('/api/auth/mobile/exchange','POST',{ticket,verifier})).r.status,401,'handoff cannot be replayed');
+ await call('/api/auth/logout','POST',{},nativeCookie);
+ assert.equal((await call('/api/me','GET',undefined,nativeCookie)).data.user,null);
+ assert.equal((await call('/api/me','GET',undefined,cookie)).data.user.id,user.data.user.id,'native logout does not log out the browser');
+});
+test('community is public, kind is validated, and following requires authentication',async()=>{
+ const all=await call('/api/community');assert.equal(all.r.status,200);assert.ok(Array.isArray(all.data.tracks));
+ const covers=await call('/api/community?kind=cover');assert.equal(covers.r.status,200);assert.ok(covers.data.tracks.every(t=>t.kind==='cover'));
+ const original=await call('/api/community?kind=original');assert.equal(original.r.status,200);assert.ok(original.data.tracks.every(t=>t.kind==='original'));
+ assert.equal((await call('/api/community?kind=invalid')).r.status,400);
+ assert.equal((await call('/api/community?following=1')).r.status,401);
+});

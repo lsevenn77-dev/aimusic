@@ -1,6 +1,7 @@
 import {createRemoteJWKSet,jwtVerify,SignJWT,importPKCS8} from 'jose';
 import {one,run,query,now,id,fail,str,json,rate} from './db.js';
 import {membership} from './membership.js';
+import {mobileAuthRoute,finishMobile} from './mobile-auth.js';
 const enc=new TextEncoder();
 export const hash=async s=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',enc.encode(s))),x=>x.toString(16).padStart(2,'0')).join('');
 const cookie=(name,value,age,secure=true)=>`${name}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${age}${secure?'; Secure':''}`;
@@ -28,6 +29,7 @@ export async function appleClientSecret(env){
 export function providers(env){return ['google','kakao','apple'].filter(p=>env[`${p.toUpperCase()}_CLIENT_ID`]&&(p==='google'||p==='kakao'||env.APPLE_CLIENT_SECRET||appleKeyReady(env)));}
 export async function authRoute(req,env,path,user){
  const url=new URL(req.url),secure=url.protocol==='https:';
+ const mobile=await mobileAuthRoute(req,env,path,user);if(mobile)return mobile;
  if(path==='/api/me')return json({user,admin:isAdmin(env,user),membership:await membership(env,user),providers:providers(env),googleClientId:env.GOOGLE_CLIENT_ID||null,emailEnabled:!!env.AUTH_PEPPER});
  if(path==='/api/auth/google/nonce'&&req.method==='POST'){
   if(!env.GOOGLE_CLIENT_ID)fail(503,'Google 로그인을 준비하고 있습니다.');
@@ -49,6 +51,7 @@ export async function authRoute(req,env,path,user){
   if(payload.nonce!==st.nonce||payload.email_verified!==true||!payload.email||!payload.sub)fail(401,'Google 인증 정보가 일치하지 않습니다.');
   let u=await one(env,"SELECT id,name,email,provider FROM users WHERE provider='google' AND subject=?",payload.sub);
   if(!u){u={id:id(),name:String(payload.name||'AIFECT 리스너').slice(0,40),email:payload.email,provider:'google'};await run(env,'INSERT INTO users(id,email,name,provider,subject,created) VALUES(?,?,?,?,?,?)',u.id,u.email,u.name,'google',payload.sub,now());}
+  const appResult=await finishMobile(req,env,u,null,!isRedirect);if(appResult)return appResult;
   const headers=new Headers({'cache-control':'no-store'});
   headers.append('set-cookie',await session(env,u,secure));
   headers.append('set-cookie',cookie('aifect_google_oauth','',0,secure));
@@ -115,5 +118,6 @@ export async function authRoute(req,env,path,user){
  }
  let u=await one(env,'SELECT id FROM users WHERE provider=? AND subject=?',p,identity.sub);
  if(!u){u={id:id()};await run(env,'INSERT INTO users(id,email,name,provider,subject,created) VALUES(?,?,?,?,?,?)',u.id,identity.email||`${p}-${identity.sub}@identity.aifect.invalid`,String(identity.name).slice(0,40),p,identity.sub,now());}
+ const appResult=await finishMobile(req,env,u,null);if(appResult)return appResult;
  return new Response(null,{status:303,headers:{location:'/#account?welcome=1','set-cookie':await session(env,u,secure),'cache-control':'no-store'}});
 }

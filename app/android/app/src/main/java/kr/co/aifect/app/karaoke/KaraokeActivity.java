@@ -13,7 +13,7 @@ import android.os.*;
 import android.text.*;
 import android.text.style.ForegroundColorSpan;
 import android.view.*;
-import android.webkit.CookieManager;
+import kr.co.aifect.app.NativeSession;
 import android.widget.*;
 import androidx.activity.OnBackPressedCallback;
 import androidx.activity.result.ActivityResultLauncher;
@@ -77,7 +77,7 @@ public class KaraokeActivity extends AppCompatActivity {
             if(!foreground||destroyed)return;
             if(granted)beginCountdown();else message("마이크 권한이 있어야 노래를 녹음할 수 있어요. 다시 누르거나 앱 설정에서 허용해주세요.");
         });
-        api=new KaraokeApi(origin,CookieManager.getInstance().getCookie(origin));
+        api=new KaraokeApi(origin,NativeSession.cookie(this));
         directory=new File(getCacheDir(),"karaoke-"+UUID.randomUUID());
         if(!directory.mkdirs()){finish();return;}
         mr=new File(directory,"mr.pcm");dry=new File(directory,"voice.pcm");

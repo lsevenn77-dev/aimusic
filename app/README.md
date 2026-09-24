@@ -1,54 +1,64 @@
-# AIFECT 앱 (Android · 이후 iOS)
+# AIFECT 네이티브 Android 앱
 
-음악 탐색·계정·보관함은 Capacitor 8에서 https://aifect.co.kr 을 사용하고, **노래방 화면·녹음·실시간 청음·효과·믹싱은 Android Java 네이티브**로 실행한다. 사이트 변경과 APK 업데이트는 별도 배포다.
+버전 **2.0.0 (3)** · 패키지 `kr.co.aifect.app` · Android 8.0 이상 · targetSdk 36.
 
-- 패키지: `kr.co.aifect.app` · 앱 이름 AIFECT · 버전 1.1.0 (2) · targetSdk 36
-- 백그라운드 재생 · 잠금화면 조작: `@capgo/capacitor-media-session` (사이트의 `dist/media-session.js` 가 앱 안에서 이 플러그인을 부른다). Android 14 이상에서 필요한 `FOREGROUND_SERVICE_MEDIA_PLAYBACK` 권한은 `AndroidManifest.xml` 에 직접 넣었다(플러그인이 빠뜨림).
-- 앱 안에서는 Google 로그인을 숨긴다. Google 은 앱 속 웹뷰 로그인을 막기 때문에, 네이티브 Google 로그인을 붙이기 전까지 이메일 · 카카오 · Apple 로 로그인한다. 사이트는 `window.Capacitor.isNativePlatform()` 으로 앱인지 안다(`inApp`).
-- 인터넷이 없으면 `www/offline.html` 을 보여준다.
-- 아이콘 · 스플래시 원본은 `assets/` (로고의 「ai + 음표」를 잘라 만듦). 바꾸면 `npm run assets`.
+Kotlin / Jetpack Compose 화면과 Media3 플레이어를 사용한다. WebView, Capacitor, 웹 JavaScript 화면은 APK에 포함하지 않는다. 기존 Java 노래방 화면과 오디오 엔진을 직접 실행한다.
+
+## 화면과 연결
+
+- **듣기**: 곡/프로필 검색, 인기·최신·장르·기분별 탐색, 공개 플레이리스트, 음악가 프로필.
+- **부르기**: MR·가사 싱크가 준비된 곡, 네이티브 노래방, 에코·룸 리버브·룸 크기·목소리/반주 음량, 이어폰 실시간 청음, 녹음 재청음 및 커버곡 업로드.
+- **커뮤니티**: 전체·커버곡·제작곡·팔로잉 피드, 실제 재생/좋아요/댓글 수, 좋아요·댓글·댓글 좋아요, 내 댓글 삭제, 프로필 팔로우. 사람의 프로필 안에서 제작곡과 커버곡을 나눠 보여준다.
+- **내 음악**: 좋아요, 내/저장한 플레이리스트, 최근 들은 곡, 팔로잉. 목록 만들기·이름/공개 여부 편집·곡 추가/삭제·순서 변경·목록 삭제. 기존 서버의 Free 2개 / Premium 10개 한도를 그대로 적용한다.
+- **플레이어**: 네이티브 MediaSessionService, 백그라운드·잠금화면 제어, 이전/다음·탐색·셔플·반복, 닫을 수 있는 미니 플레이어. 로그아웃 상태에서는 서버의 60초 미리듣기 제한을 따른다. 무료는 현재 가사 한 줄, Premium은 현재 줄과 주변 가사를 표시한다. Premium 만료 시 전체 가사 캐시를 지운다.
+- 음원 제작·업로드 및 정산용 웹 스튜디오, 약관·고객센터는 명시적으로 외부 브라우저를 연다. Android 골드 결제와 Play Store 출시는 이 버전에 포함하지 않는다.
+
+## 로그인
+
+이메일 로그인/가입은 네이티브 폼이다. Google·카카오·Apple 인증은 시스템 브라우저에서 기존 제공자 설정으로 진행하고 앱으로 돌아온다. 새 제공자 키나 앱 안의 웹 로그인 창은 필요하지 않다.
+
+앱이 랜덤 verifier를 생성하고 SHA-256 challenge만 서버에 보낸다. 브라우저 인증 성공 후 2분짜리 단회 ticket을 verifier와 교환한다. ticket만 탈취해도 세션을 받을 수 없다. 인증 완료 링크에 세션/키를 넣지 않는다. 브라우저에 기존 로그인 세션이 있으면 어떤 계정으로 계속할지 명시적으로 선택한다.
+
+세션 쿠키와 진행 중인 verifier는 Android Keystore AES-GCM으로 암호화한다. API와 음원 HTTP 클라이언트는 AIFECT 원본에만 쿠키를 보내고 리다이렉트를 따라가지 않는다. 앱 로그아웃은 브라우저 세션에 영향을 주지 않는다. 이전 WebView 세션은 가져오지 않으므로 2.0 업데이트 후 한 번 다시 로그인한다.
+
+백엔드의 `server/mobile-auth.js` 및 `/api/community`와 함께 배포한다. 기존 `oauth_states`를 재사용하므로 새 DB 마이그레이션은 없다.
 
 ## 빌드
 
-Java 21 이 필요하다(이 PC 기본 JAVA_HOME 은 17 이라 빌드할 때 21 로 지정).
+Java 21, Android SDK 36을 설치한 뒤:
 
-```sh
-npm ci
-npx cap sync android
-cd android
-JAVA_HOME="C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot" ./gradlew.bat assembleDebug
+```powershell
+$env:JAVA_HOME='C:/Program Files/Eclipse Adoptium/jdk-21.0.11.10-hotspot'
+$env:ANDROID_HOME='C:/Users/lseve/AppData/Local/Android/Sdk'
+cd app/android
+./gradlew.bat :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
 ```
 
-디버그 APK: `android/app/build/outputs/apk/debug/app-debug.apk`
+`local.properties`에 실제 SDK 경로를 기록한다. 예: `sdk.dir=C\\:/Users/lseve/AppData/Local/Android/Sdk`.
+APK는 `app/android/app/build/outputs/apk/debug/app-debug.apk`.
+Node 설치나 `cap sync`는 필요하지 않으며 사용하지 않는다.
 
-로컬 개발 서버로 앱을 시험하려면 `AIFECT_APP_URL=http://localhost:4174 npx cap sync android` 로 빌드하고 `adb reverse tcp:4174 tcp:4174` 로 포트를 넘긴다. 다시 `npx cap sync android` 하면 운영 사이트로 돌아간다. 시험용은 `gradlew assembleDebug -PaifectTest` 로 빌드하면 패키지 `kr.co.aifect.app.test` · 이름 「AIFECT 테스트」가 되어 운영용 앱과 함께 설치된다.
+`-PaifectTest`는 별도 패키지 `kr.co.aifect.app.test`로 빌드한다. 이 패키지의 디버그 빌드만 MainActivity의 `testOrigin` extra로 HTTP localhost 테스트 서버를 지정할 수 있다. 일반 앱과 release에서는 이 옵션을 무시한다.
 
-## 노래 부르기
+## 오디오 엔진
 
-사이트의 `dist/karaoke.js` 가 앱 안에서만 켜진다(`inApp`). 메뉴에 「노래방」이 생기고, MR과 단어별 싱크가 준비된 곡에서 「노래방 열기」를 누르면 `AifectKaraoke` 플러그인이 `KaraokeActivity`를 연다. 이전 APK는 기존 Web Audio 녹음 경로를 유지한다.
+- 48kHz AudioRecord/AudioTrack. 마이크는 녹음 버튼을 눌렀을 때만 권한을 요청한다.
+- 에코 235ms, 감쇠 반복; 룸은 4 comb + 2 all-pass. 파라미터 램프와 피크 제한, 기기 내 dry PCM 보관.
+- 이어폰 청음 기본 OFF. 유선/USB 권장. 블루투스는 지연 안내 후 선택하며 실제 지연은 기기에 따라 다르다.
+- 스피커로 마이크를 출력하지 않는다. 이어폰 분리·통화/오디오 포커스 상실·앱 백그라운드에서 녹음/청음을 중단한다.
+- 재청음에서 효과/목소리/반주 음량과 -300~800ms 싱크 조절. 최대 10분, 32kHz PCM16 stereo WAV로 업로드.
+- 사용자 직접 녹음/공개 권리 확인 후 업로드한다. 서버가 변환·공개한 뒤 커뮤니티의 커버곡으로 나온다. 녹음은 화면을 닫으면 기기에서 삭제한다.
 
-- **에코**: 235ms 딜레이와 감쇠 반복, 0~65%. **룸 리버브**: 4개 comb + 2개 all-pass 잔향, 양 0~65%와 룸 크기 조절. 별도로 목소리·반주·청음 음량을 바꾼다. 설정 변화에는 짧은 램프, 출력에는 피크 제한을 적용한다.
-- **실시간 청음**: `AudioRecord` → `VocalEffects` → `AudioTrack` 경로다. 오디오 콜백마다 JS를 호출하지 않는다. 기본은 꺼짐이며 유선·USB 이어폰을 권장한다. 블루투스는 지연 안내에 동의해야 켜진다. 출력 경로를 확인해 스피커로는 마이크를 보내지 않고, 이어폰 분리·통화 등 오디오 포커스 상실 시 중단한다. 기기별 실제 왕복 지연은 아직 측정하지 않았고 지연 없는 청음을 보장하지 않는다.
-- **반주와 녹음**: 네이티브 오디오 스레드의 48kHz 프레임 타임라인에 맞춘다. MediaCodec으로 MR을 디코딩하고 스트리밍 변환한다. 파일 단위로 읽고 써서 10분짜리 전체곡을 메모리에 올리지 않는다. 음성 통화용 에코 제거·잡음 제거·자동 음량은 끈다.
-- **다시 듣기**: 목소리 원본을 유지한 채 에코·룸·목소리·반주 음량을 다시 조절한다. 싱크는 -300~800ms(기본 80ms), 재생을 멈춘 상태에서 조절한다. 양수는 늦게 녹음된 목소리를 앞으로 이동한다. 녹음 후 바꾼 최종 효과가 업로드에 적용된다.
-- **커버 업로드**: 같은 DSP로 믹싱한 32kHz 16비트 스테레오 WAV를 기존 `/api/covers` → `/api/uploads/:id/audio` → `/complete`에 전송한다. 최대 10분, 80MB 미만. 실패 후 재시도는 받은 업로드 ID를 재사용한다. 사용자가 직접 부른 음성과 공개 권리를 확인해야 올릴 수 있다.
-- **권한·수명**: 녹음 버튼을 눌렀을 때만 마이크 권한을 요청한다. 앱이 뒤로 가면 마이크와 청음은 정지하며 자동 재개하지 않는다. 기기의 임시 녹음은 화면을 닫으면 삭제한다. 권한 없는 외부 페이지에서 네이티브 플러그인을 열 수 없고 세션 쿠키는 AIFECT 원본 주소에만 전송한다. HTTP localhost는 디버그 빌드에서만 허용한다.
+## 검증과 출시 범위
 
-## 검증
-
-```sh
-cd android
-./gradlew.bat :app:testDebugUnitTest :app:lintDebug :app:assembleDebug -PaifectTest
-# 대상 에뮬레이터만 지정: 실제 마이크를 요청하지 않는 무음 fixture 테스트
-ANDROID_SERIAL=emulator-5580 ./gradlew.bat :app:connectedDebugAndroidTest -PaifectTest
+```powershell
+$env:ANDROID_SERIAL='emulator-5580'
+./gradlew.bat :app:connectedDebugAndroidTest -PaifectTest
 ```
 
-- JVM: 에코 반복·감쇠, 룸 잔향, 바이패스, 피크 제한, 싱크 이동, 원본 보존, WAV 형식, 허용 원본 제한.
-- Android: 합성 무음 MR 다운로드·MediaCodec 디코딩·화면, 재생 중단·재시작, 마이크 권한 거부, 스피커 청음 차단. 실제 이용자 계정이나 마이크를 쓰지 않는다.
-- 웹: `ai음원사이트/tests/karaoke-native.test.mjs`에서 중복 열기, 실패 후 재시도, 다른 화면으로 이동한 후의 응답 처리를 확인한다.
-- 출시 전 기기 검증: 유선·USB·블루투스 각각의 왕복 지연과 잡음/끊김, 이어폰 분리, 통화 진입, 10분 녹음, 실제 AAC MR, 녹음 업로드 후 청음을 확인해야 한다. 에뮬레이터 테스트는 음질 검증을 대신하지 않는다.
-
-## 남은 것
-
-- 출시용 서명 키(업로드 키) 만들기와 백업 — 키는 git 에 넣지 않는다(`keystore/`, `keystore.properties` 는 .gitignore)
-- 골드 인앱결제, 네이티브 Google 로그인
+- JVM 8개: DSP, 피크 제한, 잔향, 원본 보존, 싱크 이동, WAV/리샘플링, 서버 원본 제한.
+- Android: 네이티브 화면에 WebView가 없는지 확인, 메뉴 이동, 백그라운드 재생/재생바 닫기, 이메일 로그인/플레이리스트 생성, 세션 암호화, 외부 원본/경로 차단 및 노래방 무음 fixture 테스트.
+- 백엔드: 단회 인증·verifier 불일치·재사용 거부·브라우저 세션 분리·커뮤니티 접근 검증과 기존 회귀 테스트.
+- Android 테스트는 로컬 합성 데이터와 무음 WAV만 사용한다. 실제 이용자 로그인, 실제 마이크 녹음, 글 게시, 결제는 하지 않는다.
+- 별도 실기기 확인 필요: Google/카카오/Apple 각 계정 인증 완료, 이어폰별 실제 왕복 지연/음질, 전화 수신/장시간 녹음, 녹음 업로드 후 청음.
+- 디버그 APK는 설치 확인용이다. 스토어 출시는 별도의 릴리스 서명·계정/콘텐츠 심사·결제 정책 작업이 필요하다.

@@ -5,7 +5,7 @@ import java.io.*;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
 
-/** Uses the signed-in WebView session only with the app's trusted origin; never follows redirects. */
+/** Uses the native session only with the app's trusted origin; never follows redirects. */
 final class KaraokeApi {
     private final String origin,cookie;
     private volatile HttpURLConnection active;
