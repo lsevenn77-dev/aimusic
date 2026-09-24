@@ -92,6 +92,13 @@
       "when": 1790211743384,
       "tag": "0012_payouts",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1790248984259,
+      "tag": "0013_cover_rankings_moderation",
+      "breakpoints": true
     }
   ]
 }
