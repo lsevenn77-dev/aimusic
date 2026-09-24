@@ -5,8 +5,6 @@ let sing=null;
 const K=()=>window.AifectKaraoke;
 const nativeSinging=()=>window.Capacitor?.isNativePlatform?.()&&window.Capacitor.Plugins?.AifectKaraoke;
 
-if(inApp){const charts=document.querySelector('.nav-link[data-view="charts"]');charts?.insertAdjacentHTML('afterend','<a href="#karaoke" class="nav-link" data-view="karaoke"><i data-icon="mic"></i>노래방</a>');icons();}
-
 function cleanupSing(){
  if(!sing)return;
  try{sing.frame&&cancelAnimationFrame(sing.frame);sing.preview?.forEach(s=>{try{s.stop();}catch{}});sing.run?.src?.stop();}catch{}
