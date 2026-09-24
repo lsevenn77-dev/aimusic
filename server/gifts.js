@@ -2,6 +2,7 @@ import {one,rows,query,now,id,fail,json,rate} from './db.js';
 import {requireUser} from './auth.js';
 import {published} from './catalog.js';
 import {GOLD_KRW,GOLD_PACKS,GIFT_MIN_GOLD,GIFT_MAX_GOLD,MIN_PAYOUT_KRW,PAYOUT_DAY,GIFT_SPLITS,allocateLots,splitGift,giftMonth,wonFromMw} from '../shared/gifts.js';
+import {creatorPayouts} from './payouts.js';
 
 // No payment channel sells gold yet: web card checkout needs the NICEPAY one-time payment contract and
 // the apps need store billing. Purchases are credited by those integrations once they exist.
@@ -50,8 +51,11 @@ export async function giftRoute(req,env,path,user){
   requireUser(user);
   const profile=await one(env,'SELECT id FROM producers WHERE user_id=?',user.id),current=giftMonth(now());
   const months=profile?await rows(env,`SELECT month,SUM(CASE WHEN singer_profile_id=? THEN singer_mw ELSE 0 END) singer_mw,SUM(CASE WHEN creator_profile_id=? THEN creator_mw ELSE 0 END) creator_mw,count(*) gifts
-   FROM gifts WHERE singer_profile_id=? OR creator_profile_id=? GROUP BY month ORDER BY month`,profile.id,profile.id,profile.id,profile.id):[];
-  return json({current_month:current,min_payout_krw:MIN_PAYOUT_KRW,payout_day:PAYOUT_DAY,splits:GIFT_SPLITS,months:settlementMonths(months,current).reverse()});
+   FROM gifts WHERE (singer_profile_id=? AND singer_mw>0) OR (creator_profile_id=? AND creator_mw>0) GROUP BY month ORDER BY month`,profile.id,profile.id,profile.id,profile.id):[];
+  // Months up to the latest statement are settled; later months show the projected carry-over.
+  const payout=await creatorPayouts(env,user.id),through=payout.last_period;
+  const settled=months.filter(m=>through&&m.month<=through).map(m=>({month:m.month,gifts:m.gifts,singer_krw:wonFromMw(m.singer_mw),creator_krw:wonFromMw(m.creator_mw),total_krw:wonFromMw(m.singer_mw+m.creator_mw),status:'settled'}));
+  return json({current_month:current,min_payout_krw:MIN_PAYOUT_KRW,payout_day:PAYOUT_DAY,splits:GIFT_SPLITS,months:[...settled,...settlementMonths(months.filter(m=>!through||m.month>through),current)].reverse(),payout});
  }
  const m=path.match(/^\/api\/tracks\/([\w-]+)\/gifts$/);if(!m)return null;
  const track=await published(env,m[1]);

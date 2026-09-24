@@ -33,3 +33,11 @@ export function allocateLots(lots,gold){
 // Settlement periods follow Korean calendar months.
 export const giftMonth=seconds=>new Date((seconds+9*3600)*1000).toISOString().slice(0,7);
 export const wonFromMw=mw=>Math.floor(mw/1000);
+// Individual creators are paid as business income: 3% income tax plus local income tax of 10% of it,
+// each truncated to 10 KRW. Income tax under 1,000 KRW is not collected (소액부징수). Confirm with a tax accountant.
+export function withholding(gross){
+ let income=Math.floor(gross*3/100/10)*10;if(income<1000)income=0;
+ const local=Math.floor(income/10/10)*10;
+ return {income,local,net:gross-income-local};
+}
+export const BANKS=Object.freeze(['KB국민','신한','우리','하나','NH농협','IBK기업','SC제일','한국씨티','카카오뱅크','토스뱅크','케이뱅크','iM뱅크(대구)','부산','경남','광주','전북','제주','KDB산업','수협','새마을금고','신협','우체국']);

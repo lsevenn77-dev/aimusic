@@ -6,6 +6,8 @@ const genres=['전체','K-POP','Ballad','R&B','Hip-Hop','Rock','EDM','City Pop',
 let me=null,authConfig={},library={likes:[],playlists:[],follows:[]},trackMap=new Map(),renderId=0,routeTracks=[],returnRoute='#home',toastTimer;
 let accountReady=Promise.resolve();
 const audio=new Audio();audio.preload='metadata';audio.volume=.75;
+// True inside the AIFECT Android/iOS app (Capacitor shell around this site).
+const inApp=!!window.Capacitor?.isNativePlatform?.();
 let queue=[],current=null,playSession=null,preview=false,heard=0,lastTick=0,repeatMode=0,shuffle=false,playSerial=0,pendingResume=null,reportBusy=false;
 try{pendingResume=JSON.parse(sessionStorage.getItem('aifect-player-resume')||'null');}catch{}
 function icons(){document.querySelectorAll('[data-icon]').forEach(el=>{el.innerHTML=icon(el.dataset.icon);el.removeAttribute('data-icon');});}

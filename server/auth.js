@@ -5,6 +5,8 @@ const enc=new TextEncoder();
 export const hash=async s=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',enc.encode(s))),x=>x.toString(16).padStart(2,'0')).join('');
 const cookie=(name,value,age,secure=true)=>`${name}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${age}${secure?'; Secure':''}`;
 export function cookies(req){return Object.fromEntries((req.headers.get('cookie')||'').split(';').map(x=>x.trim().split('=')));}
+// Operators are listed by user id in ADMIN_USER_IDS; there is no self-service admin role.
+export const isAdmin=(env,user)=>!!user&&(env.ADMIN_USER_IDS||'').split(',').map(s=>s.trim()).filter(Boolean).includes(user.id);
 export async function viewer(req,env){const token=cookies(req).aifect_session;if(!token)return null;return one(env,'SELECT u.id,u.name,u.email,u.provider,u.premium_until FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token=? AND s.expires>?',await hash(token),now());}
 export const requireUser=u=>{if(!u)fail(401,'로그인 후 이용해주세요.');return u;};
 async function passwordHash(password,salt,env){
@@ -26,7 +28,7 @@ export async function appleClientSecret(env){
 export function providers(env){return ['google','kakao','apple'].filter(p=>env[`${p.toUpperCase()}_CLIENT_ID`]&&(p==='google'||p==='kakao'||env.APPLE_CLIENT_SECRET||appleKeyReady(env)));}
 export async function authRoute(req,env,path,user){
  const url=new URL(req.url),secure=url.protocol==='https:';
- if(path==='/api/me')return json({user,membership:await membership(env,user),providers:providers(env),googleClientId:env.GOOGLE_CLIENT_ID||null,emailEnabled:!!env.AUTH_PEPPER});
+ if(path==='/api/me')return json({user,admin:isAdmin(env,user),membership:await membership(env,user),providers:providers(env),googleClientId:env.GOOGLE_CLIENT_ID||null,emailEnabled:!!env.AUTH_PEPPER});
  if(path==='/api/auth/google/nonce'&&req.method==='POST'){
   if(!env.GOOGLE_CLIENT_ID)fail(503,'Google 로그인을 준비하고 있습니다.');
   const state=id()+id(),nonce=id();
