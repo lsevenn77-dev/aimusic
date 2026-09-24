@@ -21,6 +21,8 @@ JAVA_HOME="C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot" ./gradlew.b
 
 디버그 APK: `android/app/build/outputs/apk/debug/app-debug.apk`
 
+로컬 개발 서버로 앱을 시험하려면 `AIFECT_APP_URL=http://localhost:4174 npx cap sync android` 로 빌드하고 `adb reverse tcp:4174 tcp:4174` 로 포트를 넘긴다. 다시 `npx cap sync android` 하면 운영 사이트로 돌아간다.
+
 ## 남은 것
 
 - 노래 부르기(MR 재생 + 가사 + 녹음 → 커버곡 올리기)
