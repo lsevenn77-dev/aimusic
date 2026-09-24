@@ -34,10 +34,10 @@ async function explorerView(base,param,raw){
  }
  if(base==='library'){
   if(!me){returnRoute=location.hash;return {html:gate()};}await refreshLibrary();const tab=param||'likes';
-  let html=heading('내 보관함','좋아하는 음악을 모으고, 오늘의 기분대로 들어보세요.')+`<div class="tabs">${[['likes','좋아요'],['playlists','플레이리스트'],['artists','아티스트'],['producers','제작자']].map(([k,v])=>`<a class="tab ${tab===k?'active':''}" href="#library/${k}">${v}</a>`).join('')}</div>`;
+  let html=heading('내 보관함','좋아하는 음악을 모으고, 오늘의 기분대로 들어보세요.')+libraryTabs(tab);
   if(tab==='playlists')html+=playlistQuotaHTML()+`<div class="inline-actions playlist-actions"><button class="primary-button" id="new-playlist">${icon('plus')} 플레이리스트 만들기</button><button class="small-button" data-order-collections>목록 순서 편집</button><a class="text-link" href="#collections">다른 사람의 플레이리스트 찾기 →</a></div><div class="explorer-toolbar"><input id="library-search" aria-label="내 플레이리스트 검색" placeholder="내 보관함에서 검색" value="${esc(collectionSearch)}"><select id="library-filter" aria-label="플레이리스트 종류">${[['all','전체 목록'],['mine','내가 만든 목록'],['saved','저장한 공개 목록']].map(([k,v])=>`<option value="${k}" ${collectionFilter===k?'selected':''}>${v}</option>`).join('')}</select><select id="library-sort" aria-label="내 플레이리스트 정렬">${[['custom','내 순서'],['name','이름순'],['recent','최신순']].map(([k,v])=>`<option value="${k}" ${collectionSort===k?'selected':''}>${v}</option>`).join('')}</select></div><div id="library-collections">${filteredCollections()}</div>`;
   else if(tab==='artists'||tab==='producers')html+=identityCards(library.follows.filter(f=>f.kind===(tab==='artists'?'artist':'producer')).map(f=>({...f,id:f.target_id})),tab==='artists'?'artist':'producer');
-  else html+=`<div class="inline-actions playlist-actions"><button class="primary-button" data-organize-likes ${library.likes.length?'':'disabled'}>선택해서 플레이리스트 만들기 ${icon('plus')}</button></div>`+list(library.likes);
+  else html+=browsePlaybackActions(library.likes)+`<div class="inline-actions playlist-actions"><button class="primary-button" data-organize-likes ${library.likes.length?'':'disabled'}>선택해서 플레이리스트 만들기 ${icon('plus')}</button></div>`+list(library.likes);
   return {html,tracks:tab==='likes'?library.likes:[]};
  }
  if(base==='playlist'){

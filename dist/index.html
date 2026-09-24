@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="studio.css"><link rel="stylesheet" href="lyrics.css"><link rel="stylesheet" href="discovery.css"><link rel="stylesheet" href="explorer.css"><link rel="stylesheet" href="membership.css"><link rel="stylesheet" href="alignment.css"><link rel="stylesheet" href="policies.css">
   <link rel="stylesheet" href="motion.css">
+  <link rel="stylesheet" href="browse.css">
   <script defer src="motion.js"></script>
 </head>
 <body>
@@ -18,16 +19,21 @@
     <span class="brand-origin">AI + EFFECT</span>
     <p class="nav-label">음악 둘러보기</p>
     <nav class="nav-primary" aria-label="주 메뉴">
-      <a href="#home" class="nav-link active" data-view="home"><i data-icon="home"></i>홈</a>
-      <a href="#discover" class="nav-link" data-view="discover"><i data-icon="compass"></i>발견<span class="nav-tag">NEW</span></a>
-      <a href="#charts" class="nav-link" data-view="charts"><i data-icon="chart"></i>차트</a>
-      <a href="#artists" class="nav-link" data-view="artists"><i data-icon="users"></i>아티스트</a>
-      <a href="#producers" class="nav-link" data-view="producers"><i data-icon="sliders"></i>제작자</a>
+      <a href="#home" class="nav-link active" data-view="home" data-primary-view="home"><i data-icon="home"></i>듣기</a>
+      <a href="#search" class="nav-link" data-view="search" data-primary-view="search"><i data-icon="search"></i>검색</a>
+      <a href="#karaoke" class="nav-link" data-view="karaoke" data-primary-view="karaoke"><i data-icon="mic"></i>부르기</a>
+      <a href="#community" class="nav-link" data-view="community" data-primary-view="community"><i data-icon="users"></i>커뮤니티</a>
+      <a href="#library" class="nav-link" data-view="library" data-primary-view="library"><i data-icon="library"></i>내 보관함</a>
     </nav>
-    <p class="nav-label second-label">나의 음악</p>
-    <nav aria-label="나의 메뉴">
-      <a href="#library" class="nav-link" data-view="library"><i data-icon="library"></i>내 보관함</a>
-      <a href="#history" class="nav-link" data-view="history"><i data-icon="clock"></i>최근 들은 음악</a>
+    <p class="nav-label second-label">더 둘러보기</p>
+    <nav aria-label="음악 탐색">
+      <a href="#charts" class="nav-link" data-view="charts"><i data-icon="chart"></i>인기 차트</a>
+      <a href="#charts/karaoke" class="nav-link" data-view="charts"><i data-icon="mic"></i>노래방 차트</a>
+      <a href="#community/covers" class="nav-link" data-view="community"><i data-icon="users"></i>커버곡 둘러보기</a>
+      <a href="#discover" class="nav-link" data-view="discover"><i data-icon="compass"></i>기분 · 장르별 발견</a>
+      <a href="#collections" class="nav-link" data-view="collections"><i data-icon="list"></i>공개 플레이리스트</a>
+      <a href="#artists" class="nav-link" data-view="artists"><i data-icon="users"></i>AI 아티스트</a>
+      <a href="#producers" class="nav-link" data-view="producers"><i data-icon="sliders"></i>창작자</a>
     </nav>
     <div class="sidebar-divider"></div>
     <a href="#studio" class="nav-link" data-view="studio"><i data-icon="sliders"></i>창작자 스튜디오<i data-icon="external" class="end-icon"></i></a>
@@ -46,12 +52,19 @@
     <main id="main" tabindex="-1"><noscript><h1>AIFECT 음악 서비스</h1><p>음악 감상은 JavaScript를 켜고 이용해주세요. <a href="/pricing">무료 · Premium 이용권과 가격</a>, <a href="/terms">이용약관</a>, <a href="/privacy">개인정보처리방침</a>, <a href="/refund">환불 정책</a>은 JavaScript 없이도 확인할 수 있습니다.</p></noscript></main>
     <footer class="page-footer"><!--BUSINESS_FOOTER--></footer>
   </div>
+  <nav class="mobile-navigation" aria-label="하단 주 메뉴">
+    <a href="#home" data-primary-view="home"><i data-icon="home"></i><span>듣기</span></a>
+    <a href="#search" data-primary-view="search"><i data-icon="search"></i><span>검색</span></a>
+    <a href="#karaoke" data-primary-view="karaoke"><i data-icon="mic"></i><span>부르기</span></a>
+    <a href="#community" data-primary-view="community"><i data-icon="users"></i><span>커뮤니티</span></a>
+    <a href="#library" data-primary-view="library"><i data-icon="library"></i><span>보관함</span></a>
+  </nav>
   <section class="player" aria-label="음악 플레이어" hidden>
 <a id="player-lyric" class="player-lyric" hidden></a><div class="now-playing" id="now-playing"><div class="mini-cover cover cover-lime">A</div><div><strong>새로운 음악을 만나보세요</strong><span>곡을 선택하면 재생됩니다</span></div></div>
 <div class="player-center"><div class="player-buttons"><button class="icon-button" id="shuffle" aria-label="셔플" aria-pressed="false"><i data-icon="shuffle"></i></button><button class="icon-button" id="previous" aria-label="이전 곡"><i data-icon="previous"></i></button><button class="play-button" id="play-toggle" aria-label="재생"><i data-icon="play"></i></button><button class="icon-button" id="next" aria-label="다음 곡"><i data-icon="next"></i></button><button class="icon-button" id="repeat" aria-label="반복 끔" aria-pressed="false"><i data-icon="repeat"></i></button></div><div class="timeline"><span id="elapsed">0:00</span><input id="seek" type="range" min="0" max="0" step="0.1" value="0" aria-label="재생 위치"><span id="duration">0:00</span></div></div>
 <div class="player-right"><span class="free-listen" id="listen-mode">회원은 전체곡 무료</span><i data-icon="volume"></i><input id="volume" type="range" min="0" max="1" value="0.75" step="0.01" aria-label="음량"><button class="icon-button" id="queue-toggle" aria-label="재생 목록"><i data-icon="list"></i></button></div><button type="button" class="icon-button player-close" id="player-close" aria-label="재생 종료 및 재생바 닫기" title="재생 종료 및 재생바 닫기"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></section>
   <div class="toast" id="toast" role="status"></div>
   <dialog id="dialog" aria-label="AIFECT"><div id="dialog-content"></div><button class="dialog-close" aria-label="닫기" id="dialog-close">×</button></dialog>
-<script defer src="icons.js"></script><script defer src="site-info.js"></script><script defer src="app.js"></script><script defer src="media-session.js"></script><script defer src="membership.js"></script><script defer src="billing.js"></script><script defer src="home.js"></script><script defer src="views.js"></script><script defer src="lyrics-core.js"></script><script defer src="alignment-core.js"></script><script defer src="alignment.js"></script><script defer src="lyrics.js"></script><script defer src="studio.js"></script><script defer src="karaoke-core.js"></script><script defer src="karaoke.js"></script><script defer src="library.js"></script><script defer src="queue-core.js"></script><script defer src="explorer.js"></script><script defer src="actions.js"></script>
+<script defer src="icons.js"></script><script defer src="site-info.js"></script><script defer src="app.js"></script><script defer src="media-session.js"></script><script defer src="membership.js"></script><script defer src="billing.js"></script><script defer src="home.js"></script><script defer src="views.js"></script><script defer src="lyrics-core.js"></script><script defer src="alignment-core.js"></script><script defer src="alignment.js"></script><script defer src="lyrics.js"></script><script defer src="studio.js"></script><script defer src="karaoke-core.js"></script><script defer src="karaoke.js"></script><script defer src="library.js"></script><script defer src="queue-core.js"></script><script defer src="explorer.js"></script><script defer src="browse.js"></script><script defer src="actions.js"></script>
 </body>
 </html>
