@@ -7,7 +7,11 @@ export const KARAOKE_MAX_SECONDS=600;
 // The creator's own synced lyrics are the only word source: returns the sung lines, or '' when there is nothing to align.
 export function karaokeLyrics(track){
  if(track.lyrics_mode!=='synced'||!track.lyrics)return '';
- try{return plainLyrics(parseLrc(track.lyrics,track.duration||1200).flatMap(c=>c.text.split('\n')).join('\n'));}catch{return '';}
+ try{
+  // Imported LRC often contains section headings; they are not sung words.
+  const lines=parseLrc(track.lyrics,track.duration||1200).flatMap(c=>c.text.split('\n')).map(s=>s.trim()).filter(s=>s&&!/^\[[^\]]+\]$/.test(s));
+  return plainLyrics(lines.join('\n'));
+ }catch{return '';}
 }
 
 const squash=s=>s.replace(/\s+/g,'');

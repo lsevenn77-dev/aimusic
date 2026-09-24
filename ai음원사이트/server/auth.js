@@ -2,6 +2,7 @@ import {createRemoteJWKSet,jwtVerify,SignJWT,importPKCS8} from 'jose';
 import {one,run,query,now,id,fail,str,json,rate} from './db.js';
 import {membership} from './membership.js';
 import {mobileAuthRoute,finishMobile} from './mobile-auth.js';
+import {nativeAuthRoute} from './native-auth.js';
 const enc=new TextEncoder();
 export const hash=async s=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',enc.encode(s))),x=>x.toString(16).padStart(2,'0')).join('');
 const cookie=(name,value,age,secure=true)=>`${name}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${age}${secure?'; Secure':''}`;
@@ -30,6 +31,7 @@ export function providers(env){return ['google','kakao','apple'].filter(p=>env[`
 export async function authRoute(req,env,path,user){
  const url=new URL(req.url),secure=url.protocol==='https:';
  const mobile=await mobileAuthRoute(req,env,path,user);if(mobile)return mobile;
+ const native=await nativeAuthRoute(req,env,path);if(native)return native;
  if(path==='/api/me')return json({user,admin:isAdmin(env,user),membership:await membership(env,user),providers:providers(env),googleClientId:env.GOOGLE_CLIENT_ID||null,emailEnabled:!!env.AUTH_PEPPER});
  if(path==='/api/auth/google/nonce'&&req.method==='POST'){
   if(!env.GOOGLE_CLIENT_ID)fail(503,'Google 로그인을 준비하고 있습니다.');

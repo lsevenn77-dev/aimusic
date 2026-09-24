@@ -24,11 +24,16 @@ class PlaybackService : MediaSessionService() {
  private lateinit var api:NativeApi
  private val worker=CoroutineScope(SupervisorJob()+Dispatchers.IO)
  private val handler=Handler(Looper.getMainLooper())
- private data class Listening(val id:String,val uri:String,val cookie:String,val limit:Double,var seconds:Double=0.0)
+ private data class Listening(val id:String,val uri:String,val cookie:String,val limit:Double,val preview:Boolean,var seconds:Double=0.0)
  private val resolved=ConcurrentHashMap<String,Listening>()
  private var lastTick=0L
  private var ticks=0
  private var reportingKey:String?=null
+ private var adListenedMs=0L
+ private var adDurationMs=0L
+ private var completionCounted=false
+ private var adLastTick=android.os.SystemClock.elapsedRealtime()
+ private var adWasPlaying=false
  override fun onCreate() {
   super.onCreate();api=NativeApi(this)
   val data=ResolvingDataSource.Factory(OkHttpDataSource.Factory(api.client)) { spec ->
@@ -41,7 +46,7 @@ class PlaybackService : MediaSessionService() {
    val entry=saved?:run {
     val response=api.blocking("/api/playback/$id","POST")
     Listening(response.getString("id"),Endpoint.url(response.getString("src")),NativeSession.cookie(this),
-     if(response.optBoolean("preview")) minOf(60.0,response.optDouble("duration",60.0)) else response.optDouble("duration",7200.0))
+     if(response.optBoolean("preview")) minOf(60.0,response.optDouble("duration",60.0)) else response.optDouble("duration",7200.0),response.optBoolean("preview"))
      .also { resolved[key]=it }
    }
    spec.withUri(android.net.Uri.parse(entry.uri))
@@ -51,10 +56,22 @@ class PlaybackService : MediaSessionService() {
    setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MUSIC).build(),true)
    setHandleAudioBecomingNoisy(true)
    addListener(object:Player.Listener {
-    override fun onIsPlayingChanged(isPlaying:Boolean) { if(!isPlaying) report() }
+    override fun onIsPlayingChanged(isPlaying:Boolean) { accrueAdListening();adWasPlaying=isPlaying;if(!isPlaying) report() }
     override fun onMediaItemTransition(item:MediaItem?,reason:Int) {
+     val automatic=reason==Player.MEDIA_ITEM_TRANSITION_REASON_AUTO||reason==Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT
+     if(automatic)countCompletion()
      report(reportingKey)
      reportingKey=item?.localConfiguration?.uri?.toString()
+     adListenedMs=0;adDurationMs=0;completionCounted=false
+     adLastTick=android.os.SystemClock.elapsedRealtime()
+     if(automatic&&player.playWhenReady){
+      val next=player.currentMediaItem;val nextIndex=player.currentMediaItemIndex
+      SongAdBreaks.atBoundary({player.pause()}){if(player.currentMediaItem==next&&player.currentMediaItemIndex==nextIndex&&player.playbackState!=Player.STATE_IDLE)player.play()}
+     }
+    }
+    override fun onPlaybackStateChanged(state:Int){if(state==Player.STATE_ENDED)countCompletion()}
+    override fun onPositionDiscontinuity(old:Player.PositionInfo,new:Player.PositionInfo,reason:Int){
+     if(reason==Player.DISCONTINUITY_REASON_SEEK&&completionCounted&&new.positionMs<old.positionMs){completionCounted=false;adListenedMs=0}
     }
    })
   }
@@ -74,9 +91,25 @@ class PlaybackService : MediaSessionService() {
   override fun run() {
    val now=android.os.SystemClock.elapsedRealtime()
    val key=player.currentMediaItem?.localConfiguration?.uri?.toString()
+   if(player.duration>0)adDurationMs=player.duration
+   accrueAdListening()
    if(player.isPlaying && key!=null)resolved[key]?.let { it.seconds=minOf(it.limit,it.seconds+(now-lastTick).coerceIn(0,1500)/1000.0) }
    lastTick=now;if(++ticks%15==0)report();handler.postDelayed(this,1000)
   }
+ }
+ private fun countCompletion(){
+  if(completionCounted)return
+  accrueAdListening()
+  completionCounted=true
+  val key=reportingKey?:return
+  val entry=resolved[key]?:return
+  if(entry.cookie!=NativeSession.cookie(this))return
+  SongAdBreaks.completed(adListenedMs,adDurationMs,entry.preview)
+ }
+ private fun accrueAdListening(){
+  val now=android.os.SystemClock.elapsedRealtime()
+  if(adWasPlaying)adListenedMs+=(now-adLastTick).coerceIn(0,1500)
+  adLastTick=now
  }
  private fun report(key:String?=player.currentMediaItem?.localConfiguration?.uri?.toString()) {
   if(key==null)return

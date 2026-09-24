@@ -26,6 +26,7 @@ object Endpoint {
 class ApiException(val status: Int, message: String): IOException(message)
 fun JSONArray?.objects(): List<JSONObject> = if(this == null) emptyList() else (0 until length()).mapNotNull { optJSONObject(it) }
 fun JSONObject.tracks(key: String = "tracks") = optJSONArray(key).objects().map { Song(it) }
+data class MusicCollection(val title:String,val caption:String,val tracks:List<Song>,val path:String?=null,val resultKey:String="tracks")
 data class Song(val raw: JSONObject) {
  val id=raw.optString("id")
  val title=raw.optString("title","제목 없음")
@@ -46,13 +47,16 @@ data class Song(val raw: JSONObject) {
  }
 }
 class NativeApi(private val context: Context) {
+ @Volatile private var googleBinding=""
+ fun clearGoogleBinding(){googleBinding=""}
  val client=OkHttpClient.Builder().connectTimeout(15,TimeUnit.SECONDS).readTimeout(25,TimeUnit.SECONDS)
   .followRedirects(false).followSslRedirects(false)
   .addInterceptor { chain ->
    val r=chain.request()
    if(!r.url.toString().startsWith(Endpoint.origin+"/")) throw IOException("허용되지 않은 서버 주소예요.")
-   chain.proceed(r.newBuilder().header("Origin",Endpoint.origin).header("Cookie",NativeSession.cookie(context))
-    .header("User-Agent","AIFECT-Android/2.0").build())
+   val jar=listOf(NativeSession.cookie(context),googleBinding.takeIf {r.url.encodedPath.startsWith("/api/auth/google/")}?:"").filter{it.isNotBlank()}.joinToString("; ")
+   chain.proceed(r.newBuilder().header("Origin",Endpoint.origin).header("Cookie",jar)
+    .header("User-Agent","AIFECT-Android/${BuildConfig.VERSION_NAME}").build())
   }.build()
  fun blocking(path:String, method:String="GET", data:JSONObject?=null):JSONObject {
   val body=if(method in listOf("GET","HEAD")) null else (data?.toString()?:"{}").toRequestBody("application/json; charset=utf-8".toMediaType())
@@ -62,6 +66,9 @@ class NativeApi(private val context: Context) {
    val text=source?.readUtf8()
    val result=try { JSONObject(text?:"{}") }catch(e:Exception){throw IOException("서버 응답을 읽지 못했어요. 잠시 후 다시 시도해주세요.")}
    if(!r.isSuccessful)throw ApiException(r.code,result.optString("error","요청을 완료하지 못했어요."))
+   if(path.startsWith("/api/auth/google/"))r.headers.values("Set-Cookie").firstOrNull{it.startsWith("aifect_google_oauth=")}?.let {
+    googleBinding=it.substringBefore(";").takeUnless{it=="aifect_google_oauth="}?:""
+   }
    r.headers.values("Set-Cookie").firstOrNull { it.startsWith("aifect_session=") }?.let {
     NativeSession.put(context,"cookie",it.substringBefore(";").takeUnless { it=="aifect_session=" }?:"")
    }

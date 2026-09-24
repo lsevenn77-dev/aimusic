@@ -36,7 +36,7 @@ test('karaoke lyrics come only from the creator synced lyrics and word output mu
 
 test('consent queues a separation; the worker builds MR and word timings that only the owner can hear',async t=>{
  const {sql,call,internal,owner,BUCKET}=await karaokeFixture(t);
- sql.exec("UPDATE tracks SET karaoke_at=0 WHERE id='one'");
+ sql.exec("UPDATE tracks SET karaoke_at=0,lyrics='[00:00][Intro]\n[00:01]처음 가사\n[00:03]\n[00:04][Chorus]\n[00:05]다음 가사' WHERE id='one'");
  assert.equal((await call('/api/studio/tracks/one/karaoke','POST',{})).status,409,'no build without consent');
  assert.equal((await call('/api/uploads/one/karaoke','POST',{accept:true})).status,200);
  const job=(await internal('/internal/karaoke/claim')).body.job;

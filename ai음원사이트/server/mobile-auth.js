@@ -43,6 +43,12 @@ export async function mobileAuthRoute(req,env,path,user){
   const ticket=url.searchParams.get('ticket')||'';
   if(!ticket||!await one(env,"SELECT state FROM oauth_states WHERE state=? AND provider='mobile' AND nonce='' AND expires>?",await hash(ticket),now()))fail(400,'앱에서 로그인을 다시 시작해주세요.');
   const enabled=providers(env);
+  // Android opens only Apple's provider screen in a Custom Tab. The binding and
+  // verifier-protected exchange remain the same as the existing browser handoff.
+  if(url.searchParams.get('provider')==='apple'){
+   if(!enabled.includes('apple'))fail(503,'Apple 로그인을 준비하고 있습니다.');
+   return new Response(null,{status:302,headers:{location:'/api/auth/apple','set-cookie':binding(ticket,secure),'cache-control':'no-store'}});
+  }
   const response=page(`<h1>aifect</h1><h2>음악으로 이어지는 우리</h2><p>AIFECT 앱에 로그인합니다. 인증이 끝나면 앱으로 돌아가요.</p>
   ${user?`<p>${escape(user.name)} · ${escape(user.email)}</p><button id="continue">이 계정으로 계속하기</button>`:''}
   ${enabled.includes('google')&&env.GOOGLE_CLIENT_SECRET?'<a class="button" href="/api/auth/google">Google로 계속하기</a>':''}

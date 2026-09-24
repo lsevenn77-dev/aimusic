@@ -7,21 +7,41 @@ android {
  defaultConfig {
   applicationId project.hasProperty('aifectTest') ? 'kr.co.aifect.app.test' : 'kr.co.aifect.app'
   manifestPlaceholders = [appLabel: project.hasProperty('aifectTest') ? 'AIFECT 테스트' : 'AIFECT']
+  // Public native platform identifier; never put a client secret in this app.
+  def kakaoKey = providers.gradleProperty('aifectKakaoKey').getOrElse('464b5fae1d7bb9ec91c3a772c9b1b80d')
+  buildConfigField 'String', 'KAKAO_NATIVE_KEY', '"' + kakaoKey + '"'
+  manifestPlaceholders.kakaoScheme = 'kakao' + kakaoKey
+  manifestPlaceholders.admobAppId = 'ca-app-pub-3940256099942544~3347511713'
+  buildConfigField 'boolean', 'AD_NETWORK_ENABLED', project.hasProperty('aifectTest') ? 'false' : 'true'
+  buildConfigField 'String', 'ADMOB_INTERSTITIAL_ID', '"ca-app-pub-3940256099942544/1033173712"'
   minSdk 26
   targetSdk 36
-  versionCode 3
-  versionName '2.0.0'
+  versionCode 5
+  versionName '2.1.1'
   testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
  }
  buildFeatures { buildConfig true; compose true }
  compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
  kotlinOptions { jvmTarget = '17' }
- buildTypes { release { minifyEnabled false } }
+ buildTypes {
+  release {
+   minifyEnabled false
+   manifestPlaceholders.admobAppId = 'ca-app-pub-5910265378731607~4925860289'
+   buildConfigField 'String', 'ADMOB_INTERSTITIAL_ID', '"ca-app-pub-5910265378731607/4219283278"'
+  }
+ }
  // Website assets and the JavaScript runtime are not packaged.
  sourceSets.main.assets.srcDirs = []
  packaging.resources.excludes += ['META-INF/AL2.0', 'META-INF/LGPL2.1']
 }
 dependencies {
+ implementation 'com.google.android.gms:play-services-ads:25.5.0'
+ implementation 'com.google.android.ump:user-messaging-platform:4.0.0'
+ implementation 'androidx.credentials:credentials:1.6.0'
+ implementation 'androidx.credentials:credentials-play-services-auth:1.6.0'
+ implementation 'com.google.android.libraries.identity.googleid:googleid:1.1.1'
+ implementation 'com.kakao.sdk:v2-user:2.25.0'
+ implementation 'androidx.browser:browser:1.9.0'
  implementation 'androidx.appcompat:appcompat:1.7.1'
  implementation 'androidx.core:core-splashscreen:1.2.0'
  implementation 'androidx.activity:activity-compose:1.10.1'

@@ -26,6 +26,17 @@ class MusicModel(app:Application):AndroidViewModel(app) {
  var error by mutableStateOf<String?>(null)
  var notice by mutableStateOf<String?>(null)
  var home by mutableStateOf<List<Song>>(emptyList())
+ var latest by mutableStateOf<List<Song>>(emptyList())
+ var recentCovers by mutableStateOf<List<Song>>(emptyList())
+ var listenPage by mutableStateOf("추천")
+ var libraryPage by mutableStateOf("좋아요")
+ var collection by mutableStateOf<MusicCollection?>(null)
+ var collectionBusy by mutableStateOf(false)
+ var collectionError by mutableStateOf<String?>(null)
+ var searchLists by mutableStateOf<List<JSONObject>>(emptyList())
+ var myTracks by mutableStateOf<List<Song>>(emptyList())
+ var studioBusy by mutableStateOf(false)
+ var studioError by mutableStateOf<String?>(null)
  var singable by mutableStateOf<List<Song>>(emptyList())
  var feed by mutableStateOf<List<Song>>(emptyList())
  var publicLists by mutableStateOf<List<JSONObject>>(emptyList())
@@ -38,6 +49,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
  var user by mutableStateOf<JSONObject?>(null)
  var membership by mutableStateOf(JSONObject())
  var providers by mutableStateOf<List<String>>(emptyList())
+ var googleClientId by mutableStateOf("")
  var emailEnabled by mutableStateOf(false)
  var likes by mutableStateOf<List<Song>>(emptyList())
  var playlists by mutableStateOf<List<JSONObject>>(emptyList())
@@ -69,17 +81,18 @@ class MusicModel(app:Application):AndroidViewModel(app) {
  var lyricsAccess by mutableStateOf("line")
  var controller:MediaController?=null
  private val songs=mutableMapOf<String,Song>()
- private var browseJob:Job?=null
  private var searchJob:Job?=null
  private var detailJob:Job?=null
  private var feedJob:Job?=null
+ private var collectionJob:Job?=null
+ private var studioJob:Job?=null
  private var authJob:Job?=null
  private var lyricUntil=-1.0
  private var lyricFrom=-1.0
  private var lyricId=""
  private var lyricExpiry=Long.MAX_VALUE
- private var currentFilter=""
- private var feedFilter=""
+ var feedFilter by mutableStateOf("전체")
+    private set
  @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
  private val future=MediaController.Builder(app,SessionToken(app,ComponentName(app,PlaybackService::class.java))).buildAsync()
 
@@ -119,69 +132,129 @@ class MusicModel(app:Application):AndroidViewModel(app) {
     listOf(
      async { runCatching { loadMe() }.onFailure { error="계정 상태를 불러오지 못했어요." } },
      async { runCatching { home=api.call("/api/catalog?section=tracks&chart=top").tracks() }.onFailure { error=it.message } },
+     async { runCatching { latest=api.call("/api/catalog?section=tracks&limit=40").tracks() }.onFailure { error="최신곡을 불러오지 못했어요. 새로고침해주세요." } },
+     async { runCatching { recentCovers=api.call("/api/community?kind=cover").tracks() }.onFailure { error="커버곡을 불러오지 못했어요. 새로고침해주세요." } },
      async { runCatching { singable=api.call("/api/karaoke").tracks() }.onFailure { error=it.message } },
-     async { runCatching { feed=api.call("/api/community").tracks() }.onFailure { error=it.message } },
+     async { val filter=feedFilter;runCatching { val result=api.call(communityPath(filter)).tracks();if(feedFilter==filter)feed=result }.onFailure { error=it.message } },
      async { runCatching { publicLists=api.call("/api/playlists?sort=popular").optJSONArray("playlists").objects() } },
      async { runCatching { people=api.call("/api/catalog?section=producers&limit=20").optJSONArray("producers").objects() } }
     ).awaitAll()
    }
-   currentFilter="";feedFilter="";loading=false;refreshing=false
+   loading=false;refreshing=false
   }
  }
  suspend fun loadMe(){
   val me=api.call("/api/me");user=me.optJSONObject("user");membership=me.optJSONObject("membership")?:JSONObject()
+  SongAdBreaks.configure(getApplication(),user?.optString("id"),membership.optLong("premium_until",0))
   providers=me.optJSONArray("providers")?.let { a->(0 until a.length()).map { a.getString(it) } }?:emptyList()
   emailEnabled=me.optBoolean("emailEnabled")
-  if(user!=null)loadLibrary() else {likes=emptyList();playlists=emptyList();history=emptyList();follows=emptyList();selectedList=null;listSongs=emptyList()}
+  googleClientId=me.optString("googleClientId","")
+  if(user!=null)loadLibrary() else {likes=emptyList();playlists=emptyList();history=emptyList();follows=emptyList();selectedList=null;listSongs=emptyList();myTracks=emptyList();studioJob?.cancel();dismissCollection();if(feedFilter=="팔로잉")community("전체")}
  }
  suspend fun loadLibrary(){
   val data=api.call("/api/library");likes=data.tracks("likes");playlists=data.optJSONArray("collections").objects();follows=data.optJSONArray("follows").objects()
   history=api.call("/api/history").tracks()
  }
- fun browse(filter:String){
-  currentFilter=filter;browseJob?.cancel()
-  browseJob=viewModelScope.launch {
-   try{home=api.call(when { filter.startsWith("mood:")->"/api/discovery?mood="+filter.removePrefix("mood:");filter=="최신"->"/api/catalog?section=tracks";filter in listOf("","인기")->"/api/catalog?section=tracks&chart=top";else->"/api/catalog?section=tracks&genre="+URLEncoder.encode(filter,"UTF-8") }).tracks()}
-   catch(e:Exception){if(e !is CancellationException)failure(e)}
+ fun selectTab(index:Int) {
+  tab=index
+  if(index==4 && user!=null)action{loadLibrary()}
+ }
+ fun library(page:String){libraryPage=page;selectTab(4)}
+ fun showCollection(title:String,tracks:List<Song>,caption:String=""){
+  collectionJob?.cancel();collectionBusy=false;collectionError=null;collection=MusicCollection(title,caption,tracks)
+ }
+ fun dismissCollection(){collectionJob?.cancel();collection=null;collectionBusy=false;collectionError=null}
+ fun browseCollection(title:String,path:String,caption:String="",resultKey:String="tracks"){
+  collectionJob?.cancel();collection=MusicCollection(title,caption,emptyList(),path,resultKey);collectionBusy=true;collectionError=null
+  collectionJob=viewModelScope.launch {
+   try{val tracks=api.call(path).tracks(resultKey);collection=MusicCollection(title,caption,tracks,path,resultKey)}
+   catch(e:Exception){if(e !is CancellationException)collectionError=e.message?:"음악을 불러오지 못했어요."}
+   finally{if(isActive)collectionBusy=false}
+  }
+ }
+ fun openCovers(song:Song){detail=null;browseCollection("${song.title} · 다른 목소리","/api/tracks/${song.id}/covers","같은 원곡을 각자의 목소리로 부른 커버곡","covers")}
+ fun openOriginal(song:Song)=action{
+  val original=Song(api.call("/api/tracks/${song.raw.getString("original_id")}").getJSONObject("track"));openSong(original)
+ }
+ fun loadStudio(){
+  if(!authenticated())return
+  studioJob?.cancel();studioBusy=true;studioError=null
+  studioJob=viewModelScope.launch {
+   try{
+    val data=api.call("/api/studio");val profile=data.optJSONObject("producer");val artists=data.optJSONArray("artists").objects()
+    myTracks=data.tracks().map {t->Song(JSONObject(t.raw.toString()).apply{
+     put("producer",profile?.optString("name")?:user?.optString("name"));put("producer_id",profile?.optString("id")?:"")
+     put("artist",if(t.cover)profile?.optString("name") else artists.find{it.optString("id")==t.raw.optString("artist_id")}?.optString("name")?:"")
+    })}
+   }catch(e:Exception){if(e !is CancellationException)studioError=e.message}
+   finally{if(isActive)studioBusy=false}
   }
  }
  fun searchFor(value:String){
   search=value;searchJob?.cancel();searched=false
-  if(value.isBlank()){searchResults=emptyList();searchPeople=emptyList();searching=false;return}
+  searchResults=emptyList();searchPeople=emptyList();searchLists=emptyList()
+  if(value.isBlank()){searching=false;return}
   searchJob=viewModelScope.launch {
    searching=true;delay(350)
-   try{val data=api.call("/api/search?q="+URLEncoder.encode(value,"UTF-8"));if(search==value){searchResults=data.tracks();searchPeople=data.optJSONArray("producers").objects().map{it.put("profile_kind","producer")}+data.optJSONArray("artists").objects().map{it.put("profile_kind","artist")};searched=true}}
+   try{val data=api.call("/api/search?q="+URLEncoder.encode(value,"UTF-8"));if(search==value){searchResults=data.tracks();searchPeople=data.optJSONArray("producers").objects().map{it.put("profile_kind","producer")}+data.optJSONArray("artists").objects().map{it.put("profile_kind","artist")};searchLists=data.optJSONArray("playlists").objects();searched=true}}
    catch(e:Exception){if(e !is CancellationException)failure(e)}
    finally { if(search==value)searching=false }
   }
  }
  fun community(filter:String){
-  feedFilter=filter;feedJob?.cancel();if(filter=="팔로잉"&&!authenticated())return
-  feedJob=viewModelScope.launch { try{feed=api.call("/api/community"+when(filter){"커버곡"->"?kind=cover";"제작곡"->"?kind=original";"팔로잉"->"?following=1";else->""}).tracks()}catch(e:Exception){if(e !is CancellationException)failure(e)} }
+  if(filter=="팔로잉"&&!authenticated())return
+  feedFilter=filter;feedJob?.cancel();feed=emptyList()
+  feedJob=viewModelScope.launch { try{feed=api.call(communityPath(filter)).tracks()}catch(e:Exception){if(e !is CancellationException)failure(e)} }
  }
- fun play(song:Song,queue:List<Song> = listOf(song)){
+ private fun communityPath(filter:String)="/api/community"+when(filter){"커버곡"->"?kind=cover";"제작곡"->"?kind=original";"팔로잉"->"?following=1";else->""}
+ fun playAll(tracks:List<Song>,shuffled:Boolean=false){tracks.takeIf{it.isNotEmpty()}?.let{play(if(shuffled)it.random() else it.first(),it,shuffled)}}
+ fun play(song:Song,queue:List<Song> = listOf(song),shuffled:Boolean=false){
   val c=controller?:run {notice="플레이어를 준비하고 있어요.";return}
   songs.putAll(queue.associateBy {it.id});songs[song.id]=song
   val entries=queue.ifEmpty {listOf(song)}.distinctBy {it.id}
   val index=entries.indexOfFirst {it.id==song.id}.coerceAtLeast(0)
   val items=entries.map { t->MediaItem.Builder().setMediaId(t.id).setMediaMetadata(MediaMetadata.Builder().setTitle(t.title)
    .setArtist(t.artist).setArtworkUri(t.art?.let(Uri::parse)).setExtras(android.os.Bundle().apply {putString("song",t.raw.toString())}).build()).build() }
-  playerError=null;c.setMediaItems(items,index,0);c.prepare();c.play()
+  SongAdBreaks.atBoundary({c.pause()}){playerError=null;c.shuffleModeEnabled=shuffled;c.setMediaItems(items,index,0);c.prepare();c.play()}
  }
- fun toggle(){controller?.let {if(it.isPlaying)it.pause() else {if(it.playbackState==Player.STATE_ENDED)it.seekTo(0);if(it.playbackState==Player.STATE_IDLE)it.prepare();it.play()}}}
+ fun toggle(){controller?.let {c->
+  if(c.isPlaying)c.pause()
+  else if(c.playbackState==Player.STATE_ENDED)SongAdBreaks.atBoundary({}){c.seekTo(0);c.play()}
+  else {if(c.playbackState==Player.STATE_IDLE)c.prepare();c.play()}
+ }}
  fun closePlayer(){controller?.stop();controller?.clearMediaItems();current=null;fullPlayer=false;lyricId="";lyricRows=emptyList()}
  fun login(email:String,password:String,name:String,register:Boolean) = action {
   api.call(if(register)"/api/auth/register" else "/api/auth/login","POST",payload("email" to email.trim(),"password" to password,"name" to name.trim()))
   closePlayer();loadMe();showLogin=false;notice="반가워요, ${user?.optString("name")}님!"
  }
- fun logout()=action {api.call("/api/auth/logout","POST");NativeSession.put(getApplication(),"cookie","");NativeSession.put(getApplication(),"ticket","");NativeSession.put(getApplication(),"verifier","");closePlayer();loadMe();showAccount=false}
+ fun logout()=action {
+  api.call("/api/auth/logout","POST");NativeSession.put(getApplication(),"cookie","");NativeSession.put(getApplication(),"ticket","");NativeSession.put(getApplication(),"verifier","");api.clearGoogleBinding()
+  runCatching{androidx.credentials.CredentialManager.create(getApplication()).clearCredentialState(androidx.credentials.ClearCredentialStateRequest())}
+  if(BuildConfig.KAKAO_NATIVE_KEY.isNotBlank())runCatching{com.kakao.sdk.user.UserApiClient.instance.logout{}}
+  closePlayer();loadMe();showAccount=false
+ }
+ fun nativeLogin(provider:String,authenticate:suspend (String,String)->String)=action {
+  // A cancelled account picker must not open a browser or leave a pending login.
+  try {
+   val nonce=if(provider=="google")api.call("/api/auth/google/nonce","POST",payload()).getString("nonce") else ""
+   val token=authenticate(googleClientId,nonce)
+   val body=if(provider=="google")payload("credential" to token) else payload("accessToken" to token)
+   api.call("/api/auth/$provider/token","POST",body)
+   NativeSession.put(getApplication(),"ticket","");NativeSession.put(getApplication(),"verifier","")
+   closePlayer();loadMe();showLogin=false;notice="반가워요, ${user?.optString("name")}님!"
+  }catch(_:SignInCancelled) { /* Explicit cancellation is not an error. */ }
+  catch(e:ApiException){throw e}
+  catch(e:CancellationException){throw e}
+  catch(_:Exception){notice="계정 인증을 완료하지 못했어요. 다시 시도해주세요."}
+  finally{api.clearGoogleBinding()}
+ }
  fun socialLogin(open:(String)->Unit)=action {
   val bytes=ByteArray(48);SecureRandom().nextBytes(bytes)
   val verifier=Base64.encodeToString(bytes,Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP)
   val challenge=MessageDigest.getInstance("SHA-256").digest(verifier.toByteArray()).joinToString(""){"%02x".format(it)}
   val result=api.call("/api/auth/mobile/start","POST",payload("challenge" to challenge))
   NativeSession.put(getApplication(),"verifier",verifier);NativeSession.put(getApplication(),"ticket",result.getString("ticket"))
-  open(result.getString("url"))
+  open(result.getString("url")+"&provider=apple")
  }
  fun finishLogin(uri:Uri?=null){
   val ticket=NativeSession.get(getApplication(),"ticket");val verifier=NativeSession.get(getApplication(),"verifier")
@@ -211,6 +284,8 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   val liked=likes.any {it.id==song.id};api.call("/api/tracks/${song.id}/like",if(liked)"DELETE" else "PUT");loadLibrary()
   val fresh=Song(api.call("/api/tracks/${song.id}").getJSONObject("track"))
   feed=feed.map {if(it.id==song.id)fresh else it};home=home.map {if(it.id==song.id)fresh else it}
+  latest=latest.map{if(it.id==song.id)fresh else it};recentCovers=recentCovers.map{if(it.id==song.id)fresh else it}
+  collection=collection?.let{it.copy(tracks=it.tracks.map{t->if(t.id==song.id)fresh else t})}
   if(detail?.id==song.id)detail=fresh
  }}
  fun comment(body:String,onSuccess:()->Unit={}) {if(!authenticated()||body.isBlank())return;val song=detail?:return;action {

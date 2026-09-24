@@ -34,6 +34,14 @@ async function token(nonce,overrides={},key=keys.privateKey){
 
 test('Google redirect authentication uses signed identity and browser-bound single-use state',async t=>{
  t.mock.method(globalThis,'fetch',async url=>{assert.equal(String(url),'https://www.googleapis.com/oauth2/v3/certs');return Response.json({keys:[jwk]});});
+ await t.test('native Google token uses the same nonce binding and cannot replay',async t=>{
+  const f=fixture(t),state=await f.start(),credential=await token(state.nonce);
+  const options={cookie:state.cookie,type:'application/json',body:JSON.stringify({credential})};
+  assert.equal((await f.send('/api/auth/google/token',{...options,cookie:''})).status,400);
+  const result=await f.send('/api/auth/google/token',options);assert.equal(result.status,200);
+  assert.equal((await result.json()).user.provider,'google');assert.match(result.headers.get('set-cookie'),/aifect_session=/);
+  assert.equal((await f.send('/api/auth/google/token',options)).status,400);
+ });
  await t.test('valid Google POST creates a secure session and returning login reuses the identity',async t=>{
   const f=fixture(t),state=await f.start(),signed=await token(state.nonce);
   const result=await f.post(state,signed);assert.equal(result.status,303);assert.equal(result.headers.get('location'),'/#account?welcome=1');
@@ -73,6 +81,11 @@ test('Apple signs fresh client secrets and verifies the browser-bound callback',
  const checked=await jwtVerify(secret,signing.publicKey,{issuer:'TESTTEAM',audience:'https://appleid.apple.com',subject:env.APPLE_CLIENT_ID});
  assert.equal(checked.protectedHeader.kid,'TESTKEY');assert.equal(checked.payload.exp-checked.payload.iat,300);
  const f=fixture(t,env);
+ const mobile=await f.send('/api/auth/mobile/start',{type:'application/json',body:JSON.stringify({challenge:'a'.repeat(64)})});
+ const {ticket}=await mobile.json();
+ const direct=await f.send('/api/auth/mobile/browser?ticket='+ticket+'&provider=apple',{method:'GET'});
+ assert.equal(direct.status,302);assert.equal(direct.headers.get('location'),'/api/auth/apple');assert.match(direct.headers.get('set-cookie'),/aifect_mobile=.*HttpOnly/);
+ assert.equal((await f.send('/api/auth/mobile/browser?ticket=invalid&provider=apple',{method:'GET'})).status,400);
  const start=await f.send('/api/auth/apple',{method:'GET'}),dest=new URL(start.headers.get('location'));
  assert.equal(dest.origin,'https://appleid.apple.com');assert.equal(dest.searchParams.get('response_mode'),'form_post');
  const cookie=start.headers.get('set-cookie').split(';')[0],state=dest.searchParams.get('state');
