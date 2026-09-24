@@ -30,7 +30,7 @@ import java.util.concurrent.*;
 
 /** A native singing room, launched from the signed-in song page. No microphone samples cross JS. */
 public class KaraokeActivity extends AppCompatActivity {
-    private static final int LIME=Color.rgb(198,247,126),BG=Color.rgb(16,18,19),CARD=Color.rgb(28,32,32),MUTED=Color.rgb(164,178,180);
+    private static final int PINK=Color.rgb(242,161,198),BG=Color.rgb(16,17,20),CARD=Color.rgb(25,27,32),MUTED=Color.rgb(162,163,175);
     private final Handler ui=new Handler(Looper.getMainLooper());
     private final ExecutorService files=Executors.newSingleThreadExecutor();
     private enum State{LOADING,READY,COUNTDOWN,RECORDING,REVIEW,PLAYING,UPLOADING}
@@ -113,7 +113,7 @@ public class KaraokeActivity extends AppCompatActivity {
         content=new LinearLayout(this);content.setOrientation(LinearLayout.VERTICAL);content.setPadding(dp(22),dp(16),dp(22),dp(30));scroll.addView(content);root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));setContentView(root);
         ViewCompat.setOnApplyWindowInsetsListener(root,(v,insets)->{androidx.core.graphics.Insets b=insets.getInsets(WindowInsetsCompat.Type.systemBars());v.setPadding(b.left,b.top,b.right,b.bottom);return insets;});
         LinearLayout header=new LinearLayout(this);header.setGravity(Gravity.CENTER_VERTICAL);
-        TextView top=text("aifect  /  노래방",16,LIME);top.setTypeface(null,Typeface.BOLD);header.addView(top,new LinearLayout.LayoutParams(0,-2,1));
+        TextView top=text("AIFECT  /  노래방",18,PINK);top.setTypeface(androidx.core.content.res.ResourcesCompat.getFont(this,kr.co.aifect.app.R.font.manrope_extralight));top.setLetterSpacing(.1f);header.addView(top,new LinearLayout.LayoutParams(0,-2,1));
         Button close=button("닫기",false);close.setOnClickListener(v->getOnBackPressedDispatcher().onBackPressed());header.addView(close);content.addView(header);
         LinearLayout monitoring=box();
         monitor=new SwitchCompat(this);monitor.setText("이어폰으로 내 목소리 듣기");monitor.setTextColor(Color.WHITE);monitor.setTextSize(15);monitor.setPadding(0,dp(14),0,dp(14));
@@ -133,7 +133,7 @@ public class KaraokeActivity extends AppCompatActivity {
         LinearLayout lyrics=box();previous=text("",15,MUTED);line=text("♪",29,Color.WHITE);next=text("",15,MUTED);
         line.setTypeface(null,Typeface.BOLD);line.setMinHeight(dp(100));line.setGravity(Gravity.CENTER);previous.setGravity(Gravity.CENTER);next.setGravity(Gravity.CENTER);
         lyrics.addView(previous);lyrics.addView(line);lyrics.addView(next);add(lyrics,20);
-        progress=new ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);progress.setMax(1000);progress.setProgressTintList(ColorStateList.valueOf(LIME));add(progress,14);
+        progress=new ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);progress.setMax(1000);progress.setProgressTintList(ColorStateList.valueOf(PINK));add(progress,14);
         clock=text("0:00",13,MUTED);add(clock,4);
         syncFields=box();syncFields.addView(text("들으면서 싱크 맞추기",18,Color.WHITE));
         syncFields.addView(text("녹음 들어보기를 누른 뒤 조절하세요. 목소리가 늦게 들리면 빠르게, 먼저 들리면 느리게 맞춰주세요. 재생 중에도 바로 반영돼요.",13,MUTED));
@@ -211,7 +211,7 @@ public class KaraokeActivity extends AppCompatActivity {
             JSONObject w=parts.optJSONObject(i);if(w==null)continue;if(shown.length()>0)shown.append(' ');int at=shown.length();shown.append(w.optString("t"));
             double start=w.optDouble("s"),end=Math.max(start+.05,w.optDouble("e"));
             int filled=(int)Math.round(Math.max(0,Math.min(1,(seconds-start)/(end-start)))*(shown.length()-at));
-            if(filled>0)shown.setSpan(new ForegroundColorSpan(LIME),at,at+filled,Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            if(filled>0)shown.setSpan(new ForegroundColorSpan(PINK),at,at+filled,Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         }
         line.setText(shown);
     }
@@ -246,11 +246,11 @@ public class KaraokeActivity extends AppCompatActivity {
     private TextView text(String value,int sp,int color){TextView v=new TextView(this);v.setText(value);v.setTextSize(sp);v.setTextColor(color);v.setLineSpacing(dp(4),1);return v;}
     private void add(View v,int top){LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);p.topMargin=dp(top);content.addView(v,p);}
     private LinearLayout box(){LinearLayout v=new LinearLayout(this);v.setOrientation(LinearLayout.VERTICAL);v.setPadding(dp(18),dp(18),dp(18),dp(18));GradientDrawable bg=new GradientDrawable();bg.setColor(CARD);bg.setCornerRadius(dp(18));v.setBackground(bg);return v;}
-    private Button button(String label,boolean primary){Button b=new Button(this);b.setText(label);b.setAllCaps(false);b.setTextColor(primary?BG:Color.WHITE);b.setTextSize(16);b.setMinHeight(dp(52));b.setBackgroundTintList(ColorStateList.valueOf(primary?LIME:CARD));return b;}
-    private CheckBox check(String label){CheckBox c=new CheckBox(this);c.setText(label);c.setTextColor(MUTED);c.setTextSize(13);c.setButtonTintList(ColorStateList.valueOf(LIME));return c;}
+    private Button button(String label,boolean primary){Button b=new Button(this);b.setText(label);b.setAllCaps(false);b.setTextColor(primary?BG:Color.WHITE);b.setTextSize(16);b.setMinHeight(dp(52));b.setBackgroundTintList(ColorStateList.valueOf(primary?PINK:CARD));return b;}
+    private CheckBox check(String label){CheckBox c=new CheckBox(this);c.setText(label);c.setTextColor(MUTED);c.setTextSize(13);c.setButtonTintList(ColorStateList.valueOf(PINK));return c;}
     private SeekBar slider(LinearLayout parent,String name,int max,int initial,String unit,int displayOffset){
         TextView label=text(name+"  "+(initial+displayOffset)+unit,14,MUTED);label.setPadding(0,dp(13),0,0);parent.addView(label);
-        SeekBar bar=new SeekBar(this);bar.setMax(max);bar.setProgress(initial);bar.setContentDescription(name);bar.setProgressTintList(ColorStateList.valueOf(LIME));bar.setThumbTintList(ColorStateList.valueOf(LIME));bar.setMinimumHeight(dp(44));parent.addView(bar,new LinearLayout.LayoutParams(-1,dp(44)));
+        SeekBar bar=new SeekBar(this);bar.setMax(max);bar.setProgress(initial);bar.setContentDescription(name);bar.setProgressTintList(ColorStateList.valueOf(PINK));bar.setThumbTintList(ColorStateList.valueOf(PINK));bar.setMinimumHeight(dp(44));parent.addView(bar,new LinearLayout.LayoutParams(-1,dp(44)));
         bar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){public void onStartTrackingTouch(SeekBar b){}public void onStopTrackingTouch(SeekBar b){}public void onProgressChanged(SeekBar b,int value,boolean user){label.setText(name+"  "+(value+displayOffset)+unit);applySettings();}});return bar;
     }
 }

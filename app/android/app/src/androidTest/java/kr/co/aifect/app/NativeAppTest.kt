@@ -89,6 +89,7 @@ class NativeAppTest {
    c.getOutputStream().write(result)
   }}catch(_:IOException){} } }catch(e:Exception){if(!server.isClosed)throw e} }
   screen=ActivityScenario.launch(Intent(context,MainActivity::class.java).putExtra("testOrigin","http://127.0.0.1:${server.localPort}"))
+  screen.onActivity { it.window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) }
   waitText("바로 듣기")
  }
  @After fun tearDown(){
@@ -108,7 +109,7 @@ class NativeAppTest {
    assertFalse(hasWeb(a.window.decorView))
   }
   screenshot("native-listen.png")
-  ui.onNodeWithTag("listen-scroll").performScrollToNode(hasText("지금 많이 듣는 음악"));screenshot("native-listen-shelves.png")
+  ui.onNodeWithTag("listen-scroll").performScrollToNode(hasText("이번엔 내 목소리로"));screenshot("native-listen-shelves.png")
   ui.onNodeWithText("검색").performClick();waitText("발견하는 즐거움");screenshot("native-search.png")
   ui.onNodeWithText("부르기").performClick();waitText("여기가 나의 작은 무대");screenshot("native-sing.png")
   ui.onNodeWithText("커뮤니티").performClick();waitText("음악으로, 우리");ui.onNodeWithText("커버곡").assertExists();ui.onNodeWithText("제작곡").assertExists();screenshot("native-community.png")
@@ -172,7 +173,7 @@ class NativeAppTest {
   ui.onNodeWithText("밤의 산책").assertExists()
   ui.onNodeWithContentDescription("목록 닫기").performClick()
   ui.onNodeWithText("듣기").performClick()
-  ui.onNodeWithText("오늘의 발견").assertExists()
+  ui.onNodeWithText("오늘의 새로운 발견").assertExists()
   ui.onNodeWithText("차트").performClick();waitText("AIFECT 인기곡")
   ui.onNodeWithText("최신곡").performClick();waitText("가장 최근에 공개된 제작곡부터 만나보세요")
   ui.onNodeWithText("밤의 산책").assertExists()

@@ -40,6 +40,7 @@ data class Song(val raw: JSONObject) {
  val comments=raw.optInt("comments")
  val plays=raw.optInt("plays")
  val cover=raw.optString("kind")=="cover"
+ val credit get() = (if(cover) producer else artist.takeUnless { it.isBlank() || it in setOf("없음","미등록") } ?: producer).ifBlank { "AIFECT" }
  val art: String? get() {
   val own=raw.optInt("has_cover")>0
   val original=cover && raw.optInt("original_has_cover")>0

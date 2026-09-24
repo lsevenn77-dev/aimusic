@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <!-- Matches the website's thin A mark; the artwork stays inside the adaptive safe area. -->
+    <path android:pathData="M31,76 L54,33 L77,76 M40,61 L68,61"
+        android:fillColor="@android:color/transparent" android:strokeWidth="3.2"
+        android:strokeLineCap="round" android:strokeLineJoin="round">
+        <aapt:attr name="android:strokeColor">
+            <gradient android:startX="31" android:startY="40" android:endX="77" android:endY="68" android:type="linear">
+                <item android:offset="0" android:color="#F2A1C6" />
+                <item android:offset="0.48" android:color="#D6B5ED" />
+                <item android:offset="1" android:color="#8CDCE2" />
+            </gradient>
+        </aapt:attr>
+    </path>
+</vector>
