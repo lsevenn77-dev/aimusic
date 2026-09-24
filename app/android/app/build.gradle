@@ -4,7 +4,9 @@ android {
     namespace = "kr.co.aifect.app"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "kr.co.aifect.app"
+        // `-PaifectTest` builds a separate "AIFECT 테스트" app (for a local dev server) installable next to the real one.
+        applicationId project.hasProperty('aifectTest') ? "kr.co.aifect.app.test" : "kr.co.aifect.app"
+        manifestPlaceholders = [appLabel: project.hasProperty('aifectTest') ? "AIFECT 테스트" : "AIFECT"]
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
