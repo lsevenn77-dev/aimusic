@@ -3,6 +3,7 @@
 // AudioContext clock, so only device latency (earphones, Bluetooth) is left for the sync slider.
 let sing=null;
 const K=()=>window.AifectKaraoke;
+const nativeSinging=()=>window.Capacitor?.isNativePlatform?.()&&window.Capacitor.Plugins?.AifectKaraoke;
 
 if(inApp){const charts=document.querySelector('.nav-link[data-view="charts"]');charts?.insertAdjacentHTML('afterend','<a href="#karaoke" class="nav-link" data-view="karaoke"><i data-icon="mic"></i>노래방</a>');icons();}
 
@@ -27,7 +28,7 @@ function singHTML(d){
  <div class="sing-progress"><div id="sing-bar"></div></div><div class="sing-time"><span id="sing-now">0:00</span><span>${time(t.duration)}</span></div>
  <div id="sing-panel">${singStartHTML()}</div></section>`;
 }
-const singStartHTML=(message='')=>`<p class="field-help">이어폰을 끼고 불러주세요. 스피커로 들으면 MR이 녹음에 섞여요.</p>${message?`<p class="form-error">${esc(message)}</p>`:''}<button class="primary-button" data-sing-start>${icon('mic')} 노래 시작</button>`;
+const singStartHTML=(message='')=>`<p class="field-help">${nativeSinging()?'에코 · 룸 리버브와 실시간 이어폰 청음을 지원해요. 유선·USB 이어폰을 권장해요.':'이어폰을 끼고 불러주세요. 스피커로 들으면 MR이 녹음에 섞여요.'}</p>${message?`<p class="form-error">${esc(message)}</p>`:''}<button class="primary-button" data-sing-start>${icon('mic')} ${nativeSinging()?'노래방 열기':'노래 시작'}</button>`;
 
 // views.js loads the song into routeSing; bindForms then opens the screen state for it.
 let routeSing=null;
@@ -35,6 +36,15 @@ function bindSing(id){cleanupSing();if($('#sing')&&routeSing)sing={id,data:route
 
 async function startSinging(){
  if(!sing||sing.state==='loading'||sing.state==='singing')return;
+ if(nativeSinging()){
+  const session=sing;audio.pause();session.state='loading';$('#sing-panel').innerHTML='<p class="field-help">노래방을 열고 있어요…</p>';
+  try{
+   const result=await nativeSinging().open({trackId:session.id});
+   if(result.uploadedId){if(sing===session)cleanupSing();toast('커버곡을 올렸어요! 변환이 끝나면 공개돼요.');location.hash='studio';return;}
+   if(sing===session){session.state='idle';$('#sing-panel').innerHTML=singStartHTML();}
+  }catch(e){if(sing===session){session.state='idle';$('#sing-panel').innerHTML=singStartHTML(e.message||'노래방을 열지 못했어요.');}}
+  return;
+ }
  audio.pause();sing.state='loading';$('#sing-panel').innerHTML='<p class="field-help">MR과 마이크를 준비하고 있어요…</p>';
  const ctx=sing.ctx||new (window.AudioContext||window.webkitAudioContext)({sampleRate:K().MIX_RATE,latencyHint:'interactive'});sing.ctx=ctx;ctx.resume();
  try{
