@@ -96,3 +96,12 @@ $env:ANDROID_SERIAL='emulator-5580'
 서버 배포에는 `ai음원사이트/drizzle/0013_cover_rankings_moderation.sql`이 필요하다. 좋아요 기간 집계와 운영자 신고 처리 API는 웹 프로젝트 README를 참고한다.
 
 검증: 로컬 DB 기반 서버 101개, JVM 12개, Android 계측 12개(신규 랭킹·팔로우·재생·신고·업로더 삭제 흐름 포함). 디버그 빌드와 lint 오류 0개. 실제 사용자 데이터로 테스트 댓글/신고/좋아요를 만들지 않는다.
+
+
+### 2.3.0 APK 직접 다운로드
+
+- URL: https://billing.aifect.co.kr/downloads/AIFECT-2.3.0.apk
+- 휴대폰에 설치한 것과 동일한 디버그 APK, 패키지 `kr.co.aifect.app`, versionCode 9, 32,180,560 bytes.
+- SHA-256: `2e6236a251e7172ff5dd918e028bd9892fc2d98c0d49b0d7998c2c070b7424f4`.
+- 기존 서버 `/var/www/aifect-downloads/AIFECT-2.3.0.apk`를 Nginx의 정확한 다운로드 경로로만 공개한다. 디렉터리 목록이나 업로드 API는 제공하지 않는다. 설정 원본은 `ai음원사이트/billing/nginx.conf`. 버전별 URL은 불변이며 다른 APK로 덮어쓰지 않는다.
+- 공개 HTTPS 다운로드 200, APK MIME/첨부 헤더, 전체 파일 SHA-256 일치와 기존 `/nicepay` GET 응답을 확인했다. 바이너리는 Git에 커밋하지 않는다.
