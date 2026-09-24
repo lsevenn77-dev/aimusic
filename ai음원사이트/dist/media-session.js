@@ -9,7 +9,7 @@
  const absolute=path=>new URL(path,location.origin).href;
  function artwork(t){
   const art=t.has_cover?[t.id,t.cover_version]:t.original_has_cover?[t.original_id,t.original_cover_version]:null;
-  return [{src:art?absolute(`/media/${art[0]}/cover?v=${art[1]||'original'}`):absolute('/assets/aifect-logo.png'),sizes:'512x512',type:art?'image/jpeg':'image/png'}];
+  return [{src:art?absolute(`/media/${art[0]}/cover?v=${art[1]||'original'}`):absolute('/assets/aifect-mark.svg'),sizes:'512x512',type:art?'image/jpeg':'image/svg+xml'}];
  }
  let shownId=null,lastPosition=0;
  function metadata(){
