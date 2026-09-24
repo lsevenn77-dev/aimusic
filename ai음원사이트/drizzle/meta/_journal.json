@@ -85,6 +85,13 @@
       "when": 1790183660604,
       "tag": "0011_gold_and_gifts",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1790211743384,
+      "tag": "0012_payouts",
+      "breakpoints": true
     }
   ]
 }

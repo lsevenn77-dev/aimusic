@@ -47,3 +47,13 @@ export const gifts=sqliteTable('gifts',{
 export const giftLots=sqliteTable('gift_lots',{
  giftId:text('gift_id').notNull().references(()=>gifts.id),purchaseId:text('purchase_id').notNull().references(()=>goldPurchases.id),gold:integer('gold').notNull(),netMw:integer('net_mw').notNull()
 },t=>[primaryKey({columns:[t.giftId,t.purchaseId]})]);
+// Creator payout details. Account and resident numbers are stored only as AES-GCM ciphertext bound to the user.
+export const payoutAccounts=sqliteTable('payout_accounts',{
+ userId:text('user_id').primaryKey().references(()=>users.id),holder:text('holder').notNull(),bank:text('bank').notNull(),accountLast4:text('account_last4').notNull(),accountCipher:text('account_cipher').notNull(),residentHint:text('resident_hint').notNull(),residentCipher:text('resident_cipher').notNull(),consentAt:integer('consent_at').notNull(),updated:integer('updated').notNull()
+});
+export const payoutPeriods=sqliteTable('payout_periods',{period:text('period').primaryKey(),closedAt:integer('closed_at').notNull(),closedBy:text('closed_by').notNull()});
+// One statement per profile per closed month; it covers every unpaid month since that profile's previous statement.
+export const payoutStatements=sqliteTable('payout_statements',{
+ id:text('id').primaryKey(),profileId:text('profile_id').notNull().references(()=>producers.id),userId:text('user_id').notNull().references(()=>users.id),period:text('period').notNull(),fromMonth:text('from_month').notNull(),grossKrw:integer('gross_krw').notNull(),incomeTaxKrw:integer('income_tax_krw').notNull().default(0),localTaxKrw:integer('local_tax_krw').notNull().default(0),netKrw:integer('net_krw').notNull(),status:text('status').notNull(),dueOn:text('due_on').notNull(),paidAt:integer('paid_at').notNull().default(0),paidRef:text('paid_ref'),paidBy:text('paid_by'),accountSnapshot:text('account_snapshot'),created:integer('created').notNull()
+},t=>[uniqueIndex('payout_statements_period').on(t.profileId,t.period),index('payout_statements_status').on(t.status,t.dueOn),index('payout_statements_user').on(t.userId)]);
+export const adminAudit=sqliteTable('admin_audit',{id:text('id').primaryKey(),adminId:text('admin_id').notNull(),action:text('action').notNull(),target:text('target').notNull(),created:integer('created').notNull()},t=>[index('admin_audit_time').on(t.created)]);
