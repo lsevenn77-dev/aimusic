@@ -139,9 +139,9 @@ public class KaraokeActivity extends AppCompatActivity {
         syncFields.addView(text("녹음 들어보기를 누른 뒤 조절하세요. 목소리가 늦게 들리면 빠르게, 먼저 들리면 느리게 맞춰주세요. 재생 중에도 바로 반영돼요.",13,MUTED));
         offset=slider(syncFields,"목소리 싱크",1100,380,"ms",-300);
         LinearLayout fineSync=new LinearLayout(this);
-        slower=button("느리게",false);slower.setContentDescription("목소리를 10ms 느리게");slower.setOnClickListener(v->offset.setProgress(Math.max(0,offset.getProgress()-10)));
+        slower=button("느리게",false);slower.setContentDescription("목소리를 5ms 느리게");slower.setOnClickListener(v->offset.setProgress(Math.max(0,offset.getProgress()-5)));
         resetSync=button("기본값",false);resetSync.setContentDescription("목소리 싱크 기본값 80ms");resetSync.setOnClickListener(v->offset.setProgress(380));
-        faster=button("빠르게",false);faster.setContentDescription("목소리를 10ms 빠르게");faster.setOnClickListener(v->offset.setProgress(Math.min(offset.getMax(),offset.getProgress()+10)));
+        faster=button("빠르게",false);faster.setContentDescription("목소리를 5ms 빠르게");faster.setOnClickListener(v->offset.setProgress(Math.min(offset.getMax(),offset.getProgress()+5)));
         for(Button b:new Button[]{slower,resetSync,faster})fineSync.addView(b,new LinearLayout.LayoutParams(0,-2,1));syncFields.addView(fineSync);add(syncFields,18);
         LinearLayout fx=box();fx.addView(text("목소리 효과와 음량",18,Color.WHITE));
         echo=slider(fx,"에코",65,18,"%",0);room=slider(fx,"룸 리버브",65,16,"%",0);

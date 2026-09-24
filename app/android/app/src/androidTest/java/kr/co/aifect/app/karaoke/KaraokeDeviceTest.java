@@ -59,11 +59,11 @@ public class KaraokeDeviceTest {
         }catch(Exception e){throw new RuntimeException(e);}});
         onView(withText("녹음 들어보기")).perform(click());
         onView(withContentDescription("목소리 싱크")).perform(scrollTo()).check(matches(isEnabled()));
-        onView(withContentDescription("목소리를 10ms 빠르게")).perform(scrollTo(),click());
-        assertEquals(90,holder.get().settings.offsetMs);
+        onView(withContentDescription("목소리를 5ms 빠르게")).perform(scrollTo(),click());
+        assertEquals(85,holder.get().settings.offsetMs);
         onView(withText("다시 듣기 멈추기")).check(matches(isDisplayed()));
         double before=holder.get().position();Thread.sleep(200);assertTrue("Adjusting sync does not stop/restart the MR",holder.get().position()>before);
-        onView(withContentDescription("목소리를 10ms 느리게")).perform(click());assertEquals(80,holder.get().settings.offsetMs);
+        onView(withContentDescription("목소리를 5ms 느리게")).perform(click());assertEquals(80,holder.get().settings.offsetMs);
         assertEquals(PackageManager.PERMISSION_DENIED,ContextCompat.checkSelfPermission(context,Manifest.permission.RECORD_AUDIO));
         Bitmap image=InstrumentationRegistry.getInstrumentation().getUiAutomation().takeScreenshot();
         try(FileOutputStream out=new FileOutputStream(new File(context.getExternalFilesDir(null),"karaoke-live-sync.png"))){image.compress(Bitmap.CompressFormat.PNG,100,out);}image.recycle();
