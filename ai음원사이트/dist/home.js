@@ -1,49 +1,28 @@
-function homePlaceholder(kind){
- const artists=kind==='artists';
- return `<p class="home-load-message" role="status">${artists?'아티스트를':'새 음악을'} 불러오고 있어요.</p><div class="${artists?'artist-grid':'album-grid live-album-grid'} home-placeholders" aria-hidden="true">${Array.from({length:artists?4:5},()=>artists?'<div class="artist-card surface"><div class="home-ghost-portrait"></div><div class="home-ghost-line"></div><div class="home-ghost-line short"></div></div>':'<div class="album-card"><div class="album-art home-ghost-art"></div><div class="home-ghost-line"></div><div class="home-ghost-line short"></div></div>').join('')}</div>`;
+function homePlaceholder(){return '<div class="release-placeholder" role="status" aria-label="음악을 불러오는 중"><div></div><span>새로운 음악을 만나고 있어요.</span></div>';}
+function homeHTML(){return `<div class="listening-home"><header class="listening-heading"><h1>듣기</h1><span>새로운 음악, 새로운 취향</span></header><nav class="tabs listen-tabs" aria-label="듣기 메뉴"><a class="tab active" href="#home" aria-current="page">추천</a><a class="tab" href="#charts">차트</a><a class="tab" href="#charts/releases">최신 음악</a><a class="tab" href="#collections">플레이리스트</a></nav>
+ <div class="listening-lead"><section id="home-release" aria-label="새로 도착한 음악" aria-busy="true">${homePlaceholder()}</section><nav class="listening-doors" aria-label="음악 즐기기"><a href="#charts"><span class="door-icon">${icon('chart')}</span><div><small>DISCOVER</small><strong>지금, 함께 듣는 음악</strong><span>인기 차트 둘러보기</span></div>${icon('chevron')}</a><a href="#karaoke"><span class="door-icon">${icon('mic')}</span><div><small>SING</small><strong>이번엔 내 목소리로</strong><span>부를 수 있는 곡 찾기</span></div>${icon('chevron')}</a><a href="#community"><span class="door-icon">${icon('users')}</span><div><small>CONNECT</small><strong>노래 너머의 이야기</strong><span>커버곡과 감상 나누기</span></div>${icon('chevron')}</a></nav></div>
+ <section id="home-more" class="listening-section" hidden></section>
+ <section class="listening-section mood-navigation"><div class="section-heading"><h2>어떤 기분으로 들을까요?</h2><a href="#discover/themes">전체 보기 ${icon('chevron')}</a></div><nav class="listening-moods" aria-label="기분별 음악">${[['comfort','마음이 쉬어가는','위로가 필요할 때','heart'],['energy','리듬을 타고','기분 전환이 필요할 때','sparkles'],['focus','나만의 집중 모드','하나에 몰입하고 싶을 때','sliders'],['drive','어디든 떠나볼까','길 위에서 듣는 음악','compass']].map(([id,title,desc,symbol])=>`<a class="listening-mood mood-${id}" href="#discover/mood?m=${id}">${icon(symbol)}<strong>${title}</strong><span>${desc}</span>${icon('arrow')}</a>`).join('')}</nav></section>
+ <section id="home-conversations" class="listening-section" aria-busy="true"><div class="section-heading"><h2>음악으로 이어지는 순간</h2><a href="#community">커뮤니티 ${icon('chevron')}</a></div><div class="home-load-message" role="status">새로운 목소리를 불러오고 있어요.</div></section>
+ <section id="home-curations" class="listening-section" hidden></section>
+ <a class="listening-studio" href="#upload"><span class="studio-symbol">${icon('upload')}</span><div><strong>당신의 음악도 기다리고 있어요.</strong><span>직접 만든 음악을 AIFECT에 공개하세요.</span></div><span class="studio-label">음악 올리기 ${icon('arrow')}</span></a></div>`;}
+function releaseHTML(t){
+ const art=cover(t,'release-art').replace('loading="lazy"','loading="eager" fetchpriority="high"');
+ return `<article class="release-feature"><a class="release-art-link" href="#song/${esc(t.id)}" aria-label="${esc(t.title)} 곡 정보">${art}</a><div class="release-copy"><span class="release-kicker">NEW RELEASE</span><h2><a href="#song/${esc(t.id)}">${esc(t.title)}</a></h2><div class="release-credits">${credits(t)}</div><p class="release-meta">${esc(t.genre)}<span>·</span>${time(t.duration)}</p><div class="release-actions"><button class="primary-button" data-play="${esc(t.id)}">${icon('play')} 지금 듣기</button><button class="icon-button ${liked(t.id)?'is-active':''}" data-like="${esc(t.id)}" aria-label="${esc(t.title)} 좋아요" aria-pressed="${liked(t.id)}">${icon('heart')}</button><button class="icon-button" data-add="${esc(t.id)}" aria-label="${esc(t.title)} 플레이리스트에 저장">${icon('plus')}</button></div>${trackStats(t)}</div></article>`;
 }
-function homeHTML(){
- return `<nav class="tabs listen-tabs" aria-label="듣기 메뉴"><a class="tab active" href="#home" aria-current="page">추천</a><a class="tab" href="#charts">차트</a><a class="tab" href="#charts/releases">최신 음악</a></nav>`+heading('오늘, 어떤 음악을 만나볼까요?','취향을 넓히는 새로운 음악과 창작자를 발견하세요.')+`
- <section class="hero aifect-hero">
-  <div class="hero-copy"><span class="eyebrow">THE NEXT SOUND</span><h2>상상이 음악이 되는 곳.<br>당신의 다음 플레이리스트.</h2><p>AI가 열어준 가능성, 창작자가 담아낸 감성.<br>마음에 닿는 새로운 사운드를 만나보세요.</p><div class="hero-actions"><a class="primary-button" href="#discover">음악 둘러보기 ${icon('play')}</a><a href="#upload" class="text-link">내 음악 공개하기 ${icon('arrow')}</a></div><span class="hero-bottom">DISCOVER · LISTEN · CONNECT</span></div>
-  <div class="live-hero-art" aria-hidden="true"><div>A<span>IFECT</span></div></div>
- </section>
- ${browseQuickLinks()}
- ${section('새롭게 도착한 음악','#charts/releases')}<section id="home-tracks" class="home-section" aria-label="새롭게 도착한 음악" aria-busy="true">${homePlaceholder('tracks')}</section>
- ${homeBrowseSections()}
- ${section('새로운 목소리를 만나보세요','#artists')}<section id="home-artists" class="home-section" aria-label="새로운 목소리를 만나보세요" aria-busy="true">${homePlaceholder('artists')}</section>
- <div class="preview-notice"><div><span class="tiny-eyebrow">YOUR NEXT FAVORITE</span><p>60초의 첫 만남, 회원은 전체곡을 무료로.</p></div><a class="primary-button" id="home-start" href="#account">무료로 시작하기 ${icon('arrow')}</a></div>`;
-}
-function updateHomeAccount(){
- const link=$('#home-start');if(!link)return;
- link.href=me?'#discover':'#account';
- link.innerHTML=(me?'음악 발견하기':'무료로 시작하기')+' '+icon('arrow');
- document.querySelectorAll('#home-artists [data-follow]').forEach(button=>{
-  const [kind,id]=button.dataset.follow.split('/');
-  button.innerHTML=(followed(kind,id)?'팔로잉':'팔로우')+' '+icon('plus');
- });
-}
+function updateHomeAccount(){document.querySelectorAll('#home-release [data-like]').forEach(b=>{b.classList.toggle('is-active',liked(b.dataset.like));b.setAttribute('aria-pressed',String(liked(b.dataset.like)));});}
 function renderHome(ticket){
- const main=$('#main');routeTracks=[];
- // The top stays still and never waits for account, catalog or image requests.
- if(typeof AifectMotion!=='undefined')AifectMotion.enter(main,'home/');
- main.classList.remove('motion-enter');main.innerHTML=homeHTML();main.removeAttribute('aria-busy');
- updateHomeAccount();window.scrollTo({top:0,behavior:'instant'});loadHomeBrowse(ticket);
- const load=async(kind,limit)=>{
-  const target=$('#home-'+kind);if(!target)return;
-  target.setAttribute('aria-busy','true');
-  try{
-   const data=await api(`/api/catalog?section=${kind}&limit=${limit}`);
-   if(ticket!==renderId||!target.isConnected)return;
-   if(kind==='tracks'){const tracks=remember(data.tracks),seen=new Set(routeTracks.map(t=>t.id));routeTracks.push(...tracks.filter(t=>!seen.has(t.id)));target.innerHTML=grid(tracks);}
-   else target.innerHTML=identityCards(data.artists,'artist');
-   target.classList.add('home-ready');
-  }catch{
-   if(ticket!==renderId||!target.isConnected)return;
-   target.innerHTML=`<div class="home-load-error"><p>${kind==='tracks'?'음악':'아티스트'} 목록을 불러오지 못했어요.</p><button class="small-button">다시 불러오기</button></div>`;
-   target.querySelector('button').onclick=()=>{target.innerHTML=homePlaceholder(kind);void load(kind,limit);};
-  }finally{if(ticket===renderId&&target.isConnected)target.removeAttribute('aria-busy');}
- };
- // Each section can succeed or retry independently; neither waits for images.
- return Promise.all([load('tracks',5),load('artists',4)]);
+ homeBrowseObserver?.disconnect();
+ const main=$('#main');routeTracks=[];main.classList.remove('motion-enter');main.innerHTML=homeHTML();main.removeAttribute('aria-busy');window.scrollTo({top:0,behavior:'instant'});
+ const active=target=>ticket===renderId&&target?.isConnected;
+ const addTracks=tracks=>{remember(tracks);const known=new Set(routeTracks.map(t=>t.id));routeTracks.push(...tracks.filter(t=>!known.has(t.id)));};
+ const release=$('#home-release'),conversations=$('#home-conversations'),curations=$('#home-curations');
+ const fail=(target,retry)=>{target.innerHTML='<div class="home-load-error"><p>음악을 불러오지 못했어요.</p><button class="small-button">다시 시도</button></div>';target.querySelector('button').onclick=retry;target.removeAttribute('aria-busy');};
+ const loadRelease=async()=>{release.setAttribute('aria-busy','true');try{const d=await api('/api/catalog?section=tracks&limit=12');if(!active(release))return;addTracks(d.tracks);release.innerHTML=d.tracks.length?releaseHTML(d.tracks[0]):empty('첫 음악의 주인공이 되어주세요.','당신의 음악으로 새로운 취향을 시작하세요.','#upload','음악 올리기');const more=$('#home-more');more.hidden=d.tracks.length<2;more.innerHTML=d.tracks.length>1?section('새롭게 도착한 음악','#charts/releases')+`<div class="browse-rail">${d.tracks.slice(1,7).map(card).join('')}</div>`:'';updateHomeAccount();}catch{if(active(release))fail(release,loadRelease);}finally{if(active(release))release.removeAttribute('aria-busy');}};
+ const loadConversations=async()=>{try{const d=await api('/api/community?kind=cover');if(!active(conversations))return;const tracks=d.tracks.slice(0,2);addTracks(tracks);conversations.innerHTML=section('같은 노래, 새로운 목소리','#community/covers')+(tracks.length?communityFeed(tracks):'<a class="first-cover-invite" href="#karaoke"><span>'+icon('mic')+'</span><div><strong>첫 커버를 들려주세요.</strong><p>좋아하는 곡을 내 목소리로 불러보세요.</p></div>'+icon('arrow')+'</a>');}catch{if(active(conversations))fail(conversations,loadConversations);}finally{if(active(conversations))conversations.removeAttribute('aria-busy');}};
+ const loadCurations=async()=>{try{const d=await api('/api/playlists?sort=popular');if(!active(curations))return;const items=d.playlists.filter(p=>p.tracks>0).slice(0,4);if(items.length){curations.hidden=false;curations.innerHTML=section('취향을 나누는 플레이리스트','#collections')+collectionGrid(items);}}catch{/* Optional shelf; the full playlist route retains its retry UI. */}};
+ // The first playable song loads independently. Shelves below the fold never block it.
+ const first=loadRelease();
+ if('IntersectionObserver' in window){homeBrowseObserver=new IntersectionObserver(entries=>{for(const entry of entries)if(entry.isIntersecting){homeBrowseObserver.unobserve(entry.target);void loadConversations();void loadCurations();}},{rootMargin:'240px'});homeBrowseObserver.observe(conversations);}else{void loadConversations();void loadCurations();}
+ return first;
 }
