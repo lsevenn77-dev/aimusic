@@ -3,6 +3,7 @@ import { mkdir, cp, writeFile, readFile } from 'node:fs/promises';
 import {businessFooterHTML} from '../shared/site-info.js';
 await mkdir('dist/server',{recursive:true});
 await mkdir('dist/client',{recursive:true});
+await cp('dist/app-ads.txt','dist/client/app-ads.txt');
 await cp('dist/billing.js','dist/client/billing.js');
 await cp('dist/motion.js','dist/client/motion.js');
 await cp('dist/motion.css','dist/client/motion.css');
