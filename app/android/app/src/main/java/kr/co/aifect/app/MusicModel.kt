@@ -80,6 +80,21 @@ class MusicModel(app:Application):AndroidViewModel(app) {
  var lyricRows by mutableStateOf<List<Pair<Double,String>>>(emptyList())
  var lyricsAccess by mutableStateOf("line")
  var controller:MediaController?=null
+ var rankOpen by mutableStateOf(false)
+ var rankPeriod by mutableStateOf("today")
+ var rankKind by mutableStateOf("tracks")
+ var rankOriginal by mutableStateOf<Song?>(null)
+ var rankGenre by mutableStateOf("전체")
+ var rankQuery by mutableStateOf("")
+ var rankTracks by mutableStateOf<List<Song>>(emptyList())
+ var rankSingers by mutableStateOf<List<JSONObject>>(emptyList())
+ var rankBusy by mutableStateOf(false)
+ var rankError by mutableStateOf<String?>(null)
+ var rankHighlights by mutableStateOf<Map<String,Song?>>(emptyMap())
+ var highlightsBusy by mutableStateOf(false)
+ var highlightsError by mutableStateOf<String?>(null)
+ private var rankJob:Job?=null
+ private var highlightsJob:Job?=null
  private val songs=mutableMapOf<String,Song>()
  private var searchJob:Job?=null
  private var detailJob:Job?=null
@@ -172,6 +187,42 @@ class MusicModel(app:Application):AndroidViewModel(app) {
    finally{if(isActive)collectionBusy=false}
   }
  }
+ fun openRanking(period:String="today",original:Song?=null){
+  detail=null;rankOpen=true;rankPeriod=period;rankKind="tracks";rankOriginal=original;rankGenre="전체";rankQuery="";loadRankings()
+ }
+ fun dismissRanking(){rankOpen=false;rankJob?.cancel();rankBusy=false}
+ fun loadRankings(debounce:Boolean=false){
+  rankJob?.cancel();rankBusy=true;rankError=null;rankTracks=emptyList();rankSingers=emptyList()
+  val path="/api/cover-rankings?period=$rankPeriod&kind=$rankKind"+
+   (rankOriginal?.let{"&original_id=${it.id}"}?:"")+
+   (if(rankGenre=="전체")"" else "&genre="+URLEncoder.encode(rankGenre,"UTF-8"))+
+   (if(rankQuery.isBlank())"" else "&q="+URLEncoder.encode(rankQuery.trim(),"UTF-8"))
+  rankJob=viewModelScope.launch {
+   try{if(debounce)delay(350);val r=api.call(path);ensureActive();rankTracks=r.tracks();rankSingers=r.optJSONArray("singers").objects()}
+   catch(e:Exception){if(e !is CancellationException)rankError=e.message?:"랭킹을 불러오지 못했어요."}
+   finally{if(isActive)rankBusy=false}
+  }
+ }
+ fun loadRankHighlights(){
+  highlightsJob?.cancel();highlightsBusy=true;highlightsError=null
+  highlightsJob=viewModelScope.launch {
+   try{val result=coroutineScope{listOf("today","week","month","all").map{period->async{period to api.call("/api/cover-rankings?period=$period&limit=1").tracks().firstOrNull()}}.awaitAll().toMap()};ensureActive();rankHighlights=result}
+   catch(e:Exception){if(e !is CancellationException)highlightsError="인기 커버를 불러오지 못했어요."}
+   finally{if(isActive)highlightsBusy=false}
+  }
+ }
+ fun followPerson(id:String){if(!authenticated())return;action {
+  val following=follows.any{it.optString("target_id")==id&&it.optString("kind")=="producer"}
+  api.call("/api/producers/$id/follow",if(following)"DELETE" else "PUT");loadLibrary()
+  if(profile?.optString("id")==id)profileFollowers=(profileFollowers+if(following)-1 else 1).coerceAtLeast(0)
+  if(rankOpen)loadRankings()
+ }}
+ fun reportComment(comment:JSONObject,reason:String,details:String,onDone:()->Unit){if(!authenticated())return;val song=detail?:return;action {
+  api.call("/api/comments/${comment.getString("id")}/report","POST",payload("reason" to reason,"details" to details))
+  val updated=api.call("/api/tracks/${song.id}/comments").optJSONArray("comments").objects()
+  if(detail?.id==song.id)comments=updated
+  onDone();notice="신고가 접수됐어요. 운영자가 확인할게요."
+ }}
  fun openCovers(song:Song){detail=null;browseCollection("${song.title} · 다른 목소리","/api/tracks/${song.id}/covers","같은 원곡을 각자의 목소리로 부른 커버곡","covers")}
  fun openOriginal(song:Song)=action{
   val original=Song(api.call("/api/tracks/${song.raw.getString("original_id")}").getJSONObject("track"));openSong(original)
@@ -287,6 +338,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   latest=latest.map{if(it.id==song.id)fresh else it};recentCovers=recentCovers.map{if(it.id==song.id)fresh else it}
   collection=collection?.let{it.copy(tracks=it.tracks.map{t->if(t.id==song.id)fresh else t})}
   if(detail?.id==song.id)detail=fresh
+  if(song.cover){if(rankOpen)loadRankings();loadRankHighlights()}
  }}
  fun comment(body:String,onSuccess:()->Unit={}) {if(!authenticated()||body.isBlank())return;val song=detail?:return;action {
   api.call("/api/tracks/${song.id}/comments","POST",payload("body" to body.trim()))
@@ -297,10 +349,11 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   api.call("/api/comments/${comment.getString("id")}/like",if(comment.optInt("liked")==1)"DELETE" else "PUT")
   detail?.let {comments=api.call("/api/tracks/${it.id}/comments").optJSONArray("comments").objects()}
  }}
- fun deleteComment(comment:JSONObject)=action {
+ fun deleteComment(comment:JSONObject){val song=detail?:return;action {
   api.call("/api/comments/${comment.getString("id")}","DELETE")
-  detail?.let {comments=api.call("/api/tracks/${it.id}/comments").optJSONArray("comments").objects()}
- }
+  val updated=api.call("/api/tracks/${song.id}/comments").optJSONArray("comments").objects()
+  if(detail?.id==song.id){comments=updated;detail=Song(api.call("/api/tracks/${song.id}").getJSONObject("track"))}
+ }}
  fun createList(name:String,public:Boolean,onDone:()->Unit) {if(!authenticated())return;action {
   val r=api.call("/api/playlists","POST",payload("name" to name.trim(),"is_public" to public));loadLibrary()
   val data=api.call("/api/playlists/${r.getString("id")}");selectedList=data.getJSONObject("playlist");listSongs=data.tracks();onDone()
@@ -329,9 +382,9 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   api.call("/api/playlists/${p.getString("id")}/save",if(p.optInt("saved")==1)"DELETE" else "PUT")
   selectedList=JSONObject(p.toString()).put("saved",if(p.optInt("saved")==1)0 else 1);loadLibrary()
  }}
- fun openProfile(id:String,kind:String="producer")=action {
+ fun openProfile(id:String,kind:String="producer",showCovers:Boolean=false)=action {
   val type=if(kind=="artist")"artist" else "producer"
-  val data=api.call("/api/${type}s/$id");profile=data.getJSONObject("profile").put("profile_kind",type);profileSongs=data.tracks();profileCovers=data.tracks("covers");profileFollowers=data.optInt("followers");detail=null
+  val data=api.call("/api/${type}s/$id");profile=data.getJSONObject("profile").put("profile_kind",type).put("show_covers",showCovers);profileSongs=data.tracks();profileCovers=data.tracks("covers");profileFollowers=data.optInt("followers");detail=null
  }
  fun follow(){if(!authenticated())return;val p=profile?:return;action {
   val kind=p.optString("profile_kind","producer")

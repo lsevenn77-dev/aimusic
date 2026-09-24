@@ -59,8 +59,8 @@ private val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=C
   var createList by remember {mutableStateOf(false)}
   val pages=rememberSaveableStateHolder()
   LaunchedEffect(m.notice){m.notice?.let {snack.showSnackbar(it);m.notice=null}}
-  BackHandler(m.fullPlayer||m.detail!=null||m.selectedList!=null||m.profile!=null||m.showLogin||m.showAccount||m.collection!=null){
-   when{m.showLogin->m.showLogin=false;m.showAccount->m.showAccount=false;m.detail!=null->m.detail=null;m.selectedList!=null->m.selectedList=null;m.profile!=null->m.profile=null;m.fullPlayer->m.fullPlayer=false;else->m.dismissCollection()}
+  BackHandler(m.fullPlayer||m.detail!=null||m.selectedList!=null||m.profile!=null||m.showLogin||m.showAccount||m.collection!=null||m.rankOpen){
+   when{m.showLogin->m.showLogin=false;m.showAccount->m.showAccount=false;m.detail!=null->m.detail=null;m.selectedList!=null->m.selectedList=null;m.profile!=null->m.profile=null;m.fullPlayer->m.fullPlayer=false;m.collection!=null->m.dismissCollection();else->m.dismissRanking()}
   }
   Scaffold(containerColor=Ink,snackbarHost={SnackbarHost(snack)},bottomBar={
    Column {
@@ -94,12 +94,13 @@ private val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=C
     }
    }
   }
+  if(m.rankOpen&&m.detail==null&&m.profile==null&&!m.fullPlayer&&!m.showLogin&&m.collection==null)CoverRankingSheet(m)
   m.collection?.let { CollectionSheet(m,it,sing) }
   if(m.showLogin)LoginSheet(m,browser,social)
   if(m.showAccount)AccountSheet(m,browser,adPrivacy)
   m.detail?.let { SongSheet(m,it,sing,{listPicker=it}) }
   m.selectedList?.let { PlaylistSheet(m,it) }
-  m.profile?.let { ProfileSheet(m,it) }
+  if(m.detail==null&&!m.fullPlayer)m.profile?.let { ProfileSheet(m,it) }
   if(m.fullPlayer)m.current?.let { PlayerSheet(m,it,{listPicker=it}) }
   listPicker?.let { song->
    ModalBottomSheet(onDismissRequest={listPicker=null},containerColor=Panel){
@@ -284,7 +285,8 @@ private val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=C
 }
 @Composable private fun SongSheet(m:MusicModel,song:Song,sing:(Song)->Unit,save:(Song)->Unit){
  var text by remember(song.id){mutableStateOf("")}
- var delete by remember {mutableStateOf<JSONObject?>(null)}
+ var delete by remember(song.id) {mutableStateOf<JSONObject?>(null)}
+ var report by remember(song.id) {mutableStateOf<JSONObject?>(null)}
  ModalBottomSheet(onDismissRequest={m.detail=null},sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true),containerColor=Panel){
   LazyColumn(Modifier.fillMaxWidth().imePadding(),contentPadding=PaddingValues(22.dp,0.dp,22.dp,28.dp)){
    item{
@@ -292,6 +294,8 @@ private val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=C
     Row(Modifier.fillMaxWidth().padding(top=12.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)){Button(onClick={m.play(song)}){Icon(Icons.Rounded.PlayArrow,null);Text("듣기")};OutlinedButton(onClick={save(song)}){Icon(Icons.AutoMirrored.Rounded.PlaylistAdd,null);Text("담기")};IconButton(onClick={m.like(song)},enabled=!m.busy){Icon(if(m.likes.any{it.id==song.id})Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,"좋아요",tint=Pink)}}
     if(song.raw.optBoolean("karaoke_ready"))OutlinedButton(onClick={sing(song)},modifier=Modifier.fillMaxWidth()){Icon(Icons.Rounded.Mic,null);Text("이 노래 부르기",Modifier.padding(start=8.dp))}
     if(!song.cover&&(song.raw.optInt("covers")>0||song.raw.optInt("accepts_covers")==1))TextButton(onClick={m.openCovers(song)},modifier=Modifier.fillMaxWidth()){Icon(Icons.Rounded.PeopleOutline,null);Text("다른 사람은 어떻게 불렀을까? · 커버 ${song.raw.optInt("covers")}곡",fontSize=12.sp,modifier=Modifier.padding(start=8.dp))}
+    if(song.cover)Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){TextButton(onClick={m.openProfile(song.producerId,showCovers=true)},modifier=Modifier.weight(1f)){Text("${song.producer}의 커버곡",fontSize=12.sp)};OutlinedButton(onClick={m.followPerson(song.producerId)},enabled=!m.busy){Text(if(m.follows.any{it.optString("target_id")==song.producerId&&it.optString("kind")=="producer"})"팔로잉" else "팔로우",fontSize=12.sp)}}
+    if(!song.cover&&song.raw.optInt("accepts_covers")==1)TextButton(onClick={m.openRanking("all",song)},modifier=Modifier.fillMaxWidth()){Icon(Icons.Rounded.EmojiEvents,null);Text("이 곡의 좋아요 랭킹",modifier=Modifier.padding(start=8.dp))}
     if(song.cover)TextButton(onClick={m.openOriginal(song)}){Icon(Icons.Rounded.Album,null);Text("이 커버의 원곡 듣기",modifier=Modifier.padding(start=8.dp))}
     if(song.description.isNotBlank())Text(song.description,fontSize=13.sp,color=Muted,modifier=Modifier.padding(vertical=12.dp))
     Text("재생 ${song.plays} · 좋아요 ${song.likes} · 댓글 ${song.comments}",color=Muted,fontSize=11.sp,modifier=Modifier.padding(vertical=15.dp))
@@ -306,12 +310,22 @@ private val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=C
    items(m.comments,key={it.getString("id")}){c->
     Row(Modifier.fillMaxWidth().padding(vertical=12.dp),verticalAlignment=Alignment.Top){
      Avatar(c.optString("name"),size=30)
-     Column(Modifier.weight(1f).padding(start=11.dp)){Text(c.optString("name")+if(c.optInt("creator")==1)" · 원작자" else "",fontSize=12.sp,fontWeight=FontWeight.Bold);Text(c.optString("body"),fontSize=13.sp,modifier=Modifier.padding(top=7.dp));Row{TextButton(onClick={m.commentLike(c)},contentPadding=PaddingValues(0.dp),enabled=!m.busy){Icon(if(c.optInt("liked")==1)Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,"댓글 좋아요",Modifier.size(14.dp));Text(" ${c.optInt("likes")}",fontSize=11.sp)};if(c.optString("user_id")==m.user?.optString("id"))TextButton(onClick={delete=c},enabled=!m.busy){Text("삭제",color=Muted,fontSize=11.sp)}}}
+     Column(Modifier.weight(1f).padding(start=11.dp)){
+      Text(c.optString("name")+if(c.optInt("creator")==1)" · 업로더" else "",fontSize=12.sp,fontWeight=FontWeight.Bold)
+      Text(c.optString("body"),fontSize=13.sp,color=if(c.optLong("deleted_at")>0)Muted else MaterialTheme.colorScheme.onSurface,modifier=Modifier.padding(top=7.dp))
+      if(c.optLong("deleted_at")==0L)Row(verticalAlignment=Alignment.CenterVertically){
+       TextButton(onClick={m.commentLike(c)},contentPadding=PaddingValues(0.dp),enabled=!m.busy){Icon(if(c.optInt("liked")==1)Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,"댓글 좋아요",Modifier.size(14.dp));Text(" ${c.optInt("likes")}",fontSize=11.sp)}
+       if(c.optBoolean("can_delete"))TextButton(onClick={delete=c},enabled=!m.busy){Text("삭제",color=Muted,fontSize=11.sp)}
+       if(c.optBoolean("can_report"))TextButton(onClick={report=c},enabled=!m.busy){Text("신고",color=Muted,fontSize=11.sp)}
+       if(c.optInt("reported")==1)Text("신고됨",color=Muted,fontSize=11.sp)
+      }
+     }
     }
    }
    if(m.comments.isEmpty()&&!m.detailBusy)item{Text("아직 댓글이 없어요. 첫 감상을 들려주세요.",fontSize=12.sp,color=Muted,modifier=Modifier.padding(vertical=20.dp))}
   }
  }
+ report?.let{c->CommentReportDialog(m,{report=null}){reason,details->m.reportComment(c,reason,details){report=null}}}
  delete?.let{c->AlertDialog(onDismissRequest={delete=null},title={Text("댓글을 삭제할까요?")},confirmButton={TextButton(onClick={m.deleteComment(c);delete=null}){Text("삭제")}},dismissButton={TextButton(onClick={delete=null}){Text("취소")}})}
 }
 @Composable private fun PlaylistEditor(title:String,initial:String,visible:Boolean,busy:Boolean,dismiss:()->Unit,save:(String,Boolean)->Unit){
@@ -353,7 +367,7 @@ private val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=C
  if(deleting)AlertDialog(onDismissRequest={deleting=false},title={Text("플레이리스트를 삭제할까요?")},text={Text("목록과 곡 순서가 삭제돼요. 원곡과 좋아요는 그대로 남아요.")},confirmButton={TextButton(onClick={m.deleteList();deleting=false}){Text("삭제")}},dismissButton={TextButton(onClick={deleting=false}){Text("취소")}})
 }
 @Composable private fun ProfileSheet(m:MusicModel,p:JSONObject){
- var covers by remember(p.optString("id")){mutableStateOf(false)}
+ var covers by remember(p.optString("id")){mutableStateOf(p.optBoolean("show_covers"))}
  val tracks=if(covers)m.profileCovers else m.profileSongs
  ModalBottomSheet(onDismissRequest={m.profile=null},sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true),containerColor=Panel){
   LazyColumn(Modifier.fillMaxWidth(),contentPadding=PaddingValues(22.dp,0.dp,22.dp,28.dp)){

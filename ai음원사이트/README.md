@@ -61,3 +61,16 @@ Keep the existing Sites project in `.openai/hosting.json`, with `d1: "DB"` and `
 ## Git snapshot
 
 This project is stored under `ai음원사이트/`. Run commands from this directory. Source, migrations, tests, deployment configuration and the submitted NICEPAY payment-flow PDF are included. Runtime secrets, local databases, uploaded user media and generated build outputs are excluded. See `docs/인수인계.md`.
+
+
+## 커버 랭킹과 댓글 관리 (Android 2.3.0)
+
+`0013_cover_rankings_moderation.sql`을 API 배포 전에 적용한다. 기존 데이터 삭제 없이 댓글 삭제 상태, 신고 내역과 좋아요 시간 인덱스를 추가한다.
+
+- `GET /api/cover-rankings?period=today|week|month|all&kind=tracks|singers`: 한국 시간의 오늘 0시, 월요일 0시, 이달 1일 0시 이후 **받은** 현재 유효한 좋아요를 집계한다. 명예의 전당은 누적이다. 0표는 순위에서 제외하며 재생수/댓글수는 점수에 넣지 않는다. 동점은 누적 좋아요, 최신 게시, ID 순이다. 가수는 공개 커버의 합계이며 동점은 누적 좋아요, 프로필 ID 순이다.
+- 선택 필터 `genre`, `q`(곡/가수 이름의 리터럴 검색), `original_id`; 기본 50개, 최대 100개. 검색 결과 내 순위다. 원곡 비공개/노래방 제공 동의 철회 시 관련 커버는 즉시 집계에서 제외된다.
+- 댓글 GET은 `can_delete`, `can_report`, `reported`, `deleted_at`을 제공한다. 댓글 작성자는 자기 댓글을, 커버 업로더는 해당 커버의 댓글을 삭제할 수 있다. 다른 사람의 댓글 수정은 금지한다. 삭제 후 복구/좋아요/신고는 거부하고 본문은 삭제 안내로 대체한다.
+- `POST /api/comments/:id/report`의 JSON은 `{reason,details}`. 사유는 `abuse|spam|privacy|sexual|other`, 설명은 최대 500자다. 로그인 필요, 자기 댓글 신고 불가, 계정당 댓글별 1건, 시간당 20건 제한. 신고 당시 본문은 운영 확인을 위해 비공개 보관한다.
+- 운영자는 기존 `ADMIN_USER_IDS` 권한으로 `GET /api/admin/comment-reports?status=pending|dismissed|removed`를 조회하고 `PATCH /api/admin/comment-reports/:id`에 `{status:"dismissed"|"removed"}`를 전송해 처리한다. 삭제·상태 변경·감사 기록은 원자적으로 처리하며 미처리 목록은 오래된 순 100건씩 반환한다. 신고만으로 댓글을 자동 삭제하지 않는다.
+
+회귀 검증은 새로운 SQL 마이그레이션을 적용한 별도 로컬 DB에서 실행한다. `AIFECT_TEST_ORIGIN`으로 서버 주소를 지정할 수 있으며 운영 데이터에는 테스트를 생성하지 않는다.

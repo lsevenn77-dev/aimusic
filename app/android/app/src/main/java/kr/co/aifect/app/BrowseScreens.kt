@@ -36,7 +36,7 @@ private val MoodTiles=listOf(
  Mood("sleep","잠들기 전","천천히 마무리하는 하루",Color(0xFF5B5985),Icons.Rounded.NightsStay),
  Mood("workout","한 걸음 더","가볍게, 더 힘차게",Color(0xFF53687C),Icons.Rounded.FitnessCenter)
 )
-private val Genres=listOf("K-POP","Ballad","R&B","Hip-Hop","Rock","EDM","City Pop","OST","Instrumental")
+internal val Genres=listOf("K-POP","Ballad","R&B","Hip-Hop","Rock","EDM","City Pop","OST","Instrumental")
 private val PagePadding=PaddingValues(start=22.dp,end=22.dp,bottom=32.dp)
 
 @Composable internal fun ListenScreen(m:MusicModel,sing:(Song)->Unit){
@@ -312,26 +312,32 @@ private val PagePadding=PaddingValues(start=22.dp,end=22.dp,bottom=32.dp)
 
 @Composable internal fun SingScreen(m:MusicModel,sing:(Song)->Unit){
  var query by rememberSaveable{mutableStateOf("")}
- val tracks=m.singable.filter{query.isBlank()||it.title.contains(query,true)||it.artist.contains(query,true)}
+ var genre by rememberSaveable{mutableStateOf("전체")}
+ val tracks=m.singable.filter{(genre=="전체"||it.genre==genre)&&(query.isBlank()||it.title.contains(query,true)||it.credit.contains(query,true))}
+ LaunchedEffect(Unit){m.loadRankHighlights()}
  LazyColumn(Modifier.fillMaxSize().testTag("sing-scroll"),contentPadding=PagePadding){
   item{
-   Heading("이번엔, 내 목소리로","좋아하던 음악이 나의 무대가 되는 순간")
-   Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Brush.linearGradient(listOf(Color(0xFF20383C),Color(0xFF232531)))).padding(22.dp)){
-    Icon(Icons.Rounded.Mic,null,tint=Aqua.copy(alpha=.12f),modifier=Modifier.align(Alignment.CenterEnd).size(100.dp).rotate(15f))
-    Column{
-     Text("SING YOUR VERSION",color=Aqua,fontSize=10.sp,letterSpacing=1.sp,fontWeight=FontWeight.Bold)
-     Text("여기가 나의 작은 무대",fontSize=22.sp,fontWeight=FontWeight.Bold,modifier=Modifier.padding(top=14.dp))
-     Text("듣고, 부르고, 나만의 커버를 남겨요.",fontSize=13.sp,color=Muted,modifier=Modifier.padding(top=8.dp))
-     Row(Modifier.padding(top=16.dp),horizontalArrangement=Arrangement.spacedBy(7.dp)){listOf("에코","룸 리버브","이어폰 청음").forEach{Surface(color=Ink.copy(alpha=.35f),shape=RoundedCornerShape(9.dp)){Text(it,fontSize=11.sp,color=Aqua,modifier=Modifier.padding(8.dp))}}}
+   Heading("목소리를 발견하는 곳","듣다 보면, 나도 부르고 싶어지는 순간")
+   CoverRankShowcase(m)
+   Section("나의 다음 무대","장르를 고르고, 다른 목소리도 먼저 들어봐요")
+   OutlinedTextField(query,{query=it},modifier=Modifier.fillMaxWidth(),singleLine=true,placeholder={Text("부르고 싶은 노래 찾기",fontSize=14.sp)},leadingIcon={Icon(Icons.Rounded.Search,null)},shape=RoundedCornerShape(16.dp))
+   Spacer(Modifier.height(10.dp));Chips(listOf("전체")+Genres,genre){genre=it}
+   Text("에코 · 룸 · 내 목소리 듣기",color=Aqua,fontSize=11.sp,modifier=Modifier.padding(top=12.dp))
+   Text("유선·USB 이어폰으로 들으며 불러보세요.",color=Muted,fontSize=11.sp,modifier=Modifier.padding(top=5.dp,bottom=16.dp))
+  }
+  items(tracks,key={it.id}){song->
+   Surface(color=Panel,shape=RoundedCornerShape(18.dp),modifier=Modifier.padding(bottom=12.dp)){
+    Column(Modifier.padding(14.dp)){
+     Row(verticalAlignment=Alignment.CenterVertically){Artwork(song,Modifier.size(60.dp).clickable{m.openSong(song)});Column(Modifier.weight(1f).padding(start=14.dp)){Text(song.title,fontSize=16.sp,fontWeight=FontWeight.SemiBold,maxLines=2,overflow=TextOverflow.Ellipsis);Text("${song.credit} · ${song.genre}",fontSize=11.sp,color=Muted,modifier=Modifier.padding(top=5.dp))}}
+     Row(Modifier.fillMaxWidth().padding(top=10.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)){
+      OutlinedButton(onClick={m.openRanking("all",song)},modifier=Modifier.weight(1f),contentPadding=PaddingValues(horizontal=8.dp)){Icon(Icons.Rounded.EmojiEvents,null,Modifier.size(17.dp));Text("커버 랭킹 · ${song.raw.optInt("covers")}",fontSize=11.sp,modifier=Modifier.padding(start=5.dp))}
+      Button(onClick={sing(song)},modifier=Modifier.weight(1f),contentPadding=PaddingValues(horizontal=8.dp)){Icon(Icons.Rounded.Mic,null,Modifier.size(17.dp));Text("이 곡 부르기",fontSize=12.sp,modifier=Modifier.padding(start=5.dp))}
+     }
     }
    }
-   Text("유선·USB 이어폰으로 내 목소리를 들으며 불러보세요.",color=Muted,fontSize=11.sp,modifier=Modifier.padding(top=12.dp,bottom=18.dp))
-   OutlinedTextField(query,{query=it},modifier=Modifier.fillMaxWidth(),singleLine=true,placeholder={Text("부르고 싶은 노래 찾기",fontSize=14.sp)},leadingIcon={Icon(Icons.Rounded.Search,null)},shape=RoundedCornerShape(16.dp))
-   Section("지금 부를 수 있는 곡","${tracks.size}곡 · 원작자가 커버를 허용한 음악")
   }
-  items(tracks,key={it.id}){song->SongRow(song,m,tracks){FilledTonalButton(onClick={sing(song)},contentPadding=PaddingValues(horizontal=12.dp),colors=ButtonDefaults.filledTonalButtonColors(containerColor=Color(0xFF20383C),contentColor=Aqua)){Icon(Icons.Rounded.Mic,null,Modifier.size(15.dp));Text("부르기",fontSize=12.sp)}}}
-  if(tracks.isEmpty())item{Empty(if(m.loading)"곡을 불러오고 있어요" else if(query.isNotBlank())"찾는 곡이 없어요" else "첫 무대를 준비하고 있어요",if(query.isNotBlank())"다른 제목으로 찾아보세요." else "반주와 가사 싱크가 준비된 곡부터 만날 수 있어요.",Icons.Rounded.MicNone)}
-  if(m.recentCovers.isNotEmpty())item{Section("먼저 들어볼까?","다른 사람의 커버에서 영감을 찾아요","더보기"){m.community("커버곡");m.selectTab(3)};SongShelf(m.recentCovers.take(10),m)}
+  if(tracks.isEmpty())item{Empty(if(m.loading)"곡을 불러오고 있어요" else "조건에 맞는 곡이 없어요","다른 장르나 제목으로 찾아보세요.",Icons.Rounded.MicNone)}
+  if(m.recentCovers.isNotEmpty())item{Section("새로 올라온 목소리","좋아요로 다음 주인공을 발견해요","더보기"){m.community("커버곡");m.selectTab(3)};SongShelf(m.recentCovers.take(10),m)}
   item{TextButton(onClick={m.library("내 커버곡")},modifier=Modifier.fillMaxWidth()){Icon(Icons.Rounded.LibraryMusic,null);Text("내가 공개한 커버곡",modifier=Modifier.padding(start=8.dp))}}
  }
 }

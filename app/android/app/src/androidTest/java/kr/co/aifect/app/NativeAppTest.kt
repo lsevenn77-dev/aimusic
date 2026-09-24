@@ -38,6 +38,8 @@ class NativeAppTest {
  private val workers=Executors.newCachedThreadPool()
  private val logged=AtomicBoolean(false)
  private val liked=AtomicBoolean(false)
+ private val followed=AtomicBoolean(false)
+ private val reported=AtomicBoolean(false)
  private val comments=JSONArray()
  private val lists=JSONArray()
  private val requests=java.util.concurrent.ConcurrentLinkedQueue<String>()
@@ -48,6 +50,9 @@ class NativeAppTest {
   assertTrue("Only the isolated test package is allowed",context.packageName.endsWith(".test"))
   NativeSession.put(context,"cookie","");NativeSession.put(context,"ticket","")
   server=ServerSocket(0,10,InetAddress.getByName("127.0.0.1"))
+  val rankingTest=testName.methodName=="coverRankingDiscoveryAndCommentModeration"
+  val cover=JSONObject(song.toString()).put("id","cover-fixture").put("kind","cover").put("producer","커버 가수").put("rank",1).put("rank_likes",3).put("likes",3).put("original_id","fixture").put("karaoke_ready",false)
+  if(rankingTest){logged.set(true);song.put("covers",1);comments.put(payload("id" to "comment-1","name" to "다른 리스너","body" to "이 목소리 좋네요","user_id" to "someone","can_delete" to true,"can_report" to true))}
   val adTest=testName.methodName=="fiveCompletedSongsPauseForOneAdAndResume"
   if(adTest){logged.set(true);song.put("duration",3);context.getSharedPreferences("listening_ads",0).edit().clear().commit()}
   val audio=wav(if(adTest)3 else 30)
@@ -67,7 +72,16 @@ class NativeAppTest {
       path=="/api/auth/login"->{logged.set(true);cookie="Set-Cookie: aifect_session=fixture; Path=/; HttpOnly\r\n";payload("user" to user)}
       path=="/api/auth/google/nonce"->{cookie="Set-Cookie: aifect_google_oauth=nonce-fixture; Path=/; HttpOnly\r\n";payload("nonce" to "fixture-nonce")}
       path=="/api/auth/google/token"->{cookie="Set-Cookie: aifect_google_oauth=; Path=/; Max-Age=0\r\nSet-Cookie: aifect_session=google-fixture; Path=/; HttpOnly\r\n";payload("user" to user)}
-      path=="/api/library"->payload("likes" to if(liked.get())JSONArray().put(song) else JSONArray(),"collections" to lists,"follows" to JSONArray())
+      path=="/api/library"->payload("likes" to if(liked.get())JSONArray().put(if(rankingTest)cover else song) else JSONArray(),"collections" to lists,"follows" to if(followed.get())JSONArray().put(payload("target_id" to "person","kind" to "producer")) else JSONArray())
+      path=="/api/cover-rankings"->payload("tracks" to if(request[1].contains("kind=singers"))JSONArray() else JSONArray().put(cover),"singers" to if(request[1].contains("kind=singers"))JSONArray().put(payload("id" to "person","name" to "커버 가수","rank" to 1,"rank_likes" to 3,"ranked_covers" to 1)) else JSONArray())
+      path=="/api/producers/person/follow"->{followed.set(method=="PUT");payload("ok" to true)}
+      path=="/api/producers/person"->payload("profile" to payload("id" to "person","name" to "커버 가수"),"covers" to JSONArray().put(cover),"tracks" to JSONArray(),"followers" to if(followed.get())1 else 0)
+      path=="/api/tracks/cover-fixture/like"->{liked.set(method=="PUT");payload("ok" to true)}
+      path=="/api/tracks/cover-fixture/comments"->payload("comments" to comments)
+      path=="/api/comments/comment-1/report"->{reported.set(true);comments.getJSONObject(0).put("reported",1).put("can_report",false);payload("ok" to true)}
+      path=="/api/comments/comment-1"&&method=="DELETE"->{comments.getJSONObject(0).put("body","삭제된 댓글입니다.").put("deleted_at",1).put("can_delete",false).put("can_report",false);payload("ok" to true)}
+      path=="/api/tracks/cover-fixture"->payload("track" to cover)
+      path=="/api/playback/cover-fixture"->payload("id" to "listen-cover","src" to "/media/cover-fixture/preview","duration" to 30,"preview" to true)
       path=="/api/history"->payload("tracks" to JSONArray())
       path=="/api/studio"->payload("producer" to null,"artists" to JSONArray(),"tracks" to JSONArray())
       path=="/api/catalog"||path=="/api/discovery"||path=="/api/search"||path=="/api/community"||path=="/api/karaoke"->payload("tracks" to JSONArray().put(song),"producers" to JSONArray())
@@ -111,10 +125,38 @@ class NativeAppTest {
   screenshot("native-listen.png")
   ui.onNodeWithTag("listen-scroll").performScrollToNode(hasText("이번엔 내 목소리로"));screenshot("native-listen-shelves.png")
   ui.onNodeWithText("검색").performClick();waitText("발견하는 즐거움");screenshot("native-search.png")
-  ui.onNodeWithText("부르기").performClick();waitText("여기가 나의 작은 무대");screenshot("native-sing.png")
+  ui.onNodeWithText("부르기").performClick();waitText("목소리를 발견하는 곳");screenshot("native-sing.png")
   ui.onNodeWithText("커뮤니티").performClick();waitText("음악으로, 우리");ui.onNodeWithText("커버곡").assertExists();ui.onNodeWithText("제작곡").assertExists();screenshot("native-community.png")
   ui.onNodeWithText("보관함").performClick();waitText("로그인하고 시작하기");screenshot("native-library.png")
   assertEquals(PackageManager.PERMISSION_DENIED,ContextCompat.checkSelfPermission(context,Manifest.permission.RECORD_AUDIO))
+ }
+ @Test fun coverRankingDiscoveryAndCommentModeration(){
+  ui.onNodeWithText("부르기").performClick();waitText("오늘의 인기 커버")
+  screenshot("native-cover-discovery.png")
+  ui.onNodeWithTag("rank-today").performClick();waitText("오늘 좋아요 3")
+  ui.onNodeWithContentDescription("커버 좋아요").performClick()
+  ui.waitUntil(10000){liked.get()}
+  ui.onNodeWithText("가수",useUnmergedTree=true).performClick();waitText("팔로우")
+  ui.onNodeWithText("팔로우").performClick();waitText("팔로잉");assertTrue(followed.get())
+  screenshot("native-singer-rankings.png")
+  ui.onNodeWithText("커버곡",useUnmergedTree=true).performClick();waitText("오늘 좋아요 3")
+  for(label in listOf("이번 주","이달","명예의 전당")){ui.onAllNodesWithText(label,useUnmergedTree=true).onLast().performClick();waitText("$label 좋아요 3")}
+  ui.onNodeWithTag("ranking-search").performTextInput("커버")
+  ui.waitUntil(10000){requests.any{it.contains("q=%EC%BB%A4%EB%B2%84")}}
+  screenshot("native-cover-rankings.png")
+  ui.onNodeWithContentDescription("랭킹 닫기").performClick()
+  ui.onNodeWithTag("sing-scroll").performScrollToNode(hasText("커버 랭킹 · 1"))
+  ui.onNodeWithText("커버 랭킹 · 1").performClick();waitText("이 곡의 커버 랭킹")
+  ui.waitUntil(10000){requests.any{it.contains("original_id=fixture")}}
+  ui.onNode(hasContentDescription("밤의 산책 재생") and hasAnyAncestor(hasTestTag("ranking-scroll"))).performClick()
+  ui.waitUntil(10000){requests.any{it=="/api/playback/cover-fixture"}}
+  ui.onAllNodesWithText("밤의 산책").onLast().performClick()
+  waitText("신고")
+  ui.onNodeWithText("신고").performScrollTo().performClick()
+  ui.onNodeWithText("도배·광고").performClick();ui.onNodeWithText("신고 접수").performClick();waitText("신고됨");assertTrue(reported.get())
+  ui.onNodeWithText("삭제").performScrollTo().performClick()
+  ui.onAllNodesWithText("삭제").onLast().performClick();waitText("삭제된 댓글입니다.")
+  screenshot("native-cover-comments.png")
  }
  @Test fun playbackSurvivesBackgroundAndCloseRemovesBar(){
   ui.onNodeWithText("바로 듣기").performClick()
