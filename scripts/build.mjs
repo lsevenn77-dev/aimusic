@@ -9,7 +9,7 @@ await cp('dist/motion.js','dist/client/motion.js');
 await cp('dist/motion.css','dist/client/motion.css');
 await cp('dist/home.js','dist/client/home.js');
 await cp('dist/brand.css','dist/client/brand.css');
-for (const file of ['polish.css','browse.js','browse.css','index.html','app.js','media-session.js','icons.js','views.js','studio.js','karaoke.js','lyrics.js','library.js','explorer.js','membership.js','alignment.js','actions.js','style.css','studio.css','lyrics.css','discovery.css','explorer.css','membership.css','alignment.css','policies.css','assets']) await cp(`dist/${file}`,`dist/client/${file}`,{recursive:true});
+for (const file of ['community.js','community.css','polish.css','browse.js','browse.css','index.html','app.js','media-session.js','icons.js','views.js','studio.js','karaoke.js','lyrics.js','library.js','explorer.js','membership.js','alignment.js','actions.js','style.css','studio.css','lyrics.css','discovery.css','explorer.css','membership.css','alignment.css','policies.css','assets']) await cp(`dist/${file}`,`dist/client/${file}`,{recursive:true});
 const indexHTML=await readFile('dist/index.html','utf8');
 if(!indexHTML.includes('<!--BUSINESS_FOOTER-->'))throw new Error('Business footer placeholder is missing');
 await writeFile('dist/client/index.html',indexHTML.replace('<!--BUSINESS_FOOTER-->',businessFooterHTML()));

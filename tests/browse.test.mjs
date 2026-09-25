@@ -14,6 +14,7 @@ function viewContext(responses={},user=null){
   list:tracks=>tracks.map(t=>esc(t.title)).join(','),section:title=>`<h2>${esc(title)}</h2>`,
   library:{follows:[]},refreshLibrary:async()=>{},identityCards:()=>'',moodOptions:[],genres:[]
  });
+ vm.runInContext(readFileSync(new URL('../dist/community.js',import.meta.url),'utf8'),context);
  vm.runInContext(readFileSync(new URL('../dist/browse.js',import.meta.url),'utf8'),context);
  return {context,calls,view:(base,param,raw='')=>context.browseView(base,param,raw)};
 }
