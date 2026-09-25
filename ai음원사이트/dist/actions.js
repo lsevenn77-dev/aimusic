@@ -105,6 +105,7 @@ document.addEventListener('click',async ev=>{
    $('#'+el.dataset.playerAction).click();
    if(el.dataset.playerAction==='shuffle')el.textContent=shuffle?'셔플 켜짐':'셔플 끔';
    if(el.dataset.playerAction==='repeat')el.textContent=['반복 끔','전체 반복','한 곡 반복'][repeatMode];
+   if(el.closest('.queue-panel'))queueDialog();
   }
   else if(el.hasAttribute('data-oauth'))saveResume();
  }catch(e){toast(e.message);}finally{el.disabled=false;}
