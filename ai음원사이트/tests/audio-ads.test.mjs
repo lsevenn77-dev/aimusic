@@ -8,7 +8,7 @@ import {audioAdsRoute,audioAdTag} from '../server/audio-ads.js';
 const tag='https://pubads.g.doubleclick.net/gampad/ads?iu=/123456/unit_audio'; // Fixture, never requested.
 const source=readFileSync(new URL('../dist/audio-ads.js',import.meta.url),'utf8');
 const completed=session=>({session,duration:120,listened:120,preview:false});
-test('only completed listening sessions count; exactly five trigger a break',()=>{
+test('qualified listening sessions count once; exactly five trigger a break',()=>{
  const changes=[],c=core.createAudioAdCadence(0,n=>changes.push(n));
  assert.equal(c.complete({...completed('preview'),preview:true}),false);
  assert.equal(c.complete({...completed('seek'),listened:5}),false);
@@ -20,6 +20,25 @@ test('only completed listening sessions count; exactly five trigger a break',()=
  assert.equal(core.createAudioAdCadence(5).due,true);
  assert.equal(core.playedSeconds({length:2,start:i=>[0,60][i],end:i=>[20,70][i]}),30);
  assert.deepEqual(changes,[1,2,3,4,5,0]);
+});
+test('60% qualifies, just under 60% and seeking alone do not',()=>{
+ const c=core.createAudioAdCadence();
+ assert.equal(c.complete({session:'listen',duration:180,listened:107.999}),false);
+ assert.equal(c.complete({session:'listen',duration:180,listened:108}),true);
+ assert.equal(c.complete({session:'listen',duration:180,listened:180}),false,'end cannot recount a qualified skip or pause');
+ const jumped={length:2,start:i=>[0,170][i],end:i=>[20,180][i]};
+ assert.equal(c.complete({session:'seek',duration:180,listened:core.playedSeconds(jumped)}),false);
+ assert.equal(c.count,1);
+});
+test('manual song selection records the old listen before checking the ad boundary',async()=>{
+ const cadence=core.createAudioAdCadence(4),checks=[];
+ const context=vm.createContext({document:{querySelector(){}},Audio:class{constructor(){this.duration=180;this.played={length:1,start:()=>0,end:()=>108};}pause(){}},sessionStorage:{getItem:()=>null},window:{AifectAudioAds:{active:false,completed:value=>cadence.complete(value),beforeTrack(){checks.push(cadence.count);throw Error('boundary reached');}}},AifectAudioAdsCore:core,AifectGenres:{GENRES:[]}});
+ vm.runInContext(readFileSync(new URL('../dist/app.js',import.meta.url),'utf8'),context);
+ vm.runInContext("current={id:'old-song'};playSession='old-session';",context);
+ await assert.rejects(vm.runInContext("play('new-song')",context),/boundary reached/);
+ assert.deepEqual(checks,[5]);
+ await assert.rejects(vm.runInContext("play('another-song')",context),/boundary reached/);
+ assert.deepEqual(checks,[5,5]);
 });
 test('server requires real audio inventory, a free account and supported region',async()=>{
  const request={method:'GET',cf:{country:'KR'}},env={WEB_AUDIO_AD_TAG_URL:tag};

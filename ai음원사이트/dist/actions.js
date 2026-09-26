@@ -162,8 +162,8 @@ document.addEventListener('click',async ev=>{
 });
 audio.ontimeupdate=()=>{if(window.AifectAudioAds?.active)return;$('#elapsed').textContent=time(audio.currentTime);$('#seek').value=audio.currentTime;};
 audio.onplay=()=>{if(window.AifectAudioAds?.active)return;if(!current||!playSession){audio.pause();return;}setPlayerVisible(true);lastTick=performance.now();$('#play-toggle').innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg>';$('#play-toggle').setAttribute('aria-label','일시정지');};
-audio.onpause=()=>{if(window.AifectAudioAds?.active)return;$('#play-toggle').innerHTML=icon('play');$('#play-toggle').setAttribute('aria-label','재생');report();};
-audio.onended=()=>{if(window.AifectAudioAds?.active||!current||!playSession)return;report();window.AifectAudioAds?.completed({session:playSession,preview,duration:audio.duration,listened:AifectAudioAdsCore.playedSeconds(audio.played)});if(preview&&current.duration>=60){setPlayerVisible(false);saveResume();dialog('<h2>좋은 음악은 끝까지.</h2><p>무료 회원가입 후 60초 지점부터 이어 들으세요.</p><a class="primary-button" href="#account" id="preview-login">무료 회원가입 후 전체곡 듣기</a>');$('#preview-login').onclick=()=>{$('#dialog').close();returnRoute='#song/'+current.id;};return;}if(repeatMode===2)play(current.id).catch(e=>toast(e.message));else nextTrack(1,true).catch(e=>toast(e.message));};
+audio.onpause=()=>{if(window.AifectAudioAds?.active)return;countAdListening();$('#play-toggle').innerHTML=icon('play');$('#play-toggle').setAttribute('aria-label','재생');report();};
+audio.onended=()=>{if(window.AifectAudioAds?.active||!current||!playSession)return;report();countAdListening();if(preview&&current.duration>=60){setPlayerVisible(false);saveResume();dialog('<h2>좋은 음악은 끝까지.</h2><p>무료 회원가입 후 60초 지점부터 이어 들으세요.</p><a class="primary-button" href="#account" id="preview-login">무료 회원가입 후 전체곡 듣기</a>');$('#preview-login').onclick=()=>{$('#dialog').close();returnRoute='#song/'+current.id;};return;}if(repeatMode===2)play(current.id).catch(e=>toast(e.message));else nextTrack(1,true).catch(e=>toast(e.message));};
 audio.onerror=()=>{if(window.AifectAudioAds?.active)return;if(audio.src)toast('음원을 불러오지 못했습니다. 재생을 다시 눌러주세요.');};
 setInterval(()=>{if(!window.AifectAudioAds?.active&&!audio.paused&&!audio.seeking&&audio.readyState>=3){const n=performance.now();if(lastTick)heard+=Math.min((n-lastTick)/1000,1.1);lastTick=n;}else lastTick=0;},1000);
 setInterval(report,10000);
@@ -175,7 +175,7 @@ $('#volume').oninput=e=>{audio.volume=Number(e.target.value);window.AifectAudioA
 $('#queue-toggle').onclick=queueDialog;
 $('#player-close').onclick=closePlayer;
 $('#dialog-close').onclick=()=>$('#dialog').close();$('#menu-toggle').onclick=()=>$('.sidebar').classList.toggle('open');
-window.addEventListener('hashchange',render);window.addEventListener('pagehide',saveResume);
+window.addEventListener('hashchange',render);window.addEventListener('pagehide',()=>{countAdListening();saveResume();});
 async function boot(){
  accountReady=(async()=>{try{authConfig=await api('/api/me');me=authConfig.user;await refreshLibrary();}catch(e){toast(e.message);}finally{updateAccount();updateHomeAccount();}})();
  const firstRender=render();await accountReady;

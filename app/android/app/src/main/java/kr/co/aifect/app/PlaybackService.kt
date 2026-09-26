@@ -58,13 +58,14 @@ class PlaybackService : MediaSessionService() {
    addListener(object:Player.Listener {
     override fun onIsPlayingChanged(isPlaying:Boolean) { accrueAdListening();adWasPlaying=isPlaying;if(!isPlaying) report() }
     override fun onMediaItemTransition(item:MediaItem?,reason:Int) {
-     val automatic=reason==Player.MEDIA_ITEM_TRANSITION_REASON_AUTO||reason==Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT
-     if(automatic)countCompletion()
+     // Manual next/previous and playlist selections also finish the old listen.
+     // Evaluate it before replacing the old key, duration and listened time.
+     countCompletion()
      report(reportingKey)
      reportingKey=item?.localConfiguration?.uri?.toString()
      adListenedMs=0;adDurationMs=0;completionCounted=false
      adLastTick=android.os.SystemClock.elapsedRealtime()
-     if(automatic&&player.playWhenReady){
+     if(player.playWhenReady){
       val next=player.currentMediaItem;val nextIndex=player.currentMediaItemIndex
       SongAdBreaks.atBoundary({player.pause()}){if(player.currentMediaItem==next&&player.currentMediaItemIndex==nextIndex&&player.playbackState!=Player.STATE_IDLE)player.play()}
      }
@@ -85,6 +86,7 @@ class PlaybackService : MediaSessionService() {
      }.toMutableList())
     }
    }).build()
+  SongAdBreaks.finishCurrentListen={countCompletion()}
   lastTick=android.os.SystemClock.elapsedRealtime();handler.post(tick)
  }
  private val tick=object:Runnable {
@@ -121,6 +123,7 @@ class PlaybackService : MediaSessionService() {
  override fun onGetSession(controllerInfo:MediaSession.ControllerInfo)=session
  override fun onTaskRemoved(rootIntent:Intent?) { if(!player.playWhenReady || player.mediaItemCount==0)stopSelf() }
  override fun onDestroy() {
+  SongAdBreaks.finishCurrentListen=null
   handler.removeCallbacksAndMessages(null);player.release();session.release();worker.cancel();super.onDestroy()
  }
 }

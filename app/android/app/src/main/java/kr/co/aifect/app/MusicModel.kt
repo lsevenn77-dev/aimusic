@@ -266,6 +266,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   val index=entries.indexOfFirst {it.id==song.id}.coerceAtLeast(0)
   val items=entries.map { t->MediaItem.Builder().setMediaId(t.id).setMediaMetadata(MediaMetadata.Builder().setTitle(t.title)
    .setArtist(t.artist).setArtworkUri(t.art?.let(Uri::parse)).setExtras(android.os.Bundle().apply {putString("song",t.raw.toString())}).build()).build() }
+  SongAdBreaks.finishCurrentListen?.invoke()
   SongAdBreaks.atBoundary({c.pause()}){playerError=null;c.shuffleModeEnabled=shuffled;c.setMediaItems(items,index,0);c.prepare();c.play()}
  }
  fun toggle(){controller?.let {c->

@@ -6,6 +6,8 @@ import android.content.Context
 object SongAdBreaks {
  interface Host { fun ready():Boolean; fun show(onShown:()->Unit,onFinished:()->Unit):Boolean }
  var host:Host?=null
+ // Flush the current service listen before the UI replaces its media queue.
+ var finishCurrentListen:(()->Unit)?=null
  private var prefs:android.content.SharedPreferences?=null
  private var account:String?=null
  private var premiumUntil=0L

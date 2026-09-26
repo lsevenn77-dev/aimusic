@@ -34,8 +34,12 @@ function askLogin(){returnRoute=location.hash;saveResume();location.hash='accoun
 function saveResume(){saveQueue();if(current){pendingResume={id:current.id,time:preview?Math.min(audio.currentTime,60):audio.currentTime};sessionStorage.setItem('aifect-player-resume',JSON.stringify(pendingResume));}}
 function dialog(html){$('#dialog-content').innerHTML=html;if(!$('#dialog').open)$('#dialog').showModal();}
 function setPlayerVisible(visible){$('.player').hidden=!visible;document.body.classList.toggle('has-player',visible);}
+function countAdListening(){
+ if(current&&playSession&&!window.AifectAudioAds?.active)window.AifectAudioAds?.completed({session:playSession,preview,duration:audio.duration,listened:AifectAudioAdsCore.playedSeconds(audio.played)});
+}
 function closePlayer(){
  const restoreFocus=$('.player').contains(document.activeElement);
+ countAdListening();
  ++playSerial;window.AifectAudioAds?.cancel();audio.pause();void report();
  current=null;playSession=null;preview=false;heard=0;lastTick=0;pendingResume=null;
  audio.removeAttribute('src');audio.load();
@@ -46,6 +50,7 @@ function closePlayer(){
 }
 function formField(label,name,type='text',value='',extra=''){return `<label class="form-field">${label}<input type="${type}" name="${name}" value="${esc(value)}" ${extra}></label>`;}
 async function play(tid,tracks=null,start=0){
+ countAdListening();
  const serial=++playSerial;if(!window.AifectAudioAds?.active)audio.pause();await report();
  await window.AifectAudioAds?.beforeTrack();if(serial!==playSerial)return;
  const t=(await api('/api/tracks/'+tid)).track;if(serial!==playSerial)return;remember([t]);
