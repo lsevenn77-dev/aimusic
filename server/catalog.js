@@ -5,13 +5,14 @@ import {discoveryRoute,playlistSummaries} from './discovery.js';
 import {isPremium,playlistLimit,activePlaylistSQL,requireActivePlaylist} from './membership.js';
 import {listenerLyrics} from './lyrics.js';
 import {profileGifts} from './gifts.js';
-export const GENRES=['K-POP','Ballad','R&B','Hip-Hop','Rock','EDM','City Pop','OST','Instrumental'];
+import {GENRES,validGenre} from '../shared/genres.js';
+export {GENRES};
 // A cover is public only while its original is public and still offered for karaoke (terms: hiding the original hides its covers).
 export const VISIBLE=(t='t')=>`(${t}.status='published' AND (${t}.original_id IS NULL OR EXISTS(SELECT 1 FROM tracks v WHERE v.id=${t}.original_id AND v.status='published' AND v.karaoke_at>0)))`;
 // A song can be sung once its MR and word timings are built and its creator still offers it for karaoke.
 export const SINGABLE=(t='t')=>`(${t}.kind='original' AND ${t}.karaoke_at>0 AND EXISTS(SELECT 1 FROM karaoke_jobs k WHERE k.track_id=${t}.id AND k.state='ready' AND k.mr_ready=1 AND k.words_state IN ('ready','attention')))`;
 // Covers keep the original's AI artist in artist_id; their performer is the uploader's profile.
-const SELECT=`SELECT t.id,t.title,t.genre,t.tags,t.description,t.lyrics_mode,t.ai_tool,t.participation,t.duration,t.created,t.has_cover,t.cover_version,t.artist_id,t.producer_id,
+const SELECT=`SELECT t.id,t.title,t.genre,t.tags,t.description,t.lyrics_mode,t.ai_tool,t.participation,t.duration,t.created,t.has_cover,t.cover_version,t.artist_id,t.producer_id,(SELECT state FROM lyric_jobs WHERE track_id=t.id AND state!='cancelled') alignment_state,
  CASE WHEN t.kind='cover' THEN p.name||' · 커버' ELSE a.name END artist,p.name producer,t.user_id,t.kind,t.original_id,(t.kind='original' AND t.karaoke_at>0) accepts_covers,
  o.title original_title,o.has_cover original_has_cover,o.cover_version original_cover_version,a.name original_artist,o.producer_id original_producer_id,op.name original_producer,
  (SELECT count(*) FROM likes l WHERE l.track_id=t.id) likes,
@@ -36,7 +37,7 @@ export async function catalogRoute(req,env,path,user){
   const q=(url.searchParams.get('q')||'').slice(0,100),genre=url.searchParams.get('genre'),chart=url.searchParams.get('chart');
   let where=VISIBLE()+" AND t.kind='original'",args=[];
   if(q){where+=' AND (t.title LIKE ? OR a.name LIKE ? OR p.name LIKE ? OR t.genre LIKE ? OR t.tags LIKE ?)';args=Array(5).fill('%'+q+'%');}
-  if(genre&&GENRES.includes(genre)){where+=' AND t.genre=?';args.push(genre);}
+  if(genre&&validGenre(genre)){where+=' AND t.genre=?';args.push(genre);}
   let sort='t.created DESC';
   if(chart==='top')sort='(plays+likes*3+comments*2) DESC,t.created DESC';
   if(chart==='rising')sort="(SELECT count(DISTINCT listener) FROM listens l WHERE l.track_id=t.id AND l.qualified=1 AND l.started>unixepoch()-604800) DESC,t.created DESC";

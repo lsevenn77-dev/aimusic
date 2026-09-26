@@ -5,8 +5,9 @@ import {plainLyrics,alignedLrc} from '../shared/alignment.js';
 import worker from '../server/index.js';
 
 test('alignment preserves supplied words, detects invalid timing and inserts instrumental gaps',()=>{
+ assert.equal(plainLyrics('[Verse 1]\n안녕\n[Pre-Chorus]\n다시 만나\n[Chorus] Hello\n[Chorus]\nHello\n(Bridge)\n끝'),'안녕\n다시 만나\nHello\nHello\n끝');
  assert.equal(plainLyrics('\ufeff 안녕 \r\n\r\nhello'),'안녕\nhello');
- for(const s of ['', '[Chorus]\nHello','[00:00]hello','x'.repeat(6001),Array(201).fill('가사').join('\n')])assert.throws(()=>plainLyrics(s));
+ for(const s of ['', '[Unrecognised]\nHello','[00:00]hello','x'.repeat(6001),Array(201).fill('가사').join('\n')])assert.throws(()=>plainLyrics(s));
  const lrc=alignedLrc('처음 가사\n다음 가사',[{start:2,end:5},{start:10,end:14}],20);assert.equal(lrc,'[00:02.000]처음 가사\n[00:05.000]\n[00:10.000]다음 가사\n[00:14.000]');
  for(const result of [[],[{start:0,end:1}],[{start:2,end:1},{start:2,end:3}],[{start:2,end:3},{start:1,end:4}],[{start:0,end:1},{start:NaN,end:4}],[{start:0,end:1},{start:10,end:30}]])assert.throws(()=>alignedLrc('one\ntwo',result,20));
 });
@@ -18,7 +19,7 @@ async function jobsFixture(t){
  return {...f,internal};
 }
 const source={lyrics_source:'처음 가사\n다음 가사',lyrics_language:'ko'};
-test('private alignment job lifecycle is idempotent and requires creator review before publication',async t=>{
+test('private alignment job lifecycle is idempotent and automatically publishes validated lyrics and allows later edits',async t=>{
  const {call,sql,internal}=await jobsFixture(t),path='/api/studio/tracks/one/lyrics/align';
  assert.equal((await call(path,'POST',source,null)).status,401);assert.equal((await call(path,'POST',source,'other')).status,404);
  let out=await call(path,'POST',source);assert.equal(out.status,202);const jid=out.body.alignment.id;
@@ -31,11 +32,11 @@ test('private alignment job lifecycle is idempotent and requires creator review 
  assert.equal((await internal('/internal/lyrics/'+jid+'/finish',{timings:[]},job.lease_token)).status,400);
  assert.equal((await internal('/internal/lyrics/'+jid+'/finish',result,job.lease_token)).status,200);
  assert.equal((await internal('/internal/lyrics/'+jid+'/finish',result,job.lease_token)).status,409);
- const ready=(await call(path)).body.alignment;assert.equal(ready.state,'ready');assert.equal(ready.needs_attention,1);
- assert.equal(sql.prepare("SELECT lyrics FROM tracks WHERE id='one'").get().lyrics,'[00:01]기존 가사');
+ const ready=(await call(path)).body.alignment;assert.equal(ready.state,'applied');assert.equal(ready.needs_attention,1);
+ assert.equal(sql.prepare("SELECT lyrics FROM tracks WHERE id='one'").get().lyrics,ready.result_lrc);
  const profile=(await call('/api/studio/tracks/one')).body.profile;
- assert.equal((await call('/api/studio/tracks/one','PUT',{...profile,lyrics_mode:'synced',lyrics:ready.result_lrc,lyrics_job_id:jid})).status,200);
- assert.equal((await call(path)).body.alignment.state,'applied');
+ assert.equal((await call('/api/studio/tracks/one','PUT',{...profile,lyrics_mode:'synced',lyrics:ready.result_lrc})).status,200);
+ assert.equal((await call(path)).body.alignment,null,'manual edits supersede the automatic job');
  assert.equal(sql.prepare("SELECT lyrics FROM tracks WHERE id='one'").get().lyrics,ready.result_lrc);
  assert.equal((await call('/api/tracks/one/lyrics/line?at=10')).body.line.text,'다음 가사');
 });

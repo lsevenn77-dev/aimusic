@@ -1,10 +1,18 @@
 import {serializeLrc,parseLrc,MAX_LYRICS} from './lyrics.js';
 export const LYRIC_LANGUAGES={ko:'한국어',en:'영어',ja:'일본어',zh:'중국어',es:'스페인어',fr:'프랑스어',de:'독일어',pt:'포르투갈어'};
+// Only recognised section labels are removed; sung words and repeated choruses stay intact.
+export function cleanLyricSections(value){
+ let removed=0;
+ const section=/^(?:intro|outro|verse|pre[ -]?chorus|(?:final[ -]?|last[ -]?)?chorus|post[ -]?chorus|bridge|hook|refrain|interlude|instrumental(?: break)?|breakdown|solo|ending|후렴|간주|전주|인트로|아웃트로|브릿지|브리지|벌스|코러스|프리코러스|(?:제\s*)?\d+\s*절)(?:\s*\d+)?(?:\s*[:：-].*)?$/i;
+ const text=String(value??'').replace(/^\uFEFF/,'').replace(/\r\n?/g,'\n').split('\n').map(line=>line.replace(/^\s*(?:\[([^\]\n]+)\]|\(([^)\n]+)\))\s*/, (label,square,round)=>{if(!section.test((square||round).trim()))return label;removed++;return '';}).trim()).filter(Boolean).join('\n');
+ return {text,removed};
+}
 export function plainLyrics(value){
  if(typeof value!=='string'||value.length>6000)throw new Error('자동 싱크용 가사는 최대 6,000자까지 입력해주세요.');
- const lines=value.replace(/^\uFEFF/,'').replace(/\r\n?/g,'\n').split('\n').map(s=>s.trim()).filter(Boolean);
+ const lines=cleanLyricSections(value).text.split('\n').filter(Boolean);
  if(!lines.length||lines.length>200||lines.some(s=>s.length>300))throw new Error('실제로 부르는 가사를 한 줄씩 입력해주세요. 최대 200줄, 한 줄 300자입니다.');
- if(lines.some(s=>/^\[\d{1,3}:/.test(s)||/^\[.*\]$/.test(s)))throw new Error('시간 표시나 [Verse], [Chorus] 같은 구간 이름을 빼고 실제 가사만 입력해주세요. LRC는 직접 싱크 등록을 선택해주세요.');
+ const invalid=lines.findIndex(s=>/^\[\d{1,3}:/.test(s)||/^\[.*\]$/.test(s));
+ if(invalid>=0)throw new Error(`${invalid+1}번째 줄 “${lines[invalid].slice(0,45)}”을 확인해주세요. 시간 정보가 있는 LRC는 ‘직접 싱크 등록 / LRC’를 선택하고, 다른 대괄호 표시는 실제 가사만 남겨주세요.`);
  return lines.join('\n');
 }
 export function alignedLrc(source,timings,duration){

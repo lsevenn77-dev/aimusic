@@ -35,3 +35,18 @@
 .artist-portrait{overflow:hidden}
 .artist-portrait img{width:100%;height:100%;object-fit:cover}
 @media(max-width:580px){.image-field{gap:15px;padding:15px;align-items:flex-start}.image-preview{width:82px;height:82px}.image-field .form-field{font-size:13px}.image-field input{font-size:11px}.form-section-heading{margin-top:26px;padding-top:22px}.upload-form .form-section-heading h2{font-size:18px}.profile-hero{flex-wrap:wrap}.artist-editor{padding:20px}.artist-editor>summary .artist-portrait{width:52px;height:52px}.image-field .field-help{font-size:11px}.artist-editor>summary strong{font-size:16px}}
+
+/* Upload feedback stays beside the submit action, including validation failures. */
+.upload-form .upload-progress{padding:20px;border:1px solid #b9a5d64d;border-radius:14px;background:linear-gradient(120deg,#df9cbe12,#8fd7e710);color:#edeaf3;scroll-margin:100px}
+.upload-progress progress{display:block;height:9px;border:0;border-radius:8px;overflow:hidden;accent-color:#cdb5ee}
+.upload-progress progress::-webkit-progress-bar{background:#ffffff14;border-radius:8px}
+.upload-progress progress::-webkit-progress-value{background:linear-gradient(90deg,#edb3d0,#a8dfe4)}
+.upload-progress p{font-size:16px;font-weight:600;margin:14px 0 8px;line-height:1.6}
+.upload-progress small{color:#b8b5c3;font-size:14px;line-height:1.6}
+.upload-progress[data-state="error"]{border-color:#df8ea866;background:#df8ea810}
+.upload-progress[data-state="error"] small,.upload-progress[data-state="done"] small{display:none}
+.upload-form>.form-error:not(:empty){padding:14px 16px;border-left:3px solid #e8a8bf;background:#e8a8bf10;color:#ffd2df;border-radius:5px}
+.lyrics-cleanup-note{padding:12px 15px;color:#c8ecec;background:#9fd7de10;border:1px solid #9fd7de35;border-radius:9px;font-size:14px;line-height:1.7}
+.upload-form [aria-invalid="true"]{border-color:#ed9eb8!important;outline-color:#ed9eb8}
+
+.danger-button{color:#f3b1c1;border-color:#b4728566}.primary-button.danger-button{background:#efb0c0;color:#301823}.delete-track-title{font-weight:700;color:#f2deeb;overflow-wrap:anywhere}.genre-field{margin-bottom:20px}.genre-field>.field-help{display:block;margin-top:10px;line-height:1.7}

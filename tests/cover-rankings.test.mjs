@@ -45,7 +45,7 @@ test('ranking filters genre, literal search and original; singers aggregate visi
  f.sql.exec("UPDATE tracks SET karaoke_at=0 WHERE id='one'");
  assert.deepEqual((await f.call('/api/cover-rankings?period=all')).body.tracks,[]);
  assert.deepEqual((await f.call('/api/cover-rankings?period=all&kind=singers')).body.singers,[]);
- for(const args of ['period=bad','genre=bad','kind=bad','original_id=cover-a'])assert.ok((await f.call('/api/cover-rankings?'+args)).status>=400);
+ for(const args of ['period=bad','genre='+('x'.repeat(81)),'kind=bad','original_id=cover-a'])assert.ok((await f.call('/api/cover-rankings?'+args)).status>=400);
 });
 test('cover uploader may remove another comment but cannot edit it or moderate a different cover',async t=>{
  const f=await setup(t),c=(await f.call('/api/tracks/cover-a/comments','POST',{body:'A comment'},'owner')).body.id;

@@ -1,3 +1,4 @@
+import {validGenre} from '../shared/genres.js';
 import {rows,one,run,query,now,fail,str,json} from './db.js';
 import {requireUser} from './auth.js';
 import {trackList,published,GENRES,VISIBLE} from './catalog.js';
@@ -37,7 +38,7 @@ export async function discoveryRoute(req,env,path,user){
   if(url.searchParams.has('mood')&&!mood)fail(400,'분위기를 다시 선택해주세요.');
   let where=VISIBLE()+" AND t.kind='original'",args=[];
   if(mood){const f=moodFilter(mood);where+=' AND '+f.sql;args.push(...f.args);}
-  if(genre&&GENRES.includes(genre)){where+=' AND t.genre=?';args.push(genre);}
+  if(genre&&validGenre(genre)){where+=' AND t.genre=?';args.push(genre);}
   if(following){requireUser(user);where+=" AND EXISTS(SELECT 1 FROM follows f WHERE f.user_id=? AND ((f.kind='artist' AND f.target_id=t.artist_id) OR (f.kind='producer' AND f.target_id=t.producer_id)))";args.push(user.id);}
   const filters=MOODS.map(moodFilter),counts=await one(env,`SELECT ${filters.map((f,i)=>`COALESCE(sum(CASE WHEN ${f.sql} THEN 1 ELSE 0 END),0) n${i}`).join(',')} FROM tracks t WHERE ${VISIBLE()} AND t.kind='original'`,...filters.flatMap(f=>f.args));
   return json({tracks:await trackList(env,where,args,following?'t.created DESC':'(plays+likes*3) DESC,t.created DESC'),moods:MOODS.map((m,i)=>({id:m.id,name:m.name,caption:m.caption,symbol:m.symbol,count:counts['n'+i]})),basis:following?'following':mood?'tags':'popular'});

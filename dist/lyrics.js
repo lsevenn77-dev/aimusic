@@ -31,7 +31,7 @@ function bindLyricsEditor(){
  if(source.value){try{buildRows();}catch(e){error.textContent=e.message;}}bindAlignmentEditor();
 }
 function applyLyrics(fd){
- if(fd.get('lyrics_mode')==='auto'){fd.set('lyrics_source',AifectAlignment.plainLyrics($('#auto-lyrics-source').value));fd.set('lyrics_language',$('#auto-lyrics-language').value);fd.delete('lyrics');return;}
+ if(fd.get('lyrics_mode')==='auto'){cleanAutoLyricsInput();let text;try{text=AifectAlignment.plainLyrics($('#auto-lyrics-source').value);}catch(e){$('#alignment-error').textContent=e.message;throw Object.assign(e,{field:'#auto-lyrics-source'});}fd.set('lyrics_source',text);fd.set('lyrics_language',$('#auto-lyrics-language').value);fd.delete('lyrics');return;}
  if(fd.get('lyrics_mode')!=='synced'){fd.set('lyrics_mode','none');fd.set('lyrics','');return;}
  if(!lyricEditor)throw new Error('가사 편집기를 다시 열어주세요.');
  if(lyricEditor.dirty||!$('#lyrics-rows').children.length)lyricEditor.build();
@@ -43,7 +43,7 @@ let lyricLines=[],lyricDisplay=null,lyricRequest=0,lyricPending=null,lyricRetryA
 const LYRIC_PREFETCH_SECONDS=3,LYRIC_TRANSITION_GRACE=1.5;
 function resetLyricLines(){lyricLines=[];lyricDisplay=null;lyricRequest++;lyricPending=null;lyricRetryAt=0;}
 function lyricsPanel(t){
- if(t.lyrics_mode!=='synced')return `<section class="surface lyrics-panel"><h2>가사</h2><p class="field-help">아직 등록된 가사가 없습니다.</p></section>`;
+ if(t.lyrics_mode!=='synced'){const message={queued:'가사 자동 싱크를 준비하고 있어요. 완성되면 자동으로 표시돼요.',processing:'음악과 가사의 시간을 맞추고 있어요. 완성되면 자동으로 표시돼요.',ready:'자동 싱크가 완성됐어요. 제작자가 결과를 적용하면 가사가 표시돼요.',failed:'가사 자동 싱크에 실패했어요. 제작자가 스튜디오에서 다시 시도할 수 있어요.'}[t.alignment_state]||'아직 등록된 가사가 없습니다.';return `<section class="surface lyrics-panel"><h2>가사</h2><p class="field-help" role="status">${message}</p>${me?.id===t.user_id&&t.alignment_state?`<a class="small-button" href="#manage/${t.id}">가사 작업 확인</a>`:''}</section>`;}
  const full=hasFullLyrics(t);let cues=[];if(full){try{cues=AifectLyrics.parseLrc(t.lyrics);}catch{}}
  return `<section class="surface lyrics-panel" id="song-lyrics" data-track="${t.id}" data-mode="${full?'full':'line'}"><div class="section-heading"><h2>${full?'싱크 가사':'지금 흐르는 가사'} <span class="synced-badge">${full?'PREMIUM':'한 줄 가사'}</span></h2>${full?'<button class="small-button" id="lyrics-follow" aria-pressed="true">자동 따라가기 켜짐</button>':''}</div><div class="lyrics-toolbar"><p id="lyrics-play-status">이 곡을 재생하면 현재 가사가 표시됩니다.</p><button class="small-button" data-play="${t.id}">이 곡 재생 ${icon('play')}</button></div>${full?`<div class="lyrics-scroll" tabindex="0" role="region" aria-label="시간에 맞춰 표시되는 가사">${cues.map((c,i)=>`<button type="button" class="lyric-line" data-lyric-index="${i}" data-seek="${c.time}" data-track="${t.id}" aria-label="${time(c.time)} 가사로 이동"><span class="lyric-line-time">${time(c.time)}</span><span>${esc(c.text||'♪ 간주')}</span></button>`).join('')}</div>`:'<div class="lyrics-current-line" id="current-lyric-line">♪ 음악을 재생해주세요</div><div class="lyrics-upgrade"><span>전체 가사와 자동 따라가기는 Premium에서</span><a href="#membership">이용 혜택 보기 →</a></div>'}</section>`;
 }

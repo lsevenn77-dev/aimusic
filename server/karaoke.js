@@ -44,7 +44,7 @@ async function singRoute(req,env,path,user){
 export async function karaokeRoute(req,env,path,user){
  const sing=await singRoute(req,env,path,user);if(sing)return sing;
  const m=path.match(/^\/api\/studio\/tracks\/([\w-]+)\/karaoke(\/mr)?$/);if(!m)return null;
- requireUser(user);const track=await one(env,'SELECT * FROM tracks WHERE id=? AND user_id=?',m[1],user.id);if(!track)fail(404,'내 음원을 찾을 수 없습니다.');
+ requireUser(user);const track=await one(env,'SELECT * FROM tracks WHERE id=? AND user_id=?',m[1],user.id);if(!track||track.status==='deleted')fail(404,'내 음원을 찾을 수 없습니다.');
  const method=req.method;
  if(!m[2]){
   if(method==='GET')return json({karaoke:await karaokeStatus(env,track.id)});

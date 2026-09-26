@@ -1,0 +1,2 @@
+export const GENRES=['K-POP','Pop','Dark Pop','Ballad','R&B','Soul','Hip-Hop','Rock','Alternative','Indie Pop','EDM','Electronic','Synth Pop','City Pop','Lo-fi','Jazz','Blues','Folk','Acoustic','Country','Classical','Ambient','Fusion','Korean Folklore Fusion','World Music','국악','트로트','J-POP','OST','Instrumental'];
+export const validGenre=value=>typeof value==='string'&&value.trim().length>0&&value===value.trim()&&value.length<=80&&!/[\x00-\x1f\x7f]/.test(value);
