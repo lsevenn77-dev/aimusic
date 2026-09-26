@@ -1,0 +1,8 @@
+/* Audio advertising stays inside the existing player. No display inventory. */
+#ima-audio-container{display:none}
+.player.audio-ad-active #player-lyric,.player.audio-ad-active .timeline{visibility:hidden}
+.player.audio-ad-active #now-playing{gap:12px}
+.audio-ad-label{border:1px solid #a89eba66;border-radius:8px;padding:10px;font-size:12px;color:#e6d9f3}
+#audio-ad-status{color:var(--text-secondary,#aaa);font-size:12px}
+#audio-ad-skip{font:inherit;font-size:12px;border:1px solid #a89eba66;border-radius:7px;background:none;color:inherit;padding:6px 10px;cursor:pointer}
+#audio-ad-skip[hidden]{display:none!important}

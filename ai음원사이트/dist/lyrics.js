@@ -19,7 +19,7 @@ function bindLyricsEditor(){
  const ready=()=>{const available=Number.isFinite(player.duration)&&player.duration>0;$('#lyrics-preview-play').disabled=!available;$('#lyrics-stamp-next').disabled=!available;$('#lyrics-preview-seek').disabled=!available;if(available){$('#lyrics-preview-seek').max=player.duration;root.dataset.duration=player.duration;}};
  player.onloadedmetadata=ready;
  player.ontimeupdate=()=>{$('#lyrics-clock').textContent=AifectLyrics.timestamp(player.currentTime);$('#lyrics-preview-seek').value=player.currentTime;let selected=-1;const rows=[...box.children];rows.forEach((row,i)=>{const parts=row.querySelector('.lyric-time-input').value.split(':');const seconds=parts.length===2?Number(parts[0])*60+Number(parts[1]):-1;if(seconds>=0&&seconds<=player.currentTime)selected=i;});rows.forEach((row,i)=>row.classList.toggle('is-preview-current',i===selected));};
- player.onplay=()=>{audio.pause();$('#lyrics-preview-play').textContent='미리 듣기 일시정지';};
+ player.onplay=()=>{++playSerial;window.AifectAudioAds?.cancel();audio.pause();$('#lyrics-preview-play').textContent='미리 듣기 일시정지';};
  player.onpause=()=>{$('#lyrics-preview-play').textContent='음원 미리 듣기';};
  player.onerror=()=>{error.textContent='이 브라우저에서 원본을 미리 듣지 못했습니다. LRC로 등록하거나 음원 변환 후 스튜디오에서 시간을 지정해주세요.';};
  $('#lyrics-preview-play').onclick=async()=>{try{if(player.paused)await player.play();else player.pause();}catch{error.textContent='음원을 먼저 선택해주세요.';}};
@@ -77,6 +77,7 @@ async function fetchCurrentLine(seconds=audio.currentTime,prefetch=false){
  finally{if(token===lyricRequest){lyricPending=null;updateSyncedLyrics(true);}}
 }
 function updateSyncedLyrics(force=false){
+ if(window.AifectAudioAds?.active)return;
  if(current?.lyrics_access==='full'&&!hasFullLyrics(current))clearFullLyrics();
  const limitReached=!me&&audio.currentTime>=60,full=hasFullLyrics(current),hasLyrics=current?.lyrics_mode==='synced',index=limitReached?-1:AifectLyrics.activeCueIndex(currentCues,audio.currentTime),cue=currentCues[index],hud=$('#player-lyric');
  const line=lineAtTime();if(line)lyricDisplay=line;

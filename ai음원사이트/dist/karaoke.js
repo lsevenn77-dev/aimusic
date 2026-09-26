@@ -35,7 +35,7 @@ function bindSing(id){cleanupSing();if($('#sing')&&routeSing)sing={id,data:route
 async function startSinging(){
  if(!sing||sing.state==='loading'||sing.state==='singing')return;
  if(nativeSinging()){
-  const session=sing;audio.pause();session.state='loading';$('#sing-panel').innerHTML='<p class="field-help">노래방을 열고 있어요…</p>';
+  const session=sing;++playSerial;window.AifectAudioAds?.cancel();audio.pause();session.state='loading';$('#sing-panel').innerHTML='<p class="field-help">노래방을 열고 있어요…</p>';
   try{
    const result=await nativeSinging().open({trackId:session.id});
    if(result.uploadedId){if(sing===session)cleanupSing();toast('커버곡을 올렸어요! 변환이 끝나면 공개돼요.');location.hash='studio';return;}
@@ -43,7 +43,7 @@ async function startSinging(){
   }catch(e){if(sing===session){session.state='idle';$('#sing-panel').innerHTML=singStartHTML(e.message||'노래방을 열지 못했어요.');}}
   return;
  }
- audio.pause();sing.state='loading';$('#sing-panel').innerHTML='<p class="field-help">MR과 마이크를 준비하고 있어요…</p>';
+ ++playSerial;window.AifectAudioAds?.cancel();audio.pause();sing.state='loading';$('#sing-panel').innerHTML='<p class="field-help">MR과 마이크를 준비하고 있어요…</p>';
  const ctx=sing.ctx||new (window.AudioContext||window.webkitAudioContext)({sampleRate:K().MIX_RATE,latencyHint:'interactive'});sing.ctx=ctx;ctx.resume();
  try{
   const stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});

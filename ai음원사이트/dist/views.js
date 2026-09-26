@@ -1,5 +1,5 @@
 async function render(){
- window.AifectWebAds?.pageLoading();
+
  const ticket=++renderId,raw=location.hash.slice(1)||'home',[baseQuery,paramQuery]=raw.split('/'),[base]=baseQuery.split('?'),param=paramQuery?.split('?')[0];
  cleanupLyricsEditor();cleanupSing();
  $('.sidebar').classList.remove('open');updateBrowseNavigation(base,param);
@@ -51,7 +51,7 @@ async function render(){
    studioData=d;html=studioHTML(d)+earningsHTML(await api('/api/studio/earnings'));
   }else html=heading('페이지를 찾을 수 없어요')+empty('잠시 길을 잃었네요','홈에서 새로운 음악을 발견해보세요.','#home','홈으로 이동');
   if(ticket!==renderId)return;
-  $('#main').innerHTML=html;$('#main').removeAttribute('aria-busy');if(typeof AifectMotion!=='undefined')AifectMotion.enter($('#main'),base+'/'+(param||''));icons();bindForms(base,param);bindExplorer(explorer);bindBrowse(explorer);window.AifectWebAds?.pageReady();window.scrollTo({top:0,behavior:'instant'});if(base==='song'&&paramQuery?.includes('comments=1'))$('.comments-panel')?.scrollIntoView({block:'start'});
+  $('#main').innerHTML=html;$('#main').removeAttribute('aria-busy');if(typeof AifectMotion!=='undefined')AifectMotion.enter($('#main'),base+'/'+(param||''));icons();bindForms(base,param);bindExplorer(explorer);bindBrowse(explorer);window.scrollTo({top:0,behavior:'instant'});if(base==='song'&&paramQuery?.includes('comments=1'))$('.comments-panel')?.scrollIntoView({block:'start'});
  }catch(e){if(ticket!==renderId)return;$('#main').innerHTML=heading('다시 연결해주세요')+`<div class="surface empty-design"><p>${esc(e.message)}</p><button class="primary-button" id="reload-page">다시 시도</button></div>`;$('#reload-page').onclick=render;$('#main').removeAttribute('aria-busy');}
 }
 function accountHTML(){

@@ -6,7 +6,7 @@ import * as core from '../shared/lyrics.js';
 const source=readFileSync(new URL('../dist/lyrics.js',import.meta.url),'utf8');
 function player(api,clock=Date){
  const hud={},calls=[],events={},audio={currentTime:0,paused:false,addEventListener(name,fn){events[name]=fn;}},track={id:'song',duration:90,lyrics_mode:'synced',lyrics_access:'line',lyrics:''};
- const context=vm.createContext({current:track,me:{id:'listener'},audio,trackMap:new Map([[track.id,track]]),AifectLyrics:core,api:async path=>{calls.push(path);return api(path);},$:sel=>sel==='#player-lyric'?hud:null,Date:clock,esc:String,icon:()=>'',time:String});
+ const context=vm.createContext({window:{},playSerial:0,current:track,me:{id:'listener'},audio,trackMap:new Map([[track.id,track]]),AifectLyrics:core,api:async path=>{calls.push(path);return api(path);},$:sel=>sel==='#player-lyric'?hud:null,Date:clock,esc:String,icon:()=>'',time:String});
  vm.runInContext(source,context);return {context,hud,calls,audio,events,run:s=>vm.runInContext(s,context)};
 }
 const flush=()=>new Promise(resolve=>setImmediate(resolve));

@@ -1,10 +1,12 @@
 import { build } from 'esbuild';
-import { mkdir, cp, writeFile, readFile } from 'node:fs/promises';
+import { mkdir, cp, writeFile, readFile, rm } from 'node:fs/promises';
 import {businessFooterHTML} from '../shared/site-info.js';
 await mkdir('dist/server',{recursive:true});
 await mkdir('dist/client',{recursive:true});
 await cp('dist/app-ads.txt','dist/client/app-ads.txt');
-for(const file of ['ads.txt','web-ads.js','web-ads.css'])await cp(`dist/${file}`,`dist/client/${file}`);
+for(const file of ['ads.txt','audio-ads.js','audio-ads.css'])await cp(`dist/${file}`,`dist/client/${file}`);
+// Delete the replaced, generated display-ad assets from incremental builds.
+for(const file of ['web-ads.js','web-ads.css'])await rm(`dist/client/${file}`,{force:true});
 await cp('dist/billing.js','dist/client/billing.js');
 await cp('dist/motion.js','dist/client/motion.js');
 await cp('dist/motion.css','dist/client/motion.css');
@@ -18,6 +20,7 @@ await build({entryPoints:['shared/site-info.js'],outfile:'dist/client/site-info.
 await build({entryPoints:['shared/genres.js'],outfile:'dist/client/genres-core.js',bundle:true,format:'iife',globalName:'AifectGenres',target:'es2022',minify:true});
 await build({entryPoints:['shared/alignment.js'],outfile:'dist/client/alignment-core.js',bundle:true,format:'iife',globalName:'AifectAlignment',target:'es2022',minify:true});
 await build({entryPoints:['shared/queue.js'],outfile:'dist/client/queue-core.js',bundle:true,format:'iife',globalName:'AifectQueue',target:'es2022',minify:true});
+await build({entryPoints:['shared/audio-ads.js'],outfile:'dist/client/audio-ads-core.js',bundle:true,format:'iife',globalName:'AifectAudioAdsCore',target:'es2022',minify:true});
 await build({entryPoints:['shared/karaoke-audio.js'],outfile:'dist/client/karaoke-core.js',bundle:true,format:'iife',globalName:'AifectKaraoke',target:'es2022',minify:true});
 await build({entryPoints:['shared/lyrics.js'],outfile:'dist/client/lyrics-core.js',bundle:true,format:'iife',globalName:'AifectLyrics',target:'es2022',minify:true});
 await build({entryPoints:['server/index.js'], outfile:'dist/server/index.js', bundle:true, format:'esm', platform:'neutral', target:'es2022', external:['cloudflare:workers'], minify:false});
