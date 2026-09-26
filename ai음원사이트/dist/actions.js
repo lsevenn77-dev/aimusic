@@ -1,4 +1,25 @@
-function busyForm(form,work){return async ev=>{ev.preventDefault();const button=form.querySelector('button.primary-button'),error=form.querySelector('.form-error');if(button?.disabled)return;if(button)button.disabled=true;if(error)error.textContent='';try{await work(new FormData(form));}catch(e){if(error)error.textContent=e.message;else toast(e.message);}finally{if(button)button.disabled=false;}};}
+function formError(form){return form.querySelector(':scope > .form-error')||form.querySelector('.form-error');}
+function uploadStage(form,label,value=null,state='working'){
+ const panel=form.querySelector('.upload-progress');if(!panel)return;
+ panel.hidden=false;panel.dataset.state=state;panel.querySelector('p').textContent=label;
+ const bar=panel.querySelector('progress');bar.hidden=state==='error';
+ if(value===null)bar.removeAttribute('value');else bar.value=value;
+}
+function busyForm(form,work){return async ev=>{
+ ev.preventDefault();if(form._busy)return;
+ const button=ev.submitter||form.querySelector('button[type="submit"],button.primary-button:not([type="button"])'),error=formError(form),label=button?.innerHTML,isUpload=!!form.querySelector('.upload-progress');
+ form._busy=true;if(button){button.disabled=true;button.setAttribute('aria-busy','true');if(isUpload)button.textContent='업로드 준비 중…';}if(error)error.textContent='';
+ uploadStage(form,'입력한 정보와 파일을 확인하고 있어요.');
+ const warn=e=>{e.preventDefault();e.returnValue='';};if(isUpload)window.addEventListener('beforeunload',warn);
+ try{await work(new FormData(form));}
+ catch(e){if(error)error.textContent=e.message;else toast(e.message);uploadStage(form,'업로드를 완료하지 못했어요. 아래 내용을 확인해주세요.',null,'error');
+  if(e.field){const field=form.querySelector(e.field);field?.setAttribute('aria-invalid','true');field?.focus();field?.scrollIntoView({block:'center',behavior:'smooth'});toast(e.message);}else error?.scrollIntoView({block:'nearest',behavior:'smooth'});
+ }finally{form._busy=false;if(button){button.disabled=false;button.removeAttribute('aria-busy');button.innerHTML=label;}window.removeEventListener('beforeunload',warn);}
+};}
+function bindUploadForm(form,work){
+ form.onsubmit=busyForm(form,work);
+ form.addEventListener('invalid',e=>{if(form._invalidCycle)return;form._invalidCycle=true;setTimeout(()=>form._invalidCycle=false,0);const field=e.target,label=field.getAttribute('aria-label')||field.labels?.[0]?.textContent.trim().split('\n')[0]||'필수 항목';const error=formError(form);if(error)error.textContent=`${label.slice(0,70)}: ${field.validationMessage}`;uploadStage(form,'아직 업로드가 시작되지 않았어요. 필수 항목을 확인해주세요.',null,'error');},true);
+}
 function bindForms(base,param){
  if($('#search-form'))$('#search-form').onsubmit=e=>{e.preventDefault();location.hash='search/'+encodeURIComponent(new FormData(e.target).get('q'));};
  if($('#auth-form')){
@@ -12,8 +33,8 @@ function bindForms(base,param){
   $('#comment-sort').onchange=()=>reloadComments(param).catch(e=>toast(e.message));
  }
  if($('#new-playlist'))$('#new-playlist').onclick=()=>playlistDialog().catch(e=>toast(e.message));
- if($('#upload-form'))$('#upload-form').onsubmit=busyForm($('#upload-form'),upload);
- if($('#cover-upload-form'))$('#cover-upload-form').onsubmit=busyForm($('#cover-upload-form'),uploadCover);
+ if($('#upload-form'))bindUploadForm($('#upload-form'),upload);
+ if($('#cover-upload-form'))bindUploadForm($('#cover-upload-form'),uploadCover);
  bindStudioForms();bindMoodFields();bindLyricsPanel();if(base==='sing')bindSing(param);
 }
 let googleScriptPromise;
@@ -27,33 +48,52 @@ async function prepareGoogle(){
  google.accounts.id.renderButton(host,{theme:'outline',size:'large',type:'standard',text:'continue_with',width:Math.min(host.parentElement.clientWidth-60,340),locale:'ko',click_listener:saveResume});
 }
 async function reloadComments(tid){const {comments}=await api(`/api/tracks/${tid}/comments?sort=${$('#comment-sort')?.value||'latest'}`);if($('#comments'))$('#comments').innerHTML=commentsHTML(comments,trackMap.get(tid));}
+async function uploadRequest(path,method='GET',body){
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),60000);
+ try{const r=await fetch(path,{method,credentials:'same-origin',signal:controller.signal,headers:body?{'content-type':'application/json'}:undefined,body:body?JSON.stringify(body):undefined});let data;try{data=await r.json();}catch{throw Error('서버 응답을 확인하지 못했어요. 잠시 후 다시 시도해주세요.');}if(!r.ok)throw Object.assign(Error(data.error||'업로드 요청을 처리하지 못했어요.'),{status:r.status});return data;}
+ catch(e){if(e.name==='AbortError')throw Error('서버 응답이 늦어지고 있어요. 스튜디오에서 등록 여부를 확인한 뒤 다시 시도해주세요.');throw e;}
+ finally{clearTimeout(timer);}
+}
+async function existingUploadSubmitted(form,fingerprint){
+ if(form._draft?.fingerprint!==fingerprint)return false;
+ const {profile}=await uploadRequest(`/api/studio/tracks/${form._draft.id}`);
+ if(['queued','processing','published'].includes(profile.status)){toast('이미 전송이 완료된 곡이에요. 스튜디오에서 진행 상태를 확인해주세요.');location.hash='studio';return true;}
+ if(profile.status!=='uploading')throw Error('이 곡의 상태가 바뀌었어요. 스튜디오에서 확인해주세요.');return false;
+}
 async function upload(fd){
- applyLyrics(fd);
+ const form=$('#upload-form');applyLyrics(fd);
  const file=fd.get('audio'),image=fd.get('cover');if(!file?.size)throw new Error('음원 파일을 선택해주세요.');if(file.size>80*1024*1024)throw new Error('음원은 80MB 이하로 업로드해주세요.');
  for(const name of ['cover','artist_image','producer_image'])await validateImage(fd.get(name));
  const body={...textFields(fd),participation:fd.getAll('participation').join(', '),rights:fd.has('rights'),is_ai:fd.has('is_ai'),karaoke:fd.has('karaoke'),extension:file.name.split('.').pop().toLowerCase(),bytes:file.size};
- const progress=$('.upload-progress');progress.hidden=false;progress.querySelector('p').textContent='업로드를 준비하고 있습니다.';
- const form=$('#upload-form'),fingerprint=JSON.stringify([body,file.name,file.lastModified]);
- let draft=form._draft;if(!draft||draft.fingerprint!==fingerprint){draft={...await api('/api/uploads','POST',body),fingerprint};form._draft=draft;}
+ uploadStage(form,'1 / 3 · 곡 정보와 프로필을 저장하고 있어요.');form.querySelector('#upload-submit').textContent='업로드 중…';
+ const fingerprint=JSON.stringify([body,file.name,file.lastModified]);if(await existingUploadSubmitted(form,fingerprint))return;
+ let draft=form._draft;if(!draft||draft.fingerprint!==fingerprint){draft={...await uploadRequest('/api/uploads','POST',body),fingerprint};form._draft=draft;}
  const {id,artist_id,producer_id}=draft;
- await api('/api/studio/profile','PUT',{name:body.producer,bio:body.producer_bio});
- await api(`/api/studio/artists/${artist_id}`,'PUT',{name:body.artist,bio:body.artist_bio,genre:body.genre});
- for(const [name,kind,entityId] of [['artist_image','artists',artist_id],['producer_image','producers',producer_id]]){if(fd.get(name)?.size){progress.querySelector('p').textContent='프로필 사진을 업로드하고 있습니다.';await uploadFile(`/api/studio/${kind}/${entityId}/image`,fd.get(name));}}
- await uploadFile(`/api/uploads/${id}/audio`,file,value=>{progress.querySelector('progress').value=value;progress.querySelector('p').textContent=`음원 업로드 ${Math.round(value)}%`;});
- if(image?.size){progress.querySelector('p').textContent='커버를 업로드하고 있습니다.';await uploadFile(`/api/uploads/${id}/cover`,image);}
- await api(`/api/uploads/${id}/complete`,'POST');toast('업로드 완료! 음원 변환이 끝나면 공개됩니다.');location.hash='studio';
+ await uploadRequest('/api/studio/profile','PUT',{name:body.producer,bio:body.producer_bio});
+ await uploadRequest(`/api/studio/artists/${artist_id}`,'PUT',{name:body.artist,bio:body.artist_bio,genre:body.genre});
+ for(const [name,kind,entityId] of [['artist_image','artists',artist_id],['producer_image','producers',producer_id]]){if(fd.get(name)?.size){uploadStage(form,'1 / 3 · 프로필 사진을 올리고 있어요.');await uploadFile(`/api/studio/${kind}/${entityId}/image`,fd.get(name));}}
+ await sendUploadFiles(form,id,file,image);
 }
-// Same three steps as a song upload: create the draft, send the audio, then mark it complete for transcoding.
 async function uploadCover(fd){
  const form=$('#cover-upload-form'),file=fd.get('audio'),image=fd.get('cover');
- if(!file?.size)throw new Error('커버 녹음 파일을 선택해주세요.');if(file.size>80*1024*1024)throw new Error('녹음 파일은 80MB 이하로 올려주세요.');
- await validateImage(image);
+ if(!file?.size)throw new Error('커버 녹음 파일을 선택해주세요.');if(file.size>80*1024*1024)throw new Error('녹음 파일은 80MB 이하로 올려주세요.');await validateImage(image);
  const body={original_id:form.dataset.original,description:fd.get('description')||'',own_voice:fd.has('own_voice'),rights:fd.has('rights'),extension:file.name.split('.').pop().toLowerCase(),bytes:file.size};
- const progress=form.querySelector('.upload-progress');progress.hidden=false;progress.querySelector('p').textContent='업로드를 준비하고 있습니다.';
- const fingerprint=JSON.stringify([body,file.name,file.lastModified]);let draft=form._draft;if(!draft||draft.fingerprint!==fingerprint){draft={...await api('/api/covers','POST',body),fingerprint};form._draft=draft;}
- await uploadFile(`/api/uploads/${draft.id}/audio`,file,value=>{progress.querySelector('progress').value=value;progress.querySelector('p').textContent=`녹음 업로드 ${Math.round(value)}%`;});
- if(image?.size){progress.querySelector('p').textContent='이미지를 업로드하고 있습니다.';await uploadFile(`/api/uploads/${draft.id}/cover`,image);}
- await api(`/api/uploads/${draft.id}/complete`,'POST');toast('커버곡을 올렸어요! 변환이 끝나면 공개됩니다.');location.hash='studio';
+ uploadStage(form,'1 / 3 · 커버곡 정보를 저장하고 있어요.');
+ const fingerprint=JSON.stringify([body,file.name,file.lastModified]);if(await existingUploadSubmitted(form,fingerprint))return;
+ let draft=form._draft;if(!draft||draft.fingerprint!==fingerprint){draft={...await uploadRequest('/api/covers','POST',body),fingerprint};form._draft=draft;}
+ await sendUploadFiles(form,draft.id,file,image);
+}
+async function sendUploadFiles(form,id,file,image){
+ uploadStage(form,'2 / 3 · 음원 전송을 시작하고 있어요.',0);
+ await uploadFile(`/api/uploads/${id}/audio`,file,value=>uploadStage(form,value>=100?'2 / 3 · 전송 100% · 서버에 파일을 저장하고 있어요.':`2 / 3 · 음원 전송 ${Math.floor(value)}% · 화면을 닫지 마세요.`,value));
+ if(image?.size){uploadStage(form,'2 / 3 · 앨범 이미지를 올리고 있어요.');await uploadFile(`/api/uploads/${id}/cover`,image);}
+ uploadStage(form,'3 / 3 · 전송한 파일을 확인하고 음원 변환을 요청하고 있어요.');
+ await uploadRequest(`/api/uploads/${id}/complete`,'POST');uploadStage(form,'업로드 완료 · 음원 변환이 끝나면 공개돼요.',100,'done');
+ toast('전송 완료! 음원 변환은 화면을 닫아도 계속됩니다. 스튜디오에서 상태를 확인해주세요.');location.hash='studio';
+}
+function deleteTrackDialog(id,title,kind){
+ dialog(`<h2>이 곡을 삭제할까요?</h2><p class="delete-track-title">${esc(title)}</p><p>공개 목록과 내 스튜디오에서 삭제되며, 다시 공개할 수 없어요.${kind==='original'?' 이 곡의 노래방과 연결된 커버곡도 다른 이용자가 재생할 수 없게 됩니다.':''}</p><p class="field-help">이미 받은 선물과 정산 내역은 유지돼요.</p><form id="delete-track-form"><div class="inline-actions"><button type="button" class="small-button" data-close-dialog>취소</button><button type="submit" class="primary-button danger-button">곡 삭제</button></div><p class="form-error" role="alert"></p></form>`);
+ const form=$('#delete-track-form');form.onsubmit=busyForm(form,async()=>{await uploadRequest('/api/uploads/'+id,'DELETE');if(current?.id===id||current?.original_id===id)closePlayer();queue=queue.filter(tid=>tid!==id&&trackMap.get(tid)?.original_id!==id);trackMap.delete(id);saveQueue();$('#dialog').close();toast('곡이 삭제됐어요.');await refreshLibrary();await render();});
 }
 async function giftDialog(tid){
  const gold=await api('/api/gold'),t=trackMap.get(tid),presets=[10,50,100,500,1000].filter(n=>n<=gold.balance);
@@ -62,7 +102,16 @@ async function giftDialog(tid){
  form.querySelectorAll('[data-gift-amount]').forEach(b=>b.onclick=()=>{form.elements.gold.value=b.dataset.giftAmount;});
  form.onsubmit=busyForm(form,async fd=>{const n=Number(fd.get('gold')),r=await api(`/api/tracks/${tid}/gifts`,'POST',{gold:n});$('#dialog').close();toast(`${number(n)}골드를 선물했어요! 남은 골드 ${number(r.balance)}`);await render();});
 }
-function uploadFile(url,file,onprogress=()=>{}){return new Promise((resolve,reject)=>{const xhr=new XMLHttpRequest();xhr.open('PUT',url);xhr.setRequestHeader('Content-Type',file.type||'application/octet-stream');xhr.upload.onprogress=e=>{if(e.lengthComputable)onprogress(e.loaded/e.total*100);};xhr.onload=()=>{if(xhr.status>=200&&xhr.status<300)resolve();else{let message='업로드에 실패했습니다. 다시 시도해주세요.';try{message=JSON.parse(xhr.responseText).error||message;}catch{}reject(new Error(message));}};xhr.onerror=()=>reject(new Error('연결이 끊어졌습니다. 파일을 유지한 상태로 다시 업로드해주세요.'));xhr.send(file);});}
+function uploadFile(url,file,onprogress=()=>{}){return new Promise((resolve,reject)=>{
+ const xhr=new XMLHttpRequest();let idle,stalled=false;const heartbeat=()=>{clearTimeout(idle);idle=setTimeout(()=>{stalled=true;xhr.abort();},120000);};
+ xhr.open('PUT',url);xhr.timeout=15*60*1000;xhr.setRequestHeader('Content-Type',file.type||'application/octet-stream');
+ xhr.upload.onprogress=e=>{heartbeat();if(e.lengthComputable)onprogress(e.loaded/e.total*100);};xhr.onloadend=()=>clearTimeout(idle);
+ xhr.onload=()=>{if(xhr.status>=200&&xhr.status<300)resolve();else{let message='업로드에 실패했어요. 선택한 파일을 유지한 채 다시 시도해주세요.';try{message=JSON.parse(xhr.responseText).error||message;}catch{}reject(new Error(message));}};
+ xhr.onerror=()=>reject(new Error('연결이 끊어졌어요. 인터넷 연결을 확인하고 다시 업로드해주세요.'));
+ xhr.ontimeout=()=>reject(new Error('파일 전송 시간이 초과됐어요. 연결 상태를 확인하고 다시 시도해주세요.'));
+ xhr.onabort=()=>reject(new Error(stalled?'파일 전송이 멈췄어요. 선택한 파일은 유지되어 있으니 연결 상태를 확인하고 다시 시도해주세요.':'파일 전송이 취소됐어요.'));
+ heartbeat();xhr.send(file);
+});}
 async function playlistDialog(existing=null,initialTrack=null){if(!me)return askLogin();await refreshLibrary();if(!existing&&!canCreatePlaylist())return;if(existing?.locked)return selectActivePlaylists();dialog(`<h2>${existing?'플레이리스트 설정':'새 플레이리스트'}</h2><form id="playlist-form">${formField('이름','name','text',existing?.name||'','required maxlength="80"')}<label class="form-field">소개<textarea name="description" maxlength="600" placeholder="어떤 순간에 들으면 좋을까요?">${esc(existing?.description||'')}</textarea></label><label class="checkbox-line"><input name="is_public" type="checkbox" ${existing?.is_public?'checked':''}> 링크로 누구나 볼 수 있게 공개</label><button class="primary-button">저장</button><p class="form-error" role="alert"></p></form>`);const form=$('#playlist-form');form.onsubmit=busyForm(form,async fd=>{const d=await api(existing?`/api/playlists/${existing.id}`:'/api/playlists',existing?'PATCH':'POST',{name:fd.get('name'),description:fd.get('description'),is_public:fd.has('is_public'),...(!existing&&initialTrack?{track_ids:[initialTrack]}:{})});$('#dialog').close();await refreshLibrary();location.hash='playlist/'+(existing?.id||d.id);await render();});}
 async function addToPlaylist(tid){if(!me)return askLogin();await refreshLibrary();dialog(`<h2>플레이리스트에 추가</h2><div class="dialog-list">${library.playlists.filter(p=>!p.locked).map(p=>`<button class="small-button" data-save-track="${tid}" data-playlist="${p.id}">${esc(p.name)} <span>${p.tracks}곡</span></button>`).join('')}</div><button class="primary-button" id="dialog-new-playlist">새 플레이리스트 만들기</button>`);$('#dialog-new-playlist').onclick=()=>playlistDialog(null,tid).catch(e=>toast(e.message));}
 async function playlistOrderDialog(pid){
@@ -96,6 +145,7 @@ document.addEventListener('click',async ev=>{
   else if(el.dataset.deleteComment){if(confirm('댓글을 삭제할까요?')){await api('/api/comments/'+el.dataset.deleteComment,'DELETE');await reloadComments(location.hash.split('/')[1]?.split('?')[0]);}}
   else if(el.dataset.editComment||el.dataset.reply){if(!me)return askLogin();const edit=el.dataset.editComment;dialog(`<h2>${edit?'댓글 수정':'답글 남기기'}</h2><form id="reply-form"><textarea name="body" required maxlength="2000" aria-label="${edit?'댓글 수정':'답글'}">${esc(edit?el.dataset.body:'')}</textarea><button class="primary-button">등록</button><p class="form-error" role="alert"></p></form>`);const form=$('#reply-form');form.onsubmit=busyForm(form,async fd=>{await api(edit?`/api/comments/${edit}`:`/api/tracks/${el.dataset.track}/comments`,edit?'PATCH':'POST',{body:fd.get('body'),parent_id:el.dataset.reply||null});$('#dialog').close();await reloadComments(location.hash.split('/')[1]?.split('?')[0]);});}
   else if(el.hasAttribute('data-seek')){if(current?.id!==el.dataset.track)await play(el.dataset.track);if(el.hasAttribute('data-lyric-index')&&!hasFullLyrics(current)){refreshLyricsPanel();toast('전체 싱크 가사는 Premium에서 이용할 수 있어요.');return;}const seconds=Number(el.dataset.seek);if(preview&&seconds>=60){askLogin();return;}audio.currentTime=seconds;await audio.play();}
+  else if(el.dataset.deleteTrack)deleteTrackDialog(el.dataset.deleteTrack,el.dataset.trackTitle,el.dataset.trackKind);
   else if(el.dataset.hideTrack){if(confirm('이 곡을 비공개로 전환할까요?')){await api(`/api/uploads/${el.dataset.hideTrack}/unpublish`,'POST');await render();}}
   else if(el.dataset.karaokeTrack){if(!$('#karaoke-accept')?.checked){toast('동의 항목을 먼저 체크해주세요.');return;}await api(`/api/uploads/${el.dataset.karaokeTrack}/karaoke`,'POST',{accept:true});toast('노래방 MR 제공 · 커버 허락에 동의했습니다.');await render();}
   else if(el.dataset.karaokeRegenerate){if(confirm('지금 노래방 MR을 지우고 원곡에서 보컬을 다시 분리할까요?')){await api(`/api/studio/tracks/${el.dataset.karaokeRegenerate}/karaoke`,'POST',{});toast('노래방 MR을 다시 만들기 시작했어요.');await render();}}

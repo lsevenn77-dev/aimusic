@@ -1,3 +1,4 @@
+import {karaokeQueue} from './karaoke.js';
 import {one,run,query,now,id,fail,json,rate} from './db.js';
 import {requireUser} from './auth.js';
 import {lyricsFields} from './lyrics.js';
@@ -10,14 +11,14 @@ export async function alignmentWrite(env,trackId,userId,data,body={}){
   return [query(env,`UPDATE lyric_jobs SET state=?,lease_token=NULL,lease_until=0,updated=? WHERE track_id=?${body.lyrics_job_id?" AND id=? AND state='ready'":''}`,body.lyrics_job_id?'applied':'cancelled',now(),trackId,...(body.lyrics_job_id?[body.lyrics_job_id]:[]))];
  }
  const existing=await one(env,'SELECT * FROM lyric_jobs WHERE track_id=?',trackId);
- if(existing&&existing.source_text===data.source&&existing.language===data.language&&['queued','processing','ready'].includes(existing.state))return [];
+ if(existing&&existing.source_text===data.source&&existing.language===data.language&&['queued','processing','ready','applied'].includes(existing.state))return [];
  await rate(env,'lyrics-align:'+userId,10,86400);
  return [query(env,`INSERT INTO lyric_jobs(track_id,id,source_text,language,state,created,updated) VALUES(?,?,?,?,'queued',?,?)
  ON CONFLICT(track_id) DO UPDATE SET id=excluded.id,source_text=excluded.source_text,language=excluded.language,state='queued',result_lrc='',needs_attention=0,attempts=0,lease_until=0,lease_token=NULL,error=NULL,created=excluded.created,updated=excluded.updated`,trackId,id(),data.source,data.language,now(),now())];
 }
 export async function alignmentRoute(req,env,path,user){
  const m=path.match(/^\/api\/studio\/tracks\/([\w-]+)\/lyrics\/(align|audio)$/);if(!m)return null;
- requireUser(user);const track=await one(env,'SELECT * FROM tracks WHERE id=? AND user_id=?',m[1],user.id);if(!track)fail(404,'내 음원을 찾을 수 없습니다.');
+ requireUser(user);const track=await one(env,'SELECT * FROM tracks WHERE id=? AND user_id=?',m[1],user.id);if(!track||track.status==='deleted')fail(404,'내 음원을 찾을 수 없습니다.');
  if(m[2]==='audio'){
   if(!['GET','HEAD'].includes(req.method))fail(405,'지원하지 않는 요청입니다.');
   const obj=await env.BUCKET.get(`stream/${track.id}.m4a`);if(!obj)fail(409,'음원 변환이 끝난 뒤 미리 들을 수 있습니다.');
@@ -50,7 +51,14 @@ export async function alignmentInternalRoute(req,env,path){
  if(m[2]==='finish'&&req.method==='POST'){
   if(Number(req.headers.get('content-length')||0)>32768)fail(413,'결과가 너무 큽니다.');
   const body=await req.json();let result;try{result=alignedLrc(job.source_text,body.timings,job.duration);}catch(e){fail(400,e.message);}
-  const changed=await query(env,"UPDATE lyric_jobs SET state='ready',result_lrc=?,needs_attention=?,error=NULL,lease_until=0,lease_token=NULL,updated=? WHERE id=? AND lease_token=? AND state='processing' AND lease_until>? RETURNING id",result,body.needs_attention===true?1:0,now(),job.id,job.lease_token,now()).first();if(!changed)fail(409,'가사 작업이 변경됐습니다.');return json({ok:true});
+  const at=now();
+  await env.DB.batch([
+   query(env,"UPDATE tracks SET lyrics=?,lyrics_mode='synced' WHERE id=? AND status!='deleted' AND EXISTS(SELECT 1 FROM lyric_jobs WHERE track_id=tracks.id AND id=? AND lease_token=? AND state='processing' AND lease_until>?)",result,job.track_id,job.id,job.lease_token,at),
+   query(env,"UPDATE lyric_jobs SET state='applied',result_lrc=?,needs_attention=?,error=NULL,lease_until=0,lease_token=NULL,updated=? WHERE id=? AND lease_token=? AND state='processing' AND lease_until>? AND EXISTS(SELECT 1 FROM tracks WHERE id=lyric_jobs.track_id AND status!='deleted' AND lyrics=? AND lyrics_mode='synced')",result,body.needs_attention===true?1:0,at,job.id,job.lease_token,at,result)
+  ]);
+  if(!await one(env,"SELECT id FROM lyric_jobs WHERE id=? AND state='applied'",job.id))fail(409,'가사 작업이 변경됐습니다.');
+  const writes=await karaokeQueue(env,await one(env,'SELECT * FROM tracks WHERE id=?',job.track_id));if(writes.length)await env.DB.batch(writes);
+  return json({ok:true});
  }
  if(m[2]==='fail'&&req.method==='POST'){
   await run(env,"UPDATE lyric_jobs SET state='failed',error='자동으로 시간을 맞추지 못했습니다. 가사와 언어를 확인해 다시 시도하거나 직접 시간을 지정해주세요.',lease_until=0,lease_token=NULL,updated=? WHERE id=? AND lease_token=?",now(),job.id,job.lease_token);return json({ok:true});

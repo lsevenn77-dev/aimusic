@@ -1,3 +1,4 @@
+import {validGenre} from '../shared/genres.js';
 import {one,run,query,str,fail,json,rate} from './db.js';
 import {requireUser} from './auth.js';
 import {GENRES} from './catalog.js';
@@ -10,7 +11,7 @@ export async function studioRoute(req,env,path,user){
  const m=path.match(/^\/api\/studio\/(artists|producers|tracks)\/([\w-]+)(\/image|\/banner)?$/);if(!m)return null;
  requireUser(user);const [,,entityId]=m,table=m[1],kind={artists:'artist',producers:'producer',tracks:'track'}[table];
  const entity=await one(env,table==='artists'?'SELECT a.* FROM artists a JOIN producers p ON p.id=a.producer_id WHERE a.id=? AND p.user_id=?':`SELECT * FROM ${table} WHERE id=? AND user_id=?`,entityId,user.id);
- if(!entity)fail(404,'내 스튜디오 항목을 찾을 수 없습니다.');
+ if(!entity||(table==='tracks'&&entity.status==='deleted'))fail(404,'내 스튜디오 항목을 찾을 수 없습니다.');
  if(m[3]){
   if(req.method!=='PUT')fail(405,'지원하지 않는 요청입니다.');
   await rate(env,'image:'+user.id,60,3600);
@@ -36,7 +37,7 @@ export async function studioRoute(req,env,path,user){
  }
  if(table==='tracks'){
   const lyricData=lyricsFields(b,entity);
-  if(!GENRES.includes(b.genre))fail(400,'장르를 선택해주세요.');
+  if(!validGenre(b.genre))fail(400,'장르를 선택해주세요.');
   if(!await one(env,'SELECT id FROM artists WHERE id=? AND producer_id=?',str(b.artist_id,80),entity.producer_id))fail(404,'내 AI 아티스트를 선택해주세요.');
   const jobWrites=await alignmentWrite(env,entityId,user.id,lyricData,b);
   const guard=b.lyrics_job_id?" AND EXISTS(SELECT 1 FROM lyric_jobs WHERE track_id=tracks.id AND id=? AND state='ready')":'';
@@ -47,7 +48,7 @@ export async function studioRoute(req,env,path,user){
  }else{
   const name=str(b.name,60),bio=str(b.bio||'',1000,false);
   if(table==='artists'){
-   if(!GENRES.includes(b.genre))fail(400,'장르를 선택해주세요.');
+   if(!validGenre(b.genre))fail(400,'장르를 선택해주세요.');
    await run(env,'UPDATE artists SET name=?,bio=?,genre=? WHERE id=?',name,bio,b.genre,entityId);
   }else await run(env,'UPDATE producers SET name=?,bio=? WHERE id=?',name,bio,entityId);
  }
