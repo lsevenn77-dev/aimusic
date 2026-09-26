@@ -2,7 +2,7 @@ const freeMembership=()=>({plan:'free',playlist_limit:2,owned_count:0,active_ids
 let member=freeMembership(),membershipTimer;
 function setMembership(value){
  member=value||freeMembership();clearTimeout(membershipTimer);
- window.AifectWebAds?.setMembership(member);
+ window.AifectAudioAds?.setMembership(member,me?.id);
  if(!member.full_lyrics&&typeof clearFullLyrics==='function')clearFullLyrics();
  if(member.premium_until){const delay=member.premium_until*1000-Date.now();if(delay>0)membershipTimer=setTimeout(async()=>{try{await refreshLibrary();updateAccount();if(/^(#membership|#library|#playlist|#account)/.test(location.hash))await render();}catch{member={...member,plan:'free',full_lyrics:false,playlist_limit:2};clearFullLyrics();}},Math.min(delay+100,2147483647));}
 }

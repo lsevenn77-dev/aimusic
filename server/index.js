@@ -5,6 +5,7 @@ import {viewer,authRoute,hash} from './auth.js';
 import {catalogRoute} from './catalog.js';
 import {mediaRoute,internalRoute} from './media.js';
 import {membershipRoute} from './membership.js';
+import {audioAdsRoute} from './audio-ads.js';
 import {lyricsRoute} from './lyrics.js';
 import {alignmentRoute} from './alignment.js';
 import {karaokeRoute} from './karaoke.js';
@@ -34,6 +35,7 @@ export default {async fetch(req,env,ctx){
   const maxJson=path==='/api/uploads'||/^\/api\/studio\/tracks\/[^/]+(?:\/lyrics\/align)?$/.test(path)?131072:32768;
   if(Number(req.headers.get('content-length')||0)>maxJson&&!/^\/api\/uploads\/[^/]+\/(audio|cover)$/.test(path)&&!/^\/api\/studio\/(artists|producers|tracks)\/[^/]+\/image$/.test(path)&&!/^\/api\/studio\/tracks\/[^/]+\/karaoke\/mr$/.test(path))fail(413,'요청이 너무 큽니다.');
   const user=await viewer(req,env);
+  const audioAdsResponse=audioAdsRoute(req,env,path,user);if(audioAdsResponse)return audioAdsResponse;
   if(Math.random()<.005)ctx.waitUntil(env.DB.batch([
    query(env,'DELETE FROM sessions WHERE expires<?',now()),
    query(env,'DELETE FROM oauth_states WHERE expires<?',now()),

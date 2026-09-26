@@ -36,7 +36,7 @@ function dialog(html){$('#dialog-content').innerHTML=html;if(!$('#dialog').open)
 function setPlayerVisible(visible){$('.player').hidden=!visible;document.body.classList.toggle('has-player',visible);}
 function closePlayer(){
  const restoreFocus=$('.player').contains(document.activeElement);
- ++playSerial;audio.pause();void report();
+ ++playSerial;window.AifectAudioAds?.cancel();audio.pause();void report();
  current=null;playSession=null;preview=false;heard=0;lastTick=0;pendingResume=null;
  audio.removeAttribute('src');audio.load();
  try{sessionStorage.removeItem('aifect-player-resume');}catch{}
@@ -46,7 +46,9 @@ function closePlayer(){
 }
 function formField(label,name,type='text',value='',extra=''){return `<label class="form-field">${label}<input type="${type}" name="${name}" value="${esc(value)}" ${extra}></label>`;}
 async function play(tid,tracks=null,start=0){
- const serial=++playSerial;audio.pause();await report();const t=(await api('/api/tracks/'+tid)).track;if(serial!==playSerial)return;remember([t]);
+ const serial=++playSerial;if(!window.AifectAudioAds?.active)audio.pause();await report();
+ await window.AifectAudioAds?.beforeTrack();if(serial!==playSerial)return;
+ const t=(await api('/api/tracks/'+tid)).track;if(serial!==playSerial)return;remember([t]);
  const session=await api('/api/playback/'+tid,'POST');if(serial!==playSerial)return;
  current=t;playSession=session.id;preview=session.preview;heard=0;lastTick=0;
  if(tracks?.length)queue=[...new Set(tracks.map(t=>t.id))];else if(!queue.includes(tid))queue=[tid];saveQueue();
