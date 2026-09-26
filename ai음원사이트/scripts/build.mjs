@@ -4,6 +4,7 @@ import {businessFooterHTML} from '../shared/site-info.js';
 await mkdir('dist/server',{recursive:true});
 await mkdir('dist/client',{recursive:true});
 await cp('dist/app-ads.txt','dist/client/app-ads.txt');
+for(const file of ['ads.txt','web-ads.js','web-ads.css'])await cp(`dist/${file}`,`dist/client/${file}`);
 await cp('dist/billing.js','dist/client/billing.js');
 await cp('dist/motion.js','dist/client/motion.js');
 await cp('dist/motion.css','dist/client/motion.css');
