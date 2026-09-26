@@ -28,7 +28,9 @@ server-side. Entitlement is checked again before each ad request.
 
 ## Playback behavior
 
-- Five ended songs with at least 80% actually played make one ad break due.
+- Five songs with at least 60% actually played make one ad break due. Manual
+  skips/selections qualify too; reaching the end is not required. Each playback
+  session counts at most once, including pause, close and end callbacks.
   Native audio played ranges avoid background timer throttling and skip jumps.
 - The break runs before the next song (including repeat); a queue ending retains
   the due break for the next play. Session storage is scoped to the account.

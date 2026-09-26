@@ -16,7 +16,7 @@ export function createAudioAdCadence(initial=0,onChange=()=>{}){
   get count(){return count;},
   get due(){return count>=AUDIO_AD_INTERVAL;},
   complete({session,preview,duration,listened}){
-   if(!session||preview||completed.has(session)||!(duration>0)||!Number.isFinite(duration)||!(listened>=duration*.8))return false;
+   if(!session||preview||completed.has(session)||!(duration>0)||!Number.isFinite(duration)||!(listened>=duration*.6))return false;
    completed.add(session);if(completed.size>100)completed.delete(completed.values().next().value);
    save(Math.min(AUDIO_AD_INTERVAL,count+1));return true;
   },
