@@ -1,5 +1,6 @@
 import {fail} from './db.js';
 export const MAX_AUDIO=80*1024*1024;
+export const originalKey=track=>track.original_key||`original/${track.id}.${track.original_ext}`;
 export async function put(env,key,req,max,type){
  const len=Number(req.headers.get('content-length'));if(!len||len>max)fail(413,`파일 용량은 ${Math.round(max/1024/1024)}MB 이하여야 합니다.`);
  const stream=new FixedLengthStream(len);

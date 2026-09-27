@@ -57,7 +57,7 @@ async function play(tid,tracks=null,start=0){
  const session=await api('/api/playback/'+tid,'POST');if(serial!==playSerial)return;
  current=t;playSession=session.id;preview=session.preview;heard=0;lastTick=0;
  if(tracks?.length)queue=[...new Set(tracks.map(t=>t.id))];else if(!queue.includes(tid))queue=[tid];saveQueue();
- audio.src=session.src;$('#now-playing').innerHTML=`<a href="#song/${t.id}">${cover(t,'mini-cover')}</a><div><strong>${esc(t.title)}</strong><span>${esc(t.artist)} · ${preview?'60초 미리 듣기':'전체곡 AAC 128'}</span></div><button class="icon-button" data-like="${t.id}" aria-label="좋아요">${icon('heart')}</button>`;
+ audio.src=session.src;$('#now-playing').innerHTML=`<a href="#song/${t.id}">${cover(t,'mini-cover')}</a><div><strong>${esc(t.title)}</strong><span>${esc(t.artist)} · ${preview?'60초 미리 듣기':'전체곡 AAC 128'}</span></div><button class="icon-button" data-like="${t.id}" aria-label="좋아요">${icon('heart')}</button>${giftButton(t,'small-button gift-entry player-gift')}`;
  $('#listen-mode').textContent=preview?'60초 미리 듣기':'전체곡 무료';$('#seek').max=preview?Math.min(t.duration,60):t.duration;$('#duration').textContent=time($('#seek').max);
  if(start)audio.currentTime=Math.min(start,preview?59.9:t.duration);
  setCurrentLyrics(t);refreshLyricsPanel();setPlayerVisible(true);

@@ -1,10 +1,12 @@
 import json, os, time, tempfile, pathlib, subprocess, urllib.request, urllib.error, math
+from archive import archive_original
 
 BASE=os.environ['AIFECT_ORIGIN'].rstrip('/')
 TOKEN=os.environ['TRANSCODER_TOKEN']
-def request(path, method='GET', data=None, job=None, content_type='application/json'):
+def request(path, method='GET', data=None, job=None, content_type='application/json', extra_headers=None):
     headers={'Authorization':'Bearer '+TOKEN,'Content-Type':content_type,'User-Agent':'AIFECT-Transcoder/1.0 (+https://aifect.co.kr)','Accept':'application/json, audio/*, image/*, application/octet-stream'}
     if job: headers['X-Job-Token']=job['lease_token']
+    if extra_headers: headers.update(extra_headers)
     if isinstance(data,dict): data=json.dumps(data).encode()
     if hasattr(data,'fileno'): headers['Content-Length']=str(os.fstat(data.fileno()).st_size)
     req=urllib.request.Request(BASE+path,data=data,headers=headers,method=method)
@@ -49,14 +51,21 @@ def convert(job):
 
 def main():
     while True:
-        job=None
+        job=None; archive=None
         try:
             with request('/internal/jobs/claim','POST',{}) as response: job=json.load(response)['job']
             if job: convert(job)
+            else:
+                with request('/internal/archives/claim','POST',{}) as response: archive=json.load(response)['job']
+                if archive: archive_original(archive,request,download,command)
         except Exception as exc:
             print(json.dumps({'event':'transcode_error','kind':type(exc).__name__,'status':getattr(exc,'code',None),'track':job['id'] if job else None}),flush=True)
             if job:
                 try: request('/internal/jobs/'+job['id']+'/fail','POST',{},job).close()
+                except Exception: pass
+            if archive:
+                print(json.dumps({'event':'archive_error','track':archive['track_id'],'kind':type(exc).__name__,'status':getattr(exc,'code',None)}),flush=True)
+                try: request('/internal/archives/'+archive['track_id']+'/fail','POST',{'reason':type(exc).__name__},archive).close()
                 except Exception: pass
         time.sleep(5 if job else 15)
 
