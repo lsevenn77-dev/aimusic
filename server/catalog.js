@@ -19,11 +19,12 @@ const SELECT=`SELECT t.id,t.title,t.genre,t.tags,t.description,t.lyrics_mode,t.a
  (SELECT count(*) FROM comments c WHERE c.track_id=t.id AND c.deleted_at=0) comments,
  (SELECT count(*) FROM tracks cv WHERE cv.original_id=t.id AND ${VISIBLE('cv')}) covers,
  (SELECT count(DISTINCT listener||day) FROM listens l WHERE l.track_id=t.id AND l.qualified=1) plays,
- (SELECT COALESCE(sum(g.gold),0) FROM gifts g WHERE g.track_id=t.id) gift_gold
+ (SELECT COALESCE(sum(g.gold),0) FROM gifts g WHERE g.track_id=t.id) gift_gold,
+ (SELECT count(*) FROM free_gifts g WHERE g.track_id=t.id) gift_stars
  FROM tracks t JOIN artists a ON a.id=t.artist_id JOIN producers p ON p.id=t.producer_id LEFT JOIN tracks o ON o.id=t.original_id LEFT JOIN producers op ON op.id=o.producer_id`;
 export const trackList=(env,where=VISIBLE(),args=[],sort='t.created DESC',limit=100)=>rows(env,`${SELECT} WHERE ${where} ORDER BY ${sort} LIMIT ${limit}`,...args);
 export async function published(env,tid){const t=await one(env,`SELECT t.* FROM tracks t WHERE t.id=? AND ${VISIBLE()}`,tid);if(!t)fail(404,'공개된 곡을 찾을 수 없습니다.');return t;}
-const COVER_SORTS={popular:'likes DESC,plays DESC,t.created DESC',gifts:'gift_gold DESC,likes DESC,t.created DESC',plays:'plays DESC,likes DESC,t.created DESC',recent:'t.created DESC'};
+const COVER_SORTS={popular:'likes DESC,plays DESC,t.created DESC',gifts:'(gift_gold+gift_stars) DESC,likes DESC,t.created DESC',plays:'plays DESC,likes DESC,t.created DESC',recent:'t.created DESC'};
 export async function catalogRoute(req,env,path,user){
  const url=new URL(req.url),method=req.method;const discovery=await discoveryRoute(req,env,path,user);if(discovery)return discovery;
  if(path==='/api/community'&&method==='GET'){

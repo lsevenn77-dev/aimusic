@@ -7,7 +7,7 @@ function viewContext(responses={},user=null){
  const calls=[];
  const esc=s=>String(s??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
  const context=vm.createContext({me:user,inApp:false,location:{hash:'#library/covers'},URLSearchParams,Date,esc,
-  heading:(title,description='')=>`<h1>${esc(title)}</h1><p>${esc(description)}</p>`,gate:()=>'<p>LOGIN REQUIRED</p>',icon:()=>'',
+  heading:(title,description='')=>`<h1>${esc(title)}</h1><p>${esc(description)}</p>`,gate:()=>'<p>LOGIN REQUIRED</p>',giftButton:()=>'',icon:()=>'',
   empty:(title,description,href,label)=>`<p>${esc(title)}</p><a href="${href}">${esc(label)}</a>`,
   cover:()=>'',credits:()=>'',trackStats:()=>'',time:()=>'',liked:()=>false,
   api:async path=>{calls.push(path);if(!(path in responses))throw Error('Unexpected API '+path);return responses[path];},

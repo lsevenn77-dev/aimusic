@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {fixture} from './fixture.mjs';
 import {hash} from '../server/auth.js';
 import {settlementMonths} from '../server/gifts.js';
-import {allocateLots,splitGift,giftMonth,GOLD_PACKS} from '../shared/gifts.js';
+import {allocateLots,splitGift,giftMonth,giftDay,GIFT_CATALOG,GOLD_PACKS} from '../shared/gifts.js';
+import {freeGiftState} from '../server/free-gifts.js';
 
 // A web card lot (3.3% fee) and an app store lot (15% assumed fee).
 const WEB={id:'web',gold:1000,used:0,price_krw:10000,fee_krw:330};
@@ -39,6 +40,68 @@ async function giftFixture(t){
  return f;
 }
 
+test('catalog prices are authoritative; request retries do not spend gold twice',async t=>{
+ const f=await giftFixture(t),catalog=await f.call('/api/gifts/catalog','GET',undefined,null);
+ assert.deepEqual(catalog.body.gifts.map(g=>g.gold),[10,50,100,300,500,1000]);
+ assert.equal(catalog.body.free_gift.id,'star');
+ assert.equal((await f.call('/api/tracks/cover/gifts','POST',{gift_type:'crown',gold:10,request_id:'forged-price-123456'},'fan')).status,400);
+ const body={gift_type:'heart',request_id:'same-gift-request-1234'};
+ const [a,b]=await Promise.all([f.call('/api/tracks/cover/gifts','POST',body,'fan'),f.call('/api/tracks/cover/gifts','POST',body,'fan')]);
+ assert.equal(a.body.gift.id,b.body.gift.id);assert.equal(f.sql.prepare('SELECT count(*) n FROM gifts').get().n,1);
+ assert.equal((await f.call('/api/gold','GET',undefined,'fan')).body.balance,1450);
+ assert.equal(f.sql.prepare('SELECT gift_type,gift_name FROM gifts').get().gift_name,'하트');
+ assert.equal((await f.call('/api/tracks/one/gifts','POST',body,'fan')).status,409);
+ assert.equal((await f.call('/api/tracks/cover/gifts','POST',{gift_type:'invalid',request_id:'other-request-1234'},'fan')).status,400);
+});
+
+test('daily free rewards are account and Korean-day limited; activity requires real listening',async t=>{
+ const f=await giftFixture(t);
+ assert.equal((await f.call('/api/gifts/free/claim','POST',{kind:'checkin'},null)).status,401);
+ assert.equal((await f.call('/api/gifts/free/claim','POST',{kind:'listen'},'fan')).status,409);
+ await Promise.all([f.call('/api/gifts/free/claim','POST',{kind:'checkin'},'fan'),f.call('/api/gifts/free/claim','POST',{kind:'checkin'},'fan')]);
+ assert.equal((await f.call('/api/gifts/free','GET',undefined,'fan')).body.balance,3);
+ const at=Math.floor(Date.now()/1000),day=giftDay(at);
+ f.sql.exec('UPDATE tracks SET duration=200');
+ const listen=f.sql.prepare("INSERT INTO listens(id,track_id,listener,user_id,started,seconds,day,qualified) VALUES(?,?,'fan','fan',?,?,?,1)");
+ for(let n=0;n<5;n++)listen.run('repeat'+n,'one',at,120,day);
+ assert.equal((await f.call('/api/gifts/free/claim','POST',{kind:'listen'},'fan')).status,409,'five plays of the same song count once');
+ for(const tid of ['two','three','hidden','cover'])listen.run(tid,tid,at,119,day);
+ assert.equal((await f.call('/api/gifts/free/claim','POST',{kind:'listen'},'fan')).status,409,'59.5 percent does not qualify');
+ f.sql.exec('UPDATE listens SET seconds=120');
+ assert.equal((await f.call('/api/gifts/free/claim','POST',{kind:'listen'},'fan')).body.balance,5);
+ assert.equal((await f.call('/api/gifts/free/claim','POST',{kind:'listen'},'fan')).body.balance,5);
+ assert.equal((await f.call('/api/gifts/free/claim','POST',{kind:'cover'},'fan')).status,409);
+ f.sql.prepare("UPDATE tracks SET user_id='fan',created=? WHERE id='cover'").run(at);
+ assert.equal((await f.call('/api/gifts/free/claim','POST',{kind:'cover'},'fan')).body.balance,7);
+ const comment=f.sql.prepare("INSERT INTO comments(id,track_id,user_id,body,created,deleted_at) VALUES(?,'one','fan',?,?,?)");
+ comment.run('deleted','삭제된 댓글',at,at);comment.run('short','ㅋ',at,0);
+ assert.equal((await f.call('/api/gifts/free/claim','POST',{kind:'comment1'},'fan')).status,409);
+ for(let n=1;n<=4;n++)comment.run('c'+n,'음악이 좋아요 '+n,at,0);
+ for(let n=1;n<=3;n++)assert.equal((await f.call('/api/gifts/free/claim','POST',{kind:'comment'+n},'fan')).body.balance,7+n);
+ assert.equal((await f.call('/api/gifts/free/claim','POST',{kind:'comment4'},'fan')).status,400);
+ assert.equal((await f.call('/api/gifts/free/claim','POST',{kind:'comment3'},'fan')).body.balance,10);
+ const tomorrow=await freeGiftState({DB:f.DB},'fan',Math.floor(Date.now()/1000)+86400);
+ assert.equal(tomorrow.balance,10);assert.ok(tomorrow.rewards.every(r=>!r.claimed));assert.equal(tomorrow.rewards[1].eligible,false);
+ assert.equal(giftDay(Date.UTC(2026,8,28,14,59,59)/1000),'2026-09-28');assert.equal(giftDay(Date.UTC(2026,8,28,15)/1000),'2026-09-29');
+});
+
+test('free cheers add ranking points but never paid balances or revenue; duplicate and overspend protection',async t=>{
+ const f=await giftFixture(t);await f.call('/api/gifts/free/claim','POST',{kind:'checkin'},'fan');
+ const body={gift_type:'star',request_id:'free-gift-request-1234'};
+ const [a,b]=await Promise.all([f.call('/api/tracks/cover/gifts','POST',body,'fan'),f.call('/api/tracks/cover/gifts','POST',body,'fan')]);
+ assert.equal(a.body.gift.id,b.body.gift.id);assert.equal(a.body.gift.gold,0);assert.equal(a.body.free_balance,2);
+ const wallet=(await f.call('/api/gold','GET',undefined,'fan')).body;assert.equal(wallet.balance,1500);assert.equal(wallet.sent.length,0);assert.equal(wallet.free_sent.length,1);
+ assert.equal(f.sql.prepare('SELECT count(*) n FROM gifts').get().n,0);assert.equal(f.sql.prepare('SELECT count(*) n FROM gift_lots').get().n,0);
+ const rank=(await f.call('/api/tracks/cover/gifts')).body;assert.equal(rank.free_count,1);assert.equal(rank.total_gold,0);assert.deepEqual(rank.ranking,[{rank:1,name:'팬',gold:0,stars:1,score:1,gifts:1}]);
+ await f.call('/api/tracks/cover/gifts','POST',{gift_type:'note',request_id:'paid-with-star-12345'},'fan');
+ const mixed=(await f.call('/api/tracks/cover/gifts')).body.ranking[0];assert.equal(mixed.score,11);assert.equal(mixed.gold,10);assert.equal(mixed.stars,1);
+ assert.equal((await f.call('/api/studio/earnings','GET',undefined,'other')).body.months[0].gifts,1);
+ assert.equal((await f.call('/api/tracks/one/gifts','POST',{...body,request_id:'own-free-gift-12345'},'owner')).status,400);
+ const results=await Promise.all([1,2,3].map(n=>f.call('/api/tracks/cover/gifts','POST',{gift_type:'star',request_id:'free-gift-parallel-00'+n},'fan')));
+ assert.equal(results.filter(r=>r.status===201).length,2);assert.equal((await f.call('/api/gifts/free','GET',undefined,'fan')).body.balance,0);
+ assert.equal((await f.call('/api/tracks/cover/gifts','POST',{gift_type:'star',gold:10,request_id:'invalid-free-123456'},'fan')).status,400);
+});
+
 test('gifts spend the oldest gold, freeze each share, and feed the rankings',async t=>{
  const f=await giftFixture(t);
  assert.equal((await f.call('/api/gold','GET',undefined,'fan')).body.balance,1500);
@@ -57,7 +120,7 @@ test('gifts spend the oldest gold, freeze each share, and feed the rankings',asy
  const direct=f.sql.prepare("SELECT * FROM gifts WHERE track_id='one'").get();
  assert.deepEqual([direct.net_mw,direct.singer_profile_id,direct.creator_mw,direct.platform_mw],[850000,null,595000,255000]);
  const coverRank=(await f.call('/api/tracks/cover/gifts')).body;
- assert.deepEqual([coverRank.total_gold,coverRank.ranking[0]],[1200,{rank:1,name:'팬',gold:1200,gifts:1}]);
+ assert.deepEqual([coverRank.total_gold,coverRank.ranking[0]],[1200,{rank:1,name:'팬',gold:1200,stars:0,score:1200,gifts:1}]);
  assert.deepEqual((await f.call('/api/producers/singer')).body.gifts.ranking.map(r=>[r.name,r.gold]),[['팬',1200]]);
  assert.deepEqual((await f.call('/api/producers/producer')).body.gifts.ranking.map(r=>[r.name,r.gold]),[['팬',100]],'a cover\'s fans belong to its singer');
  const covers=(await f.call('/api/tracks/one/covers?sort=gifts')).body.covers;assert.equal(covers[0].gift_gold,1200);

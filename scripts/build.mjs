@@ -4,7 +4,7 @@ import {businessFooterHTML} from '../shared/site-info.js';
 await mkdir('dist/server',{recursive:true});
 await mkdir('dist/client',{recursive:true});
 await cp('dist/app-ads.txt','dist/client/app-ads.txt');
-for(const file of ['ads.txt','audio-ads.js','audio-ads.css'])await cp(`dist/${file}`,`dist/client/${file}`);
+for(const file of ['ads.txt','audio-ads.js','audio-ads.css','gifts.js','gifts.css','image-upload.js'])await cp(`dist/${file}`,`dist/client/${file}`);
 // Delete the replaced, generated display-ad assets from incremental builds.
 for(const file of ['web-ads.js','web-ads.css'])await rm(`dist/client/${file}`,{force:true});
 await cp('dist/billing.js','dist/client/billing.js');
@@ -16,6 +16,7 @@ for (const file of ['player-queue.css','community.js','community.css','polish.cs
 const indexHTML=await readFile('dist/index.html','utf8');
 if(!indexHTML.includes('<!--BUSINESS_FOOTER-->'))throw new Error('Business footer placeholder is missing');
 await writeFile('dist/client/index.html',indexHTML.replace('<!--BUSINESS_FOOTER-->',businessFooterHTML()));
+await build({entryPoints:['shared/gifts.js'],outfile:'dist/client/gifts-core.js',bundle:true,format:'iife',globalName:'AifectGifts',target:'es2022',minify:true});
 await build({entryPoints:['shared/site-info.js'],outfile:'dist/client/site-info.js',bundle:true,format:'iife',globalName:'AifectSite',target:'es2022',minify:true});
 await build({entryPoints:['shared/genres.js'],outfile:'dist/client/genres-core.js',bundle:true,format:'iife',globalName:'AifectGenres',target:'es2022',minify:true});
 await build({entryPoints:['shared/alignment.js'],outfile:'dist/client/alignment-core.js',bundle:true,format:'iife',globalName:'AifectAlignment',target:'es2022',minify:true});

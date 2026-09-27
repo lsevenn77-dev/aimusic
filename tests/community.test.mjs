@@ -7,7 +7,7 @@ const source=readFileSync(new URL('../dist/community.js',import.meta.url),'utf8'
 function context(api=async()=>({tracks:[],singers:[]})){
  const calls=[],played=[],remembered=[];
  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
- const c=vm.createContext({URLSearchParams,genres:['전체','K-POP','Ballad','R&B'],esc,number:n=>String(n||0),icon:()=>'',cover:()=>'',portrait:()=>'',liked:()=>false,followed:()=>false,
+ const c=vm.createContext({URLSearchParams,genres:['전체','K-POP','Ballad','R&B'],esc,number:n=>String(n||0),giftButton:()=>'',icon:()=>'',cover:()=>'',portrait:()=>'',liked:()=>false,followed:()=>false,
   me:null,location:{hash:'#community'},heading:s=>'<h1>'+s+'</h1>',gate:()=>'<p>LOGIN</p>',communityFeed:()=>'<p>FEED</p>',renderId:1,routeTracks:[],
   remember:items=>remembered.push(...items),accountReady:Promise.resolve(),play:async(id,queue)=>played.push({id,queue}),toast:()=>{},
   api:async path=>{calls.push(path);return api(path);}

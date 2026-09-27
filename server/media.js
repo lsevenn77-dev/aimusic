@@ -7,7 +7,8 @@ import {studioRoute} from './studio.js';
 import {lyricsFields} from './lyrics.js';
 import {alignmentInternalRoute,alignmentWrite} from './alignment.js';
 import {KARAOKE_TERMS_VERSION} from '../shared/site-info.js';
-import {MAX_AUDIO,put,objectResponse,parseRange} from './storage.js';
+import {MAX_AUDIO,put,objectResponse,parseRange,originalKey} from './storage.js';
+import {originalArchiveRoute} from './original-archives.js';
 import {karaokeQueue,karaokeInternalRoute} from './karaoke.js';
 export {parseRange};
 export async function listener(req,user){return user?.id||await hash((req.headers.get('cf-connecting-ip')||'local')+'|'+(req.headers.get('user-agent')||'')+'|'+new Date().toISOString().slice(0,10));}
@@ -64,7 +65,7 @@ export async function mediaRoute(req,env,path,user){
   }
   if(action==='unpublish'&&method==='POST'){await run(env,"UPDATE tracks SET status='hidden' WHERE id=?",t.id);return json({ok:true});}
   if(action==='retry'&&method==='POST'){
-   if(!['failed','hidden'].includes(t.status)||!await env.BUCKET.head(`original/${t.id}.${t.original_ext}`))fail(409,'다시 처리할 원본이 없습니다.');
+   if(!['failed','hidden'].includes(t.status)||!await env.BUCKET.head(originalKey(t)))fail(409,'다시 처리할 원본이 없습니다.');
    await run(env,"UPDATE tracks SET status='queued',error=NULL,attempts=0,lease_until=0 WHERE id=?",t.id);return json({ok:true});
   }
   if(t.status!=='uploading')fail(409,'이미 제출한 업로드입니다.');
@@ -113,6 +114,7 @@ export async function mediaRoute(req,env,path,user){
 }
 export async function internalRoute(req,env,path){
  if(!env.TRANSCODER_TOKEN||req.headers.get('authorization')!==`Bearer ${env.TRANSCODER_TOKEN}`)fail(401,'인증이 필요합니다.');
+ const archive=await originalArchiveRoute(req,env,path);if(archive)return archive;
  const alignment=await alignmentInternalRoute(req,env,path);if(alignment)return alignment;
  const karaoke=await karaokeInternalRoute(req,env,path);if(karaoke)return karaoke;
  if(path==='/internal/health'&&req.method==='GET'){
@@ -124,7 +126,7 @@ export async function internalRoute(req,env,path){
  }
  const m=path.match(/^\/internal\/jobs\/([\w-]+)\/(original|cover-source|stream|preview|cover|finish|fail)$/);if(!m)fail(404,'경로를 찾을 수 없습니다.');
  const t=await one(env,"SELECT * FROM tracks WHERE id=? AND status='processing' AND lease_token=? AND lease_until>?",m[1],req.headers.get('x-job-token')||'',now());if(!t)fail(409,'변환 작업이 만료됐습니다.');const action=m[2];
- if(['original','cover-source'].includes(action)&&req.method==='GET')return objectResponse(req,env,action==='original'?`original/${t.id}.${t.original_ext}`:`cover-source/${t.id}`,'application/octet-stream');
+ if(['original','cover-source'].includes(action)&&req.method==='GET')return objectResponse(req,env,action==='original'?originalKey(t):`cover-source/${t.id}`,'application/octet-stream');
  if(['stream','preview','cover'].includes(action)&&req.method==='PUT'){
   await put(env,`${action}/${t.id}.${action==='cover'?'jpg':'m4a'}`,req,MAX_AUDIO,action==='cover'?'image/jpeg':'audio/mp4');return json({ok:true});
  }

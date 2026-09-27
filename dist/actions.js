@@ -95,14 +95,7 @@ function deleteTrackDialog(id,title,kind){
  dialog(`<h2>이 곡을 삭제할까요?</h2><p class="delete-track-title">${esc(title)}</p><p>공개 목록과 내 스튜디오에서 삭제되며, 다시 공개할 수 없어요.${kind==='original'?' 이 곡의 노래방과 연결된 커버곡도 다른 이용자가 재생할 수 없게 됩니다.':''}</p><p class="field-help">이미 받은 선물과 정산 내역은 유지돼요.</p><form id="delete-track-form"><div class="inline-actions"><button type="button" class="small-button" data-close-dialog>취소</button><button type="submit" class="primary-button danger-button">곡 삭제</button></div><p class="form-error" role="alert"></p></form>`);
  const form=$('#delete-track-form');form.onsubmit=busyForm(form,async()=>{await uploadRequest('/api/uploads/'+id,'DELETE');if(current?.id===id||current?.original_id===id)closePlayer();queue=queue.filter(tid=>tid!==id&&trackMap.get(tid)?.original_id!==id);trackMap.delete(id);saveQueue();$('#dialog').close();toast('곡이 삭제됐어요.');await refreshLibrary();await render();});
 }
-async function giftDialog(tid){
- const gold=await api('/api/gold'),t=trackMap.get(tid),presets=[10,50,100,500,1000].filter(n=>n<=gold.balance);
- dialog(`<h2>선물하기</h2><p>${esc(t?.title||'')}${t?` · ${esc(t.kind==='cover'?t.producer+' 커버':t.artist)}`:''}</p><p class="gift-balance">보유 골드<strong>${number(gold.balance)}</strong></p>${gold.balance<10?`<p class="field-help">선물하려면 골드가 10개 이상 필요해요.${gold.checkout_available?'':' 골드 충전은 결제 준비가 끝나면 열려요.'}</p><a class="small-button" href="#gold">골드 보기</a>`:`<form id="gift-form"><div class="gift-presets">${presets.map(n=>`<button type="button" class="small-button" data-gift-amount="${n}">${number(n)}골드</button>`).join('')}</div><label class="form-field">보낼 골드<input name="gold" type="number" min="10" max="${Math.min(100000,gold.balance)}" step="1" value="${Math.min(100,gold.balance)}" required></label><p class="field-help">1골드 = ${gold.gold_krw}원. 보낸 선물은 되돌릴 수 없어요.</p><button class="primary-button">선물 보내기</button><p class="form-error" role="alert"></p></form>`}`);
- const form=$('#gift-form');if(!form)return;
- form.querySelectorAll('[data-gift-amount]').forEach(b=>b.onclick=()=>{form.elements.gold.value=b.dataset.giftAmount;});
- form.onsubmit=busyForm(form,async fd=>{const n=Number(fd.get('gold')),r=await api(`/api/tracks/${tid}/gifts`,'POST',{gold:n});$('#dialog').close();toast(`${number(n)}골드를 선물했어요! 남은 골드 ${number(r.balance)}`);await render();});
-}
-function uploadFile(url,file,onprogress=()=>{}){return new Promise((resolve,reject)=>{
+async function uploadFile(url,file,onprogress=()=>{}){file=await optimizeUploadImage(file);return new Promise((resolve,reject)=>{
  const xhr=new XMLHttpRequest();let idle,stalled=false;const heartbeat=()=>{clearTimeout(idle);idle=setTimeout(()=>{stalled=true;xhr.abort();},120000);};
  xhr.open('PUT',url);xhr.timeout=15*60*1000;xhr.setRequestHeader('Content-Type',file.type||'application/octet-stream');
  xhr.upload.onprogress=e=>{heartbeat();if(e.lengthComputable)onprogress(e.loaded/e.total*100);};xhr.onloadend=()=>clearTimeout(idle);
@@ -127,7 +120,8 @@ document.addEventListener('click',async ev=>{
   if(el.matches('[data-play],[data-play-all],[data-like],[data-follow],[data-add],[data-seek]'))await accountReady;
   if(el.hasAttribute('data-play')){if($('#dialog').open)$('#dialog').close();await play(el.dataset.play,routeTracks.some(t=>t.id===el.dataset.play)?routeTracks:null);}
   else if(el.hasAttribute('data-play-all')){if(routeTracks.length)await play(routeTracks[0].id,routeTracks);else toast('먼저 곡을 추가해주세요.');}
-  else if(el.dataset.gift){if(!me)return askLogin();await giftDialog(el.dataset.gift);}
+  else if(el.dataset.gift){await giftDialog(el.dataset.gift,el.dataset.giftType);}
+  else if(el.dataset.profileGift){await profileGiftDialog(el.dataset.profileGift);}
   else if(el.dataset.closePeriod){if(confirm(`${el.dataset.closePeriod} 정산을 마감할까요? 마감한 달은 되돌릴 수 없어요.`)){const r=await api('/api/admin/payouts/close','POST',{period:el.dataset.closePeriod});toast(`정산서 ${r.issued}건을 만들었어요. 이월 ${r.carried}건.`);location.hash='admin/'+r.period;await render();}}
   else if(el.dataset.revealPayout){const a=await api(`/api/admin/payouts/${el.dataset.revealPayout}/account`);dialog(`<h2>정산 계좌</h2><p>이 조회는 기록돼요.</p><dl class="business-details"><div><dt>예금주</dt><dd>${esc(a.holder)}</dd></div><div><dt>은행</dt><dd>${esc(a.bank)}</dd></div><div><dt>계좌번호</dt><dd>${esc(a.account)}</dd></div><div><dt>주민등록번호</dt><dd>${esc(a.resident_number)}</dd></div></dl>`);}
   else if(el.dataset.payStatement){dialog(`<h2>지급 완료 기록</h2><form id="pay-form"><label class="form-field">이체 메모 (선택)<input name="ref" maxlength="100" placeholder="예: 국민 이체 3/15"></label><button class="primary-button">지급 완료로 기록</button><p class="form-error" role="alert"></p></form>`);const form=$('#pay-form'),sid=el.dataset.payStatement;form.onsubmit=busyForm(form,async fd=>{await api(`/api/admin/payouts/${sid}/paid`,'POST',{ref:fd.get('ref')||''});$('#dialog').close();toast('지급 완료로 기록했어요.');await render();});}
