@@ -25,7 +25,6 @@ import androidx.core.view.*;
 import kr.co.aifect.app.BuildConfig;
 import org.json.*;
 import java.io.*;
-import java.util.UUID;
 import java.util.concurrent.*;
 
 /** A native singing room, launched from the signed-in song page. No microphone samples cross JS. */
@@ -33,11 +32,18 @@ public class KaraokeActivity extends AppCompatActivity {
     private static final int PINK=Color.rgb(242,161,198),BG=Color.rgb(16,17,20),CARD=Color.rgb(25,27,32),MUTED=Color.rgb(162,163,175);
     private final Handler ui=new Handler(Looper.getMainLooper());
     private final ExecutorService files=Executors.newSingleThreadExecutor();
-    private enum State{LOADING,READY,COUNTDOWN,RECORDING,REVIEW,PLAYING,UPLOADING}
+    private enum State{LOADING,READY,COUNTDOWN,RECORDING,PAUSED,STOPPING,REVIEW,PLAYING,GUIDE,UPLOADING}
     private State state=State.LOADING;
     private volatile boolean destroyed;
     private boolean foreground,hasTake,updatingMonitor,uploadComplete;
     private int countdownId;
+    private double cursor,guideStart;
+    private boolean pauseRequested,guideThenRecord,keepDraft;
+    private File original,sessionFile;
+    private Button pause,guide,pickLine;
+    private SeekBar timeline;
+    private SwitchCompat autoSync;
+    private TextView syncResult;
     private String trackId,draftId;
     private File directory,mr,dry;
     private KaraokeApi api;
@@ -54,7 +60,7 @@ public class KaraokeActivity extends AppCompatActivity {
     private CheckBox ownVoice,rights;
     private LinearLayout reviewFields,syncFields;
     private AudioManager audioManager;
-    private ActivityResultLauncher<String> microphone;
+    private ActivityResultLauncher<String> microphone,saveAudio;
     private final AudioDeviceCallback devices=new AudioDeviceCallback(){
         @Override public void onAudioDevicesAdded(AudioDeviceInfo[] d){updateRoute();}
         @Override public void onAudioDevicesRemoved(AudioDeviceInfo[] d){
@@ -65,7 +71,7 @@ public class KaraokeActivity extends AppCompatActivity {
     };
     private final Runnable tick=new Runnable(){public void run(){
         if(destroyed)return;
-        if(engine!=null&&(state==State.RECORDING||state==State.PLAYING))drawLyrics(engine.position());
+        if(engine!=null&&(state==State.RECORDING||state==State.PLAYING||state==State.GUIDE))drawLyrics(engine.position());
         ui.postDelayed(this,50);
     }};
 
@@ -77,30 +83,36 @@ public class KaraokeActivity extends AppCompatActivity {
             if(!foreground||destroyed)return;
             if(granted)beginCountdown();else message("마이크 권한이 있어야 노래를 녹음할 수 있어요. 다시 누르거나 앱 설정에서 허용해주세요.");
         });
+        saveAudio=registerForActivityResult(new ActivityResultContracts.CreateDocument("audio/wav"),uri->{if(uri==null||engine==null)return;VocalEffects.Settings chosen=engine.settings;setState(State.UPLOADING);message("부른 구간만 저장하고 있어요…");files.execute(()->{try{File wav=new File(directory,"saved-cover.wav");PcmFiles.export(mr,dry,wav,chosen);try(InputStream in=new FileInputStream(wav);OutputStream out=getContentResolver().openOutputStream(uri)){if(out==null)throw new IOException("저장할 파일을 열 수 없어요.");byte[] bytes=new byte[65536];int n;while((n=in.read(bytes))!=-1)out.write(bytes,0,n);}ui.post(()->{if(!destroyed){setState(State.REVIEW);message("부른 구간을 WAV 파일로 저장했어요.");}});}catch(Exception e){ui.post(()->{if(!destroyed){setState(State.REVIEW);message(friendly(e));}});}});});
         api=new KaraokeApi(origin,NativeSession.cookie(this));
-        directory=new File(getCacheDir(),"karaoke-"+UUID.randomUUID());
-        if(!directory.mkdirs()){finish();return;}
-        mr=new File(directory,"mr.pcm");dry=new File(directory,"voice.pcm");
+        String account=getIntent().getStringExtra("ownerId");
+        String owner=draftOwner(origin,account==null?NativeSession.cookie(this):"user:"+account);
+        directory=new File(getFilesDir(),"karaoke-"+trackId+"-"+owner);
+        if(!directory.exists()&&!directory.mkdirs()){finish();return;}
+        mr=new File(directory,"mr.pcm");dry=new File(directory,"voice.pcm");original=new File(directory,"guide.pcm");sessionFile=new File(directory,"session.json");
         buildUI();
         audioManager=(AudioManager)getSystemService(AUDIO_SERVICE);audioManager.registerAudioDeviceCallback(devices,ui);
         getOnBackPressedDispatcher().addCallback(this,new OnBackPressedCallback(true){public void handleOnBackPressed(){
-            if(hasTake&&!uploadComplete)new AlertDialog.Builder(KaraokeActivity.this).setMessage("이 녹음을 저장하지 않고 나갈까요?").setNegativeButton("계속하기",null).setPositiveButton("나가기",(d,w)->finish()).show();
+            if((hasTake||state==State.RECORDING)&&!uploadComplete)new AlertDialog.Builder(KaraokeActivity.this).setMessage("이 녹음을 임시 저장하고 나갈까요? 다음에 이 곡을 열면 이어서 편집할 수 있어요.").setNegativeButton("계속하기",null).setNeutralButton("녹음 버리기",(d,w)->finish()).setPositiveButton("임시 저장 후 닫기",(d,w)->{keepDraft=true;finish();}).show();
             else finish();
         }});
         ui.post(tick);
+        if(dry.length()>PcmFiles.RATE/5&&mr.length()>0&&sessionFile.exists())try{
+            JSONObject cached=new JSONObject(new String(java.nio.file.Files.readAllBytes(sessionFile.toPath()),java.nio.charset.StandardCharsets.UTF_8));words=cached.optJSONArray("words");if(words==null)words=new JSONArray();title.setText(cached.optString("title","내 임시 녹음"));engine=new KaraokeEngine(this,mr,dry,this::audioFinished);restoreSession();applySettings();hasTake=true;setState(State.PAUSED);drawLyrics(cursor);message("임시 녹음을 복원했어요. 이어 부르거나 들어보고 편집하세요.");return;
+        }catch(Exception ignored){}
         files.execute(()->{
             try{
                 JSONObject data=api.json("/api/karaoke/"+trackId,"GET",null);JSONObject song=data.getJSONObject("track");
                 if(song.optDouble("duration")>PcmFiles.MAX_SECONDS)throw new IOException("10분 이하 곡만 부를 수 있어요.");
                 File compressed=new File(directory,"mr.m4a");
                 if(directory.getUsableSpace()<400L*1024*1024)throw new IOException("노래를 녹음하려면 저장공간을 400MB 이상 비워주세요.");
-                api.download("/media/"+trackId+"/mr",compressed);BackingDecoder.decode(compressed,mr);compressed.delete();
+                if(mr.length()==0){api.download("/media/"+trackId+"/mr",compressed);BackingDecoder.decode(compressed,mr);compressed.delete();}
                 ui.post(()->{
                     if(destroyed)return;
                     words=data.optJSONArray("words");if(words==null)words=new JSONArray();
                     title.setText(song.optString("title")+"\n"+song.optString("artist"));
-                    engine=new KaraokeEngine(this,mr,dry,this::audioFinished);applySettings();updateRoute();setState(State.READY);
-                    message("에코와 룸을 조절한 뒤 시작하세요. 목소리는 업로드 전까지 이 기기에만 있어요.");drawLyrics(0);
+                    engine=new KaraokeEngine(this,mr,dry,this::audioFinished);restoreSession();applySettings();updateRoute();hasTake=dry.length()>PcmFiles.RATE/5;setState(hasTake?State.PAUSED:State.READY);
+                    message(hasTake?"임시 녹음을 복원했어요. 이어 부르거나 가사에서 시작 위치를 골라주세요.":"원곡 가이드를 먼저 듣거나 바로 노래를 시작하세요.");drawLyrics(cursor);
                 });
             }catch(Exception e){ui.post(()->{if(!destroyed){message(friendly(e));record.setEnabled(false);}});}
         });
@@ -133,67 +145,109 @@ public class KaraokeActivity extends AppCompatActivity {
         LinearLayout lyrics=box();previous=text("",15,MUTED);line=text("♪",29,Color.WHITE);next=text("",15,MUTED);
         line.setTypeface(null,Typeface.BOLD);line.setMinHeight(dp(100));line.setGravity(Gravity.CENTER);previous.setGravity(Gravity.CENTER);next.setGravity(Gravity.CENTER);
         lyrics.addView(previous);lyrics.addView(line);lyrics.addView(next);add(lyrics,20);
+        pickLine=button("가사 펼치기 · 시작 위치 선택",false);pickLine.setOnClickListener(v->chooseLine());add(pickLine,8);
+        timeline=new SeekBar(this);timeline.setMax(1000);timeline.setContentDescription("노래 위치");timeline.setMinimumHeight(dp(44));
+        timeline.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){public void onStartTrackingTouch(SeekBar b){}public void onStopTrackingTouch(SeekBar b){}public void onProgressChanged(SeekBar b,int n,boolean user){if(user&&engine!=null)selectPosition(engine.duration()*n/1000);}});add(timeline,8);
         progress=new ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);progress.setMax(1000);progress.setProgressTintList(ColorStateList.valueOf(PINK));add(progress,14);
         clock=text("0:00",13,MUTED);add(clock,4);
         syncFields=box();syncFields.addView(text("들으면서 싱크 맞추기",18,Color.WHITE));
         syncFields.addView(text("녹음 들어보기를 누른 뒤 조절하세요. 목소리가 늦게 들리면 빠르게, 먼저 들리면 느리게 맞춰주세요. 재생 중에도 바로 반영돼요.",13,MUTED));
-        offset=slider(syncFields,"목소리 싱크",1100,380,"ms",-300);
+        offset=slider(syncFields,"목소리 싱크",1100,300,"ms",-300);
         LinearLayout fineSync=new LinearLayout(this);
         slower=button("느리게",false);slower.setContentDescription("목소리를 5ms 느리게");slower.setOnClickListener(v->offset.setProgress(Math.max(0,offset.getProgress()-5)));
-        resetSync=button("기본값",false);resetSync.setContentDescription("목소리 싱크 기본값 80ms");resetSync.setOnClickListener(v->offset.setProgress(380));
+        resetSync=button("기본값",false);resetSync.setContentDescription("목소리 싱크 기본값 0ms");resetSync.setOnClickListener(v->offset.setProgress(300));
         faster=button("빠르게",false);faster.setContentDescription("목소리를 5ms 빠르게");faster.setOnClickListener(v->offset.setProgress(Math.min(offset.getMax(),offset.getProgress()+5)));
         for(Button b:new Button[]{slower,resetSync,faster})fineSync.addView(b,new LinearLayout.LayoutParams(0,-2,1));syncFields.addView(fineSync);add(syncFields,18);
+        LinearLayout automatic=box();autoSync=new SwitchCompat(this);autoSync.setText("기기 지연 자동 보정");autoSync.setTextColor(Color.WHITE);autoSync.setChecked(true);autoSync.setOnCheckedChangeListener((b,on)->{if(engine!=null)engine.autoSync=on;});automatic.addView(autoSync);
+        syncResult=text("녹음 중 마이크와 반주의 기기 시간을 비교해 보정해요. 노래를 부르는 박자 자체를 바꾸지는 않아요. 기기 측정이 불가능하면 기본 80ms를 적용하며 직접 조절할 수 있어요.",13,MUTED);automatic.addView(syncResult);add(automatic,14);
         LinearLayout fx=box();fx.addView(text("목소리 효과와 음량",18,Color.WHITE));
         echo=slider(fx,"에코",65,18,"%",0);room=slider(fx,"룸 리버브",65,16,"%",0);
         size=slider(fx,"룸 크기 · 작게 → 넓게",100,50,"%",0);
         voice=slider(fx,"목소리",200,100,"%",0);backing=slider(fx,"반주",150,80,"%",0);add(fx,18);
         status=text("반주와 가사를 불러오고 있어요…",13,MUTED);status.setTag("karaoke-status");status.setMinHeight(dp(42));add(status,16);
         record=button("노래 시작",true);record.setOnClickListener(v->{
-            if(hasTake)new AlertDialog.Builder(this).setMessage("기존 녹음 대신 다시 부를까요?").setNegativeButton("취소",null).setPositiveButton("다시 부르기",(d,w)->requestRecord()).show();else requestRecord();
+            if(hasTake&&cursor<dry.length()/2.0/PcmFiles.RATE-.1)new AlertDialog.Builder(this).setMessage(time(cursor)+"부터 다시 부르면 그 뒤의 기존 녹음을 교체해요. 앞부분은 남아요.").setNegativeButton("취소",null).setPositiveButton("여기부터 부르기",(d,w)->requestRecord()).show();else requestRecord();
         });add(record,10);
-        stop=button("그만 부르기",false);stop.setOnClickListener(v->{if(state==State.COUNTDOWN){setState(hasTake?State.REVIEW:State.READY);message("시작을 취소했어요.");}else if(engine!=null)engine.stop();});add(stop,8);
-        preview=button("녹음 들어보기",false);preview.setOnClickListener(v->{try{engine.start(false);setState(State.PLAYING);}catch(Exception e){message(friendly(e));}});add(preview,8);
+        stop=button("그만 부르기",false);stop.setOnClickListener(v->{if(state==State.COUNTDOWN){setState(hasTake?State.REVIEW:State.READY);message("시작을 취소했어요.");}else if(engine!=null){pauseRequested=false;setState(State.STOPPING);engine.stop();}});add(stop,8);
+        preview=button("녹음 들어보기",false);preview.setOnClickListener(v->{try{engine.start(false,cursor<dry.length()/2.0/PcmFiles.RATE?cursor:0);setState(State.PLAYING);}catch(Exception e){message(friendly(e));}});add(preview,8);
+        pause=button("일시정지",false);pause.setOnClickListener(v->pauseTake());
+        guide=button("원곡 가이드 듣기",false);guide.setOnClickListener(v->{if(state==State.GUIDE){guideThenRecord=true;engine.stop();setState(State.STOPPING);}else startGuide();});add(guide,8);
         reviewFields=box();reviewFields.addView(text("내 커버곡 공개하기",18,Color.WHITE));
         description=new EditText(this);description.setTextColor(Color.WHITE);description.setHintTextColor(MUTED);description.setHint("커버곡 소개 (선택)");description.setMaxLines(4);description.setFilters(new InputFilter[]{new InputFilter.LengthFilter(1000)});reviewFields.addView(description);
         ownVoice=check("제가 직접 부른 목소리이며 AI 음성 복제가 아닙니다.");rights=check("원곡자의 허용 범위 안에서 이 녹음을 공개할 권리가 있습니다.");reviewFields.addView(ownVoice);reviewFields.addView(rights);
         upload=button("커버곡으로 올리기",true);upload.setOnClickListener(v->upload());reviewFields.addView(upload);
-        reviewFields.addView(text("업로드할 때만 녹음이 서버로 전송됩니다. 나가면 기기의 임시 녹음은 삭제됩니다.",12,MUTED));add(reviewFields,18);
+        Button saveLocal=button("부른 구간 파일로 저장",false);saveLocal.setOnClickListener(v->{if(state==State.REVIEW||state==State.PAUSED)saveAudio.launch("AIFECT-cover-"+System.currentTimeMillis()+".wav");});reviewFields.addView(saveLocal);
+        reviewFields.addView(text("업로드할 때만 녹음이 서버로 전송됩니다. 앱을 내려도 임시 녹음을 복원할 수 있어요. 임시 저장하면 다음에도 이어서 편집할 수 있어요.",12,MUTED));add(reviewFields,18);
         // Singing controls stay reachable while the lyrics/effect panel scrolls.
         LinearLayout controls=new LinearLayout(this);controls.setOrientation(LinearLayout.VERTICAL);controls.setPadding(dp(22),dp(8),dp(22),dp(12));
         content.removeView(status);content.removeView(record);content.removeView(stop);content.removeView(preview);controls.addView(status,new LinearLayout.LayoutParams(-1,-2));
-        LinearLayout actions=new LinearLayout(this);for(Button b:new Button[]{record,stop,preview})actions.addView(b,new LinearLayout.LayoutParams(0,-2,1));controls.addView(actions);root.addView(controls);
+        LinearLayout actions=new LinearLayout(this);for(Button b:new Button[]{record,pause,stop,preview})actions.addView(b,new LinearLayout.LayoutParams(0,-2,1));controls.addView(actions);root.addView(controls);
         setState(State.LOADING);
     }
     private void requestRecord(){
-        if(state!=State.READY&&state!=State.REVIEW)return;
+        if(state!=State.READY&&state!=State.REVIEW&&state!=State.PAUSED)return;
         if(ContextCompat.checkSelfPermission(this,Manifest.permission.RECORD_AUDIO)==PackageManager.PERMISSION_GRANTED)beginCountdown();else microphone.launch(Manifest.permission.RECORD_AUDIO);
     }
     private void beginCountdown(){if(!foreground||engine==null)return;setState(State.COUNTDOWN);countdown(3,++countdownId);}
     private void countdown(int n,int id){
         if(state!=State.COUNTDOWN||!foreground||id!=countdownId)return;
         if(n>0){message(n+" · 준비하세요");ui.postDelayed(()->countdown(n-1,id),1000);return;}
-        try{engine.setMonitor(monitor.isChecked());engine.start(true);hasTake=false;draftId=null;setState(State.RECORDING);message("녹음 중 · 효과는 실시간으로 조절할 수 있어요.");}
+        try{engine.setMonitor(monitor.isChecked());engine.start(true,cursor);draftId=null;uploadComplete=false;setState(State.RECORDING);message("녹음 중 · 잠시 멈추거나 부른 부분까지만 마칠 수 있어요.");}
         catch(Exception e){setState(hasTake?State.REVIEW:State.READY);message(friendly(e));}
     }
     private void audioFinished(boolean recorded,String error){
         if(destroyed)return;
-        hasTake=hasTake||recorded;setMonitor(false);setState(hasTake?State.REVIEW:State.READY);
-        message(error!=null?error:hasTake?"녹음을 들어보고 효과와 싱크를 맞춰주세요.":"녹음이 너무 짧아요. 다시 불러주세요.");
+        hasTake=dry.length()>PcmFiles.RATE/5;
+        if(recorded){cursor=dry.length()/2.0/PcmFiles.RATE;syncResult.setText(engine.autoSync?(engine.measuredDelay?"기기 측정 "+engine.lastDelayMs+"ms 보정 완료":"기기 시간을 측정할 수 없어 기본 80ms를 적용했어요. 들어보고 조절해주세요."):"자동 보정 꺼짐 · 들어보며 목소리 위치를 조절해주세요.");}
+        if(guideThenRecord){guideThenRecord=false;cursor=guideStart;setState(hasTake?State.REVIEW:State.READY);record.performClick();return;}
+        setMonitor(false);setState(hasTake?(pauseRequested?State.PAUSED:State.REVIEW):State.READY);saveSession();
+        message(error!=null?error:pauseRequested?"일시정지했어요. 이어 부르기를 누르면 같은 위치부터 시작해요.":hasTake?"녹음한 "+time(dry.length()/2.0/PcmFiles.RATE)+"까지만 저장돼요. 들어보고 싱크를 조절해주세요.":"가이드를 듣고 선택한 위치부터 불러보세요.");pauseRequested=false;drawLyrics(cursor);
     }
     private void setState(State nextState){
-        state=nextState;boolean recording=state==State.RECORDING,playing=state==State.PLAYING,busy=state==State.LOADING||state==State.UPLOADING;
-        record.setVisibility(recording||playing||state==State.COUNTDOWN?View.GONE:View.VISIBLE);record.setEnabled(!busy);record.setText(hasTake?"다시 부르기":"노래 시작");
-        stop.setVisibility(recording||playing||state==State.COUNTDOWN?View.VISIBLE:View.GONE);stop.setText(playing?"다시 듣기 멈추기":state==State.COUNTDOWN?"취소":"그만 부르기");
-        preview.setVisibility(hasTake&&!recording&&!playing&&state!=State.COUNTDOWN?View.VISIBLE:View.GONE);preview.setEnabled(!busy);
-        boolean reviewing=hasTake&&(state==State.REVIEW||playing);
-        syncFields.setVisibility(hasTake&&!recording&&state!=State.COUNTDOWN?View.VISIBLE:View.GONE);offset.setEnabled(reviewing);
+        state=nextState;boolean recording=state==State.RECORDING,playing=state==State.PLAYING,guiding=state==State.GUIDE;
+        boolean busy=state==State.LOADING||state==State.UPLOADING||state==State.STOPPING,active=recording||playing||guiding||state==State.COUNTDOWN;
+        record.setVisibility(active?View.GONE:View.VISIBLE);record.setEnabled(!busy);record.setText(state==State.PAUSED?"이어 부르기":hasTake?"여기부터 부르기":"노래 시작");
+        pause.setVisibility(recording?View.VISIBLE:View.GONE);pause.setEnabled(!busy);
+        stop.setVisibility(active||state==State.STOPPING?View.VISIBLE:View.GONE);stop.setEnabled(!busy);stop.setText(playing?"다시 듣기 멈추기":guiding?"가이드 멈추기":state==State.COUNTDOWN?"취소":"여기까지 마치기");
+        preview.setVisibility(hasTake&&!active?View.VISIBLE:View.GONE);preview.setEnabled(!busy);
+        boolean reviewing=hasTake&&(state==State.REVIEW||state==State.PAUSED||playing);
+        syncFields.setVisibility(reviewing?View.VISIBLE:View.GONE);offset.setEnabled(reviewing);
         for(Button b:new Button[]{slower,resetSync,faster})b.setEnabled(reviewing);
-        reviewFields.setVisibility(hasTake&&!recording&&state!=State.COUNTDOWN?View.VISIBLE:View.GONE);
-        upload.setEnabled(state==State.REVIEW);description.setEnabled(!busy);ownVoice.setEnabled(!busy);rights.setEnabled(!busy);
+        reviewFields.setVisibility(hasTake&&!active?View.VISIBLE:View.GONE);
+        upload.setEnabled(state==State.REVIEW||state==State.PAUSED);description.setEnabled(!busy);ownVoice.setEnabled(!busy);rights.setEnabled(!busy);
         for(SeekBar bar:new SeekBar[]{echo,room,size,voice,backing,hear})bar.setEnabled(!busy);
-        monitor.setEnabled(!busy&&!playing);if(recording||playing)getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);else getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        pickLine.setEnabled(!busy&&!recording&&state!=State.COUNTDOWN);timeline.setEnabled(!busy&&!recording&&state!=State.COUNTDOWN);
+        guide.setEnabled(!busy&&!recording&&!playing&&state!=State.COUNTDOWN);guide.setText(guiding?"이 구간 부르기":"원곡 가이드 듣기");autoSync.setEnabled(!busy&&!active);
+        monitor.setEnabled(!busy&&!playing&&!guiding);if(recording||playing||guiding)getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);else getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         if(recording)scroll.post(()->scroll.smoothScrollTo(0,0));
         else if(playing)scroll.post(()->scroll.smoothScrollTo(0,Math.max(0,syncFields.getTop()-dp(12))));
+    }
+    private void pauseTake(){if(engine==null)return;pauseRequested=true;setState(State.STOPPING);engine.stop();}
+    private void selectPosition(double seconds){
+        if(engine==null)return;
+        if(state==State.PLAYING||state==State.GUIDE){engine.close();setState(hasTake?State.REVIEW:State.READY);}
+        cursor=Math.max(0,Math.min(engine.duration()-.1,seconds));drawLyrics(cursor);saveSession();
+        message(time(cursor)+"부터 시작해요. 여기부터 부르면 이후 녹음을 교체해요.");
+    }
+    private void chooseLine(){
+        if(words.length()==0){message("싱크 가사가 없어요. 노래 위치 막대로 시작할 곳을 골라주세요.");return;}
+        String[] labels=new String[words.length()];for(int i=0;i<labels.length;i++)labels[i]=time(words.optJSONObject(i).optDouble("s"))+"  "+lineText(i);
+        new AlertDialog.Builder(this).setTitle("위아래로 넘겨 부를 가사를 골라주세요").setItems(labels,(d,index)->selectPosition(words.optJSONObject(index).optDouble("s"))).setNegativeButton("닫기",null).show();
+    }
+    private void startGuide(){
+        if(engine==null)return;guideStart=cursor;setState(State.LOADING);message("원곡 가이드를 준비하고 있어요…");
+        files.execute(()->{try{if(original.length()==0){File source=new File(directory,"guide.m4a");api.download("/media/"+trackId+"/stream",source);BackingDecoder.decode(source,original);source.delete();}
+            ui.post(()->{if(destroyed)return;try{if(!foreground){setState(hasTake?State.REVIEW:State.READY);return;}engine.guide(original,guideStart);setState(State.GUIDE);message("원곡을 듣고 ‘이 구간 부르기’를 누르면 선택한 위치부터 녹음해요.");}catch(Exception e){setState(hasTake?State.REVIEW:State.READY);message(friendly(e));}});
+        }catch(Exception e){original.delete();ui.post(()->{if(!destroyed){setState(hasTake?State.REVIEW:State.READY);message(friendly(e));}});}});
+    }
+    private void saveSession(){
+        if(sessionFile==null||engine==null)return;
+        try{JSONObject data=new JSONObject().put("cursor",cursor).put("offset",offset.getProgress()).put("echo",echo.getProgress()).put("room",room.getProgress()).put("size",size.getProgress()).put("voice",voice.getProgress()).put("backing",backing.getProgress()).put("automatic",autoSync.isChecked()).put("description",description.getText().toString()).put("title",title.getText().toString()).put("words",words);
+            android.util.AtomicFile file=new android.util.AtomicFile(sessionFile);FileOutputStream out=null;try{out=file.startWrite();out.write(data.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));file.finishWrite(out);}catch(Exception e){if(out!=null)file.failWrite(out);}
+        }catch(Exception ignored){}
+    }
+    private void restoreSession(){
+        try{JSONObject data=new JSONObject(new String(java.nio.file.Files.readAllBytes(sessionFile.toPath()),java.nio.charset.StandardCharsets.UTF_8));cursor=Math.min(engine.duration(),data.optDouble("cursor",dry.length()/2.0/PcmFiles.RATE));offset.setProgress(data.optInt("offset",300));echo.setProgress(data.optInt("echo",18));room.setProgress(data.optInt("room",16));size.setProgress(data.optInt("size",50));voice.setProgress(data.optInt("voice",100));backing.setProgress(data.optInt("backing",80));autoSync.setChecked(data.optBoolean("automatic",true));description.setText(data.optString("description"));}catch(Exception ignored){cursor=dry.length()/2.0/PcmFiles.RATE;}
     }
     private void applySettings(){if(engine!=null&&offset!=null)engine.settings=new VocalEffects.Settings(echo.getProgress()/100f,room.getProgress()/100f,size.getProgress()/100f,voice.getProgress()/100f,backing.getProgress()/100f,hear.getProgress()/100f,offset.getProgress()-300);}
     private void setMonitor(boolean enabled){updatingMonitor=true;monitor.setChecked(enabled);updatingMonitor=false;if(engine!=null)engine.setMonitor(enabled);}
@@ -202,7 +256,7 @@ public class KaraokeActivity extends AppCompatActivity {
         routeLabel.setText(d==null?"이어폰 미연결 · 청음은 꺼져 있어요":KaraokeEngine.bluetooth(d)?"블루투스 이어폰 · 청음 지연이 있을 수 있어요":"유선 / USB 이어폰 연결됨");
     }
     private void drawLyrics(double seconds){
-        if(engine==null)return;double duration=engine.duration();progress.setProgress((int)(seconds/Math.max(1,duration)*1000));clock.setText(time(seconds)+"  /  "+time(duration));
+        if(engine==null)return;double duration=engine.duration();progress.setProgress((int)(seconds/Math.max(1,duration)*1000));timeline.setProgress(progress.getProgress());clock.setText(time(seconds)+"  /  "+time(duration));
         int current=-1;for(int i=0;i<words.length();i++){JSONObject l=words.optJSONObject(i);if(l!=null&&l.optDouble("s")<=seconds)current=i;else break;}
         previous.setText(lineText(current-1));next.setText(lineText(current+1));
         if(current<0){line.setText("♪");return;}
@@ -217,7 +271,7 @@ public class KaraokeActivity extends AppCompatActivity {
     }
     private String lineText(int index){JSONObject l=words.optJSONObject(index);if(l==null)return "";JSONArray parts=l.optJSONArray("w");StringBuilder b=new StringBuilder();if(parts!=null)for(int i=0;i<parts.length();i++){if(i>0)b.append(' ');b.append(parts.optJSONObject(i).optString("t"));}return b.toString();}
     private void upload(){
-        if(state!=State.REVIEW)return;
+        if(state!=State.REVIEW&&state!=State.PAUSED)return;
         if(!ownVoice.isChecked()||!rights.isChecked()){message("직접 부른 목소리와 공개 권한에 동의해주세요.");return;}
         VocalEffects.Settings settings=engine.settings;String note=description.getText().toString();setState(State.UPLOADING);message("에코와 룸을 반영해 커버곡을 만들고 있어요…");
         files.execute(()->{
@@ -231,13 +285,23 @@ public class KaraokeActivity extends AppCompatActivity {
     }
     @Override protected void onResume(){super.onResume();foreground=true;updateRoute();}
     @Override protected void onStop(){
-        foreground=false;if(engine!=null&&(state==State.RECORDING||state==State.PLAYING))engine.interrupt("앱이 백그라운드로 전환되어 마이크와 재생을 멈췄어요.");
-        if(state==State.COUNTDOWN)setState(hasTake?State.REVIEW:State.READY);super.onStop();
+        foreground=false;
+        if(engine!=null&&(state==State.RECORDING||state==State.PLAYING||state==State.GUIDE||state==State.STOPPING)){
+            boolean singing=state==State.RECORDING||pauseRequested;pauseRequested=singing;guideThenRecord=false;engine.close();
+            hasTake=dry.length()>PcmFiles.RATE/5;cursor=singing?dry.length()/2.0/PcmFiles.RATE:engine.position();setMonitor(false);setState(hasTake?State.PAUSED:State.READY);
+            message("녹음을 보관하고 일시정지했어요. 돌아와서 이어 부를 수 있어요.");
+        }
+        if(state==State.COUNTDOWN){countdownId++;setState(hasTake?State.PAUSED:State.READY);}saveSession();super.onStop();
     }
+    @Override protected void onSaveInstanceState(Bundle out){out.putString("directory",directory==null?"":directory.getName());saveSession();super.onSaveInstanceState(out);}
     @Override protected void onDestroy(){
         destroyed=true;ui.removeCallbacksAndMessages(null);if(audioManager!=null)audioManager.unregisterAudioDeviceCallback(devices);if(api!=null)api.cancel();files.shutdownNow();
-        new Thread(()->{if(engine!=null)engine.close();try{files.awaitTermination(50,TimeUnit.SECONDS);}catch(InterruptedException ignored){}if(directory!=null){File[] children=directory.listFiles();if(children!=null)for(File f:children)if(f.isFile())f.delete();directory.delete();}},"KaraokeCleanup").start();
+        boolean discard=isFinishing()&&!keepDraft;
+        new Thread(()->{if(engine!=null)engine.close();try{files.awaitTermination(50,TimeUnit.SECONDS);}catch(InterruptedException ignored){}if(discard&&directory!=null){File[] children=directory.listFiles();if(children!=null)for(File f:children)if(f.isFile())f.delete();directory.delete();}},"KaraokeCleanup").start();
         super.onDestroy();
+    }
+    private static String draftOwner(String origin,String session){
+        try{byte[] digest=java.security.MessageDigest.getInstance("SHA-256").digest((origin+"\n"+session).getBytes(java.nio.charset.StandardCharsets.UTF_8));StringBuilder id=new StringBuilder();for(byte value:digest)id.append(String.format(java.util.Locale.ROOT,"%02x",value&255));return id.toString();}catch(java.security.NoSuchAlgorithmException e){throw new IllegalStateException(e);}
     }
     private void message(String message){status.setText(message);}
     private static String friendly(Exception e){String m=e.getMessage();return m==null||m.isBlank()?"완료하지 못했어요. 다시 시도해주세요.":m;}

@@ -73,7 +73,8 @@ export async function giftRoute(req,env,path,user){
  if(selected&&b.gold!==undefined&&b.gold!==selected.gold)fail(400,'선물 가격이 일치하지 않아요. 다시 선택해주세요.');
  const gold=selected?.gold??b.gold,requestId=b.request_id??null;
  if((selected&&!requestId)||(requestId!==null&&(typeof requestId!=='string'||!/^[a-zA-Z0-9-]{16,64}$/.test(requestId))))fail(400,'선물 요청을 새로 시작해주세요.');
- if(!Number.isInteger(gold)||gold<GIFT_MIN_GOLD||gold>GIFT_MAX_GOLD)fail(400,`선물은 ${GIFT_MIN_GOLD}골드부터 ${GIFT_MAX_GOLD.toLocaleString('ko-KR')}골드까지 보낼 수 있어요.`);
+ // Catalog gifts use their server-owned price; legacy amount-only clients retain their minimum.
+ if(!Number.isInteger(gold)||gold<(selected?1:GIFT_MIN_GOLD)||gold>GIFT_MAX_GOLD)fail(400,`선물은 ${GIFT_MIN_GOLD}골드부터 ${GIFT_MAX_GOLD.toLocaleString('ko-KR')}골드까지 보낼 수 있어요.`);
  if(track.user_id===user.id)fail(400,'내 곡에는 선물할 수 없어요.');
  const replay=async()=>{if(!requestId)return null;const old=await one(env,'SELECT id,track_id,gold,gift_type,gift_name FROM gifts WHERE sender_id=? AND request_id=?',user.id,requestId);if(!old)return null;if(old.track_id!==track.id||old.gold!==gold||old.gift_type!==(selected?.id??null))fail(409,'이미 사용된 선물 요청이에요. 새로 선택해주세요.');return json({gift:{id:old.id,gold:old.gold,type:old.gift_type,name:old.gift_name},balance:await goldBalance(env,user.id)});};
  const previous=await replay();if(previous)return previous;

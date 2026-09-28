@@ -86,7 +86,7 @@ public final class PcmFiles {
     }
     /** Mixes with exactly the review DSP; output is stereo 32 kHz WAV, <= 76.8 MB for ten minutes. */
     public static void export(File mr,File dry,File dest,VocalEffects.Settings settings)throws IOException{
-        long frames=mr.length()/4;
+        long frames=Math.min(mr.length()/4,dry.length()/2);
         if(frames<=0||frames>(long)RATE*MAX_SECONDS)throw new IOException("노래 길이를 확인해주세요.");
         File pcm=new File(dest.getParentFile(),"export.pcm");
         long exported;
@@ -94,7 +94,7 @@ public final class PcmFiles {
             OutputStream out=new BufferedOutputStream(new FileOutputStream(pcm))){
             Resampler resampler=new Resampler(RATE,EXPORT_RATE,out);VocalEffects fx=new VocalEffects(RATE);
             byte[] raw=new byte[1024*4];float[] vocals=new float[1024];long at=0;int n;
-            while((n=read(backing,raw,raw.length))>0){
+            while(at<frames&&(n=read(backing,raw,(int)Math.min(raw.length,(frames-at)*4)))>0){
                 if(Thread.currentThread().isInterrupted())throw new InterruptedIOException();
                 int count=n/4;voice.read(at,vocals,count);
                 for(int i=0;i<count;i++){float v=fx.process(vocals[i],settings)*settings.voice;

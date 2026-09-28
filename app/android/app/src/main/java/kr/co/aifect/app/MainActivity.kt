@@ -44,6 +44,6 @@ class MainActivity:ComponentActivity(){
  private fun sing(song:Song){
   if(!model.authenticated())return
   model.controller?.pause()
-  startActivity(Intent(this,KaraokeActivity::class.java).putExtra("origin",Endpoint.origin).putExtra("trackId",song.id))
+  startActivity(Intent(this,KaraokeActivity::class.java).putExtra("origin",Endpoint.origin).putExtra("trackId",song.id).putExtra("ownerId",model.user?.optString("id")))
  }
 }

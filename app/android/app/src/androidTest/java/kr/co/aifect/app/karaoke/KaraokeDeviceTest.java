@@ -21,8 +21,9 @@ import static androidx.test.espresso.matcher.ViewMatchers.*;
 import static androidx.test.espresso.assertion.ViewAssertions.matches;
 import static androidx.test.espresso.action.ViewActions.*;
 
-/** Only synthetic silent audio and local HTTP fixtures. These tests never request or record a mic. */
+/** Local silent fixtures. Only the explicit emulator-only capture test opens the virtual microphone. */
 @RunWith(AndroidJUnit4.class)
+@FixMethodOrder(org.junit.runners.MethodSorters.NAME_ASCENDING)
 public class KaraokeDeviceTest {
     private Context context;private ServerSocket server;private Thread serving;private ActivityScenario<KaraokeActivity> screen;
     @Before public void setup()throws Exception{
@@ -60,10 +61,10 @@ public class KaraokeDeviceTest {
         onView(withText("녹음 들어보기")).perform(click());
         onView(withContentDescription("목소리 싱크")).perform(scrollTo()).check(matches(isEnabled()));
         onView(withContentDescription("목소리를 5ms 빠르게")).perform(scrollTo(),click());
-        assertEquals(85,holder.get().settings.offsetMs);
+        assertEquals(5,holder.get().settings.offsetMs);
         onView(withText("다시 듣기 멈추기")).check(matches(isDisplayed()));
         double before=holder.get().position();Thread.sleep(200);assertTrue("Adjusting sync does not stop/restart the MR",holder.get().position()>before);
-        onView(withContentDescription("목소리를 5ms 느리게")).perform(click());assertEquals(80,holder.get().settings.offsetMs);
+        onView(withContentDescription("목소리를 5ms 느리게")).perform(click());assertEquals(0,holder.get().settings.offsetMs);
         assertEquals(PackageManager.PERMISSION_DENIED,ContextCompat.checkSelfPermission(context,Manifest.permission.RECORD_AUDIO));
         Bitmap image=InstrumentationRegistry.getInstrumentation().getUiAutomation().takeScreenshot();
         try(FileOutputStream out=new FileOutputStream(new File(context.getExternalFilesDir(null),"karaoke-live-sync.png"))){image.compress(Bitmap.CompressFormat.PNG,100,out);}image.recycle();
@@ -78,6 +79,49 @@ public class KaraokeDeviceTest {
         assertEquals(1,completions.get());assertNull(error.get());
         screen.onActivity(activity->{try{holder.get().start(false);}catch(Exception e){throw new RuntimeException(e);}});
         assertTrue(ended.await(5,TimeUnit.SECONDS));assertNull(error.get());holder.get().close();for(File f:dir.listFiles())f.delete();dir.delete();
+    }
+    private File seedTake()throws Exception{
+        AtomicReference<File> result=new AtomicReference<>();screen.onActivity(activity->{try{
+            java.lang.reflect.Field field=KaraokeActivity.class.getDeclaredField("dry");field.setAccessible(true);File dry=(File)field.get(activity);result.set(dry);
+            try(FileOutputStream out=new FileOutputStream(dry)){out.write(new byte[48000*3*2]);}
+            java.lang.reflect.Method finished=KaraokeActivity.class.getDeclaredMethod("audioFinished",boolean.class,String.class);finished.setAccessible(true);finished.invoke(activity,true,null);
+        }catch(Exception e){throw new RuntimeException(e);}});return result.get();
+    }
+    @Test public void backgroundAndActivityRecreationKeepTakeAndCursor()throws Exception{
+        File dry=seedTake();byte[] original=java.nio.file.Files.readAllBytes(dry.toPath());
+        screen.onActivity(a->{try{java.lang.reflect.Method select=KaraokeActivity.class.getDeclaredMethod("selectPosition",double.class);select.setAccessible(true);select.invoke(a,1.25);}catch(Exception e){throw new RuntimeException(e);}});
+        screen.moveToState(androidx.lifecycle.Lifecycle.State.CREATED);screen.moveToState(androidx.lifecycle.Lifecycle.State.RESUMED);screen.recreate();
+        onView(withText("이어 부르기")).check(matches(isEnabled()));
+        screen.onActivity(a->{try{java.lang.reflect.Field c=KaraokeActivity.class.getDeclaredField("cursor");c.setAccessible(true);assertEquals(1.25,c.getDouble(a),.01);}catch(Exception e){throw new RuntimeException(e);}});
+        assertArrayEquals(original,java.nio.file.Files.readAllBytes(dry.toPath()));
+        assertEquals(PackageManager.PERMISSION_DENIED,ContextCompat.checkSelfPermission(context,Manifest.permission.RECORD_AUDIO));
+    }
+    @Test public void originalGuideAndLyricSelectionNeverOverwriteTake()throws Exception{
+        File dry=seedTake();byte[] original=java.nio.file.Files.readAllBytes(dry.toPath());
+        onView(withText("가사 펼치기 · 시작 위치 선택")).perform(scrollTo(),click());
+        onView(withText("0:00  내 목소리로 노래해요")).perform(click());
+        onView(withText("원곡 가이드 듣기")).perform(scrollTo(),click());
+        long until=System.nanoTime()+TimeUnit.SECONDS.toNanos(10);while(System.nanoTime()<until){try{onView(withText("이 구간 부르기")).check(matches(isEnabled()));break;}catch(Throwable e){Thread.sleep(100);}}
+        onView(withText("가이드 멈추기")).perform(click());
+        assertArrayEquals(original,java.nio.file.Files.readAllBytes(dry.toPath()));
+        assertEquals(PackageManager.PERMISSION_DENIED,ContextCompat.checkSelfPermission(context,Manifest.permission.RECORD_AUDIO));
+    }
+    /** Run separately on the emulator with host microphone disabled; grants only the isolated test APK. */
+    @Test public void zzCapturePausesInBackgroundAndResumesSameTake()throws Exception{
+        org.junit.Assume.assumeTrue(android.os.Build.HARDWARE.contains("ranchu")||android.os.Build.HARDWARE.contains("goldfish"));
+        try(android.os.ParcelFileDescriptor result=InstrumentationRegistry.getInstrumentation().getUiAutomation().executeShellCommand("pm grant "+context.getPackageName()+" android.permission.RECORD_AUDIO")){try(InputStream in=new android.os.ParcelFileDescriptor.AutoCloseInputStream(result)){while(in.read()!=-1){}}}
+        onView(withText("노래 시작")).perform(click());Thread.sleep(4500);
+        onView(withText("일시정지")).check(matches(isDisplayed()));
+        screen.moveToState(androidx.lifecycle.Lifecycle.State.CREATED);Thread.sleep(300);screen.moveToState(androidx.lifecycle.Lifecycle.State.RESUMED);
+        onView(withText("이어 부르기")).check(matches(isEnabled()));
+        AtomicReference<File> take=new AtomicReference<>();screen.onActivity(a->{try{java.lang.reflect.Field f=KaraokeActivity.class.getDeclaredField("dry");f.setAccessible(true);take.set((File)f.get(a));}catch(Exception e){throw new RuntimeException(e);}});
+        long before=take.get().length();assertTrue("Captured audio is saved",before>4800);
+        onView(withText("이어 부르기")).perform(click());Thread.sleep(4500);
+        screen.onActivity(a->{try{java.lang.reflect.Field f=KaraokeActivity.class.getDeclaredField("state");f.setAccessible(true);assertEquals(((android.widget.TextView)a.getWindow().getDecorView().findViewWithTag("karaoke-status")).getText().toString(),"RECORDING",f.get(a).toString());}catch(ReflectiveOperationException e){throw new RuntimeException(e);}});
+        onView(withText("일시정지")).perform(click());Thread.sleep(500);
+        assertTrue("Resume appends to the same take",take.get().length()>before);
+        byte[] saved=java.nio.file.Files.readAllBytes(take.get().toPath());screen.recreate();onView(withText("이어 부르기")).check(matches(isEnabled()));assertArrayEquals(saved,java.nio.file.Files.readAllBytes(take.get().toPath()));
+        Bitmap bitmap=InstrumentationRegistry.getInstrumentation().getUiAutomation().takeScreenshot();try(FileOutputStream out=new FileOutputStream(new File(context.getExternalFilesDir(null),"karaoke-pause.png"))){bitmap.compress(Bitmap.CompressFormat.PNG,100,out);}bitmap.recycle();
     }
     @Test public void engineRejectsMicWithoutPermissionAndCannotMonitorSpeaker()throws Exception{
         File dir=new File(context.getCacheDir(),"permission-test");dir.mkdirs();File mr=new File(dir,"mr"),dry=new File(dir,"dry");try(FileOutputStream out=new FileOutputStream(mr)){out.write(new byte[48000*4]);}

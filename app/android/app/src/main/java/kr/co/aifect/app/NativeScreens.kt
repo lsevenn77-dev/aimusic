@@ -59,8 +59,8 @@ private val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=C
   var createList by remember {mutableStateOf(false)}
   val pages=rememberSaveableStateHolder()
   LaunchedEffect(m.notice){m.notice?.let {snack.showSnackbar(it);m.notice=null}}
-  BackHandler(m.fullPlayer||m.detail!=null||m.selectedList!=null||m.profile!=null||m.showLogin||m.showAccount||m.collection!=null||m.rankOpen){
-   when{m.showLogin->m.showLogin=false;m.showAccount->m.showAccount=false;m.detail!=null->m.detail=null;m.selectedList!=null->m.selectedList=null;m.profile!=null->m.profile=null;m.fullPlayer->m.fullPlayer=false;m.collection!=null->m.dismissCollection();else->m.dismissRanking()}
+  BackHandler(m.showGifts||m.fullPlayer||m.detail!=null||m.selectedList!=null||m.profile!=null||m.showLogin||m.showAccount||m.collection!=null||m.rankOpen){
+   when{m.showGifts->m.showGifts=false;m.showLogin->m.showLogin=false;m.showAccount->m.showAccount=false;m.detail!=null->m.detail=null;m.selectedList!=null->m.selectedList=null;m.profile!=null->m.profile=null;m.fullPlayer->m.fullPlayer=false;m.collection!=null->m.dismissCollection();else->m.dismissRanking()}
   }
   Scaffold(containerColor=Ink,snackbarHost={SnackbarHost(snack)},bottomBar={
    Column {
@@ -102,6 +102,7 @@ private val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=C
   m.selectedList?.let { PlaylistSheet(m,it) }
   if(m.detail==null&&!m.fullPlayer)m.profile?.let { ProfileSheet(m,it) }
   if(m.fullPlayer)m.current?.let { PlayerSheet(m,it,{listPicker=it}) }
+  if(m.showGifts)GiftSheet(m)
   listPicker?.let { song->
    ModalBottomSheet(onDismissRequest={listPicker=null},containerColor=Panel){
     Column(Modifier.fillMaxWidth().padding(24.dp)){
@@ -237,6 +238,7 @@ private val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=C
     m.playerError?.let{Text(it,color=Color(0xFFFFB4A5),fontSize=12.sp)}
     if(m.user==null)TextButton(onClick={m.showLogin=true}){Text("로그인하면 전체곡을 무료로 들을 수 있어요",fontSize=12.sp)}
     Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceEvenly){TextButton(onClick={save(song)}){Icon(Icons.AutoMirrored.Rounded.PlaylistAdd,null);Text("담기",Modifier.padding(start=7.dp))};TextButton(onClick={m.fullPlayer=false;m.openSong(song)}){Icon(Icons.AutoMirrored.Rounded.Chat,null);Text("댓글",Modifier.padding(start=7.dp))}}
+    GiftEntry(m,song)
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Panel).padding(22.dp)){
      Text("LYRICS",color=Muted,fontSize=10.sp,letterSpacing=2.sp)
      if(m.lyricRows.isNotEmpty()){
@@ -278,6 +280,7 @@ private val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=C
    Text("무료 감상은 5곡마다 곡 사이에 광고가 표시될 수 있어요. Premium은 광고 없이 감상해요.",fontSize=12.sp,color=Muted)
    TextButton(onClick=adPrivacy){Text("광고 개인정보 설정")}
    TextButton(onClick={browser(Endpoint.url("/#studio"))}){Icon(Icons.AutoMirrored.Rounded.OpenInNew,null,Modifier.size(16.dp));Text("제작자 웹 스튜디오",modifier=Modifier.padding(start=8.dp))}
+   TextButton(onClick={m.openGifts()}){Icon(Icons.Rounded.CardGiftcard,null);Text("선물함 · 오늘의 응원별",Modifier.padding(start=8.dp))}
    TextButton(onClick=m::logout,enabled=!m.busy){Text("로그아웃",color=Color(0xFFFFB4A5))}
    Text("AIFECT Android ${BuildConfig.VERSION_NAME}",color=Muted,fontSize=11.sp,modifier=Modifier.padding(top=22.dp,bottom=24.dp))
   }
@@ -299,6 +302,7 @@ private val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=C
     if(song.cover)TextButton(onClick={m.openOriginal(song)}){Icon(Icons.Rounded.Album,null);Text("이 커버의 원곡 듣기",modifier=Modifier.padding(start=8.dp))}
     if(song.description.isNotBlank())Text(song.description,fontSize=13.sp,color=Muted,modifier=Modifier.padding(vertical=12.dp))
     Text("재생 ${song.plays} · 좋아요 ${song.likes} · 댓글 ${song.comments}",color=Muted,fontSize=11.sp,modifier=Modifier.padding(vertical=15.dp))
+    GiftEntry(m,song)
     HorizontalDivider(color=Stroke);Section("이 음악에 남기는 이야기")
     if(m.detailBusy)LinearProgressIndicator(Modifier.fillMaxWidth())
     if(m.user==null)TextButton(onClick={m.showLogin=true}){Text("로그인하고 첫 감상을 남겨보세요")}

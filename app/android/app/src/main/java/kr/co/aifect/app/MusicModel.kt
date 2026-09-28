@@ -59,6 +59,9 @@ class MusicModel(app:Application):AndroidViewModel(app) {
  var showAccount by mutableStateOf(false)
  var busy by mutableStateOf(false)
  var detail by mutableStateOf<Song?>(null)
+ var showGifts by mutableStateOf(false)
+ var giftTarget by mutableStateOf<Song?>(null)
+ fun openGifts(song:Song?=null){if(!authenticated())return;giftTarget=song;showGifts=true}
  var detailBusy by mutableStateOf(false)
  var comments by mutableStateOf<List<JSONObject>>(emptyList())
  var selectedList by mutableStateOf<JSONObject?>(null)

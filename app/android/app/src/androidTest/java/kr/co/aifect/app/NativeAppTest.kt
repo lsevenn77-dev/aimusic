@@ -42,6 +42,8 @@ class NativeAppTest {
  private val reported=AtomicBoolean(false)
  private val comments=JSONArray()
  private val lists=JSONArray()
+ private val giftPosts=java.util.concurrent.atomic.AtomicInteger(0)
+ private val claimPosts=java.util.concurrent.atomic.AtomicInteger(0)
  private val requests=java.util.concurrent.ConcurrentLinkedQueue<String>()
  private val cookieHeaders=java.util.concurrent.ConcurrentHashMap<String,String>()
  private val user=payload("id" to "test-user","name" to "테스트 리스너","email" to "native@example.test","provider" to "email")
@@ -50,6 +52,7 @@ class NativeAppTest {
   assertTrue("Only the isolated test package is allowed",context.packageName.endsWith(".test"))
   NativeSession.put(context,"cookie","");NativeSession.put(context,"ticket","")
   server=ServerSocket(0,10,InetAddress.getByName("127.0.0.1"))
+  if(testName.methodName=="giftsUseNativeWalletAndConfirmedServerPrice")logged.set(true)
   val rankingTest=testName.methodName=="coverRankingDiscoveryAndCommentModeration"
   val cover=JSONObject(song.toString()).put("id","cover-fixture").put("kind","cover").put("producer","커버 가수").put("rank",1).put("rank_likes",3).put("likes",3).put("original_id","fixture").put("karaoke_ready",false)
   if(rankingTest){logged.set(true);song.put("covers",1);comments.put(payload("id" to "comment-1","name" to "다른 리스너","body" to "이 목소리 좋네요","user_id" to "someone","can_delete" to true,"can_report" to true))}
@@ -68,6 +71,10 @@ class NativeAppTest {
     path.startsWith("/media/")->{content="audio/wav";audio}
     else -> {
      val response=when {
+      path=="/api/gold"->payload("balance" to (10-giftPosts.get()),"free" to payload("balance" to (claimPosts.get()*3),"gift" to payload("id" to "star","name" to "응원별","image" to "/assets/gifts/star.webp"),"rewards" to JSONArray().put(payload("kind" to "checkin","amount" to 3,"eligible" to true,"claimed" to (claimPosts.get()>0)))),"gifts" to JSONArray().put(payload("id" to "balloon","name" to "풍선","gold" to 1,"price" to 10,"image" to "/assets/gifts/balloon.webp")))
+      path=="/api/gifts/free/claim"->{claimPosts.incrementAndGet();payload("balance" to 3,"gift" to payload("id" to "star","name" to "응원별","image" to "/assets/gifts/star.webp"),"rewards" to JSONArray().put(payload("kind" to "checkin","amount" to 3,"eligible" to true,"claimed" to true)))}
+      path=="/api/tracks/fixture/gifts"&&method=="POST"->{check(body.optString("gift_type")=="balloon");check(body.optString("request_id").length==36);giftPosts.incrementAndGet();payload("balance" to 9,"gift" to payload("type" to "balloon","gold" to 1))}
+      path=="/api/tracks/fixture/gifts"->payload("ranking" to JSONArray())
       path=="/api/me"->payload("user" to if(logged.get())user else null,"membership" to JSONObject(),"providers" to JSONArray(),"emailEnabled" to true)
       path=="/api/auth/login"->{logged.set(true);cookie="Set-Cookie: aifect_session=fixture; Path=/; HttpOnly\r\n";payload("user" to user)}
       path=="/api/auth/google/nonce"->{cookie="Set-Cookie: aifect_google_oauth=nonce-fixture; Path=/; HttpOnly\r\n";payload("nonce" to "fixture-nonce")}
@@ -157,6 +164,20 @@ class NativeAppTest {
   ui.onNodeWithText("삭제").performScrollTo().performClick()
   ui.onAllNodesWithText("삭제").onLast().performClick();waitText("삭제된 댓글입니다.")
   screenshot("native-cover-comments.png")
+ }
+ @Test fun giftsUseNativeWalletAndConfirmedServerPrice(){
+  ui.onNodeWithText("바로 듣기").performClick()
+  ui.waitUntil(30_000){ui.onAllNodesWithContentDescription("일시정지").fetchSemanticsNodes().isNotEmpty()}
+  ui.onAllNodesWithText("밤의 산책").onLast().performClick()
+  waitText("별 · 골드 선물로 응원하기")
+  ui.onNodeWithText("별 · 골드 선물로 응원하기").performScrollTo().performClick()
+  waitText("★ 3 받기");ui.onNodeWithText("★ 3 받기").performScrollTo().performClick();waitText("받음")
+  ui.onNodeWithText("풍선").performScrollTo().performClick()
+  ui.onNodeWithText("풍선 1 G 보내기").performScrollTo().performClick()
+  assertEquals(0,giftPosts.get())
+  ui.onNodeWithText("1 G 보내기").performClick();waitText("풍선 선물을 보냈어요")
+  assertEquals(1,giftPosts.get());assertEquals(1,claimPosts.get())
+  screenshot("native-gifts.png")
  }
  @Test fun playbackSurvivesBackgroundAndCloseRemovesBar(){
   ui.onNodeWithText("바로 듣기").performClick()
