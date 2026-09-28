@@ -7,6 +7,13 @@ import java.nio.*;
 import java.nio.file.*;
 
 public class RecordingTimelineTest {
+ @Test public void preRollNeverOverwritesPrefixOrAnUnstartedTake()throws Exception{
+  File dir=Files.createTempDirectory("preroll").toFile(),dry=new File(dir,"dry"),segment=new File(dir,"segment");
+  try{byte[] original=pcm(48000*6,1000);Files.write(dry.toPath(),original);byte[] lead=pcm(48000*3,9000),vocal=pcm(48000,2000);try(OutputStream out=new FileOutputStream(segment)){out.write(lead);out.write(vocal);}
+   RecordingTimeline.commit(dry,segment,48000*4,0,0,48000*3);assertArrayEquals(original,Files.readAllBytes(dry.toPath()));
+   RecordingTimeline.commit(dry,segment,48000*4,48000,0,48000*3);byte[] result=Files.readAllBytes(dry.toPath());assertEquals(48000*5*2,result.length);assertEquals(1000,PcmFiles.sample(result,48000*4*2-2));assertEquals(2000,PcmFiles.sample(result,48000*4*2));
+  }finally{for(File f:dir.listFiles())f.delete();dir.delete();}
+ }
  private byte[] pcm(int samples,int value){byte[] b=new byte[samples*2];ByteBuffer buffer=ByteBuffer.wrap(b).order(ByteOrder.LITTLE_ENDIAN);while(buffer.hasRemaining())buffer.putShort((short)value);return b;}
  @Test public void resumeAppendsWithoutPausedGapAndPunchInOnlyKeepsPrefix()throws Exception{
   File dir=Files.createTempDirectory("take-edit").toFile(),dry=new File(dir,"dry"),segment=new File(dir,"segment");

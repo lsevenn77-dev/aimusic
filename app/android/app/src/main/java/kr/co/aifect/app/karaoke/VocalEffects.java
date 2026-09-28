@@ -3,13 +3,19 @@ package kr.co.aifect.app.karaoke;
 /** Allocation-free mono vocal DSP. The dry take is kept separately; this same processor is used
  * for headphone monitoring, review and export, so recording never bakes in an irreversible effect. */
 public final class VocalEffects {
+    private static final float[] NOISE_THRESHOLDS={0,.004f,.008f,.016f,.032f};
     public static final class Settings {
         public final float echo, room, size, voice, backing, monitor;
         public final int offsetMs;
+        public final int noiseLevel;
         public Settings(float echo, float room, float size, float voice, float backing, float monitor, int offsetMs) {
+            this(echo,room,size,voice,backing,monitor,offsetMs,0);
+        }
+        public Settings(float echo, float room, float size, float voice, float backing, float monitor, int offsetMs,int noiseLevel) {
             this.echo=clamp(echo,0,0.65f); this.room=clamp(room,0,0.65f); this.size=clamp(size,0,1);
             this.voice=clamp(voice,0,2); this.backing=clamp(backing,0,1.5f); this.monitor=clamp(monitor,0,0.8f);
             this.offsetMs=Math.max(-300,Math.min(800,offsetMs));
+            this.noiseLevel=Math.max(0,Math.min(4,noiseLevel));
         }
         public static Settings defaults() { return new Settings(.18f,.16f,.5f,1,.8f,.3f,80); }
     }
@@ -18,9 +24,12 @@ public final class VocalEffects {
     private final Comb[] combs;
     private final AllPass[] diffusers;
     private float echoLevel, roomLevel;
+    private float noiseEnvelope,noiseGain=1;
+    private final float envelopeAttack,envelopeRelease,gainAttack,gainRelease;
 
     public VocalEffects(int rate) {
         if(rate<8000||rate>192000)throw new IllegalArgumentException("Invalid sample rate");
+        envelopeAttack=1-(float)Math.exp(-1.0/(rate*.002));envelopeRelease=1-(float)Math.exp(-1.0/(rate*.10));gainAttack=1-(float)Math.exp(-1.0/(rate*.003));gainRelease=1-(float)Math.exp(-1.0/(rate*.08));
         echo=new float[Math.round(rate*.235f)];
         combs=new Comb[]{new Comb(rate,.0297f),new Comb(rate,.0371f),new Comb(rate,.0411f),new Comb(rate,.0437f)};
         diffusers=new AllPass[]{new AllPass(rate,.005f),new AllPass(rate,.0017f)};
@@ -28,6 +37,11 @@ public final class VocalEffects {
     public float process(float dry, Settings settings) {
         if(!Float.isFinite(dry))dry=0;
         dry=clamp(dry,-1,1);
+        // Smooth downward expansion reduces quiet background noise without altering the dry file.
+        float level=Math.abs(dry);noiseEnvelope+=(level-noiseEnvelope)*(level>noiseEnvelope?envelopeAttack:envelopeRelease);
+        float wanted=1;
+        if(settings.noiseLevel>0){float threshold=NOISE_THRESHOLDS[settings.noiseLevel];float ratio=Math.min(1,noiseEnvelope/threshold);wanted=.015f+.985f*ratio*ratio;}
+        noiseGain+=(wanted-noiseGain)*(wanted>noiseGain?gainAttack:gainRelease);dry*=noiseGain;
         // Short ramps prevent zipper noise while moving the live effect controls.
         echoLevel+=(settings.echo-echoLevel)*.004f; roomLevel+=(settings.room-roomLevel)*.004f;
         float delayed=echo[echoAt];

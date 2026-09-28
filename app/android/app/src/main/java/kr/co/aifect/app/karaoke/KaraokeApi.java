@@ -40,15 +40,23 @@ final class KaraokeApi {
         return result;
     }
     synchronized void download(String path,File dest)throws Exception{
+        download(path,dest,(done,total)->{});
+    }
+    interface Progress {void update(long done,long total);}
+    synchronized void download(String path,File dest,Progress progress)throws Exception{
         HttpURLConnection c=connect(path,"GET");
+        File partial=new File(dest.getParentFile(),dest.getName()+".part");
         try{
             if(c.getResponseCode()!=200){response(c);throw new IOException("반주를 불러오지 못했어요.");}
             if(c.getContentLengthLong()>80L*1024*1024)throw new IOException("반주 파일이 너무 커요.");
-            try(InputStream in=c.getInputStream();OutputStream out=new BufferedOutputStream(new FileOutputStream(dest))){
-                byte[] b=new byte[65536];long total=0;int n;
-                while((n=in.read(b))!=-1){if(Thread.currentThread().isInterrupted())throw new InterruptedIOException();total+=n;if(total>80L*1024*1024)throw new IOException("반주 파일이 너무 커요.");out.write(b,0,n);}
+            long expected=c.getContentLengthLong(),total=0,lastUpdate=0;
+            try(InputStream in=c.getInputStream();OutputStream out=new BufferedOutputStream(new FileOutputStream(partial))){
+                byte[] b=new byte[65536];int n;
+                while((n=in.read(b))!=-1){if(Thread.currentThread().isInterrupted())throw new InterruptedIOException();total+=n;if(total>80L*1024*1024)throw new IOException("반주 파일이 너무 커요.");out.write(b,0,n);if(System.nanoTime()-lastUpdate>150_000_000L){progress.update(total,expected);lastUpdate=System.nanoTime();}}
             }
-        }finally{c.disconnect();active=null;}
+            if(total==0||(expected>=0&&total!=expected))throw new IOException("반주 다운로드가 끝나지 않았어요. 다시 시도해주세요.");
+            java.nio.file.Files.move(partial.toPath(),dest.toPath(),java.nio.file.StandardCopyOption.REPLACE_EXISTING);progress.update(total,total);
+        }finally{partial.delete();c.disconnect();active=null;}
     }
     synchronized void upload(String id,File wav)throws Exception{
         if(!id.matches("[\\w-]{1,80}"))throw new IOException("잘못된 업로드 ID예요.");
