@@ -77,3 +77,8 @@ export const commentReports=sqliteTable('comment_reports',{
 export const originalArchives=sqliteTable('original_archives',{
  trackId:text('track_id').primaryKey().references(()=>tracks.id),sourceKey:text('source_key').notNull(),sourceBytes:integer('source_bytes').notNull(),state:text('state').notNull().default('queued'),outputKey:text('output_key').notNull().default(''),outputBytes:integer('output_bytes').notNull().default(0),outputSha:text('output_sha').notNull().default(''),pcmSha:text('pcm_sha').notNull().default(''),attempts:integer('attempts').notNull().default(0),leaseToken:text('lease_token'),leaseUntil:integer('lease_until').notNull().default(0),error:text('error'),updated:integer('updated').notNull()
 },t=>[index('original_archives_queue').on(t.state,t.leaseUntil)]);
+
+// Independent one-time gold orders; subscriptions never use these orders or balances.
+export const goldOrders=sqliteTable('gold_orders',{
+ id:text('id').primaryKey().references(()=>goldPurchases.id),userId:text('user_id').notNull().references(()=>users.id),requestId:text('request_id').notNull(),state:text('state').notNull().default('created'),reviewOnly:integer('review_only').notNull().default(0),tid:text('tid'),created:integer('created').notNull(),expires:integer('expires').notNull(),updated:integer('updated').notNull(),lastChecked:integer('last_checked').notNull().default(0),leaseUntil:integer('lease_until').notNull().default(0),refunded:integer('refunded').notNull().default(0)
+},t=>[uniqueIndex('gold_orders_request').on(t.userId,t.requestId),uniqueIndex('gold_orders_tid').on(t.tid),index('gold_orders_reconcile').on(t.state,t.lastChecked)]);

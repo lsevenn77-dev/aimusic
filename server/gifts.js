@@ -8,9 +8,9 @@ import {FREE_GIFT} from '../shared/gifts.js';
 
 // No payment channel sells gold yet: web card checkout needs the NICEPAY one-time payment contract and
 // the apps need store billing. Purchases are credited by those integrations once they exist.
-const CHECKOUT_READY=false;
+import {goldCheckoutStatus,createGoldCheckout} from './gold-checkout.js';
 
-export async function goldBalance(env,userId){return (await one(env,"SELECT COALESCE(sum(gold-used),0) n FROM gold_purchases WHERE user_id=? AND status='paid'",userId)).n;}
+export async function goldBalance(env,userId){return (await one(env,"SELECT COALESCE(sum(gold-used),0) n FROM gold_purchases WHERE user_id=? AND status='paid' AND NOT EXISTS(SELECT 1 FROM gold_orders o WHERE o.id=gold_purchases.id AND o.state!='paid')",userId)).n;}
 
 const RANKING=`SELECT u.name,sum(g.gold) gold,sum(g.stars) stars,sum(g.gold+g.stars) score,count(*) gifts,min(g.created) first FROM (SELECT sender_id,track_id,gold,0 stars,created FROM gifts UNION ALL SELECT sender_id,track_id,0 gold,1 stars,created FROM free_gifts) g JOIN users u ON u.id=g.sender_id`;
 const ranked=list=>list.map((r,i)=>({rank:i+1,name:r.name,gold:r.gold,stars:r.stars,score:r.score,gifts:r.gifts}));
@@ -42,25 +42,27 @@ export function settlementMonths(months,current){
 
 export async function giftRoute(req,env,path,user){
  const method=req.method;
- if(path==='/api/gifts/catalog'&&method==='GET')return json({gifts:GIFT_CATALOG,free_gift:FREE_GIFT,gold_krw:GOLD_KRW,checkout_available:CHECKOUT_READY});
+ if(path==='/api/gifts/catalog'&&method==='GET')return json({gifts:GIFT_CATALOG,free_gift:FREE_GIFT,gold_krw:GOLD_KRW,...goldCheckoutStatus(env,user)});
  if(path==='/api/gifts/free'&&method==='GET'){requireUser(user);return json(await freeGiftState(env,user.id));}
  if(path==='/api/gifts/free/claim'&&method==='POST'){requireUser(user);return claimFreeGift(req,env,user);}
  if(path==='/api/gold'&&method==='GET'){
   requireUser(user);
-  return json({balance:await goldBalance(env,user.id),gold_krw:GOLD_KRW,packs:GOLD_PACKS,checkout_available:CHECKOUT_READY,
+  return json({balance:await goldBalance(env,user.id),gold_krw:GOLD_KRW,packs:GOLD_PACKS,...goldCheckoutStatus(env,user),
    purchases:await rows(env,"SELECT id,channel,gold,used,price_krw,status,created,paid_at FROM gold_purchases WHERE user_id=? AND status!='pending' ORDER BY created DESC LIMIT 20",user.id),
-   gifts:GIFT_CATALOG,free:await freeGiftState(env,user.id),free_sent:await rows(env,'SELECT g.id,g.created,t.id track_id,t.title FROM free_gifts g JOIN tracks t ON t.id=g.track_id WHERE g.sender_id=? ORDER BY g.created DESC LIMIT 20',user.id),sent:await rows(env,'SELECT g.id,g.gold,g.gift_type,g.gift_name,g.created,t.id track_id,t.title,t.kind FROM gifts g JOIN tracks t ON t.id=g.track_id WHERE g.sender_id=? ORDER BY g.created DESC LIMIT 20',user.id)});
+   orders:await rows(env,'SELECT o.id,o.state,o.review_only,o.created,p.gold,p.price_krw FROM gold_orders o JOIN gold_purchases p ON p.id=o.id WHERE o.user_id=? ORDER BY o.created DESC LIMIT 20',user.id),gifts:GIFT_CATALOG,free:await freeGiftState(env,user.id),free_sent:await rows(env,'SELECT g.id,g.created,t.id track_id,t.title FROM free_gifts g JOIN tracks t ON t.id=g.track_id WHERE g.sender_id=? ORDER BY g.created DESC LIMIT 20',user.id),sent:await rows(env,'SELECT g.id,g.gold,g.gift_type,g.gift_name,g.created,t.id track_id,t.title,t.kind FROM gifts g JOIN tracks t ON t.id=g.track_id WHERE g.sender_id=? ORDER BY g.created DESC LIMIT 20',user.id)});
  }
- if(path==='/api/gold/checkout'&&method==='POST'){requireUser(user);fail(409,'골드 충전은 결제 준비가 끝나면 열려요.');}
+ if(path==='/api/gold/checkout'&&method==='POST'){requireUser(user);return createGoldCheckout(req,env,user);}
  if(path==='/api/studio/earnings'&&method==='GET'){
   requireUser(user);
   const profile=await one(env,'SELECT id FROM producers WHERE user_id=?',user.id),current=giftMonth(now());
   const months=profile?await rows(env,`SELECT month,SUM(CASE WHEN singer_profile_id=? THEN singer_mw ELSE 0 END) singer_mw,SUM(CASE WHEN creator_profile_id=? THEN creator_mw ELSE 0 END) creator_mw,count(*) gifts
    FROM gifts WHERE (singer_profile_id=? AND singer_mw>0) OR (creator_profile_id=? AND creator_mw>0) GROUP BY month ORDER BY month`,profile.id,profile.id,profile.id,profile.id):[];
+  const summary=profile?await one(env,`SELECT COALESCE(sum(g.gold),0) received_gold,COALESCE(sum(g.net_mw),0) net_mw,COALESCE(sum((SELECT sum(ROUND(gl.gold*p.price_krw*1000.0/p.gold)) FROM gift_lots gl JOIN gold_purchases p ON p.id=gl.purchase_id WHERE gl.gift_id=g.id)),0) gross_mw,COALESCE(sum(CASE WHEN g.singer_profile_id=? THEN g.singer_mw ELSE 0 END)+sum(CASE WHEN g.creator_profile_id=? THEN g.creator_mw ELSE 0 END),0) earned_mw FROM gifts g WHERE g.singer_profile_id=? OR g.creator_profile_id=?`,profile.id,profile.id,profile.id,profile.id):{received_gold:0,net_mw:0,gross_mw:0,earned_mw:0};
+  const breakdown={received_gold:summary.received_gold,purchase_value_krw:wonFromMw(summary.gross_mw),payment_fee_krw:wonFromMw(summary.gross_mw-summary.net_mw),after_fee_krw:wonFromMw(summary.net_mw),other_shares_krw:wonFromMw(summary.net_mw-summary.earned_mw),estimated_earnings_krw:wonFromMw(summary.earned_mw)};
   // Months up to the latest statement are settled; later months show the projected carry-over.
   const payout=await creatorPayouts(env,user.id),through=payout.last_period;
   const settled=months.filter(m=>through&&m.month<=through).map(m=>({month:m.month,gifts:m.gifts,singer_krw:wonFromMw(m.singer_mw),creator_krw:wonFromMw(m.creator_mw),total_krw:wonFromMw(m.singer_mw+m.creator_mw),status:'settled'}));
-  return json({current_month:current,min_payout_krw:MIN_PAYOUT_KRW,payout_day:PAYOUT_DAY,splits:GIFT_SPLITS,months:[...settled,...settlementMonths(months.filter(m=>!through||m.month>through),current)].reverse(),payout});
+  return json({breakdown,current_month:current,min_payout_krw:MIN_PAYOUT_KRW,payout_day:PAYOUT_DAY,splits:GIFT_SPLITS,months:[...settled,...settlementMonths(months.filter(m=>!through||m.month>through),current)].reverse(),payout});
  }
  const m=path.match(/^\/api\/tracks\/([\w-]+)\/gifts$/);if(!m)return null;
  const track=await published(env,m[1]);

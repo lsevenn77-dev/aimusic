@@ -52,6 +52,7 @@ async function audit(env,admin,action,target){await run(env,'INSERT INTO admin_a
 // Closing a finished month issues one statement per person whose unpaid earnings since their last statement
 // reach the minimum; smaller totals stay unpaid and are picked up by a later close.
 export async function closePeriod(env,admin,period){
+ if(await one(env,"SELECT 1 FROM gold_orders WHERE state='refund_review' LIMIT 1"))fail(409,'환불된 골드의 배분 내역을 확인한 후 정산을 마감해주세요.');
  if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(period)||period>=giftMonth(now()))fail(400,'끝난 달만 마감할 수 있어요.');
  const latest=(await one(env,'SELECT max(period) p FROM payout_periods')).p;
  if(latest&&period<=latest)fail(409,`${latest}까지 이미 마감했어요.`);
@@ -117,6 +118,7 @@ export async function payoutRoute(req,env,path,user){
   return json({holder:s.holder,bank:s.bank,account:await unseal(env,s.account_cipher,s.user_id+':account'),resident_number:await unseal(env,s.resident_cipher,s.user_id+':resident')});
  }
  if(m[2]==='paid'&&method==='POST'){
+  if(await one(env,"SELECT 1 FROM gold_orders WHERE state='refund_review' LIMIT 1"))fail(409,'환불된 골드의 배분 내역을 확인한 후 지급 처리해주세요.');
   if(s.status!=='scheduled')fail(409,'지급 예정인 정산서만 지급 완료로 바꿀 수 있어요.');
   const b=await req.json(),ref=str(b.ref||'',100,false);
   await run(env,"UPDATE payout_statements SET status='paid',paid_at=?,paid_ref=?,paid_by=?,account_snapshot=? WHERE id=? AND status='scheduled'",now(),ref,user.id,`${s.bank} ****${s.account_last4} ${s.holder}`,s.id);

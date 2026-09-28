@@ -141,3 +141,13 @@ test('unsigned registration probes and unknown orders are acknowledged without c
  assert.equal(f.sql.prepare("SELECT premium_until FROM users WHERE id='owner'").get().premium_until,0);
  assert.equal(f.calls.filter(c=>c.path.endsWith('/payments')).length,0);
 });
+
+test('review account can inspect checkout but cannot register a card even when real checkout opens',async t=>{
+ const f=await setup(t);f.env.BILLING_REVIEW_USER_IDS='owner';f.env.BILLING_REVIEW_UNTIL=String(Math.floor(Date.now()/1000)+86400);
+ const req=(path,method='GET',body)=>worker.fetch(new Request('https://aifect.test'+path,{method,headers:{Origin:'https://aifect.test',Cookie:'aifect_session=owner','Content-Type':'application/json'},body:body?JSON.stringify(body):undefined}),f.env,{waitUntil(){}});
+ let r=await req('/api/billing/status');let data=await r.json();assert.equal(data.review_only,true);assert.equal(data.checkout_available,false);
+ f.calls.length=0;r=await req('/api/billing/subscribe','POST',{card:CARD,consent:true});assert.equal(r.status,403);assert.equal(f.calls.length,0);assert.equal(f.sql.prepare('SELECT count(*) n FROM billing_subscriptions').get().n,0);
+ f.env.BILLING_REVIEW_UNTIL='1';data=await (await req('/api/billing/status')).json();assert.equal(data.review_only,false);assert.equal(data.checkout_available,false);
+ assert.equal((await req('/api/billing/subscribe','POST',{card:CARD})).status,403);
+ const ordinary=await f.call('/api/billing/status','GET',undefined,'other');assert.equal(ordinary.body.review_only,false);
+});

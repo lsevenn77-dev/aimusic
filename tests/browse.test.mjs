@@ -6,7 +6,7 @@ import {readFileSync} from 'node:fs';
 function viewContext(responses={},user=null){
  const calls=[];
  const esc=s=>String(s??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
- const context=vm.createContext({me:user,inApp:false,location:{hash:'#library/covers'},URLSearchParams,Date,esc,
+ const context=vm.createContext({me:user,inApp:false,location:{hash:'#library/covers'},URLSearchParams,Date,esc,number:n=>String(n),
   heading:(title,description='')=>`<h1>${esc(title)}</h1><p>${esc(description)}</p>`,gate:()=>'<p>LOGIN REQUIRED</p>',giftButton:()=>'',icon:()=>'',
   empty:(title,description,href,label)=>`<p>${esc(title)}</p><a href="${href}">${esc(label)}</a>`,
   cover:()=>'',credits:()=>'',trackStats:()=>'',time:()=>'',liked:()=>false,
@@ -39,4 +39,10 @@ test('community content is escaped and covers link back to their original song',
 });
 test('search landing and unrelated routes do not perform unnecessary requests',async()=>{
  const {view,calls}=viewContext();assert.match((await view('search')).html,/노래방 차트/);assert.equal(await view('song','one'),null);assert.deepEqual(calls,[]);
+});
+
+test('popular chart connects calendar tabs and explains actual weighted metrics',async()=>{
+ const path='/api/catalog?section=tracks&chart=top&period=month',track={id:'song',title:'<script>',chart_score:65.5,chart_plays:3,chart_likes:2,chart_comments:1,chart_gifts:5};
+ const {view,calls}=viewContext({[path]:{chart:{label:'이달'},tracks:[track]}});const d=await view('charts',undefined,'charts?period=month');
+ assert.deepEqual(calls,[path]);assert.match(d.html,/65.50/);assert.match(d.html,/재생 50점/);assert.match(d.html,/명예의 전당/);assert.match(d.html,/#charts\?period=today/);assert.match(d.html,/&lt;script&gt;/);assert.equal(d.tracks[0].id,'song');
 });
