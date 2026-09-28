@@ -2,6 +2,10 @@
 
 버전 **2.4.1 (12)** · 패키지 `kr.co.aifect.app` · Android 8.0 이상 · targetSdk 36.
 
+최신 설치 APK: https://billing.aifect.co.kr/downloads/AIFECT-latest.apk (32,246,096 bytes).
+2026-09-28에 2.4.1을 다시 배포하고 요청에 따라 서버의 2.3.0·2.4.0 APK와 공개 경로를 삭제했다.
+최신 링크는 캐시하지 않으며, 버전별 2.4.1 링크도 유지한다. 아래 이전 버전 다운로드 항목은 과거 배포 기록이다.
+
 Kotlin / Jetpack Compose 화면과 Media3 플레이어를 사용한다. WebView, Capacitor, 웹 JavaScript 화면은 APK에 포함하지 않는다. 기존 Java 노래방 화면과 오디오 엔진을 직접 실행한다.
 
 ## 화면과 연결
@@ -98,7 +102,7 @@ $env:ANDROID_SERIAL='emulator-5580'
 검증: 로컬 DB 기반 서버 101개, JVM 12개, Android 계측 12개(신규 랭킹·팔로우·재생·신고·업로더 삭제 흐름 포함). 디버그 빌드와 lint 오류 0개. 실제 사용자 데이터로 테스트 댓글/신고/좋아요를 만들지 않는다.
 
 
-### 2.3.0 APK 직접 다운로드
+### 2.3.0 APK 배포 기록 (현재 다운로드 종료)
 
 - URL: https://billing.aifect.co.kr/downloads/AIFECT-2.3.0.apk
 - 휴대폰에 설치한 것과 동일한 디버그 APK, 패키지 `kr.co.aifect.app`, versionCode 9, 32,180,560 bytes.
@@ -122,7 +126,7 @@ $env:ANDROID_SERIAL='emulator-5580'
 
 검증: JVM 17개, Android 15 에뮬레이터 계측 16개, 선물 서버 테스트 8개 통과. 마지막 정지 중복 호출 방지 수정 후 에뮬레이터의 녹음 → 백그라운드 일시정지 → 이어 부르기 검사를 추가 통과했다. 빌드·lint 오류 0개(경고 61개). 선물 전송은 로컬 가짜 서버, 녹음 검사는 에뮬레이터 오디오 장치를 사용했으며 호스트 마이크·실제 이용자 게시·유료 결제는 사용하지 않았다. 실물 휴대폰이 연결되지 않아 이번 버전의 실제 이어폰 청음과 기기 지연 보정은 아직 실기기에서 검증하지 않았다.
 
-### 2.4.0 APK 직접 다운로드
+### 2.4.0 APK 배포 기록 (현재 다운로드 종료)
 
 - URL: https://billing.aifect.co.kr/downloads/AIFECT-2.4.0.apk
 - 설치 확인용 디버그 APK, 패키지 `kr.co.aifect.app`, versionCode 11, 32,229,712 bytes.
