@@ -28,6 +28,30 @@ export function placeChunks(chunks,t0,sampleRate,length){
  return out;
 }
 
+// Keep the earlier take and replace only the newly sung interval. Preroll is never committed.
+export function mergeTake(previous,chunks,recordClock,sampleRate,start,end){
+ const first=Math.max(0,Math.round(start*sampleRate)),last=Math.max(first,Math.round(end*sampleRate));
+ if(last<=first)return previous||new Float32Array(0);
+ const out=new Float32Array(last);
+ if(previous)out.set(previous.subarray(0,Math.min(first,previous.length)));
+ out.set(placeChunks(chunks,recordClock,sampleRate,last-first),first);
+ return out;
+}
+
+// Gentle downward expansion reduces quiet background noise without changing the dry recording.
+export function reduceNoise(input,rate,level){
+ const out=new Float32Array(input.length),threshold=[0,.004,.008,.016,.032][Math.max(0,Math.min(4,Math.round(level)))];
+ if(!threshold){out.set(input);return out;}
+ const attack=Math.exp(-1/(rate*.002)),release=Math.exp(-1/(rate*.1)),up=Math.exp(-1/(rate*.003)),down=Math.exp(-1/(rate*.08));
+ let envelope=0,gain=1;
+ for(let i=0;i<input.length;i++){
+  const a=Math.abs(input[i]),c=a>envelope?attack:release;envelope=c*envelope+(1-c)*a;
+  const target=Math.min(1,(envelope/threshold)**(1+level*.35)),smooth=target>gain?up:down;
+  gain=smooth*gain+(1-smooth)*target;out[i]=input[i]*gain;
+ }
+ return out;
+}
+
 export function peak(channels){let max=0;for(const ch of channels)for(let i=0;i<ch.length;i++){const a=Math.abs(ch[i]);if(a>max)max=a;}return max;}
 
 // 16-bit PCM WAV, interleaved.

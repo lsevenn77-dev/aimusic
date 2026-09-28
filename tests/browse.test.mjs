@@ -20,7 +20,7 @@ function viewContext(responses={},user=null){
 }
 test('karaoke chart only requests the eligible MR catalog and preserves server ranking',async()=>{
  const {view,calls}=viewContext({'/api/karaoke':{tracks:[{id:'ready',title:'Ready',created:0},{id:'second',title:'Second',created:0}]}});
- const d=await view('charts','karaoke');assert.deepEqual(calls,['/api/karaoke']);assert.deepEqual(Array.from(d.tracks,t=>t.id),['ready','second']);assert.equal(d.tracks[1].browseRank,2);assert.match(d.html,/원곡 재생·좋아요 기준/);assert.doesNotMatch(d.html,/#sing\//);
+ const d=await view('charts','karaoke');assert.deepEqual(calls,['/api/karaoke']);assert.deepEqual(Array.from(d.tracks,t=>t.id),['ready','second']);assert.equal(d.tracks[1].browseRank,2);assert.match(d.html,/원곡 재생·좋아요 기준/);assert.match(d.html,/#sing\/ready/);assert.match(d.html,/마이크와 이어폰/);
 });
 test('community filters covers and originals through the public API',async()=>{
  const {view,calls}=viewContext({'/api/community?kind=cover':{tracks:[]},'/api/community?kind=original':{tracks:[]}});
