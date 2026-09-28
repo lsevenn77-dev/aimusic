@@ -2,7 +2,17 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {fixture} from './fixture.mjs';
 import worker from '../server/index.js';
-import {encryptCard,sealBillingKey,openBillingKey,digest,nextBillingMonth,verifyNiceSignature} from '../server/nicepay.js';
+import {encryptCard,sealBillingKey,openBillingKey,digest,nextBillingMonth,verifyNiceSignature,niceRequest} from '../server/nicepay.js';
+
+test('gateway requests reject redirects without forwarding payment credentials',async()=>{
+ let calls=0;
+ const env={NICEPAY_CLIENT_ID:'client',NICEPAY_SECRET_KEY:'secret',NICEPAY_HTTP:async(url,options)=>{
+  calls++;assert.equal(options.redirect,'manual');
+  return new Response(null,{status:302,headers:{Location:'https://untrusted.test/'}});
+ }};
+ await assert.rejects(()=>niceRequest(env,'/v1/terms?termsType=ElectronicFinancialTransactions'),e=>e.status===503&&e.message.includes('아직 카드 등록이나 결제는 시작되지'));
+ assert.equal(calls,1);
+});
 
 const CARD={cardNo:'1234567890123456',expYear:'39',expMonth:'12',idNo:'800101',cardPw:'12'};
 async function setup(t){
