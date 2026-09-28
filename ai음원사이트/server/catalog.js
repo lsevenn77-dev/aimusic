@@ -6,6 +6,8 @@ import {isPremium,playlistLimit,activePlaylistSQL,requireActivePlaylist} from '.
 import {listenerLyrics} from './lyrics.js';
 import {profileGifts} from './gifts.js';
 import {GENRES,validGenre} from '../shared/genres.js';
+import {rankingPeriod} from './ranking-period.js';
+import {popularScores,CHART_WEIGHTS} from './popular-chart.js';
 export {GENRES};
 // A cover is public only while its original is public and still offered for karaoke (terms: hiding the original hides its covers).
 export const VISIBLE=(t='t')=>`(${t}.status='published' AND (${t}.original_id IS NULL OR EXISTS(SELECT 1 FROM tracks v WHERE v.id=${t}.original_id AND v.status='published' AND v.karaoke_at>0)))`;
@@ -40,19 +42,29 @@ export async function catalogRoute(req,env,path,user){
   if(q){where+=' AND (t.title LIKE ? OR a.name LIKE ? OR p.name LIKE ? OR t.genre LIKE ? OR t.tags LIKE ?)';args=Array(5).fill('%'+q+'%');}
   if(genre&&validGenre(genre)){where+=' AND t.genre=?';args.push(genre);}
   let sort='t.created DESC';
-  if(chart==='top')sort='(plays+likes*3+comments*2) DESC,t.created DESC';
+
   if(chart==='rising')sort="(SELECT count(DISTINCT listener) FROM listens l WHERE l.track_id=t.id AND l.qualified=1 AND l.started>unixepoch()-604800) DESC,t.created DESC";
   if(chart==='newcomers')where+=' AND p.created>unixepoch()-2592000 AND (SELECT count(*) FROM follows f WHERE f.kind=\'producer\' AND f.target_id=p.id)<1000';
   const section=url.searchParams.get('section')||'all';
   if(!['all','tracks','artists','producers'].includes(section))fail(400,'목록 종류를 확인해주세요.');
   const requested=Number(url.searchParams.get('limit')||100),limit=Number.isFinite(requested)?Math.max(1,Math.min(100,Math.trunc(requested))):100;
+  const period=chart==='top'?rankingPeriod(url.searchParams.get('period')||'week'):null;
   const loaders={
-   tracks:()=>trackList(env,where,args,sort,limit),
+   tracks:async()=>{
+    if(!period)return trackList(env,where,args,sort,limit);
+    const scores=await popularScores(env,period,where,args,limit);
+    if(!scores.length)return [];
+    const tracks=await trackList(env,'t.id IN ('+scores.map(()=>'?').join(',')+')',scores.map(s=>s.id),'t.id',limit);
+    const byId=new Map(tracks.map(t=>[t.id,t]));
+    return scores.map((s,i)=>({...byId.get(s.id),...s,chart_rank:i+1}));
+   },
    artists:()=>rows(env,`SELECT a.*, (SELECT count(*) FROM follows f WHERE f.kind='artist' AND f.target_id=a.id) followers FROM artists a WHERE EXISTS(SELECT 1 FROM tracks t WHERE t.artist_id=a.id AND t.kind='original' AND t.status='published') ORDER BY created DESC LIMIT ${limit}`),
    producers:()=>rows(env,`SELECT p.id,p.name,p.bio,p.created,p.image_version,(SELECT count(*) FROM follows f WHERE f.kind='producer' AND f.target_id=p.id) followers FROM producers p WHERE EXISTS(SELECT 1 FROM tracks t WHERE t.producer_id=p.id AND ${VISIBLE()}) ORDER BY created DESC LIMIT ${limit}`)
   };
   const sections=section==='all'?Object.keys(loaders):[section];
-  return json(Object.fromEntries(await Promise.all(sections.map(async key=>[key,await loaders[key]()]))));
+  const result=Object.fromEntries(await Promise.all(sections.map(async key=>[key,await loaders[key]()])));
+  if(period)result.chart={...period,weights:CHART_WEIGHTS,basis:'normalized_engagement',max_score:100};
+  return json(result);
  }
  let m=path.match(/^\/api\/tracks\/([\w-]+)(?:\/(like|comments|covers))?$/);
  if(m){

@@ -11,7 +11,7 @@ const WEB={id:'web',gold:1000,used:0,price_krw:10000,fee_krw:330};
 const APP={id:'app',gold:500,used:0,price_krw:5000,fee_krw:750};
 
 test('payment fees come off first, then the cover or original split applies',()=>{
- assert.deepEqual(GOLD_PACKS.map(p=>[p.gold,p.price]),[[100,1000],[500,5000],[1000,10000],[5000,50000]]);
+ assert.deepEqual(GOLD_PACKS.map(p=>[p.gold,p.price]),[[500,5000],[1000,10000],[5000,50000],[10000,100000]]);
  // App: 1,000 KRW -> 150 KRW store fee -> 850 KRW split 40/30/30.
  assert.deepEqual(splitGift('cover',850000),{singer:340000,creator:255000,platform:255000});
  assert.deepEqual(splitGift('original',850000),{singer:0,creator:595000,platform:255000});

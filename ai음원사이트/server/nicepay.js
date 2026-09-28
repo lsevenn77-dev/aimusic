@@ -40,10 +40,16 @@ export async function niceRequest(env,path,body){
  const origin=env.NICEPAY_SANDBOX==='true'?'https://sandbox-api.nicepay.co.kr':'https://api.nicepay.co.kr';
  if(!path.startsWith('/v1/')||path.includes('..'))throw new Error('Invalid NICE endpoint');
  try{
-  const r=await (env.NICEPAY_HTTP||fetch)(origin+path,{method:body?'POST':'GET',redirect:'error',headers:{Authorization:'Basic '+btoa(env.NICEPAY_CLIENT_ID+':'+env.NICEPAY_SECRET_KEY),'Content-Type':'application/json;charset=utf-8','User-Agent':'AIFECT-Billing/1.0'},body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(60000)});
-  if(!r.ok)throw new Error('NICE unavailable');
+  // Workerd supports manual/follow only. Reject 3xx below so credentials are
+  // never forwarded to a redirect destination.
+  const r=await (env.NICEPAY_HTTP||fetch)(origin+path,{method:body?'POST':'GET',redirect:'manual',headers:{Authorization:'Basic '+btoa(env.NICEPAY_CLIENT_ID+':'+env.NICEPAY_SECRET_KEY),'Content-Type':'application/json;charset=utf-8','User-Agent':'AIFECT-Billing/1.0'},body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(60000)});
+  if(!r.ok){
+   let code='';try{const error=await r.json();code=String(error.resultCode||'').replace(/[^A-Za-z0-9_-]/g,'').slice(0,20);}catch{}
+   console.warn('NICE request failed',{category:path.startsWith('/v1/terms?')?'terms':path.startsWith('/v1/subscribe/')?'billing':'payment',status:r.status,code});
+   throw new Error('NICE unavailable');
+  }
   return await r.json();
- }catch{fail(503,'결제 결과를 확인 중입니다. 다시 결제하지 말고 잠시 후 구독 내역을 확인해주세요.');}
+ }catch{fail(503,path.startsWith('/v1/terms?')?'결제 약관 연결을 확인 중입니다. 아직 카드 등록이나 결제는 시작되지 않았어요. 잠시 후 다시 시도해주세요.':'결제 결과를 확인 중입니다. 다시 결제하지 말고 잠시 후 구독 내역을 확인해주세요.');}
 }
 export async function issueBillingKey(env,card,orderId){
  const ediDate=new Date().toISOString(),encData=await encryptCard(card,env.NICEPAY_SECRET_KEY);

@@ -11,7 +11,7 @@ export const giftById=id=>GIFT_CATALOG.find(g=>g.id===id);
 export const FREE_GIFT=Object.freeze({id:'star',name:'응원별',image:'/assets/gifts/star.webp',description:'매일 모아서 마음만 전해요'});
 export const FREE_GIFT_REWARDS=Object.freeze({checkin:3,cover:2,listen:2,comment1:1,comment2:1,comment3:1});
 export const giftDay=seconds=>new Date((seconds+9*3600)*1000).toISOString().slice(0,10);
-export const GOLD_PACKS=Object.freeze([100,500,1000,5000].map(gold=>Object.freeze({gold,price:gold*GOLD_KRW})));
+export const GOLD_PACKS=Object.freeze([500,1000,5000,10000].map(gold=>Object.freeze({gold,price:gold*GOLD_KRW})));
 export const GIFT_MIN_GOLD=10,GIFT_MAX_GOLD=100000;
 // Payment fees come off first: app stores are assumed at 15%, web card payments record the actual fee per purchase.
 // VAT is not deducted before the split.

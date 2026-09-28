@@ -8,6 +8,7 @@ for(const file of ['ads.txt','audio-ads.js','audio-ads.css','gifts.js','gifts.cs
 // Delete the replaced, generated display-ad assets from incremental builds.
 for(const file of ['web-ads.js','web-ads.css'])await rm(`dist/client/${file}`,{force:true});
 await cp('dist/billing.js','dist/client/billing.js');
+await cp('dist/gold-checkout.js','dist/client/gold-checkout.js');
 await cp('dist/motion.js','dist/client/motion.js');
 await cp('dist/motion.css','dist/client/motion.css');
 await cp('dist/home.js','dist/client/home.js');
