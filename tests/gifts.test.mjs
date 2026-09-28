@@ -42,7 +42,7 @@ async function giftFixture(t){
 
 test('catalog prices are authoritative; request retries do not spend gold twice',async t=>{
  const f=await giftFixture(t),catalog=await f.call('/api/gifts/catalog','GET',undefined,null);
- assert.deepEqual(catalog.body.gifts.map(g=>g.gold),[10,50,100,300,500,1000]);
+ assert.deepEqual(catalog.body.gifts.map(g=>g.gold),[1,10,50,100,300,500,1000]);
  assert.equal(catalog.body.free_gift.id,'star');
  assert.equal((await f.call('/api/tracks/cover/gifts','POST',{gift_type:'crown',gold:10,request_id:'forged-price-123456'},'fan')).status,400);
  const body={gift_type:'heart',request_id:'same-gift-request-1234'};
@@ -52,6 +52,17 @@ test('catalog prices are authoritative; request retries do not spend gold twice'
  assert.equal(f.sql.prepare('SELECT gift_type,gift_name FROM gifts').get().gift_name,'하트');
  assert.equal((await f.call('/api/tracks/one/gifts','POST',body,'fan')).status,409);
  assert.equal((await f.call('/api/tracks/cover/gifts','POST',{gift_type:'invalid',request_id:'other-request-1234'},'fan')).status,400);
+});
+
+test('one-gold balloon preserves fractional earnings and spends once',async t=>{
+ const f=await giftFixture(t),body={gift_type:'balloon',request_id:'balloon-request-12345'};
+ const result=await f.call('/api/tracks/cover/gifts','POST',body,'fan');
+ assert.equal(result.status,201,JSON.stringify(result.body));assert.equal(result.body.balance,1499);
+ assert.equal((await f.call('/api/tracks/cover/gifts','POST',body,'fan')).body.balance,1499);
+ const gift=f.sql.prepare('SELECT * FROM gifts').get();
+ assert.deepEqual([gift.gold,gift.net_mw,gift.singer_mw,gift.creator_mw,gift.platform_mw],[1,9670,3868,2901,2901]);
+ assert.equal((await f.call('/api/tracks/cover/gifts')).body.ranking[0].score,1);
+ assert.equal((await f.call('/api/tracks/cover/gifts','POST',{...body,gold:0},'fan')).status,400);
 });
 
 test('daily free rewards are account and Korean-day limited; activity requires real listening',async t=>{

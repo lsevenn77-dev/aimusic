@@ -29,3 +29,17 @@ Use case: stylized-concept. Asset type: one premium virtual gift icon for AIFECT
 ## star
 
 Use case: stylized-concept. Asset: one free virtual cheering gift icon for AIFECT music app, matching premium pearlescent music gifts. One friendly sculpted five-pointed star, aqua mint pearlescent glass with subtle rose pink reflective edges, centered front three-quarter view, polished ceramic and satin glass finish, soft studio lighting, fills 70 percent of square composition. Genuine transparent background. No face, no letters, no numbers, no money, no text, no UI or backdrop. Refined readable silhouette at 80px.
+## balloon — 1 G (10 KRW)
+
+Mode: built-in imagegen, generate. Delivery: `dist/assets/gifts/balloon.webp`.
+
+Use case: stylized-concept.
+Asset type: one premium virtual gift icon for the AIFECT music community.
+Scene/backdrop: genuine transparent background.
+Subject: a single oval pearlescent rose pink balloon with aqua mint and lavender reflective edges, a small knot and a short gently curved string.
+Style/medium: single isolated sculpted 3D object, refined contemporary music app aesthetic.
+Materials/textures: smooth pearlescent satin glass and polished ceramic.
+Lighting/mood: soft studio lighting with delicate reflective highlights.
+Color palette: sophisticated pastel pink, aqua, and lavender.
+Composition/framing: readable silhouette at 80px, front three-quarter view, centered square composition, object filling 70 percent of the canvas.
+Constraints: exactly one balloon; no text, numbers, price, UI, watermark, border, floor or scenery; not clip art, not emoji. Preserve true alpha transparency.

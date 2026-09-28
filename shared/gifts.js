@@ -2,6 +2,7 @@
 export const GOLD_KRW=10;
 // Fixed virtual gifts approved by the operator on 2026-09-28. Prices are server-authoritative.
 export const GIFT_CATALOG=Object.freeze([
+ ['balloon','풍선',1,'가볍게 띄우는 작은 응원'],
  ['note','음표',10,'좋은 음악에 작은 응원을'],['heart','하트',50,'마음에 쏙 드는 목소리'],
  ['rose','장미',100,'오늘의 무대에 꽃 한 송이'],['coffee','커피',300,'다음 곡도 기다릴게요'],
  ['microphone','마이크',500,'당신의 무대를 응원해요'],['crown','왕관',1000,'나에게는 최고의 아티스트'],
