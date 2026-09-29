@@ -70,7 +70,10 @@ export async function catalogRoute(req,env,path,user){
  let m=path.match(/^\/api\/tracks\/([\w-]+)(?:\/(like|comments|covers))?$/);
  if(m){
   const tid=m[1],detail=await published(env,tid);
-  if(!m[2]&&method==='GET')return json({track:{...(await trackList(env,`t.id=? AND ${VISIBLE()}`,[tid]))[0],...listenerLyrics(detail,user),covers:(await one(env,`SELECT count(*) n FROM tracks t WHERE t.original_id=? AND ${VISIBLE()}`,tid)).n,karaoke_ready:!!await one(env,`SELECT 1 FROM tracks t WHERE t.id=? AND ${SINGABLE()}`,tid)}});
+  if(!m[2]&&method==='GET'){
+   const [tracks,karaoke]=await Promise.all([trackList(env,`t.id=? AND ${VISIBLE()}`,[tid]),one(env,`SELECT 1 FROM tracks t WHERE t.id=? AND ${SINGABLE()}`,tid)]);
+   return json({track:{...tracks[0],...listenerLyrics(detail,user),karaoke_ready:!!karaoke}});
+  }
   if(m[2]==='covers'){
    if(method!=='GET')fail(405,'지원하지 않는 요청입니다.');
    const sort=url.searchParams.get('sort')||'popular';if(!Object.hasOwn(COVER_SORTS,sort))fail(400,'정렬 기준을 확인해주세요.');

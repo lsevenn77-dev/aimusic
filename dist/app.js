@@ -4,8 +4,9 @@ const time=s=>`${Math.floor((Number(s)||0)/60)}:${String(Math.floor((Number(s)||
 const number=n=>Number(n||0).toLocaleString('ko-KR');
 const genres=['전체',...AifectGenres.GENRES];
 let me=null,authConfig={},library={likes:[],playlists:[],follows:[]},trackMap=new Map(),renderId=0,routeTracks=[],returnRoute='#home',toastTimer;
-let accountReady=Promise.resolve(),followRevision=0;
+let accountReady=Promise.resolve(),followRevision=0,likeRevision=0;
 const pendingFollows=new Map();
+const pendingLikes=new Map(),apiReads=new Map();let apiRevision=0;
 const audio=new Audio();audio.preload='metadata';audio.volume=.75;
 // True inside the AIFECT Android/iOS app (Capacitor shell around this site).
 const inApp=!!window.Capacitor?.isNativePlatform?.();
@@ -13,7 +14,23 @@ let queue=[],current=null,playSession=null,preview=false,heard=0,lastTick=0,repe
 try{pendingResume=JSON.parse(sessionStorage.getItem('aifect-player-resume')||'null');}catch{}
 function icons(){document.querySelectorAll('[data-icon]').forEach(el=>{el.innerHTML=icon(el.dataset.icon);el.removeAttribute('data-icon');});}
 function toast(message){$('#toast').textContent=message;$('#toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').classList.remove('show'),4500);}
-async function api(path,method='GET',body){const r=await fetch(path,{method,credentials:'same-origin',headers:body?{'content-type':'application/json'}:undefined,body:body?JSON.stringify(body):undefined});let data;try{data=await r.json();}catch{throw new Error('서버에 연결할 수 없습니다. 다시 시도해주세요.');}if(!r.ok)throw Object.assign(new Error(data.error||'다시 시도해주세요.'),{status:r.status});return data;}
+function invalidateReads(){apiRevision++;apiReads.clear();}
+async function api(path,method='GET',body,options={}){
+ const read=method==='GET',mutates=!read&&!/^\/api\/(playback|listens)\//.test(path);
+ if(mutates)invalidateReads();
+ const key=(me?.id||'guest')+':'+path,revision=apiRevision;
+ // Ten seconds, memory only, account scoped. Money, chat, permissions and studio always stay live.
+ const reusable=/^\/api\/(catalog|karaoke|search|playlists|cover-rankings|discovery|discover(?:\/[^?]+)?|community|library|follows|artists\/[\w-]+|producers\/[\w-]+)(?:\?|$)/.test(path);
+ const prior=apiReads.get(key);
+ if(read&&!options.fresh&&prior&&prior.revision===revision&&(prior.pending||prior.until>Date.now()))return structuredClone(await prior.promise);
+ const entry={revision,pending:true,until:0};
+ const request=(async()=>{
+  try{const r=await fetch(path,{method,credentials:'same-origin',headers:body?{'content-type':'application/json'}:undefined,body:body?JSON.stringify(body):undefined});let data;try{data=await r.json();}catch{throw new Error('서버에 연결할 수 없습니다. 다시 시도해주세요.');}if(!r.ok)throw Object.assign(new Error(data.error||'다시 시도해주세요.'),{status:r.status});return data;}
+  finally{if(mutates)invalidateReads();}
+ })();
+ if(read){entry.promise=request;apiReads.set(key,entry);request.then(()=>{entry.pending=false;entry.until=reusable?Date.now()+10000:0;if(!reusable&&apiReads.get(key)===entry)apiReads.delete(key);while(apiReads.size>60)apiReads.delete(apiReads.keys().next().value);},()=>{if(apiReads.get(key)===entry)apiReads.delete(key);});}
+ return structuredClone(await request);
+}
 function remember(tracks){tracks.forEach(t=>trackMap.set(t.id,t));return tracks;}
 const liked=id=>library.likes.some(t=>t.id===id);
 const followed=(kind,id)=>library.follows.some(f=>f.kind===kind&&f.target_id===id);
@@ -29,7 +46,20 @@ function grid(tracks){remember(tracks);return tracks.length?`<div class="album-g
 function list(tracks,removable=null){remember(tracks);return tracks.length?`<div class="track-list">${tracks.map((t,i)=>`<div class="live-track"><span class="track-rank">${i+1}</span><button class="track-art" data-play="${t.id}" aria-label="${esc(t.title)} 재생">${cover(t,'mini-cover')}${icon('play')}</button><div class="track-info"><a href="#song/${t.id}"><strong>${esc(t.title)}</strong></a><span>${credits(t)}</span></div><span class="track-genre">${esc(t.genre)}</span>${trackStats(t,'list-stats')}<span class="track-time">${time(t.duration)}</span><button class="icon-button ${liked(t.id)?'is-active':''}" data-like="${t.id}" aria-label="${esc(t.title)} 좋아요" aria-pressed="${liked(t.id)}">${icon('heart')}</button><button class="icon-button" data-add="${t.id}" aria-label="플레이리스트에 추가">${icon('plus')}</button><button class="icon-button track-more" data-track-menu="${t.id}" aria-label="${esc(t.title)} 더보기">⋯</button>${removable?`<button class="icon-button" data-remove-track="${t.id}" data-playlist="${removable}" aria-label="플레이리스트에서 제거">×</button>`:''}</div>`).join('')}</div>`:empty('아직 음악이 없어요','새로운 곡을 발견하고 나만의 취향을 채워보세요.','#discover','음악 발견하기');}
 function identityCards(items,kind){return items.length?`<div class="artist-grid">${items.map(p=>`<article class="artist-card surface"><a href="#${kind}/${p.id}">${portrait(p,kind)}<h3>${esc(p.name)}</h3></a><p>${esc(p.bio||'새로운 음악으로 만나요.')}</p><div class="card-follow"><span>${p.followers==null?'팔로잉':number(p.followers)+' 팔로워'}</span><button class="small-button" data-follow="${kind}/${p.id}">${followed(kind,p.id)?'팔로잉':'팔로우'} ${icon('plus')}</button></div></article>`).join('')}</div>`:empty('새로운 창작자를 기다려요','음원을 공개하면 아티스트와 제작자 프로필이 여기에 표시됩니다.');}
 function gate(){return heading('나의 음악을 시작하세요')+empty('로그인이 필요해요','무료 회원가입 후 전체곡 듣기, 보관함, 업로드를 이용할 수 있습니다.','#account','로그인 · 회원가입');}
-async function refreshLibrary(){const uid=me?.id,revision=followRevision,data=me?await api('/api/library'):{likes:[],playlists:[],follows:[]};if(uid!==me?.id)return;if(revision!==followRevision||pendingFollows.size)data.follows=library.follows;library=data;remember(library.likes);setMembership(library.membership);if(typeof updateHomeAccount==='function')updateHomeAccount();}
+async function refreshLibrary(fresh=false){const uid=me?.id,revision=followRevision,likesVersion=likeRevision,data=me?await api('/api/library','GET',undefined,{fresh}):{likes:[],playlists:[],follows:[]};if(uid!==me?.id)return;if(revision!==followRevision||pendingFollows.size)data.follows=library.follows;if(likesVersion!==likeRevision||pendingLikes.size)data.likes=library.likes;library=data;remember(library.likes);setMembership(library.membership);paintInteractions();if(typeof updateHomeAccount==='function')updateHomeAccount();}
+function paintInteractions(){
+ document.querySelectorAll('[data-like]').forEach(b=>{const tid=b.dataset.like;b.classList.toggle('is-active',liked(tid));b.setAttribute('aria-pressed',String(liked(tid)));b.disabled=pendingLikes.has(tid);const count=trackMap.get(tid)?.likes,label=b.querySelector('[data-like-count]');if(label&&count!=null){label.textContent=number(count);b.setAttribute('aria-label',`좋아요 ${number(count)}개`);}});
+ document.querySelectorAll('[data-follow]').forEach(b=>{const [kind,id]=b.dataset.follow.split('/');paintFollowState(b.dataset.follow,followed(kind,id),pendingFollows.has(b.dataset.follow));});
+}
+async function toggleLike(button){
+ if(!me)return askLogin();const tid=button.dataset.like;if(pendingLikes.has(tid))return;
+ const uid=me.id,wasLiked=liked(tid),prior=trackMap.get(tid),oldCount=Number(prior?.likes||0),oldEntry=library.likes.find(t=>t.id===tid);
+ const paint=(active,count)=>{library.likes=library.likes.filter(t=>t.id!==tid);if(active)library.likes.unshift({...oldEntry,...prior,id:tid,likes:count});if(prior)trackMap.set(tid,{...prior,likes:count});likeRevision++;paintInteractions();document.querySelectorAll('[data-stat-track]').forEach(s=>{if(s.dataset.statTrack!==tid)return;const item=s.children[1];if(item){item.setAttribute('aria-label',`좋아요 ${number(count)}개`);const span=item.querySelector('span');if(span)span.textContent=number(count);}});};
+ pendingLikes.set(tid,uid);paint(!wasLiked,Math.max(0,oldCount+(wasLiked?-1:1)));
+ try{await api(`/api/tracks/${tid}/like`,wasLiked?'DELETE':'PUT');if(me?.id!==uid)return;toast(wasLiked?'좋아요를 취소했습니다.':'좋아요에 저장했습니다.');if(typeof refreshCommunityRanking==='function')refreshCommunityRanking();}
+ catch(e){if(me?.id===uid)paint(wasLiked,oldCount);throw e;}
+ finally{pendingLikes.delete(tid);if(me?.id===uid)paintInteractions();}
+}
 function updateFollowLocal(kind,id,following,profile){
  library.follows=library.follows.filter(f=>!(f.kind===kind&&f.target_id===id));
  if(following)library.follows.unshift({...profile,kind,target_id:id});
@@ -70,10 +100,9 @@ function closePlayer(){
 function formField(label,name,type='text',value='',extra=''){return `<label class="form-field">${label}<input type="${type}" name="${name}" value="${esc(value)}" ${extra}></label>`;}
 async function play(tid,tracks=null,start=0){
  countAdListening();
- const serial=++playSerial;if(!window.AifectAudioAds?.active)audio.pause();await report();
+ const serial=++playSerial;if(!window.AifectAudioAds?.active)audio.pause();report();
  await window.AifectAudioAds?.beforeTrack();if(serial!==playSerial)return;
- const t=(await api('/api/tracks/'+tid)).track;if(serial!==playSerial)return;remember([t]);
- const session=await api('/api/playback/'+tid,'POST');if(serial!==playSerial)return;
+ const [{track:t},session]=await Promise.all([api('/api/tracks/'+tid),api('/api/playback/'+tid,'POST')]);if(serial!==playSerial)return;remember([t]);
  current=t;playSession=session.id;preview=session.preview;heard=0;lastTick=0;
  if(tracks?.length)queue=[...new Set(tracks.map(t=>t.id))];else if(!queue.includes(tid))queue=[tid];saveQueue();
  audio.src=session.src;$('#now-playing').innerHTML=`<a href="#song/${t.id}">${cover(t,'mini-cover')}</a><div><strong>${esc(t.title)}</strong><span>${esc(t.artist)} · ${preview?'60초 미리 듣기':'전체곡 AAC 128'}</span></div><button class="icon-button" data-like="${t.id}" aria-label="좋아요">${icon('heart')}</button>${giftButton(t,'small-button gift-entry player-gift')}<div class="player-actions"><button class="small-button" data-add="${t.id}">담기</button><button class="small-button" data-sing-track="${t.id}">${icon('mic')} 부르기</button><a class="small-button" href="#song/${t.id}?comments=1">댓글</a></div>`;

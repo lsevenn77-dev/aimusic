@@ -14,12 +14,12 @@ function chatHTML(messages,peer=null,crew=null){
 function chatPanelHTML(label,initial=null,peer=null){return `<section class="surface chat-panel"><button class="small-button chat-earlier" id="chat-earlier" ${initial?.has_more?'':'hidden'}>이전 대화 보기</button><div id="chat-log" role="log" aria-label="${label}">${initial?chatHTML(initial.messages,peer):''}</div><p id="chat-error" role="status"></p>${chatComposer()}</section>`;}
 function bindSocialChat(view){
  const ticket=renderId;
- if(view?.inbox){let fetching=false;const load=async()=>{if(fetching||document.hidden||ticket!==renderId)return;fetching=true;try{const d=await api('/api/dm');if(ticket===renderId)$('#dm-conversations').innerHTML=conversationListHTML(d.conversations);}catch(e){if(ticket===renderId)$('#dm-list-error').textContent=e.message;}finally{fetching=false;}};socialTimer=setInterval(load,3000);return;}
+ if(view?.inbox){let fetching=false;const load=async()=>{if(fetching||document.hidden||ticket!==renderId)return;fetching=true;try{const d=await api('/api/dm');if(ticket===renderId){const root=$('#dm-conversations'),html=conversationListHTML(d.conversations);if(root.innerHTML!==html)root.innerHTML=html;}}catch(e){if(ticket===renderId)$('#dm-list-error').textContent=e.message;}finally{fetching=false;}};socialTimer=setInterval(load,3000);return;}
  if(!view?.chat)return;
  const {path,peer,crew,initial}=view.chat,form=$('#chat-compose'),log=$('#chat-log'),earlier=$('#chat-earlier');
- const messages=new Map((initial?.messages||[]).map(m=>[m.id,m]));let request=crypto.randomUUID(),fetching=false,initialized=!!initial;
+ const messages=new Map((initial?.messages||[]).map(m=>[m.id,m]));let request=crypto.randomUUID(),fetching=false,initialized=!!initial,lastHTML=null;
  const sorted=()=>[...messages.values()].sort((a,b)=>a.sequence-b.sequence);
- const paint=(older=false,forceBottom=false)=>{const nearBottom=forceBottom||log.scrollHeight-log.scrollTop-log.clientHeight<90,top=log.scrollTop,height=log.scrollHeight;log.innerHTML=chatHTML(sorted(),peer,crew);if(older)log.scrollTop=top+log.scrollHeight-height;else if(nearBottom)log.scrollTop=log.scrollHeight;};
+ const paint=(older=false,forceBottom=false)=>{const nearBottom=forceBottom||log.scrollHeight-log.scrollTop-log.clientHeight<90,top=log.scrollTop,height=log.scrollHeight;const html=chatHTML(sorted(),peer,crew);if(html===lastHTML)return;lastHTML=html;log.innerHTML=html;if(older)log.scrollTop=top+log.scrollHeight-height;else if(nearBottom)log.scrollTop=log.scrollHeight;};
  paint(false,true);
  const load=async(older=false)=>{
   if(fetching||ticket!==renderId||document.hidden&&!older)return;fetching=true;const list=sorted(),cursor=older?list[0]?.sequence:list.at(-1)?.sequence;
@@ -34,7 +34,7 @@ function bindSocialChat(view){
  const input=form.querySelector('textarea');input.addEventListener('keydown',event=>{if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing&&event.keyCode!==229){event.preventDefault();if(input.value.trim()&&!form.querySelector('button').disabled)form.requestSubmit();}});
  form.onsubmit=busyForm(form,async fd=>{if(ticket!==renderId)return;const result=await api(path,'POST',{body:fd.get('body'),request_id:request});if(ticket!==renderId)return;form.reset();request=crypto.randomUUID();if(result.message){messages.set(result.message.id,result.message);paint(false,true);}else await load();});
  if(peer&&initial?.messages.length)api(path,'PATCH').catch(()=>{});
- load();socialTimer=setInterval(load,2500);
+ if(!initial)load();socialTimer=setInterval(load,2500);
 }
 document.addEventListener('click',async event=>{
  const button=event.target.closest('[data-crew-member]');if(!button)return;event.preventDefault();

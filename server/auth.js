@@ -1,4 +1,4 @@
-import {publicUser} from './identity.js';
+import {publicUser,producerNameSQL} from './identity.js';
 import {createRemoteJWKSet,jwtVerify,SignJWT,importPKCS8} from 'jose';
 import {one,run,query,now,id,fail,str,json,rate} from './db.js';
 import {membership} from './membership.js';
@@ -10,7 +10,11 @@ const cookie=(name,value,age,secure=true)=>`${name}=${value}; Path=/; HttpOnly; 
 export function cookies(req){return Object.fromEntries((req.headers.get('cookie')||'').split(';').map(x=>x.trim().split('=')));}
 // Operators are listed by user id in ADMIN_USER_IDS; there is no self-service admin role.
 export const isAdmin=(env,user)=>!!user&&(env.ADMIN_USER_IDS||'').split(',').map(s=>s.trim()).filter(Boolean).includes(user.id);
-export async function viewer(req,env){const token=cookies(req).aifect_session;if(!token)return null;return publicUser(env,await one(env,'SELECT u.id,u.name,u.email,u.provider,u.premium_until FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token=? AND s.expires>?',await hash(token),now()));}
+export async function viewer(req,env){
+ const token=cookies(req).aifect_session;if(!token)return null;
+ // Resolve the session and public nickname together on every request; no auth cache.
+ return one(env,`SELECT u.id,u.email,u.provider,u.premium_until,COALESCE(${producerNameSQL()},CASE WHEN u.provider='email' THEN u.name ELSE '리스너 '||substr(u.id,1,8) END) name,p.id profile_id,COALESCE(p.image_version,'') image_version FROM sessions s JOIN users u ON u.id=s.user_id LEFT JOIN producers p ON p.user_id=u.id WHERE s.token=? AND s.expires>?`,await hash(token),now());
+}
 export const requireUser=u=>{if(!u)fail(401,'로그인 후 이용해주세요.');return u;};
 async function passwordHash(password,salt,env){
  if(!env.AUTH_PEPPER)fail(503,'로그인 설정을 준비하고 있습니다.');
@@ -33,7 +37,10 @@ export async function authRoute(req,env,path,user){
  const url=new URL(req.url),secure=url.protocol==='https:';
  const mobile=await mobileAuthRoute(req,env,path,user);if(mobile)return mobile;
  const native=await nativeAuthRoute(req,env,path);if(native)return native;
- if(path==='/api/me')return json({user,admin:isAdmin(env,user),membership:await membership(env,user),providers:providers(env),googleClientId:env.GOOGLE_CLIENT_ID||null,emailEnabled:!!env.AUTH_PEPPER});
+ if(path==='/api/me'){
+  const [plan,state]=await Promise.all([membership(env,user),user&&url.searchParams.get('state')==='1'?one(env,`SELECT (SELECT json_group_array(track_id) FROM likes WHERE user_id=?) likes,(SELECT json_group_array(json_object('kind',kind,'target_id',target_id)) FROM follows WHERE user_id=?) follows`,user.id,user.id):null]);
+  return json({user,admin:isAdmin(env,user),membership:plan,providers:providers(env),googleClientId:env.GOOGLE_CLIENT_ID||null,emailEnabled:!!env.AUTH_PEPPER,...(state?{interaction_state:{likes:JSON.parse(state.likes).map(id=>({id})),follows:JSON.parse(state.follows)}}:{})});
+ }
  if(path==='/api/auth/google/nonce'&&req.method==='POST'){
   if(!env.GOOGLE_CLIENT_ID)fail(503,'Google 로그인을 준비하고 있습니다.');
   const state=id()+id(),nonce=id();

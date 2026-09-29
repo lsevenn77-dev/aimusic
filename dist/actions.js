@@ -117,7 +117,7 @@ async function playlistOrderDialog(pid){
 document.addEventListener('click',async ev=>{
  const el=ev.target.closest('button,a');if(!el||el.disabled)return;
  try{
-  if(el.matches('[data-play],[data-play-all],[data-like],[data-follow],[data-add],[data-seek]'))await accountReady;
+  if(el.matches('[data-play],[data-play-all],[data-like],[data-follow],[data-add],[data-seek]')){el.setAttribute('aria-busy','true');await accountReady;}
   if(el.hasAttribute('data-play')){if($('#dialog').open)$('#dialog').close();await play(el.dataset.play,routeTracks.some(t=>t.id===el.dataset.play)?routeTracks:null);}
   else if(el.hasAttribute('data-play-all')){if(routeTracks.length)await play(routeTracks[0].id,routeTracks);else toast('먼저 곡을 추가해주세요.');}
   else if(el.dataset.gift){await giftDialog(el.dataset.gift,el.dataset.giftType);}
@@ -125,7 +125,7 @@ document.addEventListener('click',async ev=>{
   else if(el.dataset.closePeriod){if(confirm(`${el.dataset.closePeriod} 정산을 마감할까요? 마감한 달은 되돌릴 수 없어요.`)){const r=await api('/api/admin/payouts/close','POST',{period:el.dataset.closePeriod});toast(`정산서 ${r.issued}건을 만들었어요. 이월 ${r.carried}건.`);location.hash='admin/'+r.period;await render();}}
   else if(el.dataset.revealPayout){const a=await api(`/api/admin/payouts/${el.dataset.revealPayout}/account`);dialog(`<h2>정산 계좌</h2><p>이 조회는 기록돼요.</p><dl class="business-details"><div><dt>예금주</dt><dd>${esc(a.holder)}</dd></div><div><dt>은행</dt><dd>${esc(a.bank)}</dd></div><div><dt>계좌번호</dt><dd>${esc(a.account)}</dd></div><div><dt>주민등록번호</dt><dd>${esc(a.resident_number)}</dd></div></dl>`);}
   else if(el.dataset.payStatement){dialog(`<h2>지급 완료 기록</h2><form id="pay-form"><label class="form-field">이체 메모 (선택)<input name="ref" maxlength="100" placeholder="예: 국민 이체 3/10"></label><button class="primary-button">지급 완료로 기록</button><p class="form-error" role="alert"></p></form>`);const form=$('#pay-form'),sid=el.dataset.payStatement;form.onsubmit=busyForm(form,async fd=>{await api(`/api/admin/payouts/${sid}/paid`,'POST',{ref:fd.get('ref')||''});$('#dialog').close();toast('지급 완료로 기록했어요.');await render();});}
-  else if(el.dataset.like){if(!me)return askLogin();el.disabled=true;const tid=el.dataset.like,wasLiked=liked(tid),prior=trackMap.get(tid);await api(`/api/tracks/${tid}/like`,wasLiked?'DELETE':'PUT');await refreshLibrary();const count=library.likes.find(t=>t.id===tid)?.likes??Math.max(0,(prior?.likes||0)-1);if(prior)trackMap.set(tid,{...prior,likes:count});document.querySelectorAll('[data-like]').forEach(b=>{if(b.dataset.like!==tid)return;b.classList.toggle('is-active',liked(tid));b.setAttribute('aria-pressed',String(liked(tid)));const label=b.querySelector('[data-like-count]');if(label){label.textContent=number(count);b.setAttribute('aria-label',`좋아요 ${number(count)}개`);}});document.querySelectorAll('[data-stat-track]').forEach(s=>{if(s.dataset.statTrack!==tid)return;const item=s.children[1];item.setAttribute('aria-label',`좋아요 ${number(count)}개`);item.querySelector('span').textContent=number(count);});toast(liked(el.dataset.like)?'좋아요에 저장했습니다.':'좋아요를 취소했습니다.');refreshCommunityRanking();}
+  else if(el.dataset.like)await toggleLike(el);
   else if(el.dataset.follow)await toggleFollow(el);
   else if(el.dataset.add)await addToPlaylist(el.dataset.add);
   else if(el.dataset.saveTrack){await api(`/api/playlists/${el.dataset.playlist}/tracks/${el.dataset.saveTrack}`,'PUT');$('#dialog').close();toast('플레이리스트에 추가했습니다.');}
@@ -152,7 +152,7 @@ document.addEventListener('click',async ev=>{
    if(el.closest('.queue-panel'))queueDialog();
   }
   else if(el.hasAttribute('data-oauth'))saveResume();
- }catch(e){toast(e.message);}finally{el.disabled=false;}
+ }catch(e){toast(e.message);}finally{el.disabled=false;el.removeAttribute('aria-busy');}
 });
 audio.ontimeupdate=()=>{if(window.AifectAudioAds?.active)return;$('#elapsed').textContent=time(audio.currentTime);$('#seek').value=audio.currentTime;};
 audio.onplay=()=>{if(window.AifectAudioAds?.active)return;if(!current||!playSession){audio.pause();return;}setPlayerVisible(true);lastTick=performance.now();$('#play-toggle').innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg>';$('#play-toggle').setAttribute('aria-label','일시정지');};
@@ -171,8 +171,9 @@ $('#player-close').onclick=closePlayer;
 $('#dialog-close').onclick=()=>$('#dialog').close();$('#menu-toggle').onclick=()=>$('.sidebar').classList.toggle('open');
 window.addEventListener('hashchange',render);window.addEventListener('pagehide',()=>{countAdListening();saveResume();});
 async function boot(){
- accountReady=(async()=>{try{authConfig=await api('/api/me');me=authConfig.user;await refreshLibrary();}catch(e){toast(e.message);}finally{updateAccount();updateHomeAccount();}})();
+ accountReady=(async()=>{try{authConfig=await api('/api/me?state=1');me=authConfig.user;if(authConfig.interaction_state){library.likes=authConfig.interaction_state.likes;library.follows=authConfig.interaction_state.follows;}setMembership(authConfig.membership);}catch(e){toast(e.message);}finally{updateAccount();paintInteractions();}})();
  const firstRender=render();await accountReady;
+ if(me)refreshLibrary().catch(e=>toast(e.message));
  if(me&&pendingResume)try{await resumeAfterLogin();}catch(e){toast(e.message);}
  await firstRender;
 }

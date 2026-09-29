@@ -16,15 +16,15 @@ export async function goldBalance(env,userId){return (await one(env,"SELECT COAL
 const RANKING=`SELECT ${publicNameSQL()} name,sum(g.gold) gold,sum(g.stars) stars,sum(g.gold+g.stars) score,count(*) gifts,min(g.created) first FROM (SELECT sender_id,track_id,gold,0 stars,created FROM gifts UNION ALL SELECT sender_id,track_id,0 gold,1 stars,created FROM free_gifts) g JOIN users u ON u.id=g.sender_id`;
 const ranked=list=>list.map((r,i)=>({rank:i+1,name:r.name,gold:r.gold,stars:r.stars,score:r.score,gifts:r.gifts}));
 export async function trackGifts(env,trackId){
- const total=await one(env,'SELECT COALESCE(sum(gold),0) gold,count(*) gifts FROM gifts WHERE track_id=?',trackId);
- return {available:true,total_gold:total.gold,gift_count:total.gifts,free_count:(await one(env,'SELECT count(*) n FROM free_gifts WHERE track_id=?',trackId)).n,ranking:ranked(await rows(env,`${RANKING} WHERE g.track_id=? GROUP BY g.sender_id ORDER BY score DESC,first ASC,g.sender_id ASC LIMIT 10`,trackId))};
+ const [total,free,ranking]=await Promise.all([one(env,'SELECT COALESCE(sum(gold),0) gold,count(*) gifts FROM gifts WHERE track_id=?',trackId),one(env,'SELECT count(*) n FROM free_gifts WHERE track_id=?',trackId),rows(env,`${RANKING} WHERE g.track_id=? GROUP BY g.sender_id ORDER BY score DESC,first ASC,g.sender_id ASC LIMIT 10`,trackId)]);
+ return {available:true,total_gold:total.gold,gift_count:total.gifts,free_count:free.n,ranking:ranked(ranking)};
 }
 // A person's fans are the people who gifted what that person performs: their covers and their own originals.
 // Gifts to other people's covers of their songs still pay them the creator share, but belong to the singer's fans.
 export async function profileGifts(env,profileId){
  const where='(g.singer_profile_id=? OR (g.singer_profile_id IS NULL AND g.creator_profile_id=?))';
- const total=await one(env,`SELECT COALESCE(sum(g.gold),0) gold,count(*) gifts FROM gifts g WHERE ${where}`,profileId,profileId);
- return {available:true,total_gold:total.gold,gift_count:total.gifts,free_count:(await one(env,'SELECT count(*) n FROM free_gifts f JOIN tracks t ON t.id=f.track_id WHERE t.producer_id=?',profileId)).n,ranking:ranked(await rows(env,`${RANKING} JOIN tracks t ON t.id=g.track_id WHERE t.producer_id=? GROUP BY g.sender_id ORDER BY score DESC,first ASC,g.sender_id ASC LIMIT 10`,profileId))};
+ const [total,free,ranking]=await Promise.all([one(env,`SELECT COALESCE(sum(g.gold),0) gold,count(*) gifts FROM gifts g WHERE ${where}`,profileId,profileId),one(env,'SELECT count(*) n FROM free_gifts f JOIN tracks t ON t.id=f.track_id WHERE t.producer_id=?',profileId),rows(env,`${RANKING} JOIN tracks t ON t.id=g.track_id WHERE t.producer_id=? GROUP BY g.sender_id ORDER BY score DESC,first ASC,g.sender_id ASC LIMIT 10`,profileId)]);
+ return {available:true,total_gold:total.gold,gift_count:total.gifts,free_count:free.n,ranking:ranked(ranking)};
 }
 
 const nextMonthDay=(month,day)=>{const [y,m]=month.split('-').map(Number),d=new Date(Date.UTC(y,m,day));return d.toISOString().slice(0,10);};
@@ -48,9 +48,14 @@ export async function giftRoute(req,env,path,user){
  if(path==='/api/gifts/free/claim'&&method==='POST'){requireUser(user);return claimFreeGift(req,env,user);}
  if(path==='/api/gold'&&method==='GET'){
   requireUser(user);
-  return json({balance:await goldBalance(env,user.id),gold_krw:GOLD_KRW,packs:GOLD_PACKS,...goldCheckoutStatus(env,user),
-   purchases:await rows(env,"SELECT id,channel,gold,used,price_krw,status,created,paid_at FROM gold_purchases WHERE user_id=? AND status!='pending' ORDER BY created DESC LIMIT 20",user.id),
-   orders:await rows(env,'SELECT o.id,o.state,o.review_only,o.created,p.gold,p.price_krw FROM gold_orders o JOIN gold_purchases p ON p.id=o.id WHERE o.user_id=? ORDER BY o.created DESC LIMIT 20',user.id),gifts:GIFT_CATALOG,free:await freeGiftState(env,user.id),free_sent:await rows(env,'SELECT g.id,g.created,t.id track_id,t.title FROM free_gifts g JOIN tracks t ON t.id=g.track_id WHERE g.sender_id=? ORDER BY g.created DESC LIMIT 20',user.id),sent:await rows(env,'SELECT g.id,g.gold,g.gift_type,g.gift_name,g.created,t.id track_id,t.title,t.kind FROM gifts g JOIN tracks t ON t.id=g.track_id WHERE g.sender_id=? ORDER BY g.created DESC LIMIT 20',user.id)});
+  const [balance,purchases,orders,free,free_sent,sent]=await Promise.all([
+   goldBalance(env,user.id),
+   rows(env,"SELECT id,channel,gold,used,price_krw,status,created,paid_at FROM gold_purchases WHERE user_id=? AND status!='pending' ORDER BY created DESC LIMIT 20",user.id),
+   rows(env,'SELECT o.id,o.state,o.review_only,o.created,p.gold,p.price_krw FROM gold_orders o JOIN gold_purchases p ON p.id=o.id WHERE o.user_id=? ORDER BY o.created DESC LIMIT 20',user.id),
+   freeGiftState(env,user.id),
+   rows(env,'SELECT g.id,g.created,t.id track_id,t.title FROM free_gifts g JOIN tracks t ON t.id=g.track_id WHERE g.sender_id=? ORDER BY g.created DESC LIMIT 20',user.id),
+   rows(env,'SELECT g.id,g.gold,g.gift_type,g.gift_name,g.created,t.id track_id,t.title,t.kind FROM gifts g JOIN tracks t ON t.id=g.track_id WHERE g.sender_id=? ORDER BY g.created DESC LIMIT 20',user.id)]);
+  return json({balance,gold_krw:GOLD_KRW,packs:GOLD_PACKS,...goldCheckoutStatus(env,user),purchases,orders,gifts:GIFT_CATALOG,free,free_sent,sent});
  }
  if(path==='/api/gold/checkout'&&method==='POST'){requireUser(user);return createGoldCheckout(req,env,user);}
  if(path==='/api/studio/earnings'&&method==='GET'){
