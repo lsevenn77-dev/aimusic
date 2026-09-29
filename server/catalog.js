@@ -116,15 +116,18 @@ export async function catalogRoute(req,env,path,user){
   const kind=m[1]==='artists'?'artist':'producer';
   const entity=await one(env,`SELECT id,${kind==='producer'?producerNameSQL('producers'):'name'} name,bio,created,image_version${kind==='producer'?',banner_version,user_id':''} FROM ${m[1]} WHERE id=?`,m[2]);if(!entity)fail(404,'프로필을 찾을 수 없습니다.');
   if(!m[3]&&method==='GET'){
-   const followers=(await one(env,'SELECT count(*) n FROM follows WHERE kind=? AND target_id=?',kind,entity.id)).n;
-   const tracks=await trackList(env,`${VISIBLE()} AND t.kind='original' AND t.${kind}_id=?`,[entity.id]);
-   if(kind==='artist')return json({profile:entity,tracks,followers});
-   return json({profile:entity,tracks,covers:await trackList(env,`${VISIBLE()} AND t.kind='cover' AND t.producer_id=?`,[entity.id]),followers,gifts:await profileGifts(env,entity.id)});
+   const [count,tracks,covers,gifts]=await Promise.all([
+    one(env,'SELECT count(*) n FROM follows WHERE kind=? AND target_id=?',kind,entity.id),
+    trackList(env,`${VISIBLE()} AND t.kind='original' AND t.${kind}_id=?`,[entity.id]),
+    kind==='producer'?trackList(env,`${VISIBLE()} AND t.kind='cover' AND t.producer_id=?`,[entity.id]):null,
+    kind==='producer'?profileGifts(env,entity.id):null
+   ]);
+   return json({profile:entity,tracks,followers:count.n,...(kind==='producer'?{covers,gifts}:{})});
   }
   requireUser(user);
   if(method==='PUT')await run(env,'INSERT OR IGNORE INTO follows(user_id,kind,target_id,created) VALUES(?,?,?,?)',user.id,kind,entity.id,now());
   else if(method==='DELETE')await run(env,'DELETE FROM follows WHERE user_id=? AND kind=? AND target_id=?',user.id,kind,entity.id);else fail(405,'지원하지 않는 요청입니다.');
-  return json({ok:true});
+  return json({ok:true,following:method==='PUT',profile:entity,followers:(await one(env,'SELECT count(*) n FROM follows WHERE kind=? AND target_id=?',kind,entity.id)).n});
  }
  if(path==='/api/history'&&method==='GET'){requireUser(user);return json({tracks:await trackList(env,VISIBLE()+" AND t.id IN (SELECT track_id FROM listens WHERE user_id=?)",[user.id],`(SELECT MAX(started) FROM listens l WHERE l.track_id=t.id AND l.user_id='${user.id.replaceAll("'",'')}') DESC`)});}
  if(path==='/api/playlists'&&method==='POST'){

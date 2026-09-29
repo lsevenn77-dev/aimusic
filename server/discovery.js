@@ -57,10 +57,14 @@ export async function discoveryRoute(req,env,path,user){
   const q=(url.searchParams.get('q')||'').slice(0,100),sort=url.searchParams.get('sort')==='popular'?'saves DESC,p.created DESC,p.id':'p.created DESC,p.id';
   return json({playlists:await playlistSummaries(env,user?.id||'',`p.is_public=1 AND ${activePlaylistSQL()} AND EXISTS(SELECT 1 FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id WHERE pt.playlist_id=p.id AND ${VISIBLE()}) AND (p.name LIKE ? OR p.description LIKE ? OR ${publicNameSQL()} LIKE ?)`,Array(3).fill('%'+q+'%'),sort)});
  }
+ if(path==='/api/follows'&&method==='GET'){
+  requireUser(user);
+  return json({follows:await rows(env,`SELECT f.*,COALESCE(a.name,(${producerNameSQL()})) name,COALESCE(a.bio,p.bio) bio,COALESCE(a.image_version,p.image_version) image_version FROM follows f LEFT JOIN artists a ON f.kind='artist' AND a.id=f.target_id LEFT JOIN producers p ON f.kind='producer' AND p.id=f.target_id WHERE f.user_id=? AND (a.id IS NOT NULL OR p.id IS NOT NULL) ORDER BY f.created DESC,f.target_id`,user.id)});
+ }
  if(path==='/api/library'&&method==='GET'){
-  requireUser(user);const items=await accessibleLibrary(env,user.id);
-  return json({membership:await membership(env,user),likes:await trackList(env,VISIBLE()+" AND t.id IN (SELECT track_id FROM likes WHERE user_id=?)",[user.id],'t.created DESC',500),playlists:items.filter(p=>p.user_id===user.id),saved:items.filter(p=>p.user_id!==user.id),collections:items,
-   follows:await rows(env,`SELECT f.*,COALESCE(a.name,(${producerNameSQL()})) name,COALESCE(a.bio,p.bio) bio,COALESCE(a.image_version,p.image_version) image_version FROM follows f LEFT JOIN artists a ON f.kind='artist' AND a.id=f.target_id LEFT JOIN producers p ON f.kind='producer' AND p.id=f.target_id WHERE f.user_id=?`,user.id)});
+  requireUser(user);
+  const [items,plan,likes,follows]=await Promise.all([accessibleLibrary(env,user.id),membership(env,user),trackList(env,VISIBLE()+" AND t.id IN (SELECT track_id FROM likes WHERE user_id=?)",[user.id],'t.created DESC',500),rows(env,`SELECT f.*,COALESCE(a.name,(${producerNameSQL()})) name,COALESCE(a.bio,p.bio) bio,COALESCE(a.image_version,p.image_version) image_version FROM follows f LEFT JOIN artists a ON f.kind='artist' AND a.id=f.target_id LEFT JOIN producers p ON f.kind='producer' AND p.id=f.target_id WHERE f.user_id=?`,user.id)]);
+  return json({membership:plan,likes,playlists:items.filter(p=>p.user_id===user.id),saved:items.filter(p=>p.user_id!==user.id),collections:items,follows});
  }
  let m=path.match(/^\/api\/playlists\/([\w-]+)\/save$/);
  if(m){

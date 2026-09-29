@@ -94,8 +94,10 @@ export const crewXp=sqliteTable('crew_xp',{
  id:text('id').primaryKey(),crewId:text('crew_id').notNull().references(()=>crews.id,{onDelete:'cascade'}),userId:text('user_id').notNull().references(()=>users.id),amount:integer('amount').notNull(),created:integer('created').notNull()
 },t=>[index('crew_xp_crew').on(t.crewId)]);
 export const crewMessages=sqliteTable('crew_messages',{
- id:text('id').primaryKey(),crewId:text('crew_id').notNull().references(()=>crews.id,{onDelete:'cascade'}),userId:text('user_id').notNull().references(()=>users.id),body:text('body').notNull(),requestId:text('request_id').notNull(),created:integer('created').notNull()
+ id:text('id').primaryKey(),crewId:text('crew_id').notNull().references(()=>crews.id,{onDelete:'cascade'}),userId:text('user_id').notNull().references(()=>users.id),body:text('body').notNull(),kind:text('kind').notNull().default('message'),authorRole:text('author_role').notNull().default('member'),requestId:text('request_id').notNull(),created:integer('created').notNull()
 },t=>[uniqueIndex('crew_messages_request').on(t.userId,t.requestId),index('crew_messages_time').on(t.crewId,t.created)]);
 export const directMessages=sqliteTable('direct_messages',{
  id:text('id').primaryKey(),senderId:text('sender_id').notNull().references(()=>users.id),recipientId:text('recipient_id').notNull().references(()=>users.id),body:text('body').notNull(),requestId:text('request_id').notNull(),created:integer('created').notNull(),readAt:integer('read_at').notNull().default(0)
 },t=>[uniqueIndex('direct_messages_request').on(t.senderId,t.requestId),index('direct_messages_sender').on(t.senderId,t.recipientId,t.created),index('direct_messages_recipient').on(t.recipientId,t.created)]);
+
+export const crewBans=sqliteTable('crew_bans',{crewId:text('crew_id').notNull().references(()=>crews.id,{onDelete:'cascade'}),userId:text('user_id').notNull().references(()=>users.id),created:integer('created').notNull()},t=>[primaryKey({columns:[t.crewId,t.userId]})]);

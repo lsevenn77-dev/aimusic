@@ -72,12 +72,12 @@ test('crew XP comes from new public tracks and one daily chat, with exact level 
  assert.deepEqual([0,100,500,1500,3000].map(x=>crewLevel(x).capacity),[10,20,50,100,150]);
  const f=await fixture(t),cid=await crew(f),path=`/api/crews/${cid}/messages`,request_id=rid();
  await f.call(path,'POST',{body:'Hello',request_id});await f.call(path,'POST',{body:'Hello',request_id});await f.call(path,'POST',{body:'Again',request_id:rid()});
- assert.equal((await f.call(path)).body.messages.length,2);
+ assert.equal((await f.call(path)).body.messages.filter(m=>m.kind!=='system').length,2);
  assert.equal((await f.call(path,'POST',{body:'Changed',request_id})).status,409);
  let d=(await f.call(`/api/crews/${cid}`)).body;assert.equal(d.crew.xp,10);
  f.sql.exec("UPDATE tracks SET created=unixepoch() WHERE id IN ('one','two'); UPDATE tracks SET created=unixepoch() WHERE id='hidden'");
- d=(await f.call(`/api/crews/${cid}`)).body;assert.equal(d.crew.xp,110);assert.equal(d.crew.capacity,20);
- assert.equal((await f.call(`/api/crews/${cid}`)).body.crew.xp,110);
+ d=(await f.call(`/api/crews/${cid}`)).body;assert.equal(d.crew.xp,12);assert.equal(d.crew.capacity,10);
+ assert.equal((await f.call(`/api/crews/${cid}`)).body.crew.xp,12);
  assert.ok((await f.call('/api/crews')).body.tracks.some(x=>x.id==='one'));assert.ok(!d.tracks.some(x=>x.id==='hidden'));
 });
 

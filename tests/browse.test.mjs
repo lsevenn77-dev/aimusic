@@ -18,9 +18,12 @@ function viewContext(responses={},user=null){
  vm.runInContext(readFileSync(new URL('../dist/browse.js',import.meta.url),'utf8'),context);
  return {context,calls,view:(base,param,raw='')=>context.browseView(base,param,raw)};
 }
-test('karaoke chart only requests the eligible MR catalog and preserves server ranking',async()=>{
- const {view,calls}=viewContext({'/api/karaoke':{tracks:[{id:'ready',title:'Ready',created:0},{id:'second',title:'Second',created:0}]}});
- const d=await view('charts','karaoke');assert.deepEqual(calls,['/api/karaoke']);assert.deepEqual(Array.from(d.tracks,t=>t.id),['ready','second']);assert.equal(d.tracks[1].browseRank,2);assert.match(d.html,/원곡 재생·좋아요 기준/);assert.match(d.html,/#sing\/ready/);assert.match(d.html,/마이크와 이어폰/);
+test('karaoke chart contains covers only and reports an empty chart without substituting MR originals',async()=>{
+ const path='/api/cover-rankings?kind=tracks&period=week&include_unranked=1';
+ const {view,calls}=viewContext({[path]:{tracks:[{id:'cover',kind:'cover',title:'Cover',rank:1},{id:'original',kind:'original',title:'Original'}]}});
+ const d=await view('charts','karaoke');assert.deepEqual(calls,[path]);assert.deepEqual(Array.from(d.tracks,t=>t.id),['cover']);assert.doesNotMatch(d.html,/Original|#sing\/original/);
+ const empty=await viewContext({[path]:{tracks:[]}}).view('charts','karaoke');assert.match(empty.html,/아직 등록된 커버곡이 없어요/);assert.match(empty.html,/disabled/);
+ const sing=await viewContext({'/api/karaoke':{tracks:[{id:'ready',title:'Ready',created:0}]}}).view('karaoke');assert.match(sing.html,/#sing\/ready/);assert.match(sing.html,/마이크와 이어폰/);
 });
 test('community filters covers and originals through the public API',async()=>{
  const {view,calls}=viewContext({'/api/community?kind=cover':{tracks:[]},'/api/community?kind=original':{tracks:[]}});

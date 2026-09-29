@@ -27,7 +27,7 @@ export async function coverRankingRoute(req,env,path){
  const bound=[period.from,period.until,...args];
  let tracks=[],singers=[];
  if(kind==='tracks'){
-  const ranked=await rows(env,`${cte} SELECT * FROM scores WHERE rank_likes>0 ORDER BY rank_likes DESC,total_likes DESC,created DESC,id LIMIT ?`,...bound,limit);
+  const ranked=await rows(env,`${cte} SELECT * FROM scores ${p.get('include_unranked')==='1'?'':'WHERE rank_likes>0'} ORDER BY rank_likes DESC,total_likes DESC,created DESC,id LIMIT ?`,...bound,limit);
   if(ranked.length){const data=await trackList(env,`${VISIBLE()} AND t.id IN (${ranked.map(()=>'?').join(',')})`,ranked.map(x=>x.id),'t.id',limit),byId=new Map(data.map(t=>[t.id,t]));tracks=ranked.filter(r=>byId.has(r.id)).map((r,i)=>({...byId.get(r.id),rank:i+1,rank_likes:r.rank_likes}));}
  }else{
   singers=(await rows(env,`${cte} SELECT p.id,${producerNameSQL()} name,p.bio,p.image_version,

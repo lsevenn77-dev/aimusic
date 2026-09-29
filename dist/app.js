@@ -4,7 +4,8 @@ const time=s=>`${Math.floor((Number(s)||0)/60)}:${String(Math.floor((Number(s)||
 const number=n=>Number(n||0).toLocaleString('ko-KR');
 const genres=['전체',...AifectGenres.GENRES];
 let me=null,authConfig={},library={likes:[],playlists:[],follows:[]},trackMap=new Map(),renderId=0,routeTracks=[],returnRoute='#home',toastTimer;
-let accountReady=Promise.resolve();
+let accountReady=Promise.resolve(),followRevision=0;
+const pendingFollows=new Map();
 const audio=new Audio();audio.preload='metadata';audio.volume=.75;
 // True inside the AIFECT Android/iOS app (Capacitor shell around this site).
 const inApp=!!window.Capacitor?.isNativePlatform?.();
@@ -19,7 +20,7 @@ const followed=(kind,id)=>library.follows.some(f=>f.kind===kind&&f.target_id===i
 function cover(t,cls='album-art'){const art=t.has_cover?[t.id,t.cover_version]:t.original_has_cover?[t.original_id,t.original_cover_version]:null;return `<div class="${cls} cover cover-${art?'custom':'lime'}">${art?`<img decoding="async" src="/media/${esc(art[0])}/cover?v=${esc(art[1]||'original')}" alt="${esc(t.title)} 커버" loading="lazy">`:`<span class="cover-word">${esc((t.title||'A').slice(0,2))}</span>`}</div>`;}
 // Covers credit the singer's profile and link back to the original song.
 const hasArtist=t=>t.artist&&t.artist!=='없음'&&t.artist!=='미등록';
-const credits=t=>t.kind==='cover'?`<a href="#producer/${esc(t.producer_id)}">${esc(t.producer)}</a> 커버 · <a href="#song/${esc(t.original_id)}">원곡 듣기</a>`:hasArtist(t)?`<a href="#artist/${esc(t.artist_id)}">${esc(t.artist)}</a> · <a href="#producer/${esc(t.producer_id)}">${esc(t.producer)}</a>`:`<a href="#producer/${esc(t.producer_id)}">${esc(t.producer||'창작자')}</a>`;
+const credits=t=>t.kind==='cover'?`<a href="#producer/${esc(t.producer_id)}">${esc(t.producer)}</a> 커버 · <a href="#song/${esc(t.original_id)}">원곡 듣기</a>`:hasArtist(t)?`<a href="#artist/${esc(t.artist_id)}">${esc(t.artist)}</a>`:`<a href="#producer/${esc(t.producer_id)}">${esc(t.producer||'창작자')}</a>`;
 const heading=(title,desc='')=>`<div class="page-heading"><div><span class="eyebrow">AI + EFFECT</span><h1>${title}</h1>${desc?`<p>${desc}</p>`:''}</div><span class="free-badge">${icon('sparkles')} 전체곡 무료 감상</span></div>`;
 const empty=(title,desc,href='#upload',label='첫 곡 업로드하기')=>`<div class="surface empty-design"><div class="empty-symbol">${icon('sparkles')}</div><h2>${title}</h2><p>${desc}</p><a href="${href}" class="primary-button">${label} ${icon('arrow')}</a></div>`;
 const section=(title,href)=>`<div class="section-heading"><h2>${title}</h2>${href?`<a href="${href}">모두 보기 ${icon('chevron')}</a>`:''}</div>`;
@@ -28,7 +29,25 @@ function grid(tracks){remember(tracks);return tracks.length?`<div class="album-g
 function list(tracks,removable=null){remember(tracks);return tracks.length?`<div class="track-list">${tracks.map((t,i)=>`<div class="live-track"><span class="track-rank">${i+1}</span><button class="track-art" data-play="${t.id}" aria-label="${esc(t.title)} 재생">${cover(t,'mini-cover')}${icon('play')}</button><div class="track-info"><a href="#song/${t.id}"><strong>${esc(t.title)}</strong></a><span>${credits(t)}</span></div><span class="track-genre">${esc(t.genre)}</span>${trackStats(t,'list-stats')}<span class="track-time">${time(t.duration)}</span><button class="icon-button ${liked(t.id)?'is-active':''}" data-like="${t.id}" aria-label="${esc(t.title)} 좋아요" aria-pressed="${liked(t.id)}">${icon('heart')}</button><button class="icon-button" data-add="${t.id}" aria-label="플레이리스트에 추가">${icon('plus')}</button><button class="icon-button track-more" data-track-menu="${t.id}" aria-label="${esc(t.title)} 더보기">⋯</button>${removable?`<button class="icon-button" data-remove-track="${t.id}" data-playlist="${removable}" aria-label="플레이리스트에서 제거">×</button>`:''}</div>`).join('')}</div>`:empty('아직 음악이 없어요','새로운 곡을 발견하고 나만의 취향을 채워보세요.','#discover','음악 발견하기');}
 function identityCards(items,kind){return items.length?`<div class="artist-grid">${items.map(p=>`<article class="artist-card surface"><a href="#${kind}/${p.id}">${portrait(p,kind)}<h3>${esc(p.name)}</h3></a><p>${esc(p.bio||'새로운 음악으로 만나요.')}</p><div class="card-follow"><span>${p.followers==null?'팔로잉':number(p.followers)+' 팔로워'}</span><button class="small-button" data-follow="${kind}/${p.id}">${followed(kind,p.id)?'팔로잉':'팔로우'} ${icon('plus')}</button></div></article>`).join('')}</div>`:empty('새로운 창작자를 기다려요','음원을 공개하면 아티스트와 제작자 프로필이 여기에 표시됩니다.');}
 function gate(){return heading('나의 음악을 시작하세요')+empty('로그인이 필요해요','무료 회원가입 후 전체곡 듣기, 보관함, 업로드를 이용할 수 있습니다.','#account','로그인 · 회원가입');}
-async function refreshLibrary(){library=me?await api('/api/library'):{likes:[],playlists:[],follows:[]};remember(library.likes);setMembership(library.membership);if(typeof updateHomeAccount==='function')updateHomeAccount();}
+async function refreshLibrary(){const uid=me?.id,revision=followRevision,data=me?await api('/api/library'):{likes:[],playlists:[],follows:[]};if(uid!==me?.id)return;if(revision!==followRevision||pendingFollows.size)data.follows=library.follows;library=data;remember(library.likes);setMembership(library.membership);if(typeof updateHomeAccount==='function')updateHomeAccount();}
+function updateFollowLocal(kind,id,following,profile){
+ library.follows=library.follows.filter(f=>!(f.kind===kind&&f.target_id===id));
+ if(following)library.follows.unshift({...profile,kind,target_id:id});
+ followRevision++;
+}
+function paintFollowState(key,following,busy,followers){
+ document.querySelectorAll('[data-follow]').forEach(button=>{if(button.dataset.follow!==key)return;button.textContent=following?'팔로잉':'팔로우';button.disabled=busy;button.setAttribute('aria-pressed',String(following));button.setAttribute('aria-busy',String(busy));});
+ if(followers!==undefined)document.querySelectorAll('[data-followers]').forEach(node=>{if(node.dataset.followers!==key)return;node.dataset.count=String(followers);node.textContent=number(followers)+' 팔로워';});
+}
+async function toggleFollow(button){
+ if(!me)return askLogin();const key=button.dataset.follow;if(pendingFollows.has(key))return;
+ const [kind,id]=key.split('/'),uid=me.id,prior=library.follows.find(f=>f.kind===kind&&f.target_id===id),following=!prior;
+ const counter=[...document.querySelectorAll('[data-followers]')].find(node=>node.dataset.followers===key),oldCount=counter?Number(counter.dataset.count):undefined;
+ pendingFollows.set(key,uid);updateFollowLocal(kind,id,following,prior||{name:button.closest('article,section')?.querySelector('h2,h3')?.textContent||''});paintFollowState(key,following,true,oldCount===undefined?undefined:Math.max(0,oldCount+(following?1:-1)));
+ try{const result=await api('/api/'+(kind==='artist'?'artists':'producers')+'/'+id+'/follow',following?'PUT':'DELETE');if(me?.id!==uid)return;updateFollowLocal(kind,id,result.following,result.profile);paintFollowState(key,result.following,false,result.followers);}
+ catch(error){if(me?.id===uid){updateFollowLocal(kind,id,!!prior,prior);paintFollowState(key,!!prior,false,oldCount);}throw error;}
+ finally{if(pendingFollows.get(key)===uid)pendingFollows.delete(key);if(me?.id===uid)paintFollowState(key,followed(kind,id),false);}
+}
 function updateAccount(){if(me)$('.profile').href='#profile';else $('.profile').href='#account';$('.profile').innerHTML=`<span class="avatar">${esc(me?me.name[0]:'A')}</span><span><strong>${esc(me?me.name:'무료로 시작하기')}</strong><small>${me?'내 계정 · '+(member.plan==='premium'?'Premium':'무료 회원'):'로그인 · 회원가입'}</small></span>${icon('chevron')}`;$('.header-login').textContent=me?'내 계정':'로그인';}
 function askLogin(){returnRoute=location.hash;saveResume();location.hash='account';toast('무료로 가입하고 음악을 이어 들어보세요.');return false;}
 function saveResume(){saveQueue();if(current){pendingResume={id:current.id,time:preview?Math.min(audio.currentTime,60):audio.currentTime};sessionStorage.setItem('aifect-player-resume',JSON.stringify(pendingResume));}}

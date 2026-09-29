@@ -134,6 +134,13 @@
       "when": 1790686405064,
       "tag": "0018_public_nickname",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1790689158272,
+      "tag": "0019_crew_chat_roles",
+      "breakpoints": true
     }
   ]
 }

@@ -2,7 +2,7 @@ import {publicNameSQL} from './identity.js';
 import {one,rows,query,now,id,fail,json,rate} from './db.js';
 import {requireUser} from './auth.js';
 import {published} from './catalog.js';
-import {GOLD_KRW,GOLD_PACKS,GIFT_MIN_GOLD,GIFT_MAX_GOLD,MIN_PAYOUT_KRW,PAYOUT_DAY,GIFT_SPLITS,GIFT_CATALOG,giftById,allocateLots,splitGift,giftMonth,wonFromMw} from '../shared/gifts.js';
+import {GOLD_KRW,GOLD_PACKS,GIFT_MIN_GOLD,GIFT_MAX_GOLD,MIN_PAYOUT_KRW,PAYOUT_DAY,EARNINGS_AVAILABLE_DAY,earningsSchedule,GIFT_SPLITS,GIFT_CATALOG,giftById,allocateLots,splitGift,giftMonth,wonFromMw} from '../shared/gifts.js';
 import {creatorPayouts} from './payouts.js';
 import {freeGiftState,claimFreeGift,sendFreeGift} from './free-gifts.js';
 import {FREE_GIFT} from '../shared/gifts.js';
@@ -28,7 +28,7 @@ export async function profileGifts(env,profileId){
 }
 
 const nextMonthDay=(month,day)=>{const [y,m]=month.split('-').map(Number),d=new Date(Date.UTC(y,m,day));return d.toISOString().slice(0,10);};
-// Earnings of each calendar month are paid on the 15th of the next month once the unpaid total reaches the minimum;
+// Earnings of each calendar month are paid on the 10th of the next month once the unpaid total reaches the minimum;
 // smaller amounts carry over to the following month.
 export function settlementMonths(months,current){
  let carry=0;
@@ -59,11 +59,13 @@ export async function giftRoute(req,env,path,user){
   const months=profile?await rows(env,`SELECT month,SUM(CASE WHEN singer_profile_id=? THEN singer_mw ELSE 0 END) singer_mw,SUM(CASE WHEN creator_profile_id=? THEN creator_mw ELSE 0 END) creator_mw,count(*) gifts
    FROM gifts WHERE (singer_profile_id=? AND singer_mw>0) OR (creator_profile_id=? AND creator_mw>0) GROUP BY month ORDER BY month`,profile.id,profile.id,profile.id,profile.id):[];
   const summary=profile?await one(env,`SELECT COALESCE(sum(g.gold),0) received_gold,COALESCE(sum(g.net_mw),0) net_mw,COALESCE(sum((SELECT sum(ROUND(gl.gold*p.price_krw*1000.0/p.gold)) FROM gift_lots gl JOIN gold_purchases p ON p.id=gl.purchase_id WHERE gl.gift_id=g.id)),0) gross_mw,COALESCE(sum(CASE WHEN g.singer_profile_id=? THEN g.singer_mw ELSE 0 END)+sum(CASE WHEN g.creator_profile_id=? THEN g.creator_mw ELSE 0 END),0) earned_mw FROM gifts g WHERE g.singer_profile_id=? OR g.creator_profile_id=?`,profile.id,profile.id,profile.id,profile.id):{received_gold:0,net_mw:0,gross_mw:0,earned_mw:0};
+  const streams=await one(env,`SELECT COALESCE(sum(kind='original'),0) original_streams,COALESCE(sum(kind='cover'),0) cover_streams,count(*) total_streams FROM (SELECT t.kind FROM listens l JOIN tracks t ON t.id=l.track_id WHERE t.user_id=? AND l.qualified=1 GROUP BY t.id,l.listener,l.day)`,user.id);
+  const activity={received_gold:summary.received_gold,...streams};
   const breakdown={received_gold:summary.received_gold,purchase_value_krw:wonFromMw(summary.gross_mw),payment_fee_krw:wonFromMw(summary.gross_mw-summary.net_mw),after_fee_krw:wonFromMw(summary.net_mw),other_shares_krw:wonFromMw(summary.net_mw-summary.earned_mw),estimated_earnings_krw:wonFromMw(summary.earned_mw)};
   // Months up to the latest statement are settled; later months show the projected carry-over.
   const payout=await creatorPayouts(env,user.id),through=payout.last_period;
   const settled=months.filter(m=>through&&m.month<=through).map(m=>({month:m.month,gifts:m.gifts,singer_krw:wonFromMw(m.singer_mw),creator_krw:wonFromMw(m.creator_mw),total_krw:wonFromMw(m.singer_mw+m.creator_mw),status:'settled'}));
-  return json({breakdown,current_month:current,min_payout_krw:MIN_PAYOUT_KRW,payout_day:PAYOUT_DAY,splits:GIFT_SPLITS,months:[...settled,...settlementMonths(months.filter(m=>!through||m.month>through),current)].reverse(),payout});
+  return json({activity,breakdown,current_month:current,current_schedule:earningsSchedule(current,now()),min_payout_krw:MIN_PAYOUT_KRW,payout_day:PAYOUT_DAY,earnings_available_day:EARNINGS_AVAILABLE_DAY,splits:GIFT_SPLITS,months:[...settled,...settlementMonths(months.filter(m=>!through||m.month>through),current)].map(m=>({...m,...earningsSchedule(m.month,now()),...(m.status==='settled'?{earnings_available:true}:{})})).reverse(),payout});
  }
  const m=path.match(/^\/api\/tracks\/([\w-]+)\/gifts$/);if(!m)return null;
  const track=await published(env,m[1]);
