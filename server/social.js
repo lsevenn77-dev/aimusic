@@ -25,7 +25,7 @@ async function crewHistory(env,cid,url,membership){
  if((before&&after)||[before,after].some(v=>v!==null&&!/^[1-9]\d{0,14}$/.test(v)))fail(400,'대화 위치를 확인해주세요.');
  const direction=after?'ASC':'DESC',cursor=before||after;
  const [messages,member_roles]=await Promise.all([
- rows(env,`SELECT m.rowid sequence,m.id,m.body,m.created,m.user_id,m.kind,p.id profile_id,${publicNameSQL()} name,COALESCE(cm.role,m.author_role) role FROM crew_messages m JOIN users u ON u.id=m.user_id LEFT JOIN producers p ON p.user_id=m.user_id LEFT JOIN crew_members cm ON cm.crew_id=m.crew_id AND cm.user_id=m.user_id WHERE m.crew_id=?${cursor?` AND m.rowid${before?'<':'>'}?`:''} ORDER BY m.rowid ${direction} LIMIT 101`,cid,...(cursor?[Number(cursor)]:[])),
+ rows(env,`SELECT m.rowid sequence,m.id,m.request_id,m.body,m.created,m.user_id,m.kind,p.id profile_id,${publicNameSQL()} name,COALESCE(cm.role,m.author_role) role FROM crew_messages m JOIN users u ON u.id=m.user_id LEFT JOIN producers p ON p.user_id=m.user_id LEFT JOIN crew_members cm ON cm.crew_id=m.crew_id AND cm.user_id=m.user_id WHERE m.crew_id=?${cursor?` AND m.rowid${before?'<':'>'}?`:''} ORDER BY m.rowid ${direction} LIMIT 101`,cid,...(cursor?[Number(cursor)]:[])),
  rows(env,'SELECT p.id profile_id,m.role FROM crew_members m JOIN producers p ON p.user_id=m.user_id WHERE m.crew_id=?',cid)]);
  const has_more=messages.length>100;messages.length=Math.min(messages.length,100);if(!after)messages.reverse();
  return json({messages,has_more,membership,member_roles,roles:CREW_ROLES});
@@ -131,7 +131,7 @@ export async function socialRoute(req,env,path,user){
      query(env,'INSERT OR IGNORE INTO crew_messages(id,crew_id,user_id,body,request_id,created,author_role) SELECT ?,?,?,?,?,?,role FROM crew_members WHERE crew_id=? AND user_id=?',id(),cid,user.id,body,rid,now(),cid,user.id),
      query(env,'INSERT OR IGNORE INTO crew_xp(id,crew_id,user_id,amount,created) SELECT ?,?,?,?,? WHERE EXISTS(SELECT 1 FROM crew_members WHERE crew_id=? AND user_id=?)','chat:'+user.id+':'+giftDay(now()),cid,user.id,CREW_REWARDS.dailyChat,now(),cid,user.id)
     ]);
-    const message=await one(env,`SELECT m.rowid sequence,m.id,m.body,m.created,m.user_id,m.kind,m.author_role role,p.id profile_id,${publicNameSQL()} name FROM crew_messages m JOIN users u ON u.id=m.user_id LEFT JOIN producers p ON p.user_id=m.user_id WHERE m.user_id=? AND m.request_id=?`,user.id,rid);
+    const message=await one(env,`SELECT m.rowid sequence,m.id,m.request_id,m.body,m.created,m.user_id,m.kind,m.author_role role,p.id profile_id,${publicNameSQL()} name FROM crew_messages m JOIN users u ON u.id=m.user_id LEFT JOIN producers p ON p.user_id=m.user_id WHERE m.user_id=? AND m.request_id=?`,user.id,rid);
     if(!message)fail(403,'크루에 가입한 멤버만 전송할 수 있어요.');
     return json({ok:true,message},201);
    }
@@ -148,7 +148,7 @@ export async function socialRoute(req,env,path,user){
   if(method==='GET'){
    const before=url.searchParams.get('before'),after=url.searchParams.get('after'),cursor=before||after;
    if((before&&after)||[before,after].some(v=>v!==null&&!/^[1-9]\d{0,14}$/.test(v)))fail(400,'대화 위치를 확인해주세요.');
-   const messages=await rows(env,`SELECT rowid sequence,id,sender_id,recipient_id,body,created,read_at FROM direct_messages WHERE ((sender_id=? AND recipient_id=?) OR (sender_id=? AND recipient_id=?))${cursor?` AND rowid${before?'<':'>'}?`:''} ORDER BY rowid ${after?'ASC':'DESC'} LIMIT 101`,user.id,p.user_id,p.user_id,user.id,...(cursor?[Number(cursor)]:[]));
+   const messages=await rows(env,`SELECT rowid sequence,id,request_id,sender_id,recipient_id,body,created,read_at FROM direct_messages WHERE ((sender_id=? AND recipient_id=?) OR (sender_id=? AND recipient_id=?))${cursor?` AND rowid${before?'<':'>'}?`:''} ORDER BY rowid ${after?'ASC':'DESC'} LIMIT 101`,user.id,p.user_id,p.user_id,user.id,...(cursor?[Number(cursor)]:[]));
    const has_more=messages.length>100;messages.length=Math.min(messages.length,100);if(!after)messages.reverse();
    return json({peer:{id:p.id,name:p.name,image_version:p.image_version},messages,has_more});
   }
@@ -159,7 +159,7 @@ export async function socialRoute(req,env,path,user){
    const previous=await one(env,'SELECT recipient_id,body FROM direct_messages WHERE sender_id=? AND request_id=?',user.id,rid);
    if(previous&&(previous.recipient_id!==p.user_id||previous.body!==body))fail(409,'이미 다른 메시지에 사용된 전송 요청입니다.');
    await run(env,'INSERT OR IGNORE INTO direct_messages(id,sender_id,recipient_id,body,request_id,created) VALUES(?,?,?,?,?,?)',id(),user.id,p.user_id,body,rid,now());
-   return json({ok:true,message:await one(env,'SELECT rowid sequence,id,sender_id,recipient_id,body,created,read_at FROM direct_messages WHERE sender_id=? AND request_id=?',user.id,rid)},201);
+   return json({ok:true,message:await one(env,'SELECT rowid sequence,id,request_id,sender_id,recipient_id,body,created,read_at FROM direct_messages WHERE sender_id=? AND request_id=?',user.id,rid)},201);
   }
  }
  fail(404,'대화를 찾을 수 없어요.');

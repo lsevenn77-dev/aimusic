@@ -8,34 +8,89 @@ function chatHTML(messages,peer=null,crew=null){
   if(m.kind==='system')return separator+`<div class="chat-system">${esc(m.body)}</div>`;
   const mine=m.sender_id===me?.id||m.user_id===me?.id,name=m.name||(mine?'나':peer?.name)||'리스너',label=crew?crewDisplayName({...m,name}):name;
   const author=crew?.owner&&!mine&&m.profile_id?`<button class="chat-author" data-crew-member="${esc(m.profile_id)}" data-crew="${esc(crew.id)}">${esc(label)}</button>`:`<strong>${esc(label)}</strong>`;
-  return separator+`<article class="chat-message ${mine?'mine':''}" data-message="${esc(m.id)}">${author}${label.endsWith(')')?'':')'} <span class="chat-body">${esc(m.body)}</span></article>`;
+  return separator+`<article class="chat-message ${mine?'mine':''}" data-message="${esc(m.id)}">${author}${label.endsWith(')')?'':')'} <span class="chat-body">${esc(m.body)}</span>${m.delivery==='sending'?'<small class="chat-delivery">전송 중…</small>':m.delivery==='failed'?`<button class="chat-retry" data-chat-retry="${esc(m.id)}">다시 보내기</button>`:''}</article>`;
  }).join('')||'<p class="quiet chat-empty">첫 이야기를 남겨보세요.</p>';
 }
-function chatPanelHTML(label,initial=null,peer=null){return `<section class="surface chat-panel"><button class="small-button chat-earlier" id="chat-earlier" ${initial?.has_more?'':'hidden'}>이전 대화 보기</button><div id="chat-log" role="log" aria-label="${label}">${initial?chatHTML(initial.messages,peer):''}</div><p id="chat-error" role="status"></p>${chatComposer()}</section>`;}
+function chatPanelHTML(label,initial=null,peer=null){return `<section class="surface chat-panel"><button class="small-button chat-earlier" id="chat-earlier" ${initial?.has_more?'':'hidden'}>이전 대화 보기</button><div id="chat-log" role="log" aria-label="${label}">${initial?chatHTML(initial.messages,peer):''}</div><p id="chat-connection" class="quiet" role="status"></p><p id="chat-error" role="status"></p>${chatComposer()}</section>`;}
+let socialCleanup=null;
+function watchSocialChat(query,changed,status,revoked){
+ const ticket=renderId,uid=me?.id;let source=null,retryAt=0,failures=0,lastBeat=0,lastFallback=0,closed=false;
+ const current=()=>!closed&&ticket===renderId&&uid===me?.id;
+ const disconnect=()=>{source?.close();source=null;};
+ const connect=()=>{
+  if(!current()||document.hidden||!navigator.onLine)return;
+  disconnect();lastBeat=Date.now();status('연결 중…');
+  try{source=new EventSource('/api/chat/events'+query);}catch{failed();return;}
+  source.addEventListener('change',()=>{lastBeat=Date.now();failures=0;status('대화 연결됨');changed();});
+  source.addEventListener('heartbeat',()=>{lastBeat=Date.now();failures=0;status('대화 연결됨');});
+  source.addEventListener('rotate',()=>{disconnect();retryAt=Date.now()+200;});
+  source.addEventListener('retry',failed);source.onerror=failed;
+  source.addEventListener('revoked',()=>{cleanup();revoked();});
+ };
+ const failed=()=>{if(!current())return;disconnect();failures++;retryAt=Date.now()+Math.min(15000,1000*2**Math.min(failures-1,4));status('다시 연결 중 · 새 대화를 자동으로 확인합니다');changed();lastFallback=Date.now();};
+ const visibility=()=>{disconnect();if(document.hidden||!navigator.onLine)status(navigator.onLine?'대기 중':'오프라인 · 연결되면 다시 불러옵니다');else connect();};
+ const pagehide=()=>disconnect();
+ const cleanup=()=>{closed=true;disconnect();clearInterval(timer);document.removeEventListener('visibilitychange',visibility);window.removeEventListener('online',visibility);window.removeEventListener('offline',visibility);window.removeEventListener('pagehide',pagehide);window.removeEventListener('pageshow',visibility);};
+ const timer=setInterval(()=>{if(!current()){cleanup();return;}if(document.hidden||!navigator.onLine)return;
+  if(source&&Date.now()-lastBeat>8000)failed();
+  if(!source&&Date.now()>=retryAt)connect();
+  if(failures&&Date.now()-lastFallback>3000){lastFallback=Date.now();changed();}
+ },1000);
+ document.addEventListener('visibilitychange',visibility);window.addEventListener('online',visibility);window.addEventListener('offline',visibility);window.addEventListener('pagehide',pagehide);window.addEventListener('pageshow',visibility);
+ connect();return cleanup;
+}
 function bindSocialChat(view){
- const ticket=renderId;
- if(view?.inbox){let fetching=false;const load=async()=>{if(fetching||document.hidden||ticket!==renderId)return;fetching=true;try{const d=await api('/api/dm');if(ticket===renderId){const root=$('#dm-conversations'),html=conversationListHTML(d.conversations);if(root.innerHTML!==html)root.innerHTML=html;}}catch(e){if(ticket===renderId)$('#dm-list-error').textContent=e.message;}finally{fetching=false;}};socialTimer=setInterval(load,3000);return;}
+ const ticket=renderId,uid=me?.id,current=()=>ticket===renderId&&uid===me?.id;
+ if(view?.inbox){let fetching=false,again=false;const load=async()=>{if(!current())return;if(fetching){again=true;return;}fetching=true;
+  try{do{again=false;const d=await api('/api/dm');if(!current())return;const root=$('#dm-conversations'),html=conversationListHTML(d.conversations);if(root.innerHTML!==html)root.innerHTML=html;$('#dm-list-error').textContent='';}while(again&&current());}
+  catch(e){if(current()){$('#dm-list-error').textContent=e.message;if([401,403].includes(e.status))socialCleanup?.();}}finally{fetching=false;}
+ };socialCleanup=watchSocialChat('',load,()=>{},()=>{$('#dm-list-error').textContent='로그인 상태를 다시 확인해주세요.';});return;}
  if(!view?.chat)return;
- const {path,peer,crew,initial}=view.chat,form=$('#chat-compose'),log=$('#chat-log'),earlier=$('#chat-earlier');
- const messages=new Map((initial?.messages||[]).map(m=>[m.id,m]));let request=crypto.randomUUID(),fetching=false,initialized=!!initial,lastHTML=null;
- const sorted=()=>[...messages.values()].sort((a,b)=>a.sequence-b.sequence);
+ const {path,peer,crew,initial}=view.chat,form=$('#chat-compose'),log=$('#chat-log'),earlier=$('#chat-earlier'),input=form.querySelector('textarea'),sendButton=form.querySelector('button');
+ const messages=new Map((initial?.messages||[]).map(m=>[m.id,m]));let fetching=false,again=false,initialized=!!initial,lastHTML=null,sending=false,denied=false;
+ // Only a history read advances the cursor. A POST can return a newer message
+ // before intervening messages from another member have arrived.
+ let latestSequence=Math.max(0,...(initial?.messages||[]).map(m=>m.sequence||0));
+ const sorted=()=>[...messages.values()].sort((a,b)=>(a.sequence||Number.MAX_SAFE_INTEGER)-(b.sequence||Number.MAX_SAFE_INTEGER)||a.created-b.created);
+ const merge=incoming=>incoming.forEach(m=>{if(m.request_id&&(m.user_id===uid||m.sender_id===uid))messages.delete('pending:'+m.request_id);messages.set(m.id,m);});
  const paint=(older=false,forceBottom=false)=>{const nearBottom=forceBottom||log.scrollHeight-log.scrollTop-log.clientHeight<90,top=log.scrollTop,height=log.scrollHeight;const html=chatHTML(sorted(),peer,crew);if(html===lastHTML)return;lastHTML=html;log.innerHTML=html;if(older)log.scrollTop=top+log.scrollHeight-height;else if(nearBottom)log.scrollTop=log.scrollHeight;};
+ const deny=()=>{denied=true;socialCleanup?.();input.disabled=true;sendButton.disabled=true;$('#chat-connection').textContent='연결 종료';$('#chat-error').textContent='로그인 또는 크루 가입 상태를 다시 확인해주세요.';};
  paint(false,true);
  const load=async(older=false)=>{
-  if(fetching||ticket!==renderId||document.hidden&&!older)return;fetching=true;const list=sorted(),cursor=older?list[0]?.sequence:list.at(-1)?.sequence;
-  try{const d=await api(path+(cursor?'?'+(older?'before':'after')+'='+cursor:''));if(ticket!==renderId)return;
-   d.messages.forEach(m=>messages.set(m.id,m));
+  if(!current()||denied)return;if(fetching){if(!older)again=true;else earlier.disabled=false;return;}fetching=true;
+  try{do{again=false;const list=sorted().filter(m=>m.sequence),cursor=older?list[0]?.sequence:latestSequence;
+   const d=await api(path+(cursor?'?'+(older?'before':'after')+'='+cursor:''));if(!current())return;
+   merge(d.messages);
+   if(!older)latestSequence=Math.max(latestSequence,...d.messages.map(m=>m.sequence||0));
    if(d.member_roles){const roles=new Map(d.member_roles.map(m=>[m.profile_id,m.role]));messages.forEach(m=>{if(roles.has(m.profile_id))m.role=roles.get(m.profile_id);});if(crew)crew.owner=d.membership?.role==='owner';}
    if(older||!initialized)earlier.hidden=!d.has_more;initialized=true;paint(older);$('#chat-error').textContent='';
-   if(peer&&d.messages.length)await api(path,'PATCH');
-  }catch(e){if(ticket===renderId){$('#chat-error').textContent=e.message;if(e.status===403){form.querySelectorAll('textarea,button').forEach(b=>b.disabled=true);clearInterval(socialTimer);}}}finally{fetching=false;earlier.disabled=false;}
+   if(peer&&d.messages.some(m=>m.recipient_id===uid&&!m.read_at))await api(path,'PATCH');
+   if(!older&&cursor&&d.has_more)again=true;
+  }while(again&&current()&&!older);}
+  catch(e){if(current()){$('#chat-error').textContent=e.message;if([401,403].includes(e.status))deny();}}
+  finally{fetching=false;earlier.disabled=false;if(again&&older&&current())void load();}
  };
  earlier.onclick=()=>{earlier.disabled=true;load(true);};
- const input=form.querySelector('textarea');input.addEventListener('keydown',event=>{if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing&&event.keyCode!==229){event.preventDefault();if(input.value.trim()&&!form.querySelector('button').disabled)form.requestSubmit();}});
- form.onsubmit=busyForm(form,async fd=>{if(ticket!==renderId)return;const result=await api(path,'POST',{body:fd.get('body'),request_id:request});if(ticket!==renderId)return;form.reset();request=crypto.randomUUID();if(result.message){messages.set(result.message.id,result.message);paint(false,true);}else await load();});
- if(peer&&initial?.messages.length)api(path,'PATCH').catch(()=>{});
- if(!initial)load();socialTimer=setInterval(load,2500);
+ input.addEventListener('keydown',event=>{if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing&&event.keyCode!==229){event.preventDefault();if(input.value.trim()&&!sendButton.disabled)form.requestSubmit();}});
+ const send=async pending=>{
+  if(sending||denied||!current())return;sending=true;sendButton.disabled=true;pending.delivery='sending';messages.set(pending.id,pending);paint(false,true);$('#chat-error').textContent='';
+  try{const result=await api(path,'POST',{body:pending.body,request_id:pending.request_id});if(!current())return;
+   if(result.message){messages.delete(pending.id);merge([result.message]);paint(false,true);}else await load();
+  }catch(e){if(current()){
+   // A stream may confirm the same request before the POST response is lost.
+   if(messages.has(pending.id)){pending.delivery='failed';paint();$('#chat-error').textContent=e.message;}
+   if([401,403].includes(e.status))deny();
+  }}finally{sending=false;if(current())sendButton.disabled=denied;}
+ };
+ form.onsubmit=event=>{event.preventDefault();if(sending||denied||!input.value.trim())return;const rid=crypto.randomUUID(),body=input.value.trim();input.value='';
+  void send({id:'pending:'+rid,request_id:rid,body,created:Math.floor(Date.now()/1000),user_id:uid,sender_id:uid,name:me.name,profile_id:me.profile_id,role:crew?.owner?'owner':'member'});
+ };
+ log.addEventListener('click',event=>{const retry=event.target.closest('[data-chat-retry]');if(retry&&messages.has(retry.dataset.chatRetry))void send(messages.get(retry.dataset.chatRetry));});
+ if(peer&&initial?.messages.some(m=>m.recipient_id===uid&&!m.read_at))api(path,'PATCH').catch(()=>{});
+ const query=crew?'?crew='+encodeURIComponent(crew.id):'?peer='+encodeURIComponent(path.split('/').at(-1));
+ socialCleanup=watchSocialChat(query,()=>load(),text=>{if(current())$('#chat-connection').textContent=text;},deny);
 }
+
 document.addEventListener('click',async event=>{
  const button=event.target.closest('[data-crew-member]');if(!button)return;event.preventDefault();
  try{

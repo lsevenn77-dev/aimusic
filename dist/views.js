@@ -6,7 +6,7 @@ async function render(){
   if(singBusy(sing)){history.replaceState(null,'','#sing/'+sing.id);toast('녹음을 정리한 뒤 이동해주세요.');return;}
   if(sing.dirty){try{await saveSingDraft(sing);}catch(e){history.replaceState(null,'','#sing/'+sing.id);toast('임시저장하지 못했어요. 저장 공간을 확인한 뒤 다시 시도해주세요.');return;}}
  }
- clearInterval(socialTimer);socialTimer=null;
+ clearInterval(socialTimer);socialTimer=null;socialCleanup?.();socialCleanup=null;
  cleanupLyricsEditor();cleanupSing();
  $('.sidebar').classList.remove('open');updateBrowseNavigation(base,param);
  const main=$('#main');main.setAttribute('aria-busy','true');
