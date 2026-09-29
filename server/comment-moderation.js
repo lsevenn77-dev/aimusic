@@ -6,7 +6,8 @@ export const REPORT_REASONS=['abuse','spam','privacy','sexual','other'];
 export function removeComment(env,cid,actor){
  const at=now();
  return env.DB.batch([
-  query(env,"UPDATE comments SET body='삭제된 댓글입니다.',edited=?,deleted_at=?,deleted_by=? WHERE id=? AND deleted_at=0",at,at,actor,cid),
+  query(env,'UPDATE comments SET parent_id=NULL WHERE parent_id=?',cid),
+  query(env,"UPDATE comments SET body='',edited=?,deleted_at=?,deleted_by=? WHERE id=? AND deleted_at=0",at,at,actor,cid),
   query(env,'DELETE FROM comment_likes WHERE comment_id=?',cid)
  ]);
 }
@@ -42,7 +43,8 @@ export async function commentModerationRoute(req,env,path,user){
   await env.DB.batch([
    query(env,"INSERT INTO admin_audit(id,admin_id,action,target,created) SELECT ?,?,?,?,? WHERE EXISTS(SELECT 1 FROM comment_reports WHERE id=? AND status='pending')",id(),user.id,'comment-report:'+b.status,r.id,at,r.id),
    ...(b.status==='removed'?[
-    query(env,"UPDATE comments SET body='삭제된 댓글입니다.',edited=?,deleted_at=?,deleted_by=? WHERE id=? AND deleted_at=0 AND EXISTS(SELECT 1 FROM comment_reports WHERE id=? AND status='pending')",at,at,user.id,r.comment_id,r.id),
+    query(env,"UPDATE comments SET parent_id=NULL WHERE parent_id=? AND EXISTS(SELECT 1 FROM comment_reports WHERE id=? AND status='pending')",r.comment_id,r.id),
+    query(env,"UPDATE comments SET body='',edited=?,deleted_at=?,deleted_by=? WHERE id=? AND deleted_at=0 AND EXISTS(SELECT 1 FROM comment_reports WHERE id=? AND status='pending')",at,at,user.id,r.comment_id,r.id),
     query(env,"DELETE FROM comment_likes WHERE comment_id=? AND EXISTS(SELECT 1 FROM comment_reports WHERE id=? AND status='pending')",r.comment_id,r.id)
    ]:[]),
    query(env,"UPDATE comment_reports SET status=?,resolved_by=?,resolved_at=? WHERE id=? AND status='pending'",b.status,user.id,at,r.id)

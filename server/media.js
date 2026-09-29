@@ -1,3 +1,4 @@
+import {isPremium} from './membership.js';
 import {validGenre} from '../shared/genres.js';
 import {one,rows,run,query,now,id,fail,str,json,rate} from './db.js';
 import {requireUser,hash} from './auth.js';
@@ -14,14 +15,22 @@ export {parseRange};
 export async function listener(req,user){return user?.id||await hash((req.headers.get('cf-connecting-ip')||'local')+'|'+(req.headers.get('user-agent')||'')+'|'+new Date().toISOString().slice(0,10));}
 export async function mediaRoute(req,env,path,user){
  const method=req.method;
+ const download=path.match(/^\/api\/covers\/([\w-]+)\/download$/);
+ if(download&&['GET','HEAD'].includes(method)){
+  requireUser(user);if(!isPremium(user))fail(403,'커버 파일 저장은 Premium 이용권이 필요해요.');
+  const t=await published(env,download[1]);if(t.kind!=='cover')fail(404,'커버곡을 찾을 수 없습니다.');
+  const r=await objectResponse(req,env,`stream/${t.id}.m4a`,'audio/mp4');
+  const h=new Headers(r.headers);h.set('content-disposition',`attachment; filename="AIFECT-cover.m4a"; filename*=UTF-8''${encodeURIComponent(t.title+'.m4a')}`);
+  return new Response(r.body,{status:r.status,headers:h});
+ }
  const studio=await studioRoute(req,env,path,user);if(studio)return studio;
  if(path==='/api/studio'&&method==='GET'){
   requireUser(user);return json({producer:await one(env,'SELECT * FROM producers WHERE user_id=?',user.id),artists:await rows(env,'SELECT a.* FROM artists a JOIN producers p ON a.producer_id=p.id WHERE p.user_id=?',user.id),tracks:await rows(env,`SELECT t.id,t.title,t.status,t.error,t.created,t.duration,t.has_cover,t.cover_version,t.artist_id,t.kind,t.original_id,o.title original_title,o.has_cover original_has_cover,o.cover_version original_cover_version,j.state alignment_state FROM tracks t LEFT JOIN tracks o ON o.id=t.original_id LEFT JOIN lyric_jobs j ON j.track_id=t.id WHERE t.user_id=? AND t.status!='deleted' ORDER BY t.created DESC LIMIT 100`,user.id)});
  }
  if(path==='/api/studio/profile'&&method==='PUT'){
   requireUser(user);const b=await req.json(),p=await one(env,'SELECT id FROM producers WHERE user_id=?',user.id),pid=p?.id||id();
-  if(p)await run(env,'UPDATE producers SET name=?,bio=? WHERE id=?',str(b.name,60),str(b.bio||'',1000,false),p.id);
-  else await run(env,'INSERT INTO producers(id,user_id,name,bio,created) VALUES(?,?,?,?,?)',pid,user.id,str(b.name,60),str(b.bio||'',1000,false),now());
+  if(p)await run(env,'UPDATE producers SET name=?,bio=?,nickname_confirmed=1 WHERE id=?',str(b.name,60),str(b.bio||'',1000,false),p.id);
+  else await run(env,'INSERT INTO producers(id,user_id,name,bio,created,nickname_confirmed) VALUES(?,?,?,?,?,1)',pid,user.id,str(b.name,60),str(b.bio||'',1000,false),now());
   return json({ok:true,id:pid});
  }
  if(path==='/api/uploads'&&method==='POST'){
@@ -31,7 +40,7 @@ export async function mediaRoute(req,env,path,user){
   if(b.karaoke!==true)fail(400,'노래방 MR 제공과 커버 허락에 동의해야 업로드할 수 있습니다.');
   if(!validGenre(b.genre)||!['wav','flac','mp3'].includes(b.extension)||!Number.isInteger(b.bytes)||b.bytes<100||b.bytes>MAX_AUDIO)fail(400,'지원하는 장르와 80MB 이하 WAV·FLAC·MP3 파일을 선택해주세요.');
   let producer=await one(env,'SELECT * FROM producers WHERE user_id=?',user.id);
-  if(!producer){producer={id:id()};await run(env,'INSERT INTO producers(id,user_id,name,bio,created) VALUES(?,?,?,?,?)',producer.id,user.id,producerName,str(b.producer_bio||'',1000,false),now());}
+  if(!producer){producer={id:id()};await run(env,'INSERT INTO producers(id,user_id,name,bio,created,nickname_confirmed) VALUES(?,?,?,?,?,1)',producer.id,user.id,producerName,str(b.producer_bio||'',1000,false),now());}
   let artist=b.artist_id?await one(env,'SELECT id FROM artists WHERE producer_id=? AND id=?',producer.id,str(b.artist_id,80)):await one(env,'SELECT id FROM artists WHERE producer_id=? AND name=?',producer.id,artistName);
   if(b.artist_id&&!artist)fail(404,'내 AI 아티스트를 선택해주세요.');
   if(!artist){artist={id:id()};await run(env,'INSERT INTO artists(id,producer_id,name,bio,genre,created) VALUES(?,?,?,?,?,?)',artist.id,producer.id,artistName,str(b.artist_bio||'',1000,false),b.genre,now());}
@@ -92,7 +101,7 @@ export async function mediaRoute(req,env,path,user){
   const kind=m[1],owner=kind==='artist'?'artist':'producer',p=await one(env,kind==='artist'?'SELECT a.*,p.user_id FROM artists a JOIN producers p ON p.id=a.producer_id WHERE a.id=?':'SELECT * FROM producers WHERE id=?',m[2]);
   const version=kind==='banner'?p?.banner_version:p?.image_version;
   if(!version)fail(404,'프로필 이미지를 찾을 수 없습니다.');
-  const isPublic=!!await one(env,`SELECT t.id FROM tracks t WHERE t.${owner}_id=? AND ${VISIBLE()} LIMIT 1`,p.id);
+  const isPublic=kind==='producer'||!!await one(env,`SELECT t.id FROM tracks t WHERE t.${owner}_id=? AND ${VISIBLE()} LIMIT 1`,p.id);
   if(!isPublic&&p.user_id!==user?.id)fail(404,'프로필 이미지를 찾을 수 없습니다.');
   return objectResponse(req,env,`images/${kind}/${p.id}/${version}`,kind==='banner'?p.banner_type:p.image_type,isPublic);
  }

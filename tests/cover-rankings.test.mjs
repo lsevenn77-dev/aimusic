@@ -56,7 +56,7 @@ test('cover uploader may remove another comment but cannot edit it or moderate a
  assert.equal((await f.call('/api/comments/'+c,'DELETE',null,'other')).status,200);
  assert.equal((await f.call('/api/comments/'+c,'PATCH',{body:'resurrect'},'owner')).status,409);
  assert.equal((await f.call('/api/comments/'+c+'/like','PUT',null,'third')).status,409);
- comment=(await f.call('/api/tracks/cover-a/comments')).body.comments[0];assert.equal(comment.body,'삭제된 댓글입니다.');assert.equal(comment.likes,0);assert.equal(comment.can_report,false);assert.equal(comment.can_delete,false);assert.equal(comment.deleted_by,undefined);
+ assert.deepEqual((await f.call('/api/tracks/cover-a/comments')).body.comments,[],'removed comments are omitted');
  assert.equal((await f.call('/api/tracks/cover-a')).body.track.comments,0);
  const original=(await f.call('/api/tracks/one/comments','POST',{body:'Original comment'},'third')).body.id;
  assert.equal((await f.call('/api/comments/'+original,'DELETE',null,'owner')).status,403,'original uploader gains no new moderation power');

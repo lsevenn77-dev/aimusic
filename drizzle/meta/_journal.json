@@ -120,6 +120,20 @@
       "when": 1790597587357,
       "tag": "0016_gold_checkout",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1790684437079,
+      "tag": "0017_crews_messages",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1790686405064,
+      "tag": "0018_public_nickname",
+      "breakpoints": true
     }
   ]
 }

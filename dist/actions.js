@@ -64,7 +64,7 @@ async function upload(fd){
  const form=$('#upload-form');applyLyrics(fd);
  const file=fd.get('audio'),image=fd.get('cover');if(!file?.size)throw new Error('음원 파일을 선택해주세요.');if(file.size>80*1024*1024)throw new Error('음원은 80MB 이하로 업로드해주세요.');
  for(const name of ['cover','artist_image','producer_image'])await validateImage(fd.get(name));
- const body={...textFields(fd),participation:fd.getAll('participation').join(', '),rights:fd.has('rights'),is_ai:fd.has('is_ai'),karaoke:fd.has('karaoke'),extension:file.name.split('.').pop().toLowerCase(),bytes:file.size};
+ const body={...textFields(fd),participation:fd.getAll('participation').join(', '),rights:fd.has('rights'),is_ai:true,karaoke:fd.has('karaoke'),extension:file.name.split('.').pop().toLowerCase(),bytes:file.size};
  uploadStage(form,'1 / 3 · 곡 정보와 프로필을 저장하고 있어요.');form.querySelector('#upload-submit').textContent='업로드 중…';
  const fingerprint=JSON.stringify([body,file.name,file.lastModified]);if(await existingUploadSubmitted(form,fingerprint))return;
  let draft=form._draft;if(!draft||draft.fingerprint!==fingerprint){draft={...await uploadRequest('/api/uploads','POST',body),fingerprint};form._draft=draft;}

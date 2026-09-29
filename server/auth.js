@@ -1,3 +1,4 @@
+import {publicUser} from './identity.js';
 import {createRemoteJWKSet,jwtVerify,SignJWT,importPKCS8} from 'jose';
 import {one,run,query,now,id,fail,str,json,rate} from './db.js';
 import {membership} from './membership.js';
@@ -9,7 +10,7 @@ const cookie=(name,value,age,secure=true)=>`${name}=${value}; Path=/; HttpOnly; 
 export function cookies(req){return Object.fromEntries((req.headers.get('cookie')||'').split(';').map(x=>x.trim().split('=')));}
 // Operators are listed by user id in ADMIN_USER_IDS; there is no self-service admin role.
 export const isAdmin=(env,user)=>!!user&&(env.ADMIN_USER_IDS||'').split(',').map(s=>s.trim()).filter(Boolean).includes(user.id);
-export async function viewer(req,env){const token=cookies(req).aifect_session;if(!token)return null;return one(env,'SELECT u.id,u.name,u.email,u.provider,u.premium_until FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token=? AND s.expires>?',await hash(token),now());}
+export async function viewer(req,env){const token=cookies(req).aifect_session;if(!token)return null;return publicUser(env,await one(env,'SELECT u.id,u.name,u.email,u.provider,u.premium_until FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token=? AND s.expires>?',await hash(token),now()));}
 export const requireUser=u=>{if(!u)fail(401,'로그인 후 이용해주세요.');return u;};
 async function passwordHash(password,salt,env){
  if(!env.AUTH_PEPPER)fail(503,'로그인 설정을 준비하고 있습니다.');

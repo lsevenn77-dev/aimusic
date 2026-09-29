@@ -1,3 +1,4 @@
+import {publicNameSQL} from './identity.js';
 import {one,rows,query,now,id,fail,json,rate} from './db.js';
 import {requireUser} from './auth.js';
 import {published} from './catalog.js';
@@ -12,7 +13,7 @@ import {goldCheckoutStatus,createGoldCheckout} from './gold-checkout.js';
 
 export async function goldBalance(env,userId){return (await one(env,"SELECT COALESCE(sum(gold-used),0) n FROM gold_purchases WHERE user_id=? AND status='paid' AND NOT EXISTS(SELECT 1 FROM gold_orders o WHERE o.id=gold_purchases.id AND o.state!='paid')",userId)).n;}
 
-const RANKING=`SELECT u.name,sum(g.gold) gold,sum(g.stars) stars,sum(g.gold+g.stars) score,count(*) gifts,min(g.created) first FROM (SELECT sender_id,track_id,gold,0 stars,created FROM gifts UNION ALL SELECT sender_id,track_id,0 gold,1 stars,created FROM free_gifts) g JOIN users u ON u.id=g.sender_id`;
+const RANKING=`SELECT ${publicNameSQL()} name,sum(g.gold) gold,sum(g.stars) stars,sum(g.gold+g.stars) score,count(*) gifts,min(g.created) first FROM (SELECT sender_id,track_id,gold,0 stars,created FROM gifts UNION ALL SELECT sender_id,track_id,0 gold,1 stars,created FROM free_gifts) g JOIN users u ON u.id=g.sender_id`;
 const ranked=list=>list.map((r,i)=>({rank:i+1,name:r.name,gold:r.gold,stars:r.stars,score:r.score,gifts:r.gifts}));
 export async function trackGifts(env,trackId){
  const total=await one(env,'SELECT COALESCE(sum(gold),0) gold,count(*) gifts FROM gifts WHERE track_id=?',trackId);

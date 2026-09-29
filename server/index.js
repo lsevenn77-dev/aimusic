@@ -1,3 +1,6 @@
+import {profileRoute} from './profiles.js';
+import {socialRoute} from './social.js';
+import {publicUser} from './identity.js';
 import {coverRankingRoute} from './cover-rankings.js';
 import {commentModerationRoute} from './comment-moderation.js';
 import {json,fail,rate,query,now} from './db.js';
@@ -35,7 +38,7 @@ export default {async fetch(req,env,ctx){
   }
   if(path.startsWith('/api/auth/')&&!path.endsWith('/callback'))await rate(env,'auth-ip:'+await hash(req.headers.get('cf-connecting-ip')||'local'),40,900);
   const maxJson=path==='/api/uploads'||/^\/api\/studio\/tracks\/[^/]+(?:\/lyrics\/align)?$/.test(path)?131072:32768;
-  if(Number(req.headers.get('content-length')||0)>maxJson&&!/^\/api\/uploads\/[^/]+\/(audio|cover)$/.test(path)&&!/^\/api\/studio\/(artists|producers|tracks)\/[^/]+\/image$/.test(path)&&!/^\/api\/studio\/tracks\/[^/]+\/karaoke\/mr$/.test(path))fail(413,'요청이 너무 큽니다.');
+  if(Number(req.headers.get('content-length')||0)>maxJson&&path!=='/api/me/profile/image'&&!/^\/api\/uploads\/[^/]+\/(audio|cover)$/.test(path)&&!/^\/api\/studio\/(artists|producers|tracks)\/[^/]+\/image$/.test(path)&&!/^\/api\/studio\/tracks\/[^/]+\/karaoke\/mr$/.test(path))fail(413,'요청이 너무 큽니다.');
   const user=await viewer(req,env);
   const audioAdsResponse=audioAdsRoute(req,env,path,user);if(audioAdsResponse)return audioAdsResponse;
   if(Math.random()<.005)ctx.waitUntil(env.DB.batch([
@@ -43,8 +46,13 @@ export default {async fetch(req,env,ctx){
    query(env,'DELETE FROM oauth_states WHERE expires<?',now()),
    query(env,'DELETE FROM rate_limits WHERE expires<?',now())
   ]).catch(()=>console.error('Expired authentication state cleanup failed')));
-  const result=await authRoute(req,env,path,user)||await billingRoute(req,env,path,user)||await membershipRoute(req,env,path,user)||await alignmentRoute(req,env,path,user)||await karaokeRoute(req,env,path,user)||await coverRoute(req,env,path,user)||await goldOrderRoute(req,env,path,user)||await giftRoute(req,env,path,user)||await coverRankingRoute(req,env,path)||await commentModerationRoute(req,env,path,user)||await payoutRoute(req,env,path,user)||await lyricsRoute(req,env,path,user)||await catalogRoute(req,env,path,user)||await mediaRoute(req,env,path,user);
-  if(result)return result;
+  const result=await profileRoute(req,env,path,user)||await socialRoute(req,env,path,user)||await authRoute(req,env,path,user)||await billingRoute(req,env,path,user)||await membershipRoute(req,env,path,user)||await alignmentRoute(req,env,path,user)||await karaokeRoute(req,env,path,user)||await coverRoute(req,env,path,user)||await goldOrderRoute(req,env,path,user)||await giftRoute(req,env,path,user)||await coverRankingRoute(req,env,path)||await commentModerationRoute(req,env,path,user)||await payoutRoute(req,env,path,user)||await lyricsRoute(req,env,path,user)||await catalogRoute(req,env,path,user)||await mediaRoute(req,env,path,user);
+  if(result){
+   if(path.startsWith('/api/auth/')&&result.headers.get('content-type')?.includes('application/json')){
+    const body=await result.clone().json();if(body.user){body.user=await publicUser(env,body.user);return new Response(JSON.stringify(body),{status:result.status,headers:result.headers});}
+   }
+   return result;
+  }
   return json({error:'페이지를 찾을 수 없습니다.'},404);
  }catch(e){
   if(!e.status)console.error(JSON.stringify({path,error:e.name,...((path.includes('/billing/')||path.includes('/gold/'))?{}:{message:String(e.message).slice(0,300)})}));

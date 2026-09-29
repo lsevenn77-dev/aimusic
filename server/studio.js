@@ -50,7 +50,7 @@ export async function studioRoute(req,env,path,user){
   if(table==='artists'){
    if(!validGenre(b.genre))fail(400,'장르를 선택해주세요.');
    await run(env,'UPDATE artists SET name=?,bio=?,genre=? WHERE id=?',name,bio,b.genre,entityId);
-  }else await run(env,'UPDATE producers SET name=?,bio=? WHERE id=?',name,bio,entityId);
+  }else await run(env,'UPDATE producers SET name=?,bio=?,nickname_confirmed=1 WHERE id=?',name,bio,entityId);
  }
  return json({ok:true,id:entityId});
 }

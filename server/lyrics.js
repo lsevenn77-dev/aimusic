@@ -16,7 +16,7 @@ export async function lyricsRoute(req,env,path,user){
  if(!user&&seconds>=60)fail(401,'로그인하면 전체곡 가사를 볼 수 있습니다.');
  if(track.lyrics_mode!=='synced'||!track.lyrics)return json({line:null});
  const cues=parseLrc(track.lyrics),index=activeCueIndex(cues,seconds),cue=cues[index];
- return json({line:{text:(cue?.text||'').replace(/\n/g,' / '),from:cue?.time||0,until:Math.min(cues[index+1]?.time??track.duration,user?track.duration:60),intro:index<0}});
+ return json({lines:cues.slice(Math.max(0,index-1),Math.max(0,index)+2).filter(c=>user||c.time<60).map(c=>({time:c.time,text:c.text,active:c===cue})),line:{text:(cue?.text||'').replace(/\n/g,' / '),from:cue?.time||0,until:Math.min(cues[index+1]?.time??track.duration,user?track.duration:60),intro:index<0}});
 }
 export function lyricsFields(body,existing={}){
  const mode=body.lyrics_mode??existing.lyrics_mode??'none',value=body.lyrics??existing.lyrics??'';

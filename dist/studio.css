@@ -1,7 +1,7 @@
 .form-section-heading{display:flex;align-items:center;gap:12px;margin:34px 0 20px;padding-top:25px;border-top:1px solid #3a4932}
 .form-section-heading:first-child{margin-top:0;padding-top:0;border-top:0}
-.form-section-heading>span{font-size:12px;color:var(--lime);border:1px solid #526442;border-radius:50%;width:31px;height:31px;display:grid;place-items:center;flex-shrink:0}
-.upload-form .form-section-heading h2{margin:0;font-size:20px}
+.form-section-heading>span{font-size:0.8333125rem;color:var(--lime);border:1px solid #526442;border-radius:50%;width:31px;height:31px;display:grid;place-items:center;flex-shrink:0}
+.upload-form .form-section-heading h2{margin:0;font-size:1.3333125rem}
 .image-field{display:flex;align-items:center;gap:22px;margin:22px 0 26px;padding:20px;border:1px solid #405136;border-radius:12px;background:#172014}
 .image-preview{width:132px;height:132px;flex-shrink:0;overflow:hidden;display:grid;place-items:center;border-radius:10px;background:#2b3923;border:1px dashed #5d734e;color:var(--lime)}
 .is-portrait .image-preview{border-radius:50%}
@@ -9,21 +9,21 @@
 .image-preview svg{width:27px;height:27px}
 .image-field-controls{min-width:0;flex:1}
 .image-field .form-field{margin:0;gap:12px}
-.image-field input{width:100%;min-width:0;background:transparent;border:0;padding:0;font-size:12px}
+.image-field input{width:100%;min-width:0;background:transparent;border:0;padding:0;font-size:0.8333125rem}
 .image-field input::file-selector-button{background:#34482a;color:#e2f2d7;border:1px solid #597046;border-radius:6px;padding:9px 12px;cursor:pointer;margin:0 10px 6px 0;font-family:inherit}
-.field-help{display:block;font-size:12px;font-weight:400;color:#a3b598;line-height:1.85;margin:9px 0 0}
-.image-selection{display:block;font-size:12px;color:var(--lime);overflow-wrap:anywhere;line-height:1.7}
-.image-field .text-link{margin-top:7px;font-size:12px}
+.field-help{display:block;font-size:0.8333125rem;font-weight:400;color:#a3b598;line-height:1.85;margin:9px 0 0}
+.image-selection{display:block;font-size:0.8333125rem;color:var(--lime);overflow-wrap:anywhere;line-height:1.7}
+.image-field .text-link{margin-top:7px;font-size:0.8333125rem}
 .upload-guide hr{border:0;border-top:1px solid #435539;margin:24px 0}
 .profile-editor,.track-editor{max-width:850px}
 .track-editor{margin-top:22px}
 .artist-editors{display:grid;gap:16px}
 .artist-editor>summary{display:flex;align-items:center;gap:18px;cursor:pointer;list-style:none}
 .artist-editor>summary::-webkit-details-marker{display:none}
-.artist-editor>summary .artist-portrait{height:65px;width:65px;flex-shrink:0;font-size:24px;margin:0}
+.artist-editor>summary .artist-portrait{height:65px;width:65px;flex-shrink:0;font-size:1.5833125rem;margin:0}
 .artist-editor>summary>div:not(.artist-portrait){flex:1;min-width:0}
-.artist-editor>summary strong{font-size:18px;overflow-wrap:anywhere}
-.artist-editor>summary span{display:block;color:#a3b598;font-size:13px;margin-top:8px}
+.artist-editor>summary strong{font-size:1.2083125rem;overflow-wrap:anywhere}
+.artist-editor>summary span{display:block;color:#a3b598;font-size:0.8958125rem;margin-top:8px}
 .artist-editor>summary>svg{width:20px;height:20px;color:var(--lime)}
 .artist-editor[open]>summary>svg{transform:rotate(90deg)}
 .artist-editor .artist-form{max-width:800px;padding:10px 0 0}
@@ -34,19 +34,19 @@
 .artist-card>p{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
 .artist-portrait{overflow:hidden}
 .artist-portrait img{width:100%;height:100%;object-fit:cover}
-@media(max-width:580px){.image-field{gap:15px;padding:15px;align-items:flex-start}.image-preview{width:82px;height:82px}.image-field .form-field{font-size:13px}.image-field input{font-size:11px}.form-section-heading{margin-top:26px;padding-top:22px}.upload-form .form-section-heading h2{font-size:18px}.profile-hero{flex-wrap:wrap}.artist-editor{padding:20px}.artist-editor>summary .artist-portrait{width:52px;height:52px}.image-field .field-help{font-size:11px}.artist-editor>summary strong{font-size:16px}}
+@media(max-width:580px){.image-field{gap:15px;padding:15px;align-items:flex-start}.image-preview{width:82px;height:82px}.image-field .form-field{font-size:0.8958125rem}.image-field input{font-size:0.8333125rem}.form-section-heading{margin-top:26px;padding-top:22px}.upload-form .form-section-heading h2{font-size:1.2083125rem}.profile-hero{flex-wrap:wrap}.artist-editor{padding:20px}.artist-editor>summary .artist-portrait{width:52px;height:52px}.image-field .field-help{font-size:0.8333125rem}.artist-editor>summary strong{font-size:1.0833125rem}}
 
 /* Upload feedback stays beside the submit action, including validation failures. */
 .upload-form .upload-progress{padding:20px;border:1px solid #b9a5d64d;border-radius:14px;background:linear-gradient(120deg,#df9cbe12,#8fd7e710);color:#edeaf3;scroll-margin:100px}
 .upload-progress progress{display:block;height:9px;border:0;border-radius:8px;overflow:hidden;accent-color:#cdb5ee}
 .upload-progress progress::-webkit-progress-bar{background:#ffffff14;border-radius:8px}
 .upload-progress progress::-webkit-progress-value{background:linear-gradient(90deg,#edb3d0,#a8dfe4)}
-.upload-progress p{font-size:16px;font-weight:600;margin:14px 0 8px;line-height:1.6}
-.upload-progress small{color:#b8b5c3;font-size:14px;line-height:1.6}
+.upload-progress p{font-size:1.0833125rem;font-weight:600;margin:14px 0 8px;line-height:1.6}
+.upload-progress small{color:#b8b5c3;font-size:0.9583125rem;line-height:1.6}
 .upload-progress[data-state="error"]{border-color:#df8ea866;background:#df8ea810}
 .upload-progress[data-state="error"] small,.upload-progress[data-state="done"] small{display:none}
 .upload-form>.form-error:not(:empty){padding:14px 16px;border-left:3px solid #e8a8bf;background:#e8a8bf10;color:#ffd2df;border-radius:5px}
-.lyrics-cleanup-note{padding:12px 15px;color:#c8ecec;background:#9fd7de10;border:1px solid #9fd7de35;border-radius:9px;font-size:14px;line-height:1.7}
+.lyrics-cleanup-note{padding:12px 15px;color:#c8ecec;background:#9fd7de10;border:1px solid #9fd7de35;border-radius:9px;font-size:0.9583125rem;line-height:1.7}
 .upload-form [aria-invalid="true"]{border-color:#ed9eb8!important;outline-color:#ed9eb8}
 
 .danger-button{color:#f3b1c1;border-color:#b4728566}.primary-button.danger-button{background:#efb0c0;color:#301823}.delete-track-title{font-weight:700;color:#f2deeb;overflow-wrap:anywhere}.genre-field{margin-bottom:20px}.genre-field>.field-help{display:block;margin-top:10px;line-height:1.7}
