@@ -11,7 +11,7 @@ async function saveSingDraft(s=sing){
 }
 async function restoreSingDraft(s){
  try{const d=await draftOp('get',singDraftKey(s));if(sing!==s||!d||d.owner!==s.owner||!(d.samples instanceof Float32Array)||d.samples.length>600*d.rate||!d.samples.length)return;
-  const ctx=s.ctx||(s.ctx=new (window.AudioContext||window.webkitAudioContext)({sampleRate:K().MIX_RATE}));s.voice=ctx.createBuffer(1,d.samples.length,d.rate);s.voice.copyToChannel(d.samples,0);s.mix={...s.mix,...K().restoreRoomMix(d.mix)};s.cursor=Math.min(d.cursor||0,s.voice.duration);s.description=d.description||'';s.state='review';renderSingPanel();drawLyrics(s.cursor);setSingStatus('이 기기에 임시저장한 녹음과 효과를 복원했어요.');
+  const ctx=s.ctx||(s.ctx=new (window.AudioContext||window.webkitAudioContext)({sampleRate:K().MIX_RATE}));s.voice=ctx.createBuffer(1,d.samples.length,d.rate);s.voice.copyToChannel(d.samples,0);s.mix={...s.mix,...K().restoreVocalMix(d.mix)};s.cursor=Math.min(d.cursor||0,s.voice.duration);s.description=d.description||'';s.state='review';renderSingPanel();drawLyrics(s.cursor);setSingStatus('이 기기에 임시저장한 녹음과 효과를 복원했어요.');
  }catch(e){if(sing===s)setSingStatus('임시저장을 읽지 못했어요. 브라우저 저장 공간을 확인해주세요.');}
  finally{if(sing===s&&s.state==='loading'){s.state=s.voice?'review':'idle';updateTransport();}}
 }

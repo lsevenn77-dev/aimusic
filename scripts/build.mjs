@@ -23,6 +23,7 @@ await build({entryPoints:['shared/genres.js'],outfile:'dist/client/genres-core.j
 await build({entryPoints:['shared/alignment.js'],outfile:'dist/client/alignment-core.js',bundle:true,format:'iife',globalName:'AifectAlignment',target:'es2022',minify:true});
 await build({entryPoints:['shared/queue.js'],outfile:'dist/client/queue-core.js',bundle:true,format:'iife',globalName:'AifectQueue',target:'es2022',minify:true});
 await build({entryPoints:['shared/audio-ads.js'],outfile:'dist/client/audio-ads-core.js',bundle:true,format:'iife',globalName:'AifectAudioAdsCore',target:'es2022',minify:true});
+await build({entryPoints:['shared/vocal-worklet.js'],outfile:'dist/client/vocal-worklet.js',bundle:true,format:'esm',target:'es2022',minify:true});
 await build({entryPoints:['shared/karaoke-audio.js'],outfile:'dist/client/karaoke-core.js',bundle:true,format:'iife',globalName:'AifectKaraoke',target:'es2022',minify:true});
 await build({entryPoints:['shared/lyrics.js'],outfile:'dist/client/lyrics-core.js',bundle:true,format:'iife',globalName:'AifectLyrics',target:'es2022',minify:true});
 await build({entryPoints:['server/index.js'], outfile:'dist/server/index.js', bundle:true, format:'esm', platform:'neutral', target:'es2022', external:['cloudflare:workers'], minify:false});
