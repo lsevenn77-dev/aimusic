@@ -7,14 +7,21 @@ export const vocalPresets=[
  {id:'studio',name:'스튜디오',description:'또렷한 목소리와 짧고 부드러운 울림'},
  {id:'hall',name:'홀',description:'넓은 공간에서 부르는 듯한 긴 울림'}
 ];
+const customValues=m=>({echo:clamp(m.echo??0,0,.65),room:clamp(m.room??0,0,1),size:clamp(m.size??.5,0,1),tone:clamp(m.tone??0,0,1),noise:Math.round(clamp(m.noise??0,0,4))});
+export function editVocalMix(mix,key,value){
+ const next={...mix,[key]:value};if(['echo','room','size','tone'].includes(key))next.preset='custom';
+ if(next.preset==='custom')next.custom=customValues(next);return next;
+}
 export function presetMix(mix,id,strength=.5){
+ if(mix.preset==='custom')mix={...mix,custom:customValues(mix)};
+ if(id==='custom'){const custom=customValues(mix.custom||mix);return {...mix,...custom,custom,preset:'custom',roomScaleVersion:2};}
  if(!vocalPresets.some(p=>p.id===id))return {...mix,preset:'custom'};
  const a=clamp(strength,0,1),p={original:[0,0,.5,0],karaoke:[.24,.65,.55,.65],studio:[.025,.3,.15,1],hall:[.07,.9,.95,.7]}[id];
  return {...mix,preset:id,strength:a,echo:p[0]*a,room:p[1]*a,size:p[2],tone:p[3]*a,roomScaleVersion:2};
 }
 export const defaultVocalMix=()=>presetMix({offset:80,voice:1,mr:.8,noise:2},'studio',.5);
 export function restoreVocalMix(mix={}){
- const m=restoreRoomMix(mix);
+ const m=restoreRoomMix(mix);if(m.custom)m.custom=customValues(m.custom);
  // Existing custom drafts keep their exact effect values, including noise off.
  return {...m,preset:vocalPresets.some(p=>p.id===m.preset)?m.preset:'custom',strength:clamp(m.strength??.5,0,1),tone:clamp(m.tone??0,0,1),size:clamp(m.size??.5,0,1),noise:Math.round(clamp(m.noise??0,0,4))};
 }

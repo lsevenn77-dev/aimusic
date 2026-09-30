@@ -1,6 +1,17 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {NoiseCleaner,VocalProcessor,renderVocals,presetMix,defaultVocalMix,restoreVocalMix,vocalPresets} from '../shared/vocal-effects.js';
+import {NoiseCleaner,VocalProcessor,renderVocals,presetMix,editVocalMix,defaultVocalMix,restoreVocalMix,vocalPresets} from '../shared/vocal-effects.js';
 const rms=a=>Math.sqrt(a.reduce((s,x)=>s+x*x,0)/a.length);
+test('custom values survive preset excursions, persisted reloads and further edits',()=>{
+ let m=presetMix(defaultVocalMix(),'custom');for(const [key,value] of Object.entries({echo:.41,room:.67,size:.81,tone:.23,noise:4}))m=editVocalMix(m,key,value);
+ const custom={...m.custom};m=presetMix(m,'hall');assert.equal(m.preset,'hall');assert.equal(m.room,.45);assert.deepEqual(m.custom,custom);
+ m=restoreVocalMix(JSON.parse(JSON.stringify(m)));m=presetMix(m,'custom');for(const key of Object.keys(custom))assert.equal(m[key],custom[key]);
+ m=editVocalMix(m,'tone',.31);assert.equal(presetMix(presetMix(m,'studio'),'custom').tone,.31);
+ assert.equal(m.offset,80);assert.equal(m.voice,1);assert.equal(m.mr,.8);
+});
+test('editing a preset starts from that sound while custom button recalls previous custom sound',()=>{
+ let m=editVocalMix(defaultVocalMix(),'echo',.45);const old=m.custom;m=presetMix(m,'hall');const room=m.room;
+ m=editVocalMix(m,'tone',.8);assert.equal(m.preset,'custom');assert.equal(m.room,room);assert.equal(m.tone,.8);assert.notEqual(m.echo,old.echo);assert.equal(old.tone,.5);
+});
 test('one-touch effects set distinct mixes and keep volume, sync and chosen noise mode',()=>{
  const old={voice:1.2,mr:.7,noise:4,offset:125},unique=new Set();for(const p of vocalPresets){const m=presetMix(old,p.id,.5);for(const k of Object.keys(old))assert.equal(m[k],old[k]);unique.add(JSON.stringify([m.echo,m.room,m.size,m.tone]));}
  assert.equal(unique.size,4);assert.equal(defaultVocalMix().preset,'studio');assert.equal(defaultVocalMix().noise,2);

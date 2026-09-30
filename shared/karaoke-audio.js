@@ -1,6 +1,6 @@
 // Pure pieces of the singing screen, bundled for the browser as AifectKaraoke.
 export {roomGain,roomImpulse,restoreRoomMix} from './room-reverb.js';
-export {vocalPresets,presetMix,defaultVocalMix,restoreVocalMix,VocalProcessor,renderVocals} from './vocal-effects.js';
+export {vocalPresets,presetMix,editVocalMix,defaultVocalMix,restoreVocalMix,VocalProcessor,renderVocals} from './vocal-effects.js';
 import {NoiseCleaner} from './vocal-effects.js';
 
 // Singing, preview and the uploaded mix all run at 32 kHz: it keeps phone memory low and a 10-minute
