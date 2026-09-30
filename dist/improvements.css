@@ -50,6 +50,8 @@ button[aria-busy="true"]{cursor:progress;opacity:.7}
 }
 @media(max-width:400px){.home-mood-links{grid-template-columns:repeat(2,minmax(0,1fr))}.home-mood-links a{min-width:0;white-space:normal;overflow-wrap:anywhere;padding:12px}}
 
+.section-heading>.primary-button{color:#231723}
+
 /* Let Korean labels and file controls grow inside narrow phone columns. */
 .upload-quota{display:grid;gap:8px;margin:0 0 24px;padding:18px 20px;border:1px solid #4c3c50;border-radius:14px;background:#251f29;line-height:1.65}
 .upload-quota p{margin:0;color:var(--muted)}
