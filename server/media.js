@@ -13,6 +13,7 @@ import {KARAOKE_TERMS_VERSION} from '../shared/site-info.js';
 import {MAX_AUDIO,put,objectResponse,parseRange,originalKey} from './storage.js';
 import {originalArchiveRoute} from './original-archives.js';
 import {premiumAudio,premiumAudioRoute} from './premium-audio.js';
+import {premiumGrantInternalRoute} from './premium-grant.js';
 import {karaokeQueue,karaokeInternalRoute} from './karaoke.js';
 export {parseRange};
 export async function listener(req,user){return user?.id||await hash((req.headers.get('cf-connecting-ip')||'local')+'|'+(req.headers.get('user-agent')||'')+'|'+new Date().toISOString().slice(0,10));}
@@ -130,6 +131,7 @@ export async function mediaRoute(req,env,path,user){
 }
 export async function internalRoute(req,env,path){
  if(!env.TRANSCODER_TOKEN||req.headers.get('authorization')!==`Bearer ${env.TRANSCODER_TOKEN}`)fail(401,'인증이 필요합니다.');
+ const grant=await premiumGrantInternalRoute(req,env,path);if(grant)return grant;
  const premium=await premiumAudioRoute(req,env,path);if(premium)return premium;
  const archive=await originalArchiveRoute(req,env,path);if(archive)return archive;
  const alignment=await alignmentInternalRoute(req,env,path);if(alignment)return alignment;
