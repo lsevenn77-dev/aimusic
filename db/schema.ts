@@ -101,3 +101,7 @@ export const directMessages=sqliteTable('direct_messages',{
 },t=>[uniqueIndex('direct_messages_request').on(t.senderId,t.requestId),index('direct_messages_sender').on(t.senderId,t.recipientId,t.created),index('direct_messages_recipient').on(t.recipientId,t.created),index('direct_messages_pair_sequence').on(t.senderId,t.recipientId),index('direct_messages_sent_sequence').on(t.senderId),index('direct_messages_received_sequence').on(t.recipientId),index('direct_messages_unread').on(t.recipientId,t.readAt)]);
 
 export const crewBans=sqliteTable('crew_bans',{crewId:text('crew_id').notNull().references(()=>crews.id,{onDelete:'cascade'}),userId:text('user_id').notNull().references(()=>users.id),created:integer('created').notNull()},t=>[primaryKey({columns:[t.crewId,t.userId]})]);
+// Lease-specific output keys prevent an expired encoder from replacing the live AAC 256 file.
+export const premiumAudioJobs=sqliteTable('premium_audio_jobs',{
+ trackId:text('track_id').primaryKey().references(()=>tracks.id,{onDelete:'cascade'}),state:text('state').notNull().default('queued'),sourceKey:text('source_key').notNull().default(''),outputKey:text('output_key').notNull().default(''),outputSha:text('output_sha').notNull().default(''),outputBytes:integer('output_bytes').notNull().default(0),attempts:integer('attempts').notNull().default(0),leaseUntil:integer('lease_until').notNull().default(0),leaseToken:text('lease_token'),updated:integer('updated').notNull()
+},t=>[index('premium_audio_queue').on(t.state,t.leaseUntil,t.updated)]);

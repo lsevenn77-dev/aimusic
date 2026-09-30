@@ -70,8 +70,8 @@ async function upload(fd){
  let draft=form._draft;if(!draft||draft.fingerprint!==fingerprint){draft={...await uploadRequest('/api/uploads','POST',body),fingerprint};form._draft=draft;}
  const {id,artist_id,producer_id}=draft;
  await uploadRequest('/api/studio/profile','PUT',{name:body.producer,bio:body.producer_bio});
- await uploadRequest(`/api/studio/artists/${artist_id}`,'PUT',{name:body.artist,bio:body.artist_bio,genre:body.genre});
- for(const [name,kind,entityId] of [['artist_image','artists',artist_id],['producer_image','producers',producer_id]]){if(fd.get(name)?.size){uploadStage(form,'1 / 3 · 프로필 사진을 올리고 있어요.');await uploadFile(`/api/studio/${kind}/${entityId}/image`,fd.get(name));}}
+ if(artist_id)await uploadRequest(`/api/studio/artists/${artist_id}`,'PUT',{name:body.artist,bio:body.artist_bio,genre:body.genre});
+ for(const [name,kind,entityId] of [['artist_image','artists',artist_id],['producer_image','producers',producer_id]]){if(entityId&&fd.get(name)?.size){uploadStage(form,'1 / 3 · 프로필 사진을 올리고 있어요.');await uploadFile(`/api/studio/${kind}/${entityId}/image`,fd.get(name));}}
  await sendUploadFiles(form,id,file,image);
 }
 async function uploadCover(fd){

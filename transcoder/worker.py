@@ -1,5 +1,6 @@
 import json, os, time, tempfile, pathlib, subprocess, urllib.request, urllib.error, math
 from archive import archive_original
+from premium import convert_premium
 
 BASE=os.environ['AIFECT_ORIGIN'].rstrip('/')
 TOKEN=os.environ['TRANSCODER_TOKEN']
@@ -51,13 +52,16 @@ def convert(job):
 
 def main():
     while True:
-        job=None; archive=None
+        job=None; archive=None; premium=None
         try:
             with request('/internal/jobs/claim','POST',{}) as response: job=json.load(response)['job']
             if job: convert(job)
             else:
-                with request('/internal/archives/claim','POST',{}) as response: archive=json.load(response)['job']
-                if archive: archive_original(archive,request,download,command)
+                with request('/internal/premium-audio/claim','POST',{}) as response: premium=json.load(response)['job']
+                if premium: convert_premium(premium,request,download,command)
+                else:
+                    with request('/internal/archives/claim','POST',{}) as response: archive=json.load(response)['job']
+                    if archive: archive_original(archive,request,download,command)
         except Exception as exc:
             print(json.dumps({'event':'transcode_error','kind':type(exc).__name__,'status':getattr(exc,'code',None),'track':job['id'] if job else None}),flush=True)
             if job:
@@ -67,6 +71,10 @@ def main():
                 print(json.dumps({'event':'archive_error','track':archive['track_id'],'kind':type(exc).__name__,'status':getattr(exc,'code',None)}),flush=True)
                 try: request('/internal/archives/'+archive['track_id']+'/fail','POST',{'reason':type(exc).__name__},archive).close()
                 except Exception: pass
-        time.sleep(5 if job else 15)
+            if premium:
+                print(json.dumps({'event':'premium_error','track':premium['track_id'],'kind':type(exc).__name__,'status':getattr(exc,'code',None)}),flush=True)
+                try: request('/internal/premium-audio/'+premium['track_id']+'/fail','POST',{},premium).close()
+                except Exception: pass
+        time.sleep(5 if job or premium else 15)
 
 if __name__=='__main__': main()

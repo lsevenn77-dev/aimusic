@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import {earningsSchedule} from '../shared/gifts.js';
 import {fixture} from './fixture.mjs';
 
-test('monthly estimates open at Korean midnight on the fifth and payment is scheduled for the tenth',()=>{
+test('monthly estimates open at Korean midnight on the fifth and payment is scheduled for the twenty-fifth',()=>{
  const before=Date.parse('2027-01-04T14:59:59Z')/1000,after=before+1;
- assert.deepEqual(earningsSchedule('2026-12',before),{available_on:'2027-01-05',earnings_available:false,payout_on:'2027-01-10'});
+ assert.deepEqual(earningsSchedule('2026-12',before),{available_on:'2027-01-05',earnings_available:false,payout_on:'2027-01-25'});
  assert.equal(earningsSchedule('2026-12',after).earnings_available,true);
  assert.equal(earningsSchedule('2027-01',after).earnings_available,false);
 });
@@ -19,7 +19,7 @@ test('payout activity uses actual owned-track listens, deduplicates repeated qua
  const r=await f.call('/api/studio/earnings');
  assert.equal(r.status,200);
  assert.deepEqual(r.body.activity,{received_gold:27,original_streams:2,cover_streams:1,total_streams:3});
- assert.equal(r.body.payout_day,10);assert.equal(r.body.earnings_available_day,5);
+ assert.equal(r.body.payout_day,25);assert.equal(r.body.earnings_available_day,5);
  assert.equal((await f.call('/api/studio/earnings','GET',undefined,null)).status,401);
 });
 

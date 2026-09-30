@@ -1,6 +1,6 @@
 # AIFECT
 
-Public AI music MVP at https://aifect.co.kr. The approved static design now uses a Cloudflare Worker, Sites-managed D1 (`DB`) and a private R2 binding (`BUCKET`). Originals never have a public route. The separate transcoder on the existing server produces AAC 128kbps M4A and a 60-second preview. Images use versioned R2 objects; legacy transcoder JPEG covers remain supported.
+Public AI music MVP at https://aifect.co.kr. The approved static design now uses a Cloudflare Worker, Sites-managed D1 (`DB`) and a private R2 binding (`BUCKET`). Originals never have a public route. The separate transcoder on the existing server produces AAC 128kbps M4A, a 60-second preview, and a separate original-sourced AAC 256kbps stream for Premium members. Images use versioned R2 objects; legacy transcoder JPEG covers remain supported.
 
 ## Local development
 

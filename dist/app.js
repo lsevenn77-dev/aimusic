@@ -36,7 +36,7 @@ const liked=id=>library.likes.some(t=>t.id===id);
 const followed=(kind,id)=>library.follows.some(f=>f.kind===kind&&f.target_id===id);
 function cover(t,cls='album-art'){const art=t.has_cover?[t.id,t.cover_version]:t.original_has_cover?[t.original_id,t.original_cover_version]:null;return `<div class="${cls} cover cover-${art?'custom':'lime'}">${art?`<img decoding="async" src="/media/${esc(art[0])}/cover?v=${esc(art[1]||'original')}" alt="${esc(t.title)} 커버" loading="lazy">`:`<span class="cover-word">${esc((t.title||'A').slice(0,2))}</span>`}</div>`;}
 // Covers credit the singer's profile and link back to the original song.
-const hasArtist=t=>t.artist&&t.artist!=='없음'&&t.artist!=='미등록';
+const hasArtist=t=>t.kind!=='cover'&&(t.has_ai_artist!=null?!!t.has_ai_artist:!!t.artist_id&&!!t.artist&&!['없음','미등록','-','선택 안함','선택안함'].includes(t.artist.trim()));
 const credits=t=>t.kind==='cover'?`<a href="#producer/${esc(t.producer_id)}">${esc(t.producer)}</a> 커버 · <a href="#song/${esc(t.original_id)}">원곡 듣기</a>`:hasArtist(t)?`<a href="#artist/${esc(t.artist_id)}">${esc(t.artist)}</a>`:`<a href="#producer/${esc(t.producer_id)}">${esc(t.producer||'창작자')}</a>`;
 const heading=(title,desc='')=>`<div class="page-heading"><div><span class="eyebrow">AI + EFFECT</span><h1>${title}</h1>${desc?`<p>${desc}</p>`:''}</div><span class="free-badge">${icon('sparkles')} 전체곡 무료 감상</span></div>`;
 const empty=(title,desc,href='#upload',label='첫 곡 업로드하기')=>`<div class="surface empty-design"><div class="empty-symbol">${icon('sparkles')}</div><h2>${title}</h2><p>${desc}</p><a href="${href}" class="primary-button">${label} ${icon('arrow')}</a></div>`;
@@ -78,7 +78,7 @@ async function toggleFollow(button){
  catch(error){if(me?.id===uid){updateFollowLocal(kind,id,!!prior,prior);paintFollowState(key,!!prior,false,oldCount);}throw error;}
  finally{if(pendingFollows.get(key)===uid)pendingFollows.delete(key);if(me?.id===uid)paintFollowState(key,followed(kind,id),false);}
 }
-function updateAccount(){if(me)$('.profile').href='#profile';else $('.profile').href='#account';$('.profile').innerHTML=`<span class="avatar">${esc(me?me.name[0]:'A')}</span><span><strong>${esc(me?me.name:'무료로 시작하기')}</strong><small>${me?'내 계정 · '+(member.plan==='premium'?'Premium':'무료 회원'):'로그인 · 회원가입'}</small></span>${icon('chevron')}`;$('.header-login').textContent=me?'내 계정':'로그인';}
+function updateAccount(){if(me)$('.profile').href='#profile';else $('.profile').href='#account';$('.profile').innerHTML=`<span class="avatar">${me?.profile_id&&me.image_version?`<img src="/media/producer/${esc(me.profile_id)}?v=${esc(me.image_version)}" alt="${esc(me.name)} 프로필 사진">`:esc(me?me.name[0]:'A')}</span><span><strong>${esc(me?me.name:'무료로 시작하기')}</strong><small>${me?'내 계정 · '+(member.plan==='premium'?'Premium':'무료 회원'):'로그인 · 회원가입'}</small></span>${icon('chevron')}`;$('.header-login').textContent=me?'내 계정':'로그인';}
 function askLogin(){returnRoute=location.hash;saveResume();location.hash='account';toast('무료로 가입하고 음악을 이어 들어보세요.');return false;}
 function saveResume(){saveQueue();if(current){pendingResume={id:current.id,time:preview?Math.min(audio.currentTime,60):audio.currentTime};sessionStorage.setItem('aifect-player-resume',JSON.stringify(pendingResume));}}
 function dialog(html){$('#dialog-content').innerHTML=html;if(!$('#dialog').open)$('#dialog').showModal();}
@@ -107,9 +107,9 @@ async function play(tid,tracks=null,start=0){
  const [{track:t},session]=await Promise.all([api('/api/tracks/'+tid),api('/api/playback/'+tid,'POST')]);if(serial!==playSerial)return;remember([t]);
  current=t;playSession=session.id;preview=session.preview;heard=0;lastTick=0;
  if(tracks?.length)queue=[...new Set(tracks.map(t=>t.id))];else if(!queue.includes(tid))queue=[tid];saveQueue();
- audio.src=session.src;$('#now-playing').innerHTML=`<a href="#song/${t.id}" aria-label="${esc(t.title)} 곡 보기">${cover(t,'mini-cover')}</a><div><strong title="${esc(t.title)}">${esc(t.title)}</strong><span>${esc(t.artist)} · ${preview?'60초 미리 듣기':'전체곡 AAC 128'}</span></div>`;
+ audio.src=session.src;$('#now-playing').innerHTML=`<a href="#song/${t.id}" aria-label="${esc(t.title)} 곡 보기">${cover(t,'mini-cover')}</a><div><strong title="${esc(t.title)}">${esc(t.title)}</strong><span>${esc(t.artist)} · ${preview?'60초 미리 듣기':`전체곡 AAC ${session.bitrate_kbps===256?256:128}${session.high_quality_pending?' · 고음질 준비 중':''}`}</span></div>`;
  $('#player-actions').innerHTML=`<button class="icon-button" data-like="${t.id}" aria-label="좋아요">${icon('heart')}</button>${giftButton(t,'small-button gift-entry player-gift')}<button class="small-button" data-add="${t.id}">담기</button><button class="small-button" data-sing-track="${t.id}">${icon('mic')} 부르기</button><a class="small-button" href="#song/${t.id}?comments=1">댓글</a>`;
- $('#listen-mode').textContent=preview?'60초 미리 듣기':'전체곡 무료';$('#seek').max=preview?Math.min(t.duration,60):t.duration;$('#duration').textContent=time($('#seek').max);
+ $('#listen-mode').textContent=preview?'60초 미리 듣기':session.bitrate_kbps===256?'Premium · AAC 256':'전체곡 무료';$('#seek').max=preview?Math.min(t.duration,60):t.duration;$('#duration').textContent=time($('#seek').max);
  if(start)audio.currentTime=Math.min(start,preview?59.9:t.duration);
  setCurrentLyrics(t);refreshLyricsPanel();setPlayerVisible(true);
  try{await audio.play();}catch(e){if(e.name==='NotAllowedError')toast('재생 버튼을 눌러 음악을 이어 들어보세요.');else if(e.name!=='AbortError')throw new Error('음원을 재생할 수 없습니다. 잠시 후 다시 시도해주세요.');}

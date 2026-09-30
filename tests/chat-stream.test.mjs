@@ -19,7 +19,7 @@ test('stream sends changes only, keeps an idle heartbeat and stops all reads on 
 test('streams terminate on revocation, errors, request abort and bounded rotation',async()=>{
  for(const kind of ['revoke','error','abort','rotate']){
   const abort=new AbortController();let calls=0;
-  const response=chatEventStream(new Request('https://aifect.test',{signal:abort.signal}),async()=>{if(++calls===1)return {ok:true};if(kind==='revoke')return null;if(kind==='error')throw Error('private DB error');return {ok:true};},{intervalMs:5,durationMs:20}),reader=response.body.getReader();
+  const response=chatEventStream(new Request('https://aifect.test',{signal:abort.signal}),async()=>{if(++calls===1)return {ok:true};if(kind==='revoke')return null;if(kind==='error')throw Error('private DB error');return {ok:true};},{intervalMs:5,durationMs:kind==='rotate'?20:1000}),reader=response.body.getReader();
   await nextEvent(reader);if(kind==='abort')abort.abort();let text='';for(;;){const value=await nextEvent(reader);if(!value)break;text+=value;}
   if(kind==='revoke')assert.match(text,/event: revoked/);if(kind==='error'){assert.match(text,/event: retry/);assert.doesNotMatch(text,/private DB/);}if(kind==='rotate')assert.match(text,/event: rotate/);
   const count=calls;await pause(15);assert.equal(calls,count);

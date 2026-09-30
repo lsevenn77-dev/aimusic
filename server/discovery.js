@@ -1,3 +1,4 @@
+import {namedArtistSQL} from './artist-identity.js';
 import {publicNameSQL,producerNameSQL} from './identity.js';
 import {validGenre} from '../shared/genres.js';
 import {rows,one,run,query,now,fail,str,json} from './db.js';
@@ -48,7 +49,7 @@ export async function discoveryRoute(req,env,path,user){
   const q=(url.searchParams.get('q')||'').trim().slice(0,100);if(!q)return json({tracks:[],artists:[],producers:[],playlists:[]});const pattern='%'+q+'%';
   const [tracks,artists,producers,playlists]=await Promise.all([
    trackList(env,VISIBLE()+` AND t.kind='original' AND (t.title LIKE ? OR a.name LIKE ? OR (${producerNameSQL()}) LIKE ? OR t.genre LIKE ? OR t.tags LIKE ?)`,Array(5).fill(pattern),'t.created DESC',100),
-   rows(env,"SELECT a.*,(SELECT count(*) FROM follows f WHERE f.kind='artist' AND f.target_id=a.id) followers FROM artists a WHERE (a.name LIKE ? OR a.bio LIKE ?) AND EXISTS(SELECT 1 FROM tracks t WHERE t.artist_id=a.id AND t.kind='original' AND t.status='published') ORDER BY a.name LIMIT 100",pattern,pattern),
+   rows(env,`SELECT a.*,(SELECT count(*) FROM follows f WHERE f.kind='artist' AND f.target_id=a.id) followers FROM artists a WHERE ${namedArtistSQL()} AND (a.name LIKE ? OR a.bio LIKE ?) AND EXISTS(SELECT 1 FROM tracks t WHERE t.artist_id=a.id AND t.kind='original' AND t.status='published') ORDER BY a.name LIMIT 100`,pattern,pattern),
    rows(env,`SELECT p.id,${producerNameSQL()} name,p.bio,p.image_version,(SELECT count(*) FROM follows f WHERE f.kind='producer' AND f.target_id=p.id) followers FROM producers p WHERE ((${producerNameSQL()}) LIKE ? OR p.bio LIKE ?) AND EXISTS(SELECT 1 FROM tracks t WHERE t.producer_id=p.id AND ${VISIBLE()}) ORDER BY name LIMIT 100`,pattern,pattern),
    playlistSummaries(env,user?.id||'',`p.is_public=1 AND ${activePlaylistSQL()} AND (p.name LIKE ? OR p.description LIKE ? OR ${publicNameSQL()} LIKE ?)`,[pattern,pattern,pattern])]);
   return json({tracks,artists,producers,playlists});

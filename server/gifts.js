@@ -28,7 +28,7 @@ export async function profileGifts(env,profileId){
 }
 
 const nextMonthDay=(month,day)=>{const [y,m]=month.split('-').map(Number),d=new Date(Date.UTC(y,m,day));return d.toISOString().slice(0,10);};
-// Earnings of each calendar month are paid on the 10th of the next month once the unpaid total reaches the minimum;
+// Earnings of each calendar month are paid on the 25th of the next month once the unpaid total reaches the minimum;
 // smaller amounts carry over to the following month.
 export function settlementMonths(months,current){
  let carry=0;
