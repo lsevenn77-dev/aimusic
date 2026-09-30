@@ -1,4 +1,5 @@
 // Pure pieces of the singing screen, bundled for the browser as AifectKaraoke.
+export {roomGain,roomImpulse,restoreRoomMix} from './room-reverb.js';
 
 // Singing, preview and the uploaded mix all run at 32 kHz: it keeps phone memory low and a 10-minute
 // stereo 16-bit WAV (about 77 MB) under the 80 MB upload limit.
