@@ -1,4 +1,5 @@
 async function render(){
+ setMobileMenu(false);
 
  const ticket=++renderId,raw=location.hash.slice(1)||'home',[baseQuery,paramQuery]=raw.split('/'),[base]=baseQuery.split('?'),param=paramQuery?.split('?')[0];
  if(sing){
@@ -8,7 +9,7 @@ async function render(){
  }
  clearInterval(socialTimer);socialTimer=null;socialCleanup?.();socialCleanup=null;
  cleanupLyricsEditor();cleanupSing();
- $('.sidebar').classList.remove('open');updateBrowseNavigation(base,param);
+ updateBrowseNavigation(base,param);
  const main=$('#main');main.setAttribute('aria-busy','true');
  if(base!=='home'&&main.dataset.route!==raw){const titles={charts:'차트',karaoke:'부르기',community:'커뮤니티',library:'내 보관함',following:'팔로우',gifts:'선물함',gold:'골드',dm:'DM 메시지',crew:'크루',payouts:'정산',rewards:'오늘의 응원별',song:'곡 이야기',producer:'프로필',artist:'AI 아티스트',profile:'내 프로필',account:'내 계정',upload:'음원 업로드',studio:'창작자 스튜디오',search:'음악 검색',discover:'음악 발견',history:'최근 들은 음악'};main.classList.remove('motion-enter');main.innerHTML=heading(titles[base]||'음악 둘러보기')+'<div class="route-loading" role="status"><span>불러오는 중…</span><div></div><div></div><div></div></div>';window.scrollTo({top:0,behavior:'instant'});}
  main.dataset.route=raw;let html='',nextTracks=[];

@@ -32,7 +32,7 @@ async function improvementsView(base,param,raw){
   }
   if(base==='library'){const d=await api('/api/me/profile');return {html:heading('팔로워')+libraryTabs('followers')+(d.followers.length?`<div class="identity-grid">${d.followers.map(p=>p.id?identityCards([p],'producer'):`<div class="surface">${esc(p.name)}</div>`).join('')}</div>`:'<p class="surface">아직 팔로워가 없어요.</p>')};}
   if(base==='payouts')return {html:heading('정산')+earningsHTML(await api('/api/studio/earnings'))};
-  if(base==='rewards'){const d=await api('/api/gold');return {html:heading('오늘의 응원별','활동하고 별을 모아 좋아하는 음악에 보내보세요.')+`<div id="gift-shop-rewards">${freeRewardsHTML(d.free)}</div>`};}
+  if(base==='rewards'){const d=await api('/api/gold');return {html:`<div class="rewards-page">${heading('오늘의 응원별','작은 활동을 모아 좋아하는 음악에 응원해보세요.')}<div id="gift-shop-rewards">${freeRewardsHTML(d.free)}</div></div>`};}
   if(!param){const d=await api('/api/dm');return {html:heading('DM 메시지','대화를 나눈 사람별로 이야기를 이어가세요.')+'<div id="dm-conversations">'+conversationListHTML(d.conversations)+'</div><p id="dm-list-error" role="status"></p>',inbox:true};}
   const d=await api('/api/dm/'+encodeURIComponent(param));return {html:heading(esc(d.peer.name))+'<a href="#dm" class="text-link dm-back">← 대화 목록</a>'+chatPanelHTML('개인 메시지',d,d.peer),chat:{path:'/api/dm/'+param,peer:d.peer,initial:d}};
  }

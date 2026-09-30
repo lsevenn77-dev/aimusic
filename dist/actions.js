@@ -168,7 +168,20 @@ $('#repeat').onclick=()=>{repeatMode=(repeatMode+1)%3;$('#repeat').classList.tog
 $('#volume').oninput=e=>{audio.volume=Number(e.target.value);window.AifectAudioAds?.volume(audio.volume);};$('#seek').oninput=e=>{if(current&&!window.AifectAudioAds?.active)audio.currentTime=Number(e.target.value);};
 $('#queue-toggle').onclick=queueDialog;
 $('#player-close').onclick=closePlayer;
-$('#dialog-close').onclick=()=>$('#dialog').close();$('#menu-toggle').onclick=()=>$('.sidebar').classList.toggle('open');
+$('#dialog-close').onclick=()=>$('#dialog').close();
+const mobileMenuQuery=window.matchMedia('(max-width:800px)');
+function setMobileMenu(open){
+ const shown=Boolean(open&&mobileMenuQuery.matches),sidebar=$('#sidebar'),toggle=$('#menu-toggle');
+ sidebar.classList.toggle('open',shown);sidebar.inert=mobileMenuQuery.matches&&!shown;
+ $('#menu-backdrop').hidden=!shown;document.body.classList.toggle('mobile-menu-open',shown);
+ toggle.setAttribute('aria-expanded',String(shown));toggle.setAttribute('aria-label',shown?'메뉴 닫기':'메뉴 열기');
+}
+$('#menu-toggle').onclick=()=>setMobileMenu(!$('#sidebar').classList.contains('open'));
+$('#menu-backdrop').onclick=()=>setMobileMenu(false);
+$('#sidebar').addEventListener('click',e=>{if(e.target.closest('a'))setMobileMenu(false);});
+document.addEventListener('pointerdown',e=>{if($('#sidebar').classList.contains('open')&&!e.target.closest('#sidebar,#menu-toggle'))setMobileMenu(false);});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#sidebar').classList.contains('open')){setMobileMenu(false);$('#menu-toggle').focus();}});
+mobileMenuQuery.addEventListener('change',()=>setMobileMenu(false));setMobileMenu(false);
 window.addEventListener('hashchange',render);window.addEventListener('pagehide',()=>{countAdListening();saveResume();});
 async function boot(){
  accountReady=(async()=>{try{authConfig=await api('/api/me?state=1');me=authConfig.user;if(authConfig.interaction_state){library.likes=authConfig.interaction_state.likes;library.follows=authConfig.interaction_state.follows;}setMembership(authConfig.membership);}catch(e){toast(e.message);}finally{updateAccount();paintInteractions();}})();
