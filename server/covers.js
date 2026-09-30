@@ -8,7 +8,7 @@ import {MAX_AUDIO} from './storage.js';
 export async function coverRoute(req,env,path,user){
  if(path!=='/api/covers')return null;
  if(req.method!=='POST')fail(405,'지원하지 않는 요청입니다.');
- requireUser(user);await rate(env,'upload:'+user.id,20,86400);
+ requireUser(user);await rate(env,'upload-cover:'+user.id,60,60);
  const b=await req.json();
  if(b.own_voice!==true||b.rights!==true)fail(400,'직접 부른 녹음이고 공개할 권리가 있는지 확인해주세요.');
  if(!['wav','flac','mp3'].includes(b.extension)||!Number.isInteger(b.bytes)||b.bytes<100||b.bytes>MAX_AUDIO)fail(400,'80MB 이하 WAV·FLAC·MP3 파일을 선택해주세요.');

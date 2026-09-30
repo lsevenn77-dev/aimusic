@@ -1,4 +1,5 @@
 import {isPremium} from './membership.js';
+import {uploadQuota,requireUploadQuota,completeUpload} from './upload-limits.js';
 import {validGenre} from '../shared/genres.js';
 import {one,rows,run,query,now,id,fail,str,json,rate} from './db.js';
 import {requireUser,hash} from './auth.js';
@@ -25,7 +26,7 @@ export async function mediaRoute(req,env,path,user){
  }
  const studio=await studioRoute(req,env,path,user);if(studio)return studio;
  if(path==='/api/studio'&&method==='GET'){
-  requireUser(user);return json({producer:await one(env,'SELECT * FROM producers WHERE user_id=?',user.id),artists:await rows(env,'SELECT a.* FROM artists a JOIN producers p ON a.producer_id=p.id WHERE p.user_id=?',user.id),tracks:await rows(env,`SELECT t.id,t.title,t.status,t.error,t.created,t.duration,t.has_cover,t.cover_version,t.artist_id,t.kind,t.original_id,o.title original_title,o.has_cover original_has_cover,o.cover_version original_cover_version,j.state alignment_state FROM tracks t LEFT JOIN tracks o ON o.id=t.original_id LEFT JOIN lyric_jobs j ON j.track_id=t.id WHERE t.user_id=? AND t.status!='deleted' ORDER BY t.created DESC LIMIT 100`,user.id)});
+  requireUser(user);return json({producer:await one(env,'SELECT * FROM producers WHERE user_id=?',user.id),artists:await rows(env,'SELECT a.* FROM artists a JOIN producers p ON a.producer_id=p.id WHERE p.user_id=?',user.id),upload_quota:await uploadQuota(env,user),tracks:await rows(env,`SELECT t.id,t.title,t.status,t.error,t.created,t.duration,t.has_cover,t.cover_version,t.artist_id,t.kind,t.original_id,o.title original_title,o.has_cover original_has_cover,o.cover_version original_cover_version,j.state alignment_state FROM tracks t LEFT JOIN tracks o ON o.id=t.original_id LEFT JOIN lyric_jobs j ON j.track_id=t.id WHERE t.user_id=? AND t.status!='deleted' ORDER BY t.created DESC LIMIT 100`,user.id)});
  }
  if(path==='/api/studio/profile'&&method==='PUT'){
   requireUser(user);const b=await req.json(),p=await one(env,'SELECT id FROM producers WHERE user_id=?',user.id),pid=p?.id||id();
@@ -34,7 +35,7 @@ export async function mediaRoute(req,env,path,user){
   return json({ok:true,id:pid});
  }
  if(path==='/api/uploads'&&method==='POST'){
-  requireUser(user);await rate(env,'upload:'+user.id,20,86400);
+  requireUser(user);await rate(env,'upload-original:'+user.id,30,60);await requireUploadQuota(env,user);
   const b=await req.json(),title=str(b.title,120),artistName=str(b.artist,60),producerName=str(b.producer,60),tool=str(b.ai_tool,100),lyricData=lyricsFields(b);
   if(b.rights!==true||b.is_ai!==true)fail(400,'AI 제작 여부와 음원 권리 보유 확인이 필요합니다.');
   if(b.karaoke!==true)fail(400,'노래방 MR 제공과 커버 허락에 동의해야 업로드할 수 있습니다.');
@@ -53,7 +54,7 @@ export async function mediaRoute(req,env,path,user){
   requireUser(user);const track=await one(env,'SELECT id,status FROM tracks WHERE id=? AND user_id=?',removal[1],user.id);if(!track)fail(404,'내 업로드를 찾을 수 없습니다.');
   // Keep the ledger's track reference; deletion is irreversible through all publishing routes.
   await env.DB.batch([
-   query(env,"UPDATE tracks SET status='deleted',lease_token=NULL,lease_until=0,error=NULL WHERE id=? AND user_id=?",track.id,user.id),
+   query(env,"UPDATE tracks SET uploaded_at=CASE WHEN status='uploading' AND uploaded_at=0 THEN -1 ELSE uploaded_at END,status='deleted',lease_token=NULL,lease_until=0,error=NULL WHERE id=? AND user_id=?",track.id,user.id),
    query(env,'DELETE FROM lyric_jobs WHERE track_id=?',track.id),
    query(env,'DELETE FROM karaoke_jobs WHERE track_id=?',track.id)
   ]);return json({ok:true});
@@ -72,7 +73,7 @@ export async function mediaRoute(req,env,path,user){
    }
    return json({ok:true});
   }
-  if(action==='unpublish'&&method==='POST'){await run(env,"UPDATE tracks SET status='hidden' WHERE id=?",t.id);return json({ok:true});}
+  if(action==='unpublish'&&method==='POST'){if(!['published','hidden'].includes(t.status))fail(409,'공개한 곡만 비공개로 바꿀 수 있어요.');await run(env,"UPDATE tracks SET status='hidden' WHERE id=?",t.id);return json({ok:true});}
   if(action==='retry'&&method==='POST'){
    if(!['failed','hidden'].includes(t.status)||!await env.BUCKET.head(originalKey(t)))fail(409,'다시 처리할 원본이 없습니다.');
    await run(env,"UPDATE tracks SET status='queued',error=NULL,attempts=0,lease_until=0 WHERE id=?",t.id);return json({ok:true});
@@ -87,7 +88,7 @@ export async function mediaRoute(req,env,path,user){
   }
   if(action==='complete'&&method==='POST'){
    const original=await env.BUCKET.head(`original/${t.id}.${t.original_ext}`);if(original?.size!==t.original_bytes)fail(409,'음원 파일 업로드를 먼저 완료해주세요.');
-   await run(env,"UPDATE tracks SET status='queued' WHERE id=? AND status='uploading'",t.id);return json({ok:true});
+   await completeUpload(env,t,user);return json({ok:true,show_upload_ad:t.kind==='cover'&&!isPremium(user)});
   }
  }
  m=path.match(/^\/media\/([\w-]+)\/(cover|preview|stream)$/);

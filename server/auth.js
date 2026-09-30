@@ -2,6 +2,7 @@ import {publicUser,producerNameSQL} from './identity.js';
 import {createRemoteJWKSet,jwtVerify,SignJWT,importPKCS8} from 'jose';
 import {one,run,query,now,id,fail,str,json,rate} from './db.js';
 import {membership} from './membership.js';
+import {applyPremiumGrant} from './premium-grant.js';
 import {mobileAuthRoute,finishMobile} from './mobile-auth.js';
 import {nativeAuthRoute} from './native-auth.js';
 const enc=new TextEncoder();
@@ -13,7 +14,8 @@ export const isAdmin=(env,user)=>!!user&&(env.ADMIN_USER_IDS||'').split(',').map
 export async function viewer(req,env){
  const token=cookies(req).aifect_session;if(!token)return null;
  // Resolve the session and public nickname together on every request; no auth cache.
- return one(env,`SELECT u.id,u.email,u.provider,u.premium_until,COALESCE(${producerNameSQL()},CASE WHEN u.provider='email' THEN u.name ELSE '리스너 '||substr(u.id,1,8) END) name,p.id profile_id,COALESCE(p.image_version,'') image_version FROM sessions s JOIN users u ON u.id=s.user_id LEFT JOIN producers p ON p.user_id=u.id WHERE s.token=? AND s.expires>?`,await hash(token),now());
+ const user=await one(env,`SELECT u.id,u.email,u.provider,u.premium_until,COALESCE(${producerNameSQL()},CASE WHEN u.provider='email' THEN u.name ELSE '리스너 '||substr(u.id,1,8) END) name,p.id profile_id,COALESCE(p.image_version,'') image_version FROM sessions s JOIN users u ON u.id=s.user_id LEFT JOIN producers p ON p.user_id=u.id WHERE s.token=? AND s.expires>?`,await hash(token),now());
+ return applyPremiumGrant(env,user);
 }
 export const requireUser=u=>{if(!u)fail(401,'로그인 후 이용해주세요.');return u;};
 async function passwordHash(password,salt,env){

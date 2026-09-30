@@ -88,8 +88,8 @@ async function sendUploadFiles(form,id,file,image){
  await uploadFile(`/api/uploads/${id}/audio`,file,value=>uploadStage(form,value>=100?'2 / 3 · 전송 100% · 서버에 파일을 저장하고 있어요.':`2 / 3 · 음원 전송 ${Math.floor(value)}% · 화면을 닫지 마세요.`,value));
  if(image?.size){uploadStage(form,'2 / 3 · 앨범 이미지를 올리고 있어요.');await uploadFile(`/api/uploads/${id}/cover`,image);}
  uploadStage(form,'3 / 3 · 전송한 파일을 확인하고 음원 변환을 요청하고 있어요.');
- await uploadRequest(`/api/uploads/${id}/complete`,'POST');uploadStage(form,'업로드 완료 · 음원 변환이 끝나면 공개돼요.',100,'done');
- toast('전송 완료! 음원 변환은 화면을 닫아도 계속됩니다. 스튜디오에서 상태를 확인해주세요.');location.hash='studio';
+ const completed=await uploadRequest(`/api/uploads/${id}/complete`,'POST');uploadStage(form,'업로드 완료 · 음원 변환이 끝나면 공개돼요.',100,'done');
+ toast('전송 완료! 음원 변환은 화면을 닫아도 계속됩니다. 스튜디오에서 상태를 확인해주세요.');location.hash='studio';if(completed.show_upload_ad)void window.AifectAudioAds?.afterCoverUpload(id);
 }
 function deleteTrackDialog(id,title,kind){
  dialog(`<h2>이 곡을 삭제할까요?</h2><p class="delete-track-title">${esc(title)}</p><p>공개 목록과 내 스튜디오에서 삭제되며, 다시 공개할 수 없어요.${kind==='original'?' 이 곡의 노래방과 연결된 커버곡도 다른 이용자가 재생할 수 없게 됩니다.':''}</p><p class="field-help">이미 받은 선물과 정산 내역은 유지돼요.</p><form id="delete-track-form"><div class="inline-actions"><button type="button" class="small-button" data-close-dialog>취소</button><button type="submit" class="primary-button danger-button">곡 삭제</button></div><p class="form-error" role="alert"></p></form>`);
