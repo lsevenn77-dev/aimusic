@@ -2,7 +2,7 @@
 let draftDbPromise;
 function openDraftDB(){return draftDbPromise||=new Promise((resolve,reject)=>{const r=indexedDB.open('aifect-recordings',1);r.onupgradeneeded=()=>r.result.createObjectStore('drafts',{keyPath:'key'});r.onsuccess=()=>resolve(r.result);r.onerror=()=>{draftDbPromise=null;reject(r.error);};});}
 async function draftOp(mode,key,value){const db=await openDraftDB();return new Promise((resolve,reject)=>{const tx=db.transaction('drafts',mode==='get'?'readonly':'readwrite'),store=tx.objectStore('drafts');const r=mode==='get'?store.get(key):mode==='delete'?store.delete(key):store.put(value);tx.oncomplete=()=>resolve(r.result);tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||new Error('임시저장이 중단됐어요.'));});}
-const singDraftKey=s=>s.owner+':'+s.id;
+const singDraftKey=s=>s.owner+':'+s.id+(s.mode==='duet'?':duet:'+s.part+':'+(s.parent||'first'):'');
 async function saveSingDraft(s=sing){
  if(!s?.voice||!s.owner)return;const revision=s.revision||0;
  const data={key:singDraftKey(s),owner:s.owner,id:s.id,samples:s.voice.getChannelData(0).slice(),rate:s.voice.sampleRate,mix:{...s.mix},cursor:s.cursor,description:s.description||'',updated:Date.now()};

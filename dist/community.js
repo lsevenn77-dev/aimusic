@@ -17,7 +17,9 @@ async function communityView(base,param,raw){
  else html+=`<a class="community-rank-entry" href="#community/rankings">${icon('mic')} 오늘의 커버부터 명예의 전당까지 <strong>커버 랭킹 둘러보기 ${icon('arrow')}</strong></a>`;
  if(tab==='rankings')return {html,tracks:[],coverRanking:options};
  if(tab==='following'&&!me){returnRoute=location.hash;return {html:html+gate()};}
- const query=tab==='covers'?'?kind=cover':tab==='originals'?'?kind=original':tab==='following'?'?following=1':'';
+ const mode=new URLSearchParams(raw.split('?')[1]||'').get('mode')==='duet'?'duet':'solo';
+ if(tab==='covers')html+=`<nav class="tabs" aria-label="커버 종류">${[['solo','솔로'],['duet','듀엣']].map(([key,label])=>`<a class="tab ${mode===key?'active':''}" href="#community/covers?mode=${key}">${label}</a>`).join('')}</nav>`;
+ const query=tab==='covers'?'?kind=cover&cover_mode='+mode:tab==='originals'?'?kind=original':tab==='following'?'?following=1':'';
  const d=await api('/api/community'+query);
  html+=`<div class="community-intro"><div><h2>${tab==='following'?'팔로잉의 새 음악':tab==='covers'?'새로 올라온 커버':tab==='originals'?'새로 공개된 제작곡':'방금 도착한 음악'}</h2><p>듣고, 좋아요하고, 감상을 나눠보세요.</p></div><div class="inline-actions"><a class="small-button" href="#karaoke">${icon('mic')} 부를 곡 찾기</a><a class="text-link" href="#upload">제작곡 올리기 ${icon('plus')}</a></div></div>`;
  html+=tab==='following'&&!d.tracks.length?empty('팔로잉의 새 음악을 기다리고 있어요.','좋아하는 창작자를 팔로우하면 공개된 음악을 여기서 모아볼 수 있어요.','#producers','창작자 만나기'):communityFeed(d.tracks);

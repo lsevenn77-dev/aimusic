@@ -111,3 +111,5 @@ button[aria-busy="true"]{cursor:progress;opacity:.7}
 .rewards-page .daily-gift-task>.text-link{grid-column:1/-1;justify-self:end;font-size:.82rem}
 .rewards-page .gift-fineprint{margin-bottom:0!important;padding-top:10px}
 @media(max-width:720px){.rewards-page .daily-gift-actions{grid-template-columns:1fr}.rewards-page .free-rewards{padding:18px}.rewards-page .daily-gift-task{padding:14px}.rewards-page .free-gift-badge{display:none}}
+
+.duet-lobby{margin-bottom:32px}.duet-lobby h2{margin-top:24px}.duet-invitation{display:flex;align-items:center;gap:16px;padding:18px 0;border-top:1px solid var(--border,#34323e)}.duet-invitation>div{flex:1;min-width:0}.duet-invitation p,.duet-mode p{color:var(--muted);margin-top:8px}.sing-mode{margin:22px 0}.duet-mode{margin:18px 0}.duet-invitation .primary-button{flex-shrink:0}@media(max-width:600px){.duet-invitation{flex-wrap:wrap}.duet-invitation .primary-button{width:100%;text-align:center}.sing-mode>a{flex:1;text-align:center}}
