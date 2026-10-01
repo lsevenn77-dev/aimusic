@@ -76,7 +76,7 @@ test('song upload persists solo or duet choice and rejects an invalid classifica
  for(const mode of ['solo','duet']){const r=await f.call('/api/uploads','POST',{...upload,performance_mode:mode});assert.equal(r.status,201,JSON.stringify(r.body));assert.equal(f.sql.prepare('SELECT performance_mode FROM tracks WHERE id=?').get(r.body.id).performance_mode,mode)}
  assert.equal((await f.call('/api/uploads','POST',{...upload,performance_mode:'male'})).status,400);
  f.sql.exec("UPDATE tracks SET karaoke_at=1 WHERE id='one'");
- assert.equal((await f.call('/api/covers','POST',{original_id:'one',extension:'wav',bytes:128,own_voice:true,rights:true,cover_mode:'duet',duet_slot:'first',duet_consent:true},'other')).status,400,'solo original cannot expose or accept a duet');
+ assert.equal((await f.call('/api/covers','POST',{original_id:'one',extension:'wav',bytes:128,own_voice:true,rights:true,cover_mode:'duet',duet_slot:'first',duet_consent:true},'other')).status,201,'every original can be recorded as a duet');
  const edit={...upload,artist_id:'none',performance_mode:'duet'};assert.equal((await f.call('/api/studio/tracks/one','PUT',edit)).status,200);assert.equal((await f.call('/api/tracks/one')).body.track.performance_mode,'duet');
 });
 test('neutral duet slots let any two people join, including legacy first recordings',async t=>{
@@ -87,8 +87,8 @@ test('neutral duet slots let any two people join, including legacy first recordi
  const legacy=await f.create('owner',{duet_part:'female'});assert.equal((await f.call('/api/covers','POST',{...base,duet_slot:'second',duet_parent_id:legacy},'other')).status,201);
  assert.equal((await f.call('/api/covers','POST',{...base,duet_slot:'second'},'other')).status,400);
 });
-test('recording choices follow the original song and have no singer gender labels',()=>{
+test('every original offers solo and duet without singer gender labels',()=>{
  const context=vm.createContext({window:{},document:{addEventListener(){}},JSON,esc:s=>s});vm.runInContext(readFileSync(new URL('../dist/karaoke.js',import.meta.url),'utf8'),context);
- context.d={mode:'solo',track:{performance_mode:'solo'}};const solo=vm.runInContext('singModeHTML(d)',context);assert.doesNotMatch(solo,/듀엣|남자|여자/);
- context.d={mode:'duet',track:{performance_mode:'duet'}};const duet=vm.runInContext('singModeHTML(d)',context);assert.match(duet,/>듀엣</);assert.doesNotMatch(duet,/남자|여자|<nav/);
+ context.d={mode:'solo',track:{performance_mode:'solo'}};const solo=vm.runInContext('singModeHTML(d)',context);assert.match(solo,/data-sing-mode="solo"/);assert.match(solo,/data-sing-mode="duet"/);assert.doesNotMatch(solo,/남자|여자/);
+ context.d={mode:'duet',track:{performance_mode:'duet'}};const duet=vm.runInContext('singModeHTML(d)',context);assert.match(duet,/>듀엣</);assert.match(duet,/aria-pressed="true"/);assert.doesNotMatch(duet,/남자|여자/);
 });

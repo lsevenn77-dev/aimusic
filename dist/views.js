@@ -53,7 +53,7 @@ async function render(){
   }else if(base==='account')html=accountHTML();
   else if(base==='upload'){studioData=await api('/api/studio');html=uploadHTML(studioData);}
   else if(base==='karaoke'){const [d,duets]=await Promise.all([api('/api/karaoke'),api('/api/duets')]);nextTracks=[...d.tracks,...duets.tracks];html=karaokeListHTML(d.tracks,duets.tracks);}
-  else if(base==='sing'){const q=new URLSearchParams(paramQuery?.split('?')[1]||'');const parent=q.get('duet');routeSing=await api(parent?'/api/duets/'+encodeURIComponent(parent):'/api/karaoke/'+param);if(routeSing.track.id!==param)throw new Error('듀엣의 원곡을 확인해주세요.');routeSing.mode=routeSing.duet||routeSing.track.performance_mode==='duet'?'duet':'solo';routeSing.part=routeSing.duet?.part||'male';html=singHTML(routeSing);}
+  else if(base==='sing'){const q=new URLSearchParams(paramQuery?.split('?')[1]||'');const parent=q.get('duet');routeSing=await api(parent?'/api/duets/'+encodeURIComponent(parent):'/api/karaoke/'+param);if(routeSing.track.id!==param)throw new Error('듀엣의 원곡을 확인해주세요.');routeSing.mode=routeSing.duet||q.get('mode')==='duet'?'duet':'solo';routeSing.part=routeSing.duet?.part||'male';html=singHTML(routeSing);}
   else if(base==='cover'){const {track:o}=await api('/api/tracks/'+param);remember([o]);html=coverUploadHTML(o);}
   else if(base==='gifts')html=giftShopHTML(me?await api('/api/gold'):null);
   else if(base==='gold')html=goldHTML(await api('/api/gold'));

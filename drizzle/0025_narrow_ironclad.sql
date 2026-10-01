@@ -1,0 +1,1 @@
+ALTER TABLE `tracks` ADD `duet_guide` text DEFAULT '' NOT NULL;

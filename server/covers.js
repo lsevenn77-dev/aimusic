@@ -1,3 +1,4 @@
+import {validateDuetGuide} from './duet-guide.js';
 import {one,query,now,id,fail,str,json,rate} from './db.js';
 import {requireUser} from './auth.js';
 import {VISIBLE} from './catalog.js';
@@ -31,14 +32,14 @@ export async function coverRoute(req,env,path,user){
  if(!['wav','flac','mp3'].includes(b.extension)||!Number.isInteger(b.bytes)||b.bytes<100||b.bytes>MAX_AUDIO)fail(400,'80MB 이하 WAV·FLAC·MP3 파일을 선택해주세요.');
  const original=await one(env,`SELECT t.* FROM tracks t WHERE t.id=? AND t.kind='original' AND t.karaoke_at>0 AND ${VISIBLE()}`,str(b.original_id,80));
  if(!original)fail(404,'커버할 수 있는 원곡을 찾을 수 없습니다. 원곡자가 노래방 · 커버를 허락한 공개 곡만 커버할 수 있어요.');
- if(mode==='duet'&&original.performance_mode!=='duet')fail(400,'솔로곡에는 듀엣 녹음을 올릴 수 없어요.');
+ const guide=mode==='duet'?(first?first.duet_guide:await validateDuetGuide(env,b.duet_guide,original)):'';
  const description=str(b.description||'',1000,false),writes=[];
  // Every person has one profile; a first cover creates it from the account name.
  let profile=await one(env,'SELECT id FROM producers WHERE user_id=?',user.id);
  if(!profile){profile={id:id()};writes.push(query(env,'INSERT INTO producers(id,user_id,name,bio,created) VALUES(?,?,?,?,?)',profile.id,user.id,(user.name||'AIFECT 이용자').trim().slice(0,60)||'AIFECT 이용자','',now()));}
  const tid=id();
- writes.push(query(env,`INSERT INTO tracks(id,user_id,artist_id,producer_id,title,genre,description,ai_tool,is_ai,participation,rights_accepted,original_ext,original_bytes,created,kind,original_id,cover_mode,duet_parent_id,duet_part,duet_open)
-  VALUES(?,?,?,?,?,?,?,'',0,'보컬',?,?,?,?,'cover',?,?,?,?,?)`,tid,user.id,original.artist_id,profile.id,original.title,original.genre,description,now(),b.extension,b.bytes,now(),original.id,mode,parent,part,mode==='duet'&&!first?1:0));
+ writes.push(query(env,`INSERT INTO tracks(id,user_id,artist_id,producer_id,title,genre,description,ai_tool,is_ai,participation,rights_accepted,original_ext,original_bytes,created,kind,original_id,cover_mode,duet_parent_id,duet_part,duet_open,duet_guide)
+  VALUES(?,?,?,?,?,?,?,'',0,'보컬',?,?,?,?,'cover',?,?,?,?,?,?)`,tid,user.id,original.artist_id,profile.id,original.title,original.genre,description,now(),b.extension,b.bytes,now(),original.id,mode,parent,part,mode==='duet'&&!first?1:0,guide));
  await env.DB.batch(writes);
  return json({id:tid,producer_id:profile.id},201);
 }
