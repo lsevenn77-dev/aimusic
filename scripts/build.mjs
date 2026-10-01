@@ -1,5 +1,6 @@
 import { build } from 'esbuild';
 import { mkdir, cp, writeFile, readFile, rm } from 'node:fs/promises';
+import {resolve,sep} from 'node:path';
 import {businessFooterHTML} from '../shared/site-info.js';
 await mkdir('dist/server',{recursive:true});
 await mkdir('dist/client',{recursive:true});
@@ -29,5 +30,9 @@ await build({entryPoints:['shared/lyrics.js'],outfile:'dist/client/lyrics-core.j
 await build({entryPoints:['server/index.js'], outfile:'dist/server/index.js', bundle:true, format:'esm', platform:'neutral', target:'es2022', external:['cloudflare:workers'], minify:false});
 await mkdir('dist/.openai',{recursive:true});
 await cp('.openai/hosting.json','dist/.openai/hosting.json');
-await cp('drizzle','dist/.openai/drizzle',{recursive:true});
+// Replace generated migration output: renamed source files must never remain in a release archive.
+const migrationOutput=resolve('dist/.openai/drizzle'),metadataRoot=resolve('dist/.openai');
+if(!migrationOutput.startsWith(metadataRoot+sep))throw new Error('Migration output is outside the build directory');
+await rm(migrationOutput,{recursive:true,force:true});
+await cp('drizzle',migrationOutput,{recursive:true});
 await writeFile('dist/server/wrangler.json',JSON.stringify({main:'index.js',compatibility_date:'2026-09-01',assets:{directory:'../client',binding:'ASSETS'}}));
