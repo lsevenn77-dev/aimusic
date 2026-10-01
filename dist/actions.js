@@ -77,7 +77,7 @@ async function upload(fd){
 async function uploadCover(fd){
  const form=$('#cover-upload-form'),file=fd.get('audio'),image=fd.get('cover');
  if(!file?.size)throw new Error('커버 녹음 파일을 선택해주세요.');if(file.size>80*1024*1024)throw new Error('녹음 파일은 80MB 이하로 올려주세요.');await validateImage(image);
- const choice=fd.get('cover_kind')||'solo';const body={original_id:form.dataset.original,cover_mode:choice==='solo'?'solo':'duet',duet_part:choice==='solo'?'':choice,duet_consent:fd.has('duet_consent'),description:fd.get('description')||'',own_voice:fd.has('own_voice'),rights:fd.has('rights'),extension:file.name.split('.').pop().toLowerCase(),bytes:file.size};
+ const choice=fd.get('cover_kind')||'solo';const body={original_id:form.dataset.original,cover_mode:choice==='solo'?'solo':'duet',duet_slot:choice==='solo'?'':'first',duet_consent:fd.has('duet_consent'),description:fd.get('description')||'',own_voice:fd.has('own_voice'),rights:fd.has('rights'),extension:file.name.split('.').pop().toLowerCase(),bytes:file.size};
  uploadStage(form,'1 / 3 · 커버곡 정보를 저장하고 있어요.');
  const fingerprint=JSON.stringify([body,file.name,file.lastModified]);if(await existingUploadSubmitted(form,fingerprint))return;
  let draft=form._draft;if(!draft||draft.fingerprint!==fingerprint){draft={...await uploadRequest('/api/covers','POST',body),fingerprint};form._draft=draft;}

@@ -6,7 +6,7 @@ import {readFileSync} from 'node:fs';
 
 async function setup(t){
  const f=await fixture(t);
- f.sql.exec("UPDATE tracks SET karaoke_at=1,duration=20,lyrics_mode='synced',lyrics='[00:01.00]함께 불러요\\n[00:10.00]다음 파트' WHERE id='one'");
+ f.sql.exec("UPDATE tracks SET performance_mode='duet',karaoke_at=1,duration=20,lyrics_mode='synced',lyrics='[00:01.00]함께 불러요\\n[00:10.00]다음 파트' WHERE id='one'");
  f.sql.exec("INSERT INTO karaoke_jobs(track_id,id,state,mr_ready,words,words_state,created,updated) VALUES('one','job','ready',1,'[]','ready',0,0)");
  const body={original_id:'one',extension:'wav',bytes:128,own_voice:true,rights:true,cover_mode:'duet',duet_part:'male',duet_consent:true};
  const create=async(user='other',extra={})=>{const r=await f.call('/api/covers','POST',{...body,...extra},user);assert.equal(r.status,201,JSON.stringify(r.body));f.sql.prepare("UPDATE tracks SET status='published',duration=20 WHERE id=?").run(r.body.id);return r.body.id;};
@@ -69,4 +69,26 @@ test('browser duet export plays one backing for its entire duration and only the
  context.audio=audio;context.s=s;vm.runInContext('voiceBuffer=s=>s.voice;scheduleMix(audio,0,0,s)',context);
  assert.equal(played.length,2);assert.equal(played[0].buffer,s.mr);assert.deepEqual(played[0].args,[0,0,20]);assert.deepEqual(played[1].args,[0,0,5]);
  s.mode='solo';played.length=0;vm.runInContext('scheduleMix(audio,0,0,s)',context);assert.equal(played[0].args[2],5);
+});
+
+test('song upload persists solo or duet choice and rejects an invalid classification',async t=>{
+ const f=await fixture(t);const upload={title:'새 노래',producer:'QA',artist_id:'none',genre:'Rock',ai_tool:'QA',rights:true,is_ai:true,karaoke:true,extension:'wav',bytes:128,lyrics_mode:'none'};
+ for(const mode of ['solo','duet']){const r=await f.call('/api/uploads','POST',{...upload,performance_mode:mode});assert.equal(r.status,201,JSON.stringify(r.body));assert.equal(f.sql.prepare('SELECT performance_mode FROM tracks WHERE id=?').get(r.body.id).performance_mode,mode)}
+ assert.equal((await f.call('/api/uploads','POST',{...upload,performance_mode:'male'})).status,400);
+ f.sql.exec("UPDATE tracks SET karaoke_at=1 WHERE id='one'");
+ assert.equal((await f.call('/api/covers','POST',{original_id:'one',extension:'wav',bytes:128,own_voice:true,rights:true,cover_mode:'duet',duet_slot:'first',duet_consent:true},'other')).status,400,'solo original cannot expose or accept a duet');
+ const edit={...upload,artist_id:'none',performance_mode:'duet'};assert.equal((await f.call('/api/studio/tracks/one','PUT',edit)).status,200);assert.equal((await f.call('/api/tracks/one')).body.track.performance_mode,'duet');
+});
+test('neutral duet slots let any two people join, including legacy first recordings',async t=>{
+ const f=await setup(t),base={...f.body,duet_slot:'first'};delete base.duet_part;
+ const first=(await f.call('/api/covers','POST',base,'other')).body.id;assert.ok(first);f.sql.prepare("UPDATE tracks SET status='published' WHERE id=?").run(first);
+ assert.equal((await f.call('/api/duets/'+first)).body.duet.slot,'second');
+ const join=await f.call('/api/covers','POST',{...base,duet_slot:'second',duet_parent_id:first},'owner');assert.equal(join.status,201,JSON.stringify(join.body));
+ const legacy=await f.create('owner',{duet_part:'female'});assert.equal((await f.call('/api/covers','POST',{...base,duet_slot:'second',duet_parent_id:legacy},'other')).status,201);
+ assert.equal((await f.call('/api/covers','POST',{...base,duet_slot:'second'},'other')).status,400);
+});
+test('recording choices follow the original song and have no singer gender labels',()=>{
+ const context=vm.createContext({window:{},document:{addEventListener(){}},JSON,esc:s=>s});vm.runInContext(readFileSync(new URL('../dist/karaoke.js',import.meta.url),'utf8'),context);
+ context.d={mode:'solo',track:{performance_mode:'solo'}};const solo=vm.runInContext('singModeHTML(d)',context);assert.doesNotMatch(solo,/듀엣|남자|여자/);
+ context.d={mode:'duet',track:{performance_mode:'duet'}};const duet=vm.runInContext('singModeHTML(d)',context);assert.match(duet,/>듀엣</);assert.doesNotMatch(duet,/남자|여자|<nav/);
 });
