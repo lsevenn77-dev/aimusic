@@ -28,10 +28,11 @@ async function browseView(base,param,raw){
   const d=await api('/api/cover-rankings?kind=tracks&period=week&include_unranked=1'),tracks=d.tracks.filter(t=>t.kind==='cover');
   return {html:heading('노래방 차트','공개된 커버곡만 모았어요. 이번 주 받은 좋아요 순으로 만나요.')+chartTabs('karaoke')+browsePlaybackActions(tracks)+(tracks.length?coverRankTracksHTML(tracks):empty('아직 등록된 커버곡이 없어요','첫 커버곡이 공개되면 이곳에서 만날 수 있어요.','#karaoke','노래 부르기')),tracks};
  }
+ if(base==='karaoke'&&param==='drafts'){if(!me){returnRoute=location.hash;return {html:gate()};}return {html:karaokeDraftsHTML(await listSingDrafts())};}
  if(base==='karaoke'){
   const ranked=base==='charts'||param==='chart',[d,duets]=await Promise.all([api('/api/karaoke'),api('/api/duets')]),tracks=d.tracks.map((t,i)=>({...t,browseRank:i+1}));
   const title=ranked?'노래방 차트':'부르기',desc=ranked?'부를 수 있는 곡의 원곡 재생·좋아요 기준 순위예요.':'듣기만 하던 음악, 이번에는 내 목소리로.';
-  let html=heading(title,desc)+duetLobbyHTML(duets.tracks)+(base==='charts'?chartTabs('karaoke'):`<nav class="sing-shortcuts" aria-label="부르기 바로가기"><a class="tab active" href="#karaoke" aria-current="page">부를 수 있는 곡</a><a class="tab" href="#charts/karaoke">노래방 차트</a><a class="tab" href="#community/covers">커버곡 둘러보기</a><a class="tab" href="#library/covers">내 커버곡</a></nav>`);
+  let html=heading(title,desc)+duetLobbyHTML(duets.tracks)+(base==='charts'?chartTabs('karaoke'):`<nav class="sing-shortcuts" aria-label="부르기 바로가기"><a class="tab active" href="#karaoke" aria-current="page">부를 수 있는 곡</a><a class="tab" href="#charts/karaoke">노래방 차트</a><a class="tab" href="#community/covers">커버곡 둘러보기</a><a class="tab" href="#library/covers">내 커버곡</a><a class="tab" href="#karaoke/drafts">${icon('edit')} 초안</a></nav>`);
   html+=`<section class="singing-intro"><div>${icon('mic')}<div><strong>원곡을 듣고, 나만의 커버를 남겨보세요.</strong><p>사이트에서도 마이크와 이어폰만 준비하면 MR·가사와 함께 녹음할 수 있어요.</p></div></div><a class="text-link" href="#community/covers">커버 감상하기 ${icon('arrow')}</a></section><div class="explorer-toolbar"><input id="karaoke-search" type="search" aria-label="부를 수 있는 곡 검색" placeholder="곡 제목, 아티스트, 제작자로 찾기"><span class="field-help" id="karaoke-count" aria-live="polite">${tracks.length}곡</span></div>${browsePlaybackActions(tracks,false)}<div id="karaoke-results">${karaokeRows(tracks,ranked)}</div>`;
   return {html,tracks,karaokeTracks:tracks,ranked};
  }

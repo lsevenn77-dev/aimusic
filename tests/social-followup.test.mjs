@@ -4,6 +4,22 @@ import {fixture} from './fixture.mjs';
 
 async function setup(t){const f=await fixture(t);const p=(await f.call('/api/me/profile','PUT',{name:'Moon'},'other')).body.profile.id;const r=await f.call('/api/crews','POST',{name:'Open room'});assert.equal(r.status,201);return {...f,p,cid:r.body.crew.id};}
 const message=body=>({body,request_id:crypto.randomUUID()});
+
+test('listeners can create and join a crew using their existing public ID without opening profile settings',async t=>{
+ const f=await fixture(t);const before=f.sql.prepare("SELECT * FROM users WHERE id='other'").get();
+ assert.equal(f.sql.prepare("SELECT count(*) n FROM producers WHERE user_id='other'").get().n,0);
+ assert.equal((await f.call('/api/crews','POST',{name:'Listener crew'},null)).status,401);
+ assert.equal((await f.call('/api/crews','POST',{name:''},'other')).status,400);
+ assert.equal(f.sql.prepare("SELECT count(*) n FROM producers WHERE user_id='other'").get().n,0);
+ const made=await f.call('/api/crews','POST',{name:'Listener crew'},'other');assert.equal(made.status,201);
+ assert.equal(made.body.membership.role,'owner');assert.equal(made.body.members[0].name,'other');
+ assert.deepEqual(f.sql.prepare("SELECT * FROM users WHERE id='other'").get(),before);
+ assert.equal((await f.call('/api/crews','POST',{name:'Second crew'},'other')).status,409);
+ assert.equal(f.sql.prepare("SELECT count(*) n FROM producers WHERE user_id='other'").get().n,1);
+ const joined=await f.call('/api/crews/'+made.body.crew.id+'/join','POST');assert.equal(joined.status,200);
+ assert.equal(joined.body.members.find(p=>p.user_id==='owner').name,'QA');
+ assert.equal(f.sql.prepare("SELECT name FROM producers WHERE user_id='owner'").get().name,'QA');
+});
 test('received gold earns one XP per gold once, while earlier gifts and free stars earn none',async t=>{
  const f=await setup(t),room='/api/crews/'+f.cid;
  f.sql.exec("INSERT INTO gifts(id,sender_id,track_id,gold,net_mw,creator_profile_id,creator_mw,platform_mw,month,created) VALUES('old','other','one',50,500000,'producer',350000,150000,'2026-09',0),('new','other','one',27,270000,'producer',189000,81000,'2026-09',unixepoch());UPDATE tracks SET created=unixepoch() WHERE id IN ('one','two','hidden')");

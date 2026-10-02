@@ -1,6 +1,7 @@
 import {one,rows,query,run,now,id,str,fail,json,rate} from './db.js';
 import {requireUser} from './auth.js';
 import {publicNameSQL,producerNameSQL} from './identity.js';
+import {nicknameBatch} from './nicknames.js';
 import {trackList,VISIBLE} from './catalog.js';
 import {CREW_LEVELS,CREW_REWARDS,CREW_ROLES,crewLevel} from '../shared/crews.js';
 import {giftDay} from '../shared/gifts.js';
@@ -20,6 +21,10 @@ async function syncXp(env,crewId){
 }
 function crewNotice(env,cid,userId,body){return query(env,"INSERT INTO crew_messages(id,crew_id,user_id,body,request_id,created,kind) VALUES(?,?,?,?,?,?,'system')",id(),cid,userId,body,'system:'+id(),now());}
 async function memberName(env,userId){return (await one(env,`SELECT ${producerNameSQL()} name FROM producers p WHERE p.user_id=?`,userId))?.name||'크루원';}
+async function ensureSocialProfile(env,user){
+ if(await one(env,'SELECT id FROM producers WHERE user_id=?',user.id))return;
+ await nicknameBatch(env,user.id,user.name,[query(env,'INSERT INTO producers(id,user_id,name,bio,created,nickname_confirmed) VALUES(?,?,?,?,?,1) ON CONFLICT(user_id) DO NOTHING',id(),user.id,user.name,'',now())]);
+}
 async function crewHistory(env,cid,url,membership){
  const before=url.searchParams.get('before'),after=url.searchParams.get('after');
  if((before&&after)||[before,after].some(v=>v!==null&&!/^[1-9]\d{0,14}$/.test(v)))fail(400,'대화 위치를 확인해주세요.');
@@ -58,11 +63,11 @@ export async function socialRoute(req,env,path,user){
    return json({crews:scored,tracks,mine:mine?.crew_id||null,rules:{levels:CREW_LEVELS,...CREW_REWARDS}});
   }
   requireUser(user);if(method!=='POST')fail(405,'지원하지 않는 요청입니다.');
-  if(!await one(env,'SELECT id FROM producers WHERE user_id=?',user.id))fail(409,'보관함에서 닉네임을 먼저 저장해주세요.');
   if(await one(env,'SELECT 1 FROM crew_members WHERE user_id=?',user.id))fail(409,'이미 가입한 크루가 있어요.');
-  await rate(env,'crew-create:'+user.id,3,86400);const b=await req.json(),cid=id();
+  await rate(env,'crew-create:'+user.id,3,86400);const b=await req.json(),cid=id(),name=str(b.name,40),description=str(b.description||'',1000,false),interests=str(b.interests||'',160,false);
+  await ensureSocialProfile(env,user);
   try{await env.DB.batch([
-   query(env,'INSERT INTO crews(id,owner_id,name,description,interests,recruiting,created) VALUES(?,?,?,?,?,?,?)',cid,user.id,str(b.name,40),str(b.description||'',1000,false),str(b.interests||'',160,false),b.recruiting===false?0:1,now()),
+   query(env,'INSERT INTO crews(id,owner_id,name,description,interests,recruiting,created) VALUES(?,?,?,?,?,?,?)',cid,user.id,name,description,interests,b.recruiting===false?0:1,now()),
    query(env,"INSERT INTO crew_members(crew_id,user_id,role,joined) VALUES(?,?,'owner',?)",cid,user.id,now()),
    crewNotice(env,cid,user.id,(await memberName(env,user.id))+'님이 크루를 만들었습니다.')
   ]);}catch(e){if(/UNIQUE/i.test(e.message))fail(409,'크루 이름 또는 가입 상태를 확인해주세요.');throw e;}
@@ -93,7 +98,7 @@ export async function socialRoute(req,env,path,user){
   if(action==='join'&&method==='POST'){
    if(await one(env,'SELECT 1 FROM crew_bans WHERE crew_id=? AND user_id=?',cid,user.id))fail(403,'이 크루에 다시 가입할 수 없어요.');
    if(await one(env,'SELECT 1 FROM crew_members WHERE crew_id=? AND user_id=?',cid,user.id))return json(await crewDetail(env,cid,user));
-   if(!await one(env,'SELECT id FROM producers WHERE user_id=?',user.id))fail(409,'보관함에서 닉네임을 먼저 저장해주세요.');
+   await ensureSocialProfile(env,user);
    await syncXp(env,cid);
    const capacity=`CASE ${[...CREW_LEVELS].reverse().map(l=>`WHEN ${xpSQL}>=${l.xp} THEN ${l.capacity}`).join(' ')} END`;
    const joiningName=await memberName(env,user.id);
