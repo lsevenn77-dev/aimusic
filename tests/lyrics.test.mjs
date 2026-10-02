@@ -13,6 +13,10 @@ test('the active lyric follows exact boundaries, backward/forward seeks, pause p
  for(const [time,index] of [[0,-1],[1.999,-1],[2,0],[10.249,0],[10.25,1],[25,2],[3,0],[10.25,1],[10.25,1],[0,-1]])assert.equal(activeCueIndex(cues,time),index);
  assert.equal(activeCueIndex([],10),-1);assert.equal(activeCueIndex(cues,NaN),-1);
 });
+test('upload removes every square-bracket annotation while retaining timing tags and instrumental cues',()=>{
+ assert.deepEqual(parseLrc('[Verse 1]\n[00:02][soft vocal]안녕 [강조]\n[00:04][Instrumental]\n[00:08][Chorus]다시 만나'),[{time:2,text:'안녕'},{time:4,text:''},{time:8,text:'다시 만나'}]);
+ assert.equal(lyricsFields({lyrics_mode:'synced',lyrics:'[Custom section]\n[00:02]실제 [설명]가사'}).lyrics,'[00:02.000]실제 가사');
+});
 test('invalid or unaligned lyric input is rejected before publishing',()=>{
  for(const input of ['시간 없는 가사','[00:60]잘못된 초','[20:00.001]너무 늦음','[offset:-1000]\n[00:00.5]음수','[00:00]','x'.repeat(12001)])assert.throws(()=>parseLrc(input));
  assert.throws(()=>parseLrc('[00:10]곡을 넘김',9));

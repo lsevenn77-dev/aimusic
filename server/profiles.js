@@ -2,10 +2,12 @@ import {one,rows,query,id,now,str,json,fail,rate} from './db.js';
 import {requireUser} from './auth.js';
 import {publicNameSQL,producerNameSQL} from './identity.js';
 import {storeImage} from './images.js';
+import {nickname,nicknameBatch,requireAvailableNickname} from './nicknames.js';
 
 export async function profileRoute(req,env,path,user){
- if(!['/api/me/profile','/api/me/profile/image'].includes(path))return null;
+ if(!['/api/me/profile','/api/me/profile/image','/api/account/nickname'].includes(path))return null;
  requireUser(user);
+ if(path==='/api/account/nickname'&&req.method==='GET'){await rate(env,'nickname-check:'+user.id,60,60);const value=new URL(req.url).searchParams.get('name');try{await requireAvailableNickname(env,user.id,value);return json({available:true});}catch(e){if(e.status===409)return json({available:false,message:e.message});throw e;}}
  if(path.endsWith('/image')){
   if(req.method!=='PUT')fail(405,'지원하지 않는 요청입니다.');
   const p=await one(env,'SELECT id FROM producers WHERE user_id=?',user.id);
@@ -16,8 +18,9 @@ export async function profileRoute(req,env,path,user){
   return json({ok:true,image_version:img.version});
  }
  if(req.method==='PUT'){
-  const b=await req.json(),name=str(b.name,60),bio=str(b.bio||'',1000,false);
-  await env.DB.batch([query(env,'INSERT INTO producers(id,user_id,name,bio,created,nickname_confirmed) VALUES(?,?,?,?,?,1) ON CONFLICT(user_id) DO UPDATE SET name=excluded.name,bio=excluded.bio,nickname_confirmed=1',id(),user.id,name,bio,now())]);
+  const b=await req.json(),name=nickname(b.name).name,previous=path==='/api/account/nickname'?await one(env,'SELECT bio FROM producers WHERE user_id=?',user.id):null,bio=str(previous?.bio??b.bio??'',1000,false);
+  await rate(env,'nickname-change:'+user.id,20,3600);
+  await nicknameBatch(env,user.id,name,[query(env,'INSERT INTO producers(id,user_id,name,bio,created,nickname_confirmed) VALUES(?,?,?,?,?,1) ON CONFLICT(user_id) DO UPDATE SET name=excluded.name,bio=excluded.bio,nickname_confirmed=1',id(),user.id,name,bio,now())]);
  }else if(req.method!=='GET')fail(405,'지원하지 않는 요청입니다.');
  const profile=await one(env,`SELECT p.id,${producerNameSQL()} name,p.bio,p.image_version FROM producers p WHERE p.user_id=?`,user.id);
  const [followers,counts]=await Promise.all([

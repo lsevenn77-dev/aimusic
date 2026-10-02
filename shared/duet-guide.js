@@ -14,3 +14,6 @@ export function linePart(guide,words,index,duration){
  return ratio<.2?'B':ratio>.8?'A':'partial';
 }
 export function partLabel(part,second=false){return part==='A'?(second?'A · 먼저 부른 파트':'A · 내 파트'):part==='B'?(second?'B · 내 파트':'B · 다음 사람'):part==='both'?'함께':part==='partial'?'빈 구간 있음 · 추정':'미지정';}
+
+// Roles are relative to the current singer; A/B remain the stored, gender-neutral slots.
+export function lineRole(part,second=false){return part==='A'?(second?'partner':'mine'):part==='B'?(second?'mine':'partner'):part==='both'?'both':part==='partial'?'partial':'';}

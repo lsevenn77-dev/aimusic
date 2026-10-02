@@ -7,7 +7,7 @@ function bindLyricsEditor(){
  const state=lyricEditor={root,audio:player,url:null,dirty:false};
  function rowsFrom(cues){box.innerHTML=cues.flatMap(c=>(c.text||'').split('\n').map(text=>({time:c.time,text}))).map((c,i)=>`<div class="lyric-edit-row"><button type="button" class="lyric-number" data-preview-row="${i}" aria-label="${i+1}번째 가사부터 미리 듣기">${i+1}</button><input class="lyric-time-input" aria-label="${i+1}번째 가사 시작 시간" placeholder="00:00.000" value="${c.time==null?'':AifectLyrics.timestamp(c.time)}"><input class="lyric-text-input" aria-label="${i+1}번째 가사" maxlength="500" value="${esc(c.text)}"><button type="button" class="text-link" data-stamp-row="${i}">현재 시간</button></div>`).join('');state.dirty=false;}
  function buildRows(){
-  error.textContent='';const text=source.value;if(text.length>AifectLyrics.MAX_LYRICS)throw new Error('가사는 최대 12,000자까지 입력해주세요.');
+  error.textContent='';const cleaned=AifectLyrics.cleanLyricAnnotations(source.value,true),text=cleaned.text;source.value=text;if(text.length>AifectLyrics.MAX_LYRICS)throw new Error('가사는 최대 12,000자까지 입력해주세요.');
   if(/\[\d{1,3}:/.test(text))rowsFrom(AifectLyrics.parseLrc(text,Number(root.dataset.duration)));
   else{const lines=text.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);if(!lines.length||lines.length>500)throw new Error('가사를 1줄 이상, 500줄 이하로 입력해주세요.');rowsFrom(lines.map(text=>({time:null,text})));}
  }

@@ -183,6 +183,13 @@
       "when": 1790864416819,
       "tag": "0025_narrow_ironclad",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "6",
+      "when": 1790909148062,
+      "tag": "0026_fluffy_the_hunter",
+      "breakpoints": true
     }
   ]
 }

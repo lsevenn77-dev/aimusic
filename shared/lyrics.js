@@ -1,11 +1,14 @@
 export const MAX_LYRICS=12000;
+export function cleanLyricAnnotations(value,preserveLrc=false){
+ let removed=0;const text=String(value??'').replace(/\[[^\]\r\n]*\]/g,label=>{if(preserveLrc&&/^\[(?:\d{1,3}:\d{2}(?:[.:]\d{1,3})?|(?:ar|al|ti|by|re|ve|length|offset):[^\]]*)\]$/i.test(label))return label;removed++;return '';});return {text,removed};
+}
 export function timestamp(seconds){
  const ms=Math.round(seconds*1000),minutes=Math.floor(ms/60000),rest=ms%60000;
  return `${String(minutes).padStart(2,'0')}:${String(Math.floor(rest/1000)).padStart(2,'0')}.${String(rest%1000).padStart(3,'0')}`;
 }
 export function parseLrc(input,maxSeconds=1200){
  if(typeof input!=='string'||input.length>MAX_LYRICS)throw new Error('가사는 최대 12,000자까지 등록할 수 있습니다.');
- const lines=input.replace(/^\uFEFF/,'').replace(/\r\n?/g,'\n').split('\n'),entries=[];let offset=0;
+ const lines=cleanLyricAnnotations(input,true).text.replace(/^\uFEFF/,'').replace(/\r\n?/g,'\n').split('\n'),entries=[];let offset=0;
  for(const line of lines){const m=/^\[offset:([+-]?\d+)\]$/i.exec(line.trim());if(m)offset=Number(m[1])/1000;}
  for(let i=0;i<lines.length;i++){
   let line=lines[i].trim();if(!line||/^\[(ar|al|ti|by|re|ve|length|offset):[^\]]*\]$/i.test(line))continue;

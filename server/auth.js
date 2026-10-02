@@ -1,3 +1,4 @@
+import {nickname,nicknameBatch} from './nicknames.js';
 import {publicUser,producerNameSQL} from './identity.js';
 import {createRemoteJWKSet,jwtVerify,SignJWT,importPKCS8} from 'jose';
 import {one,run,query,now,id,fail,str,json,rate} from './db.js';
@@ -75,6 +76,21 @@ export async function authRoute(req,env,path,user){
   const token=cookies(req).aifect_session;if(token)await run(env,'DELETE FROM sessions WHERE token=?',await hash(token));
   return json({ok:true},200,{'set-cookie':cookie('aifect_session','',0,secure)});
  }
+ if(path==='/api/account/password'&&req.method==='PUT'){
+  requireUser(user);if(user.provider!=='email')fail(400,'소셜 로그인 비밀번호는 해당 서비스에서 변경해주세요.');
+  await rate(env,'password-change:'+user.id,8,900);const b=await req.json(),current=str(b.current_password,128),next=str(b.new_password,128);
+  if(next.length<12||next===current)fail(400,'현재 비밀번호와 다른 12자 이상의 새 비밀번호를 입력해주세요.');
+  const stored=await one(env,"SELECT password FROM users WHERE id=? AND provider='email'",user.id),[salt,saved]=(stored?.password||'invalid:invalid').split(':');
+  if(!saved||!equal(await passwordHash(current,salt,env),saved))fail(403,'현재 비밀번호가 올바르지 않습니다.');
+  const newSalt=id(),encoded=newSalt+':'+await passwordHash(next,newSalt,env),token=id()+id();
+  await env.DB.batch([
+   query(env,'UPDATE users SET password=? WHERE id=? AND password=?',encoded,user.id,stored.password),
+   query(env,'DELETE FROM sessions WHERE user_id=? AND EXISTS(SELECT 1 FROM users WHERE id=? AND password=?)',user.id,user.id,encoded),
+   query(env,'INSERT INTO sessions(token,user_id,expires) SELECT ?,?,? WHERE EXISTS(SELECT 1 FROM users WHERE id=? AND password=?)',await hash(token),user.id,now()+86400*30,user.id,encoded)
+  ]);
+  if(!await one(env,'SELECT token FROM sessions WHERE token=?',await hash(token)))fail(409,'계정 정보가 변경됐습니다. 다시 로그인해주세요.');
+  return json({ok:true},200,{'set-cookie':cookie('aifect_session',token,86400*30,secure)});
+ }
  if(['/api/auth/register','/api/auth/login'].includes(path)&&req.method==='POST'){
   const body=await req.json(),email=str(body.email,254).toLowerCase(),password=str(body.password,128);
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||password.length<12)fail(400,'이메일과 12자 이상의 비밀번호를 입력해주세요.');
@@ -82,8 +98,8 @@ export async function authRoute(req,env,path,user){
   let u=await one(env,"SELECT * FROM users WHERE email=? AND provider='email'",email);
   if(path.endsWith('/register')){
    if(u)fail(409,'이미 가입된 이메일입니다. 로그인해주세요.');
-   const salt=id(),name=str(body.name,40),uid=id();
-   await run(env,'INSERT INTO users(id,email,name,password,provider,subject,created) VALUES(?,?,?,?,?,?,?)',uid,email,name,salt+':'+await passwordHash(password,salt,env),'email',email,now());
+   const salt=id(),name=nickname(str(body.name,40)).name,uid=id();
+   await nicknameBatch(env,uid,name,[query(env,'INSERT INTO users(id,email,name,password,provider,subject,created) VALUES(?,?,?,?,?,?,?)',uid,email,name,salt+':'+await passwordHash(password,salt,env),'email',email,now())]);
    u={id:uid,email,name,provider:'email'};
   }else{
    const [salt,saved]=(u?.password||'invalid:invalid').split(':');
