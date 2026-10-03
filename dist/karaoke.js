@@ -43,7 +43,7 @@ function bindSing(id){
   if(mode==='record')startSinging();else if(mode==='play')previewMix(target);else if(mode==='guide')previewGuide(target);
  };
  seek.addEventListener('pointerdown',begin);seek.addEventListener('input',()=>select(Number(seek.value)));seek.addEventListener('change',end);seek.addEventListener('pointercancel',end);
- const nearest=()=>{const rows=[...wheel.querySelectorAll('[data-second]')];return rows.reduce((best,r)=>!best||Math.abs(r.offsetTop+r.offsetHeight/2-wheel.scrollTop-wheel.clientHeight/2)<Math.abs(best.offsetTop+best.offsetHeight/2-wheel.scrollTop-wheel.clientHeight/2)?r:best,null);};
+ const nearest=()=>{const rows=[...wheel.querySelectorAll('[data-second]')],anchor=wheel.scrollTop+wheel.clientHeight*.35;return rows.reduce((best,r)=>!best||Math.abs(r.offsetTop+r.offsetHeight/2-anchor)<Math.abs(best.offsetTop+best.offsetHeight/2-anchor)?r:best,null);};
  const settle=()=>{clearTimeout(s.scrollTimer);s.scrollTimer=setTimeout(()=>{if(s.scrubbing&&!s.pointer){const row=nearest();if(row)select(Number(row.dataset.second));end();}},170);};
  wheel.addEventListener('pointerdown',()=>{if(singBusy(s))return;s.pointer=true;begin();});
  wheel.addEventListener('pointerup',()=>{s.pointer=false;settle();});wheel.addEventListener('pointercancel',()=>{s.pointer=false;settle();});
@@ -111,7 +111,7 @@ function drawLyrics(t,follow=true){
  const wheel=$('#sing-wheel'),row=wheel.querySelector(`[data-sing-line="${at.line}"]`);
  wheel.querySelectorAll('[data-sing-line]').forEach(el=>{el.classList.toggle('current',el===row);el.setAttribute('aria-current',el===row?'true':'false');});
  row?.querySelectorAll('[data-word]').forEach((el,i)=>{el.classList.toggle('sung',i<at.word);el.classList.toggle('singing',i===at.word);el.style.setProperty('--p',i===at.word?at.progress:0);});
- if(follow&&!s.scrubbing&&at.line!==s.shownLine){s.shownLine=at.line;if(row)wheel.scrollTop=row.offsetTop+row.offsetHeight/2-wheel.clientHeight/2;}
+ if(follow&&!s.scrubbing&&at.line!==s.shownLine){s.shownLine=at.line;if(row)wheel.scrollTop=Math.max(0,row.offsetTop+row.offsetHeight/2-wheel.clientHeight*.35);}
 }
 async function finishSinging(){
  const s=sing;if(!singLive(s))return;const run=s.run,ctx=s.ctx,end=Math.min(s.mr.duration,run.from+Math.max(0,ctx.currentTime-run.t0));s.state='stopping';cancelAnimationFrame(s.frame);updateTransport();setSingStatus('녹음한 구간을 정리하고 있어요…');
