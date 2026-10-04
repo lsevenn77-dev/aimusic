@@ -1,3 +1,31 @@
+// Only browsing surfaces are kept. Editors, messages, money and membership stay live.
+const navigationSnapshots=new Map();let navigationRefreshCleanup=null;
+function clearNavigationSnapshots(){navigationSnapshots.clear();}
+function canCacheRoute(raw){
+ const [route]=raw.replace(/^#/,'').split('?'),[base,param]=route.split('/');
+ if(['charts','discover','search','collections','artists','producers','artist','following','history'].includes(base))return true;
+ if(base==='library')return !param||['likes','playlists','artists','producers','following','followers','history'].includes(param);
+ return base==='community'&&(!param||['recommend','covers','latest','duets','following'].includes(param));
+}
+function navigationKey(raw){return (me?.id||'guest')+':'+raw;}
+function saveNavigationSnapshot(raw,html,tracks,explorer,scroll=0){
+ if(!canCacheRoute(raw)||html.length>400000)return;
+ navigationSnapshots.delete(navigationKey(raw));
+ navigationSnapshots.set(navigationKey(raw),{html,tracks:[...tracks],explorer,scroll,account:me?.id||'guest',revision:apiRevision,until:Date.now()+60000});
+ while(navigationSnapshots.size>24)navigationSnapshots.delete(navigationSnapshots.keys().next().value);
+}
+function bindRenderedRoute(base,param,explorer,ticket){
+ icons();paintInteractions();bindForms(base,param);bindGiftClaims($('#gift-shop-rewards'));bindExplorer(explorer);bindBrowse(explorer);bindImprovements(explorer);
+ if(base==='community'&&!param)void loadCommunityCrews($('#community-crew-preview'),ticket);
+}
+function watchCachedNavigation(main){
+ let touched=false;const initialScroll=window.scrollY||0,mark=()=>{touched=true;};
+ const events=['input','change','pointerdown','keydown','wheel','touchstart'];
+ events.forEach(event=>main.addEventListener(event,mark,{passive:true}));
+ const cleanup=()=>events.forEach(event=>main.removeEventListener(event,mark));
+ navigationRefreshCleanup=cleanup;
+ return {changed:()=>touched||(window.scrollY||0)!==initialScroll||!!(main.contains(document.activeElement)&&document.activeElement?.matches?.('input,textarea,select,[contenteditable="true"]')),cleanup};
+}
 async function render(){
  setMobileMenu(false);
 
@@ -10,12 +38,20 @@ async function render(){
  clearInterval(socialTimer);socialTimer=null;socialCleanup?.();socialCleanup=null;
  cleanupLyricsEditor();cleanupSing();
  updateBrowseNavigation(base,param);
- const main=$('#main');main.setAttribute('aria-busy','true');
- if(base!=='home'&&main.dataset.route!==raw){const titles={charts:'차트',karaoke:'부르기',community:'커뮤니티',library:'내 보관함',following:'팔로우',gifts:'선물함',gold:'골드',dm:'DM 메시지',crew:'크루',payouts:'정산',rewards:'오늘의 응원별',song:'곡 이야기',producer:'프로필',artist:'AI 아티스트',profile:'내 프로필',account:'내 계정',upload:'음원 업로드',studio:'창작자 스튜디오',search:'음악 검색',discover:'음악 발견',history:'최근 들은 음악'};main.classList.remove('motion-enter');main.innerHTML=heading(titles[base]||'음악 둘러보기')+'<div class="route-loading" role="status"><span>불러오는 중…</span><div></div><div></div><div></div></div>';window.scrollTo({top:0,behavior:'instant'});}
+ const main=$('#main'),account=me?.id||'guest';navigationRefreshCleanup?.();navigationRefreshCleanup=null;
+ const previous=navigationSnapshots.get(navigationKey(main.dataset.route));if(previous&&main.dataset.account===account)previous.scroll=window.scrollY||0;
+ const cached=navigationSnapshots.get(navigationKey(raw)),restored=canCacheRoute(raw)&&cached&&cached.account===account&&cached.revision===apiRevision&&cached.until>Date.now();
+ let refreshWatch=null;
+ if(restored){routeTracks=remember(cached.tracks);main.innerHTML=cached.html;main.removeAttribute('aria-busy');bindRenderedRoute(base,param,cached.explorer,ticket);window.scrollTo({top:cached.scroll||0,behavior:'instant'});refreshWatch=watchCachedNavigation(main);}
+ else main.setAttribute('aria-busy','true');
+ if(!restored&&base!=='home'&&(main.dataset.route!==raw||main.dataset.account!==account)){const titles={charts:'차트',karaoke:'부르기',community:'커뮤니티',library:'내 보관함',following:'팔로우',gifts:'선물함',gold:'골드',dm:'DM 메시지',crew:'크루',payouts:'정산',rewards:'오늘의 응원별',song:'곡 이야기',producer:'프로필',artist:'AI 아티스트',profile:'내 프로필',account:'내 계정',upload:'음원 업로드',studio:'창작자 스튜디오',search:'음악 검색',discover:'음악 발견',history:'최근 들은 음악'};main.classList.remove('motion-enter');main.innerHTML=heading(titles[base]||'음악 둘러보기')+'<div class="route-loading" role="status"><span>불러오는 중…</span><div></div><div></div><div></div></div>';window.scrollTo({top:0,behavior:'instant'});}
+ main.dataset.account=account;
  main.dataset.route=raw;let html='',nextTracks=[];
  try{
   if(base==='home')return await renderHome(ticket);
   await accountReady;if(ticket!==renderId)return;
+  if(account!==(me?.id||'guest'))return render();
+  const readRevision=apiRevision;
   const profileHeader=base==='library'?libraryProfileHTML().catch(error=>({error})):null;
   const explorer=await improvementsView(base,param,raw)||await browseView(base,param,raw)||await explorerView(base,param,raw);
   if(explorer){html=explorer.html;nextTracks=remember(explorer.tracks||[]);}
@@ -65,9 +101,13 @@ async function render(){
   }else html=heading('페이지를 찾을 수 없어요')+empty('잠시 길을 잃었네요','홈에서 새로운 음악을 발견해보세요.','#home','홈으로 이동');
   if(profileHeader){const header=await profileHeader;if(header.error)throw header.error;html=header+html;}
   if(['search','discover','charts','collections'].includes(base))html=listenNav(base==='search'||base==='discover'?'search':base)+html;
-  if(ticket!==renderId)return;
-  routeTracks=nextTracks;$('#main').innerHTML=html;$('#main').removeAttribute('aria-busy');if(typeof AifectMotion!=='undefined')AifectMotion.enter($('#main'),base+'/'+(param||''));icons();paintInteractions();bindForms(base,param);bindGiftClaims($('#gift-shop-rewards'));bindExplorer(explorer);bindBrowse(explorer);bindImprovements(explorer);if(base==='community'&&!param)void loadCommunityCrews($('#community-crew-preview'),ticket);window.scrollTo({top:0,behavior:'instant'});if(base==='song'&&paramQuery?.includes('comments=1'))$('.comments-panel')?.scrollIntoView({block:'start'});
- }catch(e){if(ticket!==renderId)return;$('#main').innerHTML=heading('다시 연결해주세요')+`<div class="surface empty-design"><p>${esc(e.message)}</p><button class="primary-button" id="reload-page">다시 시도</button></div>`;$('#reload-page').onclick=render;$('#main').removeAttribute('aria-busy');}
+  if(ticket!==renderId||account!==(me?.id||'guest')||readRevision!==apiRevision)return;
+  saveNavigationSnapshot(raw,html,nextTracks,explorer,restored?window.scrollY||0:0);
+  const keepVisible=restored&&(html===cached.html||refreshWatch.changed()),scroll=window.scrollY||0;
+  refreshWatch?.cleanup();
+  if(!keepVisible){routeTracks=nextTracks;main.innerHTML=html;if(!restored&&typeof AifectMotion!=='undefined')AifectMotion.enter(main,base+'/'+(param||''));bindRenderedRoute(base,param,explorer,ticket);window.scrollTo({top:restored?scroll:0,behavior:'instant'});}
+  main.removeAttribute('aria-busy');if(base==='song'&&paramQuery?.includes('comments=1'))$('.comments-panel')?.scrollIntoView({block:'start'});
+ }catch(e){if(ticket!==renderId||account!==(me?.id||'guest'))return;refreshWatch?.cleanup();if(restored&&e.status!==401&&e.status!==403){main.removeAttribute('aria-busy');return;}main.innerHTML=heading('다시 연결해주세요')+`<div class="surface empty-design"><p>${esc(e.message)}</p><button class="primary-button" id="reload-page">다시 시도</button></div>`;$('#reload-page').onclick=render;main.removeAttribute('aria-busy');}
 }
 function accountHTML(){
  if(me)return heading('내 계정')+`<div class="surface login-card"><h2>${esc(me.name)}님, 반가워요.</h2><p>${me.email.endsWith('.invalid')?'소셜 로그인 계정':esc(me.email)}</p><p>${member.plan==='premium'?'Premium · AAC 256kbps 고음질':'무료 회원 · AAC 128kbps'} 감상</p><p>내 플레이리스트 ${member.owned_count} / ${member.playlist_limit}개 · ${member.full_lyrics?'전체 싱크 가사':'현재·다음 가사'}</p><p><a class="text-link" href="#membership">무료 · Premium 혜택 보기 →</a></p><p><a class="text-link" href="#gold">골드 · 보낸 선물 →</a></p>${authConfig?.admin?'<p><a class="text-link" href="#admin">정산 관리 →</a></p>':''}<div class="inline-actions"><a class="primary-button" href="#library">내 보관함</a><button class="small-button" id="logout">로그아웃</button></div></div>${accountSettingsHTML()}`;

@@ -96,7 +96,7 @@ function deleteTrackDialog(id,title,kind){
  dialog(`<h2>이 곡을 삭제할까요?</h2><p class="delete-track-title">${esc(title)}</p><p>공개 목록과 내 스튜디오에서 삭제되며, 다시 공개할 수 없어요.${kind==='original'?' 이 곡의 노래방과 연결된 커버곡도 다른 이용자가 재생할 수 없게 됩니다.':''}</p><p class="field-help">이미 받은 선물과 정산 내역은 유지돼요.</p><form id="delete-track-form"><div class="inline-actions"><button type="button" class="small-button" data-close-dialog>취소</button><button type="submit" class="primary-button danger-button">곡 삭제</button></div><p class="form-error" role="alert"></p></form>`);
  const form=$('#delete-track-form');form.onsubmit=busyForm(form,async()=>{await uploadRequest('/api/uploads/'+id,'DELETE');if(current?.id===id||current?.original_id===id)closePlayer();queue=queue.filter(tid=>tid!==id&&trackMap.get(tid)?.original_id!==id);trackMap.delete(id);saveQueue();$('#dialog').close();toast('곡이 삭제됐어요.');await refreshLibrary();await render();});
 }
-async function uploadFile(url,file,onprogress=()=>{}){file=await optimizeUploadImage(file);return new Promise((resolve,reject)=>{
+async function uploadFile(url,file,onprogress=()=>{}){file=await optimizeUploadImage(file);invalidateReads();try{return await new Promise((resolve,reject)=>{
  const xhr=new XMLHttpRequest();let idle,stalled=false;const heartbeat=()=>{clearTimeout(idle);idle=setTimeout(()=>{stalled=true;xhr.abort();},120000);};
  xhr.open('PUT',url);xhr.timeout=15*60*1000;xhr.setRequestHeader('Content-Type',file.type||'application/octet-stream');
  xhr.upload.onprogress=e=>{heartbeat();if(e.lengthComputable)onprogress(e.loaded/e.total*100);};xhr.onloadend=()=>clearTimeout(idle);
@@ -105,7 +105,7 @@ async function uploadFile(url,file,onprogress=()=>{}){file=await optimizeUploadI
  xhr.ontimeout=()=>reject(new Error('파일 전송 시간이 초과됐어요. 연결 상태를 확인하고 다시 시도해주세요.'));
  xhr.onabort=()=>reject(new Error(stalled?'파일 전송이 멈췄어요. 선택한 파일은 유지되어 있으니 연결 상태를 확인하고 다시 시도해주세요.':'파일 전송이 취소됐어요.'));
  heartbeat();xhr.send(file);
-});}
+});}finally{invalidateReads();}}
 async function playlistDialog(existing=null,initialTrack=null){if(!me)return askLogin();await refreshLibrary();if(!existing&&!canCreatePlaylist())return;if(existing?.locked)return selectActivePlaylists();dialog(`<h2>${existing?'플레이리스트 설정':'새 플레이리스트'}</h2><form id="playlist-form">${formField('이름','name','text',existing?.name||'','required maxlength="80"')}<label class="form-field">소개<textarea name="description" maxlength="600" placeholder="어떤 순간에 들으면 좋을까요?">${esc(existing?.description||'')}</textarea></label><label class="checkbox-line"><input name="is_public" type="checkbox" ${existing?.is_public?'checked':''}> 링크로 누구나 볼 수 있게 공개</label><button class="primary-button">저장</button><p class="form-error" role="alert"></p></form>`);const form=$('#playlist-form');form.onsubmit=busyForm(form,async fd=>{const d=await api(existing?`/api/playlists/${existing.id}`:'/api/playlists',existing?'PATCH':'POST',{name:fd.get('name'),description:fd.get('description'),is_public:fd.has('is_public'),...(!existing&&initialTrack?{track_ids:[initialTrack]}:{})});$('#dialog').close();await refreshLibrary();location.hash='playlist/'+(existing?.id||d.id);await render();});}
 async function addToPlaylist(tid){if(!me)return askLogin();await refreshLibrary();dialog(`<h2>플레이리스트에 추가</h2><div class="dialog-list">${library.playlists.filter(p=>!p.locked).map(p=>`<button class="small-button" data-save-track="${tid}" data-playlist="${p.id}">${esc(p.name)} <span>${p.tracks}곡</span></button>`).join('')}</div><button class="primary-button" id="dialog-new-playlist">새 플레이리스트 만들기</button>`);$('#dialog-new-playlist').onclick=()=>playlistDialog(null,tid).catch(e=>toast(e.message));}
 async function playlistOrderDialog(pid){
@@ -185,8 +185,11 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#sidebar').class
 mobileMenuQuery.addEventListener('change',()=>setMobileMenu(false));setMobileMenu(false);
 window.addEventListener('hashchange',render);window.addEventListener('pagehide',()=>{countAdListening();saveResume();});
 async function boot(){
+ const startupAccount=me?.id||'guest';
  accountReady=(async()=>{try{authConfig=await api('/api/me?state=1');me=authConfig.user;if(authConfig.interaction_state){library.likes=authConfig.interaction_state.likes;library.follows=authConfig.interaction_state.follows;}setMembership(authConfig.membership);}catch(e){toast(e.message);}finally{updateAccount();paintInteractions();}})();
- const firstRender=render();await accountReady;
+ let firstRender=render();await accountReady;
+ if(startupAccount!==(me?.id||'guest')){invalidateReads();if((location.hash.slice(1)||'home')==='home'){firstRender.catch(()=>{});firstRender=render();}}
+ if(typeof updateHomeAccount==='function')updateHomeAccount();
  if(me)refreshLibrary().catch(e=>toast(e.message));
  if(me&&pendingResume)try{await resumeAfterLogin();}catch(e){toast(e.message);}
  await firstRender;
