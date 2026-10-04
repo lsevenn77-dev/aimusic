@@ -13,3 +13,18 @@ test('visitor profile hides private library and does not link to the visitor own
 test('own profile exposes private library shortcuts and no self-follow button',()=>{const {c}=context({id:'owner'}),d={profile:{id:'p',user_id:'owner',name:'Singer'},tracks:[original],covers:[],followers:4,following_count:2};const html=c.personProfileHTML(d,'p');assert.match(html,/#library\/playlists/);assert.doesNotMatch(html,/data-follow="producer\/p"/);assert.match(html,/#profile\/edit/);});
 test('a listener without a public profile can use My page without creating one',async()=>{const {c,calls}=context({id:'u',name:'Listener'},{'/api/me/profile':{profile:{name:'Listener'}}});const page=await c.improvementsView('profile',undefined,'profile');assert.match(page.html,/#library\/playlists/);assert.deepEqual(calls,['/api/me/profile']);});
 test('all public text and IDs are escaped before generating card markup',()=>{const {c}=context();const html=c.musicTrackCard({...cover,title:'<script>x</script>',producer:'<img onerror=x>',description:'<iframe>',id:'c" onclick="bad'});assert.doesNotMatch(html,/<script>|<img onerror|<iframe>|onclick="bad/);assert.match(html,/&lt;script&gt;/);assert.match(html,/&quot;/);});
+test('following and follower rows link the entire identity to the correct page',()=>{
+ const {c}=context();const html=c.peopleListHTML([{id:'p',user_id:'u',name:'Singer'},{id:null,user_id:'listener',name:'Listener'}]);
+ assert.match(html,/href="#producer\/p"/);assert.match(html,/href="#follower\/listener"/);assert.match(html,/people-list-row/);
+ assert.doesNotMatch(html,/producer\/null|producer\/undefined/);
+ assert.match(c.peopleListHTML([{target_id:'ai',name:'AI singer'}],'artist'),/href="#artist\/ai"/);
+});
+test('profile-less follower navigation is gated and exposes only the returned public identity',async()=>{
+ const guest=context();assert.match((await guest.c.improvementsView('follower','u','follower/u')).html,/LOGIN/);assert.deepEqual(guest.calls,[]);
+ const {c,calls}=context({id:'me'},{'/api/followers/u':{profile:{id:null,name:'Listener',user_id:'u'}}});
+ const page=await c.improvementsView('follower','u','follower/u');assert.match(page.html,/Listener/);assert.doesNotMatch(page.html,/data-follow|data-profile-gift|#dm\/null/);assert.deepEqual(calls,['/api/followers/u']);
+});
+test('a DM opened directly has an explicit return to the conversation list',async()=>{
+ const {c}=context({id:'me'},{'/api/dm/p':{peer:{id:'p',name:'Singer'},messages:[]}});c.chatPanelHTML=()=>'<div>CHAT</div>';
+ const page=await c.improvementsView('dm','p','dm/p');assert.match(page.html,/dm-thread-header/);assert.match(page.html,/href="#dm"/);assert.match(page.html,/대화 목록으로 돌아가기/);
+});

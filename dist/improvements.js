@@ -5,12 +5,18 @@ function crewCard(c,mine){return `<a href="#crew/${esc(c.id)}" class="surface cr
 function chatComposer(){return `<form id="chat-compose"><label class="form-field">메시지<textarea name="body" maxlength="2000" required rows="1" placeholder="Enter로 보내기 · Shift+Enter로 줄바꿈"></textarea></label><button class="primary-button">보내기</button><p class="form-error" role="alert"></p></form>`;}
 function crewEditor(c=null){return `<h2>${c?'크루 소개 · 모집 수정':'새 크루 만들기'}</h2><form id="crew-form" data-crew="${esc(c?.id||'')}">${formField('크루 이름','name','text',c?.name||'','required maxlength="40" '+(c?'readonly':''))}<label class="form-field">소개<textarea name="description" maxlength="1000">${esc(c?.description||'')}</textarea></label>${formField('관심사 · 예: Ballad, K-POP','interests','text',c?.interests||'','maxlength="160"')}<label class="checkbox-line"><input name="recruiting" type="checkbox" ${c?.recruiting===0?'':'checked'}>새 멤버 모집</label><p class="field-help">처음에는 10명까지 함께해요. 공개곡 +1 XP, 받은 선물 1골드당 +1 XP, 하루 첫 채팅 +10 XP를 모아 최대 150명까지 성장해요.</p><button class="primary-button">저장</button><p class="form-error" role="alert"></p></form>`;}
 async function improvementsView(base,param,raw){
+ if(base==='follower'&&param){
+  if(!me){returnRoute=location.hash;return {html:gate()};}
+  const d=await api('/api/followers/'+encodeURIComponent(param));
+  if(d.profile.id){const social=await api('/api/producers/'+encodeURIComponent(d.profile.id));return {html:heading('음악가의 페이지')+personProfileHTML(social,d.profile.id),tracks:musicProfileItems(social)};}
+  return {html:heading('음악 친구')+'<a class="small-button" href="#library/followers">'+icon('back')+' 팔로워 목록</a>'+listenerProfileHTML(d.profile)};
+ }
  if(base==='following'){
   if(!me){returnRoute=location.hash;return {html:gate()};}
   const uid=me.id,revision=followRevision,d=await api('/api/follows');if(me?.id!==uid)return {html:gate()};
   if(revision===followRevision&&!pendingFollows.size)library.follows=d.follows;
   const people=library.follows.filter(p=>p.kind==='producer').map(p=>({...p,id:p.target_id})),artists=library.follows.filter(p=>p.kind==='artist').map(p=>({...p,id:p.target_id}));
-  return {html:heading('팔로우','내가 팔로우한 사람들의 음악을 만나보세요.')+(people.length?identityCards(people,'producer'):empty('아직 팔로우한 사람이 없어요','마음에 드는 프로필에서 팔로우를 눌러보세요.','#community','커뮤니티 둘러보기'))+(artists.length?section('팔로우한 AI 아티스트')+identityCards(artists,'artist'):'')};
+  return {html:heading('팔로우','내가 팔로우한 사람들의 음악을 만나보세요.')+(people.length?peopleListHTML(people,'producer'):empty('아직 팔로우한 사람이 없어요','마음에 드는 프로필에서 팔로우를 눌러보세요.','#community','커뮤니티 둘러보기'))+(artists.length?section('팔로우한 AI 아티스트')+peopleListHTML(artists,'artist'):'')};
  }
  if(base==='discover'&&!param)return {html:browseSearchHTML()};
  if(base==='community'&&param==='crews'){
@@ -34,11 +40,11 @@ async function improvementsView(base,param,raw){
    }
    return {html:heading('프로필 수정')+`<div class="inline-actions account-menu" style="margin-bottom:24px"><a class="small-button" href="#profile">내 페이지</a><a class="small-button" href="#account">계정·이용권</a><button type="button" class="small-button" id="logout">로그아웃</button></div><form id="public-profile-form" class="surface upload-form profile-form">${p.id?portrait(p,'producer'):''}<label class="form-field">프로필 사진<input name="image" type="file" accept="image/png,image/jpeg,image/webp"><small>JPG·PNG·WebP · 5MB 이하</small></label>${formField('공개 닉네임','name','text',p.name,'required maxlength="60"')}<p class="field-help">댓글·선물·크루·DM에는 이 이름이 표시돼요.</p><label class="form-field">소개<textarea name="bio" maxlength="1000">${esc(p.bio)}</textarea></label><button class="primary-button">프로필 저장</button><p class="form-error" role="alert"></p></form>`};
   }
-  if(base==='library'){const d=await api('/api/me/profile');return {html:heading('팔로워')+libraryTabs('followers')+(d.followers.length?`<div class="identity-grid">${d.followers.map(p=>p.id?identityCards([p],'producer'):`<div class="surface">${esc(p.name)}</div>`).join('')}</div>`:'<p class="surface">아직 팔로워가 없어요.</p>')};}
+  if(base==='library'){const d=await api('/api/me/profile');return {html:heading('팔로워')+libraryTabs('followers')+(d.followers.length?peopleListHTML(d.followers,'producer'):'<p class="surface">아직 팔로워가 없어요.</p>')};}
   if(base==='payouts')return {html:heading('정산')+earningsHTML(await api('/api/studio/earnings'))};
   if(base==='rewards'){const d=await api('/api/gold');return {html:`<div class="rewards-page">${heading('오늘의 응원별','작은 활동을 모아 좋아하는 음악에 응원해보세요.')}<div id="gift-shop-rewards">${freeRewardsHTML(d.free)}</div></div>`};}
   if(!param){const d=await api('/api/dm');return {html:heading('메시지','노래로 만난 사람들과 바로 대화하세요.')+`<div class="dm-home-actions"><a href="#following">${icon('users')}<strong>팔로잉</strong><small>내가 팔로우한 사람</small></a><a href="#community">${icon('compass')}<strong>사람 찾기</strong><small>새로운 목소리 만나기</small></a><a href="#profile">${icon('user')}<strong>내 페이지</strong><small>프로필과 내 음악</small></a></div><div class="dm-section-heading"><h2>대화</h2><span>${number(d.conversations.length)}명과 대화 중</span></div><div id="dm-conversations">`+conversationListHTML(d.conversations)+'</div><p id="dm-list-error" role="status"></p>',inbox:true};}
-  const d=await api('/api/dm/'+encodeURIComponent(param));return {html:heading(esc(d.peer.name))+'<a href="#dm" class="text-link dm-back">← 대화 목록</a>'+chatPanelHTML('개인 메시지',d,d.peer),chat:{path:'/api/dm/'+param,peer:d.peer,initial:d}};
+  const d=await api('/api/dm/'+encodeURIComponent(param));return {html:'<header class="dm-thread-header"><a href="#dm" class="small-button dm-back" aria-label="대화 목록으로 돌아가기">'+icon('back')+' 뒤로</a><h1>'+esc(d.peer.name)+'</h1></header>'+chatPanelHTML('개인 메시지',d,d.peer),chat:{path:'/api/dm/'+param,peer:d.peer,initial:d}};
  }
  return null;
 }
