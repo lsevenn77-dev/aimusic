@@ -40,11 +40,14 @@ async function render(){
  updateBrowseNavigation(base,param);
  const main=$('#main'),account=me?.id||'guest';navigationRefreshCleanup?.();navigationRefreshCleanup=null;
  const previous=navigationSnapshots.get(navigationKey(main.dataset.route));if(previous&&main.dataset.account===account)previous.scroll=window.scrollY||0;
- const cached=navigationSnapshots.get(navigationKey(raw)),restored=canCacheRoute(raw)&&cached&&cached.account===account&&cached.revision===apiRevision&&cached.until>Date.now();
+ let cached=navigationSnapshots.get(navigationKey(raw));
+ const pendingView=(typeof crewPendingView==='function'?crewPendingView(base,param,raw):null)||(typeof communityPendingView==='function'?communityPendingView(base,param,raw):null);
+ if(!(cached&&cached.account===account&&cached.revision===apiRevision&&cached.until>Date.now())&&pendingView?.cached&&canCacheRoute(raw))cached={...pendingView,account,revision:apiRevision,until:Date.now()+60000,explorer:pendingView,scroll:0};
+ const restored=canCacheRoute(raw)&&cached&&cached.account===account&&cached.revision===apiRevision&&cached.until>Date.now();
  let refreshWatch=null;
  if(restored){routeTracks=remember(cached.tracks);main.innerHTML=cached.html;main.removeAttribute('aria-busy');bindRenderedRoute(base,param,cached.explorer,ticket);window.scrollTo({top:cached.scroll||0,behavior:'instant'});refreshWatch=watchCachedNavigation(main);}
  else main.setAttribute('aria-busy','true');
- if(!restored&&base!=='home'&&(main.dataset.route!==raw||main.dataset.account!==account)){const titles={charts:'차트',karaoke:'부르기',community:'커뮤니티',library:'내 보관함',following:'팔로우',gifts:'선물함',gold:'골드',dm:'DM 메시지',crew:'크루',payouts:'정산',rewards:'오늘의 응원별',song:'곡 이야기',producer:'프로필',artist:'AI 아티스트',profile:'내 프로필',account:'내 계정',upload:'음원 업로드',studio:'창작자 스튜디오',search:'음악 검색',discover:'음악 발견',history:'최근 들은 음악'};main.classList.remove('motion-enter');main.innerHTML=heading(titles[base]||'음악 둘러보기')+'<div class="route-loading" role="status"><span>불러오는 중…</span><div></div><div></div><div></div></div>';window.scrollTo({top:0,behavior:'instant'});}
+ if(!restored&&base!=='home'&&(pendingView||main.dataset.route!==raw||main.dataset.account!==account)){const titles={charts:'차트',karaoke:'부르기',community:'커뮤니티',library:'내 보관함',following:'팔로우',gifts:'선물함',gold:'골드',dm:'DM 메시지',crew:'크루',payouts:'정산',rewards:'오늘의 응원별',song:'곡 이야기',producer:'프로필',artist:'AI 아티스트',profile:'내 프로필',account:'내 계정',upload:'음원 업로드',studio:'창작자 스튜디오',search:'음악 검색',discover:'음악 발견',history:'최근 들은 음악'};main.classList.remove('motion-enter');main.innerHTML=pendingView?.html||heading(titles[base]||'음악 둘러보기')+'<div class="route-loading" role="status"><span>불러오는 중…</span><div></div><div></div><div></div></div>';window.scrollTo({top:0,behavior:'instant'});}
  main.dataset.account=account;
  main.dataset.route=raw;let html='',nextTracks=[];
  try{
@@ -101,7 +104,8 @@ async function render(){
   }else html=heading('페이지를 찾을 수 없어요')+empty('잠시 길을 잃었네요','홈에서 새로운 음악을 발견해보세요.','#home','홈으로 이동');
   if(profileHeader){const header=await profileHeader;if(header.error)throw header.error;html=header+html;}
   if(['search','discover','charts','collections'].includes(base))html=listenNav(base==='search'||base==='discover'?'search':base)+html;
-  if(ticket!==renderId||account!==(me?.id||'guest')||readRevision!==apiRevision)return;
+  if(ticket!==renderId||account!==(me?.id||'guest'))return;
+  if(readRevision!==apiRevision)return render();
   saveNavigationSnapshot(raw,html,nextTracks,explorer,restored?window.scrollY||0:0);
   const keepVisible=restored&&(html===cached.html||refreshWatch.changed()),scroll=window.scrollY||0;
   refreshWatch?.cleanup();

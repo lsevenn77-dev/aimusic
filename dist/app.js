@@ -14,7 +14,14 @@ let queue=[],current=null,playSession=null,preview=false,heard=0,lastTick=0,repe
 try{pendingResume=JSON.parse(sessionStorage.getItem('aifect-player-resume')||'null');}catch{}
 function icons(){document.querySelectorAll('[data-icon]').forEach(el=>{el.innerHTML=icon(el.dataset.icon);el.removeAttribute('data-icon');});}
 function toast(message){$('#toast').textContent=message;$('#toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').classList.remove('show'),4500);}
-function invalidateReads(){apiRevision++;apiReads.clear();if(typeof clearNavigationSnapshots==='function')clearNavigationSnapshots();}
+function invalidateReads(){apiRevision++;apiReads.clear();if(typeof clearNavigationSnapshots==='function')clearNavigationSnapshots();if(typeof clearCrewNavigation==='function')clearCrewNavigation();}
+function invalidatesBrowseReads(path,method){
+ if(method==='GET'||/^\/api\/(playback|listens)\//.test(path))return false;
+ // Delivery/read receipts cannot invalidate unrelated music or navigation.
+ if(/^\/api\/dm\/[\w-]+$/.test(path)&&['POST','PATCH'].includes(method))return false;
+ if(/^\/api\/crews\/[\w-]+\/messages$/.test(path)&&method==='POST')return false;
+ return true;
+}
 function canCacheApiRead(path){return /^\/api\/(catalog|karaoke|search|playlists|cover-rankings|discovery|discover(?:\/[^?]+)?|community|library|history|follows|duets|me\/profile|followers\/[\w-]+|artists\/[\w-]+|producers\/[\w-]+)(?:\?|$)/.test(path);}
 function peekApiRead(path,options={}){
  if(!canCacheApiRead(path))return null;
@@ -22,7 +29,7 @@ function peekApiRead(path,options={}){
  return entry&&!entry.pending&&entry.revision===apiRevision&&(options.display?entry.displayUntil:entry.until)>Date.now()?structuredClone(entry.value):null;
 }
 async function api(path,method='GET',body,options={}){
- const read=method==='GET',mutates=!read&&!/^\/api\/(playback|listens)\//.test(path);
+ const read=method==='GET',mutates=invalidatesBrowseReads(path,method);
  if(mutates)invalidateReads();
  const account=me?.id||'guest',key=account+':'+path,revision=apiRevision;
  // Ten seconds, memory only, account scoped. Money, chat, permissions and studio always stay live.

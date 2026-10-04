@@ -1,5 +1,26 @@
 // Shared app/web flows: chosen profiles, crew activity and private conversations.
 let socialTimer=null;
+// Public crew chrome and a navigation hint only. Membership and roles stay live.
+const crewNavigation=new Map();
+function clearCrewNavigation(){crewNavigation.clear();}
+function crewNavigationScope(){return (me?.id||'guest')+':'+(typeof apiRevision==='number'?apiRevision:0)+':';}
+function rememberCrewNavigation(key,value){crewNavigation.delete(crewNavigationScope()+key);crewNavigation.set(crewNavigationScope()+key,{value:structuredClone(value),until:Date.now()+60000});while(crewNavigation.size>64)crewNavigation.delete(crewNavigation.keys().next().value);}
+function peekCrewNavigation(key){const entry=crewNavigation.get(crewNavigationScope()+key);return entry?.until>Date.now()?structuredClone(entry.value):null;}
+function crewNavigationCurrent(account,revision){return account===(me?.id||'guest')&&revision===(typeof apiRevision==='number'?apiRevision:0);}
+function rememberCrewDiscovery(d,q,account,revision){if(q||!crewNavigationCurrent(account,revision))return;rememberCrewNavigation('discovery',{mine:d.mine||null,crews:d.crews||[]});for(const c of d.crews||[])rememberCrewNavigation(c.id,c);}
+async function liveCrewDetail(id,tab='chat'){
+ const account=me?.id||'guest',revision=typeof apiRevision==='number'?apiRevision:0,d=await api('/api/crews/'+encodeURIComponent(id));
+ if(crewNavigationCurrent(account,revision)){rememberCrewNavigation(id,d.crew);const prior=peekCrewNavigation('discovery');if(d.membership)rememberCrewNavigation('discovery',{mine:id,crews:prior?.crews||[d.crew]});else if(prior?.mine===id)rememberCrewNavigation('discovery',{...prior,mine:null});}
+ return crewDetailView(d,id,tab);
+}
+function crewPendingView(base,param,raw=''){
+ if(base!=='crew'&&!(base==='community'&&param==='crews'))return null;
+ const hint=peekCrewNavigation('discovery'),q=new URLSearchParams(raw.split('?')[1]||''),id=base==='crew'?param:!q.has('q')&&q.get('browse')!=='1'?hint?.mine:null,c=id?peekCrewNavigation(id):null;
+ let html=heading(c?esc(c.name):'크루','함께 듣고, 부르고, 이야기하는 음악 모임')+communityNavigation('crews');
+ if(c)html+='<p class="crew-meta">LV '+number(c.level)+' · '+number(c.members)+'명이 함께해요</p>';
+ html+='<div class="route-loading" role="status"><span>크루를 불러오는 중…</span><div></div><div></div></div>';
+ return {html,tracks:[],cached:false};
+}
 function listenNav(active){return `<nav class="tabs listen-tabs" aria-label="듣기 메뉴">${[['home','추천'],['charts','차트'],['charts/releases','최신곡'],['search','발견'],['library/playlists','내 플레이리스트']].map(([href,label])=>`<a class="tab ${active===href?'active':''}" href="#${href}">${label}</a>`).join('')}</nav>`;}
 function crewCard(c,mine){return `<a href="#crew/${esc(c.id)}" class="surface crew-card"><h2>${esc(c.name)}${mine===c.id?' · 내 크루':''}</h2><p class="crew-meta">LV${c.level} · ${c.members}/${c.capacity}명 · ${c.recruiting?'모집 중':'모집 마감'}</p><p>${esc(c.description)}</p><small>${esc(c.interests)}</small>${c.match?'<span>내가 좋아하는 장르와 맞아요</span>':''}</a>`;}
 function chatComposer(){return `<form id="chat-compose"><label class="form-field">메시지<textarea name="body" maxlength="2000" required rows="1" placeholder="메시지 입력" aria-description="Enter로 보내기, Shift+Enter로 줄바꿈"></textarea></label><button class="primary-button">보내기</button><p class="form-error" role="alert"></p></form>`;}
@@ -32,13 +53,15 @@ async function improvementsView(base,param,raw){
  }
  if(base==='discover'&&!param)return {html:browseSearchHTML()};
  if(base==='community'&&param==='crews'){
-  const params=new URLSearchParams(raw.split('?')[1]||''),q=params.get('q')||'',d=await api('/api/crews?q='+encodeURIComponent(q));
-  if(d.mine&&!params.has('q')&&params.get('browse')!=='1')return crewDetailView(await api('/api/crews/'+encodeURIComponent(d.mine)),d.mine);
+  const params=new URLSearchParams(raw.split('?')[1]||''),q=params.get('q')||'',hint=peekCrewNavigation('discovery');
+  if(hint?.mine&&!params.has('q')&&params.get('browse')!=='1'){try{return await liveCrewDetail(hint.mine);}catch(e){if(e.status!==404)throw e;clearCrewNavigation();}}
+  const account=me?.id||'guest',revision=typeof apiRevision==='number'?apiRevision:0,d=await api('/api/crews?q='+encodeURIComponent(q));rememberCrewDiscovery(d,q,account,revision);
+  if(d.mine&&!params.has('q')&&params.get('browse')!=='1')return liveCrewDetail(d.mine);
   let html=heading('크루','함께 듣고, 부르고, 이야기하는 음악 모임')+communityNavigation('crews')+`<div class="inline-actions">${d.mine?`<a href="#crew/${esc(d.mine)}" class="primary-button">${icon('users')} 내 크루 들어가기</a>`:`<button class="small-button" data-browse-crews>${icon('search')} 크루 둘러보기</button><button class="primary-button" data-create-crew>크루 만들기</button>`}<a href="#community/covers" class="small-button">모든 커버곡</a></div><p>${d.mine?'우리 크루의 새로운 음악과 이야기를 만나보세요.':'취향이 맞는 크루에 가입해 함께 듣고 불러보세요.'}</p><form id="crew-search" class="aifect-search"><input name="q" value="${esc(q)}" maxlength="80" placeholder="크루 · 관심사 찾기" aria-label="크루 · 관심사"><button class="small-button">찾기</button></form>`;
   const tracks=d.tracks||[];if(tracks.length)html+=section(d.mine?'우리 크루의 최신 음악':'크루에서 나온 새 음악',d.mine?'#crew/'+d.mine:'#community/covers')+communityFeed(tracks.slice(0,6));
   html+=section('함께할 크루')+(d.crews.length?`<div class="crew-grid">${d.crews.map(c=>crewCard(c,d.mine)).join('')}</div>`:'<p class="surface">아직 크루가 없어요. 좋아하는 음악으로 첫 모임을 만들어보세요.</p>');return {html,tracks};
  }
- if(base==='crew'&&param){return crewDetailView(await api('/api/crews/'+encodeURIComponent(param)),param,new URLSearchParams(raw.split('?')[1]||'').get('tab')||'chat');}
+ if(base==='crew'&&param){return liveCrewDetail(param,new URLSearchParams(raw.split('?')[1]||'').get('tab')||'chat');}
  if(['profile','dm','rewards','payouts'].includes(base)||base==='library'&&param==='followers'){
   if(!me){returnRoute=location.hash;return {html:gate()};}
   if(base==='profile'){

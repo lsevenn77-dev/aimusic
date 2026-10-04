@@ -66,6 +66,44 @@ test('readonly history, followers and public detail reads expose isolated cache 
  c.run('me=null;');assert.equal(c.run("peekApiRead('/api/history')"),null);
 });
 
+test('chat delivery and read receipts preserve browse caches, while account and crew changes invalidate them',async()=>{
+ const c=client(async()=>response({tracks:[track('Saved community')]}));
+ await c.run("api('/api/community')");const revision=c.run('apiRevision');
+ for(const [path,method] of [['/api/dm/peer','POST'],['/api/dm/peer','PATCH'],['/api/crews/crew/messages','POST']]){
+  await c.run(`api(${JSON.stringify(path)},${JSON.stringify(method)},{body:'message'})`);
+  assert.equal(c.run('apiRevision'),revision);assert.equal(c.run("peekApiRead('/api/community',{display:true}).tracks[0].title"),'Saved community');
+ }
+ for(const [path,method] of [['/api/auth/logout','POST'],['/api/crews/crew/leave','POST'],['/api/crews/crew/members/peer','PATCH'],['/api/dm/peer','DELETE']]){
+  await c.run("api('/api/community')");await c.run(`api(${JSON.stringify(path)},${JSON.stringify(method)})`);
+  assert.equal(c.run("peekApiRead('/api/community',{display:true})"),null,path);
+ }
+});
+
+test('a mutation finishing during navigation retries the current route instead of leaving it loading',{timeout:3000},async()=>{
+ const write=deferred(),read=deferred(),started=deferred();let reads=0;
+ const c=renderer(async(path,options)=>{if(options.method!=='GET')return write.promise;if(path==='/api/history'){if(++reads===1){started.resolve();return read.promise;}return response({tracks:[track('Current history')]});}return response({tracks:[]});});
+ const saving=c.run("api('/api/me/profile','PUT',{name:'changed'})"),opening=c.navigate('history');
+ await started.promise;write.resolve(response({ok:true}));await saving;
+ read.resolve(response({tracks:[track('Superseded history')]}));await opening;
+ assert.equal(reads,2);assert.match(c.main.innerHTML,/Current history/);assert.doesNotMatch(c.main.innerHTML,/Superseded history|불러오는 중/);assert.equal(c.main.getAttribute('aria-busy'),undefined);
+});
+
+test('community tabs paint before account initialization and cached API feeds warm first visits',{timeout:3000},async()=>{
+ const held=deferred();const c=renderer(async()=>held.promise);
+ Object.assign(c.context,{coverCollectionHTML:tracks=>tracks.map(t=>t.title).join(','),communityFeed:tracks=>tracks.map(t=>t.title).join(','),musicIsOpenDuet:()=>false});
+ vm.runInContext(source('community.js'),c.context);c.run('browseView=(base,param,raw)=>base===\'community\'?communityView(base,param,raw):null;');
+ const account=deferred();c.context.accountReady=account.promise;
+ const opening=c.navigate('community');assert.match(c.main.innerHTML,/music-community-tabs/);assert.match(c.main.innerHTML,/#community\/crews/);
+ account.resolve();held.resolve(response({tracks:[track('Fresh community')]}));await opening;
+ assert.match(c.main.innerHTML,/Fresh community/);
+ // No HTML snapshot for this route: reuse only its safely scoped API data.
+ c.run('navigationSnapshots.clear();');c.context.location.hash='#history';c.advance(10001);
+ let release;c.context.fetch=async()=>new Promise(resolve=>release=resolve);
+ const reopening=c.navigate('community');assert.match(c.main.innerHTML,/Fresh community/);await Promise.resolve();await Promise.resolve();
+ for(let n=0;n<10&&!release;n++)await Promise.resolve();assert.ok(release);
+ release(response({tracks:[track('Updated community')]}));await reopening;assert.match(c.main.innerHTML,/Updated community/);
+});
+
 test('money, membership, permissions, recording, editors and private chat never expose completed navigation caches',async()=>{
  let calls=0;const c=client(async()=>response({value:++calls}));
  for(const path of ['/api/gold','/api/gifts/free/claim','/api/membership','/api/studio','/api/studio/earnings','/api/studio/tracks/song','/api/auth/google/nonce','/api/me?state=1','/api/account/nickname','/api/tracks/song','/api/playlists/mix','/api/karaoke/song','/api/duets/cover','/api/dm','/api/dm/singer','/api/chat/events','/api/crews/crew','/api/crews/crew/messages']){
