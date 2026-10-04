@@ -61,7 +61,8 @@ function communityRecommendations(tracks){
 async function loadCommunityCrews(host,ticket){
  if(!host)return;
  try{const d=await api('/api/crews?q=');if(!host.isConnected||ticket!==renderId)return;
- const crews=[...(d.crews||[])].sort((a,b)=>(Number(b.xp)||0)-(Number(a.xp)||0)).slice(0,3);
+ const all=d.crews||[],mine=all.find(c=>c.id===d.mine),crews=[...all].filter(c=>c.id!==d.mine).sort((a,b)=>(Number(b.xp)||0)-(Number(a.xp)||0)).slice(0,mine?2:3);
+ if(mine){host.innerHTML='<div class="music-community-heading"><h2>내 크루</h2><a class="text-link" href="#community/crews?browse=1">다른 크루 둘러보기</a></div><div class="surface my-crew-preview"><div><strong>'+esc(mine.name)+'</strong><p>'+number(mine.members)+'명 · '+esc(mine.interests||'함께 듣는 음악')+'</p></div><nav aria-label="내 크루 바로가기">'+[['chat','message','대화'],['members','users','크루원'],['music','music','음악']].map(([tab,symbol,label])=>'<a href="#crew/'+esc(mine.id)+'?tab='+tab+'">'+icon(symbol)+label+'</a>').join('')+'</nav></div>';return;}
  host.innerHTML='<div class="music-community-heading"><h2>음악으로 모이는 크루</h2><a class="text-link" href="#community/crews">모두 보기</a></div>'+(crews.length?'<div class="music-crew-preview-grid">'+crews.map(c=>'<a href="#crew/'+esc(c.id)+'"><strong>'+esc(c.name)+'</strong><span>'+esc(c.interests||'함께 듣고 부르는 음악')+'</span><small>'+number(c.members)+'명 · LV '+number(c.level)+'</small></a>').join('')+'</div>':'<a class="music-crew-entry" href="#community/crews">취향이 맞는 크루를 찾아보세요.</a>');
  }catch{if(host.isConnected&&ticket===renderId)host.innerHTML='<a class="music-crew-entry" href="#community/crews">크루 둘러보기</a>';}
 }

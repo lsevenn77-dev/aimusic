@@ -35,7 +35,7 @@ export async function chatStreamRoute(req,env,path,user){
  const session='s.token=? AND s.user_id=? AND s.expires>?';
  let readState;
  if(crew){
-  readState=()=>one(env,'SELECT cm.role,COALESCE((SELECT rowid FROM crew_messages WHERE crew_id=cm.crew_id ORDER BY rowid DESC LIMIT 1),0) sequence FROM sessions s JOIN crew_members cm ON cm.user_id=s.user_id AND cm.crew_id=? WHERE '+session,crew,token,user.id,now());
+  readState=()=>one(env,'SELECT cm.role,cm.joined_sequence,COALESCE((SELECT rowid FROM crew_messages WHERE crew_id=cm.crew_id AND rowid>=cm.joined_sequence ORDER BY rowid DESC LIMIT 1),0) sequence FROM sessions s JOIN crew_members cm ON cm.user_id=s.user_id AND cm.crew_id=? WHERE '+session,crew,token,user.id,now());
  }else{
   const p=peer?await one(env,'SELECT user_id FROM producers WHERE id=?',peer):null;
   if(peer&&(!p||p.user_id===user.id))fail(404,'대화 상대를 찾을 수 없어요.');

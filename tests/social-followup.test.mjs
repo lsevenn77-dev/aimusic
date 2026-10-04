@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {DatabaseSync} from 'node:sqlite';
+import {readFileSync,readdirSync} from 'node:fs';
 import {fixture} from './fixture.mjs';
 
 async function setup(t){const f=await fixture(t);const p=(await f.call('/api/me/profile','PUT',{name:'Moon'},'other')).body.profile.id;const r=await f.call('/api/crews','POST',{name:'Open room'});assert.equal(r.status,201);return {...f,p,cid:r.body.crew.id};}
@@ -31,12 +33,17 @@ test('received gold earns one XP per gold once, while earlier gifts and free sta
  const newRoom=(await f.call('/api/crews','POST',{name:'New room'})).body.crew;
  assert.equal(newRoom.xp,0,'existing track and gift IDs must not reward a second crew');
 });
-test('new crew members see previous messages and one join notice; only owners manage roles or kick',async t=>{
+test('new crew members see messages only from their join notice; only owners manage roles or kick',async t=>{
+ t.mock.method(Date,'now',()=>1790910000000);
  const f=await setup(t),room='/api/crews/'+f.cid,chat=room+'/messages',target=room+'/members/'+f.p;
- await f.call(chat,'POST',message('Before joining'));
+ const before=(await f.call(chat,'POST',message('Before joining'))).body.message;
  for(let i=0;i<2;i++)assert.equal((await f.call(room+'/join','POST',{},'other')).status,200);
  let history=(await f.call(chat,'GET',null,'other')).body.messages;
- assert.ok(history.some(m=>m.body==='Before joining'&&m.role==='owner'));
+ const membership=(await f.call(room,'GET',null,'other')).body.membership;
+ assert.equal(before.created,membership.joined,'prejoin messages in the same second must stay private');
+ assert.ok(before.sequence<membership.joined_sequence);
+ assert.ok(history.every(m=>m.sequence>=membership.joined_sequence));
+ assert.equal(history.some(m=>m.body==='Before joining'),false);
  assert.equal(history.filter(m=>m.body==='Moon님이 크루에 참여하였습니다.'&&m.kind==='system').length,1);
  assert.equal((await f.call(target,'PATCH',{role:'manager'},'other')).status,403);
  assert.equal((await f.call(room+'/members/producer','DELETE')).status,400);
@@ -44,12 +51,66 @@ test('new crew members see previous messages and one join notice; only owners ma
  for(const role of ['deputy','operator','manager'])assert.equal((await f.call(target,'PATCH',{role})).status,200);
  const sent=(await f.call(chat,'POST',{...message('Hello'),kind:'system',author_role:'owner'},'other')).body.message;
  assert.equal(sent.kind,'message');assert.equal(sent.role,'manager');assert.ok(sent.sequence>0);
+ assert.equal((await f.call(chat,'GET',null,'other')).body.messages.some(m=>m.body==='Before joining'),false,'role promotion must not expand history');
  assert.equal((await f.call(room+'/members/producer','DELETE',null,'other')).status,403);
  assert.equal((await f.call(target,'DELETE')).status,200);
  assert.equal((await f.call(chat,'GET',null,'other')).status,403);
  assert.equal((await f.call(chat,'POST',message('kicked'), 'other')).status,403);
  assert.equal((await f.call(room+'/join','POST',{},'other')).status,403);
  assert.ok((await f.call(chat)).body.messages.some(m=>m.body==='Before joining'));
+});
+
+test('rejoining starts a new history boundary and old request IDs cannot restore previous messages',async t=>{
+ t.mock.method(Date,'now',()=>1790910000000);
+ const f=await setup(t),room='/api/crews/'+f.cid,chat=room+'/messages';
+ const firstJoin=(await f.call(room+'/join','POST',{},'other')).body.membership;
+ const oldBody=message('My first membership');
+ const old=(await f.call(chat,'POST',oldBody,'other')).body.message;
+ await f.call(room+'/leave','POST',{},'other');
+ await f.call(chat,'POST',message('While absent'));
+ const rejoined=(await f.call(room+'/join','POST',{},'other')).body.membership;
+ assert.equal(rejoined.joined,firstJoin.joined,'the timestamp can be identical across a rejoin');
+ assert.ok(rejoined.joined_sequence>old.sequence);
+ assert.equal((await f.call(room+'/join','POST',{},'other')).body.membership.joined_sequence,rejoined.joined_sequence,'duplicate joins preserve the current boundary');
+ const current=(await f.call(chat,'GET',null,'other')).body.messages;
+ assert.equal(current.length,1);assert.equal(current[0].kind,'system');
+ assert.equal((await f.call(chat,'POST',oldBody,'other')).status,409);
+ const fresh=(await f.call(chat,'POST',message('My new membership'),'other')).body.message;
+ assert.deepEqual((await f.call(chat+'?after=1','GET',null,'other')).body.messages.map(m=>m.id),[current[0].id,fresh.id]);
+ const inaccessible=(await f.call(chat+'?before='+rejoined.joined_sequence,'GET',null,'other')).body;
+ assert.deepEqual(inaccessible.messages,[]);assert.equal(inaccessible.has_more,false);
+ assert.ok((await f.call(chat)).body.messages.some(m=>m.id===old.id),'existing members retain their messages');
+});
+
+test('both pagination directions stay within the current membership boundary',async t=>{
+ const f=await setup(t),room='/api/crews/'+f.cid,path=room+'/messages';
+ const insert=f.sql.prepare("INSERT INTO crew_messages(id,crew_id,user_id,body,request_id,created) VALUES(?,?,'owner',?,?,100)");
+ for(let i=0;i<205;i++)insert.run('old'+i,f.cid,'old '+i,'old-request-'+i);
+ const membership=(await f.call(room+'/join','POST',{},'other')).body.membership;
+ for(let i=0;i<205;i++)insert.run('new'+i,f.cid,'new '+i,'new-request-'+i);
+ const latest=(await f.call(path,'GET',null,'other')).body;
+ const previous=(await f.call(path+'?before='+latest.messages[0].sequence,'GET',null,'other')).body;
+ const oldest=(await f.call(path+'?before='+previous.messages[0].sequence,'GET',null,'other')).body;
+ const all=[...oldest.messages,...previous.messages,...latest.messages];
+ assert.equal(all.length,206);assert.equal(new Set(all.map(m=>m.id)).size,206);
+ assert.ok(all.every(m=>m.sequence>=membership.joined_sequence));
+ assert.equal(oldest.has_more,false);
+ let cursor=1,ascending=[];
+ for(;;){const page=(await f.call(path+'?after='+cursor,'GET',null,'other')).body;ascending.push(...page.messages);if(!page.has_more)break;cursor=page.messages.at(-1).sequence;}
+ assert.deepEqual(ascending.map(m=>m.id),all.map(m=>m.id));
+});
+
+test('join-boundary migration keeps existing membership history and every stored message',()=>{
+ const sql=new DatabaseSync(':memory:');
+ try{
+  const migrations=new URL('../drizzle/',import.meta.url);
+  for(const file of readdirSync(migrations).filter(x=>x.endsWith('.sql')&&x<'0027_').sort())sql.exec(readFileSync(new URL(file,migrations),'utf8'));
+  sql.exec("INSERT INTO users(id,email,name,created) VALUES('legacy','legacy@test.invalid','Legacy',0);INSERT INTO crews(id,owner_id,name,created) VALUES('legacy-room','legacy','Legacy room',1);INSERT INTO crew_members(crew_id,user_id,role,joined) VALUES('legacy-room','legacy','owner',1);INSERT INTO crew_messages(id,crew_id,user_id,body,request_id,created) VALUES('legacy-message','legacy-room','legacy','Stored conversation','legacy-request',1)");
+  const before=sql.prepare('SELECT rowid sequence,* FROM crew_messages').all();
+  sql.exec(readFileSync(new URL('0027_crew_chat_join_sequence.sql',migrations),'utf8'));
+  assert.equal(sql.prepare('SELECT joined_sequence FROM crew_members').get().joined_sequence,0);
+  assert.deepEqual(sql.prepare('SELECT rowid sequence,* FROM crew_messages').all(),before);
+ }finally{sql.close();}
 });
 test('crew history paginates stably through equal timestamps and new messages without loss',async t=>{
  const f=await setup(t),path='/api/crews/'+f.cid+'/messages';

@@ -2,8 +2,20 @@
 let socialTimer=null;
 function listenNav(active){return `<nav class="tabs listen-tabs" aria-label="듣기 메뉴">${[['home','추천'],['charts','차트'],['charts/releases','최신곡'],['search','발견'],['library/playlists','내 플레이리스트']].map(([href,label])=>`<a class="tab ${active===href?'active':''}" href="#${href}">${label}</a>`).join('')}</nav>`;}
 function crewCard(c,mine){return `<a href="#crew/${esc(c.id)}" class="surface crew-card"><h2>${esc(c.name)}${mine===c.id?' · 내 크루':''}</h2><p class="crew-meta">LV${c.level} · ${c.members}/${c.capacity}명 · ${c.recruiting?'모집 중':'모집 마감'}</p><p>${esc(c.description)}</p><small>${esc(c.interests)}</small>${c.match?'<span>내가 좋아하는 장르와 맞아요</span>':''}</a>`;}
-function chatComposer(){return `<form id="chat-compose"><label class="form-field">메시지<textarea name="body" maxlength="2000" required rows="1" placeholder="Enter로 보내기 · Shift+Enter로 줄바꿈"></textarea></label><button class="primary-button">보내기</button><p class="form-error" role="alert"></p></form>`;}
+function chatComposer(){return `<form id="chat-compose"><label class="form-field">메시지<textarea name="body" maxlength="2000" required rows="1" placeholder="메시지 입력" aria-description="Enter로 보내기, Shift+Enter로 줄바꿈"></textarea></label><button class="primary-button">보내기</button><p class="form-error" role="alert"></p></form>`;}
 function crewEditor(c=null){return `<h2>${c?'크루 소개 · 모집 수정':'새 크루 만들기'}</h2><form id="crew-form" data-crew="${esc(c?.id||'')}">${formField('크루 이름','name','text',c?.name||'','required maxlength="40" '+(c?'readonly':''))}<label class="form-field">소개<textarea name="description" maxlength="1000">${esc(c?.description||'')}</textarea></label>${formField('관심사 · 예: Ballad, K-POP','interests','text',c?.interests||'','maxlength="160"')}<label class="checkbox-line"><input name="recruiting" type="checkbox" ${c?.recruiting===0?'':'checked'}>새 멤버 모집</label><p class="field-help">처음에는 10명까지 함께해요. 공개곡 +1 XP, 받은 선물 1골드당 +1 XP, 하루 첫 채팅 +10 XP를 모아 최대 150명까지 성장해요.</p><button class="primary-button">저장</button><p class="form-error" role="alert"></p></form>`;}
+function crewDetailView(d,param,tab='chat'){
+ const c=d.crew,m=d.membership,allowed=['chat','members','music','about'];if(!allowed.includes(tab))tab='chat';
+ const intro='<section class="surface crew-intro"><p>'+esc(c.description)+'</p><p>'+esc(c.interests)+'</p><strong class="crew-meta">LV'+c.level+' · '+c.members+'/'+c.capacity+'명 · '+c.xp+' XP</strong><p>'+(c.next_xp?'다음 레벨까지 '+(c.next_xp-c.xp)+' XP':'최고 레벨이에요.')+'</p><p class="field-help">공개곡당 1 XP · 받은 선물 1골드당 1 XP · 하루 첫 크루 채팅 10 XP</p><div class="inline-actions">'+(m?'<button class="small-button" data-leave-crew="'+esc(c.id)+'">크루 탈퇴</button>'+(m.role==='owner'?'<button class="small-button" data-edit-crew="'+esc(c.id)+'">소개 · 모집 수정</button>':''):'<button class="primary-button" data-join-crew="'+esc(c.id)+'" '+(d.banned||!c.recruiting||c.members>=c.capacity?'disabled':'')+'>'+(d.banned?'가입할 수 없는 크루':c.recruiting?'크루 가입하기':'모집 마감')+'</button>')+'</div></section>';
+ let html='<div class="crew-room-heading"><div><span class="eyebrow">'+(m?'MY CREW':'MUSIC CREW')+'</span><h1>'+esc(c.name)+'</h1><p>LV '+c.level+' · '+c.members+'명이 함께해요</p></div><a href="#community/crews?browse=1" class="text-link">'+icon('search')+' 크루 둘러보기</a></div>'+communityNavigation('crews');
+ if(m){html+='<nav class="tabs crew-room-tabs" aria-label="내 크루 활동">'+[['chat','대화'],['members','크루원'],['music','음악'],['about','소개']].map(([key,label])=>'<a class="tab '+(tab===key?'active':'')+'" href="#crew/'+esc(c.id)+'?tab='+key+'" '+(tab===key?'aria-current="page"':'')+'>'+label+'</a>').join('')+'</nav>';
+  if(tab==='chat')html+='<p class="crew-chat-intro">크루원들과 지금 듣는 음악과 이야기를 나눠보세요.</p>'+chatPanelHTML('크루 채팅');
+  if(tab==='members')html+=section('함께하는 크루원')+'<div class="crew-people">'+crewPeopleHTML(d)+'</div>';
+  if(tab==='music')html+=section('크루의 최신 음악')+(d.tracks.length?communityFeed(d.tracks):'<p class="surface crew-intro">아직 공개한 크루 음악이 없어요.</p>');
+  if(tab==='about')html+=intro;
+ }else html+=intro+section('크루 멤버')+'<div class="crew-people">'+crewPeopleHTML(d)+'</div>'+section('크루의 최신 음악')+communityFeed(d.tracks);
+ return {html,tracks:d.tracks,crew:c,chat:m&&tab==='chat'?{path:'/api/crews/'+param+'/messages',crew:{id:c.id,owner:m.role==='owner'}}:null};
+}
 async function improvementsView(base,param,raw){
  if(base==='follower'&&param){
   if(!me){returnRoute=location.hash;return {html:gate()};}
@@ -20,16 +32,13 @@ async function improvementsView(base,param,raw){
  }
  if(base==='discover'&&!param)return {html:browseSearchHTML()};
  if(base==='community'&&param==='crews'){
-  const q=new URLSearchParams(raw.split('?')[1]||'').get('q')||'',d=await api('/api/crews?q='+encodeURIComponent(q));
+  const params=new URLSearchParams(raw.split('?')[1]||''),q=params.get('q')||'',d=await api('/api/crews?q='+encodeURIComponent(q));
+  if(d.mine&&!params.has('q')&&params.get('browse')!=='1')return crewDetailView(await api('/api/crews/'+encodeURIComponent(d.mine)),d.mine);
   let html=heading('크루','함께 듣고, 부르고, 이야기하는 음악 모임')+communityNavigation('crews')+`<div class="inline-actions">${d.mine?`<a href="#crew/${esc(d.mine)}" class="primary-button">${icon('users')} 내 크루 들어가기</a>`:`<button class="small-button" data-browse-crews>${icon('search')} 크루 둘러보기</button><button class="primary-button" data-create-crew>크루 만들기</button>`}<a href="#community/covers" class="small-button">모든 커버곡</a></div><p>${d.mine?'우리 크루의 새로운 음악과 이야기를 만나보세요.':'취향이 맞는 크루에 가입해 함께 듣고 불러보세요.'}</p><form id="crew-search" class="aifect-search"><input name="q" value="${esc(q)}" maxlength="80" placeholder="크루 · 관심사 찾기" aria-label="크루 · 관심사"><button class="small-button">찾기</button></form>`;
   const tracks=d.tracks||[];if(tracks.length)html+=section(d.mine?'우리 크루의 최신 음악':'크루에서 나온 새 음악',d.mine?'#crew/'+d.mine:'#community/covers')+communityFeed(tracks.slice(0,6));
   html+=section('함께할 크루')+(d.crews.length?`<div class="crew-grid">${d.crews.map(c=>crewCard(c,d.mine)).join('')}</div>`:'<p class="surface">아직 크루가 없어요. 좋아하는 음악으로 첫 모임을 만들어보세요.</p>');return {html,tracks};
  }
- if(base==='crew'&&param){
-  const d=await api('/api/crews/'+encodeURIComponent(param)),c=d.crew,m=d.membership;
-  const html=heading(esc(c.name))+`<a href="#community/crews" class="text-link">크루 목록</a><section class="surface crew-intro"><p>${esc(c.description)}</p><p>${esc(c.interests)}</p><strong class="crew-meta">LV${c.level} · ${c.members}/${c.capacity}명 · ${c.xp} XP</strong><p>${c.next_xp?`다음 레벨까지 ${c.next_xp-c.xp} XP`:'최고 레벨이에요.'}</p><p class="field-help">공개곡당 1 XP · 받은 선물 1골드당 1 XP · 하루 첫 크루 채팅 10 XP. LV1 10명 / LV2 20명 / LV3 50명 / LV4 100명 / LV5 150명</p><div class="inline-actions">${m?`<button class="small-button" data-leave-crew="${c.id}">크루 탈퇴</button>${m.role==='owner'?`<button class="small-button" data-edit-crew="${c.id}">소개 · 모집 수정</button>`:''}`:`<button class="primary-button" data-join-crew="${c.id}" ${d.banned||!c.recruiting||c.members>=c.capacity?'disabled':''}>${d.banned?'가입할 수 없는 크루':c.recruiting?'크루 가입하기':'모집 마감'}</button>`}</div></section>${section('크루 멤버')}<div class="crew-people">${crewPeopleHTML(d)}</div>${m?section('크루 채팅')+'<p class="field-help">새로 참여한 멤버도 이전 대화부터 함께할 수 있어요.</p>'+chatPanelHTML('크루 채팅'):''}${section('크루의 최신 음악')}${communityFeed(d.tracks)}`;
-  return {html,tracks:d.tracks,crew:c,chat:m?{path:'/api/crews/'+param+'/messages',crew:{id:c.id,owner:m.role==='owner'}}:null};
- }
+ if(base==='crew'&&param){return crewDetailView(await api('/api/crews/'+encodeURIComponent(param)),param,new URLSearchParams(raw.split('?')[1]||'').get('tab')||'chat');}
  if(['profile','dm','rewards','payouts'].includes(base)||base==='library'&&param==='followers'){
   if(!me){returnRoute=location.hash;return {html:gate()};}
   if(base==='profile'){
@@ -44,7 +53,7 @@ async function improvementsView(base,param,raw){
   if(base==='payouts')return {html:heading('정산')+earningsHTML(await api('/api/studio/earnings'))};
   if(base==='rewards'){const d=await api('/api/gold');return {html:`<div class="rewards-page">${heading('오늘의 응원별','작은 활동을 모아 좋아하는 음악에 응원해보세요.')}<div id="gift-shop-rewards">${freeRewardsHTML(d.free)}</div></div>`};}
   if(!param){const d=await api('/api/dm');return {html:heading('메시지','노래로 만난 사람들과 바로 대화하세요.')+`<div class="dm-home-actions"><a href="#following">${icon('users')}<strong>팔로잉</strong><small>내가 팔로우한 사람</small></a><a href="#community">${icon('compass')}<strong>사람 찾기</strong><small>새로운 목소리 만나기</small></a><a href="#profile">${icon('user')}<strong>내 페이지</strong><small>프로필과 내 음악</small></a></div><div class="dm-section-heading"><h2>대화</h2><span>${number(d.conversations.length)}명과 대화 중</span></div><div id="dm-conversations">`+conversationListHTML(d.conversations)+'</div><p id="dm-list-error" role="status"></p>',inbox:true};}
-  const d=await api('/api/dm/'+encodeURIComponent(param));return {html:'<header class="dm-thread-header"><a href="#dm" class="small-button dm-back" aria-label="대화 목록으로 돌아가기">'+icon('back')+' 뒤로</a><h1>'+esc(d.peer.name)+'</h1></header>'+chatPanelHTML('개인 메시지',d,d.peer),chat:{path:'/api/dm/'+param,peer:d.peer,initial:d}};
+  const d=await api('/api/dm/'+encodeURIComponent(param));return {html:'<header class="dm-thread-header"><a href="#dm" class="small-button dm-back" aria-label="대화 목록으로 돌아가기">'+icon('back')+' 뒤로</a>'+dmProfileLink(d.peer,portrait(d.peer,'producer')+'<div><h1>'+esc(d.peer.name)+'</h1><small>프로필 보기</small></div>','dm-thread-person')+'</header>'+chatPanelHTML('개인 메시지',d,d.peer),chat:{path:'/api/dm/'+param,peer:d.peer,initial:d}};
  }
  return null;
 }
@@ -60,7 +69,7 @@ function bindImprovements(view){
   me=(await api('/api/me')).user;updateAccount();toast('프로필을 저장했어요.');location.hash='library';
  });
  const browse=$('[data-browse-crews]');if(browse)browse.onclick=()=>{const input=$('#crew-search input');input.scrollIntoView({behavior:'smooth',block:'center'});input.focus({preventScroll:true});};
- const search=$('#crew-search');if(search)search.onsubmit=e=>{e.preventDefault();location.hash='community/crews?q='+encodeURIComponent(new FormData(search).get('q'));};
+ const search=$('#crew-search');if(search)search.onsubmit=e=>{e.preventDefault();location.hash='community/crews?browse=1&q='+encodeURIComponent(new FormData(search).get('q'));};
  document.querySelectorAll('[data-create-crew],[data-edit-crew]').forEach(b=>b.onclick=async()=>{if(!me)return askLogin();dialog(crewEditor(b.dataset.editCrew?view.crew:null));bindCrewForm();});
  for(const action of ['join','leave'])document.querySelectorAll(`[data-${action}-crew]`).forEach(b=>b.onclick=async()=>{
   if(!me)return askLogin();if(action==='leave'&&!confirm('크루에서 탈퇴할까요? 크루장은 먼저 가입한 멤버에게 위임되고, 마지막 멤버가 나가면 크루와 채팅이 삭제돼요.'))return;

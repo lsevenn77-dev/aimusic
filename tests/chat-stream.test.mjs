@@ -45,6 +45,30 @@ test('crew connection sees saved messages and role changes then revokes a kicked
  await f.call(room+'/members/other-profile','PATCH',{role:'manager'});assert.match(await nextEvent(reader),/event: change/);
  await f.call(room+'/members/other-profile','DELETE');assert.match(await nextEvent(reader),/event: revoked/);assert.equal(await nextEvent(reader),'');
 });
+
+test('crew stream state follows the current join boundary across an immediate rejoin',async t=>{
+ t.mock.method(Date,'now',()=>1790910000000);
+ const f=await crew(t),room='/api/crews/'+f.cid;
+ await f.call(room+'/messages','POST',{body:'Before joining',request_id:crypto.randomUUID()});
+ const first=(await f.call(room+'/join','POST',{},'other')).body.membership;
+ const states=[],prepare=f.DB.prepare;
+ f.DB.prepare=q=>{const statement=prepare(q);return {bind(...args){const bound=statement.bind(...args);return {...bound,async first(){const result=await bound.first();if(q.includes('SELECT cm.role,cm.joined_sequence'))states.push(result);return result;}};}};};
+ const reader=(await open(f,'?crew='+f.cid,'other')).body.getReader();t.after(()=>reader.cancel());
+ assert.match(await nextEvent(reader),/event: change/);
+ assert.equal(states.at(-1).joined_sequence,first.joined_sequence);
+ const initialHistory=(await f.call(room+'/messages?after=1','GET',null,'other')).body.messages;
+ assert.equal(initialHistory.length,1);assert.equal(initialHistory[0].kind,'system');
+ assert.equal(states.at(-1).sequence,initialHistory[0].sequence);
+ await f.call(room+'/leave','POST',{},'other');
+ await f.call(room+'/messages','POST',{body:'While absent',request_id:crypto.randomUUID()});
+ const next=(await f.call(room+'/join','POST',{},'other')).body.membership;
+ assert.ok(next.joined_sequence>first.joined_sequence);
+ assert.match(await nextEvent(reader),/event: change/);
+ assert.equal(states.at(-1).joined_sequence,next.joined_sequence);
+ const current=(await f.call(room+'/messages?after='+initialHistory[0].sequence,'GET',null,'other')).body.messages;
+ assert.equal(current.length,1);assert.equal(current[0].kind,'system');
+ assert.equal(states.at(-1).sequence,current[0].sequence);
+});
 test('DM notifications stay within the selected peer; revoked sessions stop ongoing streams',async t=>{
  const f=await crew(t);f.sql.exec("INSERT INTO users(id,email,name,created) VALUES('third','third@test.invalid','Third',0);INSERT INTO producers(id,user_id,name,created) VALUES('third-profile','third','Third',0)");
  const reader=(await open(f,'?peer=other-profile')).body.getReader();t.after(()=>reader.cancel());await nextEvent(reader);
@@ -54,5 +78,5 @@ test('DM notifications stay within the selected peer; revoked sessions stop ongo
 });
 test('notification lookups use covering sequence indexes without temporary sorts',async t=>{
  const f=await fixture(t);
- for(const q of ["SELECT rowid FROM crew_messages WHERE crew_id='x' ORDER BY rowid DESC LIMIT 1","SELECT rowid FROM direct_messages WHERE sender_id='x' AND recipient_id='y' ORDER BY rowid DESC LIMIT 1","SELECT rowid FROM direct_messages WHERE recipient_id='x' ORDER BY rowid DESC LIMIT 1","SELECT rowid FROM direct_messages WHERE sender_id='x' ORDER BY rowid DESC LIMIT 1"]){const plan=f.sql.prepare('EXPLAIN QUERY PLAN '+q).all().map(x=>x.detail).join(' ');assert.match(plan,/COVERING INDEX.*sequence/);assert.doesNotMatch(plan,/TEMP B-TREE|SCAN /);}
+ for(const q of ["SELECT rowid FROM crew_messages WHERE crew_id='x' ORDER BY rowid DESC LIMIT 1","SELECT rowid FROM crew_messages WHERE crew_id='x' AND rowid>=4 ORDER BY rowid DESC LIMIT 1","SELECT rowid FROM direct_messages WHERE sender_id='x' AND recipient_id='y' ORDER BY rowid DESC LIMIT 1","SELECT rowid FROM direct_messages WHERE recipient_id='x' ORDER BY rowid DESC LIMIT 1","SELECT rowid FROM direct_messages WHERE sender_id='x' ORDER BY rowid DESC LIMIT 1"]){const plan=f.sql.prepare('EXPLAIN QUERY PLAN '+q).all().map(x=>x.detail).join(' ');assert.match(plan,/COVERING INDEX.*sequence/);assert.doesNotMatch(plan,/TEMP B-TREE|SCAN /);}
 });

@@ -89,7 +89,7 @@ export const crews=sqliteTable('crews',{
  id:text('id').primaryKey(),ownerId:text('owner_id').notNull().references(()=>users.id),name:text('name').notNull(),description:text('description').notNull().default(''),interests:text('interests').notNull().default(''),recruiting:integer('recruiting').notNull().default(1),created:integer('created').notNull()
 },t=>[uniqueIndex('crews_name').on(t.name)]);
 export const crewMembers=sqliteTable('crew_members',{
- crewId:text('crew_id').notNull().references(()=>crews.id,{onDelete:'cascade'}),userId:text('user_id').notNull().references(()=>users.id),role:text('role').notNull().default('member'),joined:integer('joined').notNull()
+ crewId:text('crew_id').notNull().references(()=>crews.id,{onDelete:'cascade'}),userId:text('user_id').notNull().references(()=>users.id),role:text('role').notNull().default('member'),joined:integer('joined').notNull(),joinedSequence:integer('joined_sequence').notNull().default(0)
 },t=>[primaryKey({columns:[t.crewId,t.userId]}),uniqueIndex('crew_members_user').on(t.userId)]);
 export const crewXp=sqliteTable('crew_xp',{
  id:text('id').primaryKey(),crewId:text('crew_id').notNull().references(()=>crews.id,{onDelete:'cascade'}),userId:text('user_id').notNull().references(()=>users.id),amount:integer('amount').notNull(),created:integer('created').notNull()
