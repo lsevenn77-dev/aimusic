@@ -4,7 +4,8 @@ Sites runs the payment API and D1 ledger. The private worker on the existing
 server invokes `/internal/billing/tick` every minute. It has only the worker
 token; NICEPAY credentials and encrypted billing keys stay in Sites.
 
-- Monthly price: KRW 4,900 including VAT.
+- Monthly price for new subscriptions: KRW 5,900 including VAT (operator decision 2026-10-05). Existing consented subscription prices and historical receipts are retained.
+- Subscription revenue policy: net revenue after refunds, VAT and actual payment fees is split creator pool 50% / platform 50%; see `shared/subscription-revenue.js`. Per-creator allocation and automated subscription payout ledger are not implemented yet. Existing payout statements currently include gifts only.
 - `BILLING_CHECKOUT_ENABLED` remains `false` until the merchant's recurring
   card billing application is approved. New subscriptions also require a recent
   worker heartbeat. Enabling new checkout does not schedule a test charge.

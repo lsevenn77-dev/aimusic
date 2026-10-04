@@ -1,5 +1,5 @@
 import {one,rows,query,run,id,now,fail,json,rate} from './db.js';
-import {PREMIUM,POLICY_VERSION} from '../shared/site-info.js';
+import {PREMIUM,POLICY_VERSION,SUBSCRIPTION_REVENUE_POLICY} from '../shared/site-info.js';
 import {checkoutEnabled,niceConfigured,niceRequest,cardCredentials,issueBillingKey,expireBillingKey,sealBillingKey,openBillingKey,findPayment,chargeBillingKey,verifyNiceSignature,digest,equalSecret,nextBillingMonth} from './nicepay.js';
 
 import {reviewAccount,reviewAvailable} from './billing-review.js';
@@ -35,7 +35,7 @@ export async function billingStatus(env,user){
  const s=user?await subscription(env,user):null;
  const starts=now(),day=new Date((starts+9*3600)*1000).getUTCDate();
  const payments=s?await rows(env,'SELECT id,amount,status,period_start,period_end,created,refunded FROM billing_payments WHERE subscription_id=? ORDER BY cycle DESC LIMIT 24',s.id):[];
- return {review_only:reviewAvailable(env,user),review_expires:reviewAvailable(env,user)?Number(env.BILLING_REVIEW_UNTIL):null,checkout_available:!reviewAccount(env,user)&&checkoutEnabled(env)&&await workerReady(env),price:PREMIUM.price,currency:'KRW',interval:'month',starts_at:starts,first_renewal_at:nextBillingMonth(starts,day),billing_day:day,subscription:s?{state:s.state,renewing:s.state==='active'&&!s.cancel_requested,period_end:s.period_end||null,card_name:s.card_name,payment_pending:payments.some(p=>['processing','review'].includes(p.status))}:null,payments};
+ return {review_only:reviewAvailable(env,user),review_expires:reviewAvailable(env,user)?Number(env.BILLING_REVIEW_UNTIL):null,checkout_available:!reviewAccount(env,user)&&checkoutEnabled(env)&&await workerReady(env),price:PREMIUM.price,revenue_policy:SUBSCRIPTION_REVENUE_POLICY,currency:'KRW',interval:'month',starts_at:starts,first_renewal_at:nextBillingMonth(starts,day),billing_day:day,subscription:s?{price:s.price,state:s.state,renewing:s.state==='active'&&!s.cancel_requested,period_end:s.period_end||null,card_name:s.card_name,payment_pending:payments.some(p=>['processing','review'].includes(p.status))}:null,payments};
 }
 export async function billingTerms(env){
  const terms=[];
@@ -46,7 +46,7 @@ export async function billingTerms(env){
  }
  const body=JSON.stringify({policy:POLICY_VERSION,price:PREMIUM.price,terms}),version=await digest(body);
  await run(env,'INSERT INTO billing_terms(version,body,created) VALUES(?,?,?) ON CONFLICT(version) DO NOTHING',version,body,now());
- return {version,terms};
+ return {version,terms,price:PREMIUM.price,currency:'KRW'};
 }
 // Called only with an exclusive subscription lease. The gateway is queried
 // again even after a signed webhook: signatures do not cover every status field.
@@ -115,7 +115,7 @@ async function startSubscription(req,env,user){
  if(reviewAccount(env,user))fail(403,'심사 계정은 카드 입력 화면 확인 전용입니다. 실제 카드 등록과 결제는 실행되지 않습니다.');
  if(!checkoutEnabled(env)||!await workerReady(env))fail(503,'카드 정기결제를 준비 중입니다.');
  const body=await readBody(req),card=cardCredentials(body.card);
- if(body.consent!==true||typeof body.terms_version!=='string')fail(400,'이용약관과 매월 4,900원 정기결제에 동의해주세요.');
+ if(body.consent!==true||typeof body.terms_version!=='string')fail(400,`이용약관과 매월 ${PREMIUM.price.toLocaleString('ko-KR')}원 정기결제에 동의해주세요.`);
  const terms=await one(env,'SELECT body FROM billing_terms WHERE version=?',body.terms_version);
  if(!terms||JSON.parse(terms.body).policy!==POLICY_VERSION||JSON.parse(terms.body).price!==PREMIUM.price)fail(409,'약관과 이용권 정보를 새로 확인해주세요.');
  await rate(env,'billing-start:'+user.id,6,3600);
