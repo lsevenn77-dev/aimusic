@@ -21,7 +21,7 @@ async function communityView(base,param,raw=''){
  if(tab==='duets')html+='<nav class="tabs" aria-label="듀엣 종류"><a class="tab '+(!open?'active':'')+'" href="#community/duets">듀엣 감상</a><a class="tab '+(open?'active':'')+'" href="#community/duets?open=1">참여를 기다리는 듀엣</a></nav>';
  const label=open?'함께 부를 파트를 남겼어요':tab==='following'?'팔로잉의 새 음악':tab==='originals'?'새로 공개된 제작곡':tab==='covers'?'새로 공개된 커버':tab==='duets'?'함께 완성한 목소리':'새로 도착한 음악';
  html+='<div class="music-community-heading"><div><h2>'+label+'</h2><p>원곡도 커버도, 마음에 들면 내 플레이리스트에.</p></div></div>';
- html+=tracks.length?(tab==='all'?communityRecommendations(tracks):communityFeed(tracks)):empty('아직 공개된 음악이 없어요.','다른 탭에서 음악을 발견해보세요.','#community','전체 음악 보기');
+ html+=tracks.length?(tab==='all'?communityRecommendations(tracks):['covers','duets'].includes(tab)?coverCollectionHTML(tracks,'community-covers'):communityFeed(tracks)):empty('아직 공개된 음악이 없어요.','다른 탭에서 음악을 발견해보세요.','#community','전체 음악 보기');
  if(tab==='all')html+='<nav class="music-rank-links" aria-label="커버 랭킹">'+coverPeriods.map(([key,label])=>'<a href="#community/rankings?period='+key+'">'+label+'</a>').join('')+'</nav>';
  return {html,tracks};
 }

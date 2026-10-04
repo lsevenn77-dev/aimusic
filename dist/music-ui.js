@@ -24,3 +24,22 @@ function peopleListHTML(items,kind='producer'){
  }).join('')+'</div>';
 }
 function listenerProfileHTML(p){return '<section class="surface listener-profile">'+portrait(p,'producer')+'<h2>'+esc(p.name)+'</h2><p>'+esc(p.bio||'좋아하는 음악을 함께 듣고 있어요.')+'</p><p class="field-help">아직 공개한 음악이 없어요.</p></section>';}
+
+
+function musicLayout(scope){try{return localStorage.getItem('aifect-music-layout-'+scope)==='list'?'list':'grid';}catch{return 'grid';}}
+function coverCollectionHTML(items,scope='covers',own=false){
+ const layout=musicLayout(scope);
+ return '<section class="music-collection layout-'+layout+'" data-music-collection="'+esc(scope)+'"><div class="music-collection-toolbar"><span>'+items.length+'곡</span><div role="group" aria-label="커버 보기 방식">'+[['grid','격자'],['list','목록']].map(([key,label])=>'<button type="button" data-music-layout="'+key+'" aria-pressed="'+(layout===key)+'">'+musicLayoutIcon(key)+'<span>'+label+'</span></button>').join('')+'</div></div><div class="cover-collection-items">'+items.map(t=>coverCollectionItem(t,own)).join('')+'</div></section>';
+}
+function musicLayoutIcon(key){return key==='list'?icon('list'):'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg>';}
+function coverCollectionItem(t,own=false){
+ const published=!own||t.status==='published',status=({published:'공개 중',draft:'작성 중',processing:'음원 처리 중',hidden:'비공개',failed:'처리 실패'})[t.status]||'준비 중',href=published?'#song/'+esc(t.id):'#manage/'+esc(t.id);
+ return '<article class="cover-collection-item" data-music-id="'+esc(t.id)+'"><a class="cover-collection-art" href="'+href+'" aria-label="'+esc(t.title)+' '+(published?'곡 상세':'관리')+'">'+cover(t)+'<span class="music-kind">'+musicKind(t)+'</span></a><div class="cover-collection-copy"><h3><a href="'+href+'">'+esc(t.title)+'</a></h3>'+(t.producer_id?'<a class="cover-collection-person" href="#producer/'+esc(t.producer_id)+'">'+esc(t.producer||'음악가')+'</a>':'<span class="cover-collection-person">'+esc(t.producer||'음악가')+'</span>')+'<small>'+(own?status:number(t.plays||0)+'회 감상')+'</small>'+(published&&t.original_id?'<a class="cover-collection-origin" href="#song/'+esc(t.original_id)+'">원곡 보기 →</a>':'')+'</div><div class="cover-collection-actions">'+(published?'<button type="button" data-play="'+esc(t.id)+'" aria-label="'+esc(t.title)+' 재생">'+icon('play')+'<span>재생</span></button><button type="button" data-add="'+esc(t.id)+'" aria-label="'+esc(t.title)+' 플레이리스트에 담기">'+icon('list')+'<span>담기</span></button>':'')+(own?'<a href="#manage/'+esc(t.id)+'">관리</a>':'')+'</div>'+(published&&!own?'<footer class="cover-collection-social"><button type="button" data-like="'+esc(t.id)+'" aria-label="'+esc(t.title)+' 좋아요" aria-pressed="'+liked(t.id)+'">'+icon('heart')+'<span data-like-count>'+number(t.likes||0)+'</span></button><a href="#song/'+esc(t.id)+'?comments=1" aria-label="'+esc(t.title)+' 댓글">'+icon('message')+'<span>'+number(t.comments||0)+'</span></a>'+giftButton(t)+'</footer>':'')+(!own&&musicIsOpenDuet(t)&&t.user_id!==me?.id?'<a class="cover-collection-join" href="#sing/'+esc(t.original_id)+'?duet='+esc(t.id)+'">'+icon('mic')+' 듀엣 참여</a>':'')+'</article>';
+}
+if(typeof document!=='undefined')document.addEventListener('click',e=>{
+ const button=e.target.closest('[data-music-layout]');if(!button)return;
+ const collection=button.closest('[data-music-collection]'),layout=button.dataset.musicLayout;if(!collection||!['grid','list'].includes(layout))return;
+ collection.classList.toggle('layout-grid',layout==='grid');collection.classList.toggle('layout-list',layout==='list');collection.querySelectorAll('[data-music-layout]').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));
+ try{localStorage.setItem('aifect-music-layout-'+collection.dataset.musicCollection,layout);}catch{}
+});
+function profilePhotoCoverHTML(p){return '<div class="social-profile-cover">'+(p.image_version?'<img src="/media/producer/'+encodeURIComponent(p.id)+'?v='+encodeURIComponent(p.image_version)+'" alt="" decoding="async">':'')+'</div>';}

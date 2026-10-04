@@ -28,3 +28,14 @@ test('a DM opened directly has an explicit return to the conversation list',asyn
  const {c}=context({id:'me'},{'/api/dm/p':{peer:{id:'p',name:'Singer'},messages:[]}});c.chatPanelHTML=()=>'<div>CHAT</div>';
  const page=await c.improvementsView('dm','p','dm/p');assert.match(page.html,/dm-thread-header/);assert.match(page.html,/href="#dm"/);assert.match(page.html,/대화 목록으로 돌아가기/);
 });
+test('cover grid/list presentation uses the cover ID and never enables unpublished own music',()=>{
+ const {c}=context({id:'owner'});let mode='grid';c.localStorage={getItem:()=>mode};
+ const grid=c.coverCollectionHTML([cover,duet],'profile-covers');assert.match(grid,/layout-grid/);assert.match(grid,/data-add="c"/);assert.match(grid,/data-play="d"/);assert.doesNotMatch(grid,/data-add="o"|data-play="o"/);
+ mode='list';assert.match(c.coverCollectionHTML([cover]),/layout-list/);
+ const pending=c.coverCollectionHTML([{...cover,status:'processing'}],'my-covers',true);assert.match(pending,/음원 처리 중/);assert.match(pending,/#manage\/c/);assert.doesNotMatch(pending,/data-play|data-add/);
+});
+test('profile cover reuses the single photo safely and needs no separate banner',()=>{
+ const {c}=context();assert.match(c.profilePhotoCoverHTML({id:'p',image_version:'photo 1'}),/src="\/media\/producer\/p\?v=photo%201"/);
+ assert.doesNotMatch(c.profilePhotoCoverHTML({id:'p'}),/<img/);
+ assert.doesNotMatch(c.profilePhotoCoverHTML({id:'" onerror="bad',image_version:'"'}),/onerror="/);
+});
