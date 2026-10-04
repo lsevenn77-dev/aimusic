@@ -8,7 +8,7 @@ function context(api=async()=>({tracks:[],singers:[]})){
  const calls=[],played=[],remembered=[];
  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const c=vm.createContext({URLSearchParams,genres:['전체','K-POP','Ballad','R&B'],esc,number:n=>String(n||0),giftButton:()=>'',icon:()=>'',cover:()=>'',portrait:()=>'',liked:()=>false,followed:()=>false,
-  me:null,location:{hash:'#community'},heading:s=>'<h1>'+s+'</h1>',gate:()=>'<p>LOGIN</p>',communityFeed:()=>'<p>FEED</p>',renderId:1,routeTracks:[],
+  me:null,location:{hash:'#community'},heading:s=>'<h1>'+s+'</h1>',gate:()=>'<p>LOGIN</p>',empty:()=>'<p>EMPTY</p>',communityFeed:()=>'<p>FEED</p>',renderId:1,routeTracks:[],
   remember:items=>remembered.push(...items),accountReady:Promise.resolve(),play:async(id,queue)=>played.push({id,queue}),toast:()=>{},
   api:async path=>{calls.push(path);return api(path);}
  });
@@ -31,7 +31,7 @@ test('community entry renders all four ranking links without blocking on four ra
  const {c,calls}=context(async()=>({tracks:[]}));
  const home=await c.communityView('community',undefined,'community');
  for(const period of ['today','week','month','all'])assert.match(home.html,new RegExp('period='+period));
- assert.equal(home.coverRanking.limit,5);
+ assert.equal(home.coverRanking,undefined);assert.match(home.html,/#community\/crews/);
  assert.deepEqual(calls,['/api/community']);
  const rank=await c.communityView('community','rankings','community/rankings?period=all');
  assert.equal(rank.coverRanking.limit,50);assert.deepEqual(calls,['/api/community']);

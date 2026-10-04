@@ -17,6 +17,7 @@
   <link rel="stylesheet" href="brand.css"><link rel="stylesheet" href="community.css?v=20261001-duet-guide"><link rel="stylesheet" href="player-queue.css?v=20260930-premium">
   <link rel="stylesheet" href="gifts.css?v=20260930-premium"><script defer src="motion.js"></script>
 <link rel="stylesheet" href="improvements.css?v=20261001-duet-guide"><link rel="stylesheet" href="recording-studio.css?v=20261003-lyrics-spacing">
+<link rel="stylesheet" href="music-experience.css?v=20261004-stream-community">
 </head>
 <body>
   <aside class="sidebar" id="sidebar">
@@ -27,7 +28,7 @@
       <a href="#karaoke" class="nav-link" data-view="karaoke" data-primary-view="karaoke"><i data-icon="mic"></i>부르기</a>
       <a href="#community" class="nav-link" data-view="community" data-primary-view="community"><i data-icon="users"></i>커뮤니티</a>
       <a href="#gifts" class="nav-link" data-view="gifts"><i data-icon="gift"></i>선물함</a>
-      <a href="#library" class="nav-link" data-view="library" data-primary-view="library"><i data-icon="library"></i>내 보관함</a>
+      <a href="#dm" class="nav-link" data-view="dm" data-primary-view="dm"><i data-icon="message"></i>메시지</a><a href="#profile" class="nav-link" data-view="profile" data-primary-view="profile"><i data-icon="user"></i>마이</a><a href="#library" class="nav-link" data-view="library" data-primary-view="library"><i data-icon="library"></i>내 보관함</a>
     </nav>
     <p class="nav-label second-label">더 둘러보기</p>
     <nav aria-label="음악 탐색">
@@ -57,11 +58,12 @@
 
     <footer class="page-footer"><!--BUSINESS_FOOTER--></footer>
   </div>
-  <nav class="mobile-navigation" aria-label="하단 주 메뉴">
-    <a href="#home" data-primary-view="home"><i data-icon="home"></i><span>듣기</span></a>
-    <a href="#karaoke" data-primary-view="karaoke"><i data-icon="mic"></i><span>부르기</span></a>
+  <nav class="mobile-navigation social-mobile-navigation" aria-label="하단 주 메뉴">
+    <a href="#home" data-primary-view="home"><i data-icon="home"></i><span>홈</span></a>
     <a href="#community" data-primary-view="community"><i data-icon="users"></i><span>커뮤니티</span></a>
-    <a href="#library" data-primary-view="library"><i data-icon="library"></i><span>보관함</span></a>
+    <a href="#karaoke" class="mobile-sing-main" data-primary-view="karaoke"><span class="mobile-sing-orb"><i data-icon="mic"></i></span><span>부르기</span></a>
+    <a href="#dm" data-primary-view="dm"><i data-icon="message"></i><span>메시지</span></a>
+    <a href="#profile" data-primary-view="profile"><i data-icon="user"></i><span>마이</span></a>
   </nav>
   <section class="player" aria-label="음악 플레이어" hidden>
 <a id="player-lyric" class="player-lyric" hidden></a><div class="now-playing" id="now-playing"><div class="mini-cover cover cover-lime">A</div><div><strong>새로운 음악을 만나보세요</strong><span>곡을 선택하면 재생됩니다</span></div></div>
@@ -69,6 +71,6 @@
 <div class="player-right"><span class="free-listen" id="listen-mode">회원은 전체곡 무료</span><i data-icon="volume"></i><input id="volume" type="range" min="0" max="1" value="0.75" step="0.01" aria-label="음량"><button type="button" id="queue-toggle" aria-label="재생목록 열기" aria-haspopup="dialog" title="재생목록 보기 · 곡 순서 편집"><i data-icon="list"></i><span>재생목록</span><span id="queue-count" aria-hidden="true" hidden>0</span></button></div><div id="player-actions" class="player-actions" aria-label="현재 곡 메뉴"></div><button type="button" class="icon-button player-close" id="player-close" aria-label="재생 종료 및 재생바 닫기" title="재생 종료 및 재생바 닫기"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></section>
   <div class="toast" id="toast" role="status"></div>
   <dialog id="dialog" aria-label="AIFECT"><div id="dialog-content"></div><button class="dialog-close" aria-label="닫기" id="dialog-close">×</button></dialog>
-<script defer src="icons.js?v=20260930-premium"></script><script defer src="site-info.js"></script><script defer src="genres-core.js?v=20260930-premium"></script><script defer src="app.js?v=20261001-duet-guide"></script><script defer src="media-session.js?v=20260930-premium"></script><script defer src="audio-ads-core.js?v=20260930-premium"></script><script defer src="audio-ads.js?v=20260930-premium"></script><script defer src="membership.js?v=20260930-premium"></script><script defer src="billing.js?v=20260930-premium"></script><script defer src="gold-checkout.js?v=20260930-premium"></script><script defer src="home.js?v=20260930-premium"></script><script defer src="views.js?v=20261002-drafts"></script><script defer src="lyrics-core.js?v=20261002-account"></script><script defer src="alignment-core.js?v=20261002-account"></script><script defer src="alignment.js?v=20261002-account"></script><script defer src="lyrics.js?v=20261002-account"></script><script defer src="studio.js?v=20261001-duet-guide"></script><script defer src="karaoke-core.js?v=20260930-premium"></script><script defer src="duet-guide-core.js?v=20261002-duet-visual"></script><script defer src="karaoke.js?v=20261003-lyrics-spacing"></script><script defer src="library.js"></script><script defer src="queue-core.js"></script><script defer src="explorer.js?v=20260930-premium"></script><script defer src="community.js?v=20261001-duet-guide"></script><script defer src="browse.js?v=20261002-drafts"></script><script defer src="gifts-core.js?v=20260930-premium"></script><script defer src="gifts.js?v=20260930-premium"></script><script defer src="image-upload.js?v=20260930-premium"></script><script defer src="social-chat.js?v=20260930-premium"></script><script defer src="improvements.js?v=20261002-crew"></script><script defer src="sing-drafts.js?v=20261002-drafts"></script><script defer src="account-settings.js?v=20261002-account"></script><script defer src="actions.js?v=20261002-account"></script>
+<script defer src="icons.js?v=20260930-premium"></script><script defer src="site-info.js"></script><script defer src="genres-core.js?v=20260930-premium"></script><script defer src="app.js?v=20261001-duet-guide"></script><script defer src="media-session.js?v=20260930-premium"></script><script defer src="audio-ads-core.js?v=20260930-premium"></script><script defer src="audio-ads.js?v=20260930-premium"></script><script defer src="membership.js?v=20260930-premium"></script><script defer src="billing.js?v=20260930-premium"></script><script defer src="gold-checkout.js?v=20260930-premium"></script><script defer src="home.js?v=20260930-premium"></script><script defer src="music-ui.js?v=20261004-stream-community"></script><script defer src="views.js?v=20261002-drafts"></script><script defer src="lyrics-core.js?v=20261002-account"></script><script defer src="alignment-core.js?v=20261002-account"></script><script defer src="alignment.js?v=20261002-account"></script><script defer src="lyrics.js?v=20261002-account"></script><script defer src="studio.js?v=20261001-duet-guide"></script><script defer src="karaoke-core.js?v=20260930-premium"></script><script defer src="duet-guide-core.js?v=20261002-duet-visual"></script><script defer src="karaoke.js?v=20261003-lyrics-spacing"></script><script defer src="library.js"></script><script defer src="queue-core.js"></script><script defer src="explorer.js?v=20260930-premium"></script><script defer src="community.js?v=20261001-duet-guide"></script><script defer src="browse.js?v=20261002-drafts"></script><script defer src="gifts-core.js?v=20260930-premium"></script><script defer src="gifts.js?v=20260930-premium"></script><script defer src="image-upload.js?v=20260930-premium"></script><script defer src="social-chat.js?v=20260930-premium"></script><script defer src="improvements.js?v=20261002-crew"></script><script defer src="sing-drafts.js?v=20261002-drafts"></script><script defer src="account-settings.js?v=20261002-account"></script><script defer src="actions.js?v=20261002-account"></script>
 </body>
 </html>
