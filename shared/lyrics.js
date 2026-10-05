@@ -1,6 +1,19 @@
 export const MAX_LYRICS=12000;
-export function cleanLyricAnnotations(value,preserveLrc=false){
- let removed=0;const text=String(value??'').replace(/\[[^\]\r\n]*\]/g,label=>{if(preserveLrc&&/^\[(?:\d{1,3}:\d{2}(?:[.:]\d{1,3})?|(?:ar|al|ti|by|re|ve|length|offset):[^\]]*)\]$/i.test(label))return label;removed++;return '';});return {text,removed};
+export function cleanLyricAnnotations(value,preserveLrc=false,selection=null){
+ const source=String(value??'');let text='',cursor=0,depth=0,start=0,removed=0;
+ const position=value=>Math.max(0,Math.min(source.length,Number(value)||0));
+ const from=position(selection?.start),to=position(selection?.end);let selectionStart=from,selectionEnd=to;
+ for(let i=0;i<source.length;i++){
+  if(source[i]==='['){if(!depth)start=i;depth++;}
+  else if(source[i]===']'&&depth&&!--depth){
+   const label=source.slice(start,i+1);
+   if(preserveLrc&&/^\[(?:\d{1,3}:\d{2}(?:[.:]\d{1,3})?|(?:ar|al|ti|by|re|ve|length|offset):[^\]]*)\]$/i.test(label))continue;
+   text+=source.slice(cursor,start);cursor=i+1;removed++;
+   selectionStart-=Math.min(label.length,Math.max(0,from-start));selectionEnd-=Math.min(label.length,Math.max(0,to-start));
+  }
+ }
+ const result={text:text+source.slice(cursor),removed};
+ if(selection)Object.assign(result,{selectionStart,selectionEnd});return result;
 }
 export function timestamp(seconds){
  const ms=Math.round(seconds*1000),minutes=Math.floor(ms/60000),rest=ms%60000;
