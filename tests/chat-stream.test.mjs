@@ -80,3 +80,13 @@ test('notification lookups use covering sequence indexes without temporary sorts
  const f=await fixture(t);
  for(const q of ["SELECT rowid FROM crew_messages WHERE crew_id='x' ORDER BY rowid DESC LIMIT 1","SELECT rowid FROM crew_messages WHERE crew_id='x' AND rowid>=4 ORDER BY rowid DESC LIMIT 1","SELECT rowid FROM direct_messages WHERE sender_id='x' AND recipient_id='y' ORDER BY rowid DESC LIMIT 1","SELECT rowid FROM direct_messages WHERE recipient_id='x' ORDER BY rowid DESC LIMIT 1","SELECT rowid FROM direct_messages WHERE sender_id='x' ORDER BY rowid DESC LIMIT 1"]){const plan=f.sql.prepare('EXPLAIN QUERY PLAN '+q).all().map(x=>x.detail).join(' ');assert.match(plan,/COVERING INDEX.*sequence/);assert.doesNotMatch(plan,/TEMP B-TREE|SCAN /);}
 });
+
+test('a selected DM stream notifies read receipts and the incremental response does not leak another peer',async t=>{
+ const f=await crew(t);f.sql.exec("INSERT INTO users(id,email,name,created) VALUES('third','third@test.invalid','Third',0);INSERT INTO producers(id,user_id,name,created) VALUES('third-profile','third','Third',0)");
+ const message=(await f.call('/api/dm/other-profile','POST',{body:'read this',request_id:crypto.randomUUID()})).body.message;
+ const reader=(await open(f,'?peer=other-profile')).body.getReader();t.after(()=>reader.cancel());await nextEvent(reader);
+ await f.call('/api/dm/producer','PATCH',{},'other');assert.match(await nextEvent(reader),/event: change/);
+ const increment=(await f.call('/api/dm/other-profile?after='+message.sequence)).body;
+ assert.deepEqual(increment.messages,[]);assert.equal(increment.read_receipt.sequence,message.sequence);assert.ok(increment.read_receipt.read_at>0);
+ assert.equal((await f.call('/api/dm/third-profile')).body.read_receipt.sequence,0);
+});

@@ -12,6 +12,8 @@ const cookie=(name,value,age,secure=true)=>`${name}=${value}; Path=/; HttpOnly; 
 export function cookies(req){return Object.fromEntries((req.headers.get('cookie')||'').split(';').map(x=>x.trim().split('=')));}
 // Operators are listed by user id in ADMIN_USER_IDS; there is no self-service admin role.
 export const isAdmin=(env,user)=>!!user&&(env.ADMIN_USER_IDS||'').split(',').map(s=>s.trim()).filter(Boolean).includes(user.id);
+// Moderation operators have no access to payout accounts or other administrator data.
+export const isTrackModerator=(env,user)=>isAdmin(env,user)||!!user&&(env.TRACK_REVIEW_USER_IDS||'').split(',').map(s=>s.trim()).filter(Boolean).includes(user.id);
 export async function viewer(req,env){
  const token=cookies(req).aifect_session;if(!token)return null;
  // Resolve the session and public nickname together on every request; no auth cache.
@@ -42,7 +44,7 @@ export async function authRoute(req,env,path,user){
  const native=await nativeAuthRoute(req,env,path);if(native)return native;
  if(path==='/api/me'){
   const [plan,state]=await Promise.all([membership(env,user),user&&url.searchParams.get('state')==='1'?one(env,`SELECT (SELECT json_group_array(track_id) FROM likes WHERE user_id=?) likes,(SELECT json_group_array(json_object('kind',kind,'target_id',target_id)) FROM follows WHERE user_id=?) follows`,user.id,user.id):null]);
-  return json({user,admin:isAdmin(env,user),membership:plan,providers:providers(env),googleClientId:env.GOOGLE_CLIENT_ID||null,emailEnabled:!!env.AUTH_PEPPER,...(state?{interaction_state:{likes:JSON.parse(state.likes).map(id=>({id})),follows:JSON.parse(state.follows)}}:{})});
+  return json({user,admin:isAdmin(env,user),track_moderator:isTrackModerator(env,user),membership:plan,providers:providers(env),googleClientId:env.GOOGLE_CLIENT_ID||null,emailEnabled:!!env.AUTH_PEPPER,...(state?{interaction_state:{likes:JSON.parse(state.likes).map(id=>({id})),follows:JSON.parse(state.follows)}}:{})});
  }
  if(path==='/api/auth/google/nonce'&&req.method==='POST'){
   if(!env.GOOGLE_CLIENT_ID)fail(503,'Google 로그인을 준비하고 있습니다.');

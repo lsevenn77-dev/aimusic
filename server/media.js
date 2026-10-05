@@ -75,7 +75,7 @@ export async function mediaRoute(req,env,path,user){
    }
    return json({ok:true});
   }
-  if(action==='unpublish'&&method==='POST'){if(!['published','hidden'].includes(t.status))fail(409,'공개한 곡만 비공개로 바꿀 수 있어요.');await run(env,"UPDATE tracks SET status='hidden' WHERE id=?",t.id);return json({ok:true});}
+  if(action==='unpublish'&&method==='POST'){if(!['published','hidden'].includes(t.status))fail(409,'공개한 곡만 비공개로 바꿀 수 있어요.');const changed=await query(env,"UPDATE tracks SET status='hidden' WHERE id=? AND status IN ('published','hidden') RETURNING id",t.id).first();if(!changed)fail(409,'곡의 상태가 변경되었어요. 목록을 새로 확인해주세요.');return json({ok:true});}
   if(action==='retry'&&method==='POST'){
    if(!['failed','hidden'].includes(t.status)||!await env.BUCKET.head(originalKey(t)))fail(409,'다시 처리할 원본이 없습니다.');
    await run(env,"UPDATE tracks SET status='queued',error=NULL,attempts=0,lease_until=0 WHERE id=?",t.id);return json({ok:true});

@@ -25,10 +25,10 @@ function bindForms(base,param){
  if($('#search-form'))$('#search-form').onsubmit=e=>{e.preventDefault();location.hash='search/'+encodeURIComponent(new FormData(e.target).get('q'));};
  if($('#auth-form')){
   const form=$('#auth-form');$('#auth-switch').onclick=()=>{const signup=form.dataset.mode!=='register';form.dataset.mode=signup?'register':'login';$('#signup-name').hidden=!signup;form.elements.name.required=signup;form.elements.password.autocomplete=signup?'new-password':'current-password';$('#auth-title').textContent=signup?'무료 회원가입':'이메일로 로그인';$('#auth-submit').textContent=signup?'가입하고 음악 듣기':'로그인';$('#auth-switch').textContent=signup?'이미 회원이신가요? 로그인':'처음 오셨나요? 무료 회원가입';};
-  form.onsubmit=busyForm(form,async fd=>{const d=await api('/api/auth/'+form.dataset.mode,'POST',Object.fromEntries(fd));me=d.user;await refreshLibrary();updateAccount();toast('반가워요! 이제 전체곡을 들을 수 있습니다.');try{await resumeAfterLogin();}catch(e){toast(e.message);}if(location.hash===returnRoute)await render();else location.hash=returnRoute;});
+  form.onsubmit=busyForm(form,async fd=>{const d=await api('/api/auth/'+form.dataset.mode,'POST',Object.fromEntries(fd));me=d.user;await refreshAuthState();await refreshLibrary();updateAccount();toast('반가워요! 이제 전체곡을 들을 수 있습니다.');try{await resumeAfterLogin();}catch(e){toast(e.message);}if(location.hash===returnRoute)await render();else location.hash=returnRoute;});
   if(authConfig.googleClientId)prepareGoogle().catch(e=>toast(e.message));
  }
- if($('#logout'))$('#logout').onclick=async()=>{try{await api('/api/auth/logout','POST');++playSerial;window.AifectAudioAds?.cancel();audio.pause();audio.removeAttribute('src');me=null;playSession=null;library={likes:[],playlists:[],follows:[]};setMembership(null);current=null;setCurrentLyrics(null);setPlayerVisible(false);sessionStorage.removeItem('aifect-player-resume');pendingResume=null;updateAccount();await render();toast('로그아웃했습니다.');}catch(e){toast(e.message);}};
+ if($('#logout'))$('#logout').onclick=async()=>{try{await api('/api/auth/logout','POST');++playSerial;window.AifectAudioAds?.cancel();audio.pause();audio.removeAttribute('src');me=null;authConfig={...authConfig,admin:false,track_moderator:false,user:null};playSession=null;library={likes:[],playlists:[],follows:[]};setMembership(null);current=null;setCurrentLyrics(null);setPlayerVisible(false);sessionStorage.removeItem('aifect-player-resume');pendingResume=null;updateAccount();await render();toast('로그아웃했습니다.');}catch(e){toast(e.message);}};
  if($('#comment-form')){
   const form=$('#comment-form');form.onsubmit=busyForm(form,async fd=>{if(!me){askLogin();return;}const ts=fd.has('with_time')&&current?.id===param?Math.floor(audio.currentTime):null;await api(`/api/tracks/${param}/comments`,'POST',{body:fd.get('body'),timestamp:ts});form.reset();await reloadComments(param);toast('댓글을 등록했습니다.');});
   $('#comment-sort').onchange=()=>reloadComments(param).catch(e=>toast(e.message));
@@ -45,7 +45,7 @@ async function prepareGoogle(){
  const {nonce}=await api('/api/auth/google/nonce','POST');
  googleScriptPromise ||=new Promise((resolve,reject)=>{if(window.google?.accounts?.id)return resolve();const script=document.createElement('script');script.src='https://accounts.google.com/gsi/client';script.async=true;script.onload=resolve;script.onerror=()=>{googleScriptPromise=null;reject(new Error('Google 로그인 버튼을 불러오지 못했습니다.'));};document.head.appendChild(script);});
  await googleScriptPromise;if(!host.isConnected)return;
- google.accounts.id.initialize({client_id:authConfig.googleClientId,nonce,auto_select:false,callback:async result=>{try{saveResume();const d=await api('/api/auth/google/token','POST',{credential:result.credential});me=d.user;await refreshLibrary();updateAccount();await resumeAfterLogin();location.hash=returnRoute;await render();toast('Google 계정으로 로그인했습니다.');}catch(e){toast(e.message);await prepareGoogle();}}});
+ google.accounts.id.initialize({client_id:authConfig.googleClientId,nonce,auto_select:false,callback:async result=>{try{saveResume();const d=await api('/api/auth/google/token','POST',{credential:result.credential});me=d.user;await refreshAuthState();await refreshLibrary();updateAccount();await resumeAfterLogin();location.hash=returnRoute;await render();toast('Google 계정으로 로그인했습니다.');}catch(e){toast(e.message);await prepareGoogle();}}});
  google.accounts.id.renderButton(host,{theme:'outline',size:'large',type:'standard',text:'continue_with',width:Math.min(host.parentElement.clientWidth-60,340),locale:'ko',click_listener:saveResume});
 }
 async function reloadComments(tid){const {comments}=await api(`/api/tracks/${tid}/comments?sort=${$('#comment-sort')?.value||'latest'}`);if($('#comments'))$('#comments').innerHTML=commentsHTML(comments,trackMap.get(tid));}
@@ -195,3 +195,18 @@ async function boot(){
  await firstRender;
 }
 icons();boot();
+
+async function reviewTrackDialog(id){
+ const d=await api('/api/admin/track-review/'+id),t=d.track,removed=t.status==='removed';
+ dialog('<h2>'+esc(t.title)+'</h2><p>'+esc(t.producer)+' · '+(removed?'운영자 제거됨':'공개 중')+'</p><p>'+number(t.report_count)+'명의 음질 신고</p>'+(t.status==='published'?'<a class="small-button" href="#song/'+esc(t.id)+'" data-close-dialog>곡 확인</a>':'')+'<div style="max-height:240px;overflow:auto">'+(d.reports.length?d.reports.map(r=>'<article><strong>음질 문제 · '+new Date(r.created*1000).toLocaleDateString('ko-KR')+'</strong><p>'+esc(r.details||'추가 설명 없음')+'</p></article>').join(''):'<p class="field-help">신고 내역이 없어요.</p>')+'</div><form id="track-visibility-form"><label class="form-field">운영자 메모<textarea name="note" maxlength="500"></textarea></label><p class="field-help">'+(removed?'다시 공개하면 감상과 노래방 이용이 가능해져요.':'제거하면 공개 목록과 재생에서 제외돼요. 원본과 정산 기록은 보존하며 운영자가 다시 공개할 수 있어요. 원곡에 연결된 커버도 재생할 수 없게 됩니다.')+'</p><button class="primary-button" '+(['published','removed'].includes(t.status)?'':'disabled')+'>'+(removed?'다시 공개':'음원 제거')+'</button><p class="form-error" role="alert"></p></form>');
+ const form=$('#track-visibility-form');form.onsubmit=busyForm(form,async fd=>{await api('/api/admin/track-review/'+id+'/visibility','POST',{action:removed?'restore':'remove',note:fd.get('note')||''});if(!removed&&(current?.id===id||current?.original_id===id))closePlayer();$('#dialog').close();toast(removed?'다시 공개했어요.':'공개 목록과 재생에서 제거했어요.');location.hash='admin/track-review?view='+(!removed?'removed':'all');await render();});
+}
+document.addEventListener('click',async e=>{
+ const report=e.target.closest('[data-report-track]'),review=e.target.closest('[data-review-track]');
+ try{
+  if(review){e.preventDefault();if(review.dataset.pending)return;review.dataset.pending='1';await reviewTrackDialog(review.dataset.reviewTrack);}
+  else if(report){e.preventDefault();if(!me)return askLogin();dialog('<h2>음질 문제 신고</h2><p>큰 잡음, 소리 깨짐, 반주·목소리의 심한 불균형 등 감상하기 어려운 부분을 알려주세요. 운영자가 확인하며 자동 제거하지 않아요.</p><form id="report-track-form"><label class="form-field">문제 설명 (선택)<textarea name="details" maxlength="500" placeholder="예: 1분 20초부터 소리가 크게 깨져요."></textarea></label><button class="primary-button">신고 접수</button><p class="form-error" role="alert"></p></form>');const form=$('#report-track-form');form.onsubmit=busyForm(form,async fd=>{await api('/api/tracks/'+report.dataset.reportTrack+'/report','POST',{reason:'low_quality',details:fd.get('details')||''});$('#dialog').close();toast('신고를 접수했어요. 같은 계정의 중복 신고는 집계하지 않아요.');});}
+ }catch(err){toast(err.message);}finally{if(review)delete review.dataset.pending;}
+});
+
+async function refreshAuthState(){const d=await api("/api/me");authConfig=d;me=d.user;setMembership(d.membership);}
