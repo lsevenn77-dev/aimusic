@@ -101,7 +101,7 @@ export async function mediaRoute(req,env,path,user){
    const high=await premiumAudio(env,t,user);if(!high)fail(404,'고음질 파일을 준비하고 있습니다.');
    return objectResponse(req,env,high.output_key,'audio/mp4');
   }
-  if(kind==='cover'&&t.cover_version)return objectResponse(req,env,`images/track/${t.id}/${t.cover_version}`,t.cover_type,!!t.visible);
+  if(kind==='cover'&&t.cover_version)return objectResponse(req,env,`images/track/${t.id}/${t.cover_version}`,t.cover_type,!!t.visible,{imageVersion:t.cover_version});
   return objectResponse(req,env,`${kind}/${t.id}.${kind==='cover'?'jpg':'m4a'}`,kind==='cover'?'image/jpeg':'audio/mp4',kind==='cover'&&!!t.visible);
  }
  m=path.match(/^\/media\/(artist|producer|banner)\/([\w-]+)$/);
@@ -111,7 +111,7 @@ export async function mediaRoute(req,env,path,user){
   if(!version)fail(404,'프로필 이미지를 찾을 수 없습니다.');
   const isPublic=kind==='producer'||!!await one(env,`SELECT t.id FROM tracks t WHERE t.${owner}_id=? AND ${VISIBLE()} LIMIT 1`,p.id);
   if(!isPublic&&p.user_id!==user?.id)fail(404,'프로필 이미지를 찾을 수 없습니다.');
-  return objectResponse(req,env,`images/${kind}/${p.id}/${version}`,kind==='banner'?p.banner_type:p.image_type,isPublic);
+  return objectResponse(req,env,`images/${kind}/${p.id}/${version}`,kind==='banner'?p.banner_type:p.image_type,isPublic,{imageVersion:version});
  }
  m=path.match(/^\/api\/playback\/([\w-]+)$/);
  if(m&&method==='POST'){
