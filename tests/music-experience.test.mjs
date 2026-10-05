@@ -34,8 +34,8 @@ test('cover grid/list presentation uses the cover ID and never enables unpublish
  mode='list';assert.match(c.coverCollectionHTML([cover]),/layout-list/);
  const pending=c.coverCollectionHTML([{...cover,status:'processing'}],'my-covers',true);assert.match(pending,/음원 처리 중/);assert.match(pending,/#manage\/c/);assert.doesNotMatch(pending,/data-play|data-add/);
 });
-test('profile cover reuses the single photo safely and needs no separate banner',()=>{
- const {c}=context();assert.match(c.profilePhotoCoverHTML({id:'p',image_version:'photo 1'}),/src="\/media\/producer\/p\?v=photo%201"/);
- assert.doesNotMatch(c.profilePhotoCoverHTML({id:'p'}),/<img/);
- assert.doesNotMatch(c.profilePhotoCoverHTML({id:'" onerror="bad',image_version:'"'}),/onerror="/);
+test('profile photo reuses the single photo safely and needs no separate banner',()=>{
+ const {c}=context();assert.match(c.profilePhotoHTML({id:'p',image_version:'photo 1'}),/src="\/media\/producer\/p\?v=photo%201"/);
+ assert.doesNotMatch(c.profilePhotoHTML({id:'p'}),/<img/);
+ assert.doesNotMatch(c.profilePhotoHTML({id:'" onerror="bad',image_version:'"'}),/onerror="/);
 });

@@ -42,4 +42,4 @@ if(typeof document!=='undefined')document.addEventListener('click',e=>{
  collection.classList.toggle('layout-grid',layout==='grid');collection.classList.toggle('layout-list',layout==='list');collection.querySelectorAll('[data-music-layout]').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));
  try{localStorage.setItem('aifect-music-layout-'+collection.dataset.musicCollection,layout);}catch{}
 });
-function profilePhotoCoverHTML(p){return '<div class="social-profile-cover">'+(p.image_version?'<img src="/media/producer/'+encodeURIComponent(p.id)+'?v='+encodeURIComponent(p.image_version)+'" alt="" decoding="async">':'')+'</div>';}
+function profilePhotoHTML(p){return '<div class="social-profile-photo">'+(p.image_version?'<img src="/media/producer/'+encodeURIComponent(p.id)+'?v='+encodeURIComponent(p.image_version)+'" alt="'+esc(p.name)+' 프로필 사진" decoding="async">':'<span>'+esc((p.name||'음악가').slice(0,2))+'</span>')+'</div>';}
