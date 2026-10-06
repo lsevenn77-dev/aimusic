@@ -5,7 +5,7 @@ import {businessFooterHTML} from '../shared/site-info.js';
 await mkdir('dist/server',{recursive:true});
 await mkdir('dist/client',{recursive:true});
 await cp('dist/app-ads.txt','dist/client/app-ads.txt');
-for(const file of ['music-ui.js','music-experience.css','brand-refinement.css','account-settings.js','social-chat.js','recorder-worklet.js','improvements.js','improvements.css','recording-studio.css','sing-drafts.js','ads.txt','audio-ads.js','audio-ads.css','gifts.js','gifts.css','image-upload.js'])await cp(`dist/${file}`,`dist/client/${file}`);
+for(const file of ['music-ui.js','music-experience.css','brand-refinement.css','account-settings.js','social-chat.js','recorder-worklet.js','improvements.js','improvements.css','recording-studio.css','sing-drafts.js','ads.txt','audio-ads.js','audio-ads.css','upload-ads.js','upload-ads.css','gifts.js','gifts.css','image-upload.js'])await cp(`dist/${file}`,`dist/client/${file}`);
 // Delete the replaced, generated display-ad assets from incremental builds.
 for(const file of ['web-ads.js','web-ads.css'])await rm(`dist/client/${file}`,{force:true});
 await cp('dist/billing.js','dist/client/billing.js');

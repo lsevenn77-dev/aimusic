@@ -24,16 +24,24 @@ object SongAdBreaks {
  fun completed(listenedMs:Long,durationMs:Long,preview:Boolean) {
   if(eligible){cadence.finish(listenedMs,durationMs,preview);persist()}
  }
- fun afterCoverUpload(pause:()->Unit,onFinished:()->Unit) {
+ fun afterCoverUpload(uploadId:String,pause:()->Unit,onFinished:()->Unit) {
+  val owner=account
+  if(!eligible||owner==null||uploadId.isBlank()){onFinished();return}
+  // A completion callback can be delivered again after Activity recreation.
+  // Claim the placement before checking inventory so a late ad never surprises the user.
+  val key="cover_uploads_$owner"
+  val attempted=prefs?.getStringSet(key,emptySet()).orEmpty().toMutableSet()
+  if(!attempted.add(uploadId)){onFinished();return}
+  prefs?.edit()?.putStringSet(key,attempted.toList().takeLast(100).toSet())?.apply()
   val presenter=host
-  if(!eligible||presenter?.ready()!=true){onFinished();return}
+  if(presenter?.ready()!=true){onFinished();return}
   pause()
-  if(!presenter.show({cadence.shown();persist()},onFinished))onFinished()
+  if(!presenter.show({},onFinished))onFinished()
  }
+ @Suppress("UNUSED_PARAMETER")
  fun atBoundary(pause:()->Unit,continuePlayback:()->Unit) {
-  val presenter=host
-  if(!due||presenter?.ready()!=true){continuePlayback();return}
-  pause()
-  if(!presenter.show({cadence.shown();persist()},continuePlayback))continuePlayback()
+  // Listening inventory will be audio-only. Until that provider is ready,
+  // continue music immediately; never fall back to the upload interstitial.
+  continuePlayback()
  }
 }

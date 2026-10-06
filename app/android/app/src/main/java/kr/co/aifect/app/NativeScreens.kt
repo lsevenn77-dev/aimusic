@@ -332,7 +332,7 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)A
     Text("이용 안내",color=Muted);Spacer(Modifier.weight(1f));Icon(if(information)Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,null,tint=Muted)
    }
    if(information){
-    Text("제작곡은 무료 월 5곡 · Premium 월 20곡, 커버곡은 업로드 제한이 없어요. 무료회원은 5곡 감상 후와 커버 업로드 완료 후 광고가 표시될 수 있어요. Premium은 광고가 없어요.",fontSize=13.sp,color=Muted)
+    Text("제작곡은 무료 월 5곡 · Premium 월 20곡, 커버곡은 업로드 제한이 없어요. 무료회원은 제작곡 업로드 중 또는 커버 업로드 완료 후 화면 광고가 한 번 표시될 수 있어요. 감상 중 음성광고는 준비 중이며, Premium은 광고가 없어요.",fontSize=13.sp,color=Muted)
     listOf("이용약관" to "/terms","개인정보처리방침" to "/privacy","고객센터 · 탈퇴" to "/contact").forEach{(label,path)->TextButton(onClick={open(path)}){Text(label)}}
     TextButton(onClick={m.showAccount=false;adPrivacy()}){Text("광고 개인정보 설정")}
    }

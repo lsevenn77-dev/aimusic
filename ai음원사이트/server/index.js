@@ -13,6 +13,7 @@ import {catalogRoute} from './catalog.js';
 import {mediaRoute,internalRoute} from './media.js';
 import {membershipRoute} from './membership.js';
 import {audioAdsRoute} from './audio-ads.js';
+import {uploadAdsRoute} from './upload-ads.js';
 import {lyricsRoute} from './lyrics.js';
 import {alignmentRoute} from './alignment.js';
 import {karaokeRoute} from './karaoke.js';
@@ -60,6 +61,7 @@ export default {async fetch(req,env,ctx){
   const pushResponse=await pushRoute(req,env,path,user);if(pushResponse)return pushResponse;
   const chatStream=await chatStreamRoute(req,env,path,user);if(chatStream)return chatStream;
   const audioAdsResponse=audioAdsRoute(req,env,path,user);if(audioAdsResponse)return audioAdsResponse;
+  const uploadAdsResponse=uploadAdsRoute(req,env,path,user);if(uploadAdsResponse)return uploadAdsResponse;
   if(Math.random()<.005)ctx.waitUntil(env.DB.batch([
    query(env,'DELETE FROM sessions WHERE expires<?',now()),
    query(env,'DELETE FROM oauth_states WHERE expires<?',now()),

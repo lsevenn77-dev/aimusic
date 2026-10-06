@@ -33,7 +33,8 @@ class MainActivity:ComponentActivity(){
   if(result.resultCode==RESULT_OK&&!result.data?.getStringExtra("uploadedId").isNullOrBlank()){
    model.notice="커버곡을 올렸어요! 변환이 끝나면 공개돼요.";lifecycleScope.launch{runCatching{model.loadLibrary()}}
    if(result.data?.getBooleanExtra("showUploadAd",false)==true)lifecycleScope.launch {
-    lifecycle.withResumed {SongAdBreaks.afterCoverUpload({model.controller?.pause()},{})}
+    val uploadedId=result.data?.getStringExtra("uploadedId").orEmpty()
+    lifecycle.withResumed {SongAdBreaks.afterCoverUpload(uploadedId,{model.controller?.pause()},{})}
    }
   }
  }
