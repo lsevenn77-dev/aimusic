@@ -54,7 +54,7 @@ async function applySubscription(env,user,token,product,data){
  const baseline=Math.max(Number(latest?.baseline||0),Number(fresh.premium_until)!==Number(latest?.amount||0)?Number(fresh.premium_until||0):0);
  await env.DB.batch([
   query(env,`INSERT INTO play_purchases(token_hash,purchase_token,user_id,product_id,kind,state,expiry,baseline_until,created,updated) VALUES(?,?,?,?,?,?,?,?,?,?)
-   ON CONFLICT(token_hash) DO UPDATE SET state=excluded.state,expiry=excluded.expiry,baseline_until=MAX(play_purchases.baseline_until,excluded.baseline_until),updated=excluded.updated`,tokenHash,token,user.id,product.id,'subs',verified.state,verified.expiry,baseline,at,at),
+   ON CONFLICT(token_hash) DO UPDATE SET state=excluded.state,expiry=excluded.expiry,baseline_until=MAX(play_purchases.baseline_until,excluded.baseline_until),updated=excluded.updated WHERE play_purchases.state!='refunded'`,tokenHash,token,user.id,product.id,'subs',verified.state,verified.expiry,baseline,at,at),
   query(env,`UPDATE users SET premium_until=MAX(?,COALESCE((SELECT MAX(expiry) FROM play_purchases WHERE user_id=? AND kind='subs'),0),COALESCE((SELECT MAX(p.entitlement_end) FROM billing_payments p JOIN billing_subscriptions s ON s.id=p.subscription_id WHERE s.user_id=?),0)) WHERE id=?`,baseline,user.id,user.id,user.id),
   query(env,"UPDATE play_purchases SET last_granted=(SELECT premium_until FROM users WHERE id=?) WHERE user_id=? AND kind='subs'",user.id,user.id),
  ]);
