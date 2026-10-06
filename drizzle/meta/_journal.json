@@ -218,6 +218,20 @@
       "when": 1791284237426,
       "tag": "0030_push_notifications",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "6",
+      "when": 1791287071358,
+      "tag": "0031_flowery_mysterio",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "6",
+      "when": 1791287505903,
+      "tag": "0032_overjoyed_black_cat",
+      "breakpoints": true
     }
   ]
 }

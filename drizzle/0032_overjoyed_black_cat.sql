@@ -1,0 +1,1 @@
+ALTER TABLE `apple_transactions` ADD `refunded_used` integer DEFAULT 0 NOT NULL;

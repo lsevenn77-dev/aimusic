@@ -5,7 +5,7 @@ export const pushPreferences=sqliteTable('push_preferences',{userId:text('user_i
 export const pushOutbox=sqliteTable('push_outbox',{id:text('id').primaryKey(),recipient:text('recipient').notNull().references(()=>users.id),kind:text('kind').notNull(),target:text('target').notNull(),created:integer('created').notNull(),delivered:integer('delivered').notNull().default(0),leaseUntil:integer('lease_until').notNull().default(0),attempts:integer('attempts').notNull().default(0)},t=>[index('push_outbox_pending').on(t.delivered,t.leaseUntil,t.created)]);
 // Crews have one active membership per person. Chat/DM retries are idempotent.
 export const users=sqliteTable('users',{
- id:text('id').primaryKey(), email:text('email').notNull(), name:text('name').notNull(), password:text('password'), provider:text('provider').notNull().default('email'), subject:text('subject'), created:integer('created').notNull(), premiumUntil:integer('premium_until').notNull().default(0), playlistSelection:text('playlist_selection').notNull().default('[]')
+ id:text('id').primaryKey(), email:text('email').notNull(), name:text('name').notNull(), password:text('password'), provider:text('provider').notNull().default('email'), subject:text('subject'), created:integer('created').notNull(), premiumUntil:integer('premium_until').notNull().default(0), applePremiumUntil:integer('apple_premium_until').notNull().default(0), playlistSelection:text('playlist_selection').notNull().default('[]')
 },t=>[uniqueIndex('users_identity').on(t.provider,t.subject),uniqueIndex('users_email_provider').on(t.email,t.provider)]);
 export const sessions=sqliteTable('sessions',{token:text('token').primaryKey(),userId:text('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),expires:integer('expires').notNull()});
 export const accountHandles=sqliteTable('account_handles',{userId:text('user_id').primaryKey().references(()=>users.id,{onDelete:'cascade'}),normalized:text('normalized').notNull()},t=>[uniqueIndex('account_handles_normalized').on(t.normalized)]);
@@ -113,3 +113,11 @@ export const crewBans=sqliteTable('crew_bans',{crewId:text('crew_id').notNull().
 export const premiumAudioJobs=sqliteTable('premium_audio_jobs',{
  trackId:text('track_id').primaryKey().references(()=>tracks.id,{onDelete:'cascade'}),state:text('state').notNull().default('queued'),sourceKey:text('source_key').notNull().default(''),outputKey:text('output_key').notNull().default(''),outputSha:text('output_sha').notNull().default(''),outputBytes:integer('output_bytes').notNull().default(0),attempts:integer('attempts').notNull().default(0),leaseUntil:integer('lease_until').notNull().default(0),leaseToken:text('lease_token'),updated:integer('updated').notNull()
 },t=>[index('premium_audio_queue').on(t.state,t.leaseUntil,t.updated)]);
+
+// Apple-signed transactions are bound to a stable per-user account token.
+export const appleAccounts=sqliteTable('apple_accounts',{
+ userId:text('user_id').primaryKey().references(()=>users.id),token:text('token').notNull(),created:integer('created').notNull()
+},t=>[uniqueIndex('apple_accounts_token').on(t.token)]);
+export const appleTransactions=sqliteTable('apple_transactions',{
+ id:text('id').primaryKey(),environment:text('environment').notNull(),transactionId:text('transaction_id').notNull(),originalId:text('original_id').notNull(),userId:text('user_id').notNull().references(()=>users.id),productId:text('product_id').notNull(),purchased:integer('purchased').notNull(),expires:integer('expires').notNull().default(0),revoked:integer('revoked').notNull().default(0),signedDate:integer('signed_date').notNull(),refundReview:integer('refund_review').notNull().default(0),refundedUsed:integer('refunded_used').notNull().default(0),created:integer('created').notNull()
+},t=>[uniqueIndex('apple_transaction_unique').on(t.environment,t.transactionId),index('apple_transaction_user').on(t.userId,t.environment,t.expires),index('apple_transaction_original').on(t.environment,t.originalId)]);

@@ -141,7 +141,7 @@ export async function catalogRoute(req,env,path,user){
   for(const tid of ids)await published(env,tid);
   await env.DB.batch([query(env,`INSERT INTO playlists(id,user_id,name,is_public,created,description)
    SELECT ?,?,?,?,?,? WHERE (SELECT count(*) FROM playlists WHERE user_id=?) <
-   (SELECT CASE WHEN premium_until>unixepoch() THEN 10 ELSE 2 END FROM users WHERE id=?)`,pid,user.id,str(b.name,80),b.is_public===true?1:0,now(),str(b.description||'',600,false),user.id,user.id),
+   (SELECT CASE WHEN MAX(premium_until,apple_premium_until)>unixepoch() THEN 10 ELSE 2 END FROM users WHERE id=?)`,pid,user.id,str(b.name,80),b.is_public===true?1:0,now(),str(b.description||'',600,false),user.id,user.id),
    ...ids.map((tid,i)=>query(env,'INSERT INTO playlist_tracks(playlist_id,track_id,created,position) SELECT ?,?,?,? WHERE EXISTS(SELECT 1 FROM playlists WHERE id=?)',pid,tid,now(),i,pid))]);
   if(!await one(env,'SELECT id FROM playlists WHERE id=?',pid))fail(409,`${isPremium(user)?'Premium':'무료'} 회원은 플레이리스트를 최대 ${playlistLimit(user)}개까지 만들 수 있습니다. 기존 목록에 곡을 추가하거나 보관함을 정리해주세요.`);
   return json({id:pid},201);
