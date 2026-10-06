@@ -2,7 +2,6 @@
    is configured. No sample ads, display ads or fallback banners are requested. */
 (()=>{
  let userId=null,free=false,config=null,generation=0,sdkPromise=null,display=null,loader=null,initialized=false,active=null,requestId=0;
- const uploadAds=new Set();
  let cadence=AifectAudioAdsCore.createAudioAdCadence();
  const storageKey=()=>`aifect-audio-ad-count:${userId}`;
  const eligible=()=>free&&!!userId&&!inApp;
@@ -50,7 +49,6 @@
   panel.classList.remove('audio-ad-active');controls.forEach((s,i)=>$(s).disabled=item.disabled[i]);
   $('#now-playing').innerHTML=item.markup;$('#listen-mode').textContent=item.mode;
   $('#play-toggle').innerHTML=icon('play');$('#play-toggle').setAttribute('aria-label','재생');
-  if(item.upload&&!item.playerVisible)setPlayerVisible(false);
   window.dispatchEvent(new Event('aifect-ad-end'));item.resolve();
  }
  function managerLoaded(event){
@@ -70,16 +68,16 @@
   listen('AD_PROGRESS',()=>{
    const remaining=manager.getRemainingTime();
    if(remaining!==item.remaining){item.progressAt=Date.now();item.remaining=remaining;}
-   $('#audio-ad-status').textContent=Number.isFinite(remaining)&&remaining>=0?(item.upload?`${Math.ceil(remaining)}초 후 광고가 끝나요`:`${Math.ceil(remaining)}초 후 음악이 이어집니다`):(item.upload?'커버곡 업로드를 완료했어요':'광고 후 음악이 이어집니다');
+   $('#audio-ad-status').textContent=Number.isFinite(remaining)&&remaining>=0?`${Math.ceil(remaining)}초 후 음악이 이어집니다`:'광고 후 음악이 이어집니다';
    $('#audio-ad-skip').hidden=!manager.getAdSkippableState();
   });
   listen('SKIPPABLE_STATE_CHANGED',()=>{$('#audio-ad-skip').hidden=!manager.getAdSkippableState();});
   item.watchdog=setInterval(()=>{if(!item.paused&&Date.now()-item.progressAt>15000)finish(item);},1000);
   try{manager.setVolume(audio.volume);manager.init(640,100,ima.ViewMode.NORMAL);manager.start();}catch{finish(item);}
  }
- async function beforeTrack(upload=false){
+ async function beforeTrack(){
   if(active){await active.promise;return;}
-  if(!eligible()||!config?.enabled||(!upload&&!cadence.due)||audio.volume===0||audio.muted)return;
+  if(!eligible()||!config?.enabled||!cadence.due||audio.volume===0||audio.muted)return;
   // Do not initialize outside a gesture or interrupt music to request permission.
   if(!initialized)return;
   const identity=generation;
@@ -89,7 +87,7 @@
   config=fresh;if(!config.enabled)return;
   if(active){await active.promise;return;}
   cadence.attempted();
-  const item={id:++requestId,upload,playerVisible:!panel.hidden,paused:false,progressAt:Date.now(),remaining:null,markup:$('#now-playing').innerHTML,mode:$('#listen-mode').textContent,disabled:controls.map(s=>$(s).disabled)};
+  const item={id:++requestId,paused:false,progressAt:Date.now(),remaining:null,markup:$('#now-playing').innerHTML,mode:$('#listen-mode').textContent,disabled:controls.map(s=>$(s).disabled)};
   item.promise=new Promise(resolve=>item.resolve=resolve);active=item;
   audio.pause();setPlayerVisible(true);panel.classList.add('audio-ad-active');controls.forEach(s=>$(s).disabled=true);
   $('#now-playing').innerHTML='<span class="audio-ad-label">광고</span><div><strong>AIFECT 무료 음악 감상</strong><span id="audio-ad-status" role="status">음성광고를 준비하고 있어요</span></div><button type="button" id="audio-ad-skip" hidden>광고 건너뛰기</button>';
@@ -112,19 +110,15 @@
   get active(){return !!active;},
   setMembership(value,id){
    const changed=userId!==(id||null);generation++;userId=id||null;free=value?.plan==='free';config=null;
-   if(changed){uploadAds.clear();finish(active);let saved=0;try{saved=sessionStorage.getItem(storageKey());}catch{}cadence=AifectAudioAdsCore.createAudioAdCadence(saved,count=>{try{sessionStorage.setItem(storageKey(),String(count));}catch{}});}
+   if(changed){finish(active);let saved=0;try{saved=sessionStorage.getItem(storageKey());}catch{}cadence=AifectAudioAdsCore.createAudioAdCadence(saved,count=>{try{sessionStorage.setItem(storageKey(),String(count));}catch{}});}
    if(!eligible()){finish(active);cadence.reset();return;}
    const identity=generation;
    void getConfig().then(value=>{if(identity!==generation)return;config=value;if(config?.enabled)void prepare();});
   },
   completed(value){if(eligible()&&config?.enabled)cadence.complete(value);},
-  beforeTrack:()=>beforeTrack(false),
-  async afterCoverUpload(id){
-   if(!id||uploadAds.has(id)||!eligible())return;uploadAds.add(id);
-   const identity=generation,wasPlaying=!audio.paused,source=audio.src;
-   await beforeTrack(true);
-   if(wasPlaying&&identity===generation&&audio.src===source)void audio.play().catch(()=>{});
-  },
+  beforeTrack,
+  // Compatibility for an older cached upload script; it must never request audio.
+  afterCoverUpload(id){window.AifectUploadAds?.afterCoverUpload(id);},
   cancel(){generation++;finish(active);},
   pause(){if(active?.manager)active.manager.pause();},
   resume(){if(active?.manager)active.manager.resume();},

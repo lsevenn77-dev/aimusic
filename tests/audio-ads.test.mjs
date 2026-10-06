@@ -105,25 +105,9 @@ test('timeout releases the queue; server membership recheck can stop the request
 });
 
 
-test('completed free cover shows one ad without waiting for five songs and restores the hidden player',async()=>{
- const p=player();await p.ready();p.$('.player').hidden=true;
- let finished=false;const waiting=p.api.afterCoverUpload('cover-one').then(()=>finished=true);await flush();
- assert.equal(p.requests.length,1);assert.equal(finished,false);assert.equal(p.$('.player').hidden,false);
- await p.api.afterCoverUpload('cover-one');assert.equal(p.requests.length,1);
- const manager=p.load();manager.remaining=3;manager.emit('AD_PROGRESS');assert.match(p.$('#audio-ad-status').textContent,/광고가 끝나요/);
- manager.emit('ALL_ADS_COMPLETED');await waiting;
- assert.equal(p.$('.player').hidden,true);assert.equal(p.audio.plays,0);assert.equal(finished,true);
-});
-
-test('cover completion skips Premium and missing inventory; no-fill restores playing music',async()=>{
- const paid=player();paid.api.setMembership({plan:'premium'},'paid');await paid.api.afterCoverUpload('one');assert.equal(paid.requests.length,0);
- const empty=player({enabled:false});await empty.ready();await empty.api.afterCoverUpload('one');assert.equal(empty.requests.length,0);
- const p=player();await p.ready();p.audio.paused=false;p.audio.src='song';
- const wait=p.api.afterCoverUpload('two');await flush();assert.equal(p.audio.paused,true);p.error();await wait;
- assert.equal(p.audio.paused,false);assert.equal(p.audio.plays,1);
-});
-
-test('cancelling an upload ad never restarts music after account or playback changes',async()=>{
- const p=player();await p.ready();p.audio.paused=false;p.audio.src='song';
- const wait=p.api.afterCoverUpload('three');await flush();p.api.cancel();await wait;assert.equal(p.audio.plays,0);
+test('legacy cover callback delegates to display without touching listening audio',async()=>{
+ const p=player();await p.ready();p.five();p.audio.paused=false;
+ await p.api.afterCoverUpload('cover');
+ assert.equal(p.requests.length,0);assert.equal(p.paused,0);assert.equal(p.audio.plays,0);
+ const wait=p.api.beforeTrack();await flush();assert.equal(p.requests.length,1);p.error();await wait;
 });

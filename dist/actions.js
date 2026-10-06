@@ -12,7 +12,7 @@ function busyForm(form,work){return async ev=>{
  uploadStage(form,'입력한 정보와 파일을 확인하고 있어요.');
  const warn=e=>{e.preventDefault();e.returnValue='';};if(isUpload)window.addEventListener('beforeunload',warn);
  try{await work(new FormData(form));}
- catch(e){if(error)error.textContent=e.message;else toast(e.message);uploadStage(form,'업로드를 완료하지 못했어요. 아래 내용을 확인해주세요.',null,'error');
+ catch(e){if(isUpload)window.AifectUploadAds?.cancel();if(error)error.textContent=e.message;else toast(e.message);uploadStage(form,'업로드를 완료하지 못했어요. 아래 내용을 확인해주세요.',null,'error');
   if(e.field){const field=form.querySelector(e.field);field?.setAttribute('aria-invalid','true');field?.focus();field?.scrollIntoView({block:'center',behavior:'smooth'});toast(e.message);}else error?.scrollIntoView({block:'nearest',behavior:'smooth'});
  }finally{form._busy=false;if(button){button.disabled=false;button.removeAttribute('aria-busy');button.innerHTML=label;}window.removeEventListener('beforeunload',warn);}
 };}
@@ -73,6 +73,7 @@ async function upload(fd){
  await uploadRequest('/api/studio/profile','PUT',{name:body.producer,bio:body.producer_bio});
  if(artist_id)await uploadRequest(`/api/studio/artists/${artist_id}`,'PUT',{name:body.artist,bio:body.artist_bio,genre:body.genre});
  for(const [name,kind,entityId] of [['artist_image','artists',artist_id],['producer_image','producers',producer_id]]){if(entityId&&fd.get(name)?.size){uploadStage(form,'1 / 3 · 프로필 사진을 올리고 있어요.');await uploadFile(`/api/studio/${kind}/${entityId}/image`,fd.get(name));}}
+ window.AifectUploadAds?.duringOriginalUpload(id,form);
  await sendUploadFiles(form,id,file,image);
 }
 async function uploadCover(fd){
@@ -90,7 +91,7 @@ async function sendUploadFiles(form,id,file,image){
  if(image?.size){uploadStage(form,'2 / 3 · 앨범 이미지를 올리고 있어요.');await uploadFile(`/api/uploads/${id}/cover`,image);}
  uploadStage(form,'3 / 3 · 전송한 파일을 확인하고 음원 변환을 요청하고 있어요.');
  const completed=await uploadRequest(`/api/uploads/${id}/complete`,'POST');uploadStage(form,'업로드 완료 · 음원 변환이 끝나면 공개돼요.',100,'done');
- toast('전송 완료! 음원 변환은 화면을 닫아도 계속됩니다. 스튜디오에서 상태를 확인해주세요.');location.hash='studio';if(completed.show_upload_ad)void window.AifectAudioAds?.afterCoverUpload(id);
+ toast('전송 완료! 음원 변환은 화면을 닫아도 계속됩니다. 스튜디오에서 상태를 확인해주세요.');location.hash='studio';if(completed.show_upload_ad)window.AifectUploadAds?.afterCoverUpload(id);
 }
 function deleteTrackDialog(id,title,kind){
  dialog(`<h2>이 곡을 삭제할까요?</h2><p class="delete-track-title">${esc(title)}</p><p>공개 목록과 내 스튜디오에서 삭제되며, 다시 공개할 수 없어요.${kind==='original'?' 이 곡의 노래방과 연결된 커버곡도 다른 이용자가 재생할 수 없게 됩니다.':''}</p><p class="field-help">이미 받은 선물과 정산 내역은 유지돼요.</p><form id="delete-track-form"><div class="inline-actions"><button type="button" class="small-button" data-close-dialog>취소</button><button type="submit" class="primary-button danger-button">곡 삭제</button></div><p class="form-error" role="alert"></p></form>`);

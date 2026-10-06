@@ -1,7 +1,8 @@
 # Web audio advertising
 
 The web player uses Google IMA HTML5 with an audio-only Google Ad Manager VAST
-tag. There are no AdSense display banners or auto ads in this implementation.
+tag. Listening never falls back to a display ad. Upload placements use the
+separate adapter documented in `upload-ads.md`; there are no auto ads.
 The existing ads.txt seller authorization and AdSense ownership meta tag remain.
 
 ## Current activation status
