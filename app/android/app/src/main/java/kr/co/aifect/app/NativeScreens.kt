@@ -108,6 +108,7 @@ private val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=C
   if(m.showLogin)LoginSheet(m,browser,social)
   if(m.showAccount)AccountSheet(m,browser,adPrivacy)
   if(m.showAccountSettings)AccountSettingsSheet(m)
+  if(m.showBilling)PlayBillingSheet(m)
   if(m.showRecordingDrafts)RecordingDraftsSheet(m,resumeDraft)
   m.detail?.let { SongSheet(m,it,sing,{listPicker=it}) }
   m.selectedList?.let { PlaylistSheet(m,it) }
@@ -319,6 +320,7 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)A
     }
    }
    AccountMenuRow("계정 설정",Icons.Rounded.ManageAccounts){m.openAccountSettings()}
+   AccountMenuRow("Premium · 골드 구매",Icons.Rounded.ShoppingBag){m.showAccount=false;m.showBilling=true}
    AccountMenuRow("DM 보기",Icons.AutoMirrored.Rounded.Chat){m.showAccount=false;m.openMessages()}
    AccountMenuRow("내 정산",Icons.Rounded.AccountBalanceWallet){open("/#payouts")}
    AccountMenuRow("오늘의 응원별",Icons.Rounded.Star){m.showAccount=false;m.showRewards=true}

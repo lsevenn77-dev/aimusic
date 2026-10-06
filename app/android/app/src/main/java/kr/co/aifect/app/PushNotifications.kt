@@ -80,7 +80,7 @@ object PushNotifications {
    .setContentTitle(title).setContentText(body).setStyle(NotificationCompat.BigTextStyle().bigText(body))
    .setContentIntent(pending).setAutoCancel(true).setOnlyAlertOnce(kind!="dm")
    .setVisibility(NotificationCompat.VISIBILITY_PRIVATE).build()
-  runCatching{NotificationManagerCompat.from(c).notify(notificationId,notification)}
+  try{NotificationManagerCompat.from(c).notify(notificationId,notification)}catch(_:SecurityException){ /* Notifications are optional when permission is denied. */ }
  }
 }
 

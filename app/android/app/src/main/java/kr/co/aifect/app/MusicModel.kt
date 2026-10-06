@@ -20,6 +20,8 @@ import android.util.Base64
 
 class MusicModel(app:Application):AndroidViewModel(app) {
  val api=NativeApi(app)
+ var showBilling by mutableStateOf(false)
+ var playBilling:PlayBilling?=null
  var tab by mutableIntStateOf(0)
  var playlistTarget by mutableStateOf<Song?>(null)
  var feedLoading by mutableStateOf(false)

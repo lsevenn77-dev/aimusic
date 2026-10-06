@@ -74,7 +74,7 @@ export async function reconcilePayment(env,s,p){
  await env.DB.batch([
   query(env,'UPDATE billing_payments SET tid=?,status=?,refunded=?,entitlement_end=?,updated=? WHERE id=?',data.tid,status,refunded,end,checked,p.id),
   query(env,`UPDATE billing_subscriptions SET state=CASE WHEN cancel_requested=1 THEN 'cancelled' WHEN ?='paid' THEN 'active' WHEN ? IN ('cancelled','partialCancelled') THEN 'cancelled' ELSE 'failed' END,cancel_requested=CASE WHEN ? IN ('cancelled','partialCancelled') THEN 1 ELSE cancel_requested END,period_start=?,period_end=?,updated=? WHERE id=? AND last_payment_id=?`,status,status,status,p.period_start,end||p.period_start,checked,s.id,p.id),
-  query(env,`UPDATE users SET premium_until=MAX(?,COALESCE((SELECT MAX(entitlement_end) FROM billing_payments WHERE subscription_id=?),0)) WHERE id=?`,s.baseline_until,s.id,s.user_id)
+  query(env,`UPDATE users SET premium_until=MAX(?,COALESCE((SELECT MAX(entitlement_end) FROM billing_payments WHERE subscription_id=?),0),COALESCE((SELECT MAX(expiry) FROM play_purchases WHERE user_id=? AND kind='subs'),0)) WHERE id=?`,s.baseline_until,s.id,s.user_id,s.user_id)
  ]);
  return true;
 }

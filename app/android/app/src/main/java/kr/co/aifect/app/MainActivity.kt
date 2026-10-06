@@ -41,6 +41,7 @@ class MainActivity:ComponentActivity(){
   installSplashScreen();super.onCreate(savedInstanceState)
   Endpoint.configureTest(intent.getStringExtra("testOrigin"))
   signIn=NativeSignIn(this)
+  model.playBilling=PlayBilling(this,model)
   ads=ListeningAds(this)
   enableEdgeToEdge(statusBarStyle=SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),navigationBarStyle=SystemBarStyle.dark(android.graphics.Color.TRANSPARENT))
   setContent {
@@ -56,9 +57,9 @@ class MainActivity:ComponentActivity(){
   if(intent.data!=null)model.finishLogin(intent.data)
  }
  override fun onNewIntent(intent:Intent){super.onNewIntent(intent);setIntent(intent);model.finishLogin(intent.data);if(model.user!=null)push(intent)}
- override fun onResume(){super.onResume();model.finishLogin();PushNotifications.refresh(this);if(::ads.isInitialized){SongAdBreaks.host=ads;if(model.user!=null)ads.prepare()}}
+ override fun onResume(){super.onResume();model.finishLogin();PushNotifications.refresh(this);model.playBilling?.resume();if(::ads.isInitialized){SongAdBreaks.host=ads;if(model.user!=null)ads.prepare()}}
  override fun onPause(){if(::ads.isInitialized&&SongAdBreaks.host===ads)SongAdBreaks.host=null;super.onPause()}
- override fun onDestroy(){if(::ads.isInitialized)ads.dispose();super.onDestroy()}
+ override fun onDestroy(){model.playBilling?.close();model.playBilling=null;if(::ads.isInitialized)ads.dispose();super.onDestroy()}
  private fun openBrowser(url:String){startActivity(Intent(Intent.ACTION_VIEW,Uri.parse(url)))}
  private fun login(provider:String){
   when(provider){

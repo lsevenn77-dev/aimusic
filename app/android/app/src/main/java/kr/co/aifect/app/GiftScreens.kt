@@ -74,7 +74,8 @@ import java.util.UUID
       Text(if(balance>=cost)"보낸 뒤 ${balance-cost} $suffix" else if(isFree)"오늘의 보상을 받아 응원별을 모아주세요." else "보유 골드가 부족해요.",color=Muted,fontSize=14.sp)
       Button(onClick={confirm=true},enabled=!working&&choice!=null&&balance>=cost,modifier=Modifier.fillMaxWidth().padding(top=10.dp)){Text(if(working)"보내는 중…" else "${choice?.optString("name")?:"선물"} $cost $suffix 보내기")}
      }else Text("곡의 재생 화면이나 상세 화면에서 선물할 수 있어요.",color=Aqua)
-     Text("골드 충전은 준비 중이에요. 받은 별은 누적되며 매일 0시(한국 시간)에 보상 조건이 갱신돼요.",fontSize=13.sp,color=Muted,modifier=Modifier.padding(top=10.dp))
+     TextButton(onClick={m.showGifts=false;m.showBilling=true}){Text("Google Play로 골드 충전")}
+     Text("받은 별은 누적되며 매일 0시(한국 시간)에 보상 조건이 갱신돼요.",fontSize=13.sp,color=Muted,modifier=Modifier.padding(top=10.dp))
     }
    }
    ranking?.let{data->
