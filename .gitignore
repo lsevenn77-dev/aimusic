@@ -1,1 +1,5 @@
 source-manifest.json
+*.aab
+*.jks
+*.keystore
+*.credentials.xml

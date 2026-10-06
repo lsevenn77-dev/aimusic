@@ -4,6 +4,8 @@ apply plugin: 'org.jetbrains.kotlin.plugin.compose'
 android {
  namespace 'kr.co.aifect.app'
  compileSdk 36
+ ndkVersion "27.1.12297006"
+ externalNativeBuild { cmake { path "src/main/cpp/CMakeLists.txt"; version "3.22.1" } }
  defaultConfig {
   applicationId project.hasProperty('aifectTest') ? 'kr.co.aifect.app.test' : 'kr.co.aifect.app'
   manifestPlaceholders = [appLabel: project.hasProperty('aifectTest') ? 'AIFECT 테스트' : 'AIFECT']
@@ -16,8 +18,9 @@ android {
   buildConfigField 'String', 'ADMOB_INTERSTITIAL_ID', '"ca-app-pub-3940256099942544/1033173712"'
   minSdk 26
   targetSdk 36
-  versionCode 12
-  versionName '2.4.1'
+  ndk { abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86_64' }
+  versionCode 40
+  versionName '2.5.27'
   testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
  }
  buildFeatures { buildConfig true; compose true }

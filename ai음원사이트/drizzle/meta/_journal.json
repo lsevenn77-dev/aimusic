@@ -120,6 +120,97 @@
       "when": 1790597587357,
       "tag": "0016_gold_checkout",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1790684437079,
+      "tag": "0017_crews_messages",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1790686405064,
+      "tag": "0018_public_nickname",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1790689158272,
+      "tag": "0019_crew_chat_roles",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1790694676718,
+      "tag": "0020_chat_stream_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "6",
+      "when": 1790777404433,
+      "tag": "0021_amused_kat_farrell",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "6",
+      "when": 1790779675158,
+      "tag": "0022_dusty_mother_askani",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "6",
+      "when": 1790859620658,
+      "tag": "0023_duet_covers",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "6",
+      "when": 1790862181548,
+      "tag": "0024_futuristic_scream",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "6",
+      "when": 1790864416819,
+      "tag": "0025_narrow_ironclad",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "6",
+      "when": 1790909148062,
+      "tag": "0026_fluffy_the_hunter",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "6",
+      "when": 1791114850724,
+      "tag": "0027_crew_chat_join_sequence",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "6",
+      "when": 1791207087680,
+      "tag": "0028_spotty_thunderball",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "6",
+      "when": 1791209320377,
+      "tag": "0029_dear_felicia_hardy",
+      "breakpoints": true
     }
   ]
 }

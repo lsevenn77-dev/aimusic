@@ -1,4 +1,7 @@
 // Pure pieces of the singing screen, bundled for the browser as AifectKaraoke.
+export {roomGain,roomImpulse,restoreRoomMix} from './room-reverb.js';
+export {vocalPresets,presetMix,editVocalMix,defaultVocalMix,restoreVocalMix,VocalProcessor,renderVocals} from './vocal-effects.js';
+import {NoiseCleaner} from './vocal-effects.js';
 
 // Singing, preview and the uploaded mix all run at 32 kHz: it keeps phone memory low and a 10-minute
 // stereo 16-bit WAV (about 77 MB) under the 80 MB upload limit.
@@ -38,19 +41,8 @@ export function mergeTake(previous,chunks,recordClock,sampleRate,start,end){
  return out;
 }
 
-// Gentle downward expansion reduces quiet background noise without changing the dry recording.
-export function reduceNoise(input,rate,level){
- const out=new Float32Array(input.length),threshold=[0,.004,.008,.016,.032][Math.max(0,Math.min(4,Math.round(level)))];
- if(!threshold){out.set(input);return out;}
- const attack=Math.exp(-1/(rate*.002)),release=Math.exp(-1/(rate*.1)),up=Math.exp(-1/(rate*.003)),down=Math.exp(-1/(rate*.08));
- let envelope=0,gain=1;
- for(let i=0;i<input.length;i++){
-  const a=Math.abs(input[i]),c=a>envelope?attack:release;envelope=c*envelope+(1-c)*a;
-  const target=Math.min(1,(envelope/threshold)**(1+level*.35)),smooth=target>gain?up:down;
-  gain=smooth*gain+(1-smooth)*target;out[i]=input[i]*gain;
- }
- return out;
-}
+// The same handling-noise filter is used live and when rendering saved recordings.
+export function reduceNoise(input,rate,level){const fx=new NoiseCleaner(rate),out=new Float32Array(input.length);for(let i=0;i<input.length;i++)out[i]=fx.process(input[i],level);return out;}
 
 export function peak(channels){let max=0;for(const ch of channels)for(let i=0;i<ch.length;i++){const a=Math.abs(ch[i]);if(a>max)max=a;}return max;}
 

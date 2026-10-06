@@ -59,7 +59,7 @@ test('monthly billing retains the signup day across February and uses Korean cal
 test('concurrent subscription requests charge once at the server price and never store raw card data',async t=>{
  const f=await setup(t);const results=await Promise.all([f.subscribe(),f.subscribe()]);
  assert.equal(results.filter(r=>r.status===200).length,1);assert.equal(results.filter(r=>r.status===409).length,1);
- const charges=f.calls.filter(c=>c.path.endsWith('/payments'));assert.equal(charges.length,1);assert.equal(charges[0].body.amount,4900);
+ const charges=f.calls.filter(c=>c.path.endsWith('/payments'));assert.equal(charges.length,1);assert.equal(charges[0].body.amount,5900);
  const p=f.sql.prepare('SELECT * FROM billing_payments').get(),s=f.sql.prepare('SELECT * FROM billing_subscriptions').get();
  assert.equal(p.status,'paid');assert.equal(f.sql.prepare("SELECT premium_until FROM users WHERE id='owner'").get().premium_until,p.period_end);
  const stored=JSON.stringify([s,p]);for(const sensitive of [CARD.cardNo,CARD.idNo,'private-billing-key'])assert.equal(stored.includes(sensitive),false);
@@ -76,6 +76,31 @@ test('signed and duplicate webhooks re-query payment state; forged signatures ca
  assert.equal((await f.invoke('/api/billing/nicepay/webhook',original)).body,'OK');
  assert.equal(f.sql.prepare("SELECT premium_until FROM users WHERE id='owner'").get().premium_until,until);
  assert.equal(f.sql.prepare('SELECT state FROM billing_subscriptions').get().state,'active');
+});
+
+test('new price quotes do not change an existing consented renewal price or payment history',async t=>{
+ const f=await setup(t);await f.subscribe();
+ const original=f.sql.prepare('SELECT * FROM billing_payments').get();
+ // A legacy subscription keeps the price to which its customer agreed.
+ f.sql.prepare('UPDATE billing_subscriptions SET price=4900').run();
+ const status=(await f.call('/api/billing/status')).body;
+ assert.equal(status.price,5900);assert.equal(status.subscription.price,4900);
+ assert.equal(status.payments[0].amount,original.amount);
+ assert.equal(status.revenue_policy.creatorBP,5000);assert.equal(status.revenue_policy.platformBP,5000);
+ f.sql.prepare('UPDATE billing_subscriptions SET period_end=?').run(Math.floor(Date.now()/1000)-1);
+ await f.tick();
+ assert.equal(f.calls.filter(c=>c.path.endsWith('/payments')).at(-1).body.amount,4900);
+ assert.equal(f.sql.prepare('SELECT amount FROM billing_payments WHERE id=?').get(original.id).amount,original.amount);
+});
+
+test('checkout terms quote the current server price and stale price consents cannot charge',async t=>{
+ const f=await setup(t),terms=(await f.call('/api/billing/terms')).body;
+ assert.equal(terms.price,5900);assert.equal(terms.currency,'KRW');
+ const stale=f.sql.prepare('SELECT body FROM billing_terms WHERE version=?').get(terms.version);
+ const body=JSON.parse(stale.body);body.price=4900;
+ f.sql.prepare('UPDATE billing_terms SET body=? WHERE version=?').run(JSON.stringify(body),terms.version);
+ const result=await f.call('/api/billing/subscribe','POST',{card:CARD,terms_version:terms.version,consent:true});
+ assert.equal(result.status,409);assert.equal(f.calls.filter(c=>c.path.endsWith('/payments')).length,0);
 });
 test('ambiguous charge is recovered by lookup without submitting another payment',async t=>{
  const f=await setup(t);f.setUncertain(true);const result=await f.subscribe();
@@ -100,7 +125,7 @@ test('verified refund reduces entitlement and disables renewal, including a dela
  assert.equal((await f.invoke('/api/billing/nicepay/webhook',gateway)).status,200);
  assert.equal(f.sql.prepare("SELECT premium_until FROM users WHERE id='owner'").get().premium_until,Math.floor(Date.now()/1000));
  gateway.status='cancelled';gateway.balanceAmt=0;await f.invoke('/api/billing/nicepay/webhook',gateway);
- gateway.status='paid';gateway.balanceAmt=4900;await f.invoke('/api/billing/nicepay/webhook',gateway);
+ gateway.status='paid';gateway.balanceAmt=5900;await f.invoke('/api/billing/nicepay/webhook',gateway);
  assert.equal(f.sql.prepare("SELECT premium_until FROM users WHERE id='owner'").get().premium_until,0);
  assert.equal(f.sql.prepare('SELECT cancel_requested FROM billing_subscriptions').get().cancel_requested,1);
 });

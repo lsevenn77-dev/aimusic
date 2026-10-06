@@ -21,10 +21,10 @@ test('payment fees come off first, then the cover or original split applies',()=
  assert.equal(giftMonth(Date.UTC(2026,8,30,15,30)/1000),'2026-10','months follow Korean time');
 });
 
-test('earnings are paid on the 15th of the next month once they reach 10,000 KRW, smaller months carry over',()=>{
+test('earnings are paid on the 25th of the next month once they reach 10,000 KRW, smaller months carry over',()=>{
  const months=settlementMonths([{month:'2020-01',singer_mw:6000000,creator_mw:0,gifts:1},{month:'2020-02',singer_mw:3000000,creator_mw:2000000,gifts:2},{month:'2020-03',singer_mw:12000000,creator_mw:0,gifts:1},{month:'2020-04',singer_mw:1000,creator_mw:0,gifts:1}],'2020-04');
  assert.deepEqual(months.map(m=>[m.month,m.status,m.payable_krw??m.carried_krw??null,m.payout_on??null]),
-  [['2020-01','carried',6000,null],['2020-02','payable',11000,'2020-03-15'],['2020-03','payable',12000,'2020-04-15'],['2020-04','accruing',null,'2020-05-15']]);
+  [['2020-01','carried',6000,null],['2020-02','payable',11000,'2020-03-25'],['2020-03','payable',12000,'2020-04-25'],['2020-04','accruing',null,'2020-05-25']]);
 });
 
 async function giftFixture(t){

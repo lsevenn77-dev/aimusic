@@ -1,0 +1,1 @@
+ALTER TABLE `crew_members` ADD `joined_sequence` integer DEFAULT 0 NOT NULL;

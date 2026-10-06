@@ -12,7 +12,7 @@ import java.nio.file.*;
 @RunWith(AndroidJUnit4.class)
 public class BackingStreamTest {
  @Test public void compressedBackingSeeksAndExportsWithoutWholePcmFile()throws Exception{
-  File dir=new File(InstrumentationRegistry.getInstrumentation().getTargetContext().getCacheDir(),"backing-stream");dir.mkdirs();File source=new File(dir,"mr.m4a"),dry=new File(dir,"voice.pcm"),saved=new File(dir,"cover.wav");
+  File dir=new File(InstrumentationRegistry.getInstrumentation().getTargetContext().getFilesDir(),"backing-stream");assertTrue(dir.isDirectory()||dir.mkdirs());File source=new File(dir,"mr.m4a"),dry=new File(dir,"voice.pcm"),saved=new File(dir,"cover.wav");
   try{
    try(InputStream in=InstrumentationRegistry.getInstrumentation().getContext().getAssets().open("backing-test.m4a")){Files.copy(in,source.toPath(),StandardCopyOption.REPLACE_EXISTING);}
    long frames=BackingDecoder.frames(source);assertEquals(12,frames/(double)PcmFiles.RATE,.05);

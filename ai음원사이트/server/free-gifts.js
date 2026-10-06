@@ -1,16 +1,19 @@
-import {one,rows,query,now,id,fail,json,rate} from './db.js';
+import {one,query,now,id,fail,json,rate} from './db.js';
 import {FREE_GIFT,FREE_GIFT_REWARDS,giftDay} from '../shared/gifts.js';
 
 export async function freeGiftBalance(env,userId){return (await one(env,'SELECT balance FROM free_gift_wallets WHERE user_id=?',userId))?.balance||0;}
 export async function freeGiftState(env,userId,at=now()){
  const day=giftDay(at),start=Date.parse(day+'T00:00:00+09:00')/1000;
- const claimed=await rows(env,'SELECT kind FROM free_gift_claims WHERE user_id=? AND day=?',userId,day);
  // Five distinct songs with 60% server-validated listening; repeated plays of one song do not fill the mission.
- const listened=(await one(env,'SELECT count(DISTINCT l.track_id) n FROM listens l JOIN tracks t ON t.id=l.track_id WHERE l.user_id=? AND l.started>=? AND l.started<? AND t.duration>0 AND l.seconds>=t.duration*.6',userId,start,start+86400)).n;
- const covers=(await one(env,"SELECT count(*) n FROM tracks WHERE user_id=? AND kind='cover' AND status='published' AND created>=? AND created<?",userId,start,start+86400)).n;
- const comments=(await one(env,"SELECT count(*) n FROM comments WHERE user_id=? AND created>=? AND created<? AND deleted_at=0 AND length(trim(body))>=3",userId,start,start+86400)).n;
+ const {balance,listened,covers,comments,claimed:claimedJson}=await one(env,`WITH scope AS (SELECT ? uid,? day,? start,? finish) SELECT
+ COALESCE((SELECT balance FROM free_gift_wallets WHERE user_id=scope.uid),0) balance,
+ (SELECT json_group_array(kind) FROM free_gift_claims WHERE user_id=scope.uid AND day=scope.day) claimed,
+ (SELECT count(DISTINCT l.track_id) FROM listens l JOIN tracks t ON t.id=l.track_id WHERE l.user_id=scope.uid AND l.started>=scope.start AND l.started<scope.finish AND t.duration>0 AND l.seconds>=t.duration*.6) listened,
+ (SELECT count(*) FROM tracks WHERE user_id=scope.uid AND kind='cover' AND status='published' AND created>=scope.start AND created<scope.finish) covers,
+ (SELECT count(*) FROM comments WHERE user_id=scope.uid AND created>=scope.start AND created<scope.finish AND deleted_at=0 AND length(trim(body))>=3) comments FROM scope`,userId,day,start,start+86400);
+ const claimed=JSON.parse(claimedJson);
  const progress={checkin:1,cover:Math.min(1,covers),listen:Math.min(5,listened),comment1:Math.min(1,comments),comment2:Math.min(2,comments),comment3:Math.min(3,comments)};
- return {balance:await freeGiftBalance(env,userId),day,gift:FREE_GIFT,rewards:Object.entries(FREE_GIFT_REWARDS).map(([kind,amount])=>{const target=kind==='listen'?5:kind.startsWith('comment')?Number(kind.slice(-1)):1;return {kind,amount,claimed:claimed.some(c=>c.kind===kind),eligible:progress[kind]>=target,progress:progress[kind],target};}),cash_value:0};
+ return {balance,day,gift:FREE_GIFT,rewards:Object.entries(FREE_GIFT_REWARDS).map(([kind,amount])=>{const target=kind==='listen'?5:kind.startsWith('comment')?Number(kind.slice(-1)):1;return {kind,amount,claimed:claimed.includes(kind),eligible:progress[kind]>=target,progress:progress[kind],target};}),cash_value:0};
 }
 export async function claimFreeGift(req,env,user){
  await rate(env,'free-claim:'+user.id,30,3600);const {kind}=await req.json();

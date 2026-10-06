@@ -58,9 +58,9 @@ function player({enabled=true}={}){
  class Emitter{constructor(){this.listeners={};}addEventListener(n,fn){(this.listeners[n]??=[]).push(fn);}emit(n,data={}){for(const fn of this.listeners[n]||[])fn(data);}}
  class Manager extends Emitter{constructor(){super();managers.push(this);this.remaining=20;this.skippable=false;}destroy(){this.destroyed=true;}init(){}start(){this.started=true;this.emit('STARTED');}setVolume(v){this.volume=v;}pause(){this.emit('PAUSED');}resume(){this.emit('RESUMED');}getRemainingTime(){return this.remaining;}getAdSkippableState(){return this.skippable;}skip(){this.skipped=true;this.emit('CONTENT_RESUME_REQUESTED');}}
  class Loader extends Emitter{constructor(){super();loader=this;}requestAds(req,ctx){requests.push({req,ctx});}contentComplete(){}}
- const audio={volume:.75,muted:false,pause(){paused++;}},window={addEventListener(){},dispatchEvent(){},google:{ima:{AdDisplayContainer:class{initialize(){}},AdsLoader:Loader,AdsRenderingSettings:class{},AdsRequest:class{setAdWillAutoPlay(v){this.auto=v;}setAdWillPlayMuted(v){this.muted=v;}},AdsManagerLoadedEvent:{Type:{ADS_MANAGER_LOADED:'loaded'}},AdErrorEvent:{Type:{AD_ERROR:'error'}},AdEvent:{Type:Object.fromEntries(['CONTENT_RESUME_REQUESTED','ALL_ADS_COMPLETED','CONTENT_PAUSE_REQUESTED','STARTED','PAUSED','RESUMED','AD_PROGRESS','SKIPPABLE_STATE_CHANGED'].map(n=>[n,n]))},ViewMode:{NORMAL:'normal'}}}};
+ const audio={volume:.75,muted:false,paused:true,src:'',plays:0,pause(){paused++;this.paused=true;},play(){this.plays++;this.paused=false;return Promise.resolve();}},window={addEventListener(){},dispatchEvent(){},google:{ima:{AdDisplayContainer:class{initialize(){}},AdsLoader:Loader,AdsRenderingSettings:class{},AdsRequest:class{setAdWillAutoPlay(v){this.auto=v;}setAdWillPlayMuted(v){this.muted=v;}},AdsManagerLoadedEvent:{Type:{ADS_MANAGER_LOADED:'loaded'}},AdErrorEvent:{Type:{AD_ERROR:'error'}},AdEvent:{Type:Object.fromEntries(['CONTENT_RESUME_REQUESTED','ALL_ADS_COMPLETED','CONTENT_PAUSE_REQUESTED','STARTED','PAUSED','RESUMED','AD_PROGRESS','SKIPPABLE_STATE_CHANGED'].map(n=>[n,n]))},ViewMode:{NORMAL:'normal'}}}};
  const document={createElement:()=>({}),head:{append:s=>scripts.push(s)},body:{append(){}},addEventListener:(n,fn)=>events[n]=fn};
- vm.runInNewContext(source,{$,window,document,audio,inApp:false,AifectAudioAdsCore:core,icon:()=>'',setPlayerVisible(){},navigator:{},Event:class{},URL,Date,AbortSignal,fetch:async()=>{fetches++;return {ok:true,json:async()=>({enabled:serverEnabled,tag})};},sessionStorage:{getItem:k=>store.get(k),setItem:(k,v)=>store.set(k,v)},setTimeout:fn=>{timeouts.set(++timerId,fn);return timerId;},clearTimeout:id=>timeouts.delete(id),setInterval:fn=>{intervals.set(++timerId,fn);return timerId;},clearInterval:id=>intervals.delete(id)});
+ vm.runInNewContext(source,{$,window,document,audio,inApp:false,AifectAudioAdsCore:core,icon:()=>'',setPlayerVisible(v){$('.player').hidden=!v;},navigator:{},Event:class{},URL,Date,AbortSignal,fetch:async()=>{fetches++;return {ok:true,json:async()=>({enabled:serverEnabled,tag})};},sessionStorage:{getItem:k=>store.get(k),setItem:(k,v)=>store.set(k,v)},setTimeout:fn=>{timeouts.set(++timerId,fn);return timerId;},clearTimeout:id=>timeouts.delete(id),setInterval:fn=>{intervals.set(++timerId,fn);return timerId;},clearInterval:id=>intervals.delete(id)});
  const api=window.AifectAudioAds;
  return {api,$,scripts,events,requests,managers,store,timeouts,audio,get fetches(){return fetches;},async ready(){api.setMembership({plan:'free'},'user');await flush();if(scripts.length){scripts[0].onload();events.click({isTrusted:true});}},five(){for(let i=0;i<5;i++)api.completed(completed('s'+i));},load(index=0){const manager=new Manager();loader.emit('loaded',{getUserRequestContext:()=>requests[index].ctx,getAdsManager:()=>manager});return manager;},error(){loader.emit('error',{getUserRequestContext:()=>requests.at(-1).ctx});},disable(){serverEnabled=false;},get paused(){return paused;}};
 }
@@ -102,4 +102,28 @@ test('timeout releases the queue; server membership recheck can stop the request
  const p=player();await p.ready();p.five();const waiting=p.api.beforeTrack();await flush();
  for(const fn of [...p.timeouts.values()])fn();await waiting;assert.equal(p.api.active,false);
  const q=player();await q.ready();q.five();q.disable();await q.api.beforeTrack();assert.equal(q.requests.length,0);
+});
+
+
+test('completed free cover shows one ad without waiting for five songs and restores the hidden player',async()=>{
+ const p=player();await p.ready();p.$('.player').hidden=true;
+ let finished=false;const waiting=p.api.afterCoverUpload('cover-one').then(()=>finished=true);await flush();
+ assert.equal(p.requests.length,1);assert.equal(finished,false);assert.equal(p.$('.player').hidden,false);
+ await p.api.afterCoverUpload('cover-one');assert.equal(p.requests.length,1);
+ const manager=p.load();manager.remaining=3;manager.emit('AD_PROGRESS');assert.match(p.$('#audio-ad-status').textContent,/광고가 끝나요/);
+ manager.emit('ALL_ADS_COMPLETED');await waiting;
+ assert.equal(p.$('.player').hidden,true);assert.equal(p.audio.plays,0);assert.equal(finished,true);
+});
+
+test('cover completion skips Premium and missing inventory; no-fill restores playing music',async()=>{
+ const paid=player();paid.api.setMembership({plan:'premium'},'paid');await paid.api.afterCoverUpload('one');assert.equal(paid.requests.length,0);
+ const empty=player({enabled:false});await empty.ready();await empty.api.afterCoverUpload('one');assert.equal(empty.requests.length,0);
+ const p=player();await p.ready();p.audio.paused=false;p.audio.src='song';
+ const wait=p.api.afterCoverUpload('two');await flush();assert.equal(p.audio.paused,true);p.error();await wait;
+ assert.equal(p.audio.paused,false);assert.equal(p.audio.plays,1);
+});
+
+test('cancelling an upload ad never restarts music after account or playback changes',async()=>{
+ const p=player();await p.ready();p.audio.paused=false;p.audio.src='song';
+ const wait=p.api.afterCoverUpload('three');await flush();p.api.cancel();await wait;assert.equal(p.audio.plays,0);
 });

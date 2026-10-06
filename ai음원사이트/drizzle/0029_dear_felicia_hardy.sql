@@ -1,0 +1,2 @@
+CREATE INDEX `direct_messages_sent_unread` ON `direct_messages` (`sender_id`,`recipient_id`,`read_at`);--> statement-breakpoint
+CREATE INDEX `listens_track_qualified_started` ON `listens` (`track_id`,`qualified`,`started`);

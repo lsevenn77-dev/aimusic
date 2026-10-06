@@ -4,6 +4,7 @@ import android.app.PendingIntent
 import android.content.Intent
 import android.os.Handler
 import android.os.Looper
+import android.os.Bundle
 import androidx.media3.common.*
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.ResolvingDataSource
@@ -24,7 +25,7 @@ class PlaybackService : MediaSessionService() {
  private lateinit var api:NativeApi
  private val worker=CoroutineScope(SupervisorJob()+Dispatchers.IO)
  private val handler=Handler(Looper.getMainLooper())
- private data class Listening(val id:String,val uri:String,val cookie:String,val limit:Double,val preview:Boolean,var seconds:Double=0.0)
+ private data class Listening(val id:String,val uri:String,val cookie:String,val limit:Double,val preview:Boolean,val bitrate:Int,val highQualityPending:Boolean,var seconds:Double=0.0)
  private val resolved=ConcurrentHashMap<String,Listening>()
  private var lastTick=0L
  private var ticks=0
@@ -34,6 +35,7 @@ class PlaybackService : MediaSessionService() {
  private var completionCounted=false
  private var adLastTick=android.os.SystemClock.elapsedRealtime()
  private var adWasPlaying=false
+ private var destroyed=false
  override fun onCreate() {
   super.onCreate();api=NativeApi(this)
   val data=ResolvingDataSource.Factory(OkHttpDataSource.Factory(api.client)) { spec ->
@@ -46,9 +48,11 @@ class PlaybackService : MediaSessionService() {
    val entry=saved?:run {
     val response=api.blocking("/api/playback/$id","POST")
     Listening(response.getString("id"),Endpoint.url(response.getString("src")),NativeSession.cookie(this),
-     if(response.optBoolean("preview")) minOf(60.0,response.optDouble("duration",60.0)) else response.optDouble("duration",7200.0),response.optBoolean("preview"))
+     if(response.optBoolean("preview")) minOf(60.0,response.optDouble("duration",60.0)) else response.optDouble("duration",7200.0),response.optBoolean("preview"),
+     response.optInt("bitrate_kbps"),response.optBoolean("high_quality_pending"))
      .also { resolved[key]=it }
    }
+   handler.post{if(!destroyed&&player.currentMediaItem?.localConfiguration?.uri?.toString()==key)publishQuality(key)}
    spec.withUri(android.net.Uri.parse(entry.uri))
   }
   player=ExoPlayer.Builder(this).setMediaSourceFactory(DefaultMediaSourceFactory(data)).build().apply {
@@ -63,6 +67,7 @@ class PlaybackService : MediaSessionService() {
      countCompletion()
      report(reportingKey)
      reportingKey=item?.localConfiguration?.uri?.toString()
+     publishQuality(reportingKey)
      adListenedMs=0;adDurationMs=0;completionCounted=false
      adLastTick=android.os.SystemClock.elapsedRealtime()
      if(player.playWhenReady){
@@ -88,6 +93,16 @@ class PlaybackService : MediaSessionService() {
    }).build()
   SongAdBreaks.finishCurrentListen={countCompletion()}
   lastTick=android.os.SystemClock.elapsedRealtime();handler.post(tick)
+ }
+ private fun publishQuality(key:String?){
+  if(!::session.isInitialized)return
+  val entry=key?.let{resolved[it]}?.takeIf{it.cookie==NativeSession.cookie(this)}
+  session.setSessionExtras(Bundle().apply{
+   if(entry!=null&&entry.bitrate in listOf(128,256)){
+    putString("playback_uri",key);putInt("bitrate_kbps",entry.bitrate)
+    putBoolean("preview",entry.preview);putBoolean("high_quality_pending",entry.highQualityPending)
+   }
+  })
  }
  private val tick=object:Runnable {
   override fun run() {
@@ -123,6 +138,7 @@ class PlaybackService : MediaSessionService() {
  override fun onGetSession(controllerInfo:MediaSession.ControllerInfo)=session
  override fun onTaskRemoved(rootIntent:Intent?) { if(!player.playWhenReady || player.mediaItemCount==0)stopSelf() }
  override fun onDestroy() {
+  destroyed=true
   SongAdBreaks.finishCurrentListen=null
   handler.removeCallbacksAndMessages(null);player.release();session.release();worker.cancel();super.onDestroy()
  }

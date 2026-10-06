@@ -7,7 +7,8 @@ import worker from '../server/index.js';
 test('alignment preserves supplied words, detects invalid timing and inserts instrumental gaps',()=>{
  assert.equal(plainLyrics('[Verse 1]\n안녕\n[Pre-Chorus]\n다시 만나\n[Chorus] Hello\n[Chorus]\nHello\n(Bridge)\n끝'),'안녕\n다시 만나\nHello\nHello\n끝');
  assert.equal(plainLyrics('\ufeff 안녕 \r\n\r\nhello'),'안녕\nhello');
- for(const s of ['', '[Unrecognised]\nHello','[00:00]hello','x'.repeat(6001),Array(201).fill('가사').join('\n')])assert.throws(()=>plainLyrics(s));
+ assert.equal(plainLyrics('[Unrecognised]\nHello [softly] world\n[마지막 후렴] 다시'), 'Hello  world\n다시');
+ for(const s of ['', '[00:00]hello','x'.repeat(6001),Array(201).fill('가사').join('\n')])assert.throws(()=>plainLyrics(s));
  const lrc=alignedLrc('처음 가사\n다음 가사',[{start:2,end:5},{start:10,end:14}],20);assert.equal(lrc,'[00:02.000]처음 가사\n[00:05.000]\n[00:10.000]다음 가사\n[00:14.000]');
  for(const result of [[],[{start:0,end:1}],[{start:2,end:1},{start:2,end:3}],[{start:2,end:3},{start:1,end:4}],[{start:0,end:1},{start:NaN,end:4}],[{start:0,end:1},{start:10,end:30}]])assert.throws(()=>alignedLrc('one\ntwo',result,20));
 });

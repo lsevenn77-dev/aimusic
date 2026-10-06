@@ -21,13 +21,14 @@ function bindUploadForm(form,work){
  form.addEventListener('invalid',e=>{if(form._invalidCycle)return;form._invalidCycle=true;setTimeout(()=>form._invalidCycle=false,0);const field=e.target,label=field.getAttribute('aria-label')||field.labels?.[0]?.textContent.trim().split('\n')[0]||'필수 항목';const error=formError(form);if(error)error.textContent=`${label.slice(0,70)}: ${field.validationMessage}`;uploadStage(form,'아직 업로드가 시작되지 않았어요. 필수 항목을 확인해주세요.',null,'error');},true);
 }
 function bindForms(base,param){
+ bindAccountSettings();
  if($('#search-form'))$('#search-form').onsubmit=e=>{e.preventDefault();location.hash='search/'+encodeURIComponent(new FormData(e.target).get('q'));};
  if($('#auth-form')){
   const form=$('#auth-form');$('#auth-switch').onclick=()=>{const signup=form.dataset.mode!=='register';form.dataset.mode=signup?'register':'login';$('#signup-name').hidden=!signup;form.elements.name.required=signup;form.elements.password.autocomplete=signup?'new-password':'current-password';$('#auth-title').textContent=signup?'무료 회원가입':'이메일로 로그인';$('#auth-submit').textContent=signup?'가입하고 음악 듣기':'로그인';$('#auth-switch').textContent=signup?'이미 회원이신가요? 로그인':'처음 오셨나요? 무료 회원가입';};
-  form.onsubmit=busyForm(form,async fd=>{const d=await api('/api/auth/'+form.dataset.mode,'POST',Object.fromEntries(fd));me=d.user;await refreshLibrary();updateAccount();toast('반가워요! 이제 전체곡을 들을 수 있습니다.');try{await resumeAfterLogin();}catch(e){toast(e.message);}if(location.hash===returnRoute)await render();else location.hash=returnRoute;});
+  form.onsubmit=busyForm(form,async fd=>{const d=await api('/api/auth/'+form.dataset.mode,'POST',Object.fromEntries(fd));me=d.user;await refreshAuthState();await refreshLibrary();updateAccount();toast('반가워요! 이제 전체곡을 들을 수 있습니다.');try{await resumeAfterLogin();}catch(e){toast(e.message);}if(location.hash===returnRoute)await render();else location.hash=returnRoute;});
   if(authConfig.googleClientId)prepareGoogle().catch(e=>toast(e.message));
  }
- if($('#logout'))$('#logout').onclick=async()=>{try{await api('/api/auth/logout','POST');++playSerial;window.AifectAudioAds?.cancel();audio.pause();audio.removeAttribute('src');me=null;playSession=null;library={likes:[],playlists:[],follows:[]};setMembership(null);current=null;setCurrentLyrics(null);setPlayerVisible(false);sessionStorage.removeItem('aifect-player-resume');pendingResume=null;updateAccount();await render();toast('로그아웃했습니다.');}catch(e){toast(e.message);}};
+ if($('#logout'))$('#logout').onclick=async()=>{try{await api('/api/auth/logout','POST');++playSerial;window.AifectAudioAds?.cancel();audio.pause();audio.removeAttribute('src');me=null;authConfig={...authConfig,admin:false,track_moderator:false,user:null};playSession=null;library={likes:[],playlists:[],follows:[]};setMembership(null);current=null;setCurrentLyrics(null);setPlayerVisible(false);sessionStorage.removeItem('aifect-player-resume');pendingResume=null;updateAccount();await render();toast('로그아웃했습니다.');}catch(e){toast(e.message);}};
  if($('#comment-form')){
   const form=$('#comment-form');form.onsubmit=busyForm(form,async fd=>{if(!me){askLogin();return;}const ts=fd.has('with_time')&&current?.id===param?Math.floor(audio.currentTime):null;await api(`/api/tracks/${param}/comments`,'POST',{body:fd.get('body'),timestamp:ts});form.reset();await reloadComments(param);toast('댓글을 등록했습니다.');});
   $('#comment-sort').onchange=()=>reloadComments(param).catch(e=>toast(e.message));
@@ -44,7 +45,7 @@ async function prepareGoogle(){
  const {nonce}=await api('/api/auth/google/nonce','POST');
  googleScriptPromise ||=new Promise((resolve,reject)=>{if(window.google?.accounts?.id)return resolve();const script=document.createElement('script');script.src='https://accounts.google.com/gsi/client';script.async=true;script.onload=resolve;script.onerror=()=>{googleScriptPromise=null;reject(new Error('Google 로그인 버튼을 불러오지 못했습니다.'));};document.head.appendChild(script);});
  await googleScriptPromise;if(!host.isConnected)return;
- google.accounts.id.initialize({client_id:authConfig.googleClientId,nonce,auto_select:false,callback:async result=>{try{saveResume();const d=await api('/api/auth/google/token','POST',{credential:result.credential});me=d.user;await refreshLibrary();updateAccount();await resumeAfterLogin();location.hash=returnRoute;await render();toast('Google 계정으로 로그인했습니다.');}catch(e){toast(e.message);await prepareGoogle();}}});
+ google.accounts.id.initialize({client_id:authConfig.googleClientId,nonce,auto_select:false,callback:async result=>{try{saveResume();const d=await api('/api/auth/google/token','POST',{credential:result.credential});me=d.user;await refreshAuthState();await refreshLibrary();updateAccount();await resumeAfterLogin();location.hash=returnRoute;await render();toast('Google 계정으로 로그인했습니다.');}catch(e){toast(e.message);await prepareGoogle();}}});
  google.accounts.id.renderButton(host,{theme:'outline',size:'large',type:'standard',text:'continue_with',width:Math.min(host.parentElement.clientWidth-60,340),locale:'ko',click_listener:saveResume});
 }
 async function reloadComments(tid){const {comments}=await api(`/api/tracks/${tid}/comments?sort=${$('#comment-sort')?.value||'latest'}`);if($('#comments'))$('#comments').innerHTML=commentsHTML(comments,trackMap.get(tid));}
@@ -64,20 +65,20 @@ async function upload(fd){
  const form=$('#upload-form');applyLyrics(fd);
  const file=fd.get('audio'),image=fd.get('cover');if(!file?.size)throw new Error('음원 파일을 선택해주세요.');if(file.size>80*1024*1024)throw new Error('음원은 80MB 이하로 업로드해주세요.');
  for(const name of ['cover','artist_image','producer_image'])await validateImage(fd.get(name));
- const body={...textFields(fd),participation:fd.getAll('participation').join(', '),rights:fd.has('rights'),is_ai:fd.has('is_ai'),karaoke:fd.has('karaoke'),extension:file.name.split('.').pop().toLowerCase(),bytes:file.size};
+ const body={...textFields(fd),participation:fd.getAll('participation').join(', '),rights:fd.has('rights'),is_ai:true,karaoke:fd.has('karaoke'),extension:file.name.split('.').pop().toLowerCase(),bytes:file.size};
  uploadStage(form,'1 / 3 · 곡 정보와 프로필을 저장하고 있어요.');form.querySelector('#upload-submit').textContent='업로드 중…';
  const fingerprint=JSON.stringify([body,file.name,file.lastModified]);if(await existingUploadSubmitted(form,fingerprint))return;
  let draft=form._draft;if(!draft||draft.fingerprint!==fingerprint){draft={...await uploadRequest('/api/uploads','POST',body),fingerprint};form._draft=draft;}
  const {id,artist_id,producer_id}=draft;
  await uploadRequest('/api/studio/profile','PUT',{name:body.producer,bio:body.producer_bio});
- await uploadRequest(`/api/studio/artists/${artist_id}`,'PUT',{name:body.artist,bio:body.artist_bio,genre:body.genre});
- for(const [name,kind,entityId] of [['artist_image','artists',artist_id],['producer_image','producers',producer_id]]){if(fd.get(name)?.size){uploadStage(form,'1 / 3 · 프로필 사진을 올리고 있어요.');await uploadFile(`/api/studio/${kind}/${entityId}/image`,fd.get(name));}}
+ if(artist_id)await uploadRequest(`/api/studio/artists/${artist_id}`,'PUT',{name:body.artist,bio:body.artist_bio,genre:body.genre});
+ for(const [name,kind,entityId] of [['artist_image','artists',artist_id],['producer_image','producers',producer_id]]){if(entityId&&fd.get(name)?.size){uploadStage(form,'1 / 3 · 프로필 사진을 올리고 있어요.');await uploadFile(`/api/studio/${kind}/${entityId}/image`,fd.get(name));}}
  await sendUploadFiles(form,id,file,image);
 }
 async function uploadCover(fd){
  const form=$('#cover-upload-form'),file=fd.get('audio'),image=fd.get('cover');
  if(!file?.size)throw new Error('커버 녹음 파일을 선택해주세요.');if(file.size>80*1024*1024)throw new Error('녹음 파일은 80MB 이하로 올려주세요.');await validateImage(image);
- const body={original_id:form.dataset.original,description:fd.get('description')||'',own_voice:fd.has('own_voice'),rights:fd.has('rights'),extension:file.name.split('.').pop().toLowerCase(),bytes:file.size};
+ const choice=fd.get('cover_kind')||'solo';const body={original_id:form.dataset.original,cover_mode:choice==='solo'?'solo':'duet',duet_slot:choice==='solo'?'':'first',duet_consent:fd.has('duet_consent'),description:fd.get('description')||'',own_voice:fd.has('own_voice'),rights:fd.has('rights'),extension:file.name.split('.').pop().toLowerCase(),bytes:file.size};
  uploadStage(form,'1 / 3 · 커버곡 정보를 저장하고 있어요.');
  const fingerprint=JSON.stringify([body,file.name,file.lastModified]);if(await existingUploadSubmitted(form,fingerprint))return;
  let draft=form._draft;if(!draft||draft.fingerprint!==fingerprint){draft={...await uploadRequest('/api/covers','POST',body),fingerprint};form._draft=draft;}
@@ -88,14 +89,14 @@ async function sendUploadFiles(form,id,file,image){
  await uploadFile(`/api/uploads/${id}/audio`,file,value=>uploadStage(form,value>=100?'2 / 3 · 전송 100% · 서버에 파일을 저장하고 있어요.':`2 / 3 · 음원 전송 ${Math.floor(value)}% · 화면을 닫지 마세요.`,value));
  if(image?.size){uploadStage(form,'2 / 3 · 앨범 이미지를 올리고 있어요.');await uploadFile(`/api/uploads/${id}/cover`,image);}
  uploadStage(form,'3 / 3 · 전송한 파일을 확인하고 음원 변환을 요청하고 있어요.');
- await uploadRequest(`/api/uploads/${id}/complete`,'POST');uploadStage(form,'업로드 완료 · 음원 변환이 끝나면 공개돼요.',100,'done');
- toast('전송 완료! 음원 변환은 화면을 닫아도 계속됩니다. 스튜디오에서 상태를 확인해주세요.');location.hash='studio';
+ const completed=await uploadRequest(`/api/uploads/${id}/complete`,'POST');uploadStage(form,'업로드 완료 · 음원 변환이 끝나면 공개돼요.',100,'done');
+ toast('전송 완료! 음원 변환은 화면을 닫아도 계속됩니다. 스튜디오에서 상태를 확인해주세요.');location.hash='studio';if(completed.show_upload_ad)void window.AifectAudioAds?.afterCoverUpload(id);
 }
 function deleteTrackDialog(id,title,kind){
  dialog(`<h2>이 곡을 삭제할까요?</h2><p class="delete-track-title">${esc(title)}</p><p>공개 목록과 내 스튜디오에서 삭제되며, 다시 공개할 수 없어요.${kind==='original'?' 이 곡의 노래방과 연결된 커버곡도 다른 이용자가 재생할 수 없게 됩니다.':''}</p><p class="field-help">이미 받은 선물과 정산 내역은 유지돼요.</p><form id="delete-track-form"><div class="inline-actions"><button type="button" class="small-button" data-close-dialog>취소</button><button type="submit" class="primary-button danger-button">곡 삭제</button></div><p class="form-error" role="alert"></p></form>`);
  const form=$('#delete-track-form');form.onsubmit=busyForm(form,async()=>{await uploadRequest('/api/uploads/'+id,'DELETE');if(current?.id===id||current?.original_id===id)closePlayer();queue=queue.filter(tid=>tid!==id&&trackMap.get(tid)?.original_id!==id);trackMap.delete(id);saveQueue();$('#dialog').close();toast('곡이 삭제됐어요.');await refreshLibrary();await render();});
 }
-async function uploadFile(url,file,onprogress=()=>{}){file=await optimizeUploadImage(file);return new Promise((resolve,reject)=>{
+async function uploadFile(url,file,onprogress=()=>{}){file=await optimizeUploadImage(file);invalidateReads();try{return await new Promise((resolve,reject)=>{
  const xhr=new XMLHttpRequest();let idle,stalled=false;const heartbeat=()=>{clearTimeout(idle);idle=setTimeout(()=>{stalled=true;xhr.abort();},120000);};
  xhr.open('PUT',url);xhr.timeout=15*60*1000;xhr.setRequestHeader('Content-Type',file.type||'application/octet-stream');
  xhr.upload.onprogress=e=>{heartbeat();if(e.lengthComputable)onprogress(e.loaded/e.total*100);};xhr.onloadend=()=>clearTimeout(idle);
@@ -104,7 +105,7 @@ async function uploadFile(url,file,onprogress=()=>{}){file=await optimizeUploadI
  xhr.ontimeout=()=>reject(new Error('파일 전송 시간이 초과됐어요. 연결 상태를 확인하고 다시 시도해주세요.'));
  xhr.onabort=()=>reject(new Error(stalled?'파일 전송이 멈췄어요. 선택한 파일은 유지되어 있으니 연결 상태를 확인하고 다시 시도해주세요.':'파일 전송이 취소됐어요.'));
  heartbeat();xhr.send(file);
-});}
+});}finally{invalidateReads();}}
 async function playlistDialog(existing=null,initialTrack=null){if(!me)return askLogin();await refreshLibrary();if(!existing&&!canCreatePlaylist())return;if(existing?.locked)return selectActivePlaylists();dialog(`<h2>${existing?'플레이리스트 설정':'새 플레이리스트'}</h2><form id="playlist-form">${formField('이름','name','text',existing?.name||'','required maxlength="80"')}<label class="form-field">소개<textarea name="description" maxlength="600" placeholder="어떤 순간에 들으면 좋을까요?">${esc(existing?.description||'')}</textarea></label><label class="checkbox-line"><input name="is_public" type="checkbox" ${existing?.is_public?'checked':''}> 링크로 누구나 볼 수 있게 공개</label><button class="primary-button">저장</button><p class="form-error" role="alert"></p></form>`);const form=$('#playlist-form');form.onsubmit=busyForm(form,async fd=>{const d=await api(existing?`/api/playlists/${existing.id}`:'/api/playlists',existing?'PATCH':'POST',{name:fd.get('name'),description:fd.get('description'),is_public:fd.has('is_public'),...(!existing&&initialTrack?{track_ids:[initialTrack]}:{})});$('#dialog').close();await refreshLibrary();location.hash='playlist/'+(existing?.id||d.id);await render();});}
 async function addToPlaylist(tid){if(!me)return askLogin();await refreshLibrary();dialog(`<h2>플레이리스트에 추가</h2><div class="dialog-list">${library.playlists.filter(p=>!p.locked).map(p=>`<button class="small-button" data-save-track="${tid}" data-playlist="${p.id}">${esc(p.name)} <span>${p.tracks}곡</span></button>`).join('')}</div><button class="primary-button" id="dialog-new-playlist">새 플레이리스트 만들기</button>`);$('#dialog-new-playlist').onclick=()=>playlistDialog(null,tid).catch(e=>toast(e.message));}
 async function playlistOrderDialog(pid){
@@ -117,16 +118,16 @@ async function playlistOrderDialog(pid){
 document.addEventListener('click',async ev=>{
  const el=ev.target.closest('button,a');if(!el||el.disabled)return;
  try{
-  if(el.matches('[data-play],[data-play-all],[data-like],[data-follow],[data-add],[data-seek]'))await accountReady;
+  if(el.matches('[data-play],[data-play-all],[data-like],[data-follow],[data-add],[data-seek]')){el.setAttribute('aria-busy','true');await accountReady;}
   if(el.hasAttribute('data-play')){if($('#dialog').open)$('#dialog').close();await play(el.dataset.play,routeTracks.some(t=>t.id===el.dataset.play)?routeTracks:null);}
   else if(el.hasAttribute('data-play-all')){if(routeTracks.length)await play(routeTracks[0].id,routeTracks);else toast('먼저 곡을 추가해주세요.');}
   else if(el.dataset.gift){await giftDialog(el.dataset.gift,el.dataset.giftType);}
   else if(el.dataset.profileGift){await profileGiftDialog(el.dataset.profileGift);}
   else if(el.dataset.closePeriod){if(confirm(`${el.dataset.closePeriod} 정산을 마감할까요? 마감한 달은 되돌릴 수 없어요.`)){const r=await api('/api/admin/payouts/close','POST',{period:el.dataset.closePeriod});toast(`정산서 ${r.issued}건을 만들었어요. 이월 ${r.carried}건.`);location.hash='admin/'+r.period;await render();}}
   else if(el.dataset.revealPayout){const a=await api(`/api/admin/payouts/${el.dataset.revealPayout}/account`);dialog(`<h2>정산 계좌</h2><p>이 조회는 기록돼요.</p><dl class="business-details"><div><dt>예금주</dt><dd>${esc(a.holder)}</dd></div><div><dt>은행</dt><dd>${esc(a.bank)}</dd></div><div><dt>계좌번호</dt><dd>${esc(a.account)}</dd></div><div><dt>주민등록번호</dt><dd>${esc(a.resident_number)}</dd></div></dl>`);}
-  else if(el.dataset.payStatement){dialog(`<h2>지급 완료 기록</h2><form id="pay-form"><label class="form-field">이체 메모 (선택)<input name="ref" maxlength="100" placeholder="예: 국민 이체 3/15"></label><button class="primary-button">지급 완료로 기록</button><p class="form-error" role="alert"></p></form>`);const form=$('#pay-form'),sid=el.dataset.payStatement;form.onsubmit=busyForm(form,async fd=>{await api(`/api/admin/payouts/${sid}/paid`,'POST',{ref:fd.get('ref')||''});$('#dialog').close();toast('지급 완료로 기록했어요.');await render();});}
-  else if(el.dataset.like){if(!me)return askLogin();el.disabled=true;const tid=el.dataset.like,wasLiked=liked(tid),prior=trackMap.get(tid);await api(`/api/tracks/${tid}/like`,wasLiked?'DELETE':'PUT');await refreshLibrary();const count=library.likes.find(t=>t.id===tid)?.likes??Math.max(0,(prior?.likes||0)-1);if(prior)trackMap.set(tid,{...prior,likes:count});document.querySelectorAll('[data-like]').forEach(b=>{if(b.dataset.like!==tid)return;b.classList.toggle('is-active',liked(tid));b.setAttribute('aria-pressed',String(liked(tid)));const label=b.querySelector('[data-like-count]');if(label){label.textContent=number(count);b.setAttribute('aria-label',`좋아요 ${number(count)}개`);}});document.querySelectorAll('[data-stat-track]').forEach(s=>{if(s.dataset.statTrack!==tid)return;const item=s.children[1];item.setAttribute('aria-label',`좋아요 ${number(count)}개`);item.querySelector('span').textContent=number(count);});toast(liked(el.dataset.like)?'좋아요에 저장했습니다.':'좋아요를 취소했습니다.');refreshCommunityRanking();}
-  else if(el.dataset.follow){if(!me)return askLogin();const [kind,id]=el.dataset.follow.split('/');await api(`/api/${kind==='artist'?'artists':'producers'}/${id}/follow`,followed(kind,id)?'DELETE':'PUT');await refreshLibrary();el.textContent=followed(kind,id)?'팔로잉':'팔로우';}
+  else if(el.dataset.payStatement){dialog(`<h2>지급 완료 기록</h2><form id="pay-form"><label class="form-field">이체 메모 (선택)<input name="ref" maxlength="100" placeholder="예: 국민 이체 3/10"></label><button class="primary-button">지급 완료로 기록</button><p class="form-error" role="alert"></p></form>`);const form=$('#pay-form'),sid=el.dataset.payStatement;form.onsubmit=busyForm(form,async fd=>{await api(`/api/admin/payouts/${sid}/paid`,'POST',{ref:fd.get('ref')||''});$('#dialog').close();toast('지급 완료로 기록했어요.');await render();});}
+  else if(el.dataset.like)await toggleLike(el);
+  else if(el.dataset.follow)await toggleFollow(el);
   else if(el.dataset.add)await addToPlaylist(el.dataset.add);
   else if(el.dataset.saveTrack){await api(`/api/playlists/${el.dataset.playlist}/tracks/${el.dataset.saveTrack}`,'PUT');$('#dialog').close();toast('플레이리스트에 추가했습니다.');}
   else if(el.dataset.removeTrack){await api(`/api/playlists/${el.dataset.playlist}/tracks/${el.dataset.removeTrack}`,'DELETE');await render();}
@@ -152,7 +153,7 @@ document.addEventListener('click',async ev=>{
    if(el.closest('.queue-panel'))queueDialog();
   }
   else if(el.hasAttribute('data-oauth'))saveResume();
- }catch(e){toast(e.message);}finally{el.disabled=false;}
+ }catch(e){toast(e.message);}finally{el.disabled=false;el.removeAttribute('aria-busy');}
 });
 audio.ontimeupdate=()=>{if(window.AifectAudioAds?.active)return;$('#elapsed').textContent=time(audio.currentTime);$('#seek').value=audio.currentTime;};
 audio.onplay=()=>{if(window.AifectAudioAds?.active)return;if(!current||!playSession){audio.pause();return;}setPlayerVisible(true);lastTick=performance.now();$('#play-toggle').innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg>';$('#play-toggle').setAttribute('aria-label','일시정지');};
@@ -168,12 +169,44 @@ $('#repeat').onclick=()=>{repeatMode=(repeatMode+1)%3;$('#repeat').classList.tog
 $('#volume').oninput=e=>{audio.volume=Number(e.target.value);window.AifectAudioAds?.volume(audio.volume);};$('#seek').oninput=e=>{if(current&&!window.AifectAudioAds?.active)audio.currentTime=Number(e.target.value);};
 $('#queue-toggle').onclick=queueDialog;
 $('#player-close').onclick=closePlayer;
-$('#dialog-close').onclick=()=>$('#dialog').close();$('#menu-toggle').onclick=()=>$('.sidebar').classList.toggle('open');
+$('#dialog-close').onclick=()=>$('#dialog').close();
+const mobileMenuQuery=window.matchMedia('(max-width:800px)');
+function setMobileMenu(open){
+ const shown=Boolean(open&&mobileMenuQuery.matches),sidebar=$('#sidebar'),toggle=$('#menu-toggle');
+ sidebar.classList.toggle('open',shown);sidebar.inert=mobileMenuQuery.matches&&!shown;
+ $('#menu-backdrop').hidden=!shown;document.body.classList.toggle('mobile-menu-open',shown);
+ toggle.setAttribute('aria-expanded',String(shown));toggle.setAttribute('aria-label',shown?'메뉴 닫기':'메뉴 열기');
+}
+$('#menu-toggle').onclick=()=>setMobileMenu(!$('#sidebar').classList.contains('open'));
+$('#menu-backdrop').onclick=()=>setMobileMenu(false);
+$('#sidebar').addEventListener('click',e=>{if(e.target.closest('a'))setMobileMenu(false);});
+document.addEventListener('pointerdown',e=>{if($('#sidebar').classList.contains('open')&&!e.target.closest('#sidebar,#menu-toggle'))setMobileMenu(false);});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#sidebar').classList.contains('open')){setMobileMenu(false);$('#menu-toggle').focus();}});
+mobileMenuQuery.addEventListener('change',()=>setMobileMenu(false));setMobileMenu(false);
 window.addEventListener('hashchange',render);window.addEventListener('pagehide',()=>{countAdListening();saveResume();});
 async function boot(){
- accountReady=(async()=>{try{authConfig=await api('/api/me');me=authConfig.user;await refreshLibrary();}catch(e){toast(e.message);}finally{updateAccount();updateHomeAccount();}})();
- const firstRender=render();await accountReady;
+ const startupAccount=me?.id||'guest';
+ accountReady=(async()=>{try{authConfig=await api('/api/me?state=1');me=authConfig.user;if(authConfig.interaction_state){library.likes=authConfig.interaction_state.likes;library.follows=authConfig.interaction_state.follows;}setMembership(authConfig.membership);}catch(e){toast(e.message);}finally{updateAccount();paintInteractions();}})();
+ let firstRender=render();await accountReady;
+ if(startupAccount!==(me?.id||'guest')){invalidateReads();if((location.hash.slice(1)||'home')==='home'){firstRender.catch(()=>{});firstRender=render();}}
+ if(typeof updateHomeAccount==='function')updateHomeAccount();
+ if(me)refreshLibrary().catch(e=>toast(e.message));
  if(me&&pendingResume)try{await resumeAfterLogin();}catch(e){toast(e.message);}
  await firstRender;
 }
 icons();boot();
+
+async function reviewTrackDialog(id){
+ const d=await api('/api/admin/track-review/'+id),t=d.track,removed=t.status==='removed';
+ dialog('<h2>'+esc(t.title)+'</h2><p>'+esc(t.producer)+' · '+(removed?'운영자 제거됨':'공개 중')+'</p><p>'+number(t.report_count)+'명의 음질 신고</p>'+(t.status==='published'?'<a class="small-button" href="#song/'+esc(t.id)+'" data-close-dialog>곡 확인</a>':'')+'<div style="max-height:240px;overflow:auto">'+(d.reports.length?d.reports.map(r=>'<article><strong>음질 문제 · '+new Date(r.created*1000).toLocaleDateString('ko-KR')+'</strong><p>'+esc(r.details||'추가 설명 없음')+'</p></article>').join(''):'<p class="field-help">신고 내역이 없어요.</p>')+'</div><form id="track-visibility-form"><label class="form-field">운영자 메모<textarea name="note" maxlength="500"></textarea></label><p class="field-help">'+(removed?'다시 공개하면 감상과 노래방 이용이 가능해져요.':'제거하면 공개 목록과 재생에서 제외돼요. 원본과 정산 기록은 보존하며 운영자가 다시 공개할 수 있어요. 원곡에 연결된 커버도 재생할 수 없게 됩니다.')+'</p><button class="primary-button" '+(['published','removed'].includes(t.status)?'':'disabled')+'>'+(removed?'다시 공개':'음원 제거')+'</button><p class="form-error" role="alert"></p></form>');
+ const form=$('#track-visibility-form');form.onsubmit=busyForm(form,async fd=>{await api('/api/admin/track-review/'+id+'/visibility','POST',{action:removed?'restore':'remove',note:fd.get('note')||''});if(!removed&&(current?.id===id||current?.original_id===id))closePlayer();$('#dialog').close();toast(removed?'다시 공개했어요.':'공개 목록과 재생에서 제거했어요.');location.hash='admin/track-review?view='+(!removed?'removed':'all');await render();});
+}
+document.addEventListener('click',async e=>{
+ const report=e.target.closest('[data-report-track]'),review=e.target.closest('[data-review-track]');
+ try{
+  if(review){e.preventDefault();if(review.dataset.pending)return;review.dataset.pending='1';await reviewTrackDialog(review.dataset.reviewTrack);}
+  else if(report){e.preventDefault();if(!me)return askLogin();dialog('<h2>음질 문제 신고</h2><p>큰 잡음, 소리 깨짐, 반주·목소리의 심한 불균형 등 감상하기 어려운 부분을 알려주세요. 운영자가 확인하며 자동 제거하지 않아요.</p><form id="report-track-form"><label class="form-field">문제 설명 (선택)<textarea name="details" maxlength="500" placeholder="예: 1분 20초부터 소리가 크게 깨져요."></textarea></label><button class="primary-button">신고 접수</button><p class="form-error" role="alert"></p></form>');const form=$('#report-track-form');form.onsubmit=busyForm(form,async fd=>{await api('/api/tracks/'+report.dataset.reportTrack+'/report','POST',{reason:'low_quality',details:fd.get('details')||''});$('#dialog').close();toast('신고를 접수했어요. 같은 계정의 중복 신고는 집계하지 않아요.');});}
+ }catch(err){toast(err.message);}finally{if(review)delete review.dataset.pending;}
+});
+
+async function refreshAuthState(){const d=await api("/api/me");authConfig=d;me=d.user;setMembership(d.membership);}

@@ -1,11 +1,27 @@
 export const MAX_LYRICS=12000;
+export function cleanLyricAnnotations(value,preserveLrc=false,selection=null){
+ const source=String(value??'');let text='',cursor=0,depth=0,start=0,removed=0;
+ const position=value=>Math.max(0,Math.min(source.length,Number(value)||0));
+ const from=position(selection?.start),to=position(selection?.end);let selectionStart=from,selectionEnd=to;
+ for(let i=0;i<source.length;i++){
+  if(source[i]==='['){if(!depth)start=i;depth++;}
+  else if(source[i]===']'&&depth&&!--depth){
+   const label=source.slice(start,i+1);
+   if(preserveLrc&&/^\[(?:\d{1,3}:\d{2}(?:[.:]\d{1,3})?|(?:ar|al|ti|by|re|ve|length|offset):[^\]]*)\]$/i.test(label))continue;
+   text+=source.slice(cursor,start);cursor=i+1;removed++;
+   selectionStart-=Math.min(label.length,Math.max(0,from-start));selectionEnd-=Math.min(label.length,Math.max(0,to-start));
+  }
+ }
+ const result={text:text+source.slice(cursor),removed};
+ if(selection)Object.assign(result,{selectionStart,selectionEnd});return result;
+}
 export function timestamp(seconds){
  const ms=Math.round(seconds*1000),minutes=Math.floor(ms/60000),rest=ms%60000;
  return `${String(minutes).padStart(2,'0')}:${String(Math.floor(rest/1000)).padStart(2,'0')}.${String(rest%1000).padStart(3,'0')}`;
 }
 export function parseLrc(input,maxSeconds=1200){
  if(typeof input!=='string'||input.length>MAX_LYRICS)throw new Error('가사는 최대 12,000자까지 등록할 수 있습니다.');
- const lines=input.replace(/^\uFEFF/,'').replace(/\r\n?/g,'\n').split('\n'),entries=[];let offset=0;
+ const lines=cleanLyricAnnotations(input,true).text.replace(/^\uFEFF/,'').replace(/\r\n?/g,'\n').split('\n'),entries=[];let offset=0;
  for(const line of lines){const m=/^\[offset:([+-]?\d+)\]$/i.exec(line.trim());if(m)offset=Number(m[1])/1000;}
  for(let i=0;i<lines.length;i++){
   let line=lines[i].trim();if(!line||/^\[(ar|al|ti|by|re|ve|length|offset):[^\]]*\]$/i.test(line))continue;

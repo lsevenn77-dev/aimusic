@@ -1,0 +1,1 @@
+ALTER TABLE `producers` ADD `nickname_confirmed` integer DEFAULT 0 NOT NULL;

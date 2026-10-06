@@ -57,7 +57,7 @@ test('closing a month issues statements at the minimum, carries smaller totals, 
  assert.equal((await f.call('/api/admin/payouts/close','POST',{period:'2020-01'},'admin')).status,409);
  assert.equal((await f.call('/api/admin/payouts/close','POST',{period:'2999-01'},'admin')).status,400,'only finished months');
  out=await f.call('/api/admin/payouts/close','POST',{period:'2020-02'},'admin');
- assert.deepEqual([out.body.issued,out.body.due_on],[2,'2020-03-15']);
+ assert.deepEqual([out.body.issued,out.body.due_on],[2,'2020-03-25']);
  const list=(await f.call('/api/admin/payouts?period=2020-02','GET',undefined,'admin')).body.statements;
  const byProfile=Object.fromEntries(list.map(s=>[s.profile,s]));
  assert.deepEqual([byProfile.Singer.from_month,byProfile.Singer.gross_krw,byProfile.Singer.net_krw,byProfile.Singer.status],['2020-01',11000,11000,'held'],'carried January joins February; no account yet');

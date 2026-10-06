@@ -23,22 +23,25 @@ final class BackingDecoder {
         return new DecodedStream(source,frame);
     }
     static void export(File source,File dry,File target,VocalEffects.Settings settings)throws IOException{
-        try(InputStream input=open(source,0)){PcmFiles.export(input,Math.min(frames(source),dry.length()/2),dry,target,settings);}
+        export(source,dry,target,settings,false);
     }
-    /** Pipe back-pressure caps decoded audio to 128 KiB; closing releases the decoder as well. */
+    static void export(File source,File dry,File target,VocalEffects.Settings settings,boolean fullLength)throws IOException{
+        try(InputStream input=open(source,0)){PcmFiles.export(input,fullLength?frames(source):Math.min(frames(source),dry.length()/2),dry,target,settings);}
+    }
+    /** Explicit per-block wakeup avoids java.io.PipedInputStream's timed empty-pipe waits. */
     private static final class DecodedStream extends InputStream {
-        private final PipedInputStream input=new PipedInputStream(128*1024);
-        private final PipedOutputStream output;
+        private final AudioPipe input=new AudioPipe(128*1024);
         private final Thread worker;
-        private volatile IOException failure;
         private volatile boolean closed;
         DecodedStream(File source,long frame)throws IOException{
-            output=new PipedOutputStream(input);
-            worker=new Thread(()->{try{OutputStream out=new BufferedOutputStream(output,8192);decodeTo(source,out,frame);out.flush();}catch(Exception e){if(!closed)failure=e instanceof IOException?(IOException)e:new IOException("반주를 해석하지 못했어요.",e);}finally{try{output.close();}catch(IOException ignored){}}},"AifectBackingDecode");worker.start();
+            worker=new Thread(()->{IOException failure=null;try{
+                OutputStream sink=new OutputStream(){public void write(int b)throws IOException{input.write(new byte[]{(byte)b},0,1);}public void write(byte[] b,int off,int len)throws IOException{input.write(b,off,len);}};
+                OutputStream out=new BufferedOutputStream(sink,8192);decodeTo(source,out,frame);out.flush();
+            }catch(Exception e){if(!closed)failure=e instanceof IOException?(IOException)e:new IOException("반주를 해석하지 못했어요.",e);}finally{input.finish(failure);}},"AifectBackingDecode");worker.start();
         }
         @Override public int read()throws IOException{byte[] one=new byte[1];return read(one,0,1)<0?-1:one[0]&255;}
-        @Override public int read(byte[] b,int offset,int count)throws IOException{int n=input.read(b,offset,count);if(n<0&&failure!=null)throw failure;return n;}
-        @Override public void close()throws IOException{closed=true;input.close();output.close();worker.interrupt();}
+        @Override public int read(byte[] b,int offset,int count)throws IOException{return input.read(b,offset,count);}
+        @Override public void close()throws IOException{closed=true;input.close();worker.interrupt();}
     }
     static void decode(File source,File target)throws Exception{
         try(OutputStream out=new BufferedOutputStream(new FileOutputStream(target))){decodeTo(source,out,0);}

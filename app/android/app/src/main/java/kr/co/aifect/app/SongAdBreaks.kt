@@ -24,6 +24,12 @@ object SongAdBreaks {
  fun completed(listenedMs:Long,durationMs:Long,preview:Boolean) {
   if(eligible){cadence.finish(listenedMs,durationMs,preview);persist()}
  }
+ fun afterCoverUpload(pause:()->Unit,onFinished:()->Unit) {
+  val presenter=host
+  if(!eligible||presenter?.ready()!=true){onFinished();return}
+  pause()
+  if(!presenter.show({cadence.shown();persist()},onFinished))onFinished()
+ }
  fun atBoundary(pause:()->Unit,continuePlayback:()->Unit) {
   val presenter=host
   if(!due||presenter?.ready()!=true){continuePlayback();return}

@@ -15,9 +15,9 @@ import androidx.compose.ui.unit.sp
  var details by remember{mutableStateOf("")}
  AlertDialog(onDismissRequest={if(!m.busy)dismiss()},title={Text("댓글 신고")},text={
   Column(Modifier.verticalScroll(rememberScrollState())){
-   Text("신고 사유를 선택해주세요. 운영자가 내용을 확인해요.",fontSize=12.sp,color=Muted)
+   Text("신고 사유를 선택해주세요. 운영자가 내용을 확인해요.",fontSize=13.sp,color=Muted)
    reasons.forEach{(code,label)->FilterChip(reason==code,{reason=code},label={Text(label)},modifier=Modifier.fillMaxWidth())}
-   OutlinedTextField(details,{details=it.take(500)},label={Text("추가 설명 (선택)",fontSize=12.sp)},modifier=Modifier.fillMaxWidth().padding(top=8.dp),maxLines=4)
+   OutlinedTextField(details,{details=it.take(500)},label={Text("추가 설명 (선택)",fontSize=13.sp)},modifier=Modifier.fillMaxWidth().padding(top=8.dp),maxLines=4)
   }
  },confirmButton={TextButton(onClick={send(reason,details)},enabled=reason.isNotBlank()&&!m.busy){Text("신고 접수")}},dismissButton={TextButton(onClick=dismiss,enabled=!m.busy){Text("취소")}})
 }

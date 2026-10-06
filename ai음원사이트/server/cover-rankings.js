@@ -1,3 +1,4 @@
+import {producerNameSQL} from './identity.js';
 import {validGenre} from '../shared/genres.js';
 import {rows,now,fail,json} from './db.js';
 import {trackList,published,VISIBLE,GENRES} from './catalog.js';
@@ -17,7 +18,7 @@ export async function coverRankingRoute(req,env,path){
  let where=`${VISIBLE()} AND t.kind='cover'`,args=[];
  if(genre){where+=' AND t.genre=?';args.push(genre);}
  if(original){where+=' AND t.original_id=?';args.push(original);}
- if(q){where+=' AND (t.title LIKE ? ESCAPE \'\\\' OR p.name LIKE ? ESCAPE \'\\\')';const term='%'+q.replace(/[\\%_]/g,'\\$&')+'%';args.push(term,term);}
+ if(q){where+=` AND (t.title LIKE ? ESCAPE '\\' OR (${producerNameSQL()}) LIKE ? ESCAPE '\\')`;const term='%'+q.replace(/[\\%_]/g,'\\$&')+'%';args.push(term,term);}
  // Each account has one active like per cover. Unlike removes its vote immediately.
  const cte=`WITH scores AS (SELECT t.id,t.producer_id,t.created,
   (SELECT count(*) FROM likes l WHERE l.track_id=t.id AND l.created>=? AND l.created<=?) rank_likes,
@@ -26,10 +27,10 @@ export async function coverRankingRoute(req,env,path){
  const bound=[period.from,period.until,...args];
  let tracks=[],singers=[];
  if(kind==='tracks'){
-  const ranked=await rows(env,`${cte} SELECT * FROM scores WHERE rank_likes>0 ORDER BY rank_likes DESC,total_likes DESC,created DESC,id LIMIT ?`,...bound,limit);
+  const ranked=await rows(env,`${cte} SELECT * FROM scores ${p.get('include_unranked')==='1'?'':'WHERE rank_likes>0'} ORDER BY rank_likes DESC,total_likes DESC,created DESC,id LIMIT ?`,...bound,limit);
   if(ranked.length){const data=await trackList(env,`${VISIBLE()} AND t.id IN (${ranked.map(()=>'?').join(',')})`,ranked.map(x=>x.id),'t.id',limit),byId=new Map(data.map(t=>[t.id,t]));tracks=ranked.filter(r=>byId.has(r.id)).map((r,i)=>({...byId.get(r.id),rank:i+1,rank_likes:r.rank_likes}));}
  }else{
-  singers=(await rows(env,`${cte} SELECT p.id,p.name,p.bio,p.image_version,
+  singers=(await rows(env,`${cte} SELECT p.id,${producerNameSQL()} name,p.bio,p.image_version,
     sum(s.rank_likes) rank_likes,sum(s.total_likes) total_likes,count(*) ranked_covers,
     (SELECT count(*) FROM follows f WHERE f.kind='producer' AND f.target_id=p.id) followers
     FROM scores s JOIN producers p ON p.id=s.producer_id WHERE s.rank_likes>0 GROUP BY p.id

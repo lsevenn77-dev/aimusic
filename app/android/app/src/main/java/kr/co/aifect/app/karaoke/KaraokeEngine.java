@@ -24,17 +24,20 @@ final class KaraokeEngine {
     private volatile boolean running,monitor;
     private volatile AudioTrack track;
     private volatile AudioRecord recorder;
+    private volatile DirectMonitor direct;volatile boolean directMonitoring;volatile int directPerformance,directBufferFrames;
     private volatile long frames,startFrame,recordFrame,sourceFrames,stopFrame=-1;
     private volatile InputStream activeBacking;
     private final long mrFrames;
     volatile boolean autoSync=true;
     volatile int lastDelayMs=80;
     volatile boolean measuredDelay;
+    volatile int outputUnderruns,outputBufferFrames,captureSource;
     private volatile String interruption;
     private Thread thread;
     private AudioFocusRequest focus;
     private final AudioManager.OnAudioFocusChangeListener focusListener=change->{if(change<0)interrupt("다른 오디오가 시작되어 노래를 멈췄어요. 녹음은 다시 들을 수 있어요.");};
 
+    boolean fullLengthMix;
     KaraokeEngine(Context context,File mr,File dry,Listener listener){
         this.context=context.getApplicationContext();manager=(AudioManager)context.getSystemService(Context.AUDIO_SERVICE);this.mr=mr;this.dry=dry;this.listener=listener;
         long length;try{length=BackingDecoder.frames(mr);}catch(IOException e){length=0;}mrFrames=length;
@@ -51,9 +54,18 @@ final class KaraokeEngine {
     }
     static boolean bluetooth(AudioDeviceInfo d){return d!=null&&(d.getType()==AudioDeviceInfo.TYPE_BLUETOOTH_A2DP||(Build.VERSION.SDK_INT>=31&&d.getType()==AudioDeviceInfo.TYPE_BLE_HEADSET));}
     AudioDeviceInfo headphones(){for(AudioDeviceInfo d:manager.getDevices(AudioManager.GET_DEVICES_OUTPUTS))if(headphone(d)&&!bluetooth(d))return d;for(AudioDeviceInfo d:manager.getDevices(AudioManager.GET_DEVICES_OUTPUTS))if(headphone(d))return d;return null;}
+    private AudioDeviceInfo microphoneFor(AudioDeviceInfo output){
+        if(output==null||bluetooth(output))return null;
+        for(AudioDeviceInfo d:manager.getDevices(AudioManager.GET_DEVICES_INPUTS)){
+            boolean wired=output.getType()==AudioDeviceInfo.TYPE_WIRED_HEADSET&&d.getType()==AudioDeviceInfo.TYPE_WIRED_HEADSET;
+            boolean usb=(output.getType()==AudioDeviceInfo.TYPE_USB_DEVICE||output.getType()==AudioDeviceInfo.TYPE_USB_HEADSET)&&(d.getType()==AudioDeviceInfo.TYPE_USB_DEVICE||d.getType()==AudioDeviceInfo.TYPE_USB_HEADSET);
+            if(wired||(usb&&output.getAddress().equals(d.getAddress())))return d;
+        }
+        return null;
+    }
     void setMonitor(boolean enabled){
         AudioDeviceInfo route=headphones();monitor=enabled&&route!=null;
-        AudioTrack t=track;if(t!=null&&monitor)t.setPreferredDevice(route);
+        DirectMonitor live=direct;if(live!=null)live.settings(settings,monitor);AudioTrack t=track;if(t!=null&&monitor)t.setPreferredDevice(route);
     }
     boolean monitoring(){return monitor;}
     double position(){AudioTrack t=track;try{return t==null?frames/(double)PcmFiles.RATE:(startFrame+(t.getPlaybackHeadPosition()&0xffffffffL))/(double)PcmFiles.RATE;}catch(Exception e){return 0;}}
@@ -73,7 +85,7 @@ final class KaraokeEngine {
         if(Build.VERSION.SDK_INT>=26){focus=new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT).setAudioAttributes(attributes).setOnAudioFocusChangeListener(focusListener,main).build();granted=manager.requestAudioFocus(focus);}
         else granted=manager.requestAudioFocus(focusListener,AudioManager.STREAM_MUSIC,AudioManager.AUDIOFOCUS_GAIN_TRANSIENT);
         if(granted!=AudioManager.AUDIOFOCUS_REQUEST_GRANTED)throw new IOException("다른 통화나 오디오가 끝난 뒤 다시 시도해주세요.");
-        startFrame=Math.max(0,Math.min((long)(seconds*PcmFiles.RATE),sourceFrames));recordFrame=Math.max(startFrame,Math.min((long)(recordingAt*PcmFiles.RATE),sourceFrames));frames=startFrame;stopFrame=-1;interruption=null;running=true;
+        startFrame=Math.max(0,Math.min((long)(seconds*PcmFiles.RATE),sourceFrames));recordFrame=Math.max(startFrame,Math.min((long)Math.ceil(recordingAt*PcmFiles.RATE),sourceFrames));frames=startFrame;stopFrame=-1;interruption=null;running=true;
         thread=new Thread(()->run(record,guide,source,attributes),"AifectKaraokeAudio");thread.start();
     }
     void interrupt(String message){interruption=message;stop();}
@@ -81,7 +93,7 @@ final class KaraokeEngine {
         if(!running)return;
         stopFrame=Math.max(startFrame,(long)(position()*PcmFiles.RATE));running=false;monitor=false;
         AudioTrack t=track;try{if(t!=null){t.setVolume(0);t.pause();t.flush();}}catch(Exception ignored){}
-        AudioRecord r=recorder;try{if(r!=null)r.stop();}catch(Exception ignored){}
+        DirectMonitor live=direct;if(live!=null)live.stop();AudioRecord r=recorder;try{if(r!=null)r.stop();}catch(Exception ignored){}
         InputStream backing=activeBacking;try{if(backing!=null)backing.close();}catch(IOException ignored){}
     }
     void close(){stop();Thread t=thread;if(t!=null)try{t.join(3000);}catch(InterruptedException e){Thread.currentThread().interrupt();}}
@@ -91,22 +103,27 @@ final class KaraokeEngine {
         File segment=new File(dry.getParentFile(),"segment.pcm");
         RecordingTimeline.DelayEstimate estimate=new RecordingTimeline.DelayEstimate();boolean committed=false;
         final boolean correct=autoSync;
-        try(BufferedInputStream backing=new BufferedInputStream(BackingDecoder.open(source,startFrame),8192);
-            OutputStream take=record?new BufferedOutputStream(new FileOutputStream(segment)):null;
+        try(BufferedInputStream backing=new BufferedInputStream(BackingDecoder.open(source,startFrame),65536);
+            TakeWriter take=record?new TakeWriter(segment):null;
             PcmFiles.LiveVoiceReader saved=record||guide?null:new PcmFiles.LiveVoiceReader(dry,settings.offsetMs)){
             activeBacking=backing;
-            // Warm the first decoded block before opening the microphone or playback clock.
-            backing.mark(4);if(backing.read(new byte[4])<4)throw new EOFException("반주가 끝났어요.");backing.reset();
+            // Decode ahead before either audio clock starts. This does not delay live monitoring.
+            int warmBytes=(int)Math.min(65536,(sourceFrames-startFrame)*4);
+            backing.mark(warmBytes);if(PcmFiles.read(backing,new byte[warmBytes],warmBytes)<4)throw new EOFException("반주가 끝났어요.");backing.reset();
             int burst=192;try{burst=Math.max(96,Math.min(1024,Integer.parseInt(manager.getProperty(AudioManager.PROPERTY_OUTPUT_FRAMES_PER_BUFFER))));}catch(Exception ignored){}
             int minOut=AudioTrack.getMinBufferSize(PcmFiles.RATE,AudioFormat.CHANNEL_OUT_STEREO,AudioFormat.ENCODING_PCM_16BIT);
             if(minOut<=0)throw new IOException("이 기기의 오디오 출력을 열 수 없어요.");
             AudioTrack.Builder builder=new AudioTrack.Builder().setAudioAttributes(attributes)
                 .setAudioFormat(new AudioFormat.Builder().setEncoding(AudioFormat.ENCODING_PCM_16BIT).setSampleRate(PcmFiles.RATE).setChannelMask(AudioFormat.CHANNEL_OUT_STEREO).build())
-                .setTransferMode(AudioTrack.MODE_STREAM).setBufferSizeInBytes(Math.max(minOut,burst*4*2));
+                .setTransferMode(AudioTrack.MODE_STREAM).setBufferSizeInBytes(Math.max(minOut,burst*4*8));
             if(Build.VERSION.SDK_INT>=26)builder.setPerformanceMode(AudioTrack.PERFORMANCE_MODE_LOW_LATENCY);
             output=builder.build();track=output;
             if(output.getState()!=AudioTrack.STATE_INITIALIZED)throw new IOException("오디오 출력을 시작하지 못했어요.");
-            output.setBufferSizeInFrames(burst*2);
+            outputBufferFrames=output.setBufferSizeInFrames(burst*2);outputUnderruns=0;
+            int maxBufferFrames=Math.min(output.getBufferCapacityInFrames(),Math.max(burst*4,PcmFiles.RATE/25));
+            // Allocate DSP and working storage before capture starts, avoiding a first-block GC pause.
+            byte[] mrBytes=new byte[burst*4],dryBytes=new byte[burst*2],mixed=new byte[burst*4];
+            short[] captured=new short[burst];float[] vocals=new float[burst];VocalEffects fx=new VocalEffects(PcmFiles.RATE);
             AudioDeviceInfo route=headphones();if(route!=null)output.setPreferredDevice(route);
             output.addOnRoutingChangedListener(router->{
                 AudioDeviceInfo routed=((AudioTrack)router).getRoutedDevice();
@@ -114,45 +131,57 @@ final class KaraokeEngine {
             },main);
             if(record){
                 if(ContextCompat.checkSelfPermission(context,Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED)throw new SecurityException("Microphone permission denied");
+                AudioDeviceInfo microphone=microphoneFor(route);
+                directMonitoring=false;
+                if(route!=null&&!bluetooth(route)){direct=DirectMonitor.open(route.getId(),microphone==null?0:microphone.getId(),Build.VERSION.SDK_INT);if(direct!=null){direct.settings(settings,monitor);directMonitoring=true;directPerformance=direct.performance();directBufferFrames=direct.bufferFrames();}}
+                if(direct==null){
                 int minIn=AudioRecord.getMinBufferSize(PcmFiles.RATE,AudioFormat.CHANNEL_IN_MONO,AudioFormat.ENCODING_PCM_16BIT);
                 if(minIn<=0)throw new IOException("이 기기의 마이크를 열 수 없어요.");
                 boolean raw="true".equals(manager.getProperty(AudioManager.PROPERTY_SUPPORT_AUDIO_SOURCE_UNPROCESSED));
-                input=new AudioRecord.Builder().setAudioSource(raw?MediaRecorder.AudioSource.UNPROCESSED:MediaRecorder.AudioSource.VOICE_RECOGNITION)
+                captureSource=Build.VERSION.SDK_INT>=29?MediaRecorder.AudioSource.VOICE_PERFORMANCE:raw?MediaRecorder.AudioSource.UNPROCESSED:MediaRecorder.AudioSource.VOICE_RECOGNITION;
+                input=new AudioRecord.Builder().setAudioSource(captureSource)
                     .setAudioFormat(new AudioFormat.Builder().setSampleRate(PcmFiles.RATE).setEncoding(AudioFormat.ENCODING_PCM_16BIT).setChannelMask(AudioFormat.CHANNEL_IN_MONO).build())
                     .setBufferSizeInBytes(Math.max(minIn,burst*2*2)).build();recorder=input;
                 if(input.getState()!=AudioRecord.STATE_INITIALIZED)throw new IOException("마이크를 시작하지 못했어요.");
+                if(microphone!=null)input.setPreferredDevice(microphone);
                 // Do not let speech-processing effects remove singing dynamics or musical echo.
                 try{if(AcousticEchoCanceler.isAvailable())automaticEffects.add(AcousticEchoCanceler.create(input.getAudioSessionId()));}catch(Exception ignored){}
                 try{if(NoiseSuppressor.isAvailable())automaticEffects.add(NoiseSuppressor.create(input.getAudioSessionId()));}catch(Exception ignored){}
                 try{if(AutomaticGainControl.isAvailable())automaticEffects.add(AutomaticGainControl.create(input.getAudioSessionId()));}catch(Exception ignored){}
                 for(AudioEffect effect:automaticEffects)if(effect!=null)try{effect.setEnabled(false);}catch(Exception ignored){}
                 input.startRecording();
+                }
             }
             if(!running)return;
-            output.play();
-            byte[] mrBytes=new byte[burst*4],dryBytes=new byte[burst*2],mixed=new byte[burst*4];
-            short[] captured=new short[burst];float[] vocals=new float[burst];VocalEffects fx=new VocalEffects(PcmFiles.RATE);
-            long total=record||guide?sourceFrames:Math.min(sourceFrames,dry.length()/2);
-            AudioTimestamp inTime=new AudioTimestamp(),outTime=new AudioTimestamp();long nextMeasure=startFrame+PcmFiles.RATE/5;
+            boolean playing=false;
+            long total=record||guide?sourceFrames:fullLengthMix?sourceFrames:Math.min(sourceFrames,dry.length()/2);
+            AudioTimestamp inTime=new AudioTimestamp(),outTime=new AudioTimestamp();long nextMeasure=startFrame+PcmFiles.RATE/5,nextBufferCheck=nextMeasure;
             while(running&&frames<total){
                 int count=(int)Math.min(burst,total-frames);
                 VocalEffects.Settings s=settings;
-                if(record){int n=input.read(captured,0,count,AudioRecord.READ_BLOCKING);if(n<=0){if(!running)break;throw new IOException("마이크 연결이 끊겼어요.");}count=n;
+                if(record){DirectMonitor live=direct;if(live!=null)live.settings(s,monitor&&headphone(output.getRoutedDevice()));int n=live!=null?live.read(captured,count):input.read(captured,0,count,AudioRecord.READ_BLOCKING);if(n<=0){if(!running)break;throw new IOException("마이크 연결이 끊겼어요.");}count=n;
                     for(int i=0;i<count;i++){vocals[i]=captured[i]/32768f;dryBytes[i*2]=(byte)captured[i];dryBytes[i*2+1]=(byte)(captured[i]>>8);}take.write(dryBytes,0,count*2);
                 }else if(!guide)saved.read(frames,vocals,count,s.offsetMs);
                 int n=PcmFiles.read(backing,mrBytes,count*4);count=n/4;if(count==0)break;
                 // Route is verified on the audio thread too. Never send microphone audio to a speaker.
-                boolean hear=!guide&&(!record||(monitor&&headphone(output.getRoutedDevice())));
+                boolean hear=!guide&&(!record||(monitor&&direct==null&&headphone(output.getRoutedDevice())));
                 for(int i=0;i<count;i++){
-                    float vocal=fx.process(record&&frames+i<recordFrame?0:vocals[i],s)*s.voice*(record?s.monitor:1);
+                    float vocal=fx.process(record?(direct!=null?0:vocals[i]):vocals[i],s)*s.voice*(record?s.monitor:1);
                     PcmFiles.put(mixed,i*4,PcmFiles.sample(mrBytes,i*4)/32768f*s.backing+(hear?vocal:0));
                     PcmFiles.put(mixed,i*4+2,PcmFiles.sample(mrBytes,i*4+2)/32768f*s.backing+(hear?vocal:0));
                 }
                 int sent=0;while(running&&sent<count*4){int written=output.write(mixed,sent,count*4-sent,AudioTrack.WRITE_BLOCKING);if(written<=0){if(!running)break;throw new IOException("이어폰 오디오 연결을 확인해주세요.");}sent+=written;}
                 frames+=count;
+                // Prime one block before starting playback; an empty track would underrun immediately.
+                if(!playing&&running){output.play();playing=true;}
+                if(frames>=nextBufferCheck){
+                    nextBufferCheck=frames+PcmFiles.RATE/5;int underruns=output.getUnderrunCount();
+                    if(underruns>outputUnderruns&&outputBufferFrames<maxBufferFrames)outputBufferFrames=output.setBufferSizeInFrames(Math.min(maxBufferFrames,outputBufferFrames+burst));
+                    outputUnderruns=underruns;
+                }
                 if(record&&frames>=nextMeasure){
                     nextMeasure=frames+PcmFiles.RATE/5;
-                    if(input.getTimestamp(inTime,AudioTimestamp.TIMEBASE_MONOTONIC)==AudioRecord.SUCCESS&&output.getTimestamp(outTime))estimate.add(RecordingTimeline.delayMs(outTime.framePosition,outTime.nanoTime,inTime.framePosition,inTime.nanoTime));
+                    if((direct!=null?direct.timestamp(inTime):input.getTimestamp(inTime,AudioTimestamp.TIMEBASE_MONOTONIC)==AudioRecord.SUCCESS)&&output.getTimestamp(outTime))estimate.add(RecordingTimeline.delayMs(outTime.framePosition,outTime.nanoTime,inTime.framePosition,inTime.nanoTime));
                 }
             }
             // Finish the small queued tail at the natural end, without extending a user-requested stop.
@@ -167,7 +196,7 @@ final class KaraokeEngine {
                 try{long count=Math.max(0,end-recordFrame);RecordingTimeline.commit(dry,segment,recordFrame,count,correct?lastDelayMs:0,recordFrame-startFrame);committed=count>PcmFiles.RATE/10;frames=end;}
                 catch(IOException e){error="녹음을 저장하지 못했어요. "+e.getMessage();}
             }
-            recorder=null;track=null;activeBacking=null;
+            DirectMonitor live=direct;direct=null;if(live!=null)live.close();recorder=null;track=null;activeBacking=null;
             if(input!=null){try{input.stop();}catch(Exception ignored){}try{input.release();}catch(Exception ignored){}}
             for(AudioEffect effect:automaticEffects)if(effect!=null)try{effect.release();}catch(Exception ignored){}
             if(output!=null){try{output.pause();output.flush();}catch(Exception ignored){}try{output.release();}catch(Exception ignored){}}

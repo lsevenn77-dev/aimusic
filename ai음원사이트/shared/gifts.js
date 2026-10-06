@@ -21,8 +21,14 @@ export const GIFT_SPLITS=Object.freeze({
  cover:Object.freeze({singer:4000,creator:3000,platform:3000}),
  original:Object.freeze({singer:0,creator:7000,platform:3000}),
 });
-// Monthly settlement: earnings of the 1st to the last day are paid on the 15th of the next month, from 10,000 KRW.
-export const MIN_PAYOUT_KRW=10000,PAYOUT_DAY=15;
+// Monthly settlement: earnings of the 1st to the last day are paid on the 25th of the next month, from 10,000 KRW.
+export const MIN_PAYOUT_KRW=10000,PAYOUT_DAY=25,EARNINGS_AVAILABLE_DAY=5;
+export function earningsSchedule(month,seconds=Date.now()/1000){
+ const [year,m]=month.split('-').map(Number);
+ const next=day=>new Date(Date.UTC(year,m,day)).toISOString().slice(0,10);
+ const available_on=next(EARNINGS_AVAILABLE_DAY);
+ return {available_on,earnings_available:giftDay(seconds)>=available_on,payout_on:next(PAYOUT_DAY)};
+}
 
 // Amounts below are milli-won (1/1000 KRW) so per-gift shares keep their precision until settlement.
 export function splitGift(kind,netMw){

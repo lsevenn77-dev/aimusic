@@ -1,0 +1,7 @@
+cmake_minimum_required(VERSION 3.22.1)
+project(aifect_monitor LANGUAGES CXX)
+add_library(aifect_monitor SHARED direct-monitor.cpp)
+target_compile_features(aifect_monitor PRIVATE cxx_std_17)
+target_compile_options(aifect_monitor PRIVATE -Wall -Wextra -Werror)
+target_link_options(aifect_monitor PRIVATE -Wl,-z,max-page-size=16384)
+target_link_libraries(aifect_monitor PRIVATE aaudio android dl)

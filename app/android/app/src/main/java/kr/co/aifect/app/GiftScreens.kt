@@ -12,6 +12,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -54,37 +55,31 @@ import java.util.UUID
  val cost=if(isFree)1 else choice?.optInt("gold")?:0
  val suffix=if(isFree)"★" else "G"
  ModalBottomSheet(onDismissRequest={if(!working)m.showGifts=false},sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true),containerColor=Panel){
-  LazyColumn(Modifier.fillMaxWidth(),contentPadding=PaddingValues(22.dp,0.dp,22.dp,28.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
-   item{Text(if(target==null)"내 선물함" else "음악에 응원 보내기",fontSize=24.sp);target?.let{Text("${it.producer} · ${it.title}",color=Muted,modifier=Modifier.padding(top=8.dp))}}
+  LazyColumn(Modifier.fillMaxWidth().heightIn(max=620.dp).testTag("gift-list"),contentPadding=PaddingValues(22.dp,0.dp,22.dp,28.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
+   item{Text(if(target==null)"내 선물함" else "음악에 응원 보내기",fontSize=25.sp);target?.let{Text("${it.producer} · ${it.title}",color=Muted,modifier=Modifier.padding(top=8.dp))}}
    if(loading)item{LinearProgressIndicator(Modifier.fillMaxWidth())}
    error?.let{message->item{Text(message,color=Pink);if(wallet==null)TextButton(onClick={scope.launch{loading=true;error=null;try{refresh()}catch(e:Exception){error=e.message}finally{loading=false}}}){Text("다시 불러오기")}}}
-   success?.let{item{Text(it,color=Aqua,fontSize=16.sp)}}
+   success?.let{item{Text(it,color=Aqua,fontSize=17.sp)}}
    if(wallet!=null){
-    item{Text("보유 응원별 ★ ${free?.optInt("balance")?:0}    골드 ${wallet?.optInt("balance")} G",color=Aqua);Text("별은 무료 응원 선물이에요. 현금 가치·골드 전환·수익 정산이 없어요.",fontSize=13.sp,color=Muted,modifier=Modifier.padding(top=8.dp))}
-    item{Text("오늘의 보상",fontSize=18.sp)}
-    items(free?.optJSONArray("rewards").objects(),key={it.optString("kind")}){reward->
-     val kind=reward.optString("kind")
-     val label=mapOf("checkin" to "오늘 출석","cover" to "커버곡 공개","listen" to "노래 5곡 감상","comment1" to "첫 번째 댓글","comment2" to "두 번째 댓글","comment3" to "세 번째 댓글")[kind]?:kind
-     Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){Text(label,fontSize=14.sp);Text(if(kind=="listen")"곡마다 60% 이상 · ${reward.optInt("progress")}/5곡" else "하루 1회",fontSize=12.sp,color=Muted)}
-      OutlinedButton(enabled=!working&&reward.optBoolean("eligible")&&!reward.optBoolean("claimed"),onClick={scope.launch{working=true;error=null;try{val result=m.api.call("/api/gifts/free/claim","POST",payload("kind" to kind));wallet=JSONObject(wallet.toString()).put("free",result)}catch(e:Exception){error=e.message}finally{working=false}}}){Text(if(reward.optBoolean("claimed"))"받음" else "★ ${reward.optInt("amount")} 받기")}}
-    }
-    item{Text("선물 고르기",fontSize=18.sp);Text("★ 1 = 1 G = 응원 순위 1점 · 1 G = 10원",fontSize=12.sp,color=Muted)}
+    item{Text("보유 응원별 ★ ${free?.optInt("balance")?:0}    골드 ${wallet?.optInt("balance")} G",color=Aqua);Text("별은 무료 응원 선물이에요. 현금 가치·골드 전환·수익 정산이 없어요.",fontSize=14.sp,color=Muted,modifier=Modifier.padding(top=8.dp))}
+    item{TextButton(onClick={m.showGifts=false;m.showRewards=true}){Text("오늘의 응원별 보상 받기")}}
+    item{Text("선물 고르기",fontSize=19.sp);Text("★ 1 = 1 G = 응원 순위 1점 · 1 G = 10원",fontSize=13.sp,color=Muted)}
     items(catalog.chunked(4)){row->Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(7.dp)){
      row.forEach{gift->val gid=gift.optString("id");Surface(onClick={if(!working){selected=gid;requestId=UUID.randomUUID().toString();success=null;error=null}},modifier=Modifier.weight(1f),shape=RoundedCornerShape(12.dp),color=if(selected==gid)Stroke else Ink,border=BorderStroke(1.dp,if(selected==gid)Pink else Stroke)){
-      Column(Modifier.padding(vertical=9.dp),horizontalAlignment=Alignment.CenterHorizontally){val path=gift.optString("image");if(path.startsWith("/assets/gifts/"))AsyncImage(Endpoint.url(path),null,Modifier.size(56.dp));Text(gift.optString("name"),fontSize=13.sp);Text(if(gid=="star")"★ 1" else "${gift.optInt("gold")} G",color=Aqua,fontSize=12.sp)}
+      Column(Modifier.padding(vertical=9.dp),horizontalAlignment=Alignment.CenterHorizontally){val path=gift.optString("image");if(path.startsWith("/assets/gifts/"))AsyncImage(Endpoint.url(path),null,Modifier.size(56.dp));Text(gift.optString("name"),fontSize=14.sp);Text(if(gid=="star")"★ 1" else "${gift.optInt("gold")} G",color=Aqua,fontSize=13.sp)}
      }};repeat(4-row.size){Spacer(Modifier.weight(1f))}
     }}
     item{
      if(target!=null){
-      Text(if(balance>=cost)"보낸 뒤 ${balance-cost} $suffix" else if(isFree)"오늘의 보상을 받아 응원별을 모아주세요." else "보유 골드가 부족해요.",color=Muted,fontSize=13.sp)
+      Text(if(balance>=cost)"보낸 뒤 ${balance-cost} $suffix" else if(isFree)"오늘의 보상을 받아 응원별을 모아주세요." else "보유 골드가 부족해요.",color=Muted,fontSize=14.sp)
       Button(onClick={confirm=true},enabled=!working&&choice!=null&&balance>=cost,modifier=Modifier.fillMaxWidth().padding(top=10.dp)){Text(if(working)"보내는 중…" else "${choice?.optString("name")?:"선물"} $cost $suffix 보내기")}
      }else Text("곡의 재생 화면이나 상세 화면에서 선물할 수 있어요.",color=Aqua)
-     Text("골드 충전은 준비 중이에요. 받은 별은 누적되며 매일 0시(한국 시간)에 보상 조건이 갱신돼요.",fontSize=12.sp,color=Muted,modifier=Modifier.padding(top=10.dp))
+     Text("골드 충전은 준비 중이에요. 받은 별은 누적되며 매일 0시(한국 시간)에 보상 조건이 갱신돼요.",fontSize=13.sp,color=Muted,modifier=Modifier.padding(top=10.dp))
     }
    }
    ranking?.let{data->
-    item{HorizontalDivider(color=Stroke);Text("이 곡의 응원 순위",fontSize=18.sp,modifier=Modifier.padding(top=14.dp))}
-    items(data.optJSONArray("ranking").objects()){r->Row(Modifier.fillMaxWidth()){Text("${r.optInt("rank")}  ${r.optString("name")}",Modifier.weight(1f));Text("${r.optInt("score")}점 · ${r.optInt("stars")}★ / ${r.optInt("gold")}G",color=Aqua,fontSize=12.sp)}}
+    item{HorizontalDivider(color=Stroke);Text("이 곡의 응원 순위",fontSize=19.sp,modifier=Modifier.padding(top=14.dp))}
+    items(data.optJSONArray("ranking").objects()){r->Row(Modifier.fillMaxWidth()){Text("${r.optInt("rank")}  ${r.optString("name")}",Modifier.weight(1f));Text("${r.optInt("score")}점 · ${r.optInt("stars")}★ / ${r.optInt("gold")}G",color=Aqua,fontSize=13.sp)}}
     if(data.optJSONArray("ranking").objects().isEmpty())item{Text("첫 응원을 보내보세요.",color=Muted)}
    }
   }

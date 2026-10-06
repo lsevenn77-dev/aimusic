@@ -1,0 +1,116 @@
+/* Quiet surfaces let album artwork lead; accents identify an action or state. */
+:root {
+  --music-bg:#10131b;
+  --music-panel:#191e29;
+  --music-raised:#242c38;
+  --music-text:#f3f6f8;
+  --music-muted:#a6adba;
+  --music-accent:#ef86b6;
+  --music-aqua:#8eddd2;
+  --bg:var(--music-bg);
+  --panel:var(--music-panel);
+  --line:#303845;
+  --brand-gradient:linear-gradient(105deg,#ef86b6 0%,#c5c4df 48%,#8eddd2 100%);
+}
+body,.page-wrap,.sidebar {background:var(--music-bg)}
+.topbar {background:#10131bf5}
+.search-box {background:#1b212c;border:1px solid #ffffff05;color:var(--music-muted)}
+.nav-link.active,.nav-link:not(.nav-primary .nav-link).active {background:#222b35;color:var(--music-text)}
+.nav-link.active svg {color:var(--music-aqua)}
+.nav-link:hover {background:#ffffff04}
+.tab.active,.view-tabs .active,.profile-content-tabs .active {color:var(--music-text);border-bottom-color:var(--music-aqua)}
+.listen-tabs {flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
+.listen-tabs>.tab {flex-shrink:0}
+.music-shortcuts a,.music-my-links a {background:var(--music-panel);box-shadow:inset 0 1px #ffffff04}
+.music-shortcuts svg,.music-my-links svg {color:#c0c8d3}
+.music-shortcuts a:hover,.music-my-links a:hover {background:var(--music-raised)}
+.surface,.music-card,.conversation-row {background:var(--music-panel);border-color:#ffffff05}
+.music-card {box-shadow:0 10px 30px #00000018}
+.release-feature {background:linear-gradient(125deg,#222936,#1a252d);border-color:#ffffff05;box-shadow:0 14px 38px #0000001f}
+.release-kicker {color:var(--music-aqua)}
+.release-kicker>span,.release-meta,.release-copy .public-track-stats {color:var(--music-muted)}
+.release-credits {color:#d9dfe7}
+.release-art {box-shadow:0 12px 28px #00000030}
+.release-actions>.primary-button,.music-primary-actions>.primary-button {
+  background:#8eddd20d;color:var(--music-text);border:1px solid #8eddd221;gap:10px;
+}
+.release-actions>.primary-button:hover,.music-primary-actions>.primary-button:hover {background:#8eddd219;border-color:#8eddd247}
+.release-actions>.primary-button svg,.music-primary-actions>.primary-button svg {
+  width:28px;height:28px;padding:6px;box-sizing:border-box;border-radius:50%;background:var(--music-aqua);color:var(--music-bg);
+}
+.small-button,.music-follow {color:#d6dee8;background:var(--music-raised);border-color:#ffffff06}
+.music-follow[aria-pressed=true] {background:#8eddd210;color:var(--music-aqua)}
+.music-save {color:#d6dee8}
+.music-participate,.music-crew-entry,.music-crew-preview-grid a {background:linear-gradient(115deg,#202c34,#1b242e)}
+.music-kind,.music-participate {color:var(--music-aqua)}
+.music-collection-toolbar button[aria-pressed=true] {color:var(--music-text);background:var(--music-raised)}
+.music-collection-toolbar button[aria-pressed=true] svg {color:var(--music-aqua)}
+.music-social-actions .is-active,.cover-collection-social [aria-pressed=true] {color:var(--music-accent)}
+.avatar {background:#29323f;color:#c5d2dc}
+.social-profile-cover {background:radial-gradient(ellipse at 85% 0,#8eddd217,transparent 65%),#202835}
+.social-profile-cover:after {background:linear-gradient(180deg,#10131b0a 35%,#191e29b5 80%,#191e29)}
+.social-profile {background:var(--music-panel)}
+/* A profile photo is a single square image, independent of header width. */
+.social-profile-square.social-profile {
+  display:grid;grid-template-columns:minmax(0,240px) minmax(0,1fr);
+  align-items:center;gap:32px;padding:28px;
+}
+.social-profile-photo {
+  width:100%;aspect-ratio:1;overflow:hidden;border-radius:18px;
+  display:grid;place-items:center;background:var(--music-raised);
+  box-shadow:0 10px 30px #00000020;
+}
+.social-profile-photo img {display:block;width:100%;height:100%;object-fit:contain;object-position:center}
+.social-profile-photo>span {font-size:3rem;font-weight:700;color:#c5d2dc}
+.social-profile-square .social-profile-main {
+  display:flex;flex-direction:column;align-items:flex-start;gap:24px;
+  margin:0!important;padding:0!important;min-width:0;
+}
+.social-profile-square .social-profile-identity {padding-top:0!important;width:100%}
+.social-profile-square .social-profile-identity h2 {margin:6px 0 10px;font-size:1.8rem}
+.social-profile-square .social-profile-identity p {white-space:pre-wrap}
+.social-profile-square .social-profile-actions {padding:0;display:flex;justify-content:flex-start;gap:8px;width:auto}
+.social-profile-square .social-profile-actions>* {flex:0 1 auto;min-height:44px}
+.social-profile-square .music-profile-stats {gap:20px;margin-top:14px}
+@media(max-width:900px) {
+  .social-profile-square.social-profile {grid-template-columns:minmax(0,180px) minmax(0,1fr);gap:22px;padding:22px}
+}
+@media(max-width:600px) {
+  .social-profile-square.social-profile {grid-template-columns:minmax(0,1fr);gap:22px;padding:18px}
+  .social-profile-square .social-profile-photo {width:min(100%,300px);justify-self:center}
+  .social-profile-square .social-profile-main {gap:16px!important}
+  .social-profile-square .social-profile-identity h2 {font-size:1.5rem}
+  .social-profile-square .social-profile-actions {width:100%;flex-wrap:wrap}
+  .social-profile-square .social-profile-actions>* {flex:1 1 80px}
+  .social-profile-square .music-profile-stats {gap:16px;font-size:.8rem}
+}
+.dm-thread-header {background:var(--music-bg)}
+.chat-message.mine {background:#263638}
+.player {background:#191f2af5;border-top-color:#ffffff09;box-shadow:0 -8px 32px #00000030}
+.player .play-button {background:var(--music-aqua);color:var(--music-bg)}
+.player .icon-button.is-active {color:var(--music-aqua)}
+.player-lyric {background:#1d2730f7;color:var(--music-aqua);border-color:#ffffff09}
+.player input[type=range] {accent-color:var(--music-aqua)}
+.player input[type=range]::-webkit-slider-thumb {background:var(--music-aqua)}
+.player input[type=range]::-moz-range-thumb {background:var(--music-aqua)}
+.player-right>#queue-toggle {background:var(--music-raised);color:#d6dee8;border-color:#ffffff0c}
+.player-right>#queue-toggle:hover {background:#2b3542;border-color:#8eddd238}
+dialog:has(.queue-panel) {background:var(--music-panel);border-color:#ffffff0c}
+.queue-panel-icon {background:var(--music-raised);color:var(--music-aqua)}
+.queue-panel .queue-edit-row.is-current {background:#8eddd20a;border-color:#8eddd21a}
+.queue-edit-row.is-current .queue-position,.queue-playing-label,.queue-current-mark {color:var(--music-aqua)}
+.social-mobile-navigation {background:#10131bf5;border-color:#ffffff09}
+.social-mobile-navigation a.active {color:var(--music-text)}
+.social-mobile-navigation a.active>svg {color:var(--music-aqua)}
+.mobile-sing-orb {background:var(--music-raised)}
+.social-mobile-navigation .mobile-sing-main.active .mobile-sing-orb {background:#ef86b619}
+.mobile-sing-orb svg {color:var(--music-accent)}
+.people-list-row:focus-visible {outline-color:var(--music-aqua)}
+@media(min-width:1100px) {
+  .release-actions {grid-template-columns:155px 44px minmax(0,1fr);align-items:center}
+  .release-actions>.music-save {grid-column:auto;background:transparent;box-shadow:none;justify-content:flex-start}
+}
+@media(max-width:800px) {
+  .social-mobile-navigation a:not(.mobile-sing-main).active {background:transparent}
+  .social-mobile-navigation a:not(.mobile-sing-main).active:after {background:var(--music-aqua)}
+}
