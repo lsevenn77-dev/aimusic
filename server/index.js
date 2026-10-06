@@ -29,6 +29,11 @@ import {billingRoute,billingWebhook,billingTick} from './billing.js';
 export default {async fetch(req,env,ctx){
  const url=new URL(req.url),path=url.pathname;
  try{
+  // Google sign-in is registered for the public domain, not the legacy Sites
+  // address. Redirect page visits before a login flow creates domain cookies.
+  if(url.hostname==='wavv-music-design-lseve.sassy-auk-0975.chatgpt.site'&&['GET','HEAD'].includes(req.method)&&!/^\/(api|media|internal)\//.test(path)){
+   url.protocol='https:';url.host='aifect.co.kr';return Response.redirect(url.href,308);
+  }
   if(path==='/api/apple/notifications')return await appleNotification(req,env);
   if(path==='/api/play/notifications')return await playWebhook(req,env);
   if(path==='/api/gold/nicepay/callback')return await goldCallback(req,env);

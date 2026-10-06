@@ -13,7 +13,9 @@ const bundle='kr.co.aifect.app',appleId=6819654764;
 export async function verifyApple(signed,notification=false){
  if(typeof signed!=='string'||signed.length>30000)fail(400,'Apple 구매 내역을 확인해주세요.');
  const {SignedDataVerifier,VerificationStatus}=await import('@apple/app-store-server-library/dist/jws_verification.js');
- const verifiers=[Environment.PRODUCTION,Environment.SANDBOX].map(environment=>new SignedDataVerifier([Buffer.from(APPLE_ROOT_G3,'base64')],true,environment,bundle,appleId));
+ // Sandbox notifications omit appAppleId. Check Sandbox first so Apple's
+ // production-only app ID check cannot mask INVALID_ENVIRONMENT.
+ const verifiers=[Environment.SANDBOX,Environment.PRODUCTION].map(environment=>new SignedDataVerifier([Buffer.from(APPLE_ROOT_G3,'base64')],true,environment,bundle,appleId));
  for(const verifier of verifiers){
   try{return await verifier[notification?'verifyAndDecodeNotification':'verifyAndDecodeTransaction'](signed);}
   catch(e){
