@@ -19,22 +19,23 @@ class CoverUploadAdTest {
     }
    }
    try {
-    SongAdBreaks.configure(context,"cover-ad-test",0)
+    val owner="cover-ad-test-"+java.util.UUID.randomUUID()
+    SongAdBreaks.configure(context,owner,0)
     SongAdBreaks.host=presenter
-    SongAdBreaks.afterCoverUpload({paused++},{finished++})
+    SongAdBreaks.afterCoverUpload("cover-one",{paused++},{finished++})
     assertEquals(1,shown);assertEquals(1,paused);assertEquals(0,finished)
     dismiss!!();assertEquals(1,finished);assertFalse(SongAdBreaks.due)
-    SongAdBreaks.configure(context,"cover-ad-test",System.currentTimeMillis()/1000+3600)
-    SongAdBreaks.afterCoverUpload({paused++},{finished++})
+    SongAdBreaks.configure(context,owner,System.currentTimeMillis()/1000+3600)
+    SongAdBreaks.afterCoverUpload("premium-cover",{paused++},{finished++})
     assertEquals(1,shown);assertEquals(1,paused);assertEquals(2,finished)
-    SongAdBreaks.configure(context,"cover-ad-test",0);available=false
-    SongAdBreaks.afterCoverUpload({paused++},{finished++})
+    SongAdBreaks.configure(context,owner,0);available=false
+    SongAdBreaks.afterCoverUpload("no-ad-cover",{paused++},{finished++})
     assertEquals(1,shown);assertEquals(1,paused);assertEquals(3,finished)
     SongAdBreaks.host=object:SongAdBreaks.Host {
      override fun ready()=true
      override fun show(onShown:()->Unit,onFinished:()->Unit)=false
     }
-    SongAdBreaks.afterCoverUpload({paused++},{finished++})
+    SongAdBreaks.afterCoverUpload("failed-ad-cover",{paused++},{finished++})
     assertEquals(1,shown);assertEquals(2,paused);assertEquals(4,finished)
    } finally {SongAdBreaks.host=null;SongAdBreaks.configure(context,null,0)}
   }
