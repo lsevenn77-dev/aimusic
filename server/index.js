@@ -1,4 +1,5 @@
 import {profileRoute} from './profiles.js';
+import {playBillingRoute,playWebhook} from './play-billing.js';
 import {pushRoute,dispatchPush,retryPush} from './push.js';
 import {socialRoute} from './social.js';
 import {chatStreamRoute} from './chat-stream.js';
@@ -26,6 +27,7 @@ import {billingRoute,billingWebhook,billingTick} from './billing.js';
 export default {async fetch(req,env,ctx){
  const url=new URL(req.url),path=url.pathname;
  try{
+  if(path==='/api/play/notifications')return await playWebhook(req,env);
   if(path==='/api/gold/nicepay/callback')return await goldCallback(req,env);
   if(path==='/api/billing/nicepay/webhook')return await billingWebhook(req,env);
   if(path==='/internal/billing/tick')return await billingTick(req,env);
@@ -53,6 +55,7 @@ export default {async fetch(req,env,ctx){
    req=new Request(req,{body});
   }
   const user=await viewer(req,env);
+  const playResponse=await playBillingRoute(req,env,path,user);if(playResponse)return playResponse;
   retryPush(env,ctx);
   const pushResponse=await pushRoute(req,env,path,user);if(pushResponse)return pushResponse;
   const chatStream=await chatStreamRoute(req,env,path,user);if(chatStream)return chatStream;
@@ -72,7 +75,7 @@ export default {async fetch(req,env,ctx){
   }
   return json({error:'페이지를 찾을 수 없습니다.'},404);
  }catch(e){
-  if(!e.status)console.error(JSON.stringify({path,error:e.name,...((path.includes('/billing/')||path.includes('/gold/'))?{}:{message:String(e.message).slice(0,300)})}));
+  if(!e.status)console.error(JSON.stringify({path,error:e.name,...((path.includes('/billing/')||path.includes('/gold/')||path.includes('/play/'))?{}:{message:String(e.message).slice(0,300)})}));
   const status=e.status||500,message=e.status?e.message:'잠시 연결이 원활하지 않습니다. 입력 내용은 유지되니 다시 시도해주세요.';
   if(path.includes('/auth/')&&path.endsWith('/callback'))return new Response(null,{status:303,headers:{location:'/#account?error='+encodeURIComponent(message),'cache-control':'no-store'}});
   return json({error:message},status);
