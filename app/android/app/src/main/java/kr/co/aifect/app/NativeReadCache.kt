@@ -16,6 +16,7 @@ internal object NativeReadPolicy {
  fun invalidatesOnMutation(path:String,method:String):Boolean {
   if(method in setOf("GET","HEAD"))return false
   val base=path.substringBefore('?')
+  if(base.startsWith("/api/push/"))return false
   // Chat bodies/read receipts do not change catalog, follows or playlist access.
   // Join/leave/moderation and every other mutation retain full invalidation.
   if(method in setOf("POST","PATCH")&&Regex("/api/dm/[A-Za-z0-9_-]+").matches(base))return false

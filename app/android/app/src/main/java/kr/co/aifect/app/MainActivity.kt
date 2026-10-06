@@ -21,6 +21,14 @@ class MainActivity:ComponentActivity(){
  private val model:MusicModel by viewModels()
  private lateinit var signIn:NativeSignIn
  private lateinit var ads:ListeningAds
+ private val notificationPermission=registerForActivityResult(ActivityResultContracts.RequestPermission()){ }
+ private fun push(intent:Intent){
+  val kind=intent.getStringExtra("pushKind")?:return
+  val target=intent.getStringExtra("pushTarget")?:return
+  val recipient=intent.getStringExtra("pushRecipient")?:return
+  model.openPush(kind,target,recipient)
+  intent.removeExtra("pushKind")
+ }
  private val recordingLauncher=registerForActivityResult(ActivityResultContracts.StartActivityForResult()){result->
   if(result.resultCode==RESULT_OK&&!result.data?.getStringExtra("uploadedId").isNullOrBlank()){
    model.notice="커버곡을 올렸어요! 변환이 끝나면 공개돼요.";lifecycleScope.launch{runCatching{model.loadLibrary()}}
@@ -36,13 +44,19 @@ class MainActivity:ComponentActivity(){
   ads=ListeningAds(this)
   enableEdgeToEdge(statusBarStyle=SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),navigationBarStyle=SystemBarStyle.dark(android.graphics.Color.TRANSPARENT))
   setContent {
-   LaunchedEffect(model.user,model.membership){if(model.user!=null)ads.prepare()}
+   LaunchedEffect(model.user,model.membership){if(model.user!=null){ads.prepare();push(intent)
+    if(android.os.Build.VERSION.SDK_INT>=33&&com.google.firebase.FirebaseApp.getApps(this@MainActivity).isNotEmpty()&&
+     checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)!=android.content.pm.PackageManager.PERMISSION_GRANTED){
+     val prefs=getSharedPreferences("native_push",0)
+     if(!prefs.getBoolean("permission_asked",false)){prefs.edit().putBoolean("permission_asked",true).apply();notificationPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)}
+    }
+   }}
    AifectApp(model,::sing,::openBrowser,::login,{ads.privacy{model.notice=it}},::resumeDraft)
   }
   if(intent.data!=null)model.finishLogin(intent.data)
  }
- override fun onNewIntent(intent:Intent){super.onNewIntent(intent);setIntent(intent);model.finishLogin(intent.data)}
- override fun onResume(){super.onResume();model.finishLogin();if(::ads.isInitialized){SongAdBreaks.host=ads;if(model.user!=null)ads.prepare()}}
+ override fun onNewIntent(intent:Intent){super.onNewIntent(intent);setIntent(intent);model.finishLogin(intent.data);if(model.user!=null)push(intent)}
+ override fun onResume(){super.onResume();model.finishLogin();PushNotifications.refresh(this);if(::ads.isInitialized){SongAdBreaks.host=ads;if(model.user!=null)ads.prepare()}}
  override fun onPause(){if(::ads.isInitialized&&SongAdBreaks.host===ads)SongAdBreaks.host=null;super.onPause()}
  override fun onDestroy(){if(::ads.isInitialized)ads.dispose();super.onDestroy()}
  private fun openBrowser(url:String){startActivity(Intent(Intent.ACTION_VIEW,Uri.parse(url)))}

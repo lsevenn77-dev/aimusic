@@ -1,4 +1,5 @@
 import {profileRoute} from './profiles.js';
+import {pushRoute,dispatchPush,retryPush} from './push.js';
 import {socialRoute} from './social.js';
 import {chatStreamRoute} from './chat-stream.js';
 import {publicUser} from './identity.js';
@@ -52,6 +53,8 @@ export default {async fetch(req,env,ctx){
    req=new Request(req,{body});
   }
   const user=await viewer(req,env);
+  retryPush(env,ctx);
+  const pushResponse=await pushRoute(req,env,path,user);if(pushResponse)return pushResponse;
   const chatStream=await chatStreamRoute(req,env,path,user);if(chatStream)return chatStream;
   const audioAdsResponse=audioAdsRoute(req,env,path,user);if(audioAdsResponse)return audioAdsResponse;
   if(Math.random()<.005)ctx.waitUntil(env.DB.batch([
@@ -61,6 +64,7 @@ export default {async fetch(req,env,ctx){
   ]).catch(()=>console.error('Expired authentication state cleanup failed')));
   const result=await profileRoute(req,env,path,user)||await socialRoute(req,env,path,user)||await authRoute(req,env,path,user)||await billingRoute(req,env,path,user)||await membershipRoute(req,env,path,user)||await alignmentRoute(req,env,path,user)||await karaokeRoute(req,env,path,user)||await coverRoute(req,env,path,user)||await duetRoute(req,env,path,user)||await goldOrderRoute(req,env,path,user)||await giftRoute(req,env,path,user)||await coverRankingRoute(req,env,path)||await commentModerationRoute(req,env,path,user)||await trackModerationRoute(req,env,path,user)||await payoutRoute(req,env,path,user)||await lyricsRoute(req,env,path,user)||await catalogRoute(req,env,path,user)||await mediaRoute(req,env,path,user);
   if(result){
+   if(req.method==='POST'&&result.ok&&(path.startsWith('/api/dm/')||/^\/api\/tracks\/[^/]+\/(comments|gifts)$/.test(path)))ctx.waitUntil(dispatchPush(env).catch(()=>console.error('Push dispatch failed')));
    if(path.startsWith('/api/auth/')&&result.headers.get('content-type')?.includes('application/json')){
     const body=await result.clone().json();if(body.user){body.user=await publicUser(env,body.user);return new Response(JSON.stringify(body),{status:result.status,headers:result.headers});}
    }

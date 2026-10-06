@@ -345,6 +345,13 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)A
  ModalBottomSheet(onDismissRequest={m.showAccountSettings=false},sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true),containerColor=Panel){
   Column(Modifier.fillMaxWidth().imePadding().verticalScroll(rememberScrollState()).padding(22.dp).testTag("account-settings")){
    Text("계정 설정",fontSize=22.sp,fontWeight=FontWeight.Bold)
+   val pushContext=androidx.compose.ui.platform.LocalContext.current
+   Text("푸시 알림",fontSize=18.sp,fontWeight=FontWeight.Bold,modifier=Modifier.padding(top=18.dp))
+   listOf("dm" to "메시지", "comment" to "댓글", "gift" to "선물").forEach{(kind,label)->
+    var enabled by remember(kind){mutableStateOf(PushNotifications.enabled(pushContext,kind))}
+    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Text(label,Modifier.weight(1f));Switch(enabled,{enabled=it;PushNotifications.setEnabled(pushContext,kind,it)})}
+   }
+   TextButton(onClick={pushContext.startActivity(android.content.Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(android.provider.Settings.EXTRA_APP_PACKAGE,pushContext.packageName))}){Text("휴대폰 알림 설정")}
    val email=m.user?.optString("email")?:""
    OutlinedTextField(if(email.endsWith(".invalid"))"소셜 로그인 계정" else email,{},label={Text("이메일 · 확인용")},readOnly=true,modifier=Modifier.fillMaxWidth().padding(top=18.dp),singleLine=true)
    Text("이메일은 이 화면에서 변경할 수 없어요.",fontSize=13.sp,color=Muted,modifier=Modifier.padding(top=6.dp))

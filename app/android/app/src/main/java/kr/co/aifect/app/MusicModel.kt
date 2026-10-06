@@ -73,6 +73,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
    if(activeUser?.optString("id")!=value?.optString("id")){
     val stopPlayback=activeUser!=null
     accountGeneration++;api.invalidateReads();clearPrivateState(stopPlayback)
+    PushNotifications.bind(getApplication(),value?.optString("id"))
    }
    activeUser=value
   }
@@ -264,6 +265,14 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   })
  }
  fun authenticated():Boolean { if(user==null){showLogin=true;return false};return true }
+ fun openPush(kind:String,target:String,recipient:String){
+  if(user?.optString("id")!=recipient||!Regex("[a-zA-Z0-9-]{1,80}").matches(target))return
+  if(kind=="dm")openMessages(target)
+  else if(kind in setOf("comment","gift"))action{
+   val song=api.call("/api/tracks/$target",fresh=true).optJSONObject("track")?:return@action
+   if(user?.optString("id")==recipient)openSong(Song(song))
+  }
+ }
  fun action(block:suspend ()->Unit) {
   if(busy)return
   busy=true;mutationRevision++;profileCache.clear()

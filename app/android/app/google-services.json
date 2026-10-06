@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "974296051201",
+    "project_id": "aifect",
+    "storage_bucket": "aifect.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:974296051201:android:34ec85f391a926bf261a00",
+        "android_client_info": {
+          "package_name": "kr.co.aifect.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDZroSJGxPYUsI_GsGo3P-V1osC3PPKWfw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

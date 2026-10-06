@@ -1,6 +1,9 @@
 apply plugin: 'com.android.application'
 apply plugin: 'org.jetbrains.kotlin.android'
 apply plugin: 'org.jetbrains.kotlin.plugin.compose'
+if (file('google-services.json').exists() && !project.hasProperty('aifectTest')) {
+ apply plugin: 'com.google.gms.google-services'
+}
 android {
  namespace 'kr.co.aifect.app'
  compileSdk 36
@@ -19,8 +22,8 @@ android {
   minSdk 26
   targetSdk 36
   ndk { abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86_64' }
-  versionCode 40
-  versionName '2.5.27'
+  versionCode 41
+  versionName '2.5.28'
   testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
  }
  buildFeatures { buildConfig true; compose true }
@@ -38,6 +41,8 @@ android {
  packaging.resources.excludes += ['META-INF/AL2.0', 'META-INF/LGPL2.1']
 }
 dependencies {
+ implementation platform('com.google.firebase:firebase-bom:34.19.0')
+ implementation 'com.google.firebase:firebase-messaging'
  implementation 'com.google.android.gms:play-services-ads:25.5.0'
  implementation 'com.google.android.ump:user-messaging-platform:4.0.0'
  implementation 'androidx.credentials:credentials:1.6.0'
