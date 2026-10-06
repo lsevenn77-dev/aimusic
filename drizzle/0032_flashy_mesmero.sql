@@ -18,6 +18,7 @@ CREATE TABLE `apple_transactions` (
 	`revoked` integer DEFAULT 0 NOT NULL,
 	`signed_date` integer NOT NULL,
 	`refund_review` integer DEFAULT 0 NOT NULL,
+	`refunded_used` integer DEFAULT 0 NOT NULL,
 	`created` integer NOT NULL,
 	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action
 );

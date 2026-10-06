@@ -11,7 +11,7 @@ import {FREE_GIFT} from '../shared/gifts.js';
 // the apps need store billing. Purchases are credited by those integrations once they exist.
 import {goldCheckoutStatus,createGoldCheckout} from './gold-checkout.js';
 
-export async function goldBalance(env,userId){return (await one(env,"SELECT COALESCE(sum(gold-used),0) n FROM gold_purchases WHERE user_id=? AND status='paid' AND NOT EXISTS(SELECT 1 FROM gold_orders o WHERE o.id=gold_purchases.id AND o.state!='paid')",userId)).n;}
+export async function goldBalance(env,userId){return (await one(env,"SELECT COALESCE(sum(gold-used),0) n FROM gold_purchases WHERE user_id=? AND status='paid' AND NOT EXISTS(SELECT 1 FROM gold_orders o WHERE o.id=gold_purchases.id AND o.state!='paid') AND NOT EXISTS(SELECT 1 FROM play_purchases pp WHERE 'play_'||pp.token_hash=gold_purchases.id AND pp.state='refunded')",userId)).n;}
 
 const RANKING=`SELECT ${publicNameSQL()} name,sum(g.gold) gold,sum(g.stars) stars,sum(g.gold+g.stars) score,count(*) gifts,min(g.created) first FROM (SELECT sender_id,track_id,gold,0 stars,created FROM gifts UNION ALL SELECT sender_id,track_id,0 gold,1 stars,created FROM free_gifts) g JOIN users u ON u.id=g.sender_id`;
 const ranked=list=>list.map((r,i)=>({rank:i+1,name:r.name,gold:r.gold,stars:r.stars,score:r.score,gifts:r.gifts}));
@@ -89,7 +89,7 @@ export async function giftRoute(req,env,path,user){
  const replay=async()=>{if(!requestId)return null;const old=await one(env,'SELECT id,track_id,gold,gift_type,gift_name FROM gifts WHERE sender_id=? AND request_id=?',user.id,requestId);if(!old)return null;if(old.track_id!==track.id||old.gold!==gold||old.gift_type!==(selected?.id??null))fail(409,'이미 사용된 선물 요청이에요. 새로 선택해주세요.');return json({gift:{id:old.id,gold:old.gold,type:old.gift_type,name:old.gift_name},balance:await goldBalance(env,user.id)});};
  const previous=await replay();if(previous)return previous;
  const creator=track.kind==='cover'?(await one(env,'SELECT producer_id FROM tracks WHERE id=?',track.original_id)).producer_id:track.producer_id;
- const lots=await rows(env,"SELECT id,gold,used,price_krw,fee_krw FROM gold_purchases WHERE user_id=? AND status='paid' AND used<gold ORDER BY paid_at,id",user.id);
+ const lots=await rows(env,"SELECT id,gold,used,price_krw,fee_krw FROM gold_purchases WHERE user_id=? AND status='paid' AND used<gold AND NOT EXISTS(SELECT 1 FROM play_purchases pp WHERE 'play_'||pp.token_hash=gold_purchases.id AND pp.state='refunded') ORDER BY paid_at,id",user.id);
  let spent;try{spent=allocateLots(lots,gold);}catch{fail(409,'골드가 부족해요. 충전한 뒤 다시 선물해주세요.');}
  const net=spent.reduce((sum,l)=>sum+l.net_mw,0),share=splitGift(track.kind,net),gid=id(),at=now();
  try{
