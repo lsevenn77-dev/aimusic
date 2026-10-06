@@ -41,7 +41,7 @@ export function verifiedGold(data,product,accountId){
  if(data.purchaseStateContext?.purchaseState!=='PURCHASED')fail(409,'결제 완료 후 골드가 지급돼요.');
  if(Number(item.productOfferDetails?.refundableQuantity)!==1)fail(409,'환불된 구매입니다.');
  if(!data.orderId)fail(400,'구매 내역을 확인해주세요.');
- return {order:data.orderId,consumed:item.productOfferDetails?.consumptionState==='CONSUMPTION_STATE_CONSUMED'};
+ return {order:data.orderId,consumed:item.productOfferDetails?.consumptionState==='CONSUMPTION_STATE_CONSUMED',test:data.testPurchaseContext!=null};
 }
 async function applySubscription(env,user,token,product,data){
  const verified=verifiedSubscription(data,product,await playAccountId(user.id));
@@ -68,9 +68,17 @@ async function applyGold(env,user,token,product,data){
  if(existing?.state==='refunded')fail(409,'환불된 구매입니다.');
  if(v.consumed&&!existing)fail(409,'이미 사용 처리된 구매입니다. 고객센터로 문의해주세요.');
  const purchaseId='play_'+tokenHash;
+ // Only Google's verified receipt can identify a test payment. Test gold stays
+ // usable, but has no paid value to distribute to creators or the platform.
+ const price=v.test?0:product.price,fee=Math.ceil(price*APP_STORE_FEE_BP/10000);
+ if(v.test&&existing){
+  const lot=await one(env,'SELECT used,price_krw FROM gold_purchases WHERE id=?',purchaseId);
+  if(lot?.used>0&&lot.price_krw>0)fail(409,'이미 사용한 테스트 결제의 정산을 운영자가 확인해야 해요.');
+ }
  await env.DB.batch([
   query(env,"INSERT OR IGNORE INTO play_purchases(token_hash,purchase_token,user_id,product_id,kind,state,created,updated) VALUES(?,?,?,?,?,'paid',?,?)",tokenHash,token,user.id,product.id,'inapp',at,at),
-  query(env,"INSERT OR IGNORE INTO gold_purchases(id,user_id,channel,gold,price_krw,fee_krw,status,created,paid_at,provider_ref) VALUES(?,?,'google_play',?,?,?,'paid',?,?,?)",purchaseId,user.id,product.gold,product.price,Math.ceil(product.price*APP_STORE_FEE_BP/10000),at,at,v.order),
+  query(env,"INSERT OR IGNORE INTO gold_purchases(id,user_id,channel,gold,price_krw,fee_krw,status,created,paid_at,provider_ref) VALUES(?,?,'google_play',?,?,?,'paid',?,?,?)",purchaseId,user.id,product.gold,price,fee,at,at,v.order),
+  ...(v.test?[query(env,"UPDATE gold_purchases SET price_krw=0,fee_krw=0 WHERE id=? AND used=0",purchaseId)]:[]),
  ]);
  if(!v.consumed)await google(env,`purchases/products/${encodeURIComponent(product.id)}/tokens/${encodeURIComponent(token)}:consume`,'POST');
  return {ok:true,kind:'inapp',gold:product.gold};
