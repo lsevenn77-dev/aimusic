@@ -19,6 +19,7 @@ import {duetRoute} from './duets.js';
 import {giftRoute} from './gifts.js';
 import {payoutRoute} from './payouts.js';
 import {publicPageRoute} from './public-pages.js';
+import {publicMusicRoute} from './public-music.js';
 import {goldCallback,goldOrderRoute} from './gold-checkout.js';
 import {billingRoute,billingWebhook,billingTick} from './billing.js';
 export default {async fetch(req,env,ctx){
@@ -28,6 +29,7 @@ export default {async fetch(req,env,ctx){
   if(path==='/api/billing/nicepay/webhook')return await billingWebhook(req,env);
   if(path==='/internal/billing/tick')return await billingTick(req,env);
   if(path.startsWith('/internal/'))return await internalRoute(req,env,path);
+  const musicResponse=await publicMusicRoute(req,env,path);if(musicResponse)return musicResponse;
   const publicResponse=publicPageRoute(req,path);if(publicResponse)return publicResponse;
   if(!path.startsWith('/api/')&&!path.startsWith('/media/')){
    if(!['GET','HEAD'].includes(req.method))return json({error:'허용되지 않는 요청입니다.'},405);
