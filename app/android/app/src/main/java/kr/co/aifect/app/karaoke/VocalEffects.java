@@ -16,7 +16,7 @@ public final class VocalEffects {
         public Settings(float echo,float room,float size,float voice,float backing,float monitor,int offsetMs,int noiseLevel,float tone) {
             this.tone=clamp(tone,0,1);
             this.echo=clamp(echo,0,0.65f); this.room=clamp(room,0,1); this.size=clamp(size,0,1);
-            this.voice=clamp(voice,0,2); this.backing=clamp(backing,0,1.5f); this.monitor=clamp(monitor,0,0.8f);
+            this.voice=clamp(voice,0,2); this.backing=clamp(backing,0,1.5f); this.monitor=clamp(monitor,0,1);
             this.offsetMs=Math.max(-300,Math.min(800,offsetMs));
             this.noiseLevel=Math.max(0,Math.min(4,noiseLevel));
         }

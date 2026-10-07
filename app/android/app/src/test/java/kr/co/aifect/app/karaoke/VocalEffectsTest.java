@@ -25,7 +25,7 @@ public class VocalEffectsTest {
     }
     @Test public void extremeSettingsAndBadSamplesStayFiniteAndBounded(){
         VocalEffects fx=new VocalEffects(48000);VocalEffects.Settings s=new VocalEffects.Settings(99,99,99,99,99,99,9999);
-        assertEquals(.65f,s.echo,0);assertEquals(.8f,s.monitor,0);assertEquals(800,s.offsetMs);
+        assertEquals(.65f,s.echo,0);assertEquals(1f,s.monitor,0);assertEquals(800,s.offsetMs);
         for(int i=0;i<100000;i++){float out=VocalEffects.limit(fx.process(i%99==0?Float.NaN:1,s)*2+1.5f);assertTrue(Float.isFinite(out));assertTrue(Math.abs(out)<=.991f);}
         assertEquals(0,VocalEffects.limit(Float.POSITIVE_INFINITY),0);
     }

@@ -29,6 +29,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.*
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.media3.common.Player
@@ -45,15 +46,12 @@ internal val Violet=Color(0xFFD6B5ED)
 internal val Stroke=Color(0xFF2B2E39)
 internal val Raised=Color(0xFF242C38)
 internal val SoftText=Color(0xFFCDD2DC)
-private val BrandFont=FontFamily(Font(R.font.manrope_extralight,FontWeight.ExtraLight))
 private fun TextStyle.readable()=copy(fontSize=(fontSize.value+1).sp)
 private val ReadableTypography=Typography().run{copy(displayLarge=displayLarge.readable(),displayMedium=displayMedium.readable(),displaySmall=displaySmall.readable(),headlineLarge=headlineLarge.readable(),headlineMedium=headlineMedium.readable(),headlineSmall=headlineSmall.readable(),titleLarge=titleLarge.readable(),titleMedium=titleMedium.readable(),titleSmall=titleSmall.readable(),bodyLarge=bodyLarge.readable(),bodyMedium=bodyMedium.readable(),bodySmall=bodySmall.readable(),labelLarge=labelLarge.readable(),labelMedium=labelMedium.readable(),labelSmall=labelSmall.readable())}
 private val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=Color(0xFF34252E),onPrimaryContainer=Pink,background=Ink,surface=Panel,onSurface=Color(0xFFF3F6F8),surfaceVariant=Stroke,onSurfaceVariant=Muted,secondary=Aqua,onSecondary=Ink,secondaryContainer=Color(0xFF20383C),onSecondaryContainer=Aqua)
 
 @Composable private fun BrandLockup(){
- Column(horizontalAlignment=Alignment.CenterHorizontally){
-  Text("AIFECT",style=TextStyle(fontFamily=BrandFont,fontWeight=FontWeight.ExtraLight,fontSize=31.sp,letterSpacing=5.sp,brush=Brush.linearGradient(listOf(Pink,Violet,Aqua))))
- }
+ Image(painterResource(R.drawable.aifect_wordmark_vector),contentDescription="AIFECT",modifier=Modifier.width(156.dp).height(38.dp),contentScale=ContentScale.Fit)
 }
 
 @Composable fun AifectApp(m:MusicModel,sing:(Song)->Unit,browser:(String)->Unit,social:(String)->Unit={},adPrivacy:()->Unit={},resumeDraft:(JSONObject)->Unit={}){

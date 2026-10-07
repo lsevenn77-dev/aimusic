@@ -55,7 +55,7 @@ public class KaraokeActivity extends AppCompatActivity {
     private KaraokeApi api;
     private KaraokeEngine engine;
     private JSONArray words=new JSONArray();
-    private JSONObject duetGuide=DuetGuide.empty();private LinearLayout duetGuideBox;private Button freeParts,lyricParts,editParts;
+    private JSONObject duetGuide=DuetGuide.empty();private LinearLayout duetGuideBox;private Button editParts;private DuetPartEditor partEditor;
     private LinearLayout content;
     private ScrollView scroll;
     private TextView status,title,clock,routeLabel;
@@ -144,7 +144,7 @@ public class KaraokeActivity extends AppCompatActivity {
         content=new LinearLayout(this);content.setOrientation(LinearLayout.VERTICAL);content.setPadding(dp(22),dp(16),dp(22),dp(30));scroll.addView(content);root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));setContentView(root);
         ViewCompat.setOnApplyWindowInsetsListener(root,(v,insets)->{androidx.core.graphics.Insets b=insets.getInsets(WindowInsetsCompat.Type.systemBars());v.setPadding(b.left,b.top,b.right,b.bottom);return insets;});
         LinearLayout header=new LinearLayout(this);header.setGravity(Gravity.CENTER_VERTICAL);
-        TextView top=text("AIFECT  /  노래방",18,PINK);top.setTypeface(androidx.core.content.res.ResourcesCompat.getFont(this,kr.co.aifect.app.R.font.manrope_extralight));top.setLetterSpacing(.1f);header.addView(top,new LinearLayout.LayoutParams(0,-2,1));
+        ImageView top=new ImageView(this);top.setImageResource(kr.co.aifect.app.R.drawable.aifect_wordmark_vector);top.setContentDescription("AIFECT");top.setScaleType(ImageView.ScaleType.FIT_START);header.addView(top,new LinearLayout.LayoutParams(0,dp(36),1));
         Button close=button("닫기",false);close.setOnClickListener(v->getOnBackPressedDispatcher().onBackPressed());header.addView(close);content.addView(header);
         LinearLayout monitoring=box();
         monitor=new SwitchCompat(this);monitor.setText("이어폰으로 내 목소리 듣기");monitor.setTextColor(Color.WHITE);monitor.setTextSize(15);monitor.setPadding(0,dp(14),0,dp(14));
@@ -159,7 +159,7 @@ public class KaraokeActivity extends AppCompatActivity {
             }else engine.setMonitor(enabled);
         });monitoring.addView(monitor);
         routeLabel=text("이어폰 연결을 확인하고 있어요",13,MUTED);monitoring.addView(routeLabel);
-        hear=slider(monitoring,"청음 음량",80,65,"%",0);add(monitoring,12);
+        hear=slider(monitoring,"청음 음량",100,100,"%",0);add(monitoring,12);
         if(duetParent.isEmpty()){
             LinearLayout modes=new LinearLayout(this);soloMode=button("솔로",coverMode.equals("solo"));duetMode=button("듀엣",coverMode.equals("duet"));
             soloMode.setSelected(coverMode.equals("solo"));duetMode.setSelected(coverMode.equals("duet"));
@@ -248,7 +248,7 @@ public class KaraokeActivity extends AppCompatActivity {
         recordingPanel=new LinearLayout(this);recordingPanel.setOrientation(LinearLayout.VERTICAL);add(recordingPanel,12);
         if(soloMode!=null)attach((View)soloMode.getParent(),recordingPanel);
         else if(coverMode.equals("duet"))attach(text("듀엣",17,PINK),recordingPanel);
-        if(duetGuideBox!=null){Button parts=button("파트 지정 · 빈 구간 보기",false);parts.setOnClickListener(v->duetGuideBox.setVisibility(duetGuideBox.getVisibility()==View.VISIBLE?View.GONE:View.VISIBLE));attach(parts,recordingPanel);attach(duetGuideBox,recordingPanel);duetGuideBox.setVisibility(View.GONE);}
+        if(duetGuideBox!=null)attach(duetGuideBox,recordingPanel);
         if(coverMode.equals("duet")){LinearLayout legend=new LinearLayout(this);legend.setTag("duet-legend");legend.setPadding(dp(8),dp(12),0,dp(14));TextView mine=text("● 내 파트",14,PINK),partner=text("● 파트너 파트",14,Color.rgb(69,223,199));legend.addView(mine);LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-2,-2);p.leftMargin=dp(24);legend.addView(partner,p);attach(legend,recordingPanel);
             GradientDrawable background=new GradientDrawable();background.setColor(Color.rgb(75,80,82));background.setCornerRadius(dp(4));background.setSize(dp(200),dp(5));GradientDrawable fill=new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT,new int[]{PINK,Color.rgb(69,223,199)});fill.setCornerRadius(dp(4));fill.setSize(dp(200),dp(5));android.graphics.drawable.LayerDrawable bar=new android.graphics.drawable.LayerDrawable(new android.graphics.drawable.Drawable[]{background,new android.graphics.drawable.ClipDrawable(fill,Gravity.LEFT,android.graphics.drawable.ClipDrawable.HORIZONTAL)});bar.setId(0,android.R.id.background);bar.setId(1,android.R.id.progress);timeline.setProgressDrawable(bar);timeline.setProgressTintList(null);timeline.setThumbTintList(ColorStateList.valueOf(Color.rgb(69,223,199)));}
 
@@ -302,6 +302,7 @@ public class KaraokeActivity extends AppCompatActivity {
 
     private void requestRecord(){
         if(state!=State.READY&&state!=State.REVIEW&&state!=State.PAUSED)return;
+        if(!validateDuetParts())return;
         if(ContextCompat.checkSelfPermission(this,Manifest.permission.RECORD_AUDIO)==PackageManager.PERMISSION_GRANTED)beginCountdown();else microphone.launch(Manifest.permission.RECORD_AUDIO);
     }
     private void beginCountdown(){if(!foreground||engine==null)return;if(cursor>0){startRecording();return;}setState(State.COUNTDOWN);countdown(3,++countdownId);}
@@ -328,7 +329,7 @@ public class KaraokeActivity extends AppCompatActivity {
         state=nextState;boolean recording=state==State.RECORDING||state==State.PREROLL,playing=state==State.PLAYING,guiding=state==State.GUIDE;
         boolean busy=state==State.LOADING||state==State.UPLOADING||state==State.STOPPING||state==State.SEEKING,active=recording||playing||guiding||state==State.COUNTDOWN;
         if(soloMode!=null){soloMode.setEnabled(!busy&&!active);duetMode.setEnabled(!busy&&!active);}
-        if(freeParts!=null){freeParts.setEnabled(!busy&&!active);lyricParts.setEnabled(!busy&&!active&&words.length()>0);}if(editParts!=null)editParts.setEnabled(!busy&&!active);
+        if(editParts!=null)editParts.setEnabled(!busy&&!active);
         record.setVisibility(View.VISIBLE);record.setEnabled(!busy&&!active);record.setText(recording?"녹음 중":state==State.COUNTDOWN?"녹음 준비":state==State.PAUSED?"이어 부르기":hasTake?"여기부터 부르기":"녹음 시작");record.setContentDescription(record.getText());((TransportButton)record).setRecordingActive(recording);
         pause.setVisibility(View.VISIBLE);pause.setEnabled(recording&&!busy);pause.setContentDescription("녹음 일시정지");
         restart.setEnabled(!busy&&(recording||!active));
@@ -407,12 +408,12 @@ public class KaraokeActivity extends AppCompatActivity {
     private void saveSession(){
         if(sessionFile==null||engine==null)return;if(presetId.equals("custom"))rememberCustom();
         try{JSONObject data=new JSONObject().put("trackId",trackId).put("coverMode",coverMode).put("duetPart",duetPart).put("duetParent",duetParent).put("cursor",cursor).put("offset",offset.getProgress()+syncMinimum+300).put("echo",echo.getProgress()).put("room",room.getProgress()).put("roomScaleVersion",2).put("customSettings",customSettings).put("preset",presetId).put("strength",effectStrength.getProgress()).put("tone",toneAmount).put("size",size.getProgress()).put("voice",voice.getProgress()).put("backing",backing.getProgress()).put("automatic",autoSync.isChecked()).put("noise",noise.getProgress()).put("description",description.getText().toString()).put("title",title.getText().toString()).put("words",words).put("duetGuide",duetGuide);
-            data.put("lyricTextSize",lyricTextSize).put("submissionId",draftId==null?JSONObject.NULL:draftId);
+            data.put("hear",hear.getProgress()).put("lyricTextSize",lyricTextSize).put("submissionId",draftId==null?JSONObject.NULL:draftId);
             android.util.AtomicFile file=new android.util.AtomicFile(sessionFile);FileOutputStream out=null;try{out=file.startWrite();out.write(data.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));file.finishWrite(out);}catch(Exception e){if(out!=null)file.failWrite(out);}
         }catch(Exception ignored){}
     }
     private void restoreSession(){
-        updatingPreset=true;try{JSONObject data=new JSONObject(new String(java.nio.file.Files.readAllBytes(sessionFile.toPath()),java.nio.charset.StandardCharsets.UTF_8));String submission=data.optString("submissionId","");draftId=submission.matches("[\\w-]{1,80}")?submission:null;chooseLyricTextSize(data.optString("lyricTextSize",lyricTextSize),false);if(duetParent.isEmpty()&&data.optJSONObject("duetGuide")!=null)duetGuide=data.optJSONObject("duetGuide");presetId=VocalPreset.index(data.optString("preset"))>=0?data.optString("preset"):"custom";customSettings=data.optJSONObject("customSettings");toneAmount=(float)data.optDouble("tone",0);toneControl.setProgress(Math.round(toneAmount*100));effectStrength.setProgress(data.optInt("strength",50));cursor=Math.min(engine.duration(),data.optDouble("cursor",dry.length()/2.0/PcmFiles.RATE));int savedSync=data.optInt("offset",300)-300;syncMinimum=Math.min(-200,savedSync);offset.setMax(Math.max(200,savedSync)-syncMinimum);offset.setProgress(savedSync-syncMinimum);if(syncLeft!=null){syncLeft.setText(syncMinimum+"ms");syncRight.setText("+"+(offset.getMax()+syncMinimum)+"ms");}echo.setProgress(data.optInt("echo",18));room.setProgress(RoomReverb.restorePercent(data.optInt("room",16),data.optInt("roomScaleVersion",1)));size.setProgress(data.optInt("size",50));voice.setProgress(data.optInt("voice",100));backing.setProgress(data.optInt("backing",80));autoSync.setChecked(data.optBoolean("automatic",true));noise.setProgress(data.optInt("noise",0));description.setText(data.optString("description"));}catch(Exception ignored){cursor=dry.length()/2.0/PcmFiles.RATE;}finally{updatingPreset=false;refreshPresets();applySettings();}
+        updatingPreset=true;try{JSONObject data=new JSONObject(new String(java.nio.file.Files.readAllBytes(sessionFile.toPath()),java.nio.charset.StandardCharsets.UTF_8));String submission=data.optString("submissionId","");draftId=submission.matches("[\\w-]{1,80}")?submission:null;chooseLyricTextSize(data.optString("lyricTextSize",lyricTextSize),false);if(duetParent.isEmpty()&&data.optJSONObject("duetGuide")!=null)duetGuide=data.optJSONObject("duetGuide");presetId=VocalPreset.index(data.optString("preset"))>=0?data.optString("preset"):"custom";customSettings=data.optJSONObject("customSettings");toneAmount=(float)data.optDouble("tone",0);toneControl.setProgress(Math.round(toneAmount*100));effectStrength.setProgress(data.optInt("strength",50));cursor=Math.min(engine.duration(),data.optDouble("cursor",dry.length()/2.0/PcmFiles.RATE));int savedSync=data.optInt("offset",300)-300;syncMinimum=Math.min(-200,savedSync);offset.setMax(Math.max(200,savedSync)-syncMinimum);offset.setProgress(savedSync-syncMinimum);if(syncLeft!=null){syncLeft.setText(syncMinimum+"ms");syncRight.setText("+"+(offset.getMax()+syncMinimum)+"ms");}echo.setProgress(data.optInt("echo",18));room.setProgress(RoomReverb.restorePercent(data.optInt("room",16),data.optInt("roomScaleVersion",1)));size.setProgress(data.optInt("size",50));hear.setProgress(data.optInt("hear",100));voice.setProgress(data.optInt("voice",100));backing.setProgress(data.optInt("backing",80));autoSync.setChecked(data.optBoolean("automatic",true));noise.setProgress(data.optInt("noise",0));description.setText(data.optString("description"));}catch(Exception ignored){cursor=dry.length()/2.0/PcmFiles.RATE;}finally{updatingPreset=false;refreshPresets();applySettings();}
     }
     private void selectPreset(String id,int amount){
         if(presetId.equals("custom"))rememberCustom();
@@ -439,16 +440,23 @@ public class KaraokeActivity extends AppCompatActivity {
     }
     private void renderDuetGuide(){
         if(duetGuideBox==null||engine==null)return;duetGuideBox.removeAllViews();boolean second=!duetParent.isEmpty();
-        duetGuideBox.addView(text(second?"내 파트: B · 함께":"듀엣 파트 나누기",16,PINK));
-        if(!second){LinearLayout choices=new LinearLayout(this);freeParts=button("자유 구간",duetGuide.optString("mode").equals("free"));lyricParts=button("가사 파트 지정",duetGuide.optString("mode").equals("lyrics"));freeParts.setOnClickListener(v->choosePartMethod("free"));lyricParts.setOnClickListener(v->choosePartMethod("lyrics"));LinearLayout.LayoutParams left=new LinearLayout.LayoutParams(0,-2,1);left.rightMargin=dp(6);choices.addView(freeParts,left);choices.addView(lyricParts,new LinearLayout.LayoutParams(0,-2,1));duetGuideBox.addView(choices);}
-        duetGuideBox.addView(text(duetGuide==null?"이전 녹음에는 구간 정보가 없어요. 들으며 원하는 구간을 불러주세요.":duetGuide.optString("mode").equals("lyrics")?"A는 먼저 녹음, B는 참여하는 사람, 함께는 둘 다 불러요.":"목소리가 없는 구간을 추정해요. 작은 목소리·잡음 때문에 다를 수 있어 가사별로 수정할 수 있어요.",13,MUTED));
-        if(duetGuide!=null&&duetGuide.has("activity")&&duetGuide.optString("mode").equals("free")){duetGuideBox.addView(text("아직 부르지 않은 구간 · 추정",15,Color.WHITE));for(double[] r:DuetGuide.remaining(duetGuide,engine.duration()).subList(0,Math.min(24,DuetGuide.remaining(duetGuide,engine.duration()).size()))){Button range=button(partTime(r[0])+"–"+partTime(r[1]),false);range.setOnClickListener(v->{if(state==State.READY||state==State.PAUSED||state==State.REVIEW)selectPosition(r[0]);});duetGuideBox.addView(range);}}
-        if(words.length()>0&&duetGuide!=null){editParts=button(second?"가사별 파트 보기":"가사별 파트 지정·수정",false);editParts.setOnClickListener(v->editPartLines());duetGuideBox.addView(editParts);}setState(state);
+        duetGuideBox.addView(text(second?"파트너와 함께 부르기":"듀엣 파트",16,Color.WHITE));
+        String summary=duetGuide==null?"파트너의 목소리를 듣고 원하는 구간을 불러주세요.":duetGuide.optString("mode").equals("lyrics")?"가사별 지정 · "+DuetGuide.assigned(duetGuide,words.length())+" / "+words.length()+"줄":"자유롭게 부르기 · 녹음 후 빈 구간을 추정해요.";
+        duetGuideBox.addView(text(summary,13,MUTED));editParts=button(second?"파트 보기":"파트 나누기",false);editParts.setTag("duet-open-editor");editParts.setTextSize(14);editParts.setOnClickListener(v->editPartLines());duetGuideBox.addView(editParts);setState(state);
     }
-    private void choosePartMethod(String method){try{duetGuide.put("mode",method);saveSession();renderDuetGuide();drawLyrics(cursor);if(method.equals("free"))refreshVocalGuide();else editPartLines();}catch(Exception ignored){}}
+    private boolean validateDuetParts(){
+        if(!coverMode.equals("duet")||!duetParent.isEmpty())return true;
+        String problem=DuetGuide.manualProblem(duetGuide,words.length());if(problem.isEmpty())return true;
+        message(problem);editPartLines();return false;
+    }
     private void editPartLines(){
-        if(engine==null||duetGuide==null)return;String[] labels=new String[words.length()];for(int i=0;i<labels.length;i++)labels[i]=DuetGuide.label(duetGuide,words,i,!duetParent.isEmpty(),engine.duration())+"  "+lineText(i);
-        new AlertDialog.Builder(this).setTitle(duetParent.isEmpty()?"가사별 파트 지정·수정":"가사별 파트 보기").setItems(labels,(d,index)->{if(!duetParent.isEmpty()){selectPosition(words.optJSONObject(index).optDouble("s"));return;}String[] values={"","A","B","both"},names={duetGuide.optString("mode").equals("free")?"자동 표시":"미지정","A · 내 파트","B · 다음 사람","함께"};new AlertDialog.Builder(this).setTitle(lineText(index)).setItems(names,(dialog,part)->{try{JSONArray lines=duetGuide.optJSONArray("lines");if(lines==null)lines=new JSONArray();while(lines.length()<words.length())lines.put("");lines.put(index,values[part]);duetGuide.put("lines",lines);saveSession();drawLyrics(cursor);editPartLines();}catch(Exception ignored){}}).setNegativeButton("닫기",null).show();}).setNegativeButton("닫기",null).show();
+        if(engine==null||!(state==State.READY||state==State.PAUSED||state==State.REVIEW))return;
+        if(partEditor!=null&&partEditor.isShowing())return;
+        partEditor=new DuetPartEditor(this,words,duetGuide,!duetParent.isEmpty(),engine.duration(),new DuetPartEditor.Listener(){
+            public void changed(){saveSession();renderDuetGuide();drawLyrics(cursor);}
+            public void seek(double seconds){selectPosition(seconds);}
+        });
+        partEditor.setOnDismissListener(dialog->{partEditor=null;if(!destroyed){saveSession();renderDuetGuide();drawLyrics(cursor);refreshVocalGuide();}});partEditor.show();
     }
     private void setMonitor(boolean enabled){updatingMonitor=true;monitor.setChecked(enabled);updatingMonitor=false;if(engine!=null)engine.setMonitor(enabled);}
     private void updateRoute(){
@@ -462,6 +470,7 @@ public class KaraokeActivity extends AppCompatActivity {
     }
     private String lineText(int index){JSONObject l=words.optJSONObject(index);if(l==null)return "";JSONArray parts=l.optJSONArray("w");StringBuilder b=new StringBuilder();if(parts!=null)for(int i=0;i<parts.length();i++){if(i>0)b.append(' ');b.append(parts.optJSONObject(i).optString("t"));}return b.toString();}
     private void upload(){
+        if(!validateDuetParts())return;
         if(coverMode.equals("duet")&&duetParent.isEmpty()){new AlertDialog.Builder(this).setTitle("듀엣 파트를 공개할까요?").setMessage("다른 사람이 이 녹음을 불러와 빈 파트에 목소리를 더하는 것에 동의합니다.").setNegativeButton("취소",null).setPositiveButton("동의하고 공개",(dialog,which)->uploadConfirmed()).show();return;}uploadConfirmed();
     }
     private void uploadConfirmed(){
@@ -497,7 +506,7 @@ public class KaraokeActivity extends AppCompatActivity {
     }
     @Override protected void onSaveInstanceState(Bundle out){out.putString("directory",directory==null?"":directory.getName());saveSession();super.onSaveInstanceState(out);}
     @Override protected void onDestroy(){
-        destroyed=true;if(settingsDialog!=null)settingsDialog.dismiss();ui.removeCallbacksAndMessages(null);if(audioManager!=null)audioManager.unregisterAudioDeviceCallback(devices);if(api!=null)api.cancel();files.shutdownNow();
+        destroyed=true;if(partEditor!=null)partEditor.dismiss();if(settingsDialog!=null)settingsDialog.dismiss();ui.removeCallbacksAndMessages(null);if(audioManager!=null)audioManager.unregisterAudioDeviceCallback(devices);if(api!=null)api.cancel();files.shutdownNow();
         boolean discard=isFinishing()&&(uploadComplete||!keepDraft);
         new Thread(()->{if(engine!=null)engine.close();try{files.awaitTermination(50,TimeUnit.SECONDS);}catch(InterruptedException ignored){}if(discard&&directory!=null){File[] children=directory.listFiles();if(children!=null)for(File f:children)if(f.isFile()&&!f.getName().equals("mr.m4a")&&!f.getName().equals("guide.m4a"))f.delete();directory.delete();}},"KaraokeCleanup").start();
         super.onDestroy();

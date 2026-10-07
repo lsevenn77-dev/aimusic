@@ -227,10 +227,42 @@ public class KaraokeDeviceTest {
     @Test public void duetGuideEditsPersistWithoutMicrophone()throws Exception{
         screen.close();screen=ActivityScenario.launch(new Intent(context,KaraokeActivity.class).putExtra("origin","http://127.0.0.1:"+server.getLocalPort()).putExtra("trackId","fixture").putExtra("coverMode","duet"));
         awaitNativeRoom(30);
-        onView(withText("파트 지정 · 빈 구간 보기")).perform(scrollTo(),click());onView(withText("자유 구간")).perform(scrollTo()).check(matches(isEnabled()));onView(withText("가사 파트 지정")).perform(scrollTo(),click());
-        onView(withText("미지정  내 목소리로 노래해요")).perform(click());onView(withText("A · 내 파트")).perform(click());onView(withText("미지정  다음 가사를 불러요")).perform(click());onView(withText("B · 다음 사람")).perform(click());onView(withText("닫기")).perform(click());
-        screen.recreate();onView(withText("파트 지정 · 빈 구간 보기")).perform(scrollTo(),click());onView(withText("가사별 파트 지정·수정")).perform(scrollTo(),click());onView(withText("A · 내 파트  내 목소리로 노래해요")).check(matches(isDisplayed()));onView(withText("B · 다음 사람  다음 가사를 불러요")).check(matches(isDisplayed()));onView(withText("닫기")).perform(click());
-        onView(withText("자유 구간")).perform(scrollTo(),click());assertEquals(PackageManager.PERMISSION_DENIED,ContextCompat.checkSelfPermission(context,Manifest.permission.RECORD_AUDIO));
+        screen.onActivity(a->{try{java.lang.reflect.Field field=KaraokeActivity.class.getDeclaredField("duetGuide");field.setAccessible(true);field.set(a,DuetGuide.empty());}catch(Exception e){throw new RuntimeException(e);}});
+        onView(withTagValue(org.hamcrest.Matchers.is("duet-open-editor"))).perform(scrollTo(),click());
+        onView(withTagValue(org.hamcrest.Matchers.is("duet-method-lyrics"))).perform(click());
+        onView(withTagValue(org.hamcrest.Matchers.is("duet-editor-done"))).perform(click());
+        onView(withTagValue(org.hamcrest.Matchers.is("duet-editor-status"))).check(matches(withText("아직 지정하지 않은 가사가 4줄 있어요.")));
+        onView(withTagValue(org.hamcrest.Matchers.is("duet-line-0-A"))).perform(scrollTo(),click());
+        onView(withTagValue(org.hamcrest.Matchers.is("duet-line-0-A"))).check(matches(isSelected())).perform(click()).check(matches(org.hamcrest.Matchers.not(isSelected()))).perform(click());
+        onView(withTagValue(org.hamcrest.Matchers.is("duet-fill-partner"))).perform(click());
+        onView(withTagValue(org.hamcrest.Matchers.is("duet-editor-status"))).check(matches(withText("4 / 4줄 지정 · 내 파트와 파트너를 나눠주세요.")));
+        capture("duet-editor-native.png");onView(withTagValue(org.hamcrest.Matchers.is("duet-editor-done"))).perform(click());
+        screen.recreate();awaitNativeRoom(30);
+        screen.onActivity(a->{try{java.lang.reflect.Field field=KaraokeActivity.class.getDeclaredField("duetGuide");field.setAccessible(true);org.json.JSONObject saved=(org.json.JSONObject)field.get(a);assertEquals("A",DuetGuide.explicitPart(saved,0));for(int i=1;i<4;i++)assertEquals("B",DuetGuide.explicitPart(saved,i));assertEquals("",DuetGuide.manualProblem(saved,4));assertNoAudioCapture(a);}catch(Exception e){throw new RuntimeException(e);}});
+        onView(withTagValue(org.hamcrest.Matchers.is("duet-open-editor"))).perform(scrollTo(),click());
+        onView(withTagValue(org.hamcrest.Matchers.is("duet-line-0-A"))).check(matches(isSelected()));
+        onView(withTagValue(org.hamcrest.Matchers.is("duet-method-free"))).perform(click());onView(withTagValue(org.hamcrest.Matchers.is("duet-editor-done"))).perform(click());
+        assertEquals(PackageManager.PERMISSION_DENIED,ContextCompat.checkSelfPermission(context,Manifest.permission.RECORD_AUDIO));
+    }
+    @Test public void duetManualValidationKeepsFreeAndInheritedGuidesUsable()throws Exception{
+        org.json.JSONObject guide=DuetGuide.empty();assertEquals("",DuetGuide.manualProblem(guide,4));assertEquals("",DuetGuide.manualProblem(null,4));
+        guide.put("mode","lyrics");assertFalse(DuetGuide.manualProblem(guide,4).isEmpty());
+        for(int i=0;i<4;i++)DuetGuide.assign(guide,i,"A");assertFalse("Both singers need a part",DuetGuide.manualProblem(guide,4).isEmpty());
+        DuetGuide.assign(guide,2,"both");assertEquals("",DuetGuide.manualProblem(guide,4));DuetGuide.assign(guide,3,"");DuetGuide.fillPartner(guide,4);assertEquals("A",DuetGuide.explicitPart(guide,0));assertEquals("both",DuetGuide.explicitPart(guide,2));assertEquals("B",DuetGuide.explicitPart(guide,3));
+        String before=guide.toString();AtomicReference<DuetPartEditor> editor=new AtomicReference<>();
+        screen.onActivity(a->{try{java.lang.reflect.Field field=KaraokeActivity.class.getDeclaredField("words");field.setAccessible(true);DuetPartEditor dialog=new DuetPartEditor(a,(org.json.JSONArray)field.get(a),guide,true,30,new DuetPartEditor.Listener(){public void changed(){fail("An inherited guide is read-only");}public void seek(double seconds){}});editor.set(dialog);dialog.show();}catch(Exception e){throw new RuntimeException(e);}});
+        onView(withTagValue(org.hamcrest.Matchers.is("duet-method-lyrics"))).check(androidx.test.espresso.assertion.ViewAssertions.doesNotExist());
+        onView(withTagValue(org.hamcrest.Matchers.is("duet-line-0-A"))).check(androidx.test.espresso.assertion.ViewAssertions.doesNotExist());
+        onView(withTagValue(org.hamcrest.Matchers.is("duet-editor-done"))).perform(click());assertEquals(before,guide.toString());
+        screen.onActivity(a->{try{assertNoAudioCapture(a);}catch(Exception e){throw new RuntimeException(e);}});
+    }
+    @Test public void monitoringGainUsesUnityAndKeepsChosenDraftLevel()throws Exception{
+        screen.onActivity(a->{try{
+            java.lang.reflect.Field field=KaraokeActivity.class.getDeclaredField("hear");field.setAccessible(true);android.widget.SeekBar hear=(android.widget.SeekBar)field.get(a);assertEquals(100,hear.getMax());
+            java.lang.reflect.Field engineField=KaraokeActivity.class.getDeclaredField("engine");engineField.setAccessible(true);KaraokeEngine engine=(KaraokeEngine)engineField.get(a);
+            hear.setProgress(100);assertEquals(1f,engine.settings.monitor,0);hear.setProgress(63);
+            java.lang.reflect.Method save=KaraokeActivity.class.getDeclaredMethod("saveSession"),restore=KaraokeActivity.class.getDeclaredMethod("restoreSession");save.setAccessible(true);restore.setAccessible(true);save.invoke(a);hear.setProgress(100);restore.invoke(a);assertEquals(63,hear.getProgress());assertEquals(.63f,engine.settings.monitor,.0001f);assertNoAudioCapture(a);
+        }catch(Exception e){throw new RuntimeException(e);}});
     }
     @Test public void duetVisualRolesSwitchForSecondSingerWithoutMicrophone()throws Exception{
         screen.close();screen=ActivityScenario.launch(new Intent(context,KaraokeActivity.class).putExtra("origin","http://127.0.0.1:"+server.getLocalPort()).putExtra("trackId","fixture").putExtra("coverMode","duet"));
