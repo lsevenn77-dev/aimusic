@@ -37,7 +37,7 @@ struct AifectWordmark: View {
             .renderingMode(.original)
             .resizable()
             .scaledToFit()
-            .frame(width: 156, height: 38)
+            .frame(width: 124, height: 30)
             .accessibilityLabel("AIFECT")
     }
 }

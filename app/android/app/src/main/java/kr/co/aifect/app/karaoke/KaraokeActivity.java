@@ -144,7 +144,7 @@ public class KaraokeActivity extends AppCompatActivity {
         content=new LinearLayout(this);content.setOrientation(LinearLayout.VERTICAL);content.setPadding(dp(22),dp(16),dp(22),dp(30));scroll.addView(content);root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));setContentView(root);
         ViewCompat.setOnApplyWindowInsetsListener(root,(v,insets)->{androidx.core.graphics.Insets b=insets.getInsets(WindowInsetsCompat.Type.systemBars());v.setPadding(b.left,b.top,b.right,b.bottom);return insets;});
         LinearLayout header=new LinearLayout(this);header.setGravity(Gravity.CENTER_VERTICAL);
-        ImageView top=new ImageView(this);top.setImageResource(kr.co.aifect.app.R.drawable.aifect_wordmark_vector);top.setContentDescription("AIFECT");top.setScaleType(ImageView.ScaleType.FIT_START);header.addView(top,new LinearLayout.LayoutParams(0,dp(36),1));
+        ImageView top=new ImageView(this);top.setImageResource(kr.co.aifect.app.R.drawable.aifect_wordmark_vector);top.setContentDescription("AIFECT");top.setScaleType(ImageView.ScaleType.FIT_START);header.addView(top,new LinearLayout.LayoutParams(0,dp(30),1));
         Button close=button("닫기",false);close.setOnClickListener(v->getOnBackPressedDispatcher().onBackPressed());header.addView(close);content.addView(header);
         LinearLayout monitoring=box();
         monitor=new SwitchCompat(this);monitor.setText("이어폰으로 내 목소리 듣기");monitor.setTextColor(Color.WHITE);monitor.setTextSize(15);monitor.setPadding(0,dp(14),0,dp(14));

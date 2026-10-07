@@ -1,5 +1,9 @@
 # AIFECT 네이티브 Android 앱
 
+## 2.5.32 (45) 로고 업데이트
+
+새 A 마크를 포함한 설치본이다. 앱 내부 헤더 로고는 124×30dp로 줄이고 상하 여백은 8dp로 조정했다. 녹음 화면 로고도 높이 30dp로 맞췄다. 런처 아이콘은 기존의 새 A 마크를 유지한다. iOS 전달 자료의 토큰과 SwiftUI 로고 크기도 함께 변경했다. 이 버전은 연결된 Android 기기의 기존 앱 위에 데이터 유지 방식으로 설치했으며, 아래 다운로드·Play 배포 기록은 이전 버전의 기록이다.
+
 ## Android 디자인과 iOS 적용
 
 **[design/README.md](design/README.md)**에서 최신 화면 구성, 실제 Android 캡처, iOS 적용 가이드와 새 A 마크를 확인한다. [design/index.html](design/index.html)을 브라우저로 열면 화면별 갤러리를 볼 수 있다. `design/ios/Assets.xcassets`에는 Xcode에서 교체할 AppIcon과 앱 내부 로고가 있다. Android adaptive·monochrome 아이콘과 기존 PNG·시작 화면 자산도 새 A 마크로 통일했다. Xcode 프로젝트 자체는 이 저장소에 없으며 iOS 빌드는 수행하지 않았다.

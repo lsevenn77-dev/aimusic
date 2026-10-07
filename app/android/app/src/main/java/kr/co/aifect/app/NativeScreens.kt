@@ -51,7 +51,7 @@ private val ReadableTypography=Typography().run{copy(displayLarge=displayLarge.r
 private val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=Color(0xFF34252E),onPrimaryContainer=Pink,background=Ink,surface=Panel,onSurface=Color(0xFFF3F6F8),surfaceVariant=Stroke,onSurfaceVariant=Muted,secondary=Aqua,onSecondary=Ink,secondaryContainer=Color(0xFF20383C),onSecondaryContainer=Aqua)
 
 @Composable private fun BrandLockup(){
- Image(painterResource(R.drawable.aifect_wordmark_vector),contentDescription="AIFECT",modifier=Modifier.width(156.dp).height(38.dp),contentScale=ContentScale.Fit)
+ Image(painterResource(R.drawable.aifect_wordmark_vector),contentDescription="AIFECT",modifier=Modifier.width(124.dp).height(30.dp),contentScale=ContentScale.Fit)
 }
 
 @Composable fun AifectApp(m:MusicModel,sing:(Song)->Unit,browser:(String)->Unit,social:(String)->Unit={},adPrivacy:()->Unit={},resumeDraft:(JSONObject)->Unit={}){
@@ -77,7 +77,7 @@ private val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=C
    }
   }){padding->
    Column(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)){
-    if(!keyboardVisible)Row(Modifier.fillMaxWidth().padding(horizontal=22.dp,vertical=12.dp),verticalAlignment=Alignment.CenterVertically){
+    if(!keyboardVisible)Row(Modifier.fillMaxWidth().padding(horizontal=22.dp,vertical=8.dp),verticalAlignment=Alignment.CenterVertically){
      BrandLockup()
      Spacer(Modifier.weight(1f))
      IconButton(onClick={m.selectTab(1)}){Icon(Icons.Rounded.Search,"검색",tint=Muted)}
