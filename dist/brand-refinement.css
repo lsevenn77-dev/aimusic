@@ -114,3 +114,9 @@ dialog:has(.queue-panel) {background:var(--music-panel);border-color:#ffffff0c}
   .social-mobile-navigation a:not(.mobile-sing-main).active {background:transparent}
   .social-mobile-navigation a:not(.mobile-sing-main).active:after {background:var(--music-aqua)}
 }
+/* Long titles and action labels must be allowed to wrap within their grid cell. */
+:is(.release-copy,.track-info,.karaoke-browse-info,.community-author,.music-card-copy,.section-heading>div){min-width:0}
+.section-heading{flex-wrap:wrap;row-gap:8px}.section-heading h2{overflow-wrap:anywhere}
+:is(.inline-actions,.release-actions,.profile-actions){flex-wrap:wrap}
+:is(.primary-button,.small-button,.icon-button) svg{flex-shrink:0;aspect-ratio:1}
+:is(.live-track,.karaoke-browse-row) .track-info strong{overflow-wrap:anywhere;line-height:1.5}
