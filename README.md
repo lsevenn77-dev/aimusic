@@ -1,7 +1,9 @@
 # AIFECT AI 음악 사이트
 
 AIFECT의 웹사이트 소스는 [ai음원사이트](ai음원사이트/) 폴더에 있습니다.
-안드로이드 · iOS 앱(Capacitor)은 [app](app/) 폴더에 있습니다.
+네이티브 안드로이드 앱(Kotlin/Compose)은 [app](app/) 폴더에 있습니다. 현재 저장소에는 Xcode 프로젝트가 없습니다.
+
+- **[안드로이드 디자인과 iOS 적용 자료](app/design/README.md)** — 실제 화면 23장, 화면별 구성·동작 기준, 새 A 마크, Xcode용 앱 아이콘·로고, SwiftUI 디자인 토큰. [화면 갤러리](app/design/index.html)는 내려받은 저장소에서 브라우저로 열 수 있습니다.
 
 - 서비스: https://aifect.co.kr
 - [실행 및 개발 안내](ai음원사이트/README.md)

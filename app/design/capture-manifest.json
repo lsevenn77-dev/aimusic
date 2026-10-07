@@ -1,0 +1,155 @@
+{
+  "capturedOn": "2026-10-07",
+  "baselineCommit": "af90f96",
+  "changes": "New shared raster icon assets and iOS handoff only; screens use native Android implementations.",
+  "platform": "Android 15 emulator, 390dp, 2x",
+  "isolatedPackage": "kr.co.aifect.app.test",
+  "data": "Synthetic local HTTP fixture data; no production account, microphone input, purchase or real message.",
+  "verification": {
+    "captureScenarios": 8,
+    "passed": 8,
+    "iosAssetImages": 24,
+    "galleryScreens": 20,
+    "xcodeBuild": "Not run: no Xcode project or macOS environment in this checkout."
+  },
+  "screens": [
+    {
+      "file": "screens/duet-editor-native.png",
+      "width": 780,
+      "height": 1688,
+      "sha256": "1f8bc85bda1558a15a581bfec7bd12235809e85a42978607c8dedd967baf6f9f"
+    },
+    {
+      "file": "screens/lyrics-duet-next-own-turn.png",
+      "width": 780,
+      "height": 1688,
+      "sha256": "4460970f3ad18a2bf286f68651ad20082b3f52ab5dd71ab3eade8f7743c282de"
+    },
+    {
+      "file": "screens/native-community.png",
+      "width": 780,
+      "height": 1688,
+      "sha256": "d3b0e2a14ec6371b994b0223d38d381024865ac955f1b012041fd24d67aed1b4"
+    },
+    {
+      "file": "screens/native-library.png",
+      "width": 780,
+      "height": 1688,
+      "sha256": "9d82edbd142c64cc2dc816b3a72ef664805f3949e2096c7988bc93a16f2e4222"
+    },
+    {
+      "file": "screens/native-listen-shelves.png",
+      "width": 780,
+      "height": 1688,
+      "sha256": "aa62eedac8fa441d876d60fde0d8545e23b88a367a5becb976536e622afe8e88"
+    },
+    {
+      "file": "screens/native-listen.png",
+      "width": 780,
+      "height": 1688,
+      "sha256": "aa62eedac8fa441d876d60fde0d8545e23b88a367a5becb976536e622afe8e88"
+    },
+    {
+      "file": "screens/native-new-community.png",
+      "width": 780,
+      "height": 1688,
+      "sha256": "6ea60491de0cf946635269d7f3895d35c914b1b38c776ca64c0b139ecf23388b"
+    },
+    {
+      "file": "screens/native-new-home.png",
+      "width": 780,
+      "height": 1688,
+      "sha256": "d7fd14b7e72563f06237d8ac17a212c2a72ba48189cc56d00a9d737f9b7da305"
+    },
+    {
+      "file": "screens/native-new-messages.png",
+      "width": 780,
+      "height": 1688,
+      "sha256": "94b646f3e0dff6ad91177e0608e3fe41626a570de940e4b4fb1f622ff4afc4e0"
+    },
+    {
+      "file": "screens/native-new-my.png",
+      "width": 780,
+      "height": 1688,
+      "sha256": "7739c4ab31ba14813a5170f5b269e1ed10667d437723a254eadc118e9bf6c1f0"
+    },
+    {
+      "file": "screens/native-polish-covers-grid.png",
+      "width": 780,
+      "height": 1688,
+      "sha256": "c849ed23670d985d53e9766ade99eaff625805d09f92b50de776e57d6999d4e4"
+    },
+    {
+      "file": "screens/native-polish-covers-list.png",
+      "width": 780,
+      "height": 1688,
+      "sha256": "27393d7c6cca32eb5f508c74468172f0c50c3b6bfa81b268ac7f3f341dc63fca"
+    },
+    {
+      "file": "screens/native-polish-my-photo.png",
+      "width": 780,
+      "height": 1688,
+      "sha256": "c07bfd73391de2a56f0125e78f6488de104500155cf40cfec37a725b0c4a750a"
+    },
+    {
+      "file": "screens/native-polish-public-photo.png",
+      "width": 780,
+      "height": 1688,
+      "sha256": "b200e68b32108f11274a143d62205aee7b315ce501dfc2f5cd3954653a083651"
+    },
+    {
+      "file": "screens/native-search.png",
+      "width": 780,
+      "height": 1688,
+      "sha256": "c5d45facd2e8ea43f918c17cfc542527d8d0440c6dc214e81c34d5a60d45c9d2"
+    },
+    {
+      "file": "screens/native-sing.png",
+      "width": 780,
+      "height": 1688,
+      "sha256": "0a41f457d928247196d876f7d262b18fbfabe031eae9c06eb8cf57345ca670d8"
+    },
+    {
+      "file": "screens/native-social-crew-chat-first.png",
+      "width": 780,
+      "height": 1688,
+      "sha256": "62038b25c43cde9376df5988cefce56993ad664a3ac962fd1c6ac79117c2ed62"
+    },
+    {
+      "file": "screens/native-social-crew-ime-390dp.png",
+      "width": 780,
+      "height": 1688,
+      "sha256": "d2cbcc096f0df6dab029fcb47f901db198c33e067727431b1a016a08dd43f292"
+    },
+    {
+      "file": "screens/native-social-dm-photo-profile.png",
+      "width": 780,
+      "height": 1688,
+      "sha256": "392cd0f2502a3d54971343bff8e2370383e81d928cc2a777bd6197b8a8683bbf"
+    },
+    {
+      "file": "screens/studio-post-refined-bottom.png",
+      "width": 780,
+      "height": 1688,
+      "sha256": "19b12e922511f989260e94818f129fc46486f2fa7ff8b7ea4969611913889229"
+    },
+    {
+      "file": "screens/studio-post-refined-top.png",
+      "width": 780,
+      "height": 1688,
+      "sha256": "d89a1e93a1a96b8dfcba8ee8c616c13345a55b6e7c7c414b9565da91cd8c1b97"
+    },
+    {
+      "file": "screens/studio-reverb.png",
+      "width": 780,
+      "height": 1688,
+      "sha256": "251f578a15d884afa48d6d3270e0e584c498d8d95d499529cb621cc2909373b0"
+    },
+    {
+      "file": "screens/studio-sound.png",
+      "width": 780,
+      "height": 1688,
+      "sha256": "4b27f538f75ea4e0742cc1fb613588d5efd68c4bbb0f26b9b5d497a5d24f7c76"
+    }
+  ]
+}

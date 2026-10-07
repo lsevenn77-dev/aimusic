@@ -1,5 +1,9 @@
 # AIFECT 네이티브 Android 앱
 
+## Android 디자인과 iOS 적용
+
+**[design/README.md](design/README.md)**에서 최신 화면 구성, 실제 Android 캡처, iOS 적용 가이드와 새 A 마크를 확인한다. [design/index.html](design/index.html)을 브라우저로 열면 화면별 갤러리를 볼 수 있다. `design/ios/Assets.xcassets`에는 Xcode에서 교체할 AppIcon과 앱 내부 로고가 있다. Android adaptive·monochrome 아이콘과 기존 PNG·시작 화면 자산도 새 A 마크로 통일했다. Xcode 프로젝트 자체는 이 저장소에 없으며 iOS 빌드는 수행하지 않았다.
+
 ## 2026-10-07 소스 변경
 
 웹과 같은 단일 듀엣 파트 편집창에서 내 파트·파트너·함께를 연속 지정한다. 남은 줄 일괄 지정, 선택 해제, 첫 녹음의 수동 파트 완성 검증, 참여자가 안내를 읽기만 하는 동작을 포함한다. 자유 녹음의 빈 구간 추정과 가사별 보정을 유지한다. 청음 음량은 기본 100%, 범위 0~100%이며 Java와 AAudio 경로가 동일하다. 사용자가 고른 청음 음량도 초안에 저장한다. 원음 파일, 최종 믹스 음량, 이어폰 연결 조건과 피크 제한은 유지한다.
