@@ -137,7 +137,7 @@ async function startSubscription(req,env,user){
  }finally{await unlock(env,s);}
  return json(await billingStatus(env,user));
 }
-async function cancelSubscription(env,user){
+export async function cancelSubscription(env,user){
  const existing=await subscription(env,user);if(!existing)return json(await billingStatus(env,user));
  const s=await lock(env,existing.id);if(!s)fail(409,'결제를 확인하고 있습니다. 잠시 후 다시 해지해주세요.');
  try{

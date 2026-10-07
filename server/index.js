@@ -1,3 +1,4 @@
+import {accountSafetyRoute,blockedContext,filterBlockedResponse,drainDeletedFiles} from './account-safety.js';
 import {applePaymentRoute,appleNotification} from './apple-payments.js';
 import {profileRoute} from './profiles.js';
 import {playBillingRoute,playWebhook} from './play-billing.js';
@@ -34,6 +35,7 @@ export default {async fetch(req,env,ctx){
   if(url.hostname==='wavv-music-design-lseve.sassy-auk-0975.chatgpt.site'&&['GET','HEAD'].includes(req.method)&&!/^\/(api|media|internal)\//.test(path)){
    url.protocol='https:';url.host='aifect.co.kr';return Response.redirect(url.href,308);
   }
+  if(env.BUCKET&&ctx?.waitUntil&&(path.startsWith('/api/')||path.startsWith('/internal/')))ctx.waitUntil(drainDeletedFiles(env).catch(()=>console.error('Account file cleanup pending')));
   if(path==='/api/apple/notifications')return await appleNotification(req,env);
   if(path==='/api/play/notifications')return await playWebhook(req,env);
   if(path==='/api/gold/nicepay/callback')return await goldCallback(req,env);
@@ -63,6 +65,8 @@ export default {async fetch(req,env,ctx){
    req=new Request(req,{body});
   }
   const user=await viewer(req,env);
+  env=await blockedContext(env,user);
+  const safety=await accountSafetyRoute(req,env,path,user);if(safety)return safety;
   const playResponse=await playBillingRoute(req,env,path,user);if(playResponse)return playResponse;
   retryPush(env,ctx);
   const pushResponse=await pushRoute(req,env,path,user);if(pushResponse)return pushResponse;
@@ -80,7 +84,7 @@ export default {async fetch(req,env,ctx){
    if(path.startsWith('/api/auth/')&&result.headers.get('content-type')?.includes('application/json')){
     const body=await result.clone().json();if(body.user){body.user=await publicUser(env,body.user);return new Response(JSON.stringify(body),{status:result.status,headers:result.headers});}
    }
-   return result;
+   return req.method==='GET'&&!/^\/api\/(apple|play|gold|billing|payout|account|me|studio)/.test(path)?await filterBlockedResponse(env,result):result;
   }
   return json({error:'페이지를 찾을 수 없습니다.'},404);
  }catch(e){
