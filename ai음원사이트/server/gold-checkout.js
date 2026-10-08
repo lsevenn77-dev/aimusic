@@ -1,5 +1,6 @@
 import {one,rows,query,run,now,id,fail,json,rate} from './db.js';
-import {GOLD_PACKS} from '../shared/gifts.js';
+import {WEB_GOLD_PACKS} from '../shared/gifts.js';
+import {includedKoreanVat} from '../shared/gifts.js';
 import {niceRequest,digest,equalSecret,verifyNiceSignature,findPayment} from './nicepay.js';
 import {reviewAccount,reviewAvailable} from './billing-review.js';
 
@@ -17,20 +18,21 @@ export async function createGoldCheckout(req,env,user){
  if(!review&&(!goldCheckoutEnabled(env)||reviewAccount(env,user)))fail(409,'골드 충전은 결제 준비가 끝나면 열려요.');
  if(!env.NICEPAY_CLIENT_ID||!env.NICEPAY_SECRET_KEY)fail(503,'결제 연결을 준비하고 있어요.');
  await rate(env,'gold-checkout:'+user.id,20,3600);
- const b=await req.json(),pack=GOLD_PACKS.find(p=>p.gold===b.gold);
+ const b=await req.json(),pack=WEB_GOLD_PACKS.find(p=>p.gold===b.gold);
  if(!pack||typeof b.request_id!=='string'||!/^[\w-]{16,64}$/.test(b.request_id))fail(400,'충전할 골드 상품을 다시 선택해주세요.');
  if(!review&&b.consent!==true)fail(400,'골드 구매 및 환불 안내를 확인해주세요.');
+ // Retries preserve the quantity recorded on the original order, including pre-promotion orders.
  let order=await one(env,SELECT+' WHERE o.user_id=? AND o.request_id=?',user.id,b.request_id);
- if(order&&(order.gold!==pack.gold||!!order.review_only!==review))fail(409,'새 결제 요청으로 다시 선택해주세요.');
+ if(order&&(order.price_krw!==pack.price||![pack.gold,pack.total_gold].includes(order.gold)||!!order.review_only!==review))fail(409,'새 결제 요청으로 다시 선택해주세요.');
  if(!order){
   const oid='ag_'+id().replaceAll('-',''),at=now(),fee=review?0:Math.ceil(pack.price*feeBasis(env)/10000);
   try{await env.DB.batch([
-   query(env,"INSERT INTO gold_purchases(id,user_id,channel,gold,price_krw,fee_krw,status,created) VALUES(?,?,'nicepay',?,?,?,'pending',?)",oid,user.id,pack.gold,pack.price,fee,at),
+   query(env,"INSERT INTO gold_purchases(id,user_id,channel,gold,price_krw,fee_krw,tax_krw,status,created) VALUES(?,?,'nicepay',?,?,?,?,'pending',?)",oid,user.id,pack.total_gold,pack.price,fee,review?0:includedKoreanVat(pack.price),at),
    query(env,'INSERT INTO gold_orders(id,user_id,request_id,review_only,created,expires,updated) VALUES(?,?,?,?,?,?,?)',oid,user.id,b.request_id,review?1:0,at,at+1800,at),
   ]);}catch(e){if(!/UNIQUE constraint/i.test(String(e.message)))throw e;}
   order=await one(env,SELECT+' WHERE o.user_id=? AND o.request_id=?',user.id,b.request_id);
  }
- if(order&&(order.gold!==pack.gold||!!order.review_only!==review))fail(409,'새 결제 요청으로 다시 선택해주세요.');
+ if(order&&(order.price_krw!==pack.price||![pack.gold,pack.total_gold].includes(order.gold)||!!order.review_only!==review))fail(409,'새 결제 요청으로 다시 선택해주세요.');
  if(!order||order.state!=='created'||order.expires<=now())fail(409,'결제 내역을 확인한 뒤 새로 시도해주세요.');
  const origin=new URL(req.url).origin;
  return json({order:safeOrder(order),payment:{clientId:env.NICEPAY_CLIENT_ID,method:'card',orderId:order.id,amount:order.price_krw,goodsName:`AIFECT 골드 ${order.gold}G`,returnUrl:origin+'/api/gold/nicepay/callback?state='+await stateFor(env,order.id),mallReserved:order.id,currency:'KRW',cardQuota:'0',skinType:'purple'}},201);

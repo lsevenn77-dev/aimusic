@@ -4,6 +4,7 @@ import {APPLE_ROOT_G3} from './apple-root.js';
 import {one,query,run,now,id,json,fail,rate} from './db.js';
 import {requireUser} from './auth.js';
 import {APP_STORE_FEE_BP} from '../shared/gifts.js';
+import {includedKoreanVat} from '../shared/gifts.js';
 
 export const APPLE_PRODUCTS=Object.freeze({
  'kr.co.aifect.app.premium.monthly':{kind:'subscription',price:5900},
@@ -52,9 +53,9 @@ export async function fulfillApple(env,t,requestUser=null,{refundReversed=false}
   // StoreKit supplies milliunits of currency. Korea is the enabled storefront.
   if(t.currency!=='KRW'||!Number.isSafeInteger(t.price)||t.price<=0)fail(409,'결제 통화 및 금액을 확인하지 못했습니다. 고객 지원에 문의해주세요.');
   const amount=Math.round(t.price/1000);
-  statements.push(query(env,`INSERT INTO gold_purchases(id,user_id,channel,gold,used,price_krw,fee_krw,status,provider_ref,created,paid_at)
- SELECT ?,?,'apple',?,0,?,?,'paid',?,?,? WHERE EXISTS(SELECT 1 FROM apple_transactions WHERE id=? AND revoked=0)
- ON CONFLICT(channel,provider_ref) DO NOTHING`,key,uid,product.gold,amount,Math.round(amount*APP_STORE_FEE_BP/10000),t.transactionId,time,Math.floor(t.purchaseDate/1000),key));
+  statements.push(query(env,`INSERT INTO gold_purchases(id,user_id,channel,gold,used,price_krw,fee_krw,tax_krw,status,provider_ref,created,paid_at)
+ SELECT ?,?,'apple',?,0,?,?,?,'paid',?,?,? WHERE EXISTS(SELECT 1 FROM apple_transactions WHERE id=? AND revoked=0)
+ ON CONFLICT(channel,provider_ref) DO NOTHING`,key,uid,product.gold,amount,Math.round((amount-includedKoreanVat(amount))*APP_STORE_FEE_BP/10000),includedKoreanVat(amount),t.transactionId,time,Math.floor(t.purchaseDate/1000),key));
   // Preserve the paid lot and its spent allocations for audit; make the remainder unavailable.
   statements.push(query(env,`UPDATE gold_purchases SET used=gold WHERE id=? AND EXISTS(SELECT 1 FROM apple_transactions WHERE id=? AND revoked>0)`,key,key));
  }

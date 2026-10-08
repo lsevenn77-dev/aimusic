@@ -103,7 +103,7 @@ test('free cheers add ranking points but never paid balances or revenue; duplica
  assert.equal(a.body.gift.id,b.body.gift.id);assert.equal(a.body.gift.gold,0);assert.equal(a.body.free_balance,2);
  const wallet=(await f.call('/api/gold','GET',undefined,'fan')).body;assert.equal(wallet.balance,1500);assert.equal(wallet.sent.length,0);assert.equal(wallet.free_sent.length,1);
  assert.equal(f.sql.prepare('SELECT count(*) n FROM gifts').get().n,0);assert.equal(f.sql.prepare('SELECT count(*) n FROM gift_lots').get().n,0);
- const rank=(await f.call('/api/tracks/cover/gifts')).body;assert.equal(rank.free_count,1);assert.equal(rank.total_gold,0);assert.deepEqual(rank.ranking,[{rank:1,name:'팬',gold:0,stars:1,score:1,gifts:1}]);
+ const rank=(await f.call('/api/tracks/cover/gifts')).body;assert.equal(rank.free_count,1);assert.equal(rank.total_gold,0);assert.deepEqual(rank.ranking,[{rank:1,name:'팬',profile_id:null,image_version:null,gold:0,stars:1,score:1,gifts:1}]);
  await f.call('/api/tracks/cover/gifts','POST',{gift_type:'note',request_id:'paid-with-star-12345'},'fan');
  const mixed=(await f.call('/api/tracks/cover/gifts')).body.ranking[0];assert.equal(mixed.score,11);assert.equal(mixed.gold,10);assert.equal(mixed.stars,1);
  assert.equal((await f.call('/api/studio/earnings','GET',undefined,'other')).body.months[0].gifts,1);
@@ -131,7 +131,7 @@ test('gifts spend the oldest gold, freeze each share, and feed the rankings',asy
  const direct=f.sql.prepare("SELECT * FROM gifts WHERE track_id='one'").get();
  assert.deepEqual([direct.net_mw,direct.singer_profile_id,direct.creator_mw,direct.platform_mw],[850000,null,595000,255000]);
  const coverRank=(await f.call('/api/tracks/cover/gifts')).body;
- assert.deepEqual([coverRank.total_gold,coverRank.ranking[0]],[1200,{rank:1,name:'팬',gold:1200,stars:0,score:1200,gifts:1}]);
+ assert.deepEqual([coverRank.total_gold,coverRank.ranking[0]],[1200,{rank:1,name:'팬',profile_id:null,image_version:null,gold:1200,stars:0,score:1200,gifts:1}]);
  assert.deepEqual((await f.call('/api/producers/singer')).body.gifts.ranking.map(r=>[r.name,r.gold]),[['팬',1200]]);
  assert.deepEqual((await f.call('/api/producers/producer')).body.gifts.ranking.map(r=>[r.name,r.gold]),[['팬',100]],'a cover\'s fans belong to its singer');
  const covers=(await f.call('/api/tracks/one/covers?sort=gifts')).body.covers;assert.equal(covers[0].gift_gold,1200);

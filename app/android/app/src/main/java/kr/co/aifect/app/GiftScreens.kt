@@ -29,11 +29,15 @@ import java.util.UUID
 
 @Composable internal fun GiftSheet(m:MusicModel){
  val target=m.giftTarget
+ val person=m.giftPerson
+ val targetKey=person?.optString("id")?:target?.id
+ val giftPath=if(person!=null)"/api/producers/${person.optString("id")}/gifts" else target?.let{"/api/tracks/${it.id}/gifts"}
+ val recipient=person?.optString("display_name",person.optString("name"))?:target?.producer.orEmpty()
  val scope=rememberCoroutineScope()
- var wallet by remember(target?.id){mutableStateOf<JSONObject?>(null)}
- var ranking by remember(target?.id){mutableStateOf<JSONObject?>(null)}
- var selected by remember(target?.id){mutableStateOf("star")}
- var requestId by remember(target?.id){mutableStateOf(UUID.randomUUID().toString())}
+ var wallet by remember(targetKey){mutableStateOf<JSONObject?>(null)}
+ var ranking by remember(targetKey){mutableStateOf<JSONObject?>(null)}
+ var selected by remember(targetKey){mutableStateOf("star")}
+ var requestId by remember(targetKey){mutableStateOf(UUID.randomUUID().toString())}
  var working by remember{mutableStateOf(false)}
  var loading by remember{mutableStateOf(true)}
  var error by remember{mutableStateOf<String?>(null)}
@@ -41,9 +45,9 @@ import java.util.UUID
  var confirm by remember{mutableStateOf(false)}
  suspend fun refresh(){
   wallet=m.api.call("/api/gold")
-  if(target!=null)ranking=m.api.call("/api/tracks/${target.id}/gifts")
+  if(giftPath!=null)ranking=m.api.call(giftPath)
  }
- LaunchedEffect(target?.id,m.user?.optString("id")){
+ LaunchedEffect(targetKey,m.user?.optString("id")){
   if(m.user==null){m.showGifts=false;return@LaunchedEffect}
   try{refresh()}catch(e:Exception){error=e.message}finally{loading=false}
  }
@@ -56,13 +60,14 @@ import java.util.UUID
  val suffix=if(isFree)"★" else "G"
  ModalBottomSheet(onDismissRequest={if(!working)m.showGifts=false},sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true),containerColor=Panel){
   LazyColumn(Modifier.fillMaxWidth().heightIn(max=620.dp).testTag("gift-list"),contentPadding=PaddingValues(22.dp,0.dp,22.dp,28.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
-   item{Text(if(target==null)"내 선물함" else "음악에 응원 보내기",fontSize=25.sp);target?.let{Text("${it.producer} · ${it.title}",color=Muted,modifier=Modifier.padding(top=8.dp))}}
+   item{Text(if(person!=null)"${recipient}님에게 선물" else if(target==null)"내 선물함" else "음악에 응원 보내기",fontSize=25.sp);target?.let{Text("${it.producer} · ${it.title}",color=Muted,modifier=Modifier.padding(top=8.dp))}}
    if(loading)item{LinearProgressIndicator(Modifier.fillMaxWidth())}
    error?.let{message->item{Text(message,color=Pink);if(wallet==null)TextButton(onClick={scope.launch{loading=true;error=null;try{refresh()}catch(e:Exception){error=e.message}finally{loading=false}}}){Text("다시 불러오기")}}}
    success?.let{item{Text(it,color=Aqua,fontSize=17.sp)}}
    if(wallet!=null){
     item{Text("보유 응원별 ★ ${free?.optInt("balance")?:0}    골드 ${wallet?.optInt("balance")} G",color=Aqua);Text("별은 무료 응원 선물이에요. 현금 가치·골드 전환·수익 정산이 없어요.",fontSize=14.sp,color=Muted,modifier=Modifier.padding(top=8.dp))}
     item{Surface(onClick={m.showGifts=false;m.showRewards=true},color=Raised,shape=RoundedCornerShape(16.dp)){Text("오늘의 응원별 · 무료 보상 받기",color=Aqua,modifier=Modifier.fillMaxWidth().padding(18.dp))}}
+    item{Text("세금과 결제 수수료를 제외한 금액을 수령자 70% · AIFECT 30%로 배분합니다.",color=Muted,fontSize=13.sp);Text("커버곡 선물은 가창자 40% · 원곡자 30%로 나눠요. 기존 충전분은 충전 당시 기준을 유지해요.",color=Muted,fontSize=12.sp)}
     item{Text("선물 고르기",fontSize=19.sp);Text("★ 1 = 1 G = 응원 순위 1점 · 1 G = 10원",fontSize=13.sp,color=Muted)}
     items(catalog.chunked(4)){row->Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(7.dp)){
      row.forEach{gift->val gid=gift.optString("id");Surface(onClick={if(!working){selected=gid;requestId=UUID.randomUUID().toString();success=null;error=null}},modifier=Modifier.weight(1f),shape=RoundedCornerShape(12.dp),color=if(selected==gid)Stroke else Ink,border=BorderStroke(1.dp,if(selected==gid)Pink else Stroke)){
@@ -70,7 +75,7 @@ import java.util.UUID
      }};repeat(4-row.size){Spacer(Modifier.weight(1f))}
     }}
     item{
-     if(target!=null){
+     if(giftPath!=null){
       Text(if(balance>=cost)"보낸 뒤 ${balance-cost} $suffix" else if(isFree)"오늘의 보상을 받아 응원별을 모아주세요." else "보유 골드가 부족해요.",color=Muted,fontSize=14.sp)
       Button(onClick={confirm=true},enabled=!working&&choice!=null&&balance>=cost,modifier=Modifier.fillMaxWidth().padding(top=10.dp)){Text(if(working)"보내는 중…" else "${choice?.optString("name")?:"선물"} $cost $suffix 보내기")}
      }else Text("곡의 재생 화면이나 상세 화면에서 선물할 수 있어요.",color=Aqua)
@@ -79,17 +84,17 @@ import java.util.UUID
     }
    }
    ranking?.let{data->
-    item{HorizontalDivider(color=Stroke);Text("이 곡의 응원 순위",fontSize=19.sp,modifier=Modifier.padding(top=14.dp))}
+    item{HorizontalDivider(color=Stroke);Text(if(person!=null)"받은 선물 랭킹" else "이 곡의 응원 순위",fontSize=19.sp,modifier=Modifier.padding(top=14.dp))}
     items(data.optJSONArray("ranking").objects()){r->Row(Modifier.fillMaxWidth()){Text("${r.optInt("rank")}  ${r.optString("name")}",Modifier.weight(1f));Text("${r.optInt("score")}점 · ${r.optInt("stars")}★ / ${r.optInt("gold")}G",color=Aqua,fontSize=13.sp)}}
     if(data.optJSONArray("ranking").objects().isEmpty())item{Text("첫 응원을 보내보세요.",color=Muted)}
    }
   }
  }
- if(confirm&&choice!=null&&target!=null)AlertDialog(onDismissRequest={if(!working)confirm=false},title={Text("${choice.optString("name")} 선물하기")},text={Text("${target.producer}님에게 $cost $suffix 선물을 보낼까요?\n보낸 뒤 직접 취소할 수 없어요.")},dismissButton={TextButton(onClick={confirm=false},enabled=!working){Text("취소")}},confirmButton={TextButton(enabled=!working,onClick={scope.launch{
+ if(confirm&&choice!=null&&giftPath!=null)AlertDialog(onDismissRequest={if(!working)confirm=false},title={Text("${choice.optString("name")} 선물하기")},text={Text("${recipient}님에게 $cost $suffix 선물을 보낼까요?\n보낸 뒤 직접 취소할 수 없어요.")},dismissButton={TextButton(onClick={confirm=false},enabled=!working){Text("취소")}},confirmButton={TextButton(enabled=!working,onClick={scope.launch{
   working=true;error=null
-  try{val result=m.api.call("/api/tracks/${target.id}/gifts","POST",payload("gift_type" to selected,"request_id" to requestId));success="${choice.optString("name")} 선물을 보냈어요";confirm=false
+  try{val result=m.api.call(giftPath,"POST",payload("gift_type" to selected,"request_id" to requestId));success="${choice.optString("name")} 선물을 보냈어요";confirm=false
    wallet=JSONObject(wallet.toString()).apply{if(isFree)put("free",JSONObject(free.toString()).put("balance",result.optInt("free_balance")))else put("balance",result.optInt("balance"))}
-   requestId=UUID.randomUUID().toString();try{ranking=m.api.call("/api/tracks/${target.id}/gifts")}catch(_:Exception){}
+   requestId=UUID.randomUUID().toString();try{ranking=m.api.call(giftPath)}catch(_:Exception){}
   }catch(e:Exception){error=e.message;confirm=false}finally{working=false}
  }}){Text(if(working)"보내는 중…" else "$cost $suffix 보내기")}})
 }

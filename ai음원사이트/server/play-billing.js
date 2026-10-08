@@ -3,6 +3,7 @@ import {one,query,run,now,fail,json,rate} from './db.js';
 import {requireUser,hash} from './auth.js';
 import {PLAY_PRODUCTS,PLAY_PACKAGE,playProduct} from '../shared/play-products.js';
 import {APP_STORE_FEE_BP} from '../shared/gifts.js';
+import {includedKoreanVat} from '../shared/gifts.js';
 
 let authCache;
 const googleKeys=createRemoteJWKSet(new URL('https://www.googleapis.com/oauth2/v3/certs'));
@@ -77,8 +78,8 @@ async function applyGold(env,user,token,product,data){
  }
  await env.DB.batch([
   query(env,"INSERT OR IGNORE INTO play_purchases(token_hash,purchase_token,user_id,product_id,kind,state,created,updated) VALUES(?,?,?,?,?,'paid',?,?)",tokenHash,token,user.id,product.id,'inapp',at,at),
-  query(env,"INSERT OR IGNORE INTO gold_purchases(id,user_id,channel,gold,price_krw,fee_krw,status,created,paid_at,provider_ref) VALUES(?,?,'google_play',?,?,?,'paid',?,?,?)",purchaseId,user.id,product.gold,price,fee,at,at,v.order),
-  ...(v.test?[query(env,"UPDATE gold_purchases SET price_krw=0,fee_krw=0 WHERE id=? AND used=0",purchaseId)]:[]),
+  query(env,"INSERT OR IGNORE INTO gold_purchases(id,user_id,channel,gold,price_krw,fee_krw,tax_krw,status,created,paid_at,provider_ref) VALUES(?,?,'google_play',?,?,?,?,'paid',?,?,?)",purchaseId,user.id,product.gold,price,fee,includedKoreanVat(price),at,at,v.order),
+  ...(v.test?[query(env,"UPDATE gold_purchases SET price_krw=0,fee_krw=0,tax_krw=0 WHERE id=? AND used=0",purchaseId)]:[]),
  ]);
  if(!v.consumed)await google(env,`purchases/products/${encodeURIComponent(product.id)}/tokens/${encodeURIComponent(token)}:consume`,'POST');
  return {ok:true,kind:'inapp',gold:product.gold};

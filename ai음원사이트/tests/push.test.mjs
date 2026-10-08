@@ -4,6 +4,23 @@ import {fixture} from './fixture.mjs';
 import {notificationData,dispatchPush} from '../server/push.js';
 import {generateKeyPair,exportPKCS8} from 'jose';
 
+test('crew mute also cancels queued alerts, unmute restores delivery, and direct gifts use gift preferences',async t=>{
+ const f=await fixture(t),cid=(await f.call('/api/crews','POST',{name:'Push crew'})).body.crew.id;
+ await f.call('/api/crews/'+cid+'/join','POST',{},'other');
+ await f.call('/api/push/device','PUT',{token:'c'.repeat(40),platform:'android',account_id:'other'},'other');
+ await f.call('/api/crews/'+cid+'/messages','POST',{body:'queued',request_id:crypto.randomUUID()});
+ await f.call('/api/crews/'+cid+'/settings','PUT',{muted:true},'other');
+ const {privateKey}=await generateKeyPair('RS256',{extractable:true}),env={DB:f.DB,FCM_SERVICE_ACCOUNT:JSON.stringify({project_id:'aifect-test',client_email:'test@example.test',private_key:await exportPKCS8(privateKey)})};
+ const original=globalThis.fetch;t.after(()=>globalThis.fetch=original);const delivered=[];
+ globalThis.fetch=async(url,options)=>url.includes('oauth2')?Response.json({access_token:'isolated-test',expires_in:3600}):(delivered.push(JSON.parse(options.body).message.data),Response.json({}));
+ await dispatchPush(env);assert.equal(delivered.length,0);
+ await f.call('/api/crews/'+cid+'/settings','PUT',{muted:false},'other');
+ await f.call('/api/crews/'+cid+'/messages','POST',{body:'new',request_id:crypto.randomUUID()});await dispatchPush(env);assert.equal(delivered[0].kind,'crew');assert.equal(delivered[0].target,cid);
+ const pid=f.sql.prepare("SELECT id FROM producers WHERE user_id='other'").get().id;
+ await f.call('/api/gifts/free/claim','POST',{kind:'checkin'});await f.call('/api/producers/'+pid+'/gifts','POST',{gift_type:'star',request_id:crypto.randomUUID()});await dispatchPush(env);assert.equal(delivered[1].kind,'person_gift');assert.equal(delivered[1].target,pid);
+ await f.call('/api/push/preferences','PUT',{gift:false},'other');await f.call('/api/producers/'+pid+'/gifts','POST',{gift_type:'star',request_id:crypto.randomUUID()});await dispatchPush(env);assert.equal(delivered.length,2);
+});
+
 test('device binding requires the current account; token reassignment and preferences stay private',async t=>{
  const f=await fixture(t),token='a'.repeat(120);
  assert.equal((await f.call('/api/push/device','PUT',{token,platform:'android',account_id:'other'})).status,409);

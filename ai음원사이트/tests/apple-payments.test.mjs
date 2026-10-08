@@ -24,6 +24,7 @@ test('duplicate and concurrent verified deliveries credit gold once; sandbox has
  await f.fulfill({...f.transaction,environment:'Sandbox',transactionId:'999'});
  assert.equal((await f.call('/api/gold')).body.balance,500);
  assert.equal(f.sql.prepare('SELECT count(*) n FROM gold_purchases').get().n,1);
+ const lot=f.sql.prepare('SELECT tax_krw,fee_krw FROM gold_purchases').get();assert.equal(lot.tax_krw,455);assert.equal(lot.fee_krw,682,'Apple fee is calculated after the sales tax reserve');
 });
 test('refund removes remaining gold and stale delivery cannot restore it',async t=>{
  const f=await setup(t);await f.fulfill(f.transaction);

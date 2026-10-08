@@ -131,7 +131,9 @@ class MusicModel(app:Application):AndroidViewModel(app) {
  var detail by mutableStateOf<Song?>(null)
  var showGifts by mutableStateOf(false)
  var giftTarget by mutableStateOf<Song?>(null)
- fun openGifts(song:Song?=null){if(!authenticated())return;giftTarget=song;showGifts=true}
+ var giftPerson by mutableStateOf<JSONObject?>(null)
+ fun openPersonGift(person:JSONObject){if(!authenticated())return;giftTarget=null;giftPerson=person;showGifts=true}
+ fun openGifts(song:Song?=null){if(!authenticated())return;giftPerson=null;giftTarget=song;showGifts=true}
  var detailBusy by mutableStateOf(false)
  var comments by mutableStateOf<List<JSONObject>>(emptyList())
  var selectedList by mutableStateOf<JSONObject?>(null)
@@ -227,7 +229,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   selectedList=null;listSongs=emptyList();listLoading=false;playlistTarget=null;collection=null;collectionBusy=false;collectionError=null
   detail=null;comments=emptyList();detailBusy=false;profile=null;profileSongs=emptyList();profileCovers=emptyList();profileFollowers=0
   profileCache.clear();retryProfileLoad=null;profileLoading=false;profileError=null;messageSourceProfile=null
-  showMessages=false;messagePeer=null;messageCrew=null;unreadMessages=0;inboxCrew=null;showProfileEdit=false;showAccountSettings=false;showRecordingDrafts=false;showRewards=false;showGifts=false;giftTarget=null
+  showMessages=false;messagePeer=null;messageCrew=null;unreadMessages=0;inboxCrew=null;showProfileEdit=false;showAccountSettings=false;showRecordingDrafts=false;showRewards=false;showGifts=false;giftTarget=null;giftPerson=null
   showAccount=false;accountError=null;nicknameCheck=null;studioBusy=false;studioError=null
   feed=emptyList();feedFilter="전체";feedLoading=false;feedError=null;displayedFeedPath=null
   feedRequest++;feedReadScope=null;communityCrewMode=false;communityCrewTarget=null;crewBrowsing=false;lastKnownCrewId=null
@@ -275,6 +277,8 @@ class MusicModel(app:Application):AndroidViewModel(app) {
  fun openPush(kind:String,target:String,recipient:String){
   if(user?.optString("id")!=recipient||!Regex("[a-zA-Z0-9-]{1,80}").matches(target))return
   if(kind=="dm")openMessages(target)
+  else if(kind=="crew")openCrewMessages(target)
+  else if(kind=="person_gift")openProfile(target)
   else if(kind in setOf("comment","gift"))action{
    val song=api.call("/api/tracks/$target",fresh=true).optJSONObject("track")?:return@action
    if(user?.optString("id")==recipient)openSong(Song(song))

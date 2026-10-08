@@ -246,6 +246,20 @@
       "when": 1791455274692,
       "tag": "0034_chat_images_and_inbox",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "6",
+      "when": 1791459397680,
+      "tag": "0035_personal_gifts_and_crew_mute",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "6",
+      "when": 1791460736200,
+      "tag": "0036_gift_tax_reserve",
+      "breakpoints": true
     }
   ]
 }

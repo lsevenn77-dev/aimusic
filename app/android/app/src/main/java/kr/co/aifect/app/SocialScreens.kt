@@ -221,7 +221,7 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
   shownDetail?.optJSONObject("crew")?.let{c->
    Surface(color=Panel,shape=MaterialTheme.shapes.large,modifier=Modifier.fillMaxWidth().testTag("crew-home-summary")){
     Column(Modifier.padding(horizontal=12.dp,vertical=8.dp),verticalArrangement=Arrangement.spacedBy(2.dp)){
-     Text(c.optString("name"),fontSize=18.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis)
+     Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Text(c.optString("name"),fontSize=18.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.weight(1f));if(membership!=null)CrewMuteAction(m,c.getString("id"),membership!!.optInt("muted")==1)}
      Text("LV${c.optInt("level")} · ${c.optInt("members")}/${c.optInt("capacity")}명"+(membership?.let{" · "+(CrewRoles[it.optString("role")]?:"크루원")}?:""),color=Aqua,fontSize=12.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
     }
    }

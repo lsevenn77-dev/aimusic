@@ -48,7 +48,6 @@ import org.json.JSONObject
 @Composable internal fun DmAttachments(m:MusicModel,peer:String,busy:Boolean,send:(JSONObject)->Unit){
  val scope=rememberCoroutineScope();val account=m.user?.optString("id")
  var uploading by remember(peer){mutableStateOf(false)}
- var gifts by remember(peer){mutableStateOf<List<Song>?>(null)}
  val picker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()){uri->if(uri!=null&&!busy&&!uploading)scope.launch{
   uploading=true
   try{val photo=m.api.uploadWebp("/api/dm/$peer/images",uri);if(m.user?.optString("id")==account&&m.messagePeer==peer){val rid=java.util.UUID.randomUUID().toString();send(payload("id" to "pending:$rid","request_id" to rid,"body" to "사진","image_id" to photo.getString("id"),"image_expires" to photo.getLong("expires"),"created" to System.currentTimeMillis()/1000,"sender_id" to account))}}
@@ -56,10 +55,10 @@ import org.json.JSONObject
  }}
  Row(Modifier.fillMaxWidth().padding(horizontal=14.dp),verticalAlignment=Alignment.CenterVertically){
   IconButton(onClick={picker.launch("image/*")},enabled=!busy&&!uploading){Icon(Icons.Rounded.AddPhotoAlternate,"사진 보내기",tint=Aqua)}
-  IconButton(enabled=!busy&&!uploading,onClick={scope.launch{try{val d=m.api.call("/api/producers/$peer");if(m.user?.optString("id")==account)gifts=(d.tracks()+d.tracks("covers")).distinctBy{it.id}}catch(e:Exception){if(e is CancellationException)throw e;m.notice=e.message}}}){Icon(Icons.Rounded.CardGiftcard,"선물 보내기",tint=Pink)}
+  IconButton(enabled=!busy&&!uploading,onClick={scope.launch{try{val d=m.api.call("/api/producers/$peer");if(m.user?.optString("id")==account)m.openPersonGift(d.getJSONObject("profile"))}catch(e:Exception){if(e is CancellationException)throw e;m.notice=e.message}}}){Icon(Icons.Rounded.CardGiftcard,"선물 보내기",tint=Pink)}
   Text(if(uploading)"사진 변환·전송 중…" else "사진은 서버에 14일 동안 보관돼요.",color=Muted,fontSize=11.sp,modifier=Modifier.weight(1f))
  }
- gifts?.let{songs->AlertDialog(onDismissRequest={gifts=null},title={Text("선물할 음악 선택")},text={Column{Text("선물은 선택한 음악에 기록되어 창작자에게 전달돼요.",fontSize=13.sp,color=Muted);LazyColumn(Modifier.heightIn(max=340.dp)){if(songs.isEmpty())item{Text("선물할 공개 음악이 아직 없어요.")};items(songs,key={it.id}){song->TextButton(onClick={gifts=null;m.openGifts(song)},modifier=Modifier.fillMaxWidth()){Text(song.title,modifier=Modifier.weight(1f));Icon(Icons.Rounded.CardGiftcard,null)}}}}},confirmButton={TextButton(onClick={gifts=null}){Text("닫기")}})}
+
 }
 
 @Composable internal fun CrewHomeBanner(m:MusicModel,crew:JSONObject,owner:Boolean,changed:()->Unit){
@@ -70,5 +69,31 @@ import org.json.JSONObject
   if(version.isNotBlank())AsyncImage(Endpoint.url("/media/crew/$cid?v=$version"),"크루 대표 이미지",modifier=Modifier.fillMaxWidth().height(200.dp),contentScale=ContentScale.Crop)
   if(owner)TextButton(onClick={picker.launch("image/*")},enabled=!busy){Icon(Icons.Rounded.AddPhotoAlternate,null);Text(if(busy)"저장 중…" else "크루 대표 이미지 설정")}
   FilledTonalButton(onClick={m.openCrewMessages(cid)},modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(16.dp),contentPadding=PaddingValues(16.dp)){Icon(Icons.Rounded.Forum,null,tint=Aqua);Text("크루 채팅창 들어가기",modifier=Modifier.padding(start=10.dp))}
+ }
+}
+
+
+@Composable internal fun CrewMuteAction(m:MusicModel,cid:String,initial:Boolean){
+ var muted by remember(cid,initial){mutableStateOf(initial)};var busy by remember(cid){mutableStateOf(false)};val scope=rememberCoroutineScope()
+ IconButton(enabled=!busy,onClick={scope.launch{busy=true;try{val result=m.api.call("/api/crews/$cid/settings","PUT",payload("muted" to !muted));muted=result.optBoolean("muted");m.refreshMessageSummary()}catch(e:Exception){if(e is CancellationException)throw e;m.notice=e.message}finally{busy=false}}}){Icon(if(muted)Icons.Rounded.NotificationsOff else Icons.Rounded.NotificationsNone,if(muted)"크루 알림 켜기" else "크루 알림 끄기",tint=if(muted)Aqua else Muted)}
+}
+
+@Composable internal fun ProfileGiftRanking(m:MusicModel,p:JSONObject){
+ var open by remember(p.optString("id")){mutableStateOf(false)}
+ TextButton(onClick={open=true}){Icon(Icons.Rounded.EmojiEvents,null,tint=Aqua);Text("선물 랭킹 TOP 50",modifier=Modifier.padding(start=6.dp),color=Aqua)}
+ if(open){
+  var data by remember{mutableStateOf<JSONObject?>(null)};var error by remember{mutableStateOf<String?>(null)};val scope=rememberCoroutineScope()
+  suspend fun load(){try{data=m.api.call("/api/producers/${p.optString("id")}/gifts",fresh=true);error=null}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}}
+  LaunchedEffect(p.optString("id")){load()}
+  ModalBottomSheet(onDismissRequest={open=false},containerColor=Panel,sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true)){
+   LazyColumn(Modifier.fillMaxWidth().heightIn(max=600.dp),contentPadding=PaddingValues(20.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+    item{Text("선물 랭킹 TOP 50",fontSize=23.sp);Text("누적 응원 · 1 G와 ★ 1은 각각 1점",fontSize=13.sp,color=Muted)}
+    if(data==null&&error==null)item{LinearProgressIndicator(Modifier.fillMaxWidth())}
+    error?.let{message->item{Text(message,color=Pink);TextButton(onClick={scope.launch{load()}}){Text("다시 불러오기")}}}
+    val fans=data?.optJSONArray("ranking").objects()
+    if(data!=null&&fans.isEmpty())item{Text("아직 받은 선물이 없어요.",color=Muted)}
+    items(fans){fan->val pid=fan.optString("profile_id").takeUnless{it.isBlank()||it=="null"};Surface(onClick={if(pid!=null){open=false;m.openProfile(pid)}},enabled=pid!=null,color=Panel){Row(Modifier.fillMaxWidth().padding(vertical=8.dp),verticalAlignment=Alignment.CenterVertically){Text(fan.optInt("rank").toString(),color=Aqua,modifier=Modifier.width(30.dp));Avatar(fan.optString("name"),pid?.let{payload("id" to it,"image_version" to fan.optString("image_version"))},38);Column(Modifier.weight(1f).padding(horizontal=10.dp)){Text(fan.optString("name"),fontSize=15.sp);Text("${fan.optInt("gold")} G · ★ ${fan.optInt("stars")}",fontSize=12.sp,color=Muted)};Text("${fan.optInt("score")}점",color=Aqua,fontSize=13.sp)}}}
+   }
+  }
  }
 }

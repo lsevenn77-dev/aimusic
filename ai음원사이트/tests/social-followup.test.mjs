@@ -14,12 +14,12 @@ test('listeners can create and join a crew using their existing public ID withou
  assert.equal((await f.call('/api/crews','POST',{name:''},'other')).status,400);
  assert.equal(f.sql.prepare("SELECT count(*) n FROM producers WHERE user_id='other'").get().n,0);
  const made=await f.call('/api/crews','POST',{name:'Listener crew'},'other');assert.equal(made.status,201);
- assert.equal(made.body.membership.role,'owner');assert.equal(made.body.members[0].name,'other');
+ assert.equal(made.body.membership.role,'owner');assert.equal(made.body.members[0].name,'other(Listener crew)');
  assert.deepEqual(f.sql.prepare("SELECT * FROM users WHERE id='other'").get(),before);
  assert.equal((await f.call('/api/crews','POST',{name:'Second crew'},'other')).status,409);
  assert.equal(f.sql.prepare("SELECT count(*) n FROM producers WHERE user_id='other'").get().n,1);
  const joined=await f.call('/api/crews/'+made.body.crew.id+'/join','POST');assert.equal(joined.status,200);
- assert.equal(joined.body.members.find(p=>p.user_id==='owner').name,'QA');
+ assert.equal(joined.body.members.find(p=>p.user_id==='owner').name,'QA(Listener crew)');
  assert.equal(f.sql.prepare("SELECT name FROM producers WHERE user_id='owner'").get().name,'QA');
 });
 test('received gold earns one XP per gold once, while earlier gifts and free stars earn none',async t=>{

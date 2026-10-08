@@ -91,9 +91,8 @@ import org.json.JSONObject
 @Composable internal fun MusicProfileHeader(m:MusicModel,p:JSONObject,tracks:List<Song>,covers:List<Song>,followers:Int,myPage:Boolean=false,close:(()->Unit)?=null){
  val own=p.optString("user_id")==m.user?.optString("id")
  val person=p.optString("profile_kind","producer")=="producer"
- var giftChoice by remember(p.optString("id")){mutableStateOf(false)}
  val music=(tracks+covers).distinctBy{it.id}
- val name=p.optString("name").ifBlank{m.user?.optString("name").orEmpty()}
+ val name=p.optString("display_name",p.optString("name")).ifBlank{m.user?.optString("name").orEmpty()}
  val context=if(myPage)"my-profile" else "profile"
  Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Panel).testTag("$context-header")){
   BoxWithConstraints(Modifier.fillMaxWidth()){
@@ -112,6 +111,7 @@ import org.json.JSONObject
       Endpoint.url("/media/${p.optString("profile_kind","producer")}/${p.optString("id")}?v=${p.optString("image_version")}"),
       "$name 프로필 사진",Modifier.fillMaxSize().testTag("$context-cover-image"),contentScale=ContentScale.Fit)
     }
+    if(person)ProfileGiftRanking(m,p)
     Text("팔로워 $followers · 공개 음악 ${music.size}",fontSize=12.sp,color=Muted,modifier=Modifier.fillMaxWidth().padding(top=12.dp))
    }
   }
@@ -127,17 +127,12 @@ import org.json.JSONObject
     else if(p.optString("profile_kind")!="listener")Button(onClick=m::follow,enabled=!m.busy,modifier=Modifier.weight(1f).heightIn(min=48.dp).testTag("profile-follow"),contentPadding=PaddingValues(horizontal=7.dp),shape=RoundedCornerShape(14.dp)){Text(if(m.follows.any{it.optString("target_id")==p.optString("id")&&it.optString("kind")==p.optString("profile_kind","producer")})"팔로잉" else "팔로우",fontSize=13.sp)}
     if(person&&!own){
      OutlinedButton(onClick={m.openMessages(p.optString("id"))},colors=ButtonDefaults.outlinedButtonColors(contentColor=SoftText),modifier=Modifier.weight(1f).heightIn(min=48.dp).testTag("profile-message"),contentPadding=PaddingValues(horizontal=6.dp),shape=RoundedCornerShape(14.dp)){Text("메시지",fontSize=13.sp)}
-     OutlinedButton(onClick={if(m.authenticated())giftChoice=true},enabled=music.isNotEmpty(),modifier=Modifier.weight(1f).heightIn(min=48.dp).testTag("profile-gift"),contentPadding=PaddingValues(horizontal=6.dp),shape=RoundedCornerShape(14.dp)){Icon(Icons.Rounded.CardGiftcard,null,Modifier.size(16.dp));Text("선물",fontSize=13.sp,modifier=Modifier.padding(start=4.dp))}
+     OutlinedButton(onClick={m.openPersonGift(p)},modifier=Modifier.weight(1f).heightIn(min=48.dp).testTag("profile-gift"),contentPadding=PaddingValues(horizontal=6.dp),shape=RoundedCornerShape(14.dp)){Icon(Icons.Rounded.CardGiftcard,null,Modifier.size(16.dp));Text("선물",fontSize=13.sp,modifier=Modifier.padding(start=4.dp))}
     }
    }
   }
  }
- if(giftChoice)AlertDialog(onDismissRequest={giftChoice=false},title={Text("${name}님에게 선물 보내기")},text={Column(Modifier.heightIn(max=360.dp).verticalScroll(rememberScrollState())){
-  Text("선물을 보낼 음악을 골라주세요. 선물은 선택한 곡에 기록되어 이 음악을 만든 사람에게 전달돼요.",fontSize=14.sp,color=Muted,modifier=Modifier.padding(bottom=16.dp).testTag("profile-gift-explanation"))
-  music.forEach{song->Surface(onClick={giftChoice=false;m.openGifts(song)},color=Stroke,shape=RoundedCornerShape(14.dp),modifier=Modifier.fillMaxWidth().padding(bottom=8.dp)){
-   Row(Modifier.padding(12.dp),verticalAlignment=Alignment.CenterVertically){Artwork(song,Modifier.size(48.dp));Column(Modifier.weight(1f).padding(horizontal=12.dp)){Text(song.title,fontWeight=FontWeight.SemiBold);Text(if(song.cover)"커버곡" else "제작곡",fontSize=12.sp,color=Muted)};Icon(Icons.Rounded.CardGiftcard,null,tint=Pink)}
-  }}
- }},confirmButton={TextButton(onClick={giftChoice=false}){Text("닫기")}})
+
 }
 
 @Composable private fun ProfileStatistic(label:String,count:Int,modifier:Modifier,tag:String,onClick:(()->Unit)?=null){

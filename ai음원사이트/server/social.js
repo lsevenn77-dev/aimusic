@@ -1,7 +1,7 @@
 import {assertUnblocked} from './account-safety.js';
 import {one,rows,query,run,now,id,str,fail,json,rate} from './db.js';
 import {requireUser} from './auth.js';
-import {publicNameSQL,producerNameSQL} from './identity.js';
+import {publicCrewNameSQL as publicNameSQL,memberNameSQL as producerNameSQL} from './identity.js';
 import {nicknameBatch} from './nicknames.js';
 import {trackList,VISIBLE} from './catalog.js';
 import {CREW_LEVELS,CREW_REWARDS,CREW_ROLES,crewLevel} from '../shared/crews.js';
@@ -41,7 +41,7 @@ async function crewDetail(env,cid,user){
  await syncXp(env,cid);
  const [c,membership,members,tracks,ban]=await Promise.all([
  one(env,`${crewSelect} WHERE c.id=?`,cid),
- user?one(env,'SELECT role,joined,joined_sequence FROM crew_members WHERE crew_id=? AND user_id=?',cid,user.id):null,
+ user?one(env,'SELECT role,joined,joined_sequence,muted FROM crew_members WHERE crew_id=? AND user_id=?',cid,user.id):null,
  rows(env,`SELECT p.id,p.user_id,${producerNameSQL()} name,p.image_version,m.role FROM crew_members m JOIN producers p ON p.user_id=m.user_id WHERE m.crew_id=? ORDER BY (m.role='owner') DESC,m.joined LIMIT 150`,cid),
  trackList(env,`${VISIBLE()} AND t.user_id IN (SELECT user_id FROM crew_members WHERE crew_id=?)`,[cid],'t.created DESC',60),
  user?one(env,'SELECT 1 FROM crew_bans WHERE crew_id=? AND user_id=?',cid,user.id):null]);

@@ -315,7 +315,7 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)A
    Row(Modifier.padding(bottom=20.dp),verticalAlignment=Alignment.CenterVertically){
     Avatar(m.user?.optString("name")?:"",m.ownProfile.optJSONObject("profile"),52)
     Column(Modifier.weight(1f).padding(start=14.dp)){
-     Text(m.user?.optString("name")?:"내 계정",fontSize=22.sp,fontWeight=FontWeight.Bold)
+     Text(m.user?.optString("display_name",m.user?.optString("name")?:"")?:"내 계정",fontSize=22.sp,fontWeight=FontWeight.Bold)
      val premium=m.membership.optLong("premium_until")>System.currentTimeMillis()/1000
      Text(if(premium)"Premium 회원" else "무료 회원",fontSize=13.sp,color=if(premium)Pink else Muted,modifier=Modifier.padding(top=4.dp))
     }

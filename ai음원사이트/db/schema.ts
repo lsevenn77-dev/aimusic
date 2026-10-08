@@ -44,12 +44,12 @@ export const karaokeJobs=sqliteTable('karaoke_jobs',{
 // Gold is bought in lots; gifts spend the oldest paid lots first. The check keeps a lot from being overspent
 // or spent once refunded, so a concurrent gift or refund rolls its whole batch back instead of corrupting balances.
 export const goldPurchases=sqliteTable('gold_purchases',{
- id:text('id').primaryKey(),userId:text('user_id').notNull().references(()=>users.id),channel:text('channel').notNull(),gold:integer('gold').notNull(),used:integer('used').notNull().default(0),priceKrw:integer('price_krw').notNull(),feeKrw:integer('fee_krw').notNull().default(0),status:text('status').notNull().default('pending'),providerRef:text('provider_ref'),created:integer('created').notNull(),paidAt:integer('paid_at').notNull().default(0)
+ id:text('id').primaryKey(),userId:text('user_id').notNull().references(()=>users.id),channel:text('channel').notNull(),gold:integer('gold').notNull(),used:integer('used').notNull().default(0),priceKrw:integer('price_krw').notNull(),feeKrw:integer('fee_krw').notNull().default(0),taxKrw:integer('tax_krw').notNull().default(0),status:text('status').notNull().default('pending'),providerRef:text('provider_ref'),created:integer('created').notNull(),paidAt:integer('paid_at').notNull().default(0)
 },t=>[index('gold_purchases_user').on(t.userId,t.status,t.paidAt),uniqueIndex('gold_purchases_ref').on(t.channel,t.providerRef),check('gold_purchases_usage',sql`${t.used} >= 0 AND ${t.used} <= ${t.gold} AND (${t.status} = 'paid' OR ${t.used} = 0)`)]);
 // Shares are frozen per gift in milli-won: the cover singer, the original's creator and the platform.
 export const gifts=sqliteTable('gifts',{
  giftType:text('gift_type'),giftName:text('gift_name'),requestId:text('request_id'),
- id:text('id').primaryKey(),senderId:text('sender_id').notNull().references(()=>users.id),trackId:text('track_id').notNull().references(()=>tracks.id),gold:integer('gold').notNull(),netMw:integer('net_mw').notNull(),singerProfileId:text('singer_profile_id'),creatorProfileId:text('creator_profile_id').notNull(),singerMw:integer('singer_mw').notNull().default(0),creatorMw:integer('creator_mw').notNull(),platformMw:integer('platform_mw').notNull(),month:text('month').notNull(),created:integer('created').notNull()
+ id:text('id').primaryKey(),senderId:text('sender_id').notNull().references(()=>users.id),trackId:text('track_id').references(()=>tracks.id),gold:integer('gold').notNull(),netMw:integer('net_mw').notNull(),singerProfileId:text('singer_profile_id'),creatorProfileId:text('creator_profile_id').notNull(),singerMw:integer('singer_mw').notNull().default(0),creatorMw:integer('creator_mw').notNull(),platformMw:integer('platform_mw').notNull(),month:text('month').notNull(),created:integer('created').notNull()
 },t=>[index('gifts_track').on(t.trackId,t.created),index('gifts_sender').on(t.senderId,t.created),index('gifts_singer').on(t.singerProfileId,t.month),index('gifts_creator').on(t.creatorProfileId,t.month),uniqueIndex('gifts_request').on(t.senderId,t.requestId)]);
 // Free cheers are earned, never sold or converted into gold or payout earnings.
 export const freeGiftWallets=sqliteTable('free_gift_wallets',{
@@ -59,7 +59,7 @@ export const freeGiftClaims=sqliteTable('free_gift_claims',{
  userId:text('user_id').notNull().references(()=>users.id),day:text('day').notNull(),kind:text('kind').notNull(),amount:integer('amount').notNull(),created:integer('created').notNull()
 },t=>[primaryKey({columns:[t.userId,t.day,t.kind]})]);
 export const freeGifts=sqliteTable('free_gifts',{
- id:text('id').primaryKey(),senderId:text('sender_id').notNull().references(()=>users.id),trackId:text('track_id').notNull().references(()=>tracks.id),requestId:text('request_id').notNull(),created:integer('created').notNull()
+ recipientProfileId:text('recipient_profile_id').references(()=>producers.id),id:text('id').primaryKey(),senderId:text('sender_id').notNull().references(()=>users.id),trackId:text('track_id').references(()=>tracks.id),requestId:text('request_id').notNull(),created:integer('created').notNull()
 },t=>[uniqueIndex('free_gifts_request').on(t.senderId,t.requestId),index('free_gifts_track').on(t.trackId,t.created)]);
 export const giftLots=sqliteTable('gift_lots',{
  giftId:text('gift_id').notNull().references(()=>gifts.id),purchaseId:text('purchase_id').notNull().references(()=>goldPurchases.id),gold:integer('gold').notNull(),netMw:integer('net_mw').notNull()
@@ -97,7 +97,7 @@ export const crews=sqliteTable('crews',{
  id:text('id').primaryKey(),ownerId:text('owner_id').notNull().references(()=>users.id),name:text('name').notNull(),description:text('description').notNull().default(''),interests:text('interests').notNull().default(''),imageVersion:text('image_version').notNull().default(''),recruiting:integer('recruiting').notNull().default(1),created:integer('created').notNull()
 },t=>[uniqueIndex('crews_name').on(t.name)]);
 export const crewMembers=sqliteTable('crew_members',{
- crewId:text('crew_id').notNull().references(()=>crews.id,{onDelete:'cascade'}),userId:text('user_id').notNull().references(()=>users.id),role:text('role').notNull().default('member'),joined:integer('joined').notNull(),joinedSequence:integer('joined_sequence').notNull().default(0),readSequence:integer('read_sequence').notNull().default(0)
+ muted:integer('muted').notNull().default(0),crewId:text('crew_id').notNull().references(()=>crews.id,{onDelete:'cascade'}),userId:text('user_id').notNull().references(()=>users.id),role:text('role').notNull().default('member'),joined:integer('joined').notNull(),joinedSequence:integer('joined_sequence').notNull().default(0),readSequence:integer('read_sequence').notNull().default(0)
 },t=>[primaryKey({columns:[t.crewId,t.userId]}),uniqueIndex('crew_members_user').on(t.userId)]);
 export const crewXp=sqliteTable('crew_xp',{
  id:text('id').primaryKey(),crewId:text('crew_id').notNull().references(()=>crews.id,{onDelete:'cascade'}),userId:text('user_id').notNull().references(()=>users.id),amount:integer('amount').notNull(),created:integer('created').notNull()

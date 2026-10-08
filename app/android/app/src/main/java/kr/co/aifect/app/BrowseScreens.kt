@@ -421,7 +421,7 @@ private val PagePadding=PaddingValues(start=22.dp,end=22.dp,bottom=32.dp)
      Button(onClick={m.showLogin=true}){Text("로그인하고 시작하기")}
     }
    }else{
-    Row(Modifier.fillMaxWidth().padding(bottom=20.dp),verticalAlignment=Alignment.CenterVertically){Box(Modifier.clickable{m.editProfile()}){Avatar(m.user?.optString("name")?:"",m.ownProfile.optJSONObject("profile"),48)};Column(Modifier.padding(start=14.dp).weight(1f)){Text(m.user?.optString("name")?:"",fontSize=19.sp,fontWeight=FontWeight.Bold);Text("좋아요 ${m.likes.size} · 플레이리스트 ${m.playlists.size}",color=Muted,fontSize=13.sp,modifier=Modifier.padding(top=5.dp))};IconButton(onClick={m.showAccount=true}){Icon(Icons.Rounded.Settings,"계정 설정",tint=Muted)}}
+    Row(Modifier.fillMaxWidth().padding(bottom=20.dp),verticalAlignment=Alignment.CenterVertically){Box(Modifier.clickable{m.editProfile()}){Avatar(m.user?.optString("name")?:"",m.ownProfile.optJSONObject("profile"),48)};Column(Modifier.padding(start=14.dp).weight(1f)){Text(m.user?.optString("display_name",m.user?.optString("name")?:"")?:"",fontSize=19.sp,fontWeight=FontWeight.Bold);Text("좋아요 ${m.likes.size} · 플레이리스트 ${m.playlists.size}",color=Muted,fontSize=13.sp,modifier=Modifier.padding(top=5.dp))};IconButton(onClick={m.showAccount=true}){Icon(Icons.Rounded.Settings,"계정 설정",tint=Muted)}}
     Row{TextButton(onClick={m.selectTab(6)}){Text("내 페이지")};TextButton(onClick={m.libraryPage="팔로워"}){Text("팔로워 ${m.ownProfile.optInt("follower_count")}")};TextButton(onClick={m.libraryPage="팔로잉"}){Text("팔로잉 ${m.ownProfile.optInt("following_count")}")}}
     Chips(listOf("플레이리스트","최근 감상","좋아요","내 커버곡","내 제작곡","팔로잉","팔로워"),filter){m.libraryPage=it;query=""}
     Spacer(Modifier.height(12.dp))

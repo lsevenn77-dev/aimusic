@@ -29,3 +29,8 @@
 
 .inbox-tools .text-link{background:transparent;border:0;color:var(--music-aqua,#8eddd2);font:inherit;font-size:12px;padding:6px}.chat-attachment-tools .icon-button:focus-visible{outline:2px solid #8eddd2;outline-offset:2px}
 .header-messages{position:relative;display:inline-flex;align-items:center;gap:7px;min-height:40px;color:var(--muted,#a6adba);text-decoration:none}.header-messages svg{width:20px;height:20px}.header-messages:hover{color:#8eddd2}@media(max-width:800px){.header-messages{display:none}}
+
+.profile-gift-ranking{white-space:nowrap}.profile-fan-ranking{padding:0;list-style:none;max-height:60vh;overflow:auto}.profile-fan-ranking li{display:flex;align-items:center;gap:12px;min-height:64px;border-bottom:1px solid #ffffff09}.profile-fan-ranking li>b{width:26px;color:#8eddd2}.profile-fan-ranking li>a,.profile-fan-ranking li>span{display:flex;align-items:center;gap:10px;flex:1;min-width:0;text-decoration:none}.profile-fan-ranking img,.fan-initial{width:38px;height:38px;border-radius:50%;object-fit:cover;display:grid;place-items:center;background:#25353c;flex:none}.profile-fan-ranking small{display:block;color:#a6adba;margin-top:4px}.profile-fan-ranking li>strong{font-size:13px;color:#8eddd2;white-space:nowrap}
+
+.gold-pack .gold-bonus,.billing-checkout-summary .gold-bonus{margin:0;color:var(--aqua,#8eddd2);font-size:13px;line-height:1.5;font-weight:600}
+.gold-pack .gold-bonus span{display:block;white-space:nowrap}

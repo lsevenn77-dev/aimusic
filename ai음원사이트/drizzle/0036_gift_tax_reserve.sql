@@ -1,0 +1,1 @@
+ALTER TABLE `gold_purchases` ADD `tax_krw` integer DEFAULT 0 NOT NULL;

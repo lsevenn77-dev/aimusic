@@ -65,7 +65,8 @@ object PushNotifications {
  }
  fun show(c:Context,data:Map<String,String>){
   val kind=data["kind"]?:return
-  if(kind !in setOf("dm","comment","gift")||!enabled(c,kind))return
+  val preference=if(kind=="crew")"dm" else if(kind=="person_gift")"gift" else kind
+  if(kind !in setOf("dm","comment","gift","crew","person_gift")||!enabled(c,preference))return
   val user=prefs(c).getString("user",null)?:return
   if(data["recipient"]!=user)return
   val target=data["target"]?:return
@@ -76,7 +77,7 @@ object PushNotifications {
   val pending=PendingIntent.getActivity(c,notificationId,intent,PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
   val title=data["title"]?.take(100)?:"AIFECT"
   val body=data["body"]?.take(300)?:"새 알림이 도착했어요."
-  val notification=NotificationCompat.Builder(c,"aifect_$kind").setSmallIcon(R.drawable.ic_push)
+  val notification=NotificationCompat.Builder(c,"aifect_$preference").setSmallIcon(R.drawable.ic_push)
    .setContentTitle(title).setContentText(body).setStyle(NotificationCompat.BigTextStyle().bigText(body))
    .setContentIntent(pending).setAutoCancel(true).setOnlyAlertOnce(kind!="dm")
    .setVisibility(NotificationCompat.VISIBILITY_PRIVATE).build()
