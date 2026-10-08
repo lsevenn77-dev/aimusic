@@ -7,7 +7,7 @@ import {generateKeyPair,exportPKCS8} from 'jose';
 test('device binding requires the current account; token reassignment and preferences stay private',async t=>{
  const f=await fixture(t),token='a'.repeat(120);
  assert.equal((await f.call('/api/push/device','PUT',{token,platform:'android',account_id:'other'})).status,409);
- assert.equal((await f.call('/api/push/device','PUT',{token,platform:'android',account_id:'owner'})).status,200);
+ assert.equal((await f.call('/api/push/device','PUT',{token,platform:'ios',account_id:'owner'})).status,200);
  assert.equal((await f.call('/api/push/device','PUT',{token,platform:'android',account_id:'other'},'other')).status,200);
  assert.equal(f.sql.prepare('SELECT user_id FROM push_devices WHERE token=?').get(token).user_id,'other');
  await f.call('/api/push/device','DELETE',{token});assert.equal(f.sql.prepare('SELECT count(*) n FROM push_devices').get().n,1);
@@ -25,10 +25,10 @@ test('delivery ignores expired login and disabled alerts, retries failure, remov
  f.sql.prepare('INSERT INTO push_devices VALUES(?,?,?,?)').run('expired','owner','revoked-session',0);
  f.sql.prepare("INSERT INTO push_outbox(id,recipient,kind,target,created) VALUES('event','owner','gift','one',?)").run(Math.floor(Date.now()/1000));
  const original=globalThis.fetch;t.after(()=>{globalThis.fetch=original;});
- let deliveries=[];let status=503;
+ let deliveries=[];let payloads=[];let status=503;
  globalThis.fetch=async(url,options)=>url.includes('oauth2')?Response.json({access_token:'isolated-test',expires_in:3600}):
-  (deliveries.push(JSON.parse(options.body).message.token),Response.json(status===404?{error:{details:[{errorCode:'UNREGISTERED'}]}}:{},{status}));
- await dispatchPush(env);assert.deepEqual(deliveries,['live']);assert.equal(f.sql.prepare('SELECT delivered FROM push_outbox').get().delivered,0);
+  (payloads.push(JSON.parse(options.body).message),deliveries.push(JSON.parse(options.body).message.token),Response.json(status===404?{error:{details:[{errorCode:'UNREGISTERED'}]}}:{},{status}));
+ await dispatchPush(env);assert.deepEqual(deliveries,['live']);assert.equal(payloads[0].apns.payload.aps.alert.body,'내 음악에 선물이 도착했어요.');assert.equal(payloads[0].apns.headers['apns-push-type'],'alert');assert.equal(f.sql.prepare('SELECT delivered FROM push_outbox').get().delivered,0);
  f.sql.exec('UPDATE push_outbox SET lease_until=0');status=404;
  await dispatchPush(env);assert.equal(f.sql.prepare("SELECT count(*) n FROM push_devices WHERE token='live'").get().n,0);
  assert.equal(f.sql.prepare('SELECT delivered FROM push_outbox').get().delivered,1);

@@ -10,7 +10,7 @@ export function activePlaylistSQL(alias='p'){
  const choices=limit=>`SELECT choice.id FROM playlists choice JOIN users owner ON owner.id=choice.user_id
  WHERE choice.user_id=${alias}.user_id
  ORDER BY EXISTS(SELECT 1 FROM json_each(owner.playlist_selection) selected WHERE selected.value=choice.id) DESC,choice.created,choice.id LIMIT ${limit}`;
- return `(${alias}.id IN (${choices(2)}) OR (EXISTS(SELECT 1 FROM users member WHERE member.id=${alias}.user_id AND member.premium_until>unixepoch()) AND ${alias}.id IN (${choices(10)})))`;
+ return `(${alias}.id IN (${choices(2)}) OR (EXISTS(SELECT 1 FROM users member WHERE member.id=${alias}.user_id AND MAX(member.premium_until,member.apple_premium_until)>unixepoch()) AND ${alias}.id IN (${choices(10)})))`;
 }
 export async function membership(env,user){
  if(!user)return {plan:'free',playlist_limit:2,owned_count:0,active_ids:[],locked_count:0,full_lyrics:false,premium_until:null,checkout_available:false};

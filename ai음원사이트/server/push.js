@@ -29,7 +29,7 @@ export async function pushRoute(req,env,path,user){
  if(typeof b.token!=='string'||b.token.length<30||b.token.length>4096||!/^[\w:-]+$/.test(b.token))fail(400,'알림 기기를 확인해주세요.');
  if(req.method==='DELETE'){await run(env,'DELETE FROM push_devices WHERE token=? AND user_id=?',b.token,user.id);return json({ok:true});}
  if(req.method!=='PUT')fail(405,'지원하지 않는 요청입니다.');
- if(b.platform!=='android'||b.account_id!==user.id)fail(409,'로그인 계정이 바뀌었어요.');
+ if(!['android','ios'].includes(b.platform)||b.account_id!==user.id)fail(409,'로그인 계정이 바뀌었어요.');
  await rate(env,'push-device:'+user.id,60,3600);
  const sessionHash=await hash(cookies(req).aifect_session);
  await run(env,`INSERT INTO push_devices(token,user_id,session_token,updated) VALUES(?,?,?,?)
@@ -70,6 +70,9 @@ export async function dispatchPush(env){
  let auth;try{auth=await accessToken(env);}catch{console.error('Push authorization failed');return;}
  await Promise.allSettled(events.map(async event=>{
   if(!kinds.includes(event.kind))return;
+  if(event.kind==='dm'&&await one(env,'SELECT 1 FROM dm_settings s JOIN producers p ON p.user_id=s.peer_id WHERE s.user_id=? AND p.id=? AND s.muted=1',event.recipient,event.target)){
+   await run(env,'UPDATE push_outbox SET delivered=1 WHERE id=?',event.id);return;
+  }
   if(event.kind!=='dm'&&!await one(env,"SELECT id FROM tracks WHERE id=? AND status='published'",event.target)){
    await run(env,'UPDATE push_outbox SET delivered=1 WHERE id=?',event.id);return;
   }
@@ -81,7 +84,7 @@ export async function dispatchPush(env){
    try{
     const response=await fetch(`https://fcm.googleapis.com/v1/projects/${auth.project}/messages:send`,{
      method:'POST',headers:{authorization:`Bearer ${auth.token}`,'content-type':'application/json'},signal:AbortSignal.timeout(8000),
-     body:JSON.stringify({message:{token:device.token,data:notificationData(event),android:{priority:'high',ttl:'86400s'}}})});
+     body:JSON.stringify({message:{token:device.token,data:notificationData(event),android:{priority:'high',ttl:'86400s'},apns:{headers:{'apns-priority':'10','apns-push-type':'alert','apns-expiration':String(at+86400)},payload:{aps:{alert:{title:notificationData(event).title,body:notificationData(event).body},sound:'default'}}}}})});
     if(!response.ok){
      const error=await response.json();
      if(error.error?.details?.some(d=>d.errorCode==='UNREGISTERED'))await run(env,'DELETE FROM push_devices WHERE token=? AND user_id=?',device.token,event.recipient);

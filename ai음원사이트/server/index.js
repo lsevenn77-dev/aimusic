@@ -1,6 +1,9 @@
+import {accountSafetyRoute,blockedContext,filterBlockedResponse,drainDeletedFiles} from './account-safety.js';
+import {applePaymentRoute,appleNotification} from './apple-payments.js';
 import {profileRoute} from './profiles.js';
 import {playBillingRoute,playWebhook} from './play-billing.js';
 import {pushRoute,dispatchPush,retryPush} from './push.js';
+import {chatFeaturesRoute,queueChatImageCleanup,cleanupChatImages} from './chat-features.js';
 import {socialRoute} from './social.js';
 import {chatStreamRoute} from './chat-stream.js';
 import {publicUser} from './identity.js';
@@ -28,6 +31,14 @@ import {billingRoute,billingWebhook,billingTick} from './billing.js';
 export default {async fetch(req,env,ctx){
  const url=new URL(req.url),path=url.pathname;
  try{
+  // Google sign-in is registered for the public domain, not the legacy Sites
+  // address. Redirect page visits before a login flow creates domain cookies.
+  if(url.hostname==='wavv-music-design-lseve.sassy-auk-0975.chatgpt.site'&&['GET','HEAD'].includes(req.method)&&!/^\/(api|media|internal)\//.test(path)){
+   url.protocol='https:';url.host='aifect.co.kr';return Response.redirect(url.href,308);
+  }
+  if(env.BUCKET&&ctx?.waitUntil&&(path.startsWith('/api/')||path.startsWith('/internal/')))ctx.waitUntil(drainDeletedFiles(env).catch(()=>console.error('Account file cleanup pending')));
+  if(path.startsWith('/api/')||path.startsWith('/internal/'))queueChatImageCleanup(env,ctx);
+  if(path==='/api/apple/notifications')return await appleNotification(req,env);
   if(path==='/api/play/notifications')return await playWebhook(req,env);
   if(path==='/api/gold/nicepay/callback')return await goldCallback(req,env);
   if(path==='/api/billing/nicepay/webhook')return await billingWebhook(req,env);
@@ -47,7 +58,7 @@ export default {async fetch(req,env,ctx){
   }
   if(path.startsWith('/api/auth/')&&!path.endsWith('/callback'))await rate(env,'auth-ip:'+await hash(req.headers.get('cf-connecting-ip')||'local'),40,900);
   const maxJson=path==='/api/uploads'||/^\/api\/studio\/tracks\/[^/]+(?:\/lyrics\/align)?$/.test(path)?131072:32768;
-  const binary=path==='/api/me/profile/image'||/^\/api\/uploads\/[^/]+\/(audio|cover)$/.test(path)||/^\/api\/studio\/(artists|producers|tracks)\/[^/]+\/image$/.test(path)||/^\/api\/studio\/tracks\/[^/]+\/karaoke\/mr$/.test(path);
+  const binary=/^\/api\/(dm\/[\w-]+\/images|crews\/[\w-]+\/image)$/.test(path)||path==='/api/me/profile/image'||/^\/api\/uploads\/[^/]+\/(audio|cover)$/.test(path)||/^\/api\/studio\/(artists|producers|tracks)\/[^/]+\/image$/.test(path)||/^\/api\/studio\/tracks\/[^/]+\/karaoke\/mr$/.test(path);
   if(!binary&&req.body){
    if(Number(req.headers.get('content-length')||0)>maxJson)fail(413,'요청이 너무 큽니다.');
    const reader=req.body.getReader(),chunks=[];let size=0;
@@ -56,6 +67,8 @@ export default {async fetch(req,env,ctx){
    req=new Request(req,{body});
   }
   const user=await viewer(req,env);
+  env=await blockedContext(env,user);
+  const safety=await accountSafetyRoute(req,env,path,user);if(safety)return safety;
   const playResponse=await playBillingRoute(req,env,path,user);if(playResponse)return playResponse;
   retryPush(env,ctx);
   const pushResponse=await pushRoute(req,env,path,user);if(pushResponse)return pushResponse;
@@ -67,19 +80,19 @@ export default {async fetch(req,env,ctx){
    query(env,'DELETE FROM oauth_states WHERE expires<?',now()),
    query(env,'DELETE FROM rate_limits WHERE expires<?',now())
   ]).catch(()=>console.error('Expired authentication state cleanup failed')));
-  const result=await profileRoute(req,env,path,user)||await socialRoute(req,env,path,user)||await authRoute(req,env,path,user)||await billingRoute(req,env,path,user)||await membershipRoute(req,env,path,user)||await alignmentRoute(req,env,path,user)||await karaokeRoute(req,env,path,user)||await coverRoute(req,env,path,user)||await duetRoute(req,env,path,user)||await goldOrderRoute(req,env,path,user)||await giftRoute(req,env,path,user)||await coverRankingRoute(req,env,path)||await commentModerationRoute(req,env,path,user)||await trackModerationRoute(req,env,path,user)||await payoutRoute(req,env,path,user)||await lyricsRoute(req,env,path,user)||await catalogRoute(req,env,path,user)||await mediaRoute(req,env,path,user);
+  const result=await chatFeaturesRoute(req,env,path,user)||await applePaymentRoute(req,env,path,user)||await profileRoute(req,env,path,user)||await socialRoute(req,env,path,user)||await authRoute(req,env,path,user)||await billingRoute(req,env,path,user)||await membershipRoute(req,env,path,user)||await alignmentRoute(req,env,path,user)||await karaokeRoute(req,env,path,user)||await coverRoute(req,env,path,user)||await duetRoute(req,env,path,user)||await goldOrderRoute(req,env,path,user)||await giftRoute(req,env,path,user)||await coverRankingRoute(req,env,path)||await commentModerationRoute(req,env,path,user)||await trackModerationRoute(req,env,path,user)||await payoutRoute(req,env,path,user)||await lyricsRoute(req,env,path,user)||await catalogRoute(req,env,path,user)||await mediaRoute(req,env,path,user);
   if(result){
    if(req.method==='POST'&&result.ok&&(path.startsWith('/api/dm/')||/^\/api\/tracks\/[^/]+\/(comments|gifts)$/.test(path)))ctx.waitUntil(dispatchPush(env).catch(()=>console.error('Push dispatch failed')));
    if(path.startsWith('/api/auth/')&&result.headers.get('content-type')?.includes('application/json')){
     const body=await result.clone().json();if(body.user){body.user=await publicUser(env,body.user);return new Response(JSON.stringify(body),{status:result.status,headers:result.headers});}
    }
-   return result;
+   return req.method==='GET'&&!/^\/api\/(apple|play|gold|billing|payout|account|me|studio)/.test(path)?await filterBlockedResponse(env,result):result;
   }
   return json({error:'페이지를 찾을 수 없습니다.'},404);
  }catch(e){
-  if(!e.status)console.error(JSON.stringify({path,error:e.name,...((path.includes('/billing/')||path.includes('/gold/')||path.includes('/play/'))?{}:{message:String(e.message).slice(0,300)})}));
+  if(!e.status)console.error(JSON.stringify({path,error:e.name,...((path.includes('/billing/')||path.includes('/gold/')||path.includes('/play/')||path.includes('/apple/'))?{}:{message:String(e.message).slice(0,300)})}));
   const status=e.status||500,message=e.status?e.message:'잠시 연결이 원활하지 않습니다. 입력 내용은 유지되니 다시 시도해주세요.';
   if(path.includes('/auth/')&&path.endsWith('/callback'))return new Response(null,{status:303,headers:{location:'/#account?error='+encodeURIComponent(message),'cache-control':'no-store'}});
   return json({error:message},status);
  }
-}};
+},async scheduled(event,env,ctx){ctx.waitUntil(cleanupChatImages(env));}};

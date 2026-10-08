@@ -72,7 +72,7 @@ class MainActivity:ComponentActivity(){
  private fun resumeDraft(draft:org.json.JSONObject){
   if(!model.authenticated())return
   model.controller?.pause()
-  recordingLauncher.launch(Intent(this,KaraokeActivity::class.java).putExtra("origin",Endpoint.origin).putExtra("ownerId",model.user?.optString("id")).putExtra("trackId",draft.getString("trackId")).putExtra("coverMode",draft.optString("coverMode","solo")).putExtra("duetPart",draft.optString("duetPart","")).putExtra("duetParentId",draft.optString("duetParent","")))
+  recordingLauncher.launch(Intent(this,KaraokeActivity::class.java).putExtra("origin",Endpoint.origin).putExtra("ownerId",model.user?.optString("id")).putExtra("resumeDraft",true).putExtra("draftFolder",draft.optString("folder")).putExtra("trackId",draft.getString("trackId")).putExtra("coverMode",draft.optString("coverMode","solo")).putExtra("duetPart",draft.optString("duetPart","")).putExtra("duetParentId",draft.optString("duetParent","")))
  }
  private fun sing(song:Song){
   if(!model.authenticated())return

@@ -99,6 +99,8 @@ internal object NativeChatCache {
    if(previous.draft!=draft)writeLocked(context,accountId,old.copy(threads=old.threads+(peerId to previous.copy(draft=draft.take(2000),updated=System.currentTimeMillis()))))
   }
  }
+ suspend fun clear(context:Context,accountId:String,peerId:String?=null)=withContext(Dispatchers.IO){io.withLock{val old=readLocked(context,accountId);writeLocked(context,accountId,if(peerId==null)NativeDmSnapshot()else old.copy(conversations=old.conversations.filterNot{it.optString("id")==peerId},threads=old.threads-peerId))}}
+ suspend fun clearThrough(context:Context,accountId:String,peerId:String,sequence:Long)=withContext(Dispatchers.IO){if(sequence>0)io.withLock{val old=readLocked(context,accountId);val thread=old.threads[peerId]?:return@withLock;val kept=thread.messages.filter{it.optLong("sequence")==0L||it.optLong("sequence")>sequence};if(kept.size!=thread.messages.size)writeLocked(context,accountId,old.copy(threads=old.threads+(peerId to thread.copy(messages=kept))))}}
  private fun encode(accountId:String,snapshot:NativeDmSnapshot)=JSONObject().put("version",VERSION).put("account",accountId).put("origin",Endpoint.origin)
   .put("conversations",JSONArray(snapshot.conversations.take(100))).put("threads",JSONArray().apply{
    snapshot.threads.forEach{(id,thread)->put(JSONObject().put("id",id).put("peer",thread.peer?:JSONObject.NULL).put("messages",JSONArray(thread.messages)).put("earlier",thread.earlier).put("draft",thread.draft).put("updated",thread.updated).put("read_sequence",thread.readSequence))}

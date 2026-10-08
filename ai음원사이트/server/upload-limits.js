@@ -17,6 +17,6 @@ export async function requireUploadQuota(env,user){
 export async function completeUpload(env,track,user){
  const at=now(),month=uploadMonth(at);
  // Claim the last available slot and submit the track in one atomic statement.
- const updated=await query(env,`UPDATE tracks SET status='queued',uploaded_at=? WHERE id=? AND user_id=? AND status='uploading' AND (kind='cover' OR (${countSQL}) < (SELECT CASE WHEN premium_until>? THEN 20 ELSE 5 END FROM users WHERE id=?)) RETURNING id`,at,track.id,user.id,user.id,month.start,month.end,at,user.id).first();
+ const updated=await query(env,`UPDATE tracks SET status='queued',uploaded_at=? WHERE id=? AND user_id=? AND status='uploading' AND (kind='cover' OR (${countSQL}) < (SELECT CASE WHEN MAX(premium_until,apple_premium_until)>? THEN 20 ELSE 5 END FROM users WHERE id=?)) RETURNING id`,at,track.id,user.id,user.id,month.start,month.end,at,user.id).first();
  if(!updated){await requireUploadQuota(env,user);fail(409,'이미 제출한 업로드입니다.');}
 }

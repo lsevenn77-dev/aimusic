@@ -62,7 +62,7 @@ import java.util.UUID
    success?.let{item{Text(it,color=Aqua,fontSize=17.sp)}}
    if(wallet!=null){
     item{Text("보유 응원별 ★ ${free?.optInt("balance")?:0}    골드 ${wallet?.optInt("balance")} G",color=Aqua);Text("별은 무료 응원 선물이에요. 현금 가치·골드 전환·수익 정산이 없어요.",fontSize=14.sp,color=Muted,modifier=Modifier.padding(top=8.dp))}
-    item{TextButton(onClick={m.showGifts=false;m.showRewards=true}){Text("오늘의 응원별 보상 받기")}}
+    item{Surface(onClick={m.showGifts=false;m.showRewards=true},color=Raised,shape=RoundedCornerShape(16.dp)){Text("오늘의 응원별 · 무료 보상 받기",color=Aqua,modifier=Modifier.fillMaxWidth().padding(18.dp))}}
     item{Text("선물 고르기",fontSize=19.sp);Text("★ 1 = 1 G = 응원 순위 1점 · 1 G = 10원",fontSize=13.sp,color=Muted)}
     items(catalog.chunked(4)){row->Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(7.dp)){
      row.forEach{gift->val gid=gift.optString("id");Surface(onClick={if(!working){selected=gid;requestId=UUID.randomUUID().toString();success=null;error=null}},modifier=Modifier.weight(1f),shape=RoundedCornerShape(12.dp),color=if(selected==gid)Stroke else Ink,border=BorderStroke(1.dp,if(selected==gid)Pink else Stroke)){
@@ -74,7 +74,7 @@ import java.util.UUID
       Text(if(balance>=cost)"보낸 뒤 ${balance-cost} $suffix" else if(isFree)"오늘의 보상을 받아 응원별을 모아주세요." else "보유 골드가 부족해요.",color=Muted,fontSize=14.sp)
       Button(onClick={confirm=true},enabled=!working&&choice!=null&&balance>=cost,modifier=Modifier.fillMaxWidth().padding(top=10.dp)){Text(if(working)"보내는 중…" else "${choice?.optString("name")?:"선물"} $cost $suffix 보내기")}
      }else Text("곡의 재생 화면이나 상세 화면에서 선물할 수 있어요.",color=Aqua)
-     TextButton(onClick={m.showGifts=false;m.showBilling=true}){Text("Google Play로 골드 충전")}
+     Button(onClick={m.showGifts=false;m.showBilling=true},modifier=Modifier.fillMaxWidth()){Text("Google Play로 골드 충전")}
      Text("받은 별은 누적되며 매일 0시(한국 시간)에 보상 조건이 갱신돼요.",fontSize=13.sp,color=Muted,modifier=Modifier.padding(top=10.dp))
     }
    }

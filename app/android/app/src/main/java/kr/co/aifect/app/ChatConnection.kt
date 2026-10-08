@@ -43,13 +43,13 @@ internal suspend fun NativeApi.watchChat(query:String,state:(String)->Unit,refre
  var failures=0
  while(currentCoroutineContext().isActive){
   try{
-   state("연결 중…")
-   chatEvents(query).collect{refresh();state("대화 연결됨");failures=0}
+   state("")
+   chatEvents(query).collect{refresh();state("");failures=0}
    delay(250)
   }catch(e:Exception){
    if(e is CancellationException)throw e
    if(e is ApiException&&e.status in listOf(401,403))throw e
-   failures++;state("다시 연결 중 · 새 대화를 자동으로 확인합니다")
+   failures++;state(if(failures>3)"새 메시지 연결을 확인하고 있어요." else "")
    // A gateway without streaming support can still use the original API.
    try{refresh()}catch(refreshError:Exception){
     if(refreshError is CancellationException)throw refreshError

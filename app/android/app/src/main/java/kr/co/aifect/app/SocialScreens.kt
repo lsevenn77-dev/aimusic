@@ -27,6 +27,8 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
@@ -79,12 +81,12 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
  return if(cursor!=null&&cursor>0)"?"+(if(older)"before=" else "after=")+cursor else ""
 }
 
-@Composable internal fun CrewScreen(m:MusicModel,sing:(Song)->Unit,initialCrew:String?=null){
+@Composable internal fun CrewScreen(m:MusicModel,sing:(Song)->Unit,initialCrew:String?=null,initialChat:Boolean=false){
  val accountId=m.user?.optString("id")
  var selected by remember(accountId,initialCrew){mutableStateOf(initialCrew?:m.lastKnownCrewId.takeUnless{m.crewBrowsing})}
  var myCrew by remember(accountId){mutableStateOf(m.lastKnownCrewId)}
  var browsing by remember(accountId){mutableStateOf(m.crewBrowsing)}
- var crewTab by remember(selected){mutableStateOf("채팅")}
+ var crewTab by remember(selected){mutableStateOf(if(initialChat)"채팅" else "음악")}
  val crewScroll=rememberLazyListState()
  var query by remember(accountId){mutableStateOf("")}
  var result by remember(accountId,query){mutableStateOf(m.peekCrewDirectory(query)?:JSONObject())}
@@ -179,7 +181,7 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
   val pending=retry?.let{JSONObject(it.toString())}?:payload("id" to "pending:$rid","request_id" to rid,"body" to body.trim(),"created" to System.currentTimeMillis()/1000,"user_id" to accountId,"name" to m.user?.optString("name"),"profile_id" to m.user?.optString("profile_id"),"role" to verifiedMembership?.optString("role"))
   pending.put("delivery","sending");messages=mergeChat(messages,listOf(pending));if(retry==null)body="";sending=true
   m.viewModelScope.launch{try{
-   val sent=m.api.call("/api/crews/$cid/messages","POST",payload("body" to pending.optString("body"),"request_id" to rid))
+   val sent=m.api.call("/api/crews/$cid/messages","POST",payload("body" to pending.optString("body"),"request_id" to rid,"image_id" to pending.optString("image_id").takeIf{it.isNotBlank()}))
    if(m.user?.optString("id")==accountId)m.invalidateCrewPreviews()
    if(current(cid,generation))sent.optJSONObject("message")?.let{messages=mergeChat(messages,listOf(it))}
   }catch(e:Exception){if(e is CancellationException)throw e;if(current(cid,generation)){if(e is ApiException&&e.status in listOf(401,403))denyMembership(cid)else if(messages.any{it.optString("id")==pending.optString("id")})messages=messages.map{if(it.optString("id")==pending.optString("id"))JSONObject(it.toString()).put("delivery","failed")else it};error=e.message}
@@ -190,7 +192,7 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
   if(selected==null&&query.isNotEmpty())delay(200)
   try{load()}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}
  }
- LaunchedEffect(selected,crewTab){crewScroll.scrollToItem(0)}
+ LaunchedEffect(selected,crewTab,latestSequence){crewScroll.scrollToItem(0);if(crewTab=="채팅"&&selected!=null&&latestSequence>0)try{m.api.call("/api/crews/$selected/read","POST",payload("sequence" to latestSequence));m.refreshMessageSummary()}catch(e:Exception){if(e is CancellationException)throw e}}
  LaunchedEffect(selected,crewTab,historyReady&&!historyLoading,m.user?.optString("id")){
   val cid=selected?:return@LaunchedEffect;if(crewTab!="채팅"||!historyReady||historyLoading)return@LaunchedEffect
   fun watchCurrent()=m.user?.optString("id")==accountId&&selected==cid
@@ -228,7 +230,7 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
  val crewNavigation:@Composable ()->Unit={
   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(6.dp)){
    listOf("채팅" to "chat","멤버" to "members","음악" to "music","소개" to "about").forEach{(tab,tag)->
-    FilterChip(crewTab==tab,{crewTab=tab},label={Text(tab,fontSize=13.sp)},modifier=Modifier.weight(1f).heightIn(min=48.dp).testTag("crew-tab-$tag"),colors=neutralChipColors(),border=neutralChipBorder(crewTab==tab))
+    FilterChip(crewTab==tab,{if(tab=="채팅"&&!initialChat)selected?.let{m.openCrewMessages(it)} else crewTab=tab},label={Text(tab,fontSize=13.sp)},modifier=Modifier.weight(1f).heightIn(min=48.dp).testTag("crew-tab-$tag"),colors=neutralChipColors(),border=neutralChipBorder(crewTab==tab))
    }
   }
  }
@@ -237,12 +239,12 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
   Column(Modifier.fillMaxSize().imePadding().padding(horizontal=18.dp,vertical=8.dp).testTag("crew-scroll"),verticalArrangement=Arrangement.spacedBy(if(keyboardVisible)4.dp else 8.dp)){
    if(!keyboardVisible){pageHeader();crewSummary()}
    Box(Modifier.fillMaxWidth().testTag("crew-chat-title")){crewNavigation()}
-   key(cid,joinedBoundary){ChatHistory(if(joined)messages else emptyList(),joined&&earlier,historyLoading,{if(joined)screenScope.launch{try{load(older=true,refresh=false)}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}}},m.user?.optString("id"),true,retry={if(joined)send(it)},modifier=Modifier.weight(1f),fill=true,emptyLabel=if(joined)null else if(membershipDenied)"크루 가입 상태를 확인한 뒤 대화할 수 있어요." else "가입 이후의 대화를 확인하고 있어요.",loadError=error,reload={screenScope.launch{try{load();error=null}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}}},reloadEnabled=!detailLoading&&!historyLoading,author={msg->
+   key(cid,joinedBoundary){ChatHistory(m,if(joined)messages else emptyList(),joined&&earlier,historyLoading,{if(joined)screenScope.launch{try{load(older=true,refresh=false)}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}}},m.user?.optString("id"),true,retry={if(joined)send(it)},modifier=Modifier.weight(1f),fill=true,emptyLabel=if(joined)null else if(membershipDenied)"크루 가입 상태를 확인한 뒤 대화할 수 있어요." else "가입 이후의 대화를 확인하고 있어요.",loadError=error,reload={screenScope.launch{try{load();error=null}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}}},reloadEnabled=!detailLoading&&!historyLoading,author={msg->
     val generation=chatGeneration
     screenScope.launch{try{val latest=m.api.call("/api/crews/$cid",fresh=true);if(!current(cid,generation))return@launch;detail=latest;detailVerified=true;m.rememberCrewDetail(latest);val member=latest.optJSONObject("membership");if(member==null){denyMembership(cid);return@launch};if(member.optLong("joined_sequence")!=joinedBoundary){clearCrewHistory();joinedBoundary=null;verifiedMembership=null;historyReady=false;load(refresh=false);return@launch};val p=latest.optJSONArray("members").objects().find{it.optString("id")==msg.optString("profile_id")};if(p!=null&&member.optString("role")=="owner"&&p.optString("role")!="owner")managing=p}catch(e:Exception){if(e is CancellationException)throw e;if(current(cid,generation))error=e.message}}
    })}
    if(joined&&connection.isNotBlank()&&!keyboardVisible)Text(connection,color=Muted,fontSize=11.sp)
-   ChatComposer(if(joined)body else "",{if(joined)body=it.take(2000)},"크루에 이야기 남기기",sending,Modifier.testTag("crew-chat-composer"),"crew-chat",enabled=joined){send()}
+   ChatComposer(if(joined)body else "",{if(joined)body=it},"크루에 이야기 남기기",sending,Modifier.testTag("crew-chat-composer"),"crew-chat",enabled=joined){send()}
   }
  }else Column(Modifier.fillMaxSize().imePadding()){
   Column(Modifier.fillMaxWidth().background(Ink).padding(horizontal=18.dp,vertical=4.dp).testTag("crew-fixed-header")){pageHeader()}
@@ -254,7 +256,7 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
     if(result.has("crews")&&myCrew==null)TextButton(onClick={if(m.authenticated())creating=true},modifier=Modifier.testTag("crew-create")){Text("새 크루 만들기")}
    }
    val recent=result.tracks()
-   if(recent.isNotEmpty()){item{Section(if(myCrew==null)"크루에서 나온 새 음악" else "우리 크루의 최신 음악")};items(recent.take(6),key={"feed-"+it.id}){CommunityCard(it,m,recent,sing)}}
+   if(!browsing&&recent.isNotEmpty()){item{Section(if(myCrew==null)"크루에서 나온 새 음악" else "우리 크루의 최신 음악")};items(recent.take(6),key={"feed-"+it.id}){CommunityCard(it,m,recent,sing)}}
    item{Section("함께할 크루")}
    items(result.optJSONArray("crews").objects(),key={it.optString("id")}){c->
     Surface(onClick={selectCrew(c.optString("id"))},color=Panel,shape=MaterialTheme.shapes.large,modifier=Modifier.testTag("crew-card-"+c.optString("id"))){Column(Modifier.fillMaxWidth().padding(18.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
@@ -273,7 +275,7 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
     Text(c.optString("description"),modifier=Modifier.padding(vertical=8.dp));Text(c.optString("interests"),color=Muted)
     Text("${c.optInt("xp")} XP · "+if(c.isNull("next_xp"))"최고 레벨이에요." else "다음 레벨까지 ${c.optInt("next_xp")-c.optInt("xp")} XP",color=Aqua)
     Text("공개곡 +1 XP · 받은 선물 1골드당 +1 XP · 하루 첫 채팅 +10 XP\nLV1 10명 · LV2 20명 · LV3 50명 · LV4 100명 · LV5 150명",fontSize=14.sp,color=Muted)
-    if(!joined)Button(onClick={if(m.authenticated())m.action{m.api.call("/api/crews/$cid/join","POST");browsing=false;m.crewBrowsing=false;crewTab="채팅";load()}},enabled=detailVerified&&!detailLoading&&!historyLoading&&d.optJSONObject("membership")==null&&!m.busy&&!d.optBoolean("banned")&&c.optInt("recruiting")==1&&c.optInt("members")<c.optInt("capacity"),modifier=Modifier.testTag("crew-join")){Text(if(d.optBoolean("banned"))"가입할 수 없는 크루" else "크루 가입하기")}
+    if(!joined)Button(onClick={if(m.authenticated())m.action{m.api.call("/api/crews/$cid/join","POST");browsing=false;m.crewBrowsing=false;crewTab="음악";load()}},enabled=detailVerified&&!detailLoading&&!historyLoading&&d.optJSONObject("membership")==null&&!m.busy&&!d.optBoolean("banned")&&c.optInt("recruiting")==1&&c.optInt("members")<c.optInt("capacity"),modifier=Modifier.testTag("crew-join")){Text(if(d.optBoolean("banned"))"가입할 수 없는 크루" else "크루 가입하기")}
     else Row{if(membership?.optString("role")=="owner")TextButton(onClick={editing=true}){Text("소개 · 모집 수정")};TextButton(onClick={leaving=true},modifier=Modifier.testTag("crew-leave")){Text("크루 탈퇴")}}
    }
    if(!joined||crewTab=="멤버"){
@@ -287,6 +289,7 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
     }
    }
    if(!joined||crewTab=="음악"){
+    if(joined)item{CrewHomeBanner(m,c,membership?.optString("role")=="owner"){screenScope.launch{try{load()}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}}}}
     item{Section("크루의 최신 음악","멤버가 공개한 제작곡과 커버곡")}
     val tracks=d.tracks();items(tracks,key={"track-"+it.id}){CommunityCard(it,m,tracks,sing)}
     if(tracks.isEmpty())item{Text("멤버가 공개한 음악이 여기에 모여요.",color=Muted)}
@@ -315,6 +318,12 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
 
 @Composable internal fun MessagesSheet(m:MusicModel,embedded:Boolean=false){
  if(m.user==null){if(embedded)Column(Modifier.padding(24.dp)){Heading("메시지","음악으로 만난 사람들과 대화해요.");Button(onClick={m.showLogin=true}){Text("로그인")}};return}
+ if(m.messageCrew!=null){
+  val content:@Composable ()->Unit={Column(Modifier.fillMaxSize()){TextButton(onClick={m.messageCrew=null}){Icon(Icons.AutoMirrored.Rounded.ArrowBack,null);Text("메시지 목록")};CrewScreen(m,{m.notice="크루 홈에서 부르기를 선택해주세요."},m.messageCrew,true)}}
+  androidx.activity.compose.BackHandler{m.messageCrew=null}
+  if(embedded)content() else ModalBottomSheet(onDismissRequest={m.dismissMessages()},sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true),containerColor=Ink){Box(Modifier.fillMaxHeight(.94f)){content()}}
+  return
+ }
  val context=LocalContext.current.applicationContext
  val accountId=m.user!!.optString("id")
  val peerId=m.messagePeer
@@ -335,7 +344,7 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
  var error by remember(accountId,peerId){mutableStateOf<String?>(null)}
  var hydrated by remember(accountId,peerId){mutableStateOf(cached!=null)}
  var synced by remember(accountId,peerId){mutableStateOf(false)}
- val profileOverlay=m.profile!=null
+ val profileOverlay=m.profile!=null||m.showGifts||m.showBilling||m.showRewards
  androidx.activity.compose.BackHandler(embedded&&m.messagePeer!=null&&!profileOverlay){m.messagePeer=null}
  androidx.activity.compose.BackHandler(!embedded&&!profileOverlay){m.dismissMessages()}
  fun openMessageProfile(person:JSONObject){
@@ -349,19 +358,22 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
   val pid=peerId
   if(!current(pid))return
   if(pid==null){
-   val result=m.api.call("/api/dm").optJSONArray("conversations").objects();if(!current(pid))return
+   val inbox=m.api.call("/api/dm");val result=inbox.optJSONArray("conversations").objects();if(!current(pid))return
+   m.inboxCrew=inbox.optJSONObject("crew");m.unreadMessages=inbox.optInt("unread")
    conversations=result;synced=true;NativeChatCache.saveConversations(context,accountId,result);return
   }
   val cursor=if(older)chatCursor(messages,true)else if(!refreshLatest&&latestSequence>0)"?after=$latestSequence" else ""
   val d=m.api.call("/api/dm/$pid"+cursor)
   if(!current(pid))return
   data=d;synced=true;if(older||latestSequence==0L)earlier=d.optBoolean("has_more")
-  messages=applyDmReadReceipt(mergeChat(messages,d.optJSONArray("messages").objects()),accountId,d.optJSONObject("read_receipt"))
+  val cutoff=d.optJSONObject("settings")?.optLong("cleared_sequence")?:0L
+  NativeChatCache.clearThrough(context,accountId,pid,cutoff)
+  messages=applyDmReadReceipt(mergeChat(messages.filter{it.optLong("sequence")==0L||it.optLong("sequence")>cutoff},d.optJSONArray("messages").objects()),accountId,d.optJSONObject("read_receipt"))
   if(!older)latestSequence=maxOf(latestSequence,d.optJSONArray("messages").objects().maxOfOrNull{it.optLong("sequence")}?:0L)
   NativeChatCache.saveThread(context,accountId,pid,d.optJSONObject("peer"),messages,earlier,readSequence=latestSequence)
   if(!current(pid))return
   if(messages.any{it.optString("recipient_id")==accountId&&it.optLong("read_at")==0L}){
-   m.api.call("/api/dm/$pid","PATCH")
+   m.api.call("/api/dm/$pid","PATCH");m.refreshMessageSummary()
    if(!current(pid))return
    messages=messages.map{if(it.optString("recipient_id")==accountId&&it.optLong("read_at")==0L)JSONObject(it.toString()).put("read_at",System.currentTimeMillis()/1000)else it}
    NativeChatCache.saveThread(context,accountId,pid,d.optJSONObject("peer"),messages,earlier,readSequence=latestSequence)
@@ -376,7 +388,7 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
   m.viewModelScope.launch{try{
    NativeChatCache.saveThread(context,accountId,pid,person,listOf(pending),hadEarlier,draft=draftState.value)
    if(m.user?.optString("id")!=accountId)return@launch
-   val sent=m.api.call("/api/dm/$pid","POST",payload("body" to pending.optString("body"),"request_id" to rid))
+   val sent=m.api.call("/api/dm/$pid","POST",payload("body" to pending.optString("body"),"request_id" to rid,"image_id" to pending.optString("image_id").takeIf{it.isNotBlank()}))
    if(m.user?.optString("id")==accountId)sent.optJSONObject("message")?.let{message->
     NativeChatCache.saveThread(context,accountId,pid,person,listOf(message),hadEarlier)
     // A POST confirms this send only; earlier peer messages may still be unread.
@@ -425,6 +437,7 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
     if(m.messagePeer!=null)IconButton(onClick={if(!embedded&&m.messagesReturnToProfile)m.dismissMessages() else m.messagePeer=null},modifier=Modifier.testTag("dm-back")){Icon(Icons.AutoMirrored.Rounded.ArrowBack,if(!embedded&&m.messagesReturnToProfile)"이전 페이지로" else "대화 목록으로")}
     if(m.messagePeer!=null&&peer!=null)MessageProfileAvatar(peer,"dm-peer-profile-"+peer.optString("id"),44){openMessageProfile(peer)}
     Text(peer?.optString("name")?:if(m.messagePeer!=null)"대화" else "메시지",fontSize=21.sp,fontWeight=FontWeight.SemiBold,modifier=Modifier.weight(1f),maxLines=2,overflow=TextOverflow.Ellipsis)
+    DmActions(m,peerId,data?.optJSONObject("settings")?.optInt("muted")==1,{value->data=JSONObject((data?:JSONObject()).toString()).put("settings",payload("muted" to if(value)1 else 0))},{body="";messages=emptyList();conversations=emptyList();m.messagePeer=null;sheetScope.launch{try{load()}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}}})
     if(m.messagePeer!=null&&peer!=null){
      val id=peer.optString("id");val followed=m.follows.any{it.optString("kind")=="producer"&&it.optString("target_id")==id}
      TextButton(onClick={m.followPerson(id)},enabled=!m.busy,modifier=Modifier.testTag("dm-peer-follow"),contentPadding=PaddingValues(horizontal=6.dp)){Text(if(followed)"팔로잉" else "팔로우",fontSize=12.sp)}
@@ -433,19 +446,23 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
    error?.let{Text(it,color=Pink,modifier=Modifier.padding(horizontal=18.dp))}
    if(m.messagePeer==null){
     LazyColumn(Modifier.fillMaxWidth().weight(1f),contentPadding=PaddingValues(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+     m.inboxCrew?.let{crew->item(key="pinned-crew"){Surface(onClick={m.openCrewMessages(crew.getString("id"))},color=Raised,shape=MaterialTheme.shapes.large){Row(Modifier.fillMaxWidth().padding(16.dp),verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){Text("내 크루 · 고정",color=Aqua,fontSize=12.sp);Text(crew.optString("name"));Text("크루 채팅",color=Muted,fontSize=13.sp)};if(crew.optInt("unread")>0)Badge{Text(crew.optInt("unread").toString())}}}}}
+     item{TextButton(onClick={sheetScope.launch{try{m.api.call("/api/dm/read-all","POST");load()}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}}}){Text("모두 읽음")}}
      items(conversations,key={it.optString("id")}){p->
       Surface(onClick={m.messagePeer=p.getString("id")},color=Panel,shape=MaterialTheme.shapes.large,modifier=Modifier.testTag("dm-conversation-"+p.optString("id"))){Row(Modifier.fillMaxWidth().padding(14.dp),verticalAlignment=Alignment.CenterVertically){
        MessageProfileAvatar(p,"dm-list-profile-"+p.optString("id"),44){openMessageProfile(p)}
        Column(Modifier.weight(1f).padding(horizontal=12.dp)){Text(p.optString("name"),fontWeight=FontWeight.SemiBold);Text(p.optString("last_message"),color=Muted,maxLines=1,overflow=TextOverflow.Ellipsis,fontSize=13.sp)}
+       DmActions(m,p.getString("id"),p.optInt("muted")==1,{value->conversations=conversations.map{if(it.optString("id")==p.optString("id"))JSONObject(it.toString()).put("muted",if(value)1 else 0)else it}},{},withDelete=false)
        Column(horizontalAlignment=Alignment.End){Text(chatTime(p.optLong("updated")),color=Muted,fontSize=10.sp);if(p.optInt("unread")>0)Text("${p.optInt("unread")} 새 메시지",color=Pink,fontSize=11.sp)}
       }}
      }
      if(conversations.isEmpty())item{Text(if(synced)"아직 나눈 대화가 없어요. 프로필의 메시지로 시작해보세요." else "대화 목록을 확인하고 있어요.",color=Muted)}
     }
    }else{
-    ChatHistory(messages,earlier,historyLoading,{if(!historyLoading){historyLoading=true;sheetScope.launch{try{load(older=true)}catch(e:Exception){if(e is CancellationException)throw e;if(current(peerId))error=e.message}finally{historyLoading=false}}}},m.user?.optString("id"),false,peer=peer?.optString("name")?:"",retry={send(it)},modifier=Modifier.weight(1f).padding(horizontal=8.dp),fill=true,peerPerson=peer,openPeer={peer?.let{openMessageProfile(it)}})
+    ChatHistory(m,messages,earlier,historyLoading,{if(!historyLoading){historyLoading=true;sheetScope.launch{try{load(older=true)}catch(e:Exception){if(e is CancellationException)throw e;if(current(peerId))error=e.message}finally{historyLoading=false}}}},m.user?.optString("id"),false,peer=peer?.optString("name")?:"",retry={send(it)},modifier=Modifier.weight(1f).padding(horizontal=8.dp),fill=true,peerPerson=peer,openPeer={peer?.let{openMessageProfile(it)}})
     if(connection.isNotBlank())Text(connection,color=Muted,fontSize=11.sp,modifier=Modifier.padding(horizontal=18.dp))
-    ChatComposer(body,{body=it.take(2000)},"메시지",sending,Modifier.fillMaxWidth().padding(horizontal=14.dp,vertical=10.dp).testTag("dm-composer"),"dm"){send()}
+    DmAttachments(m,peerId!!,sending){if(sending)m.notice="메시지 전송이 끝나면 사진을 다시 선택해주세요." else send(it)}
+    ChatComposer(body,{body=it},"메시지",sending,Modifier.fillMaxWidth().padding(horizontal=14.dp,vertical=10.dp).testTag("dm-composer"),"dm"){send()}
    }
   }
  }
@@ -461,16 +478,19 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
 }
 
 @Composable private fun ChatComposer(body:String,change:(String)->Unit,label:String,busy:Boolean,modifier:Modifier=Modifier,tagPrefix:String?=null,enabled:Boolean=true,send:()->Unit){
+ var value by remember(tagPrefix){mutableStateOf(TextFieldValue(body,TextRange(body.length)))}
+ if(value.text!=body)value=TextFieldValue(body,TextRange(body.length))
+ val changeValue:(TextFieldValue)->Unit={next->if(next.composition!=null||next.text.length<=2000){value=next;change(next.text)}}
  Row(modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
   val inputModifier=Modifier.weight(1f).then(tagPrefix?.let{Modifier.testTag("$it-input")}?:Modifier)
   val keyboardOptions=KeyboardOptions(imeAction=ImeAction.Send)
-  val keyboardActions=KeyboardActions(onSend={if(enabled&&body.isNotBlank()&&!busy)send()})
-  if(tagPrefix=="dm")TextField(body,change,placeholder={Text(label,fontSize=13.sp)},modifier=inputModifier,enabled=enabled,singleLine=true,keyboardOptions=keyboardOptions,keyboardActions=keyboardActions,shape=RoundedCornerShape(18.dp),colors=TextFieldDefaults.colors(focusedContainerColor=Panel,unfocusedContainerColor=Panel,disabledContainerColor=Panel,focusedIndicatorColor=androidx.compose.ui.graphics.Color.Transparent,unfocusedIndicatorColor=androidx.compose.ui.graphics.Color.Transparent,disabledIndicatorColor=androidx.compose.ui.graphics.Color.Transparent))
-  else OutlinedTextField(body,change,label={Text(label,fontSize=13.sp)},modifier=inputModifier,enabled=enabled,singleLine=true,keyboardOptions=keyboardOptions,keyboardActions=keyboardActions,shape=RoundedCornerShape(18.dp))
-  Button(onClick=send,enabled=enabled&&body.isNotBlank()&&!busy,modifier=Modifier.heightIn(min=48.dp).then(tagPrefix?.let{Modifier.testTag("$it-send")}?:Modifier),contentPadding=PaddingValues(horizontal=12.dp)){Text("보내기",fontSize=13.sp)}
+  val keyboardActions=KeyboardActions(onSend={if(enabled&&value.composition==null&&body.isNotBlank()&&body.length<=2000&&!busy)send()})
+  if(tagPrefix=="dm")TextField(value,changeValue,placeholder={Text(label,fontSize=13.sp)},modifier=inputModifier,enabled=enabled,singleLine=true,keyboardOptions=keyboardOptions,keyboardActions=keyboardActions,shape=RoundedCornerShape(18.dp),colors=TextFieldDefaults.colors(focusedContainerColor=Panel,unfocusedContainerColor=Panel,disabledContainerColor=Panel,focusedIndicatorColor=androidx.compose.ui.graphics.Color.Transparent,unfocusedIndicatorColor=androidx.compose.ui.graphics.Color.Transparent,disabledIndicatorColor=androidx.compose.ui.graphics.Color.Transparent))
+  else OutlinedTextField(value,changeValue,label={Text(label,fontSize=13.sp)},modifier=inputModifier,enabled=enabled,singleLine=true,keyboardOptions=keyboardOptions,keyboardActions=keyboardActions,shape=RoundedCornerShape(18.dp))
+  Button(onClick=send,enabled=enabled&&body.isNotBlank()&&body.length<=2000&&!busy,modifier=Modifier.heightIn(min=48.dp).then(tagPrefix?.let{Modifier.testTag("$it-send")}?:Modifier),contentPadding=PaddingValues(horizontal=12.dp)){Text("보내기",fontSize=13.sp)}
  }
 }
-@Composable private fun ChatHistory(messages:List<JSONObject>,earlier:Boolean,busy:Boolean,loadEarlier:()->Unit,userId:String?,crew:Boolean,peer:String="",retry:((JSONObject)->Unit)?=null,modifier:Modifier=Modifier,fill:Boolean=false,peerPerson:JSONObject?=null,openPeer:(()->Unit)?=null,emptyLabel:String?=null,loadError:String?=null,reload:(()->Unit)?=null,reloadEnabled:Boolean=true,author:((JSONObject)->Unit)?=null){
+@Composable private fun ChatHistory(m:MusicModel,messages:List<JSONObject>,earlier:Boolean,busy:Boolean,loadEarlier:()->Unit,userId:String?,crew:Boolean,peer:String="",retry:((JSONObject)->Unit)?=null,modifier:Modifier=Modifier,fill:Boolean=false,peerPerson:JSONObject?=null,openPeer:(()->Unit)?=null,emptyLabel:String?=null,loadError:String?=null,reload:(()->Unit)?=null,reloadEnabled:Boolean=true,author:((JSONObject)->Unit)?=null){
  val peerKey=peerPerson?.optString("id")
  val state=remember(peerKey,crew){LazyListState()}
  var initialized by remember(peerKey,crew){mutableStateOf(false)}
@@ -488,7 +508,7 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
     if(msg.optString("kind")=="system")Text(msg.optString("body"),modifier=Modifier.fillMaxWidth().padding(vertical=6.dp),color=Muted,fontSize=13.sp,textAlign=TextAlign.Center)
     else if(crew){
      val name=crewName(msg)
-     Text(buildAnnotatedString{withStyle(SpanStyle(color=Aqua,fontWeight=FontWeight.SemiBold)){append(name);if(!name.endsWith(")"))append(")")};append(" ");append(msg.optString("body"))},fontSize=16.sp,lineHeight=24.sp,modifier=Modifier.fillMaxWidth().then(if(author!=null)Modifier.clickable{author(msg)}else Modifier).padding(vertical=4.dp))
+     Text(buildAnnotatedString{withStyle(SpanStyle(color=Aqua,fontWeight=FontWeight.SemiBold)){append(name)};append(" ");append(msg.optString("body"))},fontSize=16.sp,lineHeight=24.sp,modifier=Modifier.fillMaxWidth().then(if(author!=null)Modifier.clickable{author(msg)}else Modifier).padding(vertical=4.dp))
      if(msg.optString("delivery")=="sending")Text("전송 중…",color=Muted,fontSize=12.sp)
      if(msg.optString("delivery")=="failed")TextButton(onClick={retry?.invoke(msg)},enabled=!busy){Text("다시 보내기")}
     }else{
@@ -496,7 +516,7 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
       if(!mine&&peerPerson!=null){MessageProfileAvatar(peerPerson,"dm-message-profile-"+msg.optString("id"),36){openPeer?.invoke()};Spacer(Modifier.width(8.dp))}
       Column(Modifier.widthIn(max=260.dp),horizontalAlignment=if(mine)Alignment.End else Alignment.Start){
        Surface(color=if(mine)Raised else Panel,shape=RoundedCornerShape(topStart=18.dp,topEnd=18.dp,bottomEnd=if(mine)4.dp else 18.dp,bottomStart=if(mine)18.dp else 4.dp)){
-        Text(msg.optString("body"),fontSize=15.sp,lineHeight=23.sp,modifier=Modifier.padding(horizontal=13.dp,vertical=11.dp))
+        if(msg.optString("image_id").isNotBlank()&&msg.optString("image_id")!="null")ChatImage(m,msg) else Text(msg.optString("body"),fontSize=15.sp,lineHeight=23.sp,modifier=Modifier.padding(horizontal=13.dp,vertical=11.dp))
        }
        Row(Modifier.padding(top=4.dp),horizontalArrangement=Arrangement.spacedBy(6.dp)){
         Text(chatTime(msg.optLong("created")),color=Muted,fontSize=10.sp)

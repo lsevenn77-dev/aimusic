@@ -120,7 +120,7 @@ async function startSubscription(req,env,user){
  if(!terms||JSON.parse(terms.body).policy!==POLICY_VERSION||JSON.parse(terms.body).price!==PREMIUM.price)fail(409,'약관과 이용권 정보를 새로 확인해주세요.');
  await rate(env,'billing-start:'+user.id,6,3600);
  const sid='as'+id().replaceAll('-',''),time=now(),day=new Date((time+9*3600)*1000).getUTCDate();
- await run(env,`INSERT INTO billing_subscriptions(id,user_id,state,anchor_day,consent_version,consent_at,price,baseline_until,created,updated) VALUES(?,?,'idle',?,?,?,?,?,?,?) ON CONFLICT(user_id) DO NOTHING`,sid,user.id,day,body.terms_version,time,PREMIUM.price,Number(user.premium_until)||0,time,time);
+ await run(env,`INSERT INTO billing_subscriptions(id,user_id,state,anchor_day,consent_version,consent_at,price,baseline_until,created,updated) VALUES(?,?,'idle',?,?,?,?,?,?,?) ON CONFLICT(user_id) DO NOTHING`,sid,user.id,day,body.terms_version,time,PREMIUM.price,Number(user.base_premium_until??user.premium_until)||0,time,time);
  const existing=await subscription(env,user),s=await lock(env,existing.id);
  if(!s)fail(409,'구독 요청을 처리 중입니다. 잠시 후 구독 내역을 확인해주세요.');
  try{
@@ -137,7 +137,7 @@ async function startSubscription(req,env,user){
  }finally{await unlock(env,s);}
  return json(await billingStatus(env,user));
 }
-async function cancelSubscription(env,user){
+export async function cancelSubscription(env,user){
  const existing=await subscription(env,user);if(!existing)return json(await billingStatus(env,user));
  const s=await lock(env,existing.id);if(!s)fail(409,'결제를 확인하고 있습니다. 잠시 후 다시 해지해주세요.');
  try{

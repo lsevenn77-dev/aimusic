@@ -1,3 +1,4 @@
+import {builtinModules} from 'node:module';
 import { build } from 'esbuild';
 import { mkdir, cp, writeFile, readFile, rm } from 'node:fs/promises';
 import {resolve,sep} from 'node:path';
@@ -5,7 +6,7 @@ import {businessFooterHTML} from '../shared/site-info.js';
 await mkdir('dist/server',{recursive:true});
 await mkdir('dist/client',{recursive:true});
 await cp('dist/app-ads.txt','dist/client/app-ads.txt');
-for(const file of ['music-ui.js','music-experience.css','brand-refinement.css','account-settings.js','social-chat.js','recorder-worklet.js','improvements.js','improvements.css','recording-studio.css','sing-drafts.js','ads.txt','audio-ads.js','audio-ads.css','upload-ads.js','upload-ads.css','gifts.js','gifts.css','image-upload.js'])await cp(`dist/${file}`,`dist/client/${file}`);
+for(const file of ['chat-features.js','october-polish.css','canonical-origin.js','music-ui.js','music-experience.css','brand-refinement.css','account-settings.js','social-chat.js','recorder-worklet.js','improvements.js','improvements.css','recording-studio.css','sing-drafts.js','ads.txt','audio-ads.js','audio-ads.css','upload-ads.js','upload-ads.css','gifts.js','gifts.css','image-upload.js'])await cp(`dist/${file}`,`dist/client/${file}`);
 // Delete the replaced, generated display-ad assets from incremental builds.
 for(const file of ['web-ads.js','web-ads.css'])await rm(`dist/client/${file}`,{force:true});
 await cp('dist/billing.js','dist/client/billing.js');
@@ -28,7 +29,7 @@ await build({entryPoints:['shared/vocal-worklet.js'],outfile:'dist/client/vocal-
 await build({entryPoints:['shared/duet-guide.js'],outfile:'dist/client/duet-guide-core.js',bundle:true,format:'iife',globalName:'AifectDuetGuide',target:'es2022',minify:true});
 await build({entryPoints:['shared/karaoke-audio.js'],outfile:'dist/client/karaoke-core.js',bundle:true,format:'iife',globalName:'AifectKaraoke',target:'es2022',minify:true});
 await build({entryPoints:['shared/lyrics.js'],outfile:'dist/client/lyrics-core.js',bundle:true,format:'iife',globalName:'AifectLyrics',target:'es2022',minify:true});
-await build({entryPoints:['server/index.js'], outfile:'dist/server/index.js', bundle:true, format:'esm', platform:'neutral', target:'es2022', external:['cloudflare:workers'], minify:false});
+await build({entryPoints:['server/index.js'], outfile:'dist/server/index.js', bundle:true, format:'esm', platform:'neutral', mainFields:['module','main'], alias:{'node-fetch':resolve('server/apple-fetch.js')}, banner:{js:"import {createRequire as appleCreateRequire} from 'node:module'; const require=appleCreateRequire('/aifect-worker.js');"}, target:'es2022', external:['cloudflare:workers',...builtinModules,...builtinModules.map(x=>'node:'+x)], minify:false});
 await mkdir('dist/.openai',{recursive:true});
 await cp('.openai/hosting.json','dist/.openai/hosting.json');
 // Replace generated migration output: renamed source files must never remain in a release archive.

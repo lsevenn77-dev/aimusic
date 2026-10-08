@@ -26,7 +26,7 @@ function singHTML(d){
  <label class="sing-mic-meter"><span>마이크</span><progress id="mic-level" max="1" value="0" aria-label="마이크 입력 크기"></progress></label>
  <div class="sing-transport studio-transport"><button type="button" data-sing-pause disabled>${studioIcon('pause')}<span>일시정지</span></button><button type="button" data-sing-start class="studio-record">${icon('mic')}<span>녹음 시작</span></button><button type="button" data-sing-redo-live>${icon('restart')}<span>다시 시작</span></button><button type="button" data-sing-stop disabled>${studioIcon('check')}<span>끝내기</span></button></div>
  <button type="button" class="small-button" data-sing-review hidden>후작업으로 돌아가기</button><details class="studio-advanced"><summary>녹음 위치 변경 안내</summary><p class="field-help">가사를 밀거나 눌러 위치를 골라요. 녹음 중 이동하면 3초 전 반주부터 이어 부르고, 선택 지점 뒤의 녹음은 교체돼요.</p></details></div><p class="sing-status" id="sing-status" role="status">가사를 확인하고 녹음을 시작하세요.</p><div id="sing-panel">${singStartHTML()}</div>
- <p class="field-help sing-local-note">녹음과 효과는 현재 기기에 임시저장돼요. 같은 곡에서 이어 편집할 수 있어요.</p></section>`;
+ <p class="field-help sing-local-note">녹음과 효과는 현재 기기에 임시저장돼요. 초안 목록에서 이어 편집할 수 있어요.</p></section>`;
 }
 const singStartHTML=(message='')=>`<p class="field-help">${nativeSinging()?'에코 · 룸 리버브와 실시간 이어폰 청음을 지원해요. 유선·USB 이어폰을 권장해요.':'유선·USB 이어폰을 권장해요. 스피커의 반주가 마이크에 섞이면 싱크 확인이 어려워요.'}</p>${message?`<p class="form-error">${esc(message)}</p>`:''}${nativeSinging()?`<button class="primary-button" data-sing-start>${icon('mic')} 노래방 열기</button>`:''}`;
 function bindSing(id){
@@ -56,7 +56,7 @@ function bindSing(id){
  document.querySelectorAll('[data-lyric-size]').forEach(button=>button.onclick=()=>applyLyricSize(button.dataset.lyricSize));applyLyricSize(preferredLyricSize());
  // The favorite uses the shared data-like handler, so it is saved to the account.
  const redoLive=$('[data-sing-redo-live]');if(redoLive)redoLive.onclick=async()=>{if(singLive(s))await finishSinging();if(sing!==s)return;s.cursor=0;s.shownLine=-1;drawLyrics(0);setSingStatus('처음부터 다시 시작할 준비가 됐어요.');};
- renderDuetGuide();drawLyrics(0);renderSingPanel();void restoreSingDraft(s);
+ renderDuetGuide();drawLyrics(0);renderSingPanel();if(new URLSearchParams(location.hash.split('?')[1]||'').get('draft')==='1')void restoreSingDraft(s);else{s.state='idle';updateTransport();}
 }
 function setSingStatus(message){const el=$('#sing-status');if(el)el.textContent=message;}
 function clampPosition(t,review=false){return Math.max(0,Math.min(t,review&&sing.voice&&sing.mode!=='duet'?sing.voice.duration:sing.mr?.duration||sing.data.track.duration));}

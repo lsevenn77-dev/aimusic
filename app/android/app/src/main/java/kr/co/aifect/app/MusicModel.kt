@@ -100,6 +100,11 @@ class MusicModel(app:Application):AndroidViewModel(app) {
  var showRewards by mutableStateOf(false)
  var showMessages by mutableStateOf(false)
  var messagePeer by mutableStateOf<String?>(null)
+ var messageCrew by mutableStateOf<String?>(null)
+ var unreadMessages by mutableIntStateOf(0)
+ var inboxCrew by mutableStateOf<JSONObject?>(null)
+ suspend fun refreshMessageSummary(){val account=user?.optString("id")?:return;val d=api.call("/api/dm/summary");if(user?.optString("id")==account){unreadMessages=d.optInt("unread");inboxCrew=d.optJSONObject("crew")}}
+ fun openCrewMessages(cid:String){openMessages();messageCrew=cid}
  var ownProfile by mutableStateOf(JSONObject())
  fun editProfile(){if(!authenticated())return;showProfileEdit=true;ownProfileJob?.cancel();ownProfileJob=viewModelScope.launch{try{loadOwnProfile()}catch(e:Exception){if(e is CancellationException)throw e;failure(e)}}}
  suspend fun loadOwnProfile(fresh:Boolean=false){
@@ -152,10 +157,10 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   if(!authenticated())return
   if(tab!=5&&!showMessages)messageSourceProfile=profilePage()
   if(tab==5)messageSourceProfile=null
-  dismissProfile();messagePeer=peerId;showMessages=tab!=5
+  dismissProfile();messageCrew=null;messagePeer=peerId;showMessages=tab!=5
  }
  fun dismissMessages(){
-  dismissProfile();showMessages=false;messagePeer=null
+  dismissProfile();showMessages=false;messagePeer=null;messageCrew=null
   messageSourceProfile?.let{displayProfile(it)};messageSourceProfile=null
  }
  var current by mutableStateOf<Song?>(null)
@@ -222,7 +227,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   selectedList=null;listSongs=emptyList();listLoading=false;playlistTarget=null;collection=null;collectionBusy=false;collectionError=null
   detail=null;comments=emptyList();detailBusy=false;profile=null;profileSongs=emptyList();profileCovers=emptyList();profileFollowers=0
   profileCache.clear();retryProfileLoad=null;profileLoading=false;profileError=null;messageSourceProfile=null
-  showMessages=false;messagePeer=null;showProfileEdit=false;showAccountSettings=false;showRecordingDrafts=false;showRewards=false;showGifts=false;giftTarget=null
+  showMessages=false;messagePeer=null;messageCrew=null;unreadMessages=0;inboxCrew=null;showProfileEdit=false;showAccountSettings=false;showRecordingDrafts=false;showRewards=false;showGifts=false;giftTarget=null
   showAccount=false;accountError=null;nicknameCheck=null;studioBusy=false;studioError=null
   feed=emptyList();feedFilter="전체";feedLoading=false;feedError=null;displayedFeedPath=null
   feedRequest++;feedReadScope=null;communityCrewMode=false;communityCrewTarget=null;crewBrowsing=false;lastKnownCrewId=null
@@ -366,7 +371,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   tab=if(index==1)0 else index
   if(index==1)listenPage="발견"
   if(index in listOf(4,6) && user!=null)refreshLibrary()
-  if(index==5)messagePeer=null
+  if(index==5){messagePeer=null;messageCrew=null}
  }
  fun library(page:String){libraryPage=page;selectTab(4)}
  fun showCollection(title:String,tracks:List<Song>,caption:String=""){

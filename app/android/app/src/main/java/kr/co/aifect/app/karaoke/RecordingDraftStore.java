@@ -21,8 +21,8 @@ public final class RecordingDraftStore {
    if(split>=0){track=stem.substring(0,split);String rest=stem.substring(split+6);int at=rest.indexOf('-');if(at<0)continue;mode="duet";part=rest.substring(0,at);parent=rest.substring(at+1);if(parent.equals("first"))parent="";}
    track=data.optString("trackId",track);mode=data.optString("coverMode",mode);part=data.optString("duetPart",part);parent=data.optString("duetParent",parent);
    if(!track.matches("[\\w-]{1,80}")||!parent.isEmpty()&&!parent.matches("[\\w-]{1,80}")||!mode.equals("solo")&&!mode.equals("duet"))continue;
-   String expected="karaoke-"+track+(mode.equals("duet")?"-duet-"+part+"-"+(parent.isEmpty()?"first":parent):"")+"-"+owner;if(!folder.getName().equals(expected))continue;
-   entries.add(new JSONObject().put("trackId",track).put("coverMode",mode).put("duetPart",part).put("duetParent",parent).put("title",data.optString("title","임시 저장한 녹음")).put("duration",audio.length()/2.0/PcmFiles.RATE).put("updated",session.lastModified()));
+   String expected="karaoke-"+track+(mode.equals("duet")?"-duet-"+part+"-"+(parent.isEmpty()?"first":parent):"")+"-"+owner;String base=expected.substring(0,expected.length()-owner.length()-1);if(!folder.getName().equals(expected)&&!folder.getName().matches(java.util.regex.Pattern.quote(base)+"-take-[a-f0-9-]{36}-"+owner))continue;
+   entries.add(new JSONObject().put("folder",folder.getName()).put("trackId",track).put("coverMode",mode).put("duetPart",part).put("duetParent",parent).put("title",data.optString("title","임시 저장한 녹음")).put("duration",audio.length()/2.0/PcmFiles.RATE).put("updated",session.lastModified()));
   }catch(Exception ignored){}
   entries.sort((a,b)->Long.compare(b.optLong("updated"),a.optLong("updated")));for(JSONObject entry:entries)result.put(entry);return result;
  }

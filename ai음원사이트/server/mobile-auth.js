@@ -31,7 +31,7 @@ export async function mobileAuthRoute(req,env,path,user){
   if(!pending.nonce)fail(409,'브라우저에서 로그인을 마쳐주세요.');
   const consumed=await query(env,"DELETE FROM oauth_states WHERE state=? AND provider='mobile' AND verifier=? AND nonce<>'' AND expires>? RETURNING nonce",state,challenge,now()).first();
   if(!consumed)fail(401,'이미 사용한 로그인 요청이에요.');
-  const u=await one(env,'SELECT id,name,email,provider FROM users WHERE id=?',consumed.nonce);if(!u)fail(401,'계정을 찾을 수 없어요.');
+  const u=await one(env,"SELECT id,name,email,provider FROM users WHERE id=? AND provider!='deleted'",consumed.nonce);if(!u)fail(401,'계정을 찾을 수 없어요.');
   return json({user:u},200,{'set-cookie':await session(env,u,secure)});
  }
  if(path==='/api/auth/mobile/approve'&&req.method==='POST'){

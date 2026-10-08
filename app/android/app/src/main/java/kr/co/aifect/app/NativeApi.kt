@@ -117,6 +117,18 @@ class NativeApi(private val context: Context) {
    }
    return result
  }
+ suspend fun uploadWebp(path:String,uri:android.net.Uri):JSONObject=withContext(Dispatchers.IO){
+  val resolver=context.contentResolver
+  val options=android.graphics.BitmapFactory.Options().apply{inJustDecodeBounds=true}
+  resolver.openInputStream(uri)?.use{android.graphics.BitmapFactory.decodeStream(it,null,options)}
+  require(options.outWidth>0&&options.outHeight>0&&options.outWidth.toLong()*options.outHeight<=64000000){"이미지 크기나 형식을 확인해주세요."}
+  var sample=1;while(maxOf(options.outWidth,options.outHeight)/sample>2400)sample*=2
+  val bitmap=resolver.openInputStream(uri)?.use{android.graphics.BitmapFactory.decodeStream(it,null,android.graphics.BitmapFactory.Options().apply{inSampleSize=sample})}?:throw IOException("사진을 열 수 없어요.")
+  val scale=minOf(1.0,1600.0/maxOf(bitmap.width,bitmap.height));val scaled=android.graphics.Bitmap.createScaledBitmap(bitmap,maxOf(1,(bitmap.width*scale).toInt()),maxOf(1,(bitmap.height*scale).toInt()),true)
+  val bytes=try{java.io.ByteArrayOutputStream().use{out->val format=if(android.os.Build.VERSION.SDK_INT>=30)android.graphics.Bitmap.CompressFormat.WEBP_LOSSY else android.graphics.Bitmap.CompressFormat.WEBP;check(scaled.compress(format,84,out));out.toByteArray()}}finally{if(scaled!==bitmap)scaled.recycle();bitmap.recycle()}
+  require(bytes.size<=5*1024*1024){"작은 이미지를 선택해주세요."}
+  client.newCall(Request.Builder().url(Endpoint.url(path)).put(bytes.toRequestBody("image/webp".toMediaType())).build()).execute().use{decode(path,it)}
+ }
  suspend fun profileImage(uri:android.net.Uri)=withContext(Dispatchers.IO){
   invalidateReads()
   try{

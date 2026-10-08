@@ -1,3 +1,4 @@
+import {rememberAppleToken} from './account-safety.js';
 import {nickname,nicknameBatch} from './nicknames.js';
 import {publicUser,producerNameSQL} from './identity.js';
 import {createRemoteJWKSet,jwtVerify,SignJWT,importPKCS8} from 'jose';
@@ -17,8 +18,9 @@ export const isTrackModerator=(env,user)=>isAdmin(env,user)||!!user&&(env.TRACK_
 export async function viewer(req,env){
  const token=cookies(req).aifect_session;if(!token)return null;
  // Resolve the session and public nickname together on every request; no auth cache.
- const user=await one(env,`SELECT u.id,u.email,u.provider,u.premium_until,COALESCE(${producerNameSQL()},CASE WHEN u.provider='email' THEN u.name ELSE '리스너 '||substr(u.id,1,8) END) name,p.id profile_id,COALESCE(p.image_version,'') image_version FROM sessions s JOIN users u ON u.id=s.user_id LEFT JOIN producers p ON p.user_id=u.id WHERE s.token=? AND s.expires>?`,await hash(token),now());
- return applyPremiumGrant(env,user);
+ const user=await one(env,`SELECT u.id,u.email,u.provider,u.premium_until,u.apple_premium_until,COALESCE(${producerNameSQL()},CASE WHEN u.provider='email' THEN u.name ELSE '리스너 '||substr(u.id,1,8) END) name,p.id profile_id,COALESCE(p.image_version,'') image_version FROM sessions s JOIN users u ON u.id=s.user_id LEFT JOIN producers p ON p.user_id=u.id WHERE s.token=? AND s.expires>? AND u.provider!='deleted'`,await hash(token),now());
+ const granted=await applyPremiumGrant(env,user);
+ return granted?{...granted,base_premium_until:granted.premium_until,premium_until:Math.max(granted.premium_until,granted.apple_premium_until||0)}:null;
 }
 export const requireUser=u=>{if(!u)fail(401,'로그인 후 이용해주세요.');return u;};
 async function passwordHash(password,salt,env){
@@ -148,6 +150,7 @@ export async function authRoute(req,env,path,user){
  }
  let u=await one(env,'SELECT id FROM users WHERE provider=? AND subject=?',p,identity.sub);
  if(!u){u={id:id()};await run(env,'INSERT INTO users(id,email,name,provider,subject,created) VALUES(?,?,?,?,?,?)',u.id,identity.email||`${p}-${identity.sub}@identity.aifect.invalid`,String(identity.name).slice(0,40),p,identity.sub,now());}
+ if(p==='apple')await rememberAppleToken(env,u.id,token.refresh_token);
  const appResult=await finishMobile(req,env,u,null);if(appResult)return appResult;
  return new Response(null,{status:303,headers:{location:'/#account?welcome=1','set-cookie':await session(env,u,secure),'cache-control':'no-store'}});
 }

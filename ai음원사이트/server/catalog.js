@@ -1,3 +1,4 @@
+import {assertUnblocked} from './account-safety.js';
 import {namedArtistSQL} from './artist-identity.js';
 import {publicNameSQL,producerNameSQL} from './identity.js';
 import {removeComment} from './comment-moderation.js';
@@ -26,8 +27,11 @@ const SELECT=`SELECT t.id,t.title,t.genre,t.tags,t.description,CASE WHEN t.kind=
  (SELECT COALESCE(sum(g.gold),0) FROM gifts g WHERE g.track_id=t.id) gift_gold,
  (SELECT count(*) FROM free_gifts g WHERE g.track_id=t.id) gift_stars
  FROM tracks t JOIN artists a ON a.id=t.artist_id JOIN producers p ON p.id=t.producer_id LEFT JOIN tracks o ON o.id=t.original_id LEFT JOIN producers op ON op.id=o.producer_id LEFT JOIN tracks dt ON dt.id=t.duet_parent_id LEFT JOIN producers fp ON fp.id=dt.producer_id`;
-export const trackList=(env,where=VISIBLE(),args=[],sort='t.created DESC',limit=100)=>rows(env,`${SELECT} WHERE ${where} ORDER BY ${sort} LIMIT ${limit}`,...args);
-export async function published(env,tid){const t=await one(env,`SELECT t.* FROM tracks t WHERE t.id=? AND ${VISIBLE()}`,tid);if(!t)fail(404,'공개된 곡을 찾을 수 없습니다.');return t;}
+export const trackList=(env,where=VISIBLE(),args=[],sort='t.created DESC',limit=100)=>{
+ const blocked=env.AIFECT_BLOCKED||[];
+ return rows(env,`${SELECT} WHERE ${where}${blocked.length?' AND t.user_id NOT IN ('+blocked.map(()=>'?').join(',')+')':''} ORDER BY ${sort} LIMIT ${limit}`,...args,...blocked);
+};
+export async function published(env,tid){const t=await one(env,`SELECT t.* FROM tracks t WHERE t.id=? AND ${VISIBLE()}`,tid);if(!t)fail(404,'공개된 곡을 찾을 수 없습니다.');assertUnblocked(env,t.user_id);return t;}
 const COVER_SORTS={popular:'likes DESC,plays DESC,t.created DESC',gifts:'(gift_gold+gift_stars) DESC,likes DESC,t.created DESC',plays:'plays DESC,likes DESC,t.created DESC',recent:'t.created DESC'};
 export async function catalogRoute(req,env,path,user){
  const url=new URL(req.url),method=req.method;const discovery=await discoveryRoute(req,env,path,user);if(discovery)return discovery;
@@ -98,7 +102,8 @@ export async function catalogRoute(req,env,path,user){
     requireUser(user);await rate(env,'comment:'+user.id,20,3600);const b=await req.json(),text=str(b.body,2000);
     const t=await published(env,tid),timestamp=b.timestamp==null?null:Number(b.timestamp);
     if(timestamp!==null&&(!Number.isFinite(timestamp)||timestamp<0||timestamp>t.duration))fail(400,'곡 안의 시간을 지정해주세요.');
-    if(b.parent_id&&!await one(env,'SELECT id FROM comments WHERE id=? AND track_id=? AND parent_id IS NULL AND deleted_at=0',b.parent_id,tid))fail(400,'답글 대상을 찾을 수 없습니다.');
+    if(b.parent_id){const parent=await one(env,'SELECT user_id FROM comments WHERE id=?',b.parent_id);if(parent)assertUnblocked(env,parent.user_id);}
+   if(b.parent_id&&!await one(env,'SELECT id FROM comments WHERE id=? AND track_id=? AND parent_id IS NULL AND deleted_at=0',b.parent_id,tid))fail(400,'답글 대상을 찾을 수 없습니다.');
     const cid=id();await run(env,'INSERT INTO comments(id,track_id,user_id,parent_id,body,timestamp,created) VALUES(?,?,?,?,?,?,?)',cid,tid,user.id,b.parent_id||null,text,timestamp,now());return json({id:cid},201);
    }
   }
@@ -120,6 +125,7 @@ export async function catalogRoute(req,env,path,user){
  if(m){
   const kind=m[1]==='artists'?'artist':'producer';
   const entity=await one(env,`SELECT id,${kind==='producer'?producerNameSQL('producers'):'name'} name,bio,created,image_version${kind==='producer'?',banner_version,user_id':''} FROM ${m[1]} WHERE id=?${kind==='artist'?' AND '+namedArtistSQL('name'):''}`,m[2]);if(!entity)fail(404,'프로필을 찾을 수 없습니다.');
+  const owner=kind==='producer'?entity:await one(env,'SELECT p.user_id FROM artists a JOIN producers p ON p.id=a.producer_id WHERE a.id=?',entity.id);assertUnblocked(env,owner?.user_id);
   if(!m[3]&&method==='GET'){
    const [count,tracks,covers,gifts]=await Promise.all([
     one(env,'SELECT count(*) n FROM follows WHERE kind=? AND target_id=?',kind,entity.id),
@@ -141,7 +147,7 @@ export async function catalogRoute(req,env,path,user){
   for(const tid of ids)await published(env,tid);
   await env.DB.batch([query(env,`INSERT INTO playlists(id,user_id,name,is_public,created,description)
    SELECT ?,?,?,?,?,? WHERE (SELECT count(*) FROM playlists WHERE user_id=?) <
-   (SELECT CASE WHEN premium_until>unixepoch() THEN 10 ELSE 2 END FROM users WHERE id=?)`,pid,user.id,str(b.name,80),b.is_public===true?1:0,now(),str(b.description||'',600,false),user.id,user.id),
+   (SELECT CASE WHEN MAX(premium_until,apple_premium_until)>unixepoch() THEN 10 ELSE 2 END FROM users WHERE id=?)`,pid,user.id,str(b.name,80),b.is_public===true?1:0,now(),str(b.description||'',600,false),user.id,user.id),
    ...ids.map((tid,i)=>query(env,'INSERT INTO playlist_tracks(playlist_id,track_id,created,position) SELECT ?,?,?,? WHERE EXISTS(SELECT 1 FROM playlists WHERE id=?)',pid,tid,now(),i,pid))]);
   if(!await one(env,'SELECT id FROM playlists WHERE id=?',pid))fail(409,`${isPremium(user)?'Premium':'무료'} 회원은 플레이리스트를 최대 ${playlistLimit(user)}개까지 만들 수 있습니다. 기존 목록에 곡을 추가하거나 보관함을 정리해주세요.`);
   return json({id:pid},201);

@@ -90,7 +90,7 @@ export async function mediaRoute(req,env,path,user){
   }
   if(action==='complete'&&method==='POST'){
    const original=await env.BUCKET.head(`original/${t.id}.${t.original_ext}`);if(original?.size!==t.original_bytes)fail(409,'음원 파일 업로드를 먼저 완료해주세요.');
-   await completeUpload(env,t,user);return json({ok:true,show_upload_ad:t.kind==='cover'&&!isPremium(user)});
+   await completeUpload(env,t,user);return json({ok:true,show_upload_ad:!isPremium(user)});
   }
  }
  m=path.match(/^\/media\/([\w-]+)\/(cover|preview|stream|premium)$/);

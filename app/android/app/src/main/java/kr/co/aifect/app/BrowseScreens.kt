@@ -130,7 +130,7 @@ private val PagePadding=PaddingValues(start=22.dp,end=22.dp,bottom=32.dp)
   Text("AI + EFFECT",color=SoftText,fontSize=12.sp,letterSpacing=2.sp)
   Text("오늘의 음악이\n내일의 취향이 돼요",fontSize=28.sp,lineHeight=36.sp,fontWeight=FontWeight.Bold,modifier=Modifier.padding(vertical=20.dp))
   if(m.loading)LinearProgressIndicator(Modifier.fillMaxWidth(),color=Aqua,trackColor=Stroke)
-  else TextButton(onClick={m.selectTab(1)},colors=ButtonDefaults.textButtonColors(contentColor=SoftText)){Text("새로운 음악 찾아보기");Icon(Icons.AutoMirrored.Rounded.ArrowForward,null)}
+  else TextButton(onClick={m.selectTab(1)},colors=ButtonDefaults.textButtonColors(contentColor=SoftText)){Text("새로운 음악 찾아보기");Icon(Icons.Rounded.ChevronRight,null)}
  }
 }
 @Composable private fun FeaturedRelease(song:Song,queue:List<Song>,m:MusicModel){
@@ -320,6 +320,7 @@ private val PagePadding=PaddingValues(start=22.dp,end=22.dp,bottom=32.dp)
   item{
    Heading("목소리를 발견하는 곳","듣다 보면, 나도 부르고 싶어지는 순간")
    Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)){
+    OutlinedButton(onClick={m.openRanking("week")}){Icon(Icons.Rounded.EmojiEvents,null,Modifier.size(16.dp));Text("커버 랭킹",Modifier.padding(start=6.dp))}
     OutlinedButton(onClick={if(m.authenticated())m.showRecordingDrafts=true}){Icon(Icons.Rounded.Edit,null,Modifier.size(16.dp));Text("초안",Modifier.padding(start=6.dp))}
     OutlinedButton(onClick={m.showCollection("부를 수 있는 곡",m.singable)}){Text("부를 수 있는 곡")}
     OutlinedButton(onClick={m.openRanking("week",chart=true)}){Text("노래방 차트")}
@@ -349,8 +350,8 @@ private val PagePadding=PaddingValues(start=22.dp,end=22.dp,bottom=32.dp)
   }
   items(tracks,key={it.id}){song->
    Surface(color=Panel,shape=RoundedCornerShape(18.dp),modifier=Modifier.padding(bottom=12.dp)){
-    Column(Modifier.padding(14.dp)){
-     Row(verticalAlignment=Alignment.CenterVertically){Artwork(song,Modifier.size(60.dp).clickable{m.openSong(song)});Column(Modifier.weight(1f).padding(start=14.dp)){Text(song.title,fontSize=17.sp,fontWeight=FontWeight.SemiBold,maxLines=2,overflow=TextOverflow.Ellipsis);Text("${song.credit} · ${song.genre}",fontSize=12.sp,color=Muted,modifier=Modifier.padding(top=5.dp))}}
+    Column(Modifier.padding(10.dp)){
+     Row(verticalAlignment=Alignment.CenterVertically){Artwork(song,Modifier.size(48.dp).clickable{m.openSong(song)});Column(Modifier.weight(1f).padding(start=14.dp)){Text(song.title,fontSize=17.sp,fontWeight=FontWeight.SemiBold,maxLines=2,overflow=TextOverflow.Ellipsis);Text("${song.credit} · ${song.genre}",fontSize=12.sp,color=Muted,modifier=Modifier.padding(top=5.dp))}}
      Row(Modifier.fillMaxWidth().padding(top=10.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)){
       OutlinedButton(onClick={m.openRanking("all",song)},modifier=Modifier.weight(1f),contentPadding=PaddingValues(horizontal=8.dp)){Icon(Icons.Rounded.EmojiEvents,null,Modifier.size(17.dp));Text("커버 랭킹 · ${song.raw.optInt("covers")}",fontSize=12.sp,modifier=Modifier.padding(start=5.dp))}
       Button(onClick={sing(song)},modifier=Modifier.weight(1f),contentPadding=PaddingValues(horizontal=8.dp)){Icon(Icons.Rounded.Mic,null,Modifier.size(17.dp));Text("이 곡 부르기",fontSize=13.sp,modifier=Modifier.padding(start=5.dp))}
@@ -367,7 +368,7 @@ private val PagePadding=PaddingValues(start=22.dp,end=22.dp,bottom=32.dp)
 @Composable private fun PlayButtons(tracks:List<Song>,m:MusicModel){
  Row(Modifier.fillMaxWidth().padding(vertical=10.dp),horizontalArrangement=Arrangement.spacedBy(10.dp)){
   FilledTonalButton(onClick={m.playAll(tracks)},enabled=tracks.isNotEmpty(),modifier=Modifier.weight(1f),shape=RoundedCornerShape(12.dp)){Icon(Icons.Rounded.PlayArrow,null,Modifier.size(21.dp));Text("전체 재생",fontSize=13.sp,modifier=Modifier.padding(start=5.dp))}
-  OutlinedButton(onClick={m.playAll(tracks,true)},enabled=tracks.isNotEmpty(),modifier=Modifier.weight(1f),shape=RoundedCornerShape(12.dp)){Icon(Icons.Rounded.Shuffle,null,Modifier.size(18.dp));Text("셔플",fontSize=13.sp,modifier=Modifier.padding(start=6.dp))}
+  OutlinedButton(onClick={m.playAll(tracks,true)},enabled=tracks.isNotEmpty(),modifier=Modifier.weight(1f),shape=RoundedCornerShape(12.dp)){Icon(SimpleShuffle,null,Modifier.size(18.dp));Text("셔플",fontSize=13.sp,modifier=Modifier.padding(start=6.dp))}
  }
 }
 @Composable internal fun CollectionSheet(m:MusicModel,c:MusicCollection,sing:(Song)->Unit){

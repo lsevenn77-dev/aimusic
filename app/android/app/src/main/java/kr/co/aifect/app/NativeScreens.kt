@@ -13,6 +13,7 @@ import androidx.compose.material.icons.automirrored.rounded.*
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -62,6 +63,8 @@ private val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=C
   var createList by remember {mutableStateOf(false)}
   val pages=rememberSaveableStateHolder()
   val keyboardVisible=WindowInsets.isImeVisible
+  val chatLifecycle=androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
+  LaunchedEffect(m.user?.optString("id")){m.unreadMessages=0;m.inboxCrew=null;if(m.user!=null)chatLifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.RESUMED){while(true){try{m.refreshMessageSummary()}catch(e:Exception){if(e is kotlinx.coroutines.CancellationException)throw e};delay(8000)}}}
   LaunchedEffect(m.notice){m.notice?.let {snack.showSnackbar(it);m.notice=null}}
   BackHandler(m.showGifts||m.fullPlayer||m.detail!=null||m.selectedList!=null||m.profile!=null||m.showLogin||m.showAccount||m.collection!=null||m.rankOpen){
    when{m.showGifts->m.showGifts=false;m.showLogin->m.showLogin=false;m.showAccount->m.showAccount=false;m.detail!=null->m.detail=null;m.selectedList!=null->m.selectedList=null;m.profile!=null->m.dismissProfile();m.fullPlayer->m.fullPlayer=false;m.collection!=null->m.dismissCollection();else->m.dismissRanking()}
@@ -71,7 +74,7 @@ private val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=C
     AnimatedVisibility(m.current!=null){m.current?.let {MiniPlayer(m,it)}}
     NavigationBar(containerColor=Ink,tonalElevation=0.dp){
      listOf(Triple(0,"홈",Icons.Rounded.Headphones),Triple(3,"커뮤니티",Icons.Rounded.People),Triple(2,"부르기",Icons.Rounded.Mic),Triple(5,"메시지",Icons.AutoMirrored.Rounded.Chat),Triple(6,"마이",Icons.Rounded.PersonOutline)).forEach {(i,name,icon)->
-      NavigationBarItem(selected=m.tab==i||(m.tab==4&&i==6),onClick={m.selectTab(i)},modifier=Modifier.testTag("main-tab-$i"),icon={Icon(icon,name)},label={Text(name,fontSize=12.sp,fontWeight=FontWeight.SemiBold)},colors=NavigationBarItemDefaults.colors(selectedIconColor=if(i==2)Pink else Aqua,selectedTextColor=MaterialTheme.colorScheme.onSurface,indicatorColor=Raised,unselectedIconColor=Muted,unselectedTextColor=Muted))
+      NavigationBarItem(selected=m.tab==i||(m.tab==4&&i==6),onClick={m.selectTab(i)},modifier=Modifier.testTag("main-tab-$i"),icon={BadgedBox(badge={if(i==5&&m.unreadMessages>0)Badge{Text(if(m.unreadMessages>99)"99+" else m.unreadMessages.toString())}}){Icon(icon,name)}},label={Text(name,fontSize=12.sp,fontWeight=FontWeight.SemiBold)},colors=NavigationBarItemDefaults.colors(selectedIconColor=if(i==2)Pink else Aqua,selectedTextColor=MaterialTheme.colorScheme.onSurface,indicatorColor=Raised,unselectedIconColor=Muted,unselectedTextColor=Muted))
      }
     }
    }
@@ -261,7 +264,7 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)A
     Slider(value=seek?:m.position.toFloat(),onValueChange={seek=it},onValueChangeFinished={seek?.let{m.controller?.seekTo(it.toLong())};seek=null},valueRange=0f..m.duration.coerceAtLeast(1).toFloat(),modifier=Modifier.fillMaxWidth().padding(top=15.dp),colors=SliderDefaults.colors(thumbColor=Aqua,activeTrackColor=Aqua,inactiveTrackColor=Stroke))
     Row(Modifier.fillMaxWidth()){Text(timeLabel((seek?:m.position.toFloat()).toLong()),fontSize=12.sp,color=Muted);Spacer(Modifier.weight(1f));Text(timeLabel(m.duration),fontSize=12.sp,color=Muted)}
     Row(Modifier.fillMaxWidth().padding(vertical=18.dp),horizontalArrangement=Arrangement.SpaceEvenly,verticalAlignment=Alignment.CenterVertically){
-     IconButton(onClick={m.controller?.shuffleModeEnabled=!m.shuffle}){Icon(Icons.Rounded.Shuffle,"셔플",tint=if(m.shuffle)Aqua else Muted)}
+     IconButton(onClick={m.controller?.shuffleModeEnabled=!m.shuffle}){Icon(SimpleShuffle,"셔플",tint=if(m.shuffle)Aqua else Muted)}
      IconButton(onClick={m.controller?.seekToPreviousMediaItem()},enabled=m.controller?.hasPreviousMediaItem()==true){Icon(Icons.Rounded.SkipPrevious,"이전 곡",Modifier.size(32.dp))}
      FilledIconButton(onClick=m::toggle,modifier=Modifier.size(70.dp),colors=IconButtonDefaults.filledIconButtonColors(containerColor=Aqua,contentColor=Ink)){if(m.buffering)CircularProgressIndicator(Modifier.size(24.dp),color=Ink) else Icon(if(m.playing)Icons.Rounded.Pause else Icons.Rounded.PlayArrow,if(m.playing)"일시정지" else "재생",Modifier.size(38.dp))}
      IconButton(onClick={m.controller?.seekToNextMediaItem()},enabled=m.controller?.hasNextMediaItem()==true){Icon(Icons.Rounded.SkipNext,"다음 곡",Modifier.size(32.dp))}
