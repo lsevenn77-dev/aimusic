@@ -70,6 +70,9 @@ export async function dispatchPush(env){
  let auth;try{auth=await accessToken(env);}catch{console.error('Push authorization failed');return;}
  await Promise.allSettled(events.map(async event=>{
   if(!kinds.includes(event.kind))return;
+  if(event.kind==='dm'&&await one(env,'SELECT 1 FROM dm_settings s JOIN producers p ON p.user_id=s.peer_id WHERE s.user_id=? AND p.id=? AND s.muted=1',event.recipient,event.target)){
+   await run(env,'UPDATE push_outbox SET delivered=1 WHERE id=?',event.id);return;
+  }
   if(event.kind!=='dm'&&!await one(env,"SELECT id FROM tracks WHERE id=? AND status='published'",event.target)){
    await run(env,'UPDATE push_outbox SET delivered=1 WHERE id=?',event.id);return;
   }

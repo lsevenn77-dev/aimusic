@@ -94,10 +94,10 @@ export const goldOrders=sqliteTable('gold_orders',{
 },t=>[uniqueIndex('gold_orders_request').on(t.userId,t.requestId),uniqueIndex('gold_orders_tid').on(t.tid),index('gold_orders_reconcile').on(t.state,t.lastChecked)]);
 
 export const crews=sqliteTable('crews',{
- id:text('id').primaryKey(),ownerId:text('owner_id').notNull().references(()=>users.id),name:text('name').notNull(),description:text('description').notNull().default(''),interests:text('interests').notNull().default(''),recruiting:integer('recruiting').notNull().default(1),created:integer('created').notNull()
+ id:text('id').primaryKey(),ownerId:text('owner_id').notNull().references(()=>users.id),name:text('name').notNull(),description:text('description').notNull().default(''),interests:text('interests').notNull().default(''),imageVersion:text('image_version').notNull().default(''),recruiting:integer('recruiting').notNull().default(1),created:integer('created').notNull()
 },t=>[uniqueIndex('crews_name').on(t.name)]);
 export const crewMembers=sqliteTable('crew_members',{
- crewId:text('crew_id').notNull().references(()=>crews.id,{onDelete:'cascade'}),userId:text('user_id').notNull().references(()=>users.id),role:text('role').notNull().default('member'),joined:integer('joined').notNull(),joinedSequence:integer('joined_sequence').notNull().default(0)
+ crewId:text('crew_id').notNull().references(()=>crews.id,{onDelete:'cascade'}),userId:text('user_id').notNull().references(()=>users.id),role:text('role').notNull().default('member'),joined:integer('joined').notNull(),joinedSequence:integer('joined_sequence').notNull().default(0),readSequence:integer('read_sequence').notNull().default(0)
 },t=>[primaryKey({columns:[t.crewId,t.userId]}),uniqueIndex('crew_members_user').on(t.userId)]);
 export const crewXp=sqliteTable('crew_xp',{
  id:text('id').primaryKey(),crewId:text('crew_id').notNull().references(()=>crews.id,{onDelete:'cascade'}),userId:text('user_id').notNull().references(()=>users.id),amount:integer('amount').notNull(),created:integer('created').notNull()
@@ -105,8 +105,14 @@ export const crewXp=sqliteTable('crew_xp',{
 export const crewMessages=sqliteTable('crew_messages',{
  id:text('id').primaryKey(),crewId:text('crew_id').notNull().references(()=>crews.id,{onDelete:'cascade'}),userId:text('user_id').notNull().references(()=>users.id),body:text('body').notNull(),kind:text('kind').notNull().default('message'),authorRole:text('author_role').notNull().default('member'),requestId:text('request_id').notNull(),created:integer('created').notNull()
 },t=>[uniqueIndex('crew_messages_request').on(t.userId,t.requestId),index('crew_messages_time').on(t.crewId,t.created),index('crew_messages_sequence').on(t.crewId)]);
+export const chatImages=sqliteTable('chat_images',{
+ id:text('id').primaryKey(),senderId:text('sender_id').notNull().references(()=>users.id),recipientId:text('recipient_id').notNull().references(()=>users.id),objectKey:text('object_key').notNull(),created:integer('created').notNull(),expires:integer('expires').notNull(),deleted:integer('deleted').notNull().default(0)
+},t=>[index('chat_images_expiry').on(t.deleted,t.expires)]);
+export const dmSettings=sqliteTable('dm_settings',{
+ userId:text('user_id').notNull().references(()=>users.id),peerId:text('peer_id').notNull().references(()=>users.id),muted:integer('muted').notNull().default(0),clearedSequence:integer('cleared_sequence').notNull().default(0)
+},t=>[primaryKey({columns:[t.userId,t.peerId]})]);
 export const directMessages=sqliteTable('direct_messages',{
- id:text('id').primaryKey(),senderId:text('sender_id').notNull().references(()=>users.id),recipientId:text('recipient_id').notNull().references(()=>users.id),body:text('body').notNull(),requestId:text('request_id').notNull(),created:integer('created').notNull(),readAt:integer('read_at').notNull().default(0)
+ id:text('id').primaryKey(),senderId:text('sender_id').notNull().references(()=>users.id),recipientId:text('recipient_id').notNull().references(()=>users.id),body:text('body').notNull(),requestId:text('request_id').notNull(),created:integer('created').notNull(),readAt:integer('read_at').notNull().default(0),imageId:text('image_id').references(()=>chatImages.id)
 },t=>[uniqueIndex('direct_messages_request').on(t.senderId,t.requestId),index('direct_messages_sender').on(t.senderId,t.recipientId,t.created),index('direct_messages_recipient').on(t.recipientId,t.created),index('direct_messages_pair_sequence').on(t.senderId,t.recipientId),index('direct_messages_sent_sequence').on(t.senderId),index('direct_messages_received_sequence').on(t.recipientId),index('direct_messages_unread').on(t.recipientId,t.readAt),index('direct_messages_sent_unread').on(t.senderId,t.recipientId,t.readAt)]);
 
 export const crewBans=sqliteTable('crew_bans',{crewId:text('crew_id').notNull().references(()=>crews.id,{onDelete:'cascade'}),userId:text('user_id').notNull().references(()=>users.id),created:integer('created').notNull()},t=>[primaryKey({columns:[t.crewId,t.userId]})]);
