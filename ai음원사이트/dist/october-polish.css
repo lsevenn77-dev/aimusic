@@ -34,3 +34,22 @@
 
 .gold-pack .gold-bonus,.billing-checkout-summary .gold-bonus{margin:0;color:var(--aqua,#8eddd2);font-size:13px;line-height:1.5;font-weight:600}
 .gold-pack .gold-bonus span{display:block;white-space:nowrap}
+/* Artist photography stays square in the grid; the viewer preserves the full image. */
+.artist-photo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:16px}
+.artist-photo-grid figure{margin:0;min-width:0;position:relative}
+.artist-photo{display:block;width:100%;aspect-ratio:1;border:0;padding:0;overflow:hidden;border-radius:18px;background:#222331;cursor:pointer}
+.artist-photo img{width:100%;height:100%;object-fit:cover;transition:transform .2s}
+.artist-photo:hover img{transform:scale(1.025)}
+.artist-photo:focus-visible{outline:3px solid #8edbd9;outline-offset:3px}
+.gallery-delete{position:absolute;bottom:10px;right:10px;border:0;border-radius:20px;padding:8px 12px;background:#171923e8;color:#fff;font-size:14px;cursor:pointer;min-height:40px}
+.gallery-lightbox{display:block;width:100%;max-height:70dvh;object-fit:contain}
+.gallery-empty{padding:36px 24px;text-align:center;color:#adb4c5}
+.gallery-empty h3{color:#eef1f8}
+.artist-gallery .section-heading{gap:12px;align-items:center}
+.artist-gallery .section-heading p{margin-bottom:0}
+.artist-gallery .section-heading button{flex-shrink:0}
+.my-page-heading{display:flex;align-items:flex-start;gap:12px}
+.my-page-heading>.page-heading{flex:1;min-width:0}
+.my-page-heading .free-badge{display:none}
+.my-logout{flex-shrink:0;min-height:44px;margin-top:4px;color:#bec5d4;border:1px solid #363c49;background:transparent;font-size:14px}
+@media(max-width:600px){.artist-photo-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.artist-photo{border-radius:14px}.artist-gallery .section-heading h2{font-size:20px}.artist-gallery .section-heading p{font-size:14px;line-height:1.5}.my-page-heading .page-heading p{font-size:14px}.my-logout{padding:8px 12px}}

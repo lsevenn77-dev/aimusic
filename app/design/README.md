@@ -4,6 +4,16 @@
 
 이 저장소에는 Xcode 프로젝트와 실제 iOS 화면 소스가 없다. `ios/`는 가져다 쓸 디자인 기반과 리소스이며, 아이폰 앱에 적용되거나 iOS 빌드가 검증됐다는 의미는 아니다. 최신 Android 구현은 `../android/app/src/main/`에 있다. 이전 README의 버전별 기록이나 오래된 웹 스크린샷보다 이 문서와 현재 소스를 우선한다.
 
+## 2026-10-09 AI 가수 갤러리 · 로그아웃
+
+- AI 가수 상세는 **음악 / 갤러리** 탭으로 구분한다. 갤러리는 음악 커버 목록과 별도이며, 모바일 2열 정사각형 사진을 탭하면 원본 비율로 확대한다.
+- 제작자만 사진 추가·삭제 가능. 최대 30장, 장당 5MB. 클라이언트에서 긴 변 1600px 이하 WebP로 변환한다. 웹은 여러 장 선택, Android는 한 장씩 추가한다.
+- `GET /api/artists/:id`에 `gallery: [{id,image_version,created,url}], can_manage, gallery_limit`이 추가됐다. 단독 갤러리 조회는 `GET /api/artists/:id/gallery` (`photos, can_manage, limit`).
+- 업로드 `PUT /api/artists/:id/gallery`에 이미지 바이너리, 삭제 `DELETE /api/artists/:id/gallery/:photoId`. 응답의 `url`을 사용하고 버전 쿼리를 유지해 이미지 캐시를 재사용한다. 쓰기 후 가수 프로필 캐시를 무효화한다.
+- **마이 제목 오른쪽에 ‘로그아웃’ 텍스트 버튼**을 바로 노출한다. 확인 후 기존 로그아웃 절차(세션·재생·계정별 상태 정리)를 실행한다. 계정 설정 안의 기존 로그아웃도 유지한다.
+- 참고 구현: `ArtistPhotoGallery.kt`, `NativeScreens.kt / ProfileSheet`, `MusicCommunityScreens.kt / MyMusicScreen`, 웹 `dist/artist-gallery.js`.
+- 웹 갤러리 업로드·확대·로그아웃을 모바일 폭에서 확인했고 Android Kotlin 컴파일을 통과했다. 이 저장소에 실제 Xcode 프로젝트는 없어 iOS 적용은 별도로 필요하다.
+
 ## 자료
 
 | 파일 | 용도 |

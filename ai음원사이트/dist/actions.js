@@ -28,7 +28,7 @@ function bindForms(base,param){
   form.onsubmit=busyForm(form,async fd=>{const d=await api('/api/auth/'+form.dataset.mode,'POST',Object.fromEntries(fd));me=d.user;await refreshAuthState();await refreshLibrary();updateAccount();toast('반가워요! 이제 전체곡을 들을 수 있습니다.');try{await resumeAfterLogin();}catch(e){toast(e.message);}if(location.hash===returnRoute)await render();else location.hash=returnRoute;});
   if(authConfig.googleClientId)prepareGoogle().catch(e=>toast(e.message));
  }
- if($('#logout'))$('#logout').onclick=async()=>{try{await api('/api/auth/logout','POST');++playSerial;window.AifectAudioAds?.cancel();audio.pause();audio.removeAttribute('src');me=null;authConfig={...authConfig,admin:false,track_moderator:false,user:null};playSession=null;library={likes:[],playlists:[],follows:[]};setMembership(null);current=null;setCurrentLyrics(null);setPlayerVisible(false);sessionStorage.removeItem('aifect-player-resume');pendingResume=null;updateAccount();await render();toast('로그아웃했습니다.');}catch(e){toast(e.message);}};
+ if($('#logout'))$('#logout').onclick=logoutAccount;
  if($('#comment-form')){
   const form=$('#comment-form');form.onsubmit=busyForm(form,async fd=>{if(!me){askLogin();return;}const ts=fd.has('with_time')&&current?.id===param?Math.floor(audio.currentTime):null;await api(`/api/tracks/${param}/comments`,'POST',{body:fd.get('body'),timestamp:ts});form.reset();await reloadComments(param);toast('댓글을 등록했습니다.');});
   $('#comment-sort').onchange=()=>reloadComments(param).catch(e=>toast(e.message));
@@ -211,3 +211,5 @@ document.addEventListener('click',async e=>{
 });
 
 async function refreshAuthState(){const d=await api("/api/me");authConfig=d;me=d.user;setMembership(d.membership);}
+
+async function logoutAccount(){try{await api('/api/auth/logout','POST');++playSerial;window.AifectAudioAds?.cancel();audio.pause();audio.removeAttribute('src');me=null;authConfig={...authConfig,admin:false,track_moderator:false,user:null};playSession=null;library={likes:[],playlists:[],follows:[]};setMembership(null);current=null;setCurrentLyrics(null);setPlayerVisible(false);sessionStorage.removeItem('aifect-player-resume');pendingResume=null;updateAccount();void refreshMessageBadge();if(location.hash==='#account')await render();else location.hash='account';toast('로그아웃했습니다.');}catch(e){toast(e.message);}}

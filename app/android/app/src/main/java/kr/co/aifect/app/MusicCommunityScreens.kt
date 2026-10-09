@@ -145,6 +145,8 @@ import org.json.JSONObject
  var tab by rememberSaveable{mutableStateOf("전체")}
  var grid by rememberSaveable{mutableStateOf(true)}
  val columns=musicGalleryColumns()
+ var confirmLogout by remember{mutableStateOf(false)}
+ if(confirmLogout)AlertDialog(onDismissRequest={confirmLogout=false},title={Text("로그아웃할까요?")},text={Text("이 기기에서 계정 연결이 해제돼요.")},confirmButton={TextButton(onClick={confirmLogout=false;m.logout()}){Text("로그아웃")}},dismissButton={TextButton(onClick={confirmLogout=false}){Text("취소")}})
  LaunchedEffect(m.user?.optString("id")){if(m.user!=null){m.loadStudio();m.refreshLibrary()}}
  val p=JSONObject((m.ownProfile.optJSONObject("profile")?:JSONObject()).toString()).apply{
   if(optString("name").isBlank())put("name",m.user?.optString("name"))
@@ -156,7 +158,7 @@ import org.json.JSONObject
  val tracks=published.filter{when(tab){"제작곡"->!it.cover;"커버"->it.cover;"듀엣"->it.cover&&it.raw.optString("cover_mode")=="duet";else->true}}
  LazyColumn(Modifier.fillMaxSize().testTag("my-music-page"),contentPadding=PaddingValues(16.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
   item{
-   Heading("마이","내 플레이리스트와 공개한 음악을 한곳에")
+   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.Top){Column(Modifier.weight(1f)){Heading("마이","내 플레이리스트와 공개한 음악을 한곳에")};if(m.user!=null)TextButton(onClick={confirmLogout=true},enabled=!m.busy,colors=ButtonDefaults.textButtonColors(contentColor=SoftText),modifier=Modifier.testTag("my-logout")){Text("로그아웃",fontSize=14.sp)}}
    if(m.user==null){Empty("음악을 듣기만 해도 좋아요","로그인하면 플레이리스트와 나의 활동을 모아둘 수 있어요.");Button(onClick={m.showLogin=true}){Text("로그인")}}
    else MusicProfileHeader(m,p,published.filter{!it.cover},published.filter{it.cover},m.ownProfile.optInt("follower_count"),myPage=true)
   }

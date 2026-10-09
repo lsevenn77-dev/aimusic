@@ -78,7 +78,7 @@ async function render(){
   }else if(base==='artist'||base==='producer'){
    const d=await api(`/api/${base==='artist'?'artists':'producers'}/${param}`);nextTracks=remember(d.tracks);
    if(base==='producer'){const q=new URLSearchParams(paramQuery?.split('?')[1]||''),tab=['tracks','covers','duets'].includes(q.get('tab'))?q.get('tab'):'all';remember(d.covers||[]);nextTracks=musicProfileItems(d,tab);html=heading('음악가의 페이지')+personProfileHTML(d,param,tab);}
-   else html=heading(base==='artist'?'AI 아티스트':'제작자')+`<section class="profile-hero surface">${portrait(d.profile,base)}<div><span class="eyebrow">${base==='artist'?'AI ARTIST':'PRODUCER'}</span><h2>${esc(d.profile.name)}</h2><p>${esc(d.profile.bio||'새로운 음악으로 만나요.')}</p><div class="inline-actions"><span><span data-followers="${base}/${esc(param)}" data-count="${Number(d.followers)}">${number(d.followers)} 팔로워</span> · ${d.tracks.length}곡</span><button class="primary-button" data-follow="${base}/${param}">${followed(base,param)?'팔로잉':'팔로우'}</button></div></div></section>`+section('공개한 음악')+list(d.tracks);
+   else html=artistPageHTML(d,param,new URLSearchParams(paramQuery?.split('?')[1]||'').get('tab'));
   }else if(['library','history','studio','upload','manage','cover','gold','admin','sing'].includes(base)&&!me){returnRoute=location.hash;html=gate();}
   else if(base==='library'){
    await refreshLibrary();const tab=param||'likes';nextTracks=library.likes;

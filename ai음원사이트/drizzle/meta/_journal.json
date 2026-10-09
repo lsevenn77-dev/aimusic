@@ -260,6 +260,13 @@
       "when": 1791460736200,
       "tag": "0036_gift_tax_reserve",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "6",
+      "when": 1791543532189,
+      "tag": "0037_artist_gallery",
+      "breakpoints": true
     }
   ]
 }

@@ -695,7 +695,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
  fun openProfile(id:String,kind:String="producer",showCovers:Boolean=false,seed:JSONObject?=null){
   val type=if(kind=="artist")"artist" else "producer"
   val path="/api/${type}s/$id"
-  fun page(data:JSONObject)=ProfilePage(data.getJSONObject("profile").put("profile_kind",type).put("show_covers",showCovers),data.tracks(),data.tracks("covers"),data.optInt("followers"))
+  fun page(data:JSONObject)=ProfilePage(data.getJSONObject("profile").put("profile_kind",type).put("show_covers",showCovers).put("gallery",data.optJSONArray("gallery")).put("can_manage",data.optBoolean("can_manage")),data.tracks(),data.tracks("covers"),data.optInt("followers"))
   requestProfile("$type:$id:$showCovers",JSONObject(seed?.toString()?:"{}").put("id",id).put("profile_kind",type).put("show_covers",showCovers),api.peek(path)?.let{page(it)}){page(api.call(path,fresh=true))}
  }
  private fun copyProfile(page:ProfilePage)=ProfilePage(JSONObject(page.person.toString()),page.tracks.map{Song(JSONObject(it.raw.toString()))},page.covers.map{Song(JSONObject(it.raw.toString()))},page.followers)

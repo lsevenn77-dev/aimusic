@@ -494,9 +494,11 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)A
    }
    else item{MusicProfileHeader(m,p,m.profileSongs,m.profileCovers,m.profileFollowers,close=m::dismissProfile)}
    if(!m.profileLoading&&m.profileError==null){
-   item{Chips(listOf("전체","제작곡","커버","듀엣"),tab){tab=it};MusicLayoutControl(tracks.size,grid,{grid=it},"profile")}
+   item{Chips(if(p.optString("profile_kind")=="artist")listOf("음악","갤러리")else listOf("전체","제작곡","커버","듀엣"),if(tab=="전체"&&p.optString("profile_kind")=="artist")"음악" else tab){tab=it};if(tab!="갤러리")MusicLayoutControl(tracks.size,grid,{grid=it},"profile")}
+   if(tab=="갤러리")item{ArtistPhotoGallery(m,p)}else{
    musicGallery(tracks,m,grid,columns,"profile")
    if(tracks.isEmpty())item{Empty("이 탭에 공개된 음악이 없어요","새로운 음악이 공개되면 여기에서 만나요.")}
+   }
    }
   }
  }

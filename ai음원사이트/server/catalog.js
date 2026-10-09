@@ -1,3 +1,4 @@
+import {artistGallery,GALLERY_LIMIT} from './artist-gallery.js';
 import {assertUnblocked} from './account-safety.js';
 import {namedArtistSQL} from './artist-identity.js';
 import {publicCrewNameSQL as publicNameSQL,producerNameSQL,memberNameSQL} from './identity.js';
@@ -133,7 +134,7 @@ export async function catalogRoute(req,env,path,user){
     kind==='producer'?trackList(env,`${VISIBLE()} AND t.kind='cover' AND (t.producer_id=? OR dt.producer_id=?)`,[entity.id,entity.id]):null,
     kind==='producer'?profileGifts(env,entity.id):null
    ]);
-   return json({profile:entity,tracks,followers:count.n,...(kind==='producer'?{covers,gifts}:{})});
+   return json({profile:entity,tracks,followers:count.n,...(kind==='producer'?{covers,gifts}:{gallery:await artistGallery(env,entity.id),can_manage:user?.id===owner?.user_id,gallery_limit:GALLERY_LIMIT})});
   }
   requireUser(user);
   if(method==='PUT')await run(env,'INSERT OR IGNORE INTO follows(user_id,kind,target_id,created) VALUES(?,?,?,?)',user.id,kind,entity.id,now());
