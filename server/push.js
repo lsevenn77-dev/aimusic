@@ -3,6 +3,7 @@ import {one,rows,run,now,fail,json,rate} from './db.js';
 import {requireUser,hash,cookies} from './auth.js';
 
 const kinds=['dm','comment','gift'];
+const eventKinds=[...kinds,'crew','person_gift'];
 let credentialCache;
 let retryAfter=0;
 export function retryPush(env,ctx){
@@ -54,8 +55,8 @@ async function accessToken(env){
 }
 
 export function notificationData(event){
- const title=event.kind==='dm'?'새 메시지':event.kind==='comment'?'새 댓글':'선물이 도착했어요';
- const body=event.kind==='dm'?'새 메시지가 도착했어요.':event.kind==='comment'?'내 음악에 새로운 댓글이 달렸어요.':'내 음악에 선물이 도착했어요.';
+ const title=event.kind==='crew'?'크루 새 메시지':event.kind==='dm'?'새 메시지':event.kind==='comment'?'새 댓글':'선물이 도착했어요';
+ const body=event.kind==='crew'?'크루에 새 메시지가 도착했어요.':event.kind==='person_gift'?'나에게 선물이 도착했어요.':event.kind==='dm'?'새 메시지가 도착했어요.':event.kind==='comment'?'내 음악에 새로운 댓글이 달렸어요.':'내 음악에 선물이 도착했어요.';
  return {kind:event.kind,target:event.target,recipient:event.recipient,title,body};
 }
 
@@ -69,16 +70,19 @@ export async function dispatchPush(env){
  if(!events.length)return;
  let auth;try{auth=await accessToken(env);}catch{console.error('Push authorization failed');return;}
  await Promise.allSettled(events.map(async event=>{
-  if(!kinds.includes(event.kind))return;
+  if(!eventKinds.includes(event.kind))return;
+  if(event.kind==='crew'&&!await one(env,'SELECT 1 FROM crew_members WHERE user_id=? AND crew_id=? AND muted=0',event.recipient,event.target)){await run(env,'UPDATE push_outbox SET delivered=1 WHERE id=?',event.id);return;}
+  if(event.kind==='person_gift'&&!await one(env,'SELECT 1 FROM producers WHERE id=? AND user_id=?',event.target,event.recipient)){await run(env,'UPDATE push_outbox SET delivered=1 WHERE id=?',event.id);return;}
+  const preference=event.kind==='crew'?'dm':event.kind==='person_gift'?'gift':event.kind;
   if(event.kind==='dm'&&await one(env,'SELECT 1 FROM dm_settings s JOIN producers p ON p.user_id=s.peer_id WHERE s.user_id=? AND p.id=? AND s.muted=1',event.recipient,event.target)){
    await run(env,'UPDATE push_outbox SET delivered=1 WHERE id=?',event.id);return;
   }
-  if(event.kind!=='dm'&&!await one(env,"SELECT id FROM tracks WHERE id=? AND status='published'",event.target)){
+  if(['comment','gift'].includes(event.kind)&&!await one(env,"SELECT id FROM tracks WHERE id=? AND status='published'",event.target)){
    await run(env,'UPDATE push_outbox SET delivered=1 WHERE id=?',event.id);return;
   }
   // A revoked/expired login can never continue receiving pushes. Preference names are server-owned.
   const devices=await rows(env,`SELECT d.token FROM push_devices d JOIN sessions s ON s.token=d.session_token AND s.user_id=d.user_id
-   LEFT JOIN push_preferences p ON p.user_id=d.user_id WHERE d.user_id=? AND s.expires>? AND COALESCE(p.${event.kind},1)=1 LIMIT 10`,event.recipient,at);
+   LEFT JOIN push_preferences p ON p.user_id=d.user_id WHERE d.user_id=? AND s.expires>? AND COALESCE(p.${preference},1)=1 LIMIT 10`,event.recipient,at);
   let retry=false;
   await Promise.allSettled(devices.map(async device=>{
    try{

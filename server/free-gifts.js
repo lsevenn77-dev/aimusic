@@ -31,12 +31,12 @@ export async function sendFreeGift(env,user,track,b){
  if(track.user_id===user.id)fail(400,'내 곡에는 선물할 수 없어요.');
  if(b.gold!==undefined&&b.gold!==0)fail(400,'무료 응원에는 골드를 사용할 수 없어요.');
  if(typeof b.request_id!=='string'||!/^[a-zA-Z0-9-]{16,64}$/.test(b.request_id))fail(400,'선물 요청을 새로 시작해주세요.');
- const replay=async()=>{const g=await one(env,'SELECT id,track_id FROM free_gifts WHERE sender_id=? AND request_id=?',user.id,b.request_id);if(!g)return null;if(g.track_id!==track.id)fail(409,'이미 사용된 선물 요청이에요.');return json({gift:{id:g.id,type:'star',name:FREE_GIFT.name,free:true,gold:0},free_balance:await freeGiftBalance(env,user.id)});};
+ const replay=async()=>{const g=await one(env,'SELECT id,track_id,recipient_profile_id FROM free_gifts WHERE sender_id=? AND request_id=?',user.id,b.request_id);if(!g)return null;if(g.track_id!==track.id||(track.personal&&g.recipient_profile_id!==track.producer_id))fail(409,'이미 사용된 선물 요청이에요.');return json({gift:{id:g.id,type:'star',name:FREE_GIFT.name,free:true,gold:0},free_balance:await freeGiftBalance(env,user.id)});};
  const old=await replay();if(old)return old;
  if(await freeGiftBalance(env,user.id)<1)fail(409,'응원별이 부족해요. 오늘의 보상을 먼저 받아주세요.');
  const gid=id();try{await env.DB.batch([
   query(env,'UPDATE free_gift_wallets SET balance=balance-1 WHERE user_id=?',user.id),
-  query(env,'INSERT INTO free_gifts(id,sender_id,track_id,request_id,created) VALUES(?,?,?,?,?)',gid,user.id,track.id,b.request_id,now()),
+  query(env,'INSERT INTO free_gifts(id,sender_id,track_id,recipient_profile_id,request_id,created) VALUES(?,?,?,?,?,?)',gid,user.id,track.id,track.personal?track.producer_id:null,b.request_id,now()),
  ]);}catch(e){if(/constraint/i.test(String(e?.message))){const duplicate=await replay();if(duplicate)return duplicate;}if(/CHECK constraint/i.test(String(e?.message)))fail(409,'응원별 잔액이 바뀌었어요. 다시 확인해주세요.');throw e;}
  return json({gift:{id:gid,type:'star',name:FREE_GIFT.name,free:true,gold:0},free_balance:await freeGiftBalance(env,user.id)},201);
 }

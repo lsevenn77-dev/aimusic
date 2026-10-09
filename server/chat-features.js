@@ -12,7 +12,7 @@ export async function chatSettings(env,uid,peer){return await one(env,'SELECT mu
 export async function chatSummary(env,user){
  requireUser(user);
  const direct=await one(env,`SELECT count(*) count FROM direct_messages d LEFT JOIN dm_settings s ON s.user_id=d.recipient_id AND s.peer_id=d.sender_id WHERE d.recipient_id=? AND d.read_at=0 AND d.rowid>COALESCE(s.cleared_sequence,0) AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=d.recipient_id AND b.blocked_id=d.sender_id) OR (b.user_id=d.sender_id AND b.blocked_id=d.recipient_id))`,user.id);
- const crew=await one(env,`SELECT c.id,c.name,c.image_version,m.joined_sequence,m.read_sequence,(SELECT count(*) FROM crew_messages x WHERE x.crew_id=c.id AND x.rowid>=m.joined_sequence AND x.rowid>m.read_sequence AND x.user_id!=m.user_id AND x.kind!='system' AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=m.user_id AND b.blocked_id=x.user_id) OR (b.blocked_id=m.user_id AND b.user_id=x.user_id))) unread FROM crew_members m JOIN crews c ON c.id=m.crew_id WHERE m.user_id=?`,user.id);
+ const crew=await one(env,`SELECT c.id,c.name,c.image_version,m.joined_sequence,m.read_sequence,m.muted,(SELECT count(*) FROM crew_messages x WHERE x.crew_id=c.id AND x.rowid>=m.joined_sequence AND x.rowid>m.read_sequence AND x.user_id!=m.user_id AND x.kind!='system' AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=m.user_id AND b.blocked_id=x.user_id) OR (b.blocked_id=m.user_id AND b.user_id=x.user_id))) unread FROM crew_members m JOIN crews c ON c.id=m.crew_id WHERE m.user_id=?`,user.id);
  return {unread:(direct?.count||0)+(crew?.unread||0),direct_unread:direct?.count||0,crew};
 }
 // Every request denies expired media; physical cleanup also runs on the encoder's
@@ -69,9 +69,14 @@ export async function chatFeaturesRoute(req,env,path,user){
    await env.DB.batch([query(env,`INSERT INTO dm_settings(user_id,peer_id,cleared_sequence) VALUES(?,?,COALESCE((SELECT max(rowid) FROM direct_messages WHERE (sender_id=? AND recipient_id=?) OR (sender_id=? AND recipient_id=?)),0)) ON CONFLICT(user_id,peer_id) DO UPDATE SET cleared_sequence=max(dm_settings.cleared_sequence,excluded.cleared_sequence)`,user.id,p.user_id,user.id,p.user_id,p.user_id,user.id),query(env,'UPDATE direct_messages SET read_at=? WHERE sender_id=? AND recipient_id=? AND read_at=0',now(),p.user_id,user.id)]);return json({ok:true});
   }
  }
- m=path.match(/^\/api\/crews\/([\w-]+)\/(image|read)$/);
+ m=path.match(/^\/api\/crews\/([\w-]+)\/(image|read|settings)$/);
  if(m){
   requireUser(user);const member=await one(env,'SELECT * FROM crew_members WHERE crew_id=? AND user_id=?',m[1],user.id);if(!member)fail(403,'크루 멤버만 이용할 수 있어요.');
+  if(m[2]==='settings'){
+   if(method==='GET')return json({muted:!!member.muted});
+   if(method!=='PUT')fail(405,'지원하지 않는 요청입니다.');const b=await req.json();if(typeof b.muted!=='boolean')fail(400,'알림 설정을 확인해주세요.');
+   await run(env,'UPDATE crew_members SET muted=? WHERE crew_id=? AND user_id=?',Number(b.muted),m[1],user.id);return json({muted:b.muted});
+  }
   if(m[2]==='read'&&method==='POST'){
    const b=await req.json(),sequence=Number(b.sequence);if(!Number.isSafeInteger(sequence)||sequence<0)fail(400,'대화 위치를 확인해주세요.');
    await run(env,'UPDATE crew_members SET read_sequence=max(read_sequence,min(?,COALESCE((SELECT max(rowid) FROM crew_messages WHERE crew_id=?),0))) WHERE crew_id=? AND user_id=?',sequence,m[1],m[1],user.id);return json({ok:true});

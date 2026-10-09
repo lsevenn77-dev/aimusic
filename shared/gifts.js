@@ -12,9 +12,17 @@ export const FREE_GIFT=Object.freeze({id:'star',name:'응원별',image:'/assets/
 export const FREE_GIFT_REWARDS=Object.freeze({checkin:3,cover:2,listen:2,comment1:1,comment2:1,comment3:1});
 export const giftDay=seconds=>new Date((seconds+9*3600)*1000).toISOString().slice(0,10);
 export const GOLD_PACKS=Object.freeze([500,1000,5000,10000].map(gold=>Object.freeze({gold,price:gold*GOLD_KRW})));
+// The web promotion changes delivered quantity only. Store SKUs retain GOLD_PACKS.
+export const WEB_GOLD_BONUS_PERCENT=5;
+export const WEB_GOLD_PACKS=Object.freeze(GOLD_PACKS.map(p=>{
+ const bonus_gold=Math.floor(p.gold*WEB_GOLD_BONUS_PERCENT/100);
+ return Object.freeze({...p,bonus_gold,total_gold:p.gold+bonus_gold});
+}));
 export const GIFT_MIN_GOLD=10,GIFT_MAX_GOLD=100000;
 // Payment fees come off first: app stores are assumed at 15%, web card payments record the actual fee per purchase.
-// VAT is not deducted before the split.
+// New KRW purchases reserve Korean VAT separately; existing lots keep their recorded terms.
+export const includedKoreanVat=price=>Math.round(price/11);
+export const GIFT_SETTLEMENT_NOTICE="세금과 결제 수수료를 제외한 금액을 수령자 70% · AIFECT 30%로 배분합니다.";
 export const APP_STORE_FEE_BP=1500;
 // Shares of what remains after payment fees, in basis points.
 export const GIFT_SPLITS=Object.freeze({
@@ -42,7 +50,7 @@ export function allocateLots(lots,gold){
  for(const lot of lots){
   if(!left)break;
   const take=Math.min(left,lot.gold-lot.used);if(take<=0)continue;
-  out.push({purchase_id:lot.id,gold:take,net_mw:Math.round(take*(lot.price_krw-lot.fee_krw)*1000/lot.gold)});left-=take;
+  out.push({purchase_id:lot.id,gold:take,net_mw:Math.round(take*Math.max(0,lot.price_krw-lot.fee_krw-(lot.tax_krw||0))*1000/lot.gold)});left-=take;
  }
  if(left)throw Object.assign(new Error('골드가 부족해요.'),{shortBy:left});
  return out;

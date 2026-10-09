@@ -68,6 +68,6 @@ test('Google test payments credit once with zero settlement value and repair an 
  testPayment=false;
  await verifyPlay(env,{id:'owner'},'real-gold-receipt',gold);
  const real=f.sql.prepare('SELECT * FROM gold_purchases WHERE price_krw>0').get();
- assert.equal(real.price_krw,5000);assert.equal(real.fee_krw,750);
- assert.equal(allocateLots([real],500)[0].net_mw,4250000);
+ assert.equal(real.price_krw,5000);assert.equal(real.fee_krw,750);assert.equal(real.tax_krw,455);
+ assert.equal(allocateLots([real],500)[0].net_mw,3795000);
 });
