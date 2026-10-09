@@ -24,7 +24,7 @@ Xcode 프로젝트와 iOS 화면 소스는 [`../ios`](../ios/README.md)에 있�
 - 업로드 `PUT /api/artists/:id/gallery`에 이미지 바이너리, 삭제 `DELETE /api/artists/:id/gallery/:photoId`. 응답의 `url`을 사용하고 버전 쿼리를 유지해 이미지 캐시를 재사용한다. 쓰기 후 가수 프로필 캐시를 무효화한다.
 - **마이 제목 오른쪽에 ‘로그아웃’ 텍스트 버튼**을 바로 노출한다. 확인 후 기존 로그아웃 절차(세션·재생·계정별 상태 정리)를 실행한다. 계정 설정 안의 기존 로그아웃도 유지한다.
 - 참고 구현: `ArtistPhotoGallery.kt`, `NativeScreens.kt / ProfileSheet`, `MusicCommunityScreens.kt / MyMusicScreen`, 웹 `dist/artist-gallery.js`.
-- 웹 갤러리 업로드·확대·로그아웃을 모바일 폭에서 확인했고 Android Kotlin 컴파일을 통과했다. 이 저장소에 실제 Xcode 프로젝트는 없어 iOS 적용은 별도로 필요하다.
+- 웹 갤러리 업로드·확대·로그아웃을 모바일 폭에서 확인했고 Android Kotlin 컴파일을 통과했다. 네이티브 iOS 적용·검증 결과는 [`../ios/README.md`](../ios/README.md)를 따른다.
 
 ## 자료
 

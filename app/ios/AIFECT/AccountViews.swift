@@ -9,12 +9,16 @@ struct LoginView: View {
     @State private var name = ""
     @State private var register = false
     @State private var error: String?
+    @State private var loadingMethods = false
     var body: some View {
         NavigationStack {
             Form {
                 Section {
                     Text("나의 음악, 나의 목소리").font(.title2.bold())
                     Text("기존 AIFECT 계정으로 이어서 이용하세요.").foregroundStyle(.secondary)
+                }
+                if loadingMethods && !model.emailEnabled && model.providers.isEmpty {
+                    Section { ProgressView("로그인 방법을 불러오는 중") }
                 }
                 if model.emailEnabled {
                     Section(register ? "새 계정 만들기" : "이메일로 로그인") {
@@ -65,7 +69,11 @@ struct LoginView: View {
                 #if DEBUG
                 .onDisappear { model.cancelMacBrowserLogin() }
                 #endif
-                .task { if !model.emailEnabled && model.providers.isEmpty { try? await model.loadMe() } }
+                .task {
+                    guard !model.emailEnabled && model.providers.isEmpty else { return }
+                    loadingMethods = true; defer { loadingMethods = false }
+                    do { try await model.loadMe() } catch { self.error = error.localizedDescription }
+                }
         }
     }
 }
@@ -86,6 +94,7 @@ struct AccountView: View {
                     NavigationLink("Premium · 골드") { PaymentStoreView() }
                     if model.user != nil {
                         NavigationLink("골드 · 선물 내역") { GiftWalletView() }
+                        NavigationLink("수익 · 정산") { CreatorEarningsView() }
                         NavigationLink("오늘의 보상") { RewardsView() }
                         NavigationLink("내 프로필 편집") { ProfileEditorView() }
                         NavigationLink("계정 설정") { AccountSettingsView() }
@@ -97,7 +106,7 @@ struct AccountView: View {
                     if model.user != nil { NavigationLink("원곡 음원 업로드") { OriginalUploadView() } }
                     Link("창작자 스튜디오 열기", destination: Endpoint.origin.appendingPathComponent("studio"))
                     Link("AIFECT 웹사이트", destination: Endpoint.origin)
-                    Text("iPhone 네이티브 · 1.0.0").foregroundStyle(.secondary)
+                    Text("iPhone 네이티브 · \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "")").foregroundStyle(.secondary)
                 }
                 if model.user != nil { Section { Button("로그아웃", role: .destructive) { logoutConfirm = true } } }
             }.navigationTitle("계정").navigationBarTitleDisplayMode(.inline)

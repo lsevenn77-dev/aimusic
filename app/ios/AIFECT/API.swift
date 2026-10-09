@@ -62,6 +62,7 @@ final class API {
     private(set) var cookie: String
     private let session: URLSession
     private var generation = 0
+    var sessionRevision: Int { generation }
     init(configuration: URLSessionConfiguration = .ephemeral, cookie: String? = nil) {
         configuration.httpCookieStorage = nil
         configuration.httpShouldSetCookies = false
@@ -101,7 +102,9 @@ final class API {
         if let value = response.value(forHTTPHeaderField: "Set-Cookie"),
            let sessionCookie = HTTPCookie.cookies(withResponseHeaderFields: ["Set-Cookie": value], for: Endpoint.origin).first(where: { $0.name == "aifect_session" }) {
             let next = sessionCookie.value.isEmpty || (sessionCookie.expiresDate ?? .distantFuture) < Date() ? "" : "aifect_session=\(sessionCookie.value)"
-            try SessionVault.write(next); cookie = next
+            try SessionVault.write(next)
+            if next != cookie { generation += 1 }
+            cookie = next
         }
         return data
     }
@@ -124,6 +127,13 @@ struct Song: Identifiable, Codable, Hashable {
     var artistID: String?
     var likes: Int
     var comments: Int
+    var producerName: String?
+    var producerImageVersion: String?
+    var descriptionText: String?
+    var coverMode: String?
+    var plays: Int?
+    var covers: Int?
+    var creatorName: String { producerName.flatMap { $0.isEmpty ? nil : $0 } ?? credit }
     init(_ data: [String: Any]) {
         producerID = data["producer_id"] as? String; artistID = data["artist_id"] as? String
         id = data.string("id"); title = data.string("title", fallback: "제목 없음")
@@ -132,6 +142,9 @@ struct Song: Identifiable, Codable, Hashable {
         if credit.isEmpty { credit = "AIFECT" }
         genre = data.string("genre"); duration = data.number("duration")
         likes = Int(data.number("likes")); comments = Int(data.number("comments"))
+        producerName = data["producer"] as? String; producerImageVersion = data["producer_image_version"] as? String
+        descriptionText = data["description"] as? String; coverMode = data["cover_mode"] as? String
+        plays = data.int("plays"); covers = data.int("covers")
         if data.number("has_cover") > 0 {
             artworkPath = "/media/\(Endpoint.pathID(id))/cover?v=\(Endpoint.query(data.string("cover_version")))"
         } else if isCover, data.number("original_has_cover") > 0, let originalID {

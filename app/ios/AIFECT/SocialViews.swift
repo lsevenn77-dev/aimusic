@@ -19,35 +19,64 @@ struct ProfilePage: View {
     @State private var following = false
     @State private var showChat = false
     @State private var confirmBlock = false
+    @State private var artistTab = 0
     @Environment(\.dismiss) private var dismiss
     private var person: [String: Any] { data.object("profile") }
     var body: some View {
-        List {
-            Section {
-                ProfilePhoto(person: person, kind: kind, size: 240)
-                if kind == "producer" { NavigationLink { ProfileGiftRankingView(profileID: id) } label: { Label("선물 랭킹 TOP 50", systemImage: "trophy") } }
-                Text(person.displayName(fallback: "프로필")).font(.title.bold())
-                Text(person.string("bio"))
-                LabeledContent("팔로워", value: "\(data.int("followers"))명")
-                Button(following ? "팔로잉 해제" : "팔로우") { Task { await follow() } }.disabled(busy)
-                if kind == "producer", model.user != nil, person.string("user_id") != model.userID {
-                    Button("메시지 보내기") { showChat = true }
-                    NavigationLink { GiftWalletView(person: GiftRecipient(id: id, name: person.displayName())) } label: { Label("개인 선물 보내기", systemImage: "gift") }
-                    Button("이 이용자 차단", role: .destructive) { confirmBlock = true }.disabled(busy)
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 18) {
+                VStack(alignment: .leading, spacing: 14) {
+                    Text(person.displayName(fallback: "프로필")).font(.system(size: 25, weight: .bold))
+                    ResponsiveProfilePhoto(person: person, kind: kind)
+                    if kind == "producer" { NavigationLink { ProfileGiftRankingView(profileID: id) } label: { Label("선물 랭킹 TOP 50", systemImage: "trophy.fill").font(.system(size: 13)).frame(maxWidth: .infinity, minHeight: 44) } }
+                    Text("팔로워 \(data.int("followers")) · 공개 음악 \(data.songs().count + data.songs("covers").count)").font(.system(size: 12)).foregroundStyle(AifectDesign.muted)
+                    HStack(spacing: 6) {
+                        stat("공개곡", data.songs().count + data.songs("covers").count)
+                        stat("팔로워", data.int("followers"))
+                        stat("커버", data.songs("covers").count)
+                    }
+                    if !person.string("bio").isEmpty { Text(person.string("bio")).font(.system(size: 14)).foregroundStyle(AifectDesign.muted) }
+                    HStack(spacing: 8) {
+                        if kind == "producer", let owner = model.userID, person.string("user_id") == owner {
+                            NavigationLink { ProfileEditorView() } label: { Label("프로필 수정", systemImage: "pencil").frame(maxWidth: .infinity) }.buttonStyle(ParityPill())
+                        } else {
+                            Button(following ? "팔로잉" : "팔로우") { Task { await follow() } }.buttonStyle(ParityPill(color: Brand.pink, filled: true)).disabled(busy)
+                            if kind == "producer" {
+                                Button("메시지") { if model.requireLogin() { showChat = true } }.buttonStyle(ParityPill(color: AifectDesign.secondaryText))
+                                NavigationLink { GiftWalletView(person: GiftRecipient(id: id, name: person.displayName())) } label: { Label("선물", systemImage: "gift") }.buttonStyle(ParityPill(color: Brand.pink))
+                            }
+                        }
+                    }
+                }.padding(20).background(Brand.card, in: RoundedRectangle(cornerRadius: 24))
+                if kind == "artist" {
+                    HStack { Button("음악") { artistTab = 0 }.buttonStyle(ParityPill(color: artistTab == 0 ? Brand.aqua : AifectDesign.muted)); Button("갤러리") { artistTab = 1 }.buttonStyle(ParityPill(color: artistTab == 1 ? Brand.aqua : AifectDesign.muted)) }
                 }
-            }
-            Section("음악") { ForEach(data.songs()) { SongRow(song: $0, queue: data.songs()) } }
-            Section("커버곡") { ForEach(data.songs("covers")) { SongRow(song: $0, queue: data.songs("covers")) } }
-            if let error { Text(error).foregroundStyle(.red) }
-        }.sheet(isPresented: $showChat) { NavigationStack { ChatPage(path: "/api/dm/\(Endpoint.pathID(id))", title: person.displayName(), crew: false).toolbar { Button("닫기") { showChat = false } } } }
+                if kind == "artist" && artistTab == 1 { ArtistGallerySection(artistID: id, profile: data, reload: load) }
+                else {
+                    if !data.songs().isEmpty { MusicSectionHeading(title: "음악"); MusicGrid(songs: data.songs()) }
+                    if !data.songs("covers").isEmpty { MusicSectionHeading(title: "커버곡"); MusicGrid(songs: data.songs("covers")) }
+                }
+                if let error { Text(error).foregroundStyle(.red) }
+                if kind == "producer", model.user != nil, person.string("user_id") != model.userID {
+                    Button("이 이용자 차단", role: .destructive) { confirmBlock = true }.font(.caption).frame(minHeight: 44).disabled(busy)
+                }
+            }.padding(20)
+        }.background(Brand.background)
+        .sheet(isPresented: $showChat) { NavigationStack { ChatPage(path: "/api/dm/\(Endpoint.pathID(id))", title: person.displayName(), crew: false).toolbar { Button("닫기") { showChat = false } } } }
         .confirmationDialog("이 이용자를 차단할까요? 음악과 댓글이 숨겨지고 서로 메시지를 보낼 수 없게 됩니다.", isPresented: $confirmBlock, titleVisibility: .visible) {
             Button("차단", role: .destructive) { Task { await block() } }
         }
-        .navigationTitle("음악 프로필").task { await load() }.refreshable { await load() }
+        .navigationTitle("음악 프로필").navigationBarTitleDisplayMode(.inline).task(id: model.userID) { await load() }.refreshable { await load() }
+    }
+    private func stat(_ label: String, _ count: Int) -> some View {
+        Text("\(label) \(count)").font(.system(size: 13, weight: .semibold)).foregroundStyle(label == "팔로워" ? Brand.aqua : AifectDesign.text).frame(maxWidth: .infinity, minHeight: 50).background(Color(aifectHex: 0x222331), in: RoundedRectangle(cornerRadius: 13))
     }
     private func load() async {
         do {
-            data = try await API.shared.call("/api/\(kind)s/\(Endpoint.pathID(id))")
+            let owner = model.userID
+            let loaded = try await API.shared.call("/api/\(kind)s/\(Endpoint.pathID(id))")
+            guard owner == model.userID, !Task.isCancelled else { return }
+            data = loaded
             if model.user != nil {
                 let library = try await API.shared.call("/api/follows")
                 following = library.objects("follows").contains { $0.string("target_id") == id && $0.string("kind") == kind }
@@ -107,40 +136,49 @@ struct MessagesView: View {
     @State private var busy = false
     @State private var revision = 0
     var body: some View {
-        List {
-            if model.user == nil { Button("로그인하고 메시지 보기") { model.showLogin = true } }
-            if let crew = model.inboxCrew {
-                Section {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 14) {
+                HStack(alignment: .top) {
+                    PageHeading(title: "메시지", subtitle: "음악으로 만난 사람들과 이야기를 나눠요")
+                    if model.user != nil { Button { deleteAll = true } label: { Image(systemName: "trash").frame(width: 44, height: 44) }.accessibilityLabel("내 대화 전체 삭제").disabled(busy) }
+                }
+                if model.user == nil { Button("로그인하고 메시지 보기") { model.showLogin = true }.buttonStyle(ParityPill(filled: true)) }
+                if let crew = model.inboxCrew {
+                    Text("내 크루 · 고정").font(.system(size: 13, weight: .semibold)).foregroundStyle(Brand.aqua)
                     NavigationLink { ChatPage(path: "/api/crews/\(Endpoint.pathID(crew.string("id")))/messages", title: crew.string("name"), crew: true) } label: {
-                        HStack {
-                            Image(systemName: "pin.fill").foregroundStyle(Brand.aqua)
-                            VStack(alignment: .leading) { Text(crew.string("name")).font(.headline); Text("내 크루 채팅").font(.caption).foregroundStyle(.secondary) }
+                        HStack(spacing: 12) {
+                            Image(systemName: "pin.fill").font(.title2).foregroundStyle(Brand.aqua)
+                            VStack(alignment: .leading, spacing: 6) { Text(crew.string("name")).font(.headline); Text("내 크루 채팅").font(.system(size: 13)).foregroundStyle(AifectDesign.muted) }
                             Spacer()
                             if crew.flag("muted") { Image(systemName: "bell.slash").font(.caption) }
                             if crew.int("unread") > 0 { Text("\(crew.int("unread"))").font(.caption.bold()).foregroundStyle(Brand.pink) }
-                        }.padding(.vertical, 8)
-                    }
+                            Image(systemName: "chevron.right").font(.caption)
+                        }.padding(18).background(Brand.card, in: RoundedRectangle(cornerRadius: 18))
+                    }.buttonStyle(.plain)
                 }
-            }
-            if conversations.isEmpty { Text("프로필에서 메시지를 보내 대화를 시작하세요.").foregroundStyle(.secondary) }
-            ForEach(conversations, id: \.selfID) { person in
-                NavigationLink { ChatPage(path: "/api/dm/\(Endpoint.pathID(person.string("id")))", title: person.displayName(), crew: false) } label: {
-                    VStack(alignment: .leading) {
-                        HStack { PersonRow(person: person); if person.flag("muted") { Image(systemName: "bell.slash").font(.caption) } }
-                        Text(person.string("last_message")).font(.caption).lineLimit(2)
-                        if person.int("unread") > 0 { Text("새 메시지 \(person.int("unread"))개").foregroundStyle(Brand.pink).font(.caption) }
-                    }
+                if conversations.isEmpty { Text("프로필에서 메시지를 보내 대화를 시작하세요.").font(.system(size: 14)).foregroundStyle(AifectDesign.muted).padding(.vertical, 22) }
+                ForEach(conversations, id: \.selfID) { person in
+                    NavigationLink { ChatPage(path: "/api/dm/\(Endpoint.pathID(person.string("id")))", title: person.displayName(), crew: false) } label: {
+                        HStack(spacing: 12) {
+                            ProfilePhoto(person: person, size: 48).clipShape(Circle())
+                            VStack(alignment: .leading, spacing: 6) {
+                                HStack { Text(person.displayName()).font(.system(size: 16, weight: .semibold)); if person.flag("muted") { Image(systemName: "bell.slash").font(.caption) } }
+                                Text(person.string("last_message")).font(.system(size: 13)).foregroundStyle(AifectDesign.muted).lineLimit(2)
+                            }
+                            Spacer(minLength: 0)
+                            if person.int("unread") > 0 { Text("\(person.int("unread"))").foregroundStyle(Brand.pink).font(.caption.bold()) }
+                        }.padding(16).background(Brand.card, in: RoundedRectangle(cornerRadius: 18))
+                    }.buttonStyle(.plain)
                 }
-            }
-            if let error { Text(error).foregroundStyle(.red) }
-        }.navigationTitle("메시지").task(id: model.userID) {
+                if let error { Text(error).foregroundStyle(.red) }
+            }.padding(20)
+        }.task(id: model.userID) {
             conversations = []; revision += 1
             while !Task.isCancelled {
                 await load()
                 do { try await Task.sleep(for: .seconds(5)) } catch { break }
             }
         }.refreshable { await load() }
-        .toolbar { if model.user != nil { Button("내 대화 전체 삭제", systemImage: "trash") { deleteAll = true }.disabled(busy) } }
         .confirmationDialog("내 개인 대화를 모두 삭제할까요?", isPresented: $deleteAll, titleVisibility: .visible) {
             Button("전체 삭제", role: .destructive) { Task { await clear() } }
         } message: { Text("내 개인 대화 목록과 기록만 삭제합니다. 상대방의 기록과 크루 채팅은 유지됩니다.") }
@@ -301,8 +339,8 @@ struct ProfilePhoto: View {
         return try? Endpoint.url("/media/\(kind)/\(Endpoint.pathID(id))?v=\(Endpoint.query(person.string("image_version")))")
     }
     var body: some View {
-        AsyncImage(url: url) { $0.resizable().scaledToFill() } placeholder: { ZStack { AifectDesign.raised; Image(systemName: "person.fill").font(.system(size: size * 0.32)).foregroundStyle(Brand.aqua) } }
-            .frame(width: size, height: size).clipShape(RoundedRectangle(cornerRadius: min(22, size * 0.16))).accessibilityLabel("프로필 사진")
+        RemoteArtwork(url: url) { $0.resizable().aspectRatio(contentMode: size > 100 ? .fit : .fill) } placeholder: { ZStack { AifectDesign.raised; Image(systemName: "person.fill").font(.system(size: size * 0.32)).foregroundStyle(Brand.aqua) } }
+            .frame(width: size, height: size).background(AifectDesign.raised).clipShape(RoundedRectangle(cornerRadius: min(22, size * 0.16))).accessibilityLabel("프로필 사진")
     }
 }
 struct MyMusicView: View {
@@ -310,36 +348,91 @@ struct MyMusicView: View {
     @State private var data: [String: Any] = [:]
     @State private var music: [String: Any] = [:]
     @State private var error: String?
+    @State private var confirmLogout = false
+    @State private var loggingOut = false
     private var profile: [String: Any] { data.object("profile") }
-    var body: some View {
-        if model.user == nil { LoginPrompt(title: "내 음악과 기록을 한곳에") }
-        else {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 22) {
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text(profile.displayName(fallback: model.user?.displayName() ?? "내 프로필")).font(.title2.bold())
-                        GeometryReader { g in ProfilePhoto(person: profile, size: g.size.width) }.aspectRatio(1, contentMode: .fit)
-                        if !profile.string("id").isEmpty { NavigationLink { ProfileGiftRankingView(profileID: profile.string("id")) } label: { Label("선물 랭킹 TOP 50", systemImage: "trophy") } }
-                        if !profile.string("bio").isEmpty { Text(profile.string("bio")).foregroundStyle(.secondary) }
-                        HStack {
-                            Text("공개 음악 \(music.songs().count + music.songs("covers").count)")
-                            Spacer()
-                            NavigationLink("팔로워 \(data.int("follower_count"))") { FollowingListView(followers: true) }
-                            NavigationLink("팔로잉 \(data.int("following_count"))") { FollowingListView() }
-                        }.font(.caption)
-                        NavigationLink { ProfileEditorView() } label: { Label("프로필 수정", systemImage: "pencil").frame(maxWidth: .infinity, minHeight: 44) }.buttonStyle(.bordered)
-                    }.padding(20).background(Brand.card, in: RoundedRectangle(cornerRadius: 22))
-                    NavigationLink { LibraryView() } label: { Label("내 보관함", systemImage: "music.note.list").font(.headline).frame(minHeight: 48) }
-                    NavigationLink { SingView(initialShowDrafts: true) } label: { Label("이 기기의 녹음 초안", systemImage: "folder").frame(minHeight: 48) }
-                    Text("내 커버곡").font(.title3.bold())
-                    ForEach(music.songs("covers")) { SongRow(song: $0, queue: music.songs("covers")) }
-                    Text("내 제작곡").font(.title3.bold())
-                    ForEach(music.songs()) { SongRow(song: $0, queue: music.songs()) }
-                    NavigationLink("원곡 음원 업로드") { OriginalUploadView() }
-                    if let error { RetryCard(message: error) { Task { await load() } } }
-                }.padding(20)
-            }.task(id: model.userID) { await load() }.refreshable { await load() }
+    @State private var filter = "전체"
+    @State private var grid = true
+    @State private var account = false
+    private var allSongs: [Song] {
+        var seen = Set<String>()
+        return (music.songs() + music.songs("covers")).filter { seen.insert($0.id).inserted }
+    }
+    private var visibleSongs: [Song] {
+        allSongs.filter { song in
+            switch filter {
+            case "제작곡": return !song.isCover
+            case "커버": return song.isCover
+            case "듀엣": return song.isCover && song.coverMode == "duet"
+            default: return true
+            }
         }
+    }
+    var body: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 14) {
+                HStack(alignment: .top) {
+                    PageHeading(title: "마이", subtitle: "내 플레이리스트와 공개한 음악을 한곳에")
+                    if model.user != nil { Button("로그아웃") { confirmLogout = true }.font(.system(size: 14)).foregroundStyle(AifectDesign.secondaryText).frame(minHeight: 44).disabled(loggingOut) }
+                }
+                if model.user == nil { LoginPrompt(title: "내 음악과 기록을 한곳에") }
+                else {
+                    profileCard
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            NavigationLink("내 플레이리스트") { LibraryView() }.buttonStyle(ParityPill(filled: true))
+                            NavigationLink("좋아요") { LibraryView(initialSelection: 1) }.buttonStyle(ParityPill())
+                            NavigationLink("최근 감상") { LibraryView(initialSelection: 2) }.buttonStyle(ParityPill(color: AifectDesign.secondaryText))
+                        }
+                    }
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 20) {
+                            NavigationLink("녹음 초안") { SingView(initialShowDrafts: true) }
+                            NavigationLink("수익 · 정산") { CreatorEarningsView() }
+                            NavigationLink("제작곡 올리기") { OriginalUploadView() }
+                        }.font(.system(size: 13)).frame(minHeight: 44)
+                    }
+                    Text("저장한 음악은 내 보관함에서, 공개한 음악은 아래에서 확인해요.").font(.system(size: 12)).foregroundStyle(AifectDesign.muted)
+                    ParityChips(items: ["전체", "제작곡", "커버", "듀엣"], selection: $filter)
+                    HStack {
+                        Text("공개 음악 \(visibleSongs.count)곡").font(.system(size: 13)).foregroundStyle(AifectDesign.muted)
+                        Spacer()
+                        Button { grid = true } label: { Image(systemName: "square.grid.2x2").frame(width: 44, height: 44).foregroundStyle(grid ? Brand.aqua : AifectDesign.muted) }.accessibilityLabel("그리드 보기")
+                        Button { grid = false } label: { Image(systemName: "list.bullet").frame(width: 44, height: 44).foregroundStyle(grid ? AifectDesign.muted : Brand.aqua) }.accessibilityLabel("목록 보기")
+                    }
+                    if grid { MusicGrid(songs: visibleSongs) }
+                    else { ForEach(visibleSongs) { SongRow(song: $0, queue: visibleSongs) } }
+                    if visibleSongs.isEmpty && error == nil { ContentUnavailableView("이 탭에 공개한 음악이 없어요", systemImage: "music.note", description: Text("제작곡과 커버를 공개하면 여기에 모여요.")) }
+                }
+                if let error { RetryCard(message: error) { Task { await load() } } }
+            }.padding(20).padding(.bottom, 16)
+        }.task(id: model.userID) { await load() }.refreshable { await load() }
+            .sheet(isPresented: $account) { AccountView() }
+            .confirmationDialog("이 기기에서 로그아웃할까요?", isPresented: $confirmLogout, titleVisibility: .visible) {
+                Button("로그아웃", role: .destructive) { Task { loggingOut = true; await model.logout(); data = [:]; music = [:]; loggingOut = false } }
+            }
+    }
+    private var profileCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Text(profile.displayName(fallback: model.user?.displayName() ?? "내 프로필")).font(.system(size: 25, weight: .bold))
+                Spacer()
+                Button { account = true } label: { Image(systemName: "gearshape").frame(width: 44, height: 44) }.foregroundStyle(AifectDesign.secondaryText).accessibilityLabel("계정 설정")
+            }
+            ResponsiveProfilePhoto(person: profile)
+            if !profile.string("id").isEmpty { NavigationLink { ProfileGiftRankingView(profileID: profile.string("id")) } label: { Label("선물 랭킹 TOP 50", systemImage: "trophy.fill").font(.system(size: 13)).frame(maxWidth: .infinity, minHeight: 44) } }
+            Text("팔로워 \(data.int("follower_count")) · 공개 음악 \(allSongs.count)").font(.system(size: 12)).foregroundStyle(AifectDesign.muted)
+            HStack(spacing: 6) {
+                profileStat("공개곡", allSongs.count)
+                NavigationLink { FollowingListView(followers: true) } label: { profileStat("팔로워", data.int("follower_count"), active: true) }
+                NavigationLink { FollowingListView() } label: { profileStat("팔로잉", data.int("following_count"), active: true) }
+            }.buttonStyle(.plain)
+            if !profile.string("bio").isEmpty { Text(profile.string("bio")).font(.system(size: 14)).foregroundStyle(AifectDesign.muted) }
+            NavigationLink { ProfileEditorView() } label: { Label("프로필 수정", systemImage: "pencil").frame(maxWidth: .infinity) }.buttonStyle(ParityPill(color: AifectDesign.secondaryText))
+        }.padding(20).background(Brand.card, in: RoundedRectangle(cornerRadius: 24))
+    }
+    private func profileStat(_ label: String, _ count: Int, active: Bool = false) -> some View {
+        Text("\(label) \(count)").font(.system(size: 13, weight: .semibold)).foregroundStyle(active ? Brand.aqua : AifectDesign.text).frame(maxWidth: .infinity, minHeight: 50).background(Color(aifectHex: 0x222331), in: RoundedRectangle(cornerRadius: 13))
     }
     private func load() async {
         guard let owner = model.userID else { data = [:]; music = [:]; return }
@@ -415,7 +508,7 @@ enum ChatCache {
 struct CrewBanner: View {
     let crew: [String: Any]
     var body: some View {
-        AsyncImage(url: crew.string("image_version").isEmpty ? nil : try? Endpoint.url("/media/crew/\(Endpoint.pathID(crew.string("id")))?v=\(Endpoint.query(crew.string("image_version")))")) { image in image.resizable().scaledToFill() } placeholder: {
+        RemoteArtwork(url: crew.string("image_version").isEmpty ? nil : try? Endpoint.url("/media/crew/\(Endpoint.pathID(crew.string("id")))?v=\(Endpoint.query(crew.string("image_version")))")) { image in image.resizable().scaledToFill() } placeholder: {
             ZStack { Brand.gradient.opacity(0.25); Image(systemName: "person.3.fill").font(.largeTitle).foregroundStyle(Brand.aqua) }
         }.frame(height: 200).frame(maxWidth: .infinity).clipped().clipShape(RoundedRectangle(cornerRadius: 18))
     }

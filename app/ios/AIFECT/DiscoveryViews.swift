@@ -48,7 +48,9 @@ struct ExploreView: View {
 }
 struct CoverRankingView: View {
     @EnvironmentObject var model: AppModel
-    @State private var period = "today"
+    @State private var period: String
+    var originalID: String?
+    init(initialPeriod: String = "today", originalID: String? = nil) { _period = State(initialValue: initialPeriod); self.originalID = originalID }
     @State private var kind = "tracks"
     @State private var data: [String: Any] = [:]
     @State private var error: String?
@@ -62,7 +64,7 @@ struct CoverRankingView: View {
             if let error { Text(error).foregroundStyle(.red) }
         }.navigationTitle("커버곡 랭킹").task(id: period + kind) { await load() }.refreshable { await load() }
     }
-    private func load() async { do { let value = try await API.shared.call("/api/cover-rankings?period=\(period)&kind=\(kind)"); guard !Task.isCancelled else { return }; data = value; error = nil } catch { self.error = error.localizedDescription } }
+    private func load() async { do { let value = try await API.shared.call("/api/cover-rankings?period=\(period)&kind=\(kind)" + (originalID.map { "&original_id=\(Endpoint.query($0))" } ?? "")); guard !Task.isCancelled else { return }; data = value; error = nil } catch { self.error = error.localizedDescription } }
 }
 struct QueueView: View {
     @ObservedObject var player: MusicPlayer

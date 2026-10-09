@@ -48,30 +48,30 @@ final class AIFECTUITests: XCTestCase {
         continueAfterFailure = false
         app.launchArguments = ["-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]
         app.launch()
-        for tab in ["홈", "커뮤니티", "부르기", "메시지", "마이"] { XCTAssertTrue(app.tabBars.buttons[tab].waitForExistence(timeout: 20)) }
+        for index in 0..<5 { XCTAssertTrue(app.buttons["main-tab-\(index)"].waitForExistence(timeout: 20)) }
         app.buttons["검색"].firstMatch.tap()
         let search = app.searchFields.firstMatch
         XCTAssertTrue(search.waitForExistence(timeout: 5))
         search.tap(); search.typeText("zz_no_such_song_9417\n")
         XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "zz_no_such_song_9417")).firstMatch.waitForExistence(timeout: 15))
         let cancel = app.buttons["취소"]; if cancel.exists { cancel.tap() }
-        app.tabBars.buttons["부르기"].tap()
-        XCTAssertTrue(app.staticTexts["이번엔, 당신의 목소리로"].waitForExistence(timeout: 5))
-        app.tabBars.buttons["커뮤니티"].tap()
+        app.buttons["main-tab-2"].tap()
+        XCTAssertTrue(app.staticTexts["목소리를 발견하는 곳"].waitForExistence(timeout: 5))
+        app.buttons["main-tab-1"].tap()
         XCTAssertTrue(app.buttons["추천"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["팔로잉"].exists)
-        let messages = app.tabBars.buttons["메시지"]
+        let messages = app.buttons["main-tab-3"]
         messages.tap()
         if !messages.isSelected { messages.tap() }
-        XCTAssertTrue(app.navigationBars["메시지"].waitForExistence(timeout: 10))
-        app.tabBars.buttons["마이"].tap()
+        XCTAssertTrue(app.staticTexts["메시지"].firstMatch.waitForExistence(timeout: 10))
+        app.buttons["main-tab-4"].tap()
         if app.buttons["로그인"].waitForExistence(timeout: 3) {
             app.buttons["로그인"].tap()
             XCTAssertTrue(app.textFields["이메일"].waitForExistence(timeout: 10))
             app.buttons["닫기"].tap()
-        } else { XCTAssertTrue(app.buttons["내 보관함"].waitForExistence(timeout: 10)) }
-        app.tabBars.buttons["홈"].tap()
+        } else { XCTAssertTrue(app.buttons["계정 설정"].waitForExistence(timeout: 10)) }
+        app.buttons["main-tab-0"].tap()
         if app.navigationBars.buttons["홈"].exists { app.navigationBars.buttons["홈"].tap() }
-        let capture = XCTAttachment(screenshot: app.screenshot()); capture.name = "AIFECT updated iPhone home"; capture.lifetime = .keepAlways; add(capture)
+        // App Store screenshot capture is intentionally separate from navigation tests.
     }
 }

@@ -139,4 +139,54 @@ final class OctoberParityTests: XCTestCase {
         XCTAssertEqual(one.path, "/api/producers/one/gifts"); XCTAssertNotEqual(one.path, two.path); XCTAssertNotEqual(one.id, two.id)
         XCTAssertEqual(StorePayments.goldIDs, [500, 1000, 5000, 10000].map { "kr.co.aifect.app.gold.\($0)" })
     }
+    @MainActor func testArtworkUsesSessionAndVersionedURLAndCachesSuccessOnly() async throws {
+        let repository = ArtworkRepository(api: api())
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 20, height: 10)).image { $0.fill(CGRect(x: 0, y: 0, width: 20, height: 10)) }
+        let webp = try ChatImageEncoder.encode(XCTUnwrap(image.pngData()))
+        var attempts = 0
+        MockURLProtocol.handler = { request in
+            attempts += 1
+            XCTAssertEqual(request.value(forHTTPHeaderField: "Cookie"), "aifect_session=isolated-test")
+            XCTAssertEqual(request.url?.query, "v=version-one")
+            if attempts == 1 { return (503, Data("{}".utf8)) }
+            return (200, webp)
+        }
+        let url = try Endpoint.url("/media/song/cover?v=version-one")
+        do { _ = try await repository.image(at: url); XCTFail("503 must not become an image") } catch {}
+        let decoded = try await repository.image(at: url)
+        XCTAssertGreaterThan(decoded.size.width, 0)
+        _ = try await repository.image(at: url)
+        XCTAssertEqual(attempts, 2)
+        do { _ = try await repository.image(at: XCTUnwrap(URL(string: "https://example.com/secret"))); XCTFail("Foreign origin must be rejected") } catch {}
+        XCTAssertEqual(attempts, 2)
+    }
+    @MainActor func testArtworkDoesNotReusePreviousAccountCache() async throws {
+        let client = api()
+        let isolated = ArtworkRepository(api: client)
+        let png = UIGraphicsImageRenderer(size: CGSize(width: 10, height: 10)).image { $0.fill(CGRect(x: 0, y: 0, width: 10, height: 10)) }.pngData()!
+        var cookies: [String] = []
+        MockURLProtocol.handler = { request in cookies.append(request.value(forHTTPHeaderField: "Cookie") ?? ""); return (200, png) }
+        let url = try Endpoint.url("/media/song/cover?v=one")
+        _ = try await isolated.image(at: url)
+        client.clearSession()
+        _ = try await isolated.image(at: url)
+        XCTAssertEqual(cookies, ["aifect_session=isolated-test", ""])
+    }
+    func testArtistGalleryAcceptsOnlyReturnedSameOriginPhotoPath() throws {
+        let photo = try XCTUnwrap(ArtistGalleryPhoto(["id": "one", "url": "/media/artist-gallery/one?v=current"]))
+        XCTAssertEqual(photo.url.query, "v=current")
+        XCTAssertNil(ArtistGalleryPhoto(["id": "one", "url": "https://example.com/one"]))
+        XCTAssertNil(ArtistGalleryPhoto(["id": "one", "url": "/media/artist-gallery/two?v=current"]))
+    }
+
+    func testExistingRecordingSongDecodesWithoutNewDesignMetadata() throws {
+        let song = Song(["id": "saved-draft", "title": "기존 초안", "has_cover": 1])
+        let data = try JSONEncoder().encode(song)
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        for key in ["producerName", "producerImageVersion", "descriptionText", "coverMode", "plays", "covers"] { object.removeValue(forKey: key) }
+        let decoded = try JSONDecoder().decode(Song.self, from: JSONSerialization.data(withJSONObject: object))
+        XCTAssertEqual(decoded.id, "saved-draft"); XCTAssertEqual(decoded.title, "기존 초안")
+        XCTAssertNil(decoded.plays); XCTAssertEqual(decoded.creatorName, song.credit)
+    }
+
 }
