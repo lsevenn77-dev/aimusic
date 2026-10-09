@@ -325,6 +325,7 @@ test('home startup remains playable when the account resolves before the guest c
   guestCatalog.resolve(response({tracks:[track('Late guest catalog')]}));await startup;await new Promise(resolve=>setImmediate(resolve));
   assert.equal(c.run('me.id'),'owner');assert.ok(ownerCatalogCalls>0,'resolving the account must restart the account-scoped home reads');
   assert.match(c.section('home-release').innerHTML,/Owner playable song/);assert.doesNotMatch(c.section('home-release').innerHTML,/Late guest catalog/);
-  assert.equal(c.section('home-personal').hidden,false);assert.match(c.section('home-personal').innerHTML,/좋아요한 음악/);
+  assert.equal(c.section('home-personal'),undefined,'private library shortcuts now belong to My, not the listening home');
+  assert.match(c.main.innerHTML,/#community\/covers|home-conversations/);
  }finally{account.resolve(response({user:null}));guestCatalog.resolve(response({tracks:[]}));await startup;}
 });

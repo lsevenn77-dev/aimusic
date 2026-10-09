@@ -1,0 +1,103 @@
+{
+  "identifier": "AIFECT_LOCAL_TEST_ONLY",
+  "nonRenewingSubscriptions": [],
+  "products": [
+    {
+      "displayPrice": "5000",
+      "familyShareable": false,
+      "internalID": "GOLD500",
+      "localizations": [
+        {
+          "description": "LOCAL_STOREKIT_ONLY AIFECT 골드 500개",
+          "displayName": "골드 500개",
+          "locale": "ko_KR"
+        }
+      ],
+      "productID": "kr.co.aifect.app.gold.500",
+      "referenceName": "Gold 500",
+      "type": "Consumable"
+    },
+    {
+      "displayPrice": "10000",
+      "familyShareable": false,
+      "internalID": "GOLD1000",
+      "localizations": [
+        {
+          "description": "LOCAL_STOREKIT_ONLY AIFECT 골드 1000개",
+          "displayName": "골드 1000개",
+          "locale": "ko_KR"
+        }
+      ],
+      "productID": "kr.co.aifect.app.gold.1000",
+      "referenceName": "Gold 1000",
+      "type": "Consumable"
+    },
+    {
+      "displayPrice": "50000",
+      "familyShareable": false,
+      "internalID": "GOLD5000",
+      "localizations": [
+        {
+          "description": "LOCAL_STOREKIT_ONLY AIFECT 골드 5000개",
+          "displayName": "골드 5000개",
+          "locale": "ko_KR"
+        }
+      ],
+      "productID": "kr.co.aifect.app.gold.5000",
+      "referenceName": "Gold 5000",
+      "type": "Consumable"
+    },
+    {
+      "displayPrice": "100000",
+      "familyShareable": false,
+      "internalID": "GOLD10000",
+      "localizations": [
+        {
+          "description": "LOCAL_STOREKIT_ONLY AIFECT 골드 10000개",
+          "displayName": "골드 10000개",
+          "locale": "ko_KR"
+        }
+      ],
+      "productID": "kr.co.aifect.app.gold.10000",
+      "referenceName": "Gold 10000",
+      "type": "Consumable"
+    }
+  ],
+  "settings": {
+    "_storeKitErrors": []
+  },
+  "subscriptionGroups": [
+    {
+      "id": "AIFECT_PREMIUM",
+      "localizations": [],
+      "name": "AIFECT Premium",
+      "subscriptions": [
+        {
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "5900",
+          "familyShareable": false,
+          "groupNumber": 1,
+          "internalID": "PREMIUM_MONTHLY",
+          "introductoryOffer": null,
+          "localizations": [
+            {
+              "description": "LOCAL_STOREKIT_ONLY AIFECT Premium 월간",
+              "displayName": "Premium 월간 구독",
+              "locale": "ko_KR"
+            }
+          ],
+          "productID": "kr.co.aifect.app.premium.monthly",
+          "recurringSubscriptionPeriod": "P1M",
+          "referenceName": "Premium monthly",
+          "subscriptionGroupID": "AIFECT_PREMIUM",
+          "type": "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version": {
+    "major": 3,
+    "minor": 0
+  }
+}

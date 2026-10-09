@@ -1,0 +1,801 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		05D64240A81CDAF648FE80CC /* OriginalUploadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16C453242CAB3752B8952F6E /* OriginalUploadView.swift */; };
+		0BF24A4EDF3AA51AB8E80928 /* ChatFeatures.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BAB73057A6EB2C2CD497213 /* ChatFeatures.swift */; };
+		19C6B4BD4CEBB40BFA1BE57E /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 0517E330F0CED31371C594F7 /* FirebaseMessaging */; };
+		1A1082D3617ECEE133B65DBF /* MockURLProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDAC2CFAA2E164B57DAF0AE2 /* MockURLProtocol.swift */; };
+		2BA68AB23FC4FE6F0F35B8CF /* TrackCommentsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFABB532B2D6E02B9B68E3A4 /* TrackCommentsView.swift */; };
+		2C464FB3EFD6D8C908ED8BCF /* GiftViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC932DDE3973EDA32776D811 /* GiftViews.swift */; };
+		2DA1D0FE5EFB478ABA9A4024 /* ListeningAds.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8487E4C5C14C8B80EEEC6BD0 /* ListeningAds.swift */; };
+		3360A4B593C4490C8485E296 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A05FBFEF3A9822E5ADD9F83 /* AppModel.swift */; };
+		39B5DEB880F4D309B3103C6F /* StorePaymentIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9464AA77B1443788CAE9A35 /* StorePaymentIntegrationTests.swift */; };
+		3AD976A9EEACCCA4DFD5E291 /* CoverPublisher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 847D86874C26EB3CFFD81B0F /* CoverPublisher.swift */; };
+		476075E9B72FF322A178D7CB /* API.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3FD1FC593F82FCD57C1DE90 /* API.swift */; };
+		52A7434910B3DC5143EAF7FA /* AIFECTApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50CC9C90B0D2AE84A105616B /* AIFECTApp.swift */; };
+		561D0633BA2C1F3834D5F425 /* MusicPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E45F3CA0D63EDAD91C3B20D5 /* MusicPlayer.swift */; };
+		5CE9E07E1F2E420552861E77 /* AIFECTUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36460A9A3FD421535F6747F8 /* AIFECTUITests.swift */; };
+		5D6B86B4F8F0F2EE261DDDC0 /* AdIntegrationTestView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7987C4D98B799C70EEC77E8F /* AdIntegrationTestView.swift */; };
+		5E522CFDC3F0FA17190B1A05 /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = 4CBE70788E01E9BCF5C5A74B /* GoogleMobileAds */; };
+		6B25F5DC944FBC858CE709E1 /* DiscoveryViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = D68B60830AD9BC789E775DBD /* DiscoveryViews.swift */; };
+		79C7D8E3E47120A3C56BAD8A /* OctoberParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76741E3A30A94034F62B5726 /* OctoberParityTests.swift */; };
+		7B28F024BBF17959C8A9B3AE /* StorePayments.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB12684621CBB687AB1527AC /* StorePayments.swift */; };
+		8CEBBEE5EE8A6BB65AD9EFBE /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 44DDB8BCB12989364D6D189A /* PrivacyInfo.xcprivacy */; };
+		92303E058B1A907A04B2581F /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = EC4204A2EA4BE158F9C71043 /* GoogleService-Info.plist */; };
+		952BF63EB166C2165E5D0AFC /* PushNotifications.swift in Sources */ = {isa = PBXBuildFile; fileRef = C479F8703EA52B60D9F29E7B /* PushNotifications.swift */; };
+		9C6C42DAF02774562E3420EA /* MockURLProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDAC2CFAA2E164B57DAF0AE2 /* MockURLProtocol.swift */; };
+		AAD2D4D0FD06441FEC84611B /* VocalSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F5CA6D5F4EDA9608C55923E /* VocalSettings.swift */; };
+		BA5882EC3DA5C72592E86AC2 /* RecordingStudio.swift in Sources */ = {isa = PBXBuildFile; fileRef = 854C65D04DBD75D2E6E5FE40 /* RecordingStudio.swift */; };
+		BA7D76FF4E55E3B7D9BB0DEC /* StudioViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3678DFEB2FBF4FBEC41F2CD9 /* StudioViews.swift */; };
+		BB8BDE3FE50CCA8B75226450 /* SDWebImageWebPCoder in Frameworks */ = {isa = PBXBuildFile; productRef = 42EF6E17CB7F23DE16E688B2 /* SDWebImageWebPCoder */; };
+		BD35FA45162E081A9D06B361 /* AIFECTTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A801C0AB73F938B3871397A /* AIFECTTests.swift */; };
+		C02F06460CA1A202A0291F7F /* AIFECTTesting.storekit in Resources */ = {isa = PBXBuildFile; fileRef = A1315480CDA512E7BA60E766 /* AIFECTTesting.storekit */; };
+		C6C2A62361928A4B062C91AA /* AccountViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52413BDF689677A52F65B4E6 /* AccountViews.swift */; };
+		E2D56A056209E55C424EB29C /* SocialViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38A348F7A00237063BB365A0 /* SocialViews.swift */; };
+		E5FC76EF2F29117983FBC45D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B76FEEC38A029273DA5D2BC3 /* Assets.xcassets */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		0A14F4B553A3A0AF017B9E27 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 4317E42A73FA8ECAFCBBBAA5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 20737B457A2633782C7714CA;
+			remoteInfo = AIFECT;
+		};
+		4B2A5492393C771A4AC483F7 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 4317E42A73FA8ECAFCBBBAA5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 20737B457A2633782C7714CA;
+			remoteInfo = AIFECT;
+		};
+		E69239D8E53D0314DA16319B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 4317E42A73FA8ECAFCBBBAA5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 20737B457A2633782C7714CA;
+			remoteInfo = AIFECT;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		0C586F75F7DA890CBD9B1A54 /* AIFECTPaymentTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = AIFECTPaymentTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		16C453242CAB3752B8952F6E /* OriginalUploadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OriginalUploadView.swift; sourceTree = "<group>"; };
+		17025D5105DF3BA07E5BCF18 /* AIFECT.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = AIFECT.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		36460A9A3FD421535F6747F8 /* AIFECTUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIFECTUITests.swift; sourceTree = "<group>"; };
+		3678DFEB2FBF4FBEC41F2CD9 /* StudioViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudioViews.swift; sourceTree = "<group>"; };
+		38A348F7A00237063BB365A0 /* SocialViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SocialViews.swift; sourceTree = "<group>"; };
+		44DDB8BCB12989364D6D189A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		4A801C0AB73F938B3871397A /* AIFECTTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIFECTTests.swift; sourceTree = "<group>"; };
+		50CC9C90B0D2AE84A105616B /* AIFECTApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIFECTApp.swift; sourceTree = "<group>"; };
+		52413BDF689677A52F65B4E6 /* AccountViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountViews.swift; sourceTree = "<group>"; };
+		5A05FBFEF3A9822E5ADD9F83 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		68106749B0C48EEB2EE1D9B0 /* AIFECTTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = AIFECTTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		6BAB73057A6EB2C2CD497213 /* ChatFeatures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatFeatures.swift; sourceTree = "<group>"; };
+		6F5CA6D5F4EDA9608C55923E /* VocalSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VocalSettings.swift; sourceTree = "<group>"; };
+		76741E3A30A94034F62B5726 /* OctoberParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OctoberParityTests.swift; sourceTree = "<group>"; };
+		7987C4D98B799C70EEC77E8F /* AdIntegrationTestView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdIntegrationTestView.swift; sourceTree = "<group>"; };
+		847D86874C26EB3CFFD81B0F /* CoverPublisher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoverPublisher.swift; sourceTree = "<group>"; };
+		8487E4C5C14C8B80EEEC6BD0 /* ListeningAds.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListeningAds.swift; sourceTree = "<group>"; };
+		854C65D04DBD75D2E6E5FE40 /* RecordingStudio.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingStudio.swift; sourceTree = "<group>"; };
+		A1315480CDA512E7BA60E766 /* AIFECTTesting.storekit */ = {isa = PBXFileReference; path = AIFECTTesting.storekit; sourceTree = "<group>"; };
+		AF42175B52E11CCDAF6383A4 /* AIFECTUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = AIFECTUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		B2C391BE165B0A488446D971 /* AIFECT.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = AIFECT.entitlements; sourceTree = "<group>"; };
+		B76FEEC38A029273DA5D2BC3 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		B9464AA77B1443788CAE9A35 /* StorePaymentIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorePaymentIntegrationTests.swift; sourceTree = "<group>"; };
+		BDAC2CFAA2E164B57DAF0AE2 /* MockURLProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockURLProtocol.swift; sourceTree = "<group>"; };
+		C479F8703EA52B60D9F29E7B /* PushNotifications.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushNotifications.swift; sourceTree = "<group>"; };
+		D68B60830AD9BC789E775DBD /* DiscoveryViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoveryViews.swift; sourceTree = "<group>"; };
+		DC932DDE3973EDA32776D811 /* GiftViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GiftViews.swift; sourceTree = "<group>"; };
+		E3FD1FC593F82FCD57C1DE90 /* API.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = API.swift; sourceTree = "<group>"; };
+		E45F3CA0D63EDAD91C3B20D5 /* MusicPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicPlayer.swift; sourceTree = "<group>"; };
+		EC4204A2EA4BE158F9C71043 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
+		EFABB532B2D6E02B9B68E3A4 /* TrackCommentsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackCommentsView.swift; sourceTree = "<group>"; };
+		FB12684621CBB687AB1527AC /* StorePayments.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorePayments.swift; sourceTree = "<group>"; };
+		FB308431F1DB03578D7A7044 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		D19AE78469B1B8854BCDB3B2 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BB8BDE3FE50CCA8B75226450 /* SDWebImageWebPCoder in Frameworks */,
+				19C6B4BD4CEBB40BFA1BE57E /* FirebaseMessaging in Frameworks */,
+				5E522CFDC3F0FA17190B1A05 /* GoogleMobileAds in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		0BFC2E71399C2A354035DF1D /* AIFECTTests */ = {
+			isa = PBXGroup;
+			children = (
+				4A801C0AB73F938B3871397A /* AIFECTTests.swift */,
+				76741E3A30A94034F62B5726 /* OctoberParityTests.swift */,
+			);
+			path = AIFECTTests;
+			sourceTree = "<group>";
+		};
+		3C841557DD80F49F61449C21 /* TestSupport */ = {
+			isa = PBXGroup;
+			children = (
+				BDAC2CFAA2E164B57DAF0AE2 /* MockURLProtocol.swift */,
+			);
+			path = TestSupport;
+			sourceTree = "<group>";
+		};
+		91EB9D7C6F36E7E3B431D878 /* AIFECT */ = {
+			isa = PBXGroup;
+			children = (
+				52413BDF689677A52F65B4E6 /* AccountViews.swift */,
+				7987C4D98B799C70EEC77E8F /* AdIntegrationTestView.swift */,
+				B2C391BE165B0A488446D971 /* AIFECT.entitlements */,
+				50CC9C90B0D2AE84A105616B /* AIFECTApp.swift */,
+				E3FD1FC593F82FCD57C1DE90 /* API.swift */,
+				5A05FBFEF3A9822E5ADD9F83 /* AppModel.swift */,
+				B76FEEC38A029273DA5D2BC3 /* Assets.xcassets */,
+				6BAB73057A6EB2C2CD497213 /* ChatFeatures.swift */,
+				847D86874C26EB3CFFD81B0F /* CoverPublisher.swift */,
+				D68B60830AD9BC789E775DBD /* DiscoveryViews.swift */,
+				DC932DDE3973EDA32776D811 /* GiftViews.swift */,
+				EC4204A2EA4BE158F9C71043 /* GoogleService-Info.plist */,
+				FB308431F1DB03578D7A7044 /* Info.plist */,
+				8487E4C5C14C8B80EEEC6BD0 /* ListeningAds.swift */,
+				E45F3CA0D63EDAD91C3B20D5 /* MusicPlayer.swift */,
+				16C453242CAB3752B8952F6E /* OriginalUploadView.swift */,
+				44DDB8BCB12989364D6D189A /* PrivacyInfo.xcprivacy */,
+				C479F8703EA52B60D9F29E7B /* PushNotifications.swift */,
+				854C65D04DBD75D2E6E5FE40 /* RecordingStudio.swift */,
+				38A348F7A00237063BB365A0 /* SocialViews.swift */,
+				FB12684621CBB687AB1527AC /* StorePayments.swift */,
+				3678DFEB2FBF4FBEC41F2CD9 /* StudioViews.swift */,
+				EFABB532B2D6E02B9B68E3A4 /* TrackCommentsView.swift */,
+				6F5CA6D5F4EDA9608C55923E /* VocalSettings.swift */,
+			);
+			path = AIFECT;
+			sourceTree = "<group>";
+		};
+		989339B0B5213F3E32BA470E = {
+			isa = PBXGroup;
+			children = (
+				91EB9D7C6F36E7E3B431D878 /* AIFECT */,
+				D7A768339A0DF80D8D96A8E2 /* AIFECTPaymentTests */,
+				0BFC2E71399C2A354035DF1D /* AIFECTTests */,
+				A854B45728610F7451ACF203 /* AIFECTUITests */,
+				3C841557DD80F49F61449C21 /* TestSupport */,
+				DB6D8A09EB49C709C939E808 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A854B45728610F7451ACF203 /* AIFECTUITests */ = {
+			isa = PBXGroup;
+			children = (
+				36460A9A3FD421535F6747F8 /* AIFECTUITests.swift */,
+			);
+			path = AIFECTUITests;
+			sourceTree = "<group>";
+		};
+		D7A768339A0DF80D8D96A8E2 /* AIFECTPaymentTests */ = {
+			isa = PBXGroup;
+			children = (
+				A1315480CDA512E7BA60E766 /* AIFECTTesting.storekit */,
+				B9464AA77B1443788CAE9A35 /* StorePaymentIntegrationTests.swift */,
+			);
+			path = AIFECTPaymentTests;
+			sourceTree = "<group>";
+		};
+		DB6D8A09EB49C709C939E808 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				17025D5105DF3BA07E5BCF18 /* AIFECT.app */,
+				0C586F75F7DA890CBD9B1A54 /* AIFECTPaymentTests.xctest */,
+				68106749B0C48EEB2EE1D9B0 /* AIFECTTests.xctest */,
+				AF42175B52E11CCDAF6383A4 /* AIFECTUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		18A7AF9F22B23C2D2E24F0B1 /* AIFECTUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 79378FEF908C7E5DA3B1244E /* Build configuration list for PBXNativeTarget "AIFECTUITests" */;
+			buildPhases = (
+				E5723A31C0A20D4E53AC157F /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				DF5AA9BA2087F197D498D962 /* PBXTargetDependency */,
+			);
+			name = AIFECTUITests;
+			packageProductDependencies = (
+			);
+			productName = AIFECTUITests;
+			productReference = AF42175B52E11CCDAF6383A4 /* AIFECTUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		20737B457A2633782C7714CA /* AIFECT */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 281E5AB2704641ADDBA58DA8 /* Build configuration list for PBXNativeTarget "AIFECT" */;
+			buildPhases = (
+				A331E68761C3BB4F22705060 /* Sources */,
+				111B6F155A3A7CE89A91FF64 /* Resources */,
+				D19AE78469B1B8854BCDB3B2 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = AIFECT;
+			packageProductDependencies = (
+				42EF6E17CB7F23DE16E688B2 /* SDWebImageWebPCoder */,
+				0517E330F0CED31371C594F7 /* FirebaseMessaging */,
+				4CBE70788E01E9BCF5C5A74B /* GoogleMobileAds */,
+			);
+			productName = AIFECT;
+			productReference = 17025D5105DF3BA07E5BCF18 /* AIFECT.app */;
+			productType = "com.apple.product-type.application";
+		};
+		CA8DBB54BB21EAAAE5D2FE9A /* AIFECTTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C0E1B0991DC13754F557BBF1 /* Build configuration list for PBXNativeTarget "AIFECTTests" */;
+			buildPhases = (
+				928DF0147DBD760D8425F846 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				6C3B0E32655532B463AEB8B8 /* PBXTargetDependency */,
+			);
+			name = AIFECTTests;
+			packageProductDependencies = (
+			);
+			productName = AIFECTTests;
+			productReference = 68106749B0C48EEB2EE1D9B0 /* AIFECTTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		D550356674A29EB2D94F2498 /* AIFECTPaymentTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 22FA565357CB0411B239207C /* Build configuration list for PBXNativeTarget "AIFECTPaymentTests" */;
+			buildPhases = (
+				5D8BA33118926AC1C00CCD69 /* Sources */,
+				1874D0B814C35986D3AC3B1B /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				E8872D93DF7F22B62BD03C81 /* PBXTargetDependency */,
+			);
+			name = AIFECTPaymentTests;
+			packageProductDependencies = (
+			);
+			productName = AIFECTPaymentTests;
+			productReference = 0C586F75F7DA890CBD9B1A54 /* AIFECTPaymentTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		4317E42A73FA8ECAFCBBBAA5 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					18A7AF9F22B23C2D2E24F0B1 = {
+						DevelopmentTeam = 3KJFQS7Q83;
+						ProvisioningStyle = Automatic;
+						TestTargetID = 20737B457A2633782C7714CA;
+					};
+					20737B457A2633782C7714CA = {
+						DevelopmentTeam = 3KJFQS7Q83;
+						ProvisioningStyle = Automatic;
+					};
+					CA8DBB54BB21EAAAE5D2FE9A = {
+						DevelopmentTeam = 3KJFQS7Q83;
+						ProvisioningStyle = Automatic;
+					};
+					D550356674A29EB2D94F2498 = {
+						DevelopmentTeam = 3KJFQS7Q83;
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = CD8BAC23B99CFA33BC89AA29 /* Build configuration list for PBXProject "AIFECT" */;
+			developmentRegion = ko;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				ko,
+			);
+			mainGroup = 989339B0B5213F3E32BA470E;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				0542988E5EF3603D4688E343 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+				906F7661AEDB793E78137631 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */,
+				2E2C27029AE291B4630B23F6 /* XCRemoteSwiftPackageReference "SDWebImageWebPCoder" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = DB6D8A09EB49C709C939E808 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				20737B457A2633782C7714CA /* AIFECT */,
+				CA8DBB54BB21EAAAE5D2FE9A /* AIFECTTests */,
+				18A7AF9F22B23C2D2E24F0B1 /* AIFECTUITests */,
+				D550356674A29EB2D94F2498 /* AIFECTPaymentTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		111B6F155A3A7CE89A91FF64 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E5FC76EF2F29117983FBC45D /* Assets.xcassets in Resources */,
+				92303E058B1A907A04B2581F /* GoogleService-Info.plist in Resources */,
+				8CEBBEE5EE8A6BB65AD9EFBE /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		1874D0B814C35986D3AC3B1B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C02F06460CA1A202A0291F7F /* AIFECTTesting.storekit in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		5D8BA33118926AC1C00CCD69 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1A1082D3617ECEE133B65DBF /* MockURLProtocol.swift in Sources */,
+				39B5DEB880F4D309B3103C6F /* StorePaymentIntegrationTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		928DF0147DBD760D8425F846 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BD35FA45162E081A9D06B361 /* AIFECTTests.swift in Sources */,
+				9C6C42DAF02774562E3420EA /* MockURLProtocol.swift in Sources */,
+				79C7D8E3E47120A3C56BAD8A /* OctoberParityTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A331E68761C3BB4F22705060 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				52A7434910B3DC5143EAF7FA /* AIFECTApp.swift in Sources */,
+				476075E9B72FF322A178D7CB /* API.swift in Sources */,
+				C6C2A62361928A4B062C91AA /* AccountViews.swift in Sources */,
+				5D6B86B4F8F0F2EE261DDDC0 /* AdIntegrationTestView.swift in Sources */,
+				3360A4B593C4490C8485E296 /* AppModel.swift in Sources */,
+				0BF24A4EDF3AA51AB8E80928 /* ChatFeatures.swift in Sources */,
+				3AD976A9EEACCCA4DFD5E291 /* CoverPublisher.swift in Sources */,
+				6B25F5DC944FBC858CE709E1 /* DiscoveryViews.swift in Sources */,
+				2C464FB3EFD6D8C908ED8BCF /* GiftViews.swift in Sources */,
+				2DA1D0FE5EFB478ABA9A4024 /* ListeningAds.swift in Sources */,
+				561D0633BA2C1F3834D5F425 /* MusicPlayer.swift in Sources */,
+				05D64240A81CDAF648FE80CC /* OriginalUploadView.swift in Sources */,
+				952BF63EB166C2165E5D0AFC /* PushNotifications.swift in Sources */,
+				BA5882EC3DA5C72592E86AC2 /* RecordingStudio.swift in Sources */,
+				E2D56A056209E55C424EB29C /* SocialViews.swift in Sources */,
+				7B28F024BBF17959C8A9B3AE /* StorePayments.swift in Sources */,
+				BA7D76FF4E55E3B7D9BB0DEC /* StudioViews.swift in Sources */,
+				2BA68AB23FC4FE6F0F35B8CF /* TrackCommentsView.swift in Sources */,
+				AAD2D4D0FD06441FEC84611B /* VocalSettings.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E5723A31C0A20D4E53AC157F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5CE9E07E1F2E420552861E77 /* AIFECTUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		6C3B0E32655532B463AEB8B8 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 20737B457A2633782C7714CA /* AIFECT */;
+			targetProxy = E69239D8E53D0314DA16319B /* PBXContainerItemProxy */;
+		};
+		DF5AA9BA2087F197D498D962 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 20737B457A2633782C7714CA /* AIFECT */;
+			targetProxy = 4B2A5492393C771A4AC483F7 /* PBXContainerItemProxy */;
+		};
+		E8872D93DF7F22B62BD03C81 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 20737B457A2633782C7714CA /* AIFECT */;
+			targetProxy = 0A14F4B553A3A0AF017B9E27 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		07378EF479FB3213B815D784 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 6;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = 3KJFQS7Q83;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		228E4815843979FE6F5D380F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = AIFECT/AIFECT.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				INFOPLIST_FILE = AIFECT/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = kr.co.aifect.app;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		289026EBD5D7C0CFF75C4508 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = kr.co.aifect.AIFECTUITests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = AIFECT;
+			};
+			name = Release;
+		};
+		31D66D1A0218C42108DA3DF6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = AIFECT/AIFECT.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				INFOPLIST_FILE = AIFECT/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = kr.co.aifect.app;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		3896B4D9D5C6DD0F5FB41AE7 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = kr.co.aifect.AIFECTUITests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = AIFECT;
+			};
+			name = Debug;
+		};
+		425D5566AA58C6B795F4DD07 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = kr.co.aifect.AIFECTTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/AIFECT.app/AIFECT";
+			};
+			name = Release;
+		};
+		7C8FC27090F5678A95958768 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 6;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = 3KJFQS7Q83;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		B2AF9F79B69555E688A1581B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = kr.co.aifect.AIFECTPaymentTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/AIFECT.app/AIFECT";
+			};
+			name = Release;
+		};
+		B32E84F7CE6B4399478236CE /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = kr.co.aifect.AIFECTTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/AIFECT.app/AIFECT";
+			};
+			name = Debug;
+		};
+		E4CEEA00F8EE3FF3A1690893 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = kr.co.aifect.AIFECTPaymentTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/AIFECT.app/AIFECT";
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		22FA565357CB0411B239207C /* Build configuration list for PBXNativeTarget "AIFECTPaymentTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E4CEEA00F8EE3FF3A1690893 /* Debug */,
+				B2AF9F79B69555E688A1581B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		281E5AB2704641ADDBA58DA8 /* Build configuration list for PBXNativeTarget "AIFECT" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				31D66D1A0218C42108DA3DF6 /* Debug */,
+				228E4815843979FE6F5D380F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		79378FEF908C7E5DA3B1244E /* Build configuration list for PBXNativeTarget "AIFECTUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3896B4D9D5C6DD0F5FB41AE7 /* Debug */,
+				289026EBD5D7C0CFF75C4508 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		C0E1B0991DC13754F557BBF1 /* Build configuration list for PBXNativeTarget "AIFECTTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B32E84F7CE6B4399478236CE /* Debug */,
+				425D5566AA58C6B795F4DD07 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		CD8BAC23B99CFA33BC89AA29 /* Build configuration list for PBXProject "AIFECT" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7C8FC27090F5678A95958768 /* Debug */,
+				07378EF479FB3213B815D784 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		0542988E5EF3603D4688E343 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.19.2;
+			};
+		};
+		2E2C27029AE291B4630B23F6 /* XCRemoteSwiftPackageReference "SDWebImageWebPCoder" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/SDWebImage/SDWebImageWebPCoder.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.15.0;
+			};
+		};
+		906F7661AEDB793E78137631 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/googleads/swift-package-manager-google-mobile-ads.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 13.11.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		0517E330F0CED31371C594F7 /* FirebaseMessaging */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0542988E5EF3603D4688E343 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseMessaging;
+		};
+		42EF6E17CB7F23DE16E688B2 /* SDWebImageWebPCoder */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2E2C27029AE291B4630B23F6 /* XCRemoteSwiftPackageReference "SDWebImageWebPCoder" */;
+			productName = SDWebImageWebPCoder;
+		};
+		4CBE70788E01E9BCF5C5A74B /* GoogleMobileAds */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 906F7661AEDB793E78137631 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */;
+			productName = GoogleMobileAds;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 4317E42A73FA8ECAFCBBBAA5 /* Project object */;
+}

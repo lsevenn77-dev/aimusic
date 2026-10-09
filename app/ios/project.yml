@@ -1,0 +1,87 @@
+name: AIFECT
+schemes:
+  AIFECTPaymentsTest:
+    build:
+      targets:
+        AIFECT: all
+    run:
+      config: Debug
+      storeKitConfiguration: AIFECTPaymentTests/AIFECTTesting.storekit
+    test:
+      config: Debug
+      targets: [AIFECTPaymentTests]
+packages:
+  SDWebImageWebPCoder:
+    url: https://github.com/SDWebImage/SDWebImageWebPCoder.git
+    from: 0.15.0
+  Firebase:
+    url: https://github.com/firebase/firebase-ios-sdk.git
+    from: 12.19.2
+  GoogleMobileAds:
+    url: https://github.com/googleads/swift-package-manager-google-mobile-ads.git
+    from: 13.11.0
+options:
+  developmentLanguage: ko
+  bundleIdPrefix: kr.co.aifect
+  deploymentTarget:
+    iOS: '17.0'
+settings:
+  base:
+    SWIFT_VERSION: '5.0'
+    TARGETED_DEVICE_FAMILY: '1'
+    MARKETING_VERSION: '1.0.0'
+    CURRENT_PROJECT_VERSION: '6'
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: 3KJFQS7Q83
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+targets:
+  AIFECT:
+    type: application
+    platform: iOS
+    sources: [AIFECT]
+    dependencies:
+      - package: SDWebImageWebPCoder
+        product: SDWebImageWebPCoder
+      - package: Firebase
+        product: FirebaseMessaging
+      - package: GoogleMobileAds
+        product: GoogleMobileAds
+    entitlements:
+      path: AIFECT/AIFECT.entitlements
+      properties:
+        aps-environment: development
+    settings:
+      base:
+        TARGETED_DEVICE_FAMILY: '1'
+        PRODUCT_BUNDLE_IDENTIFIER: kr.co.aifect.app
+        INFOPLIST_FILE: AIFECT/Info.plist
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    scheme:
+      testTargets: [AIFECTTests, AIFECTUITests]
+  AIFECTTests:
+    type: bundle.unit-test
+    platform: iOS
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+    sources: [AIFECTTests, TestSupport]
+    dependencies:
+      - target: AIFECT
+  AIFECTUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+    sources: [AIFECTUITests]
+    dependencies:
+      - target: AIFECT
+  AIFECTPaymentTests:
+    type: bundle.unit-test
+    platform: iOS
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+    sources: [AIFECTPaymentTests, TestSupport]
+    dependencies:
+      - target: AIFECT

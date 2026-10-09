@@ -6,14 +6,14 @@ const escape=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>'
 const crew={id:'crew',name:'Music crew',members:2,capacity:10,level:1,xp:2,recruiting:1};
 const detail={crew,membership:{role:'member'},members:[{id:'peer-profile',name:'Singer',role:'manager'}],tracks:[]};
 function fixture(responses={}){
- const calls=[],context=vm.createContext({me:{id:'self-user'},apiRevision:0,structuredClone,Date,URLSearchParams,esc:escape,number:n=>String(n||0),icon:()=>'',portrait:p=>'<img alt="'+escape(p.name)+'">',heading:t=>'<h1>'+escape(t)+'</h1>',section:t=>'<h2>'+escape(t)+'</h2>',communityFeed:()=>'<div>MUSIC</div>',communityNavigation:()=>'<nav>COMMUNITY</nav>',document:{addEventListener(){}},api:async p=>{calls.push(p);if(!(p in responses))throw Error('Unexpected '+p);return typeof responses[p]==='function'?responses[p]():responses[p];}});
- for(const file of ['social-chat.js','improvements.js'])vm.runInContext(readFileSync(new URL('../dist/'+file,import.meta.url),'utf8'),context);
+ const calls=[],context=vm.createContext({me:{id:'self-user'},apiRevision:0,structuredClone,Date,URLSearchParams,setInterval(){},window:{addEventListener(){}},encodeURIComponent,esc:escape,number:n=>String(n||0),icon:()=>'',portrait:p=>'<img alt="'+escape(p.name)+'">',heading:t=>'<h1>'+escape(t)+'</h1>',section:t=>'<h2>'+escape(t)+'</h2>',communityFeed:()=>'<div>MUSIC</div>',communityNavigation:()=>'<nav>COMMUNITY</nav>',document:{addEventListener(){}},api:async p=>{calls.push(p);if(!(p in responses))throw Error('Unexpected '+p);return typeof responses[p]==='function'?responses[p]():responses[p];}});
+ for(const file of ['chat-features.js','social-chat.js','improvements.js'])vm.runInContext(readFileSync(new URL('../dist/'+file,import.meta.url),'utf8'),context);
  return {context,calls};
 }
-test('joined crew landing loads my chat directly and keeps discovery as a secondary route',async()=>{
+test('joined crew landing shows music and a separate pinned inbox chat entry',async()=>{
  const {context:c,calls}=fixture({'/api/crews?q=':{mine:'crew',crews:[crew]},'/api/crews/crew':detail});
  const view=await c.improvementsView('community','crews','community/crews');
- assert.equal(view.chat.path,'/api/crews/crew/messages');assert.match(view.html,/id="chat-compose"/);
+ assert.equal(view.chat,null);assert.match(view.html,/#dm\/crew\/crew/);assert.match(view.html,/크루의 최신 음악/);assert.doesNotMatch(view.html,/id="chat-compose"/);
  assert.doesNotMatch(view.html,/id="crew-search"|data-create-crew|data-leave-crew/);
  assert.match(view.html,/#community\/crews\?browse=1/);assert.match(view.html,/#crew\/crew\?tab=members/);
  assert.deepEqual(calls,['/api/crews?q=','/api/crews/crew']);
@@ -23,7 +23,7 @@ test('a known crew skips discovery on reentry while membership is always recheck
  const responses={'/api/crews?q=':{mine:'crew',crews:[crew]},'/api/crews/crew':detail},{context:c,calls}=fixture(responses);
  await c.improvementsView('community','crews','community/crews');calls.length=0;
  const opening=c.improvementsView('community','crews','community/crews');
- assert.deepEqual(calls,['/api/crews/crew']);assert.ok((await opening).chat);
+ assert.deepEqual(calls,['/api/crews/crew']);assert.equal((await opening).chat,null);
  responses['/api/crews/crew']={...detail,membership:null};
  const kicked=await c.improvementsView('community','crews','community/crews');
  assert.equal(kicked.chat,null);assert.doesNotMatch(kicked.html,/id="chat-compose"/);
@@ -65,4 +65,11 @@ test('DM avatars use producer profile IDs while messages use account IDs for own
  const html=c.chatHTML([{id:'a',sender_id:'peer-user',body:'<script>hi</script>',created:1},{id:'b',sender_id:'self-user',body:'reply',created:2}],peer);
  assert.match(html,/dm-message mine/);assert.match(html,/#producer\/peer-profile/);assert.match(html,/&lt;script&gt;/);assert.doesNotMatch(html,/<script>/);
  const crewHtml=c.chatHTML([{id:'c',user_id:'peer-user',name:'Singer',role:'manager',body:'hello',created:1}],null,{id:'crew'});assert.match(crewHtml,/Singer\(매니저\)/);assert.doesNotMatch(crewHtml,/dm-bubble/);
+});
+
+test('crew inbox chat route rechecks membership before exposing composer',async()=>{
+ const {context:c,calls}=fixture({'/api/crews/crew':detail});
+ const page=await c.crewChatView('dm/crew/crew');
+ assert.equal(page.chat.path,'/api/crews/crew/messages');assert.match(page.html,/id="chat-compose"/);assert.deepEqual(calls,['/api/crews/crew']);
+ const denied=fixture({'/api/crews/crew':{...detail,membership:null}});await assert.rejects(denied.context.crewChatView('dm/crew/crew'),/가입한 크루/);
 });

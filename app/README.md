@@ -1,3 +1,5 @@
+iPhone SwiftUI 네이티브 앱은 [ios/README.md](ios/README.md)를 참고하세요. 아래는 Android 앱 안내입니다.
+
 # AIFECT 네이티브 Android 앱
 
 ## 2026-10-09 · Android 2.5.35 (48) 비공개 테스트
