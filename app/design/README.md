@@ -1,8 +1,20 @@
 # AIFECT Android 디자인과 iOS 적용 기준
 
-2026-10-07 Android 소스의 실제 화면과 새 A 마크를 iOS에 맞추기 위한 전달 자료다. **먼저 [index.html](index.html)을 브라우저로 열어 화면을 비교한다.** PNG는 기존 제품 화면에 테스트 데이터를 넣어 에뮬레이터에서 촬영한 이미지이며, 가상의 신규 UI 시안이 아니다. 테스트 이름·샘플 수치·가사·단색 이미지·상태 표시줄을 제품 콘텐츠로 복사하지 않는다.
+**2026-10-09, Android 2.5.35(48), 소스 `6c2c209` 기준의 실제 화면 36장**이다. **먼저 [index.html](index.html)을 브라우저로 열어 화면을 비교한다.** 최신 원본은 [screens/2.5.35/](screens/2.5.35/)에 있다. Android 15 가상기기(390×844dp, PNG 780×1688)에서 실제 제품 UI에 로컬 샘플 데이터를 넣어 촬영했다. 신규 UI 시안이나 웹 화면 캡처가 아니다.
+
+샘플 이름·프로필 사진·가사·가격·잔액·랭킹 수치를 제품 데이터로 복사하지 않는다. Android 상태 표시줄·키보드·상단 흰색 창 핸들도 iOS UI 구성요소가 아니다. 녹음 화면은 실제 마이크 대신 UI 상태와 합성 오디오로 재현했으며, 메시지 전송·구매·게시를 운영 서버에 수행하지 않았다.
 
 이 저장소에는 Xcode 프로젝트와 실제 iOS 화면 소스가 없다. `ios/`는 가져다 쓸 디자인 기반과 리소스이며, 아이폰 앱에 적용되거나 iOS 빌드가 검증됐다는 의미는 아니다. 최신 Android 구현은 `../android/app/src/main/`에 있다. 이전 README의 버전별 기록이나 오래된 웹 스크린샷보다 이 문서와 현재 소스를 우선한다.
+
+## 최신 화면을 확인하는 순서
+
+1. [메인 6화면](overview.png): 홈·커뮤니티·부르기·메시지·마이·플레이어.
+2. [DM·크루·키보드](social-flow.png): 크루 채팅 상단 고정, 크루 홈, 대화와 키보드.
+3. [프로필·갤러리·선물](profile-flow.png): 사진 비율, 개인 선물, AI 가수 갤러리.
+4. [녹음·듀엣·후처리](recording-flow.png): 파트 지정, 다음 가사, 소리·리버브, 싱크와 저장.
+5. [전체 36장 갤러리](index.html): 이미지를 누르면 원본 크기로 열린다. [화면 목록](screen-catalog.json)에 설명과 Android 구현 파일이 함께 있다.
+
+`screens/` 바로 아래의 PNG는 10월 7일 기록이다. 최신 구현 기준으로 사용하지 않는다. 당시 메타데이터는 [capture-manifest-20261007.json](capture-manifest-20261007.json)에 보관했다.
 
 ## 2026-10-09 AI 가수 갤러리 · 로그아웃
 
@@ -19,8 +31,8 @@
 | 파일 | 용도 |
 | --- | --- |
 | [index.html](index.html) | 실제 화면 갤러리, 화면별 설명, iOS 적용 체크리스트 |
-| [overview.png](overview.png), [recording-flow.png](recording-flow.png) | 바로 열어 비교하는 메인 화면·녹음 흐름 디자인 보드 |
-| [screens/](screens/) | 홈·커뮤니티·부르기·프로필·DM·크루·듀엣 편집·녹음·후처리 PNG |
+| [overview.png](overview.png), [social-flow.png](social-flow.png), [profile-flow.png](profile-flow.png), [recording-flow.png](recording-flow.png) | 최신 캡처로 만든 비교 보드 4장 |
+| [screens/2.5.35/](screens/2.5.35/) | 최신 Android 화면 36장, 원본 PNG |
 | [tokens.json](tokens.json) | 색상, 간격, 크기, 화면 구성의 기계 판독 값 |
 | [brand/aifect-app-icon-1024.png](brand/aifect-app-icon-1024.png) | 새 A 마크의 1024px 불투명 앱 아이콘 |
 | [brand/aifect-app-icon.svg](brand/aifect-app-icon.svg) | 앱 아이콘 벡터 원본 |
@@ -42,7 +54,7 @@ AIFECT는 쉽게 스트리밍하면서 커버·듀엣·크루로 참여하는 �
 
 ## 색상과 형태
 
-2.5.32 최종 헤더는 로고 **124×30pt**, 상하 여백 **8pt**다. 이전 캡처의 156×38pt 로고보다 약 20% 작다. 갤러리의 화면 구성은 유지하되 iOS에서도 `tokens.json`과 SwiftUI 파일의 최신 크기를 적용한다. 홈 화면 앱 아이콘 크기는 변경하지 않는다.
+현재 공통 헤더는 로고 **124×30pt**, 상하 여백 **8pt**다. 최신 갤러리에도 이 크기가 반영되어 있다. iOS에서는 `tokens.json`과 SwiftUI 파일의 치수를 적용한다. 녹음은 별도 화면 구조이므로 녹음 캡처도 함께 확인한다. 홈 화면 앱 아이콘 크기는 변경하지 않는다.
 
 `NativeScreens.kt`의 네이티브 값을 기준으로 한다. 네이비 배경 `#10131B`, 카드 `#191E29`, 떠 있는 표면 `#242C38`. 기본 글자 `#F3F6F8`, 설명 `#A6ADBA`. 핑크 `#EF86B6`, 민트 `#8EDDD2`는 수량을 반반 배분하지 않는다. 재생·탐색·선택은 민트, 녹음·참여·좋아요는 핑크를 활용하며 보조 버튼은 중립색으로 둔다. 전체 카드에 흰 외곽선이나 진한 그라데이션을 반복하지 않는다.
 
@@ -85,7 +97,7 @@ AIFECT는 쉽게 스트리밍하면서 커버·듀엣·크루로 참여하는 �
 
 ## 2026-10-08 · 2.5.33 변경 계약
 
-기존 갤러리 PNG는 10월 7일 캡처다. 다음 변경은 최신 Android 소스 및 웹 버전 94를 기준으로 iOS에도 적용한다.
+다음 변경은 최신 Android 소스 및 웹 버전 94를 기준으로 iOS에도 적용한다. 10월 9일에 갱신한 `screens/2.5.35/`에서도 관련 화면을 확인할 수 있다.
 
 - 메시지 목록은 내 크루 고정 카드 → 개인 대화 순서다. `GET /api/dm/summary`의 `unread`, `crew`를 사용하며, 하단 메시지 아이콘에 읽지 않은 개수를 표시한다. 크루 홈의 채팅 링크도 동일한 대화로 이동한다.
 - 개인 대화마다 알림 켜기/끄기, 사진, 선물을 제공한다. 기기의 사진을 WebP로 변환한 뒤 `PUT /api/dm/:peerProfileId/images`, 반환된 ID를 `POST /api/dm/:peerProfileId`의 `image_id`로 보낸다. 5MB 제한. 로그인한 발신자·수신자만 사진을 열 수 있고 차단 관계에는 노출하지 않는다.
@@ -101,7 +113,7 @@ AIFECT는 쉽게 스트리밍하면서 커버·듀엣·크루로 참여하는 �
 
 ## 2026-10-08 · 2.5.34 변경 계약
 
-이 항목은 iOS 구현용 **소스 전달**이다. 웹·서버 구현은 저장소 루트의 `ai음원사이트/`, Android 구현은 `app/android/`에 함께 들어 있다. 이번 Git 전달 자체는 운영 서버 배포, iOS 빌드 또는 iPhone 설치를 수행하지 않는다. 새 API를 운영 앱에서 사용하기 전에 `0035_personal_gifts_and_crew_mute.sql`, `0036_gift_tax_reserve.sql`과 서버 코드를 함께 배포해야 한다. 기존 화면 PNG는 다시 촬영하지 않았으므로 아래 변경 계약과 최신 소스를 우선한다.
+이 항목은 iOS 구현용 **소스 전달**이다. 웹·서버 구현은 저장소 루트의 `ai음원사이트/`, Android 구현은 `app/android/`에 함께 들어 있다. Git 전달 자체는 운영 서버 배포, iOS 빌드 또는 iPhone 설치를 수행하지 않는다. 새 API를 운영 앱에서 사용하기 전에 `0035_personal_gifts_and_crew_mute.sql`, `0036_gift_tax_reserve.sql`과 서버 코드를 함께 배포해야 한다. 아래는 2.5.34부터 적용한 계약이며 최신 캡처는 `screens/2.5.35/`를 사용한다.
 
 골드 충전 시에는 약속한 골드 수량을 그대로 지급한다. 세금·수수료는 서버가 현금 정산액을 계산할 때 한 번만 반영한다. iOS는 서버의 정산액에서 세금·수수료를 다시 빼거나 골드 수량을 현금 지급액으로 표시하지 않는다. 웹 5% 추가 골드는 확정하여 반영했다. 앱·웹 공통 고정 정산 단가로 바꾸지는 않으며, 서버가 기록한 충전 건별 정산 기준을 사용한다.
 
@@ -115,6 +127,22 @@ AIFECT는 쉽게 스트리밍하면서 커버·듀엣·크루로 참여하는 �
 - iOS StoreKit 및 Android Play Billing 상품 ID·가격·지급량은 그대로다. 웹 보너스를 인앱 구매에 다시 적용하거나, 앱 화면의 구매 상품을 `web_packs`로 대체하지 않는다.
 - 신규 충전분의 선물 정산은 세금·결제 수수료 차감 후 개인/원곡 70:30, 커버 40:30:30이다. 기존 충전 건 및 선물 배분액은 유지한다. 한국 부가세를 충전 건의 `tax_krw`에 별도 적립하고 구매 건별 FIFO로 사용한다. Apple 수수료는 세금 제외 금액에 적용한다. 스토어 수수료 추정치는 실제 정산 명세서와 대조해야 한다. 웹 추가 골드를 포함한 총 지급량에 실제 결제금액의 정산 기준액을 나눠 사용하며, 보너스를 별도 현금 매출로 더하지 않는다.
 
-구현: `ChatFeatures.kt`, `GiftScreens.kt`, `MusicCommunityScreens.kt`, `SocialScreens.kt`, `MusicModel.kt`; 웹 마이그레이션 `0035`, `0036`. 기존 갤러리 이미지는 이전 캡처이며 최신 구성은 이 문서와 소스를 기준으로 한다.
+구현: `ChatFeatures.kt`, `GiftScreens.kt`, `MusicCommunityScreens.kt`, `SocialScreens.kt`, `MusicModel.kt`; 웹 마이그레이션 `0035`, `0036`. 최신 구성은 이 문서와 `screens/2.5.35/`, 해당 소스를 기준으로 한다.
 
 검증 기록: 관련 서버 테스트 64개, 결제 화면·정책 테스트 2개 통과. Android release APK/AAB 빌드와 단위 테스트 54개 통과. 웹 5% 추가 수량을 로컬 충전 화면에서 확인했다. 웹 결제의 운영 활성화 여부는 기존 계약/서버 설정을 그대로 따르며, 이번 Git push가 결제 승인 또는 운영 배포를 뜻하지 않는다.
+
+## 캡처 재현과 검증 범위 · 2026-10-09
+
+JDK 21과 Android SDK를 준비하고, 전용 Android 15 AVD를 `-no-audio`로 실행한다. 일반 휴대폰이나 운영 패키지에는 설치하지 않는다.
+
+```powershell
+./app/design/capture-android.ps1 -Serial emulator-5580 -JavaHome 'C:/Program Files/Eclipse Adoptium/jdk-21.0.11.10-hotspot'
+cd app/design
+npm install
+npm run boards
+npm run catalog
+```
+
+스크립트는 `-PaifectTest`로 격리 패키지 `kr.co.aifect.app.test`를 빌드하고 로컬 HTTP fixture만 사용한다. 선택된 `DesignCaptureTest` 3개와 `KaraokeDeviceTest.captureCurrentDesignWithoutMicrophone` 1개가 성공해야 이미지를 가져온다. 버전이 바뀌면 스크립트·카탈로그·manifest 기준 정보를 함께 수정한다.
+
+이번 캡처용 4개 시나리오는 통과했고 원본 36장의 크기·해시, 갤러리 파일 연결과 비교 보드를 확인했다. 전체 회귀 테스트나 실제 녹음 품질 검증을 뜻하지 않는다. 재사용을 시도한 기존 `duetGuideEditsPersistWithoutMicrophone`, `studioSettingsCancelApplyAndAgainPreserveTake`는 Activity 재생성 뒤 상태 복원 검증에서 실패했다. 이 두 테스트/제품 복원 동작은 이번 디자인 자료 작업에서 수정하지 않았으며, iOS도 회전·앱 재진입·명시적인 초안 복원을 각각 확인해야 한다.

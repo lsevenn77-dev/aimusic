@@ -312,7 +312,35 @@ public class KaraokeDeviceTest {
         onView(withContentDescription("녹음 다시듣기 일시정지")).perform(click());
     }
     private static androidx.test.espresso.ViewAction adjustSync(int delta){return new androidx.test.espresso.ViewAction(){public org.hamcrest.Matcher<android.view.View> getConstraints(){return androidx.test.espresso.matcher.ViewMatchers.isAssignableFrom(android.widget.SeekBar.class);}public String getDescription(){return "Adjust the visible sync slider by "+delta+"ms";}public void perform(androidx.test.espresso.UiController ui,android.view.View view){android.widget.SeekBar bar=(android.widget.SeekBar)view;bar.setProgress(bar.getProgress()+delta);ui.loopMainThreadUntilIdle();}};}
-    private void capture(String name)throws Exception{Bitmap image=InstrumentationRegistry.getInstrumentation().getUiAutomation().takeScreenshot();try(FileOutputStream out=new FileOutputStream(new File(context.getExternalFilesDir(null),name))){image.compress(Bitmap.CompressFormat.PNG,100,out);}image.recycle();}
+    private void capture(String name)throws Exception{InstrumentationRegistry.getInstrumentation().waitForIdleSync();Thread.sleep(350);Bitmap image=InstrumentationRegistry.getInstrumentation().getUiAutomation().takeScreenshot();try(FileOutputStream out=new FileOutputStream(new File(context.getExternalFilesDir(null),name))){image.compress(Bitmap.CompressFormat.PNG,100,out);}image.recycle();}
+    /** Current UI reference only: synthetic audio, no account, upload, or microphone. */
+    @Test public void captureCurrentDesignWithoutMicrophone()throws Exception{
+        assertTrue(context.getPackageName().endsWith(".test"));
+        assertTrue(android.os.Build.HARDWARE.equals("ranchu")||android.os.Build.HARDWARE.equals("goldfish"));
+        capture("design-2535-ready.png");
+        screen.close();screen=ActivityScenario.launch(new Intent(context,KaraokeActivity.class).putExtra("origin","http://127.0.0.1:"+server.getLocalPort()).putExtra("trackId","fixture").putExtra("coverMode","duet"));
+        awaitNativeRoom(30);
+        onView(withTagValue(org.hamcrest.Matchers.is("duet-open-editor"))).perform(scrollTo(),click());
+        onView(withTagValue(org.hamcrest.Matchers.is("duet-method-lyrics"))).perform(click());
+        onView(withTagValue(org.hamcrest.Matchers.is("duet-line-0-A"))).perform(scrollTo(),click());
+        onView(withTagValue(org.hamcrest.Matchers.is("duet-fill-partner"))).perform(click());
+        capture("design-2535-duet-editor.png");
+        onView(withTagValue(org.hamcrest.Matchers.is("duet-editor-done"))).perform(click());
+        prepareLyricsLayout(true,true,false);
+        screen.onActivity(a->{try{setUiState(a,"RECORDING");}catch(Exception e){throw new RuntimeException(e);}});
+        Thread.sleep(650);
+        screen.onActivity(a->{LyricsTimelineView wheel=a.getWindow().getDecorView().findViewWithTag("karaoke-lyrics");assertLyricsGloballyVisible(wheel,1,3,"design capture");});
+        capture("design-2535-recording-lyrics.png");
+        screen.onActivity(a->{try{setUiState(a,"READY");}catch(Exception e){throw new RuntimeException(e);}});
+        seedTake();
+        onView(withTagValue(org.hamcrest.Matchers.is("post-settings"))).perform(scrollTo(),click());capture("design-2535-sound.png");
+        onView(withText("리버브")).perform(click());onView(withText("사용자 설정")).perform(scrollTo(),click());capture("design-2535-reverb.png");
+        onView(withText("적용하기")).perform(click());
+        onView(withText("녹음이 완료되었습니다!")).perform(scrollTo());capture("design-2535-post-top.png");
+        onView(withText("저장 후 게시")).perform(scrollTo()).check(matches(isDisplayed()));capture("design-2535-post-bottom.png");
+        screen.onActivity(a->{try{assertNoAudioCapture(a);}catch(Exception e){throw new RuntimeException(e);}});
+        assertEquals(PackageManager.PERMISSION_DENIED,ContextCompat.checkSelfPermission(context,Manifest.permission.RECORD_AUDIO));
+    }
     @Test public void studioSettingsCancelApplyAndAgainPreserveTake()throws Exception{
         File dry=seedTake();byte[] original=java.nio.file.Files.readAllBytes(dry.toPath());
         onView(withTagValue(org.hamcrest.Matchers.is("post-settings"))).perform(scrollTo(),click());capture("studio-sound.png");

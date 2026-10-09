@@ -1,155 +1,381 @@
 {
-  "capturedOn": "2026-10-07",
-  "baselineCommit": "af90f96",
-  "changes": "New shared raster icon assets and iOS handoff only; screens use native Android implementations.",
-  "platform": "Android 15 emulator, 390dp, 2x",
+  "capturedOn": "2026-10-09",
+  "baselineCommit": "6c2c209f7c634695593434b0751f11e9ba26a078",
+  "versionName": "2.5.35",
+  "versionCode": 48,
+  "changes": "Current native Android screenshots and iOS handoff documentation; production app source unchanged.",
+  "platform": "Android 15 / API 35 emulator, 390x844dp, 2x (780x1688px)",
+  "avd": "AIFECT_Lyrics_QA_20261003",
   "isolatedPackage": "kr.co.aifect.app.test",
-  "data": "Synthetic local HTTP fixture data; no production account, microphone input, purchase or real message.",
+  "data": "Synthetic loopback fixtures with repository artwork. No production account, microphone input, purchase, message send or upload. Recording UI is simulated; post-production uses generated PCM.",
   "verification": {
-    "captureScenarios": 8,
-    "passed": 8,
-    "iosAssetImages": 24,
-    "galleryScreens": 20,
+    "captureScenarios": 4,
+    "passed": 4,
+    "galleryScreens": 36,
+    "scope": "DesignCaptureTest: main/social/profile; KaraokeDeviceTest: captureCurrentDesignWithoutMicrophone. Successful focused runs, not a full regression run.",
+    "observations": "Two existing Activity recreation tests failed during reuse; see README verification scope. They are not part of the capture suite.",
     "xcodeBuild": "Not run: no Xcode project or macOS environment in this checkout."
   },
   "screens": [
     {
-      "file": "screens/duet-editor-native.png",
+      "file": "screens/2.5.35/01-home.png",
+      "category": "music",
+      "title": "홈 · 음악부터 바로 듣기",
+      "description": "상단 로고와 검색, 최신곡 재생, 보관함 바로가기와 커버 탐색.",
+      "source": "BrowseScreens.kt",
       "width": 780,
       "height": 1688,
-      "sha256": "1f8bc85bda1558a15a581bfec7bd12235809e85a42978607c8dedd967baf6f9f"
+      "sha256": "5f71fc819c718802d408709c31ca73c732c92a4979f448abcaedc4fab97f74ec"
     },
     {
-      "file": "screens/lyrics-duet-next-own-turn.png",
+      "file": "screens/2.5.35/02-home-covers.png",
+      "category": "music",
+      "title": "홈 · 커버와 사람 발견",
+      "description": "홈을 내렸을 때 이어지는 커버와 아티스트. 음악에서 사람으로 연결합니다.",
+      "source": "BrowseScreens.kt",
       "width": 780,
       "height": 1688,
-      "sha256": "4460970f3ad18a2bf286f68651ad20082b3f52ab5dd71ab3eade8f7743c282de"
+      "sha256": "0e270a0849315d60cef211af6243021c34e686124f86e52a070d5a2b8ddecd42"
     },
     {
-      "file": "screens/native-community.png",
+      "file": "screens/2.5.35/03-community.png",
+      "category": "music",
+      "title": "커뮤니티 · 음악과 사람",
+      "description": "추천·커버·듀엣·크루·팔로잉과 크루 진입을 함께 보여줍니다.",
+      "source": "MusicCommunityScreens.kt",
       "width": 780,
       "height": 1688,
-      "sha256": "d3b0e2a14ec6371b994b0223d38d381024865ac955f1b012041fd24d67aed1b4"
+      "sha256": "763d93758df838525c1ff7ac872a14c83fcfa208476087ec2ccfdc29e4552a52"
     },
     {
-      "file": "screens/native-library.png",
+      "file": "screens/2.5.35/04-sing.png",
+      "category": "music",
+      "title": "부르기 · 첫 화면",
+      "description": "노래 검색과 추천, 커버 랭킹·초안으로 이어지는 진입점.",
+      "source": "BrowseScreens.kt",
       "width": 780,
       "height": 1688,
-      "sha256": "9d82edbd142c64cc2dc816b3a72ef664805f3949e2096c7988bc93a16f2e4222"
+      "sha256": "862389c0205084cf3322448bb10f6cb6cfb007223c2503dda55fa564a2e5385c"
     },
     {
-      "file": "screens/native-listen-shelves.png",
+      "file": "screens/2.5.35/05-sing-songs.png",
+      "category": "music",
+      "title": "부르기 · 노래 목록",
+      "description": "촘촘한 곡 행과 명확한 부르기 버튼. 노래방 화면에서 솔로·듀엣을 선택합니다.",
+      "source": "BrowseScreens.kt",
       "width": 780,
       "height": 1688,
-      "sha256": "aa62eedac8fa441d876d60fde0d8545e23b88a367a5becb976536e622afe8e88"
+      "sha256": "863f703955fbc6690a89523345ff4009e91accb858345bc27516c749e38d2600"
     },
     {
-      "file": "screens/native-listen.png",
+      "file": "screens/2.5.35/06-search.png",
+      "category": "music",
+      "title": "검색 · 음악 발견",
+      "description": "검색 입력과 음악·사람·플레이리스트 탐색.",
+      "source": "BrowseScreens.kt",
       "width": 780,
       "height": 1688,
-      "sha256": "aa62eedac8fa441d876d60fde0d8545e23b88a367a5becb976536e622afe8e88"
+      "sha256": "4e5c7a96f54a34b7fbe464870dfa0385ebf6994946fb02562ca1a04cfea4f199"
     },
     {
-      "file": "screens/native-new-community.png",
+      "file": "screens/2.5.35/07-library.png",
+      "category": "music",
+      "title": "보관함 · 저장한 음악",
+      "description": "플레이리스트와 좋아요·최근 감상 등 보관함 진입점.",
+      "source": "BrowseScreens.kt",
       "width": 780,
       "height": 1688,
-      "sha256": "6ea60491de0cf946635269d7f3895d35c914b1b38c776ca64c0b139ecf23388b"
+      "sha256": "00eb749aeaaccb6f515489311741d9718daa5aa9537283a616d00d3112500fa7"
     },
     {
-      "file": "screens/native-new-home.png",
+      "file": "screens/2.5.35/08-playlist.png",
+      "category": "music",
+      "title": "플레이리스트 · 원곡과 커버",
+      "description": "같은 재생 목록에 원곡과 커버를 담습니다. 실제 커버 ID를 유지합니다.",
+      "source": "NativeScreens.kt",
       "width": 780,
       "height": 1688,
-      "sha256": "d7fd14b7e72563f06237d8ac17a212c2a72ba48189cc56d00a9d737f9b7da305"
+      "sha256": "b04da408bccfe405b1770bd706216590c087db95e1d4b21ae2eae103198b8750"
     },
     {
-      "file": "screens/native-new-messages.png",
+      "file": "screens/2.5.35/09-player.png",
+      "category": "music",
+      "title": "플레이어 · 감상",
+      "description": "앨범 이미지, 재생 위치, 셔플·재생·반복과 가사 영역.",
+      "source": "NativeScreens.kt",
       "width": 780,
       "height": 1688,
-      "sha256": "94b646f3e0dff6ad91177e0608e3fe41626a570de940e4b4fb1f622ff4afc4e0"
+      "sha256": "593fad839f57dfbe8d7abd23c398325e7ac30068a9cc727c6629835d9336c292"
     },
     {
-      "file": "screens/native-new-my.png",
+      "file": "screens/2.5.35/10-song-detail.png",
+      "category": "music",
+      "title": "음악 상세 · 참여로 연결",
+      "description": "음원 정보에서 좋아요·댓글·선물·부르기로 이어집니다.",
+      "source": "NativeScreens.kt",
       "width": 780,
       "height": 1688,
-      "sha256": "7739c4ab31ba14813a5170f5b269e1ed10667d437723a254eadc118e9bf6c1f0"
+      "sha256": "e6f35d4fb375a923094afeead8acd7dfdb111abd970b773eedd1a73d2d2b2390"
     },
     {
-      "file": "screens/native-polish-covers-grid.png",
+      "file": "screens/2.5.35/11-message-list.png",
+      "category": "social",
+      "title": "메시지 · 크루 최상단 고정",
+      "description": "내 크루 채팅을 맨 위에 두고 개인 대화와 알림 끄기를 제공합니다.",
+      "source": "SocialScreens.kt",
       "width": 780,
       "height": 1688,
-      "sha256": "c849ed23670d985d53e9766ade99eaff625805d09f92b50de776e57d6999d4e4"
+      "sha256": "8beae8b5ead03322eab5f2b9adbf3fb28ee7bd04095b9b9296cac859e4247fd6"
     },
     {
-      "file": "screens/native-polish-covers-list.png",
+      "file": "screens/2.5.35/12-direct-message.png",
+      "category": "social",
+      "title": "DM · 대화와 프로필",
+      "description": "상대 사진·이름은 프로필로, 하단은 이미지·선물·메시지 전송으로 연결합니다.",
+      "source": "SocialScreens.kt",
       "width": 780,
       "height": 1688,
-      "sha256": "27393d7c6cca32eb5f508c74468172f0c50c3b6bfa81b268ac7f3f341dc63fca"
+      "sha256": "e96ab6944c300052b614df0b9829b170220a9db7b146dd4187a98f191049195d"
     },
     {
-      "file": "screens/native-polish-my-photo.png",
+      "file": "screens/2.5.35/13-dm-keyboard.png",
+      "category": "social",
+      "title": "DM · 키보드 표시",
+      "description": "키보드 위에 입력창을 유지합니다. 한글 조합 상태를 보존해야 합니다.",
+      "source": "SocialScreens.kt",
       "width": 780,
       "height": 1688,
-      "sha256": "c07bfd73391de2a56f0125e78f6488de104500155cf40cfec37a725b0c4a750a"
+      "sha256": "1c16c4962e85b66fe5bc3a463d3b6d625456a36aa80c9aaa01a9aef4aa04fa63"
     },
     {
-      "file": "screens/native-polish-public-photo.png",
+      "file": "screens/2.5.35/14-crew-home.png",
+      "category": "social",
+      "title": "크루 홈 · 이미지와 최근 음악",
+      "description": "대표 이미지·크루원·최근 음악을 먼저 보여주고 크루 채팅 진입 링크를 둡니다.",
+      "source": "SocialScreens.kt",
       "width": 780,
       "height": 1688,
-      "sha256": "b200e68b32108f11274a143d62205aee7b315ce501dfc2f5cd3954653a083651"
+      "sha256": "896e6e24ae1cd5c28701988c43267ea2c4883ea019017f2e3c2169534892f823"
     },
     {
-      "file": "screens/native-search.png",
+      "file": "screens/2.5.35/15-crew-members.png",
+      "category": "social",
+      "title": "크루 · 멤버",
+      "description": "크루원 목록에서 사람 프로필과 교류로 연결합니다.",
+      "source": "SocialScreens.kt",
       "width": 780,
       "height": 1688,
-      "sha256": "c5d45facd2e8ea43f918c17cfc542527d8d0440c6dc214e81c34d5a60d45c9d2"
+      "sha256": "873577ecf5b29d8491b9343a3a535e137b59e99787f65ac837f30931af0edc62"
     },
     {
-      "file": "screens/native-sing.png",
+      "file": "screens/2.5.35/16-crew-discovery.png",
+      "category": "social",
+      "title": "크루 · 다른 크루 둘러보기",
+      "description": "현재 크루의 음악 대신 검색과 크루 목록을 보여줍니다.",
+      "source": "SocialScreens.kt",
       "width": 780,
       "height": 1688,
-      "sha256": "0a41f457d928247196d876f7d262b18fbfabe031eae9c06eb8cf57345ca670d8"
+      "sha256": "8740e7268e4d45d2614881a9acfbe1eb5a284e4e9cff270bdc646825fde50488"
     },
     {
-      "file": "screens/native-social-crew-chat-first.png",
+      "file": "screens/2.5.35/17-crew-chat.png",
+      "category": "social",
+      "title": "크루 채팅 · 알림 설정",
+      "description": "대화와 입력창을 항상 제공하고 상단에서 알림을 끕니다. 정상 연결 문구는 반복하지 않습니다.",
+      "source": "SocialScreens.kt",
       "width": 780,
       "height": 1688,
-      "sha256": "62038b25c43cde9376df5988cefce56993ad664a3ac962fd1c6ac79117c2ed62"
+      "sha256": "5c6fc4ce9f9605c42aa26b290be760b8ac425e71361f14c5ab9e76bbd2cf6dbc"
     },
     {
-      "file": "screens/native-social-crew-ime-390dp.png",
+      "file": "screens/2.5.35/18-crew-keyboard.png",
+      "category": "social",
+      "title": "크루 채팅 · 키보드 표시",
+      "description": "키보드가 떠도 대화와 전송 입력창을 함께 보여줍니다.",
+      "source": "SocialScreens.kt",
       "width": 780,
       "height": 1688,
-      "sha256": "d2cbcc096f0df6dab029fcb47f901db198c33e067727431b1a016a08dd43f292"
+      "sha256": "77c30fa9a581703e336d01f05e56001668a3ae99a70543a037e7684945121f0f"
     },
     {
-      "file": "screens/native-social-dm-photo-profile.png",
+      "file": "screens/2.5.35/19-my-profile.png",
+      "category": "profile",
+      "title": "마이 · 프로필과 로그아웃",
+      "description": "비율을 보존한 정사각형 사진, 상단 로그아웃, 팔로워·팔로잉과 보관함.",
+      "source": "MusicCommunityScreens.kt",
       "width": 780,
       "height": 1688,
-      "sha256": "392cd0f2502a3d54971343bff8e2370383e81d928cc2a777bd6197b8a8683bbf"
+      "sha256": "92221129211c7bbeb046dc77f0b5051c395e459e76777dc7e44fecfae5dbf103"
     },
     {
-      "file": "screens/studio-post-refined-bottom.png",
+      "file": "screens/2.5.35/20-my-music.png",
+      "category": "profile",
+      "title": "마이 · 공개 음악",
+      "description": "공개 음악 필터, 그리드·목록 전환과 커버 이미지.",
+      "source": "MusicCommunityScreens.kt",
       "width": 780,
       "height": 1688,
-      "sha256": "19b12e922511f989260e94818f129fc46486f2fa7ff8b7ea4969611913889229"
+      "sha256": "4a4e070abb4a26efe31bd9fbd3d7ca0f57577b1cb9462b3ace6501a9319cf8e9"
     },
     {
-      "file": "screens/studio-post-refined-top.png",
+      "file": "screens/2.5.35/21-public-profile.png",
+      "category": "profile",
+      "title": "상대 프로필 · 팔로우와 메시지",
+      "description": "정사각형 사진 아래 팔로우·메시지·선물과 공개 음악을 연결합니다.",
+      "source": "NativeScreens.kt",
       "width": 780,
       "height": 1688,
-      "sha256": "d89a1e93a1a96b8dfcba8ee8c616c13345a55b6e7c7c414b9565da91cd8c1b97"
+      "sha256": "10ebc4cad24792a9ad9ed6719066b78d51931e17bbf833c3aede15e69e9e8c94"
     },
     {
-      "file": "screens/studio-reverb.png",
+      "file": "screens/2.5.35/22-person-gift.png",
+      "category": "profile",
+      "title": "개인 선물 · 곡 선택 없이",
+      "description": "노래를 고르지 않고 상대에게 직접 선물을 보냅니다. 수치는 캡처용 샘플입니다.",
+      "source": "GiftScreens.kt",
       "width": 780,
       "height": 1688,
-      "sha256": "251f578a15d884afa48d6d3270e0e584c498d8d95d499529cb621cc2909373b0"
+      "sha256": "beea5a7de90088ecc8c77829ca7bd2d1bbcbeb9cf854720683f8980fdb41beb1"
     },
     {
-      "file": "screens/studio-sound.png",
+      "file": "screens/2.5.35/23-artist-profile.png",
+      "category": "profile",
+      "title": "AI 가수 · 프로필",
+      "description": "아티스트 정보에서 음악과 갤러리로 이어집니다.",
+      "source": "NativeScreens.kt",
       "width": 780,
       "height": 1688,
-      "sha256": "4b27f538f75ea4e0742cc1fb613588d5efd68c4bbb0f26b9b5d497a5d24f7c76"
+      "sha256": "526545bc30f234487cf7090330cd8bb5e7ba8235182286c3d10cb40f1b7815d7"
+    },
+    {
+      "file": "screens/2.5.35/24-artist-gallery.png",
+      "category": "profile",
+      "title": "AI 가수 · 사진 갤러리",
+      "description": "음악 커버와 별도인 2열 사진 갤러리. 제작자에게만 관리 버튼을 제공합니다.",
+      "source": "ArtistPhotoGallery.kt",
+      "width": 780,
+      "height": 1688,
+      "sha256": "45814aa6e8fbe88655c77a5c1f6e771662f29a3a67adb4d9b1be284fea0e7eb2"
+    },
+    {
+      "file": "screens/2.5.35/25-gallery-photo.png",
+      "category": "profile",
+      "title": "갤러리 · 사진 확대",
+      "description": "원본 비율을 보존해 사진을 확대하고 닫으면 갤러리로 돌아옵니다.",
+      "source": "ArtistPhotoGallery.kt",
+      "width": 780,
+      "height": 1688,
+      "sha256": "aaeb0bb530e90966177cdb273353424de99b54891b9ececb75f9ef39d2b2d848"
+    },
+    {
+      "file": "screens/2.5.35/26-wallet.png",
+      "category": "profile",
+      "title": "선물함 · 골드와 보상",
+      "description": "전체 너비 충전 버튼과 별도 보상 배너를 사용합니다. 실제 가격은 서버·스토어 상품을 따릅니다.",
+      "source": "GiftScreens.kt",
+      "width": 780,
+      "height": 1688,
+      "sha256": "d26e78dd213d15c78d3c418f3e9ba611c44b340e198fbcf7e350d21316949d6b"
+    },
+    {
+      "file": "screens/2.5.35/27-rewards.png",
+      "category": "profile",
+      "title": "오늘의 응원별",
+      "description": "응원별 보상과 이용 안내를 한곳에서 확인합니다.",
+      "source": "GiftScreens.kt",
+      "width": 780,
+      "height": 1688,
+      "sha256": "bbb626d2a59ab3a8b6664c110d22d5cd991f864ee8610ae6f852fa18131bdf3c"
+    },
+    {
+      "file": "screens/2.5.35/28-account-menu.png",
+      "category": "profile",
+      "title": "계정 메뉴",
+      "description": "계정·정산·응원별·창작자 스튜디오와 로그아웃 진입점.",
+      "source": "NativeScreens.kt",
+      "width": 780,
+      "height": 1688,
+      "sha256": "d9707d13ff208e9331ecfd92d2733e91abca6732675fd7105fdc1474db8cb075"
+    },
+    {
+      "file": "screens/2.5.35/29-account-settings.png",
+      "category": "profile",
+      "title": "계정 설정",
+      "description": "이메일 확인과 아이디·비밀번호 설정. 캡처에는 가상 계정만 사용했습니다.",
+      "source": "NativeScreens.kt",
+      "width": 780,
+      "height": 1688,
+      "sha256": "29d783e12efe91d4221f3da6596f0da46500fe48e8c7243051386e86825b9af6"
+    },
+    {
+      "file": "screens/2.5.35/30-recording-ready.png",
+      "category": "record",
+      "title": "녹음 준비 · 처음부터 시작",
+      "description": "솔로·듀엣, 모니터링, 가사 크기와 녹음 시작. 초안을 선택한 경우만 이어서 부릅니다.",
+      "source": "karaoke/KaraokeActivity.java",
+      "width": 780,
+      "height": 1688,
+      "sha256": "fe83b6ae479eb1c334a5dee050593a330c82c9e10fec39e4da7b7fd77478e9e0"
+    },
+    {
+      "file": "screens/2.5.35/31-duet-editor.png",
+      "category": "record",
+      "title": "듀엣 · 파트 나누기",
+      "description": "가사마다 내 파트·파트너·함께를 지정합니다. 성별로 나누지 않습니다.",
+      "source": "karaoke/DuetPartEditor.java",
+      "width": 780,
+      "height": 1688,
+      "sha256": "fd115169fe8d76feee9746c6e3f16e20cb82fa94c2f5cb2b5f70d4ee68e5975d"
+    },
+    {
+      "file": "screens/2.5.35/32-recording-lyrics.png",
+      "category": "record",
+      "title": "녹음 · 다음 내 차례까지",
+      "description": "현재·다음 가사와 파트너 다음 내 차례가 보이는 긴 가사 샘플입니다. 마이크는 열지 않았습니다.",
+      "source": "karaoke/LyricsTimelineView.java",
+      "width": 780,
+      "height": 1688,
+      "sha256": "f3c66c6ecdb72194da783e6cb922a640808c2d1f34d06681296efde0a3f48e50"
+    },
+    {
+      "file": "screens/2.5.35/33-sound-settings.png",
+      "category": "record",
+      "title": "세부 설정 · 소리",
+      "description": "목소리·반주 크기와 잡음 제거를 한 창에서 조절합니다.",
+      "source": "karaoke/KaraokeActivity.java",
+      "width": 780,
+      "height": 1688,
+      "sha256": "00bc9acdaafbc28e05e162277cd3686913790caf91460d395ff90ac579e777e9"
+    },
+    {
+      "file": "screens/2.5.35/34-reverb-settings.png",
+      "category": "record",
+      "title": "세부 설정 · 리버브",
+      "description": "프리셋과 사용자 설정, 적용·취소 동작을 구분합니다.",
+      "source": "karaoke/KaraokeActivity.java",
+      "width": 780,
+      "height": 1688,
+      "sha256": "37b218b62c26ec97d59ccdba9161f5a8f8246d6d9e29b1bebab1b358c4d2b353"
+    },
+    {
+      "file": "screens/2.5.35/35-post-production.png",
+      "category": "record",
+      "title": "녹음 후 · 싱크와 밸런스",
+      "description": "파형 미리듣기부터 싱크·목소리·반주 볼륨 순서. 합성 테스트 오디오를 사용했습니다.",
+      "source": "karaoke/KaraokeActivity.java",
+      "width": 780,
+      "height": 1688,
+      "sha256": "8adc8833b494d4fd0442b6d86392fac5500efdce44926b3c9ad6b9ec65fe5103"
+    },
+    {
+      "file": "screens/2.5.35/36-save-recording.png",
+      "category": "record",
+      "title": "녹음 후 · 저장과 게시",
+      "description": "리버브를 조절한 후 다시 부르기·임시 저장·저장 후 게시를 선택합니다.",
+      "source": "karaoke/KaraokeActivity.java",
+      "width": 780,
+      "height": 1688,
+      "sha256": "3dd3effb6b0bffbaa177bcccc04caaf77d76b731498b1882904b0a7a3d89243d"
     }
   ]
 }

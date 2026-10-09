@@ -1,6 +1,6 @@
 {
   "name": "aifect-design-handoff",
   "private": true,
-  "scripts": { "brand": "node export-brand-assets.cjs", "boards": "node export-overview.cjs" },
+  "scripts": { "brand": "node export-brand-assets.cjs", "boards": "node export-overview.cjs", "catalog": "node export-catalog.cjs" },
   "devDependencies": { "sharp": "0.35.4" }
 }
