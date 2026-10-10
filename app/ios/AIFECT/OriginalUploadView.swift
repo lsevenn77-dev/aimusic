@@ -82,7 +82,7 @@ struct OriginalUploadView: View {
     @State private var title = ""
     @State private var producer = ""
     @State private var tool = ""
-    @State private var genre = "K-POP"
+    @State private var genre = "분석 대기"
     @State private var artist = "none"
     @State private var artists: [[String: Any]] = []
     @State private var description = ""
@@ -103,7 +103,8 @@ struct OriginalUploadView: View {
                     TextField("곡 제목", text: $title)
                     TextField("창작자 닉네임", text: $producer)
                     TextField("사용한 AI 도구", text: $tool)
-                    TextField("장르", text: $genre)
+                    Label("AI 장르 · 기분 자동 분류", systemImage: "sparkles")
+                    Text("음원 변환 후 Gemini가 음악을 분석해 장르와 기분을 여러 개 선택해요.").font(.caption).foregroundStyle(.secondary)
                     Picker("AI 아티스트", selection: $artist) {
                         Text("창작자 이름으로 공개").tag("none")
                         ForEach(artists.indices, id: \.self) { index in Text(artists[index].string("name")).tag(artists[index].string("id")) }

@@ -13,7 +13,7 @@ test('mobile login: browser consent, verifier binding, single-use exchange and c
  const {ticket,url}=start.data;assert.equal(new URL(url).origin,origin);assert.ok(!url.includes(verifier));assert.ok(!url.includes(challenge));
  assert.equal((await call('/api/auth/mobile/exchange','POST',{ticket,verifier})).r.status,409);
  assert.equal((await call('/api/auth/mobile/exchange','POST',{ticket,verifier:randomBytes(48).toString('base64url')})).r.status,401);
- const user=await call('/api/auth/register','POST',{email:'native-'+Date.now()+'@example.test',password:'Native-only-test-password',name:'Native QA'});
+ const user=await call('/api/auth/register','POST',{email:'native-'+Date.now()+'@example.test',password:'Native-only-test-password',name:'Native QA '+Date.now()});
  assert.equal(user.r.status,200);const cookie=user.r.headers.get('set-cookie').split(';')[0];
  const browser=await call(new URL(url).pathname+new URL(url).search,'GET',undefined,cookie);
  assert.equal(browser.r.status,200);assert.match(browser.data.html,/이 계정으로 계속하기/);assert.match(browser.r.headers.get('set-cookie'),/HttpOnly/);

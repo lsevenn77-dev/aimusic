@@ -9,7 +9,7 @@ import {discoveryRoute,playlistSummaries} from './discovery.js';
 import {isPremium,playlistLimit,activePlaylistSQL,requireActivePlaylist} from './membership.js';
 import {listenerLyrics} from './lyrics.js';
 import {profileGifts} from './gifts.js';
-import {GENRES,validGenre} from '../shared/genres.js';
+import {GENRES,validGenre,trackClassification,genreFilterSQL} from '../shared/genres.js';
 import {rankingPeriod} from './ranking-period.js';
 import {popularScores,CHART_WEIGHTS} from './popular-chart.js';
 export {GENRES};
@@ -18,7 +18,7 @@ export const VISIBLE=(t='t')=>`(${t}.status='published' AND (${t}.original_id IS
 // A song can be sung once its MR and word timings are built and its creator still offers it for karaoke.
 export const SINGABLE=(t='t')=>`(${t}.kind='original' AND ${t}.karaoke_at>0 AND EXISTS(SELECT 1 FROM karaoke_jobs k WHERE k.track_id=${t}.id AND k.state='ready' AND k.mr_ready=1 AND k.words_state IN ('ready','attention')))`;
 // Covers keep the original's AI artist in artist_id; their performer is the uploader's profile.
-const SELECT=`SELECT t.id,t.title,t.genre,t.tags,t.description,CASE WHEN t.kind='cover' THEN o.lyrics_mode ELSE t.lyrics_mode END lyrics_mode,t.ai_tool,t.participation,t.duration,t.created,t.has_cover,t.cover_version,CASE WHEN ${namedArtistSQL()} THEN t.artist_id ELSE NULL END artist_id,(t.kind='original' AND ${namedArtistSQL()}) has_ai_artist,t.producer_id,p.image_version producer_image_version,(SELECT state FROM lyric_jobs WHERE track_id=t.id AND state!='cancelled') alignment_state,
+const SELECT=`SELECT t.id,t.title,t.genre,t.genres_json,t.moods_json,t.classification_source,t.classification_updated,t.tags,t.description,CASE WHEN t.kind='cover' THEN o.lyrics_mode ELSE t.lyrics_mode END lyrics_mode,t.ai_tool,t.participation,t.duration,t.created,t.has_cover,t.cover_version,CASE WHEN ${namedArtistSQL()} THEN t.artist_id ELSE NULL END artist_id,(t.kind='original' AND ${namedArtistSQL()}) has_ai_artist,t.producer_id,p.image_version producer_image_version,(SELECT state FROM lyric_jobs WHERE track_id=t.id AND state!='cancelled') alignment_state,
  CASE WHEN t.cover_mode='duet' AND t.duet_parent_id IS NOT NULL THEN (${producerNameSQL('fp')})||' & '||(${producerNameSQL()})||' · 듀엣' WHEN t.kind='cover' THEN (${producerNameSQL()})||CASE WHEN t.cover_mode='duet' THEN ' · 듀엣' ELSE ' · 커버' END WHEN ${namedArtistSQL()} THEN a.name ELSE ${producerNameSQL()} END artist,${memberNameSQL()} producer,t.user_id,t.kind,t.original_id,CASE WHEN t.kind='cover' THEN o.performance_mode ELSE t.performance_mode END performance_mode,t.cover_mode,t.duet_parent_id,t.duet_part,t.duet_open,dt.producer_id duet_partner_id,${producerNameSQL("fp")} duet_partner,(t.kind='original' AND t.karaoke_at>0) accepts_covers,
  o.title original_title,o.has_cover original_has_cover,o.cover_version original_cover_version,CASE WHEN ${namedArtistSQL()} THEN a.name ELSE ${producerNameSQL('op')} END original_artist,o.producer_id original_producer_id,${producerNameSQL('op')} original_producer,
  (SELECT count(*) FROM likes l WHERE l.track_id=t.id) likes,
@@ -30,7 +30,7 @@ const SELECT=`SELECT t.id,t.title,t.genre,t.tags,t.description,CASE WHEN t.kind=
  FROM tracks t JOIN artists a ON a.id=t.artist_id JOIN producers p ON p.id=t.producer_id LEFT JOIN tracks o ON o.id=t.original_id LEFT JOIN producers op ON op.id=o.producer_id LEFT JOIN tracks dt ON dt.id=t.duet_parent_id LEFT JOIN producers fp ON fp.id=dt.producer_id`;
 export const trackList=(env,where=VISIBLE(),args=[],sort='t.created DESC',limit=100)=>{
  const blocked=env.AIFECT_BLOCKED||[];
- return rows(env,`${SELECT} WHERE ${where}${blocked.length?' AND t.user_id NOT IN ('+blocked.map(()=>'?').join(',')+')':''} ORDER BY ${sort} LIMIT ${limit}`,...args,...blocked);
+ return rows(env,`${SELECT} WHERE ${where}${blocked.length?' AND t.user_id NOT IN ('+blocked.map(()=>'?').join(',')+')':''} ORDER BY ${sort} LIMIT ${limit}`,...args,...blocked).then(list=>list.map(trackClassification));
 };
 export async function published(env,tid){const t=await one(env,`SELECT t.* FROM tracks t WHERE t.id=? AND ${VISIBLE()}`,tid);if(!t)fail(404,'공개된 곡을 찾을 수 없습니다.');assertUnblocked(env,t.user_id);return t;}
 const COVER_SORTS={popular:'likes DESC,plays DESC,t.created DESC',gifts:'(gift_gold+gift_stars) DESC,likes DESC,t.created DESC',plays:'plays DESC,likes DESC,t.created DESC',recent:'t.created DESC'};
@@ -47,8 +47,8 @@ export async function catalogRoute(req,env,path,user){
  if(path==='/api/catalog'&&method==='GET'){
   const q=(url.searchParams.get('q')||'').slice(0,100),genre=url.searchParams.get('genre'),chart=url.searchParams.get('chart');
   let where=VISIBLE()+" AND t.kind='original'",args=[];
-  if(q){where+=` AND (t.title LIKE ? OR a.name LIKE ? OR (${producerNameSQL()}) LIKE ? OR t.genre LIKE ? OR t.tags LIKE ?)`;args=Array(5).fill('%'+q+'%');}
-  if(genre&&validGenre(genre)){where+=' AND t.genre=?';args.push(genre);}
+  if(q){where+=` AND (t.title LIKE ? OR a.name LIKE ? OR (${producerNameSQL()}) LIKE ? OR (t.genre||t.genres_json) LIKE ? OR t.tags LIKE ?)`;args=Array(5).fill('%'+q+'%');}
+  if(genre&&validGenre(genre)){where+=' AND '+genreFilterSQL();args.push(genre,genre);}
   let sort='t.created DESC';
 
   if(chart==='rising')sort="(SELECT count(DISTINCT listener) FROM listens l WHERE l.track_id=t.id AND l.qualified=1 AND l.started>unixepoch()-604800) DESC,t.created DESC";

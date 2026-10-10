@@ -267,6 +267,13 @@
       "when": 1791543532189,
       "tag": "0037_artist_gallery",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "6",
+      "when": 1791630371249,
+      "tag": "0038_music_classification",
+      "breakpoints": true
     }
   ]
 }

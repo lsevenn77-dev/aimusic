@@ -34,9 +34,16 @@ private val MoodTiles=listOf(
  Mood("focus","나만의 몰입","집중이 필요한 순간",Color(0xFF427E78),Icons.Rounded.Adjust),
  Mood("drive","어디든 떠나자","길 위의 사운드트랙",Color(0xFF496F9A),Icons.Rounded.DirectionsCar),
  Mood("sleep","잠들기 전","천천히 마무리하는 하루",Color(0xFF5B5985),Icons.Rounded.NightsStay),
- Mood("workout","한 걸음 더","가볍게, 더 힘차게",Color(0xFF53687C),Icons.Rounded.FitnessCenter)
+ Mood("workout","한 걸음 더","가볍게, 더 힘차게",Color(0xFF53687C),Icons.Rounded.FitnessCenter),
+ Mood("romance","설렘 · 사랑","마음이 가까워지는 순간",Color(0xFF86536C),Icons.Rounded.FavoriteBorder),
+ Mood("nostalgia","추억","다시 떠오르는 그때의 마음",Color(0xFF7165AD),Icons.Rounded.History),
+ Mood("rain","비 오는 날","차분하게 스며드는 음악",Color(0xFF496F9A),Icons.Rounded.Cloud),
+ Mood("night","밤 · 새벽","깊어진 밤에 어울리는 음악",Color(0xFF5B5985),Icons.Rounded.NightsStay),
+ Mood("party","파티","함께 즐기는 신나는 리듬",Color(0xFF86536C),Icons.Rounded.MusicNote),
+ Mood("meditation","휴식 · 명상","잠시 숨을 고르는 시간",Color(0xFF427E78),Icons.Rounded.Spa)
 )
-internal val Genres=listOf("K-POP","Ballad","R&B","Hip-Hop","Rock","EDM","City Pop","OST","Instrumental")
+// Keep in sync with shared/genres.js; primary genre remains compatible with older apps.
+internal val Genres=listOf("K-POP","Pop","Dark Pop","Ballad","R&B","Soul","Hip-Hop","Rock","Alternative","Indie Pop","EDM","Electronic","Synth Pop","City Pop","Lo-fi","Jazz","Blues","Folk","Acoustic","Country","Classical","Ambient","Fusion","Korean Folklore Fusion","World Music","국악","트로트","J-POP","OST","Instrumental","Dance","Funk","Disco","Metal","Punk","Reggae","Latin","Reggaeton","Afrobeats","House","Techno","Trance","Drum & Bass","Trap","Gospel","New Age","Chillout","Cinematic","Orchestral","Children")
 private val PagePadding=PaddingValues(start=22.dp,end=22.dp,bottom=32.dp)
 
 @Composable internal fun ListenScreen(m:MusicModel,sing:(Song)->Unit){
@@ -141,7 +148,7 @@ private val PagePadding=PaddingValues(start=22.dp,end=22.dp,bottom=32.dp)
     Text("NEW RELEASE",color=Aqua,fontSize=12.sp,letterSpacing=1.5.sp,fontWeight=FontWeight.SemiBold)
     Text(song.title,fontSize=22.sp,lineHeight=28.sp,fontWeight=FontWeight.Bold,maxLines=3,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=10.dp).clickable{m.openSong(song)})
     Text(song.credit,fontSize=14.sp,color=Color(0xFFCECBD4),maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=7.dp))
-    Text(listOf(song.genre,timeLabel((song.duration*1000).toLong())).filter{it.isNotBlank()}.joinToString(" · "),fontSize=12.sp,color=Muted,modifier=Modifier.padding(top=7.dp))
+    Text(listOf(song.genreLabel,timeLabel((song.duration*1000).toLong())).filter{it.isNotBlank()}.joinToString(" · "),fontSize=12.sp,color=Muted,modifier=Modifier.padding(top=7.dp))
    }
   }
   Row(Modifier.fillMaxWidth().padding(top=16.dp),verticalAlignment=Alignment.CenterVertically){
@@ -314,7 +321,7 @@ private val PagePadding=PaddingValues(start=22.dp,end=22.dp,bottom=32.dp)
 @Composable internal fun SingScreen(m:MusicModel,sing:(Song)->Unit){
  var query by rememberSaveable{mutableStateOf("")}
  var genre by rememberSaveable{mutableStateOf("전체")}
- val tracks=m.singable.filter{(genre=="전체"||it.genre==genre)&&(query.isBlank()||it.title.contains(query,true)||it.credit.contains(query,true))}
+ val tracks=m.singable.filter{(genre=="전체"||genre in it.genres)&&(query.isBlank()||it.title.contains(query,true)||it.credit.contains(query,true))}
  LaunchedEffect(Unit){m.loadRankHighlights();m.loadDuets()}
  LazyColumn(Modifier.fillMaxSize().testTag("sing-scroll"),contentPadding=PagePadding){
   item{
@@ -351,7 +358,7 @@ private val PagePadding=PaddingValues(start=22.dp,end=22.dp,bottom=32.dp)
   items(tracks,key={it.id}){song->
    Surface(color=Panel,shape=RoundedCornerShape(18.dp),modifier=Modifier.padding(bottom=12.dp)){
     Column(Modifier.padding(10.dp)){
-     Row(verticalAlignment=Alignment.CenterVertically){Artwork(song,Modifier.size(48.dp).clickable{m.openSong(song)});Column(Modifier.weight(1f).padding(start=14.dp)){Text(song.title,fontSize=17.sp,fontWeight=FontWeight.SemiBold,maxLines=2,overflow=TextOverflow.Ellipsis);Text("${song.credit} · ${song.genre}",fontSize=12.sp,color=Muted,modifier=Modifier.padding(top=5.dp))}}
+     Row(verticalAlignment=Alignment.CenterVertically){Artwork(song,Modifier.size(48.dp).clickable{m.openSong(song)});Column(Modifier.weight(1f).padding(start=14.dp)){Text(song.title,fontSize=17.sp,fontWeight=FontWeight.SemiBold,maxLines=2,overflow=TextOverflow.Ellipsis);Text("${song.credit} · ${song.genreLabel}",fontSize=12.sp,color=Muted,modifier=Modifier.padding(top=5.dp))}}
      Row(Modifier.fillMaxWidth().padding(top=10.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)){
       OutlinedButton(onClick={m.openRanking("all",song)},modifier=Modifier.weight(1f),contentPadding=PaddingValues(horizontal=8.dp)){Icon(Icons.Rounded.EmojiEvents,null,Modifier.size(17.dp));Text("커버 랭킹 · ${song.raw.optInt("covers")}",fontSize=12.sp,modifier=Modifier.padding(start=5.dp))}
       Button(onClick={sing(song)},modifier=Modifier.weight(1f),contentPadding=PaddingValues(horizontal=8.dp)){Icon(Icons.Rounded.Mic,null,Modifier.size(17.dp));Text("이 곡 부르기",fontSize=13.sp,modifier=Modifier.padding(start=5.dp))}

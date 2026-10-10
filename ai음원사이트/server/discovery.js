@@ -1,20 +1,13 @@
 import {namedArtistSQL} from './artist-identity.js';
 import {publicNameSQL,producerNameSQL} from './identity.js';
-import {validGenre} from '../shared/genres.js';
+import {validGenre,MOODS,genreFilterSQL} from '../shared/genres.js';
 import {rows,one,run,query,now,fail,str,json} from './db.js';
 import {requireUser} from './auth.js';
 import {trackList,published,GENRES,VISIBLE} from './catalog.js';
 import {activePlaylistSQL,membership} from './membership.js';
 
-export const MOODS=[
- {id:'comfort',name:'우울할 때',caption:'마음을 다독이는 음악',keywords:['우울','위로','감성','슬픔'],symbol:'☁'},
- {id:'energy',name:'기분 업',caption:'오늘의 에너지를 채워요',keywords:['기분 업','기분업','신나는','활기','댄스'],symbol:'↗'},
- {id:'focus',name:'집중',caption:'작업과 공부에 몰입할 때',keywords:['집중','공부','작업','focus','lo-fi','lofi'],symbol:'◎'},
- {id:'drive',name:'드라이브',caption:'길 위에서 만나는 사운드',keywords:['드라이브','drive','여행'],symbol:'→'},
- {id:'sleep',name:'잠들기 전',caption:'하루를 천천히 마무리해요',keywords:['잠들기','수면','휴식','잔잔','sleep'],symbol:'☾'},
- {id:'workout',name:'운동',caption:'리듬에 맞춰 한 걸음 더',keywords:['운동','workout','러닝'],symbol:'ϟ'}
-];
-function moodFilter(mood){return {sql:'('+mood.keywords.map(()=>"lower(t.tags) LIKE ?").join(' OR ')+')',args:mood.keywords.map(k=>'%'+k.toLowerCase()+'%')};}
+export {MOODS};
+function moodFilter(mood){return {sql:'EXISTS(SELECT 1 FROM json_each(t.moods_json) jm WHERE jm.value=?)',args:[mood.id]};}
 
 export async function playlistSummaries(env,userId='',where='p.is_public=1',args=[],sort='p.created DESC,p.id',limit=100){
  const data=await rows(env,`SELECT p.id,p.user_id,p.name,p.description,p.is_public,p.created,${publicNameSQL()} owner_name,${activePlaylistSQL()} active,
@@ -40,15 +33,15 @@ export async function discoveryRoute(req,env,path,user){
   if(url.searchParams.has('mood')&&!mood)fail(400,'분위기를 다시 선택해주세요.');
   let where=VISIBLE()+" AND t.kind='original'",args=[];
   if(mood){const f=moodFilter(mood);where+=' AND '+f.sql;args.push(...f.args);}
-  if(genre&&validGenre(genre)){where+=' AND t.genre=?';args.push(genre);}
+  if(genre&&validGenre(genre)){where+=' AND '+genreFilterSQL();args.push(genre,genre);}
   if(following){requireUser(user);where+=" AND EXISTS(SELECT 1 FROM follows f WHERE f.user_id=? AND ((f.kind='artist' AND f.target_id=t.artist_id) OR (f.kind='producer' AND f.target_id=t.producer_id)))";args.push(user.id);}
   const filters=MOODS.map(moodFilter),[counts,tracks]=await Promise.all([one(env,`SELECT ${filters.map((f,i)=>`COALESCE(sum(CASE WHEN ${f.sql} THEN 1 ELSE 0 END),0) n${i}`).join(',')} FROM tracks t WHERE ${VISIBLE()} AND t.kind='original'`,...filters.flatMap(f=>f.args)),trackList(env,where,args,following?'t.created DESC':'(plays+likes*3) DESC,t.created DESC')]);
-  return json({tracks,moods:MOODS.map((m,i)=>({id:m.id,name:m.name,caption:m.caption,symbol:m.symbol,count:counts['n'+i]})),basis:following?'following':mood?'tags':'popular'});
+  return json({tracks,moods:MOODS.map((m,i)=>({id:m.id,name:m.name,caption:m.caption,symbol:m.symbol,count:counts['n'+i]})),basis:following?'following':mood?'ai':'popular'});
  }
  if(path==='/api/search'&&method==='GET'){
   const q=(url.searchParams.get('q')||'').trim().slice(0,100);if(!q)return json({tracks:[],artists:[],producers:[],playlists:[]});const pattern='%'+q+'%';
   const [tracks,artists,producers,playlists]=await Promise.all([
-   trackList(env,VISIBLE()+` AND t.kind='original' AND (t.title LIKE ? OR a.name LIKE ? OR (${producerNameSQL()}) LIKE ? OR t.genre LIKE ? OR t.tags LIKE ?)`,Array(5).fill(pattern),'t.created DESC',100),
+   trackList(env,VISIBLE()+` AND t.kind='original' AND (t.title LIKE ? OR a.name LIKE ? OR (${producerNameSQL()}) LIKE ? OR (t.genre||t.genres_json) LIKE ? OR t.tags LIKE ?)`,Array(5).fill(pattern),'t.created DESC',100),
    rows(env,`SELECT a.*,(SELECT count(*) FROM follows f WHERE f.kind='artist' AND f.target_id=a.id) followers FROM artists a WHERE ${namedArtistSQL()} AND (a.name LIKE ? OR a.bio LIKE ?) AND EXISTS(SELECT 1 FROM tracks t WHERE t.artist_id=a.id AND t.kind='original' AND t.status='published') ORDER BY a.name LIMIT 100`,pattern,pattern),
    rows(env,`SELECT p.id,${producerNameSQL()} name,p.bio,p.image_version,(SELECT count(*) FROM follows f WHERE f.kind='producer' AND f.target_id=p.id) followers FROM producers p WHERE ((${producerNameSQL()}) LIKE ? OR p.bio LIKE ?) AND EXISTS(SELECT 1 FROM tracks t WHERE t.producer_id=p.id AND ${VISIBLE()}) ORDER BY name LIMIT 100`,pattern,pattern),
    playlistSummaries(env,user?.id||'',`p.is_public=1 AND ${activePlaylistSQL()} AND (p.name LIKE ? OR p.description LIKE ? OR ${publicNameSQL()} LIKE ?)`,[pattern,pattern,pattern])]);

@@ -17,7 +17,7 @@ struct SingView: View {
     @State private var invitations: [Song] = []
     @State private var query = ""
     @State private var genre = "전체"
-    private var tracks: [Song] { model.singable.filter { (genre == "전체" || $0.genre == genre) && (query.isEmpty || $0.title.localizedCaseInsensitiveContains(query) || $0.credit.localizedCaseInsensitiveContains(query)) } }
+    private var tracks: [Song] { model.singable.filter { (genre == "전체" || $0.genres.contains(genre)) && (query.isEmpty || $0.title.localizedCaseInsensitiveContains(query) || $0.credit.localizedCaseInsensitiveContains(query)) } }
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 12) {
@@ -51,12 +51,12 @@ struct SingView: View {
                 }
                 MusicSectionHeading(title: "나의 다음 무대", subtitle: "장르를 고르고, 다른 목소리도 먼저 들어봐요")
                 HStack { Image(systemName: "magnifyingglass"); TextField("부르고 싶은 노래 찾기", text: $query) }.padding(16).overlay(RoundedRectangle(cornerRadius: 16).stroke(AifectDesign.stroke)).font(.system(size: 15))
-                ParityChips(items: ["전체", "K-POP", "Ballad", "R&B", "Hip-Hop", "Rock", "EDM", "City Pop", "OST", "Instrumental"], selection: $genre)
+                ParityChips(items: ["전체"] + musicGenreOptions, selection: $genre)
                 Text("에코 · 룸 · 내 목소리 듣기").font(.system(size: 12)).foregroundStyle(Brand.aqua)
                 Text("유선·USB 이어폰으로 들으며 불러보세요.").font(.system(size: 12)).foregroundStyle(AifectDesign.muted).padding(.bottom, 4)
                 ForEach(tracks) { song in
                     VStack(spacing: 10) {
-                        HStack(spacing: 14) { CoverArt(song: song, size: 48); VStack(alignment: .leading, spacing: 5) { Text(song.title).font(.system(size: 17, weight: .semibold)).lineLimit(2); Text("\(song.credit) · \(song.genre)").font(.system(size: 12)).foregroundStyle(AifectDesign.muted) }.frame(maxWidth: .infinity, alignment: .leading) }
+                        HStack(spacing: 14) { CoverArt(song: song, size: 48); VStack(alignment: .leading, spacing: 5) { Text(song.title).font(.system(size: 17, weight: .semibold)).lineLimit(2); Text("\(song.credit) · \(song.genreLabel)").font(.system(size: 12)).foregroundStyle(AifectDesign.muted) }.frame(maxWidth: .infinity, alignment: .leading) }
                         HStack(spacing: 8) {
                             NavigationLink { CoverRankingView(originalID: song.id) } label: { Label("커버 랭킹 · \(song.covers ?? 0)", systemImage: "trophy").frame(maxWidth: .infinity) }.buttonStyle(ParityPill(color: Brand.pink))
                             SingSongButton(song: song).frame(maxWidth: .infinity)

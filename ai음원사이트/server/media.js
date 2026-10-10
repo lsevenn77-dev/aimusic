@@ -1,3 +1,4 @@
+import {queueClassification,classificationFields} from './music-classification.js';
 import {nickname,nicknameBatch} from './nicknames.js';
 import {chooseArtist,namedArtistSQL} from './artist-identity.js';
 import {isPremium} from './membership.js';
@@ -30,7 +31,7 @@ export async function mediaRoute(req,env,path,user){
  }
  const studio=await studioRoute(req,env,path,user);if(studio)return studio;
  if(path==='/api/studio'&&method==='GET'){
-  requireUser(user);return json({producer:await one(env,'SELECT * FROM producers WHERE user_id=?',user.id),artists:await rows(env,`SELECT a.* FROM artists a JOIN producers p ON a.producer_id=p.id WHERE p.user_id=? AND ${namedArtistSQL()}`,user.id),upload_quota:await uploadQuota(env,user),tracks:await rows(env,`SELECT t.id,t.title,t.status,t.error,t.created,t.duration,t.has_cover,t.cover_version,t.artist_id,t.kind,t.original_id,t.performance_mode,t.cover_mode,t.duet_parent_id,t.duet_part,t.duet_open,o.title original_title,o.has_cover original_has_cover,o.cover_version original_cover_version,j.state alignment_state FROM tracks t LEFT JOIN tracks o ON o.id=t.original_id LEFT JOIN lyric_jobs j ON j.track_id=t.id WHERE t.user_id=? AND t.status!='deleted' ORDER BY t.created DESC LIMIT 100`,user.id)});
+  requireUser(user);return json({producer:await one(env,'SELECT * FROM producers WHERE user_id=?',user.id),artists:await rows(env,`SELECT a.* FROM artists a JOIN producers p ON a.producer_id=p.id WHERE p.user_id=? AND ${namedArtistSQL()}`,user.id),upload_quota:await uploadQuota(env,user),tracks:await rows(env,`SELECT t.id,t.title,t.status,t.error,t.created,t.duration,t.genre,t.genres_json,t.moods_json,t.classification_source,(SELECT state FROM music_classification_jobs WHERE track_id=t.id) classification_state,t.has_cover,t.cover_version,t.artist_id,t.kind,t.original_id,t.performance_mode,t.cover_mode,t.duet_parent_id,t.duet_part,t.duet_open,o.title original_title,o.has_cover original_has_cover,o.cover_version original_cover_version,j.state alignment_state FROM tracks t LEFT JOIN tracks o ON o.id=t.original_id LEFT JOIN lyric_jobs j ON j.track_id=t.id WHERE t.user_id=? AND t.status!='deleted' ORDER BY t.created DESC LIMIT 100`,user.id)});
  }
  if(path==='/api/studio/profile'&&method==='PUT'){
   requireUser(user);const b=await req.json(),p=await one(env,'SELECT id FROM producers WHERE user_id=?',user.id),pid=p?.id||id();
@@ -43,12 +44,14 @@ export async function mediaRoute(req,env,path,user){
   const performance=b.performance_mode??'solo';if(!['solo','duet'].includes(performance))fail(400,'솔로 또는 듀엣을 선택해주세요.');
   if(b.rights!==true||b.is_ai!==true)fail(400,'AI 제작 여부와 음원 권리 보유 확인이 필요합니다.');
   if(b.karaoke!==true)fail(400,'노래방 MR 제공과 커버 허락에 동의해야 업로드할 수 있습니다.');
+  const classification=classificationFields(b);b.genre=classification.genres[0];
   if(!validGenre(b.genre)||!['wav','flac','mp3'].includes(b.extension)||!Number.isInteger(b.bytes)||b.bytes<100||b.bytes>MAX_AUDIO)fail(400,'지원하는 장르와 80MB 이하 WAV·FLAC·MP3 파일을 선택해주세요.');
   let producer=await one(env,'SELECT * FROM producers WHERE user_id=?',user.id);
   if(!producer){producer={id:id()};await nicknameBatch(env,user.id,producerName,[query(env,'INSERT INTO producers(id,user_id,name,bio,created,nickname_confirmed) VALUES(?,?,?,?,?,1)',producer.id,user.id,producerName,str(b.producer_bio||'',1000,false),now())]);}
   const artist=await chooseArtist(env,producer.id,b,b.genre);
   const tid=id(),jobWrites=lyricData.auto?await alignmentWrite(env,tid,user.id,lyricData):[];
   await env.DB.batch([query(env,'INSERT INTO tracks(id,user_id,artist_id,producer_id,title,genre,tags,description,ai_tool,participation,rights_accepted,original_ext,original_bytes,created,lyrics,lyrics_mode,karaoke_terms,karaoke_at,performance_mode) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',tid,user.id,artist.id,producer.id,title,b.genre,str(b.tags||'',300,false),str(b.description||'',4000,false),tool,str(b.participation||'',100,false),now(),b.extension,b.bytes,now(),lyricData.lyrics,lyricData.mode,KARAOKE_TERMS_VERSION,now(),performance),...jobWrites]);
+  await run(env,'UPDATE tracks SET genres_json=?,moods_json=? WHERE id=?',JSON.stringify(classification.genres),JSON.stringify(classification.moods),tid);
   return json({id:tid,artist_id:artist.selected?artist.id:null,producer_id:producer.id},201);
  }
  const removal=path.match(/^\/api\/uploads\/([\w-]+)$/);
@@ -157,6 +160,7 @@ export async function internalRoute(req,env,path){
    query(env,'DELETE FROM premium_audio_jobs WHERE track_id=?',t.id),
    query(env,"UPDATE tracks SET status='published',duration=?,error=NULL,lease_until=0,lease_token=NULL WHERE id=? AND lease_token=?",duration,t.id,t.lease_token)
   ]);
+  await queueClassification(env,t.id);
   // A fresh transcode means fresh audio, so any earlier MR no longer matches it.
   const writes=await karaokeQueue(env,{...t,status:'published',duration},{mr:'auto'});if(writes.length)await env.DB.batch(writes);
   return json({ok:true});

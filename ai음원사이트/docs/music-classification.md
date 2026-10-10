@@ -1,0 +1,36 @@
+# AI 음악 분류
+
+2026-10-10. Gemini 3.5 Flash-Lite가 감상용 음원을 듣고 장르 1–3개와 기분·활동 0–4개를 선택한다. 사용자 태그·가사·소개·음원 공개 상태는 변경하지 않는다. 실패한 결과나 목록 밖의 분류는 적용하지 않는다.
+
+## 업로드와 재분류
+
+원곡과 커버 모두 변환 완료 시 작업을 영구 큐에 등록한다. 기존 트랜스코더의 작업 조회/완료 요청, 스튜디오 조회와 Worker scheduled 처리에서 큐를 소비한다. 별도의 브라우저 파일 디코딩이 필요하지 않다. 트랜스코더 폴링이 멈춘 경우 다음 스튜디오 접속에서 작업이 재개된다.
+
+R2 감상용 M4A 전체를 분석한다. 14 MiB를 넘거나 감상용 파일이 없으면 60초 미리듣기를 사용하고 결과에 `sample: true`를 기록한다. 모델·분류 버전·음원 ETag를 기준으로 캐시한다. 요청당 24초 제한, 작업당 최대 3번 시도, 기본 일 500회 제한이 있다. 실패한 작업은 곡 수정 화면에서 다시 요청할 수 있다.
+
+기존 곡 전체 재분류는 전용 서버 비밀 값 `MUSIC_CLASSIFICATION_ADMIN_TOKEN`으로 보호되는 `/internal/music-classification/enqueue` POST, `/run` POST, `/status` GET을 사용한다. 큐 등록은 멱등이며 공개·비공개 완료 음원을 모두 포함한다. 삭제·업로드 대기·변환 실패 음원은 제외한다. 비용이 드는 무제한 재실행은 하지 않는다.
+
+`music_classification_history`에 변경 전·후 분류를 보관한다. 처리 중 수동 편집이나 삭제가 발생하면 이전 분석 결과를 적용하지 않는다. AI가 부족하다고 판단한 장르는 `suggested_genre`로 기록하고 운영자가 검토한다. 임의 장르명을 즉시 목록에 추가하지 않는다.
+
+## 웹·Android·iOS 호환
+
+- `genre`: 기존 앱용 대표 장르 문자열을 계속 제공한다.
+- `genres`: 대표 장르가 첫 번째인 배열. 기존 응답에서는 `[genre]`로 대체한다.
+- `moods`: `comfort`, `energy`, `focus`, `drive`, `sleep`, `workout`, `romance`, `nostalgia`, `rain`, `night`, `party`, `meditation` 중 복수 ID.
+- `classification_source`: `ai`, `manual`, `legacy`.
+- `GET /api/music-taxonomy`: 공통 장르·기분 목록과 AI 연결 여부. 서버 비밀 값은 반환하지 않는다.
+- `GET /api/catalog?genre=...`, `/api/discovery?genre=...`, 커버 랭킹은 보조 장르까지 검색한다. 기분 검색은 저장한 mood ID의 정확한 일치로 처리한다.
+- 곡 업로드/수정은 `genres`, `moods` 배열을 받는다. 기존 단일 `genre` 요청도 계속 지원한다. 웹 업로드의 직접 선택은 선택 사항이며 변환 완료 후 AI 결과를 적용한다.
+- Android `Song`은 배열을 읽고 노래방의 로컬 장르 필터도 포함 검사로 동작한다. iOS `Song`·부르기 필터·장르 표시에도 같은 규칙을 반영했다. 기존 Codable 캐시는 새 배열이 없어도 읽도록 유지했다.
+
+## 비밀 값과 검증
+
+`GEMINI_API_KEY`는 Sites 서버 Secret으로만 저장한다. 클라이언트·Git·로그에 넣지 않는다. 모델 응답은 strict allowlist로 검증하고 API 호출의 `store`는 false이다.
+
+분류 API, 다중 검색, 멱등·동시 처리, 변경 전 보관, 늦은 응답 무시, 실패 재시도와 기존 업로드 호환을 Node 테스트로 확인했다. 실제 Gemini 오디오 요청과 로컬 Worker 통합 흐름도 검증했다. GitHub 최신 iOS 변경을 병합한 뒤 353개 테스트 중 351개가 첫 실행에 통과했다. 로컬 DB에 남은 고정 아이디·레이트 제한으로 실패한 통합 테스트는 새 격리 DB에서 모두 통과했다. 반복 실행 시 아이디가 충돌하지 않도록 테스트 이름을 고유하게 바꿨다. Android Kotlin 컴파일도 통과했다. Windows에서는 Xcode 빌드·iOS 테스트를 실행하지 못했으므로 Mac에서 확인해야 한다.
+
+공식 참고: https://ai.google.dev/gemini-api/docs/audio 및 https://ai.google.dev/gemini-api/docs/structured-output
+
+## 2026-10-10 운영 반영
+
+Sites version 96에 배포하고 기존 완료 음원 11곡(원곡 10, 커버 1)을 모두 분석·적용했다. 11곡 모두 전체 음원을 사용했으며 실패 0건, 누락 장르 제안 0건이다. 장르 50개·기분 12개가 공개 taxonomy API에 반영됐고, 보조 장르 Acoustic 검색과 night 기분 검색의 실제 반환 결과를 확인했다. 변경 전 분류는 서버 history에 보관한다.

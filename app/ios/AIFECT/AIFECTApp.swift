@@ -164,7 +164,7 @@ struct SongRow: View {
                 VStack(alignment: .leading, spacing: 5) {
                     Text(song.title).font(.system(size: 15, weight: .semibold)).foregroundStyle(AifectDesign.text).lineLimit(1)
                     Text(song.credit).font(.system(size: 13)).lineLimit(1)
-                    Text(song.isCover ? "\(song.coverMode == "duet" ? "듀엣" : "솔로 커버") · \(song.plays ?? 0)회 재생" : "\(song.genre) · \(timeLabel(song.duration))").font(.system(size: 12)).lineLimit(1)
+                    Text(song.isCover ? "\(song.coverMode == "duet" ? "듀엣" : "솔로 커버") · \(song.plays ?? 0)회 재생" : "\(song.genreLabel) · \(timeLabel(song.duration))").font(.system(size: 12)).lineLimit(1)
                 }.foregroundStyle(AifectDesign.muted).frame(maxWidth: .infinity, alignment: .leading)
             }.buttonStyle(.plain).accessibilityLabel("\(song.title) 상세")
             Button { model.player.play(song, queue: queue) } label: { Image(systemName: "play.fill").frame(width: 32, height: 44) }.foregroundStyle(AifectDesign.secondaryText).accessibilityLabel("\(song.title) 재생")

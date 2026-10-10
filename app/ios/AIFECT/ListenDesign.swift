@@ -123,7 +123,7 @@ struct FeaturedMusic: View {
                     Text("NEW RELEASE").font(.system(size: 12, weight: .semibold)).tracking(1.5).foregroundStyle(Brand.aqua)
                     Text(song.title).font(.system(size: 22, weight: .bold)).lineLimit(3).padding(.top, 3)
                     Text(song.credit).font(.system(size: 14)).foregroundStyle(AifectDesign.secondaryText).lineLimit(1)
-                    Text("\(song.genre) · \(timeLabel(song.duration))").font(.system(size: 12)).foregroundStyle(AifectDesign.muted)
+                    Text("\(song.genreLabel) · \(timeLabel(song.duration))").font(.system(size: 12)).foregroundStyle(AifectDesign.muted)
                 }.frame(maxWidth: .infinity, alignment: .leading).onTapGesture { if let onDetail { onDetail(song) } else { detail = true } }
             }
             HStack { SaveMusicButton(song: song); Spacer(minLength: 0); Button { model.player.play(song, queue: queue) } label: { Label("바로 듣기", systemImage: "play.fill") }.buttonStyle(ParityPill(filled: true)) }
@@ -137,7 +137,14 @@ struct MoodMusicShelf: View {
         ("energy", "기분을 올려줘", "리듬에 몸을 맡겨요", "bolt", 0x86536C),
         ("focus", "나만의 몰입", "집중이 필요한 순간", "scope", 0x427E78),
         ("drive", "어디든 떠나자", "길 위의 사운드트랙", "car", 0x496F9A),
-        ("sleep", "잠들기 전", "천천히 마무리하는 하루", "moon.stars", 0x5B5985)]
+        ("sleep", "잠들기 전", "천천히 마무리하는 하루", "moon.stars", 0x5B5985),
+        ("workout", "운동", "리듬에 맞춰 한 걸음 더", "figure.run", 0x53687C),
+        ("romance", "설렘 · 사랑", "마음이 가까워지는 순간", "heart", 0x86536C),
+        ("nostalgia", "추억", "다시 떠오르는 그때", "clock", 0x7165AD),
+        ("rain", "비 오는 날", "차분하게 스며드는 음악", "cloud.rain", 0x496F9A),
+        ("night", "밤 · 새벽", "깊어진 밤의 음악", "moon", 0x5B5985),
+        ("party", "파티", "함께 즐기는 리듬", "music.note", 0x86536C),
+        ("meditation", "휴식 · 명상", "잠시 숨을 고르는 시간", "leaf", 0x427E78)]
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 12) { ForEach(moods, id: \.0) { mood in

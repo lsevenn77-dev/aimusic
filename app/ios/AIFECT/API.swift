@@ -155,6 +155,11 @@ struct Song: Identifiable, Codable, Hashable {
     var title: String
     var credit: String
     var genre: String
+    var classifiedGenres: [String]?
+    var classifiedMoods: [String]?
+    var genres: [String] { if let classifiedGenres, !classifiedGenres.isEmpty { return classifiedGenres }; return genre.isEmpty ? [] : [genre] }
+    var moods: [String] { classifiedMoods ?? [] }
+    var genreLabel: String { genres.joined(separator: " · ") }
     var duration: Double
     var artworkPath: String?
     var isCover: Bool
@@ -176,6 +181,7 @@ struct Song: Identifiable, Codable, Hashable {
         isCover = data.string("kind") == "cover"; originalID = data["original_id"] as? String
         credit = (!isCover && data.number("has_ai_artist") == 1) ? data.string("artist") : data.string("producer")
         if credit.isEmpty { credit = "AIFECT" }
+        classifiedGenres = data["genres"] as? [String]; classifiedMoods = data["moods"] as? [String]
         genre = data.string("genre"); duration = data.number("duration")
         likes = Int(data.number("likes")); comments = Int(data.number("comments"))
         producerName = data["producer"] as? String; producerImageVersion = data["producer_image_version"] as? String
@@ -201,3 +207,6 @@ func timeLabel(_ seconds: Double) -> String {
     let safe = seconds.isFinite ? Int(max(0, seconds)) : 0
     return String(format: "%d:%02d", safe / 60, safe % 60)
 }
+
+// Matches shared/genres.js; server taxonomy is authoritative.
+let musicGenreOptions = ["K-POP","Pop","Dark Pop","Ballad","R&B","Soul","Hip-Hop","Rock","Alternative","Indie Pop","EDM","Electronic","Synth Pop","City Pop","Lo-fi","Jazz","Blues","Folk","Acoustic","Country","Classical","Ambient","Fusion","Korean Folklore Fusion","World Music","국악","트로트","J-POP","OST","Instrumental","Dance","Funk","Disco","Metal","Punk","Reggae","Latin","Reggaeton","Afrobeats","House","Techno","Trance","Drum & Bass","Trap","Gospel","New Age","Chillout","Cinematic","Orchestral","Children"]

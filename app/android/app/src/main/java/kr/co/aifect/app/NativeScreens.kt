@@ -170,7 +170,7 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)A
   Column(Modifier.weight(1f).padding(horizontal=13.dp)){
    Text(song.title,fontSize=15.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis)
    Text(song.credit,fontSize=13.sp,color=Muted,maxLines=1,modifier=Modifier.padding(top=5.dp))
-   Text(if(song.cover)"${if(song.raw.optString("cover_mode")=="duet")"듀엣" else "솔로 커버"} · ${song.plays}회 재생" else "${song.genre} · ${timeLabel((song.duration*1000).toLong())}",fontSize=12.sp,color=Muted,modifier=Modifier.padding(top=4.dp))
+   Text(if(song.cover)"${if(song.raw.optString("cover_mode")=="duet")"듀엣" else "솔로 커버"} · ${song.plays}회 재생" else "${song.genreLabel} · ${timeLabel((song.duration*1000).toLong())}",fontSize=12.sp,color=Muted,modifier=Modifier.padding(top=4.dp))
   }
   if(trailing!=null)trailing() else IconButton(onClick={m.play(song,queue)}){Icon(Icons.Rounded.PlayArrow,"${song.title} 재생",tint=SoftText)}
   SaveMusicButton(song,m,compact=true)

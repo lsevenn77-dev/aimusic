@@ -5,6 +5,18 @@ import FirebaseCore
 
 
 final class AIFECTTests: XCTestCase {
+    func testMusicClassificationKeepsLegacyCacheCompatible() throws {
+        let song = Song(["id": "music", "genre": "Funk", "genres": ["Funk", "Pop"], "moods": ["energy", "drive"]])
+        XCTAssertEqual(song.genres, ["Funk", "Pop"])
+        XCTAssertEqual(song.moods, ["energy", "drive"])
+        XCTAssertTrue(song.genres.contains("Pop"))
+        var cached = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(song)) as? [String: Any])
+        cached.removeValue(forKey: "classifiedGenres")
+        cached.removeValue(forKey: "classifiedMoods")
+        let legacy = try JSONDecoder().decode(Song.self, from: JSONSerialization.data(withJSONObject: cached))
+        XCTAssertEqual(legacy.genres, ["Funk"])
+        XCTAssertTrue(legacy.moods.isEmpty)
+    }
     func testDuetGuideRequiresEveryLineAndBothVoices() {
         XCTAssertNotNil(DuetGuide.validation(lines: ["A", ""], count: 2))
         XCTAssertNotNil(DuetGuide.validation(lines: ["A", "A"], count: 2))

@@ -6,14 +6,14 @@ const stamp=Date.now();
 const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=','base64');
 const putImage=(path,cookie,body=png,type='image/png')=>fetch(origin+path,{method:'PUT',headers:{Origin:origin,Cookie:cookie,'Content-Type':type},body});
 async function call(path,{method='GET',body,cookie,headers={}}={}){const r=await fetch(origin+path,{method,headers:{Origin:origin,...(cookie?{Cookie:cookie}:{}),...(body?{'Content-Type':'application/json'}:{}),...headers},body:body?JSON.stringify(body):undefined});const data=await r.json();return {r,data};}
-async function register(n){const {r,data}=await call('/api/auth/register',{method:'POST',body:{name:'테스트 '+n,email:`qa-${stamp}-${n}@example.test`,password:'Aifect-local-test-2026'}});assert.equal(r.status,200,JSON.stringify(data));return {cookie:r.headers.get('set-cookie').split(';')[0],user:data.user};}
+async function register(n){const {r,data}=await call('/api/auth/register',{method:'POST',body:{name:'테스트 '+n+' '+stamp,email:`qa-${stamp}-${n}@example.test`,password:'Aifect-local-test-2026'}});assert.equal(r.status,200,JSON.stringify(data));return {cookie:r.headers.get('set-cookie').split(';')[0],user:data.user};}
 test('range parsing rejects invalid/multiple/out-of-bounds and supports suffix',()=>{assert.deepEqual(parseRange('bytes=2-5',10),{offset:2,length:4});assert.deepEqual(parseRange('bytes=-3',10),{offset:7,length:3});assert.deepEqual(parseRange('bytes=5-',10),{offset:5,length:5});assert.equal(parseRange('bytes=10-',10),false);assert.equal(parseRange('bytes=0-1,3-4',10),false);assert.equal(parseRange('bytes=-',10),false);});
 test('real API: sessions, ownership, R2, preview, likes, comments, follows, playlists',async()=>{
  const owner=await register('owner'),other=await register('other');let out;
  assert.equal((await call('/api/me',{cookie:owner.cookie})).data.user.id,owner.user.id);
  assert.equal((await call('/api/library')).r.status,401);
  assert.equal((await call('/api/playlists',{method:'POST',body:{name:'CSRF'},cookie:owner.cookie,headers:{Origin:'https://evil.invalid'}})).r.status,403);
- const upload={title:'API 검증용 신호',artist:'검증 아티스트',producer:'검증 제작자',genre:'Instrumental',tags:'test',description:'Local test fixture',ai_tool:'Test fixture',participation:'',rights:true,is_ai:true,karaoke:true,extension:'wav',bytes:128,lyrics_mode:'synced',lyrics:'[00:01]처음\n[00:12.250]다음'};
+ const upload={title:'API 검증용 신호',artist:'검증 아티스트 '+stamp,producer:'검증 제작자 '+stamp,genre:'Instrumental',tags:'test',description:'Local test fixture',ai_tool:'Test fixture',participation:'',rights:true,is_ai:true,karaoke:true,extension:'wav',bytes:128,lyrics_mode:'synced',lyrics:'[00:01]처음\n[00:12.250]다음'};
  assert.equal((await call('/api/uploads',{method:'POST',cookie:owner.cookie,body:{...upload,rights:false}})).r.status,400);
  out=await call('/api/uploads',{method:'POST',cookie:owner.cookie,body:upload});assert.equal(out.r.status,201,JSON.stringify(out.data));const tid=out.data.id;
  assert.equal((await putImage(`/api/uploads/${tid}/cover`,owner.cookie)).status,200);
@@ -55,7 +55,7 @@ test('real API: sessions, ownership, R2, preview, likes, comments, follows, play
   assert.equal((await putImage(imagePath,owner.cookie,Buffer.from('<svg onload="alert(1)"></svg>'))).status,400);
   assert.equal((await putImage(imagePath,owner.cookie,png,'image/svg+xml')).status,400);
   assert.equal((await putImage(imagePath,owner.cookie,new Uint8Array(5*1024*1024+1))).status,413);
-  assert.equal((await call(endpoint,{method:'PUT',cookie:owner.cookie,body:{name:'사진 검증 '+kind,bio:'첫 줄\n둘째 줄',genre:'Rock'}})).r.status,200);
+  assert.equal((await call(endpoint,{method:'PUT',cookie:owner.cookie,body:{name:'사진 검증 '+kind+' '+stamp,bio:'첫 줄\n둘째 줄',genre:'Rock'}})).r.status,200);
   const first=await putImage(imagePath,owner.cookie);assert.equal(first.status,200,await first.clone().text());const v1=(await first.json()).version;
   const second=await putImage(imagePath,owner.cookie);assert.equal(second.status,200);const v2=(await second.json()).version;assert.notEqual(v1,v2);
   const profile=(await call(`/api/${kind}/${eid}`)).data.profile;assert.equal(profile.bio,'첫 줄\n둘째 줄');assert.equal(profile.image_version,v2);

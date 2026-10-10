@@ -1,3 +1,4 @@
+import {genreFilterSQL} from '../shared/genres.js';
 import {producerNameSQL} from './identity.js';
 import {validGenre} from '../shared/genres.js';
 import {rows,now,fail,json} from './db.js';
@@ -16,7 +17,7 @@ export async function coverRankingRoute(req,env,path){
  if(original){const t=await published(env,original);if(t.kind!=='original')fail(400,'원곡을 선택해주세요.');}
  const requested=Number(p.get('limit')||50),limit=Number.isInteger(requested)&&requested>0?Math.min(requested,100):50;
  let where=`${VISIBLE()} AND t.kind='cover'`,args=[];
- if(genre){where+=' AND t.genre=?';args.push(genre);}
+ if(genre){where+=' AND '+genreFilterSQL();args.push(genre,genre);}
  if(original){where+=' AND t.original_id=?';args.push(original);}
  if(q){where+=` AND (t.title LIKE ? ESCAPE '\\' OR (${producerNameSQL()}) LIKE ? ESCAPE '\\')`;const term='%'+q.replace(/[\\%_]/g,'\\$&')+'%';args.push(term,term);}
  // Each account has one active like per cover. Unlike removes its vote immediately.
