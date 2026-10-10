@@ -15,7 +15,7 @@ export async function analyzeMusic(env,bytes,{sample=false,fetcher=fetch}={}){
  try{response=await fetcher('https://generativelanguage.googleapis.com/v1beta/interactions',{method:'POST',headers:{'x-goog-api-key':env.GEMINI_API_KEY,'content-type':'application/json'},body:JSON.stringify({model,store:false,input:[{type:'text',text:prompt},{type:'audio',mime_type:'audio/m4a',data:base64(bytes)}],response_format:{type:'text',mime_type:'application/json',schema}}),signal:AbortSignal.timeout(24000)});}catch{fail(503,'AI 음악 분석 연결이 지연되고 있어요.');}
  if(!response.ok){await response.body?.cancel();fail(response.status===429?429:502,'AI 음악 분석을 완료하지 못했어요. 잠시 후 다시 시도해요.');}
  let result;
- try{result=await response.json();const text=result.output_text||(result.steps||[]).filter(s=>s.type==='model_output').flatMap(s=>s.content||[]).filter(c=>c.type==='text').map(c=>c.text).join('');return {...normalizeClassification(JSON.parse(text)),model,sample,usage:{input:result.usage?.total_input_tokens||0,output:result.usage?.total_output_tokens||0}};}catch{fail(502,'AI 음악 분류 결과를 확인하지 못했어요.');}
+ try{result=await response.json();const text=result.output_text||(result.steps||[]).filter(s=>s.type==='model_output').flatMap(s=>s.content||[]).filter(c=>c.type==='text').map(c=>c.text).join('');return {...normalizeClassification(JSON.parse(text)),model,sample,usage:{input:result.usage?.total_input_tokens||0,output:result.usage?.total_output_tokens||0,thought:result.usage?.total_thought_tokens||0,cached:result.usage?.total_cached_tokens||0}};}catch{fail(502,'AI 음악 분류 결과를 확인하지 못했어요.');}
 }
 
 // Metadata is separate from uploader tags. Keep the original single genre for older apps.
@@ -27,12 +27,26 @@ export function classificationFields(body,current={}){
  if(chosen.length>3||chosen.some(g=>!validGenre(g))||moods.length>4||moods.some(m=>!MOODS.some(x=>x.id===m)))fail(400,'장르는 최대 3개, 기분은 최대 4개 선택해주세요.');
  return {genres:[...new Set(chosen)],moods:[...new Set(moods)]};
 }
+// Copy from the current original inside the caller's transaction, so late/stale reads cannot win.
+// Keep earlier job results for usage history, but revoke every cover's analysis lease.
+export function coverClassificationWrites(env,{trackId=null,originalId=null}={}){
+ const filter="kind='cover' AND status!='deleted'"+(trackId?' AND id=?':'')+(originalId?' AND original_id=?':'');
+ const args=[...(trackId?[trackId]:[]),...(originalId?[originalId]:[])];
+ return [
+  query(env,`UPDATE tracks SET (genre,genres_json,moods_json,classification_updated)=(SELECT o.genre,o.genres_json,o.moods_json,o.classification_updated FROM tracks o WHERE o.id=tracks.original_id AND o.kind='original'),classification_source='original',classification_revision=classification_revision+1 WHERE ${filter} AND EXISTS(SELECT 1 FROM tracks o WHERE o.id=tracks.original_id AND o.kind='original')`,...args),
+  query(env,`UPDATE music_classification_jobs SET state='inherited',lease_token='',lease_until=0,error='',updated=? WHERE track_id IN (SELECT id FROM tracks WHERE ${filter})`,now(),...args)
+ ];
+}
 export async function queueClassification(env,tid){
+ const track=await one(env,'SELECT kind FROM tracks WHERE id=?',tid);
+ if(!track)fail(404,'음원을 찾을 수 없습니다.');
+ if(track.kind==='cover'){await env.DB.batch(coverClassificationWrites(env,{trackId:tid}));return {inherited:true};}
  await run(env,`INSERT INTO music_classification_jobs(track_id,state,updated) VALUES(?,'queued',?) ON CONFLICT(track_id) DO UPDATE SET state='queued',attempts=0,lease_until=0,lease_token='',error='',updated=excluded.updated`,tid,now());
+ return {queued:true};
 }
 export async function classifyNext(env){
  if(!env.GEMINI_API_KEY)return {configured:false};
- const token=id(),job=await query(env,`UPDATE music_classification_jobs SET state='processing',lease_token=?,lease_until=?,attempts=attempts+1,updated=? WHERE track_id=(SELECT j.track_id FROM music_classification_jobs j JOIN tracks t ON t.id=j.track_id WHERE j.attempts<3 AND ((j.state='queued' AND j.lease_until<=?) OR (j.state='processing' AND j.lease_until<?)) AND t.status IN ('published','hidden') ORDER BY j.updated,j.track_id LIMIT 1) RETURNING *`,token,now()+120,now(),now(),now()).first();
+ const token=id(),job=await query(env,`UPDATE music_classification_jobs SET state='processing',lease_token=?,lease_until=?,attempts=attempts+1,updated=? WHERE track_id=(SELECT j.track_id FROM music_classification_jobs j JOIN tracks t ON t.id=j.track_id WHERE j.attempts<3 AND ((j.state='queued' AND j.lease_until<=?) OR (j.state='processing' AND j.lease_until<?)) AND t.kind='original' AND t.status IN ('published','hidden') ORDER BY j.updated,j.track_id LIMIT 1) RETURNING *`,token,now()+120,now(),now(),now()).first();
  if(!job)return {idle:true};
  const t=await one(env,'SELECT * FROM tracks WHERE id=?',job.track_id);
  try{
@@ -51,13 +65,14 @@ export async function classifyNext(env){
   }
   const before=JSON.stringify({genre:t.genre,genres:parseList(t.genres_json),moods:parseList(t.moods_json),source:t.classification_source});
   // A manual edit or deletion while the API was running must win over an old result.
-  const guard=`id=? AND classification_revision=? AND status IN ('published','hidden') AND EXISTS(SELECT 1 FROM music_classification_jobs j WHERE j.track_id=tracks.id AND j.lease_token=?)`;
+  const guard=`id=? AND kind='original' AND classification_revision=? AND status IN ('published','hidden') AND EXISTS(SELECT 1 FROM music_classification_jobs j WHERE j.track_id=tracks.id AND j.lease_token=?)`;
   const eligible=await one(env,`SELECT id FROM tracks WHERE ${guard}`,t.id,t.classification_revision,token);
   if(!eligible){await run(env,"UPDATE music_classification_jobs SET state='skipped',lease_until=0 WHERE track_id=? AND lease_token=?",t.id,token);return {skipped:t.id};}
   const after=JSON.stringify(result);
   await env.DB.batch([
    query(env,`INSERT INTO music_classification_history(id,track_id,before_json,after_json,created) SELECT ?,id,?,?,? FROM tracks WHERE ${guard}`,id(),before,after,now(),t.id,t.classification_revision,token),
    query(env,`UPDATE tracks SET genre=?,genres_json=?,moods_json=?,classification_source='ai',classification_updated=?,classification_revision=classification_revision+1 WHERE ${guard}`,result.genres[0],JSON.stringify(result.genres),JSON.stringify(result.moods),now(),t.id,t.classification_revision,token),
+   ...coverClassificationWrites(env,{originalId:t.id}),
    query(env,"UPDATE music_classification_jobs SET state='done',lease_until=0,result_json=?,error='',updated=? WHERE track_id=? AND lease_token=?",after,now(),t.id,token)
   ]);
   return {id:t.id,title:t.title,...result,cached:!!cached};
@@ -73,7 +88,7 @@ export async function musicClassificationInternal(req,env,path){
  if(!env.MUSIC_CLASSIFICATION_ADMIN_TOKEN||req.headers.get('authorization')!==`Bearer ${env.MUSIC_CLASSIFICATION_ADMIN_TOKEN}`)fail(401,'인증이 필요합니다.');
  if(path.endsWith('/status')&&req.method==='GET')return json(await classificationSummary(env));
  if(path.endsWith('/enqueue')&&req.method==='POST'){
-  await run(env,`INSERT OR IGNORE INTO music_classification_jobs(track_id,state,updated) SELECT id,'queued',? FROM tracks WHERE status IN ('published','hidden')`,now());
+  await env.DB.batch([query(env,`INSERT OR IGNORE INTO music_classification_jobs(track_id,state,updated) SELECT id,'queued',? FROM tracks WHERE kind='original' AND status IN ('published','hidden')`,now()),...coverClassificationWrites(env)]);
   return json(await classificationSummary(env));
  }
  if(path.endsWith('/run')&&req.method==='POST')return json(await classifyNext(env));
@@ -85,6 +100,6 @@ export async function musicClassificationRoute(req,env,path,user){
  const match=path.match(/^\/api\/studio\/tracks\/([\w-]+)\/classification$/);if(!match)return null;
  requireUser(user);const t=await one(env,"SELECT * FROM tracks WHERE id=? AND user_id=? AND status!='deleted'",match[1],user.id);if(!t)fail(404,'내 음원을 찾을 수 없습니다.');
  if(req.method==='GET')return json({track:trackClassification(t),job:await one(env,'SELECT state,error,result_json FROM music_classification_jobs WHERE track_id=?',t.id)});
- if(req.method==='POST'){await rate(env,'music-reclassify:'+user.id,5,3600);if(!['published','hidden'].includes(t.status))fail(409,'음원 변환이 끝나면 분석할 수 있어요.');await queueClassification(env,t.id);return json({queued:true});}
+ if(req.method==='POST'){await rate(env,'music-reclassify:'+user.id,5,3600);if(!['published','hidden'].includes(t.status))fail(409,'음원 변환이 끝나면 분석할 수 있어요.');return json(await queueClassification(env,t.id));}
  return null;
 }

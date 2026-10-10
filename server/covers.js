@@ -1,4 +1,5 @@
 import {validateDuetGuide} from './duet-guide.js';
+import {coverClassificationWrites} from './music-classification.js';
 import {one,query,now,id,fail,str,json,rate} from './db.js';
 import {requireUser} from './auth.js';
 import {VISIBLE} from './catalog.js';
@@ -40,6 +41,6 @@ export async function coverRoute(req,env,path,user){
  const tid=id();
  writes.push(query(env,`INSERT INTO tracks(id,user_id,artist_id,producer_id,title,genre,description,ai_tool,is_ai,participation,rights_accepted,original_ext,original_bytes,created,kind,original_id,cover_mode,duet_parent_id,duet_part,duet_open,duet_guide)
   VALUES(?,?,?,?,?,?,?,'',0,'보컬',?,?,?,?,'cover',?,?,?,?,?,?)`,tid,user.id,original.artist_id,profile.id,original.title,original.genre,description,now(),b.extension,b.bytes,now(),original.id,mode,parent,part,mode==='duet'&&!first?1:0,guide));
- await env.DB.batch(writes);
+ await env.DB.batch([...writes,...coverClassificationWrites(env,{trackId:tid})]);
  return json({id:tid,producer_id:profile.id},201);
 }
