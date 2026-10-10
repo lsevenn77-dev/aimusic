@@ -1,3 +1,4 @@
+import {musicClassificationRoute,musicClassificationInternal,classifyNext} from './music-classification.js';
 import {artistGalleryRoute} from './artist-gallery.js';
 import {accountSafetyRoute,blockedContext,filterBlockedResponse,drainDeletedFiles} from './account-safety.js';
 import {applePaymentRoute,appleNotification} from './apple-payments.js';
@@ -44,7 +45,8 @@ export default {async fetch(req,env,ctx){
   if(path==='/api/gold/nicepay/callback')return await goldCallback(req,env);
   if(path==='/api/billing/nicepay/webhook')return await billingWebhook(req,env);
   if(path==='/internal/billing/tick')return await billingTick(req,env);
-  if(path.startsWith('/internal/'))return await internalRoute(req,env,path);
+  if(path.startsWith('/internal/music-classification/'))return await musicClassificationInternal(req,env,path);
+  if(path.startsWith('/internal/')){const result=await internalRoute(req,env,path);if(result?.ok&&ctx?.waitUntil&&env.GEMINI_API_KEY&&(path==='/internal/jobs/claim'||path.endsWith('/finish')))ctx.waitUntil(classifyNext(env).catch(()=>console.error('Music classification pending')));return result;}
   const musicResponse=await publicMusicRoute(req,env,path);if(musicResponse)return musicResponse;
   const publicResponse=publicPageRoute(req,path);if(publicResponse)return publicResponse;
   if(!path.startsWith('/api/')&&!path.startsWith('/media/')){
@@ -70,6 +72,8 @@ export default {async fetch(req,env,ctx){
   const user=await viewer(req,env);
   env=await blockedContext(env,user);
   const safety=await accountSafetyRoute(req,env,path,user);if(safety)return safety;
+  if(path==='/api/studio'&&ctx?.waitUntil&&env.GEMINI_API_KEY)ctx.waitUntil(classifyNext(env).catch(()=>console.error('Music classification pending')));
+  const classificationResponse=await musicClassificationRoute(req,env,path,user);if(classificationResponse)return classificationResponse;
   const galleryResponse=await artistGalleryRoute(req,env,path,user);if(galleryResponse)return galleryResponse;
   const playResponse=await playBillingRoute(req,env,path,user);if(playResponse)return playResponse;
   retryPush(env,ctx);
@@ -97,4 +101,4 @@ export default {async fetch(req,env,ctx){
   if(path.includes('/auth/')&&path.endsWith('/callback'))return new Response(null,{status:303,headers:{location:'/#account?error='+encodeURIComponent(message),'cache-control':'no-store'}});
   return json({error:message},status);
  }
-},async scheduled(event,env,ctx){ctx.waitUntil(cleanupChatImages(env));}};
+},async scheduled(event,env,ctx){ctx.waitUntil(cleanupChatImages(env));ctx.waitUntil(classifyNext(env));}};

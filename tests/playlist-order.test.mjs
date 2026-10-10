@@ -66,8 +66,8 @@ test('library playlist pin and custom order persist per account and reject forei
  await call('/api/library/playlists/'+ids[0],'PATCH',{pinned:false});assert.deepEqual((await call('/api/library')).body.collections.map(p=>p.id),[ids[2],ids[1],ids[0]]);
 });
 
-test('mood discovery uses actual tags and following/search return only public matching content',async t=>{
- const {call,sql}=await fixture(t);sql.exec("UPDATE tracks SET tags='집중, lo-fi' WHERE id='one'; UPDATE tracks SET tags='기분 업' WHERE id='two'; UPDATE artists SET name='한빛'; UPDATE producers SET name='달빛'");
+test('mood discovery uses classified moods and following/search return only public matching content',async t=>{
+ const {call,sql}=await fixture(t);sql.exec("UPDATE tracks SET moods_json='[\"focus\"]' WHERE id='one'; UPDATE tracks SET moods_json='[\"energy\"]' WHERE id='two'; UPDATE artists SET name='한빛'; UPDATE producers SET name='달빛'");
  let d=(await call('/api/discovery?mood=focus','GET',null,null)).body;assert.deepEqual(d.tracks.map(t=>t.id),['one']);assert.equal(d.moods.find(m=>m.id==='focus').count,1);assert.equal(d.moods.find(m=>m.id==='sleep').count,0);
  assert.equal((await call('/api/discovery?mood=invalid')).status,400);assert.equal((await call('/api/discovery?following=1','GET',null,null)).status,401);
  assert.equal((await call('/api/discovery?following=1')).body.tracks.length,0);await call('/api/artists/artist/follow','PUT');assert.equal((await call('/api/discovery?following=1')).body.tracks.length,3);
