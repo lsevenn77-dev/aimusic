@@ -288,6 +288,7 @@ struct TrackDetailView: View {
                             SaveMusicButton(song: song, compact: true)
                         }
                     }
+                    SingSongButton(song: song)
                     if model.user != nil { GiftSheetButton(song: song) { Label("선물 보내기", systemImage: "gift") } }
                     if let id = song.producerID { NavigationLink("창작자 프로필") { ProfilePage(id: id) } }
                     if let id = song.artistID { NavigationLink("아티스트 프로필") { ProfilePage(id: id, kind: "artist") } }

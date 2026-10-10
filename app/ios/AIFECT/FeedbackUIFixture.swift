@@ -12,7 +12,8 @@ enum FeedbackUIFixture {
         return false
         #endif
     }
-    static let song = Song(["id": "feedback-song", "title": "편집 검증용 녹음", "duration": 20, "kind": "cover", "producer_id": "fixture-profile", "plays": 12])
+    static let song = Song(["id": "feedback-song", "title": "편집 검증용 녹음", "duration": 20, "kind": "cover", "original_id": "fixture-original", "producer_id": "fixture-profile", "plays": 12])
+    static let lyrics: [[String: Any]] = [["time": 0, "text": "첫 구간"], ["time": 10, "text": "두 번째 구간"], ["time": 12, "text": "세 번째 구간"], ["time": 14, "text": "네 번째 구간"], ["time": 16, "text": "다섯 번째 구간"], ["time": 18, "text": "마지막 구간"]]
     @MainActor static func draft() throws -> RecordingDraft {
         let draft = RecordingDraft(id: "feedback-ui-fixture", owner: "fixture-user", song: song, date: Date(), length: 20)
         try FileManager.default.createDirectory(at: draft.directory, withIntermediateDirectories: true)
@@ -28,7 +29,7 @@ enum FeedbackUIFixture {
         try? FileManager.default.removeItem(at: backing)
         try FileManager.default.copyItem(at: draft.directory.appendingPathComponent("backing.wav"), to: backing)
         try JSONEncoder().encode(draft).write(to: draft.directory.appendingPathComponent("draft.json"))
-        try JSONSerialization.data(withJSONObject: [["time": 0, "text": "첫 구간"], ["time": 10, "text": "두 번째 구간"]]).write(to: draft.directory.appendingPathComponent("lyrics.json"))
+        try JSONSerialization.data(withJSONObject: lyrics).write(to: draft.directory.appendingPathComponent("lyrics.json"))
         return draft
     }
 }
@@ -39,9 +40,17 @@ final class FeedbackURLProtocol: URLProtocol {
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func startLoading() {
         let path = request.url!.path
+        if path == "/media/fixture-original/mr" {
+            let url = RecordingDraft.root.appendingPathComponent("feedback-ui-fixture/backing.m4a")
+            client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: ["Content-Type": "audio/wav"])!, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocol(self, didLoad: (try? Data(contentsOf: url)) ?? Data()); client?.urlProtocolDidFinishLoading(self); return
+        }
         if path == "/api/chat/events" { client?.urlProtocol(self, didFailWithError: URLError(.unsupportedURL)); return }
         var data: [String: Any] = [:]
         if path == "/api/me" { data = ["user": ["id": "fixture-user", "name": "검증 계정"], "providers": []] }
+        else if path == "/api/karaoke/fixture-original" {
+            data = ["track": ["id": "fixture-original", "title": "부르기 검증 원곡", "duration": 20], "mr": "/media/fixture-original/mr", "words": FeedbackUIFixture.lyrics.map { ["s": $0.number("time"), "w": [["t": $0.string("text")]]] }]
+        }
         else if path == "/api/dm" { data = ["conversations": [["id": "fixture-peer", "name": "채팅 테스트", "last_message": "입력란 확인"]], "crew": ["id": "fixture-crew", "name": "검증 크루"], "unread": 0] }
         else if path.hasPrefix("/api/dm/") || path.hasSuffix("/messages") {
             if request.httpMethod == "POST" {
@@ -63,22 +72,32 @@ final class FeedbackURLProtocol: URLProtocol {
     }
     override func stopLoading() {}
 }
+private struct FeedbackStudioSelection: Identifiable { let id = UUID(); let studio: RecordingStudio }
 struct FeedbackUITestView: View {
     @StateObject private var model = AppModel()
     @State private var draft: RecordingDraft?
-    @State private var studio = false
+    @State private var studio: FeedbackStudioSelection?
     @State private var gift = false
+    @State private var track = false
     var body: some View {
         RootView().environmentObject(model).preferredColorScheme(.dark).tint(Brand.aqua)
             .task { draft = try? FeedbackUIFixture.draft() }
             .overlay(alignment: .topTrailing) {
                 Menu("검증") {
-                    Button("녹음 편집 검증") { studio = true }
+                    Button("녹음 편집 검증") { if let draft { studio = FeedbackStudioSelection(studio: makeStudio(draft, stopped: false)) } }
+                    Button("녹음 멈춤 검증") { if let draft { studio = FeedbackStudioSelection(studio: makeStudio(draft, stopped: true)) } }
+                    Button("음원 상세 검증") { track = true }
                     Button("선물창 검증") { gift = true }
                 }.padding().accessibilityIdentifier("feedback-menu")
             }
             .sheet(isPresented: $gift) { NavigationStack { GiftWalletView(song: FeedbackUIFixture.song, compact: true).environmentObject(model) }.presentationDetents([.fraction(0.48)]) }
-            .fullScreenCover(isPresented: $studio) { if let draft { StudioView(studio: RecordingStudio(song: draft.song, owner: draft.owner, draft: draft)).environmentObject(model).preferredColorScheme(.dark) } }
+            .sheet(isPresented: $track) { TrackDetailView(song: FeedbackUIFixture.song).environmentObject(model) }
+            .fullScreenCover(item: $studio) { selection in StudioView(studio: selection.studio).environmentObject(model).preferredColorScheme(.dark) }
+    }
+    private func makeStudio(_ draft: RecordingDraft, stopped: Bool) -> RecordingStudio {
+        let studio = RecordingStudio(song: draft.song, owner: draft.owner, draft: draft)
+        if stopped { studio.returnToRecording() }
+        return studio
     }
 }
 #endif

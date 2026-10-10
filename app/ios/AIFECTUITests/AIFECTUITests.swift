@@ -107,7 +107,7 @@ final class AIFECTUITests: XCTestCase {
         app.buttons["가사 구간 다시 부르기 · 다른 구간은 유지"].tap()
         XCTAssertTrue(app.buttons.containing(NSPredicate(format: "label CONTAINS %@", "두 번째 구간")).firstMatch.waitForExistence(timeout: 5))
         app.buttons.containing(NSPredicate(format: "label CONTAINS %@", "두 번째 구간")).firstMatch.tap()
-        XCTAssertTrue(app.buttons["녹음 시작"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["start-recording"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.switches["모니터링"].exists)
         XCTAssertTrue(app.sliders["녹음 중 반주 음량"].exists)
     }
@@ -131,12 +131,64 @@ final class AIFECTUITests: XCTestCase {
         app.buttons["닫기"].tap()
         app.buttons["feedback-menu"].tap(); app.buttons["녹음 편집 검증"].tap()
         let description = app.textFields["이 녹음에 대한 소개"]
-        for _ in 0..<10 { if description.exists && description.isHittable { break }; app.scrollViews.firstMatch.swipeUp() }
+        for _ in 0..<10 { if description.exists && description.isHittable { break }; app.scrollViews["studio-content"].swipeUp() }
         XCTAssertTrue(description.exists); description.tap(); description.typeText("Keyboard check")
         XCTAssertTrue(app.keyboards.firstMatch.exists)
         app.staticTexts["내 커버곡 게시"].tap()
         let dismissed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: app.keyboards.firstMatch)
         XCTAssertEqual(XCTWaiter.wait(for: [dismissed], timeout: 3), .completed)
+    }
+
+    @MainActor func testSongSingingEntryPreflightEffectsLyricScrollAndStoppedControls() throws {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["-feedback-ui-test", "-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]
+        app.launch()
+        XCTAssertTrue(app.buttons["feedback-menu"].waitForExistence(timeout: 15))
+        app.buttons["feedback-menu"].tap(); app.buttons["음원 상세 검증"].tap()
+        XCTAssertTrue(app.buttons["이 노래 부르기"].waitForExistence(timeout: 5))
+        app.buttons["이 노래 부르기"].tap()
+        XCTAssertTrue(app.staticTexts["부르기 검증 원곡"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["start-recording"].isHittable)
+        app.buttons["에코 · 잡음 제거 설정"].tap()
+        let custom = app.buttons["vocal-preset-custom"]
+        for _ in 0..<5 { if custom.isHittable { break }; app.scrollViews["studio-content"].swipeUp() }
+        custom.tap()
+        let echo = app.sliders["에코 미세 조절"]
+        for _ in 0..<5 { if echo.isHittable { break }; app.scrollViews["studio-content"].swipeUp() }
+        XCTAssertTrue(echo.waitForExistence(timeout: 5)); XCTAssertTrue(echo.isHittable)
+        echo.adjust(toNormalizedSliderPosition: 0.1)
+        if !app.buttons["4단계"].isHittable { app.scrollViews["studio-content"].swipeDown() }
+        app.buttons["4단계"].tap()
+        XCTAssertTrue(app.staticTexts["잡음 제거 · 4단계"].exists)
+        XCTAssertTrue(app.buttons["start-recording"].isHittable)
+        let wheel = app.scrollViews["studio-lyric-wheel"]
+        for _ in 0..<10 { if wheel.isHittable { break }; app.scrollViews["studio-content"].swipeDown() }
+        XCTAssertTrue(wheel.isHittable)
+        wheel.swipeUp()
+        let moved = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label != %@", "선택한 가사 · 0:00"), object: app.staticTexts["selected-lyric-time"])
+        XCTAssertEqual(XCTWaiter.wait(for: [moved], timeout: 5), .completed)
+        XCTAssertTrue(app.buttons["선택한 위치부터 녹음"].waitForExistence(timeout: 5))
+        let lyricShot = XCTAttachment(screenshot: app.screenshot()); lyricShot.name = "Scrollable lyrics and pinned recording controls"; lyricShot.lifetime = .keepAlways; add(lyricShot)
+        app.buttons["닫기"].tap(); app.buttons["완료"].tap()
+        app.buttons["feedback-menu"].tap(); app.buttons["녹음 멈춤 검증"].tap()
+        XCTAssertTrue(app.buttons["restart-recording"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["restart-recording"].isHittable)
+        XCTAssertTrue(app.buttons["review-recording"].isHittable)
+        XCTAssertFalse(app.buttons["recording-preview"].exists)
+        app.buttons["review-recording"].tap()
+        XCTAssertTrue(app.buttons["recording-preview"].waitForExistence(timeout: 5))
+        let overview = XCTAttachment(screenshot: app.screenshot()); overview.name = "Android reference recording editor overview"; overview.lifetime = .keepAlways; add(overview)
+        let studioPreset = app.buttons["vocal-preset-studio"]
+        for _ in 0..<5 { if studioPreset.isHittable { break }; app.scrollViews["studio-content"].swipeUp() }
+        studioPreset.tap()
+        let strength = app.sliders["효과 강도"]
+        for _ in 0..<5 { if strength.isHittable { break }; app.scrollViews["studio-content"].swipeUp() }
+        strength.adjust(toNormalizedSliderPosition: 0.25)
+        XCTAssertTrue(studioPreset.isSelected)
+        let effects = XCTAttachment(screenshot: app.screenshot()); effects.name = "Android reference effect cards"; effects.lifetime = .keepAlways; add(effects)
+        app.buttons["녹음 화면"].tap()
+        XCTAssertTrue(app.buttons["restart-recording"].isHittable)
     }
 
 }

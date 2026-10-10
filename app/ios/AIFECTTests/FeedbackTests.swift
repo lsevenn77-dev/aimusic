@@ -54,6 +54,56 @@ final class FeedbackTests: XCTestCase {
         var rap = VocalSettings(); rap.select("rap")
         XCTAssertEqual(rap.echo, 0); XCTAssertLessThan(rap.room, studio.room); XCTAssertLessThan(studio.room, hall.room)
     }
+    @MainActor func testRestartKeepsSavedTakeAndSettingsWithoutDownloadingBackingAgain() async throws {
+        let draft = RecordingDraft(id: UUID().uuidString, owner: "restart-test", song: Song(["id": "test", "duration": 30]), date: Date(), length: 3)
+        try FileManager.default.createDirectory(at: draft.directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: draft.directory) }
+        try write(draft.directory.appendingPathComponent("voice.wav"), samples: Array(repeating: 0.1, count: 44100 * 3))
+        try write(draft.directory.appendingPathComponent("backing.wav"), samples: Array(repeating: 0, count: 44100 * 3))
+        try FileManager.default.copyItem(at: draft.directory.appendingPathComponent("backing.wav"), to: draft.directory.appendingPathComponent("backing.m4a"))
+        try JSONEncoder().encode(draft).write(to: draft.directory.appendingPathComponent("draft.json"))
+        let original = try Data(contentsOf: draft.directory.appendingPathComponent("voice.wav"))
+        let studio = RecordingStudio(song: draft.song, owner: draft.owner, draft: draft)
+        studio.effects.echo = 1.2; studio.effects.noise = 4; studio.backingVolume = 0.7
+        studio.returnToRecording()
+        XCTAssertFalse(studio.reviewing); XCTAssertNotNil(studio.draft)
+        await studio.newTake()
+        XCTAssertTrue(studio.ready); XCTAssertNil(studio.draft); XCTAssertFalse(studio.reviewing)
+        XCTAssertEqual(studio.elapsed, 0); XCTAssertEqual(studio.currentSettings.echo, 1.2)
+        XCTAssertEqual(studio.currentSettings.noise, 4); XCTAssertEqual(studio.currentSettings.backing, 0.7)
+        XCTAssertEqual(try Data(contentsOf: draft.directory.appendingPathComponent("voice.wav")), original)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: draft.directory.appendingPathComponent("draft.json").path))
+        studio.shutdown()
+    }
+    @MainActor func testLyricCueFromStoppedTakeReturnsToRecordingAndPreservesOriginal() async throws {
+        let draft = RecordingDraft(id: UUID().uuidString, owner: "cue-test", song: Song(["id": "test", "duration": 30]), date: Date(), length: 20)
+        try FileManager.default.createDirectory(at: draft.directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: draft.directory) }
+        let voice = Data([1, 2, 3, 4]); try voice.write(to: draft.directory.appendingPathComponent("voice.wav"))
+        let studio = RecordingStudio(song: draft.song, owner: draft.owner, draft: draft)
+        studio.words = [(0, "첫 줄"), (10, "다음 줄")]
+        await studio.cueLyric(at: 1)
+        XCTAssertFalse(studio.reviewing); XCTAssertNil(studio.draft); XCTAssertEqual(studio.elapsed, 8)
+        XCTAssertEqual(try Data(contentsOf: draft.directory.appendingPathComponent("voice.wav")), voice)
+        await studio.cueLyric(at: 0); XCTAssertEqual(studio.elapsed, 0)
+        studio.shutdown()
+    }
+    @MainActor func testLegacySettingsAndPresetStrengthRetainNoiseAndBalanceAfterReopening() throws {
+        let draft = RecordingDraft(id: UUID().uuidString, owner: "settings-test", song: Song(["id": "test"]), date: Date(), length: 1)
+        try FileManager.default.createDirectory(at: draft.directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: draft.directory) }
+        var settings = VocalSettings(); settings.select("karaoke"); settings.strength = nil; settings.voice = 0.9; settings.backing = 0.7; settings.noise = 4
+        try JSONEncoder().encode(settings).write(to: draft.directory.appendingPathComponent("settings.json"))
+        let studio = RecordingStudio(song: draft.song, owner: draft.owner, draft: draft)
+        XCTAssertEqual(studio.currentSettings.echo, settings.echo)
+        studio.setPresetStrength(0)
+        try studio.preserveDraftSettings()
+        let reopened = RecordingStudio(song: draft.song, owner: draft.owner, draft: draft)
+        XCTAssertEqual(reopened.currentSettings.echo, 0); XCTAssertEqual(reopened.currentSettings.room, 0)
+        XCTAssertEqual(reopened.currentSettings.strength, 0); XCTAssertEqual(reopened.currentSettings.noise, 4)
+        XCTAssertEqual(reopened.currentSettings.voice, 0.9); XCTAssertEqual(reopened.currentSettings.backing, 0.7)
+        reopened.shutdown(); studio.shutdown()
+    }
     func testExportCancellationPreservesOriginalAndRemovesPartialOutput() throws {
         let root = try folder(); defer { try? FileManager.default.removeItem(at: root) }
         try write(root.appendingPathComponent("voice.wav"), samples: Array(repeating: 0.2, count: 44100))

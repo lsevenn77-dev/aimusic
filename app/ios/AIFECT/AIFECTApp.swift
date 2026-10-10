@@ -337,10 +337,9 @@ struct PlayerView: View {
                         HStack {
                             SaveMusicButton(song: song, compact: true)
                             Spacer()
-                            if let original = model.singable.first(where: { $0.id == (song.originalID ?? song.id) }) { SingSongButton(song: original, title: "부르기") }
-                            Spacer()
                             Button { detail = true } label: { Label("댓글", systemImage: "bubble.left") }.font(.system(size: 14))
                         }
+                        SingSongButton(song: song)
                         GiftSheetButton(song: song) { HStack { Label("마음에 드는 음악에 선물하기", systemImage: "gift"); Spacer(); Image(systemName: "chevron.right") }.font(.system(size: 14)).padding(18).background(Brand.card, in: RoundedRectangle(cornerRadius: 18)) }.buttonStyle(.plain)
                         VStack(alignment: .leading, spacing: 18) {
                             Text("LYRICS").font(.system(size: 12)).tracking(2).foregroundStyle(AifectDesign.muted)

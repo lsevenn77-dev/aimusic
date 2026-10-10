@@ -45,6 +45,8 @@ final class RecordingStudio: NSObject, ObservableObject, AVAudioPlayerDelegate {
     @Published var error: String?
     @Published var words: [(Double, String)] = []
     @Published var draft: RecordingDraft?
+    @Published private(set) var reviewing = false
+    private var finishTask: Task<Void, Never>?
     @Published var exportURL: URL?
     @Published var previewing = false
     @Published var voiceVolume: Float = 1 { didSet { settingsChanged() } }
@@ -61,9 +63,22 @@ final class RecordingStudio: NSObject, ObservableObject, AVAudioPlayerDelegate {
     var currentSettings: VocalSettings { var value = effects; value.voice = voiceVolume; value.backing = backingVolume; value.offset = sync; value.room = reverb; return value }
     private func settingsChanged() {
         exportURL = nil
+        liveMonitor.update(currentSettings)
         do { try audition?.update(currentSettings) } catch { self.error = error.localizedDescription }
     }
     func selectPreset(_ id: String) { effects.select(id); reverb = effects.room; saveSettings() }
+    func setPresetStrength(_ value: Float) {
+        guard effects.preset != "original", effects.preset != "custom" else { return }
+        var next = effects; next.select(effects.preset)
+        let strength = min(1, max(0, value)); next.strength = strength
+        next.echo *= strength * 2; next.room *= strength * 2; next.tone = min(1, next.tone * strength * 2)
+        effects = next; reverb = next.room; saveSettings()
+    }
+    func preserveDraftSettings() throws {
+        guard let draft else { return }
+        try JSONEncoder().encode(currentSettings).write(to: folder.appendingPathComponent("settings.json"), options: .atomic)
+        try JSONEncoder().encode(draft).write(to: folder.appendingPathComponent("draft.json"), options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+    }
     func cancelCountdown() { countdownGeneration += 1; countdown = 0; starting = false }
 
     @Published var duetFirst = false
@@ -83,7 +98,10 @@ final class RecordingStudio: NSObject, ObservableObject, AVAudioPlayerDelegate {
     func fillUnassignedDuetLines() { guard duetParentID == nil, !recording else { return }; duetLines = duetLines.map { $0.isEmpty ? "B" : $0 } }
     func updateMonitor() {
         monitorTask?.cancel(); liveMonitor.stop(); monitorMessage = nil
-        guard monitorEnabled, draft == nil, !closed else { return }
+        #if DEBUG
+        if FeedbackUIFixture.enabled { return }
+        #endif
+        guard monitorEnabled, !reviewing, !processing, !closed else { return }
         monitorTask = Task { [weak self] in
             guard let self else { return }
             let allowed = await AVAudioApplication.requestRecordPermission()
@@ -93,7 +111,7 @@ final class RecordingStudio: NSObject, ObservableObject, AVAudioPlayerDelegate {
                 let session = AVAudioSession.sharedInstance()
                 try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetoothHFP])
                 try session.setPreferredIOBufferDuration(0.005); try session.setActive(true)
-                try self.liveMonitor.start(volume: self.monitorVolume)
+                try self.liveMonitor.start(volume: self.monitorVolume, settings: self.currentSettings)
                 self.monitorMessage = "모니터링 중 · 내 목소리를 듣고 있어요."
             } catch { self.monitorMessage = error.localizedDescription }
         }
@@ -110,6 +128,7 @@ final class RecordingStudio: NSObject, ObservableObject, AVAudioPlayerDelegate {
     private var routeObserver: NSObjectProtocol?
     init(song: Song, owner: String, draft: RecordingDraft? = nil, duetParentID: String? = nil) {
         self.song = song; self.owner = owner; self.draft = draft
+        self.reviewing = draft != nil
         self.duetParentID = draft?.duetParentID ?? duetParentID
         self.duetFirst = draft?.duetFirst ?? false; self.duetLines = draft?.duetLines ?? []; self.duetMode = draft?.duetMode ?? ((draft?.duetLines?.isEmpty == false) ? "lyrics" : "free")
         if self.duetParentID != nil { self.backingVolume = 1 }
@@ -154,6 +173,9 @@ final class RecordingStudio: NSObject, ObservableObject, AVAudioPlayerDelegate {
         } catch is CancellationError {} catch { self.error = error.localizedDescription }
     }
     func start() async {
+        #if DEBUG
+        if FeedbackUIFixture.enabled { return }
+        #endif
         guard ready, !recording, !starting, !processing, draft == nil, !closed else { return }
         if let guideIssue { error = guideIssue; return }
         starting = true
@@ -203,7 +225,7 @@ final class RecordingStudio: NSObject, ObservableObject, AVAudioPlayerDelegate {
         elapsed = max(priorLength, takeStart + duration)
         processing = true; processingTitle = "초안 저장 중"; progress = 0
         let folder = folder, start = takeStart, prior = priorLength
-        Task {
+        finishTask = Task {
             do {
                 let length = try await Task.detached(priority: .userInitiated) {
                     try RecordingSplice.merge(folder: folder, take: takeURL, start: start, priorLength: prior) { value in Task { @MainActor [weak self] in self?.progress = value } }
@@ -216,6 +238,7 @@ final class RecordingStudio: NSObject, ObservableObject, AVAudioPlayerDelegate {
                 try? FileManager.default.removeItem(at: takeURL)
             } catch { self.error = "원본 녹음은 보관되어 있습니다. 초안 저장 실패: \(error.localizedDescription)" }
             processing = false; progress = nil
+            updateMonitor()
         }
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
@@ -234,8 +257,32 @@ final class RecordingStudio: NSObject, ObservableObject, AVAudioPlayerDelegate {
             } catch { self.error = error.localizedDescription; return }
         }
         priorLength = max(priorLength, draft?.length ?? 0)
-        draft = nil; elapsed = max(0, min(seconds, min(song.duration > 0 ? song.duration : 600, 600) - 0.1))
+        draft = nil; reviewing = false; elapsed = max(0, min(seconds, min(song.duration > 0 ? song.duration : 600, 600) - 0.1))
         updateMonitor()
+    }
+    func reviewRecording() {
+        guard draft != nil, !recording, !processing else { return }
+        reviewing = true; updateMonitor()
+    }
+    func cueLyric(at index: Int) async {
+        guard words.indices.contains(index), countdown == 0, !closed else { return }
+        if recording { finish() }
+        await finishTask?.value
+        guard !closed, !Task.isCancelled, !processing, error == nil else { return }
+        selectRecordingPosition(max(0, words[index].0 - 2))
+    }
+    func returnToRecording() {
+        guard !processing else { return }
+        stopPreview(); reviewing = false; updateMonitor()
+    }
+    func restartRecording() async {
+        guard !processing, !starting, !closed else { return }
+        error = nil
+        if recording { finish(); await finishTask?.value }
+        guard !closed, !Task.isCancelled, error == nil else { return }
+        await newTake()
+        guard !closed, !Task.isCancelled else { return }
+        await start()
     }
     private func loadWaveform() async {
         let url = folder.appendingPathComponent("voice.wav")
@@ -261,10 +308,20 @@ final class RecordingStudio: NSObject, ObservableObject, AVAudioPlayerDelegate {
     }
     func newTake() async {
         guard !recording, !processing else { return }
-        stopPreview(); saveSettings()
-        folder = RecordingDraft.root.appendingPathComponent(UUID().uuidString, isDirectory: true)
-        draft = nil; exportURL = nil; waveform = []; elapsed = 0; priorLength = 0; audition = nil; previewPosition = 0; ready = false; error = nil
-        await prepare()
+        stopPreview(); saveSettings(); cancelCountdown()
+        let next = RecordingDraft.root.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        do {
+            try FileManager.default.createDirectory(at: next, withIntermediateDirectories: true)
+            for name in ["backing.m4a", "lyrics.json", "settings.json"] {
+                let source = folder.appendingPathComponent(name)
+                if FileManager.default.fileExists(atPath: source.path) { try FileManager.default.copyItem(at: source, to: next.appendingPathComponent(name)) }
+            }
+            folder = next
+            draft = nil; reviewing = false; exportURL = nil; waveform = []; elapsed = 0; priorLength = 0; audition = nil; previewPosition = 0; error = nil
+            ready = FileManager.default.fileExists(atPath: folder.appendingPathComponent("backing.m4a").path)
+            if !ready { await prepare() }
+            updateMonitor()
+        } catch { self.error = error.localizedDescription }
     }
     func resume() { closed = false }
     func shutdown() { closed = true; monitorEnabled = false; cancelCountdown(); monitorTask?.cancel(); liveMonitor.stop(); workControl?.cancel(); finish(); stopPreview(); saveSettings(); timer?.invalidate() }
@@ -390,17 +447,23 @@ enum DuetGuide {
 @MainActor
 final class LiveVocalMonitor {
     private var engine: AVAudioEngine?
-    var volume: Float = 1 { didSet { engine?.mainMixerNode.outputVolume = min(1, max(0, volume)) } }
-    func start(volume: Float) throws {
+    private var effects: VocalEffectChain?
+    private var settings = VocalSettings()
+    var volume: Float = 1 { didSet { applyVolume() } }
+    private func applyVolume() { engine?.mainMixerNode.outputVolume = min(1, max(0, volume * settings.voice)) }
+    func update(_ settings: VocalSettings) { self.settings = settings; effects?.apply(settings); applyVolume() }
+    func start(volume: Float, settings: VocalSettings) throws {
         stop()
         let outputs = AVAudioSession.sharedInstance().currentRoute.outputs
         guard outputs.contains(where: { [.headphones, .bluetoothHFP, .bluetoothA2DP, .usbAudio].contains($0.portType) }) else { throw APIError(status: 0, message: "청음은 이어폰을 연결하면 사용할 수 있어요.") }
         let engine = AVAudioEngine(), input = engine.inputNode
         let format = input.outputFormat(forBus: 0)
         guard format.channelCount > 0, format.sampleRate > 0 else { throw APIError(status: 0, message: "현재 오디오 연결에서는 청음을 사용할 수 없어요.") }
-        engine.connect(input, to: engine.mainMixerNode, format: format)
-        self.volume = min(1, max(0, volume)); engine.mainMixerNode.outputVolume = self.volume
-        engine.prepare(); try engine.start(); self.engine = engine
+        let effects = VocalEffectChain()
+        effects.connect(input, engine: engine, format: format); effects.apply(settings)
+        self.settings = settings; self.volume = min(1, max(0, volume))
+        engine.mainMixerNode.outputVolume = min(1, max(0, self.volume * settings.voice))
+        engine.prepare(); try engine.start(); self.engine = engine; self.effects = effects
     }
-    func stop() { engine?.stop(); engine = nil }
+    func stop() { engine?.stop(); engine = nil; effects = nil }
 }

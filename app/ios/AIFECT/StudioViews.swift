@@ -94,6 +94,7 @@ struct StudioView: View {
     @State private var rights = false
     @State private var duetConsent = false
     @State private var description = ""
+    @State private var draftSaved = false
     @State private var publishing = false
     @State private var published = false
     @State private var confirmPublish = false
@@ -119,7 +120,8 @@ struct StudioView: View {
                         if let error = studio.error {
                             RetryCard(message: error) { Task { if !studio.ready { await studio.prepare() } else { studio.error = nil } } }
                         }
-                        if studio.draft == nil {
+                        if !studio.reviewing {
+                            Button { withAnimation { proxy.scrollTo("vocal-settings", anchor: .top) } } label: { Label("에코 · 잡음 제거 설정", systemImage: "slider.horizontal.3") }.buttonStyle(.bordered)
                             if !studio.recording && studio.duetParentID == nil {
                                 Toggle("듀엣 첫 파트로 녹음", isOn: $studio.duetFirst)
                                 if studio.duetFirst {
@@ -132,6 +134,8 @@ struct StudioView: View {
                                 Toggle("모니터링", isOn: $studio.monitorEnabled).tint(Brand.pink)
                                 Text("청음 음량 · \(Int(studio.monitorVolume * 100))%").font(.caption)
                                 Slider(value: $studio.monitorVolume, in: 0...1).tint(Brand.pink).accessibilityLabel("청음 음량")
+                                Text("내 목소리 · \(Int(studio.voiceVolume * 100))%").font(.caption)
+                                Slider(value: $studio.voiceVolume, in: 0...1.5).tint(Brand.pink).accessibilityLabel("목소리 음량")
                                 Text("반주 음량 · \(Int(studio.backingVolume * 100))%").font(.caption)
                                 Slider(value: $studio.backingVolume, in: 0...1).tint(Brand.aqua).accessibilityLabel("녹음 중 반주 음량")
                                 Text(studio.monitorMessage ?? "이어폰 연결 시 내 목소리를 들을 수 있어요. 연결 방식에 따라 지연이 생길 수 있습니다.").font(.caption).foregroundStyle(.secondary)
@@ -140,34 +144,19 @@ struct StudioView: View {
                                 Text(timeLabel(studio.elapsed)).font(.system(size: 48, weight: .light, design: .monospaced)).foregroundStyle(Brand.aqua)
                                 ProgressView(value: Double(studio.level), total: 1).tint(Brand.aqua).accessibilityLabel("마이크 입력 레벨")
                                 if studio.words.isEmpty { Text("음악에 맞춰 자유롭게 불러보세요").foregroundStyle(.secondary).padding(24) }
-                                else {
-                                    let index = studio.words.lastIndex(where: { $0.0 <= studio.elapsed }) ?? 0
-                                    ForEach(max(0, index - 1)...min(studio.words.count - 1, index + 2), id: \.self) { i in
-                                        Button { if studio.recording { studio.finish() }; showLyrics = true } label: {
-                                            Text(lyricText(i)).font(i == index ? .title3.bold() : .body).foregroundStyle(i == index ? lyricColor(i) : AifectDesign.muted).multilineTextAlignment(.center).frame(maxWidth: .infinity)
-                                        }.buttonStyle(.plain).disabled(studio.processing)
-                                    }
-                                    if studio.duetMode == "lyrics", let next = studio.nextOwnLine {
-                                        Label("다음 내 차례 · \(timeLabel(studio.words[next].0)) · \(studio.words[next].1)", systemImage: "mic.fill").font(.caption).foregroundStyle(Brand.pink)
-
-                                    }
-                                }
+                                else { StudioLyricWheel(studio: studio) }
                                 Button("가사 / 구간 선택해서 부르기") { if studio.recording { studio.finish() }; showLyrics = true }.font(.subheadline).disabled(studio.processing || studio.countdown > 0)
-                                if studio.countdown > 0 {
-                                    Text("\(studio.countdown)").font(.system(size: 64, weight: .bold)).foregroundStyle(Brand.pink)
-                                    Button("시작 취소") { studio.cancelCountdown() }
-                                } else if studio.recording {
-                                    HStack {
-                                        Button(studio.paused ? "이어 부르기" : "일시정지") { studio.togglePause() }.buttonStyle(.bordered)
-                                        Button("녹음 마치기") { studio.finish() }.buttonStyle(.borderedProminent).tint(Brand.pink)
-                                    }
-                                } else {
-                                    Button { Task { await studio.start() } } label: { Label("녹음 시작", systemImage: "record.circle").font(.headline).padding(10) }.buttonStyle(.borderedProminent).tint(Brand.pink).foregroundStyle(.black).disabled(!studio.ready || studio.processing || studio.guideIssue != nil)
+                                if studio.draft != nil {
+                                    Text("녹음을 보관했어요. 아래에서 바로 다시 시작하거나 확인할 수 있어요.").font(.caption).foregroundStyle(Brand.aqua)
                                 }
                             }.padding(22).background(Brand.card, in: RoundedRectangle(cornerRadius: 24))
+                            StudioVocalControls(studio: studio, recording: true)
+                                .padding(20).background(Brand.card, in: RoundedRectangle(cornerRadius: 22))
+                                .disabled(studio.processing).id("vocal-settings")
                         } else {
                             VStack(alignment: .leading, spacing: 20) {
-                                Label("녹음 완료 · \(timeLabel(studio.elapsed))", systemImage: "checkmark.circle.fill").font(.headline).foregroundStyle(Brand.aqua)
+                                Text("녹음이 완료되었습니다!").font(.title2.bold())
+                                Text("후작업을 진행해 주세요.").foregroundStyle(.secondary)
                                 RecordingWaveform(samples: studio.waveform)
                                 Slider(value: Binding(get: { studio.previewPosition }, set: { studio.seekPreview($0) }), in: 0...max(0.1, studio.draft?.length ?? 0)).accessibilityLabel("녹음 재생 위치")
                                 HStack {
@@ -179,27 +168,12 @@ struct StudioView: View {
                                 }.disabled(studio.processing)
                                 Text("재생 중 설정을 바꾸면 지금 듣는 구간에 바로 적용됩니다.").font(.caption).foregroundStyle(Brand.aqua)
                                 Button("가사 구간 다시 부르기 · 다른 구간은 유지") { showLyrics = true }.disabled(studio.processing || publishing)
-                                Button("다시 부르기 · 현재 녹음은 초안에 보관") { Task { published = false; ownVoice = false; rights = false; duetConsent = false; await studio.newTake() } }.disabled(studio.processing || publishing)
-                                Picker("목소리 프리셋", selection: Binding(get: { studio.effects.preset }, set: { studio.selectPreset($0) })) { ForEach(VocalSettings.presets, id: \.0) { item in Text(item.1).tag(item.0) } }.pickerStyle(.menu)
-                                Text("잡음 제거").font(.headline)
-                                Picker("잡음 감소", selection: $studio.effects.noise) { Text("끔").tag(0); Text("약하게").tag(1); Text("보통").tag(2); Text("강하게").tag(3); Text("최대").tag(4) }.pickerStyle(.segmented)
-                                Text("작은 배경 잡음과 저음 울림을 줄입니다. 강도가 높으면 작은 목소리도 줄어들 수 있어요.").font(.caption).foregroundStyle(.secondary)
-                                Text("에코 · \(studio.effects.echo, specifier: "%.1f")%").font(.subheadline)
-                                Slider(value: $studio.effects.echo, in: 0...20, step: 0.1).accessibilityLabel("에코 미세 조절")
-                                Text("0.1 단위 미세 조절 · 0은 에코 없음").font(.caption).foregroundStyle(.secondary)
-                                Text("음색 보정").font(.subheadline)
-                                Slider(value: $studio.effects.tone, in: 0...1)
-                                Text("내 목소리").font(.subheadline)
-                                Slider(value: $studio.voiceVolume, in: 0...1.5).accessibilityLabel("목소리 음량")
-                                Text("반주").font(.subheadline)
-                                Slider(value: $studio.backingVolume, in: 0...1).accessibilityLabel("반주 음량")
-                                Text("룸 리버브 · \(Int(studio.reverb))%").font(.subheadline)
-                                Slider(value: $studio.reverb, in: 0...100).accessibilityLabel("리버브")
-                                Text("룸 크기 · \(Int(studio.effects.size * 100))%").font(.subheadline)
-                                Slider(value: $studio.effects.size, in: 0...1).accessibilityLabel("룸 크기")
-                                Text("목소리 싱크 · \(Int(studio.sync * 1000)) ms").font(.subheadline)
-                                Slider(value: $studio.sync, in: -0.3...0.8, step: 0.005).accessibilityLabel("목소리 싱크")
-                                Text("양수는 목소리를 늦추고, 음수는 앞당깁니다. 이어폰과 기기에 따라 직접 조절해주세요.").font(.caption).foregroundStyle(.secondary)
+                                Text("1. 싱크 조절").font(.title3.bold())
+                                Text("내 목소리와 반주의 싱크를 맞춰주세요.").font(.subheadline).foregroundStyle(.secondary)
+                                HStack { Text("-300ms"); Spacer(); Text("\(Int(studio.sync * 1000))ms").foregroundStyle(.primary); Spacer(); Text("+800ms") }.font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                                Slider(value: $studio.sync, in: -0.3...0.8, step: 0.005).tint(Brand.pink).accessibilityLabel("목소리 싱크")
+                                StudioVolumeBalance(studio: studio)
+                                StudioVocalControls(studio: studio, recording: false)
                                 HStack {
                                     Button(studio.previewing ? "일시정지" : "이 위치부터 듣기") { studio.togglePreview() }.buttonStyle(.bordered)
                                     Button("WAV 만들기") { Task { await studio.mix(preview: false) } }.buttonStyle(.borderedProminent)
@@ -210,6 +184,13 @@ struct StudioView: View {
                                 }
                             }.padding(22).background(Brand.card, in: RoundedRectangle(cornerRadius: 24)).disabled(studio.processing || publishing)
                             VStack(alignment: .leading, spacing: 16) {
+                                Text("4. 저장 및 게시").font(.title3.bold())
+                                Text("초안은 이 기기에 보관됩니다.").font(.subheadline).foregroundStyle(.secondary)
+                                HStack(spacing: 12) {
+                                    Button("다시 부르기") { Task { published = false; ownVoice = false; rights = false; duetConsent = false; await studio.newTake() } }.buttonStyle(.bordered)
+                                    Button("임시 저장") { do { try studio.preserveDraftSettings(); draftSaved = true } catch { studio.error = error.localizedDescription } }.buttonStyle(.bordered)
+                                }.disabled(studio.processing || publishing)
+                                if draftSaved { Label("초안과 설정을 저장했어요", systemImage: "checkmark.circle").font(.caption).foregroundStyle(Brand.aqua) }
                                 Text("내 커버곡 게시").font(.headline)
                                 if published {
                                     Label("서버에 제출했습니다", systemImage: "checkmark.circle.fill").foregroundStyle(Brand.aqua)
@@ -230,10 +211,12 @@ struct StudioView: View {
                             }.padding(22).background(Brand.card, in: RoundedRectangle(cornerRadius: 24))
                         }
                     }.padding(20)
-                }.scrollDismissesKeyboard(.interactively).onTapGesture { editingDescription = false }
-            }.background(Brand.background).navigationTitle(studio.draft == nil ? "녹음 스튜디오" : "녹음 편집").navigationBarTitleDisplayMode(.inline)
+                }.accessibilityIdentifier("studio-content").scrollDismissesKeyboard(.interactively).onTapGesture { editingDescription = false }
+            }.background(Brand.background).navigationTitle(studio.reviewing ? "녹음 편집" : "녹음 스튜디오").navigationBarTitleDisplayMode(.inline)
                 .safeAreaInset(edge: .bottom) {
-                    if studio.processing || publishing {
+                    if !studio.reviewing && !studio.processing && !publishing {
+                        recordingControls.padding(14).frame(maxWidth: .infinity).background(Brand.card)
+                    } else if studio.processing || publishing {
                         VStack(spacing: 6) {
                             if let progress = studio.progress ?? uploadProgress {
                                 ProgressView(value: progress)
@@ -244,6 +227,7 @@ struct StudioView: View {
                     }
                 }
                 .toolbar {
+                    ToolbarItem(placement: .primaryAction) { if studio.reviewing { Button("녹음 화면") { studio.returnToRecording() } } }
                     ToolbarItem(placement: .cancellationAction) { Button("닫기") { if studio.recording || studio.processing || publishing { confirmClose = true } else { studio.shutdown(); dismiss() } } }
                     ToolbarItemGroup(placement: .keyboard) { Spacer(); Button("완료") { editingDescription = false } }
                 }
@@ -263,15 +247,32 @@ struct StudioView: View {
                 }
         }
     }
-    private func lyricText(_ index: Int) -> String {
-        let line = studio.words[index].1
-        guard studio.duetFirst || studio.duetParentID != nil, studio.duetLines.indices.contains(index) else { return line }
-        guard studio.duetMode == "lyrics" else { return line }
-        return "[\(DuetGuide.title(part: studio.duetLines[index], ownPart: studio.ownPart))] " + line
+    @ViewBuilder private var recordingControls: some View {
+        if studio.countdown > 0 {
+            HStack { Text("\(studio.countdown)").font(.largeTitle.bold()).monospacedDigit(); Text("곧 녹음을 시작합니다"); Spacer(); Button("시작 취소") { studio.cancelCountdown() } }
+        } else if studio.recording {
+            VStack(spacing: 10) {
+                HStack {
+                    Button(studio.paused ? "이어 부르기" : "일시정지") { studio.togglePause() }.buttonStyle(.bordered)
+                    Button("녹음 멈추기") { studio.finish() }.buttonStyle(.borderedProminent).tint(Brand.pink)
+                }
+                if studio.paused { restartButton }
+            }
+        } else if studio.draft != nil {
+            HStack {
+                restartButton
+                Button("녹음 확인·편집") { studio.reviewRecording() }.buttonStyle(.bordered).accessibilityIdentifier("review-recording")
+            }
+        } else {
+            Button { Task { await studio.start() } } label: { Label(studio.elapsed > 0 ? "선택한 위치부터 녹음" : "녹음 시작", systemImage: "record.circle").font(.headline).padding(10).frame(maxWidth: .infinity) }
+                .buttonStyle(.borderedProminent).tint(Brand.pink).foregroundStyle(.black)
+                .disabled(!studio.ready || studio.guideIssue != nil).accessibilityIdentifier("start-recording")
+        }
     }
-    private func lyricColor(_ index: Int) -> Color {
-        guard studio.duetMode == "lyrics", studio.duetLines.indices.contains(index) else { return Brand.pink }
-        return studio.duetLines[index] == studio.ownPart || studio.duetLines[index] == "both" ? Brand.pink : Brand.aqua
+    private var restartButton: some View {
+        Button { Task { published = false; ownVoice = false; rights = false; duetConsent = false; await studio.restartRecording() } } label: { Label("다시 시작", systemImage: "arrow.counterclockwise") }
+            .buttonStyle(.borderedProminent).tint(Brand.pink).accessibilityIdentifier("restart-recording")
+            .disabled(studio.guideIssue != nil)
     }
     private func publish() async {
         publishing = true; uploadProgress = nil; defer { publishing = false; uploadProgress = nil }

@@ -31,6 +31,7 @@
 		73E72815743A5967D73D9805 /* AudioEditing.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5913257B56E08051933D209 /* AudioEditing.swift */; };
 		79C7D8E3E47120A3C56BAD8A /* OctoberParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76741E3A30A94034F62B5726 /* OctoberParityTests.swift */; };
 		7B28F024BBF17959C8A9B3AE /* StorePayments.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB12684621CBB687AB1527AC /* StorePayments.swift */; };
+		7EC69A9BAF05AC614F39CB12 /* StudioControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1003BCE58767B461F6F1CDC /* StudioControls.swift */; };
 		85B09B55B6332721CD6CE187 /* ParityComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B84E44B9057A8D8AD61A7C6 /* ParityComponents.swift */; };
 		8CEBBEE5EE8A6BB65AD9EFBE /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 44DDB8BCB12989364D6D189A /* PrivacyInfo.xcprivacy */; };
 		92303E058B1A907A04B2581F /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = EC4204A2EA4BE158F9C71043 /* GoogleService-Info.plist */; };
@@ -100,6 +101,7 @@
 		854C65D04DBD75D2E6E5FE40 /* RecordingStudio.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingStudio.swift; sourceTree = "<group>"; };
 		A1315480CDA512E7BA60E766 /* AIFECTTesting.storekit */ = {isa = PBXFileReference; path = AIFECTTesting.storekit; sourceTree = "<group>"; };
 		AF42175B52E11CCDAF6383A4 /* AIFECTUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = AIFECTUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		B1003BCE58767B461F6F1CDC /* StudioControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudioControls.swift; sourceTree = "<group>"; };
 		B2C391BE165B0A488446D971 /* AIFECT.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = AIFECT.entitlements; sourceTree = "<group>"; };
 		B5913257B56E08051933D209 /* AudioEditing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioEditing.swift; sourceTree = "<group>"; };
 		B76FEEC38A029273DA5D2BC3 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -181,6 +183,7 @@
 				5FD33952AB1DE90E526C458B /* RemoteArtwork.swift */,
 				38A348F7A00237063BB365A0 /* SocialViews.swift */,
 				FB12684621CBB687AB1527AC /* StorePayments.swift */,
+				B1003BCE58767B461F6F1CDC /* StudioControls.swift */,
 				3678DFEB2FBF4FBEC41F2CD9 /* StudioViews.swift */,
 				EFABB532B2D6E02B9B68E3A4 /* TrackCommentsView.swift */,
 				6F5CA6D5F4EDA9608C55923E /* VocalSettings.swift */,
@@ -432,6 +435,7 @@
 				D4853CDB2E3B8AB0E758C513 /* RemoteArtwork.swift in Sources */,
 				E2D56A056209E55C424EB29C /* SocialViews.swift in Sources */,
 				7B28F024BBF17959C8A9B3AE /* StorePayments.swift in Sources */,
+				7EC69A9BAF05AC614F39CB12 /* StudioControls.swift in Sources */,
 				BA7D76FF4E55E3B7D9BB0DEC /* StudioViews.swift in Sources */,
 				2BA68AB23FC4FE6F0F35B8CF /* TrackCommentsView.swift in Sources */,
 				AAD2D4D0FD06441FEC84611B /* VocalSettings.swift in Sources */,
@@ -502,7 +506,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 9;
+				CURRENT_PROJECT_VERSION = 10;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 3KJFQS7Q83;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -649,7 +653,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 9;
+				CURRENT_PROJECT_VERSION = 10;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = 3KJFQS7Q83;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;

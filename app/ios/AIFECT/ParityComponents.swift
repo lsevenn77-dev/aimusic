@@ -114,15 +114,36 @@ private struct FreshStudio: Identifiable { let id = UUID(); let studio: Recordin
 struct SingSongButton: View {
     @EnvironmentObject private var model: AppModel
     let song: Song
-    var title = "이 곡 부르기"
+    var title = "이 노래 부르기"
     var color: Color = Brand.pink
     @State private var target: FreshStudio?
+    @State private var resolving = false
+    @State private var login = false
+    @State private var error: String?
     var body: some View {
         Button {
-            guard model.requireLogin(), let owner = model.userID else { return }
-            model.player.pause(); target = FreshStudio(studio: RecordingStudio(song: song, owner: owner))
-        } label: { Label(title, systemImage: "mic.fill") }.buttonStyle(ParityPill(color: color, filled: true))
+            guard model.userID != nil else { login = true; return }
+            openStudio()
+        } label: { Label(resolving ? "반주 확인 중…" : title, systemImage: "mic.fill") }.buttonStyle(ParityPill(color: color, filled: true)).disabled(resolving)
             .fullScreenCover(item: $target) { StudioView(studio: $0.studio) }
+            .sheet(isPresented: $login, onDismiss: { if model.userID != nil { openStudio() } }) { LoginView() }
+            .onChange(of: model.userID) { _, owner in if owner != nil && login { login = false } }
+            .alert("부르기 안내", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) { Button("확인") { error = nil } } message: { Text(error ?? "") }
+    }
+    private func openStudio() {
+        guard let owner = model.userID, !resolving else { return }
+        resolving = true
+        Task {
+            defer { resolving = false }
+            do {
+                let id = song.originalID ?? song.id
+                let data = try await API.shared.call("/api/karaoke/\(Endpoint.pathID(id))")
+                guard model.userID == owner else { return }
+                let original = Song(data.object("track"))
+                guard original.id == id else { throw APIError(status: 0, message: "이 곡의 반주를 아직 준비하지 못했어요.") }
+                model.player.pause(); target = FreshStudio(studio: RecordingStudio(song: original, owner: owner))
+            } catch { self.error = error.localizedDescription }
+        }
     }
 }
 struct MusicGrid: View {
