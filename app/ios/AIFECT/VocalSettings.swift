@@ -10,13 +10,17 @@ struct VocalSettings: Codable, Equatable {
     var voice: Float = 1
     var backing: Float = 0.8
     var offset = 0.0
-    static let presets = [("original", "원음"), ("karaoke", "노래방"), ("studio", "스튜디오"), ("hall", "홀")]
+    static let presets = [("original", "원음"), ("karaoke", "노래방"), ("studio", "스튜디오"), ("hall", "홀"), ("rap", "랩")]
+    // Apple's delay mix grows audibly at very small values. A quadratic
+    // control keeps the first few steps subtle instead of jumping into an echo.
+    static func echoWetMix(_ control: Float) -> Float { pow(min(20, max(0, control)), 2) * 0.01 }
     mutating func select(_ id: String) {
         preset = id
         switch id {
-        case "karaoke": echo = 24; room = 65; size = 0.55; tone = 0.65
-        case "studio": echo = 2.5; room = 30; size = 0.15; tone = 1
-        case "hall": echo = 7; room = 90; size = 0.95; tone = 0.7
+        case "karaoke": echo = 5; room = 10; size = 0.45; tone = 0.5
+        case "studio": echo = 0; room = 4; size = 0.15; tone = 0.7
+        case "hall": echo = 2; room = 24; size = 0.95; tone = 0.4
+        case "rap": echo = 0; room = 0; size = 0.1; tone = 0.8
         default: echo = 0; room = 0; size = 0.5; tone = 0
         }
     }

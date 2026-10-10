@@ -29,6 +29,16 @@ final class RecordingStudio: NSObject, ObservableObject, AVAudioPlayerDelegate {
     @Published var recording = false
     @Published var paused = false
     @Published var processing = false
+    @Published var progress: Double? = nil
+    @Published var processingTitle = "오디오 준비 중"
+    @Published var previewPosition = 0.0
+    private var audition: RecordingPreview?
+    private var workControl: AudioWorkControl?
+    private var takeStart = 0.0
+    private var priorLength = 0.0
+    private var takeURL: URL?
+    private var closed = false
+    private var monitorTask: Task<Void, Never>?
     @Published var elapsed = 0.0
     @Published var level: Float = 0
     @Published private(set) var waveform: [Float] = []
@@ -37,17 +47,21 @@ final class RecordingStudio: NSObject, ObservableObject, AVAudioPlayerDelegate {
     @Published var draft: RecordingDraft?
     @Published var exportURL: URL?
     @Published var previewing = false
-    @Published var voiceVolume: Float = 1
-    @Published var backingVolume: Float = 0.8
-    @Published var reverb: Float = 12
-    @Published var sync = 0.0
-    @Published var effects = VocalSettings()
+    @Published var voiceVolume: Float = 1 { didSet { settingsChanged() } }
+    @Published var backingVolume: Float = 0.8 { didSet { backing?.volume = backingVolume; settingsChanged() } }
+    @Published var reverb: Float = 12 { didSet { settingsChanged() } }
+    @Published var sync = 0.0 { didSet { settingsChanged() } }
+    @Published var effects = VocalSettings() { didSet { settingsChanged() } }
     @Published var countdown = 0
     private var starting = false
     private var countdownGeneration = 0
     private func saveSettings() {
-        effects.voice = voiceVolume; effects.backing = backingVolume; effects.offset = sync; effects.room = reverb
-        if let bytes = try? JSONEncoder().encode(effects) { try? bytes.write(to: folder.appendingPathComponent("settings.json"), options: .atomic) }
+        if let bytes = try? JSONEncoder().encode(currentSettings) { try? bytes.write(to: folder.appendingPathComponent("settings.json"), options: .atomic) }
+    }
+    var currentSettings: VocalSettings { var value = effects; value.voice = voiceVolume; value.backing = backingVolume; value.offset = sync; value.room = reverb; return value }
+    private func settingsChanged() {
+        exportURL = nil
+        do { try audition?.update(currentSettings) } catch { self.error = error.localizedDescription }
     }
     func selectPreset(_ id: String) { effects.select(id); reverb = effects.room; saveSettings() }
     func cancelCountdown() { countdownGeneration += 1; countdown = 0; starting = false }
@@ -68,10 +82,21 @@ final class RecordingStudio: NSObject, ObservableObject, AVAudioPlayerDelegate {
     }
     func fillUnassignedDuetLines() { guard duetParentID == nil, !recording else { return }; duetLines = duetLines.map { $0.isEmpty ? "B" : $0 } }
     func updateMonitor() {
-        liveMonitor.stop(); monitorMessage = nil
-        guard monitorEnabled, recording, !paused else { return }
-        do { try liveMonitor.start(volume: monitorVolume) }
-        catch { monitorMessage = error.localizedDescription }
+        monitorTask?.cancel(); liveMonitor.stop(); monitorMessage = nil
+        guard monitorEnabled, draft == nil, !closed else { return }
+        monitorTask = Task { [weak self] in
+            guard let self else { return }
+            let allowed = await AVAudioApplication.requestRecordPermission()
+            guard !Task.isCancelled, self.monitorEnabled, !self.closed else { return }
+            guard allowed else { self.monitorMessage = "설정에서 마이크 접근을 허용해주세요."; return }
+            do {
+                let session = AVAudioSession.sharedInstance()
+                try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetoothHFP])
+                try session.setPreferredIOBufferDuration(0.005); try session.setActive(true)
+                try self.liveMonitor.start(volume: self.monitorVolume)
+                self.monitorMessage = "모니터링 중 · 내 목소리를 듣고 있어요."
+            } catch { self.monitorMessage = error.localizedDescription }
+        }
     }
     let duetParentID: String?
     let song: Song
@@ -89,23 +114,31 @@ final class RecordingStudio: NSObject, ObservableObject, AVAudioPlayerDelegate {
         self.duetFirst = draft?.duetFirst ?? false; self.duetLines = draft?.duetLines ?? []; self.duetMode = draft?.duetMode ?? ((draft?.duetLines?.isEmpty == false) ? "lyrics" : "free")
         if self.duetParentID != nil { self.backingVolume = 1 }
         folder = draft?.directory ?? RecordingDraft.root.appendingPathComponent(UUID().uuidString, isDirectory: true)
-        elapsed = draft?.length ?? 0
+        elapsed = draft?.length ?? 0; priorLength = draft?.length ?? 0
         super.init()
         if let data = try? Data(contentsOf: folder.appendingPathComponent("settings.json")), let value = try? JSONDecoder().decode(VocalSettings.self, from: data) {
-            effects = value; voiceVolume = value.voice; backingVolume = value.backing; sync = value.offset; reverb = value.room
+            effects = value; effects.echo = min(20, max(0, value.echo)); voiceVolume = value.voice; backingVolume = value.backing; sync = value.offset; reverb = value.room
         } else { effects.select("studio"); reverb = effects.room }
         interruption = NotificationCenter.default.addObserver(forName: AVAudioSession.interruptionNotification, object: nil, queue: .main) { [weak self] _ in
-            Task { @MainActor in self?.finish(); self?.stopPreview() }
+            Task { @MainActor in self?.cancelCountdown(); self?.monitorEnabled = false; self?.finish(); self?.stopPreview() }
         }
         routeObserver = NotificationCenter.default.addObserver(forName: AVAudioSession.routeChangeNotification, object: nil, queue: .main) { [weak self] note in
             if (note.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt) == AVAudioSession.RouteChangeReason.oldDeviceUnavailable.rawValue {
-                Task { @MainActor in self?.finish(); self?.stopPreview() }
+                Task { @MainActor in self?.cancelCountdown(); self?.monitorEnabled = false; self?.finish(); self?.stopPreview() }
             }
         }
     }
     func prepare() async {
-        if draft != nil { ready = true; await loadWaveform(); return }
-        processing = true; defer { processing = false }
+        closed = false
+        if draft != nil {
+            if let data = try? Data(contentsOf: folder.appendingPathComponent("lyrics.json")), let rows = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] { words = rows.map { ($0.number("time"), $0.string("text")) } }
+            ready = true; await loadWaveform()
+            if words.isEmpty, let data = try? await API.shared.call(duetParentID.map { "/api/duets/\(Endpoint.pathID($0))" } ?? "/api/karaoke/\(Endpoint.pathID(song.id))") {
+                words = data.objects("words").map { ($0.number("s"), $0.objects("w").map { $0.string("t") }.joined(separator: " ")) }
+            }
+            return
+        }
+        processing = true; processingTitle = "반주 준비 중"; progress = nil; defer { processing = false }
         do {
             let data = try await API.shared.call(duetParentID.map { "/api/duets/\(Endpoint.pathID($0))" } ?? "/api/karaoke/\(Endpoint.pathID(song.id))")
             words = data.objects("words").map { ($0.number("s"), $0.objects("w").map { $0.string("t") }.joined(separator: " ")) }
@@ -116,11 +149,12 @@ final class RecordingStudio: NSObject, ObservableObject, AVAudioPlayerDelegate {
             try Task.checkCancellation()
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
             try audio.write(to: folder.appendingPathComponent("backing.m4a"), options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+            try JSONSerialization.data(withJSONObject: words.map { ["time": $0.0, "text": $0.1] }).write(to: folder.appendingPathComponent("lyrics.json"), options: .atomic)
             ready = true
         } catch is CancellationError {} catch { self.error = error.localizedDescription }
     }
     func start() async {
-        guard ready, !recording, !starting, draft == nil else { return }
+        guard ready, !recording, !starting, !processing, draft == nil, !closed else { return }
         if let guideIssue { error = guideIssue; return }
         starting = true
         countdownGeneration += 1
@@ -139,9 +173,11 @@ final class RecordingStudio: NSObject, ObservableObject, AVAudioPlayerDelegate {
             }
             guard generation == countdownGeneration else { return }
             countdown = 0
-            let recorder = try AVAudioRecorder(url: folder.appendingPathComponent("voice.wav"), settings: [AVFormatIDKey: kAudioFormatLinearPCM,
+            let take = folder.appendingPathComponent("take-\(UUID().uuidString).wav")
+            let recorder = try AVAudioRecorder(url: take, settings: [AVFormatIDKey: kAudioFormatLinearPCM,
                 AVSampleRateKey: 44100, AVNumberOfChannelsKey: 1, AVLinearPCMBitDepthKey: 16, AVLinearPCMIsFloatKey: false, AVLinearPCMIsBigEndianKey: false])
             let backing = try AVAudioPlayer(contentsOf: folder.appendingPathComponent("backing.m4a"))
+            backing.currentTime = elapsed; takeStart = elapsed; takeURL = take
             recorder.isMeteringEnabled = true; recorder.prepareToRecord(); backing.prepareToPlay(); backing.volume = backingVolume
             let startTime = max(recorder.deviceCurrentTime, backing.deviceCurrentTime) + 0.25
             guard recorder.record(atTime: startTime), backing.play(atTime: startTime) else { recorder.stop(); backing.stop(); throw APIError(status: 0, message: "녹음을 시작하지 못했습니다.") }
@@ -160,46 +196,95 @@ final class RecordingStudio: NSObject, ObservableObject, AVAudioPlayerDelegate {
     }
     func finish() {
         guard recording else { return }
-        let duration = recorder?.currentTime ?? elapsed
-        liveMonitor.stop(); recorder?.stop(); backing?.stop(); timer?.invalidate(); timer = nil
-        recording = false; paused = false; elapsed = duration
-        guard duration > 0.1 else { return }
-        let saved = RecordingDraft(id: folder.lastPathComponent, owner: owner, song: song, date: Date(), length: duration, duetParentID: duetParentID, duetFirst: duetFirst, duetLines: duetMode == "lyrics" ? duetLines : [], duetMode: duetMode)
-        do {
-            try JSONEncoder().encode(saved).write(to: folder.appendingPathComponent("draft.json"), options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
-            draft = saved
-            Task { await loadWaveform() }
-        } catch { self.error = "녹음은 남아 있지만 초안 정보를 저장하지 못했습니다: \(error.localizedDescription)" }
+        let duration = recorder?.currentTime ?? 0
+        monitorTask?.cancel(); liveMonitor.stop(); recorder?.stop(); backing?.stop(); timer?.invalidate(); timer = nil
+        recording = false; paused = false
+        guard duration > 0.1, let takeURL else { return }
+        elapsed = max(priorLength, takeStart + duration)
+        processing = true; processingTitle = "초안 저장 중"; progress = 0
+        let folder = folder, start = takeStart, prior = priorLength
+        Task {
+            do {
+                let length = try await Task.detached(priority: .userInitiated) {
+                    try RecordingSplice.merge(folder: folder, take: takeURL, start: start, priorLength: prior) { value in Task { @MainActor [weak self] in self?.progress = value } }
+                }.value
+                elapsed = length; priorLength = length
+                let saved = RecordingDraft(id: folder.lastPathComponent, owner: owner, song: song, date: Date(), length: length, duetParentID: duetParentID, duetFirst: duetFirst, duetLines: duetMode == "lyrics" ? duetLines : [], duetMode: duetMode)
+                try JSONEncoder().encode(saved).write(to: folder.appendingPathComponent("draft.json"), options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+                draft = saved; previewPosition = min(takeStart, length); audition = nil; saveSettings()
+                await loadWaveform()
+                try? FileManager.default.removeItem(at: takeURL)
+            } catch { self.error = "원본 녹음은 보관되어 있습니다. 초안 저장 실패: \(error.localizedDescription)" }
+            processing = false; progress = nil
+        }
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    }
+    func selectRecordingPosition(_ seconds: Double) {
+        guard !recording, !processing, countdown == 0 else { return }
+        stopPreview(); audition = nil
+        if FileManager.default.fileExists(atPath: folder.appendingPathComponent("submission.json").path) {
+            let next = RecordingDraft.root.appendingPathComponent(UUID().uuidString, isDirectory: true)
+            do {
+                try FileManager.default.createDirectory(at: next, withIntermediateDirectories: true)
+                for name in ["voice.wav", "backing.m4a", "lyrics.json", "settings.json"] {
+                    let source = folder.appendingPathComponent(name)
+                    if FileManager.default.fileExists(atPath: source.path) { try FileManager.default.copyItem(at: source, to: next.appendingPathComponent(name)) }
+                }
+                folder = next
+            } catch { self.error = error.localizedDescription; return }
+        }
+        priorLength = max(priorLength, draft?.length ?? 0)
+        draft = nil; elapsed = max(0, min(seconds, min(song.duration > 0 ? song.duration : 600, 600) - 0.1))
+        updateMonitor()
     }
     private func loadWaveform() async {
         let url = folder.appendingPathComponent("voice.wav")
         waveform = (try? await Task.detached(priority: .utility) { try AudioMixer.waveform(url: url) }.value) ?? []
     }
-    func stopPreview() { previewPlayer?.stop(); previewing = false }
+    func stopPreview() { if previewing { previewPosition = audition?.position ?? previewPosition }; audition?.stop(); previewPlayer?.stop(); previewing = false }
+    func togglePreview() {
+        guard let draft, !processing else { return }
+        if previewing { stopPreview(); return }
+        do {
+            if audition == nil { audition = try RecordingPreview(folder: folder, duration: draft.length) }
+            try audition?.update(currentSettings)
+            if previewPosition >= draft.length - 0.05 { previewPosition = 0 }
+            try audition?.play(from: previewPosition); previewing = true
+            timer?.invalidate(); timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+                Task { @MainActor in guard let self, self.previewing else { return }; self.previewPosition = self.audition?.position ?? 0; if self.previewPosition >= (self.draft?.length ?? 0) { self.stopPreview() } }
+            }
+        } catch { self.error = error.localizedDescription }
+    }
+    func seekPreview(_ seconds: Double) {
+        let target = max(0, min(seconds, draft?.length ?? 0)); previewPosition = target
+        if previewing { do { try audition?.play(from: target) } catch { self.error = error.localizedDescription } }
+    }
     func newTake() async {
         guard !recording, !processing else { return }
         stopPreview(); saveSettings()
         folder = RecordingDraft.root.appendingPathComponent(UUID().uuidString, isDirectory: true)
-        draft = nil; exportURL = nil; waveform = []; elapsed = 0; ready = false; error = nil
+        draft = nil; exportURL = nil; waveform = []; elapsed = 0; priorLength = 0; audition = nil; previewPosition = 0; ready = false; error = nil
         await prepare()
     }
-    func shutdown() { cancelCountdown(); finish(); stopPreview(); saveSettings(); timer?.invalidate() }
+    func resume() { closed = false }
+    func shutdown() { closed = true; monitorEnabled = false; cancelCountdown(); monitorTask?.cancel(); liveMonitor.stop(); workControl?.cancel(); finish(); stopPreview(); saveSettings(); timer?.invalidate() }
     private func tick() {
         guard recording, !paused else { return }
-        elapsed = recorder?.currentTime ?? 0
+        elapsed = takeStart + (recorder?.currentTime ?? 0)
         recorder?.updateMeters(); level = pow(10, (recorder?.averagePower(forChannel: 0) ?? -80) / 20)
         if elapsed >= (song.duration > 0 ? min(song.duration, 600) : 600) { finish() }
     }
     func mix(preview: Bool) async {
         guard let draft, !processing else { return }
-        stopPreview(); processing = true; error = nil
-        defer { processing = false }
+        if preview { togglePreview(); return }
+        stopPreview(); processing = true; processingTitle = "WAV 저장 중"; progress = 0; error = nil
+        let control = AudioWorkControl(); workControl = control
+        defer { processing = false; progress = nil; workControl = nil }
         saveSettings()
-        let folder = folder, voice = voiceVolume, music = backingVolume, room = reverb, offset = sync, effects = effects
+        let folder = folder, voice = voiceVolume, music = backingVolume, room = reverb, offset = sync, effects = currentSettings
         do {
             let output = try await Task.detached(priority: .userInitiated) {
-                try AudioMixer.render(folder: folder, duration: draft.length, voice: voice, backing: music, reverb: room, offset: offset, effects: effects)
+                try AudioMixer.render(folder: folder, duration: draft.length, voice: voice, backing: music, reverb: room, offset: offset, effects: effects, control: control) { value in Task { @MainActor [weak self] in self?.progress = value } }
             }.value
             exportURL = output
             if preview {
@@ -208,7 +293,7 @@ final class RecordingStudio: NSObject, ObservableObject, AVAudioPlayerDelegate {
                 previewPlayer = try AVAudioPlayer(contentsOf: output); previewPlayer?.delegate = self
                 previewPlayer?.play(); previewing = true
             }
-        } catch { self.error = error.localizedDescription }
+        } catch is CancellationError { exportURL = nil } catch { self.error = error.localizedDescription }
     }
     nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
         Task { @MainActor in self.previewing = false }
@@ -236,21 +321,14 @@ enum AudioMixer {
         }
         return peaks
     }
-    static func render(folder: URL, duration: Double, voice: Float, backing: Float, reverb: Float, offset: Double, effects: VocalSettings? = nil) throws -> URL {
-        let engine = AVAudioEngine(), mic = AVAudioPlayerNode(), music = AVAudioPlayerNode(), room = AVAudioUnitReverb()
-        let source = try VocalNoiseCleaner.clean(folder.appendingPathComponent("voice.wav"), destination: folder.appendingPathComponent("cleaned.caf"), level: effects?.noise ?? 0)
-        let vocal = try AVAudioFile(forReading: source)
+    static func render(folder: URL, duration: Double, voice: Float, backing: Float, reverb: Float, offset: Double, effects: VocalSettings? = nil, control: AudioWorkControl? = nil, progress: @Sendable (Double) -> Void = { _ in }) throws -> URL {
+        let engine = AVAudioEngine(), mic = AVAudioPlayerNode(), music = AVAudioPlayerNode()
+        let vocal = try AVAudioFile(forReading: folder.appendingPathComponent("voice.wav"))
         let mr = try AVAudioFile(forReading: folder.appendingPathComponent("backing.m4a"))
-        let echo = AVAudioUnitDelay(), tone = AVAudioUnitEQ(numberOfBands: 2)
-        engine.attach(mic); engine.attach(music); engine.attach(room); engine.attach(echo); engine.attach(tone)
-        room.loadFactoryPreset((effects?.size ?? 0.5) > 0.8 ? .largeHall : ((effects?.size ?? 0.5) < 0.3 ? .smallRoom : .mediumHall)); room.wetDryMix = min(50, max(0, reverb * 0.5))
-        echo.delayTime = 0.235; echo.feedback = 32; echo.wetDryMix = min(65, max(0, effects?.echo ?? 0))
-        tone.bands[0].filterType = .lowShelf; tone.bands[0].frequency = 250; tone.bands[0].gain = -3 * (effects?.tone ?? 0); tone.bands[0].bypass = false
-        tone.bands[1].filterType = .highShelf; tone.bands[1].frequency = 3500; tone.bands[1].gain = 2 * (effects?.tone ?? 0); tone.bands[1].bypass = false
-        engine.connect(mic, to: tone, format: vocal.processingFormat)
-        engine.connect(tone, to: echo, format: vocal.processingFormat)
-        engine.connect(echo, to: room, format: vocal.processingFormat)
-        engine.connect(room, to: engine.mainMixerNode, format: vocal.processingFormat)
+        let chain = VocalEffectChain()
+        engine.attach(mic); engine.attach(music)
+        chain.connect(mic, engine: engine, format: vocal.processingFormat)
+        var settings = effects ?? VocalSettings(); settings.room = reverb; chain.apply(settings)
         engine.connect(music, to: engine.mainMixerNode, format: mr.processingFormat)
         mic.volume = voice; music.volume = backing
         let format = AVAudioFormat(standardFormatWithSampleRate: 44100, channels: 2)!
@@ -260,15 +338,18 @@ enum AudioMixer {
         let when = AVAudioTime(sampleTime: AVAudioFramePosition(max(0, offset) * vocal.processingFormat.sampleRate), atRate: vocal.processingFormat.sampleRate)
         mic.scheduleSegment(vocal, startingFrame: trim, frameCount: AVAudioFrameCount(vocal.length - trim), at: when)
         music.scheduleFile(mr, at: nil)
-        let output = folder.appendingPathComponent("AIFECT-cover.wav")
+        let output = folder.appendingPathComponent("AIFECT-cover-\(UUID().uuidString).wav")
+        var completed = false
+        defer { if !completed { try? FileManager.default.removeItem(at: output) } }
         let writer = try AVAudioFile(forWriting: output, settings: [AVFormatIDKey: kAudioFormatLinearPCM, AVSampleRateKey: 44100,
             AVNumberOfChannelsKey: 2, AVLinearPCMBitDepthKey: 16, AVLinearPCMIsFloatKey: false, AVLinearPCMIsBigEndianKey: false])
         try engine.start(); mic.play(); music.play()
         defer { engine.stop() }
         let buffer = AVAudioPCMBuffer(pcmFormat: engine.manualRenderingFormat, frameCapacity: engine.manualRenderingMaximumFrameCount)!
         let length = AVAudioFramePosition(duration * 44100)
-        var stalls = 0
+        var stalls = 0, lastPercent = -1
         while engine.manualRenderingSampleTime < length {
+            try control?.check()
             let count = AVAudioFrameCount(min(Int64(buffer.frameCapacity), length - engine.manualRenderingSampleTime))
             let status = try engine.renderOffline(count, to: buffer)
             switch status {
@@ -280,6 +361,8 @@ enum AudioMixer {
                     } }
                 }
                 try writer.write(from: buffer); stalls = 0
+                let percent = Int(engine.manualRenderingSampleTime * 100 / max(1, length))
+                if percent != lastPercent { lastPercent = percent; progress(Double(engine.manualRenderingSampleTime) / Double(max(1, length))) }
             case .insufficientDataFromInputNode, .cannotDoInCurrentContext:
                 stalls += 1
                 if stalls > 100 { throw APIError(status: 0, message: "녹음 합성을 완료하지 못했습니다.") }
@@ -287,6 +370,7 @@ enum AudioMixer {
             @unknown default: throw APIError(status: 0, message: "지원하지 않는 오디오 상태입니다.")
             }
         }
+        completed = true; progress(1)
         return output
     }
 }

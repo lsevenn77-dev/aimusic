@@ -178,7 +178,7 @@ struct CommunityMusicCard: View {
             HStack(spacing: 16) {
                 Button { Task { await model.toggleLike(song) } } label: { Label("\(song.likes)", systemImage: model.likes.contains(where: { $0.id == song.id }) ? "heart.fill" : "heart") }.foregroundStyle(Brand.pink)
                 Button { detail = true } label: { Label("\(song.comments)", systemImage: "bubble.left") }
-                NavigationLink("선물") { GiftWalletView(song: song) }.foregroundStyle(Brand.pink)
+                GiftSheetButton(song: song) { Text("선물") }.foregroundStyle(Brand.pink)
                 Spacer(); Text("\(song.plays ?? 0)회")
             }.font(.system(size: 13)).foregroundStyle(AifectDesign.muted).frame(minHeight: 44)
             if song.isCover, let original = model.singable.first(where: { $0.id == song.originalID }) {

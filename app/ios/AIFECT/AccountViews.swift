@@ -285,20 +285,10 @@ struct TrackDetailView: View {
                         Button { model.player.play(song, queue: [song]) } label: { Label("재생", systemImage: "play.fill") }.buttonStyle(.borderedProminent)
                         Button { Task { busy = true; await model.toggleLike(song); busy = false } } label: { Label("좋아요", systemImage: model.likes.contains(where: { $0.id == song.id }) ? "heart.fill" : "heart") }.buttonStyle(.bordered).disabled(busy)
                         if model.user != nil {
-                            Menu {
-                                if model.playlists.isEmpty { Text("보관함에서 목록을 먼저 만들어주세요") }
-                                ForEach(model.playlists, id: \.selfID) { list in
-                                    Button(list.string("name")) {
-                                        Task {
-                                            do { _ = try await API.shared.call("/api/playlists/\(Endpoint.pathID(list.string("id")))/tracks/\(Endpoint.pathID(song.id))", method: "PUT", body: [:]); model.notice = "플레이리스트에 추가했습니다." }
-                                            catch { self.error = error.localizedDescription }
-                                        }
-                                    }
-                                }
-                            } label: { Image(systemName: "text.badge.plus").frame(width: 44, height: 44) }.accessibilityLabel("플레이리스트에 추가")
+                            SaveMusicButton(song: song, compact: true)
                         }
                     }
-                    if model.user != nil { NavigationLink("선물 보내기") { GiftWalletView(song: song) } }
+                    if model.user != nil { GiftSheetButton(song: song) { Label("선물 보내기", systemImage: "gift") } }
                     if let id = song.producerID { NavigationLink("창작자 프로필") { ProfilePage(id: id) } }
                     if let id = song.artistID { NavigationLink("아티스트 프로필") { ProfilePage(id: id, kind: "artist") } }
                     Divider()

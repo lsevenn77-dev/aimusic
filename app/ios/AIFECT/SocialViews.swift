@@ -43,7 +43,7 @@ struct ProfilePage: View {
                             Button(following ? "팔로잉" : "팔로우") { Task { await follow() } }.buttonStyle(ParityPill(color: Brand.pink, filled: true)).disabled(busy)
                             if kind == "producer" {
                                 Button("메시지") { if model.requireLogin() { showChat = true } }.buttonStyle(ParityPill(color: AifectDesign.secondaryText))
-                                NavigationLink { GiftWalletView(person: GiftRecipient(id: id, name: person.displayName())) } label: { Label("선물", systemImage: "gift") }.buttonStyle(ParityPill(color: Brand.pink))
+                                GiftSheetButton(person: GiftRecipient(id: id, name: person.displayName())) { Label("선물", systemImage: "gift") }.buttonStyle(ParityPill(color: Brand.pink))
                             }
                         }
                     }
@@ -130,7 +130,7 @@ struct ProfileEditorView: View {
 }
 struct MessagesView: View {
     @EnvironmentObject var model: AppModel
-    @State private var conversations: [[String: Any]] = []
+    private var conversations: [[String: Any]] { model.inboxConversations }
     @State private var error: String?
     @State private var deleteAll = false
     @State private var busy = false
@@ -170,10 +170,10 @@ struct MessagesView: View {
                         }.padding(16).background(Brand.card, in: RoundedRectangle(cornerRadius: 18))
                     }.buttonStyle(.plain)
                 }
-                if let error { Text(error).foregroundStyle(.red) }
+                if error != nil { Button("메시지 다시 불러오기") { Task { await load() } }.font(.caption).foregroundStyle(.secondary) }
             }.padding(20)
         }.task(id: model.userID) {
-            conversations = []; revision += 1
+            revision += 1
             while !Task.isCancelled {
                 await load()
                 do { try await Task.sleep(for: .seconds(5)) } catch { break }
@@ -189,7 +189,7 @@ struct MessagesView: View {
         do {
             let data = try await API.shared.call("/api/dm")
             guard owner == model.userID, version == revision, !Task.isCancelled else { return }
-            conversations = data.objects("conversations"); error = nil
+            model.inboxConversations = data.objects("conversations"); error = nil
             await model.refreshInbox()
         } catch { if owner == model.userID, version == revision, !Task.isCancelled { self.error = error.localizedDescription } }
     }
@@ -199,7 +199,7 @@ struct MessagesView: View {
         do {
             _ = try await API.shared.call("/api/dm", method: "DELETE")
             ChatCache.removeAll(owner: owner)
-            if owner == model.userID { conversations = []; error = nil }
+            if owner == model.userID { model.inboxConversations = []; error = nil }
         } catch { if owner == model.userID { self.error = error.localizedDescription } }
         busy = false; await load()
     }
@@ -495,7 +495,7 @@ struct MyMusicView: View {
                     }
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 20) {
-                            NavigationLink("녹음 초안") { SingView(initialShowDrafts: true) }
+                            NavigationLink("녹음 초안") { RecordingDraftsView() }
                             NavigationLink("수익 · 정산") { CreatorEarningsView() }
                             NavigationLink("제작곡 올리기") { OriginalUploadView() }
                         }.font(.system(size: 13)).frame(minHeight: 44)
@@ -508,7 +508,16 @@ struct MyMusicView: View {
                         Button { grid = true } label: { Image(systemName: "square.grid.2x2").frame(width: 44, height: 44).foregroundStyle(grid ? Brand.aqua : AifectDesign.muted) }.accessibilityLabel("그리드 보기")
                         Button { grid = false } label: { Image(systemName: "list.bullet").frame(width: 44, height: 44).foregroundStyle(grid ? AifectDesign.muted : Brand.aqua) }.accessibilityLabel("목록 보기")
                     }
-                    if grid { MusicGrid(songs: visibleSongs) }
+                    if filter == "커버" || filter == "듀엣" {
+                        ForEach(visibleSongs) { song in
+                            VStack(alignment: .leading, spacing: 4) {
+                                SongRow(song: song, queue: visibleSongs)
+                                NavigationLink { TrackGiftRankingView(song: song) } label: {
+                                    Label("조회 \(song.plays ?? 0)회 · 받은 선물 / 응원한 사람 보기", systemImage: "gift").font(.caption).foregroundStyle(Brand.pink).frame(minHeight: 36)
+                                }
+                            }.padding(12).background(Brand.card, in: RoundedRectangle(cornerRadius: 16))
+                        }
+                    } else if grid { MusicGrid(songs: visibleSongs) }
                     else { ForEach(visibleSongs) { SongRow(song: $0, queue: visibleSongs) } }
                     if visibleSongs.isEmpty && error == nil { ContentUnavailableView("이 탭에 공개한 음악이 없어요", systemImage: "music.note", description: Text("제작곡과 커버를 공개하면 여기에 모여요.")) }
                 }
@@ -521,23 +530,25 @@ struct MyMusicView: View {
             }
     }
     private var profileCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                Text(profile.displayName(fallback: model.user?.displayName() ?? "내 프로필")).font(.system(size: 25, weight: .bold))
-                Spacer()
-                Button { account = true } label: { Image(systemName: "gearshape").frame(width: 44, height: 44) }.foregroundStyle(AifectDesign.secondaryText).accessibilityLabel("계정 설정")
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 14) {
+                ProfilePhoto(person: profile, size: 64).clipShape(RoundedRectangle(cornerRadius: 16))
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(profile.displayName(fallback: model.user?.displayName() ?? "내 프로필")).font(.headline)
+                    if !profile.string("bio").isEmpty { Text(profile.string("bio")).font(.caption).foregroundStyle(AifectDesign.muted).lineLimit(2) }
+                    NavigationLink("프로필 수정") { ProfileEditorView() }.font(.caption).foregroundStyle(Brand.aqua)
+                }
+                Spacer(minLength: 0)
+                Button { account = true } label: { Image(systemName: "gearshape").frame(width: 44, height: 44) }.accessibilityLabel("계정 설정")
             }
-            ResponsiveProfilePhoto(person: profile)
-            if !profile.string("id").isEmpty { NavigationLink { ProfileGiftRankingView(profileID: profile.string("id")) } label: { Label("선물 랭킹 TOP 50", systemImage: "trophy.fill").font(.system(size: 13)).frame(maxWidth: .infinity, minHeight: 44) } }
-            Text("팔로워 \(data.int("follower_count")) · 공개 음악 \(allSongs.count)").font(.system(size: 12)).foregroundStyle(AifectDesign.muted)
-            HStack(spacing: 6) {
-                profileStat("공개곡", allSongs.count)
-                NavigationLink { FollowingListView(followers: true) } label: { profileStat("팔로워", data.int("follower_count"), active: true) }
-                NavigationLink { FollowingListView() } label: { profileStat("팔로잉", data.int("following_count"), active: true) }
-            }.buttonStyle(.plain)
-            if !profile.string("bio").isEmpty { Text(profile.string("bio")).font(.system(size: 14)).foregroundStyle(AifectDesign.muted) }
-            NavigationLink { ProfileEditorView() } label: { Label("프로필 수정", systemImage: "pencil").frame(maxWidth: .infinity) }.buttonStyle(ParityPill(color: AifectDesign.secondaryText))
-        }.padding(20).background(Brand.card, in: RoundedRectangle(cornerRadius: 24))
+            HStack {
+                Text("공개곡 \(allSongs.count)")
+                NavigationLink("팔로워 \(data.int("follower_count"))") { FollowingListView(followers: true) }
+                NavigationLink("팔로잉 \(data.int("following_count"))") { FollowingListView() }
+                Spacer()
+                if !profile.string("id").isEmpty { NavigationLink { ProfileGiftRankingView(profileID: profile.string("id")) } label: { Image(systemName: "gift") }.accessibilityLabel("받은 선물") }
+            }.font(.caption).foregroundStyle(AifectDesign.secondaryText)
+        }.padding(16).background(Brand.card, in: RoundedRectangle(cornerRadius: 20))
     }
     private func profileStat(_ label: String, _ count: Int, active: Bool = false) -> some View {
         Text("\(label) \(count)").font(.system(size: 13, weight: .semibold)).foregroundStyle(active ? Brand.aqua : AifectDesign.text).frame(maxWidth: .infinity, minHeight: 50).background(Color(aifectHex: 0x222331), in: RoundedRectangle(cornerRadius: 13))

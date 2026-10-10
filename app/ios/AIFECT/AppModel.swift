@@ -13,11 +13,16 @@ final class AppModel: NSObject, ObservableObject, ASWebAuthenticationPresentatio
     @Published var playlists: [[String: Any]] = []
     @Published var user: [String: Any]?
     @Published private(set) var inboxUnread = 0
+    @Published var inboxConversations: [[String: Any]] = []
     @Published private(set) var inboxCrew: [String: Any]?
     private var inboxLoading = false
     @Published var loading = false
     @Published var error: String?
     @Published var notice: String?
+    @Published var chatOpen = false
+    @Published var walletRevision = 0
+    private var likeRequests = Set<String>()
+    private var likeRevision = 0
     @Published var showLogin = false
     @Published var providers: [String] = []
     @Published var emailEnabled = false
@@ -105,19 +110,20 @@ final class AppModel: NSObject, ObservableObject, ASWebAuthenticationPresentatio
         let version = accountRevision
         inboxLoading = true; defer { inboxLoading = false }
         do {
-            let data = try await API.shared.call("/api/dm/summary")
+            let data = try await API.shared.call("/api/dm")
             guard version == accountRevision, !Task.isCancelled else { return }
+            inboxConversations = data.objects("conversations")
             inboxUnread = data.int("unread")
             inboxCrew = data["crew"] as? [String: Any]
         } catch { /* The inbox screen exposes errors; background badge refresh stays quiet. */ }
     }
     func loadLibrary() async {
         guard user != nil else { return }
-        let version = accountRevision
+        let version = accountRevision, likesVersion = likeRevision
         do {
             let library = try await API.shared.call("/api/library")
             guard version == accountRevision else { return }
-            likes = library.songs("likes"); playlists = library.objects("collections")
+            if likesVersion == likeRevision && likeRequests.isEmpty { likes = library.songs("likes") }; playlists = library.objects("collections")
             let result = try await API.shared.call("/api/history")
             guard version == accountRevision else { return }
             history = result.songs()
@@ -125,10 +131,20 @@ final class AppModel: NSObject, ObservableObject, ASWebAuthenticationPresentatio
     }
     func toggleLike(_ song: Song) async {
         guard requireLogin() else { return }
+        let key = "\(accountRevision):\(song.id)"
+        guard !likeRequests.contains(key) else { return }
+        let version = accountRevision, wasLiked = likes.contains { $0.id == song.id }
+        likeRequests.insert(key); likeRevision += 1
+        if wasLiked { likes.removeAll { $0.id == song.id } } else { likes.insert(song, at: 0) }
+        defer { likeRequests.remove(key); likeRevision += 1 }
         do {
-            _ = try await API.shared.call("/api/tracks/\(Endpoint.pathID(song.id))/like", method: likes.contains(where: { $0.id == song.id }) ? "DELETE" : "PUT", body: [:])
-            await loadLibrary()
-        } catch { handle(error) }
+            _ = try await API.shared.call("/api/tracks/\(Endpoint.pathID(song.id))/like", method: wasLiked ? "DELETE" : "PUT", body: [:])
+        } catch {
+            guard version == accountRevision else { return }
+            if wasLiked { if !likes.contains(where: { $0.id == song.id }) { likes.insert(song, at: 0) } }
+            else { likes.removeAll { $0.id == song.id } }
+            handle(error)
+        }
     }
     func login(email: String, password: String, name: String, register: Bool) async throws {
         authBusy = true; defer { authBusy = false }
@@ -152,7 +168,7 @@ final class AppModel: NSObject, ObservableObject, ASWebAuthenticationPresentatio
         notice = "계정을 삭제했습니다. 업로드 파일도 삭제 처리됩니다."
     }
     private func clearPrivate() {
-        accountRevision += 1; inboxUnread = 0; inboxCrew = nil; likes = []; playlists = []; history = []; player.close()
+        accountRevision += 1; likeRequests.removeAll(); likeRevision += 1; inboxConversations = []; chatOpen = false; inboxUnread = 0; inboxCrew = nil; likes = []; playlists = []; history = []; player.close()
     }
     func handle(_ error: Error) {
         if error is CancellationError { return }

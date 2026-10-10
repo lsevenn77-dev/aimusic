@@ -7,7 +7,7 @@ struct CoverReceipt: Codable {
 
 @MainActor
 enum CoverPublisher {
-    static func submit(draft: RecordingDraft, audio: URL, description: String, ownVoice: Bool, rights: Bool, duetConsent: Bool = false, api: API? = nil) async throws -> String {
+    static func submit(draft: RecordingDraft, audio: URL, description: String, ownVoice: Bool, rights: Bool, duetConsent: Bool = false, api: API? = nil, progress: (@MainActor (Double) -> Void)? = nil) async throws -> String {
         let api = api ?? API.shared
         guard ownVoice && rights else { throw APIError(status: 0, message: "직접 부른 녹음이며 공개할 권리가 있는지 확인해주세요.") }
         if draft.duetFirst == true && !duetConsent { throw APIError(status: 0, message: "듀엣 참여 허용에 동의해주세요.") }
@@ -53,7 +53,7 @@ enum CoverPublisher {
             }
         }
         let bytes = try Data(contentsOf: frozenURL)
-        _ = try await api.request("/api/uploads/\(Endpoint.pathID(receipt.id))/audio", method: "PUT", bytes: bytes)
+        _ = try await api.request("/api/uploads/\(Endpoint.pathID(receipt.id))/audio", method: "PUT", bytes: bytes, progress: progress)
         _ = try await api.call("/api/uploads/\(Endpoint.pathID(receipt.id))/complete", method: "POST", body: [:])
         receipt.phase = "submitted"
         try JSONEncoder().encode(receipt).write(to: receiptURL, options: .atomic)

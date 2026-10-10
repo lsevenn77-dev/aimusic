@@ -65,11 +65,14 @@ enum ChatHistory {
     private var revision = 0
     private var active = false
     private var loading = false
+    private var readSequence = -1
+    @Published private(set) var loaded = false
+    @Published private(set) var unavailable = false
     var basePath: String { crew ? String(path.dropLast("/messages".count)) : path }
     init(owner: String, path: String, crew: Bool, api: API? = nil) {
         self.owner = owner; self.path = path; self.crew = crew; self.api = api ?? .shared
     }
-    func start() { active = true }
+    func start() { active = true; unavailable = false }
     func stop(retainComposition: Bool = false) {
         active = false; revision += 1; messages = []
         // Navigating to gifts must not discard an ambiguous send's request ID.
@@ -92,23 +95,48 @@ enum ChatHistory {
                 ChatCache.remove(owner: owner, path: path)
                 return // next poll starts without the previous membership's cursor
             }
-            boundary = nextBoundary; muted = settings.flag("muted")
+            boundary = nextBoundary; loaded = true; muted = settings.flag("muted")
             if !crew { peer = data.object("peer") }
             messages = ChatHistory.merge(messages, incoming: data.objects("messages"), minimum: nextBoundary)
             if earlier || cursor == nil { more = data.flag("has_more") }
             // Private history is restored only by authenticated server reads, never
             // optimistically from disk before block/delete/membership validation.
             ChatCache.write(owner: owner, path: path, messages: messages, boundary: boundary)
-            if crew {
-                if let last = messages.last { _ = try await api.call(basePath + "/read", method: "POST", body: ["sequence": last.int("sequence")]) }
-            } else { _ = try await api.call(path, method: "PATCH", body: [:]) }
+            let latest = messages.last?.int("sequence") ?? 0
+            if latest > readSequence {
+                if crew { _ = try await api.call(basePath + "/read", method: "POST", body: ["sequence": latest]) }
+                else { _ = try await api.call(path, method: "PATCH", body: [:]) }
+                if valid(version) { readSequence = latest }
+            }
             if valid(version) { error = nil }
         } catch {
             guard valid(version) else { return }
             if let status = (error as? APIError)?.status, [401, 403, 404].contains(status) {
-                messages = []; pending = nil; text = ""; ChatCache.remove(owner: owner, path: path)
+                unavailable = true; messages = []; pending = nil; text = ""; ChatCache.remove(owner: owner, path: path)
             }
             self.error = error.localizedDescription
+        }
+    }
+    func watch() async {
+        var failures = 0
+        let target = crew ? String(basePath.split(separator: "/").last ?? "") : String(path.split(separator: "/").last ?? "")
+        let query = "?\(crew ? "crew" : "peer")=\(Endpoint.query(target))"
+        while active && !Task.isCancelled {
+            do {
+                try await api.chatEvents(query: query) { [weak self] in await self?.load() }
+                failures = 0
+                try await Task.sleep(for: .milliseconds(250))
+            } catch is CancellationError { return }
+            catch {
+                if Task.isCancelled { return }
+                if let status = (error as? APIError)?.status, [401, 403, 404].contains(status) {
+                    stop(); unavailable = true; self.error = error.localizedDescription; return
+                }
+                // The authenticated history endpoint remains the fallback when an
+                // intermediary cannot stream. No raw connection notices in chat.
+                await load(); failures += 1
+                do { try await Task.sleep(for: .seconds(min(15, max(1, failures * 2)))) } catch { return }
+            }
         }
     }
     func send() async {
@@ -121,9 +149,11 @@ enum ChatHistory {
         guard let pending else { return }
         let version = revision; busy = true
         do {
-            _ = try await api.call(path, method: "POST", body: pending.payload)
+            let result = try await api.call(path, method: "POST", body: pending.payload)
             guard valid(version) else { busy = false; return }
-            self.pending = nil; if pending.imageID == nil { text = "" }; error = nil
+            let sent = result.object("message")
+            if !sent.string("id").isEmpty { messages = ChatHistory.merge(messages, incoming: [sent], minimum: boundary ?? 0) }
+            self.pending = nil; if pending.imageID == nil && text.trimmingCharacters(in: .whitespacesAndNewlines) == pending.body { text = "" }; error = nil
         } catch { if valid(version) { self.error = error.localizedDescription } }
         busy = false
         if valid(version), self.pending == nil { await load() }
@@ -215,35 +245,39 @@ private struct ChatRoomView: View {
     }
     private var displayTitle: String { room.crew ? title : room.peer.displayName(fallback: title) }
     var body: some View {
-        VStack(spacing: 0) {
-            List {
-                if room.more { Button("이전 대화 보기") { Task { await room.load(earlier: true) } } }
-                ForEach(room.messages, id: \.selfID) { item in
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(item.displayName(fallback: item.string("sender_id") == model.userID ? "나" : displayTitle)).font(.caption).foregroundStyle(Brand.aqua)
-                        Group {
-                            if !item.string("image_id").isEmpty { PrivateChatPhoto(item: item, owner: room.owner).id(item.string("id")) }
-                            else { Text(item.string("body")).textSelection(.enabled) }
-                        }.padding(12).background(Brand.card, in: RoundedRectangle(cornerRadius: 16))
-                    }.contextMenu {
-                        let sender = item.string(room.crew ? "user_id" : "sender_id")
-                        if !sender.isEmpty && sender != model.userID { Button("이용자 차단", role: .destructive) { blocking = sender } }
-                    }.listRowSeparator(.hidden).frame(maxWidth: .infinity, alignment: item.string(room.crew ? "user_id" : "sender_id") == model.userID ? .trailing : .leading)
-                }
-            }
-            if let error = room.error { Text(error).font(.caption).foregroundStyle(.red).padding(.horizontal) }
-            if !room.crew { Text("사진은 전송 후 14일 동안 보관됩니다.").font(.caption2).foregroundStyle(.secondary) }
-            HStack {
-                if !room.crew {
-                    PhotosPicker(selection: $photo, matching: .images) { Image(systemName: "photo").frame(width: 36, height: 44) }.disabled(room.busy || room.pending != nil).accessibilityLabel("사진 보내기")
-                }
-                TextField("메시지", text: $room.text, axis: .vertical).lineLimit(1...5).textFieldStyle(.roundedBorder).focused($composing).disabled(room.pending != nil || room.busy)
-                Button(room.pending == nil ? "전송" : "재시도") {
-                    composing = false
-                    Task { await Task.yield(); await room.send(); await model.refreshInbox() }
-                }.disabled(room.busy || (room.pending == nil && room.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty))
-            }.padding()
-        }.navigationTitle(displayTitle).navigationBarTitleDisplayMode(.inline)
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 6) {
+                    if room.more { Button("이전 대화 보기") { Task { await room.load(earlier: true) } }.frame(maxWidth: .infinity) }
+                    if !room.loaded && room.messages.isEmpty { ProgressView().padding().frame(maxWidth: .infinity) }
+                    ForEach(Array(room.messages.enumerated()), id: \.element.selfID) { index, item in
+                        messageRow(item, showName: index == 0 || sender(room.messages[index - 1]) != sender(item))
+                            .id(item.string("id"))
+                    }
+                    if let pending = room.pending, !room.messages.contains(where: { $0.string("request_id") == pending.requestID }) {
+                        VStack(alignment: .trailing, spacing: 3) {
+                            Text(pending.body).padding(12).background(Brand.aqua.opacity(0.22), in: RoundedRectangle(cornerRadius: 18))
+                            HStack(spacing: 6) {
+                                if room.busy { ProgressView().controlSize(.mini); Text("전송 중") }
+                                else { Button("전송되지 않음 · 다시 보내기") { Task { await room.send() } } }
+                            }.font(.caption2).foregroundStyle(.secondary)
+                        }.frame(maxWidth: .infinity, alignment: .trailing).id("pending")
+                    }
+                    if room.error != nil && room.messages.isEmpty && room.pending == nil {
+                        if room.unavailable { Text("대화 권한이 변경됐어요. 목록으로 돌아가 다시 확인해주세요.").font(.caption).foregroundStyle(.secondary) }
+                        else { Button("대화 다시 불러오기") { Task { await room.load() } }.font(.caption).foregroundStyle(.secondary).frame(maxWidth: .infinity) }
+                    }
+                    Color.clear.frame(height: 1).id("bottom")
+                }.padding(.horizontal, 16).padding(.vertical, 12)
+            }.scrollDismissesKeyboard(.interactively)
+                .onChange(of: room.messages.last?.string("id")) { _, _ in withAnimation { proxy.scrollTo("bottom", anchor: .bottom) } }
+                .onChange(of: room.pending?.requestID) { _, _ in withAnimation { proxy.scrollTo("bottom", anchor: .bottom) } }
+                .onChange(of: composing) { _, focused in if focused { withAnimation { proxy.scrollTo("bottom", anchor: .bottom) } } }
+        }.background(Brand.background)
+        .safeAreaInset(edge: .bottom, spacing: 0) { composer }
+        .onAppear { model.chatOpen = true }
+        .onDisappear { model.chatOpen = false }
+        .navigationTitle(displayTitle).navigationBarTitleDisplayMode(.inline)
         .toolbar { ToolbarItem(placement: .topBarTrailing) {
             Menu {
                 Button(room.muted ? "대화 알림 켜기" : "대화 알림 끄기", systemImage: room.muted ? "bell" : "bell.slash") { Task { await room.toggleMute(); await model.refreshInbox() } }
@@ -273,10 +307,50 @@ private struct ChatRoomView: View {
         .task(id: scenePhase) {
             guard scenePhase == .active, model.userID == room.owner else { room.stop(retainComposition: true); return }
             room.start(); defer { room.stop(retainComposition: true) }
-            while !Task.isCancelled {
-                await room.load(); await model.refreshInbox()
-                do { try await Task.sleep(for: .seconds(4)) } catch { break }
+            await room.load()
+            await room.watch()
+        }
+    }
+    private var composer: some View {
+        HStack(alignment: .bottom, spacing: 10) {
+            if !room.crew {
+                PhotosPicker(selection: $photo, matching: .images) { Image(systemName: "photo").frame(width: 36, height: 44) }
+                    .disabled(room.busy || room.pending != nil).accessibilityLabel("사진 보내기")
+            }
+            TextField("메시지 입력", text: $room.text, axis: .vertical).lineLimit(1...4)
+                .padding(.horizontal, 14).padding(.vertical, 12).background(Brand.card, in: RoundedRectangle(cornerRadius: 22))
+                .focused($composing).accessibilityIdentifier("chat-input")
+            Button {
+                Task { await room.send(); await model.refreshInbox() }
+            } label: {
+                Image(systemName: room.pending != nil && !room.busy ? "arrow.clockwise" : "arrow.up")
+                    .font(.headline).frame(width: 44, height: 44).foregroundStyle(.black).background(Brand.aqua, in: Circle())
+            }.disabled(room.busy || (room.pending == nil && room.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty))
+                .accessibilityLabel(room.pending != nil ? "메시지 다시 보내기" : "메시지 보내기").accessibilityIdentifier("chat-send")
+        }.padding(.horizontal, 12).padding(.vertical, 10).background(Brand.background).disabled(room.unavailable)
+    }
+    private func sender(_ item: [String: Any]) -> String { item.string(room.crew ? "user_id" : "sender_id") }
+    @ViewBuilder private func messageRow(_ item: [String: Any], showName: Bool) -> some View {
+        let mine = sender(item) == room.owner
+        if item.string("kind") == "system" {
+            Text(item.string("body")).font(.caption2).foregroundStyle(.secondary).frame(maxWidth: .infinity).padding(.vertical, 8)
+        } else {
+            HStack(alignment: .bottom, spacing: 6) {
+                if mine { Spacer(minLength: 48) }
+                VStack(alignment: mine ? .trailing : .leading, spacing: 3) {
+                    if !mine && room.crew && showName { Text(item.displayName(fallback: displayTitle)).font(.caption2).foregroundStyle(.secondary).padding(.top, 8) }
+                    Group {
+                        if !item.string("image_id").isEmpty { PrivateChatPhoto(item: item, owner: room.owner) }
+                        else { Text(item.string("body")).textSelection(.enabled) }
+                    }.padding(.horizontal, 13).padding(.vertical, 9)
+                        .background(mine ? Brand.aqua.opacity(0.22) : Brand.card, in: RoundedRectangle(cornerRadius: 17))
+                    if item.number("created") > 0 { Text(Date(timeIntervalSince1970: item.number("created")), style: .time).font(.system(size: 9)).foregroundStyle(.secondary) }
+                }
+                if !mine { Spacer(minLength: 48) }
+            }.contextMenu {
+                if !mine && !sender(item).isEmpty { Button("이용자 차단", role: .destructive) { blocking = sender(item) } }
             }
         }
     }
+
 }

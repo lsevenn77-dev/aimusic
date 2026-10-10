@@ -74,4 +74,69 @@ final class AIFECTUITests: XCTestCase {
         if app.navigationBars.buttons["홈"].exists { app.navigationBars.buttons["홈"].tap() }
         // App Store screenshot capture is intentionally separate from navigation tests.
     }
+    @MainActor func testFeedbackChatInputAndRecordingEditor() throws {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["-feedback-ui-test", "-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]
+        app.launch()
+        XCTAssertTrue(app.buttons["main-tab-3"].waitForExistence(timeout: 20))
+        app.buttons["main-tab-3"].tap()
+        let peer = app.buttons.containing(NSPredicate(format: "label CONTAINS %@", "채팅 테스트")).firstMatch
+        XCTAssertTrue(peer.waitForExistence(timeout: 10)); peer.tap()
+        let input = app.textFields["chat-input"]
+        XCTAssertTrue(input.waitForExistence(timeout: 5)); XCTAssertTrue(input.isHittable)
+        input.tap(); input.typeText("DM immediate")
+        app.buttons["chat-send"].tap()
+        XCTAssertTrue(app.staticTexts["DM immediate"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.staticTexts["나"].exists)
+        let shot = XCTAttachment(screenshot: app.screenshot()); shot.name = "Feedback DM composer"; shot.lifetime = .keepAlways; add(shot)
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        let crew = app.buttons.containing(NSPredicate(format: "label CONTAINS %@", "검증 크루")).firstMatch
+        XCTAssertTrue(crew.waitForExistence(timeout: 5)); crew.tap()
+        XCTAssertTrue(input.waitForExistence(timeout: 5)); XCTAssertTrue(input.isHittable)
+        input.tap(); input.typeText("Crew immediate"); app.buttons["chat-send"].tap()
+        XCTAssertTrue(app.staticTexts["Crew immediate"].waitForExistence(timeout: 3))
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        app.buttons["feedback-menu"].tap(); app.buttons["녹음 편집 검증"].tap()
+        let preview = app.buttons["recording-preview"]
+        XCTAssertTrue(preview.waitForExistence(timeout: 10)); preview.tap()
+        XCTAssertTrue(app.sliders["녹음 재생 위치"].exists)
+        app.sliders["녹음 재생 위치"].adjust(toNormalizedSliderPosition: 0.5)
+        XCTAssertTrue(app.buttons["가사 구간 다시 부르기 · 다른 구간은 유지"].exists)
+        let editor = XCTAttachment(screenshot: app.screenshot()); editor.name = "Feedback recording seek and effects"; editor.lifetime = .keepAlways; add(editor)
+        app.buttons["가사 구간 다시 부르기 · 다른 구간은 유지"].tap()
+        XCTAssertTrue(app.buttons.containing(NSPredicate(format: "label CONTAINS %@", "두 번째 구간")).firstMatch.waitForExistence(timeout: 5))
+        app.buttons.containing(NSPredicate(format: "label CONTAINS %@", "두 번째 구간")).firstMatch.tap()
+        XCTAssertTrue(app.buttons["녹음 시작"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.switches["모니터링"].exists)
+        XCTAssertTrue(app.sliders["녹음 중 반주 음량"].exists)
+    }
+
+    @MainActor func testGiftSheetAndEditorKeyboardDismissal() throws {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["-feedback-ui-test", "-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]
+        app.launch()
+        XCTAssertTrue(app.buttons["feedback-menu"].waitForExistence(timeout: 15))
+        app.buttons["feedback-menu"].tap(); app.buttons["선물창 검증"].tap()
+        XCTAssertTrue(app.buttons["보내기"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["무료 보상"].exists)
+        let stepper = app.steppers.firstMatch
+        XCTAssertTrue(stepper.exists)
+        stepper.buttons.element(boundBy: 1).tap(); stepper.buttons.element(boundBy: 1).tap()
+        app.buttons["보내기"].tap(); app.buttons["선물 보내기"].tap()
+        XCTAssertTrue(app.staticTexts["3개 전송 완료"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["보내기"].isEnabled)
+        let giftShot = XCTAttachment(screenshot: app.screenshot()); giftShot.name = "Feedback gift sheet depleted balance"; giftShot.lifetime = .keepAlways; add(giftShot)
+        app.buttons["닫기"].tap()
+        app.buttons["feedback-menu"].tap(); app.buttons["녹음 편집 검증"].tap()
+        let description = app.textFields["이 녹음에 대한 소개"]
+        for _ in 0..<10 { if description.exists && description.isHittable { break }; app.scrollViews.firstMatch.swipeUp() }
+        XCTAssertTrue(description.exists); description.tap(); description.typeText("Keyboard check")
+        XCTAssertTrue(app.keyboards.firstMatch.exists)
+        app.staticTexts["내 커버곡 게시"].tap()
+        let dismissed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: app.keyboards.firstMatch)
+        XCTAssertEqual(XCTWaiter.wait(for: [dismissed], timeout: 3), .completed)
+    }
+
 }

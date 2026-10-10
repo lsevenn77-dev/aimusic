@@ -9,6 +9,8 @@ struct AIFECTApp: App {
             #if DEBUG
             if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
                 Color.clear
+            } else if FeedbackUIFixture.enabled {
+                FeedbackUITestView()
             } else if ProcessInfo.processInfo.arguments.contains("-ad-integration-test") {
                 AdIntegrationTestView()
             } else {
@@ -96,6 +98,13 @@ struct RootView: View {
     @State private var tab = 0
     @State private var account = false
     @State private var keyboardVisible = false
+    private var integrationEnabled: Bool {
+        #if DEBUG
+        return !FeedbackUIFixture.enabled
+        #else
+        return true
+        #endif
+    }
     @ObservedObject private var push = PushNotifications.shared
     var body: some View {
         TabView(selection: $tab) {
@@ -106,7 +115,7 @@ struct RootView: View {
             page("마이") { MyMusicView() }.tabItem { Label("마이", systemImage: "person.crop.circle") }.tag(4)
         }
         .toolbar(.hidden, for: .tabBar)
-        .safeAreaInset(edge: .bottom, spacing: 0) { if !keyboardVisible { VStack(spacing: 0) { MiniPlayer(player: model.player); MainBottomBar(selection: $tab) }.background(Brand.background) } }
+        .safeAreaInset(edge: .bottom, spacing: 0) { if !keyboardVisible && !model.chatOpen { VStack(spacing: 0) { MiniPlayer(player: model.player); MainBottomBar(selection: $tab) }.background(Brand.background) } }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in keyboardVisible = true }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in keyboardVisible = false }
         .sheet(isPresented: $model.showLogin) { LoginView() }
@@ -119,8 +128,9 @@ struct RootView: View {
             guard scenePhase == .active, model.userID != nil else { return }
             while !Task.isCancelled { await model.refreshInbox(); do { try await Task.sleep(for: .seconds(5)) } catch { break } }
         }
-        .task { _ = StorePayments.shared; await model.refresh(); await ListeningAds.shared.consent() }
+        .task { await model.refresh(); if integrationEnabled { _ = StorePayments.shared; await ListeningAds.shared.consent() } }
         .task(id: model.userID) {
+            guard integrationEnabled else { return }
             StorePayments.shared.resetAccount()
             await push.bind(model.userID)
             guard model.userID != nil else { return }
@@ -331,7 +341,7 @@ struct PlayerView: View {
                             Spacer()
                             Button { detail = true } label: { Label("댓글", systemImage: "bubble.left") }.font(.system(size: 14))
                         }
-                        NavigationLink { GiftWalletView(song: song).toolbar(.visible, for: .navigationBar) } label: { HStack { Label("마음에 드는 음악에 선물하기", systemImage: "gift"); Spacer(); Image(systemName: "chevron.right") }.font(.system(size: 14)).padding(18).background(Brand.card, in: RoundedRectangle(cornerRadius: 18)) }.buttonStyle(.plain)
+                        GiftSheetButton(song: song) { HStack { Label("마음에 드는 음악에 선물하기", systemImage: "gift"); Spacer(); Image(systemName: "chevron.right") }.font(.system(size: 14)).padding(18).background(Brand.card, in: RoundedRectangle(cornerRadius: 18)) }.buttonStyle(.plain)
                         VStack(alignment: .leading, spacing: 18) {
                             Text("LYRICS").font(.system(size: 12)).tracking(2).foregroundStyle(AifectDesign.muted)
                             Text(player.lyric.isEmpty ? "♪" : player.lyric).font(.system(size: 21, weight: .semibold)).foregroundStyle(Brand.aqua).lineLimit(1).frame(height: 30)

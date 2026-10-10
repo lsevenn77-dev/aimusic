@@ -56,6 +56,17 @@ final class NoRedirects: NSObject, URLSessionTaskDelegate {
     }
 }
 
+final class UploadProgressDelegate: NSObject, URLSessionTaskDelegate {
+    let progress: @MainActor (Double) -> Void
+    init(_ progress: @escaping @MainActor (Double) -> Void) { self.progress = progress }
+    func urlSession(_ session: URLSession, task: URLSessionTask, didSendBodyData bytesSent: Int64, totalBytesSent: Int64, totalBytesExpectedToSend: Int64) {
+        guard totalBytesExpectedToSend > 0 else { return }
+        let value = min(1, Double(totalBytesSent) / Double(totalBytesExpectedToSend))
+        Task { @MainActor in progress(value) }
+    }
+    func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse, newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) { completionHandler(nil) }
+}
+
 @MainActor
 final class API {
     static let shared = API()
@@ -64,11 +75,18 @@ final class API {
     private var generation = 0
     var sessionRevision: Int { generation }
     init(configuration: URLSessionConfiguration = .ephemeral, cookie: String? = nil) {
+        #if DEBUG
+        if FeedbackUIFixture.enabled { configuration.protocolClasses = [FeedbackURLProtocol.self] }
+        #endif
         configuration.httpCookieStorage = nil
         configuration.httpShouldSetCookies = false
         configuration.urlCache = nil
         configuration.timeoutIntervalForRequest = 25
+        #if DEBUG
+        self.cookie = FeedbackUIFixture.enabled ? "" : (cookie ?? SessionVault.read())
+        #else
         self.cookie = cookie ?? SessionVault.read()
+        #endif
         session = URLSession(configuration: configuration, delegate: NoRedirects(), delegateQueue: nil)
     }
     func clearSession() {
@@ -83,7 +101,7 @@ final class API {
         }
         return result
     }
-    func request(_ path: String, method: String = "GET", bytes: Data? = nil, type: String = "application/octet-stream") async throws -> Data {
+    func request(_ path: String, method: String = "GET", bytes: Data? = nil, type: String = "application/octet-stream", progress: (@MainActor (Double) -> Void)? = nil) async throws -> Data {
         let scope = generation
         var request = URLRequest(url: try Endpoint.url(path))
         request.httpMethod = method; request.httpBody = bytes
@@ -91,7 +109,8 @@ final class API {
         request.setValue("AIFECT-iOS/1.0", forHTTPHeaderField: "User-Agent")
         request.setValue(cookie, forHTTPHeaderField: "Cookie")
         if method != "GET" { request.setValue(type, forHTTPHeaderField: "Content-Type") }
-        let (data, response) = try await session.data(for: request)
+        let delegate = progress.map { UploadProgressDelegate($0) }
+        let (data, response) = try await session.data(for: request, delegate: delegate)
         try Task.checkCancellation()
         guard scope == generation else { throw CancellationError() }
         guard let response = response as? HTTPURLResponse else { throw URLError(.badServerResponse) }
@@ -107,6 +126,23 @@ final class API {
             cookie = next
         }
         return data
+    }
+    func chatEvents(query: String, onChange: @MainActor () async -> Void) async throws {
+        let scope = generation
+        var request = URLRequest(url: try Endpoint.url("/api/chat/events" + query))
+        request.setValue(cookie, forHTTPHeaderField: "Cookie")
+        request.setValue(Endpoint.origin.absoluteString, forHTTPHeaderField: "Origin")
+        request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+        let (bytes, response) = try await session.bytes(for: request)
+        guard let http = response as? HTTPURLResponse else { throw URLError(.badServerResponse) }
+        guard http.statusCode == 200 else { throw APIError(status: http.statusCode, message: "대화 접근 권한을 확인해주세요.") }
+        guard http.value(forHTTPHeaderField: "Content-Type")?.hasPrefix("text/event-stream") == true else { throw URLError(.badServerResponse) }
+        for try await line in bytes.lines {
+            try Task.checkCancellation(); guard scope == generation else { throw CancellationError() }
+            if line == "event: change" { await onChange() }
+            if line == "event: revoked" { throw APIError(status: 403, message: "대화 접근 권한을 확인해주세요.") }
+            if line == "event: retry" { throw URLError(.networkConnectionLost) }
+        }
     }
     func mediaCookies() -> [HTTPCookie] {
         guard let value = cookie.split(separator: "=", maxSplits: 1).last, !cookie.isEmpty else { return [] }
