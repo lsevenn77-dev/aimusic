@@ -155,11 +155,12 @@ struct SongRow: View {
     @EnvironmentObject var model: AppModel
     let song: Song
     let queue: [Song]
+    var onDetail: ((Song) -> Void)? = nil
     @State private var detail = false
     var body: some View {
         HStack(spacing: 13) {
             Button { model.player.play(song, queue: queue) } label: { CoverArt(song: song) }.buttonStyle(.plain).accessibilityLabel("\(song.title), \(song.credit), 재생")
-            Button { detail = true } label: {
+            Button { if let onDetail { onDetail(song) } else { detail = true } } label: {
                 VStack(alignment: .leading, spacing: 5) {
                     Text(song.title).font(.system(size: 15, weight: .semibold)).foregroundStyle(AifectDesign.text).lineLimit(1)
                     Text(song.credit).font(.system(size: 13)).lineLimit(1)
@@ -361,6 +362,7 @@ struct MusicShelf: View {
     @EnvironmentObject var model: AppModel
     let title: String
     let songs: [Song]
+    var onDetail: ((Song) -> Void)? = nil
     @State private var detail: Song?
     var body: some View {
         if !songs.isEmpty {
@@ -369,9 +371,9 @@ struct MusicShelf: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(alignment: .top, spacing: 14) { ForEach(songs) { song in
                         VStack(alignment: .leading, spacing: 5) {
-                            CoverArt(song: song, size: 148).onTapGesture { detail = song }
+                            CoverArt(song: song, size: 148).onTapGesture { if let onDetail { onDetail(song) } else { detail = song } }
                                 .overlay(alignment: .bottomTrailing) { Button { model.player.play(song, queue: songs) } label: { Image(systemName: "play.fill").font(.system(size: 17)).frame(width: 34, height: 34).background(AifectDesign.raised, in: Circle()) }.padding(6).accessibilityLabel("\(song.title) 재생") }
-                            Text(song.title).font(.system(size: 15, weight: .semibold)).lineLimit(1).padding(.top, 5).onTapGesture { detail = song }
+                            Text(song.title).font(.system(size: 15, weight: .semibold)).lineLimit(1).padding(.top, 5).onTapGesture { if let onDetail { onDetail(song) } else { detail = song } }
                             Text(song.credit).font(.system(size: 12)).foregroundStyle(AifectDesign.muted).lineLimit(1)
                             SaveMusicButton(song: song)
                         }.frame(width: 148, alignment: .leading)

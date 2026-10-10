@@ -3,6 +3,7 @@ import SwiftUI
 struct ListenView: View {
     @EnvironmentObject private var model: AppModel
     @State private var page = "추천"
+    @State private var detail: Song?
     @State private var playlists: [[String: Any]] = []
     @State private var people: [[String: Any]] = []
     var body: some View {
@@ -22,25 +23,28 @@ struct ListenView: View {
                         else if page == "차트" {
                             MusicSectionHeading(title: "AIFECT 인기곡", subtitle: "재생 · 좋아요 · 댓글을 반영한 제작곡 순위")
                             chart(model.chart)
-                            MusicSectionHeading(title: "노래방에서 만나는 인기곡", subtitle: "마음에 드는 노래를 직접 불러보세요")
-                            chart(model.singable)
+                            if !model.singable.isEmpty {
+                                MusicSectionHeading(title: "노래방에서 만나는 인기곡", subtitle: "부를 수 있는 곡의 재생 · 좋아요 기준")
+                                chart(model.singable)
+                            }
                         } else {
                             PageHeading(title: "새롭게 도착한 음악", subtitle: "지금 막 공개된 새로운 음악을 만나보세요")
                             HStack { Button { if let song = model.latest.first { model.player.play(song, queue: model.latest) } } label: { Label("전체 재생", systemImage: "play.fill") }.buttonStyle(ParityPill(filled: true)); Spacer(); Text("\(model.latest.count)곡").font(.caption).foregroundStyle(AifectDesign.muted) }
-                            ForEach(model.latest) { SongRow(song: $0, queue: model.latest) }
+                            ForEach(model.latest) { SongRow(song: $0, queue: model.latest, onDetail: { detail = $0 }) }
                         }
                         if model.loading && model.latest.isEmpty { ProgressView("음악을 불러오는 중").frame(maxWidth: .infinity).padding(44) }
                     }.padding(.horizontal, 22).padding(.bottom, 32)
                 }.id(page).refreshable { await model.refresh() }
             }
-        }.task {
+        }.sheet(item: $detail) { TrackDetailView(song: $0) }
+        .task {
             playlists = (try? await API.shared.call("/api/playlists?sort=popular").objects("playlists")) ?? []
             people = (try? await API.shared.call("/api/catalog?section=producers&limit=12").objects("producers")) ?? []
         }
     }
     @ViewBuilder private var recommended: some View {
         HStack { MusicSectionHeading(title: "오늘의 새로운 발견"); Button("최신곡") { page = "최신곡" }.font(.system(size: 13)).foregroundStyle(AifectDesign.secondaryText) }
-        if let featured = model.latest.first { FeaturedMusic(song: featured, queue: model.latest) }
+        if let featured = model.latest.first { FeaturedMusic(song: featured, queue: model.latest, onDetail: { detail = $0 }) }
         else if !model.loading { PageHeading(title: "오늘의 음악이\n내일의 취향이 돼요", subtitle: "새로운 음악을 만나보세요") }
         HStack(spacing: 8) {
             shortcut("좋아요", "heart", 1, color: Brand.pink)
@@ -49,9 +53,9 @@ struct ListenView: View {
         }.padding(.top, 14)
         if !model.history.isEmpty {
             MusicSectionHeading(title: "다시 듣고 싶은 순간")
-            ForEach(model.history.prefix(3)) { SongRow(song: $0, queue: model.history) }
+            ForEach(model.history.prefix(3)) { SongRow(song: $0, queue: model.history, onDetail: { detail = $0 }) }
         }
-        if model.latest.count > 1 { MusicShelf(title: "한 곡 더 발견하기", songs: Array(model.latest.dropFirst().prefix(10))) }
+        if model.latest.count > 1 { MusicShelf(title: "한 곡 더 발견하기", songs: Array(model.latest.dropFirst().prefix(10)), onDetail: { detail = $0 }) }
         if let song = model.singable.first {
             MusicSectionHeading(title: "이번엔 내 목소리로", subtitle: "듣던 노래, 직접 불러볼까요?")
             VStack(alignment: .leading, spacing: 14) {
@@ -65,8 +69,8 @@ struct ListenView: View {
         let covers = model.feed.filter(\.isCover)
         if let cover = covers.first {
             MusicSectionHeading(title: "같은 노래, 다른 목소리", subtitle: "커버를 듣고, 마음에 드는 목소리에 반응해요")
-            CommunityMusicCard(song: cover, queue: covers)
-            if covers.count > 1 { MusicShelf(title: "새로운 목소리", songs: Array(covers.dropFirst().prefix(8))) }
+            CommunityMusicCard(song: cover, queue: covers, onDetail: { detail = $0 })
+            if covers.count > 1 { MusicShelf(title: "새로운 목소리", songs: Array(covers.dropFirst().prefix(8)), onDetail: { detail = $0 }) }
         }
         if !playlists.isEmpty {
             MusicSectionHeading(title: "취향을 나누는 플레이리스트", subtitle: "다른 사람이 고른 음악 속으로")
@@ -93,8 +97,15 @@ struct ListenView: View {
         }.buttonStyle(.plain)
     }
     private func chart(_ songs: [Song]) -> some View {
-        ForEach(Array(songs.prefix(5).enumerated()), id: \.element.id) { index, song in
-            HStack(spacing: 8) { Text("\(index + 1)").font(.system(size: 21, weight: .bold)).foregroundStyle(Brand.aqua).frame(width: 24); SongRow(song: song, queue: songs) }
+        // Each chart owns its row identities. Flattening two ForEach collections
+        // into one LazyVStack reuses overlapping song IDs and leaves empty rows.
+        VStack(spacing: 0) {
+            ForEach(Array(songs.prefix(5).enumerated()), id: \.element.id) { index, song in
+                HStack(spacing: 8) {
+                    Text("\(index + 1)").font(.system(size: 21, weight: .bold)).foregroundStyle(Brand.aqua).frame(width: 24)
+                    SongRow(song: song, queue: songs, onDetail: { detail = $0 })
+                }
+            }
         }
     }
 }
@@ -102,17 +113,18 @@ struct FeaturedMusic: View {
     @EnvironmentObject private var model: AppModel
     let song: Song
     let queue: [Song]
+    var onDetail: ((Song) -> Void)? = nil
     @State private var detail = false
     var body: some View {
         VStack(spacing: 16) {
             HStack(spacing: 18) {
-                CoverArt(song: song, size: 122).onTapGesture { detail = true }
+                CoverArt(song: song, size: 122).onTapGesture { if let onDetail { onDetail(song) } else { detail = true } }
                 VStack(alignment: .leading, spacing: 7) {
                     Text("NEW RELEASE").font(.system(size: 12, weight: .semibold)).tracking(1.5).foregroundStyle(Brand.aqua)
                     Text(song.title).font(.system(size: 22, weight: .bold)).lineLimit(3).padding(.top, 3)
                     Text(song.credit).font(.system(size: 14)).foregroundStyle(AifectDesign.secondaryText).lineLimit(1)
                     Text("\(song.genre) · \(timeLabel(song.duration))").font(.system(size: 12)).foregroundStyle(AifectDesign.muted)
-                }.frame(maxWidth: .infinity, alignment: .leading).onTapGesture { detail = true }
+                }.frame(maxWidth: .infinity, alignment: .leading).onTapGesture { if let onDetail { onDetail(song) } else { detail = true } }
             }
             HStack { SaveMusicButton(song: song); Spacer(minLength: 0); Button { model.player.play(song, queue: queue) } label: { Label("바로 듣기", systemImage: "play.fill") }.buttonStyle(ParityPill(filled: true)) }
         }.padding(18).background(LinearGradient(colors: [Color(aifectHex: 0x26303D), Color(aifectHex: 0x1A252D)], startPoint: .topLeading, endPoint: .bottomTrailing), in: RoundedRectangle(cornerRadius: 20))

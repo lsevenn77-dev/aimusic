@@ -21,6 +21,7 @@ final class AppModel: NSObject, ObservableObject, ASWebAuthenticationPresentatio
     @Published var notice: String?
     @Published var chatOpen = false
     @Published var walletRevision = 0
+    @Published var profileRevision = 0
     private var likeRequests = Set<String>()
     private var likeRevision = 0
     @Published var showLogin = false

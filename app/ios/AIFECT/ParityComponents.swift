@@ -169,6 +169,7 @@ struct CommunityMusicCard: View {
     @EnvironmentObject private var model: AppModel
     let song: Song
     let queue: [Song]
+    var onDetail: ((Song) -> Void)? = nil
     @State private var detail = false
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -189,16 +190,16 @@ struct CommunityMusicCard: View {
                     .background(song.isCover ? Color(aifectHex: 0x20383C) : Color(aifectHex: 0x34252E), in: RoundedRectangle(cornerRadius: 7))
             }
             if let text = song.descriptionText, !text.isEmpty { Text(text).font(.system(size: 14)).lineLimit(3) }
-            Button { detail = true } label: { AlbumArtwork(song: song, ratio: 1.5) }.buttonStyle(.plain)
+            Button { if let onDetail { onDetail(song) } else { detail = true } } label: { AlbumArtwork(song: song, ratio: 1.5) }.buttonStyle(.plain)
             HStack {
-                VStack(alignment: .leading, spacing: 5) { Text(song.title).font(.system(size: 19, weight: .semibold)).lineLimit(2); Text(song.credit).font(.system(size: 13)).foregroundStyle(AifectDesign.muted) }.onTapGesture { detail = true }
+                VStack(alignment: .leading, spacing: 5) { Text(song.title).font(.system(size: 19, weight: .semibold)).lineLimit(2); Text(song.credit).font(.system(size: 13)).foregroundStyle(AifectDesign.muted) }.onTapGesture { if let onDetail { onDetail(song) } else { detail = true } }
                 Spacer()
                 Button { model.player.play(song, queue: queue) } label: { Image(systemName: "play.fill").foregroundStyle(Brand.background).frame(width: 44, height: 44).background(Brand.aqua, in: Circle()) }.accessibilityLabel("\(song.title) 재생")
             }
             HStack { Spacer(); SaveMusicButton(song: song) }
             HStack(spacing: 16) {
                 Button { Task { await model.toggleLike(song) } } label: { Label("\(song.likes)", systemImage: model.likes.contains(where: { $0.id == song.id }) ? "heart.fill" : "heart") }.foregroundStyle(Brand.pink)
-                Button { detail = true } label: { Label("\(song.comments)", systemImage: "bubble.left") }
+                Button { if let onDetail { onDetail(song) } else { detail = true } } label: { Label("\(song.comments)", systemImage: "bubble.left") }
                 GiftSheetButton(song: song) { Text("선물") }.foregroundStyle(Brand.pink)
                 Spacer(); Text("\(song.plays ?? 0)회")
             }.font(.system(size: 13)).foregroundStyle(AifectDesign.muted).frame(minHeight: 44)

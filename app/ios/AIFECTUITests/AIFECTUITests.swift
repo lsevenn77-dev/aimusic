@@ -129,6 +129,11 @@ final class AIFECTUITests: XCTestCase {
         XCTAssertFalse(app.buttons["보내기"].isEnabled)
         let giftShot = XCTAttachment(screenshot: app.screenshot()); giftShot.name = "Feedback gift sheet depleted balance"; giftShot.lifetime = .keepAlways; add(giftShot)
         app.buttons["닫기"].tap()
+        app.buttons["main-tab-4"].tap()
+        let balance = app.staticTexts["my-star-balance"]
+        XCTAssertTrue(balance.waitForExistence(timeout: 5))
+        let depleted = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", "0개"), object: balance)
+        XCTAssertEqual(XCTWaiter.wait(for: [depleted], timeout: 5), .completed)
         app.buttons["feedback-menu"].tap(); app.buttons["녹음 편집 검증"].tap()
         let description = app.textFields["이 녹음에 대한 소개"]
         for _ in 0..<10 { if description.exists && description.isHittable { break }; app.scrollViews["studio-content"].swipeUp() }
@@ -137,6 +142,115 @@ final class AIFECTUITests: XCTestCase {
         app.staticTexts["내 커버곡 게시"].tap()
         let dismissed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: app.keyboards.firstMatch)
         XCTAssertEqual(XCTWaiter.wait(for: [dismissed], timeout: 3), .completed)
+    }
+
+    @MainActor func testCreatorProfileFromTrackDetailStaysOpenAndReturnsToTrack() throws {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["-feedback-ui-test", "-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]
+        app.launch()
+        XCTAssertTrue(app.buttons["feedback-menu"].waitForExistence(timeout: 15))
+        app.buttons["feedback-menu"].tap(); app.buttons["음원 상세 검증"].tap()
+        XCTAssertTrue(app.buttons["창작자 프로필"].waitForExistence(timeout: 5))
+        app.buttons["창작자 프로필"].tap()
+        XCTAssertTrue(app.staticTexts["프로필 검증 창작자"].firstMatch.waitForExistence(timeout: 10))
+        XCTAssertEqual(app.state, .runningForeground)
+        XCTAssertTrue(app.navigationBars["음악 프로필"].exists)
+        let shot = XCTAttachment(screenshot: app.screenshot()); shot.name = "Creator profile from track detail"; shot.lifetime = .keepAlways; add(shot)
+        app.navigationBars["음악 프로필"].buttons.element(boundBy: 0).tap()
+        XCTAssertTrue(app.buttons["창작자 프로필"].waitForExistence(timeout: 5))
+        app.buttons["창작자 프로필"].tap()
+        XCTAssertTrue(app.staticTexts["프로필 검증 창작자"].firstMatch.waitForExistence(timeout: 5))
+    }
+
+    @MainActor func testChartSectionsKeepIndependentOrder() throws {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["-feedback-ui-test", "-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]
+        app.launch()
+        XCTAssertTrue(app.buttons["차트"].waitForExistence(timeout: 15)); app.buttons["차트"].tap()
+        XCTAssertTrue(app.staticTexts["노래방에서 만나는 인기곡"].waitForExistence(timeout: 10))
+        app.scrollViews.firstMatch.swipeUp()
+        let shot = XCTAttachment(screenshot: app.screenshot()); shot.name = "Overlapping chart songs after scroll"; shot.lifetime = .keepAlways; add(shot)
+        // The karaoke endpoint returns the same IDs in the reverse ranking order.
+        let heading = app.staticTexts["노래방에서 만나는 인기곡"]
+        let buttons = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@ AND label ENDSWITH %@", "차트곡 ", " 상세")).allElementsBoundByIndex.filter { $0.frame.minY > heading.frame.maxY }.sorted { $0.frame.minY < $1.frame.minY }
+        XCTAssertEqual(buttons.map(\.label), [5, 4, 3, 2, 1].map { "차트곡 \($0) 상세" })
+        for index in 1..<buttons.count {
+            let gap = buttons[index].frame.minY - buttons[index - 1].frame.maxY
+            XCTAssertGreaterThanOrEqual(gap, 0)
+            XCTAssertLessThan(gap, 35, "Ranked songs must not leave an empty row")
+        }
+    }
+
+    @MainActor func testCreatorProfileFromChartRow() throws {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["-feedback-ui-test", "-profile-refresh-test", "-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]
+        app.launch()
+        XCTAssertTrue(app.buttons["차트"].waitForExistence(timeout: 15)); app.buttons["차트"].tap()
+        XCTAssertTrue(app.buttons["차트곡 4 상세"].firstMatch.waitForExistence(timeout: 10)); app.buttons["차트곡 4 상세"].firstMatch.tap()
+        XCTAssertTrue(app.buttons["창작자 프로필"].waitForExistence(timeout: 5)); app.buttons["창작자 프로필"].tap()
+        XCTAssertTrue(app.navigationBars["음악 프로필"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["프로필 검증 창작자"].firstMatch.waitForExistence(timeout: 10))
+        let shot = XCTAttachment(screenshot: app.screenshot()); shot.name = "Creator profile survives chart refresh"; shot.lifetime = .keepAlways; add(shot)
+        app.navigationBars["음악 프로필"].buttons.element(boundBy: 0).tap()
+        XCTAssertTrue(app.staticTexts["차트곡 4"].firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["창작자 프로필"].exists)
+        app.buttons["완료"].tap()
+        XCTAssertFalse(app.buttons["차트곡 4 상세"].exists)
+    }
+
+    @MainActor func testCreatorProfileFromPlayerDetail() throws {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["-feedback-ui-test", "-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]
+        app.launch()
+        XCTAssertTrue(app.buttons["feedback-menu"].waitForExistence(timeout: 15))
+        app.buttons["feedback-menu"].tap(); app.buttons["재생창 프로필 검증"].tap()
+        app.buttons["재생 화면 열기"].tap()
+        let comments = app.buttons["댓글"]
+        for _ in 0..<3 { if comments.isHittable { break }; app.scrollViews.firstMatch.swipeUp() }
+        XCTAssertTrue(comments.isHittable); comments.tap()
+        XCTAssertTrue(app.buttons["창작자 프로필"].waitForExistence(timeout: 5)); app.buttons["창작자 프로필"].tap()
+        XCTAssertTrue(app.navigationBars["음악 프로필"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["프로필 검증 창작자"].firstMatch.waitForExistence(timeout: 10))
+        let shot = XCTAttachment(screenshot: app.screenshot()); shot.name = "Creator profile from player"; shot.lifetime = .keepAlways; add(shot)
+    }
+
+    @MainActor func testMyProfileShortcutWalletAndCrewGrowth() throws {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["-feedback-ui-test", "-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]
+        app.launch()
+        XCTAssertTrue(app.buttons["main-tab-4"].waitForExistence(timeout: 15)); app.buttons["main-tab-4"].tap()
+        let edit = app.buttons["edit-my-profile"]
+        XCTAssertTrue(edit.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["my-gold-balance"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.staticTexts["my-gold-balance"].label, "1,250개")
+        XCTAssertEqual(app.staticTexts["my-star-balance"].label, "3개")
+        XCTAssertLessThan(abs(edit.frame.midY - app.staticTexts["my-profile-name"].frame.midY), 24)
+        edit.tap()
+        let name = app.textFields["profile-name"]
+        XCTAssertTrue(name.waitForExistence(timeout: 5)); name.tap()
+        name.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: name.value as? String == "검증 계정" ? 5 : 20) + "새 활동명")
+        app.buttons["프로필 저장"].tap()
+        XCTAssertTrue(app.alerts["AIFECT"].waitForExistence(timeout: 8)); app.alerts["AIFECT"].buttons["확인"].tap()
+        app.navigationBars["내 프로필"].buttons.element(boundBy: 0).tap()
+        let updated = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", "새 활동명"), object: app.staticTexts["my-profile-name"])
+        XCTAssertEqual(XCTWaiter.wait(for: [updated], timeout: 8), .completed)
+        let myShot = XCTAttachment(screenshot: app.screenshot()); myShot.name = "My profile settings and balances"; myShot.lifetime = .keepAlways; add(myShot)
+        app.buttons["main-tab-1"].tap(); app.buttons["크루"].tap()
+        XCTAssertTrue(app.buttons["crew-card-fixture-crew"].waitForExistence(timeout: 10)); app.buttons["crew-card-fixture-crew"].tap()
+        XCTAssertTrue(app.staticTexts["crew-detail-name"].waitForExistence(timeout: 10))
+        let crewShot = XCTAttachment(screenshot: app.screenshot()); crewShot.name = "Crew hero and experience"; crewShot.lifetime = .keepAlways; add(crewShot)
+        let about = app.buttons["소개"]
+        for _ in 0..<4 { if about.isHittable { break }; app.scrollViews["crew-content"].swipeUp() }
+        XCTAssertTrue(about.isHittable); about.tap()
+        for _ in 0..<4 { if app.staticTexts["함께 성장하는 방법"].isHittable { break }; app.scrollViews["crew-content"].swipeUp() }
+        XCTAssertTrue(app.staticTexts["함께 성장하는 방법"].exists)
+        XCTAssertTrue(app.staticTexts["+10 XP"].exists)
+        let aboutShot = XCTAttachment(screenshot: app.screenshot()); aboutShot.name = "Crew illustrated experience guide"; aboutShot.lifetime = .keepAlways; add(aboutShot)
     }
 
     @MainActor func testSongSingingEntryPreflightEffectsLyricScrollAndStoppedControls() throws {

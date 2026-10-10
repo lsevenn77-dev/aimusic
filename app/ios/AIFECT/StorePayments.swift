@@ -124,7 +124,7 @@ struct PaymentStoreView: View {
             if store.products.isEmpty { Button("상품 다시 불러오기") { Task { await store.load() } }.disabled(store.loadingProducts) }
             if let message = store.message { Section { Text(message).font(.subheadline) } }
             Section {
-                Button("구매 복원") { Task { await store.restore(); try? await model.loadMe() } }.disabled(store.busy || model.user == nil)
+                Button("구매 복원") { Task { await store.restore(); model.walletRevision += 1; try? await model.loadMe() } }.disabled(store.busy || model.user == nil)
                 Button("Apple 구독 관리") { manage = true }
                 Link("이용약관", destination: Endpoint.origin.appendingPathComponent("terms"))
                 Link("개인정보 처리방침", destination: Endpoint.origin.appendingPathComponent("privacy"))
@@ -137,7 +137,7 @@ struct PaymentStoreView: View {
     private func purchaseButton(_ product: Product, title: String, suffix: String) -> some View {
         Button {
             guard model.requireLogin() else { return }
-            Task { await store.purchase(product); try? await model.loadMe() }
+            Task { await store.purchase(product); model.walletRevision += 1; try? await model.loadMe() }
         } label: {
             HStack { Text(title); Spacer(); Text(product.displayPrice + suffix).bold() }
         }.disabled(store.busy)

@@ -94,6 +94,42 @@ struct GiftRequest: Codable {
     }
 }
 
+/// Compact balance overview. Unknown or failed balances are never shown as zero.
+struct MyWalletSummary: View {
+    @EnvironmentObject private var model: AppModel
+    @Environment(\.scenePhase) private var scenePhase
+    @StateObject private var wallet = GiftWallet()
+    private var loaded: Bool { !wallet.data.isEmpty && wallet.error == nil }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 12) {
+                NavigationLink { PaymentStoreView() } label: {
+                    balance("보유 골드", value: loaded ? "\(wallet.data.int("balance").formatted())개" : "—", icon: "g.circle.fill", color: .yellow, id: "my-gold-balance")
+                }.buttonStyle(.plain)
+                Divider().frame(height: 44)
+                NavigationLink { RewardsView() } label: {
+                    balance("응원별", value: loaded ? "\(wallet.stars.formatted())개" : "—", icon: "star.fill", color: Brand.pink, id: "my-star-balance")
+                }.buttonStyle(.plain)
+            }
+            if wallet.error != nil {
+                Button("잔액 다시 불러오기") { Task { await reload() } }.font(.caption).foregroundStyle(AifectDesign.muted)
+            }
+        }.padding(16).background(Brand.card, in: RoundedRectangle(cornerRadius: 20))
+            .task(id: "\(model.userID ?? "guest"):\(model.walletRevision):\(scenePhase == .active)") { if scenePhase == .active { await reload() } }
+    }
+    private func balance(_ title: String, value: String, icon: String, color: Color, id: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label(title, systemImage: icon).font(.system(size: 13)).foregroundStyle(color)
+            Text(value).font(.system(size: 20, weight: .bold)).monospacedDigit().foregroundStyle(AifectDesign.text).accessibilityIdentifier(id)
+        }.frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
+    }
+    private func reload() async {
+        wallet.bind(owner: model.userID, path: nil)
+        guard model.userID != nil else { return }
+        await wallet.load()
+    }
+}
+
 struct GiftSheetButton<LabelView: View>: View {
     @EnvironmentObject private var model: AppModel
     var song: Song? = nil

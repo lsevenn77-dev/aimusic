@@ -105,7 +105,7 @@ struct ProfileEditorView: View {
     var body: some View {
         Form {
             Section("공개 프로필") {
-                TextField("닉네임", text: $name)
+                TextField("아이디 · 활동명", text: $name).textContentType(.nickname).autocorrectionDisabled().accessibilityIdentifier("profile-name")
                 TextField("소개", text: $bio, axis: .vertical).lineLimit(3...8)
                 PhotosPicker("프로필 사진 선택", selection: $picked, matching: .images)
                 if picked != nil { Text("선택한 사진이 저장 시 업로드됩니다.").font(.caption) }
@@ -124,7 +124,7 @@ struct ProfileEditorView: View {
                 _ = try await API.shared.request("/api/me/profile/image", method: "PUT", bytes: jpeg, type: "image/jpeg")
                 self.picked = nil
             }
-            try await model.loadMe(); model.notice = "프로필을 저장했습니다."; error = nil
+            try await model.loadMe(); model.profileRevision += 1; model.notice = "프로필을 저장했습니다."; error = nil
         } catch { self.error = error.localizedDescription }
     }
 }
@@ -298,7 +298,7 @@ struct CrewPage: View {
     private var joinLabel: String { data.flag("banned") ? "가입할 수 없는 크루" : full ? "정원이 가득 찼어요" : !crew.flag("recruiting") ? "현재 모집을 쉬고 있어요" : "이 크루와 함께하기" }
     var body: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 18) {
                 if loading && crew.isEmpty { ProgressView("크루를 불러오는 중").frame(maxWidth: .infinity).padding(40) }
                 if !crew.isEmpty {
                     hero
@@ -319,7 +319,7 @@ struct CrewPage: View {
                 }
                 if let error { RetryCard(message: error) { Task { await load() } } }
             }.padding(20).padding(.bottom, 18)
-        }.background(Brand.background)
+        }.background(Brand.background).accessibilityIdentifier("crew-content")
             .navigationTitle(crew.string("name", fallback: "크루")).navigationBarTitleDisplayMode(.inline)
             .task(id: id + "|" + (model.userID ?? "guest")) { data = [:]; section = "홈"; await load() }
             .refreshable { await load() }
@@ -341,7 +341,6 @@ struct CrewPage: View {
                 Text(crew.string("name")).font(.system(size: 27, weight: .bold)).accessibilityIdentifier("crew-detail-name")
                 Text(crew.string("description").isEmpty ? "음악으로 만나 함께 듣고 부르는 크루예요." : crew.string("description")).font(.system(size: 14)).foregroundStyle(AifectDesign.secondaryText).lineLimit(section == "소개" ? nil : 4)
                 HStack(spacing: 8) {
-                    CrewStatistic(title: "크루 레벨", value: "LV.\(crew.int("level"))", icon: "sparkles")
                     CrewStatistic(title: "총 인원 · 정원 \(crew.int("capacity"))명", value: "\(crew.int("members"))명", icon: "person.2")
                     CrewStatistic(title: "공개 음악", value: "\(data.songs().count)곡", icon: "music.note")
                 }
@@ -393,6 +392,7 @@ struct CrewPage: View {
             Text("크루 소개").font(.system(size: 21, weight: .bold))
             Text(crew.string("description").isEmpty ? "크루 소개가 아직 등록되지 않았어요." : crew.string("description")).font(.system(size: 15)).foregroundStyle(AifectDesign.secondaryText)
             if !crew.string("interests").isEmpty { Label(crew.string("interests"), systemImage: "music.note.list").font(.system(size: 14)).foregroundStyle(Brand.aqua) }
+            CrewGrowthGuide(crew: crew, rules: data.object("rules"))
             if member {
                 Button(data.object("membership").flag("muted") ? "크루 알림 켜기" : "크루 알림 끄기") { Task { await toggleMute() } }.disabled(busy)
                 if owner { Button("소개 · 모집 정보 수정") { edit = true }.disabled(busy) }
@@ -486,6 +486,7 @@ struct MyMusicView: View {
                 if model.user == nil { LoginPrompt(title: "내 음악과 기록을 한곳에") }
                 else {
                     profileCard
+                    MyWalletSummary()
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 8) {
                             NavigationLink("내 플레이리스트") { LibraryView() }.buttonStyle(ParityPill(filled: true))
@@ -523,7 +524,7 @@ struct MyMusicView: View {
                 }
                 if let error { RetryCard(message: error) { Task { await load() } } }
             }.padding(20).padding(.bottom, 16)
-        }.task(id: model.userID) { await load() }.refreshable { await load() }
+        }.task(id: "\(model.userID ?? "guest"):\(model.profileRevision)") { await load() }.refreshable { await load(); model.walletRevision += 1 }
             .sheet(isPresented: $account) { AccountView() }
             .confirmationDialog("이 기기에서 로그아웃할까요?", isPresented: $confirmLogout, titleVisibility: .visible) {
                 Button("로그아웃", role: .destructive) { Task { loggingOut = true; await model.logout(); data = [:]; music = [:]; loggingOut = false } }
@@ -534,9 +535,14 @@ struct MyMusicView: View {
             HStack(spacing: 14) {
                 ProfilePhoto(person: profile, size: 64).clipShape(RoundedRectangle(cornerRadius: 16))
                 VStack(alignment: .leading, spacing: 5) {
-                    Text(profile.displayName(fallback: model.user?.displayName() ?? "내 프로필")).font(.headline)
+                    HStack(spacing: 2) {
+                        Text(profile.displayName(fallback: model.user?.displayName() ?? "내 프로필")).font(.headline).lineLimit(2)
+                            .accessibilityIdentifier("my-profile-name")
+                        NavigationLink { ProfileEditorView() } label: {
+                            Image(systemName: "slider.horizontal.3").font(.system(size: 16)).foregroundStyle(Brand.aqua).frame(width: 44, height: 44)
+                        }.buttonStyle(.plain).accessibilityLabel("아이디 · 프로필 변경").accessibilityIdentifier("edit-my-profile")
+                    }
                     if !profile.string("bio").isEmpty { Text(profile.string("bio")).font(.caption).foregroundStyle(AifectDesign.muted).lineLimit(2) }
-                    NavigationLink("프로필 수정") { ProfileEditorView() }.font(.caption).foregroundStyle(Brand.aqua)
                 }
                 Spacer(minLength: 0)
                 Button { account = true } label: { Image(systemName: "gearshape").frame(width: 44, height: 44) }.accessibilityLabel("계정 설정")
@@ -681,19 +687,84 @@ struct CrewStatistic: View {
         }.frame(maxWidth: .infinity, minHeight: 96).padding(.horizontal, 3).background(AifectDesign.raised.opacity(0.6), in: RoundedRectangle(cornerRadius: 14))
     }
 }
+struct CrewLevelBadge: View {
+    let level: Int
+    var size: CGFloat = 68
+    private var icon: String { ["leaf.fill", "waveform", "star.fill", "crown.fill", "trophy.fill"][max(0, min(4, level - 1))] }
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: size * 0.28).fill(LinearGradient(colors: [Brand.aqua.opacity(0.24), AifectDesign.violet.opacity(0.2)], startPoint: .topLeading, endPoint: .bottomTrailing))
+            RoundedRectangle(cornerRadius: size * 0.28).stroke(Brand.aqua.opacity(0.3), lineWidth: 1)
+            VStack(spacing: 4) {
+                Image(systemName: icon).font(.system(size: size * 0.29, weight: .semibold)).foregroundStyle(Brand.gradient)
+                Text("LV.\(level)").font(.system(size: size * 0.19, weight: .heavy)).foregroundStyle(AifectDesign.text)
+            }
+        }.frame(width: size, height: size).accessibilityElement(children: .ignore).accessibilityLabel("크루 레벨 \(level)")
+    }
+}
 struct CrewLevelProgress: View {
     let crew: [String: Any]
     let rules: [String: Any]
     private var start: Double { rules.objects("levels").first { $0.int("level") == crew.int("level") }?.number("xp") ?? 0 }
     private var next: Double? { (crew["next_xp"] as? NSNumber)?.doubleValue }
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack { Text("함께 쌓은 활동"); Spacer(); Text("\(crew.int("xp").formatted()) XP").foregroundStyle(Brand.aqua) }.font(.system(size: 12, weight: .semibold))
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 14) {
+                CrewLevelBadge(level: crew.int("level"))
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("함께 키우는 우리 크루").font(.system(size: 15, weight: .bold))
+                    Text("\(crew.int("xp").formatted()) XP").font(.system(size: 24, weight: .bold)).monospacedDigit().foregroundStyle(Brand.aqua)
+                    Text("음악과 이야기가 쌓일수록 성장해요").font(.system(size: 11)).foregroundStyle(AifectDesign.muted)
+                }
+            }
             if let next, next > start {
-                ProgressView(value: min(max(0, crew.number("xp") - start), next - start), total: next - start).tint(Brand.aqua)
-                Text("다음 레벨까지 \(max(0, Int(next) - crew.int("xp")).formatted()) XP").font(.system(size: 11)).foregroundStyle(AifectDesign.muted)
-            } else { Text("최고 레벨의 크루예요").font(.system(size: 11)).foregroundStyle(AifectDesign.muted) }
-        }.padding(.top, 4)
+                ProgressView(value: min(max(0, crew.number("xp") - start), next - start), total: next - start).tint(Brand.aqua).scaleEffect(x: 1, y: 2)
+                    .accessibilityLabel("다음 크루 레벨 진행률").accessibilityIdentifier("crew-xp-progress")
+                HStack {
+                    Text("LV.\(crew.int("level"))")
+                    Spacer()
+                    Text("LV.\(crew.int("level") + 1)까지 \(max(0, Int(next) - crew.int("xp")).formatted()) XP")
+                }.font(.system(size: 11, weight: .medium)).foregroundStyle(AifectDesign.secondaryText)
+            } else if rules.objects("levels").last?.int("level") == crew.int("level") {
+                Label("최고 레벨에 도달했어요", systemImage: "checkmark.seal.fill").font(.system(size: 13)).foregroundStyle(Brand.aqua)
+            }
+        }.padding(16).background(LinearGradient(colors: [Color(aifectHex: 0x20343A), Color(aifectHex: 0x242437)], startPoint: .topLeading, endPoint: .bottomTrailing), in: RoundedRectangle(cornerRadius: 18))
+    }
+}
+struct CrewGrowthGuide: View {
+    let crew: [String: Any]
+    let rules: [String: Any]
+    private let activities = [("publishedTrack", "music.note", "음악 공개", "공개한 곡마다"), ("receivedGold", "gift.fill", "골드 선물 받기", "받은 골드 1개마다"), ("dailyChat", "bubble.left.and.bubble.right.fill", "첫 대화 나누기", "하루 첫 크루 채팅")]
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Divider().overlay(AifectDesign.stroke)
+            Text("함께 성장하는 방법").font(.system(size: 20, weight: .bold))
+            Text("좋아하는 음악을 나누고 이야기를 이어가면 크루 경험치가 쌓여요.").font(.system(size: 13)).foregroundStyle(AifectDesign.muted)
+            ForEach(activities, id: \.0) { item in
+                if rules[item.0] != nil {
+                    HStack(spacing: 14) {
+                        Image(systemName: item.1).font(.system(size: 23)).foregroundStyle(Brand.pink).frame(width: 54, height: 54).background(Brand.pink.opacity(0.1), in: RoundedRectangle(cornerRadius: 16))
+                        VStack(alignment: .leading, spacing: 4) { Text(item.2).font(.system(size: 14, weight: .semibold)); Text(item.3).font(.system(size: 12)).foregroundStyle(AifectDesign.muted) }
+                        Spacer(minLength: 4)
+                        Text("+\(rules.int(item.0)) XP").font(.system(size: 15, weight: .bold)).foregroundStyle(Brand.aqua)
+                    }
+                }
+            }
+            Text("레벨이 오르면 더 많은 친구와").font(.system(size: 18, weight: .bold)).padding(.top, 10)
+            ForEach(rules.objects("levels").indices, id: \.self) { index in
+                let level = rules.objects("levels")[index]
+                HStack(spacing: 14) {
+                    CrewLevelBadge(level: level.int("level"), size: 52)
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text("최대 \(level.int("capacity"))명이 함께해요").font(.system(size: 14, weight: .semibold))
+                        Text("누적 \(level.int("xp").formatted()) XP").font(.system(size: 12)).foregroundStyle(AifectDesign.muted)
+                    }
+                    Spacer(minLength: 0)
+                    if level.int("level") == crew.int("level") { Text("현재").font(.system(size: 11, weight: .bold)).foregroundStyle(Brand.aqua) }
+                    else if level.int("level") < crew.int("level") { Image(systemName: "checkmark.circle.fill").foregroundStyle(Brand.aqua) }
+                }.padding(12).background(level.int("level") == crew.int("level") ? Brand.aqua.opacity(0.08) : AifectDesign.raised.opacity(0.5), in: RoundedRectangle(cornerRadius: 18))
+            }
+        }
     }
 }
 struct CrewEmptyCard: View {
