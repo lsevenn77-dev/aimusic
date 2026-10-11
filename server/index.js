@@ -2,7 +2,7 @@ import {musicClassificationRoute,musicClassificationInternal,classifyNext} from 
 import {artistGalleryRoute} from './artist-gallery.js';
 import {accountSafetyRoute,blockedContext,filterBlockedResponse,drainDeletedFiles} from './account-safety.js';
 import {applePaymentRoute,appleNotification} from './apple-payments.js';
-import {playerRoute} from './player.js';
+import {playerRoute,playerBackfillRoute} from './player.js';
 import {profileRoute} from './profiles.js';
 import {playBillingRoute,playWebhook} from './play-billing.js';
 import {pushRoute,dispatchPush,retryPush} from './push.js';
@@ -46,6 +46,7 @@ export default {async fetch(req,env,ctx){
   if(path==='/api/gold/nicepay/callback')return await goldCallback(req,env);
   if(path==='/api/billing/nicepay/webhook')return await billingWebhook(req,env);
   if(path==='/internal/billing/tick')return await billingTick(req,env);
+  if(path==='/internal/player/backfill')return await playerBackfillRoute(req,env);
   if(path.startsWith('/internal/music-classification/'))return await musicClassificationInternal(req,env,path);
   if(path.startsWith('/internal/')){const result=await internalRoute(req,env,path);if(result?.ok&&ctx?.waitUntil&&env.GEMINI_API_KEY&&(path==='/internal/jobs/claim'||path.endsWith('/finish')))ctx.waitUntil(classifyNext(env).catch(()=>console.error('Music classification pending')));return result;}
   const musicResponse=await publicMusicRoute(req,env,path);if(musicResponse)return musicResponse;
