@@ -1,5 +1,7 @@
 # AIFECT iPhone 네이티브 앱
 
+**2026-10-11 Mac 후속 작업:** [Android 2.5.39 기준 최종 인수인계](../design/IOS-HANDOFF-20261011.md)를 먼저 확인한다. 새 가격/다이아 지갑/파트너 정산/배너/레벨·채팅 변경은 해당 문서와 Android 구현을 기준으로 이식한다. 이번 Windows 작업에서 새로운 iOS 빌드·실기기 검증을 수행한 것은 아니다.
+
 SwiftUI · AVFoundation · StoreKit 2 기반 iOS 17 이상 iPhone 앱. API는 https://aifect.co.kr 이며 WebView로 앱을 감싸지 않습니다.
 
 ## 개발

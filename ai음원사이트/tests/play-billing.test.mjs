@@ -1,13 +1,21 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {fixture} from './fixture.mjs';
-import {verifiedGold,verifiedSubscription,verifyPlay,playAccountId} from '../server/play-billing.js';
+import {verifiedGold,verifiedOrderPrice,verifiedSubscription,verifyPlay,playAccountId} from '../server/play-billing.js';
 import {playProduct} from '../shared/play-products.js';
 import {goldBalance} from '../server/gifts.js';
 import {generateKeyPair,exportPKCS8} from 'jose';
 import {allocateLots} from '../shared/gifts.js';
 const gold=playProduct('aifect_gold_500'),sub=playProduct('aifect_premium_monthly');
 const receipt=account=>({obfuscatedExternalAccountId:account,orderId:'GPA.test',purchaseStateContext:{purchaseState:'PURCHASED'},productLineItem:[{productId:gold.id,productOfferDetails:{quantity:1,refundableQuantity:1,consumptionState:'CONSUMPTION_STATE_YET_TO_BE_CONSUMED'}}]});
+const order=(token,orderId='GPA.test',price=5000)=>({orderId,purchaseToken:token,state:'PROCESSED',total:{currencyCode:'KRW',units:String(price)},lineItems:[{productId:gold.id,oneTimePurchaseDetails:{quantity:1}}]});
+
+test('real store orders preserve old prices and validate receipt binding instead of trusting the catalog',()=>{
+ assert.equal(gold.price,6500);assert.equal(sub.price,5900);
+ assert.equal(verifiedOrderPrice(order('token'), 'GPA.test','token',gold),5000);
+ assert.equal(verifiedOrderPrice(order('token','GPA.test',6500), 'GPA.test','token',gold),6500);
+ for(const bad of [{purchaseToken:'wrong'},{orderId:'wrong'},{state:'REFUNDED'},{total:{currencyCode:'USD',units:'5'}},{total:{currencyCode:'KRW',units:'6500',nanos:1}},{lineItems:[]}])assert.throws(()=>verifiedOrderPrice({...order('token'),...bad},'GPA.test','token',gold));
+});
 test('gold binds account and validates actual nested offer and pending/refunded purchases',async()=>{
  const account=await playAccountId('owner');assert.equal(verifiedGold(receipt(account),gold,account).consumed,false);
  assert.throws(()=>verifiedGold(receipt('wrong'),gold,account));
@@ -28,11 +36,13 @@ test('gold replay credits once, consumes after commit, and freezes refunded rema
  const account=await playAccountId('owner'),original=globalThis.fetch;t.after(()=>globalThis.fetch=original);let consumed=false;
  globalThis.fetch=async url=>{
   if(url.includes('oauth2'))return Response.json({access_token:'test',expires_in:3600});
+  if(url.includes('/orders/')){assert.equal(consumed,false);return Response.json(order('purchase-token-test'));}
   if(url.endsWith(':consume')){assert.equal(await goldBalance(env,'owner'),500);consumed=true;return new Response(null,{status:204});}
   const data=receipt(account);if(consumed)data.productLineItem[0].productOfferDetails.consumptionState='CONSUMPTION_STATE_CONSUMED';return Response.json(data);
  };
  await verifyPlay(env,{id:'owner'},'purchase-token-test',gold);await verifyPlay(env,{id:'owner'},'purchase-token-test',gold);
  assert.equal(await goldBalance(env,'owner'),500);assert.equal(f.sql.prepare('SELECT COUNT(*) n FROM gold_purchases').get().n,1);
+ assert.equal(f.sql.prepare('SELECT price_krw FROM gold_purchases').get().price_krw,5000);
  f.sql.exec("UPDATE play_purchases SET state='refunded'");assert.equal(await goldBalance(env,'owner'),0);
  await assert.rejects(()=>verifyPlay(env,{id:'owner'},'purchase-token-test',gold));
 });
@@ -49,6 +59,7 @@ test('Google test payments credit once with zero settlement value and repair an 
  const consumed=new Set();let testPayment=true;
  globalThis.fetch=async url=>{
   if(url.includes('oauth2'))return Response.json({access_token:'test',expires_in:3600});
+  if(url.includes('/orders/'))return Response.json(order('real-gold-receipt','GPA.real-gold-receipt',6500));
   const token=url.split('/tokens/')[1].replace(':consume','');
   if(url.endsWith(':consume')){consumed.add(token);return new Response(null,{status:204});}
   const data=receipt(account);data.orderId='GPA.'+token;if(testPayment)data.testPurchaseContext={fopType:'TEST'};
@@ -68,6 +79,6 @@ test('Google test payments credit once with zero settlement value and repair an 
  testPayment=false;
  await verifyPlay(env,{id:'owner'},'real-gold-receipt',gold);
  const real=f.sql.prepare('SELECT * FROM gold_purchases WHERE price_krw>0').get();
- assert.equal(real.price_krw,5000);assert.equal(real.fee_krw,750);assert.equal(real.tax_krw,455);
- assert.equal(allocateLots([real],500)[0].net_mw,3795000);
+ assert.equal(real.price_krw,6500);assert.equal(real.fee_krw,975);assert.equal(real.tax_krw,591);
+ assert.equal(allocateLots([real],500)[0].net_mw,4934000);
 });

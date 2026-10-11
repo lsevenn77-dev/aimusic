@@ -6,8 +6,9 @@ export const BUSINESS = Object.freeze({
   email: 'lsevenn88@gmail.com', representative: '이종석', phone: '070-8098-8730',
   commerceRegistration: '2026-경기안산-1860', commerceStatus: '신고 완료',
 });
-export const PREMIUM = Object.freeze({name: 'AIFECT Premium', price: 5900, currency: 'KRW', interval: 'month', taxIncluded: true, checkoutAvailable: false});
-export const POLICY_VERSION = '2026-10-05';
+export const PREMIUM = Object.freeze({name: 'AIFECT Premium', price: 4900, currency: 'KRW', interval: 'month', taxIncluded: true, checkoutAvailable: false});
+export const APP_PREMIUM = Object.freeze({...PREMIUM, price: 5900});
+export const POLICY_VERSION = '2026-10-11';
 // Karaoke MR / cover license accepted per track. Bump when the clause text changes; older consents keep their version.
 export const KARAOKE_TERMS_VERSION = '2026-09-24';
 export const KARAOKE_TERMS_TEXT = '이 곡을 AIFECT 노래방에 MR(반주)로 제공하고, 다른 이용자가 이 곡을 커버해 AIFECT에 공개하는 것을 허락합니다. 이 허락에 필요한 권리를 보유하고 있습니다.';

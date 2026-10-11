@@ -11,20 +11,20 @@ const WEB={id:'web',gold:1000,used:0,price_krw:10000,fee_krw:330};
 const APP={id:'app',gold:500,used:0,price_krw:5000,fee_krw:750};
 
 test('payment fees come off first, then the cover or original split applies',()=>{
- assert.deepEqual(GOLD_PACKS.map(p=>[p.gold,p.price]),[[500,5000],[1000,10000],[5000,50000],[10000,100000]]);
- // App: 1,000 KRW -> 150 KRW store fee -> 850 KRW split 40/30/30.
- assert.deepEqual(splitGift('cover',850000),{singer:340000,creator:255000,platform:255000});
- assert.deepEqual(splitGift('original',850000),{singer:0,creator:595000,platform:255000});
+ assert.deepEqual(GOLD_PACKS.map(p=>[p.gold,p.price]),[[500,6500],[1000,13000],[5000,65000],[10000,130000]]);
+ // App: 1,000 KRW -> 150 KRW store fee -> 850 KRW split 70/0/30.
+ assert.deepEqual(splitGift('cover',850000),{singer:595000,creator:0,platform:255000});
+ assert.deepEqual(splitGift('original',850000),{singer:0,creator:510000,platform:340000});
  const spent=allocateLots([WEB,APP],1200);
  assert.deepEqual(spent,[{purchase_id:'web',gold:1000,net_mw:9670000},{purchase_id:'app',gold:200,net_mw:1700000}],'oldest gold first, each at its own after-fee value');
  assert.throws(()=>allocateLots([WEB,APP],1501),/부족/);
  assert.equal(giftMonth(Date.UTC(2026,8,30,15,30)/1000),'2026-10','months follow Korean time');
 });
 
-test('earnings are paid on the 25th of the next month once they reach 10,000 KRW, smaller months carry over',()=>{
+test('unclosed earnings require operator review regardless of cash minimum',()=>{
  const months=settlementMonths([{month:'2020-01',singer_mw:6000000,creator_mw:0,gifts:1},{month:'2020-02',singer_mw:3000000,creator_mw:2000000,gifts:2},{month:'2020-03',singer_mw:12000000,creator_mw:0,gifts:1},{month:'2020-04',singer_mw:1000,creator_mw:0,gifts:1}],'2020-04');
  assert.deepEqual(months.map(m=>[m.month,m.status,m.payable_krw??m.carried_krw??null,m.payout_on??null]),
-  [['2020-01','carried',6000,null],['2020-02','payable',11000,'2020-03-25'],['2020-03','payable',12000,'2020-04-25'],['2020-04','accruing',null,'2020-05-25']]);
+  [['2020-01','pending_review',6000,null],['2020-02','pending_review',11000,null],['2020-03','pending_review',12000,null],['2020-04','accruing',null,'2020-05-25']]);
 });
 
 async function giftFixture(t){
@@ -60,7 +60,7 @@ test('one-gold balloon preserves fractional earnings and spends once',async t=>{
  assert.equal(result.status,201,JSON.stringify(result.body));assert.equal(result.body.balance,1499);
  assert.equal((await f.call('/api/tracks/cover/gifts','POST',body,'fan')).body.balance,1499);
  const gift=f.sql.prepare('SELECT * FROM gifts').get();
- assert.deepEqual([gift.gold,gift.net_mw,gift.singer_mw,gift.creator_mw,gift.platform_mw],[1,9670,3868,2901,2901]);
+ assert.deepEqual([gift.gold,gift.net_mw,gift.singer_mw,gift.creator_mw,gift.platform_mw],[1,9670,6769,0,2901]);
  assert.equal((await f.call('/api/tracks/cover/gifts')).body.ranking[0].score,1);
  assert.equal((await f.call('/api/tracks/cover/gifts','POST',{...body,gold:0},'fan')).status,400);
 });
@@ -124,21 +124,21 @@ test('gifts spend the oldest gold, freeze each share, and feed the rankings',asy
  assert.equal(out.status,201,JSON.stringify(out.body));assert.equal(out.body.balance,300);
  const g=f.sql.prepare('SELECT * FROM gifts').get();
  assert.deepEqual({net:g.net_mw,singer:g.singer_mw,creator:g.creator_mw,platform:g.platform_mw,singerProfile:g.singer_profile_id,creatorProfile:g.creator_profile_id},
-  {net:11370000,singer:4548000,creator:3411000,platform:3411000,singerProfile:'singer',creatorProfile:'producer'});
+  {net:11370000,singer:7959000,creator:0,platform:3411000,singerProfile:'singer',creatorProfile:'producer'});
  assert.deepEqual(f.sql.prepare('SELECT id,used FROM gold_purchases ORDER BY paid_at').all().map(r=>[r.id,r.used]),[['web',1000],['app',200]]);
- // A gift straight to the original: 70% to its creator.
+ // A gift straight to the original: 60% to its creator.
  assert.equal((await f.call('/api/tracks/one/gifts','POST',{gold:100},'fan')).status,201);
  const direct=f.sql.prepare("SELECT * FROM gifts WHERE track_id='one'").get();
- assert.deepEqual([direct.net_mw,direct.singer_profile_id,direct.creator_mw,direct.platform_mw],[850000,null,595000,255000]);
+ assert.deepEqual([direct.net_mw,direct.singer_profile_id,direct.creator_mw,direct.platform_mw],[850000,null,510000,340000]);
  const coverRank=(await f.call('/api/tracks/cover/gifts')).body;
  assert.deepEqual([coverRank.total_gold,coverRank.ranking[0]],[1200,{rank:1,name:'팬',profile_id:null,image_version:null,gold:1200,stars:0,score:1200,gifts:1}]);
  assert.deepEqual((await f.call('/api/producers/singer')).body.gifts.ranking.map(r=>[r.name,r.gold]),[['팬',1200]]);
  assert.deepEqual((await f.call('/api/producers/producer')).body.gifts.ranking.map(r=>[r.name,r.gold]),[['팬',100]],'a cover\'s fans belong to its singer');
  const covers=(await f.call('/api/tracks/one/covers?sort=gifts')).body.covers;assert.equal(covers[0].gift_gold,1200);
  const singerEarnings=(await f.call('/api/studio/earnings','GET',undefined,'other')).body.months[0];
- assert.deepEqual([singerEarnings.singer_krw,singerEarnings.creator_krw,singerEarnings.status],[4548,0,'accruing']);
+ assert.deepEqual([singerEarnings.singer_krw,singerEarnings.creator_krw,singerEarnings.status],[7959,0,'accruing']);
  const creatorEarnings=(await f.call('/api/studio/earnings','GET',undefined,'owner')).body.months[0];
- assert.deepEqual([creatorEarnings.singer_krw,creatorEarnings.creator_krw,creatorEarnings.total_krw],[0,4006,4006]);
+ assert.deepEqual([creatorEarnings.singer_krw,creatorEarnings.creator_krw,creatorEarnings.total_krw],[0,510,510]);
  assert.equal((await f.call('/api/gold/checkout','POST',{gold:100},'fan')).status,409,'no payment channel yet');
 });
 

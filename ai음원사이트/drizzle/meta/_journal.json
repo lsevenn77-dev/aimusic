@@ -288,6 +288,13 @@
       "when": 1791722294387,
       "tag": "0040_player_progress",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "6",
+      "when": 1791725927652,
+      "tag": "0041_cuddly_blindfold",
+      "breakpoints": true
     }
   ]
 }

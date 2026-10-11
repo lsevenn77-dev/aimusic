@@ -66,9 +66,10 @@ import java.util.UUID
    success?.let{item{Text(it,color=Aqua,fontSize=17.sp)}}
    if(wallet!=null){
     item{Text("보유 응원별 ★ ${free?.optInt("balance")?:0}    골드 ${wallet?.optInt("balance")} G",color=Aqua);Text("별은 무료 응원 선물이에요. 현금 가치·골드 전환·수익 정산이 없어요.",fontSize=14.sp,color=Muted,modifier=Modifier.padding(top=8.dp))}
-    item{Surface(onClick={m.showGifts=false;m.showRewards=true},color=Raised,shape=RoundedCornerShape(16.dp)){Text("오늘의 응원별 · 무료 보상 받기",color=Aqua,modifier=Modifier.fillMaxWidth().padding(18.dp))}}
-    item{Text("세금과 결제 수수료를 제외한 금액을 수령자 70% · AIFECT 30%로 배분합니다.",color=Muted,fontSize=13.sp);Text("커버곡 선물은 가창자 40% · 원곡자 30%로 나눠요. 기존 충전분은 충전 당시 기준을 유지해요.",color=Muted,fontSize=12.sp)}
-    item{Text("선물 고르기",fontSize=19.sp);Text("★ 1 = 1 G = 응원 순위 1점 · 1 G = 10원",fontSize=13.sp,color=Muted)}
+    item{Surface(onClick={m.showGifts=false;m.showRewards=true},color=Raised,shape=RoundedCornerShape(16.dp)){Text("오늘의 응원별 · 무료 보상 받기",color=Aqua,modifier=Modifier.fillMaxWidth().musicSurface(feature=true).padding(18.dp))}}
+    item{Text("세금과 결제 수수료를 제외한 금액에서 일반 창작자 60% · 파트너 70%를 다이아로 적립해요.",color=Muted,fontSize=13.sp);Text("커버곡 선물은 가창자 70% · AIFECT 30%예요. 원곡자는 커버의 재생 수익만 받아요.",color=Muted,fontSize=12.sp)}
+    item{TextButton(onClick={m.showGifts=false;m.showDiamonds=true}){Text("◇ 다이아 · 골드 전환 · 현금 정산")}}
+    item{Text("선물 고르기",fontSize=19.sp);Text("★ 1 = 1 G = 응원 순위 1점",fontSize=13.sp,color=Muted)}
     items(catalog.chunked(4)){row->Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(7.dp)){
      row.forEach{gift->val gid=gift.optString("id");Surface(onClick={if(!working){selected=gid;requestId=UUID.randomUUID().toString();success=null;error=null}},modifier=Modifier.weight(1f),shape=RoundedCornerShape(12.dp),color=if(selected==gid)Stroke else Ink,border=BorderStroke(1.dp,if(selected==gid)Pink else Stroke)){
       Column(Modifier.padding(vertical=9.dp),horizontalAlignment=Alignment.CenterHorizontally){val path=gift.optString("image");if(path.startsWith("/assets/gifts/"))AsyncImage(Endpoint.url(path),null,Modifier.size(56.dp));Text(gift.optString("name"),fontSize=14.sp);Text(if(gid=="star")"★ 1" else "${gift.optInt("gold")} G",color=Aqua,fontSize=13.sp)}

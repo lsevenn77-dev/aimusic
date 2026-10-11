@@ -108,6 +108,7 @@ function bindSocialChat(view){
  if(!initial)void load();
  const stopStream=watchSocialChat(query,()=>load(),text=>{if(current())$('#chat-connection').textContent=text;},deny);
  // Resize only the conversation pane, never scroll the whole document while typing.
+ document.body.classList.add('chat-active');
  const panel=log.closest('.chat-panel'),viewportHeightAtOpen=innerHeight;let pinned=true,frame=0;
  const onScroll=()=>{pinned=log.scrollHeight-log.scrollTop-log.clientHeight<90;};
  const anchor=()=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(()=>{if(!current())return;if(document.activeElement===input||pinned)log.scrollTop=log.scrollHeight;});};
@@ -116,7 +117,7 @@ function bindSocialChat(view){
  log.addEventListener('scroll',onScroll,{passive:true});log.addEventListener('load',anchor,true);
  input.addEventListener('focus',viewport);input.addEventListener('blur',viewport);
  window.visualViewport?.addEventListener('resize',viewport);window.addEventListener('resize',viewport);viewport();
- socialCleanup=()=>{document.body.classList.remove('chat-keyboard');stopStream();resize.disconnect();cancelAnimationFrame(frame);log.removeEventListener('scroll',onScroll);log.removeEventListener('load',anchor,true);input.removeEventListener('focus',viewport);input.removeEventListener('blur',viewport);window.visualViewport?.removeEventListener('resize',viewport);window.removeEventListener('resize',viewport);};
+ socialCleanup=()=>{document.body.classList.remove('chat-keyboard','chat-active');stopStream();resize.disconnect();cancelAnimationFrame(frame);log.removeEventListener('scroll',onScroll);log.removeEventListener('load',anchor,true);input.removeEventListener('focus',viewport);input.removeEventListener('blur',viewport);window.visualViewport?.removeEventListener('resize',viewport);window.removeEventListener('resize',viewport);};
 }
 
 document.addEventListener('click',async event=>{

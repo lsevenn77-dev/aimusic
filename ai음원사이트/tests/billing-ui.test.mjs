@@ -19,8 +19,8 @@ test('new subscription entry uses the server price while renewing subscriptions 
 });
 test('public pricing and refund examples agree with the current subscription policy',()=>{
  for(const route of ['/pricing','/terms','/contact']){
-  const html=publicPage(route);assert.match(html,/5,900원/);assert.doesNotMatch(html,/4,900원/);
+  const html=publicPage(route);assert.match(html,/4,900원/);
  }
- const html=publicPage('/pricing');assert.match(html,/순매출의 50%/);assert.match(html,/50%를 플랫폼/);assert.match(html,/자동 집계와 정산 명세는 준비 중/);
- assert.match(publicPage('/refund'),/1,966원을 공제하고 3,934원을 환불/);
+ const html=publicPage('/pricing');assert.match(html,/순매출의 50%/);assert.match(html,/50%를 플랫폼/);assert.match(html,/운영자가 월별 실제 결제/);
+ assert.match(publicPage('/refund'),/1,633원을 공제하고 3,267원을 환불/);
 });

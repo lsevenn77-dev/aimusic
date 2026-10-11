@@ -13,6 +13,7 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalDensity
@@ -492,19 +493,22 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
  }
 }
 @Composable private fun ChatHistory(m:MusicModel,messages:List<JSONObject>,earlier:Boolean,busy:Boolean,loadEarlier:()->Unit,userId:String?,crew:Boolean,peer:String="",retry:((JSONObject)->Unit)?=null,modifier:Modifier=Modifier,fill:Boolean=false,peerPerson:JSONObject?=null,openPeer:(()->Unit)?=null,emptyLabel:String?=null,loadError:String?=null,reload:(()->Unit)?=null,reloadEnabled:Boolean=true,author:((JSONObject)->Unit)?=null){
+ DisposableEffect(m){m.visibleChatCount++;onDispose{m.visibleChatCount=(m.visibleChatCount-1).coerceAtLeast(0)}}
  val peerKey=peerPerson?.optString("id")
  val state=remember(peerKey,crew){LazyListState()}
  var initialized by remember(peerKey,crew){mutableStateOf(false)}
  // Latest message is index zero: keyboard and composer resizing keep the bottom anchored.
- val composing=WindowInsets.ime.getBottom(LocalDensity.current)>0
- LaunchedEffect(messages.lastOrNull()?.optString("id"),composing){
+ val keyboardHeight=WindowInsets.ime.getBottom(LocalDensity.current)
+ val composing=keyboardHeight>0
+ var historyHeight by remember{mutableIntStateOf(0)}
+ LaunchedEffect(messages.lastOrNull()?.optString("id"),keyboardHeight,historyHeight){
   val latest=messages.lastOrNull()
   val mine=latest?.optString(if(crew)"user_id" else "sender_id")==userId
   if(messages.isNotEmpty()&&(!initialized||composing||mine||state.firstVisibleItemIndex<2)){state.scrollToItem(0);initialized=true}
  }
  Column(modifier){
   if(earlier)TextButton(onClick=loadEarlier,enabled=!busy){Text("이전 대화 보기")}
-  val historyModifier=Modifier.fillMaxWidth().then(if(fill)Modifier.weight(1f)else Modifier.height(480.dp)).background(Ink).testTag("chat-history")
+  val historyModifier=Modifier.fillMaxWidth().then(if(fill)Modifier.weight(1f)else Modifier.height(480.dp)).onSizeChanged{historyHeight=it.height}.background(Ink).testTag("chat-history")
   LazyColumn(historyModifier,state=state,reverseLayout=true,contentPadding=PaddingValues(10.dp),verticalArrangement=Arrangement.spacedBy(10.dp,Alignment.Bottom)){
    if(messages.isEmpty())item{Text(emptyLabel?:if(crew)"첫 이야기를 남겨보세요." else "메시지를 보내 대화를 시작해보세요.",color=Muted,fontSize=14.sp,modifier=Modifier.padding(12.dp))}
    items(messages.asReversed(),key={it.optString("id")}){msg->
@@ -513,7 +517,7 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
     else{
      Row(Modifier.fillMaxWidth().testTag("dm-message-"+msg.optString("id")),horizontalArrangement=if(mine)Arrangement.End else Arrangement.Start,verticalAlignment=Alignment.Top){
       if(!mine){
-       val person=if(crew)payload("id" to msg.optString("profile_id"),"name" to msg.optString("name","크루원"),"image_version" to msg.optInt("image_version"))else peerPerson
+       val person=if(crew)payload("id" to msg.optString("profile_id"),"name" to msg.optString("name","크루원"),"image_version" to msg.optInt("image_version"),"player_xp" to msg.optInt("player_xp"),"profile_frame" to msg.optString("profile_frame"))else peerPerson
        if(person!=null){MessageProfileAvatar(person,"dm-message-profile-"+msg.optString("id"),36){if(crew&&person.optString("id").isNotBlank())m.openProfile(person.optString("id"))else openPeer?.invoke()};Spacer(Modifier.width(8.dp))}
       }
       Column(Modifier.widthIn(max=260.dp),horizontalAlignment=if(mine)Alignment.End else Alignment.Start){

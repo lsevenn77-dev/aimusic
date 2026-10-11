@@ -21,6 +21,8 @@ import android.util.Base64
 class MusicModel(app:Application):AndroidViewModel(app) {
  val api=NativeApi(app)
  var showBilling by mutableStateOf(false)
+ var showDiamonds by mutableStateOf(false)
+ var visibleChatCount by mutableIntStateOf(0)
  var playBilling:PlayBilling?=null
  var tab by mutableIntStateOf(0)
  var playlistTarget by mutableStateOf<Song?>(null)
@@ -229,7 +231,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   selectedList=null;listSongs=emptyList();listLoading=false;playlistTarget=null;collection=null;collectionBusy=false;collectionError=null
   detail=null;comments=emptyList();detailBusy=false;profile=null;profileSongs=emptyList();profileCovers=emptyList();profileFollowers=0
   profileCache.clear();retryProfileLoad=null;profileLoading=false;profileError=null;messageSourceProfile=null
-  showMessages=false;messagePeer=null;messageCrew=null;unreadMessages=0;inboxCrew=null;showProfileEdit=false;showAccountSettings=false;showRecordingDrafts=false;showRewards=false;showGifts=false;giftTarget=null;giftPerson=null
+  showDiamonds=false;showMessages=false;messagePeer=null;messageCrew=null;unreadMessages=0;inboxCrew=null;showProfileEdit=false;showAccountSettings=false;showRecordingDrafts=false;showRewards=false;showGifts=false;giftTarget=null;giftPerson=null
   showAccount=false;accountError=null;nicknameCheck=null;studioBusy=false;studioError=null
   feed=emptyList();feedFilter="전체";feedLoading=false;feedError=null;displayedFeedPath=null
   feedRequest++;feedReadScope=null;communityCrewMode=false;communityCrewTarget=null;crewBrowsing=false;lastKnownCrewId=null

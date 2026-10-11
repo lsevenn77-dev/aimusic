@@ -152,3 +152,17 @@ export const playerEquipment=sqliteTable('player_equipment',{
  userId:text('user_id').primaryKey().references(()=>users.id,{onDelete:'cascade'}),frameInventoryId:text('frame_inventory_id').references(()=>playerInventory.id,{onDelete:'set null'})
 });
 export const musicClassificationHistory=sqliteTable('music_classification_history',{id:text('id').primaryKey(),trackId:text('track_id').notNull().references(()=>tracks.id),beforeJson:text('before_json').notNull(),afterJson:text('after_json').notNull(),created:integer('created').notNull()},t=>[index('music_classification_history_track').on(t.trackId,t.created)]);
+
+// Monetary precision stays in milli-won; 1 diamond is 100 KRW, not one ledger unit.
+export const diamondLedger=sqliteTable('diamond_ledger',{
+ id:text('id').primaryKey(),userId:text('user_id').notNull().references(()=>users.id),kind:text('kind').notNull(),sourceKey:text('source_key').notNull(),amountMw:integer('amount_mw').notNull(),eligibleMw:integer('eligible_mw').notNull().default(0),gold:integer('gold').notNull().default(0),period:text('period').notNull(),detail:text('detail').notNull().default(''),created:integer('created').notNull()
+},t=>[uniqueIndex('diamond_source').on(t.userId,t.sourceKey),index('diamond_user').on(t.userId,t.created)]);
+export const creatorPartners=sqliteTable('creator_partners',{
+ userId:text('user_id').primaryKey().references(()=>users.id),basis:text('basis').notNull(),active:integer('active').notNull().default(1),activated:integer('activated').notNull(),reviewedBy:text('reviewed_by').notNull(),reason:text('reason').notNull()
+});
+export const giftExclusions=sqliteTable('gift_exclusions',{
+ giftId:text('gift_id').primaryKey().references(()=>gifts.id),reason:text('reason').notNull(),reviewedBy:text('reviewed_by').notNull(),created:integer('created').notNull()
+});
+export const streamSettlements=sqliteTable('stream_settlements',{
+ period:text('period').primaryKey(),paidKrw:integer('paid_krw').notNull(),refundedKrw:integer('refunded_krw').notNull(),feeKrw:integer('fee_krw').notNull(),taxKrw:integer('tax_krw').notNull(),poolMw:integer('pool_mw').notNull(),allocatedMw:integer('allocated_mw').notNull(),evidence:text('evidence').notNull(),reviewedBy:text('reviewed_by').notNull(),created:integer('created').notNull()
+});

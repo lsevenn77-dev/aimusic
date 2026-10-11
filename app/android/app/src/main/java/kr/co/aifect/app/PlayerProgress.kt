@@ -14,6 +14,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -26,10 +32,16 @@ internal fun playerLevel(xp:Int)=((1+sqrt(1+xp.coerceAtLeast(0)/12.5))/2).toInt(
 @Composable internal fun BoxScope.PlayerAvatarDecoration(p:JSONObject?,size:Int){
  if(p==null||p.optString("profile_kind","producer")=="artist")return
  if(p.optString("profile_frame")=="crew-outline")Image(painterResource(R.drawable.player_frame_clan_aether),contentDescription=null,modifier=Modifier.matchParentSize().graphicsLayer(scaleX=1.26f,scaleY=1.26f),contentScale=ContentScale.Fit)
- if(!p.isNull("player_xp")||p.has("player_level")){
-  val large=size>=100
-  Surface(color=Raised,contentColor=Aqua,shape=RoundedCornerShape(7.dp),border=BorderStroke(2.dp,Panel),modifier=Modifier.align(Alignment.BottomStart).padding(start=if(large)8.dp else 0.dp,bottom=if(large)3.dp else 0.dp)){
-   Text(p.optInt("player_level",playerLevel(p.optInt("player_xp"))).toString(),fontSize=if(large)13.sp else 10.sp,fontWeight=FontWeight.SemiBold,modifier=Modifier.padding(horizontal=5.dp,vertical=2.dp))
+ if(size>=80&&(!p.isNull("player_xp")||p.has("player_level"))){
+  val level=p.optInt("player_level",playerLevel(p.optInt("player_xp"))).coerceIn(1,100).toString()
+  val height=(size*.28f).coerceIn(11f,20f)
+  val fontScale=LocalDensity.current.fontScale
+  // Decorative badge has its own compact line metrics, independent of body-text scaling.
+  Box(Modifier.align(Alignment.BottomStart).offset(x=(-1).dp,y=(height*.25f).dp)
+   .size(width=(height*.55f*level.length+6f).dp,height=height.dp)
+   .background(Raised,RoundedCornerShape((height/2).dp)).border(1.dp,Panel,RoundedCornerShape((height/2).dp))
+   .testTag("avatar-level").semantics{contentDescription="레벨 $level"},contentAlignment=Alignment.Center){
+   Text(level,maxLines=1,softWrap=false,color=Aqua,style=TextStyle(fontSize=(height*.68f/fontScale).sp,lineHeight=((height-2)/fontScale).sp,fontWeight=FontWeight.SemiBold,platformStyle=PlatformTextStyle(includeFontPadding=false)))
   }
  }
 }

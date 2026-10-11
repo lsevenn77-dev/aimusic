@@ -18,3 +18,5 @@
 @media(max-width:800px){.player-inventory-layout{grid-template-columns:1fr;gap:20px}.player-guide{padding:22px}.player-progress-card{padding:20px}.player-progress-caption{font-size:11px}.player-item{padding:20px;gap:12px}.player-equipped-preview{padding:16px 8px}}
 
 .social-profile-photo.player-frame-crew{margin-block:16px}.player-equipped-preview .player-frame-crew{margin:12px}.player-item-preview .player-frame-crew{margin:12px}.player-item-preview{padding-block:8px}
+
+.player-avatar:not(.social-profile-photo) .player-level-badge{display:none}

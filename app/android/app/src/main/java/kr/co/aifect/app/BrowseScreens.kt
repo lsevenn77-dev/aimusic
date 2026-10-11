@@ -133,7 +133,7 @@ private val PagePadding=PaddingValues(start=22.dp,end=22.dp,bottom=32.dp)
 }
 
 @Composable private fun WelcomeMusic(m:MusicModel){
- Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Brush.linearGradient(listOf(Color(0xFF24303D),Color(0xFF192630)))).padding(24.dp)){
+ Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).musicSurface(feature=true).padding(24.dp)){
   Text("AI + EFFECT",color=SoftText,fontSize=12.sp,letterSpacing=2.sp)
   Text("오늘의 음악이\n내일의 취향이 돼요",fontSize=28.sp,lineHeight=36.sp,fontWeight=FontWeight.Bold,modifier=Modifier.padding(vertical=20.dp))
   if(m.loading)LinearProgressIndicator(Modifier.fillMaxWidth(),color=Aqua,trackColor=Stroke)
@@ -141,7 +141,7 @@ private val PagePadding=PaddingValues(start=22.dp,end=22.dp,bottom=32.dp)
  }
 }
 @Composable private fun FeaturedRelease(song:Song,queue:List<Song>,m:MusicModel){
- Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Brush.linearGradient(listOf(Color(0xFF26303D),Color(0xFF1A252D)))).padding(18.dp)){
+ Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).musicSurface(feature=true).padding(18.dp)){
   Row(verticalAlignment=Alignment.CenterVertically){
    Artwork(song,Modifier.size(122.dp).clickable{m.openSong(song)})
    Column(Modifier.weight(1f).padding(start=18.dp)){
@@ -421,7 +421,7 @@ private val PagePadding=PaddingValues(start=22.dp,end=22.dp,bottom=32.dp)
       Surface(onClick={m.showLogin=true},color=Panel,shape=RoundedCornerShape(16.dp),modifier=Modifier.weight(1f)){Column(Modifier.padding(vertical=20.dp),horizontalAlignment=Alignment.CenterHorizontally){Icon(icon,null,tint=if(name=="플레이리스트")SoftText else Pink);Text(name,fontSize=12.sp,modifier=Modifier.padding(top=12.dp))}}
      }
     }
-    Column(Modifier.fillMaxWidth().padding(top=18.dp).clip(RoundedCornerShape(22.dp)).background(Brush.linearGradient(listOf(Color(0xFF34252E),Panel))).padding(24.dp)){
+    Column(Modifier.fillMaxWidth().padding(top=18.dp).clip(RoundedCornerShape(22.dp)).musicSurface(feature=true).padding(24.dp)){
      Text("취향이 차곡차곡 쌓이는 곳",fontSize=23.sp,fontWeight=FontWeight.Bold)
      Text("좋아요한 곡부터 나만의 플레이리스트까지.\n로그인하고 어디서든 이어 들어요.",color=Muted,fontSize=14.sp,modifier=Modifier.padding(vertical=16.dp))
      Button(onClick={m.showLogin=true}){Text("로그인하고 시작하기")}

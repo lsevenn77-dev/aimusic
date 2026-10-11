@@ -4,6 +4,7 @@ import {one,rows,query,now,id,fail,json,rate} from './db.js';
 import {requireUser} from './auth.js';
 import {published} from './catalog.js';
 import {GOLD_KRW,GOLD_PACKS,WEB_GOLD_PACKS,WEB_GOLD_BONUS_PERCENT,GIFT_MIN_GOLD,GIFT_MAX_GOLD,MIN_PAYOUT_KRW,PAYOUT_DAY,EARNINGS_AVAILABLE_DAY,earningsSchedule,GIFT_SPLITS,GIFT_CATALOG,giftById,allocateLots,splitGift,giftMonth,wonFromMw} from '../shared/gifts.js';
+import {diamondWallet,partnerState} from './diamonds.js';
 import {creatorPayouts} from './payouts.js';
 import {freeGiftState,claimFreeGift,sendFreeGift} from './free-gifts.js';
 import {FREE_GIFT} from '../shared/gifts.js';
@@ -37,8 +38,8 @@ export function settlementMonths(months,current){
   const total=wonFromMw(m.singer_mw+m.creator_mw),base={month:m.month,gifts:m.gifts,singer_krw:wonFromMw(m.singer_mw),creator_krw:wonFromMw(m.creator_mw),total_krw:total};
   if(m.month>=current)return {...base,status:'accruing',payout_on:nextMonthDay(m.month,PAYOUT_DAY)};
   carry+=total;
-  if(carry>=MIN_PAYOUT_KRW){const due=carry;carry=0;return {...base,status:'payable',payable_krw:due,payout_on:nextMonthDay(m.month,PAYOUT_DAY)};}
-  return {...base,status:'carried',carried_krw:carry};
+  if(carry>=MIN_PAYOUT_KRW){const due=carry;carry=0;return {...base,status:'pending_review',payable_krw:due};}
+  return {...base,status:'pending_review',carried_krw:carry};
  });
 }
 
@@ -56,7 +57,7 @@ export async function giftRoute(req,env,path,user){
    freeGiftState(env,user.id),
    rows(env,'SELECT g.id,g.created,t.id track_id,COALESCE(t.title,p.name) title,g.recipient_profile_id FROM free_gifts g LEFT JOIN tracks t ON t.id=g.track_id LEFT JOIN producers p ON p.id=g.recipient_profile_id WHERE g.sender_id=? ORDER BY g.created DESC LIMIT 20',user.id),
    rows(env,'SELECT g.id,g.gold,g.gift_type,g.gift_name,g.created,t.id track_id,COALESCE(t.title,p.name) title,COALESCE(t.kind,\'person\') kind,CASE WHEN g.track_id IS NULL THEN g.creator_profile_id END recipient_profile_id FROM gifts g LEFT JOIN tracks t ON t.id=g.track_id LEFT JOIN producers p ON p.id=g.creator_profile_id WHERE g.sender_id=? ORDER BY g.created DESC LIMIT 20',user.id)]);
-  return json({balance,gold_krw:GOLD_KRW,packs:GOLD_PACKS,web_packs:WEB_GOLD_PACKS,web_bonus_percent:WEB_GOLD_BONUS_PERCENT,...goldCheckoutStatus(env,user),purchases,orders,gifts:GIFT_CATALOG,free,free_sent,sent});
+  return json({diamonds:await diamondWallet(env,user.id),balance,gold_krw:GOLD_KRW,packs:GOLD_PACKS,web_packs:WEB_GOLD_PACKS,web_bonus_percent:WEB_GOLD_BONUS_PERCENT,...goldCheckoutStatus(env,user),purchases,orders,gifts:GIFT_CATALOG,free,free_sent,sent});
  }
  if(path==='/api/gold/checkout'&&method==='POST'){requireUser(user);return createGoldCheckout(req,env,user);}
  if(path==='/api/studio/earnings'&&method==='GET'){
@@ -71,7 +72,7 @@ export async function giftRoute(req,env,path,user){
   // Months up to the latest statement are settled; later months show the projected carry-over.
   const payout=await creatorPayouts(env,user.id),through=payout.last_period;
   const settled=months.filter(m=>through&&m.month<=through).map(m=>({month:m.month,gifts:m.gifts,singer_krw:wonFromMw(m.singer_mw),creator_krw:wonFromMw(m.creator_mw),total_krw:wonFromMw(m.singer_mw+m.creator_mw),status:'settled'}));
-  return json({activity,breakdown,current_month:current,current_schedule:earningsSchedule(current,now()),min_payout_krw:MIN_PAYOUT_KRW,payout_day:PAYOUT_DAY,earnings_available_day:EARNINGS_AVAILABLE_DAY,splits:GIFT_SPLITS,months:[...settled,...settlementMonths(months.filter(m=>!through||m.month>through),current)].map(m=>({...m,...earningsSchedule(m.month,now()),...(m.status==='settled'?{earnings_available:true}:{})})).reverse(),payout});
+  return json({diamonds:await diamondWallet(env,user.id),activity,breakdown,current_month:current,current_schedule:earningsSchedule(current,now()),min_payout_krw:MIN_PAYOUT_KRW,payout_day:PAYOUT_DAY,earnings_available_day:EARNINGS_AVAILABLE_DAY,splits:GIFT_SPLITS,months:[...settled,...settlementMonths(months.filter(m=>!through||m.month>through),current)].map(m=>({...m,...earningsSchedule(m.month,now()),...(m.status==='settled'?{earnings_available:true}:{})})).reverse(),payout});
  }
  const m=path.match(/^\/api\/(tracks|producers)\/([\w-]+)\/gifts$/);if(!m)return null;
  const personal=m[1]==='producers';
@@ -93,9 +94,9 @@ export async function giftRoute(req,env,path,user){
  const replay=async()=>{if(!requestId)return null;const old=await one(env,'SELECT id,track_id,creator_profile_id,gold,gift_type,gift_name FROM gifts WHERE sender_id=? AND request_id=?',user.id,requestId);if(!old)return null;if(old.track_id!==track.id||(personal&&old.creator_profile_id!==track.producer_id)||old.gold!==gold||old.gift_type!==(selected?.id??null))fail(409,'이미 사용된 선물 요청이에요. 새로 선택해주세요.');return json({gift:{id:old.id,gold:old.gold,type:old.gift_type,name:old.gift_name},balance:await goldBalance(env,user.id)});};
  const previous=await replay();if(previous)return previous;
  const creator=track.kind==='cover'?(await one(env,'SELECT producer_id FROM tracks WHERE id=?',track.original_id)).producer_id:track.producer_id;
- const lots=await rows(env,"SELECT id,gold,used,price_krw,fee_krw,tax_krw FROM gold_purchases WHERE user_id=? AND status='paid' AND used<gold AND NOT EXISTS(SELECT 1 FROM play_purchases pp WHERE 'play_'||pp.token_hash=gold_purchases.id AND pp.state='refunded') ORDER BY paid_at,id",user.id);
+ const lots=await rows(env,"SELECT id,gold,used,price_krw,fee_krw,tax_krw FROM gold_purchases WHERE user_id=? AND status='paid' AND used<gold AND NOT EXISTS(SELECT 1 FROM gold_orders o WHERE o.id=gold_purchases.id AND o.state!='paid') AND NOT EXISTS(SELECT 1 FROM play_purchases pp WHERE 'play_'||pp.token_hash=gold_purchases.id AND pp.state='refunded') ORDER BY paid_at,id",user.id);
  let spent;try{spent=allocateLots(lots,gold);}catch{fail(409,'골드가 부족해요. 충전한 뒤 다시 선물해주세요.');}
- const net=spent.reduce((sum,l)=>sum+l.net_mw,0),share=splitGift(track.kind,net),gid=id(),at=now();
+ const net=spent.reduce((sum,l)=>sum+l.net_mw,0),share=splitGift(track.kind,net,(await partnerState(env,track.user_id)).tier==='partner'),gid=id(),at=now();
  try{
   // The lot check constraint rejects overspending or spending a refunded lot, which rolls the whole batch back.
   await env.DB.batch([

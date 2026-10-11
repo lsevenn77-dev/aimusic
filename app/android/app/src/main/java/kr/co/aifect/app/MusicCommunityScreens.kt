@@ -52,7 +52,7 @@ import org.json.JSONObject
   LazyColumn(Modifier.fillMaxSize().testTag("music-community-feed"),contentPadding=PaddingValues(20.dp),verticalArrangement=Arrangement.spacedBy(16.dp)){
    if(m.feedFilter=="전체")item{
     Surface(onClick={m.communityCrewMode=true;m.communityCrewTarget=null;m.crewBrowsing=false},color=Panel,shape=RoundedCornerShape(18.dp)){
-     Row(Modifier.fillMaxWidth().padding(16.dp),verticalAlignment=Alignment.CenterVertically){
+     Row(Modifier.fillMaxWidth().musicSurface(feature=true).padding(16.dp),verticalAlignment=Alignment.CenterVertically){
       Icon(Icons.Rounded.Groups,null,tint=Aqua)
       Column(Modifier.weight(1f).padding(horizontal=12.dp)){Text("크루에서 함께 듣고 부르기",fontWeight=FontWeight.SemiBold);Text("내 크루 · 멤버들의 음악 · 크루 채팅",fontSize=12.sp,color=Muted)}
       Icon(Icons.Rounded.ChevronRight,null,tint=Muted)
@@ -93,7 +93,7 @@ import org.json.JSONObject
  val music=(tracks+covers).distinctBy{it.id}
  val name=p.optString("display_name",p.optString("name")).ifBlank{m.user?.optString("name").orEmpty()}
  val context=if(myPage)"my-profile" else "profile"
- Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Panel).testTag("$context-header")){
+ Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).musicSurface().testTag("$context-header")){
   BoxWithConstraints(Modifier.fillMaxWidth()){
    val photoLimit=if(maxWidth<340.dp)144.dp else 176.dp
    Column(Modifier.fillMaxWidth().padding(horizontal=20.dp).padding(top=12.dp,bottom=2.dp),horizontalAlignment=Alignment.CenterHorizontally){
@@ -101,6 +101,10 @@ import org.json.JSONObject
      Text(name,fontSize=25.sp,fontWeight=FontWeight.Bold,maxLines=2,overflow=TextOverflow.Ellipsis,color=MaterialTheme.colorScheme.onSurface,modifier=Modifier.weight(1f).testTag("$context-name"))
      if(myPage)IconButton(onClick={m.showAccount=true},modifier=Modifier.testTag("my-profile-settings")){Icon(Icons.Rounded.Settings,"계정 설정",tint=SoftText)}
      else close?.let{dismiss->IconButton(onClick=dismiss,modifier=Modifier.testTag("profile-close")){Icon(Icons.Rounded.Close,"프로필 닫기",tint=SoftText)}}
+    }
+    if(person&&p.optString("partner_badge").let{it.isNotBlank()&&it!="null"})Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(4.dp)){
+     Icon(Icons.Rounded.Verified,null,Modifier.size(14.dp),tint=Aqua)
+     Text(p.optString("partner_badge"),fontSize=12.sp,color=Aqua)
     }
     Spacer(Modifier.height(12.dp))
     // The existing single photo keeps its proportions instead of becoming a cropped banner.

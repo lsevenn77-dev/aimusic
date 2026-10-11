@@ -71,7 +71,7 @@ private val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=C
   }
   Scaffold(containerColor=Ink,snackbarHost={SnackbarHost(snack)},bottomBar={
    if(!keyboardVisible)Column {
-    AnimatedVisibility(m.current!=null){m.current?.let {MiniPlayer(m,it)}}
+    AnimatedVisibility(m.current!=null&&m.visibleChatCount==0){m.current?.let {MiniPlayer(m,it)}}
     NavigationBar(containerColor=Ink,tonalElevation=0.dp){
      listOf(Triple(0,"홈",Icons.Rounded.Headphones),Triple(3,"커뮤니티",Icons.Rounded.People),Triple(2,"부르기",Icons.Rounded.Mic),Triple(5,"메시지",Icons.AutoMirrored.Rounded.Chat),Triple(6,"마이",Icons.Rounded.PersonOutline)).forEach {(i,name,icon)->
       NavigationBarItem(selected=m.tab==i||(m.tab==4&&i==6),onClick={m.selectTab(i)},modifier=Modifier.testTag("main-tab-$i"),icon={BadgedBox(badge={if(i==5&&m.unreadMessages>0)Badge{Text(if(m.unreadMessages>99)"99+" else m.unreadMessages.toString())}}){Icon(icon,name)}},label={Text(name,fontSize=12.sp,fontWeight=FontWeight.SemiBold)},colors=NavigationBarItemDefaults.colors(selectedIconColor=if(i==2)Pink else Aqua,selectedTextColor=MaterialTheme.colorScheme.onSurface,indicatorColor=Raised,unselectedIconColor=Muted,unselectedTextColor=Muted))
@@ -110,6 +110,7 @@ private val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=C
   if(m.showAccount)AccountSheet(m,browser,adPrivacy)
   if(m.showAccountSettings)AccountSettingsSheet(m)
   if(m.showBilling)PlayBillingSheet(m)
+  if(m.showDiamonds)DiamondSheet(m)
   if(m.showRecordingDrafts)RecordingDraftsSheet(m,resumeDraft)
   m.detail?.let { SongSheet(m,it,sing,{listPicker=it}) }
   m.selectedList?.let { PlaylistSheet(m,it) }
@@ -326,7 +327,7 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)A
    AccountMenuRow("계정 설정",Icons.Rounded.ManageAccounts){m.openAccountSettings()}
    AccountMenuRow("Premium · 골드 구매",Icons.Rounded.ShoppingBag){m.showAccount=false;m.showBilling=true}
    AccountMenuRow("DM 보기",Icons.AutoMirrored.Rounded.Chat){m.showAccount=false;m.openMessages()}
-   AccountMenuRow("내 정산",Icons.Rounded.AccountBalanceWallet){open("/#payouts")}
+   AccountMenuRow("다이아 · 내 정산",Icons.Rounded.AccountBalanceWallet){m.showAccount=false;m.showDiamonds=true}
    AccountMenuRow("오늘의 응원별",Icons.Rounded.Star){m.showAccount=false;m.showRewards=true}
    AccountMenuRow("창작자 스튜디오",Icons.Rounded.Tune){open("/#studio")}
    AccountMenuRow("선물함",Icons.Rounded.CardGiftcard,tint=Pink){m.showAccount=false;m.openGifts()}
