@@ -47,6 +47,5 @@ CREATE TABLE `stream_settlements` (
 
 --> statement-breakpoint
 CREATE TRIGGER diamond_spend_guard BEFORE INSERT ON diamond_ledger
-WHEN NEW.kind IN ('exchange','payout') BEGIN
- SELECT CASE WHEN NEW.amount_mw>=0 OR (SELECT COALESCE(sum(amount_mw),0) FROM diamond_ledger WHERE user_id=NEW.user_id)+NEW.amount_mw<0 THEN RAISE(ABORT,'diamond_insufficient') END;
-END;
+WHEN NEW.kind IN ('exchange','payout') AND (NEW.amount_mw>=0 OR (SELECT COALESCE(sum(amount_mw),0) FROM diamond_ledger WHERE user_id=NEW.user_id)+NEW.amount_mw<0)
+BEGIN SELECT RAISE(ABORT,'diamond_insufficient'); END;
