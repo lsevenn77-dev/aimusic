@@ -41,7 +41,6 @@ import org.json.JSONObject
  LaunchedEffect(m.user?.optString("id"),crews){if(!crews)m.community(m.feedFilter)}
  Column(Modifier.fillMaxSize()){
   Column(Modifier.padding(horizontal=20.dp)){
-   if(!crews)Heading("커뮤니티","음악을 발견하고, 담고, 함께 만들어가요.")
    Chips(listOf("추천","커버","듀엣","크루","팔로잉"),label){chosen->
     m.communityCrewMode=chosen=="크루";m.communityCrewTarget=null;m.crewBrowsing=false;invitations=false
     if(chosen!="크루")m.community(when(chosen){"추천"->"전체";"커버"->"커버곡";else->chosen})
@@ -96,7 +95,7 @@ import org.json.JSONObject
  val context=if(myPage)"my-profile" else "profile"
  Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Panel).testTag("$context-header")){
   BoxWithConstraints(Modifier.fillMaxWidth()){
-   val photoLimit=if(maxWidth<340.dp)192.dp else 256.dp
+   val photoLimit=if(maxWidth<340.dp)144.dp else 176.dp
    Column(Modifier.fillMaxWidth().padding(horizontal=20.dp).padding(top=12.dp,bottom=2.dp),horizontalAlignment=Alignment.CenterHorizontally){
     Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
      Text(name,fontSize=25.sp,fontWeight=FontWeight.Bold,maxLines=2,overflow=TextOverflow.Ellipsis,color=MaterialTheme.colorScheme.onSurface,modifier=Modifier.weight(1f).testTag("$context-name"))
@@ -105,11 +104,11 @@ import org.json.JSONObject
     }
     Spacer(Modifier.height(12.dp))
     // The existing single photo keeps its proportions instead of becoming a cropped banner.
-    Box(Modifier.widthIn(max=photoLimit).fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(20.dp)).background(Raised).testTag("$context-photo-frame"),contentAlignment=Alignment.Center){
+    Box(Modifier.widthIn(max=photoLimit).fillMaxWidth().aspectRatio(1f).clip(androidx.compose.foundation.shape.CircleShape).background(Raised).testTag("$context-photo-frame"),contentAlignment=Alignment.Center){
      if(p.optString("image_version").isBlank())Text(name.take(1).ifBlank{"♪"},fontSize=96.sp,fontWeight=FontWeight.Bold,color=Muted.copy(alpha=.3f))
      else AsyncImage(
       Endpoint.url("/media/${p.optString("profile_kind","producer")}/${p.optString("id")}?v=${p.optString("image_version")}"),
-      "$name 프로필 사진",Modifier.fillMaxSize().testTag("$context-cover-image"),contentScale=ContentScale.Fit)
+      "$name 프로필 사진",Modifier.fillMaxSize().testTag("$context-cover-image"),contentScale=ContentScale.Crop)
     }
     if(person)ProfileGiftRanking(m,p)
     Text("팔로워 $followers · 공개 음악 ${music.size}",fontSize=12.sp,color=Muted,modifier=Modifier.fillMaxWidth().padding(top=12.dp))
@@ -158,7 +157,7 @@ import org.json.JSONObject
  val tracks=published.filter{when(tab){"제작곡"->!it.cover;"커버"->it.cover;"듀엣"->it.cover&&it.raw.optString("cover_mode")=="duet";else->true}}
  LazyColumn(Modifier.fillMaxSize().testTag("my-music-page"),contentPadding=PaddingValues(16.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
   item{
-   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.Top){Column(Modifier.weight(1f)){Heading("마이","내 플레이리스트와 공개한 음악을 한곳에")};if(m.user!=null)TextButton(onClick={confirmLogout=true},enabled=!m.busy,colors=ButtonDefaults.textButtonColors(contentColor=SoftText),modifier=Modifier.testTag("my-logout")){Text("로그아웃",fontSize=14.sp)}}
+   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.Top){Spacer(Modifier.weight(1f));if(m.user!=null)TextButton(onClick={confirmLogout=true},enabled=!m.busy,colors=ButtonDefaults.textButtonColors(contentColor=SoftText),modifier=Modifier.testTag("my-logout")){Text("로그아웃",fontSize=14.sp)}}
    if(m.user==null){Empty("음악을 듣기만 해도 좋아요","로그인하면 플레이리스트와 나의 활동을 모아둘 수 있어요.");Button(onClick={m.showLogin=true}){Text("로그인")}}
    else MusicProfileHeader(m,p,published.filter{!it.cover},published.filter{it.cover},m.ownProfile.optInt("follower_count"),myPage=true)
   }

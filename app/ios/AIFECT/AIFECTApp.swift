@@ -238,7 +238,6 @@ struct CommunityView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 0) {
-                PageHeading(title: "커뮤니티", subtitle: "음악을 발견하고, 담고, 함께 만들어가요.")
                 ParityChips(items: AifectDesign.communityTabs, selection: $filter)
             }.padding(.horizontal, 20)
             if filter == "크루" { CrewsView() }

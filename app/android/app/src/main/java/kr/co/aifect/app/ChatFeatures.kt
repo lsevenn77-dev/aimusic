@@ -24,14 +24,14 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 
-@Composable internal fun ChatImage(m:MusicModel,message:JSONObject){
+@Composable internal fun ChatImage(m:MusicModel,message:JSONObject,crew:Boolean=false){
  val context=LocalContext.current
  val owner=m.user?.optString("id")?:return
  val loader=remember(owner){ImageLoader.Builder(context).okHttpClient(m.api.client).diskCache(null).build()}
  DisposableEffect(loader){onDispose{loader.shutdown()}}
  var failed by remember(message.optString("image_id")){mutableStateOf(false)}
  if(failed||message.optLong("image_expires")<=System.currentTimeMillis()/1000)Text("보관 기간이 지난 사진",color=Muted,modifier=Modifier.padding(14.dp))
- else AsyncImage(ImageRequest.Builder(context).data(Endpoint.url("/media/dm/"+message.optString("image_id"))).memoryCacheKey(owner+":"+message.optString("image_id")).build(),"대화 사진",imageLoader=loader,contentScale=ContentScale.Fit,modifier=Modifier.width(240.dp).heightIn(min=120.dp,max=280.dp),onError={failed=true})
+ else AsyncImage(ImageRequest.Builder(context).data(Endpoint.url((if(crew)"/media/crew-chat/" else "/media/dm/")+message.optString("image_id"))).memoryCacheKey(owner+":"+message.optString("image_id")).build(),"대화 사진",imageLoader=loader,contentScale=ContentScale.Fit,modifier=Modifier.width(240.dp).heightIn(min=120.dp,max=280.dp),onError={failed=true})
 }
 
 @Composable internal fun DmActions(m:MusicModel,peer:String?,muted:Boolean,change:(Boolean)->Unit,clear:()->Unit,withDelete:Boolean=true){
@@ -45,17 +45,17 @@ import org.json.JSONObject
  if(confirm)AlertDialog(onDismissRequest={if(!working)confirm=false},title={Text(if(peer==null)"내 DM 전체 삭제" else "내 대화 삭제")},text={Text("내 기기와 내 목록에서 대화를 삭제해요. 상대방의 기록은 유지되며 새 메시지는 다시 표시돼요.")},dismissButton={TextButton(onClick={confirm=false},enabled=!working){Text("취소")}},confirmButton={TextButton(enabled=!working,onClick={scope.launch{working=true;try{m.api.call("/api/dm"+(peer?.let{"/$it"}?:""),"DELETE");NativeChatCache.clear(context,account,peer);if(m.user?.optString("id")==account){clear();m.refreshMessageSummary()};confirm=false}catch(e:Exception){if(e is CancellationException)throw e;m.notice=e.message}finally{working=false}}}){Text("삭제")}})
 }
 
-@Composable internal fun DmAttachments(m:MusicModel,peer:String,busy:Boolean,send:(JSONObject)->Unit){
+@Composable internal fun DmAttachments(m:MusicModel,peer:String,busy:Boolean,crew:Boolean=false,send:(JSONObject)->Unit){
  val scope=rememberCoroutineScope();val account=m.user?.optString("id")
  var uploading by remember(peer){mutableStateOf(false)}
  val picker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()){uri->if(uri!=null&&!busy&&!uploading)scope.launch{
   uploading=true
-  try{val photo=m.api.uploadWebp("/api/dm/$peer/images",uri);if(m.user?.optString("id")==account&&m.messagePeer==peer){val rid=java.util.UUID.randomUUID().toString();send(payload("id" to "pending:$rid","request_id" to rid,"body" to "사진","image_id" to photo.getString("id"),"image_expires" to photo.getLong("expires"),"created" to System.currentTimeMillis()/1000,"sender_id" to account))}}
+  try{val photo=m.api.uploadWebp(if(crew)"/api/crews/$peer/images" else "/api/dm/$peer/images",uri);if(m.user?.optString("id")==account&&(crew||m.messagePeer==peer)){val rid=java.util.UUID.randomUUID().toString();send(payload("id" to "pending:$rid","request_id" to rid,"body" to "사진","image_id" to photo.getString("id"),"image_expires" to photo.getLong("expires"),"created" to System.currentTimeMillis()/1000,"sender_id" to account,"user_id" to account))}}
   catch(e:Exception){if(e is CancellationException)throw e;m.notice=e.message}finally{uploading=false}
  }}
  Row(Modifier.fillMaxWidth().padding(horizontal=14.dp),verticalAlignment=Alignment.CenterVertically){
   IconButton(onClick={picker.launch("image/*")},enabled=!busy&&!uploading){Icon(Icons.Rounded.AddPhotoAlternate,"사진 보내기",tint=Aqua)}
-  IconButton(enabled=!busy&&!uploading,onClick={scope.launch{try{val d=m.api.call("/api/producers/$peer");if(m.user?.optString("id")==account)m.openPersonGift(d.getJSONObject("profile"))}catch(e:Exception){if(e is CancellationException)throw e;m.notice=e.message}}}){Icon(Icons.Rounded.CardGiftcard,"선물 보내기",tint=Pink)}
+  if(!crew)IconButton(enabled=!busy&&!uploading,onClick={scope.launch{try{val d=m.api.call("/api/producers/$peer");if(m.user?.optString("id")==account)m.openPersonGift(d.getJSONObject("profile"))}catch(e:Exception){if(e is CancellationException)throw e;m.notice=e.message}}}){Icon(Icons.Rounded.CardGiftcard,"선물 보내기",tint=Pink)}
   Text(if(uploading)"사진 변환·전송 중…" else "사진은 서버에 14일 동안 보관돼요.",color=Muted,fontSize=11.sp,modifier=Modifier.weight(1f))
  }
 

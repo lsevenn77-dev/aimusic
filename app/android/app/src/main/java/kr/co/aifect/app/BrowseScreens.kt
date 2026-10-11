@@ -325,7 +325,6 @@ private val PagePadding=PaddingValues(start=22.dp,end=22.dp,bottom=32.dp)
  LaunchedEffect(Unit){m.loadRankHighlights();m.loadDuets()}
  LazyColumn(Modifier.fillMaxSize().testTag("sing-scroll"),contentPadding=PagePadding){
   item{
-   Heading("목소리를 발견하는 곳","듣다 보면, 나도 부르고 싶어지는 순간")
    Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)){
     OutlinedButton(onClick={m.openRanking("week")}){Icon(Icons.Rounded.EmojiEvents,null,Modifier.size(16.dp));Text("커버 랭킹",Modifier.padding(start=6.dp))}
     OutlinedButton(onClick={if(m.authenticated())m.showRecordingDrafts=true}){Icon(Icons.Rounded.Edit,null,Modifier.size(16.dp));Text("초안",Modifier.padding(start=6.dp))}

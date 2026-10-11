@@ -159,12 +159,12 @@ enum ChatHistory {
         if valid(version), self.pending == nil { await load() }
     }
     func sendPhoto(_ bytes: Data) async {
-        guard active, !crew, !busy, pending == nil else { return }
+        guard active, !busy, pending == nil else { return }
         let version = revision; busy = true
         do {
             let webp = try await Task.detached(priority: .userInitiated) { try ChatImageEncoder.encode(bytes) }.value
             guard valid(version) else { busy = false; return }
-            let result = try await api.request(path + "/images", method: "PUT", bytes: webp, type: "image/webp")
+            let result = try await api.request(basePath + "/images", method: "PUT", bytes: webp, type: "image/webp")
             guard valid(version) else { busy = false; return }
             guard let data = try JSONSerialization.jsonObject(with: result) as? [String: Any], !data.string("id").isEmpty else { throw URLError(.badServerResponse) }
             pending = PendingChatMessage(body: "사진", imageID: data.string("id"))
@@ -196,6 +196,7 @@ enum ChatHistory {
 struct PrivateChatPhoto: View {
     let item: [String: Any]
     let owner: String
+    var crew = false
     @EnvironmentObject private var model: AppModel
     @State private var image: UIImage?
     @State private var unavailable = false
@@ -211,7 +212,7 @@ struct PrivateChatPhoto: View {
             image = nil; unavailable = false
             guard model.userID == owner, ChatHistory.imageAvailable(item) else { return }
             do {
-                let bytes = try await API.shared.request("/media/dm/" + Endpoint.pathID(item.string("image_id")))
+                let bytes = try await API.shared.request((crew ? "/media/crew-chat/" : "/media/dm/") + Endpoint.pathID(item.string("image_id")))
                 guard model.userID == owner, !Task.isCancelled, ChatHistory.imageAvailable(item) else { return }
                 image = UIImage(data: bytes); unavailable = image == nil
             } catch { if !Task.isCancelled { unavailable = true } }
@@ -270,9 +271,13 @@ private struct ChatRoomView: View {
                     Color.clear.frame(height: 1).id("bottom")
                 }.padding(.horizontal, 16).padding(.vertical, 12)
             }.scrollDismissesKeyboard(.interactively)
-                .onChange(of: room.messages.last?.string("id")) { _, _ in withAnimation { proxy.scrollTo("bottom", anchor: .bottom) } }
-                .onChange(of: room.pending?.requestID) { _, _ in withAnimation { proxy.scrollTo("bottom", anchor: .bottom) } }
-                .onChange(of: composing) { _, focused in if focused { withAnimation { proxy.scrollTo("bottom", anchor: .bottom) } } }
+                .onChange(of: room.messages.last?.string("id")) { _, _ in proxy.scrollTo("bottom", anchor: .bottom) }
+                .onChange(of: room.pending?.requestID) { _, _ in proxy.scrollTo("bottom", anchor: .bottom) }
+                .onChange(of: composing) { _, focused in if focused { proxy.scrollTo("bottom", anchor: .bottom) } }
+                .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardDidChangeFrameNotification)) { _ in
+                    if composing { proxy.scrollTo("bottom", anchor: .bottom) }
+                }
+                .onChange(of: room.text) { _, _ in if composing { proxy.scrollTo("bottom", anchor: .bottom) } }
         }.background(Brand.background)
         .safeAreaInset(edge: .bottom, spacing: 0) { composer }
         .onAppear { model.chatOpen = true }
@@ -313,7 +318,7 @@ private struct ChatRoomView: View {
     }
     private var composer: some View {
         HStack(alignment: .bottom, spacing: 10) {
-            if !room.crew {
+            Group {
                 PhotosPicker(selection: $photo, matching: .images) { Image(systemName: "photo").frame(width: 36, height: 44) }
                     .disabled(room.busy || room.pending != nil).accessibilityLabel("사진 보내기")
             }
@@ -340,7 +345,7 @@ private struct ChatRoomView: View {
                 VStack(alignment: mine ? .trailing : .leading, spacing: 3) {
                     if !mine && room.crew && showName { Text(item.displayName(fallback: displayTitle)).font(.caption2).foregroundStyle(.secondary).padding(.top, 8) }
                     Group {
-                        if !item.string("image_id").isEmpty { PrivateChatPhoto(item: item, owner: room.owner) }
+                        if !item.string("image_id").isEmpty { PrivateChatPhoto(item: item, owner: room.owner, crew: room.crew) }
                         else { Text(item.string("body")).textSelection(.enabled) }
                     }.padding(.horizontal, 13).padding(.vertical, 9)
                         .background(mine ? Brand.aqua.opacity(0.22) : Brand.card, in: RoundedRectangle(cornerRadius: 17))

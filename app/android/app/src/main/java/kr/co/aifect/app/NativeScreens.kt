@@ -80,7 +80,7 @@ private val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=C
    }
   }){padding->
    Column(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)){
-    if(!keyboardVisible)Row(Modifier.fillMaxWidth().padding(horizontal=22.dp,vertical=8.dp),verticalAlignment=Alignment.CenterVertically){
+    if(!keyboardVisible&&!(m.tab==5&&(m.messagePeer!=null||m.messageCrew!=null)))Row(Modifier.fillMaxWidth().padding(horizontal=22.dp,vertical=8.dp),verticalAlignment=Alignment.CenterVertically){
      BrandLockup()
      Spacer(Modifier.weight(1f))
      IconButton(onClick={m.selectTab(1)}){Icon(Icons.Rounded.Search,"검색",tint=Muted)}

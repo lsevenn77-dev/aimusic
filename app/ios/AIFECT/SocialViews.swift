@@ -139,7 +139,7 @@ struct MessagesView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 14) {
                 HStack(alignment: .top) {
-                    PageHeading(title: "메시지", subtitle: "음악으로 만난 사람들과 이야기를 나눠요")
+                    Spacer()
                     if model.user != nil { Button { deleteAll = true } label: { Image(systemName: "trash").frame(width: 44, height: 44) }.accessibilityLabel("내 대화 전체 삭제").disabled(busy) }
                 }
                 if model.user == nil { Button("로그인하고 메시지 보기") { model.showLogin = true }.buttonStyle(ParityPill(filled: true)) }
@@ -447,8 +447,8 @@ struct ProfilePhoto: View {
         return try? Endpoint.url("/media/\(kind)/\(Endpoint.pathID(id))?v=\(Endpoint.query(person.string("image_version")))")
     }
     var body: some View {
-        RemoteArtwork(url: url) { $0.resizable().aspectRatio(contentMode: size > 100 ? .fit : .fill) } placeholder: { ZStack { AifectDesign.raised; Image(systemName: "person.fill").font(.system(size: size * 0.32)).foregroundStyle(Brand.aqua) } }
-            .frame(width: size, height: size).background(AifectDesign.raised).clipShape(RoundedRectangle(cornerRadius: min(22, size * 0.16))).accessibilityLabel("프로필 사진")
+        RemoteArtwork(url: url) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { ZStack { AifectDesign.raised; Image(systemName: "person.fill").font(.system(size: size * 0.32)).foregroundStyle(Brand.aqua) } }
+            .frame(width: size, height: size).background(AifectDesign.raised).clipShape(Circle()).accessibilityLabel("프로필 사진")
     }
 }
 struct MyMusicView: View {
@@ -480,7 +480,7 @@ struct MyMusicView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 14) {
                 HStack(alignment: .top) {
-                    PageHeading(title: "마이", subtitle: "내 플레이리스트와 공개한 음악을 한곳에")
+                    Spacer()
                     if model.user != nil { Button("로그아웃") { confirmLogout = true }.font(.system(size: 14)).foregroundStyle(AifectDesign.secondaryText).frame(minHeight: 44).disabled(loggingOut) }
                 }
                 if model.user == nil { LoginPrompt(title: "내 음악과 기록을 한곳에") }

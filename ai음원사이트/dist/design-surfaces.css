@@ -1,0 +1,99 @@
+/* Shared music surfaces: soft colour depth instead of outlined nested boxes. */
+:root {
+  --surface-wash:radial-gradient(ellipse at 0 0,#8eddd20c,transparent 65%),linear-gradient(135deg,#212733,#1a1e29 65%,#251f2d);
+  --surface-feature:radial-gradient(ellipse at 0 0,#8eddd226,transparent 65%),linear-gradient(120deg,#27313b,#272735 58%,#35283b);
+}
+.surface,.music-card,.community-entry,.crew-card,.conversation-row,
+.music-my-links a,.music-shortcuts a,.social-profile,.singing-intro {
+  background:var(--surface-wash);border-color:transparent;box-shadow:none;
+}
+.release-feature,.music-crew-entry,.my-crew-preview,.creator-callout,
+.membership-hero,.profile-hero,.music-participate {
+  background:var(--surface-feature);border-color:transparent;box-shadow:none;
+}
+.artist-portrait,.artist-portrait img,.community-avatar,.comment-avatar,
+.avatar,.avatar img,.social-profile-photo,.profile-fan-ranking img,.fan-initial {
+  border-radius:50%;aspect-ratio:1;object-fit:cover;overflow:hidden;flex-shrink:0;
+}
+.artist-portrait img,.avatar img {width:100%;height:100%;display:block}
+.artist-card .artist-portrait {border-radius:50%}
+.social-profile-photo {box-shadow:0 8px 32px #0002}
+.social-profile-square.social-profile {grid-template-columns:minmax(0,200px) minmax(0,1fr);gap:36px;padding:32px}
+.form-field {color:#d5dbe5}
+.form-field input,.form-field textarea,.form-field select {
+  background:#151b25;border-color:#ffffff12;border-radius:10px;color:var(--music-text);min-height:44px;
+}
+.form-field input:focus,.form-field textarea:focus,.form-field select:focus {border-color:var(--music-aqua);outline-color:var(--music-aqua)}
+.form-field input::placeholder,.form-field textarea::placeholder {color:#7f8b9d}
+.field-help,.upload-guide p,.form-field .optional {color:var(--music-muted)}
+.file-zone {background:linear-gradient(125deg,#8eddd210,#8eddd204 60%,#b7a6da0a);border-color:#8eddd23d;border-radius:16px}
+.file-zone svg {color:var(--music-aqua)}
+.file-zone>span {color:var(--music-muted)}
+.form-section-heading {border-top-color:#ffffff0c}
+.form-section-heading>span {border-color:#8eddd224;background:#8eddd20d;color:var(--music-aqua)}
+.image-field {background:#ffffff03;border-color:#ffffff08;border-radius:14px}
+.image-preview {background:#202938;border-color:#ffffff20}
+.image-field input::file-selector-button {background:#293641;color:#e6eef4;border:1px solid #ffffff10;border-radius:8px}
+.upload-guide hr {border-color:#ffffff0c}
+.chat-panel {background:var(--surface-wash)!important;overscroll-behavior:contain}
+.chat-panel #chat-log {overflow-anchor:none;overscroll-behavior:contain;scroll-behavior:auto}
+.chat-image {display:block;min-height:120px;max-width:260px}
+.chat-image img {max-width:100%;height:auto;max-height:280px;object-fit:contain}
+.chat-panel #chat-compose {flex-shrink:0}
+.chat-panel .chat-attachment-tools {flex-shrink:0}
+.chat-panel #chat-upload-status:empty,.chat-panel #chat-error:empty {display:none}
+@media(min-width:801px){
+  .sidebar .nav-link {min-height:44px;padding-top:10px;padding-bottom:10px}
+  .sidebar .second-label {margin-top:24px}
+}
+@media(max-width:600px){
+  .social-profile-square.social-profile {grid-template-columns:1fr;gap:20px;padding:22px 18px}
+  .social-profile-square .social-profile-photo {width:min(55vw,180px)}
+  .chat-panel {min-height:180px!important}
+}
+
+@media(max-width:800px){
+  body.chat-keyboard .social-mobile-navigation,body.chat-keyboard .player,body.chat-keyboard .business-footer {display:none!important}
+}
+@media(max-width:600px){
+  .social-profile-square .social-profile-actions {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .social-profile-square .social-profile-actions>* {min-width:0;white-space:nowrap;font-size:13px;padding:10px 12px}
+  .social-profile-square .social-profile-actions>[data-gift-ranking] {grid-column:1/-1;background:transparent;min-height:36px;padding:4px;color:var(--music-muted)}
+}
+
+/* One vertical discovery flow, with wrapping artwork instead of sideways shelves. */
+.listening-home .home-bridge {display:flex;flex-direction:column;gap:0}
+.home-music-grid {display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:28px 20px}
+.home-music-grid>* {min-width:0;width:auto}
+.home-music-grid .album-art {width:100%;aspect-ratio:1;object-fit:cover}
+.listening-home .listening-section {margin-top:42px}
+.listening-home .collection-grid {grid-template-columns:repeat(auto-fill,minmax(220px,1fr));overflow:visible}
+.home-sing-card {background:var(--surface-wash);border:0}
+/* Private and crew conversations share the same spacious canvas. */
+main:has(>.dm-thread-header),main:has(>#dm-conversations) {max-width:none;padding:12px 24px 16px}
+.dm-thread-header {position:relative;top:auto!important;flex-wrap:nowrap;padding:8px 0!important;margin-bottom:8px!important;min-height:60px}
+.dm-thread-header .dm-thread-person h1 {font-size:18px;line-height:1.4}
+.crew-chat-avatar {width:44px;height:44px;display:grid;place-items:center;flex-shrink:0;border-radius:50%;background:#8eddd21a;color:var(--music-aqua)}
+.crew-chat-avatar svg {width:23px;height:23px}
+.chat-panel.dm-chat-panel {width:100%;max-width:none;padding:20px 24px!important;border-radius:22px}
+.chat-panel #chat-log {gap:0;padding:8px 4px 20px;scrollbar-gutter:stable;flex:1;min-height:0;height:auto}
+.dm-message {max-width:min(78%,760px);flex-shrink:0;margin:10px 0}
+.dm-message .dm-bubble {background:#293140;white-space:pre-wrap}
+.dm-message.mine .dm-bubble {background:#33454b;color:#ecfaf7}
+.chat-message-meta {display:flex;align-items:center;gap:8px;color:var(--music-muted);font-size:10px}
+.dm-author.chat-author {background:none;border:0;padding:0;color:var(--music-muted);font:inherit;font-size:12px;cursor:pointer}
+.chat-panel #chat-connection:empty {display:none}
+@media(max-width:600px){
+ .home-music-grid {grid-template-columns:repeat(2,minmax(0,1fr));gap:24px 14px}
+ .listening-home .listening-section {margin-top:30px}
+ main:has(>.dm-thread-header),main:has(>#dm-conversations) {padding:4px 12px 12px}
+ .chat-panel.dm-chat-panel {padding:12px!important;border-radius:18px}
+ .dm-message {max-width:92%}
+ .dm-thread-header {gap:8px}
+ .dm-thread-header .dm-back {font-size:0;padding:8px}
+ .dm-thread-header .dm-back svg {width:22px;height:22px}
+}
+
+body:has(.chat-panel) .page-footer {display:none}
+main:has(>.dm-thread-header) {min-height:0}
+body:has(.chat-panel) .page-wrap {padding-bottom:0}

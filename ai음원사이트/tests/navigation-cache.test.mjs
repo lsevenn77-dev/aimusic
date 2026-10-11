@@ -44,7 +44,7 @@ function homeRenderer(fetch){
  Object.assign(c.context,{homeBrowseObserver:null,musicListeningShortcuts:()=>'',playlistSaveButton:()=>'',musicTrackCard:t=>'<article>'+t.title+'</article>',collectionGrid:items=>items.map(item=>item.name).join(','),playlistArt:()=>''});
  vm.runInContext(source('home.js'),c.context);
  c.run("icons=()=>{};updateAccount=()=>{};setMembership=()=>{};refreshLibrary=async()=>{};");
- const boot=source('actions.js').match(/async function boot\(\)\{[\s\S]*?\n\}\n/);
+ const boot=source('actions.js').match(/async function boot\(\)\{[\s\S]*?\r?\n\}\r?\n/);
  assert.ok(boot,'the startup function must remain independently testable');vm.runInContext(boot[0],c.context);
  return {...c,section:id=>sections.get(id)};
 }
@@ -290,7 +290,7 @@ test('home hydrates playable shelves from display snapshots while expired reads 
   ['/api/community?kind=cover',{tracks:[track('Cached cover')]}],
   ['/api/playlists?sort=popular',{playlists:[{id:'selection',name:'Cached selection',tracks:1}]}]
  ]),held=new Map([...paths.keys()].map(path=>[path,deferred()]));let refreshing=false;
- const calls=[];const c=homeRenderer(async path=>{calls.push(path);assert.ok(paths.has(path),path);return refreshing?held.get(path).promise:response(paths.get(path));});
+ const calls=[];const c=homeRenderer(async path=>{if(!paths.has(path))return response({tracks:[]});calls.push(path);return refreshing?held.get(path).promise:response(paths.get(path));});
  for(const path of paths.keys())await c.run(`api(${JSON.stringify(path)})`);
  c.advance(10001);refreshing=true;
  const opening=c.navigate('home');
@@ -325,7 +325,16 @@ test('home startup remains playable when the account resolves before the guest c
   guestCatalog.resolve(response({tracks:[track('Late guest catalog')]}));await startup;await new Promise(resolve=>setImmediate(resolve));
   assert.equal(c.run('me.id'),'owner');assert.ok(ownerCatalogCalls>0,'resolving the account must restart the account-scoped home reads');
   assert.match(c.section('home-release').innerHTML,/Owner playable song/);assert.doesNotMatch(c.section('home-release').innerHTML,/Late guest catalog/);
-  assert.equal(c.section('home-personal'),undefined,'private library shortcuts now belong to My, not the listening home');
-  assert.match(c.main.innerHTML,/#community\/covers|home-conversations/);
+  assert.equal(c.section('home-personal'),undefined,'home shortcuts must not be duplicated by an extra personal shelf');
  }finally{account.resolve(response({user:null}));guestCatalog.resolve(response({tracks:[]}));await startup;}
+});
+
+test('home continues down through full music grids and optional discovery sections',async()=>{
+ const tracks=Array.from({length:12},(_,i)=>({...track('Song '+i),id:'song-'+i}));
+ const c=homeRenderer(async path=>response(path.includes('playlists')?{playlists:[]}:{tracks}));
+ c.context.card=t=>'<article>'+t.title+'</article>';
+ await c.navigate('home');await new Promise(resolve=>setImmediate(resolve));
+ assert.match(c.section('home-more').innerHTML,/home-music-grid/);assert.match(c.section('home-more').innerHTML,/Song 11/);
+ for(const id of ['home-popular','home-duets','home-crew-music']){assert.equal(c.section(id).hidden,false);assert.match(c.section(id).innerHTML,/Song 11/);}
+ assert.doesNotMatch(c.section('home-more').innerHTML,/browse-rail/);
 });

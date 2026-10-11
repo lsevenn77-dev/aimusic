@@ -103,8 +103,11 @@ export const crewMembers=sqliteTable('crew_members',{
 export const crewXp=sqliteTable('crew_xp',{
  id:text('id').primaryKey(),crewId:text('crew_id').notNull().references(()=>crews.id,{onDelete:'cascade'}),userId:text('user_id').notNull().references(()=>users.id),amount:integer('amount').notNull(),created:integer('created').notNull()
 },t=>[index('crew_xp_crew').on(t.crewId)]);
+export const crewChatImages=sqliteTable('crew_chat_images',{
+ id:text('id').primaryKey(),crewId:text('crew_id').notNull(),senderId:text('sender_id').notNull().references(()=>users.id),objectKey:text('object_key').notNull(),created:integer('created').notNull(),expires:integer('expires').notNull(),deleted:integer('deleted').notNull().default(0)
+},t=>[index('crew_chat_images_expiry').on(t.deleted,t.expires)]);
 export const crewMessages=sqliteTable('crew_messages',{
- id:text('id').primaryKey(),crewId:text('crew_id').notNull().references(()=>crews.id,{onDelete:'cascade'}),userId:text('user_id').notNull().references(()=>users.id),body:text('body').notNull(),kind:text('kind').notNull().default('message'),authorRole:text('author_role').notNull().default('member'),requestId:text('request_id').notNull(),created:integer('created').notNull()
+ id:text('id').primaryKey(),crewId:text('crew_id').notNull().references(()=>crews.id,{onDelete:'cascade'}),userId:text('user_id').notNull().references(()=>users.id),body:text('body').notNull(),kind:text('kind').notNull().default('message'),authorRole:text('author_role').notNull().default('member'),requestId:text('request_id').notNull(),created:integer('created').notNull(),imageId:text('image_id').references(()=>crewChatImages.id)
 },t=>[uniqueIndex('crew_messages_request').on(t.userId,t.requestId),index('crew_messages_time').on(t.crewId,t.created),index('crew_messages_sequence').on(t.crewId)]);
 export const chatImages=sqliteTable('chat_images',{
  id:text('id').primaryKey(),senderId:text('sender_id').notNull().references(()=>users.id),recipientId:text('recipient_id').notNull().references(()=>users.id),objectKey:text('object_key').notNull(),created:integer('created').notNull(),expires:integer('expires').notNull(),deleted:integer('deleted').notNull().default(0)

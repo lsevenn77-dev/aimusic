@@ -21,7 +21,6 @@ struct SingView: View {
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 12) {
-                PageHeading(title: "목소리를 발견하는 곳", subtitle: "듣다 보면, 나도 부르고 싶어지는 순간")
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
                         NavigationLink { CoverRankingView(initialPeriod: "week") } label: { Label("커버 랭킹", systemImage: "trophy") }.buttonStyle(ParityPill(color: Brand.pink))
