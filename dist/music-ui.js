@@ -7,7 +7,7 @@ function musicProfileItems(d,tab='all'){
  return tab==='tracks'?originals:tab==='covers'?covers:tab==='duets'?covers.filter(t=>t.cover_mode==='duet'):all;
 }
 function playlistSaveButton(t){return `<button type="button" class="small-button music-save" data-add="${esc(t.id)}" aria-label="${esc(t.title)} 플레이리스트에 담기">${icon('list')}<span>플레이리스트 담기</span></button>`;}
-function musicPerson(t){const p={id:t.producer_id,name:t.producer||'음악가',image_version:t.producer_image_version||'',player_xp:t.player_xp,profile_frame:t.profile_frame};return p;}
+function musicPerson(t){const p={id:t.producer_id,name:t.producer||'음악가',image_version:t.producer_image_version||'',player_xp:t.player_xp,profile_frame:t.profile_frame,profile_frame_artwork:t.profile_frame_artwork};return p;}
 function musicTrackCard(t,{social=true}={}){
  const p=musicPerson(t),own=!!me&&t.user_id===me.id;
  const author=p.id?`<a class="music-author" href="#producer/${esc(p.id)}">${portrait(p,'producer')}<span><strong>${esc(p.name)}</strong><small>${musicKind(t)} 공개</small></span></a>`:`<span class="music-author"><strong>${esc(p.name)}</strong></span>`;

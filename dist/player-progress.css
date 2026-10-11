@@ -1,7 +1,7 @@
 /* A transparent cosmetic asset overlays the circular photo; level stays lower left. */
 .artist-portrait.player-avatar,.social-profile-photo.player-avatar,.avatar.player-avatar{position:relative;overflow:visible;isolation:isolate}
 .player-avatar>img{border-radius:50%;width:100%;height:100%;object-fit:cover}
-.artist-portrait.player-frame-crew:after,.social-profile-photo.player-frame-crew:after,.avatar.player-frame-crew:after{display:block;content:"";position:absolute;inset:-13%;border:0;border-radius:0;pointer-events:none;box-shadow:none;background:transparent url("/assets/crew-basic-v2.png") center/contain no-repeat;z-index:1}
+.player-avatar>img.player-frame-artwork{position:absolute;left:-13%;top:-13%;width:126%;height:126%;max-width:none;border:0;border-radius:0;object-fit:contain;pointer-events:none;box-shadow:none;background:transparent;z-index:1}
 .player-avatar .player-level-badge{position:absolute;left:0;bottom:0;z-index:2;display:flex;align-items:center;justify-content:center;min-width:19px;height:19px;padding:0 4px;border-radius:7px;background:#263c42;color:#c8f6ed;font:600 10px/1 system-ui;border:2px solid #171d27;box-sizing:border-box;letter-spacing:0;white-space:nowrap;text-shadow:none}
 .social-profile-photo.player-avatar .player-level-badge{left:8%;bottom:3%;min-width:30px;height:27px;font-size:13px;border-radius:9px}
 .player-progress-card{padding:22px 26px;background:var(--surface-wash);border-radius:18px;margin:20px 0;color:var(--music-text)}
@@ -17,6 +17,6 @@
 .player-guide{padding:28px;background:var(--surface-wash);border-radius:18px;align-self:start}.player-guide h2{font-size:18px;margin:0 0 8px}.player-guide>p{font-size:13px;color:var(--music-muted);line-height:1.7}.player-guide ul{list-style:none;padding:0;margin:24px 0}.player-guide li{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:13px 0;border-bottom:1px solid #ffffff08}.player-guide li strong{font-size:13px;font-weight:500}.player-guide li small{display:block;font-size:11px;color:var(--music-muted);margin-top:6px}.player-guide li>b{font-size:12px;color:var(--music-aqua);white-space:nowrap}.player-guide summary{font-size:13px;cursor:pointer;margin-top:24px}
 @media(max-width:800px){.player-inventory-layout{grid-template-columns:1fr;gap:20px}.player-guide{padding:22px}.player-progress-card{padding:20px}.player-progress-caption{font-size:11px}.player-item{padding:20px;gap:12px}.player-equipped-preview{padding:16px 8px}}
 
-.social-profile-photo.player-frame-crew{margin-block:16px}.player-equipped-preview .player-frame-crew{margin:12px}.player-item-preview .player-frame-crew{margin:12px}.player-item-preview{padding-block:8px}
+.social-profile-photo.player-has-frame{margin-block:16px}.player-equipped-preview .player-has-frame{margin:12px}.player-item-preview .player-has-frame{margin:12px}.player-item-preview{padding-block:8px}
 
 .player-avatar:not(.social-profile-photo) .player-level-badge{display:none}
