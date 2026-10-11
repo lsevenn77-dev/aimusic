@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>AIFECT Admin</title>
+  <link rel="icon" type="image/svg+xml" href="/assets/aifect-symbol.svg?v=20261011-admin">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/admin.css?v=20261011-dashboard">
+</head>
+<body>
+  <div class="admin-app" id="admin-app">
+    <aside class="admin-sidebar">
+      <a class="admin-brand" href="/#home" aria-label="AIFECT 홈">
+        <img src="/assets/aifect-wordmark.svg?v=20261007-reference" alt="AIFECT" width="150" height="40">
+        <span>ADMIN CONSOLE</span>
+      </a>
+
+      <nav class="admin-nav" aria-label="관리자 메뉴">
+        <p class="nav-section">OVERVIEW</p>
+        <button class="admin-nav-item active" data-view="dashboard"><span>⌂</span><b>대시보드</b></button>
+        <button class="admin-nav-item" data-view="plays"><span>▥</span><b>재생 통계</b></button>
+        <button class="admin-nav-item" data-view="revenue"><span>₩</span><b>매출 현황</b></button>
+
+        <p class="nav-section">CONTENT</p>
+        <button class="admin-nav-item" data-view="tracks"><span>♫</span><b>음원 관리</b><i id="track-badge"></i></button>
+        <button class="admin-nav-item" data-view="people"><span>◌</span><b>사용자 · 창작자</b></button>
+        <button class="admin-nav-item" data-view="moderation"><span>◇</span><b>신고 · 문의</b><i id="report-badge"></i></button>
+
+        <p class="nav-section">MONEY</p>
+        <button class="admin-nav-item" data-view="subscriptions"><span>♕</span><b>구독 관리</b></button>
+        <button class="admin-nav-item" data-view="gold"><span>◎</span><b>GRAM 관리</b></button>
+        <button class="admin-nav-item" data-view="payouts"><span>▣</span><b>정산 관리</b><i id="payout-badge"></i></button>
+      </nav>
+
+      <div class="sidebar-status">
+        <span class="status-dot"></span>
+        <div><strong>서비스 정상</strong><small id="generated-at">데이터 확인 중</small></div>
+      </div>
+      <a class="back-site" href="/#home">← AIFECT 사이트로</a>
+    </aside>
+
+    <div class="admin-shell">
+      <header class="admin-topbar">
+        <form class="admin-search" id="admin-search-form">
+          <span>⌕</span>
+          <input id="admin-search-input" type="search" autocomplete="off" placeholder="곡, 아티스트, 사용자 검색">
+          <kbd>ENTER</kbd>
+        </form>
+        <div class="admin-actions">
+          <select id="period-select" aria-label="조회 기간">
+            <option value="7">최근 7일</option>
+            <option value="30">최근 30일</option>
+            <option value="90">최근 90일</option>
+          </select>
+          <button class="icon-button" id="refresh-button" type="button" aria-label="새로고침">↻</button>
+          <button class="profile-button" id="profile-button" type="button"><span class="profile-mark">A</span><span id="admin-name">운영자</span></button>
+        </div>
+      </header>
+
+      <main class="admin-main">
+        <section id="access-gate" class="access-gate">
+          <div class="loader-ring"></div>
+          <h1>AIFECT 관리자 권한 확인 중</h1>
+          <p>로그인 상태와 운영 권한을 확인하고 있어요.</p>
+        </section>
+
+        <div id="admin-content" hidden>
+          <section class="view-page" data-page="dashboard">
+            <div class="page-heading">
+              <div><p class="eyebrow">AIFECT OPERATIONS</p><h1>안녕하세요, <span id="operator-heading">운영자</span>님.</h1><p>AI 음악 플랫폼의 핵심 지표와 운영 이슈를 한 화면에서 확인합니다.</p></div>
+              <div class="insight-banner"><span>LIVE INSIGHT</span><strong id="insight-text">데이터를 불러오는 중입니다.</strong><small>실제 DB 기준 · 관리자 전용</small></div>
+            </div>
+
+            <div class="kpi-grid" id="kpi-grid"></div>
+
+            <div class="chart-grid">
+              <article class="admin-card chart-card large">
+                <div class="card-head"><div><span class="eyebrow">LISTENING</span><h2>재생수 추이</h2></div><strong id="plays-total">-</strong></div>
+                <svg id="plays-chart" viewBox="0 0 720 280" role="img" aria-label="유효 재생수 추이"></svg>
+              </article>
+              <article class="admin-card chart-card">
+                <div class="card-head"><div><span class="eyebrow">GROWTH</span><h2>회원 증가 추이</h2></div><strong id="new-users-total">-</strong></div>
+                <svg id="users-chart" viewBox="0 0 460 280" role="img" aria-label="신규 회원 추이"></svg>
+              </article>
+            </div>
+
+            <div class="middle-grid">
+              <article class="admin-card revenue-card">
+                <div class="card-head"><div><span class="eyebrow">REVENUE</span><h2>매출 현황</h2></div><strong id="revenue-total">-</strong></div>
+                <div class="revenue-grid" id="revenue-grid"></div>
+              </article>
+              <article class="admin-card provider-card">
+                <div class="card-head"><div><span class="eyebrow">MEMBERS</span><h2>가입 채널</h2></div><span id="provider-total" class="soft-badge">-</span></div>
+                <div class="provider-wrap"><div class="donut" id="provider-donut"><div><strong id="provider-center">-</strong><small>총 회원</small></div></div><div class="provider-legend" id="provider-legend"></div></div>
+              </article>
+            </div>
+
+            <div class="bottom-grid">
+              <article class="admin-card"><div class="card-head"><div><span class="eyebrow">TOP TRACKS</span><h2>인기 곡 TOP 5</h2></div><button class="link-button" data-jump="plays">자세히</button></div><div class="rank-list" id="top-track-list"></div></article>
+              <article class="admin-card"><div class="card-head"><div><span class="eyebrow">NEW RELEASE</span><h2>신규 업로드</h2></div><button class="link-button" data-jump="tracks">관리</button></div><div class="compact-list" id="recent-track-list"></div></article>
+              <article class="admin-card"><div class="card-head"><div><span class="eyebrow">ATTENTION</span><h2>운영 알림</h2></div><button class="link-button" data-jump="moderation">확인</button></div><div class="alert-stack" id="operation-alerts"></div></article>
+            </div>
+          </section>
+
+          <section class="view-page hidden" data-page="plays">
+            <div class="section-heading"><div><p class="eyebrow">LISTENING ANALYTICS</p><h1>재생 통계</h1><p>유효 재생만 집계하며 선택한 기간 기준으로 표시합니다.</p></div></div>
+            <div class="stat-strip" id="play-stat-strip"></div>
+            <article class="admin-card wide-card"><div class="card-head"><h2>일별 유효 재생</h2><span id="play-range-label" class="soft-badge"></span></div><svg id="plays-detail-chart" viewBox="0 0 980 330" role="img" aria-label="상세 재생수"></svg></article>
+            <article class="admin-card wide-card"><div class="card-head"><h2>상위 재생 곡</h2><span class="soft-badge">TOP 5</span></div><div class="data-table-wrap"><table><thead><tr><th>#</th><th>곡</th><th>아티스트</th><th>재생</th><th>좋아요</th></tr></thead><tbody id="top-track-table"></tbody></table></div></article>
+          </section>
+
+          <section class="view-page hidden" data-page="revenue">
+            <div class="section-heading"><div><p class="eyebrow">BUSINESS</p><h1>매출 현황</h1><p>웹 구독과 GRAM 결제, 선물 배분을 분리해서 표시합니다.</p></div></div>
+            <div class="kpi-grid four" id="revenue-kpis"></div>
+            <div class="two-column">
+              <article class="admin-card wide-card"><div class="card-head"><h2>매출 구성</h2><span class="soft-badge">실결제 기준</span></div><div id="revenue-detail"></div></article>
+              <article class="admin-card wide-card"><div class="card-head"><h2>정산 대기</h2><button class="link-button" data-jump="payouts">정산 관리 →</button></div><div id="payout-summary-box"></div></article>
+            </div>
+          </section>
+
+          <section class="view-page hidden" data-page="people">
+            <div class="section-heading"><div><p class="eyebrow">AUDIENCE</p><h1>사용자 · 창작자</h1><p>최근 가입 회원과 새 창작자 활동을 빠르게 확인합니다.</p></div></div>
+            <div class="two-column"><article class="admin-card wide-card"><div class="card-head"><h2>최근 가입 회원</h2><span class="soft-badge" id="people-users-count"></span></div><div class="data-table-wrap"><table><thead><tr><th>이름</th><th>가입 채널</th><th>Premium</th><th>가입일</th></tr></thead><tbody id="recent-user-table"></tbody></table></div></article><article class="admin-card wide-card"><div class="card-head"><h2>최근 창작자</h2><span class="soft-badge" id="people-creators-count"></span></div><div class="data-table-wrap"><table><thead><tr><th>활동명</th><th>곡</th><th>팔로워</th><th>등록일</th></tr></thead><tbody id="recent-creator-table"></tbody></table></div></article></div>
+          </section>
+
+          <section class="view-page hidden" data-page="subscriptions">
+            <div class="section-heading"><div><p class="eyebrow">PREMIUM</p><h1>구독 관리</h1><p>활성 Premium 회원과 웹 정기결제 상태를 확인합니다.</p></div></div>
+            <div class="kpi-grid four" id="subscription-kpis"></div>
+            <article class="admin-card wide-card"><div class="card-head"><h2>웹 정기결제 상태</h2><span class="soft-badge">NICEPAY</span></div><div class="status-grid" id="subscription-state-grid"></div></article>
+          </section>
+
+          <section class="view-page hidden" data-page="gold">
+            <div class="section-heading"><div><p class="eyebrow">GRAM</p><h1>GRAM 관리</h1><p>유료 GRAM 결제와 실제 선물 배분 현황입니다.</p></div></div>
+            <div class="kpi-grid four" id="gold-kpis"></div>
+            <article class="admin-card wide-card"><div class="card-head"><h2>최근 GRAM 결제</h2><span class="soft-badge">최근 6건</span></div><div class="data-table-wrap"><table><thead><tr><th>구매자</th><th>채널</th><th>GRAM</th><th>결제금액</th><th>결제일</th></tr></thead><tbody id="gold-table"></tbody></table></div></article>
+          </section>
+
+          <section class="view-page hidden" data-page="tracks">
+            <div class="section-heading with-controls"><div><p class="eyebrow">CONTENT OPS</p><h1>음원 관리</h1><p>신고 누적 또는 비활성 후보를 운영자가 직접 검토합니다.</p></div><div class="inline-controls"><select id="track-review-filter"><option value="candidates">검토 후보</option><option value="all">전체 공개</option><option value="removed">운영자 제거</option></select><input id="track-review-search" type="search" placeholder="곡 · 창작자 검색"><button class="primary-button" id="track-review-search-button">검색</button></div></div>
+            <article class="admin-card wide-card"><div id="track-review-content" class="management-list"><div class="panel-loader">목록을 불러오는 중입니다.</div></div></article>
+          </section>
+
+          <section class="view-page hidden" data-page="moderation">
+            <div class="section-heading with-controls"><div><p class="eyebrow">TRUST & SAFETY</p><h1>신고 · 문의</h1><p>댓글 신고를 확인하고 유지 또는 삭제 처리합니다.</p></div><div class="inline-controls"><select id="comment-report-filter"><option value="pending">미처리</option><option value="dismissed">유지 처리</option><option value="removed">삭제 처리</option></select><button class="primary-button" id="comment-report-refresh">새로고침</button></div></div>
+            <article class="admin-card wide-card"><div id="comment-report-content" class="management-list"><div class="panel-loader">신고 내역을 불러오는 중입니다.</div></div></article>
+          </section>
+
+          <section class="view-page hidden" data-page="payouts">
+            <div class="section-heading with-controls"><div><p class="eyebrow">CREATOR PAYOUT</p><h1>정산 관리</h1><p>마감된 정산서와 지급 예정 상태를 확인하고 지급 완료 처리합니다.</p></div><div class="inline-controls"><select id="payout-period-select"></select><button class="primary-button" id="payout-close-button" hidden>월 마감</button></div></div>
+            <div class="kpi-grid three" id="payout-kpis"></div>
+            <article class="admin-card wide-card"><div class="data-table-wrap"><table><thead><tr><th>창작자</th><th>총액</th><th>원천징수</th><th>실지급</th><th>상태</th><th>지급일</th><th></th></tr></thead><tbody id="payout-table"></tbody></table></div></article>
+          </section>
+
+          <section class="view-page hidden" data-page="search">
+            <div class="section-heading"><div><p class="eyebrow">GLOBAL SEARCH</p><h1>검색 결과</h1><p id="search-result-caption"></p></div></div>
+            <div id="search-result-content"></div>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <div class="admin-toast" id="admin-toast" role="status" aria-live="polite"></div>
+    <dialog id="admin-dialog"><div id="admin-dialog-content"></div><button type="button" id="admin-dialog-close" class="dialog-close" aria-label="닫기">×</button></dialog>
+  </div>
+  <script defer src="/admin.js?v=20261011-dashboard"></script>
+</body>
+</html>
