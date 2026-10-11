@@ -23,12 +23,25 @@ export function queueChatImageCleanup(env,ctx){
  ctx.waitUntil(cleanupChatImages(env).catch(()=>{nextCleanup=0;console.error('Chat image cleanup pending');}));
 }
 export async function cleanupChatImages(env){
- const expired=await rows(env,'SELECT id,object_key FROM chat_images WHERE expires<=? AND deleted=0 ORDER BY expires LIMIT 100',now());
- for(const item of expired){await env.BUCKET.delete(item.object_key);await run(env,'UPDATE chat_images SET deleted=1 WHERE id=?',item.id);}
- return expired.length;
+ let count=0;
+ for(const table of ['chat_images','crew_chat_images']){
+  const expired=await rows(env,`SELECT id,object_key FROM ${table} WHERE expires<=? AND deleted=0 ORDER BY expires LIMIT 100`,now());
+  for(const item of expired){await env.BUCKET.delete(item.object_key);await run(env,`UPDATE ${table} SET deleted=1 WHERE id=?`,item.id);count++;}
+ }
+ return count;
 }
 export async function chatFeaturesRoute(req,env,path,user){
  const method=req.method;
+ const crewMedia=path.match(/^\/media\/crew-chat\/([\w-]+)$/);
+ if(crewMedia){
+  requireUser(user);if(!['GET','HEAD'].includes(method))fail(405,'지원하지 않는 요청입니다.');
+  // Media obeys the same current-membership, join and block boundaries as history.
+  const item=await one(env,`SELECT i.* FROM crew_chat_images i JOIN crew_members v ON v.crew_id=i.crew_id AND v.user_id=? WHERE i.id=? AND EXISTS(SELECT 1 FROM crew_messages m WHERE m.image_id=i.id AND m.crew_id=i.crew_id AND m.rowid>=v.joined_sequence) AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=v.user_id AND b.blocked_id=i.sender_id) OR (b.blocked_id=v.user_id AND b.user_id=i.sender_id))`,user.id,crewMedia[1]);
+  if(!item)fail(404,'이미지를 찾을 수 없어요.');
+  if(item.deleted||item.expires<=now())fail(410,'보관 기간 14일이 지난 이미지입니다.');
+  const object=await env.BUCKET.get(item.object_key);if(!object)fail(410,'이미지 보관 기간이 만료되었어요.');
+  return new Response(method==='HEAD'?null:object.body,{headers:{'content-type':'image/webp','cache-control':'private, no-store','x-content-type-options':'nosniff'}});
+ }
  const image=path.match(/^\/media\/dm\/([\w-]+)$/);
  if(image){
   requireUser(user);if(!['GET','HEAD'].includes(method))fail(405,'지원하지 않는 요청입니다.');
@@ -69,9 +82,17 @@ export async function chatFeaturesRoute(req,env,path,user){
    await env.DB.batch([query(env,`INSERT INTO dm_settings(user_id,peer_id,cleared_sequence) VALUES(?,?,COALESCE((SELECT max(rowid) FROM direct_messages WHERE (sender_id=? AND recipient_id=?) OR (sender_id=? AND recipient_id=?)),0)) ON CONFLICT(user_id,peer_id) DO UPDATE SET cleared_sequence=max(dm_settings.cleared_sequence,excluded.cleared_sequence)`,user.id,p.user_id,user.id,p.user_id,p.user_id,user.id),query(env,'UPDATE direct_messages SET read_at=? WHERE sender_id=? AND recipient_id=? AND read_at=0',now(),p.user_id,user.id)]);return json({ok:true});
   }
  }
- m=path.match(/^\/api\/crews\/([\w-]+)\/(image|read|settings)$/);
+ m=path.match(/^\/api\/crews\/([\w-]+)\/(image|images|read|settings)$/);
  if(m){
   requireUser(user);const member=await one(env,'SELECT * FROM crew_members WHERE crew_id=? AND user_id=?',m[1],user.id);if(!member)fail(403,'크루 멤버만 이용할 수 있어요.');
+  if(m[2]==='images'){
+   if(method!=='PUT')fail(405,'지원하지 않는 요청입니다.');await rate(env,'crew-image:'+user.id,15,60);
+   const {data,type}=await readImage(req);if(type!=='image/webp')fail(400,'이미지를 WebP로 변환한 뒤 보내주세요.');
+   const iid=id(),key=`crew-chat-images/${iid}.webp`,at=now();
+   await env.BUCKET.put(key,data,{httpMetadata:{contentType:'image/webp'}});
+   try{await run(env,'INSERT INTO crew_chat_images(id,crew_id,sender_id,object_key,created,expires) VALUES(?,?,?,?,?,?)',iid,m[1],user.id,key,at,at+CHAT_IMAGE_TTL);}catch(e){await env.BUCKET.delete(key);throw e;}
+   return json({id:iid,expires:at+CHAT_IMAGE_TTL},201);
+  }
   if(m[2]==='settings'){
    if(method==='GET')return json({muted:!!member.muted});
    if(method!=='PUT')fail(405,'지원하지 않는 요청입니다.');const b=await req.json();if(typeof b.muted!=='boolean')fail(400,'알림 설정을 확인해주세요.');

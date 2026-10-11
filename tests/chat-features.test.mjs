@@ -55,3 +55,38 @@ test('WebP photos are private, bind to one peer, expire at 14 days and retry phy
  assert.equal(f.sql.prepare('SELECT deleted FROM chat_images').get().deleted,0);
  await cleanupChatImages(env);assert.equal(objects.has(key),false);assert.equal(f.sql.prepare('SELECT deleted FROM chat_images').get().deleted,1);
 });
+
+
+test('crew photos enforce membership, join boundary, ownership, expiry and private caching',async t=>{
+ const f=await setup(t),objects=new Map(),env={DB:f.DB,BUCKET:{put:async(k,data)=>objects.set(k,data),get:async k=>objects.has(k)?{body:objects.get(k)}:null,delete:async k=>objects.delete(k)}};
+ const image=Buffer.alloc(65536);Buffer.from('UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEADsD+JaQAA3AAAAAA','base64').copy(image);image.writeUInt32LE(image.length-8,4); // Exceeds the JSON request limit: crew photos use the bounded binary route.
+ const crew=(await f.call('/api/crews','POST',{name:'Photo crew'})).body.crew.id;
+ const path='/api/crews/'+crew;
+ const upload=(user='owner',type='image/webp')=>worker.fetch(new Request('https://aifect.test'+path+'/images',{method:'PUT',headers:{Origin:'https://aifect.test',Cookie:'aifect_session='+user,'content-type':type},body:image}),env,{waitUntil(){}});
+ const media=(id,user)=>worker.fetch(new Request('https://aifect.test/media/crew-chat/'+id,{headers:user?{Cookie:'aifect_session='+user}:{}}),env,{waitUntil(){}});
+ assert.equal((await upload('other')).status,403);
+ assert.equal((await upload('owner','image/png')).status,400);
+ const first=await (await upload()).json();
+ assert.equal((await media(first.id,'owner')).status,404);
+ const request={...msg('photo'),image_id:first.id};
+ const sent=await f.call(path+'/messages','POST',request);assert.equal(sent.status,201);assert.equal(sent.body.message.image_id,first.id);assert.equal(sent.body.message.image_expires,first.expires);
+ assert.equal((await f.call(path+'/messages','POST',request)).body.message.id,sent.body.message.id);
+ assert.equal((await media(first.id,null)).status,401);
+ assert.equal((await media(first.id,'other')).status,404);
+ await f.call(path+'/join','POST',{},'other');
+ assert.equal((await media(first.id,'other')).status,404,'new members cannot read old photos by direct URL');
+ const next=await (await upload()).json();
+ assert.equal((await f.call(path+'/messages','POST',{...msg('photo'),image_id:next.id},'other')).status,400,'another sender cannot attach this upload');
+ const message=await f.call(path+'/messages','POST',{...msg('photo'),image_id:next.id});assert.equal(message.status,201);
+ assert.equal((await f.call(path+'/messages','GET',null,'other')).body.messages.find(x=>x.id===message.body.message.id).image_id,next.id);
+ const response=await media(next.id,'other');assert.equal(response.status,200);assert.equal(response.headers.get('cache-control'),'private, no-store');
+ f.sql.prepare("INSERT INTO user_blocks(user_id,blocked_id,created) VALUES('other','owner',0)").run();
+ assert.equal((await media(next.id,'other')).status,404);
+ f.sql.prepare('DELETE FROM user_blocks').run();
+ await f.call(path+'/leave','POST',{},'other');assert.equal((await media(next.id,'other')).status,404);
+ await f.call(path+'/join','POST',{},'other');assert.equal((await media(next.id,'other')).status,404,'rejoining resets visibility');
+ f.sql.prepare('UPDATE crew_chat_images SET expires=0').run();assert.equal((await media(next.id,'owner')).status,410);
+ await assert.rejects(cleanupChatImages({...env,BUCKET:{delete:async()=>{throw Error('retry')}}}));
+ assert.equal(f.sql.prepare('SELECT count(*) n FROM crew_chat_images WHERE deleted=0').get().n,2);
+ await cleanupChatImages(env);assert.equal(objects.size,0);
+});

@@ -9,12 +9,15 @@ function chatHTML(messages,peer=null,crew=null){
   if(m.kind==='system')return separator+'<div class="chat-system">'+esc(m.body)+'</div>';
   const mine=m.sender_id===me?.id||m.user_id===me?.id,name=m.name||(mine?'나':peer?.name)||'리스너',label=crew?crewDisplayName({...m,name}):name;
   const delivery=m.delivery==='sending'?'<small class="chat-delivery">전송 중…</small>':m.delivery==='failed'?'<button class="chat-retry" data-chat-retry="'+esc(m.id)+'">다시 보내기</button>':'';
-  if(peer)return separator+'<article class="dm-message '+(mine?'mine':'')+'" data-message="'+esc(m.id)+'">'+(!mine?dmProfileLink(peer,portrait(peer,'producer')):'')+'<div class="dm-message-content">'+(!mine?dmProfileLink(peer,esc(peer.name),'dm-author'):'')+'<div class="dm-bubble"><span class="chat-body">'+(m.image_id?chatImageHTML(m):esc(m.body))+'</span></div>'+delivery+'</div></article>';
-  const author=crew?.owner&&!mine&&m.profile_id?'<button class="chat-author" data-crew-member="'+esc(m.profile_id)+'" data-crew="'+esc(crew.id)+'">'+esc(label)+'</button>':'<strong>'+esc(label)+'</strong>';
-  return separator+'<article class="chat-message '+(mine?'mine':'')+'" data-message="'+esc(m.id)+'">'+author+' <span class="chat-body">'+esc(m.body)+'</span>'+delivery+'</article>';
+  const person=peer||{id:m.profile_id,name:label,image_version:m.image_version};
+  const linked=!!person.id,face=portrait(person,'producer');
+  const avatar=!mine?(linked?dmProfileLink(person,face):'<span class="dm-profile-link">'+face+'</span>'):'';
+  const author=mine?'':crew?.owner&&m.profile_id?'<button class="dm-author chat-author" data-crew-member="'+esc(m.profile_id)+'" data-crew="'+esc(crew.id)+'">'+esc(label)+'</button>':linked?dmProfileLink(person,esc(label),'dm-author'):'<span class="dm-author">'+esc(label)+'</span>';
+  const stamp=new Date(m.created*1000).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Seoul'});
+  return separator+'<article class="dm-message '+(mine?'mine':'')+'" data-message="'+esc(m.id)+'">'+avatar+'<div class="dm-message-content">'+author+'<div class="dm-bubble"><span class="chat-body">'+(m.image_id?chatImageHTML(m,!!crew):esc(m.body))+'</span></div><div class="chat-message-meta"><time>'+stamp+'</time>'+delivery+'</div></div></article>';
  }).join('')||'<div class="chat-empty"><span>'+icon('message')+'</span><strong>음악에서 시작되는 대화</strong><p>반가운 인사나 좋았던 음악을 나눠보세요.</p></div>';
 }
-function chatPanelHTML(label,initial=null,peer=null){return '<section class="surface chat-panel '+(peer?'dm-chat-panel':'crew-chat-panel')+'"><button class="small-button chat-earlier" id="chat-earlier" '+(initial?.has_more?'':'hidden')+'>이전 대화 보기</button><div id="chat-log" role="log" aria-label="'+label+'">'+(initial?chatHTML(initial.messages,peer):'')+'</div><p id="chat-connection" class="quiet" role="status"></p><p id="chat-error" role="status"></p>'+(peer?chatAttachmentTools(peer):'')+chatComposer()+'</section>';}
+function chatPanelHTML(label,initial=null,peer=null){return '<section class="surface chat-panel dm-chat-panel '+(peer?'':'crew-chat-panel')+'"><button class="small-button chat-earlier" id="chat-earlier" '+(initial?.has_more?'':'hidden')+'>이전 대화 보기</button><div id="chat-log" role="log" aria-label="'+label+'">'+(initial?chatHTML(initial.messages,peer):'')+'</div><p id="chat-connection" class="quiet" role="status"></p><p id="chat-error" role="status"></p>'+chatAttachmentTools(peer)+chatComposer()+'</section>';}
 let socialCleanup=null;
 function watchSocialChat(query,changed,status,revoked){
  const ticket=renderId,uid=me?.id;let source=null,retryAt=0,failures=0,lastBeat=0,lastFallback=0,closed=false;
@@ -56,7 +59,7 @@ function bindSocialChat(view){
  let latestSequence=Math.max(0,...(initial?.messages||[]).map(m=>m.sequence||0)),joinedSequence=crew?(initial?.membership?.joined_sequence??null):null;
  const sorted=()=>[...messages.values()].sort((a,b)=>(a.sequence||Number.MAX_SAFE_INTEGER)-(b.sequence||Number.MAX_SAFE_INTEGER)||a.created-b.created);
  const merge=incoming=>incoming.forEach(m=>{if(m.request_id&&(m.user_id===uid||m.sender_id===uid))messages.delete('pending:'+m.request_id);messages.set(m.id,m);});
- const paint=(older=false,forceBottom=false)=>{const nearBottom=forceBottom||log.scrollHeight-log.scrollTop-log.clientHeight<90,top=log.scrollTop,height=log.scrollHeight;const html=chatHTML(sorted(),peer,crew);if(html===lastHTML)return;lastHTML=html;log.innerHTML=html;if(older)log.scrollTop=top+log.scrollHeight-height;else if(nearBottom)log.scrollTop=log.scrollHeight;};
+ const paint=(older=false,forceBottom=false)=>{const nearBottom=forceBottom||document.activeElement===input||log.scrollHeight-log.scrollTop-log.clientHeight<90,top=log.scrollTop,height=log.scrollHeight;const html=chatHTML(sorted(),peer,crew);if(html===lastHTML){if(forceBottom)log.scrollTop=log.scrollHeight;return;}lastHTML=html;log.innerHTML=html;if(older)log.scrollTop=top+log.scrollHeight-height;else if(nearBottom)log.scrollTop=log.scrollHeight;};
  const deny=()=>{denied=true;socialCleanup?.();if(crew){chatGeneration++;messages.clear();latestSequence=0;lastHTML=null;paint(false,true);}input.disabled=true;sendButton.disabled=true;$('#chat-connection').textContent='연결 종료';$('#chat-error').textContent='로그인 또는 크루 가입 상태를 다시 확인해주세요.';};
  if(initial)paint(false,true);else log.innerHTML='<p class="quiet" role="status">대화를 불러오는 중…</p>';
  const load=async(older=false)=>{
@@ -98,12 +101,22 @@ function bindSocialChat(view){
   void send({id:'pending:'+rid,request_id:rid,body,created:Math.floor(Date.now()/1000),user_id:uid,sender_id:uid,name:me.name,profile_id:me.profile_id,role:crew?.owner?'owner':'member'});
  };
  log.addEventListener('click',event=>{const retry=event.target.closest('[data-chat-retry]');if(retry&&messages.has(retry.dataset.chatRetry))void send(messages.get(retry.dataset.chatRetry));});
- if(peer)bindChatImageUpload(peer,path,send,()=>sending||denied||!current());
+ bindChatImageUpload(peer,path,send,()=>sending||denied||!current());
  if(peer&&initial?.messages.some(m=>m.recipient_id===uid&&!m.read_at))api(path,'PATCH').then(()=>refreshMessageBadge()).catch(()=>{});
  const query=crew?'?crew='+encodeURIComponent(crew.id):'?peer='+encodeURIComponent(path.split('/').at(-1));
  // History must not wait for the first SSE event or a stream timeout.
  if(!initial)void load();
- socialCleanup=watchSocialChat(query,()=>load(),text=>{if(current())$('#chat-connection').textContent=text;},deny);
+ const stopStream=watchSocialChat(query,()=>load(),text=>{if(current())$('#chat-connection').textContent=text;},deny);
+ // Resize only the conversation pane, never scroll the whole document while typing.
+ const panel=log.closest('.chat-panel'),viewportHeightAtOpen=innerHeight;let pinned=true,frame=0;
+ const onScroll=()=>{pinned=log.scrollHeight-log.scrollTop-log.clientHeight<90;};
+ const anchor=()=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(()=>{if(!current())return;if(document.activeElement===input||pinned)log.scrollTop=log.scrollHeight;});};
+ const viewport=()=>{if(!current())return;const vv=window.visualViewport;const bottom=(vv?.height||innerHeight)+(vv?.offsetTop||0);const top=panel.getBoundingClientRect().top;const keyboard=document.activeElement===input&&Math.max(viewportHeightAtOpen,innerHeight)-(vv?.height||innerHeight)>120;document.body.classList.toggle('chat-keyboard',keyboard);const playerHeight=document.querySelector('.player:not([hidden])')?.getBoundingClientRect().height||0;const inset=keyboard?12:(innerWidth<=800?78:16)+playerHeight;panel.style.height=Math.max(180,bottom-top-inset)+'px';anchor();};
+ const resize=new ResizeObserver(anchor);resize.observe(log);
+ log.addEventListener('scroll',onScroll,{passive:true});log.addEventListener('load',anchor,true);
+ input.addEventListener('focus',viewport);input.addEventListener('blur',viewport);
+ window.visualViewport?.addEventListener('resize',viewport);window.addEventListener('resize',viewport);viewport();
+ socialCleanup=()=>{document.body.classList.remove('chat-keyboard');stopStream();resize.disconnect();cancelAnimationFrame(frame);log.removeEventListener('scroll',onScroll);log.removeEventListener('load',anchor,true);input.removeEventListener('focus',viewport);input.removeEventListener('blur',viewport);window.visualViewport?.removeEventListener('resize',viewport);window.removeEventListener('resize',viewport);};
 }
 
 document.addEventListener('click',async event=>{

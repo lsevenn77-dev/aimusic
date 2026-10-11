@@ -54,6 +54,7 @@ async function storageTargets(env,uid){
   targets.push({prefix:`images/producer/${p.id}/`},{prefix:`images/banner/${p.id}/`});
   for(const a of await rows(env,'SELECT id FROM artists WHERE producer_id=?',p.id))targets.push({prefix:`images/artist/${a.id}/`});
  }
+ for(const image of await rows(env,'SELECT object_key FROM crew_chat_images WHERE sender_id=?',uid))targets.push({key:image.object_key});
  for(const image of await rows(env,'SELECT object_key FROM chat_images WHERE sender_id=? OR recipient_id=?',uid,uid))targets.push({key:image.object_key});
  return targets;
 }
@@ -92,6 +93,7 @@ export async function deleteAccount(env,user){
  for(const table of ['sessions','account_handles','apple_login_tokens','push_devices','push_preferences','user_blocks','comment_reports','comment_likes','comments','likes','follows','playlist_saves','playlist_preferences','playlists','listens','free_gift_claims','free_gift_wallets','crew_bans','crew_xp','crew_messages','crew_members'])writes.push(q(`DELETE FROM ${table} WHERE user_id=?`,uid));
  writes.push(q('DELETE FROM user_blocks WHERE blocked_id=?',uid),q('DELETE FROM direct_messages WHERE sender_id=? OR recipient_id=?',uid,uid),q('DELETE FROM push_outbox WHERE recipient=?',uid),q('DELETE FROM free_gifts WHERE sender_id=?',uid),q("DELETE FROM oauth_states WHERE provider='mobile' AND nonce=?",uid));
  writes.push(q("DELETE FROM follows WHERE (kind='producer' AND target_id IN (SELECT id FROM producers WHERE user_id=?)) OR (kind='artist' AND target_id IN (SELECT a.id FROM artists a JOIN producers p ON p.id=a.producer_id WHERE p.user_id=?))",uid,uid));
+ writes.push(q('DELETE FROM crew_chat_images WHERE sender_id=?',uid));
  writes.push(q('DELETE FROM dm_settings WHERE user_id=? OR peer_id=?',uid,uid),q('DELETE FROM chat_images WHERE sender_id=? OR recipient_id=?',uid,uid));
  // Minimal anonymous keys remain only where accounting rows require stable foreign keys.
  writes.push(q("UPDATE tracks SET status='deleted',title='삭제된 음악',genre='',tags='',description='',lyrics='',lyrics_mode='none',ai_tool='',participation='',original_key='',original_bytes=0,duration=0,has_cover=0,cover_version='',cover_type='',error=NULL,lease_token=NULL,lease_until=0,karaoke_terms='',karaoke_at=0,duet_guide='' WHERE user_id=?",uid));

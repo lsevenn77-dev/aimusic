@@ -50,17 +50,17 @@ body,.page-wrap,.sidebar {background:var(--music-bg)}
 .social-profile-cover {background:radial-gradient(ellipse at 85% 0,#8eddd217,transparent 65%),#202835}
 .social-profile-cover:after {background:linear-gradient(180deg,#10131b0a 35%,#191e29b5 80%,#191e29)}
 .social-profile {background:var(--music-panel)}
-/* A profile photo is a single square image, independent of header width. */
+/* People use circles; album art and gallery images keep their own aspect ratio. */
 .social-profile-square.social-profile {
   display:grid;grid-template-columns:minmax(0,240px) minmax(0,1fr);
   align-items:center;gap:32px;padding:28px;
 }
 .social-profile-photo {
-  width:100%;aspect-ratio:1;overflow:hidden;border-radius:18px;
+  width:100%;aspect-ratio:1;overflow:hidden;border-radius:50%;
   display:grid;place-items:center;background:var(--music-raised);
   box-shadow:0 10px 30px #00000020;
 }
-.social-profile-photo img {display:block;width:100%;height:100%;object-fit:contain;object-position:center}
+.social-profile-photo img {display:block;width:100%;height:100%;object-fit:cover;object-position:center}
 .social-profile-photo>span {font-size:3rem;font-weight:700;color:#c5d2dc}
 .social-profile-square .social-profile-main {
   display:flex;flex-direction:column;align-items:flex-start;gap:24px;
@@ -77,7 +77,7 @@ body,.page-wrap,.sidebar {background:var(--music-bg)}
 }
 @media(max-width:600px) {
   .social-profile-square.social-profile {grid-template-columns:minmax(0,1fr);gap:22px;padding:18px}
-  .social-profile-square .social-profile-photo {width:min(100%,300px);justify-self:center}
+  .social-profile-square .social-profile-photo {width:min(65vw,200px);justify-self:center}
   .social-profile-square .social-profile-main {gap:16px!important}
   .social-profile-square .social-profile-identity h2 {font-size:1.5rem}
   .social-profile-square .social-profile-actions {width:100%;flex-wrap:wrap}
