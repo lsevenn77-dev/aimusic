@@ -58,9 +58,9 @@ test('bounded backfill awards existing songs and memberships once without overri
  db.exec("INSERT INTO users(id,email,name,created) VALUES('u','u@test','User',0); INSERT INTO producers(id,user_id,name,created) VALUES('p','u','User',0); INSERT INTO artists(id,producer_id,name,created) VALUES('a','p','Singer',0); INSERT INTO tracks(id,user_id,artist_id,producer_id,title,genre,ai_tool,rights_accepted,original_ext,original_bytes,created,status) VALUES('t','u','a','p','Track','Pop','AI',1,'wav',10,1,'published'); INSERT INTO crews(id,owner_id,name,created) VALUES('c','u','Crew',0); INSERT INTO crew_members(crew_id,user_id,joined) VALUES('c','u',0)");
  db.exec(readFileSync(new URL('../drizzle/0040_player_progress.sql',import.meta.url),'utf8'));
  const env={DB:{prepare(q){return {bind(...a){return {async run(){const r=db.prepare(q).run(...a);return {meta:{changes:Number(r.changes)}};}};}};},async batch(stmts){const results=[];for(const stmt of stmts)results.push(await stmt.run());return results;}}};
- assert.deepEqual((await playerBackfill(env)).changes,[1,1,1]);
+ assert.deepEqual((await playerBackfill(env)).changes,[1,1,1,0,0,0,0]);
  db.exec('UPDATE player_equipment SET frame_inventory_id=NULL');
- assert.deepEqual((await playerBackfill(env)).changes,[0,0,0]);
+ assert.deepEqual((await playerBackfill(env)).changes,[0,0,0,0,0,0,0]);
  assert.equal(db.prepare('SELECT frame_inventory_id id FROM player_equipment').get().id,null);
  db.exec("UPDATE player_equipment SET frame_inventory_id='crew-frame:u'");
  assert.equal(xp(db,'u'),100);assert.equal(db.prepare('SELECT count(*) n FROM player_inventory').get().n,1);assert.equal(db.prepare('SELECT frame_inventory_id id FROM player_equipment').get().id,'crew-frame:u');

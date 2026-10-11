@@ -11,6 +11,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import coil.compose.AsyncImage
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
@@ -31,7 +32,12 @@ import kotlin.math.sqrt
 internal fun playerLevel(xp:Int)=((1+sqrt(1+xp.coerceAtLeast(0)/12.5))/2).toInt().coerceIn(1,100)
 @Composable internal fun BoxScope.PlayerAvatarDecoration(p:JSONObject?,size:Int){
  if(p==null||p.optString("profile_kind","producer")=="artist")return
- if(p.optString("profile_frame")=="crew-outline")Image(painterResource(R.drawable.player_frame_clan_aether),contentDescription=null,modifier=Modifier.matchParentSize().graphicsLayer(scaleX=1.26f,scaleY=1.26f),contentScale=ContentScale.Fit)
+ val frameKey=p.optString("profile_frame")
+ val framePath=p.optString("profile_frame_artwork")
+ val remoteFrame=frameKey.isNotBlank()&&Regex("/assets/[A-Za-z0-9_./-]+\\.(png|webp)(\\?v=[A-Za-z0-9_-]+)?").matches(framePath)&&!framePath.contains("..")
+ val frameModifier=Modifier.matchParentSize().graphicsLayer(scaleX=1.26f,scaleY=1.26f)
+ if(remoteFrame)AsyncImage(Endpoint.url(framePath),contentDescription=null,modifier=frameModifier,contentScale=ContentScale.Fit)
+ else if(frameKey=="crew-outline")Image(painterResource(R.drawable.player_frame_clan_aether),contentDescription=null,modifier=frameModifier,contentScale=ContentScale.Fit)
  if(size>=80&&(!p.isNull("player_xp")||p.has("player_level"))){
   val level=p.optInt("player_level",playerLevel(p.optInt("player_xp"))).coerceIn(1,100).toString()
   val height=(size*.28f).coerceIn(11f,20f)
@@ -84,13 +90,16 @@ internal fun playerLevel(xp:Int)=((1+sqrt(1+xp.coerceAtLeast(0)/12.5))/2).toInt(
     item{PlayerXPCard(d.optJSONObject("player")?:JSONObject())}
     val inventory=d.optJSONArray("inventory").objects()
     if(inventory.isEmpty())item{Empty("첫 액자를 만나보세요","크루에 가입하면 전용 장식 액자를 무료로 드려요.");TextButton(onClick={close();m.selectTab(3);m.communityCrewMode=true;m.crewBrowsing=true}){Text("크루 둘러보기")}}
-    items(inventory,key={it.optString("id")}){i->
-     val p=JSONObject((m.ownProfile.optJSONObject("profile")?:JSONObject()).toString()).put("profile_frame",i.optString("item_key")).put("player_xp",d.optJSONObject("player")?.optInt("xp")?:0)
+    val rewards=d.optJSONArray("rewards").objects()
+    items(inventory+rewards,key={it.optString("id").ifBlank{"reward:"+it.optString("item_key")}}){i->
+     val owned=i.optBoolean("owned",true)
+     if(!owned&&i==rewards.firstOrNull())Text("달성할 수 있는 보상",fontSize=18.sp,fontWeight=FontWeight.Bold)
+     val p=JSONObject((m.ownProfile.optJSONObject("profile")?:JSONObject()).toString()).put("profile_frame",i.optString("item_key")).put("profile_frame_artwork",i.optString("artwork")).put("player_xp",d.optJSONObject("player")?.optInt("xp")?:0)
      Surface(color=Panel,shape=RoundedCornerShape(18.dp)){Column(Modifier.padding(20.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
-      Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(20.dp)){Avatar(p.optString("name"),p,64);Column{Text(i.optString("name"),fontWeight=FontWeight.Bold);Text(if(i.optBoolean("equipped"))"장착 중" else "보유 중",color=Aqua,fontSize=12.sp)}}
+      Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(20.dp)){Avatar(p.optString("name"),p,64);Column{Text(i.optString("name"),fontWeight=FontWeight.Bold);Text(if(i.optBoolean("equipped"))"장착 중" else if(owned)"보유 중" else "달성 보상",color=Aqua,fontSize=12.sp)}}
       Text(i.optString("description"),color=Muted,fontSize=13.sp)
-      Text(i.optString("reason").ifBlank{"크루 가입 중 사용 가능 · 무료 지급"},color=Muted,fontSize=12.sp)
-      Button(enabled=i.optBoolean("available")&&!busy,onClick={busy=true;scope.launch{try{
+      Text(i.optString("reason").ifBlank{i.optString("usage","보유 아이템")},color=Muted,fontSize=12.sp)
+      if(owned)Button(enabled=i.optBoolean("available")&&!busy,onClick={busy=true;scope.launch{try{
        val result=m.api.call("/api/me/player/equipment","PUT",payload("frame_inventory_id" to if(i.optBoolean("equipped"))JSONObject.NULL else i.optString("id")))
        if(m.user?.optString("id")==account){data=result;updated(result);error=null;m.loadOwnProfile(fresh=true)}
       }catch(e:Exception){if(e is CancellationException)throw e;error=e.message}finally{busy=false}}},modifier=Modifier.fillMaxWidth(),colors=ButtonDefaults.buttonColors(containerColor=Aqua,contentColor=Ink)){Text(if(i.optBoolean("equipped"))"해제하기" else "장착하기")}

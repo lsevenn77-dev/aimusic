@@ -441,6 +441,11 @@ struct ProfilePhoto: View {
     let person: [String: Any]
     var kind = "producer"
     var size: CGFloat = 56
+    private var frameURL: URL? {
+        let path = person.string("profile_frame_artwork")
+        guard path.hasPrefix("/assets/"), !path.contains("..") else { return nil }
+        return try? Endpoint.url(path)
+    }
     private var url: URL? {
         guard !person.string("image_version").isEmpty else { return nil }
         let id = person.string("id", fallback: person.string("profile_id"))
@@ -448,7 +453,14 @@ struct ProfilePhoto: View {
     }
     var body: some View {
         RemoteArtwork(url: url) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { ZStack { AifectDesign.raised; Image(systemName: "person.fill").font(.system(size: size * 0.32)).foregroundStyle(Brand.aqua) } }
-            .frame(width: size, height: size).background(AifectDesign.raised).clipShape(Circle()).overlay { if kind == "producer" && person.string("profile_frame") == "crew-outline" { Image("ClanAetherFrame").resizable().scaledToFit().frame(width: size * 1.26, height: size * 1.26).accessibilityHidden(true) } }.overlay(alignment: .bottomLeading) { if kind == "producer" && (person["player_xp"] != nil || person["player_level"] != nil) { Text("\(person.int("player_level") > 0 ? person.int("player_level") : playerLevel(person.int("player_xp")))").font(.system(size: size >= 100 ? 13 : 10, weight: .semibold)).padding(.horizontal, 5).padding(.vertical, 3).foregroundStyle(Brand.aqua).background(AifectDesign.raised, in: RoundedRectangle(cornerRadius: 7)).overlay(RoundedRectangle(cornerRadius: 7).stroke(Brand.card, lineWidth: 2)) } }.accessibilityLabel("프로필 사진")
+            .frame(width: size, height: size).background(AifectDesign.raised).clipShape(Circle()).overlay { if kind == "producer" && !person.string("profile_frame").isEmpty {
+                if let frameURL {
+                    RemoteArtwork(url: frameURL) { $0.resizable().scaledToFit() } placeholder: { Color.clear }
+                        .frame(width: size * 1.26, height: size * 1.26).allowsHitTesting(false).accessibilityHidden(true)
+                } else if person.string("profile_frame") == "crew-outline" {
+                    Image("ClanAetherFrame").resizable().scaledToFit().frame(width: size * 1.26, height: size * 1.26).accessibilityHidden(true)
+                }
+            } }.overlay(alignment: .bottomLeading) { if kind == "producer" && size >= 80 && (person["player_xp"] != nil || person["player_level"] != nil) { Text("\(person.int("player_level") > 0 ? person.int("player_level") : playerLevel(person.int("player_xp")))").font(.system(size: size >= 100 ? 13 : 10, weight: .semibold)).padding(.horizontal, 5).padding(.vertical, 3).foregroundStyle(Brand.aqua).background(AifectDesign.raised, in: RoundedRectangle(cornerRadius: 7)).overlay(RoundedRectangle(cornerRadius: 7).stroke(Brand.card, lineWidth: 2)) } }.accessibilityLabel("프로필 사진")
     }
 }
 struct MyMusicView: View {
@@ -805,6 +817,7 @@ struct PlayerInventoryView: View {
     @State private var error: String?
     @State private var busy = false
     private var items: [[String: Any]] { data.objects("inventory") }
+    private var rewards: [[String: Any]] { data.objects("rewards") }
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
@@ -816,6 +829,10 @@ struct PlayerInventoryView: View {
                     if items.isEmpty { ContentUnavailableView("첫 액자를 만나보세요", systemImage: "person.2", description: Text("크루에 가입하면 전용 장식 액자를 무료로 드려요.")); NavigationLink("크루 둘러보기") { CrewsView() } }
                     ForEach(items.indices, id: \.self) { index in
                         itemCard(items[index])
+                    }
+                    if !rewards.isEmpty {
+                        Text("달성할 수 있는 보상").font(.headline)
+                        ForEach(rewards.indices, id: \.self) { index in itemCard(rewards[index]) }
                     }
                     Text("이렇게 레벨이 올라요").font(.headline)
                     ForEach(data.objects("rules").indices, id: \.self) { index in
@@ -831,12 +848,14 @@ struct PlayerInventoryView: View {
     private func itemCard(_ item: [String: Any]) -> some View {
         var preview = profile
         preview["profile_frame"] = item.string("item_key")
+        preview["profile_frame_artwork"] = item.string("artwork")
+        let owned = item["owned"] as? Bool ?? true
         preview["player_xp"] = data.object("player").int("xp")
         return VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 20) { ProfilePhoto(person: preview, size: 64); VStack(alignment: .leading, spacing: 6) { Text(item.string("name")).font(.headline); Text(item.flag("equipped") ? "장착 중" : "보유 중").font(.caption).foregroundStyle(Brand.aqua) } }
+            HStack(spacing: 20) { ProfilePhoto(person: preview, size: 64); VStack(alignment: .leading, spacing: 6) { Text(item.string("name")).font(.headline); Text(item.flag("equipped") ? "장착 중" : owned ? "보유 중" : "달성 보상").font(.caption).foregroundStyle(Brand.aqua) } }
             Text(item.string("description")).font(.subheadline).foregroundStyle(AifectDesign.muted)
-            Text(item.string("reason").isEmpty ? "크루 가입 중 사용 가능 · 무료 지급" : item.string("reason")).font(.caption).foregroundStyle(AifectDesign.muted)
-            Button { Task { await equip(item) } } label: { Text(item.flag("equipped") ? "해제하기" : "장착하기").frame(maxWidth: .infinity, minHeight: 36) }.buttonStyle(.borderedProminent).tint(Brand.aqua).foregroundStyle(AifectDesign.background).disabled(busy || !item.flag("available"))
+            Text(item.string("reason").isEmpty ? item.string("usage", fallback: "보유 아이템") : item.string("reason")).font(.caption).foregroundStyle(AifectDesign.muted)
+            if owned { Button { Task { await equip(item) } } label: { Text(item.flag("equipped") ? "해제하기" : "장착하기").frame(maxWidth: .infinity, minHeight: 36) }.buttonStyle(.borderedProminent).tint(Brand.aqua).foregroundStyle(AifectDesign.background).disabled(busy || !item.flag("available")) }
         }.padding(20).background(Brand.card, in: RoundedRectangle(cornerRadius: 18))
     }
     private func load() async {

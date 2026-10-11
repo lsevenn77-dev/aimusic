@@ -36,7 +36,7 @@ data class Song(val raw: JSONObject) {
  val producer=raw.optString("producer")
  val producerId=raw.optString("producer_id")
  val producerImageVersion=raw.optString("producer_image_version")
- val producerProfile get()=payload("id" to producerId,"name" to producer,"profile_kind" to "producer","image_version" to producerImageVersion,"player_xp" to raw.opt("player_xp"),"profile_frame" to raw.opt("profile_frame"))
+ val producerProfile get()=payload("id" to producerId,"name" to producer,"profile_kind" to "producer","image_version" to producerImageVersion,"player_xp" to raw.opt("player_xp"),"profile_frame" to raw.opt("profile_frame"),"profile_frame_artwork" to raw.opt("profile_frame_artwork"))
  val genre=raw.optString("genre")
  val genres=raw.optJSONArray("genres")?.let { values -> (0 until values.length()).map { values.optString(it) }.filter { it.isNotBlank() } }?.takeIf { it.isNotEmpty() } ?: listOf(genre).filter { it.isNotBlank() }
  val moods=raw.optJSONArray("moods")?.let { values -> (0 until values.length()).map { values.optString(it) }.filter { it.isNotBlank() } } ?: emptyList()

@@ -181,3 +181,7 @@ npm run catalog
 [프로필 미리보기](player-20261011/basic-clan-profile.jpg) · [보관함 미리보기](player-20261011/basic-clan-inventory.jpg) · [웹 데스크톱 미리보기](player-20261011/basic-clan-profile-desktop.jpg)
 
 검증: 관련 웹/서버 테스트 40개 통과, Android 단위 테스트 54개 및 release AAB 빌드·서명 완료. 프로필과 보관함의 액자 표시, 장착/해제 저장, 계정 링크 통일을 로컬 브라우저에서 확인했다. iOS는 소스와 에셋을 수정했으며 Windows 환경이라 Xcode 빌드·iPhone 설치는 수행하지 않았다. 이 전달은 Play Console 업로드나 휴대폰 설치를 뜻하지 않는다.
+
+## 2.5.41 · 서버 액자와 달성 보상
+
+액자를 앱에 내장하는 방식에서 서버의 `profile_frame_artwork`를 읽는 방식으로 전환했다. 유저 LV.10 화관과 크루 LV.3/4/5 액자를 달성 보상으로 추가했다. 이후 이미지와 조건은 웹 서버에서만 추가하면 된다. 최신 API·보관함·지급 기준은 [iOS 인수인계](IOS-HANDOFF-20261011.md)를 따른다.

@@ -9,7 +9,7 @@ function chatHTML(messages,peer=null,crew=null){
   if(m.kind==='system')return separator+'<div class="chat-system">'+esc(m.body)+'</div>';
   const mine=m.sender_id===me?.id||m.user_id===me?.id,name=m.name||(mine?'나':peer?.name)||'리스너',label=crew?crewDisplayName({...m,name}):name;
   const delivery=m.delivery==='sending'?'<small class="chat-delivery">전송 중…</small>':m.delivery==='failed'?'<button class="chat-retry" data-chat-retry="'+esc(m.id)+'">다시 보내기</button>':'';
-  const person=peer||{id:m.profile_id,name:label,image_version:m.image_version,player_xp:m.player_xp,profile_frame:m.profile_frame};
+  const person=peer||{id:m.profile_id,name:label,image_version:m.image_version,player_xp:m.player_xp,profile_frame:m.profile_frame,profile_frame_artwork:m.profile_frame_artwork};
   const linked=!!person.id,face=portrait(person,'producer');
   const avatar=!mine?(linked?dmProfileLink(person,face):'<span class="dm-profile-link">'+face+'</span>'):'';
   const author=mine?'':crew?.owner&&m.profile_id?'<button class="dm-author chat-author" data-crew-member="'+esc(m.profile_id)+'" data-crew="'+esc(crew.id)+'">'+esc(label)+'</button>':linked?dmProfileLink(person,esc(label),'dm-author'):'<span class="dm-author">'+esc(label)+'</span>';

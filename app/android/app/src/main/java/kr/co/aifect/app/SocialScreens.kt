@@ -517,7 +517,7 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
     else{
      Row(Modifier.fillMaxWidth().testTag("dm-message-"+msg.optString("id")),horizontalArrangement=if(mine)Arrangement.End else Arrangement.Start,verticalAlignment=Alignment.Top){
       if(!mine){
-       val person=if(crew)payload("id" to msg.optString("profile_id"),"name" to msg.optString("name","크루원"),"image_version" to msg.optInt("image_version"),"player_xp" to msg.optInt("player_xp"),"profile_frame" to msg.optString("profile_frame"))else peerPerson
+       val person=if(crew)payload("id" to msg.optString("profile_id"),"name" to msg.optString("name","크루원"),"image_version" to msg.optInt("image_version"),"player_xp" to msg.optInt("player_xp"),"profile_frame" to msg.optString("profile_frame"),"profile_frame_artwork" to msg.optString("profile_frame_artwork"))else peerPerson
        if(person!=null){MessageProfileAvatar(person,"dm-message-profile-"+msg.optString("id"),36){if(crew&&person.optString("id").isNotBlank())m.openProfile(person.optString("id"))else openPeer?.invoke()};Spacer(Modifier.width(8.dp))}
       }
       Column(Modifier.widthIn(max=260.dp),horizontalAlignment=if(mine)Alignment.End else Alignment.Start){
