@@ -37,16 +37,33 @@
     const res=await fetch(url,{credentials:'same-origin',...options,headers});
     let body={};
     try{body=await res.json();}catch{}
+    if(res.status===401&&url!=='/api/admin/login')showLogin('로그인 시간이 만료되었습니다. 다시 로그인해주세요.');
     if(!res.ok)throw new Error(body.error||'요청을 처리하지 못했습니다.');
     return body;
   }
 
-  function showDenied(message,login=false){
+  function showLogin(message=''){
+    state.data=null;state.me=null;
+    app.classList.add('locked');
+    $('#admin-content').hidden=true;
     const gate=$('#access-gate');
-    gate.innerHTML='<div class="profile-mark" style="width:48px;height:48px;margin:auto">A</div>'+
-      '<h1>'+esc(message)+'</h1>'+
-      '<p>'+(login?'AIFECT에서 로그인한 뒤 다시 접속해주세요.':'이 페이지는 AIFECT 운영자 전용입니다.')+'</p>'+
-      '<a class="primary-button" style="display:inline-grid;place-items:center;margin-top:12px" href="'+(login?'/#account':'/#home')+'">'+(login?'로그인하기':'사이트로 돌아가기')+'</a>';
+    gate.hidden=false;
+    gate.innerHTML='<form class="admin-login" id="admin-login-form">'+
+      '<img src="/assets/aifect-wordmark.svg" alt="AIFECT">'+
+      '<h1>관리자 로그인</h1><p>관리자 비밀번호를 입력해주세요.</p>'+
+      '<label>비밀번호<input id="admin-password" name="password" type="password" autocomplete="current-password" maxlength="256" required></label>'+
+      '<p id="login-error" class="login-error" role="alert">'+esc(message)+'</p>'+
+      '<button class="primary-button" type="submit">로그인</button>'+
+      '<a class="login-home" href="/">AIFECT 홈으로</a></form>';
+    $('#admin-login-form').addEventListener('submit',async e=>{
+      e.preventDefault();const button=e.currentTarget.querySelector('button');button.disabled=true;
+      $('#login-error').textContent='';
+      try{
+        await api('/api/admin/login',{method:'POST',body:JSON.stringify({password:$('#admin-password').value})});
+        $('#admin-password').value='';await init();
+      }catch(error){$('#login-error').textContent=error.message;$('#admin-password').value='';$('#admin-password').focus();}
+      finally{button.disabled=false;}
+    });
   }
 
   function navigate(view){
@@ -388,16 +405,16 @@
 
   async function init(){
     try{
-      const me=await api('/api/me');
-      if(!me.user){showDenied('로그인이 필요합니다.',true);return;}
-      if(!me.admin){showDenied('관리자 권한이 없습니다.');return;}
-      state.me=me.user;
-      $('#admin-name').textContent=me.user.display_name||me.user.name||'운영자';
-      $('#operator-heading').textContent=me.user.display_name||me.user.name||'운영자';
+      const session=await api('/api/admin/session');
+      if(!session.authenticated){showLogin();return;}
+      state.me={name:'관리자'};
+      app.classList.remove('locked');
+      $('#admin-name').textContent='로그아웃';
+      $('#operator-heading').textContent='관리자';
       $('#access-gate').hidden=true;
       $('#admin-content').hidden=false;
       await loadDashboard();
-    }catch(error){showDenied(error.message||'권한을 확인하지 못했습니다.',true);}
+    }catch(error){showLogin(error.message||'로그인 상태를 확인하지 못했습니다.');}
   }
 
   $$('.admin-nav-item').forEach(btn=>btn.addEventListener('click',()=>navigate(btn.dataset.view)));
@@ -405,7 +422,10 @@
   $('#period-select').addEventListener('change',async e=>{state.days=Number(e.target.value)||7;await loadDashboard(true);});
   $('#refresh-button').addEventListener('click',()=>loadDashboard(true));
   $('#admin-search-form').addEventListener('submit',e=>{e.preventDefault();globalSearch($('#admin-search-input').value);});
-  $('#profile-button').addEventListener('click',()=>location.href='/#account');
+  $('#profile-button').addEventListener('click',async()=>{
+    try{await api('/api/admin/logout',{method:'POST'});location.replace('/admin/dashboard');}
+    catch(error){toast(error.message);}
+  });
   $('#track-review-filter').addEventListener('change',loadTrackReview);
   $('#track-review-search-button').addEventListener('click',loadTrackReview);
   $('#track-review-search').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();loadTrackReview();}});

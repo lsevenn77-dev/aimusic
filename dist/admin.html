@@ -9,10 +9,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/admin.css?v=20261012-dashboard">
+  <link rel="stylesheet" href="/admin.css?v=20261012-admin-login">
 </head>
 <body>
-  <div class="admin-app" id="admin-app">
+  <div class="admin-app locked" id="admin-app">
     <aside class="admin-sidebar">
       <a class="admin-brand" href="/#home" aria-label="AIFECT 홈">
         <img src="/assets/aifect-wordmark.svg?v=20261007-reference" alt="AIFECT" width="150" height="40">
@@ -57,7 +57,7 @@
             <option value="90">최근 90일</option>
           </select>
           <button class="icon-button" id="refresh-button" type="button" aria-label="새로고침">↻</button>
-          <button class="profile-button" id="profile-button" type="button"><span class="profile-mark">A</span><span id="admin-name">운영자</span></button>
+          <button class="profile-button" id="profile-button" type="button" aria-label="관리자 로그아웃"><span class="profile-mark">A</span><span id="admin-name">로그아웃</span></button>
         </div>
       </header>
 
@@ -166,6 +166,6 @@
     <div class="admin-toast" id="admin-toast" role="status" aria-live="polite"></div>
     <dialog id="admin-dialog"><div id="admin-dialog-content"></div><button type="button" id="admin-dialog-close" class="dialog-close" aria-label="닫기">×</button></dialog>
   </div>
-  <script defer src="/admin.js?v=20261012-dashboard"></script>
+  <script defer src="/admin.js?v=20261012-admin-login"></script>
 </body>
 </html>

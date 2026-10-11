@@ -28,6 +28,7 @@ import {duetRoute} from './duets.js';
 import {giftRoute} from './gifts.js';
 import {payoutRoute} from './payouts.js';
 import {adminDashboardRoute} from './admin-dashboard.js';
+import {adminSessionRoute,consoleViewer} from './admin-session.js';
 import {diamondRoute} from './diamonds.js';
 import {publicPageRoute} from './public-pages.js';
 import {publicMusicRoute} from './public-music.js';
@@ -52,6 +53,7 @@ export default {async fetch(req,env,ctx){
   if(path.startsWith('/internal/music-classification/'))return await musicClassificationInternal(req,env,path);
   if(path.startsWith('/internal/')){const result=await internalRoute(req,env,path);if(result?.ok&&ctx?.waitUntil&&env.GEMINI_API_KEY&&(path==='/internal/jobs/claim'||path.endsWith('/finish')))ctx.waitUntil(classifyNext(env).catch(()=>console.error('Music classification pending')));return result;}
   const musicResponse=await publicMusicRoute(req,env,path);if(musicResponse)return musicResponse;
+  if(['/admin','/admin/','/admin.html'].includes(path))return new Response('페이지를 찾을 수 없습니다.',{status:404,headers:{'content-type':'text/plain; charset=utf-8','cache-control':'no-store'}});
   const publicResponse=publicPageRoute(req,path);if(publicResponse)return publicResponse;
   if(!path.startsWith('/api/')&&!path.startsWith('/media/')){
    if(!['GET','HEAD'].includes(req.method))return json({error:'허용되지 않는 요청입니다.'},405);
@@ -73,7 +75,8 @@ export default {async fetch(req,env,ctx){
    const body=new Uint8Array(size);let offset=0;for(const chunk of chunks){body.set(chunk,offset);offset+=chunk.byteLength;}
    req=new Request(req,{body});
   }
-  const user=await viewer(req,env);
+  const adminSession=await adminSessionRoute(req,env,path);if(adminSession)return adminSession;
+  const user=(path.startsWith('/api/admin/')?await consoleViewer(req,env):null)||await viewer(req,env);
   env=await blockedContext(env,user);
   const safety=await accountSafetyRoute(req,env,path,user);if(safety)return safety;
   if(path==='/api/studio'&&ctx?.waitUntil&&env.GEMINI_API_KEY)ctx.waitUntil(classifyNext(env).catch(()=>console.error('Music classification pending')));
