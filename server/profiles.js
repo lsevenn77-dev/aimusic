@@ -1,3 +1,4 @@
+import {playerIdentity,playerColumnsSQL} from './player.js';
 import {one,rows,query,id,now,str,json,fail,rate} from './db.js';
 import {requireUser} from './auth.js';
 import {publicNameSQL,producerNameSQL} from './identity.js';
@@ -9,7 +10,7 @@ export async function profileRoute(req,env,path,user){
  if(follower){
   requireUser(user);if(req.method!=='GET')fail(405,'지원하지 않는 요청입니다.');
   // Only an existing follower of the viewer can open this listener identity.
-  const person=await one(env,`SELECT p.id,u.id user_id,${publicNameSQL()} name,p.bio,p.image_version FROM follows f JOIN producers owner ON owner.id=f.target_id JOIN users u ON u.id=f.user_id LEFT JOIN producers p ON p.user_id=u.id WHERE f.kind='producer' AND owner.user_id=? AND u.id=?`,user.id,follower[1]);
+  const person=await one(env,`SELECT p.id,u.id user_id,${playerColumnsSQL('u.id')},${publicNameSQL()} name,p.bio,p.image_version FROM follows f JOIN producers owner ON owner.id=f.target_id JOIN users u ON u.id=f.user_id LEFT JOIN producers p ON p.user_id=u.id WHERE f.kind='producer' AND owner.user_id=? AND u.id=?`,user.id,follower[1]);
   if(!person)fail(404,'팔로워를 찾을 수 없어요.');
   return json({profile:person});
  }
@@ -32,7 +33,7 @@ export async function profileRoute(req,env,path,user){
  }else if(req.method!=='GET')fail(405,'지원하지 않는 요청입니다.');
  const profile=await one(env,`SELECT p.id,${producerNameSQL()} name,p.bio,p.image_version FROM producers p WHERE p.user_id=?`,user.id);
  const [followers,counts]=await Promise.all([
- profile?rows(env,`SELECT p.id,u.id user_id,${publicNameSQL()} name,p.image_version,'producer' profile_kind FROM follows f JOIN users u ON u.id=f.user_id LEFT JOIN producers p ON p.user_id=f.user_id WHERE f.kind='producer' AND f.target_id=? ORDER BY f.created DESC LIMIT 200`,profile.id):[],
+ profile?rows(env,`SELECT p.id,u.id user_id,${playerColumnsSQL('u.id')},${publicNameSQL()} name,p.image_version,'producer' profile_kind FROM follows f JOIN users u ON u.id=f.user_id LEFT JOIN producers p ON p.user_id=f.user_id WHERE f.kind='producer' AND f.target_id=? ORDER BY f.created DESC LIMIT 200`,profile.id):[],
  one(env,"SELECT (SELECT count(*) FROM follows WHERE kind='producer' AND target_id=?) followers,(SELECT count(*) FROM follows WHERE user_id=?) following",profile?.id||'',user.id)]);
- return json({profile:profile||{name:user.name,bio:'',image_version:''},user:profile?{...user,name:profile.name,profile_id:profile.id,image_version:profile.image_version||''}:user,followers,follower_count:counts.followers,following_count:counts.following});
+ return json({profile:{...(profile||{name:user.name,bio:'',image_version:''}),user_id:user.id,...await playerIdentity(env,user.id)},user:profile?{...user,name:profile.name,profile_id:profile.id,image_version:profile.image_version||''}:user,followers,follower_count:counts.followers,following_count:counts.following});
 }

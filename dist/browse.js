@@ -1,6 +1,6 @@
 // Shared navigation for listening, singing and the community on desktop and mobile.
 function updateBrowseNavigation(base,param){
- const primary=['karaoke','sing','cover'].includes(base)?'karaoke':['community','covers','crew','producer','artist','following'].includes(base)?'community':base==='dm'?'dm':['profile','account','studio','manage','upload','payouts','rewards'].includes(base)?'profile':['library','history'].includes(base)?'home':'home';
+ const primary=['karaoke','sing','cover'].includes(base)?'karaoke':['community','covers','crew','producer','artist','following'].includes(base)?'community':base==='dm'?'dm':['inventory','profile','account','studio','manage','upload','payouts','rewards'].includes(base)?'profile':['library','history'].includes(base)?'home':'home';
  document.querySelectorAll('[data-primary-view]').forEach(a=>{const active=a.dataset.primaryView===(a.closest('.sidebar')&&['library','history'].includes(base)?'library':primary);a.classList.toggle('active',active);if(active)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});
  document.querySelectorAll('.nav-link[data-view]:not([data-primary-view])').forEach(a=>{const active=a.getAttribute('href')==='#'+base+(param?'/'+param:'');a.classList.toggle('active',active);if(active)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});
 }

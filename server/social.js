@@ -1,3 +1,4 @@
+import {playerColumnsSQL} from './player.js';
 import {assertUnblocked} from './account-safety.js';
 import {one,rows,query,run,now,id,str,fail,json,rate} from './db.js';
 import {requireUser} from './auth.js';
@@ -32,7 +33,7 @@ async function crewHistory(env,cid,url,membership){
  if((before&&after)||[before,after].some(v=>v!==null&&!/^[1-9]\d{0,14}$/.test(v)))fail(400,'대화 위치를 확인해주세요.');
  const direction=after?'ASC':'DESC',cursor=before||after;
  const [messages,member_roles]=await Promise.all([
- rows(env,`SELECT m.rowid sequence,m.id,m.request_id,m.body,m.created,m.user_id,m.kind,m.image_id,(SELECT expires FROM crew_chat_images WHERE id=m.image_id) image_expires,p.id profile_id,p.image_version,${publicNameSQL()} name,COALESCE(cm.role,m.author_role) role FROM crew_messages m JOIN users u ON u.id=m.user_id JOIN crew_members viewer ON viewer.crew_id=m.crew_id AND viewer.user_id=? LEFT JOIN producers p ON p.user_id=m.user_id LEFT JOIN crew_members cm ON cm.crew_id=m.crew_id AND cm.user_id=m.user_id WHERE m.crew_id=? AND m.rowid>=viewer.joined_sequence AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=viewer.user_id AND b.blocked_id=m.user_id) OR (b.blocked_id=viewer.user_id AND b.user_id=m.user_id))${cursor?` AND m.rowid${before?'<':'>'}?`:''} ORDER BY m.rowid ${direction} LIMIT 101`,membership.user_id,cid,...(cursor?[Number(cursor)]:[])),
+ rows(env,`SELECT m.rowid sequence,m.id,m.request_id,m.body,m.created,m.user_id,m.kind,m.image_id,(SELECT expires FROM crew_chat_images WHERE id=m.image_id) image_expires,p.id profile_id,p.image_version,${playerColumnsSQL('u.id')},${publicNameSQL()} name,COALESCE(cm.role,m.author_role) role FROM crew_messages m JOIN users u ON u.id=m.user_id JOIN crew_members viewer ON viewer.crew_id=m.crew_id AND viewer.user_id=? LEFT JOIN producers p ON p.user_id=m.user_id LEFT JOIN crew_members cm ON cm.crew_id=m.crew_id AND cm.user_id=m.user_id WHERE m.crew_id=? AND m.rowid>=viewer.joined_sequence AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=viewer.user_id AND b.blocked_id=m.user_id) OR (b.blocked_id=viewer.user_id AND b.user_id=m.user_id))${cursor?` AND m.rowid${before?'<':'>'}?`:''} ORDER BY m.rowid ${direction} LIMIT 101`,membership.user_id,cid,...(cursor?[Number(cursor)]:[])),
  rows(env,'SELECT p.id profile_id,m.role FROM crew_members m JOIN producers p ON p.user_id=m.user_id WHERE m.crew_id=?',cid)]);
  const has_more=messages.length>100;messages.length=Math.min(messages.length,100);if(!after)messages.reverse();
  return json({messages,has_more,membership,member_roles,roles:CREW_ROLES});
@@ -42,13 +43,13 @@ async function crewDetail(env,cid,user){
  const [c,membership,members,tracks,ban]=await Promise.all([
  one(env,`${crewSelect} WHERE c.id=?`,cid),
  user?one(env,'SELECT role,joined,joined_sequence,muted FROM crew_members WHERE crew_id=? AND user_id=?',cid,user.id):null,
- rows(env,`SELECT p.id,p.user_id,${producerNameSQL()} name,p.image_version,m.role FROM crew_members m JOIN producers p ON p.user_id=m.user_id WHERE m.crew_id=? ORDER BY (m.role='owner') DESC,m.joined LIMIT 150`,cid),
+ rows(env,`SELECT p.id,p.user_id,${playerColumnsSQL('p.user_id')},${producerNameSQL()} name,p.image_version,m.role FROM crew_members m JOIN producers p ON p.user_id=m.user_id WHERE m.crew_id=? ORDER BY (m.role='owner') DESC,m.joined LIMIT 150`,cid),
  trackList(env,`${VISIBLE()} AND t.user_id IN (SELECT user_id FROM crew_members WHERE crew_id=?)`,[cid],'t.created DESC',60),
  user?one(env,'SELECT 1 FROM crew_bans WHERE crew_id=? AND user_id=?',cid,user.id):null]);
  if(!c)fail(404,'크루를 찾을 수 없어요.');const banned=!!ban;
  return {crew:present(c),membership,members,tracks,banned,rules:{levels:CREW_LEVELS,...CREW_REWARDS},roles:CREW_ROLES};
 }
-async function peer(env,pid,user){requireUser(user);const p=await one(env,`SELECT p.id,p.user_id,${producerNameSQL()} name,p.image_version FROM producers p WHERE p.id=?`,pid);if(!p)fail(404,'프로필을 찾을 수 없어요.');assertUnblocked(env,p.user_id);if(p.user_id===user.id)fail(400,'다른 이용자에게 메시지를 보내주세요.');return p;}
+async function peer(env,pid,user){requireUser(user);const p=await one(env,`SELECT p.id,p.user_id,${playerColumnsSQL('p.user_id')},${producerNameSQL()} name,p.image_version FROM producers p WHERE p.id=?`,pid);if(!p)fail(404,'프로필을 찾을 수 없어요.');assertUnblocked(env,p.user_id);if(p.user_id===user.id)fail(400,'다른 이용자에게 메시지를 보내주세요.');return p;}
 export async function socialRoute(req,env,path,user){
  if(!path.startsWith('/api/crews')&&!path.startsWith('/api/dm'))return null;
  const method=req.method,url=new URL(req.url);
@@ -143,7 +144,7 @@ export async function socialRoute(req,env,path,user){
      query(env,'INSERT OR IGNORE INTO crew_messages(id,crew_id,user_id,body,request_id,created,author_role,image_id) SELECT ?,?,?,?,?,?,role,? FROM crew_members WHERE crew_id=? AND user_id=?',id(),cid,user.id,body,rid,now(),imageId,cid,user.id),
      query(env,'INSERT OR IGNORE INTO crew_xp(id,crew_id,user_id,amount,created) SELECT ?,?,?,?,? WHERE EXISTS(SELECT 1 FROM crew_members WHERE crew_id=? AND user_id=?)','chat:'+user.id+':'+giftDay(now()),cid,user.id,CREW_REWARDS.dailyChat,now(),cid,user.id)
     ]);
-    const message=await one(env,`SELECT m.rowid sequence,m.id,m.request_id,m.body,m.created,m.user_id,m.kind,m.image_id,(SELECT expires FROM crew_chat_images WHERE id=m.image_id) image_expires,m.author_role role,p.id profile_id,p.image_version,${publicNameSQL()} name FROM crew_messages m JOIN users u ON u.id=m.user_id JOIN crew_members viewer ON viewer.crew_id=m.crew_id AND viewer.user_id=? LEFT JOIN producers p ON p.user_id=m.user_id WHERE m.user_id=? AND m.request_id=? AND m.rowid>=viewer.joined_sequence`,user.id,user.id,rid);
+    const message=await one(env,`SELECT m.rowid sequence,m.id,m.request_id,m.body,m.created,m.user_id,m.kind,m.image_id,(SELECT expires FROM crew_chat_images WHERE id=m.image_id) image_expires,m.author_role role,p.id profile_id,p.image_version,${playerColumnsSQL('u.id')},${publicNameSQL()} name FROM crew_messages m JOIN users u ON u.id=m.user_id JOIN crew_members viewer ON viewer.crew_id=m.crew_id AND viewer.user_id=? LEFT JOIN producers p ON p.user_id=m.user_id WHERE m.user_id=? AND m.request_id=? AND m.rowid>=viewer.joined_sequence`,user.id,user.id,rid);
     if(!message)fail(403,'크루에 가입한 멤버만 전송할 수 있어요.');
     return json({ok:true,message},201);
    }
@@ -152,7 +153,7 @@ export async function socialRoute(req,env,path,user){
  }
  requireUser(user);
  if(path==='/api/dm'&&method==='GET'){
-  const summary=await chatSummary(env,user);return json({...summary,conversations:await rows(env,`WITH mine AS (SELECT rowid sequence,d.*,CASE WHEN sender_id=? THEN recipient_id ELSE sender_id END peer_id FROM direct_messages d WHERE (sender_id=? OR recipient_id=?) AND d.rowid>COALESCE((SELECT cleared_sequence FROM dm_settings WHERE user_id=? AND peer_id=CASE WHEN d.sender_id=? THEN d.recipient_id ELSE d.sender_id END),0)),latest AS (SELECT *,row_number() OVER(PARTITION BY peer_id ORDER BY sequence DESC) position,sum(CASE WHEN recipient_id=? AND read_at=0 THEN 1 ELSE 0 END) OVER(PARTITION BY peer_id) unread FROM mine) SELECT p.id,p.user_id,${producerNameSQL()} name,p.image_version,COALESCE(s.muted,0) muted,d.body last_message,d.created updated,d.unread FROM latest d JOIN producers p ON p.user_id=d.peer_id LEFT JOIN dm_settings s ON s.user_id=? AND s.peer_id=d.peer_id WHERE d.position=1 ORDER BY d.sequence DESC LIMIT 100`,user.id,user.id,user.id,user.id,user.id,user.id,user.id)});
+  const summary=await chatSummary(env,user);return json({...summary,conversations:await rows(env,`WITH mine AS (SELECT rowid sequence,d.*,CASE WHEN sender_id=? THEN recipient_id ELSE sender_id END peer_id FROM direct_messages d WHERE (sender_id=? OR recipient_id=?) AND d.rowid>COALESCE((SELECT cleared_sequence FROM dm_settings WHERE user_id=? AND peer_id=CASE WHEN d.sender_id=? THEN d.recipient_id ELSE d.sender_id END),0)),latest AS (SELECT *,row_number() OVER(PARTITION BY peer_id ORDER BY sequence DESC) position,sum(CASE WHEN recipient_id=? AND read_at=0 THEN 1 ELSE 0 END) OVER(PARTITION BY peer_id) unread FROM mine) SELECT p.id,p.user_id,${playerColumnsSQL('p.user_id')},${producerNameSQL()} name,p.image_version,COALESCE(s.muted,0) muted,d.body last_message,d.created updated,d.unread FROM latest d JOIN producers p ON p.user_id=d.peer_id LEFT JOIN dm_settings s ON s.user_id=? AND s.peer_id=d.peer_id WHERE d.position=1 ORDER BY d.sequence DESC LIMIT 100`,user.id,user.id,user.id,user.id,user.id,user.id,user.id)});
  }
  m=path.match(/^\/api\/dm\/([\w-]+)$/);
  if(m){
