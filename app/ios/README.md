@@ -1,6 +1,6 @@
 # AIFECT iPhone 네이티브 앱
 
-**2026-10-12 Mac 후속 작업:** Android 2.5.41 (54)의 [최종 인수인계](../design/IOS-HANDOFF-20261011.md), 원격 `7946a6f`까지 pull하고 iOS **1.0.3 (12)**에 통합했습니다. 배포용 빌드와 심사 제출 진행 중입니다.
+**2026-10-12 Mac 후속 작업:** Android 2.5.41 (54)의 [최종 인수인계](../design/IOS-HANDOFF-20261011.md), 원격 `7946a6f`까지 pull하고 iOS **1.0.3 (12)**에 통합했습니다. 배포용 아카이브·Apple 업로드·최종 심사 제출을 완료했고, **심사 대기 중**입니다.
 
 SwiftUI · AVFoundation · StoreKit 2 기반 iOS 17 이상 iPhone 앱. API는 https://aifect.co.kr 이며 WebView로 앱을 감싸지 않습니다.
 
@@ -11,8 +11,8 @@ AIFECT.xcodeproj의 AIFECT scheme을 실행합니다. Xcode가 FirebaseMessaging
 - Bundle ID: kr.co.aifect.app
 - Team: 3KJFQS7Q83
 - App Store Connect ID: 6819654764
-- 최신 심사 제출: **1.0.2 (11)**, 출시 소스 `a455a1e`. 2026-10-10 17:11 KST App Review 최종 제출을 완료하고 **심사 대기 중(Waiting for Review)** 상태를 확인했습니다. 승인 후 자동 출시, 모든 사용자에게 즉시 업데이트, 기존 평가 유지로 설정했습니다.
-- 기존 공개 버전: **1.0.1 (8)**. 2026-10-10 17:09 KST App Store Connect에서 배포 준비됨(Ready for Distribution)을 확인했습니다.
+- 최신 심사 제출: **1.0.3 (12)**, 출시 소스 `1df3758`. 2026-10-12 00:19 KST App Review 최종 제출을 완료하고 **심사 대기 중(Waiting for Review)** 상태를 확인했습니다. 승인 후 자동 출시, 모든 사용자에게 즉시 업데이트, 기존 평가 유지로 설정했습니다.
+- 기존 공개 버전: **1.0.2 (11)**. 2026-10-11 App Store Connect에서 배포 준비됨(Ready for Distribution)을 확인했습니다.
 
 ## 2026-10-12 1.0.3 (12) 업데이트 검증
 
@@ -23,6 +23,8 @@ AIFECT.xcodeproj의 AIFECT scheme을 실행합니다. Xcode가 FirebaseMessaging
 - 최신 액자 PNG 5종은 운영 서버에 iOS와 동일한 Origin/User-Agent로 요청해 모두 HTTP 200 image/png를 확인했습니다. UI 검사 스크린샷은 QA 전용이며 App Store에 올리지 않습니다.
 - App Store Connect에 1.0.3 버전을 만들고 한국어 변경 설명과 새 심사 메모를 저장했습니다. 정산 기능의 지불 정보·기타 재무 정보·기타 데이터 유형을 앱 기능/사용자 연결/추적 미사용으로 게시했습니다. 기존 StoreKit 실제 가격 표시를 유지합니다(500G 현재 한국 가격 6,500원 확인).
 - 기존 1.0.2 (11)는 2026-10-11 App Store Connect에서 배포 준비됨 상태를 확인했습니다.
+- 2026-10-12 00:13 KST Xcode Organizer에서 **1.0.3 (12) Uploaded to Apple** 확인. 아카이브 서명 검증과 Debug 픽스처 제외 확인을 통과했습니다. 앱 dSYM은 포함되며 GoogleMobileAds/UMP 공급업체 dSYM 경고 2건은 기존과 같습니다. 출시 소스: `1df3758`.
+- 2026-10-12 00:19 KST **1개의 항목 제출됨** 완료 안내와 **심사 대기 중** 상태를 확인했습니다. 빌드 ID: `aa0a97a0-1e71-4cb4-9382-6fdf8d8f59cc`. 제출 ID: `ff62dadf-a2f7-46b2-84d2-733bae5778a8`. 기존 설명 스크린샷 6장, 한국어 이름·검색 키워드, 심사 계정과 연락처를 유지했습니다. 승인 후 자동 출시하며, 새 버전의 승인·공개는 아직 대기 중입니다.
 
 ## 2026-10-10 1.0.2 App Review 제출 완료
 
@@ -150,7 +152,7 @@ Firebase 프로젝트 aifect, 발신자 974296051201, iOS 앱 1:974296051201:ios
 
 AdMob 앱 ca-app-pub-5910265378731607~1879327875, 전면 광고 ca-app-pub-5910265378731607/5388337200. Debug/시뮬레이터는 Google 공식 테스트 광고 ID만 사용합니다. UMP 허용 상태를 확인한 뒤 SDK를 초기화합니다. 새 앱 광고 게재 승인은 공개 App Store 목록 연결 후 Google 검토가 필요합니다.
 
-Apple 상품은 kr.co.aifect.app.premium.monthly 및 kr.co.aifect.app.gold.{500,1000,5000,10000}. 한국 판매 가격은 월 5,900원, 골드 5,000/10,000/50,000/100,000원입니다. 실기기 Storefront 가격 표시는 StoreKit 응답을 사용합니다.
+Apple 상품은 kr.co.aifect.app.premium.monthly 및 kr.co.aifect.app.gold.{500,1000,5000,10000}. 앱의 실제 판매 가격 표시는 StoreKit 응답을 사용합니다. 2026-10-12 App Store Connect에서 500골드의 한국 가격 6,500원을 확인했으며, 다른 상품의 현재 가격은 이번 작업에서 재확인하지 않았습니다. 로컬 StoreKit 테스트 파일의 가격은 테스트용입니다.
 
 서버는 Apple 서명·앱 ID·계정 토큰·거래 중복을 검증하고 구독/환불 알림을 처리합니다. Production/Sandbox 알림 URL은 https://aifect.co.kr/api/apple/notifications 입니다. Sandbox 거래는 검증·기록하되 실제 골드/정산 잔고에 반영하지 않습니다. 실제 구매 E2E 검증은 아직 수행하지 않았습니다.
 
