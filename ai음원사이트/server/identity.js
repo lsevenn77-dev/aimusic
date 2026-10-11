@@ -1,3 +1,4 @@
+import {playerIdentity} from './player.js';
 import {one} from './db.js';
 
 // OAuth account names remain private. A chosen profile name takes precedence everywhere.
@@ -8,7 +9,7 @@ export const publicNameSQL=(u='u')=>`COALESCE((SELECT ${producerNameSQL('identit
 export async function publicUser(env,user){
  if(!user)return null;
  const p=await one(env,`SELECT p.id,${producerNameSQL()} name,${memberNameSQL()} display_name,p.image_version FROM producers p WHERE p.user_id=?`,user.id);
- return {id:user.id,email:user.email,provider:user.provider,premium_until:user.premium_until||0,display_name:p?.display_name||null,name:p?.name||(user.provider==='email'?user.name:'리스너 '+user.id.slice(0,8)),profile_id:p?.id||null,image_version:p?.image_version||''};
+ return {...await playerIdentity(env,user.id),id:user.id,email:user.email,provider:user.provider,premium_until:user.premium_until||0,display_name:p?.display_name||null,name:p?.name||(user.provider==='email'?user.name:'리스너 '+user.id.slice(0,8)),profile_id:p?.id||null,image_version:p?.image_version||''};
 }
 
 export const crewSuffixSQL=uid=>`COALESCE((SELECT '('||c.name||')' FROM crew_members cm JOIN crews c ON c.id=cm.crew_id WHERE cm.user_id=${uid}),'')`;

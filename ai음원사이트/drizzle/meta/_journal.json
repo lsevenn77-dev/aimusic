@@ -281,6 +281,13 @@
       "when": 1791713283370,
       "tag": "0039_crew_chat_images",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "6",
+      "when": 1791722294387,
+      "tag": "0040_player_progress",
+      "breakpoints": true
     }
   ]
 }

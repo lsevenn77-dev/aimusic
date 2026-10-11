@@ -61,7 +61,7 @@ struct ProfilePage: View {
                     Button("이 이용자 차단", role: .destructive) { confirmBlock = true }.font(.caption).frame(minHeight: 44).disabled(busy)
                 }
             }.padding(20)
-        }.background(Brand.background)
+        }.background(AifectDesign.background)
         .sheet(isPresented: $showChat) { NavigationStack { ChatPage(path: "/api/dm/\(Endpoint.pathID(id))", title: person.displayName(), crew: false).toolbar { Button("닫기") { showChat = false } } } }
         .confirmationDialog("이 이용자를 차단할까요? 음악과 댓글이 숨겨지고 서로 메시지를 보낼 수 없게 됩니다.", isPresented: $confirmBlock, titleVisibility: .visible) {
             Button("차단", role: .destructive) { Task { await block() } }
@@ -237,7 +237,7 @@ struct CrewsView: View {
                 if let error { RetryCard(message: error) { Task { await load() } } }
                 else if crews.isEmpty && !loading { ContentUnavailableView(query.isEmpty ? "첫 크루를 만들어보세요" : "검색된 크루가 없어요", systemImage: "person.3", description: Text(query.isEmpty ? "좋아하는 음악으로 함께할 모임을 시작해보세요." : "다른 크루 이름이나 관심 장르로 찾아보세요.")) }
             }.padding(20).padding(.bottom, 16)
-        }.background(Brand.background).scrollDismissesKeyboard(.interactively)
+        }.background(AifectDesign.background).scrollDismissesKeyboard(.interactively)
             .navigationTitle("크루").navigationBarTitleDisplayMode(.inline)
             .task(id: query + "|" + (model.userID ?? "guest")) {
                 do { try await Task.sleep(for: .milliseconds(250)); await load() } catch {}
@@ -319,7 +319,7 @@ struct CrewPage: View {
                 }
                 if let error { RetryCard(message: error) { Task { await load() } } }
             }.padding(20).padding(.bottom, 18)
-        }.background(Brand.background).accessibilityIdentifier("crew-content")
+        }.background(AifectDesign.background).accessibilityIdentifier("crew-content")
             .navigationTitle(crew.string("name", fallback: "크루")).navigationBarTitleDisplayMode(.inline)
             .task(id: id + "|" + (model.userID ?? "guest")) { data = [:]; section = "홈"; await load() }
             .refreshable { await load() }
@@ -330,7 +330,7 @@ struct CrewPage: View {
     private var hero: some View {
         VStack(alignment: .leading, spacing: 0) {
             CrewBanner(crew: crew).overlay(alignment: .bottomTrailing) {
-                if owner { PhotosPicker(selection: $banner, matching: .images) { Label("이미지 변경", systemImage: "camera").font(.system(size: 12, weight: .semibold)).padding(12).background(Brand.background.opacity(0.9), in: Capsule()) }.padding(12).disabled(busy) }
+                if owner { PhotosPicker(selection: $banner, matching: .images) { Label("이미지 변경", systemImage: "camera").font(.system(size: 12, weight: .semibold)).padding(12).background(AifectDesign.background.opacity(0.9), in: Capsule()) }.padding(12).disabled(busy) }
             }
             VStack(alignment: .leading, spacing: 15) {
                 HStack {
@@ -448,7 +448,7 @@ struct ProfilePhoto: View {
     }
     var body: some View {
         RemoteArtwork(url: url) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { ZStack { AifectDesign.raised; Image(systemName: "person.fill").font(.system(size: size * 0.32)).foregroundStyle(Brand.aqua) } }
-            .frame(width: size, height: size).background(AifectDesign.raised).clipShape(Circle()).accessibilityLabel("프로필 사진")
+            .frame(width: size, height: size).background(AifectDesign.raised).clipShape(Circle()).overlay { if kind == "producer" && person.string("profile_frame") == "crew-outline" { Image("ClanAetherFrame").resizable().scaledToFit().frame(width: size * 1.26, height: size * 1.26).accessibilityHidden(true) } }.overlay(alignment: .bottomLeading) { if kind == "producer" && (person["player_xp"] != nil || person["player_level"] != nil) { Text("\(person.int("player_level") > 0 ? person.int("player_level") : playerLevel(person.int("player_xp")))").font(.system(size: size >= 100 ? 13 : 10, weight: .semibold)).padding(.horizontal, 5).padding(.vertical, 3).foregroundStyle(Brand.aqua).background(AifectDesign.raised, in: RoundedRectangle(cornerRadius: 7)).overlay(RoundedRectangle(cornerRadius: 7).stroke(Brand.card, lineWidth: 2)) } }.accessibilityLabel("프로필 사진")
     }
 }
 struct MyMusicView: View {
@@ -486,6 +486,7 @@ struct MyMusicView: View {
                 if model.user == nil { LoginPrompt(title: "내 음악과 기록을 한곳에") }
                 else {
                     profileCard
+                    NavigationLink { PlayerInventoryView() } label: { PlayerLevelCard(xp: profile.int("player_xp"), showsInventory: true) }.buttonStyle(.plain)
                     MyWalletSummary()
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 8) {
@@ -533,7 +534,7 @@ struct MyMusicView: View {
     private var profileCard: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 14) {
-                ProfilePhoto(person: profile, size: 64).clipShape(RoundedRectangle(cornerRadius: 16))
+                ProfilePhoto(person: profile, size: 64)
                 VStack(alignment: .leading, spacing: 5) {
                     HStack(spacing: 2) {
                         Text(profile.displayName(fallback: model.user?.displayName() ?? "내 프로필")).font(.headline).lineLimit(2)
@@ -777,5 +778,85 @@ struct CrewEmptyCard: View {
             VStack(alignment: .leading, spacing: 6) { Text(title).font(.system(size: 15, weight: .semibold)); Text(message).font(.system(size: 12)).foregroundStyle(AifectDesign.muted) }
             Spacer(minLength: 0)
         }.padding(18).frame(maxWidth: .infinity, alignment: .leading).background(Brand.card, in: RoundedRectangle(cornerRadius: 20))
+    }
+}
+
+// Shared server ledger; the app never submits an XP balance or grants an item.
+private func playerLevel(_ xp: Int) -> Int { min(100, max(1, Int((1 + sqrt(1 + Double(max(0, xp)) / 12.5)) / 2))) }
+private struct PlayerLevelCard: View {
+    let xp: Int
+    var showsInventory = false
+    private var level: Int { playerLevel(xp) }
+    private var next: Int { 50 * level * (level + 1) }
+    private var floor: Int { 50 * level * (level - 1) }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack { Text("레벨 \(level)").font(.title2.bold()); Spacer(); Text("\(xp) XP").foregroundStyle(Brand.aqua) }
+            ProgressView(value: level >= 100 ? 1 : Double(xp - floor) / Double(next - floor)).tint(Brand.aqua)
+            Text(level >= 100 ? "최고 레벨에 도달했어요." : "다음 레벨까지 \(next - xp) XP").font(.caption).foregroundStyle(AifectDesign.muted)
+            if showsInventory { HStack { Text("아이템 보관함"); Spacer(); Image(systemName: "chevron.right") }.font(.subheadline).foregroundStyle(Brand.aqua).frame(minHeight: 32) }
+        }.padding(20).background(Brand.card, in: RoundedRectangle(cornerRadius: 18))
+    }
+}
+struct PlayerInventoryView: View {
+    @EnvironmentObject var model: AppModel
+    @State private var data: [String: Any] = [:]
+    @State private var profile: [String: Any] = [:]
+    @State private var error: String?
+    @State private var busy = false
+    private var items: [[String: Any]] { data.objects("inventory") }
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                if model.user == nil { LoginPrompt(title: "내 아이템 보관함") }
+                else if data.isEmpty && error == nil { ProgressView() }
+                else if !data.isEmpty {
+                    PlayerLevelCard(xp: data.object("player").int("xp"))
+                    Text("보유 아이템 \(items.count)").font(.headline)
+                    if items.isEmpty { ContentUnavailableView("첫 액자를 만나보세요", systemImage: "person.2", description: Text("크루에 가입하면 전용 장식 액자를 무료로 드려요.")); NavigationLink("크루 둘러보기") { CrewsView() } }
+                    ForEach(items.indices, id: \.self) { index in
+                        itemCard(items[index])
+                    }
+                    Text("이렇게 레벨이 올라요").font(.headline)
+                    ForEach(data.objects("rules").indices, id: \.self) { index in
+                        let rule = data.objects("rules")[index]
+                        HStack { VStack(alignment: .leading, spacing: 5) { Text(rule.string("label")); Text(rule.string("limit")).font(.caption).foregroundStyle(AifectDesign.muted) }; Spacer(); Text("+\(rule.int("xp")) XP").foregroundStyle(Brand.aqua) }.font(.subheadline)
+                    }
+                    Text("매일 활동은 한국 시간 자정에 새로 시작해요. 기존 공개곡도 반영되며 같은 곡의 경험치는 한 번만 지급돼요.").font(.caption).foregroundStyle(AifectDesign.muted)
+                }
+                if let error { RetryCard(message: error) { Task { await load() } } }
+            }.padding(20)
+        }.navigationTitle("아이템 보관함").navigationBarTitleDisplayMode(.inline).task(id: model.userID) { await load() }.refreshable { await load() }
+    }
+    private func itemCard(_ item: [String: Any]) -> some View {
+        var preview = profile
+        preview["profile_frame"] = item.string("item_key")
+        preview["player_xp"] = data.object("player").int("xp")
+        return VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 20) { ProfilePhoto(person: preview, size: 64); VStack(alignment: .leading, spacing: 6) { Text(item.string("name")).font(.headline); Text(item.flag("equipped") ? "장착 중" : "보유 중").font(.caption).foregroundStyle(Brand.aqua) } }
+            Text(item.string("description")).font(.subheadline).foregroundStyle(AifectDesign.muted)
+            Text(item.string("reason").isEmpty ? "크루 가입 중 사용 가능 · 무료 지급" : item.string("reason")).font(.caption).foregroundStyle(AifectDesign.muted)
+            Button { Task { await equip(item) } } label: { Text(item.flag("equipped") ? "해제하기" : "장착하기").frame(maxWidth: .infinity, minHeight: 36) }.buttonStyle(.borderedProminent).tint(Brand.aqua).foregroundStyle(AifectDesign.background).disabled(busy || !item.flag("available"))
+        }.padding(20).background(Brand.card, in: RoundedRectangle(cornerRadius: 18))
+    }
+    private func load() async {
+        guard let owner = model.userID else { data = [:]; profile = [:]; return }
+        do {
+            async let state = API.shared.call("/api/me/player")
+            async let person = API.shared.call("/api/me/profile")
+            let (value, user) = try await (state, person)
+            guard model.userID == owner, !Task.isCancelled else { return }
+            data = value; profile = user.object("profile"); error = nil
+        } catch { if !Task.isCancelled && model.userID == owner { self.error = error.localizedDescription } }
+    }
+    private func equip(_ item: [String: Any]) async {
+        guard let owner = model.userID, !busy else { return }
+        busy = true; defer { busy = false }
+        do {
+            let target: Any = item.flag("equipped") ? NSNull() : item.string("id")
+            let value = try await API.shared.call("/api/me/player/equipment", method: "PUT", body: ["frame_inventory_id": target])
+            guard model.userID == owner, !Task.isCancelled else { return }
+            data = value; error = nil; model.profileRevision += 1
+        } catch { if model.userID == owner { self.error = error.localizedDescription } }
     }
 }

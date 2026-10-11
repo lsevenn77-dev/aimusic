@@ -140,4 +140,15 @@ export const accountFileDeletions=sqliteTable('account_file_deletions',{id:text(
 
 export const musicClassificationJobs=sqliteTable('music_classification_jobs',{trackId:text('track_id').primaryKey().references(()=>tracks.id,{onDelete:'cascade'}),state:text('state').notNull().default('queued'),attempts:integer('attempts').notNull().default(0),leaseToken:text('lease_token').notNull().default(''),leaseUntil:integer('lease_until').notNull().default(0),resultJson:text('result_json').notNull().default('{}'),error:text('error').notNull().default(''),updated:integer('updated').notNull()},t=>[index('music_classification_queue').on(t.state,t.leaseUntil,t.updated)]);
 export const musicClassificationCache=sqliteTable('music_classification_cache',{cacheKey:text('cache_key').primaryKey(),resultJson:text('result_json').notNull(),created:integer('created').notNull()});
+
+// XP sources survive content removal: publishing the same song twice never awards twice.
+export const playerXp=sqliteTable('player_xp',{
+ userId:text('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),sourceKey:text('source_key').notNull(),kind:text('kind').notNull(),amount:integer('amount').notNull(),created:integer('created').notNull()
+},t=>[primaryKey({columns:[t.userId,t.sourceKey]}),index('player_xp_recent').on(t.userId,t.created),check('player_xp_positive',sql`${t.amount}>0`)]);
+export const playerInventory=sqliteTable('player_inventory',{
+ id:text('id').primaryKey(),userId:text('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),itemKey:text('item_key').notNull(),source:text('source').notNull(),sourceRef:text('source_ref').notNull(),grantedAt:integer('granted_at').notNull(),expiresAt:integer('expires_at').notNull().default(0),revoked:integer('revoked').notNull().default(0)
+},t=>[uniqueIndex('player_inventory_grant').on(t.userId,t.source,t.sourceRef),index('player_inventory_user').on(t.userId)]);
+export const playerEquipment=sqliteTable('player_equipment',{
+ userId:text('user_id').primaryKey().references(()=>users.id,{onDelete:'cascade'}),frameInventoryId:text('frame_inventory_id').references(()=>playerInventory.id,{onDelete:'set null'})
+});
 export const musicClassificationHistory=sqliteTable('music_classification_history',{id:text('id').primaryKey(),trackId:text('track_id').notNull().references(()=>tracks.id),beforeJson:text('before_json').notNull(),afterJson:text('after_json').notNull(),created:integer('created').notNull()},t=>[index('music_classification_history_track').on(t.trackId,t.created)]);

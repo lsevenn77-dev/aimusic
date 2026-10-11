@@ -160,3 +160,20 @@ npm run catalog
 스크립트는 `-PaifectTest`로 격리 패키지 `kr.co.aifect.app.test`를 빌드하고 로컬 HTTP fixture만 사용한다. 선택된 `DesignCaptureTest` 3개와 `KaraokeDeviceTest.captureCurrentDesignWithoutMicrophone` 1개가 성공해야 이미지를 가져온다. 버전이 바뀌면 스크립트·카탈로그·manifest 기준 정보를 함께 수정한다.
 
 이번 캡처용 4개 시나리오는 통과했고 원본 36장의 크기·해시, 갤러리 파일 연결과 비교 보드를 확인했다. 전체 회귀 테스트나 실제 녹음 품질 검증을 뜻하지 않는다. 재사용을 시도한 기존 `duetGuideEditsPersistWithoutMicrophone`, `studioSettingsCancelApplyAndAgainPreserveTake`는 Activity 재생성 뒤 상태 복원 검증에서 실패했다. 이 두 테스트/제품 복원 동작은 이번 디자인 자료 작업에서 수정하지 않았으며, iOS도 회전·앱 재진입·명시적인 초안 복원을 각각 확인해야 한다.
+
+## 2026-10-11 · 2.5.37 플레이어 레벨과 기본 클랜 액자
+
+웹 버전 100과 Android 2.5.37(50), iOS 소스를 함께 전달한다. 이번 기본 액자는 사용자가 최종 제공한 네온 블루 메탈릭 이미지 원본이며, 투명한 가운데에 원형 프로필을 표시한다. 작은 숫자로 표시하는 레벨은 사진 왼쪽 아래에 둔다.
+
+- 마이페이지의 경험치 카드에서 아이템 보관함을 연다. 소유 아이템 확인, 액자 장착 및 해제는 서버에 저장한다. 아직 아이템 구매 기능은 추가하지 않았다.
+- 제작곡 공개 100 XP, 커버·듀엣 공개 60 XP는 곡마다 한 번만 지급한다. 한국 시간 기준 하루에 유효 감상 10 XP, 다른 사람의 음악 댓글 5 XP, 크루 대화 5 XP를 각각 한 번 지급한다. 기존 공개곡 11개와 크루 회원 4명의 초기 데이터도 운영 서버에 반영했다.
+- 크루 가입 시 기본 액자를 무료 지급하고 처음에는 자동 장착한다. 탈퇴하면 사용할 수 없으며, 재가입해도 수동으로 해제한 선택은 유지한다.
+- GET /api/me/player로 레벨, 경험치, 보관함, 활동 내역을 가져온다. PUT /api/me/player/equipment의 frame_inventory_id에 아이템 ID 또는 null을 전달해 장착/해제한다. 서버가 소유권, 만료, 크루 가입 상태를 검증한다.
+- 공개 프로필의 player_xp, player_level, profile_frame을 사용한다. 웹 /assets/clan-basic-v1.png, Android player_frame_clan_aether, iOS ClanAetherFrame은 같은 최종 기본 이미지다. 네이티브 리소스 이름만 기존 내부 이름을 유지한다.
+- 웹의 왼쪽 계정 카드와 상단 내 계정은 로그인 중 모두 #profile로 이동한다. 계정·이용권 설정은 마이페이지 내부에서 #account로 연다.
+
+마이그레이션 0040은 테이블·인덱스·트리거만 생성한다. 기존 데이터 반영은 인증된 POST /internal/player/backfill로 최대 500건씩 처리하며 반복 실행해도 중복 경험치나 아이템을 지급하지 않는다.
+
+[프로필 미리보기](player-20261011/basic-clan-profile.jpg) · [보관함 미리보기](player-20261011/basic-clan-inventory.jpg) · [웹 데스크톱 미리보기](player-20261011/basic-clan-profile-desktop.jpg)
+
+검증: 관련 웹/서버 테스트 40개 통과, Android 단위 테스트 54개 및 release AAB 빌드·서명 완료. 프로필과 보관함의 액자 표시, 장착/해제 저장, 계정 링크 통일을 로컬 브라우저에서 확인했다. iOS는 소스와 에셋을 수정했으며 Windows 환경이라 Xcode 빌드·iPhone 설치는 수행하지 않았다. 이 전달은 Play Console 업로드나 휴대폰 설치를 뜻하지 않는다.

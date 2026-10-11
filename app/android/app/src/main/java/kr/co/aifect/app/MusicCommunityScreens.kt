@@ -104,11 +104,12 @@ import org.json.JSONObject
     }
     Spacer(Modifier.height(12.dp))
     // The existing single photo keeps its proportions instead of becoming a cropped banner.
-    Box(Modifier.widthIn(max=photoLimit).fillMaxWidth().aspectRatio(1f).clip(androidx.compose.foundation.shape.CircleShape).background(Raised).testTag("$context-photo-frame"),contentAlignment=Alignment.Center){
+    Box(Modifier.widthIn(max=photoLimit).fillMaxWidth().aspectRatio(1f).testTag("$context-photo-frame"),contentAlignment=Alignment.Center){
      if(p.optString("image_version").isBlank())Text(name.take(1).ifBlank{"♪"},fontSize=96.sp,fontWeight=FontWeight.Bold,color=Muted.copy(alpha=.3f))
      else AsyncImage(
       Endpoint.url("/media/${p.optString("profile_kind","producer")}/${p.optString("id")}?v=${p.optString("image_version")}"),
-      "$name 프로필 사진",Modifier.fillMaxSize().testTag("$context-cover-image"),contentScale=ContentScale.Crop)
+      "$name 프로필 사진",Modifier.fillMaxSize().clip(androidx.compose.foundation.shape.CircleShape).testTag("$context-cover-image"),contentScale=ContentScale.Crop)
+     if(person)PlayerAvatarDecoration(p,photoLimit.value.toInt())
     }
     if(person)ProfileGiftRanking(m,p)
     Text("팔로워 $followers · 공개 음악 ${music.size}",fontSize=12.sp,color=Muted,modifier=Modifier.fillMaxWidth().padding(top=12.dp))
@@ -162,6 +163,7 @@ import org.json.JSONObject
    else MusicProfileHeader(m,p,published.filter{!it.cover},published.filter{it.cover},m.ownProfile.optInt("follower_count"),myPage=true)
   }
   if(m.user!=null){
+   item{PlayerHomePanel(m)}
    item{
     Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)){
      FilledTonalButton(onClick={m.library("플레이리스트")}){Text("내 플레이리스트")};OutlinedButton(onClick={m.library("좋아요")}){Text("좋아요")};OutlinedButton(onClick={m.library("최근 감상")},colors=ButtonDefaults.outlinedButtonColors(contentColor=SoftText)){Text("최근 감상")}
