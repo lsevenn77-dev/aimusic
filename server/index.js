@@ -27,6 +27,7 @@ import {coverRoute} from './covers.js';
 import {duetRoute} from './duets.js';
 import {giftRoute} from './gifts.js';
 import {payoutRoute} from './payouts.js';
+import {adminDashboardRoute} from './admin-dashboard.js';
 import {diamondRoute} from './diamonds.js';
 import {publicPageRoute} from './public-pages.js';
 import {publicMusicRoute} from './public-music.js';
@@ -82,6 +83,7 @@ export default {async fetch(req,env,ctx){
   retryPush(env,ctx);
   const pushResponse=await pushRoute(req,env,path,user);if(pushResponse)return pushResponse;
   const chatStream=await chatStreamRoute(req,env,path,user);if(chatStream)return chatStream;
+  const adminDashboard=await adminDashboardRoute(req,env,path,user);if(adminDashboard)return adminDashboard;
   const audioAdsResponse=audioAdsRoute(req,env,path,user);if(audioAdsResponse)return audioAdsResponse;
   const uploadAdsResponse=uploadAdsRoute(req,env,path,user);if(uploadAdsResponse)return uploadAdsResponse;
   if(Math.random()<.005)ctx.waitUntil(env.DB.batch([
