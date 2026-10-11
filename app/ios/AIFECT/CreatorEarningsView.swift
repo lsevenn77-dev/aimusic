@@ -37,7 +37,7 @@ struct CreatorEarningsView: View {
                     }
                     if data.objects("months").isEmpty { Text("아직 정산할 선물 수익이 없습니다.").foregroundStyle(.secondary) }
                     Text("최소 정산 금액 \(won(data, "min_payout_krw")) · 지급일 매월 \(data.int("payout_day"))일").font(.caption)
-                    Text("무료 응원별은 정산 대상에 포함되지 않습니다. 구독 수익 집계는 선물 수익과 별도로 준비 중입니다.").font(.caption).foregroundStyle(.secondary)
+                    Text("무료 응원별은 정산 대상에 포함되지 않습니다. 월 마감으로 확정된 선물·스트리밍 수익은 다이아 지갑에서 확인할 수 있습니다.").font(.caption).foregroundStyle(.secondary)
                 }
             }
             if let error { Section { Text(error).foregroundStyle(.red); Button("다시 불러오기") { Task { await load() } } } }

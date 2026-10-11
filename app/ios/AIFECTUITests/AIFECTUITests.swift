@@ -218,6 +218,38 @@ final class AIFECTUITests: XCTestCase {
         let shot = XCTAttachment(screenshot: app.screenshot()); shot.name = "Creator profile from player"; shot.lifetime = .keepAlways; add(shot)
     }
 
+    @MainActor func testDiamondConversionAndServerInventory() throws {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["-feedback-ui-test", "-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]
+        app.launch()
+        XCTAssertTrue(app.buttons["main-tab-4"].waitForExistence(timeout: 15)); app.buttons["main-tab-4"].tap()
+        let wallet = app.buttons["my-diamonds"]
+        for _ in 0..<4 { if wallet.isHittable { break }; app.scrollViews.firstMatch.swipeUp() }
+        XCTAssertTrue(wallet.isHittable); wallet.tap()
+        let balance = app.staticTexts["diamond-balance"]
+        XCTAssertTrue(balance.waitForExistence(timeout: 8))
+        let loaded = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", "550.125"), object: balance)
+        XCTAssertEqual(XCTWaiter.wait(for: [loaded], timeout: 8), .completed)
+        XCTAssertEqual(app.staticTexts["diamond-preview"].label, "50다이아 → 500골드")
+        app.buttons["diamond-submit"].tap(); app.buttons["50다이아 골드로 전환"].tap()
+        XCTAssertTrue(app.staticTexts["diamond-success"].waitForExistence(timeout: 8))
+        XCTAssertEqual(balance.label, "500.125")
+        let shot = XCTAttachment(screenshot: app.screenshot()); shot.name = "Diamond balance and exchange"; shot.lifetime = .keepAlways; add(shot)
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        for _ in 0..<4 { if app.buttons["my-inventory"].isHittable { break }; app.scrollViews.firstMatch.swipeDown() }
+        let gold = app.staticTexts["my-gold-balance"]
+        XCTAssertEqual(gold.label, "1,750개")
+        app.buttons["my-inventory"].tap()
+        XCTAssertTrue(app.buttons["해제하기"].waitForExistence(timeout: 8)); app.buttons["해제하기"].tap()
+        XCTAssertTrue(app.buttons["장착하기"].waitForExistence(timeout: 8))
+        XCTAssertFalse(app.staticTexts["avatar-level"].exists)
+        app.scrollViews.firstMatch.swipeUp()
+        XCTAssertTrue(app.staticTexts["크루 LV.5 액자"].exists)
+        XCTAssertEqual(app.buttons.matching(identifier: "장착하기").count, 1)
+        let inventory = XCTAttachment(screenshot: app.screenshot()); inventory.name = "Server frames and unearned reward"; inventory.lifetime = .keepAlways; add(inventory)
+    }
+
     @MainActor func testMyProfileShortcutWalletAndCrewGrowth() throws {
         continueAfterFailure = false
         let app = XCUIApplication()

@@ -168,6 +168,7 @@ struct GiftWalletView: View {
                     Button("충전") { store = true }.font(.caption)
                 }.font(.headline)
                 HStack { Text("활동하고 무료 응원별 받기").font(.caption).foregroundStyle(.secondary); Spacer(); Button("무료 보상") { rewards = true }.font(.caption.bold()) }
+                if recipientName == nil { NavigationLink("다이아 · 내 정산") { DiamondWalletView() } }
                 if recipientName != nil {
                     HStack {
                         Label("응원별", systemImage: "star.fill").foregroundStyle(Brand.pink)
@@ -226,7 +227,7 @@ struct RewardsView: View {
     private let labels = ["checkin": "오늘 출석", "cover": "커버곡 공개", "listen": "서로 다른 5곡 감상", "comment1": "첫 번째 감상 댓글", "comment2": "두 번째 감상 댓글", "comment3": "세 번째 감상 댓글"]
     var body: some View {
         List {
-            Section { VStack(alignment: .leading, spacing: 8) { Label("오늘의 무료 보상", systemImage: "sparkles").font(.headline); LabeledContent("응원별", value: "\(data.int("balance"))개"); Text("매일 활동하고 응원별을 받아 좋아하는 음악에 선물하세요.").font(.caption) }.foregroundStyle(Brand.background).padding(12) }.listRowBackground(Brand.aqua)
+            Section { VStack(alignment: .leading, spacing: 8) { Label("오늘의 무료 보상", systemImage: "sparkles").font(.headline); LabeledContent("응원별", value: "\(data.int("balance"))개"); Text("매일 활동하고 응원별을 받아 좋아하는 음악에 선물하세요.").font(.caption) }.foregroundStyle(AifectDesign.text).padding(12) }.listRowBackground(MusicSurface(feature: true))
             ForEach(data.objects("rewards"), id: \.rewardID) { reward in
                 HStack {
                     VStack(alignment: .leading) { Text(labels[reward.string("kind")] ?? reward.string("kind")); Text("\(reward.int("progress"))/\(reward.int("target")) · 응원별 \(reward.int("amount"))개").font(.caption).foregroundStyle(.secondary) }

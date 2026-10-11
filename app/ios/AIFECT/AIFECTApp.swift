@@ -247,7 +247,7 @@ struct CommunityView: View {
                     LazyVStack(alignment: .leading, spacing: 16) {
                         if filter == "추천" {
                             NavigationLink { CrewsView() } label: {
-                                HStack(spacing: 12) { Image(systemName: "person.3.fill").foregroundStyle(Brand.aqua); VStack(alignment: .leading, spacing: 4) { Text("크루에서 함께 듣고 부르기").font(.system(size: 15, weight: .semibold)); Text("내 크루 · 멤버들의 음악 · 크루 채팅").font(.system(size: 12)).foregroundStyle(AifectDesign.muted) }; Spacer(); Image(systemName: "chevron.right").foregroundStyle(AifectDesign.muted) }.padding(16).background(Brand.card, in: RoundedRectangle(cornerRadius: 18))
+                                HStack(spacing: 12) { Image(systemName: "person.3.fill").foregroundStyle(Brand.aqua); VStack(alignment: .leading, spacing: 4) { Text("크루에서 함께 듣고 부르기").font(.system(size: 15, weight: .semibold)); Text("내 크루 · 멤버들의 음악 · 크루 채팅").font(.system(size: 12)).foregroundStyle(AifectDesign.muted) }; Spacer(); Image(systemName: "chevron.right").foregroundStyle(AifectDesign.muted) }.padding(16).background(MusicSurface(feature: true)).clipShape(RoundedRectangle(cornerRadius: 18))
                             }.buttonStyle(.plain)
                         }
                         if let error { RetryCard(message: error) { Task { await load() } } }

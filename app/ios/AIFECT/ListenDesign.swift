@@ -64,7 +64,7 @@ struct ListenView: View {
                     VStack(alignment: .leading, spacing: 6) { Text("MR 준비 완료").font(.system(size: 12, weight: .semibold)).foregroundStyle(Brand.aqua); Text(song.title).font(.system(size: 17, weight: .semibold)); Text(song.credit).font(.system(size: 13)).foregroundStyle(AifectDesign.muted) }
                 }
                 HStack { Text("에코 · 룸 · 내 목소리 듣기").font(.system(size: 12)).foregroundStyle(AifectDesign.muted); Spacer(minLength: 2); SingSongButton(song: song, color: Brand.aqua) }
-            }.padding(18).background(Color(aifectHex: 0x1B292E), in: RoundedRectangle(cornerRadius: 18))
+            }.padding(18).background(MusicSurface(feature: true)).clipShape(RoundedRectangle(cornerRadius: 18))
         }
         let covers = model.feed.filter(\.isCover)
         if let cover = covers.first {
@@ -87,7 +87,7 @@ struct ListenView: View {
         if !people.isEmpty {
             MusicSectionHeading(title: "음악 뒤의 사람들", subtitle: "마음에 드는 음악가를 팔로우해보세요")
             ScrollView(.horizontal, showsIndicators: false) { HStack(spacing: 12) { ForEach(people, id: \.selfID) { person in
-                NavigationLink { ProfilePage(id: person.string("id")) } label: { VStack(spacing: 10) { ProfilePhoto(person: person, size: 70).clipShape(Circle()); Text(person.displayName()).font(.system(size: 14)).lineLimit(1) }.frame(width: 112).padding(.vertical, 16).background(Brand.card, in: RoundedRectangle(cornerRadius: 16)) }.buttonStyle(.plain)
+                NavigationLink { ProfilePage(id: person.string("id")) } label: { VStack(spacing: 10) { ProfilePhoto(person: person, size: 70); Text(person.displayName()).font(.system(size: 14)).lineLimit(1) }.frame(width: 112).padding(.vertical, 16).background(Brand.card, in: RoundedRectangle(cornerRadius: 16)) }.buttonStyle(.plain)
             } } }
         }
     }
@@ -127,7 +127,7 @@ struct FeaturedMusic: View {
                 }.frame(maxWidth: .infinity, alignment: .leading).onTapGesture { if let onDetail { onDetail(song) } else { detail = true } }
             }
             HStack { SaveMusicButton(song: song); Spacer(minLength: 0); Button { model.player.play(song, queue: queue) } label: { Label("바로 듣기", systemImage: "play.fill") }.buttonStyle(ParityPill(filled: true)) }
-        }.padding(18).background(LinearGradient(colors: [Color(aifectHex: 0x26303D), Color(aifectHex: 0x1A252D)], startPoint: .topLeading, endPoint: .bottomTrailing), in: RoundedRectangle(cornerRadius: 20))
+        }.padding(18).background(MusicSurface(feature: true)).clipShape(RoundedRectangle(cornerRadius: 20))
             .sheet(isPresented: $detail) { TrackDetailView(song: song) }
     }
 }

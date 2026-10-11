@@ -94,7 +94,7 @@ struct AccountView: View {
                     NavigationLink("Premium · 골드") { PaymentStoreView() }
                     if model.user != nil {
                         NavigationLink("골드 · 선물 내역") { GiftWalletView() }
-                        NavigationLink("수익 · 정산") { CreatorEarningsView() }
+                        NavigationLink("다이아 · 내 정산") { DiamondWalletView() }
                         NavigationLink("오늘의 보상") { RewardsView() }
                         NavigationLink("내 프로필 편집") { ProfileEditorView() }
                         NavigationLink("계정 설정") { AccountSettingsView() }

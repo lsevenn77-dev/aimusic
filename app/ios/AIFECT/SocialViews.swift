@@ -27,6 +27,7 @@ struct ProfilePage: View {
             LazyVStack(alignment: .leading, spacing: 18) {
                 VStack(alignment: .leading, spacing: 14) {
                     Text(person.displayName(fallback: "프로필")).font(.system(size: 25, weight: .bold))
+                    if kind == "producer" { PartnerBadge(person: person) }
                     ResponsiveProfilePhoto(person: person, kind: kind)
                     if kind == "producer" { NavigationLink { ProfileGiftRankingView(profileID: id) } label: { Label("선물 랭킹 TOP 50", systemImage: "trophy.fill").font(.system(size: 13)).frame(maxWidth: .infinity, minHeight: 44) } }
                     Text("팔로워 \(data.int("followers")) · 공개 음악 \(data.songs().count + data.songs("covers").count)").font(.system(size: 12)).foregroundStyle(AifectDesign.muted)
@@ -47,7 +48,7 @@ struct ProfilePage: View {
                             }
                         }
                     }
-                }.padding(20).background(Brand.card, in: RoundedRectangle(cornerRadius: 24))
+                }.padding(20).background(MusicSurface()).clipShape(RoundedRectangle(cornerRadius: 24))
                 if kind == "artist" {
                     HStack { Button("음악") { artistTab = 0 }.buttonStyle(ParityPill(color: artistTab == 0 ? Brand.aqua : AifectDesign.muted)); Button("갤러리") { artistTab = 1 }.buttonStyle(ParityPill(color: artistTab == 1 ? Brand.aqua : AifectDesign.muted)) }
                 }
@@ -160,7 +161,7 @@ struct MessagesView: View {
                 ForEach(conversations, id: \.selfID) { person in
                     NavigationLink { ChatPage(path: "/api/dm/\(Endpoint.pathID(person.string("id")))", title: person.displayName(), crew: false) } label: {
                         HStack(spacing: 12) {
-                            ProfilePhoto(person: person, size: 48).clipShape(Circle())
+                            ProfilePhoto(person: person, size: 48)
                             VStack(alignment: .leading, spacing: 6) {
                                 HStack { Text(person.displayName()).font(.system(size: 16, weight: .semibold)); if person.flag("muted") { Image(systemName: "bell.slash").font(.caption) } }
                                 Text(person.string("last_message")).font(.system(size: 13)).foregroundStyle(AifectDesign.muted).lineLimit(2)
@@ -368,7 +369,7 @@ struct CrewPage: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 10) { ForEach(Array(data.objects("members").prefix(8)), id: \.selfID) { person in
                     NavigationLink { ProfilePage(id: person.string("id")) } label: {
-                        VStack(spacing: 8) { ProfilePhoto(person: person, size: 56).clipShape(Circle()); Text(person.displayName()).font(.system(size: 13, weight: .semibold)).lineLimit(1); Text(roleTitle(person)).font(.system(size: 11)).foregroundStyle(Brand.aqua) }.frame(width: 94).padding(12).background(Brand.card, in: RoundedRectangle(cornerRadius: 16))
+                        VStack(spacing: 8) { ProfilePhoto(person: person, size: 56); Text(person.displayName()).font(.system(size: 13, weight: .semibold)).lineLimit(1); Text(roleTitle(person)).font(.system(size: 11)).foregroundStyle(Brand.aqua) }.frame(width: 94).padding(12).background(Brand.card, in: RoundedRectangle(cornerRadius: 16))
                     }.buttonStyle(.plain)
                 } }
             }
@@ -440,27 +441,44 @@ struct LoginPrompt: View {
 struct ProfilePhoto: View {
     let person: [String: Any]
     var kind = "producer"
-    var size: CGFloat = 56
+    var size: CGFloat = 64
+    var showsLevel = true
     private var frameURL: URL? {
         let path = person.string("profile_frame_artwork")
         guard path.hasPrefix("/assets/"), !path.contains("..") else { return nil }
         return try? Endpoint.url(path)
     }
     private var url: URL? {
-        guard !person.string("image_version").isEmpty else { return nil }
         let id = person.string("id", fallback: person.string("profile_id"))
+        guard !id.isEmpty, !person.string("image_version").isEmpty else { return nil }
         return try? Endpoint.url("/media/\(kind)/\(Endpoint.pathID(id))?v=\(Endpoint.query(person.string("image_version")))")
     }
     var body: some View {
-        RemoteArtwork(url: url) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: { ZStack { AifectDesign.raised; Image(systemName: "person.fill").font(.system(size: size * 0.32)).foregroundStyle(Brand.aqua) } }
-            .frame(width: size, height: size).background(AifectDesign.raised).clipShape(Circle()).overlay { if kind == "producer" && !person.string("profile_frame").isEmpty {
+
+        RemoteArtwork(url: url) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: {
+            ZStack { AifectDesign.raised; Image(systemName: "person.fill").font(.system(size: size * 0.32)).foregroundStyle(Brand.aqua) }
+        }
+        .frame(width: size, height: size).background(AifectDesign.raised).clipShape(Circle())
+        .overlay {
+            if kind == "producer" && !person.string("profile_frame").isEmpty {
                 if let frameURL {
                     RemoteArtwork(url: frameURL) { $0.resizable().scaledToFit() } placeholder: { Color.clear }
                         .frame(width: size * 1.26, height: size * 1.26).allowsHitTesting(false).accessibilityHidden(true)
                 } else if person.string("profile_frame") == "crew-outline" {
-                    Image("ClanAetherFrame").resizable().scaledToFit().frame(width: size * 1.26, height: size * 1.26).accessibilityHidden(true)
+                    Image("ClanAetherFrame").resizable().scaledToFit().frame(width: size * 1.26, height: size * 1.26).allowsHitTesting(false).accessibilityHidden(true)
                 }
-            } }.overlay(alignment: .bottomLeading) { if kind == "producer" && size >= 80 && (person["player_xp"] != nil || person["player_level"] != nil) { Text("\(person.int("player_level") > 0 ? person.int("player_level") : playerLevel(person.int("player_xp")))").font(.system(size: size >= 100 ? 13 : 10, weight: .semibold)).padding(.horizontal, 5).padding(.vertical, 3).foregroundStyle(Brand.aqua).background(AifectDesign.raised, in: RoundedRectangle(cornerRadius: 7)).overlay(RoundedRectangle(cornerRadius: 7).stroke(Brand.card, lineWidth: 2)) } }.accessibilityLabel("프로필 사진")
+            }
+        }
+        .overlay(alignment: .bottomLeading) {
+            if PlayerAvatarStyle.showsLevel(kind: kind, size: size, enabled: showsLevel), person["player_xp"] != nil || person["player_level"] != nil {
+                let level = min(100, max(1, person.int("player_level") > 0 ? person.int("player_level") : playerLevel(person.int("player_xp"))))
+                Text("\(level)").font(.system(size: 12, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.8)
+                    .frame(width: level >= 100 ? 29 : 24, height: 20).foregroundStyle(Brand.aqua)
+                    .background(AifectDesign.raised, in: Capsule()).overlay(Capsule().stroke(Brand.card, lineWidth: 1))
+                    .accessibilityLabel("레벨 \(level)").accessibilityIdentifier("avatar-level")
+            }
+        }.accessibilityLabel("프로필 사진")
+
     }
 }
 struct MyMusicView: View {
@@ -498,7 +516,7 @@ struct MyMusicView: View {
                 if model.user == nil { LoginPrompt(title: "내 음악과 기록을 한곳에") }
                 else {
                     profileCard
-                    NavigationLink { PlayerInventoryView() } label: { PlayerLevelCard(xp: profile.int("player_xp"), showsInventory: true) }.buttonStyle(.plain)
+                    NavigationLink { PlayerInventoryView() } label: { PlayerLevelCard(xp: profile.int("player_xp"), showsInventory: true) }.buttonStyle(.plain).accessibilityIdentifier("my-inventory")
                     MyWalletSummary()
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 8) {
@@ -510,7 +528,7 @@ struct MyMusicView: View {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 20) {
                             NavigationLink("녹음 초안") { RecordingDraftsView() }
-                            NavigationLink("수익 · 정산") { CreatorEarningsView() }
+                            NavigationLink("다이아 · 내 정산") { DiamondWalletView() }.accessibilityIdentifier("my-diamonds")
                             NavigationLink("제작곡 올리기") { OriginalUploadView() }
                         }.font(.system(size: 13)).frame(minHeight: 44)
                     }
@@ -555,6 +573,7 @@ struct MyMusicView: View {
                             Image(systemName: "slider.horizontal.3").font(.system(size: 16)).foregroundStyle(Brand.aqua).frame(width: 44, height: 44)
                         }.buttonStyle(.plain).accessibilityLabel("아이디 · 프로필 변경").accessibilityIdentifier("edit-my-profile")
                     }
+                    PartnerBadge(person: profile)
                     if !profile.string("bio").isEmpty { Text(profile.string("bio")).font(.caption).foregroundStyle(AifectDesign.muted).lineLimit(2) }
                 }
                 Spacer(minLength: 0)
@@ -567,7 +586,7 @@ struct MyMusicView: View {
                 Spacer()
                 if !profile.string("id").isEmpty { NavigationLink { ProfileGiftRankingView(profileID: profile.string("id")) } label: { Image(systemName: "gift") }.accessibilityLabel("받은 선물") }
             }.font(.caption).foregroundStyle(AifectDesign.secondaryText)
-        }.padding(16).background(Brand.card, in: RoundedRectangle(cornerRadius: 20))
+        }.padding(16).background(MusicSurface()).clipShape(RoundedRectangle(cornerRadius: 20))
     }
     private func profileStat(_ label: String, _ count: Int, active: Bool = false) -> some View {
         Text("\(label) \(count)").font(.system(size: 13, weight: .semibold)).foregroundStyle(active ? Brand.aqua : AifectDesign.text).frame(maxWidth: .infinity, minHeight: 50).background(Color(aifectHex: 0x222331), in: RoundedRectangle(cornerRadius: 13))
@@ -794,7 +813,7 @@ struct CrewEmptyCard: View {
 }
 
 // Shared server ledger; the app never submits an XP balance or grants an item.
-private func playerLevel(_ xp: Int) -> Int { min(100, max(1, Int((1 + sqrt(1 + Double(max(0, xp)) / 12.5)) / 2))) }
+private func playerLevel(_ xp: Int) -> Int { PlayerAvatarStyle.level(xp) }
 private struct PlayerLevelCard: View {
     let xp: Int
     var showsInventory = false
@@ -843,7 +862,7 @@ struct PlayerInventoryView: View {
                 }
                 if let error { RetryCard(message: error) { Task { await load() } } }
             }.padding(20)
-        }.navigationTitle("아이템 보관함").navigationBarTitleDisplayMode(.inline).task(id: model.userID) { await load() }.refreshable { await load() }
+        }.background(AifectDesign.background).navigationTitle("아이템 보관함").navigationBarTitleDisplayMode(.inline).task(id: model.userID) { data = [:]; profile = [:]; error = nil; await load() }.refreshable { await load() }
     }
     private func itemCard(_ item: [String: Any]) -> some View {
         var preview = profile
@@ -856,7 +875,7 @@ struct PlayerInventoryView: View {
             Text(item.string("description")).font(.subheadline).foregroundStyle(AifectDesign.muted)
             Text(item.string("reason").isEmpty ? item.string("usage", fallback: "보유 아이템") : item.string("reason")).font(.caption).foregroundStyle(AifectDesign.muted)
             if owned { Button { Task { await equip(item) } } label: { Text(item.flag("equipped") ? "해제하기" : "장착하기").frame(maxWidth: .infinity, minHeight: 36) }.buttonStyle(.borderedProminent).tint(Brand.aqua).foregroundStyle(AifectDesign.background).disabled(busy || !item.flag("available")) }
-        }.padding(20).background(Brand.card, in: RoundedRectangle(cornerRadius: 18))
+        }.frame(maxWidth: .infinity, alignment: .leading).padding(20).background(Brand.card, in: RoundedRectangle(cornerRadius: 18)).accessibilityElement(children: .contain).accessibilityIdentifier("inventory-item-" + item.string("item_key"))
     }
     private func load() async {
         guard let owner = model.userID else { data = [:]; profile = [:]; return }

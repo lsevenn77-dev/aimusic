@@ -19,7 +19,8 @@ final class AppModel: NSObject, ObservableObject, ASWebAuthenticationPresentatio
     @Published var loading = false
     @Published var error: String?
     @Published var notice: String?
-    @Published var chatOpen = false
+    @Published var visibleChats: Set<UUID> = []
+    var chatOpen: Bool { !visibleChats.isEmpty }
     @Published var walletRevision = 0
     @Published var profileRevision = 0
     private var likeRequests = Set<String>()
@@ -169,7 +170,7 @@ final class AppModel: NSObject, ObservableObject, ASWebAuthenticationPresentatio
         notice = "계정을 삭제했습니다. 업로드 파일도 삭제 처리됩니다."
     }
     private func clearPrivate() {
-        accountRevision += 1; likeRequests.removeAll(); likeRevision += 1; inboxConversations = []; chatOpen = false; inboxUnread = 0; inboxCrew = nil; likes = []; playlists = []; history = []; player.close()
+        accountRevision += 1; likeRequests.removeAll(); likeRevision += 1; inboxConversations = []; visibleChats.removeAll(); inboxUnread = 0; inboxCrew = nil; likes = []; playlists = []; history = []; player.close()
     }
     func handle(_ error: Error) {
         if error is CancellationError { return }

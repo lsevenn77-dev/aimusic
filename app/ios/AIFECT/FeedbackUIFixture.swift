@@ -37,6 +37,18 @@ enum FeedbackUIFixture {
 final class FeedbackURLProtocol: URLProtocol {
     static var messages: [[String: Any]] = []
     static var stars = 3
+    static var diamonds = 550.125
+    static var gold = 1250
+    static var diamondRequests = Set<String>()
+    static var equipped = true
+    static var playerData: [String: Any] {
+        ["player": ["xp": 4500], "inventory": [["id": "fixture-frame", "item_key": "crew-outline", "name": "기본 크루 액자", "artwork": "/assets/crew-basic-v2.png", "available": true, "owned": true, "equipped": equipped, "usage": "크루 가입 중 사용 가능"]],
+         "rewards": [["item_key": "crew-level-5", "name": "크루 LV.5 액자", "artwork": "/assets/crew-level-5-v1.png", "available": false, "owned": false, "reason": "크루 레벨 5 이상 필요"]], "rules": []]
+    }
+    static var diamondData: [String: Any] {
+        ["available": diamonds, "balance": diamonds, "diamond_krw": 100, "gold_per_diamond": 10, "min_payout_diamonds": 100,
+         "partner": ["tier": "general", "eligible_krw": 55012, "threshold_krw": 1000000], "history": []]
+    }
     private static let profileLock = NSLock()
     private static var storedName = "검증 계정"
     static var profileName: String {
@@ -49,6 +61,11 @@ final class FeedbackURLProtocol: URLProtocol {
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func startLoading() {
         let path = request.url!.path
+        if path.hasPrefix("/assets/") {
+            let bytes = UIImage(named: "ClanAetherFrame")?.pngData() ?? Data()
+            client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: ["Content-Type": "image/png"])!, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocol(self, didLoad: bytes); client?.urlProtocolDidFinishLoading(self); return
+        }
         if path == "/media/fixture-original/mr" {
             let url = RecordingDraft.root.appendingPathComponent("feedback-ui-fixture/backing.m4a")
             client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: ["Content-Type": "audio/wav"])!, cacheStoragePolicy: .notAllowed)
@@ -70,11 +87,20 @@ final class FeedbackURLProtocol: URLProtocol {
                 Self.messages.append(message); data = ["message": message]
             } else { data = ["messages": Self.messages, "settings": [:], "membership": ["joined_sequence": 0], "peer": ["name": "채팅 테스트"]] }
         }
-        else if path == "/api/gold" { data = ["balance": 1250, "free": ["balance": Self.stars], "gifts": []] }
+        else if path == "/api/diamonds" { data = Self.diamondData }
+        else if path == "/api/diamonds/exchange" {
+            let body = requestBody(), amount = body.int("diamonds")
+            if Self.diamondRequests.insert(body.string("request_id")).inserted { Self.diamonds -= Double(amount); Self.gold += amount * 10 }
+            data = ["ok": true, "gold": amount * 10, "wallet": Self.diamondData]
+        }
+        else if path == "/api/studio/payout-account" { data = ["account": NSNull(), "can_register": false, "banks": ["테스트 은행"], "statements": []] }
+        else if path == "/api/me/player" { data = Self.playerData }
+        else if path == "/api/me/player/equipment" { Self.equipped = requestBody()["frame_inventory_id"] is String; data = Self.playerData }
+        else if path == "/api/gold" { data = ["balance": Self.gold, "free": ["balance": Self.stars], "gifts": []] }
         else if path.hasSuffix("/gifts") { Self.stars = max(0, Self.stars - 1); data = ["free_balance": Self.stars] }
         else if path == "/api/me/profile" {
             if request.httpMethod == "PUT" { Self.profileName = requestBody().string("name") }
-            data = ["profile": ["id": "fixture-own-profile", "name": Self.profileName]]
+            data = ["profile": ["id": "fixture-own-profile", "name": Self.profileName, "player_xp": 4500, "profile_frame": Self.equipped ? "crew-outline" : "", "profile_frame_artwork": Self.equipped ? "/assets/crew-basic-v2.png" : ""]]
         }
         else if path == "/api/crews" { data = ["crews": [Self.crew], "mine": "fixture-crew", "rules": Self.crewRules] }
         else if path == "/api/crews/fixture-crew" { data = ["crew": Self.crew, "membership": ["role": "member"], "members": [], "tracks": [], "rules": Self.crewRules] }

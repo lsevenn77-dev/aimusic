@@ -232,6 +232,20 @@ struct ChatPage: View {
         }
     }
 }
+struct ChatScrollPolicy {
+    private(set) var followsLatest = true
+    mutating func userScrolled(distanceFromBottom: CGFloat) { followsLatest = distanceFromBottom < 100 }
+    mutating func sentMessage() { followsLatest = true }
+}
+private struct ChatLayout: Equatable {
+    var height: CGFloat
+    var bottom: CGFloat
+}
+private struct ChatLayoutKey: PreferenceKey {
+    static var defaultValue: ChatLayout? = nil
+    static func reduce(value: inout ChatLayout?, nextValue: () -> ChatLayout?) { value = nextValue() ?? value }
+}
+
 private struct ChatRoomView: View {
     @EnvironmentObject var model: AppModel
     @Environment(\.scenePhase) private var scenePhase
@@ -241,15 +255,25 @@ private struct ChatRoomView: View {
     @State private var clearConfirmation = false
     @State private var blocking: String?
     @FocusState private var composing: Bool
+    @State private var chatToken = UUID()
+    @State private var scrollPolicy = ChatScrollPolicy()
+    @State private var userScrolling = false
+    @State private var layout: ChatLayout?
     init(owner: String, path: String, title: String, crew: Bool) {
         self.title = title; _room = StateObject(wrappedValue: ChatRoom(owner: owner, path: path, crew: crew))
     }
     private var displayTitle: String { room.crew ? title : room.peer.displayName(fallback: title) }
     var body: some View {
         ScrollViewReader { proxy in
+          GeometryReader { viewport in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 6) {
-                    if room.more { Button("이전 대화 보기") { Task { await room.load(earlier: true) } }.frame(maxWidth: .infinity) }
+                    if room.more { Button("이전 대화 보기") { Task {
+                        let anchor = room.messages.first?.string("id")
+                        scrollPolicy.userScrolled(distanceFromBottom: .greatestFiniteMagnitude)
+                        await room.load(earlier: true)
+                        if let anchor { proxy.scrollTo(anchor, anchor: .top) }
+                    } }.frame(maxWidth: .infinity) }
                     if !room.loaded && room.messages.isEmpty { ProgressView().padding().frame(maxWidth: .infinity) }
                     ForEach(Array(room.messages.enumerated()), id: \.element.selfID) { index, item in
                         messageRow(item, showName: index == 0 || sender(room.messages[index - 1]) != sender(item))
@@ -270,18 +294,34 @@ private struct ChatRoomView: View {
                     }
                     Color.clear.frame(height: 1).id("bottom")
                 }.padding(.horizontal, 16).padding(.vertical, 12)
-            }.scrollDismissesKeyboard(.interactively)
-                .onChange(of: room.messages.last?.string("id")) { _, _ in proxy.scrollTo("bottom", anchor: .bottom) }
-                .onChange(of: room.pending?.requestID) { _, _ in proxy.scrollTo("bottom", anchor: .bottom) }
-                .onChange(of: composing) { _, focused in if focused { proxy.scrollTo("bottom", anchor: .bottom) } }
-                .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardDidChangeFrameNotification)) { _ in
-                    if composing { proxy.scrollTo("bottom", anchor: .bottom) }
+                    .frame(minHeight: viewport.size.height, alignment: .bottom)
+                    .background(GeometryReader { content in
+                        Color.clear.preference(key: ChatLayoutKey.self, value: ChatLayout(height: content.size.height, bottom: content.frame(in: .named("chat-viewport")).maxY))
+                    })
+            }.coordinateSpace(name: "chat-viewport").scrollDismissesKeyboard(.interactively).accessibilityIdentifier("chat-history")
+                .simultaneousGesture(DragGesture(minimumDistance: 3).onChanged { _ in userScrolling = true }.onEnded { _ in
+                    if let layout { scrollPolicy.userScrolled(distanceFromBottom: layout.bottom - viewport.size.height) }
+                })
+                .onPreferenceChange(ChatLayoutKey.self) { value in
+                    guard let value else { return }
+                    let resized = layout?.height != value.height
+                    if !resized && userScrolling { scrollPolicy.userScrolled(distanceFromBottom: value.bottom - viewport.size.height) }
+                    layout = value
+                    if resized && scrollPolicy.followsLatest { proxy.scrollTo("bottom", anchor: .bottom) }
                 }
-                .onChange(of: room.text) { _, _ in if composing { proxy.scrollTo("bottom", anchor: .bottom) } }
+                .onChange(of: viewport.size.height) { _, _ in if scrollPolicy.followsLatest { userScrolling = false; proxy.scrollTo("bottom", anchor: .bottom) } }
+                .onChange(of: room.messages.last?.string("id")) { _, _ in if scrollPolicy.followsLatest { proxy.scrollTo("bottom", anchor: .bottom) } }
+                .onChange(of: room.pending?.requestID) { _, value in if value != nil { scrollPolicy.sentMessage(); userScrolling = false; proxy.scrollTo("bottom", anchor: .bottom) } }
+                .onChange(of: composing) { _, focused in if focused && scrollPolicy.followsLatest { userScrolling = false; proxy.scrollTo("bottom", anchor: .bottom) } }
+                .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardDidChangeFrameNotification)) { _ in
+                    if composing && scrollPolicy.followsLatest { proxy.scrollTo("bottom", anchor: .bottom) }
+                }
+                .onChange(of: room.text) { _, _ in if composing && scrollPolicy.followsLatest { proxy.scrollTo("bottom", anchor: .bottom) } }
+          }
         }.background(Brand.background)
         .safeAreaInset(edge: .bottom, spacing: 0) { composer }
-        .onAppear { model.chatOpen = true }
-        .onDisappear { model.chatOpen = false }
+        .onAppear { model.visibleChats.insert(chatToken) }
+        .onDisappear { model.visibleChats.remove(chatToken) }
         .navigationTitle(displayTitle).navigationBarTitleDisplayMode(.inline)
         .toolbar { ToolbarItem(placement: .topBarTrailing) {
             Menu {
@@ -342,6 +382,14 @@ private struct ChatRoomView: View {
         } else {
             HStack(alignment: .bottom, spacing: 6) {
                 if mine { Spacer(minLength: 48) }
+                if !mine {
+                    if showName {
+                        let person = chatPerson(item)
+                        if !person.string("id").isEmpty {
+                            NavigationLink { ProfilePage(id: person.string("id")) } label: { ProfilePhoto(person: person, size: 32, showsLevel: false).padding(4) }.buttonStyle(.plain)
+                        } else { ProfilePhoto(person: person, size: 32, showsLevel: false).padding(4) }
+                    } else { Color.clear.frame(width: 40, height: 1) }
+                }
                 VStack(alignment: mine ? .trailing : .leading, spacing: 3) {
                     if !mine && room.crew && showName { Text(item.displayName(fallback: displayTitle)).font(.caption2).foregroundStyle(.secondary).padding(.top, 8) }
                     Group {
@@ -357,5 +405,8 @@ private struct ChatRoomView: View {
             }
         }
     }
-
+    private func chatPerson(_ item: [String: Any]) -> [String: Any] {
+        if !room.crew { return room.peer }
+        var person = item; person["id"] = item.string("profile_id"); return person
+    }
 }
