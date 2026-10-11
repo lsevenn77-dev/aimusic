@@ -6,7 +6,7 @@ export const PLAYER_RULES=Object.freeze([
  {kind:'crew_chat',label:'크루에서 대화',xp:5,limit:'하루 한 번'}
 ]);
 export const PLAYER_ITEMS=Object.freeze({
- 'crew-outline':{name:'기본 클랜 액자',type:'frame',artwork:'/assets/clan-basic-v1.png',description:'푸른 빛과 실버 장식으로 이어지는 크루의 상징',membership:true}
+ 'crew-outline':{name:'기본 크루 액자',type:'frame',artwork:'/assets/crew-basic-v2.png',description:'푸른 빛과 실버 장식으로 이어지는 크루의 상징',membership:true}
 });
 export function playerProgress(value){
  const xp=Math.max(0,Math.floor(Number(value)||0));

@@ -1,7 +1,7 @@
 /* A transparent cosmetic asset overlays the circular photo; level stays lower left. */
 .artist-portrait.player-avatar,.social-profile-photo.player-avatar,.avatar.player-avatar{position:relative;overflow:visible;isolation:isolate}
 .player-avatar>img{border-radius:50%;width:100%;height:100%;object-fit:cover}
-.artist-portrait.player-frame-crew:after,.social-profile-photo.player-frame-crew:after,.avatar.player-frame-crew:after{display:block;content:"";position:absolute;inset:-13%;border:0;border-radius:0;pointer-events:none;box-shadow:none;background:transparent url("/assets/clan-basic-v1.png") center/contain no-repeat;z-index:1}
+.artist-portrait.player-frame-crew:after,.social-profile-photo.player-frame-crew:after,.avatar.player-frame-crew:after{display:block;content:"";position:absolute;inset:-13%;border:0;border-radius:0;pointer-events:none;box-shadow:none;background:transparent url("/assets/crew-basic-v2.png") center/contain no-repeat;z-index:1}
 .player-avatar .player-level-badge{position:absolute;left:0;bottom:0;z-index:2;display:flex;align-items:center;justify-content:center;min-width:19px;height:19px;padding:0 4px;border-radius:7px;background:#263c42;color:#c8f6ed;font:600 10px/1 system-ui;border:2px solid #171d27;box-sizing:border-box;letter-spacing:0;white-space:nowrap;text-shadow:none}
 .social-profile-photo.player-avatar .player-level-badge{left:8%;bottom:3%;min-width:30px;height:27px;font-size:13px;border-radius:9px}
 .player-progress-card{padding:22px 26px;background:var(--surface-wash);border-radius:18px;margin:20px 0;color:var(--music-text)}
