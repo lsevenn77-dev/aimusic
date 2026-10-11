@@ -3,12 +3,13 @@ import {Environment} from '@apple/app-store-server-library/dist/models/Environme
 import {APPLE_ROOT_G3} from './apple-root.js';
 import {one,query,run,now,id,json,fail,rate} from './db.js';
 import {requireUser} from './auth.js';
-import {APP_STORE_FEE_BP} from '../shared/gifts.js';
+import {APP_STORE_FEE_BP,GOLD_PACKS} from '../shared/gifts.js';
+import {APP_PREMIUM} from '../shared/site-info.js';
 import {includedKoreanVat} from '../shared/gifts.js';
 
 export const APPLE_PRODUCTS=Object.freeze({
- 'kr.co.aifect.app.premium.monthly':{kind:'subscription',price:5900},
- ...Object.fromEntries([500,1000,5000,10000].map(gold=>['kr.co.aifect.app.gold.'+gold,{kind:'gold',gold,price:gold*10}]))
+ 'kr.co.aifect.app.premium.monthly':{kind:'subscription',price:APP_PREMIUM.price},
+ ...Object.fromEntries(GOLD_PACKS.map(({gold,price})=>['kr.co.aifect.app.gold.'+gold,{kind:'gold',gold,price}]))
 });
 const bundle='kr.co.aifect.app',appleId=6819654764;
 export async function verifyApple(signed,notification=false){

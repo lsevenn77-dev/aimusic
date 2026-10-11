@@ -26,8 +26,9 @@ async function payoutFixture(t,env={PAYOUT_ENCRYPTION_KEY:KEY,ADMIN_USER_IDS:'ad
  f.sql.exec("INSERT INTO producers(id,user_id,name,created) VALUES('singer','other','Singer',0)");
  f.sql.prepare('INSERT INTO users(id,email,name,created) VALUES(?,?,?,0)').run('admin','admin@example.test','운영자');
  f.sql.prepare('INSERT INTO sessions(token,user_id,expires) VALUES(?,?,?)').run(await hash('admin'),'admin',Math.floor(Date.now()/1000)+3600);
+ f.sql.exec("INSERT INTO users(id,email,name,created) VALUES('fan','fan@test.test','팬',0)");
  // Past earnings: the singer earns 6,000 KRW in January and 5,000 KRW in February; the creator 50,000 KRW in February.
- const gift=(gid,month,singer,creator)=>f.sql.prepare("INSERT INTO gifts(id,sender_id,track_id,gold,net_mw,singer_profile_id,creator_profile_id,singer_mw,creator_mw,platform_mw,month,created) VALUES(?,'owner','one',1,0,?,?,?,?,0,?,0)").run(gid,singer?'singer':null,'producer',singer,creator,month);
+ const gift=(gid,month,singer,creator)=>f.sql.prepare("INSERT INTO gifts(id,sender_id,track_id,gold,net_mw,singer_profile_id,creator_profile_id,singer_mw,creator_mw,platform_mw,month,created) VALUES(?,'fan','one',1,0,?,?,?,?,0,?,0)").run(gid,singer?'singer':null,'producer',singer,creator,month);
  gift('g1','2020-01',6000000,0);gift('g2','2020-02',5000000,0);gift('g3','2020-02',0,50000000);
  return f;
 }
@@ -48,31 +49,32 @@ test('payout details open only with earnings, stay encrypted, and are shown mask
  assert.equal((await missingKey.call('/api/studio/payout-account','PUT',account)).status,503);
 });
 
-test('closing a month issues statements at the minimum, carries smaller totals, and records every reveal',async t=>{
+test('month close credits diamonds; requested cash preserves account privacy and audited payment',async t=>{
  const f=await payoutFixture(t);
- assert.equal((await f.call('/api/admin/payouts','GET',undefined,'owner')).status,404,'operators only');
+ assert.equal((await f.call('/api/admin/payouts','GET',undefined,'owner')).status,404);
  assert.equal((await f.call('/api/studio/payout-account','PUT',account)).status,200);
  let out=await f.call('/api/admin/payouts/close','POST',{period:'2020-01'},'admin');
- assert.deepEqual([out.status,out.body.issued,out.body.carried],[201,0,1],'6,000 KRW carries');
+ assert.deepEqual([out.status,out.body.credited,out.body.issued],[201,1,0]);
+ assert.equal((await f.call('/api/diamonds','GET',undefined,'other')).body.balance,60);
  assert.equal((await f.call('/api/admin/payouts/close','POST',{period:'2020-01'},'admin')).status,409);
- assert.equal((await f.call('/api/admin/payouts/close','POST',{period:'2999-01'},'admin')).status,400,'only finished months');
+ assert.equal((await f.call('/api/admin/payouts/close','POST',{period:'2999-01'},'admin')).status,400);
  out=await f.call('/api/admin/payouts/close','POST',{period:'2020-02'},'admin');
- assert.deepEqual([out.body.issued,out.body.due_on],[2,'2020-03-25']);
- const list=(await f.call('/api/admin/payouts?period=2020-02','GET',undefined,'admin')).body.statements;
- const byProfile=Object.fromEntries(list.map(s=>[s.profile,s]));
- assert.deepEqual([byProfile.Singer.from_month,byProfile.Singer.gross_krw,byProfile.Singer.net_krw,byProfile.Singer.status],['2020-01',11000,11000,'held'],'carried January joins February; no account yet');
- assert.deepEqual([byProfile.QA.gross_krw,byProfile.QA.income_tax_krw,byProfile.QA.local_tax_krw,byProfile.QA.net_krw,byProfile.QA.status],[50000,1500,150,48350,'scheduled']);
- // The singer registers later; the held statement becomes payable.
- assert.equal((await f.call('/api/studio/payout-account','PUT',{...account,holder:'가수'},'other')).status,200);
- assert.equal(f.sql.prepare("SELECT status FROM payout_statements WHERE profile_id='singer'").get().status,'scheduled');
- const reveal=(await f.call(`/api/admin/payouts/${byProfile.QA.id}/account`,'GET',undefined,'admin')).body;
+ assert.equal(out.body.credited,2);
+ assert.equal((await f.call('/api/diamonds','GET',undefined,'other')).body.balance,110);
+ assert.equal((await f.call('/api/diamonds')).body.balance,500);
+ assert.equal(f.sql.prepare('SELECT count(*) n FROM payout_statements').get().n,0,'cash is never automatic');
+ const paidRequest=await f.call('/api/diamonds/payout','POST',{diamonds:500,request_id:'payout-integration-001'});
+ assert.equal(paidRequest.status,201,JSON.stringify(paidRequest));
+ const sid=paidRequest.body.id;
+ assert.equal(f.sql.prepare('SELECT net_krw FROM payout_statements WHERE id=?').get(sid).net_krw,48350);
+ const reveal=(await f.call(`/api/admin/payouts/${sid}/account`,'GET',undefined,'admin')).body;
  assert.deepEqual(reveal,{holder:'홍길동',bank:'KB국민',account:'123456789015678',resident_number:'9001011234567'});
  assert.equal(f.sql.prepare("SELECT count(*) n FROM admin_audit WHERE action='payout_account_view'").get().n,1);
- assert.equal((await f.call(`/api/admin/payouts/${byProfile.QA.id}/paid`,'POST',{ref:'국민 이체 0315'},'admin')).status,200);
- assert.equal((await f.call(`/api/admin/payouts/${byProfile.QA.id}/paid`,'POST',{ref:'again'},'admin')).status,409);
- const paid=f.sql.prepare('SELECT status,account_snapshot,paid_ref FROM payout_statements WHERE id=?').get(byProfile.QA.id);
- assert.deepEqual({...paid},{status:'paid',account_snapshot:'KB국민 ****5678 홍길동',paid_ref:'국민 이체 0315'});
+ assert.equal((await f.call(`/api/admin/payouts/${sid}/paid`,'POST',{ref:'국민 이체 0315'},'admin')).status,200);
+ assert.equal((await f.call(`/api/admin/payouts/${sid}/paid`,'POST',{ref:'again'},'admin')).status,409);
  const studio=(await f.call('/api/studio/earnings')).body;
  assert.equal(studio.payout.statements[0].status,'paid');
  assert.deepEqual(studio.months.map(m=>[m.month,m.status]),[['2020-02','settled']]);
+ const current=(await f.call('/api/admin/payouts','GET',undefined,'admin')).body;
+ assert.equal(current.statements[0].id,sid,'cash request months appear even without a gift close');
 });

@@ -9,7 +9,7 @@ import {allocateLots,splitGift,includedKoreanVat} from '../shared/gifts.js';
 test('new tax reserve and channel fees are deducted once while historical lots preserve their value',()=>{
  const web={id:'web',gold:1000,used:0,price_krw:10000,fee_krw:400,tax_krw:includedKoreanVat(10000)},app={...web,id:'app',fee_krw:1500};
  assert.equal(web.tax_krw,909);assert.equal(allocateLots([web],1000)[0].net_mw,8691000);assert.equal(allocateLots([app],1000)[0].net_mw,7591000);
- assert.equal(splitGift('original',8691000).creator,6083700);
+ assert.equal(splitGift('original',8691000).creator,5214600);
  assert.equal(allocateLots([{...app,tax_krw:0}],1000)[0].net_mw,8500000,'legacy purchases keep their original terms');
  const mixed=allocateLots([{...web,used:500},app],700);assert.deepEqual(mixed.map(x=>[x.purchase_id,x.gold,x.net_mw]),[['web',500,4345500],['app',200,1518200]]);
 });
@@ -21,7 +21,7 @@ test('a person with no songs receives gold and stars, retries spend once and pay
  const f=await setup(t),path='/api/producers/person/gifts',request={gift_type:'heart',request_id:crypto.randomUUID()};
  const first=await f.call(path,'POST',request);assert.equal(first.status,201,JSON.stringify(first.body));
  const retry=await f.call(path,'POST',request);assert.equal(retry.body.gift.id,first.body.gift.id);assert.equal(retry.body.balance,950);
- const g=f.sql.prepare('SELECT * FROM gifts').get();assert.deepEqual([g.track_id,g.creator_profile_id,g.net_mw,g.creator_mw,g.platform_mw],[null,'person',425000,297500,127500]);
+ const g=f.sql.prepare('SELECT * FROM gifts').get();assert.deepEqual([g.track_id,g.creator_profile_id,g.net_mw,g.creator_mw,g.platform_mw],[null,'person',425000,255000,170000]);
  assert.equal(f.sql.prepare('SELECT count(*) n FROM gift_lots').get().n,1);
  assert.equal((await f.call('/api/tracks/one/gifts','POST',request,'other')).status,409,'recipient with no funds cannot send');
  await f.call('/api/gifts/free/claim','POST',{kind:'checkin'});
@@ -29,7 +29,7 @@ test('a person with no songs receives gold and stars, retries spend once and pay
  assert.equal(f.sql.prepare('SELECT recipient_profile_id FROM free_gifts').get().recipient_profile_id,'person');
  const ranking=(await f.call(path)).body;assert.equal(ranking.ranking[0].score,51);assert.equal(ranking.total_gold,50);assert.equal(ranking.free_count,1);
  const wallet=(await f.call('/api/gold')).body;assert.equal(wallet.sent[0].track_id,null);assert.equal(wallet.sent[0].recipient_profile_id,'person');assert.equal(wallet.free_sent[0].recipient_profile_id,'person');
- assert.equal((await f.call('/api/studio/earnings','GET',null,'other')).body.months[0].creator_krw,297);
+ assert.equal((await f.call('/api/studio/earnings','GET',null,'other')).body.months[0].creator_krw,255);
  assert.deepEqual(f.sql.prepare('SELECT kind,target FROM push_outbox ORDER BY id').all().map(x=>[x.kind,x.target]),[['person_gift','person'],['person_gift','person']]);
 });
 test('personal gifts enforce recipient, authentication, blocking and idempotency boundaries',async t=>{

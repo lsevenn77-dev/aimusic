@@ -44,6 +44,13 @@ export function verifiedGold(data,product,accountId){
  if(!data.orderId)fail(400,'구매 내역을 확인해주세요.');
  return {order:data.orderId,consumed:item.productOfferDetails?.consumptionState==='CONSUMPTION_STATE_CONSUMED',test:data.testPurchaseContext!=null};
 }
+export function verifiedOrderPrice(order,orderId,token,product){
+ const item=order.lineItems?.[0],money=order.total;
+ if(order.orderId!==orderId||order.purchaseToken!==token||order.state!=='PROCESSED'||order.lineItems?.length!==1||item?.productId!==product.id||Number(item.oneTimePurchaseDetails?.quantity)!==1)fail(409,'Google Play 주문 정보를 확인해주세요.');
+ const price=Number(money?.units);
+ if(money?.currencyCode!=='KRW'||Number(money.nanos||0)!==0||!Number.isSafeInteger(price)||price<=0)fail(409,'원화 결제 금액을 확인해주세요.');
+ return price;
+}
 async function applySubscription(env,user,token,product,data){
  const verified=verifiedSubscription(data,product,await playAccountId(user.id));
  const tokenHash=await hash(token),at=now();
@@ -71,7 +78,9 @@ async function applyGold(env,user,token,product,data){
  const purchaseId='play_'+tokenHash;
  // Only Google's verified receipt can identify a test payment. Test gold stays
  // usable, but has no paid value to distribute to creators or the platform.
- const price=v.test?0:product.price,fee=Math.ceil(price*APP_STORE_FEE_BP/10000);
+ // Catalog changes must never revalue a pending purchase or a previously paid lot.
+ const savedLot=existing?await one(env,'SELECT price_krw FROM gold_purchases WHERE id=?',purchaseId):null;
+ const price=v.test?0:savedLot?.price_krw??verifiedOrderPrice(await google(env,`orders/${encodeURIComponent(v.order)}`),v.order,token,product),fee=Math.ceil(price*APP_STORE_FEE_BP/10000);
  if(v.test&&existing){
   const lot=await one(env,'SELECT used,price_krw FROM gold_purchases WHERE id=?',purchaseId);
   if(lot?.used>0&&lot.price_krw>0)fail(409,'이미 사용한 테스트 결제의 정산을 운영자가 확인해야 해요.');

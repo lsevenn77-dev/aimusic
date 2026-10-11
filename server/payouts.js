@@ -1,3 +1,4 @@
+import {finalizeGiftDiamonds,assertDiamondReady} from './diamonds.js';
 import {one,rows,run,query,now,id,fail,str,json,rate} from './db.js';
 import {requireUser,isAdmin} from './auth.js';
 import {MIN_PAYOUT_KRW,PAYOUT_DAY,BANKS,withholding,giftMonth,wonFromMw} from '../shared/gifts.js';
@@ -36,7 +37,7 @@ export function residentNumber(value,today=new Date()){
 const nextMonthDay=(month,day)=>{const [y,m]=month.split('-').map(Number);return new Date(Date.UTC(y,m,day)).toISOString().slice(0,10);};
 const accountSummary=row=>row?{holder:row.holder,bank:row.bank,account:'****'+row.account_last4,resident:row.resident_hint,updated:row.updated}:null;
 async function profileOf(env,userId){return one(env,'SELECT id FROM producers WHERE user_id=?',userId);}
-async function hasEarnings(env,userId){const p=await profileOf(env,userId);return !!p&&!!await one(env,'SELECT 1 FROM gifts WHERE (singer_profile_id=? AND singer_mw>0) OR (creator_profile_id=? AND creator_mw>0) LIMIT 1',p.id,p.id);}
+async function hasEarnings(env,userId){if(await one(env,"SELECT 1 FROM diamond_ledger WHERE user_id=? AND kind IN ('gift','stream') LIMIT 1",userId))return true;const p=await profileOf(env,userId);return !!p&&!!await one(env,'SELECT 1 FROM gifts WHERE (singer_profile_id=? AND singer_mw>0) OR (creator_profile_id=? AND creator_mw>0) LIMIT 1',p.id,p.id);}
 
 // What the studio shows: statements already issued, the account on file, and whether registration is open yet.
 export async function creatorPayouts(env,userId){
@@ -44,37 +45,14 @@ export async function creatorPayouts(env,userId){
   one(env,'SELECT * FROM payout_accounts WHERE user_id=?',userId),
   rows(env,'SELECT id,period,from_month,gross_krw,income_tax_krw,local_tax_krw,net_krw,status,due_on,paid_at FROM payout_statements WHERE user_id=? ORDER BY period DESC LIMIT 36',userId),
   hasEarnings(env,userId)]);
- return {account:accountSummary(account),can_register:earning,statements,banks:BANKS,last_period:statements[0]?.period||null};
+ return {account:accountSummary(account),can_register:earning,statements,banks:BANKS,last_period:(await one(env,"SELECT max(period) p FROM payout_periods")).p||null};
 }
 
 async function audit(env,admin,action,target){await run(env,'INSERT INTO admin_audit(id,admin_id,action,target,created) VALUES(?,?,?,?,?)',id(),admin.id,action,target,now());}
 
 // Closing a finished month issues one statement per person whose unpaid earnings since their last statement
 // reach the minimum; smaller totals stay unpaid and are picked up by a later close.
-export async function closePeriod(env,admin,period){
- if(await one(env,"SELECT 1 FROM gold_orders WHERE state='refund_review' UNION ALL SELECT 1 FROM apple_transactions WHERE refund_review=1 LIMIT 1"))fail(409,'환불된 골드의 배분 내역을 확인한 후 정산을 마감해주세요.');
- if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(period)||period>=giftMonth(now()))fail(400,'끝난 달만 마감할 수 있어요.');
- const latest=(await one(env,'SELECT max(period) p FROM payout_periods')).p;
- if(latest&&period<=latest)fail(409,`${latest}까지 이미 마감했어요.`);
- const due=nextMonthDay(period,PAYOUT_DAY);
- const earnings=await rows(env,`WITH shares AS (
-   SELECT singer_profile_id pid,month,singer_mw mw FROM gifts WHERE singer_profile_id IS NOT NULL AND singer_mw>0
-   UNION ALL SELECT creator_profile_id,month,creator_mw FROM gifts WHERE creator_mw>0),
-  last AS (SELECT profile_id pid,max(period) period FROM payout_statements GROUP BY profile_id)
-  SELECT s.pid,p.user_id,min(s.month) from_month,sum(s.mw) mw,(a.user_id IS NOT NULL) has_account
-  FROM shares s JOIN producers p ON p.id=s.pid LEFT JOIN last l ON l.pid=s.pid LEFT JOIN payout_accounts a ON a.user_id=p.user_id
-  WHERE s.month<=? AND (l.period IS NULL OR s.month>l.period) GROUP BY s.pid,p.user_id,a.user_id`,period);
- const writes=[query(env,'INSERT INTO payout_periods(period,closed_at,closed_by) VALUES(?,?,?)',period,now(),admin.id)];
- let issued=0,carried=0;
- for(const e of earnings){
-  const gross=wonFromMw(e.mw);if(gross<MIN_PAYOUT_KRW){carried++;continue;}
-  const tax=withholding(gross);issued++;
-  writes.push(query(env,'INSERT INTO payout_statements(id,profile_id,user_id,period,from_month,gross_krw,income_tax_krw,local_tax_krw,net_krw,status,due_on,created) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',
-   id(),e.pid,e.user_id,period,e.from_month,gross,tax.income,tax.local,tax.net,e.has_account?'scheduled':'held',due,now()));
- }
- await env.DB.batch(writes);await audit(env,admin,'payout_close',period);
- return {period,issued,carried,due_on:due};
-}
+export const closePeriod=finalizeGiftDiamonds;
 
 export async function payoutRoute(req,env,path,user){
  const method=req.method;
@@ -100,10 +78,11 @@ export async function payoutRoute(req,env,path,user){
  if(!path.startsWith('/api/admin/'))return null;
  requireUser(user);if(!isAdmin(env,user))fail(404,'페이지를 찾을 수 없습니다.');
  if(path==='/api/admin/payouts'&&method==='GET'){
-  const periods=(await rows(env,'SELECT period,closed_at FROM payout_periods ORDER BY period DESC LIMIT 36'));
+  const periods=(await rows(env,'SELECT period,max(closed_at) closed_at FROM (SELECT period,closed_at FROM payout_periods UNION ALL SELECT period,created closed_at FROM payout_statements) GROUP BY period ORDER BY period DESC LIMIT 36'));
+  const lastClose=await one(env,'SELECT max(period) p FROM payout_periods');
   const requested=new URL(req.url).searchParams.get('period'),period=requested||periods[0]?.period||null,current=giftMonth(now());
   const [y,m]=current.split('-').map(Number),previous=new Date(Date.UTC(y,m-2,1)).toISOString().slice(0,7);
-  return json({periods,period,closable:!periods.length||periods[0].period<previous?previous:null,
+  return json({periods,period,closable:!lastClose.p||lastClose.p<previous?previous:null,
    statements:period?await rows(env,`SELECT s.id,s.period,s.from_month,s.gross_krw,s.income_tax_krw,s.local_tax_krw,s.net_krw,s.status,s.due_on,s.paid_at,s.paid_ref,s.account_snapshot,p.name profile,u.email,a.bank,a.account_last4,a.holder
     FROM payout_statements s JOIN producers p ON p.id=s.profile_id JOIN users u ON u.id=s.user_id LEFT JOIN payout_accounts a ON a.user_id=s.user_id WHERE s.period=? ORDER BY s.status,s.gross_krw DESC`,period):[],
    unpaid:(await one(env,"SELECT count(*) n,COALESCE(sum(net_krw),0) krw FROM payout_statements WHERE status IN ('scheduled','held')"))});
@@ -119,6 +98,7 @@ export async function payoutRoute(req,env,path,user){
  }
  if(m[2]==='paid'&&method==='POST'){
   if(await one(env,"SELECT 1 FROM gold_orders WHERE state='refund_review' UNION ALL SELECT 1 FROM apple_transactions WHERE refund_review=1 LIMIT 1"))fail(409,'환불된 골드의 배분 내역을 확인한 후 지급 처리해주세요.');
+  await assertDiamondReady(env);if((await one(env,'SELECT COALESCE(sum(amount_mw),0) mw FROM diamond_ledger WHERE user_id=?',s.user_id)).mw<0)fail(409,'제외된 수익을 먼저 조정해주세요.');
   if(s.status!=='scheduled')fail(409,'지급 예정인 정산서만 지급 완료로 바꿀 수 있어요.');
   const b=await req.json(),ref=str(b.ref||'',100,false);
   await run(env,"UPDATE payout_statements SET status='paid',paid_at=?,paid_ref=?,paid_by=?,account_snapshot=? WHERE id=? AND status='scheduled'",now(),ref,user.id,`${s.bank} ****${s.account_last4} ${s.holder}`,s.id);
