@@ -173,7 +173,7 @@ npm run catalog
 - 제작곡 공개 100 XP, 커버·듀엣 공개 60 XP는 곡마다 한 번만 지급한다. 한국 시간 기준 하루에 유효 감상 10 XP, 다른 사람의 음악 댓글 5 XP, 크루 대화 5 XP를 각각 한 번 지급한다. 기존 공개곡 11개와 크루 회원 4명의 초기 데이터도 운영 서버에 반영했다.
 - 크루 가입 시 기본 액자를 무료 지급하고 처음에는 자동 장착한다. 탈퇴하면 사용할 수 없으며, 재가입해도 수동으로 해제한 선택은 유지한다.
 - GET /api/me/player로 레벨, 경험치, 보관함, 활동 내역을 가져온다. PUT /api/me/player/equipment의 frame_inventory_id에 아이템 ID 또는 null을 전달해 장착/해제한다. 서버가 소유권, 만료, 크루 가입 상태를 검증한다.
-- 공개 프로필의 player_xp, player_level, profile_frame을 사용한다. 웹 /assets/clan-basic-v1.png, Android player_frame_clan_aether, iOS ClanAetherFrame은 같은 최종 기본 이미지다. 네이티브 리소스 이름만 기존 내부 이름을 유지한다.
+- 공개 프로필의 player_xp, player_level, profile_frame을 사용한다. 웹 /assets/crew-basic-v2.png, Android player_frame_clan_aether, iOS ClanAetherFrame은 같은 최종 CREW 기본 이미지다. 사용자 제공 메탈릭 블루 미래형 CREW 엠블럼 원본을 사용하며 네이티브 리소스 이름만 기존 내부 이름을 유지한다. 이전 CLAN 캡처보다 이 이미지를 우선한다.
 - 웹의 왼쪽 계정 카드와 상단 내 계정은 로그인 중 모두 #profile로 이동한다. 계정·이용권 설정은 마이페이지 내부에서 #account로 연다.
 
 마이그레이션 0040은 테이블·인덱스·트리거만 생성한다. 기존 데이터 반영은 인증된 POST /internal/player/backfill로 최대 500건씩 처리하며 반복 실행해도 중복 경험치나 아이템을 지급하지 않는다.
