@@ -1,6 +1,6 @@
 import {one,rows,query,run,now,id,fail,str,json,rate} from './db.js';
 import {requireUser,isAdmin} from './auth.js';
-import {DIAMOND_KRW,DIAMOND_GOLD,PARTNER_MIN_KRW,MIN_PAYOUT_KRW,PAYOUT_DAY,giftMonth,withholding,diamondsFromMw} from '../shared/gifts.js';
+import {DIAMOND_KRW,DIAMOND_GOLD,PARTNER_MIN_KRW,MIN_PAYOUT_KRW,diamondPayoutDate,giftMonth,withholding,diamondsFromMw} from '../shared/gifts.js';
 import {allocateSubscriptionRevenue} from '../shared/subscription-revenue.js';
 
 const totalSQL="SELECT COALESCE(sum(amount_mw),0) balance,COALESCE(sum(eligible_mw),0) eligible FROM diamond_ledger WHERE user_id=?";
@@ -15,7 +15,7 @@ export async function assertDiamondReady(env){
 }
 export async function diamondWallet(env,uid){
  const [t,history,partner]=await Promise.all([one(env,totalSQL,uid),rows(env,'SELECT id,kind,amount_mw,gold,period,detail,created FROM diamond_ledger WHERE user_id=? ORDER BY created DESC,id DESC LIMIT 50',uid),partnerState(env,uid)]);
- return {balance:diamondsFromMw(t.balance),balance_mw:t.balance,available:diamondsFromMw(Math.max(0,t.balance)),cash_value_krw:Math.floor(Math.max(0,t.balance)/1000),diamond_krw:DIAMOND_KRW,gold_per_diamond:DIAMOND_GOLD,min_payout_diamonds:MIN_PAYOUT_KRW/DIAMOND_KRW,partner,history:history.map(r=>({...r,diamonds:diamondsFromMw(r.amount_mw)}))};
+ return {balance:diamondsFromMw(t.balance),balance_mw:t.balance,available:diamondsFromMw(Math.max(0,t.balance)),cash_value_krw:Math.floor(Math.max(0,t.balance)/1000),diamond_krw:DIAMOND_KRW,gold_per_diamond:DIAMOND_GOLD,min_payout_diamonds:MIN_PAYOUT_KRW/DIAMOND_KRW,next_payout_on:diamondPayoutDate(now()),partner,history:history.map(r=>({...r,diamonds:diamondsFromMw(r.amount_mw)}))};
 }
 const entry=(env,uid,kind,key,mw,eligible,period,detail='',gold=0,eid=id())=>query(env,'INSERT INTO diamond_ledger(id,user_id,kind,source_key,amount_mw,eligible_mw,period,detail,gold,created) VALUES(?,?,?,?,?,?,?,?,?,?)',eid,uid,kind,key,mw,eligible,period,detail,gold,now());
 const audit=(env,user,action,target)=>query(env,'INSERT INTO admin_audit(id,admin_id,action,target,created) VALUES(?,?,?,?,?)',id(),user.id,action,target,now());
@@ -49,7 +49,7 @@ async function useDiamonds(req,env,user,kind){
  const replay=async()=>{const old=await one(env,'SELECT id,kind,amount_mw,gold FROM diamond_ledger WHERE user_id=? AND source_key=?',user.id,key);if(!old)return null;if(old.kind!==kind||old.amount_mw!==-mw||old.gold!==gold)fail(409,'이미 다른 내용으로 사용한 요청이에요.');return json({ok:true,id:old.id,gold,wallet:await diamondWallet(env,user.id)});};
  const previous=await replay();if(previous)return previous;
  await assertDiamondReady(env);await rate(env,'diamond:'+user.id,20,3600);
- const eid=id(),period=giftMonth(now()),writes=[entry(env,user.id,kind,key,-mw,0,period,kind==='exchange'?'골드 전환':'현금 정산 신청',gold,eid)];
+ const requestedAt=now(),eid=id(),period=giftMonth(requestedAt),writes=[entry(env,user.id,kind,key,-mw,0,period,kind==='exchange'?'골드 전환':'현금 정산 신청',gold,eid)];
  if(kind==='exchange'){
   // No payment/VAT/fee is booked again: the lot carries exactly the surrendered earnings value.
   writes.push(query(env,"INSERT INTO gold_purchases(id,user_id,channel,gold,price_krw,fee_krw,tax_krw,status,provider_ref,created,paid_at) VALUES(?,?,'diamond',?,?,0,0,'paid',?,?,?)",'diamond_'+eid,user.id,gold,mw/1000,eid,now(),now()));
@@ -58,7 +58,7 @@ async function useDiamonds(req,env,user,kind){
   const p=await one(env,'SELECT id FROM producers WHERE user_id=?',user.id),account=await one(env,'SELECT user_id FROM payout_accounts WHERE user_id=?',user.id);
   if(!p||!account)fail(409,'정산 계좌를 먼저 등록해주세요.');
   if(await one(env,'SELECT 1 FROM payout_statements WHERE user_id=? AND period=?',user.id,period))fail(409,'이번 달 정산 신청이 있어요. 다음 달에 신청해주세요.');
-  const gross=mw/1000,tax=withholding(gross),[y,m]=period.split('-').map(Number),due=new Date(Date.UTC(y,m,PAYOUT_DAY)).toISOString().slice(0,10);
+  const gross=mw/1000,tax=withholding(gross),due=diamondPayoutDate(requestedAt);
   writes.push(query(env,'INSERT INTO payout_statements(id,profile_id,user_id,period,from_month,gross_krw,income_tax_krw,local_tax_krw,net_krw,status,due_on,created) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',eid,p.id,user.id,period,period,gross,tax.income,tax.local,tax.net,'scheduled',due,now()));
   // The source key links the reserved diamonds to the monthly statement, including older clients.
   writes[0]=entry(env,user.id,kind,key,-mw,0,period,'현금 정산 신청',0,eid);

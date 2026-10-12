@@ -1,4 +1,17 @@
 // Shared app/web flows: chosen profiles, crew activity and private conversations.
+// Private balances are fetched afresh on My; never put them in a public profile or route cache.
+function myBalanceSummaryHTML(wallet){
+ const valid=n=>typeof n==='number'&&Number.isFinite(n)&&n>=0;
+ const gold=wallet?.balance,diamonds=wallet?.diamonds?.available,ready=valid(gold)&&valid(diamonds);
+ return '<section class="my-balance-summary" aria-label="내 보유 재화"><div class="my-balance-grid">'+
+  '<a class="my-balance-card my-balance-gold" href="#gold"><span class="my-balance-label"><span class="gold-coin" aria-hidden="true">G</span>보유 골드</span><strong>'+ (valid(gold)?number(gold):'—')+' <small>G</small></strong><span class="my-balance-link">충전 · 내역 보기 '+icon('chevron')+'</span></a>'+
+  '<a class="my-balance-card my-balance-diamond" href="#payouts"><span class="my-balance-label"><span class="diamond-emoji" aria-hidden="true">💎</span>사용 가능한 다이아</span><strong>'+(valid(diamonds)?diamondNumber(diamonds):'—')+' <small>다이아</small></strong><span class="my-balance-link">전환 · 정산 보기 '+icon('chevron')+'</span></a></div>'+
+  (ready?'':'<p class="my-balance-error" role="status">잔액을 불러오지 못했어요. <button type="button" class="text-link" data-my-wallet-retry>다시 불러오기</button></p>')+'</section>';
+}
+async function loadMyBalanceSummary(){
+ try{return myBalanceSummaryHTML(await api('/api/gold','GET',undefined,{fresh:true}));}
+ catch(e){if(e.status===401||e.status===403)throw e;return myBalanceSummaryHTML(null);}
+}
 let socialTimer=null;
 // Public crew chrome and a navigation hint only. Membership and roles stay live.
 const crewNavigation=new Map();
@@ -67,8 +80,9 @@ async function improvementsView(base,param,raw){
   if(base==='profile'){
    const d=await api('/api/me/profile'),p=d.profile;
    if(param!=='edit'){
-    if(p.id){const social=await api('/api/producers/'+encodeURIComponent(p.id));social.following_count=d.following_count;return {html:myPageHeading('내 플레이리스트와 공개한 음악을 한곳에')+personProfileHTML(social,p.id,new URLSearchParams(raw.split('?')[1]||'').get('tab')||'all'),tracks:musicProfileItems(social,new URLSearchParams(raw.split('?')[1]||'').get('tab')||'all')};}
-    return {html:myPageHeading('음악을 듣기만 해도 좋아요.')+'<section class="music-self-head"><div><h2>'+esc(p.name||me.name||'내 음악')+'</h2><p>아직 공개한 프로필이나 음악이 없어요.</p></div><a class="small-button" href="#profile/edit">프로필 만들기</a></section>'+playerProgressHTML(p)+musicMyShortcuts()};
+    const balances=await loadMyBalanceSummary();
+    if(p.id){const social=await api('/api/producers/'+encodeURIComponent(p.id));social.following_count=d.following_count;return {html:myPageHeading('내 플레이리스트와 공개한 음악을 한곳에')+balances+personProfileHTML(social,p.id,new URLSearchParams(raw.split('?')[1]||'').get('tab')||'all'),tracks:musicProfileItems(social,new URLSearchParams(raw.split('?')[1]||'').get('tab')||'all')};}
+    return {html:myPageHeading('음악을 듣기만 해도 좋아요.')+balances+'<section class="music-self-head"><div><h2>'+esc(p.name||me.name||'내 음악')+'</h2><p>아직 공개한 프로필이나 음악이 없어요.</p></div><a class="small-button" href="#profile/edit">프로필 만들기</a></section>'+playerProgressHTML(p)+musicMyShortcuts()};
    }
    return {html:heading('프로필 수정')+`<div class="inline-actions account-menu" style="margin-bottom:24px"><a class="small-button" href="#profile">내 페이지</a><a class="small-button" href="#account">계정·이용권</a><button type="button" class="small-button" id="logout">로그아웃</button></div><form id="public-profile-form" class="surface upload-form profile-form">${p.id?portrait(p,'producer'):''}<label class="form-field">프로필 사진<input name="image" type="file" accept="image/png,image/jpeg,image/webp"><small>JPG·PNG·WebP · 5MB 이하</small></label>${formField('공개 닉네임','name','text',p.name,'required maxlength="60"')}<p class="field-help">댓글·선물·크루·DM에는 이 이름이 표시돼요.</p><label class="form-field">소개<textarea name="bio" maxlength="1000">${esc(p.bio)}</textarea></label><button class="primary-button">프로필 저장</button><p class="form-error" role="alert"></p></form>`};
   }
@@ -87,6 +101,7 @@ async function libraryProfileHTML(){
 }
 function bindCrewForm(){const form=$('#crew-form');form.onsubmit=busyForm(form,async fd=>{const cid=form.dataset.crew;const d=await api('/api/crews'+(cid?'/'+cid:''),cid?'PATCH':'POST',{name:fd.get('name'),description:fd.get('description'),interests:fd.get('interests'),recruiting:fd.has('recruiting')});const file=fd.get('crew_image');if(cid&&file?.size)await uploadChatImage('/api/crews/'+cid+'/image',file);$('#dialog').close();location.hash='crew/'+d.crew.id;if(cid)await render();});}
 function bindImprovements(view){
+ const walletRetry=$('[data-my-wallet-retry]');if(walletRetry)walletRetry.onclick=async()=>{walletRetry.disabled=true;try{await render();}finally{walletRetry.disabled=false;}};
  const profile=$('#public-profile-form');if(profile)profile.onsubmit=busyForm(profile,async fd=>{
   await api('/api/me/profile','PUT',{name:fd.get('name'),bio:fd.get('bio')});const image=fd.get('image');
   if(image?.size){if(image.size>5*1024*1024)throw new Error('사진은 5MB 이하로 선택해주세요.');const r=await fetch('/api/me/profile/image',{method:'PUT',headers:{'content-type':image.type},body:image});if(!r.ok)throw new Error((await r.json()).error);}
