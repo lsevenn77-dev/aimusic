@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync,existsSync} from 'node:fs';
 import {diamondPayoutDate,earningsSchedule,settlementPolicyHTML} from '../shared/gifts.js';
-import {PLAYER_ITEMS} from '../shared/player.js';
+import * as AifectPlayer from '../shared/player.js';
+const {PLAYER_ITEMS}=AifectPlayer;
 import {fixture} from './fixture.mjs';
 
 const read=file=>readFileSync(new URL('../'+file,import.meta.url),'utf8');
@@ -16,21 +17,22 @@ function ui({profile={id:'producer',name:'QA'},wallet={balance:1234,diamonds:{av
  vm.runInContext(read('dist/diamonds.js'),c);vm.runInContext(read('dist/improvements.js'),c);
  return {c,calls};
 }
-test('private My wallet shows server balances for profiles with and without public pages',async()=>{
+test('private My shows gold and a toolbox instead of diamonds, with or without a public page',async()=>{
  for(const profile of [{id:'producer',name:'QA'},{name:'New'}]){
   const {c,calls}=ui({profile}),view=await c.improvementsView('profile','','profile');
-  assert.match(view.html,/1,234/);assert.match(view.html,/12.34567/);assert.match(view.html,/💎/);
-  assert.match(view.html,/href="#gold"/);assert.match(view.html,/href="#payouts"/);
+  assert.match(view.html,/1,234/);assert.doesNotMatch(view.html,/12\.34567|💎|다이아/);
+  assert.match(view.html,/href="#gold"/);assert.match(view.html,/href="#inventory"/);assert.match(view.html,/내 도구함/);
   assert.equal(calls.filter(p=>p==='/api/gold').length,1);
   await c.improvementsView('profile','','profile');assert.equal(calls.filter(p=>p==='/api/gold').length,2,'re-entry refetches');
  }
 });
 test('zero balances are real zeros; missing/failed balances never masquerade as zero',async()=>{
- const zero=ui({wallet:{balance:0,diamonds:{available:0}}});
+ const zero=ui({wallet:{balance:0}});
  assert.doesNotMatch((await zero.c.improvementsView('profile','','profile')).html,/다시 불러오기|—/);
  for(const options of [{error:Error('offline')},{wallet:{}},{wallet:{balance:'<bad>',diamonds:{available:null}}}]){
   const {c}=ui(options),view=await c.improvementsView('profile','','profile');
   assert.match(view.html,/다시 불러오기/);assert.match(view.html,/—/);assert.doesNotMatch(view.html,/<strong>0|<bad>/);
+  assert.match(view.html,/href="#inventory"/,'toolbox remains accessible even if gold fails to load');
  }
  const {c}=ui({error:Object.assign(Error('expired'),{status:401})});await assert.rejects(c.improvementsView('profile','','profile'),/expired/);
 });
@@ -38,6 +40,28 @@ test('guest, profile editor and other public routes never fetch or expose a priv
  const guest=ui({user:null});assert.match((await guest.c.improvementsView('profile','','profile')).html,/로그인/);assert.equal(guest.calls.length,0);
  const edit=ui();assert.doesNotMatch((await edit.c.improvementsView('profile','edit','profile/edit')).html,/my-balance/);assert.ok(!edit.calls.includes('/api/gold'));
  const pub=ui();assert.equal(await pub.c.improvementsView('producer','someone','producer/someone'),null);assert.equal(pub.calls.length,0);
+});
+
+test('gold checkout hides diamond balances while settlement retains the blue diamond wallet',()=>{
+ const {c}=ui();Object.assign(c,{inApp:false,AifectGifts:{GIFT_SETTLEMENT_NOTICE:'선물 안내'},section:title=>'<h2>'+title+'</h2>'});
+ vm.runInContext(read('dist/gold-checkout.js'),c);
+ const diamonds={available:12.34567,balance:12.34567,cash_value_krw:1234,min_payout_diamonds:100,partner:{eligible_krw:0}};
+ const gold=c.goldHTML({balance:1234,diamonds,packs:[{gold:100,price:1100}],checkout_available:true});
+ assert.doesNotMatch(gold,/diamond-wallet|💎|12\.34567/);
+ assert.match(gold,/1,234/);assert.match(gold,/data-buy-gold="100"/);
+ const settlement=c.diamondWalletHTML(diamonds);assert.match(settlement,/💎/);assert.match(settlement,/12\.34567/);
+});
+
+test('toolbox links to the existing authenticated inventory without creating a purchase flow',async()=>{
+ const {c}=ui();Object.assign(c,{AifectPlayer,heading:title=>'<h1>'+title+'</h1>'});
+ vm.runInContext(read('dist/player-progress.js'),c);
+ const d={inventory:[],rewards:[],player:{xp:0},profile:{},rules:[],recent:[]};
+ const rendered=c.playerInventoryHTML(d,{name:'QA'});
+ assert.match(rendered,/<h1>내 도구함<\/h1>/);assert.match(rendered,/보유 아이템/);assert.doesNotMatch(rendered,/다이아|data-buy-/);
+ const calls=[];c.api=async path=>{calls.push(path);return path==='/api/me/player'?d:{profile:{name:'QA'}};};
+ assert.match((await c.playerView('inventory')).html,/내 도구함/);
+ assert.deepEqual(calls,['/api/me/player','/api/me/profile']);
+ c.me=null;calls.length=0;assert.match((await c.playerView('inventory')).html,/로그인/);assert.equal(calls.length,0);
 });
 test('crew media preserves the entire image and frame versions map to unchanged reward keys',()=>{
  const css=read('dist/october-polish.css').match(/\.crew-main-image\{([^}]+)\}/)[1];

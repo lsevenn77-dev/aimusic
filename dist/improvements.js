@@ -1,12 +1,12 @@
 // Shared app/web flows: chosen profiles, crew activity and private conversations.
-// Private balances are fetched afresh on My; never put them in a public profile or route cache.
+// Private gold is fetched afresh on My; diamonds belong only on the settlement page.
 function myBalanceSummaryHTML(wallet){
  const valid=n=>typeof n==='number'&&Number.isFinite(n)&&n>=0;
- const gold=wallet?.balance,diamonds=wallet?.diamonds?.available,ready=valid(gold)&&valid(diamonds);
- return '<section class="my-balance-summary" aria-label="내 보유 재화"><div class="my-balance-grid">'+
+ const gold=wallet?.balance,ready=valid(gold);
+ return '<section class="my-balance-summary" aria-label="내 골드와 도구함"><div class="my-balance-grid">'+
   '<a class="my-balance-card my-balance-gold" href="#gold"><span class="my-balance-label"><span class="gold-coin" aria-hidden="true">G</span>보유 골드</span><strong>'+ (valid(gold)?number(gold):'—')+' <small>G</small></strong><span class="my-balance-link">충전 · 내역 보기 '+icon('chevron')+'</span></a>'+
-  '<a class="my-balance-card my-balance-diamond" href="#payouts"><span class="my-balance-label"><span class="diamond-emoji" aria-hidden="true">💎</span>사용 가능한 다이아</span><strong>'+(valid(diamonds)?diamondNumber(diamonds):'—')+' <small>다이아</small></strong><span class="my-balance-link">전환 · 정산 보기 '+icon('chevron')+'</span></a></div>'+
-  (ready?'':'<p class="my-balance-error" role="status">잔액을 불러오지 못했어요. <button type="button" class="text-link" data-my-wallet-retry>다시 불러오기</button></p>')+'</section>';
+  '<a class="my-balance-card my-toolbox-card" href="#inventory"><span class="my-balance-label">'+icon('gift')+'내 도구함</span><strong>액자 · 아이템</strong><span class="my-balance-link">보관함 열기 '+icon('chevron')+'</span></a></div>'+
+  (ready?'':'<p class="my-balance-error" role="status">골드 잔액을 불러오지 못했어요. <button type="button" class="text-link" data-my-wallet-retry>다시 불러오기</button></p>')+'</section>';
 }
 async function loadMyBalanceSummary(){
  try{return myBalanceSummaryHTML(await api('/api/gold','GET',undefined,{fresh:true}));}
