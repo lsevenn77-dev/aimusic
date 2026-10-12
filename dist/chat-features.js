@@ -1,7 +1,7 @@
 function dmMuteButton(p){return '<button type="button" class="icon-button dm-mute" data-dm-mute="'+esc(p.id)+'" data-muted="'+(p.muted?'1':'0')+'" aria-label="'+esc(p.name)+' 알림 '+(p.muted?'켜기':'끄기')+'" aria-pressed="'+Boolean(p.muted)+'">'+icon(p.muted?'bellOff':'bell')+'</button>';}
 function inboxControlsHTML(){return '<div class="inbox-tools"><button type="button" class="text-link" data-dm-read-all>모두 읽음</button></div>';}
 function crewInboxHTML(c){return c?'<a class="surface conversation-row pinned-crew" href="#dm/crew/'+esc(c.id)+'"><span class="crew-inbox-art">'+(c.image_version?'<img src="/media/crew/'+esc(c.id)+'?v='+esc(c.image_version)+'" alt="">':icon('users'))+'</span><div class="conversation-copy"><small>내 크루 · 고정</small><strong>'+esc(c.name)+'</strong><p>크루 채팅</p></div>'+(c.unread?'<span class="unread-badge">'+number(c.unread)+'</span>':'')+icon('chevron')+'</a>':'';}
-function dmThreadActions(p,settings={}){return '<div class="dm-thread-actions">'+dmMuteButton({...p,muted:settings?.muted})+'<button type="button" class="icon-button" data-dm-clear="'+esc(p.id)+'" aria-label="내 대화 전체 삭제">'+icon('trash')+'</button></div>';}
+function dmThreadActions(p,settings={}){return '<div class="dm-thread-actions">'+dmMuteButton({...p,muted:settings?.muted})+'<button type="button" class="icon-button" data-dm-clear="'+esc(p.id)+'" aria-label="이 대화방 내용 전체 삭제" title="이 대화방 내용 전체 삭제">'+icon('trash')+'</button></div>';}
 function chatAttachmentTools(p){return '<div class="chat-attachment-tools"><label class="icon-button" role="button" tabindex="0" aria-label="사진 보내기">'+icon('image')+'<input id="chat-image-file" type="file" accept="image/jpeg,image/png,image/webp" hidden></label>'+(p?'<button type="button" class="icon-button" data-profile-gift="'+esc(p.id)+'" aria-label="선물 보내기">'+icon('gift')+'</button>':'')+'<small>사진은 서버에 14일 동안 보관돼요.</small></div><p id="chat-upload-status" class="field-help" role="status"></p>';}
 function chatImageHTML(m,crew=false){const media=crew?'/media/crew-chat/':'/media/dm/';return m.image_expires&&m.image_expires*1000<=Date.now()?'<span class="expired-chat-image">보관 기간이 지난 사진</span>':'<a class="chat-image" href="'+media+esc(m.image_id)+'" target="_blank" rel="noopener"><img src="'+media+esc(m.image_id)+'" alt="받은 사진" loading="lazy"></a>';}
 async function uploadChatImage(path,file){const image=await optimizeUploadImage(file),r=await fetch(path,{method:'PUT',headers:{'content-type':'image/webp'},body:image});const d=await r.json();if(!r.ok)throw new Error(d.error||'이미지를 올리지 못했어요.');return d;}
@@ -30,7 +30,15 @@ document.addEventListener('click',async e=>{
  try{
   if(mute){const muted=mute.dataset.muted!=='1';await api('/api/dm/'+mute.dataset.dmMute+'/settings','PUT',{muted});mute.dataset.muted=muted?'1':'0';mute.setAttribute('aria-pressed',String(muted));mute.setAttribute('aria-label','대화 알림 '+(muted?'켜기':'끄기'));mute.innerHTML=icon(muted?'bellOff':'bell');toast(muted?'이 대화의 푸시 알림을 껐어요.':'이 대화의 푸시 알림을 켰어요.');}
   if(read){await api('/api/dm/read-all','POST');await render();}
-  if(clear){if(!confirm('내 '+(clear.dataset.dmClear==='all'?'DM 전체':'대화 기록')+'를 삭제할까요? 상대방의 기록은 유지되며 새 메시지는 다시 표시돼요.'))return;await api('/api/dm'+(clear.dataset.dmClear==='all'?'':'/'+clear.dataset.dmClear),'DELETE');if(location.hash!=='#dm')location.hash='dm';else await render();}
+  if(clear){
+   const peer=clear.dataset.dmClear,uid=me?.id,route=location.hash;
+   if(!uid||!peer||peer==='all')return;
+   if(!confirm('이 대화방의 내용을 전부 삭제할까요?\n내 화면의 이전 메시지와 사진이 모두 사라집니다. 상대방의 기록과 다른 대화방은 유지되며, 새 메시지는 계속 받을 수 있어요.'))return;
+   await api('/api/dm/'+encodeURIComponent(peer),'DELETE');
+   if(uid!==me?.id)return;
+   if(route===location.hash)await render();
+   toast('이 대화방의 내용을 모두 삭제했어요.');
+  }
   void refreshMessageBadge();
  }catch(err){toast(err.message);}finally{b.disabled=false;}
 });

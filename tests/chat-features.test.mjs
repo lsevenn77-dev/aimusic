@@ -20,6 +20,24 @@ test('per-account deletion hides old pages while preserving the recipient and ne
  assert.equal((await f.call('/api/dm','DELETE')).status,200);
  assert.equal((await f.call('/api/dm/summary')).body.unread,0);
 });
+test('clearing one room preserves other rooms, recipient history, and future messages',async t=>{
+ const f=await setup(t),path='/api/dm/'+f.p;
+ f.sql.exec("INSERT INTO users(id,email,name,created) VALUES('third','third@example.test','Third',0);INSERT INTO producers(id,user_id,name,created) VALUES('third-profile','third','Third',0)");
+ await f.call(path,'POST',msg('old outgoing'));
+ await f.call('/api/dm/producer','POST',msg('old incoming'),'other');
+ await f.call('/api/dm/third-profile','POST',msg('keep other room'));
+ assert.equal((await f.call(path,'DELETE')).status,200);
+ assert.equal((await f.call(path,'DELETE')).status,200,'repeated clear is safe');
+ for(const suffix of ['', '?before=999', '?after=1']) {
+  const response=await f.call(path+suffix);assert.equal(response.status,200);
+  assert.deepEqual(response.body.messages,[]);
+ }
+ assert.deepEqual((await f.call('/api/dm/third-profile')).body.messages.map(m=>m.body),['keep other room']);
+ assert.deepEqual((await f.call('/api/dm/producer','GET',null,'other')).body.messages.map(m=>m.body),['old outgoing','old incoming']);
+ await f.call('/api/dm/producer','POST',msg('new incoming'),'other');
+ assert.deepEqual((await f.call(path)).body.messages.map(m=>m.body),['new incoming']);
+});
+
 test('mute persists by peer and crew unread respects joining and read boundaries',async t=>{
  const f=await setup(t),path='/api/dm/'+f.p;
  await f.call(path,'POST',msg('hi'));assert.equal((await f.call(path+'/settings','PUT',{muted:true})).status,200);
