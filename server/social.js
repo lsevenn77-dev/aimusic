@@ -164,7 +164,7 @@ export async function socialRoute(req,env,path,user){
    const messages=await rows(env,`SELECT rowid sequence,id,request_id,sender_id,recipient_id,body,created,read_at,image_id,(SELECT expires FROM chat_images WHERE id=direct_messages.image_id) image_expires FROM direct_messages WHERE ((sender_id=? AND recipient_id=?) OR (sender_id=? AND recipient_id=?)) AND rowid>?${cursor?` AND rowid${before?'<':'>'}?`:''} ORDER BY rowid ${after?'ASC':'DESC'} LIMIT 101`,user.id,p.user_id,p.user_id,user.id,settings.cleared_sequence,...(cursor?[Number(cursor)]:[]));
    const has_more=messages.length>100;messages.length=Math.min(messages.length,100);if(!after)messages.reverse();
    const read_receipt=await one(env,'SELECT rowid sequence,read_at FROM direct_messages WHERE sender_id=? AND recipient_id=? AND read_at>0 ORDER BY rowid DESC LIMIT 1',user.id,p.user_id)||{sequence:0,read_at:0};
-   return json({peer:{id:p.id,name:p.name,image_version:p.image_version},settings,messages,has_more,read_receipt});
+   return json({peer:{id:p.id,user_id:p.user_id,name:p.name,image_version:p.image_version},settings,messages,has_more,read_receipt});
   }
   if(method==='PATCH'){await run(env,'UPDATE direct_messages SET read_at=? WHERE sender_id=? AND recipient_id=? AND read_at=0',now(),p.user_id,user.id);return json({ok:true});}
   if(method==='POST'){

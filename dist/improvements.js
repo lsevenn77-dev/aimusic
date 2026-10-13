@@ -41,7 +41,8 @@ function crewEditor(c=null){return `<h2>${c?'크루 소개 · 모집 수정':'�
 function crewDetailView(d,param,tab='music'){
  const c=d.crew,m=d.membership,allowed=['chat','members','music','about'];if(!allowed.includes(tab))tab='music';
  const intro='<section class="surface crew-intro"><p>'+esc(c.description)+'</p><p>'+esc(c.interests)+'</p><strong class="crew-meta">LV'+c.level+' · '+c.members+'/'+c.capacity+'명 · '+c.xp+' XP</strong><p>'+(c.next_xp?'다음 레벨까지 '+(c.next_xp-c.xp)+' XP':'최고 레벨이에요.')+'</p><p class="field-help">공개곡당 1 XP · 받은 선물 1골드당 1 XP · 하루 첫 크루 채팅 10 XP</p><div class="inline-actions">'+(m?'<button class="small-button" data-leave-crew="'+esc(c.id)+'">크루 탈퇴</button>'+(m.role==='owner'?'<button class="small-button" data-edit-crew="'+esc(c.id)+'">소개 · 모집 수정</button>':''):'<button class="primary-button" data-join-crew="'+esc(c.id)+'" '+(d.banned||!c.recruiting||c.members>=c.capacity?'disabled':'')+'>'+(d.banned?'가입할 수 없는 크루':c.recruiting?'크루 가입하기':'모집 마감')+'</button>')+'</div></section>';
- let html='<div class="crew-room-heading"><div><span class="eyebrow">'+(m?'MY CREW':'MUSIC CREW')+'</span><h1>'+esc(c.name)+'</h1><p>LV '+c.level+' · '+c.members+'명이 함께해요</p></div><a href="#community/crews?browse=1" class="text-link">'+icon('search')+' 크루 둘러보기</a></div>'+communityNavigation('crews');
+ let html=crewHeroHTML(c,m)+communityNavigation('crews');
+ if(tab==='music')return {html:html+'<nav class="tabs crew-room-tabs" aria-label="크루 활동"><a class="tab active" href="#crew/'+esc(c.id)+'" aria-current="page">홈</a><a class="tab" href="#crew/'+esc(c.id)+'?tab=members">크루원</a><a class="tab" href="#crew/'+esc(c.id)+'?tab=about">소개</a></nav>'+crewHomeLayout(d,intro),tracks:d.tracks,crew:c,chat:null};
  if(m){html+='<nav class="tabs crew-room-tabs" aria-label="내 크루 활동">'+[['music','홈'],['members','크루원'],['about','소개']].map(([key,label])=>'<a class="tab '+(tab===key?'active':'')+'" href="#crew/'+esc(c.id)+'?tab='+key+'" '+(tab===key?'aria-current="page"':'')+'>'+label+'</a>').join('')+'</nav>';
   if(tab==='chat')html+='<p class="crew-chat-intro">크루원들과 지금 듣는 음악과 이야기를 나눠보세요.</p>'+chatPanelHTML('크루 채팅');
   if(tab==='members')html+=section('함께하는 크루원')+'<div class="crew-people">'+crewPeopleHTML(d)+'</div>';
@@ -89,9 +90,11 @@ async function improvementsView(base,param,raw){
   if(base==='library'){const d=await api('/api/me/profile');return {html:heading('팔로워')+libraryTabs('followers')+(d.followers.length?peopleListHTML(d.followers,'producer'):'<p class="surface">아직 팔로워가 없어요.</p>')};}
   if(base==='payouts')return {html:heading('정산')+earningsHTML(await api('/api/studio/earnings'))};
   if(base==='rewards'){const d=await api('/api/gold');return {html:`<div class="rewards-page">${heading('오늘의 응원별','작은 활동을 모아 좋아하는 음악에 응원해보세요.')}<div id="gift-shop-rewards">${freeRewardsHTML(d.free)}</div></div>`};}
-  if(param==='crew')return crewChatView(raw);
+  if(param==='crew')return dmWorkspaceView(await crewChatView(raw));
+  if(param==='blocked')return blockedPeopleView();
   if(!param){const d=await api('/api/dm');return {html:dmInboxHTML(d),inbox:true};}
-  const d=await api('/api/dm/'+encodeURIComponent(param));return {html:'<header class="dm-thread-header"><a href="#dm" class="small-button dm-back" aria-label="대화 목록으로 돌아가기">'+icon('back')+' 뒤로</a>'+dmProfileLink(d.peer,portrait(d.peer,'producer')+'<div><h1>'+esc(d.peer.name)+'</h1><small>프로필 보기</small></div>','dm-thread-person')+dmThreadActions(d.peer,d.settings)+'</header>'+chatPanelHTML('개인 메시지',d,d.peer),chat:{path:'/api/dm/'+param,peer:d.peer,initial:d}};
+  const blockList=await api('/api/blocks');if(blockList.blocks.some(p=>p.profile_id===param))return blockedPeopleView(param,blockList);
+  let d;try{d=await api('/api/dm/'+encodeURIComponent(param));}catch(e){if(e.status===403){const blocked=await blockedPeopleView(param);if(blocked)return blocked;}throw e;}return dmWorkspaceView({html:'<header class="dm-thread-header"><a href="#dm" class="small-button dm-back" aria-label="대화 목록으로 돌아가기">'+icon('back')+' 뒤로</a>'+dmProfileLink(d.peer,portrait(d.peer,'producer')+'<div><h1>'+esc(d.peer.name)+'</h1><small>프로필 보기</small></div>','dm-thread-person')+dmThreadActions(d.peer,d.settings)+'</header>'+chatPanelHTML('개인 메시지',d,d.peer),chat:{path:'/api/dm/'+param,peer:d.peer,initial:d}});
  }
  return null;
 }
@@ -101,6 +104,7 @@ async function libraryProfileHTML(){
 }
 function bindCrewForm(){const form=$('#crew-form');form.onsubmit=busyForm(form,async fd=>{const cid=form.dataset.crew;const d=await api('/api/crews'+(cid?'/'+cid:''),cid?'PATCH':'POST',{name:fd.get('name'),description:fd.get('description'),interests:fd.get('interests'),recruiting:fd.has('recruiting')});const file=fd.get('crew_image');if(cid&&file?.size)await uploadChatImage('/api/crews/'+cid+'/image',file);$('#dialog').close();location.hash='crew/'+d.crew.id;if(cid)await render();});}
 function bindImprovements(view){
+ bindCrewHome(view);
  const walletRetry=$('[data-my-wallet-retry]');if(walletRetry)walletRetry.onclick=async()=>{walletRetry.disabled=true;try{await render();}finally{walletRetry.disabled=false;}};
  const profile=$('#public-profile-form');if(profile)profile.onsubmit=busyForm(profile,async fd=>{
   await api('/api/me/profile','PUT',{name:fd.get('name'),bio:fd.get('bio')});const image=fd.get('image');

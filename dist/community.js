@@ -17,6 +17,7 @@ function communityRouteOptions(base,param,raw=''){
 }
 function communityViewHTML(base,param,raw='',data=null){
  const {tab,open}=communityRouteOptions(base,param,raw),tracks=data?.tracks||[];
+ if(tab==='all')return {html:communityLandingHTML(tracks,data),tracks};
  let html=heading('커뮤니티','좋은 음악을 듣고, 담고, 함께 만들어가요.')+communityNavigation(tab);
  if(tab==='rankings'){const options={...coverRankOptions(raw),limit:50};return {html:html+coverDiscoveryHTML(options)+coverRankingShell(options),tracks:[],coverRanking:options};}
  if(tab==='following'&&!me){returnRoute=location.hash;return {html:html+gate()};}
@@ -76,6 +77,7 @@ async function loadCommunityCrews(host,ticket){
  if(!host)return;
  const account=me?.id||'guest',revision=typeof apiRevision==='number'?apiRevision:0,current=()=>host.isConnected&&ticket===renderId&&account===(me?.id||'guest')&&revision===(typeof apiRevision==='number'?apiRevision:0);
  const paint=d=>{
+ if(host.classList.contains('community-side-crews')){host.innerHTML=communityCrewSidebarHTML(d);return;}
  const all=d.crews||[],mine=all.find(c=>c.id===d.mine),crews=[...all].filter(c=>c.id!==d.mine).sort((a,b)=>(Number(b.xp)||0)-(Number(a.xp)||0)).slice(0,mine?2:3);
  if(mine){host.innerHTML='<div class="music-community-heading"><h2>내 크루</h2><a class="text-link" href="#community/crews?browse=1">다른 크루 둘러보기</a></div><div class="surface my-crew-preview"><div><strong>'+esc(mine.name)+'</strong><p>'+number(mine.members)+'명 · '+esc(mine.interests||'함께 듣는 음악')+'</p></div><nav aria-label="내 크루 바로가기">'+[['chat','message','대화'],['members','users','크루원'],['music','music','음악']].map(([tab,symbol,label])=>'<a href="'+(tab==='chat'?'#dm/crew/'+esc(mine.id):'#crew/'+esc(mine.id)+'?tab='+tab)+'">'+icon(symbol)+label+'</a>').join('')+'</nav></div>';return;}
  host.innerHTML='<div class="music-community-heading"><h2>음악으로 모이는 크루</h2><a class="text-link" href="#community/crews">모두 보기</a></div>'+(crews.length?'<div class="music-crew-preview-grid">'+crews.map(c=>'<a href="#crew/'+esc(c.id)+'"><strong>'+esc(c.name)+'</strong><span>'+esc(c.interests||'함께 듣고 부르는 음악')+'</span><small>'+number(c.members)+'명 · LV '+number(c.level)+'</small></a>').join('')+'</div>':'<a class="music-crew-entry" href="#community/crews">취향이 맞는 크루를 찾아보세요.</a>');

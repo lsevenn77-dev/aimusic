@@ -41,7 +41,7 @@ async function render(){
  const main=$('#main'),account=me?.id||'guest';navigationRefreshCleanup?.();navigationRefreshCleanup=null;
  const previous=navigationSnapshots.get(navigationKey(main.dataset.route));if(previous&&main.dataset.account===account)previous.scroll=window.scrollY||0;
  let cached=navigationSnapshots.get(navigationKey(raw));
- const pendingView=(typeof crewPendingView==='function'?crewPendingView(base,param,raw):null)||(typeof communityPendingView==='function'?communityPendingView(base,param,raw):null);
+ const pendingView=(typeof crewPendingView==='function'?crewPendingView(base,param,raw):null)||(typeof communityPendingView==='function'?communityPendingView(base,param,raw):null)||(typeof dmPendingView==='function'?dmPendingView(base,param,raw):null);
  if(!(cached&&cached.account===account&&cached.revision===apiRevision&&cached.until>Date.now())&&pendingView?.cached&&canCacheRoute(raw))cached={...pendingView,account,revision:apiRevision,until:Date.now()+60000,explorer:pendingView,scroll:0};
  const restored=canCacheRoute(raw)&&cached&&cached.account===account&&cached.revision===apiRevision&&cached.until>Date.now();
  let refreshWatch=null;

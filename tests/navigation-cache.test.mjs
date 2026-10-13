@@ -91,6 +91,7 @@ test('a mutation finishing during navigation retries the current route instead o
 test('community tabs paint before account initialization and cached API feeds warm first visits',{timeout:3000},async()=>{
  const held=deferred();const c=renderer(async()=>held.promise);
  Object.assign(c.context,{coverCollectionHTML:tracks=>tracks.map(t=>t.title).join(','),communityFeed:tracks=>tracks.map(t=>t.title).join(','),musicIsOpenDuet:()=>false});
+ vm.runInContext(source('social-layouts.js'),c.context);
  vm.runInContext(source('community.js'),c.context);c.run('browseView=(base,param,raw)=>base===\'community\'?communityView(base,param,raw):null;');
  const account=deferred();c.context.accountReady=account.promise;
  const opening=c.navigate('community');assert.match(c.main.innerHTML,/music-community-tabs/);assert.match(c.main.innerHTML,/#community\/crews/);

@@ -36,7 +36,7 @@ function clearContext({confirmed=true,request=async()=>({})}={}){
     api:async(...args)=>{calls.push(args);return request(...args);},render:async()=>{renders++;},toast:message=>notices.push(message),
     document:{addEventListener:(name,fn)=>{if(name==='click')listeners.push(fn);}},window:{addEventListener(){}},setInterval(){}});
   vm.runInContext(read('chat-features.js'),c);c.refreshMessageBadge=()=>{};
-  return {c,button,calls,confirmations,notices,get renders(){return renders;},click:()=>listeners[0]({target:{closest:selector=>selector==='[data-dm-clear]'?button:null},preventDefault(){},stopPropagation(){}})};
+  return {c,button,calls,confirmations,notices,get renders(){return renders;},click:()=>listeners.find(fn=>String(fn).includes('data-dm-clear'))({target:{closest:selector=>selector==='[data-dm-clear]'?button:null},preventDefault(){},stopPropagation(){}})};
 }
 test('whole-room clear requires confirmation, targets one peer, and remains in the open room',async()=>{
   const f=clearContext();await f.click();
