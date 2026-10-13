@@ -11,7 +11,7 @@ const read=file=>readFileSync(new URL('../'+file,import.meta.url),'utf8');
 const esc=s=>String(s??'').replaceAll('<','&lt;').replaceAll('"','&quot;');
 function ui({profile={id:'producer',name:'QA'},wallet={balance:1234,diamonds:{available:12.34567}},error,user={id:'owner'}}={}){
  const calls=[],c=vm.createContext({me:user,URLSearchParams,location:{hash:'#profile'},document:{addEventListener(){}},window:{addEventListener(){}},
-  esc,number:n=>Number(n).toLocaleString('ko-KR'),icon:()=>'',myPageHeading:()=>'<h1>마이</h1>',personProfileHTML:()=>'<article>PROFILE</article>',musicProfileItems:()=>[],
+  esc,number:n=>Number(n).toLocaleString('ko-KR'),icon:()=>'',myPageHeading:()=>'<h1>마이</h1>',personProfileHTML:(_d,_id,_tab,balances='')=>'<article>PROFILE'+balances+'</article>',musicProfileItems:()=>[],
   playerProgressHTML:()=>'',musicMyShortcuts:()=>'',heading:()=>'',portrait:()=>'',formField:()=>'',gate:()=>'<h1>로그인</h1>',
   api:async path=>{calls.push(path);if(path==='/api/gold'){if(error)throw error;return wallet;}if(path==='/api/me/profile')return {profile};if(path.startsWith('/api/producers/'))return {profile};throw Error('Unexpected '+path);}});
  vm.runInContext(read('dist/diamonds.js'),c);vm.runInContext(read('dist/improvements.js'),c);

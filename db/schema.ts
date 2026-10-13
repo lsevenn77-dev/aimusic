@@ -164,6 +164,9 @@ export const creatorPartners=sqliteTable('creator_partners',{
 export const giftExclusions=sqliteTable('gift_exclusions',{
  giftId:text('gift_id').primaryKey().references(()=>gifts.id),reason:text('reason').notNull(),reviewedBy:text('reviewed_by').notNull(),created:integer('created').notNull()
 });
+export const profilePhotos=sqliteTable('profile_photos',{
+ id:text('id').primaryKey(),producerId:text('producer_id').notNull().references(()=>producers.id,{onDelete:'cascade'}),imageVersion:text('image_version').notNull(),imageType:text('image_type').notNull(),created:integer('created').notNull()
+},t=>[index('profile_photos_producer_created').on(t.producerId,t.created)]);
 export const streamSettlements=sqliteTable('stream_settlements',{
  period:text('period').primaryKey(),paidKrw:integer('paid_krw').notNull(),refundedKrw:integer('refunded_krw').notNull(),feeKrw:integer('fee_krw').notNull(),taxKrw:integer('tax_krw').notNull(),poolMw:integer('pool_mw').notNull(),allocatedMw:integer('allocated_mw').notNull(),evidence:text('evidence').notNull(),reviewedBy:text('reviewed_by').notNull(),created:integer('created').notNull()
 });

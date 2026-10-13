@@ -302,6 +302,13 @@
       "when": 1791732164829,
       "tag": "0042_goofy_risque",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "6",
+      "when": 1791868733359,
+      "tag": "0043_ambiguous_leader",
+      "breakpoints": true
     }
   ]
 }
