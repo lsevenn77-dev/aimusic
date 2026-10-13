@@ -47,3 +47,9 @@ test('new markup and last stylesheet are packaged, without replacing existing bi
  for(const script of ['gold-checkout.js','karaoke-core.js','audio-ads.js','social-chat.js'])assert.match(index,new RegExp(script.replace('.','\\.')));
 });
 
+test('desktop content clears the fixed sidebar and mobile uses the full viewport',()=>{
+ const css=read('page-redesign.css');
+ assert.match(css,/\.page-wrap\{width:calc\(100% - var\(--sidebar\)\);max-width:none;margin-left:var\(--sidebar\);margin-right:0\}/);
+ assert.match(css,/@media\(max-width:800px\)\{\.page-wrap\{width:100%;margin-left:0;margin-right:0;padding-inline:0\}\}/);
+});
+

@@ -1,11 +1,12 @@
 /* Selected page concepts, adapted to real AIFECT data and existing controls. */
 :root{--page-panel:#1a2230;--page-stroke:#ffffff0d;--page-pink:#ed91bc;--page-soft:#afb9c9}
+.page-wrap{width:calc(100% - var(--sidebar));max-width:none;margin-left:var(--sidebar);margin-right:0}
 main{max-width:1512px;margin-inline:auto;min-width:0}
 main[data-route] .page-heading h1{letter-spacing:-.055em}
 main :is(.song-main-column,.song-sidebar,.profile-music-main,.profile-about,.library-playlists-pane,.library-likes-pane){min-width:0}
 :is(.profile-gallery-strip,.song-page-layout,.profile-page-layout,.message-workspace,.library-overview,.sing-discover) svg{width:20px;height:20px;flex-shrink:0}
 .profile-gallery-strip{margin:0 0 26px}
-.profile-gallery-strip .section-heading{margin-bottom:14px;align-items:center}
+.profile-gallery-strip .section-heading{margin-bottom:14px;align-items:center;justify-content:space-between}
 .profile-gallery-strip h2{font-size:1.06rem;margin:5px 0 0}.profile-gallery-strip h2 small{font-size:.8rem;font-weight:400;color:var(--page-soft);margin-left:5px}
 .profile-gallery-strip .eyebrow{font-size:.61rem;letter-spacing:.18em;color:var(--page-pink)}
 .profile-gallery-photos{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;padding:0 0 10px;scrollbar-width:thin;scrollbar-color:#536177 transparent}
@@ -183,6 +184,7 @@ main[data-route^="sing/"]{background:radial-gradient(ellipse at 50% 25%,#5834493
  main[data-route="gifts"]>.gift-catalog{grid-template-columns:repeat(3,minmax(0,1fr))}
  .profile-gallery-photos figure{height:200px;flex-basis:calc((100% - 24px)/3)}
 }
+@media(max-width:800px){.page-wrap{width:100%;margin-left:0;margin-right:0;padding-inline:0}}
 @media(max-width:760px){
  .profile-gallery-photos figure{height:220px;flex-basis:61%}.profile-gallery-strip{margin-bottom:20px}
  main .person-profile.social-profile-square{gap:17px!important;align-items:flex-start;padding:2px 0 22px}
