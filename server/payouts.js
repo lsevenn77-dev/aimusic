@@ -37,15 +37,15 @@ export function residentNumber(value,today=new Date()){
 const nextMonthDay=(month,day)=>{const [y,m]=month.split('-').map(Number);return new Date(Date.UTC(y,m,day)).toISOString().slice(0,10);};
 const accountSummary=row=>row?{holder:row.holder,bank:row.bank,account:'****'+row.account_last4,resident:row.resident_hint,updated:row.updated}:null;
 async function profileOf(env,userId){return one(env,'SELECT id FROM producers WHERE user_id=?',userId);}
-async function hasEarnings(env,userId){if(await one(env,"SELECT 1 FROM diamond_ledger WHERE user_id=? AND kind IN ('gift','stream') LIMIT 1",userId))return true;const p=await profileOf(env,userId);return !!p&&!!await one(env,'SELECT 1 FROM gifts WHERE (singer_profile_id=? AND singer_mw>0) OR (creator_profile_id=? AND creator_mw>0) LIMIT 1',p.id,p.id);}
+async function hasEarnings(env,userId){return !!await one(env,"SELECT 1 FROM diamond_ledger WHERE user_id=? AND kind IN ('gift','stream') UNION ALL SELECT 1 FROM gifts g JOIN producers p ON (g.singer_profile_id=p.id AND g.singer_mw>0) OR (g.creator_profile_id=p.id AND g.creator_mw>0) WHERE p.user_id=? LIMIT 1",userId,userId);}
 
 // What the studio shows: statements already issued, the account on file, and whether registration is open yet.
 export async function creatorPayouts(env,userId){
- const [account,statements,earning]=await Promise.all([
+ const [account,statements,earning,period]=await Promise.all([
   one(env,'SELECT * FROM payout_accounts WHERE user_id=?',userId),
   rows(env,'SELECT id,period,from_month,gross_krw,income_tax_krw,local_tax_krw,net_krw,status,due_on,paid_at FROM payout_statements WHERE user_id=? ORDER BY period DESC LIMIT 36',userId),
-  hasEarnings(env,userId)]);
- return {account:accountSummary(account),can_register:earning,statements,banks:BANKS,last_period:(await one(env,"SELECT max(period) p FROM payout_periods")).p||null};
+  hasEarnings(env,userId),one(env,"SELECT max(period) p FROM payout_periods")]);
+ return {account:accountSummary(account),can_register:earning,statements,banks:BANKS,last_period:period.p||null};
 }
 
 async function audit(env,admin,action,target){await run(env,'INSERT INTO admin_audit(id,admin_id,action,target,created) VALUES(?,?,?,?,?)',id(),admin.id,action,target,now());}

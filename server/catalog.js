@@ -128,16 +128,19 @@ export async function catalogRoute(req,env,path,user){
  m=path.match(/^\/api\/(artists|producers)\/([\w-]+)(\/follow)?$/);
  if(m){
   const kind=m[1]==='artists'?'artist':'producer';
-  const entity=await one(env,`SELECT id,${kind==='producer'?producerNameSQL('producers'):'name'} name,bio,created,image_version${kind==='producer'?',banner_version,user_id':''} FROM ${m[1]} WHERE id=?${kind==='artist'?' AND '+namedArtistSQL('name'):''}`,m[2]);if(!entity)fail(404,'프로필을 찾을 수 없습니다.');if(kind==='producer')entity.display_name=(await one(env,`SELECT ${memberNameSQL()} name FROM producers p WHERE p.id=?`,entity.id)).name;
+  const entity=await one(env,`SELECT id,${kind==='producer'?producerNameSQL('producers'):'name'} name,bio,created,image_version${kind==='producer'?',banner_version,user_id,'+memberNameSQL('producers')+' display_name':''} FROM ${m[1]} WHERE id=?${kind==='artist'?' AND '+namedArtistSQL('name'):''}`,m[2]);if(!entity)fail(404,'프로필을 찾을 수 없습니다.');
   const owner=kind==='producer'?entity:await one(env,'SELECT p.user_id FROM artists a JOIN producers p ON p.id=a.producer_id WHERE a.id=?',entity.id);assertUnblocked(env,owner?.user_id);
   if(!m[3]&&method==='GET'){
-   const [count,tracks,covers,gifts]=await Promise.all([
+   const [count,tracks,covers,gifts,partner,identity,gallery]=await Promise.all([
     one(env,'SELECT count(*) n FROM follows WHERE kind=? AND target_id=?',kind,entity.id),
     trackList(env,`${VISIBLE()} AND t.kind='original' AND t.${kind}_id=?`,[entity.id]),
     kind==='producer'?trackList(env,`${VISIBLE()} AND t.kind='cover' AND (t.producer_id=? OR dt.producer_id=?)`,[entity.id,entity.id]):null,
-    kind==='producer'?profileGifts(env,entity.id):null
+    kind==='producer'?profileGifts(env,entity.id):null,
+    kind==='producer'?partnerState(env,entity.user_id):null,
+    kind==='producer'?playerIdentity(env,entity.user_id):null,
+    kind==='producer'?profileGallery(env,entity.id):artistGallery(env,entity.id)
    ]);
-   return json({profile:kind==='producer'?{...entity,partner_badge:(await partnerState(env,entity.user_id)).badge,...await playerIdentity(env,entity.user_id)}:entity,tracks,followers:count.n,...(kind==='producer'?{covers,gifts,gallery:await profileGallery(env,entity.id),gallery_limit:PROFILE_GALLERY_LIMIT}:{gallery:await artistGallery(env,entity.id),can_manage:user?.id===owner?.user_id,gallery_limit:GALLERY_LIMIT})});
+   return json({profile:kind==='producer'?{...entity,partner_badge:partner.badge,...identity}:entity,tracks,followers:count.n,gallery,...(kind==='producer'?{covers,gifts,gallery_limit:PROFILE_GALLERY_LIMIT}:{can_manage:user?.id===owner?.user_id,gallery_limit:GALLERY_LIMIT})});
   }
   requireUser(user);
   if(method==='PUT')await run(env,'INSERT OR IGNORE INTO follows(user_id,kind,target_id,created) VALUES(?,?,?,?)',user.id,kind,entity.id,now());

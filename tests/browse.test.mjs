@@ -12,13 +12,14 @@ function viewContext(responses={},user=null){
   portrait:()=>'',followed:()=>false,cover:()=>'',credits:()=>'',trackStats:()=>'',time:()=>'',liked:()=>false,duetLobbyHTML:()=>'<h2>참여를 기다리는 듀엣</h2>',
   api:async path=>{calls.push(path);if(!(path in responses))throw Error('Unexpected API '+path);return responses[path];},
   list:tracks=>tracks.map(t=>esc(t.title)).join(','),section:title=>`<h2>${esc(title)}</h2>`,
-  library:{follows:[]},refreshLibrary:async()=>{},identityCards:()=>'',moodOptions:[],genres:[]
+  library:{follows:[]},refreshLibrary:async()=>{},identityCards:()=>'',moodOptions:[],genres:[],remember:()=>{}
  });
  vm.runInContext(readFileSync(new URL('../dist/app.js',import.meta.url),'utf8').match(/^const hasArtist=.*$/m)[0],context);
  vm.runInContext(readFileSync(new URL('../dist/music-ui.js',import.meta.url),'utf8'),context);
  vm.runInContext(readFileSync(new URL('../dist/community.js',import.meta.url),'utf8'),context);
  vm.runInContext(readFileSync(new URL('../dist/browse.js',import.meta.url),'utf8'),context);
  vm.runInContext(readFileSync(new URL('../dist/page-redesign.js',import.meta.url),'utf8'),context);
+ vm.runInContext(readFileSync(new URL('../dist/release-refinements.js',import.meta.url),'utf8'),context);
  return {context,calls,view:(base,param,raw='')=>context.browseView(base,param,raw)};
 }
 test('karaoke chart contains covers only and reports an empty chart without substituting MR originals',async()=>{

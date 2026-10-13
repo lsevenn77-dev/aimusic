@@ -1,5 +1,5 @@
 import {one,rows,query,run,now,id,fail,json,rate} from './db.js';
-import {requireUser,appleClientSecret} from './auth.js';
+import {requireUser,appleClientSecret,viewerBlockedIds} from './auth.js';
 import {cancelSubscription} from './billing.js';
 
 const encoder=new TextEncoder();
@@ -26,6 +26,8 @@ export async function revokeAppleLogin(env,uid){
 
 export async function blockedContext(env,user){
  if(!user)return env;
+ const resolved=viewerBlockedIds(user);
+ if(resolved)return {...env,AIFECT_VIEWER_ID:user.id,AIFECT_BLOCKED:resolved};
  const blocked=await rows(env,'SELECT CASE WHEN user_id=? THEN blocked_id ELSE user_id END id FROM user_blocks WHERE user_id=? OR blocked_id=?',user.id,user.id,user.id);
  return {...env,AIFECT_VIEWER_ID:user.id,AIFECT_BLOCKED:blocked.map(x=>x.id)};
 }
@@ -34,8 +36,9 @@ export function assertUnblocked(env,uid){if(env.AIFECT_BLOCKED?.includes(uid))fa
 export async function filterBlockedResponse(env,response){
  if(!env.AIFECT_BLOCKED?.length||!response.ok||!response.headers.get('content-type')?.includes('application/json'))return response;
  const ids=env.AIFECT_BLOCKED,marks=ids.map(()=>'?').join(',');
- const profiles=await rows(env,`SELECT id FROM producers WHERE user_id IN (${marks})`,...ids);
- const artists=await rows(env,`SELECT a.id FROM artists a JOIN producers p ON p.id=a.producer_id WHERE p.user_id IN (${marks})`,...ids);
+ const [profiles,artists]=await Promise.all([
+  rows(env,`SELECT id FROM producers WHERE user_id IN (${marks})`,...ids),
+  rows(env,`SELECT a.id FROM artists a JOIN producers p ON p.id=a.producer_id WHERE p.user_id IN (${marks})`,...ids)]);
  const all=new Set([...ids,...profiles.map(p=>p.id),...artists.map(a=>a.id)]);
  const hidden=o=>o&&typeof o==='object'&&['user_id','producer_id','artist_id','profile_id','target_id'].some(k=>all.has(o[k]));
  const clean=o=>Array.isArray(o)?o.filter(x=>!hidden(x)&&!(x&&all.has(x.id))).map(clean):o&&typeof o==='object'?Object.fromEntries(Object.entries(o).map(([k,v])=>[k,clean(v)])):o;

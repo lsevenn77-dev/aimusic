@@ -13,7 +13,12 @@ const inApp=!!window.Capacitor?.isNativePlatform?.();
 let queue=[],current=null,playSession=null,preview=false,heard=0,lastTick=0,repeatMode=0,shuffle=false,playSerial=0,pendingResume=null,reportBusy=false;
 try{pendingResume=JSON.parse(sessionStorage.getItem('aifect-player-resume')||'null');}catch{}
 function icons(){document.querySelectorAll('[data-icon]').forEach(el=>{el.innerHTML=icon(el.dataset.icon);el.removeAttribute('data-icon');});}
-function toast(message){$('#toast').textContent=message;$('#toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').classList.remove('show'),4500);}
+function toast(message,kind=''){
+ const el=$('#toast');if(!el)return;
+ const tone=['success','error','info'].includes(kind)?kind:/실패|못했|없습니다|없어요|오류/.test(message)?'error':/저장했|저장됐|완료|보냈|추가했|삭제했|전송했/.test(message)?'success':'info';
+ el.dataset.tone=tone;el.innerHTML='<span class="toast-symbol" aria-hidden="true">'+(tone==='success'?'✓':tone==='error'?'!':'♪')+'</span><span class="toast-copy">'+esc(message)+'</span>';
+ el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),4500);
+}
 function invalidateReads(){apiRevision++;apiReads.clear();if(typeof clearNavigationSnapshots==='function')clearNavigationSnapshots();if(typeof clearCrewNavigation==='function')clearCrewNavigation();}
 function invalidatesBrowseReads(path,method){
  if(method==='GET'||/^\/api\/(playback|listens)\//.test(path))return false;

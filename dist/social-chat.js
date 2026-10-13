@@ -1,6 +1,24 @@
 const crewRoleLabels={owner:'크루장',deputy:'부크루장',operator:'운영자',manager:'매니저',member:'크루원'};
 const crewDisplayName=p=>p.name+(p.role&&p.role!=='member'?'('+(crewRoleLabels[p.role]||'크루원')+')':'');
-function crewPeopleHTML(d){return d.members.map(p=>{const content=portrait(p,'producer')+`<strong>${esc(crewDisplayName(p))}</strong>`;return d.membership?.role==='owner'&&p.role!=='owner'?`<button class="crew-person" data-crew-member="${esc(p.id)}" data-crew="${esc(d.crew.id)}">${content}</button>`:`<a href="#producer/${esc(p.id)}">${content}</a>`;}).join('');}
+function crewPeopleHTML(d){return d.members.map(p=>{const content=portrait(p,'producer')+'<span class="crew-person-copy"><strong>'+esc(p.name)+'</strong><small>'+esc(crewRoleLabels[p.role]||'크루원')+'</small></span>';return d.membership?.role==='owner'&&p.role!=='owner'?`<button class="crew-person" data-crew-member="${esc(p.id)}" data-crew="${esc(d.crew.id)}">${content}</button>`:`<a href="#producer/${esc(p.id)}">${content}</a>`;}).join('');}
+function bindChatEnter(input,submit){
+ let composing=false,pendingEnter=false;
+ input.addEventListener('compositionstart',()=>{composing=true;pendingEnter=false;});
+ input.addEventListener('compositionend',()=>{
+  composing=false;
+  // Wait for the IME's final input event, then submit the committed syllable or consonants once.
+  if(pendingEnter)queueMicrotask(()=>{if(pendingEnter&&!composing){pendingEnter=false;submit();}});
+ });
+ input.addEventListener('keydown',event=>{
+  if(event.key!=='Enter'||event.shiftKey){pendingEnter=false;return;}
+  if(event.repeat)return;
+  if(composing||event.isComposing||event.keyCode===229){pendingEnter=true;return;}
+  pendingEnter=false;event.preventDefault();submit();
+ });
+ // Safari may deliver compositionend before the Enter keydown with keyCode 229.
+ input.addEventListener('keyup',event=>{if(event.key==='Enter'&&!event.shiftKey&&pendingEnter&&!composing){pendingEnter=false;submit();}});
+ return ()=>composing;
+}
 function dmProfileLink(p,content,cls='dm-profile-link'){return '<a class="'+cls+'" href="#producer/'+esc(p.id)+'" aria-label="'+esc(p.name)+' 프로필 보기">'+content+'</a>';}
 function conversationListHTML(conversations,crew=null,selected=''){return crewInboxHTML(crew,selected)+(conversations.length?'<div class="conversation-list">'+conversations.map(p=>'<article class="surface conversation-row'+(selected===p.id?' is-selected':'')+'">'+dmProfileLink(p,portrait(p,'producer'))+'<a class="conversation-open" href="#dm/'+esc(p.id)+'"'+(selected===p.id?' aria-current="true"':'')+'><div class="conversation-copy"><strong>'+esc(p.name)+'</strong><p>'+esc(p.last_message||'대화를 시작해보세요.')+'</p></div><div class="conversation-meta"><time>'+new Date(p.updated*1000).toLocaleDateString('ko-KR',{month:'numeric',day:'numeric'})+'</time>'+(p.unread?'<span class="unread-badge" aria-label="안 읽은 메시지 '+p.unread+'개">'+number(p.unread)+'</span>':'')+'</div></a>'+dmMuteButton(p)+'</article>').join('')+'</div>':'<div class="surface dm-empty"><h2>아직 나눈 대화가 없어요</h2><p>프로필의 DM 보내기로 대화를 시작해보세요.<br>대화를 나눈 사람별로 이곳에 모아둘게요.</p><a class="small-button" href="#following">팔로우한 사람 보기</a></div>');}
 function chatHTML(messages,peer=null,crew=null){
@@ -86,8 +104,7 @@ function bindSocialChat(view){
   finally{fetching=false;earlier.disabled=false;if(again&&older&&current())void load();}
  };
  earlier.onclick=()=>{earlier.disabled=true;load(true);};
- let composing=false,compositionEnded=0;input.addEventListener('compositionstart',()=>{composing=true;});input.addEventListener('compositionend',()=>{composing=false;compositionEnded=performance.now();});
- input.addEventListener('keydown',event=>{if(!composing&&performance.now()-compositionEnded>80&&event.key==='Enter'&&!event.shiftKey&&!event.isComposing&&event.keyCode!==229){event.preventDefault();if(input.value.trim()&&!sendButton.disabled)form.requestSubmit();}});
+ const isComposing=bindChatEnter(input,()=>{if(input.isConnected&&current()&&input.value.trim()&&!sendButton.disabled)form.requestSubmit();});
  const send=async pending=>{
   const generation=chatGeneration;
   if(sending||denied||!current())throw new Error('전송 중인 메시지가 있어요. 잠시 후 사진을 다시 선택해주세요.');sending=true;sendButton.disabled=true;pending.delivery='sending';messages.set(pending.id,pending);paint(false,true);$('#chat-error').textContent='';
@@ -99,7 +116,7 @@ function bindSocialChat(view){
    if([401,403].includes(e.status))deny();
   }}finally{sending=false;if(current())sendButton.disabled=denied;}
  };
- form.onsubmit=event=>{event.preventDefault();if(composing||sending||denied||form.dataset.uploading||!input.value.trim())return;const rid=crypto.randomUUID(),body=input.value.trim();input.value='';
+ form.onsubmit=event=>{event.preventDefault();if(isComposing()||sending||denied||form.dataset.uploading||!input.value.trim())return;const rid=crypto.randomUUID(),body=input.value.trim();input.value='';
   void send({id:'pending:'+rid,request_id:rid,body,created:Math.floor(Date.now()/1000),user_id:uid,sender_id:uid,name:me.name,profile_id:me.profile_id,role:crew?.owner?'owner':'member'});
  };
  log.addEventListener('click',event=>{const retry=event.target.closest('[data-chat-retry]');if(retry&&messages.has(retry.dataset.chatRetry))void send(messages.get(retry.dataset.chatRetry));});

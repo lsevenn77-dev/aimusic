@@ -13,7 +13,7 @@ function ui({profile={id:'producer',name:'QA'},wallet={balance:1234,diamonds:{av
  const calls=[],c=vm.createContext({me:user,URLSearchParams,location:{hash:'#profile'},document:{addEventListener(){}},window:{addEventListener(){}},
   esc,number:n=>Number(n).toLocaleString('ko-KR'),icon:()=>'',myPageHeading:()=>'<h1>마이</h1>',personProfileHTML:(_d,_id,_tab,balances='')=>'<article>PROFILE'+balances+'</article>',musicProfileItems:()=>[],
   playerProgressHTML:()=>'',musicMyShortcuts:()=>'',heading:()=>'',portrait:()=>'',formField:()=>'',gate:()=>'<h1>로그인</h1>',
-  api:async path=>{calls.push(path);if(path==='/api/gold'){if(error)throw error;return wallet;}if(path==='/api/me/profile')return {profile};if(path.startsWith('/api/producers/'))return {profile};throw Error('Unexpected '+path);}});
+  api:async path=>{calls.push(path);if(path==='/api/gold/balance'){if(error)throw error;return wallet;}if(path==='/api/me/profile')return {profile};if(path.startsWith('/api/producers/'))return {profile};throw Error('Unexpected '+path);}});
  vm.runInContext(read('dist/diamonds.js'),c);vm.runInContext(read('dist/improvements.js'),c);
  return {c,calls};
 }
@@ -22,8 +22,8 @@ test('private My shows gold and a toolbox instead of diamonds, with or without a
   const {c,calls}=ui({profile}),view=await c.improvementsView('profile','','profile');
   assert.match(view.html,/1,234/);assert.doesNotMatch(view.html,/12\.34567|💎|다이아/);
   assert.match(view.html,/href="#gold"/);assert.match(view.html,/href="#inventory"/);assert.match(view.html,/내 도구함/);
-  assert.equal(calls.filter(p=>p==='/api/gold').length,1);
-  await c.improvementsView('profile','','profile');assert.equal(calls.filter(p=>p==='/api/gold').length,2,'re-entry refetches');
+  assert.equal(calls.filter(p=>p==='/api/gold/balance').length,1);
+  await c.improvementsView('profile','','profile');assert.equal(calls.filter(p=>p==='/api/gold/balance').length,2,'re-entry refetches');
  }
 });
 test('zero balances are real zeros; missing/failed balances never masquerade as zero',async()=>{
@@ -38,7 +38,7 @@ test('zero balances are real zeros; missing/failed balances never masquerade as 
 });
 test('guest, profile editor and other public routes never fetch or expose a private wallet',async()=>{
  const guest=ui({user:null});assert.match((await guest.c.improvementsView('profile','','profile')).html,/로그인/);assert.equal(guest.calls.length,0);
- const edit=ui();assert.doesNotMatch((await edit.c.improvementsView('profile','edit','profile/edit')).html,/my-balance/);assert.ok(!edit.calls.includes('/api/gold'));
+ const edit=ui();assert.doesNotMatch((await edit.c.improvementsView('profile','edit','profile/edit')).html,/my-balance/);assert.ok(!edit.calls.includes('/api/gold/balance'));
  const pub=ui();assert.equal(await pub.c.improvementsView('producer','someone','producer/someone'),null);assert.equal(pub.calls.length,0);
 });
 
@@ -67,7 +67,7 @@ test('crew media preserves the entire image and frame versions map to unchanged 
  const css=read('dist/october-polish.css').match(/\.crew-main-image\{([^}]+)\}/)[1];
  assert.match(css,/height:auto/);assert.match(css,/object-fit:contain/);assert.doesNotMatch(css,/object-fit:cover/);
  for(const level of [3,4,5]){
-  const item=PLAYER_ITEMS['crew-level-'+level];assert.equal(item.min_crew_level,level);assert.equal(item.artwork,`/assets/crew-level-${level}-v2.png`);
+  const item=PLAYER_ITEMS['crew-level-'+level];assert.equal(item.min_crew_level,level);assert.equal(item.artwork,`/assets/crew-level-${level}-v2.webp`);
   assert.ok(existsSync(new URL('../dist'+item.artwork,import.meta.url)));
  }
 });

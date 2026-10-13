@@ -8,20 +8,20 @@ const detail={crew,membership:{role:'member'},members:[{id:'peer-profile',name:'
 function fixture(responses={}){
  const calls=[],context=vm.createContext({me:{id:'self-user'},apiRevision:0,structuredClone,Date,URLSearchParams,esc:escape,number:n=>String(n||0),icon:()=>'',portrait:p=>'<img alt="'+escape(p.name)+'">',heading:t=>'<h1>'+escape(t)+'</h1>',section:t=>'<h2>'+escape(t)+'</h2>',communityFeed:()=>'<div>MUSIC</div>',communityNavigation:()=>'<nav>COMMUNITY</nav>',document:{addEventListener(){}},api:async p=>{calls.push(p);if(!(p in responses))throw Error('Unexpected '+p);return typeof responses[p]==='function'?responses[p]():responses[p];}});
  Object.assign(context,{window:{addEventListener(){}},setInterval(){},cover:()=>'',trackStats:()=>''});
- for(const file of ['chat-features.js','social-chat.js','social-layouts.js','improvements.js'])vm.runInContext(readFileSync(new URL('../dist/'+file,import.meta.url),'utf8'),context);
+ for(const file of ['chat-features.js','social-chat.js','social-layouts.js','improvements.js','release-refinements.js'])vm.runInContext(readFileSync(new URL('../dist/'+file,import.meta.url),'utf8'),context);
  return {context,calls};
 }
 test('joined crew landing shows music and a chat entry, with discovery secondary',async()=>{
- const {context:c,calls}=fixture({'/api/crews?q=':{mine:'crew',crews:[crew]},'/api/crews/crew':detail});
+ const {context:c,calls}=fixture({'/api/crews?q=&home=1':{mine:'crew',detail},'/api/crews/crew':detail});
  const view=await c.improvementsView('community','crews','community/crews');
  assert.equal(view.chat,null);assert.match(view.html,/#dm\/crew\/crew/);
  assert.doesNotMatch(view.html,/id="crew-search"|data-create-crew|id="chat-compose"/);
  assert.match(view.html,/#community\/crews\?browse=1/);assert.match(view.html,/#crew\/crew\?tab=members/);
- assert.deepEqual(calls,['/api/crews?q=','/api/crews/crew']);
+ assert.deepEqual(calls,['/api/crews?q=&home=1']);
 });
 
 test('a known crew skips discovery on reentry while membership is always rechecked',async()=>{
- const responses={'/api/crews?q=':{mine:'crew',crews:[crew]},'/api/crews/crew':detail},{context:c,calls}=fixture(responses);
+ const responses={'/api/crews?q=&home=1':{mine:'crew',detail},'/api/crews/crew':detail},{context:c,calls}=fixture(responses);
  await c.improvementsView('community','crews','community/crews');calls.length=0;
  const opening=c.improvementsView('community','crews','community/crews');
  assert.deepEqual(calls,['/api/crews/crew']);assert.equal((await opening).chat,null);

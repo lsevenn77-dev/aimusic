@@ -58,7 +58,12 @@ export default {async fetch(req,env,ctx){
   const publicResponse=publicPageRoute(req,path);if(publicResponse)return publicResponse;
   if(!path.startsWith('/api/')&&!path.startsWith('/media/')){
    if(!['GET','HEAD'].includes(req.method))return json({error:'허용되지 않는 요청입니다.'},405);
-   return env.ASSETS.fetch(req);
+   const asset=await env.ASSETS.fetch(req);
+   if(asset.ok&&/^\/aifect-app-[a-f0-9]{16}\.(js|css)$/.test(path)){
+    const headers=new Headers(asset.headers);headers.set('cache-control','public, max-age=31536000, immutable');
+    return new Response(asset.body,{status:asset.status,headers});
+   }
+   return asset;
   }
   // Provider form POSTs have their own browser binding and token checks.
   const oauthCallback=/^\/api\/auth\/(google|apple)\/callback$/.test(path);

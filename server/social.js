@@ -56,6 +56,7 @@ export async function socialRoute(req,env,path,user){
  if(path==='/api/crews'){
   if(method==='GET'){
    const mine=user?await one(env,'SELECT crew_id FROM crew_members WHERE user_id=?',user.id):null;
+   if(mine&&url.searchParams.get('home')==='1')return json({mine:mine.crew_id,detail:await crewDetail(env,mine.crew_id,user)});
    if(mine)await syncXp(env,mine.crew_id);
    const q=(url.searchParams.get('q')||'').slice(0,80);
    // Level is a monotonic function of total XP, so this orders by level then XP

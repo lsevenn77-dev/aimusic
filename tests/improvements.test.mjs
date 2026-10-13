@@ -104,14 +104,16 @@ test('deleted comments disappear, surviving replies become roots and deleted par
  assert.equal((await f.call('/api/tracks/one/comments','POST',{body:'Late reply',parent_id:parent},'other')).status,400);
 });
 
-test('cover attachment endpoint requires active Premium while ordinary streaming still works',async t=>{
+test('cover attachment endpoint allows only the recording owner regardless of Premium; streaming still works',async t=>{
  const bytes=new Uint8Array(256),BUCKET={async get(){return {body:bytes,size:bytes.length}},async head(){return {size:bytes.length}}};const f=await fixture(t,{BUCKET});
  f.sql.exec("UPDATE tracks SET karaoke_at=1 WHERE id='one'; INSERT INTO tracks(id,user_id,artist_id,producer_id,title,genre,ai_tool,rights_accepted,original_ext,original_bytes,created,status,kind,original_id) VALUES('cover','owner','artist','producer','Cover','Rock','',1,'wav',256,0,'published','cover','one')");
  const raw=(path,user='owner',method='GET')=>worker.fetch(new Request('https://aifect.test'+path,{method,headers:user?{Cookie:'aifect_session='+user}:{}}),{DB:f.DB,BUCKET},{waitUntil(){}});
- assert.equal((await raw('/api/covers/cover/download',null)).status,401);assert.equal((await raw('/api/covers/cover/download')).status,403);assert.equal((await raw('/media/cover/stream')).status,200);
+ assert.equal((await raw('/api/covers/cover/download',null)).status,401);assert.equal((await raw('/api/covers/cover/download')).status,200);assert.equal((await raw('/media/cover/stream','other')).status,200);
  f.sql.exec("UPDATE users SET premium_until=unixepoch()+3600 WHERE id='owner'");let r=await raw('/api/covers/cover/download');assert.equal(r.status,200);assert.match(r.headers.get('content-disposition'),/^attachment/);
  assert.equal((await raw('/api/covers/cover/download','owner','HEAD')).status,200);
- f.sql.exec("UPDATE users SET premium_until=1 WHERE id='owner'");assert.equal((await raw('/api/covers/cover/download')).status,403);
+ f.sql.exec("UPDATE users SET premium_until=1 WHERE id='owner'; UPDATE users SET premium_until=unixepoch()+3600 WHERE id='other'");assert.equal((await raw('/api/covers/cover/download')).status,200);
+ for(const method of ['GET','HEAD'])assert.equal((await raw('/api/covers/cover/download','other',method)).status,403);
+ assert.equal((await raw('/api/covers/one/download')).status,403);
 });
 
 test('free playback gets three adjacent cues while whole synchronized lyrics remain Premium',async t=>{

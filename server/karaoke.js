@@ -1,4 +1,5 @@
-import {one,run,query,now,id,fail,json,rate} from './db.js';
+import {one,rows,run,query,now,id,fail,json,rate} from './db.js';
+import {memberNameSQL} from './identity.js';
 import {requireUser} from './auth.js';
 import {MAX_AUDIO,put,objectResponse} from './storage.js';
 import {KARAOKE_MAX_SECONDS,karaokeLyrics,karaokeWords} from '../shared/karaoke.js';
@@ -24,7 +25,21 @@ export async function karaokeQueue(env,track,{mr='keep',ext='',bytes=0}={}){
 
 // Singing: the list of singable songs is public; the words and the MR need a signed-in singer.
 async function singRoute(req,env,path,user){
- if(path==='/api/karaoke'&&req.method==='GET')return json({tracks:await trackList(env,`${VISIBLE()} AND ${SINGABLE()}`,[],'(plays+likes*3) DESC,t.created DESC',100)});
+ if(path==='/api/karaoke'&&req.method==='GET'){
+  const blocked=env.AIFECT_BLOCKED||[];
+  const [tracks,participants,recent_covers]=await Promise.all([
+   trackList(env,`${VISIBLE()} AND ${SINGABLE()}`,[],'(plays+likes*3) DESC,t.created DESC',100),
+   rows(env,`WITH recent AS (SELECT t.id,t.original_id,t.producer_id,${memberNameSQL()} name,p.image_version,
+    count(*) OVER(PARTITION BY t.original_id) cover_count,
+    row_number() OVER(PARTITION BY t.original_id ORDER BY t.created DESC,t.id) position
+    FROM tracks t JOIN producers p ON p.id=t.producer_id WHERE t.kind='cover' AND ${VISIBLE()}
+    AND EXISTS(SELECT 1 FROM tracks original WHERE original.id=t.original_id AND ${SINGABLE('original')})
+    ${blocked.length?'AND t.user_id NOT IN ('+blocked.map(()=>'?').join(',')+')':''})
+    SELECT * FROM recent WHERE position<=3 LIMIT 300`,...blocked),
+   trackList(env,`${VISIBLE()} AND t.kind='cover'`,[],'t.created DESC',8)
+  ]);
+  return json({tracks:tracks.map(t=>{const previews=participants.filter(p=>p.original_id===t.id);return {...t,covers:previews[0]?.cover_count||0,cover_participants:previews};}),recent_covers});
+ }
  let s=path.match(/^\/api\/karaoke\/([\w-]+)$/);
  if(s&&req.method==='GET'){
   requireUser(user);

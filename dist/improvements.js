@@ -9,7 +9,7 @@ function myBalanceSummaryHTML(wallet){
   (ready?'':'<p class="my-balance-error" role="status">골드 잔액을 불러오지 못했어요. <button type="button" class="text-link" data-my-wallet-retry>다시 불러오기</button></p>')+'</section>';
 }
 async function loadMyBalanceSummary(){
- try{return myBalanceSummaryHTML(await api('/api/gold','GET',undefined,{fresh:true}));}
+ try{return myBalanceSummaryHTML(await api('/api/gold/balance','GET',undefined,{fresh:true}));}
  catch(e){if(e.status===401||e.status===403)throw e;return myBalanceSummaryHTML(null);}
 }
 let socialTimer=null;
@@ -69,20 +69,23 @@ async function improvementsView(base,param,raw){
  if(base==='community'&&param==='crews'){
   const params=new URLSearchParams(raw.split('?')[1]||''),q=params.get('q')||'',hint=peekCrewNavigation('discovery');
   if(hint?.mine&&!params.has('q')&&params.get('browse')!=='1'){try{return await liveCrewDetail(hint.mine);}catch(e){if(e.status!==404)throw e;clearCrewNavigation();}}
-  const account=me?.id||'guest',revision=typeof apiRevision==='number'?apiRevision:0,d=await api('/api/crews?q='+encodeURIComponent(q));rememberCrewDiscovery(d,q,account,revision);
+  const account=me?.id||'guest',revision=typeof apiRevision==='number'?apiRevision:0,d=await api('/api/crews?q='+encodeURIComponent(q)+(!params.has('q')&&params.get('browse')!=='1'?'&home=1':''));rememberCrewDiscovery(d,q,account,revision);
+  if(d.detail){if(crewNavigationCurrent(account,revision))rememberCrewNavigation(d.mine,d.detail.crew);return crewDetailView(d.detail,d.mine);}
   if(d.mine&&!params.has('q')&&params.get('browse')!=='1')return liveCrewDetail(d.mine);
-  let html=heading('크루','함께 듣고, 부르고, 이야기하는 음악 모임')+communityNavigation('crews')+`<div class="inline-actions">${d.mine?`<a href="#crew/${esc(d.mine)}" class="primary-button">${icon('users')} 내 크루 들어가기</a>`:`<button class="small-button" data-browse-crews>${icon('search')} 크루 둘러보기</button><button class="primary-button" data-create-crew>크루 만들기</button>`}<a href="#community/covers" class="small-button">모든 커버곡</a></div><p>${d.mine?'취향이 맞는 크루를 찾아 함께 음악을 나눠보세요.':'취향이 맞는 크루에 가입해 함께 듣고 불러보세요.'}</p><form id="crew-search" class="aifect-search"><input name="q" value="${esc(q)}" maxlength="80" placeholder="크루 · 관심사 찾기" aria-label="크루 · 관심사"><button class="small-button">찾기</button></form>`;
-  const tracks=params.get('browse')==='1'?[]:d.tracks||[];if(tracks.length)html+=section(d.mine?'우리 크루의 최신 음악':'크루에서 나온 새 음악',d.mine?'#crew/'+d.mine:'#community/covers')+communityFeed(tracks.slice(0,6));
-  html+=section('함께할 크루')+(d.crews.length?`<div class="crew-grid">${d.crews.map(c=>crewCard(c,d.mine)).join('')}</div>`:'<p class="surface">아직 크루가 없어요. 좋아하는 음악으로 첫 모임을 만들어보세요.</p>');return {html,tracks};
+  return {html:crewDiscoveryHTML(d,q),tracks:[],crewDiscovery:d};
  }
  if(base==='crew'&&param){return liveCrewDetail(param,new URLSearchParams(raw.split('?')[1]||'').get('tab')||'music');}
  if(['profile','dm','rewards','payouts'].includes(base)||base==='library'&&param==='followers'){
   if(!me){returnRoute=location.hash;return {html:gate()};}
   if(base==='profile'){
-   const d=await api('/api/me/profile'),p=d.profile;
+   // Fetch independent reads together; money remains live and is never cached.
+   const knownProfile=me.profile_id;
+   const [d,balances,knownSocial]=await Promise.all([
+    api('/api/me/profile'),param!=='edit'?loadMyBalanceSummary():null,
+    param!=='edit'&&knownProfile?api('/api/producers/'+encodeURIComponent(knownProfile)):null
+   ]),p=d.profile;
    if(param!=='edit'){
-    const balances=await loadMyBalanceSummary();
-    if(p.id){const social=await api('/api/producers/'+encodeURIComponent(p.id));social.following_count=d.following_count;return {html:myPageHeading('나의 순간과 음악이 만나는 공간')+personProfileHTML(social,p.id,new URLSearchParams(raw.split('?')[1]||'').get('tab')||'all',balances),tracks:musicProfileItems(social,new URLSearchParams(raw.split('?')[1]||'').get('tab')||'all')};}
+    if(p.id){const social=p.id===knownProfile&&knownSocial?knownSocial:await api('/api/producers/'+encodeURIComponent(p.id));social.following_count=d.following_count;return {html:myPageHeading('나의 순간과 음악이 만나는 공간')+personProfileHTML(social,p.id,new URLSearchParams(raw.split('?')[1]||'').get('tab')||'all',balances),tracks:musicProfileItems(social,new URLSearchParams(raw.split('?')[1]||'').get('tab')||'all')};}
     return {html:myPageHeading('음악을 듣기만 해도 좋아요.')+balances+'<section class="music-self-head"><div><h2>'+esc(p.name||me.name||'내 음악')+'</h2><p>아직 공개한 프로필이나 음악이 없어요.</p></div><a class="small-button" href="#profile/edit">프로필 만들기</a></section>'+playerProgressHTML(p)+musicMyShortcuts()};
    }
    return {html:heading('프로필 수정')+`<div class="inline-actions account-menu" style="margin-bottom:24px"><a class="small-button" href="#profile">내 페이지</a><a class="small-button" href="#account">계정·이용권</a><button type="button" class="small-button" id="logout">로그아웃</button></div><form id="public-profile-form" class="surface upload-form profile-form">${p.id?portrait(p,'producer'):''}<label class="form-field">프로필 사진<input name="image" type="file" accept="image/png,image/jpeg,image/webp"><small>JPG·PNG·WebP · 5MB 이하</small></label>${formField('공개 닉네임','name','text',p.name,'required maxlength="60"')}<p class="field-help">댓글·선물·크루·DM에는 이 이름이 표시돼요.</p><label class="form-field">소개<textarea name="bio" maxlength="1000">${esc(p.bio)}</textarea></label><button class="primary-button">프로필 저장</button><p class="form-error" role="alert"></p></form>`};
@@ -105,6 +108,7 @@ async function libraryProfileHTML(){
 function bindCrewForm(){const form=$('#crew-form');form.onsubmit=busyForm(form,async fd=>{const cid=form.dataset.crew;const d=await api('/api/crews'+(cid?'/'+cid:''),cid?'PATCH':'POST',{name:fd.get('name'),description:fd.get('description'),interests:fd.get('interests'),recruiting:fd.has('recruiting')});const file=fd.get('crew_image');if(cid&&file?.size)await uploadChatImage('/api/crews/'+cid+'/image',file);$('#dialog').close();location.hash='crew/'+d.crew.id;if(cid)await render();});}
 function bindImprovements(view){
  bindCrewHome(view);
+ bindCrewDiscovery(view);
  const walletRetry=$('[data-my-wallet-retry]');if(walletRetry)walletRetry.onclick=async()=>{walletRetry.disabled=true;try{await render();}finally{walletRetry.disabled=false;}};
  const profile=$('#public-profile-form');if(profile)profile.onsubmit=busyForm(profile,async fd=>{
   await api('/api/me/profile','PUT',{name:fd.get('name'),bio:fd.get('bio')});const image=fd.get('image');

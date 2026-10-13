@@ -23,8 +23,8 @@ export async function mediaRoute(req,env,path,user){
  const method=req.method;
  const download=path.match(/^\/api\/covers\/([\w-]+)\/download$/);
  if(download&&['GET','HEAD'].includes(method)){
-  requireUser(user);if(!isPremium(user))fail(403,'커버 파일 저장은 Premium 이용권이 필요해요.');
-  const t=await published(env,download[1]);if(t.kind!=='cover')fail(404,'커버곡을 찾을 수 없습니다.');
+  requireUser(user);
+  const t=await published(env,download[1]);if(t.kind!=='cover'||t.user_id!==user.id)fail(403,'본인이 녹음한 커버만 저장할 수 있어요. 다른 사람의 음악은 다운로드할 수 없어요.');
   const high=await premiumAudio(env,t,user),r=await objectResponse(req,env,high?.output_key||`stream/${t.id}.m4a`,'audio/mp4');
   const h=new Headers(r.headers);h.set('content-disposition',`attachment; filename="AIFECT-cover.m4a"; filename*=UTF-8''${encodeURIComponent(t.title+'.m4a')}`);
   return new Response(r.body,{status:r.status,headers:h});
