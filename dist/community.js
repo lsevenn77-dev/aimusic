@@ -83,6 +83,6 @@ async function loadCommunityCrews(host,ticket){
  host.innerHTML='<div class="music-community-heading"><h2>음악으로 모이는 크루</h2><a class="text-link" href="#community/crews">모두 보기</a></div>'+(crews.length?'<div class="music-crew-preview-grid">'+crews.map(c=>'<a href="#crew/'+esc(c.id)+'"><strong>'+esc(c.name)+'</strong><span>'+esc(c.interests||'함께 듣고 부르는 음악')+'</span><small>'+number(c.members)+'명 · LV '+number(c.level)+'</small></a>').join('')+'</div>':'<a class="music-crew-entry" href="#community/crews">취향이 맞는 크루를 찾아보세요.</a>');
  };
  const cached=typeof peekCrewNavigation==='function'?peekCrewNavigation('discovery'):null;if(cached&&current())paint(cached);
- try{const d=await api('/api/crews?q=');if(!current())return;if(typeof rememberCrewDiscovery==='function')rememberCrewDiscovery(d,'',account,revision);paint(d);}
+ try{const d=await api('/api/crews?q=&summary=1');if(!current())return;if(typeof rememberCrewDiscovery==='function')rememberCrewDiscovery(d,'',account,revision);paint(d);}
  catch{if(current()&&!cached)host.innerHTML='<a class="music-crew-entry" href="#community/crews">크루 둘러보기</a>';}
 }

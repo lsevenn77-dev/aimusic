@@ -12,16 +12,16 @@ function fixture(responses={}){
  return {context,calls};
 }
 test('joined crew landing shows music and a chat entry, with discovery secondary',async()=>{
- const {context:c,calls}=fixture({'/api/crews?q=&home=1':{mine:'crew',detail},'/api/crews/crew':detail});
+ const {context:c,calls}=fixture({'/api/crews?q=&summary=1&home=1':{mine:'crew',detail},'/api/crews/crew':detail});
  const view=await c.improvementsView('community','crews','community/crews');
  assert.equal(view.chat,null);assert.match(view.html,/#dm\/crew\/crew/);
  assert.doesNotMatch(view.html,/id="crew-search"|data-create-crew|id="chat-compose"/);
  assert.match(view.html,/#community\/crews\?browse=1/);assert.match(view.html,/#crew\/crew\?tab=members/);
- assert.deepEqual(calls,['/api/crews?q=&home=1']);
+ assert.deepEqual(calls,['/api/crews?q=&summary=1&home=1']);
 });
 
 test('a known crew skips discovery on reentry while membership is always rechecked',async()=>{
- const responses={'/api/crews?q=&home=1':{mine:'crew',detail},'/api/crews/crew':detail},{context:c,calls}=fixture(responses);
+ const responses={'/api/crews?q=&summary=1&home=1':{mine:'crew',detail},'/api/crews/crew':detail},{context:c,calls}=fixture(responses);
  await c.improvementsView('community','crews','community/crews');calls.length=0;
  const opening=c.improvementsView('community','crews','community/crews');
  assert.deepEqual(calls,['/api/crews/crew']);assert.equal((await opening).chat,null);
@@ -56,7 +56,7 @@ test('member and music views avoid fetching or subscribing to hidden chat panels
  assert.match((await c.improvementsView('crew','crew','crew/crew?tab=members')).html,/#producer\/peer-profile/);
 });
 test('non-members and an explicit browse route retain search while join access stays gated',async()=>{
- const {context:c}=fixture({'/api/crews?q=':{mine:'crew',crews:[crew]},'/api/crews/crew':{...detail,membership:null}});
+ const {context:c}=fixture({'/api/crews?q=&summary=1':{mine:'crew',crews:[crew]},'/api/crews/crew':{...detail,membership:null}});
  assert.match((await c.improvementsView('community','crews','community/crews?browse=1')).html,/id="crew-search"/);
  const visitor=await c.improvementsView('crew','crew','crew/crew');assert.equal(visitor.chat,null);assert.match(visitor.html,/data-join-crew/);assert.doesNotMatch(visitor.html,/id="chat-compose"/);
 });

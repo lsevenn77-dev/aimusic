@@ -8,14 +8,17 @@ function context(){
  const c=vm.createContext({document:{addEventListener(){}},window:{},me:{id:'owner'},esc,icon:()=>'<svg></svg>',number:n=>String(n||0),cover:()=>'<img alt="">',heading:t=>'<h1>'+esc(t)+'</h1>',inboxControlsHTML:()=>'',conversationListHTML:()=>'<p>conversations</p>'});
  vm.runInContext(read('page-redesign.js'),c);return c;
 }
-test('My gallery is a top photo strip, not a settings-only gallery; visitor has no mutation controls',()=>{
+test('My gallery follows profile identity and precedes music; visitor has no mutation controls',()=>{
  const c=context(),d={profile:{user_id:'owner',name:'Singer'},gallery:[{id:'p',url:'/media/profile-gallery/p?v=1'}]};
  const own=c.profileGalleryHTML(d,'person');
  assert.match(own,/profile-gallery-photos/);assert.match(own,/data-profile-photo-add="person"/);
  assert.match(own,/data-profile-photo-delete="p"/);assert.match(own,/data-gallery-photo="\/media\/profile-gallery\/p\?v=1"/);
  c.me={id:'visitor'};const visitor=c.profileGalleryHTML(d,'person');assert.match(visitor,/profile-gallery-photo/);assert.doesNotMatch(visitor,/data-profile-photo-(add|delete)/);
  assert.equal(c.profileGalleryHTML({...d,gallery:[]},'person'),'');
- assert.match(read('views.js'),/return profileGalleryHTML\(d,id\)\+/);
+ const view=read('views.js').split('function personProfileHTML')[1].split('function giftsPanelHTML')[0];
+ assert.ok(view.indexOf('person-profile social-profile')<view.indexOf('profileGalleryHTML(d,id)'));
+ assert.ok(view.indexOf('profileGalleryHTML(d,id)')<view.indexOf('profile-page-layout'));
+ assert.doesNotMatch(read('page-redesign.js'),/마이페이지 맨 위에 표시/);
 });
 test('gallery escapes labels and photo identifiers; limit disables the upload CTA',()=>{
  const c=context(),d={profile:{user_id:'owner',name:'"><img onerror="bad">'},gallery:Array.from({length:30},()=>({id:'" onclick="bad',url:'/x?y="'}))};

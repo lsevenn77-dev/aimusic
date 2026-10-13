@@ -4,7 +4,8 @@ import {one,rows,query,run,now,id,str,fail,json,rate} from './db.js';
 import {requireUser} from './auth.js';
 import {publicCrewNameSQL as publicNameSQL,memberNameSQL as producerNameSQL} from './identity.js';
 import {nicknameBatch} from './nicknames.js';
-import {trackList,VISIBLE} from './catalog.js';
+import {trackList,trackListQuery,VISIBLE} from './catalog.js';
+import {trackClassification} from '../shared/genres.js';
 import {CREW_LEVELS,CREW_REWARDS,CREW_ROLES,crewLevel} from '../shared/crews.js';
 import {chatSettings,chatSummary} from './chat-features.js';
 import {giftDay} from '../shared/gifts.js';
@@ -14,14 +15,15 @@ const crewSelect=`SELECT c.*,${xpSQL} xp,(SELECT count(*) FROM crew_members m WH
 const present=c=>({...c,...crewLevel(c.xp),xp:c.xp});
 const requestId=b=>{if(typeof b.request_id!=='string'||!/^[\w-]{16,64}$/.test(b.request_id))fail(400,'전송 요청을 다시 시작해주세요.');return b.request_id;};
 async function member(env,crewId,user){requireUser(user);const m=await one(env,'SELECT * FROM crew_members WHERE crew_id=? AND user_id=?',crewId,user.id);if(!m)fail(403,'크루에 가입한 멤버만 이용할 수 있어요.');return m;}
-async function syncXp(env,crewId){
+function crewXpQueries(env,crewId){
  // One published track can reward only one crew, after its author joined. Re-joining never farms XP.
  const tracks=query(env,`INSERT OR IGNORE INTO crew_xp(id,crew_id,user_id,amount,created) SELECT 'track:'||t.id,m.crew_id,t.user_id,?,? FROM tracks t JOIN crew_members m ON m.user_id=t.user_id WHERE m.crew_id=? AND t.created>=m.joined AND ${VISIBLE()}`,CREW_REWARDS.publishedTrack,now(),crewId);
  // A cover's performer receives the gift; original gifts belong to their creator.
  // One gift rewards one crew once, so moving crews cannot re-award it.
  const gifts=query(env,`INSERT OR IGNORE INTO crew_xp(id,crew_id,user_id,amount,created) SELECT 'gift:'||g.id,m.crew_id,p.user_id,g.gold*?,? FROM gifts g JOIN producers p ON p.id=COALESCE(g.singer_profile_id,g.creator_profile_id) JOIN crew_members m ON m.user_id=p.user_id WHERE m.crew_id=? AND g.created>=m.joined`,CREW_REWARDS.receivedGold,now(),crewId);
- await env.DB.batch([tracks,gifts]);
+ return [tracks,gifts];
 }
+async function syncXp(env,crewId){await env.DB.batch(crewXpQueries(env,crewId));}
 function crewNotice(env,cid,userId,body){return query(env,"INSERT INTO crew_messages(id,crew_id,user_id,body,request_id,created,kind) VALUES(?,?,?,?,?,?,'system')",id(),cid,userId,body,'system:'+id(),now());}
 async function memberName(env,userId){return (await one(env,`SELECT ${producerNameSQL()} name FROM producers p WHERE p.user_id=?`,userId))?.name||'크루원';}
 async function ensureSocialProfile(env,user){
@@ -39,13 +41,16 @@ async function crewHistory(env,cid,url,membership){
  return json({messages,has_more,membership,member_roles,roles:CREW_ROLES});
 }
 async function crewDetail(env,cid,user){
- await syncXp(env,cid);
- const [c,membership,members,tracks,ban]=await Promise.all([
- one(env,`${crewSelect} WHERE c.id=?`,cid),
- user?one(env,'SELECT role,joined,joined_sequence,muted FROM crew_members WHERE crew_id=? AND user_id=?',cid,user.id):null,
- rows(env,`SELECT p.id,p.user_id,${playerColumnsSQL('p.user_id')},${producerNameSQL()} name,p.image_version,m.role FROM crew_members m JOIN producers p ON p.user_id=m.user_id WHERE m.crew_id=? ORDER BY (m.role='owner') DESC,m.joined LIMIT 150`,cid),
- trackList(env,`${VISIBLE()} AND t.user_id IN (SELECT user_id FROM crew_members WHERE crew_id=?)`,[cid],'t.created DESC',60),
- user?one(env,'SELECT 1 FROM crew_bans WHERE crew_id=? AND user_id=?',cid,user.id):null]);
+ // One DB round trip: synchronize XP, then read a consistent, live snapshot.
+ // Do not cache membership, bans, or viewer-filtered music between requests.
+ const result=await env.DB.batch([
+ ...crewXpQueries(env,cid),
+ query(env,`${crewSelect} WHERE c.id=?`,cid),
+ query(env,'SELECT role,joined,joined_sequence,muted FROM crew_members WHERE crew_id=? AND user_id=?',cid,user?.id||''),
+ query(env,`SELECT p.id,p.user_id,${playerColumnsSQL('p.user_id')},${producerNameSQL()} name,p.image_version,m.role FROM crew_members m JOIN producers p ON p.user_id=m.user_id WHERE m.crew_id=? ORDER BY (m.role='owner') DESC,m.joined LIMIT 150`,cid),
+ trackListQuery(env,`${VISIBLE()} AND t.user_id IN (SELECT user_id FROM crew_members WHERE crew_id=?)`,[cid],'t.created DESC',60),
+ query(env,'SELECT 1 FROM crew_bans WHERE crew_id=? AND user_id=?',cid,user?.id||'')]);
+ const c=result[2].results[0],membership=result[3].results[0]||null,members=result[4].results,tracks=result[5].results.map(trackClassification),ban=result[6].results[0];
  if(!c)fail(404,'크루를 찾을 수 없어요.');const banned=!!ban;
  return {crew:present(c),membership,members,tracks,banned,rules:{levels:CREW_LEVELS,...CREW_REWARDS},roles:CREW_ROLES};
 }
@@ -64,7 +69,7 @@ export async function socialRoute(req,env,path,user){
    const [crews,interests,tracks,rankings]=await Promise.all([
     rows(env,`${crewSelect} WHERE c.name LIKE ? OR c.interests LIKE ? ORDER BY (c.id=?) DESC,c.recruiting DESC,c.created DESC LIMIT 100`,'%'+q+'%','%'+q+'%',mine?.crew_id||''),
     user?rows(env,'SELECT t.genre FROM likes l JOIN tracks t ON t.id=l.track_id WHERE l.user_id=? GROUP BY t.genre ORDER BY count(*) DESC LIMIT 5',user.id):[],
-    trackList(env,`${VISIBLE()} AND t.user_id IN (SELECT user_id FROM crew_members${mine?' WHERE crew_id=?':''})`,mine?[mine.crew_id]:[],'t.created DESC',30),
+    url.searchParams.get('summary')==='1'?[]:trackList(env,`${VISIBLE()} AND t.user_id IN (SELECT user_id FROM crew_members${mine?' WHERE crew_id=?':''})`,mine?[mine.crew_id]:[],'t.created DESC',30),
     rows(env,`${crewSelect} ORDER BY xp DESC,c.created ASC,c.id ASC LIMIT 5`)]);
    const scored=crews.map(c=>({...present(c),match:interests.filter(g=>c.interests.toLowerCase().includes(g.genre.toLowerCase())).length})).sort((a,b)=>(b.id===mine?.crew_id)-(a.id===mine?.crew_id)||b.match-a.match||b.recruiting-a.recruiting);
    return json({crews:scored,rankings:rankings.map(present),tracks,mine:mine?.crew_id||null,rules:{levels:CREW_LEVELS,...CREW_REWARDS}});

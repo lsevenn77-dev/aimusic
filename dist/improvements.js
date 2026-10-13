@@ -69,7 +69,7 @@ async function improvementsView(base,param,raw){
  if(base==='community'&&param==='crews'){
   const params=new URLSearchParams(raw.split('?')[1]||''),q=params.get('q')||'',hint=peekCrewNavigation('discovery');
   if(hint?.mine&&!params.has('q')&&params.get('browse')!=='1'){try{return await liveCrewDetail(hint.mine);}catch(e){if(e.status!==404)throw e;clearCrewNavigation();}}
-  const account=me?.id||'guest',revision=typeof apiRevision==='number'?apiRevision:0,d=await api('/api/crews?q='+encodeURIComponent(q)+(!params.has('q')&&params.get('browse')!=='1'?'&home=1':''));rememberCrewDiscovery(d,q,account,revision);
+  const account=me?.id||'guest',revision=typeof apiRevision==='number'?apiRevision:0,d=await api('/api/crews?q='+encodeURIComponent(q)+'&summary=1'+(!params.has('q')&&params.get('browse')!=='1'?'&home=1':''));rememberCrewDiscovery(d,q,account,revision);
   if(d.detail){if(crewNavigationCurrent(account,revision))rememberCrewNavigation(d.mine,d.detail.crew);return crewDetailView(d.detail,d.mine);}
   if(d.mine&&!params.has('q')&&params.get('browse')!=='1')return liveCrewDetail(d.mine);
   return {html:crewDiscoveryHTML(d,q),tracks:[],crewDiscovery:d};

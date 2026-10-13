@@ -31,10 +31,11 @@ const SELECT=`SELECT t.id,t.title,t.genre,t.genres_json,t.moods_json,t.classific
  (SELECT COALESCE(sum(g.gold),0) FROM gifts g WHERE g.track_id=t.id) gift_gold,
  (SELECT count(*) FROM free_gifts g WHERE g.track_id=t.id) gift_stars
  FROM tracks t JOIN artists a ON a.id=t.artist_id JOIN producers p ON p.id=t.producer_id LEFT JOIN tracks o ON o.id=t.original_id LEFT JOIN producers op ON op.id=o.producer_id LEFT JOIN tracks dt ON dt.id=t.duet_parent_id LEFT JOIN producers fp ON fp.id=dt.producer_id`;
-export const trackList=(env,where=VISIBLE(),args=[],sort='t.created DESC',limit=100)=>{
+export const trackListQuery=(env,where=VISIBLE(),args=[],sort='t.created DESC',limit=100)=>{
  const blocked=env.AIFECT_BLOCKED||[];
- return rows(env,`${SELECT} WHERE ${where}${blocked.length?' AND t.user_id NOT IN ('+blocked.map(()=>'?').join(',')+')':''} ORDER BY ${sort} LIMIT ${limit}`,...args,...blocked).then(list=>list.map(trackClassification));
+ return query(env,`${SELECT} WHERE ${where}${blocked.length?' AND t.user_id NOT IN ('+blocked.map(()=>'?').join(',')+')':''} ORDER BY ${sort} LIMIT ${limit}`,...args,...blocked);
 };
+export const trackList=async(...args)=>(await trackListQuery(...args).all()).results.map(trackClassification);
 export async function published(env,tid){const t=await one(env,`SELECT t.* FROM tracks t WHERE t.id=? AND ${VISIBLE()}`,tid);if(!t)fail(404,'공개된 곡을 찾을 수 없습니다.');assertUnblocked(env,t.user_id);return t;}
 const COVER_SORTS={popular:'likes DESC,plays DESC,t.created DESC',gifts:'(gift_gold+gift_stars) DESC,likes DESC,t.created DESC',plays:'plays DESC,likes DESC,t.created DESC',recent:'t.created DESC'};
 export async function catalogRoute(req,env,path,user){
