@@ -10,6 +10,13 @@ import {bundleClient} from '../scripts/client-bundle.mjs';
 import {fixture} from './fixture.mjs';
 const read=f=>readFileSync(new URL('../dist/'+f,import.meta.url),'utf8');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+test('shell search is bound before home renders, supports Enter submission and repeat queries',()=>{
+ let focused=0,prevented=0,renders=0;const form={query:' Caught Ya! ',elements:{q:{focus(){focused++;}}}},location={hash:'#home'};
+ const c=vm.createContext({$:s=>s==='#global-search'?form:null,FormData:class{constructor(f){this.f=f;}get(){return this.f.query;}},location,render(){renders++;}});
+ vm.runInContext(read('actions.js').split('function formError')[0],c);
+ form.onsubmit({preventDefault(){prevented++;}});assert.equal(location.hash,'#search/Caught%20Ya!');assert.equal(prevented,1);
+ form.onsubmit({preventDefault(){}});assert.equal(renders,1);form.query='  ';form.onsubmit({preventDefault(){}});assert.equal(focused,1);assert.equal(location.hash,'#search/Caught%20Ya!');
+});
 function ui(){const c=vm.createContext({me:null,queueMicrotask,document:{addEventListener(){}},window:{addEventListener(){}},setInterval(){},esc,number:n=>Number(n||0).toLocaleString('ko-KR'),icon:()=>'',heading:s=>'<h1>'+s+'</h1>',communityNavigation:()=>'',portrait:()=>'',followed:()=>false,liked:()=>false,giftButton:()=>'',cover:()=>'',credits:()=>''});for(const f of ['music-ui.js','social-layouts.js','social-chat.js','release-refinements.js'])vm.runInContext(read(f),c);return c;}
 test('release date is the registered timestamp in Korea, without inventing missing dates',()=>{
  const c=ui();assert.match(c.songReleaseDateHTML({created:Date.parse('2026-10-12T16:00:00Z')/1000}),/datetime="2026-10-13">2026.10.13/);assert.equal(c.songReleaseDateHTML({}), '');
@@ -18,6 +25,7 @@ test('crew discovery uses real rows, functioning filters and independently ranke
  const c=ui(),crews=[{id:'a',name:'<script>x</script>',description:'Real',level:1,xp:2,members:3,capacity:10,recruiting:1,interests:'Rock, Ballad',created:1},{id:'b',name:'Two',level:3,xp:100,members:10,capacity:10,recruiting:1,interests:'Pop',created:2}];
  const page=c.crewDiscoveryHTML({crews,rankings:crews,mine:'a'});assert.match(page,/crew-featured-grid/);assert.match(page,/id="crew-search"/);assert.match(page,/id="crew-discovery-filters"/);assert.match(page,/data-crew-layout="list"/);assert.match(page,/내 크루 들어가기/);assert.doesNotMatch(page,/<script>|124|127명/);
  assert.deepEqual(Array.from(c.filterCrewDiscovery(crews,{recruiting:'open'}),v=>v.id),['a']);assert.deepEqual(Array.from(c.filterCrewDiscovery(crews,{recruiting:'closed'}),v=>v.id),['b']);assert.deepEqual(Array.from(c.filterCrewDiscovery(crews,{interest:'Ballad'}),v=>v.id),['a']);assert.deepEqual(Array.from(c.filterCrewDiscovery(crews,{scope:'mine'},'a'),v=>v.id),['a']);assert.deepEqual(Array.from(c.filterCrewDiscovery(crews,{sort:'level'}),v=>v.id),['b','a']);assert.equal(crews[0].id,'a');
+ assert.doesNotThrow(()=>c.bindCrewDiscovery(null));assert.doesNotThrow(()=>c.bindCrewDiscovery(undefined));assert.doesNotThrow(()=>c.bindCrewDiscovery({}));
 });
 test('community concept preserves real post actions and escapes supplied strings; slogan removed',()=>{
  const c=ui(),card=c.communityConceptCard({id:'song',producer_id:'p',producer:'Singer',title:'<img>',description:'<script>',kind:'cover',likes:7,comments:2,plays:11});

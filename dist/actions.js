@@ -1,3 +1,8 @@
+function bindSearchForms(){
+ for(const form of [$('#search-form'),$('#global-search')].filter(Boolean))form.onsubmit=e=>{e.preventDefault();const q=String(new FormData(form).get('q')||'').trim();if(!q){form.elements.q.focus();return;}const target='#search/'+encodeURIComponent(q);if(location.hash===target)void render();else location.hash=target;};
+}
+// The shell search must work before a route has finished loading, including home.
+bindSearchForms();
 function formError(form){return form.querySelector(':scope > .form-error')||form.querySelector('.form-error');}
 function uploadStage(form,label,value=null,state='working'){
  const panel=form.querySelector('.upload-progress');if(!panel)return;
@@ -22,7 +27,7 @@ function bindUploadForm(form,work){
 }
 function bindForms(base,param){
  bindAccountSettings();
- for(const form of [$('#search-form'),$('#global-search')].filter(Boolean))form.onsubmit=e=>{e.preventDefault();const q=String(new FormData(form).get('q')||'').trim();if(!q){form.elements.q.focus();return;}const target='#search/'+encodeURIComponent(q);if(location.hash===target)void render();else location.hash=target;};
+ bindSearchForms();
  if($('#auth-form')){
   const form=$('#auth-form');$('#auth-switch').onclick=()=>{const signup=form.dataset.mode!=='register';form.dataset.mode=signup?'register':'login';$('#signup-name').hidden=!signup;form.elements.name.required=signup;form.elements.password.autocomplete=signup?'new-password':'current-password';$('#auth-title').textContent=signup?'무료 회원가입':'이메일로 로그인';$('#auth-submit').textContent=signup?'가입하고 음악 듣기':'로그인';$('#auth-switch').textContent=signup?'이미 회원이신가요? 로그인':'처음 오셨나요? 무료 회원가입';};
   form.onsubmit=busyForm(form,async fd=>{const d=await api('/api/auth/'+form.dataset.mode,'POST',Object.fromEntries(fd));me=d.user;await refreshAuthState();await refreshLibrary();updateAccount();toast('반가워요! 이제 전체곡을 들을 수 있습니다.');try{await resumeAfterLogin();}catch(e){toast(e.message);}if(location.hash===returnRoute)await render();else location.hash=returnRoute;});

@@ -7,7 +7,7 @@ function harness(){
  const mainError={textContent:'',scrollIntoView(){}},hiddenError={textContent:''},status={textContent:''},bar={removeAttribute(){delete this.value;}},panel={hidden:true,dataset:{},querySelector:s=>s==='p'?status:bar};
  const button={innerHTML:'음원 업로드',disabled:false,attrs:{},setAttribute(k,v){this.attrs[k]=v;},removeAttribute(k){delete this.attrs[k];}};
  const form={querySelector(s){if(s===':scope > .form-error')return mainError;if(s==='.form-error')return hiddenError;if(s==='.upload-progress')return panel;if(s.startsWith('button'))return button;},addEventListener(){}};
- const context=vm.createContext({FormData:class{},window:{addEventListener(){},removeEventListener(){}},toast(){},setTimeout});vm.runInContext(code,context);
+ const context=vm.createContext({$:()=>null,FormData:class{},window:{addEventListener(){},removeEventListener(){}},toast(){},setTimeout});vm.runInContext(code,context);
  return {context,form,button,mainError,hiddenError,status,panel};
 }
 test('upload feedback is immediate, prevents double submits and exposes errors outside hidden lyrics editor',async()=>{
