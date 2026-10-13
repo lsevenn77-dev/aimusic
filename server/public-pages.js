@@ -4,7 +4,7 @@ import {BUSINESS, PREMIUM, APP_PREMIUM, POLICY_VERSION, SUBSCRIPTION_REVENUE_POL
 
 const mail=(subject,label='이메일로 문의하기')=>`<a href="mailto:${BUSINESS.email}?subject=${encodeURIComponent('[AIFECT] '+subject)}">${label}</a>`;
 const section=(id,title,body)=>`<section id="${id}"><h2>${title}</h2>${body}</section>`;
-const table=(heads,rows)=>`<div class="legal-table-wrap"><table><thead><tr>${heads.map(h=>`<th scope="col">${h}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr>${row.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+const table=(heads,rows)=>`<div class="legal-table-wrap" tabindex="0" role="region" aria-label="${esc(heads.join(' · '))} 표 — 좌우로 스크롤"><table><thead><tr>${heads.map(h=>`<th scope="col">${h}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr>${row.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
 const effective=`<p class="legal-fine">시행일: ${POLICY_VERSION} · 유료 이용권 관련 조항은 유료 서비스 개시 후 체결하는 계약에 적용됩니다.</p>`;
 const contact=`<p>운영자: ${BUSINESS.name} · ${mail('고객센터 문의',BUSINESS.email)}${BUSINESS.phone?` · 전화 ${esc(BUSINESS.phone)}`:''}</p>`;
 

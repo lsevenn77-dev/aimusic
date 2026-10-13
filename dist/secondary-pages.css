@@ -68,3 +68,62 @@ main.secondary-page .browse-genres a{position:relative;isolation:isolate;overflo
 .song-sidebar .gift-support-copy small{font-size:8px;letter-spacing:.8px}
 @media(max-width:600px){.gift-support-banner{gap:12px;padding:18px;min-height:126px}.gift-support-icon{width:44px;height:44px;border-radius:13px}.gift-support-icon svg{width:25px;height:25px}.gift-support-copy strong{font-size:17px}.gift-support-copy small{font-size:8px;letter-spacing:.8px}.gift-support-arrow{width:27px;height:27px}}
 @media(prefers-reduced-motion:reduce){.gift-support-banner{transition:none}}
+
+/* Mobile audit: keep artwork and its playback hit area on the same rectangle. */
+main :is(.track-art,.cover-ranked-art){position:relative;display:block;flex-shrink:0;padding:0;border:0;background:transparent;border-radius:9px;overflow:hidden;line-height:0}
+main :is(.track-art,.cover-ranked-art)>.mini-cover{display:block;width:100%;height:100%;max-width:100%;object-fit:cover;border-radius:inherit}
+main .track-art{width:48px;height:48px}
+main .cover-ranked-art{width:68px;height:68px}
+/* One generous selection scroller, with the cost and send action always in view. */
+.gift-sheet #dialog-content{min-height:0}
+.gift-sheet .gift-dialog>header{padding-right:34px;flex-shrink:0}
+.gift-sheet .gift-wallet-line{flex-shrink:0}
+.gift-sheet .gift-options{flex:1;overscroll-behavior:contain;scrollbar-width:thin}
+.gift-sheet .gift-checkout{flex-shrink:0;border-top:1px solid #ffffff18;padding-top:4px}
+.gift-sheet .gift-checkout .gift-fineprint{font-size:11px!important;line-height:1.6;margin:0 0 10px!important;color:#b9c4d5}
+.gift-sheet .gift-checkout .form-error:empty{display:none}
+.gift-policy-details{margin:16px 0 8px;color:#b9c4d5;line-height:1.7;font-size:12px}
+.gift-policy-details summary{cursor:pointer;padding:10px 0;min-height:44px}
+.gift-sheet .gift-policy-details .gift-fineprint{font-size:12px!important}
+dialog .dialog-close{display:grid;place-items:center;width:36px;height:36px;padding:0;line-height:1;border:1px solid #c1d5ef28;border-radius:50%;background:#253044;color:#e2e9f5}
+@media(max-width:800px){
+ .sidebar .nav-link{white-space:nowrap;gap:10px;padding-inline:10px;font-size:14px;min-height:44px}
+ .sidebar .nav-link>svg,.sidebar .nav-link>i{flex-shrink:0}
+ .message-thread-pane .dm-thread-header{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px 10px;align-items:center}
+ .message-thread-pane .dm-thread-header>.dm-back{grid-column:1;grid-row:1;margin:0;min-height:44px}
+ .message-thread-pane .dm-thread-person{grid-column:2;grid-row:1;min-width:0;gap:10px}
+ .message-thread-pane .dm-thread-person>div:not(.artist-portrait){min-width:0;flex:1}
+ .message-thread-pane .dm-thread-person>.artist-portrait{width:40px;height:40px;flex:0 0 40px;font-size:16px;line-height:1}
+ .message-thread-pane .dm-thread-person h1{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.5;overflow-wrap:normal}
+ .message-thread-pane .dm-thread-actions{grid-column:1/-1;justify-content:flex-end;width:100%;margin:0;padding-top:6px;border-top:1px solid #ffffff0c}
+ .message-thread-pane .dm-thread-actions .dm-block-button{min-height:44px}
+}
+@media(max-width:600px){
+ dialog.gift-sheet{padding:22px 16px calc(16px + env(safe-area-inset-bottom,0px));max-height:90dvh}
+ .gift-sheet .gift-dialog{max-height:calc(90dvh - 38px - env(safe-area-inset-bottom,0px))}
+ .gift-sheet .gift-catalog{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+ .gift-sheet .gift-choice{min-height:100px}
+ .gift-sheet .gift-options>.gift-rewards-link{padding:10px;min-height:40px;font-size:12px;margin:0 0 12px}
+ .gift-sheet .gift-free-choice{gap:9px;padding:12px;flex-wrap:wrap}
+ .gift-sheet .gift-free-choice>span{flex:1;min-width:150px}
+ .gift-sheet .gift-free-choice small{word-break:keep-all;font-size:11px;line-height:1.6}
+ .gift-sheet .gift-free-choice>b{margin-left:auto;font-size:11px}
+ .gift-sheet .gift-dialog header h2{font-size:20px}
+ .gift-sheet .gift-dialog header p{font-size:12px;line-height:1.6;overflow-wrap:anywhere}
+ main .person-profile.social-profile-square{display:grid;grid-template-columns:108px minmax(0,1fr);gap:8px 12px!important;padding:12px 0 22px}
+ main .social-profile-square .social-profile-main,main .social-profile-square .social-profile-identity{display:contents}
+ main .social-profile-square .social-profile-photo{grid-column:1;grid-row:1;width:84px!important;height:84px!important;min-width:84px;align-self:center;margin:12px}
+ main .social-profile-square .social-profile-photo.player-has-frame{margin:12px;overflow:visible}
+ main .social-profile-identity .eyebrow{display:none}
+ main .social-profile-identity h2{grid-column:2;grid-row:1;align-self:center;font-size:1.3rem!important;line-height:1.5;margin:0;overflow-wrap:anywhere}
+ main .social-profile-identity p{grid-column:1/-1;grid-row:2;align-self:start;margin:0;line-height:1.7}
+ main .social-profile-square .music-profile-stats{grid-column:1/-1;gap:8px 18px!important;margin:4px 0 0;justify-content:flex-start;font-size:12px}
+ main .social-profile-square .music-profile-stats>*{white-space:nowrap}
+ main .social-profile-square .social-profile-actions{grid-column:1/-1;max-width:none;justify-content:flex-start;gap:8px}
+ main .social-profile-actions .profile-gift-ranking{font-size:11px!important;padding-inline:12px!important}
+ main .browse-shortcuts a{grid-template-columns:minmax(0,1fr);align-content:start;gap:8px;padding:18px 14px;word-break:keep-all;overflow-wrap:normal}
+ main .browse-shortcuts svg{grid-row:auto;margin-bottom:2px}
+ main .browse-shortcuts strong{font-size:14px;line-height:1.55}
+ main .browse-shortcuts small{font-size:12px;line-height:1.6}
+ main .cover-ranked-art{width:58px;height:58px}
+}
