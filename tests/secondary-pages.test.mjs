@@ -56,3 +56,11 @@ test('responsive cards and studio spacing are packaged after previous theme laye
  assert.match(css,/studio-payout-callout\{[^}]*margin-top:28px/);assert.match(read('views.js'),/class="studio-payout-callout"/);
  assert.ok(read('index.html').indexOf('secondary-pages.css')>read('index.html').indexOf('release-refinements.css'));
 });
+test('shuffle uses the same distinct dice icon in playback, queue and browse actions',()=>{
+ const c=vm.createContext({});vm.runInContext(read('icons.js'),c);
+ const svg=vm.runInContext("icon('shuffle')",c);
+ assert.match(svg,/M6 3h12a3/);assert.match(svg,/M7\.5 7\.5/);assert.doesNotMatch(svg,/M3 5h3c5/);
+ assert.match(read('index.html'),/id="shuffle"[^>]*aria-pressed="false"><i data-icon="shuffle"/);
+ assert.match(read('browse.js'),/icon\('shuffle'\)/);assert.match(read('explorer.js'),/icon\('shuffle'\)/);
+ assert.match(read('actions.js'),/button\.setAttribute\('aria-pressed',String\(shuffle\)\)/);
+});
