@@ -63,4 +63,6 @@ test('shuffle uses the reference horizontal crossing arrows in playback, queue a
  assert.match(read('index.html'),/id="shuffle"[^>]*aria-pressed="false"><i data-icon="shuffle"/);
  assert.match(read('browse.js'),/icon\('shuffle'\)/);assert.match(read('explorer.js'),/icon\('shuffle'\)/);
  assert.match(read('actions.js'),/button\.setAttribute\('aria-pressed',String\(shuffle\)\)/);
+ assert.doesNotMatch(read('secondary-pages.css'),/#shuffle\s+svg\s*\{/);
+ assert.match(read('style.css'),/\.player-buttons svg\{width:15px;height:15px\}/);
 });
