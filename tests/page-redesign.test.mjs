@@ -62,6 +62,13 @@ test('new markup and last stylesheet are packaged, without replacing existing bi
  assert.match(build,/'page-redesign.js','page-redesign.css'/);
  for(const script of ['gold-checkout.js','karaoke-core.js','audio-ads.js','social-chat.js'])assert.match(index,new RegExp(script.replace('.','\\.')));
 });
+test('banner gradients override the old flat theme and retain readable surfaces',()=>{
+ const css=read('page-atmosphere.css'),index=read('index.html');
+ assert.match(css,/--surface-wash:linear-gradient/);assert.match(css,/--surface-feature:linear-gradient/);
+ assert.match(css,/\.home-sing-card\{background:radial-gradient/);
+ assert.ok(index.indexOf('page-atmosphere.css')>index.indexOf('unified-ui.css'));
+ assert.match(css,/\.community-crew-ranking a\{display:grid/);
+});
 
 test('desktop content clears the fixed sidebar and mobile uses the full viewport',()=>{
  const css=read('page-redesign.css');

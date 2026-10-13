@@ -58,3 +58,12 @@ test('frame image is excluded from photo sizing and payment CTA has content widt
  assert.match(css,/community-feed-column \.music-card-body\{[^}]*grid-row:2/);
  assert.match(read('index.html'),/social-layouts.js/);assert.match(readFileSync(new URL('../scripts/build.mjs',import.meta.url),'utf8'),/social-layouts.js/);
 });
+test('crew ranking replaces the song shelf, uses server rankings and displays levels and XP',()=>{
+ const {c}=fixture(),rankings=[{id:'second',name:'Second',level:3,xp:700,members:3},{id:'first',name:'<First>',level:4,xp:1500,members:5},{id:'third',name:'Third',level:3,xp:600,members:2}];
+ const html=c.communityCrewSidebarHTML({crews:[],mine:'c',tracks:[{title:'Not a ranking'}],rankings});
+ assert.match(html,/크루 랭킹/);assert.match(html,/LV 4/);assert.match(html,/1500 XP/);assert.match(html,/&lt;First>/);
+ assert.ok(html.indexOf('#crew/first')<html.indexOf('#crew/second'));assert.ok(html.indexOf('#crew/second')<html.indexOf('#crew/third'));
+ assert.doesNotMatch(html,/내 크루의 새 음악|Not a ranking/);assert.equal(rankings[0].id,'second');
+ assert.match(c.crewRankingSidebarHTML([]),/아직 등록된 크루가 없어요/);
+ assert.match(c.crewRankingSidebarHTML(),/불러오는 중/);
+});

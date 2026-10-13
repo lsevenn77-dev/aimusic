@@ -58,12 +58,15 @@ export async function socialRoute(req,env,path,user){
    const mine=user?await one(env,'SELECT crew_id FROM crew_members WHERE user_id=?',user.id):null;
    if(mine)await syncXp(env,mine.crew_id);
    const q=(url.searchParams.get('q')||'').slice(0,80);
-   const [crews,interests,tracks]=await Promise.all([
+   // Level is a monotonic function of total XP, so this orders by level then XP
+   // across every crew, independently of discovery's search and 100-row limit.
+   const [crews,interests,tracks,rankings]=await Promise.all([
     rows(env,`${crewSelect} WHERE c.name LIKE ? OR c.interests LIKE ? ORDER BY (c.id=?) DESC,c.recruiting DESC,c.created DESC LIMIT 100`,'%'+q+'%','%'+q+'%',mine?.crew_id||''),
     user?rows(env,'SELECT t.genre FROM likes l JOIN tracks t ON t.id=l.track_id WHERE l.user_id=? GROUP BY t.genre ORDER BY count(*) DESC LIMIT 5',user.id):[],
-    trackList(env,`${VISIBLE()} AND t.user_id IN (SELECT user_id FROM crew_members${mine?' WHERE crew_id=?':''})`,mine?[mine.crew_id]:[],'t.created DESC',30)]);
+    trackList(env,`${VISIBLE()} AND t.user_id IN (SELECT user_id FROM crew_members${mine?' WHERE crew_id=?':''})`,mine?[mine.crew_id]:[],'t.created DESC',30),
+    rows(env,`${crewSelect} ORDER BY xp DESC,c.created ASC,c.id ASC LIMIT 5`)]);
    const scored=crews.map(c=>({...present(c),match:interests.filter(g=>c.interests.toLowerCase().includes(g.genre.toLowerCase())).length})).sort((a,b)=>(b.id===mine?.crew_id)-(a.id===mine?.crew_id)||b.match-a.match||b.recruiting-a.recruiting);
-   return json({crews:scored,tracks,mine:mine?.crew_id||null,rules:{levels:CREW_LEVELS,...CREW_REWARDS}});
+   return json({crews:scored,rankings:rankings.map(present),tracks,mine:mine?.crew_id||null,rules:{levels:CREW_LEVELS,...CREW_REWARDS}});
   }
   requireUser(user);if(method!=='POST')fail(405,'지원하지 않는 요청입니다.');
   if(await one(env,'SELECT 1 FROM crew_members WHERE user_id=?',user.id))fail(409,'이미 가입한 크루가 있어요.');
