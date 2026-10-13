@@ -40,3 +40,13 @@ test('profile photo reuses the single photo safely and needs no separate banner'
  assert.doesNotMatch(c.profilePhotoHTML({id:'p'}),/<img/);
  assert.doesNotMatch(c.profilePhotoHTML({id:'" onerror="bad',image_version:'"'}),/onerror="/);
 });
+test('support panels replace the catalog with one profile or song gift-dialog banner',()=>{
+ const {c}=context({id:'visitor'}),g={free_count:3,total_gold:10,ranking:[{rank:1,name:'<Fan>',stars:3,gold:10,score:13}]};
+ const profile=c.giftsPanelHTML(g,'받은 응원',{profile:{id:'person',user_id:'owner'}});
+ assert.equal((profile.match(/data-profile-gift=/g)||[]).length,1);assert.match(profile,/class="gift-support-banner" data-profile-gift="person"/);
+ assert.match(profile,/선물로 응원하기/);assert.match(profile,/&lt;Fan&gt;/);assert.match(profile,/13점/);assert.match(profile,/#rewards/);
+ assert.doesNotMatch(profile,/gift-quick-grid|data-gift-type|선물 선택/);
+ const track=c.giftsPanelHTML(g,'응원',{track:{id:'song',user_id:'owner'}});assert.match(track,/class="gift-support-banner" data-gift="song"/);assert.doesNotMatch(track,/data-profile-gift/);
+ c.me={id:'owner'};const own=c.giftsPanelHTML(g,'받은 응원',{profile:{id:'person',user_id:'owner'}});
+ assert.match(own,/data-profile-gift="person" disabled/);assert.match(own,/방문자가 이곳에서 응원을/);assert.equal(c.giftsPanelHTML(null,'받은 응원'),'');
+});
