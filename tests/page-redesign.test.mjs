@@ -38,6 +38,22 @@ test('the recording redesign keeps controller hooks exactly once and mode choice
  }
  for(const hook of ['data-sing-start','data-sing-pause','data-sing-stop','data-sing-redo-live','data-sing-settings'])assert.match(html,new RegExp(hook));
  assert.match(html,/sing-header-mode/);
+ assert.match(html,/sing-console sing-transport/);
+ assert.ok(html.indexOf('class="studio-record"')<html.indexOf('studio-secondary-controls'));
+ assert.match(html,/<details class="sing-size-menu"><summary>/);
+ for(const hook of ['data-sing-start','data-sing-pause','data-sing-stop','data-sing-redo-live','data-sing-settings'])assert.equal((html.match(new RegExp(hook,'g'))||[]).length,1,hook);
+});
+
+test('atmospheric artwork is decorative, route-specific, and recorder controls remain compact',()=>{
+ const css=read('page-atmosphere.css');
+ assert.match(css,/pointer-events:none/);
+ for(const asset of ['records-v1.svg','conversation-v1.svg','gallery-v1.svg','gift-v1.svg','community-v1.svg','microphone-v1.svg','recording-room-v1.webp','community-studio-v1.webp']){
+  assert.match(css,new RegExp(asset.replace('.','\\.')));
+  assert.ok(readFileSync(new URL('../dist/assets/atmosphere/'+asset,import.meta.url)).length>0);
+ }
+ assert.match(css,/studio-secondary-controls\{[^}]*grid-template-columns:repeat\(3/);
+ assert.match(css,/@media\(max-width:760px\)/);
+ assert.match(read('index.html'),/page-atmosphere.css/);
 });
 test('new markup and last stylesheet are packaged, without replacing existing billing or audio controllers',()=>{
  const index=read('index.html'),build=readFileSync(new URL('../scripts/build.mjs',import.meta.url),'utf8');
