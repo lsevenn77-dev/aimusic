@@ -53,3 +53,8 @@ test('art buttons reset native padding and size their image to the hit area',()=
  assert.match(css,/main :is\(\.track-art,\.cover-ranked-art\)\{[^}]*padding:0;[^}]*overflow:hidden/);
  assert.match(css,/main :is\(\.track-art,\.cover-ranked-art\)>\.mini-cover\{[^}]*width:100%;height:100%/);
 });
+
+test('mobile cover chart reserves a separate row for positioned social actions',()=>{
+ assert.match(css,/\.chart-page-results \.cover-ranked-row\{padding-bottom:64px\}/);
+ assert.match(css,/\.chart-page-results \.cover-ranked-actions\{right:12px;bottom:10px;gap:8px\}/);
+});

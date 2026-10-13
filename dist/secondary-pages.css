@@ -126,4 +126,8 @@ dialog .dialog-close{display:grid;place-items:center;width:36px;height:36px;padd
  main .browse-shortcuts strong{font-size:14px;line-height:1.55}
  main .browse-shortcuts small{font-size:12px;line-height:1.6}
  main .cover-ranked-art{width:58px;height:58px}
+ /* Ranked cover actions are absolutely positioned by the shared cover list. */
+ main .chart-page-results .cover-ranked-row{padding-bottom:64px}
+ .chart-page-results .cover-ranked-actions{right:12px;bottom:10px;gap:8px}
+ .chart-page-results .cover-ranked-actions :is(.icon-button,.gift-entry){min-width:40px;min-height:40px}
 }
