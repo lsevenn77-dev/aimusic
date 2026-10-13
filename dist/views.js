@@ -49,6 +49,7 @@ async function render(){
  else main.setAttribute('aria-busy','true');
  if(!restored&&base!=='home'&&(pendingView||main.dataset.route!==raw||main.dataset.account!==account)){const titles={inventory:'내 도구함',charts:'차트',karaoke:'부르기',community:'커뮤니티',library:'내 보관함',following:'팔로우',gifts:'선물함',gold:'골드',dm:'DM 메시지',crew:'크루',payouts:'정산',rewards:'오늘의 응원별',song:'곡 이야기',producer:'프로필',artist:'AI 아티스트',profile:'내 프로필',account:'내 계정',upload:'음원 업로드',studio:'창작자 스튜디오',search:'음악 검색',discover:'음악 발견',history:'최근 들은 음악'};main.classList.remove('motion-enter');main.innerHTML=pendingView?.html||heading(titles[base]||'음악 둘러보기')+'<div class="route-loading" role="status"><span>불러오는 중…</span><div></div><div></div><div></div></div>';window.scrollTo({top:0,behavior:'instant'});}
  main.dataset.account=account;
+ main.classList.toggle('secondary-page',['charts','search','discover','collections','artists','producers','library','history','playlist','following','studio','manage','upload','cover','account','membership','rewards','payouts','inventory','gold'].includes(base)||base==='karaoke'&&param==='drafts');
  main.dataset.route=raw;let html='',nextTracks=[];
  try{
   if(base==='home')return await renderHome(ticket);
@@ -66,7 +67,7 @@ async function render(){
    query+=(query?'&':'?')+'section='+(['artists','producers'].includes(base)?base:'tracks');
    const data=await api('/api/catalog'+query);nextTracks=remember(data.tracks||[]);
    if(base==='discover')html=heading('음악 발견','장르를 넘나들며 새로운 취향을 찾아보세요.')+`<div class="genre-chips">${genres.map(g=>`<a class="genre-chip ${g===genre?'active':''}" href="#discover/${encodeURIComponent(g)}">${g}</a>`).join('')}</div>`+grid(data.tracks);
-   else if(base==='charts')html=heading('AIFECT 차트','실제 감상과 좋아요·댓글로 함께 만드는 차트입니다.')+chartTabs(param||'')+list(data.tracks);
+   else if(base==='charts'){const titles={releases:['새로 도착한 음악','새로운 곡, 가장 먼저 만나는 취향.'],rising:['급상승 차트','지금 더 많은 리스너에게 발견되는 음악.'],newcomers:['새로운 아티스트','처음 만나는 목소리와 새로운 음악 세계.']},copy=titles[param]||['AIFECT 차트','함께 듣고 발견하는 음악.'];html=heading(...copy)+chartTabs(param||'')+chartLayoutHTML(browsePlaybackActions(data.tracks)+list(data.tracks),data.tracks,param);}
    else if(base==='artists'||base==='producers')html=heading(base==='artists'?'AI 아티스트':'제작자',base==='artists'?'새로운 목소리, 새로운 세계.':'당신이 좋아하는 음악을 만드는 사람들.')+identityCards(data[base],base==='artists'?'artist':'producer');
    else html=heading('음악 검색')+`<form id="search-form" class="aifect-search">${icon('search')}<input name="q" aria-label="곡, 아티스트, 제작자 검색" placeholder="곡, 아티스트, 제작자, 태그" value="${esc(searchValue)}" maxlength="100"><button class="primary-button">검색</button></form><p class="search-caption">${searchValue?`“${esc(searchValue)}” 검색 결과 ${data.tracks.length}곡`:'어떤 음악을 찾고 계신가요?'}</p>`+list(data.tracks);
   }else if(base==='song'){
@@ -103,7 +104,7 @@ async function render(){
   else if(base==='manage'&&param){studioData=await api('/api/studio');const {profile,alignment,karaoke}=await api('/api/studio/tracks/'+param);html=profile.kind==='cover'?coverEditHTML(profile):trackEditHTML({...profile,alignment,karaoke},studioData);}
   else if(base==='studio'||base==='manage'){
    const d=await api('/api/studio');
-   studioData=d;html=studioHTML(d)+`<a class="primary-button" href="#payouts">정산 내역 보기</a>`;
+   studioData=d;html=studioHTML(d)+`<section class="studio-payout-callout"><div><span class="eyebrow">FOR CREATORS</span><h2>음악으로 쌓은 응원</h2><p>정산 현황과 지급 내역을 한곳에서 확인하세요.</p></div><a class="primary-button" href="#payouts">${icon('wallet')} 정산 내역 보기 ${icon('arrow')}</a></section>`;
   }else html=heading('페이지를 찾을 수 없어요')+empty('잠시 길을 잃었네요','홈에서 새로운 음악을 발견해보세요.','#home','홈으로 이동');
   if(profileHeader){const header=await profileHeader;if(header.error)throw header.error;html=header+html;}
   if(['search','discover','charts','collections'].includes(base))html=listenNav(base==='search'||base==='discover'?'search':base)+html;
