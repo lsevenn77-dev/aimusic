@@ -34,7 +34,7 @@ main[data-route^="karaoke"],main[data-route^="studio"],main[data-route^="upload"
 .gift-shop-intro{box-shadow:inset 0 1px #f3b7d918,0 18px 60px #0002}.gift-shop-intro .gift-shop-art{filter:drop-shadow(0 7px 28px #ed91bc20)}
 .social-side-card,.community-feed-column .music-card{box-shadow:inset 0 1px #cedfff05;background-image:radial-gradient(ellipse at 100% 0,var(--mood-glow),transparent 65%),linear-gradient(130deg,#1b2533,#151e2a)}
 /* The room sits behind the real, fully functional recorder. */
-.page-wrap:has(main[data-route^="sing/"]){background-image:linear-gradient(#0f121a 0,transparent 180px,transparent 75%,#0f121a 100%),url('/assets/atmosphere/recording-room-v1.webp');background-size:100% 1050px;background-position:center top;background-repeat:no-repeat}
+.page-wrap:has(main[data-route^="sing/"]){background-image:linear-gradient(180deg,transparent 0%,#0f121a0d 72%,#0f121a 100%),url('/assets/atmosphere/karaoke-rose-mirrorball-v1.webp');background-size:100% 960px;background-position:center 80px;background-repeat:no-repeat}
 main[data-route^="sing/"]{background:none!important;padding-top:22px!important;padding-bottom:55px!important}
 main[data-route^="sing/"]::before{display:none}
 main[data-route^="sing/"]>.page-heading{margin-bottom:18px;min-height:65px}
@@ -98,7 +98,7 @@ main[data-route^="sing/"]>.page-heading .free-badge{display:none}
 @media(max-width:1050px){main[data-route]::before{opacity:.12;width:58%}main[data-route^="sing/"]>.page-heading::after{font-size:.72rem}#sing.singing-studio-v2{max-width:840px!important}}
 @media(max-width:760px){
  main[data-route]::before{height:175px;width:66%;right:0;top:3px;opacity:.10}
- .page-wrap:has(main[data-route^="sing/"]){background-size:auto 820px;background-position:center 65px}
+ .page-wrap:has(main[data-route^="sing/"]){background-size:auto 820px;background-position:center 78px}
  main[data-route^="sing/"]{padding-top:18px!important;padding-bottom:30px!important}
  main[data-route^="sing/"]>.page-heading::after{display:none}
  main[data-route^="sing/"]>.page-heading{margin-bottom:13px;min-height:0}
