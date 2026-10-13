@@ -1,0 +1,70 @@
+﻿/* AIFECT unified desktop refresh · design-only, no business logic changes. */
+:root {
+  --bg:#10151f;--panel:#1b2230;--line:#30384a;--muted:#a4afbf;--white:#f2f4f9;--lime:#ed85b3;
+  --music-aqua:#e98ab6;--music-text:#f2f4f9;--music-muted:#a4afbf;
+  --surface-wash:#1b2230;--surface-feature:#242a38;
+  --ui-accent:#ed85b3;--ui-accent-soft:rgba(237,133,179,.1);
+  --ui-border:rgba(209,220,239,.10);--ui-radius:15px;
+}
+html {scroll-padding-top:72px}
+body {background:#10151f;color:#f2f4f9;letter-spacing:-.018em;-webkit-font-smoothing:antialiased}
+button,input,select,textarea {font-family:inherit}
+button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible {outline:2px solid #ed85b3;outline-offset:3px}
+::selection {background:#df80b183;color:#fff}
+.sidebar {background:#111824;border-right:1px solid var(--ui-border)}
+.sidebar .nav-link {border-radius:10px;transition:background .18s ease,color .18s ease}
+.sidebar .nav-link:hover {background:#242c3b;color:#f6f7fa}
+.sidebar .nav-link.active,.sidebar .nav-link[aria-current="page"] {background:#293244;color:#f5a3c7;box-shadow:inset 3px 0 #ed85b3}
+.sidebar .nav-label {color:#8692a5}
+.sidebar .second-label {border-top:1px solid var(--ui-border);padding-top:18px}
+.page-wrap {width:min(100%,1440px);max-width:1440px;margin-left:auto;margin-right:auto}
+.page-heading {margin-bottom:22px}
+.page-heading h1 {font-weight:750;letter-spacing:-.04em}
+.view-tabs {border-bottom:1px solid var(--ui-border)}
+.view-tabs .selected,.view-tabs [aria-selected="true"] {color:#f5a3c7}
+.surface,.music-card,.community-entry,.crew-card,.conversation-row,.social-profile,.singing-intro,.music-my-links a,.music-shortcuts a {
+ background:#1b2230;border:1px solid var(--ui-border);border-radius:var(--ui-radius);box-shadow:none;
+}
+.release-feature,.music-crew-entry,.my-crew-preview,.creator-callout,.membership-hero,.profile-hero,.music-participate {
+ background:linear-gradient(118deg,#222b39,#252633);border:1px solid var(--ui-border);border-radius:18px;box-shadow:none;
+}
+.home-music-grid {grid-template-columns:repeat(auto-fill,minmax(166px,1fr));gap:28px 20px}
+.listening-home .listening-section {margin-top:40px}
+.home-music-grid .album-art {border-radius:11px}
+.home-music-grid .music-card {background:transparent;border:0;padding:0}
+.home-music-grid .music-card:hover {background:transparent;transform:translateY(-2px)}
+.music-card .album-art,.album-art {transition:filter .2s ease,transform .2s ease}
+.music-card:hover .album-art {filter:brightness(1.06)}
+.track-row {border-bottom:1px solid var(--ui-border);transition:background .15s ease}
+.track-row:hover {background:rgba(255,255,255,.035)}
+.profile-hero {overflow:hidden}
+.profile-hero .artist-portrait {box-shadow:0 0 0 4px #111824;border-radius:50%}
+.social-profile-square.social-profile {gap:26px}
+.music-profile-stats {gap:24px}
+.music-profile-stats>a:hover {color:#f5a3c7}
+.gift-rewards-link {border:1px solid rgba(237,133,179,.2)!important;background:#252638!important;color:#f5b0d0!important;border-radius:14px}
+.gift-shop-balance,.gold-pack,.gift-card {border-color:var(--ui-border);border-radius:14px}
+.conversation-row {border-radius:12px}
+.conversation-row:hover {background:#252e3e}
+.chat-panel.dm-chat-panel {background:#192231!important;border:1px solid var(--ui-border);border-radius:18px}
+.dm-message .dm-bubble {background:#293246}
+.dm-message.mine .dm-bubble {background:#51354b;color:#fff}
+.form-field input,.form-field textarea,.form-field select {background:#151d29;border:1px solid var(--ui-border);color:#f4f6fa}
+.form-field input:focus,.form-field textarea:focus,.form-field select:focus {border-color:#ed85b3;outline-color:#ed85b3}
+.form-field input::placeholder,.form-field textarea::placeholder {color:#8895a9}
+.primary-button {background:#ed85b3;color:#18202c;border-radius:999px;font-weight:700;box-shadow:none}
+.primary-button:hover {background:#f3a1c6;box-shadow:none}
+.small-button {border-radius:999px}
+button:disabled {opacity:.5;cursor:not-allowed}
+@media(min-width:1100px){
+  .listening-home,.page-wrap {max-width:1440px}
+}
+@media(max-width:800px){
+  .page-wrap {width:100%;padding-left:14px;padding-right:14px}
+  .home-music-grid {grid-template-columns:repeat(2,minmax(0,1fr));gap:22px 14px}
+  .sidebar .nav-link.active {box-shadow:none}
+  .social-profile-square.social-profile {gap:16px}
+}
+@media(prefers-reduced-motion:reduce){
+  .sidebar .nav-link,.track-row,.music-card .album-art,.album-art {transition:none!important}
+}
