@@ -54,5 +54,7 @@ test('community side cards use actual data, not mockup popularity counts',()=>{
 });
 test('frame image is excluded from photo sizing and payment CTA has content width',()=>{
  const css=read('page-redesign.css');assert.match(css,/social-profile-photo>img:not\(\.player-frame-artwork\)/);assert.match(css,/gift-shop-actions>\.primary-button\{width:auto/);
+ assert.match(css,/main \.social-profile-square \.social-profile-main\{[^}]*flex-direction:row/);
+ assert.match(css,/community-feed-column \.music-card-body\{[^}]*grid-row:2/);
  assert.match(read('index.html'),/social-layouts.js/);assert.match(readFileSync(new URL('../scripts/build.mjs',import.meta.url),'utf8'),/social-layouts.js/);
 });
