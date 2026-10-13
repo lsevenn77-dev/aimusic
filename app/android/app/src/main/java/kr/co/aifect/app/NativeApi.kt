@@ -28,7 +28,7 @@ object Endpoint {
 class ApiException(val status: Int, message: String): IOException(message)
 fun JSONArray?.objects(): List<JSONObject> = if(this == null) emptyList() else (0 until length()).mapNotNull { optJSONObject(it) }
 fun JSONObject.tracks(key: String = "tracks") = optJSONArray(key).objects().map { Song(it) }
-data class MusicCollection(val title:String,val caption:String,val tracks:List<Song>,val path:String?=null,val resultKey:String="tracks")
+data class MusicCollection(val title:String,val caption:String,val tracks:List<Song>,val path:String?=null,val resultKey:String="tracks",val asPage:Boolean=false)
 data class Song(val raw: JSONObject) {
  val id=raw.optString("id")
  val title=raw.optString("title","제목 없음")

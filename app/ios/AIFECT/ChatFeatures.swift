@@ -323,18 +323,22 @@ private struct ChatRoomView: View {
         .onAppear { model.visibleChats.insert(chatToken) }
         .onDisappear { model.visibleChats.remove(chatToken) }
         .navigationTitle(displayTitle).navigationBarTitleDisplayMode(.inline)
-        .toolbar { ToolbarItem(placement: .topBarTrailing) {
+        .toolbar { ToolbarItemGroup(placement: .topBarTrailing) {
+            if !room.crew {
+                Button { clearConfirmation = true } label: {
+                    Image(systemName: "trash").frame(width: 44, height: 44)
+                }.disabled(room.busy).accessibilityLabel("이 대화방 내용 전체 삭제")
+            }
             Menu {
                 Button(room.muted ? "대화 알림 켜기" : "대화 알림 끄기", systemImage: room.muted ? "bell" : "bell.slash") { Task { await room.toggleMute(); await model.refreshInbox() } }
                 if !room.crew {
                     NavigationLink { GiftWalletView(person: GiftRecipient(id: String(room.path.split(separator: "/").last ?? ""), name: displayTitle)) } label: { Label("개인 선물 보내기", systemImage: "gift") }
-                    Button("내 대화 삭제", role: .destructive) { clearConfirmation = true }
                 }
             } label: { Image(systemName: room.muted ? "bell.slash" : "ellipsis.circle") }.disabled(room.busy).accessibilityLabel("대화 설정")
         } }
-        .confirmationDialog("내 대화를 삭제할까요?", isPresented: $clearConfirmation, titleVisibility: .visible) {
-            Button("내 대화 삭제", role: .destructive) { Task { await room.clear(); await model.refreshInbox() } }
-        } message: { Text("내 목록과 기록에서 삭제합니다. 상대방의 대화는 유지되며 새 메시지는 다시 표시됩니다.") }
+        .confirmationDialog("이 대화방의 내용을 전부 삭제할까요?", isPresented: $clearConfirmation, titleVisibility: .visible) {
+            Button("내용 전체 삭제", role: .destructive) { Task { await room.clear(); await model.refreshInbox() } }
+        } message: { Text("내 화면의 이전 메시지와 사진이 모두 사라집니다. 상대방의 기록과 다른 대화방은 유지되며, 새 메시지는 계속 받을 수 있어요.") }
         .confirmationDialog("이 이용자를 차단할까요?", isPresented: Binding(get: { blocking != nil }, set: { if !$0 { blocking = nil } }), titleVisibility: .visible) {
             Button("차단", role: .destructive) { if let id = blocking { Task { do {
                 room.stop()
@@ -381,7 +385,7 @@ private struct ChatRoomView: View {
             Text(item.string("body")).font(.caption2).foregroundStyle(.secondary).frame(maxWidth: .infinity).padding(.vertical, 8)
         } else {
             HStack(alignment: .bottom, spacing: 6) {
-                if mine { Spacer(minLength: 48) }
+                if mine { Spacer(minLength: 12); messageTime(item) }
                 if !mine {
                     if showName {
                         let person = chatPerson(item)
@@ -397,12 +401,17 @@ private struct ChatRoomView: View {
                         else { Text(item.string("body")).textSelection(.enabled) }
                     }.padding(.horizontal, 13).padding(.vertical, 9)
                         .background(mine ? Brand.aqua.opacity(0.22) : Brand.card, in: RoundedRectangle(cornerRadius: 17))
-                    if item.number("created") > 0 { Text(Date(timeIntervalSince1970: item.number("created")), style: .time).font(.system(size: 9)).foregroundStyle(.secondary) }
                 }
-                if !mine { Spacer(minLength: 48) }
+                if !mine { messageTime(item); Spacer(minLength: 12) }
             }.contextMenu {
                 if !mine && !sender(item).isEmpty { Button("이용자 차단", role: .destructive) { blocking = sender(item) } }
             }
+        }
+    }
+    @ViewBuilder private func messageTime(_ item: [String: Any]) -> some View {
+        if item.number("created") > 0 {
+            Text(Date(timeIntervalSince1970: item.number("created")), style: .time)
+                .font(.system(size: 10)).foregroundStyle(.secondary).fixedSize().padding(.bottom, 3)
         }
     }
     private func chatPerson(_ item: [String: Any]) -> [String: Any] {

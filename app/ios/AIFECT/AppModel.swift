@@ -2,6 +2,12 @@ import SwiftUI
 import AuthenticationServices
 import CryptoKit
 
+struct MessageRoute: Hashable {
+    let id: String
+    let title: String
+    let crew: Bool
+}
+
 @MainActor
 final class AppModel: NSObject, ObservableObject, ASWebAuthenticationPresentationContextProviding {
     @Published var latest: [Song] = []
@@ -20,6 +26,13 @@ final class AppModel: NSObject, ObservableObject, ASWebAuthenticationPresentatio
     @Published var error: String?
     @Published var notice: String?
     @Published var visibleChats: Set<UUID> = []
+    @Published var selectedTab = 0
+    @Published var messagePath: [MessageRoute] = []
+    func openCrewMessages(id: String, title: String) {
+        guard requireLogin() else { return }
+        messagePath = [MessageRoute(id: id, title: title, crew: true)]
+        selectedTab = 3
+    }
     var chatOpen: Bool { !visibleChats.isEmpty }
     @Published var walletRevision = 0
     @Published var profileRevision = 0
@@ -170,6 +183,7 @@ final class AppModel: NSObject, ObservableObject, ASWebAuthenticationPresentatio
         notice = "계정을 삭제했습니다. 업로드 파일도 삭제 처리됩니다."
     }
     private func clearPrivate() {
+        messagePath.removeAll()
         accountRevision += 1; likeRequests.removeAll(); likeRevision += 1; inboxConversations = []; visibleChats.removeAll(); inboxUnread = 0; inboxCrew = nil; likes = []; playlists = []; history = []; player.close()
     }
     func handle(_ error: Error) {

@@ -133,20 +133,14 @@ struct MessagesView: View {
     @EnvironmentObject var model: AppModel
     private var conversations: [[String: Any]] { model.inboxConversations }
     @State private var error: String?
-    @State private var deleteAll = false
-    @State private var busy = false
     @State private var revision = 0
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 14) {
-                HStack(alignment: .top) {
-                    Spacer()
-                    if model.user != nil { Button { deleteAll = true } label: { Image(systemName: "trash").frame(width: 44, height: 44) }.accessibilityLabel("내 대화 전체 삭제").disabled(busy) }
-                }
                 if model.user == nil { Button("로그인하고 메시지 보기") { model.showLogin = true }.buttonStyle(ParityPill(filled: true)) }
                 if let crew = model.inboxCrew {
                     Text("내 크루 · 고정").font(.system(size: 13, weight: .semibold)).foregroundStyle(Brand.aqua)
-                    NavigationLink { ChatPage(path: "/api/crews/\(Endpoint.pathID(crew.string("id")))/messages", title: crew.string("name"), crew: true) } label: {
+                    NavigationLink(value: MessageRoute(id: crew.string("id"), title: crew.string("name"), crew: true)) {
                         HStack(spacing: 12) {
                             Image(systemName: "pin.fill").font(.title2).foregroundStyle(Brand.aqua)
                             VStack(alignment: .leading, spacing: 6) { Text(crew.string("name")).font(.headline); Text("내 크루 채팅").font(.system(size: 13)).foregroundStyle(AifectDesign.muted) }
@@ -159,7 +153,7 @@ struct MessagesView: View {
                 }
                 if conversations.isEmpty { Text("프로필에서 메시지를 보내 대화를 시작하세요.").font(.system(size: 14)).foregroundStyle(AifectDesign.muted).padding(.vertical, 22) }
                 ForEach(conversations, id: \.selfID) { person in
-                    NavigationLink { ChatPage(path: "/api/dm/\(Endpoint.pathID(person.string("id")))", title: person.displayName(), crew: false) } label: {
+                    NavigationLink(value: MessageRoute(id: person.string("id"), title: person.displayName(), crew: false)) {
                         HStack(spacing: 12) {
                             ProfilePhoto(person: person, size: 48)
                             VStack(alignment: .leading, spacing: 6) {
@@ -180,12 +174,12 @@ struct MessagesView: View {
                 do { try await Task.sleep(for: .seconds(5)) } catch { break }
             }
         }.refreshable { await load() }
-        .confirmationDialog("내 개인 대화를 모두 삭제할까요?", isPresented: $deleteAll, titleVisibility: .visible) {
-            Button("전체 삭제", role: .destructive) { Task { await clear() } }
-        } message: { Text("내 개인 대화 목록과 기록만 삭제합니다. 상대방의 기록과 크루 채팅은 유지됩니다.") }
+        .navigationDestination(for: MessageRoute.self) { route in
+            ChatPage(path: route.crew ? "/api/crews/\(Endpoint.pathID(route.id))/messages" : "/api/dm/\(Endpoint.pathID(route.id))", title: route.title, crew: route.crew)
+        }
     }
     private func load() async {
-        guard let owner = model.userID, !busy else { return }
+        guard let owner = model.userID else { return }
         let version = revision
         do {
             let data = try await API.shared.call("/api/dm")
@@ -193,16 +187,6 @@ struct MessagesView: View {
             model.inboxConversations = data.objects("conversations"); error = nil
             await model.refreshInbox()
         } catch { if owner == model.userID, version == revision, !Task.isCancelled { self.error = error.localizedDescription } }
-    }
-    private func clear() async {
-        guard let owner = model.userID, !busy else { return }
-        revision += 1; busy = true
-        do {
-            _ = try await API.shared.call("/api/dm", method: "DELETE")
-            ChatCache.removeAll(owner: owner)
-            if owner == model.userID { model.inboxConversations = []; error = nil }
-        } catch { if owner == model.userID { self.error = error.localizedDescription } }
-        busy = false; await load()
     }
 }
 
@@ -252,7 +236,7 @@ struct CrewsView: View {
         do {
             let result = try await API.shared.call("/api/crews?q=" + Endpoint.query(search))
             guard !Task.isCancelled, owner == model.userID, search == query else { return }
-            crews = result.objects("crews"); mine = result["mine"] as? String; error = nil
+            crews = NativeRedesignLayout.rankedCrews(result.objects("crews")); mine = result["mine"] as? String; error = nil
         } catch { if !Task.isCancelled, owner == model.userID, search == query { self.error = error.localizedDescription } }
     }
 }
@@ -351,7 +335,7 @@ struct CrewPage: View {
         }.background(Brand.card, in: RoundedRectangle(cornerRadius: 22)).clipShape(RoundedRectangle(cornerRadius: 22))
     }
     private var chatEntry: some View {
-        NavigationLink { ChatPage(path: "/api/crews/\(Endpoint.pathID(id))/messages", title: crew.string("name"), crew: true) } label: {
+        Button { model.openCrewMessages(id: id, title: crew.string("name")) } label: {
             HStack(spacing: 14) {
                 Image(systemName: "bubble.left.and.bubble.right.fill").font(.system(size: 23)).foregroundStyle(Brand.aqua)
                 VStack(alignment: .leading, spacing: 5) { Text("크루 채팅방").font(.system(size: 17, weight: .semibold)); Text("우리의 음악 이야기, 여기서 이어가요").font(.system(size: 12)).foregroundStyle(AifectDesign.muted) }
@@ -391,6 +375,7 @@ struct CrewPage: View {
     private var aboutContent: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("크루 소개").font(.system(size: 21, weight: .bold))
+            CrewMembershipGraphic(crew: crew, trackCount: data.songs().count)
             Text(crew.string("description").isEmpty ? "크루 소개가 아직 등록되지 않았어요." : crew.string("description")).font(.system(size: 15)).foregroundStyle(AifectDesign.secondaryText)
             if !crew.string("interests").isEmpty { Label(crew.string("interests"), systemImage: "music.note.list").font(.system(size: 14)).foregroundStyle(Brand.aqua) }
             CrewGrowthGuide(crew: crew, rules: data.object("rules"))
@@ -510,6 +495,7 @@ struct MyMusicView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 14) {
                 HStack(alignment: .top) {
+                    Text("마이").font(.system(size: 26, weight: .bold))
                     Spacer()
                     if model.user != nil { Button("로그아웃") { confirmLogout = true }.font(.system(size: 14)).foregroundStyle(AifectDesign.secondaryText).frame(minHeight: 44).disabled(loggingOut) }
                 }
@@ -586,7 +572,7 @@ struct MyMusicView: View {
                 Spacer()
                 if !profile.string("id").isEmpty { NavigationLink { ProfileGiftRankingView(profileID: profile.string("id")) } label: { Image(systemName: "gift") }.accessibilityLabel("받은 선물") }
             }.font(.caption).foregroundStyle(AifectDesign.secondaryText)
-        }.padding(16).background(MusicSurface()).clipShape(RoundedRectangle(cornerRadius: 20))
+        }.padding(16).background(MusicSurface()).clipShape(RoundedRectangle(cornerRadius: 20)).overlay(RoundedRectangle(cornerRadius: 20).stroke(AifectDesign.stroke, lineWidth: 1))
     }
     private func profileStat(_ label: String, _ count: Int, active: Bool = false) -> some View {
         Text("\(label) \(count)").font(.system(size: 13, weight: .semibold)).foregroundStyle(active ? Brand.aqua : AifectDesign.text).frame(maxWidth: .infinity, minHeight: 50).background(Color(aifectHex: 0x222331), in: RoundedRectangle(cornerRadius: 13))
@@ -694,12 +680,12 @@ struct CrewDirectoryCard: View {
             HStack(spacing: 8) {
                 Label("LV.\(crew.int("level"))", systemImage: "sparkles").foregroundStyle(Brand.aqua)
                 Text("·").foregroundStyle(AifectDesign.muted)
-                Text("총 \(crew.int("members"))명 / \(crew.int("capacity"))명").foregroundStyle(AifectDesign.secondaryText)
+                Text("\(crew.int("xp")) XP · \(crew.int("members"))명").foregroundStyle(AifectDesign.secondaryText)
                 Spacer(minLength: 2)
                 Image(systemName: "chevron.right").foregroundStyle(AifectDesign.muted)
             }.font(.system(size: 12, weight: .semibold))
             if !crew.string("interests").isEmpty { Text(crew.string("interests")).font(.system(size: 12)).foregroundStyle(AifectDesign.muted).lineLimit(1) }
-        }.padding(16).background(Brand.card, in: RoundedRectangle(cornerRadius: 20)).overlay(RoundedRectangle(cornerRadius: 20).stroke(isMine ? Brand.aqua.opacity(0.35) : AifectDesign.stroke.opacity(0.5), lineWidth: 1))
+        }.padding(16).background(MusicSurface()).clipShape(RoundedRectangle(cornerRadius: 20)).overlay(RoundedRectangle(cornerRadius: 20).stroke(isMine ? Brand.aqua.opacity(0.35) : AifectDesign.stroke.opacity(0.5), lineWidth: 1))
     }
 }
 struct CrewRecruitingBadge: View {
@@ -822,11 +808,11 @@ private struct PlayerLevelCard: View {
     private var floor: Int { 50 * level * (level - 1) }
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack { Text("레벨 \(level)").font(.title2.bold()); Spacer(); Text("\(xp) XP").foregroundStyle(Brand.aqua) }
+            HStack { Text("레벨 \(level)").font(.system(size: 18, weight: .bold)); Spacer(); Text("\(xp) XP").font(.system(size: 14)).foregroundStyle(Brand.aqua) }
             ProgressView(value: level >= 100 ? 1 : Double(xp - floor) / Double(next - floor)).tint(Brand.aqua)
             Text(level >= 100 ? "최고 레벨에 도달했어요." : "다음 레벨까지 \(next - xp) XP").font(.caption).foregroundStyle(AifectDesign.muted)
             if showsInventory { HStack { Text("아이템 보관함"); Spacer(); Image(systemName: "chevron.right") }.font(.subheadline).foregroundStyle(Brand.aqua).frame(minHeight: 32) }
-        }.padding(20).background(Brand.card, in: RoundedRectangle(cornerRadius: 18))
+        }.padding(16).background(MusicSurface()).clipShape(RoundedRectangle(cornerRadius: 18)).overlay(RoundedRectangle(cornerRadius: 18).stroke(AifectDesign.stroke, lineWidth: 1))
     }
 }
 struct PlayerInventoryView: View {

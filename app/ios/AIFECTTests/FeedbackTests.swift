@@ -3,6 +3,24 @@ import AVFoundation
 @testable import AIFECT
 
 final class FeedbackTests: XCTestCase {
+    func testLeadInPlaysPrecedingMusicAndRecordsAtSelectedLyric() {
+        for target in [0.0, 0.5, 2.0, 3.0, 17.0, 153.2] {
+            let plan = RecordingLeadIn(target: target)
+            XCTAssertGreaterThanOrEqual(plan.audioOffset, 0)
+            XCTAssertGreaterThanOrEqual(plan.audioDelay, 0)
+            XCTAssertEqual(plan.duration, 3)
+            XCTAssertEqual(plan.audioOffset + plan.duration - plan.audioDelay, target, accuracy: 0.0001)
+        }
+        XCTAssertEqual(RecordingLeadIn(target: 17).audioOffset, 14)
+        XCTAssertEqual(RecordingLeadIn(target: 17).audioDelay, 0)
+        XCTAssertEqual(RecordingLeadIn(target: 1).audioDelay, 2)
+    }
+    func testFullLyricsHideTimingButPreserveWordsAndAnnotations() {
+        let lrc = "[ti:Song]\n[offset:20]\n[00:00.620]Oops!\n[00:02.10][00:12.10]다시\n[Chorus]\n[00:15.000]<00:15.200>함께 <00:16.000>불러요"
+        XCTAssertEqual(LyricsDisplay.plainText(lrc), "Oops!\n다시\n[Chorus]\n함께 불러요")
+        XCTAssertEqual(LyricsDisplay.plainText("평범한 가사\n\n다음 줄"), "평범한 가사\n\n다음 줄")
+        XCTAssertEqual(LyricsDisplay.plainText(""), "")
+    }
     override func tearDown() { MockURLProtocol.handler = nil; super.tearDown() }
     @MainActor private func api() -> API {
         let config = URLSessionConfiguration.ephemeral; config.protocolClasses = [MockURLProtocol.self]
@@ -83,7 +101,7 @@ final class FeedbackTests: XCTestCase {
         let studio = RecordingStudio(song: draft.song, owner: draft.owner, draft: draft)
         studio.words = [(0, "첫 줄"), (10, "다음 줄")]
         await studio.cueLyric(at: 1)
-        XCTAssertFalse(studio.reviewing); XCTAssertNil(studio.draft); XCTAssertEqual(studio.elapsed, 8)
+        XCTAssertFalse(studio.reviewing); XCTAssertNil(studio.draft); XCTAssertEqual(studio.elapsed, 10)
         XCTAssertEqual(try Data(contentsOf: draft.directory.appendingPathComponent("voice.wav")), voice)
         await studio.cueLyric(at: 0); XCTAssertEqual(studio.elapsed, 0)
         studio.shutdown()

@@ -25,25 +25,25 @@ private val RankCaptions=listOf("오늘 마음을 움직인", "이번 주 사랑
 private val RankColors=listOf(Pink,Aqua,Violet,Color(0xFFE8CFA0))
 
 @Composable internal fun CoverRankShowcase(m:MusicModel){
- Column(verticalArrangement=Arrangement.spacedBy(12.dp)){
-  CoverPeriods.indices.chunked(2).forEach{pair->Row(horizontalArrangement=Arrangement.spacedBy(12.dp)){
-   pair.forEach{i->val period=CoverPeriods[i].first;val song=m.rankHighlights[period];val color=RankColors[i]
-    Surface(onClick={m.openRanking(period)},modifier=Modifier.weight(1f).testTag("rank-$period"),shape=RoundedCornerShape(20.dp),color=Panel){
-     Column(Modifier.heightIn(min=184.dp).background(Brush.linearGradient(listOf(color.copy(alpha=.16f),Color.Transparent))).padding(16.dp)){
+ Column(Modifier.padding(vertical=10.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
+  LazyRow(horizontalArrangement=Arrangement.spacedBy(10.dp)){
+   items(CoverPeriods.size){i->
+    val period=CoverPeriods[i].first;val song=m.rankHighlights[period];val color=RankColors[i]
+    Surface(onClick={m.openRanking(period)},modifier=Modifier.width(224.dp).testTag("rank-$period"),shape=RoundedCornerShape(16.dp),color=Panel,border=androidx.compose.foundation.BorderStroke(1.dp,Stroke)){
+     Column(Modifier.background(Brush.linearGradient(listOf(color.copy(alpha=.11f),Color.Transparent))).padding(14.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
       Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
-       Icon(if(i==3)Icons.Rounded.EmojiEvents else Icons.Rounded.GraphicEq,null,tint=color,modifier=Modifier.size(25.dp))
-       Spacer(Modifier.weight(1f));Icon(Icons.Rounded.ArrowOutward,null,tint=color,modifier=Modifier.size(17.dp))
+       Icon(if(i==3)Icons.Rounded.EmojiEvents else Icons.Rounded.GraphicEq,null,tint=color,modifier=Modifier.size(18.dp))
+       Text(RankTitles[i],fontSize=14.sp,fontWeight=FontWeight.SemiBold,modifier=Modifier.weight(1f).padding(horizontal=7.dp))
+       Icon(Icons.Rounded.ChevronRight,null,tint=Muted,modifier=Modifier.size(16.dp))
       }
-      Text(RankCaptions[i],fontSize=12.sp,color=Muted,modifier=Modifier.padding(top=18.dp))
-      Text(RankTitles[i],fontSize=18.sp,lineHeight=23.sp,fontWeight=FontWeight.Bold,modifier=Modifier.padding(top=5.dp))
-      Row(Modifier.padding(top=16.dp),verticalAlignment=Alignment.CenterVertically){
-       if(song!=null){Artwork(song,Modifier.size(32.dp));Column(Modifier.weight(1f).padding(start=7.dp)){Text(song.title,fontSize=12.sp,maxLines=1,overflow=TextOverflow.Ellipsis);Text(song.credit,fontSize=12.sp,color=color,maxLines=1,overflow=TextOverflow.Ellipsis)}}
-       else Text(if(m.highlightsBusy)"목소리를 찾고 있어요" else if(m.highlightsError!=null)"랭킹 열어보기" else "첫 좋아요를 기다려요",fontSize=12.sp,color=color)
+      Row(verticalAlignment=Alignment.CenterVertically){
+       if(song!=null){Artwork(song,Modifier.size(40.dp));Column(Modifier.weight(1f).padding(start=10.dp)){Text(song.title,fontSize=13.sp,maxLines=1,overflow=TextOverflow.Ellipsis);Text(song.credit,fontSize=11.sp,color=Muted,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=4.dp))}}
+       else Text(if(m.highlightsBusy)"목소리를 찾고 있어요" else if(m.highlightsError!=null)"랭킹 열어보기" else "첫 좋아요를 기다려요",fontSize=12.sp,color=Muted,modifier=Modifier.heightIn(min=40.dp))
       }
      }
     }
    }
-  }}
+  }
   m.highlightsError?.let{Row(verticalAlignment=Alignment.CenterVertically){Text(it,color=Muted,fontSize=12.sp,modifier=Modifier.weight(1f));TextButton(onClick=m::loadRankHighlights){Text("재시도",fontSize=13.sp)}}}
  }
 }

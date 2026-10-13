@@ -26,5 +26,18 @@ public final class RecordingDraftStore {
   }catch(Exception ignored){}
   entries.sort((a,b)->Long.compare(b.optLong("updated"),a.optLong("updated")));for(JSONObject entry:entries)result.put(entry);return result;
  }
+ /** Only a listed draft for the current account can be removed. Never accept a path. */
+ public static void delete(Context context,String origin,String account,String folderName) throws IOException {
+  if(account==null||account.isEmpty()||folderName==null||folderName.contains("/")||folderName.contains("\\"))throw new IOException("초안 소유자를 확인해주세요.");
+  JSONArray available=list(context,origin,account);boolean found=false;
+  for(int i=0;i<available.length();i++)if(folderName.equals(available.optJSONObject(i).optString("folder")))found=true;
+  if(!found)throw new IOException("이 계정의 초안을 찾지 못했어요.");
+  File root=context.getFilesDir().getCanonicalFile(),folder=new File(root,folderName);
+  if(!folder.getCanonicalFile().getParentFile().equals(root)||java.nio.file.Files.isSymbolicLink(folder.toPath()))throw new IOException("초안 경로가 올바르지 않아요.");
+  // Files.walk does not follow symbolic links; only this validated draft tree is removed.
+  try(java.util.stream.Stream<java.nio.file.Path> paths=java.nio.file.Files.walk(folder.toPath())){
+   for(java.nio.file.Path path:(Iterable<java.nio.file.Path>)paths.sorted(Comparator.reverseOrder())::iterator)java.nio.file.Files.delete(path);
+  }
+ }
  private RecordingDraftStore(){}
 }

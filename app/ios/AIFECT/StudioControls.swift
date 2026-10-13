@@ -87,7 +87,7 @@ struct StudioLyricWheel: View {
     var body: some View {
         VStack(spacing: 8) {
             Text("가사를 위아래로 밀어 부를 위치 선택").font(.subheadline.bold())
-            Text("가운데 가사 2초 전부터 준비해요. 녹음 중 이동하면 현재 녹음을 보관하고 멈춥니다.").font(.caption).foregroundStyle(.secondary)
+            Text("선택한 가사 앞 반주를 최대 3초 먼저 듣고, 선택한 위치부터 녹음해요. 녹음 중 이동하면 현재 녹음을 보관하고 멈춥니다.").font(.caption).foregroundStyle(.secondary)
             ScrollView(.vertical, showsIndicators: false) {
                 LazyVStack(spacing: 0) {
                     ForEach(studio.words.indices, id: \.self) { index in

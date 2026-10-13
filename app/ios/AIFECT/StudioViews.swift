@@ -21,10 +21,11 @@ struct SingView: View {
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 12) {
+                WebMusicBanner(title: "부르기", subtitle: "듣기만 하던 음악, 이번에는 내 목소리로.", eyebrow: "YOUR VOICE, YOUR STAGE").padding(.top, 12)
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
-                        NavigationLink { CoverRankingView(initialPeriod: "week") } label: { Label("커버 랭킹", systemImage: "trophy") }.buttonStyle(ParityPill(color: Brand.pink))
                         NavigationLink { RecordingDraftsView() } label: { Label("초안", systemImage: "pencil") }.buttonStyle(ParityPill(color: Brand.pink))
+                        NavigationLink { CoverRankingView(initialPeriod: "week") } label: { Label("커버 랭킹", systemImage: "trophy") }.buttonStyle(ParityPill(color: Brand.pink))
                         NavigationLink("내 커버곡") { MyMusicView() }.buttonStyle(ParityPill(color: Brand.pink))
                     }
                 }
@@ -38,11 +39,12 @@ struct SingView: View {
                         }.buttonStyle(.plain)
                     }
                 }
-                CoverRankHighlights()
+                MusicSectionHeading(title: "커버 둘러보기", subtitle: "다른 사람의 솔로·듀엣 커버를 들어보세요")
                 HStack {
-                    NavigationLink("솔로") { MusicCollectionView(title: "솔로 커버", path: "/api/community?kind=cover&cover_mode=solo") }.buttonStyle(ParityPill(color: Brand.pink))
-                    NavigationLink("듀엣") { MusicCollectionView(title: "듀엣 커버", path: "/api/community?kind=cover&cover_mode=duet") }.buttonStyle(ParityPill(color: Brand.pink))
+                    NavigationLink { MusicCollectionView(title: "솔로 커버", path: "/api/community?kind=cover&cover_mode=solo") } label: { Label("솔로 커버", systemImage: "person.fill").frame(maxWidth: .infinity) }.buttonStyle(ParityPill(color: Brand.pink))
+                    NavigationLink { MusicCollectionView(title: "듀엣 커버", path: "/api/community?kind=cover&cover_mode=duet") } label: { Label("듀엣 커버", systemImage: "person.2.fill").frame(maxWidth: .infinity) }.buttonStyle(ParityPill(color: Brand.pink))
                 }
+                CoverRankHighlights()
                 MusicSectionHeading(title: "참여를 기다리는 듀엣", subtitle: "먼저 녹음한 목소리를 불러와 빈 파트를 불러요")
                 if invitations.isEmpty { Text("아직 대기 중인 듀엣이 없어요. 아래 곡에서 첫 파트를 남겨보세요.").font(.system(size: 13)).foregroundStyle(AifectDesign.muted) }
                 ForEach(invitations) { partner in
@@ -54,16 +56,10 @@ struct SingView: View {
                 Text("에코 · 룸 · 내 목소리 듣기").font(.system(size: 12)).foregroundStyle(Brand.aqua)
                 Text("유선·USB 이어폰으로 들으며 불러보세요.").font(.system(size: 12)).foregroundStyle(AifectDesign.muted).padding(.bottom, 4)
                 ForEach(tracks) { song in
-                    VStack(spacing: 10) {
-                        HStack(spacing: 14) { CoverArt(song: song, size: 48); VStack(alignment: .leading, spacing: 5) { Text(song.title).font(.system(size: 17, weight: .semibold)).lineLimit(2); Text("\(song.credit) · \(song.genreLabel)").font(.system(size: 12)).foregroundStyle(AifectDesign.muted) }.frame(maxWidth: .infinity, alignment: .leading) }
-                        HStack(spacing: 8) {
-                            NavigationLink { CoverRankingView(originalID: song.id) } label: { Label("커버 랭킹 · \(song.covers ?? 0)", systemImage: "trophy").frame(maxWidth: .infinity) }.buttonStyle(ParityPill(color: Brand.pink))
-                            SingSongButton(song: song).frame(maxWidth: .infinity)
-                        }
-                    }.padding(10).background(Brand.card, in: RoundedRectangle(cornerRadius: 18))
+                    SingReadyCard(song: song, queue: tracks)
                 }
                 if tracks.isEmpty { ContentUnavailableView("조건에 맞는 곡이 없어요", systemImage: "mic", description: Text("다른 장르나 제목으로 찾아보세요.")) }
-                if !model.feed.isEmpty { MusicShelf(title: "새로 올라온 목소리", songs: Array(model.feed.filter(\.isCover).prefix(10))) }
+                if !model.feed.isEmpty { MusicShelf(title: "새로 올라온 목소리", songs: Array(model.feed.filter(\.isCover).prefix(10)), morePath: "/api/community?kind=cover") }
             }.padding(.horizontal, 22).padding(.bottom, 32)
         }.fullScreenCover(item: $selection, onDismiss: reloadDrafts) { target in
             StudioView(studio: RecordingStudio(song: target.song, owner: target.owner, draft: target.draft, duetParentID: target.duetParentID))
@@ -211,7 +207,7 @@ struct StudioView: View {
                         }
                     }.padding(20)
                 }.accessibilityIdentifier("studio-content").scrollDismissesKeyboard(.interactively).onTapGesture { editingDescription = false }
-            }.background(Brand.background).navigationTitle(studio.reviewing ? "녹음 편집" : "녹음 스튜디오").navigationBarTitleDisplayMode(.inline)
+            }.background(StudioAtmosphere()).navigationTitle(studio.reviewing ? "녹음 편집" : "녹음 스튜디오").navigationBarTitleDisplayMode(.inline)
                 .safeAreaInset(edge: .bottom) {
                     if !studio.reviewing && !studio.processing && !publishing {
                         recordingControls.padding(14).frame(maxWidth: .infinity).background(Brand.card)
@@ -248,7 +244,7 @@ struct StudioView: View {
     }
     @ViewBuilder private var recordingControls: some View {
         if studio.countdown > 0 {
-            HStack { Text("\(studio.countdown)").font(.largeTitle.bold()).monospacedDigit(); Text("곧 녹음을 시작합니다"); Spacer(); Button("시작 취소") { studio.cancelCountdown() } }
+            HStack { Text("\(studio.countdown)").font(.largeTitle.bold()).monospacedDigit(); Text("반주에 맞춰 준비하세요"); Spacer(); Button("시작 취소") { studio.cancelCountdown() } }
         } else if studio.recording {
             VStack(spacing: 10) {
                 HStack {
@@ -347,7 +343,7 @@ struct RecordingPositionPicker: View {
                 if studio.processing { ProgressView("현재 구간 저장 중…") }
                 Section("가사를 눌러 시작 위치 선택") {
                     ForEach(studio.words.indices, id: \.self) { index in
-                        Button { select(max(0, studio.words[index].0 - 2)) } label: {
+                        Button { select(studio.words[index].0) } label: {
                             HStack(alignment: .top) { Text(timeLabel(studio.words[index].0)).font(.caption).monospacedDigit(); Text(studio.words[index].1) }
                         }.disabled(studio.processing)
                     }
@@ -363,16 +359,31 @@ struct RecordingDraftsView: View {
     @EnvironmentObject private var model: AppModel
     @State private var drafts: [RecordingDraft] = []
     @State private var selection: RecordingDraft?
+    @State private var deleting: RecordingDraft?
+    @State private var error: String?
     var body: some View {
-        List {
+        ScrollView { LazyVStack(alignment: .leading, spacing: 14) {
+            PageHeading(title: "초안", subtitle: "이 기기에 저장한 녹음이에요. 이어 편집하거나 삭제할 수 있어요.")
             ForEach(drafts) { draft in
-                Button { model.player.pause(); selection = draft } label: {
+                VStack(alignment: .leading, spacing: 12) {
                     HStack { CoverArt(song: draft.song, size: 48); VStack(alignment: .leading, spacing: 6) { Text(draft.song.title); Text("\(timeLabel(draft.length)) · \(draft.date.formatted(date: .abbreviated, time: .shortened))").font(.caption).foregroundStyle(.secondary) }; Spacer(); Image(systemName: "slider.horizontal.3") }
-                }.buttonStyle(.plain)
+                    HStack(spacing: 12) {
+                        Button { model.player.pause(); selection = draft } label: { Label("이어 편집", systemImage: "pencil") }.buttonStyle(ParityPill(color: Brand.pink))
+                        Button { deleting = draft } label: { Label("삭제", systemImage: "trash").frame(minHeight: 44) }.font(.system(size: 13)).foregroundStyle(Brand.pink)
+                    }
+                }.padding(16).background(MusicSurface()).clipShape(RoundedRectangle(cornerRadius: 18))
             }
             if drafts.isEmpty { ContentUnavailableView("저장한 초안이 없어요", systemImage: "mic") }
-        }.navigationTitle("내 녹음 초안").task(id: model.userID) { reload() }
+            if let error { Text(error).foregroundStyle(Brand.pink) }
+        }.padding(20) }.navigationTitle("내 녹음 초안").task(id: model.userID) { deleting = nil; selection = nil; reload() }
             .fullScreenCover(item: $selection, onDismiss: reload) { draft in StudioView(studio: RecordingStudio(song: draft.song, owner: draft.owner, draft: draft)) }
+            .confirmationDialog("초안을 삭제할까요?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }), titleVisibility: .visible) {
+                Button("초안 삭제", role: .destructive) {
+                    guard let draft = deleting, let owner = model.userID else { return }
+                    do { try draft.delete(currentOwner: owner); error = nil; reload() } catch { self.error = error.localizedDescription }
+                    deleting = nil
+                }
+            } message: { Text("이 기기의 녹음은 복구할 수 없어요. 공개한 커버곡은 유지돼요.") }
     }
     private func reload() { drafts = model.userID.map { RecordingDraft.list(owner: $0) } ?? [] }
 }

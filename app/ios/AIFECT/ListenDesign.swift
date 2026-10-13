@@ -8,29 +8,30 @@ struct ListenView: View {
     @State private var people: [[String: Any]] = []
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 24) {
+            ScrollView(.horizontal, showsIndicators: false) { HStack(spacing: 24) {
                 ForEach(["추천", "차트", "최신곡", "발견"], id: \.self) { item in
-                    Button { page = item } label: { Text(item).font(.system(size: 20, weight: .bold)).foregroundStyle(page == item ? AifectDesign.text : AifectDesign.muted).frame(minHeight: 48) }.buttonStyle(.plain)
+                    Button { page = item } label: { Text(item).font(.system(size: 15, weight: .semibold)).foregroundStyle(page == item ? AifectDesign.text : AifectDesign.muted).frame(minHeight: 44).overlay(alignment: .bottom) { Capsule().fill(page == item ? Brand.pink : .clear).frame(width: 24, height: 2) } }.buttonStyle(.plain)
                 }
                 Spacer(minLength: 0)
-            }.padding(.horizontal, 22)
-            if page == "발견" { ExploreView() }
+            }.padding(.horizontal, 22) }
+            if page == "발견" { SearchView() }
             else {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 0) {
                         if let error = model.error { RetryCard(message: error) { Task { await model.refresh() } } }
                         if page == "추천" { recommended }
                         else if page == "차트" {
-                            MusicSectionHeading(title: "AIFECT 인기곡", subtitle: "재생 · 좋아요 · 댓글을 반영한 제작곡 순위")
-                            chart(model.chart)
+                            MusicBannerPanel(title: "AIFECT 인기곡", subtitle: "재생 · 좋아요 · 댓글을 반영한 제작곡 순위", icon: "chart.bar") { chart(model.chart) }
                             if !model.singable.isEmpty {
-                                MusicSectionHeading(title: "노래방에서 만나는 인기곡", subtitle: "부를 수 있는 곡의 재생 · 좋아요 기준")
-                                chart(model.singable)
+                                MusicBannerPanel(title: "노래방 인기곡", subtitle: "부를 수 있는 곡의 재생 · 좋아요 기준", icon: "mic") { chart(model.singable) }
                             }
                         } else {
-                            PageHeading(title: "새롭게 도착한 음악", subtitle: "지금 막 공개된 새로운 음악을 만나보세요")
-                            HStack { Button { if let song = model.latest.first { model.player.play(song, queue: model.latest) } } label: { Label("전체 재생", systemImage: "play.fill") }.buttonStyle(ParityPill(filled: true)); Spacer(); Text("\(model.latest.count)곡").font(.caption).foregroundStyle(AifectDesign.muted) }
-                            ForEach(model.latest) { SongRow(song: $0, queue: model.latest, onDetail: { detail = $0 }) }
+                            MusicBannerPanel(title: "새롭게 도착한 음악", subtitle: "지금 막 공개된 새로운 음악을 만나보세요", icon: "opticaldisc") {
+                                HStack { Button { if let song = model.latest.first { model.player.play(song, queue: model.latest) } } label: { Label("전체 재생", systemImage: "play.fill") }.buttonStyle(ParityPill(filled: true)); Spacer(); Text("\(model.latest.count)곡").font(.caption).foregroundStyle(AifectDesign.muted) }
+                            }
+                            ForEach(model.latest) { song in
+                                CompactMusicRow(song: song, queue: model.latest, onDetail: { detail = $0 }).padding(.horizontal, 12).background(MusicSurface()).clipShape(RoundedRectangle(cornerRadius: 16)).overlay(RoundedRectangle(cornerRadius: 16).stroke(AifectDesign.stroke, lineWidth: 1)).padding(.top, 10)
+                            }
                         }
                         if model.loading && model.latest.isEmpty { ProgressView("음악을 불러오는 중").frame(maxWidth: .infinity).padding(44) }
                     }.padding(.horizontal, 22).padding(.bottom, 32)
@@ -43,7 +44,7 @@ struct ListenView: View {
         }
     }
     @ViewBuilder private var recommended: some View {
-        HStack { MusicSectionHeading(title: "오늘의 새로운 발견"); Button("최신곡") { page = "최신곡" }.font(.system(size: 13)).foregroundStyle(AifectDesign.secondaryText) }
+        HStack { MusicSectionHeading(title: "오늘의 음악"); Button("최신곡") { page = "최신곡" }.font(.system(size: 13)).foregroundStyle(AifectDesign.secondaryText) }
         if let featured = model.latest.first { FeaturedMusic(song: featured, queue: model.latest, onDetail: { detail = $0 }) }
         else if !model.loading { PageHeading(title: "오늘의 음악이\n내일의 취향이 돼요", subtitle: "새로운 음악을 만나보세요") }
         HStack(spacing: 8) {
@@ -52,19 +53,12 @@ struct ListenView: View {
             shortcut("내 플레이리스트", "music.note.list", 0)
         }.padding(.top, 14)
         if !model.history.isEmpty {
-            MusicSectionHeading(title: "다시 듣고 싶은 순간")
-            ForEach(model.history.prefix(3)) { SongRow(song: $0, queue: model.history, onDetail: { detail = $0 }) }
+            MusicShelf(title: "최근 들은 음악", songs: Array(model.history.prefix(12)), onDetail: { detail = $0 })
         }
         if model.latest.count > 1 { MusicShelf(title: "한 곡 더 발견하기", songs: Array(model.latest.dropFirst().prefix(10)), onDetail: { detail = $0 }) }
-        if let song = model.singable.first {
+        if !model.singable.isEmpty {
             MusicSectionHeading(title: "이번엔 내 목소리로", subtitle: "듣던 노래, 직접 불러볼까요?")
-            VStack(alignment: .leading, spacing: 14) {
-                HStack(spacing: 14) {
-                    CoverArt(song: song, size: 64)
-                    VStack(alignment: .leading, spacing: 6) { Text("MR 준비 완료").font(.system(size: 12, weight: .semibold)).foregroundStyle(Brand.aqua); Text(song.title).font(.system(size: 17, weight: .semibold)); Text(song.credit).font(.system(size: 13)).foregroundStyle(AifectDesign.muted) }
-                }
-                HStack { Text("에코 · 룸 · 내 목소리 듣기").font(.system(size: 12)).foregroundStyle(AifectDesign.muted); Spacer(minLength: 2); SingSongButton(song: song, color: Brand.aqua) }
-            }.padding(18).background(MusicSurface(feature: true)).clipShape(RoundedRectangle(cornerRadius: 18))
+            SingReadyGrid(songs: Array(model.singable.prefix(6)))
         }
         let covers = model.feed.filter(\.isCover)
         if let cover = covers.first {
@@ -87,24 +81,24 @@ struct ListenView: View {
         if !people.isEmpty {
             MusicSectionHeading(title: "음악 뒤의 사람들", subtitle: "마음에 드는 음악가를 팔로우해보세요")
             ScrollView(.horizontal, showsIndicators: false) { HStack(spacing: 12) { ForEach(people, id: \.selfID) { person in
-                NavigationLink { ProfilePage(id: person.string("id")) } label: { VStack(spacing: 10) { ProfilePhoto(person: person, size: 70); Text(person.displayName()).font(.system(size: 14)).lineLimit(1) }.frame(width: 112).padding(.vertical, 16).background(Brand.card, in: RoundedRectangle(cornerRadius: 16)) }.buttonStyle(.plain)
+                NavigationLink { ProfilePage(id: person.string("id")) } label: { CreatorPreviewCard(person: person) }.buttonStyle(.plain)
             } } }
         }
     }
     private func shortcut(_ label: String, _ icon: String, _ selection: Int, color: Color = AifectDesign.secondaryText) -> some View {
         NavigationLink { LibraryView(initialSelection: selection) } label: {
-            VStack(spacing: 8) { Image(systemName: icon).font(.system(size: 20)).foregroundStyle(color); Text(label).font(.system(size: 12)).foregroundStyle(AifectDesign.text) }.frame(maxWidth: .infinity).frame(height: 80).background(Brand.card, in: RoundedRectangle(cornerRadius: 12))
+            VStack(spacing: 6) { Image(systemName: icon).font(.system(size: 18)).foregroundStyle(color); Text(label).font(.system(size: 11)).foregroundStyle(AifectDesign.text) }.frame(maxWidth: .infinity).padding(.vertical, 10).background(Brand.card, in: RoundedRectangle(cornerRadius: 12)).overlay(RoundedRectangle(cornerRadius: 12).stroke(AifectDesign.stroke.opacity(0.7), lineWidth: 1))
         }.buttonStyle(.plain)
     }
     private func chart(_ songs: [Song]) -> some View {
         // Each chart owns its row identities. Flattening two ForEach collections
         // into one LazyVStack reuses overlapping song IDs and leaves empty rows.
-        VStack(spacing: 0) {
+        VStack(spacing: 10) {
             ForEach(Array(songs.prefix(5).enumerated()), id: \.element.id) { index, song in
-                HStack(spacing: 8) {
-                    Text("\(index + 1)").font(.system(size: 21, weight: .bold)).foregroundStyle(Brand.aqua).frame(width: 24)
-                    SongRow(song: song, queue: songs, onDetail: { detail = $0 })
-                }
+                HStack(alignment: .top, spacing: 8) {
+                    Text("\(index + 1)").font(.system(size: 17, weight: .bold)).foregroundStyle(Brand.pink).frame(width: 24).padding(.top, 14)
+                    CompactMusicRow(song: song, queue: songs, onDetail: { detail = $0 })
+                }.padding(.horizontal, 10).background(Brand.background.opacity(0.55), in: RoundedRectangle(cornerRadius: 14)).overlay(RoundedRectangle(cornerRadius: 14).stroke(AifectDesign.stroke, lineWidth: 1))
             }
         }
     }
@@ -117,17 +111,17 @@ struct FeaturedMusic: View {
     @State private var detail = false
     var body: some View {
         VStack(spacing: 16) {
-            HStack(spacing: 18) {
-                CoverArt(song: song, size: 122).onTapGesture { if let onDetail { onDetail(song) } else { detail = true } }
+            HStack(spacing: 14) {
+                CoverArt(song: song, size: 88).onTapGesture { if let onDetail { onDetail(song) } else { detail = true } }
                 VStack(alignment: .leading, spacing: 7) {
-                    Text("NEW RELEASE").font(.system(size: 12, weight: .semibold)).tracking(1.5).foregroundStyle(Brand.aqua)
-                    Text(song.title).font(.system(size: 22, weight: .bold)).lineLimit(3).padding(.top, 3)
-                    Text(song.credit).font(.system(size: 14)).foregroundStyle(AifectDesign.secondaryText).lineLimit(1)
+                    Text("NEW RELEASE").font(.system(size: 10, weight: .semibold)).tracking(1.5).foregroundStyle(Brand.pink)
+                    Text(song.title).font(.system(size: 20, weight: .bold)).lineLimit(2).padding(.top, 3)
+                    Text(song.credit).font(.system(size: 13)).foregroundStyle(AifectDesign.secondaryText).lineLimit(1)
                     Text("\(song.genreLabel) · \(timeLabel(song.duration))").font(.system(size: 12)).foregroundStyle(AifectDesign.muted)
                 }.frame(maxWidth: .infinity, alignment: .leading).onTapGesture { if let onDetail { onDetail(song) } else { detail = true } }
             }
-            HStack { SaveMusicButton(song: song); Spacer(minLength: 0); Button { model.player.play(song, queue: queue) } label: { Label("바로 듣기", systemImage: "play.fill") }.buttonStyle(ParityPill(filled: true)) }
-        }.padding(18).background(MusicSurface(feature: true)).clipShape(RoundedRectangle(cornerRadius: 20))
+            HStack { SaveMusicButton(song: song, compact: true); Spacer(minLength: 0); Button { model.player.play(song, queue: queue) } label: { Label("바로 듣기", systemImage: "play.fill") }.buttonStyle(ParityPill(color: Brand.pink, filled: true)) }
+        }.padding(16).background(MusicSurface(feature: true)).clipShape(RoundedRectangle(cornerRadius: 20)).overlay(RoundedRectangle(cornerRadius: 20).stroke(AifectDesign.stroke, lineWidth: 1))
             .sheet(isPresented: $detail) { TrackDetailView(song: song) }
     }
 }

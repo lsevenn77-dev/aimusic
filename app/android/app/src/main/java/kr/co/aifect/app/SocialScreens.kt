@@ -205,6 +205,10 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
  val shownDetail=detail?.takeIf{it.optJSONObject("crew")?.optString("id")==selected}
  val membership=verifiedMembership?.takeIf{historyReady&&!membershipDenied}
  val joined=membership!=null&&shownDetail!=null
+ // Public previews never contain membership. Unknown is not a confirmed guest:
+ // keep the requested home visible while fresh private authorization is pending.
+ // This presentation flag must not authorize chat, member actions or management.
+ val confirmedVisitor=!joined&&detailVerified&&shownDetail!=null&&shownDetail.optJSONObject("membership")==null
  val chatPaneVisible=selected!=null&&crewTab=="채팅"&&(!detailVerified||shownDetail?.optJSONObject("membership")!=null||joined)
  val pageHeader:@Composable ()->Unit={
   Row(Modifier.fillMaxWidth().heightIn(min=48.dp),verticalAlignment=Alignment.CenterVertically){
@@ -260,27 +264,21 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
    val recent=result.tracks()
    if(!browsing&&recent.isNotEmpty()){item{Section(if(myCrew==null)"크루에서 나온 새 음악" else "우리 크루의 최신 음악")};items(recent.take(6),key={"feed-"+it.id}){CommunityCard(it,m,recent,sing)}}
    item{Section("함께할 크루")}
-   items(result.optJSONArray("crews").objects(),key={it.optString("id")}){c->
-    Surface(onClick={selectCrew(c.optString("id"))},color=Panel,shape=MaterialTheme.shapes.large,modifier=Modifier.testTag("crew-card-"+c.optString("id"))){Column(Modifier.fillMaxWidth().padding(18.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
-     Text(c.optString("name")+if(myCrew==c.optString("id"))" · 내 크루" else "",fontSize=21.sp)
-     Text("LV${c.optInt("level")} · ${c.optInt("members")}/${c.optInt("capacity")}명 · ${if(c.optInt("recruiting")==1)"모집 중" else "모집 마감"}",color=Aqua)
-     Text(c.optString("description"),fontSize=15.sp);Text(c.optString("interests"),color=Muted)
-    }}
+   items(rankedCrews(result.optJSONArray("crews").objects()),key={it.optString("id")}){c->
+    CrewDiscoveryCard(c,mine=myCrew==c.optString("id")){selectCrew(c.optString("id"))}
    }
    if(result.has("crews")&&result.optJSONArray("crews").objects().isEmpty())item{Text("아직 크루가 없어요. 좋아하는 음악으로 첫 모임을 만들어보세요.",color=Muted)}
   }else if(shownDetail==null){item{CircularProgressIndicator(Modifier.size(28.dp),color=Pink)}}
   else{
    val d=shownDetail;val c=d.getJSONObject("crew");val cid=c.getString("id")
    item{crewSummary();if(joined)crewNavigation()}
-   if(!joined||crewTab=="소개")item{
+   if(confirmedVisitor||crewTab=="소개")item{
     if(joined)Text("크루 채팅에서는 가입 이후의 대화를 함께 나눌 수 있어요.",fontSize=12.sp,color=Muted)
-    Text(c.optString("description"),modifier=Modifier.padding(vertical=8.dp));Text(c.optString("interests"),color=Muted)
-    Text("${c.optInt("xp")} XP · "+if(c.isNull("next_xp"))"최고 레벨이에요." else "다음 레벨까지 ${c.optInt("next_xp")-c.optInt("xp")} XP",color=Aqua)
-    Text("공개곡 +1 XP · 받은 선물 1골드당 +1 XP · 하루 첫 채팅 +10 XP\nLV1 10명 · LV2 20명 · LV3 50명 · LV4 100명 · LV5 150명",fontSize=14.sp,color=Muted)
-    if(!joined)Button(onClick={if(m.authenticated())m.action{m.api.call("/api/crews/$cid/join","POST");browsing=false;m.crewBrowsing=false;crewTab="음악";load()}},enabled=detailVerified&&!detailLoading&&!historyLoading&&d.optJSONObject("membership")==null&&!m.busy&&!d.optBoolean("banned")&&c.optInt("recruiting")==1&&c.optInt("members")<c.optInt("capacity"),modifier=Modifier.testTag("crew-join")){Text(if(d.optBoolean("banned"))"가입할 수 없는 크루" else "크루 가입하기")}
-    else Row{if(membership?.optString("role")=="owner")TextButton(onClick={editing=true}){Text("소개 · 모집 수정")};TextButton(onClick={leaving=true},modifier=Modifier.testTag("crew-leave")){Text("크루 탈퇴")}}
+    CrewAboutPanel(c,d.optJSONObject("rules")?:JSONObject(),d.tracks().size)
+    if(confirmedVisitor)Button(onClick={if(m.authenticated())m.action{m.api.call("/api/crews/$cid/join","POST");browsing=false;m.crewBrowsing=false;crewTab="음악";load()}},enabled=detailVerified&&!detailLoading&&!historyLoading&&d.optJSONObject("membership")==null&&!m.busy&&!d.optBoolean("banned")&&c.optInt("recruiting")==1&&c.optInt("members")<c.optInt("capacity"),modifier=Modifier.testTag("crew-join")){Text(if(d.optBoolean("banned"))"가입할 수 없는 크루" else "크루 가입하기")}
+    else if(joined)Row{if(membership?.optString("role")=="owner")TextButton(onClick={editing=true}){Text("소개 · 모집 수정")};TextButton(onClick={leaving=true},modifier=Modifier.testTag("crew-leave")){Text("크루 탈퇴")}}
    }
-   if(!joined||crewTab=="멤버"){
+   if(confirmedVisitor||crewTab=="멤버"){
     item{Section("크루 멤버","함께 듣고 부르는 사람들과 교류해요.")}
     items(d.optJSONArray("members").objects(),key={"member-"+it.optString("id")}){p->
      Surface(onClick={if(membership?.optString("role")=="owner"&&p.optString("role")!="owner")managing=p else m.openProfile(p.getString("id"))},color=Panel,shape=MaterialTheme.shapes.large,modifier=Modifier.testTag("crew-member-"+p.optString("id"))){
@@ -290,8 +288,8 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
      }
     }
    }
-   if(!joined||crewTab=="음악"){
-    if(joined)item{CrewHomeBanner(m,c,membership?.optString("role")=="owner"){screenScope.launch{try{load()}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}}}}
+   if(confirmedVisitor||crewTab=="음악"){
+    if(!confirmedVisitor)item{CrewHomeBanner(m,c,membership?.optString("role")=="owner"){screenScope.launch{try{load()}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}}}}
     item{Section("크루의 최신 음악","멤버가 공개한 제작곡과 커버곡")}
     val tracks=d.tracks();items(tracks,key={"track-"+it.id}){CommunityCard(it,m,tracks,sing)}
     if(tracks.isEmpty())item{Text("멤버가 공개한 음악이 여기에 모여요.",color=Muted)}

@@ -23,4 +23,13 @@ public class RecordingDraftStoreTest {
   assertTrue(context.getPackageName().endsWith(".test"));long now=System.currentTimeMillis();File solo=seed("draft-solo","solo","","",account,3,false,now-3000);seed("draft-first","duet","male","",account,4,true,now-2000);seed("draft-second","duet","female","parent-take",account,5,false,now-1000);seed("draft-other","solo","","","another-user",3,false,now);seed("draft-empty","duet","male","",account,0,false,now);
   long length=new File(solo,"voice.pcm").length(),stamp=new File(solo,"session.json").lastModified();JSONArray entries=RecordingDraftStore.list(context,origin,account);assertEquals(3,entries.length());assertEquals("draft-second",entries.getJSONObject(0).getString("trackId"));assertEquals("parent-take",entries.getJSONObject(0).getString("duetParent"));assertEquals("female",entries.getJSONObject(0).getString("duetPart"));assertEquals("duet",entries.getJSONObject(1).getString("coverMode"));assertEquals("draft-first",entries.getJSONObject(1).getString("trackId"));assertEquals(3d,entries.getJSONObject(2).getDouble("duration"),.01);assertEquals(length,new File(solo,"voice.pcm").length());assertEquals(stamp,new File(solo,"session.json").lastModified());assertEquals(0,RecordingDraftStore.list(context,origin,null).length());
  }
+ @Test public void deleteOnlyRemovesTheChosenOwnedDraft()throws Exception{
+  File chosen=seed("delete-owned","solo","","",account,2,false,System.currentTimeMillis());
+  File keep=seed("delete-keep","solo","","",account,2,false,System.currentTimeMillis());
+  File other=seed("delete-other","solo","","","other-account",2,false,System.currentTimeMillis());
+  RecordingDraftStore.delete(context,origin,account,chosen.getName());assertFalse(chosen.exists());assertTrue(keep.exists());assertTrue(other.exists());
+  try{RecordingDraftStore.delete(context,origin,account,other.getName());fail("Other account must be rejected");}catch(IOException expected){}
+  try{RecordingDraftStore.delete(context,origin,account,"../"+keep.getName());fail("Traversal must be rejected");}catch(IOException expected){}
+  assertTrue(new File(keep,"voice.pcm").exists());assertTrue(new File(other,"voice.pcm").exists());
+ }
 }

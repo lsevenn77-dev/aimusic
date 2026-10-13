@@ -53,12 +53,12 @@ internal fun playerLevel(xp:Int)=((1+sqrt(1+xp.coerceAtLeast(0)/12.5))/2).toInt(
 }
 @Composable private fun PlayerXPCard(p:JSONObject,open:(()->Unit)?=null){
  val xp=p.optInt("xp");val level=p.optInt("level",1);val remaining=p.optInt("remaining")
- Surface(color=Panel,shape=RoundedCornerShape(18.dp)){
-  Column(Modifier.fillMaxWidth().padding(20.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
-   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Text("레벨 $level",fontSize=22.sp,fontWeight=FontWeight.Bold);Spacer(Modifier.weight(1f));Text("$xp XP",color=Aqua)}
+ Surface(color=Panel,shape=RoundedCornerShape(18.dp),border=BorderStroke(1.dp,Stroke)){
+  Column(Modifier.fillMaxWidth().musicSurface().padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
+   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Text("레벨 $level",fontSize=18.sp,fontWeight=FontWeight.Bold);Spacer(Modifier.weight(1f));Text("$xp XP",color=Aqua,fontSize=14.sp)}
    LinearProgressIndicator(progress={p.optDouble("progress",0.0).toFloat().coerceIn(0f,1f)},modifier=Modifier.fillMaxWidth().height(5.dp),color=Aqua,trackColor=Raised)
    Text(if(level>=100)"최고 레벨에 도달했어요." else "다음 레벨까지 $remaining XP",fontSize=12.sp,color=Muted)
-   if(open!=null)TextButton(onClick=open,modifier=Modifier.fillMaxWidth(),colors=ButtonDefaults.textButtonColors(contentColor=Aqua)){Text("아이템 보관함")}
+   if(open!=null)TextButton(onClick=open,colors=ButtonDefaults.textButtonColors(contentColor=Aqua),contentPadding=PaddingValues(0.dp)){Text("아이템 보관함  ›",fontSize=12.sp)}
   }
  }
 }

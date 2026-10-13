@@ -17,9 +17,9 @@ struct PageHeading: View {
     var subtitle: String?
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(title).font(.system(size: 31, weight: .bold)).tracking(-1)
-            if let subtitle { Text(subtitle).font(.system(size: 14)).foregroundStyle(AifectDesign.muted) }
-        }.frame(maxWidth: .infinity, alignment: .leading).padding(.top, 12).padding(.bottom, 20)
+            Text(title).font(.system(size: 26, weight: .bold)).tracking(-0.6)
+            if let subtitle { Text(subtitle).font(.system(size: 13)).foregroundStyle(AifectDesign.muted) }
+        }.frame(maxWidth: .infinity, alignment: .leading).padding(.top, 12).padding(.bottom, 20).background(MusicIllustration())
     }
 }
 struct MusicSectionHeading: View {
@@ -27,9 +27,9 @@ struct MusicSectionHeading: View {
     var subtitle: String?
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
-            Text(title).font(.system(size: 21, weight: .bold))
-            if let subtitle { Text(subtitle).font(.system(size: 13)).foregroundStyle(AifectDesign.muted) }
-        }.frame(maxWidth: .infinity, alignment: .leading).padding(.top, 26).padding(.bottom, 14)
+            Text(title).font(.system(size: 18, weight: .bold))
+            if let subtitle { Text(subtitle).font(.system(size: 12)).foregroundStyle(AifectDesign.muted) }
+        }.frame(maxWidth: .infinity, alignment: .leading).padding(.top, 22).padding(.bottom, 12)
     }
 }
 struct ParityChips: View {
@@ -173,46 +173,51 @@ struct CommunityMusicCard: View {
     @State private var detail = false
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 11) {
+            HStack(alignment: .top, spacing: 11) {
                 if let id = song.producerID {
                     NavigationLink { ProfilePage(id: id) } label: {
-                        ProfilePhoto(person: ["id": id, "image_version": song.producerImageVersion ?? ""], size: 38).clipShape(Circle())
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(song.creatorName).font(.system(size: 14, weight: .bold))
-                            Text(song.isCover ? "새로운 커버곡을 불렀어요" : "새로운 음악을 만들었어요").font(.system(size: 12)).foregroundStyle(AifectDesign.muted)
-                        }
-                    }.buttonStyle(.plain)
+                        HStack(alignment: .top, spacing: 11) {
+                            ProfilePhoto(person: ["id": id, "image_version": song.producerImageVersion ?? ""], size: 38)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(song.creatorName).font(.system(size: 14, weight: .bold)).lineLimit(2)
+                                Text(song.isCover ? (song.coverMode == "duet" ? "듀엣 공개" : "커버 공개") : "제작곡 공개").font(.system(size: 11)).foregroundStyle(song.isCover ? Brand.aqua : Brand.pink)
+                            }.frame(maxWidth: .infinity, alignment: .leading)
+                        }.multilineTextAlignment(.leading)
+                    }.buttonStyle(.plain).frame(maxWidth: .infinity, alignment: .leading)
                 }
-                Spacer(minLength: 0)
-                Text(song.isCover ? (song.coverMode == "duet" ? "DUET" : "COVER") : "ORIGINAL")
-                    .font(.system(size: 10, weight: .semibold)).tracking(1).padding(7)
-                    .foregroundStyle(song.isCover ? Brand.aqua : Brand.pink)
-                    .background(song.isCover ? Color(aifectHex: 0x20383C) : Color(aifectHex: 0x34252E), in: RoundedRectangle(cornerRadius: 7))
             }
-            if let text = song.descriptionText, !text.isEmpty { Text(text).font(.system(size: 14)).lineLimit(3) }
-            Button { if let onDetail { onDetail(song) } else { detail = true } } label: { AlbumArtwork(song: song, ratio: 1.5) }.buttonStyle(.plain)
-            HStack {
-                VStack(alignment: .leading, spacing: 5) { Text(song.title).font(.system(size: 19, weight: .semibold)).lineLimit(2); Text(song.credit).font(.system(size: 13)).foregroundStyle(AifectDesign.muted) }.onTapGesture { if let onDetail { onDetail(song) } else { detail = true } }
-                Spacer()
-                Button { model.player.play(song, queue: queue) } label: { Image(systemName: "play.fill").foregroundStyle(Brand.background).frame(width: 44, height: 44).background(Brand.aqua, in: Circle()) }.accessibilityLabel("\(song.title) 재생")
+            if let text = song.descriptionText, !text.isEmpty { Text(text).font(.system(size: 13)).lineSpacing(4).lineLimit(3).frame(maxWidth: .infinity, alignment: .leading) }
+            HStack(alignment: .top, spacing: 12) {
+                Button { if let onDetail { onDetail(song) } else { detail = true } } label: { CoverArt(song: song, size: 76) }.buttonStyle(.plain)
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(song.title).font(.system(size: 16, weight: .semibold)).fixedSize(horizontal: false, vertical: true)
+                    Text(song.credit).font(.system(size: 12)).foregroundStyle(AifectDesign.muted).fixedSize(horizontal: false, vertical: true)
+                }.frame(maxWidth: .infinity, alignment: .leading).onTapGesture { if let onDetail { onDetail(song) } else { detail = true } }
             }
-            HStack { Spacer(); SaveMusicButton(song: song) }
+            GenreTags(genres: song.genres)
+            HStack(spacing: 12) {
+                Button { model.player.play(song, queue: queue) } label: { Label("재생", systemImage: "play.circle.fill") }.buttonStyle(ParityPill(color: Brand.pink))
+                SaveMusicButton(song: song, compact: true)
+                GiftSheetButton(song: song) { Text("선물").font(.system(size: 12)).frame(minWidth: 44, minHeight: 44) }.foregroundStyle(Brand.pink)
+            }
+            Divider().overlay(AifectDesign.stroke.opacity(0.6))
             HStack(spacing: 16) {
                 Button { Task { await model.toggleLike(song) } } label: { Label("\(song.likes)", systemImage: model.likes.contains(where: { $0.id == song.id }) ? "heart.fill" : "heart") }.foregroundStyle(Brand.pink)
                 Button { if let onDetail { onDetail(song) } else { detail = true } } label: { Label("\(song.comments)", systemImage: "bubble.left") }
-                GiftSheetButton(song: song) { Text("선물") }.foregroundStyle(Brand.pink)
-                Spacer(); Text("\(song.plays ?? 0)회")
+                Spacer(minLength: 4); Text("\(song.plays ?? 0)회 재생").font(.system(size: 11))
             }.font(.system(size: 13)).foregroundStyle(AifectDesign.muted).frame(minHeight: 44)
             if song.isCover, let original = model.singable.first(where: { $0.id == song.originalID }) {
                 HStack { Button { model.player.play(original, queue: [original]) } label: { Label("원곡 듣기", systemImage: "opticaldisc") }; Spacer(); SingSongButton(song: original, title: "나도 부르기") }.font(.system(size: 13))
             }
-        }.padding(16).background(Brand.card, in: RoundedRectangle(cornerRadius: 22)).sheet(isPresented: $detail) { TrackDetailView(song: song) }
+        }.multilineTextAlignment(.leading).frame(maxWidth: .infinity, alignment: .leading).padding(16).background(MusicSurface()).clipShape(RoundedRectangle(cornerRadius: 18))
+            .overlay(RoundedRectangle(cornerRadius: 18).stroke(AifectDesign.stroke, lineWidth: 1))
+            .sheet(isPresented: $detail) { TrackDetailView(song: song) }
     }
 }
 struct MainBottomBar: View {
     @EnvironmentObject private var model: AppModel
     @Binding var selection: Int
-    private let icons = ["headphones", "person.2.fill", "mic.fill", "bubble.left.and.bubble.right.fill", "person"]
+    private let icons = ["house", "person.2", "mic", "bubble.left.and.bubble.right", "person"]
     var body: some View {
         HStack(spacing: 0) {
             ForEach(0..<5) { index in
@@ -226,7 +231,7 @@ struct MainBottomBar: View {
                     }.frame(maxWidth: .infinity).frame(height: 62).contentShape(Rectangle())
                 }.buttonStyle(.plain).accessibilityIdentifier("main-tab-\(index)").accessibilityLabel(AifectDesign.mainTabs[index]).accessibilityAddTraits(selection == index ? .isSelected : [])
             }
-        }.padding(.horizontal, 10).background(Brand.background)
+        }.padding(.horizontal, 10).background(Brand.background).overlay(alignment: .top) { Rectangle().fill(AifectDesign.stroke.opacity(0.65)).frame(height: 1) }
     }
 }
 
@@ -262,22 +267,19 @@ struct CoverRankHighlights: View {
     private let colors = [Brand.pink, Brand.aqua, AifectDesign.violet, Color(aifectHex: 0xE8CFA0)]
     var body: some View {
         VStack(spacing: 12) {
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+            ScrollView(.horizontal, showsIndicators: false) { HStack(spacing: 10) {
                 ForEach(0..<4) { i in
                     NavigationLink { CoverRankingView(initialPeriod: periods[i]) } label: {
-                        VStack(alignment: .leading, spacing: 10) {
-                            HStack { Image(systemName: i == 3 ? "trophy.fill" : "waveform").font(.system(size: 22)); Spacer(); Image(systemName: "arrow.up.right").font(.system(size: 15)) }.foregroundStyle(colors[i])
-                            Spacer(minLength: 4)
-                            Text(captions[i]).font(.system(size: 12)).foregroundStyle(AifectDesign.muted)
-                            Text(titles[i]).font(.system(size: 18, weight: .bold)).lineLimit(2)
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack(spacing: 7) { Image(systemName: i == 3 ? "trophy.fill" : "waveform").font(.system(size: 18)).foregroundStyle(colors[i]); Text(titles[i]).font(.system(size: 14, weight: .semibold)); Spacer(minLength: 0); Image(systemName: "chevron.right").font(.system(size: 12)).foregroundStyle(AifectDesign.muted) }
                             if let song = songs[periods[i]] {
-                                HStack(spacing: 8) { CoverArt(song: song, size: 32).clipShape(Circle()); VStack(alignment: .leading, spacing: 3) { Text(song.title).font(.system(size: 12)).lineLimit(1); Text(song.credit).font(.system(size: 11)).foregroundStyle(colors[i]).lineLimit(1) } }
-                            } else { Text("새로운 목소리를 기다려요").font(.system(size: 12)).foregroundStyle(AifectDesign.muted).lineLimit(2) }
-                        }.frame(maxWidth: .infinity, minHeight: 152, alignment: .leading).padding(16)
-                            .background(LinearGradient(colors: [colors[i].opacity(0.16), .clear], startPoint: .topLeading, endPoint: .bottomTrailing), in: RoundedRectangle(cornerRadius: 20)).background(Brand.card, in: RoundedRectangle(cornerRadius: 20))
+                                HStack(spacing: 10) { CoverArt(song: song, size: 40); VStack(alignment: .leading, spacing: 4) { Text(song.title).font(.system(size: 13)).lineLimit(1); Text(song.credit).font(.system(size: 11)).foregroundStyle(AifectDesign.muted).lineLimit(1) } }
+                            } else { Text("새로운 목소리를 기다려요").font(.system(size: 12)).foregroundStyle(AifectDesign.muted).frame(minHeight: 40) }
+                        }.frame(width: 196, alignment: .leading).padding(14)
+                            .background(LinearGradient(colors: [colors[i].opacity(0.11), .clear], startPoint: .topLeading, endPoint: .bottomTrailing), in: RoundedRectangle(cornerRadius: 16)).background(Brand.card, in: RoundedRectangle(cornerRadius: 16)).overlay(RoundedRectangle(cornerRadius: 16).stroke(AifectDesign.stroke, lineWidth: 1))
                     }.buttonStyle(.plain)
                 }
-            }
+            } }
             if let error { Text(error).font(.caption).foregroundStyle(AifectDesign.muted) }
         }.task { for period in periods { do { if let song = try await API.shared.call("/api/cover-rankings?period=\(period)&kind=tracks").songs().first { songs[period] = song } } catch { if !Task.isCancelled { self.error = error.localizedDescription } } } }
     }

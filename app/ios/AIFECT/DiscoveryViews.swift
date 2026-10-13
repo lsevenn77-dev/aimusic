@@ -7,15 +7,21 @@ struct MusicCollectionView: View {
     @EnvironmentObject var model: AppModel
     @State private var songs: [Song] = []
     @State private var error: String?
+    @State private var loading = true
     var body: some View {
-        List {
-            if !songs.isEmpty { Button("전체 재생") { model.player.play(songs[0], queue: songs) } }
-            ForEach(songs) { SongRow(song: $0, queue: songs) }
-            if let error { RetryCard(message: error) { Task { await load() } } }
-            else if songs.isEmpty { Text("공개된 음악이 없습니다.").foregroundStyle(.secondary) }
-        }.navigationTitle(title).task { await load() }.refreshable { await load() }
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 12) {
+                MusicBannerPanel(title: title, subtitle: "각자의 목소리로 다시 만나는 음악", icon: "headphones") {
+                    if !songs.isEmpty { Button("전체 재생") { model.player.play(songs[0], queue: songs) }.buttonStyle(ParityPill(filled: true)) }
+                }
+                ForEach(songs) { song in CompactMusicRow(song: song, queue: songs).padding(.horizontal, 12).background(MusicSurface()).clipShape(RoundedRectangle(cornerRadius: 16)) }
+                if loading { ProgressView().frame(maxWidth: .infinity).padding(24) }
+                if let error { RetryCard(message: error) { Task { await load() } } }
+                else if songs.isEmpty && !loading { Text("공개된 음악이 없습니다.").foregroundStyle(.secondary) }
+            }.padding(18)
+        }.background(Brand.background).navigationTitle(title).navigationBarTitleDisplayMode(.inline).task { await load() }.refreshable { await load() }
     }
-    private func load() async { do { songs = try await API.shared.call(path).songs(key); error = nil } catch { self.error = error.localizedDescription } }
+    private func load() async { loading = true; defer { loading = false }; do { let result = try await API.shared.call(path).songs(key); try Task.checkCancellation(); songs = result; error = nil } catch is CancellationError {} catch { self.error = error.localizedDescription } }
 }
 struct ExploreView: View {
     @State private var people: [[String: Any]] = []
@@ -78,6 +84,16 @@ struct QueueView: View {
         }.navigationTitle("재생 대기열").toolbar { EditButton() }
     }
 }
+enum LyricsDisplay {
+    /// Strip timing/metadata only; retain ordinary lyric annotations such as [Chorus].
+    static func plainText(_ source: String) -> String {
+        source.components(separatedBy: .newlines).compactMap { line -> String? in
+            if line.trimmingCharacters(in: .whitespaces).range(of: #"^\[(?:ar|al|ti|au|by|offset|length|re|ve):[^\]]*\]$"#, options: [.regularExpression, .caseInsensitive]) != nil { return nil }
+            return line.replacingOccurrences(of: #"(?:\[\d{1,3}:\d{2}(?:[.:]\d{1,3})?\]|<\d{1,3}:\d{2}(?:[.:]\d{1,3})?>)"#, with: "", options: .regularExpression)
+        }.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+}
+
 struct FullLyricsView: View {
     @EnvironmentObject var model: AppModel
     let song: Song
@@ -92,6 +108,6 @@ struct FullLyricsView: View {
                 else { Text("Premium에서 전체 가사를 볼 수 있습니다."); NavigationLink("Premium 살펴보기") { PaymentStoreView() } }
                 if let error { Text(error).foregroundStyle(.red) }
             }.frame(maxWidth: .infinity, alignment: .leading).padding(24)
-        }.navigationTitle("가사").task { do { let track = try await API.shared.call("/api/tracks/\(Endpoint.pathID(song.id))").object("track"); access = track.string("lyrics_access"); lyrics = track.string("lyrics") } catch { self.error = error.localizedDescription } }
+        }.navigationTitle("가사").task { do { let track = try await API.shared.call("/api/tracks/\(Endpoint.pathID(song.id))").object("track"); access = track.string("lyrics_access"); lyrics = LyricsDisplay.plainText(track.string("lyrics")) } catch { self.error = error.localizedDescription } }
     }
 }

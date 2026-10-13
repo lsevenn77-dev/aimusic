@@ -13,6 +13,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -58,6 +60,7 @@ import java.util.UUID
  val balance=if(isFree)free?.optInt("balance")?:0 else wallet?.optInt("balance")?:0
  val cost=if(isFree)1 else choice?.optInt("gold")?:0
  val suffix=if(isFree)"★" else "G"
+ val giftColumns=if(LocalConfiguration.current.screenWidthDp<400||LocalDensity.current.fontScale>1.2f)3 else 4
  ModalBottomSheet(onDismissRequest={if(!working)m.showGifts=false},sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true),containerColor=Panel){
   LazyColumn(Modifier.fillMaxWidth().heightIn(max=620.dp).testTag("gift-list"),contentPadding=PaddingValues(22.dp,0.dp,22.dp,28.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
    item{Text(if(person!=null)"${recipient}님에게 선물" else if(target==null)"내 선물함" else "음악에 응원 보내기",fontSize=25.sp);target?.let{Text("${it.producer} · ${it.title}",color=Muted,modifier=Modifier.padding(top=8.dp))}}
@@ -70,10 +73,10 @@ import java.util.UUID
     item{Text("세금과 결제 수수료를 제외한 금액에서 일반 창작자 60% · 파트너 70%를 다이아로 적립해요.",color=Muted,fontSize=13.sp);Text("커버곡 선물은 가창자 70% · AIFECT 30%예요. 원곡자는 커버의 재생 수익만 받아요.",color=Muted,fontSize=12.sp)}
     item{TextButton(onClick={m.showGifts=false;m.showDiamonds=true}){Text("◇ 다이아 · 골드 전환 · 현금 정산")}}
     item{Text("선물 고르기",fontSize=19.sp);Text("★ 1 = 1 G = 응원 순위 1점",fontSize=13.sp,color=Muted)}
-    items(catalog.chunked(4)){row->Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(7.dp)){
+    items(catalog.chunked(giftColumns)){row->Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(7.dp)){
      row.forEach{gift->val gid=gift.optString("id");Surface(onClick={if(!working){selected=gid;requestId=UUID.randomUUID().toString();success=null;error=null}},modifier=Modifier.weight(1f),shape=RoundedCornerShape(12.dp),color=if(selected==gid)Stroke else Ink,border=BorderStroke(1.dp,if(selected==gid)Pink else Stroke)){
       Column(Modifier.padding(vertical=9.dp),horizontalAlignment=Alignment.CenterHorizontally){val path=gift.optString("image");if(path.startsWith("/assets/gifts/"))AsyncImage(Endpoint.url(path),null,Modifier.size(56.dp));Text(gift.optString("name"),fontSize=14.sp);Text(if(gid=="star")"★ 1" else "${gift.optInt("gold")} G",color=Aqua,fontSize=13.sp)}
-     }};repeat(4-row.size){Spacer(Modifier.weight(1f))}
+     }};repeat(giftColumns-row.size){Spacer(Modifier.weight(1f))}
     }}
     item{
      if(giftPath!=null){

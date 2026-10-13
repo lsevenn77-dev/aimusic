@@ -21,6 +21,33 @@ struct RecordingDraft: Codable, Identifiable {
             return draft
         }.sorted { $0.date > $1.date }
     }
+    func delete(currentOwner: String) throws {
+        let root = Self.root.standardizedFileURL.resolvingSymlinksInPath()
+        let target = directory.standardizedFileURL.resolvingSymlinksInPath()
+        guard !currentOwner.isEmpty, owner == currentOwner, UUID(uuidString: id) != nil,
+              target.lastPathComponent == id,
+              target.deletingLastPathComponent() == root,
+              let data = try? Data(contentsOf: target.appendingPathComponent("draft.json")),
+              let saved = try? JSONDecoder().decode(Self.self, from: data),
+              saved.id == id, saved.owner == currentOwner else {
+            throw APIError(status: 0, message: "이 계정의 초안 경로를 확인하지 못했어요.")
+        }
+        try FileManager.default.removeItem(at: target)
+    }
+}
+
+struct RecordingLeadIn {
+    let target: Double
+    let duration: Double
+    let audioOffset: Double
+    let audioDelay: Double
+    init(target: Double, duration: Double = 3) {
+        self.target = max(0, target)
+        self.duration = max(0, duration)
+        let audible = min(self.target, self.duration)
+        audioOffset = self.target - audible
+        audioDelay = self.duration - audible
+    }
 }
 
 @MainActor
@@ -79,7 +106,11 @@ final class RecordingStudio: NSObject, ObservableObject, AVAudioPlayerDelegate {
         try JSONEncoder().encode(currentSettings).write(to: folder.appendingPathComponent("settings.json"), options: .atomic)
         try JSONEncoder().encode(draft).write(to: folder.appendingPathComponent("draft.json"), options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
     }
-    func cancelCountdown() { countdownGeneration += 1; countdown = 0; starting = false }
+    func cancelCountdown() {
+        countdownGeneration += 1; countdown = 0
+        if starting && !recording { recorder?.stop(); backing?.stop() }
+        starting = false
+    }
 
     @Published var duetFirst = false
     @Published var duetLines: [String] = []
@@ -179,37 +210,57 @@ final class RecordingStudio: NSObject, ObservableObject, AVAudioPlayerDelegate {
         guard ready, !recording, !starting, !processing, draft == nil, !closed else { return }
         if let guideIssue { error = guideIssue; return }
         starting = true
+        error = nil
         countdownGeneration += 1
         let generation = countdownGeneration
         defer { if generation == countdownGeneration { starting = false; countdown = 0 } }
         let granted = await AVAudioApplication.requestRecordPermission()
+        guard generation == countdownGeneration, !closed, !Task.isCancelled else { return }
         guard granted else { error = "설정 → AIFECT에서 마이크 접근을 허용해주세요."; return }
         do {
             let session = AVAudioSession.sharedInstance()
             try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetoothHFP])
             try session.setPreferredIOBufferDuration(0.005)
             try session.setActive(true)
-            for value in (1...3).reversed() {
-                guard generation == countdownGeneration else { return }
-                countdown = value; try await Task.sleep(for: .seconds(1))
-            }
-            guard generation == countdownGeneration else { return }
-            countdown = 0
             let take = folder.appendingPathComponent("take-\(UUID().uuidString).wav")
             let recorder = try AVAudioRecorder(url: take, settings: [AVFormatIDKey: kAudioFormatLinearPCM,
                 AVSampleRateKey: 44100, AVNumberOfChannelsKey: 1, AVLinearPCMBitDepthKey: 16, AVLinearPCMIsFloatKey: false, AVLinearPCMIsBigEndianKey: false])
             let backing = try AVAudioPlayer(contentsOf: folder.appendingPathComponent("backing.m4a"))
-            backing.currentTime = elapsed; takeStart = elapsed; takeURL = take
+            let leadIn = RecordingLeadIn(target: elapsed)
+            backing.currentTime = leadIn.audioOffset
             recorder.isMeteringEnabled = true; recorder.prepareToRecord(); backing.prepareToPlay(); backing.volume = backingVolume
-            let startTime = max(recorder.deviceCurrentTime, backing.deviceCurrentTime) + 0.25
-            guard recorder.record(atTime: startTime), backing.play(atTime: startTime) else { recorder.stop(); backing.stop(); throw APIError(status: 0, message: "녹음을 시작하지 못했습니다.") }
+            var committed = false
+            defer {
+                if !committed {
+                    recorder.stop(); backing.stop()
+                    // Only the new, cancelled take is disposable. Existing voice.wav is untouched.
+                    try? FileManager.default.removeItem(at: take)
+                }
+            }
+            self.recorder = recorder; self.backing = backing
+            // Both schedules use the audio device clock: the preceding music plays
+            // during 3-2-1 and the microphone starts at the exact selected lyric.
+            let preparationTime = max(recorder.deviceCurrentTime, backing.deviceCurrentTime) + 0.1
+            let recordTime = preparationTime + leadIn.duration
+            guard backing.play(atTime: preparationTime + leadIn.audioDelay), recorder.record(atTime: recordTime) else {
+                throw APIError(status: 0, message: "녹음을 시작하지 못했습니다.")
+            }
+            while recorder.deviceCurrentTime < recordTime {
+                guard generation == countdownGeneration, !closed else { return }
+                try Task.checkCancellation()
+                countdown = min(3, max(1, Int(ceil(recordTime - recorder.deviceCurrentTime))))
+                try await Task.sleep(for: .milliseconds(40))
+            }
+            guard generation == countdownGeneration, !closed else { return }
+            try Task.checkCancellation()
+            countdown = 0; takeStart = leadIn.target; takeURL = take
             saveSettings()
-            self.recorder = recorder; self.backing = backing; recording = true; paused = false; updateMonitor()
+            committed = true; recording = true; paused = false; updateMonitor()
             timer?.invalidate()
             timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
                 Task { @MainActor in self?.tick() }
             }
-        } catch { self.error = error.localizedDescription }
+        } catch is CancellationError {} catch { if generation == countdownGeneration { self.error = error.localizedDescription } }
     }
     func togglePause() {
         guard recording else { return }
@@ -243,7 +294,7 @@ final class RecordingStudio: NSObject, ObservableObject, AVAudioPlayerDelegate {
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
     func selectRecordingPosition(_ seconds: Double) {
-        guard !recording, !processing, countdown == 0 else { return }
+        guard !recording, !starting, !processing, countdown == 0 else { return }
         stopPreview(); audition = nil
         if FileManager.default.fileExists(atPath: folder.appendingPathComponent("submission.json").path) {
             let next = RecordingDraft.root.appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -269,7 +320,7 @@ final class RecordingStudio: NSObject, ObservableObject, AVAudioPlayerDelegate {
         if recording { finish() }
         await finishTask?.value
         guard !closed, !Task.isCancelled, !processing, error == nil else { return }
-        selectRecordingPosition(max(0, words[index].0 - 2))
+        selectRecordingPosition(words[index].0)
     }
     func returnToRecording() {
         guard !processing else { return }

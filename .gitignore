@@ -3,3 +3,4 @@ source-manifest.json
 *.jks
 *.keystore
 *.credentials.xml
+/output/

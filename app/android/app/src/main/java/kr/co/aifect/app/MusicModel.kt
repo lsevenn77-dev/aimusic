@@ -106,7 +106,11 @@ class MusicModel(app:Application):AndroidViewModel(app) {
  var unreadMessages by mutableIntStateOf(0)
  var inboxCrew by mutableStateOf<JSONObject?>(null)
  suspend fun refreshMessageSummary(){val account=user?.optString("id")?:return;val d=api.call("/api/dm/summary");if(user?.optString("id")==account){unreadMessages=d.optInt("unread");inboxCrew=d.optJSONObject("crew")}}
- fun openCrewMessages(cid:String){openMessages();messageCrew=cid}
+ fun openCrewMessages(cid:String){
+  if(!authenticated())return
+  dismissProfile();messageSourceProfile=null;showMessages=false
+  selectTab(5);messageCrew=cid
+ }
  var ownProfile by mutableStateOf(JSONObject())
  fun editProfile(){if(!authenticated())return;showProfileEdit=true;ownProfileJob?.cancel();ownProfileJob=viewModelScope.launch{try{loadOwnProfile()}catch(e:Exception){if(e is CancellationException)throw e;failure(e)}}}
  suspend fun loadOwnProfile(fresh:Boolean=false){
@@ -374,6 +378,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   libraryJob=viewModelScope.launch{try{loadLibrary(fresh)}catch(e:Exception){if(e is CancellationException)throw e;failure(e)}}
  }
  fun selectTab(index:Int) {
+  if(collection?.asPage==true)dismissCollection()
   tab=if(index==1)0 else index
   if(index==1)listenPage="발견"
   if(index in listOf(4,6) && user!=null)refreshLibrary()
@@ -381,16 +386,16 @@ class MusicModel(app:Application):AndroidViewModel(app) {
  }
  fun library(page:String){libraryPage=page;selectTab(4)}
  fun showCollection(title:String,tracks:List<Song>,caption:String=""){
-  collectionRequest++;collectionJob?.cancel();collectionBusy=false;collectionError=null;collection=MusicCollection(title,caption,tracks)
+  collectionRequest++;collectionJob?.cancel();collectionBusy=false;collectionError=null;collection=MusicCollection(title,caption,tracks,asPage=true)
  }
  fun dismissCollection(){collectionRequest++;collectionJob?.cancel();collection=null;collectionBusy=false;collectionError=null}
- fun browseCollection(title:String,path:String,caption:String="",resultKey:String="tracks"){
+ fun browseCollection(title:String,path:String,caption:String="",resultKey:String="tracks",asPage:Boolean=false){
   collectionJob?.cancel();val request=++collectionRequest;val scope=readScope()
   val cached=api.peek(path)?.tracks(resultKey)
   val retained=collection?.takeIf{it.path==path&&it.resultKey==resultKey}?.tracks
-  collection=MusicCollection(title,caption,cached?:retained?:emptyList(),path,resultKey);collectionBusy=true;collectionError=null
+  collection=MusicCollection(title,caption,cached?:retained?:emptyList(),path,resultKey,asPage);collectionBusy=true;collectionError=null
   collectionJob=viewModelScope.launch {
-   try{val tracks=api.call(path,fresh=true).tracks(resultKey);ensureRead(scope);if(request==collectionRequest)collection=MusicCollection(title,caption,tracks,path,resultKey)}
+   try{val tracks=api.call(path,fresh=true).tracks(resultKey);ensureRead(scope);if(request==collectionRequest)collection=MusicCollection(title,caption,tracks,path,resultKey,asPage)}
    catch(e:Exception){if(e is CancellationException)throw e;if(sameAccount(scope)&&request==collectionRequest){if(e is ApiException&&e.status==401)failure(e);if(e is ApiException&&e.status in listOf(403,404))collection=collection?.copy(tracks=emptyList());collectionError=e.message?:"음악을 불러오지 못했어요."}}
    finally{if(sameAccount(scope)&&request==collectionRequest)collectionBusy=false}
   }

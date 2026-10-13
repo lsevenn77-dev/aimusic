@@ -78,9 +78,9 @@ import org.json.JSONObject
  IconButton(enabled=!busy,onClick={scope.launch{busy=true;try{val result=m.api.call("/api/crews/$cid/settings","PUT",payload("muted" to !muted));muted=result.optBoolean("muted");m.refreshMessageSummary()}catch(e:Exception){if(e is CancellationException)throw e;m.notice=e.message}finally{busy=false}}}){Icon(if(muted)Icons.Rounded.NotificationsOff else Icons.Rounded.NotificationsNone,if(muted)"크루 알림 켜기" else "크루 알림 끄기",tint=if(muted)Aqua else Muted)}
 }
 
-@Composable internal fun ProfileGiftRanking(m:MusicModel,p:JSONObject){
+@Composable internal fun ProfileGiftRanking(m:MusicModel,p:JSONObject,compact:Boolean=false){
  var open by remember(p.optString("id")){mutableStateOf(false)}
- TextButton(onClick={open=true}){Icon(Icons.Rounded.EmojiEvents,null,tint=Aqua);Text("선물 랭킹 TOP 50",modifier=Modifier.padding(start=6.dp),color=Aqua)}
+ TextButton(onClick={open=true}){Icon(Icons.Rounded.EmojiEvents,null,tint=Pink,modifier=Modifier.size(18.dp));Text(if(compact)"받은 응원" else "선물 랭킹 TOP 50",fontSize=12.sp,modifier=Modifier.padding(start=6.dp),color=Pink)}
  if(open){
   var data by remember{mutableStateOf<JSONObject?>(null)};var error by remember{mutableStateOf<String?>(null)};val scope=rememberCoroutineScope()
   suspend fun load(){try{data=m.api.call("/api/producers/${p.optString("id")}/gifts",fresh=true);error=null}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}}

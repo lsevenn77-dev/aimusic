@@ -5,9 +5,9 @@ struct MusicSurface: View {
     var body: some View {
         GeometryReader { geometry in
             LinearGradient(stops: [
-                .init(color: Color(aifectHex: feature ? 0x27313B : 0x212733), location: 0),
-                .init(color: Color(aifectHex: feature ? 0x272735 : 0x1A1E29), location: 0.58),
-                .init(color: Color(aifectHex: feature ? 0x35283B : 0x251F2D), location: 1)
+                .init(color: Color(aifectHex: feature ? 0x25313F : 0x1B2432), location: 0),
+                .init(color: Color(aifectHex: feature ? 0x252535 : 0x151C28), location: 0.58),
+                .init(color: Color(aifectHex: feature ? 0x382B40 : 0x19212E), location: 1)
             ], startPoint: .topLeading, endPoint: UnitPoint(x: 1, y: 0.55))
             .overlay(RadialGradient(colors: [AifectDesign.mint.opacity(feature ? 0.15 : 0.05), .clear], center: .topLeading, startRadius: 0, endRadius: max(1, geometry.size.width * 0.85)))
         }.accessibilityHidden(true)
