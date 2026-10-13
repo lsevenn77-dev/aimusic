@@ -13,10 +13,18 @@ enum FeedbackUIFixture {
         #endif
     }
     static let song = Song(["id": "feedback-song", "title": "편집 검증용 녹음", "duration": 20, "kind": "cover", "original_id": "fixture-original", "producer_id": "fixture-profile", "plays": 12])
+    static let draftID = "AC24A8E1-CA7D-42E5-938E-5E290B00CFE1"
     static let chartTracks: [[String: Any]] = (1...5).map { ["id": "chart-\($0)", "title": "차트곡 \($0)", "producer_id": "fixture-profile", "producer": "프로필 검증 창작자", "duration": 20] }
     static let lyrics: [[String: Any]] = [["time": 0, "text": "첫 구간"], ["time": 10, "text": "두 번째 구간"], ["time": 12, "text": "세 번째 구간"], ["time": 14, "text": "네 번째 구간"], ["time": 16, "text": "다섯 번째 구간"], ["time": 18, "text": "마지막 구간"]]
     @MainActor static func draft() throws -> RecordingDraft {
-        let draft = RecordingDraft(id: "feedback-ui-fixture", owner: "fixture-user", song: song, date: Date(), length: 20)
+        // Migrate only the former, explicitly named simulator fixture.
+        let legacy = RecordingDraft.root.appendingPathComponent("feedback-ui-fixture", isDirectory: true)
+        if let bytes = try? Data(contentsOf: legacy.appendingPathComponent("draft.json")),
+           let old = try? JSONDecoder().decode(RecordingDraft.self, from: bytes),
+           old.id == "feedback-ui-fixture", old.owner == "fixture-user" {
+            try FileManager.default.removeItem(at: legacy)
+        }
+        let draft = RecordingDraft(id: draftID, owner: "fixture-user", song: song, date: Date(), length: 20)
         try FileManager.default.createDirectory(at: draft.directory, withIntermediateDirectories: true)
         let format = AVAudioFormat(standardFormatWithSampleRate: 44100, channels: 1)!
         for name in ["voice.wav", "backing.m4a"] {
@@ -67,7 +75,7 @@ final class FeedbackURLProtocol: URLProtocol {
             client?.urlProtocol(self, didLoad: bytes); client?.urlProtocolDidFinishLoading(self); return
         }
         if path == "/media/fixture-original/mr" {
-            let url = RecordingDraft.root.appendingPathComponent("feedback-ui-fixture/backing.m4a")
+            let url = RecordingDraft.root.appendingPathComponent(FeedbackUIFixture.draftID + "/backing.m4a")
             client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: ["Content-Type": "audio/wav"])!, cacheStoragePolicy: .notAllowed)
             client?.urlProtocol(self, didLoad: (try? Data(contentsOf: url)) ?? Data()); client?.urlProtocolDidFinishLoading(self); return
         }
@@ -114,6 +122,9 @@ final class FeedbackURLProtocol: URLProtocol {
                     "covers": [["id": "fixture-cover", "title": "창작자 커버곡", "producer_id": "fixture-profile", "producer": "프로필 검증 창작자", "kind": "cover", "original_id": "fixture-original", "duration": 20]]]
         }
         else if path == "/api/catalog", URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems?.contains(URLQueryItem(name: "chart", value: "top")) == true { data = ["tracks": FeedbackUIFixture.chartTracks] }
+        else if path == "/api/community", ProcessInfo.processInfo.arguments.contains("-redesign-ui-test") {
+            data = ["tracks": [["id": "redesign-cover", "title": "새 목소리 검증", "kind": "cover", "duration": 20]]]
+        }
         else if path == "/api/karaoke" { data = ["tracks": Array(FeedbackUIFixture.chartTracks.reversed())] }
         else if path == "/api/library" { data = ["likes": [], "collections": []] }
         let bytes = (try? JSONSerialization.data(withJSONObject: data)) ?? Data("{}".utf8)
@@ -138,9 +149,20 @@ struct FeedbackUITestView: View {
     @State private var studio: FeedbackStudioSelection?
     @State private var gift = false
     @State private var track = false
+    @State private var narrowLayout = false
     var body: some View {
         RootView().environmentObject(model).preferredColorScheme(.dark).tint(Brand.aqua)
-            .task { draft = try? FeedbackUIFixture.draft() }
+            .task {
+                draft = try? FeedbackUIFixture.draft()
+                if ProcessInfo.processInfo.arguments.contains("-narrow-ui-test") { narrowLayout = true }
+            }
+            .onChange(of: model.userID) { _, owner in
+                // Account loading intentionally clears the player. Seed it only
+                // after that boundary so this fixture cannot race sign-in.
+                if owner == "fixture-user", ProcessInfo.processInfo.arguments.contains("-redesign-ui-test") {
+                    model.player.current = FeedbackUIFixture.song; model.player.duration = 20
+                }
+            }
             .onReceive(NotificationCenter.default.publisher(for: Notification.Name("feedback-profile-loaded"))) { _ in model.chart = []; model.singable = [] }
             .overlay(alignment: .topTrailing) {
                 Menu("검증") {
@@ -149,16 +171,36 @@ struct FeedbackUITestView: View {
                     Button("재생창 프로필 검증") { model.player.current = FeedbackUIFixture.song; model.player.duration = 20 }
                     Button("음원 상세 검증") { track = true }
                     Button("선물창 검증") { gift = true }
+                    Button("좁은 화면 검증") { narrowLayout = true }
                 }.padding().accessibilityIdentifier("feedback-menu")
             }
             .sheet(isPresented: $gift) { NavigationStack { GiftWalletView(song: FeedbackUIFixture.song, compact: true).environmentObject(model) }.presentationDetents([.fraction(0.48)]) }
             .sheet(isPresented: $track) { TrackDetailView(song: FeedbackUIFixture.song).environmentObject(model) }
+            .sheet(isPresented: $narrowLayout) { FeedbackNarrowLayout().environmentObject(model).preferredColorScheme(.dark) }
             .fullScreenCover(item: $studio) { selection in StudioView(studio: selection.studio).environmentObject(model).preferredColorScheme(.dark) }
     }
     private func makeStudio(_ draft: RecordingDraft, stopped: Bool) -> RecordingStudio {
         let studio = RecordingStudio(song: draft.song, owner: draft.owner, draft: draft)
         if stopped { studio.returnToRecording() }
         return studio
+    }
+}
+
+private struct FeedbackNarrowLayout: View {
+    private let song = Song(["id": "narrow-song", "title": "아주 긴 노래 제목도 마지막 글자까지 볼 수 있는 노래", "producer": "이름이 길어도 함께 표시하는 창작자", "duration": 180, "genres": ["발라드", "Alternative R&B", "힙합", "드림팝"], "description": "긴 곡 소개와 장르를 작은 화면에서도 읽을 수 있는지 확인합니다."])
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 18) {
+                CompactMusicRow(song: song, queue: [song])
+                SingReadyCard(song: song, queue: [song])
+                HStack(alignment: .top, spacing: 8) {
+                    CreatorPreviewCard(person: ["id": "short", "name": "짧은 이름", "bio": "소개입니다."]).accessibilityIdentifier("creator-short")
+                    CreatorPreviewCard(person: ["id": "long", "name": "긴 이름을 사용하는 음악가", "bio": "음악으로 서로의 하루를 나누고 새로운 목소리를 함께 찾아갑니다."]).accessibilityIdentifier("creator-long")
+                }
+                CrewMembershipGraphic(crew: FeedbackURLProtocol.crew, trackCount: 0)
+            }.frame(width: 304).padding(.horizontal, 8)
+        }.frame(width: 320).background(Brand.background)
+            .environment(\.dynamicTypeSize, .accessibility1).accessibilityIdentifier("narrow-layout")
     }
 }
 #endif

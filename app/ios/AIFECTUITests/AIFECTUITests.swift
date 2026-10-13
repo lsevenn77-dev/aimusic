@@ -1,6 +1,76 @@
 import XCTest
 
 final class AIFECTUITests: XCTestCase {
+    @MainActor func testRedesignNarrowCardsAndLargeCreatorText() throws {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["-feedback-ui-test", "-narrow-ui-test", "-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]
+        app.launch()
+        let scroll = app.scrollViews["narrow-layout"]
+        XCTAssertTrue(scroll.waitForExistence(timeout: 15))
+        let title = app.staticTexts["아주 긴 노래 제목도 마지막 글자까지 볼 수 있는 노래"].firstMatch
+        XCTAssertTrue(title.exists); XCTAssertGreaterThan(title.frame.height, 30)
+        XCTAssertGreaterThanOrEqual(title.frame.minX, scroll.frame.minX)
+        XCTAssertLessThanOrEqual(title.frame.maxX, scroll.frame.maxX)
+        let top = XCTAttachment(screenshot: app.screenshot()); top.name = "320pt music cards"; top.lifetime = .keepAlways; add(top)
+        let profileLinks = app.staticTexts.matching(identifier: "프로필 보기  ›")
+        for _ in 0..<5 { if profileLinks.count == 2 && profileLinks.element(boundBy: 1).isHittable { break }; scroll.swipeUp() }
+        XCTAssertEqual(profileLinks.count, 2)
+        XCTAssertLessThan(abs(profileLinks.element(boundBy: 0).frame.minY - profileLinks.element(boundBy: 1).frame.minY), 2)
+        let creators = XCTAttachment(screenshot: app.screenshot()); creators.name = "320pt accessibility creator cards"; creators.lifetime = .keepAlways; add(creators)
+    }
+    @MainActor func testRedesignCrewNavigationDraftDeletionAndMiniPlayer() throws {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["-feedback-ui-test", "-redesign-ui-test", "-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]
+        app.launch()
+        let collapse = app.buttons["mini-player-collapse"]
+        XCTAssertTrue(collapse.waitForExistence(timeout: 15)); collapse.tap()
+        XCTAssertEqual(collapse.label, "재생바 펼치기")
+        XCTAssertFalse(app.buttons["다음 곡"].exists)
+        collapse.tap(); XCTAssertTrue(app.buttons["다음 곡"].exists)
+
+        app.buttons["main-tab-1"].tap(); app.buttons["크루"].tap()
+        let crew = app.buttons["crew-card-fixture-crew"]
+        XCTAssertTrue(crew.waitForExistence(timeout: 8)); crew.tap()
+        let entry = app.buttons.containing(NSPredicate(format: "label CONTAINS %@", "크루 채팅방")).firstMatch
+        // SwiftUI reports a partially visible row as hittable even under the
+        // fixed mini-player. Scroll the complete action into the content area.
+        for _ in 0..<6 {
+            if entry.isHittable && entry.frame.maxY < collapse.frame.minY { break }
+            app.scrollViews["crew-content"].swipeUp()
+        }
+        XCTAssertTrue(entry.isHittable); entry.tap()
+        XCTAssertTrue(app.textFields["chat-input"].waitForExistence(timeout: 8))
+        XCTAssertFalse(app.buttons["mini-player-collapse"].exists)
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        XCTAssertTrue(app.staticTexts["내 크루 · 고정"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["main-tab-3"].isSelected)
+
+        app.buttons["main-tab-2"].tap()
+        XCTAssertTrue(app.buttons["초안"].waitForExistence(timeout: 5)); app.buttons["초안"].tap()
+        XCTAssertTrue(app.buttons["이어 편집"].waitForExistence(timeout: 5))
+        app.buttons["삭제"].firstMatch.tap()
+        XCTAssertTrue(app.buttons["초안 삭제"].waitForExistence(timeout: 5))
+        // iOS 26 presents this as an anchored popover, dismissed by tapping
+        // outside, without an implicit Cancel row.
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.65)).tap()
+        XCTAssertFalse(app.buttons["초안 삭제"].exists)
+        XCTAssertTrue(app.buttons["이어 편집"].exists)
+        app.buttons["삭제"].firstMatch.tap(); app.buttons["초안 삭제"].tap()
+        XCTAssertTrue(app.staticTexts["저장한 초안이 없어요"].waitForExistence(timeout: 5))
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        let more = app.buttons["더보기"]
+        for _ in 0..<16 {
+            if more.isHittable && more.frame.maxY < collapse.frame.minY { break }
+            app.scrollViews.firstMatch.swipeUp()
+        }
+        XCTAssertTrue(more.isHittable); more.tap()
+        XCTAssertTrue(app.navigationBars["새로 올라온 목소리"].waitForExistence(timeout: 5))
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        XCTAssertTrue(more.isHittable)
+        let capture = XCTAttachment(screenshot: app.screenshot()); capture.name = "Redesign singing navigation"; capture.lifetime = .keepAlways; add(capture)
+    }
     @MainActor func testListeningDoesNotShowVideoAds() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-ad-integration-test", "-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]
