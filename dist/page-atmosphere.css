@@ -33,8 +33,8 @@ main[data-route^="karaoke"],main[data-route^="studio"],main[data-route^="upload"
 .sing-discover-card{background:radial-gradient(ellipse at 100% 120%,#a9648750,transparent 68%),#262334}.sing-discover-card.duet{background:radial-gradient(ellipse at 100% 120%,#65999f42,transparent 68%),#1f2c39}
 .gift-shop-intro{box-shadow:inset 0 1px #f3b7d918,0 18px 60px #0002}.gift-shop-intro .gift-shop-art{filter:drop-shadow(0 7px 28px #ed91bc20)}
 .social-side-card,.community-feed-column .music-card{box-shadow:inset 0 1px #cedfff05;background-image:radial-gradient(ellipse at 100% 0,var(--mood-glow),transparent 65%),linear-gradient(130deg,#1b2533,#151e2a)}
-/* The room sits behind the real, fully functional recorder. */
-.page-wrap:has(main[data-route^="sing/"]){background-image:linear-gradient(180deg,transparent 0%,#0f121a0d 72%,#0f121a 100%),url('/assets/atmosphere/karaoke-rose-mirrorball-v1.webp');background-size:100% 960px;background-position:center 80px;background-repeat:no-repeat}
+/* Keep the recorder neutral so lyrics and audio tools stay in focus. */
+.page-wrap:has(main[data-route^="sing/"]){background:#0c141f}
 main[data-route^="sing/"]{background:none!important;padding-top:22px!important;padding-bottom:55px!important}
 main[data-route^="sing/"]::before{display:none}
 main[data-route^="sing/"]>.page-heading{margin-bottom:18px;min-height:65px}

@@ -56,3 +56,16 @@ export function encodeWav(channels,sampleRate){
  for(let i=0;i<frames;i++)for(let c=0;c<count;c++){const s=Math.max(-1,Math.min(1,channels[c][i]));v.setInt16(o,s<0?s*0x8000:s*0x7fff,true);o+=2;}
  return new Uint8Array(buffer);
 }
+
+// Bounded punch-in preserves untouched audio, unlike continuing a take from a lyric.
+export function normalizeTakeRange(start,end,duration){
+ const total=Number.isFinite(duration)?Math.max(0,duration):0,min=Math.min(.1,total);
+ const a=Math.max(0,Math.min(Number.isFinite(start)?start:0,total-min));
+ return {start:a,end:Math.max(a+min,Math.min(Number.isFinite(end)?end:total,total))};
+}
+export function replaceTakeRange(previous,chunks,recordClock,sampleRate,start,end){
+ const first=Math.max(0,Math.round(start*sampleRate)),last=Math.max(first,Math.round(end*sampleRate));
+ if(last<=first)return previous||new Float32Array(0);
+ const out=new Float32Array(Math.max(previous?.length||0,last));if(previous)out.set(previous);
+ out.set(placeChunks(chunks,recordClock,sampleRate,last-first),first);return out;
+}
