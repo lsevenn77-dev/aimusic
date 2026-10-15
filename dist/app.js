@@ -96,7 +96,18 @@ async function toggleFollow(button){
  catch(error){if(me?.id===uid){updateFollowLocal(kind,id,!!prior,prior);paintFollowState(key,!!prior,false,oldCount);}throw error;}
  finally{if(pendingFollows.get(key)===uid)pendingFollows.delete(key);if(me?.id===uid)paintFollowState(key,followed(kind,id),false);}
 }
-function updateAccount(){const accountTarget=me?'#profile':'#account';$('.profile').href=accountTarget;$('.header-login').href=accountTarget;$('.profile').innerHTML=`<span class="avatar ${playerAvatarClass(me)}">${me?.profile_id&&me.image_version?`<img src="/media/producer/${esc(me.profile_id)}?v=${esc(me.image_version)}" alt="${esc(me.name)} 프로필 사진">`:esc(me?me.name[0]:'A')}${playerBadgeHTML(me)}</span><span><strong>${esc(me?(me.display_name||me.name):'무료로 시작하기')}</strong><small>${me?'내 계정 · '+(member.plan==='premium'?'Premium':'무료 회원'):'로그인 · 회원가입'}</small></span>${icon('chevron')}`;$('.header-login').textContent=me?'내 계정':'로그인';}
+const DEFAULT_AVATAR='/assets/default-avatar.svg';
+function avatarImage(p={},kind='producer'){
+ const id=p.profile_id||p.id,src=id&&p.image_version?'/media/'+kind+'/'+encodeURIComponent(id)+'?v='+encodeURIComponent(p.image_version):DEFAULT_AVATAR;
+ return '<img class="profile-avatar-image" src="'+esc(src)+'" alt="'+esc(p.name||'사용자')+' 프로필 사진" loading="lazy" decoding="async">';
+}
+// Keep every photo surface usable when an old or unavailable upload fails to load.
+document.addEventListener('error',event=>{
+ const image=event.target;if(!image.matches?.('img.profile-avatar-image'))return;
+ if(image.getAttribute('src')!==DEFAULT_AVATAR)image.src=DEFAULT_AVATAR;
+ else image.hidden=true;
+},true);
+function updateAccount(){const accountTarget=me?'#profile':'#account';$('.profile').href=accountTarget;$('.header-login').href=accountTarget;$('.profile').innerHTML=`<span class="avatar profile-avatar ${playerAvatarClass(me)}">${avatarImage(me||{})}${playerBadgeHTML(me)}</span><span><strong>${esc(me?(me.display_name||me.name):'무료로 시작하기')}</strong><small>${me?'내 계정 · '+(member.plan==='premium'?'Premium':'무료 회원'):'로그인 · 회원가입'}</small></span>${icon('chevron')}`;$('.header-login').textContent=me?'내 계정':'로그인';}
 function askLogin(){returnRoute=location.hash;saveResume();location.hash='account';toast('무료로 가입하고 음악을 이어 들어보세요.');return false;}
 function saveResume(){saveQueue();if(current){pendingResume={id:current.id,time:preview?Math.min(audio.currentTime,60):audio.currentTime};sessionStorage.setItem('aifect-player-resume',JSON.stringify(pendingResume));}}
 function dialog(html){$('#dialog-content').innerHTML=html;if(!$('#dialog').open)$('#dialog').showModal();}
@@ -136,6 +147,6 @@ async function resumeAfterLogin(){if(pendingResume){const r=pendingResume;sessio
 async function report(){if(!playSession||heard<1||reportBusy)return;reportBusy=true;try{await api('/api/listens/'+playSession,'PATCH',{seconds:Math.floor(heard)});}catch{}finally{reportBusy=false;}}
 async function nextTrack(delta,automatic=false){if(!queue.length){if(automatic)setPlayerVisible(false);return;}let i=queue.indexOf(current?.id);if(shuffle&&queue.length>1){const choices=queue.filter(id=>id!==current?.id);await play(choices[Math.floor(Math.random()*choices.length)]);return;}i+=delta;if(automatic&&i>=queue.length&&!repeatMode){setPlayerVisible(false);return;}i=(i+queue.length)%queue.length;await play(queue[i]);}
 
-function portrait(p,kind){return '<div class="artist-portrait cover '+(p.image_version?'cover-custom':'cover-lime')+(kind==='producer'?playerAvatarClass(p):'')+'">'+(p.image_version?'<img decoding="async" src="/media/'+kind+'/'+esc(p.id)+'?v='+esc(p.image_version)+'" alt="'+esc(p.name)+' 프로필" loading="lazy">':'<span>'+esc((p.name||'음악가').slice(0,2))+'</span>')+(kind==='producer'?playerBadgeHTML(p):'')+'</div>';}
+function portrait(p,kind){return '<div class="artist-portrait cover cover-custom profile-avatar'+(kind==='producer'?playerAvatarClass(p):'')+'">'+avatarImage(p,kind)+(kind==='producer'?playerBadgeHTML(p):'')+'</div>';}
 
 function trackStats(t,cls='card-stats'){return '<div class="public-track-stats '+cls+'" data-stat-track="'+t.id+'" aria-label="곡 활동"><span aria-label="재생 '+number(t.plays)+'회">'+icon('play')+'<span>'+number(t.plays)+'</span></span><span aria-label="좋아요 '+number(t.likes)+'개">'+icon('heart')+'<span>'+number(t.likes)+'</span></span><a href="#song/'+t.id+'?comments=1" aria-label="댓글 '+number(t.comments)+'개 보기">'+icon('message')+'<span>'+number(t.comments)+'</span></a></div>';}
