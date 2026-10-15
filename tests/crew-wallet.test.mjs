@@ -9,7 +9,7 @@ import {fixture} from './fixture.mjs';
 
 const read=file=>readFileSync(new URL('../'+file,import.meta.url),'utf8');
 const esc=s=>String(s??'').replaceAll('<','&lt;').replaceAll('"','&quot;');
-function ui({profile={id:'producer',name:'QA'},wallet={balance:1234,diamonds:{available:12.34567}},error,user={id:'owner'}}={}){
+function ui({profile={id:'producer',name:'QA'},wallet={balance:1234,silver_balance:5678,diamonds:{available:12.34567}},error,user={id:'owner'}}={}){
  const calls=[],c=vm.createContext({me:user,URLSearchParams,location:{hash:'#profile'},document:{addEventListener(){}},window:{addEventListener(){}},
   esc,number:n=>Number(n).toLocaleString('ko-KR'),icon:()=>'',myPageHeading:()=>'<h1>마이</h1>',personProfileHTML:(_d,_id,_tab,balances='')=>'<article>PROFILE'+balances+'</article>',musicProfileItems:()=>[],
   playerProgressHTML:()=>'',musicMyShortcuts:()=>'',heading:()=>'',portrait:()=>'',formField:()=>'',gate:()=>'<h1>로그인</h1>',
@@ -17,17 +17,18 @@ function ui({profile={id:'producer',name:'QA'},wallet={balance:1234,diamonds:{av
  vm.runInContext(read('dist/diamonds.js'),c);vm.runInContext(read('dist/improvements.js'),c);
  return {c,calls};
 }
-test('private My shows gold and a toolbox instead of diamonds, with or without a public page',async()=>{
+test('private My shows gold, silver and a toolbox instead of diamonds, with or without a public page',async()=>{
  for(const profile of [{id:'producer',name:'QA'},{name:'New'}]){
   const {c,calls}=ui({profile}),view=await c.improvementsView('profile','','profile');
   assert.match(view.html,/1,234/);assert.doesNotMatch(view.html,/12\.34567|💎|다이아/);
+  assert.match(view.html,/5,678/);assert.match(view.html,/보유 은화/);assert.match(view.html,/href="#rewards"/);
   assert.match(view.html,/href="#gold"/);assert.match(view.html,/href="#inventory"/);assert.match(view.html,/내 도구함/);
   assert.equal(calls.filter(p=>p==='/api/gold/balance').length,1);
   await c.improvementsView('profile','','profile');assert.equal(calls.filter(p=>p==='/api/gold/balance').length,2,'re-entry refetches');
  }
 });
 test('zero balances are real zeros; missing/failed balances never masquerade as zero',async()=>{
- const zero=ui({wallet:{balance:0}});
+ const zero=ui({wallet:{balance:0,silver_balance:0}});
  assert.doesNotMatch((await zero.c.improvementsView('profile','','profile')).html,/다시 불러오기|—/);
  for(const options of [{error:Error('offline')},{wallet:{}},{wallet:{balance:'<bad>',diamonds:{available:null}}}]){
   const {c}=ui(options),view=await c.improvementsView('profile','','profile');

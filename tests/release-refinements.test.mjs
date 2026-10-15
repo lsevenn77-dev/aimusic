@@ -50,11 +50,12 @@ test('server accepts shortened Korean in DM and crew chat without bypassing norm
  assert.equal((await f.call('/api/crews/'+crew.body.crew.id+'/messages','POST',{body:'ㄳㄳ',request_id:'consonant-crew-request'})).status,201);
  const home=await f.call('/api/crews?home=1');assert.equal(home.body.detail.crew.id,crew.body.crew.id);assert.equal(home.body.detail.membership.role,'owner');assert.equal(home.body.crews,undefined);
 });
-test('live lightweight gold is auth gated, never exposes diamonds and stays fresh after a ledger change',async t=>{
+test('live lightweight gold and silver are auth gated, never expose diamonds and stay fresh after a ledger change',async t=>{
  const f=await fixture(t);assert.equal((await f.call('/api/gold/balance','GET',null,null)).status,401);
- assert.deepEqual((await f.call('/api/gold/balance')).body,{balance:0});
+ assert.deepEqual((await f.call('/api/gold/balance')).body,{balance:0,silver_balance:0});
  f.sql.exec("INSERT INTO gold_purchases(id,user_id,channel,gold,price_krw,fee_krw,status,created,paid_at) VALUES('grant','owner','web',80,880,0,'paid',0,0)");
- assert.deepEqual((await f.call('/api/gold/balance')).body,{balance:80});assert.deepEqual((await f.call('/api/gold/balance','GET',null,'other')).body,{balance:0});
+ f.sql.exec("INSERT INTO free_gift_wallets(user_id,balance) VALUES('owner',42)");
+ assert.deepEqual((await f.call('/api/gold/balance')).body,{balance:80,silver_balance:42});assert.deepEqual((await f.call('/api/gold/balance','GET',null,'other')).body,{balance:0,silver_balance:0});
  assert.equal(JSON.stringify((await f.call('/api/me')).body).includes('blocked_ids'),false);
 });
 test('singing participation excludes hidden and blocked covers, and shows only real participants',async t=>{

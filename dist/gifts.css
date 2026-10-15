@@ -7,7 +7,7 @@
 
 body.chat-active .player{display:none!important}
 
-/* Compact private gold and toolbox shortcuts, kept outside public profile cards. */
+/* Compact private gold, silver and toolbox shortcuts, kept outside public profile cards. */
 .my-balance-summary{margin:0 0 24px}
 .my-balance-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 .my-balance-card{display:flex;flex-direction:column;gap:10px;min-width:0;padding:18px 22px;background:var(--surface-wash,#1b202b);border:1px solid #ffffff0b;border-radius:16px;text-decoration:none}
@@ -15,6 +15,9 @@ body.chat-active .player{display:none!important}
 .my-balance-card:focus-visible{outline:2px solid #8ddbd5;outline-offset:3px}
 .my-balance-label{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600}
 .my-balance-gold .my-balance-label{color:#f3d378}
+.my-balance-silver .my-balance-label{color:#d9e0f2}
+.my-balance-silver .my-balance-label img{object-fit:contain;flex-shrink:0}
+.my-toolbox-card{grid-column:1/-1}
 .my-toolbox-card .my-balance-label{color:#8ddbd5}
 .gold-coin{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#f3d378;color:#33280b;font-size:12px}
 .diamond-emoji{font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif;color:#66caff;font-style:normal}

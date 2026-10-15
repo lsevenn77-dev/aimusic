@@ -6,7 +6,7 @@ import {published} from './catalog.js';
 import {GOLD_KRW,GOLD_PACKS,WEB_GOLD_PACKS,WEB_GOLD_BONUS_PERCENT,GIFT_MIN_GOLD,GIFT_MAX_GOLD,MIN_PAYOUT_KRW,PAYOUT_DAY,EARNINGS_AVAILABLE_DAY,earningsSchedule,GIFT_SPLITS,GIFT_CATALOG,giftById,allocateLots,splitGift,giftMonth,wonFromMw} from '../shared/gifts.js';
 import {diamondWallet,partnerState} from './diamonds.js';
 import {creatorPayouts} from './payouts.js';
-import {freeGiftState,claimFreeGift,sendFreeGift} from './free-gifts.js';
+import {freeGiftBalance,freeGiftState,claimFreeGift,sendFreeGift} from './free-gifts.js';
 import {FREE_GIFT,SILVER_GIFT_CATALOG,silverGiftById} from '../shared/gifts.js';
 
 // No payment channel sells gold yet: web card checkout needs the NICEPAY one-time payment contract and
@@ -49,7 +49,9 @@ export async function giftRoute(req,env,path,user){
  if(path==='/api/gifts/free'&&method==='GET'){requireUser(user);return json(await freeGiftState(env,user.id));}
  if(path==='/api/gifts/free/claim'&&method==='POST'){requireUser(user);return claimFreeGift(req,env,user);}
  if(path==='/api/gold/balance'&&method==='GET'){
-  requireUser(user);return json({balance:await goldBalance(env,user.id)});
+  requireUser(user);
+  const [balance,silver_balance]=await Promise.all([goldBalance(env,user.id),freeGiftBalance(env,user.id)]);
+  return json({balance,silver_balance});
  }
  if(path==='/api/gold'&&method==='GET'){
   requireUser(user);
