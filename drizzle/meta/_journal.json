@@ -330,6 +330,13 @@
       "when": 1792063941752,
       "tag": "0046_overconfident_falcon",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "6",
+      "when": 1792070139278,
+      "tag": "0047_silver_gifts_and_quantities",
+      "breakpoints": true
     }
   ]
 }

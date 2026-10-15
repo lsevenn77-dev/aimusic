@@ -12,7 +12,7 @@ await cp('dist/unified-ui.css','dist/client/unified-ui.css');
 await cp('dist/secondary-pages.css','dist/client/secondary-pages.css');
 await cp('dist/app-ads.txt','dist/client/app-ads.txt');
 await cp('dist/artist-gallery.js','dist/client/artist-gallery.js');
-for(const file of ['page-redesign.js','page-redesign.css'])await cp('dist/'+file,'dist/client/'+file);
+for(const file of ['page-redesign.js','page-redesign.css','community-feed.css','gift-dashboard.css'])await cp('dist/'+file,'dist/client/'+file);
 for(const file of ['release-refinements.js','release-refinements.css'])await cp('dist/'+file,'dist/client/'+file);
 await cp('dist/social-layouts.js','dist/client/social-layouts.js');
 await cp('dist/page-atmosphere.css','dist/client/page-atmosphere.css');

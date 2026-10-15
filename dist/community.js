@@ -17,17 +17,9 @@ function communityRouteOptions(base,param,raw=''){
 }
 function communityViewHTML(base,param,raw='',data=null){
  const {tab,open}=communityRouteOptions(base,param,raw),tracks=data?.tracks||[];
- if(tab==='all')return {html:communityLandingHTML(tracks,data),tracks};
- let html=heading('커뮤니티','좋은 음악을 듣고, 담고, 함께 만들어가요.')+communityNavigation(tab);
- if(tab==='rankings'){const options={...coverRankOptions(raw),limit:50};return {html:html+coverDiscoveryHTML(options)+coverRankingShell(options),tracks:[],coverRanking:options};}
- if(tab==='following'&&!me){returnRoute=location.hash;return {html:html+gate()};}
- if(tab==='all')html+='<a class="music-crew-entry" href="#community/crews">'+icon('users')+'<div><strong>크루에서 함께 듣고 부르기</strong><small>내 크루 · 멤버들의 음악 · 크루 채팅</small></div>'+icon('chevron')+'</a>';
- if(tab==='duets')html+='<nav class="tabs" aria-label="듀엣 종류"><a class="tab '+(!open?'active':'')+'" href="#community/duets">듀엣 감상</a><a class="tab '+(open?'active':'')+'" href="#community/duets?open=1">참여를 기다리는 듀엣</a></nav>';
- const label=open?'함께 부를 파트를 남겼어요':tab==='following'?'팔로잉의 새 음악':tab==='originals'?'새로 공개된 제작곡':tab==='covers'?'새로 공개된 커버':tab==='duets'?'함께 완성한 목소리':'새로 도착한 음악';
- html+='<div class="music-community-heading"><div><h2>'+label+'</h2><p>원곡도 커버도, 마음에 들면 내 플레이리스트에.</p></div></div>';
- html+=!data?'<div class="route-loading" role="status"><span>새 음악을 불러오는 중…</span><div></div><div></div><div></div></div>':tracks.length?(tab==='all'?communityRecommendations(tracks):['covers','duets'].includes(tab)?coverCollectionHTML(tracks,'community-covers'):communityFeed(tracks)):empty('아직 공개된 음악이 없어요.','다른 탭에서 음악을 발견해보세요.','#community','전체 음악 보기');
- if(tab==='all')html+='<nav class="music-rank-links" aria-label="커버 랭킹">'+coverPeriods.map(([key,label])=>'<a href="#community/rankings?period='+key+'">'+label+'</a>').join('')+'</nav>';
- return {html,tracks};
+ if(tab==='rankings'){const options={...coverRankOptions(raw),limit:50};return {html:heading('커뮤니티','좋은 음악을 듣고, 담고, 함께 만들어가요.')+communityNavigation(tab)+coverDiscoveryHTML(options)+coverRankingShell(options),tracks:[],coverRanking:options};}
+ const login=tab==='following'&&!me;if(login)returnRoute=location.hash;
+ return {html:communityLandingHTML(tracks,data,tab,{open,login}),tracks};
 }
 function communityPendingView(base,param,raw=''){
  if(!['community','covers'].includes(base)||param==='crews')return null;
@@ -58,10 +50,44 @@ async function loadCoverRanking(host,options,ticket){
  finally{if(isCurrent())host.setAttribute('aria-busy','false');}
 }
 function bindCommunity(view){
+ bindCommunityPlayback();
  if(!view?.coverRanking)return;
  const options=view.coverRanking,form=$('#cover-rank-filter'),host=$('#cover-ranking-results');
  if(form){const submit=()=>{const next=coverRankHref(options,{genre:form.elements.genre.value,q:form.elements.q.value.trim().slice(0,100)});if(location.hash===next)render();else location.hash=next;};form.onsubmit=e=>{e.preventDefault();submit();};form.elements.genre.onchange=submit;}
  if(host){host.coverOptions=options;loadCoverRanking(host,options,renderId);}
+}
+
+// Share the main player; returning to the feed never creates another playback session.
+let communityPlaybackCards=[],communityPlaybackBound=false;
+async function playCommunityTrack(id){
+ if(window.AifectAudioAds?.active){toast('광고가 끝나면 음악을 재생할 수 있어요.');return;}
+ if(current?.id===id&&audio.getAttribute('src')&&!audio.ended){
+  if(audio.paused)await audio.play();else audio.pause();
+  return;
+ }
+ await play(id,routeTracks.some(t=>t.id===id)?routeTracks:null);
+}
+function syncCommunityPlayback(){
+ communityPlaybackCards=communityPlaybackCards.filter(c=>c.card.isConnected);
+ for(const c of communityPlaybackCards){
+  const selected=current?.id===c.id&&!window.AifectAudioAds?.active,playing=selected&&!audio.paused&&!audio.ended;
+  const elapsed=selected?Math.max(0,Number(audio.currentTime)||0):0,duration=Number(c.progress?.dataset.duration)||Number(audio.duration)||0;
+  c.card.classList.toggle('is-playing',playing);
+  if(c.elapsed)c.elapsed.textContent=time(elapsed);
+  if(c.progress)c.progress.style.setProperty('--play-progress',(duration?Math.min(100,elapsed/duration*100):0)+'%');
+  if(c.button&&c.button.dataset.playing!==String(playing)){
+   c.button.dataset.playing=String(playing);c.button.innerHTML=icon(playing?'pause':'play');
+   c.button.setAttribute('aria-label',c.title+(playing?' 일시정지':' 재생'));c.button.setAttribute('aria-pressed',String(playing));
+  }
+ }
+}
+function bindCommunityPlayback(){
+ communityPlaybackCards=[...document.querySelectorAll('.community-redesign .community-concept-card')].map(card=>({card,id:card.dataset.musicId,title:card.querySelector('h3')?.textContent||'음악',button:card.querySelector('[data-community-toggle]'),progress:card.querySelector('[data-community-progress]'),elapsed:card.querySelector('[data-community-elapsed]')}));
+ if(!communityPlaybackBound){
+  communityPlaybackBound=true;
+  for(const event of ['play','pause','timeupdate','loadedmetadata','ended','emptied'])audio.addEventListener(event,syncCommunityPlayback);
+ }
+ syncCommunityPlayback();
 }
 
 function refreshCommunityRanking(){const host=$('#cover-ranking-results');if(host?.coverOptions)loadCoverRanking(host,host.coverOptions,renderId);}

@@ -15,3 +15,5 @@ paths.waveform='M2 10v4m4-8v12m4-16v20m4-15v10m4-13v16m4-10v4';
 
 paths.restart='M3 10a9 9 0 1 1 2.6 8.3M3 4v6h6';
 paths.edit='M16 3l5 5M4 20l4-1L21 6a2.8 2.8 0 0 0-4-4L4 15l-1 6Z';
+
+paths.pause='M6 4h4v16H6zM14 4h4v16h-4z';

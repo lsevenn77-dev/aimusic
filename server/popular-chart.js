@@ -9,7 +9,7 @@ export async function popularScores(env,period,where,args,limit){
   (SELECT count(*) FROM likes l WHERE l.track_id=t.id AND l.user_id!=t.user_id AND l.created BETWEEN ?1 AND ?2) chart_likes,
   (SELECT count(DISTINCT c.user_id) FROM comments c WHERE c.track_id=t.id AND c.deleted_at=0 AND c.user_id!=t.user_id AND c.created BETWEEN ?1 AND ?2) chart_comments,
   (SELECT COALESCE(sum(gl.gold),0) FROM gifts g JOIN gift_lots gl ON gl.gift_id=g.id JOIN gold_purchases gp ON gp.id=gl.purchase_id WHERE g.track_id=t.id AND g.sender_id!=t.user_id AND gp.status='paid' AND NOT EXISTS(SELECT 1 FROM gold_orders go WHERE go.id=gp.id AND go.state!='paid') AND g.created BETWEEN ?1 AND ?2) chart_gold,
-  (SELECT count(*) FROM free_gifts g WHERE g.track_id=t.id AND g.sender_id!=t.user_id AND g.created BETWEEN ?1 AND ?2) chart_stars
+  (SELECT COALESCE(sum(g.silver),0) FROM free_gifts g WHERE g.track_id=t.id AND g.sender_id!=t.user_id AND g.created BETWEEN ?1 AND ?2) chart_stars
   FROM tracks t WHERE t.status='published' AND t.kind='original'),
  totals AS (SELECT *,chart_gold+chart_stars chart_gifts FROM metrics),
  scored AS (SELECT *,ROUND(

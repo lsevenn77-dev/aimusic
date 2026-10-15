@@ -17,7 +17,7 @@ test('shell search is bound before home renders, supports Enter submission and r
  form.onsubmit({preventDefault(){prevented++;}});assert.equal(location.hash,'#search/Caught%20Ya!');assert.equal(prevented,1);
  form.onsubmit({preventDefault(){}});assert.equal(renders,1);form.query='  ';form.onsubmit({preventDefault(){}});assert.equal(focused,1);assert.equal(location.hash,'#search/Caught%20Ya!');
 });
-function ui(){const c=vm.createContext({me:null,queueMicrotask,document:{addEventListener(){}},window:{addEventListener(){}},setInterval(){},esc,number:n=>Number(n||0).toLocaleString('ko-KR'),icon:()=>'',heading:s=>'<h1>'+s+'</h1>',communityNavigation:()=>'',portrait:()=>'',followed:()=>false,liked:()=>false,giftButton:()=>'',cover:()=>'',credits:()=>''});for(const f of ['music-ui.js','social-layouts.js','social-chat.js','release-refinements.js'])vm.runInContext(read(f),c);return c;}
+function ui(){const c=vm.createContext({me:null,queueMicrotask,document:{addEventListener(){}},window:{addEventListener(){}},setInterval(){},esc,empty:()=>'<p>EMPTY</p>',time:s=>'0:'+String(Number(s)||0).padStart(2,'0'),number:n=>Number(n||0).toLocaleString('ko-KR'),icon:()=>'',heading:s=>'<h1>'+s+'</h1>',communityNavigation:()=>'',portrait:()=>'',followed:()=>false,liked:()=>false,giftButton:()=>'',cover:()=>'',credits:()=>''});for(const f of ['music-ui.js','social-layouts.js','social-chat.js','release-refinements.js'])vm.runInContext(read(f),c);return c;}
 test('release date is the registered timestamp in Korea, without inventing missing dates',()=>{
  const c=ui();assert.match(c.songReleaseDateHTML({created:Date.parse('2026-10-12T16:00:00Z')/1000}),/datetime="2026-10-13">2026.10.13/);assert.equal(c.songReleaseDateHTML({}), '');
 });

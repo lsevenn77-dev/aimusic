@@ -125,8 +125,9 @@ document.addEventListener('click',async ev=>{
  const el=ev.target.closest('button,a');if(!el||el.disabled)return;
  try{
   if(el.matches('[data-play],[data-play-all],[data-like],[data-follow],[data-add],[data-seek]')){el.setAttribute('aria-busy','true');await accountReady;}
-  if(el.hasAttribute('data-play')){if($('#dialog').open)$('#dialog').close();await play(el.dataset.play,routeTracks.some(t=>t.id===el.dataset.play)?routeTracks:null);}
+  if(el.hasAttribute('data-play')){if($('#dialog').open)$('#dialog').close();if(el.hasAttribute('data-community-toggle'))await playCommunityTrack(el.dataset.play);else await play(el.dataset.play,routeTracks.some(t=>t.id===el.dataset.play)?routeTracks:null);}
   else if(el.hasAttribute('data-play-all')){if(routeTracks.length)await play(routeTracks[0].id,routeTracks);else toast('먼저 곡을 추가해주세요.');}
+  else if(el.dataset.giftShop){await chooseGiftRecipient(el.dataset.giftShop);}
   else if(el.dataset.gift){await giftDialog(el.dataset.gift,el.dataset.giftType);}
   else if(el.dataset.profileGift){await profileGiftDialog(el.dataset.profileGift);}
   else if(el.dataset.closePeriod){if(confirm(`${el.dataset.closePeriod} 정산을 마감할까요? 마감한 달은 되돌릴 수 없어요.`)){const r=await api('/api/admin/payouts/close','POST',{period:el.dataset.closePeriod});toast(`선물 수익 ${r.credited}건을 다이아로 확정했어요.`);location.hash='admin/'+r.period;await render();}}

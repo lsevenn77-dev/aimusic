@@ -50,6 +50,7 @@ export const goldPurchases=sqliteTable('gold_purchases',{
 },t=>[index('gold_purchases_user').on(t.userId,t.status,t.paidAt),uniqueIndex('gold_purchases_ref').on(t.channel,t.providerRef),check('gold_purchases_usage',sql`${t.used} >= 0 AND ${t.used} <= ${t.gold} AND (${t.status} = 'paid' OR ${t.used} = 0)`)]);
 // Shares are frozen per gift in milli-won: the cover singer, the original's creator and the platform.
 export const gifts=sqliteTable('gifts',{
+ quantity:integer('quantity').notNull().default(1),
  giftType:text('gift_type'),giftName:text('gift_name'),requestId:text('request_id'),
  id:text('id').primaryKey(),senderId:text('sender_id').notNull().references(()=>users.id),trackId:text('track_id').references(()=>tracks.id),gold:integer('gold').notNull(),netMw:integer('net_mw').notNull(),singerProfileId:text('singer_profile_id'),creatorProfileId:text('creator_profile_id').notNull(),singerMw:integer('singer_mw').notNull().default(0),creatorMw:integer('creator_mw').notNull(),platformMw:integer('platform_mw').notNull(),month:text('month').notNull(),created:integer('created').notNull()
 },t=>[index('gifts_track').on(t.trackId,t.created),index('gifts_sender').on(t.senderId,t.created),index('gifts_singer').on(t.singerProfileId,t.month),index('gifts_creator').on(t.creatorProfileId,t.month),uniqueIndex('gifts_request').on(t.senderId,t.requestId)]);
@@ -61,6 +62,7 @@ export const freeGiftClaims=sqliteTable('free_gift_claims',{
  userId:text('user_id').notNull().references(()=>users.id),day:text('day').notNull(),kind:text('kind').notNull(),amount:integer('amount').notNull(),created:integer('created').notNull()
 },t=>[primaryKey({columns:[t.userId,t.day,t.kind]})]);
 export const freeGifts=sqliteTable('free_gifts',{
+ silver:integer('silver').notNull().default(1),giftType:text('gift_type').notNull().default('star'),giftName:text('gift_name').notNull().default('은화'),quantity:integer('quantity').notNull().default(1),
  recipientProfileId:text('recipient_profile_id').references(()=>producers.id),id:text('id').primaryKey(),senderId:text('sender_id').notNull().references(()=>users.id),trackId:text('track_id').references(()=>tracks.id),requestId:text('request_id').notNull(),created:integer('created').notNull()
 },t=>[uniqueIndex('free_gifts_request').on(t.senderId,t.requestId),index('free_gifts_track').on(t.trackId,t.created)]);
 export const giftLots=sqliteTable('gift_lots',{

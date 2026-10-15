@@ -34,6 +34,10 @@ for(let i=4;i<=6;i++){
  objects.set('images/track/'+tid+'/demo',await readFile('dist/assets/genres/'+['14','22','47'][i-4]+'.webp'));objects.set('karaoke/'+tid+'/mr.m4a',wav);
 }
 f.sql.exec("INSERT INTO tracks(id,user_id,artist_id,producer_id,title,genre,ai_tool,rights_accepted,original_ext,original_bytes,created,status,kind,original_id,duration,cover_mode) VALUES('preview-duet','owner','artist','producer','바람이 머문 자리 — 듀엣','Rock','',1,'wav',128,0,'published','cover','one',45,'duet')");
+// The preview's crew rows and silent audio never reach production.
+for(const t of f.sql.prepare('SELECT id FROM tracks').all()){objects.set('stream/'+t.id+'.m4a',wav);objects.set('preview/'+t.id+'.m4a',wav);}
+await f.call('/api/crews','POST',{name:'미리보기 크루',description:'노래와 이야기가 만나는 곳',interests:'K-POP, Indie Pop'});
+f.sql.exec("INSERT INTO free_gift_wallets(user_id,balance) VALUES('owner',10000); INSERT INTO gold_purchases(id,user_id,channel,gold,price_krw,fee_krw,status,created,paid_at) VALUES('preview-gold','owner','web',10000,110000,4400,'paid',1,1)");
 const base=resolve('dist/client');
 const qa=await readFile('tests/recording-qa-browser.js');
 const env={DB:f.DB,BUCKET:{async put(k,v){objects.set(k,new Uint8Array(v));},async delete(k){objects.delete(k);},async head(k){const b=objects.get(k);return b?{size:b.length,etag:k}:null;},async get(k){return {body:objects.get(k)};},async list(){return {objects:[],truncated:false};}},
