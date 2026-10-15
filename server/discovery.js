@@ -10,7 +10,7 @@ export {MOODS};
 function moodFilter(mood){return {sql:'EXISTS(SELECT 1 FROM json_each(t.moods_json) jm WHERE jm.value=?)',args:[mood.id]};}
 
 export async function playlistSummaries(env,userId='',where='p.is_public=1',args=[],sort='p.created DESC,p.id',limit=100){
- const data=await rows(env,`SELECT p.id,p.user_id,p.name,p.description,p.is_public,p.created,${publicNameSQL()} owner_name,${activePlaylistSQL()} active,
+ const data=await rows(env,`SELECT p.id,p.user_id,p.name,p.description,p.is_public,p.created,p.image_version,${publicNameSQL()} owner_name,${activePlaylistSQL()} active,
  (SELECT count(*) FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id WHERE pt.playlist_id=p.id AND ${VISIBLE()}) tracks,
  (SELECT COALESCE(sum(t.duration),0) FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id WHERE pt.playlist_id=p.id AND ${VISIBLE()}) duration,
  (SELECT count(*) FROM playlist_saves s WHERE s.playlist_id=p.id) saves,

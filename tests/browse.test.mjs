@@ -15,6 +15,7 @@ function viewContext(responses={},user=null){
   library:{follows:[]},refreshLibrary:async()=>{},identityCards:()=>'',moodOptions:[],genres:[],remember:()=>{}
  });
  vm.runInContext(readFileSync(new URL('../dist/app.js',import.meta.url),'utf8').match(/^const hasArtist=.*$/m)[0],context);
+ vm.runInContext(readFileSync(new URL('../dist/app.js',import.meta.url),'utf8').split('function songTable(')[1].split('function identityCards(')[0].replace(/^/,'function songTable('),context);
  vm.runInContext(readFileSync(new URL('../dist/music-ui.js',import.meta.url),'utf8'),context);
  vm.runInContext(readFileSync(new URL('../dist/community.js',import.meta.url),'utf8'),context);
  vm.runInContext(readFileSync(new URL('../dist/singing-hub.js',import.meta.url),'utf8'),context);

@@ -1,4 +1,3 @@
-import {readVocalParts,vocalPartsStates} from './vocal-parts.js';
 import {one,rows,run,query,now,id,fail,json,rate} from './db.js';
 import {memberNameSQL} from './identity.js';
 import {requireUser} from './auth.js';
@@ -9,7 +8,7 @@ import {trackList,VISIBLE,SINGABLE} from './catalog.js';
 const MR_TYPES=['wav','flac','mp3'];
 const key=(trackId,name)=>`karaoke/${trackId}/${name}`;
 
-export async function karaokeStatus(env,trackId){const status=await one(env,"SELECT state,mr_source,mr_ready,vocals_ready,words_state,lyrics_text!='' has_lyrics,error,updated FROM karaoke_jobs WHERE track_id=?",trackId);return status?{...status,...await readVocalParts(env,trackId)}:null;}
+export function karaokeStatus(env,trackId){return one(env,"SELECT state,mr_source,mr_ready,vocals_ready,words_state,lyrics_text!='' has_lyrics,error,updated FROM karaoke_jobs WHERE track_id=?",trackId);}
 
 // Writes that (re)queue a track's karaoke build. mr: 'keep' re-aligns words only when the lyrics changed,
 // 'auto' separates the published audio again, 'upload' converts the creator's own MR file.
@@ -28,7 +27,7 @@ export async function karaokeQueue(env,track,{mr='keep',ext='',bytes=0}={}){
 async function singRoute(req,env,path,user){
  if(path==='/api/karaoke'&&req.method==='GET'){
   const blocked=env.AIFECT_BLOCKED||[];
-  const [tracks,participants,recent_covers,partStates]=await Promise.all([
+  const [tracks,participants,recent_covers]=await Promise.all([
    trackList(env,`${VISIBLE()} AND ${SINGABLE()}`,[],'(plays+likes*3) DESC,t.created DESC',100),
    rows(env,`WITH recent AS (SELECT t.id,t.original_id,t.producer_id,${memberNameSQL()} name,p.image_version,
     count(*) OVER(PARTITION BY t.original_id) cover_count,
@@ -37,16 +36,16 @@ async function singRoute(req,env,path,user){
     AND EXISTS(SELECT 1 FROM tracks original WHERE original.id=t.original_id AND ${SINGABLE('original')})
     ${blocked.length?'AND t.user_id NOT IN ('+blocked.map(()=>'?').join(',')+')':''})
     SELECT * FROM recent WHERE position<=3 LIMIT 300`,...blocked),
-   trackList(env,`${VISIBLE()} AND t.kind='cover'`,[],'t.created DESC',8),vocalPartsStates(env)
+   trackList(env,`${VISIBLE()} AND t.kind='cover'`,[],'t.created DESC',8)
   ]);
-  return json({tracks:tracks.map(t=>{const previews=participants.filter(p=>p.original_id===t.id);return {...t,vocal_parts_status:partStates.find(v=>v.track_id===t.id)?.state||'pending',covers:previews[0]?.cover_count||0,cover_participants:previews};}),recent_covers});
+  return json({tracks:tracks.map(t=>{const previews=participants.filter(p=>p.original_id===t.id);return {...t,covers:previews[0]?.cover_count||0,cover_participants:previews};}),recent_covers});
  }
  let s=path.match(/^\/api\/karaoke\/([\w-]+)$/);
  if(s&&req.method==='GET'){
   requireUser(user);
   const track=(await trackList(env,`t.id=? AND ${VISIBLE()} AND ${SINGABLE()}`,[s[1]]))[0];if(!track)fail(404,'부를 수 있는 곡을 찾을 수 없어요.');
   const job=await one(env,'SELECT words FROM karaoke_jobs WHERE track_id=?',track.id);
-  return json({track,...await readVocalParts(env,track.id),words:JSON.parse(job.words),mr:`/media/${track.id}/mr`});
+  return json({track,words:JSON.parse(job.words),mr:`/media/${track.id}/mr`});
  }
  s=path.match(/^\/media\/([\w-]+)\/mr$/);
  if(s&&['GET','HEAD'].includes(req.method)){

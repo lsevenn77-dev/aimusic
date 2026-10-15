@@ -91,7 +91,9 @@ export async function catalogRoute(req,env,path,user){
   if(m[2]==='covers'){
    if(method!=='GET')fail(405,'지원하지 않는 요청입니다.');
    const sort=url.searchParams.get('sort')||'popular';if(!Object.hasOwn(COVER_SORTS,sort))fail(400,'정렬 기준을 확인해주세요.');
-   return json({covers:await trackList(env,`t.original_id=? AND ${VISIBLE()}`,[tid],COVER_SORTS[sort],100),sort,accepts_covers:detail.kind==='original'&&detail.karaoke_at>0});
+   const mode=url.searchParams.get('mode')||'all';if(!['all','solo','duet'].includes(mode))fail(400,'커버 종류를 확인해주세요.');
+   const filter=mode==='all'?'':" AND t.cover_mode='"+mode+"'";
+   return json({covers:await trackList(env,`t.original_id=? AND t.kind='cover' AND ${VISIBLE()}${filter}`,[tid],COVER_SORTS[sort]+',t.id',100),sort,mode,accepts_covers:detail.kind==='original'&&detail.karaoke_at>0});
   }
   if(m[2]==='like'){
    requireUser(user);

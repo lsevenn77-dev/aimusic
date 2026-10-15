@@ -1,4 +1,3 @@
-import {readVocalParts} from './vocal-parts.js';
 import {readDuetGuide} from './duet-guide.js';
 import {one,fail,json} from './db.js';
 import {requireUser} from './auth.js';
@@ -22,5 +21,5 @@ export async function duetRoute(req,env,path,user){
  const [partner]=await trackList(env,`t.id=? AND ${VISIBLE()}`,[source.id]);
  const job=await one(env,'SELECT words FROM karaoke_jobs WHERE track_id=?',original.id);
  // The first singer's full mix is the backing. Adding the MR again would double it.
- return json({track,...await readVocalParts(env,original.id),words:JSON.parse(job.words||'[]'),mr:`/media/${source.id}/stream`,duet:{parent_id:source.id,slot:'second',part:otherPart(source.duet_part),guide:readDuetGuide(source.duet_guide),partner}});
+ return json({track,words:JSON.parse(job.words||'[]'),mr:`/media/${source.id}/stream`,duet:{parent_id:source.id,slot:'second',part:otherPart(source.duet_part),guide:readDuetGuide(source.duet_guide),partner}});
 }

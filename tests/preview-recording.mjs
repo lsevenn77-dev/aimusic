@@ -20,15 +20,20 @@ for(let i=0;i<3;i++){
  objects.set('images/track/'+tid+'/demo',i%2?nova:ocean);objects.set('karaoke/'+tid+'/mr.m4a',wav);
  f.sql.prepare("INSERT INTO likes(user_id,track_id,created) VALUES('owner',?,?)").run(tid,i);
 }
-// Explicit test-only mixed/same-group outcomes; no production audio is used here.
-f.sql.prepare("INSERT INTO karaoke_vocal_parts(track_id,job_id,version,state,result_json,updated) VALUES('one','job0',1,'done',?,0)").run(JSON.stringify({version:1,arrangement:'mixed_duet',lines:['male','female','both','female']}));
-f.sql.exec("INSERT INTO karaoke_vocal_parts(track_id,job_id,version,state,updated) VALUES('two','job1',1,'excluded',0)");
 // Include a real cover-shaped fixture so ranked social actions cannot hide behind empty-state QA.
 f.sql.exec("INSERT INTO tracks(id,user_id,artist_id,producer_id,title,genre,ai_tool,rights_accepted,original_ext,original_bytes,created,status,kind,original_id,duration) VALUES('preview-cover','other','artist','friend','바람이 머문 자리 — 함께 부른 커버','Rock','',1,'wav',128,0,'published','cover','one',45)");
 for(let i=0;i<4;i++){
  f.sql.prepare('INSERT INTO profile_photos VALUES(?,?,?,?,?)').run('photo'+i,'producer','demo'+i,'image/png',i);
  objects.set('images/producer/producer/gallery/demo'+i,i%2?nova:ocean);
 }
+// Additional in-memory tracks exercise both rows of home recommendations.
+for(let i=4;i<=6;i++){
+ const tid='preview-'+i;
+ f.sql.prepare("INSERT INTO tracks(id,user_id,artist_id,producer_id,title,genre,ai_tool,rights_accepted,original_ext,original_bytes,created,status,kind,duration,has_cover,cover_version,cover_type,karaoke_at) VALUES(?,'owner','artist','producer',?,'Indie Pop','QA',1,'wav',128,?,'published','original',225,1,'demo','image/webp',1)").run(tid,['다시 만나는 계절','별이 흐르는 시간','내일의 우리'][i-4],i);
+ f.sql.prepare("INSERT INTO karaoke_jobs(track_id,id,state,mr_ready,words_state,created,updated) VALUES(?,?,'ready',1,'ready',0,0)").run(tid,'job'+i);
+ objects.set('images/track/'+tid+'/demo',await readFile('dist/assets/genres/'+['14','22','47'][i-4]+'.webp'));objects.set('karaoke/'+tid+'/mr.m4a',wav);
+}
+f.sql.exec("INSERT INTO tracks(id,user_id,artist_id,producer_id,title,genre,ai_tool,rights_accepted,original_ext,original_bytes,created,status,kind,original_id,duration,cover_mode) VALUES('preview-duet','other','artist','friend','바람이 머문 자리 — 듀엣','Rock','',1,'wav',128,0,'published','cover','one',45,'duet')");
 const base=resolve('dist/client');
 const qa=await readFile('tests/recording-qa-browser.js');
 const env={DB:f.DB,BUCKET:{async put(k,v){objects.set(k,new Uint8Array(v));},async delete(k){objects.delete(k);},async head(k){const b=objects.get(k);return b?{size:b.length,etag:k}:null;},async get(k){return {body:objects.get(k)};},async list(){return {objects:[],truncated:false};}},
