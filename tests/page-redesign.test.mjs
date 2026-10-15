@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
+import * as karaoke from '../shared/karaoke-audio.js';
 import {readFileSync} from 'node:fs';
 const read=f=>readFileSync(new URL('../dist/'+f,import.meta.url),'utf8');
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -34,6 +35,7 @@ test('singing discovery distinguishes own open duet and preserves actual song ID
 });
 test('the recording redesign keeps controller hooks exactly once and mode choices in its header',()=>{
  const c=context();c.time=String;c.liked=()=>false;c.preferredLyricSize=()=> 'normal';
+ c.window.AifectKaraoke=karaoke;vm.runInContext(read('sing-key.js'),c);
  vm.runInContext(read('karaoke.js'),c);
  const html=c.singHTML({track:{id:'song',title:'Song',duration:20},mode:'solo',words:[]});
  for(const id of ['sing','sing-wheel','sing-monitor','sing-seek','sing-now','sing-duration','mic-level','sing-status','sing-panel']){
@@ -41,16 +43,15 @@ test('the recording redesign keeps controller hooks exactly once and mode choice
  }
  for(const hook of ['data-sing-start','data-sing-pause','data-sing-stop','data-sing-redo-live','data-sing-settings'])assert.match(html,new RegExp(hook));
  assert.match(html,/sing-header-mode/);
- assert.match(html,/sing-console sing-transport/);
- assert.ok(html.indexOf('class="studio-record"')<html.indexOf('studio-secondary-controls'));
- assert.match(html,/<details class="sing-size-menu"><summary>/);
+ assert.match(html,/sing-transport studio-transport/);
+ assert.match(html,/aria-label="녹음 가사 크기"/);
  for(const hook of ['data-sing-start','data-sing-pause','data-sing-stop','data-sing-redo-live','data-sing-settings'])assert.equal((html.match(new RegExp(hook,'g'))||[]).length,1,hook);
 });
 
 test('atmospheric artwork is decorative, route-specific, and recorder controls remain compact',()=>{
  const css=read('page-atmosphere.css');
  assert.match(css,/pointer-events:none/);
- for(const asset of ['records-v1.svg','conversation-v1.svg','gallery-v1.svg','gift-v1.svg','community-v1.svg','microphone-v1.svg','karaoke-rose-mirrorball-v1.webp','community-studio-v1.webp']){
+ for(const asset of ['records-v1.svg','conversation-v1.svg','gallery-v1.svg','gift-v1.svg','community-v1.svg','microphone-v1.svg','community-studio-v1.webp']){
   assert.match(css,new RegExp(asset.replace('.','\\.')));
   assert.ok(readFileSync(new URL('../dist/assets/atmosphere/'+asset,import.meta.url)).length>0);
  }
@@ -58,7 +59,7 @@ test('atmospheric artwork is decorative, route-specific, and recorder controls r
  assert.match(css,/@media\(max-width:760px\)/);
  assert.match(read('index.html'),/page-atmosphere.css/);
  assert.doesNotMatch(css,/recording-room-v1.webp/);
- assert.match(css,/background-position:center 80px/);
+ assert.doesNotMatch(css,/karaoke-rose-mirrorball-v1.webp/);
 });
 test('new markup and last stylesheet are packaged, without replacing existing billing or audio controllers',()=>{
  const index=read('index.html'),build=readFileSync(new URL('../scripts/build.mjs',import.meta.url),'utf8');

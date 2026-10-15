@@ -41,3 +41,27 @@ test('catalog returns chart metrics for native and web clients, safe empty perio
  assert.equal((await f.call('/api/catalog?chart=top&period=invalid')).status,400);
  r=await f.call('/api/catalog?section=tracks&chart=top&q=none');assert.deepEqual(r.body.tracks,[]);
 });
+
+test('yesterday movement uses KST dates, distinguishes new from missing history, and freezes the prior day',async t=>{
+ const {dailyChart,chartDay}=await import('../server/chart-movement.js'),f=await fixture(t),env={DB:f.DB};
+ const before=Date.parse('2026-10-31T23:59:00+09:00')/1000,after=before+120;
+ assert.equal(chartDay(before),'2026-10-31');assert.equal(chartDay(after),'2026-11-01');
+ const first=await dailyChart(env,rankingPeriod('month',before));assert.equal(first.comparison.available,false);assert.ok(first.tracks.every(t=>t.chart_movement==='unavailable'));
+ const old=f.sql.prepare('SELECT * FROM chart_daily_snapshots').get();
+ listen(f,'new-listen','three',after);
+ const next=await dailyChart(env,rankingPeriod('month',after));assert.equal(next.comparison.date,'2026-10-31');assert.equal(next.comparison.available,true);
+ assert.equal(next.tracks.find(t=>t.id==='three').rank_change,1);assert.equal(next.tracks.find(t=>t.id==='one').chart_movement,'down');
+ assert.deepEqual(f.sql.prepare("SELECT * FROM chart_daily_snapshots WHERE day='2026-10-31'").get(),old);
+ f.sql.exec("UPDATE tracks SET status='published' WHERE id='hidden'");
+ const added=await dailyChart(env,rankingPeriod('month',after+65));assert.equal(added.tracks.find(t=>t.id==='hidden').chart_movement,'new');
+});
+test('filtered and limited chart requests keep the complete public snapshot and global ranks',async t=>{
+ const {chartDay}=await import('../server/chart-movement.js'),f=await fixture(t),stamp=Math.floor(Date.now()/1000),today=chartDay(stamp),yesterday=chartDay(stamp-86400);
+ f.sql.prepare('INSERT INTO chart_daily_snapshots VALUES(?,?,?,?)').run(yesterday,'week',stamp-86400,JSON.stringify(['two','one','three']));
+ const r=await f.call('/api/catalog?section=tracks&chart=top&period=week&q=two&limit=1');assert.equal(r.status,200);assert.equal(r.body.tracks.length,1);assert.equal(r.body.tracks[0].chart_rank,3);assert.equal(r.body.tracks[0].rank_change,-2);assert.equal(r.body.chart.comparison.available,true);
+ assert.deepEqual(JSON.parse(f.sql.prepare('SELECT ranks_json FROM chart_daily_snapshots WHERE day=?').get(today).ranks_json),['one','three','two']);
+});
+test('rank movement reports up, down, unchanged, new and unavailable without inferring fake history',async()=>{
+ const {rankChanges}=await import('../server/chart-movement.js'),current=['b','a','c','d'].map(id=>({id}));
+ const compared=rankChanges(current,['a','b','c']);assert.deepEqual(compared.map(t=>t.chart_movement),['up','down','same','new']);assert.deepEqual(compared.map(t=>t.rank_change),[1,-1,0,null]);assert.ok(rankChanges(current,null).every(t=>t.chart_movement==='unavailable'));assert.ok(rankChanges(current,[]).every(t=>t.chart_movement==='new'));
+});

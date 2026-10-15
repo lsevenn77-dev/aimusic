@@ -17,6 +17,7 @@ function viewContext(responses={},user=null){
  vm.runInContext(readFileSync(new URL('../dist/app.js',import.meta.url),'utf8').match(/^const hasArtist=.*$/m)[0],context);
  vm.runInContext(readFileSync(new URL('../dist/music-ui.js',import.meta.url),'utf8'),context);
  vm.runInContext(readFileSync(new URL('../dist/community.js',import.meta.url),'utf8'),context);
+ vm.runInContext(readFileSync(new URL('../dist/singing-hub.js',import.meta.url),'utf8'),context);
  vm.runInContext(readFileSync(new URL('../dist/browse.js',import.meta.url),'utf8'),context);
  vm.runInContext(readFileSync(new URL('../dist/page-redesign.js',import.meta.url),'utf8'),context);
  vm.runInContext(readFileSync(new URL('../dist/release-refinements.js',import.meta.url),'utf8'),context);
@@ -27,7 +28,7 @@ test('karaoke chart contains covers only and reports an empty chart without subs
  const {view,calls}=viewContext({[path]:{tracks:[{id:'cover',kind:'cover',title:'Cover',rank:1},{id:'original',kind:'original',title:'Original'}]}});
  const d=await view('charts','karaoke');assert.deepEqual(calls,[path]);assert.deepEqual(Array.from(d.tracks,t=>t.id),['cover']);assert.doesNotMatch(d.html,/Original|#sing\/original/);
  const empty=await viewContext({[path]:{tracks:[]}}).view('charts','karaoke');assert.match(empty.html,/아직 등록된 커버곡이 없어요/);assert.match(empty.html,/disabled/);
- const sing=await viewContext({'/api/karaoke':{tracks:[{id:'ready',title:'Ready',created:0}]},'/api/duets':{tracks:[]}}).view('karaoke');assert.match(sing.html,/#sing\/ready/);assert.match(sing.html,/마이크와 이어폰/);assert.match(sing.html,/참여를 기다리는 듀엣/);
+ const sing=await viewContext({'/api/karaoke':{tracks:[{id:'ready',title:'Ready',created:0}]},'/api/duets':{tracks:[]}}).view('karaoke');assert.match(sing.html,/#sing\/ready/);assert.match(sing.html,/바로 부르기/);assert.match(sing.html,/참여 대기 듀엣/);
 });
 test('community filters covers and originals through the public API',async()=>{
  const {view,calls}=viewContext({'/api/community?kind=cover&cover_mode=solo':{tracks:[]},'/api/community?kind=original':{tracks:[]}});
@@ -48,8 +49,8 @@ test('search landing and unrelated routes do not perform unnecessary requests',a
  const {view,calls}=viewContext();assert.match((await view('search')).html,/노래방 차트/);assert.equal(await view('song','one'),null);assert.deepEqual(calls,[]);
 });
 
-test('popular chart connects calendar tabs and explains actual weighted metrics',async()=>{
- const path='/api/catalog?section=tracks&chart=top&period=month',track={id:'song',title:'<script>',chart_score:65.5,chart_plays:3,chart_likes:2,chart_comments:1,chart_gifts:5};
+test('popular chart shows yesterday movement instead of scores and retains calendar navigation',async()=>{
+ const path='/api/catalog?section=tracks&chart=top&period=month',track={id:'song',title:'<script>',chart_score:65.5,chart_movement:'up',rank_change:3,chart_plays:3,chart_likes:2,chart_comments:1,chart_gifts:5};
  const {view,calls}=viewContext({[path]:{chart:{label:'이달'},tracks:[track]}});const d=await view('charts',undefined,'charts?period=month');
- assert.deepEqual(calls,[path]);assert.match(d.html,/65.50/);assert.match(d.html,/재생 50점/);assert.match(d.html,/명예의 전당/);assert.match(d.html,/#charts\?period=today/);assert.match(d.html,/&lt;script&gt;/);assert.equal(d.tracks[0].id,'song');
+ assert.deepEqual(calls,[path]);assert.doesNotMatch(d.html,/65.50|인기점수|최대 100점/);assert.match(d.html,/↑ 3/);assert.match(d.html,/어제보다 3위 상승/);assert.match(d.html,/명예의 전당/);assert.match(d.html,/#charts\?period=today/);assert.match(d.html,/&lt;script&gt;/);assert.equal(d.tracks[0].id,'song');
 });

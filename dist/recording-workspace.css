@@ -163,3 +163,15 @@ body:has(#sing.web-studio) main[data-route]::before{display:none!important}
 #sing.web-studio .studio-extra-presets{margin:3px 0}
 #sing.web-studio .studio-space>.field-help{margin:7px 0}
 @media(max-width:560px){#sing.web-studio .sing-wheel{height:350px!important}#sing.web-studio .studio-wave-surface{height:180px}#sing.web-studio .studio-selection:before,#sing.web-studio .studio-selection:after{box-shadow:0 160px #e8a0c6}}
+
+#sing.web-studio .studio-key-stepper{display:flex;align-items:center;gap:5px;border:1px solid #34435a;border-radius:22px;background:#152337;padding:3px}
+#sing.web-studio .studio-key-stepper button{border:0;background:none;color:#d6deec;width:32px;height:32px;font-size:1.15rem;border-radius:50%;cursor:pointer}
+#sing.web-studio .studio-key-stepper output{min-width:62px;text-align:center;color:#edc2da;font-size:.78rem}
+#sing.web-studio .studio-key-actions{display:flex;gap:8px;justify-content:flex-end}
+#sing.web-studio .studio-key-actions button{border:1px solid #34435a;background:#152337;color:#bdcadd;border-radius:8px;padding:7px 10px;font:inherit;font-size:.72rem;cursor:pointer}
+#sing.web-studio [data-recording-key]{font-size:inherit;color:#c8a9bf}
+dialog.punch-complete-dialog{width:min(440px,calc(100vw - 32px));box-sizing:border-box;background:#151f2e;color:#e9eef6;border:1px solid #3a485b;border-radius:20px;padding:30px;box-shadow:0 24px 80px #0008}
+dialog.punch-complete-dialog::backdrop{background:#070c14b3;backdrop-filter:blur(5px)}
+.punch-complete{text-align:center}.punch-complete-icon{display:grid;place-items:center;width:52px;height:52px;border-radius:50%;margin:0 auto 18px;background:#df9fc220;color:#e7accd}.punch-complete-icon svg{width:26px;height:26px}
+.punch-complete h2{font-size:1.2rem;line-height:1.5;margin:0 0 12px}.punch-complete p{font-size:.9rem;color:#b0bdd0;line-height:1.9;margin:0 0 24px}.punch-complete strong{color:#e8b3d0;font-variant-numeric:tabular-nums}
+.punch-complete-actions{display:grid;grid-template-columns:1fr 1fr;gap:12px}.punch-complete-actions button{display:flex;align-items:center;justify-content:center;gap:7px;min-height:46px;border-radius:10px;font:inherit;font-size:.85rem;padding:10px}.punch-complete-actions svg{width:17px;height:17px}.punch-complete-actions .small-button{background:#1a2b3f;border:1px solid #3b4d64;color:#d2dce8}.punch-complete-actions .primary-button{background:#dfa1c5;border:0;color:#281c2b}

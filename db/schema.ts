@@ -170,3 +170,5 @@ export const profilePhotos=sqliteTable('profile_photos',{
 export const streamSettlements=sqliteTable('stream_settlements',{
  period:text('period').primaryKey(),paidKrw:integer('paid_krw').notNull(),refundedKrw:integer('refunded_krw').notNull(),feeKrw:integer('fee_krw').notNull(),taxKrw:integer('tax_krw').notNull(),poolMw:integer('pool_mw').notNull(),allocatedMw:integer('allocated_mw').notNull(),evidence:text('evidence').notNull(),reviewedBy:text('reviewed_by').notNull(),created:integer('created').notNull()
 });
+
+export const chartDailySnapshots=sqliteTable('chart_daily_snapshots',{day:text('day').notNull(),period:text('period').notNull(),captured:integer('captured').notNull(),ranksJson:text('ranks_json').notNull()},t=>[primaryKey({columns:[t.day,t.period]})]);

@@ -1,3 +1,7 @@
+function chartMovementHTML(t){
+ const state=t.chart_movement,delta=Math.abs(Number(t.rank_change)||0),labels={up:`어제보다 ${delta}위 상승`,down:`어제보다 ${delta}위 하락`,same:'어제와 같은 순위',new:'새롭게 차트 진입',unavailable:'전날 비교 기록 없음'},label=labels[state]||labels.unavailable;
+ return `<div class="chart-score chart-movement ${Object.hasOwn(labels,state)?state:'unavailable'}" aria-label="${label}" title="${label}"><strong aria-hidden="true">${state==='up'?'↑ '+delta:state==='down'?'↓ '+delta:state==='new'?'NEW':'—'}</strong></div>`;
+}
 // Shared navigation for listening, singing and the community on desktop and mobile.
 function updateBrowseNavigation(base,param){
  const primary=['karaoke','sing','cover'].includes(base)?'karaoke':['community','covers','crew','producer','artist','following'].includes(base)?'community':base==='dm'?'dm':['inventory','profile','account','studio','manage','upload','payouts','rewards'].includes(base)?'profile':['library','history'].includes(base)?'home':'home';
@@ -22,9 +26,9 @@ async function popularChartView(raw=''){
  const chart=d.chart,tracks=d.tracks;
  const periods=[['today','오늘'],['week','이번 주'],['month','이달'],['all','명예의 전당']];
  const periodsHTML='<nav class="tabs" aria-label="인기차트 기간">'+periods.map(([key,label])=>'<a class="tab '+(period===key?'active':'')+'" href="#charts?period='+key+'" '+(period===key?'aria-current="page"':'')+'>'+label+'</a>').join('')+'</nav>';
- const criteria='<details class="chart-criteria"><summary>인기점수는 어떻게 계산하나요?</summary><p>재생 50점 · 좋아요 25점 · 댓글 참여 15점 · 선물 10점. 항목별 최다 기록 대비 비율로 환산해 합산합니다. 1골드와 1별은 같은 선물 점수로 계산합니다.</p><p>30초 이상(짧은 곡은 60%) 들은 재생을 계정·곡당 하루 1회 반영합니다. 댓글은 기간 내 참여자당 1회, 삭제한 댓글과 취소한 좋아요는 제외합니다. 본인 활동과 환불된 구매분의 선물도 제외합니다. 기간은 한국 시간 기준이며, 같은 점수는 재생·좋아요·최신 등록순으로 정렬합니다.</p></details>';
- const rows=tracks.map((t,i)=>'<article class="popular-chart-row"><span class="browse-rank">'+(i+1)+'</span><a href="#song/'+esc(t.id)+'" aria-label="'+esc(t.title)+' 곡 정보">'+cover(t,'mini-cover')+'</a><div class="popular-chart-info"><a href="#song/'+esc(t.id)+'"><strong>'+esc(t.title)+'</strong></a><span>'+credits(t)+'</span><small>재생 '+number(t.chart_plays)+' · 좋아요 '+number(t.chart_likes)+' · 댓글 참여 '+number(t.chart_comments)+' · 선물 '+number(t.chart_gifts)+'</small></div><div class="chart-score"><strong>'+Number(t.chart_score).toFixed(2)+'</strong><small>인기점수</small></div><button class="icon-button" data-play="'+esc(t.id)+'" aria-label="'+esc(t.title)+' 듣기">'+icon('play')+'</button></article>').join('');
- return {html:heading('AIFECT 인기차트','함께 듣고, 좋아하고, 응원한 음악의 순위.')+chartTabs()+chartLayoutHTML(periodsHTML+criteria+'<p class="field-help">'+esc(chart?.label||'이번 주')+' · 한국 시간 기준 · 최대 100점</p>'+browsePlaybackActions(tracks)+(tracks.length?'<div class="popular-chart-list">'+rows+'</div>':empty('아직 공개된 곡이 없어요.','새로운 음악이 올라오면 여기서 만나요.')),tracks),tracks};
+ const criteria='';
+ const rows=tracks.map((t,i)=>'<article class="popular-chart-row"><span class="browse-rank">'+(t.chart_rank||i+1)+'</span><a href="#song/'+esc(t.id)+'" aria-label="'+esc(t.title)+' 곡 정보">'+cover(t,'mini-cover')+'</a><div class="popular-chart-info"><a href="#song/'+esc(t.id)+'"><strong>'+esc(t.title)+'</strong></a><span>'+credits(t)+'</span><small>재생 '+number(t.chart_plays)+' · 좋아요 '+number(t.chart_likes)+' · 댓글 참여 '+number(t.chart_comments)+' · 선물 '+number(t.chart_gifts)+'</small></div>'+chartMovementHTML(t)+'<button class="icon-button" data-play="'+esc(t.id)+'" aria-label="'+esc(t.title)+' 듣기">'+icon('play')+'</button></article>').join('');
+ return {html:heading('AIFECT 인기차트','함께 듣고, 좋아하고, 응원한 음악의 순위.')+chartTabs()+chartLayoutHTML(periodsHTML+criteria+'<p class="field-help">'+esc(chart?.label||'이번 주')+' · 한국 시간 기준 · 어제 집계 대비</p>'+(chart?.comparison?.available?'':'<p class="field-help chart-comparison-note">전날 순위 기록이 준비되면 변동을 표시해요.</p>')+browsePlaybackActions(tracks)+(tracks.length?'<div class="popular-chart-list">'+rows+'</div>':empty('아직 공개된 곡이 없어요.','새로운 음악이 올라오면 여기서 만나요.')),tracks),tracks};
 }
 async function browseView(base,param,raw){
  if(base==='charts'&&(!param||param==='top'))return popularChartView(raw);
@@ -35,11 +39,8 @@ async function browseView(base,param,raw){
  }
  if(base==='karaoke'&&param==='drafts'){if(!me){returnRoute=location.hash;return {html:gate()};}return {html:karaokeDraftsHTML(await listSingDrafts())};}
  if(base==='karaoke'){
-  const ranked=base==='charts'||param==='chart',[d,duets]=await Promise.all([api('/api/karaoke'),api('/api/duets')]),tracks=d.tracks.map((t,i)=>({...t,browseRank:i+1}));
-  const title=ranked?'노래방 차트':'부르기',desc=ranked?'부를 수 있는 곡의 원곡 재생·좋아요 기준 순위예요.':'듣기만 하던 음악, 이번에는 내 목소리로.';
-  let html=singingHeadingHTML(title,desc)+singingDiscoverHTML(duets.tracks,d.recent_covers||[])+(base==='charts'?chartTabs('karaoke'):`<nav class="sing-shortcuts" aria-label="부르기 바로가기"><a class="tab" href="#karaoke/drafts">${icon('edit')} 초안</a><a class="tab active" href="#karaoke" aria-current="page">부를 수 있는 곡</a><a class="tab" href="#charts/karaoke">노래방 차트</a><a class="tab" href="#community/covers">커버곡 둘러보기</a><a class="tab" href="#library/covers">내 커버곡</a><a class="tab" href="#community/rankings">${icon('chart')} 커버 랭킹</a></nav>`);
-  html+=`<section class="singing-intro"><div>${icon('mic')}<div><strong>원곡을 듣고, 나만의 커버를 남겨보세요.</strong><p>사이트에서도 마이크와 이어폰만 준비하면 MR·가사와 함께 녹음할 수 있어요.</p></div></div><a class="text-link" href="#community/covers">커버 감상하기 ${icon('arrow')}</a></section><div class="explorer-toolbar"><input id="karaoke-search" type="search" aria-label="부를 수 있는 곡 검색" placeholder="곡 제목, 아티스트, 제작자로 찾기"><span class="field-help" id="karaoke-count" aria-live="polite">${tracks.length}곡</span></div>${browsePlaybackActions(tracks,false)}<div id="karaoke-results">${karaokeRows(tracks,ranked)}</div>`;
-  remember(d.recent_covers||[]);return {html,tracks,karaokeTracks:tracks,ranked};
+  const [d,duets]=await Promise.all([api('/api/karaoke'),api('/api/duets')]),tracks=d.tracks.map((t,i)=>({...t,browseRank:i+1}));
+  remember([...(d.recent_covers||[]),...duets.tracks]);return {html:singingHubHTML(tracks,d.recent_covers||[],duets.tracks),tracks,karaokeTracks:tracks,singingHub:true};
  }
  if(base==='community'||base==='covers')return communityView(base,param,raw);
  if(base==='history'||base==='library'&&['history','covers','originals','following'].includes(param)){
@@ -71,6 +72,7 @@ function bindBrowse(view){
   }catch(error){if(panel.isConnected)panel.innerHTML='<p role="alert">'+esc(error.message)+' 접었다 다시 누르면 재시도할 수 있어요.</p>';}
   finally{button.disabled=false;}
  });
+ if(view?.singingHub){bindSingingHub(view);return;}
  const search=$('#karaoke-search');if(search)search.oninput=()=>{const q=search.value.trim().toLocaleLowerCase(),items=view.karaokeTracks.filter(t=>[t.title,t.artist,t.producer].join(' ').toLocaleLowerCase().includes(q));routeTracks=items;$('#karaoke-count').textContent=items.length+'곡';document.querySelectorAll('[data-browse-count]').forEach(el=>el.textContent=items.length+'곡');$('#karaoke-results').innerHTML=items.length?karaokeRows(items,view.ranked):'<p class="empty-inline">일치하는 곡이 없어요. 다른 제목이나 창작자 이름을 검색해보세요.</p>';document.querySelectorAll('[data-play-all],[data-browse-shuffle]').forEach(b=>b.disabled=!items.length);};
  const button=$('[data-browse-shuffle]');if(button)button.onclick=async()=>{const tracks=[...routeTracks];for(let i=tracks.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[tracks[i],tracks[j]]=[tracks[j],tracks[i]];}if(tracks.length)try{await play(tracks[0].id,tracks);}catch(e){toast(e.message);}};
 }

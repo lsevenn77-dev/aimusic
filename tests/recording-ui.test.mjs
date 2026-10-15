@@ -31,7 +31,7 @@ test('browser monitoring uses the selected voice gain without a hidden 25% reduc
   const input={readyState:'live',enabled:true,addEventListener(){},stop(){}},stream={getTracks:()=>[input],getAudioTracks:()=>[input]};
   const elements={'#sing-monitor':{checked:enabled},'#sing-panel':{innerHTML:''}};
   const c=sandbox({window:{AifectKaraoke:karaoke,AudioContext:function(){}},AudioWorkletNode:function(){return node();},navigator:{mediaDevices:{getUserMedia:async()=>stream}},document:{hidden:false},audio:{pause(){}},playSerial:0,requestAnimationFrame:()=>0,$:q=>elements[q]});c.context=ctx;
-  vm.runInContext("sing={id:'test',mode:'solo',state:'idle',cursor:0,ctx:context,mr:{duration:30},mix:K().defaultVocalMix()};stopPreview=()=>{};updateTransport=()=>{};setSingStatus=()=>{};prepareSing=async()=>context;bindMixControls=()=>{};drawLyrics=()=>{}",c);
+  vm.runInContext("sing={id:'test',mode:'solo',state:'idle',cursor:0,ctx:context,mr:{duration:30},mix:K().defaultVocalMix()};stopPreview=()=>{};updateTransport=()=>{};setSingStatus=()=>{};prepareSing=async()=>context;backingBuffer=s=>s.mr;bindMixControls=()=>{};drawLyrics=()=>{}",c);
   await vm.runInContext('startSinging()',c);
   assert.equal(vm.runInContext('sing.state',c),'singing');
   assert.equal(vm.runInContext('sing.run.monitor.gain.value',c),enabled?1:0);
