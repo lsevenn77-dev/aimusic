@@ -441,7 +441,7 @@ struct ProfilePhoto: View {
     var body: some View {
 
         RemoteArtwork(url: url) { $0.resizable().aspectRatio(contentMode: .fill) } placeholder: {
-            ZStack { AifectDesign.raised; Image(systemName: "person.fill").font(.system(size: size * 0.32)).foregroundStyle(Brand.aqua) }
+            ZStack { AifectDesign.raised; Image(systemName: "person").font(.system(size: size * 0.46, weight: .regular)).foregroundStyle(AifectDesign.secondaryText) }
         }
         .frame(width: size, height: size).background(AifectDesign.raised).clipShape(Circle())
         .overlay {

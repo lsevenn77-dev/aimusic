@@ -184,7 +184,7 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)A
 @Composable internal fun Avatar(name:String,p:JSONObject?=null,size:Int=38){
  Box(Modifier.size(size.dp),contentAlignment=Alignment.Center){
  Box(Modifier.fillMaxSize().clip(CircleShape).background(Raised),contentAlignment=Alignment.Center){
-  Text(name.take(1).ifBlank{"♪"},color=SoftText,fontSize=(size*.36).sp,fontWeight=FontWeight.Bold)
+  Icon(Icons.Rounded.PersonOutline,contentDescription="$name 기본 프로필",tint=SoftText,modifier=Modifier.size((size*.56).dp))
   if(p?.optString("image_version")?.isNotBlank()==true)AsyncImage(Endpoint.url("/media/${p.optString("profile_kind","producer")}/${p.optString("id")}?v=${p.optString("image_version")}"),"$name 프로필",Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
  }
  PlayerAvatarDecoration(p,size)
