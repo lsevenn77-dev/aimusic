@@ -21,7 +21,7 @@ function toast(message,kind=''){
 }
 function invalidateReads(){apiRevision++;apiReads.clear();if(typeof clearNavigationSnapshots==='function')clearNavigationSnapshots();if(typeof clearCrewNavigation==='function')clearCrewNavigation();}
 function invalidatesBrowseReads(path,method){
- if(method==='GET'||/^\/api\/(playback|listens)\//.test(path))return false;
+ if(method==='GET'||path==='/api/notifications/read'||/^\/api\/(playback|listens)\//.test(path))return false;
  // Delivery/read receipts cannot invalidate unrelated music or navigation.
  if(/^\/api\/dm\/[\w-]+$/.test(path)&&['POST','PATCH'].includes(method))return false;
  if(/^\/api\/crews\/[\w-]+\/messages$/.test(path)&&method==='POST')return false;
@@ -122,7 +122,7 @@ document.addEventListener('error',event=>{
  if(image.getAttribute('src')!==DEFAULT_AVATAR)image.src=DEFAULT_AVATAR;
  else image.hidden=true;
 },true);
-function updateAccount(){const accountTarget=me?'#profile':'#account';$('.profile').href=accountTarget;$('.header-login').href=accountTarget;$('.profile').innerHTML=`<span class="avatar profile-avatar ${playerAvatarClass(me)}">${avatarImage(me||{})}${playerBadgeHTML(me)}</span><span><strong>${esc(me?(me.display_name||me.name):'무료로 시작하기')}</strong><small>${me?'내 계정 · '+(member.plan==='premium'?'Premium':'무료 회원'):'로그인 · 회원가입'}</small></span>${icon('chevron')}`;$('.header-login').textContent=me?'내 계정':'로그인';}
+function updateAccount(){const accountTarget=me?'#profile':'#account';$('.profile').href=accountTarget;$('.header-login').href=accountTarget;$('.profile').innerHTML=`<span class="avatar profile-avatar ${playerAvatarClass(me)}">${avatarImage(me||{})}${playerBadgeHTML(me)}</span><span><strong>${esc(me?(me.display_name||me.name):'무료로 시작하기')}</strong><small>${me?'내 계정 · '+(member.plan==='premium'?'Premium':'무료 회원'):'로그인 · 회원가입'}</small></span>${icon('chevron')}`;$('.header-login').textContent=me?'내 계정':'로그인';if(typeof refreshActivityBadge==='function')void refreshActivityBadge();}
 function askLogin(){returnRoute=location.hash;saveResume();location.hash='account';toast('무료로 가입하고 음악을 이어 들어보세요.');return false;}
 function saveResume(){saveQueue();if(current){pendingResume={id:current.id,time:preview?Math.min(audio.currentTime,60):audio.currentTime};sessionStorage.setItem('aifect-player-resume',JSON.stringify(pendingResume));}}
 function dialog(html){$('#dialog-content').innerHTML=html;if(!$('#dialog').open)$('#dialog').showModal();}

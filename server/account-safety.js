@@ -86,6 +86,7 @@ export async function deleteAccount(env,user){
  await cancelSubscription(env,user);
  const targets=await storageTargets(env,user.id),q=(sql,...args)=>query(env,sql,...args),uid=user.id;
  const writes=[];
+ writes.push(q('DELETE FROM activity_notifications WHERE recipient=?',uid),q('UPDATE activity_notifications SET actor_id=NULL WHERE actor_id=?',uid));
  for(const crew of await rows(env,'SELECT id FROM crews WHERE owner_id=?',uid)){
   const next=await one(env,'SELECT user_id FROM crew_members WHERE crew_id=? AND user_id!=? ORDER BY joined,user_id LIMIT 1',crew.id,uid);
   if(next)writes.push(q('UPDATE crews SET owner_id=? WHERE id=?',next.user_id,crew.id),q("UPDATE crew_members SET role='owner' WHERE crew_id=? AND user_id=?",crew.id,next.user_id));

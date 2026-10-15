@@ -6,7 +6,7 @@ function updateKeyControls(){
  document.querySelectorAll('[data-key-step]').forEach(b=>b.disabled=locked||key+Number(b.dataset.keyStep)<-6||key+Number(b.dataset.keyStep)>6);
  document.querySelectorAll('[data-key-value],[data-recording-key]').forEach(el=>el.textContent=keyName(s));
  document.querySelectorAll('[data-key-reset]').forEach(b=>b.disabled=locked||!key);
- document.querySelectorAll('[data-backing-preview]').forEach(b=>{b.disabled=singBusy(s)||singLive(s)||!!nativeSinging();b.textContent=s.state==='backing'?'반주 멈추기':'반주 듣기';});
+ document.querySelectorAll('[data-backing-preview]').forEach(b=>{b.disabled=singBusy(s)||singLive(s)||!!nativeSinging();b.textContent=s.parent?(s.state==='backing'?'파트너 녹음 멈추기':'파트너 녹음 듣기'):(s.state==='backing'?'반주 멈추기':'반주 듣기');});
  document.querySelectorAll('[data-key-help]').forEach(el=>el.textContent=s.parent?'파트너가 녹음한 키에 맞춰 함께 불러요.':s.voice?'녹음된 목소리와 맞도록 이 녹음의 키를 유지합니다.':'녹음 전에 −6 ~ +6 반음으로 조절하세요. 속도는 유지됩니다.');
 }
 function bindKeyControls(){document.querySelectorAll('[data-key-step]').forEach(b=>b.onclick=()=>changeSingingKey(singingKey(sing)+Number(b.dataset.keyStep)));$('[data-key-reset]').onclick=()=>changeSingingKey(0);$('[data-backing-preview]').onclick=toggleBackingPreview;}
