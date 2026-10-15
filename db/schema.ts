@@ -172,3 +172,6 @@ export const streamSettlements=sqliteTable('stream_settlements',{
 });
 
 export const chartDailySnapshots=sqliteTable('chart_daily_snapshots',{day:text('day').notNull(),period:text('period').notNull(),captured:integer('captured').notNull(),ranksJson:text('ranks_json').notNull()},t=>[primaryKey({columns:[t.day,t.period]})]);
+export const karaokeVocalParts=sqliteTable('karaoke_vocal_parts',{
+ trackId:text('track_id').primaryKey().references(()=>tracks.id,{onDelete:'cascade'}),jobId:text('job_id').notNull(),version:integer('version').notNull(),state:text('state').notNull().default('queued'),attempts:integer('attempts').notNull().default(0),leaseToken:text('lease_token').notNull().default(''),leaseUntil:integer('lease_until').notNull().default(0),resultJson:text('result_json').notNull().default(''),error:text('error').notNull().default(''),updated:integer('updated').notNull()
+},t=>[index('karaoke_vocal_parts_pending').on(t.state,t.leaseUntil,t.updated)]);

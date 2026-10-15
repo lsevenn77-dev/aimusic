@@ -175,3 +175,19 @@ dialog.punch-complete-dialog::backdrop{background:#070c14b3;backdrop-filter:blur
 .punch-complete{text-align:center}.punch-complete-icon{display:grid;place-items:center;width:52px;height:52px;border-radius:50%;margin:0 auto 18px;background:#df9fc220;color:#e7accd}.punch-complete-icon svg{width:26px;height:26px}
 .punch-complete h2{font-size:1.2rem;line-height:1.5;margin:0 0 12px}.punch-complete p{font-size:.9rem;color:#b0bdd0;line-height:1.9;margin:0 0 24px}.punch-complete strong{color:#e8b3d0;font-variant-numeric:tabular-nums}
 .punch-complete-actions{display:grid;grid-template-columns:1fr 1fr;gap:12px}.punch-complete-actions button{display:flex;align-items:center;justify-content:center;gap:7px;min-height:46px;border-radius:10px;font:inherit;font-size:.85rem;padding:10px}.punch-complete-actions svg{width:17px;height:17px}.punch-complete-actions .small-button{background:#1a2b3f;border:1px solid #3b4d64;color:#d2dce8}.punch-complete-actions .primary-button{background:#dfa1c5;border:0;color:#281c2b}
+
+/* Original duet roles are independent of the singer's editable A/B recording guide. */
+#sing.web-studio .vocal-parts-legend{display:flex;justify-content:center;flex-wrap:wrap;gap:8px 18px;padding:7px 0;font-size:12px;color:#d2d8e3}
+#sing.web-studio [data-vocal-part=male]{--vocal-part-color:#8fc5ff}
+#sing.web-studio [data-vocal-part=female]{--vocal-part-color:#f2a4c9}
+#sing.web-studio [data-vocal-part=both]{--vocal-part-color:#cbb5f4}
+#sing.web-studio [data-vocal-part=unknown]{--vocal-part-color:#9da9ba}
+#sing.web-studio .vocal-parts-legend [data-vocal-part]{color:var(--vocal-part-color)}
+#sing.web-studio .vocal-parts-legend span::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:currentColor;margin-right:6px;vertical-align:middle}
+#sing.web-studio .vocal-current{color:#fff}
+#sing.web-studio .sing-wheel button[data-vocal-part]{color:var(--vocal-part-color)!important;--part-color:var(--vocal-part-color);position:relative;padding-top:22px}
+#sing.web-studio .vocal-part-label{position:absolute;top:2px;left:50%;transform:translateX(-50%);font-size:10px;font-weight:600;line-height:1.2;color:var(--vocal-part-color);white-space:nowrap}
+#sing.web-studio .sing-wheel button[data-vocal-part] .sing-line-text [data-word]{color:inherit!important}
+#sing.web-studio .sing-wheel button.current,
+#sing.web-studio .sing-wheel button.current .sing-line-text,
+#sing.web-studio .sing-wheel button.current .sing-line-text [data-word]{color:#fff!important;-webkit-text-fill-color:#fff;background:none}

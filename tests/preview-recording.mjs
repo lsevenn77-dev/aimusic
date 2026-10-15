@@ -20,6 +20,9 @@ for(let i=0;i<3;i++){
  objects.set('images/track/'+tid+'/demo',i%2?nova:ocean);objects.set('karaoke/'+tid+'/mr.m4a',wav);
  f.sql.prepare("INSERT INTO likes(user_id,track_id,created) VALUES('owner',?,?)").run(tid,i);
 }
+// Explicit test-only mixed/same-group outcomes; no production audio is used here.
+f.sql.prepare("INSERT INTO karaoke_vocal_parts(track_id,job_id,version,state,result_json,updated) VALUES('one','job0',1,'done',?,0)").run(JSON.stringify({version:1,arrangement:'mixed_duet',lines:['male','female','both','female']}));
+f.sql.exec("INSERT INTO karaoke_vocal_parts(track_id,job_id,version,state,updated) VALUES('two','job1',1,'excluded',0)");
 // Include a real cover-shaped fixture so ranked social actions cannot hide behind empty-state QA.
 f.sql.exec("INSERT INTO tracks(id,user_id,artist_id,producer_id,title,genre,ai_tool,rights_accepted,original_ext,original_bytes,created,status,kind,original_id,duration) VALUES('preview-cover','other','artist','friend','바람이 머문 자리 — 함께 부른 커버','Rock','',1,'wav',128,0,'published','cover','one',45)");
 for(let i=0;i<4;i++){

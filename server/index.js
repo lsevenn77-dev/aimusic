@@ -1,3 +1,4 @@
+import {vocalPartsNext} from './vocal-parts.js';
 import {musicClassificationRoute,musicClassificationInternal,classifyNext} from './music-classification.js';
 import {profileGalleryRoute} from './profile-gallery.js';
 import {artistGalleryRoute} from './artist-gallery.js';
@@ -52,7 +53,7 @@ export default {async fetch(req,env,ctx){
   if(path==='/internal/billing/tick')return await billingTick(req,env);
   if(path==='/internal/player/backfill')return await playerBackfillRoute(req,env);
   if(path.startsWith('/internal/music-classification/'))return await musicClassificationInternal(req,env,path);
-  if(path.startsWith('/internal/')){const result=await internalRoute(req,env,path);if(result?.ok&&ctx?.waitUntil&&env.GEMINI_API_KEY&&(path==='/internal/jobs/claim'||path.endsWith('/finish')))ctx.waitUntil(classifyNext(env).catch(()=>console.error('Music classification pending')));return result;}
+  if(path.startsWith('/internal/')){const result=await internalRoute(req,env,path);if(result?.ok&&ctx?.waitUntil&&env.GEMINI_API_KEY&&(path==='/internal/karaoke/claim'||path.endsWith('/finish')))ctx.waitUntil(vocalPartsNext(env).catch(()=>console.error('Vocal parts analysis pending')));if(result?.ok&&ctx?.waitUntil&&env.GEMINI_API_KEY&&(path==='/internal/jobs/claim'||path.endsWith('/finish')))ctx.waitUntil(classifyNext(env).catch(()=>console.error('Music classification pending')));return result;}
   const musicResponse=await publicMusicRoute(req,env,path);if(musicResponse)return musicResponse;
   if(['/admin','/admin/','/admin.html'].includes(path))return new Response('페이지를 찾을 수 없습니다.',{status:404,headers:{'content-type':'text/plain; charset=utf-8','cache-control':'no-store'}});
   const publicResponse=publicPageRoute(req,path);if(publicResponse)return publicResponse;
@@ -85,6 +86,7 @@ export default {async fetch(req,env,ctx){
   const user=(path.startsWith('/api/admin/')?await consoleViewer(req,env):null)||await viewer(req,env);
   env=await blockedContext(env,user);
   const safety=await accountSafetyRoute(req,env,path,user);if(safety)return safety;
+  if(req.method==='GET'&&['/api/studio','/api/karaoke'].includes(path)&&ctx?.waitUntil&&env.GEMINI_API_KEY)ctx.waitUntil(vocalPartsNext(env).catch(()=>console.error('Vocal parts analysis pending')));
   if(path==='/api/studio'&&ctx?.waitUntil&&env.GEMINI_API_KEY)ctx.waitUntil(classifyNext(env).catch(()=>console.error('Music classification pending')));
   const classificationResponse=await musicClassificationRoute(req,env,path,user);if(classificationResponse)return classificationResponse;
   const profileGalleryResponse=await profileGalleryRoute(req,env,path,user);if(profileGalleryResponse)return profileGalleryResponse;
@@ -116,4 +118,4 @@ export default {async fetch(req,env,ctx){
   if(path.includes('/auth/')&&path.endsWith('/callback'))return new Response(null,{status:303,headers:{location:'/#account?error='+encodeURIComponent(message),'cache-control':'no-store'}});
   return json({error:message},status);
  }
-},async scheduled(event,env,ctx){ctx.waitUntil(cleanupChatImages(env));ctx.waitUntil(classifyNext(env));}};
+},async scheduled(event,env,ctx){ctx.waitUntil(cleanupChatImages(env));ctx.waitUntil(classifyNext(env));ctx.waitUntil(vocalPartsNext(env));}};

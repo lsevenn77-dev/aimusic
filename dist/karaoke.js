@@ -20,7 +20,7 @@ function singHTML(d){
  const t=d.track;
  return `<section class="surface sing web-studio" id="sing">
  <header class="sing-head"><div class="studio-song-meta"><h1>${esc(t.title)}</h1><p>${esc(t.artist)} <span>·</span> ${esc(t.genre||'음악')} <span>·</span> ${time(t.duration)} <span>·</span> <small data-recording-key>원곡 키</small></p></div><div class="sing-header-mode">${singModeHTML(d)}</div></header>
- <div class="sing-recording"><div id="duet-guide"></div>
+ <div class="sing-recording"><div id="vocal-parts-legend"></div><div id="duet-guide"></div>
  <div class="sing-wheel" id="sing-wheel" aria-label="가사와 녹음 위치" tabindex="0">${(d.words||[]).map((line,i)=>`<button type="button" data-sing-line="${i}" data-second="${line.s}" aria-label="${time(line.s)} ${esc(line.w.map(w=>w.t).join(' '))}"><small>${time(line.s)}</small><span class="sing-line-text">${line.w.map((w,j)=>`<span data-word="${j}">${esc(w.t)}</span>`).join(' ')}</span></button>`).join('')||'<p class="field-help">싱크 가사가 없는 곡이에요. 아래 막대로 부를 위치를 골라주세요.</p>'}</div>
  <div class="sing-progress"><span id="sing-now">0:00</span><input class="sing-seek" id="sing-seek" type="range" min="0" max="${t.duration}" step=".05" value="0" aria-label="노래 위치"><span id="sing-duration">${time(t.duration)}</span></div>
  <div class="sing-transport studio-transport"><button type="button" data-monitor-toggle aria-pressed="false">${studioIcon('headphones')}<span>모니터링</span></button><button type="button" data-sing-settings>${icon('sliders')}<span>믹서</span></button><div class="studio-record-slot"><button type="button" data-sing-start class="studio-record">${icon('mic')}<span>녹음 시작</span></button><button type="button" data-sing-stop class="studio-record" hidden>${studioIcon('stop')}<span>녹음 완료</span></button></div><button type="button" data-sing-pause disabled>${studioIcon('pause')}<span>일시정지</span></button><button type="button" data-sing-redo-live>${icon('restart')}<span>다시 시작</span></button></div>
@@ -266,8 +266,19 @@ function duetAssignmentIssue(s){
  if(!lines.length||!lines.some(p=>p==='A'||p==='both')||!lines.some(p=>p==='B'||p==='both'))return '내 파트와 파트너가 부를 파트를 모두 지정해주세요.';
  return '';
 }
+function renderOriginalVocalParts(s){
+ const host=$('#vocal-parts-legend'),words=s.data.words||[],guide=s.data.vocal_parts,enabled=guide?.version===1&&guide.arrangement==='mixed_duet'&&guide.lines?.length===words.length;
+ const labels={male:'남자 파트',female:'여자 파트',both:'함께',unknown:'파트 미지정'};
+ if(host)host.innerHTML=enabled?'<div class="vocal-parts-legend" aria-label="원곡 가사 파트"><span data-vocal-part="male">남자 파트</span><span data-vocal-part="female">여자 파트</span><span data-vocal-part="both">함께</span><span class="vocal-current">현재 부를 가사</span></div>':'';
+ document.querySelectorAll('[data-sing-line]').forEach((row,i)=>{
+  row.querySelector('.vocal-part-label')?.remove();delete row.dataset.vocalPart;
+  if(!enabled)return;const part=Object.hasOwn(labels,guide.lines[i])?guide.lines[i]:'unknown';row.dataset.vocalPart=part;
+  const label=document.createElement('b');label.className='vocal-part-label';label.textContent=labels[part];row.prepend(label);
+  row.setAttribute('aria-label',time(words[i].s)+' '+labels[part]+' '+words[i].w.map(w=>w.t).join(' '));
+ });
+}
 function renderDuetGuide(){
- const s=sing,host=$('#duet-guide');if(!s||!host)return;host.innerHTML='';if(s.mode!=='duet')return;
+ const s=sing,host=$('#duet-guide');if(!s||!host)return;host.innerHTML='';renderOriginalVocalParts(s);if(s.mode!=='duet')return;
  const second=!!s.parent,guide=s.duetGuide,words=s.data.words||[],duration=s.mr?.duration||s.data.track.duration;
  const assigned=words.filter((_,i)=>!!AifectDuetGuide.linePart(guide,words,i,duration)).length;
  host.innerHTML='<div class="duet-guide-card"><div><strong>'+ (second?'함께 부를 파트':guide?.mode==='lyrics'?'가사별 파트':'자유롭게 나눠 부르기')+'</strong><p>'+(second?'파트너의 목소리를 들으며 내 차례를 불러요.':guide?.mode==='lyrics'?assigned+' / '+words.length+'줄 지정 · 녹음 전에 파트를 확인해주세요.':'내가 먼저 부르고, 비워 둔 구간을 파트너가 채워요.')+'</p></div><button type="button" class="small-button" data-duet-editor>'+icon('sliders')+(second?'파트 보기':'파트 나누기')+'</button></div>';
@@ -279,7 +290,7 @@ function renderDuetGuide(){
   if(role==='partial'){const badge=document.createElement('b');badge.className='duet-line-badge';badge.textContent='빈 구간 있음 · 추정';row.append(badge);}
  });
 
- updateTransport();
+ renderOriginalVocalParts(s);updateTransport();
 }
 function duetEditorHTML(s){
  const second=!!s.parent,guide=s.duetGuide,words=s.data.words||[],duration=s.mr?.duration||s.data.track.duration;
