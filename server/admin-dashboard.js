@@ -1,3 +1,4 @@
+import {trackArtworkSQL} from './track-artwork.js';
 import {one,rows,now,fail,json,str} from './db.js';
 import {requireUser,isAdmin} from './auth.js';
 
@@ -69,7 +70,7 @@ export async function adminDashboardRoute(req,env,path,user){
    LEFT JOIN artists a ON a.id=t.artist_id
    WHERE l.qualified=1 AND l.started>=? AND t.status='published'
    GROUP BY t.id,t.title,a.name,p.name ORDER BY plays DESC,t.created DESC LIMIT 5`,cutoff),
-  rows(env,`SELECT t.id,t.title,t.genre,t.kind,t.created,t.has_cover,t.cover_version,
+  rows(env,`SELECT t.id,t.title,t.genre,t.kind,t.created,${trackArtworkSQL()},
    COALESCE(NULLIF(a.name,''),p.name) artist
    FROM tracks t JOIN producers p ON p.id=t.producer_id LEFT JOIN artists a ON a.id=t.artist_id
    WHERE t.status='published' ORDER BY t.created DESC LIMIT 6`),

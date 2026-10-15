@@ -33,7 +33,7 @@ for(let i=4;i<=6;i++){
  f.sql.prepare("INSERT INTO karaoke_jobs(track_id,id,state,mr_ready,words_state,created,updated) VALUES(?,?,'ready',1,'ready',0,0)").run(tid,'job'+i);
  objects.set('images/track/'+tid+'/demo',await readFile('dist/assets/genres/'+['14','22','47'][i-4]+'.webp'));objects.set('karaoke/'+tid+'/mr.m4a',wav);
 }
-f.sql.exec("INSERT INTO tracks(id,user_id,artist_id,producer_id,title,genre,ai_tool,rights_accepted,original_ext,original_bytes,created,status,kind,original_id,duration,cover_mode) VALUES('preview-duet','other','artist','friend','바람이 머문 자리 — 듀엣','Rock','',1,'wav',128,0,'published','cover','one',45,'duet')");
+f.sql.exec("INSERT INTO tracks(id,user_id,artist_id,producer_id,title,genre,ai_tool,rights_accepted,original_ext,original_bytes,created,status,kind,original_id,duration,cover_mode) VALUES('preview-duet','owner','artist','producer','바람이 머문 자리 — 듀엣','Rock','',1,'wav',128,0,'published','cover','one',45,'duet')");
 const base=resolve('dist/client');
 const qa=await readFile('tests/recording-qa-browser.js');
 const env={DB:f.DB,BUCKET:{async put(k,v){objects.set(k,new Uint8Array(v));},async delete(k){objects.delete(k);},async head(k){const b=objects.get(k);return b?{size:b.length,etag:k}:null;},async get(k){return {body:objects.get(k)};},async list(){return {objects:[],truncated:false};}},

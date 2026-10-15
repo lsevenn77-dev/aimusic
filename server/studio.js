@@ -1,3 +1,4 @@
+import {trackArtwork} from './track-artwork.js';
 import {classificationFields,coverClassificationWrites} from './music-classification.js';
 import {trackClassification} from '../shared/genres.js';
 import {nickname,nicknameBatch} from './nicknames.js';
@@ -31,11 +32,11 @@ export async function studioRoute(req,env,path,user){
   else await run(env,`UPDATE ${table} SET image_version=?,image_type=? WHERE id=?`,image.version,image.type,entityId);
   return json({ok:true,version:image.version});
  }
- if(req.method==='GET')return json({profile:table==='tracks'?trackClassification(entity):entity,...(table==='tracks'?{alignment:await alignmentStatus(env,entity.id),karaoke:await karaokeStatus(env,entity.id)}:{})});
+ if(req.method==='GET')return json({profile:table==='tracks'?trackClassification(trackArtwork(entity,entity.kind==='cover'?await one(env,'SELECT image_version FROM producers WHERE id=?',entity.producer_id):null)):entity,...(table==='tracks'?{alignment:await alignmentStatus(env,entity.id),karaoke:await karaokeStatus(env,entity.id)}:{})});
  if(req.method!=='PUT')fail(405,'지원하지 않는 요청입니다.');
  const b=await req.json();
  if(table==='tracks'&&entity.kind==='cover'){
-  // A cover takes its title, genre and credits from the original; the singer edits the note and artwork.
+  // A cover takes its title, genre and credits from the original; the singer edits the note; artwork follows their profile.
   await run(env,'UPDATE tracks SET description=? WHERE id=?',str(b.description||'',1000,false),entityId);
   return json({ok:true,id:entityId});
  }
