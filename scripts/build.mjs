@@ -10,7 +10,7 @@ await mkdir('.generated',{recursive:true});
 await writeFile('.generated/pitch-correction-engine.js','export default '+JSON.stringify(tuneEngine.outputFiles[0].text)+';\n');
 await mkdir('dist/server',{recursive:true});
 await mkdir('dist/client',{recursive:true});
-for(const file of ['mobile-ux.js','mobile-ux.css'])await cp(`dist/${file}`,`dist/client/${file}`);
+for(const file of ['mobile-ux.js','mobile-ux.css','player-shell.js','player-shell.css'])await cp(`dist/${file}`,`dist/client/${file}`);
 await cp('dist/unified-ui.css','dist/client/unified-ui.css');
 await cp('dist/secondary-pages.css','dist/client/secondary-pages.css');
 await cp('dist/app-ads.txt','dist/client/app-ads.txt');

@@ -10,6 +10,14 @@ function player(api,clock=Date){
  vm.runInContext(source,context);return {context,hud,calls,audio,events,run:s=>vm.runInContext(s,context)};
 }
 const flush=()=>new Promise(resolve=>setImmediate(resolve));
+test('mobile player displays only the current lyric while desktop retains the two-line preview',async()=>{
+ const p=player(()=>({line:{text:'현재 가사',from:0,until:10},lines:[{time:0,text:'현재 가사'},{time:10,text:'다음 가사'}]}));
+ let mobile=true;p.context.matchMedia=()=>({matches:mobile});
+ p.run('setCurrentLyrics(current)');await flush();assert.equal(p.hud.textContent,'현재 가사');
+ mobile=false;p.run('updateSyncedLyrics(true)');assert.equal(p.hud.textContent,'현재 가사\n다음 가사');
+ mobile=true;p.run("current={...current,lyrics:'[00:00]첫 줄\\n[00:10]다음 줄',lyrics_access:'full',lyrics_access_until:Date.now()/1000+1000};setCurrentLyrics(current)");
+ assert.equal(p.hud.textContent,'첫 줄');
+});
 test('one-line client prefetches before boundaries and reuses nearby lines after seeks',async()=>{
  const p=player(path=>{const at=Number(path.split('=')[1]);return {line:at<12.25?{text:'첫 줄',from:0,until:12.25}:{text:'둘째 줄',from:12.25,until:90}};});
  p.run('setCurrentLyrics(current)');await flush();assert.equal(p.hud.textContent,'첫 줄');assert.equal(p.calls.length,1);
