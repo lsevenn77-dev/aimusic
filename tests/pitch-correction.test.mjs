@@ -39,16 +39,13 @@ test('progress is bounded and completes; malformed and oversized recordings fail
  const progress=[];correctVocalPitch(tone(32000,224),32000,1,p=>progress.push(p));assert.equal(progress.at(-1),100);assert(progress.every((p,i)=>p>=0&&p<=100&&(i===0||p>=progress[i-1])));
  assert.throws(()=>correctVocalPitch(new Float32Array([NaN]),32000,1));assert.throws(()=>correctVocalPitch([],32000,1));assert.throws(()=>correctVocalPitch(tone(32000,224),0,1));
 });
-test('server gates both engine and entitlement for guests, free and expired accounts; Apple membership works',async t=>{
- const {call,sql}=await fixture(t);
+test('retired correction endpoints return Gone for every membership',async t=>{
+ const {call}=await fixture(t);
  for(const path of ['/api/pitch-correction/access','/api/pitch-correction/worker.js']){
-  assert.equal((await call(path,'GET',undefined,null)).status,401);assert.equal((await call(path)).status,403);
-  sql.prepare("UPDATE users SET premium_until=? WHERE id='owner'").run(Math.floor(Date.now()/1000)-1);assert.equal((await call(path)).status,403);
+  assert.equal((await call(path,'GET',undefined,null)).status,410);
+  assert.equal((await call(path)).status,410);
+  const res=await pitchCorrectionRoute(new Request('https://aifect.test'+path),{},path,{id:'owner',premium_until:Date.now()/1000+600});
+  assert.equal(res.status,410);assert.doesNotMatch(await res.text(),/onmessage/);
  }
- sql.prepare("UPDATE users SET apple_premium_until=? WHERE id='owner'").run(Math.floor(Date.now()/1000)+600);
- assert.equal((await call('/api/pitch-correction/access')).body.allowed,true);
- const res=await pitchCorrectionRoute(new Request('https://aifect.test/api/pitch-correction/worker.js'),{},'/api/pitch-correction/worker.js',{id:'owner',premium_until:Math.floor(Date.now()/1000)+600});
- assert.equal(res.status,200);assert.match(res.headers.get('cache-control'),/private, no-store/);assert.match(res.headers.get('content-type'),/javascript/);assert((await res.text()).includes('onmessage'));
- assert.equal((await call('/api/pitch-correction/access','POST',{})).status,405);
- sql.exec("UPDATE users SET apple_premium_until=0,premium_until=0 WHERE id='owner'");assert.equal((await call('/api/pitch-correction/access')).status,403);
+ assert.equal(restoreVocalMix({pitchCorrection:2,tone:-1}).pitchCorrection,0);
 });

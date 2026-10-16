@@ -45,3 +45,8 @@ dialog.duet-editor-dialog{width:min(860px,calc(100% - 24px));padding:24px;backgr
 @media(prefers-reduced-motion:reduce){#sing.web-studio .sing-wheel button{transition:none}}
 
 @media(max-width:600px){#sing.web-studio .duet-guide-card{flex-wrap:nowrap;padding:8px 10px;margin-bottom:0}#sing.web-studio .duet-guide-card p{display:none}#sing.web-studio .duet-guide-card button{margin-left:0;min-height:40px}#sing.web-studio .duet-guide-card strong{white-space:nowrap}}
+
+/* Solo lyrics use one neutral reading state, independent of word progress. */
+#sing.web-studio .sing-wheel button:not([data-part-role]){color:#939eaf!important}
+#sing.web-studio .sing-wheel button.current:not([data-part-role]){color:#fff!important}
+#sing.web-studio .sing-wheel button:not([data-part-role]) [data-word]{color:inherit!important;background:none!important;-webkit-text-fill-color:currentColor}

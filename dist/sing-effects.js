@@ -1,3 +1,5 @@
+// Always process the dry take; retired pitch-correction settings cannot alter playback.
+const vocalPlaybackBuffer=s=>s.voice;
 const vocalEffectKey=m=>JSON.stringify([m.noise,m.echo,m.room,m.size,m.tone]);
 function cancelVocalEffects(s){
  clearTimeout(s?.effectTimer);if(!s?.effectJob)return;const job=s.effectJob;s.effectJob=null;job.worker.terminate();job.reject(Object.assign(new Error('효과 설정이 변경됐어요.'),{cancelled:true}));
@@ -6,7 +8,7 @@ async function prepareVocalEffects(s){
  const source=vocalPlaybackBuffer(s),key=vocalEffectKey(s.mix);
  if(s.processed?.source===source&&s.processed.key===key)return s.processed.buffer;
  if(s.effectJob?.source===source&&s.effectJob.key===key)return s.effectJob.promise;
- cancelVocalEffects(s);const worker=new Worker('/vocal-render-worker.js?v=20261016-2'),job={worker,source,key};
+ cancelVocalEffects(s);const worker=new Worker('/vocal-render-worker.js?v=20261017-tone-range'),job={worker,source,key};
  s.effectJob=job;
  const result=new Promise((resolve,reject)=>{
   job.reject=reject;worker.onerror=()=>reject(new Error('미리 듣기 효과를 준비하지 못했어요. 다시 재생해주세요.'));

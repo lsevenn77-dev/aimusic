@@ -52,3 +52,13 @@ test('changing tone during live processing stays continuous and converges to the
  const saved=renderVocals(input,rate,{...mix,tone:1});let error=0,edge=0;for(let i=rate+rate/2;i<input.length;i++)error=Math.max(error,Math.abs(out[i]-saved[i]));for(let i=rate-4;i<rate+4;i++)edge=Math.max(edge,Math.abs(out[i]-out[i-1]));
  assert(error<1e-6);assert(edge<.04,'no discontinuity at the control change');
 });
+
+test('extended tone range deepens or brightens without retuning and survives draft/preset round trips',()=>{
+ const rate=32000,input=Float32Array.from({length:rate},(_,i)=>.08*Math.sin(i*2*Math.PI*220/rate)+.04*Math.sin(i*2*Math.PI*2640/rate));
+ const energy=(data,hz)=>{let a=0,b=0;for(let i=rate/2;i<rate;i++){a+=data[i]*Math.cos(i*2*Math.PI*hz/rate);b+=data[i]*Math.sin(i*2*Math.PI*hz/rate);}return Math.hypot(a,b);};
+ const values=[-1,0,1,2].map(tone=>renderVocals(input,rate,{noise:0,echo:0,room:0,tone}));
+ const contrast=values.map(a=>20*Math.log10(energy(a,2640)/energy(a,220)));
+ assert(contrast[0]<contrast[1]-8);assert(contrast[3]>contrast[2]+4);assert.deepEqual(values[1],input);
+ for(const tone of [-1,2]){let m=editVocalMix(defaultVocalMix(),'tone',tone);m=restoreVocalMix(presetMix(m,'hall'));assert.equal(presetMix(m,'custom').tone,tone);assert.equal(restoreVocalMix({...m,tone}).tone,tone);}
+ assert(values.every(a=>a.every(Number.isFinite)));
+});
