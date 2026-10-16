@@ -12,7 +12,7 @@ const description=t=>t.description&&!['없음','없어요','none','null'].includ
 const kind=t=>t.kind==='cover'?(t.cover_mode==='duet'?'듀엣 커버':'솔로 커버'):'제작곡';
 const length=t=>`${Math.floor((Number(t.duration)||0)/60)}:${String(Math.floor((Number(t.duration)||0)%60)).padStart(2,'0')}`;
 function artwork(t){
- const src=t.kind==='cover'?(t.producer_image_version?`/media/profile/${encodeURIComponent(t.producer_id)}/image?v=${encodeURIComponent(t.producer_image_version)}`:'/assets/default-avatar.png'):t.has_cover?`/media/${encodeURIComponent(t.id)}/cover?v=${encodeURIComponent(t.cover_version||'')}`:'/assets/aifect-mark.svg';
+ const src=t.has_cover?`/media/${encodeURIComponent(t.id)}/cover?v=${encodeURIComponent(t.cover_version||'')}`:'/assets/aifect-mark.svg';
  return `<img class="public-artwork${t.kind==='cover'?' is-person':''}" src="${esc(src)}" alt="${esc(t.kind==='cover'?t.producer+'의 프로필':t.title+' 앨범 커버')}" width="192" height="192" loading="lazy">`;
 }
 function card(t){return `<article class="music-card"><a href="/music/${encodeURIComponent(t.id)}" tabindex="-1" aria-hidden="true">${artwork(t)}</a><div><span class="public-kicker">${kind(t)} · ${length(t)}</span><h2><a href="/music/${encodeURIComponent(t.id)}">${esc(t.title)}</a></h2><p>${esc(t.artist)}</p><p class="public-tags">${(t.genres||[t.genre]).filter(Boolean).map(g=>`<a href="/music?genre=${encodeURIComponent(g)}">${esc(g)}</a>`).join(' ')}</p>${description(t)?`<p class="public-description">${esc(description(t))}</p>`:''}<a class="public-listen" href="/#song/${encodeURIComponent(t.id)}">노래 듣기 <span aria-hidden="true">▷</span></a></div></article>`;}
