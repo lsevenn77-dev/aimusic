@@ -6,8 +6,8 @@ import {published} from './catalog.js';
 import {GOLD_KRW,GOLD_PACKS,WEB_GOLD_PACKS,WEB_GOLD_BONUS_PERCENT,GIFT_MIN_GOLD,GIFT_MAX_GOLD,MIN_PAYOUT_KRW,PAYOUT_DAY,EARNINGS_AVAILABLE_DAY,earningsSchedule,GIFT_SPLITS,GIFT_CATALOG,giftById,allocateLots,splitGift,giftMonth,wonFromMw} from '../shared/gifts.js';
 import {diamondWallet,partnerState} from './diamonds.js';
 import {creatorPayouts} from './payouts.js';
-import {freeGiftState,claimFreeGift,sendFreeGift} from './free-gifts.js';
-import {FREE_GIFT} from '../shared/gifts.js';
+import {freeGiftBalance,freeGiftState,claimFreeGift,sendFreeGift} from './free-gifts.js';
+import {FREE_GIFT,SILVER_GIFT_CATALOG,silverGiftById} from '../shared/gifts.js';
 
 // No payment channel sells gold yet: web card checkout needs the NICEPAY one-time payment contract and
 // the apps need store billing. Purchases are credited by those integrations once they exist.
@@ -15,17 +15,17 @@ import {goldCheckoutStatus,createGoldCheckout} from './gold-checkout.js';
 
 export async function goldBalance(env,userId){return (await one(env,"SELECT COALESCE(sum(gold-used),0) n FROM gold_purchases WHERE user_id=? AND status='paid' AND NOT EXISTS(SELECT 1 FROM gold_orders o WHERE o.id=gold_purchases.id AND o.state!='paid') AND NOT EXISTS(SELECT 1 FROM play_purchases pp WHERE 'play_'||pp.token_hash=gold_purchases.id AND pp.state='refunded')",userId)).n;}
 
-const RANKING=`SELECT ${publicNameSQL()} name,(SELECT id FROM producers WHERE user_id=u.id) profile_id,(SELECT image_version FROM producers WHERE user_id=u.id) image_version,sum(g.gold) gold,sum(g.stars) stars,sum(g.gold+g.stars) score,count(*) gifts,min(g.created) first FROM (SELECT sender_id,track_id,COALESCE(singer_profile_id,creator_profile_id) recipient_profile_id,gold,0 stars,created FROM gifts UNION ALL SELECT f.sender_id,f.track_id,COALESCE(f.recipient_profile_id,t.producer_id),0 gold,1 stars,f.created FROM free_gifts f LEFT JOIN tracks t ON t.id=f.track_id) g JOIN users u ON u.id=g.sender_id`;
+const RANKING=`SELECT ${publicNameSQL()} name,(SELECT id FROM producers WHERE user_id=u.id) profile_id,(SELECT image_version FROM producers WHERE user_id=u.id) image_version,sum(g.gold) gold,sum(g.stars) stars,sum(g.gold+g.stars) score,count(*) gifts,min(g.created) first FROM (SELECT sender_id,track_id,COALESCE(singer_profile_id,creator_profile_id) recipient_profile_id,gold,0 stars,created FROM gifts UNION ALL SELECT f.sender_id,f.track_id,COALESCE(f.recipient_profile_id,t.producer_id),0 gold,f.silver stars,f.created FROM free_gifts f LEFT JOIN tracks t ON t.id=f.track_id) g JOIN users u ON u.id=g.sender_id`;
 const ranked=list=>list.map((r,i)=>({rank:i+1,name:r.name,profile_id:r.profile_id,image_version:r.image_version,gold:r.gold,stars:r.stars,score:r.score,gifts:r.gifts}));
 export async function trackGifts(env,trackId){
- const [total,free,ranking]=await Promise.all([one(env,'SELECT COALESCE(sum(gold),0) gold,count(*) gifts FROM gifts WHERE track_id=?',trackId),one(env,'SELECT count(*) n FROM free_gifts WHERE track_id=?',trackId),rows(env,`${RANKING} WHERE g.track_id=? GROUP BY g.sender_id ORDER BY score DESC,first ASC,g.sender_id ASC LIMIT 10`,trackId)]);
+ const [total,free,ranking]=await Promise.all([one(env,'SELECT COALESCE(sum(gold),0) gold,count(*) gifts FROM gifts WHERE track_id=?',trackId),one(env,'SELECT COALESCE(sum(silver),0) n FROM free_gifts WHERE track_id=?',trackId),rows(env,`${RANKING} WHERE g.track_id=? GROUP BY g.sender_id ORDER BY score DESC,first ASC,g.sender_id ASC LIMIT 10`,trackId)]);
  return {available:true,total_gold:total.gold,gift_count:total.gifts,free_count:free.n,ranking:ranked(ranking)};
 }
 // A person's fans are the people who gifted what that person performs: their covers and their own originals.
 // Gifts to other people's covers of their songs still pay them the creator share, but belong to the singer's fans.
 export async function profileGifts(env,profileId){
  const where='(g.singer_profile_id=? OR (g.singer_profile_id IS NULL AND g.creator_profile_id=?))';
- const [total,free,ranking]=await Promise.all([one(env,`SELECT COALESCE(sum(g.gold),0) gold,count(*) gifts FROM gifts g WHERE ${where}`,profileId,profileId),one(env,'SELECT count(*) n FROM free_gifts f LEFT JOIN tracks t ON t.id=f.track_id WHERE COALESCE(f.recipient_profile_id,t.producer_id)=?',profileId),rows(env,`${RANKING} WHERE g.recipient_profile_id=? GROUP BY g.sender_id ORDER BY score DESC,first ASC,g.sender_id ASC LIMIT 50`,profileId)]);
+ const [total,free,ranking]=await Promise.all([one(env,`SELECT COALESCE(sum(g.gold),0) gold,count(*) gifts FROM gifts g WHERE ${where}`,profileId,profileId),one(env,'SELECT COALESCE(sum(f.silver),0) n FROM free_gifts f LEFT JOIN tracks t ON t.id=f.track_id WHERE COALESCE(f.recipient_profile_id,t.producer_id)=?',profileId),rows(env,`${RANKING} WHERE g.recipient_profile_id=? GROUP BY g.sender_id ORDER BY score DESC,first ASC,g.sender_id ASC LIMIT 50`,profileId)]);
  return {available:true,total_gold:total.gold,gift_count:total.gifts,free_count:free.n,ranking:ranked(ranking)};
 }
 
@@ -45,34 +45,42 @@ export function settlementMonths(months,current){
 
 export async function giftRoute(req,env,path,user){
  const method=req.method;
- if(path==='/api/gifts/catalog'&&method==='GET')return json({gifts:GIFT_CATALOG,free_gift:FREE_GIFT,gold_krw:GOLD_KRW,...goldCheckoutStatus(env,user)});
+ if(path==='/api/gifts/catalog'&&method==='GET')return json({gifts:GIFT_CATALOG,silver_gifts:SILVER_GIFT_CATALOG,free_gift:FREE_GIFT,gold_krw:GOLD_KRW,...goldCheckoutStatus(env,user)});
  if(path==='/api/gifts/free'&&method==='GET'){requireUser(user);return json(await freeGiftState(env,user.id));}
  if(path==='/api/gifts/free/claim'&&method==='POST'){requireUser(user);return claimFreeGift(req,env,user);}
+ if(path==='/api/gold/balance'&&method==='GET'){
+  requireUser(user);
+  const [balance,silver_balance]=await Promise.all([goldBalance(env,user.id),freeGiftBalance(env,user.id)]);
+  return json({balance,silver_balance});
+ }
  if(path==='/api/gold'&&method==='GET'){
   requireUser(user);
-  const [balance,purchases,orders,free,free_sent,sent]=await Promise.all([
+  const [diamonds,balance,purchases,orders,free,free_sent,sent]=await Promise.all([
+   diamondWallet(env,user.id),
    goldBalance(env,user.id),
    rows(env,"SELECT id,channel,gold,used,price_krw,status,created,paid_at FROM gold_purchases WHERE user_id=? AND status!='pending' ORDER BY created DESC LIMIT 20",user.id),
    rows(env,'SELECT o.id,o.state,o.review_only,o.created,p.gold,p.price_krw FROM gold_orders o JOIN gold_purchases p ON p.id=o.id WHERE o.user_id=? ORDER BY o.created DESC LIMIT 20',user.id),
    freeGiftState(env,user.id),
-   rows(env,'SELECT g.id,g.created,t.id track_id,COALESCE(t.title,p.name) title,g.recipient_profile_id FROM free_gifts g LEFT JOIN tracks t ON t.id=g.track_id LEFT JOIN producers p ON p.id=g.recipient_profile_id WHERE g.sender_id=? ORDER BY g.created DESC LIMIT 20',user.id),
-   rows(env,'SELECT g.id,g.gold,g.gift_type,g.gift_name,g.created,t.id track_id,COALESCE(t.title,p.name) title,COALESCE(t.kind,\'person\') kind,CASE WHEN g.track_id IS NULL THEN g.creator_profile_id END recipient_profile_id FROM gifts g LEFT JOIN tracks t ON t.id=g.track_id LEFT JOIN producers p ON p.id=g.creator_profile_id WHERE g.sender_id=? ORDER BY g.created DESC LIMIT 20',user.id)]);
-  return json({diamonds:await diamondWallet(env,user.id),balance,gold_krw:GOLD_KRW,packs:GOLD_PACKS,web_packs:WEB_GOLD_PACKS,web_bonus_percent:WEB_GOLD_BONUS_PERCENT,...goldCheckoutStatus(env,user),purchases,orders,gifts:GIFT_CATALOG,free,free_sent,sent});
+   rows(env,'SELECT g.id,g.created,g.gift_type,g.gift_name,g.silver,g.quantity,t.id track_id,COALESCE(t.title,p.name) title,g.recipient_profile_id FROM free_gifts g LEFT JOIN tracks t ON t.id=g.track_id LEFT JOIN producers p ON p.id=g.recipient_profile_id WHERE g.sender_id=? ORDER BY g.created DESC LIMIT 20',user.id),
+   rows(env,'SELECT g.id,g.gold,g.quantity,g.gift_type,g.gift_name,g.created,t.id track_id,COALESCE(t.title,p.name) title,COALESCE(t.kind,\'person\') kind,CASE WHEN g.track_id IS NULL THEN g.creator_profile_id END recipient_profile_id FROM gifts g LEFT JOIN tracks t ON t.id=g.track_id LEFT JOIN producers p ON p.id=g.creator_profile_id WHERE g.sender_id=? ORDER BY g.created DESC LIMIT 20',user.id)]);
+  return json({diamonds,balance,gold_krw:GOLD_KRW,packs:GOLD_PACKS,web_packs:WEB_GOLD_PACKS,web_bonus_percent:WEB_GOLD_BONUS_PERCENT,...goldCheckoutStatus(env,user),purchases,orders,gifts:GIFT_CATALOG,silver_gifts:SILVER_GIFT_CATALOG,free,free_sent,sent});
  }
  if(path==='/api/gold/checkout'&&method==='POST'){requireUser(user);return createGoldCheckout(req,env,user);}
  if(path==='/api/studio/earnings'&&method==='GET'){
   requireUser(user);
   const profile=await one(env,'SELECT id FROM producers WHERE user_id=?',user.id),current=giftMonth(now());
-  const months=profile?await rows(env,`SELECT month,SUM(CASE WHEN singer_profile_id=? THEN singer_mw ELSE 0 END) singer_mw,SUM(CASE WHEN creator_profile_id=? THEN creator_mw ELSE 0 END) creator_mw,count(*) gifts
-   FROM gifts WHERE (singer_profile_id=? AND singer_mw>0) OR (creator_profile_id=? AND creator_mw>0) GROUP BY month ORDER BY month`,profile.id,profile.id,profile.id,profile.id):[];
-  const summary=profile?await one(env,`SELECT COALESCE(sum(g.gold),0) received_gold,COALESCE(sum(g.net_mw),0) net_mw,COALESCE(sum((SELECT sum(ROUND(gl.gold*p.price_krw*1000.0/p.gold)) FROM gift_lots gl JOIN gold_purchases p ON p.id=gl.purchase_id WHERE gl.gift_id=g.id)),0) gross_mw,COALESCE(sum((SELECT sum(ROUND(gl.gold*p.tax_krw*1000.0/p.gold)) FROM gift_lots gl JOIN gold_purchases p ON p.id=gl.purchase_id WHERE gl.gift_id=g.id)),0) tax_mw,COALESCE(sum(CASE WHEN g.singer_profile_id=? THEN g.singer_mw ELSE 0 END)+sum(CASE WHEN g.creator_profile_id=? THEN g.creator_mw ELSE 0 END),0) earned_mw FROM gifts g WHERE g.singer_profile_id=? OR g.creator_profile_id=?`,profile.id,profile.id,profile.id,profile.id):{received_gold:0,net_mw:0,gross_mw:0,tax_mw:0,earned_mw:0};
-  const streams=await one(env,`SELECT COALESCE(sum(kind='original'),0) original_streams,COALESCE(sum(kind='cover'),0) cover_streams,count(*) total_streams FROM (SELECT t.kind FROM listens l JOIN tracks t ON t.id=l.track_id WHERE t.user_id=? AND l.qualified=1 GROUP BY t.id,l.listener,l.day)`,user.id);
+  const [months,summary,streams,payout,diamonds]=await Promise.all([
+   profile?rows(env,`SELECT month,SUM(CASE WHEN singer_profile_id=? THEN singer_mw ELSE 0 END) singer_mw,SUM(CASE WHEN creator_profile_id=? THEN creator_mw ELSE 0 END) creator_mw,count(*) gifts
+    FROM gifts WHERE (singer_profile_id=? AND singer_mw>0) OR (creator_profile_id=? AND creator_mw>0) GROUP BY month ORDER BY month`,profile.id,profile.id,profile.id,profile.id):[],
+   profile?one(env,`SELECT COALESCE(sum(g.gold),0) received_gold,COALESCE(sum(g.net_mw),0) net_mw,COALESCE(sum((SELECT sum(ROUND(gl.gold*p.price_krw*1000.0/p.gold)) FROM gift_lots gl JOIN gold_purchases p ON p.id=gl.purchase_id WHERE gl.gift_id=g.id)),0) gross_mw,COALESCE(sum((SELECT sum(ROUND(gl.gold*p.tax_krw*1000.0/p.gold)) FROM gift_lots gl JOIN gold_purchases p ON p.id=gl.purchase_id WHERE gl.gift_id=g.id)),0) tax_mw,COALESCE(sum(CASE WHEN g.singer_profile_id=? THEN g.singer_mw ELSE 0 END)+sum(CASE WHEN g.creator_profile_id=? THEN g.creator_mw ELSE 0 END),0) earned_mw FROM gifts g WHERE g.singer_profile_id=? OR g.creator_profile_id=?`,profile.id,profile.id,profile.id,profile.id):{received_gold:0,net_mw:0,gross_mw:0,tax_mw:0,earned_mw:0},
+   one(env,`SELECT COALESCE(sum(kind='original'),0) original_streams,COALESCE(sum(kind='cover'),0) cover_streams,count(*) total_streams FROM (SELECT t.kind FROM listens l JOIN tracks t ON t.id=l.track_id WHERE t.user_id=? AND l.qualified=1 GROUP BY t.id,l.listener,l.day)`,user.id),
+   creatorPayouts(env,user.id),diamondWallet(env,user.id)]);
   const activity={received_gold:summary.received_gold,...streams};
   const breakdown={received_gold:summary.received_gold,purchase_value_krw:wonFromMw(summary.gross_mw),tax_krw:wonFromMw(summary.tax_mw),payment_fee_krw:wonFromMw(summary.gross_mw-summary.tax_mw-summary.net_mw),after_fee_krw:wonFromMw(summary.net_mw),other_shares_krw:wonFromMw(summary.net_mw-summary.earned_mw),estimated_earnings_krw:wonFromMw(summary.earned_mw)};
   // Months up to the latest statement are settled; later months show the projected carry-over.
-  const payout=await creatorPayouts(env,user.id),through=payout.last_period;
+  const through=payout.last_period;
   const settled=months.filter(m=>through&&m.month<=through).map(m=>({month:m.month,gifts:m.gifts,singer_krw:wonFromMw(m.singer_mw),creator_krw:wonFromMw(m.creator_mw),total_krw:wonFromMw(m.singer_mw+m.creator_mw),status:'settled'}));
-  return json({diamonds:await diamondWallet(env,user.id),activity,breakdown,current_month:current,current_schedule:earningsSchedule(current,now()),min_payout_krw:MIN_PAYOUT_KRW,payout_day:PAYOUT_DAY,earnings_available_day:EARNINGS_AVAILABLE_DAY,splits:GIFT_SPLITS,months:[...settled,...settlementMonths(months.filter(m=>!through||m.month>through),current)].map(m=>({...m,...earningsSchedule(m.month,now()),...(m.status==='settled'?{earnings_available:true}:{})})).reverse(),payout});
+  return json({diamonds,activity,breakdown,current_month:current,current_schedule:earningsSchedule(current,now()),min_payout_krw:MIN_PAYOUT_KRW,payout_day:PAYOUT_DAY,earnings_available_day:EARNINGS_AVAILABLE_DAY,splits:GIFT_SPLITS,months:[...settled,...settlementMonths(months.filter(m=>!through||m.month>through),current)].map(m=>({...m,...earningsSchedule(m.month,now()),...(m.status==='settled'?{earnings_available:true}:{})})).reverse(),payout});
  }
  const m=path.match(/^\/api\/(tracks|producers)\/([\w-]+)\/gifts$/);if(!m)return null;
  const personal=m[1]==='producers';
@@ -82,16 +90,17 @@ export async function giftRoute(req,env,path,user){
  if(method==='GET')return json(personal?await profileGifts(env,track.producer_id):await trackGifts(env,track.id));
  if(method!=='POST')fail(405,'지원하지 않는 요청입니다.');
  requireUser(user);assertUnblocked(env,track.user_id);await rate(env,'gift:'+user.id,60,3600);
- const b=await req.json();if(b.gift_type==='star')return sendFreeGift(env,user,track,b);
+ const b=await req.json();if(silverGiftById(b.gift_type))return sendFreeGift(env,user,track,b);
  const selected=b.gift_type===undefined?null:giftById(b.gift_type);
  if(b.gift_type!==undefined&&!selected)fail(400,'선물 종류를 다시 선택해주세요.');
- if(selected&&b.gold!==undefined&&b.gold!==selected.gold)fail(400,'선물 가격이 일치하지 않아요. 다시 선택해주세요.');
- const gold=selected?.gold??b.gold,requestId=b.request_id??null;
+ const quantity=b.quantity===undefined?1:b.quantity;if(!Number.isInteger(quantity)||quantity<1||quantity>100||(!selected&&quantity!==1))fail(400,'수량은 1개부터 100개까지 선택해주세요.');
+ if(selected&&b.gold!==undefined&&b.gold!==selected.gold*quantity)fail(400,'선물 가격이 일치하지 않아요. 다시 선택해주세요.');
+ const gold=selected?selected.gold*quantity:b.gold,requestId=b.request_id??null;
  if((selected&&!requestId)||(requestId!==null&&(typeof requestId!=='string'||!/^[a-zA-Z0-9-]{16,64}$/.test(requestId))))fail(400,'선물 요청을 새로 시작해주세요.');
  // Catalog gifts use their server-owned price; legacy amount-only clients retain their minimum.
  if(!Number.isInteger(gold)||gold<(selected?1:GIFT_MIN_GOLD)||gold>GIFT_MAX_GOLD)fail(400,`선물은 ${GIFT_MIN_GOLD}골드부터 ${GIFT_MAX_GOLD.toLocaleString('ko-KR')}골드까지 보낼 수 있어요.`);
  if(track.user_id===user.id)fail(400,'자신에게 선물할 수 없어요.');
- const replay=async()=>{if(!requestId)return null;const old=await one(env,'SELECT id,track_id,creator_profile_id,gold,gift_type,gift_name FROM gifts WHERE sender_id=? AND request_id=?',user.id,requestId);if(!old)return null;if(old.track_id!==track.id||(personal&&old.creator_profile_id!==track.producer_id)||old.gold!==gold||old.gift_type!==(selected?.id??null))fail(409,'이미 사용된 선물 요청이에요. 새로 선택해주세요.');return json({gift:{id:old.id,gold:old.gold,type:old.gift_type,name:old.gift_name},balance:await goldBalance(env,user.id)});};
+ const replay=async()=>{if(!requestId)return null;const old=await one(env,'SELECT id,track_id,creator_profile_id,gold,gift_type,gift_name,quantity FROM gifts WHERE sender_id=? AND request_id=?',user.id,requestId);if(!old)return null;if(old.track_id!==track.id||(personal&&old.creator_profile_id!==track.producer_id)||old.gold!==gold||old.quantity!==quantity||old.gift_type!==(selected?.id??null))fail(409,'이미 사용된 선물 요청이에요. 새로 선택해주세요.');return json({gift:{id:old.id,gold:old.gold,type:old.gift_type,name:old.gift_name,quantity:old.quantity},balance:await goldBalance(env,user.id)});};
  const previous=await replay();if(previous)return previous;
  const creator=track.kind==='cover'?(await one(env,'SELECT producer_id FROM tracks WHERE id=?',track.original_id)).producer_id:track.producer_id;
  const lots=await rows(env,"SELECT id,gold,used,price_krw,fee_krw,tax_krw FROM gold_purchases WHERE user_id=? AND status='paid' AND used<gold AND NOT EXISTS(SELECT 1 FROM gold_orders o WHERE o.id=gold_purchases.id AND o.state!='paid') AND NOT EXISTS(SELECT 1 FROM play_purchases pp WHERE 'play_'||pp.token_hash=gold_purchases.id AND pp.state='refunded') ORDER BY paid_at,id",user.id);
@@ -101,10 +110,10 @@ export async function giftRoute(req,env,path,user){
   // The lot check constraint rejects overspending or spending a refunded lot, which rolls the whole batch back.
   await env.DB.batch([
    ...spent.map(l=>query(env,'UPDATE gold_purchases SET used=used+? WHERE id=?',l.gold,l.purchase_id)),
-   query(env,'INSERT INTO gifts(id,sender_id,track_id,gold,net_mw,singer_profile_id,creator_profile_id,singer_mw,creator_mw,platform_mw,month,created,gift_type,gift_name,request_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-    gid,user.id,track.id,gold,net,track.kind==='cover'?track.producer_id:null,creator,share.singer,share.creator,share.platform,giftMonth(at),at,selected?.id??null,selected?.name??null,requestId),
+   query(env,'INSERT INTO gifts(id,sender_id,track_id,gold,net_mw,singer_profile_id,creator_profile_id,singer_mw,creator_mw,platform_mw,month,created,gift_type,gift_name,request_id,quantity) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+    gid,user.id,track.id,gold,net,track.kind==='cover'?track.producer_id:null,creator,share.singer,share.creator,share.platform,giftMonth(at),at,selected?.id??null,selected?.name??null,requestId,quantity),
    ...spent.map(l=>query(env,'INSERT INTO gift_lots(gift_id,purchase_id,gold,net_mw) VALUES(?,?,?,?)',gid,l.purchase_id,l.gold,l.net_mw)),
   ]);
  }catch(e){if(/constraint/i.test(String(e?.message))){const duplicate=await replay();if(duplicate)return duplicate;}if(/CHECK constraint/i.test(String(e?.message)))fail(409,'골드 잔액이 바뀌었어요. 다시 시도해주세요.');throw e;}
- return json({gift:{id:gid,gold,type:selected?.id??null,name:selected?.name??null},balance:await goldBalance(env,user.id)},201);
+ return json({gift:{id:gid,gold,type:selected?.id??null,name:selected?.name??null,quantity},balance:await goldBalance(env,user.id)},201);
 }

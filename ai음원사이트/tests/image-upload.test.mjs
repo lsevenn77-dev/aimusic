@@ -21,3 +21,18 @@ test('unsupported encoder fallback and oversized images fail explicitly without 
  const huge=encoder({width:10000,height:10000});await assert.rejects(huge.convert(file),/너무 커요/);assert.equal(huge.stats().closed,1);
  const small=encoder({width:240,height:120});await small.convert(file);assert.deepEqual(small.stats().drawn,[240,120]);
 });
+test('album artwork can opt into a correctly labeled PNG fallback without weakening strict uploads',async()=>{
+ const e=encoder({type:'image/png'}),file=new File(['png'],'album.jpg',{type:'image/jpeg'});
+ const a=await e.convert(file,{allowFallback:true});
+ assert.equal(a.type,'image/png');assert.equal(a.name,'album.png');
+ assert.equal(await e.convert(file,{allowFallback:true}),a);
+ await assert.rejects(e.convert(file),/WebP/);
+ assert.equal(e.stats().decoded,2);
+});
+test('gallery decoding falls back to Image when ImageBitmap fails and releases its object URL',async()=>{
+ const released=[];
+ const c=vm.createContext({Blob,File,createImageBitmap:async()=>{throw Error('unsupported');},URL:{createObjectURL:()=> 'blob:photo',revokeObjectURL:url=>released.push(url)},Image:class {naturalWidth=400;naturalHeight=300;set src(value){this.onload();}},document:{createElement:()=>({getContext:()=>({drawImage(){}}),toBlob:resolve=>resolve(new Blob(['encoded'],{type:'image/webp'}))})}});
+ vm.runInContext(readFileSync(new URL('../dist/image-upload.js',import.meta.url),'utf8'),c);
+ const result=await c.optimizeUploadImage(new File(['png'],'album.png',{type:'image/png'}));
+ assert.equal(result.type,'image/webp');assert.deepEqual(released,['blob:photo']);
+});

@@ -14,7 +14,7 @@ export function parseRange(value,size){
  if(!Number.isSafeInteger(start)||!Number.isSafeInteger(end)||start>=size||end<start)return false;
  end=Math.min(end,size-1);return {offset:start,length:end-start+1};
 }
-function imageCacheControl(req,isPublic,imageVersion){
+export function imageCacheControl(req,isPublic,imageVersion){
  if(!isPublic)return 'private, no-store';
  if(!imageVersion)return 'public, max-age=3600';
  const requestedVersion=new URL(req.url).searchParams.get('v');

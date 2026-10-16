@@ -1,0 +1,60 @@
+/* Keep profile geometry independent of a portrait photo's intrinsic height. */
+.social-profile-photo {
+  position:relative; aspect-ratio:1 / 1; height:auto; min-height:0; align-self:start;
+}
+.social-profile-photo>img:not(.player-frame-artwork) {
+  position:absolute; inset:0; display:block; width:100%; height:100%;
+  min-height:0; object-fit:cover; border-radius:50%;
+}
+
+/* A compact player retains the title, playback and an obvious restore control. */
+.player {padding-right:108px}
+.player-collapse {
+  position:absolute; right:56px; top:12px; width:44px; height:44px;
+  border-radius:50%; color:var(--aqua);
+}
+.player-collapse svg {width:20px;height:20px}
+.player.is-collapsed {
+  display:flex; gap:8px; height:52px; min-height:52px; padding:4px 56px 4px 12px;
+}
+.player.is-collapsed .now-playing {flex:1;min-width:0}
+.player.is-collapsed .now-playing .mini-cover,
+.player.is-collapsed .now-playing span,
+.player.is-collapsed .player-right,
+.player.is-collapsed .player-actions,
+.player.is-collapsed .player-lyric,
+.player.is-collapsed .timeline,
+.player.is-collapsed .player-close,
+.player.is-collapsed .player-buttons>.icon-button {display:none!important}
+.player.is-collapsed .player-center {display:block;width:auto;max-width:none}
+.player.is-collapsed .player-buttons {display:flex;margin:0}
+.player.is-collapsed .play-button {width:44px;height:44px}
+.player.is-collapsed .player-collapse {right:8px;top:4px}
+.player.is-collapsed .player-collapse svg {transform:rotate(180deg)}
+.player-collapse:focus-visible {outline:2px solid var(--aqua);outline-offset:2px}
+@media(max-width:800px) {
+  .player:not(.is-collapsed) {padding-right:56px}
+  .player:not(.is-collapsed) .player-close {top:58px;right:8px;width:44px;height:44px}
+  .player:not(.is-collapsed) .player-collapse {top:8px;right:8px}
+}
+
+/* Timestamps sit beside the bottom of each bubble, never on a separate row. */
+.dm-message {align-items:flex-end;max-width:100%}
+.dm-message-content {max-width:calc(100% - 52px)}
+.dm-message-line {display:flex;align-items:flex-end;gap:7px;max-width:100%;min-width:0}
+.dm-message.mine .dm-message-line {flex-direction:row-reverse}
+.dm-message-line .dm-bubble {min-width:0;overflow-wrap:anywhere}
+.dm-message-line .chat-message-meta {
+  display:flex;flex-direction:column;flex-shrink:0;align-items:flex-start;
+  gap:2px;padding-bottom:3px;font-size:10px;white-space:nowrap;
+}
+.dm-message.mine .chat-message-meta {align-items:flex-end}
+.dm-thread-actions>.icon-button {min-width:44px;min-height:44px;flex-shrink:0}
+@media(max-width:480px) {
+  .conversation-row {gap:8px}
+  .conversation-row>.dm-mute {display:none}
+}
+/* Time data remains available for seeking and automatic lyric synchronization. */
+.lyrics-panel .lyric-line-time {display:none}
+.cover-browse-links {display:flex;gap:10px;margin-bottom:22px}
+.cover-browse-links>a {flex:1;min-height:44px;justify-content:center}

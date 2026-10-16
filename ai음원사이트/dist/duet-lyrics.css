@@ -1,0 +1,52 @@
+/* The same singer-relative palette in the lyric stage and part picker. */
+#sing.web-studio,.duet-editor{--duet-mine:#f5a0df;--duet-both:#7cf2df;--duet-partner:#b2c0ea}
+.duet-color-key{display:flex;align-items:center;justify-content:center;gap:clamp(16px,5vw,50px);padding:15px 0 18px;border-bottom:1px solid #9cadd844;flex-shrink:0}
+.duet-color-key span{display:flex;align-items:center;gap:9px;white-space:nowrap;font-size:.85rem;color:#e1e5f0}
+.duet-color-key i{width:13px;height:13px;border-radius:50%;background:var(--duet-mine);box-shadow:0 0 14px #f5a0df20}
+.duet-color-key [data-role=both] i{background:var(--duet-both)}
+.duet-color-key [data-role=partner] i{background:var(--duet-partner)}
+#sing.web-studio .sing-wheel button{--line-color:#b2bfd3;border-radius:12px;transition:background .18s,color .18s;gap:0!important}
+#sing.web-studio .sing-wheel button[data-part-role=mine],.duet-edit-line[data-part-role=mine]{--line-color:var(--duet-mine)}
+#sing.web-studio .sing-wheel button[data-part-role=both],.duet-edit-line[data-part-role=both]{--line-color:var(--duet-both)}
+#sing.web-studio .sing-wheel button[data-part-role=partner],.duet-edit-line[data-part-role=partner]{--line-color:var(--duet-partner)}
+#sing.web-studio .sing-wheel button[data-part-role]{color:var(--line-color)!important;padding-left:14px!important}
+#sing.web-studio .sing-wheel button.current{color:var(--line-color,var(--duet-mine))!important;background:linear-gradient(105deg,#65507e55,#454b733b)!important;box-shadow:inset 0 0 0 1px #b5a0e643;text-shadow:none!important}
+#sing.web-studio .sing-wheel .sing-line-text{color:inherit;min-width:0}
+#sing.web-studio .sing-wheel button.current .sung{color:var(--line-color)!important;background:none!important;-webkit-text-fill-color:currentColor}
+#sing.web-studio .sing-wheel button.current .singing{color:var(--line-color)!important;background:linear-gradient(90deg,#fff calc(var(--p,0)*100%),var(--line-color) calc(var(--p,0)*100%))!important;background-clip:text!important;-webkit-background-clip:text!important;-webkit-text-fill-color:transparent}
+#sing.web-studio .sing-wheel .duet-line-mic{display:none!important}
+dialog.duet-editor-dialog{width:min(860px,calc(100% - 24px));padding:24px;background:radial-gradient(ellipse at top,#172839,#0b1721 75%);border:1px solid #6e7e9f55}
+.duet-editor{max-height:calc(100dvh - 78px)}
+.duet-editor h2{margin-bottom:5px}
+.duet-editor .duet-methods{margin-top:14px;background:#ffffff06}
+.duet-editor .duet-methods [aria-pressed=true]{background:#48567570}
+.duet-editor .duet-editor-help{text-align:center;color:#adbedf;margin:15px 0}
+.duet-editor .duet-editor-lines{padding:0 4px 0 0}
+.duet-editor .duet-edit-line{display:flex;align-items:center;gap:12px;padding:10px 12px;margin:0 0 8px;background:linear-gradient(110deg,#253343b0,#202b3aa0);border:1px solid #62718b44;border-radius:12px;--line-color:#bdc8db}
+.duet-editor .duet-edit-line[data-part-role=mine]{--line-color:var(--duet-mine)}
+.duet-editor .duet-edit-line[data-part-role=both]{--line-color:var(--duet-both)}
+.duet-editor .duet-edit-line[data-part-role=partner]{--line-color:var(--duet-partner)}
+.duet-editor .duet-edit-lyric{display:block;flex:1;min-width:0;text-align:center;color:var(--line-color);font-size:1.03rem;line-height:1.65}
+.duet-editor .duet-part-choices{display:flex;gap:0;margin:0;flex-shrink:0}
+.duet-editor .duet-part-choices button{--choice:var(--duet-mine);display:grid;place-items:center;min-width:44px;min-height:44px;padding:0;border:0;border-radius:50%;background:transparent!important;box-shadow:none!important}
+.duet-editor .duet-part-choices button[data-duet-part=both]{--choice:var(--duet-both)}
+.duet-editor .duet-part-choices button[data-duet-part=B]{--choice:var(--duet-partner)}
+.duet-editor .duet-part-choices i{width:22px;height:22px;border:1.5px solid var(--choice);border-radius:50%;position:relative;opacity:.75}
+.duet-editor .duet-part-choices [aria-pressed=true] i{opacity:1;box-shadow:0 0 12px color-mix(in srgb,var(--choice) 22%,transparent)}
+.duet-editor .duet-part-choices [aria-pressed=true] i:after{content:'';position:absolute;inset:3px;background:var(--choice);border-radius:50%}
+.duet-editor .duet-part-label{margin:0;font-size:.75rem;color:var(--line-color)!important;white-space:nowrap}
+.duet-editor [data-duet-note]{margin:10px 0 0;color:#aebbd3;font-size:.76rem;line-height:1.5;flex-shrink:0}
+.duet-editor .duet-editor-footer{display:flex;padding-top:12px;gap:12px}
+.duet-editor-footer button{margin:0!important;flex:1;min-height:50px;display:flex;justify-content:center;align-items:center;gap:8px;border-radius:12px}
+.duet-editor-footer [data-duet-reset]{background:#263345;color:#b6c6e8;border:1px solid #56668166}
+.duet-editor-footer [data-duet-done]{background:linear-gradient(110deg,#59e8d9,#8ef5e7);color:#062a30;border:0;font-weight:700}
+.duet-editor-footer svg{width:20px;height:20px}
+@media(max-width:480px){dialog.duet-editor-dialog{padding:16px!important}.duet-editor{max-height:calc(100dvh - 62px)}.duet-editor .duet-edit-line{gap:4px;padding:8px 6px}.duet-editor .duet-edit-lyric{font-size:.9rem}.duet-editor .duet-part-choices button{min-width:40px;min-height:44px}.duet-color-key{gap:24px}.duet-color-key span{font-size:.78rem}.duet-color-key i{width:12px;height:12px}.duet-editor h2{font-size:1.1rem}.duet-editor .duet-methods button{font-size:.78rem}}
+@media(prefers-reduced-motion:reduce){#sing.web-studio .sing-wheel button{transition:none}}
+
+@media(max-width:600px){#sing.web-studio .duet-guide-card{flex-wrap:nowrap;padding:8px 10px;margin-bottom:0}#sing.web-studio .duet-guide-card p{display:none}#sing.web-studio .duet-guide-card button{margin-left:0;min-height:40px}#sing.web-studio .duet-guide-card strong{white-space:nowrap}}
+
+/* Solo lyrics use one neutral reading state, independent of word progress. */
+#sing.web-studio .sing-wheel button:not([data-part-role]){color:#939eaf!important}
+#sing.web-studio .sing-wheel button.current:not([data-part-role]){color:#fff!important}
+#sing.web-studio .sing-wheel button:not([data-part-role]) [data-word]{color:inherit!important;background:none!important;-webkit-text-fill-color:currentColor}

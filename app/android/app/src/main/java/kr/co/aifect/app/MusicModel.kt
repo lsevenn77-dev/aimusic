@@ -103,6 +103,9 @@ class MusicModel(app:Application):AndroidViewModel(app) {
  var showMessages by mutableStateOf(false)
  var messagePeer by mutableStateOf<String?>(null)
  var messageCrew by mutableStateOf<String?>(null)
+ var showNotifications by mutableStateOf(false)
+ var unreadActivities by mutableIntStateOf(0)
+ suspend fun refreshActivitySummary(){val account=user?.optString("id")?:return;val data=api.call("/api/notifications/summary",fresh=true);if(user?.optString("id")==account)unreadActivities=data.optInt("unread")}
  var unreadMessages by mutableIntStateOf(0)
  var inboxCrew by mutableStateOf<JSONObject?>(null)
  suspend fun refreshMessageSummary(){val account=user?.optString("id")?:return;val d=api.call("/api/dm/summary");if(user?.optString("id")==account){unreadMessages=d.optInt("unread");inboxCrew=d.optJSONObject("crew")}}
@@ -235,7 +238,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   selectedList=null;listSongs=emptyList();listLoading=false;playlistTarget=null;collection=null;collectionBusy=false;collectionError=null
   detail=null;comments=emptyList();detailBusy=false;profile=null;profileSongs=emptyList();profileCovers=emptyList();profileFollowers=0
   profileCache.clear();retryProfileLoad=null;profileLoading=false;profileError=null;messageSourceProfile=null
-  showDiamonds=false;showMessages=false;messagePeer=null;messageCrew=null;unreadMessages=0;inboxCrew=null;showProfileEdit=false;showAccountSettings=false;showRecordingDrafts=false;showRewards=false;showGifts=false;giftTarget=null;giftPerson=null
+  showNotifications=false;unreadActivities=0;showDiamonds=false;showMessages=false;messagePeer=null;messageCrew=null;unreadMessages=0;inboxCrew=null;showProfileEdit=false;showAccountSettings=false;showRecordingDrafts=false;showRewards=false;showGifts=false;giftTarget=null;giftPerson=null
   showAccount=false;accountError=null;nicknameCheck=null;studioBusy=false;studioError=null
   feed=emptyList();feedFilter="전체";feedLoading=false;feedError=null;displayedFeedPath=null
   feedRequest++;feedReadScope=null;communityCrewMode=false;communityCrewTarget=null;crewBrowsing=false;lastKnownCrewId=null

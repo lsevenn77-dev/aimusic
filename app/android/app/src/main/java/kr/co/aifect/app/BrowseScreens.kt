@@ -27,6 +27,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.json.JSONObject
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
 import java.net.URLEncoder
 
 private val Coral=Color(0xFFFFB29C)
@@ -76,7 +78,7 @@ private val PagePadding=PaddingValues(start=18.dp,end=18.dp,bottom=28.dp)
     }
     if(m.singable.isNotEmpty())item{
      Section("이번엔 내 목소리로","듣던 노래, 직접 불러볼까요?","모든 곡"){m.selectTab(2)}
-     SingReadyCards(m.singable.take(6),m,sing)
+     HomeSingingDiscovery(m.singable.take(6),m,sing)
     }
     if(m.recentCovers.isNotEmpty())item{
      Section("같은 노래, 다른 목소리","커버를 듣고, 마음에 드는 목소리에 반응해요","더보기"){m.browseCollection("커버곡 둘러보기","/api/community?kind=cover")}
@@ -263,10 +265,11 @@ private val PagePadding=PaddingValues(start=18.dp,end=18.dp,bottom=28.dp)
   }
  }
 }
-@Composable private fun PlaylistArt(p:JSONObject,modifier:Modifier=Modifier){
+@Composable internal fun PlaylistArt(p:JSONObject,modifier:Modifier=Modifier){
  val covers=p.optJSONArray("covers").objects().take(4)
  Box(modifier.clip(RoundedCornerShape(16.dp)).background(Brush.linearGradient(listOf(Color(0xFF403449),Color(0xFF20363A))))){
-  if(covers.isEmpty())Icon(Icons.AutoMirrored.Rounded.QueueMusic,null,tint=Pink.copy(alpha=.7f),modifier=Modifier.align(Alignment.Center).fillMaxSize(.45f))
+  if(p.optString("image_version").isNotBlank())PlaylistCoverImage(p,Modifier.fillMaxSize())
+  else if(covers.isEmpty())Icon(Icons.AutoMirrored.Rounded.QueueMusic,null,tint=Pink.copy(alpha=.7f),modifier=Modifier.align(Alignment.Center).fillMaxSize(.45f))
   else if(covers.size<4)Artwork(Song(covers.first()),Modifier.fillMaxSize())
   else Column{covers.chunked(2).forEach{row->Row(Modifier.weight(1f)){row.forEach{Artwork(Song(it),Modifier.weight(1f).fillMaxHeight())}}}}
  }
@@ -292,9 +295,11 @@ private val PagePadding=PaddingValues(start=18.dp,end=18.dp,bottom=28.dp)
  Column(verticalArrangement=Arrangement.spacedBy(12.dp)){
   Genres.chunked(2).forEachIndexed{row,items->Row(horizontalArrangement=Arrangement.spacedBy(12.dp)){
    items.forEachIndexed{index,genre->Surface(onClick={m.browseCollection(genre,"/api/catalog?section=tracks&genre="+URLEncoder.encode(genre,"UTF-8"),"장르별 음악 탐색")},modifier=Modifier.weight(1f),shape=RoundedCornerShape(16.dp),color=colors[(row*2+index)%colors.size]){
-    Box(Modifier.heightIn(min=96.dp).fillMaxWidth().background(Brush.linearGradient(listOf(colors[(row*2+index)%colors.size].copy(alpha=.65f),Panel))).padding(16.dp)){
+    Box(Modifier.heightIn(min=96.dp).fillMaxWidth()){
+     GenreArtwork[genre]?.let{AsyncImage(Endpoint.url(it),null,Modifier.matchParentSize(),contentScale=ContentScale.Crop)}
+     Box(Modifier.matchParentSize().background(Brush.horizontalGradient(listOf(Ink.copy(alpha=.88f),Ink.copy(alpha=.20f)))))
      Icon(Icons.Rounded.Album,null,tint=Color.White.copy(alpha=.13f),modifier=Modifier.align(Alignment.BottomEnd).size(64.dp).rotate(20f))
-     Text(genre,fontSize=18.sp,fontWeight=FontWeight.Bold,color=Color.White)
+     Text(genre,fontSize=18.sp,fontWeight=FontWeight.Bold,color=Color.White,modifier=Modifier.padding(16.dp))
     }
    }}
    if(items.size==1)Spacer(Modifier.weight(1f))

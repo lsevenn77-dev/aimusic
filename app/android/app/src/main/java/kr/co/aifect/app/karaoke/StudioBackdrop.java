@@ -10,7 +10,7 @@ final class StudioBackdrop extends Drawable {
  StudioBackdrop(float density){this.density=density;}
  @Override public void draw(Canvas canvas){
   Rect b=getBounds();float cx=b.exactCenterX(),cy=b.top+78*density,r=32*density;
-  paint.setStyle(Paint.Style.FILL);
+  paint.setStyle(Paint.Style.FILL);paint.setColor(Color.WHITE);
   paint.setShader(new LinearGradient(0,b.top,b.right,b.bottom,new int[]{0xff10151e,0xff171723,0xff10131b},null,Shader.TileMode.CLAMP));canvas.drawRect(b,paint);
   paint.setShader(new RadialGradient(cx,cy,180*density,new int[]{0x183f8e95,0x007d508b},null,Shader.TileMode.CLAMP));canvas.drawRect(b,paint);paint.setShader(null);
   paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(density);paint.setColor(0x248eabc4);

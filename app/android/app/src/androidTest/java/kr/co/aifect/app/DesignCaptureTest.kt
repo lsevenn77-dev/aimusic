@@ -36,6 +36,8 @@ class DesignCaptureTest {
  private lateinit var model:MusicModel
  private val workers=Executors.newCachedThreadPool()
  private val responses=ConcurrentHashMap<String,JSONObject>()
+ private val requestBodies=ConcurrentHashMap<String,String>()
+ private val requestUrls=java.util.concurrent.CopyOnWriteArrayList<String>()
  private val heldResponses=ConcurrentHashMap<String,CountDownLatch>()
  private val heldRequests=ConcurrentHashMap<String,CountDownLatch>()
  private val now=System.currentTimeMillis()/1000
@@ -86,8 +88,13 @@ class DesignCaptureTest {
   }
   responses["/api/producers/design-peer/gifts"]=payload("ranking" to rank)
   responses["/api/producers/design-own/gifts"]=payload("ranking" to rank)
-  val gifts=JSONArray();listOf("balloon" to "풍선","rose" to "장미","heart" to "하트","coffee" to "커피","note" to "음표","microphone" to "마이크","crown" to "왕관").forEachIndexed{i,(id,name)->gifts.put(payload("id" to id,"name" to name,"gold" to (i+1)*10,"image" to "/assets/gifts/$id.webp"))}
+  val gifts=JSONArray();listOf(Triple("balloon","풍선",5),Triple("clover","행운",30),Triple("heart","하트",50),Triple("cheer-star","응원별",100),Triple("rose","장미",200),Triple("coffee","커피",300),Triple("microphone","마이크",500),Triple("crown","왕관",777),Triple("superstar","스타",1000),Triple("moon","달빛",2000)).forEach{(id,name,cost)->gifts.put(payload("id" to id,"name" to name,"gold" to cost,"image" to "/assets/gifts/$id.webp"))}
   responses["/api/gold"]=payload("balance" to 500,"free" to payload("balance" to 8,"gift" to payload("id" to "star","name" to "응원별","image" to "/assets/gifts/star.webp"),"rewards" to arr(payload("kind" to "checkin","amount" to 3,"eligible" to true,"claimed" to false),payload("kind" to "listen","amount" to 1,"progress" to 2,"target" to 5,"eligible" to false,"claimed" to false))),"gifts" to gifts,"packs" to JSONArray())
+  val silver=JSONArray();listOf(Triple("letter","손편지",2),Triple("sticker","반짝 스티커",5),Triple("bell","은종",10),Triple("ribbon","리본 배지",20),Triple("bouquet","작은 부케",50),Triple("photo-frame","포토액자",100),Triple("lantern","응원 등불",200),Triple("trophy","미니 트로피",500),Triple("music-box","달빛 오르골",1000)).forEach{(id,name,cost)->silver.put(payload("id" to "silver-$id","name" to name,"silver" to cost,"free" to true,"image" to "/assets/gifts/silver-$id.webp"))}
+  responses.getValue("/api/gold").put("silver_gifts",silver).getJSONObject("free").put("balance",80).put("gift",payload("id" to "star","name" to "실버","image" to "/assets/gifts/silver-coin-v1.webp"))
+  responses["/api/gold/balance"]=payload("balance" to 500,"silver_balance" to 80)
+  responses["/api/notifications/summary"]=payload("unread" to 1)
+  responses["/api/notifications"]=payload("unread" to 1,"next" to null,"items" to arr(payload("id" to "notice-1","actor_name" to "하루","actor_profile_id" to "design-peer","actor_image_version" to "sample","created" to now,"kind" to "gift","gift_name" to "손편지","quantity" to 5,"amount" to 10,"currency" to "silver","source_title" to "밤의 산책","target" to "design-cover","available" to 1,"read_at" to 0)))
   responses["/api/crews"]=payload("mine" to "design-crew","crews" to arr(crew,payload("id" to "other-crew","name" to "새벽 라디오","description" to "감성적인 목소리가 모이는 곳","level" to 2,"members" to 8,"capacity" to 20,"recruiting" to 1)),"tracks" to arr(cover,song))
   responses["/api/crews/design-crew"]=payload("crew" to crew,"membership" to member,"members" to arr(JSONObject(own.toString()).put("role","member"),JSONObject(peer.toString()).put("role","owner")),"tracks" to arr(cover,song),"rules" to payload("publishedTrack" to 1,"receivedGold" to 1,"dailyChat" to 10,"levels" to arr(payload("level" to 1,"xp" to 0),payload("level" to 3,"xp" to 1000),payload("level" to 4,"xp" to 2000))))
   responses["/api/crews/design-crew/settings"]=payload("muted" to false)
@@ -100,7 +107,7 @@ class DesignCaptureTest {
   val audio=ByteBuffer.allocate(44+48000*2*180).order(ByteOrder.LITTLE_ENDIAN).apply{put("RIFF".toByteArray());putInt(capacity()-8);put("WAVEfmt ".toByteArray());putInt(16);putShort(1);putShort(1);putInt(48000);putInt(96000);putShort(2);putShort(16);put("data".toByteArray());putInt(capacity()-44)}.array()
   server=ServerSocket(0,20,InetAddress.getByName("127.0.0.1"))
   workers.execute{while(!server.isClosed)try{val socket=server.accept();workers.execute{try{socket.use{c->
-   val input=c.getInputStream().bufferedReader();val request=input.readLine()?.split(" ")?:return@use;val path=request[1].substringBefore('?');while(!input.readLine().isNullOrEmpty()){}
+   val input=c.getInputStream().bufferedReader();val request=input.readLine()?.split(" ")?:return@use;val path=request[1].substringBefore('?');var length=0;while(true){val header=input.readLine().orEmpty();if(header.isEmpty())break;if(header.startsWith("Content-Length:",true))length=header.substringAfter(":").trim().toInt()};if(length>0){val body=CharArray(length);var read=0;while(read<length){val n=input.read(body,read,length-read);if(n<0)break;read+=n};requestBodies[path]=String(body,0,read)};requestUrls.add(request[1])
    heldResponses[path]?.let{gate->heldRequests[path]?.countDown();gate.await(20,TimeUnit.SECONDS)}
    val out=c.getOutputStream()
    if(path=="/api/chat/events"){
@@ -122,7 +129,7 @@ class DesignCaptureTest {
  private fun ready(tag:String){ui.waitUntil(15000){ui.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty()}}
  private fun text(value:String){ui.waitUntil(15000){ui.onAllNodesWithText(value).fetchSemanticsNodes().isNotEmpty()}}
  private fun act(block:(MusicModel)->Unit){screen.onActivity{block(model)};ui.waitForIdle()}
- private fun capture(name:String){ui.waitForIdle();instrumentation.waitForIdleSync();Thread.sleep(850);val image=instrumentation.uiAutomation.takeScreenshot();val dir=File(context.getExternalFilesDir(null),"design-2535");dir.mkdirs();FileOutputStream(File(dir,name+".png")).use{image.compress(Bitmap.CompressFormat.PNG,100,it)};image.recycle()}
+ private fun capture(name:String){ui.waitForIdle();instrumentation.waitForIdleSync();Thread.sleep(850);val image=instrumentation.uiAutomation.takeScreenshot();val dir=File(context.getExternalFilesDir(null),"design-2547");dir.mkdirs();FileOutputStream(File(dir,name+".png")).use{image.compress(Bitmap.CompressFormat.PNG,100,it)};image.recycle()}
 
  @Test fun captureMainScreens(){
   capture("01-home")
@@ -325,6 +332,43 @@ class DesignCaptureTest {
   capture("31-song-participation")
   assertEquals(PackageManager.PERMISSION_DENIED,ContextCompat.checkSelfPermission(context,Manifest.permission.RECORD_AUDIO))
  }
+ @Test fun webParityGiftQuantityAndActivityHistory(){
+  responses["/api/producers/design-peer/gifts"]=payload("free_balance" to 70,"ranking" to rank)
+  act{it.giftPerson=peer;it.giftTarget=null;it.showGifts=true};text("하루(밤산책)님에게 선물")
+  ui.onNodeWithTag("gift-list").performScrollToNode(hasText("손편지"));capture("40-silver-gifts")
+  ui.onNodeWithTag("gift-list").performScrollToNode(hasTestTag("gift-quantity"))
+  ui.onNodeWithText("5",substring=false).performClick()
+  ui.onNodeWithText("손편지 5개 · 10 S 보내기").performScrollTo().performClick()
+  text("손편지 선물하기");capture("41-gift-quantity")
+  ui.onNodeWithText("10 S 보내기",substring=false).performClick()
+  ui.waitUntil(10000){requestBodies["/api/producers/design-peer/gifts"]!=null&&ui.onAllNodesWithText("손편지 선물하기").fetchSemanticsNodes().isEmpty()}
+  ui.onNodeWithTag("gift-list").performScrollToNode(hasText("손편지 5개를 보냈어요"))
+  val body=JSONObject(requestBodies.getValue("/api/producers/design-peer/gifts"))
+  assertEquals("silver-letter",body.getString("gift_type"));assertEquals(5,body.getInt("quantity"));assertEquals(10,body.getInt("silver"));assertTrue(body.getString("request_id").isNotBlank())
+  act{it.showGifts=false;it.showNotifications=true};ready("activity-list");capture("42-activity-loading")
+  ui.onNodeWithTag("activity-list").performScrollToNode(hasText("손편지 5개를 보냈어요."))
+  ui.onNodeWithText("10 S").assertExists();capture("42-activity-history")
+  ui.onNodeWithText("읽음",substring=false).performClick()
+  ui.waitUntil(10000){requestBodies["/api/notifications/read"]!=null}
+  assertEquals("notice-1",JSONObject(requestBodies.getValue("/api/notifications/read")).getJSONArray("ids").getString(0))
+  act{it.showNotifications=false;it.openSong(Song(song))};text("노래 듣기")
+  ui.onNodeWithTag("album-cover-edit").assertExists()
+  ui.onNodeWithText("커버곡",substring=false).performScrollTo()
+  ui.onNodeWithText("랭킹",substring=false).performClick()
+  ui.waitUntil(10000){requestUrls.any{it.contains("/covers?mode=all&sort=plays")}}
+  capture("43-cover-ranking")
+  act{it.detail=null;it.openList("design-list")};ready("playlist-cover-edit");capture("44-playlist-photo")
+ }
+ @Test fun compactPlayerShowsPlaybackControlsAndOneLyric(){
+  act{it.play(Song(song),listOf(Song(song),Song(second)))}
+  ready("mini-player-lyrics");text("오늘의 마음을 이 노래에 담아요")
+  ui.onNodeWithContentDescription("랜덤 재생").performClick();ui.waitUntil(10000){model.shuffle}
+  ui.onNodeWithContentDescription("반복 재생").performClick();ui.waitUntil(10000){model.repeat==androidx.media3.common.Player.REPEAT_MODE_ALL}
+  capture("45-mini-player")
+  ui.onNodeWithContentDescription("재생목록",useUnmergedTree=true).performClick();text("재생목록");capture("46-player-queue");Espresso.pressBack()
+  ui.onNodeWithContentDescription("재생바 내리기").performClick();ui.onNodeWithTag("mini-player-lyrics").assertDoesNotExist()
+  ui.onNodeWithContentDescription("재생바 펼치기").performClick();ui.onNodeWithTag("mini-player-lyrics").assertExists()
+ }
  @Test fun captureProfileAndGiftScreens(){
   ui.onNodeWithTag("main-tab-6").performClick();ready("my-profile-cover-image");ui.onNodeWithTag("my-logout").assertIsDisplayed();capture("19-my-profile")
   ui.onNodeWithTag("my-music-page").performScrollToNode(hasTestTag("my-music-layout-grid"));capture("20-my-music")
@@ -334,7 +378,7 @@ class DesignCaptureTest {
   ui.onNodeWithTag("profile-scroll").performScrollToNode(hasText("갤러리"));ui.onNodeWithText("갤러리",useUnmergedTree=true).performClick();ready("artist-photo-gallery");ui.onNodeWithTag("profile-scroll").performScrollToNode(hasTestTag("artist-photo-gallery"));capture("24-artist-gallery")
   ui.onAllNodesWithContentDescription("NOVA 갤러리 사진 크게 보기").onFirst().performClick();text("NOVA");capture("25-gallery-photo");Espresso.pressBack()
   act{it.dismissProfile();it.openGifts()};text("내 선물함");capture("26-wallet")
-  act{it.showGifts=false;it.showRewards=true};text("오늘의 응원별");capture("27-rewards")
+  act{it.showGifts=false;it.showRewards=true};text("오늘의 실버");capture("27-rewards")
   act{it.showRewards=false;it.showAccount=true};ready("account-actions");capture("28-account-menu")
   act{it.showAccount=false;it.openAccountSettings()};ready("account-settings");capture("29-account-settings")
  }

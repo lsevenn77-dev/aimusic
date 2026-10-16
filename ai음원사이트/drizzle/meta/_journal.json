@@ -295,6 +295,55 @@
       "when": 1791725927652,
       "tag": "0041_cuddly_blindfold",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "6",
+      "when": 1791732164829,
+      "tag": "0042_goofy_risque",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "6",
+      "when": 1791868733359,
+      "tag": "0043_ambiguous_leader",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "6",
+      "when": 1792050710347,
+      "tag": "0044_fluffy_rogue",
+      "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "6",
+      "when": 1792056066452,
+      "tag": "0045_lowly_rocket_racer",
+      "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "6",
+      "when": 1792063941752,
+      "tag": "0046_overconfident_falcon",
+      "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "6",
+      "when": 1792070139278,
+      "tag": "0047_silver_gifts_and_quantities",
+      "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "6",
+      "when": 1792072596290,
+      "tag": "0048_activity_notifications",
+      "breakpoints": true
     }
   ]
 }

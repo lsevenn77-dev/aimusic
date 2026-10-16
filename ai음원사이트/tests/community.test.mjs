@@ -13,6 +13,8 @@ function context(api=async()=>({tracks:[],singers:[]})){
   api:async path=>{calls.push(path);return api(path);}
  });
  vm.runInContext(source,c);
+ vm.runInContext(readFileSync(new URL('../dist/social-layouts.js',import.meta.url),'utf8'),c);
+ vm.runInContext(readFileSync(new URL('../dist/release-refinements.js',import.meta.url),'utf8'),c);
  return {c,calls,played,remembered};
 }
 function host(){return {isConnected:true,innerHTML:'',attributes:{},button:{},setAttribute(k,v){this.attributes[k]=v;},querySelector(){return this.button;}};}

@@ -7,7 +7,7 @@ export const vocalPresets=[
  {id:'studio',name:'스튜디오',description:'또렷한 목소리와 짧고 부드러운 울림'},
  {id:'hall',name:'홀',description:'넓은 공간에서 부르는 듯한 긴 울림'}
 ];
-const customValues=m=>({echo:clamp(m.echo??0,0,.65),room:clamp(m.room??0,0,1),size:clamp(m.size??.5,0,1),tone:clamp(m.tone??0,0,1),noise:Math.round(clamp(m.noise??0,0,4))});
+const customValues=m=>({echo:clamp(m.echo??0,0,.65),room:clamp(m.room??0,0,1),size:clamp(m.size??.5,0,1),tone:clamp(m.tone??0,-1,2),noise:Math.round(clamp(m.noise??0,0,4))});
 export function editVocalMix(mix,key,value){
  const next={...mix,[key]:value};if(['echo','room','size','tone'].includes(key))next.preset='custom';
  if(next.preset==='custom')next.custom=customValues(next);return next;
@@ -19,11 +19,11 @@ export function presetMix(mix,id,strength=.5){
  const a=clamp(strength,0,1),p={original:[0,0,.5,0],karaoke:[.24,.65,.55,.65],studio:[.025,.3,.15,1],hall:[.07,.9,.95,.7]}[id];
  return {...mix,preset:id,strength:a,echo:p[0]*a,room:p[1]*a,size:p[2],tone:p[3]*a,roomScaleVersion:2};
 }
-export const defaultVocalMix=()=>presetMix({offset:80,voice:1,mr:.8,noise:2},'studio',.5);
+export const defaultVocalMix=()=>presetMix({offset:80,voice:1,mr:.8,noise:2,pitchCorrection:0},'studio',.5);
 export function restoreVocalMix(mix={}){
  const m=restoreRoomMix(mix);if(m.custom)m.custom=customValues(m.custom);
  // Existing custom drafts keep their exact effect values, including noise off.
- return {...m,preset:vocalPresets.some(p=>p.id===m.preset)?m.preset:'custom',strength:clamp(m.strength??.5,0,1),tone:clamp(m.tone??0,0,1),size:clamp(m.size??.5,0,1),noise:Math.round(clamp(m.noise??0,0,4))};
+ return {...m,pitchCorrection:0,preset:vocalPresets.some(p=>p.id===m.preset)?m.preset:'custom',strength:clamp(m.strength??.5,0,1),tone:clamp(m.tone??0,-1,2),size:clamp(m.size??.5,0,1),noise:Math.round(clamp(m.noise??0,0,4))};
 }
 // RBJ Butterworth high-pass, two sections. Coefficients are precomputed off the audio path.
 class HighPass {
@@ -55,20 +55,29 @@ export class NoiseCleaner {
   return x+(filtered*this.gain*this.rumbleGain-x)*this.blend;
  }
 }
+class ToneBand {
+ constructor(rate,hz,q,db){const a=10**(db/40),w=2*Math.PI*Math.min(hz,rate*.4)/rate,c=Math.cos(w),alpha=Math.sin(w)/(2*q),a0=1+alpha/a;this.b0=(1+alpha*a)/a0;this.b1=-2*c/a0;this.b2=(1-alpha*a)/a0;this.a1=-2*c/a0;this.a2=(1-alpha/a)/a0;this.z1=0;this.z2=0;}
+ process(x){const y=this.b0*x+this.z1;this.z1=this.b1*x-this.a1*y+this.z2;this.z2=this.b2*x-this.a2*y;return y;}
+}
 export class VocalTone {
- constructor(rate){this.low=0;this.high=0;this.envelope=0;this.amount=0;this.lowC=1-Math.exp(-2*Math.PI*250/rate);this.highC=1-Math.exp(-2*Math.PI*3500/rate);this.attack=1-Math.exp(-1/(rate*.008));this.release=1-Math.exp(-1/(rate*.12));this.smooth=1-Math.exp(-1/(rate*.015));}
+ constructor(rate){
+  this.amount=0;this.smooth=1-Math.exp(-1/(rate*.025));
+  this.bright=[new ToneBand(rate,280,.7,-4),new ToneBand(rate,2600,.7,6),new ToneBand(rate,6200,.8,2)];
+  this.deep=[new ToneBand(rate,280,.7,5),new ToneBand(rate,2600,.7,-6),new ToneBand(rate,6200,.8,-3)];
+  this.extra=[new ToneBand(rate,280,.7,-2),new ToneBand(rate,2600,.7,4),new ToneBand(rate,6200,.8,2)];
+ }
  process(x,amount){
-  this.amount+=(clamp(amount,0,1)-this.amount)*this.smooth;
-  this.low+=(x-this.low)*this.lowC;this.high+=(x-this.high)*this.highC;
-  const tone=x-this.low*.22+(x-this.high)*.10,a=Math.abs(tone);
-  this.envelope+=(a-this.envelope)*(a>this.envelope?this.attack:this.release);
-  const gain=this.envelope>.18?Math.pow(.18/this.envelope,.6):1;
-  return x+(tone*gain*1.18-x)*this.amount;
+  this.amount+=(clamp(amount,-1,2)-this.amount)*this.smooth;
+  // Keep all EQ branches warm. 0 is exact bypass; 0..1 preserves existing drafts.
+  const bright=this.bright[2].process(this.bright[1].process(this.bright[0].process(x)))*.9;
+  const deep=this.deep[2].process(this.deep[1].process(this.deep[0].process(x)))*.9;
+  const extra=this.extra[2].process(this.extra[1].process(this.extra[0].process(bright)))*.85;
+  const a=this.amount;return a<0?x+(deep-x)*-a:a<=1?x+(bright-x)*a:bright+(extra-bright)*(a-1);
  }
 }
 export class VocalProcessor {
  constructor(rate,mix={}){this.noise=new NoiseCleaner(rate);this.tone=new VocalTone(rate);this.room=new RoomReverb(rate);this.echo=new Float32Array(Math.round(rate*.235));this.at=0;this.echoLevel=0;this.roomLevel=0;this.size=.5;this.ramp=1-Math.exp(-1/(rate*.015));this.update(mix);}
- update(m){this.mix={echo:clamp(m.echo??0,0,.65),room:clamp(m.room??0,0,1),size:clamp(m.size??.5,0,1),tone:clamp(m.tone??0,0,1),noise:Math.round(clamp(m.noise??0,0,4))};}
+ update(m){this.mix={echo:clamp(m.echo??0,0,.65),room:clamp(m.room??0,0,1),size:clamp(m.size??.5,0,1),tone:clamp(m.tone??0,-1,2),noise:Math.round(clamp(m.noise??0,0,4))};}
  process(input){
   const m=this.mix,dry=this.tone.process(this.noise.process(Number.isFinite(input)?clamp(input,-1,1):0,m.noise),m.tone);
   this.echoLevel+=(m.echo-this.echoLevel)*this.ramp;this.roomLevel+=(roomGain(m.room)-this.roomLevel)*this.ramp;this.size+=(m.size-this.size)*this.ramp;

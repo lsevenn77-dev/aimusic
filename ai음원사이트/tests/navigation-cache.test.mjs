@@ -11,7 +11,7 @@ const track=title=>({id:title,title,genre:'Rock',duration:30});
 function client(fetch){
  let now=1_790_000_000_000;
  class Clock extends Date {static now(){return now;}}
- const context=vm.createContext({fetch,structuredClone,URL,URLSearchParams,Map,Date:Clock,console,AifectGenres:{GENRES:[]},window:{},Audio:class{},sessionStorage:{getItem:()=>null},document:{querySelectorAll:()=>[]}});
+ const context=vm.createContext({fetch,structuredClone,URL,URLSearchParams,Map,Date:Clock,console,AifectGenres:{GENRES:[]},window:{},Audio:class{},sessionStorage:{getItem:()=>null},document:{querySelectorAll:()=>[],addEventListener(){}}});
  vm.runInContext(source('app.js'),context);
  vm.runInContext("toast=()=>{};me={id:'owner'};",context);
  return {context,run:code=>vm.runInContext(code,context),advance:ms=>{now+=ms;}};
@@ -22,13 +22,13 @@ function renderer(fetch){
  const dispatch=event=>{for(const listener of listeners.get(event.type)||[])listener(event);};
  const document={activeElement:null,addEventListener(type,listener){const list=listeners.get(type)||[];listeners.set(type,[...list,listener]);},removeEventListener(type,listener){listeners.set(type,(listeners.get(type)||[]).filter(item=>item!==listener));},querySelector:selector=>selector==='#main'?main:selector==='#reload-page'?retry:null,querySelectorAll:()=>[]};
  const retry={onclick:null};
- const main={dataset:{},fields:[],attributes:new Map(),classList:{add(){},remove(){}},addEventListener:document.addEventListener,removeEventListener:document.removeEventListener,
+ const main={dataset:{},fields:[],attributes:new Map(),classList:{add(){},remove(){},toggle(){}},addEventListener:document.addEventListener,removeEventListener:document.removeEventListener,
   setAttribute(name,value){this.attributes.set(name,value);},getAttribute(name){return this.attributes.get(name);},removeAttribute(name){this.attributes.delete(name);},contains(node){return node===this||this.fields.includes(node);},
   querySelectorAll(selector){return /input|textarea|select/.test(selector)?this.fields:[];},querySelector(selector){return this.querySelectorAll(selector)[0]||null;},matches(selector){return selector===':focus-within'&&this.contains(document.activeElement);},focus(){document.activeElement=this;},scrollTop:0,
   get innerHTML(){return this.html||'';},set innerHTML(html){this.html=html;writes.push(html);this.fields=[];for(const match of html.matchAll(/<input\b[^>]*name="([^"]*)"[^>]*value="([^"]*)"[^>]*>/g)){const input={tagName:'INPUT',nodeName:'INPUT',name:match[1],value:match[2],type:'text',checked:false,isContentEditable:false,dataset:{},focus(){document.activeElement=this;},matches:selector=>/input|textarea|select|contenteditable/i.test(selector),closest:()=>main,dispatchEvent:event=>{event.target=input;dispatch(event);return true;}};this.fields.push(input);}}
  };
  const window={scrollX:0,scrollY:0,addEventListener:document.addEventListener,removeEventListener:document.removeEventListener,scrollTo(options,y){const top=typeof options==='number'?y:options.top;this.scrollY=top||0;scrolls.push(top||0);},dispatchEvent:dispatch};
- Object.assign(c.context,{document,window,location:{hash:'#history'},clearInterval(){},setTimeout,clearTimeout,requestAnimationFrame:callback=>callback(),sing:null,socialTimer:null,socialCleanup:null,icon:()=>'',setMobileMenu(){},cleanupLyricsEditor(){},cleanupSing(){},updateBrowseNavigation(){},playerView:async()=>null,improvementsView:async()=>null,browseView:async()=>null,explorerView:async()=>null,bindForms(){},bindGiftClaims(){},bindExplorer(){},bindBrowse(){},bindImprovements(){},listenNav:()=>'',libraryProfileHTML:async()=>''});
+ Object.assign(c.context,{document,window,location:{hash:'#history'},clearInterval(){},setTimeout,clearTimeout,requestAnimationFrame:callback=>callback(),sing:null,socialTimer:null,socialCleanup:null,icon:()=>'',setMobileMenu(){},cleanupLyricsEditor(){},cleanupSing(){},updateBrowseNavigation(){},notificationsView:async()=>null,bindNotifications(){},playerView:async()=>null,improvementsView:async()=>null,browseView:async()=>null,explorerView:async()=>null,bindForms(){},bindGiftClaims(){},bindExplorer(){},bindBrowse(){},bindImprovements(){},listenNav:()=>'',libraryProfileHTML:async()=>''});
  c.run("list=tracks=>tracks.map(track=>'<article>'+esc(track.title)+'</article>').join('');");
  vm.runInContext(source('views.js'),c.context);
  return {...c,main,document,window,writes,scrolls,navigate(route){c.context.location.hash='#'+route;return c.run('render()');},input(value){const field=main.fields[0];assert.ok(field,'the route must contain an editable control');field.focus();field.value=value;field.dispatchEvent({type:'input'});return field;},scroll(top){window.scrollY=top;window.dispatchEvent({type:'scroll'});}};
@@ -90,7 +90,8 @@ test('a mutation finishing during navigation retries the current route instead o
 
 test('community tabs paint before account initialization and cached API feeds warm first visits',{timeout:3000},async()=>{
  const held=deferred();const c=renderer(async()=>held.promise);
- Object.assign(c.context,{coverCollectionHTML:tracks=>tracks.map(t=>t.title).join(','),communityFeed:tracks=>tracks.map(t=>t.title).join(','),musicIsOpenDuet:()=>false});
+ Object.assign(c.context,{coverCollectionHTML:tracks=>tracks.map(t=>t.title).join(','),communityFeed:tracks=>tracks.map(t=>t.title).join(','),communityConceptCard:t=>t.title,musicIsOpenDuet:()=>false});
+ vm.runInContext(source('social-layouts.js'),c.context);
  vm.runInContext(source('community.js'),c.context);c.run('browseView=(base,param,raw)=>base===\'community\'?communityView(base,param,raw):null;');
  const account=deferred();c.context.accountReady=account.promise;
  const opening=c.navigate('community');assert.match(c.main.innerHTML,/music-community-tabs/);assert.match(c.main.innerHTML,/#community\/crews/);

@@ -1,5 +1,5 @@
 import {one,rows,query,run,now,id,fail,json,rate} from './db.js';
-import {requireUser,appleClientSecret} from './auth.js';
+import {requireUser,appleClientSecret,viewerBlockedIds} from './auth.js';
 import {cancelSubscription} from './billing.js';
 
 const encoder=new TextEncoder();
@@ -26,6 +26,8 @@ export async function revokeAppleLogin(env,uid){
 
 export async function blockedContext(env,user){
  if(!user)return env;
+ const resolved=viewerBlockedIds(user);
+ if(resolved)return {...env,AIFECT_VIEWER_ID:user.id,AIFECT_BLOCKED:resolved};
  const blocked=await rows(env,'SELECT CASE WHEN user_id=? THEN blocked_id ELSE user_id END id FROM user_blocks WHERE user_id=? OR blocked_id=?',user.id,user.id,user.id);
  return {...env,AIFECT_VIEWER_ID:user.id,AIFECT_BLOCKED:blocked.map(x=>x.id)};
 }
@@ -34,8 +36,9 @@ export function assertUnblocked(env,uid){if(env.AIFECT_BLOCKED?.includes(uid))fa
 export async function filterBlockedResponse(env,response){
  if(!env.AIFECT_BLOCKED?.length||!response.ok||!response.headers.get('content-type')?.includes('application/json'))return response;
  const ids=env.AIFECT_BLOCKED,marks=ids.map(()=>'?').join(',');
- const profiles=await rows(env,`SELECT id FROM producers WHERE user_id IN (${marks})`,...ids);
- const artists=await rows(env,`SELECT a.id FROM artists a JOIN producers p ON p.id=a.producer_id WHERE p.user_id IN (${marks})`,...ids);
+ const [profiles,artists]=await Promise.all([
+  rows(env,`SELECT id FROM producers WHERE user_id IN (${marks})`,...ids),
+  rows(env,`SELECT a.id FROM artists a JOIN producers p ON p.id=a.producer_id WHERE p.user_id IN (${marks})`,...ids)]);
  const all=new Set([...ids,...profiles.map(p=>p.id),...artists.map(a=>a.id)]);
  const hidden=o=>o&&typeof o==='object'&&['user_id','producer_id','artist_id','profile_id','target_id'].some(k=>all.has(o[k]));
  const clean=o=>Array.isArray(o)?o.filter(x=>!hidden(x)&&!(x&&all.has(x.id))).map(clean):o&&typeof o==='object'?Object.fromEntries(Object.entries(o).map(([k,v])=>[k,clean(v)])):o;
@@ -83,6 +86,7 @@ export async function deleteAccount(env,user){
  await cancelSubscription(env,user);
  const targets=await storageTargets(env,user.id),q=(sql,...args)=>query(env,sql,...args),uid=user.id;
  const writes=[];
+ writes.push(q('DELETE FROM activity_notifications WHERE recipient=?',uid),q('UPDATE activity_notifications SET actor_id=NULL WHERE actor_id=?',uid));
  for(const crew of await rows(env,'SELECT id FROM crews WHERE owner_id=?',uid)){
   const next=await one(env,'SELECT user_id FROM crew_members WHERE crew_id=? AND user_id!=? ORDER BY joined,user_id LIMIT 1',crew.id,uid);
   if(next)writes.push(q('UPDATE crews SET owner_id=? WHERE id=?',next.user_id,crew.id),q("UPDATE crew_members SET role='owner' WHERE crew_id=? AND user_id=?",crew.id,next.user_id));
@@ -95,6 +99,7 @@ export async function deleteAccount(env,user){
  writes.push(q("DELETE FROM follows WHERE (kind='producer' AND target_id IN (SELECT id FROM producers WHERE user_id=?)) OR (kind='artist' AND target_id IN (SELECT a.id FROM artists a JOIN producers p ON p.id=a.producer_id WHERE p.user_id=?))",uid,uid));
  writes.push(q('DELETE FROM crew_chat_images WHERE sender_id=?',uid));
  writes.push(q('DELETE FROM dm_settings WHERE user_id=? OR peer_id=?',uid,uid),q('DELETE FROM chat_images WHERE sender_id=? OR recipient_id=?',uid,uid));
+ writes.push(q('DELETE FROM profile_photos WHERE producer_id IN (SELECT id FROM producers WHERE user_id=?)',uid));
  // Minimal anonymous keys remain only where accounting rows require stable foreign keys.
  writes.push(q("UPDATE tracks SET status='deleted',title='삭제된 음악',genre='',tags='',description='',lyrics='',lyrics_mode='none',ai_tool='',participation='',original_key='',original_bytes=0,duration=0,has_cover=0,cover_version='',cover_type='',error=NULL,lease_token=NULL,lease_until=0,karaoke_terms='',karaoke_at=0,duet_guide='' WHERE user_id=?",uid));
  writes.push(q("UPDATE artists SET name='삭제된 아티스트',bio='',genre='',image_version='',image_type='' WHERE producer_id IN (SELECT id FROM producers WHERE user_id=?)",uid));

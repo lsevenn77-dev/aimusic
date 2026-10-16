@@ -1,3 +1,8 @@
+function bindSearchForms(){
+ for(const form of [$('#search-form'),$('#global-search')].filter(Boolean))form.onsubmit=e=>{e.preventDefault();const q=String(new FormData(form).get('q')||'').trim();if(!q){form.elements.q.focus();return;}const target='#search/'+encodeURIComponent(q);if(location.hash===target)void render();else location.hash=target;};
+}
+// The shell search must work before a route has finished loading, including home.
+bindSearchForms();
 function formError(form){return form.querySelector(':scope > .form-error')||form.querySelector('.form-error');}
 function uploadStage(form,label,value=null,state='working'){
  const panel=form.querySelector('.upload-progress');if(!panel)return;
@@ -22,7 +27,7 @@ function bindUploadForm(form,work){
 }
 function bindForms(base,param){
  bindAccountSettings();
- if($('#search-form'))$('#search-form').onsubmit=e=>{e.preventDefault();location.hash='search/'+encodeURIComponent(new FormData(e.target).get('q'));};
+ bindSearchForms();
  if($('#auth-form')){
   const form=$('#auth-form');$('#auth-switch').onclick=()=>{const signup=form.dataset.mode!=='register';form.dataset.mode=signup?'register':'login';$('#signup-name').hidden=!signup;form.elements.name.required=signup;form.elements.password.autocomplete=signup?'new-password':'current-password';$('#auth-title').textContent=signup?'무료 회원가입':'이메일로 로그인';$('#auth-submit').textContent=signup?'가입하고 음악 듣기':'로그인';$('#auth-switch').textContent=signup?'이미 회원이신가요? 로그인':'처음 오셨나요? 무료 회원가입';};
   form.onsubmit=busyForm(form,async fd=>{const d=await api('/api/auth/'+form.dataset.mode,'POST',Object.fromEntries(fd));me=d.user;await refreshAuthState();await refreshLibrary();updateAccount();toast('반가워요! 이제 전체곡을 들을 수 있습니다.');try{await resumeAfterLogin();}catch(e){toast(e.message);}if(location.hash===returnRoute)await render();else location.hash=returnRoute;});
@@ -97,7 +102,7 @@ function deleteTrackDialog(id,title,kind){
  dialog(`<h2>이 곡을 삭제할까요?</h2><p class="delete-track-title">${esc(title)}</p><p>공개 목록과 내 스튜디오에서 삭제되며, 다시 공개할 수 없어요.${kind==='original'?' 이 곡의 노래방과 연결된 커버곡도 다른 이용자가 재생할 수 없게 됩니다.':''}</p><p class="field-help">이미 받은 선물과 정산 내역은 유지돼요.</p><form id="delete-track-form"><div class="inline-actions"><button type="button" class="small-button" data-close-dialog>취소</button><button type="submit" class="primary-button danger-button">곡 삭제</button></div><p class="form-error" role="alert"></p></form>`);
  const form=$('#delete-track-form');form.onsubmit=busyForm(form,async()=>{await uploadRequest('/api/uploads/'+id,'DELETE');if(current?.id===id||current?.original_id===id)closePlayer();queue=queue.filter(tid=>tid!==id&&trackMap.get(tid)?.original_id!==id);trackMap.delete(id);saveQueue();$('#dialog').close();toast('곡이 삭제됐어요.');await refreshLibrary();await render();});
 }
-async function uploadFile(url,file,onprogress=()=>{}){file=await optimizeUploadImage(file);invalidateReads();try{return await new Promise((resolve,reject)=>{
+async function uploadFile(url,file,onprogress=()=>{},imageOptions){file=await optimizeUploadImage(file,imageOptions);invalidateReads();try{return await new Promise((resolve,reject)=>{
  const xhr=new XMLHttpRequest();let idle,stalled=false;const heartbeat=()=>{clearTimeout(idle);idle=setTimeout(()=>{stalled=true;xhr.abort();},120000);};
  xhr.open('PUT',url);xhr.timeout=15*60*1000;xhr.setRequestHeader('Content-Type',file.type||'application/octet-stream');
  xhr.upload.onprogress=e=>{heartbeat();if(e.lengthComputable)onprogress(e.loaded/e.total*100);};xhr.onloadend=()=>clearTimeout(idle);
@@ -107,7 +112,7 @@ async function uploadFile(url,file,onprogress=()=>{}){file=await optimizeUploadI
  xhr.onabort=()=>reject(new Error(stalled?'파일 전송이 멈췄어요. 선택한 파일은 유지되어 있으니 연결 상태를 확인하고 다시 시도해주세요.':'파일 전송이 취소됐어요.'));
  heartbeat();xhr.send(file);
 });}finally{invalidateReads();}}
-async function playlistDialog(existing=null,initialTrack=null){if(!me)return askLogin();await refreshLibrary();if(!existing&&!canCreatePlaylist())return;if(existing?.locked)return selectActivePlaylists();dialog(`<h2>${existing?'플레이리스트 설정':'새 플레이리스트'}</h2><form id="playlist-form">${formField('이름','name','text',existing?.name||'','required maxlength="80"')}<label class="form-field">소개<textarea name="description" maxlength="600" placeholder="어떤 순간에 들으면 좋을까요?">${esc(existing?.description||'')}</textarea></label><label class="checkbox-line"><input name="is_public" type="checkbox" ${existing?.is_public?'checked':''}> 링크로 누구나 볼 수 있게 공개</label><button class="primary-button">저장</button><p class="form-error" role="alert"></p></form>`);const form=$('#playlist-form');form.onsubmit=busyForm(form,async fd=>{const d=await api(existing?`/api/playlists/${existing.id}`:'/api/playlists',existing?'PATCH':'POST',{name:fd.get('name'),description:fd.get('description'),is_public:fd.has('is_public'),...(!existing&&initialTrack?{track_ids:[initialTrack]}:{})});$('#dialog').close();await refreshLibrary();location.hash='playlist/'+(existing?.id||d.id);await render();});}
+async function playlistDialog(existing=null,initialTrack=null){if(!me)return askLogin();await refreshLibrary();if(!existing&&!canCreatePlaylist())return;if(existing?.locked)return selectActivePlaylists();dialog(`<h2>${existing?'플레이리스트 설정':'새 플레이리스트'}</h2><form id="playlist-form">${imageField('플레이리스트 이미지','image',existing?playlistImageURL(existing):'')}${existing?.image_version?'<label class="checkbox-line"><input type="checkbox" name="remove_image">기본 커버로 되돌리기</label>':''}${formField('이름','name','text',existing?.name||'','required maxlength="80"')}<label class="form-field">소개<textarea name="description" maxlength="600" placeholder="어떤 순간에 들으면 좋을까요?">${esc(existing?.description||'')}</textarea></label><label class="checkbox-line"><input name="is_public" type="checkbox" ${existing?.is_public?'checked':''}> 링크로 누구나 볼 수 있게 공개</label><button class="primary-button">저장</button><p class="form-error" role="alert"></p></form>`);const form=$('#playlist-form');bindImageInputs(form);let targetId=existing?.id;form.onsubmit=busyForm(form,async fd=>{await validateImage(fd.get('image'));const d=await api(targetId?`/api/playlists/${targetId}`:'/api/playlists',targetId?'PATCH':'POST',{name:fd.get('name'),description:fd.get('description'),is_public:fd.has('is_public'),...(!existing&&initialTrack?{track_ids:[initialTrack]}:{})});targetId=targetId||d.id;if(fd.get('image')?.size)await uploadFile(`/api/playlists/${targetId}/image`,fd.get('image'));else if(fd.has('remove_image'))await api(`/api/playlists/${targetId}/image`,'DELETE');$('#dialog').close();await refreshLibrary(true);location.hash='playlist/'+targetId;await render();});}
 async function addToPlaylist(tid){if(!me)return askLogin();await refreshLibrary();dialog(`<h2>플레이리스트에 추가</h2><div class="dialog-list">${library.playlists.filter(p=>!p.locked).map(p=>`<button class="small-button" data-save-track="${tid}" data-playlist="${p.id}">${esc(p.name)} <span>${p.tracks}곡</span></button>`).join('')}</div><button class="primary-button" id="dialog-new-playlist">새 플레이리스트 만들기</button>`);$('#dialog-new-playlist').onclick=()=>playlistDialog(null,tid).catch(e=>toast(e.message));}
 async function playlistOrderDialog(pid){
  const data=await api('/api/playlists/'+pid);let tracks=[...data.tracks];if(!tracks.length){toast('플레이리스트에 곡을 먼저 담아주세요.');return;}
@@ -120,8 +125,9 @@ document.addEventListener('click',async ev=>{
  const el=ev.target.closest('button,a');if(!el||el.disabled)return;
  try{
   if(el.matches('[data-play],[data-play-all],[data-like],[data-follow],[data-add],[data-seek]')){el.setAttribute('aria-busy','true');await accountReady;}
-  if(el.hasAttribute('data-play')){if($('#dialog').open)$('#dialog').close();await play(el.dataset.play,routeTracks.some(t=>t.id===el.dataset.play)?routeTracks:null);}
+  if(el.hasAttribute('data-play')){if($('#dialog').open)$('#dialog').close();if(el.hasAttribute('data-community-toggle'))await playCommunityTrack(el.dataset.play);else await play(el.dataset.play,routeTracks.some(t=>t.id===el.dataset.play)?routeTracks:null);}
   else if(el.hasAttribute('data-play-all')){if(routeTracks.length)await play(routeTracks[0].id,routeTracks);else toast('먼저 곡을 추가해주세요.');}
+  else if(el.dataset.giftShop){await chooseGiftRecipient(el.dataset.giftShop);}
   else if(el.dataset.gift){await giftDialog(el.dataset.gift,el.dataset.giftType);}
   else if(el.dataset.profileGift){await profileGiftDialog(el.dataset.profileGift);}
   else if(el.dataset.closePeriod){if(confirm(`${el.dataset.closePeriod} 정산을 마감할까요? 마감한 달은 되돌릴 수 없어요.`)){const r=await api('/api/admin/payouts/close','POST',{period:el.dataset.closePeriod});toast(`선물 수익 ${r.credited}건을 다이아로 확정했어요.`);location.hash='admin/'+r.period;await render();}}
@@ -165,7 +171,7 @@ setInterval(()=>{if(!window.AifectAudioAds?.active&&!audio.paused&&!audio.seekin
 setInterval(report,10000);
 $('#play-toggle').onclick=async()=>{try{if(window.AifectAudioAds?.active){window.AifectAudioAds.toggle();return;}if(!current){if(queue.length)await play(queue[0]);else if(routeTracks.length)await play(routeTracks[0].id,routeTracks);else toast('먼저 음악을 선택해주세요.');}else if(!playSession||preview!==!me)await play(current.id,null,audio.currentTime);else if(audio.ended)await play(current.id);else if(audio.paused)await audio.play();else audio.pause();}catch(e){toast(e.message);}};
 $('#next').onclick=()=>nextTrack(1).catch(e=>toast(e.message));$('#previous').onclick=()=>{if(audio.currentTime>3)audio.currentTime=0;else nextTrack(-1).catch(e=>toast(e.message));};
-$('#shuffle').onclick=()=>{shuffle=!shuffle;$('#shuffle').classList.toggle('is-active',shuffle);$('#shuffle').setAttribute('aria-pressed',String(shuffle));};
+$('#shuffle').onclick=()=>{shuffle=!shuffle;const button=$('#shuffle'),label=shuffle?'섞어 듣기 켜짐':'섞어 듣기 꺼짐';button.classList.toggle('is-active',shuffle);button.setAttribute('aria-pressed',String(shuffle));button.setAttribute('aria-label',label);button.title=label;};
 $('#repeat').onclick=()=>{repeatMode=(repeatMode+1)%3;$('#repeat').classList.toggle('is-active',!!repeatMode);$('#repeat').setAttribute('aria-pressed',String(!!repeatMode));const label=['반복 끔','전체 반복','한 곡 반복'][repeatMode];$('#repeat').setAttribute('aria-label',label);toast(label);};
 $('#volume').oninput=e=>{audio.volume=Number(e.target.value);window.AifectAudioAds?.volume(audio.volume);};$('#seek').oninput=e=>{if(current&&!window.AifectAudioAds?.active)audio.currentTime=Number(e.target.value);};
 $('#queue-toggle').onclick=queueDialog;

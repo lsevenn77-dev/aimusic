@@ -50,6 +50,7 @@ data class Song(val raw: JSONObject) {
  val hasAiArtist get() = !cover && if(raw.has("has_ai_artist")) raw.optInt("has_ai_artist") == 1 else artist.trim().isNotEmpty() && artist.trim() !in setOf("없음","미등록","-","선택 안함","선택안함")
  val credit get() = if(cover&&raw.optString("cover_mode")=="duet"&&raw.optString("duet_partner_id").isNotBlank()) "${raw.optString("duet_partner")} & $producer" else (if(hasAiArtist) artist else producer).ifBlank { "AIFECT" }
  val art: String? get() {
+  if(cover)return if(producerImageVersion.isNotBlank()&&producerImageVersion!="null")Endpoint.url("/media/producer/$producerId?v=$producerImageVersion") else Endpoint.url("/assets/default-avatar.png")
   val own=raw.optInt("has_cover")>0
   val original=cover && raw.optInt("original_has_cover")>0
   return if(own || original) Endpoint.url("/media/${if(own) id else raw.optString("original_id")}/cover?v=${if(own) raw.optString("cover_version") else raw.optString("original_cover_version")}") else null

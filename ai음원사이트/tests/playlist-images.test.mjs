@@ -1,0 +1,24 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {fixture} from './fixture.mjs';
+import worker from '../server/index.js';
+const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=','base64');
+test('playlist artwork is owner editable, private by default and replaced without stale storage',async t=>{
+ const files=new Map(),BUCKET={async put(k,b){files.set(k,b);},async delete(k){files.delete(k);},async head(k){return files.has(k)?{size:files.get(k).length}:null;},async get(k){return {body:files.get(k)};}};
+ const f=await fixture(t,{BUCKET});const created=await f.call('/api/playlists','POST',{name:'나의 선곡'}),id=created.body.id,path='/api/playlists/'+id;
+ const raw=(p,method='GET',user='owner',body)=>worker.fetch(new Request('https://aifect.test'+p,{method,headers:{Origin:'https://aifect.test',...(user?{Cookie:'aifect_session='+user}:{}),'Content-Type':'image/png'},body}),{DB:f.DB,BUCKET},{waitUntil(p){p.catch(()=>{});}});
+ assert.equal((await raw(path+'/image','PUT','other',png)).status,404);
+ assert.equal((await raw(path+'/image','PUT','owner',Buffer.from('fake image'))).status,400);
+ const first=await raw(path+'/image','PUT','owner',png);assert.equal(first.status,200);const v1=(await first.json()).image_version;
+ assert.equal((await f.call(path)).body.playlist.image_version,v1);
+ const media='/media/playlist/'+id+'/image?v='+v1;
+ assert.equal((await raw(media,'GET',null)).status,404);
+ const own=await raw(media);assert.equal(own.status,200);assert.equal(own.headers.get('cache-control'),'private, no-store');
+ await f.call(path,'PATCH',{name:'공개 선곡',is_public:true});assert.equal((await raw(media,'GET',null)).status,200);
+ assert.equal((await raw(path+'/image','PUT','other',png)).status,403);
+ const v2=await raw(path+'/image','PUT','owner',png).then(r=>r.json());assert.notEqual(v2.image_version,v1);assert.equal(files.size,1);
+ assert.equal((await f.call('/api/library')).body.playlists[0].image_version,v2.image_version);
+ await f.call(path,'PATCH',{name:'다시 비공개',is_public:false});assert.equal((await raw(media,'GET',null)).status,404);
+ assert.equal((await raw(path+'/image','DELETE')).status,200);assert.equal(files.size,0);assert.equal((await f.call(path)).body.playlist.image_version,'');
+ assert.equal((await raw(media)).status,404);
+});

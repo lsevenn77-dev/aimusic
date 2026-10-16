@@ -17,16 +17,9 @@ function communityRouteOptions(base,param,raw=''){
 }
 function communityViewHTML(base,param,raw='',data=null){
  const {tab,open}=communityRouteOptions(base,param,raw),tracks=data?.tracks||[];
- let html=heading('커뮤니티','좋은 음악을 듣고, 담고, 함께 만들어가요.')+communityNavigation(tab);
- if(tab==='rankings'){const options={...coverRankOptions(raw),limit:50};return {html:html+coverDiscoveryHTML(options)+coverRankingShell(options),tracks:[],coverRanking:options};}
- if(tab==='following'&&!me){returnRoute=location.hash;return {html:html+gate()};}
- if(tab==='all')html+='<a class="music-crew-entry" href="#community/crews">'+icon('users')+'<div><strong>크루에서 함께 듣고 부르기</strong><small>내 크루 · 멤버들의 음악 · 크루 채팅</small></div>'+icon('chevron')+'</a>';
- if(tab==='duets')html+='<nav class="tabs" aria-label="듀엣 종류"><a class="tab '+(!open?'active':'')+'" href="#community/duets">듀엣 감상</a><a class="tab '+(open?'active':'')+'" href="#community/duets?open=1">참여를 기다리는 듀엣</a></nav>';
- const label=open?'함께 부를 파트를 남겼어요':tab==='following'?'팔로잉의 새 음악':tab==='originals'?'새로 공개된 제작곡':tab==='covers'?'새로 공개된 커버':tab==='duets'?'함께 완성한 목소리':'새로 도착한 음악';
- html+='<div class="music-community-heading"><div><h2>'+label+'</h2><p>원곡도 커버도, 마음에 들면 내 플레이리스트에.</p></div></div>';
- html+=!data?'<div class="route-loading" role="status"><span>새 음악을 불러오는 중…</span><div></div><div></div><div></div></div>':tracks.length?(tab==='all'?communityRecommendations(tracks):['covers','duets'].includes(tab)?coverCollectionHTML(tracks,'community-covers'):communityFeed(tracks)):empty('아직 공개된 음악이 없어요.','다른 탭에서 음악을 발견해보세요.','#community','전체 음악 보기');
- if(tab==='all')html+='<nav class="music-rank-links" aria-label="커버 랭킹">'+coverPeriods.map(([key,label])=>'<a href="#community/rankings?period='+key+'">'+label+'</a>').join('')+'</nav>';
- return {html,tracks};
+ if(tab==='rankings'){const options={...coverRankOptions(raw),limit:50};return {html:heading('커뮤니티','좋은 음악을 듣고, 담고, 함께 만들어가요.')+communityNavigation(tab)+coverDiscoveryHTML(options)+coverRankingShell(options),tracks:[],coverRanking:options};}
+ const login=tab==='following'&&!me;if(login)returnRoute=location.hash;
+ return {html:communityLandingHTML(tracks,data,tab,{open,login}),tracks};
 }
 function communityPendingView(base,param,raw=''){
  if(!['community','covers'].includes(base)||param==='crews')return null;
@@ -57,10 +50,44 @@ async function loadCoverRanking(host,options,ticket){
  finally{if(isCurrent())host.setAttribute('aria-busy','false');}
 }
 function bindCommunity(view){
+ bindCommunityPlayback();
  if(!view?.coverRanking)return;
  const options=view.coverRanking,form=$('#cover-rank-filter'),host=$('#cover-ranking-results');
  if(form){const submit=()=>{const next=coverRankHref(options,{genre:form.elements.genre.value,q:form.elements.q.value.trim().slice(0,100)});if(location.hash===next)render();else location.hash=next;};form.onsubmit=e=>{e.preventDefault();submit();};form.elements.genre.onchange=submit;}
  if(host){host.coverOptions=options;loadCoverRanking(host,options,renderId);}
+}
+
+// Share the main player; returning to the feed never creates another playback session.
+let communityPlaybackCards=[],communityPlaybackBound=false;
+async function playCommunityTrack(id){
+ if(window.AifectAudioAds?.active){toast('광고가 끝나면 음악을 재생할 수 있어요.');return;}
+ if(current?.id===id&&audio.getAttribute('src')&&!audio.ended){
+  if(audio.paused)await audio.play();else audio.pause();
+  return;
+ }
+ await play(id,routeTracks.some(t=>t.id===id)?routeTracks:null);
+}
+function syncCommunityPlayback(){
+ communityPlaybackCards=communityPlaybackCards.filter(c=>c.card.isConnected);
+ for(const c of communityPlaybackCards){
+  const selected=current?.id===c.id&&!window.AifectAudioAds?.active,playing=selected&&!audio.paused&&!audio.ended;
+  const elapsed=selected?Math.max(0,Number(audio.currentTime)||0):0,duration=Number(c.progress?.dataset.duration)||Number(audio.duration)||0;
+  c.card.classList.toggle('is-playing',playing);
+  if(c.elapsed)c.elapsed.textContent=time(elapsed);
+  if(c.progress)c.progress.style.setProperty('--play-progress',(duration?Math.min(100,elapsed/duration*100):0)+'%');
+  if(c.button&&c.button.dataset.playing!==String(playing)){
+   c.button.dataset.playing=String(playing);c.button.innerHTML=icon(playing?'pause':'play');
+   c.button.setAttribute('aria-label',c.title+(playing?' 일시정지':' 재생'));c.button.setAttribute('aria-pressed',String(playing));
+  }
+ }
+}
+function bindCommunityPlayback(){
+ communityPlaybackCards=[...document.querySelectorAll('.community-redesign .community-concept-card')].map(card=>({card,id:card.dataset.musicId,title:card.querySelector('h3')?.textContent||'음악',button:card.querySelector('[data-community-toggle]'),progress:card.querySelector('[data-community-progress]'),elapsed:card.querySelector('[data-community-elapsed]')}));
+ if(!communityPlaybackBound){
+  communityPlaybackBound=true;
+  for(const event of ['play','pause','timeupdate','loadedmetadata','ended','emptied'])audio.addEventListener(event,syncCommunityPlayback);
+ }
+ syncCommunityPlayback();
 }
 
 function refreshCommunityRanking(){const host=$('#cover-ranking-results');if(host?.coverOptions)loadCoverRanking(host,host.coverOptions,renderId);}
@@ -76,11 +103,12 @@ async function loadCommunityCrews(host,ticket){
  if(!host)return;
  const account=me?.id||'guest',revision=typeof apiRevision==='number'?apiRevision:0,current=()=>host.isConnected&&ticket===renderId&&account===(me?.id||'guest')&&revision===(typeof apiRevision==='number'?apiRevision:0);
  const paint=d=>{
+ if(host.classList.contains('community-side-crews')){host.innerHTML=communityCrewSidebarHTML(d);return;}
  const all=d.crews||[],mine=all.find(c=>c.id===d.mine),crews=[...all].filter(c=>c.id!==d.mine).sort((a,b)=>(Number(b.xp)||0)-(Number(a.xp)||0)).slice(0,mine?2:3);
  if(mine){host.innerHTML='<div class="music-community-heading"><h2>내 크루</h2><a class="text-link" href="#community/crews?browse=1">다른 크루 둘러보기</a></div><div class="surface my-crew-preview"><div><strong>'+esc(mine.name)+'</strong><p>'+number(mine.members)+'명 · '+esc(mine.interests||'함께 듣는 음악')+'</p></div><nav aria-label="내 크루 바로가기">'+[['chat','message','대화'],['members','users','크루원'],['music','music','음악']].map(([tab,symbol,label])=>'<a href="'+(tab==='chat'?'#dm/crew/'+esc(mine.id):'#crew/'+esc(mine.id)+'?tab='+tab)+'">'+icon(symbol)+label+'</a>').join('')+'</nav></div>';return;}
  host.innerHTML='<div class="music-community-heading"><h2>음악으로 모이는 크루</h2><a class="text-link" href="#community/crews">모두 보기</a></div>'+(crews.length?'<div class="music-crew-preview-grid">'+crews.map(c=>'<a href="#crew/'+esc(c.id)+'"><strong>'+esc(c.name)+'</strong><span>'+esc(c.interests||'함께 듣고 부르는 음악')+'</span><small>'+number(c.members)+'명 · LV '+number(c.level)+'</small></a>').join('')+'</div>':'<a class="music-crew-entry" href="#community/crews">취향이 맞는 크루를 찾아보세요.</a>');
  };
  const cached=typeof peekCrewNavigation==='function'?peekCrewNavigation('discovery'):null;if(cached&&current())paint(cached);
- try{const d=await api('/api/crews?q=');if(!current())return;if(typeof rememberCrewDiscovery==='function')rememberCrewDiscovery(d,'',account,revision);paint(d);}
+ try{const d=await api('/api/crews?q=&summary=1');if(!current())return;if(typeof rememberCrewDiscovery==='function')rememberCrewDiscovery(d,'',account,revision);paint(d);}
  catch{if(current()&&!cached)host.innerHTML='<a class="music-crew-entry" href="#community/crews">크루 둘러보기</a>';}
 }

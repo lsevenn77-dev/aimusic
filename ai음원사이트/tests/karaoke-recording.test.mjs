@@ -17,3 +17,20 @@ test('noise reduction has four increasingly strong levels and never mutates dry 
  const loud=Float32Array.from({length:32000},(_,i)=>.4*Math.cos(i*2*Math.PI*440/32000));assert.ok(rms(reduceNoise(loud,32000,4).subarray(16000))>.28);
  assert.ok(rms(reduceNoise(new Float32Array(32000).fill(.4),32000,4).subarray(16000))<.00001);
 });
+
+import {replaceTakeRange,normalizeTakeRange} from '../shared/karaoke-audio.js';
+test('bounded rerecord replaces only recorded samples and preserves both sides and original source',()=>{
+ const old=Float32Array.from([1,2,3,4,5,6,7,8,9,10]);
+ const chunks=[{t:1,d:Float32Array.from([90,91,20,21,22,23,99])}];
+ const out=replaceTakeRange(old,chunks,2,2,2,4);
+ assert.deepEqual([...out],[1,2,3,4,20,21,22,23,9,10]);
+ assert.deepEqual([...old],[1,2,3,4,5,6,7,8,9,10]);
+ assert.strictEqual(replaceTakeRange(old,[],2,2,2,1),old);
+ const interrupted=replaceTakeRange(old,chunks,2,2,2,3);
+ assert.deepEqual([...interrupted],[1,2,3,4,20,21,7,8,9,10]);
+});
+test('selection handles stay finite and ordered inside short and long takes',()=>{
+ for(const duration of [0,.05,3,600])for(const start of [-2,0,1,600,NaN])for(const end of [-2,0,1,700,Infinity]){
+  const r=normalizeTakeRange(start,end,duration);assert.ok(Number.isFinite(r.start)&&Number.isFinite(r.end));assert.ok(r.start>=0&&r.end<=duration&&r.end>=r.start);
+ }
+});

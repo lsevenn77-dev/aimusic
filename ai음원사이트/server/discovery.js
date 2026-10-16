@@ -1,3 +1,4 @@
+import {trackArtworkSQL} from './track-artwork.js';
 import {namedArtistSQL} from './artist-identity.js';
 import {publicNameSQL,producerNameSQL} from './identity.js';
 import {validGenre,MOODS,genreFilterSQL} from '../shared/genres.js';
@@ -10,13 +11,13 @@ export {MOODS};
 function moodFilter(mood){return {sql:'EXISTS(SELECT 1 FROM json_each(t.moods_json) jm WHERE jm.value=?)',args:[mood.id]};}
 
 export async function playlistSummaries(env,userId='',where='p.is_public=1',args=[],sort='p.created DESC,p.id',limit=100){
- const data=await rows(env,`SELECT p.id,p.user_id,p.name,p.description,p.is_public,p.created,${publicNameSQL()} owner_name,${activePlaylistSQL()} active,
+ const data=await rows(env,`SELECT p.id,p.user_id,p.name,p.description,p.is_public,p.created,p.image_version,${publicNameSQL()} owner_name,${activePlaylistSQL()} active,
  (SELECT count(*) FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id WHERE pt.playlist_id=p.id AND ${VISIBLE()}) tracks,
  (SELECT COALESCE(sum(t.duration),0) FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id WHERE pt.playlist_id=p.id AND ${VISIBLE()}) duration,
  (SELECT count(*) FROM playlist_saves s WHERE s.playlist_id=p.id) saves,
  (ps.user_id IS NOT NULL) saved,COALESCE(pref.pinned,0) pinned,COALESCE(pref.position,0) position,
- (SELECT json_group_array(json_object('id',c.id,'title',c.title,'has_cover',c.has_cover,'cover_version',c.cover_version)) FROM
-  (SELECT t.id,t.title,t.has_cover,t.cover_version FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id WHERE pt.playlist_id=p.id AND ${VISIBLE()} ORDER BY pt.position,pt.created,pt.track_id LIMIT 4) c) covers_json
+ (SELECT json_group_array(json_object('id',c.id,'title',c.title,'kind',c.kind,'has_cover',c.has_cover,'cover_version',c.cover_version)) FROM
+  (SELECT t.id,t.title,t.kind,${trackArtworkSQL('t','cp')} FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id JOIN producers cp ON cp.id=t.producer_id WHERE pt.playlist_id=p.id AND ${VISIBLE()} ORDER BY pt.position,pt.created,pt.track_id LIMIT 4) c) covers_json
  FROM playlists p JOIN users u ON u.id=p.user_id
  LEFT JOIN playlist_saves ps ON ps.playlist_id=p.id AND ps.user_id=?
  LEFT JOIN playlist_preferences pref ON pref.playlist_id=p.id AND pref.user_id=?

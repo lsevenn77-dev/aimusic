@@ -5,13 +5,13 @@ async function draftOp(mode,key,value){const db=await openDraftDB();return new P
 const singDraftKey=s=>s.owner+':'+s.id+(s.mode==='duet'?':duet:'+s.part+':'+(s.parent||'first'):'');
 async function saveSingDraft(s=sing){
  if(!s||!s.owner||!s.voice&&s.mode!=='duet')return;const revision=s.revision||0;
- const data={key:singDraftKey(s),owner:s.owner,id:s.id,mode:s.mode,part:s.part,parent:s.parent,title:s.data.track.title,artist:s.data.track.artist,samples:s.voice?.getChannelData(0).slice()||new Float32Array(),rate:s.voice?.sampleRate||32000,duetGuide:s.duetGuide,mix:{...s.mix},cursor:s.cursor,description:s.description||'',updated:Date.now()};
+ const data={key:singDraftKey(s),owner:s.owner,id:s.id,mode:s.mode,part:s.part,parent:s.parent,title:s.data.track.title,artist:s.data.track.artist,samples:s.voice?.getChannelData(0).slice()||new Float32Array(),rate:s.voice?.sampleRate||32000,duetGuide:s.duetGuide,keySemitones:singingKey(s),mix:{...s.mix},cursor:s.cursor,description:s.description||'',updated:Date.now()};
  s.draftWrite=(s.draftWrite||Promise.resolve()).catch(()=>{}).then(()=>draftOp('put',data.key,data));await s.draftWrite;
  if((s.revision||0)===revision)s.dirty=false;
 }
 async function restoreSingDraft(s){
  try{const d=await draftOp('get',singDraftKey(s));if(sing!==s||!d||d.owner!==s.owner||!(d.samples instanceof Float32Array)||d.samples.length>600*d.rate )return;
-  const ctx=s.ctx||(s.ctx=new (window.AudioContext||window.webkitAudioContext)({sampleRate:K().MIX_RATE}));if(d.samples.length){s.voice=ctx.createBuffer(1,d.samples.length,d.rate);s.voice.copyToChannel(d.samples,0);}if(!s.parent&&d.duetGuide)s.duetGuide=d.duetGuide;s.mix={...s.mix,...K().restoreVocalMix(d.mix)};s.cursor=s.voice?Math.min(d.cursor||0,s.voice.duration):0;s.description=d.description||'';s.state=s.voice?'review':'idle';renderSingPanel();renderDuetGuide();drawLyrics(s.cursor);setSingStatus('이 기기에 임시저장한 녹음과 효과를 복원했어요.');
+  const ctx=s.ctx||(s.ctx=new (window.AudioContext||window.webkitAudioContext)({sampleRate:K().MIX_RATE}));if(d.samples.length){s.voice=ctx.createBuffer(1,d.samples.length,d.rate);s.voice.copyToChannel(d.samples,0);}if(!s.parent&&d.duetGuide)s.duetGuide=d.duetGuide;s.mix={...s.mix,...K().restoreVocalMix(d.mix)};s.keySemitones=s.parent?0:singingKey({keySemitones:d.keySemitones});s.cursor=s.voice?Math.min(d.cursor||0,s.voice.duration):0;s.description=d.description||'';s.state=s.voice?'review':'idle';renderSingPanel();renderDuetGuide();drawLyrics(s.cursor);setSingStatus('이 기기에 임시저장한 녹음과 효과를 복원했어요.');
  }catch(e){if(sing===s)setSingStatus('임시저장을 읽지 못했어요. 브라우저 저장 공간을 확인해주세요.');}
  finally{if(sing===s&&s.state==='loading'){s.state=s.voice?'review':'idle';updateTransport();}}
 }
@@ -30,4 +30,28 @@ async function listSingDrafts(){
  if(entries.some(d=>!d.title))try{const tracks=(await api('/api/karaoke')).tracks||[];for(const d of entries){if(!d.title){const song=tracks.find(t=>t.id===d.id);if(song){d.title=song.title;d.artist=song.artist;await new Promise((resolve,reject)=>{const tx=db.transaction('drafts','readwrite');tx.objectStore('drafts').put(d);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});}}}}catch{}
  if(me?.id!==owner)return [];return entries.sort((a,b)=>b.updated-a.updated);
 }
-function karaokeDraftsHTML(drafts){return heading('초안','이 기기·브라우저에 저장한 녹음이에요. 다른 기기에는 표시되지 않아요.')+'<a class="small-button" href="#karaoke">부르기로 돌아가기</a>'+ (drafts.length?'<div class="recording-drafts">'+drafts.map(d=>{const query=d.parent?'duet='+encodeURIComponent(d.parent):'mode='+d.mode+'&part='+encodeURIComponent(d.part);return '<a class="surface recording-draft" href="#sing/'+encodeURIComponent(d.id)+'?'+esc(query)+'&draft=1"><span class="draft-mic">'+icon('mic')+'</span><span><strong>'+esc(d.title||'임시 저장한 녹음')+'</strong><small>'+ (d.mode==='duet'?'듀엣':'솔로')+' · '+time(d.duration)+' · '+esc(new Date(d.updated).toLocaleDateString('ko-KR'))+'</small></span><b>이어 편집</b></a>';}).join('')+'</div>':'<p class="surface empty-note">아직 저장된 초안이 없어요. 녹음 후 임시 저장하면 여기에 모여요.</p>');}
+function karaokeDraftsHTML(drafts){return heading('초안','완성 전의 목소리도, 소중하게 모아두세요.')+`<section class="draft-workspace"><header class="draft-toolbar"><div><span class="eyebrow">MY RECORDINGS</span><h2>저장한 녹음 <em>${drafts.length}</em></h2></div><div class="inline-actions"><a class="small-button" href="#karaoke">${icon('mic')} 새로 부르기</a><button class="small-button danger-button" data-delete-all-drafts ${drafts.length?'':'disabled'}>${icon('trash')} 전체 삭제</button></div></header><div class="draft-local-note">${icon('info')}<p>이 계정으로 현재 기기·브라우저에 저장한 녹음이에요. 다른 기기에는 표시되지 않아요.<br>공개한 커버곡은 초안을 삭제해도 유지돼요.</p></div>`+(drafts.length?'<div class="recording-drafts">'+drafts.map(d=>{const query=d.parent?'duet='+encodeURIComponent(d.parent):'mode='+d.mode+'&part='+encodeURIComponent(d.part);return `<article class="recording-draft" data-draft-key="${esc(d.draftKey)}"><span class="draft-mic">${icon('mic')}</span><div class="draft-info"><span class="draft-kind">${d.mode==='duet'?'DUET':'SOLO'} · ${time(d.duration)}</span><h3>${esc(d.title||'임시 저장한 녹음')}</h3><small>${esc(d.artist||'나의 목소리')} · ${esc(new Date(d.updated).toLocaleDateString('ko-KR'))} 저장</small></div><div class="draft-actions"><a class="small-button" href="#sing/${encodeURIComponent(d.id)}?${esc(query)}&draft=1">${icon('edit')} 이어 편집</a><button class="icon-button" data-delete-draft="${esc(d.draftKey)}" data-draft-title="${esc(d.title||'임시 저장한 녹음')}" aria-label="${esc(d.title||'초안')} 삭제">${icon('trash')}</button></div></article>`;}).join('')+'</div>':`<div class="draft-empty"><span class="draft-mic">${icon('mic')}</span><h3>첫 목소리를 기다리고 있어요</h3><p>녹음 후 임시 저장하면 여기에 모여요.<br>마음에 들 때까지 편집하고, 준비되면 공개하세요.</p><a class="primary-button" href="#karaoke">부를 곡 찾기 ${icon('arrow')}</a></div>`)+'</section>';}
+
+// Delete only the confirmed snapshot of this account's drafts, never the whole store.
+// Raw audio and lightweight index records are removed in the same transaction.
+async function deleteLocalDrafts(keys,owner){
+ if(!owner||me?.id!==owner)throw new Error('로그인한 계정을 다시 확인해주세요.');
+ const selected=[...new Set(keys)].filter(key=>typeof key==='string'&&key.startsWith(owner+':'));
+ if(!selected.length)return 0;
+ const db=await openDraftDB();if(me?.id!==owner)throw new Error('계정이 변경되어 삭제를 취소했어요.');
+ return new Promise((resolve,reject)=>{let removed=0;const tx=db.transaction('drafts','readwrite'),store=tx.objectStore('drafts');
+  for(const key of selected){const request=store.get(key);request.onsuccess=()=>{if(me?.id!==owner){tx.abort();return;}const draft=request.result;if(!draft||draft.owner!==owner)return;store.delete(key);store.delete('index:'+key);removed++;};}
+  tx.oncomplete=()=>resolve(removed);tx.onerror=()=>reject(tx.error||new Error('저장 공간을 확인하고 다시 시도해주세요.'));tx.onabort=()=>reject(tx.error||new Error('삭제가 취소됐어요. 다시 확인해주세요.'));
+ });
+}
+document.addEventListener('click',e=>{
+ const one=e.target.closest('[data-delete-draft]'),all=e.target.closest('[data-delete-all-drafts]');
+ if(!one&&!all||!me?.id)return;
+ const owner=me.id,route=location.hash,keys=one?[one.dataset.deleteDraft]:Array.from(document.querySelectorAll('[data-draft-key]'),el=>el.dataset.draftKey);
+ if(!keys.length)return;
+ const title=one?'“'+one.dataset.draftTitle+'” 초안을 삭제할까요?':keys.length+'개의 초안을 모두 삭제할까요?';
+ dialog(`<div class="draft-delete-dialog"><span class="draft-mic">${icon('trash')}</span><h2>${esc(title)}</h2><p>현재 계정의 이 기기 녹음만 삭제합니다.<br><strong>삭제한 초안은 복구할 수 없어요.</strong><br>이미 공개한 커버곡은 삭제하지 않아요.</p><div class="inline-actions"><button class="small-button" id="cancel-draft-delete">취소</button><button class="primary-button" id="confirm-draft-delete">${one?'초안 삭제':'전체 삭제'}</button></div><p id="draft-delete-error" class="form-error" role="alert"></p></div>`);
+ $('#cancel-draft-delete').onclick=()=>$('#dialog').close();
+ $('#confirm-draft-delete').onclick=async()=>{const button=$('#confirm-draft-delete');button.disabled=true;try{const count=await deleteLocalDrafts(keys,owner);$('#dialog').close();if(me?.id===owner){toast(count+'개의 초안을 삭제했어요.');if(location.hash===route)await render();}}catch(error){const note=$('#draft-delete-error');if(note)note.textContent=error.message;button.disabled=false;}};
+ $('#cancel-draft-delete').focus();
+});

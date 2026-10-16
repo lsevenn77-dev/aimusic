@@ -6,3 +6,25 @@
 .diamond-wallet{padding:24px;margin:16px 0}.diamond-wallet-head{display:flex;align-items:center;justify-content:space-between;gap:16px}.diamond-wallet h2{font-size:30px;margin:8px 0}.diamond-wallet h2 small{font-size:14px}.diamond-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;margin-top:20px}.diamond-actions form{min-width:0}.diamond-preview{color:var(--aqua,#74ded1)}.partner-badge{display:inline-flex;align-items:center;font-size:12px;padding:5px 9px;border-radius:20px;color:#86e5d4;background:#203b3e;margin-left:8px;white-space:nowrap}.diamond-reverse-form{padding:16px 0;border-bottom:1px solid #ffffff12}@media(max-width:600px){.diamond-actions{grid-template-columns:1fr}.diamond-wallet-head{align-items:flex-start}.diamond-wallet{padding:18px}.diamond-wallet h2{font-size:25px}}
 
 body.chat-active .player{display:none!important}
+
+/* Compact private gold, silver and toolbox shortcuts, kept outside public profile cards. */
+.my-balance-summary{margin:0 0 24px}
+.my-balance-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.my-balance-card{display:flex;flex-direction:column;gap:10px;min-width:0;padding:18px 22px;background:var(--surface-wash,#1b202b);border:1px solid #ffffff0b;border-radius:16px;text-decoration:none}
+.my-balance-card:hover{border-color:#8ddbd544}
+.my-balance-card:focus-visible{outline:2px solid #8ddbd5;outline-offset:3px}
+.my-balance-label{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600}
+.my-balance-gold .my-balance-label{color:#f3d378}
+.my-balance-silver .my-balance-label{color:#d9e0f2}
+.my-balance-silver .my-balance-label img{object-fit:contain;flex-shrink:0}
+.my-toolbox-card{grid-column:1/-1}
+.my-toolbox-card .my-balance-label{color:#8ddbd5}
+.gold-coin{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#f3d378;color:#33280b;font-size:12px}
+.diamond-emoji{font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif;color:#66caff;font-style:normal}
+.my-balance-label svg{width:20px;height:20px;flex-shrink:0}
+.my-balance-card>strong{font-size:24px;font-variant-numeric:tabular-nums;line-height:1.25;overflow-wrap:anywhere}
+.my-balance-card>strong small{font-size:12px;font-weight:500;color:#a6afbf;white-space:nowrap}
+.my-balance-link{display:flex;align-items:center;gap:4px;font-size:12px;color:#a6afbf}
+.my-balance-link svg{width:14px;height:14px}
+.my-balance-error{display:flex;align-items:center;flex-wrap:wrap;gap:8px;color:#bdc5d2;font-size:12px}
+@media(max-width:600px){.my-balance-grid{gap:8px}.my-balance-card{padding:14px 12px;gap:9px}.my-balance-label{font-size:11px;gap:5px}.my-balance-card>strong{font-size:21px}.my-balance-link{font-size:11px}}

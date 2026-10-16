@@ -36,3 +36,29 @@ test('presets are finite, preserve original with noise off, and hall rings longe
 test('live preset/noise changes keep the processor clock and output bounded',()=>{
  const f=new VocalProcessor(48000,defaultVocalMix());let peak=0;for(let i=0;i<96000;i++){if(i%12000===0)f.update(presetMix({noise:i%24000?4:0},vocalPresets[(i/12000)%4].id,.8));const y=f.process(i%997===0?NaN:.4*Math.sin(i*.03));assert.ok(Number.isFinite(y));peak=Math.max(peak,Math.abs(y));}assert.ok(peak<1.5);
 });
+test('tone control gives an audible spectral change at matched input level, without changing pitch or the source',()=>{
+ for(const rate of [32000,48000]){
+  const input=Float32Array.from({length:rate},(_,i)=>.12*Math.sin(i*2*Math.PI*220/rate)+.06*Math.sin(i*2*Math.PI*2640/rate));
+  const copy=input.slice(),mix={noise:0,echo:0,room:0,size:.5,tone:0},off=renderVocals(input,rate,mix),mid=renderVocals(input,rate,{...mix,tone:.5}),full=renderVocals(input,rate,{...mix,tone:1});
+  const component=(a,hz)=>{let x=0,y=0;for(let i=rate/2;i<rate;i++){x+=a[i]*Math.cos(i*2*Math.PI*hz/rate);y+=a[i]*Math.sin(i*2*Math.PI*hz/rate);}return Math.hypot(x,y);};
+  const contrast=a=>20*Math.log10(component(a,2640)/component(a,220)),delta=contrast(full)-contrast(off);
+  assert(delta>8&&delta<12,`expected clear broad EQ, got ${delta} dB`);assert(contrast(mid)>contrast(off)+3);assert(contrast(mid)<contrast(full));
+  assert(component(full,220)>component(input,220)*.5,'fundamental remains audible');assert.deepEqual(off,input);assert.deepEqual(input,copy);
+ }
+});
+test('changing tone during live processing stays continuous and converges to the same saved result',()=>{
+ const rate=32000,mix={noise:0,echo:0,room:0,tone:0},live=new VocalProcessor(rate,mix),input=Float32Array.from({length:rate*2},(_,i)=>.15*Math.sin(i*2*Math.PI*220/rate)+.04*Math.sin(i*2*Math.PI*2640/rate)),out=new Float32Array(input.length);
+ for(let i=0;i<input.length;i++){if(i===rate)live.update({...mix,tone:1});out[i]=live.process(input[i]);}
+ const saved=renderVocals(input,rate,{...mix,tone:1});let error=0,edge=0;for(let i=rate+rate/2;i<input.length;i++)error=Math.max(error,Math.abs(out[i]-saved[i]));for(let i=rate-4;i<rate+4;i++)edge=Math.max(edge,Math.abs(out[i]-out[i-1]));
+ assert(error<1e-6);assert(edge<.04,'no discontinuity at the control change');
+});
+
+test('extended tone range deepens or brightens without retuning and survives draft/preset round trips',()=>{
+ const rate=32000,input=Float32Array.from({length:rate},(_,i)=>.08*Math.sin(i*2*Math.PI*220/rate)+.04*Math.sin(i*2*Math.PI*2640/rate));
+ const energy=(data,hz)=>{let a=0,b=0;for(let i=rate/2;i<rate;i++){a+=data[i]*Math.cos(i*2*Math.PI*hz/rate);b+=data[i]*Math.sin(i*2*Math.PI*hz/rate);}return Math.hypot(a,b);};
+ const values=[-1,0,1,2].map(tone=>renderVocals(input,rate,{noise:0,echo:0,room:0,tone}));
+ const contrast=values.map(a=>20*Math.log10(energy(a,2640)/energy(a,220)));
+ assert(contrast[0]<contrast[1]-8);assert(contrast[3]>contrast[2]+4);assert.deepEqual(values[1],input);
+ for(const tone of [-1,2]){let m=editVocalMix(defaultVocalMix(),'tone',tone);m=restoreVocalMix(presetMix(m,'hall'));assert.equal(presetMix(m,'custom').tone,tone);assert.equal(restoreVocalMix({...m,tone}).tone,tone);}
+ assert(values.every(a=>a.every(Number.isFinite)));
+});

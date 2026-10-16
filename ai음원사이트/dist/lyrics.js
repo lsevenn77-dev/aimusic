@@ -94,7 +94,7 @@ function updateSyncedLyrics(force=false){
  const text=limitReached?'로그인하고 전체곡을 이어 들으세요':full?(cue?.text||'♪ '+(index<0?'전주':'간주')):display?(display.text||'♪ '+(display.intro?'전주':'간주')):'♪';
  const previewLines=limitReached?[]:full?currentCues.slice(Math.max(0,index),Math.max(0,index)+2):display?.lines?.filter(c=>c.time>=display.from).slice(0,2)||[];
  const previewText=previewLines.length?previewLines.map(c=>c.text||'♪').join('\n'):text;
- if(hud){hud.hidden=!hasLyrics;hud.href=current?'#song/'+current.id:'#home';hud.textContent=hasLyrics?previewText:'';}
+ if(hud){hud.hidden=!hasLyrics;hud.href=current?'#song/'+current.id:'#home';hud.textContent=hasLyrics?(typeof matchMedia==='function'&&matchMedia('(max-width:800px)').matches?text.replace(/\s*\n\s*/g,' '):previewText):'';}
  const state=lyricPanelState;if(state?.panel.isConnected){const active=current?.id===state.panel.dataset.track,indexHere=active?index:-1;
   if(state.panel.dataset.mode==='line'){const el=$('#current-lyric-line');if(el){el.classList.add('lyric-preview-lines');el.textContent=active?previewText:'♪ 음악을 재생해주세요';}const status=$('#lyrics-play-status');if(status)status.textContent=active?(lyricRetryAt>Date.now()&&!line?'가사를 불러오지 못했어요. 잠시 후 다시 시도합니다.':'음악에 맞춰 현재·다음 가사이 바뀝니다.'):'이 곡을 재생하면 현재 가사가 표시됩니다.';}
   else if(force||state.index!==indexHere){state.index=indexHere;state.panel.querySelectorAll('.lyric-line').forEach((line,i)=>{line.classList.toggle('is-current',i===indexHere);if(i===indexHere)line.setAttribute('aria-current','true');else line.removeAttribute('aria-current');});$('#lyrics-play-status').textContent=!active?'이 곡을 재생하면 현재 가사를 따라갑니다.':index<0?'♪ 첫 가사를 기다리고 있어요.':'가사를 누르면 해당 구간으로 이동해요.';

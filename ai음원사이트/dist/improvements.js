@@ -1,4 +1,18 @@
 // Shared app/web flows: chosen profiles, crew activity and private conversations.
+// Private gold and silver are fetched afresh on My; diamonds belong only on the settlement page.
+function myBalanceSummaryHTML(wallet){
+ const valid=n=>typeof n==='number'&&Number.isFinite(n)&&n>=0;
+ const gold=wallet?.balance,silver=wallet?.silver_balance,ready=valid(gold)&&valid(silver);
+ return '<section class="my-balance-summary" aria-label="내 골드·실버와 도구함"><div class="my-balance-grid">'+
+  '<a class="my-balance-card my-balance-gold" href="#gold"><span class="my-balance-label"><span class="gold-coin" aria-hidden="true">G</span>보유 골드</span><strong>'+ (valid(gold)?number(gold):'—')+' <small>G</small></strong><span class="my-balance-link">충전 · 내역 보기 '+icon('chevron')+'</span></a>'+
+  '<a class="my-balance-card my-balance-silver" href="#rewards"><span class="my-balance-label"><img src="/assets/gifts/silver-coin-v1.webp" width="20" height="20" alt="">보유 실버</span><strong>'+ (valid(silver)?number(silver):'—')+' <small>S</small></strong><span class="my-balance-link">오늘의 실버 받기 '+icon('chevron')+'</span></a>'+
+  '<a class="my-balance-card my-toolbox-card" href="#inventory"><span class="my-balance-label">'+icon('gift')+'내 도구함</span><strong>액자 · 아이템</strong><span class="my-balance-link">보관함 열기 '+icon('chevron')+'</span></a></div>'+
+  (ready?'':'<p class="my-balance-error" role="status">잔액을 모두 불러오지 못했어요. <button type="button" class="text-link" data-my-wallet-retry>다시 불러오기</button></p>')+'</section>';
+}
+async function loadMyBalanceSummary(){
+ try{return myBalanceSummaryHTML(await api('/api/gold/balance','GET',undefined,{fresh:true}));}
+ catch(e){if(e.status===401||e.status===403)throw e;return myBalanceSummaryHTML(null);}
+}
 let socialTimer=null;
 // Public crew chrome and a navigation hint only. Membership and roles stay live.
 const crewNavigation=new Map();
@@ -28,7 +42,8 @@ function crewEditor(c=null){return `<h2>${c?'크루 소개 · 모집 수정':'�
 function crewDetailView(d,param,tab='music'){
  const c=d.crew,m=d.membership,allowed=['chat','members','music','about'];if(!allowed.includes(tab))tab='music';
  const intro='<section class="surface crew-intro"><p>'+esc(c.description)+'</p><p>'+esc(c.interests)+'</p><strong class="crew-meta">LV'+c.level+' · '+c.members+'/'+c.capacity+'명 · '+c.xp+' XP</strong><p>'+(c.next_xp?'다음 레벨까지 '+(c.next_xp-c.xp)+' XP':'최고 레벨이에요.')+'</p><p class="field-help">공개곡당 1 XP · 받은 선물 1골드당 1 XP · 하루 첫 크루 채팅 10 XP</p><div class="inline-actions">'+(m?'<button class="small-button" data-leave-crew="'+esc(c.id)+'">크루 탈퇴</button>'+(m.role==='owner'?'<button class="small-button" data-edit-crew="'+esc(c.id)+'">소개 · 모집 수정</button>':''):'<button class="primary-button" data-join-crew="'+esc(c.id)+'" '+(d.banned||!c.recruiting||c.members>=c.capacity?'disabled':'')+'>'+(d.banned?'가입할 수 없는 크루':c.recruiting?'크루 가입하기':'모집 마감')+'</button>')+'</div></section>';
- let html='<div class="crew-room-heading"><div><span class="eyebrow">'+(m?'MY CREW':'MUSIC CREW')+'</span><h1>'+esc(c.name)+'</h1><p>LV '+c.level+' · '+c.members+'명이 함께해요</p></div><a href="#community/crews?browse=1" class="text-link">'+icon('search')+' 크루 둘러보기</a></div>'+communityNavigation('crews');
+ let html=crewHeroHTML(c,m)+communityNavigation('crews');
+ if(tab==='music')return {html:html+'<nav class="tabs crew-room-tabs" aria-label="크루 활동"><a class="tab active" href="#crew/'+esc(c.id)+'" aria-current="page">홈</a><a class="tab" href="#crew/'+esc(c.id)+'?tab=members">크루원</a><a class="tab" href="#crew/'+esc(c.id)+'?tab=about">소개</a></nav>'+crewHomeLayout(d,intro),tracks:d.tracks,crew:c,chat:null};
  if(m){html+='<nav class="tabs crew-room-tabs" aria-label="내 크루 활동">'+[['music','홈'],['members','크루원'],['about','소개']].map(([key,label])=>'<a class="tab '+(tab===key?'active':'')+'" href="#crew/'+esc(c.id)+'?tab='+key+'" '+(tab===key?'aria-current="page"':'')+'>'+label+'</a>').join('')+'</nav>';
   if(tab==='chat')html+='<p class="crew-chat-intro">크루원들과 지금 듣는 음악과 이야기를 나눠보세요.</p>'+chatPanelHTML('크루 채팅');
   if(tab==='members')html+=section('함께하는 크루원')+'<div class="crew-people">'+crewPeopleHTML(d)+'</div>';
@@ -55,38 +70,47 @@ async function improvementsView(base,param,raw){
  if(base==='community'&&param==='crews'){
   const params=new URLSearchParams(raw.split('?')[1]||''),q=params.get('q')||'',hint=peekCrewNavigation('discovery');
   if(hint?.mine&&!params.has('q')&&params.get('browse')!=='1'){try{return await liveCrewDetail(hint.mine);}catch(e){if(e.status!==404)throw e;clearCrewNavigation();}}
-  const account=me?.id||'guest',revision=typeof apiRevision==='number'?apiRevision:0,d=await api('/api/crews?q='+encodeURIComponent(q));rememberCrewDiscovery(d,q,account,revision);
+  const account=me?.id||'guest',revision=typeof apiRevision==='number'?apiRevision:0,d=await api('/api/crews?q='+encodeURIComponent(q)+'&summary=1'+(!params.has('q')&&params.get('browse')!=='1'?'&home=1':''));rememberCrewDiscovery(d,q,account,revision);
+  if(d.detail){if(crewNavigationCurrent(account,revision))rememberCrewNavigation(d.mine,d.detail.crew);return crewDetailView(d.detail,d.mine);}
   if(d.mine&&!params.has('q')&&params.get('browse')!=='1')return liveCrewDetail(d.mine);
-  let html=heading('크루','함께 듣고, 부르고, 이야기하는 음악 모임')+communityNavigation('crews')+`<div class="inline-actions">${d.mine?`<a href="#crew/${esc(d.mine)}" class="primary-button">${icon('users')} 내 크루 들어가기</a>`:`<button class="small-button" data-browse-crews>${icon('search')} 크루 둘러보기</button><button class="primary-button" data-create-crew>크루 만들기</button>`}<a href="#community/covers" class="small-button">모든 커버곡</a></div><p>${d.mine?'취향이 맞는 크루를 찾아 함께 음악을 나눠보세요.':'취향이 맞는 크루에 가입해 함께 듣고 불러보세요.'}</p><form id="crew-search" class="aifect-search"><input name="q" value="${esc(q)}" maxlength="80" placeholder="크루 · 관심사 찾기" aria-label="크루 · 관심사"><button class="small-button">찾기</button></form>`;
-  const tracks=params.get('browse')==='1'?[]:d.tracks||[];if(tracks.length)html+=section(d.mine?'우리 크루의 최신 음악':'크루에서 나온 새 음악',d.mine?'#crew/'+d.mine:'#community/covers')+communityFeed(tracks.slice(0,6));
-  html+=section('함께할 크루')+(d.crews.length?`<div class="crew-grid">${d.crews.map(c=>crewCard(c,d.mine)).join('')}</div>`:'<p class="surface">아직 크루가 없어요. 좋아하는 음악으로 첫 모임을 만들어보세요.</p>');return {html,tracks};
+  return {html:crewDiscoveryHTML(d,q),tracks:[],crewDiscovery:d};
  }
  if(base==='crew'&&param){return liveCrewDetail(param,new URLSearchParams(raw.split('?')[1]||'').get('tab')||'music');}
  if(['profile','dm','rewards','payouts'].includes(base)||base==='library'&&param==='followers'){
   if(!me){returnRoute=location.hash;return {html:gate()};}
   if(base==='profile'){
-   const d=await api('/api/me/profile'),p=d.profile;
+   // Fetch independent reads together; money remains live and is never cached.
+   const knownProfile=me.profile_id;
+   const [d,balances,knownSocial]=await Promise.all([
+    api('/api/me/profile'),param!=='edit'?loadMyBalanceSummary():null,
+    param!=='edit'&&knownProfile?api('/api/producers/'+encodeURIComponent(knownProfile)):null
+   ]),p=d.profile;
    if(param!=='edit'){
-    if(p.id){const social=await api('/api/producers/'+encodeURIComponent(p.id));social.following_count=d.following_count;return {html:myPageHeading('내 플레이리스트와 공개한 음악을 한곳에')+personProfileHTML(social,p.id,new URLSearchParams(raw.split('?')[1]||'').get('tab')||'all'),tracks:musicProfileItems(social,new URLSearchParams(raw.split('?')[1]||'').get('tab')||'all')};}
-    return {html:myPageHeading('음악을 듣기만 해도 좋아요.')+'<section class="music-self-head"><div><h2>'+esc(p.name||me.name||'내 음악')+'</h2><p>아직 공개한 프로필이나 음악이 없어요.</p></div><a class="small-button" href="#profile/edit">프로필 만들기</a></section>'+playerProgressHTML(p)+musicMyShortcuts()};
+    if(p.id){const social=p.id===knownProfile&&knownSocial?knownSocial:await api('/api/producers/'+encodeURIComponent(p.id));social.following_count=d.following_count;return {html:myPageHeading('나의 순간과 음악이 만나는 공간')+personProfileHTML(social,p.id,new URLSearchParams(raw.split('?')[1]||'').get('tab')||'all',balances),tracks:musicProfileItems(social,new URLSearchParams(raw.split('?')[1]||'').get('tab')||'all')};}
+    return {html:myPageHeading('음악을 듣기만 해도 좋아요.')+balances+'<section class="music-self-head"><div><h2>'+esc(p.name||me.name||'내 음악')+'</h2><p>아직 공개한 프로필이나 음악이 없어요.</p></div><div class="inline-actions"><a class="small-button" href="#profile/edit">프로필 만들기</a><a class="small-button" href="#studio">창작자 스튜디오</a></div></section>'+playerProgressHTML(p)+musicMyShortcuts()};
    }
    return {html:heading('프로필 수정')+`<div class="inline-actions account-menu" style="margin-bottom:24px"><a class="small-button" href="#profile">내 페이지</a><a class="small-button" href="#account">계정·이용권</a><button type="button" class="small-button" id="logout">로그아웃</button></div><form id="public-profile-form" class="surface upload-form profile-form">${p.id?portrait(p,'producer'):''}<label class="form-field">프로필 사진<input name="image" type="file" accept="image/png,image/jpeg,image/webp"><small>JPG·PNG·WebP · 5MB 이하</small></label>${formField('공개 닉네임','name','text',p.name,'required maxlength="60"')}<p class="field-help">댓글·선물·크루·DM에는 이 이름이 표시돼요.</p><label class="form-field">소개<textarea name="bio" maxlength="1000">${esc(p.bio)}</textarea></label><button class="primary-button">프로필 저장</button><p class="form-error" role="alert"></p></form>`};
   }
   if(base==='library'){const d=await api('/api/me/profile');return {html:heading('팔로워')+libraryTabs('followers')+(d.followers.length?peopleListHTML(d.followers,'producer'):'<p class="surface">아직 팔로워가 없어요.</p>')};}
   if(base==='payouts')return {html:heading('정산')+earningsHTML(await api('/api/studio/earnings'))};
-  if(base==='rewards'){const d=await api('/api/gold');return {html:`<div class="rewards-page">${heading('오늘의 응원별','작은 활동을 모아 좋아하는 음악에 응원해보세요.')}<div id="gift-shop-rewards">${freeRewardsHTML(d.free)}</div></div>`};}
-  if(param==='crew')return crewChatView(raw);
-  if(!param){const d=await api('/api/dm');return {html:heading('메시지','노래로 만난 사람들과 바로 대화하세요.')+`<div class="dm-home-actions"><a href="#following">${icon('users')}<strong>팔로잉</strong><small>내가 팔로우한 사람</small></a><a href="#community">${icon('compass')}<strong>사람 찾기</strong><small>새로운 목소리 만나기</small></a><a href="#profile">${icon('user')}<strong>내 페이지</strong><small>프로필과 내 음악</small></a></div><div class="dm-section-heading"><h2>대화</h2><span>${number(d.conversations.length)}명과 대화 중</span>${inboxControlsHTML()}</div><div id="dm-conversations">`+conversationListHTML(d.conversations,d.crew)+'</div><p id="dm-list-error" role="status"></p>',inbox:true};}
-  const d=await api('/api/dm/'+encodeURIComponent(param));return {html:'<header class="dm-thread-header"><a href="#dm" class="small-button dm-back" aria-label="대화 목록으로 돌아가기">'+icon('back')+' 뒤로</a>'+dmProfileLink(d.peer,portrait(d.peer,'producer')+'<div><h1>'+esc(d.peer.name)+'</h1><small>프로필 보기</small></div>','dm-thread-person')+dmThreadActions(d.peer,d.settings)+'</header>'+chatPanelHTML('개인 메시지',d,d.peer),chat:{path:'/api/dm/'+param,peer:d.peer,initial:d}};
+  if(base==='rewards'){const d=await api('/api/gold');return {html:`<div class="rewards-page">${heading('오늘의 실버','작은 활동을 모아 좋아하는 음악에 응원해보세요.')}<div id="gift-shop-rewards">${freeRewardsHTML(d.free)}</div></div>`};}
+  if(param==='crew')return dmWorkspaceView(await crewChatView(raw));
+  if(param==='blocked')return blockedPeopleView();
+  if(!param){const d=await api('/api/dm');return {html:dmInboxHTML(d),inbox:true};}
+  const blockList=await api('/api/blocks');if(blockList.blocks.some(p=>p.profile_id===param))return blockedPeopleView(param,blockList);
+  let d;try{d=await api('/api/dm/'+encodeURIComponent(param));}catch(e){if(e.status===403){const blocked=await blockedPeopleView(param);if(blocked)return blocked;}throw e;}return dmWorkspaceView({html:'<header class="dm-thread-header"><a href="#dm" class="small-button dm-back" aria-label="대화 목록으로 돌아가기">'+icon('back')+' 뒤로</a>'+dmProfileLink(d.peer,portrait(d.peer,'producer')+'<div><h1>'+esc(d.peer.name)+'</h1><small>프로필 보기</small></div>','dm-thread-person')+dmThreadActions(d.peer,d.settings)+'</header>'+chatPanelHTML('개인 메시지',d,d.peer),chat:{path:'/api/dm/'+param,peer:d.peer,initial:d}});
  }
  return null;
 }
 async function libraryProfileHTML(){
  if(!me)return '';const d=await api('/api/me/profile'),p=d.profile;
- return `<section class="surface library-profile"><a href="#profile" aria-label="내 프로필 수정">${p.id?portrait(p,'producer'):`<span class="avatar">${esc(p.name[0])}</span>`}</a><div><h2>${esc(p.name)}</h2><div class="inline-actions"><a href="#profile">프로필 수정</a><a href="#library/followers">팔로워 ${d.follower_count}</a><a href="#library/following">팔로잉 ${d.following_count}</a></div></div><div class="inline-actions"><a href="#rewards" class="small-button">오늘의 응원별</a><a href="#dm" class="small-button">DM</a><a href="#payouts" class="small-button">정산</a></div></section>`;
+ return `<section class="surface library-profile"><a href="#profile" aria-label="내 프로필 수정">${portrait(p,'producer')}</a><div><h2>${esc(p.name)}</h2><div class="inline-actions"><a href="#profile">프로필 수정</a><a href="#library/followers">팔로워 ${d.follower_count}</a><a href="#library/following">팔로잉 ${d.following_count}</a></div></div><div class="inline-actions"><a href="#rewards" class="small-button">오늘의 실버</a><a href="#dm" class="small-button">DM</a><a href="#payouts" class="small-button">정산</a></div></section>`;
 }
 function bindCrewForm(){const form=$('#crew-form');form.onsubmit=busyForm(form,async fd=>{const cid=form.dataset.crew;const d=await api('/api/crews'+(cid?'/'+cid:''),cid?'PATCH':'POST',{name:fd.get('name'),description:fd.get('description'),interests:fd.get('interests'),recruiting:fd.has('recruiting')});const file=fd.get('crew_image');if(cid&&file?.size)await uploadChatImage('/api/crews/'+cid+'/image',file);$('#dialog').close();location.hash='crew/'+d.crew.id;if(cid)await render();});}
 function bindImprovements(view){
+ bindCrewHome(view);
+ bindCrewDiscovery(view);
+ const walletRetry=$('[data-my-wallet-retry]');if(walletRetry)walletRetry.onclick=async()=>{walletRetry.disabled=true;try{await render();}finally{walletRetry.disabled=false;}};
  const profile=$('#public-profile-form');if(profile)profile.onsubmit=busyForm(profile,async fd=>{
   await api('/api/me/profile','PUT',{name:fd.get('name'),bio:fd.get('bio')});const image=fd.get('image');
   if(image?.size){if(image.size>5*1024*1024)throw new Error('사진은 5MB 이하로 선택해주세요.');const r=await fetch('/api/me/profile/image',{method:'PUT',headers:{'content-type':image.type},body:image});if(!r.ok)throw new Error((await r.json()).error);}

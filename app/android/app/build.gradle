@@ -22,8 +22,8 @@ android {
   minSdk 26
   targetSdk 36
   ndk { abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86_64' }
-  versionCode 59
-  versionName '2.5.46'
+  versionCode 60
+  versionName '2.5.47'
   testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
  }
  buildFeatures { buildConfig true; compose true }

@@ -1,8 +1,26 @@
 const crewRoleLabels={owner:'크루장',deputy:'부크루장',operator:'운영자',manager:'매니저',member:'크루원'};
 const crewDisplayName=p=>p.name+(p.role&&p.role!=='member'?'('+(crewRoleLabels[p.role]||'크루원')+')':'');
-function crewPeopleHTML(d){return d.members.map(p=>{const content=portrait(p,'producer')+`<strong>${esc(crewDisplayName(p))}</strong>`;return d.membership?.role==='owner'&&p.role!=='owner'?`<button class="crew-person" data-crew-member="${esc(p.id)}" data-crew="${esc(d.crew.id)}">${content}</button>`:`<a href="#producer/${esc(p.id)}">${content}</a>`;}).join('');}
+function crewPeopleHTML(d){return d.members.map(p=>{const content=portrait(p,'producer')+'<span class="crew-person-copy"><strong>'+esc(p.name)+'</strong><small>'+esc(crewRoleLabels[p.role]||'크루원')+'</small></span>';return d.membership?.role==='owner'&&p.role!=='owner'?`<button class="crew-person" data-crew-member="${esc(p.id)}" data-crew="${esc(d.crew.id)}">${content}</button>`:`<a href="#producer/${esc(p.id)}">${content}</a>`;}).join('');}
+function bindChatEnter(input,submit){
+ let composing=false,pendingEnter=false;
+ input.addEventListener('compositionstart',()=>{composing=true;pendingEnter=false;});
+ input.addEventListener('compositionend',()=>{
+  composing=false;
+  // Wait for the IME's final input event, then submit the committed syllable or consonants once.
+  if(pendingEnter)queueMicrotask(()=>{if(pendingEnter&&!composing){pendingEnter=false;submit();}});
+ });
+ input.addEventListener('keydown',event=>{
+  if(event.key!=='Enter'||event.shiftKey){pendingEnter=false;return;}
+  if(event.repeat)return;
+  if(composing||event.isComposing||event.keyCode===229){pendingEnter=true;return;}
+  pendingEnter=false;event.preventDefault();submit();
+ });
+ // Safari may deliver compositionend before the Enter keydown with keyCode 229.
+ input.addEventListener('keyup',event=>{if(event.key==='Enter'&&!event.shiftKey&&pendingEnter&&!composing){pendingEnter=false;submit();}});
+ return ()=>composing;
+}
 function dmProfileLink(p,content,cls='dm-profile-link'){return '<a class="'+cls+'" href="#producer/'+esc(p.id)+'" aria-label="'+esc(p.name)+' 프로필 보기">'+content+'</a>';}
-function conversationListHTML(conversations,crew=null){return crewInboxHTML(crew)+(conversations.length?'<div class="conversation-list">'+conversations.map(p=>'<article class="surface conversation-row">'+dmProfileLink(p,portrait(p,'producer'))+'<a class="conversation-open" href="#dm/'+esc(p.id)+'"><div class="conversation-copy"><strong>'+esc(p.name)+'</strong><p>'+esc(p.last_message||'대화를 시작해보세요.')+'</p></div><div class="conversation-meta"><time>'+new Date(p.updated*1000).toLocaleDateString('ko-KR',{month:'numeric',day:'numeric'})+'</time>'+(p.unread?'<span class="unread-badge" aria-label="안 읽은 메시지 '+p.unread+'개">'+number(p.unread)+'</span>':'')+'</div></a>'+dmMuteButton(p)+'</article>').join('')+'</div>':'<div class="surface dm-empty"><h2>아직 나눈 대화가 없어요</h2><p>프로필의 DM 보내기로 대화를 시작해보세요.<br>대화를 나눈 사람별로 이곳에 모아둘게요.</p><a class="small-button" href="#following">팔로우한 사람 보기</a></div>');}
+function conversationListHTML(conversations,crew=null,selected=''){return crewInboxHTML(crew,selected)+(conversations.length?'<div class="conversation-list">'+conversations.map(p=>'<article class="surface conversation-row'+(selected===p.id?' is-selected':'')+'">'+dmProfileLink(p,portrait(p,'producer'))+'<a class="conversation-open" href="#dm/'+esc(p.id)+'"'+(selected===p.id?' aria-current="true"':'')+'><div class="conversation-copy"><strong>'+esc(p.name)+'</strong><p>'+esc(p.last_message||'대화를 시작해보세요.')+'</p></div><div class="conversation-meta"><time>'+new Date(p.updated*1000).toLocaleDateString('ko-KR',{month:'numeric',day:'numeric'})+'</time>'+(p.unread?'<span class="unread-badge" aria-label="안 읽은 메시지 '+p.unread+'개">'+number(p.unread)+'</span>':'')+'</div></a>'+dmMuteButton(p)+'</article>').join('')+'</div>':'<div class="surface dm-empty"><h2>아직 나눈 대화가 없어요</h2><p>프로필의 DM 보내기로 대화를 시작해보세요.<br>대화를 나눈 사람별로 이곳에 모아둘게요.</p><a class="small-button" href="#following">팔로우한 사람 보기</a></div>');}
 function chatHTML(messages,peer=null,crew=null){
  let day='';return messages.map(m=>{
   const currentDay=new Date(m.created*1000).toLocaleDateString('ko-KR',{timeZone:'Asia/Seoul'}),separator=currentDay!==day?'<div class="chat-day">'+currentDay+'</div>':'';day=currentDay;
@@ -14,7 +32,7 @@ function chatHTML(messages,peer=null,crew=null){
   const avatar=!mine?(linked?dmProfileLink(person,face):'<span class="dm-profile-link">'+face+'</span>'):'';
   const author=mine?'':crew?.owner&&m.profile_id?'<button class="dm-author chat-author" data-crew-member="'+esc(m.profile_id)+'" data-crew="'+esc(crew.id)+'">'+esc(label)+'</button>':linked?dmProfileLink(person,esc(label),'dm-author'):'<span class="dm-author">'+esc(label)+'</span>';
   const stamp=new Date(m.created*1000).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Seoul'});
-  return separator+'<article class="dm-message '+(mine?'mine':'')+'" data-message="'+esc(m.id)+'">'+avatar+'<div class="dm-message-content">'+author+'<div class="dm-bubble"><span class="chat-body">'+(m.image_id?chatImageHTML(m,!!crew):esc(m.body))+'</span></div><div class="chat-message-meta"><time>'+stamp+'</time>'+delivery+'</div></div></article>';
+  return separator+'<article class="dm-message '+(mine?'mine':'')+'" data-message="'+esc(m.id)+'">'+avatar+'<div class="dm-message-content">'+author+'<div class="dm-message-line"><div class="dm-bubble"><span class="chat-body">'+(m.image_id?chatImageHTML(m,!!crew):esc(m.body))+'</span></div><div class="chat-message-meta"><time>'+stamp+'</time>'+delivery+'</div></div></div></article>';
  }).join('')||'<div class="chat-empty"><span>'+icon('message')+'</span><strong>음악에서 시작되는 대화</strong><p>반가운 인사나 좋았던 음악을 나눠보세요.</p></div>';
 }
 function chatPanelHTML(label,initial=null,peer=null){return '<section class="surface chat-panel dm-chat-panel '+(peer?'':'crew-chat-panel')+'"><button class="small-button chat-earlier" id="chat-earlier" '+(initial?.has_more?'':'hidden')+'>이전 대화 보기</button><div id="chat-log" role="log" aria-label="'+label+'">'+(initial?chatHTML(initial.messages,peer):'')+'</div><p id="chat-connection" class="quiet" role="status"></p><p id="chat-error" role="status"></p>'+chatAttachmentTools(peer)+chatComposer()+'</section>';}
@@ -47,10 +65,12 @@ function watchSocialChat(query,changed,status,revoked){
 }
 function bindSocialChat(view){
  const ticket=renderId,uid=me?.id,current=()=>ticket===renderId&&uid===me?.id;
- if(view?.inbox){let fetching=false,again=false;const load=async()=>{if(!current())return;if(fetching){again=true;return;}fetching=true;
-  try{do{again=false;const d=await api('/api/dm');if(!current())return;const root=$('#dm-conversations'),html=conversationListHTML(d.conversations,d.crew);if(root.innerHTML!==html)root.innerHTML=html;$('#dm-list-error').textContent='';}while(again&&current());}
-  catch(e){if(current()){$('#dm-list-error').textContent=e.message;if([401,403].includes(e.status))socialCleanup?.();}}finally{fetching=false;}
- };socialCleanup=watchSocialChat('',load,()=>{},()=>{$('#dm-list-error').textContent='로그인 상태를 다시 확인해주세요.';});return;}
+ let inboxFetching=false,inboxAgain=false;
+ const loadInbox=async()=>{if(!view?.inbox||!current())return;if(inboxFetching){inboxAgain=true;return;}inboxFetching=true;
+  try{do{inboxAgain=false;const d=await api('/api/dm');if(!current())return;const root=$('#dm-conversations'),html=conversationListHTML(d.conversations,d.crew,view.selectedConversation||'');if(root&&root.innerHTML!==html)root.innerHTML=html;const count=$('#dm-inbox-count');if(count)count.textContent=number(d.conversations.length);$('#dm-list-error').textContent='';}while(inboxAgain&&current());}
+  catch(e){if(current())$('#dm-list-error').textContent=e.message;}finally{inboxFetching=false;}
+ };
+ if(view?.inbox&&!view.chat){socialCleanup=watchSocialChat('',loadInbox,()=>{},()=>{$('#dm-list-error').textContent='로그인 상태를 다시 확인해주세요.';});return;}
  if(!view?.chat)return;
  const {path,peer,crew,initial}=view.chat,form=$('#chat-compose'),log=$('#chat-log'),earlier=$('#chat-earlier'),input=form.querySelector('textarea'),sendButton=form.querySelector('[data-chat-send]');
  const messages=new Map((initial?.messages||[]).map(m=>[m.id,m]));let fetching=false,again=false,initialized=!!initial,lastHTML=null,sending=false,denied=false,chatGeneration=0;
@@ -77,15 +97,14 @@ function bindSocialChat(view){
    if(older||!initialized)earlier.hidden=!d.has_more;initialized=true;paint(older);$('#chat-error').textContent='';
    if(peer&&d.messages.some(m=>m.recipient_id===uid&&!m.read_at))await api(path,'PATCH');
    if(crew&&latestSequence)await api('/api/crews/'+crew.id+'/read','POST',{sequence:latestSequence});
-   void refreshMessageBadge();
+   void refreshMessageBadge();void loadInbox();
    if(!older&&cursor&&d.has_more)again=true;
   }while(again&&current()&&!older);}
   catch(e){if(current()){$('#chat-error').textContent=e.message;if([401,403].includes(e.status))deny();}}
   finally{fetching=false;earlier.disabled=false;if(again&&older&&current())void load();}
  };
  earlier.onclick=()=>{earlier.disabled=true;load(true);};
- let composing=false,compositionEnded=0;input.addEventListener('compositionstart',()=>{composing=true;});input.addEventListener('compositionend',()=>{composing=false;compositionEnded=performance.now();});
- input.addEventListener('keydown',event=>{if(!composing&&performance.now()-compositionEnded>80&&event.key==='Enter'&&!event.shiftKey&&!event.isComposing&&event.keyCode!==229){event.preventDefault();if(input.value.trim()&&!sendButton.disabled)form.requestSubmit();}});
+ const isComposing=bindChatEnter(input,()=>{if(input.isConnected&&current()&&input.value.trim()&&!sendButton.disabled)form.requestSubmit();});
  const send=async pending=>{
   const generation=chatGeneration;
   if(sending||denied||!current())throw new Error('전송 중인 메시지가 있어요. 잠시 후 사진을 다시 선택해주세요.');sending=true;sendButton.disabled=true;pending.delivery='sending';messages.set(pending.id,pending);paint(false,true);$('#chat-error').textContent='';
@@ -97,27 +116,29 @@ function bindSocialChat(view){
    if([401,403].includes(e.status))deny();
   }}finally{sending=false;if(current())sendButton.disabled=denied;}
  };
- form.onsubmit=event=>{event.preventDefault();if(composing||sending||denied||form.dataset.uploading||!input.value.trim())return;const rid=crypto.randomUUID(),body=input.value.trim();input.value='';
+ form.onsubmit=event=>{event.preventDefault();if(isComposing()||sending||denied||form.dataset.uploading||!input.value.trim())return;const rid=crypto.randomUUID(),body=input.value.trim();input.value='';
   void send({id:'pending:'+rid,request_id:rid,body,created:Math.floor(Date.now()/1000),user_id:uid,sender_id:uid,name:me.name,profile_id:me.profile_id,role:crew?.owner?'owner':'member'});
  };
  log.addEventListener('click',event=>{const retry=event.target.closest('[data-chat-retry]');if(retry&&messages.has(retry.dataset.chatRetry))void send(messages.get(retry.dataset.chatRetry));});
  bindChatImageUpload(peer,path,send,()=>sending||denied||!current());
- if(peer&&initial?.messages.some(m=>m.recipient_id===uid&&!m.read_at))api(path,'PATCH').then(()=>refreshMessageBadge()).catch(()=>{});
- const query=crew?'?crew='+encodeURIComponent(crew.id):'?peer='+encodeURIComponent(path.split('/').at(-1));
+ // Opening a room also acknowledges older unread messages outside the last page.
+ if(peer&&initial)api(path,'PATCH').then(()=>{if(current()){void refreshMessageBadge();void loadInbox();}}).catch(e=>{if(current())$('#chat-error').textContent='읽음 상태를 반영하지 못했어요. '+e.message;});
+ const query=crew?'?crew='+encodeURIComponent(crew.id):view.inbox?'':'?peer='+encodeURIComponent(path.split('/').at(-1));
  // History must not wait for the first SSE event or a stream timeout.
  if(!initial)void load();
- const stopStream=watchSocialChat(query,()=>load(),text=>{if(current())$('#chat-connection').textContent=text;},deny);
+ const stopStream=watchSocialChat(query,()=>{void load();void loadInbox();},text=>{if(current())$('#chat-connection').textContent=text;},deny);
+ const stopInbox=crew&&view.inbox?watchSocialChat('',loadInbox,()=>{},deny):()=>{};
  // Resize only the conversation pane, never scroll the whole document while typing.
  document.body.classList.add('chat-active');
  const panel=log.closest('.chat-panel'),viewportHeightAtOpen=innerHeight;let pinned=true,frame=0;
  const onScroll=()=>{pinned=log.scrollHeight-log.scrollTop-log.clientHeight<90;};
  const anchor=()=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(()=>{if(!current())return;if(document.activeElement===input||pinned)log.scrollTop=log.scrollHeight;});};
- const viewport=()=>{if(!current())return;const vv=window.visualViewport;const bottom=(vv?.height||innerHeight)+(vv?.offsetTop||0);const top=panel.getBoundingClientRect().top;const keyboard=document.activeElement===input&&Math.max(viewportHeightAtOpen,innerHeight)-(vv?.height||innerHeight)>120;document.body.classList.toggle('chat-keyboard',keyboard);const playerHeight=document.querySelector('.player:not([hidden])')?.getBoundingClientRect().height||0;const inset=keyboard?12:(innerWidth<=800?78:16)+playerHeight;panel.style.height=Math.max(180,bottom-top-inset)+'px';anchor();};
+ const viewport=()=>{if(!current())return;const vv=window.visualViewport;const bottom=(vv?.height||innerHeight)+(vv?.offsetTop||0);const workspace=panel.closest?.('.message-workspace'),target=workspace||panel;const top=target.getBoundingClientRect().top;const keyboard=document.activeElement===input&&Math.max(viewportHeightAtOpen,innerHeight)-(vv?.height||innerHeight)>120;document.body.classList.toggle('chat-keyboard',keyboard);const playerHeight=document.querySelector('.player:not([hidden])')?.getBoundingClientRect().height||0;const inset=keyboard?12:(innerWidth<=800?78:16)+playerHeight;target.style.height=Math.max(180,bottom-top-inset)+'px';if(workspace)panel.style.height='';anchor();};
  const resize=new ResizeObserver(anchor);resize.observe(log);
  log.addEventListener('scroll',onScroll,{passive:true});log.addEventListener('load',anchor,true);
  input.addEventListener('focus',viewport);input.addEventListener('blur',viewport);
  window.visualViewport?.addEventListener('resize',viewport);window.addEventListener('resize',viewport);viewport();
- socialCleanup=()=>{document.body.classList.remove('chat-keyboard','chat-active');stopStream();resize.disconnect();cancelAnimationFrame(frame);log.removeEventListener('scroll',onScroll);log.removeEventListener('load',anchor,true);input.removeEventListener('focus',viewport);input.removeEventListener('blur',viewport);window.visualViewport?.removeEventListener('resize',viewport);window.removeEventListener('resize',viewport);};
+ socialCleanup=()=>{document.body.classList.remove('chat-keyboard','chat-active');stopStream();stopInbox();resize.disconnect();cancelAnimationFrame(frame);log.removeEventListener('scroll',onScroll);log.removeEventListener('load',anchor,true);input.removeEventListener('focus',viewport);input.removeEventListener('blur',viewport);window.visualViewport?.removeEventListener('resize',viewport);window.removeEventListener('resize',viewport);};
 }
 
 document.addEventListener('click',async event=>{

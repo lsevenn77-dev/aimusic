@@ -148,11 +148,13 @@ import org.json.JSONObject
   }
   if(m.user!=null){
    item{PlayerHomePanel(m)}
+   item{MyWalletPanel(m)}
+   item{NotificationEntry(m)}
    item{
     Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)){
      FilledTonalButton(onClick={m.library("플레이리스트")}){Text("내 플레이리스트")};OutlinedButton(onClick={m.library("좋아요")}){Text("좋아요")};OutlinedButton(onClick={m.library("최근 감상")},colors=ButtonDefaults.outlinedButtonColors(contentColor=SoftText)){Text("최근 감상")}
     }
-    Row(Modifier.horizontalScroll(rememberScrollState())){TextButton(onClick={m.showRecordingDrafts=true}){Text("녹음 초안")};TextButton(onClick={m.library("내 제작곡")},colors=ButtonDefaults.textButtonColors(contentColor=SoftText)){Text("업로드 관리")};TextButton(onClick={browser(Endpoint.url("/#studio"))}){Text("제작곡 올리기")}}
+    Row(Modifier.horizontalScroll(rememberScrollState())){TextButton(onClick={m.showRecordingDrafts=true}){Text("녹음 초안")};TextButton(onClick={m.library("내 제작곡")},colors=ButtonDefaults.textButtonColors(contentColor=SoftText)){Text("업로드 관리")};TextButton(onClick={browser(Endpoint.url("/#studio"))}){Text("창작자 스튜디오")}}
     Text("저장한 음악은 내 보관함에서, 공개한 음악은 아래에서 확인해요.",color=Muted,fontSize=12.sp,modifier=Modifier.padding(vertical=12.dp))
     Chips(listOf("전체","제작곡","커버","듀엣"),tab){tab=it}
     MusicLayoutControl(tracks.size,grid,{grid=it},"my-music")

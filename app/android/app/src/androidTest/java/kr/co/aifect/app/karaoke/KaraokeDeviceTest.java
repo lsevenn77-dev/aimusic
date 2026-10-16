@@ -291,6 +291,21 @@ public class KaraokeDeviceTest {
         Bitmap image=InstrumentationRegistry.getInstrumentation().getUiAutomation().takeScreenshot();
         try(FileOutputStream out=new FileOutputStream(new File(context.getExternalFilesDir(null),"karaoke-native.png"))){image.compress(Bitmap.CompressFormat.PNG,100,out);}image.recycle();
     }
+    @Test public void rapidBackingKeySelectionAppliesLastChoiceAndSurvivesRecreation()throws Exception{
+        onView(withText("반주 키 조절")).perform(scrollTo(),click());
+        onView(withContentDescription("반주 키 높이기")).check(matches(isDisplayed()));
+        screen.onActivity(a->{try{
+            java.lang.reflect.Field up=KaraokeActivity.class.getDeclaredField("keyUp");up.setAccessible(true);
+            android.widget.Button b=(android.widget.Button)up.get(a);for(int i=0;i<4;i++)assertTrue(b.performClick());
+            java.lang.reflect.Field selected=KaraokeActivity.class.getDeclaredField("selectedKey");selected.setAccessible(true);assertEquals(4,selected.getInt(a));
+        }catch(Exception e){throw new RuntimeException(e);}});
+        long until=System.nanoTime()+TimeUnit.SECONDS.toNanos(40);AtomicBoolean done=new AtomicBoolean();
+        while(!done.get()&&System.nanoTime()<until){screen.onActivity(a->{try{java.lang.reflect.Field applied=KaraokeActivity.class.getDeclaredField("appliedKey"),working=KaraokeActivity.class.getDeclaredField("keyWorking");applied.setAccessible(true);working.setAccessible(true);done.set(applied.getInt(a)==4&&!working.getBoolean(a));}catch(Exception e){throw new RuntimeException(e);}});Thread.sleep(100);}
+        assertTrue("Last selected key finishes",done.get());capture("backing-key-2547.png");
+        onView(withText("닫기")).inRoot(androidx.test.espresso.matcher.RootMatchers.isDialog()).perform(click());
+        screen.recreate();awaitNativeRoom(40);
+        screen.onActivity(a->{try{java.lang.reflect.Field applied=KaraokeActivity.class.getDeclaredField("appliedKey"),mr=KaraokeActivity.class.getDeclaredField("mr");applied.setAccessible(true);mr.setAccessible(true);assertEquals(4,applied.getInt(a));assertEquals("key-4.pcm",((File)mr.get(a)).getName());assertNoAudioCapture(a);}catch(Exception e){throw new RuntimeException(e);}});
+    }
     @Test public void reviewSyncRemainsEditableWhileAudioKeepsPlaying()throws Exception{
         AtomicReference<KaraokeEngine> holder=new AtomicReference<>();
         screen.onActivity(activity->{try{

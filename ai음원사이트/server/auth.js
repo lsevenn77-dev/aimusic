@@ -7,20 +7,28 @@ import {membership} from './membership.js';
 import {applyPremiumGrant} from './premium-grant.js';
 import {mobileAuthRoute,finishMobile} from './mobile-auth.js';
 import {nativeAuthRoute} from './native-auth.js';
+import {isConsoleAdmin} from './admin-session.js';
 const enc=new TextEncoder();
 export const hash=async s=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',enc.encode(s))),x=>x.toString(16).padStart(2,'0')).join('');
 const cookie=(name,value,age,secure=true)=>`${name}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${age}${secure?'; Secure':''}`;
 export function cookies(req){return Object.fromEntries((req.headers.get('cookie')||'').split(';').map(x=>x.trim().split('=')));}
 // Operators are listed by user id in ADMIN_USER_IDS; there is no self-service admin role.
-export const isAdmin=(env,user)=>!!user&&(env.ADMIN_USER_IDS||'').split(',').map(s=>s.trim()).filter(Boolean).includes(user.id);
+export const isAdmin=(env,user)=>isConsoleAdmin(user)||!!user&&(env.ADMIN_USER_IDS||'').split(',').map(s=>s.trim()).filter(Boolean).includes(user.id);
 // Moderation operators have no access to payout accounts or other administrator data.
 export const isTrackModerator=(env,user)=>isAdmin(env,user)||!!user&&(env.TRACK_REVIEW_USER_IDS||'').split(',').map(s=>s.trim()).filter(Boolean).includes(user.id);
+// Request-local security context, never serialized or reused across requests.
+const viewerBlocks=new WeakMap();
+export const viewerBlockedIds=user=>viewerBlocks.get(user);
 export async function viewer(req,env){
  const token=cookies(req).aifect_session;if(!token)return null;
  // Resolve the session and public nickname together on every request; no auth cache.
- const user=await one(env,`SELECT u.id,u.email,u.provider,u.premium_until,u.apple_premium_until,COALESCE(${producerNameSQL()},CASE WHEN u.provider='email' THEN u.name ELSE '리스너 '||substr(u.id,1,8) END) name,${publicCrewNameSQL()} display_name,p.id profile_id,COALESCE(p.image_version,'') image_version FROM sessions s JOIN users u ON u.id=s.user_id LEFT JOIN producers p ON p.user_id=u.id WHERE s.token=? AND s.expires>? AND u.provider!='deleted'`,await hash(token),now());
+ const record=await one(env,`SELECT u.id,u.email,u.provider,u.premium_until,u.apple_premium_until,COALESCE(${producerNameSQL()},CASE WHEN u.provider='email' THEN u.name ELSE '리스너 '||substr(u.id,1,8) END) name,${publicCrewNameSQL()} display_name,p.id profile_id,COALESCE(p.image_version,'') image_version,(SELECT json_group_array(CASE WHEN b.user_id=u.id THEN b.blocked_id ELSE b.user_id END) FROM user_blocks b WHERE b.user_id=u.id OR b.blocked_id=u.id) blocked_ids FROM sessions s JOIN users u ON u.id=s.user_id LEFT JOIN producers p ON p.user_id=u.id WHERE s.token=? AND s.expires>? AND u.provider!='deleted'`,await hash(token),now());
+ if(!record)return null;
+ const {blocked_ids,...user}=record;
  const granted=await applyPremiumGrant(env,user);
- return granted?{...granted,base_premium_until:granted.premium_until,premium_until:Math.max(granted.premium_until,granted.apple_premium_until||0)}:null;
+ const resolved={...granted,base_premium_until:granted.premium_until,premium_until:Math.max(granted.premium_until,granted.apple_premium_until||0)};
+ viewerBlocks.set(resolved,JSON.parse(blocked_ids||'[]'));
+ return resolved;
 }
 export const requireUser=u=>{if(!u)fail(401,'로그인 후 이용해주세요.');return u;};
 async function passwordHash(password,salt,env){

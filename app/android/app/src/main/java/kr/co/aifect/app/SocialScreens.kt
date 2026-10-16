@@ -447,6 +447,7 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
    if(m.messagePeer==null){
     LazyColumn(Modifier.fillMaxWidth().weight(1f),contentPadding=PaddingValues(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
      m.inboxCrew?.let{crew->item(key="pinned-crew"){Surface(onClick={m.openCrewMessages(crew.getString("id"))},color=Raised,shape=MaterialTheme.shapes.large){Row(Modifier.fillMaxWidth().padding(16.dp),verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){Text("내 크루 · 고정",color=Aqua,fontSize=12.sp);Text(crew.optString("name"));Text("크루 채팅",color=Muted,fontSize=13.sp)};if(crew.optInt("unread")>0)Badge{Text(crew.optInt("unread").toString())}}}}}
+     item(key="activity-history"){NotificationEntry(m)}
      item{TextButton(onClick={sheetScope.launch{try{m.api.call("/api/dm/read-all","POST");load()}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}}}){Text("모두 읽음")}}
      items(conversations,key={it.optString("id")}){p->
       Surface(onClick={m.messagePeer=p.getString("id")},color=Panel,shape=MaterialTheme.shapes.large,modifier=Modifier.testTag("dm-conversation-"+p.optString("id"))){Row(Modifier.fillMaxWidth().padding(14.dp),verticalAlignment=Alignment.CenterVertically){

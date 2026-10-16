@@ -97,3 +97,12 @@ main:has(>.dm-thread-header),main:has(>#dm-conversations) {max-width:none;paddin
 body:has(.chat-panel) .page-footer {display:none}
 main:has(>.dm-thread-header) {min-height:0}
 body:has(.chat-panel) .page-wrap {padding-bottom:0}
+
+/* Shared default for new members, missing photos, and failed image requests. */
+.profile-avatar {background:#252e3a url('/assets/default-avatar.svg') center/cover no-repeat}
+.profile-avatar>img.profile-avatar-image {display:block;width:100%;height:100%;object-fit:cover;border-radius:50%}
+.profile-avatar>img.profile-avatar-image[hidden] {display:none}
+
+/* A cover performance is represented by its singer, without account frames or level badges. */
+.cover.cover-performer{border-radius:50%!important;overflow:hidden;background:#252e3a}
+.cover.cover-performer>img{width:100%;height:100%;object-fit:cover;border-radius:50%}

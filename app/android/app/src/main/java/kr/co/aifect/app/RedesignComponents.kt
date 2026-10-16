@@ -43,6 +43,16 @@ internal fun singingCardColumns(widthDp: Float, fontScale: Float): Int = if(widt
  }
 }
 
+@Composable internal fun HomeSingingDiscovery(tracks:List<Song>,m:MusicModel,sing:(Song)->Unit){
+ val featured=tracks.sortedByDescending{it.raw.optInt("covers")}.take(3)
+ Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).musicSurface(feature=true).border(1.dp,Violet.copy(alpha=.35f),RoundedCornerShape(20.dp)).padding(12.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+  Row(verticalAlignment=Alignment.CenterVertically){Icon(Icons.Rounded.LocalFireDepartment,null,tint=Pink);Text("지금, 함께 부르는 노래",fontSize=15.sp,color=Pink,fontWeight=FontWeight.SemiBold,modifier=Modifier.padding(start=6.dp))}
+  SingReadyCards(featured,m,sing)
+  val more=tracks.filter{candidate->featured.none{it.id==candidate.id}}
+  if(more.isNotEmpty()){Text("이런 곡은 어때요?",fontSize=16.sp,fontWeight=FontWeight.Bold,modifier=Modifier.padding(top=6.dp));SingReadyCards(more,m,sing)}
+ }
+}
+
 @Composable internal fun SingReadyCards(tracks:List<Song>,m:MusicModel,sing:(Song)->Unit){
  BoxWithConstraints(Modifier.fillMaxWidth()){
   val columns=singingCardColumns(maxWidth.value,LocalDensity.current.fontScale)

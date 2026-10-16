@@ -1,9 +1,10 @@
 import {SignJWT,importPKCS8} from 'jose';
 import {one,rows,run,now,fail,json,rate} from './db.js';
 import {requireUser,hash,cookies} from './auth.js';
+import {VISIBLE} from './catalog.js';
 
 const kinds=['dm','comment','gift'];
-const eventKinds=[...kinds,'crew','person_gift'];
+const eventKinds=[...kinds,'crew','person_gift','participation'];
 let credentialCache;
 let retryAfter=0;
 export function retryPush(env,ctx){
@@ -55,6 +56,8 @@ async function accessToken(env){
 }
 
 export function notificationData(event){
+ // Existing native apps already open song targets for comment notifications.
+ if(event.kind==='participation')return {kind:'comment',activity:'participation',target:event.target,recipient:event.recipient,title:'내 음악에 새로운 참여가 있어요',body:'새 커버·듀엣이 공개됐어요. 알림 기록에서 확인해보세요.'};
  const title=event.kind==='crew'?'크루 새 메시지':event.kind==='dm'?'새 메시지':event.kind==='comment'?'새 댓글':'선물이 도착했어요';
  const body=event.kind==='crew'?'크루에 새 메시지가 도착했어요.':event.kind==='person_gift'?'나에게 선물이 도착했어요.':event.kind==='dm'?'새 메시지가 도착했어요.':event.kind==='comment'?'내 음악에 새로운 댓글이 달렸어요.':'내 음악에 선물이 도착했어요.';
  return {kind:event.kind,target:event.target,recipient:event.recipient,title,body};
@@ -73,11 +76,14 @@ export async function dispatchPush(env){
   if(!eventKinds.includes(event.kind))return;
   if(event.kind==='crew'&&!await one(env,'SELECT 1 FROM crew_members WHERE user_id=? AND crew_id=? AND muted=0',event.recipient,event.target)){await run(env,'UPDATE push_outbox SET delivered=1 WHERE id=?',event.id);return;}
   if(event.kind==='person_gift'&&!await one(env,'SELECT 1 FROM producers WHERE id=? AND user_id=?',event.target,event.recipient)){await run(env,'UPDATE push_outbox SET delivered=1 WHERE id=?',event.id);return;}
-  const preference=event.kind==='crew'?'dm':event.kind==='person_gift'?'gift':event.kind;
+  const activity=await one(env,'SELECT actor_id FROM activity_notifications WHERE id=?',event.id);
+  if(activity?.actor_id&&await one(env,'SELECT 1 FROM user_blocks WHERE (user_id=? AND blocked_id=?) OR (user_id=? AND blocked_id=?)',event.recipient,activity.actor_id,activity.actor_id,event.recipient)){await run(env,'UPDATE push_outbox SET delivered=1 WHERE id=?',event.id);return;}
+  const preference=event.kind==='crew'?'dm':event.kind==='person_gift'?'gift':event.kind==='participation'?'comment':event.kind;
+  if(event.kind==='participation'&&!await one(env,`SELECT t.id FROM tracks t WHERE t.id=? AND ${VISIBLE()}`,event.target)){await run(env,'UPDATE push_outbox SET delivered=1 WHERE id=?',event.id);return;}
   if(event.kind==='dm'&&await one(env,'SELECT 1 FROM dm_settings s JOIN producers p ON p.user_id=s.peer_id WHERE s.user_id=? AND p.id=? AND s.muted=1',event.recipient,event.target)){
    await run(env,'UPDATE push_outbox SET delivered=1 WHERE id=?',event.id);return;
   }
-  if(['comment','gift'].includes(event.kind)&&!await one(env,"SELECT id FROM tracks WHERE id=? AND status='published'",event.target)){
+  if(['comment','gift','participation'].includes(event.kind)&&!await one(env,"SELECT id FROM tracks WHERE id=? AND status='published'",event.target)){
    await run(env,'UPDATE push_outbox SET delivered=1 WHERE id=?',event.id);return;
   }
   // A revoked/expired login can never continue receiving pushes. Preference names are server-owned.

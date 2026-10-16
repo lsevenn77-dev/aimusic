@@ -1,3 +1,4 @@
+import {trackArtworkSQL,coverArtworkVersion} from './track-artwork.js';
 import {queueClassification,classificationFields} from './music-classification.js';
 import {nickname,nicknameBatch} from './nicknames.js';
 import {chooseArtist,namedArtistSQL} from './artist-identity.js';
@@ -12,7 +13,7 @@ import {studioRoute} from './studio.js';
 import {lyricsFields} from './lyrics.js';
 import {alignmentInternalRoute,alignmentWrite} from './alignment.js';
 import {KARAOKE_TERMS_VERSION} from '../shared/site-info.js';
-import {MAX_AUDIO,put,objectResponse,parseRange,originalKey} from './storage.js';
+import {MAX_AUDIO,put,objectResponse,imageCacheControl,parseRange,originalKey} from './storage.js';
 import {originalArchiveRoute} from './original-archives.js';
 import {premiumAudio,premiumAudioRoute} from './premium-audio.js';
 import {premiumGrantInternalRoute} from './premium-grant.js';
@@ -23,15 +24,15 @@ export async function mediaRoute(req,env,path,user){
  const method=req.method;
  const download=path.match(/^\/api\/covers\/([\w-]+)\/download$/);
  if(download&&['GET','HEAD'].includes(method)){
-  requireUser(user);if(!isPremium(user))fail(403,'커버 파일 저장은 Premium 이용권이 필요해요.');
-  const t=await published(env,download[1]);if(t.kind!=='cover')fail(404,'커버곡을 찾을 수 없습니다.');
+  requireUser(user);
+  const t=await published(env,download[1]);if(t.kind!=='cover'||t.user_id!==user.id)fail(403,'본인이 녹음한 커버만 저장할 수 있어요. 다른 사람의 음악은 다운로드할 수 없어요.');
   const high=await premiumAudio(env,t,user),r=await objectResponse(req,env,high?.output_key||`stream/${t.id}.m4a`,'audio/mp4');
   const h=new Headers(r.headers);h.set('content-disposition',`attachment; filename="AIFECT-cover.m4a"; filename*=UTF-8''${encodeURIComponent(t.title+'.m4a')}`);
   return new Response(r.body,{status:r.status,headers:h});
  }
  const studio=await studioRoute(req,env,path,user);if(studio)return studio;
  if(path==='/api/studio'&&method==='GET'){
-  requireUser(user);return json({producer:await one(env,'SELECT * FROM producers WHERE user_id=?',user.id),artists:await rows(env,`SELECT a.* FROM artists a JOIN producers p ON a.producer_id=p.id WHERE p.user_id=? AND ${namedArtistSQL()}`,user.id),upload_quota:await uploadQuota(env,user),tracks:await rows(env,`SELECT t.id,t.title,t.status,t.error,t.created,t.duration,t.genre,t.genres_json,t.moods_json,t.classification_source,(SELECT state FROM music_classification_jobs WHERE track_id=t.id) classification_state,t.has_cover,t.cover_version,t.artist_id,t.kind,t.original_id,t.performance_mode,t.cover_mode,t.duet_parent_id,t.duet_part,t.duet_open,o.title original_title,o.has_cover original_has_cover,o.cover_version original_cover_version,j.state alignment_state FROM tracks t LEFT JOIN tracks o ON o.id=t.original_id LEFT JOIN lyric_jobs j ON j.track_id=t.id WHERE t.user_id=? AND t.status!='deleted' ORDER BY t.created DESC LIMIT 100`,user.id)});
+  requireUser(user);return json({producer:await one(env,'SELECT * FROM producers WHERE user_id=?',user.id),artists:await rows(env,`SELECT a.* FROM artists a JOIN producers p ON a.producer_id=p.id WHERE p.user_id=? AND ${namedArtistSQL()}`,user.id),upload_quota:await uploadQuota(env,user),tracks:await rows(env,`SELECT t.id,t.title,t.status,t.error,t.created,t.duration,t.genre,t.genres_json,t.moods_json,t.classification_source,(SELECT state FROM music_classification_jobs WHERE track_id=t.id) classification_state,${trackArtworkSQL()},t.producer_id,p.image_version producer_image_version,t.artist_id,t.kind,t.original_id,t.performance_mode,t.cover_mode,t.duet_parent_id,t.duet_part,t.duet_open,o.title original_title,o.has_cover original_has_cover,o.cover_version original_cover_version,j.state alignment_state FROM tracks t JOIN producers p ON p.id=t.producer_id LEFT JOIN tracks o ON o.id=t.original_id LEFT JOIN lyric_jobs j ON j.track_id=t.id WHERE t.user_id=? AND t.status!='deleted' ORDER BY t.created DESC LIMIT 100`,user.id)});
  }
  if(path==='/api/studio/profile'&&method==='PUT'){
   requireUser(user);const b=await req.json(),p=await one(env,'SELECT id FROM producers WHERE user_id=?',user.id),pid=p?.id||id();
@@ -103,6 +104,13 @@ export async function mediaRoute(req,env,path,user){
    requireUser(user);if(!isPremium(user))fail(403,'AAC 256 감상은 Premium 이용권이 필요해요.');
    const high=await premiumAudio(env,t,user);if(!high)fail(404,'고음질 파일을 준비하고 있습니다.');
    return objectResponse(req,env,high.output_key,'audio/mp4');
+  }
+  if(kind==='cover'&&t.kind==='cover'){
+   const profile=await one(env,'SELECT id,image_version,image_type FROM producers WHERE id=?',t.producer_id),version=coverArtworkVersion(profile);
+   if(profile?.image_version)return objectResponse(req,env,`images/producer/${profile.id}/${profile.image_version}`,profile.image_type,!!t.visible,{imageVersion:version});
+   const fallback=await env.ASSETS.fetch(new Request(new URL('/assets/default-avatar.png',req.url),{method:req.method}));
+   const headers=new Headers(fallback.headers);headers.set('cache-control',imageCacheControl(req,!!t.visible,version));headers.set('x-content-type-options','nosniff');
+   return new Response(fallback.body,{status:fallback.status,headers});
   }
   if(kind==='cover'&&t.cover_version)return objectResponse(req,env,`images/track/${t.id}/${t.cover_version}`,t.cover_type,!!t.visible,{imageVersion:t.cover_version});
   return objectResponse(req,env,`${kind}/${t.id}.${kind==='cover'?'jpg':'m4a'}`,kind==='cover'?'image/jpeg':'audio/mp4',kind==='cover'&&!!t.visible);
