@@ -55,15 +55,18 @@ export class NoiseCleaner {
   return x+(filtered*this.gain*this.rumbleGain-x)*this.blend;
  }
 }
+class ToneBand {
+ constructor(rate,hz,q,db){const a=10**(db/40),w=2*Math.PI*Math.min(hz,rate*.4)/rate,c=Math.cos(w),alpha=Math.sin(w)/(2*q),a0=1+alpha/a;this.b0=(1+alpha*a)/a0;this.b1=-2*c/a0;this.b2=(1-alpha*a)/a0;this.a1=-2*c/a0;this.a2=(1-alpha/a)/a0;this.z1=0;this.z2=0;}
+ process(x){const y=this.b0*x+this.z1;this.z1=this.b1*x-this.a1*y+this.z2;this.z2=this.b2*x-this.a2*y;return y;}
+}
 export class VocalTone {
- constructor(rate){this.low=0;this.high=0;this.envelope=0;this.amount=0;this.lowC=1-Math.exp(-2*Math.PI*250/rate);this.highC=1-Math.exp(-2*Math.PI*3500/rate);this.attack=1-Math.exp(-1/(rate*.008));this.release=1-Math.exp(-1/(rate*.12));this.smooth=1-Math.exp(-1/(rate*.015));}
+ constructor(rate){this.amount=0;this.smooth=1-Math.exp(-1/(rate*.025));this.body=new ToneBand(rate,280,.7,-4);this.presence=new ToneBand(rate,2600,.7,6);this.air=new ToneBand(rate,6200,.8,2);}
  process(x,amount){
   this.amount+=(clamp(amount,0,1)-this.amount)*this.smooth;
-  this.low+=(x-this.low)*this.lowC;this.high+=(x-this.high)*this.highC;
-  const tone=x-this.low*.22+(x-this.high)*.10,a=Math.abs(tone);
-  this.envelope+=(a-this.envelope)*(a>this.envelope?this.attack:this.release);
-  const gain=this.envelope>.18?Math.pow(.18/this.envelope,.6):1;
-  return x+(tone*gain*1.18-x)*this.amount;
+  // Audible broad EQ, not a hidden volume boost or pitch change. Keep filters
+  // warm while bypassed, and ramp the wet amount to avoid zipper noise.
+  const tone=this.air.process(this.presence.process(this.body.process(x)))*.9;
+  return x+(tone-x)*this.amount;
  }
 }
 export class VocalProcessor {
