@@ -4,7 +4,7 @@ import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Canvas;
 import android.graphics.Paint;
-import android.graphics.drawable.Drawable;
+import android.graphics.drawable.GradientDrawable;
 import android.graphics.Typeface;
 import android.text.SpannableStringBuilder;
 import android.text.Spanned;
@@ -25,24 +25,17 @@ final class LyricsTimelineView extends ScrollView {
     private final int minimumRowHeight,slop,pink=Color.rgb(241,120,181),muted=Color.rgb(145,148,161);
     private Listener listener;
     private String[] partLabels=new String[0],partRoles=new String[0];
-    private final int mint=Color.rgb(69,223,199);
+    private final int mint=0xff7cf2df,partnerBlue=0xffb2c0ea;
     void setPartLabels(String[] value){if(java.util.Arrays.equals(partLabels,value))return;partLabels=value;highlighted=-1;for(int i=0;i<labels.size();i++)decorate(i);}
     void setPartRoles(String[] value){if(Arrays.equals(partRoles,value))return;partRoles=value;highlighted=-1;for(int i=0;i<labels.size();i++)decorate(i);}
     private String role(int index){return index<partRoles.length?partRoles[index]:"";}
-    private int partColor(int index){return role(index).equals("partner")?mint:pink;}
+    private int partColor(int index){return role(index).equals("partner")?partnerBlue:role(index).equals("both")?mint:role(index).equals("mine")?0xfff5a0df:muted;}
     private String prefix(int index){return role(index).equals("partial")?"빈 구간 있음 · 추정\n":"";}
-    private void decorate(int index){TextView text=labels.get(index);String role=role(index);boolean marked=role.equals("mine")||role.equals("partner")||role.equals("both"),duet=Arrays.stream(partLabels).anyMatch(label->!label.isEmpty());Drawable mic=marked?new PartMic(role):null;text.setCompoundDrawablesRelativeWithIntrinsicBounds(mic,null,null,null);text.setCompoundDrawablePadding(dp(8));text.setPadding(dp(!marked&&duet?56:12),dp(9),dp(12),dp(9));text.setTag("duet-role-"+role);text.setContentDescription((index<partLabels.length?partLabels[index]+" ":"")+plain(index));text.setText(plain(index));text.setTextColor(muted);text.setTypeface(null,Typeface.NORMAL);}
-    private final class PartMic extends Drawable {
-        private final String role;private final Paint paint=new Paint(Paint.ANTI_ALIAS_FLAG);
-        PartMic(String value){role=value;}
-        @Override public int getIntrinsicWidth(){return dp(36);}
-        @Override public int getIntrinsicHeight(){return dp(26);}
-        @Override public void draw(Canvas canvas){canvas.save();canvas.translate(getBounds().left,getBounds().top);canvas.scale(getBounds().width()/36f,getBounds().height()/26f);if(role.equals("both")){canvas.save();canvas.scale(.7f,1);mic(canvas,pink);canvas.restore();canvas.translate(18,0);canvas.scale(.7f,1);mic(canvas,mint);}else{canvas.translate(6,0);mic(canvas,role.equals("partner")?mint:pink);}canvas.restore();}
-        private void mic(Canvas canvas,int color){paint.setColor(color);paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(1.8f);paint.setStrokeCap(Paint.Cap.ROUND);canvas.drawRoundRect(8,3,16,16,4,4,paint);canvas.drawArc(4,8,20,20,0,180,false,paint);canvas.drawLine(12,20,12,24,paint);canvas.drawLine(8,24,16,24,paint);}
-        @Override public void setAlpha(int alpha){paint.setAlpha(alpha);}
-        @Override public void setColorFilter(android.graphics.ColorFilter filter){paint.setColorFilter(filter);}
-        @Override public int getOpacity(){return android.graphics.PixelFormat.TRANSLUCENT;}
+    private void decorate(int index){
+        TextView text=labels.get(index);text.setCompoundDrawablesRelativeWithIntrinsicBounds(null,null,null,null);text.setPadding(dp(12),dp(10),dp(12),dp(10));text.setGravity(Gravity.CENTER);
+        text.setTag("duet-role-"+role(index));text.setContentDescription((index<partLabels.length?partLabels[index]+" ":"")+plain(index));text.setText(plain(index));text.setTextColor(partColor(index));text.setTypeface(null,Typeface.NORMAL);text.setBackground(null);
     }
+    private GradientDrawable currentBanner(){GradientDrawable bg=new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT,new int[]{0x9965507e,0x66454b73});bg.setCornerRadius(dp(12));bg.setStroke(dp(1),0x66b5a0e6);return bg;}
     private boolean dragging,available,pointerActive;
     private float down;
     private int highlighted=-1,lastPreview=-1;
@@ -135,16 +128,16 @@ final class LyricsTimelineView extends ScrollView {
     private String plain(int index){JSONArray parts=words.optJSONObject(index).optJSONArray("w");StringBuilder text=new StringBuilder();if(parts!=null)for(int i=0;i<parts.length();i++){JSONObject word=parts.optJSONObject(i);if(word!=null){if(text.length()>0)text.append(' ');text.append(word.optString("t"));}}return prefix(index)+text.toString();}
     private void highlight(int index){
         if(index==highlighted)return;
-        if(highlighted>=0&&highlighted<labels.size()){TextView old=labels.get(highlighted);old.setText(plain(highlighted));old.setTextColor(muted);old.setTypeface(null,Typeface.NORMAL);}
-        highlighted=index;if(index>=0&&index<labels.size()){TextView current=labels.get(index);current.setTextColor(partColor(index));current.setTypeface(null,Typeface.BOLD);}
+        if(highlighted>=0&&highlighted<labels.size()){TextView old=labels.get(highlighted);old.setText(plain(highlighted));old.setTextColor(partColor(highlighted));old.setTypeface(null,Typeface.NORMAL);old.setBackground(null);}
+        highlighted=index;if(index>=0&&index<labels.size()){TextView current=labels.get(index);current.setTextColor(partColor(index));current.setTypeface(null,Typeface.BOLD);current.setBackground(currentBanner());}
     }
     void showPosition(double seconds){
         if(pointerActive||dragging||labels.isEmpty())return;
         int at=0;for(int i=0;i<words.length();i++){if(words.optJSONObject(i).optDouble("s")<=seconds)at=i;else break;}
         if(at!=highlighted){highlight(at);alignSelected();}
         JSONArray parts=words.optJSONObject(at).optJSONArray("w");SpannableStringBuilder text=new SpannableStringBuilder(prefix(at));
-        if(parts!=null)for(int i=0;i<parts.length();i++){JSONObject word=parts.optJSONObject(i);if(word==null)continue;if(text.length()>0)text.append(' ');int begin=text.length();text.append(word.optString("t"));double start=word.optDouble("s"),end=Math.max(start+.05,word.optDouble("e"));int filled=(int)Math.round(Math.max(0,Math.min(1,(seconds-start)/(end-start)))*(text.length()-begin));if(filled>0)text.setSpan(new ForegroundColorSpan(partColor(at)),begin,begin+filled,Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);}
-        labels.get(at).setTextColor(Color.WHITE);labels.get(at).setText(text);
+        if(parts!=null)for(int i=0;i<parts.length();i++){JSONObject word=parts.optJSONObject(i);if(word==null)continue;if(text.length()>0)text.append(' ');int begin=text.length();text.append(word.optString("t"));double start=word.optDouble("s"),end=Math.max(start+.05,word.optDouble("e"));int filled=(int)Math.round(Math.max(0,Math.min(1,(seconds-start)/(end-start)))*(text.length()-begin));if(filled>0)text.setSpan(new ForegroundColorSpan(Color.WHITE),begin,begin+filled,Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);}
+        labels.get(at).setTextColor(partColor(at));labels.get(at).setText(text);
     }
     private int dp(int n){return Math.round(n*getResources().getDisplayMetrics().density);}
 }

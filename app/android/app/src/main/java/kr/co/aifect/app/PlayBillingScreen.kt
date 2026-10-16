@@ -26,7 +26,7 @@ import com.android.billingclient.api.BillingClient
     Text("매월 자동 갱신되며 Google Play에서 해지할 수 있어요. 최종 가격과 갱신 조건은 구매창에서 확인해주세요.",color=Muted,fontSize=12.sp,modifier=Modifier.padding(top=8.dp))
    }
    Text("골드 충전",fontSize=20.sp,fontWeight=FontWeight.Bold,modifier=Modifier.padding(top=24.dp))
-   Text("좋아하는 음악에 선물을 보낼 때 사용해요. 응원별은 무료 보상으로 따로 모을 수 있어요.",color=Muted,modifier=Modifier.padding(vertical=12.dp))
+   Text("좋아하는 음악에 선물을 보낼 때 사용해요. 실버는 무료 보상으로 따로 모을 수 있어요.",color=Muted,modifier=Modifier.padding(vertical=12.dp))
    billing?.products?.filter{it.productType==BillingClient.ProductType.INAPP}?.sortedBy{it.productId.substringAfterLast('_').toIntOrNull()?:0}?.forEach{product->
     OutlinedButton(onClick={billing.buy(product)},enabled=!billing.busy,modifier=Modifier.fillMaxWidth()){Text("${product.productId.substringAfterLast('_')} G");Spacer(Modifier.weight(1f));Text(billing.price(product))}
    }

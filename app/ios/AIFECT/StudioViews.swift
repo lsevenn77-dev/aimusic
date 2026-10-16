@@ -124,7 +124,7 @@ struct StudioView: View {
                                     if let issue = studio.guideIssue { Text(issue).font(.caption).foregroundStyle(Brand.pink) }
                                 }
                             }
-                            if studio.duetParentID != nil { Text("듀엣 참여 · 파트너의 안내에 맞춰 내 파트를 불러주세요.").foregroundStyle(Brand.aqua) }
+                            if studio.duetParentID != nil { Button("듀엣 파트 보기") { showDuetEditor = true }.buttonStyle(.bordered) }
                             VStack(alignment: .leading, spacing: 10) {
                                 Toggle("모니터링", isOn: $studio.monitorEnabled).tint(Brand.pink)
                                 Text("청음 음량 · \(Int(studio.monitorVolume * 100))%").font(.caption)
@@ -287,29 +287,62 @@ struct StudioView: View {
 struct DuetPartEditor: View {
     @ObservedObject var studio: RecordingStudio
     @Environment(\.dismiss) private var dismiss
+    @State private var lines: [String] = []
+    @State private var mode = "lyrics"
+    @State private var issue = ""
+    private var readOnly: Bool { studio.duetParentID != nil }
     var body: some View {
         NavigationStack {
-            List {
-                Picker("파트 지정 방식", selection: $studio.duetMode) { Text("자유롭게 부르기").tag("free"); Text("가사별 지정").tag("lyrics") }.pickerStyle(.segmented)
-                if studio.duetMode == "lyrics" {
-                    Text("각 줄에서 부를 사람을 선택하세요. 같은 버튼을 다시 누르면 선택을 해제합니다.").font(.caption).foregroundStyle(.secondary)
-                    Button("남은 줄을 파트너로 지정") { studio.fillUnassignedDuetLines() }
-                    ForEach(studio.words.indices, id: \.self) { index in
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text("\(timeLabel(studio.words[index].0))  \(studio.words[index].1)")
-                            HStack { ForEach(["A", "B", "both"], id: \.self) { part in
-                                let selected = studio.duetLines.indices.contains(index) && studio.duetLines[index] == part
-                                Button { studio.setDuetPart(part, at: index) } label: {
-                                    Text(DuetGuide.title(part: part, ownPart: "A")).font(.caption.bold()).frame(maxWidth: .infinity, minHeight: 44).background(selected ? (part == "B" ? Brand.aqua : Brand.pink) : AifectDesign.raised, in: RoundedRectangle(cornerRadius: 10)).foregroundStyle(selected ? Color.black : AifectDesign.text)
-                                }.buttonStyle(.plain).accessibilityLabel("\(index + 1)번째 줄 \(DuetGuide.title(part: part, ownPart: "A"))").accessibilityAddTraits(selected ? .isSelected : [])
-                            } }
-                        }.padding(.vertical, 6)
+            VStack(spacing: 12) {
+                DuetColorLegend()
+                if !readOnly {
+                    Picker("파트 지정 방식", selection: $mode) { Text("가사별 지정").tag("lyrics"); Text("자유롭게 부르기").tag("free") }.pickerStyle(.segmented)
+                }
+                Text(readOnly ? "먼저 정한 파트를 확인하고 내 차례를 불러주세요." : "각 가사 줄 오른쪽의 색을 선택해서 파트를 지정하세요.").font(.caption).foregroundStyle(AifectDesign.muted)
+                ScrollView {
+                    LazyVStack(spacing: 8) {
+                        ForEach(studio.words.indices, id: \.self) { index in
+                            let current = lines.indices.contains(index) ? lines[index] : ""
+                            HStack(spacing: 4) {
+                                Text(studio.words[index].1).font(.system(size: 16)).multilineTextAlignment(.center).frame(maxWidth: .infinity)
+                                    .foregroundStyle(DuetPalette.color(part: current, ownPart: studio.ownPart))
+                                if readOnly {
+                                    Text(DuetGuide.title(part: current, ownPart: studio.ownPart)).font(.caption2).foregroundStyle(DuetPalette.color(part: current, ownPart: studio.ownPart))
+                                } else {
+                                    HStack(spacing: 0) {
+                                        ForEach(["A", "both", "B"], id: \.self) { part in
+                                            let color = DuetPalette.color(part: part, ownPart: "A")
+                                            Button { mode = "lyrics"; if lines.indices.contains(index) { lines[index] = part }; issue = "" } label: {
+                                                ZStack { Circle().stroke(color, lineWidth: 1.5).frame(width: 24, height: 24); if current == part { Circle().fill(color).frame(width: 17, height: 17) } }.frame(width: 40, height: 44)
+                                            }.buttonStyle(.plain).accessibilityLabel("\(index + 1)번째 가사 \(DuetGuide.title(part: part, ownPart: "A"))").accessibilityAddTraits(current == part ? .isSelected : [])
+                                        }
+                                    }
+                                }
+                            }.padding(8).background(AifectDesign.raised, in: RoundedRectangle(cornerRadius: 12))
+                                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.12)))
+                        }
                     }
-                    Text("\(studio.duetLines.filter { !$0.isEmpty }.count) / \(studio.words.count)줄 지정").font(.caption)
-                    if let issue = studio.guideIssue { Text(issue).foregroundStyle(Brand.pink) }
-                } else { Text("자유롭게 파트를 나눠 불러주세요. 참여자는 먼저 녹음한 목소리를 들으며 이어 부를 수 있습니다.").foregroundStyle(.secondary) }
-            }.navigationTitle("듀엣 파트 나누기").navigationBarTitleDisplayMode(.inline).toolbar { Button("완료") { dismiss() } }.tint(Brand.pink)
-        }.interactiveDismissDisabled(false)
+                }
+                if !issue.isEmpty { Text(issue).font(.caption).foregroundStyle(DuetPalette.mine) }
+                HStack(spacing: 12) {
+                    if !readOnly {
+                        Button { lines = Array(repeating: "", count: studio.words.count); mode = studio.words.isEmpty ? "free" : "lyrics"; issue = "" } label: { Label("전체 초기화", systemImage: "arrow.counterclockwise").frame(maxWidth: .infinity, minHeight: 44) }.buttonStyle(.bordered)
+                    }
+                    Button(readOnly ? "닫기" : "적용하기") {
+                        if !readOnly {
+                            if mode == "lyrics", let error = DuetGuide.validation(lines: lines, count: studio.words.count) { issue = error; return }
+                            studio.duetMode = mode; studio.duetLines = lines
+                        }
+                        dismiss()
+                    }.frame(maxWidth: .infinity, minHeight: 44).buttonStyle(.borderedProminent).tint(DuetPalette.together).foregroundStyle(Color.black)
+                }
+            }.padding(16).background(Brand.background)
+                .navigationTitle(readOnly ? "듀엣 파트 보기" : "듀엣 파트 나누기").navigationBarTitleDisplayMode(.inline)
+                .toolbar { ToolbarItem(placement: .cancellationAction) { Button("닫기") { dismiss() } } }
+        }.onAppear {
+            lines = studio.words.indices.map { studio.duetLines.indices.contains($0) ? studio.duetLines[$0] : "" }
+            mode = !readOnly && !studio.words.isEmpty && !lines.contains(where: { !$0.isEmpty }) ? "lyrics" : studio.duetMode
+        }
     }
 }
 struct RecordingWaveform: View {

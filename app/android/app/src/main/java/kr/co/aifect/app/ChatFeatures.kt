@@ -87,12 +87,12 @@ import org.json.JSONObject
   LaunchedEffect(p.optString("id")){load()}
   ModalBottomSheet(onDismissRequest={open=false},containerColor=Panel,sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true)){
    LazyColumn(Modifier.fillMaxWidth().heightIn(max=600.dp),contentPadding=PaddingValues(20.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
-    item{Text("선물 랭킹 TOP 50",fontSize=23.sp);Text("누적 응원 · 1 G와 ★ 1은 각각 1점",fontSize=13.sp,color=Muted)}
+    item{Text("선물 랭킹 TOP 50",fontSize=23.sp);Text("누적 응원 · 1 G와 1 S는 각각 1점",fontSize=13.sp,color=Muted)}
     if(data==null&&error==null)item{LinearProgressIndicator(Modifier.fillMaxWidth())}
     error?.let{message->item{Text(message,color=Pink);TextButton(onClick={scope.launch{load()}}){Text("다시 불러오기")}}}
     val fans=data?.optJSONArray("ranking").objects()
     if(data!=null&&fans.isEmpty())item{Text("아직 받은 선물이 없어요.",color=Muted)}
-    items(fans){fan->val pid=fan.optString("profile_id").takeUnless{it.isBlank()||it=="null"};Surface(onClick={if(pid!=null){open=false;m.openProfile(pid)}},enabled=pid!=null,color=Panel){Row(Modifier.fillMaxWidth().padding(vertical=8.dp),verticalAlignment=Alignment.CenterVertically){Text(fan.optInt("rank").toString(),color=Aqua,modifier=Modifier.width(30.dp));Avatar(fan.optString("name"),pid?.let{payload("id" to it,"image_version" to fan.optString("image_version"))},38);Column(Modifier.weight(1f).padding(horizontal=10.dp)){Text(fan.optString("name"),fontSize=15.sp);Text("${fan.optInt("gold")} G · ★ ${fan.optInt("stars")}",fontSize=12.sp,color=Muted)};Text("${fan.optInt("score")}점",color=Aqua,fontSize=13.sp)}}}
+    items(fans){fan->val pid=fan.optString("profile_id").takeUnless{it.isBlank()||it=="null"};Surface(onClick={if(pid!=null){open=false;m.openProfile(pid)}},enabled=pid!=null,color=Panel){Row(Modifier.fillMaxWidth().padding(vertical=8.dp),verticalAlignment=Alignment.CenterVertically){Text(fan.optInt("rank").toString(),color=Aqua,modifier=Modifier.width(30.dp));Avatar(fan.optString("name"),pid?.let{payload("id" to it,"image_version" to fan.optString("image_version"))},38);Column(Modifier.weight(1f).padding(horizontal=10.dp)){Text(fan.optString("name"),fontSize=15.sp);Text("${fan.optInt("gold")} G · ${fan.optInt("stars")} S",fontSize=12.sp,color=Muted)};Text("${fan.optInt("score")}점",color=Aqua,fontSize=13.sp)}}}
    }
   }
  }

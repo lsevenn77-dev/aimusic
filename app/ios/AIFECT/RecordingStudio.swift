@@ -493,7 +493,7 @@ enum DuetGuide {
     static func nextOwnLine(times: [Double], lines: [String], elapsed: Double, ownPart: String) -> Int? {
         times.indices.first { times[$0] > elapsed && lines.indices.contains($0) && (lines[$0] == ownPart || lines[$0] == "both") }
     }
-    static func title(part: String, ownPart: String) -> String { part == "both" ? "함께" : part.isEmpty ? "미지정" : part == ownPart ? "내 파트" : "파트너" }
+    static func title(part: String, ownPart: String) -> String { part == "both" ? "같이" : part.isEmpty ? "미지정" : part == ownPart ? "내 파트" : "상대 파트" }
 }
 @MainActor
 final class LiveVocalMonitor {

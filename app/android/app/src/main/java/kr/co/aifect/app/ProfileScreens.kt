@@ -65,14 +65,14 @@ internal fun threadedComments(comments:List<JSONObject>):List<JSONObject>{
   val largeText=LocalDensity.current.fontScale>1.25f
   LazyColumn(Modifier.fillMaxWidth().heightIn(max=maximumHeight).testTag("rewards-list"),contentPadding=PaddingValues(20.dp,0.dp,20.dp,24.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
    item{
-    Text("오늘의 응원별",fontSize=23.sp,fontWeight=FontWeight.Bold)
+    Text("오늘의 실버",fontSize=23.sp,fontWeight=FontWeight.Bold)
     Row(Modifier.fillMaxWidth().padding(top=14.dp,bottom=4.dp).background(Aqua.copy(alpha=.08f),RoundedCornerShape(16.dp)).padding(16.dp),verticalAlignment=Alignment.CenterVertically){
      Icon(Icons.Rounded.Star,null,Modifier.size(32.dp),tint=Aqua)
      Column(Modifier.weight(1f).padding(start=12.dp)){
-      Text("보유 응원별",color=Muted,fontSize=12.sp)
-      Text(if(free==null)"불러오는 중…" else "★ ${free?.optInt("balance")?:0}",color=Aqua,fontSize=23.sp,fontWeight=FontWeight.Bold)
+      Text("보유 실버",color=Muted,fontSize=12.sp)
+      Text(if(free==null)"불러오는 중…" else "${free?.optInt("balance")?:0} S",color=Aqua,fontSize=23.sp,fontWeight=FontWeight.Bold)
      }
-     Text("하루 최대\n★ 10",color=Aqua,fontSize=12.sp)
+     Text("하루 최대\n10 S",color=Aqua,fontSize=12.sp)
     }
    }
    if(free==null&&error==null)item{LinearProgressIndicator(Modifier.fillMaxWidth(),color=Aqua)}
@@ -99,9 +99,9 @@ internal fun threadedComments(comments:List<JSONObject>):List<JSONObject>{
      }
      val action:@Composable ()->Unit={
       Column(horizontalAlignment=Alignment.End){
-       Text("★ ${r.optInt("amount")}",color=if(claimed)Muted else Aqua,fontSize=13.sp,fontWeight=FontWeight.Bold)
+       Text("${r.optInt("amount")} S",color=if(claimed)Muted else Aqua,fontSize=13.sp,fontWeight=FontWeight.Bold)
        Button(enabled=!busy&&!claimed,onClick=claim,contentPadding=PaddingValues(horizontal=14.dp,vertical=8.dp),modifier=Modifier.padding(top=4.dp).heightIn(min=40.dp)){
-        Text(if(claimed)"받음" else if(eligible)"별 받기" else "활동하기",fontSize=13.sp)
+        Text(if(claimed)"받음" else if(eligible)"실버 받기" else "활동하기",fontSize=13.sp)
        }
       }
      }
@@ -113,7 +113,7 @@ internal fun threadedComments(comments:List<JSONObject>):List<JSONObject>{
      }
     }
    }
-   item{Text("매일 0시 갱신 · 받은 별은 누적돼요.\n응원별은 수익 정산 대상이 아니에요.",color=Muted,fontSize=12.sp,modifier=Modifier.padding(top=4.dp))}
+   item{Text("매일 0시 갱신 · 받은 실버는 누적돼요.\n실버는 수익 정산 대상이 아니에요.",color=Muted,fontSize=12.sp,modifier=Modifier.padding(top=4.dp))}
   }
  }
 }

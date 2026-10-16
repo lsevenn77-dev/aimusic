@@ -339,7 +339,7 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)A
    AccountMenuRow("Premium · 골드 구매",Icons.Rounded.ShoppingBag){m.showAccount=false;m.showBilling=true}
    AccountMenuRow("DM 보기",Icons.AutoMirrored.Rounded.Chat){m.showAccount=false;m.openMessages()}
    AccountMenuRow("다이아 · 내 정산",Icons.Rounded.AccountBalanceWallet){m.showAccount=false;m.showDiamonds=true}
-   AccountMenuRow("오늘의 응원별",Icons.Rounded.Star){m.showAccount=false;m.showRewards=true}
+   AccountMenuRow("오늘의 실버",Icons.Rounded.Star){m.showAccount=false;m.showRewards=true}
    AccountMenuRow("창작자 스튜디오",Icons.Rounded.Tune){open("/#studio")}
    AccountMenuRow("선물함",Icons.Rounded.CardGiftcard,tint=Pink){m.showAccount=false;m.openGifts()}
    HorizontalDivider(Modifier.padding(vertical=12.dp),color=Stroke)

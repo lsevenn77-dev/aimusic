@@ -104,11 +104,11 @@ struct MyWalletSummary: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 12) {
                 NavigationLink { PaymentStoreView() } label: {
-                    balance("보유 골드", value: loaded ? "\(wallet.data.int("balance").formatted())개" : "—", icon: "g.circle.fill", color: .yellow, id: "my-gold-balance")
+                    balance("보유 골드", value: loaded ? "\(wallet.data.int("balance").formatted()) G" : "—", icon: "g.circle.fill", color: .yellow, id: "my-gold-balance")
                 }.buttonStyle(.plain)
                 Divider().frame(height: 32)
                 NavigationLink { RewardsView() } label: {
-                    balance("응원별", value: loaded ? "\(wallet.stars.formatted())개" : "—", icon: "star.fill", color: Brand.pink, id: "my-star-balance")
+                    balance("실버", value: loaded ? "\(wallet.stars.formatted()) S" : "—", icon: "star.fill", color: Brand.pink, id: "my-star-balance")
                 }.buttonStyle(.plain)
             }
             if wallet.error != nil {
@@ -162,27 +162,27 @@ struct GiftWalletView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 HStack {
-                    Label("\(wallet.stars)개", systemImage: "star.fill").foregroundStyle(Brand.pink)
+                    Label("\(wallet.stars) S", systemImage: "star.fill").foregroundStyle(Brand.pink)
                     Spacer()
                     Text("골드 \(wallet.data.int("balance"))")
                     Button("충전") { store = true }.font(.caption)
                 }.font(.headline)
-                HStack { Text("활동하고 무료 응원별 받기").font(.caption).foregroundStyle(.secondary); Spacer(); Button("무료 보상") { rewards = true }.font(.caption.bold()) }
+                HStack { Text("활동하고 무료 실버 받기").font(.caption).foregroundStyle(.secondary); Spacer(); Button("무료 보상") { rewards = true }.font(.caption.bold()) }
                 if recipientName == nil { NavigationLink("다이아 · 내 정산") { DiamondWalletView() } }
                 if recipientName != nil {
                     HStack {
-                        Label("응원별", systemImage: "star.fill").foregroundStyle(Brand.pink)
+                        Label("실버", systemImage: "star.fill").foregroundStyle(Brand.pink)
                         Spacer()
                         Stepper("\(quantity)개", value: $quantity, in: 1...max(1, min(20, wallet.stars))).fixedSize().disabled(wallet.busy || !wallet.remaining.isEmpty || wallet.stars == 0)
                         Button(wallet.remaining.isEmpty ? "보내기" : "재시도") {
-                            choose(["id": "star", "name": "응원별", "gold": 0])
+                            choose(["id": "star", "name": "실버", "gold": 0])
                         }.buttonStyle(.borderedProminent).tint(Brand.pink).disabled(wallet.busy || (wallet.remaining.isEmpty && wallet.stars < 1))
                     }
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 10) {
                             ForEach(wallet.data.objects("gifts"), id: \.selfID) { gift in
                                 Button { choose(gift) } label: {
-                                    VStack(spacing: 5) { Image(systemName: "gift.fill").font(.title2); Text(gift.string("name")).font(.caption); Text("\(gift.int("gold")) 골드").font(.caption2).foregroundStyle(.secondary) }
+                                    VStack(spacing: 5) { Image(systemName: "gift.fill").font(.title2); Text(gift.string("name")).font(.caption); Text("\(gift.int("gold")) G").font(.caption2).foregroundStyle(.secondary) }
                                         .frame(width: 86, height: 82).background(Brand.card, in: RoundedRectangle(cornerRadius: 14))
                                 }.disabled(wallet.busy || !wallet.remaining.isEmpty || wallet.data.int("balance") < gift.int("gold"))
                             }
@@ -195,9 +195,9 @@ struct GiftWalletView: View {
                 if !compact {
                     Text("최근 보낸 선물").font(.headline)
                     ForEach(wallet.data.objects("sent"), id: \.selfID) { item in
-                        Text("\(item.string("title")) · \(item.string("gift_name")) · \(item.int("gold")) 골드").font(.caption)
+                        Text("\(item.string("title")) · \(item.string("gift_name")) · \(item.int("gold")) G").font(.caption)
                     }
-                    ForEach(wallet.data.objects("free_sent"), id: \.selfID) { item in Text("\(item.string("title")) · 응원별 1개").font(.caption) }
+                    ForEach(wallet.data.objects("free_sent"), id: \.selfID) { item in Text("\(item.string("title")) · 1 S").font(.caption) }
                 }
             }.padding(18)
         }.background(Brand.background).navigationTitle(recipientName.map { "\($0)에게 선물" } ?? "골드 · 선물").navigationBarTitleDisplayMode(.inline)
@@ -215,7 +215,7 @@ struct GiftWalletView: View {
     }
     private func choose(_ gift: [String: Any]) {
         guard let owner = model.userID, let path = giftPath else { _ = model.requireLogin(); return }
-        selected = wallet.remaining.first.map { pending in wallet.data.objects("gifts").first(where: { $0.string("id") == pending.giftType }) ?? ["name": "응원별"] } ?? gift; wallet.prepare(owner: owner, path: path, gift: gift.string("id"), quantity: quantity); confirm = true
+        selected = wallet.remaining.first.map { pending in wallet.data.objects("gifts").first(where: { $0.string("id") == pending.giftType }) ?? ["name": "실버"] } ?? gift; wallet.prepare(owner: owner, path: path, gift: gift.string("id"), quantity: quantity); confirm = true
     }
 }
 
@@ -227,10 +227,10 @@ struct RewardsView: View {
     private let labels = ["checkin": "오늘 출석", "cover": "커버곡 공개", "listen": "서로 다른 5곡 감상", "comment1": "첫 번째 감상 댓글", "comment2": "두 번째 감상 댓글", "comment3": "세 번째 감상 댓글"]
     var body: some View {
         List {
-            Section { VStack(alignment: .leading, spacing: 8) { Label("오늘의 무료 보상", systemImage: "sparkles").font(.headline); LabeledContent("응원별", value: "\(data.int("balance"))개"); Text("매일 활동하고 응원별을 받아 좋아하는 음악에 선물하세요.").font(.caption) }.foregroundStyle(AifectDesign.text).padding(12) }.listRowBackground(MusicSurface(feature: true))
+            Section { VStack(alignment: .leading, spacing: 8) { Label("오늘의 무료 보상", systemImage: "sparkles").font(.headline); LabeledContent("실버", value: "\(data.int("balance")) S"); Text("매일 활동하고 실버를 받아 좋아하는 음악에 선물하세요.").font(.caption) }.foregroundStyle(AifectDesign.text).padding(12) }.listRowBackground(MusicSurface(feature: true))
             ForEach(data.objects("rewards"), id: \.rewardID) { reward in
                 HStack {
-                    VStack(alignment: .leading) { Text(labels[reward.string("kind")] ?? reward.string("kind")); Text("\(reward.int("progress"))/\(reward.int("target")) · 응원별 \(reward.int("amount"))개").font(.caption).foregroundStyle(.secondary) }
+                    VStack(alignment: .leading) { Text(labels[reward.string("kind")] ?? reward.string("kind")); Text("\(reward.int("progress"))/\(reward.int("target")) · \(reward.int("amount")) S").font(.caption).foregroundStyle(.secondary) }
                     Spacer()
                     Button(reward.flag("claimed") ? "받음" : "받기") { Task { await claim(reward.string("kind")) } }.disabled(busy || reward.flag("claimed") || !reward.flag("eligible"))
                 }
@@ -252,7 +252,7 @@ struct ProfileGiftRankingView: View {
     @State private var error: String?
     var body: some View {
         List {
-            Section { Text("누적 선물 순위 · 1골드 또는 응원별 1개당 1점").font(.caption).foregroundStyle(.secondary) }
+            Section { Text("누적 선물 순위 · 1 G와 1 S는 각각 1점").font(.caption).foregroundStyle(.secondary) }
             ForEach(ranking.indices, id: \.self) { index in
                 let entry = ranking[index]
                 HStack {
@@ -267,7 +267,7 @@ struct ProfileGiftRankingView: View {
         }.navigationTitle("선물 랭킹 TOP 50").task { await load() }.refreshable { await load() }
     }
     private func rankingRow(_ entry: [String: Any]) -> some View {
-        HStack { ProfilePhoto(person: entry, size: 44); VStack(alignment: .leading) { Text(entry.displayName()); Text("\(entry.int("gold")) 골드 · 응원별 \(entry.int("stars"))개").font(.caption).foregroundStyle(.secondary) }; Spacer(); Text("\(entry.int("score"))점").font(.caption.bold()).foregroundStyle(Brand.aqua) }
+        HStack { ProfilePhoto(person: entry, size: 44); VStack(alignment: .leading) { Text(entry.displayName()); Text("\(entry.int("gold")) G · \(entry.int("stars")) S").font(.caption).foregroundStyle(.secondary) }; Spacer(); Text("\(entry.int("score"))점").font(.caption.bold()).foregroundStyle(Brand.aqua) }
     }
     private func load() async { do { let value = try await API.shared.call("/api/producers/\(Endpoint.pathID(profileID))/gifts"); guard !Task.isCancelled else { return }; ranking = Array(value.objects("ranking").prefix(50)); error = nil } catch { self.error = error.localizedDescription } }
 }
@@ -280,12 +280,12 @@ struct TrackGiftRankingView: View {
         List {
             Section(song.title) {
                 LabeledContent("조회수", value: "\(song.plays ?? 0)회")
-                LabeledContent("받은 골드", value: "\(data.int("total_gold"))")
-                LabeledContent("받은 응원별", value: "\(data.int("free_count"))개")
+                LabeledContent("받은 골드", value: "\(data.int("total_gold")) G")
+                LabeledContent("받은 실버", value: "\(data.int("free_count")) S")
             }
             Section("응원한 사람 TOP 10") {
                 ForEach(data.objects("ranking"), id: \.rankingID) { entry in
-                    VStack(alignment: .leading, spacing: 5) { Text(entry.displayName()); Text("\(entry.int("gold")) 골드 · 응원별 \(entry.int("stars"))개").font(.caption).foregroundStyle(.secondary) }
+                    VStack(alignment: .leading, spacing: 5) { Text(entry.displayName()); Text("\(entry.int("gold")) G · \(entry.int("stars")) S").font(.caption).foregroundStyle(.secondary) }
                 }
                 if data.objects("ranking").isEmpty { Text("아직 받은 선물이 없어요").foregroundStyle(.secondary) }
             }

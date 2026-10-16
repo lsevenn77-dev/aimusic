@@ -86,6 +86,7 @@ struct StudioLyricWheel: View {
     private var currentLine: Int { studio.words.lastIndex(where: { $0.0 <= studio.elapsed }) ?? 0 }
     var body: some View {
         VStack(spacing: 8) {
+            if studio.duetFirst || studio.duetParentID != nil { DuetColorLegend() }
             Text("가사를 위아래로 밀어 부를 위치 선택").font(.subheadline.bold())
             Text("선택한 가사 앞 반주를 최대 3초 먼저 듣고, 선택한 위치부터 녹음해요. 녹음 중 이동하면 현재 녹음을 보관하고 멈춥니다.").font(.caption).foregroundStyle(.secondary)
             ScrollView(.vertical, showsIndicators: false) {
@@ -93,10 +94,11 @@ struct StudioLyricWheel: View {
                     ForEach(studio.words.indices, id: \.self) { index in
                         Button { centered = index; choose(index, delay: false) } label: {
                             VStack(spacing: 4) {
-                                Text(timeLabel(studio.words[index].0)).font(.caption2.monospacedDigit())
-                                Text(lineText(index)).font(centered == index ? .headline : .body).multilineTextAlignment(.center)
-                            }.foregroundStyle(centered == index ? Brand.pink : AifectDesign.muted)
-                                .frame(maxWidth: .infinity, minHeight: 64).padding(.vertical, 8)
+                                Text(studio.words[index].1).font(centered == index ? .headline : .body).multilineTextAlignment(.center)
+                            }.foregroundStyle(lineColor(index))
+                                .frame(maxWidth: .infinity, minHeight: 64).padding(.horizontal, 12).padding(.vertical, 8)
+                                .background(centered == index ? Color(red: 0.35, green: 0.29, blue: 0.46).opacity(0.48) : .clear, in: RoundedRectangle(cornerRadius: 12))
+                                .overlay(RoundedRectangle(cornerRadius: 12).stroke(centered == index ? Color.purple.opacity(0.3) : .clear))
                         }.buttonStyle(.plain).id(index).accessibilityIdentifier("lyric-line-\(index)")
                     }
                 }.scrollTargetLayout()
@@ -131,9 +133,31 @@ struct StudioLyricWheel: View {
             if !Task.isCancelled { choosing = false }
         }
     }
-    private func lineText(_ index: Int) -> String {
-        let text = studio.words[index].1
-        guard studio.duetMode == "lyrics", studio.duetLines.indices.contains(index) else { return text }
-        return "[\(DuetGuide.title(part: studio.duetLines[index], ownPart: studio.ownPart))] " + text
+    private func lineColor(_ index: Int) -> Color {
+        guard studio.duetFirst || studio.duetParentID != nil else { return centered == index ? Brand.pink : AifectDesign.muted }
+        let part = studio.duetLines.indices.contains(index) ? studio.duetLines[index] : ""
+        return DuetPalette.color(part: part, ownPart: studio.ownPart)
+    }
+}
+
+
+enum DuetPalette {
+    static let mine = Color(red: 0.96, green: 0.63, blue: 0.87)
+    static let together = Color(red: 0.49, green: 0.95, blue: 0.87)
+    static let partner = Color(red: 0.70, green: 0.75, blue: 0.92)
+    static func color(part: String, ownPart: String) -> Color {
+        part == "both" ? together : part.isEmpty ? AifectDesign.muted : part == ownPart ? mine : partner
+    }
+}
+struct DuetColorLegend: View {
+    var body: some View {
+        HStack(spacing: 24) {
+            item("내 파트", color: DuetPalette.mine)
+            item("같이", color: DuetPalette.together)
+            item("상대 파트", color: DuetPalette.partner)
+        }.frame(maxWidth: .infinity).padding(.vertical, 12)
+    }
+    private func item(_ title: String, color: Color) -> some View {
+        HStack(spacing: 7) { Circle().fill(color).frame(width: 12, height: 12); Text(title).font(.caption) }
     }
 }
