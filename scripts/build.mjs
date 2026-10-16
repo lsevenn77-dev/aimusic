@@ -5,6 +5,9 @@ import {resolve,sep} from 'node:path';
 import {businessFooterHTML} from '../shared/site-info.js';
 import {pathToFileURL} from 'node:url';
 import {bundleClient} from './client-bundle.mjs';
+const tuneEngine=await build({entryPoints:['shared/pitch-correction-worker.js'],bundle:true,write:false,format:'iife',target:'es2022',minify:true});
+await mkdir('.generated',{recursive:true});
+await writeFile('.generated/pitch-correction-engine.js','export default '+JSON.stringify(tuneEngine.outputFiles[0].text)+';\n');
 await mkdir('dist/server',{recursive:true});
 await mkdir('dist/client',{recursive:true});
 for(const file of ['mobile-ux.js','mobile-ux.css'])await cp(`dist/${file}`,`dist/client/${file}`);
@@ -16,7 +19,7 @@ for(const file of ['page-redesign.js','page-redesign.css','community-feed.css','
 for(const file of ['release-refinements.js','release-refinements.css','notifications.js','notifications.css'])await cp('dist/'+file,'dist/client/'+file);
 await cp('dist/social-layouts.js','dist/client/social-layouts.js');
 await cp('dist/page-atmosphere.css','dist/client/page-atmosphere.css');
-for(const file of ['diamonds.js','player-progress.css','player-progress.js','design-surfaces.css','music-classification.js','music-classification.css','chat-features.js','october-polish.css','canonical-origin.js','music-ui.js','music-experience.css','brand-refinement.css','account-settings.js','social-chat.js','recorder-worklet.js','improvements.js','improvements.css','recording-studio.css','recording-workspace.css','sing-drafts.js','sing-key.js','singing-hub.js','singing-hub.css','ads.txt','audio-ads.js','audio-ads.css','upload-ads.js','upload-ads.css','gifts.js','gifts.css','image-upload.js'])await cp(`dist/${file}`,`dist/client/${file}`);
+for(const file of ['diamonds.js','player-progress.css','player-progress.js','design-surfaces.css','music-classification.js','music-classification.css','chat-features.js','october-polish.css','canonical-origin.js','music-ui.js','music-experience.css','brand-refinement.css','account-settings.js','social-chat.js','recorder-worklet.js','improvements.js','improvements.css','recording-studio.css','recording-workspace.css','sing-drafts.js','sing-key.js','sing-tune.js','singing-hub.js','singing-hub.css','ads.txt','audio-ads.js','audio-ads.css','upload-ads.js','upload-ads.css','gifts.js','gifts.css','image-upload.js'])await cp(`dist/${file}`,`dist/client/${file}`);
 // Delete the replaced, generated display-ad assets from incremental builds.
 for(const file of ['web-ads.js','web-ads.css'])await rm(`dist/client/${file}`,{force:true});
 await cp('dist/billing.js','dist/client/billing.js');
