@@ -129,7 +129,7 @@ final class LyricsTimelineView extends ScrollView {
     private void highlight(int index){
         if(index==highlighted)return;
         if(highlighted>=0&&highlighted<labels.size()){TextView old=labels.get(highlighted);old.setText(plain(highlighted));old.setTextColor(partColor(highlighted));old.setTypeface(null,Typeface.NORMAL);old.setBackground(null);}
-        highlighted=index;if(index>=0&&index<labels.size()){TextView current=labels.get(index);current.setTextColor(partColor(index));current.setTypeface(null,Typeface.BOLD);current.setBackground(currentBanner());}
+        highlighted=index;if(index>=0&&index<labels.size()){TextView current=labels.get(index);current.setTextColor(partRoles.length==0?Color.WHITE:partColor(index));current.setTypeface(null,Typeface.BOLD);current.setBackground(currentBanner());}
     }
     void showPosition(double seconds){
         if(pointerActive||dragging||labels.isEmpty())return;
@@ -137,7 +137,7 @@ final class LyricsTimelineView extends ScrollView {
         if(at!=highlighted){highlight(at);alignSelected();}
         JSONArray parts=words.optJSONObject(at).optJSONArray("w");SpannableStringBuilder text=new SpannableStringBuilder(prefix(at));
         if(parts!=null)for(int i=0;i<parts.length();i++){JSONObject word=parts.optJSONObject(i);if(word==null)continue;if(text.length()>0)text.append(' ');int begin=text.length();text.append(word.optString("t"));double start=word.optDouble("s"),end=Math.max(start+.05,word.optDouble("e"));int filled=(int)Math.round(Math.max(0,Math.min(1,(seconds-start)/(end-start)))*(text.length()-begin));if(filled>0)text.setSpan(new ForegroundColorSpan(Color.WHITE),begin,begin+filled,Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);}
-        labels.get(at).setTextColor(partColor(at));labels.get(at).setText(text);
+        labels.get(at).setTextColor(partRoles.length==0?Color.WHITE:partColor(at));labels.get(at).setText(text);
     }
     private int dp(int n){return Math.round(n*getResources().getDisplayMetrics().density);}
 }

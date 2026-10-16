@@ -14,4 +14,11 @@ public class VocalPresetTest {
   VocalTone tone=new VocalTone(48000);double quiet=0,loud=0;for(int i=0;i<192000;i++){float x=(float)Math.sin(i*2*Math.PI*440/48000)*(i<96000?.05f:.5f);float y=tone.process(x,1);assertTrue(Float.isFinite(y));if(i>=48000&&i<96000)quiet+=y*y;if(i>=144000)loud+=y*y;}assertTrue(Math.sqrt(loud/quiet)<7);
   VocalEffects fx=new VocalEffects(48000);for(int n=0;n<12;n++){float[] p=VocalPreset.values(VocalPreset.IDS[n%4],1);VocalEffects.Settings settings=new VocalEffects.Settings(p[0],p[1],p[2],1,1,0,0,n%5,p[3]);for(int i=0;i<12000;i++)assertTrue(Float.isFinite(fx.process((float)Math.sin(i*.1)*.5f,settings)));}
  }
+ @Test public void toneSpectrumExtendsInBothDirectionsWithoutChangingDrySamples(){
+  float[][] out=new float[4][96000];float[] amounts={-1,0,1,2};
+  for(int k=0;k<amounts.length;k++){VocalTone tone=new VocalTone(48000);for(int i=0;i<out[k].length;i++){float x=(float)(.025*Math.sin(i*2*Math.PI*220/48000)+.012*Math.sin(i*2*Math.PI*2640/48000));out[k][i]=tone.process(x,amounts[k]);assertTrue(Float.isFinite(out[k][i]));if(k==1)assertEquals(x,out[k][i],0);}}
+  double[] contrast=new double[4];for(int k=0;k<4;k++)contrast[k]=20*Math.log10(component(out[k],2640)/component(out[k],220));
+  assertTrue(contrast[0]<contrast[1]-8);assertTrue(contrast[3]>contrast[2]+4);
+  assertEquals(-1,new VocalEffects.Settings(0,0,0,1,1,0,0,0,-1).tone,0);assertEquals(2,new VocalEffects.Settings(0,0,0,1,1,0,0,0,2).tone,0);
+ }
 }

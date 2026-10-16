@@ -23,8 +23,11 @@ final class VocalEffectChain {
         room.wetDryMix = min(35, max(0, settings.room * 0.5))
         echo.delayTime = settings.preset == "rap" ? 0.09 : 0.18
         echo.feedback = 10; echo.wetDryMix = VocalSettings.echoWetMix(settings.echo)
-        tone.bands[0].filterType = .lowShelf; tone.bands[0].frequency = 250; tone.bands[0].gain = -3 * settings.tone; tone.bands[0].bypass = false
-        tone.bands[1].filterType = .highShelf; tone.bands[1].frequency = 3500; tone.bands[1].gain = 2 * settings.tone; tone.bands[1].bypass = false
+        let toneAmount = min(2, max(-1, settings.tone))
+        let bodyGain = toneAmount < 0 ? -5 * toneAmount : -3 * min(1, toneAmount) - 4 * max(0, toneAmount - 1)
+        let airGain = toneAmount < 0 ? 6 * toneAmount : 2 * min(1, toneAmount) + 6 * max(0, toneAmount - 1)
+        tone.bands[0].filterType = .lowShelf; tone.bands[0].frequency = 250; tone.bands[0].gain = bodyGain; tone.bands[0].bypass = false
+        tone.bands[1].filterType = .highShelf; tone.bands[1].frequency = 3500; tone.bands[1].gain = airGain; tone.bands[1].bypass = false
         tone.bands[2].filterType = .highPass; tone.bands[2].frequency = [40, 65, 80, 100, 120][min(4, max(0, settings.noise))]; tone.bands[2].bypass = settings.noise == 0
         gate.bypass = settings.noise == 0
         let values: [(AudioUnitParameterID, Float)] = [

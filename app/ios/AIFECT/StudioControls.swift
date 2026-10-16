@@ -51,8 +51,9 @@ struct StudioVocalControls: View {
                     HStack { Text("에코"); Spacer(); Text("\(studio.effects.echo, specifier: "%.1f")%").monospacedDigit().foregroundStyle(.secondary) }
                     Slider(value: Binding(get: { studio.effects.echo }, set: { studio.effects.preset = "custom"; studio.effects.echo = $0 }), in: 0...20, step: 0.1).accessibilityLabel("에코 미세 조절")
                     Text("0.1 단위 미세 조절 · 0은 에코 없음").font(.caption).foregroundStyle(.secondary)
-                    Text("음색 보정").font(.subheadline)
-                    Slider(value: Binding(get: { studio.effects.tone }, set: { studio.effects.preset = "custom"; studio.effects.tone = $0 }), in: 0...1).accessibilityLabel("음색 보정")
+                    Text("음색 보정 · \(Int(studio.effects.tone * 100))%").font(.subheadline)
+                    Slider(value: Binding(get: { studio.effects.tone }, set: { studio.effects.preset = "custom"; studio.effects.tone = $0 }), in: -1...2).accessibilityLabel("음색 보정")
+                    Text("묵직하게 ← 0% 원음 → 더 밝게").font(.caption).foregroundStyle(.secondary)
                     Text("룸 리버브 · \(Int(studio.reverb))%").font(.subheadline)
                     Slider(value: Binding(get: { studio.reverb }, set: { studio.effects.preset = "custom"; studio.reverb = $0; studio.effects.room = $0 }), in: 0...100).accessibilityLabel("리버브")
                     Text("룸 크기 · \(Int(studio.effects.size * 100))%").font(.subheadline)
@@ -134,7 +135,7 @@ struct StudioLyricWheel: View {
         }
     }
     private func lineColor(_ index: Int) -> Color {
-        guard studio.duetFirst || studio.duetParentID != nil else { return centered == index ? Brand.pink : AifectDesign.muted }
+        guard studio.duetFirst || studio.duetParentID != nil else { return centered == index ? .white : AifectDesign.muted }
         let part = studio.duetLines.indices.contains(index) ? studio.duetLines[index] : ""
         return DuetPalette.color(part: part, ownPart: studio.ownPart)
     }
