@@ -21,7 +21,7 @@ test('private My shows gold, silver and a toolbox instead of diamonds, with or w
  for(const profile of [{id:'producer',name:'QA'},{name:'New'}]){
   const {c,calls}=ui({profile}),view=await c.improvementsView('profile','','profile');
   assert.match(view.html,/1,234/);assert.doesNotMatch(view.html,/12\.34567|💎|다이아/);
-  assert.match(view.html,/5,678/);assert.match(view.html,/보유 은화/);assert.match(view.html,/href="#rewards"/);
+  assert.match(view.html,/5,678/);assert.match(view.html,/보유 실버/);assert.match(view.html,/href="#rewards"/);
   assert.match(view.html,/href="#gold"/);assert.match(view.html,/href="#inventory"/);assert.match(view.html,/내 도구함/);
   assert.equal(calls.filter(p=>p==='/api/gold/balance').length,1);
   await c.improvementsView('profile','','profile');assert.equal(calls.filter(p=>p==='/api/gold/balance').length,2,'re-entry refetches');

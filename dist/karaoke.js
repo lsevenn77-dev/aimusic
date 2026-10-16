@@ -277,7 +277,7 @@ function singModeHTML(d){const choices=d.duet?'<strong>듀엣 참여</strong>':`
 
 function duetTime(seconds){const n=Math.round(Math.max(0,seconds)*10);return Math.floor(n/600)+':'+String(Math.floor(n%600/10)).padStart(2,'0')+'.'+n%10;}
 function refreshVocalGuide(s){if(s?.mode==='duet'&&!s.parent&&s.voice&&s.duetGuide?.mode==='free')s.duetGuide.activity=AifectDuetGuide.detectVocalActivity(s.voice.getChannelData(0),s.voice.sampleRate,s.mix.offset,s.mr?.duration||s.data.track.duration);}
-function duetRoleLabel(part,second=false){return part==='both'?'함께':part==='A'?(second?'파트너':'내 파트'):part==='B'?(second?'내 파트':'파트너'):part==='partial'?'일부 빈 구간':'미지정';}
+function duetRoleLabel(part,second=false){return part==='both'?'같이':part==='A'?(second?'상대 파트':'내 파트'):part==='B'?(second?'내 파트':'상대 파트'):part==='partial'?'일부 빈 구간':'미지정';}
 function duetAssignmentIssue(s){
  if(s?.mode!=='duet'||s.parent||s.duetGuide?.mode!=='lyrics')return '';
  const lines=s.data.words.map((_,i)=>s.duetGuide.lines?.[i]||''),missing=lines.filter(p=>!p).length;
@@ -285,45 +285,48 @@ function duetAssignmentIssue(s){
  if(!lines.length||!lines.some(p=>p==='A'||p==='both')||!lines.some(p=>p==='B'||p==='both'))return '내 파트와 파트너가 부를 파트를 모두 지정해주세요.';
  return '';
 }
+function duetLegendHTML(){return '<div class="duet-color-key" aria-label="듀엣 파트 색상"><span data-role="mine"><i></i>내 파트</span><span data-role="both"><i></i>같이</span><span data-role="partner"><i></i>상대 파트</span></div>';}
 function renderDuetGuide(){
  const s=sing,host=$('#duet-guide');if(!s||!host)return;host.innerHTML='';if(s.mode!=='duet')return;
  const second=!!s.parent,guide=s.duetGuide,words=s.data.words||[],duration=s.mr?.duration||s.data.track.duration;
- const assigned=words.filter((_,i)=>!!AifectDuetGuide.linePart(guide,words,i,duration)).length;
- host.innerHTML='<div class="duet-guide-card"><div><strong>'+ (second?'함께 부를 파트':guide?.mode==='lyrics'?'가사별 파트':'자유롭게 나눠 부르기')+'</strong><p>'+(second?'파트너의 목소리를 들으며 내 차례를 불러요.':guide?.mode==='lyrics'?assigned+' / '+words.length+'줄 지정 · 녹음 전에 파트를 확인해주세요.':'내가 먼저 부르고, 비워 둔 구간을 파트너가 채워요.')+'</p></div><button type="button" class="small-button" data-duet-editor>'+icon('sliders')+(second?'파트 보기':'파트 나누기')+'</button></div>';
+ host.innerHTML='<div class="duet-guide-card"><div><strong>'+(second?'함께 부를 파트':'듀엣 파트')+'</strong><p>'+(second?'상대 목소리를 들으며 내 차례를 불러요.':'가사마다 내 파트 · 같이 · 상대 파트를 선택하세요.')+'</p></div><button type="button" class="small-button" data-duet-editor>'+icon('users')+(second?'파트 보기':'파트 나누기')+'</button></div>'+duetLegendHTML();
  host.querySelector('[data-duet-editor]').onclick=openDuetEditor;
  document.querySelectorAll('[data-sing-line]').forEach((row,i)=>{
   row.querySelector('.duet-line-badge')?.remove();row.querySelector('.duet-line-mic')?.remove();
-  const p=AifectDuetGuide.linePart(guide,words,i,duration),role=AifectDuetGuide.lineRole(p,second);row.dataset.partRole=role;row.setAttribute('aria-label',time(words[i].s)+' '+AifectDuetGuide.partLabel(p,second)+' '+words[i].w.map(w=>w.t).join(' '));
-  if(['mine','partner','both'].includes(role)){const marker=document.createElement('span');marker.className='duet-line-mic';marker.setAttribute('aria-hidden','true');marker.innerHTML=role==='both'?'<i class="duet-mine">'+icon('mic')+'</i><i class="duet-partner">'+icon('mic')+'</i>':icon('mic');row.prepend(marker);}
+  const p=AifectDuetGuide.linePart(guide,words,i,duration),role=AifectDuetGuide.lineRole(p,second);row.dataset.partRole=role;row.setAttribute('aria-label',time(words[i].s)+' '+duetRoleLabel(p,second)+' '+words[i].w.map(w=>w.t).join(' '));
   if(role==='partial'){const badge=document.createElement('b');badge.className='duet-line-badge';badge.textContent='빈 구간 있음 · 추정';row.append(badge);}
  });
-
  updateTransport();
+}
+function duetEditorDraft(s){
+ const draft={...s,duetGuide:JSON.parse(JSON.stringify(s.duetGuide||{version:1,mode:'free',lines:[]}))};
+ // A fresh manual editor starts without guessing the singers from the audio.
+ if(!s.parent&&s.data.words?.length&&!draft.duetGuide.activity&&!draft.duetGuide.lines?.some(Boolean))draft.duetGuide.mode='lyrics';
+ return draft;
 }
 function duetEditorHTML(s){
  const second=!!s.parent,guide=s.duetGuide,words=s.data.words||[],duration=s.mr?.duration||s.data.track.duration;
- const modes=second?'': '<div class="duet-methods" role="group" aria-label="파트 나누는 방법">'+[['free','자유롭게 부르기'],['lyrics','가사별로 지정']].map(([id,label])=>'<button type="button" data-duet-method="'+id+'" aria-pressed="'+(guide?.mode===id)+'"'+(id==='lyrics'&&!words.length?' disabled':'')+'>'+label+'</button>').join('')+'</div>';
- const help=second?'먼저 녹음한 파트는 파트너, 내가 부를 차례는 내 파트로 표시돼요.':guide?.mode==='lyrics'?'각 줄에서 부를 사람을 선택하세요. 같은 버튼을 다시 누르면 지정을 해제해요.':'원하는 구간을 먼저 부르세요. 녹음 후 빈 구간을 추정하고, 아래에서 직접 수정할 수 있어요.';
- let ranges='';if(guide?.mode==='free'&&guide.activity){const remaining=AifectDuetGuide.remainingRanges(guide.activity,duration);ranges='<div class="duet-free-ranges"><strong>비어 있는 구간 · 추정</strong><div>'+remaining.slice(0,24).map(r=>'<button type="button" data-duet-seek="'+r.s+'">'+duetTime(r.s)+'–'+duetTime(r.e)+'</button>').join('')+(remaining.length?'':'<span>감지된 빈 구간이 없어요.</span>')+'</div><p>작은 목소리나 잡음에 따라 실제 파트와 다를 수 있어요.</p></div>';}
- const rows=words.map((line,i)=>{const part=AifectDuetGuide.linePart(guide,words,i,duration),role=AifectDuetGuide.lineRole(part,second),text=line.w.map(w=>w.t).join(' ');return '<div class="duet-edit-line" data-edit-line="'+i+'" data-part-role="'+role+'"><div class="duet-edit-lyric"><time>'+time(line.s)+'</time><span>'+esc(text)+'</span></div>'+(second?'<span class="duet-part-label">'+duetRoleLabel(part,true)+'</span>':'<div class="duet-part-choices" role="group" aria-label="'+esc(text)+' 파트">'+[['A','내 파트'],['B','파트너'],['both','함께']].map(([value,label])=>'<button type="button" data-duet-line="'+i+'" data-duet-part="'+value+'" aria-pressed="'+(part===value)+'">'+label+'</button>').join('')+'</div>')+'</div>';}).join('');
- const fill=!second&&guide?.mode==='lyrics'?'<button type="button" class="duet-fill" data-duet-fill>남은 줄을 파트너로 지정</button>':'';
- return '<section class="duet-editor"><h2>'+(second?'듀엣 파트 보기':'듀엣 파트 나누기')+'</h2>'+modes+'<p class="duet-editor-help">'+help+'</p>'+fill+'<div class="duet-editor-lines">'+ranges+rows+(!words.length?'<p class="empty-note">싱크 가사가 없는 곡은 자유롭게 나눠 불러주세요.</p>':'')+'</div><div class="duet-editor-footer"><span data-duet-note role="status">'+(duetAssignmentIssue(s)||(second?'내 차례는 핑크 · 파트너는 민트':'선택한 파트는 초안에 함께 저장돼요.'))+'</span><button type="button" class="primary-button" data-duet-done>완료</button></div></section>';
+ const modes=second?'':'<div class="duet-methods" role="group" aria-label="파트 나누는 방법">'+[['lyrics','가사별로 지정'],['free','자유롭게 부르기']].map(([id,label])=>'<button type="button" data-duet-method="'+id+'" aria-pressed="'+(guide?.mode===id)+'"'+(id==='lyrics'&&!words.length?' disabled':'')+'>'+label+'</button>').join('')+'</div>';
+ const help=second?'먼저 정한 파트를 확인하고 내 차례를 불러주세요.':guide?.mode==='lyrics'?'각 가사 줄 오른쪽의 색을 선택해서 파트를 지정하세요.':'원하는 구간을 먼저 부르세요. 녹음 후 비어 있는 구간을 추정해요.';
+ const rows=words.map((line,i)=>{const part=AifectDuetGuide.linePart(guide,words,i,duration),role=AifectDuetGuide.lineRole(part,second),text=line.w.map(w=>w.t).join(' ');return '<div class="duet-edit-line" data-edit-line="'+i+'" data-part-role="'+role+'"><div class="duet-edit-lyric"><span>'+esc(text)+'</span></div>'+(second?'<span class="duet-part-label">'+duetRoleLabel(part,true)+'</span>':'<div class="duet-part-choices" role="group" aria-label="'+esc(text)+' 파트">'+[['A','내 파트'],['both','같이'],['B','상대 파트']].map(([value,label])=>'<button type="button" data-duet-line="'+i+'" data-duet-part="'+value+'" aria-label="'+(i+1)+'번째 가사 '+label+'" title="'+label+'" aria-pressed="'+(part===value)+'"><i aria-hidden="true"></i></button>').join('')+'</div>')+'</div>';}).join('');
+ return '<section class="duet-editor"><h2>'+(second?'듀엣 파트 보기':'듀엣 파트 나누기')+'</h2>'+duetLegendHTML()+modes+'<p class="duet-editor-help">'+help+'</p><div class="duet-editor-lines">'+rows+(!words.length?'<p class="empty-note">싱크 가사가 없는 곡은 자유롭게 나눠 불러주세요.</p>':'')+'</div><p data-duet-note role="status">'+(duetAssignmentIssue(s)||(second?'내 파트 · 같이 · 상대 파트를 색으로 확인하세요.':'적용하기를 누르면 선택한 파트가 저장돼요.'))+'</p><div class="duet-editor-footer">'+(!second?'<button type="button" class="small-button" data-duet-reset>'+icon('restart')+' 전체 초기화</button>':'')+'<button type="button" class="primary-button" data-duet-done>'+(second?'닫기':'적용하기')+'</button></div></section>';
 }
 function openDuetEditor(){
- const s=sing;if(!s||singBusy(s)||singLive(s))return;
- dialog(duetEditorHTML(s));const dlg=$('#dialog');dlg.classList.add('duet-editor-dialog');
+ const s=sing;if(!s||singBusy(s)||singLive(s))return;const draft=duetEditorDraft(s);
+ dialog(duetEditorHTML(draft));const dlg=$('#dialog');dlg.classList.add('duet-editor-dialog');
  const bind=()=>{
   const host=$('#dialog-content');
-  host.querySelectorAll('[data-duet-method]').forEach(b=>b.onclick=()=>{s.duetGuide.mode=b.dataset.duetMethod;refreshVocalGuide(s);queueSingDraft(s);renderDuetGuide();host.innerHTML=duetEditorHTML(s);bind();});
+  const redraw=()=>{const scroll=host.querySelector('.duet-editor-lines')?.scrollTop||0;host.innerHTML=duetEditorHTML(draft);bind();host.querySelector('.duet-editor-lines').scrollTop=scroll;};
+  host.querySelectorAll('[data-duet-method]').forEach(b=>b.onclick=()=>{draft.duetGuide.mode=b.dataset.duetMethod;refreshVocalGuide(draft);redraw();});
   host.querySelectorAll('[data-duet-line]').forEach(b=>b.onclick=()=>{
-   const i=Number(b.dataset.duetLine),value=b.dataset.duetPart,guide=s.duetGuide;
-   guide.lines||=[];while(guide.lines.length<s.data.words.length)guide.lines.push('');guide.lines[i]=guide.lines[i]===value?'':value;
-   queueSingDraft(s);renderDuetGuide();
-   const part=AifectDuetGuide.linePart(guide,s.data.words,i,s.mr?.duration||s.data.track.duration),row=b.closest('[data-edit-line]');row.dataset.partRole=AifectDuetGuide.lineRole(part,false);row.querySelectorAll('[data-duet-part]').forEach(v=>v.setAttribute('aria-pressed',String(v.dataset.duetPart===part)));host.querySelector('[data-duet-note]').textContent=duetAssignmentIssue(s)||'선택한 파트는 초안에 함께 저장돼요.';
+   const i=Number(b.dataset.duetLine),value=b.dataset.duetPart,guide=draft.duetGuide;
+   guide.mode='lyrics';guide.lines||=[];while(guide.lines.length<s.data.words.length)guide.lines.push('');guide.lines[i]=value;
+   const row=b.closest('[data-edit-line]');row.dataset.partRole=AifectDuetGuide.lineRole(value,false);row.querySelectorAll('[data-duet-part]').forEach(v=>v.setAttribute('aria-pressed',String(v.dataset.duetPart===value)));
+   host.querySelectorAll('[data-duet-method]').forEach(v=>v.setAttribute('aria-pressed',String(v.dataset.duetMethod==='lyrics')));
+   host.querySelector('[data-duet-note]').textContent=duetAssignmentIssue(draft)||'적용하기를 누르면 선택한 파트가 저장돼요.';
   });
-  const fill=host.querySelector('[data-duet-fill]');if(fill)fill.onclick=()=>{s.duetGuide.lines=s.data.words.map((_,i)=>s.duetGuide.lines?.[i]||'B');queueSingDraft(s);renderDuetGuide();host.innerHTML=duetEditorHTML(s);bind();};
-  host.querySelectorAll('[data-duet-seek]').forEach(b=>b.onclick=()=>{stopPreview();s.cursor=Number(b.dataset.duetSeek);drawLyrics(s.cursor);dlg.close();});
-  host.querySelector('[data-duet-done]').onclick=()=>{const issue=duetAssignmentIssue(s);if(issue){host.querySelector('[data-duet-note]').textContent=issue;return;}dlg.close();};
+  const reset=host.querySelector('[data-duet-reset]');if(reset)reset.onclick=()=>{draft.duetGuide={version:1,mode:s.data.words.length?'lyrics':'free',lines:s.data.words.map(()=>'')};redraw();};
+  host.querySelector('[data-duet-done]').onclick=()=>{if(sing!==s){dlg.close();return;}const issue=duetAssignmentIssue(draft);if(issue){host.querySelector('[data-duet-note]').textContent=issue;return;}if(!s.parent){s.duetGuide=draft.duetGuide;queueSingDraft(s);renderDuetGuide();drawLyrics(s.cursor);}dlg.close();};
  };
  bind();dlg.addEventListener('close',()=>dlg.classList.remove('duet-editor-dialog'),{once:true});
 }

@@ -3,9 +3,9 @@
 function myBalanceSummaryHTML(wallet){
  const valid=n=>typeof n==='number'&&Number.isFinite(n)&&n>=0;
  const gold=wallet?.balance,silver=wallet?.silver_balance,ready=valid(gold)&&valid(silver);
- return '<section class="my-balance-summary" aria-label="내 골드·은화와 도구함"><div class="my-balance-grid">'+
+ return '<section class="my-balance-summary" aria-label="내 골드·실버와 도구함"><div class="my-balance-grid">'+
   '<a class="my-balance-card my-balance-gold" href="#gold"><span class="my-balance-label"><span class="gold-coin" aria-hidden="true">G</span>보유 골드</span><strong>'+ (valid(gold)?number(gold):'—')+' <small>G</small></strong><span class="my-balance-link">충전 · 내역 보기 '+icon('chevron')+'</span></a>'+
-  '<a class="my-balance-card my-balance-silver" href="#rewards"><span class="my-balance-label"><img src="/assets/gifts/silver-coin-v1.webp" width="20" height="20" alt="">보유 은화</span><strong>'+ (valid(silver)?number(silver):'—')+' <small>은화</small></strong><span class="my-balance-link">오늘의 은화 받기 '+icon('chevron')+'</span></a>'+
+  '<a class="my-balance-card my-balance-silver" href="#rewards"><span class="my-balance-label"><img src="/assets/gifts/silver-coin-v1.webp" width="20" height="20" alt="">보유 실버</span><strong>'+ (valid(silver)?number(silver):'—')+' <small>S</small></strong><span class="my-balance-link">오늘의 실버 받기 '+icon('chevron')+'</span></a>'+
   '<a class="my-balance-card my-toolbox-card" href="#inventory"><span class="my-balance-label">'+icon('gift')+'내 도구함</span><strong>액자 · 아이템</strong><span class="my-balance-link">보관함 열기 '+icon('chevron')+'</span></a></div>'+
   (ready?'':'<p class="my-balance-error" role="status">잔액을 모두 불러오지 못했어요. <button type="button" class="text-link" data-my-wallet-retry>다시 불러오기</button></p>')+'</section>';
 }
@@ -93,7 +93,7 @@ async function improvementsView(base,param,raw){
   }
   if(base==='library'){const d=await api('/api/me/profile');return {html:heading('팔로워')+libraryTabs('followers')+(d.followers.length?peopleListHTML(d.followers,'producer'):'<p class="surface">아직 팔로워가 없어요.</p>')};}
   if(base==='payouts')return {html:heading('정산')+earningsHTML(await api('/api/studio/earnings'))};
-  if(base==='rewards'){const d=await api('/api/gold');return {html:`<div class="rewards-page">${heading('오늘의 은화','작은 활동을 모아 좋아하는 음악에 응원해보세요.')}<div id="gift-shop-rewards">${freeRewardsHTML(d.free)}</div></div>`};}
+  if(base==='rewards'){const d=await api('/api/gold');return {html:`<div class="rewards-page">${heading('오늘의 실버','작은 활동을 모아 좋아하는 음악에 응원해보세요.')}<div id="gift-shop-rewards">${freeRewardsHTML(d.free)}</div></div>`};}
   if(param==='crew')return dmWorkspaceView(await crewChatView(raw));
   if(param==='blocked')return blockedPeopleView();
   if(!param){const d=await api('/api/dm');return {html:dmInboxHTML(d),inbox:true};}
@@ -104,7 +104,7 @@ async function improvementsView(base,param,raw){
 }
 async function libraryProfileHTML(){
  if(!me)return '';const d=await api('/api/me/profile'),p=d.profile;
- return `<section class="surface library-profile"><a href="#profile" aria-label="내 프로필 수정">${portrait(p,'producer')}</a><div><h2>${esc(p.name)}</h2><div class="inline-actions"><a href="#profile">프로필 수정</a><a href="#library/followers">팔로워 ${d.follower_count}</a><a href="#library/following">팔로잉 ${d.following_count}</a></div></div><div class="inline-actions"><a href="#rewards" class="small-button">오늘의 은화</a><a href="#dm" class="small-button">DM</a><a href="#payouts" class="small-button">정산</a></div></section>`;
+ return `<section class="surface library-profile"><a href="#profile" aria-label="내 프로필 수정">${portrait(p,'producer')}</a><div><h2>${esc(p.name)}</h2><div class="inline-actions"><a href="#profile">프로필 수정</a><a href="#library/followers">팔로워 ${d.follower_count}</a><a href="#library/following">팔로잉 ${d.following_count}</a></div></div><div class="inline-actions"><a href="#rewards" class="small-button">오늘의 실버</a><a href="#dm" class="small-button">DM</a><a href="#payouts" class="small-button">정산</a></div></section>`;
 }
 function bindCrewForm(){const form=$('#crew-form');form.onsubmit=busyForm(form,async fd=>{const cid=form.dataset.crew;const d=await api('/api/crews'+(cid?'/'+cid:''),cid?'PATCH':'POST',{name:fd.get('name'),description:fd.get('description'),interests:fd.get('interests'),recruiting:fd.has('recruiting')});const file=fd.get('crew_image');if(cid&&file?.size)await uploadChatImage('/api/crews/'+cid+'/image',file);$('#dialog').close();location.hash='crew/'+d.crew.id;if(cid)await render();});}
 function bindImprovements(view){
