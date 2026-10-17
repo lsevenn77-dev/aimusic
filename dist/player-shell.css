@@ -50,7 +50,7 @@
  .player:not(.is-collapsed) .player-collapse{right:8px;top:5px;width:36px;height:36px;color:#aebacb}
  .player:not(.is-collapsed) .player-close{right:8px;top:auto;bottom:5px;width:36px;height:36px;color:#8392a5}
  .player:not(.show-lyrics) .player-lyric{display:none}
- .player .player-lyric{left:50%;right:auto;transform:translateX(-50%);width:max-content;min-width:160px;max-width:min(550px,calc(100% - 32px));box-sizing:border-box;padding:9px 22px;font-size:12px;white-space:pre!important}
+ .player .player-lyric{left:0;right:0;transform:none;width:auto;min-width:0;max-width:none;height:55px;box-sizing:border-box;padding:9px 22px;font-size:12px;white-space:pre!important}
 }
 @media(min-width:801px) and (max-width:1200px){
  .player:not(.is-collapsed){grid-template-columns:minmax(170px,1fr) minmax(220px,1.3fr) auto;gap:14px}
