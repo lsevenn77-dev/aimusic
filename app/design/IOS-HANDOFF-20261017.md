@@ -5,7 +5,7 @@ Android 2.5.47 (versionCode 60) was submitted to the existing Google Play **비�
 ## Current source
 
 - Branch: `codex/android-native-app`.
-- `ai음원사이트/` contains the deployed web application, assets, APIs, schema and migrations through Sites source commit `a1f5e12587f31b81375a2d47ce76eb1216afe12e` (production version 147).
+- `ai음원사이트/` contains the deployed web application, assets, APIs, schema and migrations through Sites source commit `9024ab333c5f66324117dae2bc0706d8c401888f` (production version 148).
 - The mirror preserves its own hosting/Git configuration. Do not overwrite production settings or replay migrations without checking the target environment.
 - Production: https://aifect.co.kr
 
@@ -21,6 +21,15 @@ Android 2.5.47 (versionCode 60) was submitted to the existing Google Play **비�
 - **The latest lyric request specifically concerns mobile web:** desktop web defaults to two lyric lines, mobile web to one. The desktop lyric toggle remains available. Screenshots below are from the deployed site, at desktop and 390px mobile viewport sizes.
 - Solo recording uses white for the current line and gray for other lines. Duet parts retain three roles/colors and manual line assignment. Pitch correction is removed from the user flow; vocal tone/effect controls remain.
 - Android backing-track key changes allow repeated taps without waiting for each intermediate conversion: the most recent selection wins. Key range is -6 to +6 semitones with tempo retained; selection survives activity recreation. Existing duet participation inherits the source key. `karaoke/BackingKey.java` and `KaraokeActivity.java` provide the implementation reference.
+
+## 공통 디자인 후속 작업 (2026-10-17)
+
+사용자가 제공한 디자인 시스템에 맞춰 **웹·모바일 웹**을 라벤더 `#B7B6FF`, 연보라 `#D6BAFF`, 민트 `#AEEBDF`, 어두운 남색 패널과 1.6px 선 아이콘으로 변경했다. 버튼·탭·메뉴의 선택 상태, 입력창, 재생바, 녹음 설정까지 적용했다. 색상/범위/검증 상세는 [`DESIGN-SYSTEM-20261017.md`](../../ai음원사이트/docs/DESIGN-SYSTEM-20261017.md)를 기준으로 한다.
+
+- [ ] iOS 공통 테마에 위 색상, 그라데이션, 아이콘 선 두께, 흰 슬라이더 핸들을 적용하고 실기기에서 확인.
+- [ ] 네이티브 Android에도 같은 기준을 적용할 후속 빌드 필요. 기존에 제출한 2.5.47(60)에는 이번 새 웹 테마가 들어 있지 않다.
+- 솔로/듀엣 가사 역할 색, 오류·성공 색, 원형 프로필·액자, 선물 이미지의 의미를 유지한다.
+- 웹 실화면: [데스크톱](theme-20261017/web-desktop.png), [모바일 웹](theme-20261017/web-mobile.png).
 
 ## iPhone 후속 작업: 푸시 알림 누락 (2026-10-17)
 
