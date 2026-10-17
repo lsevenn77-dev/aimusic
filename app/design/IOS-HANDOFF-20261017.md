@@ -22,6 +22,16 @@ Android 2.5.47 (versionCode 60) was submitted to the existing Google Play **비�
 - Solo recording uses white for the current line and gray for other lines. Duet parts retain three roles/colors and manual line assignment. Pitch correction is removed from the user flow; vocal tone/effect controls remain.
 - Android backing-track key changes allow repeated taps without waiting for each intermediate conversion: the most recent selection wins. Key range is -6 to +6 semitones with tempo retained; selection survives activity recreation. Existing duet participation inherits the source key. `karaoke/BackingKey.java` and `KaraokeActivity.java` provide the implementation reference.
 
+## iPhone 후속 작업: 푸시 알림 누락 (2026-10-17)
+
+사용자 제보: 현재 아이폰 앱에는 푸시 알림 기능이 보이지 않음. **Mac에서 이어서 구현·확인할 미완료 항목**으로 기록한다. 앱 안의 알림 기록 화면과 별도로, 앱이 백그라운드에 있거나 종료된 상태에서도 알림을 받을 수 있어야 한다. 이 메모를 추가한 시점에는 iOS 구현이나 실기기 검증을 진행하지 않았다.
+
+- [ ] iOS 알림 권한 요청, 기기 토큰 등록·갱신, 서버 푸시 전송 연결을 점검하고 누락된 부분 구현.
+- [ ] 개인 DM·크루 채팅, 내 곡의 커버·듀엣 참여, 받은 선물 알림을 연결. 채팅 알림 끄기 설정을 존중.
+- [ ] 알림을 누르면 해당 대화·곡·알림 기록으로 이동하고 읽음 상태와 배지를 맞춤.
+- [ ] 로그아웃·계정 전환 시 기기 토큰 연결을 정리해 이전 계정의 알림이 오지 않도록 확인.
+- [ ] 실제 아이폰에서 포그라운드·백그라운드·종료 상태의 수신과 알림 거절·다시 허용 흐름을 검증한 후 완료 처리.
+
 ## Validation and limitations
 
 - Release build and signed AAB verification succeeded.
