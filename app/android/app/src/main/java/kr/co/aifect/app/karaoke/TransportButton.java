@@ -20,8 +20,8 @@ final class TransportButton extends AppCompatButton {
  @Override protected void onDraw(Canvas canvas){
   float cx=getWidth()/2f,cy=compact?getHeight()/2f:dp(48),r=Math.min(dp(primary?44:24),Math.min(getWidth()/2f-dp(2),compact?getHeight()/2f-dp(2):dp(44)));
   boolean bright=isEnabled()||recordingActive;int alpha=bright?255:90;
-  paint.setColor(primary?(isPressed()?0xfff8b5d5:0xffee91bf):0xff44434e);paint.setAlpha(alpha);paint.setStyle(primary?Paint.Style.FILL:Paint.Style.STROKE);paint.setStrokeWidth(dp(1));canvas.drawCircle(cx,cy,r,paint);
-  if(recordingActive||isFocused()){paint.setStyle(Paint.Style.STROKE);paint.setColor(0xfff5d6e6);paint.setStrokeWidth(dp(2));canvas.drawCircle(cx,cy,Math.max(1,r-dp(4)),paint);}
+  paint.setColor(primary?(isPressed()?0xffe4d2ff:0xffd6baff):0xff44434e);paint.setAlpha(alpha);paint.setStyle(primary?Paint.Style.FILL:Paint.Style.STROKE);paint.setStrokeWidth(dp(1));canvas.drawCircle(cx,cy,r,paint);
+  if(recordingActive||isFocused()){paint.setStyle(Paint.Style.STROKE);paint.setColor(0xffaeebdf);paint.setStrokeWidth(dp(2));canvas.drawCircle(cx,cy,Math.max(1,r-dp(4)),paint);}
   paint.setColor(primary?0xff16151b:0xfff5f2f6);paint.setAlpha(alpha);paint.setStrokeWidth(dp(primary?3:2));paint.setStyle(Paint.Style.STROKE);paint.setStrokeCap(Paint.Cap.ROUND);paint.setStrokeJoin(Paint.Join.ROUND);
   float scale=primary?1.28f:1;canvas.save();canvas.translate(cx,cy);canvas.scale(scale,scale);Path path=new Path();
   if(glyph.equals("mic")){canvas.drawRoundRect(-dp(4),-dp(11),dp(4),dp(3),dp(4),dp(4),paint);path.moveTo(-dp(8),-dp(1));path.lineTo(-dp(8),dp(2));path.cubicTo(-dp(8),dp(12),dp(8),dp(12),dp(8),dp(2));path.lineTo(dp(8),-dp(1));path.moveTo(0,dp(9));path.lineTo(0,dp(14));path.moveTo(-dp(4),dp(14));path.lineTo(dp(4),dp(14));}

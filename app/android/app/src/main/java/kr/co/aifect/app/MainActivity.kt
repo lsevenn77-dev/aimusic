@@ -61,7 +61,7 @@ class MainActivity:ComponentActivity(){
  override fun onResume(){super.onResume();model.finishLogin();PushNotifications.refresh(this);model.playBilling?.resume();if(::ads.isInitialized){SongAdBreaks.host=ads;if(model.user!=null)ads.prepare()}}
  override fun onPause(){if(::ads.isInitialized&&SongAdBreaks.host===ads)SongAdBreaks.host=null;super.onPause()}
  override fun onDestroy(){model.playBilling?.close();model.playBilling=null;if(::ads.isInitialized)ads.dispose();super.onDestroy()}
- private fun openBrowser(url:String){startActivity(Intent(Intent.ACTION_VIEW,Uri.parse(url)))}
+ private fun openBrowser(url:String){try{startActivity(Intent(Intent.ACTION_VIEW,Uri.parse(url)))}catch(_:android.content.ActivityNotFoundException){model.notice="브라우저를 설치하거나 활성화한 뒤 다시 열어주세요."}}
  private fun login(provider:String){
   when(provider){
    "google"->model.nativeLogin(provider){client,nonce->signIn.google(client,nonce)}

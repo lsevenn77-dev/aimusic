@@ -15,6 +15,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -47,6 +50,7 @@ import java.util.UUID
  var error by remember{mutableStateOf<String?>(null)}
  var success by remember{mutableStateOf<String?>(null)}
  var confirm by remember{mutableStateOf(false)}
+ var giftInfo by remember{mutableStateOf(false)}
  suspend fun refresh(){
   wallet=m.api.call("/api/gold")
   if(giftPath!=null)ranking=m.api.call(giftPath)
@@ -67,23 +71,27 @@ import java.util.UUID
  val suffix=if(isFree)"S" else "G"
  val giftColumns=if(LocalConfiguration.current.screenWidthDp<400||LocalDensity.current.fontScale>1.2f)3 else 4
  ModalBottomSheet(onDismissRequest={if(!working)m.showGifts=false},sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true),containerColor=Panel){
-  LazyColumn(Modifier.fillMaxWidth().heightIn(max=620.dp).testTag("gift-list"),contentPadding=PaddingValues(22.dp,0.dp,22.dp,28.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
+  LazyColumn(Modifier.fillMaxWidth().fillMaxHeight(.96f).testTag("gift-list"),contentPadding=PaddingValues(22.dp,0.dp,22.dp,28.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
    item{Text(if(person!=null)"${recipient}님에게 선물" else if(target==null)"내 선물함" else "음악에 응원 보내기",fontSize=25.sp);target?.let{Text("${it.producer} · ${it.title}",color=Muted,modifier=Modifier.padding(top=8.dp))}}
    if(loading)item{LinearProgressIndicator(Modifier.fillMaxWidth())}
    error?.let{message->item{Text(message,color=Pink);if(wallet==null)TextButton(onClick={scope.launch{loading=true;error=null;try{refresh()}catch(e:Exception){error=e.message}finally{loading=false}}}){Text("다시 불러오기")}}}
    success?.let{item{Text(it,color=Aqua,fontSize=17.sp)}}
    if(wallet!=null){
-    item{Text("보유 실버 ${free?.optInt("balance")?:0} S    골드 ${wallet?.optInt("balance")} G",color=Aqua);Text("실버는 무료 응원 선물이에요. 현금 가치·골드 전환·수익 정산이 없어요.",fontSize=14.sp,color=Muted,modifier=Modifier.padding(top=8.dp))}
-    item{Surface(onClick={m.showGifts=false;m.showRewards=true},color=Raised,shape=RoundedCornerShape(16.dp)){Text("오늘의 실버 · 무료 보상 받기",color=Aqua,modifier=Modifier.fillMaxWidth().musicSurface(feature=true).padding(18.dp))}}
-    item{Text("세금과 결제 수수료를 제외한 금액에서 일반 창작자 60% · 파트너 70%를 다이아로 적립해요.",color=Muted,fontSize=13.sp);Text("커버곡 선물은 가창자 70% · AIFECT 30%예요. 원곡자는 커버의 재생 수익만 받아요.",color=Muted,fontSize=12.sp)}
-    item{TextButton(onClick={history=true}){Text("보낸 선물 내역")}}
-    item{TextButton(onClick={m.showGifts=false;m.showDiamonds=true}){Text("◇ 다이아 · 골드 전환 · 현금 정산")}}
-    item{Text("선물 고르기",fontSize=19.sp);Text("1 S와 1 G는 각각 응원 순위 1점",fontSize=13.sp,color=Muted)}
+    item{
+     Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).musicSurface(feature=true).padding(18.dp)){
+      Row(Modifier.align(Alignment.TopEnd)){AsyncImage(Endpoint.url("/assets/gifts/heart.webp"),null,Modifier.size(58.dp));AsyncImage(Endpoint.url("/assets/gifts/crown.webp"),null,Modifier.size(58.dp))}
+      Column{Text("마음을 전하는\n특별한 선물이에요",fontSize=23.sp,fontWeight=FontWeight.Bold,modifier=Modifier.padding(top=56.dp));Text("작은 응원이 더 큰 음악을 만듭니다.",color=Muted,fontSize=12.sp,modifier=Modifier.padding(top=10.dp))}
+     }
+    }
+    item{Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(12.dp)){
+     Surface(onClick={m.showGifts=false;m.showRewards=true},color=Raised,shape=RoundedCornerShape(12.dp),modifier=Modifier.weight(1f)){Column(Modifier.padding(12.dp)){Text("실버 ${free?.optInt("balance")?:0} S",color=Violet,fontWeight=FontWeight.Bold);Text("오늘의 실버 받기 ›",color=Muted,fontSize=12.sp)}}
+     Surface(onClick={m.showGifts=false;m.showBilling=true},color=Raised,shape=RoundedCornerShape(12.dp),modifier=Modifier.weight(1f)){Column(Modifier.padding(12.dp)){Text("골드 ${wallet?.optInt("balance")} G",color=Pink,fontWeight=FontWeight.Bold);Text("골드 충전하기 ›",color=Muted,fontSize=12.sp)}}
+    }}
     for((section,sectionCatalog) in listOf("실버 선물" to silverCatalog,"골드 선물" to goldCatalog)){
-    item{Text(section,fontSize=21.sp,color=if(section=="실버 선물")Violet else Pink)}
+    item{Row(verticalAlignment=Alignment.CenterVertically){Text(section,fontSize=21.sp,fontWeight=FontWeight.Bold,color=if(section=="실버 선물")Violet else Pink,modifier=Modifier.weight(1f));TextButton(onClick={giftInfo=true}){Text("선물 안내",fontSize=12.sp)}}}
     items(sectionCatalog.chunked(giftColumns)){row->Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(7.dp)){
      row.forEach{gift->val gid=gift.optString("id");Surface(onClick={if(!working){selected=gid;requestId=UUID.randomUUID().toString();success=null;error=null}},modifier=Modifier.weight(1f),shape=RoundedCornerShape(12.dp),color=if(selected==gid)Stroke else Ink,border=BorderStroke(1.dp,if(selected==gid)Pink else Stroke)){
-      Column(Modifier.padding(vertical=9.dp),horizontalAlignment=Alignment.CenterHorizontally){val path=gift.optString("image");if(path.startsWith("/assets/gifts/"))AsyncImage(Endpoint.url(path),null,Modifier.size(76.dp));Text(gift.optString("name"),fontSize=14.sp);Text(if(gift.optBoolean("free"))"${gift.optInt("silver")} S" else "${gift.optInt("gold")} G",color=Aqua,fontSize=13.sp)}
+      Column(Modifier.background(Brush.verticalGradient(listOf(Raised.copy(alpha=.45f),Panel))).padding(vertical=10.dp),horizontalAlignment=Alignment.CenterHorizontally){val path=gift.optString("image");if(path.startsWith("/assets/gifts/"))AsyncImage(Endpoint.url(path),null,Modifier.size(76.dp));Text(gift.optString("name"),fontSize=14.sp);Text(if(gift.optBoolean("free"))"${gift.optInt("silver")} S" else "${gift.optInt("gold")} G",color=if(gift.optBoolean("free"))Violet else Pink,fontSize=13.sp)}
      }};repeat(giftColumns-row.size){Spacer(Modifier.weight(1f))}
     }}
     }
@@ -98,12 +106,13 @@ import java.util.UUID
      if(!selection.valid)Text("한 번에 1~100개, 골드는 최대 100,000 G까지 보낼 수 있어요.",color=Pink)
      if(giftPath!=null){
       Text(if(balance>=cost)"보낸 뒤 ${balance-cost} $suffix" else if(isFree)"오늘의 보상을 받아 실버를 모아주세요." else "보유 골드가 부족해요.",color=Muted,fontSize=14.sp)
-      Button(onClick={confirm=true},enabled=!working&&choice!=null&&selection.affordable(balance),modifier=Modifier.fillMaxWidth().padding(top=10.dp)){Text(if(working)"보내는 중…" else "${choice?.optString("name")?:"선물"} ${quantity}개 · $cost $suffix 보내기")}
+      BrandButton(onClick={confirm=true},enabled=!working&&choice!=null&&selection.affordable(balance),modifier=Modifier.fillMaxWidth().padding(top=10.dp)){Text(if(working)"보내는 중…" else "${choice?.optString("name")?:"선물"} ${quantity}개 · $cost $suffix 보내기")}
      }else Text("곡의 재생 화면이나 상세 화면에서 선물할 수 있어요.",color=Aqua)
-     Button(onClick={m.showGifts=false;m.showBilling=true},modifier=Modifier.fillMaxWidth()){Text("Google Play로 골드 충전")}
+     BrandButton(onClick={m.showGifts=false;m.showBilling=true},modifier=Modifier.fillMaxWidth()){Text("Google Play로 골드 충전")}
      Text("받은 실버는 누적되며 매일 0시(한국 시간)에 보상 조건이 갱신돼요.",fontSize=13.sp,color=Muted,modifier=Modifier.padding(top=10.dp))
     }
    }
+   item{TextButton(onClick={history=true}){Text("보낸 선물 내역")};TextButton(onClick={m.showGifts=false;m.showDiamonds=true}){Text("◇ 다이아 · 골드 전환 · 현금 정산")}}
    ranking?.let{data->
     item{HorizontalDivider(color=Stroke);Text(if(person!=null)"받은 선물 랭킹" else "이 곡의 응원 순위",fontSize=19.sp,modifier=Modifier.padding(top=14.dp))}
     items(data.optJSONArray("ranking").objects()){r->Row(Modifier.fillMaxWidth()){Text("${r.optInt("rank")}  ${r.optString("name")}",Modifier.weight(1f));Text("${r.optInt("score")}점 · ${r.optInt("stars")} S / ${r.optInt("gold")} G",color=Aqua,fontSize=13.sp)}}
@@ -111,6 +120,12 @@ import java.util.UUID
    }
   }
  }
+ if(giftInfo)AlertDialog(onDismissRequest={giftInfo=false},title={Text("실버 · 골드 선물")},text={Column(verticalArrangement=Arrangement.spacedBy(12.dp)){
+  Text("실버는 무료 응원 선물이에요. 현금 가치·골드 전환·수익 정산이 없어요.")
+  Text("골드는 세금과 결제 수수료를 제외한 금액에서 일반 창작자 60% · 파트너 70%를 다이아로 적립해요.")
+  Text("커버곡 선물은 가창자 70% · AIFECT 30%예요. 원곡자는 커버의 재생 수익만 받아요.")
+  Text("1 S와 1 G는 각각 응원 순위 1점이에요.")
+ }},confirmButton={TextButton(onClick={giftInfo=false}){Text("확인")}})
  if(history)GiftHistorySheet(wallet,{history=false})
  if(confirm&&choice!=null&&giftPath!=null)AlertDialog(onDismissRequest={if(!working)confirm=false},title={Text("${choice.optString("name")} 선물하기")},text={Text("${recipient}님에게 ${choice.optString("name")} ${quantity}개 · 총 $cost $suffix 선물을 보낼까요?\n보낸 뒤 직접 취소할 수 없어요.")},dismissButton={TextButton(onClick={confirm=false},enabled=!working){Text("취소")}},confirmButton={TextButton(enabled=!working,onClick={scope.launch{
   working=true;error=null

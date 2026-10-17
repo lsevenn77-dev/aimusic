@@ -32,8 +32,8 @@ import androidx.compose.ui.layout.ContentScale
 import java.net.URLEncoder
 
 private val Coral=Color(0xFFFFB29C)
-private data class Mood(val id:String,val name:String,val caption:String,val color:Color,val icon:ImageVector)
-private val MoodTiles=listOf(
+internal data class Mood(val id:String,val name:String,val caption:String,val color:Color,val icon:ImageVector)
+internal val MoodTiles=listOf(
  Mood("comfort","위로가 필요할 때","마음을 다독이는 음악",Color(0xFF7165AD),Icons.Rounded.FavoriteBorder),
  Mood("energy","기분을 올려줘","리듬에 몸을 맡겨요",Color(0xFF86536C),Icons.Rounded.Bolt),
  Mood("focus","나만의 몰입","집중이 필요한 순간",Color(0xFF427E78),Icons.Rounded.Adjust),
@@ -56,24 +56,26 @@ private val PagePadding=PaddingValues(start=18.dp,end=18.dp,bottom=28.dp)
  var previous by rememberSaveable{mutableStateOf(m.listenPage)}
  LaunchedEffect(m.listenPage){if(previous!=m.listenPage){state.scrollToItem(0);previous=m.listenPage}}
  Column(Modifier.fillMaxSize()){
+ if(m.listenPage=="추천")Text("오늘의 음악",fontSize=24.sp,fontWeight=FontWeight.Bold,modifier=Modifier.padding(horizontal=18.dp,vertical=12.dp))
  ListenTabs(m)
  if(m.listenPage=="발견"){SearchScreen(m);return}
+ if(m.listenPage=="차트"){ChartScreen(m);return}
  LazyColumn(Modifier.fillMaxSize().testTag("listen-scroll"),state=state,contentPadding=PagePadding){
   when(m.listenPage){
    "추천"->{
     val releases=m.latest.ifEmpty{m.home}
     val featured=releases.firstOrNull()
     item{
-     Section("오늘의 음악",action="최신곡",onAction={m.listenPage="최신곡"})
-     if(featured!=null)FeaturedRelease(featured,releases,m) else WelcomeMusic(m)
      ListeningShortcuts(m)
+     Spacer(Modifier.height(20.dp))
+     if(featured!=null)FeaturedRelease(featured,releases,m) else WelcomeMusic(m)
     }
     if(m.history.isNotEmpty())item{
      Section("최근 들은 음악",action="더보기",onAction={m.showCollection("최근 들은 음악",m.history)})
      SongShelf(m.history.take(12),m)
     }
     if(releases.size>1)item{
-     Section("한 곡 더 발견하기",action="더보기",onAction={m.listenPage="최신곡"})
+     Section("새롭게 도착한 음악",action="더보기",onAction={m.listenPage="최신곡"})
      SongShelf(releases.drop(1).take(10),m)
     }
     if(m.singable.isNotEmpty())item{
@@ -107,21 +109,6 @@ private val PagePadding=PaddingValues(start=18.dp,end=18.dp,bottom=28.dp)
      }
     }
    }
-   "차트"->{
-    item{
-     MusicBannerPanel("AIFECT 인기곡","재생 · 좋아요 · 댓글을 반영한 제작곡 순위",Icons.Rounded.BarChart,"chart-popular",{m.showCollection("AIFECT 인기곡",m.home,"재생·좋아요·댓글 기준")}){
-      ChartPreview(m.home.take(5),m)
-      if(m.home.isEmpty())Empty("아직 집계할 음악이 없어요","공개된 음악의 반응이 쌓이면 차트에 보여요.")
-     }
-    }
-    if(m.singable.isNotEmpty())item{
-     MusicBannerPanel("노래방 인기곡","부를 수 있는 곡의 재생 · 좋아요 기준",Icons.Rounded.Mic,"chart-karaoke",{m.showCollection("노래방 인기곡",m.singable,"마음에 드는 노래를 직접 불러보세요")}){ChartPreview(m.singable.take(5),m)}
-    }
-    if(m.recentCovers.isNotEmpty())item{
-     MusicBannerPanel("새로운 커버곡","각자의 목소리로 다시 태어난 음악",Icons.Rounded.Headphones,"chart-covers",{m.browseCollection("커버곡 둘러보기","/api/community?kind=cover",asPage=true)}){SongShelf(m.recentCovers.take(10),m)}
-    }
-    item{Section("장르별로 골라 듣기");GenreGrid(m)}
-   }
    else->{
     item{MusicBannerPanel("새롭게 도착한 음악","가장 최근에 공개된 제작곡부터 만나보세요",Icons.Rounded.Album,"latest-banner"){PlayButtons(m.latest,m)}}
     items(m.latest,key={it.id}){song->Column(Modifier.fillMaxWidth().padding(top=10.dp).clip(RoundedCornerShape(16.dp)).musicSurface().border(1.dp,Stroke,RoundedCornerShape(16.dp)).padding(horizontal=12.dp)){CompactMusicRow(song,m,m.latest)}}
@@ -133,7 +120,7 @@ private val PagePadding=PaddingValues(start=18.dp,end=18.dp,bottom=28.dp)
 
 }
 @Composable private fun ListenTabs(m:MusicModel){
- LazyRow(Modifier.testTag("listen-tabs"),contentPadding=PaddingValues(horizontal=18.dp),horizontalArrangement=Arrangement.spacedBy(24.dp)){items(listOf("추천","차트","최신곡","발견")){page->Column(Modifier.clickable{m.listenPage=page}.heightIn(min=44.dp),horizontalAlignment=Alignment.CenterHorizontally){Text(page,fontSize=15.sp,color=if(m.listenPage==page)MaterialTheme.colorScheme.onSurface else Muted,fontWeight=FontWeight.SemiBold,modifier=Modifier.padding(vertical=12.dp));Box(Modifier.width(24.dp).height(2.dp).background(if(m.listenPage==page)Pink else Color.Transparent))}}}
+ LazyRow(Modifier.testTag("listen-tabs"),contentPadding=PaddingValues(horizontal=18.dp),horizontalArrangement=Arrangement.spacedBy(24.dp)){items(listOf("추천","차트","최신곡","발견","내 플레이리스트")){page->Column(Modifier.clickable{if(page=="내 플레이리스트")m.library("플레이리스트")else m.listenPage=page}.heightIn(min=44.dp),horizontalAlignment=Alignment.CenterHorizontally){Text(page,fontSize=15.sp,color=if(m.listenPage==page)MaterialTheme.colorScheme.onSurface else Muted,fontWeight=FontWeight.SemiBold,modifier=Modifier.padding(vertical=12.dp));Box(Modifier.width(24.dp).height(2.dp).background(if(m.listenPage==page)Pink else Color.Transparent))}}}
 }
 
 @Composable private fun WelcomeMusic(m:MusicModel){
@@ -156,16 +143,19 @@ private val PagePadding=PaddingValues(start=18.dp,end=18.dp,bottom=28.dp)
    }
   }
   Row(Modifier.fillMaxWidth().padding(top=16.dp),verticalAlignment=Alignment.CenterVertically){
-   Box(Modifier.weight(1f)){SaveMusicButton(song,m,compact=true)}
-   Button(onClick={m.play(song,queue)},colors=ButtonDefaults.buttonColors(containerColor=Pink,contentColor=Ink),contentPadding=PaddingValues(horizontal=16.dp,vertical=8.dp)){
-    Icon(Icons.Rounded.PlayArrow,null,Modifier.size(20.dp));Text("바로 듣기",fontSize=14.sp,modifier=Modifier.padding(start=4.dp))
+   BrandButton(onClick={m.play(song,queue)},modifier=Modifier.weight(1f)){
+    Icon(Icons.Rounded.PlayArrow,null,Modifier.size(20.dp));Text("지금 듣기",fontSize=14.sp,modifier=Modifier.padding(start=4.dp))
    }
+   IconButton(onClick={m.like(song)},enabled=!m.busy){Icon(if(m.likes.any{it.id==song.id})Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,"좋아요",tint=Pink)}
+  }
+  OutlinedButton(onClick={m.pickPlaylist(song)},modifier=Modifier.fillMaxWidth()){
+   Icon(Icons.AutoMirrored.Rounded.QueueMusic,null,Modifier.size(18.dp));Text("플레이리스트 담기",Modifier.padding(start=8.dp))
   }
  }
 }
 @Composable private fun ListeningShortcuts(m:MusicModel){
  Row(Modifier.fillMaxWidth().padding(top=14.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)){
-  listOf(Triple("좋아요","좋아요",Icons.Rounded.FavoriteBorder),Triple("최근 감상","최근 감상",Icons.Rounded.History),Triple("내 플레이리스트","플레이리스트",Icons.AutoMirrored.Rounded.QueueMusic)).forEach{(label,page,icon)->
+  listOf(Triple("내 플레이리스트","플레이리스트",Icons.AutoMirrored.Rounded.QueueMusic),Triple("좋아요","좋아요",Icons.Rounded.FavoriteBorder),Triple("최근 감상","최근 감상",Icons.Rounded.History)).forEach{(label,page,icon)->
    Surface(onClick={m.library(page)},modifier=Modifier.weight(1f),color=Panel,shape=RoundedCornerShape(12.dp)){
     Column(Modifier.border(1.dp,Stroke.copy(alpha=.7f),RoundedCornerShape(12.dp)).padding(vertical=10.dp,horizontal=4.dp),horizontalAlignment=Alignment.CenterHorizontally){
      Icon(icon,null,tint=if(label=="좋아요")Pink else Aqua,modifier=Modifier.size(18.dp));Text(label,fontSize=11.sp,textAlign=androidx.compose.ui.text.style.TextAlign.Center,modifier=Modifier.padding(top=6.dp))
@@ -226,11 +216,6 @@ private val PagePadding=PaddingValues(start=18.dp,end=18.dp,bottom=28.dp)
   items(tracks.chunked(3)){chunk->Column(Modifier.width(305.dp)){chunk.forEach{SongRow(it,m,tracks)}}}
  }
 }
-@Composable private fun ChartPreview(tracks:List<Song>,m:MusicModel,showStats:Boolean=true){
- Column(verticalArrangement=Arrangement.spacedBy(10.dp)){tracks.forEachIndexed{i,s->
-  Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Ink.copy(alpha=.55f)).border(1.dp,Stroke,RoundedCornerShape(14.dp)).padding(horizontal=10.dp).testTag("chart-song-${s.id}"),verticalAlignment=Alignment.Top){Text("${i+1}",fontSize=17.sp,fontWeight=FontWeight.Bold,color=if(i<3)Pink else Muted,modifier=Modifier.width(24.dp).padding(top=14.dp));Box(Modifier.weight(1f)){CompactMusicRow(s,m,tracks)}}
- }}
-}
 @Composable private fun CompactMusicRow(song:Song,m:MusicModel,queue:List<Song>){
  Row(Modifier.fillMaxWidth().clickable{m.openSong(song)}.padding(vertical=12.dp),verticalAlignment=Alignment.Top){
   Artwork(song,Modifier.size(46.dp))
@@ -282,7 +267,7 @@ private val PagePadding=PaddingValues(start=18.dp,end=18.dp,bottom=28.dp)
   }}
  }
 }
-@Composable private fun PlaylistRow(p:JSONObject,m:MusicModel){
+@Composable internal fun PlaylistRow(p:JSONObject,m:MusicModel){
  Row(Modifier.fillMaxWidth().clickable{m.openList(p.getString("id"))}.padding(vertical=12.dp),verticalAlignment=Alignment.CenterVertically){
   PlaylistArt(p,Modifier.size(60.dp));Column(Modifier.weight(1f).padding(horizontal=14.dp)){
    Text(p.optString("name"),fontWeight=FontWeight.SemiBold,maxLines=2,overflow=TextOverflow.Ellipsis)
@@ -374,7 +359,7 @@ private val PagePadding=PaddingValues(start=18.dp,end=18.dp,bottom=28.dp)
   }
   items(m.duetInvitations,key={"duet-"+it.id}){song->
    Surface(color=Panel,shape=RoundedCornerShape(18.dp),modifier=Modifier.padding(bottom=12.dp)){
-    Column(Modifier.padding(16.dp)){Text(song.title,fontWeight=FontWeight.Bold);Text("${song.producer} · 먼저 녹음한 목소리",color=Muted,fontSize=13.sp,modifier=Modifier.padding(vertical=8.dp));Button(onClick={if(song.raw.optString("user_id")==m.user?.optString("id"))m.openSong(song) else sing(song)},modifier=Modifier.fillMaxWidth()){Text(if(song.raw.optString("user_id")==m.user?.optString("id"))"내 듀엣 보기" else "듀엣 참여")}}
+    Column(Modifier.padding(16.dp)){Text(song.title,fontWeight=FontWeight.Bold);Text("${song.producer} · 먼저 녹음한 목소리",color=Muted,fontSize=13.sp,modifier=Modifier.padding(vertical=8.dp));BrandButton(onClick={if(song.raw.optString("user_id")==m.user?.optString("id"))m.openSong(song) else sing(song)},modifier=Modifier.fillMaxWidth()){Text(if(song.raw.optString("user_id")==m.user?.optString("id"))"내 듀엣 보기" else "듀엣 참여")}}
    }
   }
   item{
@@ -448,7 +433,7 @@ private val PagePadding=PaddingValues(start=18.dp,end=18.dp,bottom=28.dp)
     Column(Modifier.fillMaxWidth().padding(top=18.dp).clip(RoundedCornerShape(22.dp)).musicSurface(feature=true).padding(24.dp)){
      Text("취향이 차곡차곡 쌓이는 곳",fontSize=23.sp,fontWeight=FontWeight.Bold)
      Text("좋아요한 곡부터 나만의 플레이리스트까지.\n로그인하고 어디서든 이어 들어요.",color=Muted,fontSize=14.sp,modifier=Modifier.padding(vertical=16.dp))
-     Button(onClick={m.showLogin=true}){Text("로그인하고 시작하기")}
+     BrandButton(onClick={m.showLogin=true}){Text("로그인하고 시작하기")}
     }
    }else{
     Row(Modifier.fillMaxWidth().padding(bottom=20.dp),verticalAlignment=Alignment.CenterVertically){Box(Modifier.clickable{m.editProfile()}){Avatar(m.user?.optString("name")?:"",m.ownProfile.optJSONObject("profile"),48)};Column(Modifier.padding(start=14.dp).weight(1f)){Text(m.user?.optString("display_name",m.user?.optString("name")?:"")?:"",fontSize=19.sp,fontWeight=FontWeight.Bold);Text("좋아요 ${m.likes.size} · 플레이리스트 ${m.playlists.size}",color=Muted,fontSize=13.sp,modifier=Modifier.padding(top=5.dp))};IconButton(onClick={m.showAccount=true}){Icon(Icons.Rounded.Settings,"계정 설정",tint=Muted)}}
@@ -487,7 +472,7 @@ private val PagePadding=PaddingValues(start=18.dp,end=18.dp,bottom=28.dp)
      }
     }
     if(own.isEmpty()&&!m.studioBusy&&m.studioError==null)item{Empty("아직 올린 ${if(filter=="내 커버곡")"커버곡" else "제작곡"}이 없어요",if(filter=="내 커버곡")"부르기에서 첫 커버를 남겨보세요." else "제작한 음악을 스튜디오에서 공개해보세요.")}
-    item{TextButton(onClick={if(filter=="내 커버곡")m.selectTab(2) else browser(Endpoint.url("/#studio"))},modifier=Modifier.fillMaxWidth()){Icon(if(filter=="내 커버곡")Icons.Rounded.Mic else Icons.AutoMirrored.Rounded.OpenInNew,null);Text(if(filter=="내 커버곡")"노래 부르러 가기" else "제작자 웹 스튜디오",modifier=Modifier.padding(start=8.dp))}}
+    item{TextButton(onClick={if(filter=="내 커버곡")m.selectTab(2) else m.openStudio()},modifier=Modifier.fillMaxWidth()){Icon(if(filter=="내 커버곡")Icons.Rounded.Mic else Icons.AutoMirrored.Rounded.OpenInNew,null);Text(if(filter=="내 커버곡")"노래 부르러 가기" else "창작자 스튜디오",modifier=Modifier.padding(start=8.dp))}}
    }
    else->{
     val base=if(filter=="최근 감상")m.history else m.likes

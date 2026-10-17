@@ -81,7 +81,7 @@ internal fun singingCardColumns(widthDp: Float, fontScale: Float): Int = if(widt
    OutlinedButton(onClick={m.play(song,queue)},contentPadding=PaddingValues(horizontal=14.dp),modifier=Modifier.testTag("sing-ready-play-${song.id}")){
     Icon(Icons.Rounded.PlayArrow,null,Modifier.size(18.dp));Text("재생",fontSize=13.sp,modifier=Modifier.padding(start=4.dp))
    }
-   Button(onClick={sing(song)},colors=ButtonDefaults.buttonColors(containerColor=Pink,contentColor=Ink),contentPadding=PaddingValues(horizontal=14.dp)){
+   BrandButton(onClick={sing(song)},colors=ButtonDefaults.buttonColors(containerColor=Pink,contentColor=Ink),contentPadding=PaddingValues(horizontal=14.dp)){
     Icon(Icons.Rounded.Mic,null,Modifier.size(18.dp));Text("부르기",fontSize=13.sp,modifier=Modifier.padding(start=4.dp))
    }
   }

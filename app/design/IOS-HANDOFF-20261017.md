@@ -2,6 +2,20 @@
 
 Android 2.5.47 (versionCode 60) was submitted to the existing Google Play **비공테** closed-testing track. Review is pending; submission does not mean the update is already available to testers. iOS has not been built or submitted from this Windows checkout.
 
+## Android 2.5.50 (63) — 인기 차트
+
+- 5곡 미리보기 패널 대신 모바일 웹과 같은 연속 목록. 기간별 서버 차트와 실제 순위 변동, 좋아요/재생/담기/선물/댓글 제공. 긴 곡명은 줄바꿈하며 잘리지 않는다. `ChartScreen.kt` 참조.
+- Galaxy Z Flip6에 2.5.50(63) 데이터 유지 업데이트·정상 실행 확인. Play Console 제출본은 여전히 2.5.47(60).
+- Android 차트 관련 기기 시나리오 3개 통과. 웹 CSS 변경 없음. iOS에도 별도 네이티브 반영이 필요하다.
+
+## Android 2.5.49 (62) — 모바일 웹 비교 후 네이티브 수정
+
+- 창작자 스튜디오를 앱 내부 화면으로 구현. 외부 브라우저의 별도 로그인 때문에 막히던 진입 경로를 없앴다. 원곡 업로드·정보/앨범 커버/가사·MR·아티스트 관리와 기존 서버 한도/권한을 연결했다.
+- 홈·커뮤니티·선물함·공통 버튼·녹음 컨트롤에 최신 테마와 배치를 반영. 전체 메뉴에서 웹에 있던 아티스트/공개 플레이리스트/보관함/정산 경로도 제공한다.
+- Android에 크루 이름 30일 제한과 프로필 초대→DM→크루 보기 구현 완료. 아래의 크루 UI 미완료 메모는 이제 iOS에만 해당한다.
+- Galaxy Z Flip6에 데이터 유지 업데이트, 버전과 정상 실행 확인. Play Console 제출본은 여전히 2.5.47(60)이며 2.5.49는 직접 설치본이다.
+- release/JVM 61개 검사, 관련 기기 시나리오 9개 최종 통과. 검증 범위와 캡처는 [Android 비교 기록](ANDROID-WEB-PARITY-20261017.md)을 참고. iOS 푸시는 여전히 Mac 작업 대상이다.
+
 ## Android 2.5.48 (61) — 직접 연결한 휴대폰 업데이트
 
 - Galaxy Z Flip6의 기존 2.5.46(59)을 데이터 유지 방식으로 2.5.48(61)로 업데이트. 기존 직접 설치본과 같은 인증서로 서명했다. Play Console에는 이번 버전을 제출하지 않았다.

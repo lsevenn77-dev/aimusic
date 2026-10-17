@@ -73,7 +73,7 @@ internal fun playerLevel(xp:Int)=((1+sqrt(1+xp.coerceAtLeast(0)/12.5))/2).toInt(
  if(error!=null)TextButton(onClick={revision++}){Text("레벨 · 아이템 다시 불러오기")}
  if(show)PlayerInventorySheet(m,{show=false;revision++}){data=it}
 }
-@Composable private fun PlayerInventorySheet(m:MusicModel,close:()->Unit,updated:(JSONObject)->Unit){
+@Composable internal fun PlayerInventorySheet(m:MusicModel,close:()->Unit,updated:(JSONObject)->Unit){
  val account=m.user?.optString("id")
  val scope=rememberCoroutineScope()
  var data by remember(account){mutableStateOf<JSONObject?>(null)}
@@ -99,7 +99,7 @@ internal fun playerLevel(xp:Int)=((1+sqrt(1+xp.coerceAtLeast(0)/12.5))/2).toInt(
       Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(20.dp)){Avatar(p.optString("name"),p,64);Column{Text(i.optString("name"),fontWeight=FontWeight.Bold);Text(if(i.optBoolean("equipped"))"장착 중" else if(owned)"보유 중" else "달성 보상",color=Aqua,fontSize=12.sp)}}
       Text(i.optString("description"),color=Muted,fontSize=13.sp)
       Text(i.optString("reason").ifBlank{i.optString("usage","보유 아이템")},color=Muted,fontSize=12.sp)
-      if(owned)Button(enabled=i.optBoolean("available")&&!busy,onClick={busy=true;scope.launch{try{
+      if(owned)BrandButton(enabled=i.optBoolean("available")&&!busy,onClick={busy=true;scope.launch{try{
        val result=m.api.call("/api/me/player/equipment","PUT",payload("frame_inventory_id" to if(i.optBoolean("equipped"))JSONObject.NULL else i.optString("id")))
        if(m.user?.optString("id")==account){data=result;updated(result);error=null;m.loadOwnProfile(fresh=true)}
       }catch(e:Exception){if(e is CancellationException)throw e;error=e.message}finally{busy=false}}},modifier=Modifier.fillMaxWidth(),colors=ButtonDefaults.buttonColors(containerColor=Aqua,contentColor=Ink)){Text(if(i.optBoolean("equipped"))"해제하기" else "장착하기")}

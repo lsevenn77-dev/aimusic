@@ -40,26 +40,24 @@ import org.json.JSONObject
  val label=if(crews)"크루" else when(m.feedFilter){"전체"->"추천";"커버곡"->"커버";else->m.feedFilter}
  LaunchedEffect(m.user?.optString("id"),crews){if(!crews)m.community(m.feedFilter)}
  Column(Modifier.fillMaxSize()){
-  Column(Modifier.padding(horizontal=20.dp)){
+  if(crews){  Column(Modifier.padding(horizontal=20.dp)){
    Chips(listOf("추천","커버","듀엣","크루","팔로잉"),label){chosen->
     m.communityCrewMode=chosen=="크루";m.communityCrewTarget=null;m.crewBrowsing=false;invitations=false
     if(chosen!="크루")m.community(when(chosen){"추천"->"전체";"커버"->"커버곡";else->chosen})
     if(chosen=="듀엣")m.loadDuets()
    }
   }
-  if(crews){CrewScreen(m,sing,initialCrew);return}
+CrewScreen(m,sing,initialCrew);return}
   val tracks=if(invitations)m.duetInvitations else m.feed
   LazyColumn(Modifier.fillMaxSize().testTag("music-community-feed"),contentPadding=PaddingValues(20.dp),verticalArrangement=Arrangement.spacedBy(16.dp)){
-   item{WebMusicBanner("커뮤니티","좋은 음악을 듣고, 담고, 함께 만들어가요.")}
-   if(m.feedFilter=="전체")item{
-    Surface(onClick={m.communityCrewMode=true;m.communityCrewTarget=null;m.crewBrowsing=false},color=Panel,shape=RoundedCornerShape(18.dp)){
-     Row(Modifier.fillMaxWidth().musicSurface(feature=true).padding(16.dp),verticalAlignment=Alignment.CenterVertically){
-      Icon(Icons.Rounded.Groups,null,tint=Aqua)
-      Column(Modifier.weight(1f).padding(horizontal=12.dp)){Text("크루에서 함께 듣고 부르기",fontWeight=FontWeight.SemiBold);Text("내 크루 · 멤버들의 음악 · 크루 채팅",fontSize=12.sp,color=Muted)}
-      Icon(Icons.Rounded.ChevronRight,null,tint=Muted)
-     }
-    }
+   item{WebMusicBanner("커뮤니티","좋은 음악을 듣고, 담고, 함께 만들어가요.");  Column(Modifier.padding(horizontal=20.dp)){
+   Chips(listOf("추천","커버","듀엣","크루","팔로잉"),label){chosen->
+    m.communityCrewMode=chosen=="크루";m.communityCrewTarget=null;m.crewBrowsing=false;invitations=false
+    if(chosen!="크루")m.community(when(chosen){"추천"->"전체";"커버"->"커버곡";else->chosen})
+    if(chosen=="듀엣")m.loadDuets()
    }
+  }
+}
    if(m.feedFilter=="듀엣")item{Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
     FilterChip(!invitations,{invitations=false},label={Text("듀엣 감상")},colors=neutralChipColors(),border=neutralChipBorder(!invitations))
     FilterChip(invitations,{invitations=true;m.loadDuets()},label={Text("참여를 기다리는 듀엣")},colors=neutralChipColors(),border=neutralChipBorder(invitations))
@@ -107,14 +105,17 @@ import org.json.JSONObject
    if(own){
     TextButton(onClick=m::editProfile,modifier=Modifier.testTag("$context-edit"),contentPadding=PaddingValues(horizontal=6.dp)){Icon(Icons.Rounded.Tune,null,Modifier.size(16.dp));Text("프로필 수정",fontSize=12.sp,modifier=Modifier.padding(start=4.dp))}
     Spacer(Modifier.weight(1f))
-   }else if(p.optString("profile_kind")!="listener")Button(onClick=m::follow,enabled=!m.busy,modifier=Modifier.weight(1f).testTag("profile-follow"),contentPadding=PaddingValues(horizontal=8.dp)){Text(if(m.follows.any{it.optString("target_id")==p.optString("id")&&it.optString("kind")==p.optString("profile_kind","producer")})"팔로잉" else "팔로우",fontSize=12.sp)}
+   }else if(p.optString("profile_kind")!="listener")BrandButton(onClick=m::follow,enabled=!m.busy,modifier=Modifier.weight(1f).testTag("profile-follow"),contentPadding=PaddingValues(horizontal=8.dp)){Text(if(m.follows.any{it.optString("target_id")==p.optString("id")&&it.optString("kind")==p.optString("profile_kind","producer")})"팔로잉" else "팔로우",fontSize=12.sp)}
    if(person&&!own){
     OutlinedButton(onClick={m.openMessages(p.optString("id"))},modifier=Modifier.weight(1f).testTag("profile-message"),contentPadding=PaddingValues(horizontal=6.dp)){Text("메시지",fontSize=12.sp)}
     OutlinedButton(onClick={m.openPersonGift(p)},modifier=Modifier.weight(1f).testTag("profile-gift"),contentPadding=PaddingValues(horizontal=6.dp)){Icon(Icons.Rounded.CardGiftcard,null,Modifier.size(16.dp));Text("선물",fontSize=12.sp,modifier=Modifier.padding(start=4.dp))}
    }
    if(person&&own)ProfileGiftRanking(m,p,compact=true)
   }
-  if(person&&!own)ProfileGiftRanking(m,p)
+  if(person&&!own){
+   ProfileCrewInvite(m,p)
+   ProfileGiftRanking(m,p)
+  }
  }
 }
 
@@ -143,7 +144,7 @@ import org.json.JSONObject
   item{
    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Text("마이",fontSize=26.sp,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f));if(m.user!=null)TextButton(onClick={confirmLogout=true},enabled=!m.busy,colors=ButtonDefaults.textButtonColors(contentColor=Muted),modifier=Modifier.testTag("my-logout")){Text("로그아웃",fontSize=12.sp)}}
    Spacer(Modifier.height(12.dp))
-   if(m.user==null){Empty("음악을 듣기만 해도 좋아요","로그인하면 플레이리스트와 나의 활동을 모아둘 수 있어요.");Button(onClick={m.showLogin=true}){Text("로그인")}}
+   if(m.user==null){Empty("음악을 듣기만 해도 좋아요","로그인하면 플레이리스트와 나의 활동을 모아둘 수 있어요.");BrandButton(onClick={m.showLogin=true}){Text("로그인")}}
    else MusicProfileHeader(m,p,published.filter{!it.cover},published.filter{it.cover},m.ownProfile.optInt("follower_count"),myPage=true)
   }
   if(m.user!=null){
@@ -154,7 +155,7 @@ import org.json.JSONObject
     Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)){
      FilledTonalButton(onClick={m.library("플레이리스트")}){Text("내 플레이리스트")};OutlinedButton(onClick={m.library("좋아요")}){Text("좋아요")};OutlinedButton(onClick={m.library("최근 감상")},colors=ButtonDefaults.outlinedButtonColors(contentColor=SoftText)){Text("최근 감상")}
     }
-    Row(Modifier.horizontalScroll(rememberScrollState())){TextButton(onClick={m.showRecordingDrafts=true}){Text("녹음 초안")};TextButton(onClick={m.library("내 제작곡")},colors=ButtonDefaults.textButtonColors(contentColor=SoftText)){Text("업로드 관리")};TextButton(onClick={browser(Endpoint.url("/#studio"))}){Text("창작자 스튜디오")}}
+    Row(Modifier.horizontalScroll(rememberScrollState())){TextButton(onClick={m.showRecordingDrafts=true}){Text("녹음 초안")};TextButton(onClick={m.library("내 제작곡")},colors=ButtonDefaults.textButtonColors(contentColor=SoftText)){Text("업로드 관리")};TextButton(onClick={m.openStudio()}){Text("창작자 스튜디오")}}
     Text("저장한 음악은 내 보관함에서, 공개한 음악은 아래에서 확인해요.",color=Muted,fontSize=12.sp,modifier=Modifier.padding(vertical=12.dp))
     Chips(listOf("전체","제작곡","커버","듀엣"),tab){tab=it}
     MusicLayoutControl(tracks.size,grid,{grid=it},"my-music")

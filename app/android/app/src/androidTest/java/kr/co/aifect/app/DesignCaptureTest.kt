@@ -37,6 +37,7 @@ class DesignCaptureTest {
  private val workers=Executors.newCachedThreadPool()
  private val responses=ConcurrentHashMap<String,JSONObject>()
  private val requestBodies=ConcurrentHashMap<String,String>()
+ private val uploadBytes=ConcurrentHashMap<String,Int>()
  private val requestUrls=java.util.concurrent.CopyOnWriteArrayList<String>()
  private val heldResponses=ConcurrentHashMap<String,CountDownLatch>()
  private val heldRequests=ConcurrentHashMap<String,CountDownLatch>()
@@ -70,7 +71,7 @@ class DesignCaptureTest {
   responses["/api/community"]=payload("tracks" to arr(cover,duet,song),"producers" to arr(peer,own))
   responses["/api/karaoke"]=payload("tracks" to arr(song,second))
   responses["/api/duets"]=payload("tracks" to arr(duet))
-  responses["/api/studio"]=payload("producer" to own,"artists" to JSONArray(),"tracks" to arr(song,second,JSONObject(cover.toString()).put("user_id","design-user")))
+  responses["/api/studio"]=payload("producer" to own,"artists" to arr(payload("id" to "design-artist","name" to "NOVA","genre" to "City Pop")),"upload_quota" to payload("used" to 2,"limit" to 10,"remaining" to 8),"tracks" to arr(song,second,JSONObject(cover.toString()).put("user_id","design-user")))
   responses["/api/playlists"]=payload("playlists" to arr(playlist))
   responses["/api/playlists/design-list"]=payload("playlist" to playlist,"tracks" to arr(song,second,cover,duet))
   responses["/api/cover-rankings"]=payload("tracks" to arr(JSONObject(cover.toString()).put("rank",1).put("rank_likes",24)),"singers" to arr(peer))
@@ -79,6 +80,7 @@ class DesignCaptureTest {
   responses["/api/artists/design-artist"]=payload("profile" to payload("id" to "design-artist","name" to "NOVA","bio" to "도시의 밤과 푸른 순간을 노래하는 AI 아티스트","image_version" to "sample","user_id" to "design-user"),"tracks" to arr(song,second),"followers" to 86,"can_manage" to true,"gallery" to arr(payload("id" to "photo-1","url" to "/media/artist-gallery/photo-1?v=sample"),payload("id" to "photo-2","url" to "/media/artist-gallery/photo-2?v=sample")))
   for(t in listOf(song,second,cover,duet)){
    val id=t.getString("id")
+   responses["/api/studio/tracks/$id"]=payload("profile" to JSONObject(t.toString()).put("ai_tool","Suno").put("lyrics","[00:00.000] 오늘의 마음을 담아요"),"karaoke" to payload("mr_ready" to true))
    responses["/api/tracks/$id"]=payload("track" to t)
    responses["/api/tracks/$id/comments"]=payload("comments" to arr(payload("id" to "sample-comment","name" to "하루","body" to "퇴근길에 계속 듣고 있어요!","user_id" to "design-other","created" to now-300)))
    responses["/api/tracks/$id/covers"]=payload("covers" to arr(cover))
@@ -107,7 +109,13 @@ class DesignCaptureTest {
   val audio=ByteBuffer.allocate(44+48000*2*180).order(ByteOrder.LITTLE_ENDIAN).apply{put("RIFF".toByteArray());putInt(capacity()-8);put("WAVEfmt ".toByteArray());putInt(16);putShort(1);putShort(1);putInt(48000);putInt(96000);putShort(2);putShort(16);put("data".toByteArray());putInt(capacity()-44)}.array()
   server=ServerSocket(0,20,InetAddress.getByName("127.0.0.1"))
   workers.execute{while(!server.isClosed)try{val socket=server.accept();workers.execute{try{socket.use{c->
-   val input=c.getInputStream().bufferedReader();val request=input.readLine()?.split(" ")?:return@use;val path=request[1].substringBefore('?');var length=0;while(true){val header=input.readLine().orEmpty();if(header.isEmpty())break;if(header.startsWith("Content-Length:",true))length=header.substringAfter(":").trim().toInt()};if(length>0){val body=CharArray(length);var read=0;while(read<length){val n=input.read(body,read,length-read);if(n<0)break;read+=n};requestBodies[path]=String(body,0,read)};requestUrls.add(request[1])
+   val input=c.getInputStream().buffered()
+   fun line():String{val bytes=ByteArrayOutputStream();while(true){val b=input.read();if(b<0||b==10)break;if(b!=13)bytes.write(b)};return bytes.toString("UTF-8")}
+   val request=line().split(" ");if(request.size<2)return@use
+   val path=request[1].substringBefore('?');var length=0
+   while(true){val header=line();if(header.isEmpty())break;if(header.startsWith("Content-Length:",true))length=header.substringAfter(":").trim().toInt()}
+   if(length>0){val body=ByteArray(length);var read=0;while(read<length){val n=input.read(body,read,length-read);if(n<0)break;read+=n};uploadBytes[path]=read;requestBodies[path]=String(body,0,read,Charsets.UTF_8)}
+   requestUrls.add(request[1])
    heldResponses[path]?.let{gate->heldRequests[path]?.countDown();gate.await(20,TimeUnit.SECONDS)}
    val out=c.getOutputStream()
    if(path=="/api/chat/events"){
@@ -117,7 +125,7 @@ class DesignCaptureTest {
     when{path=="/media/sample/audio"->{type="audio/wav";bytes=audio}
      path.startsWith("/media/")->{type="image/png";bytes=photos[if(path.contains("ocean")||path.contains("own")||path.contains("photo-2")||path.contains("crew"))1 else 0]}
      path.startsWith("/assets/gifts/")->{type="image/webp";bytes=giftsBytes[path.substringAfterLast('/')]?:giftsBytes.values.first()}
-     else->{type="application/json";bytes=(responses[path]?:payload("ok" to true)).toString().toByteArray()}}
+     else->{type="application/json";bytes=(responses[request[1]]?:responses[path]?:payload("ok" to true)).toString().toByteArray()}}
     out.write("HTTP/1.1 200 OK\r\nContent-Type: $type\r\nContent-Length: ${bytes.size}\r\nConnection: close\r\n\r\n".toByteArray());out.write(bytes)
    }
   }}catch(_:IOException){}catch(_:InterruptedException){Thread.currentThread().interrupt()}}}catch(_:IOException){} }
@@ -129,7 +137,97 @@ class DesignCaptureTest {
  private fun ready(tag:String){ui.waitUntil(15000){ui.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty()}}
  private fun text(value:String){ui.waitUntil(15000){ui.onAllNodesWithText(value).fetchSemanticsNodes().isNotEmpty()}}
  private fun act(block:(MusicModel)->Unit){screen.onActivity{block(model)};ui.waitForIdle()}
- private fun capture(name:String){ui.waitForIdle();instrumentation.waitForIdleSync();Thread.sleep(850);val image=instrumentation.uiAutomation.takeScreenshot();val dir=File(context.getExternalFilesDir(null),"design-2547");dir.mkdirs();FileOutputStream(File(dir,name+".png")).use{image.compress(Bitmap.CompressFormat.PNG,100,it)};image.recycle()}
+ private fun capture(name:String){ui.waitForIdle();instrumentation.waitForIdleSync();Thread.sleep(850);val image=instrumentation.uiAutomation.takeScreenshot();val dir=File(context.getExternalFilesDir(null),"design-2549");dir.mkdirs();FileOutputStream(File(dir,name+".png")).use{image.compress(Bitmap.CompressFormat.PNG,100,it)};image.recycle()}
+
+ @Test fun creatorStudioOpensFromMyAccountAndSavesOriginal(){
+  ui.onNodeWithTag("main-tab-6").performClick();ready("my-music-page")
+  ui.onNodeWithTag("my-music-page").performScrollToNode(hasText("창작자 스튜디오"))
+  ui.onNodeWithText("창작자 스튜디오").performClick();ready("creator-studio")
+  ui.waitUntil(15000){!model.studioBusy};capture("60-native-studio")
+  ui.onNodeWithTag("creator-studio").performScrollToNode(hasTestTag("studio-edit-design-song"))
+  ui.onNodeWithTag("studio-edit-design-song").performClick();ready("studio-title")
+  ui.onNodeWithTag("studio-title").performTextReplacement("수정한 밤의 산책")
+  Espresso.closeSoftKeyboard();ui.onNodeWithTag("studio-cover-picker").assertExists();capture("61-studio-edit")
+  ui.onNodeWithTag("studio-description").performScrollTo().performTextReplacement("앱에서 수정한 소개")
+  Espresso.closeSoftKeyboard();ui.onNodeWithTag("studio-save").performScrollTo().performClick();ready("creator-studio")
+  val body=JSONObject(requestBodies.getValue("/api/studio/tracks/design-song"))
+  assertEquals("수정한 밤의 산책",body.getString("title"));assertEquals("앱에서 수정한 소개",body.getString("description"))
+  assertEquals("design-artist",body.getString("artist_id"));assertEquals("[00:00.000] 오늘의 마음을 담아요",body.getString("lyrics"))
+  Espresso.pressBack();assertEquals(6,model.tab)
+  ui.onNodeWithTag("account-menu").performClick();ready("account-actions")
+  ui.onNodeWithTag("account-창작자 스튜디오").performScrollTo().performClick();ready("creator-studio")
+ }
+
+ @Test fun studioCoverOnlyEditsDescriptionAndOwnedImageCanUpload(){
+  act{it.openStudio()};ready("creator-studio");ui.waitUntil(15000){!model.studioBusy}
+  ui.onNodeWithTag("creator-studio").performScrollToNode(hasTestTag("studio-edit-design-cover"))
+  ui.onNodeWithTag("studio-edit-design-cover").performClick();ready("studio-description")
+  ui.onNodeWithTag("studio-title").assertDoesNotExist();ui.onNodeWithTag("studio-cover-picker").assertDoesNotExist()
+  ui.onNodeWithTag("studio-description").performTextReplacement("나의 커버 소개");Espresso.closeSoftKeyboard()
+  ui.onNodeWithTag("studio-save").performScrollTo().performClick();ready("creator-studio")
+  val body=JSONObject(requestBodies.getValue("/api/studio/tracks/design-cover"));assertEquals(1,body.length());assertEquals("나의 커버 소개",body.getString("description"))
+  val file=File(context.cacheDir,"studio-test.png")
+  try{
+   instrumentation.context.assets.open("design/nova.png").use{input->file.outputStream().use{input.copyTo(it)}}
+   kotlinx.coroutines.runBlocking{model.api.uploadWebp("/api/studio/tracks/design-song/image",android.net.Uri.fromFile(file))}
+   assertTrue(uploadBytes.getValue("/api/studio/tracks/design-song/image")>100)
+  }finally{file.delete()}
+ }
+
+ @Test fun crewInvitationOpensDmAndItsCrew(){
+  responses.getValue("/api/producers/design-peer").put("invite_crew",crew)
+  responses["/api/dm/design-peer/crew-invite"]=payload("peer_id" to "design-peer","message_id" to "invite-1")
+  responses.getValue("/api/dm/design-peer").getJSONArray("messages").put(payload("id" to "invite-1","sender_id" to "design-user","recipient_id" to "design-other","body" to "밤산책 크루에 초대해요.","crew_invite_id" to "design-crew","sequence" to 4,"created" to now))
+  act{it.openProfile("design-peer","producer")};ready("profile-crew-invite")
+  ui.onNodeWithTag("profile-crew-invite").performScrollTo().performClick();ready("dm-crew-invite-invite-1")
+  val body=JSONObject(requestBodies.getValue("/api/dm/design-peer/crew-invite"));assertEquals("design-crew",body.getString("crew_id"));assertTrue(body.getString("request_id").isNotBlank())
+  capture("62-crew-invitation");ui.onNodeWithTag("dm-crew-invite-invite-1").performClick()
+  ui.waitUntil(15000){model.tab==3&&model.communityCrewTarget=="design-crew"};assertFalse(model.showMessages)
+ }
+
+ @Test fun allMenuDestinationsRemainInsideApp(){
+  fun go(label:String){ui.onNodeWithTag("navigation-menu").performClick();ready("all-navigation");ui.onNodeWithTag("menu-$label").performScrollTo().performClick()}
+  go("공개 플레이리스트");ready("music-directory");text("퇴근길에 듣는 음악")
+  go("AI 아티스트");ready("music-directory");text("NOVA")
+  go("인기 차트");ready("chart-popular")
+  go("기분 · 장르별 발견");ready("search-scroll");capture("63-native-discover")
+  go("내 보관함");ready("library-scroll")
+  go("창작자 스튜디오");ready("creator-studio")
+  ui.onNodeWithTag("navigation-menu").performClick();ready("all-navigation");capture("64-all-menu")
+ }
+
+ @Test fun studioUploadUsesPickerBytesAndSingleDraft(){
+  val file=File(context.cacheDir,"original-test.wav").apply{writeBytes(ByteArray(1024){it.toByte()})}
+  val uri=androidx.core.content.FileProvider.getUriForFile(context,context.packageName+".fileprovider",file)
+  val result=android.app.Instrumentation.ActivityResult(android.app.Activity.RESULT_OK,Intent().setData(uri).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION))
+  val monitor=object:android.app.Instrumentation.ActivityMonitor(){
+   override fun onStartActivity(intent:Intent):android.app.Instrumentation.ActivityResult?=if(intent.action==Intent.ACTION_OPEN_DOCUMENT)result else null
+  }
+  instrumentation.addMonitor(monitor)
+  responses["/api/uploads"]=payload("id" to "new-original")
+  responses["/api/studio/tracks/new-original"]=payload("profile" to payload("status" to "uploading"))
+  try{
+   act{it.openStudio()};ready("creator-studio");ui.waitUntil(15000){!model.studioBusy}
+   ui.onNodeWithTag("creator-studio").performScrollToNode(hasTestTag("studio-upload"));ui.onNodeWithTag("studio-upload").performClick();ready("studio-title")
+   ui.onNodeWithText("WAV · FLAC · MP3 선택 (80MB 이하)").performClick();text("original-test.wav")
+   ui.onNodeWithTag("studio-field-AI 제작 도구").performScrollTo().performTextReplacement("Suno");Espresso.closeSoftKeyboard()
+   for(label in listOf("AI로 제작한 음원입니다.","음원과 이미지의 권리를 보유하고 있습니다.","노래방 MR 제공 및 다른 이용자의 커버를 허락합니다."))ui.onNodeWithTag("studio-consent-$label").performScrollTo().performClick()
+   ui.onNodeWithTag("studio-save").performScrollTo().performClick();ready("creator-studio")
+   val body=JSONObject(requestBodies.getValue("/api/uploads"));assertEquals("wav",body.getString("extension"));assertEquals(1024,body.getInt("bytes"))
+   assertEquals(1024,uploadBytes.getValue("/api/uploads/new-original/audio"));assertEquals(1,requestUrls.count{it=="/api/uploads"})
+   assertEquals(1,requestUrls.count{it=="/api/uploads/new-original/complete"})
+  }finally{instrumentation.removeMonitor(monitor);file.delete()}
+ }
+
+ @Test fun crewRenameCooldownKeepsDescriptionEditable(){
+  member.put("role","owner");crew.put("can_rename",false).put("name_change_available_at",now+30*86400)
+  act{it.communityCrewMode=true;it.communityCrewTarget="design-crew";it.selectTab(3)}
+  ready("crew-tab-about");ui.onNodeWithTag("crew-tab-about").performClick()
+  ui.onNodeWithTag("crew-scroll").performScrollToNode(hasText("소개 · 모집 수정"));ui.onNodeWithText("소개 · 모집 수정").performClick()
+  ready("crew-rename");ui.onNodeWithTag("crew-rename").assertIsNotEnabled()
+  ui.onNodeWithTag("crew-rename-help").assertTextContains("30일 뒤에 수정 가능합니다.",substring=true)
+  ui.onNodeWithText("크루 소개").assertIsEnabled();capture("65-crew-rename-cooldown")
+ }
 
  @Test fun captureMainScreens(){
   capture("01-home")
@@ -162,7 +260,7 @@ class DesignCaptureTest {
  }
  @Test fun chartsHavePanelsAndSearchStaysOneLine(){
   act{it.listenPage="차트";it.selectTab(0)};ready("chart-popular");capture("41-chart-panels")
-  ui.onNodeWithTag("listen-scroll").performScrollToNode(hasTestTag("chart-karaoke"));capture("42-karaoke-chart-panel")
+  ui.onNodeWithTag("chart-category-karaoke").performClick();ui.waitUntil(15000){model.rankOpen&&!model.rankBusy};capture("42-karaoke-chart-panel");act{it.dismissRanking()}
   act{it.listenPage="최신곡"};ready("latest-banner");capture("43-latest-panels")
   act{it.selectTab(1)};ready("global-search")
   val layouts=mutableListOf<TextLayoutResult>()
@@ -172,6 +270,22 @@ class DesignCaptureTest {
   ui.onNodeWithTag("global-search").performTextInput("밤의 산책")
   ui.waitUntil(15000){model.searched&&!model.searching&&model.searchResults.isNotEmpty()}
   Espresso.closeSoftKeyboard()
+ }
+ @Test fun chartPeriodsUseServerRanksAndOpenTrackActions(){
+  val month="/api/catalog?section=tracks&chart=top&period=month"
+  responses[month]=payload("tracks" to arr(JSONObject(second.toString()).put("chart_rank",7).put("rank_change",2).put("chart_movement","up")),"chart" to payload("comparison" to payload("available" to true)))
+  act{it.listenPage="차트";it.selectTab(0)};ready("chart-period-month")
+  ui.onNodeWithTag("chart-period-month").performClick()
+  ui.waitUntil(15000){requestUrls.contains(month)&&ui.onAllNodesWithTag("chart-loading").fetchSemanticsNodes().isEmpty()}
+  ui.onNodeWithTag("listen-scroll").performScrollToNode(hasTestTag("chart-song-design-ocean"))
+  ui.onNodeWithTag("chart-movement-design-ocean",useUnmergedTree=true).assertTextEquals("▲2")
+  ui.onNodeWithText("7").assertExists()
+  ui.onNodeWithTag("chart-song-design-song").assertDoesNotExist()
+  capture("66-chart-month")
+  ui.onNodeWithContentDescription("${second.getString("title")} 더보기").performClick()
+  ui.onNodeWithText("플레이리스트 담기").assertIsDisplayed()
+  ui.onNodeWithText("선물하기").assertIsDisplayed()
+  ui.onNodeWithText("댓글 보기").performClick();ui.waitUntil(15000){model.detail?.id=="design-ocean"}
  }
  @Test fun crewIntroductionHasRealGraphsAndFollowingIsAligned(){
   act{it.communityCrewMode=true;it.communityCrewTarget="design-crew";it.selectTab(3)}
@@ -199,7 +313,8 @@ class DesignCaptureTest {
  @Test fun popularSongCardsKeepFullTitlesAndSeparateRows(){
   val title="조금씩 멀어지고 있었나 봐 우리의 이야기를 끝까지 들어주세요 다시 함께 노래하는 밤"
   val longSong=Song(JSONObject(song.toString()).put("title",title))
-  act{it.home=listOf(longSong,Song(second));it.latest=listOf(longSong,Song(second));it.listenPage="차트";it.selectTab(0)}
+  responses["/api/catalog?section=tracks&chart=top&period=week"]=payload("tracks" to arr(longSong.raw,second))
+  act{it.latest=listOf(longSong,Song(second));it.listenPage="차트";it.selectTab(0)}
   ready("chart-popular")
   fun assertFullTitle(){
    val layouts=mutableListOf<TextLayoutResult>()
@@ -208,6 +323,7 @@ class DesignCaptureTest {
    assertTrue(result.lineCount>1);assertFalse(result.hasVisualOverflow)
    for(line in 0 until result.lineCount)assertFalse(result.isLineEllipsized(line))
   }
+  ui.waitUntil(15000){ui.onAllNodesWithTag("chart-loading").fetchSemanticsNodes().isEmpty()}
   assertFullTitle();capture("50-popular-full-title-cards")
   ui.onNodeWithTag("listen-scroll").performScrollToNode(hasTestTag("chart-song-design-ocean") and hasAnyAncestor(hasTestTag("chart-popular")))
   val first=ui.onNode(hasTestTag("chart-song-design-song") and hasAnyAncestor(hasTestTag("chart-popular"))).fetchSemanticsNode().boundsInRoot
@@ -345,7 +461,7 @@ class DesignCaptureTest {
   ui.onNodeWithTag("gift-list").performScrollToNode(hasText("손편지 5개를 보냈어요"))
   val body=JSONObject(requestBodies.getValue("/api/producers/design-peer/gifts"))
   assertEquals("silver-letter",body.getString("gift_type"));assertEquals(5,body.getInt("quantity"));assertEquals(10,body.getInt("silver"));assertTrue(body.getString("request_id").isNotBlank())
-  act{it.showGifts=false;it.showNotifications=true};ready("activity-list");capture("42-activity-loading")
+  act{it.showGifts=false;it.showNotifications=true};ready("activity-list");text("손편지 5개를 보냈어요.")
   ui.onNodeWithTag("activity-list").performScrollToNode(hasText("손편지 5개를 보냈어요."))
   ui.onNodeWithText("10 S").assertExists();capture("42-activity-history")
   ui.onNodeWithText("읽음",substring=false).performClick()

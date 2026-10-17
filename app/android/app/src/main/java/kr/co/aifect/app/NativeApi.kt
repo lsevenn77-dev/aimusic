@@ -57,6 +57,7 @@ data class Song(val raw: JSONObject) {
  }
 }
 class NativeApi(private val context: Context) {
+ internal val appContext get()=context.applicationContext
  @Volatile private var googleBinding=""
  private val sessionPreferences=context.getSharedPreferences("native_session",0)
  private val reads=NativeReadCache<String>(copy={it},bytes={it.toByteArray(Charsets.UTF_8).size})

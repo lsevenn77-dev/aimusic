@@ -63,7 +63,7 @@ internal fun activityDate(seconds:Long):String=SimpleDateFormat("yyyy.MM.dd HH:m
  }
  LaunchedEffect(account,filter,revision){if(account!=null)load()}
  ModalBottomSheet(onDismissRequest={m.showNotifications=false},sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true),containerColor=Ink){
-  LazyColumn(Modifier.fillMaxWidth().testTag("activity-list"),contentPadding=PaddingValues(18.dp,0.dp,18.dp,28.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+  LazyColumn(Modifier.fillMaxWidth().fillMaxHeight(.9f).testTag("activity-list"),contentPadding=PaddingValues(18.dp,0.dp,18.dp,28.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
    item{Text("알림 기록",fontSize=25.sp);Text("한국 시간 · 날짜와 함께 모아보는 참여와 선물",fontSize=12.sp,color=Muted)
     Chips(listOf("전체","커버 · 듀엣","받은 선물"),when(filter){"gifts"->"받은 선물";"participation"->"커버 · 듀엣";else->"전체"}){filter=when(it){"받은 선물"->"gifts";"커버 · 듀엣"->"participation";else->"all"}}
     Row{TextButton(enabled=!working,onClick={revision++}){Text("새로고침")};TextButton(enabled=!working&&entries.any{it.optLong("read_at")==0L},onClick={scope.launch{working=true;try{mark(entries.filter{it.optLong("read_at")==0L}.map{it.optString("id")})}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}finally{working=false}}}){Text("이 목록 읽음")}}

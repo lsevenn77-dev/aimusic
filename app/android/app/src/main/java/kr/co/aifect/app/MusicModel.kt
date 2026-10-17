@@ -22,6 +22,8 @@ class MusicModel(app:Application):AndroidViewModel(app) {
  val api=NativeApi(app)
  var showBilling by mutableStateOf(false)
  var showDiamonds by mutableStateOf(false)
+ var showInventory by mutableStateOf(false)
+ var directoryKind by mutableStateOf("artists")
  var visibleChatCount by mutableIntStateOf(0)
  var playBilling:PlayBilling?=null
  var tab by mutableIntStateOf(0)
@@ -44,7 +46,20 @@ class MusicModel(app:Application):AndroidViewModel(app) {
  var searchLists by mutableStateOf<List<JSONObject>>(emptyList())
  var myTracks by mutableStateOf<List<Song>>(emptyList())
  var studioBusy by mutableStateOf(false)
+ var studioEditing by mutableStateOf(false)
  var studioError by mutableStateOf<String?>(null)
+ var studioData by mutableStateOf(JSONObject())
+ var studioReturnTab by mutableIntStateOf(6)
+ fun openStudio(){
+  if(!authenticated())return
+  studioReturnTab=tab.takeUnless{it==7}?:6
+  showAccount=false;detail=null;selectedList=null;profile=null;fullPlayer=false
+  selectTab(7);loadStudio()
+ }
+ fun openCrew(id:String){
+  dismissMessages();profile=null;detail=null;fullPlayer=false;showAccount=false
+  selectTab(3);communityCrewMode=true;communityCrewTarget=id;crewBrowsing=false
+ }
  var singable by mutableStateOf<List<Song>>(emptyList())
  var duetInvitations by mutableStateOf<List<Song>>(emptyList())
  var duetError by mutableStateOf<String?>(null)
@@ -239,7 +254,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   detail=null;comments=emptyList();detailBusy=false;profile=null;profileSongs=emptyList();profileCovers=emptyList();profileFollowers=0
   profileCache.clear();retryProfileLoad=null;profileLoading=false;profileError=null;messageSourceProfile=null
   showNotifications=false;unreadActivities=0;showDiamonds=false;showMessages=false;messagePeer=null;messageCrew=null;unreadMessages=0;inboxCrew=null;showProfileEdit=false;showAccountSettings=false;showRecordingDrafts=false;showRewards=false;showGifts=false;giftTarget=null;giftPerson=null
-  showAccount=false;accountError=null;nicknameCheck=null;studioBusy=false;studioError=null
+  showAccount=false;showInventory=false;accountError=null;nicknameCheck=null;studioBusy=false;studioError=null;studioData=JSONObject()
   feed=emptyList();feedFilter="전체";feedLoading=false;feedError=null;displayedFeedPath=null
   feedRequest++;feedReadScope=null;communityCrewMode=false;communityCrewTarget=null;crewBrowsing=false;lastKnownCrewId=null
   invalidateCrewPreviews()
@@ -464,9 +479,9 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   studioJob?.cancel();val scope=readScope();studioBusy=true;studioError=null
   studioJob=viewModelScope.launch {
    try{
-    val data=api.call("/api/studio",fresh=true);ensureRead(scope);val profile=data.optJSONObject("producer");val artists=data.optJSONArray("artists").objects()
+    val data=api.call("/api/studio",fresh=true);ensureRead(scope);studioData=data;val profile=data.optJSONObject("producer");val artists=data.optJSONArray("artists").objects()
     myTracks=data.tracks().map {t->Song(JSONObject(t.raw.toString()).apply{
-     put("producer",profile?.optString("name")?:user?.optString("name"));put("producer_id",profile?.optString("id")?:"")
+     put("user_id",user?.optString("id"));put("producer",profile?.optString("name")?:user?.optString("name"));put("producer_id",profile?.optString("id")?:"")
      put("artist",if(t.cover)profile?.optString("name") else artists.find{it.optString("id")==t.raw.optString("artist_id")}?.optString("name")?:"")
     })}
    }catch(e:Exception){if(e is CancellationException)throw e;if(sameAccount(scope)){if(e is ApiException&&e.status==401)failure(e);studioError=e.message}}
@@ -705,7 +720,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
  fun openProfile(id:String,kind:String="producer",showCovers:Boolean=false,seed:JSONObject?=null){
   val type=if(kind=="artist")"artist" else "producer"
   val path="/api/${type}s/$id"
-  fun page(data:JSONObject)=ProfilePage(data.getJSONObject("profile").put("profile_kind",type).put("show_covers",showCovers).put("gallery",data.optJSONArray("gallery")).put("can_manage",data.optBoolean("can_manage")),data.tracks(),data.tracks("covers"),data.optInt("followers"))
+  fun page(data:JSONObject)=ProfilePage(data.getJSONObject("profile").put("profile_kind",type).put("show_covers",showCovers).put("gallery",data.optJSONArray("gallery")).put("invite_crew",data.optJSONObject("invite_crew")).put("can_manage",data.optBoolean("can_manage")),data.tracks(),data.tracks("covers"),data.optInt("followers"))
   requestProfile("$type:$id:$showCovers",JSONObject(seed?.toString()?:"{}").put("id",id).put("profile_kind",type).put("show_covers",showCovers),api.peek(path)?.let{page(it)}){page(api.call(path,fresh=true))}
  }
  private fun copyProfile(page:ProfilePage)=ProfilePage(JSONObject(page.person.toString()),page.tracks.map{Song(JSONObject(it.raw.toString()))},page.covers.map{Song(JSONObject(it.raw.toString()))},page.followers)

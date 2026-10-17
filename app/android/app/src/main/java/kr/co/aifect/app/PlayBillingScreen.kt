@@ -22,7 +22,7 @@ import com.android.billingclient.api.BillingClient
    Text("Premium",fontSize=20.sp,fontWeight=FontWeight.Bold,modifier=Modifier.padding(top=24.dp))
    Text("광고 없이 AAC 256 감상 · 제작곡 월 10곡 · 플레이리스트 10개",color=Muted,modifier=Modifier.padding(vertical=12.dp))
    billing?.products?.filter{it.productType==BillingClient.ProductType.SUBS}?.forEach{product->
-    Button(onClick={billing.buy(product)},enabled=!billing.busy,modifier=Modifier.fillMaxWidth()){Text("${billing.price(product)} / 월 · Premium 구독")}
+    BrandButton(onClick={billing.buy(product)},enabled=!billing.busy,modifier=Modifier.fillMaxWidth()){Text("${billing.price(product)} / 월 · Premium 구독")}
     Text("매월 자동 갱신되며 Google Play에서 해지할 수 있어요. 최종 가격과 갱신 조건은 구매창에서 확인해주세요.",color=Muted,fontSize=12.sp,modifier=Modifier.padding(top=8.dp))
    }
    Text("골드 충전",fontSize=20.sp,fontWeight=FontWeight.Bold,modifier=Modifier.padding(top=24.dp))

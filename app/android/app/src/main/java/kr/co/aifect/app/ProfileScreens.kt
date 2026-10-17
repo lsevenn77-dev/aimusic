@@ -47,7 +47,7 @@ internal fun threadedComments(comments:List<JSONObject>):List<JSONObject>{
    OutlinedTextField(name,{name=it.take(60);edited=true},label={Text("공개 닉네임")},modifier=Modifier.fillMaxWidth(),singleLine=true)
    Text("댓글·선물·크루·DM에는 이 이름이 표시돼요.",color=Muted,fontSize=14.sp)
    OutlinedTextField(bio,{bio=it.take(1000);edited=true},label={Text("소개")},modifier=Modifier.fillMaxWidth(),minLines=3)
-   Button(onClick={m.saveProfile(name,bio,image){m.showProfileEdit=false}},enabled=!m.busy&&name.isNotBlank(),modifier=Modifier.fillMaxWidth()){Text(if(m.busy)"저장 중…" else "프로필 저장")}
+   BrandButton(onClick={m.saveProfile(name,bio,image){m.showProfileEdit=false}},enabled=!m.busy&&name.isNotBlank(),modifier=Modifier.fillMaxWidth()){Text(if(m.busy)"저장 중…" else "프로필 저장")}
    Spacer(Modifier.height(20.dp))
   }
  }
@@ -100,7 +100,7 @@ internal fun threadedComments(comments:List<JSONObject>):List<JSONObject>{
      val action:@Composable ()->Unit={
       Column(horizontalAlignment=Alignment.End){
        Text("${r.optInt("amount")} S",color=if(claimed)Muted else Aqua,fontSize=13.sp,fontWeight=FontWeight.Bold)
-       Button(enabled=!busy&&!claimed,onClick=claim,contentPadding=PaddingValues(horizontal=14.dp,vertical=8.dp),modifier=Modifier.padding(top=4.dp).heightIn(min=40.dp)){
+       BrandButton(enabled=!busy&&!claimed,onClick=claim,contentPadding=PaddingValues(horizontal=14.dp,vertical=8.dp),modifier=Modifier.padding(top=4.dp).heightIn(min=40.dp)){
         Text(if(claimed)"받음" else if(eligible)"실버 받기" else "활동하기",fontSize=13.sp)
        }
       }

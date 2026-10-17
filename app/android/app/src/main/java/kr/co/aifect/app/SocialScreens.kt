@@ -275,7 +275,7 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
    if(confirmedVisitor||crewTab=="소개")item{
     if(joined)Text("크루 채팅에서는 가입 이후의 대화를 함께 나눌 수 있어요.",fontSize=12.sp,color=Muted)
     CrewAboutPanel(c,d.optJSONObject("rules")?:JSONObject(),d.tracks().size)
-    if(confirmedVisitor)Button(onClick={if(m.authenticated())m.action{m.api.call("/api/crews/$cid/join","POST");browsing=false;m.crewBrowsing=false;crewTab="음악";load()}},enabled=detailVerified&&!detailLoading&&!historyLoading&&d.optJSONObject("membership")==null&&!m.busy&&!d.optBoolean("banned")&&c.optInt("recruiting")==1&&c.optInt("members")<c.optInt("capacity"),modifier=Modifier.testTag("crew-join")){Text(if(d.optBoolean("banned"))"가입할 수 없는 크루" else "크루 가입하기")}
+    if(confirmedVisitor)BrandButton(onClick={if(m.authenticated())m.action{m.api.call("/api/crews/$cid/join","POST");browsing=false;m.crewBrowsing=false;crewTab="음악";load()}},enabled=detailVerified&&!detailLoading&&!historyLoading&&d.optJSONObject("membership")==null&&!m.busy&&!d.optBoolean("banned")&&c.optInt("recruiting")==1&&c.optInt("members")<c.optInt("capacity"),modifier=Modifier.testTag("crew-join")){Text(if(d.optBoolean("banned"))"가입할 수 없는 크루" else "크루 가입하기")}
     else if(joined)Row{if(membership?.optString("role")=="owner")TextButton(onClick={editing=true}){Text("소개 · 모집 수정")};TextButton(onClick={leaving=true},modifier=Modifier.testTag("crew-leave")){Text("크루 탈퇴")}}
    }
    if(confirmedVisitor||crewTab=="멤버"){
@@ -308,8 +308,13 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
 
 @Composable private fun CrewEditor(c:JSONObject?,busy:Boolean,dismiss:()->Unit,save:(String,String,String,Boolean)->Unit){
  var name by remember{mutableStateOf(c?.optString("name")?:"")};var description by remember{mutableStateOf(c?.optString("description")?:"")};var interests by remember{mutableStateOf(c?.optString("interests")?:"")};var recruiting by remember{mutableStateOf(c?.optInt("recruiting",1)!=0)}
- AlertDialog(onDismissRequest=dismiss,title={Text(if(c==null)"새 크루" else "크루 소개와 모집")},text={Column(Modifier.verticalScroll(rememberScrollState())){
-  OutlinedTextField(name,{name=it.take(40)},label={Text("크루 이름")},enabled=c==null)
+ val renameAllowed=c==null||c.optBoolean("can_rename",false)
+ AlertDialog(onDismissRequest=dismiss,title={Text(if(c==null)"새 크루" else "크루 정보 수정")},text={Column(Modifier.verticalScroll(rememberScrollState())){
+  OutlinedTextField(name,{name=it.take(40)},label={Text("크루 이름")},enabled=renameAllowed&&!busy,modifier=Modifier.testTag("crew-rename"))
+  if(c!=null){
+   val available=c.optLong("name_change_available_at")
+   Text(if(renameAllowed)"이름을 변경하면 30일 뒤에 다시 수정할 수 있어요." else if(available>0){val days=kotlin.math.ceil(((available-System.currentTimeMillis()/1000).coerceAtLeast(0))/86400.0).toInt();"${days}일 뒤에 수정 가능합니다.\n"+SimpleDateFormat("yyyy.MM.dd HH:mm",Locale.KOREA).format(Date(available*1000))+"부터 변경 가능"}else "이름 변경은 30일에 한 번 가능해요.",color=Muted,fontSize=12.sp,modifier=Modifier.testTag("crew-rename-help"))
+  }
   OutlinedTextField(description,{description=it.take(1000)},label={Text("크루 소개")},minLines=2)
   OutlinedTextField(interests,{interests=it.take(160)},label={Text("관심사 · 예: Ballad, K-POP")})
   Row{Checkbox(recruiting,{recruiting=it});Text("새 멤버 모집")}
@@ -317,7 +322,7 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
 }
 
 @Composable internal fun MessagesSheet(m:MusicModel,embedded:Boolean=false){
- if(m.user==null){if(embedded)Column(Modifier.padding(24.dp)){Button(onClick={m.showLogin=true}){Text("로그인")}};return}
+ if(m.user==null){if(embedded)Column(Modifier.padding(24.dp)){BrandButton(onClick={m.showLogin=true}){Text("로그인")}};return}
  if(m.messageCrew!=null){
   val content:@Composable ()->Unit={Column(Modifier.fillMaxSize()){TextButton(onClick={m.messageCrew=null}){Icon(Icons.AutoMirrored.Rounded.ArrowBack,null);Text("메시지 목록")};CrewScreen(m,{m.notice="크루 홈에서 부르기를 선택해주세요."},m.messageCrew,true)}}
   androidx.activity.compose.BackHandler{m.messageCrew=null}
@@ -488,7 +493,7 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
   val keyboardActions=KeyboardActions(onSend={if(enabled&&value.composition==null&&body.isNotBlank()&&body.length<=2000&&!busy)send()})
   if(tagPrefix=="dm")TextField(value,changeValue,placeholder={Text(label,fontSize=13.sp)},modifier=inputModifier,enabled=enabled,singleLine=true,keyboardOptions=keyboardOptions,keyboardActions=keyboardActions,shape=RoundedCornerShape(18.dp),colors=TextFieldDefaults.colors(focusedContainerColor=Panel,unfocusedContainerColor=Panel,disabledContainerColor=Panel,focusedIndicatorColor=androidx.compose.ui.graphics.Color.Transparent,unfocusedIndicatorColor=androidx.compose.ui.graphics.Color.Transparent,disabledIndicatorColor=androidx.compose.ui.graphics.Color.Transparent))
   else OutlinedTextField(value,changeValue,label={Text(label,fontSize=13.sp)},modifier=inputModifier,enabled=enabled,singleLine=true,keyboardOptions=keyboardOptions,keyboardActions=keyboardActions,shape=RoundedCornerShape(18.dp))
-  Button(onClick=send,enabled=enabled&&body.isNotBlank()&&body.length<=2000&&!busy,modifier=Modifier.heightIn(min=48.dp).then(tagPrefix?.let{Modifier.testTag("$it-send")}?:Modifier),contentPadding=PaddingValues(horizontal=12.dp)){Text("보내기",fontSize=13.sp)}
+  BrandButton(onClick=send,enabled=enabled&&body.isNotBlank()&&body.length<=2000&&!busy,modifier=Modifier.heightIn(min=48.dp).then(tagPrefix?.let{Modifier.testTag("$it-send")}?:Modifier),contentPadding=PaddingValues(horizontal=12.dp)){Text("보내기",fontSize=13.sp)}
  }
 }
 @Composable private fun ChatHistory(m:MusicModel,messages:List<JSONObject>,earlier:Boolean,busy:Boolean,loadEarlier:()->Unit,userId:String?,crew:Boolean,peer:String="",retry:((JSONObject)->Unit)?=null,modifier:Modifier=Modifier,fill:Boolean=false,peerPerson:JSONObject?=null,openPeer:(()->Unit)?=null,emptyLabel:String?=null,loadError:String?=null,reload:(()->Unit)?=null,reloadEnabled:Boolean=true,author:((JSONObject)->Unit)?=null){
@@ -523,6 +528,9 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
        if(crew&&!mine)Text(crewName(msg),color=Muted,fontSize=12.sp,modifier=Modifier.padding(bottom=4.dp).then(if(author!=null)Modifier.clickable{author(msg)}else Modifier))
        Surface(color=if(mine)Raised else Panel,shape=RoundedCornerShape(topStart=18.dp,topEnd=18.dp,bottomEnd=if(mine)4.dp else 18.dp,bottomStart=if(mine)18.dp else 4.dp)){
         if(msg.optString("image_id").isNotBlank()&&msg.optString("image_id")!="null")ChatImage(m,msg,crew=crew) else Text(msg.optString("body"),fontSize=15.sp,lineHeight=23.sp,modifier=Modifier.padding(horizontal=13.dp,vertical=11.dp))
+       }
+       msg.optString("crew_invite_id").takeIf{!crew&&it.isNotBlank()&&it!="null"}?.let{cid->
+        OutlinedButton(onClick={m.openCrew(cid)},modifier=Modifier.testTag("dm-crew-invite-${msg.optString("id")}")){Text("초대받은 크루 보기",fontSize=12.sp)}
        }
        Row(Modifier.padding(top=4.dp),horizontalArrangement=Arrangement.spacedBy(6.dp)){
         Text(chatTime(msg.optLong("created")),color=Muted,fontSize=10.sp)
