@@ -32,3 +32,20 @@ test('catalog size is bounded even with invalid or untrusted limit input',async 
  assert.equal((await f.call('/api/catalog?section=tracks&limit=1%3BDROP%20TABLE%20tracks')).body.tracks.length,3);
  assert.equal((await f.call('/api/tracks/one')).status,200);
 });
+
+test('comments and replies include their authors current photo without dropping users with no profile',async t=>{
+ const f=await fixture(t);
+ f.sql.exec("UPDATE producers SET image_version=7 WHERE id='producer'; INSERT INTO comments(id,track_id,user_id,body,created) VALUES('parent','one','owner','좋은 음악이에요',1); INSERT INTO comments(id,track_id,user_id,parent_id,body,created) VALUES('reply','one','other','parent','저도 좋아해요',2)");
+ const result=await f.call('/api/tracks/one/comments','GET',undefined,null);
+ assert.equal(result.status,200);
+ assert.equal(result.body.comments.length,2);
+ const parent=result.body.comments.find(c=>c.id==='parent'),reply=result.body.comments.find(c=>c.id==='reply');
+ assert.equal(parent.profile_id,'producer');
+ assert.equal(parent.image_version,'7');
+ assert.equal(reply.parent_id,'parent');
+ assert.equal(reply.profile_id,null);
+ assert.equal(reply.image_version,null);
+ f.sql.exec("UPDATE producers SET image_version=8 WHERE id='producer'");
+ const updated=await f.call('/api/tracks/one/comments');
+ assert.equal(updated.body.comments.find(c=>c.id==='parent').image_version,'8');
+});
