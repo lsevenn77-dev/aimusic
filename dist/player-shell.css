@@ -64,6 +64,23 @@
 @media(min-width:801px) and (max-width:1100px){
  .player .player-track-tools{display:none}
 }
+/* Desktop has room for the current song's common actions. */
+@media(min-width:801px){
+ .player:not(.is-collapsed){grid-template-columns:minmax(300px,1fr) minmax(250px,1.2fr) minmax(170px,.8fr)}
+ .player:not(.is-collapsed) .player-track{flex-direction:column;align-items:stretch;gap:4px}
+ .player:not(.is-collapsed) .now-playing{flex:none;gap:10px}
+ .player:not(.is-collapsed) .now-playing .mini-cover{width:40px;height:40px}
+ .player:not(.is-collapsed) .player-track-tools{display:flex;gap:3px}
+ .player:not(.is-collapsed) .player-actions{gap:3px;align-items:center}
+ .player:not(.is-collapsed) .player-actions>[data-add],.player:not(.is-collapsed) .player-actions>.player-gift,.player:not(.is-collapsed) .player-actions>.player-comments{display:inline-flex;align-items:center;gap:4px;padding:5px 7px;min-height:30px;font-size:11px;white-space:nowrap}
+ .player:not(.is-collapsed) .player-track-tools .icon-button{width:28px;height:30px}
+ .player .player-actions svg{width:14px;height:14px}
+}
+@media(min-width:801px) and (max-width:1000px){
+ .player:not(.is-collapsed){grid-template-columns:minmax(285px,1fr) minmax(220px,1fr) auto;gap:10px;padding-left:12px;padding-right:45px}
+ .player .player-right>#player-lyrics-toggle{padding:8px}
+ .player .player-right>#player-lyrics-toggle span,.player .player-right #volume,.player .player-right #mute{display:none}
+}
 @media(max-width:800px){
  .player:not(.is-collapsed){left:0;right:0;grid-template-columns:minmax(0,1fr) 38px 38px;grid-template-rows:42px 42px 18px;gap:5px 4px;padding:10px 12px 3px;min-height:0;height:auto;border-radius:16px 16px 0 0}
  .player:not(.is-collapsed) .player-track{grid-column:1;grid-row:1;overflow:hidden}
@@ -86,6 +103,7 @@
  .player #seek::-webkit-slider-thumb{width:0;height:0;margin:0}
  .player #seek::-moz-range-thumb{width:0;height:0}
  .player .player-lyric{left:0;right:0;height:29px;min-height:0;max-height:29px;box-sizing:border-box;white-space:nowrap!important;overflow:hidden;text-overflow:ellipsis;padding:5px 18px;line-height:18px;font-size:11px;border-radius:12px 12px 0 0}
+ .player.is-collapsed .player-lyric:not([hidden]){display:block!important}
  .player:not(.is-collapsed):has(.player-lyric:not([hidden])){border-radius:0}
 }
 @media(max-width:360px){.player:not(.is-collapsed) .player-buttons{gap:10px;margin:0 32px}}
