@@ -101,6 +101,7 @@ export const goldOrders=sqliteTable('gold_orders',{
 },t=>[uniqueIndex('gold_orders_request').on(t.userId,t.requestId),uniqueIndex('gold_orders_tid').on(t.tid),index('gold_orders_reconcile').on(t.state,t.lastChecked)]);
 
 export const crews=sqliteTable('crews',{
+ nameChangedAt:integer('name_changed_at').notNull().default(0),
  id:text('id').primaryKey(),ownerId:text('owner_id').notNull().references(()=>users.id),name:text('name').notNull(),description:text('description').notNull().default(''),interests:text('interests').notNull().default(''),imageVersion:text('image_version').notNull().default(''),recruiting:integer('recruiting').notNull().default(1),created:integer('created').notNull()
 },t=>[uniqueIndex('crews_name').on(t.name)]);
 export const crewMembers=sqliteTable('crew_members',{
@@ -122,6 +123,7 @@ export const dmSettings=sqliteTable('dm_settings',{
  userId:text('user_id').notNull().references(()=>users.id),peerId:text('peer_id').notNull().references(()=>users.id),muted:integer('muted').notNull().default(0),clearedSequence:integer('cleared_sequence').notNull().default(0)
 },t=>[primaryKey({columns:[t.userId,t.peerId]})]);
 export const directMessages=sqliteTable('direct_messages',{
+ crewInviteId:text('crew_invite_id').references(()=>crews.id,{onDelete:'set null'}),
  id:text('id').primaryKey(),senderId:text('sender_id').notNull().references(()=>users.id),recipientId:text('recipient_id').notNull().references(()=>users.id),body:text('body').notNull(),requestId:text('request_id').notNull(),created:integer('created').notNull(),readAt:integer('read_at').notNull().default(0),imageId:text('image_id').references(()=>chatImages.id)
 },t=>[uniqueIndex('direct_messages_request').on(t.senderId,t.requestId),index('direct_messages_sender').on(t.senderId,t.recipientId,t.created),index('direct_messages_recipient').on(t.recipientId,t.created),index('direct_messages_pair_sequence').on(t.senderId,t.recipientId),index('direct_messages_sent_sequence').on(t.senderId),index('direct_messages_received_sequence').on(t.recipientId),index('direct_messages_unread').on(t.recipientId,t.readAt),index('direct_messages_sent_unread').on(t.senderId,t.recipientId,t.readAt)]);
 

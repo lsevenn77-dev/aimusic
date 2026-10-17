@@ -12,7 +12,9 @@ import {giftDay} from '../shared/gifts.js';
 
 const xpSQL="COALESCE((SELECT sum(x.amount) FROM crew_xp x WHERE x.crew_id=c.id),0)";
 const crewSelect=`SELECT c.*,${xpSQL} xp,(SELECT count(*) FROM crew_members m WHERE m.crew_id=c.id) members FROM crews c`;
-const present=c=>({...c,...crewLevel(c.xp),xp:c.xp});
+const CREW_RENAME_INTERVAL=30*86400;
+const nameChangeAvailableAt=c=>c.name_changed_at?c.name_changed_at+CREW_RENAME_INTERVAL:0;
+const present=c=>({...c,...crewLevel(c.xp),xp:c.xp,name_change_available_at:nameChangeAvailableAt(c),can_rename:now()>=nameChangeAvailableAt(c)});
 const requestId=b=>{if(typeof b.request_id!=='string'||!/^[\w-]{16,64}$/.test(b.request_id))fail(400,'전송 요청을 다시 시작해주세요.');return b.request_id;};
 async function member(env,crewId,user){requireUser(user);const m=await one(env,'SELECT * FROM crew_members WHERE crew_id=? AND user_id=?',crewId,user.id);if(!m)fail(403,'크루에 가입한 멤버만 이용할 수 있어요.');return m;}
 function crewXpQueries(env,crewId){
@@ -124,8 +126,16 @@ export async function socialRoute(req,env,path,user){
   }
   const membership=await member(env,cid,user);
   if(!action&&method==='PATCH'){
-   if(membership.role!=='owner')fail(403,'크루장만 소개를 수정할 수 있어요.');
-   const b=await req.json();await run(env,'UPDATE crews SET description=?,interests=?,recruiting=? WHERE id=?',str(b.description??c.description,1000,false),str(b.interests??c.interests,160,false),b.recruiting===undefined?c.recruiting:b.recruiting===false?0:1,cid);
+   if(membership.role!=='owner')fail(403,'크루장만 크루 정보를 수정할 수 있어요.');
+   const b=await req.json(),name=b.name===undefined?c.name:str(b.name,40),changed=name!==c.name,t=now();
+   const cooldown=()=>fail(409,`${Math.max(1,Math.ceil((nameChangeAvailableAt(c)-t)/86400))}일 뒤에 수정 가능합니다. 크루 이름은 변경 후 30일에 한 번 수정할 수 있어요.`);
+   if(changed&&t<nameChangeAvailableAt(c))cooldown();
+   const details=[str(b.description??c.description,1000,false),str(b.interests??c.interests,160,false),b.recruiting===undefined?c.recruiting:b.recruiting===false?0:1];
+   try{
+    // The cooldown and ownership are checked in the write too, so two requests cannot rename twice.
+    const updated=changed?await one(env,'UPDATE crews SET name=?,name_changed_at=?,description=?,interests=?,recruiting=? WHERE id=? AND owner_id=? AND name=? AND (name_changed_at=0 OR name_changed_at<=?) RETURNING id',name,t,...details,cid,user.id,c.name,t-CREW_RENAME_INTERVAL):await one(env,'UPDATE crews SET description=?,interests=?,recruiting=? WHERE id=? AND owner_id=? RETURNING id',...details,cid,user.id);
+    if(!updated)fail(409,'크루 정보가 변경되었어요. 새로고침 후 다시 확인해주세요.');
+   }catch(e){if(/UNIQUE.*crews.name/i.test(e.message))fail(409,'이미 사용 중인 크루 이름이에요. 다른 이름을 입력해주세요.');throw e;}
    return json(await crewDetail(env,cid,user));
   }
   if(action==='leave'&&method==='POST'){
@@ -161,6 +171,30 @@ export async function socialRoute(req,env,path,user){
   fail(405,'지원하지 않는 요청입니다.');
  }
  requireUser(user);
+ m=path.match(/^\/api\/dm\/([\w-]+)\/crew-invite$/);
+ if(m){
+  if(method!=='POST')fail(405,'지원하지 않는 요청입니다.');
+  const p=await peer(env,m[1],user),b=await req.json(),rid=requestId(b),cid=str(b.crew_id,80);
+  const previous=await one(env,'SELECT id,recipient_id,crew_invite_id FROM direct_messages WHERE sender_id=? AND request_id=?',user.id,rid);
+  if(previous){
+   if(previous.recipient_id!==p.user_id||previous.crew_invite_id!==cid)fail(409,'이미 다른 메시지에 사용된 전송 요청입니다.');
+   return json({ok:true,peer_id:p.id,message_id:previous.id});
+  }
+  await member(env,cid,user);
+  const c=await one(env,`${crewSelect} WHERE c.id=?`,cid);
+  if(!c)fail(404,'크루를 찾을 수 없어요.');
+  if(!c.recruiting||c.members>=crewLevel(c.xp).capacity)fail(409,'모집 중이며 정원이 남은 크루만 초대할 수 있어요.');
+  if(await one(env,'SELECT 1 FROM crew_members WHERE crew_id=? AND user_id=?',cid,p.user_id))fail(409,'이미 같은 크루의 멤버예요.');
+  if(await one(env,'SELECT 1 FROM crew_bans WHERE crew_id=? AND user_id=?',cid,p.user_id))fail(403,'이 크루에 가입할 수 없는 이용자예요.');
+  await ensureSocialProfile(env,user);
+  await rate(env,'dm:'+user.id,30,60);
+  const body=`「${c.name}」 크루에 초대합니다! 함께 음악을 듣고 이야기해요.\n크루 둘러보기: https://aifect.co.kr/#crew/${cid}`;
+  await run(env,`INSERT OR IGNORE INTO direct_messages(id,sender_id,recipient_id,body,request_id,created,crew_invite_id) SELECT ?,?,?,?,?,?,c.id FROM crews c JOIN crew_members cm ON cm.crew_id=c.id AND cm.user_id=? WHERE c.id=? AND c.recruiting=1 AND NOT EXISTS(SELECT 1 FROM crew_bans WHERE crew_id=c.id AND user_id=?) AND NOT EXISTS(SELECT 1 FROM user_blocks WHERE (user_id=? AND blocked_id=?) OR (user_id=? AND blocked_id=?))`,id(),user.id,p.user_id,body,rid,now(),user.id,cid,p.user_id,user.id,p.user_id,p.user_id,user.id);
+  const sent=await one(env,'SELECT id,recipient_id,crew_invite_id FROM direct_messages WHERE sender_id=? AND request_id=?',user.id,rid);
+  if(!sent)fail(409,'초대할 수 없는 상태로 변경되었어요. 크루와 대화 상대를 다시 확인해주세요.');
+  if(sent.recipient_id!==p.user_id||sent.crew_invite_id!==cid)fail(409,'이미 다른 메시지에 사용된 전송 요청입니다.');
+  return json({ok:true,peer_id:p.id,message_id:sent.id},201);
+ }
  if(path==='/api/dm'&&method==='GET'){
   const summary=await chatSummary(env,user);return json({...summary,conversations:await rows(env,`WITH mine AS (SELECT rowid sequence,d.*,CASE WHEN sender_id=? THEN recipient_id ELSE sender_id END peer_id FROM direct_messages d WHERE (sender_id=? OR recipient_id=?) AND d.rowid>COALESCE((SELECT cleared_sequence FROM dm_settings WHERE user_id=? AND peer_id=CASE WHEN d.sender_id=? THEN d.recipient_id ELSE d.sender_id END),0)),latest AS (SELECT *,row_number() OVER(PARTITION BY peer_id ORDER BY sequence DESC) position,sum(CASE WHEN recipient_id=? AND read_at=0 THEN 1 ELSE 0 END) OVER(PARTITION BY peer_id) unread FROM mine) SELECT p.id,p.user_id,${playerColumnsSQL('p.user_id')},${producerNameSQL()} name,p.image_version,COALESCE(s.muted,0) muted,d.body last_message,d.created updated,d.unread FROM latest d JOIN producers p ON p.user_id=d.peer_id LEFT JOIN dm_settings s ON s.user_id=? AND s.peer_id=d.peer_id WHERE d.position=1 ORDER BY d.sequence DESC LIMIT 100`,user.id,user.id,user.id,user.id,user.id,user.id,user.id)});
  }
@@ -170,7 +204,7 @@ export async function socialRoute(req,env,path,user){
   if(method==='GET'){
    const before=url.searchParams.get('before'),after=url.searchParams.get('after'),cursor=before||after;
    if((before&&after)||[before,after].some(v=>v!==null&&!/^[1-9]\d{0,14}$/.test(v)))fail(400,'대화 위치를 확인해주세요.');
-   const messages=await rows(env,`SELECT rowid sequence,id,request_id,sender_id,recipient_id,body,created,read_at,image_id,(SELECT expires FROM chat_images WHERE id=direct_messages.image_id) image_expires FROM direct_messages WHERE ((sender_id=? AND recipient_id=?) OR (sender_id=? AND recipient_id=?)) AND rowid>?${cursor?` AND rowid${before?'<':'>'}?`:''} ORDER BY rowid ${after?'ASC':'DESC'} LIMIT 101`,user.id,p.user_id,p.user_id,user.id,settings.cleared_sequence,...(cursor?[Number(cursor)]:[]));
+   const messages=await rows(env,`SELECT rowid sequence,id,request_id,sender_id,recipient_id,body,created,read_at,crew_invite_id,image_id,(SELECT expires FROM chat_images WHERE id=direct_messages.image_id) image_expires FROM direct_messages WHERE ((sender_id=? AND recipient_id=?) OR (sender_id=? AND recipient_id=?)) AND rowid>?${cursor?` AND rowid${before?'<':'>'}?`:''} ORDER BY rowid ${after?'ASC':'DESC'} LIMIT 101`,user.id,p.user_id,p.user_id,user.id,settings.cleared_sequence,...(cursor?[Number(cursor)]:[]));
    const has_more=messages.length>100;messages.length=Math.min(messages.length,100);if(!after)messages.reverse();
    const read_receipt=await one(env,'SELECT rowid sequence,read_at FROM direct_messages WHERE sender_id=? AND recipient_id=? AND read_at>0 ORDER BY rowid DESC LIMIT 1',user.id,p.user_id)||{sequence:0,read_at:0};
    return json({peer:{id:p.id,user_id:p.user_id,name:p.name,image_version:p.image_version},settings,messages,has_more,read_receipt});
@@ -185,7 +219,7 @@ export async function socialRoute(req,env,path,user){
    const previous=await one(env,'SELECT recipient_id,body,image_id FROM direct_messages WHERE sender_id=? AND request_id=?',user.id,rid);
    if(previous&&(previous.recipient_id!==p.user_id||previous.body!==body||previous.image_id!==imageId))fail(409,'이미 다른 메시지에 사용된 전송 요청입니다.');
    await run(env,'INSERT OR IGNORE INTO direct_messages(id,sender_id,recipient_id,body,request_id,created,image_id) VALUES(?,?,?,?,?,?,?)',id(),user.id,p.user_id,body,rid,now(),imageId);
-   return json({ok:true,message:await one(env,'SELECT rowid sequence,id,request_id,sender_id,recipient_id,body,created,read_at,image_id,(SELECT expires FROM chat_images WHERE id=direct_messages.image_id) image_expires FROM direct_messages WHERE sender_id=? AND request_id=?',user.id,rid)},201);
+   return json({ok:true,message:await one(env,'SELECT rowid sequence,id,request_id,sender_id,recipient_id,body,created,read_at,crew_invite_id,image_id,(SELECT expires FROM chat_images WHERE id=direct_messages.image_id) image_expires FROM direct_messages WHERE sender_id=? AND request_id=?',user.id,rid)},201);
   }
  }
  fail(404,'대화를 찾을 수 없어요.');
