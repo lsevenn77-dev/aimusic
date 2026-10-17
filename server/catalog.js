@@ -106,7 +106,7 @@ export async function catalogRoute(req,env,path,user){
    if(method==='GET'){
     const sort=url.searchParams.get('sort'),order=sort==='popular'?'likes DESC,c.created DESC':sort==='timeline'?'c.timestamp IS NULL,c.timestamp ASC':'c.created DESC';
     const uid=user?.id||'';
-    const list=await rows(env,`SELECT c.id,c.track_id,c.user_id,c.parent_id,c.body,c.timestamp,c.created,c.edited,c.deleted_at,${publicNameSQL()} name,(c.user_id=t.user_id) creator,(SELECT count(*) FROM comment_likes l WHERE l.comment_id=c.id) likes,(SELECT count(*) FROM comment_likes l WHERE l.comment_id=c.id AND l.user_id=?) liked,EXISTS(SELECT 1 FROM comment_reports r WHERE r.comment_id=c.id AND r.user_id=?) reported FROM comments c JOIN users u ON u.id=c.user_id JOIN tracks t ON t.id=c.track_id WHERE c.track_id=? AND c.deleted_at=0 ORDER BY ${order} LIMIT 500`,uid,uid,tid);
+    const list=await rows(env,`SELECT c.id,c.track_id,c.user_id,c.parent_id,c.body,c.timestamp,c.created,c.edited,c.deleted_at,p.id profile_id,p.image_version,${publicNameSQL()} name,(c.user_id=t.user_id) creator,(SELECT count(*) FROM comment_likes l WHERE l.comment_id=c.id) likes,(SELECT count(*) FROM comment_likes l WHERE l.comment_id=c.id AND l.user_id=?) liked,EXISTS(SELECT 1 FROM comment_reports r WHERE r.comment_id=c.id AND r.user_id=?) reported FROM comments c JOIN users u ON u.id=c.user_id JOIN tracks t ON t.id=c.track_id LEFT JOIN producers p ON p.user_id=c.user_id WHERE c.track_id=? AND c.deleted_at=0 ORDER BY ${order} LIMIT 500`,uid,uid,tid);
     return json({comments:list.map(c=>({...c,can_delete:!!user&&!c.deleted_at&&(c.user_id===uid||(detail.kind==='cover'&&detail.user_id===uid)),can_report:!!user&&!c.deleted_at&&c.user_id!==uid&&!c.reported}))});
    }
    if(method==='POST'){
