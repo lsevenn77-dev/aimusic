@@ -38,18 +38,18 @@ import coil.compose.AsyncImage
 import kotlinx.coroutines.delay
 import org.json.JSONObject
 
-internal val Pink=Color(0xFFEF86B6)
-internal val Aqua=Color(0xFF8EDDD2)
-internal val Ink=Color(0xFF0E131D)
-internal val Panel=Color(0xFF19222F)
-internal val Muted=Color(0xFFA6ADBA)
-internal val Violet=Color(0xFFD6B5ED)
-internal val Stroke=Color(0xFF303B4C)
-internal val Raised=Color(0xFF242C38)
+internal val Pink=Color(0xFFD6BAFF)
+internal val Aqua=Color(0xFFAEEBDF)
+internal val Ink=Color(0xFF0C121B)
+internal val Panel=Color(0xFF131B26)
+internal val Muted=Color(0xFFA9B0C1)
+internal val Violet=Color(0xFFB7B6FF)
+internal val Stroke=Color(0xFF3A3A48)
+internal val Raised=Color(0xFF2A2A35)
 internal val SoftText=Color(0xFFCDD2DC)
 private fun TextStyle.readable()=copy(fontSize=(fontSize.value+1).sp)
 private val ReadableTypography=Typography().run{copy(displayLarge=displayLarge.readable(),displayMedium=displayMedium.readable(),displaySmall=displaySmall.readable(),headlineLarge=headlineLarge.readable(),headlineMedium=headlineMedium.readable(),headlineSmall=headlineSmall.readable(),titleLarge=titleLarge.readable(),titleMedium=titleMedium.readable(),titleSmall=titleSmall.readable(),bodyLarge=bodyLarge.readable(),bodyMedium=bodyMedium.readable(),bodySmall=bodySmall.readable(),labelLarge=labelLarge.readable(),labelMedium=labelMedium.readable(),labelSmall=labelSmall.readable())}
-private val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=Color(0xFF34252E),onPrimaryContainer=Pink,background=Ink,surface=Panel,onSurface=Color(0xFFF3F6F8),surfaceVariant=Stroke,onSurfaceVariant=Muted,secondary=Aqua,onSecondary=Ink,secondaryContainer=Color(0xFF20383C),onSecondaryContainer=Aqua)
+private val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=Color(0xFF302B42),onPrimaryContainer=Pink,background=Ink,surface=Panel,onSurface=Color(0xFFF5F5FC),surfaceVariant=Stroke,onSurfaceVariant=Muted,secondary=Aqua,onSecondary=Ink,secondaryContainer=Color(0xFF20383C),onSecondaryContainer=Aqua)
 
 @Composable private fun BrandLockup(){
  Image(painterResource(R.drawable.aifect_wordmark_vector),contentDescription="AIFECT",modifier=Modifier.width(124.dp).height(30.dp),contentScale=ContentScale.Fit)
@@ -252,7 +252,7 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)A
  Column(Modifier.fillMaxWidth().background(Color(0xFF202127))){
   val line=compactLyrics(m.lyricRows,m.position/1000.0,m.lyric).first
   val lyricRowHeight=with(androidx.compose.ui.platform.LocalDensity.current){20.sp.toDp()}+16.dp
-  if(!collapsed)Box(Modifier.fillMaxWidth().height(lyricRowHeight).clickable{m.fullPlayer=true}.testTag("mini-player-lyrics").padding(horizontal=18.dp,vertical=8.dp),contentAlignment=Alignment.Center){
+  Box(Modifier.fillMaxWidth().height(lyricRowHeight).clickable{m.fullPlayer=true}.testTag("mini-player-lyrics").padding(horizontal=18.dp,vertical=8.dp),contentAlignment=Alignment.Center){
    Text(line,modifier=Modifier.fillMaxWidth().testTag("mini-player-current-lyric"),fontSize=13.sp,lineHeight=20.sp,color=Aqua,minLines=1,maxLines=1,softWrap=false,overflow=TextOverflow.Ellipsis,textAlign=androidx.compose.ui.text.style.TextAlign.Center,style=TextStyle(platformStyle=androidx.compose.ui.text.PlatformTextStyle(includeFontPadding=false)))
   }
   Row(Modifier.fillMaxWidth().clickable{m.fullPlayer=true}.padding(start=12.dp,end=2.dp,top=8.dp,bottom=8.dp),verticalAlignment=Alignment.CenterVertically){
@@ -286,7 +286,7 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)A
     Box(Modifier.fillMaxWidth(),contentAlignment=Alignment.Center){Artwork(song,Modifier.widthIn(max=380.dp).fillMaxWidth().aspectRatio(1f))}
     Row(Modifier.fillMaxWidth().padding(top=22.dp),verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){Text(song.title,fontSize=25.sp,fontWeight=FontWeight.Bold,maxLines=2);Text(song.credit,color=Muted,modifier=Modifier.padding(top=7.dp))};IconButton(onClick={m.like(song)},enabled=!m.busy){Icon(if(m.likes.any{it.id==song.id})Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,"좋아요",tint=Pink)}}
     m.playbackQualityLabel?.let{Text(it,fontSize=12.sp,color=Aqua,modifier=Modifier.padding(top=8.dp).testTag("player-quality"))}
-    Slider(value=seek?:m.position.toFloat(),onValueChange={seek=it},onValueChangeFinished={seek?.let{m.controller?.seekTo(it.toLong())};seek=null},valueRange=0f..m.duration.coerceAtLeast(1).toFloat(),modifier=Modifier.fillMaxWidth().padding(top=15.dp),colors=SliderDefaults.colors(thumbColor=Aqua,activeTrackColor=Aqua,inactiveTrackColor=Stroke))
+    Slider(value=seek?:m.position.toFloat(),onValueChange={seek=it},onValueChangeFinished={seek?.let{m.controller?.seekTo(it.toLong())};seek=null},valueRange=0f..m.duration.coerceAtLeast(1).toFloat(),modifier=Modifier.fillMaxWidth().padding(top=15.dp),colors=SliderDefaults.colors(thumbColor=Color.White,activeTrackColor=Aqua,inactiveTrackColor=Stroke))
     Row(Modifier.fillMaxWidth()){Text(timeLabel((seek?:m.position.toFloat()).toLong()),fontSize=12.sp,color=Muted);Spacer(Modifier.weight(1f));Text(timeLabel(m.duration),fontSize=12.sp,color=Muted)}
     Row(Modifier.fillMaxWidth().padding(vertical=18.dp),horizontalArrangement=Arrangement.SpaceEvenly,verticalAlignment=Alignment.CenterVertically){
      IconButton(onClick={m.controller?.shuffleModeEnabled=!m.shuffle}){Icon(SimpleShuffle,"셔플",Modifier.size(22.dp),tint=if(m.shuffle)Aqua else Muted)}
@@ -447,9 +447,10 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)A
    }
    items(threadedComments(m.comments),key={it.getString("id")}){c->
     Row(Modifier.fillMaxWidth().padding(start=if(!c.isNull("parent_id"))24.dp else 0.dp).padding(vertical=12.dp),verticalAlignment=Alignment.Top){
-     Avatar(c.optString("name"),size=30)
+     Avatar(c.optString("name"),JSONObject().put("id",c.optString("profile_id")).put("image_version",c.optString("image_version")),size=30)
      Column(Modifier.weight(1f).padding(start=11.dp)){
       Text(c.optString("name")+if(c.optInt("creator")==1)" · 업로더" else "",fontSize=13.sp,fontWeight=FontWeight.Bold)
+      if(!c.isNull("parent_id"))Text("└ 답글",fontSize=11.sp,color=Violet,modifier=Modifier.padding(top=4.dp))
       Text(c.optString("body"),fontSize=14.sp,color=if(c.optLong("deleted_at")>0)Muted else MaterialTheme.colorScheme.onSurface,modifier=Modifier.padding(top=7.dp))
       if(c.optLong("deleted_at")==0L)Row(verticalAlignment=Alignment.CenterVertically){
        TextButton(onClick={m.commentLike(c)},contentPadding=PaddingValues(0.dp),enabled=!m.busy){Icon(if(c.optInt("liked")==1)Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,"댓글 좋아요",Modifier.size(14.dp));Text(" ${c.optInt("likes")}",fontSize=12.sp)}

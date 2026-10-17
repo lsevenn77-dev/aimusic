@@ -18,7 +18,7 @@ internal fun Modifier.musicSurface(feature: Boolean = false): Modifier = drawWit
   start=Offset.Zero, end=Offset(size.width,size.height*.55f)
  )
  val glow = Brush.radialGradient(
-  listOf(Color(0xFF8EDDD2).copy(alpha=if(feature).15f else .05f),Color.Transparent),
+  listOf(Aqua.copy(alpha=if(feature).15f else .05f),Color.Transparent),
   center=Offset.Zero,radius=size.width.coerceAtLeast(1f)*.85f
  )
  onDrawBehind { drawRect(base);drawRect(glow) }

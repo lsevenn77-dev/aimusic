@@ -2,10 +2,19 @@
 
 Android 2.5.47 (versionCode 60) was submitted to the existing Google Play **비공테** closed-testing track. Review is pending; submission does not mean the update is already available to testers. iOS has not been built or submitted from this Windows checkout.
 
+## Android 2.5.48 (61) — 직접 연결한 휴대폰 업데이트
+
+- Galaxy Z Flip6의 기존 2.5.46(59)을 데이터 유지 방식으로 2.5.48(61)로 업데이트. 기존 직접 설치본과 같은 인증서로 서명했다. Play Console에는 이번 버전을 제출하지 않았다.
+- 직전 2.5.47의 선물 수량/알림/장르 사진/앨범·플레이리스트 사진/재생바/녹음 변경 포함. 여기에 공통 웹 테마 색상, 댓글 작성자 실제 프로필 사진과 답글 표시를 추가했다.
+- 앱 재생바를 접어도 현재 가사 한 줄을 유지한다. 등록된 가사 유무와 기존 접근 권한은 유지한다.
+- 웹 v153: 모바일 웹 접힌 재생바에서도 가사 1줄 표시, PC 재생바에 리스트 추가·선물하기·댓글 보기 표시. 장르 이미지의 음수 z-index를 제거해 모바일 합성 시 카드 배경 뒤에 가려지는 위험을 줄였다. 조사 중 Chromium에서는 기존 이미지 누락이 재현되지 않았고, 수정 후 모바일 표시를 확인했다.
+- release APK 빌드와 JVM 검사 61건 통과. 격리된 에뮬레이터에서 셔플·반복·큐·접기/펼치기·가사 1줄 검사 통과. 웹 기존 검사 13건 통과. APK: `AIFECT-2.5.48-61-phone.apk` (로컬 산출물; Git에 바이너리/키 미포함).
+- iOS 네이티브 푸시와 아래 크루 관리 UI 후속 항목은 계속 Mac 작업 대상이다. 웹 미러 업데이트 자체가 네이티브 구현을 대신하지 않는다.
+
 ## Current source
 
 - Branch: `codex/android-native-app`.
-- `ai음원사이트/` contains the deployed web application, assets, APIs, schema and migrations through Sites source commit `affa43c16b7df550c43e18ec45cb22dbbbc3d09a` (production version 152).
+- `ai음원사이트/` contains the deployed web application, assets, APIs, schema and migrations through Sites source commit `1d327092e8151d3d36ed334147414efb6a3599e6` (production version 153).
 - The mirror preserves its own hosting/Git configuration. Do not overwrite production settings or replay migrations without checking the target environment.
 - Production: https://aifect.co.kr
 
@@ -32,7 +41,7 @@ Android 2.5.47 (versionCode 60) was submitted to the existing Google Play **비�
 사용자가 제공한 디자인 시스템에 맞춰 **웹·모바일 웹**을 라벤더 `#B7B6FF`, 연보라 `#D6BAFF`, 민트 `#AEEBDF`, 어두운 남색 패널과 1.6px 선 아이콘으로 변경했다. 버튼·탭·메뉴의 선택 상태, 입력창, 재생바, 녹음 설정까지 적용했다. 색상/범위/검증 상세는 [`DESIGN-SYSTEM-20261017.md`](../../ai음원사이트/docs/DESIGN-SYSTEM-20261017.md)를 기준으로 한다.
 
 - [ ] iOS 공통 테마에 위 색상, 그라데이션, 아이콘 선 두께, 흰 슬라이더 핸들을 적용하고 실기기에서 확인.
-- [ ] 네이티브 Android에도 같은 기준을 적용할 후속 빌드 필요. 기존에 제출한 2.5.47(60)에는 이번 새 웹 테마가 들어 있지 않다.
+- Android 2.5.48(61): 공통 라벤더·민트/패널/테두리 색상, 흰 슬라이더 핸들 반영. 기존 선택 아이콘과 듀엣 역할 색상은 유지. 폰 설치본이 업데이트되었으며 Play에 제출된 버전은 아직 2.5.47(60)이다.
 - 솔로/듀엣 가사 역할 색, 오류·성공 색, 원형 프로필·액자, 선물 이미지의 의미를 유지한다.
 - 웹 실화면: [데스크톱](theme-20261017/web-desktop.png), [모바일 웹](theme-20261017/web-mobile.png).
 

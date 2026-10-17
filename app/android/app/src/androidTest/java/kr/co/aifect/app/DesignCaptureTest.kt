@@ -366,7 +366,10 @@ class DesignCaptureTest {
   ui.onNodeWithContentDescription("반복 재생").performClick();ui.waitUntil(10000){model.repeat==androidx.media3.common.Player.REPEAT_MODE_ALL}
   capture("45-mini-player")
   ui.onNodeWithContentDescription("재생목록",useUnmergedTree=true).performClick();text("재생목록");capture("46-player-queue");Espresso.pressBack()
-  ui.onNodeWithContentDescription("재생바 내리기").performClick();ui.onNodeWithTag("mini-player-lyrics").assertDoesNotExist()
+  ui.onNodeWithContentDescription("재생바 내리기").performClick();ui.onNodeWithTag("mini-player-lyrics").assertIsDisplayed()
+  val layouts=mutableListOf<TextLayoutResult>()
+  ui.onNodeWithTag("mini-player-current-lyric",useUnmergedTree=true).performSemanticsAction(SemanticsActions.GetTextLayoutResult){it(layouts)}
+  assertEquals(1,layouts.single().lineCount);capture("47-collapsed-lyric")
   ui.onNodeWithContentDescription("재생바 펼치기").performClick();ui.onNodeWithTag("mini-player-lyrics").assertExists()
  }
  @Test fun captureProfileAndGiftScreens(){
