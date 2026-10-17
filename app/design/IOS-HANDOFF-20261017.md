@@ -5,11 +5,14 @@ Android 2.5.47 (versionCode 60) was submitted to the existing Google Play **비�
 ## Current source
 
 - Branch: `codex/android-native-app`.
-- `ai음원사이트/` contains the deployed web application, assets, APIs, schema and migrations through Sites source commit `9024ab333c5f66324117dae2bc0706d8c401888f` (production version 148).
+- `ai음원사이트/` contains the deployed web application, assets, APIs, schema and migrations through Sites source commit `15a5bb7992210a4210854be6e7c2e72a8663a8cc` (production version 151).
 - The mirror preserves its own hosting/Git configuration. Do not overwrite production settings or replay migrations without checking the target environment.
 - Production: https://aifect.co.kr
 
 ## iPhone implementation reference
+
+- New crew management: owner name changes have a server-enforced 30-day cooldown. Public person profiles in web now offer **내 크루에 초대**, sending an ordinary DM via `POST /api/dm/:profileId/crew-invite` with `crew_id` and stable `request_id`, then opening the conversation. Native implementation details and validation are in [`CREW-MANAGEMENT-20261017.md`](../../ai음원사이트/docs/CREW-MANAGEMENT-20261017.md). Native app controls for these additions still need implementation/build on the respective platform.
+- Desktop web lyric banner now fits the two text lines rather than spanning half the screen; mobile web remains one line. Google and Naver ownership verification and sitemap registration are complete; preserve both tags in `dist/index.html` (see [`SEARCH-REGISTRATION-20261017.md`](../../ai음원사이트/docs/SEARCH-REGISTRATION-20261017.md)).
 
 - Gift catalog matches the confirmed web design: 9 silver gifts / 10 gold gifts. Display **실버 / 골드**, units **S / G**. Quantity 1–100, total cost, balance confirmation and duplicate-request protection are implemented in Android `GiftSelection.kt`, `GiftScreens.kt` and the web gift APIs.
 - Activity notifications show who participated in a cover/duet or sent a gift, with date, quantity and total. The entry is available under Messages, after the pinned crew conversation, plus the profile and header notification badge. See `ActivityScreens.kt` and `/api/notifications` in the mirrored server.

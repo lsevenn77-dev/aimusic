@@ -344,6 +344,13 @@
       "when": 1792072596290,
       "tag": "0048_activity_notifications",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "6",
+      "when": 1792226351384,
+      "tag": "0049_crew_names_and_invites",
+      "breakpoints": true
     }
   ]
 }
