@@ -112,7 +112,6 @@ private val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=C
       IconButton(onClick={m.selectTab(1)}){Icon(Icons.Rounded.Search,"검색",Modifier.size(22.dp),tint=SoftText)}
      }
      IconButton(onClick={if(m.user==null)m.showLogin=true else m.showAccount=true},modifier=Modifier.testTag("account-menu")){Icon(if(m.tab==6)Icons.Outlined.Settings else Icons.Outlined.PersonOutline,if(m.user==null)"로그인" else "계정 메뉴",Modifier.size(22.dp),tint=SoftText)}
-     if(m.tab==6)IconButton(onClick={navigationOpen=true},modifier=Modifier.testTag("navigation-menu")){Icon(Icons.Outlined.Menu,"전체 메뉴",Modifier.size(22.dp),tint=SoftText)}
     }
     if(m.error!=null)Row(Modifier.fillMaxWidth().background(Color(0xFF36261E)).padding(horizontal=20.dp,vertical=8.dp),verticalAlignment=Alignment.CenterVertically){
      Text(m.error?:"",Modifier.weight(1f),fontSize=13.sp,color=Color(0xFFFFC69C));TextButton(onClick=m::refresh){Text("재시도")}
@@ -179,10 +178,10 @@ private val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=C
   action?.let {TextButton(onClick=onAction,colors=ButtonDefaults.textButtonColors(contentColor=SoftText)){Text(it,fontSize=13.sp)}}
  }
 }
-@Composable internal fun Artwork(song:Song,modifier:Modifier=Modifier,corner:androidx.compose.ui.unit.Dp=16.dp){
+@Composable internal fun Artwork(song:Song,modifier:Modifier=Modifier,corner:androidx.compose.ui.unit.Dp=16.dp,imageAlignment:Alignment=Alignment.Center){
  Box(modifier.clip(RoundedCornerShape(corner)).background(Brush.linearGradient(listOf(Color(0xFF2A313E),Color(0xFF23343B)))),contentAlignment=Alignment.Center){
   Icon(if(song.cover)Icons.Rounded.Mic else Icons.Rounded.MusicNote,null,tint=SoftText.copy(alpha=.45f),modifier=Modifier.fillMaxSize(.4f))
-  song.art?.let {AsyncImage(it,contentDescription="${song.title} 앨범 표지",modifier=Modifier.fillMaxSize(),contentScale=ContentScale.Crop)}
+  song.art?.let {AsyncImage(it,contentDescription="${song.title} 앨범 표지",modifier=Modifier.fillMaxSize(),contentScale=ContentScale.Crop,alignment=imageAlignment)}
  }
 }
 @Composable internal fun neutralChipColors()=FilterChipDefaults.filterChipColors(selectedContainerColor=Raised,selectedLabelColor=MaterialTheme.colorScheme.onSurface)

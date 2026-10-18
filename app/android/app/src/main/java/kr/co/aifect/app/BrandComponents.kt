@@ -31,7 +31,7 @@ internal val BrandGradient get()=Brush.horizontalGradient(0f to Pink,.48f to Vio
   elevation,border,contentPadding,interactionSource,content)
 }
 
-@Composable internal fun TrackActionsMenu(song:Song,m:MusicModel,modifier:Modifier=Modifier){
+@Composable internal fun TrackActionsMenu(song:Song,m:MusicModel,modifier:Modifier=Modifier,includeRelated:Boolean=false){
  var open by remember(song.id){mutableStateOf(false)}
  Box{
   IconButton(onClick={open=true},modifier=modifier){Icon(Icons.Outlined.MoreHoriz,"${song.title} 더보기",tint=Muted)}
@@ -39,6 +39,8 @@ internal val BrandGradient get()=Brush.horizontalGradient(0f to Pink,.48f to Vio
    PageMenuItem(text={Text("플레이리스트 담기")},onClick={open=false;m.pickPlaylist(song)})
    PageMenuItem(text={Text("선물하기")},onClick={open=false;m.openGifts(song)})
    PageMenuItem(text={Text("댓글 보기")},onClick={open=false;m.openSong(song)})
+   if(includeRelated&&song.cover)PageMenuItem(text={Text("원곡 듣기")},onClick={open=false;m.openOriginal(song)})
+   else if(includeRelated&&song.raw.optInt("accepts_covers")==1)PageMenuItem(text={Text("다른 목소리")},onClick={open=false;m.openCovers(song)})
   }
  }
 }
