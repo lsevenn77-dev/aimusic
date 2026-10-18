@@ -322,7 +322,8 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
 }
 
 @Composable internal fun MessagesSheet(m:MusicModel,embedded:Boolean=false){
- if(m.user==null){if(embedded)Column(Modifier.padding(24.dp)){BrandButton(onClick={m.showLogin=true}){Text("로그인")}};return}
+ if(m.user==null){if(embedded)Column(Modifier.padding(18.dp)){Text("메시지",fontSize=23.sp,fontWeight=FontWeight.Bold);Empty("음악으로 이어지는 대화","로그인하고 친구·크루와 이야기를 나눠보세요.");BrandButton(onClick={m.showLogin=true}){Text("로그인")}};return}
+ val inboxState=androidx.compose.runtime.saveable.rememberSaveableStateHolder()
  if(m.messageCrew!=null){
   val content:@Composable ()->Unit={Column(Modifier.fillMaxSize()){TextButton(onClick={m.messageCrew=null}){Icon(Icons.AutoMirrored.Rounded.ArrowBack,null);Text("메시지 목록")};CrewScreen(m,{m.notice="크루 홈에서 부르기를 선택해주세요."},m.messageCrew,true)}}
   androidx.activity.compose.BackHandler{m.messageCrew=null}
@@ -438,7 +439,7 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
   val peer=data?.optJSONObject("peer")
   val panelModifier=if(embedded)Modifier.fillMaxSize()else Modifier.fillMaxWidth().fillMaxHeight()
   Column(panelModifier.imePadding().testTag("dm-panel")){
-   Row(Modifier.fillMaxWidth().padding(horizontal=12.dp,vertical=8.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
+   if(peerId!=null)Row(Modifier.fillMaxWidth().padding(horizontal=12.dp,vertical=8.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
     if(m.messagePeer!=null)IconButton(onClick={if(!embedded&&m.messagesReturnToProfile)m.dismissMessages() else m.messagePeer=null},modifier=Modifier.testTag("dm-back")){Icon(Icons.AutoMirrored.Rounded.ArrowBack,if(!embedded&&m.messagesReturnToProfile)"이전 페이지로" else "대화 목록으로")}
     if(m.messagePeer!=null&&peer!=null)MessageProfileAvatar(peer,"dm-peer-profile-"+peer.optString("id"),44){openMessageProfile(peer)}
     if(!embedded||peerId!=null)Text(peer?.optString("name")?:"대화",fontSize=21.sp,fontWeight=FontWeight.SemiBold,modifier=Modifier.weight(1f),maxLines=2,overflow=TextOverflow.Ellipsis)
@@ -450,19 +451,8 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
    }
    error?.let{Text(it,color=Pink,modifier=Modifier.padding(horizontal=18.dp))}
    if(m.messagePeer==null){
-    LazyColumn(Modifier.fillMaxWidth().weight(1f),contentPadding=PaddingValues(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
-     m.inboxCrew?.let{crew->item(key="pinned-crew"){Surface(onClick={m.openCrewMessages(crew.getString("id"))},color=Raised,shape=MaterialTheme.shapes.large){Row(Modifier.fillMaxWidth().padding(16.dp),verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){Text("내 크루 · 고정",color=Aqua,fontSize=12.sp);Text(crew.optString("name"));Text("크루 채팅",color=Muted,fontSize=13.sp)};if(crew.optInt("unread")>0)Badge{Text(crew.optInt("unread").toString())}}}}}
-     item(key="activity-history"){NotificationEntry(m)}
-     item{TextButton(onClick={sheetScope.launch{try{m.api.call("/api/dm/read-all","POST");load()}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}}}){Text("모두 읽음")}}
-     items(conversations,key={it.optString("id")}){p->
-      Surface(onClick={m.messagePeer=p.getString("id")},color=Panel,shape=MaterialTheme.shapes.large,modifier=Modifier.testTag("dm-conversation-"+p.optString("id"))){Row(Modifier.fillMaxWidth().padding(14.dp),verticalAlignment=Alignment.CenterVertically){
-       MessageProfileAvatar(p,"dm-list-profile-"+p.optString("id"),44){openMessageProfile(p)}
-       Column(Modifier.weight(1f).padding(horizontal=12.dp)){Text(p.optString("name"),fontWeight=FontWeight.SemiBold);Text(p.optString("last_message"),color=Muted,maxLines=1,overflow=TextOverflow.Ellipsis,fontSize=13.sp)}
-       DmActions(m,p.getString("id"),p.optInt("muted")==1,{value->conversations=conversations.map{if(it.optString("id")==p.optString("id"))JSONObject(it.toString()).put("muted",if(value)1 else 0)else it}},{},withDelete=false)
-       Column(horizontalAlignment=Alignment.End){Text(chatTime(p.optLong("updated")),color=Muted,fontSize=10.sp);if(p.optInt("unread")>0)Text("${p.optInt("unread")} 새 메시지",color=Pink,fontSize=11.sp)}
-      }}
-     }
-     if(conversations.isEmpty())item{Text(if(synced)"아직 나눈 대화가 없어요. 프로필의 메시지로 시작해보세요." else "대화 목록을 확인하고 있어요.",color=Muted)}
+    inboxState.SaveableStateProvider("inbox:$accountId"){
+     MessageInbox(m,conversations,synced,Modifier.fillMaxWidth().weight(1f),readAll={sheetScope.launch{try{m.api.call("/api/dm/read-all","POST");load()}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}}},clear={conversations=emptyList();sheetScope.launch{try{load()}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}}},openProfile=::openMessageProfile)
     }
    }else{
     ChatHistory(m,messages,earlier,historyLoading,{if(!historyLoading){historyLoading=true;sheetScope.launch{try{load(older=true)}catch(e:Exception){if(e is CancellationException)throw e;if(current(peerId))error=e.message}finally{historyLoading=false}}}},m.user?.optString("id"),false,peer=peer?.optString("name")?:"",retry={send(it)},modifier=Modifier.weight(1f).padding(horizontal=8.dp),fill=true,peerPerson=peer,openPeer={peer?.let{openMessageProfile(it)}})
@@ -472,7 +462,7 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
    }
   }
  }
- // Keep conversation state while a profile is on top, with only one modal dialog visible.
+ // Keep conversation state while a profile page is on top.
  if(!profileOverlay){
   if(embedded)content() else AppPage(title="대화",onDismissRequest={m.dismissMessages()},containerColor=Ink){content()}
  }

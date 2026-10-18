@@ -402,33 +402,33 @@ class NativeAppTest {
  }
  @Test fun followerProfileMessagesCanBeDismissedAndReopened(){
   val model=AtomicReference<MusicModel>();screen.onActivity{model.set(androidx.lifecycle.ViewModelProvider(it)[MusicModel::class.java])}
-  ui.onNodeWithTag("main-tab-6").performClick();waitText("팔로워 2");ui.onNodeWithText("팔로워 2").performClick();waitText("기본 리스너")
+  ui.onNodeWithTag("main-tab-6").performClick();waitText("팔로워");ui.onNodeWithText("팔로워").performClick();waitText("기본 리스너")
   repeat(3){cycle->
-   ui.onNodeWithTag("follower-other").performClick();waitText("팔로워 1 · 공개 음악 1")
+   ui.onNodeWithTag("follower-other").performClick();waitText("팔로워 1")
    ui.onNodeWithTag("profile-message").performScrollTo().performClick()
    ui.waitUntil(10000){ui.onAllNodesWithTag("dm-input").fetchSemanticsNodes().isNotEmpty()}
    screen.onActivity{assertTrue(model.get().showMessages);assertEquals("person",model.get().messagePeer);assertNull(model.get().profile)}
    if(cycle==1)ui.onNodeWithTag("dm-back").performClick() else androidx.test.espresso.Espresso.pressBack()
    ui.waitUntil(10000){ui.onAllNodesWithTag("dm-panel").fetchSemanticsNodes().isEmpty()}
-   ui.onNodeWithTag("profile-close").assertIsDisplayed();waitText("팔로워 1 · 공개 음악 1")
+   ui.onNodeWithTag("profile-close").assertIsDisplayed();waitText("팔로워 1")
    screen.onActivity{assertFalse("A dismissed sheet must release its dialog",model.get().showMessages);assertNull(model.get().messagePeer);assertEquals("person",model.get().profile?.optString("id"))}
    ui.onNodeWithTag("profile-close").performClick()
    // Exercise real touches on both the same producer and a different listener after dismissal.
    ui.onNodeWithTag("follower-listener").performClick();waitText("이 탭에 공개된 음악이 없어요")
    screen.onActivity{assertEquals("listener",model.get().profile?.optString("user_id"))}
    ui.onNodeWithTag("profile-close").performClick()
-   ui.onNodeWithTag("follower-other").performClick();waitText("팔로워 1 · 공개 음악 1")
+   ui.onNodeWithTag("follower-other").performClick();waitText("팔로워 1")
    screen.onActivity{assertEquals("person",model.get().profile?.optString("id"))}
    androidx.test.espresso.Espresso.pressBack()
   }
-  ui.onNodeWithTag("main-tab-0").performClick();waitText("바로 듣기")
-  ui.onNodeWithTag("main-tab-6").performClick();waitText("프로필 수정")
+  ui.onNodeWithTag("main-tab-0").performClick();ui.onNodeWithTag("listen-tabs").assertIsDisplayed()
+  ui.onNodeWithTag("main-tab-6").performClick();ui.onNodeWithTag("my-music-page").assertIsDisplayed()
   screenshot("native-followers-dm-repeated-back.png")
  }
  @Test fun delayedDirectMessageLoadKeepsBackAndFollowersResponsive(){
   val model=AtomicReference<MusicModel>();screen.onActivity{model.set(androidx.lifecycle.ViewModelProvider(it)[MusicModel::class.java])}
-  ui.onNodeWithTag("main-tab-6").performClick();waitText("팔로워 2");ui.onNodeWithText("팔로워 2").performClick();waitText("기본 리스너")
-  ui.onNodeWithTag("follower-other").performClick();waitText("팔로워 1 · 공개 음악 1")
+  ui.onNodeWithTag("main-tab-6").performClick();waitText("팔로워");ui.onNodeWithText("팔로워").performClick();waitText("기본 리스너")
+  ui.onNodeWithTag("follower-other").performClick();waitText("팔로워 1")
   val requested=CountDownLatch(1);val response=CountDownLatch(1);heldRequests["/api/dm/person"]=requested;heldResponses["/api/dm/person"]=response
   try{
    ui.onNodeWithTag("profile-message").performScrollTo().performClick()
@@ -442,10 +442,10 @@ class NativeAppTest {
    screen.onActivity{assertEquals("listener",model.get().profile?.optString("user_id"));assertFalse(model.get().showMessages);assertNull(model.get().messagePeer)}
    assertEquals("Back and another profile must respond before the slow DM request completes",1L,response.count)
    assertFalse("The fixture must still be holding the DM response",completedHeldResponses.contains("/api/dm/person"))
-   ui.onNodeWithTag("profile-close").performClick();ui.onNodeWithTag("main-tab-0").performClick();waitText("바로 듣기")
+   ui.onNodeWithTag("profile-close").performClick();ui.onNodeWithTag("main-tab-0").performClick();ui.onNodeWithTag("listen-tabs").assertIsDisplayed()
   }finally{response.countDown();heldResponses.remove("/api/dm/person");heldRequests.remove("/api/dm/person")}
-  ui.onNodeWithTag("main-tab-6").performClick();waitText("팔로워 2");ui.onNodeWithText("팔로워 2").performClick();waitText("기본 리스너")
-  ui.onNodeWithTag("follower-other").performClick();waitText("팔로워 1 · 공개 음악 1")
+  ui.onNodeWithTag("main-tab-6").performClick();waitText("팔로워");ui.onNodeWithText("팔로워").performClick();waitText("기본 리스너")
+  ui.onNodeWithTag("follower-other").performClick();waitText("팔로워 1")
   ui.onNodeWithTag("profile-message").performScrollTo().performClick()
   ui.waitUntil(10000){ui.onAllNodesWithTag("dm-peer-profile-person").fetchSemanticsNodes().isNotEmpty()}
   screen.onActivity{assertEquals("person",model.get().messagePeer);assertTrue(model.get().showMessages);assertNull(model.get().profile)}

@@ -36,6 +36,7 @@ class DesignCaptureTest {
  private lateinit var model:MusicModel
  private val workers=Executors.newCachedThreadPool()
  private val responses=ConcurrentHashMap<String,JSONObject>()
+ private val responseStatuses=ConcurrentHashMap<String,Int>()
  private val requestBodies=ConcurrentHashMap<String,String>()
  private val uploadBytes=ConcurrentHashMap<String,Int>()
  private val requestUrls=java.util.concurrent.CopyOnWriteArrayList<String>()
@@ -129,7 +130,9 @@ class DesignCaptureTest {
      path.startsWith("/media/")->{type="image/png";bytes=photos[if(path.contains("ocean")||path.contains("own")||path.contains("photo-2")||path.contains("crew"))1 else 0]}
      path.startsWith("/assets/gifts/")->{type="image/webp";bytes=giftsBytes[path.substringAfterLast('/')]?:giftsBytes.values.first()}
      else->{type="application/json";bytes=(responses[request[1]]?:responses[path]?:payload("ok" to true)).toString().toByteArray()}}
-    out.write("HTTP/1.1 200 OK\r\nContent-Type: $type\r\nContent-Length: ${bytes.size}\r\nConnection: close\r\n\r\n".toByteArray());out.write(bytes)
+    val status=responseStatuses[path]?:200
+    val session=if(path=="/api/auth/mobile/exchange"&&status==200)"Set-Cookie: aifect_session=browser-fixture; Path=/; HttpOnly\r\n" else ""
+    out.write("HTTP/1.1 $status Response\r\n${session}Content-Type: $type\r\nContent-Length: ${bytes.size}\r\nConnection: close\r\n\r\n".toByteArray());out.write(bytes)
    }
   }}catch(_:IOException){}catch(_:InterruptedException){Thread.currentThread().interrupt()}}}catch(_:IOException){} }
   screen=ActivityScenario.launch(Intent(context,MainActivity::class.java).putExtra("testOrigin","http://127.0.0.1:${server.localPort}"))
@@ -141,6 +144,78 @@ class DesignCaptureTest {
  private fun text(value:String){ui.waitUntil(15000){ui.onAllNodesWithText(value).fetchSemanticsNodes().isNotEmpty()}}
  private fun act(block:(MusicModel)->Unit){screen.onActivity{block(model)};ui.waitForIdle()}
  private fun capture(name:String){ui.waitForIdle();instrumentation.waitForIdleSync();Thread.sleep(850);val image=instrumentation.uiAutomation.takeScreenshot();val dir=File(context.getExternalFilesDir(null),"design-2549");dir.mkdirs();FileOutputStream(File(dir,name+".png")).use{image.compress(Bitmap.CompressFormat.PNG,100,it)};image.recycle()}
+
+ @Test fun browserGoogleLoginKeepsVerifierUntilApproved(){
+  val ticket="browser-test-ticket"
+  responses["/api/auth/mobile/start"]=payload("ticket" to ticket,"url" to Endpoint.url("/api/auth/mobile/browser?ticket=$ticket"))
+  responses["/api/auth/mobile/exchange"]=payload("error" to "브라우저에서 로그인을 마쳐주세요.")
+  responseStatuses["/api/auth/mobile/exchange"]=409
+  var opened=""
+  act{it.user=null;it.showLogin=true;it.providers=listOf("google");it.socialLogin("google"){url->opened=url}}
+  ui.waitUntil(15000){!model.busy&&opened.isNotBlank()}
+  val uri=android.net.Uri.parse(opened)
+  assertEquals("google",uri.getQueryParameter("provider"));assertEquals(ticket,uri.getQueryParameter("ticket"))
+  val verifier=NativeSession.get(context,"verifier")
+  assertTrue(verifier.length>=43);assertFalse(opened.contains(verifier))
+  val challenge=java.security.MessageDigest.getInstance("SHA-256").digest(verifier.toByteArray()).joinToString(""){"%02x".format(it)}
+  assertEquals(challenge,JSONObject(requestBodies.getValue("/api/auth/mobile/start")).getString("challenge"))
+  ready("browser-login-check");phaseCapture("31-browser-login")
+  act{it.finishLogin(android.net.Uri.parse("kr.co.aifect.app://auth?ticket=wrong"))}
+  assertFalse(requestUrls.contains("/api/auth/mobile/exchange"))
+  ui.onNodeWithTag("browser-login-check").performScrollTo().performClick()
+  ui.waitUntil(15000){model.notice!=null||ui.onAllNodesWithText("브라우저에서 로그인을 마친 뒤 돌아와주세요.").fetchSemanticsNodes().isNotEmpty()}
+  assertNull(model.user);assertTrue(model.browserLoginPending);assertEquals(verifier,NativeSession.get(context,"verifier"))
+  responses["/api/auth/mobile/exchange"]=payload("user" to me);responseStatuses["/api/auth/mobile/exchange"]=200
+  act{it.finishLogin(android.net.Uri.parse("kr.co.aifect.app://auth?ticket=$ticket"))}
+  ui.waitUntil(15000){model.user!=null&&!model.showLogin}
+  assertEquals("aifect_session=browser-fixture",NativeSession.cookie(context))
+  assertEquals("",NativeSession.get(context,"ticket"));assertEquals("",NativeSession.get(context,"verifier"));assertFalse(model.browserLoginPending)
+ }
+ @Test fun browserLoginRejectsForeignDestination(){
+  NativeSession.put(context,"verifier","")
+  responses["/api/auth/mobile/start"]=payload("ticket" to "safe-ticket","url" to "https://untrusted.invalid/api/auth/mobile/browser?ticket=safe-ticket")
+  var opened=false
+  act{it.socialLogin("google"){opened=true}}
+  ui.waitUntil(15000){!model.busy}
+  assertFalse(opened);assertFalse(model.browserLoginPending);assertEquals("",NativeSession.get(context,"ticket"));assertEquals("",NativeSession.get(context,"verifier"))
+ }
+ @Test fun communityBoardKeepsTrackActionsAndDuetContext(){
+  responses["/api/community?kind=cover&cover_mode=duet"]=payload("tracks" to arr(duet))
+  act{it.selectTab(3)};ready("feed-artwork-design-cover")
+  ui.onNodeWithTag("community-tab-추천").assertIsDisplayed();ui.onNodeWithTag("community-tab-팔로잉").assertIsDisplayed();ui.onNodeWithTag("community-tab-크루").assertIsDisplayed()
+  ui.onNodeWithTag("feed-play-design-cover").performClick();ui.waitUntil(15000){model.current?.id=="design-cover"&&model.playing}
+  phaseCapture("32-community-feed")
+  ui.onNodeWithTag("music-community-feed").performScrollToNode(hasContentDescription("밤의 산책 더보기"))
+  ui.onAllNodesWithContentDescription("밤의 산책 더보기").onFirst().performClick();ui.onNodeWithText("플레이리스트 담기").performClick()
+  assertEquals("design-cover",model.playlistTarget?.id);Espresso.pressBack()
+  ui.onNodeWithTag("community-tab-팔로잉").performClick();ui.waitUntil(15000){requestUrls.contains("/api/community?following=1")&&!model.feedLoading}
+  ui.onNodeWithTag("community-filter").performClick();ui.onNodeWithText("듀엣",useUnmergedTree=true).performClick()
+  ready("feed-sing-design-duet");phaseCapture("33-community-duet")
+  val monitor=instrumentation.addMonitor(kr.co.aifect.app.karaoke.KaraokeActivity::class.java.name,null,false)
+  try{
+   ui.onNodeWithTag("music-community-feed").performScrollToNode(hasTestTag("feed-sing-design-duet"));ui.onNodeWithTag("feed-sing-design-duet").performClick()
+   val room=instrumentation.waitForMonitorWithTimeout(monitor,15000);assertNotNull(room)
+   assertEquals("design-duet",room.intent.getStringExtra("duetParentId"));assertEquals("design-song",room.intent.getStringExtra("trackId"));assertEquals("duet",room.intent.getStringExtra("coverMode"))
+   instrumentation.runOnMainSync{room.finish()}
+  }finally{instrumentation.removeMonitor(monitor)}
+ }
+ @Test fun messageBoardFiltersSearchAndStartsRealConversations(){
+  responses.getValue("/api/dm").put("crew",JSONObject(crew.toString()).put("unread",2)).put("unread",3)
+  act{it.play(Song(song),listOf(Song(song)));it.selectTab(5)}
+  ready("dm-conversation-design-peer");ready("inbox-crew");phaseCapture("34-message-inbox")
+  ui.onNodeWithTag("inbox-filter-안 읽음").performClick();ui.onNodeWithTag("dm-conversation-design-friend").assertDoesNotExist()
+  ui.onNodeWithTag("inbox-search-toggle").performClick();ui.onNodeWithTag("inbox-search").performTextInput("하루");Espresso.closeSoftKeyboard()
+  ui.onNodeWithTag("inbox-crew").assertDoesNotExist();ui.onNodeWithTag("dm-conversation-design-peer").performClick();ready("dm-composer")
+  ui.onNodeWithTag("dm-input").performTextInput("보관할 초안");Espresso.closeSoftKeyboard();ui.onNodeWithTag("dm-back").performClick()
+  ready("inbox-search");ui.onNodeWithTag("inbox-search").assertTextContains("하루");ui.onNodeWithTag("inbox-filter-안 읽음").assertIsSelected()
+  ui.onNodeWithTag("inbox-search-toggle").performClick();ui.onNodeWithTag("inbox-filter-크루").performClick();ready("inbox-crew");ui.onNodeWithTag("dm-conversation-design-peer").assertDoesNotExist();phaseCapture("35-message-crews")
+  ui.onNodeWithTag("inbox-crew").performClick();ready("crew-chat-input");Espresso.pressBack();ready("inbox-filter-크루");ui.onNodeWithTag("inbox-filter-크루").assertIsSelected()
+  ui.onNodeWithTag("inbox-filter-알림").performClick();ui.onNodeWithText("알림 기록").assertIsDisplayed()
+  ui.onNodeWithTag("inbox-compose").performClick();ready("new-conversation-design-peer");phaseCapture("36-message-new")
+  ui.onNodeWithTag("new-conversation-search").performTextInput("하루");ui.waitUntil(15000){requestUrls.any{it.startsWith("/api/search?q=")}};Espresso.closeSoftKeyboard()
+  ui.onNodeWithTag("new-conversation-design-own").assertDoesNotExist();ui.onNodeWithTag("new-conversation-design-peer").performClick();ready("dm-input")
+  ui.onNodeWithTag("dm-input").assertTextContains("보관할 초안");assertEquals("design-peer",model.messagePeer);assertEquals("design-song",model.current?.id)
+ }
 
  @Test fun creatorStudioOpensFromMyAccountAndSavesOriginal(){
   ui.onNodeWithTag("main-tab-6").performClick();ready("my-music-page")

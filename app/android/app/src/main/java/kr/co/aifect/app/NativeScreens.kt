@@ -103,7 +103,7 @@ private val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=C
   }){padding->
    AppPageHost(pageStack,Modifier.padding(padding).consumeWindowInsets(padding)){
    Column(Modifier.fillMaxSize()){
-    if(!keyboardVisible&&!m.studioEditing&&m.tab!=2&&!(m.tab==5&&(m.messagePeer!=null||m.messageCrew!=null)))Row(Modifier.fillMaxWidth().heightIn(min=50.dp).padding(horizontal=14.dp),verticalAlignment=Alignment.CenterVertically){
+    if(!keyboardVisible&&!m.studioEditing&&m.tab!=2&&m.tab!=3&&m.tab!=5)Row(Modifier.fillMaxWidth().heightIn(min=50.dp).padding(horizontal=14.dp),verticalAlignment=Alignment.CenterVertically){
      if(m.tab==6)Text("마이",fontSize=22.sp,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f))
      else {
       Box(Modifier.heightIn(min=48.dp).clickable{navigationOpen=true}.testTag("navigation-menu"),contentAlignment=Alignment.CenterStart){BrandLockup()}
@@ -218,37 +218,6 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)A
  PlayerAvatarDecoration(p,size)
  }
 }
-@Composable internal fun CommunityCard(song:Song,m:MusicModel,queue:List<Song>,sing:(Song)->Unit){
-   Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).musicSurface(feature=true).border(1.dp,Violet.copy(alpha=.38f),RoundedCornerShape(18.dp)).padding(16.dp)){
-    Row(Modifier.fillMaxWidth().clickable{m.openProfile(song.producerId)},verticalAlignment=Alignment.Top){
-     Avatar(song.producer,song.producerProfile)
-     Column(Modifier.weight(1f).padding(start=11.dp),horizontalAlignment=Alignment.Start){
-      Text(song.producer,fontSize=14.sp,lineHeight=19.sp,fontWeight=FontWeight.Bold,maxLines=2,overflow=TextOverflow.Ellipsis,modifier=Modifier.fillMaxWidth().testTag("feed-author-${song.id}"))
-      Text(if(song.cover)if(song.raw.optString("cover_mode")=="duet")"듀엣 공개" else "커버 공개" else "제작곡 공개",fontSize=11.sp,color=if(song.cover)Aqua else Pink,modifier=Modifier.padding(top=4.dp))
-     }
-    }
-    if(song.description.isNotBlank())Text(song.description,fontSize=13.sp,lineHeight=20.sp,maxLines=3,overflow=TextOverflow.Ellipsis,modifier=Modifier.fillMaxWidth().padding(top=14.dp))
-    Row(Modifier.padding(top=14.dp).fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Ink.copy(alpha=.45f)).border(1.dp,Stroke,RoundedCornerShape(14.dp)).clickable{m.openSong(song)}.padding(10.dp),verticalAlignment=Alignment.CenterVertically){
-     Box(Modifier.size(90.dp).clickable{m.play(song,queue)}){Artwork(song,Modifier.fillMaxSize());Icon(Icons.Rounded.PlayCircle,"${song.title} 재생",tint=Color.White,modifier=Modifier.align(Alignment.BottomEnd).size(32.dp).background(Ink.copy(alpha=.5f),CircleShape))}
-     Column(Modifier.weight(1f).padding(start=12.dp),horizontalAlignment=Alignment.Start){Text(if(song.cover)"커버" else "오리지널",fontSize=10.sp,color=Pink);Text(song.title,fontSize=16.sp,lineHeight=22.sp,fontWeight=FontWeight.SemiBold,modifier=Modifier.fillMaxWidth().testTag("feed-title-${song.id}"));Text(song.credit,fontSize=12.sp,lineHeight=18.sp,color=Muted,modifier=Modifier.padding(top=5.dp));Text(timeLabel((song.duration*1000).toLong()),fontSize=11.sp,color=Muted,modifier=Modifier.padding(top=6.dp))}
-    }
-    HorizontalDivider(color=Stroke.copy(alpha=.6f),modifier=Modifier.padding(top=10.dp))
-    FlowRow(Modifier.fillMaxWidth().padding(top=4.dp),verticalArrangement=Arrangement.Center,horizontalArrangement=Arrangement.spacedBy(2.dp)){
-     TextButton(onClick={m.like(song)},contentPadding=PaddingValues(8.dp),enabled=!m.busy){Icon(if(m.likes.any{it.id==song.id})Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,"좋아요",Modifier.size(18.dp),tint=if(m.likes.any{it.id==song.id})Pink else Muted);Text(" ${song.likes}",color=Muted,fontSize=13.sp)}
-     TextButton(onClick={m.openSong(song)},contentPadding=PaddingValues(8.dp)){Icon(Icons.AutoMirrored.Rounded.Chat,"댓글",Modifier.size(18.dp),tint=Muted);Text(" ${song.comments}",color=Muted,fontSize=13.sp)}
-     if(song.raw.optString("user_id")!=m.user?.optString("id"))TextButton(onClick={m.openGifts(song)},contentPadding=PaddingValues(8.dp)){Text("선물",fontSize=12.sp)}
-     Box(Modifier.heightIn(min=48.dp).padding(horizontal=8.dp),contentAlignment=Alignment.CenterStart){Text("${song.plays}회 재생",fontSize=11.sp,color=Muted)}
-     SaveMusicButton(song,m,compact=true)
-    }
-    if(song.cover&&song.raw.optInt("duet_open")==1&&song.raw.optString("user_id")!=m.user?.optString("id"))TextButton(onClick={sing(song)}){Text("이 듀엣에 참여하기")}
-    if(song.cover){
-     Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
-      TextButton(onClick={m.openOriginal(song)}){Icon(Icons.Rounded.Album,null,Modifier.size(16.dp));Text("원곡 듣기",fontSize=13.sp,modifier=Modifier.padding(start=5.dp))}
-      m.singable.find{it.id==song.raw.optString("original_id")}?.let{original->TextButton(onClick={sing(original)}){Icon(Icons.Rounded.Mic,null,Modifier.size(16.dp));Text("나도 부르기",fontSize=13.sp,modifier=Modifier.padding(start=5.dp))}}
-     }
-    }else if(song.raw.optInt("accepts_covers")==1)TextButton(onClick={m.openCovers(song)}){Icon(Icons.Rounded.PeopleOutline,null,Modifier.size(16.dp));Text("이 곡의 다른 목소리",fontSize=13.sp,modifier=Modifier.padding(start=6.dp))}
-   }
-}
 @Composable private fun CommunityScreen(m:MusicModel,sing:(Song)->Unit){
  val filter=m.feedFilter
  LazyColumn(Modifier.fillMaxSize(),contentPadding=PaddingValues(22.dp,0.dp,22.dp,26.dp),verticalArrangement=Arrangement.spacedBy(16.dp)){
@@ -328,6 +297,11 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)A
   Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).imePadding().padding(24.dp)){
    Text("취향이 이어지는 곳",fontSize=28.sp,fontWeight=FontWeight.Bold);Text("로그인하고 듣고, 부르고, 함께 나눠요.",color=Muted,fontSize=14.sp,modifier=Modifier.padding(top=8.dp,bottom=22.dp))
    if("google" in m.providers)BrandButton(onClick={social("google")},enabled=!m.busy,colors=ButtonDefaults.buttonColors(containerColor=Color.White,contentColor=Color(0xFF1F1F1F)),modifier=Modifier.fillMaxWidth().height(52.dp)){Text("Google로 계속하기",fontSize=15.sp)}
+   if("google" in m.providers){
+    if(BuildConfig.DEBUG&&BuildConfig.APPLICATION_ID.endsWith(".test"))Text("브라우저에서 Google 인증을 마친 뒤 왼쪽 위 닫기(X)를 눌러 테스트 앱으로 돌아오세요.",fontSize=12.sp,color=Muted,modifier=Modifier.padding(top=8.dp).testTag("browser-login-help"))
+    else TextButton(onClick={social("google-browser")},enabled=!m.busy){Text("Google 로그인이 안 되나요? 브라우저로 로그인",fontSize=12.sp)}
+   }
+   if(m.browserLoginPending)OutlinedButton(onClick={m.finishLogin(reportPending=true)},modifier=Modifier.fillMaxWidth().padding(top=8.dp).testTag("browser-login-check")){Text("로그인 완료 확인")}
    if("kakao" in m.providers)BrandButton(onClick={social("kakao")},enabled=!m.busy,colors=ButtonDefaults.buttonColors(containerColor=Color(0xFFFEE500),contentColor=Color.Black),modifier=Modifier.fillMaxWidth().padding(top=10.dp).height(52.dp)){Icon(Icons.Rounded.ChatBubble,null,Modifier.size(18.dp));Text("카카오로 계속하기",Modifier.padding(start=8.dp),fontSize=15.sp)}
    if("apple" in m.providers)OutlinedButton(onClick={social("apple")},enabled=!m.busy,modifier=Modifier.fillMaxWidth().padding(top=10.dp).height(52.dp)){Text("Apple로 계속하기",fontSize=15.sp)}
    if(m.providers.isNotEmpty())Text("카카오톡 미설치 시와 Apple 로그인은 인증 화면을 거쳐 앱으로 돌아와요.",color=Muted,fontSize=12.sp,modifier=Modifier.padding(top=9.dp,bottom=22.dp))

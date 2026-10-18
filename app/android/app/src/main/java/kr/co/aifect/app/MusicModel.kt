@@ -114,6 +114,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
  var karaokeChart by mutableStateOf(false)
  var history by mutableStateOf<List<Song>>(emptyList())
  var showLogin by mutableStateOf(false)
+ var browserLoginPending by mutableStateOf(NativeSession.get(app,"ticket").isNotBlank())
  var showAccount by mutableStateOf(false)
  var showAccountSettings by mutableStateOf(false)
  var showRecordingDrafts by mutableStateOf(false)
@@ -604,7 +605,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
    // Local logout must finish even when the server cannot revoke this session.
    NativeSession.put(getApplication(),"cookie","");NativeSession.put(getApplication(),"ticket","");NativeSession.put(getApplication(),"verifier","")
    api.clearGoogleBinding();api.invalidateReads()
-   user=null;membership=JSONObject();closePlayer();showLogin=false;showAccount=false
+   browserLoginPending=false;user=null;membership=JSONObject();closePlayer();showLogin=false;showAccount=false
    runCatching{androidx.credentials.CredentialManager.create(getApplication()).clearCredentialState(androidx.credentials.ClearCredentialStateRequest())}
    if(BuildConfig.KAKAO_NATIVE_KEY.isNotBlank())runCatching{com.kakao.sdk.user.UserApiClient.instance.logout{}}
   }
@@ -618,6 +619,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
    val body=if(provider=="google")payload("credential" to token) else payload("accessToken" to token)
    api.call("/api/auth/$provider/token","POST",body)
    NativeSession.put(getApplication(),"ticket","");NativeSession.put(getApplication(),"verifier","")
+   browserLoginPending=false
    closePlayer();loadMe();showLogin=false;notice="반가워요, ${user?.optString("name")}님!"
   }catch(_:SignInCancelled) { /* Explicit cancellation is not an error. */ }
   catch(e:ApiException){throw e}
@@ -625,15 +627,20 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   catch(_:Exception){notice="계정 인증을 완료하지 못했어요. 다시 시도해주세요."}
   finally{api.clearGoogleBinding()}
  }
- fun socialLogin(open:(String)->Unit)=action {
+ fun socialLogin(provider:String="apple",open:(String)->Unit)=action {
+  require(provider in listOf("google","apple")){"지원하지 않는 로그인 방식이에요."}
   val bytes=ByteArray(48);SecureRandom().nextBytes(bytes)
   val verifier=Base64.encodeToString(bytes,Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP)
   val challenge=MessageDigest.getInstance("SHA-256").digest(verifier.toByteArray()).joinToString(""){"%02x".format(it)}
   val result=api.call("/api/auth/mobile/start","POST",payload("challenge" to challenge))
+  val target=Uri.parse(result.getString("url"))
+  require(target.toString().startsWith(Endpoint.origin+"/api/auth/mobile/browser?")&&target.getQueryParameter("ticket")==result.getString("ticket")){"로그인 주소를 확인하지 못했어요."}
   NativeSession.put(getApplication(),"verifier",verifier);NativeSession.put(getApplication(),"ticket",result.getString("ticket"))
-  open(result.getString("url")+"&provider=apple")
+  browserLoginPending=true
+  try{open(target.buildUpon().appendQueryParameter("provider",provider).build().toString())}
+  catch(e:Exception){browserLoginPending=false;NativeSession.put(getApplication(),"ticket","");NativeSession.put(getApplication(),"verifier","");throw e}
  }
- fun finishLogin(uri:Uri?=null){
+ fun finishLogin(uri:Uri?=null,reportPending:Boolean=false){
   val ticket=NativeSession.get(getApplication(),"ticket");val verifier=NativeSession.get(getApplication(),"verifier")
   if(ticket.isBlank()||verifier.isBlank()||authJob?.isActive==true)return
   if(uri!=null && (uri.scheme!="kr.co.aifect.app"||uri.host!="auth"||uri.getQueryParameter("ticket")!=ticket))return
@@ -641,11 +648,11 @@ class MusicModel(app:Application):AndroidViewModel(app) {
    try {
     api.call("/api/auth/mobile/exchange","POST",payload("ticket" to ticket,"verifier" to verifier))
     NativeSession.put(getApplication(),"ticket","");NativeSession.put(getApplication(),"verifier","")
-    closePlayer();loadMe();showLogin=false;notice="로그인했어요. 이제 전체곡을 즐겨보세요."
+    browserLoginPending=false;closePlayer();loadMe();showLogin=false;notice="로그인했어요. 이제 전체곡을 즐겨보세요."
    }catch(e:Exception){
-    if(e is ApiException && e.status==409)return@launch
-    if(e is ApiException && e.status in listOf(400,401)){NativeSession.put(getApplication(),"ticket","");NativeSession.put(getApplication(),"verifier","")}
-    if(uri!=null)failure(e)
+    if(e is ApiException && e.status==409){if(reportPending)notice="브라우저에서 로그인을 마친 뒤 돌아와주세요.";return@launch}
+    if(e is ApiException && e.status in listOf(400,401)){browserLoginPending=false;NativeSession.put(getApplication(),"ticket","");NativeSession.put(getApplication(),"verifier","")}
+    if(uri!=null||reportPending)failure(e)
    }
   }
  }

@@ -40,39 +40,40 @@ import org.json.JSONObject
  val crews=m.communityCrewMode
  val initialCrew=m.communityCrewTarget
  var invitations by rememberSaveable(m.user?.optString("id")){mutableStateOf(false)}
- val label=if(crews)"크루" else when(m.feedFilter){"전체"->"추천";"커버곡"->"커버";else->m.feedFilter}
+ var filters by remember{mutableStateOf(false)}
+ val selected=if(crews)"크루" else if(m.feedFilter=="팔로잉")"팔로잉" else "추천"
  LaunchedEffect(m.user?.optString("id"),crews){if(!crews)m.community(m.feedFilter)}
  Column(Modifier.fillMaxSize()){
-  if(crews){  Column(Modifier.padding(horizontal=20.dp)){
-   Chips(listOf("추천","커버","듀엣","크루","팔로잉"),label){chosen->
-    m.communityCrewMode=chosen=="크루";m.communityCrewTarget=null;m.crewBrowsing=false;invitations=false
-    if(chosen!="크루")m.community(when(chosen){"추천"->"전체";"커버"->"커버곡";else->chosen})
-    if(chosen=="듀엣")m.loadDuets()
+  Row(Modifier.fillMaxWidth().padding(horizontal=12.dp).heightIn(min=50.dp),verticalAlignment=Alignment.CenterVertically){
+   listOf("추천","팔로잉","크루").forEach{label->
+    val active=selected==label
+    Column(Modifier.weight(1f).selectable(active,role=Role.Tab,onClick={
+     m.communityCrewMode=label=="크루";m.communityCrewTarget=null;m.crewBrowsing=false;invitations=false
+     if(label!="크루")m.community(if(label=="팔로잉")"팔로잉" else "전체")
+    }).heightIn(min=48.dp).testTag("community-tab-$label"),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){
+     Text(label,fontSize=14.sp,fontWeight=if(active)FontWeight.Bold else FontWeight.Normal,color=if(active)Pink else Muted,modifier=Modifier.padding(vertical=12.dp))
+     Box(Modifier.fillMaxWidth(.85f).height(2.dp).background(if(active)StreamPink else Color.Transparent))
+    }
    }
+   if(!crews)IconButton(onClick={filters=true},modifier=Modifier.testTag("community-filter")){Icon(Icons.Rounded.Tune,"음악 종류 선택",tint=Muted,modifier=Modifier.size(21.dp))}
   }
-CrewScreen(m,sing,initialCrew);return}
+  if(crews){CrewScreen(m,sing,initialCrew);return}
   val tracks=if(invitations)m.duetInvitations else m.feed
-  LazyColumn(Modifier.fillMaxSize().testTag("music-community-feed"),contentPadding=PaddingValues(20.dp),verticalArrangement=Arrangement.spacedBy(16.dp)){
-   item{WebMusicBanner("커뮤니티","좋은 음악을 듣고, 담고, 함께 만들어가요.");  Column(Modifier.padding(horizontal=20.dp)){
-   Chips(listOf("추천","커버","듀엣","크루","팔로잉"),label){chosen->
-    m.communityCrewMode=chosen=="크루";m.communityCrewTarget=null;m.crewBrowsing=false;invitations=false
-    if(chosen!="크루")m.community(when(chosen){"추천"->"전체";"커버"->"커버곡";else->chosen})
-    if(chosen=="듀엣")m.loadDuets()
-   }
-  }
-}
-   if(m.feedFilter=="듀엣")item{Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
+  LazyColumn(Modifier.fillMaxSize().testTag("music-community-feed"),contentPadding=PaddingValues(horizontal=14.dp,vertical=6.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
+   if(m.feedFilter !in listOf("전체","팔로잉"))item{Text(if(m.feedFilter=="커버곡")"커버 음악" else m.feedFilter,fontSize=12.sp,color=Pink)}
+   if(m.feedFilter=="듀엣")item{FlowRow(horizontalArrangement=Arrangement.spacedBy(8.dp)){
     FilterChip(!invitations,{invitations=false},label={Text("듀엣 감상")},colors=neutralChipColors(),border=neutralChipBorder(!invitations))
     FilterChip(invitations,{invitations=true;m.loadDuets()},label={Text("참여를 기다리는 듀엣")},colors=neutralChipColors(),border=neutralChipBorder(invitations))
    }}
    if(m.feedLoading&&!invitations)item{LinearProgressIndicator(Modifier.fillMaxWidth())}
    (if(invitations)m.duetError else m.feedError)?.let{error->item{Text(error,color=Pink);TextButton(onClick={if(invitations)m.loadDuets() else m.community(m.feedFilter,refresh=true)}){Text("다시 불러오기")}}}
-   if(m.feedFilter=="전체"){
-    items(tracks.distinctBy{it.id},key={"feed-"+it.id}){CommunityCard(it,m,tracks,sing)}
-    item{CommunityCrewPreview(m){id->m.communityCrewTarget=id;m.communityCrewMode=true;m.crewBrowsing=false}}
-   }else items(tracks,key={it.id}){song->CommunityCard(song,m,tracks,sing)}
-   if(tracks.isEmpty()&&!m.feedLoading&&m.feedError==null)item{Empty("아직 이곳에 공개된 음악이 없어요","다른 탭에서 음악을 발견하거나 첫 목소리를 들려주세요.")}
+   items(tracks.distinctBy{it.id},key={"feed-"+it.id}){CommunityCard(it,m,tracks,sing)}
+   if(m.feedFilter=="전체")item{CommunityCrewPreview(m){id->m.communityCrewTarget=id;m.communityCrewMode=true;m.crewBrowsing=false}}
+   if(tracks.isEmpty()&&!m.feedLoading&&(if(invitations)m.duetError else m.feedError)==null)item{Empty("아직 이곳에 공개된 음악이 없어요","다른 탭에서 음악을 발견하거나 첫 목소리를 들려주세요.")}
   }
+ }
+ AppMenuPage("음악 종류",filters,{filters=false}){
+  listOf("전체","커버곡","듀엣","제작곡").forEach{value->PageMenuItem(text={Text(if(value=="전체")"전체 음악" else value)},onClick={filters=false;invitations=false;m.community(value);if(value=="듀엣")m.loadDuets()})}
  }
 }
 
