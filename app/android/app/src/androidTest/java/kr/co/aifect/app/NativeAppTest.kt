@@ -198,7 +198,7 @@ class NativeAppTest {
   }}catch(_:IOException){} } }catch(e:Exception){if(!server.isClosed)throw e} }
   screen=ActivityScenario.launch(Intent(context,MainActivity::class.java).putExtra("testOrigin","http://127.0.0.1:${server.localPort}"))
   screen.onActivity { it.window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) }
-  waitText("바로 듣기")
+  ui.waitUntil(30_000){ui.onAllNodesWithTag("home-featured-play").fetchSemanticsNodes().isNotEmpty()}
  }
  @After fun tearDown(){
   heldResponses.values.forEach{it.countDown()}
@@ -925,8 +925,8 @@ class NativeAppTest {
   fun response(bitrate:Int,pending:Boolean=false,preview:Boolean=false)=payload("id" to "quality-listen-$bitrate-$pending-$preview","src" to "/media/fixture/${if(preview)"preview" else if(bitrate==256)"premium" else "stream"}","duration" to 30,"preview" to preview,"bitrate_kbps" to bitrate,"high_quality_pending" to pending)
   fun assertQuality(bitrate:Int,label:String){
    ui.waitUntil(10000){model.get().playbackQualityLabel==label}
-   ui.onNodeWithTag("mini-player-quality").assertIsDisplayed().assertTextEquals("AAC $bitrate")
-   ui.onNodeWithTag("mini-player-lyrics").performClick()
+   assertEquals(bitrate,model.get().playbackBitrateKbps)
+   ui.onNodeWithTag("mini-player-open").performClick()
    ui.onNodeWithTag("player-quality").assertIsDisplayed().assertTextEquals(label)
   }
   fixtureResponses[path]=200 to response(128,pending=true).toString()
@@ -939,7 +939,7 @@ class NativeAppTest {
   try{
    ui.runOnIdle{model.get().play(Song(song))}
    ui.waitUntil(5000){requested.count==0L&&model.get().current!=null&&model.get().playbackBitrateKbps==0}
-   ui.onAllNodesWithTag("mini-player-quality").assertCountEquals(0)
+   assertNull(model.get().playbackQualityLabel)
    assertEquals("An older song's quality must stay hidden before this request resolves",1L,held.count)
   }finally{held.countDown();heldResponses.remove(path);heldRequests.remove(path)}
   assertQuality(256,"AAC 256kbps")
@@ -955,7 +955,7 @@ class NativeAppTest {
   screen.onActivity{assertTrue(model.get().playbackPreview);assertFalse(model.get().playbackHighQualityPending)}
   ui.onNodeWithContentDescription("재생 종료").performClick()
   ui.waitUntil(5000){model.get().current==null&&model.get().playbackBitrateKbps==0}
-  ui.onAllNodesWithTag("mini-player-quality").assertCountEquals(0)
+  assertNull(model.get().playbackQualityLabel)
  }
  @Test fun communityUploaderPhotosUseTheProducerInsteadOfArtistOrCover(){
   val source=Song(song)

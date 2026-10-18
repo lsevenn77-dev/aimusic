@@ -566,7 +566,12 @@ class MusicModel(app:Application):AndroidViewModel(app) {
  }
  private fun communityPath(filter:String)="/api/community"+when(filter){"커버곡"->"?kind=cover&cover_mode=solo";"듀엣"->"?kind=cover&cover_mode=duet";"제작곡"->"?kind=original";"팔로잉"->"?following=1";else->""}
  fun playAll(tracks:List<Song>,shuffled:Boolean=false){tracks.takeIf{it.isNotEmpty()}?.let{play(if(shuffled)it.random() else it.first(),it,shuffled)}}
+ private var playlistPlayJob:Job?=null
+ private var playlistPlayRequest=0L
+ var playlistPlayLoading by mutableStateOf<String?>(null);private set
+ private fun cancelPlaylistPlay(){playlistPlayRequest++;playlistPlayJob?.cancel();playlistPlayJob=null;playlistPlayLoading=null}
  fun play(song:Song,queue:List<Song> = listOf(song),shuffled:Boolean=false){
+  cancelPlaylistPlay()
   val c=controller?:run {notice="플레이어를 준비하고 있어요.";return}
   songs.putAll(queue.associateBy {it.id});songs[song.id]=song
   val entries=queue.ifEmpty {listOf(song)}.distinctBy {it.id}
@@ -576,13 +581,13 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   SongAdBreaks.finishCurrentListen?.invoke()
   SongAdBreaks.atBoundary({c.pause()}){playerError=null;c.shuffleModeEnabled=shuffled;c.setMediaItems(items,index,0);c.prepare();c.play()}
  }
- fun toggle(){controller?.let {c->
+ fun toggle(){cancelPlaylistPlay();controller?.let {c->
   if(c.isPlaying)c.pause()
   else if(c.playbackState==Player.STATE_ENDED)SongAdBreaks.atBoundary({}){c.seekTo(0);c.play()}
   else {if(c.playbackState==Player.STATE_IDLE)c.prepare();c.play()}
  }}
  fun resetLyrics(){lyricId="";lyric="";lyricRows=emptyList();lyricsAccess="line";lyricUntil=-1.0;lyricFrom=-1.0}
- fun closePlayer(){controller?.stop();controller?.clearMediaItems();current=null;fullPlayer=false;lyricId="";lyricRows=emptyList();playbackBitrateKbps=0;playbackPreview=false;playbackHighQualityPending=false}
+ fun closePlayer(){cancelPlaylistPlay();controller?.stop();controller?.clearMediaItems();current=null;fullPlayer=false;lyricId="";lyricRows=emptyList();playbackBitrateKbps=0;playbackPreview=false;playbackHighQualityPending=false}
  fun login(email:String,password:String,name:String,register:Boolean) = action {
   api.call(if(register)"/api/auth/register" else "/api/auth/login","POST",payload("email" to email.trim(),"password" to password,"name" to name.trim()))
   closePlayer();loadMe();showLogin=false;notice="반가워요, ${user?.optString("name")}님!"
@@ -679,6 +684,19 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   val r=api.call("/api/playlists","POST",payload("name" to name.trim(),"is_public" to public).apply{initialSong?.let{put("track_ids",JSONArray(listOf(it.id)))}});loadLibrary(fresh=true)
   val data=api.call("/api/playlists/${r.getString("id")}",fresh=true);selectedList=data.getJSONObject("playlist");listSongs=data.tracks();onDone()
  }}
+ fun playPlaylist(id:String){
+  cancelPlaylistPlay();val request=playlistPlayRequest;val scope=readScope();playlistPlayLoading=id
+  playlistPlayJob=viewModelScope.launch{
+   try{
+    val tracks=api.call("/api/playlists/$id",fresh=true).tracks();ensureRead(scope)
+    if(request==playlistPlayRequest){
+     playlistPlayJob=null;playlistPlayLoading=null
+     if(tracks.isEmpty())notice="아직 재생할 곡이 없어요." else playAll(tracks)
+    }
+   }catch(e:Exception){if(e is CancellationException)throw e;if(sameAccount(scope)&&request==playlistPlayRequest)failure(e)}
+   finally{if(request==playlistPlayRequest)playlistPlayLoading=null}
+  }
+ }
  fun openList(id:String){
   listJob?.cancel();val request=++listRequest;val scope=readScope();val path="/api/playlists/$id"
   val cached=api.peek(path)

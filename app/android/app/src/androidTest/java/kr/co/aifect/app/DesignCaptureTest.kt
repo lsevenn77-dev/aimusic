@@ -63,6 +63,7 @@ class DesignCaptureTest {
   NativeSession.put(context,"cookie","");NativeSession.put(context,"ticket","")
   responses["/api/me"]=payload("user" to me,"membership" to payload("plan" to "free"),"providers" to JSONArray(),"emailEnabled" to true)
   responses["/api/me/profile"]=payload("profile" to own,"followers" to arr(peer),"follower_count" to 24,"following_count" to 18)
+  responses["/api/me/player"]=payload("player" to payload("level" to 3,"xp" to 180,"remaining" to 120,"progress" to 0.2),"inventory" to JSONArray(),"rewards" to JSONArray(),"rules" to JSONArray())
   responses["/api/library"]=payload("likes" to arr(song,cover),"collections" to arr(playlist),"follows" to arr(payload("target_id" to "design-peer","kind" to "producer","name" to "하루")))
   responses["/api/history"]=payload("tracks" to arr(second,song,cover))
   responses["/api/catalog"]=payload("tracks" to arr(song,second,cover,duet),"producers" to arr(peer,own),"artists" to arr(payload("id" to "design-artist","name" to "NOVA","image_version" to "sample")))
@@ -236,7 +237,7 @@ class DesignCaptureTest {
   ui.onNodeWithTag("listen-scroll").performScrollToNode(hasText("같은 노래, 다른 목소리"));capture("02-home-covers")
   ui.onNodeWithTag("main-tab-3").performClick();ready("music-community-feed");capture("03-community")
   ui.onNodeWithTag("main-tab-2").performClick();ready("sing-scroll");capture("04-sing")
-  ui.onNodeWithTag("sing-scroll").performScrollToNode(hasText("부를 수 있는 곡"));capture("05-sing-songs")
+  ui.onNodeWithTag("sing-scroll").performScrollToNode(hasText("추천 곡"));capture("05-sing-songs")
   act{it.selectTab(1)};ready("search-scroll");capture("06-search")
   act{it.library("플레이리스트")};ready("library-scroll");capture("07-library")
   act{it.openList("design-list")};ui.waitUntil(15000){!model.listLoading&&model.listSongs.isNotEmpty()};capture("08-playlist")
@@ -481,7 +482,7 @@ class DesignCaptureTest {
   ui.onNodeWithContentDescription("다음 곡").assertIsDisplayed();phaseCapture("21-compact-player")
  }
  @Test fun captureProfileAndGiftScreens(){
-  ui.onNodeWithTag("main-tab-6").performClick();ready("music-shortcut-보관함");ui.onNodeWithTag("my-logout").assertIsDisplayed();capture("19-my-profile")
+  ui.onNodeWithTag("main-tab-6").performClick();ready("music-shortcut-보관함");ui.onNodeWithTag("account-menu").assertIsDisplayed();capture("19-my-profile")
   ui.onNodeWithText("내 활동").performClick();ui.onNodeWithTag("my-music-page").performScrollToNode(hasTestTag("my-music-layout-grid"));capture("20-my-music")
   act{it.openProfile("design-peer")};ui.waitUntil(15000){!model.profileLoading&&model.profile!=null};ready("profile-close");capture("21-public-profile")
   ui.onNodeWithTag("profile-scroll").performScrollToNode(hasTestTag("profile-gift"));ui.onNodeWithTag("profile-gift").performClick();text("하루(밤산책)님에게 선물");capture("22-person-gift")
@@ -497,7 +498,7 @@ class DesignCaptureTest {
  private fun phaseCapture(name:String){
   ui.waitForIdle();instrumentation.waitForIdleSync();Thread.sleep(500)
   val image=instrumentation.uiAutomation.takeScreenshot()
-  val dir=File(context.getExternalFilesDir(null),"streaming-first").apply{mkdirs()}
+  val dir=File(context.getExternalFilesDir(null),"streaming-visual-refinement").apply{mkdirs()}
   FileOutputStream(File(dir,"$name.png")).use{image.compress(Bitmap.CompressFormat.PNG,100,it)};image.recycle()
  }
  @Test fun streamingHomeTabsPlayAndRestoreDiscovery(){
@@ -633,8 +634,8 @@ class DesignCaptureTest {
   val monitor=instrumentation.addMonitor(kr.co.aifect.app.karaoke.KaraokeActivity::class.java.name,null,false)
   var room:android.app.Activity?=null
   try{
-   act{it.selectTab(2)};ui.onNodeWithText("녹음 이어 하기").performClick();ready("draft-design-song")
-   ui.onNodeWithText("이어 편집").performClick();room=instrumentation.waitForMonitorWithTimeout(monitor,15000)
+   act{it.selectTab(2)};ready("draft-preview");text("이어 부를 초안");phaseCapture("23-draft-preview")
+   ui.onNodeWithTag("draft-preview").performClick();room=instrumentation.waitForMonitorWithTimeout(monitor,15000)
    assertNotNull(room);assertTrue(room!!.intent.getBooleanExtra("resumeDraft",false));assertEquals(dir.name,room!!.intent.getStringExtra("draftFolder"))
    val deadline=System.nanoTime()+TimeUnit.SECONDS.toNanos(30)
    while(true){try{androidx.test.espresso.Espresso.onView(androidx.test.espresso.matcher.ViewMatchers.withTagValue(org.hamcrest.Matchers.`is`("recording-post"))).check(androidx.test.espresso.assertion.ViewAssertions.matches(androidx.test.espresso.matcher.ViewMatchers.isDisplayed()));break}catch(e:Throwable){if(System.nanoTime()>deadline)throw e;Thread.sleep(100)}}
@@ -646,6 +647,31 @@ class DesignCaptureTest {
    // Only files created by this isolated fixture are removed.
    dir.listFiles()?.forEach{it.delete()};dir.delete()
   }
+ }
+
+ @Test fun streamingMyPlaylistPlaysActualQueueAndHandlesEmpty(){
+  ui.onNodeWithTag("main-tab-6").performClick();ready("my-music-page")
+  ui.onNodeWithTag("my-music-page").performScrollToNode(hasTestTag("playlist-play-design-list"))
+  ui.onNodeWithTag("playlist-play-design-list").performClick()
+  ui.waitUntil(15000){model.playing&&model.current?.id=="design-song"&&!model.busy}
+  ui.runOnIdle{assertEquals(4,model.controller!!.mediaItemCount)};assertNull(model.selectedList)
+  ui.onNodeWithContentDescription("다음 곡").performClick();ui.waitUntil(10000){model.current?.id=="design-ocean"}
+  responses["/api/playlists/design-list"]=payload("playlist" to playlist,"tracks" to JSONArray())
+  ui.onNodeWithTag("playlist-play-design-list").performClick();text("아직 재생할 곡이 없어요.")
+  assertEquals("design-ocean",model.current?.id)
+ }
+
+ @Test fun streamingDelayedPlaylistCannotReplaceANewerSong(){
+  val path="/api/playlists/design-list";val gate=CountDownLatch(1)
+  heldResponses[path]=gate;heldRequests[path]=CountDownLatch(1)
+  try{
+   act{it.playPlaylist("design-list")}
+   ui.waitUntil(5000){heldRequests.getValue(path).count==0L&&model.playlistPlayLoading=="design-list"}
+   act{it.play(Song(second),listOf(Song(second)))}
+   gate.countDown();heldResponses.remove(path)
+   ui.waitUntil(15000){model.playing&&model.current?.id=="design-ocean"}
+   assertNull(model.playlistPlayLoading);ui.runOnIdle{assertEquals(1,model.controller!!.mediaItemCount)}
+  }finally{gate.countDown();heldResponses.clear();heldRequests.clear()}
  }
 
 }

@@ -15,6 +15,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -126,12 +129,11 @@ CrewScreen(m,sing,initialCrew);return}
 }
 
 @Composable internal fun MyMusicScreen(m:MusicModel,browser:(String)->Unit){
+ val compactType=androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp<360||androidx.compose.ui.platform.LocalDensity.current.fontScale>1.15f
  var area by rememberSaveable{mutableStateOf("내 음악")}
  var tab by rememberSaveable{mutableStateOf("전체")}
  var grid by rememberSaveable{mutableStateOf(true)}
  val columns=musicGalleryColumns()
- var confirmLogout by remember{mutableStateOf(false)}
- if(confirmLogout)AlertDialog(onDismissRequest={confirmLogout=false},title={Text("로그아웃할까요?")},text={Text("이 기기에서 계정 연결이 해제돼요.")},confirmButton={TextButton(onClick={confirmLogout=false;m.logout()}){Text("로그아웃")}},dismissButton={TextButton(onClick={confirmLogout=false}){Text("취소")}})
  LaunchedEffect(m.user?.optString("id")){if(m.user!=null){m.loadStudio();m.refreshLibrary()}}
  val p=JSONObject((m.ownProfile.optJSONObject("profile")?:JSONObject()).toString()).apply{
   if(optString("name").isBlank())put("name",m.user?.optString("name"))
@@ -141,40 +143,48 @@ CrewScreen(m,sing,initialCrew);return}
  }
  val published=m.myTracks.filter{it.raw.optString("status")=="published"}.distinctBy{it.id}
  val tracks=published.filter{when(tab){"제작곡"->!it.cover;"커버"->it.cover;"듀엣"->it.cover&&it.raw.optString("cover_mode")=="duet";else->true}}
- LazyColumn(Modifier.fillMaxSize().testTag("my-music-page"),contentPadding=PaddingValues(16.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
+ LazyColumn(Modifier.fillMaxSize().testTag("my-music-page"),contentPadding=PaddingValues(horizontal=14.dp,vertical=8.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
   item{
-   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Text("마이",fontSize=26.sp,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f));if(m.user!=null)TextButton(onClick={confirmLogout=true},enabled=!m.busy,colors=ButtonDefaults.textButtonColors(contentColor=Muted),modifier=Modifier.testTag("my-logout")){Text("로그아웃",fontSize=12.sp)}}
-   Spacer(Modifier.height(12.dp))
    if(m.user==null){Empty("음악을 듣기만 해도 좋아요","로그인하면 플레이리스트와 나의 활동을 모아둘 수 있어요.");BrandButton(onClick={m.showLogin=true}){Text("로그인")}}
    else {
-    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).musicSurface(feature=true).padding(16.dp),verticalAlignment=Alignment.CenterVertically){
-     Box(Modifier.clickable{m.editProfile()}){Avatar(p.optString("name"),p,56)}
-     Column(Modifier.weight(1f).padding(start=14.dp)){
-      Text(p.optString("display_name",p.optString("name")),fontSize=20.sp,fontWeight=FontWeight.Bold,maxLines=2,overflow=TextOverflow.Ellipsis)
-      FlowRow{TextButton(onClick={m.library("팔로워")},contentPadding=PaddingValues(end=10.dp)){Text("팔로워 ${m.ownProfile.optInt("follower_count")}",fontSize=12.sp,maxLines=1)};TextButton(onClick={m.library("팔로잉")},contentPadding=PaddingValues(0.dp)){Text("팔로잉 ${m.ownProfile.optInt("following_count")}",fontSize=12.sp,maxLines=1)}}
+    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
+     Box(Modifier.padding(6.dp).clickable{m.editProfile()}){Avatar(p.optString("name"),p,64)}
+     Column(Modifier.weight(1f).padding(start=12.dp)){
+      Text(p.optString("display_name",p.optString("name")).ifBlank{p.optString("name")},fontSize=19.sp,fontWeight=FontWeight.Bold,maxLines=2,overflow=TextOverflow.Ellipsis)
+      Text("나의 음악 공간",fontSize=12.sp,lineHeight=17.sp,color=Muted,modifier=Modifier.padding(top=4.dp))
+      if(compactType)TextButton(onClick={p.optString("id").takeIf{it.isNotBlank()}?.let{m.openProfile(it,seed=p)}},contentPadding=PaddingValues(0.dp)){Text("프로필 보기",fontSize=11.sp,color=Pink)}
      }
-     IconButton(onClick={m.editProfile()}){Icon(Icons.Rounded.Edit,"프로필 수정",tint=Muted)}
+     if(!compactType)TextButton(onClick={p.optString("id").takeIf{it.isNotBlank()}?.let{m.openProfile(it,seed=p)}},contentPadding=PaddingValues(horizontal=6.dp)){
+      Text("프로필 보기",fontSize=11.sp,color=Pink,modifier=Modifier.border(1.dp,StreamPurple.copy(alpha=.55f),RoundedCornerShape(50)).padding(horizontal=9.dp,vertical=5.dp))
+     }
     }
-    Row(Modifier.padding(top=8.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)){
-     TextButton(onClick={p.optString("id").takeIf{it.isNotBlank()}?.let{m.openProfile(it,seed=p)}}){Text("내 공개 페이지")}
-     TextButton(onClick={m.showAccount=true}){Text("계정 설정")}
+    Row(Modifier.fillMaxWidth().padding(top=5.dp,bottom=8.dp)){
+     listOf(Triple("팔로워",m.ownProfile.optInt("follower_count"),{m.library("팔로워")}),Triple("팔로잉",m.ownProfile.optInt("following_count"),{m.library("팔로잉")}),Triple("공개곡",published.size,{area="내 활동"})).forEach{(label,count,click)->
+      Column(Modifier.weight(1f).clickable(onClick=click).heightIn(min=48.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){Text(count.toString(),fontSize=17.sp,fontWeight=FontWeight.SemiBold);Text(label,fontSize=11.sp,color=Muted)}
+     }
     }
-    Chips(listOf("내 음악","내 활동"),area){area=it}
+    PlayerHomePanel(m,compact=true)
+    Row(Modifier.fillMaxWidth().padding(top=10.dp).clip(RoundedCornerShape(50)).background(StreamPanel).border(1.dp,StreamBorder,RoundedCornerShape(50))){
+     listOf("내 음악","내 활동").forEach{label->val selected=area==label
+      Box(Modifier.weight(1f).selectable(selected,role=Role.Tab,onClick={area=label}).heightIn(min=44.dp).clip(RoundedCornerShape(50)).then(if(selected)Modifier.background(Brush.verticalGradient(listOf(StreamPurple.copy(alpha=.24f),Ink))).border(1.dp,StreamPurple.copy(alpha=.5f),RoundedCornerShape(50))else Modifier),contentAlignment=Alignment.Center){Text(label,fontSize=13.sp,color=if(selected)Pink else Muted,fontWeight=FontWeight.SemiBold)}
+     }
+    }
    }
   }
   if(m.user!=null&&area=="내 음악"){
    item{MusicLibraryShortcuts(m)}
-   item{MusicEntry("창작자 스튜디오","내 작업 · 업로드한 음악 관리",Icons.Rounded.Tune){m.openStudio()}}
-   item{Section("내 플레이리스트",action="모두 보기",onAction={m.library("플레이리스트")})}
-   items(m.playlists.take(3),key={it.getString("id")}){PlaylistRow(it,m)}
+   item{Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
+    Box(Modifier.weight(1f)){MyWorkShortcut("내 작업","창작자 스튜디오",Icons.Rounded.Mic,StreamPurple){m.openStudio()}}
+    Box(Modifier.weight(1f)){MyWorkShortcut("내 초안","녹음 이어 하기",Icons.Rounded.Edit,StreamCyan){m.showRecordingDrafts=true}}
+   }}
+   item{StreamingSection("내 플레이리스트",action="전체 보기",onAction={m.library("플레이리스트")})}
+   items(m.playlists.take(3),key={it.getString("id")}){StreamingPlaylistRow(it,m)}
    if(m.playlists.isEmpty())item{MusicEntry("첫 플레이리스트 만들기","좋아하는 음악을 하나씩 모아보세요",Icons.AutoMirrored.Rounded.QueueMusic){m.library("플레이리스트")}}
-   item{Section("최근 감상",action="모두 보기",onAction={m.library("최근 감상")})}
+   item{StreamingSection("최근 감상",action="전체 보기",onAction={m.library("최근 감상")})}
    items(m.history.take(4),key={it.id}){StreamingSongRow(it,m,m.history)}
    if(m.history.isEmpty())item{Text("음악을 들으면 최근 감상에 모여요.",color=Muted,fontSize=13.sp);TextButton(onClick={m.selectTab(0)}){Text("음악 들으러 가기")}}
-   item{MusicEntry("녹음 이어 하기","이 기기에 저장한 초안",Icons.Rounded.Edit){m.showRecordingDrafts=true}}
   }
   if(m.user!=null&&area=="내 활동"){
-   item{PlayerHomePanel(m)}
    item{MyWalletPanel(m)}
    item{NotificationEntry(m)}
    item{

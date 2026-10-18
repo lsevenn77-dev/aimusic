@@ -1,5 +1,7 @@
 # AIFECT Android 스트리밍 UI 1차 검토본
 
+> 이후 재제공 시안에 맞춘 수정과 휴대폰 설치 결과는 [VISUAL_REVISION.md](VISUAL_REVISION.md)에 기록했다. 아래는 최초 1차 구현 시점의 검증 기록이다.
+
 작성: 2026-10-18. 승인 시안과 `IMPLEMENTATION_BRIEF.md`를 읽고 **기존 Kotlin / Jetpack Compose 앱**에 적용했다. Media3 재생 서비스와 기존 API를 재사용한다. 별도 데모 앱이나 웹 전체 리디자인은 만들지 않았다.
 
 ## 작업 기준

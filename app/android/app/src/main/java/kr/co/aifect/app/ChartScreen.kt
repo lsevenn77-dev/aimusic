@@ -45,9 +45,9 @@ import kotlinx.coroutines.CancellationException
  var previousPath by rememberSaveable{mutableStateOf(path)}
  LaunchedEffect(path){if(previousPath!=path){state.scrollToItem(0);previousPath=path}}
  Box(Modifier.fillMaxSize().testTag("chart-popular")){
- LazyColumn(Modifier.fillMaxSize().testTag("listen-scroll"),state=state,contentPadding=PaddingValues(18.dp,16.dp,18.dp,28.dp)){
+ LazyColumn(Modifier.fillMaxSize().testTag("listen-scroll"),state=state,contentPadding=PaddingValues(14.dp,12.dp,14.dp,24.dp)){
   item{
-   Text("인기 차트",fontSize=22.sp,fontWeight=FontWeight.Bold)
+   Text("인기 차트",fontSize=18.sp,fontWeight=FontWeight.Bold)
    ChartTabs(categories,category,"chart-category"){key->if(key=="karaoke")m.openRanking("week",chart=true)else category=key}
    if(category=="top")ChartTabs(periods,period,"chart-period"){period=it}
    Text(if(category=="top")"${periods.first{it.first==period}.second} · 한국 시간 기준 · 어제 집계 대비" else categories.first{it.first==category}.second,fontSize=12.sp,color=Muted,modifier=Modifier.padding(top=18.dp,bottom=8.dp))
@@ -75,7 +75,7 @@ import kotlinx.coroutines.CancellationException
 @Composable private fun ChartTabs(options:List<Pair<String,String>>,selected:String,tag:String,onSelect:(String)->Unit){
  Column{
   LazyRow(horizontalArrangement=Arrangement.spacedBy(22.dp)){
-   items(options){(key,label)->Column(Modifier.testTag("$tag-$key").clickable{onSelect(key)}.padding(top=20.dp),horizontalAlignment=Alignment.CenterHorizontally){
+   items(options){(key,label)->Column(Modifier.testTag("$tag-$key").clickable{onSelect(key)}.heightIn(min=48.dp).padding(top=12.dp),horizontalAlignment=Alignment.CenterHorizontally){
     Text(label,fontSize=14.sp,fontWeight=FontWeight.SemiBold,color=if(key==selected)Pink else Muted,modifier=Modifier.padding(bottom=14.dp))
     Box(Modifier.width(30.dp).height(2.dp).background(if(key==selected)Pink else Color.Transparent))
    }}
@@ -88,7 +88,7 @@ import kotlinx.coroutines.CancellationException
  val shape=RoundedCornerShape(topStart=if(first)12.dp else 0.dp,topEnd=if(first)12.dp else 0.dp,bottomStart=if(last)12.dp else 0.dp,bottomEnd=if(last)12.dp else 0.dp)
  val active=m.current?.id==song.id
  Column(Modifier.fillMaxWidth().clip(shape).background(if(active)Violet.copy(alpha=.14f)else Panel.copy(alpha=.55f))){
-  Row(Modifier.fillMaxWidth().testTag("chart-song-${song.id}").clickable{m.openSong(song)}.padding(start=8.dp,end=2.dp,top=12.dp,bottom=12.dp),verticalAlignment=Alignment.CenterVertically){
+  Row(Modifier.fillMaxWidth().testTag("chart-song-${song.id}").clickable{m.openSong(song)}.padding(start=5.dp,end=0.dp,top=5.dp,bottom=5.dp),verticalAlignment=Alignment.CenterVertically){
    if(rank!=null)Column(Modifier.width(26.dp),horizontalAlignment=Alignment.CenterHorizontally){
     Text("$rank",fontWeight=FontWeight.Bold,fontSize=14.sp)
     if(movement){
@@ -103,13 +103,13 @@ import kotlinx.coroutines.CancellationException
     Text(song.title,fontSize=14.sp,lineHeight=19.sp,fontWeight=FontWeight.SemiBold,style=MaterialTheme.typography.bodyMedium.copy(lineBreak=LineBreak.Paragraph),modifier=Modifier.testTag("music-title-${song.id}"))
     Text(song.credit,fontSize=12.sp,lineHeight=16.sp,color=Muted,modifier=Modifier.padding(top=4.dp))
    }
-   IconButton(onClick={m.like(song)},modifier=Modifier.size(36.dp)){
+   IconButton(onClick={m.like(song)},modifier=Modifier.size(48.dp)){
     Icon(if(m.likes.any{it.id==song.id})Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,"${song.title} 좋아요",Modifier.size(19.dp),tint=if(m.likes.any{it.id==song.id})Pink else Muted)
    }
-   IconButton(onClick={m.play(song,queue)},modifier=Modifier.size(40.dp)){
+   IconButton(onClick={m.play(song,queue)},modifier=Modifier.size(48.dp)){
     Box(Modifier.size(30.dp).background(BrandGradient,CircleShape),contentAlignment=Alignment.Center){Icon(Icons.Rounded.PlayArrow,"${song.title} 재생",Modifier.size(20.dp),tint=Ink)}
    }
-   TrackActionsMenu(song,m,Modifier.size(34.dp))
+   TrackActionsMenu(song,m,Modifier.size(48.dp))
   }
   if(!last)HorizontalDivider(color=Stroke)
  }

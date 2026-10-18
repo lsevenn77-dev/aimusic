@@ -5,6 +5,8 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
 import androidx.compose.foundation.shape.*
@@ -79,24 +81,30 @@ private val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=C
   Scaffold(containerColor=Ink,snackbarHost={SnackbarHost(snack)},bottomBar={
    if(!keyboardVisible&&!m.studioEditing)Column {
     AnimatedVisibility(m.current!=null&&m.visibleChatCount==0){m.current?.let {MiniPlayer(m,it)}}
-    HorizontalDivider(color=Stroke.copy(alpha=.65f))
-    NavigationBar(containerColor=Ink,tonalElevation=0.dp){
-     listOf(Triple(0,"홈",Icons.Outlined.Home),Triple(3,"커뮤니티",Icons.Outlined.PeopleOutline),Triple(2,"부르기",Icons.Outlined.MicNone),Triple(5,"메시지",Icons.Outlined.ChatBubbleOutline),Triple(6,"마이",Icons.Outlined.PersonOutline)).forEach {(i,name,icon)->
-      NavigationBarItem(selected=m.tab==i||(m.tab==4&&i==6),onClick={m.selectTab(i)},modifier=Modifier.testTag("main-tab-$i"),icon={BadgedBox(badge={if(i==5&&m.unreadMessages>0)Badge{Text(if(m.unreadMessages>99)"99+" else m.unreadMessages.toString())}}){Icon(icon,name)}},label={Text(if(compactNavLabels&&i==3)"커뮤" else name,fontSize=12.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis)},colors=NavigationBarItemDefaults.colors(selectedIconColor=if(i==2)Pink else Aqua,selectedTextColor=MaterialTheme.colorScheme.onSurface,indicatorColor=Raised,unselectedIconColor=Muted,unselectedTextColor=Muted))
+    Row(Modifier.fillMaxWidth().background(Ink).navigationBarsPadding().heightIn(min=60.dp),verticalAlignment=Alignment.CenterVertically){
+     listOf(Triple(0,"홈",Icons.Outlined.Home),Triple(3,"커뮤니티",Icons.Outlined.PeopleOutline),Triple(2,"부르기",Icons.Outlined.MicNone),Triple(5,"메시지",Icons.Outlined.ChatBubbleOutline),Triple(6,"마이",Icons.Outlined.PersonOutline)).forEach{(i,name,icon)->
+      val selected=m.tab==i||(m.tab==4&&i==m.libraryReturnTab)
+      Column(Modifier.weight(1f).selectable(selected=selected,role=Role.Tab,onClick={m.selectTab(i)}).testTag("main-tab-$i").heightIn(min=60.dp).padding(vertical=5.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){
+       Box(Modifier.size(30.dp).background(Brush.radialGradient(listOf(if(selected)StreamPurple.copy(alpha=.28f)else Color.Transparent,Color.Transparent))),contentAlignment=Alignment.Center){
+        BadgedBox(badge={if(i==5&&m.unreadMessages>0)Badge(containerColor=StreamPurple,contentColor=Ink){Text(if(m.unreadMessages>99)"99+" else m.unreadMessages.toString(),fontSize=9.sp)}}){Icon(icon,name,Modifier.size(22.dp),tint=if(selected)StreamPurple else Muted)}
+       }
+       Text(if(compactNavLabels&&i==3)"커뮤" else name,fontSize=11.sp,lineHeight=15.sp,fontWeight=if(selected)FontWeight.Bold else FontWeight.Normal,color=if(selected)Pink else Muted,maxLines=1,overflow=TextOverflow.Ellipsis)
+      }
      }
     }
    }
   }){padding->
    Column(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)){
-    if(!keyboardVisible&&!m.studioEditing&&!(m.tab==5&&(m.messagePeer!=null||m.messageCrew!=null)))Row(Modifier.fillMaxWidth().padding(horizontal=10.dp,vertical=6.dp),verticalAlignment=Alignment.CenterVertically){
-     IconButton(onClick={navigationOpen=true},modifier=Modifier.testTag("navigation-menu")){Icon(Icons.Outlined.Menu,"전체 메뉴",tint=Muted)}
-     BrandLockup()
-     Spacer(Modifier.weight(1f))
-     IconButton(onClick={m.selectTab(1)}){Icon(Icons.Rounded.Search,"검색",tint=Muted)}
-     IconButton(onClick={if(m.authenticated())m.showNotifications=true}){BadgedBox(badge={if(m.unreadActivities>0)Badge{Text(if(m.unreadActivities>99)"99+" else "${m.unreadActivities}")}}){Icon(Icons.Rounded.NotificationsNone,"알림 기록",tint=Muted)}}
-     Surface(onClick={if(m.user==null)m.showLogin=true else m.showAccount=true},modifier=Modifier.testTag("account-menu"),shape=CircleShape,color=Stroke){
-      Box(Modifier.size(38.dp),contentAlignment=Alignment.Center){if(m.user==null)Icon(Icons.Rounded.PersonOutline,"로그인",Modifier.size(21.dp)) else Avatar(m.user?.optString("name")?:"",m.ownProfile.optJSONObject("profile")?:JSONObject().put("id",m.user?.optString("profile_id")).put("image_version",m.user?.optString("image_version")))}
+    if(!keyboardVisible&&!m.studioEditing&&m.tab!=2&&!(m.tab==5&&(m.messagePeer!=null||m.messageCrew!=null)))Row(Modifier.fillMaxWidth().heightIn(min=50.dp).padding(horizontal=14.dp),verticalAlignment=Alignment.CenterVertically){
+     if(m.tab==6)Text("마이",fontSize=22.sp,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f))
+     else {
+      Box(Modifier.heightIn(min=48.dp).clickable{navigationOpen=true}.testTag("navigation-menu"),contentAlignment=Alignment.CenterStart){BrandLockup()}
+      Spacer(Modifier.weight(1f))
+      IconButton(onClick={if(m.authenticated())m.showNotifications=true}){BadgedBox(badge={if(m.unreadActivities>0)Badge(containerColor=StreamPurple,contentColor=Ink){Text(if(m.unreadActivities>99)"99+" else "${m.unreadActivities}",fontSize=9.sp)}}){Icon(Icons.Rounded.NotificationsNone,"알림 기록",Modifier.size(22.dp),tint=SoftText)}}
+      IconButton(onClick={m.selectTab(1)}){Icon(Icons.Rounded.Search,"검색",Modifier.size(22.dp),tint=SoftText)}
      }
+     IconButton(onClick={if(m.user==null)m.showLogin=true else m.showAccount=true},modifier=Modifier.testTag("account-menu")){Icon(if(m.tab==6)Icons.Outlined.Settings else Icons.Outlined.PersonOutline,if(m.user==null)"로그인" else "계정 메뉴",Modifier.size(22.dp),tint=SoftText)}
+     if(m.tab==6)IconButton(onClick={navigationOpen=true},modifier=Modifier.testTag("navigation-menu")){Icon(Icons.Outlined.Menu,"전체 메뉴",Modifier.size(22.dp),tint=SoftText)}
     }
     if(m.error!=null)Row(Modifier.fillMaxWidth().background(Color(0xFF36261E)).padding(horizontal=20.dp,vertical=8.dp),verticalAlignment=Alignment.CenterVertically){
      Text(m.error?:"",Modifier.weight(1f),fontSize=13.sp,color=Color(0xFFFFC69C));TextButton(onClick=m::refresh){Text("재시도")}
@@ -105,7 +113,7 @@ private val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=C
     else pages.SaveableStateProvider(m.tab){when(m.tab){
      0->ListenScreen(m,sing)
      1->SearchScreen(m)
-     2->SingScreen(m,sing)
+     2->SingScreen(m,sing,resumeDraft){navigationOpen=true}
      3->MusicCommunityScreen(m,sing)
      4->LibraryScreen(m,{createWithSong=null;createList=true},browser)
      5->MessagesSheet(m,embedded=true)
@@ -251,23 +259,22 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)A
 }
 @Composable private fun MiniPlayer(m:MusicModel,song:Song){
  LaunchedEffect(song.id,m.user?.optString("id"),m.membership.optLong("premium_until")){m.resetLyrics();while(true){m.lyricsAt(song,m.position/1000.0);delay(500)}}
- Column(Modifier.fillMaxWidth().testTag("mini-player").background(Panel).border(1.dp,Stroke.copy(alpha=.5f))){
+ val shape=RoundedCornerShape(11.dp)
+ Column(Modifier.padding(horizontal=10.dp,vertical=5.dp).fillMaxWidth().testTag("mini-player").clip(shape).background(Brush.horizontalGradient(listOf(Color(0xFF24233C),Color(0xFF142235)))).border(1.dp,StreamPurple.copy(alpha=.52f),shape)){
   val line=compactLyrics(m.lyricRows,m.position/1000.0,m.lyric).first
-  Row(Modifier.fillMaxWidth().testTag("mini-player-open").clickable{m.fullPlayer=true}.padding(start=12.dp,end=2.dp,top=8.dp,bottom=8.dp),verticalAlignment=Alignment.CenterVertically){
-   Artwork(song,Modifier.size(44.dp));Column(Modifier.weight(1f).padding(horizontal=12.dp)){
-    Text(song.title,maxLines=1,fontSize=14.sp,fontWeight=FontWeight.SemiBold,overflow=TextOverflow.Ellipsis)
-    Row(Modifier.fillMaxWidth().padding(top=4.dp),verticalAlignment=Alignment.CenterVertically){
-     Text(song.credit,maxLines=1,fontSize=12.sp,color=Muted,modifier=Modifier.weight(1f),overflow=TextOverflow.Ellipsis)
-     if(m.playbackBitrateKbps>0)Text("AAC ${m.playbackBitrateKbps}",maxLines=1,fontSize=10.sp,color=Aqua,modifier=Modifier.padding(start=5.dp).testTag("mini-player-quality"))
-    }
-    Box(Modifier.fillMaxWidth().testTag("mini-player-lyrics").padding(top=3.dp)){
-     Text(line.ifBlank{"♪"},modifier=Modifier.fillMaxWidth().testTag("mini-player-current-lyric"),fontSize=12.sp,lineHeight=17.sp,color=Aqua,minLines=1,maxLines=1,softWrap=false,overflow=TextOverflow.Ellipsis,style=TextStyle(platformStyle=androidx.compose.ui.text.PlatformTextStyle(includeFontPadding=false)))
+  Row(Modifier.fillMaxWidth().testTag("mini-player-open").clickable{m.fullPlayer=true}.heightIn(min=62.dp).padding(start=7.dp,end=1.dp,top=5.dp,bottom=5.dp),verticalAlignment=Alignment.CenterVertically){
+   Artwork(song,Modifier.size(40.dp),corner=7.dp)
+   Column(Modifier.weight(1f).padding(horizontal=9.dp)){
+    Text(song.title,maxLines=1,fontSize=13.sp,lineHeight=16.sp,fontWeight=FontWeight.SemiBold,overflow=TextOverflow.Ellipsis)
+    Text(song.credit,maxLines=1,fontSize=11.sp,lineHeight=14.sp,color=Muted,overflow=TextOverflow.Ellipsis)
+    Box(Modifier.fillMaxWidth().testTag("mini-player-lyrics")){
+     Text(line.ifBlank{"♪"},modifier=Modifier.fillMaxWidth().testTag("mini-player-current-lyric"),fontSize=11.sp,lineHeight=14.sp,color=Aqua,minLines=1,maxLines=1,softWrap=false,overflow=TextOverflow.Ellipsis,style=TextStyle(platformStyle=androidx.compose.ui.text.PlatformTextStyle(includeFontPadding=false)))
     }
    }
-   IconButton(onClick=m::toggle){if(m.buffering)CircularProgressIndicator(Modifier.size(20.dp),strokeWidth=2.dp,color=Aqua) else Icon(if(m.playing)Icons.Rounded.Pause else Icons.Rounded.PlayArrow,if(m.playing)"일시정지" else "재생",tint=Aqua)}
+   IconButton(onClick=m::toggle){if(m.buffering)CircularProgressIndicator(Modifier.size(18.dp),strokeWidth=2.dp,color=StreamPurple)else Icon(if(m.playing)Icons.Rounded.Pause else Icons.Rounded.PlayArrow,if(m.playing)"일시정지" else "재생",Modifier.size(25.dp),tint=Color.White)}
    IconButton(onClick={m.controller?.seekToNextMediaItem()},enabled=m.controller?.hasNextMediaItem()==true){Icon(Icons.Rounded.SkipNext,"다음 곡",Modifier.size(22.dp))}
   }
-  LinearProgressIndicator(progress={if(m.duration>0)(m.position.toFloat()/m.duration).coerceIn(0f,1f)else 0f},modifier=Modifier.fillMaxWidth().height(2.dp),color=Aqua,trackColor=Stroke,drawStopIndicator={})
+  LinearProgressIndicator(progress={if(m.duration>0)(m.position.toFloat()/m.duration).coerceIn(0f,1f)else 0f},modifier=Modifier.fillMaxWidth().height(2.dp),color=StreamPurple,trackColor=StreamBorder,drawStopIndicator={})
  }
 }
 @Composable private fun PlayerSheet(m:MusicModel,song:Song,save:(Song)->Unit,sing:(Song)->Unit){

@@ -11,9 +11,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import coil.compose.AsyncImage
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.EmojiEvents
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
@@ -62,14 +67,14 @@ internal fun playerLevel(xp:Int)=((1+sqrt(1+xp.coerceAtLeast(0)/12.5))/2).toInt(
   }
  }
 }
-@Composable internal fun PlayerHomePanel(m:MusicModel){
+@Composable internal fun PlayerHomePanel(m:MusicModel,compact:Boolean=false){
  val account=m.user?.optString("id")
  var data by remember(account){mutableStateOf<JSONObject?>(null)}
  var error by remember(account){mutableStateOf<String?>(null)}
  var show by remember(account){mutableStateOf(false)}
  var revision by remember{mutableIntStateOf(0)}
  LaunchedEffect(account,revision){if(account!=null)try{val d=m.api.call("/api/me/player");if(m.user?.optString("id")==account){data=d;error=null}}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}}
- data?.optJSONObject("player")?.let{PlayerXPCard(it){show=true}}
+ data?.optJSONObject("player")?.let{if(compact)PlayerLevelStrip(it){show=true}else PlayerXPCard(it){show=true}}
  if(error!=null)TextButton(onClick={revision++}){Text("레벨 · 아이템 다시 불러오기")}
  if(show)PlayerInventorySheet(m,{show=false;revision++}){data=it}
 }
@@ -109,6 +114,17 @@ internal fun playerLevel(xp:Int)=((1+sqrt(1+xp.coerceAtLeast(0)/12.5))/2).toInt(
     items(d.optJSONArray("rules").objects()){r->Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){Text(r.optString("label"),fontSize=14.sp);Text(r.optString("limit"),fontSize=11.sp,color=Muted)};Text("+${r.optInt("xp")} XP",color=Aqua,fontSize=13.sp)}}
     item{Text("매일 활동은 한국 시간 자정에 새로 시작해요. 기존 공개곡도 반영되며 같은 곡의 경험치는 한 번만 지급돼요.",fontSize=12.sp,color=Muted)}
    }
+  }
+ }
+}
+
+@Composable private fun PlayerLevelStrip(p:JSONObject,open:()->Unit){
+ val level=p.optInt("level",1);val xp=p.optInt("xp")
+ Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(Brush.horizontalGradient(listOf(Color(0xFF8B40DA),Color(0xFF5830C8),Color(0xFF2BACC9)))).clickable(onClick=open).heightIn(min=54.dp).padding(horizontal=12.dp,vertical=8.dp),verticalAlignment=Alignment.CenterVertically){
+  Icon(Icons.Rounded.EmojiEvents,null,Modifier.size(28.dp),tint=Pink)
+  Column(Modifier.weight(1f).padding(start=10.dp)){
+   Row(Modifier.fillMaxWidth()){Text("Lv.$level",fontSize=14.sp,fontWeight=FontWeight.Bold,color=Color.White);Spacer(Modifier.weight(1f));Text("$xp XP",fontSize=11.sp,color=Color.White)}
+   LinearProgressIndicator(progress={p.optDouble("progress",0.0).toFloat().coerceIn(0f,1f)},modifier=Modifier.fillMaxWidth().padding(top=5.dp).height(4.dp),color=Pink,trackColor=Color.White.copy(alpha=.25f))
   }
  }
 }
