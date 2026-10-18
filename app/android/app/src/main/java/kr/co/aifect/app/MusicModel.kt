@@ -592,7 +592,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   api.call(if(register)"/api/auth/register" else "/api/auth/login","POST",payload("email" to email.trim(),"password" to password,"name" to name.trim()))
   closePlayer();loadMe();showLogin=false;notice="반가워요, ${user?.optString("name")}님!"
  }
- fun openAccountSettings(){if(!authenticated())return;showAccount=false;accountError=null;nicknameCheck=null;showAccountSettings=true}
+ fun openAccountSettings(){if(!authenticated())return;accountError=null;nicknameCheck=null;showAccountSettings=true}
  fun checkNickname(name:String)=action {try{val result=api.call("/api/account/nickname?name="+java.net.URLEncoder.encode(name,"UTF-8"));nicknameCheck=if(result.optBoolean("available"))"사용할 수 있는 아이디입니다." else result.optString("message")}catch(e:Exception){if(e is CancellationException)throw e;accountError=e.message}}
  fun saveNickname(name:String)=action {accountError=null;try{api.call("/api/account/nickname","PUT",payload("name" to name));loadMe();loadOwnProfile(fresh=true);nicknameCheck="아이디를 변경했습니다.";notice="아이디를 변경했어요."}catch(e:Exception){if(e is CancellationException)throw e;accountError=e.message}}
  fun changePassword(current:String,next:String,done:()->Unit)=action {accountError=null;try{api.call("/api/account/password","PUT",payload("current_password" to current,"new_password" to next));done();notice="비밀번호를 변경했어요. 다른 기기는 다시 로그인해주세요."}catch(e:Exception){if(e is CancellationException)throw e;accountError=e.message}}

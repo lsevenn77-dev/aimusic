@@ -86,8 +86,8 @@ internal fun playerLevel(xp:Int)=((1+sqrt(1+xp.coerceAtLeast(0)/12.5))/2).toInt(
  var busy by remember{mutableStateOf(false)}
  var retry by remember{mutableIntStateOf(0)}
  LaunchedEffect(account,retry){try{val d=m.api.call("/api/me/player");if(m.user?.optString("id")==account){data=d;error=null}}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}}
- ModalBottomSheet(onDismissRequest=close,sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true),containerColor=Ink){
-  LazyColumn(Modifier.fillMaxWidth().fillMaxHeight(.94f),contentPadding=PaddingValues(20.dp),verticalArrangement=Arrangement.spacedBy(16.dp)){
+ AppPage(title="내 아이템",onDismissRequest=close,containerColor=Ink){
+  LazyColumn(Modifier.fillMaxWidth().fillMaxHeight(),contentPadding=PaddingValues(20.dp),verticalArrangement=Arrangement.spacedBy(16.dp)){
    item{Text("아이템 보관함",fontSize=24.sp,fontWeight=FontWeight.Bold)}
    if(data==null&&error==null)item{LinearProgressIndicator(Modifier.fillMaxWidth(),color=Aqua)}
    error?.let{item{Text(it,color=Pink);TextButton(onClick={retry++}){Text("다시 불러오기")}}}

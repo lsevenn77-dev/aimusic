@@ -70,7 +70,7 @@ import java.util.UUID
  val cost=selection.total
  val suffix=if(isFree)"S" else "G"
  val giftColumns=if(LocalConfiguration.current.screenWidthDp<400||LocalDensity.current.fontScale>1.2f)3 else 4
- ModalBottomSheet(onDismissRequest={if(!working)m.showGifts=false},sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true),containerColor=Panel){
+ AppPage(title="선물",onDismissRequest={if(!working)m.showGifts=false},containerColor=Panel){
   LazyColumn(Modifier.fillMaxWidth().fillMaxHeight(.96f).testTag("gift-list"),contentPadding=PaddingValues(22.dp,0.dp,22.dp,28.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
    item{Text(if(person!=null)"${recipient}님에게 선물" else if(target==null)"내 선물함" else "음악에 응원 보내기",fontSize=25.sp);target?.let{Text("${it.producer} · ${it.title}",color=Muted,modifier=Modifier.padding(top=8.dp))}}
    if(loading)item{LinearProgressIndicator(Modifier.fillMaxWidth())}
@@ -120,7 +120,7 @@ import java.util.UUID
    }
   }
  }
- if(giftInfo)AlertDialog(onDismissRequest={giftInfo=false},title={Text("실버 · 골드 선물")},text={Column(verticalArrangement=Arrangement.spacedBy(12.dp)){
+ if(giftInfo)AppFormPage(onDismissRequest={giftInfo=false},title={Text("실버 · 골드 선물")},text={Column(verticalArrangement=Arrangement.spacedBy(12.dp)){
   Text("실버는 무료 응원 선물이에요. 현금 가치·골드 전환·수익 정산이 없어요.")
   Text("골드는 세금과 결제 수수료를 제외한 금액에서 일반 창작자 60% · 파트너 70%를 다이아로 적립해요.")
   Text("커버곡 선물은 가창자 70% · AIFECT 30%예요. 원곡자는 커버의 재생 수익만 받아요.")

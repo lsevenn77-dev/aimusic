@@ -13,8 +13,8 @@ import androidx.compose.ui.unit.sp
  val reasons=listOf("abuse" to "욕설·괴롭힘", "spam" to "도배·광고", "privacy" to "개인정보 노출", "sexual" to "음란·불쾌한 내용", "other" to "기타")
  var reason by remember{mutableStateOf("")}
  var details by remember{mutableStateOf("")}
- AlertDialog(onDismissRequest={if(!m.busy)dismiss()},title={Text("댓글 신고")},text={
-  Column(Modifier.verticalScroll(rememberScrollState())){
+ AppFormPage(onDismissRequest={if(!m.busy)dismiss()},title={Text("댓글 신고")},text={
+  Column(Modifier){
    Text("신고 사유를 선택해주세요. 운영자가 내용을 확인해요.",fontSize=13.sp,color=Muted)
    reasons.forEach{(code,label)->FilterChip(reason==code,{reason=code},label={Text(label)},modifier=Modifier.fillMaxWidth())}
    OutlinedTextField(details,{details=it.take(500)},label={Text("추가 설명 (선택)",fontSize=13.sp)},modifier=Modifier.fillMaxWidth().padding(top=8.dp),maxLines=4)

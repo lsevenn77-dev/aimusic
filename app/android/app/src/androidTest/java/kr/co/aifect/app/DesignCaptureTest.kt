@@ -649,6 +649,63 @@ class DesignCaptureTest {
   }
  }
 
+ @Test fun fullPagePlayerContinuesLyricsWithoutMini(){
+  responses["/api/tracks/design-ocean/lyrics/line"]=payload("line" to payload("text" to "다음 곡의 가사도 이어져요","from" to 0,"until" to 180))
+  act{it.play(Song(song),listOf(Song(song),Song(second)))};ui.waitUntil(15000){model.playing}
+  ui.onNodeWithTag("mini-player-open").performClick();ready("player-queue")
+  ui.onNodeWithTag("mini-player").assertDoesNotExist()
+  ui.onNodeWithContentDescription("다음 곡").performScrollTo().performClick()
+  ui.waitUntil(15000){model.current?.id=="design-ocean"&&model.lyric=="다음 곡의 가사도 이어져요"}
+  ui.onNodeWithText("다음 곡의 가사도 이어져요").performScrollTo().assertIsDisplayed()
+  Espresso.pressBack();ready("mini-player-current-lyric")
+  ui.onNodeWithTag("mini-player-current-lyric",useUnmergedTree=true).assertTextEquals("다음 곡의 가사도 이어져요")
+ }
+
+ @Test fun menusUsePagesAndRestoreParent(){
+  ui.onNodeWithTag("home-featured-play").performClick();ui.waitUntil(15000){model.playing}
+  val playing=model.current?.id
+  ui.onNodeWithTag("account-menu").performClick();ready("account-actions")
+  ui.onNodeWithTag("app-page").assertIsDisplayed();ui.onAllNodes(isDialog()).assertCountEquals(0)
+  ui.onNodeWithTag("listen-tabs").assertDoesNotExist();phaseCapture("24-account-page")
+  ui.onNodeWithText("계정 설정").performClick();ready("account-settings")
+  ui.onNodeWithTag("account-actions").assertDoesNotExist();ui.onAllNodes(isDialog()).assertCountEquals(0)
+  ui.onNodeWithTag("page-back").performClick();ui.onNodeWithTag("account-actions").assertIsDisplayed()
+  Espresso.pressBack();ui.onNodeWithTag("listen-tabs").assertIsDisplayed()
+  ui.onNodeWithTag("navigation-menu").performClick();ready("all-navigation")
+  ui.onNodeWithTag("menu-아이템 보관함").performScrollTo().performClick();text("아이템 보관함")
+  ui.onAllNodes(isDialog()).assertCountEquals(0);phaseCapture("25-inventory-page")
+  Espresso.pressBack();ui.onNodeWithTag("menu-아이템 보관함").assertIsDisplayed()
+  ui.onNodeWithTag("main-tab-6").performClick();ready("my-music-page")
+  ui.onNodeWithTag("app-page").assertDoesNotExist();assertFalse(model.showInventory)
+  assertEquals(playing,model.current?.id);assertTrue(model.playing)
+ }
+
+ @Test fun pageSelectorsPreserveUnsavedStudioFields(){
+  act{it.openStudio()};ready("creator-studio");ui.waitUntil(15000){!model.studioBusy}
+  ui.onNodeWithTag("creator-studio").performScrollToNode(hasTestTag("studio-edit-design-song"))
+  ui.onNodeWithTag("studio-edit-design-song").performClick();ready("studio-title")
+  ui.onNodeWithTag("studio-title").performTextReplacement("저장 전 수정한 제목");Espresso.closeSoftKeyboard()
+  ui.onNodeWithText("AI 아티스트 · NOVA").performScrollTo().performClick();ready("app-page")
+  ui.onAllNodes(isDialog()).assertCountEquals(0);ui.onNodeWithTag("studio-title").assertDoesNotExist()
+  phaseCapture("26-artist-selection-page")
+  Espresso.pressBack();ui.onNodeWithTag("studio-title").performScrollTo().assertTextContains("저장 전 수정한 제목")
+  ui.onNodeWithContentDescription("스튜디오로 돌아가기").performClick();text("저장하지 않은 변경사항은 사라져요.")
+  ui.onAllNodes(isDialog()).assertCountEquals(1)
+  ui.onNodeWithText("계속 수정").performClick();ui.onNodeWithTag("studio-title").assertTextContains("저장 전 수정한 제목")
+  assertFalse(requestBodies.containsKey("/api/studio/tracks/design-song"))
+ }
+
+ @Test fun playlistEditorIsAPageAndBackDoesNotSave(){
+  act{it.openList("design-list")};ui.waitUntil(15000){model.selectedList!=null&&model.listSongs.size==4}
+  ui.onNodeWithText("편집").performClick();text("플레이리스트 편집")
+  ui.onAllNodes(isDialog()).assertCountEquals(0)
+  ui.onNodeWithText("플레이리스트 이름").performTextReplacement("취소할 이름");Espresso.closeSoftKeyboard()
+  phaseCapture("27-playlist-edit-page")
+  ui.onNodeWithTag("page-back").performClick();ui.onNodeWithText("퇴근길에 듣는 음악").assertIsDisplayed()
+  assertEquals("퇴근길에 듣는 음악",model.selectedList?.optString("name"));assertFalse(requestBodies.containsKey("/api/playlists/design-list"))
+  Espresso.pressBack();ui.onNodeWithTag("home-featured-play").assertIsDisplayed()
+ }
+
  @Test fun streamingMyPlaylistPlaysActualQueueAndHandlesEmpty(){
   ui.onNodeWithTag("main-tab-6").performClick();ready("my-music-page")
   ui.onNodeWithTag("my-music-page").performScrollToNode(hasTestTag("playlist-play-design-list"))

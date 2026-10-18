@@ -22,6 +22,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.semantics
@@ -119,14 +121,13 @@ private val PagePadding=PaddingValues(start=14.dp,end=14.dp,bottom=24.dp)
  val pager=rememberPagerState(pageCount={featured.size})
  HorizontalPager(state=pager,pageSpacing=12.dp,modifier=Modifier.fillMaxWidth()) { index->
   val song=featured[index]
-  Box(Modifier.fillMaxWidth().heightIn(min=158.dp).clip(RoundedCornerShape(15.dp)).background(Brush.horizontalGradient(listOf(Color(0xFF403B8C),Color(0xFF242558)))).border(1.dp,StreamPurple.copy(alpha=.42f),RoundedCornerShape(15.dp))){
+  val coverText=LocalTextStyle.current.copy(shadow=Shadow(Color.Black.copy(alpha=.95f),Offset(0f,2f),6f))
+  Box(Modifier.fillMaxWidth().heightIn(min=158.dp).clip(RoundedCornerShape(15.dp)).background(StreamPanel).border(1.dp,StreamPurple.copy(alpha=.42f),RoundedCornerShape(15.dp))){
    song.art?.let{AsyncImage(it,null,Modifier.matchParentSize(),contentScale=ContentScale.Crop,alignment=Alignment.CenterEnd)}
-   Box(Modifier.matchParentSize().background(Brush.horizontalGradient(listOf(Color(0xFF171545).copy(alpha=.9f),Color(0xFF392274).copy(alpha=.55f),Color(0xFF201337).copy(alpha=.15f)))))
-   Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Color.Transparent,Color(0xFF161533).copy(alpha=.65f)))))
    Column(Modifier.fillMaxWidth().padding(16.dp).padding(end=55.dp)){
-    Text("오늘,\n이 노래 어때요?",color=Color.White,fontSize=22.sp,lineHeight=28.sp,fontWeight=FontWeight.Bold)
-    Text(song.title,color=Color.White,fontSize=13.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=12.dp).clickable{m.openSong(song)})
-    Text(song.credit,color=Color(0xFFD1C8F6),fontSize=11.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
+    Text("오늘,\n이 노래 어때요?",style=coverText,color=Color.White,fontSize=22.sp,lineHeight=28.sp,fontWeight=FontWeight.Bold)
+    Text(song.title,style=coverText,color=Color.White,fontSize=13.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=12.dp).clickable{m.openSong(song)})
+    Text(song.credit,style=coverText,color=Color.White,fontSize=11.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
    }
    FilledIconButton(onClick={m.play(song,tracks)},modifier=Modifier.align(Alignment.BottomEnd).padding(12.dp).size(48.dp).then(if(index==pager.currentPage)Modifier.testTag("home-featured-play")else Modifier),colors=IconButtonDefaults.filledIconButtonColors(containerColor=Pink,contentColor=Color(0xFF302367))){Icon(Icons.Rounded.PlayArrow,"${song.title} 지금 듣기",Modifier.size(30.dp))}
   }
@@ -405,8 +406,7 @@ private val PagePadding=PaddingValues(start=14.dp,end=14.dp,bottom=24.dp)
    if(c.tracks.isEmpty()&&!m.collectionBusy&&m.collectionError==null)item{Empty("아직 이곳에 음악이 없어요","새로운 곡이 공개되면 여기에서 만나요.");TextButton(onClick={m.dismissCollection();m.listenPage="추천";m.selectTab(0)},modifier=Modifier.fillMaxWidth()){Text("다른 음악 둘러보기")}}
   }
  }
- if(c.asPage)Box(Modifier.fillMaxSize().testTag("collection-page")){content()}
- else ModalBottomSheet(onDismissRequest=m::dismissCollection,sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true),containerColor=Ink){content()}
+ AppPage(title="음악 목록",onDismissRequest=m::dismissCollection,containerColor=Ink){Box(Modifier.fillMaxSize().testTag("collection-page")){content()}}
 }
 
 @Composable internal fun LibraryScreen(m:MusicModel,create:()->Unit,browser:(String)->Unit){
@@ -492,7 +492,7 @@ private val PagePadding=PaddingValues(start=14.dp,end=14.dp,bottom=24.dp)
      PlayButtons(tracks,m)
      Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Text("${tracks.size}곡",fontSize=13.sp,color=Muted,modifier=Modifier.weight(1f));Box{
       TextButton(onClick={sorting=true}){Icon(Icons.AutoMirrored.Rounded.Sort,null,Modifier.size(17.dp));Text(sort,fontSize=13.sp,modifier=Modifier.padding(start=5.dp))}
-      DropdownMenu(expanded=sorting,onDismissRequest={sorting=false}){listOf("기본 순서","제목순","아티스트순").forEach{label->DropdownMenuItem(text={Text(label)},onClick={sort=label;sorting=false})}}
+      AppMenuPage(title="정렬",expanded=sorting,onDismissRequest={sorting=false}){listOf("기본 순서","제목순","아티스트순").forEach{label->PageMenuItem(text={Text(label)},onClick={sort=label;sorting=false})}}
      }}
     }
     items(tracks,key={it.id}){s->StreamingSongRow(s,m,tracks);Spacer(Modifier.height(6.dp))}

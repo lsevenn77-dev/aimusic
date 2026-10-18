@@ -85,7 +85,7 @@ import org.json.JSONObject
   var data by remember{mutableStateOf<JSONObject?>(null)};var error by remember{mutableStateOf<String?>(null)};val scope=rememberCoroutineScope()
   suspend fun load(){try{data=m.api.call("/api/producers/${p.optString("id")}/gifts",fresh=true);error=null}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}}
   LaunchedEffect(p.optString("id")){load()}
-  ModalBottomSheet(onDismissRequest={open=false},containerColor=Panel,sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true)){
+  AppPage(title="대화 설정",onDismissRequest={open=false},containerColor=Panel){
    LazyColumn(Modifier.fillMaxWidth().heightIn(max=600.dp),contentPadding=PaddingValues(20.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
     item{Text("선물 랭킹 TOP 50",fontSize=23.sp);Text("누적 응원 · 1 G와 1 S는 각각 1점",fontSize=13.sp,color=Muted)}
     if(data==null&&error==null)item{LinearProgressIndicator(Modifier.fillMaxWidth())}

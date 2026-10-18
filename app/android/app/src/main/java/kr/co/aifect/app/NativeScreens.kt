@@ -66,6 +66,12 @@ private val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=C
   var createList by remember {mutableStateOf(false)}
   var navigationOpen by remember {mutableStateOf(false)}
   val pages=rememberSaveableStateHolder()
+  val pageStack=remember{AppPageStack()}
+  val lyricSong=m.current
+  LaunchedEffect(lyricSong?.id,m.user?.optString("id"),m.membership.optLong("premium_until")){
+   m.resetLyrics()
+   if(lyricSong!=null)while(true){m.lyricsAt(lyricSong,m.position/1000.0);delay(500)}
+  }
   val keyboardVisible=WindowInsets.isImeVisible
   val navConfiguration=androidx.compose.ui.platform.LocalConfiguration.current
   val compactNavLabels=navConfiguration.screenWidthDp<360||navConfiguration.fontScale>1.2f
@@ -78,13 +84,14 @@ private val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=C
    when{m.showGifts->m.showGifts=false;m.showLogin->m.showLogin=false;m.showAccount->m.showAccount=false;m.detail!=null->m.detail=null;m.selectedList!=null->m.selectedList=null;m.profile!=null->m.dismissProfile();m.fullPlayer->m.fullPlayer=false;m.collection!=null->m.dismissCollection();else->m.dismissRanking()}
   }
   BackHandler(m.tab==7&&!m.studioEditing&&m.detail==null&&!m.showProfileEdit&&!m.showDiamonds){m.selectTab(m.studioReturnTab)}
+  AppPageScope(pageStack){
   Scaffold(containerColor=Ink,snackbarHost={SnackbarHost(snack)},bottomBar={
    if(!keyboardVisible&&!m.studioEditing)Column {
-    AnimatedVisibility(m.current!=null&&m.visibleChatCount==0){m.current?.let {MiniPlayer(m,it)}}
+    AnimatedVisibility(m.current!=null&&m.visibleChatCount==0&&!m.fullPlayer){m.current?.let {MiniPlayer(m,it)}}
     Row(Modifier.fillMaxWidth().background(Ink).navigationBarsPadding().heightIn(min=60.dp),verticalAlignment=Alignment.CenterVertically){
      listOf(Triple(0,"홈",Icons.Outlined.Home),Triple(3,"커뮤니티",Icons.Outlined.PeopleOutline),Triple(2,"부르기",Icons.Outlined.MicNone),Triple(5,"메시지",Icons.Outlined.ChatBubbleOutline),Triple(6,"마이",Icons.Outlined.PersonOutline)).forEach{(i,name,icon)->
       val selected=m.tab==i||(m.tab==4&&i==m.libraryReturnTab)
-      Column(Modifier.weight(1f).selectable(selected=selected,role=Role.Tab,onClick={m.selectTab(i)}).testTag("main-tab-$i").heightIn(min=60.dp).padding(vertical=5.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){
+      Column(Modifier.weight(1f).selectable(selected=selected,role=Role.Tab,onClick={pageStack.closeAll();m.selectTab(i)}).testTag("main-tab-$i").heightIn(min=60.dp).padding(vertical=5.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){
        Box(Modifier.size(30.dp).background(Brush.radialGradient(listOf(if(selected)StreamPurple.copy(alpha=.28f)else Color.Transparent,Color.Transparent))),contentAlignment=Alignment.Center){
         BadgedBox(badge={if(i==5&&m.unreadMessages>0)Badge(containerColor=StreamPurple,contentColor=Ink){Text(if(m.unreadMessages>99)"99+" else m.unreadMessages.toString(),fontSize=9.sp)}}){Icon(icon,name,Modifier.size(22.dp),tint=if(selected)StreamPurple else Muted)}
        }
@@ -94,7 +101,8 @@ private val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=C
     }
    }
   }){padding->
-   Column(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)){
+   AppPageHost(pageStack,Modifier.padding(padding).consumeWindowInsets(padding)){
+   Column(Modifier.fillMaxSize()){
     if(!keyboardVisible&&!m.studioEditing&&m.tab!=2&&!(m.tab==5&&(m.messagePeer!=null||m.messageCrew!=null)))Row(Modifier.fillMaxWidth().heightIn(min=50.dp).padding(horizontal=14.dp),verticalAlignment=Alignment.CenterVertically){
      if(m.tab==6)Text("마이",fontSize=22.sp,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f))
      else {
@@ -109,8 +117,7 @@ private val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=C
     if(m.error!=null)Row(Modifier.fillMaxWidth().background(Color(0xFF36261E)).padding(horizontal=20.dp,vertical=8.dp),verticalAlignment=Alignment.CenterVertically){
      Text(m.error?:"",Modifier.weight(1f),fontSize=13.sp,color=Color(0xFFFFC69C));TextButton(onClick=m::refresh){Text("재시도")}
     }
-    if(m.collection?.asPage==true)CollectionSheet(m,m.collection!!,sing)
-    else pages.SaveableStateProvider(m.tab){when(m.tab){
+    pages.SaveableStateProvider(m.tab){when(m.tab){
      0->ListenScreen(m,sing)
      1->SearchScreen(m)
      2->SingScreen(m,sing,resumeDraft){navigationOpen=true}
@@ -123,10 +130,9 @@ private val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=C
     }
     }
    }
-  }
   if(navigationOpen)NavigationSheet(m,{navigationOpen=false})
   if(m.rankOpen&&m.detail==null&&m.profile==null&&!m.fullPlayer&&!m.showLogin&&m.collection==null)CoverRankingSheet(m)
-  m.collection?.takeUnless{it.asPage}?.let { CollectionSheet(m,it,sing) }
+  m.collection?.let { CollectionSheet(m,it,sing) }
   if(m.showLogin)LoginSheet(m,browser,social)
   if(m.showAccount)AccountSheet(m,browser,adPrivacy)
   if(m.showAccountSettings)AccountSettingsSheet(m)
@@ -144,7 +150,7 @@ private val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=C
   if(m.showProfileEdit)ProfileEditorSheet(m)
   if(m.showMessages)MessagesSheet(m)
   listPicker?.let { song->
-   ModalBottomSheet(onDismissRequest={listPicker=null},containerColor=Panel){
+   AppPage(title="음악 담기",onDismissRequest={listPicker=null},containerColor=Panel){
     Column(Modifier.fillMaxWidth().padding(24.dp)){
      Text("플레이리스트에 담기",fontSize=23.sp,fontWeight=FontWeight.Bold);Text(song.title,color=Muted,modifier=Modifier.padding(vertical=8.dp))
      if(m.user==null)BrandButton(onClick={listPicker=null;m.showLogin=true}){Text("로그인하고 저장하기")}
@@ -156,6 +162,9 @@ private val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=C
    }
   }
   if(createList)PlaylistEditor("새 플레이리스트","",false,m.busy,{createList=false}){name,public->m.createList(name,public,createWithSong){createList=false;createWithSong=null}}
+   }
+  }
+  }
  }
 }
 @Composable internal fun Heading(title:String,subtitle:String?=null){
@@ -258,7 +267,6 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)A
  }
 }
 @Composable private fun MiniPlayer(m:MusicModel,song:Song){
- LaunchedEffect(song.id,m.user?.optString("id"),m.membership.optLong("premium_until")){m.resetLyrics();while(true){m.lyricsAt(song,m.position/1000.0);delay(500)}}
  val shape=RoundedCornerShape(11.dp)
  Column(Modifier.padding(horizontal=10.dp,vertical=5.dp).fillMaxWidth().testTag("mini-player").clip(shape).background(Brush.horizontalGradient(listOf(Color(0xFF24233C),Color(0xFF142235)))).border(1.dp,StreamPurple.copy(alpha=.52f),shape)){
   val line=compactLyrics(m.lyricRows,m.position/1000.0,m.lyric).first
@@ -278,12 +286,11 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)A
  }
 }
 @Composable private fun PlayerSheet(m:MusicModel,song:Song,save:(Song)->Unit,sing:(Song)->Unit){
- val sheet=rememberModalBottomSheetState(skipPartiallyExpanded=true)
  var seek by remember(song.id){mutableStateOf<Float?>(null)}
  var queueOpen by remember{mutableStateOf(false)}
  if(queueOpen)PlayerQueueSheet(m){queueOpen=false}
 
- ModalBottomSheet(onDismissRequest={m.fullPlayer=false},sheetState=sheet,containerColor=Ink){
+ AppPage(title="재생 중",onDismissRequest={m.fullPlayer=false},containerColor=Ink){
   LazyColumn(Modifier.fillMaxWidth(),contentPadding=PaddingValues(24.dp,0.dp,24.dp,30.dp)){
    item{
     Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Text("NOW PLAYING",color=Muted,fontSize=12.sp,letterSpacing=2.sp,modifier=Modifier.weight(1f));IconButton(onClick={queueOpen=true},modifier=Modifier.testTag("player-queue")){Icon(Icons.AutoMirrored.Rounded.QueueMusic,"재생목록",tint=Aqua)};IconButton(onClick=m::closePlayer){Icon(Icons.Rounded.Close,"재생 종료",tint=Muted)}}
@@ -317,7 +324,7 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)A
 }
 @Composable private fun LoginSheet(m:MusicModel,browser:(String)->Unit,social:(String)->Unit){
  var email by rememberSaveable{mutableStateOf("")};var password by remember{mutableStateOf("")};var name by rememberSaveable{mutableStateOf("")};var register by rememberSaveable{mutableStateOf(false)}
- ModalBottomSheet(onDismissRequest={if(!m.busy)m.showLogin=false},sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true),containerColor=Panel){
+ AppPage(title="로그인",onDismissRequest={if(!m.busy)m.showLogin=false},containerColor=Panel){
   Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).imePadding().padding(24.dp)){
    Text("취향이 이어지는 곳",fontSize=28.sp,fontWeight=FontWeight.Bold);Text("로그인하고 듣고, 부르고, 함께 나눠요.",color=Muted,fontSize=14.sp,modifier=Modifier.padding(top=8.dp,bottom=22.dp))
    if("google" in m.providers)BrandButton(onClick={social("google")},enabled=!m.busy,colors=ButtonDefaults.buttonColors(containerColor=Color.White,contentColor=Color(0xFF1F1F1F)),modifier=Modifier.fillMaxWidth().height(52.dp)){Text("Google로 계속하기",fontSize=15.sp)}
@@ -339,7 +346,7 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)A
 @Composable private fun AccountSheet(m:MusicModel,browser:(String)->Unit,adPrivacy:()->Unit){
  var information by remember{mutableStateOf(false)}
  fun open(path:String){m.showAccount=false;browser(Endpoint.url(path))}
- ModalBottomSheet(onDismissRequest={m.showAccount=false},sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true),containerColor=Panel){
+ AppPage(title="계정",onDismissRequest={m.showAccount=false},containerColor=Panel){
   Column(Modifier.fillMaxWidth().heightIn(max=600.dp).verticalScroll(rememberScrollState()).padding(horizontal=22.dp).padding(bottom=24.dp).testTag("account-actions")){
    Row(Modifier.padding(bottom=20.dp),verticalAlignment=Alignment.CenterVertically){
     Avatar(m.user?.optString("name")?:"",m.ownProfile.optJSONObject("profile"),52)
@@ -350,13 +357,13 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)A
     }
    }
    AccountMenuRow("계정 설정",Icons.Rounded.ManageAccounts){m.openAccountSettings()}
-   AccountMenuRow("Premium · 골드 구매",Icons.Rounded.ShoppingBag){m.showAccount=false;m.showBilling=true}
+   AccountMenuRow("Premium · 골드 구매",Icons.Rounded.ShoppingBag){m.showBilling=true}
    AccountMenuRow("DM 보기",Icons.AutoMirrored.Rounded.Chat){m.showAccount=false;m.openMessages()}
-   AccountMenuRow("알림 기록",Icons.Rounded.NotificationsNone){m.showAccount=false;m.showNotifications=true}
-   AccountMenuRow("다이아 · 내 정산",Icons.Rounded.AccountBalanceWallet){m.showAccount=false;m.showDiamonds=true}
-   AccountMenuRow("오늘의 실버",Icons.Rounded.Star){m.showAccount=false;m.showRewards=true}
+   AccountMenuRow("알림 기록",Icons.Rounded.NotificationsNone){m.showNotifications=true}
+   AccountMenuRow("다이아 · 내 정산",Icons.Rounded.AccountBalanceWallet){m.showDiamonds=true}
+   AccountMenuRow("오늘의 실버",Icons.Rounded.Star){m.showRewards=true}
    AccountMenuRow("창작자 스튜디오",Icons.Rounded.Tune){m.openStudio()}
-   AccountMenuRow("선물함",Icons.Rounded.CardGiftcard,tint=Pink){m.showAccount=false;m.openGifts()}
+   AccountMenuRow("선물함",Icons.Rounded.CardGiftcard,tint=Pink){m.openGifts()}
    HorizontalDivider(Modifier.padding(vertical=12.dp),color=Stroke)
    AccountMenuRow("로그아웃",Icons.AutoMirrored.Rounded.Logout,tint=Color(0xFFFFB4A5),enabled=!m.busy){m.logout()}
    TextButton(onClick={information=!information},modifier=Modifier.fillMaxWidth()){
@@ -375,7 +382,7 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)A
 @Composable private fun AccountSettingsSheet(m:MusicModel){
  var name by rememberSaveable{mutableStateOf(m.user?.optString("name")?:"")}
  var current by remember{mutableStateOf("")};var next by remember{mutableStateOf("")};var confirm by remember{mutableStateOf("")};var passwordOpen by rememberSaveable{mutableStateOf(false)}
- ModalBottomSheet(onDismissRequest={m.showAccountSettings=false},sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true),containerColor=Panel){
+ AppPage(title="설정",onDismissRequest={m.showAccountSettings=false},containerColor=Panel){
   Column(Modifier.fillMaxWidth().imePadding().verticalScroll(rememberScrollState()).padding(22.dp).testTag("account-settings")){
    Text("계정 설정",fontSize=22.sp,fontWeight=FontWeight.Bold)
    val pushContext=androidx.compose.ui.platform.LocalContext.current
@@ -426,7 +433,7 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)A
  var reply by remember(song.id){mutableStateOf<JSONObject?>(null)}
  var delete by remember(song.id) {mutableStateOf<JSONObject?>(null)}
  var report by remember(song.id) {mutableStateOf<JSONObject?>(null)}
- ModalBottomSheet(onDismissRequest={m.detail=null},sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true),containerColor=Panel){
+ AppPage(title="곡 정보",onDismissRequest={m.detail=null},containerColor=Panel){
   LazyColumn(Modifier.fillMaxWidth().imePadding(),contentPadding=PaddingValues(22.dp,0.dp,22.dp,28.dp)){
    item{
     Row(verticalAlignment=Alignment.CenterVertically){Artwork(song,Modifier.size(84.dp));Column(Modifier.weight(1f).padding(start=16.dp)){Text(song.title,fontSize=23.sp,fontWeight=FontWeight.Bold);Text(song.credit,color=Muted,fontSize=14.sp,modifier=Modifier.padding(top=6.dp).clickable{if(song.hasAiArtist)m.openProfile(song.raw.optString("artist_id"),"artist")else m.openProfile(song.producerId)})}}
@@ -474,12 +481,12 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)A
 }
 @Composable private fun PlaylistEditor(title:String,initial:String,visible:Boolean,busy:Boolean,dismiss:()->Unit,save:(String,Boolean)->Unit){
  var name by remember{mutableStateOf(initial)};var public by remember{mutableStateOf(visible)}
- AlertDialog(onDismissRequest=dismiss,title={Text(title)},text={Column{OutlinedTextField(name,{name=it.take(80)},label={Text("플레이리스트 이름")},singleLine=true);Row(verticalAlignment=Alignment.CenterVertically){Checkbox(public,{public=it});Text("다른 사람에게 공개하기",fontSize=13.sp)}}},confirmButton={TextButton(onClick={save(name,public)},enabled=name.isNotBlank()&&!busy){Text("저장")}},dismissButton={TextButton(onClick=dismiss){Text("취소")}})
+ AppFormPage(onDismissRequest=dismiss,title={Text(title)},text={Column{OutlinedTextField(name,{name=it.take(80)},label={Text("플레이리스트 이름")},singleLine=true);Row(verticalAlignment=Alignment.CenterVertically){Checkbox(public,{public=it});Text("다른 사람에게 공개하기",fontSize=13.sp)}}},confirmButton={TextButton(onClick={save(name,public)},enabled=name.isNotBlank()&&!busy){Text("저장")}},dismissButton={TextButton(onClick=dismiss){Text("취소")}})
 }
 @Composable private fun PlaylistSheet(m:MusicModel,p:JSONObject){
  val own=p.optString("user_id")==m.user?.optString("id")
  var edit by remember{mutableStateOf(false)};var deleting by remember{mutableStateOf(false)};var add by remember{mutableStateOf(false)}
- ModalBottomSheet(onDismissRequest={m.selectedList=null},sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true),containerColor=Panel){
+ AppPage(title="플레이리스트",onDismissRequest={m.selectedList=null},containerColor=Panel){
   LazyColumn(Modifier.fillMaxWidth(),contentPadding=PaddingValues(22.dp,0.dp,22.dp,28.dp)){
    item{
     PlaylistArt(p,Modifier.size(112.dp));if(own)PlaylistImageEditor(m,p);Text(p.optString("name"),fontSize=29.sp,fontWeight=FontWeight.Bold,modifier=Modifier.padding(top=14.dp));Text("${p.optString("owner_name")} · ${m.listSongs.size}곡",color=Muted,fontSize=13.sp,modifier=Modifier.padding(top=7.dp))
@@ -516,7 +523,7 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)A
  val columns=musicGalleryColumns()
  val all=(m.profileSongs+m.profileCovers).distinctBy{it.id}
  val tracks=when(tab){"제작곡"->m.profileSongs;"커버"->m.profileCovers;"듀엣"->m.profileCovers.filter{it.raw.optString("cover_mode")=="duet"};else->all}
- ModalBottomSheet(onDismissRequest=m::dismissProfile,sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true),containerColor=Ink){
+ AppPage(title="프로필",onDismissRequest=m::dismissProfile,containerColor=Ink){
   LazyColumn(Modifier.fillMaxWidth().testTag("profile-scroll"),contentPadding=PaddingValues(16.dp,0.dp,16.dp,28.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
    if(m.profileLoading||m.profileError!=null)item{
     Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Text(p.optString("name").ifBlank{"프로필"},Modifier.weight(1f),fontSize=22.sp);IconButton(onClick=m::dismissProfile,modifier=Modifier.testTag("profile-close")){Icon(Icons.Rounded.Close,"프로필 닫기")}}

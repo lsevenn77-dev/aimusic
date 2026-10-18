@@ -52,7 +52,7 @@ private val RankColors=listOf(Pink,Aqua,Violet,Color(0xFFE8CFA0))
  val selected=CoverPeriods.first{it.first==m.rankPeriod}.second
  val state=rememberLazyListState()
  LaunchedEffect(m.rankPeriod,m.rankKind,m.rankGenre,m.rankOriginal?.id){state.scrollToItem(0)}
- ModalBottomSheet(onDismissRequest=m::dismissRanking,sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true),containerColor=Ink){
+ AppPage(title="커버 랭킹",onDismissRequest=m::dismissRanking,containerColor=Ink){
   LazyColumn(Modifier.fillMaxWidth().imePadding().testTag("ranking-scroll"),state=state,contentPadding=PaddingValues(22.dp,0.dp,22.dp,32.dp)){
    item{
     Row(verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){Text(if(m.karaokeChart)"노래방 차트" else if(m.rankOriginal==null)"커버 랭킹" else "이 곡의 커버 랭킹",fontSize=26.sp,fontWeight=FontWeight.Bold);m.rankOriginal?.let{Text(it.title,fontSize=14.sp,color=Aqua,modifier=Modifier.padding(top=7.dp))}};IconButton(onClick=m::dismissRanking){Icon(Icons.Rounded.Close,"랭킹 닫기")}}

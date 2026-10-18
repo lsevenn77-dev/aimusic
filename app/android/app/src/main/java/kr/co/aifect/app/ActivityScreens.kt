@@ -62,8 +62,8 @@ internal fun activityDate(seconds:Long):String=SimpleDateFormat("yyyy.MM.dd HH:m
   if(active()){entries=entries.map{if(it.optString("id") in ids)JSONObject(it.toString()).put("read_at",System.currentTimeMillis()/1000)else it};m.refreshActivitySummary()}
  }
  LaunchedEffect(account,filter,revision){if(account!=null)load()}
- ModalBottomSheet(onDismissRequest={m.showNotifications=false},sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true),containerColor=Ink){
-  LazyColumn(Modifier.fillMaxWidth().fillMaxHeight(.9f).testTag("activity-list"),contentPadding=PaddingValues(18.dp,0.dp,18.dp,28.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+ AppPage(title="알림",onDismissRequest={m.showNotifications=false},containerColor=Ink){
+  LazyColumn(Modifier.fillMaxWidth().fillMaxHeight().testTag("activity-list"),contentPadding=PaddingValues(18.dp,0.dp,18.dp,28.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
    item{Text("알림 기록",fontSize=25.sp);Text("한국 시간 · 날짜와 함께 모아보는 참여와 선물",fontSize=12.sp,color=Muted)
     Chips(listOf("전체","커버 · 듀엣","받은 선물"),when(filter){"gifts"->"받은 선물";"participation"->"커버 · 듀엣";else->"전체"}){filter=when(it){"받은 선물"->"gifts";"커버 · 듀엣"->"participation";else->"all"}}
     Row{TextButton(enabled=!working,onClick={revision++}){Text("새로고침")};TextButton(enabled=!working&&entries.any{it.optLong("read_at")==0L},onClick={scope.launch{working=true;try{mark(entries.filter{it.optLong("read_at")==0L}.map{it.optString("id")})}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}finally{working=false}}}){Text("이 목록 읽음")}}
@@ -95,7 +95,7 @@ private fun Modifier.clipActivity()=this.background(Panel,RoundedCornerShape(16.
 
 @Composable internal fun GiftHistorySheet(wallet:JSONObject?,dismiss:()->Unit){
  val items=(wallet?.optJSONArray("sent").objects().map{it to "G"}+wallet?.optJSONArray("free_sent").objects().map{it to "S"}).sortedByDescending{it.first.optLong("created")}
- ModalBottomSheet(onDismissRequest=dismiss,containerColor=Panel){
+ AppPage(title="보낸 선물",onDismissRequest=dismiss,containerColor=Panel){
   LazyColumn(contentPadding=PaddingValues(22.dp,0.dp,22.dp,28.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
    item{Text("보낸 선물 내역",fontSize=24.sp);Text("최근 골드·실버 선물",color=Muted,fontSize=12.sp)}
    items(items){(g,unit)->Column{Text(g.optString("title"));Text("${g.optString("gift_name").replace("은화","실버")} ${g.optInt("quantity",1)}개 · ${g.optInt(if(unit=="G")"gold" else "silver")} $unit",color=Aqua);Text(activityDate(g.optLong("created")),color=Muted,fontSize=12.sp)}}

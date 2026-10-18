@@ -15,7 +15,7 @@ import com.android.billingclient.api.BillingClient
 @Composable fun PlayBillingSheet(m:MusicModel){
  val billing=m.playBilling
  LaunchedEffect(m.user?.optString("id")){billing?.load()}
- ModalBottomSheet(onDismissRequest={m.showBilling=false},sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true),containerColor=Panel){
+ AppPage(title="이용권·골드",onDismissRequest={m.showBilling=false},containerColor=Panel){
   Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(22.dp)){
    Text("Premium · 골드",fontSize=25.sp,fontWeight=FontWeight.Bold)
    Text("Google Play에서 안전하게 구매해요.",color=Muted,modifier=Modifier.padding(top=8.dp))

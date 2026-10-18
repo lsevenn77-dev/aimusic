@@ -35,10 +35,10 @@ internal val BrandGradient get()=Brush.horizontalGradient(0f to Pink,.48f to Vio
  var open by remember(song.id){mutableStateOf(false)}
  Box{
   IconButton(onClick={open=true},modifier=modifier){Icon(Icons.Outlined.MoreHoriz,"${song.title} 더보기",tint=Muted)}
-  DropdownMenu(expanded=open,onDismissRequest={open=false}){
-   DropdownMenuItem(text={Text("플레이리스트 담기")},onClick={open=false;m.pickPlaylist(song)})
-   DropdownMenuItem(text={Text("선물하기")},onClick={open=false;m.openGifts(song)})
-   DropdownMenuItem(text={Text("댓글 보기")},onClick={open=false;m.openSong(song)})
+  AppMenuPage(title=song.title,expanded=open,onDismissRequest={open=false}){
+   PageMenuItem(text={Text("플레이리스트 담기")},onClick={open=false;m.pickPlaylist(song)})
+   PageMenuItem(text={Text("선물하기")},onClick={open=false;m.openGifts(song)})
+   PageMenuItem(text={Text("댓글 보기")},onClick={open=false;m.openSong(song)})
   }
  }
 }

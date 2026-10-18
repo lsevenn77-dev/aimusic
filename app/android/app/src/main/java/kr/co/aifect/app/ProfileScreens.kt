@@ -39,7 +39,7 @@ internal fun threadedComments(comments:List<JSONObject>):List<JSONObject>{
  var edited by remember{mutableStateOf(false)}
  LaunchedEffect(p?.toString()){if(!edited){name=p?.optString("name")?:name;bio=p?.optString("bio")?:bio}}
  val pick=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()){image=it}
- ModalBottomSheet(onDismissRequest={if(!m.busy)m.showProfileEdit=false},sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true),containerColor=Panel){
+ AppPage(title="내 프로필 수정",onDismissRequest={if(!m.busy)m.showProfileEdit=false},containerColor=Panel){
   Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).imePadding().padding(24.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
    Text("내 프로필",fontSize=25.sp)
    Box(Modifier.clickable{pick.launch("image/*")}){if(image!=null)AsyncImage(image,"선택한 프로필 사진",Modifier.size(90.dp))else Avatar(name,p,90)}
@@ -60,7 +60,7 @@ internal fun threadedComments(comments:List<JSONObject>):List<JSONObject>{
  var busy by remember{mutableStateOf(false)}
  suspend fun load(){free=m.api.call("/api/gold").optJSONObject("free")}
  LaunchedEffect(m.user?.optString("id")){try{load()}catch(e:Exception){error=e.message}}
- ModalBottomSheet(onDismissRequest={m.showRewards=false},sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true),containerColor=Panel){
+ AppPage(title="실버",onDismissRequest={m.showRewards=false},containerColor=Panel){
   val maximumHeight=(LocalConfiguration.current.screenHeightDp*.74f).dp
   val largeText=LocalDensity.current.fontScale>1.25f
   LazyColumn(Modifier.fillMaxWidth().heightIn(max=maximumHeight).testTag("rewards-list"),contentPadding=PaddingValues(20.dp,0.dp,20.dp,24.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){

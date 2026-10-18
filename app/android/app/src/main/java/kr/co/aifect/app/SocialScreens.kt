@@ -309,7 +309,7 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
 @Composable private fun CrewEditor(c:JSONObject?,busy:Boolean,dismiss:()->Unit,save:(String,String,String,Boolean)->Unit){
  var name by remember{mutableStateOf(c?.optString("name")?:"")};var description by remember{mutableStateOf(c?.optString("description")?:"")};var interests by remember{mutableStateOf(c?.optString("interests")?:"")};var recruiting by remember{mutableStateOf(c?.optInt("recruiting",1)!=0)}
  val renameAllowed=c==null||c.optBoolean("can_rename",false)
- AlertDialog(onDismissRequest=dismiss,title={Text(if(c==null)"새 크루" else "크루 정보 수정")},text={Column(Modifier.verticalScroll(rememberScrollState())){
+ AppFormPage(onDismissRequest=dismiss,title={Text(if(c==null)"새 크루" else "크루 정보 수정")},text={Column(Modifier){
   OutlinedTextField(name,{name=it.take(40)},label={Text("크루 이름")},enabled=renameAllowed&&!busy,modifier=Modifier.testTag("crew-rename"))
   if(c!=null){
    val available=c.optLong("name_change_available_at")
@@ -326,7 +326,7 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
  if(m.messageCrew!=null){
   val content:@Composable ()->Unit={Column(Modifier.fillMaxSize()){TextButton(onClick={m.messageCrew=null}){Icon(Icons.AutoMirrored.Rounded.ArrowBack,null);Text("메시지 목록")};CrewScreen(m,{m.notice="크루 홈에서 부르기를 선택해주세요."},m.messageCrew,true)}}
   androidx.activity.compose.BackHandler{m.messageCrew=null}
-  if(embedded)content() else ModalBottomSheet(onDismissRequest={m.dismissMessages()},sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true),containerColor=Ink){Box(Modifier.fillMaxHeight(.94f)){content()}}
+  if(embedded)content() else AppPage(title="메시지",onDismissRequest={m.dismissMessages()},containerColor=Ink){Box(Modifier.fillMaxHeight()){content()}}
   return
  }
  val context=LocalContext.current.applicationContext
@@ -436,7 +436,7 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
  }
  val content:@Composable ()->Unit={
   val peer=data?.optJSONObject("peer")
-  val panelModifier=if(embedded)Modifier.fillMaxSize()else Modifier.fillMaxWidth().fillMaxHeight(.92f)
+  val panelModifier=if(embedded)Modifier.fillMaxSize()else Modifier.fillMaxWidth().fillMaxHeight()
   Column(panelModifier.imePadding().testTag("dm-panel")){
    Row(Modifier.fillMaxWidth().padding(horizontal=12.dp,vertical=8.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
     if(m.messagePeer!=null)IconButton(onClick={if(!embedded&&m.messagesReturnToProfile)m.dismissMessages() else m.messagePeer=null},modifier=Modifier.testTag("dm-back")){Icon(Icons.AutoMirrored.Rounded.ArrowBack,if(!embedded&&m.messagesReturnToProfile)"이전 페이지로" else "대화 목록으로")}
@@ -474,7 +474,7 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
  }
  // Keep conversation state while a profile is on top, with only one modal dialog visible.
  if(!profileOverlay){
-  if(embedded)content() else ModalBottomSheet(onDismissRequest={m.dismissMessages()},sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true),containerColor=Ink){content()}
+  if(embedded)content() else AppPage(title="대화",onDismissRequest={m.dismissMessages()},containerColor=Ink){content()}
  }
 }
 
@@ -554,7 +554,7 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
 @Composable private fun CrewMemberDialog(person:JSONObject,busy:Boolean,dismiss:()->Unit,profile:()->Unit,save:(String?)->Unit){
  var role by remember(person.optString("id")){mutableStateOf(person.optString("role","member"))}
  var kick by remember{mutableStateOf(false)}
- AlertDialog(onDismissRequest=dismiss,title={Text(person.optString("name"))},text={Column(Modifier.verticalScroll(rememberScrollState())){
+ AppFormPage(onDismissRequest=dismiss,title={Text(person.optString("name"))},text={Column(Modifier){
   TextButton(onClick=profile){Text("프로필 보기")}
   if(kick)Text("이 멤버를 강퇴하면 이 크루에 다시 가입할 수 없어요.")else{
    Text("크루 직책",fontSize=18.sp)

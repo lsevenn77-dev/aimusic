@@ -18,20 +18,20 @@ import kotlinx.coroutines.CancellationException
 import org.json.JSONObject
 
 @Composable internal fun NavigationSheet(m:MusicModel,close:()->Unit){
- ModalBottomSheet(onDismissRequest=close,sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true),containerColor=Ink){
+ AppPage(title="전체 메뉴",onDismissRequest=close,containerColor=Ink){
   Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(20.dp).testTag("all-navigation")){
    Text("AIFECT",fontSize=24.sp,color=Pink);Spacer(Modifier.height(16.dp))
-   @Composable fun entry(label:String,icon:ImageVector,action:()->Unit){
-    TextButton(onClick={close();action()},modifier=Modifier.fillMaxWidth().testTag("menu-$label"),colors=ButtonDefaults.textButtonColors(contentColor=SoftText),contentPadding=PaddingValues(12.dp)){
+   @Composable fun entry(label:String,icon:ImageVector,page:Boolean=false,action:()->Unit){
+    TextButton(onClick={if(!page)close();action()},modifier=Modifier.fillMaxWidth().testTag("menu-$label"),colors=ButtonDefaults.textButtonColors(contentColor=SoftText),contentPadding=PaddingValues(12.dp)){
      Icon(icon,null,Modifier.size(22.dp),tint=Violet);Text(label,Modifier.weight(1f).padding(start=16.dp));Icon(Icons.Outlined.ChevronRight,null,tint=Muted)
     }
    }
    entry("홈",Icons.Outlined.Home){m.selectTab(0);m.listenPage="추천"}
    entry("부르기",Icons.Outlined.MicNone){m.selectTab(2)}
    entry("커뮤니티",Icons.Outlined.PeopleOutline){m.selectTab(3)}
-   entry("선물함",Icons.Outlined.CardGiftcard){m.openGifts()}
+   entry("선물함",Icons.Outlined.CardGiftcard,page=true){m.openGifts()}
    entry("메시지",Icons.Outlined.ChatBubbleOutline){m.openMessages()}
-   entry("알림 기록",Icons.Outlined.NotificationsNone){if(m.authenticated())m.showNotifications=true}
+   entry("알림 기록",Icons.Outlined.NotificationsNone,page=true){if(m.authenticated())m.showNotifications=true}
    entry("마이",Icons.Outlined.PersonOutline){m.selectTab(6)}
    entry("내 보관함",Icons.Outlined.LibraryMusic){m.library("보관함")}
    entry("창작자 스튜디오",Icons.Outlined.Tune){m.openStudio()}
@@ -41,9 +41,9 @@ import org.json.JSONObject
    entry("공개 플레이리스트",Icons.Outlined.QueueMusic){m.directoryKind="playlists";m.selectTab(8)}
    entry("AI 아티스트",Icons.Outlined.PeopleOutline){m.directoryKind="artists";m.selectTab(8)}
    entry("팔로우",Icons.Outlined.PersonAddAlt){m.library("팔로잉")}
-   entry("아이템 보관함",Icons.Outlined.Inventory2){if(m.authenticated())m.showInventory=true}
-   entry("오늘의 실버",Icons.Outlined.Stars){if(m.authenticated())m.showRewards=true}
-   entry("다이아 · 내 정산",Icons.Outlined.AccountBalanceWallet){if(m.authenticated())m.showDiamonds=true}
+   entry("아이템 보관함",Icons.Outlined.Inventory2,page=true){if(m.authenticated())m.showInventory=true}
+   entry("오늘의 실버",Icons.Outlined.Stars,page=true){if(m.authenticated())m.showRewards=true}
+   entry("다이아 · 내 정산",Icons.Outlined.AccountBalanceWallet,page=true){if(m.authenticated())m.showDiamonds=true}
   }
  }
 }

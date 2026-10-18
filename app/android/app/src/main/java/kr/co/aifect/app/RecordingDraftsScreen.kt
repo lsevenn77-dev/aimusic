@@ -44,7 +44,7 @@ import java.util.Date
   try{val loaded=withContext(Dispatchers.IO){RecordingDraftStore.list(context,Endpoint.origin,owner).let{a->(0 until a.length()).map{a.getJSONObject(it)}}};withContext(Dispatchers.Main.immediate){drafts=loaded;error=null;loading=false}}
   catch(e:Exception){if(e is CancellationException)throw e;withContext(Dispatchers.Main.immediate){error="초안을 불러오지 못했어요.";loading=false}}
  }
- ModalBottomSheet(onDismissRequest={m.showRecordingDrafts=false},sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true),containerColor=Panel){
+ AppPage(title="녹음 초안",onDismissRequest={m.showRecordingDrafts=false},containerColor=Panel){
   Column(Modifier.fillMaxWidth().padding(horizontal=22.dp).testTag("recording-drafts")){
    Row(verticalAlignment=Alignment.CenterVertically){Text("초안",Modifier.weight(1f),fontSize=25.sp,fontWeight=FontWeight.Bold);IconButton(onClick={m.showRecordingDrafts=false}){Icon(Icons.Rounded.Close,"초안 닫기")}}
    Text("이 기기에 저장한 녹음이에요. 다른 기기에는 표시되지 않아요.",color=Muted,fontSize=13.sp,lineHeight=20.sp,modifier=Modifier.padding(top=6.dp,bottom=20.dp))

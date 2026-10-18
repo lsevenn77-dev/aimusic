@@ -230,7 +230,7 @@ internal fun studioStatus(status:String)=when(status){"published"->"공개됨";"
   }
  }
  if(confirmLeave)AlertDialog(onDismissRequest={confirmLeave=false},title={Text("스튜디오로 돌아갈까요?")},text={Text("저장하지 않은 변경사항은 사라져요.")},confirmButton={TextButton(onClick=close){Text("돌아가기")}},dismissButton={TextButton(onClick={confirmLeave=false}){Text("계속 수정")}})
- if(artistPicker)AlertDialog(onDismissRequest={artistPicker=false},title={Text("AI 아티스트")},text={Column(Modifier.verticalScroll(rememberScrollState())){
+ if(artistPicker)AppFormPage(onDismissRequest={artistPicker=false},title={Text("AI 아티스트")},text={Column(Modifier){
   (listOf("none" to "선택 안 함 (내 활동명)")+(if(trackId==null)listOf("new" to "새 아티스트 만들기")else emptyList())+artists.map{it.getString("id") to it.optString("name")}).forEach{(id,name)->TextButton(onClick={artistId=id;artistPicker=false}){Text(name)}}
  }},confirmButton={TextButton(onClick={artistPicker=false}){Text("닫기")}})
 }
@@ -245,7 +245,7 @@ internal fun studioStatus(status:String)=when(status){"published"->"공개됨";"
  var picture by remember{mutableStateOf<Uri?>(null)};var busy by remember{mutableStateOf(false)};var error by remember{mutableStateOf<String?>(null)}
  val account=m.user?.optString("id");val scope=rememberCoroutineScope()
  val picker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()){picture=it}
- ModalBottomSheet(onDismissRequest={if(!busy)close()},sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true),containerColor=Ink){Column(Modifier.imePadding().verticalScroll(rememberScrollState()).padding(20.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+ AppPage(title="아티스트 수정",onDismissRequest={if(!busy)close()},containerColor=Ink){Column(Modifier.imePadding().verticalScroll(rememberScrollState()).padding(20.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
   Text("AI 아티스트 수정",fontSize=22.sp);StudioField("이름",name,{name=it.take(60)},!busy);StudioField("장르",genre,{genre=it.take(80)},!busy)
   OutlinedTextField(bio,{bio=it.take(1000)},label={Text("소개")},modifier=Modifier.fillMaxWidth(),enabled=!busy)
   picture?.let{AsyncImage(it,"선택한 사진",Modifier.size(100.dp))}
@@ -277,7 +277,7 @@ internal fun studioStatus(status:String)=when(status){"published"->"공개됨";"
  }
  if(open){
   var chosen by remember{mutableStateOf(selected)}
-  AlertDialog(onDismissRequest={open=false},title={Text("$label · 최대 ${max}개")},text={Column(Modifier.heightIn(max=360.dp).verticalScroll(rememberScrollState())){
+  AppFormPage(onDismissRequest={open=false},title={Text("$label · 최대 ${max}개")},text={Column(Modifier){
    (options+selected.filter{id->options.none{it.first==id}}.map{it to it}).forEach{(id,name)->Row(verticalAlignment=Alignment.CenterVertically){
     val checked=id in chosen
     Checkbox(checked,{chosen=if(it)chosen+id else chosen-id},enabled=checked||chosen.size<max);Text(name,fontSize=14.sp)

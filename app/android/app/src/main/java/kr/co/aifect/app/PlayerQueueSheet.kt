@@ -15,7 +15,7 @@ import androidx.compose.ui.unit.sp
 @Composable internal fun PlayerQueueSheet(m:MusicModel,dismiss:()->Unit){
  val player=m.controller
  val queue=player?.let{(0 until it.mediaItemCount).map(it::getMediaItemAt)}.orEmpty()
- ModalBottomSheet(onDismissRequest=dismiss,containerColor=Panel){
+ AppPage(title="현재 재생목록",onDismissRequest=dismiss,containerColor=Panel){
   LazyColumn(Modifier.fillMaxWidth(),contentPadding=PaddingValues(22.dp,0.dp,22.dp,28.dp)){
    item{Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Text("재생목록",fontSize=24.sp,modifier=Modifier.weight(1f));TextButton(onClick={m.closePlayer();dismiss()}){Text("재생 종료")}}}
    itemsIndexed(queue){index,item->Row(Modifier.fillMaxWidth().clickable{player?.seekTo(index,0);player?.play();dismiss()}.padding(vertical=14.dp),verticalAlignment=Alignment.CenterVertically){

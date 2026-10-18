@@ -54,7 +54,7 @@ import org.json.JSONObject
    }
   }
  }
- selected?.let{photo->Dialog(onDismissRequest={selected=null}){
+ selected?.let{photo->AppPage(title="사진 보기",onDismissRequest={selected=null}){
   Surface(shape=RoundedCornerShape(20.dp),color=Ink){Column(Modifier.fillMaxWidth()){
    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Text(p.optString("name"),Modifier.weight(1f).padding(start=16.dp));IconButton(onClick={selected=null}){Icon(Icons.Rounded.Close,"사진 닫기")}}
    AsyncImage(Endpoint.url(photo.optString("url")),"${p.optString("name")} 갤러리 사진",Modifier.fillMaxWidth().heightIn(min=200.dp,max=560.dp),contentScale=ContentScale.Fit)
