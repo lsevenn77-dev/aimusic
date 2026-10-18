@@ -3,7 +3,7 @@ import FirebaseCore
 import FirebaseMessaging
 import UserNotifications
 
-struct PushDestination: Identifiable {
+struct PushDestination: Identifiable, Hashable {
     let kind: String
     let target: String
     let recipient: String
@@ -138,9 +138,9 @@ struct PushDestinationView: View {
     @State private var error: String?
     var body: some View {
         Group {
-            if route.kind == "dm" { NavigationStack { ChatPage(path: "/api/dm/\(Endpoint.pathID(route.target))", title: "메시지", crew: false) } }
-            else if route.kind == "crew" { NavigationStack { ChatPage(path: "/api/crews/\(Endpoint.pathID(route.target))/messages", title: "크루 채팅", crew: true) } }
-            else if route.kind == "person_gift" { NavigationStack { ProfilePage(id: route.target) } }
+            if route.kind == "dm" { ChatPage(path: "/api/dm/\(Endpoint.pathID(route.target))", title: "메시지", crew: false) }
+            else if route.kind == "crew" { ChatPage(path: "/api/crews/\(Endpoint.pathID(route.target))/messages", title: "크루 채팅", crew: true) }
+            else if route.kind == "person_gift" { ProfilePage(id: route.target) }
             else if let song { TrackDetailView(song: song) }
             else if let error { ContentUnavailableView(error, systemImage: "bell.slash") }
             else { ProgressView("음악 불러오는 중") }

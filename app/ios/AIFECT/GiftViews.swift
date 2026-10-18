@@ -138,10 +138,7 @@ struct GiftSheetButton<LabelView: View>: View {
     @State private var presented = false
     var body: some View {
         Button { if model.requireLogin() { presented = true } } label: { label() }
-            .sheet(isPresented: $presented) {
-                NavigationStack { GiftWalletView(song: song, person: person, compact: true) }
-                    .presentationDetents([.fraction(0.48)]).presentationDragIndicator(.visible)
-            }
+            .navigationDestination(isPresented: $presented) { GiftWalletView(song: song, person: person, compact: true) }
     }
 }
 struct GiftWalletView: View {
@@ -204,8 +201,8 @@ struct GiftWalletView: View {
         .task(id: (model.userID ?? "guest") + (giftPath ?? "")) { wallet.bind(owner: model.userID, path: giftPath); if model.userID != nil { await wallet.load() } }
         .task(id: model.walletRevision) { if model.userID != nil { await wallet.load() } }
         .onChange(of: wallet.stars) { _, stars in quantity = max(1, min(quantity, stars)) }
-        .sheet(isPresented: $rewards, onDismiss: { Task { await wallet.load() } }) { NavigationStack { RewardsView().toolbar { Button("완료") { rewards = false } } } }
-        .sheet(isPresented: $store, onDismiss: { Task { await wallet.load() } }) { NavigationStack { PaymentStoreView().toolbar { Button("완료") { store = false } } } }
+        .navigationDestination(isPresented: $rewards) { RewardsView() }.onChange(of: rewards) { _, value in if !value { Task { await wallet.load() } } }
+        .navigationDestination(isPresented: $store) { PaymentStoreView() }.onChange(of: store) { _, value in if !value { Task { await wallet.load() } } }
         .interactiveDismissDisabled(wallet.busy)
         .toolbar { if compact { ToolbarItem(placement: .cancellationAction) { Button("닫기") { dismiss() }.disabled(wallet.busy) } } }
         .confirmationDialog("\(selected?.string("name") ?? "선물") \(wallet.remaining.count)개를 보낼까요?", isPresented: $confirm, titleVisibility: .visible) {

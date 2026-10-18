@@ -174,6 +174,22 @@ struct Song: Identifiable, Codable, Hashable {
     var coverMode: String?
     var plays: Int?
     var covers: Int?
+    var ownerID: String?
+    var duetOpen: Bool?
+    var karaokeReady: Bool?
+    var chartRank: Int?
+    var chartMovement: String?
+    var rankChange: Int?
+    var created: Double?
+    var rankMovementLabel: String {
+        switch chartMovement {
+        case "up": return "↑\(abs(rankChange ?? 0))"
+        case "down": return "↓\(abs(rankChange ?? 0))"
+        case "new": return "NEW"
+        default: return "—"
+        }
+    }
+    var shareURL: URL { URL(string: Endpoint.origin.absoluteString + "/#song/" + Endpoint.pathID(id))! }
     var creatorName: String { producerName.flatMap { $0.isEmpty ? nil : $0 } ?? credit }
     init(_ data: [String: Any]) {
         producerID = data["producer_id"] as? String; artistID = data["artist_id"] as? String
@@ -187,10 +203,15 @@ struct Song: Identifiable, Codable, Hashable {
         producerName = data["producer"] as? String; producerImageVersion = data["producer_image_version"] as? String
         descriptionText = data["description"] as? String; coverMode = data["cover_mode"] as? String
         plays = data.int("plays"); covers = data.int("covers")
-        if data.number("has_cover") > 0 {
+        ownerID = data["user_id"] as? String; duetOpen = data.flag("duet_open"); karaokeReady = data.flag("karaoke_ready")
+        chartRank = (data["chart_rank"] as? NSNumber)?.intValue
+        chartMovement = data["chart_movement"] as? String
+        rankChange = (data["rank_change"] as? NSNumber)?.intValue
+        created = (data["created"] as? NSNumber)?.doubleValue
+        if isCover, let producerID, !producerID.isEmpty, let version = producerImageVersion, !version.isEmpty {
+            artworkPath = "/media/producer/\(Endpoint.pathID(producerID))?v=\(Endpoint.query(version))"
+        } else if !isCover, data.number("has_cover") > 0 {
             artworkPath = "/media/\(Endpoint.pathID(id))/cover?v=\(Endpoint.query(data.string("cover_version")))"
-        } else if isCover, data.number("original_has_cover") > 0, let originalID {
-            artworkPath = "/media/\(Endpoint.pathID(originalID))/cover?v=\(Endpoint.query(data.string("original_cover_version")))"
         }
     }
     var artURL: URL? { artworkPath.flatMap { try? Endpoint.url($0) } }

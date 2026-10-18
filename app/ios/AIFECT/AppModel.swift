@@ -2,6 +2,8 @@ import SwiftUI
 import AuthenticationServices
 import CryptoKit
 
+enum AppRoute: Hashable { case player, account, menu }
+
 struct MessageRoute: Hashable {
     let id: String
     let title: String
@@ -16,8 +18,13 @@ final class AppModel: NSObject, ObservableObject, ASWebAuthenticationPresentatio
     @Published var feed: [Song] = []
     @Published var likes: [Song] = []
     @Published var history: [Song] = []
+    @Published var followedProducers = Set<String>()
+    private var followRequests = Set<String>()
+    @Published var libraryError: String?
+    @Published var libraryLoaded = false
     @Published var playlists: [[String: Any]] = []
     @Published var user: [String: Any]?
+    @Published private(set) var inboxError: String?
     @Published private(set) var inboxUnread = 0
     @Published var inboxConversations: [[String: Any]] = []
     @Published private(set) var inboxCrew: [String: Any]?
@@ -27,11 +34,19 @@ final class AppModel: NSObject, ObservableObject, ASWebAuthenticationPresentatio
     @Published var notice: String?
     @Published var visibleChats: Set<UUID> = []
     @Published var selectedTab = 0
+    @Published var navigationPath = NavigationPath()
+    @Published var playerPageVisible = false
+    func selectTab(_ tab: Int) {
+        navigationPath = NavigationPath()
+        playerPageVisible = false
+        selectedTab = tab
+    }
     @Published var messagePath: [MessageRoute] = []
     func openCrewMessages(id: String, title: String) {
         guard requireLogin() else { return }
         messagePath = [MessageRoute(id: id, title: title, crew: true)]
         selectedTab = 3
+        navigationPath = NavigationPath(messagePath)
     }
     var chatOpen: Bool { !visibleChats.isEmpty }
     @Published var walletRevision = 0
@@ -129,8 +144,8 @@ final class AppModel: NSObject, ObservableObject, ASWebAuthenticationPresentatio
             guard version == accountRevision, !Task.isCancelled else { return }
             inboxConversations = data.objects("conversations")
             inboxUnread = data.int("unread")
-            inboxCrew = data["crew"] as? [String: Any]
-        } catch { /* The inbox screen exposes errors; background badge refresh stays quiet. */ }
+            inboxCrew = data["crew"] as? [String: Any]; inboxError = nil
+        } catch { if version == accountRevision, !Task.isCancelled { inboxError = error.localizedDescription } }
     }
     func loadLibrary() async {
         guard user != nil else { return }
@@ -141,8 +156,8 @@ final class AppModel: NSObject, ObservableObject, ASWebAuthenticationPresentatio
             if likesVersion == likeRevision && likeRequests.isEmpty { likes = library.songs("likes") }; playlists = library.objects("collections")
             let result = try await API.shared.call("/api/history")
             guard version == accountRevision else { return }
-            history = result.songs()
-        } catch { handle(error) }
+            history = result.songs(); libraryError = nil; libraryLoaded = true
+        } catch { if version == accountRevision { libraryError = error.localizedDescription } }
     }
     func toggleLike(_ song: Song) async {
         guard requireLogin() else { return }
@@ -160,6 +175,22 @@ final class AppModel: NSObject, ObservableObject, ASWebAuthenticationPresentatio
             else { likes.removeAll { $0.id == song.id } }
             handle(error)
         }
+    }
+    func loadFollows() async {
+        guard let owner = userID else { return }
+        do {
+            let value = try await API.shared.call("/api/follows")
+            guard owner == userID, !Task.isCancelled, followRequests.isEmpty else { return }
+            followedProducers = Set(value.objects("follows").filter { $0.string("kind") == "producer" }.map { $0.string("target_id") })
+        } catch { /* A failed follow refresh leaves the last known state intact. */ }
+    }
+    func toggleFollow(_ id: String) async {
+        guard requireLogin(), !id.isEmpty, !followRequests.contains(id) else { return }
+        let owner = userID, followed = followedProducers.contains(id)
+        followRequests.insert(id); defer { followRequests.remove(id) }
+        if followed { followedProducers.remove(id) } else { followedProducers.insert(id) }
+        do { _ = try await API.shared.call("/api/producers/\(Endpoint.pathID(id))/follow", method: followed ? "DELETE" : "PUT", body: [:]) }
+        catch { if owner == userID { if followed { followedProducers.insert(id) } else { followedProducers.remove(id) }; handle(error) } }
     }
     func login(email: String, password: String, name: String, register: Bool) async throws {
         authBusy = true; defer { authBusy = false }
@@ -183,7 +214,8 @@ final class AppModel: NSObject, ObservableObject, ASWebAuthenticationPresentatio
         notice = "계정을 삭제했습니다. 업로드 파일도 삭제 처리됩니다."
     }
     private func clearPrivate() {
-        messagePath.removeAll()
+        messagePath.removeAll(); navigationPath = NavigationPath(); playerPageVisible = false
+        libraryError = nil; libraryLoaded = false; followedProducers = []; followRequests = []
         accountRevision += 1; likeRequests.removeAll(); likeRevision += 1; inboxConversations = []; visibleChats.removeAll(); inboxUnread = 0; inboxCrew = nil; likes = []; playlists = []; history = []; player.close()
     }
     func handle(_ error: Error) {

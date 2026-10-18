@@ -35,17 +35,20 @@ struct MusicSectionHeading: View {
 struct ParityChips: View {
     let items: [String]
     @Binding var selection: String
+    var accent: Color = Brand.aqua
+    var filled = false
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 ForEach(items, id: \.self) { item in
                     Button { selection = item } label: {
-                        Text(item).font(.system(size: 13)).padding(.horizontal, 14).frame(minHeight: 36)
-                            .background(selection == item ? AifectDesign.raised : .clear, in: Capsule())
-                            .overlay(Capsule().stroke(selection == item ? Brand.aqua.opacity(0.55) : AifectDesign.stroke, lineWidth: 1))
+                        Text(item).font(.subheadline).padding(.horizontal, 14).frame(minHeight: 32)
+                            .foregroundStyle(selection == item ? (filled ? Brand.background : accent) : AifectDesign.muted)
+                            .background(selection == item ? accent.opacity(filled ? 1 : 0.22) : .clear, in: Capsule())
+                            .overlay(Capsule().stroke(selection == item ? accent : AifectDesign.stroke, lineWidth: 1)).frame(minHeight: 44)
                     }.buttonStyle(.plain).accessibilityAddTraits(selection == item ? .isSelected : [])
                 }
-            }.padding(.vertical, 4)
+            }
         }
     }
 }
@@ -69,7 +72,7 @@ struct SaveMusicButton: View {
         Button { if model.requireLogin() { presented = true } } label: {
             Label(compact ? "담기" : "플레이리스트 담기", systemImage: "text.badge.plus")
                 .font(.system(size: compact ? 12 : 14)).foregroundStyle(AifectDesign.secondaryText).frame(minHeight: 44)
-        }.buttonStyle(.plain).sheet(isPresented: $presented) { PlaylistPickerView(song: song) }
+        }.buttonStyle(.plain).navigationDestination(isPresented: $presented) { PlaylistPickerView(song: song) }
     }
 }
 struct PlaylistPickerView: View {
@@ -80,7 +83,7 @@ struct PlaylistPickerView: View {
     @State private var busy = false
     @State private var error: String?
     var body: some View {
-        NavigationStack {
+        Group {
             List {
                 Section(song.title) {
                     ForEach(model.playlists.filter { $0.string("user_id") == model.userID }, id: \.selfID) { list in
@@ -116,6 +119,8 @@ struct SingSongButton: View {
     let song: Song
     var title = "이 노래 부르기"
     var color: Color = Brand.pink
+    var compact = false
+    var gradient = false
     @State private var target: FreshStudio?
     @State private var resolving = false
     @State private var login = false
@@ -124,7 +129,15 @@ struct SingSongButton: View {
         Button {
             guard model.userID != nil else { login = true; return }
             openStudio()
-        } label: { Label(resolving ? "반주 확인 중…" : title, systemImage: "mic.fill") }.buttonStyle(ParityPill(color: color, filled: true)).disabled(resolving)
+        } label: {
+            Group {
+                if compact { Text(resolving ? "확인 중" : title) }
+                else { Label(resolving ? "반주 확인 중…" : title, systemImage: "mic.fill") }
+            }.font(.caption.weight(.semibold)).padding(.horizontal, compact ? 11 : 14).padding(.vertical, 8)
+                .foregroundStyle(compact ? color : Brand.background)
+                .background { if gradient { LinearGradient(colors: [Brand.pink, StreamStyle.purple], startPoint: .leading, endPoint: .trailing) } else { compact ? color.opacity(0.15) : color } }.clipShape(Capsule())
+                .overlay(Capsule().stroke(compact ? color.opacity(0.5) : .clear, lineWidth: 1)).frame(minHeight: 44)
+        }.buttonStyle(.plain).disabled(resolving)
             .fullScreenCover(item: $target) { StudioView(studio: $0.studio) }
             .sheet(isPresented: $login, onDismiss: { if model.userID != nil { openStudio() } }) { LoginView() }
             .onChange(of: model.userID) { _, owner in if owner != nil && login { login = false } }
@@ -162,99 +175,136 @@ struct MusicGrid: View {
                     SaveMusicButton(song: song, compact: true)
                 }
             }
-        }.sheet(item: $detail) { TrackDetailView(song: $0) }
+        }.navigationDestination(item: $detail) { TrackDetailView(song: $0) }
     }
 }
 struct CommunityMusicCard: View {
     @EnvironmentObject private var model: AppModel
+    @Environment(\.dynamicTypeSize) private var typeSize
     let song: Song
     let queue: [Song]
     var onDetail: ((Song) -> Void)? = nil
+    var duetInvitation = false
     @State private var detail = false
+    private var openDuet: Bool { (duetInvitation || song.duetOpen == true) && song.ownerID != model.userID }
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .top, spacing: 11) {
+        VStack(spacing: 4) {
+            HStack(spacing: 8) {
                 if let id = song.producerID {
-                    NavigationLink { ProfilePage(id: id) } label: {
-                        HStack(alignment: .top, spacing: 11) {
-                            ProfilePhoto(person: ["id": id, "image_version": song.producerImageVersion ?? ""], size: 38)
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(song.creatorName).font(.system(size: 14, weight: .bold)).lineLimit(2)
-                                Text(song.isCover ? (song.coverMode == "duet" ? "듀엣 공개" : "커버 공개") : "제작곡 공개").font(.system(size: 11)).foregroundStyle(song.isCover ? Brand.aqua : Brand.pink)
+                    NavigationLink { ProfilePage(id: id).streamingPage() } label: {
+                        HStack(spacing: 8) {
+                            ProfilePhoto(person: ["id": id, "image_version": song.producerImageVersion ?? ""], size: 32, showsLevel: false)
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(song.creatorName).font(.subheadline.bold()).lineLimit(2)
+                                Text("\(song.plays ?? 0)회 재생").font(.caption2).foregroundStyle(AifectDesign.muted)
                             }.frame(maxWidth: .infinity, alignment: .leading)
-                        }.multilineTextAlignment(.leading)
-                    }.buttonStyle(.plain).frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }.buttonStyle(.plain).accessibilityIdentifier("community-author-\(song.id)")
+                    if song.ownerID != model.userID {
+                        Button(model.followedProducers.contains(id) ? "팔로잉" : "팔로우") { Task { await model.toggleFollow(id) } }.font(.caption).foregroundStyle(AifectDesign.violet).frame(minHeight: 44)
+                    }
+                } else { Text(song.creatorName).font(.subheadline.bold()).frame(maxWidth: .infinity, alignment: .leading) }
+                NavigationLink { SongMenuView(song: song).streamingPage() } label: { Image(systemName: "ellipsis").foregroundStyle(AifectDesign.muted).frame(width: 44, height: 44) }.accessibilityLabel("\(song.title) 더보기")
+            }
+            Color.clear.aspectRatio(typeSize.isAccessibilitySize ? 1.9 : 2.15, contentMode: .fit)
+                .overlay {
+                    GeometryReader { geo in
+                        RemoteArtwork(url: song.artURL) { image in image.resizable().scaledToFill() } placeholder: {
+                            ZStack { AifectDesign.raised; Image(systemName: song.isCover ? "person" : "music.note").font(.largeTitle).foregroundStyle(AifectDesign.muted) }
+                        }.frame(width: geo.size.width, height: geo.size.height, alignment: song.isCover ? .top : .center).clipped()
+                    }
                 }
+                .overlay(LinearGradient(stops: [.init(color: .clear, location: 0.3), .init(color: .black.opacity(0.85), location: 1)], startPoint: .top, endPoint: .bottom))
+                .overlay(alignment: .topLeading) { Text(song.coverMode == "duet" ? "DUET" : song.isCover ? "COVER" : "ORIGINAL").font(.caption2.bold()).padding(7).background(.black.opacity(0.5), in: Capsule()).padding(8) }
+                .overlay(alignment: .bottomLeading) {
+                    Button { showDetail() } label: {
+                        if !typeSize.isAccessibilitySize {
+                            VStack(alignment: .leading, spacing: 4) { Text(song.title).font(.headline).lineLimit(2); if let text = song.descriptionText, !text.isEmpty { Text(text).font(.caption).lineLimit(1) } }
+                                .frame(maxWidth: .infinity, alignment: .leading).padding(.trailing, 56).padding(10)
+                        }
+                    }.buttonStyle(.plain).accessibilityLabel("\(song.title) 상세")
+                }
+                .overlay(alignment: .bottomTrailing) { CommunityPlayControl(player: model.player, song: song, queue: queue).padding(8) }
+                .foregroundStyle(.white).clipShape(RoundedRectangle(cornerRadius: 12))
+            if typeSize.isAccessibilitySize {
+                Button { showDetail() } label: {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(song.title).font(.headline).fixedSize(horizontal: false, vertical: true)
+                        if let text = song.descriptionText, !text.isEmpty { Text(text).font(.caption).foregroundStyle(AifectDesign.muted).fixedSize(horizontal: false, vertical: true) }
+                    }.frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 6)
+                }.buttonStyle(.plain).accessibilityLabel("\(song.title) 상세")
             }
-            if let text = song.descriptionText, !text.isEmpty { Text(text).font(.system(size: 13)).lineSpacing(4).lineLimit(3).frame(maxWidth: .infinity, alignment: .leading) }
-            HStack(alignment: .top, spacing: 12) {
-                Button { if let onDetail { onDetail(song) } else { detail = true } } label: { CoverArt(song: song, size: 76) }.buttonStyle(.plain)
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(song.title).font(.system(size: 16, weight: .semibold)).fixedSize(horizontal: false, vertical: true)
-                    Text(song.credit).font(.system(size: 12)).foregroundStyle(AifectDesign.muted).fixedSize(horizontal: false, vertical: true)
-                }.frame(maxWidth: .infinity, alignment: .leading).onTapGesture { if let onDetail { onDetail(song) } else { detail = true } }
-            }
-            GenreTags(genres: song.genres)
-            HStack(spacing: 12) {
-                Button { model.player.play(song, queue: queue) } label: { Label("재생", systemImage: "play.circle.fill") }.buttonStyle(ParityPill(color: Brand.pink))
-                SaveMusicButton(song: song, compact: true)
-                GiftSheetButton(song: song) { Text("선물").font(.system(size: 12)).frame(minWidth: 44, minHeight: 44) }.foregroundStyle(Brand.pink)
-            }
-            Divider().overlay(AifectDesign.stroke.opacity(0.6))
-            HStack(spacing: 16) {
-                Button { Task { await model.toggleLike(song) } } label: { Label("\(song.likes)", systemImage: model.likes.contains(where: { $0.id == song.id }) ? "heart.fill" : "heart") }.foregroundStyle(Brand.pink)
-                Button { if let onDetail { onDetail(song) } else { detail = true } } label: { Label("\(song.comments)", systemImage: "bubble.left") }
-                Spacer(minLength: 4); Text("\(song.plays ?? 0)회 재생").font(.system(size: 11))
-            }.font(.system(size: 13)).foregroundStyle(AifectDesign.muted).frame(minHeight: 44)
-            if song.isCover, let original = model.singable.first(where: { $0.id == song.originalID }) {
-                HStack { Button { model.player.play(original, queue: [original]) } label: { Label("원곡 듣기", systemImage: "opticaldisc") }; Spacer(); SingSongButton(song: original, title: "나도 부르기") }.font(.system(size: 13))
-            }
-        }.multilineTextAlignment(.leading).frame(maxWidth: .infinity, alignment: .leading).padding(16).background(MusicSurface()).clipShape(RoundedRectangle(cornerRadius: 18))
-            .overlay(RoundedRectangle(cornerRadius: 18).stroke(AifectDesign.stroke, lineWidth: 1))
-            .sheet(isPresented: $detail) { TrackDetailView(song: song) }
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 4) { reactions; singButton }
+                VStack(alignment: .leading, spacing: 0) { reactions; singButton }
+            }.frame(maxWidth: .infinity, alignment: .leading)
+        }.padding(.horizontal, 9).padding(.vertical, 4).background(LinearGradient(colors: [Color(aifectHex: 0x182031), Color(aifectHex: 0x111925)], startPoint: .top, endPoint: .bottom), in: RoundedRectangle(cornerRadius: 16))
+            .overlay(RoundedRectangle(cornerRadius: 16).stroke(AifectDesign.stroke, lineWidth: 1))
+            .navigationDestination(isPresented: $detail) { TrackDetailView(song: song) }
+    }
+    private var reactions: some View {
+        HStack(spacing: 0) {
+            Button { Task { await model.toggleLike(song) } } label: { Label("\(song.likes)", systemImage: model.likes.contains { $0.id == song.id } ? "heart.fill" : "heart").font(.subheadline).frame(minWidth: 52, minHeight: 44) }.foregroundStyle(model.likes.contains { $0.id == song.id } ? Brand.pink : AifectDesign.secondaryText).accessibilityLabel("\(song.title) 좋아요")
+            Button { showDetail() } label: { Label("\(song.comments)", systemImage: "text.bubble").font(.subheadline).frame(minWidth: 52, minHeight: 44) }.accessibilityLabel("\(song.title) 댓글")
+            ShareLink(item: song.shareURL) { Image(systemName: "square.and.arrow.up").frame(width: 44, height: 44) }.accessibilityLabel("음악 공유")
+        }.buttonStyle(.plain)
+    }
+    @ViewBuilder private var singButton: some View {
+        if openDuet { DuetJoinButton(partner: song) }
+        else if !(song.coverMode == "duet" && song.duetOpen == true && song.ownerID == model.userID), song.isCover || song.karaokeReady == true || model.singable.contains(where: { $0.id == song.id }) { SingSongButton(song: song, title: "함께 부르기", color: AifectDesign.violet, gradient: true) }
+    }
+    private func showDetail() { if let onDetail { onDetail(song) } else { model.navigationPath.append(song) } }
+}
+private struct CommunityPlayControl: View {
+    @ObservedObject var player: MusicPlayer
+    let song: Song
+    let queue: [Song]
+    private var active: Bool { player.current?.id == song.id && player.playing }
+    var body: some View {
+        VStack(spacing: 2) {
+            Button { if active { player.pause() } else { player.play(song, queue: queue) } } label: { Image(systemName: active ? "pause.circle.fill" : "play.circle.fill").font(.system(size: 34)).frame(width: 44, height: 44) }.accessibilityLabel("\(song.title) \(active ? "일시정지" : "재생")")
+            Text(timeLabel(song.duration)).font(.caption2)
+        }
     }
 }
 struct MainBottomBar: View {
     @EnvironmentObject private var model: AppModel
     @Binding var selection: Int
-    private let icons = ["house", "person.2", "mic", "bubble.left.and.bubble.right", "person"]
+    private let icons = ["house", "person.2", "mic", "bubble.left", "person"]
     var body: some View {
         HStack(spacing: 0) {
             ForEach(0..<5) { index in
-                Button { selection = index } label: {
+                Button { model.selectTab(index) } label: {
                     VStack(spacing: 4) {
                         Image(systemName: icons[index]).font(.system(size: 20)).frame(width: 58, height: 30)
-                            .foregroundStyle(selection == index ? (index == 2 ? Brand.pink : Brand.aqua) : AifectDesign.muted)
-                            .background(selection == index ? AifectDesign.raised : .clear, in: Capsule())
-                            .overlay(alignment: .topTrailing) { if index == 3 && model.inboxUnread > 0 { Text(model.inboxUnread > 99 ? "99+" : "\(model.inboxUnread)").font(.system(size: 10, weight: .bold)).foregroundStyle(Brand.background).padding(3).background(Brand.pink, in: Capsule()).offset(x: 2, y: -3) } }
-                        Text(AifectDesign.mainTabs[index]).font(.system(size: 12, weight: .semibold)).foregroundStyle(selection == index ? AifectDesign.text : AifectDesign.muted)
+                            .foregroundStyle(selection == index ? StreamStyle.purple : AifectDesign.muted)
+                            .shadow(color: selection == index ? StreamStyle.purple.opacity(0.7) : .clear, radius: 7)
+                            .overlay(alignment: .topTrailing) { if index == 3 && model.inboxUnread > 0 { Text(model.inboxUnread > 99 ? "99+" : "\(model.inboxUnread)").font(.system(size: 10, weight: .bold)).foregroundStyle(Brand.background).padding(3).background(StreamStyle.purple, in: Capsule()).offset(x: 2, y: -3) } }
+                        Text(AifectDesign.mainTabs[index]).font(.system(size: 12, weight: .semibold)).foregroundStyle(selection == index ? AifectDesign.violet : AifectDesign.muted)
                     }.frame(maxWidth: .infinity).frame(height: 62).contentShape(Rectangle())
                 }.buttonStyle(.plain).accessibilityIdentifier("main-tab-\(index)").accessibilityLabel(AifectDesign.mainTabs[index]).accessibilityAddTraits(selection == index ? .isSelected : [])
             }
-        }.padding(.horizontal, 10).background(Brand.background).overlay(alignment: .top) { Rectangle().fill(AifectDesign.stroke.opacity(0.65)).frame(height: 1) }
+        }.padding(.horizontal, 10).background(Brand.background)
     }
 }
 
-struct BrandNavigationToolbar: ToolbarContent {
+struct StreamingRootHeader: View {
     @EnvironmentObject private var model: AppModel
     @Binding var account: Bool
-    var body: some ToolbarContent {
-        if #available(iOS 26.0, *) {
-            ToolbarItem(placement: .topBarLeading) { AifectWordmark() }.sharedBackgroundVisibility(.hidden)
-            ToolbarItem(placement: .topBarTrailing) { controls }.sharedBackgroundVisibility(.hidden)
-        } else {
-            ToolbarItem(placement: .topBarLeading) { AifectWordmark() }
-            ToolbarItem(placement: .topBarTrailing) { controls }
-        }
-    }
-    private var controls: some View {
+    var body: some View {
         HStack(spacing: 0) {
-            NavigationLink { SearchView().navigationTitle("검색") } label: { Image(systemName: "magnifyingglass").frame(width: 40, height: 44) }.accessibilityLabel("검색")
-            Button { Task { await model.refresh() } } label: { Image(systemName: "arrow.clockwise").frame(width: 40, height: 44) }.disabled(model.loading).accessibilityLabel("새로고침")
-            Button { account = true } label: {
-                Image(systemName: model.user == nil ? "person" : "person.fill").font(.system(size: 18)).frame(width: 36, height: 36).background(AifectDesign.stroke, in: Circle())
-            }.frame(width: 44, height: 44).accessibilityLabel("계정")
-        }.foregroundStyle(AifectDesign.muted).buttonStyle(.plain)
+            if model.selectedTab == 0 { AifectWordmark() }
+            else { Text("마이").font(.title2.bold()).foregroundStyle(AifectDesign.text) }
+            Spacer(minLength: 8)
+            if model.selectedTab == 0 {
+                NavigationLink { ActivityHistoryView().streamingPage() } label: { Image(systemName: "bell").frame(width: 44, height: 44) }.accessibilityLabel("알림 기록")
+                NavigationLink { SearchView().navigationTitle("검색").streamingPage() } label: { Image(systemName: "magnifyingglass").frame(width: 44, height: 44) }.accessibilityLabel("검색")
+                NavigationLink(value: AppRoute.menu) { Image(systemName: "line.3.horizontal").frame(width: 44, height: 44) }.accessibilityLabel("전체 메뉴")
+            } else {
+                Button { account = true } label: { Image(systemName: "gearshape").frame(width: 44, height: 44) }.accessibilityLabel("계정 설정")
+            }
+        }.font(.system(size: 21)).foregroundStyle(AifectDesign.secondaryText).buttonStyle(.plain)
+            .padding(.leading, 14).padding(.trailing, 4).frame(minHeight: 52).background(Brand.background)
     }
 }
 
@@ -269,7 +319,7 @@ struct CoverRankHighlights: View {
         VStack(spacing: 12) {
             ScrollView(.horizontal, showsIndicators: false) { HStack(spacing: 10) {
                 ForEach(0..<4) { i in
-                    NavigationLink { CoverRankingView(initialPeriod: periods[i]) } label: {
+                    NavigationLink { CoverRankingView(initialPeriod: periods[i]).streamingPage() } label: {
                         VStack(alignment: .leading, spacing: 12) {
                             HStack(spacing: 7) { Image(systemName: i == 3 ? "trophy.fill" : "waveform").font(.system(size: 18)).foregroundStyle(colors[i]); Text(titles[i]).font(.system(size: 14, weight: .semibold)); Spacer(minLength: 0); Image(systemName: "chevron.right").font(.system(size: 12)).foregroundStyle(AifectDesign.muted) }
                             if let song = songs[periods[i]] {

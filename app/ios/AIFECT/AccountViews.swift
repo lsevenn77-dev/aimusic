@@ -83,7 +83,7 @@ struct AccountView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var logoutConfirm = false
     var body: some View {
-        NavigationStack {
+        Group {
             Form {
                 Section {
                     Label(model.user?.displayName() ?? "음악과 만나는 순간", systemImage: "person.crop.circle.fill").font(.title3.bold())
@@ -135,9 +135,15 @@ struct LibraryView: View {
             } else {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 16) {
-                        Picker("보관함 분류", selection: $selection) { Text("플레이리스트").tag(0); Text("좋아요").tag(1); Text("최근 감상").tag(2) }.pickerStyle(.segmented)
+                        Picker("보관함 분류", selection: $selection) { Text("전체").tag(3); Text("플레이리스트").tag(0); Text("좋아요").tag(1); Text("최근 감상").tag(2) }.pickerStyle(.segmented)
                         HStack { NavigationLink("내 커버 · 제작곡") { MyMusicView() }; Spacer(); NavigationLink("팔로잉") { FollowingListView() }; NavigationLink("팔로워") { FollowingListView(followers: true) } }.font(.caption).frame(minHeight: 44)
-                        if selection == 0 {
+                        if let error = model.libraryError { RetryCard(message: error) { Task { await model.loadLibrary() } } }
+                        if selection == 3 {
+                            MusicLibraryShortcuts()
+                            Text("내 플레이리스트").font(.headline)
+                            ForEach(model.playlists, id: \.selfID) { StreamingPlaylistRow(list: $0) }
+                            Button("플레이리스트 만들기", systemImage: "plus") { newList = true }.frame(minHeight: 44)
+                        } else if selection == 0 {
                             Button { newList = true } label: { Label("플레이리스트 만들기", systemImage: "plus.circle.fill") }.disabled(creating).padding(.vertical, 10)
                             ForEach(model.playlists, id: \.selfID) { item in
                                 NavigationLink { PlaylistView(id: item.string("id"), title: item.string("name")) } label: {
@@ -147,7 +153,8 @@ struct LibraryView: View {
                         } else {
                             let songs = selection == 1 ? model.likes : model.history
                             if songs.isEmpty { ContentUnavailableView(selection == 1 ? "좋아하는 음악을 모아보세요" : "아직 감상 기록이 없어요", systemImage: selection == 1 ? "heart" : "clock") }
-                            ForEach(songs) { SongRow(song: $0, queue: songs) }
+                            if !songs.isEmpty { Button("전체 재생", systemImage: "play.fill") { model.player.play(songs[0], queue: songs) }.buttonStyle(ParityPill(filled: true)) }
+                            ForEach(songs) { StreamingSongRow(song: $0, queue: songs) }
                         }
                     }.padding(20)
                 }.refreshable { await model.loadLibrary() }
@@ -206,8 +213,8 @@ struct PlaylistView: View {
                 .deleteDisabled(!owned || busy).moveDisabled(!owned || busy)
         }.navigationTitle(playlist.string("name", fallback: title)).task { await load() }.refreshable { await load() }
             .toolbar { if owned { EditButton() } }
-            .sheet(isPresented: $editing) {
-                NavigationStack { Form { TextField("이름", text: $name); Toggle("공개 목록", isOn: $isPublic); Button("저장") { Task { await save() } }.disabled(busy || name.isEmpty); if let error { Text(error).foregroundStyle(.red) } }.navigationTitle("목록 편집").toolbar { Button("닫기") { editing = false } } }
+            .navigationDestination(isPresented: $editing) {
+                Group { Form { TextField("이름", text: $name); Toggle("공개 목록", isOn: $isPublic); Button("저장") { Task { await save() } }.disabled(busy || name.isEmpty); if let error { Text(error).foregroundStyle(.red) } }.navigationTitle("목록 편집").toolbar { Button("닫기") { editing = false } } }
             }
             .confirmationDialog("플레이리스트를 삭제할까요?", isPresented: $deleting, titleVisibility: .visible) {
                 Button("삭제", role: .destructive) { Task { do { _ = try await API.shared.call("/api/playlists/\(Endpoint.pathID(id))", method: "DELETE", body: [:]); await model.loadLibrary(); dismiss() } catch { self.error = error.localizedDescription } } }
@@ -277,7 +284,7 @@ struct TrackDetailView: View {
     @State private var error: String?
     @State private var loading = true
     var body: some View {
-        NavigationStack {
+        Group {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
                     HStack(spacing: 20) { CoverArt(song: song, size: 110); VStack(alignment: .leading, spacing: 8) { Text(song.title).font(.title2.bold()); Text(song.credit).foregroundStyle(.secondary); Text(song.genreLabel).font(.caption).foregroundStyle(Brand.aqua) } }

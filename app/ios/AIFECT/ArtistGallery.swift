@@ -1,7 +1,7 @@
 import SwiftUI
 import PhotosUI
 
-struct ArtistGalleryPhoto: Identifiable {
+struct ArtistGalleryPhoto: Identifiable, Hashable {
     let id: String
     let url: URL
     init?(_ value: [String: Any]) {
@@ -68,8 +68,8 @@ struct ArtistGallerySection: View {
                 Button("사진 삭제", role: .destructive) { Task { await remove(photo) } }
             }
         }
-        .sheet(item: $enlarged) { photo in
-            NavigationStack {
+        .navigationDestination(item: $enlarged) { photo in
+            Group {
                 RemoteArtwork(url: photo.url) { $0.resizable().scaledToFit() } placeholder: { ProgressView() }
                     .frame(maxWidth: .infinity, maxHeight: .infinity).background(Brand.background)
                     .navigationTitle("갤러리").navigationBarTitleDisplayMode(.inline)

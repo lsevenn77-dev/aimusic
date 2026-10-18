@@ -69,6 +69,10 @@ final class FeedbackURLProtocol: URLProtocol {
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func startLoading() {
         let path = request.url!.path
+        if ProcessInfo.processInfo.arguments.contains("-streaming-ui-test"), let result = StreamingUIFixture.response(request, body: requestBody()) {
+            client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!, statusCode: result.0, httpVersion: nil, headerFields: ["Content-Type": result.1])!, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocol(self, didLoad: result.2); client?.urlProtocolDidFinishLoading(self); return
+        }
         if path.hasPrefix("/assets/") {
             let bytes = UIImage(named: "ClanAetherFrame")?.pngData() ?? Data()
             client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: ["Content-Type": "image/png"])!, cacheStoragePolicy: .notAllowed)
@@ -152,6 +156,8 @@ struct FeedbackUITestView: View {
     @State private var narrowLayout = false
     var body: some View {
         RootView().environmentObject(model).preferredColorScheme(.dark).tint(Brand.aqua)
+            .environment(\.dynamicTypeSize, ProcessInfo.processInfo.arguments.contains("-streaming-large") ? .accessibility1 : .large)
+            .frame(maxWidth: ProcessInfo.processInfo.arguments.contains("-streaming-large") ? 320 : .infinity)
             .task {
                 draft = try? FeedbackUIFixture.draft()
                 if ProcessInfo.processInfo.arguments.contains("-narrow-ui-test") { narrowLayout = true }
@@ -159,23 +165,23 @@ struct FeedbackUITestView: View {
             .onChange(of: model.userID) { _, owner in
                 // Account loading intentionally clears the player. Seed it only
                 // after that boundary so this fixture cannot race sign-in.
-                if owner == "fixture-user", ProcessInfo.processInfo.arguments.contains("-redesign-ui-test") {
-                    model.player.current = FeedbackUIFixture.song; model.player.duration = 20
+                if owner == "fixture-user", (ProcessInfo.processInfo.arguments.contains("-redesign-ui-test") || ProcessInfo.processInfo.arguments.contains("-streaming-ui-test")) {
+                    model.player.current = FeedbackUIFixture.song; model.player.duration = 20; model.player.lyric = "검증용 현재 가사 한 줄"
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: Notification.Name("feedback-profile-loaded"))) { _ in model.chart = []; model.singable = [] }
             .overlay(alignment: .topTrailing) {
-                Menu("검증") {
+                if !ProcessInfo.processInfo.arguments.contains("-streaming-ui-test") { Menu("검증") {
                     Button("녹음 편집 검증") { if let draft { studio = FeedbackStudioSelection(studio: makeStudio(draft, stopped: false)) } }
                     Button("녹음 멈춤 검증") { if let draft { studio = FeedbackStudioSelection(studio: makeStudio(draft, stopped: true)) } }
                     Button("재생창 프로필 검증") { model.player.current = FeedbackUIFixture.song; model.player.duration = 20 }
                     Button("음원 상세 검증") { track = true }
                     Button("선물창 검증") { gift = true }
                     Button("좁은 화면 검증") { narrowLayout = true }
-                }.padding().accessibilityIdentifier("feedback-menu")
+                }.padding().accessibilityIdentifier("feedback-menu") }
             }
             .sheet(isPresented: $gift) { NavigationStack { GiftWalletView(song: FeedbackUIFixture.song, compact: true).environmentObject(model) }.presentationDetents([.fraction(0.48)]) }
-            .sheet(isPresented: $track) { TrackDetailView(song: FeedbackUIFixture.song).environmentObject(model) }
+            .sheet(isPresented: $track) { NavigationStack { TrackDetailView(song: FeedbackUIFixture.song).environmentObject(model) } }
             .sheet(isPresented: $narrowLayout) { FeedbackNarrowLayout().environmentObject(model).preferredColorScheme(.dark) }
             .fullScreenCover(item: $studio) { selection in StudioView(studio: selection.studio).environmentObject(model).preferredColorScheme(.dark) }
     }

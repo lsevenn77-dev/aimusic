@@ -170,8 +170,8 @@ struct DiamondWalletView: View {
             .task(id: model.userID) { store.bind(model.userID); confirmation = nil; editAccount = false; await store.load() }
             .onChange(of: scenePhase) { _, value in if value != .active { editAccount = false } }
             .refreshable { if !store.busy { await store.load() } }
-            .sheet(isPresented: $editAccount) {
-                NavigationStack { PayoutAccountEditor(banks: store.account?["banks"] as? [String] ?? []) { await store.load() } }.environmentObject(model)
+            .navigationDestination(isPresented: $editAccount) {
+                Group { PayoutAccountEditor(banks: store.account?["banks"] as? [String] ?? []) { await store.load() } }.environmentObject(model)
             }
             .confirmationDialog(confirmation?.action.title ?? "다이아 사용", isPresented: Binding(get: { confirmation != nil }, set: { if !$0 { confirmation = nil } }), titleVisibility: .visible) {
                 if let request = confirmation {

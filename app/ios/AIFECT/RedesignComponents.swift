@@ -33,7 +33,7 @@ struct CompactMusicRow: View {
                     Button { model.player.play(song, queue: queue) } label: { Image(systemName: "play.circle.fill").font(.system(size: 24)).foregroundStyle(Brand.pink).frame(width: 44, height: 44) }.accessibilityLabel("\(song.title) 재생")
                 }
             }
-        }.padding(.vertical, 12).sheet(isPresented: $detail) { TrackDetailView(song: song) }
+        }.padding(.vertical, 12).navigationDestination(isPresented: $detail) { TrackDetailView(song: song) }
     }
     private func showDetail() { if let onDetail { onDetail(song) } else { detail = true } }
 }
@@ -82,25 +82,7 @@ struct WebMusicBanner: View {
 }
 
 struct StudioAtmosphere: View {
-    var body: some View {
-        ZStack(alignment: .top) {
-            LinearGradient(colors: [Color(aifectHex: 0x10151E), Color(aifectHex: 0x171723), Brand.background], startPoint: .topLeading, endPoint: .bottomTrailing)
-            Canvas { context, size in
-                let center = CGPoint(x: size.width / 2, y: 64), radius: CGFloat = 32
-                let ball = Path(ellipseIn: CGRect(x: center.x-radius, y: center.y-radius, width: radius*2, height: radius*2))
-                var line = Path(); line.move(to: CGPoint(x: center.x, y: 0)); line.addLine(to: CGPoint(x: center.x, y: center.y-radius))
-                context.stroke(line, with: .color(Brand.aqua.opacity(0.14)), lineWidth: 1)
-                context.stroke(ball, with: .color(Brand.aqua.opacity(0.14)), lineWidth: 1)
-                context.clip(to: ball)
-                for index in -2...2 {
-                    var seam = Path(); seam.move(to: CGPoint(x: center.x-radius, y: center.y+CGFloat(index)*10)); seam.addLine(to: CGPoint(x: center.x+radius, y: center.y+CGFloat(index)*10))
-                    let r = CGFloat(abs(index)*10+5)
-                    seam.addEllipse(in: CGRect(x: center.x-r, y: center.y-radius, width: r*2, height: radius*2))
-                    context.stroke(seam, with: .color(Brand.aqua.opacity(0.10)), lineWidth: 1)
-                }
-            }.allowsHitTesting(false).accessibilityHidden(true)
-        }.ignoresSafeArea()
-    }
+    var body: some View { Brand.background.ignoresSafeArea() }
 }
 
 /// Decorative only: a static, quiet motif that doesn't compete with labels.
@@ -170,7 +152,7 @@ struct SingReadyCard: View {
             .background(MusicIllustration()).background(MusicSurface(feature: true))
             .clipShape(RoundedRectangle(cornerRadius: 18))
             .overlay(RoundedRectangle(cornerRadius: 18).stroke(AifectDesign.stroke, lineWidth: 1))
-            .sheet(isPresented: $detail) { TrackDetailView(song: song) }
+            .navigationDestination(isPresented: $detail) { TrackDetailView(song: song) }
             .accessibilityIdentifier("sing-ready-\(song.id)")
     }
     private var play: some View {

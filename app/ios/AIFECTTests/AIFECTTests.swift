@@ -116,10 +116,10 @@ final class AIFECTTests: XCTestCase {
         XCTAssertEqual(Endpoint.pathID("fef77394-8dd9-4638-9e82-a241b77b738c"), "fef77394-8dd9-4638-9e82-a241b77b738c")
         XCTAssertFalse(try Endpoint.url("/media/\(Endpoint.pathID("original-1"))/cover").absoluteString.contains("%2D"))
     }
-    func testCoverUsesOriginalArtworkAndProducerCredit() {
+    func testCoverWithoutProfilePhotoDoesNotBorrowOriginalArtwork() {
         let song = Song(["id": "cover-1", "title": "곡", "kind": "cover", "original_id": "original-1", "original_has_cover": 1, "original_cover_version": "version", "artist": "AI 가수", "producer": "실제 보컬", "has_ai_artist": 1])
         XCTAssertEqual(song.credit, "실제 보컬")
-        XCTAssertEqual(song.artURL?.path, "/media/original-1/cover")
+        XCTAssertNil(song.artURL)
         XCTAssertEqual(song.duration, 0)
     }
     @MainActor func testAPIPropagatesServerErrorAndScopesSession() async throws {
