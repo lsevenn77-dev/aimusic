@@ -71,6 +71,8 @@ class DesignCaptureTest {
   responses["/api/community"]=payload("tracks" to arr(cover,duet,song),"producers" to arr(peer,own))
   responses["/api/karaoke"]=payload("tracks" to arr(song,second))
   responses["/api/duets"]=payload("tracks" to arr(duet))
+  responses["/api/karaoke/design-song"]=payload("track" to song,"words" to JSONArray(),"mr" to "/media/sample/audio")
+  responses["/api/duets/design-duet"]=payload("track" to song,"words" to JSONArray(),"mr" to "/media/sample/audio","duet" to payload("parent_id" to "design-duet","part" to "second","partner" to duet))
   responses["/api/studio"]=payload("producer" to own,"artists" to arr(payload("id" to "design-artist","name" to "NOVA","genre" to "City Pop")),"upload_quota" to payload("used" to 2,"limit" to 10,"remaining" to 8),"tracks" to arr(song,second,JSONObject(cover.toString()).put("user_id","design-user")))
   responses["/api/playlists"]=payload("playlists" to arr(playlist))
   responses["/api/playlists/design-list"]=payload("playlist" to playlist,"tracks" to arr(song,second,cover,duet))
@@ -134,7 +136,7 @@ class DesignCaptureTest {
   ui.waitUntil(30000){!model.loading&&model.user!=null&&model.home.isNotEmpty()}
  }
  @After fun close(){if(::screen.isInitialized)screen.close();context.stopService(Intent(context,PlaybackService::class.java));if(::server.isInitialized)server.close();workers.shutdownNow()}
- private fun ready(tag:String){ui.waitUntil(15000){ui.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty()}}
+ private fun ready(tag:String){ui.waitUntil(15000){ui.onAllNodesWithTag(tag,useUnmergedTree=true).fetchSemanticsNodes().isNotEmpty()}}
  private fun text(value:String){ui.waitUntil(15000){ui.onAllNodesWithText(value).fetchSemanticsNodes().isNotEmpty()}}
  private fun act(block:(MusicModel)->Unit){screen.onActivity{block(model)};ui.waitForIdle()}
  private fun capture(name:String){ui.waitForIdle();instrumentation.waitForIdleSync();Thread.sleep(850);val image=instrumentation.uiAutomation.takeScreenshot();val dir=File(context.getExternalFilesDir(null),"design-2549");dir.mkdirs();FileOutputStream(File(dir,name+".png")).use{image.compress(Bitmap.CompressFormat.PNG,100,it)};image.recycle()}
@@ -234,7 +236,7 @@ class DesignCaptureTest {
   ui.onNodeWithTag("listen-scroll").performScrollToNode(hasText("같은 노래, 다른 목소리"));capture("02-home-covers")
   ui.onNodeWithTag("main-tab-3").performClick();ready("music-community-feed");capture("03-community")
   ui.onNodeWithTag("main-tab-2").performClick();ready("sing-scroll");capture("04-sing")
-  ui.onNodeWithTag("sing-scroll").performScrollToNode(hasText("나의 다음 무대"));capture("05-sing-songs")
+  ui.onNodeWithTag("sing-scroll").performScrollToNode(hasText("부를 수 있는 곡"));capture("05-sing-songs")
   act{it.selectTab(1)};ready("search-scroll");capture("06-search")
   act{it.library("플레이리스트")};ready("library-scroll");capture("07-library")
   act{it.openList("design-list")};ui.waitUntil(15000){!model.listLoading&&model.listSongs.isNotEmpty()};capture("08-playlist")
@@ -261,7 +263,7 @@ class DesignCaptureTest {
  @Test fun chartsHavePanelsAndSearchStaysOneLine(){
   act{it.listenPage="차트";it.selectTab(0)};ready("chart-popular");capture("41-chart-panels")
   ui.onNodeWithTag("chart-category-karaoke").performClick();ui.waitUntil(15000){model.rankOpen&&!model.rankBusy};capture("42-karaoke-chart-panel");act{it.dismissRanking()}
-  act{it.listenPage="최신곡"};ready("latest-banner");capture("43-latest-panels")
+  act{it.listenPage="최신곡"};ready("stream-song-design-song");capture("43-latest-panels")
   act{it.selectTab(1)};ready("global-search")
   val layouts=mutableListOf<TextLayoutResult>()
   ui.onNodeWithText("곡 · 아티스트 검색",useUnmergedTree=true).performSemanticsAction(SemanticsActions.GetTextLayoutResult){it(layouts)}
@@ -329,7 +331,11 @@ class DesignCaptureTest {
   val first=ui.onNode(hasTestTag("chart-song-design-song") and hasAnyAncestor(hasTestTag("chart-popular"))).fetchSemanticsNode().boundsInRoot
   val next=ui.onNode(hasTestTag("chart-song-design-ocean") and hasAnyAncestor(hasTestTag("chart-popular"))).fetchSemanticsNode().boundsInRoot
   assertTrue(next.top>first.bottom)
-  act{it.listenPage="최신곡"};ready("latest-banner");assertFullTitle();capture("51-latest-full-title")
+  act{it.listenPage="최신곡"};ready("stream-song-design-song")
+  val latestLayouts=mutableListOf<TextLayoutResult>()
+  ui.onNodeWithTag("music-title-design-song",useUnmergedTree=true).performSemanticsAction(SemanticsActions.GetTextLayoutResult){it(latestLayouts)}
+  assertEquals(title,latestLayouts.single().layoutInput.text.text);assertTrue(latestLayouts.single().lineCount<=2)
+  capture("51-latest-compact-title")
  }
  @Test fun singingGenresWrapAndCreatorCardsKeepEqualSize(){
   val description="도시의 하루가 끝나는 순간을 노래한 곡이에요. 원곡을 먼저 들어보고 반주에 맞춰 나만의 목소리로 새로운 이야기를 남겨보세요."
@@ -339,14 +345,12 @@ class DesignCaptureTest {
    it.people=listOf(JSONObject(peer.toString()).put("bio","짧은 소개"),JSONObject(own.toString()).put("name","아주 긴 이름을 가진 음악가").put("bio","음악을 좋아하고 노래를 만들며 하루의 여러 순간을 목소리로 남기는 창작자입니다."),person("no-bio","새벽","third").put("bio",""))
    it.selectTab(0)
   }
-  ui.onNodeWithTag("listen-scroll").performScrollToNode(hasTestTag("sing-genres-design-song"))
-  val bounds=ui.onNodeWithTag("sing-genres-design-song").fetchSemanticsNode().boundsInRoot
-  val chipBounds=genres.map{genre->ui.onNode(hasText(genre) and hasAnyAncestor(hasTestTag("sing-genres-design-song")),useUnmergedTree=true).fetchSemanticsNode().boundsInRoot}
-  chipBounds.forEach{assertTrue(it.left>=bounds.left&&it.right<=bounds.right+1)}
-  assertTrue(chipBounds.last().top>chipBounds.first().top)
-  val layouts=mutableListOf<TextLayoutResult>()
-  ui.onNodeWithTag("sing-description-design-song",useUnmergedTree=true).performSemanticsAction(SemanticsActions.GetTextLayoutResult){it(layouts)}
-  assertFalse(layouts.single().hasVisualOverflow);capture("52-singing-wrapped-genres")
+  // Genre filtering now lives in the singing catalogue, outside each compact song row.
+  act{it.selectTab(2)};ui.onNodeWithTag("sing-entry-솔로").performClick()
+  ui.onNodeWithTag("chips-전체").performScrollToNode(hasText("Korean Folklore Fusion"))
+  ui.onNodeWithText("Korean Folklore Fusion").performClick()
+  ui.onNodeWithTag("stream-song-design-song").assertExists();capture("52-singing-genre-filter")
+  act{it.selectTab(0)}
   ui.onNodeWithTag("listen-scroll").performScrollToNode(hasTestTag("home-people-shelf"))
   val first=ui.onNodeWithTag("person-card-design-peer").fetchSemanticsNode().boundsInRoot
   val second=ui.onNodeWithTag("person-card-design-own").fetchSemanticsNode().boundsInRoot
@@ -431,21 +435,12 @@ class DesignCaptureTest {
   ui.onNodeWithText("하루(크루장)").assertExists();ui.onNodeWithText("이번 주엔 어떤 노래를 함께 부를까요?").assertExists();capture("17-crew-chat")
   ui.onNodeWithTag("crew-chat-input").performClick().performTextInput("듀엣 참여할게요");capture("18-crew-keyboard");Espresso.closeSoftKeyboard()
  }
- @Test fun singingCardKeepsActionsAndRealParticipationTogether(){
-  ui.onNodeWithTag("listen-scroll").performScrollToNode(hasTestTag("sing-ready-design-song"))
-  ui.onNodeWithTag("sing-ready-design-song").assertExists()
-  ui.onNodeWithTag("sing-ready-play-design-song").assertIsDisplayed()
-  ui.onNodeWithTag("sing-ready-covers-design-song").assertIsDisplayed()
-  ui.onNodeWithTag("sing-ready-covers-design-song").assertTextContains("커버 4 · 참여 커버 보기")
-  capture("30-home-sing-card")
-  ui.onNodeWithTag("sing-ready-play-design-song").performClick()
-  ui.waitUntil(15000){model.current?.id=="design-song"}
-  act{it.controller?.pause()}
-  ui.onNodeWithTag("listen-scroll").performScrollToNode(hasTestTag("sing-ready-covers-design-song"))
-  ui.onNodeWithTag("sing-ready-covers-design-song").performClick()
-  ui.waitUntil(15000){model.collection?.tracks?.isNotEmpty()==true}
-  assertEquals(listOf("design-cover"),model.collection?.tracks?.map{it.id})
-  capture("31-song-participation")
+ @Test fun singingRowsKeepPlaybackAndRecordingActionsTogether(){
+  act{it.selectTab(2)};ui.onNodeWithTag("sing-entry-솔로").performClick()
+  ui.onNodeWithTag("stream-play-design-song").assertIsDisplayed()
+  ui.onNodeWithTag("stream-sing-design-song").assertIsDisplayed()
+  ui.onNodeWithTag("stream-play-design-song").performClick();ui.waitUntil(15000){model.current?.id=="design-song"}
+  ui.onNodeWithContentDescription("밤의 산책 곡 정보").performClick();ui.waitUntil(15000){model.detail?.id=="design-song"}
   assertEquals(PackageManager.PERMISSION_DENIED,ContextCompat.checkSelfPermission(context,Manifest.permission.RECORD_AUDIO))
  }
  @Test fun webParityGiftQuantityAndActivityHistory(){
@@ -461,7 +456,8 @@ class DesignCaptureTest {
   ui.onNodeWithTag("gift-list").performScrollToNode(hasText("손편지 5개를 보냈어요"))
   val body=JSONObject(requestBodies.getValue("/api/producers/design-peer/gifts"))
   assertEquals("silver-letter",body.getString("gift_type"));assertEquals(5,body.getInt("quantity"));assertEquals(10,body.getInt("silver"));assertTrue(body.getString("request_id").isNotBlank())
-  act{it.showGifts=false;it.showNotifications=true};ready("activity-list");text("손편지 5개를 보냈어요.")
+  act{it.showGifts=false;it.showNotifications=true};ready("activity-list")
+  text("손편지 5개를 보냈어요.")
   ui.onNodeWithTag("activity-list").performScrollToNode(hasText("손편지 5개를 보냈어요."))
   ui.onNodeWithText("10 S").assertExists();capture("42-activity-history")
   ui.onNodeWithText("읽음",substring=false).performClick()
@@ -477,20 +473,16 @@ class DesignCaptureTest {
  }
  @Test fun compactPlayerShowsPlaybackControlsAndOneLyric(){
   act{it.play(Song(song),listOf(Song(song),Song(second)))}
-  ready("mini-player-lyrics");text("오늘의 마음을 이 노래에 담아요")
-  ui.onNodeWithContentDescription("랜덤 재생").performClick();ui.waitUntil(10000){model.shuffle}
-  ui.onNodeWithContentDescription("반복 재생").performClick();ui.waitUntil(10000){model.repeat==androidx.media3.common.Player.REPEAT_MODE_ALL}
-  capture("45-mini-player")
-  ui.onNodeWithContentDescription("재생목록",useUnmergedTree=true).performClick();text("재생목록");capture("46-player-queue");Espresso.pressBack()
-  ui.onNodeWithContentDescription("재생바 내리기").performClick();ui.onNodeWithTag("mini-player-lyrics").assertIsDisplayed()
+  ready("mini-player-open");text("오늘의 마음을 이 노래에 담아요")
   val layouts=mutableListOf<TextLayoutResult>()
   ui.onNodeWithTag("mini-player-current-lyric",useUnmergedTree=true).performSemanticsAction(SemanticsActions.GetTextLayoutResult){it(layouts)}
-  assertEquals(1,layouts.single().lineCount);capture("47-collapsed-lyric")
-  ui.onNodeWithContentDescription("재생바 펼치기").performClick();ui.onNodeWithTag("mini-player-lyrics").assertExists()
+  assertEquals(1,layouts.single().lineCount)
+  ui.onNodeWithContentDescription("랜덤 재생").assertDoesNotExist()
+  ui.onNodeWithContentDescription("다음 곡").assertIsDisplayed();phaseCapture("21-compact-player")
  }
  @Test fun captureProfileAndGiftScreens(){
-  ui.onNodeWithTag("main-tab-6").performClick();ready("my-profile-cover-image");ui.onNodeWithTag("my-logout").assertIsDisplayed();capture("19-my-profile")
-  ui.onNodeWithTag("my-music-page").performScrollToNode(hasTestTag("my-music-layout-grid"));capture("20-my-music")
+  ui.onNodeWithTag("main-tab-6").performClick();ready("music-shortcut-보관함");ui.onNodeWithTag("my-logout").assertIsDisplayed();capture("19-my-profile")
+  ui.onNodeWithText("내 활동").performClick();ui.onNodeWithTag("my-music-page").performScrollToNode(hasTestTag("my-music-layout-grid"));capture("20-my-music")
   act{it.openProfile("design-peer")};ui.waitUntil(15000){!model.profileLoading&&model.profile!=null};ready("profile-close");capture("21-public-profile")
   ui.onNodeWithTag("profile-scroll").performScrollToNode(hasTestTag("profile-gift"));ui.onNodeWithTag("profile-gift").performClick();text("하루(밤산책)님에게 선물");capture("22-person-gift")
   act{it.showGifts=false;it.dismissProfile();it.openProfile("design-artist","artist")};ui.waitUntil(15000){!model.profileLoading&&model.profile?.optString("id")=="design-artist"};capture("23-artist-profile")
@@ -501,4 +493,159 @@ class DesignCaptureTest {
   act{it.showRewards=false;it.showAccount=true};ready("account-actions");capture("28-account-menu")
   act{it.showAccount=false;it.openAccountSettings()};ready("account-settings");capture("29-account-settings")
  }
+
+ private fun phaseCapture(name:String){
+  ui.waitForIdle();instrumentation.waitForIdleSync();Thread.sleep(500)
+  val image=instrumentation.uiAutomation.takeScreenshot()
+  val dir=File(context.getExternalFilesDir(null),"streaming-first").apply{mkdirs()}
+  FileOutputStream(File(dir,"$name.png")).use{image.compress(Bitmap.CompressFormat.PNG,100,it)};image.recycle()
+ }
+ @Test fun streamingHomeTabsPlayAndRestoreDiscovery(){
+  ready("home-featured-play");phaseCapture("01-home")
+  listOf("추천","차트","최신곡","발견").forEach{ui.onNodeWithTag("listen-tab-$it").assertIsDisplayed()}
+  ui.onNodeWithTag("home-featured-play").performClick();ui.waitUntil(15000){model.playing};ready("mini-player-lyrics");phaseCapture("02-home-playing")
+  ui.onNodeWithTag("listen-tab-차트").performClick();ready("chart-period-month")
+  ui.onNodeWithTag("chart-period-month").performClick();ui.waitUntil(15000){requestUrls.any{it.contains("period=month")}}
+  ui.onNodeWithTag("listen-scroll").performScrollToNode(hasTestTag("chart-song-design-ocean"))
+  ui.onNodeWithContentDescription("푸른 순간 재생").performClick();ui.waitUntil(15000){model.current?.id=="design-ocean"};phaseCapture("03-chart")
+  ui.onNodeWithTag("listen-tab-최신곡").performClick();ready("stream-play-design-song")
+  ui.onNodeWithTag("stream-play-design-song").performClick();ui.waitUntil(15000){model.current?.id=="design-song"};phaseCapture("04-latest")
+  ui.onNodeWithTag("listen-tab-발견").performClick();ready("global-search");phaseCapture("05-discover")
+  ui.onNodeWithTag("global-search").performTextInput("푸른")
+  ui.waitUntil(15000){model.searched&&!model.searching};Espresso.closeSoftKeyboard()
+  ui.onNodeWithTag("listen-tab-추천").performClick();ui.onNodeWithTag("listen-tab-발견").performClick()
+  ui.onNodeWithTag("global-search").assertTextContains("푸른")
+  ui.onNodeWithTag("search-scroll").performScrollToNode(hasContentDescription("푸른 순간 재생"))
+  ui.onNodeWithContentDescription("푸른 순간 재생").performClick();ui.waitUntil(15000){model.current?.id=="design-ocean"}
+  assertTrue(requestUrls.any{it.startsWith("/api/search")})
+ }
+ @Test fun streamingLibrarySharesServerStateAndReturnsToSource(){
+  ready("music-shortcut-좋아요");ui.onNodeWithTag("music-shortcut-좋아요").performClick()
+  ready("library-search");assertEquals("좋아요",model.libraryPage)
+  ui.onNodeWithTag("stream-play-design-cover").performClick();ui.waitUntil(15000){model.current?.id=="design-cover"}
+  ui.onNodeWithTag("library-back").performClick();assertEquals(0,model.tab)
+  ui.onNodeWithTag("main-tab-6").performClick();ready("my-music-page");phaseCapture("06-my-music")
+  ui.onNodeWithTag("music-shortcut-좋아요").performClick();ready("stream-song-design-cover")
+  responses["/api/library"]=payload("likes" to arr(song),"collections" to arr(playlist),"follows" to JSONArray())
+  // Change the same server-backed like from the full player's visible action.
+  ui.onNodeWithTag("mini-player-open").performClick();ui.onNodeWithContentDescription("좋아요").performClick()
+  ui.waitUntil(15000){!model.busy&&model.likes.none{it.id=="design-cover"}}
+  Espresso.pressBack();ready("library-search");ui.onNodeWithTag("stream-song-design-cover").assertDoesNotExist()
+  Espresso.pressBack();assertEquals(6,model.tab)
+  ui.onNodeWithTag("music-shortcut-플레이리스트").performClick();text("퇴근길에 듣는 음악")
+  ui.onNodeWithText("퇴근길에 듣는 음악").performClick();ui.waitUntil(15000){model.selectedList!=null&&model.listSongs.size==4};phaseCapture("07-playlist")
+  Espresso.pressBack();Espresso.pressBack();assertEquals(6,model.tab)
+  ui.onNodeWithTag("music-shortcut-보관함").performClick();ready("library-scroll");phaseCapture("08-library")
+  Espresso.pressBack();ui.onNodeWithText("내 활동").performClick();phaseCapture("09-my-activity")
+  ui.onNodeWithTag("account-menu").performClick();ready("account-actions");Espresso.pressBack()
+  ui.onNodeWithText("내 음악").performClick();ui.onNodeWithTag("my-music-page").performScrollToNode(hasText("창작자 스튜디오"));ui.onNodeWithText("창작자 스튜디오").performClick();ready("creator-studio");Espresso.pressBack();assertEquals(6,model.tab)
+ }
+ @Test fun streamingMiniPlayerKeepsSessionAndExpandedControls(){
+  act{it.play(Song(song),listOf(Song(song),Song(second)))};ui.waitUntil(15000){model.playing};ready("mini-player-open");text("오늘의 마음을 이 노래에 담아요")
+  val layout=mutableListOf<TextLayoutResult>()
+  ui.onNodeWithTag("mini-player-current-lyric",useUnmergedTree=true).performSemanticsAction(SemanticsActions.GetTextLayoutResult){it(layout)}
+  assertEquals(1,layout.single().lineCount)
+  val controller=model.controller
+  for(tab in listOf(3,2,5,6,0)){ui.onNodeWithTag("main-tab-$tab").performClick();assertSame(controller,model.controller);assertEquals("design-song",model.current?.id);assertTrue(model.playing)}
+  ui.onNodeWithTag("mini-player-open").performClick();ready("player-queue");phaseCapture("10-full-player")
+  ui.onNodeWithContentDescription("셔플").performScrollTo().performClick();ui.waitUntil(10000){model.shuffle}
+  ui.onNodeWithContentDescription("반복").performClick();ui.waitUntil(10000){model.repeat==androidx.media3.common.Player.REPEAT_MODE_ALL}
+  ui.onNodeWithTag("player-queue").performScrollTo().performClick();text("재생목록");phaseCapture("11-queue")
+  instrumentation.sendKeyDownUpSync(android.view.KeyEvent.KEYCODE_BACK)
+  ui.waitUntil(5000){ui.onAllNodesWithText("재생목록").fetchSemanticsNodes().isEmpty()}
+  instrumentation.sendKeyDownUpSync(android.view.KeyEvent.KEYCODE_BACK)
+  ui.waitUntil(5000){!model.fullPlayer};assertTrue(model.playing)
+  screen.moveToState(androidx.lifecycle.Lifecycle.State.CREATED);Thread.sleep(800)
+  instrumentation.runOnMainSync{assertTrue(controller!!.isPlaying);controller.pause()}
+  screen.moveToState(androidx.lifecycle.Lifecycle.State.RESUMED);ui.waitUntil(10000){!model.playing}
+  ui.onNodeWithContentDescription("재생").performClick();ui.waitUntil(10000){model.playing}
+  ui.onNodeWithContentDescription("다음 곡").performClick();ui.waitUntil(10000){model.current?.id=="design-ocean"}
+  ui.onNodeWithTag("mini-player-open").performClick();ui.onNodeWithContentDescription("재생 종료").performClick();ui.waitUntil(10000){model.current==null}
+  ui.onNodeWithTag("mini-player").assertDoesNotExist()
+ }
+ @Test fun streamingSingSearchDraftAndDuetRoutes(){
+  ui.onNodeWithTag("main-tab-2").performClick();ready("sing-search");phaseCapture("12-sing")
+  ui.onNodeWithTag("sing-entry-솔로").performClick();ready("stream-sing-design-ocean")
+  ui.onNodeWithTag("sing-search").performTextInput("푸른")
+  ui.onNodeWithTag("stream-song-design-song").assertDoesNotExist();ui.onNodeWithTag("stream-song-design-ocean").assertExists()
+  Espresso.closeSoftKeyboard();ui.onNodeWithContentDescription("부르기 처음으로").performClick()
+  ui.onNodeWithTag("sing-search").performTextClearance();Espresso.closeSoftKeyboard()
+  ui.onNodeWithText("녹음 이어 하기").performClick();ready("recording-drafts");Espresso.pressBack()
+  ui.onNodeWithTag("sing-entry-듀엣").performClick();ready("duet-invitation-design-duet");phaseCapture("13-duets")
+  ui.onNodeWithContentDescription("우리의 멜로디 먼저 듣기").performClick();ui.waitUntil(15000){model.current?.id=="design-duet"&&model.playing}
+  // Monitor the actual Android Activity launch, preserving original + parent + mode.
+  val monitor=instrumentation.addMonitor(kr.co.aifect.app.karaoke.KaraokeActivity::class.java.name,null,false)
+  try{
+   ui.onNodeWithTag("duet-join-design-duet").performClick()
+   val activity=instrumentation.waitForMonitorWithTimeout(monitor,15000)
+   assertNotNull("Existing recorder must be launched",activity)
+   assertEquals("design-song",activity.intent.getStringExtra("trackId"));assertEquals("design-duet",activity.intent.getStringExtra("duetParentId"));assertEquals("duet",activity.intent.getStringExtra("coverMode"))
+   ui.waitUntil(10000){!model.playing}
+   instrumentation.runOnMainSync{activity.finish()}
+  }finally{instrumentation.removeMonitor(monitor)}
+ }
+ @Test fun streamingEmptyAndSignedOutStates(){
+  responses["/api/library"]=payload("likes" to JSONArray(),"collections" to JSONArray(),"follows" to JSONArray())
+  responses["/api/history"]=payload("tracks" to JSONArray())
+  act{it.refreshLibrary(fresh=true)};ui.waitUntil(15000){model.likes.isEmpty()&&model.history.isEmpty()&&model.playlists.isEmpty()}
+  act{it.library("보관함")};ready("library-scroll");phaseCapture("14-empty-library")
+  ui.onNodeWithTag("library-scroll").performScrollToNode(hasText("음악 찾아보기"));ui.onNodeWithText("음악 찾아보기").performClick();ready("global-search")
+  act{it.duetInvitations=emptyList();it.duetError="듀엣을 불러오지 못했어요";it.selectTab(2)}
+  ui.onNodeWithTag("sing-entry-듀엣").performClick();act{it.duetInvitations=emptyList();it.duetError="듀엣을 불러오지 못했어요"};text("다시 불러오기");phaseCapture("15-duet-error")
+  act{it.user=null;it.selectTab(6)};text("로그인");phaseCapture("16-signed-out")
+  ui.onNodeWithText("로그인").performClick();text("이메일로 로그인")
+ }
+ @Test fun streamingLargeTextKeepsControlsReachable(){
+  val long=Song(JSONObject(song.toString()).put("title","아주 긴 한국어 노래 제목도 두 줄로 읽으며 음악을 고르고 재생할 수 있어요"))
+  act{it.latest=listOf(long);it.home=listOf(long,Song(second));it.singable=listOf(long,Song(second));it.history=emptyList();it.listenPage="추천";it.selectTab(0)}
+  ready("home-featured-play");phaseCapture("17-large-text-home")
+  ui.onNodeWithTag("listen-scroll").performScrollToNode(hasTestTag("music-shortcut-좋아요"));ui.onNodeWithTag("music-shortcut-좋아요").assertIsDisplayed()
+  ui.onNodeWithTag("main-tab-2").performClick();ready("sing-search");phaseCapture("18-large-text-sing")
+  ui.onNodeWithTag("sing-scroll").performScrollToNode(hasTestTag("stream-play-design-song"));ui.onNodeWithTag("stream-play-design-song").assertIsDisplayed()
+  ui.onNodeWithTag("stream-sing-design-song").assertIsDisplayed();phaseCapture("19-large-text-row")
+  ui.onNodeWithTag("main-tab-6").performClick();ready("my-music-page");phaseCapture("20-large-text-my")
+ }
+
+
+ @Test fun streamingPlaylistChangesAppearFromBothEntrances(){
+  val changed=JSONObject(playlist.toString()).put("tracks",2)
+  responses["/api/library"]=payload("likes" to arr(song),"collections" to arr(changed),"follows" to JSONArray())
+  responses["/api/playlists/design-list"]=payload("playlist" to changed,"tracks" to arr(song,cover))
+  act{it.play(Song(cover),listOf(Song(cover)))};ui.waitUntil(15000){model.current?.id=="design-cover"}
+  ui.onNodeWithTag("mini-player-open").performClick()
+  ui.onNodeWithText("담기").performScrollTo().performClick();text("플레이리스트에 담기")
+  ui.onNodeWithText("퇴근길에 듣는 음악").performClick()
+  ui.waitUntil(15000){!model.busy&&requestUrls.contains("/api/playlists/design-list/tracks/design-cover")}
+  act{it.fullPlayer=false;it.selectTab(0)}
+  ui.onNodeWithTag("music-shortcut-플레이리스트").performClick();text("퇴근길에 듣는 음악");ui.onNodeWithText("퇴근길에 듣는 음악").performClick()
+  ui.waitUntil(15000){model.listSongs.map{it.id}==listOf("design-song","design-cover")}
+  Espresso.pressBack();Espresso.pressBack();assertEquals(0,model.tab)
+  ui.onNodeWithTag("main-tab-6").performClick();ui.onNodeWithTag("music-shortcut-플레이리스트").performClick()
+  ui.onNodeWithText("퇴근길에 듣는 음악").performClick();ui.waitUntil(15000){model.listSongs.size==2}
+  assertTrue(model.listSongs.any{it.id=="design-cover"});assertEquals(2,model.playlists.single().getInt("tracks"))
+ }
+ @Test fun streamingDraftResumesExistingRecordingWithoutMicrophone(){
+  val ownerMethod=kr.co.aifect.app.karaoke.KaraokeActivity::class.java.getDeclaredMethod("draftOwner",String::class.java,String::class.java).apply{isAccessible=true}
+  val owner=ownerMethod.invoke(null,Endpoint.origin,"user:design-user") as String
+  val dir=File(context.filesDir,"karaoke-design-song-$owner").apply{mkdirs()}
+  val dry=File(dir,"voice.pcm").apply{writeBytes(ByteArray(48000*3*2))}
+  File(dir,"session.json").writeText(payload("trackId" to "design-song","coverMode" to "solo","duetPart" to "","duetParent" to "","title" to "이어 부를 초안","cursor" to 1,"words" to JSONArray()).toString())
+  val monitor=instrumentation.addMonitor(kr.co.aifect.app.karaoke.KaraokeActivity::class.java.name,null,false)
+  var room:android.app.Activity?=null
+  try{
+   act{it.selectTab(2)};ui.onNodeWithText("녹음 이어 하기").performClick();ready("draft-design-song")
+   ui.onNodeWithText("이어 편집").performClick();room=instrumentation.waitForMonitorWithTimeout(monitor,15000)
+   assertNotNull(room);assertTrue(room!!.intent.getBooleanExtra("resumeDraft",false));assertEquals(dir.name,room!!.intent.getStringExtra("draftFolder"))
+   val deadline=System.nanoTime()+TimeUnit.SECONDS.toNanos(30)
+   while(true){try{androidx.test.espresso.Espresso.onView(androidx.test.espresso.matcher.ViewMatchers.withTagValue(org.hamcrest.Matchers.`is`("recording-post"))).check(androidx.test.espresso.assertion.ViewAssertions.matches(androidx.test.espresso.matcher.ViewMatchers.isDisplayed()));break}catch(e:Throwable){if(System.nanoTime()>deadline)throw e;Thread.sleep(100)}}
+   phaseCapture("22-resumed-recording")
+   assertEquals(48000*3*2L,dry.length())
+   assertEquals(PackageManager.PERMISSION_DENIED,ContextCompat.checkSelfPermission(context,Manifest.permission.RECORD_AUDIO))
+  }finally{
+   instrumentation.removeMonitor(monitor);room?.let{a->instrumentation.runOnMainSync{a.finish()}}
+   // Only files created by this isolated fixture are removed.
+   dir.listFiles()?.forEach{it.delete()};dir.delete()
+  }
+ }
+
 }
