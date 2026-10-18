@@ -351,6 +351,13 @@
       "when": 1792226351384,
       "tag": "0049_crew_names_and_invites",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "6",
+      "when": 1792312087164,
+      "tag": "0050_furry_butterfly",
+      "breakpoints": true
     }
   ]
 }

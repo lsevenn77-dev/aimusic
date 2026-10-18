@@ -35,9 +35,10 @@ export async function studioRoute(req,env,path,user){
  if(req.method==='GET')return json({profile:table==='tracks'?trackClassification(trackArtwork(entity,entity.kind==='cover'?await one(env,'SELECT image_version FROM producers WHERE id=?',entity.producer_id):null)):entity,...(table==='tracks'?{alignment:await alignmentStatus(env,entity.id),karaoke:await karaokeStatus(env,entity.id)}:{})});
  if(req.method!=='PUT')fail(405,'지원하지 않는 요청입니다.');
  const b=await req.json();
+ const release=table==='tracks'?releaseDate(b.release_date,entity.release_date):'';
  if(table==='tracks'&&entity.kind==='cover'){
   // A cover takes its title, genre and credits from the original; the singer edits the note; artwork follows their profile.
-  await run(env,'UPDATE tracks SET description=? WHERE id=?',str(b.description||'',1000,false),entityId);
+  await run(env,'UPDATE tracks SET description=?,release_date=? WHERE id=?',str(b.description||'',1000,false),release,entityId);
   return json({ok:true,id:entityId});
  }
  if(table==='tracks'){
@@ -48,7 +49,7 @@ export async function studioRoute(req,env,path,user){
   const artist=await chooseArtist(env,entity.producer_id,{artist_id:b.artist_id||'none'},b.genre);
   const jobWrites=await alignmentWrite(env,entityId,user.id,lyricData,b);
   const guard=b.lyrics_job_id?" AND EXISTS(SELECT 1 FROM lyric_jobs WHERE track_id=tracks.id AND id=? AND state='ready')":'';
-  await env.DB.batch([query(env,'UPDATE tracks SET title=?,genre=?,genres_json=?,moods_json=?,classification_source=?,classification_revision=classification_revision+1,tags=?,description=?,ai_tool=?,participation=?,artist_id=?,lyrics=?,lyrics_mode=?,performance_mode=? WHERE id=?'+guard,str(b.title,120),b.genre,JSON.stringify(classification.genres),JSON.stringify(classification.moods),(JSON.stringify(classification.genres)===entity.genres_json&&JSON.stringify(classification.moods)===entity.moods_json)?entity.classification_source:'manual',str(b.tags||'',300,false),str(b.description||'',4000,false),str(b.ai_tool,100),str(b.participation||'',100,false),artist.id,lyricData.lyrics,lyricData.mode,performance,entityId,...(b.lyrics_job_id?[b.lyrics_job_id]:[])),...jobWrites,...coverClassificationWrites(env,{originalId:entityId})]);
+  await env.DB.batch([query(env,'UPDATE tracks SET title=?,genre=?,genres_json=?,moods_json=?,classification_source=?,classification_revision=classification_revision+1,tags=?,description=?,ai_tool=?,participation=?,artist_id=?,lyrics=?,lyrics_mode=?,performance_mode=?,release_date=? WHERE id=?'+guard,str(b.title,120),b.genre,JSON.stringify(classification.genres),JSON.stringify(classification.moods),(JSON.stringify(classification.genres)===entity.genres_json&&JSON.stringify(classification.moods)===entity.moods_json)?entity.classification_source:'manual',str(b.tags||'',300,false),str(b.description||'',4000,false),str(b.ai_tool,100),str(b.participation||'',100,false),artist.id,lyricData.lyrics,lyricData.mode,performance,release,entityId,...(b.lyrics_job_id?[b.lyrics_job_id]:[])),...jobWrites,...coverClassificationWrites(env,{originalId:entityId})]);
   if(b.lyrics_job_id&&!await one(env,"SELECT id FROM lyric_jobs WHERE track_id=? AND id=? AND state='applied'",entityId,b.lyrics_job_id))fail(409,'자동 싱크 결과가 변경됐습니다. 최신 결과를 다시 불러와주세요.');
   // Changed lyrics need new word timings; the MR itself is kept.
   const karaoke=await karaokeQueue(env,await one(env,'SELECT * FROM tracks WHERE id=?',entityId));if(karaoke.length)await env.DB.batch(karaoke);
@@ -60,4 +61,12 @@ export async function studioRoute(req,env,path,user){
   }else {const chosen=nickname(name).name;await nicknameBatch(env,user.id,chosen,[query(env,'UPDATE producers SET name=?,bio=?,nickname_confirmed=1 WHERE id=?',chosen,bio,entityId)]);}
  }
  return json({ok:true,id:entityId});
+}
+
+function releaseDate(value,current=''){
+ if(value===undefined)return current||'';
+ if(value==='')return '';
+ if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(value)||value<'1900-01-01'||value>'2199-12-31')fail(400,'올바른 발매일을 선택해주세요.');
+ const date=new Date(value+'T00:00:00Z');if(!Number.isFinite(date.getTime())||date.toISOString().slice(0,10)!==value)fail(400,'올바른 발매일을 선택해주세요.');
+ return value;
 }

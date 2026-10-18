@@ -10,7 +10,8 @@ export async function notificationsRoute(req,env,path,user){
   const b=await req.json();
   if(!Array.isArray(b.ids)||b.ids.length>50||b.ids.some(x=>typeof x!=='string'||x.length>200))fail(400,'읽음 처리할 알림을 확인해주세요.');
   if(b.ids.length)await run(env,`UPDATE activity_notifications SET read_at=? WHERE recipient=? AND read_at=0 AND id IN (${b.ids.map(()=>'?').join(',')})`,now(),user.id,...b.ids);
-  return json({ok:true});
+  const {unread}=await one(env,`SELECT count(*) unread FROM activity_notifications n WHERE recipient=? AND read_at=0 AND ${allowed}`,user.id);
+  return json({ok:true,unread});
  }
  if(req.method!=='GET'||!['/api/notifications','/api/notifications/summary'].includes(path))fail(404,'알림을 찾을 수 없어요.');
  const {unread}=await one(env,`SELECT count(*) unread FROM activity_notifications n WHERE recipient=? AND read_at=0 AND ${allowed}`,user.id);

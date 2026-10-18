@@ -38,14 +38,15 @@ test('the recording redesign keeps controller hooks exactly once and mode choice
  c.window.AifectKaraoke=karaoke;vm.runInContext(read('sing-key.js'),c);
  vm.runInContext(read('karaoke.js'),c);
  const html=c.singHTML({track:{id:'song',title:'Song',duration:20},mode:'solo',words:[]});
- for(const id of ['sing','sing-wheel','sing-monitor','sing-seek','sing-now','sing-duration','mic-level','sing-status','sing-panel']){
+ for(const id of ['sing','sing-wheel','sing-monitor','sing-seek','sing-now','sing-duration','sing-status','sing-panel']){
   assert.equal((html.match(new RegExp('id="'+id+'"','g'))||[]).length,1,id);
  }
- for(const hook of ['data-sing-start','data-sing-pause','data-sing-stop','data-sing-redo-live','data-sing-settings'])assert.match(html,new RegExp(hook));
+ for(const hook of ['data-sing-start','data-sing-stop','data-sing-redo-live','data-sing-settings'])assert.match(html,new RegExp(hook));
+ assert.doesNotMatch(html,/id="mic-level"/);
  assert.match(html,/sing-header-mode/);
  assert.match(html,/sing-transport studio-transport/);
  assert.match(html,/aria-label="녹음 가사 크기"/);
- for(const hook of ['data-sing-start','data-sing-pause','data-sing-stop','data-sing-redo-live','data-sing-settings'])assert.equal((html.match(new RegExp(hook,'g'))||[]).length,1,hook);
+ for(const hook of ['data-sing-start','data-sing-stop','data-sing-redo-live','data-sing-settings'])assert.equal((html.match(new RegExp(hook,'g'))||[]).length,1,hook);
 });
 
 test('atmospheric artwork is decorative, route-specific, and recorder controls remain compact',()=>{
