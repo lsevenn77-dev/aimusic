@@ -1,0 +1,235 @@
+{
+  "source_ui_commit": "e68735fae609e6999c2ef7f6dc574ade5eacbdb5",
+  "release_version": "2.5.51 (64)",
+  "captured_version": "2.5.50 (63) debug test package; same UI source as release, version bump only",
+  "capture_environment": "Android emulator, real app with isolated local fixture data. Not production user data or iOS screenshots.",
+  "standard_size": "390dp / 780x1688 pixels",
+  "small_size": "320dp / 640x1280 pixels, font scale 1.3",
+  "excluded": [
+    "20-large-text-my.png: old My menu predates latest user correction"
+  ],
+  "screens": [
+    {
+      "id": "01-home",
+      "title": "홈 추천",
+      "file": "screens/01-home.png",
+      "sha256": "5225854169fef1aff19e59bcad068e386d2e95898528f2180820b9a9311b76f6"
+    },
+    {
+      "id": "02-home-playing",
+      "title": "홈 · 재생 중",
+      "file": "screens/02-home-playing.png",
+      "sha256": "6c4bd3820e79d1f9b45e505110af2e1f41b0ecf2aca91e5d54f660d8e3eb5e38"
+    },
+    {
+      "id": "03-chart",
+      "title": "차트",
+      "file": "screens/03-chart.png",
+      "sha256": "4df0c2d6ade732fdb540f8131f5bcb46ede7b22a51723cafd4aea6a3c81ff8ef"
+    },
+    {
+      "id": "04-latest",
+      "title": "최신곡",
+      "file": "screens/04-latest.png",
+      "sha256": "515209a04ba4e6eb2f1fe81821116e7515a66781e7941078a3a89d396f27515b"
+    },
+    {
+      "id": "05-discover",
+      "title": "발견",
+      "file": "screens/05-discover.png",
+      "sha256": "6ba5f09f2ed6bd19bda3be40d92ceba070fa385070c87e252df7f8ae7c6a9e4f"
+    },
+    {
+      "id": "06-my-music",
+      "title": "마이 · 전체메뉴 제거",
+      "file": "screens/06-my-music.png",
+      "sha256": "03e9af57f8ccabb804cdaa2d1e3522ef7d12928066594232e7d126a96d2e3e78"
+    },
+    {
+      "id": "07-playlist",
+      "title": "플레이리스트",
+      "file": "screens/07-playlist.png",
+      "sha256": "2bf0d8a6443744fdad23c49f9d3b85d1629bb4efa3fb94780de97dedfa54ff03"
+    },
+    {
+      "id": "08-library",
+      "title": "음악 보관함",
+      "file": "screens/08-library.png",
+      "sha256": "d86af7b48068a4eab572769c65149edba4ceeebf8fc1b807efa1eb3e49030e5c"
+    },
+    {
+      "id": "09-my-activity",
+      "title": "마이 활동",
+      "file": "screens/09-my-activity.png",
+      "sha256": "199d8023eb1cce06da651969875dbbe08d4727d89778822313dcfb71501ee087"
+    },
+    {
+      "id": "10-full-player",
+      "title": "전체 플레이어",
+      "file": "screens/10-full-player.png",
+      "sha256": "8328e9305c460e2f04939de0c38f90bd22f0bca4b45a814d48cdb4d184a1926c"
+    },
+    {
+      "id": "11-queue",
+      "title": "재생목록",
+      "file": "screens/11-queue.png",
+      "sha256": "6088a069ab48f40c49718ceb699b56f8318680212d5d785cb445ead411b20611"
+    },
+    {
+      "id": "12-sing",
+      "title": "부르기",
+      "file": "screens/12-sing.png",
+      "sha256": "4424afa6ef0cc6ed624ca99d8fe4014e30aa67d3d29c9e52b2563c714dc31dcb"
+    },
+    {
+      "id": "13-duets",
+      "title": "듀엣 참여",
+      "file": "screens/13-duets.png",
+      "sha256": "4aecb24eaf589fe721371ddb7d36d8019cdff96c377fa9ee494da4e8c67b348a"
+    },
+    {
+      "id": "14-empty-library",
+      "title": "빈 보관함",
+      "file": "screens/14-empty-library.png",
+      "sha256": "befe3c985e30b349a47162fd471f9b761c5516f27cf243e6fea3ea14bf52cfcd"
+    },
+    {
+      "id": "15-duet-error",
+      "title": "듀엣 오류",
+      "file": "screens/15-duet-error.png",
+      "sha256": "eb45bfc40f6e59f3b9e3fd25d4453adf622ebef2e77b28cfbc5f0605486c4d30"
+    },
+    {
+      "id": "16-signed-out",
+      "title": "로그인 필요",
+      "file": "screens/16-signed-out.png",
+      "sha256": "fc69dbae8740f744bf3c61b3348ba52545259c38e80327f3b5726a1e4b49ac93"
+    },
+    {
+      "id": "17-large-text-home",
+      "title": "큰 글자 홈",
+      "file": "screens/17-large-text-home.png",
+      "sha256": "ad09631c72d77f7d3734bb9176776d1b039f4a93fe7a388214e37673747f402f"
+    },
+    {
+      "id": "18-large-text-sing",
+      "title": "큰 글자 부르기",
+      "file": "screens/18-large-text-sing.png",
+      "sha256": "f485db95da80c480a4d248bbd18cf91fc4c74b7c579b0a6768a6fa51e6cf0992"
+    },
+    {
+      "id": "19-large-text-row",
+      "title": "큰 글자 목록",
+      "file": "screens/19-large-text-row.png",
+      "sha256": "9342b52ae9ed72be835445e9f69422bed051cfae937f5c5f60d511ea8eddd58a"
+    },
+    {
+      "id": "21-compact-player",
+      "title": "미니플레이어",
+      "file": "screens/21-compact-player.png",
+      "sha256": "ae257beea507ced8fcc8fc569bd62188ba39de6d12b93049df60166e6f1742a9"
+    },
+    {
+      "id": "22-resumed-recording",
+      "title": "기존 녹음 이어 하기",
+      "file": "screens/22-resumed-recording.png",
+      "sha256": "0951254091c4a969c92312fc20a13593ee4c60dc664bdb696cd88c52b394cacc"
+    },
+    {
+      "id": "23-draft-preview",
+      "title": "초안 확인",
+      "file": "screens/23-draft-preview.png",
+      "sha256": "4added2f5f20e9a562f9bf31e322dcaaa069363279699d0da092554b896f3673"
+    },
+    {
+      "id": "24-account-page",
+      "title": "계정 페이지",
+      "file": "screens/24-account-page.png",
+      "sha256": "27c793795830f5311f6a77df05534060d185f219612549940a486214b07a72f1"
+    },
+    {
+      "id": "25-inventory-page",
+      "title": "도구함 페이지",
+      "file": "screens/25-inventory-page.png",
+      "sha256": "aa4d88efba132793743fde1c371a8d9a88bc0b6991e6fa25f765ee54566c1b0a"
+    },
+    {
+      "id": "26-artist-selection-page",
+      "title": "아티스트 선택 페이지",
+      "file": "screens/26-artist-selection-page.png",
+      "sha256": "0219e97db22ee880d659301372efc7cd7ec9fb55792e39779019571c8837ece7"
+    },
+    {
+      "id": "27-playlist-edit-page",
+      "title": "플레이리스트 수정 페이지",
+      "file": "screens/27-playlist-edit-page.png",
+      "sha256": "0ffa0e149d91acb9c2c781644ae4b874d5984becf29c397bca3821968bccea88"
+    },
+    {
+      "id": "28-small-account-page",
+      "title": "작은 화면 계정",
+      "file": "screens/28-small-account-page.png",
+      "sha256": "27c793795830f5311f6a77df05534060d185f219612549940a486214b07a72f1"
+    },
+    {
+      "id": "29-small-inventory-page",
+      "title": "작은 화면 도구함",
+      "file": "screens/29-small-inventory-page.png",
+      "sha256": "aa4d88efba132793743fde1c371a8d9a88bc0b6991e6fa25f765ee54566c1b0a"
+    },
+    {
+      "id": "30-small-playlist-edit-page",
+      "title": "작은 화면 플레이리스트 수정",
+      "file": "screens/30-small-playlist-edit-page.png",
+      "sha256": "0ffa0e149d91acb9c2c781644ae4b874d5984becf29c397bca3821968bccea88"
+    },
+    {
+      "id": "31-browser-login",
+      "title": "테스트 앱 브라우저 인증",
+      "file": "screens/31-browser-login.png",
+      "sha256": "0f4872186715e38b5e552e96e2605e301632e20cba0fc063467b7e3da6c47f90"
+    },
+    {
+      "id": "32-community-feed",
+      "title": "커뮤니티 · 최종 낮은 카드",
+      "file": "screens/32-community-feed.png",
+      "sha256": "6ee66c0e282a677870c88e12342143d88c003fd88acdf52522282399af16366d"
+    },
+    {
+      "id": "33-community-duet",
+      "title": "커뮤니티 · 듀엣",
+      "file": "screens/33-community-duet.png",
+      "sha256": "09dc2a1e7bfca50d37a8c3a1bc99b7a0adf4ad04bfdb3a561cec417bd24dd874"
+    },
+    {
+      "id": "34-message-inbox",
+      "title": "메시지 목록",
+      "file": "screens/34-message-inbox.png",
+      "sha256": "c00ed5c08074c1a7a87493bbedb7fda2ae71386e277efcb07a297787ed782754"
+    },
+    {
+      "id": "35-message-crews",
+      "title": "메시지 크루 필터",
+      "file": "screens/35-message-crews.png",
+      "sha256": "bde91cf61d08266d137766c3dda6c4347e7104bfaed19a496724c324602e2085"
+    },
+    {
+      "id": "36-message-new",
+      "title": "새 대화 페이지",
+      "file": "screens/36-message-new.png",
+      "sha256": "1f52bb41ef92d9c4fca560f1f9843aa2d1c16f639a5f6f3b3001a932c3de96a2"
+    },
+    {
+      "id": "37-small-community",
+      "title": "320dp · 큰 글자 커뮤니티",
+      "file": "screens/37-small-community.png",
+      "sha256": "3f863410a0e1e5bc3f4ed6be0fdc28659e3057855714233abd6d8522a4dee903"
+    },
+    {
+      "id": "38-small-messages",
+      "title": "320dp · 큰 글자 메시지",
+      "file": "screens/38-small-messages.png",
+      "sha256": "6cec0b9046e639ceb2de04bec29b6a3d2923a83e8a03f91dc679114282800e9d"
+    }
+  ]
+}

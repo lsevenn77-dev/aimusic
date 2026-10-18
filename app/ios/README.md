@@ -1,5 +1,7 @@
 # AIFECT iPhone 네이티브 앱
 
+**2026-10-18 UI 후속 구현:** [`IOS-HANDOFF-20261018.md`](../design/IOS-HANDOFF-20261018.md)와 [최신 Android 실행 화면](../design/streaming-20261018/index.html)에 승인 시안·최신 수정·화면별 코드·Mac 검증 항목을 정리했다. 브랜치는 `codex/aifect-streaming-first`이다. 이번 스트리밍 UI의 iOS 이식과 Xcode 빌드는 아직 하지 않았으며 아래 과거 검증 결과와 구분한다.
+
 **2026-10-14 Mac 검증·제출 완료:** 원격 `9de7818`을 fast-forward pull하고 [디자인 인수인계](../design/IOS-HANDOFF-20261013.md)의 iOS 소스를 **1.0.4 (13)**에 반영했습니다. XcodeGen으로 새 화면/검사 파일을 프로젝트에 포함했고, 단위 검사 57개와 주요 화면 검사 5개가 통과했습니다. 배포용 아카이브·Apple 업로드·최종 심사 제출을 완료하고 **심사 대기 중** 상태를 확인했습니다.
 
 **2026-10-12 Mac 후속 작업:** Android 2.5.41 (54)의 [최종 인수인계](../design/IOS-HANDOFF-20261011.md), 원격 `7946a6f`까지 pull하고 iOS **1.0.3 (12)**에 통합했습니다. 배포용 아카이브·Apple 업로드·최종 심사 제출을 완료했고, 2026-10-14 **배포 준비됨(Ready for Distribution)** 상태를 확인했습니다.
