@@ -2,6 +2,7 @@
 package kr.co.aifect.app
 
 import androidx.compose.foundation.*
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
 import androidx.compose.foundation.shape.*
@@ -11,6 +12,8 @@ import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import androidx.activity.compose.BackHandler
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -52,77 +55,49 @@ internal val Genres=listOf("K-POP","Pop","Dark Pop","Ballad","R&B","Soul","Hip-H
 private val PagePadding=PaddingValues(start=18.dp,end=18.dp,bottom=28.dp)
 
 @Composable internal fun ListenScreen(m:MusicModel,sing:(Song)->Unit){
- val state=rememberLazyListState()
- var previous by rememberSaveable{mutableStateOf(m.listenPage)}
- LaunchedEffect(m.listenPage){if(previous!=m.listenPage){state.scrollToItem(0);previous=m.listenPage}}
+ val tabs=rememberSaveableStateHolder()
  Column(Modifier.fillMaxSize()){
- if(m.listenPage=="추천")Text("오늘의 음악",fontSize=24.sp,fontWeight=FontWeight.Bold,modifier=Modifier.padding(horizontal=18.dp,vertical=12.dp))
- ListenTabs(m)
- if(m.listenPage=="발견"){SearchScreen(m);return}
- if(m.listenPage=="차트"){ChartScreen(m);return}
- LazyColumn(Modifier.fillMaxSize().testTag("listen-scroll"),state=state,contentPadding=PagePadding){
-  when(m.listenPage){
-   "추천"->{
-    val releases=m.latest.ifEmpty{m.home}
-    val featured=releases.firstOrNull()
-    item{
-     ListeningShortcuts(m)
-     Spacer(Modifier.height(20.dp))
-     if(featured!=null)FeaturedRelease(featured,releases,m) else WelcomeMusic(m)
-    }
-    if(m.history.isNotEmpty())item{
-     Section("최근 들은 음악",action="더보기",onAction={m.showCollection("최근 들은 음악",m.history)})
-     SongShelf(m.history.take(12),m)
-    }
-    if(releases.size>1)item{
-     Section("새롭게 도착한 음악",action="더보기",onAction={m.listenPage="최신곡"})
-     SongShelf(releases.drop(1).take(10),m)
-    }
-    if(m.singable.isNotEmpty())item{
-     Section("이번엔 내 목소리로","듣던 노래, 직접 불러볼까요?","모든 곡"){m.selectTab(2)}
-     HomeSingingDiscovery(m.singable.take(6),m,sing)
-    }
-    if(m.recentCovers.isNotEmpty())item{
-     Section("같은 노래, 다른 목소리","커버를 듣고, 마음에 드는 목소리에 반응해요","더보기"){m.browseCollection("커버곡 둘러보기","/api/community?kind=cover")}
-     CommunityCard(m.recentCovers.first(),m,m.recentCovers,sing)
-     if(m.recentCovers.size>1){Spacer(Modifier.height(16.dp));SongShelf(m.recentCovers.drop(1).take(8),m)}
-    }
-    if(m.publicLists.any{it.optInt("tracks")>0})item{
-     Section("취향을 나누는 플레이리스트","다른 사람이 고른 음악 속으로")
-     PlaylistShelf(m.publicLists.filter{it.optInt("tracks")>0}.take(10),m)
-    }
-    item{Section("지금, 이런 기분");MoodShelf(m)}
-    if(m.people.isNotEmpty())item{
-     Section("음악 뒤의 사람들","마음에 드는 음악가를 팔로우해보세요")
-     LazyRow(Modifier.testTag("home-people-shelf"),horizontalArrangement=Arrangement.spacedBy(12.dp)){
-      items(m.people.take(12),key={it.getString("id")}){p->PersonCard(p,m)}
+  ListenTabs(m)
+  tabs.SaveableStateProvider(m.listenPage){
+   when(m.listenPage){
+    "발견"->SearchScreen(m)
+    "차트"->ChartScreen(m)
+    else->LazyColumn(Modifier.fillMaxSize().testTag("listen-scroll"),contentPadding=PagePadding){
+     if(m.listenPage=="추천"){
+      val releases=m.latest.ifEmpty{m.home}
+      item{Spacer(Modifier.height(14.dp));releases.firstOrNull()?.let{FeaturedRelease(it,releases,m)}?:WelcomeMusic(m)}
+      item{Spacer(Modifier.height(16.dp));MusicLibraryShortcuts(m,compact=true)}
+      if(m.history.isNotEmpty())item{Section("최근 들은 음악",action="모두 보기",onAction={m.library("최근 감상")});SongShelf(m.history.take(10),m)}
+      item{Section("지금 듣기 좋은 음악",action="차트 보기",onAction={m.listenPage="차트"});PlayButtons(m.home,m)}
+      items(m.home.take(8),key={"home-"+it.id}){song->StreamingSongRow(song,m,m.home);Spacer(Modifier.height(6.dp))}
+      if(m.home.isEmpty())item{Empty(if(m.loading)"음악을 불러오고 있어요" else "새로운 음악을 기다려요","발견에서 장르와 아티스트를 둘러보세요.")}
+      if(releases.size>1)item{Section("새롭게 도착한 음악",action="모두 보기",onAction={m.listenPage="최신곡"});SongShelf(releases.drop(1).take(10),m)}
+      if(m.singable.isNotEmpty())item{Section("이번엔 내 목소리로",action="부르기",onAction={m.selectTab(2)});m.singable.take(3).forEach{StreamingSongRow(it,m,m.singable,sing);Spacer(Modifier.height(6.dp))}}
+      if(m.recentCovers.isNotEmpty())item{Section("같은 노래, 다른 목소리",action="더보기",onAction={m.browseCollection("커버곡 둘러보기","/api/community?kind=cover")});SongShelf(m.recentCovers.take(10),m)}
+      if(m.publicLists.any{it.optInt("tracks")>0})item{Section("취향을 나누는 플레이리스트");PlaylistShelf(m.publicLists.filter{it.optInt("tracks")>0}.take(10),m)}
+      item{Section("지금, 이런 기분");MoodShelf(m)}
+      if(m.people.isNotEmpty())item{Section("음악 뒤의 사람들");LazyRow(Modifier.testTag("home-people-shelf"),horizontalArrangement=Arrangement.spacedBy(12.dp)){items(m.people.take(12),key={it.getString("id")}){PersonCard(it,m)}}}
+     }else{
+      item{Section("새롭게 도착한 음악","최근 공개된 제작곡을 차례로 들어보세요");PlayButtons(m.latest,m)}
+      items(m.latest,key={it.id}){song->StreamingSongRow(song,m,m.latest);Spacer(Modifier.height(6.dp))}
+      if(m.latest.isEmpty())item{Empty(if(m.loading)"음악을 불러오고 있어요" else "새로운 음악을 기다려요","등록된 곡이 여기에 차례로 보여요.")}
      }
     }
-    item{
-     Spacer(Modifier.height(28.dp))
-     Surface(onClick={m.selectTab(3)},color=Panel,shape=RoundedCornerShape(20.dp)){
-      Row(Modifier.fillMaxWidth().padding(20.dp),verticalAlignment=Alignment.CenterVertically){
-       Icon(Icons.Rounded.Headphones,null,tint=Violet,modifier=Modifier.size(28.dp))
-       Column(Modifier.weight(1f).padding(horizontal=14.dp)){Text("음악을 듣고, 이야기를 만나요",fontSize=16.sp,fontWeight=FontWeight.Bold);Text("커버곡 · 제작곡 · 사람들의 감상",color=Muted,fontSize=13.sp,modifier=Modifier.padding(top=6.dp))}
-       Icon(Icons.Rounded.ChevronRight,null,tint=Muted)
-      }
-     }
-    }
-   }
-   else->{
-    item{MusicBannerPanel("새롭게 도착한 음악","가장 최근에 공개된 제작곡부터 만나보세요",Icons.Rounded.Album,"latest-banner"){PlayButtons(m.latest,m)}}
-    items(m.latest,key={it.id}){song->Column(Modifier.fillMaxWidth().padding(top=10.dp).clip(RoundedCornerShape(16.dp)).musicSurface().border(1.dp,Stroke,RoundedCornerShape(16.dp)).padding(horizontal=12.dp)){CompactMusicRow(song,m,m.latest)}}
-    if(m.latest.isEmpty())item{Empty(if(m.loading)"음악을 불러오고 있어요" else "새로운 음악을 기다려요","등록된 곡이 여기에 차례로 보여요.")}
    }
   }
  }
 }
-
-}
 @Composable private fun ListenTabs(m:MusicModel){
- LazyRow(Modifier.testTag("listen-tabs"),contentPadding=PaddingValues(horizontal=18.dp),horizontalArrangement=Arrangement.spacedBy(24.dp)){items(listOf("추천","차트","최신곡","발견","내 플레이리스트")){page->Column(Modifier.clickable{if(page=="내 플레이리스트")m.library("플레이리스트")else m.listenPage=page}.heightIn(min=44.dp),horizontalAlignment=Alignment.CenterHorizontally){Text(page,fontSize=15.sp,color=if(m.listenPage==page)MaterialTheme.colorScheme.onSurface else Muted,fontWeight=FontWeight.SemiBold,modifier=Modifier.padding(vertical=12.dp));Box(Modifier.width(24.dp).height(2.dp).background(if(m.listenPage==page)Pink else Color.Transparent))}}}
+ Row(Modifier.fillMaxWidth().testTag("listen-tabs").padding(horizontal=18.dp)){
+  listOf("추천","차트","최신곡","발견").forEach{page->
+   val selected=m.listenPage==page
+   Column(Modifier.weight(1f).selectable(selected){m.listenPage=page}.testTag("listen-tab-$page").heightIn(min=48.dp),horizontalAlignment=Alignment.CenterHorizontally){
+    Text(page,fontSize=15.sp,color=if(selected)Pink else Muted,fontWeight=FontWeight.SemiBold,modifier=Modifier.padding(vertical=13.dp))
+    Box(Modifier.fillMaxWidth(.55f).height(2.dp).background(if(selected)Pink else Color.Transparent))
+   }
+  }
+ }
 }
-
 @Composable private fun WelcomeMusic(m:MusicModel){
  Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).musicSurface(feature=true).padding(24.dp)){
   Text("AI + EFFECT",color=SoftText,fontSize=12.sp,letterSpacing=2.sp)
@@ -132,35 +107,13 @@ private val PagePadding=PaddingValues(start=18.dp,end=18.dp,bottom=28.dp)
  }
 }
 @Composable private fun FeaturedRelease(song:Song,queue:List<Song>,m:MusicModel){
- Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).musicSurface(feature=true).border(1.dp,Stroke,RoundedCornerShape(20.dp)).padding(16.dp)){
-  Row(verticalAlignment=Alignment.CenterVertically){
-   Artwork(song,Modifier.size(88.dp).clickable{m.openSong(song)})
-   Column(Modifier.weight(1f).padding(start=14.dp)){
-    Text("NEW RELEASE",color=Pink,fontSize=10.sp,letterSpacing=1.5.sp,fontWeight=FontWeight.SemiBold)
-    Text(song.title,fontSize=20.sp,lineHeight=25.sp,fontWeight=FontWeight.Bold,maxLines=2,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=7.dp).clickable{m.openSong(song)})
-    Text(song.credit,fontSize=13.sp,color=SoftText,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=6.dp))
-    Text(listOf(song.genreLabel,timeLabel((song.duration*1000).toLong())).filter{it.isNotBlank()}.joinToString(" · "),fontSize=12.sp,color=Muted,modifier=Modifier.padding(top=7.dp))
-   }
-  }
-  Row(Modifier.fillMaxWidth().padding(top=16.dp),verticalAlignment=Alignment.CenterVertically){
-   BrandButton(onClick={m.play(song,queue)},modifier=Modifier.weight(1f)){
-    Icon(Icons.Rounded.PlayArrow,null,Modifier.size(20.dp));Text("지금 듣기",fontSize=14.sp,modifier=Modifier.padding(start=4.dp))
-   }
-   IconButton(onClick={m.like(song)},enabled=!m.busy){Icon(if(m.likes.any{it.id==song.id})Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,"좋아요",tint=Pink)}
-  }
-  OutlinedButton(onClick={m.pickPlaylist(song)},modifier=Modifier.fillMaxWidth()){
-   Icon(Icons.AutoMirrored.Rounded.QueueMusic,null,Modifier.size(18.dp));Text("플레이리스트 담기",Modifier.padding(start=8.dp))
-  }
- }
-}
-@Composable private fun ListeningShortcuts(m:MusicModel){
- Row(Modifier.fillMaxWidth().padding(top=14.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)){
-  listOf(Triple("내 플레이리스트","플레이리스트",Icons.AutoMirrored.Rounded.QueueMusic),Triple("좋아요","좋아요",Icons.Rounded.FavoriteBorder),Triple("최근 감상","최근 감상",Icons.Rounded.History)).forEach{(label,page,icon)->
-   Surface(onClick={m.library(page)},modifier=Modifier.weight(1f),color=Panel,shape=RoundedCornerShape(12.dp)){
-    Column(Modifier.border(1.dp,Stroke.copy(alpha=.7f),RoundedCornerShape(12.dp)).padding(vertical=10.dp,horizontal=4.dp),horizontalAlignment=Alignment.CenterHorizontally){
-     Icon(icon,null,tint=if(label=="좋아요")Pink else Aqua,modifier=Modifier.size(18.dp));Text(label,fontSize=11.sp,textAlign=androidx.compose.ui.text.style.TextAlign.Center,modifier=Modifier.padding(top=6.dp))
-    }
-   }
+ Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).musicSurface(feature=true).border(1.dp,Violet.copy(alpha=.35f),RoundedCornerShape(20.dp)).padding(16.dp),verticalAlignment=Alignment.CenterVertically){
+  Artwork(song,Modifier.size(100.dp).clickable{m.openSong(song)})
+  Column(Modifier.weight(1f).padding(start=14.dp)){
+   Text("새로 만나는 음악",color=Aqua,fontSize=11.sp,fontWeight=FontWeight.Medium)
+   Text(song.title,fontSize=19.sp,lineHeight=24.sp,fontWeight=FontWeight.Bold,maxLines=2,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=6.dp).clickable{m.openSong(song)})
+   Text(song.credit,fontSize=12.sp,color=Muted,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=4.dp))
+   BrandButton(onClick={m.play(song,queue)},contentPadding=PaddingValues(horizontal=16.dp,vertical=8.dp),modifier=Modifier.padding(top=8.dp).heightIn(min=48.dp).testTag("home-featured-play")){Icon(Icons.Rounded.PlayArrow,null,Modifier.size(18.dp));Text("지금 듣기",fontSize=13.sp)}
   }
  }
 }
@@ -333,51 +286,59 @@ private val PagePadding=PaddingValues(start=18.dp,end=18.dp,bottom=28.dp)
 @Composable internal fun SingScreen(m:MusicModel,sing:(Song)->Unit){
  var query by rememberSaveable{mutableStateOf("")}
  var genre by rememberSaveable{mutableStateOf("전체")}
- val tracks=m.singable.filter{(genre=="전체"||genre in it.genres)&&(query.isBlank()||it.title.contains(query,true)||it.credit.contains(query,true))}
+ var section by rememberSaveable{mutableStateOf("추천")}
+ val pages=rememberSaveableStateHolder()
+ val source=if(section=="듀엣")m.duetInvitations else m.singable
+ val tracks=source.filter{(genre=="전체"||genre in it.genres)&&(query.isBlank()||it.title.contains(query,true)||it.credit.contains(query,true))}
  LaunchedEffect(Unit){m.loadRankHighlights();m.loadDuets()}
- LazyColumn(Modifier.fillMaxSize().testTag("sing-scroll"),contentPadding=PagePadding){
-  item{
-   Spacer(Modifier.height(12.dp))
-   WebMusicBanner("부르기","듣기만 하던 음악, 이번에는 내 목소리로.","YOUR VOICE, YOUR STAGE")
-   Spacer(Modifier.height(12.dp))
-   Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)){
-    OutlinedButton(onClick={if(m.authenticated())m.showRecordingDrafts=true}){Icon(Icons.Rounded.Edit,null,Modifier.size(16.dp));Text("초안",Modifier.padding(start=6.dp))}
-    OutlinedButton(onClick={m.openRanking("week")}){Icon(Icons.Rounded.EmojiEvents,null,Modifier.size(16.dp));Text("커버 랭킹",Modifier.padding(start=6.dp))}
-    OutlinedButton(onClick={m.showCollection("부를 수 있는 곡",m.singable)}){Text("부를 수 있는 곡")}
-    OutlinedButton(onClick={m.openRanking("week",chart=true)}){Text("노래방 차트")}
-    OutlinedButton(onClick={m.browseCollection("커버곡 둘러보기","/api/community?kind=cover")}){Text("커버곡 둘러보기")}
-    OutlinedButton(onClick={m.library("내 커버곡")}){Text("내 커버곡")}
+ BackHandler(section!="추천"&&m.detail==null&&m.collection==null&&!m.fullPlayer&&!m.showRecordingDrafts&&!m.rankOpen){section="추천"}
+ Column(Modifier.fillMaxSize()){
+  Row(Modifier.padding(horizontal=18.dp,vertical=8.dp),verticalAlignment=Alignment.CenterVertically){
+   if(section!="추천")IconButton(onClick={section="추천"}){Icon(Icons.AutoMirrored.Rounded.ArrowBack,"부르기 처음으로")}
+   OutlinedTextField(query,{query=it},modifier=Modifier.weight(1f).testTag("sing-search"),singleLine=true,placeholder={Text(if(section=="듀엣")"참여할 듀엣 찾기" else "부르고 싶은 노래 찾기",fontSize=14.sp)},leadingIcon={Icon(Icons.Rounded.Search,null)},shape=RoundedCornerShape(16.dp))
+  }
+  pages.SaveableStateProvider(section){
+   LazyColumn(Modifier.fillMaxSize().testTag("sing-scroll"),contentPadding=PagePadding){
+    if(section=="추천"&&query.isBlank()){
+     item{
+      Column(Modifier.fillMaxWidth().padding(vertical=8.dp).clip(RoundedCornerShape(18.dp)).musicSurface(feature=true).padding(18.dp)){
+       Text("좋아하는 노래, 내 목소리로",fontSize=20.sp,fontWeight=FontWeight.Bold)
+       Text("듣던 음악을 나만의 커버로 남겨보세요.",fontSize=13.sp,color=Muted,modifier=Modifier.padding(top=6.dp))
+      }
+      Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){
+       listOf("솔로" to Icons.Rounded.Mic,"듀엣" to Icons.Rounded.PeopleOutline).forEach{(mode,icon)->
+        Surface(onClick={section=mode;genre="전체"},color=if(mode=="솔로")Violet.copy(alpha=.15f)else Aqua.copy(alpha=.10f),border=BorderStroke(1.dp,Stroke),shape=RoundedCornerShape(16.dp),modifier=Modifier.weight(1f).testTag("sing-entry-$mode")){
+         Column(Modifier.padding(16.dp)){Icon(icon,null,tint=if(mode=="솔로")Pink else Aqua);Text(if(mode=="솔로")"바로 부르기" else "듀엣 참여하기",fontSize=15.sp,fontWeight=FontWeight.SemiBold,modifier=Modifier.padding(top=10.dp));Text(if(mode=="솔로")"부를 곡 고르기" else "기다리는 목소리 만나기",color=Muted,fontSize=12.sp,modifier=Modifier.padding(top=4.dp))}
+        }
+       }
+      }
+      Spacer(Modifier.height(10.dp))
+      MusicEntry("녹음 이어 하기","이 기기에 저장한 초안",Icons.Rounded.Edit){if(m.authenticated())m.showRecordingDrafts=true}
+     }
+    }
+    item{
+     Section(if(section=="듀엣")"참여를 기다리는 듀엣" else "부를 수 있는 곡")
+     Chips(listOf("전체")+Genres,genre){genre=it};Spacer(Modifier.height(10.dp))
+     if(section=="듀엣"&&m.duetLoading)LinearProgressIndicator(Modifier.fillMaxWidth(),color=Aqua,trackColor=Stroke)
+     if(section=="듀엣")m.duetError?.let{Text(it,color=Pink);TextButton(onClick=m::loadDuets){Text("다시 불러오기")}}
+    }
+    if(section=="듀엣")items(tracks,key={it.id}){song->
+     val mine=song.raw.optString("user_id")==m.user?.optString("id")
+     Surface(color=Panel,shape=RoundedCornerShape(18.dp),border=BorderStroke(1.dp,Violet.copy(alpha=.35f)),modifier=Modifier.fillMaxWidth().padding(bottom=12.dp).testTag("duet-invitation-${song.id}")){
+      Column(Modifier.padding(16.dp)){
+       Row(verticalAlignment=Alignment.CenterVertically){Artwork(song,Modifier.size(72.dp).clickable{m.openSong(song)});Column(Modifier.weight(1f).padding(start=14.dp)){Text("듀엣 · 참여 대기",color=Aqua,fontSize=12.sp);Text(song.title,fontWeight=FontWeight.Bold,fontSize=17.sp,maxLines=2,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=6.dp));Text(song.producer,color=Muted,fontSize=13.sp,maxLines=1,overflow=TextOverflow.Ellipsis)}}
+       Row(Modifier.padding(top=12.dp),verticalAlignment=Alignment.CenterVertically){IconButton(onClick={m.play(song,tracks)}){Icon(Icons.Rounded.PlayCircle,"${song.title} 먼저 듣기",tint=Pink)};BrandButton(onClick={if(mine)m.openSong(song)else sing(song)},modifier=Modifier.weight(1f).testTag("duet-join-${song.id}")){Text(if(mine)"내 듀엣 보기" else "듀엣 참여")}}
+      }
+     }
+    }else items(tracks,key={it.id}){song->StreamingSongRow(song,m,tracks,sing);Spacer(Modifier.height(6.dp))}
+    if(tracks.isEmpty()&&!(section=="듀엣"&&(m.duetError!=null||m.duetLoading)))item{Empty(if(m.loading)"곡을 불러오고 있어요" else if(section=="듀엣"&&query.isBlank())"아직 대기 중인 듀엣이 없어요" else "조건에 맞는 곡이 없어요","다른 장르나 제목으로 찾아보세요.",Icons.Rounded.MicNone)}
+    item{Section("노래로 더 만나기");MusicEntry("커버 랭킹","사람들이 함께 듣는 목소리",Icons.Rounded.EmojiEvents){m.openRanking("week")};Spacer(Modifier.height(8.dp));MusicEntry("노래방 차트","많이 부르는 곡 둘러보기",Icons.Rounded.BarChart){m.openRanking("week",chart=true)};Spacer(Modifier.height(8.dp));MusicEntry("내 커버곡","공개한 녹음과 업로드 관리",Icons.Rounded.LibraryMusic){m.library("내 커버곡")}}
+    if(m.recentCovers.isNotEmpty())item{Box(Modifier.testTag("new-voices-more")){Section("새로 올라온 목소리",action="더보기",onAction={m.browseCollection("새로 올라온 목소리","/api/community?kind=cover",asPage=true)})};SongShelf(m.recentCovers.take(10),m)}
+    item{Row{TextButton(onClick={m.browseCollection("솔로 커버","/api/community?kind=cover&cover_mode=solo")}){Text("솔로 커버")};TextButton(onClick={m.browseCollection("듀엣 커버","/api/community?kind=cover&cover_mode=duet")}){Text("듀엣 커버")}}}
    }
-   CoverRankShowcase(m)
-   Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)){
-    OutlinedButton(onClick={m.browseCollection("솔로 커버","/api/community?kind=cover&cover_mode=solo")}){Text("솔로")}
-    OutlinedButton(onClick={m.browseCollection("듀엣 커버","/api/community?kind=cover&cover_mode=duet")}){Text("듀엣")}
-   }
-   Section("참여를 기다리는 듀엣","먼저 녹음한 목소리를 불러와 빈 파트를 불러요")
-   m.duetError?.let{Text(it,color=Pink);TextButton(onClick=m::loadDuets){Text("다시 불러오기")}}
-   if(m.duetInvitations.isEmpty()&&m.duetError==null)Text("아직 대기 중인 듀엣이 없어요. 아래 곡에서 첫 파트를 남겨보세요.",color=Muted,fontSize=13.sp,modifier=Modifier.padding(bottom=16.dp))
   }
-  items(m.duetInvitations,key={"duet-"+it.id}){song->
-   Surface(color=Panel,shape=RoundedCornerShape(18.dp),modifier=Modifier.padding(bottom=12.dp)){
-    Column(Modifier.padding(16.dp)){Text(song.title,fontWeight=FontWeight.Bold);Text("${song.producer} · 먼저 녹음한 목소리",color=Muted,fontSize=13.sp,modifier=Modifier.padding(vertical=8.dp));BrandButton(onClick={if(song.raw.optString("user_id")==m.user?.optString("id"))m.openSong(song) else sing(song)},modifier=Modifier.fillMaxWidth()){Text(if(song.raw.optString("user_id")==m.user?.optString("id"))"내 듀엣 보기" else "듀엣 참여")}}
-   }
-  }
-  item{
-   Section("나의 다음 무대","장르를 고르고, 다른 목소리도 먼저 들어봐요")
-   OutlinedTextField(query,{query=it},modifier=Modifier.fillMaxWidth(),singleLine=true,placeholder={Text("부르고 싶은 노래 찾기",fontSize=15.sp)},leadingIcon={Icon(Icons.Rounded.Search,null)},shape=RoundedCornerShape(16.dp))
-   Spacer(Modifier.height(10.dp));Chips(listOf("전체")+Genres,genre){genre=it}
-   Text("에코 · 룸 · 내 목소리 듣기",color=Aqua,fontSize=12.sp,modifier=Modifier.padding(top=12.dp))
-   Text("유선·USB 이어폰으로 들으며 불러보세요.",color=Muted,fontSize=12.sp,modifier=Modifier.padding(top=5.dp,bottom=16.dp))
-  }
-  items(tracks,key={it.id}){song->
-   SingReadyCard(song,m,tracks,sing,Modifier.padding(bottom=12.dp))
-  }
-  if(tracks.isEmpty())item{Empty(if(m.loading)"곡을 불러오고 있어요" else "조건에 맞는 곡이 없어요","다른 장르나 제목으로 찾아보세요.",Icons.Rounded.MicNone)}
-  if(m.recentCovers.isNotEmpty())item{Box(Modifier.testTag("new-voices-more")){Section("새로 올라온 목소리","좋아요로 다음 주인공을 발견해요","더보기"){m.browseCollection("새로 올라온 목소리","/api/community?kind=cover",asPage=true)}};SongShelf(m.recentCovers.take(10),m)}
-  item{TextButton(onClick={m.library("내 커버곡")},modifier=Modifier.fillMaxWidth()){Icon(Icons.Rounded.LibraryMusic,null);Text("내가 공개한 커버곡",modifier=Modifier.padding(start=8.dp))}}
  }
 }
-
 @Composable private fun PlayButtons(tracks:List<Song>,m:MusicModel){
  Row(Modifier.fillMaxWidth().padding(vertical=10.dp),horizontalArrangement=Arrangement.spacedBy(10.dp)){
   FilledTonalButton(onClick={m.playAll(tracks)},enabled=tracks.isNotEmpty(),modifier=Modifier.weight(1f),shape=RoundedCornerShape(12.dp)){Icon(Icons.Rounded.PlayArrow,null,Modifier.size(21.dp));Text("전체 재생",fontSize=13.sp,modifier=Modifier.padding(start=5.dp))}
@@ -410,6 +371,10 @@ private val PagePadding=PaddingValues(start=18.dp,end=18.dp,bottom=28.dp)
 }
 
 @Composable internal fun LibraryScreen(m:MusicModel,create:()->Unit,browser:(String)->Unit){
+ val pages=rememberSaveableStateHolder()
+ pages.SaveableStateProvider(m.libraryPage){LibraryPage(m,create,browser)}
+}
+@Composable private fun LibraryPage(m:MusicModel,create:()->Unit,browser:(String)->Unit){
  var query by rememberSaveable{mutableStateOf("")}
  var sort by rememberSaveable{mutableStateOf("기본 순서")}
  var sorting by remember{mutableStateOf(false)}
@@ -418,12 +383,10 @@ private val PagePadding=PaddingValues(start=18.dp,end=18.dp,bottom=28.dp)
  val columns=musicGalleryColumns()
  val filter=m.libraryPage
  val state=rememberLazyListState()
- var previous by rememberSaveable{mutableStateOf(filter)}
- LaunchedEffect(filter){if(previous!=filter){state.scrollToItem(0);previous=filter}}
  LaunchedEffect(filter,m.user?.optString("id")){if(m.user!=null&&filter in listOf("내 커버곡","내 제작곡"))m.loadStudio()}
  LazyColumn(Modifier.fillMaxSize().testTag("library-scroll"),state=state,contentPadding=PagePadding){
   item{
-   Heading("나의 음악 서랍","좋아하는 음악과 내가 만든 순간들")
+   Row(verticalAlignment=Alignment.CenterVertically){IconButton(onClick=m::leaveLibrary,modifier=Modifier.testTag("library-back")){Icon(Icons.AutoMirrored.Rounded.ArrowBack,"이전 화면")};Text(if(filter=="보관함")"내 보관함" else filter,fontSize=23.sp,fontWeight=FontWeight.Bold)}
    if(m.user==null){
     Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){
      listOf("플레이리스트" to Icons.AutoMirrored.Rounded.QueueMusic,"좋아요" to Icons.Rounded.FavoriteBorder,"내 커버곡" to Icons.Rounded.Mic).forEach{(name,icon)->
@@ -436,14 +399,22 @@ private val PagePadding=PaddingValues(start=18.dp,end=18.dp,bottom=28.dp)
      BrandButton(onClick={m.showLogin=true}){Text("로그인하고 시작하기")}
     }
    }else{
-    Row(Modifier.fillMaxWidth().padding(bottom=20.dp),verticalAlignment=Alignment.CenterVertically){Box(Modifier.clickable{m.editProfile()}){Avatar(m.user?.optString("name")?:"",m.ownProfile.optJSONObject("profile"),48)};Column(Modifier.padding(start=14.dp).weight(1f)){Text(m.user?.optString("display_name",m.user?.optString("name")?:"")?:"",fontSize=19.sp,fontWeight=FontWeight.Bold);Text("좋아요 ${m.likes.size} · 플레이리스트 ${m.playlists.size}",color=Muted,fontSize=13.sp,modifier=Modifier.padding(top=5.dp))};IconButton(onClick={m.showAccount=true}){Icon(Icons.Rounded.Settings,"계정 설정",tint=Muted)}}
-    Row{TextButton(onClick={m.selectTab(6)}){Text("내 페이지")};TextButton(onClick={m.libraryPage="팔로워"}){Text("팔로워 ${m.ownProfile.optInt("follower_count")}")};TextButton(onClick={m.libraryPage="팔로잉"}){Text("팔로잉 ${m.ownProfile.optInt("following_count")}")}}
-    Chips(listOf("플레이리스트","최근 감상","좋아요","내 커버곡","내 제작곡","팔로잉","팔로워"),filter){m.libraryPage=it;query=""}
+    Chips(listOf("보관함","플레이리스트","최근 감상","좋아요","내 커버곡","내 제작곡","팔로잉","팔로워"),filter){m.libraryPage=it;query=""}
     Spacer(Modifier.height(12.dp))
-    OutlinedTextField(query,{query=it},placeholder={Text("보관함 안에서 검색",fontSize=13.sp)},leadingIcon={Icon(Icons.Rounded.Search,null,Modifier.size(20.dp))},singleLine=true,shape=RoundedCornerShape(14.dp),modifier=Modifier.fillMaxWidth().testTag("library-search"))
+    if(filter!="보관함")OutlinedTextField(query,{query=it},placeholder={Text("보관함 안에서 검색",fontSize=13.sp)},leadingIcon={Icon(Icons.Rounded.Search,null,Modifier.size(20.dp))},singleLine=true,shape=RoundedCornerShape(14.dp),modifier=Modifier.fillMaxWidth().testTag("library-search"))
    }
   }
   if(m.user!=null)when(filter){
+   "보관함"->{
+    item{MusicLibraryShortcuts(m);Section("내 플레이리스트",action="새로 만들기",onAction=create)}
+    items(m.playlists.take(3),key={it.getString("id")}){PlaylistRow(it,m)}
+    if(m.playlists.isEmpty())item{Text("아직 플레이리스트가 없어요. 좋아하는 곡을 모아보세요.",color=Muted,fontSize=13.sp,modifier=Modifier.padding(vertical=12.dp))}
+    item{Section("좋아요한 노래",action="모두 보기",onAction={m.libraryPage="좋아요"});PlayButtons(m.likes,m)}
+    items(m.likes.take(5),key={"liked-"+it.id}){StreamingSongRow(it,m,m.likes);Spacer(Modifier.height(6.dp))}
+    item{Section("최근 감상",action="모두 보기",onAction={m.libraryPage="최근 감상"})}
+    items(m.history.take(5),key={"recent-"+it.id}){StreamingSongRow(it,m,m.history);Spacer(Modifier.height(6.dp))}
+    if(m.likes.isEmpty()&&m.history.isEmpty())item{Empty("음악으로 채워보세요","곡을 듣거나 좋아요하면 이곳에서 다시 만나요.");TextButton(onClick={m.selectTab(1)}){Text("음악 찾아보기")}}
+   }
    "플레이리스트"->{
     item{Section("내 플레이리스트",action="새로 만들기",onAction=create)}
     val lists=m.playlists.filter{it.optString("name").contains(query,true)}
@@ -485,7 +456,7 @@ private val PagePadding=PaddingValues(start=18.dp,end=18.dp,bottom=28.dp)
       DropdownMenu(expanded=sorting,onDismissRequest={sorting=false}){listOf("기본 순서","제목순","아티스트순").forEach{label->DropdownMenuItem(text={Text(label)},onClick={sort=label;sorting=false})}}
      }}
     }
-    items(tracks,key={it.id}){s->SongRow(s,m,tracks){IconButton(onClick={m.like(s)},enabled=!m.busy){Icon(if(m.likes.any{it.id==s.id})Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,"${s.title} 좋아요",tint=Pink)}}}
+    items(tracks,key={it.id}){s->StreamingSongRow(s,m,tracks);Spacer(Modifier.height(6.dp))}
     if(tracks.isEmpty())item{Empty(if(query.isNotBlank())"일치하는 음악이 없어요" else if(filter=="최근 감상")"최근 들은 음악이 없어요" else "아직 좋아요한 음악이 없어요","듣기에서 마음에 드는 음악을 만나보세요.",Icons.Rounded.FavoriteBorder)}
    }
   }

@@ -40,6 +40,8 @@ class MusicModel(app:Application):AndroidViewModel(app) {
  var recentCovers by mutableStateOf<List<Song>>(emptyList())
  var listenPage by mutableStateOf("추천")
  var libraryPage by mutableStateOf("플레이리스트")
+ var libraryReturnTab by mutableIntStateOf(0)
+  private set
  var collection by mutableStateOf<MusicCollection?>(null)
  var collectionBusy by mutableStateOf(false)
  var collectionError by mutableStateOf<String?>(null)
@@ -63,9 +65,13 @@ class MusicModel(app:Application):AndroidViewModel(app) {
  var singable by mutableStateOf<List<Song>>(emptyList())
  var duetInvitations by mutableStateOf<List<Song>>(emptyList())
  var duetError by mutableStateOf<String?>(null)
+ var duetLoading by mutableStateOf(false)
+ private var duetRequest=0
  fun loadDuets(){
+  val request=++duetRequest
   val scope=readScope();api.peek("/api/duets")?.let{if(currentRead(scope))duetInvitations=it.tracks()}
-  viewModelScope.launch{try{val tracks=api.call("/api/duets",fresh=true).tracks();ensureRead(scope);duetInvitations=tracks;duetError=null}catch(e:Exception){if(e is CancellationException)throw e;if(sameAccount(scope)){if(e is ApiException&&e.status==401)failure(e);duetError="듀엣 목록을 불러오지 못했어요."}}}
+  duetLoading=true
+  viewModelScope.launch{try{val tracks=api.call("/api/duets",fresh=true).tracks();ensureRead(scope);duetInvitations=tracks;duetError=null}catch(e:Exception){if(e is CancellationException)throw e;if(sameAccount(scope)){if(e is ApiException&&e.status==401)failure(e);duetError="듀엣 목록을 불러오지 못했어요."}}finally{if(request==duetRequest)duetLoading=false}}
  }
  var feed by mutableStateOf<List<Song>>(emptyList())
  internal var communityCrewMode by mutableStateOf(false)
@@ -247,6 +253,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
  private fun currentRead(scope:ReadScope)=sameAccount(scope)&&scope.mutation==mutationRevision&&scope.apiRevision==api.readRevision
  private suspend fun ensureRead(scope:ReadScope){currentCoroutineContext().ensureActive();if(!currentRead(scope))throw CancellationException("A newer account or action replaced this read")}
  private fun clearPrivateState(stopPlayback:Boolean){
+  duetRequest++;duetLoading=false
   listOf(libraryJob,ownProfileJob,listJob,studioJob,profileJob,detailJob,feedJob,searchJob,collectionJob,rankJob,highlightsJob,originalJob).forEach{it?.cancel()}
   likes=emptyList();playlists=emptyList();history=emptyList();follows=emptyList();ownProfile=JSONObject();myTracks=emptyList()
   membership=JSONObject();followRevision++;followPending=false
@@ -402,7 +409,8 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   if(index in listOf(4,6) && user!=null)refreshLibrary()
   if(index==5){messagePeer=null;messageCrew=null}
  }
- fun library(page:String){libraryPage=page;selectTab(4)}
+ fun library(page:String){if(tab!=4)libraryReturnTab=tab;libraryPage=page;selectTab(4)}
+ fun leaveLibrary(){selectTab(libraryReturnTab)}
  fun showCollection(title:String,tracks:List<Song>,caption:String=""){
   collectionRequest++;collectionJob?.cancel();collectionBusy=false;collectionError=null;collection=MusicCollection(title,caption,tracks,asPage=true)
  }

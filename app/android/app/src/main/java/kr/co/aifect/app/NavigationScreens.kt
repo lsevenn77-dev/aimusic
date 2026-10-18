@@ -33,7 +33,7 @@ import org.json.JSONObject
    entry("메시지",Icons.Outlined.ChatBubbleOutline){m.openMessages()}
    entry("알림 기록",Icons.Outlined.NotificationsNone){if(m.authenticated())m.showNotifications=true}
    entry("마이",Icons.Outlined.PersonOutline){m.selectTab(6)}
-   entry("내 보관함",Icons.Outlined.LibraryMusic){m.library("플레이리스트")}
+   entry("내 보관함",Icons.Outlined.LibraryMusic){m.library("보관함")}
    entry("창작자 스튜디오",Icons.Outlined.Tune){m.openStudio()}
    HorizontalDivider(Modifier.padding(vertical=12.dp),color=Stroke)
    entry("인기 차트",Icons.Outlined.BarChart){m.selectTab(0);m.listenPage="차트"}

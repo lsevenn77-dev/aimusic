@@ -71,6 +71,7 @@ private val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=C
   LaunchedEffect(m.user?.optString("id")){m.unreadMessages=0;m.inboxCrew=null;if(m.user!=null)chatLifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.RESUMED){while(true){try{m.refreshMessageSummary()}catch(e:Exception){if(e is kotlinx.coroutines.CancellationException)throw e};delay(8000)}}}
   LaunchedEffect(m.user?.optString("id")){if(m.user!=null)chatLifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.RESUMED){while(true){try{m.refreshActivitySummary()}catch(e:Exception){if(e is kotlinx.coroutines.CancellationException)throw e};delay(30000)}}}
   LaunchedEffect(m.notice){m.notice?.let {snack.showSnackbar(it);m.notice=null}}
+  BackHandler(m.tab==4){m.leaveLibrary()}
   BackHandler(m.showGifts||m.fullPlayer||m.detail!=null||m.selectedList!=null||m.profile!=null||m.showLogin||m.showAccount||m.collection!=null||m.rankOpen){
    when{m.showGifts->m.showGifts=false;m.showLogin->m.showLogin=false;m.showAccount->m.showAccount=false;m.detail!=null->m.detail=null;m.selectedList!=null->m.selectedList=null;m.profile!=null->m.dismissProfile();m.fullPlayer->m.fullPlayer=false;m.collection!=null->m.dismissCollection();else->m.dismissRanking()}
   }
@@ -249,32 +250,22 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)A
  }
 }
 @Composable private fun MiniPlayer(m:MusicModel,song:Song){
- var collapsed by rememberSaveable{mutableStateOf(false)}
- var queueOpen by remember{mutableStateOf(false)}
- if(queueOpen)PlayerQueueSheet(m){queueOpen=false}
  LaunchedEffect(song.id,m.user?.optString("id"),m.membership.optLong("premium_until")){m.resetLyrics();while(true){m.lyricsAt(song,m.position/1000.0);delay(500)}}
- Column(Modifier.fillMaxWidth().background(Panel).border(1.dp,Stroke.copy(alpha=.5f))){
+ Column(Modifier.fillMaxWidth().testTag("mini-player").background(Panel).border(1.dp,Stroke.copy(alpha=.5f))){
   val line=compactLyrics(m.lyricRows,m.position/1000.0,m.lyric).first
-  val lyricRowHeight=with(androidx.compose.ui.platform.LocalDensity.current){20.sp.toDp()}+16.dp
-  Box(Modifier.fillMaxWidth().height(lyricRowHeight).clickable{m.fullPlayer=true}.testTag("mini-player-lyrics").padding(horizontal=18.dp,vertical=8.dp),contentAlignment=Alignment.Center){
-   Text(line,modifier=Modifier.fillMaxWidth().testTag("mini-player-current-lyric"),fontSize=13.sp,lineHeight=20.sp,color=Aqua,minLines=1,maxLines=1,softWrap=false,overflow=TextOverflow.Ellipsis,textAlign=androidx.compose.ui.text.style.TextAlign.Center,style=TextStyle(platformStyle=androidx.compose.ui.text.PlatformTextStyle(includeFontPadding=false)))
-  }
-  Row(Modifier.fillMaxWidth().clickable{m.fullPlayer=true}.padding(start=12.dp,end=2.dp,top=8.dp,bottom=8.dp),verticalAlignment=Alignment.CenterVertically){
+  Row(Modifier.fillMaxWidth().testTag("mini-player-open").clickable{m.fullPlayer=true}.padding(start=12.dp,end=2.dp,top=8.dp,bottom=8.dp),verticalAlignment=Alignment.CenterVertically){
    Artwork(song,Modifier.size(44.dp));Column(Modifier.weight(1f).padding(horizontal=12.dp)){
     Text(song.title,maxLines=1,fontSize=14.sp,fontWeight=FontWeight.SemiBold,overflow=TextOverflow.Ellipsis)
     Row(Modifier.fillMaxWidth().padding(top=4.dp),verticalAlignment=Alignment.CenterVertically){
      Text(song.credit,maxLines=1,fontSize=12.sp,color=Muted,modifier=Modifier.weight(1f),overflow=TextOverflow.Ellipsis)
      if(m.playbackBitrateKbps>0)Text("AAC ${m.playbackBitrateKbps}",maxLines=1,fontSize=10.sp,color=Aqua,modifier=Modifier.padding(start=5.dp).testTag("mini-player-quality"))
     }
+    Box(Modifier.fillMaxWidth().testTag("mini-player-lyrics").padding(top=3.dp)){
+     Text(line.ifBlank{"♪"},modifier=Modifier.fillMaxWidth().testTag("mini-player-current-lyric"),fontSize=12.sp,lineHeight=17.sp,color=Aqua,minLines=1,maxLines=1,softWrap=false,overflow=TextOverflow.Ellipsis,style=TextStyle(platformStyle=androidx.compose.ui.text.PlatformTextStyle(includeFontPadding=false)))
+    }
    }
    IconButton(onClick=m::toggle){if(m.buffering)CircularProgressIndicator(Modifier.size(20.dp),strokeWidth=2.dp,color=Aqua) else Icon(if(m.playing)Icons.Rounded.Pause else Icons.Rounded.PlayArrow,if(m.playing)"일시정지" else "재생",tint=Aqua)}
    IconButton(onClick={m.controller?.seekToNextMediaItem()},enabled=m.controller?.hasNextMediaItem()==true){Icon(Icons.Rounded.SkipNext,"다음 곡",Modifier.size(22.dp))}
-   IconButton(onClick={collapsed=!collapsed}){Icon(if(collapsed)Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,if(collapsed)"재생바 펼치기" else "재생바 내리기",Modifier.size(19.dp),tint=Muted)}
-  }
-  if(!collapsed)Row(Modifier.fillMaxWidth().padding(horizontal=14.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceEvenly){
-   IconButton(onClick={m.controller?.shuffleModeEnabled=!m.shuffle}){Icon(SimpleShuffle,"랜덤 재생",Modifier.size(21.dp),tint=if(m.shuffle)Aqua else Muted)}
-   IconButton(onClick={m.controller?.repeatMode=when(m.repeat){Player.REPEAT_MODE_OFF->Player.REPEAT_MODE_ALL;Player.REPEAT_MODE_ALL->Player.REPEAT_MODE_ONE;else->Player.REPEAT_MODE_OFF}}){Icon(if(m.repeat==Player.REPEAT_MODE_ONE)Icons.Rounded.RepeatOne else Icons.Rounded.Repeat,"반복 재생",tint=if(m.repeat==Player.REPEAT_MODE_OFF)Muted else Aqua)}
-   IconButton(onClick={queueOpen=true}){Icon(Icons.AutoMirrored.Rounded.QueueMusic,"재생목록",tint=Muted)}
   }
   LinearProgressIndicator(progress={if(m.duration>0)(m.position.toFloat()/m.duration).coerceIn(0f,1f)else 0f},modifier=Modifier.fillMaxWidth().height(2.dp),color=Aqua,trackColor=Stroke,drawStopIndicator={})
  }
@@ -282,11 +273,13 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)A
 @Composable private fun PlayerSheet(m:MusicModel,song:Song,save:(Song)->Unit,sing:(Song)->Unit){
  val sheet=rememberModalBottomSheetState(skipPartiallyExpanded=true)
  var seek by remember(song.id){mutableStateOf<Float?>(null)}
+ var queueOpen by remember{mutableStateOf(false)}
+ if(queueOpen)PlayerQueueSheet(m){queueOpen=false}
 
  ModalBottomSheet(onDismissRequest={m.fullPlayer=false},sheetState=sheet,containerColor=Ink){
   LazyColumn(Modifier.fillMaxWidth(),contentPadding=PaddingValues(24.dp,0.dp,24.dp,30.dp)){
    item{
-    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Text("NOW PLAYING",color=Muted,fontSize=12.sp,letterSpacing=2.sp,modifier=Modifier.weight(1f));IconButton(onClick=m::closePlayer){Icon(Icons.Rounded.Close,"재생 종료",tint=Muted)}}
+    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Text("NOW PLAYING",color=Muted,fontSize=12.sp,letterSpacing=2.sp,modifier=Modifier.weight(1f));IconButton(onClick={queueOpen=true},modifier=Modifier.testTag("player-queue")){Icon(Icons.AutoMirrored.Rounded.QueueMusic,"재생목록",tint=Aqua)};IconButton(onClick=m::closePlayer){Icon(Icons.Rounded.Close,"재생 종료",tint=Muted)}}
     Box(Modifier.fillMaxWidth(),contentAlignment=Alignment.Center){Artwork(song,Modifier.widthIn(max=380.dp).fillMaxWidth().aspectRatio(1f))}
     Row(Modifier.fillMaxWidth().padding(top=22.dp),verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){Text(song.title,fontSize=25.sp,fontWeight=FontWeight.Bold,maxLines=2);Text(song.credit,color=Muted,modifier=Modifier.padding(top=7.dp))};IconButton(onClick={m.like(song)},enabled=!m.busy){Icon(if(m.likes.any{it.id==song.id})Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,"좋아요",tint=Pink)}}
     m.playbackQualityLabel?.let{Text(it,fontSize=12.sp,color=Aqua,modifier=Modifier.padding(top=8.dp).testTag("player-quality"))}

@@ -42,23 +42,21 @@ import kotlinx.coroutines.CancellationException
   finally{busy=false}
  }
  val state=rememberLazyListState()
- LaunchedEffect(path){state.scrollToItem(0)}
+ var previousPath by rememberSaveable{mutableStateOf(path)}
+ LaunchedEffect(path){if(previousPath!=path){state.scrollToItem(0);previousPath=path}}
  Box(Modifier.fillMaxSize().testTag("chart-popular")){
  LazyColumn(Modifier.fillMaxSize().testTag("listen-scroll"),state=state,contentPadding=PaddingValues(18.dp,16.dp,18.dp,28.dp)){
   item{
-   Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).musicSurface(feature=true).border(1.dp,Stroke,RoundedCornerShape(18.dp)).padding(20.dp)){
-    Text("AIFECT 인기차트",fontSize=25.sp,fontWeight=FontWeight.Bold)
-    Text("함께 듣고, 좋아하고, 응원한 음악의 순위.",fontSize=13.sp,color=Muted,modifier=Modifier.padding(top=10.dp))
-   }
+   Text("인기 차트",fontSize=22.sp,fontWeight=FontWeight.Bold)
    ChartTabs(categories,category,"chart-category"){key->if(key=="karaoke")m.openRanking("week",chart=true)else category=key}
    if(category=="top")ChartTabs(periods,period,"chart-period"){period=it}
    Text(if(category=="top")"${periods.first{it.first==period}.second} · 한국 시간 기준 · 어제 집계 대비" else categories.first{it.first==category}.second,fontSize=12.sp,color=Muted,modifier=Modifier.padding(top=18.dp,bottom=8.dp))
    if(category=="top"&&!busy&&!comparison)Text("전날 순위 기록이 준비되면 변동을 표시해요.",fontSize=11.sp,color=Muted)
    Row(Modifier.fillMaxWidth().padding(top=12.dp,bottom=18.dp),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=Alignment.CenterVertically){
-    BrandButton(onClick={tracks.firstOrNull()?.let{m.play(it,tracks)}},enabled=tracks.isNotEmpty(),contentPadding=PaddingValues(horizontal=14.dp)){
+    BrandButton(onClick={m.playAll(tracks)},enabled=tracks.isNotEmpty(),contentPadding=PaddingValues(horizontal=14.dp)){
      Icon(Icons.Rounded.PlayArrow,null,Modifier.size(18.dp));Text("전체 듣기",fontSize=13.sp)
     }
-    OutlinedButton(onClick={val queue=tracks.shuffled();queue.firstOrNull()?.let{m.play(it,queue)}},enabled=tracks.isNotEmpty(),contentPadding=PaddingValues(horizontal=12.dp)){
+    OutlinedButton(onClick={m.playAll(tracks,true)},enabled=tracks.isNotEmpty(),contentPadding=PaddingValues(horizontal=12.dp)){
      Icon(Icons.Rounded.Shuffle,null,Modifier.size(18.dp));Text("섞어 듣기",fontSize=13.sp)
     }
     Text("${tracks.size}곡",color=Muted,fontSize=12.sp)
