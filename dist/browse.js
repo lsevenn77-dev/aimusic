@@ -41,6 +41,11 @@ async function browseView(base,param,raw){
   return {html:heading('노래방 차트','공개된 커버곡만 모았어요. 이번 주 받은 좋아요 순으로 만나요.')+chartTabs('karaoke')+chartLayoutHTML(browsePlaybackActions(tracks)+(tracks.length?coverRankTracksHTML(tracks):empty('아직 등록된 커버곡이 없어요','첫 커버곡이 공개되면 이곳에서 만날 수 있어요.','#karaoke','노래 부르기')),tracks,'karaoke'),tracks};
  }
  if(base==='karaoke'&&param==='drafts'){if(!me){returnRoute=location.hash;return {html:gate()};}return {html:karaokeDraftsHTML(await listSingDrafts())};}
+ if(base==='karaoke'&&['songs','duets'].includes(param)){
+  const duet=param==='duets',d=await api(duet?'/api/duets':'/api/karaoke','GET',undefined,{fresh:duet});
+  const tracks=duet?d.tracks.filter(t=>musicIsOpenDuet(t)&&!t.duet_parent_id&&t.original_id):d.tracks;
+  return {html:singingCollectionHTML(tracks,param),tracks,karaokeTracks:tracks,singingHub:true,singingCollection:param};
+ }
  if(base==='karaoke'){
   const [d,duets]=await Promise.all([api('/api/karaoke'),api('/api/duets')]),tracks=d.tracks.map((t,i)=>({...t,browseRank:i+1}));
   remember([...(d.recent_covers||[]),...duets.tracks]);return {html:singingHubHTML(tracks,d.recent_covers||[],duets.tracks),tracks,karaokeTracks:tracks,singingHub:true};
