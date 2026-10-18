@@ -14,6 +14,34 @@ async function loadMyBalanceSummary(){
  catch(e){if(e.status===401||e.status===403)throw e;return myBalanceSummaryHTML(null);}
 }
 let socialTimer=null;
+async function loadMyCrewSummary(){
+ try{
+  const d=await api('/api/crews?summary=1&home=1','GET',undefined,{fresh:true}),c=d.detail?.membership?d.detail.crew:null;
+  return '<section class="surface my-current-crew"><h3>가입한 크루</h3>'+(c?'<a class="my-current-crew-link" href="#crew/'+esc(c.id)+'">'+crewPicture(c,'crew-circle')+'<span><strong>'+esc(c.name)+'</strong><small>LV.'+number(c.level)+' · '+number(c.members)+'명</small></span>'+icon('chevron')+'</a>':'<p>현재 가입한 크루가 없어요.</p><a class="small-button" href="#community/crews?browse=1">크루 둘러보기</a>')+'</section>';
+ }catch{return '<section class="surface my-current-crew"><h3>가입한 크루</h3><p>가입 정보를 불러오지 못했어요.</p><a href="#community/crews">다시 확인하기</a></section>';}
+}
+function crewImageEditorHTML(c){
+ const src=c?.image_version?'/media/crew/'+esc(c.id)+'?v='+esc(c.image_version):'';
+ return '<section class="crew-image-editor"><label class="form-field">크루 대표 사진<input name="crew_image" type="file" accept="image/jpeg,image/png,image/webp"></label><div class="crew-image-saved">'+(src?'<img src="'+src+'" alt="현재 크루 사진">':'<span>'+icon('users')+'</span>')+'</div><div class="crew-image-crop" hidden><canvas width="640" height="640" aria-label="저장할 크루 사진 미리보기"></canvas><p class="field-help">사진을 밀어 위치를 조정하세요. 아래 조절 막대로도 움직일 수 있어요.</p><label>확대<input data-crop="zoom" type="range" min="1" max="3" step=".01" value="1"></label><label>가로 위치<input data-crop="x" type="range" min="0" max="1" step=".001" value=".5"></label><label>세로 위치<input data-crop="y" type="range" min="0" max="1" step=".001" value=".5"></label><button type="button" class="text-link" data-crop-reset>위치 · 크기 초기화</button></div><p class="field-help" data-crop-status role="status">JPG · PNG · WebP / 최대 5MB. 저장 전에는 사진이 바뀌지 않아요.</p></section>';
+}
+function crewCropRect(width,height,zoom,x,y){const size=Math.min(width,height)/Math.max(1,Math.min(3,zoom));return {x:(width-size)*Math.max(0,Math.min(1,x)),y:(height-size)*Math.max(0,Math.min(1,y)),size};}
+function bindCrewImageEditor(form){
+ const box=form.querySelector('.crew-image-editor'),input=box.querySelector('input[type=file]'),canvas=box.querySelector('canvas'),area=box.querySelector('.crew-image-crop'),saved=box.querySelector('.crew-image-saved'),status=box.querySelector('[data-crop-status]');
+ let bitmap=null,serial=0,pending=null,drag=null;
+ const controls=Object.fromEntries([...box.querySelectorAll('[data-crop]')].map(el=>[el.dataset.crop,el]));
+ const rect=()=>crewCropRect(bitmap.width,bitmap.height,Number(controls.zoom.value),Number(controls.x.value),Number(controls.y.value));
+ const draw=()=>{if(!bitmap)return;const r=rect(),ctx=canvas.getContext('2d');ctx.clearRect(0,0,640,640);ctx.drawImage(bitmap,r.x,r.y,r.size,r.size,0,0,640,640);};
+ const reset=()=>{controls.zoom.value=1;controls.x.value=controls.y.value=.5;draw();};
+ Object.values(controls).forEach(el=>el.oninput=draw);box.querySelector('[data-crop-reset]').onclick=reset;
+ input.onchange=()=>{const ticket=++serial;bitmap?.close();bitmap=null;area.hidden=true;saved.hidden=false;input.setCustomValidity('');const file=input.files[0];if(!file){pending=null;return;}status.textContent='미리보기를 준비하고 있어요…';
+  pending=(async()=>{let decoded;try{await validateImage(file);decoded=await decodeUploadImage(file);if(ticket!==serial||!form.isConnected){decoded.close();return;}bitmap=decoded;reset();area.hidden=false;saved.hidden=true;status.textContent='미리보기처럼 정사각형으로 저장돼요.';}catch(e){if(ticket===serial){decoded?.close();input.setCustomValidity(e.message);status.textContent=e.message;}}})();
+ };
+ canvas.onpointerdown=e=>{if(!bitmap)return;drag={id:e.pointerId,x:e.clientX,y:e.clientY,rect:rect()};canvas.setPointerCapture(e.pointerId);};
+ canvas.onpointermove=e=>{if(!drag||drag.id!==e.pointerId||!bitmap)return;const r=drag.rect,scale=r.size/canvas.getBoundingClientRect().width;controls.x.value=bitmap.width===r.size ? .5 : Math.max(0,Math.min(1,(r.x-(e.clientX-drag.x)*scale)/(bitmap.width-r.size)));controls.y.value=bitmap.height===r.size ? .5 : Math.max(0,Math.min(1,(r.y-(e.clientY-drag.y)*scale)/(bitmap.height-r.size)));draw();};
+ canvas.onpointerup=canvas.onpointercancel=()=>{drag=null;};
+ $('#dialog').addEventListener('close',()=>{++serial;bitmap?.close();bitmap=null;},{once:true});
+ return {async file(){await pending;if(!input.files[0])return null;if(!bitmap||!input.checkValidity())throw new Error(input.validationMessage||'사진 미리보기를 확인해주세요.');const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/webp',.92));if(!blob)throw new Error('사진을 준비하지 못했어요. 다시 선택해주세요.');return new File([blob],'crew.webp',{type:blob.type});}};
+}
 // Public crew chrome and a navigation hint only. Membership and roles stay live.
 const crewNavigation=new Map();
 function clearCrewNavigation(){crewNavigation.clear();}
@@ -41,7 +69,7 @@ function chatComposer(){return `<form id="chat-compose"><label class="form-field
 function crewEditor(c=null){
  const available=Number(c?.name_change_available_at||0)*1000,locked=available>Date.now(),days=Math.max(1,Math.ceil((available-Date.now())/86400000));
  const help=locked?`${days}일 뒤에 수정 가능합니다. (${new Date(available).toLocaleString('ko-KR')}부터)`:'크루 이름은 변경 후 30일에 한 번 수정할 수 있어요.';
- return `<h2>${c?'크루 정보 수정':'새 크루 만들기'}</h2><form id="crew-form" data-crew="${esc(c?.id||'')}">${formField('크루 이름','name','text',c?.name||'','required maxlength="40" aria-describedby="crew-name-help" '+(locked?'readonly aria-readonly="true"':''))}<p id="crew-name-help" class="field-help" role="status">${esc(help)}</p><label class="form-field">소개<textarea name="description" maxlength="1000">${esc(c?.description||'')}</textarea></label>${formField('관심사 · 예: Ballad, K-POP','interests','text',c?.interests||'','maxlength="160"')}<label class="checkbox-line"><input name="recruiting" type="checkbox" ${c?.recruiting===0?'':'checked'}>새 멤버 모집</label>${c?'<label class="form-field">크루 대표 이미지<input name="crew_image" type="file" accept="image/jpeg,image/png,image/webp"></label>':''}<p class="field-help">처음에는 10명까지 함께해요. 공개곡 +1 XP, 받은 선물 1골드당 +1 XP, 하루 첫 채팅 +10 XP를 모아 최대 150명까지 성장해요.</p><button class="primary-button">저장</button><p class="form-error" role="alert"></p></form>`;
+ return `<h2>${c?'크루 정보 수정':'새 크루 만들기'}</h2><form id="crew-form" data-crew="${esc(c?.id||'')}">${formField('크루 이름','name','text',c?.name||'','required maxlength="40" aria-describedby="crew-name-help" '+(locked?'readonly aria-readonly="true"':''))}<p id="crew-name-help" class="field-help" role="status">${esc(help)}</p><label class="form-field">소개<textarea name="description" maxlength="1000">${esc(c?.description||'')}</textarea></label>${formField('관심사 · 예: Ballad, K-POP','interests','text',c?.interests||'','maxlength="160"')}<label class="checkbox-line"><input name="recruiting" type="checkbox" ${c?.recruiting===0?'':'checked'}>새 멤버 모집</label>${crewImageEditorHTML(c)}<p class="field-help">처음에는 10명까지 함께해요. 공개곡 +1 XP, 받은 선물 1골드당 +1 XP, 하루 첫 채팅 +10 XP를 모아 최대 150명까지 성장해요.</p><button class="primary-button">저장</button><p class="form-error" role="alert"></p></form>`;
 }
 function crewDetailView(d,param,tab='music'){
  const c=d.crew,m=d.membership,allowed=['chat','members','music','about'];if(!allowed.includes(tab))tab='music';
@@ -86,7 +114,7 @@ async function improvementsView(base,param,raw){
    // Fetch independent reads together; money remains live and is never cached.
    const knownProfile=me.profile_id;
    const [d,balances,knownSocial]=await Promise.all([
-    api('/api/me/profile'),param!=='edit'?loadMyBalanceSummary():null,
+    api('/api/me/profile'),param!=='edit'?Promise.all([loadMyBalanceSummary(),loadMyCrewSummary()]).then(parts=>parts.join('')):null,
     param!=='edit'&&knownProfile?api('/api/producers/'+encodeURIComponent(knownProfile)):null
    ]),p=d.profile;
    if(param!=='edit'){
@@ -110,7 +138,7 @@ async function libraryProfileHTML(){
  if(!me)return '';const d=await api('/api/me/profile'),p=d.profile;
  return `<section class="surface library-profile"><a href="#profile" aria-label="내 프로필 수정">${portrait(p,'producer')}</a><div><h2>${esc(p.name)}</h2><div class="inline-actions"><a href="#profile">프로필 수정</a><a href="#library/followers">팔로워 ${d.follower_count}</a><a href="#library/following">팔로잉 ${d.following_count}</a></div></div><div class="inline-actions"><a href="#rewards" class="small-button">오늘의 실버</a><a href="#dm" class="small-button">DM</a><a href="#payouts" class="small-button">정산</a></div></section>`;
 }
-function bindCrewForm(){const form=$('#crew-form');form.onsubmit=busyForm(form,async fd=>{const cid=form.dataset.crew;const d=await api('/api/crews'+(cid?'/'+cid:''),cid?'PATCH':'POST',{name:fd.get('name'),description:fd.get('description'),interests:fd.get('interests'),recruiting:fd.has('recruiting')});try{me=(await api('/api/me')).user;updateAccount();}catch{}const file=fd.get('crew_image');if(cid&&file?.size)await uploadChatImage('/api/crews/'+cid+'/image',file);$('#dialog').close();location.hash='crew/'+d.crew.id;if(cid)await render();});}
+function bindCrewForm(){const form=$('#crew-form');const crop=bindCrewImageEditor(form);form.onsubmit=busyForm(form,async fd=>{const cid=form.dataset.crew;const cropped=await crop.file();const d=await api('/api/crews'+(cid?'/'+cid:''),cid?'PATCH':'POST',{name:fd.get('name'),description:fd.get('description'),interests:fd.get('interests'),recruiting:fd.has('recruiting')});form.dataset.crew=d.crew.id;clearCrewNavigation();try{me=(await api('/api/me')).user;updateAccount();}catch{}if(cropped)await uploadChatImage('/api/crews/'+d.crew.id+'/image',cropped);$('#dialog').close();location.hash='crew/'+d.crew.id;if(cid)await render();});}
 function bindImprovements(view){
  bindCrewHome(view);
  bindCrewDiscovery(view);
@@ -128,10 +156,10 @@ function bindImprovements(view){
  });
  const browse=$('[data-browse-crews]');if(browse)browse.onclick=()=>{const input=$('#crew-search input');input.scrollIntoView({behavior:'smooth',block:'center'});input.focus({preventScroll:true});};
  const search=$('#crew-search');if(search)search.onsubmit=e=>{e.preventDefault();location.hash='community/crews?browse=1&q='+encodeURIComponent(new FormData(search).get('q'));};
- document.querySelectorAll('[data-create-crew],[data-edit-crew]').forEach(b=>b.onclick=async()=>{if(!me)return askLogin();dialog(crewEditor(b.dataset.editCrew?view.crew:null));bindCrewForm();});
+ document.querySelectorAll('[data-create-crew],[data-edit-crew]').forEach(b=>b.onclick=async()=>{if(!me)return askLogin();dialog(crewEditor(b.dataset.editCrew?view.crew:null));bindCrewForm();if(b.hasAttribute('data-edit-crew-photo'))$('#crew-form [name=crew_image]').click();});
  for(const action of ['join','leave'])document.querySelectorAll(`[data-${action}-crew]`).forEach(b=>b.onclick=async()=>{
   if(!me)return askLogin();if(action==='leave'&&!confirm('크루에서 탈퇴할까요? 크루장은 먼저 가입한 멤버에게 위임되고, 마지막 멤버가 나가면 크루와 채팅이 삭제돼요.'))return;
-  b.disabled=true;try{await api('/api/crews/'+b.dataset[action+'Crew']+'/'+action,'POST');if(action==='leave')location.hash='community/crews';else await render();}catch(e){toast(e.message);b.disabled=false;}
+  b.disabled=true;try{await api('/api/crews/'+b.dataset[action+'Crew']+'/'+action,'POST');clearCrewNavigation();if(action==='leave')location.hash='community/crews';else await render();}catch(e){toast(e.message);b.disabled=false;}
  });
  bindSocialChat(view);
 }

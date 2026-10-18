@@ -4,6 +4,7 @@ import {readFile,stat} from 'node:fs/promises';
 import {resolve,extname,sep} from 'node:path';
 import {fixture} from './fixture.mjs';
 import worker from '../server/index.js';
+const port=Number(process.env.PREVIEW_PORT||4179);
 const cleanups=[],f=await fixture({after(fn){cleanups.push(fn);}}),objects=new Map();
 const ocean=await readFile('dist/assets/ocean.png'),nova=await readFile('dist/assets/nova.png');
 const wav=new Uint8Array(44+44100*2*45),view=new DataView(wav.buffer);
@@ -47,11 +48,11 @@ const qa=await readFile('tests/recording-qa-browser.js');
 const env={DB:f.DB,BUCKET:{async put(k,v){objects.set(k,new Uint8Array(v));},async delete(k){objects.delete(k);},async head(k){const b=objects.get(k);return b?{size:b.length,etag:k}:null;},async get(k){return {body:objects.get(k)};},async list(){return {objects:[],truncated:false};}},
  ASSETS:{async fetch(req){const url=new URL(req.url),file=resolve(base,'.'+(url.pathname==='/'?'/index.html':decodeURIComponent(url.pathname)));if(!file.startsWith(base+sep))return new Response('',{status:404});try{let data=await readFile(file);if(file===resolve(base,'index.html'))data=Buffer.from(data.toString().replace('</body>','<script src="/recording-qa.js"></script></body>'));return new Response(data,{headers:{'content-type':({'.html':'text/html;charset=utf-8','.css':'text/css','.js':'text/javascript','.svg':'image/svg+xml','.png':'image/png','.webp':'image/webp'})[extname(file)]||'application/octet-stream'}});}catch{return new Response('Not found',{status:404});}}}};
 const server=createServer(async(req,res)=>{
- try{if(['/qa/premium','/qa/free'].includes(req.url)){f.sql.prepare("UPDATE users SET premium_until=? WHERE id='owner'").run(req.url==='/qa/premium'?Math.floor(Date.now()/1000)+3600:0);res.writeHead(200,{'content-type':'application/json'});res.end('{}');return;}if(req.url==='/recording-qa.js'){res.writeHead(200,{'content-type':'text/javascript'});res.end(qa);return;}if(req.url==='/qa-mobile'){res.writeHead(200,{'content-type':'text/html;charset=utf-8'});res.end('<body style="margin:20px;background:#151923;color:white;font-family:sans-serif"><p>390px 모바일 녹음 화면 검사</p><iframe title="모바일 녹음 화면" src="/#sing/one?mode=duet" style="width:390px;height:844px;border:1px solid #778"></iframe></body>');return;}const body=[];for await(const chunk of req)body.push(chunk);const url='http://127.0.0.1:4179'+req.url;
+ try{if(['/qa/premium','/qa/free'].includes(req.url)){f.sql.prepare("UPDATE users SET premium_until=? WHERE id='owner'").run(req.url==='/qa/premium'?Math.floor(Date.now()/1000)+3600:0);res.writeHead(200,{'content-type':'application/json'});res.end('{}');return;}if(req.url==='/recording-qa.js'){res.writeHead(200,{'content-type':'text/javascript'});res.end(qa);return;}if(req.url==='/qa-mobile'){res.writeHead(200,{'content-type':'text/html;charset=utf-8'});res.end('<body style="margin:20px;background:#151923;color:white;font-family:sans-serif"><p>390px 모바일 녹음 화면 검사</p><iframe title="모바일 녹음 화면" src="/#sing/one?mode=duet" style="width:390px;height:844px;border:1px solid #778"></iframe></body>');return;}const body=[];for await(const chunk of req)body.push(chunk);const url='http://127.0.0.1:'+port+req.url;
  const response=await worker.fetch(new Request(url,{method:req.method,headers:{...req.headers,cookie:'aifect_session=owner'},body:body.length?Buffer.concat(body):undefined}),env,{waitUntil(p){p.catch(()=>{});}});
  res.writeHead(response.status,Object.fromEntries(response.headers));res.end(Buffer.from(await response.arrayBuffer()));
  }catch(e){console.error(e);res.writeHead(500);res.end('Local preview error');}
 });
-server.listen(4179,'127.0.0.1',()=>console.log('Local preview: http://127.0.0.1:4179/#sing/one?mode=duet'));
+server.listen(port,'127.0.0.1',()=>console.log('Local preview: http://127.0.0.1:'+port+'/#sing/one?mode=duet'));
 process.on('SIGINT',()=>server.close(()=>{cleanups.forEach(f=>f());process.exit(0);}));
 

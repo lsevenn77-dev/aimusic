@@ -53,3 +53,12 @@ test('part editor works on an isolated draft, preserves saved and inherited part
  assert.equal(c.take.duetGuide.mode,'free');
  c.take.parent='existing';assert.equal(vm.runInContext('duetEditorDraft(take).duetGuide.mode',c),'free');
 });
+
+test('standby monitor unlocks audio before microphone permission and never waits for backing download or pitch work',async()=>{
+ const calls=[],node=()=>({gain:{value:1},connect(n){return n;},disconnect(){}}),ctx={state:'running',destination:node(),resume(){calls.push('resume');return Promise.resolve();},audioWorklet:{addModule:async()=>{calls.push('worklet');}},createMediaStreamSource:node,createGain:node};
+ const track={stop(){calls.push('stop');}},stream={getTracks:()=>[track]};
+ const c=sandbox({window:{AifectKaraoke:karaoke,AudioContext:function(){return ctx;}},navigator:{mediaDevices:{getUserMedia(){calls.push('permission');return Promise.resolve(stream);}}},document:{hidden:false,querySelectorAll:()=>[]},$:()=>({checked:false}),fetch(){throw Error('monitor must not fetch an MR');}});
+ vm.runInContext("sing={state:'idle',mix:K().defaultVocalMix()};setSingStatus=()=>{};connectEffects=()=>[];prepareSing=()=>{throw Error('must not process a key')}",c);
+ await vm.runInContext('setMonitorEnabled(true)',c);assert(calls.indexOf('resume')<calls.indexOf('permission'));assert.equal(vm.runInContext('!!sing.standbyMonitor.mic',c),true);
+ await vm.runInContext('setMonitorEnabled(false)',c);assert.equal(vm.runInContext('sing.standbyMonitor',c),null);assert(calls.includes('stop'));
+});

@@ -31,12 +31,14 @@ async function prepareKeyBacking(s){
 async function changeSingingKey(value){
  const s=sing;if(!s||(singBusy(s)&&!s.keyChange)||singLive(s)||s.voice||s.parent||nativeSinging())return;
  const key=Math.max(-6,Math.min(6,Math.round(Number(value)||0)));if(key===singingKey(s))return;
+ const unlock=resumeSingContext(s).then(()=>null,error=>error);
  const change=s.keyChange||{old:singingKey(s),cached:s.keyMR,resume:s.state==='backing'};
  cancelKeyProcessing(s);const request=s.keyRequest;stopPreview();s.keyChange=change;s.keySemitones=key;s.state='loading';updateTransport();setSingStatus(`${keyName(s)} 선택 · 마지막으로 선택한 키를 준비합니다…`);
  // Let repeated taps accumulate before copying and converting the whole backing.
  await new Promise(resolve=>{s.keyWait=resolve;s.keyTimer=setTimeout(resolve,200);});
  if(sing!==s||request!==s.keyRequest)return;s.keyWait=null;s.keyTimer=null;
  try{
+  const audioError=await unlock;if(audioError)throw audioError;
   if(key){await prepareSingAudio(s);if(sing!==s||request!==s.keyRequest)return;await prepareKeyBacking(s);}
   if(sing!==s||request!==s.keyRequest)return;
   s.keyChange=null;s.state='idle';queueSingDraft(s);updateTransport();setSingStatus(`${keyName(s)} 설정이 준비됐어요. 반주 듣기로 확인해보세요.`);if(change.resume&&!document.hidden)await toggleBackingPreview();
@@ -45,6 +47,6 @@ async function changeSingingKey(value){
 async function toggleBackingPreview(){
  const s=sing;if(!s||singBusy(s)||singLive(s))return;if(s.state==='backing'){stopPreview();updateTransport();setSingStatus('반주를 멈췄어요.');return;}
  stopPreview();++playSerial;window.AifectAudioAds?.cancel();audio.pause();s.state='loading';updateTransport();
- try{const ctx=await prepareSing(s);if(sing!==s||document.hidden){if(sing===s){s.state=s.voice?'review':'idle';updateTransport();}return;}const src=ctx.createBufferSource(),gain=ctx.createGain();src.buffer=backingBuffer(s);gain.gain.value=s.mix.mr;src.connect(gain).connect(ctx.destination);const from=s.cursor>=s.mr.duration-.05?0:s.cursor,at=ctx.currentTime+.05;src.start(at,from);runPreview(s,[src],at,from,'backing',[gain]);s.previewMixUpdate=m=>gain.gain.setTargetAtTime(m.mr,ctx.currentTime,.015);setSingStatus(`${keyName(s)} 반주를 듣고 있어요. 녹음은 시작하지 않았어요.`);}
+ try{const ctx=await prepareSing(s);if(ctx.state!=='running')throw new Error('오디오가 일시정지됐어요. 반주 듣기를 다시 눌러주세요.');if(sing!==s||document.hidden){if(sing===s){s.state=s.voice?'review':'idle';updateTransport();}return;}const src=ctx.createBufferSource(),gain=ctx.createGain();src.buffer=backingBuffer(s);gain.gain.value=s.mix.mr;src.connect(gain).connect(ctx.destination);const from=s.cursor>=s.mr.duration-.05?0:s.cursor,at=ctx.currentTime+.05;src.start(at,from);runPreview(s,[src],at,from,'backing',[gain]);s.previewMixUpdate=m=>gain.gain.setTargetAtTime(m.mr,ctx.currentTime,.015);setSingStatus(`${keyName(s)} 반주를 듣고 있어요. 녹음은 시작하지 않았어요.`);}
  catch(e){if(sing===s){s.state=s.voice?'review':'idle';updateTransport();setSingStatus(e.message||'반주를 재생하지 못했어요.');}}
 }

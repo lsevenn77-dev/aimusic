@@ -5,16 +5,18 @@ import {readFileSync} from 'node:fs';
 const source=readFileSync(new URL('../dist/sing-key.js',import.meta.url),'utf8');
 const flush=()=>new Promise(resolve=>setImmediate(resolve));
 function setup(){
- const timers=new Map(),workers=[],buttons=[{dataset:{keyStep:'-1'}},{dataset:{keyStep:'1'}}];let timer=0;
+ const timers=new Map(),workers=[],buttons=[{dataset:{keyStep:'-1'}},{dataset:{keyStep:'1'}}],unlocks=[];let timer=0;
  const mr={numberOfChannels:1,sampleRate:32000,getChannelData:()=>new Float32Array([.1,.2])};
  const c=vm.createContext({Float32Array,document:{querySelectorAll:q=>q==='[data-key-step]'?buttons:[]},setTimeout:f=>{timers.set(++timer,f);return timer;},clearTimeout:id=>timers.delete(id),singBusy:s=>s.state==='loading',singLive:s=>s.state==='singing',nativeSinging:()=>false,stopPreview(){},setSingStatus(){},queueSingDraft(){},prepareSingAudio:async()=>{},Worker:class{constructor(){workers.push(this);}postMessage(data){this.data=data;}terminate(){this.terminated=true;}}});
+ c.resumeSingContext=()=>{unlocks.push(timers.size);return Promise.resolve(c.sing.ctx);};
  c.sing={state:'idle',keySemitones:0,mr,ctx:{createBuffer:()=>({copyToChannel(){}})}};
  vm.runInContext(source,c);vm.runInContext('updateTransport=updateKeyControls',c);
- return {c,workers,buttons,run:code=>vm.runInContext(code,c),async fire(){for(const [id,f] of timers){timers.delete(id);f();}await flush();},finish(worker){worker.onmessage({data:{channels:[new Float32Array([.1,.2])]}});}};
+ return {c,workers,buttons,unlocks,run:code=>vm.runInContext(code,c),async fire(){for(const [id,f] of timers){timers.delete(id);f();}await flush();},finish(worker){worker.onmessage({data:{channels:[new Float32Array([.1,.2])]}});}};
 }
 test('rapid key taps update immediately, remain enabled, and convert only the final selection',async()=>{
  const t=setup(),a=t.run('changeSingingKey(1)'),b=t.run('changeSingingKey(2)'),c=t.run('changeSingingKey(3)');
  assert.equal(t.c.sing.keySemitones,3);assert(t.buttons.every(b=>!b.disabled));assert.equal(t.workers.length,0);
+ assert.equal(t.unlocks.length,3);assert.equal(t.unlocks[0],0,'audio resumes inside the tap before the debounce timer');
  await t.fire();assert.equal(t.workers.length,1);assert.equal(t.workers[0].data.semitones,3);t.finish(t.workers[0]);await Promise.all([a,b,c]);
  assert.equal(t.c.sing.state,'idle');assert.equal(t.c.sing.keyMR.key,3);
 });

@@ -1,4 +1,4 @@
-let activityAccount=null,activityCount=null,activityBusy=false;
+let activityAccount=null,activityCount=null,activityBusy=false,activityReadRevision=0,activityReadObserver=null;
 function activityDate(at,short=false){return new Date(at*1000).toLocaleString('ko-KR',{timeZone:'Asia/Seoul',year:'numeric',month:'long',day:'numeric',...(short?{}:{hour:'2-digit',minute:'2-digit'})});}
 function activityRowHTML(n){
  const gift=['gift','person_gift'].includes(n.kind),label=gift?'받은 선물':n.kind==='duet'?'듀엣 참여':'커버 참여';
@@ -17,12 +17,17 @@ async function notificationsView(base,raw){
 function bindNotifications(view){
  const state=view?.activity,root=$('.activity-page');if(!state||!root)return;
  paintActivityBadge(state.unread);const active=()=>me?.id===state.account&&root.isConnected;
- const mark=async ids=>{if(!ids.length)return;await api('/api/notifications/read','POST',{ids});if(!active())return;for(const n of state.items)if(ids.includes(n.id))n.read_at=Date.now()/1000;root.querySelectorAll('[data-activity-id]').forEach(row=>{if(ids.includes(row.dataset.activityId)){row.classList.remove('is-unread');row.querySelector('.activity-dot')?.remove();row.querySelector('[data-activity-read]')?.remove();}});void refreshActivityBadge();};
+ const mark=async ids=>{if(!ids.length)return;const result=await api('/api/notifications/read','POST',{ids});if(me?.id!==state.account)return;++activityReadRevision;activityAccount=state.account;activityCount=result.unread;paintActivityBadge(result.unread);if(!active())return;for(const n of state.items)if(ids.includes(n.id))n.read_at=Date.now()/1000;root.querySelectorAll('[data-activity-id]').forEach(row=>{if(ids.includes(row.dataset.activityId)){row.classList.remove('is-unread');row.querySelector('.activity-dot')?.remove();row.querySelector('[data-activity-read]')?.remove();}});};
+ const markVisible=async()=>{if(!active()||document.hidden)return;const ids=state.items.filter(n=>!n.read_at).map(n=>n.id);for(let i=0;i<ids.length;i+=50){if(!active()||document.hidden)return;await mark(ids.slice(i,i+50));}};
+ const autoRead=()=>markVisible().catch(err=>{if(active())root.querySelector('.activity-error').textContent='읽음 상태를 저장하지 못했어요. '+err.message;});
+ void autoRead();
+ const onVisible=()=>{if(!active()){document.removeEventListener('visibilitychange',onVisible);return;}if(!document.hidden)void autoRead();};
+ if(activityReadObserver)document.removeEventListener('visibilitychange',activityReadObserver);activityReadObserver=onVisible;document.addEventListener('visibilitychange',onVisible);
  root.onclick=async e=>{
   const b=e.target.closest('[data-activity-read],[data-activity-open],[data-activity-read-page],[data-activity-more],[data-activity-refresh]');if(!b||b.disabled||!active())return;e.preventDefault();b.disabled=true;
   try{
    if(b.hasAttribute('data-activity-refresh')){await render();}
-   else if(b.hasAttribute('data-activity-more')){const data=await api('/api/notifications?filter='+state.filter+'&before='+encodeURIComponent(state.next));if(!active())return;const known=new Set(state.items.map(n=>n.id));state.items.push(...data.items.filter(n=>!known.has(n.id)));state.next=data.next;$('#activity-list').innerHTML=activityGroupsHTML(state.items);b.hidden=!state.next;}
+   else if(b.hasAttribute('data-activity-more')){const data=await api('/api/notifications?filter='+state.filter+'&before='+encodeURIComponent(state.next));if(!active())return;const known=new Set(state.items.map(n=>n.id));state.items.push(...data.items.filter(n=>!known.has(n.id)));state.next=data.next;$('#activity-list').innerHTML=activityGroupsHTML(state.items);b.hidden=!state.next;await markVisible();}
    else if(b.hasAttribute('data-activity-read-page')){const ids=state.items.filter(n=>!n.read_at).map(n=>n.id);for(let i=0;i<ids.length;i+=50){if(!active())return;await mark(ids.slice(i,i+50));}}
    else{const id=b.dataset.activityRead||b.dataset.activityOpen;await mark([id]);if(active()&&b.dataset.activityOpen)location.hash=b.getAttribute('href');}
   }catch(err){if(active())root.querySelector('.activity-error').textContent=err.message;}finally{if(b.isConnected)b.disabled=false;}
@@ -32,7 +37,8 @@ function paintActivityBadge(count){document.querySelectorAll('.activity-badge').
 async function refreshActivityBadge(){
  const uid=me?.id||null;if(activityAccount!==uid){activityAccount=uid;activityCount=null;paintActivityBadge(0);}
  if(!uid||document.hidden||activityBusy)return;activityBusy=true;
- try{const d=await api('/api/notifications/summary');if(uid!==me?.id)return;if(activityCount!==null&&d.unread>activityCount&&!location.hash.startsWith('#notifications'))toast('새로운 참여·선물 알림이 도착했어요. 알림에서 확인해보세요.');activityCount=d.unread;paintActivityBadge(d.unread);}catch{}finally{activityBusy=false;}
+ const revision=activityReadRevision;
+ try{const d=await api('/api/notifications/summary','GET',undefined,{fresh:true});if(uid!==me?.id||revision!==activityReadRevision)return;if(activityCount!==null&&d.unread>activityCount&&!location.hash.startsWith('#notifications'))toast('새로운 참여·선물 알림이 도착했어요. 알림에서 확인해보세요.');activityCount=d.unread;paintActivityBadge(d.unread);}catch{}finally{activityBusy=false;}
 }
 setInterval(refreshActivityBadge,30000);
 window.addEventListener('focus',refreshActivityBadge);
