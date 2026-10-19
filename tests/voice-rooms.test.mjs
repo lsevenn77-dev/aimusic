@@ -165,6 +165,48 @@ test('existing Site API rejects guests and missing setup without affecting catal
  assert.equal((await siteWorker.fetch(socket,env,ctx)).status,403);
 });
 
+test('gift chat notices are ordered, persisted once and restricted to members present at delivery',async t=>{
+ const h=harness(t);await h.create();await h.join(actor('guest'));
+ await h.call('chat',actor('guest'),{body:'before gift',request_id:crypto.randomUUID()});
+ const receipt={id:'gift-notice-1',gold:3,type:'lollipop',name:'막대사탕',quantity:3};
+ const send=()=>h.call('gift-receipt',actor('host'),{receipt,target_name:'Guest'});
+ assert.equal((await send()).status,200);
+ const notice=h.room.data.chat.at(-1);
+ assert.equal(notice.kind,'gift');assert.equal(notice.body,'host님이 Guest님에게 막대사탕 ×3을 보냈습니다.');
+ assert.deepEqual(notice.gift,{id:receipt.id,type:'lollipop',name:'막대사탕',quantity:3});
+ assert.ok(notice.sequence>h.room.data.chat[0].sequence);
+ assert.deepEqual(h.saved.get('room').chat.at(-1),notice);
+ assert.deepEqual((await h.call('heartbeat',actor('guest'))).body.chat.map(m=>m.kind||'chat'),['chat','gift']);
+ assert.deepEqual((await h.join(actor('late'))).body.chat,[]);
+ // Persisted receipt marker prevents duplication even after the DO is recreated.
+ h.room.data=null;assert.equal((await send()).status,200);
+ assert.equal(h.room.data.chat.filter(m=>m.kind==='gift').length,1);
+ assert.equal(h.events.filter(e=>e?.type==='gift').length,1);
+ assert.deepEqual((await h.join(actor('guest'))).body.chat.at(-1),notice);
+ await h.call('leave',actor('guest'));assert.deepEqual((await h.join(actor('guest'))).body.chat,[]);
+ await h.call('chat',actor('host'),{body:'normal message',kind:'gift',gift:receipt,request_id:crypto.randomUUID()});
+ assert.equal(h.room.data.chat.at(-1).kind,undefined,'normal chat cannot forge a system gift notice');
+ await h.call('close',actor('host'));assert.deepEqual(h.saved.get('room').chat,[]);
+});
+
+test('gift websocket event refreshes chat immediately and coalesces updates arriving during a refresh',async()=>{
+ class Socket{constructor(){Socket.current=this;}close(){}}
+ const c=vm.createContext({crypto,URL,WebSocket:Socket,location:{href:'https://aifect.test/#voice/test'},window:{addEventListener(){},removeEventListener(){}},document:{addEventListener(){},removeEventListener(){}},setTimeout,clearTimeout,setInterval,clearInterval});
+ vm.runInContext(readFileSync(new URL('../dist/voice-rooms.js',import.meta.url),'utf8')+'\nthis.Client=VoiceRoomClient;',c);
+ const client=new c.Client('test');client.joined=true;client.epoch=1;
+ const pending=[],painted=[];let animated=0;
+ client.command=()=>new Promise(resolve=>pending.push(resolve));client.paint=()=>painted.push(client.state.revision);client.receive=async()=>{};client.animateGift=()=>animated++;client.connectionError=assert.fail;
+ client.socket();const socket=Socket.current;
+ const first=client.refresh();assert.equal(pending.length,1);
+ socket.onmessage({data:JSON.stringify({type:'gift',gift:{id:'receipt'}})});
+ socket.onmessage({data:JSON.stringify({type:'changed'})});
+ assert.equal(animated,1);assert.equal(pending.length,1);
+ pending[0]({revision:1});await first;assert.equal(pending.length,2,'one follow-up replaces the skipped events');
+ pending[1]({revision:2});await new Promise(resolve=>setImmediate(resolve));
+ assert.deepEqual(painted,[1,2]);assert.equal(client.refreshAgain,false);
+ client.closed=true;
+});
+
 test('lost SFU responses keep cleanup pending until late allocations are closed',async()=>{
  let tracks=[],sent=[];
  const sfu=new Sfu({REALTIME_SFU_APP_ID:'test',REALTIME_SFU_APP_SECRET:'test'},async(url,init)=>{
@@ -205,10 +247,16 @@ test('voice gift retries debit once and invitations reuse the DM ledger',async t
  f.sql.exec("INSERT INTO producers(id,user_id,name,created) VALUES('other-profile','other','Other',0); INSERT INTO gold_purchases(id,user_id,channel,gold,price_krw,fee_krw,status,created,paid_at) VALUES('paid-lot','owner','web',100,1000,30,'paid',1,1)");
  const original=globalThis.fetch;t.after(()=>globalThis.fetch=original);
  globalThis.fetch=async(url,init)=>{assert.equal(new URL(url).hostname,'voice.test');return voiceWorker.fetch(new Request(url,init),{...h.env,VOICE_BRIDGE_SECRET:secret,ROOMS:{idFromName:id=>id,get:()=>({fetch:r=>h.room.fetch(r)})}});};
+ const rejected={profile_id:'other-profile',gift_type:'crown',quantity:1,request_id:crypto.randomUUID()};
+ assert.equal((await f.call('/api/voice/rooms/test-room/gifts','POST',rejected)).status,409);
+ assert.equal(h.room.data.chat.length,0,'failed payment does not announce a gift');
+ assert.equal((await f.call('/api/voice/rooms/test-room/gift-receipt','POST',{receipt:{id:'fake'}})).status,404,'clients cannot publish receipt events');
  const b={profile_id:'other-profile',gift_type:'lollipop',quantity:3,request_id:crypto.randomUUID()};
  const a=await f.call('/api/voice/rooms/test-room/gifts','POST',b);assert.equal(a.status,201,JSON.stringify(a.body));
  const again=await f.call('/api/voice/rooms/test-room/gifts','POST',b);assert.equal(again.body.gift.id,a.body.gift.id);assert.equal(again.body.balance,97);assert.equal(again.body.gift.name,'막대사탕');assert.equal(f.sql.prepare('SELECT count(*) n FROM gifts').get().n,1);
  assert.equal(h.events.filter(e=>e?.type==='gift').length,1);
+ assert.equal(h.room.data.chat.filter(m=>m.kind==='gift').length,1);
+ assert.equal(h.room.data.chat.at(-1).body,'owner님이 Other님에게 막대사탕 ×3을 보냈습니다.');
  assert.equal((await f.call('/api/voice/rooms/test-room/gifts','POST',{...b,quantity:4})).status,409);
  const invite={profile_id:'other-profile',request_id:crypto.randomUUID()};assert.equal((await f.call('/api/voice/rooms/test-room/invite','POST',invite)).status,201);assert.equal((await f.call('/api/voice/rooms/test-room/invite','POST',invite)).status,201);assert.equal(f.sql.prepare('SELECT count(*) n FROM direct_messages').get().n,1);assert.match(f.sql.prepare('SELECT body FROM direct_messages').get().body,/#voice\/test-room/);
 });

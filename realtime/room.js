@@ -156,8 +156,14 @@ export class VoiceRoom {
   else if(action==='gift-target') {const t=d.members[identifier(b.target_id)];if(!t||t.expires<=Date.now())fault(404,'선물 받을 회원이 방을 나갔어요.');return {target:{id:t.id,profile_id:t.profile_id}};}
   else if(action==='gift-receipt') {
    // This command is reached only through the authenticated bridge, after giftRoute confirms its receipt.
-   const receipt=b.receipt;if(!receipt?.id||!Number.isSafeInteger(receipt.gold)||receipt.gold<1)fault(400,'선물 영수증을 확인해주세요.');
-   if(!d.gifts.includes(receipt.id)){d.gifts.push(receipt.id);d.gifts=d.gifts.slice(-500);this.notify({type:'gift',gift:receipt,from:p.name,to:b.target_name});}return {ok:true};
+   const receipt=b.receipt;if(!receipt?.id||!Number.isSafeInteger(receipt.gold)||receipt.gold<1||!Number.isInteger(receipt.quantity)||receipt.quantity<1||receipt.quantity>100)fault(400,'선물 영수증을 확인해주세요.');
+   const giftName=text(receipt.name,80),recipient=text(b.target_name,100);
+   if(!d.gifts.includes(receipt.id)){
+    const message={id:'gift-'+receipt.id,kind:'gift',user_id:p.id,name:p.name,recipient_name:recipient,gift:{id:receipt.id,type:receipt.type,name:giftName,quantity:receipt.quantity},body:`${p.name}님이 ${recipient}님에게 ${giftName} ×${receipt.quantity}을 보냈습니다.`,created:Date.now(),sequence:++d.chatSequence};
+    d.gifts.push(receipt.id);d.gifts=d.gifts.slice(-500);d.chat.push(message);d.chat=d.chat.slice(-100);d.revision++;
+    // Persist the receipt marker and chat notice together; retries cannot create a second notice.
+    await this.save();this.notify({type:'gift',gift:receipt,from:p.name,to:recipient});
+   }return {ok:true};
   }
   else if(action==='publish') {
    this.limited(actor,'media',15);if(p.seat===null||p.locked)fault(403,'승인된 마이크 좌석이 필요해요.');
