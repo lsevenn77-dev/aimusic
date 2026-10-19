@@ -38,7 +38,8 @@ async function render(){
  }
  clearInterval(socialTimer);socialTimer=null;socialCleanup?.();socialCleanup=null;
  cleanupLyricsEditor();cleanupSing();
- if(typeof cleanupVoiceRoute==='function')cleanupVoiceRoute(base,param);
+ if(typeof cleanupVoiceRoute==='function')await cleanupVoiceRoute(base,param);
+ if(ticket!==renderId)return;
  updateBrowseNavigation(base,param);
  const main=$('#main'),account=me?.id||'guest';navigationRefreshCleanup?.();navigationRefreshCleanup=null;
  const previous=navigationSnapshots.get(navigationKey(main.dataset.route));if(previous&&main.dataset.account===account)previous.scroll=window.scrollY||0;

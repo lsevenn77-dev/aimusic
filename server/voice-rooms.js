@@ -9,15 +9,15 @@ import {giftById} from '../shared/gifts.js';
 
 export const voiceConfigured=env=>!!(env.VOICE_SERVICE_URL&&env.VOICE_BRIDGE_SECRET);
 export async function voiceCall(env,actor,room,action,input={},socket=false) {
- if(!voiceConfigured(env))fail(503,'음성방 서비스 연결을 준비하고 있어요.');
- const root=new URL(env.VOICE_SERVICE_URL);if(root.protocol!=='https:'&&!['127.0.0.1','localhost'].includes(root.hostname))fail(503,'음성방 서버 주소를 확인해주세요.');
+ if(!voiceConfigured(env))fail(503,'토킹룸 서비스 연결을 준비하고 있어요.');
+ const root=new URL(env.VOICE_SERVICE_URL);if(root.protocol!=='https:'&&!['127.0.0.1','localhost'].includes(root.hostname))fail(503,'토킹룸 서버 주소를 확인해주세요.');
  const path=`/rooms/${identifier(room)}/${action}`,body=JSON.stringify({actor,input}),headers=await signedHeaders(env.VOICE_BRIDGE_SECRET,path,body);
  if(socket){headers.upgrade='websocket';headers['x-voice-payload']=btoa(String.fromCharCode(...new TextEncoder().encode(body)));}
  const response=await fetch(new URL(path,root),{method:socket?'GET':'POST',headers,body:socket?undefined:body,redirect:'manual',...(!socket?{signal:AbortSignal.timeout(25000)}:{})});
- if(response.status>=300&&response.status<400)fail(502,'음성방 서버 주소가 변경되었어요. 연결 설정을 확인해주세요.');
+ if(response.status>=300&&response.status<400)fail(502,'토킹룸 서버 주소가 변경되었어요. 연결 설정을 확인해주세요.');
  return response;
 }
-async function result(response) {const r=await response.json();if(!response.ok)fail(response.status,r.error||'음성방 연결에 실패했어요.');return r;}
+async function result(response) {const r=await response.json();if(!response.ok)fail(response.status,r.error||'토킹룸 연결에 실패했어요.');return r;}
 export async function voiceRoomsRoute(req,env,path,user,ctx) {
  if(!path.startsWith('/api/voice/'))return null;
  if(path==='/api/voice/status'&&req.method==='GET')return json({enabled:voiceConfigured(env),max_members:30,mic_seats:8});
@@ -31,10 +31,10 @@ export async function voiceRoomsRoute(req,env,path,user,ctx) {
   await rate(env,'voice-create:'+user.id,5,3600);const b=await req.json();
   return json(await result(await voiceCall(env,actor,requestId(b.request_id),'create',{title:str(b.title,60),visibility:b.visibility,crew_id:b.crew_id})),201);
  }
- const m=path.match(/^\/api\/voice\/rooms\/([\w-]+)\/([a-z-]+)$/);if(!m)fail(404,'음성방을 찾을 수 없어요.');
+ const m=path.match(/^\/api\/voice\/rooms\/([\w-]+)\/([a-z-]+)$/);if(!m)fail(404,'토킹룸을 찾을 수 없어요.');
  const [,room,action]=m;
  if(action==='socket'&&req.method==='GET') {
-  if(req.headers.get('origin')!==new URL(req.url).origin||req.headers.get('upgrade')?.toLowerCase()!=='websocket')fail(403,'사이트에서 음성방에 다시 입장해주세요.');
+  if(req.headers.get('origin')!==new URL(req.url).origin||req.headers.get('upgrade')?.toLowerCase()!=='websocket')fail(403,'사이트에서 토킹룸에 다시 입장해주세요.');
   return voiceCall(env,actor,room,'socket',{},true);
  }
  if(action==='state'&&req.method==='GET')return voiceCall(env,actor,room,'state');
@@ -47,7 +47,7 @@ export async function voiceRoomsRoute(req,env,path,user,ctx) {
   const targetCrews=await rows(env,'SELECT crew_id FROM crew_members WHERE user_id=?',target.user_id);
   const {room:info}=await result(await voiceCall(env,actor,room,'invite',{generation:b.generation,target_id:target.user_id,target_crews:targetCrews.map(c=>c.crew_id)}));
   const dmPath='/api/dm/'+target.id;
-  const response=await socialRoute(new Request(new URL(dmPath,req.url),{method:'POST',body:JSON.stringify({request_id:await hash('voice-invite:'+room+':'+rid),body:`「${info.title}」 음성방에 초대해요.\nhttps://aifect.co.kr/#voice/${room}`})}),env,dmPath,user);
+  const response=await socialRoute(new Request(new URL(dmPath,req.url),{method:'POST',body:JSON.stringify({request_id:await hash('voice-invite:'+room+':'+rid),body:`「${info.title}」 토킹룸에 초대해요.\nhttps://aifect.co.kr/#voice/${room}`})}),env,dmPath,user);
   if(response.ok&&ctx?.waitUntil)ctx.waitUntil(dispatchPush(env));return response;
  }
  if(action==='gifts') {
@@ -61,13 +61,13 @@ export async function voiceRoomsRoute(req,env,path,user,ctx) {
   const giftPath='/api/producers/'+pid+'/gifts';
   const response=await giftRoute(new Request(new URL(giftPath,req.url),{method:'POST',body:JSON.stringify({gift_type:b.gift_type,quantity:b.quantity,request_id:rid})}),env,giftPath,user);
   if(!response.ok)return response;
-  const receipt=await response.json();if(receipt.gift.free)fail(400,'음성방에서는 골드 선물을 선택해주세요.');
+  const receipt=await response.json();if(receipt.gift.free)fail(400,'토킹룸에서는 골드 선물을 선택해주세요.');
   let animation_pending=false;
   try{await result(await voiceCall(env,actor,room,'gift-receipt',{generation:b.generation,receipt:receipt.gift,target_name:target.name}));}catch{animation_pending=true;}
   if(ctx?.waitUntil)ctx.waitUntil(dispatchPush(env));
   return json({...receipt,animation_pending},response.status);
  }
  const allowed=['join','heartbeat','leave','close','request-mic','approve-mic','release-mic','mute','moderate','chat','publish','published','subscribe','answer'];
- if(!allowed.includes(action))fail(404,'지원하지 않는 음성방 요청이에요.');
+ if(!allowed.includes(action))fail(404,'지원하지 않는 토킹룸 요청이에요.');
  return voiceCall(env,actor,room,action,b);
 }

@@ -1,13 +1,14 @@
 // Legacy gift display reference only; purchases and settlement use channel prices and paid lots.
 export const GOLD_KRW=10;
-// Catalog and prices approved on 2026-10-15. Existing receipts keep their recorded amounts.
+// Updated 2026-10-19: replace the 200G rose with a 1G lollipop. Existing receipts keep their recorded amounts.
 export const GIFT_CATALOG=Object.freeze([
+ ['lollipop','막대사탕',1,'달콤하게 전하는 작은 응원'],
  ['balloon','풍선',5,'가볍게 띄우는 작은 응원'],['clover','행운',30,'행운이 가득한 무대를'],
  ['heart','하트',50,'마음에 쏙 드는 목소리'],['cheer-star','응원별',100,'반짝이는 음악을 응원해요'],
- ['rose','장미',200,'오늘의 무대에 꽃 한 송이'],['coffee','커피',300,'다음 곡도 기다릴게요'],
+ ['coffee','커피',300,'다음 곡도 기다릴게요'],
  ['microphone','마이크',500,'당신의 무대를 응원해요'],['crown','왕관',777,'나에게는 최고의 아티스트'],
  ['superstar','스타',1000,'누군가의 빛나는 별'],['moon','달빛',2000,'오래도록 마음에 남는 음악'],
-].map(([id,name,gold,description])=>Object.freeze({id,name,gold,price:gold*GOLD_KRW,description,image:`/assets/gifts/${id}.webp`})));
+].map(([id,name,gold,description])=>Object.freeze({id,name,gold,price:gold*GOLD_KRW,description,image:`/assets/gifts/${id}.${id==='lollipop'?'png':'webp'}`})));
 // Retired legacy choice remains valid for older installed clients; it is absent from the new shop.
 export const giftById=id=>GIFT_CATALOG.find(g=>g.id===id)||(id==='note'?{id:'note',name:'음표',gold:10,price:100,description:'좋은 음악에 작은 응원을',image:'/assets/gifts/note.webp'}:undefined);
 export const FREE_GIFT=Object.freeze({id:'star',name:'실버',image:'/assets/gifts/silver-coin-v1.webp',description:'매일 모아서 마음만 전해요'});

@@ -9,15 +9,20 @@ export default {async fetch(req, env) {
   const body=new TextDecoder().decode(bytes);const stamp=await verifyRequest(req,env.VOICE_BRIDGE_SECRET,body);
   const data=JSON.parse(body);identifier(data.actor?.id);
   const match=new URL(req.url).pathname.match(/^\/rooms\/([\w-]+)\/([a-z-]+)$/);
-  if(!match)fault(404,'음성방을 찾을 수 없어요.');
+  if(!match)fault(404,'토킹룸을 찾을 수 없어요.');
   const [,id,action]=match;
   if(id==='directory'&&action==='list') {
    const crews=(data.actor.crews||[]).slice(0,50);
    const result=await env.ROOM_DB.prepare(`SELECT id,title,host_id,visibility,crew_id,created FROM voice_rooms WHERE closed=0 AND (visibility='public' OR host_id=? OR (visibility='crew' AND crew_id IN (${crews.map(()=>'?').join(',')||"''"}))) ORDER BY created DESC LIMIT 100`).bind(data.actor.id,...crews).all();
-   return reply({rooms:result.results});
+   const active=await Promise.all(result.results.map(async room=>{
+    const response=await env.ROOMS.get(env.ROOMS.idFromName(room.id)).fetch(new Request('https://room/presence',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({actor:data.actor,input:{},stamp,roomId:room.id})}));
+    if(!response.ok)fault(503,'토킹룸 목록을 새로 불러오지 못했어요. 다시 시도해주세요.');
+    return (await response.json()).active?room:null;
+   }));
+   return reply({rooms:active.filter(Boolean)});
   }
   const payload=JSON.stringify({...data,stamp,roomId:id});
   const headers=socket?{upgrade:'websocket','x-room-payload':btoa(String.fromCharCode(...new TextEncoder().encode(payload)))}:{'content-type':'application/json'};
   return env.ROOMS.get(env.ROOMS.idFromName(identifier(id))).fetch(new Request('https://room/'+action,{method:socket?'GET':'POST',headers,body:socket?undefined:payload}));
- } catch(e) {return reply({error:e.status?e.message:'음성방 연결에 실패했어요.'},e.status||500);}
+ } catch(e) {return reply({error:e.status?e.message:'토킹룸 연결에 실패했어요.'},e.status||500);}
 }};

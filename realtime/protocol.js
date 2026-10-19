@@ -5,7 +5,7 @@ export const reply = (body, status = 200) => Response.json(body, {status, header
 export function identifier(value) { if (typeof value !== 'string' || !/^[a-zA-Z0-9_-]{1,80}$/.test(value)||['__proto__','prototype','constructor'].includes(value)) fault(400, '잘못된 식별자예요.'); return value; }
 export function requestId(value) { if (typeof value !== 'string' || !/^[a-zA-Z0-9_-]{16,64}$/.test(value)) fault(400, '전송 요청을 다시 시작해주세요.'); return value; }
 export function text(value, max) { if(typeof value!=='string'||!value.trim()||value.trim().length>max)fault(400,'입력 내용을 확인해주세요.'); return value.trim(); }
-async function key(secret) { if(!secret || secret.length<32)fault(503,'음성방 연결 설정을 준비하고 있어요.'); return crypto.subtle.importKey('raw',encoder.encode(secret),{name:'HMAC',hash:'SHA-256'},false,['sign','verify']); }
+async function key(secret) { if(!secret || secret.length<32)fault(503,'토킹룸 연결 설정을 준비하고 있어요.'); return crypto.subtle.importKey('raw',encoder.encode(secret),{name:'HMAC',hash:'SHA-256'},false,['sign','verify']); }
 const hex = data => Array.from(new Uint8Array(data), b=>b.toString(16).padStart(2,'0')).join('');
 export async function signedHeaders(secret, path, body, timestamp = Date.now(), nonce = crypto.randomUUID()) {
  const signature = hex(await crypto.subtle.sign('HMAC',await key(secret),encoder.encode(`${timestamp}\n${nonce}\n${path}\n${body}`)));

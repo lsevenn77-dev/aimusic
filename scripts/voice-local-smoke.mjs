@@ -24,7 +24,9 @@ await call(host,'/api/voice/rooms',{request_id:room,title:'음악을 나누는 �
 const a=await call(host,path+'join',{request_id:crypto.randomUUID()});
 await call(guest,path+'join',{request_id:crypto.randomUUID()},'POST',403);
 await call(host,path+'invite',{generation:a.generation,profile_id:guest.user.profile_id,request_id:crypto.randomUUID()},'POST',201);
+await call(host,path+'chat',{generation:a.generation,body:'입장 전 대화',request_id:crypto.randomUUID()});
 const b=await call(guest,path+'join',{request_id:crypto.randomUUID()});
+assert.deepEqual(b.chat,[]);
 const ws=new WebSocket(origin.replace('http','ws')+path+'socket',{headers:{cookie:guest.cookie,origin}});
 try{
  await once(ws,'open',{signal:AbortSignal.timeout(8000)});
@@ -40,8 +42,15 @@ try{
  assert.equal((await call(guest,path+'heartbeat',{generation:b.generation})).members.find(m=>m.id===guest.user.id).locked,true);
  await call(host,path+'close',{generation:a.generation});
  await call(guest,path+'heartbeat',{generation:b.generation},'POST',404);
- console.log('PASS: local D1 + Durable Object + authenticated WebSocket + private invite + chat + seats + moderation + close. No real audio tested.');
+ console.log('PASS: local D1 + Durable Object + authenticated WebSocket + private invite + admission-only chat + seats + moderation + close. No real audio tested.');
 }finally{ws.terminate();}
-// Leave an empty public room for manual UI review; no synthetic participant counts.
-const review=crypto.randomUUID();await call(host,'/api/voice/rooms',{request_id:review,title:'함께 듣는 밤 · 개발 확인방',visibility:'public'},'POST',201);
-await writeFile('.sites-runtime/voice-local-room.json',JSON.stringify({room:review}));
+// A public room remains while a listener is present, and disappears on final departure.
+const review=crypto.randomUUID(),reviewPath='/api/voice/rooms/'+review+'/';
+await call(host,'/api/voice/rooms',{request_id:review,title:'토킹룸 종료 확인',visibility:'public'},'POST',201);
+const first=await call(host,reviewPath+'join',{request_id:crypto.randomUUID()}),second=await call(guest,reviewPath+'join',{request_id:crypto.randomUUID()});
+await call(host,reviewPath+'leave',{generation:first.generation});
+assert.ok((await call(guest,'/api/voice/rooms')).rooms.some(r=>r.id===review));
+await call(guest,reviewPath+'leave',{generation:second.generation});
+assert.ok(!(await call(host,'/api/voice/rooms')).rooms.some(r=>r.id===review));
+await call(host,reviewPath+'join',{request_id:crypto.randomUUID()},'POST',404);
+console.log('PASS: final departure closes the public room and removes it from the directory.');

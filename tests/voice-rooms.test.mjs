@@ -25,8 +25,84 @@ function harness(t) {
  const call=async(action,a=actor('host'),input={},stamp={nonce:crypto.randomUUID(),timestamp:Date.now()})=>{const r=await room.fetch(new Request('https://room/'+action,{method:'POST',body:JSON.stringify({roomId:'test-room',actor:a,input,stamp})}));return {status:r.status,body:await r.json()};};
  const join=a=>call('join',a,{request_id:crypto.randomUUID()});
  const create=async(visibility='public',crew_id)=>{assert.equal((await call('create',actor('host',crew_id?[crew_id]:[]),{title:'Music together',visibility,crew_id})).status,200);return join(actor('host',crew_id?[crew_id]:[]));};
- return {room,env,call,join,create,sql,closes,calls,events,ctx,setFailClose:v=>failClose=v,setFailTracks:v=>failTracks=v};
+ return {room,env,call,join,create,sql,closes,calls,events,ctx,saved,setFailClose:v=>failClose=v,setFailTracks:v=>failTracks=v};
 }
+
+test('new listeners cannot read earlier chat; reconnect preserves only their admission window',async t=>{
+ const h=harness(t);await h.create();
+ const chat=body=>h.call('chat',actor('host'),{body,request_id:crypto.randomUUID()});
+ await chat('before entry');const joined=await h.join(actor('guest'));
+ assert.deepEqual(joined.body.chat,[]);
+ await chat('after entry');
+ assert.deepEqual((await h.call('heartbeat',actor('guest'))).body.chat.map(m=>m.body),['after entry']);
+ assert.deepEqual((await h.call('state',actor('guest'))).body.chat.map(m=>m.body),['after entry']);
+ assert.deepEqual((await h.join(actor('guest'))).body.chat.map(m=>m.body),['after entry']);
+ await h.call('leave',actor('guest'));await chat('while away');
+ assert.deepEqual((await h.join(actor('guest'))).body.chat,[]);
+ await chat('after re-entry');
+ assert.deepEqual((await h.call('heartbeat',actor('guest'))).body.chat.map(m=>m.body),['after re-entry']);
+ assert.equal((await h.call('state',actor('outsider'))).status,403);
+});
+
+test('creation reserves host presence; only the final departure closes the room and clears chat',async t=>{
+ const h=harness(t);const created=await h.call('create',actor('host'),{title:'A talking room',visibility:'public'});
+ assert.equal(created.status,200);assert.equal(Object.keys(h.room.data.members).length,1);
+ await h.join(actor('guest'));await h.call('chat',actor('host'),{body:'temporary conversation',request_id:crypto.randomUUID()});
+ await h.call('leave',actor('host'));assert.equal(h.room.data.config.closed,false);
+ assert.equal(h.sql.prepare('SELECT closed FROM voice_rooms').get().closed,0);
+ await h.call('leave',actor('guest'));assert.equal(h.room.data.config.closed,true);
+ assert.equal(h.sql.prepare('SELECT closed FROM voice_rooms').get().closed,1);
+ assert.deepEqual(h.room.data.chat,[]);assert.deepEqual(h.saved.get('room').chat,[]);
+ assert.equal((await h.join(actor('late'))).status,404);
+ assert.equal((await h.call('create',actor('host'),{title:'retry',visibility:'public'})).status,409);
+});
+
+test('abrupt disconnect expiry and legacy empty rooms are removed from directory results',async t=>{
+ const h=harness(t);await h.create();await h.join(actor('guest'));
+ h.room.data.members.host.expires=0;await h.room.alarm();assert.equal(h.room.data.config.closed,false);
+ h.room.data.members.guest.expires=0;await h.room.alarm();assert.equal(h.room.data.config.closed,true);
+ const legacy=harness(t);await legacy.create();legacy.room.data.members={};await legacy.room.save();
+ const path='/rooms/directory/list',body=JSON.stringify({actor:actor('host'),input:{}});
+ const response=await voiceWorker.fetch(new Request('https://voice.test'+path,{method:'POST',headers:await signedHeaders(secret,path,body),body}),{...legacy.env,VOICE_BRIDGE_SECRET:secret,ROOMS:{idFromName:id=>id,get:()=>({fetch:r=>legacy.room.fetch(r)})}});
+ assert.equal(response.status,200);assert.deepEqual((await response.json()).rooms,[]);
+ assert.equal(legacy.sql.prepare('SELECT closed FROM voice_rooms').get().closed,1);
+});
+
+test('room closure remains persisted and retries a failed directory update',async t=>{
+ const h=harness(t);await h.create();const prepare=h.env.ROOM_DB.prepare;
+ h.env.ROOM_DB.prepare=q=>{if(q.startsWith('UPDATE voice_rooms'))throw Error('D1 unavailable');return prepare(q);};
+ assert.equal((await h.call('leave',actor('host'))).status,200);
+ assert.equal(h.saved.get('room').config.closed,true);assert.equal(h.saved.get('room').directoryDirty,true);assert.ok(h.ctx.alarm);
+ h.env.ROOM_DB.prepare=prepare;await h.room.alarm();assert.equal(h.room.data.directoryDirty,false);
+ assert.equal(h.sql.prepare('SELECT closed FROM voice_rooms').get().closed,1);
+});
+
+test('chat ordering handles identical timestamps, retention rollover and old persisted rooms safely',async t=>{
+ const h=harness(t);await h.create();
+ const chat=async body=>{h.room.data.rates={};return h.call('chat',actor('host'),{body,request_id:crypto.randomUUID()});};
+ await chat('old');await h.join(actor('guest'));await chat('new');
+ h.room.data.chat.forEach(m=>m.created=1234);
+ assert.deepEqual((await h.call('state',actor('guest'))).body.chat.map(m=>m.body),['new']);
+ for(let i=0;i<101;i++)await chat('line '+i);
+ assert.equal((await h.call('state',actor('guest'))).body.chat.length,100);
+ const legacy=structuredClone(h.room.data);delete legacy.chatSequence;
+ legacy.chat.forEach(m=>delete m.sequence);Object.values(legacy.members).forEach(m=>delete m.chatAfter);
+ h.saved.set('room',legacy);h.room.data=null;
+ assert.deepEqual((await h.call('state',actor('guest'))).body.chat,[]);
+ await chat('after upgrade');assert.deepEqual((await h.call('state',actor('guest'))).body.chat.map(m=>m.body),['after upgrade']);
+});
+
+test('room screen joins once automatically, never opens microphone, and offers retry only on failure',async()=>{
+ const elements=new Map(),get=id=>{if(!elements.has(id))elements.set(id,{hidden:true,value:'',elements:{},querySelector:()=>({})});return elements.get(id);};
+ let calls=0,reply,fail=false,mics=0;
+ const c=vm.createContext({crypto,AbortSignal,window:{addEventListener(){},removeEventListener(){}},document:{addEventListener(){},removeEventListener(){}},navigator:{mediaDevices:{getUserMedia(){mics++;throw Error('must stay muted');}}},fetch:async()=>{calls++;return new Promise(resolve=>{reply=()=>resolve(Response.json(fail?{error:'full'}:{generation:'g',members:[],room:{}},{status:fail?409:200}));});},audio:{pause(){}},api:()=>Promise.resolve({conversations:[]}),toast(){},busyForm:()=>()=>{},setInterval:()=>0,clearInterval(){},setTimeout,clearTimeout,$:get});
+ vm.runInContext(readFileSync(new URL('../dist/voice-rooms.js',import.meta.url),'utf8')+'\nthis.Client=VoiceRoomClient;',c);
+ const setup=()=>{const client=new c.Client('test');client.giftSummary=()=>{};client.paint=()=>{};client.socket=()=>{};client.receive=async()=>{};const original=client.join.bind(client);client.join=()=>client.pending=original();return client;};
+ const host={isConnected:true,querySelector:()=>({})},client=setup();client.bind(host);client.bind(host);assert.equal(calls,1);assert.equal(get('#voice-entry').hidden,true);reply();await client.pending;
+ assert.equal(client.joined,true);client.bind(host);assert.equal(calls,1);assert.equal(mics,0);client.leave(false);
+ const retry=setup();fail=true;retry.bind(host);reply();await assert.rejects(retry.pending);assert.equal(get('#voice-entry').hidden,false);assert.equal(retry.joined,false);
+ fail=false;get('#voice-join').onclick();reply();await retry.pending;assert.equal(retry.joined,true);assert.equal(get('#voice-entry').hidden,true);assert.equal(mics,0);retry.leave(false);
+});
 test('bridge signatures bind payload/path/time and reject tampering or expiry',async()=>{
  const body=JSON.stringify({actor:actor('host')}),path='/rooms/test/state',headers=await signedHeaders(secret,path,body,100000,'1234567890abcdef');
  const r=new Request('https://voice.example'+path,{headers});assert.equal((await verifyRequest(r,secret,body,100001)).nonce,'1234567890abcdef');
@@ -129,9 +205,9 @@ test('voice gift retries debit once and invitations reuse the DM ledger',async t
  f.sql.exec("INSERT INTO producers(id,user_id,name,created) VALUES('other-profile','other','Other',0); INSERT INTO gold_purchases(id,user_id,channel,gold,price_krw,fee_krw,status,created,paid_at) VALUES('paid-lot','owner','web',100,1000,30,'paid',1,1)");
  const original=globalThis.fetch;t.after(()=>globalThis.fetch=original);
  globalThis.fetch=async(url,init)=>{assert.equal(new URL(url).hostname,'voice.test');return voiceWorker.fetch(new Request(url,init),{...h.env,VOICE_BRIDGE_SECRET:secret,ROOMS:{idFromName:id=>id,get:()=>({fetch:r=>h.room.fetch(r)})}});};
- const b={profile_id:'other-profile',gift_type:'balloon',quantity:3,request_id:crypto.randomUUID()};
+ const b={profile_id:'other-profile',gift_type:'lollipop',quantity:3,request_id:crypto.randomUUID()};
  const a=await f.call('/api/voice/rooms/test-room/gifts','POST',b);assert.equal(a.status,201,JSON.stringify(a.body));
- const again=await f.call('/api/voice/rooms/test-room/gifts','POST',b);assert.equal(again.body.gift.id,a.body.gift.id);assert.equal(again.body.balance,85);assert.equal(f.sql.prepare('SELECT count(*) n FROM gifts').get().n,1);
+ const again=await f.call('/api/voice/rooms/test-room/gifts','POST',b);assert.equal(again.body.gift.id,a.body.gift.id);assert.equal(again.body.balance,97);assert.equal(again.body.gift.name,'막대사탕');assert.equal(f.sql.prepare('SELECT count(*) n FROM gifts').get().n,1);
  assert.equal(h.events.filter(e=>e?.type==='gift').length,1);
  assert.equal((await f.call('/api/voice/rooms/test-room/gifts','POST',{...b,quantity:4})).status,409);
  const invite={profile_id:'other-profile',request_id:crypto.randomUUID()};assert.equal((await f.call('/api/voice/rooms/test-room/invite','POST',invite)).status,201);assert.equal((await f.call('/api/voice/rooms/test-room/invite','POST',invite)).status,201);assert.equal(f.sql.prepare('SELECT count(*) n FROM direct_messages').get().n,1);assert.match(f.sql.prepare('SELECT body FROM direct_messages').get().body,/#voice\/test-room/);
