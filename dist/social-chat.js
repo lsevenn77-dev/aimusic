@@ -21,6 +21,9 @@ function bindChatEnter(input,submit){
 }
 function dmProfileLink(p,content,cls='dm-profile-link'){return '<a class="'+cls+'" href="#producer/'+esc(p.id)+'" aria-label="'+esc(p.name)+' 프로필 보기">'+content+'</a>';}
 let dmInboxFilter='all';
+let dmInboxSnapshot=null;
+function rememberDmInbox(data){dmInboxSnapshot={uid:me?.id,data};}
+
 const dmInboxTabs=[['all','전체'],['unread','안 읽음'],['crew','크루'],['notice','공지']];
 function dmInboxTabsHTML(){return '<div class="dm-inbox-tabs" role="group" aria-label="메시지 분류">'+dmInboxTabs.map(([key,label])=>'<button type="button" data-dm-filter="'+key+'" aria-pressed="'+(dmInboxFilter===key)+'">'+label+'</button>').join('')+'</div>';}
 function dmInboxSelection(conversations,crew,filter){return {conversations:conversations.filter(p=>filter==='all'||filter==='unread'&&Number(p.unread)>0||filter==='notice'&&p.is_notice===true),crew:filter==='all'||filter==='crew'||filter==='unread'&&Number(crew?.unread)>0?crew:null};}
@@ -71,10 +74,12 @@ function watchSocialChat(query,changed,status,revoked){
 }
 function bindSocialChat(view){
  const ticket=renderId,uid=me?.id,current=()=>ticket===renderId&&uid===me?.id;
- const tabs=document.querySelector('.dm-inbox-tabs');const filter=e=>{const b=e.target.closest('[data-dm-filter]');if(!b)return;dmInboxFilter=b.dataset.dmFilter;tabs.querySelectorAll('[data-dm-filter]').forEach(t=>t.setAttribute('aria-pressed',String(t.dataset.dmFilter===dmInboxFilter)));void loadInbox();};tabs?.addEventListener('click',filter);
+ let inboxData=dmInboxSnapshot?.uid===uid?dmInboxSnapshot.data:null;
+ const paintInbox=d=>{const root=$('#dm-conversations'),html=conversationListHTML(d.conversations,d.crew,view.selectedConversation||'');if(root&&root.innerHTML!==html)root.innerHTML=html;const count=$('#dm-inbox-count');if(count)count.textContent=number(d.conversations.length);};
+ const tabs=document.querySelector('.dm-inbox-tabs');const filter=e=>{const b=e.target.closest('[data-dm-filter]');if(!b)return;dmInboxFilter=b.dataset.dmFilter;tabs.querySelectorAll('[data-dm-filter]').forEach(t=>t.setAttribute('aria-pressed',String(t.dataset.dmFilter===dmInboxFilter)));if(inboxData)paintInbox(inboxData);};tabs?.addEventListener('click',filter);
  let inboxFetching=false,inboxAgain=false;
  const loadInbox=async()=>{if(!view?.inbox||!current())return;if(inboxFetching){inboxAgain=true;return;}inboxFetching=true;
-  try{do{inboxAgain=false;const d=await api('/api/dm');if(!current())return;const root=$('#dm-conversations'),html=conversationListHTML(d.conversations,d.crew,view.selectedConversation||'');if(root&&root.innerHTML!==html)root.innerHTML=html;const count=$('#dm-inbox-count');if(count)count.textContent=number(d.conversations.length);$('#dm-list-error').textContent='';}while(inboxAgain&&current());}
+  try{do{inboxAgain=false;const d=await api('/api/dm');if(!current())return;inboxData=d;rememberDmInbox(d);paintInbox(d);$('#dm-list-error').textContent='';}while(inboxAgain&&current());}
   catch(e){if(current())$('#dm-list-error').textContent=e.message;}finally{inboxFetching=false;}
  };
  if(view?.inbox&&!view.chat){const stop=watchSocialChat('',loadInbox,()=>{},()=>{$('#dm-list-error').textContent='로그인 상태를 다시 확인해주세요.';});socialCleanup=()=>{stop();tabs?.removeEventListener('click',filter);};return;}
