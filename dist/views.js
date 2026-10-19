@@ -15,6 +15,7 @@ function saveNavigationSnapshot(raw,html,tracks,explorer,scroll=0){
  while(navigationSnapshots.size>24)navigationSnapshots.delete(navigationSnapshots.keys().next().value);
 }
 function bindRenderedRoute(base,param,explorer,ticket){
+ if(typeof bindVoice==='function')bindVoice(base,param);
  icons();paintInteractions();bindForms(base,param);bindNotifications(explorer);bindGiftClaims($('#gift-shop-rewards'));bindExplorer(explorer);bindBrowse(explorer);bindImprovements(explorer);
  if(['community','covers'].includes(base))void loadCommunityCrews($('#community-crew-preview'),ticket);
 }
@@ -37,6 +38,7 @@ async function render(){
  }
  clearInterval(socialTimer);socialTimer=null;socialCleanup?.();socialCleanup=null;
  cleanupLyricsEditor();cleanupSing();
+ if(typeof cleanupVoiceRoute==='function')cleanupVoiceRoute(base,param);
  updateBrowseNavigation(base,param);
  const main=$('#main'),account=me?.id||'guest';navigationRefreshCleanup?.();navigationRefreshCleanup=null;
  const previous=navigationSnapshots.get(navigationKey(main.dataset.route));if(previous&&main.dataset.account===account)previous.scroll=window.scrollY||0;
@@ -57,7 +59,7 @@ async function render(){
   if(account!==(me?.id||'guest'))return render();
   const readRevision=apiRevision;
   const profileHeader=base==='library'?libraryProfileHTML().catch(error=>({error})):null;
-  const explorer=await notificationsView(base,raw)||await playerView(base)||await improvementsView(base,param,raw)||await browseView(base,param,raw)||await explorerView(base,param,raw);
+  const explorer=(typeof voiceView==='function'?await voiceView(base,param):null)||await notificationsView(base,raw)||await playerView(base)||await improvementsView(base,param,raw)||await browseView(base,param,raw)||await explorerView(base,param,raw);
   if(explorer){html=explorer.html;nextTracks=remember(explorer.tracks||[]);}
   else if(['discover','charts','artists','producers','search'].includes(base)){
    let query='';const genre=base==='discover'?decodeURIComponent(param||'전체'):'전체',searchValue=base==='search'?decodeURIComponent(param||''):'';

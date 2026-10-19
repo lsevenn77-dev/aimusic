@@ -13,6 +13,7 @@ import {notificationsRoute} from './notifications.js';
 import {chatFeaturesRoute,queueChatImageCleanup,cleanupChatImages} from './chat-features.js';
 import {socialRoute} from './social.js';
 import {chatStreamRoute} from './chat-stream.js';
+import {voiceRoomsRoute} from './voice-rooms.js';
 import {publicUser} from './identity.js';
 import {coverRankingRoute} from './cover-rankings.js';
 import {commentModerationRoute} from './comment-moderation.js';
@@ -87,6 +88,7 @@ export default {async fetch(req,env,ctx){
   const adminSession=await adminSessionRoute(req,env,path);if(adminSession)return adminSession;
   const user=(path.startsWith('/api/admin/')?await consoleViewer(req,env):null)||await viewer(req,env);
   env=await blockedContext(env,user);
+  const voiceResponse=await voiceRoomsRoute(req,env,path,user,ctx);if(voiceResponse)return voiceResponse;
   const correction=await pitchCorrectionRoute(req,env,path,user);if(correction)return correction;
   const safety=await accountSafetyRoute(req,env,path,user);if(safety)return safety;
   const playlistImage=await playlistImageRoute(req,env,path,user);if(playlistImage)return playlistImage;

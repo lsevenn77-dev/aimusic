@@ -17,6 +17,7 @@
     "drizzle-kit": "^0.31.4",
     "drizzle-orm": "^0.44.5",
     "esbuild": "^0.25.9",
-    "wrangler": "^4.32.0"
+    "wrangler": "^4.32.0",
+    "ws": "8.21.0"
   }
 }

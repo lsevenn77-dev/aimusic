@@ -7,6 +7,7 @@ import {pathToFileURL} from 'node:url';
 import {bundleClient} from './client-bundle.mjs';
 await mkdir('dist/server',{recursive:true});
 await mkdir('dist/client',{recursive:true});
+for(const file of ['voice-rooms.js','voice-rooms.css'])await cp('dist/'+file,'dist/client/'+file);
 await cp('dist/music-card-controls.css','dist/client/music-card-controls.css');
 await cp('dist/song-sidebar.css','dist/client/song-sidebar.css');
 for(const file of ['mobile-ux.js','mobile-ux.css','player-shell.js','player-shell.css','public-music.css','design-system.css','design-system.js'])await cp(`dist/${file}`,`dist/client/${file}`);

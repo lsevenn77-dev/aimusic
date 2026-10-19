@@ -1,0 +1,7 @@
+{
+ "name":"aifect-voice-rooms", "main":"worker.js", "compatibility_date":"2026-09-01",
+ "account_id":"cef4f23c100eef4d29225043192fb643", "workers_dev":true,
+ "durable_objects":{"bindings":[{"name":"ROOMS","class_name":"VoiceRoom"}]},
+ "migrations":[{"tag":"v1","new_sqlite_classes":["VoiceRoom"]}],
+ "d1_databases":[{"binding":"ROOM_DB","database_name":"aifect-voice-rooms","database_id":"253c19af-35de-4863-a4aa-c54bbc5e76fe","migrations_dir":"migrations"}]
+}
