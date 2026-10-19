@@ -86,6 +86,7 @@ function bindSocialChat(view){
  };
  if(view?.inbox&&!view.chat){const workspace=document.querySelector('.message-workspace');const fit=()=>{if(!current()||!workspace||innerWidth<=800){if(workspace)workspace.style.height='';return;}const top=workspace.getBoundingClientRect().top;const playerHeight=document.querySelector('.player:not([hidden])')?.getBoundingClientRect().height||0;workspace.style.height=dmWorkspaceHeight(innerHeight,top,16+playerHeight,dmPayoutLine())+'px';};fit();window.addEventListener('resize',fit);const stop=watchSocialChat('',loadInbox,()=>{},()=>{$('#dm-list-error').textContent='로그인 상태를 다시 확인해주세요.';});socialCleanup=()=>{stop();window.removeEventListener('resize',fit);tabs?.removeEventListener('click',filter);};return;}
  if(!view?.chat)return;
+ if(view.refreshInbox)void loadInbox();
  const {path,peer,crew,initial}=view.chat,form=$('#chat-compose'),log=$('#chat-log'),earlier=$('#chat-earlier'),input=form.querySelector('textarea'),sendButton=form.querySelector('[data-chat-send]');
  const messages=new Map((initial?.messages||[]).map(m=>[m.id,m]));let fetching=false,again=false,initialized=!!initial,lastHTML=null,sending=false,denied=false,chatGeneration=0;
  // Only a history read advances the cursor. A POST can return a newer message

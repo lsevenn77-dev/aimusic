@@ -19,3 +19,13 @@ test('tabs render synchronously from the account inbox without another API call'
 });
 
 test('desktop panel ends twelve pixels above payouts and respects available viewport',()=>{const c=make();assert.equal(vm.runInContext('dmWorkspaceHeight(1092,188,16,826)',c),626);assert.equal(vm.runInContext('dmWorkspaceHeight(700,188,110,826)',c),402);assert.equal(vm.runInContext('dmWorkspaceHeight(700,188,78,undefined)',c),434);assert.equal(vm.runInContext('dmWorkspaceHeight(300,188,78,undefined)',c),180);});
+test('a fetched thread does not wait for another inbox request and never reuses another account inbox',async()=>{
+ const c=make();c.me={id:'one'};c.api=()=>{throw Error('thread should not fetch the inbox');};vm.runInContext(readFileSync(new URL('../dist/page-redesign.js',import.meta.url),'utf8'),c);c.dmInboxHTML=d=>JSON.stringify(d);
+ vm.runInContext("rememberDmInbox({conversations:[{id:'private'}]})",c);
+ const view={chat:{peer:{id:'peer'}},html:'CHAT'};const result=await c.dmWorkspaceView(view);assert.match(result.html,/private/);assert.equal(result.refreshInbox,true);
+ c.me={id:'two'};const other=await c.dmWorkspaceView(view);assert.doesNotMatch(other.html,/private/);assert.equal(other.html,'{"conversations":[]}');
+});
+test('crew history starts alongside crew details and is ready in the first render',async()=>{
+ const calls=[];let resolveCrew;const c=vm.createContext({document:{addEventListener(){}},window:{addEventListener(){}},setInterval(){},esc:String,icon:()=>'',number:String,chatPanelHTML:(label,initial)=>initial?.messages[0]?.body||'EMPTY',api:path=>{calls.push(path);return path.endsWith('/messages')?Promise.resolve({messages:[{body:'READY'}],membership:{joined_sequence:1}}):new Promise(resolve=>{resolveCrew=resolve;});}});
+ vm.runInContext(readFileSync(new URL('../dist/chat-features.js',import.meta.url),'utf8'),c);const pending=c.crewChatView('dm/crew/test');assert.deepEqual(calls,['/api/crews/test','/api/crews/test/messages']);resolveCrew({crew:{id:'test',name:'Crew',members:2},membership:{role:'member'}});const view=await pending;assert.match(view.html,/READY/);assert.equal(view.chat.initial.messages[0].body,'READY');
+});
