@@ -72,6 +72,8 @@ function watchSocialChat(query,changed,status,revoked){
  document.addEventListener('visibilitychange',visibility);window.addEventListener('online',visibility);window.addEventListener('offline',visibility);window.addEventListener('pagehide',pagehide);window.addEventListener('pageshow',visibility);
  connect();return cleanup;
 }
+function dmWorkspaceHeight(bottom,top,inset,payoutLine){return Math.max(180,Math.min(bottom-inset,Number.isFinite(payoutLine)?payoutLine-12:bottom-inset)-top);}
+function dmPayoutLine(){if(innerWidth<=800)return undefined;const r=document.querySelector('#sidebar a[href="#payouts"]')?.getBoundingClientRect();return r?.height>0?r.top+r.height/2:undefined;}
 function bindSocialChat(view){
  const ticket=renderId,uid=me?.id,current=()=>ticket===renderId&&uid===me?.id;
  let inboxData=dmInboxSnapshot?.uid===uid?dmInboxSnapshot.data:null;
@@ -82,7 +84,7 @@ function bindSocialChat(view){
   try{do{inboxAgain=false;const d=await api('/api/dm');if(!current())return;inboxData=d;rememberDmInbox(d);paintInbox(d);$('#dm-list-error').textContent='';}while(inboxAgain&&current());}
   catch(e){if(current())$('#dm-list-error').textContent=e.message;}finally{inboxFetching=false;}
  };
- if(view?.inbox&&!view.chat){const stop=watchSocialChat('',loadInbox,()=>{},()=>{$('#dm-list-error').textContent='로그인 상태를 다시 확인해주세요.';});socialCleanup=()=>{stop();tabs?.removeEventListener('click',filter);};return;}
+ if(view?.inbox&&!view.chat){const workspace=document.querySelector('.message-workspace');const fit=()=>{if(!current()||!workspace||innerWidth<=800){if(workspace)workspace.style.height='';return;}const top=workspace.getBoundingClientRect().top;const playerHeight=document.querySelector('.player:not([hidden])')?.getBoundingClientRect().height||0;workspace.style.height=dmWorkspaceHeight(innerHeight,top,16+playerHeight,dmPayoutLine())+'px';};fit();window.addEventListener('resize',fit);const stop=watchSocialChat('',loadInbox,()=>{},()=>{$('#dm-list-error').textContent='로그인 상태를 다시 확인해주세요.';});socialCleanup=()=>{stop();window.removeEventListener('resize',fit);tabs?.removeEventListener('click',filter);};return;}
  if(!view?.chat)return;
  const {path,peer,crew,initial}=view.chat,form=$('#chat-compose'),log=$('#chat-log'),earlier=$('#chat-earlier'),input=form.querySelector('textarea'),sendButton=form.querySelector('[data-chat-send]');
  const messages=new Map((initial?.messages||[]).map(m=>[m.id,m]));let fetching=false,again=false,initialized=!!initial,lastHTML=null,sending=false,denied=false,chatGeneration=0;
@@ -145,7 +147,7 @@ function bindSocialChat(view){
  const panel=log.closest('.chat-panel'),viewportHeightAtOpen=innerHeight;let pinned=true,frame=0;
  const onScroll=()=>{pinned=log.scrollHeight-log.scrollTop-log.clientHeight<90;};
  const anchor=()=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(()=>{if(!current())return;if(document.activeElement===input||pinned)log.scrollTop=log.scrollHeight;});};
- const viewport=()=>{if(!current())return;const vv=window.visualViewport;const bottom=(vv?.height||innerHeight)+(vv?.offsetTop||0);const workspace=panel.closest?.('.message-workspace'),target=workspace||panel;const top=target.getBoundingClientRect().top;const keyboard=document.activeElement===input&&Math.max(viewportHeightAtOpen,innerHeight)-(vv?.height||innerHeight)>120;document.body.classList.toggle('chat-keyboard',keyboard);const playerHeight=document.querySelector('.player:not([hidden])')?.getBoundingClientRect().height||0;const inset=keyboard?12:(innerWidth<=800?78:16)+playerHeight;target.style.height=Math.max(180,bottom-top-inset)+'px';if(workspace)panel.style.height='';anchor();};
+ const viewport=()=>{if(!current())return;const vv=window.visualViewport;const bottom=(vv?.height||innerHeight)+(vv?.offsetTop||0);const workspace=panel.closest?.('.message-workspace'),target=workspace||panel;const top=target.getBoundingClientRect().top;const keyboard=document.activeElement===input&&Math.max(viewportHeightAtOpen,innerHeight)-(vv?.height||innerHeight)>120;document.body.classList.toggle('chat-keyboard',keyboard);const playerHeight=document.querySelector('.player:not([hidden])')?.getBoundingClientRect().height||0;const inset=keyboard?12:(innerWidth<=800?78:16)+playerHeight;target.style.height=dmWorkspaceHeight(bottom,top,inset,keyboard?undefined:dmPayoutLine())+'px';if(workspace)panel.style.height='';anchor();};
  const resize=new ResizeObserver(anchor);resize.observe(log);
  log.addEventListener('scroll',onScroll,{passive:true});log.addEventListener('load',anchor,true);
  input.addEventListener('focus',viewport);input.addEventListener('blur',viewport);

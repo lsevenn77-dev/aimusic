@@ -250,7 +250,7 @@ main[data-route^="sing/"]{background:radial-gradient(ellipse at 50% 25%,#5834493
 
 .message-workspace.has-thread{min-height:0;align-items:stretch}
 .message-list-pane{min-height:0;overflow-y:auto}
-.message-list-pane .conversation-row.is-selected{background:#ed91bc14;box-shadow:inset 3px 0 #ed91bc}
+.message-list-pane .conversation-row.is-selected{background:#51435d;box-shadow:none;border-color:transparent}
 .message-thread-pane{display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden}
 .message-thread-pane .dm-thread-header{display:flex;flex-shrink:0;padding:17px 20px!important;margin:0!important;border-bottom:1px solid #ffffff14;position:static;background:#1d2533}
 .message-thread-pane .chat-panel{flex:1;width:100%;max-width:none;min-height:0;height:auto;margin:0;border-radius:0}
@@ -307,3 +307,5 @@ main[data-route^="sing/"]{background:radial-gradient(ellipse at 50% 25%,#5834493
  .message-workspace:not(.has-thread) .message-welcome{display:none}
 }
 
+
+@media(min-width:801px){.message-workspace{min-height:0;align-items:stretch}.message-welcome{min-height:0;overflow:auto}}

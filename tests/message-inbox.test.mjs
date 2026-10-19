@@ -10,10 +10,12 @@ test('tabs render synchronously from the account inbox without another API call'
  const root={innerHTML:''},count={textContent:''},error={textContent:''};let click,requests=0;
  const buttons=['all','unread','crew','notice'].map(key=>({dataset:{dmFilter:key},setAttribute(){}}));
  const tabs={addEventListener:(name,handler)=>{click=handler;},removeEventListener(){},querySelectorAll:()=>buttons};
- const c=vm.createContext({document:{addEventListener(){},querySelector:()=>tabs},renderId:1,me:{id:'me'},$:s=>({'#dm-conversations':root,'#dm-inbox-count':count,'#dm-list-error':error}[s]),esc:String,number:String,portrait:()=>'',dmMuteButton:()=>'',crewInboxHTML:crew=>crew?'CREW':'',api:()=>{requests++;return new Promise(()=>{});}});
+ const c=vm.createContext({document:{addEventListener(){},querySelector:s=>s==='.dm-inbox-tabs'?tabs:null},window:{addEventListener(){},removeEventListener(){}},innerWidth:375,renderId:1,me:{id:'me'},$:s=>({'#dm-conversations':root,'#dm-inbox-count':count,'#dm-list-error':error}[s]),esc:String,number:String,portrait:()=>'',dmMuteButton:()=>'',crewInboxHTML:crew=>crew?'CREW':'',api:()=>{requests++;return new Promise(()=>{});}});
  vm.runInContext(source,c);vm.runInContext("watchSocialChat=()=>()=>{};rememberDmInbox({conversations:[{id:'read',name:'READ',unread:0,updated:1},{id:'new',name:'NEW',unread:2,updated:1},{id:'team',name:'NOTICE',unread:0,is_notice:true,updated:1}],crew:{id:'crew',unread:1}});bindSocialChat({inbox:true})",c);
  const select=key=>click({target:{closest:()=>buttons.find(b=>b.dataset.dmFilter===key)}});
  select('unread');assert.match(root.innerHTML,/NEW/);assert.doesNotMatch(root.innerHTML,/READ|NOTICE/);assert.match(root.innerHTML,/CREW/);
  select('notice');assert.match(root.innerHTML,/NOTICE/);assert.doesNotMatch(root.innerHTML,/NEW|CREW/);
  select('crew');assert.equal(root.innerHTML,'CREW');select('all');assert.match(root.innerHTML,/READ/);assert.equal(requests,0);
 });
+
+test('desktop panel ends twelve pixels above payouts and respects available viewport',()=>{const c=make();assert.equal(vm.runInContext('dmWorkspaceHeight(1092,188,16,826)',c),626);assert.equal(vm.runInContext('dmWorkspaceHeight(700,188,110,826)',c),402);assert.equal(vm.runInContext('dmWorkspaceHeight(700,188,78,undefined)',c),434);assert.equal(vm.runInContext('dmWorkspaceHeight(300,188,78,undefined)',c),180);});
