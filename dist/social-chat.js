@@ -75,8 +75,9 @@ function watchSocialChat(query,changed,status,revoked){
 function dmWorkspaceHeight(bottom,top,inset,payoutLine){return Math.max(180,Math.min(bottom-inset,Number.isFinite(payoutLine)?payoutLine-12:bottom-inset)-top);}
 function dmPayoutLine(){if(innerWidth<=800)return undefined;const r=document.querySelector('#sidebar a[href="#payouts"]')?.getBoundingClientRect();return r?.height>0?r.top+r.height/2:undefined;}
 function bindSocialChat(view){
+ if(!view?.inbox&&!view?.chat)return;
  const ticket=renderId,uid=me?.id,current=()=>ticket===renderId&&uid===me?.id;
- let inboxData=dmInboxSnapshot?.uid===uid?dmInboxSnapshot.data:null;
+ let inboxData=uid&&dmInboxSnapshot?.uid===uid?dmInboxSnapshot.data:null;
  const paintInbox=d=>{const root=$('#dm-conversations'),html=conversationListHTML(d.conversations,d.crew,view.selectedConversation||'');if(root&&root.innerHTML!==html)root.innerHTML=html;const count=$('#dm-inbox-count');if(count)count.textContent=number(d.conversations.length);};
  const tabs=document.querySelector('.dm-inbox-tabs');const filter=e=>{const b=e.target.closest('[data-dm-filter]');if(!b)return;dmInboxFilter=b.dataset.dmFilter;tabs.querySelectorAll('[data-dm-filter]').forEach(t=>t.setAttribute('aria-pressed',String(t.dataset.dmFilter===dmInboxFilter)));if(inboxData)paintInbox(inboxData);};tabs?.addEventListener('click',filter);
  let inboxFetching=false,inboxAgain=false,inboxVersion=0;

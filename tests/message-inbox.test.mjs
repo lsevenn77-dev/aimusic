@@ -38,3 +38,10 @@ test('block management needs only the block list and reuses the account inbox',a
  const calls=[];const c=vm.createContext({document:{addEventListener(){}},window:{addEventListener(){}},setInterval(){},me:{id:'me'},esc:String,icon:()=>'',dmInboxSnapshot:{uid:'me',data:{conversations:[{id:'peer'}]}},dmInboxHTML:inbox=>JSON.stringify(inbox),api:async path=>{calls.push(path);return {blocks:[]};}});
  vm.runInContext(readFileSync(new URL('../dist/chat-features.js',import.meta.url),'utf8'),c);const view=await c.blockedPeopleView();assert.deepEqual(calls,['/api/blocks']);assert.match(view.html,/peer/);
 });
+test('guest login and unrelated routes never initialize chat or dereference an empty inbox cache',()=>{
+ const c=make();c.me=null;c.renderId=1;c.document.querySelector=()=>{throw Error('unrelated page must not inspect chat DOM');};assert.doesNotThrow(()=>c.bindSocialChat(null));assert.doesNotThrow(()=>c.bindSocialChat({}));
+ c.me={id:'signed-in'};assert.doesNotThrow(()=>c.bindSocialChat({}));
+});
+test('guest account renders email and social login before unrelated chat binding',()=>{
+ const c=make();c.me=null;c.inApp=false;c.location={hash:'#account'};c.authConfig={providers:['google','kakao','apple']};c.icon=()=>'';c.formField=(label,name)=>'<input name="'+name+'">';vm.runInContext(readFileSync(new URL('../dist/views.js',import.meta.url),'utf8'),c);const html=c.accountHTML();assert.match(html,/id="auth-form"/);assert.match(html,/name="email"/);assert.match(html,/name="password"/);assert.match(html,/\/api\/auth\/google/);assert.doesNotThrow(()=>c.bindSocialChat(null));
+});

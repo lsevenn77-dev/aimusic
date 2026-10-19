@@ -17,7 +17,7 @@ function dmInboxHTML(d,thread='',selected=''){
 }
 async function dmWorkspaceView(view){
  // The thread must not wait for a second inbox request. Refresh the sidebar after paint.
- const inbox=dmInboxSnapshot?.uid===me?.id?dmInboxSnapshot.data:{conversations:[]};
+ const inbox=me?.id&&dmInboxSnapshot?.uid===me.id?dmInboxSnapshot.data:{conversations:[]};
  const selected=view.chat.crew?'crew/'+view.chat.crew.id:view.chat.peer.id;
  return {...view,html:dmInboxHTML(inbox,view.html,selected),inbox:true,refreshInbox:true,selectedConversation:selected};
 }
