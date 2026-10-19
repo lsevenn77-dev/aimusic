@@ -117,3 +117,8 @@ test('DM history uses two database round trips with settings and receipts preser
 test('crew chat returns its header without querying crew home or updating XP',async t=>{
  const f=await setup(t),created=await f.call('/api/crews','POST',{name:'Quick crew',description:'Chat',interests:'Rock'});const cid=created.body.crew.id;const sql=[];const prepare=f.DB.prepare;f.DB.prepare=q=>{sql.push(q);return prepare(q);};const r=await f.call('/api/crews/'+cid+'/messages');assert.equal(r.status,200);assert.equal(r.body.crew.name,'Quick crew');assert.equal(r.body.membership.role,'owner');assert.ok(!sql.some(q=>q.includes('INSERT OR IGNORE INTO crew_xp')));
 });
+test('text DM sends take three DB round trips and retries stay idempotent',async t=>{
+ const f=await setup(t),path='/api/dm/'+f.p;let roundTrips=0;const DB={prepare(sql){return {bind(...args){const q=f.DB.prepare(sql).bind(...args);return {...q,first(){roundTrips++;return q.first();}};}};},batch(statements){roundTrips++;return f.DB.batch(statements);}};
+ const env={DB,AIFECT_BLOCKED:[]},body=msg('fast send'),send=b=>socialRoute(new Request('https://aifect.test'+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}),env,path,{id:'owner'});
+ const result=await (await send(body)).json();assert.equal(roundTrips,3);assert.equal(result.message.body,'fast send');const retry=await (await send(body)).json();assert.equal(retry.message.id,result.message.id);await assert.rejects(send({...body,body:'changed'}),e=>e.status===409);
+});
