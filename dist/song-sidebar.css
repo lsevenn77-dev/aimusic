@@ -23,3 +23,5 @@
 .song-sidebar .song-credit-card .production-info>dt{padding-right:12px}
 .song-support-banner:focus-visible,.song-silver-button:focus-visible,.song-support-person>a:focus-visible{outline:2px solid #9ce7e1;outline-offset:3px}
 @media(max-width:420px){.song-sidebar .song-support-rank,.song-sidebar .song-credit-card{padding:16px}.song-support-ranking li{gap:7px;padding:11px 8px}.song-support-art{width:58px;height:58px;flex-basis:58px}.song-support-copy strong{font-size:.9rem}}
+
+.song-sidebar .song-image-gift-banner{display:block;width:100%;min-width:0;margin:0;padding:0;overflow:hidden;border:1px solid #b8c6dc24;border-radius:16px;background:transparent;cursor:pointer;transition:filter .15s ease}.song-image-gift-banner img{display:block;width:100%;height:auto;object-fit:contain}.song-image-gift-banner:hover{filter:brightness(1.04)}.song-image-gift-banner:focus-visible{outline:2px solid #9ce7e1;outline-offset:3px}@media(prefers-reduced-motion:reduce){.song-image-gift-banner{transition:none}}
