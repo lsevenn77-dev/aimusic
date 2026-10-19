@@ -25,3 +25,8 @@
 @media(max-width:420px){.song-sidebar .song-support-rank,.song-sidebar .song-credit-card{padding:16px}.song-support-ranking li{gap:7px;padding:11px 8px}.song-support-art{width:58px;height:58px;flex-basis:58px}.song-support-copy strong{font-size:.9rem}}
 
 .song-sidebar .song-image-gift-banner{display:block;width:100%;min-width:0;margin:0;padding:0;overflow:hidden;border:1px solid #b8c6dc24;border-radius:16px;background:transparent;cursor:pointer;transition:filter .15s ease}.song-image-gift-banner img{display:block;width:100%;height:auto;object-fit:contain}.song-image-gift-banner:hover{filter:brightness(1.04)}.song-image-gift-banner:focus-visible{outline:2px solid #9ce7e1;outline-offset:3px}@media(prefers-reduced-motion:reduce){.song-image-gift-banner{transition:none}}
+/* The image supplies its own rounded border; do not crop or double-frame it. */
+.song-sidebar .song-image-gift-banner{border:0;border-radius:0;overflow:visible;background:transparent}
+#song-lyrics #lyrics-follow.small-button{background:#111c29;color:#bfc6d2;border:1px solid #65708366;box-shadow:none}
+#song-lyrics #lyrics-follow.small-button[aria-pressed="true"]{background:linear-gradient(110deg,#d7b5fa,#9ce7e1);color:#111c29;border-color:transparent;box-shadow:none}
+#song-lyrics #lyrics-follow.small-button:disabled{background:#111c29;color:#8f99a9;border-color:#65708344;cursor:default}
