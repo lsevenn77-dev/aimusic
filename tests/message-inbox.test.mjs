@@ -25,7 +25,7 @@ test('a fetched thread does not wait for another inbox request and never reuses 
  const view={chat:{peer:{id:'peer'}},html:'CHAT'};const result=await c.dmWorkspaceView(view);assert.match(result.html,/private/);assert.equal(result.refreshInbox,true);
  c.me={id:'two'};const other=await c.dmWorkspaceView(view);assert.doesNotMatch(other.html,/private/);assert.equal(other.html,'{"conversations":[]}');
 });
-test('crew history starts alongside crew details and is ready in the first render',async()=>{
- const calls=[];let resolveCrew;const c=vm.createContext({document:{addEventListener(){}},window:{addEventListener(){}},setInterval(){},esc:String,icon:()=>'',number:String,chatPanelHTML:(label,initial)=>initial?.messages[0]?.body||'EMPTY',api:path=>{calls.push(path);return path.endsWith('/messages')?Promise.resolve({messages:[{body:'READY'}],membership:{joined_sequence:1}}):new Promise(resolve=>{resolveCrew=resolve;});}});
- vm.runInContext(readFileSync(new URL('../dist/chat-features.js',import.meta.url),'utf8'),c);const pending=c.crewChatView('dm/crew/test');assert.deepEqual(calls,['/api/crews/test','/api/crews/test/messages']);resolveCrew({crew:{id:'test',name:'Crew',members:2},membership:{role:'member'}});const view=await pending;assert.match(view.html,/READY/);assert.equal(view.chat.initial.messages[0].body,'READY');
+test('crew opens from the lightweight history endpoint without loading the crew home',async()=>{
+ const calls=[];const c=vm.createContext({document:{addEventListener(){}},window:{addEventListener(){}},setInterval(){},esc:String,icon:()=>'',number:String,chatPanelHTML:(label,initial)=>initial?.messages[0]?.body||'EMPTY',api:async path=>{calls.push(path);return {crew:{id:'test',name:'Crew'},messages:[{body:'READY'}],membership:{joined_sequence:1,role:'member'}};}});
+ vm.runInContext(readFileSync(new URL('../dist/chat-features.js',import.meta.url),'utf8'),c);const view=await c.crewChatView('dm/crew/test');assert.deepEqual(calls,['/api/crews/test/messages']);assert.match(view.html,/READY/);assert.doesNotMatch(view.html,/undefined|NaN/);assert.equal(view.chat.initial.messages[0].body,'READY');
 });
