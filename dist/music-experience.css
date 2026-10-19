@@ -40,3 +40,4 @@ body{background:var(--music-bg);color:var(--music-text)}.topbar,.sidebar{backgro
 .cover-collection-origin{display:block;font-size:.72rem;color:var(--music-aqua);margin-top:5px;min-height:28px;line-height:28px}
 
 .cover-collection-social{display:flex;justify-content:space-between;gap:4px;margin-top:4px}.cover-collection-social>*{display:flex;align-items:center;justify-content:center;gap:3px;min-width:0;min-height:40px;background:transparent;border:0;padding:4px;font:inherit;font-size:.72rem;color:var(--music-muted);cursor:pointer}.cover-collection-social svg{width:15px;height:15px;flex-shrink:0}.cover-collection-social [aria-pressed=true]{color:var(--music-accent)}.layout-list .cover-collection-social{grid-column:2/-1;justify-content:flex-start;gap:16px}
+

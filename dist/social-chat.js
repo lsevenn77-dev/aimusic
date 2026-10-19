@@ -20,7 +20,11 @@ function bindChatEnter(input,submit){
  return ()=>composing;
 }
 function dmProfileLink(p,content,cls='dm-profile-link'){return '<a class="'+cls+'" href="#producer/'+esc(p.id)+'" aria-label="'+esc(p.name)+' 프로필 보기">'+content+'</a>';}
-function conversationListHTML(conversations,crew=null,selected=''){return crewInboxHTML(crew,selected)+(conversations.length?'<div class="conversation-list">'+conversations.map(p=>'<article class="surface conversation-row'+(selected===p.id?' is-selected':'')+'">'+dmProfileLink(p,portrait(p,'producer'))+'<a class="conversation-open" href="#dm/'+esc(p.id)+'"'+(selected===p.id?' aria-current="true"':'')+'><div class="conversation-copy"><strong>'+esc(p.name)+'</strong><p>'+esc(p.last_message||'대화를 시작해보세요.')+'</p></div><div class="conversation-meta"><time>'+new Date(p.updated*1000).toLocaleDateString('ko-KR',{month:'numeric',day:'numeric'})+'</time>'+(p.unread?'<span class="unread-badge" aria-label="안 읽은 메시지 '+p.unread+'개">'+number(p.unread)+'</span>':'')+'</div></a>'+dmMuteButton(p)+'</article>').join('')+'</div>':'<div class="surface dm-empty"><h2>아직 나눈 대화가 없어요</h2><p>프로필의 DM 보내기로 대화를 시작해보세요.<br>대화를 나눈 사람별로 이곳에 모아둘게요.</p><a class="small-button" href="#following">팔로우한 사람 보기</a></div>');}
+let dmInboxFilter='all';
+const dmInboxTabs=[['all','전체'],['unread','안 읽음'],['crew','크루'],['notice','공지']];
+function dmInboxTabsHTML(){return '<div class="dm-inbox-tabs" role="group" aria-label="메시지 분류">'+dmInboxTabs.map(([key,label])=>'<button type="button" data-dm-filter="'+key+'" aria-pressed="'+(dmInboxFilter===key)+'">'+label+'</button>').join('')+'</div>';}
+function dmInboxSelection(conversations,crew,filter){return {conversations:conversations.filter(p=>filter==='all'||filter==='unread'&&Number(p.unread)>0||filter==='notice'&&p.is_notice===true),crew:filter==='all'||filter==='crew'||filter==='unread'&&Number(crew?.unread)>0?crew:null};}
+function conversationListHTML(conversations,crew=null,selected=''){const chosen=dmInboxSelection(conversations,crew,dmInboxFilter);conversations=chosen.conversations;crew=chosen.crew;return crewInboxHTML(crew,selected)+(conversations.length?'<div class="conversation-list">'+conversations.map(p=>'<article class="surface conversation-row'+(selected===p.id?' is-selected':'')+'">'+dmProfileLink(p,portrait(p,'producer'))+'<a class="conversation-open" href="#dm/'+esc(p.id)+'"'+(selected===p.id?' aria-current="true"':'')+'><div class="conversation-copy"><strong>'+esc(p.name)+'</strong><p>'+esc(p.last_message||'대화를 시작해보세요.')+'</p></div><div class="conversation-meta"><time>'+new Date(p.updated*1000).toLocaleDateString('ko-KR',{month:'numeric',day:'numeric'})+'</time>'+(p.unread?'<span class="unread-badge" aria-label="안 읽은 메시지 '+p.unread+'개">'+number(p.unread)+'</span>':'')+'</div></a>'+dmMuteButton(p)+'</article>').join('')+'</div>':crew?'':'<div class="dm-empty" role="status"><h2>'+({all:'아직 나눈 대화가 없어요',unread:'안 읽은 메시지가 없어요',crew:'가입한 크루가 없어요',notice:'받은 공지가 없어요'}[dmInboxFilter])+'</h2><p>'+({all:'프로필에서 DM을 보내 대화를 시작해보세요.',unread:'새 메시지가 오면 여기에 표시돼요.',crew:'크루에 가입하면 크루 채팅을 볼 수 있어요.',notice:'운영자 계정의 메시지를 이곳에 모아드려요.'}[dmInboxFilter])+'</p></div>');}
 function chatHTML(messages,peer=null,crew=null){
  let day='';return messages.map(m=>{
   const currentDay=new Date(m.created*1000).toLocaleDateString('ko-KR',{timeZone:'Asia/Seoul'}),separator=currentDay!==day?'<div class="chat-day">'+currentDay+'</div>':'';day=currentDay;
@@ -67,12 +71,13 @@ function watchSocialChat(query,changed,status,revoked){
 }
 function bindSocialChat(view){
  const ticket=renderId,uid=me?.id,current=()=>ticket===renderId&&uid===me?.id;
+ const tabs=document.querySelector('.dm-inbox-tabs');const filter=e=>{const b=e.target.closest('[data-dm-filter]');if(!b)return;dmInboxFilter=b.dataset.dmFilter;tabs.querySelectorAll('[data-dm-filter]').forEach(t=>t.setAttribute('aria-pressed',String(t.dataset.dmFilter===dmInboxFilter)));void loadInbox();};tabs?.addEventListener('click',filter);
  let inboxFetching=false,inboxAgain=false;
  const loadInbox=async()=>{if(!view?.inbox||!current())return;if(inboxFetching){inboxAgain=true;return;}inboxFetching=true;
   try{do{inboxAgain=false;const d=await api('/api/dm');if(!current())return;const root=$('#dm-conversations'),html=conversationListHTML(d.conversations,d.crew,view.selectedConversation||'');if(root&&root.innerHTML!==html)root.innerHTML=html;const count=$('#dm-inbox-count');if(count)count.textContent=number(d.conversations.length);$('#dm-list-error').textContent='';}while(inboxAgain&&current());}
   catch(e){if(current())$('#dm-list-error').textContent=e.message;}finally{inboxFetching=false;}
  };
- if(view?.inbox&&!view.chat){socialCleanup=watchSocialChat('',loadInbox,()=>{},()=>{$('#dm-list-error').textContent='로그인 상태를 다시 확인해주세요.';});return;}
+ if(view?.inbox&&!view.chat){const stop=watchSocialChat('',loadInbox,()=>{},()=>{$('#dm-list-error').textContent='로그인 상태를 다시 확인해주세요.';});socialCleanup=()=>{stop();tabs?.removeEventListener('click',filter);};return;}
  if(!view?.chat)return;
  const {path,peer,crew,initial}=view.chat,form=$('#chat-compose'),log=$('#chat-log'),earlier=$('#chat-earlier'),input=form.querySelector('textarea'),sendButton=form.querySelector('[data-chat-send]');
  const messages=new Map((initial?.messages||[]).map(m=>[m.id,m]));let fetching=false,again=false,initialized=!!initial,lastHTML=null,sending=false,denied=false,chatGeneration=0;
@@ -140,7 +145,7 @@ function bindSocialChat(view){
  log.addEventListener('scroll',onScroll,{passive:true});log.addEventListener('load',anchor,true);
  input.addEventListener('focus',viewport);input.addEventListener('blur',viewport);
  window.visualViewport?.addEventListener('resize',viewport);window.addEventListener('resize',viewport);viewport();
- socialCleanup=()=>{document.body.classList.remove('chat-keyboard','chat-active');stopStream();stopInbox();resize.disconnect();cancelAnimationFrame(frame);log.removeEventListener('scroll',onScroll);log.removeEventListener('load',anchor,true);input.removeEventListener('focus',viewport);input.removeEventListener('blur',viewport);window.visualViewport?.removeEventListener('resize',viewport);window.removeEventListener('resize',viewport);};
+ socialCleanup=()=>{tabs?.removeEventListener('click',filter);document.body.classList.remove('chat-keyboard','chat-active');stopStream();stopInbox();resize.disconnect();cancelAnimationFrame(frame);log.removeEventListener('scroll',onScroll);log.removeEventListener('load',anchor,true);input.removeEventListener('focus',viewport);input.removeEventListener('blur',viewport);window.visualViewport?.removeEventListener('resize',viewport);window.removeEventListener('resize',viewport);};
 }
 
 document.addEventListener('click',async event=>{

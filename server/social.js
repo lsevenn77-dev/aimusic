@@ -1,7 +1,7 @@
 import {playerColumnsSQL} from './player.js';
 import {assertUnblocked} from './account-safety.js';
 import {one,rows,query,run,now,id,str,fail,json,rate} from './db.js';
-import {requireUser} from './auth.js';
+import {requireUser,isAdmin} from './auth.js';
 import {publicCrewNameSQL as publicNameSQL,memberNameSQL as producerNameSQL} from './identity.js';
 import {nicknameBatch} from './nicknames.js';
 import {trackList,trackListQuery,VISIBLE} from './catalog.js';
@@ -196,7 +196,7 @@ export async function socialRoute(req,env,path,user){
   return json({ok:true,peer_id:p.id,message_id:sent.id},201);
  }
  if(path==='/api/dm'&&method==='GET'){
-  const summary=await chatSummary(env,user);return json({...summary,conversations:await rows(env,`WITH mine AS (SELECT rowid sequence,d.*,CASE WHEN sender_id=? THEN recipient_id ELSE sender_id END peer_id FROM direct_messages d WHERE (sender_id=? OR recipient_id=?) AND d.rowid>COALESCE((SELECT cleared_sequence FROM dm_settings WHERE user_id=? AND peer_id=CASE WHEN d.sender_id=? THEN d.recipient_id ELSE d.sender_id END),0)),latest AS (SELECT *,row_number() OVER(PARTITION BY peer_id ORDER BY sequence DESC) position,sum(CASE WHEN recipient_id=? AND read_at=0 THEN 1 ELSE 0 END) OVER(PARTITION BY peer_id) unread FROM mine) SELECT p.id,p.user_id,${playerColumnsSQL('p.user_id')},${producerNameSQL()} name,p.image_version,COALESCE(s.muted,0) muted,d.body last_message,d.created updated,d.unread FROM latest d JOIN producers p ON p.user_id=d.peer_id LEFT JOIN dm_settings s ON s.user_id=? AND s.peer_id=d.peer_id WHERE d.position=1 ORDER BY d.sequence DESC LIMIT 100`,user.id,user.id,user.id,user.id,user.id,user.id,user.id)});
+  const summary=await chatSummary(env,user);return json({...summary,conversations:(await rows(env,`WITH mine AS (SELECT rowid sequence,d.*,CASE WHEN sender_id=? THEN recipient_id ELSE sender_id END peer_id FROM direct_messages d WHERE (sender_id=? OR recipient_id=?) AND d.rowid>COALESCE((SELECT cleared_sequence FROM dm_settings WHERE user_id=? AND peer_id=CASE WHEN d.sender_id=? THEN d.recipient_id ELSE d.sender_id END),0)),latest AS (SELECT *,row_number() OVER(PARTITION BY peer_id ORDER BY sequence DESC) position,sum(CASE WHEN recipient_id=? AND read_at=0 THEN 1 ELSE 0 END) OVER(PARTITION BY peer_id) unread FROM mine) SELECT p.id,p.user_id,${playerColumnsSQL('p.user_id')},${producerNameSQL()} name,p.image_version,COALESCE(s.muted,0) muted,d.body last_message,d.created updated,d.unread FROM latest d JOIN producers p ON p.user_id=d.peer_id LEFT JOIN dm_settings s ON s.user_id=? AND s.peer_id=d.peer_id WHERE d.position=1 ORDER BY d.sequence DESC LIMIT 100`,user.id,user.id,user.id,user.id,user.id,user.id,user.id)).map(p=>({...p,is_notice:isAdmin(env,{id:p.user_id})}))});
  }
  m=path.match(/^\/api\/dm\/([\w-]+)$/);
  if(m){
