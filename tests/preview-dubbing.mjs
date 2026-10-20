@@ -25,13 +25,14 @@ if(process.argv.includes('--community-fixture')){
  f.sql.prepare('INSERT INTO admin_sessions(token_hash,credential_version,created,expires) VALUES(?,?,?,?)').run(await hash(token),await hash(env.ADMIN_PASSWORD_HASH),Math.floor(Date.now()/1000),Math.floor(Date.now()/1000)+3600);
 }
 if(goldFixture)f.sql.exec("INSERT INTO gold_purchases(id,user_id,channel,gold,price_krw,status,created,paid_at) VALUES('local-demo-gold','owner','test',80,0,'paid',0,0)");
-const works=[['마지막 우산',['일상','감동']],['오후 세 시의 비밀',['로맨스','코미디']],['불이 꺼진 도서관',['미스터리','판타지']]];
+const works=[['마지막 우산',['일상','감동']],['오후 세 시의 비밀',['로맨스','코미디']],['불이 꺼진 도서관',['미스터리','판타지']],['별 너머에서 온 신호',['SF','미스터리']],['낯선 세계의 첫 아침',['이세계물','판타지']],['궁궐의 밤',['사극','로맨스']],['마지막 궤도',['SF','액션']]];
 for(let i=0;i<works.length;i++){
  const script=sampleScript();script.title=works[i][0];const opt={...options,genres:works[i][1]};script.genres=opt.genres;
  const r=await f.call('/api/dubbing/projects','POST',{id:crypto.randomUUID(),options:opt,script},'other');
  if(r.status!==201)throw Error(JSON.stringify(r));
  await f.call('/api/dubbing/projects/'+r.body.project.id+'/publish','POST',{revision:1,rightsAccepted:true},'other');
  if(i===0)await f.call('/api/dubbing/projects/'+r.body.project.id+'/claims/role_2','POST',{revision:2},'other');
+ if(i===6)f.sql.prepare("UPDATE dubbing_projects SET state='complete' WHERE id=?").run(r.body.project.id);
 }
 const own=sampleScript();own.title='[로컬 테스트] 내 배경 오디오';
 if(process.argv.includes('--recording-fixture')){

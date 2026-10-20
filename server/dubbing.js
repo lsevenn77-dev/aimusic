@@ -6,7 +6,7 @@ import {dubbingGoldEnabled,reconcileDubbingGold} from './dubbing-gold.js';
 import {one,rows,query,run,now,id,json,fail,rate} from './db.js';
 import {requireUser,hash} from './auth.js';
 import {publicNameSQL} from './identity.js';
-import {dubbingOptions,validateDubbingScript,dubbingTimeline,DUBBING_MODEL} from '../shared/dubbing.js';
+import {dubbingOptions,validateDubbingScript,dubbingTimeline,DUBBING_MODEL,DUBBING_GENRES} from '../shared/dubbing.js';
 import {dubbingAIAvailable,generateDubbingScript} from './dubbing-ai.js';
 import {dubbingSoundStatus,dubbingSoundProjectRoute} from './dubbing-sound.js';
 import {pikaAvailable} from './dubbing-pika.js';
@@ -73,13 +73,16 @@ export async function dubbingRoute(req,env,path,user){
  }
  if(path==='/api/dubbing/projects'&&method==='GET'){
   const tab=url.searchParams.get('tab')||'latest';if(!['latest','popular','open','complete','mine'].includes(tab))fail(400,'목록을 확인해주세요.');
+  const genre=url.searchParams.get('genre')||'';if(genre&&!DUBBING_GENRES.includes(genre))fail(400,'장르를 확인해주세요.');
   if(tab==='mine')requireUser(user);
   const offset=Math.max(0,Math.min(10000,Math.floor(Number(url.searchParams.get('offset'))||0)));
   const where=tab==='mine'?`(p.owner_id=? OR EXISTS(SELECT 1 FROM dubbing_role_claims c WHERE c.project_id=p.id AND c.user_id=?))`:`p.visibility='public'${tab==='open'?" AND p.state IN ('recruiting','recording') AND (SELECT COUNT(*) FROM dubbing_role_claims c WHERE c.project_id=p.id)<p.role_count":tab==='complete'?" AND p.state='complete'":''}`;
   const list=await rows(env,`SELECT p.id,p.title,p.options_json,p.role_count,p.duration,p.state,p.visibility,p.created,p.updated,${publicNameSQL('u')} owner_name,
    (SELECT COUNT(*) FROM dubbing_role_claims c WHERE c.project_id=p.id) participants FROM dubbing_projects p JOIN users u ON u.id=p.owner_id
-   WHERE u.provider!='deleted' AND ${where} AND ${unblocked} ${tab==='mine'?'':`AND ${dubbingVisibleSQL()}`} ORDER BY ${tab==='popular'?'participants DESC,':''}p.created DESC,p.id LIMIT 25 OFFSET ?`,
-   ...(tab==='mine'?[user.id,user.id]:[]),user?.id||'',user?.id||'',offset);
+   WHERE u.provider!='deleted' AND ${where} AND ${unblocked} ${tab==='mine'?'':`AND ${dubbingVisibleSQL()}`}
+   ${genre?"AND EXISTS(SELECT 1 FROM json_each(p.options_json,'$.genres') g WHERE g.value=?)":''}
+   ORDER BY ${tab==='popular'?'participants DESC,':''}p.created DESC,p.id LIMIT 25 OFFSET ?`,
+   ...(tab==='mine'?[user.id,user.id]:[]),user?.id||'',user?.id||'',...(genre?[genre]:[]),offset);
   return json({projects:list.map(p=>({id:p.id,title:p.title,genres:JSON.parse(p.options_json).genres,roleCount:p.role_count,duration:p.duration,
    state:p.state,visibility:p.visibility,ownerName:p.owner_name,participants:p.participants,created:p.created})),nextOffset:list.length===25?offset+25:null});
  }

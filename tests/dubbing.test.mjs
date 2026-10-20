@@ -49,6 +49,48 @@ test('publish requires rights; public catalogue excludes private works and prese
  assert.equal(JSON.stringify(detail.body).includes('example.test'),false);
  assert.equal((await call('/api/dubbing/projects/'+p.id,'PUT',{revision:2,options,script:sampleScript()})).status,409);
 });
+test('genre browsing separates open scripts and completed works without revealing private or blocked projects',async t=>{
+ const {call,sql}=await fixture(t,{...enabled,BUCKET:memoryBucket()});
+ const make=async(genres,state='recruiting',visibility='public')=>{
+  const result=await create(call,{options:{...options,genres}});
+  assert.equal(result.status,201,JSON.stringify(result.body));
+  const p=result.body.project;sql.prepare('UPDATE dubbing_projects SET state=?,visibility=? WHERE id=?').run(state,visibility,p.id);return p.id;
+ };
+ const open=await make(['SF','액션']),complete=await make(['SF'],'complete');
+ await make(['SF'],'script_ready','private');
+ await make(['이세계물','판타지']);await make(['사극','로맨스']);
+ const browse=async(tab,genre,who=null)=>call('/api/dubbing/projects?'+new URLSearchParams({tab,genre}),'GET',null,who);
+ assert.deepEqual((await browse('open','SF')).body.projects.map(p=>p.id),[open]);
+ assert.deepEqual((await browse('complete','SF')).body.projects.map(p=>p.id),[complete]);
+ assert.equal((await browse('open','이세계물')).body.projects.length,1);
+ assert.equal((await browse('open','사극')).body.projects.length,1);
+ assert.equal((await browse('open','공포')).body.projects.length,0);
+ assert.equal((await browse('open',"' OR 1=1 --")).status,400);
+ assert.equal((await browse('mine','SF')).status,401);
+ assert.equal((await browse('mine','SF','owner')).body.projects.length,3);
+ sql.prepare('INSERT INTO dubbing_role_claims VALUES(?,?,?,0)').run(open,'role_1','owner');
+ sql.prepare('INSERT INTO dubbing_role_claims VALUES(?,?,?,0)').run(open,'role_2','other');
+ assert.equal((await browse('open','SF')).body.projects.length,0,'fully reserved works are not offered for joining');
+ sql.exec("INSERT INTO user_blocks VALUES('other','owner',0)");
+ assert.equal((await browse('complete','SF','other')).body.projects.length,0);
+ sql.exec("UPDATE users SET provider='deleted' WHERE id='owner'");
+ assert.equal((await browse('complete','SF')).body.projects.length,0);
+});
+test('genre filtering happens before pagination and keeps secondary genres discoverable',async t=>{
+ const {call,sql}=await fixture(t,{...enabled,BUCKET:memoryBucket()});
+ const expected=new Set();
+ for(let i=0;i<28;i++){
+  const genres=i<26?['액션','SF']:['로맨스'];
+  const result=await create(call,{options:{...options,genres}});assert.equal(result.status,201);
+  const id=result.body.project.id;sql.prepare("UPDATE dubbing_projects SET state='recruiting',visibility='public' WHERE id=?").run(id);
+  if(i<26)expected.add(id);
+ }
+ const first=(await call('/api/dubbing/projects?tab=open&genre=SF','GET',null,null)).body;
+ assert.equal(first.projects.length,25);assert.equal(first.nextOffset,25);
+ const second=(await call('/api/dubbing/projects?tab=open&genre=SF&offset='+first.nextOffset,'GET',null,null)).body;
+ assert.equal(second.projects.length,1);assert.equal(second.nextOffset,null);
+ assert.deepEqual(new Set([...first.projects,...second.projects].map(p=>p.id)),expected);
+});
 test('same-role concurrent reservations and stale writes cannot overwrite participants',async t=>{
  const {call,sql}=await fixture(t,{...enabled,BUCKET:memoryBucket()}),p=(await create(call)).body.project;
  await call('/api/dubbing/projects/'+p.id+'/publish','POST',{revision:1,rightsAccepted:true});
