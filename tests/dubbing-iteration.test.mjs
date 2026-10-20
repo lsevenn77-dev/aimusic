@@ -37,7 +37,7 @@ test('premium allows exactly three atomic daily generations; Apple entitlement a
  assert.equal((await dubbingQuota(env,'owner',dubbingDay(at).end)).remaining,3);
 });
 async function setup(t){
- const bucket=memoryBucket(),f=await fixture(t,{DUBBING_ENABLED:'true',DUBBING_SOUND_ENABLED:'true',DUBBING_RECORDING_ENABLED:'true',BUCKET:bucket,TRANSCODER_TOKEN:'fixture'});
+ const bucket=memoryBucket(),f=await fixture(t,{ADMIN_USER_IDS:'owner',DUBBING_ENABLED:'true',DUBBING_SOUND_ENABLED:'true',DUBBING_RECORDING_ENABLED:'true',BUCKET:bucket,TRANSCODER_TOKEN:'fixture'});
  const script=sampleScript();
  const p=(await f.call('/api/dubbing/projects','POST',{id:crypto.randomUUID(),options,script})).body.project;
  await f.call(`/api/dubbing/projects/${p.id}/publish`,'POST',{revision:1,rightsAccepted:true});
@@ -86,6 +86,13 @@ test('Pika rejects authentication and balance failures distinctly; uncertain suc
  const env={DUBBING_SOUND_ENABLED:'true',DUBBING_PAID_API_ENABLED:'true',PIKA_API_KEY:'test'};
  for(const status of [401,402,403,422])await assert.rejects(pikaSubmit(env,sampleScript().soundCues[0],'id',async()=>Response.json({error:{code:'test_error'}},{status})),e=>e.providerRejected&&e.providerStatus===status);
  await assert.rejects(pikaSubmit(env,sampleScript().soundCues[0],'id',async()=>new Response('gateway',{status:502})),e=>!e.providerRejected);
+ let calls=0;
+ const result=await pikaSubmit(env,sampleScript().soundCues[0],'id',async(url,init)=>{
+  calls++;assert.equal(init.redirect,'manual','Workers supports manual redirects; never forward the API key');
+  return Response.json({id:'media_verified',status:'queued'});
+ });
+ assert.equal(result.id,'media_verified');assert.equal(calls,1);
+ await assert.rejects(pikaSubmit(env,sampleScript().soundCues[0],'id',async()=>new Response(null,{status:302,headers:{location:'https://example.test/'}})),e=>!e.providerRejected);
 });
 test('cover deletion is owner-only; admin snapshot removes covers across users but preserves originals and later uploads',async t=>{
  const f=await fixture(t,{ADMIN_USER_IDS:'owner'});
@@ -99,4 +106,27 @@ test('cover deletion is owner-only; admin snapshot removes covers across users b
  assert.equal(r.body.deleted,2);assert.equal(f.sql.prepare("SELECT status FROM tracks WHERE id='three'").get().status,'published');
  assert.equal(f.sql.prepare("SELECT COUNT(*) n FROM tracks WHERE kind='cover' AND status!='deleted'").get().n,0);
  assert.equal((await f.call('/api/uploads/one/retry','POST',{})).status,404);
+});
+
+test('sound recovery requires admin, verified unsubmitted request and refund; preserves ledger and does not generate',async t=>{
+ const f=await setup(t),j=f.sql.prepare('SELECT * FROM dubbing_sound_jobs').get(),path=`/api/admin/dubbing/sound/${j.id}/reset`;
+ f.sql.prepare("UPDATE dubbing_sound_jobs SET state='unknown' WHERE id=?").run(j.id);
+ f.sql.prepare("INSERT INTO dubbing_sound_assets(job_id,cue_id,state,updated) VALUES(?,'cue','submitting',0)").run(j.id);
+ f.sql.prepare("INSERT INTO dubbing_gold_orders(job_id,user_id,project_id,gold,state,created,updated) VALUES(?,'owner',?,50,'refund_review',0,0)").run(j.id,f.p.id);
+ const body={updated:0,note:'Worker failed before sending the external request',unsubmittedConfirmed:true};
+ assert.equal((await f.call(path,'POST',body,'other')).status,403);
+ assert.equal((await f.call(path,'POST',{...body,unsubmittedConfirmed:false})).status,409);
+ assert.equal((await f.call(path,'POST',body)).status,409,'incomplete refund blocks reset');
+ f.sql.prepare("UPDATE dubbing_gold_orders SET state='refunded' WHERE job_id=?").run(j.id);
+ f.sql.prepare("UPDATE dubbing_sound_assets SET provider_id='media_actual' WHERE job_id=?").run(j.id);
+ assert.equal((await f.call(path,'POST',body)).status,409,'an externally submitted request must be reconciled separately');
+ f.sql.prepare('UPDATE dubbing_sound_assets SET provider_id=NULL WHERE job_id=?').run(j.id);
+ const r=await f.call(path,'POST',body);assert.equal(r.status,200,JSON.stringify(r));
+ assert.equal((await f.call(path,'POST',body)).status,409,'reset cannot replay');
+ assert.equal(f.sql.prepare('SELECT state FROM dubbing_gold_orders').get().state,'refunded');
+ assert.equal(f.sql.prepare('SELECT COUNT(*) n FROM dubbing_sound_assets').get().n,1);
+ assert.equal(f.sql.prepare("SELECT COUNT(*) n FROM admin_audit WHERE action='dubbing-sound-reset'").get().n,1);
+ assert.equal((await f.call(`/api/dubbing/projects/${f.p.id}/sound`)).body.sound.state,'not_started');
+ assert.equal(f.sql.prepare('SELECT COUNT(*) n FROM dubbing_sound_jobs').get().n,1,'recovery does not create or charge a job');
+ assert.equal((await f.call('/api/admin/dubbing')).body.jobs.length,0);
 });

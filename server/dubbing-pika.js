@@ -29,7 +29,7 @@ export async function pikaSubmit(env,cue,requestId,fetcher=fetch){
  if(!pikaAvailable(env))fail(503,'Pika 연동 또는 유료 API 실행 승인을 기다리고 있습니다.');
  const r=pikaRequest(cue),response=await fetcher(`${PIKA_ORIGIN}/v1/media/${r.model}`,{
   method:'POST',headers:{'X-API-Key':env.PIKA_API_KEY,'Content-Type':'application/json','Idempotency-Key':requestId},
-  body:JSON.stringify(r.body),signal:AbortSignal.timeout(45000),redirect:'error'});
+  body:JSON.stringify(r.body),signal:AbortSignal.timeout(45000),redirect:'manual'});
  // Rejections can carry a real job ID and billing; preserve that envelope too.
  let data;try{data=await response.json();}catch{}
  if(!data?.id){
@@ -41,7 +41,7 @@ export async function pikaSubmit(env,cue,requestId,fetcher=fetch){
 }
 export async function pikaPoll(env,providerId,fetcher=fetch){
  if(!env.PIKA_API_KEY||!/^media_[\w-]{1,160}$/.test(providerId))fail(503,'Pika 작업 조회 설정이 필요합니다.');
- const response=await fetcher(`${PIKA_ORIGIN}/v1/media/jobs/${providerId}`,{headers:{'X-API-Key':env.PIKA_API_KEY},signal:AbortSignal.timeout(20000),redirect:'error'});
+ const response=await fetcher(`${PIKA_ORIGIN}/v1/media/jobs/${providerId}`,{headers:{'X-API-Key':env.PIKA_API_KEY},signal:AbortSignal.timeout(20000),redirect:'manual'});
  if(!response.ok)fail(502,'Pika 작업 상태를 일시적으로 확인하지 못했습니다.');
  const result=job(await response.json());if(result.id!==providerId)fail(502,'Pika 작업 식별자가 일치하지 않습니다.');return result;
 }

@@ -313,6 +313,11 @@
 
   async function loadTrackReview(){
     const box=$('#track-review-content');
+    if(!$('#cover-purge-tools')){
+      const tools=document.createElement('section');tools.id='cover-purge-tools';tools.className='admin-card';
+      tools.innerHTML='<h2>사이트 전체 커버 관리</h2><p>원곡과 더빙 작품을 제외한 모든 회원의 커버곡을 확인합니다.</p><button class="small-button danger" id="cover-purge-preview">전체 커버 삭제 대상 확인</button><div id="cover-purge-result"></div>';
+      box.before(tools);$('#cover-purge-preview').onclick=previewCoverPurge;
+    }
     box.innerHTML='<div class="panel-loader">음원 검토 목록을 불러오는 중입니다.</div>';
     const view=$('#track-review-filter').value,q=$('#track-review-search').value.trim();
     try{
@@ -324,6 +329,24 @@
         return '<article class="management-card"><div class="management-card-head"><div><h3>'+esc(x.title)+'</h3><p>'+esc(x.producer)+' · '+esc(statusName(x.status))+'</p></div><span class="soft-badge">신고 '+num(x.report_count)+'</span></div><div class="management-meta">'+reasons+'<span class="soft-badge">최근 재생 '+(x.last_played?kstDate(x.last_played):'없음')+'</span></div><div class="management-actions"><button class="small-button '+(action==='remove'?'danger':'good')+'" data-track-action="'+action+'" data-id="'+esc(x.id)+'">'+(action==='remove'?'공개에서 제거':'공개 복구')+'</button></div></article>';
       }).join('');
     }catch(error){box.innerHTML='<div class="empty-state">'+esc(error.message)+'</div>';}
+  }
+
+  async function previewCoverPurge(){
+    const box=$('#cover-purge-result');
+    try{
+      const d=await api('/api/admin/track-review/covers/purge');
+      box.innerHTML='<h3>삭제 대상 '+num(d.count)+'곡</h3><p>삭제 후 사이트에서 다시 공개할 수 없습니다. 선물·정산 기록은 유지됩니다.</p>'+
+        '<div class="management-list">'+d.tracks.map(t=>'<p>'+esc(t.title)+' · '+esc(t.status)+'</p>').join('')+'</div>'+
+        (d.count?'<button class="small-button danger" id="cover-purge-confirm">위 커버 '+num(d.count)+'곡 전체 삭제</button>':'<p>삭제할 커버곡이 없습니다.</p>');
+      if(d.count)$('#cover-purge-confirm').onclick=async e=>{
+        e.currentTarget.disabled=true;
+        try{
+          const result=await api('/api/admin/track-review/covers/purge',{method:'POST',body:JSON.stringify({snapshot:d.snapshot,count:d.count,confirm:'DELETE_ALL_COVERS'})});
+          box.innerHTML='<p role="status">커버 '+num(result.deleted)+'곡을 삭제했습니다. 원곡과 더빙 작품은 유지됩니다.</p>';
+          await loadTrackReview();
+        }catch(error){box.textContent=error.message;}
+      };
+    }catch(error){box.textContent=error.message;}
   }
 
   async function changeTrackVisibility(id,action){
@@ -430,9 +453,10 @@
         kpiCard('$','Pika 확정 비용','$'+amount.toFixed(6),'원화 추정 '+money(d.pika.estimated_krw)),
         kpiCard('◇','신고·이의신청',num(d.summary.open_reports),'운영자 검토 필요'),
         kpiCard('▶','광고 보상',num(d.summary.ad_rewards),'최근 '+d.days+'일 · 웹 화면 광고')
-      ].join('')+'</div><article class="admin-card"><h2>음향 제작 가격</h2><form id="dubbing-price-form" class="inline-controls"><label>작품당 Gold <input name="gold" type="number" min="1" max="10000" step="1" required value="'+d.settings.soundGold+'"></label><button class="primary-button" type="submit">가격 저장</button></form><p>기존 결제 금액은 유지됩니다. 변경된 가격은 다음 제작 확인창부터 적용됩니다.</p><p>실제 골드 차감: '+(d.flags.charging?'켜짐':'꺼짐')+' · 유료 API 실행: '+(d.flags.paidAPI?'켜짐':'꺼짐')+'</p></article><article class="admin-card"><h2>비용 · 사용량</h2><p>'+esc(d.costNote)+'</p><p>미정산·미확인 비용 '+num(d.pika.unsettled_costs)+'건 · 환율 미설정 '+num(d.pika.missing_fx)+'건</p><div class="management-list">'+d.generations.map(x=>'<div class="management-meta"><b>'+esc(x.kind==='script'?'대본':'음향 계획')+'</b><span>'+esc(x.state)+' '+num(x.count)+'건</span><span>입력 '+num(x.input_tokens)+' · 출력 '+num(x.output_tokens)+' 토큰</span></div>').join('')+'</div></article><article class="admin-card"><div class="card-heading"><h2>실패 · 확인 필요 작업</h2><button class="small-button" id="dubbing-reconcile">미처리 환급 확인</button></div><p>Pika 결과가 불명확한 작업은 유료 생성을 반복하지 않습니다. 최종 녹음 합성은 저장된 파일로만 재시도합니다.</p>'+ (d.jobs.length?d.jobs.map(j=>'<div class="management-card"><h3>'+esc(j.title)+'</h3><p>'+esc(j.kind==='final'?'최종 합성':'배경 음향')+' · '+esc(j.state)+' · 시도 '+j.attempts+'</p><p>'+esc(j.error)+'</p>'+(j.can_retry?'<label class="dubbing-review-note">재시도 사유<textarea maxlength="2000" rows="2" required></textarea></label><button class="small-button" data-final-retry="'+esc(j.id)+'" data-updated="'+j.updated+'">최종 합성 재시도</button>':'')+'</div>').join(''):'<div class="empty-state">확인이 필요한 작업이 없습니다.</div>')+'</article><article class="admin-card"><h2>Gold 이용·환급 내역</h2><div class="data-table-wrap"><table><thead><tr><th>작품</th><th>사용</th><th>환급</th><th>상태</th><th>일시</th></tr></thead><tbody>'+d.payments.map(p=>'<tr><td>'+esc(p.title)+'</td><td>'+p.gold+'G</td><td>'+p.refunded_gold+'G</td><td>'+esc(p.state)+'</td><td>'+kstDateTime(p.created)+'</td></tr>').join('')+'</tbody></table></div></article>';
+      ].join('')+'</div><article class="admin-card"><h2>음향 제작 가격</h2><form id="dubbing-price-form" class="inline-controls"><label>작품당 Gold <input name="gold" type="number" min="1" max="10000" step="1" required value="'+d.settings.soundGold+'"></label><button class="primary-button" type="submit">가격 저장</button></form><p>기존 결제 금액은 유지됩니다. 변경된 가격은 다음 제작 확인창부터 적용됩니다.</p><p>실제 골드 차감: '+(d.flags.charging?'켜짐':'꺼짐')+' · 유료 API 실행: '+(d.flags.paidAPI?'켜짐':'꺼짐')+'</p></article><article class="admin-card"><h2>비용 · 사용량</h2><p>'+esc(d.costNote)+'</p><p>미정산·미확인 비용 '+num(d.pika.unsettled_costs)+'건 · 환율 미설정 '+num(d.pika.missing_fx)+'건</p><div class="management-list">'+d.generations.map(x=>'<div class="management-meta"><b>'+esc(x.kind==='script'?'대본':'음향 계획')+'</b><span>'+esc(x.state)+' '+num(x.count)+'건</span><span>입력 '+num(x.input_tokens)+' · 출력 '+num(x.output_tokens)+' 토큰</span></div>').join('')+'</div></article><article class="admin-card"><div class="card-heading"><h2>실패 · 확인 필요 작업</h2><button class="small-button" id="dubbing-reconcile">미처리 환급 확인</button></div><p>Pika 결과가 불명확한 작업은 유료 생성을 반복하지 않습니다. 최종 녹음 합성은 저장된 파일로만 재시도합니다.</p>'+ (d.jobs.length?d.jobs.map(j=>'<div class="management-card"><h3>'+esc(j.title)+'</h3><p>'+esc(j.kind==='final'?'최종 합성':'배경 음향')+' · '+esc(j.state)+' · 시도 '+j.attempts+'</p><p>'+esc(j.error)+'</p>'+(j.kind==='sound'?'<p>환급 기록을 보존하며 사용자가 새 제작을 요청할 수 있게 준비합니다. 자동 제작·차감은 하지 않습니다.</p><label>확인 사유<textarea data-reset-note maxlength="500" rows="2" required></textarea></label>'+(j.state==='unknown'?'<label><input type="checkbox" data-unsubmitted> 외부 요청이 전송되지 않은 것을 확인했습니다.</label>':'')+'<button class="small-button" data-sound-reset="'+esc(j.id)+'" data-updated="'+j.updated+'" data-unknown="'+(j.state==='unknown')+'">실패한 음향 다시 준비</button>':'')+(j.can_retry?'<label class="dubbing-review-note">재시도 사유<textarea maxlength="2000" rows="2" required></textarea></label><button class="small-button" data-final-retry="'+esc(j.id)+'" data-updated="'+j.updated+'">최종 합성 재시도</button>':'')+'</div>').join(''):'<div class="empty-state">확인이 필요한 작업이 없습니다.</div>')+'</article><article class="admin-card"><h2>Gold 이용·환급 내역</h2><div class="data-table-wrap"><table><thead><tr><th>작품</th><th>사용</th><th>환급</th><th>상태</th><th>일시</th></tr></thead><tbody>'+d.payments.map(p=>'<tr><td>'+esc(p.title)+'</td><td>'+p.gold+'G</td><td>'+p.refunded_gold+'G</td><td>'+esc(p.state)+'</td><td>'+kstDateTime(p.created)+'</td></tr>').join('')+'</tbody></table></div></article>';
       $('#dubbing-price-form').onsubmit=async e=>{e.preventDefault();const b=e.currentTarget.querySelector('button');b.disabled=true;try{await api('/api/admin/dubbing/settings',{method:'PUT',body:JSON.stringify({soundGold:Number(e.currentTarget.elements.gold.value),version:d.settings.version})});toast('제작 가격을 저장했습니다.');await loadDubbing();}catch(err){toast(err.message);}finally{b.disabled=false;}};
       $('#dubbing-reconcile').onclick=async e=>{e.currentTarget.disabled=true;try{await api('/api/admin/dubbing/reconcile',{method:'POST',body:'{}'});await loadDubbing();toast('환급 상태를 확인했습니다.');}catch(err){toast(err.message);loadDubbing();}};
+      $$('[data-sound-reset]',box).forEach(b=>b.onclick=async()=>{const card=b.closest('.management-card'),input=card.querySelector('[data-reset-note]'),note=input.value.trim(),confirmed=!!card.querySelector('[data-unsubmitted]')?.checked;if(!note){input.reportValidity();return;}if(b.dataset.unknown==='true'&&!confirmed){toast('외부 요청이 전송되지 않았는지 먼저 확인해주세요.');return;}b.disabled=true;try{await api('/api/admin/dubbing/sound/'+b.dataset.soundReset+'/reset',{method:'POST',body:JSON.stringify({updated:Number(b.dataset.updated),note,unsubmittedConfirmed:confirmed})});toast('새 음향을 요청할 수 있게 준비했습니다. 자동 차감은 없습니다.');await loadDubbing();}catch(err){toast(err.message);b.disabled=false;}});
       $$('[data-final-retry]',box).forEach(b=>b.onclick=async()=>{const input=b.closest('.management-card').querySelector('textarea'),note=input.value.trim();if(!note){input.reportValidity();return;}b.disabled=true;try{await api('/api/admin/dubbing/final/'+b.dataset.finalRetry+'/retry',{method:'POST',body:JSON.stringify({updated:Number(b.dataset.updated),note})});toast('최종 합성을 다시 예약했습니다.');await loadDubbing();}catch(err){toast(err.message);b.disabled=false;}});
     }catch(e){box.innerHTML='<div class="empty-state">'+esc(e.message)+'</div>';}
   }
