@@ -78,6 +78,19 @@ test('expired response releases turn and invalid response URLs never receive the
  await assert.rejects(retrieveDubbingScript(enabled,'https://example.test',options,async()=>{called=true;}));
  assert.equal(called,false);
 });
+test('legacy failed acknowledgement with NULL result restores the actual daily quota',async t=>{
+ let calls=0;t.mock.method(globalThis,'fetch',async()=>{calls++;throw new Error('Must not submit');});
+ const f=await fixture(t,enabled),id=crypto.randomUUID(),at=Math.floor(Date.now()/1000);
+ f.sql.prepare("INSERT INTO dubbing_generations(id,user_id,input_hash,state,result_json,created,updated) VALUES(?,'owner','legacy-null','unknown',NULL,?,?)").run(id,at,at);
+ assert.equal((await f.call('/api/dubbing/config')).body.quota.remaining,0);
+ for(let i=0;i<2;i++){
+  const result=(await f.call('/api/dubbing/generations/'+id)).body;
+  assert.equal(result.quotaRestored,true);
+  assert.equal((await f.call('/api/dubbing/config')).body.quota.remaining,1);
+ }
+ assert.equal(calls,0);
+ assert.equal(JSON.parse(f.sql.prepare('SELECT result_json FROM dubbing_generations WHERE id=?').get(id).result_json).quotaRestored,true);
+});
 test('lost DB acknowledgement preserves the committed provider ID instead of destroying recoverability',async t=>{
  let posts=0;t.mock.method(globalThis,'fetch',async()=>{posts++;return Response.json({id:'resp_test',status:'queued'});});
  const f=await fixture(t,enabled),prepare=f.DB.prepare;let interrupted=false;

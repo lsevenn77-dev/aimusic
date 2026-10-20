@@ -27,7 +27,7 @@ export async function reconcileDubbingGeneration(env,g){
  if(g?.state==='unknown'&&!g.provider_id){
   // A lost submission acknowledgement cannot be fetched. Keep the unknown cost
   // outcome for audit but release the user's free script turn, not a Gold refund.
-  await run(env,`UPDATE dubbing_generations SET result_json=json_set(result_json,'$.quotaRestored',json('true')),
+  await run(env,`UPDATE dubbing_generations SET result_json=json_set(COALESCE(result_json,'{}'),'$.quotaRestored',json('true')),
    error='이전 요청의 조회 번호를 받지 못해 대본을 복구할 수 없어요. 무료 작성 횟수는 복원됐어요. 새 대본은 직접 작성 버튼을 눌러 시작해주세요.'
    WHERE id=? AND state='unknown' AND provider_id=''`,g.id);
   g=await one(env,'SELECT * FROM dubbing_generations WHERE id=?',g.id);
