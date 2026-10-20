@@ -129,7 +129,6 @@ async function improvementsView(base,param,raw){
   if(param==='crew')return dmWorkspaceView(await crewChatView(raw));
   if(param==='blocked')return blockedPeopleView();
   if(!param){const d=await api('/api/dm');return {html:dmInboxHTML(d),inbox:true};}
-  const blockList=await api('/api/blocks');if(blockList.blocks.some(p=>p.profile_id===param))return blockedPeopleView(param,blockList);
   let d;try{d=await api('/api/dm/'+encodeURIComponent(param));}catch(e){if(e.status===403){const blocked=await blockedPeopleView(param);if(blocked)return blocked;}throw e;}return dmWorkspaceView({html:'<header class="dm-thread-header"><a href="#dm" class="small-button dm-back" aria-label="대화 목록으로 돌아가기">'+icon('back')+' 뒤로</a>'+dmProfileLink(d.peer,portrait(d.peer,'producer')+'<div><h1>'+esc(d.peer.name)+'</h1><small>프로필 보기</small></div>','dm-thread-person')+dmThreadActions(d.peer,d.settings)+'</header>'+chatPanelHTML('개인 메시지',d,d.peer),chat:{path:'/api/dm/'+param,peer:d.peer,initial:d}});
  }
  return null;

@@ -358,6 +358,69 @@
       "when": 1792312087164,
       "tag": "0050_furry_butterfly",
       "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "6",
+      "when": 1792488037199,
+      "tag": "0051_voice_music_permissions",
+      "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "6",
+      "when": 1792488037200,
+      "tag": "0052_silky_puff_adder",
+      "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "6",
+      "when": 1792492751052,
+      "tag": "0053_woozy_bill_hollister",
+      "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "6",
+      "when": 1792494395448,
+      "tag": "0054_unknown_war_machine",
+      "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "6",
+      "when": 1792496063854,
+      "tag": "0055_spooky_lilith",
+      "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "6",
+      "when": 1792497583488,
+      "tag": "0056_outstanding_spyke",
+      "breakpoints": true
+    },
+    {
+      "idx": 57,
+      "version": "6",
+      "when": 1792498068834,
+      "tag": "0057_curvy_maximus",
+      "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "6",
+      "when": 1792500103665,
+      "tag": "0058_stormy_tomas",
+      "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "6",
+      "when": 1792500791081,
+      "tag": "0059_cold_surge",
+      "breakpoints": true
     }
   ]
 }

@@ -22,9 +22,9 @@ export const tracks=sqliteTable('tracks',{
  releaseDate:text('release_date').notNull().default(''),
  id:text('id').primaryKey(),userId:text('user_id').notNull().references(()=>users.id),artistId:text('artist_id').notNull().references(()=>artists.id),producerId:text('producer_id').notNull().references(()=>producers.id),title:text('title').notNull(),genre:text('genre').notNull(),genresJson:text('genres_json').notNull().default('[]'),moodsJson:text('moods_json').notNull().default('[]'),classificationSource:text('classification_source').notNull().default('legacy'),classificationUpdated:integer('classification_updated').notNull().default(0),classificationRevision:integer('classification_revision').notNull().default(0),tags:text('tags').notNull().default(''),description:text('description').notNull().default(''),lyrics:text('lyrics').notNull().default(''),lyricsMode:text('lyrics_mode').notNull().default('none'),aiTool:text('ai_tool').notNull(),isAi:integer('is_ai').notNull().default(1),participation:text('participation').notNull().default(''),rightsAccepted:integer('rights_accepted').notNull(),status:text('status').notNull().default('uploading'),originalKey:text('original_key').notNull().default(''),originalExt:text('original_ext').notNull(),originalBytes:integer('original_bytes').notNull(),duration:real('duration').notNull().default(0),hasCover:integer('has_cover').notNull().default(0),coverVersion:text('cover_version').notNull().default(''),coverType:text('cover_type').notNull().default(''),error:text('error'),created:integer('created').notNull(),leaseUntil:integer('lease_until').notNull().default(0),leaseToken:text('lease_token'),attempts:integer('attempts').notNull().default(0),karaokeTerms:text('karaoke_terms').notNull().default(''),karaokeAt:integer('karaoke_at').notNull().default(0),kind:text('kind').notNull().default('original'),originalId:text('original_id'),performanceMode:text('performance_mode').notNull().default('solo'),coverMode:text('cover_mode').notNull().default('solo'),duetParentId:text('duet_parent_id').references(()=>tracks.id),duetPart:text('duet_part').notNull().default(''),duetOpen:integer('duet_open').notNull().default(0),duetGuide:text('duet_guide').notNull().default(''),uploadedAt:integer('uploaded_at').notNull().default(0)
 },t=>[index('tracks_status_created').on(t.status,t.created),index('tracks_original').on(t.originalId,t.status),index('tracks_user').on(t.userId),index('tracks_duet_parent').on(t.duetParentId,t.status),index('tracks_duet_open').on(t.coverMode,t.duetOpen,t.status,t.created),index('tracks_upload_quota').on(t.userId,t.kind,t.uploadedAt),index('tracks_artist').on(t.artistId),index('tracks_producer').on(t.producerId)]);
-export const likes=sqliteTable('likes',{userId:text('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),trackId:text('track_id').notNull().references(()=>tracks.id,{onDelete:'cascade'}),created:integer('created').notNull()},t=>[primaryKey({columns:[t.userId,t.trackId]}),index('likes_track').on(t.trackId),index('likes_track_created').on(t.trackId,t.created)]);
+export const likes=sqliteTable('likes',{userId:text('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),trackId:text('track_id').references(()=>tracks.id,{onDelete:'cascade'}),dubbingId:text('dubbing_id').references(()=>dubbingProjects.id,{onDelete:'cascade'}),created:integer('created').notNull()},t=>[uniqueIndex('likes_user_track').on(t.userId,t.trackId),uniqueIndex('likes_user_dubbing').on(t.userId,t.dubbingId),index('likes_track').on(t.trackId),index('likes_track_created').on(t.trackId,t.created),check('likes_one_target',sql`(${t.trackId} IS NOT NULL) != (${t.dubbingId} IS NOT NULL)`)]);
 export const follows=sqliteTable('follows',{userId:text('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),kind:text('kind').notNull(),targetId:text('target_id').notNull(),created:integer('created').notNull()},t=>[primaryKey({columns:[t.userId,t.kind,t.targetId]}),index('follows_target').on(t.kind,t.targetId)]);
-export const comments=sqliteTable('comments',{id:text('id').primaryKey(),trackId:text('track_id').notNull().references(()=>tracks.id,{onDelete:'cascade'}),userId:text('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),parentId:text('parent_id'),body:text('body').notNull(),timestamp:real('timestamp'),created:integer('created').notNull(),edited:integer('edited'),deletedAt:integer('deleted_at').notNull().default(0),deletedBy:text('deleted_by')},t=>[index('comments_track').on(t.trackId,t.created)]);
+export const comments=sqliteTable('comments',{id:text('id').primaryKey(),trackId:text('track_id').references(()=>tracks.id,{onDelete:'cascade'}),dubbingId:text('dubbing_id').references(()=>dubbingProjects.id,{onDelete:'cascade'}),userId:text('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),parentId:text('parent_id'),body:text('body').notNull(),timestamp:real('timestamp'),created:integer('created').notNull(),edited:integer('edited'),deletedAt:integer('deleted_at').notNull().default(0),deletedBy:text('deleted_by')},t=>[index('comments_track').on(t.trackId,t.created),index('comments_dubbing').on(t.dubbingId,t.created),check('comments_one_target',sql`(${t.trackId} IS NOT NULL) != (${t.dubbingId} IS NOT NULL)`)]);
 export const commentLikes=sqliteTable('comment_likes',{userId:text('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),commentId:text('comment_id').notNull().references(()=>comments.id,{onDelete:'cascade'})},t=>[primaryKey({columns:[t.userId,t.commentId]})]);
 export const playlists=sqliteTable('playlists',{imageVersion:text('image_version').notNull().default(''),imageType:text('image_type').notNull().default(''),id:text('id').primaryKey(),userId:text('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),name:text('name').notNull(),description:text('description').notNull().default(''),isPublic:integer('is_public').notNull().default(0),created:integer('created').notNull()},t=>[index('playlists_owner').on(t.userId)]);
 export const playlistTracks=sqliteTable('playlist_tracks',{playlistId:text('playlist_id').notNull().references(()=>playlists.id,{onDelete:'cascade'}),trackId:text('track_id').notNull().references(()=>tracks.id,{onDelete:'cascade'}),created:integer('created').notNull(),position:integer('position').notNull().default(0)},t=>[primaryKey({columns:[t.playlistId,t.trackId]})]);
@@ -88,8 +88,8 @@ export const commentReports=sqliteTable('comment_reports',{
 },t=>[uniqueIndex('comment_reports_reporter').on(t.commentId,t.userId),index('comment_reports_status').on(t.status,t.created)]);
 
 export const trackReports=sqliteTable('track_reports',{
- id:text('id').primaryKey(),trackId:text('track_id').notNull().references(()=>tracks.id,{onDelete:'cascade'}),userId:text('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),reason:text('reason').notNull(),details:text('details').notNull().default(''),created:integer('created').notNull()
-},t=>[uniqueIndex('track_reports_reporter').on(t.trackId,t.userId),index('track_reports_reason').on(t.trackId,t.reason)]);
+ id:text('id').primaryKey(),trackId:text('track_id').references(()=>tracks.id,{onDelete:'cascade'}),dubbingId:text('dubbing_id').references(()=>dubbingProjects.id,{onDelete:'cascade'}),userId:text('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),reason:text('reason').notNull(),details:text('details').notNull().default(''),created:integer('created').notNull(),rightsholder:text('rightsholder').notNull().default(''),contact:text('contact').notNull().default(''),evidenceJson:text('evidence_json').notNull().default('[]'),status:text('status').notNull().default('pending'),decision:text('decision').notNull().default(''),appeal:text('appeal').notNull().default(''),appealEvidenceJson:text('appeal_evidence_json').notNull().default('[]'),version:integer('version').notNull().default(1),resolvedBy:text('resolved_by'),resolvedAt:integer('resolved_at').notNull().default(0)
+},t=>[uniqueIndex('track_reports_reporter').on(t.trackId,t.userId),index('track_reports_reason').on(t.trackId,t.reason),uniqueIndex('reports_dubbing_reporter').on(t.dubbingId,t.userId),index('reports_dubbing_status').on(t.dubbingId,t.status),check('reports_one_target',sql`(${t.trackId} IS NOT NULL) != (${t.dubbingId} IS NOT NULL)`)]);
 
 // Verified lossless originals; committed jobs retry WAV cleanup without re-encoding or affecting playback.
 export const originalArchives=sqliteTable('original_archives',{
@@ -183,3 +183,84 @@ export const chartDailySnapshots=sqliteTable('chart_daily_snapshots',{day:text('
 export const karaokeVocalParts=sqliteTable('karaoke_vocal_parts',{
  trackId:text('track_id').primaryKey().references(()=>tracks.id,{onDelete:'cascade'}),jobId:text('job_id').notNull(),version:integer('version').notNull(),state:text('state').notNull().default('queued'),attempts:integer('attempts').notNull().default(0),leaseToken:text('lease_token').notNull().default(''),leaseUntil:integer('lease_until').notNull().default(0),resultJson:text('result_json').notNull().default(''),error:text('error').notNull().default(''),updated:integer('updated').notNull()
 },t=>[index('karaoke_vocal_parts_pending').on(t.state,t.leaseUntil,t.updated)]);
+export const voiceMusicPermissions=sqliteTable('voice_music_permissions',{trackId:text('track_id').primaryKey().references(()=>tracks.id,{onDelete:'cascade'}),ownerId:text('owner_id').notNull().references(()=>users.id),terms:text('terms').notNull(),acceptedAt:integer('accepted_at').notNull()});
+
+// Dubbing is a separate content domain: it never enters the music settlement ledger.
+export const dubbingProjects=sqliteTable('dubbing_projects',{
+ id:text('id').primaryKey(),ownerId:text('owner_id').notNull().references(()=>users.id,{onDelete:'cascade'}),
+ title:text('title').notNull(),optionsJson:text('options_json').notNull(),scriptJson:text('script_json').notNull(),scriptKey:text('script_key').notNull(),
+ creationHash:text('creation_hash').notNull(),source:text('source').notNull().default('manual'),generationId:text('generation_id'),
+ state:text('state').notNull().default('script_ready'),visibility:text('visibility').notNull().default('private'),
+ roleCount:integer('role_count').notNull(),duration:real('duration').notNull(),revision:integer('revision').notNull().default(1),
+ writeToken:text('write_token').notNull(),rightsAt:integer('rights_at').notNull().default(0),firstRecordedAt:integer('first_recorded_at').notNull().default(0),
+ created:integer('created').notNull(),updated:integer('updated').notNull()
+},t=>[index('dubbing_projects_owner').on(t.ownerId,t.updated),index('dubbing_projects_browse').on(t.visibility,t.state,t.created),
+ check('dubbing_roles_range',sql`${t.roleCount} BETWEEN 1 AND 6`),check('dubbing_duration_range',sql`${t.duration} > 0 AND ${t.duration} <= 300`)]);
+export const dubbingRoleClaims=sqliteTable('dubbing_role_claims',{
+ projectId:text('project_id').notNull().references(()=>dubbingProjects.id,{onDelete:'cascade'}),roleId:text('role_id').notNull(),
+ userId:text('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),created:integer('created').notNull()
+},t=>[primaryKey({columns:[t.projectId,t.roleId]}),uniqueIndex('dubbing_one_role_per_user').on(t.projectId,t.userId)]);
+export const dubbingGenerations=sqliteTable('dubbing_generations',{
+ id:text('id').primaryKey(),userId:text('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),inputHash:text('input_hash').notNull(),
+ state:text('state').notNull(),resultJson:text('result_json'),usageJson:text('usage_json').notNull().default('{}'),providerId:text('provider_id').notNull().default(''),
+ error:text('error').notNull().default(''),created:integer('created').notNull(),updated:integer('updated').notNull()
+},t=>[index('dubbing_generations_user').on(t.userId,t.created)]);
+export const dubbingSoundJobs=sqliteTable('dubbing_sound_jobs',{
+ id:text('id').primaryKey(),projectId:text('project_id').notNull().references(()=>dubbingProjects.id,{onDelete:'cascade'}),
+ scriptKey:text('script_key').notNull(),mode:text('mode').notNull(),timelineJson:text('timeline_json').notNull(),
+ state:text('state').notNull().default('queued'),leaseToken:text('lease_token'),leaseUntil:integer('lease_until').notNull().default(0),
+ attempts:integer('attempts').notNull().default(0),nextPoll:integer('next_poll').notNull().default(0),
+ outputKey:text('output_key'),outputMeta:text('output_meta'),error:text('error').notNull().default(''),
+ created:integer('created').notNull(),updated:integer('updated').notNull()
+},t=>[uniqueIndex('dubbing_sound_script').on(t.projectId,t.scriptKey),index('dubbing_sound_queue').on(t.state,t.nextPoll,t.leaseUntil)]);
+export const dubbingSoundAssets=sqliteTable('dubbing_sound_assets',{
+ jobId:text('job_id').notNull().references(()=>dubbingSoundJobs.id,{onDelete:'cascade'}),cueId:text('cue_id').notNull(),
+ state:text('state').notNull().default('pending'),providerId:text('provider_id'),outputUrl:text('output_url'),
+ usageJson:text('usage_json').notNull().default('{}'),billingJson:text('billing_json').notNull().default('{}'),
+ attempts:integer('attempts').notNull().default(0),updated:integer('updated').notNull()
+},t=>[primaryKey({columns:[t.jobId,t.cueId]})]);
+export const dubbingScriptRewards=sqliteTable('dubbing_script_rewards',{
+ transactionId:text('transaction_id').primaryKey(),userId:text('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),
+ day:text('day').notNull(),completedAt:integer('completed_at').notNull()
+},t=>[index('dubbing_rewards_user_day').on(t.userId,t.day)]);
+export const dubbingAdSessions=sqliteTable('dubbing_ad_sessions',{
+ id:text('id').primaryKey(),requestId:text('request_id').notNull(),userId:text('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),
+ day:text('day').notNull(),adUnit:text('ad_unit').notNull(),source:text('source').notNull().default('web_gpt_client'),
+ state:text('state').notNull().default('open'),created:integer('created').notNull(),expiresAt:integer('expires_at').notNull(),completedAt:integer('completed_at').notNull().default(0)
+},t=>[uniqueIndex('dubbing_ad_request').on(t.requestId),index('dubbing_ad_user_state').on(t.userId,t.state),
+ check('dubbing_ad_state',sql`${t.state} IN ('open','granted','cancelled','expired','capped')`)]);
+// Financial history survives project deletion, like the existing gift ledger.
+export const dubbingGoldOrders=sqliteTable('dubbing_gold_orders',{
+ jobId:text('job_id').primaryKey(),userId:text('user_id').notNull().references(()=>users.id),projectId:text('project_id').notNull(),
+ gold:integer('gold').notNull(),state:text('state').notNull().default('charged'),reason:text('reason').notNull().default(''),
+ created:integer('created').notNull(),updated:integer('updated').notNull()
+},t=>[index('dubbing_gold_user').on(t.userId,t.created),index('dubbing_gold_state').on(t.state),
+ check('dubbing_gold_amount',sql`${t.gold} > 0`),check('dubbing_gold_state_valid',sql`${t.state} IN ('charged','fulfilled','refunded','refund_review')`)]);
+export const dubbingGoldLots=sqliteTable('dubbing_gold_lots',{
+ jobId:text('job_id').notNull().references(()=>dubbingGoldOrders.jobId),purchaseId:text('purchase_id').notNull().references(()=>goldPurchases.id),
+ gold:integer('gold').notNull(),refundedGold:integer('refunded_gold').notNull().default(0)
+},t=>[primaryKey({columns:[t.jobId,t.purchaseId]}),check('dubbing_gold_refund_range',sql`${t.gold} > 0 AND ${t.refundedGold} >= 0 AND ${t.refundedGold} <= ${t.gold}`)]);
+export const dubbingRecordings=sqliteTable('dubbing_recordings',{
+ id:text('id').primaryKey(),projectId:text('project_id').notNull().references(()=>dubbingProjects.id,{onDelete:'cascade'}),roleId:text('role_id').notNull(),
+ userId:text('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),scriptKey:text('script_key').notNull(),state:text('state').notNull().default('draft'),
+ revision:integer('revision').notNull().default(1),writeToken:text('write_token').notNull(),rightsAt:integer('rights_at').notNull().default(0),created:integer('created').notNull(),updated:integer('updated').notNull()
+},t=>[uniqueIndex('dubbing_recording_role').on(t.projectId,t.roleId),check('dubbing_recording_state',sql`${t.state} IN ('draft','submitted')`)]);
+export const dubbingRecordingLines=sqliteTable('dubbing_recording_lines',{
+ recordingId:text('recording_id').notNull().references(()=>dubbingRecordings.id,{onDelete:'cascade'}),lineId:text('line_id').notNull(),
+ takeId:text('take_id').notNull(),audioKey:text('audio_key').notNull(),audioHash:text('audio_hash').notNull(),duration:real('duration').notNull(),bytes:integer('bytes').notNull(),updated:integer('updated').notNull()
+},t=>[primaryKey({columns:[t.recordingId,t.lineId]}),uniqueIndex('dubbing_recording_take').on(t.takeId)]);
+export const dubbingFinalJobs=sqliteTable('dubbing_final_jobs',{
+ id:text('id').primaryKey(),projectId:text('project_id').notNull().references(()=>dubbingProjects.id,{onDelete:'cascade'}),scriptKey:text('script_key').notNull(),
+ state:text('state').notNull().default('queued'),manifestJson:text('manifest_json').notNull(),leaseToken:text('lease_token'),leaseUntil:integer('lease_until').notNull().default(0),attempts:integer('attempts').notNull().default(0),
+ outputKey:text('output_key'),outputMeta:text('output_meta'),error:text('error').notNull().default(''),created:integer('created').notNull(),updated:integer('updated').notNull()
+},t=>[uniqueIndex('dubbing_final_project').on(t.projectId,t.scriptKey),index('dubbing_final_queue').on(t.state,t.leaseUntil)]);
+
+// Operator changes are versioned; each sound order keeps its agreed price.
+export const dubbingSettings=sqliteTable('dubbing_settings',{
+ key:text('key').primaryKey(),soundGold:integer('sound_gold').notNull().default(50),version:integer('version').notNull().default(1),updated:integer('updated').notNull(),updatedBy:text('updated_by').notNull()
+},t=>[check('dubbing_settings_singleton',sql`${t.key} = 'default'`),check('dubbing_settings_price',sql`${t.soundGold} BETWEEN 1 AND 10000`)]);
+// Anonymous provider accounting survives content/account removal; no script, audio URL or user data.
+export const dubbingProviderUsage=sqliteTable('dubbing_provider_usage',{
+ jobId:text('job_id').notNull(),cueId:text('cue_id').notNull(),providerId:text('provider_id'),state:text('state').notNull(),
+ usageJson:text('usage_json').notNull().default('{}'),billingJson:text('billing_json').notNull().default('{}'),created:integer('created').notNull(),updated:integer('updated').notNull()
+},t=>[primaryKey({columns:[t.jobId,t.cueId]}),index('dubbing_provider_usage_time').on(t.created)]);

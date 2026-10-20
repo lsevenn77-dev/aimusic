@@ -1,0 +1,108 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {fixture} from './fixture.mjs';
+import {sampleScript,options,memoryBucket} from './dubbing-fixtures.mjs';
+import {dubbingTimeline} from '../shared/dubbing.js';
+import {dubbingRecordingWindows,validateDubbingTake} from '../shared/dubbing-recording.js';
+import {encodeWav} from '../shared/karaoke-audio.js';
+import worker from '../server/index.js';
+import {hash} from '../server/auth.js';
+const wav=(seconds=1)=>encodeWav([Float32Array.from({length:Math.floor(seconds*48000)},(_,i)=>.1*Math.sin(i*.05))],48000);
+async function setup(t){
+ const BUCKET=memoryBucket(),env={DUBBING_ENABLED:'true',DUBBING_SOUND_ENABLED:'true',DUBBING_RECORDING_ENABLED:'true',TRANSCODER_TOKEN:'recording-test',BUCKET};
+ const f=await fixture(t,env);env.DB=f.DB;
+ const script=sampleScript();script.lines.forEach((l,i)=>{const before=l.id;l.id='line_'+(i+1);script.soundCues.forEach(c=>{if(c.lineId===before)c.lineId=l.id;});});
+ let p=(await f.call('/api/dubbing/projects','POST',{id:crypto.randomUUID(),options,script})).body.project;
+ p=(await f.call(`/api/dubbing/projects/${p.id}/publish`,'POST',{revision:p.revision,rightsAccepted:true})).body.project;
+ p=(await f.call(`/api/dubbing/projects/${p.id}/claims/role_1`,'POST',{revision:p.revision})).body.project;
+ const path=`/api/dubbing/projects/${p.id}`,soundId=crypto.randomUUID(),key='local-background',scriptKey=f.sql.prepare('SELECT script_key FROM dubbing_projects WHERE id=?').get(p.id).script_key;
+ await BUCKET.put(key,wav(32));
+ f.sql.prepare("INSERT INTO dubbing_sound_jobs(id,project_id,script_key,mode,timeline_json,state,output_key,created,updated) VALUES(?,?,?,'basic',?,'ready',?,0,0)").run(soundId,p.id,scriptKey,JSON.stringify(dubbingTimeline(p.script)),key);
+ const raw=(route,method='GET',body,user='owner',headers={})=>worker.fetch(new Request('https://aifect.test'+route,{method,headers:{origin:'https://aifect.test',...(user?{cookie:'aifect_session='+user}:{}),...headers},body}),env,{waitUntil(p){p.catch(()=>{});}});
+ const save=(role,line,revision=1,body=wav(),take=crypto.randomUUID(),user='owner')=>raw(`${path}/recording/${role}/lines/${line}?revision=${revision}&take=${take}`,'PUT',body,user,{'content-type':'audio/wav'});
+ const internal=async(action,job,body={},method='POST')=>{
+  const r=await raw('/internal/dubbing-final/'+action,method,method==='GET'?undefined:body instanceof Uint8Array?body:JSON.stringify(body),null,{authorization:'Bearer recording-test',...(job?{'x-job-token':job.lease_token}:{}),'content-type':body instanceof Uint8Array?'audio/mp4':'application/json'});
+  return {status:r.status,response:r,body:r.headers.get('content-type')?.includes('json')?await r.clone().json():null};
+ };
+ return {...f,env,p,path,soundId,raw,save,internal};
+}
+test('recording windows preserve the script clock and PCM duration cannot cross the next line',()=>{
+ const script=sampleScript(),timeline=dubbingRecordingWindows(script);
+ for(const [i,l] of timeline.lines.entries()){assert.ok(l.recordEnd>l.end);assert.ok(l.recordEnd<=(timeline.lines[i+1]?.start??timeline.duration));}
+ assert.equal(validateDubbingTake(wav(),2).duration,1);
+ assert.throws(()=>validateDubbingTake(wav(2),1),/다음 대사/);
+ const bad=wav();bad[22]=2;assert.throws(()=>validateDubbingTake(bad,2),/모노 PCM/);
+ assert.throws(()=>validateDubbingTake(new Uint8Array(200),1),/크기/);
+});
+test('first recording requires a ready background and freezes editing without blocking later casting',async t=>{
+ const f=await setup(t);
+ assert.equal((await f.call(f.path+'/recording/role_1/start','POST',{soundId:'other'})).status,409);
+ assert.equal((await f.call(f.path+'/recording/role_1/start','POST',{soundId:f.soundId})).status,200);
+ assert.ok(f.sql.prepare('SELECT first_recorded_at FROM dubbing_projects WHERE id=?').get(f.p.id).first_recorded_at>0);
+ assert.equal((await f.call(f.path+'/claims/role_1','DELETE',{revision:f.p.revision})).status,409);
+ const p=(await f.call(f.path)).body.project;
+ const claim=await f.call(f.path+'/claims/role_2','POST',{revision:p.revision},'other');assert.equal(claim.status,200,JSON.stringify(claim.body));
+ assert.equal((await f.call(f.path,'PUT',{revision:claim.body.project.revision,options,script:sampleScript()})).status,409);
+ assert.equal((await f.call(f.path+'/unpublish','POST',{revision:claim.body.project.revision})).status,200,'owner can still make recordings private');
+});
+test('draft voice is private; submitted voice becomes available to the next participant',async t=>{
+ const f=await setup(t);await f.call(f.path+'/recording/role_1/start','POST',{soundId:f.soundId});
+ assert.equal((await f.save('role_1','line_1')).status,200);
+ const p=(await f.call(f.path)).body.project;await f.call(f.path+'/claims/role_2','POST',{revision:p.revision},'other');
+ assert.equal((await f.raw(f.path+'/recording/role_1/lines/line_1','GET',undefined,'other')).status,404);
+ assert.equal((await f.raw(f.path+'/recording/role_1/lines/line_1','GET',undefined,null)).status,401);
+ assert.equal((await f.save('role_2','line_2',1,wav(),crypto.randomUUID(),'owner')).status,403);
+ const submit=await f.call(f.path+'/recording/role_1/submit','POST',{revision:2,rightsAccepted:true});assert.equal(submit.status,200,JSON.stringify(submit.body));
+ const theirs=(await f.call(f.path+'/recording','GET',null,'other')).body;
+ assert.ok(theirs.lines.find(l=>l.id==='line_1').audioUrl);
+ assert.equal((await f.raw(f.path+'/recording/role_1/lines/line_1','GET',undefined,'other')).status,200);
+ assert.equal((await f.save('role_1','line_1',3)).status,409,'submitted lines are immutable');
+});
+test('concurrent retakes use CAS, preserve committed audio and replay without advancing revision',async t=>{
+ const f=await setup(t);await f.call(f.path+'/recording/role_1/start','POST',{soundId:f.soundId});
+ const take=crypto.randomUUID(),results=await Promise.all([f.save('role_1','line_1',1,wav(1),take),f.save('role_1','line_1',1,wav(.5),take)]);
+ assert.deepEqual(results.map(r=>r.status).sort(),[200,409]);
+ const row=f.sql.prepare('SELECT * FROM dubbing_recording_lines').get();assert.equal(f.env.BUCKET.objects.get(row.audio_key).length,row.bytes);
+ const data=f.env.BUCKET.objects.get(row.audio_key);
+ assert.equal((await f.save('role_1','line_1',1,data,take)).status,200);
+ assert.equal(f.sql.prepare('SELECT revision FROM dubbing_recordings').get().revision,2);
+ assert.equal((await f.save('role_1','line_1',2,wav(30))).status,413);
+ assert.equal((await f.call(f.path+'/recording/role_1/submit','POST',{revision:2,rightsAccepted:false})).status,400);
+});
+test('all roles must submit before one final job is queued; worker leases and completion are validated',async t=>{
+ const f=await setup(t);await f.call(f.path+'/recording/role_1/start','POST',{soundId:f.soundId});
+ assert.equal((await f.call(f.path+'/recording/role_1/submit','POST',{revision:1,rightsAccepted:true})).status,409);
+ await f.save('role_1','line_1');await f.call(f.path+'/recording/role_1/submit','POST',{revision:2,rightsAccepted:true});
+ assert.equal((await f.internal('claim')).body.job,null);
+ const p=(await f.call(f.path)).body.project;await f.call(f.path+'/claims/role_2','POST',{revision:p.revision},'other');
+ await f.call(f.path+'/recording/role_2/start','POST',{soundId:f.soundId},'other');await f.save('role_2','line_2',1,wav(),crypto.randomUUID(),'other');
+ await Promise.all([f.call(f.path+'/recording/role_2/submit','POST',{revision:2,rightsAccepted:true},'other'),f.call(f.path+'/recording/role_2/submit','POST',{revision:2,rightsAccepted:true},'other')]);
+ assert.equal(f.sql.prepare('SELECT COUNT(*) n FROM dubbing_final_jobs').get().n,1);
+ const job=(await f.internal('claim')).body.job;assert.ok(job);
+ assert.equal((await f.internal('claim')).body.job,null);
+ const manifest=(await f.internal(job.id+'/step',job)).body;assert.equal(manifest.lines.length,2);assert.ok(!JSON.stringify(manifest).includes('dubbing/'));
+ assert.equal((await f.internal(job.id+'/input/line-line_1',job,undefined,'GET')).status,200);
+ assert.equal((await f.internal(job.id+'/input/missing',job,undefined,'GET')).status,404);
+ assert.equal((await f.internal(job.id+'/step',{...job,lease_token:'wrong'})).status,409);
+ assert.equal((await f.internal(job.id+'/finish',job,{sampleRate:48000,duration:manifest.duration,peakDb:-2})).status,409);
+ const output=new Uint8Array(32);output.set(new TextEncoder().encode('ftyp'),4);assert.equal((await f.internal(job.id+'/output',job,output,'PUT')).status,200);
+ assert.equal((await f.internal(job.id+'/finish',job,{sampleRate:48000,duration:manifest.duration,peakDb:2})).status,400);
+ assert.equal((await f.internal(job.id+'/finish',job,{sampleRate:48000,duration:manifest.duration,peakDb:-2})).status,200);
+ assert.equal((await f.call(f.path)).body.project.state,'complete');assert.equal((await f.raw(f.path+'/final')).status,200);
+ assert.equal((await f.call('/api/account/delete','POST',{confirmation:'DELETE'},'other')).status,200);
+ assert.equal((await f.raw(f.path+'/final')).status,404,'removed participant voice cannot stay publicly playable');
+ assert.equal(f.sql.prepare('SELECT state FROM dubbing_final_jobs').get().state,'invalidated');
+ const cleanup=f.sql.prepare('SELECT targets FROM account_file_deletions').get();
+ assert.ok(cleanup.targets.includes('/final/'+job.id+'-'),'deleted voice is removed from the old final object');
+ f.sql.prepare("INSERT INTO users(id,email,name,created) VALUES('replacement','replacement@example.test','새 배역',0)").run();
+ f.sql.prepare('INSERT INTO sessions(token,user_id,expires) VALUES(?,?,?)').run(await hash('replacement'),'replacement',Math.floor(Date.now()/1000)+3600);
+ const refreshed=(await f.call(f.path)).body.project;
+ assert.equal((await f.call(f.path+'/claims/role_2','POST',{revision:refreshed.revision},'replacement')).status,200);
+ await f.call(f.path+'/recording/role_2/start','POST',{soundId:f.soundId},'replacement');
+ assert.equal((await f.save('role_2','line_2',1,wav(),crypto.randomUUID(),'replacement')).status,200);
+ assert.equal((await f.call(f.path+'/recording/role_2/submit','POST',{revision:2,rightsAccepted:true},'replacement')).status,200);
+ const replacement=f.sql.prepare('SELECT id,state,manifest_json FROM dubbing_final_jobs').get();
+ assert.notEqual(replacement.id,job.id);assert.equal(replacement.state,'queued');assert.ok(!replacement.manifest_json.includes('"userId":"other"'));
+ assert.equal((await f.raw(f.path+'/final')).status,404,'old final remains unavailable during replacement mix');
+ assert.deepEqual(f.sql.prepare('PRAGMA foreign_key_check').all(),[]);
+});

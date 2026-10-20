@@ -12,14 +12,16 @@ function libraryOverviewHTML(){
  return '<div class="library-overview"><section class="library-playlists-pane"><div class="section-heading"><h2>나의 플레이리스트</h2><a class="text-link" href="#library/playlists">모두 보기 '+icon('chevron')+'</a></div>'+collectionGrid(collections.slice(0,4),'아직 모아둔 플레이리스트가 없어요.')+'<div class="inline-actions"><button class="small-button" id="new-playlist">'+icon('plus')+' 새 플레이리스트</button><a class="text-link" href="#collections">공개 목록 둘러보기</a></div></section><section class="library-likes-pane"><div class="section-heading"><h2>좋아하는 음악</h2><span>'+number(library.likes.length)+'곡</span></div>'+browsePlaybackActions(library.likes)+'<button class="text-link" data-organize-likes '+(library.likes.length?'':'disabled')+'>선택해서 플레이리스트 만들기</button>'+list(library.likes)+'</section></div>';
 }
 function dmInboxHTML(d,thread='',selected=''){
- return '<div class="message-page-heading">'+heading('메시지','음악으로 이어진 대화, 이곳에서 계속해요.')+'</div><section class="message-workspace'+(thread?' has-thread':'')+'"><aside class="message-list-pane" aria-label="대화 상대 목록"><div class="dm-section-heading"><div><span class="eyebrow">INBOX</span><h2>대화 <small id="dm-inbox-count">'+number(d.conversations.length)+'</small></h2></div>'+inboxControlsHTML()+'</div><div id="dm-conversations">'+conversationListHTML(d.conversations,d.crew,selected)+'</div><p id="dm-list-error" role="status">'+esc(d.error||'')+'</p></aside>'+(thread?'<div class="message-thread-pane" aria-label="선택한 대화">'+thread+'</div>':'<div class="message-welcome"><span class="message-welcome-icon">'+icon('message')+'</span><h2>누구와 이야기할까요?</h2><p>왼쪽에서 대화상대를 선택하면<br>이곳에서 바로 대화할 수 있어요.</p><a class="primary-button" href="#following">'+icon('users')+' 새로운 대화 시작</a></div>')+'</section>';
+ rememberDmInbox(d);
+ return '<div class="message-page-heading">'+heading('메시지','음악으로 이어진 대화, 이곳에서 계속해요.')+'</div><section class="message-workspace'+(thread?' has-thread':'')+'"><aside class="message-list-pane" aria-label="대화 상대 목록">'+dmInboxTabsHTML()+'<div class="dm-section-heading"><div><span class="eyebrow">INBOX</span><h2>대화 <small id="dm-inbox-count">'+number(d.conversations.length)+'</small></h2></div>'+inboxControlsHTML()+'</div><div id="dm-conversations">'+conversationListHTML(d.conversations,d.crew,selected)+'</div><p id="dm-list-error" role="status">'+esc(d.error||'')+'</p></aside>'+(thread?'<div class="message-thread-pane" aria-label="선택한 대화">'+thread+'</div>':'<div class="message-welcome"><span class="message-welcome-icon">'+icon('message')+'</span><h2>누구와 이야기할까요?</h2><p>왼쪽에서 대화상대를 선택하면<br>이곳에서 바로 대화할 수 있어요.</p><a class="primary-button" href="#following">'+icon('users')+' 새로운 대화 시작</a></div>')+'</section>';
 }
 async function dmWorkspaceView(view){
- let inbox;
- try{inbox=await api('/api/dm');}catch(error){inbox={conversations:[],error:'대화 목록을 불러오지 못했어요. '+error.message};}
+ // The thread must not wait for a second inbox request. Refresh the sidebar after paint.
+ const inbox=me?.id&&dmInboxSnapshot?.uid===me.id?dmInboxSnapshot.data:{conversations:[]};
  const selected=view.chat.crew?'crew/'+view.chat.crew.id:view.chat.peer.id;
- return {...view,html:dmInboxHTML(inbox,view.html,selected),inbox:true,selectedConversation:selected};
+ return {...view,html:dmInboxHTML(inbox,view.html,selected),inbox:true,refreshInbox:true,selectedConversation:selected};
 }
+
 function dmPendingView(base,param,raw){
  if(base!=='dm'||!me)return null;
  const main=$('#main'),aside=main?.querySelector('.message-list-pane');

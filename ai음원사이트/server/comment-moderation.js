@@ -1,3 +1,4 @@
+import {assertDubbingPublic} from './dubbing-access.js';
 import {rows,one,run,query,now,id,fail,str,json,rate} from './db.js';
 import {requireUser,isAdmin} from './auth.js';
 import {published} from './catalog.js';
@@ -16,7 +17,7 @@ export async function commentModerationRoute(req,env,path,user){
  if(m){
   requireUser(user);if(req.method!=='POST')fail(405,'지원하지 않는 요청입니다.');
   const c=await one(env,'SELECT * FROM comments WHERE id=?',m[1]);if(!c)fail(404,'댓글을 찾을 수 없습니다.');
-  await published(env,c.track_id);
+  if(c.dubbing_id)await assertDubbingPublic(env,c.dubbing_id,user.id);else await published(env,c.track_id);
   if(c.deleted_at)fail(409,'이미 삭제된 댓글입니다.');
   if(c.user_id===user.id)fail(400,'내 댓글은 신고할 수 없습니다.');
   const b=await req.json();if(!REPORT_REASONS.includes(b.reason))fail(400,'신고 사유를 선택해주세요.');
@@ -31,7 +32,7 @@ export async function commentModerationRoute(req,env,path,user){
  if(path==='/api/admin/comment-reports'&&req.method==='GET'){
   const status=new URL(req.url).searchParams.get('status')||'pending';
   if(!['pending','dismissed','removed'].includes(status))fail(400,'처리 상태를 확인해주세요.');
-  return json({reports:await rows(env,`SELECT r.*,c.track_id,c.user_id author_id,c.deleted_at,t.title FROM comment_reports r JOIN comments c ON c.id=r.comment_id JOIN tracks t ON t.id=c.track_id WHERE r.status=? ORDER BY r.created LIMIT 100`,status)});
+  return json({reports:await rows(env,`SELECT r.*,c.track_id,c.dubbing_id,c.user_id author_id,c.deleted_at,COALESCE(t.title,p.title) title FROM comment_reports r JOIN comments c ON c.id=r.comment_id LEFT JOIN tracks t ON t.id=c.track_id LEFT JOIN dubbing_projects p ON p.id=c.dubbing_id WHERE r.status=? ORDER BY r.created LIMIT 100`,status)});
  }
  m=path.match(/^\/api\/admin\/comment-reports\/([\w-]+)$/);
  if(m&&req.method==='PATCH'){

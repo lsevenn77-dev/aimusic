@@ -6,7 +6,7 @@ function chartMovementHTML(t){
 }
 // Shared navigation for listening, singing and the community on desktop and mobile.
 function updateBrowseNavigation(base,param){
- const primary=['karaoke','sing','cover'].includes(base)?'karaoke':['community','covers','crew','producer','artist','following'].includes(base)?'community':base==='dm'?'dm':base==='notifications'?'notifications':['inventory','profile','account','studio','manage','upload','payouts','rewards'].includes(base)?'profile':['library','history'].includes(base)?'home':'home';
+ const primary=['karaoke','sing','cover','dubbing'].includes(base)?'karaoke':['community','voice','covers','crew','producer','artist','following'].includes(base)?'community':base==='dm'?'dm':base==='notifications'?'notifications':['inventory','profile','account','studio','manage','upload','payouts','rewards'].includes(base)?'profile':['library','history'].includes(base)?'home':'home';
  const routeHref='#'+base+(param?'/'+param:''),hasSidebarPage=[...document.querySelectorAll('.sidebar .nav-link[data-view]:not([data-primary-view])')].some(a=>a.getAttribute('href')===routeHref);
  document.querySelectorAll('[data-primary-view]').forEach(a=>{const inSidebar=!!a.closest('.sidebar'),active=!(inSidebar&&hasSidebarPage)&&a.dataset.primaryView===(inSidebar&&['library','history'].includes(base)?'library':primary);a.classList.toggle('active',active);if(active)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});
  document.querySelectorAll('.nav-link[data-view]:not([data-primary-view])').forEach(a=>{const active=a.getAttribute('href')==='#'+base+(param?'/'+param:'');a.classList.toggle('active',active);if(active)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});

@@ -27,7 +27,7 @@ main[data-route^="karaoke"],main[data-route^="studio"],main[data-route^="upload"
 .community-handnote{color:#df98bc;text-shadow:0 0 18px #e68db529;font-family:'Noto Sans KR',sans-serif;font-weight:400}
 .community-crew-invite{background:linear-gradient(90deg,#0b111bf2 0%,#101520ae 51%,#10141e16),url('/assets/atmosphere/community-studio-v1.webp') 67% center/cover;min-height:218px;box-shadow:inset 0 0 30px #0003}
 .community-crew-invite>span{display:none}.community-crew-invite p{max-width:195px;color:#c6c5d1}.community-crew-invite h3{max-width:220px;text-shadow:0 2px 15px #000}
-.message-welcome{background:linear-gradient(130deg,#1c233157,#2321309e),url('/assets/atmosphere/conversation-v1.svg') center 25%/min(85%,540px) auto no-repeat,radial-gradient(ellipse at 65% 35%,#8155752b,transparent 65%)}
+.message-welcome{background:#1c2230}
 .message-welcome-icon{box-shadow:0 0 55px #df8fbe17;border:1px solid #e8afcf12}
 .home-invitation{background:linear-gradient(90deg,#151d2cef,#1a2030bf),url('/assets/atmosphere/community-studio-v1.webp') center/cover}
 .sing-discover-card{background:radial-gradient(ellipse at 100% 120%,#a9648750,transparent 68%),#262334}.sing-discover-card.duet{background:radial-gradient(ellipse at 100% 120%,#65999f42,transparent 68%),#1f2c39}
@@ -120,3 +120,6 @@ main[data-route^="sing/"]>.page-heading .free-badge{display:none}
  body.chat-active main::before{display:none}
 }
 @media(prefers-reduced-motion:reduce){.page-wrap{background-attachment:scroll}#sing .studio-record{transition:none}}
+
+/* Messages use a plain background without decorative artwork. */
+main[data-route="dm"]::before,main[data-route^="dm/"]::before{display:none}

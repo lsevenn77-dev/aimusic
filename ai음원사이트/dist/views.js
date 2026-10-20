@@ -15,7 +15,9 @@ function saveNavigationSnapshot(raw,html,tracks,explorer,scroll=0){
  while(navigationSnapshots.size>24)navigationSnapshots.delete(navigationSnapshots.keys().next().value);
 }
 function bindRenderedRoute(base,param,explorer,ticket){
+ if(typeof bindVoice==='function')bindVoice(base,param);
  icons();paintInteractions();bindForms(base,param);bindNotifications(explorer);bindGiftClaims($('#gift-shop-rewards'));bindExplorer(explorer);bindBrowse(explorer);bindImprovements(explorer);
+ if(typeof bindDubbing==='function')bindDubbing(explorer);
  if(['community','covers'].includes(base))void loadCommunityCrews($('#community-crew-preview'),ticket);
 }
 function watchCachedNavigation(main){
@@ -30,6 +32,7 @@ async function render(){
  setMobileMenu(false);
 
  const ticket=++renderId,raw=location.hash.slice(1)||'home',[baseQuery,paramQuery]=raw.split('/'),[base]=baseQuery.split('?'),param=paramQuery?.split('?')[0];
+ if(typeof dubbingBeforeRoute==='function'&&!dubbingBeforeRoute(raw))return;
  if(sing){
   if(singLive(sing))await finishSinging();
   if(singBusy(sing)){history.replaceState(null,'',singRouteHref(sing));toast('녹음을 정리한 뒤 이동해주세요.');return;}
@@ -37,6 +40,8 @@ async function render(){
  }
  clearInterval(socialTimer);socialTimer=null;socialCleanup?.();socialCleanup=null;
  cleanupLyricsEditor();cleanupSing();
+ if(typeof cleanupVoiceRoute==='function')await cleanupVoiceRoute(base,param);
+ if(ticket!==renderId)return;
  updateBrowseNavigation(base,param);
  const main=$('#main'),account=me?.id||'guest';navigationRefreshCleanup?.();navigationRefreshCleanup=null;
  const previous=navigationSnapshots.get(navigationKey(main.dataset.route));if(previous&&main.dataset.account===account)previous.scroll=window.scrollY||0;
@@ -57,7 +62,7 @@ async function render(){
   if(account!==(me?.id||'guest'))return render();
   const readRevision=apiRevision;
   const profileHeader=base==='library'?libraryProfileHTML().catch(error=>({error})):null;
-  const explorer=await notificationsView(base,raw)||await playerView(base)||await improvementsView(base,param,raw)||await browseView(base,param,raw)||await explorerView(base,param,raw);
+  const explorer=(typeof dubbingView==='function'?await dubbingView(base,param,raw):null)||(typeof voiceView==='function'?await voiceView(base,param):null)||await notificationsView(base,raw)||await playerView(base)||await improvementsView(base,param,raw)||await browseView(base,param,raw)||await explorerView(base,param,raw);
   if(explorer){html=explorer.html;nextTracks=remember(explorer.tracks||[]);}
   else if(['discover','charts','artists','producers','search'].includes(base)){
    let query='';const genre=base==='discover'?decodeURIComponent(param||'전체'):'전체',searchValue=base==='search'?decodeURIComponent(param||''):'';
@@ -74,7 +79,7 @@ async function render(){
    const requestedCoverTab=new URLSearchParams(paramQuery?.split('?')[1]||'').get('covers'),coverTab=['solo','duet','ranking'].includes(requestedCoverTab)?requestedCoverTab:requestedCoverTab==='plays'?'ranking':'solo',coverSort=coverTab==='ranking'?'plays':'recent',coverMode=coverTab==='ranking'?'all':coverTab;
    const [{track:t},{comments},allCovers,giftData]=await Promise.all([api('/api/tracks/'+param),api('/api/tracks/'+param+'/comments'),api('/api/tracks/'+param+'/covers?sort='+coverSort+'&mode='+coverMode),api('/api/tracks/'+param+'/gifts')]);
    remember([t]);nextTracks=[t];const coverData=t.kind==='original'?allCovers:null;if(coverData)remember(coverData.covers);
-   html=heading('곡 이야기')+`<section class="song-detail">${cover(t)}<div><span class="eyebrow">${esc((t.genres||[t.genre]).join(' · '))} · ${time(t.duration)}</span><h2>${esc(t.title)}</h2>${songCredits(t)}${songReleaseDateHTML(t)}<p class="song-description">${esc(t.description||'음악을 듣고 감상을 나눠보세요.')}</p><div class="inline-actions"><button class="primary-button" data-play="${t.id}">${icon('play')} ${me?'노래 듣기':'60초 미리 듣기'}</button>${t.karaoke_ready?`<a class="primary-button" href="#sing/${t.id}">${icon('mic')} 노래 부르기</a>`:''}<button class="small-button ${liked(t.id)?'is-active':''}" data-like="${t.id}" aria-label="좋아요 ${number(t.likes)}개" aria-pressed="${liked(t.id)}">${icon('heart')} <span data-like-count>${number(t.likes)}</span></button><button class="small-button" data-add="${t.id}">${icon('plus')} 저장</button>${me?.id===t.user_id?'':`<button class="small-button gift-entry" data-gift="${t.id}">${icon('gift')} 선물하기</button>`}</div>${t.cover_mode==='duet'&&t.duet_open&&t.user_id!==me?.id?`<a class="primary-button" href="#sing/${esc(t.original_id)}?duet=${esc(t.id)}">듀엣 참여</a>`:''}${t.kind==='cover'&&me?.id===t.user_id?`<a class="small-button" href="/api/covers/${esc(t.id)}/download">내 녹음 파일 저장</a>`:''}<p class="song-metrics">${number(t.plays)}회 감상 · ${number(t.comments)}개 댓글</p></div></section><div class="song-page-layout"><div class="song-main-column">${coversPanelHTML(t,coverData,coverTab)}<section class="surface comments-panel"><div class="section-heading"><h2>함께 듣는 이야기</h2><select id="comment-sort" aria-label="댓글 정렬"><option value="latest">최신순</option><option value="popular">인기순</option><option value="timeline">타임라인순</option></select></div><form id="comment-form"><textarea name="body" maxlength="2000" required placeholder="${me?'이 곡의 어떤 순간이 좋았나요?':'로그인 후 감상을 남겨보세요.'}" aria-label="댓글"></textarea><div class="comment-compose-bottom"><label><input name="with_time" type="checkbox" checked> 현재 재생 시간 포함</label><button class="primary-button">댓글 등록</button></div><p class="form-error" role="alert"></p></form><div id="comments">${commentsHTML(comments,t)}</div></section></div><aside class="song-sidebar">${lyricsPanel(t)}${giftsPanelHTML(giftData,'응원 순위',{track:t})}<section class="surface"><h3>이 음악의 크레딧</h3><dl class="production-info"><dt>AI 도구</dt><dd>${esc(t.ai_tool)}</dd><dt>사람의 참여</dt><dd>${esc(t.participation||'—')}</dd><dt>장르</dt><dd>${esc((t.genres||[t.genre]).join(' · '))}</dd><dt>기분 · 활동</dt><dd>${esc((t.moods||[]).map(id=>AifectGenres.MOODS.find(m=>m.id===id)?.name||id).join(' · ')||'—')}</dd><dt>태그</dt><dd>${esc(t.tags||'—')}</dd></dl></section></aside></div>`;
+   html=heading('곡 이야기')+`<section class="song-detail">${cover(t)}<div><span class="eyebrow">${esc((t.genres||[t.genre]).join(' · '))} · ${time(t.duration)}</span><h2>${esc(t.title)}</h2>${songCredits(t)}${songReleaseDateHTML(t)}<p class="song-description">${esc(t.description||'음악을 듣고 감상을 나눠보세요.')}</p><div class="inline-actions"><button class="primary-button" data-play="${t.id}">${icon('play')} ${me?'노래 듣기':'60초 미리 듣기'}</button>${t.karaoke_ready?`<a class="primary-button" href="#sing/${t.id}">${icon('mic')} 노래 부르기</a>`:''}<button class="small-button ${liked(t.id)?'is-active':''}" data-like="${t.id}" aria-label="좋아요 ${number(t.likes)}개" aria-pressed="${liked(t.id)}">${icon('heart')} <span data-like-count>${number(t.likes)}</span></button><button class="small-button" data-add="${t.id}">${icon('plus')} 저장</button>${me?.id===t.user_id?'':`<button class="small-button gift-entry" data-gift="${t.id}">${icon('gift')} 선물하기</button>`}</div>${t.cover_mode==='duet'&&t.duet_open&&t.user_id!==me?.id?`<a class="primary-button" href="#sing/${esc(t.original_id)}?duet=${esc(t.id)}">듀엣 참여</a>`:''}${t.kind==='cover'&&me?.id===t.user_id?`<a class="small-button" href="/api/covers/${esc(t.id)}/download">내 녹음 파일 저장</a>`:''}<p class="song-metrics">${number(t.plays)}회 감상 · ${number(t.comments)}개 댓글</p></div></section><div class="song-page-layout"><div class="song-main-column">${coversPanelHTML(t,coverData,coverTab)}<section class="surface comments-panel"><div class="section-heading"><h2>함께 듣는 이야기</h2><select id="comment-sort" aria-label="댓글 정렬"><option value="latest">최신순</option><option value="popular">인기순</option><option value="timeline">타임라인순</option></select></div><form id="comment-form"><textarea name="body" maxlength="2000" required placeholder="${me?'이 곡의 어떤 순간이 좋았나요?':'로그인 후 감상을 남겨보세요.'}" aria-label="댓글"></textarea><div class="comment-compose-bottom"><label><input name="with_time" type="checkbox" checked> 현재 재생 시간 포함</label><button class="primary-button">댓글 등록</button></div><p class="form-error" role="alert"></p></form><div id="comments">${commentsHTML(comments,t)}</div></section></div><aside class="song-sidebar">${lyricsPanel(t)}${giftsPanelHTML(giftData,'응원 순위',{track:t})}${songCreditCardHTML(t)}</aside></div>`;
    html=html.replace('<p class="song-metrics">',trackModerationToolsHTML(t)+'<p class="song-metrics">');
   }else if(base==='artist'||base==='producer'){
    const d=await api(`/api/${base==='artist'?'artists':'producers'}/${param}`);nextTracks=remember(d.tracks);
@@ -151,8 +156,20 @@ function personProfileHTML(d,id,tab='all',balances=''){
  (own?balances+'<details class="profile-tools surface"><summary>내 레벨과 활동</summary>'+playerProgressHTML(p)+musicMyShortcuts()+'</details>':'')+'</aside></div>'+
  giftsPanelHTML(d.gifts,'받은 응원',{profile:p});
 }
+function songCreditCardHTML(t){
+ const display=value=>Array.isArray(value)?value.filter(Boolean).join(' · '):value;
+ const genres=t.genres?.length?t.genres:[t.genre].filter(Boolean);
+ const moods=(t.moods||[]).map(id=>AifectGenres.MOODS.find(m=>m.id===id)?.name||id);
+ const fields=[['AI 도구',t.ai_tool],['사람의 참여',t.participation],['장르',genres],['기분 · 활동',moods],['태그',t.tags]];
+ return '<section class="surface song-credit-card"><h3>이 음악의 크레딧</h3><dl class="production-info">'+fields.map(([label,value])=>'<dt>'+label+'</dt><dd>'+esc(display(value)||'—')+'</dd>').join('')+'</dl></section>';
+}
+function songSupportHTML(g,t){
+ const ranking=g.ranking.slice(0,5);
+ return '<section class="surface song-support-rank"><h2>응원 순위</h2><p class="song-support-caption">보내준 응원만큼 쌓이는 이 곡의 응원 순위</p>'+ (ranking.length?'<ol class="song-support-ranking">'+ranking.map((r,i)=>'<li'+(i===0?' class="is-first"':'')+'><b class="song-support-position">'+(i+1)+'</b><span class="song-support-avatar">'+avatarImage(r)+'</span><div class="song-support-person">'+(r.profile_id?'<a href="#producer/'+esc(r.profile_id)+'" title="'+esc(r.name)+'">'+esc(r.name)+'</a>':'<strong title="'+esc(r.name)+'">'+esc(r.name)+'</strong>')+'<small>실버 '+number(r.stars)+'S · 골드 '+number(r.gold)+'G</small></div><strong class="song-support-score">'+number(r.score)+'점</strong></li>').join('')+'</ol>':'<p class="gift-rank-empty">아직 받은 선물이 없어요.<br>첫 응원으로 이 무대를 빛내주세요.</p>')+'</section><section class="song-support-gift"><a class="song-image-gift-banner" href="#gifts" aria-label="선물로 마음전하기 · 선물함으로 이동"><img src="/assets/song-gift-heart-banner.webp" width="1600" height="418" alt="선물로 마음전하기. 방문자가 이곳에서 응원할 수 있어요." loading="lazy" decoding="async"></a><a class="primary-button song-silver-button" href="#rewards">✦ 무료 실버 받기 →</a><p class="song-support-note">출석 · 활동으로 실버를 모아 응원해요.</p></section>';
+}
 function giftsPanelHTML(g,title,target={}){
  if(!g)return '';
+ if(target.track)return songSupportHTML(g,target.track);
  const own=me?.id===(target.track?.user_id||target.profile?.user_id),attr=target.track?`data-gift="${esc(target.track.id)}"`:`data-profile-gift="${esc(target.profile?.id||'')}"`;
  return `<section class="surface gift-rank gift-rank-pair support-showcase"><div class="gift-rank-list"><div class="section-heading"><h2>${title}</h2><span class="gift-total">${number(g.free_count)} S · ${number(g.total_gold)} G</span></div><p class="gift-fineprint">보내준 응원만큼 · 1 S와 1 G는 각각 1점</p>${g.ranking.length?`<ol class="gift-ranking">${g.ranking.map(r=>`<li><b>${r.rank}</b><span>${esc(r.name)}<small>${number(r.stars)} S · ${number(r.gold)} G</small></span><em>${number(r.score)}점</em></li>`).join('')}</ol>`:'<p class="gift-rank-empty">아직 받은 선물이 없어요.<br>첫 응원으로 이 무대를 빛내주세요.</p>'}</div><aside class="gift-rank-send"><button type="button" class="gift-support-banner" ${attr} ${own?'disabled':''} aria-label="${own?'내게 도착하는 마음':'선물로 응원하기'}"><span class="gift-support-icon" aria-hidden="true">${icon('gift')}</span><span class="gift-support-copy"><small>A LITTLE GIFT, A BIG ENCORE</small><strong>${own?'내게 도착하는 마음':'선물로 응원하기'}</strong><span>${own?'방문자가 이곳에서 응원을 보낼 수 있어요.':'무료 실버부터 특별한 골드 선물까지.'}</span></span>${own?'':`<span class="gift-support-arrow" aria-hidden="true">${icon('arrow')}</span>`}</button><a class="text-link" href="#rewards">출석 · 활동하고 무료 실버 받기 ${icon('chevron')}</a><p class="gift-fineprint">실버는 순위에만 반영돼요. 수익은 유료 골드 선물로만 발생해요.</p></aside></section>`;
 }

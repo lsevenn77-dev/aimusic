@@ -42,7 +42,7 @@ async function giftFixture(t){
 
 test('catalog prices are authoritative; request retries do not spend gold twice',async t=>{
  const f=await giftFixture(t),catalog=await f.call('/api/gifts/catalog','GET',undefined,null);
- assert.deepEqual(catalog.body.gifts.map(g=>g.gold),[5,30,50,100,200,300,500,777,1000,2000]);
+ assert.deepEqual(catalog.body.gifts.map(g=>g.gold),[1,5,30,50,100,300,500,777,1000,2000]);
  assert.equal(catalog.body.free_gift.id,'star');
  assert.equal((await f.call('/api/tracks/cover/gifts','POST',{gift_type:'crown',gold:10,request_id:'forged-price-123456'},'fan')).status,400);
  const body={gift_type:'heart',request_id:'same-gift-request-1234'};
@@ -52,6 +52,31 @@ test('catalog prices are authoritative; request retries do not spend gold twice'
  assert.equal(f.sql.prepare('SELECT gift_type,gift_name FROM gifts').get().gift_name,'하트');
  assert.equal((await f.call('/api/tracks/one/gifts','POST',body,'fan')).status,409);
  assert.equal((await f.call('/api/tracks/cover/gifts','POST',{gift_type:'invalid',request_id:'other-request-1234'},'fan')).status,400);
+});
+
+test('one-gold lollipop preserves fractional earnings, quantity and idempotency for cover and profile gifts',async t=>{
+ const f=await giftFixture(t),catalog=(await f.call('/api/gifts/catalog')).body.gifts;
+ assert.deepEqual(catalog.filter(g=>g.gold===1).map(g=>[g.id,g.name]),[['lollipop','막대사탕']]);
+ assert.equal(catalog.some(g=>g.id==='rose'),false);
+ const body={gift_type:'lollipop',quantity:1,gold:1,request_id:'lollipop-single-12345'};
+ const r=await f.call('/api/tracks/cover/gifts','POST',body,'fan');
+ assert.equal(r.status,201,JSON.stringify(r.body));assert.equal(r.body.balance,1499);
+ assert.equal((await f.call('/api/tracks/cover/gifts','POST',body,'fan')).body.gift.id,r.body.gift.id);
+ const receipt=f.sql.prepare('SELECT * FROM gifts').get();
+ assert.deepEqual([receipt.gold,receipt.quantity,receipt.net_mw,receipt.singer_mw,receipt.creator_mw,receipt.platform_mw],[1,1,9670,6769,0,2901]);
+ const many={gift_type:'lollipop',quantity:3,gold:3,request_id:'lollipop-person-12345'};
+ const p=await f.call('/api/producers/producer/gifts','POST',many,'fan');
+ assert.equal(p.status,201,JSON.stringify(p.body));assert.equal(p.body.balance,1496);
+ assert.equal((await f.call('/api/producers/producer/gifts','POST',many,'fan')).body.gift.id,p.body.gift.id);
+ assert.equal(f.sql.prepare('SELECT sum(gold) total FROM gift_lots').get().total,4);
+ assert.equal(f.sql.prepare('SELECT count(*) total FROM gifts WHERE net_mw != singer_mw+creator_mw+platform_mw').get().total,0);
+ assert.equal((await f.call('/api/tracks/cover/gifts','POST',{...many,gold:1,request_id:'lollipop-forged-12345'},'fan')).status,400);
+ assert.equal((await f.call('/api/tracks/cover/gifts','POST',{gift_type:'rose',request_id:'retired-rose-12345'},'fan')).status,400);
+ assert.equal((await f.call('/api/gold','GET',undefined,'fan')).body.balance,1496);
+ // Existing receipts remain historical data even after a gift leaves the shop.
+ f.sql.prepare("UPDATE gifts SET gift_type='rose',gift_name='장미',gold=200 WHERE id=?").run(r.body.gift.id);
+ const old=(await f.call('/api/gold','GET',undefined,'fan')).body.sent.find(g=>g.id===r.body.gift.id);
+ assert.deepEqual([old.gift_type,old.gift_name,old.gold],['rose','장미',200]);
 });
 
 test('five-gold balloon preserves fractional earnings and spends once',async t=>{

@@ -71,7 +71,8 @@
     $$('.view-page').forEach(page=>page.classList.toggle('hidden',page.dataset.page!==view));
     $$('.admin-nav-item').forEach(btn=>btn.classList.toggle('active',btn.dataset.view===view));
     if(view==='tracks')loadTrackReview();
-    if(view==='moderation')loadCommentReports();
+    if(view==='moderation'){loadCommentReports();loadDubbingReports();}
+    if(view==='dubbing')loadDubbing();
     if(view==='payouts')loadPayouts();
     window.scrollTo({top:0,behavior:'smooth'});
   }
@@ -417,10 +418,40 @@
     }catch(error){showLogin(error.message||'로그인 상태를 확인하지 못했습니다.');}
   }
 
+  async function loadDubbing(){
+    const box=$('#dubbing-admin-body');if(!box)return;box.innerHTML='<div class="panel-loader">더빙 운영 정보를 불러오는 중입니다.</div>';
+    try{
+      const d=await api('/api/admin/dubbing?days='+state.days);state.dubbing=d;
+      const amount=Number(d.pika.settled_micro_usd||0)/1e6;
+      box.innerHTML='<div class="kpi-grid">'+[
+        kpiCard('◉','전체 작품',num(d.summary.projects),'완성 '+num(d.summary.completed)+' · 배역 제출 '+num(d.summary.submitted_roles)),
+        kpiCard('✦','대본 생성',num(d.generations.filter(x=>x.kind==='script').reduce((a,x)=>a+x.count,0)),'최근 '+d.days+'일 · 성공·실패 포함'),
+        kpiCard('♫','Pika 작업',num(d.pika.provider_jobs),'응답 미확인 '+num(d.pika.unconfirmed_requests)),
+        kpiCard('$','Pika 확정 비용','$'+amount.toFixed(6),'원화 추정 '+money(d.pika.estimated_krw)),
+        kpiCard('◇','신고·이의신청',num(d.summary.open_reports),'운영자 검토 필요'),
+        kpiCard('▶','광고 보상',num(d.summary.ad_rewards),'최근 '+d.days+'일 · 웹 화면 광고')
+      ].join('')+'</div><article class="admin-card"><h2>음향 제작 가격</h2><form id="dubbing-price-form" class="inline-controls"><label>작품당 Gold <input name="gold" type="number" min="1" max="10000" step="1" required value="'+d.settings.soundGold+'"></label><button class="primary-button" type="submit">가격 저장</button></form><p>기존 결제 금액은 유지됩니다. 변경된 가격은 다음 제작 확인창부터 적용됩니다.</p><p>실제 골드 차감: '+(d.flags.charging?'켜짐':'꺼짐')+' · 유료 API 실행: '+(d.flags.paidAPI?'켜짐':'꺼짐')+'</p></article><article class="admin-card"><h2>비용 · 사용량</h2><p>'+esc(d.costNote)+'</p><p>미정산·미확인 비용 '+num(d.pika.unsettled_costs)+'건 · 환율 미설정 '+num(d.pika.missing_fx)+'건</p><div class="management-list">'+d.generations.map(x=>'<div class="management-meta"><b>'+esc(x.kind==='script'?'대본':'음향 계획')+'</b><span>'+esc(x.state)+' '+num(x.count)+'건</span><span>입력 '+num(x.input_tokens)+' · 출력 '+num(x.output_tokens)+' 토큰</span></div>').join('')+'</div></article><article class="admin-card"><div class="card-heading"><h2>실패 · 확인 필요 작업</h2><button class="small-button" id="dubbing-reconcile">미처리 환급 확인</button></div><p>Pika 결과가 불명확한 작업은 유료 생성을 반복하지 않습니다. 최종 녹음 합성은 저장된 파일로만 재시도합니다.</p>'+ (d.jobs.length?d.jobs.map(j=>'<div class="management-card"><h3>'+esc(j.title)+'</h3><p>'+esc(j.kind==='final'?'최종 합성':'배경 음향')+' · '+esc(j.state)+' · 시도 '+j.attempts+'</p><p>'+esc(j.error)+'</p>'+(j.can_retry?'<label class="dubbing-review-note">재시도 사유<textarea maxlength="2000" rows="2" required></textarea></label><button class="small-button" data-final-retry="'+esc(j.id)+'" data-updated="'+j.updated+'">최종 합성 재시도</button>':'')+'</div>').join(''):'<div class="empty-state">확인이 필요한 작업이 없습니다.</div>')+'</article><article class="admin-card"><h2>Gold 이용·환급 내역</h2><div class="data-table-wrap"><table><thead><tr><th>작품</th><th>사용</th><th>환급</th><th>상태</th><th>일시</th></tr></thead><tbody>'+d.payments.map(p=>'<tr><td>'+esc(p.title)+'</td><td>'+p.gold+'G</td><td>'+p.refunded_gold+'G</td><td>'+esc(p.state)+'</td><td>'+kstDateTime(p.created)+'</td></tr>').join('')+'</tbody></table></div></article>';
+      $('#dubbing-price-form').onsubmit=async e=>{e.preventDefault();const b=e.currentTarget.querySelector('button');b.disabled=true;try{await api('/api/admin/dubbing/settings',{method:'PUT',body:JSON.stringify({soundGold:Number(e.currentTarget.elements.gold.value),version:d.settings.version})});toast('제작 가격을 저장했습니다.');await loadDubbing();}catch(err){toast(err.message);}finally{b.disabled=false;}};
+      $('#dubbing-reconcile').onclick=async e=>{e.currentTarget.disabled=true;try{await api('/api/admin/dubbing/reconcile',{method:'POST',body:'{}'});await loadDubbing();toast('환급 상태를 확인했습니다.');}catch(err){toast(err.message);loadDubbing();}};
+      $$('[data-final-retry]',box).forEach(b=>b.onclick=async()=>{const input=b.closest('.management-card').querySelector('textarea'),note=input.value.trim();if(!note){input.reportValidity();return;}b.disabled=true;try{await api('/api/admin/dubbing/final/'+b.dataset.finalRetry+'/retry',{method:'POST',body:JSON.stringify({updated:Number(b.dataset.updated),note})});toast('최종 합성을 다시 예약했습니다.');await loadDubbing();}catch(err){toast(err.message);b.disabled=false;}});
+    }catch(e){box.innerHTML='<div class="empty-state">'+esc(e.message)+'</div>';}
+  }
+  async function loadDubbingReports(){
+    const box=$('#dubbing-rights-list');if(!box)return;box.innerHTML='<div class="panel-loader">권리 신고를 불러오는 중입니다.</div>';
+    try{const d=await api('/api/admin/dubbing-reports?status='+$('#dubbing-rights-status').value);
+      const links=value=>{let list=[];try{list=JSON.parse(value);}catch{}return list.map(v=>/^https:\/\//.test(v)?'<a href="'+esc(v)+'" target="_blank" rel="noopener noreferrer">'+esc(v)+'</a>':'').join('<br>');};
+      const actions={pending:[['removed','공개 중단'],['dismissed','신고 종결']],removed:[['restored','복원']],appealed:[['restored','복원'],['upheld','중단 유지']],upheld:[['restored','복원']]};
+      box.innerHTML=d.reports.length?d.reports.map(r=>'<article class="management-card"><div class="management-card-head"><h3>'+esc(r.title)+'</h3><span class="soft-badge">'+esc(({pending:'접수',removed:'공개 중단',appealed:'이의신청',upheld:'중단 유지',restored:'복원',dismissed:'종결'})[r.status]||r.status)+'</span></div><p>권리자 '+esc(r.rightsholder)+' · '+esc(r.contact)+'</p><p>'+esc(r.details)+'</p><p>'+links(r.evidence_json)+'</p><p>작성자의 공개 중단 작품 '+num(r.violations)+'개 · 3개 이상이면 새 더빙 제작·참여 제한</p>'+(r.appeal?'<h4>이의신청</h4><p>'+esc(r.appeal)+'</p><p>'+links(r.appeal_evidence_json)+'</p>':'')+'<p>연결 작품: '+JSON.parse(r.linked_projects||'[]').map(p=>'<a href="/#dubbing/'+encodeURIComponent(p.id)+'" target="_blank" rel="noopener">'+esc(p.title)+'</a>').join(' · ')+'</p><p>'+esc(r.decision)+'</p>'+((actions[r.status]||[]).length?'<label class="dubbing-review-note">작성자에게 표시할 검토 사유<textarea maxlength="2000" rows="3" required></textarea></label>':'')+'<div class="management-actions">'+(actions[r.status]||[]).map(([a,label])=>'<button class="small-button" data-rights-id="'+esc(r.id)+'" data-rights-version="'+r.version+'" data-rights-action="'+a+'">'+label+'</button>').join('')+'</div></article>').join(''):'<div class="empty-state">해당 상태의 권리 신고가 없습니다.</div>';
+      $$('[data-rights-id]',box).forEach(b=>b.onclick=async()=>{const input=b.closest('.management-card').querySelector('textarea'),note=input.value.trim();if(!note){input.reportValidity();return;}b.disabled=true;try{await api('/api/admin/dubbing-reports/'+b.dataset.rightsId,{method:'PATCH',body:JSON.stringify({status:b.dataset.rightsAction,version:Number(b.dataset.rightsVersion),note})});toast('검토 결과를 저장했습니다.');await loadDubbingReports();}catch(err){toast(err.message);b.disabled=false;}});
+    }catch(e){box.innerHTML='<div class="empty-state">'+esc(e.message)+'</div>';}
+  }
+
+  $('#dubbing-rights-status').addEventListener('change',loadDubbingReports);
   $$('.admin-nav-item').forEach(btn=>btn.addEventListener('click',()=>navigate(btn.dataset.view)));
   app.addEventListener('click',e=>{const jump=e.target.closest('[data-jump]');if(jump&&app.contains(jump))navigate(jump.dataset.jump);});
-  $('#period-select').addEventListener('change',async e=>{state.days=Number(e.target.value)||7;await loadDashboard(true);});
-  $('#refresh-button').addEventListener('click',()=>loadDashboard(true));
+  async function refreshCurrentView(){await loadDashboard(true);if(state.view==='dubbing')await loadDubbing();if(state.view==='moderation')await Promise.all([loadCommentReports(),loadDubbingReports()]);}
+  $('#period-select').addEventListener('change',async e=>{state.days=Number(e.target.value)||7;await refreshCurrentView();});
+  $('#refresh-button').addEventListener('click',refreshCurrentView);
   $('#admin-search-form').addEventListener('submit',e=>{e.preventDefault();globalSearch($('#admin-search-input').value);});
   $('#profile-button').addEventListener('click',async()=>{
     try{await api('/api/admin/logout',{method:'POST'});location.replace('/admin/dashboard');}

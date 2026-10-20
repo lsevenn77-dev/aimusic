@@ -46,7 +46,7 @@ test('support panels replace the catalog with one profile or song gift-dialog ba
  assert.equal((profile.match(/data-profile-gift=/g)||[]).length,1);assert.match(profile,/class="gift-support-banner" data-profile-gift="person"/);
  assert.match(profile,/선물로 응원하기/);assert.match(profile,/&lt;Fan&gt;/);assert.match(profile,/13점/);assert.match(profile,/#rewards/);
  assert.doesNotMatch(profile,/gift-quick-grid|data-gift-type|선물 선택/);
- const track=c.giftsPanelHTML(g,'응원',{track:{id:'song',user_id:'owner'}});assert.match(track,/class="gift-support-banner" data-gift="song"/);assert.doesNotMatch(track,/data-profile-gift/);
+ c.avatarImage=()=>'';const track=c.giftsPanelHTML(g,'응원',{track:{id:'song',user_id:'owner'}});assert.match(track,/class="song-image-gift-banner" href="#gifts"/);assert.doesNotMatch(track,/data-profile-gift/);
  c.me={id:'owner'};const own=c.giftsPanelHTML(g,'받은 응원',{profile:{id:'person',user_id:'owner'}});
  assert.match(own,/data-profile-gift="person" disabled/);assert.match(own,/방문자가 이곳에서 응원을/);assert.equal(c.giftsPanelHTML(null,'받은 응원'),'');
 });

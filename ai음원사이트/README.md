@@ -85,3 +85,11 @@ Web Audio의 한 시계로 반주와 음성을 맞추며, 가사를 스크롤/�
 브라우저 녹음은 현재 탭 메모리에 보관한다. 탭을 숨기면 녹음을 멈추고 확인 상태로 돌아오며, 나가기 전에 파일 저장/업로드하도록 안내한다. 실제 업로드는 사용자가 권리 동의 후 누른 경우에만 실행한다. 유선/USB 이어폰을 권장하며 브라우저·Bluetooth·기기별 청음 지연은 달라질 수 있다.
 
 검증: 로컬 Worker 통합 검사를 포함한 Node 132개 통과. 격리한 Chromium의 가상 마이크에서 짧은 녹음·일시정지·재생 중 탐색·가사 재녹음·부분 WAV 길이·가이드·커버 업로드·모바일 레이아웃을 확인했다. 실제 사람의 마이크 소리와 Safari는 별도 확인이 필요하다. DB 변경 없음.
+
+## Web recording workspace — 2026-10-15
+
+The singing and review screens follow the supplied desktop designs: a neutral navy lyric stage, side settings, a waveform selection editor, and muted pink/blue accents. The singing route no longer uses the mirrorball background. Layouts stack at tablet/mobile widths without horizontal scrolling. Existing solo/duet permissions, dry recordings, draft storage, and publishing consent remain in place.
+
+Monitoring can start explicitly before recording. Review supports live mix adjustments, four noise reduction strengths plus off, 0.1% echo steps, manual sync, selected-region playback, and bounded rerecording that preserves the original take outside the captured interval. Key transposition and automatic audio sync are not implemented; the UI shows original key and manual sync controls.
+
+Validation: `node --test tests/karaoke-recording.test.mjs tests/recording-ui.test.mjs tests/duet-guide.test.mjs tests/vocal-effects.test.mjs` (18 passing), production build, and browser checks at 1600px and 390px widths. `node tests/preview-recording.mjs` provides a localhost-only in-memory fixture on port 4179 with a synthetic microphone and a test take; its QA UI is never copied to the production build. Browser QA covers standalone monitoring/release, lyric size, waveform seeking, live controls, bounded rerecording, draft apply, and retained publishing controls. Physical microphone sound quality was not evaluated in this web UI change.

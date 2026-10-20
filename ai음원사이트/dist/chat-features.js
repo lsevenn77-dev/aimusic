@@ -13,13 +13,13 @@ function bindChatImageUpload(peer,path,send,blocked){
  };
 }
 function crewHomeMedia(c,m){return '<section class="crew-home-media">'+(c.image_version?'<img class="crew-main-image" src="/media/crew/'+esc(c.id)+'?v='+esc(c.image_version)+'" alt="'+esc(c.name)+' 대표 이미지">':m?.role==='owner'?'<button type="button" class="crew-image-placeholder" data-edit-crew="'+esc(c.id)+'">'+icon('image')+' 크루 대표 이미지 설정</button>':'')+(m?'<a class="crew-chat-entry" href="#dm/crew/'+esc(c.id)+'">'+icon('message')+'<span><strong>크루 채팅창 들어가기</strong><small>크루원들과 음악과 이야기를 나눠보세요.</small></span>'+icon('chevron')+'</a>':'')+'</section>';}
-async function crewChatView(raw){const cid=raw.split('?')[0].split('/')[2];if(!cid)throw new Error('크루를 선택해주세요.');const d=await api('/api/crews/'+encodeURIComponent(cid));if(!d.membership)throw new Error('가입한 크루에서 대화할 수 있어요.');return {html:'<header class="dm-thread-header"><a href="#dm" class="icon-button" aria-label="대화 목록">'+icon('back')+'</a><a class="dm-thread-person" href="#crew/'+esc(cid)+'"><span class="crew-chat-avatar">'+icon('users')+'</span><div><h1>'+esc(d.crew.name)+'</h1><small>'+number(d.crew.members)+'명 · 크루 홈 보기</small></div></a>'+crewMuteButton(d.crew.id,d.membership.muted)+'</header>'+chatPanelHTML('크루 채팅'),chat:{path:'/api/crews/'+cid+'/messages',crew:{id:cid,owner:d.membership.role==='owner'}}};}
+async function crewChatView(raw){const cid=raw.split('?')[0].split('/')[2];if(!cid)throw new Error('크루를 선택해주세요.');const initial=await api('/api/crews/'+encodeURIComponent(cid)+'/messages'),d=initial;if(!d.membership)throw new Error('가입한 크루에서 대화할 수 있어요.');return {html:'<header class="dm-thread-header"><a href="#dm" class="icon-button" aria-label="대화 목록">'+icon('back')+'</a><a class="dm-thread-person" href="#crew/'+esc(cid)+'"><span class="crew-chat-avatar">'+icon('users')+'</span><div><h1>'+esc(d.crew.name)+'</h1><small>크루 홈 보기</small></div></a>'+crewMuteButton(d.crew.id,d.membership.muted)+'</header>'+chatPanelHTML('크루 채팅',initial),chat:{path:'/api/crews/'+cid+'/messages',initial,crew:{id:cid,owner:d.membership.role==='owner'}}};}
 let messageBadgeBusy=false,messageBadgeAccount=null,messageBadgeAgain=false,messageBadgeVersion=0;
 async function blockedPeopleView(profileId='',known=null){
  const d=known||await api('/api/blocks'),people=profileId?d.blocks.filter(p=>p.profile_id===profileId):d.blocks;
  if(profileId&&!people.length)return null;
- const inbox=await api('/api/dm'),thread='<header class="dm-thread-header"><a class="small-button" href="#dm">'+icon('back')+' 대화 목록</a><h1>차단 관리</h1></header><section class="blocked-people"><p>차단한 상대와는 메시지를 주고받을 수 없어요. 기존 대화는 삭제되지 않으며, 해제하면 다시 확인할 수 있어요.</p>'+ (people.length?people.map(p=>'<article><strong>'+esc(p.name)+'</strong><button class="small-button" data-person-unblock="'+esc(p.id)+'" data-block-name="'+esc(p.name)+'">차단 해제</button></article>').join(''):'<p class="social-empty">차단한 이용자가 없어요.</p>')+'</section>';
- return {html:dmInboxHTML(inbox,thread,profileId),inbox:true,selectedConversation:profileId};
+ const inbox=me?.id&&dmInboxSnapshot?.uid===me.id?dmInboxSnapshot.data:{conversations:[]},thread='<header class="dm-thread-header"><a class="small-button" href="#dm">'+icon('back')+' 대화 목록</a><h1>차단 관리</h1></header><section class="blocked-people"><p>차단한 상대와는 메시지를 주고받을 수 없어요. 기존 대화는 삭제되지 않으며, 해제하면 다시 확인할 수 있어요.</p>'+ (people.length?people.map(p=>'<article><strong>'+esc(p.name)+'</strong><button class="small-button" data-person-unblock="'+esc(p.id)+'" data-block-name="'+esc(p.name)+'">차단 해제</button></article>').join(''):'<p class="social-empty">차단한 이용자가 없어요.</p>')+'</section>';
+ return {html:dmInboxHTML(inbox,thread,profileId),inbox:true,refreshInbox:true,selectedConversation:profileId};
 }
 document.addEventListener('click',async e=>{
  const b=e.target.closest('[data-person-block],[data-person-unblock]');if(!b)return;e.preventDefault();
@@ -45,7 +45,7 @@ document.addEventListener('click',async e=>{
  const mute=e.target.closest('[data-dm-mute]'),clear=e.target.closest('[data-dm-clear]'),read=e.target.closest('[data-dm-read-all]');if(!mute&&!clear&&!read)return;e.preventDefault();e.stopPropagation();const b=mute||clear||read;if(b.disabled)return;b.disabled=true;
  try{
   if(mute){const muted=mute.dataset.muted!=='1';await api('/api/dm/'+mute.dataset.dmMute+'/settings','PUT',{muted});mute.dataset.muted=muted?'1':'0';mute.setAttribute('aria-pressed',String(muted));mute.setAttribute('aria-label','대화 알림 '+(muted?'켜기':'끄기'));mute.innerHTML=icon(muted?'bellOff':'bell');toast(muted?'이 대화의 푸시 알림을 껐어요.':'이 대화의 푸시 알림을 켰어요.');}
-  if(read){await api('/api/dm/read-all','POST');await render();}
+  if(read){await readAllMessages();}
   if(clear){
    const peer=clear.dataset.dmClear,uid=me?.id,route=location.hash;
    if(!uid||!peer||peer==='all')return;
@@ -64,4 +64,13 @@ function crewMuteButton(id,muted){return '<button type="button" class="icon-butt
 document.addEventListener('click',async e=>{
  const b=e.target.closest('[data-crew-mute]');if(b){e.preventDefault();if(b.disabled)return;b.disabled=true;try{const muted=b.dataset.muted!=='1';await api('/api/crews/'+b.dataset.crewMute+'/settings','PUT',{muted});b.dataset.muted=muted?'1':'0';b.setAttribute('aria-pressed',String(muted));b.setAttribute('aria-label','크루 알림 '+(muted?'켜기':'끄기'));b.innerHTML=icon(muted?'bellOff':'bell');toast(muted?'크루 알림을 껐어요.':'크루 알림을 켰어요.');}catch(err){toast(err.message);}finally{b.disabled=false;}return;}
  const rank=e.target.closest('[data-gift-ranking]');if(!rank)return;e.preventDefault();const serial=++giftDialogSerial;dialog('<h2>선물 랭킹 TOP 50</h2><p role="status">불러오는 중…</p>');try{const d=await api('/api/producers/'+encodeURIComponent(rank.dataset.giftRanking)+'/gifts');if(serial!==giftDialogSerial||!$('#dialog').open)return;dialog('<h2>선물 랭킹 TOP 50</h2><p class="field-help">누적 응원 · 1 G와 1 S는 각각 1점</p><ol class="profile-fan-ranking">'+d.ranking.map(r=>'<li><b>'+r.rank+'</b>'+(r.profile_id?'<a href="#producer/'+esc(r.profile_id)+'" data-close-dialog>':'<span>')+('<span class="fan-initial profile-avatar">'+avatarImage(r)+'</span>')+'<span>'+esc(r.name)+'<small>'+number(r.gold)+' G · '+number(r.stars)+' S'+'</small></span>'+(r.profile_id?'</a>':'</span>')+'<strong>'+number(r.score)+'점</strong></li>').join('')+'</ol>'+(!d.ranking.length?'<p>아직 받은 선물이 없어요.</p>':''));}catch(err){if(serial===giftDialogSerial)dialog('<h2>선물 랭킹</h2><p>'+esc(err.message)+'</p>');}
-});
+});async function readAllMessages(){
+ const uid=me?.id;if(!uid)return;const prior=dmInboxSnapshot?.uid===uid?dmInboxSnapshot.data:null;
+ const optimistic=prior?{...prior,unread:0,direct_unread:0,conversations:prior.conversations.map(p=>({...p,unread:0})),crew:prior.crew?{...prior.crew,unread:0}:null}:null;
+ const publish=data=>window.dispatchEvent(new CustomEvent('aifect:inbox-local',{detail:data}));
+ if(optimistic){rememberDmInbox(optimistic);publish(optimistic);}paintMessageBadge(0);
+ try{await api('/api/dm/read-all','POST');}
+ catch(error){if(uid===me?.id&&optimistic&&dmInboxSnapshot?.data===optimistic){rememberDmInbox(prior);publish(prior);paintMessageBadge(prior.unread??(prior.conversations.reduce((sum,p)=>sum+Number(p.unread||0),0)+Number(prior.crew?.unread||0)));}throw error;}
+ finally{if(uid===me?.id){window.dispatchEvent(new Event('aifect:inbox-refresh'));void refreshMessageBadge();}}
+}
+

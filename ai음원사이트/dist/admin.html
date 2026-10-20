@@ -27,6 +27,7 @@
 
         <p class="nav-section">CONTENT</p>
         <button class="admin-nav-item" data-view="tracks"><span>♫</span><b>음원 관리</b><i id="track-badge"></i></button>
+        <button class="admin-nav-item" data-view="dubbing"><span>◉</span><b>더빙 스튜디오</b></button>
         <button class="admin-nav-item" data-view="people"><span>◌</span><b>사용자 · 창작자</b></button>
         <button class="admin-nav-item" data-view="moderation"><span>◇</span><b>신고 · 문의</b><i id="report-badge"></i></button>
 
@@ -147,8 +148,9 @@
           <section class="view-page hidden" data-page="moderation">
             <div class="section-heading with-controls"><div><p class="eyebrow">TRUST & SAFETY</p><h1>신고 · 문의</h1><p>댓글 신고를 확인하고 유지 또는 삭제 처리합니다.</p></div><div class="inline-controls"><select id="comment-report-filter"><option value="pending">미처리</option><option value="dismissed">유지 처리</option><option value="removed">삭제 처리</option></select><button class="primary-button" id="comment-report-refresh">새로고침</button></div></div>
             <article class="admin-card wide-card"><div id="comment-report-content" class="management-list"><div class="panel-loader">신고 내역을 불러오는 중입니다.</div></div></article>
-          </section>
+          <article class="admin-card"><div class="card-heading"><h2>더빙 권리 신고 · 이의신청</h2><select id="dubbing-rights-status" aria-label="권리 신고 상태"><option value="pending">접수</option><option value="appealed">이의신청</option><option value="removed">공개 중단</option><option value="upheld">중단 유지</option><option value="restored">복원</option><option value="dismissed">종결</option></select></div><div id="dubbing-rights-list" class="management-list"></div></article></section>
 
+          <section class="view-page hidden" data-page="dubbing"><div class="section-heading"><div><p class="eyebrow">DUBBING OPERATIONS</p><h1>더빙 스튜디오</h1><p>제작 가격, 사용량과 비용, 실패 작업을 관리합니다.</p></div></div><div id="dubbing-admin-body"></div></section>
           <section class="view-page hidden" data-page="payouts">
             <div class="section-heading with-controls"><div><p class="eyebrow">CREATOR PAYOUT</p><h1>정산 관리</h1><p>월 마감으로 선물 수익을 다이아로 확정하고, 별도로 신청한 현금 정산의 지급 상태를 관리합니다.</p></div><div class="inline-controls"><select id="payout-period-select"></select><button class="primary-button" id="payout-close-button" hidden>월 마감</button></div></div>
             <div class="kpi-grid three" id="payout-kpis"></div>
