@@ -4,6 +4,7 @@ Run separately: python dubbing.py (no changes to the music worker's scheduling).
 PIKA_API_KEY stays in the server secret store; the worker only receives media CDN URLs.
 """
 import array
+import functools
 import json
 import math
 import os
@@ -16,7 +17,7 @@ import urllib.request
 import wave
 
 FFMPEG = os.environ.get('FFMPEG_BIN', 'ffmpeg')
-MAX_ASSET_BYTES = 32 * 1024 * 1024
+MAX_ASSET_BYTES = 96 * 1024 * 1024
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
@@ -47,6 +48,14 @@ def command(args):
     return subprocess.run([FFMPEG, '-nostdin', '-hide_banner', '-v', 'error', '-y', '-threads', '1'] + args,
                           check=True, capture_output=True, timeout=180)
 
+@functools.lru_cache(maxsize=1)
+def filter_file_option():
+    # FFmpeg 9 removed the legacy option. Keep file-based filters so a full
+    # 120-line mix also works within Windows' command-line length limit.
+    help_text = subprocess.run([FFMPEG, '-hide_banner', '-h', 'full'], check=True,
+                               capture_output=True, timeout=30).stdout
+    return '-filter_complex_script' if b'-filter_complex_script ' in help_text else '-/filter_complex'
+
 def wave_info(path):
     peak = 0
     with wave.open(str(path), 'rb') as audio:
@@ -67,13 +76,13 @@ def number(value, low, high):
         raise ValueError('Invalid timeline number')
     return float(value)
 
-def duck_expression(lines):
+def duck_expression(lines, level=.3):
     # 120 ms attack, 300 ms release. All clips use the same absolute recording clock.
     ramps = []
     for line in lines:
         start = number(line['start'], 0, 300)
         end = number(line['end'], start, 300)
-        ramps.append(f"if(lt(t,{start-.12:.3f}),1,if(lt(t,{start:.3f}),1-0.7*(t-({start-.12:.3f}))/.12,if(lt(t,{end:.3f}),.3,if(lt(t,{end+.3:.3f}),.3+.7*(t-{end:.3f})/.3,1))))")
+        ramps.append(f"if(lt(t,{start-.12:.3f}),1,if(lt(t,{start:.3f}),1-{1-level}*(t-({start-.12:.3f}))/.12,if(lt(t,{end:.3f}),{level},if(lt(t,{end+.3:.3f}),{level}+{1-level}*(t-{end:.3f})/.3,1))))")
     # A left-nested min() exceeds FFmpeg's parser depth at the 120-line limit.
     # Pair the envelopes as a balanced tree so depth grows logarithmically.
     if not ramps:
@@ -96,10 +105,11 @@ def render_background(timeline, assets, folder, download=download_asset, heartbe
     filters = [f'[0:a]atrim=duration={duration},asetpts=PTS-STARTPTS[base]']
     labels = ['[base]']
     duck = duck_expression(timeline['lines'])
+    music_duck = duck_expression(timeline['lines'], .55)
     for index, cue in enumerate(sounds, 1):
         heartbeat()
         source, decoded = root / f'source-{index}', root / f'cue-{index}.wav'
-        generated = number(cue['generationSeconds'], 1, 30)
+        generated = number(cue['generationSeconds'], 1, 300 if cue['kind'] == 'bgm' else 20)
         seconds = number(cue['durationSeconds'], .5, generated)
         start = number(cue['start'], 0, duration - seconds + .001)
         volume = number(cue['volume'], 0, .5)
@@ -119,14 +129,15 @@ def render_background(timeline, assets, folder, download=download_asset, heartbe
         if info['duration'] < seconds - .1 or info['duration'] > generated + 2:
             raise ValueError('Provider audio duration mismatch')
         args += ['-protocol_whitelist', 'file,pipe', '-i', str(decoded)]
-        chain = f'[{index}:a]atrim=duration={seconds},asetpts=PTS-STARTPTS,loudnorm=I=-23:TP=-6:LRA=7,aresample=48000'
+        loudness = -18 if cue['kind'] == 'bgm' else -20 if cue['kind'] == 'sfx' else -23
+        chain = f'[{index}:a]atrim=duration={seconds},asetpts=PTS-STARTPTS,loudnorm=I={loudness}:TP=-6:LRA=7,aresample=48000'
         if fade_in:
             chain += f',afade=t=in:d={fade_in}'
         if fade_out:
             chain += f',afade=t=out:st={seconds-fade_out}:d={fade_out}'
         chain += f',volume={volume},adelay={round(start*1000)}:all=1,asetnsamples=n=480:p=0'
         if cue['kind'] in ('bgm', 'ambient'):
-            chain += f",volume='{duck}':eval=frame"
+            chain += f",volume='{music_duck if cue['kind'] == 'bgm' else duck}':eval=frame"
         chain += f'[s{index}]'
         filters.append(chain)
         labels.append(f'[s{index}]')
@@ -135,7 +146,7 @@ def render_background(timeline, assets, folder, download=download_asset, heartbe
     filter_file.write_text(';\n'.join(filters), encoding='utf8')
     output = root / 'background.m4a'
     heartbeat()
-    command(args + ['-filter_complex_script', str(filter_file), '-map', '[out]', '-t', str(duration), '-ar', '48000', '-ac', '2',
+    command(args + [filter_file_option(), str(filter_file), '-map', '[out]', '-t', str(duration), '-ar', '48000', '-ac', '2',
                     '-map_metadata', '-1', '-c:a', 'aac', '-b:a', '160k', '-movflags', '+faststart', str(output)])
     verify = root / 'verify.wav'
     command(['-protocol_whitelist', 'file,pipe', '-i', str(output), '-t', str(duration + 1), '-ar', '48000', '-ac', '2', '-c:a', 'pcm_s16le', str(verify)])
@@ -195,7 +206,7 @@ def render_final(manifest, background, voices, folder, heartbeat=lambda: None):
     config = root / 'final-mix.txt'
     config.write_text(';\n'.join(filters), encoding='utf8')
     output = root / 'final.m4a'
-    command(args + ['-filter_complex_script', str(config), '-map', '[out]', '-t', str(duration), '-ar', '48000', '-ac', '2', '-map_metadata', '-1', '-c:a', 'aac', '-b:a', '160k', '-movflags', '+faststart', str(output)])
+    command(args + [filter_file_option(), str(config), '-map', '[out]', '-t', str(duration), '-ar', '48000', '-ac', '2', '-map_metadata', '-1', '-c:a', 'aac', '-b:a', '160k', '-movflags', '+faststart', str(output)])
     verify = root / 'final-verify.wav'
     command(['-protocol_whitelist', 'file,pipe', '-i', str(output), '-t', str(duration + 1), '-ar', '48000', '-ac', '2', '-c:a', 'pcm_s16le', str(verify)])
     meta = wave_info(verify)
@@ -240,8 +251,20 @@ def process_final(job, request):
             request(prefix + 'output', 'PUT', body, job, 'audio/mp4').close()
         request(prefix + 'finish', 'POST', meta, job).close()
 
+def poll_script_results():
+    """Persist background script responses even when the browser is closed."""
+    from worker import request
+    while True:
+        try:
+            request('/internal/dubbing-generations/reconcile', 'POST', {}).close()
+        except Exception as exc:
+            print(json.dumps({'event': 'dubbing_script_poll_error', 'kind': type(exc).__name__}), flush=True)
+        time.sleep(15)
+
 def main():
     from worker import request
+    import threading
+    threading.Thread(target=poll_script_results, daemon=True).start()
     prefer_final = False
     while True:
         job = None

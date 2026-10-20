@@ -2,6 +2,8 @@ import {dubbingVisibleSQL} from './dubbing-access.js';
 import {one,rows,query,run,now,id,json,fail,rate} from './db.js';
 import {requireUser} from './auth.js';
 import {dubbingRecordingWindows,validateDubbingTake} from '../shared/dubbing-recording.js';
+import {dubbingSoundStatus} from './dubbing-sound.js';
+import {dubbingTimeline} from '../shared/dubbing.js';
 
 export const recordingEnabled=env=>env.DUBBING_RECORDING_ENABLED==='true'&&!!env.BUCKET&&!!env.TRANSCODER_TOKEN;
 const active=`${dubbingVisibleSQL()} AND EXISTS(SELECT 1 FROM users WHERE id=p.owner_id AND provider!='deleted')`;
@@ -53,6 +55,22 @@ export async function dubbingRecordingRoute(req,env,p,user,action,rest=''){
  const claim=await one(env,'SELECT role_id FROM dubbing_role_claims WHERE project_id=? AND user_id=?',p.id,user.id);
  if(!claim)fail(403,'먼저 참여할 배역을 선택해주세요.');
  if(!rest&&req.method==='GET')return json(await recordingView(env,p,user));
+ if(rest==='prepare'&&req.method==='POST'){
+  // A claimed participant may prepare silence, but cannot spend the owner's
+  // Gold or replace an existing paid sound job.
+  if(env.DUBBING_SOUND_ENABLED!=='true')fail(503,'녹음 준비 서버를 확인하고 있어요.');
+  if(!await one(env,'SELECT id FROM dubbing_sound_jobs WHERE project_id=? AND script_key=?',p.id,p.script_key)){
+   await rate(env,'dubbing-record-prepare:'+user.id,20,3600);
+   const timeline=dubbingTimeline(JSON.parse(p.script_json));timeline.sounds=[];
+   await query(env,`INSERT INTO dubbing_sound_jobs(id,project_id,script_key,mode,timeline_json,created,updated)
+    SELECT ?,?,?,'basic',?,?,? WHERE EXISTS(SELECT 1 FROM dubbing_projects p WHERE p.id=? AND p.script_key=? AND p.first_recorded_at=0 AND ${active}
+    AND EXISTS(SELECT 1 FROM dubbing_role_claims c WHERE c.project_id=p.id AND c.user_id=?))
+    ON CONFLICT(project_id,script_key) DO NOTHING`,id(),p.id,p.script_key,JSON.stringify(timeline),now(),now(),p.id,p.script_key,user.id).run();
+  }
+  const sound=await dubbingSoundStatus(env,p);
+  if(sound.state==='not_started')conflict();
+  return json({sound},sound.state==='ready'?200:202);
+ }
  const match=rest.match(/^([\w-]+)(?:\/(start|submit|lines)(?:\/([\w-]+))?)?$/);
  if(!match)fail(404,'녹음 경로를 찾을 수 없습니다.');
  const role=match[1],operation=match[2],lineId=match[3];

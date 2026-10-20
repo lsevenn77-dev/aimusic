@@ -1,6 +1,8 @@
 import {one,fail} from './db.js';
 // Shared by public reads and workers. An appeal does not silently republish a removed work.
-export const dubbingVisibleSQL=(alias='p')=>`NOT EXISTS(SELECT 1 FROM track_reports dr WHERE dr.dubbing_id=${alias}.id AND dr.status IN ('removed','appealed','upheld'))`;
+export const dubbingVisibleSQL=(alias='p')=>`${alias}.deleted_at=0
+ AND (${alias}.root_id IS NULL OR EXISTS(SELECT 1 FROM dubbing_projects root JOIN users ru ON ru.id=root.owner_id WHERE root.id=${alias}.root_id AND root.deleted_at=0 AND ru.provider!='deleted'))
+ AND NOT EXISTS(SELECT 1 FROM track_reports dr WHERE dr.dubbing_id IN (${alias}.id,${alias}.root_id) AND dr.status IN ('removed','appealed','upheld'))`;
 export async function dubbingRemoved(env,pid){return !!await one(env,"SELECT id FROM track_reports WHERE dubbing_id=? AND status IN ('removed','appealed','upheld') LIMIT 1",pid);}
 export async function assertDubbingCreator(env,uid){
  const r=await one(env,`SELECT COUNT(DISTINCT r.dubbing_id) n FROM track_reports r JOIN dubbing_projects p ON p.id=r.dubbing_id

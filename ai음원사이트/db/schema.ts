@@ -191,10 +191,11 @@ export const dubbingProjects=sqliteTable('dubbing_projects',{
  title:text('title').notNull(),optionsJson:text('options_json').notNull(),scriptJson:text('script_json').notNull(),scriptKey:text('script_key').notNull(),
  creationHash:text('creation_hash').notNull(),source:text('source').notNull().default('manual'),generationId:text('generation_id'),
  state:text('state').notNull().default('script_ready'),visibility:text('visibility').notNull().default('private'),
+ rootId:text('root_id'),deletedAt:integer('deleted_at').notNull().default(0),
  roleCount:integer('role_count').notNull(),duration:real('duration').notNull(),revision:integer('revision').notNull().default(1),
  writeToken:text('write_token').notNull(),rightsAt:integer('rights_at').notNull().default(0),firstRecordedAt:integer('first_recorded_at').notNull().default(0),
  created:integer('created').notNull(),updated:integer('updated').notNull()
-},t=>[index('dubbing_projects_owner').on(t.ownerId,t.updated),index('dubbing_projects_browse').on(t.visibility,t.state,t.created),
+},t=>[index('dubbing_projects_owner').on(t.ownerId,t.updated),index('dubbing_projects_root').on(t.rootId,t.created),index('dubbing_projects_browse').on(t.visibility,t.state,t.created),
  check('dubbing_roles_range',sql`${t.roleCount} BETWEEN 1 AND 6`),check('dubbing_duration_range',sql`${t.duration} > 0 AND ${t.duration} <= 300`)]);
 export const dubbingRoleClaims=sqliteTable('dubbing_role_claims',{
  projectId:text('project_id').notNull().references(()=>dubbingProjects.id,{onDelete:'cascade'}),roleId:text('role_id').notNull(),

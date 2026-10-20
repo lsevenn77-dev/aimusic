@@ -25,11 +25,14 @@ test('HTTP worker pipeline generates a background, accepts two roles and publish
   let diagnostic='';child.stderr.on('data',b=>diagnostic+=b);child.once('error',reject);child.once('close',code=>code===0?resolve():reject(Error(diagnostic||'Python worker failed')));
  });
  let p=(await f.call('/api/dubbing/projects','POST',{id:crypto.randomUUID(),options,script:sampleScript()})).body.project;
- const path='/api/dubbing/projects/'+p.id,soundId=crypto.randomUUID();
- assert.equal((await f.call(path+'/sound','POST',{requestId:soundId,mode:'basic',revision:p.revision})).status,202);
+ const path='/api/dubbing/projects/'+p.id;
+ p=(await f.call(path+'/publish','POST',{revision:p.revision,rightsAccepted:true})).body.project;
+ p=(await f.call(path+'/claims/'+p.script.roles[0].id,'POST',{revision:p.revision})).body.project;
+ const prepared=await f.call(path+'/recording/prepare','POST',{});
+ assert.equal(prepared.status,202);
+ const soundId=prepared.body.sound.id;
  await runPython(false);
  assert.equal((await f.call(path)).body.project.sound.state,'ready');
- p=(await f.call(path+'/publish','POST',{revision:p.revision,rightsAccepted:true})).body.project;
  for(const [i,user] of ['owner','other'].entries()){
   const role=p.script.roles[i].id,line=p.script.lines[i].id;
   p=(await f.call(path+'/claims/'+role,'POST',{revision:p.revision},user)).body.project;

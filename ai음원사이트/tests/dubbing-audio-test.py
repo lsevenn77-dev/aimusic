@@ -2,9 +2,11 @@
 import importlib.util
 import json
 import math
+import os
 import pathlib
 import shutil
 import struct
+import subprocess
 import tempfile
 import unittest
 import wave
@@ -28,6 +30,58 @@ def rms(path, start, end):
     return math.sqrt(sum(x*x for x in samples) / len(samples))
 
 class DubbingAudio(unittest.TestCase):
+    def test_short_music_accents_leave_speech_clear_and_keep_event_effects(self):
+        repo = pathlib.Path(__file__).parents[1]
+        source = """
+import {sampleScript} from './tests/dubbing-fixtures.mjs';
+import {dubbingSoundTimeline} from './shared/dubbing.js';
+const s=sampleScript(),cue=s.soundCues[0];
+s.soundCues=[{...cue,id:'door',kind:'sfx',lineId:s.lines[1].id,anchor:'start',durationSeconds:2,generationSeconds:2,volume:.3,fadeInSeconds:.05,fadeOutSeconds:.1},
+ {...cue,id:'intro',kind:'bgm',musicUse:'intro',anchor:'scene',endLineId:s.lines[1].id,durationSeconds:20,generationSeconds:20,volume:.4,fadeInSeconds:.3,fadeOutSeconds:.8}];
+console.log(JSON.stringify(dubbingSoundTimeline(s)));
+"""
+        timeline = json.loads(subprocess.check_output([os.environ.get('NODE_BIN', 'node'), '--input-type=module', '-e', source], cwd=repo))
+        with tempfile.TemporaryDirectory() as folder:
+            root = pathlib.Path(folder)
+            tone = root / 'provider-fixture.wav'
+            music_source = root / 'music.wav'
+            sine(tone, 2)
+            sine(music_source, 10)
+            assets = [{'cueId': 'door', 'url': 'sfx'}, {'cueId': 'intro', 'url': 'bgm'}]
+            download = lambda url, dest: shutil.copyfile(music_source if url == 'bgm' else tone, dest)
+            current, old = root / 'current', root / 'old'
+            current.mkdir(); old.mkdir()
+            _, meta = dubbing.render_background(timeline, assets, current, download=download)
+            legacy = json.loads(json.dumps(timeline))
+            next(c for c in legacy['sounds'] if c['kind'] == 'bgm')['volume'] = .4
+            dubbing.render_background(legacy, assets, old, download=download)
+            audio, old_audio = current / 'verify.wav', old / 'verify.wav'
+            self.assertEqual(meta['duration'], timeline['duration'])
+            ratio = rms(audio, .6, 1.2) / rms(old_audio, .6, 1.2)
+            self.assertTrue(.22 < ratio < .28, ratio)
+            self.assertLess(rms(audio, 2.5, 3.5), rms(audio, .6, 1.2) * .65)
+            self.assertLess(rms(audio, 6, 12), 1, 'ordinary dialogue has no continuous music')
+            effect_start = next(c['start'] for c in timeline['sounds'] if c['kind'] == 'sfx')
+            self.assertGreater(rms(audio, effect_start + .3, effect_start + .8), rms(audio, .6, 1.2) * 2)
+            self.assertLess(rms(audio, 25, 28), 1)
+
+    def test_music_continues_past_thirty_seconds_and_stops_at_the_selected_line(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = pathlib.Path(folder)
+            source = root / 'long-score.wav'
+            sine(source, 42)
+            timeline = {'duration': 48, 'lines': [{'start': 32, 'end': 36}], 'sounds': [{
+                'id': 'score', 'kind': 'bgm', 'generationSeconds': 42, 'durationSeconds': 42,
+                'start': 1, 'volume': .4, 'fadeInSeconds': .5, 'fadeOutSeconds': 1}]}
+            _, meta = dubbing.render_background(timeline, [{'cueId': 'score', 'url': 'local-test'}], root,
+                                                download=lambda url, dest: shutil.copyfile(source, dest))
+            decoded = root / 'verify.wav'
+            self.assertEqual(meta['duration'], 48)
+            self.assertGreater(rms(decoded, 38, 39), 100)
+            self.assertGreater(rms(decoded, 33, 34), rms(decoded, 38, 39) * .45)
+            self.assertLess(rms(decoded, 33, 34), rms(decoded, 38, 39) * .65)
+            self.assertLess(rms(decoded, 44, 45), 1)
+
     def test_final_voices_are_placed_on_the_shared_clock(self):
         with tempfile.TemporaryDirectory() as folder:
             root = pathlib.Path(folder)

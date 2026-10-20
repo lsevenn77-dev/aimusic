@@ -1,5 +1,5 @@
 import {one,rows,run,query,now,id,fail,str,json,rate} from './db.js';
-import {requireUser,isTrackModerator} from './auth.js';
+import {requireUser,isTrackModerator,isAdmin,hash} from './auth.js';
 import {published,VISIBLE} from './catalog.js';
 import {producerNameSQL} from './identity.js';
 
@@ -24,6 +24,23 @@ export async function trackModerationRoute(req,env,path,user){
  }
  if(!path.startsWith('/api/admin/track-review'))return null;
  requireUser(user);if(!isTrackModerator(env,user))fail(403,'음원 운영자만 확인할 수 있습니다.');
+ if(path==='/api/admin/track-review/covers/purge'){
+  if(!isAdmin(env,user))fail(403,'관리자만 전체 커버곡을 삭제할 수 있습니다.');
+  const tracks=await rows(env,"SELECT id,title,status,user_id FROM tracks WHERE kind='cover' AND status!='deleted' ORDER BY id");
+  const snapshot=await hash(JSON.stringify(tracks));
+  if(req.method==='GET')return json({tracks,count:tracks.length,snapshot});
+  if(req.method!=='POST')fail(405,'지원하지 않는 요청입니다.');
+  const b=await req.json();if(b.snapshot!==snapshot||b.count!==tracks.length||b.confirm!=='DELETE_ALL_COVERS')fail(409,'삭제 대상이 변경됐습니다. 목록을 다시 확인해주세요.');
+  if(!tracks.length)return json({deleted:0});
+  const ids=JSON.stringify(tracks.map(t=>t.id)),audit=id();
+  await env.DB.batch([
+   query(env,"INSERT INTO admin_audit(id,admin_id,action,target,created) VALUES(?,?,?,?,?)",audit,user.id,'covers:delete-all',JSON.stringify({tracks}),now()),
+   query(env,"UPDATE tracks SET uploaded_at=CASE WHEN status='uploading' AND uploaded_at=0 THEN -1 ELSE uploaded_at END,status='deleted',lease_token=NULL,lease_until=0,error=NULL WHERE kind='cover' AND id IN (SELECT value FROM json_each(?))",ids),
+   query(env,'DELETE FROM lyric_jobs WHERE track_id IN (SELECT value FROM json_each(?))',ids),
+   query(env,'DELETE FROM karaoke_jobs WHERE track_id IN (SELECT value FROM json_each(?))',ids)
+  ]);
+  return json({deleted:tracks.length,audit});
+ }
  const cutoff=now()-INACTIVE_DAYS*86400;
  if(path==='/api/admin/track-review'&&req.method==='GET'){
   const url=new URL(req.url),view=url.searchParams.get('view')||'candidates',q=str(url.searchParams.get('q')||'',100,false);

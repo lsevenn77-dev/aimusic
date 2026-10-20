@@ -18,6 +18,25 @@ if(goldFixture){
  globalThis.fetch=async()=>{throw Error('External requests disabled in local Gold fixture');};
 }
 const f=await fixture({after(fn){cleanups.push(fn);}},env);env.DB=f.DB;
+if(process.argv.includes('--generation-fixture')){
+ env.DUBBING_AI_ENABLED='true';env.OPENAI_API_KEY='local-fixture-only';
+ f.sql.prepare('UPDATE users SET premium_until=? WHERE id=?').run(Math.floor(Date.now()/1000)+86400,'owner');
+ const gid='10000000-0000-4000-8000-000000000001',at=Math.floor(Date.now()/1000);
+ const lost=process.argv.includes('--lost-generation');
+ f.sql.prepare("INSERT INTO dubbing_generations(id,user_id,input_hash,state,result_json,created,updated) VALUES(?,'owner','fixture',?,?,?,?)")
+  .run(gid,lost?'unknown':'ready',JSON.stringify(lost?{}:{script:sampleScript(),options}),at,at);
+ let selected=options,gets=0;
+ globalThis.fetch=async(url,init)=>{
+  if(!url.startsWith('https://api.openai.com/v1/responses'))throw new Error('External requests disabled in local generation fixture');
+  if(init.method==='POST'){selected=JSON.parse(JSON.parse(init.body).input);gets=0;return Response.json({id:'resp_local',status:'queued'});}
+  if(++gets<2)return Response.json({id:'resp_local',status:'in_progress'});
+  const script=sampleScript();script.genres=selected.genres;
+  return Response.json({id:'resp_local',status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(script)}]}],usage:{}});
+ };
+}
+if(process.argv.includes('--covers-fixture')){
+ f.sql.exec("UPDATE tracks SET kind='cover',cover_mode='solo',original_id='two',title='내 커버 삭제 확인' WHERE id='one';UPDATE tracks SET karaoke_at=1 WHERE id='two'");
+}
 let localAdminCookie='';
 if(process.argv.includes('--community-fixture')){
  env.ADMIN_PASSWORD_HASH=await createAdminPasswordHash('disposable-local-preview');
@@ -33,6 +52,13 @@ for(let i=0;i<works.length;i++){
  await f.call('/api/dubbing/projects/'+r.body.project.id+'/publish','POST',{revision:1,rightsAccepted:true},'other');
  if(i===0)await f.call('/api/dubbing/projects/'+r.body.project.id+'/claims/role_2','POST',{revision:2},'other');
  if(i===6)f.sql.prepare("UPDATE dubbing_projects SET state='complete' WHERE id=?").run(r.body.project.id);
+ if(process.argv.includes('--sound-badge-fixture')&&[0,5,6].includes(i)){
+  const p=r.body.project,pid=p.id,key=f.sql.prepare('SELECT script_key FROM dubbing_projects WHERE id=?').get(pid).script_key;
+  const ready=i!==5;
+  f.sql.prepare("INSERT INTO dubbing_sound_jobs(id,project_id,script_key,mode,timeline_json,state,output_key,created,updated) VALUES(?,?,?,'ai',?,?,?,0,0)")
+   .run(crypto.randomUUID(),pid,key,JSON.stringify(dubbingTimeline(script)),ready?'ready':'generating',ready?'local-sound-fixture':null);
+  if(ready)await BUCKET.put('local-sound-fixture',encodeWav([new Float32Array(48000)],48000));
+ }
 }
 const own=sampleScript();own.title='[로컬 테스트] 내 배경 오디오';
 if(process.argv.includes('--recording-fixture')){

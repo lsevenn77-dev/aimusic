@@ -2,7 +2,7 @@ import {dubbingSettings,dubbingPriceSQL} from './dubbing-settings.js';
 import {dubbingVisibleSQL} from './dubbing-access.js';
 import {one,rows,query,run,now,id,json,fail} from './db.js';
 import {requireUser} from './auth.js';
-import {dubbingTimeline} from '../shared/dubbing.js';
+import {dubbingSoundTimeline} from '../shared/dubbing.js';
 import {pikaAvailable,pikaSubmit,pikaPoll,pikaRequest} from './dubbing-pika.js';
 import {dubbingAIAvailable,generateDubbingSoundPlan} from './dubbing-ai.js';
 import {dubbingGoldEnabled,dubbingChargeWrites,dubbingPayment,refundDubbingGold,reconcileDubbingGold} from './dubbing-gold.js';
@@ -42,9 +42,9 @@ export async function dubbingSoundProjectRoute(req,env,p,user,action){
   if(!pikaAvailable(env))fail(503,'Pika 연결과 유료 API 실행 승인이 필요합니다.');
   if(body.acceptedGold!==priceGold||body.acceptedChargeGold!==(dubbingGoldEnabled(env)?priceGold:0))fail(409,'음향 제작 가격이 변경되었습니다. 화면을 새로 열어 차감 금액을 확인해주세요.');
   if(!script.soundCues.length&&!dubbingAIAvailable(env))fail(503,'직접 작성한 대본의 AI 음향 연출 연결을 기다리고 있습니다.');
-  script.soundCues.forEach(pikaRequest);
+  dubbingSoundTimeline(script).sounds.forEach(pikaRequest);
  }
- const timeline=dubbingTimeline(script),jid=body.requestId,at=now();
+ const timeline=dubbingSoundTimeline(script),jid=body.requestId,at=now();
  const bucket=Math.floor(at/soundStartWindow),rateKey=`dubbing-sound-start:${user.id}:${bucket}`,retryAt=(bucket+1)*soundStartWindow;
  const jobExists='EXISTS(SELECT 1 FROM dubbing_sound_jobs WHERE id=? AND project_id=? AND script_key=?)';
  if(body.mode==='basic')timeline.sounds=[];
@@ -130,7 +130,7 @@ export async function dubbingSoundInternalRoute(req,env,path){
    const gid=j.id;
    await run(env,"INSERT INTO dubbing_generations(id,user_id,input_hash,state,created,updated) VALUES(?,?,?,'running',?,?)",gid,j.owner_id,'sound-plan:'+j.script_key,now(),now());
    try{
-    const plan=await generateDubbingSoundPlan(env,JSON.parse(j.script_json),JSON.parse(j.options_json));timeline=dubbingTimeline(plan.script);
+    const plan=await generateDubbingSoundPlan(env,JSON.parse(j.script_json),JSON.parse(j.options_json));timeline=dubbingSoundTimeline(plan.script);
     await run(env,"UPDATE dubbing_generations SET state='sound_ready',usage_json=?,provider_id=?,updated=? WHERE id=?",JSON.stringify(plan.usage),plan.providerRequestId,now(),gid);
     const writes=[query(env,"UPDATE dubbing_sound_jobs SET timeline_json=?,state='generating',updated=? WHERE id=? AND lease_token=? AND lease_until>?",JSON.stringify(timeline),now(),j.id,j.lease_token,now())];
     for(const c of timeline.sounds)writes.push(query(env,"INSERT INTO dubbing_sound_assets(job_id,cue_id,updated) SELECT ?,?,? WHERE EXISTS(SELECT 1 FROM dubbing_sound_jobs WHERE id=? AND lease_token=? AND lease_until>?)",j.id,c.id,now(),j.id,j.lease_token,now()));
@@ -158,7 +158,17 @@ export async function dubbingSoundInternalRoute(req,env,path){
    ]);
    if(!reservation[0].results.length)return json({state:'generating',waitSeconds:2});
    try{await saveAsset(env,j,a,await pikaSubmit(env,timeline.sounds.find(c=>c.id===a.cue_id),`${j.id}:${a.cue_id}`));}
-   catch{await checkpoint(env,j,"state='unknown',error=?,lease_token=NULL,lease_until=0",['Pika 요청 응답 확인이 필요합니다. 자동 재요청하지 않았습니다.']);return json({state:'unknown'});}
+   catch(e){
+    if(e.status===409)throw e;
+    // Never log the key, prompt or raw upstream response.
+    console.error('dubbing_pika_submit',JSON.stringify({job:j.id,status:e.providerStatus||null,code:e.providerCode||null,rejected:!!e.providerRejected}));
+    const state=e.providerRejected?'failed':'unknown';
+    if(e.providerRejected)await env.DB.batch([
+     query(env,"UPDATE dubbing_sound_assets SET state='failed',billing_json=?,updated=? WHERE job_id=? AND cue_id=?",JSON.stringify({state:'rejected',httpStatus:e.providerStatus,errorCode:e.providerCode}),now(),j.id,a.cue_id),
+     query(env,"UPDATE dubbing_provider_usage SET state='failed',billing_json=?,updated=? WHERE job_id=? AND cue_id=?",JSON.stringify({state:'rejected',httpStatus:e.providerStatus,errorCode:e.providerCode}),now(),j.id,a.cue_id)
+    ]);
+    await checkpoint(env,j,`state='${state}',error=?,lease_token=NULL,lease_until=0`,[e.providerRejected?e.message:'Pika 요청 응답 확인이 필요합니다. 자동 재요청하지 않았습니다.']);return json({state});
+   }
   }else{
    try{await saveAsset(env,j,a,await pikaPoll(env,a.provider_id));}
    catch(e){

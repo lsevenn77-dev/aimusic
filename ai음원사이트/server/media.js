@@ -14,6 +14,7 @@ import {lyricsFields} from './lyrics.js';
 import {alignmentInternalRoute,alignmentWrite} from './alignment.js';
 import {dubbingSoundInternalRoute} from './dubbing-sound.js';
 import {dubbingFinalInternalRoute} from './dubbing-final.js';
+import {dubbingGenerationInternalRoute} from './dubbing-generation.js';
 import {KARAOKE_TERMS_VERSION} from '../shared/site-info.js';
 import {MAX_AUDIO,put,objectResponse,imageCacheControl,parseRange,originalKey} from './storage.js';
 import {originalArchiveRoute} from './original-archives.js';
@@ -145,6 +146,7 @@ export async function mediaRoute(req,env,path,user){
 }
 export async function internalRoute(req,env,path){
  if(!env.TRANSCODER_TOKEN||req.headers.get('authorization')!==`Bearer ${env.TRANSCODER_TOKEN}`)fail(401,'인증이 필요합니다.');
+ const generation=await dubbingGenerationInternalRoute(req,env,path);if(generation)return generation;
  const final=await dubbingFinalInternalRoute(req,env,path);if(final)return final;
  const dubbing=await dubbingSoundInternalRoute(req,env,path);if(dubbing)return dubbing;
  const grant=await premiumGrantInternalRoute(req,env,path);if(grant)return grant;
