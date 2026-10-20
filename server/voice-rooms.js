@@ -24,8 +24,10 @@ export async function voiceRoomsRoute(req,env,path,user,ctx) {
  if(path==='/api/voice/status'&&req.method==='GET')return json({enabled:voiceConfigured(env),max_members:30,mic_seats:8});
  requireUser(user);
  // A realtime page must not cache another user's room membership or permission.
- const crews=await rows(env,'SELECT c.id,c.name FROM crews c JOIN crew_members m ON m.crew_id=c.id WHERE m.user_id=? LIMIT 50',user.id);
- const followed=await rows(env,"SELECT DISTINCT p.user_id FROM follows f JOIN producers p ON p.id=f.target_id WHERE f.user_id=? AND f.kind='producer'",user.id);
+ const [crews,followed]=await Promise.all([
+  rows(env,'SELECT c.id,c.name FROM crews c JOIN crew_members m ON m.crew_id=c.id WHERE m.user_id=? LIMIT 50',user.id),
+  rows(env,"SELECT DISTINCT p.user_id FROM follows f JOIN producers p ON p.id=f.target_id WHERE f.user_id=? AND f.kind='producer'",user.id)
+ ]);
  const actor={id:user.id,profile_id:user.profile_id||null,name:user.display_name||user.name,image_version:user.image_version||'',crews:crews.map(c=>c.id),followedHosts:followed.map(p=>p.user_id),blocks:viewerBlockedIds(user)||[]};
  if(path==='/api/voice/options'&&req.method==='GET')return json({crews});
  if(path==='/api/voice/rooms'&&req.method==='GET')return json({...await result(await voiceCall(env,actor,'directory','list')),crews});

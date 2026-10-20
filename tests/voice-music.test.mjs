@@ -3,16 +3,17 @@ import assert from 'node:assert/strict';
 import {emptyRoomMusic,changeRoomMusic,roomMusicPosition} from '../shared/voice-music.js';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
+const playing=(m,now)=>changeRoomMusic(m,{operation:'play'},null,now);
 const song=id=>({id,title:id,artist:'Artist',duration:120,cover:'/cover'});
 test('server clock anchors late joins, pauses and restart without counting each listener',()=>{
- let m=changeRoomMusic(emptyRoomMusic(),{operation:'enqueue'},song('one'),10000);
+ let m=playing(changeRoomMusic(emptyRoomMusic(),{operation:'enqueue'},song('one'),10000),10000);
  assert.equal(roomMusicPosition(m,45000),35);m=changeRoomMusic(m,{operation:'pause'},null,45000);
  assert.equal(roomMusicPosition(m,90000),35);m=changeRoomMusic(m,{operation:'play'},null,90000);
  assert.equal(roomMusicPosition(m,95000),40);assert.equal(m.starts,1);
  m=changeRoomMusic(m,{operation:'restart'},null,95000);assert.equal(m.position,0);assert.equal(m.starts,2);
 });
 test('queue removal and reorder preserve the currently playing track and position',()=>{
- let m=changeRoomMusic(emptyRoomMusic(),{operation:'enqueue'},song('one'),0);
+ let m=playing(changeRoomMusic(emptyRoomMusic(),{operation:'enqueue'},song('one'),0),0);
  m=changeRoomMusic(m,{operation:'enqueue'},song('two'),1000);m=changeRoomMusic(m,{operation:'enqueue'},song('three'),2000);
  m=changeRoomMusic(m,{operation:'move',index:0,to:2},null,3000);assert.equal(m.index,2);assert.equal(m.queue[m.index].id,'one');assert.equal(m.position,3);
  m=changeRoomMusic(m,{operation:'remove',index:0},null,4000);assert.equal(m.queue[m.index].id,'one');assert.equal(m.position,4);
@@ -20,7 +21,7 @@ test('queue removal and reorder preserve the currently playing track and positio
  m=changeRoomMusic(m,{operation:'enqueue'},song('new'),6000);assert.equal(m.queue[m.index].id,'new');
 });
 test('duplicate ended callbacks and early ended events do not skip songs',()=>{
- let m=changeRoomMusic(emptyRoomMusic(),{operation:'enqueue'},song('one'),0);m=changeRoomMusic(m,{operation:'enqueue'},song('two'),0);
+ let m=playing(changeRoomMusic(emptyRoomMusic(),{operation:'enqueue'},song('one'),0),0);m=changeRoomMusic(m,{operation:'enqueue'},song('two'),0);
  const early=changeRoomMusic(m,{operation:'ended',revision:m.revision},null,1000);assert.equal(early,m);
  const revision=m.revision;m=changeRoomMusic(m,{operation:'ended',revision},null,120000);assert.equal(m.queue[m.index].id,'two');
  assert.equal(changeRoomMusic(m,{operation:'ended',revision},null,120000),m);
@@ -32,7 +33,7 @@ test('invalid volume, commands, queue size and indices are rejected',()=>{
 });
 function clientFixture(){const c=vm.createContext({crypto,window:{addEventListener(){},removeEventListener(){}},document:{addEventListener(){},removeEventListener(){}},setInterval,clearInterval,setTimeout,clearTimeout});vm.runInContext(readFileSync(new URL('../dist/voice-rooms.js',import.meta.url),'utf8')+';this.Client=VoiceRoomClient;',c);const client=new c.Client('test');client.generation='generation';client.musicAudio={volume:1,currentTime:0,readyState:1,paused:true,ended:false,load(){},pause(){this.paused=true;},play(){this.paused=false;return Promise.resolve();}};client.musicTrack='one:generation';return client;}
 test('two independent clients converge on room time while preserving personal music volume',()=>{
- const m=changeRoomMusic(emptyRoomMusic(),{operation:'enqueue'},song('one'),Date.now()-35000),a=clientFixture(),b=clientFixture();m.volume=.8;m.balance=.5;
+ const m=playing(changeRoomMusic(emptyRoomMusic(),{operation:'enqueue'},song('one'),Date.now()-35000),Date.now()-35000),a=clientFixture(),b=clientFixture();m.volume=.8;m.balance=.5;
  a.state={music:m};b.state={music:structuredClone(m)};a.preferences.music=.25;b.preferences.music=1;a.syncMusic();b.syncMusic();
  assert.ok(Math.abs(a.musicAudio.currentTime-b.musicAudio.currentTime)<.1);assert.ok(a.musicAudio.currentTime>=35);assert.equal(a.musicAudio.volume,.2);assert.equal(b.musicAudio.volume,.8);
  m.playing=false;m.position=42;a.syncMusic();assert.equal(a.musicAudio.paused,true);assert.equal(a.musicAudio.currentTime,42);
@@ -42,7 +43,28 @@ test('music mute does not mute voice and remote speaker gains remain personal',(
 });
 
 test('host seek validates position and stop retains queue without emitting ordinary playback events',()=>{
- let m=changeRoomMusic(emptyRoomMusic(),{operation:'enqueue'},song('one'),0);
+ let m=playing(changeRoomMusic(emptyRoomMusic(),{operation:'enqueue'},song('one'),0),0);
  m=changeRoomMusic(m,{operation:'seek',position:75},null,1000);assert.equal(roomMusicPosition(m,3000),77);
  assert.throws(()=>changeRoomMusic(m,{operation:'seek',position:121}));m=changeRoomMusic(m,{operation:'stop'},null,3000);assert.equal(m.playing,false);assert.equal(m.index,-1);assert.equal(m.queue.length,1);
+});
+
+test('enqueue never autoplays, and editing a paused queue does not start audio',()=>{
+ let m=changeRoomMusic(emptyRoomMusic(),{operation:'enqueue'},song('one'),0);
+ assert.equal(m.playing,false);assert.equal(m.starts,0);assert.equal(roomMusicPosition(m,100000),0);
+ m=changeRoomMusic(m,{operation:'enqueue'},song('two'),1000);assert.equal(m.index,0);assert.equal(m.playing,false);
+ m=changeRoomMusic(m,{operation:'remove',index:0},null,2000);assert.equal(m.queue[m.index].id,'two');assert.equal(m.playing,false);
+ m=changeRoomMusic(m,{operation:'play'},null,3000);assert.equal(m.playing,true);assert.equal(m.starts,1);
+ m=changeRoomMusic(m,{operation:'enqueue'},song('three'),4000);assert.equal(m.queue[m.index].id,'two');assert.equal(m.position,1);assert.equal(m.starts,1);
+});
+test('repeat button cycles off to one to all to off and track endings obey each mode',async()=>{
+ const c=vm.createContext({VoiceRoomClient:class{}});
+ vm.runInContext(readFileSync(new URL('../dist/voice-room-controls.js',import.meta.url),'utf8')+';this.Client=VoiceRoomClient;',c);
+ const client=new c.Client();client.state={music:emptyRoomMusic()};client.musicCommand=async(operation,b)=>{client.state.music=changeRoomMusic(client.state.music,{operation,...b});};
+ for(const mode of ['one','all','off']){await client.finalAction('music-repeat');assert.equal(client.state.music.repeat,mode);}
+ for(const [mode,index,playingAfter] of [['off',-1,false],['one',1,true],['all',0,true]]){
+  let m=changeRoomMusic(emptyRoomMusic(),{operation:'enqueue'},song('one'),0);m=changeRoomMusic(m,{operation:'enqueue'},song('two'),0);
+  m=changeRoomMusic(m,{operation:'next'},null,0);m=changeRoomMusic(m,{operation:'repeat',mode},null,0);
+  m=changeRoomMusic(m,{operation:'ended',revision:m.revision},null,120000);
+  assert.equal(m.index,index);assert.equal(m.playing,playingAfter);
+ }
 });

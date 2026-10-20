@@ -1,7 +1,11 @@
-/* Talking-room-only focus layout. The lobby and the rest of AIFECT retain their styles. */
-body.voice-room-open{overflow:hidden;background:#07111f}
-body.voice-room-open #sidebar,body.voice-room-open .topbar,body.voice-room-open #topbar,body.voice-room-open #player,body.voice-room-open .mobile-nav,body.voice-room-open .mobile-navigation,body.voice-room-open .bottom-nav,body.voice-room-open .site-footer,body.voice-room-open footer{display:none!important}
-body.voice-room-open #main{position:fixed;inset:0;margin:0!important;padding:0!important;max-width:none!important;width:100%;height:100dvh;overflow:hidden;background:#07111f}
+/* The desktop room lives inside the site shell; mobile has a focus layout. */
+body.voice-room-open{background:#07111f}
+body.voice-room-open #player,body.voice-room-open .site-footer,body.voice-room-open footer{display:none!important}
+@media(max-width:800px){
+ body.voice-room-open{overflow:hidden}
+ body.voice-room-open #sidebar,body.voice-room-open .topbar,body.voice-room-open #topbar,body.voice-room-open .mobile-nav,body.voice-room-open .mobile-navigation,body.voice-room-open .bottom-nav{display:none!important}
+ body.voice-room-open #main{position:fixed;inset:0;margin:0!important;padding:0!important;max-width:none!important;width:100%;height:100dvh;overflow:hidden;background:#07111f}
+}
 .voice-room{--voice-avatar:clamp(98px,11.5vw,174px);--vr-line:#294460;--vr-muted:#a6b6d3;--vr-purple:#b28af4;--vr-cyan:#43d8d8;box-sizing:border-box;position:relative;display:flex;flex-direction:column;width:100%;max-width:none;height:var(--voice-viewport,100dvh);margin:0;padding:24px 28px 28px;color:#eff0fb;background:radial-gradient(ellipse at 36% 3%,#29316a55,transparent 38%),radial-gradient(ellipse at 20% 71%,#392a6d33,transparent 36%),radial-gradient(ellipse at 75% 65%,#112b4855,transparent 44%),#07111f;font-family:inherit}
 .voice-room[data-background=sunset]{background:radial-gradient(ellipse at 35% 15%,#70435a77,transparent 65%),radial-gradient(ellipse at bottom,#24295466,transparent),#0c1422}
 .voice-room[data-background=night]{background:radial-gradient(ellipse at 70% 10%,#233d7477,transparent 48%),radial-gradient(ellipse at 20% 80%,#39295b55,transparent 45%),#050e1c}
@@ -351,3 +355,34 @@ body.voice-room-open #main{position:fixed;inset:0;margin:0!important;padding:0!i
  .voice-columns{gap:5px}.voice-announcement{min-height:28px;max-height:34px;padding:4px 7px;margin-bottom:4px}.voice-announcement strong{display:none}.voice-announcement p{font-size:9px}.voice-notice-icon svg{width:18px;height:18px}.voice-chat{margin-bottom:4px;padding:6px}.voice-chat-panel #voice-message{height:33px;min-height:33px;padding:7px 37px 6px 10px;font-size:11px}.voice-chat-panel #voice-chat-form [data-voice=gift]{width:33px;height:33px;flex-basis:33px;padding:7px}.voice-chat-panel #voice-chat-form [data-voice=gift] svg{width:19px;height:19px}.voice-chat-panel #voice-chat-form [data-voice=emoji]{right:46px;bottom:3px;width:27px;height:27px}.voice-chat-panel #voice-chat-form [data-voice=emoji] svg{width:22px;height:22px}
 }
 @media(prefers-reduced-motion:reduce){.voice-seat .voice-person.is-speaking::before,.voice-seat .voice-person.is-speaking::after{animation:none;opacity:var(--voice-level,0);transform:scale(1.08)}.voice-switch span,.voice-switch span:after{transition:none}}
+/* Keep the desktop shell and size the room to its available content area. */
+@media(min-width:801px){
+ body.voice-room-open{overflow:hidden}
+ body.voice-room-open .page-wrap{padding-bottom:0}
+ body.voice-room-open #sidebar{display:flex!important;bottom:0;transform:none}
+ body.voice-room-open #main{position:relative;margin:0 auto;padding:16px 20px 20px;width:100%;max-width:1640px;min-height:0;overflow:hidden}
+ .voice-room{container-type:inline-size;height:var(--voice-viewport,calc(100dvh - 110px));min-height:470px;border:1px solid #253c55;border-radius:16px;padding:18px;--voice-avatar:clamp(62px,min(11cqw,calc((100dvh - 390px)/2.7)),132px)}
+ .voice-heading{flex-basis:112px}.voice-heading h1{font-size:28px;margin:22px 0 7px;max-width:100%}.voice-heading>p{font-size:12px}
+ .voice-stage-toolbar>div{gap:8px}.voice-stage-toolbar .voice-icon-button{width:40px;height:40px;padding:9px}.voice-stage-toolbar .voice-icon-button svg{width:22px;height:22px}.voice-heading .voice-leave{height:40px;min-width:78px;padding:7px 13px;font-size:13px;border-width:1px}
+ .voice-columns{grid-template-columns:minmax(0,1.8fr) minmax(240px,1fr);gap:16px}
+ .voice-music-mini{flex-basis:64px;gap:9px;padding:9px}.voice-music-mini>img{width:40px;height:40px}.voice-music-mini strong{font-size:13px}.voice-music-mini small{font-size:11px}.voice-music-mini>div{gap:2px}.voice-music-mini button{width:29px;height:33px;padding:5px}.voice-music-mini [data-voice=music-play],.voice-music-mini [data-voice=music-pause]{width:36px;height:36px;border-width:1px}
+ .voice-seats{gap:18px 12px;margin:30px 3px 16px}.voice-seat .voice-person strong{font-size:14px}.voice-seat .voice-person{gap:8px}.voice-seat-empty{margin-bottom:28px}.voice-seat-mic{width:32px;height:32px;top:calc(var(--voice-avatar) - 28px);padding:6px}
+ .voice-listeners{flex-basis:76px;padding:12px;gap:12px}.voice-listeners .voice-person{width:46px}.voice-avatar-plus{flex-basis:46px;width:46px;padding:12px}
+ .voice-chat-panel{padding:10px}.voice-chat .voice-chat-message p{font-size:13px;padding:8px 11px}.voice-chat-avatar,.voice-chat-avatar img,.voice-chat-avatar .avatar-fallback{width:32px;height:32px;flex-basis:32px}.voice-chat-message>div{max-width:calc(100% - 42px)}.voice-chat b{font-size:12px}.voice-chat time{font-size:10px}
+ .voice-chat-panel #voice-message{height:48px;min-height:48px;font-size:12px;padding:13px 39px 12px 12px}.voice-chat-panel #voice-chat-form [data-voice=gift]{width:42px;height:42px;flex-basis:42px;padding:9px}.voice-chat-panel #voice-chat-form [data-voice=gift] svg{width:23px;height:23px}.voice-chat-panel #voice-chat-form [data-voice=emoji]{right:51px;bottom:9px;width:29px;height:29px}
+ .voice-announcement{padding:10px;gap:8px;max-height:85px;margin-bottom:12px}.voice-announcement p{font-size:12px}
+}
+@media(min-width:801px) and (max-width:1500px){.voice-mini-volume{display:none!important}}
+@media(min-width:801px) and (max-width:1100px){
+ body.voice-room-open .page-wrap{margin-left:var(--sidebar)}
+ body.voice-room-open #main{padding:10px}.voice-room{padding:12px;--voice-avatar:clamp(48px,10cqw,78px)}.voice-columns{grid-template-columns:minmax(0,1.3fr) minmax(215px,1fr);gap:10px}.voice-music-mini>img{display:none}.voice-music-mini button{width:25px}.voice-heading h1{font-size:23px}.voice-seat .voice-person strong{font-size:11px}
+}
+.voice-stage-toolbar .voice-icon-button[data-voice=participants]{display:flex;align-items:center;justify-content:center;gap:7px;width:72px;border-radius:22px;padding:8px}
+.voice-stage-toolbar #voice-people-count{position:static;display:inline;min-width:2ch;height:auto;padding:0;border:0;background:none;border-radius:0;font-size:14px;font-variant-numeric:tabular-nums;color:inherit}
+.voice-seat-exit{position:absolute;top:-14px;right:calc(50% - var(--voice-avatar)/2 - 12px);z-index:4;display:grid;place-items:center;width:32px;height:32px;border:1px solid #53627b;border-radius:50%;background:#131e30;color:#d9dbe9;padding:6px}
+.voice-seat-exit:hover{background:#342b43;color:#ffc1da}.voice-seat-exit svg{width:18px;height:18px}
+.voice-seat-mic[aria-busy=true]{border-style:dashed;color:#c9afff}
+.voice-chat .voice-seat-request{display:flex;align-items:flex-start;gap:9px;padding:10px;border:1px solid #66528a;border-radius:12px;background:#30274066}
+.voice-seat-request img,.voice-seat-request .avatar-fallback{width:32px;height:32px;border-radius:50%;flex-shrink:0}.voice-seat-request p{margin:5px 0;font-size:12px}.voice-seat-request button{margin:3px 5px 0 0;padding:6px 10px;font-size:12px}
+.voice-room [data-voice=music-repeat]{position:relative}.voice-room [data-voice=music-repeat] sup{position:absolute;right:1px;top:0;font-size:10px}.voice-room [data-voice=music-repeat][aria-pressed=true]{background:#49335e88;color:#e0b4ff}
+@media(max-width:800px){.voice-stage-toolbar .voice-icon-button[data-voice=participants]{width:51px;gap:3px;padding:6px}.voice-stage-toolbar #voice-people-count{font-size:11px}.voice-seat-exit{width:30px;height:30px;padding:7px;top:-13px;right:calc(50% - var(--voice-avatar)/2 - 6px)}}

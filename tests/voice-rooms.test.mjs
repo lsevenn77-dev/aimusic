@@ -121,7 +121,7 @@ test('concurrent joins enforce 30 participants and duplicate joins do not consum
  assert.equal((await h.join(actor('host'))).status,200);assert.equal(Object.keys(h.room.data.members).length,30);
 });
 test('8 mic seats, listener permission and moderator hierarchy are enforced on server',async t=>{
- const h=harness(t);await h.create();for(let i=0;i<9;i++){await h.join(actor('u'+i));await h.call('request-mic',actor('u'+i));}
+ const h=harness(t);await h.create();for(let i=0;i<9;i++){await h.join(actor('u'+i));await h.call('request-mic',actor('u'+i),{seat:Math.min(i+1,7)});}
  assert.equal((await h.call('approve-mic',actor('u0'),{target_id:'u0'})).status,403);assert.equal((await h.call('moderate',actor('host'),{target_id:'constructor',operation:'admin'})).status,400);
  const approvals=await Promise.all(Array.from({length:9},(_,i)=>h.call('approve-mic',actor('host'),{target_id:'u'+i})));assert.equal(approvals.filter(x=>x.status===200).length,7);assert.equal(approvals[8].status,409);
  assert.equal((await h.call('publish',actor('u8'),{mid:'0',sessionDescription:offer})).status,403);
@@ -328,12 +328,13 @@ test('two authenticated members share music state; only host and explicit rights
  f.sql.exec('UPDATE tracks SET duration=120');
  globalThis.fetch=async(url,init)=>voiceWorker.fetch(new Request(url,init),{...h.env,VOICE_BRIDGE_SECRET:secret,ROOMS:{idFromName:id=>id,get:()=>({fetch:r=>h.room.fetch(r)})}});
  const root='/api/voice/rooms/test-room/';const gen=h.room.data.members.owner.generation;
- const initial=await f.call(root+'music-search?generation='+gen);assert.equal(initial.status,200);assert.equal(initial.body.tracks.find(t=>t.id==='one').room_allowed,false);
+ const initial=await f.call(root+'music-search?q=one&generation='+gen);assert.equal(initial.status,200);assert.equal(initial.body.tracks.find(t=>t.id==='one').room_allowed,false);
  assert.equal((await f.call(root+'music','POST',{operation:'enqueue',track_id:'one',request_id:crypto.randomUUID(),generation:gen})).status,403);
  assert.equal((await f.call(root+'music-consent','POST',{track_id:'one',accept:true,generation:gen})).status,200);
  const command={operation:'enqueue',track_id:'one',request_id:crypto.randomUUID(),generation:gen,track:{id:'forged',duration:1}};
  const first=await f.call(root+'music','POST',command);assert.equal(first.status,200,JSON.stringify(first.body));assert.equal(first.body.music.queue[0].id,'one');
- assert.equal((await f.call(root+'music','POST',command)).body.music.starts,1);
+ assert.equal((await f.call(root+'music','POST',command)).body.music.starts,0);assert.equal(first.body.music.playing,false);
+ await f.call(root+'music','POST',{operation:'play',generation:gen,request_id:crypto.randomUUID()});
  const otherGen=h.room.data.members.other.generation;
  assert.equal((await f.call(root+'music','POST',{operation:'pause',request_id:crypto.randomUUID(),generation:otherGen},'other')).status,403);
  const pause=await f.call(root+'music','POST',{operation:'pause',request_id:crypto.randomUUID(),generation:gen});assert.equal(pause.body.music.playing,false);
@@ -380,8 +381,8 @@ test('host seat stays reserved through disconnect; guests cannot take it or perf
  assert.equal((await h.call('settings',actor('guest'),{title:'stolen'})).status,403);
  assert.equal((await h.call('seat-invite',actor('guest'),{target_id:'host',seat:1})).status,403);
  h.room.data.members.host.expires=0;await h.room.alarm();
- await h.call('request-mic',actor('guest'),{seat:0});
- await h.join(actor('host'));assert.equal(h.room.data.members.host.seat,0);
+ assert.equal((await h.call('request-mic',actor('guest'),{seat:0})).status,409);
+ await h.join(actor('host'));assert.equal(h.room.data.members.host.seat,0);await h.call('request-mic',actor('guest'),{seat:1});
  assert.equal((await h.call('approve-mic',actor('host'),{target_id:'guest'})).status,200);assert.equal(h.room.data.members.guest.seat,1);
  assert.equal((await h.call('moderate',actor('guest'),{target_id:'host',operation:'remove-seat'})).status,403);
 });
@@ -428,6 +429,62 @@ test('self mute preserves SFU session for quick resume; host mute retires it and
 test('host departure pauses shared music and host reentry restores queue for explicit resume',async t=>{
  const h=harness(t);await h.create();await h.join(actor('guest'));
  await h.call('music',actor('host'),{operation:'enqueue',track:{id:'song',title:'Song',artist:'Artist',duration:120,cover:'/cover'},request_id:crypto.randomUUID()});
- assert.equal(h.room.data.music.playing,true);await h.call('leave');assert.equal(h.room.data.music.playing,false);assert.equal(h.room.data.music.queue.length,1);
+ assert.equal(h.room.data.music.playing,false);await h.call('music',actor('host'),{operation:'play',request_id:crypto.randomUUID()});assert.equal(h.room.data.music.playing,true);await h.call('leave');assert.equal(h.room.data.music.playing,false);assert.equal(h.room.data.music.queue.length,1);
  await h.join(actor('host'));assert.equal(h.room.data.members.host.role,'host');await h.call('music',actor('host'),{operation:'play',request_id:crypto.randomUUID()});assert.equal(h.room.data.music.playing,true);
+});
+
+test('seat request details are private in HTTP and push snapshots and expire on time or host disconnect',async t=>{
+ const h=harness(t);await h.create();await h.join(actor('applicant'));await h.join(actor('listener'));
+ const delivered=new Map(),sockets=Object.values(h.room.data.members).map(p=>({readyState:1,deserializeAttachment:()=>({id:p.id,generation:p.generation}),send(s){const events=delivered.get(p.id)||[];events.push(JSON.parse(s));delivered.set(p.id,events);},close(){this.readyState=3;}}));
+ h.ctx.getWebSockets=()=>sockets;h.room.notify=VoiceRoom.prototype.notify.bind(h.room);
+ assert.equal((await h.call('request-mic',actor('applicant'),{seat:4})).status,200);
+ assert.equal(delivered.has('listener'),false);
+ assert.equal(delivered.get('host').at(-1).state.members.find(m=>m.id==='applicant').requestedSeat,4);
+ const publicState=(await h.call('state',actor('listener'))).body,privateMember=publicState.members.find(m=>m.id==='applicant');
+ assert.equal('requested' in privateMember,false);assert.equal('requestedSeat' in privateMember,false);assert.equal(privateMember.seat,null);assert.equal(privateMember.publishing,false);
+ assert.equal((await h.call('approve-mic',actor('listener'),{target_id:'applicant'})).status,403);
+ h.room.data.members.applicant.requestExpires=0;await h.room.alarm();assert.equal(h.room.data.members.applicant.requested,false);
+ assert.equal((await h.call('approve-mic',actor('host'),{target_id:'applicant'})).status,409);
+ await h.call('request-mic',actor('applicant'),{seat:4});sockets[0].readyState=3;h.room.webSocketClose(sockets[0]);await h.room.queue;
+ assert.equal(h.room.data.members.applicant.requested,false);
+ await h.call('request-mic',actor('applicant'),{seat:4});await h.call('close');assert.equal(h.room.data.config.closed,true);
+});
+
+test('eight publishers concurrently toggle without new SFU sessions, reject stale intent and release seats idempotently',async t=>{
+ const h=harness(t);await h.create();const actors=[actor('host'),...Array.from({length:7},(_,i)=>actor('toggle-'+i))];
+ for(let i=1;i<8;i++){await h.join(actors[i]);await h.call('request-mic',actors[i],{seat:i});await h.call('approve-mic',actors[0],{target_id:actors[i].id});}
+ const sockets=actors.map(a=>({readyState:1,messages:[],deserializeAttachment:()=>({id:a.id,generation:h.room.data.members[a.id]?.generation}),send(s){this.messages.push(JSON.parse(s));},close(){this.readyState=3;}}));
+ h.ctx.getWebSockets=()=>sockets;h.room.notify=VoiceRoom.prototype.notify.bind(h.room);
+ await Promise.all(actors.map(a=>h.call('publish',a,{mid:'0',sessionDescription:offer})));
+ await Promise.all(actors.map(a=>h.call('published',a,{muted:true})));
+ const sessions=actors.map(a=>h.room.data.members[a.id].pub.sessionId),allocations=h.calls.length,latencies=[];
+ for(let sequence=1;sequence<=10;sequence++){
+  const start=performance.now(),muted=sequence%2===0;
+  const results=await Promise.all(actors.map(a=>h.call('self-mute',a,{muted,sequence})));assert.ok(results.every(r=>r.status===200));latencies.push(performance.now()-start);
+  for(const socket of sockets){const state=socket.messages.at(-1).state;assert.equal(state.members.length,8);assert.ok(state.members.every(p=>p.muted===muted&&p.publishing));}
+ }
+ assert.equal(h.calls.length,allocations,'mute/unmute must not renegotiate subscriptions or publishers');
+ const stale=await h.call('self-mute',actors[1],{muted:false,sequence:3});assert.equal(stale.body.members.find(m=>m.id===actors[1].id).muted,true);
+ const revision=h.room.data.revision;await h.call('release-mic',actors[1]);const after=h.room.data.revision;await h.call('release-mic',actors[1]);assert.equal(h.room.data.revision,after);assert.ok(after>revision);
+ assert.equal(h.room.data.members[actors[1].id].pub,null);assert.equal(h.room.data.members[actors[1].id].seat,null);assert.equal(Object.keys(h.room.data.members).length,8);
+ assert.equal((await h.call('publish',actors[1],{mid:'0',sessionDescription:offer})).status,403);
+ await h.call('moderate',actors[0],{target_id:actors[2].id,operation:'remove-seat'});
+ assert.equal(h.room.data.members[actors[2].id].pub,null);
+ assert.equal((await h.call('moderate',actors[3],{target_id:actors[4].id,operation:'remove-seat'})).status,403);
+ await h.call('leave',actors[1]);assert.equal(Object.keys(h.room.data.members).length,7);await h.join(actors[1]);
+ assert.equal(h.room.data.members[actors[1].id].seat,null);assert.equal(Object.keys(h.room.data.members).length,8);
+ const old=h.room.data.members[actors[4].id].generation;await h.join(actors[4]);assert.notEqual(h.room.data.members[actors[4].id].generation,old);
+ assert.equal((await h.call('self-mute',actors[4],{generation:old,muted:false,sequence:11})).status,409);
+ for(const i of [0,3,5,6,7]){assert.equal(h.room.data.members[actors[i].id].pub.sessionId,sessions[i]);assert.equal((await h.call('self-mute',actors[i],{muted:false,sequence:11})).status,200);}
+ t.diagnostic(JSON.stringify({kind:'mock_sfu_real_room_state_and_push',participants:8,concurrentToggleRounds:10,totalToggles:80,maxRoundMs:Math.round(Math.max(...latencies)),extraSfuAllocations:h.calls.length-allocations,actualAudio:false}));
+});
+
+test('seat removal during publication retires the late allocation without reviving publishing permission',async t=>{
+ const h=harness(t);await h.create();await h.join(actor('a'));await h.call('request-mic',actor('a'),{seat:1});await h.call('approve-mic',actor('host'),{target_id:'a'});
+ let release,entered;const gate=new Promise(r=>entered=r),original=h.room.sfu.tracks;
+ h.room.sfu.tracks=async(...args)=>{entered();await new Promise(r=>release=r);return original(...args);};
+ const pending=h.call('publish',actor('a'),{mid:'0',sessionDescription:offer});await gate;
+ await h.call('moderate',actor('host'),{target_id:'a',operation:'remove-seat'});release();
+ assert.equal((await pending).status,409);assert.equal(h.room.data.members.a.pub,null);assert.equal(h.room.data.members.a.seat,null);
+ assert.equal((await h.call('published',actor('a'))).status,409);
 });

@@ -19,6 +19,7 @@ test('room directory migration preserves existing rooms and audit history',()=>{
 test('shared music repeat one/all and previous preserve a single authoritative queue',()=>{
  let music=changeRoomMusic(emptyRoomMusic(),{operation:'enqueue'},{id:'one',duration:10},0);
  music=changeRoomMusic(music,{operation:'enqueue'},{id:'two',duration:10},0);
+ music=changeRoomMusic(music,{operation:'play'},null,0);
  music=changeRoomMusic(music,{operation:'repeat',mode:'one'},null,0);
  music=changeRoomMusic(music,{operation:'ended',revision:music.revision},null,10000);
  assert.equal(music.index,0);assert.equal(music.position,0);

@@ -24,10 +24,13 @@ export async function voiceMusicRoute(req,env,user,room,action,b,call){
  }
  if(action==='music-search'){
   if(req.method!=='GET')fail(405,'허용되지 않는 요청이에요.');
-  const q=(url.searchParams.get('q')||'').slice(0,100),where=VISIBLE()+" AND t.kind='original' AND t.rights_accepted>0 AND ("+permissionSQL+' OR t.user_id=?) AND (t.title LIKE ? OR a.name LIKE ? OR p.name LIKE ?)';
+  const q=(url.searchParams.get('q')||'').trim().slice(0,100);if(!q)return json({tracks:[],consent:VOICE_MUSIC_CONSENT});
+  const where=VISIBLE()+" AND t.kind='original' AND t.rights_accepted>0 AND ("+permissionSQL+' OR t.user_id=?) AND (t.title LIKE ? OR a.name LIKE ? OR p.name LIKE ?)';
   const tracks=await trackList(env,where,[user.id,'%'+q+'%','%'+q+'%','%'+q+'%'],'t.created DESC',30);
-  const grants=await rows(env,'SELECT track_id FROM voice_music_permissions WHERE terms=?',VOICE_MUSIC_TERMS);
-  return json({tracks:tracks.map(t=>({...t,room_allowed:grants.some(g=>g.track_id===t.id),can_consent:t.user_id===user.id})),consent:VOICE_MUSIC_CONSENT});
+  // Bound permission lookup to this result page; never scan the whole grants table.
+  const grants=tracks.length?await rows(env,'SELECT track_id FROM voice_music_permissions WHERE terms=? AND track_id IN ('+tracks.map(()=>'?').join(',')+')',VOICE_MUSIC_TERMS,...tracks.map(t=>t.id)):[];
+  const allowed=new Set(grants.map(g=>g.track_id));
+  return json({tracks:tracks.map(t=>({...t,room_allowed:allowed.has(t.id),can_consent:t.user_id===user.id})),consent:VOICE_MUSIC_CONSENT});
  }
  if(action==='music'){
   if(req.method!=='POST')fail(405,'허용되지 않는 요청이에요.');
