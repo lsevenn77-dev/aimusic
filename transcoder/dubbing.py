@@ -251,8 +251,20 @@ def process_final(job, request):
             request(prefix + 'output', 'PUT', body, job, 'audio/mp4').close()
         request(prefix + 'finish', 'POST', meta, job).close()
 
+def poll_script_results():
+    """Persist background script responses even when the browser is closed."""
+    from worker import request
+    while True:
+        try:
+            request('/internal/dubbing-generations/reconcile', 'POST', {}).close()
+        except Exception as exc:
+            print(json.dumps({'event': 'dubbing_script_poll_error', 'kind': type(exc).__name__}), flush=True)
+        time.sleep(15)
+
 def main():
     from worker import request
+    import threading
+    threading.Thread(target=poll_script_results, daemon=True).start()
     prefer_final = False
     while True:
         job = None

@@ -18,6 +18,22 @@ if(goldFixture){
  globalThis.fetch=async()=>{throw Error('External requests disabled in local Gold fixture');};
 }
 const f=await fixture({after(fn){cleanups.push(fn);}},env);env.DB=f.DB;
+if(process.argv.includes('--generation-fixture')){
+ env.DUBBING_AI_ENABLED='true';env.OPENAI_API_KEY='local-fixture-only';
+ f.sql.prepare('UPDATE users SET premium_until=? WHERE id=?').run(Math.floor(Date.now()/1000)+86400,'owner');
+ const gid='10000000-0000-4000-8000-000000000001',at=Math.floor(Date.now()/1000);
+ const lost=process.argv.includes('--lost-generation');
+ f.sql.prepare("INSERT INTO dubbing_generations(id,user_id,input_hash,state,result_json,created,updated) VALUES(?,'owner','fixture',?,?,?,?)")
+  .run(gid,lost?'unknown':'ready',JSON.stringify(lost?{}:{script:sampleScript(),options}),at,at);
+ let selected=options,gets=0;
+ globalThis.fetch=async(url,init)=>{
+  if(!url.startsWith('https://api.openai.com/v1/responses'))throw new Error('External requests disabled in local generation fixture');
+  if(init.method==='POST'){selected=JSON.parse(JSON.parse(init.body).input);gets=0;return Response.json({id:'resp_local',status:'queued'});}
+  if(++gets<2)return Response.json({id:'resp_local',status:'in_progress'});
+  const script=sampleScript();script.genres=selected.genres;
+  return Response.json({id:'resp_local',status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(script)}]}],usage:{}});
+ };
+}
 if(process.argv.includes('--covers-fixture')){
  f.sql.exec("UPDATE tracks SET kind='cover',cover_mode='solo',original_id='two',title='내 커버 삭제 확인' WHERE id='one';UPDATE tracks SET karaoke_at=1 WHERE id='two'");
 }

@@ -30,7 +30,17 @@ function dubbingCard(p,i){
 }
 function dubbingLengthLabel(minutes){const seconds=Math.round(minutes*60);return `${seconds>=60?Math.floor(seconds/60)+'분':''}${seconds%60?' '+seconds%60+'초':''}`.trim();}
 // Recent completed production requests took 21s and 41s; allow for longer scripts and load.
-const dubbingGenerationEstimate='예상 생성 시간: 약 20초~1분 30초';
+const dubbingGenerationEstimate='예상 생성 시간: 약 30초~3분';
+async function dubbingWaitForGeneration(result,form){
+ const deadline=Date.now()+10*60*1000;
+ while(result.state==='running'&&form.isConnected&&Date.now()<deadline){
+  dubbingMessage(form,(result.message||'대본을 만들고 있어요.')+' '+dubbingGenerationEstimate+'.');
+  await new Promise(resolve=>setTimeout(resolve,4000));
+  if(!form.isConnected)return result;
+  result=await api('/api/dubbing/generations/'+result.id);
+ }
+ return result;
+}
 function dubbingQuotaHTML(q){
  const pending=dubbingRewardPending(),available=q?.rewardedAdAvailable&&q.adRemaining>0;
  return `<div class="dubbing-quota"><strong>${q?.freeDaily===3?'프리미엄 회원 · 하루 3회 무료':'일반 회원 · 하루 1회 무료'}</strong><p>프리미엄 회원은 AI 대본 작성이 매일 3회 무료예요.</p><p>광고 1회 시청마다 1회 추가 · 하루 최대 4회</p><span>오늘 남은 작성 <b>${Number(q?.remaining??1)}회</b> · 광고 보상 ${Number(q?.adsEarned||0)}/4회</span><p class="dubbing-muted">매일 밤 12시, 한국 시간 기준으로 새로 시작해요.</p>${pending?'<button type="button" class="small-button" data-dubbing-reward-retry>보상 다시 확인</button><small>시청한 광고의 보상을 확인해요. 광고를 다시 볼 필요 없어요.</small>':`<button type="button" class="small-button" data-dubbing-reward ${available?'':'disabled'}>광고 보고 1회 더 받기</button><small>${q?.adRemaining===0?'오늘의 광고 보상 4회를 모두 받았어요.':available?'광고를 끝까지 보면 대본 작성 1회를 받아요. 중간에 닫아도 기존 이용 횟수는 줄지 않아요.':'보상형 광고 연결을 준비하고 있어요. 무료 작성과 직접 대본 쓰기는 이용할 수 있어요.'}</small>`}</div>`;
@@ -41,11 +51,11 @@ function dubbingOptionsHTML(config,mode,genre=''){
  <div class="dubbing-create-layout"><form id="dubbing-options-form" class="dubbing-panel">
  <fieldset><legend>01 <span>이야기의 장르</span><small>최대 2개</small></legend><div class="dubbing-chips">${D.DUBBING_GENRES.map(g=>`<label><input type="checkbox" name="genres" value="${g}" ${g===(genre||'일상')?'checked':''}><span>${g}</span></label>`).join('')}</div></fieldset>
  <fieldset><legend>02 <span>인원과 대본 시간</span></legend><div class="dubbing-form-grid"><label>참여 인원<select name="roleCount">${[1,2,3,4,5,6].map(n=>`<option value="${n}" ${n===2?'selected':''}>${n}명</option>`).join('')}</select></label><label>대본 시간<select name="minutes">${D.DUBBING_LENGTHS.map(n=>`<option value="${n}" ${n===1?'selected':''}>${dubbingLengthLabel(n)}</option>`).join('')}</select></label></div><small class="dubbing-muted">30초부터 5분까지, 30초 단위로 선택해요.</small></fieldset>
- <fieldset><legend class="dubbing-idea-heading">03 <span>이야기의 세부사항</span><small id="dubbing-random-hint">‘랜덤’ 또는 ‘무작위’라고 적으면 AI가 이야기를 만들어줘요.</small></legend><button type="button" class="small-button dubbing-random" id="dubbing-random-idea">${icon('shuffle')} 이야기 랜덤 생성</button><label>어떤 이야기를 만들까요?<textarea name="idea" rows="5" maxlength="1500" aria-describedby="dubbing-random-hint" placeholder="등장인물, 장소, 상황, 원하는 분위기와 결말을 자유롭게 적어주세요.&#10;예: 마지막 지하철에서 우연히 만난 두 친구. 어색하게 시작하지만 마지막에는 웃으며 화해하는 이야기."></textarea></label><input type="hidden" name="mood" value="랜덤"><input type="hidden" name="ending" value="랜덤"></fieldset>
+ <fieldset><legend class="dubbing-idea-heading">03 <span>이야기의 세부사항</span><small id="dubbing-random-hint">‘랜덤’ 또는 ‘무작위’로 맡기면 대본이 완성된 뒤 이야기를 확인할 수 있어요.</small></legend><button type="button" class="small-button dubbing-random" id="dubbing-random-idea">${icon('shuffle')} 이야기 랜덤 생성</button><label>어떤 이야기를 만들까요?<textarea name="idea" rows="5" maxlength="1500" aria-describedby="dubbing-random-hint" placeholder="등장인물, 장소, 상황, 원하는 분위기와 결말을 자유롭게 적어주세요.&#10;예: 마지막 지하철에서 우연히 만난 두 친구. 어색하게 시작하지만 마지막에는 웃으며 화해하는 이야기."></textarea></label><input type="hidden" name="mood" value="랜덤"><input type="hidden" name="ending" value="랜덤"></fieldset>
  <div id="dubbing-quota">${dubbingQuotaHTML(config.quota)}</div>
- <p class="dubbing-generation-estimate">${dubbingGenerationEstimate}<small>대본 길이와 요청량에 따라 달라질 수 있어요.</small></p><p class="dubbing-feedback" role="status" aria-live="polite"></p><div class="dubbing-form-actions"><button class="primary-button dubbing-ai-button" name="create" value="ai" type="submit" disabled>${icon('sparkles')} 대본 작성하기</button><button class="small-button" name="create" value="manual" type="submit">직접 대사 쓰기</button></div>
+ <p class="dubbing-generation-estimate">${dubbingGenerationEstimate}<small>대본 길이와 요청량에 따라 달라질 수 있어요.</small></p><p class="dubbing-feedback" role="status" aria-live="polite"></p><div class="dubbing-form-actions"><button class="primary-button dubbing-ai-button" name="create" value="ai" type="submit" disabled>${icon('sparkles')} 대본 작성하기</button><button class="small-button" name="create" value="manual" type="submit">직접 대사 쓰기</button><button type="button" class="small-button" id="dubbing-recover" hidden>이전 AI 생성 결과 확인</button></div>
  ${config.aiAvailable?'':`<p class="dubbing-muted">AI 대본은 연동 대기 중입니다. 직접 작성한 대본은 지금 저장할 수 있어요.</p>`}
- <button type="button" class="small-button" id="dubbing-recover" hidden>이전 AI 생성 결과 확인</button></form>
+ </form>
  <aside class="dubbing-panel dubbing-guide"><span class="eyebrow">HOW IT WORKS</span><h2>대본 한 편,<br>함께 만드는 장면.</h2><ol><li><b>장르 · 인원 · 시간 선택</b><p>짧은 30초 장면부터 5분 이야기까지.</p></li><li><b>세부사항 직접 입력</b><p>등장인물과 상황을 적으면 AI가 연기할 대본으로 만들어요.</p></li><li><b>배역 선택과 음향 제작</b><p>완성된 대본을 다듬고 함께할 목소리를 모집해요.</p></li></ol><div class="dubbing-guide-note">AI 음향 연출 · 작품당 ${Number(config.soundPriceGold)}G<br>효과음 + BGM + 자동 믹싱<br><small>${config.goldChargingEnabled?'생성 전 최종 금액을 확인해요. 실패하면 자동 환급돼요.':'개발 검증 중에는 골드가 차감되지 않아요.'}</small></div></aside></div>`;
 }
 async function dubbingView(base,param,raw){
@@ -277,7 +287,8 @@ function dubbingMountEditor(e){
   form.querySelectorAll('button,input,textarea,select').forEach(el=>el.disabled=true);
   try{
    const pending={requestId:crypto.randomUUID(),options:e.options};dubbingRememberPending(pending);dubbingMessage(form,'새 대본을 만들고 있어요. '+dubbingGenerationEstimate+'.');
-   const result=await api('/api/dubbing/generations','POST',pending);
+   const result=await dubbingWaitForGeneration(await api('/api/dubbing/generations','POST',pending),form);
+   if(result.recoverable===false)dubbingRememberPending(null);
    if(result.state!=='ready')throw new Error(result.message||'생성 중입니다. 대본 만들기 화면에서 결과를 다시 확인할 수 있어요.');
    if(dubbingEditor!==e)return;
    dubbingRememberPending(null);e.script=result.script;e.simpleDrafts={};e.generationId=result.id;e.dirty=true;dubbingMountEditor(e);
@@ -291,23 +302,30 @@ function bindDubbing(view){
  if(view.editing){const p=view.project;dubbingMountEditor({id:p.id,project:p,script:structuredClone(p.script),options:p.options,config:view.config,route:view.route,dirty:false});return;}
  if(view.dubbingCreate){
   const form=$('#dubbing-options-form'),recover=$('#dubbing-recover');let busy=false;
-  const updateCreate=()=>{form.querySelector('[value=ai]').disabled=busy||!!dubbingRewardOperation||!view.config.aiAvailable||!form.elements.idea.value.trim()||(view.config.quota?.remaining??1)<1;};
+  const updateCreate=()=>{form.querySelector('[value=ai]').disabled=busy||!!dubbingRewardOperation||!view.config.aiAvailable||!form.elements.idea.value.trim()||(view.config.quota?.remaining??1)<1;form.querySelector('[value=manual]').disabled=busy;$('#dubbing-random-idea').disabled=busy;recover.disabled=busy;};
+  const refreshQuota=async()=>{try{view.config=await api('/api/dubbing/config');if(!form.isConnected)return;$('#dubbing-quota').innerHTML=dubbingQuotaHTML(view.config.quota);bindDubbingReward(view,form,updateCreate);}catch{}if(form.isConnected)updateCreate();};
   form.oninput=updateCreate;updateCreate();
   $('#dubbing-random-idea').onclick=()=>{
    const options={genres:[...form.querySelectorAll('[name=genres]:checked')].map(e=>e.value),roleCount:Number(form.elements.roleCount.value),minutes:Number(form.elements.minutes.value)};
    if(!options.genres.length){dubbingMessage(form,'장르를 먼저 골라주세요.');return;}
-   form.elements.idea.value=AifectDubbing.randomDubbingIdea(options,form.elements.idea.value);updateCreate();
-   dubbingMessage(form,'이야기를 골랐어요. 자유롭게 수정할 수 있고, 랜덤 생성은 작성 횟수를 사용하지 않아요.');
+   form.elements.idea.value='(랜덤)';updateCreate();
+   dubbingMessage(form,'어떤 이야기가 나올지는 대본 완성 후 확인해보세요. ‘대본 작성하기’를 눌러야 작성 횟수가 사용돼요.');
   };
   bindDubbingReward(view,form,updateCreate);
   recover.hidden=!dubbingPending();
-  const show=result=>{
+  if(!dubbingPending())api('/api/dubbing/generations/latest').then(result=>{
+   if(!form.isConnected||busy||dubbingPending()||!result.id)return;
+   if(result.recoverable!==false){dubbingRememberPending({requestId:result.id,options:result.options});recover.hidden=false;}
+   else{dubbingMessage(form,result.message);refreshQuota();}
+  }).catch(()=>{});
+  const show=async result=>{
+   result=await dubbingWaitForGeneration(result,form);
    if(!form.isConnected)return;
-   if(result.state!=='ready'){dubbingMessage(form,result.message||'대본 생성 중입니다. 잠시 뒤 결과 확인을 눌러주세요.');recover.hidden=false;return;}
+   if(result.state!=='ready'){dubbingMessage(form,result.message||'대본 생성 중입니다. 잠시 뒤 결과 확인을 눌러주세요.');recover.hidden=result.recoverable===false;if(result.recoverable===false)dubbingRememberPending(null);return;}
    const pending=dubbingPending();dubbingRememberPending(null);
-   dubbingMountEditor({id:crypto.randomUUID(),script:result.script,options:pending.options,generationId:result.id,config:view.config,route:view.route,dirty:true});
+   dubbingMountEditor({id:crypto.randomUUID(),script:result.script,options:pending?.options||result.options,generationId:result.id,config:view.config,route:view.route,dirty:true});
   };
-  recover.onclick=async()=>{if(busy)return;const pending=dubbingPending();if(!pending)return;busy=true;recover.disabled=true;try{show(await api('/api/dubbing/generations/'+pending.requestId));}catch(err){dubbingMessage(form,err.message);}finally{busy=false;recover.disabled=false;}};
+  recover.onclick=async()=>{if(busy)return;const pending=dubbingPending();if(!pending)return;busy=true;updateCreate();try{await show(await api('/api/dubbing/generations/'+pending.requestId));}catch(err){dubbingMessage(form,err.message+' 잠시 뒤 이전 결과 확인을 눌러주세요.');}finally{busy=false;await refreshQuota();}};
   form.onchange=e=>{if(e.target.name==='genres'&&form.querySelectorAll('[name=genres]:checked').length>2){e.target.checked=false;dubbingMessage(form,'장르는 최대 2개까지 선택할 수 있어요.');}};
   form.onsubmit=async event=>{
    event.preventDefault();if(busy||dubbingRewardOperation)return;
@@ -319,9 +337,9 @@ function bindDubbing(view){
    if(dubbingPending()&&!confirm('이전 생성 요청이 있습니다. 먼저 결과 확인을 권장합니다. 새 요청을 시작할까요?'))return;
    const pending={requestId:crypto.randomUUID(),options};dubbingRememberPending(pending);
    busy=true;form.querySelectorAll('button').forEach(b=>b.disabled=true);dubbingMessage(form,'이야기와 배역, 음향 연출을 구성하고 있어요… '+dubbingGenerationEstimate+'.');
-   try{show(await api('/api/dubbing/generations','POST',pending));}
+   try{await show(await api('/api/dubbing/generations','POST',pending));}
    catch(err){dubbingMessage(form,err.message+' 결과 확인 버튼으로 기존 요청을 확인할 수 있어요.');recover.hidden=false;}
-   finally{busy=false;if(form.isConnected){recover.disabled=false;form.querySelector('[value=manual]').disabled=false;try{view.config=await api('/api/dubbing/config');$('#dubbing-quota').innerHTML=dubbingQuotaHTML(view.config.quota);bindDubbingReward(view,form,updateCreate);}catch{}updateCreate();}}
+   finally{busy=false;if(form.isConnected)await refreshQuota();}
   };return;
  }
  if(view.project){

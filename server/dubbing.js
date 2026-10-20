@@ -9,6 +9,7 @@ import {requireUser,hash} from './auth.js';
 import {publicNameSQL} from './identity.js';
 import {dubbingOptions,validateDubbingScript,dubbingTimeline,DUBBING_MODEL,DUBBING_GENRES} from '../shared/dubbing.js';
 import {dubbingAIAvailable,generateDubbingScript} from './dubbing-ai.js';
+import {generationResult} from './dubbing-generation.js';
 import {dubbingSoundStatus,dubbingSoundProjectRoute} from './dubbing-sound.js';
 import {pikaAvailable} from './dubbing-pika.js';
 import {dubbingQuota,reserveDubbingGeneration} from './dubbing-quota.js';
@@ -53,14 +54,6 @@ async function discard(env,key){
  try{if(!await one(env,'SELECT id FROM dubbing_projects WHERE script_key=?',key))await env.BUCKET.delete(key);}
  catch{/* Unknown outcome: keep the private object for reconciliation. */}
 }
-async function generationResult(env,g){
- if(g.state==='running'&&g.updated<now()-180){
-  await run(env,"UPDATE dubbing_generations SET state='unknown',error='결과 확인 필요',updated=? WHERE id=? AND state='running' AND updated=?",now(),g.id,g.updated);
-  g={...g,state:'unknown'};
- }
- return json({id:g.id,state:g.state,...(g.state==='ready'?{...JSON.parse(g.result_json),usage:JSON.parse(g.usage_json)}:{}),
-  message:g.state==='unknown'?'생성 결과를 확인하지 못했습니다. 중복 호출을 막기 위해 자동 재시도하지 않습니다.':g.error||''},g.state==='running'?202:200);
-}
 export async function dubbingRoute(req,env,path,user){
  if(!path.startsWith('/api/dubbing/'))return null;
  if(path==='/api/dubbing/config'&&req.method==='GET')return json({enabled:env.DUBBING_ENABLED==='true',aiAvailable:env.DUBBING_ENABLED==='true'&&dubbingAIAvailable(env),model:DUBBING_MODEL,recordingAvailable:recordingEnabled(env),soundAvailable:env.DUBBING_ENABLED==='true'&&env.DUBBING_SOUND_ENABLED==='true',pikaAvailable:pikaAvailable(env),soundPriceGold:(await dubbingSettings(env)).soundGold,goldChargingEnabled:dubbingGoldEnabled(env),quota:env.DUBBING_ENABLED==='true'&&user?{...await dubbingQuota(env,user.id),rewardedAdAvailable:dubbingRewardAvailable(req,env)}:null});
@@ -97,16 +90,28 @@ export async function dubbingRoute(req,env,path,user){
   const reserved=await reserveDubbingGeneration(env,user.id,gid,inputHash);
   if(!reserved){g=await one(env,'SELECT * FROM dubbing_generations WHERE id=? AND user_id=?',gid,user.id);if(!g)fail(429,'오늘의 대본 작성 횟수를 모두 사용했어요. 광고 보상으로 최대 4회 더 이용할 수 있습니다.');if(g.input_hash!==inputHash)conflict();return generationResult(env,g);}
   try{
-   const result=await generateDubbingScript(env,options);
-   await run(env,"UPDATE dubbing_generations SET state='ready',result_json=?,usage_json=?,provider_id=?,updated=? WHERE id=? AND state='running'",JSON.stringify({script:result.script,model:result.model}),JSON.stringify(result.usage),result.providerRequestId,now(),gid);
+   await run(env,"UPDATE dubbing_generations SET result_json=? WHERE id=? AND state='running'",JSON.stringify({options}),gid);
+   const recent=await rows(env,"SELECT result_json FROM dubbing_generations WHERE user_id=? AND state='ready' ORDER BY created DESC LIMIT 6",user.id);
+   const previousStories=recent.map(r=>JSON.parse(r.result_json).script).filter(Boolean).map(s=>({title:s.title,scenes:s.scenes.map(sc=>({title:sc.title,description:sc.description}))}));
+   const result=await generateDubbingScript(env,options,fetch,previousStories);
+   await run(env,"UPDATE dubbing_generations SET state=?,result_json=?,usage_json=?,provider_id=?,updated=? WHERE id=? AND state='running'",
+    result.state==='running'?'running':'ready',JSON.stringify({options,...(result.script?{script:result.script,model:result.model}:{})}),JSON.stringify(result.usage||{}),result.providerRequestId,now(),gid);
   }catch(e){
    // Unknown includes network failures after the provider may have accepted a request.
    const state=e.status?'failed':'unknown',message=e.status?e.message:'응답을 확인하지 못했습니다. 자동 재요청하지 않았습니다.';
-   await run(env,"UPDATE dubbing_generations SET state=?,error=?,usage_json=?,provider_id=?,updated=? WHERE id=? AND state='running'",state,message,JSON.stringify(e.usage||{}),e.providerRequestId||'',now(),gid);
+   await run(env,`UPDATE dubbing_generations SET state=CASE WHEN provider_id!='' AND ?='unknown' THEN 'running' ELSE ? END,
+    error=?,usage_json=CASE WHEN usage_json='{}' THEN ? ELSE usage_json END,
+    provider_id=CASE WHEN provider_id!='' THEN provider_id ELSE ? END,updated=? WHERE id=? AND state='running'`,
+    state,state,message,JSON.stringify(e.usage||{}),e.providerRequestId||'',now(),gid);
   }
   g=await one(env,'SELECT * FROM dubbing_generations WHERE id=? AND user_id=?',gid,user.id);
   if(!g)fail(404,'생성 요청을 찾을 수 없습니다.');
   return generationResult(env,g);
+ }
+ if(path==='/api/dubbing/generations/latest'&&method==='GET'){
+  requireUser(user);
+  const g=await one(env,"SELECT * FROM dubbing_generations WHERE user_id=? AND input_hash NOT LIKE 'sound-plan:%' ORDER BY created DESC,id DESC LIMIT 1",user.id);
+  return g?generationResult(env,g):json({id:null});
  }
  const generationMatch=path.match(/^\/api\/dubbing\/generations\/([^/]+)$/);
  if(generationMatch&&method==='GET'){requireUser(user);const g=await one(env,'SELECT * FROM dubbing_generations WHERE id=? AND user_id=?',uuid(generationMatch[1]),user.id);if(!g)fail(404,'생성 요청을 찾을 수 없습니다.');return generationResult(env,g);}

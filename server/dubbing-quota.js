@@ -4,7 +4,7 @@ export function dubbingDay(at=now()){
  const start=Math.floor((at+9*3600)/86400)*86400-9*3600;
  return {start,end:start+86400,day:new Date((start+9*3600)*1000).toISOString().slice(0,10)};
 }
-const counted="input_hash NOT LIKE 'sound-plan:%' AND state IN ('running','ready','unknown')";
+const counted="input_hash NOT LIKE 'sound-plan:%' AND state IN ('running','ready','unknown') AND COALESCE(json_extract(result_json,'$.quotaRestored'),0)=0";
 const freeDailySQL="CASE WHEN MAX(premium_until,apple_premium_until)>? THEN 3 ELSE 1 END";
 export async function dubbingQuota(env,userId,at=now()){
  const day=dubbingDay(at);
