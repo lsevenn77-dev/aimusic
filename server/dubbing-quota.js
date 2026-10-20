@@ -5,24 +5,31 @@ export function dubbingDay(at=now()){
  return {start,end:start+86400,day:new Date((start+9*3600)*1000).toISOString().slice(0,10)};
 }
 const counted="input_hash NOT LIKE 'sound-plan:%' AND state IN ('running','ready','unknown') AND COALESCE(json_extract(result_json,'$.quotaRestored'),0)=0";
-const freeDailySQL="CASE WHEN MAX(premium_until,apple_premium_until)>? THEN 3 ELSE 1 END";
+// Lifetime grants are separate from daily free/ad turns. Count reservations, not
+// completed requests, so concurrent generation cannot spend the same credit twice.
+const allowanceSQL=`WITH clock AS (SELECT ? user_id,? at,? start,? end,? day)
+ SELECT CASE WHEN MAX(u.premium_until,u.apple_premium_until)>c.at THEN 3 ELSE 1 END freeDaily,
+ MIN(4,(SELECT COUNT(*) FROM dubbing_script_rewards WHERE user_id=u.id AND day=c.day)) adsEarned,
+ (SELECT COUNT(*) FROM dubbing_generations WHERE user_id=u.id AND created>=c.start AND created<c.end AND quota_source='daily' AND ${counted}) dailyUsed,
+ (SELECT COUNT(*) FROM dubbing_generations WHERE user_id=u.id AND created>=c.start AND created<c.end AND ${counted}) used,
+ COALESCE((SELECT SUM(amount) FROM dubbing_script_credits WHERE user_id=u.id),0) bonusGranted,
+ (SELECT COUNT(*) FROM dubbing_generations WHERE user_id=u.id AND quota_source='bonus' AND ${counted}) bonusUsed
+ FROM users u,clock c WHERE u.id=c.user_id AND u.provider!='deleted'`;
 export async function dubbingQuota(env,userId,at=now()){
  const day=dubbingDay(at);
- const member=await one(env,`SELECT ${freeDailySQL} freeDaily FROM users WHERE id=? AND provider!='deleted'`,at,userId);
- const freeDaily=member?.freeDaily||1;
- const used=await one(env,`SELECT COUNT(*) n FROM dubbing_generations WHERE user_id=? AND created>=? AND created<? AND ${counted}`,userId,day.start,day.end);
- const earned=await one(env,'SELECT COUNT(*) n FROM dubbing_script_rewards WHERE user_id=? AND day=?',userId,day.day);
- const ads=Math.min(4,earned.n),total=freeDaily+ads;
- return {day:day.day,resetsAt:day.end,freeDaily,adLimit:4,adsEarned:ads,used:used.n,remaining:Math.max(0,total-used.n),
-  adRemaining:4-ads,rewardedAdAvailable:false}; // Route adds provider/region availability.
+ const q=await one(env,allowanceSQL,userId,at,day.start,day.end,day.day);
+ if(!q)fail(404,'계정을 찾을 수 없습니다.');
+ const dailyRemaining=Math.max(0,q.freeDaily+q.adsEarned-q.dailyUsed),bonusRemaining=Math.max(0,q.bonusGranted-q.bonusUsed);
+ return {day:day.day,resetsAt:day.end,...q,dailyRemaining,bonusRemaining,adLimit:4,remaining:dailyRemaining+bonusRemaining,
+  adRemaining:4-q.adsEarned,rewardedAdAvailable:false}; // Route adds provider/region availability.
 }
 export async function reserveDubbingGeneration(env,userId,gid,inputHash,at=now()){
  const day=dubbingDay(at);
- return query(env,`INSERT INTO dubbing_generations(id,user_id,input_hash,state,created,updated)
- SELECT ?,?,?,'running',?,? WHERE EXISTS(SELECT 1 FROM users WHERE id=? AND provider!='deleted')
- AND (SELECT COUNT(*) FROM dubbing_generations WHERE user_id=? AND created>=? AND created<? AND ${counted})
- < (SELECT ${freeDailySQL} FROM users WHERE id=?)+MIN(4,(SELECT COUNT(*) FROM dubbing_script_rewards WHERE user_id=? AND day=?))
- ON CONFLICT(id) DO NOTHING RETURNING id`,gid,userId,inputHash,at,at,userId,userId,day.start,day.end,at,userId,userId,day.day).first();
+ return query(env,`WITH allowance AS (${allowanceSQL})
+ INSERT INTO dubbing_generations(id,user_id,input_hash,state,created,updated,quota_source)
+ SELECT ?,?,?,'running',?,?,CASE WHEN dailyUsed<freeDaily+adsEarned THEN 'daily' ELSE 'bonus' END
+ FROM allowance WHERE dailyUsed<freeDaily+adsEarned OR bonusUsed<bonusGranted
+ ON CONFLICT(id) DO NOTHING RETURNING id`,userId,at,day.start,day.end,day.day,gid,userId,inputHash,at,at).first();
 }
 // Server-only entry point for a provider-authenticated callback, never a browser
 // endpoint. A timer or client "ad watched" event cannot grant a generation.

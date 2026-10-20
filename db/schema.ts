@@ -204,6 +204,7 @@ export const dubbingRoleClaims=sqliteTable('dubbing_role_claims',{
 export const dubbingGenerations=sqliteTable('dubbing_generations',{
  id:text('id').primaryKey(),userId:text('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),inputHash:text('input_hash').notNull(),
  state:text('state').notNull(),resultJson:text('result_json'),usageJson:text('usage_json').notNull().default('{}'),providerId:text('provider_id').notNull().default(''),
+ quotaSource:text('quota_source').notNull().default('daily'),
  error:text('error').notNull().default(''),created:integer('created').notNull(),updated:integer('updated').notNull()
 },t=>[index('dubbing_generations_user').on(t.userId,t.created)]);
 export const dubbingSoundJobs=sqliteTable('dubbing_sound_jobs',{
@@ -224,6 +225,10 @@ export const dubbingScriptRewards=sqliteTable('dubbing_script_rewards',{
  transactionId:text('transaction_id').primaryKey(),userId:text('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),
  day:text('day').notNull(),completedAt:integer('completed_at').notNull()
 },t=>[index('dubbing_rewards_user_day').on(t.userId,t.day)]);
+export const dubbingScriptCredits=sqliteTable('dubbing_script_credits',{
+ id:text('id').primaryKey(),userId:text('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),
+ amount:integer('amount').notNull(),issuedBy:text('issued_by').notNull(),reason:text('reason').notNull(),created:integer('created').notNull()
+},t=>[index('dubbing_credits_user').on(t.userId,t.created),check('dubbing_credit_amount',sql`${t.amount} BETWEEN 1 AND 20`)]);
 export const dubbingAdSessions=sqliteTable('dubbing_ad_sessions',{
  id:text('id').primaryKey(),requestId:text('request_id').notNull(),userId:text('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),
  day:text('day').notNull(),adUnit:text('ad_unit').notNull(),source:text('source').notNull().default('web_gpt_client'),

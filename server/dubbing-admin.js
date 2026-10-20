@@ -4,9 +4,37 @@ import {dubbingSettings} from './dubbing-settings.js';
 import {dubbingVisibleSQL} from './dubbing-access.js';
 import {reconcileDubbingGold} from './dubbing-gold.js';
 import {PIKA_ORIGIN} from './dubbing-pika.js';
+import {dubbingQuota} from './dubbing-quota.js';
+import {publicNameSQL} from './identity.js';
+import {nickname} from './nicknames.js';
 export async function dubbingAdminRoute(req,env,path,user){
  if(!path.startsWith('/api/admin/dubbing'))return null;
  requireUser(user);if(!isAdmin(env,user))fail(403,'관리자만 확인할 수 있습니다.');
+ if(path==='/api/admin/dubbing/script-credits'&&req.method==='GET'){
+  const search=nickname(new URL(req.url).searchParams.get('q'));
+  const found=await rows(env,`SELECT u.id,${publicNameSQL()} name,h.normalized handle FROM users u
+   LEFT JOIN account_handles h ON h.user_id=u.id WHERE u.provider!='deleted'
+   AND (u.id=? OR h.normalized=? OR lower(trim(${publicNameSQL()}))=?) LIMIT 2`,search.name,search.key,search.key);
+  if(!found.length)fail(404,'일치하는 계정이 없습니다. 정확한 활동명 또는 계정 ID를 입력해주세요.');
+  if(found.length>1)fail(409,'같은 이름의 계정이 있습니다. 계정 ID로 조회해주세요.');
+  return json({account:found[0],quota:await dubbingQuota(env,found[0].id)});
+ }
+ if(path==='/api/admin/dubbing/script-credits'&&req.method==='POST'){
+  const body=await req.json(),requestId=str(body.requestId,36),userId=str(body.userId,100),reason=str(body.reason,200),amount=body.amount;
+  if(!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId)||!Number.isSafeInteger(amount)||amount<1||amount>20)fail(400,'지급 횟수는 1~20회 정수로 입력해주세요.');
+  if(!await one(env,"SELECT id FROM users WHERE id=? AND provider!='deleted'",userId))fail(404,'계정을 찾을 수 없습니다.');
+  const at=now();
+  await env.DB.batch([
+   query(env,`INSERT INTO dubbing_script_credits(id,user_id,amount,issued_by,reason,created)
+    SELECT ?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM users WHERE id=? AND provider!='deleted') ON CONFLICT(id) DO NOTHING`,requestId,userId,amount,user.id,reason,at,userId),
+   query(env,`INSERT INTO admin_audit(id,admin_id,action,target,created)
+    SELECT 'dubbing-credit:'||id,issued_by,'dubbing-script-credit',json_object('creditId',id,'userId',user_id,'amount',amount,'reason',reason),created
+    FROM dubbing_script_credits WHERE id=? ON CONFLICT(id) DO NOTHING`,requestId)
+  ]);
+  const grant=await one(env,'SELECT id,user_id,amount,reason,created FROM dubbing_script_credits WHERE id=?',requestId);
+  if(!grant||grant.user_id!==userId||grant.amount!==amount||grant.reason!==reason)fail(409,'이미 사용된 지급 요청입니다. 지급 내역을 확인해주세요.');
+  return json({grant,quota:await dubbingQuota(env,userId)});
+ }
  if(path==='/api/admin/dubbing/pika-status'&&req.method==='GET'){
   if(!env.PIKA_API_KEY)return json({configured:false});
   // Read-only authentication probe; a random nonexistent job cannot generate or charge.

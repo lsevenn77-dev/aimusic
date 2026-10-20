@@ -441,6 +441,34 @@
     }catch(error){showLogin(error.message||'로그인 상태를 확인하지 못했습니다.');}
   }
 
+  function dubbingCreditsPanel(box){
+    const card=document.createElement('article');card.className='admin-card';
+    card.innerHTML='<h2>AI 대본 작성 횟수 추가</h2><p>일일 무료·광고 횟수와 별도로 지급합니다. 추가 횟수는 사용할 때까지 유지됩니다.</p><form id="dubbing-credit-search" class="inline-controls"><label>활동명 또는 계정 ID <input name="account" required maxlength="60" placeholder="정확한 활동명 입력"></label><button class="small-button" type="submit">계정 조회</button></form><div id="dubbing-credit-account" aria-live="polite"></div>';
+    box.prepend(card);
+    const search=card.querySelector('form'),result=card.querySelector('#dubbing-credit-account');
+    search.onsubmit=async e=>{
+      e.preventDefault();const button=search.querySelector('button');button.disabled=true;result.textContent='계정을 확인하고 있습니다.';
+      try{
+        const data=await api('/api/admin/dubbing/script-credits?q='+encodeURIComponent(search.elements.account.value));
+        const account=data.account,q=data.quota;
+        result.innerHTML='<h3>'+esc(account.name)+'</h3><p>활동명 '+esc(account.handle||account.name)+' · 계정 ID '+esc(account.id)+'</p><p id="dubbing-credit-balance">현재 작성 가능 '+q.remaining+'회 · 추가 지급 잔여 '+q.bonusRemaining+'회</p><form id="dubbing-credit-grant" class="inline-controls"><label>추가 횟수 <input type="number" name="amount" min="1" max="20" step="1" value="3" required></label><label>지급 사유 <input name="reason" maxlength="200" value="운영자 추가 지급" required></label><button class="primary-button" type="submit">횟수 추가 지급</button></form><p id="dubbing-credit-result" role="status"></p>';
+        const form=result.querySelector('form'),message=result.querySelector('#dubbing-credit-result');
+        let pending=null,finished=false;
+        form.onsubmit=async event=>{
+          event.preventDefault();if(finished)return;
+          if(!pending)pending={requestId:crypto.randomUUID(),userId:account.id,amount:Number(form.elements.amount.value),reason:form.elements.reason.value.trim()};
+          const submit=form.querySelector('button');submit.disabled=true;form.elements.amount.disabled=true;form.elements.reason.disabled=true;search.elements.account.disabled=true;button.disabled=true;
+          message.textContent='지급 내역을 저장하고 있습니다.';
+          try{
+            const granted=await api('/api/admin/dubbing/script-credits',{method:'POST',body:JSON.stringify(pending)});
+            finished=true;result.querySelector('#dubbing-credit-balance').textContent='현재 작성 가능 '+granted.quota.remaining+'회 · 추가 지급 잔여 '+granted.quota.bonusRemaining+'회';message.textContent=account.name+' 계정에 '+granted.grant.amount+'회를 추가했습니다. 추가 지급 잔여 '+granted.quota.bonusRemaining+'회 · 현재 작성 가능 '+granted.quota.remaining+'회';
+            submit.textContent='지급 완료';search.elements.account.disabled=false;button.disabled=false;
+          }catch(error){message.textContent=error.message+' 같은 요청으로 다시 확인할 수 있습니다.';submit.textContent='지급 결과 다시 확인';submit.disabled=false;}
+        };
+      }catch(error){result.textContent=error.message;}finally{button.disabled=false;}
+    };
+  }
+
   async function loadDubbing(){
     const box=$('#dubbing-admin-body');if(!box)return;box.innerHTML='<div class="panel-loader">더빙 운영 정보를 불러오는 중입니다.</div>';
     try{
@@ -454,6 +482,7 @@
         kpiCard('◇','신고·이의신청',num(d.summary.open_reports),'운영자 검토 필요'),
         kpiCard('▶','광고 보상',num(d.summary.ad_rewards),'최근 '+d.days+'일 · 웹 화면 광고')
       ].join('')+'</div><article class="admin-card"><h2>음향 제작 가격</h2><form id="dubbing-price-form" class="inline-controls"><label>작품당 Gold <input name="gold" type="number" min="1" max="10000" step="1" required value="'+d.settings.soundGold+'"></label><button class="primary-button" type="submit">가격 저장</button></form><p>기존 결제 금액은 유지됩니다. 변경된 가격은 다음 제작 확인창부터 적용됩니다.</p><p>실제 골드 차감: '+(d.flags.charging?'켜짐':'꺼짐')+' · 유료 API 실행: '+(d.flags.paidAPI?'켜짐':'꺼짐')+'</p></article><article class="admin-card"><h2>비용 · 사용량</h2><p>'+esc(d.costNote)+'</p><p>미정산·미확인 비용 '+num(d.pika.unsettled_costs)+'건 · 환율 미설정 '+num(d.pika.missing_fx)+'건</p><div class="management-list">'+d.generations.map(x=>'<div class="management-meta"><b>'+esc(x.kind==='script'?'대본':'음향 계획')+'</b><span>'+esc(x.state)+' '+num(x.count)+'건</span><span>입력 '+num(x.input_tokens)+' · 출력 '+num(x.output_tokens)+' 토큰</span></div>').join('')+'</div></article><article class="admin-card"><div class="card-heading"><h2>실패 · 확인 필요 작업</h2><button class="small-button" id="dubbing-reconcile">미처리 환급 확인</button></div><p>Pika 결과가 불명확한 작업은 유료 생성을 반복하지 않습니다. 최종 녹음 합성은 저장된 파일로만 재시도합니다.</p>'+ (d.jobs.length?d.jobs.map(j=>'<div class="management-card"><h3>'+esc(j.title)+'</h3><p>'+esc(j.kind==='final'?'최종 합성':'배경 음향')+' · '+esc(j.state)+' · 시도 '+j.attempts+'</p><p>'+esc(j.error)+'</p>'+(j.kind==='sound'?'<p>환급 기록을 보존하며 사용자가 새 제작을 요청할 수 있게 준비합니다. 자동 제작·차감은 하지 않습니다.</p><label>확인 사유<textarea data-reset-note maxlength="500" rows="2" required></textarea></label>'+(j.state==='unknown'?'<label><input type="checkbox" data-unsubmitted> 외부 요청이 전송되지 않은 것을 확인했습니다.</label>':'')+'<button class="small-button" data-sound-reset="'+esc(j.id)+'" data-updated="'+j.updated+'" data-unknown="'+(j.state==='unknown')+'">실패한 음향 다시 준비</button>':'')+(j.can_retry?'<label class="dubbing-review-note">재시도 사유<textarea maxlength="2000" rows="2" required></textarea></label><button class="small-button" data-final-retry="'+esc(j.id)+'" data-updated="'+j.updated+'">최종 합성 재시도</button>':'')+'</div>').join(''):'<div class="empty-state">확인이 필요한 작업이 없습니다.</div>')+'</article><article class="admin-card"><h2>Gold 이용·환급 내역</h2><div class="data-table-wrap"><table><thead><tr><th>작품</th><th>사용</th><th>환급</th><th>상태</th><th>일시</th></tr></thead><tbody>'+d.payments.map(p=>'<tr><td>'+esc(p.title)+'</td><td>'+p.gold+'G</td><td>'+p.refunded_gold+'G</td><td>'+esc(p.state)+'</td><td>'+kstDateTime(p.created)+'</td></tr>').join('')+'</tbody></table></div></article>';
+      dubbingCreditsPanel(box);
       $('#dubbing-price-form').onsubmit=async e=>{e.preventDefault();const b=e.currentTarget.querySelector('button');b.disabled=true;try{await api('/api/admin/dubbing/settings',{method:'PUT',body:JSON.stringify({soundGold:Number(e.currentTarget.elements.gold.value),version:d.settings.version})});toast('제작 가격을 저장했습니다.');await loadDubbing();}catch(err){toast(err.message);}finally{b.disabled=false;}};
       $('#dubbing-reconcile').onclick=async e=>{e.currentTarget.disabled=true;try{await api('/api/admin/dubbing/reconcile',{method:'POST',body:'{}'});await loadDubbing();toast('환급 상태를 확인했습니다.');}catch(err){toast(err.message);loadDubbing();}};
       $$('[data-sound-reset]',box).forEach(b=>b.onclick=async()=>{const card=b.closest('.management-card'),input=card.querySelector('[data-reset-note]'),note=input.value.trim(),confirmed=!!card.querySelector('[data-unsubmitted]')?.checked;if(!note){input.reportValidity();return;}if(b.dataset.unknown==='true'&&!confirmed){toast('외부 요청이 전송되지 않았는지 먼저 확인해주세요.');return;}b.disabled=true;try{await api('/api/admin/dubbing/sound/'+b.dataset.soundReset+'/reset',{method:'POST',body:JSON.stringify({updated:Number(b.dataset.updated),note,unsubmittedConfirmed:confirmed})});toast('새 음향을 요청할 수 있게 준비했습니다. 자동 차감은 없습니다.');await loadDubbing();}catch(err){toast(err.message);b.disabled=false;}});
