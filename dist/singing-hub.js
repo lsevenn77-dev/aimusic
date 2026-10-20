@@ -19,7 +19,7 @@ function bindSingingHub(view){
 
 function singingHubNav(active='recommend'){
  const tabs=[['recommend','추천','#karaoke'],['duets','듀엣','#karaoke/duets'],['songs','원곡','#karaoke/songs'],['drafts','내 초안','#karaoke/drafts'],['ranking','랭킹','#charts/karaoke']];
- return '<nav class="hub-tabs" aria-label="부르기 메뉴">'+tabs.map(([key,label,href])=>`<a href="${href}" ${key===active?'class="active" aria-current="page"':''}>${label}</a>`).join('')+'</nav>';
+ return (typeof dubbingModeNav==='function'?dubbingModeNav('song'):'')+'<nav class="hub-tabs" aria-label="부르기 메뉴">'+tabs.map(([key,label,href])=>`<a href="${href}" ${key===active?'class="active" aria-current="page"':''}>${label}</a>`).join('')+'</nav>';
 }
 function singingCollectionCards(tracks,duet){
  return tracks.map(t=>{

@@ -234,3 +234,7 @@ dialog::backdrop{background:rgba(0,0,0,.72);backdrop-filter:blur(4px)}
   .admin-nav-item b{font-size:11px}
   .profile-button>span:last-child{display:none}
 }
+
+#dubbing-admin-body>.admin-card{margin-top:20px}#dubbing-admin-body input{width:110px;padding:10px;border:1px solid #3c4355;border-radius:10px;background:#171c29;color:white}#dubbing-rights-list p{overflow-wrap:anywhere;white-space:pre-wrap}#dubbing-rights-list a{color:#b9adff}
+
+.dubbing-review-note{display:grid;gap:8px;margin:16px 0;color:#c3cbdd;font-size:13px}.dubbing-review-note textarea{width:100%;resize:vertical;padding:12px;border:1px solid #3c4355;border-radius:10px;background:#171c29;color:white;font:inherit;line-height:1.5}

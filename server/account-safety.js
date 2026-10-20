@@ -46,8 +46,15 @@ export async function filterBlockedResponse(env,response){
  return new Response(JSON.stringify(clean(body)),{status:response.status,headers:response.headers});
 }
 
-async function storageTargets(env,uid){
+async function storageTargets(env,uid,hasDubbing=false){
  const targets=[];
+ if(hasDubbing)targets.push({prefix:`dubbing/${uid}/`});
+ if(hasDubbing&&await one(env,"SELECT name FROM sqlite_master WHERE type='table' AND name='dubbing_final_jobs'")){
+  const owned=await rows(env,'SELECT r.id,r.user_id,r.project_id FROM dubbing_recordings r JOIN dubbing_projects p ON p.id=r.project_id WHERE p.owner_id=?',uid);
+  for(const r of owned)targets.push({prefix:`dubbing/${r.user_id}/${r.project_id}/voices/${r.id}/`});
+  const shared=await rows(env,'SELECT DISTINCT p.owner_id,p.id,j.id job_id FROM dubbing_recordings r JOIN dubbing_projects p ON p.id=r.project_id JOIN dubbing_final_jobs j ON j.project_id=p.id WHERE r.user_id=?',uid);
+  for(const p of shared)targets.push({prefix:`dubbing/${p.owner_id}/${p.id}/final/${p.job_id}-`});
+ }
  const tracks=await rows(env,'SELECT id,original_key,original_ext FROM tracks WHERE user_id=?',uid);
  for(const t of tracks){
   for(const prefix of [`original/${t.id}.`,`cover/${t.id}.`,`stream/${t.id}.`,`preview/${t.id}.`,`karaoke/${t.id}/`,`archive/${t.id}/`,`premium/${t.id}/`,`images/track/${t.id}/`])targets.push({prefix});
@@ -84,8 +91,14 @@ export async function drainDeletedFiles(env){
 export async function deleteAccount(env,user){
  if(user.provider==='apple')await revokeAppleLogin(env,user.id);
  await cancelSubscription(env,user);
- const targets=await storageTargets(env,user.id),q=(sql,...args)=>query(env,sql,...args),uid=user.id;
+ // The feature may be disabled after migration; deletion must still clean its data.
+ const hasDubbing=!!await one(env,"SELECT name FROM sqlite_master WHERE type='table' AND name='dubbing_projects'");
+ const targets=await storageTargets(env,user.id,hasDubbing),q=(sql,...args)=>query(env,sql,...args),uid=user.id;
  const writes=[];
+ if(hasDubbing)writes.push(q('DELETE FROM dubbing_role_claims WHERE user_id=?',uid),q('DELETE FROM dubbing_generations WHERE user_id=?',uid),q('DELETE FROM dubbing_projects WHERE owner_id=?',uid));
+ if(await one(env,"SELECT name FROM sqlite_master WHERE type='table' AND name='dubbing_script_rewards'"))writes.push(q('DELETE FROM dubbing_script_rewards WHERE user_id=?',uid));
+ if(await one(env,"SELECT name FROM sqlite_master WHERE type='table' AND name='dubbing_ad_sessions'"))writes.push(q('DELETE FROM dubbing_ad_sessions WHERE user_id=?',uid));
+ if(await one(env,"SELECT name FROM sqlite_master WHERE type='table' AND name='dubbing_recordings'"))writes.push(q("UPDATE dubbing_projects SET state='recording' WHERE id IN (SELECT project_id FROM dubbing_recordings WHERE user_id=?) AND state='complete'",uid),q("UPDATE dubbing_final_jobs SET state='invalidated',lease_token=NULL,lease_until=0,output_key=NULL WHERE project_id IN (SELECT project_id FROM dubbing_recordings WHERE user_id=?)",uid),q('DELETE FROM dubbing_recordings WHERE user_id=?',uid));
  writes.push(q('DELETE FROM activity_notifications WHERE recipient=?',uid),q('UPDATE activity_notifications SET actor_id=NULL WHERE actor_id=?',uid));
  for(const crew of await rows(env,'SELECT id FROM crews WHERE owner_id=?',uid)){
   const next=await one(env,'SELECT user_id FROM crew_members WHERE crew_id=? AND user_id!=? ORDER BY joined,user_id LIMIT 1',crew.id,uid);
@@ -95,6 +108,7 @@ export async function deleteAccount(env,user){
  const ownTracks='SELECT id FROM tracks WHERE user_id=?';
  for(const table of ['lyric_jobs','karaoke_jobs','premium_audio_jobs','original_archives','track_reports','playlist_tracks','likes','free_gifts','comments'])writes.push(q(`DELETE FROM ${table} WHERE track_id IN (${ownTracks})`,uid));
  for(const table of ['player_equipment','player_inventory','player_xp','sessions','account_handles','apple_login_tokens','push_devices','push_preferences','user_blocks','comment_reports','comment_likes','comments','likes','follows','playlist_saves','playlist_preferences','playlists','listens','free_gift_claims','free_gift_wallets','crew_bans','crew_xp','crew_messages','crew_members'])writes.push(q(`DELETE FROM ${table} WHERE user_id=?`,uid));
+ writes.push(q("UPDATE track_reports SET rightsholder='',contact='',details='',evidence_json='[]' WHERE user_id=?",uid));
  writes.push(q('DELETE FROM user_blocks WHERE blocked_id=?',uid),q('DELETE FROM direct_messages WHERE sender_id=? OR recipient_id=?',uid,uid),q('DELETE FROM push_outbox WHERE recipient=?',uid),q('DELETE FROM free_gifts WHERE sender_id=?',uid),q("DELETE FROM oauth_states WHERE provider='mobile' AND nonce=?",uid));
  writes.push(q("DELETE FROM follows WHERE (kind='producer' AND target_id IN (SELECT id FROM producers WHERE user_id=?)) OR (kind='artist' AND target_id IN (SELECT a.id FROM artists a JOIN producers p ON p.id=a.producer_id WHERE p.user_id=?))",uid,uid));
  writes.push(q('DELETE FROM crew_chat_images WHERE sender_id=?',uid));

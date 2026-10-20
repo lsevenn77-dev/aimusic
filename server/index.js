@@ -1,4 +1,7 @@
+import {dubbingAdminRoute} from './dubbing-admin.js';
+import {dubbingReportsAdminRoute} from './dubbing-reports.js';
 import {pitchCorrectionRoute} from './pitch-correction.js';
+import {dubbingRoute} from './dubbing.js';
 import {playlistImageRoute} from './playlist-images.js';
 import {musicClassificationRoute,musicClassificationInternal,classifyNext} from './music-classification.js';
 import {profileGalleryRoute} from './profile-gallery.js';
@@ -76,8 +79,8 @@ export default {async fetch(req,env,ctx){
    if(origin!==url.origin||req.headers.get('sec-fetch-site')==='cross-site')fail(403,'사이트에서 다시 요청해주세요.');
   }
   if(path.startsWith('/api/auth/')&&!path.endsWith('/callback'))await rate(env,'auth-ip:'+await hash(req.headers.get('cf-connecting-ip')||'local'),40,900);
-  const maxJson=path==='/api/uploads'||/^\/api\/studio\/tracks\/[^/]+(?:\/lyrics\/align)?$/.test(path)?131072:32768;
-  const binary=/^\/api\/playlists\/[\w-]+\/image$/.test(path)||/^\/api\/producers\/[\w-]+\/gallery$/.test(path)||/^\/api\/artists\/[\w-]+\/gallery$/.test(path)||/^\/api\/(dm\/[\w-]+\/images|crews\/[\w-]+\/images?)$/.test(path)||path==='/api/me/profile/image'||/^\/api\/uploads\/[^/]+\/(audio|cover)$/.test(path)||/^\/api\/studio\/(artists|producers|tracks)\/[^/]+\/image$/.test(path)||/^\/api\/studio\/tracks\/[^/]+\/karaoke\/mr$/.test(path);
+  const maxJson=path==='/api/uploads'||/^\/api\/dubbing\/projects(?:\/[^/]+)?$/.test(path)||/^\/api\/studio\/tracks\/[^/]+(?:\/lyrics\/align)?$/.test(path)?131072:32768;
+  const binary=/^\/api\/dubbing\/projects\/[^/]+\/recording\/[\w-]+\/lines\/[\w-]+$/.test(path)||/^\/api\/playlists\/[\w-]+\/image$/.test(path)||/^\/api\/producers\/[\w-]+\/gallery$/.test(path)||/^\/api\/artists\/[\w-]+\/gallery$/.test(path)||/^\/api\/(dm\/[\w-]+\/images|crews\/[\w-]+\/images?)$/.test(path)||path==='/api/me/profile/image'||/^\/api\/uploads\/[^/]+\/(audio|cover)$/.test(path)||/^\/api\/studio\/(artists|producers|tracks)\/[^/]+\/image$/.test(path)||/^\/api\/studio\/tracks\/[^/]+\/karaoke\/mr$/.test(path);
   if(!binary&&req.body){
    if(Number(req.headers.get('content-length')||0)>maxJson)fail(413,'요청이 너무 큽니다.');
    const reader=req.body.getReader(),chunks=[];let size=0;
@@ -89,6 +92,9 @@ export default {async fetch(req,env,ctx){
   const user=(path.startsWith('/api/admin/')?await consoleViewer(req,env):null)||await viewer(req,env);
   env=await blockedContext(env,user);
   const voiceResponse=await voiceRoomsRoute(req,env,path,user,ctx);if(voiceResponse)return voiceResponse;
+  const dubbingReportAdmin=await dubbingReportsAdminRoute(req,env,path,user);if(dubbingReportAdmin)return dubbingReportAdmin;
+  const dubbingAdmin=await dubbingAdminRoute(req,env,path,user);if(dubbingAdmin)return dubbingAdmin;
+  const dubbing=await dubbingRoute(req,env,path,user);if(dubbing)return dubbing;
   const correction=await pitchCorrectionRoute(req,env,path,user);if(correction)return correction;
   const safety=await accountSafetyRoute(req,env,path,user);if(safety)return safety;
   const playlistImage=await playlistImageRoute(req,env,path,user);if(playlistImage)return playlistImage;

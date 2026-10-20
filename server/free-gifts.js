@@ -10,7 +10,7 @@ export async function freeGiftState(env,userId,at=now()){
  (SELECT json_group_array(kind) FROM free_gift_claims WHERE user_id=scope.uid AND day=scope.day) claimed,
  (SELECT count(DISTINCT l.track_id) FROM listens l JOIN tracks t ON t.id=l.track_id WHERE l.user_id=scope.uid AND l.started>=scope.start AND l.started<scope.finish AND t.duration>0 AND l.seconds>=t.duration*.6) listened,
  (SELECT count(*) FROM tracks WHERE user_id=scope.uid AND kind='cover' AND status='published' AND created>=scope.start AND created<scope.finish) covers,
- (SELECT count(*) FROM comments WHERE user_id=scope.uid AND created>=scope.start AND created<scope.finish AND deleted_at=0 AND length(trim(body))>=3) comments FROM scope`,userId,day,start,start+86400);
+ (SELECT count(*) FROM comments WHERE track_id IS NOT NULL AND user_id=scope.uid AND created>=scope.start AND created<scope.finish AND deleted_at=0 AND length(trim(body))>=3) comments FROM scope`,userId,day,start,start+86400);
  const claimed=JSON.parse(claimedJson);
  const progress={checkin:1,cover:Math.min(1,covers),listen:Math.min(5,listened),comment1:Math.min(1,comments),comment2:Math.min(2,comments),comment3:Math.min(3,comments)};
  return {balance,day,gift:FREE_GIFT,rewards:Object.entries(FREE_GIFT_REWARDS).map(([kind,amount])=>{const target=kind==='listen'?5:kind.startsWith('comment')?Number(kind.slice(-1)):1;return {kind,amount,claimed:claimed.includes(kind),eligible:progress[kind]>=target,progress:progress[kind],target};}),cash_value:0};
