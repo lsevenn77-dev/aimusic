@@ -69,6 +69,9 @@ body.has-player .dubbing-save-bar{position:static}
 .dubbing-versions a{display:flex;align-items:center;justify-content:space-between;padding:14px;background:rgba(180,170,255,.06);border:1px solid var(--line,#30394b);border-radius:12px;gap:12px}
 .dubbing-versions small{display:block;margin-top:6px;color:var(--muted,#b5bfd4)}
 #dubbing-start-version{margin-top:12px}
+.dubbing-cue-note{display:flex;gap:8px;align-items:center;padding:10px 14px;margin:10px 0;border-left:2px solid var(--db-mint,#a7e9e1);background:rgba(166,220,216,.06);color:var(--db-mint,#a7e9e1);font-size:13px;line-height:1.6}
+.dubbing-cue-note svg{width:17px;height:17px;flex-shrink:0}
+[data-dubbing-record-entry]{display:inline-flex;gap:8px;align-items:center;min-height:44px}
 @media(max-width:600px){.dubbing-simple-text{font-size:16px!important;min-height:300px}.dubbing-editor-main .dubbing-section-heading{flex-wrap:wrap}}
 
 .dubbing-panel legend.dubbing-idea-heading{flex-wrap:wrap;row-gap:8px}.dubbing-panel .dubbing-idea-heading small{font-size:12px;line-height:1.6;margin-left:0;color:var(--ds-muted);font-weight:400}.dubbing-generation-estimate{font-size:13px;line-height:1.7;color:var(--db-mint);margin:20px 0 8px}.dubbing-generation-estimate small{display:block;font-size:12px;color:var(--ds-muted)}.dubbing-role-gender{color:var(--ds-muted);font-size:.85em;font-weight:500}

@@ -58,6 +58,6 @@ export function applySimpleDubbingText(script,sceneId,text){
  });
  s.lines=s.scenes.flatMap(sc=>sc.id===sceneId?next:s.lines.filter(l=>l.sceneId===sc.id));
  s.lines.forEach((l,i)=>l.order=i+1);
- const ids=new Set(s.lines.map(l=>l.id));s.soundCues=s.soundCues.filter(c=>ids.has(c.lineId));
+ const ids=new Set(s.lines.map(l=>l.id));s.soundCues=s.soundCues.filter(c=>ids.has(c.lineId)&&(!c.endLineId||ids.has(c.endLineId)));
  return s;
 }

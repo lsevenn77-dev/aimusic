@@ -40,7 +40,7 @@ export async function dubbingSoundProjectRoute(req,env,p,user,action){
   if(!pikaAvailable(env))fail(503,'Pika 연결과 유료 API 실행 승인이 필요합니다.');
   if(body.acceptedGold!==priceGold||body.acceptedChargeGold!==(dubbingGoldEnabled(env)?priceGold:0))fail(409,'음향 제작 가격이 변경되었습니다. 화면을 새로 열어 차감 금액을 확인해주세요.');
   if(!script.soundCues.length&&!dubbingAIAvailable(env))fail(503,'직접 작성한 대본의 AI 음향 연출 연결을 기다리고 있습니다.');
-  script.soundCues.forEach(pikaRequest);
+  dubbingTimeline(script).sounds.forEach(pikaRequest);
  }
  await rate(env,'dubbing-sound:'+user.id,3,86400);
  const timeline=dubbingTimeline(script),jid=body.requestId,at=now();

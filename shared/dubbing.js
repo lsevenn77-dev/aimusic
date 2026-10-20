@@ -55,10 +55,16 @@ export function validateDubbingScript(raw,options){
  const soundCues=array(raw.soundCues,0,24,'음향 연출').map(record).map(c=>{
   const line=lines.find(l=>l.id===c.lineId);
   if(!line||line.sceneId!==c.sceneId)invalid('음향 연출의 연결 대사를 확인해주세요.');
-  const kind=choice(c.kind,['sfx','bgm','ambient'],'음향 종류'),durationSeconds=num(c.durationSeconds,0.5,kind==='sfx'?5:kind==='ambient'?20:30,'음향 길이');
+  const kind=choice(c.kind,['sfx','bgm','ambient'],'음향 종류'),durationSeconds=num(c.durationSeconds,0.5,kind==='sfx'?5:kind==='ambient'?20:300,'음향 길이');
+  const endLineId=c.endLineId==null?null:key(c.endLineId);
+  if(endLineId&&(kind!=='bgm'||!lines.some(l=>l.id===endLineId&&l.order>=line.order)))invalid('배경음악의 종료 대사를 확인해주세요.');
+  const anchor=choice(c.anchor,['before','after','start','scene'],'음향 위치');
+  if(endLineId&&!['start','scene'].includes(anchor))invalid('지속 배경음악은 대사 또는 장면 시작에 배치해주세요.');
+  if(anchor==='scene'&&lines.find(l=>l.sceneId===c.sceneId).id!==line.id)invalid('장면 시작 음향은 첫 대사에 연결해주세요.');
   return {id:key(c.id),kind,prompt:text(c.prompt,500,'음향 연출'),sceneId:c.sceneId,lineId:line.id,
-   anchor:choice(c.anchor,['before','after'],'음향 위치'),offsetSeconds:num(c.offsetSeconds,0,10,'음향 오프셋'),
-   generationSeconds:num(c.generationSeconds,Math.max(kind==='bgm'?10:1,durationSeconds),kind==='bgm'?30:20,'생성 길이'),
+   ...(c.label==null?{}:{label:text(c.label,80,'음향 이름')}),...(endLineId?{endLineId}:{}),
+   anchor,offsetSeconds:num(c.offsetSeconds,0,10,'음향 오프셋'),
+   generationSeconds:num(c.generationSeconds,Math.max(kind==='bgm'?10:1,endLineId?0:durationSeconds),kind==='bgm'?300:20,'생성 길이'),
    durationSeconds,volume:num(c.volume,0,0.5,'음향 볼륨'),fadeInSeconds:num(c.fadeInSeconds,0,durationSeconds/2,'페이드 인'),
    fadeOutSeconds:num(c.fadeOutSeconds,0,durationSeconds/2,'페이드 아웃')};
  });
@@ -72,7 +78,15 @@ export function validateDubbingScript(raw,options){
 export function dubbingTimeline(script){
  let cursor=2;
  const lines=script.lines.map(l=>{const start=cursor,end=start+l.durationSeconds;cursor=end+l.gapSeconds;return {id:l.id,roleId:l.roleId,start,end,slotEnd:cursor};});
- const sounds=script.soundCues.map(c=>{const line=lines.find(l=>l.id===c.lineId);const start=Math.max(0,(c.anchor==='before'?line.start-c.durationSeconds:line.end)+c.offsetSeconds);return {...c,start,end:start+c.durationSeconds};});
+ const sounds=script.soundCues.map(c=>{
+  const line=lines.find(l=>l.id===c.lineId);
+  const at=c.anchor==='before'?line.start-c.durationSeconds:c.anchor==='after'?line.end:c.anchor==='scene'&&line===lines[0]?0:line.start;
+  const start=Math.max(0,at+c.offsetSeconds),endLine=c.endLineId&&lines.find(l=>l.id===c.endLineId);
+  const end=endLine?endLine.slotEnd:start+c.durationSeconds,durationSeconds=Math.round((end-start)*100)/100;
+  if(durationSeconds<.5)invalid('배경음악의 시작과 종료 위치를 확인해주세요.');
+  return {...c,durationSeconds,generationSeconds:endLine?Math.max(10,Math.ceil(durationSeconds)):c.generationSeconds,
+   fadeInSeconds:Math.min(c.fadeInSeconds,durationSeconds/2),fadeOutSeconds:Math.min(c.fadeOutSeconds,durationSeconds/2),start,end};
+ });
  return {lines,sounds,duration:Math.round(Math.max(cursor+2,...sounds.map(s=>s.end))*100)/100};
 }
 
@@ -85,7 +99,7 @@ export const DUBBING_SCRIPT_SCHEMA=object({
  roles:list(object({id:string,name:string,gender:{type:'string',enum:DUBBING_GENDERS},personality:string})),
  scenes:list(object({id:string,title:string,description:string})),
  lines:list(object({id:string,order:{type:'integer'},sceneId:string,roleId:string,text:string,emotion:string,direction:string,durationSeconds:number,gapSeconds:number})),
- soundCues:list(object({id:string,kind:{type:'string',enum:['sfx','bgm','ambient']},prompt:string,sceneId:string,lineId:string,
-  anchor:{type:'string',enum:['before','after']},offsetSeconds:number,generationSeconds:number,durationSeconds:number,volume:number,fadeInSeconds:number,fadeOutSeconds:number}))
+ soundCues:list(object({id:string,label:string,kind:{type:'string',enum:['sfx','bgm','ambient']},prompt:string,sceneId:string,lineId:string,
+  endLineId:{type:['string','null']},anchor:{type:'string',enum:['before','after','start','scene']},offsetSeconds:number,generationSeconds:number,durationSeconds:number,volume:number,fadeInSeconds:number,fadeOutSeconds:number}))
 });
 export {randomDubbingIdea,simpleDubbingText,applySimpleDubbingText} from './dubbing-writing.js';

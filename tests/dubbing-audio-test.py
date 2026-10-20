@@ -28,6 +28,23 @@ def rms(path, start, end):
     return math.sqrt(sum(x*x for x in samples) / len(samples))
 
 class DubbingAudio(unittest.TestCase):
+    def test_music_continues_past_thirty_seconds_and_stops_at_the_selected_line(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = pathlib.Path(folder)
+            source = root / 'long-score.wav'
+            sine(source, 42)
+            timeline = {'duration': 48, 'lines': [{'start': 32, 'end': 36}], 'sounds': [{
+                'id': 'score', 'kind': 'bgm', 'generationSeconds': 42, 'durationSeconds': 42,
+                'start': 1, 'volume': .4, 'fadeInSeconds': .5, 'fadeOutSeconds': 1}]}
+            _, meta = dubbing.render_background(timeline, [{'cueId': 'score', 'url': 'local-test'}], root,
+                                                download=lambda url, dest: shutil.copyfile(source, dest))
+            decoded = root / 'verify.wav'
+            self.assertEqual(meta['duration'], 48)
+            self.assertGreater(rms(decoded, 38, 39), 100)
+            self.assertGreater(rms(decoded, 33, 34), rms(decoded, 38, 39) * .45)
+            self.assertLess(rms(decoded, 33, 34), rms(decoded, 38, 39) * .65)
+            self.assertLess(rms(decoded, 44, 45), 1)
+
     def test_final_voices_are_placed_on_the_shared_clock(self):
         with tempfile.TemporaryDirectory() as folder:
             root = pathlib.Path(folder)

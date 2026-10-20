@@ -4,9 +4,9 @@ export const PIKA_ORIGIN='https://api.dev.pika.art';
 export function pikaAvailable(env){return env.DUBBING_SOUND_ENABLED==='true'&&env.DUBBING_PAID_API_ENABLED==='true'&&!!env.PIKA_API_KEY;}
 export function pikaRequest(cue){
  const music=cue.kind==='bgm',duration=cue.generationSeconds;
- if(!Number.isFinite(duration)||duration<(music?10:1)||duration>(music?30:20))fail(400,'Pika 음향 생성 길이를 확인해주세요.');
+ if(!Number.isFinite(duration)||duration<(music?10:1)||duration>(music?300:20))fail(400,'Pika 음향 생성 길이를 확인해주세요.');
  return {model:music?'pika/pika-audio/pika-music':'pika/pika-audio/pika-sfx',body:{
-  prompt:music?`Instrumental only. No vocals, no singing, no speech. ${cue.prompt}`:cue.prompt,duration,seed:-1,
+  prompt:music?`Instrumental underscore only. No vocals, singing, speech or sound effects. ${cue.prompt}`:`${cue.kind==='ambient'?'Environmental ambience only.':'Isolated sound effect; start promptly.'} No music, singing or speech. ${cue.prompt}`,duration,seed:-1,
   ...(music?{mode:'text_to_music',lyrics:'',rewrite_prompt:false}:{})}};
 }
 export function pikaAudioURL(value){

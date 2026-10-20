@@ -17,12 +17,14 @@ minutes는 0.5~5 사이 0.5 단위입니다. 0.5는 30초, 1.5는 1분 30초입�
 전체 대사는 선택한 minutes*60초에 근접하게 작성하되 시작/끝 여유 2초씩과 음향을 포함하여 선택 길이의 120% 또는 300초 중 작은 값을 넘지 마세요.
 역할마다 적어도 한 줄, 장면마다 적어도 한 줄. 장면 최대 12개, 대사 최대 120개.
 title 100자, 역할 name 40자/personality 240자, 장면 title 80자/description 500자, 대사 text 700자/emotion 80자/direction 240자 이내.
-soundCues는 필수 연출에만 최대 24개. SFX 1~5초, 환경음 최대 20초, BGM 0~3개, 모든 BGM은 보컬 없는 연주곡.
-각 cue는 sceneId와 실제 lineId에 연결하고 before/after anchor와 offsetSeconds(0~10초)를 사용하세요.
-generationSeconds는 durationSeconds 이상이며 SFX/환경음 최대 20초, BGM 10~30초입니다.
-durationSeconds 최대 30초(SFX 최대 5초), volume 0~0.5, fadeInSeconds와 fadeOutSeconds는 각각 길이의 절반 이하.
-BGM은 대사를 방해하지 않도록 짧고 작은 음량으로, 모든 줄에 효과음을 넣지 마세요.
-음향 프롬프트는 재질/공간감을 포함한 500자 이내 설명으로 작성하세요.
+soundCues는 최대 24개. 장면의 음악적 분위기를 이끄는 BGM 1~3개와 실제 사건의 SFX를 따로 설계하세요. 신비한 공간/진지한 선택/긴박한 행동처럼 감정이 바뀌면 음악도 바뀌어야 합니다. 환경음이 BGM을 대신해서는 안 됩니다.
+BGM은 보컬 없는 연주곡입니다. 시작 대사 lineId부터 마지막으로 유지할 대사 endLineId까지 이어지게 하세요. 곡을 10~30초로 잘라 장면 대부분을 무음으로 남기지 마세요. 각 BGM의 endLineId는 다음 음악 시작 직전 대사 또는 해당 장면 마지막 대사입니다. 대사 녹음 시간은 바꾸지 않습니다.
+각 cue에 짧은 한국어 label(예: 신비로운 공간의 BGM, 종탑 기둥이 갈라지는 소리)을 넣으세요. 장면/대사에 없는 사건의 소리는 추가하지 마세요. 과거 사고를 회상하는 대사에는 실제 충돌음이 필요하지 않습니다.
+필수 사건을 놓치지 마세요: 현재 장면에서 종이 울림/기둥이 갈라짐/문이 닫힘/시간이 되감김 같은 사건은 해당 대사에 별도의 SFX로 연결하세요. 대사 속 행동과 소리의 원인·순서가 맞아야 합니다.
+anchor='scene'은 장면 첫 대사에서 배경음 시작, 'start'는 해당 대사가 시작되는 순간, 'after'는 대사 직후, 'before'는 효과음 전체가 대사 전에 끝나는 위치입니다. 일반적인 사건 SFX는 start를 쓰세요. offsetSeconds는 0~10초입니다.
+BGM endLineId에는 실제 종료 대사 ID를 넣고 SFX/환경음의 endLineId는 null로 하세요. BGM 재생/생성 길이는 서버가 두 대사 사이의 실제 시간으로 계산합니다.
+SFX는 1~5초, 환경음 최대 20초, BGM 최대 300초. endLineId가 없는 음향은 generationSeconds가 durationSeconds 이상이어야 합니다. BGM generationSeconds 최소 10초. volume은 BGM 0.3~0.45, SFX 0.25~0.5, 환경음 0.12~0.25; 대사 중 BGM은 믹서가 추가로 낮춥니다. fadeInSeconds/fadeOutSeconds는 길이의 절반 이하.
+Pika prompt는 명확한 영어로 최대 500자. BGM은 감정·악기·템포·편곡을 구체적으로 묘사하고 음악만 요청하세요. SFX는 하나의 실제 소리, 재질, 거리, 횟수와 울림을 묘사하세요. 등장인물 이름/줄거리/대사는 prompt에 넣지 마세요. '신비한 소리' 같은 추상적 효과음, 음악과 효과음의 혼합 요청은 피하세요.
 오디오를 이미 생성했다고 말하지 마세요. 출력은 지정된 JSON 스키마만 따르세요.`;
 
 export function dubbingAIAvailable(env){return env.DUBBING_AI_ENABLED==='true'&&!!(env.OPENAI_API_KEY||env.LLM_API_KEY);}
