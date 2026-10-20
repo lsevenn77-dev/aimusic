@@ -5,10 +5,10 @@ export class Sfu {
   if(!this.env.REALTIME_SFU_APP_ID||!this.env.REALTIME_SFU_APP_SECRET)fault(503,'음성 서버 설정을 준비하고 있어요.');
   let response,result;
   try {
-   response=await this.fetcher(`https://rtc.live.cloudflare.com/v1/apps/${encodeURIComponent(this.env.REALTIME_SFU_APP_ID)}${path}`,{method,headers:{authorization:`Bearer ${this.env.REALTIME_SFU_APP_SECRET}`,'content-type':'application/json'},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(10000)});
+   response=await this.fetcher(`https://rtc.live.cloudflare.com/v1/apps/${encodeURIComponent(this.env.REALTIME_SFU_APP_ID)}${path}`,{method,headers:{authorization:`Bearer ${this.env.REALTIME_SFU_APP_SECRET}`,'content-type':'application/json'},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(path.endsWith('/tracks/new')?12000:8000)});
    result=await response.json();
-  }catch{throw Object.assign(new Error('음성 서버 응답이 지연돼요. 연결을 정리하고 있어요.'),{status:502,sfuUncertain:true});}
-  if(!response.ok||result.errorCode)throw Object.assign(new Error('음성 서버 연결에 실패했어요. 다시 연결해주세요.'),{status:502,sfuUncertain:true,sessionGone:response.status===410&&result.errorCode==='session_error'});
+  }catch(error){console.warn(JSON.stringify({event:'voice_sfu_failure',operation:path.replace(/sessions\/[^/]+/,'sessions/[session]'),kind:error?.name||'network'}));throw Object.assign(new Error('음성 서버 응답이 지연돼요. 연결을 정리하고 있어요.'),{status:502,sfuUncertain:true});}
+  if(!response.ok||result.errorCode){console.warn(JSON.stringify({event:'voice_sfu_failure',status:response.status,code:result.errorCode||'http_error'}));throw Object.assign(new Error('음성 서버 연결에 실패했어요. 다시 연결해주세요.'),{status:502,sfuUncertain:true,sessionGone:response.status===410&&result.errorCode==='session_error'});}
   return result;
  }
  async create() {const r=await this.call('/sessions/new');if(typeof r.sessionId!=='string'||!r.sessionId)fault(502,'음성 세션을 만들지 못했어요.');return r.sessionId;}

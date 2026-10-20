@@ -1,3 +1,4 @@
+import {voiceMusicRoute} from './voice-music.js';
 import {one,rows,rate,json,fail,str} from './db.js';
 import {requireUser,hash,viewerBlockedIds} from './auth.js';
 import {assertUnblocked} from './account-safety.js';
@@ -35,9 +36,10 @@ export async function voiceRoomsRoute(req,env,path,user,ctx) {
  const [,room,action]=m;
  if(action==='socket'&&req.method==='GET') {
   if(req.headers.get('origin')!==new URL(req.url).origin||req.headers.get('upgrade')?.toLowerCase()!=='websocket')fail(403,'사이트에서 토킹룸에 다시 입장해주세요.');
-  return voiceCall(env,actor,room,'socket',{},true);
+  const generation=new URL(req.url).searchParams.get('generation');if(!generation)fail(409,'토킹룸에 다시 입장해주세요.');return voiceCall(env,actor,room,'socket',{generation},true);
  }
  if(action==='state'&&req.method==='GET')return voiceCall(env,actor,room,'state');
+ if(['music-search','music-stream','music-consent','music'].includes(action)){const b=req.method==='POST'?await req.json():{};await rate(env,'voice-music:'+user.id,90,60);return voiceMusicRoute(req,env,user,room,action,b,async(a,input)=>result(await voiceCall(env,actor,room,a,input)));}
  if(req.method!=='POST')fail(405,'허용되지 않는 요청이에요.');
  await rate(env,'voice-api:'+user.id,180,60);
  const b=await req.json();
@@ -67,7 +69,7 @@ export async function voiceRoomsRoute(req,env,path,user,ctx) {
   if(ctx?.waitUntil)ctx.waitUntil(dispatchPush(env));
   return json({...receipt,animation_pending},response.status);
  }
- const allowed=['join','heartbeat','leave','close','request-mic','approve-mic','release-mic','mute','moderate','chat','publish','published','subscribe','answer'];
+ const allowed=['join','heartbeat','leave','close','request-mic','cancel-mic','reject-mic','approve-mic','release-mic','mute','moderate','chat','publish','published','subscribe','answer'];
  if(!allowed.includes(action))fail(404,'지원하지 않는 토킹룸 요청이에요.');
  return voiceCall(env,actor,room,action,b);
 }

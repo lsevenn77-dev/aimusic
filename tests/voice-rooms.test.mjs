@@ -93,13 +93,13 @@ test('chat ordering handles identical timestamps, retention rollover and old per
 });
 
 test('room screen joins once automatically, never opens microphone, and offers retry only on failure',async()=>{
- const elements=new Map(),get=id=>{if(!elements.has(id))elements.set(id,{hidden:true,value:'',elements:{},querySelector:()=>({})});return elements.get(id);};
+ const elements=new Map(),get=id=>{if(!elements.has(id))elements.set(id,{hidden:true,value:'',elements:{},attributes:{},setAttribute(k,v){this.attributes[k]=v;},querySelector:()=>({})});return elements.get(id);};
  let calls=0,reply,fail=false,mics=0;
  const c=vm.createContext({crypto,AbortSignal,window:{addEventListener(){},removeEventListener(){}},document:{addEventListener(){},removeEventListener(){}},navigator:{mediaDevices:{getUserMedia(){mics++;throw Error('must stay muted');}}},fetch:async()=>{calls++;return new Promise(resolve=>{reply=()=>resolve(Response.json(fail?{error:'full'}:{generation:'g',members:[],room:{}},{status:fail?409:200}));});},audio:{pause(){}},api:()=>Promise.resolve({conversations:[]}),toast(){},busyForm:()=>()=>{},setInterval:()=>0,clearInterval(){},setTimeout,clearTimeout,$:get});
  vm.runInContext(readFileSync(new URL('../dist/voice-rooms.js',import.meta.url),'utf8')+'\nthis.Client=VoiceRoomClient;',c);
  const setup=()=>{const client=new c.Client('test');client.giftSummary=()=>{};client.paint=()=>{};client.socket=()=>{};client.receive=async()=>{};const original=client.join.bind(client);client.join=()=>client.pending=original();return client;};
  const host={isConnected:true,querySelector:()=>({})},client=setup();client.bind(host);client.bind(host);assert.equal(calls,1);assert.equal(get('#voice-entry').hidden,true);reply();await client.pending;
- assert.equal(client.joined,true);client.bind(host);assert.equal(calls,1);assert.equal(mics,0);client.leave(false);
+ assert.equal(client.joined,true);client.bind(host);assert.equal(calls,1);assert.equal(mics,0);assert.equal(get('#voice-music-volume').attributes['aria-valuetext'],'100%');client.leave(false);
  const retry=setup();fail=true;retry.bind(host);reply();await assert.rejects(retry.pending);assert.equal(get('#voice-entry').hidden,false);assert.equal(retry.joined,false);
  fail=false;get('#voice-join').onclick();reply();await retry.pending;assert.equal(retry.joined,true);assert.equal(get('#voice-entry').hidden,true);assert.equal(mics,0);retry.leave(false);
 });
@@ -259,4 +259,86 @@ test('voice gift retries debit once and invitations reuse the DM ledger',async t
  assert.equal(h.room.data.chat.at(-1).body,'owner님이 Other님에게 막대사탕 ×3을 보냈습니다.');
  assert.equal((await f.call('/api/voice/rooms/test-room/gifts','POST',{...b,quantity:4})).status,409);
  const invite={profile_id:'other-profile',request_id:crypto.randomUUID()};assert.equal((await f.call('/api/voice/rooms/test-room/invite','POST',invite)).status,201);assert.equal((await f.call('/api/voice/rooms/test-room/invite','POST',invite)).status,201);assert.equal(f.sql.prepare('SELECT count(*) n FROM direct_messages').get().n,1);assert.match(f.sql.prepare('SELECT body FROM direct_messages').get().body,/#voice\/test-room/);
+});
+
+test('retiring slow SFU sessions does not block chat, heartbeat or receiver-only republishing',async t=>{
+ const h=harness(t);await h.create();await h.call('approve-mic',actor('host'),{target_id:'host'});
+ let finish;h.room.sfu.close=()=>new Promise(resolve=>finish=resolve);
+ h.room.data.members.host.sub={sessionId:'old-receiver',owner:'host',kind:'subscribe',mids:[]};
+ const retirement=h.room.retire(h.room.data.members.host.sub);await retirement;h.room.data.members.host.sub=null;
+ assert.equal((await h.call('chat',actor('host'),{body:'still responsive',request_id:crypto.randomUUID()})).status,200);
+ assert.equal((await h.call('heartbeat')).status,200);
+ assert.equal((await h.call('publish',actor('host'),{mid:'0',sessionDescription:offer})).status,200);
+ assert.ok(h.room.data.cleanup.some(c=>c.sessionId==='old-receiver'));finish({resolved:true});await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(h.room.data.cleanup.some(c=>c.sessionId==='old-receiver'),false);
+});
+
+test('seat preference, muted admission and ordered realtime notices follow actual server events',async t=>{
+ const h=harness(t);await h.create();await h.join(actor('guest'));
+ await h.call('request-mic',actor('guest'),{seat:5});await h.call('approve-mic',actor('host'),{target_id:'guest'});
+ const member=h.room.data.members.guest;assert.equal(member.seat,5);assert.equal(member.muted,true);assert.equal(member.pub,null);
+ await h.call('release-mic',actor('guest'));await h.call('leave',actor('guest'));
+ const state=(await h.call('heartbeat')).body;assert.ok(state.notices.some(n=>n.body.includes('입장')));assert.ok(state.notices.some(n=>n.body.includes('6번 좌석에 올라')));assert.ok(state.notices.some(n=>n.body.includes('6번 좌석에서 내려')));assert.ok(state.notices.some(n=>n.body.includes('퇴장')));
+ assert.equal(state.members.length,1);assert.equal(state.members[0].id,'host');
+});
+
+test('two authenticated members share music state; only host and explicit rights consent permit control',async t=>{
+ const h=harness(t);await h.call('create',actor('owner'),{title:'Music',visibility:'public'});await h.join(actor('other'));
+ const original=globalThis.fetch;t.after(()=>globalThis.fetch=original);
+ const bytes=new TextEncoder().encode('audiobytes');
+ const f=await fixture(t,{VOICE_SERVICE_URL:'https://voice.test',VOICE_BRIDGE_SECRET:secret,BUCKET:{head:async()=>({size:bytes.length}),get:async()=>({body:bytes})}});
+ f.sql.exec('UPDATE tracks SET duration=120');
+ globalThis.fetch=async(url,init)=>voiceWorker.fetch(new Request(url,init),{...h.env,VOICE_BRIDGE_SECRET:secret,ROOMS:{idFromName:id=>id,get:()=>({fetch:r=>h.room.fetch(r)})}});
+ const root='/api/voice/rooms/test-room/';const gen=h.room.data.members.owner.generation;
+ const initial=await f.call(root+'music-search?generation='+gen);assert.equal(initial.status,200);assert.equal(initial.body.tracks.find(t=>t.id==='one').room_allowed,false);
+ assert.equal((await f.call(root+'music','POST',{operation:'enqueue',track_id:'one',request_id:crypto.randomUUID(),generation:gen})).status,403);
+ assert.equal((await f.call(root+'music-consent','POST',{track_id:'one',accept:true,generation:gen})).status,200);
+ const command={operation:'enqueue',track_id:'one',request_id:crypto.randomUUID(),generation:gen,track:{id:'forged',duration:1}};
+ const first=await f.call(root+'music','POST',command);assert.equal(first.status,200,JSON.stringify(first.body));assert.equal(first.body.music.queue[0].id,'one');
+ assert.equal((await f.call(root+'music','POST',command)).body.music.starts,1);
+ const otherGen=h.room.data.members.other.generation;
+ assert.equal((await f.call(root+'music','POST',{operation:'pause',request_id:crypto.randomUUID(),generation:otherGen},'other')).status,403);
+ const pause=await f.call(root+'music','POST',{operation:'pause',request_id:crypto.randomUUID(),generation:gen});assert.equal(pause.body.music.playing,false);
+ const guest=(await h.call('state',actor('other'),{generation:otherGen})).body;assert.deepEqual(guest.music,pause.body.music);
+ const stream=new Request('https://aifect.test'+root+'music-stream?track_id=one&generation='+otherGen);
+ const response=await voiceRoomsRoute(stream,{DB:f.DB,VOICE_SERVICE_URL:'https://voice.test',VOICE_BRIDGE_SECRET:secret,BUCKET:{head:async()=>({size:bytes.length}),get:async()=>({body:bytes})}},root+'music-stream',{id:'other',name:'Other'},{});
+ assert.equal(response.status,200);assert.equal(await response.text(),'audiobytes');assert.equal(f.sql.prepare('SELECT COUNT(*) n FROM listens').get().n,0);
+ f.sql.exec("DELETE FROM voice_music_permissions WHERE track_id='one'");
+ assert.equal((await f.call(root+'music-stream?track_id=one&generation='+otherGen,'GET',null,'other')).status,403);
+});
+
+test('a pending publication never holds the room lock and a mute invalidates its late result',async t=>{
+ const h=harness(t);await h.create();await h.join(actor('guest'));await h.call('approve-mic',actor('host'),{target_id:'host'});
+ let resolveTracks,started;const ready=new Promise(resolve=>started=resolve);
+ h.room.sfu.tracks=async(id,b)=>{started();return new Promise(resolve=>resolveTracks=()=>resolve({sessionDescription:{type:'answer',sdp:'test'},tracks:b.tracks}));};
+ const pending=h.call('publish',actor('host'),{mid:'0',sessionDescription:offer});await ready;
+ assert.equal((await h.call('published')).status,409,'cannot advertise unnegotiated media');
+ assert.equal((await h.call('chat',actor('guest'),{body:'while negotiating',request_id:crypto.randomUUID()})).status,200);
+ assert.equal((await h.call('heartbeat',actor('guest'))).status,200);
+ assert.equal((await h.call('mute')).status,200);resolveTracks();assert.equal((await pending).status,409);
+ assert.equal(h.room.data.members.host.pub,null);assert.equal(h.room.data.members.host.muted,true);assert.ok(h.closes.includes('session-1'));
+});
+
+test('an old generation cannot replace the new browser websocket or end its microphone',async t=>{
+ const h=harness(t);await h.create();const old=h.room.data.members.host.generation;const fresh=(await h.join(actor('host'))).body.generation;
+ assert.notEqual(old,fresh);assert.equal((await h.call('socket',actor('host'),{generation:old})).status,409);
+ assert.equal((await h.call('mute',actor('host'),{generation:old})).status,409);assert.equal(h.room.data.members.host.generation,fresh);
+});
+
+test('seat requests can be cancelled or rejected and an occupied requested seat is never stolen',async t=>{
+ const h=harness(t);await h.create();await h.join(actor('a'));await h.join(actor('b'));
+ await h.call('request-mic',actor('a'),{seat:3});assert.equal(h.room.data.members.a.requested,true);
+ await h.call('cancel-mic',actor('a'));assert.equal(h.room.data.members.a.requested,false);
+ await h.call('request-mic',actor('a'),{seat:3});assert.equal((await h.call('reject-mic',actor('b'),{target_id:'a'})).status,403);
+ await h.call('reject-mic',actor('host'),{target_id:'a'});assert.equal(h.room.data.members.a.requested,false);
+ await h.call('request-mic',actor('a'),{seat:3});await h.call('request-mic',actor('b'),{seat:3});await h.call('approve-mic',actor('host'),{target_id:'a'});
+ assert.equal((await h.call('approve-mic',actor('host'),{target_id:'b'})).status,409);assert.equal(h.room.data.members.b.seat,null);assert.equal(h.room.data.members.a.seat,3);
+ const notices=h.room.data.notices.length;await h.call('approve-mic',actor('host'),{target_id:'a'});assert.equal(h.room.data.notices.length,notices);
+});
+
+test('host departure pauses shared music and host reentry restores queue for explicit resume',async t=>{
+ const h=harness(t);await h.create();await h.join(actor('guest'));
+ await h.call('music',actor('host'),{operation:'enqueue',track:{id:'song',title:'Song',artist:'Artist',duration:120,cover:'/cover'},request_id:crypto.randomUUID()});
+ assert.equal(h.room.data.music.playing,true);await h.call('leave');assert.equal(h.room.data.music.playing,false);assert.equal(h.room.data.music.queue.length,1);
+ await h.join(actor('host'));assert.equal(h.room.data.members.host.role,'host');await h.call('music',actor('host'),{operation:'play',request_id:crypto.randomUUID()});assert.equal(h.room.data.music.playing,true);
 });
