@@ -70,3 +70,5 @@ body.has-player .dubbing-save-bar{position:static}
 .dubbing-versions small{display:block;margin-top:6px;color:var(--muted,#b5bfd4)}
 #dubbing-start-version{margin-top:12px}
 @media(max-width:600px){.dubbing-simple-text{font-size:16px!important;min-height:300px}.dubbing-editor-main .dubbing-section-heading{flex-wrap:wrap}}
+
+.dubbing-panel legend.dubbing-idea-heading{flex-wrap:wrap;row-gap:8px}.dubbing-panel .dubbing-idea-heading small{font-size:12px;line-height:1.6;margin-left:0;color:var(--ds-muted);font-weight:400}.dubbing-generation-estimate{font-size:13px;line-height:1.7;color:var(--db-mint);margin:20px 0 8px}.dubbing-generation-estimate small{display:block;font-size:12px;color:var(--ds-muted)}.dubbing-role-gender{color:var(--ds-muted);font-size:.85em;font-weight:500}

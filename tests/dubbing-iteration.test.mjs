@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {fixture} from './fixture.mjs';
 import {options,sampleScript,memoryBucket} from './dubbing-fixtures.mjs';
-import {simpleDubbingText,applySimpleDubbingText,randomDubbingIdea,dubbingTimeline} from '../shared/dubbing.js';
+import {simpleDubbingText,applySimpleDubbingText,randomDubbingIdea,dubbingTimeline,validateDubbingScript,dubbingGenderLabel,DUBBING_SCRIPT_SCHEMA} from '../shared/dubbing.js';
 import {dubbingQuota,reserveDubbingGeneration,dubbingDay} from '../server/dubbing-quota.js';
 import {pikaSubmit} from '../server/dubbing-pika.js';
 
@@ -23,6 +23,25 @@ test('random ideas honor selected genre, cast and length and offer a different s
  const opts={genres:['사극'],roleCount:4,minutes:1.5};
  const a=randomDubbingIdea(opts,'',()=>0),b=randomDubbingIdea(opts,a,()=>0);
  assert.match(a,/사극/);assert.match(a,/4명/);assert.match(a,/90초/);assert.notEqual(a,b);
+});
+
+test('character gender survives save/edit and old scripts remain readable without guessing gender',async t=>{
+ const f=await fixture(t,{DUBBING_ENABLED:'true',BUCKET:memoryBucket()}),script=sampleScript();
+ script.roles[0].gender='female';script.roles[1].gender='male';
+ const created=await f.call('/api/dubbing/projects','POST',{id:crypto.randomUUID(),options,script});
+ assert.equal(created.status,201,JSON.stringify(created));
+ const p=created.body.project,path='/api/dubbing/projects/'+p.id;
+ assert.deepEqual(p.roles.map(r=>dubbingGenderLabel(r.gender)),['여','남']);
+ const edited=structuredClone(script);edited.roles[0].gender='unspecified';
+ assert.equal((await f.call(path,'PUT',{revision:p.revision,options,script:edited})).status,200);
+ const read=(await f.call(path)).body.project;
+ assert.equal(read.roles[0].gender,'unspecified');
+ const old=structuredClone(script);old.roles.forEach(r=>delete r.gender);
+ assert.ok(validateDubbingScript(old,options).roles.every(r=>r.gender==='unspecified'));
+ assert.equal(dubbingGenderLabel(undefined),'미정');
+ old.roles[0].gender='invalid';
+ assert.throws(()=>validateDubbingScript(old,options),/성별/);
+ assert.ok(DUBBING_SCRIPT_SCHEMA.properties.roles.items.required.includes('gender'));
 });
 test('premium allows exactly three atomic daily generations; Apple entitlement and expiry are honored',async t=>{
  const f=await fixture(t),env={DB:f.DB},at=1792468800;

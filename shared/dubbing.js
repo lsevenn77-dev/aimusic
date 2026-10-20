@@ -5,6 +5,8 @@ export const DUBBING_ENDINGS=['해피엔딩','새드엔딩','반전','열린 결
 export const DUBBING_MODEL='gpt-6-luna';
 export const DUBBING_LENGTHS=Array.from({length:10},(_,i)=>(i+1)/2);
 export const DUBBING_SOUND_GOLD=50;
+export const DUBBING_GENDERS=['male','female','unspecified'];
+export function dubbingGenderLabel(gender){return gender==='male'?'남':gender==='female'?'여':'미정';}
 const invalid=message=>{throw Object.assign(new Error(message),{status:400});};
 const text=(v,max,label,optional=false)=>{
  if(typeof v!=='string'||v.length>max||(!optional&&!v.trim()))invalid(`${label}을 확인해주세요.`);
@@ -28,14 +30,14 @@ export function dubbingOptions(v){
   mood:choice(v.mood,DUBBING_MOODS,'분위기'),ending:choice(v.ending,DUBBING_ENDINGS,'결말'),idea:text(v.idea??'',1500,'추가 설정',true)};
 }
 export function emptyDubbingScript(options){
- const o=dubbingOptions(options),roles=Array.from({length:o.roleCount},(_,i)=>({id:`role_${i+1}`,name:`배역 ${i+1}`,personality:''}));
+ const o=dubbingOptions(options),roles=Array.from({length:o.roleCount},(_,i)=>({id:`role_${i+1}`,name:`배역 ${i+1}`,gender:'unspecified',personality:''}));
  return {version:1,title:'',genres:o.genres,roles,scenes:[{id:'scene_1',title:'첫 장면',description:''}],
   lines:roles.map((r,i)=>({id:crypto.randomUUID(),order:i+1,sceneId:'scene_1',roleId:r.id,text:'',emotion:'자연스럽게',direction:'',durationSeconds:5,gapSeconds:1})),soundCues:[]};
 }
 export function validateDubbingScript(raw,options){
  const o=dubbingOptions(options);
  if(!raw||raw.version!==1)invalid('지원하지 않는 대본 형식입니다.');
- const roles=array(raw.roles,o.roleCount,o.roleCount,'배역').map(record).map(r=>({id:key(r.id),name:text(r.name,40,'배역 이름'),personality:text(r.personality,240,'성격',true)}));
+ const roles=array(raw.roles,o.roleCount,o.roleCount,'배역').map(record).map(r=>({id:key(r.id),name:text(r.name,40,'배역 이름'),gender:choice(r.gender??'unspecified',DUBBING_GENDERS,'배역 성별'),personality:text(r.personality,240,'성격',true)}));
  unique(roles.map(r=>r.id),'배역 ID');unique(roles.map(r=>r.name),'배역 이름');
  const scenes=array(raw.scenes,1,12,'장면').map(record).map(s=>({id:key(s.id),title:text(s.title,80,'장면 제목'),description:text(s.description,500,'장면 설명',true)}));
  unique(scenes.map(s=>s.id),'장면 ID');
@@ -80,7 +82,7 @@ const object=properties=>({type:'object',additionalProperties:false,properties,r
 const list=items=>({type:'array',items});
 export const DUBBING_SCRIPT_SCHEMA=object({
  version:{type:'integer',enum:[1]},title:string,genres:list({type:'string',enum:DUBBING_GENRES}),
- roles:list(object({id:string,name:string,personality:string})),
+ roles:list(object({id:string,name:string,gender:{type:'string',enum:DUBBING_GENDERS},personality:string})),
  scenes:list(object({id:string,title:string,description:string})),
  lines:list(object({id:string,order:{type:'integer'},sceneId:string,roleId:string,text:string,emotion:string,direction:string,durationSeconds:number,gapSeconds:number})),
  soundCues:list(object({id:string,kind:{type:'string',enum:['sfx','bgm','ambient']},prompt:string,sceneId:string,lineId:string,
