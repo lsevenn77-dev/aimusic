@@ -25,12 +25,14 @@ export async function voiceRoomsRoute(req,env,path,user,ctx) {
  requireUser(user);
  // A realtime page must not cache another user's room membership or permission.
  const crews=await rows(env,'SELECT c.id,c.name FROM crews c JOIN crew_members m ON m.crew_id=c.id WHERE m.user_id=? LIMIT 50',user.id);
- const actor={id:user.id,profile_id:user.profile_id||null,name:user.display_name||user.name,image_version:user.image_version||'',crews:crews.map(c=>c.id),blocks:viewerBlockedIds(user)||[]};
+ const followed=await rows(env,"SELECT DISTINCT p.user_id FROM follows f JOIN producers p ON p.id=f.target_id WHERE f.user_id=? AND f.kind='producer'",user.id);
+ const actor={id:user.id,profile_id:user.profile_id||null,name:user.display_name||user.name,image_version:user.image_version||'',crews:crews.map(c=>c.id),followedHosts:followed.map(p=>p.user_id),blocks:viewerBlockedIds(user)||[]};
+ if(path==='/api/voice/options'&&req.method==='GET')return json({crews});
  if(path==='/api/voice/rooms'&&req.method==='GET')return json({...await result(await voiceCall(env,actor,'directory','list')),crews});
  if(path==='/api/voice/rooms'&&req.method==='POST') {
   if(!actor.profile_id)fail(409,'마이에서 프로필을 먼저 만들어주세요.');
   await rate(env,'voice-create:'+user.id,5,3600);const b=await req.json();
-  return json(await result(await voiceCall(env,actor,requestId(b.request_id),'create',{title:str(b.title,60),visibility:b.visibility,crew_id:b.crew_id})),201);
+  return json(await result(await voiceCall(env,actor,requestId(b.request_id),'create',{title:str(b.title,60),visibility:b.visibility,crew_id:b.crew_id,max_members:b.max_members,background:b.background,announcement:b.announcement})),201);
  }
  const m=path.match(/^\/api\/voice\/rooms\/([\w-]+)\/([a-z-]+)$/);if(!m)fail(404,'토킹룸을 찾을 수 없어요.');
  const [,room,action]=m;
@@ -69,7 +71,7 @@ export async function voiceRoomsRoute(req,env,path,user,ctx) {
   if(ctx?.waitUntil)ctx.waitUntil(dispatchPush(env));
   return json({...receipt,animation_pending},response.status);
  }
- const allowed=['join','heartbeat','leave','close','request-mic','cancel-mic','reject-mic','approve-mic','release-mic','mute','moderate','chat','publish','published','subscribe','answer'];
+ const allowed=['join','heartbeat','leave','close','settings','seat-invite','seat-answer','self-mute','request-mic','cancel-mic','reject-mic','approve-mic','release-mic','mute','moderate','chat','publish','published','subscribe','answer'];
  if(!allowed.includes(action))fail(404,'지원하지 않는 토킹룸 요청이에요.');
  return voiceCall(env,actor,room,action,b);
 }

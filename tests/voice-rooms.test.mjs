@@ -15,7 +15,7 @@ const secret='test-only-bridge-secret-not-production-0001';
 const actor=(id,crews=[])=>({id,name:id,profile_id:id+'-profile',crews});
 const offer={type:'offer',sdp:'v=0\r\nm=audio 9 UDP/TLS/RTP/SAVPF 111\r\na=mid:0\r\na=sendonly\r\n'};
 function harness(t) {
- const sql=new DatabaseSync(':memory:');sql.exec(readFileSync(new URL('../realtime/migrations/0001_rooms.sql',import.meta.url),'utf8'));t.after(()=>sql.close());
+ const sql=new DatabaseSync(':memory:');for(const migration of ['0001_rooms.sql','0002_room_settings.sql'])sql.exec(readFileSync(new URL('../realtime/migrations/'+migration,import.meta.url),'utf8'));t.after(()=>sql.close());
  const env={ROOM_DB:{prepare(q){return {bind(...args){const s=sql.prepare(q);return {async run(){s.run(...args);},async all(){return {results:s.all(...args)};}};}};}}};
  const saved=new Map(),events=[];
  const ctx={storage:{async get(k){return structuredClone(saved.get(k));},async put(k,v){saved.set(k,structuredClone(v));},async setAlarm(t){ctx.alarm=t;}},getWebSockets:()=>[]};
@@ -60,7 +60,7 @@ test('creation reserves host presence; only the final departure closes the room 
 test('abrupt disconnect expiry and legacy empty rooms are removed from directory results',async t=>{
  const h=harness(t);await h.create();await h.join(actor('guest'));
  h.room.data.members.host.expires=0;await h.room.alarm();assert.equal(h.room.data.config.closed,false);
- h.room.data.members.guest.expires=0;await h.room.alarm();assert.equal(h.room.data.config.closed,true);
+ h.room.data.members.guest.expires=0;await h.room.alarm();assert.equal(h.room.data.config.closed,false);assert.equal((await h.join(actor('host'))).body.members[0].seat,0);await h.call('leave',actor('host'));assert.equal(h.room.data.config.closed,true);
  const legacy=harness(t);await legacy.create();legacy.room.data.members={};await legacy.room.save();
  const path='/rooms/directory/list',body=JSON.stringify({actor:actor('host'),input:{}});
  const response=await voiceWorker.fetch(new Request('https://voice.test'+path,{method:'POST',headers:await signedHeaders(secret,path,body),body}),{...legacy.env,VOICE_BRIDGE_SECRET:secret,ROOMS:{idFromName:id=>id,get:()=>({fetch:r=>legacy.room.fetch(r)})}});
@@ -95,11 +95,11 @@ test('chat ordering handles identical timestamps, retention rollover and old per
 test('room screen joins once automatically, never opens microphone, and offers retry only on failure',async()=>{
  const elements=new Map(),get=id=>{if(!elements.has(id))elements.set(id,{hidden:true,value:'',elements:{},attributes:{},setAttribute(k,v){this.attributes[k]=v;},querySelector:()=>({})});return elements.get(id);};
  let calls=0,reply,fail=false,mics=0;
- const c=vm.createContext({crypto,AbortSignal,window:{addEventListener(){},removeEventListener(){}},document:{addEventListener(){},removeEventListener(){}},navigator:{mediaDevices:{getUserMedia(){mics++;throw Error('must stay muted');}}},fetch:async()=>{calls++;return new Promise(resolve=>{reply=()=>resolve(Response.json(fail?{error:'full'}:{generation:'g',members:[],room:{}},{status:fail?409:200}));});},audio:{pause(){}},api:()=>Promise.resolve({conversations:[]}),toast(){},busyForm:()=>()=>{},setInterval:()=>0,clearInterval(){},setTimeout,clearTimeout,$:get});
+ const c=vm.createContext({performance,crypto,AbortSignal,window:{addEventListener(){},removeEventListener(){}},document:{addEventListener(){},removeEventListener(){}},navigator:{mediaDevices:{getUserMedia(){mics++;throw Error('must stay muted');}}},fetch:async()=>{calls++;return new Promise(resolve=>{reply=()=>resolve(Response.json(fail?{error:'full'}:{generation:'g',members:[],room:{}},{status:fail?409:200}));});},audio:{pause(){}},api:()=>Promise.resolve({conversations:[]}),toast(){},busyForm:()=>()=>{},setInterval:()=>0,clearInterval(){},setTimeout,clearTimeout,$:get});
  vm.runInContext(readFileSync(new URL('../dist/voice-rooms.js',import.meta.url),'utf8')+'\nthis.Client=VoiceRoomClient;',c);
- const setup=()=>{const client=new c.Client('test');client.giftSummary=()=>{};client.paint=()=>{};client.socket=()=>{};client.receive=async()=>{};const original=client.join.bind(client);client.join=()=>client.pending=original();return client;};
- const host={isConnected:true,querySelector:()=>({})},client=setup();client.bind(host);client.bind(host);assert.equal(calls,1);assert.equal(get('#voice-entry').hidden,true);reply();await client.pending;
- assert.equal(client.joined,true);client.bind(host);assert.equal(calls,1);assert.equal(mics,0);assert.equal(get('#voice-music-volume').attributes['aria-valuetext'],'100%');client.leave(false);
+ const setup=()=>{const client=new c.Client('test');client.bindFinalControls=()=>{};client.giftSummary=()=>{};client.paint=()=>{};client.socket=()=>{};client.receive=async()=>{};const original=client.join.bind(client);client.join=()=>client.pending=original();return client;};
+ const host={isConnected:true,querySelector:()=>({})},client=setup();client.bindFinalControls=()=>{};client.bind(host);client.bindFinalControls=()=>{};client.bind(host);assert.equal(calls,1);assert.equal(get('#voice-entry').hidden,true);reply();await client.pending;
+ assert.equal(client.joined,true);client.bindFinalControls=()=>{};client.bind(host);assert.equal(calls,1);assert.equal(mics,0);assert.equal(get('#voice-music-volume').attributes['aria-valuetext'],'100%');client.leave(false);
  const retry=setup();fail=true;retry.bind(host);reply();await assert.rejects(retry.pending);assert.equal(get('#voice-entry').hidden,false);assert.equal(retry.joined,false);
  fail=false;get('#voice-join').onclick();reply();await retry.pending;assert.equal(retry.joined,true);assert.equal(get('#voice-entry').hidden,true);assert.equal(mics,0);retry.leave(false);
 });
@@ -123,12 +123,40 @@ test('concurrent joins enforce 30 participants and duplicate joins do not consum
 test('8 mic seats, listener permission and moderator hierarchy are enforced on server',async t=>{
  const h=harness(t);await h.create();for(let i=0;i<9;i++){await h.join(actor('u'+i));await h.call('request-mic',actor('u'+i));}
  assert.equal((await h.call('approve-mic',actor('u0'),{target_id:'u0'})).status,403);assert.equal((await h.call('moderate',actor('host'),{target_id:'constructor',operation:'admin'})).status,400);
- const approvals=await Promise.all(Array.from({length:9},(_,i)=>h.call('approve-mic',actor('host'),{target_id:'u'+i})));assert.equal(approvals.filter(x=>x.status===200).length,8);assert.equal(approvals[8].status,409);
+ const approvals=await Promise.all(Array.from({length:9},(_,i)=>h.call('approve-mic',actor('host'),{target_id:'u'+i})));assert.equal(approvals.filter(x=>x.status===200).length,7);assert.equal(approvals[8].status,409);
  assert.equal((await h.call('publish',actor('u8'),{mid:'0',sessionDescription:offer})).status,403);
  await h.call('moderate',actor('host'),{target_id:'u0',operation:'admin'});
  assert.equal((await h.call('moderate',actor('u0'),{target_id:'host',operation:'ban'})).status,403);
  assert.equal((await h.call('moderate',actor('u0'),{target_id:'u1',operation:'admin'})).status,403);
 });
+test('eight simultaneous publishers fan out to thirty members and one speaker mute preserves the other seven',async t=>{
+ const h=harness(t);await h.create();const speakers=[actor('host'),...Array.from({length:7},(_,i)=>actor('speaker-'+i))];
+ const listeners=Array.from({length:22},(_,i)=>actor('listener-'+i));
+ for(const a of [...speakers.slice(1),...listeners])assert.equal((await h.join(a)).status,200);
+ for(const a of speakers){await h.call('request-mic',a);assert.equal((await h.call('approve-mic',actor('host'),{target_id:a.id})).status,200);}
+ let active=0,peak=0;const originalTracks=h.room.sfu.tracks;
+ h.room.sfu.tracks=async(...args)=>{active++;peak=Math.max(peak,active);try{await new Promise(r=>setTimeout(r,15));return await originalTracks(...args);}finally{active--;}};
+ const started=performance.now();
+ const publications=await Promise.all(speakers.map(a=>h.call('publish',a,{mid:'0',sessionDescription:offer})));
+ assert.ok(publications.every(r=>r.status===200));assert.equal(peak,8,'SFU operations must run concurrently outside the room state lock');
+ const sessions=speakers.map(a=>h.room.data.members[a.id].pub.sessionId);assert.equal(new Set(sessions).size,8);
+ assert.ok((await Promise.all(speakers.map(a=>h.call('published',a)))).every(r=>r.status===200));
+ const all=[...speakers,...listeners];
+ const pulls=await Promise.all(all.map(a=>h.call('subscribe',a)));
+ for(let i=0;i<all.length;i++){
+  assert.equal(pulls[i].status,200);const expected=speakers.some(a=>a.id===all[i].id)?7:8;
+  assert.equal(pulls[i].body.tracks.length,expected);assert.equal(new Set(pulls[i].body.tracks.map(t=>t.user_id)).size,expected);
+  assert.ok(pulls[i].body.tracks.every(t=>t.user_id!==all[i].id));
+  const sdp='v=0\r\n'+pulls[i].body.tracks.map(t=>'m=audio 9 UDP/TLS/RTP/SAVPF 111\r\na=mid:'+t.mid+'\r\na=recvonly\r\n').join('');
+  assert.equal((await h.call('answer',all[i],{negotiation:pulls[i].body.negotiation,sessionDescription:{type:'answer',sdp}})).status,200);
+ }
+ assert.equal((await h.call('mute',speakers[0])).status,200);
+ for(const a of speakers.slice(1))assert.equal(h.room.data.members[a.id].pub.ready,true);
+ const afterMute=await h.call('subscribe',listeners[0]);assert.equal(afterMute.status,200);assert.equal(afterMute.body.tracks.length,7);
+ assert.equal((await h.call('chat',listeners[0],{request_id:crypto.randomUUID(),body:'voice fanout remains live'})).status,200);
+ t.diagnostic(JSON.stringify({kind:'mock_sfu_state_test_only',publishers:8,members:30,peakConcurrentSfuCalls:peak,elapsedMs:Math.round(performance.now()-started),realAudioMeasured:false}));
+});
+
 test('private rooms require recipient invite; crew membership and blocks are rechecked',async t=>{
  const h=harness(t);await h.create('private');assert.equal((await h.join(actor('guest'))).status,403);
  await h.call('invite',actor('host'),{target_id:'guest'});assert.equal((await h.join(actor('guest'))).status,200);
@@ -139,7 +167,7 @@ test('private rooms require recipient invite; crew membership and blocks are rec
 test('kick/ban, reconnect generations, lease expiry and replayed server requests',async t=>{
  const h=harness(t);await h.create();const first=await h.join(actor('guest'));await h.join(actor('guest'));assert.equal((await h.call('chat',actor('guest'),{generation:first.body.generation,request_id:crypto.randomUUID(),body:'stale'})).status,409);
  const stamp={nonce:crypto.randomUUID(),timestamp:Date.now()};assert.equal((await h.call('state',actor('host'),{},stamp)).status,200);assert.equal((await h.call('state',actor('host'),{},stamp)).status,409);
- await h.call('moderate',actor('host'),{target_id:'guest',operation:'ban'});assert.equal((await h.join(actor('guest'))).status,403);
+ await h.call('moderate',actor('host'),{target_id:'guest',operation:'kick'});assert.equal((await h.join(actor('guest'))).status,403);
  h.room.data.members.host.expires=0;await h.room.alarm();assert.equal(Object.keys(h.room.data.members).length,0);
 });
 test('server resolves subscriptions; mute closes publisher; failures retain cleanup intent',async t=>{
@@ -191,7 +219,7 @@ test('gift chat notices are ordered, persisted once and restricted to members pr
 
 test('gift websocket event refreshes chat immediately and coalesces updates arriving during a refresh',async()=>{
  class Socket{constructor(){Socket.current=this;}close(){}}
- const c=vm.createContext({crypto,URL,WebSocket:Socket,location:{href:'https://aifect.test/#voice/test'},window:{addEventListener(){},removeEventListener(){}},document:{addEventListener(){},removeEventListener(){}},setTimeout,clearTimeout,setInterval,clearInterval});
+ const c=vm.createContext({performance,crypto,URL,WebSocket:Socket,location:{href:'https://aifect.test/#voice/test'},window:{addEventListener(){},removeEventListener(){}},document:{addEventListener(){},removeEventListener(){}},setTimeout,clearTimeout,setInterval,clearInterval});
  vm.runInContext(readFileSync(new URL('../dist/voice-rooms.js',import.meta.url),'utf8')+'\nthis.Client=VoiceRoomClient;',c);
  const client=new c.Client('test');client.joined=true;client.epoch=1;
  const pending=[],painted=[];let animated=0;
@@ -205,6 +233,16 @@ test('gift websocket event refreshes chat immediately and coalesces updates arri
  pending[1]({revision:2});await new Promise(resolve=>setImmediate(resolve));
  assert.deepEqual(painted,[1,2]);assert.equal(client.refreshAgain,false);
  client.closed=true;
+});
+
+test('SFU invokes native fetch without binding the Sfu instance as its receiver',async()=>{
+ let called=false;
+ const sfu=new Sfu({REALTIME_SFU_APP_ID:'test',REALTIME_SFU_APP_SECRET:'test'},async function(url,init){
+  assert.equal(this,undefined,'Workers native fetch rejects an unrelated receiver');
+  assert.equal(init.method,'POST');assert.ok(url.endsWith('/sessions/new'));called=true;
+  return Response.json({sessionId:'valid-session'});
+ });
+ assert.equal(await sfu.create(),'valid-session');assert.equal(called,true);
 });
 
 test('lost SFU responses keep cleanup pending until late allocations are closed',async()=>{
@@ -227,7 +265,7 @@ test('lost SFU responses keep cleanup pending until late allocations are closed'
 });
 
 test('frontend ignores old heartbeat after rejoin and stops a late microphone grant after leaving',async()=>{
- const c=vm.createContext({crypto,window:{addEventListener(){},removeEventListener(){}},document:{addEventListener(){},removeEventListener(){}},navigator:{mediaDevices:{}},fetch:async()=>Response.json({}),setInterval,clearInterval,setTimeout,clearTimeout,$:()=>({value:''})});
+ const c=vm.createContext({performance,crypto,window:{addEventListener(){},removeEventListener(){}},document:{addEventListener(){},removeEventListener(){}},navigator:{mediaDevices:{}},fetch:async()=>Response.json({}),setInterval,clearInterval,setTimeout,clearTimeout,$:()=>({value:''})});
  vm.runInContext(readFileSync(new URL('../dist/voice-rooms.js',import.meta.url),'utf8')+'\nthis.Client=VoiceRoomClient;',c);
  const client=new c.Client('test');client.joined=true;client.epoch=1;client.state={revision:2};let reply;client.command=()=>new Promise(r=>reply=r);client.paint=()=>assert.fail('stale response painted');
  const pending=client.refresh();client.epoch=2;reply({revision:1});await pending;assert.equal(client.state.revision,2);
@@ -334,6 +372,57 @@ test('seat requests can be cancelled or rejected and an occupied requested seat 
  await h.call('request-mic',actor('a'),{seat:3});await h.call('request-mic',actor('b'),{seat:3});await h.call('approve-mic',actor('host'),{target_id:'a'});
  assert.equal((await h.call('approve-mic',actor('host'),{target_id:'b'})).status,409);assert.equal(h.room.data.members.b.seat,null);assert.equal(h.room.data.members.a.seat,3);
  const notices=h.room.data.notices.length;await h.call('approve-mic',actor('host'),{target_id:'a'});assert.equal(h.room.data.notices.length,notices);
+});
+
+test('host seat stays reserved through disconnect; guests cannot take it or perform host management',async t=>{
+ const h=harness(t);await h.create();assert.equal(h.room.data.members.host.seat,0);await h.join(actor('guest'));
+ assert.equal((await h.call('release-mic',actor('host'))).status,403);
+ assert.equal((await h.call('settings',actor('guest'),{title:'stolen'})).status,403);
+ assert.equal((await h.call('seat-invite',actor('guest'),{target_id:'host',seat:1})).status,403);
+ h.room.data.members.host.expires=0;await h.room.alarm();
+ await h.call('request-mic',actor('guest'),{seat:0});
+ await h.join(actor('host'));assert.equal(h.room.data.members.host.seat,0);
+ assert.equal((await h.call('approve-mic',actor('host'),{target_id:'guest'})).status,200);assert.equal(h.room.data.members.guest.seat,1);
+ assert.equal((await h.call('moderate',actor('guest'),{target_id:'host',operation:'remove-seat'})).status,403);
+});
+
+test('seat invitation acceptance is atomic, expires, remains muted and removal keeps the listener present',async t=>{
+ const h=harness(t);await h.create();for(const id of ['a','b'])await h.join(actor(id));
+ for(const id of ['a','b'])assert.equal((await h.call('seat-invite',actor('host'),{target_id:id,seat:2})).status,200);
+ const accept=id=>h.call('seat-answer',actor(id),{invitation_id:h.room.data.seatInvites[id].id,accept:true});
+ const answers=await Promise.all(['a','b'].map(accept));assert.deepEqual(answers.map(r=>r.status),[200,409]);
+ assert.equal(h.room.data.members.a.muted,true);assert.equal(h.room.data.members.a.pub,null);
+ assert.equal((await h.call('moderate',actor('host'),{target_id:'a',operation:'move-seat',seat:3})).status,200);
+ assert.equal(h.room.data.members.a.seat,3);
+ assert.equal((await h.call('moderate',actor('host'),{target_id:'a',operation:'remove-seat'})).status,200);
+ assert.equal(h.room.data.members.a.seat,null);assert.ok(h.room.data.members.a);
+ await h.call('seat-invite',actor('host'),{target_id:'a',seat:2});const expired=h.room.data.seatInvites.a.id;h.room.data.seatInvites.a.expires=0;
+ assert.equal((await h.call('seat-answer',actor('a'),{invitation_id:expired,accept:true})).status,409);
+});
+
+test('room settings persist and follower eligibility is verified again without invite bypass',async t=>{
+ const h=harness(t);await h.create();await h.join(actor('guest'));
+ const config={title:'New title',visibility:'followers',background:'night',announcement:'Welcome',max_members:2};
+ assert.equal((await h.call('settings',actor('host'),config)).status,200);
+ const persisted=h.sql.prepare('SELECT * FROM voice_rooms').get();assert.equal(persisted.announcement,'Welcome');assert.equal(persisted.visibility,'followers');
+ assert.equal((await h.call('heartbeat',actor('guest'))).status,403);
+ await h.call('invite',actor('host'),{target_id:'guest'});assert.equal((await h.join(actor('guest'))).status,403);
+ const follower={...actor('guest'),followedHosts:['host']};assert.equal((await h.join(follower)).status,200);
+ assert.equal((await h.join({...actor('extra'),followedHosts:['host']})).status,409);
+ const restored=new VoiceRoom(h.ctx,h.env);await restored.load();assert.equal(restored.data.config.announcement,'Welcome');
+ assert.equal((await h.call('settings',actor('host'),{visibility:'crew',crew_id:'unowned'})).status,400);
+});
+
+test('self mute preserves SFU session for quick resume; host mute retires it and cannot be bypassed',async t=>{
+ const h=harness(t);await h.create();await h.join(actor('guest'));await h.call('request-mic',actor('guest'));await h.call('approve-mic',actor('host'),{target_id:'guest'});
+ await h.call('publish',actor('guest'),{mid:'0',sessionDescription:offer});await h.call('published',actor('guest'));
+ const session=h.room.data.members.guest.pub.sessionId;
+ assert.equal((await h.call('self-mute',actor('guest'),{muted:true})).status,200);
+ assert.equal(h.room.data.members.guest.pub.sessionId,session);
+ const pull=await h.call('subscribe',actor('host'));assert.equal(pull.body.tracks.length,1,'late listeners subscribe to the connected but locally disabled microphone');
+ assert.equal((await h.call('self-mute',actor('guest'),{muted:false})).status,200);assert.equal(h.room.data.members.guest.pub.sessionId,session);
+ await h.call('moderate',actor('host'),{target_id:'guest',operation:'mute'});assert.equal(h.room.data.members.guest.pub,null);
+ assert.equal((await h.call('self-mute',actor('guest'),{muted:false})).status,409);
 });
 
 test('host departure pauses shared music and host reentry restores queue for explicit resume',async t=>{

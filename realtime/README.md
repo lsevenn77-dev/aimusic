@@ -99,3 +99,24 @@ npx wrangler deploy --dry-run --config realtime/wrangler.jsonc
 - 이 PC의 Wrangler는 로그아웃 상태였다. 별도 음성 Worker를 배포하거나 운영 로그를 읽지 않았다. Site만 먼저 배포하지 않는다. 두 Worker의 호환 버전과 새 D1 마이그레이션을 함께 준비한 뒤 실제 기기로 검증한다.
 
 최종 v2 MD 문서를 전체 대조했다. 신청 취소/거절, 프로필에서 좌석 반납, 음악 종료/탐색/진행시간, 잡음 감소/리버브 조절, 빈 음악 바 접기와 호스트 퇴장 일시정지를 보완했다. 재생 속도 보정은 제거하고 1배속을 유지한다. 일반음악 개인 게인은 방 음량 × 개인 음량이다. 실제 다중 기기 검증은 여전히 미완료다.
+
+## 최종 패키지 구현 — 2026-10-20 (새 UI 운영 미배포)
+
+- 최종 MD/README와 6개 첨부 이미지를 기준으로 수정. 고정 4×2석, 헤더 사람/마이크/집/공유/나가기, 번호 없는 실선 빈자리, 네온 아웃라인 왕관, RMS 기반 동심원 파동, PC·모바일 참여자 가로줄.
+- 방장 첫 좌석은 서버에서 예약. 새로고침은 leave를 보내지 않고 lease와 5분 재접속 유예로 복구. 명시적 종료/마지막 명시적 퇴장은 기존 종료 정책 유지.
+- 좌석 초대는 30초 만료, 상대 수락 후 원자적으로 배정하며 마이크는 기본 OFF. 초대/이동/제거/강퇴/방 설정은 host만 가능. 영구 밴·관리자 임명 UI/API는 노출하지 않음. 기존 1분 강퇴 재입장 제한 유지.
+- 새 전용 음성 D1 migration: realtime/migrations/0002_room_settings.sql. 기존 directory와 audit 기록 보존, followers CHECK 및 설정 열 추가. DO snapshot에도 설정 유지. 새 Site DB migration은 없음.
+- 새 API: options, settings, seat-invite, seat-answer, self-mute. 기존 사이트의 follows(kind=producer) 관계를 서버에서 조회하여 서명 bridge로 전달; 초대 링크는 crew/followers 제한을 우회하지 않음.
+- 마이크의 연결 유지형 self-mute는 송신 track.enabled와 연결. 관리자 mute는 SFU 트랙을 실제 폐기. 수신 재협상은 100ms coalescing, 구버전 대기 작업 폐기, 수신 오류는 마이크를 끄는 전체 재접속 대신 수신만 재시도. 지원되는 브라우저에서 Opus 송출 maxBitrate 32kbps. DTX/FEC를 강제 SDP 변경하지 않음.
+- 공동 음악: previous/repeat off/all/one/clear reducer, 읽기 전용 청취자 큐, 빈 초기 검색 상태, 검색 제출 후 실제 권리 허용 음원만 조회. 미니바 시간 숫자 제거. 기존 권리/재화/정산 유지.
+- 채팅: 본인 오른쪽, 시스템/다른 사용자 왼쪽. Enter 전송/Shift+Enter 줄바꿈/IME 조합 차단. 별도 전송 아이콘 제거, 이모티콘 메뉴의 접근 가능한 전송 대체 동작 제공. 모바일 실제 키보드 동작은 실기기 확인 필요.
+- 진단: 소리 설정에서 로컬 getStats 기록을 JSON으로 다운로드. 5초 간격 RTT/jitter, 구간 loss/concealment, mic enable/reconnect 및 음악 오차 P50/P95. IP/SDP/자격 증명/녹음 포함하지 않음. CPU·입-귀 지연은 미측정으로 표시.
+
+### 운영 반영 순서 (이번 작업에서는 실행하지 않음)
+1. 현재 운영 voice D1 백업 및 두 배포 버전 기록.
+2. 격리 환경에 전용 D1 0002 migration 적용, 호스트/팔로워/초대/공지/큐와 재접속 확인.
+3. PC/390×844/375×812 및 실제 iOS/Android 키보드/팝업 스크린샷 검증.
+4. 2/4/6/8 실제 클라이언트 음성+음악+채팅 30분. 통계 JSON 회수 및 입-귀 지연 별도 측정. UDP 제한 네트워크는 TURN 별도 설정/허용 여부 검증.
+5. 운영 migration → 음성 Worker → 같은 소스의 Site 버전 순서. Site만 먼저 배포하지 않음. 기존 호환 Worker로 rollback 시 확대된 DB CHECK는 유지 가능. 더 넓은 방 공개 정책을 구버전이 처리하지 못하므로 방장에게 영향 안내 후 호환성 검토.
+
+실제 8기기 검증은 미완료이며, 자동 테스트 성공을 음성 품질 검증 완료로 해석하면 안 됨.
