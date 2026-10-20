@@ -1,6 +1,6 @@
 import {dubbingSettings,dubbingPriceSQL} from './dubbing-settings.js';
 import {dubbingVisibleSQL} from './dubbing-access.js';
-import {one,rows,query,run,now,id,json,fail,rate} from './db.js';
+import {one,rows,query,run,now,id,json,fail} from './db.js';
 import {requireUser} from './auth.js';
 import {dubbingTimeline} from '../shared/dubbing.js';
 import {pikaAvailable,pikaSubmit,pikaPoll,pikaRequest} from './dubbing-pika.js';
@@ -8,6 +8,8 @@ import {dubbingAIAvailable,generateDubbingSoundPlan} from './dubbing-ai.js';
 import {dubbingGoldEnabled,dubbingChargeWrites,dubbingPayment,refundDubbingGold,reconcileDubbingGold} from './dubbing-gold.js';
 
 const active=`${dubbingVisibleSQL()} AND p.script_key=j.script_key AND p.first_recorded_at=0 AND EXISTS(SELECT 1 FROM users u WHERE u.id=p.owner_id AND u.provider!='deleted')`;
+// Protect against bursts, not a hidden daily quota shared by desktop and mobile.
+const soundStartLimit=6,soundStartWindow=60;
 export async function dubbingSoundStatus(env,p){
  const priceGold=(await dubbingSettings(env)).soundGold;
  const j=await one(env,'SELECT * FROM dubbing_sound_jobs WHERE project_id=? AND script_key=?',p.id,p.script_key);
@@ -42,14 +44,20 @@ export async function dubbingSoundProjectRoute(req,env,p,user,action){
   if(!script.soundCues.length&&!dubbingAIAvailable(env))fail(503,'직접 작성한 대본의 AI 음향 연출 연결을 기다리고 있습니다.');
   script.soundCues.forEach(pikaRequest);
  }
- await rate(env,'dubbing-sound:'+user.id,3,86400);
  const timeline=dubbingTimeline(script),jid=body.requestId,at=now();
+ const bucket=Math.floor(at/soundStartWindow),rateKey=`dubbing-sound-start:${user.id}:${bucket}`,retryAt=(bucket+1)*soundStartWindow;
+ const jobExists='EXISTS(SELECT 1 FROM dubbing_sound_jobs WHERE id=? AND project_id=? AND script_key=?)';
  if(body.mode==='basic')timeline.sounds=[];
+ // Admission, counting and payment commit together. Replays and rejected payments
+ // never consume another slot, and concurrent requests cannot bypass the limit.
  const writes=[query(env,`INSERT INTO dubbing_sound_jobs(id,project_id,script_key,mode,timeline_json,created,updated)
  SELECT ?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM dubbing_projects WHERE id=? AND revision=? AND script_key=? AND first_recorded_at=0 AND ${dubbingVisibleSQL('dubbing_projects')}) AND (?='basic' OR ${dubbingPriceSQL}=?)
- `,jid,p.id,p.script_key,body.mode,JSON.stringify(timeline),at,at,p.id,p.revision,p.script_key,body.mode,priceGold)];
+ AND COALESCE((SELECT count FROM rate_limits WHERE key=?),0)<?
+ `,jid,p.id,p.script_key,body.mode,JSON.stringify(timeline),at,at,p.id,p.revision,p.script_key,body.mode,priceGold,rateKey,soundStartLimit),
+ query(env,`INSERT INTO rate_limits(key,count,expires) SELECT ?,1,? WHERE changes()>0
+ ON CONFLICT(key) DO UPDATE SET count=count+1`,rateKey,retryAt)];
  if(body.mode==='ai')writes.push(...await dubbingChargeWrites(env,{jobId:jid,userId:user.id,projectId:p.id,scriptKey:p.script_key,priceGold}));
- for(const cue of timeline.sounds)writes.push(query(env,"INSERT INTO dubbing_sound_assets(job_id,cue_id,updated) SELECT ?,?,? WHERE EXISTS(SELECT 1 FROM dubbing_sound_jobs WHERE id=?) ON CONFLICT DO NOTHING",jid,cue.id,at,jid));
+ for(const cue of timeline.sounds)writes.push(query(env,`INSERT INTO dubbing_sound_assets(job_id,cue_id,updated) SELECT ?,?,? WHERE ${jobExists} ON CONFLICT DO NOTHING`,jid,cue.id,at,jid,p.id,p.script_key));
  try{await env.DB.batch(writes);}catch(e){
   if(/unique|constraint/i.test(e.message)){
    const replay=await one(env,'SELECT mode FROM dubbing_sound_jobs WHERE project_id=? AND script_key=?',p.id,p.script_key);
@@ -58,6 +66,13 @@ export async function dubbingSoundProjectRoute(req,env,p,user,action){
   }throw e;
  }
  const saved=await one(env,'SELECT mode FROM dubbing_sound_jobs WHERE project_id=? AND script_key=?',p.id,p.script_key);
+ if(!saved){
+  const count=await one(env,'SELECT count FROM rate_limits WHERE key=?',rateKey);
+  if(count?.count>=soundStartLimit){
+   const retryAfterSeconds=Math.max(1,retryAt-now());
+   return json({error:`음향 제작 요청이 잠시 몰렸어요. ${retryAfterSeconds}초 후 다시 시도해주세요. 골드는 차감되지 않았습니다.`,retryAfterSeconds},429,{'Retry-After':String(retryAfterSeconds)});
+  }
+ }
  if(!saved||saved.mode!==body.mode)fail(409,'대본 또는 음향 작업이 변경되었습니다.');
  return json({sound:await dubbingSoundStatus(env,p)},202);
 }
