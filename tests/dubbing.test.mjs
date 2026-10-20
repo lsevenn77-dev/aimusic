@@ -43,7 +43,7 @@ test('publish requires rights; public catalogue excludes private works and prese
  assert.equal((await call('/api/dubbing/projects?tab=latest','GET',null,null)).body.projects.length,0);
  assert.equal((await call('/api/dubbing/projects/'+p.id+'/publish','POST',{revision:1,rightsAccepted:false})).status,400);
  assert.equal((await call('/api/dubbing/projects/'+p.id+'/publish','POST',{revision:1,rightsAccepted:true})).status,200);
- const list=await call('/api/dubbing/projects?tab=latest','GET',null,null);assert.equal(list.body.projects.length,1);
+ const list=await call('/api/dubbing/projects?tab=open','GET',null,null);assert.equal(list.body.projects.length,1);
  const detail=await call('/api/dubbing/projects/'+p.id,'GET',null,null);
  assert.equal(detail.status,200);assert.equal(detail.body.project.canEdit,false);
  assert.equal(JSON.stringify(detail.body).includes('example.test'),false);
@@ -60,7 +60,7 @@ test('genre browsing separates open scripts and completed works without revealin
  await make(['SF'],'script_ready','private');
  await make(['이세계물','판타지']);await make(['사극','로맨스']);
  const browse=async(tab,genre,who=null)=>call('/api/dubbing/projects?'+new URLSearchParams({tab,genre}),'GET',null,who);
- assert.deepEqual((await browse('open','SF')).body.projects.map(p=>p.id),[open]);
+ assert.deepEqual(new Set((await browse('open','SF')).body.projects.map(p=>p.id)),new Set([open,complete]));
  assert.deepEqual((await browse('complete','SF')).body.projects.map(p=>p.id),[complete]);
  assert.equal((await browse('open','이세계물')).body.projects.length,1);
  assert.equal((await browse('open','사극')).body.projects.length,1);
@@ -70,7 +70,7 @@ test('genre browsing separates open scripts and completed works without revealin
  assert.equal((await browse('mine','SF','owner')).body.projects.length,3);
  sql.prepare('INSERT INTO dubbing_role_claims VALUES(?,?,?,0)').run(open,'role_1','owner');
  sql.prepare('INSERT INTO dubbing_role_claims VALUES(?,?,?,0)').run(open,'role_2','other');
- assert.equal((await browse('open','SF')).body.projects.length,0,'fully reserved works are not offered for joining');
+ assert.equal((await browse('open','SF')).body.projects.length,2,'scripts remain available for starting another team');
  sql.exec("INSERT INTO user_blocks VALUES('other','owner',0)");
  assert.equal((await browse('complete','SF','other')).body.projects.length,0);
  sql.exec("UPDATE users SET provider='deleted' WHERE id='owner'");

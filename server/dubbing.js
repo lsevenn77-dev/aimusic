@@ -1,4 +1,5 @@
 import {dubbingSettings} from './dubbing-settings.js';
+import {dubbingVersions,startDubbingPerformance,deleteDubbingProject} from './dubbing-performances.js';
 import {dubbingVisibleSQL,dubbingRemoved,assertDubbingCreator} from './dubbing-access.js';
 import {dubbingCommunityStatus,dubbingCommunityRoute} from './dubbing-community.js';
 import {dubbingOwnerReports,dubbingReportRoute} from './dubbing-reports.js';
@@ -23,7 +24,8 @@ const unblocked=`NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=? AND b
 async function project(env,pid,user){
  const p=await one(env,`SELECT p.*,${publicNameSQL('u')} owner_name FROM dubbing_projects p JOIN users u ON u.id=p.owner_id
   WHERE p.id=? AND u.provider!='deleted' AND (p.visibility='public' OR p.owner_id=? OR EXISTS(SELECT 1 FROM dubbing_role_claims c WHERE c.project_id=p.id AND c.user_id=?)) AND ${unblocked}`,pid,user?.id||'',user?.id||'',user?.id||'',user?.id||'');
- if(!p)fail(404,'더빙 작품을 찾을 수 없습니다.');
+ if(!p||p.deleted_at)fail(404,'더빙 작품을 찾을 수 없습니다.');
+ if(p.root_id&&!await one(env,`SELECT p.id FROM dubbing_projects p WHERE p.id=? AND ${dubbingVisibleSQL()} AND ${unblocked}`,p.root_id,user?.id||'',user?.id||''))fail(404,'삭제되었거나 이용이 중단된 대본입니다.');
  p.removed=await dubbingRemoved(env,p.id);if(p.removed&&p.owner_id!==user?.id)fail(404,'더빙 작품을 찾을 수 없습니다.');
  return p;
 }
@@ -33,10 +35,10 @@ async function dto(env,p,user){
   WHERE c.project_id=? AND u.provider!='deleted'`,p.id);
  const script=JSON.parse(p.script_json);
  return {removed:!!p.removed,community:await dubbingCommunityStatus(env,p,user),reports:p.owner_id===user?.id?await dubbingOwnerReports(env,p):[],id:p.id,title:p.title,ownerName:p.owner_name,isOwner:p.owner_id===user?.id,options:JSON.parse(p.options_json),script,
-  source:p.source,state:p.state,visibility:p.visibility,revision:p.revision,duration:p.duration,created:p.created,updated:p.updated,
+  source:p.source,rootId:p.root_id||p.id,versions:await dubbingVersions(env,p,user),state:p.state,visibility:p.visibility,revision:p.revision,duration:p.duration,created:p.created,updated:p.updated,
   roles:script.roles.map(r=>{const c=claims.find(c=>c.role_id===r.id);const blocked=c&&env.AIFECT_BLOCKED?.includes(c.user_id);
    return {...r,claimed:!!c,mine:c?.user_id===user?.id,participant:c?(blocked?'참여자':c.name):null};}),
-  canEdit:!p.removed&&p.owner_id===user?.id&&!p.first_recorded_at&&claims.length===0&&p.visibility==='private',recordingAvailable:recordingEnabled(env),recording:await dubbingRecordingStatus(env,p,user),
+  canEdit:!p.removed&&!p.root_id&&p.owner_id===user?.id&&!p.first_recorded_at&&claims.length===0&&p.visibility==='private'&&!await one(env,'SELECT id FROM dubbing_projects WHERE root_id=? LIMIT 1',p.id),recordingAvailable:recordingEnabled(env),recording:await dubbingRecordingStatus(env,p,user),
   sound:await dubbingSoundStatus(env,p)};
 }
 async function storeScript(env,ownerId,pid,script,rev){
@@ -76,15 +78,15 @@ export async function dubbingRoute(req,env,path,user){
   const genre=url.searchParams.get('genre')||'';if(genre&&!DUBBING_GENRES.includes(genre))fail(400,'장르를 확인해주세요.');
   if(tab==='mine')requireUser(user);
   const offset=Math.max(0,Math.min(10000,Math.floor(Number(url.searchParams.get('offset'))||0)));
-  const where=tab==='mine'?`(p.owner_id=? OR EXISTS(SELECT 1 FROM dubbing_role_claims c WHERE c.project_id=p.id AND c.user_id=?))`:`p.visibility='public'${tab==='open'?" AND p.state IN ('recruiting','recording') AND (SELECT COUNT(*) FROM dubbing_role_claims c WHERE c.project_id=p.id)<p.role_count":tab==='complete'?" AND p.state='complete'":''}`;
+  const where=tab==='mine'?`(p.owner_id=? OR EXISTS(SELECT 1 FROM dubbing_role_claims c WHERE c.project_id=p.id AND c.user_id=?))`:`p.visibility='public'${tab==='open'?" AND p.root_id IS NULL":" AND p.state='complete'"}`;
   const list=await rows(env,`SELECT p.id,p.title,p.options_json,p.role_count,p.duration,p.state,p.visibility,p.created,p.updated,${publicNameSQL('u')} owner_name,
    (SELECT COUNT(*) FROM dubbing_role_claims c WHERE c.project_id=p.id) participants FROM dubbing_projects p JOIN users u ON u.id=p.owner_id
-   WHERE u.provider!='deleted' AND ${where} AND ${unblocked} ${tab==='mine'?'':`AND ${dubbingVisibleSQL()}`}
+   WHERE u.provider!='deleted' AND p.deleted_at=0 AND (p.root_id IS NULL OR EXISTS(SELECT 1 FROM dubbing_projects root WHERE root.id=p.root_id AND root.deleted_at=0)) AND ${where} AND ${unblocked} ${tab==='mine'?'':`AND ${dubbingVisibleSQL()}`}
    ${genre?"AND EXISTS(SELECT 1 FROM json_each(p.options_json,'$.genres') g WHERE g.value=?)":''}
-   ORDER BY ${tab==='popular'?'participants DESC,':''}p.created DESC,p.id LIMIT 25 OFFSET ?`,
+   ORDER BY ${tab==='popular'?'(SELECT COUNT(*) FROM likes WHERE dubbing_id=p.id) DESC,':''}${tab==='latest'?'p.updated':'p.created'} DESC,p.id LIMIT 25 OFFSET ?`,
    ...(tab==='mine'?[user.id,user.id]:[]),user?.id||'',user?.id||'',...(genre?[genre]:[]),offset);
   return json({projects:list.map(p=>({id:p.id,title:p.title,genres:JSON.parse(p.options_json).genres,roleCount:p.role_count,duration:p.duration,
-   state:p.state,visibility:p.visibility,ownerName:p.owner_name,participants:p.participants,created:p.created})),nextOffset:list.length===25?offset+25:null});
+   state:p.state,visibility:p.visibility,reusable:tab==='open',ownerName:p.owner_name,participants:p.participants,created:p.created})),nextOffset:list.length===25?offset+25:null});
  }
  if(path==='/api/dubbing/generations'&&method==='POST'){
   requireUser(user);await assertDubbingCreator(env,user.id);const body=await req.json(),gid=uuid(body.requestId),options=dubbingOptions(body.options),inputHash=await hash(JSON.stringify(options));
@@ -124,12 +126,14 @@ export async function dubbingRoute(req,env,path,user){
   }catch(e){await discard(env,key);throw e;}
   return json({project:await dto(env,await project(env,pid,user),user)},201);
  }
- const match=path.match(/^\/api\/dubbing\/projects\/([^/]+)(?:\/(publish|unpublish|claims|sound|background|recording|final|like|comments|report|appeal)(?:\/(.+))?)?$/);
+ const match=path.match(/^\/api\/dubbing\/projects\/([^/]+)(?:\/(publish|unpublish|performances|claims|sound|background|recording|final|like|comments|report|appeal)(?:\/(.+))?)?$/);
  if(!match)fail(404,'요청을 찾을 수 없습니다.');
  const pid=uuid(match[1]),action=match[2],roleId=match[3],p=await project(env,pid,user);
  const report=await dubbingReportRoute(req,env,p,user,action,roleId);if(report)return report;
+ if(!action&&method==='DELETE')return deleteDubbingProject(req,env,p,user);
  if(p.removed&&(action||method!=='GET'))fail(403,'권리 신고 검토로 이용이 중단된 작품입니다. 이의신청을 이용해주세요.');
  if(!['GET','HEAD','DELETE'].includes(method)&&user)await assertDubbingCreator(env,user.id);
+ if(action==='performances'&&method==='POST')return startDubbingPerformance(req,env,p,user);
  const community=await dubbingCommunityRoute(req,env,p,user,action,roleId);if(community)return community;
  const recording=await dubbingRecordingRoute(req,env,p,user,action,roleId);if(recording)return recording;
  const sound=await dubbingSoundProjectRoute(req,env,p,user,action);if(sound)return sound;
@@ -143,7 +147,8 @@ export async function dubbingRoute(req,env,path,user){
   const key=await storeScript(env,user.id,pid,script,rev+1);
   try{
    const updated=await query(env,`UPDATE dubbing_projects SET title=?,options_json=?,script_json=?,script_key=?,role_count=?,duration=?,generation_id=?,source=?,revision=revision+1,write_token=?,updated=?
-    WHERE id=? AND owner_id=? AND revision=? AND first_recorded_at=0 AND visibility='private' AND ${activeOwner}
+    WHERE id=? AND owner_id=? AND revision=? AND first_recorded_at=0 AND visibility='private' AND ${activeOwner} AND ${dubbingVisibleSQL('dubbing_projects')}
+    AND root_id IS NULL AND NOT EXISTS(SELECT 1 FROM dubbing_projects child WHERE child.root_id=dubbing_projects.id)
     AND NOT EXISTS(SELECT 1 FROM dubbing_role_claims WHERE project_id=?) RETURNING id`,
     script.title,JSON.stringify(options),JSON.stringify(script),key,script.roles.length,dubbingTimeline(script).duration,generationId,generationId?'ai':'manual',token,now(),pid,user.id,rev,pid).first();
    if(!updated)conflict();
@@ -152,7 +157,7 @@ export async function dubbingRoute(req,env,path,user){
  }else if(['publish','unpublish'].includes(action)&&method==='POST'){
   owner(p,user);if(action==='publish'&&body.rightsAccepted!==true)fail(400,'대본을 공개하고 함께 연기할 권한을 확인해주세요.');
   const updated=await query(env,`UPDATE dubbing_projects SET visibility=?,state=CASE WHEN first_recorded_at>0 THEN state ELSE ? END,rights_at=?,revision=revision+1,write_token=?,updated=?
-   WHERE id=? AND owner_id=? AND revision=? AND ${activeOwner} RETURNING id`,
+   WHERE id=? AND owner_id=? AND revision=? AND ${activeOwner} AND ${dubbingVisibleSQL('dubbing_projects')} RETURNING id`,
    action==='publish'?'public':'private',action==='publish'?'recruiting':'script_ready',action==='publish'?now():p.rights_at,token,now(),pid,user.id,rev).first();
   if(!updated)conflict();
  }else if(action==='claims'&&roleId&&['POST','DELETE'].includes(method)){
@@ -162,7 +167,7 @@ export async function dubbingRoute(req,env,path,user){
   if(method==='DELETE'&&claim?.user_id!==user.id)fail(403,'내가 선택한 배역만 취소할 수 있습니다.');
   if(method==='DELETE'&&await one(env,'SELECT id FROM dubbing_recordings WHERE project_id=? AND role_id=?',pid,roleId))fail(409,'이미 녹음을 시작한 배역입니다. 녹음 화면에서 이어서 진행해주세요.');
   const update=query(env,`UPDATE dubbing_projects SET revision=revision+1,write_token=?,updated=? WHERE id=? AND revision=?
-   ${method==='POST'?"AND visibility='public' AND state IN ('recruiting','recording')":'AND NOT EXISTS(SELECT 1 FROM dubbing_recordings WHERE project_id=dubbing_projects.id AND role_id=?)'} AND ${activeOwner} RETURNING id`,token,now(),pid,rev,...(method==='DELETE'?[roleId]:[]));
+   ${method==='POST'?"AND visibility='public' AND state IN ('recruiting','recording')":'AND NOT EXISTS(SELECT 1 FROM dubbing_recordings WHERE project_id=dubbing_projects.id AND role_id=?)'} AND ${activeOwner} AND ${dubbingVisibleSQL('dubbing_projects')} RETURNING id`,token,now(),pid,rev,...(method==='DELETE'?[roleId]:[]));
   const write=method==='POST'?query(env,`INSERT INTO dubbing_role_claims(project_id,role_id,user_id,created)
    SELECT ?,?,?,? WHERE EXISTS(SELECT 1 FROM dubbing_projects WHERE id=? AND write_token=?) AND EXISTS(SELECT 1 FROM users WHERE id=? AND provider!='deleted')`,pid,roleId,user.id,now(),pid,token,user.id):
    query(env,'DELETE FROM dubbing_role_claims WHERE project_id=? AND role_id=? AND user_id=? AND EXISTS(SELECT 1 FROM dubbing_projects WHERE id=? AND write_token=?)',pid,roleId,user.id,pid,token);

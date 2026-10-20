@@ -18,6 +18,9 @@ if(goldFixture){
  globalThis.fetch=async()=>{throw Error('External requests disabled in local Gold fixture');};
 }
 const f=await fixture({after(fn){cleanups.push(fn);}},env);env.DB=f.DB;
+if(process.argv.includes('--covers-fixture')){
+ f.sql.exec("UPDATE tracks SET kind='cover',cover_mode='solo',original_id='two',title='내 커버 삭제 확인' WHERE id='one';UPDATE tracks SET karaoke_at=1 WHERE id='two'");
+}
 let localAdminCookie='';
 if(process.argv.includes('--community-fixture')){
  env.ADMIN_PASSWORD_HASH=await createAdminPasswordHash('disposable-local-preview');

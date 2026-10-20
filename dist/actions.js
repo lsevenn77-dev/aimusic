@@ -219,3 +219,13 @@ document.addEventListener('click',async e=>{
 async function refreshAuthState(){const d=await api("/api/me");authConfig=d;me=d.user;setMembership(d.membership);}
 
 async function logoutAccount(){try{await api('/api/auth/logout','POST');++playSerial;window.AifectAudioAds?.cancel();audio.pause();audio.removeAttribute('src');me=null;authConfig={...authConfig,admin:false,track_moderator:false,user:null};playSession=null;library={likes:[],playlists:[],follows:[]};setMembership(null);current=null;setCurrentLyrics(null);setPlayerVisible(false);sessionStorage.removeItem('aifect-player-resume');pendingResume=null;updateAccount();void refreshMessageBadge();if(location.hash==='#account')await render();else location.hash='account';toast('로그아웃했습니다.');}catch(e){toast(e.message);}}
+
+async function deleteAllCoversDialog(){
+ const d=await api('/api/admin/track-review/covers/purge');
+ dialog('<h2>사이트 전체 커버곡 삭제</h2><p>다른 회원의 곡을 포함한 커버곡 '+d.count+'곡이 대상입니다. 원곡과 더빙 대본, 정산 기록은 유지됩니다.</p><div class="dialog-list">'+d.tracks.map(t=>'<p>'+esc(t.title)+' · '+esc(t.status)+'</p>').join('')+'</div><form id="purge-covers-form"><button class="primary-button danger-button" '+(!d.count?'disabled':'')+'>확인한 커버곡 '+d.count+'곡 삭제</button><p class="form-error" role="alert"></p></form>');
+ const form=$('#purge-covers-form');form.onsubmit=busyForm(form,async()=>{
+  const result=await api('/api/admin/track-review/covers/purge','POST',{snapshot:d.snapshot,count:d.count,confirm:'DELETE_ALL_COVERS'});
+  if(current?.kind==='cover')closePlayer();queue=queue.filter(tid=>trackMap.get(tid)?.kind!=='cover');saveQueue();clearNavigationSnapshots();$('#dialog').close();toast(result.deleted+'곡을 삭제했어요.');await render();
+ });
+}
+document.addEventListener('click',e=>{if(e.target.closest('[data-purge-all-covers]'))deleteAllCoversDialog().catch(err=>toast(err.message));});

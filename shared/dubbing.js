@@ -86,3 +86,4 @@ export const DUBBING_SCRIPT_SCHEMA=object({
  soundCues:list(object({id:string,kind:{type:'string',enum:['sfx','bgm','ambient']},prompt:string,sceneId:string,lineId:string,
   anchor:{type:'string',enum:['before','after']},offsetSeconds:number,generationSeconds:number,durationSeconds:number,volume:number,fadeInSeconds:number,fadeOutSeconds:number}))
 });
+export {randomDubbingIdea,simpleDubbingText,applySimpleDubbingText} from './dubbing-writing.js';

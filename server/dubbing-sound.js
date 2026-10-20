@@ -143,7 +143,17 @@ export async function dubbingSoundInternalRoute(req,env,path){
    ]);
    if(!reservation[0].results.length)return json({state:'generating',waitSeconds:2});
    try{await saveAsset(env,j,a,await pikaSubmit(env,timeline.sounds.find(c=>c.id===a.cue_id),`${j.id}:${a.cue_id}`));}
-   catch{await checkpoint(env,j,"state='unknown',error=?,lease_token=NULL,lease_until=0",['Pika 요청 응답 확인이 필요합니다. 자동 재요청하지 않았습니다.']);return json({state:'unknown'});}
+   catch(e){
+    if(e.status===409)throw e;
+    // Never log the key, prompt or raw upstream response.
+    console.error('dubbing_pika_submit',JSON.stringify({job:j.id,status:e.providerStatus||null,code:e.providerCode||null,rejected:!!e.providerRejected}));
+    const state=e.providerRejected?'failed':'unknown';
+    if(e.providerRejected)await env.DB.batch([
+     query(env,"UPDATE dubbing_sound_assets SET state='failed',billing_json=?,updated=? WHERE job_id=? AND cue_id=?",JSON.stringify({state:'rejected',httpStatus:e.providerStatus,errorCode:e.providerCode}),now(),j.id,a.cue_id),
+     query(env,"UPDATE dubbing_provider_usage SET state='failed',billing_json=?,updated=? WHERE job_id=? AND cue_id=?",JSON.stringify({state:'rejected',httpStatus:e.providerStatus,errorCode:e.providerCode}),now(),j.id,a.cue_id)
+    ]);
+    await checkpoint(env,j,`state='${state}',error=?,lease_token=NULL,lease_until=0`,[e.providerRejected?e.message:'Pika 요청 응답 확인이 필요합니다. 자동 재요청하지 않았습니다.']);return json({state});
+   }
   }else{
    try{await saveAsset(env,j,a,await pikaPoll(env,a.provider_id));}
    catch(e){

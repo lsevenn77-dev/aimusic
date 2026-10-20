@@ -31,7 +31,12 @@ export async function pikaSubmit(env,cue,requestId,fetcher=fetch){
   method:'POST',headers:{'X-API-Key':env.PIKA_API_KEY,'Content-Type':'application/json','Idempotency-Key':requestId},
   body:JSON.stringify(r.body),signal:AbortSignal.timeout(45000),redirect:'error'});
  // Rejections can carry a real job ID and billing; preserve that envelope too.
- const data=await response.json();if(!data?.id)fail(502,'Pika 요청 결과를 확인하지 못했습니다. 자동으로 재결제하지 않습니다.');
+ let data;try{data=await response.json();}catch{}
+ if(!data?.id){
+  const rejected=[400,401,402,403,404,422,429].includes(response.status);
+  const descriptions={400:'음향 요청 형식',401:'음향 서비스 인증',402:'음향 서비스 잔액',403:'음향 서비스 접근 권한',404:'음향 모델 연결',422:'음향 입력 값',429:'음향 서비스 요청 한도'};
+  throw Object.assign(new Error(rejected?`${descriptions[response.status]}을 확인해야 합니다. (HTTP ${response.status})`:'Pika 요청 결과를 확인하지 못했습니다. 자동으로 재결제하지 않습니다.'),{status:502,providerStatus:response.status,providerRejected:rejected,providerCode:typeof data?.error?.code==='string'&&/^[\w.-]{1,80}$/.test(data.error.code)?data.error.code:null});
+ }
  return job(data);
 }
 export async function pikaPoll(env,providerId,fetcher=fetch){

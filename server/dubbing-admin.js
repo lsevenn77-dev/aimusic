@@ -3,9 +3,17 @@ import {requireUser,isAdmin} from './auth.js';
 import {dubbingSettings} from './dubbing-settings.js';
 import {dubbingVisibleSQL} from './dubbing-access.js';
 import {reconcileDubbingGold} from './dubbing-gold.js';
+import {PIKA_ORIGIN} from './dubbing-pika.js';
 export async function dubbingAdminRoute(req,env,path,user){
  if(!path.startsWith('/api/admin/dubbing'))return null;
  requireUser(user);if(!isAdmin(env,user))fail(403,'관리자만 확인할 수 있습니다.');
+ if(path==='/api/admin/dubbing/pika-status'&&req.method==='GET'){
+  if(!env.PIKA_API_KEY)return json({configured:false});
+  // Read-only authentication probe; a random nonexistent job cannot generate or charge.
+  const r=await fetch(`${PIKA_ORIGIN}/v1/media/jobs/media_${id()}`,{headers:{'X-API-Key':env.PIKA_API_KEY},redirect:'error',signal:AbortSignal.timeout(15000)});
+  let d;try{d=await r.json();}catch{}
+  return json({configured:true,httpStatus:r.status,code:typeof d?.error?.code==='string'&&/^[\w.-]{1,80}$/.test(d.error.code)?d.error.code:null});
+ }
  if(path==='/api/admin/dubbing'&&req.method==='GET'){
   const n=Number(new URL(req.url).searchParams.get('days')||30),days=[7,30,90].includes(n)?n:30,cutoff=now()-days*86400;
   const [summary,generations,assets,gold,jobs,payments,settings]=await Promise.all([
