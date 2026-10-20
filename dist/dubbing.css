@@ -80,3 +80,5 @@ body.has-player .dubbing-save-bar{position:static}
 #dubbing-options-form .dubbing-form-actions>button{position:static;margin:0;flex:0 0 auto;min-height:44px;white-space:normal}
 #dubbing-options-form .dubbing-form-actions>button[hidden]{display:none}
 @media(max-width:540px){#dubbing-options-form .dubbing-form-actions{align-items:stretch}#dubbing-options-form .dubbing-form-actions>button{flex:1 1 100%;width:100%}}
+
+.dubbing-card-badges{display:flex;flex-wrap:wrap;align-items:center;gap:6px}.dubbing-sound-badge{display:inline-flex;align-items:center;gap:4px;padding:4px 7px;border-radius:6px;border:1px solid #68bdb74d;background:#294f4d66;color:#a8e7dd;font-size:11px;line-height:1.35;white-space:nowrap}.dubbing-sound-badge svg{width:12px;height:12px;flex:none}

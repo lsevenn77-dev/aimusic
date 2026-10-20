@@ -52,6 +52,13 @@ for(let i=0;i<works.length;i++){
  await f.call('/api/dubbing/projects/'+r.body.project.id+'/publish','POST',{revision:1,rightsAccepted:true},'other');
  if(i===0)await f.call('/api/dubbing/projects/'+r.body.project.id+'/claims/role_2','POST',{revision:2},'other');
  if(i===6)f.sql.prepare("UPDATE dubbing_projects SET state='complete' WHERE id=?").run(r.body.project.id);
+ if(process.argv.includes('--sound-badge-fixture')&&[0,5,6].includes(i)){
+  const p=r.body.project,pid=p.id,key=f.sql.prepare('SELECT script_key FROM dubbing_projects WHERE id=?').get(pid).script_key;
+  const ready=i!==5;
+  f.sql.prepare("INSERT INTO dubbing_sound_jobs(id,project_id,script_key,mode,timeline_json,state,output_key,created,updated) VALUES(?,?,?,'ai',?,?,?,0,0)")
+   .run(crypto.randomUUID(),pid,key,JSON.stringify(dubbingTimeline(script)),ready?'ready':'generating',ready?'local-sound-fixture':null);
+  if(ready)await BUCKET.put('local-sound-fixture',encodeWav([new Float32Array(48000)],48000));
+ }
 }
 const own=sampleScript();own.title='[로컬 테스트] 내 배경 오디오';
 if(process.argv.includes('--recording-fixture')){

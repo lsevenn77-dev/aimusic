@@ -6,6 +6,7 @@ export const DUBBING_MODEL='gpt-6-luna';
 export const DUBBING_LENGTHS=Array.from({length:10},(_,i)=>(i+1)/2);
 export const DUBBING_SOUND_GOLD=50;
 export const DUBBING_GENDERS=['male','female','unspecified'];
+export const DUBBING_MUSIC_USES=['intro','transition','outro','climax'];
 export function dubbingGenderLabel(gender){return gender==='male'?'남':gender==='female'?'여':'미정';}
 const invalid=message=>{throw Object.assign(new Error(message),{status:400});};
 const text=(v,max,label,optional=false)=>{
@@ -62,6 +63,7 @@ export function validateDubbingScript(raw,options){
   if(endLineId&&!['start','scene'].includes(anchor))invalid('지속 배경음악은 대사 또는 장면 시작에 배치해주세요.');
   if(anchor==='scene'&&lines.find(l=>l.sceneId===c.sceneId).id!==line.id)invalid('장면 시작 음향은 첫 대사에 연결해주세요.');
   return {id:key(c.id),kind,prompt:text(c.prompt,500,'음향 연출'),sceneId:c.sceneId,lineId:line.id,
+   ...(c.musicUse==null?{}:{musicUse:kind==='bgm'?choice(c.musicUse,DUBBING_MUSIC_USES,'배경음악 용도'):invalid('효과음에 배경음악 용도를 지정할 수 없습니다.')}),
    ...(c.label==null?{}:{label:text(c.label,80,'음향 이름')}),...(endLineId?{endLineId}:{}),
    anchor,offsetSeconds:num(c.offsetSeconds,0,10,'음향 오프셋'),
    generationSeconds:num(c.generationSeconds,Math.max(kind==='bgm'?10:1,endLineId?0:durationSeconds),kind==='bgm'?300:20,'생성 길이'),
@@ -90,6 +92,40 @@ export function dubbingTimeline(script){
  return {lines,sounds,duration:Math.round(Math.max(cursor+2,...sounds.map(s=>s.end))*100)/100};
 }
 
+// Apply only when preparing NEW audio. Keep the original recording clock and
+// previously generated files intact, including older scripts with long scores.
+export function dubbingSoundTimeline(script){
+ const timeline=dubbingTimeline(script),first=timeline.lines[0],last=timeline.lines.at(-1),used=new Set();
+ const music=[];
+ for(const cue of timeline.sounds.filter(c=>c.kind==='bgm')){
+  // Legacy full-scene scores become a short opening. Do not invent a twist
+  // from an unlabelled score in the middle of ordinary dialogue.
+  const use=cue.musicUse||(cue.start<=first.start?'intro':cue.start>=last.start?'outro':null);
+  if(!use||used.has(use)||music.length>=3)continue;
+  used.add(use);
+  const limit={intro:5,transition:3,outro:5,climax:12}[use];
+  music.push({...cue,musicUse:use,durationSeconds:Math.min(cue.durationSeconds,limit)});
+ }
+ const budget=Math.min(24,timeline.duration*.2),total=music.reduce((n,c)=>n+c.durationSeconds,0),scale=total?Math.min(1,budget/total):1;
+ const round=n=>Math.round(n*100)/100;
+ const placed=music.map(c=>{
+  const seconds=Math.floor(c.durationSeconds*scale*100)/100,line=timeline.lines.find(l=>l.id===c.lineId);
+  const start=c.musicUse==='intro'?0:c.musicUse==='outro'?timeline.duration-seconds:c.musicUse==='transition'?Math.max(0,line.start-seconds):c.start;
+  return {...c,start:round(start),end:round(Math.min(timeline.duration,start+seconds))};
+ }).sort((a,b)=>a.start-b.start);
+ let lastEnd=-2;
+ const accents=[];
+ for(const c of placed){
+  const start=round(Math.max(c.start,lastEnd+2)),seconds=round(c.end-start);
+  if(seconds<.5)continue;
+  accents.push({...c,endLineId:null,start,durationSeconds:seconds,generationSeconds:Math.max(10,Math.ceil(seconds)),
+   volume:Math.min(c.volume,c.musicUse==='climax'?.14:.1),
+   fadeInSeconds:Math.min(Math.max(c.fadeInSeconds,.3),seconds/2),fadeOutSeconds:Math.min(Math.max(c.fadeOutSeconds,.8),seconds/2)});
+  lastEnd=c.end;
+ }
+ return {...timeline,sounds:[...timeline.sounds.filter(c=>c.kind!=='bgm'),...accents].sort((a,b)=>a.start-b.start)};
+}
+
 // Responses Structured Outputs: every property required, objects closed.
 const string={type:'string'},number={type:'number'};
 const object=properties=>({type:'object',additionalProperties:false,properties,required:Object.keys(properties)});
@@ -100,6 +136,7 @@ export const DUBBING_SCRIPT_SCHEMA=object({
  scenes:list(object({id:string,title:string,description:string})),
  lines:list(object({id:string,order:{type:'integer'},sceneId:string,roleId:string,text:string,emotion:string,direction:string,durationSeconds:number,gapSeconds:number})),
  soundCues:list(object({id:string,label:string,kind:{type:'string',enum:['sfx','bgm','ambient']},prompt:string,sceneId:string,lineId:string,
+  musicUse:{type:['string','null'],enum:[...DUBBING_MUSIC_USES,null]},
   endLineId:{type:['string','null']},anchor:{type:'string',enum:['before','after','start','scene']},offsetSeconds:number,generationSeconds:number,durationSeconds:number,volume:number,fadeInSeconds:number,fadeOutSeconds:number}))
 });
 export {randomDubbingIdea,simpleDubbingText,applySimpleDubbingText} from './dubbing-writing.js';
