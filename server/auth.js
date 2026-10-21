@@ -8,12 +8,13 @@ import {applyPremiumGrant} from './premium-grant.js';
 import {mobileAuthRoute,finishMobile} from './mobile-auth.js';
 import {nativeAuthRoute} from './native-auth.js';
 import {isConsoleAdmin} from './admin-session.js';
+import {isMcpAdmin} from './admin-mcp-auth.js';
 const enc=new TextEncoder();
 export const hash=async s=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',enc.encode(s))),x=>x.toString(16).padStart(2,'0')).join('');
 const cookie=(name,value,age,secure=true)=>`${name}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${age}${secure?'; Secure':''}`;
 export function cookies(req){return Object.fromEntries((req.headers.get('cookie')||'').split(';').map(x=>x.trim().split('=')));}
 // Operators are listed by user id in ADMIN_USER_IDS; there is no self-service admin role.
-export const isAdmin=(env,user)=>isConsoleAdmin(user)||!!user&&(env.ADMIN_USER_IDS||'').split(',').map(s=>s.trim()).filter(Boolean).includes(user.id);
+export const isAdmin=(env,user)=>isConsoleAdmin(user)||isMcpAdmin(user)||!!user&&(env.ADMIN_USER_IDS||'').split(',').map(s=>s.trim()).filter(Boolean).includes(user.id);
 // Moderation operators have no access to payout accounts or other administrator data.
 export const isTrackModerator=(env,user)=>isAdmin(env,user)||!!user&&(env.TRACK_REVIEW_USER_IDS||'').split(',').map(s=>s.trim()).filter(Boolean).includes(user.id);
 // Request-local security context, never serialized or reused across requests.

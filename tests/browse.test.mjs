@@ -21,6 +21,7 @@ function viewContext(responses={},user=null){
  vm.runInContext(readFileSync(new URL('../dist/singing-hub.js',import.meta.url),'utf8'),context);
  vm.runInContext(readFileSync(new URL('../dist/browse.js',import.meta.url),'utf8'),context);
  vm.runInContext(readFileSync(new URL('../dist/page-redesign.js',import.meta.url),'utf8'),context);
+ vm.runInContext(readFileSync(new URL('../dist/social-layouts.js',import.meta.url),'utf8'),context);
  vm.runInContext(readFileSync(new URL('../dist/release-refinements.js',import.meta.url),'utf8'),context);
  return {context,calls,view:(base,param,raw='')=>context.browseView(base,param,raw)};
 }

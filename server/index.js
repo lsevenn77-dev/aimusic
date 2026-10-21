@@ -1,4 +1,5 @@
 import {dubbingAdminRoute} from './dubbing-admin.js';
+import {adminMcpRoute} from './admin-mcp.js';
 import {dubbingReportsAdminRoute} from './dubbing-reports.js';
 import {pitchCorrectionRoute} from './pitch-correction.js';
 import {dubbingRoute} from './dubbing.js';
@@ -36,7 +37,7 @@ import {duetRoute} from './duets.js';
 import {giftRoute} from './gifts.js';
 import {payoutRoute} from './payouts.js';
 import {adminDashboardRoute} from './admin-dashboard.js';
-import {adminSessionRoute,consoleViewer} from './admin-session.js';
+import {adminSessionRoute,consoleViewer,isConsoleAdmin} from './admin-session.js';
 import {diamondRoute} from './diamonds.js';
 import {publicPageRoute} from './public-pages.js';
 import {publicMusicRoute} from './public-music.js';
@@ -45,6 +46,7 @@ import {billingRoute,billingWebhook,billingTick} from './billing.js';
 export default {async fetch(req,env,ctx){
  const url=new URL(req.url),path=url.pathname;
  try{
+  if(path==='/mcp')return await adminMcpRoute(req,env);
   // Google sign-in is registered for the public domain, not the legacy Sites
   // address. Redirect page visits before a login flow creates domain cookies.
   if(url.hostname==='wavv-music-design-lseve.sassy-auk-0975.chatgpt.site'&&['GET','HEAD'].includes(req.method)&&!/^\/(api|media|internal)\//.test(path)){
@@ -90,6 +92,13 @@ export default {async fetch(req,env,ctx){
   }
   const adminSession=await adminSessionRoute(req,env,path);if(adminSession)return adminSession;
   const user=(path.startsWith('/api/admin/')?await consoleViewer(req,env):null)||await viewer(req,env);
+  if(path==='/api/admin/mcp/identity'){
+   if(!isConsoleAdmin(user))fail(403,'기존 관리자 콘솔에 로그인해주세요.');
+   if(req.method!=='GET')fail(405,'GET만 지원합니다.');
+   const principal=req.headers.get('oai-authenticated-user-id');
+   if(!principal)fail(401,'이 도메인에서 ChatGPT로 로그인한 뒤 다시 확인해주세요.');
+   return json({principal_id:principal,registered:principal===env.AIFECT_MCP_OWNER_ID,enabled:env.AIFECT_MCP_ENABLED==='true'});
+  }
   env=await blockedContext(env,user);
   const voiceResponse=await voiceRoomsRoute(req,env,path,user,ctx);if(voiceResponse)return voiceResponse;
   const dubbingReportAdmin=await dubbingReportsAdminRoute(req,env,path,user);if(dubbingReportAdmin)return dubbingReportAdmin;

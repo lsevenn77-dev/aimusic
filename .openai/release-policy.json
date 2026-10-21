@@ -1,0 +1,10 @@
+{
+  "project_id": "appgprj_6aa56aec3434819186f9a42d9a557520",
+  "production_url": "https://aifect.co.kr",
+  "d1": "DB",
+  "r2": "BUCKET",
+  "production_approval_required": true,
+  "database_approval_required": true,
+  "source_base_version": 187,
+  "source_base_commit": "907480c424881f694d515557ccb26cf234c3d323"
+}

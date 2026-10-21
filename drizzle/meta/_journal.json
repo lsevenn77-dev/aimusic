@@ -435,6 +435,20 @@
       "when": 1792540482994,
       "tag": "0061_smooth_shadow_king",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "6",
+      "when": 1792583501177,
+      "tag": "0062_first_franklin_richards",
+      "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "6",
+      "when": 1792584496038,
+      "tag": "0063_restore_comment_triggers",
+      "breakpoints": true
     }
   ]
 }

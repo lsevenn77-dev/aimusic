@@ -5,7 +5,7 @@ import {readFileSync} from 'node:fs';
 const read=f=>readFileSync(new URL('../dist/'+f,import.meta.url),'utf8');
 const esc=v=>String(v??'').replaceAll('<','&lt;').replaceAll('"','&quot;');
 function fixture(api=async()=>({})){
- const listeners=[],paints=[],c=vm.createContext({me:{id:'self'},api,document:{hidden:false,addEventListener:(t,f)=>{if(t==='click')listeners.push(f);}},window:{addEventListener(){}},setInterval(){},esc,icon:()=>'',number:String,portrait:()=>'',heading:t=>'<h1>'+t+'</h1>',cover:()=>'',trackStats:()=>'',communityFeed:()=>'<div>feed</div>',communityNavigation:()=>'<nav>tabs</nav>'});
+ const listeners=[],paints=[],c=vm.createContext({me:{id:'self'},api,document:{hidden:false,addEventListener:(t,f)=>{if(t==='click')listeners.push(f);}},window:{addEventListener(){}},setInterval(){},esc,icon:()=>'',number:String,portrait:()=>'',heading:t=>'<h1>'+t+'</h1>',empty:()=>'<p>Empty</p>',cover:()=>'',trackStats:()=>'',communityFeed:()=>'<div>feed</div>',communityNavigation:()=>'<nav>tabs</nav>'});
  for(const f of ['chat-features.js','social-chat.js','page-redesign.js','social-layouts.js','release-refinements.js'])vm.runInContext(read(f),c);
  c.paintMessageBadge=n=>paints.push(n);
  return {c,listeners,paints};
@@ -22,12 +22,13 @@ test('late unread response cannot paint a different account',async()=>{
 });
 test('a selected DM keeps the inbox and puts only one composer in the right pane',async()=>{
  const f=fixture(async()=>({conversations:[{id:'peer',name:'Peer',updated:1,unread:0}]}));
+ f.c.rememberDmInbox({conversations:[{id:'peer',name:'Peer',updated:1,unread:0}]});
  const d=await f.c.dmWorkspaceView({html:'<form id="chat-compose"></form>',chat:{peer:{id:'peer'}}});
  assert.equal(d.inbox,true);assert.equal(d.selectedConversation,'peer');assert.match(d.html,/message-thread-pane/);assert.match(d.html,/conversation-row is-selected/);assert.equal((d.html.match(/id="chat-compose"/g)||[]).length,1);
 });
 test('blocked users can be unblocked without loading their prohibited history',async()=>{
  const calls=[],f=fixture(async p=>{calls.push(p);return p==='/api/blocks'?{blocks:[{id:'account',profile_id:'peer',name:'<Person>'}]}:{conversations:[]};});
- const d=await f.c.blockedPeopleView('peer');assert.match(d.html,/data-person-unblock="account"/);assert.match(d.html,/&lt;Person>/);assert.doesNotMatch(d.html,/chat-compose/);assert.deepEqual(calls,['/api/blocks','/api/dm']);
+ const d=await f.c.blockedPeopleView('peer');assert.match(d.html,/data-person-unblock="account"/);assert.match(d.html,/&lt;Person>/);assert.doesNotMatch(d.html,/chat-compose/);assert.deepEqual(calls,['/api/blocks']);assert.equal(d.refreshInbox,true);
  assert.equal(await f.c.blockedPeopleView('not-blocked'),null);
 });
 test('block and unblock use account IDs, confirmation, and preserve the room route',async()=>{

@@ -65,7 +65,7 @@ test('browser duet export plays one backing for its entire duration and only the
  const played=[];const context=vm.createContext({window:{},document:{addEventListener(){}},JSON});
  vm.runInContext(readFileSync(new URL('../dist/sing-key.js',import.meta.url),'utf8'),context);
  vm.runInContext(readFileSync(new URL('../dist/karaoke.js',import.meta.url),'utf8'),context);
- const audio={createGain(){return {gain:{},connect(){}};},createBufferSource(){return {connect(){},start(...args){played.push({buffer:this.buffer,args});}};},destination:{},startRendering(){}};
+ const audio={createGain(){return {gain:{},connect(){}};},createBufferSource(){return {connect(target){return target;},start(...args){played.push({buffer:this.buffer,args});}};},destination:{},startRendering(){}};
  const s={mode:'duet',mr:{duration:20},voice:{duration:5},mix:{mr:1,voice:1,offset:0}};
  context.audio=audio;context.s=s;vm.runInContext('voiceBuffer=s=>s.voice;scheduleMix(audio,0,0,s)',context);
  assert.equal(played.length,2);assert.equal(played[0].buffer,s.mr);assert.deepEqual(played[0].args,[0,0,20]);assert.deepEqual(played[1].args,[0,0,5]);

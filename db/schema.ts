@@ -83,6 +83,14 @@ export const payoutStatements=sqliteTable('payout_statements',{
 },t=>[uniqueIndex('payout_statements_period').on(t.profileId,t.period),index('payout_statements_status').on(t.status,t.dueOn),index('payout_statements_user').on(t.userId)]);
 export const adminAudit=sqliteTable('admin_audit',{id:text('id').primaryKey(),adminId:text('admin_id').notNull(),action:text('action').notNull(),target:text('target').notNull(),created:integer('created').notNull()},t=>[index('admin_audit_time').on(t.created)]);
 
+// MCP operations are additive; payment, payout and audio data remain in their existing tables.
+export const adminTestGoldGrants=sqliteTable('admin_test_gold_grants',{
+ requestId:text('request_id').primaryKey(),operatorId:text('operator_id').notNull(),userId:text('user_id').notNull().references(()=>users.id),gold:integer('gold').notNull(),reason:text('reason').notNull(),payloadHash:text('payload_hash').notNull(),purchaseId:text('purchase_id').notNull().references(()=>goldPurchases.id),created:integer('created').notNull()
+},t=>[uniqueIndex('admin_test_gold_purchase').on(t.purchaseId),index('admin_test_gold_created').on(t.created),check('admin_test_gold_amount',sql`${t.gold} BETWEEN 1 AND 10000`)]);
+export const adminEmailBugs=sqliteTable('admin_email_bugs',{
+ id:text('id').primaryKey(),subject:text('subject').notNull(),summary:text('summary').notNull(),receivedAt:integer('received_at').notNull(),payloadHash:text('payload_hash').notNull(),operatorId:text('operator_id').notNull(),created:integer('created').notNull()
+},t=>[index('admin_email_bugs_received').on(t.receivedAt)]);
+
 export const commentReports=sqliteTable('comment_reports',{
  id:text('id').primaryKey(),commentId:text('comment_id').notNull().references(()=>comments.id,{onDelete:'cascade'}),userId:text('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),reason:text('reason').notNull(),details:text('details').notNull().default(''),bodySnapshot:text('body_snapshot').notNull(),created:integer('created').notNull(),status:text('status').notNull().default('pending'),resolvedBy:text('resolved_by'),resolvedAt:integer('resolved_at').notNull().default(0)
 },t=>[uniqueIndex('comment_reports_reporter').on(t.commentId,t.userId),index('comment_reports_status').on(t.status,t.created)]);

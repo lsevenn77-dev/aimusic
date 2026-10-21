@@ -6,7 +6,7 @@ test('original cover filters apply before the limit and ranking follows qualifie
  const seed=(id,mode,status='published')=>f.sql.prepare("INSERT INTO tracks(id,user_id,producer_id,artist_id,title,kind,original_id,cover_mode,status,genre,ai_tool,rights_accepted,original_ext,original_bytes,created) VALUES(?,'owner','producer','artist',?,'cover','one',?,?,'Rock','',1,'wav',128,1)").run(id,id,mode,status);
  seed('solo-one','solo');seed('duet-one','duet');seed('hidden-cover','solo','hidden');
  for(let i=0;i<105;i++)seed('duet-'+i,'duet');
- f.sql.exec("INSERT INTO likes VALUES('other','solo-one',0)");
+ f.sql.exec("INSERT INTO likes(user_id,track_id,created) VALUES('other','solo-one',0)");
  for(let i=0;i<3;i++)f.sql.prepare("INSERT INTO listens(id,track_id,listener,day,started,qualified) VALUES(?,'duet-one',?,?,0,1)").run('play'+i,'person'+i,'2026-10-15');
  const solo=await f.call('/api/tracks/one/covers?mode=solo&sort=recent');assert.deepEqual(solo.body.covers.map(t=>t.id),['solo-one']);
  const duet=await f.call('/api/tracks/one/covers?mode=duet&sort=recent');assert.equal(duet.body.covers.length,100);assert(duet.body.covers.every(t=>t.cover_mode==='duet'));

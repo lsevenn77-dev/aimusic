@@ -5,7 +5,7 @@ import vm from 'node:vm';
 import {fixture} from './fixture.mjs';
 
 function client(fetch){
- const context=vm.createContext({fetch,structuredClone,URL,Map,Date,console,AifectGenres:{GENRES:[]},window:{},Audio:class{},sessionStorage:{getItem:()=>null},document:{querySelectorAll:()=>[]}});
+ const context=vm.createContext({fetch,structuredClone,URL,Map,Date,console,AifectGenres:{GENRES:[]},window:{},Audio:class{},sessionStorage:{getItem:()=>null},document:{addEventListener(){},querySelectorAll:()=>[]}});
  vm.runInContext(readFileSync(new URL('../dist/app.js',import.meta.url),'utf8'),context);
  vm.runInContext("toast=()=>{};me={id:'owner'};",context);
  return {run:code=>vm.runInContext(code,context),context};

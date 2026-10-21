@@ -38,7 +38,7 @@ test('ranking uses like time, not cover upload time; ties and active votes are s
 });
 test('ranking filters genre, literal search and original; singers aggregate visible public covers only',async t=>{
  const f=await setup(t),at=Math.floor(Date.now()/1000);
- f.sql.prepare('INSERT INTO likes VALUES(?,?,?)').run('owner','cover-a',at);
+ f.sql.prepare('INSERT INTO likes(user_id,track_id,created) VALUES(?,?,?)').run('owner','cover-a',at);
  for(const params of ['genre=EDM','q=missing','q=%25','original_id=two'])assert.deepEqual((await f.call('/api/cover-rankings?period=all&'+params)).body.tracks,[]);
  assert.equal((await f.call('/api/cover-rankings?period=all&q=Singer&genre=Rock&original_id=one')).body.tracks.length,1);
  let r=await f.call('/api/cover-rankings?period=all&kind=singers');assert.equal(r.body.singers[0].id,'performer');assert.equal(r.body.singers[0].rank_likes,1);
