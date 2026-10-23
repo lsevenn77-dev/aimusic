@@ -15,6 +15,8 @@ function saveNavigationSnapshot(raw,html,tracks,explorer,scroll=0){
  while(navigationSnapshots.size>24)navigationSnapshots.delete(navigationSnapshots.keys().next().value);
 }
 function bindRenderedRoute(base,param,explorer,ticket){
+ if(typeof bindMyPage==='function')bindMyPage(explorer);
+ if(typeof bindProfileManagement==='function')bindProfileManagement(explorer);
  if(typeof bindVoice==='function')bindVoice(base,param);
  icons();paintInteractions();bindForms(base,param);bindNotifications(explorer);bindGiftClaims($('#gift-shop-rewards'));bindExplorer(explorer);bindBrowse(explorer);bindImprovements(explorer);
  if(typeof bindDubbing==='function')bindDubbing(explorer);
@@ -63,7 +65,7 @@ async function render(){
   if(account!==(me?.id||'guest'))return render();
   const readRevision=apiRevision;
   const profileHeader=base==='library'?libraryProfileHTML().catch(error=>({error})):null;
-  const explorer=(typeof dubbingView==='function'?await dubbingView(base,param,raw):null)||(typeof voiceView==='function'?await voiceView(base,param):null)||await notificationsView(base,raw)||await playerView(base)||await improvementsView(base,param,raw)||await browseView(base,param,raw)||await explorerView(base,param,raw);
+  const explorer=(typeof myPageView==='function'?await myPageView(base,param,raw):null)||(typeof dubbingView==='function'?await dubbingView(base,param,raw):null)||(typeof voiceView==='function'?await voiceView(base,param):null)||await notificationsView(base,raw)||await playerView(base)||await improvementsView(base,param,raw)||await browseView(base,param,raw)||await explorerView(base,param,raw);
   if(explorer){html=explorer.html;nextTracks=remember(explorer.tracks||[]);}
   else if(['discover','charts','artists','producers','search'].includes(base)){
    let query='';const genre=base==='discover'?decodeURIComponent(param||'전체'):'전체',searchValue=base==='search'?decodeURIComponent(param||''):'';
@@ -147,7 +149,7 @@ function personProfileHTML(d,id,tab='all',balances=''){
  const following=own&&Number.isFinite(d.following_count)?'<a href="#following"><b>'+number(d.following_count)+'</b> 팔로잉</a>':'';
  const tabs=[['all','전체',total],['tracks','제작곡',(d.tracks||[]).length],['covers','커버',(d.covers||[]).length],['duets','듀엣',duets]];
  return ''+
- '<section class="person-profile social-profile social-profile-square">'+profilePhotoHTML(p)+'<div class="social-profile-main"><div class="social-profile-identity"><span class="eyebrow">MY MUSIC, OUR CONNECTION</span><h2>'+esc(p.display_name||p.name)+(p.partner_badge?'<span class="partner-badge">✓ '+esc(p.partner_badge)+'</span>':'')+'</h2><p>'+esc(p.bio||'음악으로 나를 소개해요.')+'</p><div class="music-profile-stats"><'+(own?'a href="#library/followers"':'span')+' data-followers="producer/'+esc(id)+'" data-count="'+Number(d.followers||0)+'">'+number(d.followers||0)+' 팔로워</'+(own?'a':'span')+'>'+following+'<span><b>'+total+'</b> 공개 음악</span></div></div><div class="social-profile-actions">'+
+ '<section class="person-profile social-profile social-profile-square">'+profilePhotoHTML(p)+'<div class="social-profile-main"><div class="social-profile-identity"><span class="eyebrow">MY MUSIC, OUR CONNECTION</span><h2>'+esc(p.name)+(p.partner_badge?'<span class="partner-badge">✓ '+esc(p.partner_badge)+'</span>':'')+'<span class="mp-public-id">ID: '+(p.public_number||'발급 확인 중')+'</span></h2><p>'+esc(p.bio||'음악으로 나를 소개해요.')+'</p><div class="music-profile-stats"><'+(own?'a href="#library/followers"':'span')+' data-followers="producer/'+esc(id)+'" data-count="'+Number(d.followers||0)+'">'+number(d.followers||0)+' 팔로워</'+(own?'a':'span')+'>'+following+'<span><b>'+total+'</b> 공개 음악</span></div></div><div class="social-profile-actions">'+
  (own?'<a class="primary-button" href="#profile/edit">프로필 수정</a><a class="small-button" href="#studio">스튜디오</a><a class="small-button" href="#library/covers">내 커버</a><a class="small-button" href="#dm">메시지</a>':'<button class="primary-button" data-follow="producer/'+esc(id)+'" aria-pressed="'+followed('producer',id)+'">'+(followed('producer',id)?'팔로잉':'팔로우')+'</button><a class="small-button" href="#dm/'+esc(id)+'">메시지</a><button class="small-button gift-entry" data-profile-gift="'+esc(id)+'">'+icon('gift')+' 선물</button>')+
  (!own&&d.invite_crew?'<button type="button" class="small-button" data-crew-invite="'+esc(id)+'" data-crew="'+esc(d.invite_crew.id)+'" title="'+esc(d.invite_crew.name)+' 크루 초대 DM 보내기">'+icon('users')+' 내 크루에 초대</button>':'')+
  '<button type="button" class="text-link profile-gift-ranking" data-gift-ranking="'+esc(id)+'">'+icon('chart')+' 선물 랭킹 TOP 50</button></div></div></section>'+

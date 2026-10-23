@@ -1,5 +1,6 @@
 import {one,rows,run,now,fail,json} from './db.js';
 import {requireUser} from './auth.js';
+import {publicNameSQL} from './identity.js';
 import {VISIBLE} from './catalog.js';
 
 const allowed=`NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=n.recipient AND b.blocked_id=n.actor_id) OR (b.user_id=n.actor_id AND b.blocked_id=n.recipient))`;
@@ -21,8 +22,8 @@ export async function notificationsRoute(req,env,path,user){
  const before=q.get('before'),cursor=before?await one(env,'SELECT created,id FROM activity_notifications WHERE id=? AND recipient=?',before,user.id):null;
  if(before&&!cursor)fail(400,'알림 목록을 새로 열어주세요.');
  const type=filter==='gifts'?"AND n.kind IN ('gift','person_gift')":filter==='participation'?"AND n.kind IN ('cover','duet')":'';
- const items=await rows(env,`SELECT n.*,COALESCE(p.name,u.name,'탈퇴한 회원') actor_name,p.id actor_profile_id,p.image_version actor_image_version,
- CASE WHEN n.kind='person_gift' THEN EXISTS(SELECT 1 FROM producers pr WHERE pr.id=n.target) ELSE EXISTS(SELECT 1 FROM tracks t WHERE t.id=n.target AND ${VISIBLE()}) END available
+ const items=await rows(env,`SELECT n.*,COALESCE(${publicNameSQL('u')},'탈퇴한 회원') actor_name,p.id actor_profile_id,p.image_version actor_image_version,
+ CASE WHEN n.kind IN ('person_gift','follow') THEN EXISTS(SELECT 1 FROM producers pr WHERE pr.id=n.target) ELSE EXISTS(SELECT 1 FROM tracks t WHERE t.id=n.target AND ${VISIBLE()}) END available
  FROM activity_notifications n LEFT JOIN users u ON u.id=n.actor_id LEFT JOIN producers p ON p.user_id=n.actor_id
  WHERE n.recipient=? AND ${allowed} ${type} ${cursor?'AND (n.created<? OR (n.created=? AND n.id<?))':''}
  ORDER BY n.created DESC,n.id DESC LIMIT 31`,user.id,...(cursor?[cursor.created,cursor.created,cursor.id]:[]));

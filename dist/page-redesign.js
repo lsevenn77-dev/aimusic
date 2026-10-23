@@ -1,11 +1,7 @@
 // Page composition only: player, chat and recording controllers keep their existing hooks.
 function profileGalleryHTML(d,id){
- const own=!!me&&d.profile.user_id===me.id,photos=d.gallery||[],limit=d.gallery_limit||30;
- if(!own&&!photos.length)return '';
- return '<section class="profile-gallery-strip" aria-label="프로필 갤러리"><div class="section-heading"><div><span class="eyebrow">MY GALLERY</span><h2>나의 순간들 <small>'+photos.length+'</small></h2></div>'+(own?'<button type="button" class="small-button" data-profile-photo-add="'+esc(id)+'" '+(photos.length>=limit?'disabled':'')+'>'+icon('plus')+' 사진 추가</button>':'')+'</div>'+
- (photos.length?'<div class="profile-gallery-photos" tabindex="0" aria-label="갤러리 사진 · 좌우로 넘겨보세요">'+photos.map((p,i)=>'<figure><button type="button" class="profile-gallery-photo" data-gallery-photo="'+esc(p.url)+'" data-photo-label="'+esc(d.profile.display_name||d.profile.name)+' 사진 '+(i+1)+'" aria-label="사진 '+(i+1)+' 크게 보기"><img src="'+esc(p.url)+'" alt="'+esc(d.profile.display_name||d.profile.name)+' 갤러리 사진 '+(i+1)+'" loading="'+(i<4?'eager':'lazy')+'" decoding="async"></button>'+(own?'<button type="button" class="profile-photo-delete" data-profile-photo-delete="'+esc(p.id)+'" data-profile-photo-owner="'+esc(id)+'" aria-label="갤러리 사진 '+(i+1)+' 삭제">'+icon('trash')+'</button>':'')+'</figure>').join('')+'</div>':
- '<button type="button" class="profile-gallery-empty" data-profile-photo-add="'+esc(id)+'">'+icon('image')+'<strong>내 페이지에 사진을 채워보세요</strong><span>음악과 함께 나의 순간을 소개해요 · 사진 추가</span></button>')+
- (own?'<p class="field-help gallery-privacy-note">프로필을 방문한 누구나 볼 수 있는 공개 사진이에요. 최대 '+limit+'장 · 사진을 누르면 크게 볼 수 있어요.</p>':'')+'</section>';
+ const photos=d.gallery||[];
+ return '<section class="profile-gallery-strip" aria-label="프로필 갤러리"><div class="section-heading"><h2>나의 순간들 <small>'+photos.length+'</small></h2><a class="text-link" href="#profile-gallery/'+esc(id)+'">전체보기 '+icon('chevron')+'</a></div>'+(photos.length?'<div class="profile-gallery-photos">'+photos.slice(0,6).map((p,i)=>'<figure><button class="profile-gallery-photo" data-gallery-photo="'+esc(p.url)+'" data-photo-label="사진 '+(i+1)+'"><img src="'+esc(p.url)+'" alt="사진 '+(i+1)+'"></button></figure>').join('')+'</div>':'<p class="field-help">등록된 사진이 없어요.</p>')+'</section>';
 }
 function libraryOverviewHTML(){
  const collections=library.collections||library.playlists||[];

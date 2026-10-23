@@ -23,7 +23,7 @@ function peopleListHTML(items,kind='producer'){
   return '<a class="surface people-list-row" href="'+esc(href)+'" aria-label="'+esc(p.name)+' 페이지 보기">'+portrait(p,kind)+'<span class="people-list-copy"><strong>'+esc(p.name)+'</strong><small>'+esc(p.bio||'음악으로 만나요.')+'</small></span>'+icon('chevron')+'</a>';
  }).join('')+'</div>';
 }
-function listenerProfileHTML(p){return '<section class="surface listener-profile">'+portrait(p,'producer')+'<h2>'+esc(p.name)+'</h2><p>'+esc(p.bio||'좋아하는 음악을 함께 듣고 있어요.')+'</p><p class="field-help">아직 공개한 음악이 없어요.</p></section>';}
+function listenerProfileHTML(p){return '<section class="surface listener-profile">'+portrait(p,'producer')+'<h2>'+esc(p.name)+'</h2><p class="mp-public-id">ID: '+(p.public_number||'발급 확인 중')+'</p><p>'+esc(p.bio||'좋아하는 음악을 함께 듣고 있어요.')+'</p><p class="field-help">아직 공개한 음악이 없어요.</p></section>';}
 
 
 function musicLayout(scope){try{return localStorage.getItem('aifect-music-layout-'+scope)==='list'?'list':'grid';}catch{return 'grid';}}

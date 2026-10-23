@@ -1,3 +1,4 @@
+import {profileDashboard} from './profile-dashboard.js';
 import {trackArtworkSQL} from './track-artwork.js';
 import {profileGallery,PROFILE_GALLERY_LIMIT} from './profile-gallery.js';
 import {partnerState} from './diamonds.js';
@@ -33,9 +34,9 @@ const SELECT=`SELECT t.id,t.title,t.genre,t.genres_json,t.moods_json,t.classific
  (SELECT COALESCE(sum(g.gold),0) FROM gifts g WHERE g.track_id=t.id) gift_gold,
  (SELECT COALESCE(sum(g.silver),0) FROM free_gifts g WHERE g.track_id=t.id) gift_stars
  FROM tracks t JOIN artists a ON a.id=t.artist_id JOIN producers p ON p.id=t.producer_id LEFT JOIN tracks o ON o.id=t.original_id LEFT JOIN producers op ON op.id=o.producer_id LEFT JOIN tracks dt ON dt.id=t.duet_parent_id LEFT JOIN producers fp ON fp.id=dt.producer_id`;
-export const trackListQuery=(env,where=VISIBLE(),args=[],sort='t.created DESC',limit=100)=>{
+export const trackListQuery=(env,where=VISIBLE(),args=[],sort='t.created DESC',limit=100,includeStatus=false)=>{
  const blocked=env.AIFECT_BLOCKED||[];
- return query(env,`${SELECT} WHERE ${where}${blocked.length?' AND t.user_id NOT IN ('+blocked.map(()=>'?').join(',')+')':''} ORDER BY ${sort} LIMIT ${limit}`,...args,...blocked);
+ return query(env,`${includeStatus?SELECT.replace('SELECT t.id,','SELECT t.id,t.status,'):SELECT} WHERE ${where}${blocked.length?' AND t.user_id NOT IN ('+blocked.map(()=>'?').join(',')+')':''} ORDER BY ${sort} LIMIT ${limit}`,...args,...blocked);
 };
 export const trackList=async(...args)=>(await trackListQuery(...args).all()).results.map(trackClassification);
 export async function published(env,tid){const t=await one(env,`SELECT t.* FROM tracks t WHERE t.id=? AND ${VISIBLE()}`,tid);if(!t)fail(404,'공개된 곡을 찾을 수 없습니다.');assertUnblocked(env,t.user_id);return t;}
@@ -138,17 +139,21 @@ export async function catalogRoute(req,env,path,user){
   const entity=await one(env,`SELECT id,${kind==='producer'?producerNameSQL('producers'):'name'} name,bio,created,image_version${kind==='producer'?',banner_version,user_id,'+memberNameSQL('producers')+' display_name':''} FROM ${m[1]} WHERE id=?${kind==='artist'?' AND '+namedArtistSQL('name'):''}`,m[2]);if(!entity)fail(404,'프로필을 찾을 수 없습니다.');
   const owner=kind==='producer'?entity:await one(env,'SELECT p.user_id FROM artists a JOIN producers p ON p.id=a.producer_id WHERE a.id=?',entity.id);assertUnblocked(env,owner?.user_id);
   if(!m[3]&&method==='GET'){
-   const [count,tracks,covers,gifts,partner,identity,gallery,inviteCrew]=await Promise.all([
+   const own=kind==='producer'&&user?.id===entity.user_id,manage=own&&url.searchParams.get('dashboard')==='1';
+   const [count,tracks,covers,gifts,partner,identity,gallery,inviteCrew,dashboard]=await Promise.all([
     one(env,'SELECT count(*) n FROM follows WHERE kind=? AND target_id=?',kind,entity.id),
-    trackList(env,`${VISIBLE()} AND t.kind='original' AND t.${kind}_id=?`,[entity.id]),
-    kind==='producer'?trackList(env,`${VISIBLE()} AND t.kind='cover' AND (t.producer_id=? OR dt.producer_id=?)`,[entity.id,entity.id]):null,
+    trackList(env,`${manage?"((t.user_id=? AND t.status!='deleted') OR "+VISIBLE()+')':VISIBLE()} AND t.kind='original' AND t.${kind}_id=?`,[...(manage?[user.id]:[]),entity.id], 't.created DESC',500,manage),
+    kind==='producer'?trackList(env,`${manage?"((t.user_id=? AND t.status!='deleted') OR "+VISIBLE()+')':VISIBLE()} AND t.kind='cover' AND (t.producer_id=? OR dt.producer_id=?)`,[...(manage?[user.id]:[]),entity.id,entity.id], 't.created DESC',500,manage):null,
     kind==='producer'?profileGifts(env,entity.id):null,
     kind==='producer'?partnerState(env,entity.user_id):null,
-    kind==='producer'?playerIdentity(env,entity.user_id):null,
-    kind==='producer'?profileGallery(env,entity.id):artistGallery(env,entity.id),
-    kind==='producer'&&user&&entity.user_id!==user.id?one(env,'SELECT c.id,c.name FROM crew_members cm JOIN crews c ON c.id=cm.crew_id WHERE cm.user_id=? AND NOT EXISTS(SELECT 1 FROM crew_members target WHERE target.crew_id=c.id AND target.user_id=?) AND NOT EXISTS(SELECT 1 FROM crew_bans WHERE crew_id=c.id AND user_id=?)',user.id,entity.user_id,entity.user_id):null
+    own?playerIdentity(env,entity.user_id):null,
+    kind==='producer'?profileGallery(env,entity.id,own):artistGallery(env,entity.id),
+    kind==='producer'&&user&&entity.user_id!==user.id?one(env,'SELECT c.id,c.name FROM crew_members cm JOIN crews c ON c.id=cm.crew_id WHERE cm.user_id=? AND NOT EXISTS(SELECT 1 FROM crew_members target WHERE target.crew_id=c.id AND target.user_id=?) AND NOT EXISTS(SELECT 1 FROM crew_bans WHERE crew_id=c.id AND user_id=?)',user.id,entity.user_id,entity.user_id):null,
+    kind==='producer'?profileDashboard(env,entity,user):null
    ]);
-   return json({profile:kind==='producer'?{...entity,partner_badge:partner.badge,...identity}:entity,tracks,followers:count.n,gallery,...(kind==='producer'?{covers,gifts,invite_crew:inviteCrew,gallery_limit:PROFILE_GALLERY_LIMIT}:{can_manage:user?.id===owner?.user_id,gallery_limit:GALLERY_LIMIT})});
+   // Profile visitors receive public works, never their owner's private XP totals.
+   if(!own)for(const track of [...tracks,...(covers||[])])delete track.player_xp;
+   return json({profile:kind==='producer'?{...entity,partner_badge:partner.badge,...identity,public_number:dashboard.public_number}:entity,tracks,followers:count.n,gallery,...(kind==='producer'?{...dashboard,covers,gifts,invite_crew:inviteCrew,gallery_limit:PROFILE_GALLERY_LIMIT}:{can_manage:user?.id===owner?.user_id,gallery_limit:GALLERY_LIMIT})});
   }
   requireUser(user);
   if(method==='PUT')await run(env,'INSERT OR IGNORE INTO follows(user_id,kind,target_id,created) VALUES(?,?,?,?)',user.id,kind,entity.id,now());

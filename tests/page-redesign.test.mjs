@@ -12,20 +12,20 @@ function context(){
 test('My gallery follows profile identity and precedes music; visitor has no mutation controls',()=>{
  const c=context(),d={profile:{user_id:'owner',name:'Singer'},gallery:[{id:'p',url:'/media/profile-gallery/p?v=1'}]};
  const own=c.profileGalleryHTML(d,'person');
- assert.match(own,/profile-gallery-photos/);assert.match(own,/data-profile-photo-add="person"/);
- assert.match(own,/data-profile-photo-delete="p"/);assert.match(own,/data-gallery-photo="\/media\/profile-gallery\/p\?v=1"/);
+ assert.match(own,/profile-gallery-photos/);assert.match(own,/href="#profile-gallery\/person"/);
+ assert.doesNotMatch(own,/data-profile-photo-(add|delete)/);assert.match(own,/data-gallery-photo="\/media\/profile-gallery\/p\?v=1"/);
  c.me={id:'visitor'};const visitor=c.profileGalleryHTML(d,'person');assert.match(visitor,/profile-gallery-photo/);assert.doesNotMatch(visitor,/data-profile-photo-(add|delete)/);
- assert.equal(c.profileGalleryHTML({...d,gallery:[]},'person'),'');
+ assert.match(c.profileGalleryHTML({...d,gallery:[]},'person'),/등록된 사진이 없어요/);
  const view=read('views.js').split('function personProfileHTML')[1].split('function giftsPanelHTML')[0];
  assert.ok(view.indexOf('person-profile social-profile')<view.indexOf('profileGalleryHTML(d,id)'));
  assert.ok(view.indexOf('profileGalleryHTML(d,id)')<view.indexOf('profile-page-layout'));
  assert.doesNotMatch(read('page-redesign.js'),/마이페이지 맨 위에 표시/);
 });
-test('gallery escapes labels and photo identifiers; limit disables the upload CTA',()=>{
+test('gallery escapes labels and keeps registration on its separate management page',()=>{
  const c=context(),d={profile:{user_id:'owner',name:'"><img onerror="bad">'},gallery:Array.from({length:30},()=>({id:'" onclick="bad',url:'/x?y="'}))};
  const html=c.profileGalleryHTML(d,'<bad>');
- assert.doesNotMatch(html,/<img onerror|onclick="bad/);assert.match(html,/data-profile-photo-add="&lt;bad&gt;" disabled/);
- assert.match(c.profileGalleryHTML({...d,gallery:[]},'id'),/profile-gallery-empty/);
+ assert.doesNotMatch(html,/<img onerror|onclick="bad|data-profile-photo-add/);assert.match(html,/href="#profile-gallery\/&lt;bad&gt;"/);
+ assert.match(c.profileGalleryHTML({...d,gallery:[]},'id'),/전체보기/);
 });
 test('singing discovery distinguishes own open duet and preserves actual song IDs',()=>{
  const c=context(),track={id:'duet',original_id:'original',user_id:'owner',producer:'Singer',title:'Song'};

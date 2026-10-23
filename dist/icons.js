@@ -6,6 +6,8 @@ paths.user='M20 21a8 8 0 0 0-16 0M12 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z';
 paths.settings='M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Zm7.4-3.5a7.4 7.4 0 0 0-.1-1l2-1.6-2-3.4-2.4 1a8 8 0 0 0-1.8-1L14.8 3h-4l-.4 2.9a8 8 0 0 0-1.8 1l-2.4-1-2 3.4 2 1.6a7.4 7.4 0 0 0 0 2.1l-2 1.6 2 3.4 2.4-1a8 8 0 0 0 1.8 1l.4 2.9h4l.4-2.9a8 8 0 0 0 1.8-1l2.4 1 2-3.4-2-1.6c.1-.3.1-.7.1-1Z';
 const icon=n=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${paths[n]||paths.sparkles}"/></svg>`;
 
+paths.diamond='m3 8 4-5h10l4 5-9 13L3 8Zm0 0h18M7 3l5 18 5-18';
+paths.ticket='M3 5h18v5a2 2 0 0 0 0 4v5H3v-5a2 2 0 0 0 0-4V5Zm13 0v3m0 3v2m0 3v3';
 paths.back='m15 6-6 6 6 6';
 paths.more='M5 12h.01M12 12h.01M19 12h.01';
 paths.image='M4 3h16v18H4zM4 16l5-6 4 4 3-3 4 5M15 7h.01';

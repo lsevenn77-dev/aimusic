@@ -13,6 +13,23 @@ export const users=sqliteTable('users',{
  id:text('id').primaryKey(), email:text('email').notNull(), name:text('name').notNull(), password:text('password'), provider:text('provider').notNull().default('email'), subject:text('subject'), created:integer('created').notNull(), premiumUntil:integer('premium_until').notNull().default(0), applePremiumUntil:integer('apple_premium_until').notNull().default(0), playlistSelection:text('playlist_selection').notNull().default('[]')
 },t=>[uniqueIndex('users_identity').on(t.provider,t.subject),uniqueIndex('users_email_provider').on(t.email,t.provider)]);
 export const sessions=sqliteTable('sessions',{token:text('token').primaryKey(),userId:text('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),expires:integer('expires').notNull()});
+// Public identity is independent of authentication UUIDs. No FK: retired numbers
+// remain reserved after account deletion. Allocation/immutability live in SQL triggers.
+export const publicMemberIds=sqliteTable('public_member_ids',{
+ number:integer('number').primaryKey({autoIncrement:true}),userId:text('user_id').notNull()
+},t=>[uniqueIndex('public_member_ids_user').on(t.userId),check('public_member_ids_positive',sql`${t.number}>0`)]);
+export const personalRelations=sqliteTable('personal_relations',{
+ id:text('id').primaryKey(),firstUser:text('first_user').notNull().references(()=>users.id),secondUser:text('second_user').notNull().references(()=>users.id),requestedBy:text('requested_by').notNull().references(()=>users.id),state:text('state').notNull().default('pending'),firstPublic:integer('first_public').notNull().default(0),secondPublic:integer('second_public').notNull().default(0),created:integer('created').notNull(),updated:integer('updated').notNull()
+},t=>[uniqueIndex('personal_relations_pair').on(t.firstUser,t.secondUser),check('personal_relations_order',sql`${t.firstUser}<${t.secondUser}`),check('personal_relations_requester',sql`${t.requestedBy} IN (${t.firstUser},${t.secondUser})`),check('personal_relations_state',sql`${t.state} IN ('pending','accepted','declined','ended')`)]);
+export const relationXp=sqliteTable('relation_xp',{
+ relationId:text('relation_id').notNull().references(()=>personalRelations.id),sourceKey:text('source_key').notNull(),kind:text('kind').notNull(),amount:integer('amount').notNull(),created:integer('created').notNull()
+},t=>[primaryKey({columns:[t.relationId,t.sourceKey]}),check('relation_xp_positive',sql`${t.amount}>0`)]);
+export const giftInventory=sqliteTable('gift_inventory',{
+ id:text('id').primaryKey(),userId:text('user_id').notNull().references(()=>users.id),giftType:text('gift_type').notNull(),giftName:text('gift_name').notNull(),currency:text('currency').notNull(),value:integer('value').notNull(),source:text('source').notNull(),requestId:text('request_id').notNull(),unit:integer('unit').notNull(),created:integer('created').notNull(),usedAt:integer('used_at').notNull().default(0),sendRequestId:text('send_request_id'),recipientId:text('recipient_id').references(()=>producers.id)
+},t=>[uniqueIndex('gift_inventory_request_unit').on(t.userId,t.requestId,t.unit),uniqueIndex('gift_inventory_send_request').on(t.userId,t.sendRequestId),index('gift_inventory_owner').on(t.userId,t.usedAt),check('gift_inventory_currency',sql`${t.currency} IN ('gold','silver','reward')`),check('gift_inventory_value',sql`${t.value}>=0`)]);
+export const giftInventoryLots=sqliteTable('gift_inventory_lots',{
+ inventoryId:text('inventory_id').notNull().references(()=>giftInventory.id),purchaseId:text('purchase_id').notNull().references(()=>goldPurchases.id),gold:integer('gold').notNull(),netMw:integer('net_mw').notNull()
+},t=>[primaryKey({columns:[t.inventoryId,t.purchaseId]}),check('gift_inventory_lot_positive',sql`${t.gold}>0 AND ${t.netMw}>=0`)]);
 export const accountHandles=sqliteTable('account_handles',{userId:text('user_id').primaryKey().references(()=>users.id,{onDelete:'cascade'}),normalized:text('normalized').notNull()},t=>[uniqueIndex('account_handles_normalized').on(t.normalized)]);
 export const oauth=sqliteTable('oauth_states',{state:text('state').primaryKey(),provider:text('provider').notNull(),verifier:text('verifier').notNull(),nonce:text('nonce').notNull(),expires:integer('expires').notNull()});
 export const producers=sqliteTable('producers',{id:text('id').primaryKey(),nicknameConfirmed:integer('nickname_confirmed').notNull().default(0),userId:text('user_id').notNull().references(()=>users.id),name:text('name').notNull(),bio:text('bio').notNull().default(''),imageVersion:text('image_version').notNull().default(''),imageType:text('image_type').notNull().default(''),bannerVersion:text('banner_version').notNull().default(''),bannerType:text('banner_type').notNull().default(''),created:integer('created').notNull()},t=>[uniqueIndex('producers_owner').on(t.userId)]);
@@ -183,6 +200,10 @@ export const giftExclusions=sqliteTable('gift_exclusions',{
 export const profilePhotos=sqliteTable('profile_photos',{
  id:text('id').primaryKey(),producerId:text('producer_id').notNull().references(()=>producers.id,{onDelete:'cascade'}),imageVersion:text('image_version').notNull(),imageType:text('image_type').notNull(),created:integer('created').notNull()
 },t=>[index('profile_photos_producer_created').on(t.producerId,t.created)]);
+// Existing photos stay public; adding privacy does not rewrite the original media rows.
+export const profilePhotoPrivacy=sqliteTable('profile_photo_privacy',{
+ photoId:text('photo_id').primaryKey().references(()=>profilePhotos.id,{onDelete:'cascade'}),isPublic:integer('is_public').notNull().default(1)
+},t=>[check('profile_photo_privacy_boolean',sql`${t.isPublic} IN (0,1)`)]);
 export const streamSettlements=sqliteTable('stream_settlements',{
  period:text('period').primaryKey(),paidKrw:integer('paid_krw').notNull(),refundedKrw:integer('refunded_krw').notNull(),feeKrw:integer('fee_krw').notNull(),taxKrw:integer('tax_krw').notNull(),poolMw:integer('pool_mw').notNull(),allocatedMw:integer('allocated_mw').notNull(),evidence:text('evidence').notNull(),reviewedBy:text('reviewed_by').notNull(),created:integer('created').notNull()
 });

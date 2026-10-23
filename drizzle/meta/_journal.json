@@ -449,6 +449,34 @@
       "when": 1792584496038,
       "tag": "0063_restore_comment_triggers",
       "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "6",
+      "when": 1792730017627,
+      "tag": "0064_public_member_ids",
+      "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "6",
+      "when": 1792730264025,
+      "tag": "0065_profile_activity_systems",
+      "breakpoints": true
+    },
+    {
+      "idx": 66,
+      "version": "6",
+      "when": 1792730882167,
+      "tag": "0066_profile_photo_privacy",
+      "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "6",
+      "when": 1792731358122,
+      "tag": "0067_profile_social_notifications",
+      "breakpoints": true
     }
   ]
 }
