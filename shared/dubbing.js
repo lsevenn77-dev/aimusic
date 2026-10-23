@@ -12,7 +12,7 @@ export const DUBBING_MODEL='gpt-6-luna';
 export const DUBBING_LENGTHS=Array.from({length:10},(_,i)=>(i+1)/2);
 export const DUBBING_SOUND_GOLD=50;
 export const DUBBING_GENDERS=['male','female','unspecified'];
-export const DUBBING_MUSIC_USES=['intro','transition','outro','climax'];
+export const DUBBING_MUSIC_USES=['intro','transition','outro','climax','diegetic'];
 export function dubbingGenderLabel(gender){return gender==='male'?'남':gender==='female'?'여':'미정';}
 const invalid=message=>{throw Object.assign(new Error(message),{status:400});};
 const text=(v,max,label,optional=false)=>{
@@ -100,9 +100,23 @@ export function dubbingTimeline(script){
 // Apply only when preparing NEW audio. Keep the original recording clock and
 // previously generated files intact, including older scripts with long scores.
 export function dubbingSoundTimeline(script){
- // The director's scene anchors and durations are authoritative. Do not drop
- // middle-scene music, shorten emotional scenes, or move the recording clock.
- return dubbingTimeline(script);
+ const timeline=dubbingTimeline(script),selected=new Map(),used=new Set();
+ for(const cue of timeline.sounds.filter(c=>c.kind==='bgm').sort((a,b)=>a.start-b.start)){
+  const use=cue.musicUse;
+  // Music physically present in the scene (e.g. a ballroom) may continue.
+  // Other scores are limited to one opening and one story climax.
+  if(use!=='diegetic'&&(!['intro','climax'].includes(use)||used.has(use)))continue;
+  const start=use==='intro'?0:cue.start;
+  const end=use==='intro'?Math.min(cue.end,timeline.lines[0].start):use==='climax'?Math.min(cue.end,start+15):cue.end;
+  const durationSeconds=Math.round((end-start)*100)/100;
+  if(durationSeconds<.5)continue;
+  const score={...cue,start,end,durationSeconds,generationSeconds:Math.max(10,Math.ceil(durationSeconds)),
+   musicGenre:script.genres?.includes('사극')?'사극':script.genres?.[0]||'',
+   fadeInSeconds:Math.min(cue.fadeInSeconds,durationSeconds/2),fadeOutSeconds:Math.min(cue.fadeOutSeconds,durationSeconds/2)};
+  delete score.endLineId;
+  selected.set(cue.id,score);used.add(use);
+ }
+ return {...timeline,sounds:timeline.sounds.flatMap(c=>c.kind==='bgm'?(selected.has(c.id)?[selected.get(c.id)]:[]):[c])};
 }
 
 // Responses Structured Outputs: every property required, objects closed.

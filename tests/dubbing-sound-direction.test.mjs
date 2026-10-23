@@ -14,36 +14,32 @@ function drama(){
 }
 function music(s,id,use,line=0){return {...s.soundCues[0],id,kind:'bgm',musicUse:use,lineId:s.lines[line].id,anchor:line?'start':'scene',durationSeconds:20,generationSeconds:20,volume:.45,fadeInSeconds:1,fadeOutSeconds:1};}
 
-test('full-scene BGM remains audible through its selected scene without moving speech or SFX',()=>{
- const s=drama(),bg=music(s,'score',undefined);bg.endLineId=s.lines.at(-1).id;s.soundCues.push(bg);
- const before=structuredClone(s),raw=dubbingTimeline(s),directed=dubbingSoundTimeline(s),score=directed.sounds.find(c=>c.kind==='bgm');
- assert.equal(raw.sounds.find(c=>c.kind==='bgm').durationSeconds,90);
- assert.equal(score.durationSeconds,90);assert.equal(score.volume,.45);assert.equal(score.start,0);assert.equal(score.generationSeconds,90);
+test('new opening ends at first speech, one short climax remains and effects keep their clock',()=>{
+ const s=drama();s.soundCues.push(music(s,'intro','intro'),music(s,'repeat_intro','intro'),music(s,'climax','climax',5),music(s,'repeat_climax','climax',6),music(s,'filler','outro',7));
+ const before=structuredClone(s),raw=dubbingTimeline(s),directed=dubbingSoundTimeline(s),scores=directed.sounds.filter(c=>c.kind==='bgm');
+ assert.deepEqual(scores.map(c=>c.id),['intro','climax']);
+ assert.equal(scores[0].start,0);assert.equal(scores[0].end,raw.lines[0].start);assert.equal(scores[0].generationSeconds,10);
+ assert.equal(scores[1].start,raw.lines[5].start);assert.equal(scores[1].durationSeconds,15);
  assert.deepEqual(directed.lines,raw.lines);assert.equal(directed.duration,raw.duration);
  assert.deepEqual(directed.sounds.find(c=>c.kind==='sfx'),raw.sounds.find(c=>c.kind==='sfx'));
- assert.deepEqual(s,before,'already saved script is not rewritten');
+ assert.deepEqual(s,before,'saved script and already generated files are not rewritten');
 });
-test('music has no duration budget, purpose deduplication or forced silent gaps',()=>{
- for(const short of [false,true]){
-  const s=drama();if(short)s.lines.forEach(l=>{l.durationSeconds=2;l.gapSeconds=.5;});
-  s.soundCues.push(music(s,'intro','intro'),music(s,'turn','transition',4),music(s,'end','outro',7));
-  const timeline=dubbingSoundTimeline(s),scores=timeline.sounds.filter(c=>c.kind==='bgm');
-  assert.equal(scores.length,3);
-  assert.deepEqual(timeline,dubbingTimeline(s));
-  assert.ok(scores.reduce((n,c)=>n+c.durationSeconds,0)>24);
-  for(const c of scores){assert.equal(c.durationSeconds,20);assert.equal(c.volume,.45);assert.equal(pikaRequest(c).body.duration,20);}
- }
+test('ballroom source music explicitly keeps playing through dialogue',()=>{
+ const s=drama(),bg=music(s,'ballroom','diegetic');bg.endLineId=s.lines.at(-1).id;s.soundCues.push(bg);
+ const checked=validateDubbingScript(s,{...options,minutes:2}),raw=dubbingTimeline(checked),score=dubbingSoundTimeline(checked).sounds.find(c=>c.kind==='bgm');
+ assert.equal(score.durationSeconds,90);assert.equal(score.start,0);assert.equal(score.end,raw.lines.at(-1).slotEnd);assert.equal(score.generationSeconds,90);
+ assert.equal(score.volume,.45);assert.equal(pikaRequest(score).body.duration,90);
 });
-test('middle dialogue keeps its emotional score and more than three scene scores are supported',()=>{
- const s=drama();s.soundCues.push(music(s,'middle',undefined,3));
- assert.equal(dubbingSoundTimeline(s).sounds.find(c=>c.kind==='bgm').durationSeconds,20);
- s.soundCues[1].musicUse='climax';
- const score=dubbingSoundTimeline(s).sounds.find(c=>c.kind==='bgm');
- assert.equal(score.durationSeconds,20);assert.equal(score.volume,.45);assert.equal(score.generationSeconds,20);
- assert.doesNotMatch(pikaRequest(score).body.prompt,/Short instrumental accent|not a continuous/);
- s.soundCues.push(...[0,1,2].map(i=>music(s,'extra_'+i,'transition',i)));
- assert.equal(validateDubbingScript(s,{...options,minutes:2}).soundCues.filter(c=>c.kind==='bgm').length,4);
- s.soundCues[1].musicUse='invalid';assert.throws(()=>validateDubbingScript(s,{...options,minutes:2}),/용도/);
+test('unspecified legacy scores are not reused as dialogue beds for new generation',()=>{
+ const s=drama();s.soundCues.push(music(s,'old',undefined,3),music(s,'transition','transition',4));
+ assert.equal(dubbingSoundTimeline(s).sounds.filter(c=>c.kind==='bgm').length,0);
+ assert.equal(dubbingTimeline(s).sounds.filter(c=>c.kind==='bgm').length,2,'legacy playback contract stays intact');
+});
+test('historical instrument constraints reach the paid provider while SFX prompts stay intact',()=>{
+ const s=drama();s.genres=['사극'];const score=music(s,'climax','climax',4);score.prompt='Sad piano melody and synthesizer pad';s.soundCues.push(score);
+ const directed=dubbingSoundTimeline(s),musicRequest=pikaRequest(directed.sounds.find(c=>c.kind==='bgm'));
+ assert.match(musicRequest.body.prompt,/gayageum/);assert.match(musicRequest.body.prompt,/No piano/);assert.doesNotMatch(musicRequest.body.prompt,/Sad piano melody|synthesizer pad/);
+ const fx=directed.sounds.find(c=>c.kind==='sfx');assert.match(pikaRequest(fx).body.prompt,new RegExp(fx.prompt));
 });
 test('both AI writing paths request emotional scene music and concrete event effects without the old budget',async()=>{
  const s=drama(),requests=[],fetcher=async(url,init)=>{
@@ -53,11 +49,11 @@ test('both AI writing paths request emotional scene music and concrete event eff
  };
  const env={DUBBING_AI_ENABLED:'true',OPENAI_API_KEY:'mock-only'},opts={...options,minutes:1.5};
  await generateDubbingScript(env,opts,fetcher);await generateDubbingSoundPlan(env,s,opts,fetcher);
- for(const body of requests){assert.match(body.instructions,/대본 작성 단계부터 소리/);assert.match(body.instructions,/그 행동을 장면 설명 또는 연기 지시에 명시/);assert.match(body.instructions,/실제 사건의 SFX/);assert.match(body.instructions,/슬픈 이별/);assert.match(body.instructions,/빈 배열/);assert.match(body.instructions,/자동 감쇠는 BGM에만/);assert.doesNotMatch(body.instructions,/20%와 24초|0~3개만/);}
+ for(const body of requests){assert.match(body.instructions,/대본 작성 단계부터 소리/);assert.match(body.instructions,/그 행동을 장면 설명 또는 연기 지시에 명시/);assert.match(body.instructions,/실제 사건의 SFX/);assert.match(body.instructions,/도입 1회와 실제 절정 장면 1회/);assert.match(body.instructions,/피아노·신시사이저/);assert.match(body.instructions,/diegetic/);assert.match(body.instructions,/빈 배열/);assert.match(body.instructions,/자동 감쇠는 BGM에만/);assert.doesNotMatch(body.instructions,/20%와 24초|0~3개만/);}
 });
-test('new sound jobs preserve full scene music and its event effect',async t=>{
+test('new sound jobs preserve source music and its event effect',async t=>{
  const f=await fixture(t,{DUBBING_ENABLED:'true',DUBBING_SOUND_ENABLED:'true',DUBBING_PAID_API_ENABLED:'true',PIKA_API_KEY:'mock-only',TRANSCODER_TOKEN:'fixture',BUCKET:memoryBucket()});
- const s=drama();s.soundCues.push({...music(s,'score',undefined),endLineId:s.lines.at(-1).id});
+ const s=drama();s.soundCues.push({...music(s,'score','diegetic'),endLineId:s.lines.at(-1).id});
  const p=(await f.call('/api/dubbing/projects','POST',{id:crypto.randomUUID(),options:{...options,minutes:2},script:s})).body.project;
  const r=await f.call('/api/dubbing/projects/'+p.id+'/sound','POST',{requestId:crypto.randomUUID(),revision:p.revision,mode:'ai',acceptedGold:50,acceptedChargeGold:0});
  assert.equal(r.status,202,JSON.stringify(r));

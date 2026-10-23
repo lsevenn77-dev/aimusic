@@ -4,9 +4,12 @@ export const PIKA_ORIGIN='https://api.dev.pika.art';
 export function pikaAvailable(env){return env.DUBBING_SOUND_ENABLED==='true'&&env.DUBBING_PAID_API_ENABLED==='true'&&!!env.PIKA_API_KEY;}
 export function pikaRequest(cue){
  const music=cue.kind==='bgm',duration=cue.generationSeconds;
+ const historical=music&&cue.musicGenre==='사극';
+ const prompt=historical?cue.prompt.replace(/\b(piano|synthesizer|synth|keyboard|orchestral strings|electronic drums)\b/gi,'traditional Korean instruments'):cue.prompt;
+ const style=historical?'Korean historical drama: restrained gayageum, geomungo, daegeum or haegeum. No piano, synthesizers, electronic instruments, modern drums or Western orchestral string pads. ':'';
  if(!Number.isFinite(duration)||duration<(music?10:1)||duration>(music?300:20))fail(400,'Pika 음향 생성 길이를 확인해주세요.');
  return {model:music?'pika/pika-audio/pika-music':'pika/pika-audio/pika-sfx',body:{
-  prompt:music?`Instrumental underscore matching the requested scene emotion and duration. No vocals, singing, speech or sound effects. ${cue.prompt}`:`${cue.kind==='ambient'?'Environmental ambience only.':'Isolated sound effect; start promptly.'} No music, singing or speech. ${cue.prompt}`,duration,seed:-1,
+  prompt:music?`${style}Instrumental music matching the requested scene emotion, period and duration. No vocals, singing, speech or sound effects. ${prompt}`:`${cue.kind==='ambient'?'Environmental ambience only.':'Isolated sound effect; start promptly.'} No music, singing or speech. ${cue.prompt}`,duration,seed:-1,
   ...(music?{mode:'text_to_music',lyrics:'',rewrite_prompt:false}:{})}};
 }
 export function pikaAudioURL(value){
