@@ -53,7 +53,7 @@ test('both AI writing paths request emotional scene music and concrete event eff
  };
  const env={DUBBING_AI_ENABLED:'true',OPENAI_API_KEY:'mock-only'},opts={...options,minutes:1.5};
  await generateDubbingScript(env,opts,fetcher);await generateDubbingSoundPlan(env,s,opts,fetcher);
- for(const body of requests){assert.match(body.instructions,/실제 사건의 SFX/);assert.match(body.instructions,/슬픈 이별/);assert.match(body.instructions,/빈 배열/);assert.doesNotMatch(body.instructions,/20%와 24초|0~3개만/);}
+ for(const body of requests){assert.match(body.instructions,/대본 작성 단계부터 소리/);assert.match(body.instructions,/그 행동을 장면 설명 또는 연기 지시에 명시/);assert.match(body.instructions,/실제 사건의 SFX/);assert.match(body.instructions,/슬픈 이별/);assert.match(body.instructions,/빈 배열/);assert.match(body.instructions,/자동 감쇠는 BGM에만/);assert.doesNotMatch(body.instructions,/20%와 24초|0~3개만/);}
 });
 test('new sound jobs preserve full scene music and its event effect',async t=>{
  const f=await fixture(t,{DUBBING_ENABLED:'true',DUBBING_SOUND_ENABLED:'true',DUBBING_PAID_API_ENABLED:'true',PIKA_API_KEY:'mock-only',TRANSCODER_TOKEN:'fixture',BUCKET:memoryBucket()});

@@ -104,7 +104,8 @@ def render_background(timeline, assets, folder, download=download_asset, heartbe
     args = ['-f', 'lavfi', '-i', 'anullsrc=r=48000:cl=stereo']
     filters = [f'[0:a]atrim=duration={duration},asetpts=PTS-STARTPTS[base]']
     labels = ['[base]']
-    duck = duck_expression(timeline['lines'])
+    # Only music yields to dialogue. Environmental/event sounds already have
+    # their own cue gain; applying a second 0.3 gain made rain nearly inaudible.
     music_duck = duck_expression(timeline['lines'], .55)
     for index, cue in enumerate(sounds, 1):
         heartbeat()
@@ -143,8 +144,8 @@ def render_background(timeline, assets, folder, download=download_asset, heartbe
         if fade_out:
             chain += f',afade=t=out:st={seconds-fade_out}:d={fade_out}'
         chain += f',volume={volume},adelay={round(start*1000)}:all=1,asetnsamples=n=480:p=0'
-        if cue['kind'] in ('bgm', 'ambient'):
-            chain += f",volume='{music_duck if cue['kind'] == 'bgm' else duck}':eval=frame"
+        if cue['kind'] == 'bgm':
+            chain += f",volume='{music_duck}':eval=frame"
         chain += f'[s{index}]'
         filters.append(chain)
         labels.append(f'[s{index}]')

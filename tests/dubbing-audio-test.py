@@ -134,7 +134,7 @@ console.log(JSON.stringify(dubbingSoundTimeline(s)));
             self.assertEqual(meta['sampleRate'], 48000)
             self.assertLess(meta['peakDb'], -100)
 
-    def test_download_decode_trim_fade_duck_and_final_peak(self):
+    def test_download_decode_trim_fade_and_ambient_gain_stays_audible(self):
         with tempfile.TemporaryDirectory() as folder:
             root = pathlib.Path(folder)
             source = root / 'synthetic.wav'
@@ -148,13 +148,28 @@ console.log(JSON.stringify(dubbingSoundTimeline(s)));
             self.assertLess(meta['peakDb'], -1)
             self.assertLess(rms(decoded, .2, .6), 1)
             self.assertGreater(rms(decoded, 1.4, 1.7), 50)
-            self.assertLess(rms(decoded, 2.3, 2.7), rms(decoded, 1.4, 1.7) * .5)
-            self.assertGreater(rms(decoded, 3.5, 3.8), rms(decoded, 2.3, 2.7) * 2)
+            self.assertAlmostEqual(rms(decoded, 2.3, 2.7) / rms(decoded, 1.4, 1.7), 1, delta=.1)
+            self.assertAlmostEqual(rms(decoded, 3.5, 3.8) / rms(decoded, 2.3, 2.7), 1, delta=.1)
             self.assertLess(rms(decoded, 5.3, 5.8), 1)
             proof = pathlib.Path(__file__).parents[1] / 'outputs/dubbing-stage2'
             proof.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(output, proof / 'synthetic-mix-validation.m4a')
             (proof / 'audio-validation.json').write_text(json.dumps({'source': 'synthetic local sine, not Pika', **meta}, indent=2))
+
+    def test_only_bgm_is_attenuated_during_dialogue(self):
+        for kind, expected_ratio in [('bgm', .55), ('ambient', 1), ('sfx', 1)]:
+            with tempfile.TemporaryDirectory() as folder:
+                root = pathlib.Path(folder)
+                source = root / 'provider-fixture.wav'
+                sine(source, 10)
+                timeline = {'duration': 6, 'lines': [{'start': 2, 'end': 3}], 'sounds': [{
+                    'id': kind, 'kind': kind, 'generationSeconds': 10, 'durationSeconds': 4,
+                    'start': 1, 'volume': .3, 'fadeInSeconds': .1, 'fadeOutSeconds': .1}]}
+                dubbing.render_background(timeline, [{'cueId': kind, 'url': 'fixture'}], root,
+                    download=lambda url, dest: shutil.copyfile(source, dest))
+                decoded = root / 'verify.wav'
+                actual = rms(decoded, 2.3, 2.7) / rms(decoded, 1.4, 1.7)
+                self.assertAlmostEqual(actual, expected_ratio, delta=.08, msg=kind)
 
     def test_remote_host_and_timeline_validation(self):
         for url in ['http://cdn.pika.art/a', 'https://127.0.0.1/a', 'https://cdn.pika.art.evil.test/a']:
