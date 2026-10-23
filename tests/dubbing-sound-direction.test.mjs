@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {fixture} from './fixture.mjs';
 import {sampleScript,options,memoryBucket} from './dubbing-fixtures.mjs';
 import {dubbingTimeline,dubbingSoundTimeline,validateDubbingScript} from '../shared/dubbing.js';
-import {generateDubbingScript,generateDubbingSoundPlan} from '../server/dubbing-ai.js';
+import {generateDubbingScript,generateDubbingSoundPlan,dubbingReactionCues} from '../server/dubbing-ai.js';
 import {pikaRequest} from '../server/dubbing-pika.js';
 
 function drama(){
@@ -13,6 +13,15 @@ function drama(){
  return s;
 }
 function music(s,id,use,line=0){return {...s.soundCues[0],id,kind:'bgm',musicUse:use,lineId:s.lines[line].id,anchor:line?'start':'scene',durationSeconds:20,generationSeconds:20,volume:.45,fadeInSeconds:1,fadeOutSeconds:1};}
+
+test('new footsteps and knock reactions start only after their effects finish without moving dialogue',()=>{
+ const s=drama();s.lines[3].text='잠깐. 발소리 들려요?';s.soundCues[0].offsetSeconds=1;
+ const old=structuredClone(s),result=dubbingReactionCues(s),clock=dubbingTimeline(result);
+ assert.equal(clock.sounds[0].end,clock.lines[3].start);assert.deepEqual(result.lines,s.lines);assert.deepEqual(s,old);
+ s.soundCues[0].anchor='after';assert.equal(dubbingReactionCues(s).soundCues[0].anchor,'after','ending effects remain after speech');
+ s.lines[0].text='발소리가 들려요?';Object.assign(s.soundCues[0],{lineId:s.lines[0].id,anchor:'scene',durationSeconds:4,generationSeconds:4});
+ const opening=dubbingTimeline(dubbingReactionCues(s));assert.equal(opening.sounds[0].end,opening.lines[0].start,'opening effects finish before first speech too');
+});
 
 test('new opening ends at first speech, one short climax remains and effects keep their clock',()=>{
  const s=drama();s.soundCues.push(music(s,'intro','intro'),music(s,'repeat_intro','intro'),music(s,'climax','climax',5),music(s,'repeat_climax','climax',6),music(s,'filler','outro',7));

@@ -8,7 +8,7 @@ import {sampleScript,options} from './dubbing-fixtures.mjs';
 import {dubbingTimeline} from '../shared/dubbing.js';
 const port=Number(process.env.PREVIEW_PORT||4186);
 const cleanups=[],objects=new Map(),localBucket={async put(k,v){objects.set(k,v);},async get(k){return objects.has(k)?{body:objects.get(k)}:null;},async head(k){return objects.has(k)?{size:objects.get(k).length||1}:null;},async delete(k){objects.delete(k);}},
- featureEnv={DUBBING_ENABLED:'true',DUBBING_SOUND_ENABLED:'true',DUBBING_RECORDING_ENABLED:'true',BUCKET:localBucket},f=await fixture({after(fn){cleanups.push(fn);}},featureEnv);
+ featureEnv={DUBBING_ENABLED:'true',DUBBING_SOUND_ENABLED:'true',DUBBING_RECORDING_ENABLED:'true',...(process.env.DUBBING_QA==='1'?{TRANSCODER_TOKEN:'local-preview-only'}:{}),BUCKET:localBucket},f=await fixture({after(fn){cleanups.push(fn);}},featureEnv);
 const ocean=await readFile('dist/assets/ocean.png'),nova=await readFile('dist/assets/nova.png');
 const wav=new Uint8Array(44+44100*2*45),view=new DataView(wav.buffer);
 wav.set(new TextEncoder().encode('RIFF'));view.setUint32(4,wav.length-8,true);wav.set(new TextEncoder().encode('WAVEfmt '),8);view.setUint32(16,16,true);view.setUint16(20,1,true);view.setUint16(22,1,true);view.setUint32(24,44100,true);view.setUint32(28,88200,true);view.setUint16(32,2,true);view.setUint16(34,16,true);wav.set(new TextEncoder().encode('data'),36);view.setUint32(40,wav.length-44,true);
@@ -53,6 +53,10 @@ objects.set('stream/preview-complete-duet.m4a',wav);objects.set('preview/preview
 const dubTitles=['마지막 우산','별 너머의 목소리','밤의 도서관','아직 못다 한 이야기'];
 for(let i=0;i<4;i++){
  const pid='20000000-0000-4000-8000-'+String(i+1).padStart(12,'0'),script=sampleScript();script.title=dubTitles[i];
+ if(i===0&&process.env.DUBBING_QA==='1'){
+  script.lines=Array.from({length:4},(_,n)=>({...script.lines[n%2],id:'qa_line_'+n,order:n+1,durationSeconds:3,gapSeconds:2}));
+  script.lines[2].text='잠깐. 발소리 들려요?';script.soundCues=[{...script.soundCues[0],kind:'sfx',id:'qa_steps',lineId:script.lines[2].id,anchor:'before',durationSeconds:2,generationSeconds:2,fadeInSeconds:0,fadeOutSeconds:.1}];
+ }
  const who=i===3?'owner':'other',made=await f.call('/api/dubbing/projects','POST',{id:pid,options,script},who);if(made.status!==201)throw Error(JSON.stringify(made));
  if(i!==3)await f.call('/api/dubbing/projects/'+pid+'/publish','POST',{revision:1,rightsAccepted:true},who);
  const sk=f.sql.prepare('SELECT script_key FROM dubbing_projects WHERE id=?').get(pid).script_key;

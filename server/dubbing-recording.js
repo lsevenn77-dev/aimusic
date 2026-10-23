@@ -22,7 +22,8 @@ export async function dubbingRecordingStatus(env,p,user){
   final:final?{state:allSubmitted?final.state:'invalidated',error:final.error,audioUrl:allSubmitted&&!blocked&&final.state==='ready'?`/api/dubbing/projects/${p.id}/final`:null}:null};
 }
 async function recordingView(env,p,user){
- const script=JSON.parse(p.script_json),timeline=dubbingRecordingWindows(script);
+ const script=JSON.parse(p.script_json),bg=await one(env,"SELECT timeline_json FROM dubbing_sound_jobs WHERE project_id=? AND script_key=? AND state='ready'",p.id,p.script_key);
+ const timeline=dubbingRecordingWindows(script,bg?JSON.parse(bg.timeline_json):null);
  const takes=await rows(env,`SELECT r.role_id,r.user_id,r.state,l.line_id,l.duration,l.take_id FROM dubbing_recordings r JOIN dubbing_recording_lines l ON l.recording_id=r.id JOIN users u ON u.id=r.user_id
   WHERE r.project_id=? AND u.provider!='deleted' AND (r.user_id=? OR r.state='submitted')`,p.id,user.id);
  const visible=takes.filter(t=>!env.AIFECT_BLOCKED?.includes(t.user_id));

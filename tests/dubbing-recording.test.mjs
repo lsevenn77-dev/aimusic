@@ -34,6 +34,15 @@ test('recording windows preserve the script clock and PCM duration cannot cross 
  const bad=wav();bad[22]=2;assert.throws(()=>validateDubbingTake(bad,2),/모노 PCM/);
  assert.throws(()=>validateDubbingTake(new Uint8Array(200),1),/크기/);
 });
+
+test('recording lead-in follows the generated effect timeline instead of obsolete script cues',()=>{
+ const script=sampleScript(),clock=dubbingTimeline(script),line=clock.lines[1];
+ const soundTimeline={...clock,sounds:[{id:'footsteps',kind:'sfx',lineId:line.id,start:line.start-4,end:line.start}]};
+ const window=dubbingRecordingWindows(script,soundTimeline).lines[1];
+ assert.equal(window.cueStart,line.start-4);assert.equal(window.start,line.start);assert.equal(window.end,line.end);
+ const wrong={...soundTimeline,lines:soundTimeline.lines.map(l=>({...l,start:l.start+1}))};
+ assert.equal(dubbingRecordingWindows(script,wrong).lines[1].cueStart,line.start);
+});
 test('first recording requires a ready background and freezes editing without blocking later casting',async t=>{
  const f=await setup(t);
  assert.equal((await f.call(f.path+'/recording/role_1/start','POST',{soundId:'other'})).status,409);

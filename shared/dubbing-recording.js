@@ -1,8 +1,13 @@
 import {dubbingTimeline} from './dubbing.js';
 export const DUBBING_RECORD_RATE=48000;
-export function dubbingRecordingWindows(script){
+export function dubbingRecordingWindows(script,soundTimeline=null){
  const timeline=dubbingTimeline(script);
- return {...timeline,lines:timeline.lines.map((line,i)=>({...line,recordEnd:Math.min(timeline.lines[i+1]?.start??timeline.duration,line.end+Math.min(1,script.lines[i].gapSeconds-.1))}))};
+ const matches=soundTimeline?.lines?.length===timeline.lines.length&&timeline.lines.every((l,i)=>soundTimeline.lines[i].id===l.id&&Math.abs(soundTimeline.lines[i].start-l.start)<.01);
+ const sounds=matches?soundTimeline.sounds:timeline.sounds;
+ return {...timeline,lines:timeline.lines.map((line,i)=>{
+  const cues=sounds.filter(c=>c.kind==='sfx'&&c.end<=line.start+.01&&(c.lineId===line.id||c.end>(timeline.lines[i-1]?.end??0)));
+  return {...line,cueStart:Math.min(line.start,...cues.map(c=>c.start)),recordEnd:Math.min(timeline.lines[i+1]?.start??timeline.duration,line.end+Math.min(1,script.lines[i].gapSeconds-.1))};
+ })};
 }
 // Accept a bounded canonical mono PCM file, not metadata supplied by a browser.
 export function validateDubbingTake(bytes,maxDuration){

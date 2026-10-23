@@ -40,6 +40,18 @@ Pika prompt는 명확한 영어로 최대 500자. BGM은 장면의 감정·악�
 오디오를 이미 생성했다고 말하지 마세요. 출력은 지정된 JSON 스키마만 따르세요.`;
 
 export function dubbingAIAvailable(env){return env.DUBBING_AI_ENABLED==='true'&&!!(env.OPENAI_API_KEY||env.LLM_API_KEY);}
+// A reaction must follow its audible cause. Apply only to newly generated plans;
+// existing audio and submitted recording clocks remain untouched.
+export function dubbingReactionCues(script){
+ const clock=dubbingTimeline({...script,soundCues:[]});
+ return {...script,soundCues:script.soundCues.map(c=>{
+  const text=script.lines.find(l=>l.id===c.lineId)?.text||'';
+  const reaction=/(소리|발소리|노크|종소리|울림|소음).{0,20}(들려|들리|들었|들렸|났|난 거|났던|였죠)|두드렸|울렸/.test(text);
+  if(c.kind!=='sfx'||!reaction||!['scene','start','before'].includes(c.anchor))return c;
+  const durationSeconds=Math.min(c.durationSeconds,clock.lines.find(l=>l.id===c.lineId)?.start??c.durationSeconds);
+  return {...c,anchor:'before',offsetSeconds:0,durationSeconds,generationSeconds:Math.max(1,Math.ceil(durationSeconds)),fadeInSeconds:Math.min(c.fadeInSeconds,durationSeconds/2),fadeOutSeconds:Math.min(c.fadeOutSeconds,durationSeconds/2)};
+ })};
+}
 export async function generateDubbingSoundPlan(env,script,options,fetcher=fetch){
  if(!dubbingAIAvailable(env))fail(503,'AI 음향 연출 설정이 필요합니다.');
  const clock=dubbingTimeline(script);
@@ -55,7 +67,7 @@ export async function generateDubbingSoundPlan(env,script,options,fetcher=fetch)
  try{
   if(data.status!=='completed')throw new Error();
   const raw=JSON.parse((data.output||[]).filter(o=>o.type==='message').flatMap(o=>o.content||[]).filter(c=>c.type==='output_text').map(c=>c.text).join(''));
-  const result=validateDubbingScript({...script,soundCues:raw.soundCues},options);
+  const result=validateDubbingScript(dubbingReactionCues({...script,soundCues:raw.soundCues}),options);
   // New cues cannot lengthen the existing recording clock.
   if(dubbingTimeline(result).duration>clock.duration){planFailureCode='clock_extended';throw new Error();}
   return {script:result,usage,providerRequestId:data.id||''};
@@ -101,7 +113,7 @@ function readDubbingResponse(data,options){
  const contents=(data.output||[]).filter(o=>o.type==='message').flatMap(o=>o.content||[]);
  if(contents.some(c=>c.type==='refusal'))reject('이 설정으로 대본을 만들 수 없습니다. 이야기 설정을 바꿔주세요.',422);
  let script;
- try{script=validateDubbingScript(normalizeGeneratedDubbingScript(validateDubbingScript(JSON.parse(contents.filter(c=>c.type==='output_text').map(c=>c.text).join('')),options)),options);}
+ try{script=validateDubbingScript(dubbingReactionCues(normalizeGeneratedDubbingScript(validateDubbingScript(JSON.parse(contents.filter(c=>c.type==='output_text').map(c=>c.text).join('')),options))),options);}
  catch{reject('AI 대본 형식 검증에 실패했습니다. 자동 재요청하지 않았습니다.');}
  const duration=dubbingTimeline(script).duration;
  if(duration<options.minutes*60*0.5)reject('생성된 대본이 선택한 길이보다 너무 짧습니다. 자동 재요청하지 않았습니다.');
