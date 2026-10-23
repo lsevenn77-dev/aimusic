@@ -1,6 +1,7 @@
 {
   "project_id": "appgprj_6aa56aec3434819186f9a42d9a557520",
   "production_url": "https://aifect.co.kr",
+  "mcp_url": "https://wavv-music-design-lseve.sassy-auk-0975.chatgpt.site/mcp",
   "d1": "DB",
   "r2": "BUCKET",
   "production_approval_required": true,

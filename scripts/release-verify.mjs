@@ -7,7 +7,11 @@ const home=await fetch(policy.production_url+'/',{headers:{'cache-control':'no-c
 if(!home.ok||new URL(home.url).origin!==policy.production_url)throw new Error('Production URL failed');
 if(!(await home.text()).includes(expected))throw new Error('Production is not serving the prepared client asset');
 const asset=await fetch(policy.production_url+'/'+expected,{signal:AbortSignal.timeout(15000)});if(!asset.ok)throw new Error('Published client asset failed');
-const denied=await fetch(policy.production_url+'/mcp',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/list'}),signal:AbortSignal.timeout(15000)});
-if(denied.status!==401||JSON.stringify(await denied.json()).includes('inputSchema'))throw new Error('Anonymous MCP access is not denied correctly');
+// Sites serves authenticated MCP on the connection URL returned by get_site.
+// Its ingress may reject anonymous requests with plain text before the Worker runs.
+const mcpUrl=new URL(policy.mcp_url||'/mcp',policy.production_url);
+if(mcpUrl.protocol!=='https:'||mcpUrl.pathname!=='/mcp')throw new Error('Invalid verified MCP connection URL');
+const denied=await fetch(mcpUrl,{method:'POST',redirect:'error',headers:{'content-type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/list'}),signal:AbortSignal.timeout(15000)});
+if(denied.status!==401||(await denied.text()).includes('inputSchema'))throw new Error('Anonymous MCP access is not denied correctly');
 console.log('Verified production URL, client asset and anonymous MCP denial.');
 console.log('Also verify deployment ID/version using official Sites status, then authenticated discovery/read-only tools using the installed plugin. No production mutations were performed.');
