@@ -4,8 +4,22 @@ import {requireUser} from './auth.js';
 import {publicNameSQL,producerNameSQL} from './identity.js';
 import {storeImage} from './images.js';
 import {nickname,nicknameBatch,requireAvailableNickname} from './nicknames.js';
+import {assertUnblocked} from './account-safety.js';
 
 export async function profileRoute(req,env,path,user){
+ const preview=path.match(/^\/api\/producers\/([\w-]+)\/preview$/);
+ if(preview){
+  if(req.method!=='GET')fail(405,'지원하지 않는 요청입니다.');
+  const profile=await one(env,`SELECT p.id,p.user_id,${producerNameSQL()} name,p.bio,p.image_version FROM producers p WHERE p.id=?`,preview[1]);
+  if(!profile)fail(404,'프로필을 찾을 수 없습니다.');
+  assertUnblocked(env,profile.user_id);
+  const [counts,crew,following]=await Promise.all([
+   one(env,"SELECT (SELECT count(*) FROM follows WHERE kind='producer' AND target_id=?) followers,(SELECT count(*) FROM follows WHERE user_id=?) following",profile.id,profile.user_id),
+   one(env,'SELECT c.id,c.name,c.image_version FROM crew_members cm JOIN crews c ON c.id=cm.crew_id WHERE cm.user_id=? ORDER BY cm.joined,c.id LIMIT 1',profile.user_id),
+   user?one(env,"SELECT 1 found FROM follows WHERE user_id=? AND kind='producer' AND target_id=?",user.id,profile.id):null
+  ]);
+  return json({profile,followers:counts.followers,following_count:counts.following,following:!!following,crew});
+ }
  const follower=path.match(/^\/api\/followers\/([\w-]+)$/);
  if(follower){
   requireUser(user);if(req.method!=='GET')fail(405,'지원하지 않는 요청입니다.');

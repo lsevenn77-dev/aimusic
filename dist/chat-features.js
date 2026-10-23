@@ -27,7 +27,7 @@ document.addEventListener('click',async e=>{
  if(!uid||!target)return;
  if(!confirm(b.dataset.blockName+'님을 '+(blocking?'차단할까요?\n서로 메시지를 보낼 수 없고 상대의 콘텐츠가 숨겨져요. 차단 관리에서 해제할 수 있어요.':'차단 해제할까요?')))return;
  b.disabled=true;
- try{await api('/api/blocks/'+encodeURIComponent(target),blocking?'PUT':'DELETE');if(uid!==me?.id)return;socialCleanup?.();await render();void refreshMessageBadge();toast(blocking?'상대방을 차단했어요.':'차단을 해제했어요.');}
+ try{await api('/api/blocks/'+encodeURIComponent(target),blocking?'PUT':'DELETE');if(uid!==me?.id)return;if(b.closest('.profile-preview'))closeProfilePreview();socialCleanup?.();await render();void refreshMessageBadge();toast(blocking?'상대방을 차단했어요.':'차단을 해제했어요.');}
  catch(err){if(uid===me?.id)toast(err.message);}finally{if(b.isConnected)b.disabled=false;}
 });
 async function refreshMessageBadge(){
