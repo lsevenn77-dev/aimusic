@@ -1,3 +1,6 @@
+import {syncCrewGrowth,crewGrowthView,crewCapacitySQL} from './crew-growth.js';
+import {CREW_ROLE_LIMITS,CREW_ROLE_ALIAS,crewSettings,assertCrewLevel,auditCrew} from './crew-v3.js';
+import {dubbingVisibleSQL} from './dubbing-access.js';
 import {playerColumnsSQL} from './player.js';
 import {assertUnblocked} from './account-safety.js';
 import {one,rows,query,run,now,id,str,fail,json,rate,rateQuery} from './db.js';
@@ -14,18 +17,11 @@ const xpSQL="COALESCE((SELECT sum(x.amount) FROM crew_xp x WHERE x.crew_id=c.id)
 const crewSelect=`SELECT c.*,${xpSQL} xp,(SELECT count(*) FROM crew_members m WHERE m.crew_id=c.id) members FROM crews c`;
 const CREW_RENAME_INTERVAL=30*86400;
 const nameChangeAvailableAt=c=>c.name_changed_at?c.name_changed_at+CREW_RENAME_INTERVAL:0;
-const present=c=>({...c,...crewLevel(c.xp),xp:c.xp,name_change_available_at:nameChangeAvailableAt(c),can_rename:now()>=nameChangeAvailableAt(c)});
+const present=c=>({...c,...crewLevel(c.xp,c.highest_level),capacity:Math.min(c.member_limit||150,crewLevel(c.xp,c.highest_level).capacity),xp:c.xp,name_change_available_at:nameChangeAvailableAt(c),can_rename:now()>=nameChangeAvailableAt(c)});
 const requestId=b=>{if(typeof b.request_id!=='string'||!/^[\w-]{16,64}$/.test(b.request_id))fail(400,'전송 요청을 다시 시작해주세요.');return b.request_id;};
 async function member(env,crewId,user){requireUser(user);const m=await one(env,'SELECT m.*,c.name crew_name,c.image_version crew_image_version FROM crew_members m JOIN crews c ON c.id=m.crew_id WHERE m.crew_id=? AND m.user_id=?',crewId,user.id);if(!m)fail(403,'크루에 가입한 멤버만 이용할 수 있어요.');return m;}
-function crewXpQueries(env,crewId){
- // One published track can reward only one crew, after its author joined. Re-joining never farms XP.
- const tracks=query(env,`INSERT OR IGNORE INTO crew_xp(id,crew_id,user_id,amount,created) SELECT 'track:'||t.id,m.crew_id,t.user_id,?,? FROM tracks t JOIN crew_members m ON m.user_id=t.user_id WHERE m.crew_id=? AND t.created>=m.joined AND ${VISIBLE()}`,CREW_REWARDS.publishedTrack,now(),crewId);
- // A cover's performer receives the gift; original gifts belong to their creator.
- // One gift rewards one crew once, so moving crews cannot re-award it.
- const gifts=query(env,`INSERT OR IGNORE INTO crew_xp(id,crew_id,user_id,amount,created) SELECT 'gift:'||g.id,m.crew_id,p.user_id,g.gold*?,? FROM gifts g JOIN producers p ON p.id=COALESCE(g.singer_profile_id,g.creator_profile_id) JOIN crew_members m ON m.user_id=p.user_id WHERE m.crew_id=? AND g.created>=m.joined`,CREW_REWARDS.receivedGold,now(),crewId);
- return [tracks,gifts];
-}
-async function syncXp(env,crewId){await env.DB.batch(crewXpQueries(env,crewId));}
+function crewXpQueries(env,crewId){return [query(env,'SELECT 1'),query(env,'SELECT 1')];}
+async function syncXp(env,crewId){await syncCrewGrowth(env,crewId);}
 function crewNotice(env,cid,userId,body){return query(env,"INSERT INTO crew_messages(id,crew_id,user_id,body,request_id,created,kind) VALUES(?,?,?,?,?,?,'system')",id(),cid,userId,body,'system:'+id(),now());}
 async function memberName(env,userId){return (await one(env,`SELECT ${producerNameSQL()} name FROM producers p WHERE p.user_id=?`,userId))?.name||'크루원';}
 async function ensureSocialProfile(env,user){
@@ -43,6 +39,7 @@ async function crewHistory(env,cid,url,membership){
  return json({messages,has_more,membership,member_roles,roles:CREW_ROLES,crew:{id:cid,name:membership.crew_name,image_version:membership.crew_image_version}});
 }
 async function crewDetail(env,cid,user){
+ await syncCrewGrowth(env,cid);
  // One DB round trip: synchronize XP, then read a consistent, live snapshot.
  // Do not cache membership, bans, or viewer-filtered music between requests.
  const result=await env.DB.batch([
@@ -50,11 +47,12 @@ async function crewDetail(env,cid,user){
  query(env,`${crewSelect} WHERE c.id=?`,cid),
  query(env,'SELECT role,joined,joined_sequence,muted FROM crew_members WHERE crew_id=? AND user_id=?',cid,user?.id||''),
  query(env,`SELECT p.id,p.user_id,${playerColumnsSQL('p.user_id')},${producerNameSQL()} name,p.image_version,m.role FROM crew_members m JOIN producers p ON p.user_id=m.user_id WHERE m.crew_id=? ORDER BY (m.role='owner') DESC,m.joined LIMIT 150`,cid),
- trackListQuery(env,`${VISIBLE()} AND t.user_id IN (SELECT user_id FROM crew_members WHERE crew_id=?)`,[cid],'t.created DESC',60),
- query(env,'SELECT 1 FROM crew_bans WHERE crew_id=? AND user_id=?',cid,user?.id||'')]);
+ trackListQuery(env,`${VISIBLE()} AND t.kind='cover' AND (t.cover_mode='solo' OR t.duet_parent_id IS NOT NULL) AND (t.user_id IN (SELECT user_id FROM crew_members WHERE crew_id=?) OR EXISTS(SELECT 1 FROM tracks parent JOIN crew_members cm ON cm.user_id=parent.user_id WHERE parent.id=t.duet_parent_id AND cm.crew_id=?))`,[cid,cid],'t.created DESC',60),
+ query(env,'SELECT 1 FROM crew_bans WHERE crew_id=? AND user_id=?',cid,user?.id||''),query(env,`SELECT p.id,p.title,p.updated FROM dubbing_projects p JOIN users du ON du.id=p.owner_id WHERE du.provider!='deleted' AND p.visibility='public' AND p.state='complete' AND ${dubbingVisibleSQL()} AND EXISTS(SELECT 1 FROM dubbing_final_jobs f WHERE f.project_id=p.id AND f.state='ready') AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=? AND b.blocked_id=p.owner_id) OR (b.blocked_id=? AND b.user_id=p.owner_id)) AND (p.owner_id IN (SELECT user_id FROM crew_members WHERE crew_id=?) OR EXISTS(SELECT 1 FROM dubbing_role_claims dc JOIN crew_members cm ON cm.user_id=dc.user_id WHERE dc.project_id=p.id AND cm.crew_id=?)) ORDER BY p.updated DESC LIMIT 60`,user?.id||'',user?.id||'',cid,cid)]);
  const c=result[2].results[0],membership=result[3].results[0]||null,members=result[4].results,tracks=result[5].results.map(trackClassification),ban=result[6].results[0];
- if(!c)fail(404,'크루를 찾을 수 없어요.');const banned=!!ban;
- return {crew:present(c),membership,members,tracks,banned,rules:{levels:CREW_LEVELS,...CREW_REWARDS},roles:CREW_ROLES};
+ if(!c)fail(404,'크루를 찾을 수 없어요.');if(c.join_policy==='invite_only'&&!membership)fail(403,'크루 회원만 볼 수 있어요.');const banned=!!ban;
+ const dubbings=result[7].results;
+ return {growth:await crewGrowthView(env,cid),dubbings,crew:present(c),membership:membership?{...membership,canonical_role:CREW_ROLE_ALIAS[membership.role]}:null,members:members.map(m=>({...m,canonical_role:CREW_ROLE_ALIAS[m.role]})),tracks,banned,rules:{levels:CREW_LEVELS,...CREW_REWARDS},roles:CREW_ROLES};
 }
 async function peer(env,pid,user,withSettings=false){requireUser(user);const p=await one(env,`SELECT p.id,p.user_id,${playerColumnsSQL('p.user_id')},${producerNameSQL()} name,p.image_version${withSettings?',COALESCE((SELECT muted FROM dm_settings WHERE user_id=? AND peer_id=p.user_id),0) muted,COALESCE((SELECT cleared_sequence FROM dm_settings WHERE user_id=? AND peer_id=p.user_id),0) cleared_sequence':''} FROM producers p WHERE p.id=?`,...(withSettings?[user.id,user.id,pid]:[pid]));if(!p)fail(404,'프로필을 찾을 수 없어요.');assertUnblocked(env,p.user_id);if(p.user_id===user.id)fail(400,'다른 이용자에게 메시지를 보내주세요.');return p;}
 export async function socialRoute(req,env,path,user){
@@ -78,10 +76,10 @@ export async function socialRoute(req,env,path,user){
   }
   requireUser(user);if(method!=='POST')fail(405,'지원하지 않는 요청입니다.');
   if(await one(env,'SELECT 1 FROM crew_members WHERE user_id=?',user.id))fail(409,'이미 가입한 크루가 있어요.');
-  await rate(env,'crew-create:'+user.id,3,86400);const b=await req.json(),cid=id(),name=str(b.name,40),description=str(b.description||'',1000,false),interests=str(b.interests||'',160,false);
+  await rate(env,'crew-create:'+user.id,3,86400);const b=await req.json(),settings=crewSettings(b),cid=id(),name=str(b.name,40),description=str(b.description||'',1000,false),interests=str(b.interests||'',160,false);
   await ensureSocialProfile(env,user);
   try{await env.DB.batch([
-   query(env,'INSERT INTO crews(id,owner_id,name,description,interests,recruiting,created) VALUES(?,?,?,?,?,?,?)',cid,user.id,name,description,interests,b.recruiting===false?0:1,now()),
+   query(env,'INSERT INTO crews(id,owner_id,name,description,interests,recruiting,created,join_policy,minimum_level,member_limit,notice) VALUES(?,?,?,?,?,?,?,?,?,?,?)',cid,user.id,name,description,interests,b.recruiting===false?0:1,now(),settings.join_policy,settings.minimum_level,settings.member_limit,settings.notice),
    query(env,"INSERT INTO crew_members(crew_id,user_id,role,joined,joined_sequence) VALUES(?,?,'owner',?,COALESCE((SELECT max(rowid) FROM crew_messages WHERE crew_id=?),0)+1)",cid,user.id,now(),cid),
    crewNotice(env,cid,user.id,(await memberName(env,user.id))+'님이 크루를 만들었습니다.')
   ]);}catch(e){if(/UNIQUE/i.test(e.message))fail(409,'크루 이름 또는 가입 상태를 확인해주세요.');throw e;}
@@ -90,15 +88,21 @@ export async function socialRoute(req,env,path,user){
  let m=path.match(/^\/api\/crews\/([\w-]+)\/members\/([\w-]+)$/);
  if(m){
   const cid=m[1],actor=await member(env,cid,user);
-  if(actor.role!=='owner')fail(403,'크루장만 직책을 변경하거나 멤버를 강퇴할 수 있어요.');
+  if(actor.role!=='owner'&&!(method==='DELETE'&&actor.role==='deputy'))fail(403,'크루장만 직책을 변경하고 크루장·부크루장만 강퇴할 수 있어요.');
   const target=await one(env,`SELECT m.*,${producerNameSQL()} name FROM crew_members m JOIN producers p ON p.user_id=m.user_id WHERE m.crew_id=? AND p.id=?`,cid,m[2]);
   if(!target)fail(404,'크루원을 찾을 수 없어요.');
+  if(actor.role==='deputy'&&target.role==='deputy')fail(403,'동급 운영진은 강퇴할 수 없어요.');
   if(target.role==='owner')fail(400,'크루장 본인의 직책을 변경하거나 강퇴할 수 없어요.');
   if(method==='PATCH'){
-   const b=await req.json();if(!['member','deputy','operator','manager'].includes(b.role))fail(400,'직책을 선택해주세요.');
-   if(b.role!==target.role)await env.DB.batch([query(env,'UPDATE crew_members SET role=? WHERE crew_id=? AND user_id=?',b.role,cid,target.user_id),crewNotice(env,cid,user.id,`${target.name}님의 직책이 ${CREW_ROLES[b.role]}(으)로 변경되었습니다.`)]);
+   const b=await req.json();if(b.role==='operator')b.role='manager';if(!['member','deputy','manager'].includes(b.role))fail(400,'직책을 선택해주세요.');
+   if(b.role!==target.role){
+    const cap=CREW_ROLE_LIMITS[b.role]||150;
+    const updated=await one(env,'UPDATE crew_members SET role=? WHERE crew_id=? AND user_id=? AND role=? AND (SELECT count(*) FROM crew_members WHERE crew_id=? AND role=?)<? RETURNING user_id',b.role,cid,target.user_id,target.role,cid,b.role,cap);
+    if(!updated)fail(409,'직책 정원이 가득 찼거나 멤버 정보가 변경됐어요.');
+    await env.DB.batch([crewNotice(env,cid,user.id,`${target.name}님의 직책이 ${CREW_ROLES[b.role]}(으)로 변경되었습니다.`),auditCrew(env,cid,user.id,'role_changed',target.user_id+':'+b.role)]);
+   }
   }else if(method==='DELETE'){
-   await env.DB.batch([query(env,'INSERT OR IGNORE INTO crew_bans(crew_id,user_id,created) VALUES(?,?,?)',cid,target.user_id,now()),query(env,'DELETE FROM crew_members WHERE crew_id=? AND user_id=?',cid,target.user_id),crewNotice(env,cid,user.id,`${target.name}님이 크루에서 내보내졌습니다.`)]);
+   await env.DB.batch([query(env,'INSERT OR IGNORE INTO crew_bans(crew_id,user_id,created) VALUES(?,?,?)',cid,target.user_id,now()),query(env,'DELETE FROM crew_members WHERE crew_id=? AND user_id=?',cid,target.user_id),auditCrew(env,cid,user.id,'member_removed',target.user_id),crewNotice(env,cid,user.id,`${target.name}님이 크루에서 내보내졌습니다.`)]);
   }else fail(405,'지원하지 않는 요청입니다.');
   return json(await crewDetail(env,cid,user));
  }
@@ -112,9 +116,15 @@ export async function socialRoute(req,env,path,user){
   if(action==='join'&&method==='POST'){
    if(await one(env,'SELECT 1 FROM crew_bans WHERE crew_id=? AND user_id=?',cid,user.id))fail(403,'이 크루에 다시 가입할 수 없어요.');
    if(await one(env,'SELECT 1 FROM crew_members WHERE crew_id=? AND user_id=?',cid,user.id))return json(await crewDetail(env,cid,user));
-   await ensureSocialProfile(env,user);
+   await ensureSocialProfile(env,user);await assertCrewLevel(env,c,user.id);
+   if(await one(env,'SELECT 1 FROM crew_members WHERE user_id=?',user.id))fail(409,'한 번에 하나의 크루에 가입할 수 있어요.');
+   if(c.join_policy==='invite_only'&&!await one(env,'SELECT 1 FROM direct_messages WHERE recipient_id=? AND crew_invite_id=?',user.id,cid))fail(403,'초대받은 회원만 가입할 수 있어요.');
+   if(c.join_policy==='approval'){
+    await run(env,"INSERT INTO crew_applications(crew_id,user_id,state,created) VALUES(?,?,'pending',?) ON CONFLICT(crew_id,user_id) DO UPDATE SET state='pending',created=excluded.created WHERE crew_applications.state='rejected'",cid,user.id,now());
+    return json({pending:true,message:'가입 신청을 보냈어요.'},202);
+   }
    await syncXp(env,cid);
-   const capacity=`CASE ${[...CREW_LEVELS].reverse().map(l=>`WHEN ${xpSQL}>=${l.xp} THEN ${l.capacity}`).join(' ')} END`;
+   const capacity=`min(CASE WHEN c.member_limit>0 THEN c.member_limit ELSE 150 END,${crewCapacitySQL()})`;
    const joiningName=await memberName(env,user.id);
    try{await env.DB.batch([
     // Capture the next sequence atomically: timestamps alone leak earlier messages in the same second.
@@ -126,20 +136,23 @@ export async function socialRoute(req,env,path,user){
   }
   const membership=await member(env,cid,user);
   if(!action&&method==='PATCH'){
-   if(membership.role!=='owner')fail(403,'크루장만 크루 정보를 수정할 수 있어요.');
-   const b=await req.json(),name=b.name===undefined?c.name:str(b.name,40),changed=name!==c.name,t=now();
+   if(!['owner','deputy','manager','operator'].includes(membership.role))fail(403,'크루 운영진만 설정할 수 있어요.');
+   const b=await req.json(),settings=crewSettings(b,c),name=b.name===undefined?c.name:str(b.name,40),changed=name!==c.name,t=now();
+   if(membership.role!=='owner'&&(changed||b.join_policy!==undefined&&b.join_policy!==c.join_policy||b.member_limit!==undefined&&Number(b.member_limit)!==c.member_limit||b.minimum_level!==undefined&&Number(b.minimum_level)!==c.minimum_level))fail(403,'이 설정은 크루장만 변경할 수 있어요.');
    const cooldown=()=>fail(409,`${Math.max(1,Math.ceil((nameChangeAvailableAt(c)-t)/86400))}일 뒤에 수정 가능합니다. 크루 이름은 변경 후 30일에 한 번 수정할 수 있어요.`);
    if(changed&&t<nameChangeAvailableAt(c))cooldown();
-   const details=[str(b.description??c.description,1000,false),str(b.interests??c.interests,160,false),b.recruiting===undefined?c.recruiting:b.recruiting===false?0:1];
+   if(b.version!==undefined&&b.version!==c.version)fail(409,'크루 정보가 변경됐어요. 다시 열어주세요.');
+   const details=[settings.join_policy,settings.minimum_level,settings.member_limit,settings.notice,str(b.description??c.description,1000,false),str(b.interests??c.interests,160,false),b.recruiting===undefined?c.recruiting:b.recruiting===false?0:1];
    try{
     // The cooldown and ownership are checked in the write too, so two requests cannot rename twice.
-    const updated=changed?await one(env,'UPDATE crews SET name=?,name_changed_at=?,description=?,interests=?,recruiting=? WHERE id=? AND owner_id=? AND name=? AND (name_changed_at=0 OR name_changed_at<=?) RETURNING id',name,t,...details,cid,user.id,c.name,t-CREW_RENAME_INTERVAL):await one(env,'UPDATE crews SET description=?,interests=?,recruiting=? WHERE id=? AND owner_id=? RETURNING id',...details,cid,user.id);
+    const updated=changed?await one(env,'UPDATE crews SET name=?,name_changed_at=?,join_policy=?,minimum_level=?,member_limit=?,notice=?,description=?,interests=?,recruiting=?,version=version+1 WHERE id=? AND owner_id=? AND version=? AND name=? AND (name_changed_at=0 OR name_changed_at<=?) RETURNING id',name,t,...details,cid,user.id,c.version,c.name,t-CREW_RENAME_INTERVAL):await one(env,'UPDATE crews SET join_policy=?,minimum_level=?,member_limit=?,notice=?,description=?,interests=?,recruiting=?,version=version+1 WHERE id=? AND owner_id=? AND version=? RETURNING id',...details,cid,c.owner_id,c.version);
     if(!updated)fail(409,'크루 정보가 변경되었어요. 새로고침 후 다시 확인해주세요.');
+    await auditCrew(env,cid,user.id,'settings_changed').run();
    }catch(e){if(/UNIQUE.*crews.name/i.test(e.message))fail(409,'이미 사용 중인 크루 이름이에요. 다른 이름을 입력해주세요.');throw e;}
    return json(await crewDetail(env,cid,user));
   }
   if(action==='leave'&&method==='POST'){
-   // Transfer ownership to the longest-serving member; remove an empty crew, preserving no private chats.
+   if(membership.role==='owner')fail(409,'크루장을 위임한 후 탈퇴해주세요.');
    const next=await one(env,'SELECT user_id FROM crew_members WHERE crew_id=? AND user_id!=? ORDER BY joined,user_id LIMIT 1',cid,user.id);
    const writes=[query(env,'DELETE FROM crew_members WHERE crew_id=? AND user_id=?',cid,user.id)];
    if(next)writes.push(crewNotice(env,cid,user.id,(await memberName(env,user.id))+'님이 크루에서 나갔습니다.'));
@@ -162,7 +175,7 @@ export async function socialRoute(req,env,path,user){
     if(previous&&previous.sequence<membership.joined_sequence)fail(409,'이미 사용된 전송 요청입니다. 새 메시지로 다시 보내주세요.');
     const sent=await env.DB.batch([
      query(env,'INSERT OR IGNORE INTO crew_messages(id,crew_id,user_id,body,request_id,created,author_role,image_id) SELECT ?,?,?,?,?,?,role,? FROM crew_members WHERE crew_id=? AND user_id=?',id(),cid,user.id,body,rid,now(),imageId,cid,user.id),
-     query(env,'INSERT OR IGNORE INTO crew_xp(id,crew_id,user_id,amount,created) SELECT ?,?,?,?,? WHERE EXISTS(SELECT 1 FROM crew_members WHERE crew_id=? AND user_id=?)','chat:'+user.id+':'+giftDay(now()),cid,user.id,CREW_REWARDS.dailyChat,now(),cid,user.id),
+     query(env,'SELECT 1'),
      query(env,`SELECT m.rowid sequence,m.id,m.request_id,m.body,m.created,m.user_id,m.kind,m.image_id,(SELECT expires FROM crew_chat_images WHERE id=m.image_id) image_expires,m.author_role role,p.id profile_id,p.image_version,${playerColumnsSQL('u.id')},${publicNameSQL()} name FROM crew_messages m JOIN users u ON u.id=m.user_id JOIN crew_members viewer ON viewer.crew_id=m.crew_id AND viewer.user_id=? LEFT JOIN producers p ON p.user_id=m.user_id WHERE m.user_id=? AND m.request_id=? AND m.rowid>=viewer.joined_sequence`,user.id,user.id,rid)
     ]);
     const message=sent[2].results[0];
@@ -185,7 +198,7 @@ export async function socialRoute(req,env,path,user){
   await member(env,cid,user);
   const c=await one(env,`${crewSelect} WHERE c.id=?`,cid);
   if(!c)fail(404,'크루를 찾을 수 없어요.');
-  if(!c.recruiting||c.members>=crewLevel(c.xp).capacity)fail(409,'모집 중이며 정원이 남은 크루만 초대할 수 있어요.');
+  if(!c.recruiting||c.members>=present(c).capacity)fail(409,'모집 중이며 정원이 남은 크루만 초대할 수 있어요.');
   if(await one(env,'SELECT 1 FROM crew_members WHERE crew_id=? AND user_id=?',cid,p.user_id))fail(409,'이미 같은 크루의 멤버예요.');
   if(await one(env,'SELECT 1 FROM crew_bans WHERE crew_id=? AND user_id=?',cid,p.user_id))fail(403,'이 크루에 가입할 수 없는 이용자예요.');
   await ensureSocialProfile(env,user);

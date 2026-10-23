@@ -1,5 +1,10 @@
+import {syncCrewGrowth,syncRecentCrewGrowth} from './crew-growth.js';
+import {profileCollectionsRoute} from './profile-collections.js';
+import {crewNoticeRoute} from './crew-notices.js';
 import {relationRoute} from './relations.js';
 import {giftInventoryRoute} from './gift-inventory.js';
+import {crewV3Route} from './crew-v3.js';
+import {communityRankingRoute} from './community-rankings.js';
 import {dubbingAdminRoute} from './dubbing-admin.js';
 import {playRoute} from './play.js';
 import {adminMcpRoute} from './admin-mcp.js';
@@ -25,7 +30,7 @@ import {publicUser} from './identity.js';
 import {coverRankingRoute} from './cover-rankings.js';
 import {commentModerationRoute} from './comment-moderation.js';
 import {trackModerationRoute} from './track-moderation.js';
-import {json,fail,rate,query,now} from './db.js';
+import {json,fail,rate,query,now,one,rows} from './db.js';
 import {viewer,authRoute,hash} from './auth.js';
 import {catalogRoute} from './catalog.js';
 import {mediaRoute,internalRoute} from './media.js';
@@ -64,7 +69,7 @@ export default {async fetch(req,env,ctx){
   if(path==='/internal/billing/tick')return await billingTick(req,env);
   if(path==='/internal/player/backfill')return await playerBackfillRoute(req,env);
   if(path.startsWith('/internal/music-classification/'))return await musicClassificationInternal(req,env,path);
-  if(path.startsWith('/internal/')){const result=await internalRoute(req,env,path);if(result?.ok&&ctx?.waitUntil){if(env.GEMINI_API_KEY&&(path==='/internal/jobs/claim'||path.endsWith('/finish')))ctx.waitUntil(classifyNext(env).catch(()=>console.error('Music classification pending')));if(path.endsWith('/finish'))ctx.waitUntil(dispatchPush(env).catch(()=>console.error('Participation push pending')));}return result;}
+  if(path.startsWith('/internal/')){const result=await internalRoute(req,env,path);if(result?.ok&&ctx?.waitUntil){if(env.GEMINI_API_KEY&&(path==='/internal/jobs/claim'||path.endsWith('/finish')))ctx.waitUntil(classifyNext(env).catch(()=>console.error('Music classification pending')));if(path.endsWith('/finish')){ctx.waitUntil(dispatchPush(env).catch(()=>console.error('Participation push pending')));ctx.waitUntil(syncRecentCrewGrowth(env).catch(()=>console.error('Crew growth pending')));}}return result;}
   const musicResponse=await publicMusicRoute(req,env,path);if(musicResponse)return musicResponse;
   if(['/admin','/admin/','/admin.html'].includes(path))return new Response('페이지를 찾을 수 없습니다.',{status:404,headers:{'content-type':'text/plain; charset=utf-8','cache-control':'no-store'}});
   const publicResponse=publicPageRoute(req,path);if(publicResponse)return publicResponse;
@@ -85,7 +90,7 @@ export default {async fetch(req,env,ctx){
   }
   if(path.startsWith('/api/auth/')&&!path.endsWith('/callback'))await rate(env,'auth-ip:'+await hash(req.headers.get('cf-connecting-ip')||'local'),40,900);
   const maxJson=path==='/api/uploads'||/^\/api\/dubbing\/projects(?:\/[^/]+)?$/.test(path)||/^\/api\/studio\/tracks\/[^/]+(?:\/lyrics\/align)?$/.test(path)?131072:32768;
-  const binary=/^\/api\/dubbing\/projects\/[^/]+\/recording\/[\w-]+\/lines\/[\w-]+$/.test(path)||/^\/api\/playlists\/[\w-]+\/image$/.test(path)||/^\/api\/producers\/[\w-]+\/gallery$/.test(path)||/^\/api\/artists\/[\w-]+\/gallery$/.test(path)||/^\/api\/(dm\/[\w-]+\/images|crews\/[\w-]+\/images?)$/.test(path)||path==='/api/me/profile/image'||/^\/api\/uploads\/[^/]+\/(audio|cover)$/.test(path)||/^\/api\/studio\/(artists|producers|tracks)\/[^/]+\/image$/.test(path)||/^\/api\/studio\/tracks\/[^/]+\/karaoke\/mr$/.test(path);
+  const binary=/^\/api\/crews\/[\w-]+\/notice-images$/.test(path)||/^\/api\/dubbing\/projects\/[^/]+\/recording\/[\w-]+\/lines\/[\w-]+$/.test(path)||/^\/api\/playlists\/[\w-]+\/image$/.test(path)||/^\/api\/producers\/[\w-]+\/gallery$/.test(path)||/^\/api\/artists\/[\w-]+\/gallery$/.test(path)||/^\/api\/(dm\/[\w-]+\/images|crews\/[\w-]+\/images?)$/.test(path)||path==='/api/me/profile/image'||/^\/api\/uploads\/[^/]+\/(audio|cover)$/.test(path)||/^\/api\/studio\/(artists|producers|tracks)\/[^/]+\/image$/.test(path)||/^\/api\/studio\/tracks\/[^/]+\/karaoke\/mr$/.test(path);
   if(!binary&&req.body){
    if(Number(req.headers.get('content-length')||0)>maxJson)fail(413,'요청이 너무 큽니다.');
    const reader=req.body.getReader(),chunks=[];let size=0;
@@ -107,7 +112,7 @@ export default {async fetch(req,env,ctx){
   const voiceResponse=await voiceRoomsRoute(req,env,path,user,ctx);if(voiceResponse)return voiceResponse;
   const dubbingReportAdmin=await dubbingReportsAdminRoute(req,env,path,user);if(dubbingReportAdmin)return dubbingReportAdmin;
   const dubbingAdmin=await dubbingAdminRoute(req,env,path,user);if(dubbingAdmin)return dubbingAdmin;
-  const dubbing=await dubbingRoute(req,env,path,user);if(dubbing)return dubbing;
+  const dubbing=await dubbingRoute(req,env,path,user);if(dubbing){if(dubbing.ok&&['POST','PUT','PATCH'].includes(req.method)&&user&&ctx?.waitUntil)ctx.waitUntil(syncActorCrew(env,user.id).catch(()=>console.error('Crew growth pending')));return dubbing;}
   const correction=await pitchCorrectionRoute(req,env,path,user);if(correction)return correction;
   const safety=await accountSafetyRoute(req,env,path,user);if(safety)return safety;
   const playlistImage=await playlistImageRoute(req,env,path,user);if(playlistImage)return playlistImage;
@@ -128,8 +133,9 @@ export default {async fetch(req,env,ctx){
    query(env,'DELETE FROM oauth_states WHERE expires<?',now()),
    query(env,'DELETE FROM rate_limits WHERE expires<?',now())
   ]).catch(()=>console.error('Expired authentication state cleanup failed')));
-  const result=await relationRoute(req,env,path,user)||await giftInventoryRoute(req,env,path,user)||await playerRoute(req,env,path,user)||await chatFeaturesRoute(req,env,path,user)||await applePaymentRoute(req,env,path,user)||await profileRoute(req,env,path,user)||await socialRoute(req,env,path,user)||await authRoute(req,env,path,user)||await billingRoute(req,env,path,user)||await membershipRoute(req,env,path,user)||await alignmentRoute(req,env,path,user)||await karaokeRoute(req,env,path,user)||await coverRoute(req,env,path,user)||await duetRoute(req,env,path,user)||await goldOrderRoute(req,env,path,user)||await giftRoute(req,env,path,user)||await coverRankingRoute(req,env,path)||await commentModerationRoute(req,env,path,user)||await trackModerationRoute(req,env,path,user)||await diamondRoute(req,env,path,user)||await payoutRoute(req,env,path,user)||await lyricsRoute(req,env,path,user)||await catalogRoute(req,env,path,user)||await mediaRoute(req,env,path,user);
+  const result=await profileCollectionsRoute(req,env,path,user)||await crewNoticeRoute(req,env,path,user)||await relationRoute(req,env,path,user)||await giftInventoryRoute(req,env,path,user)||await playerRoute(req,env,path,user)||await chatFeaturesRoute(req,env,path,user)||await applePaymentRoute(req,env,path,user)||await profileRoute(req,env,path,user)||await crewV3Route(req,env,path,user)||await socialRoute(req,env,path,user)||await authRoute(req,env,path,user)||await billingRoute(req,env,path,user)||await membershipRoute(req,env,path,user)||await alignmentRoute(req,env,path,user)||await karaokeRoute(req,env,path,user)||await coverRoute(req,env,path,user)||await duetRoute(req,env,path,user)||await goldOrderRoute(req,env,path,user)||await giftRoute(req,env,path,user)||await communityRankingRoute(req,env,path)||await coverRankingRoute(req,env,path)||await commentModerationRoute(req,env,path,user)||await trackModerationRoute(req,env,path,user)||await diamondRoute(req,env,path,user)||await payoutRoute(req,env,path,user)||await lyricsRoute(req,env,path,user)||await catalogRoute(req,env,path,user)||await mediaRoute(req,env,path,user);
   if(result){
+   if(result.ok&&['POST','PUT','PATCH'].includes(req.method)&&user&&ctx?.waitUntil&&/^\/api\/(tracks|uploads|studio|covers)/.test(path))ctx.waitUntil(syncActorCrew(env,user.id).catch(()=>console.error('Crew growth pending')));
    if(req.method==='POST'&&result.ok&&(path.startsWith('/api/dm/')||/^\/api\/(tracks|producers)\/[^/]+\/(comments|gifts)$/.test(path)||/^\/api\/me\/gift-inventory\/[\w-]+\/send$/.test(path)))ctx.waitUntil(dispatchPush(env).catch(()=>console.error('Push dispatch failed')));
    if(path.startsWith('/api/auth/')&&result.headers.get('content-type')?.includes('application/json')){
     const body=await result.clone().json();if(body.user){body.user=await publicUser(env,body.user);return new Response(JSON.stringify(body),{status:result.status,headers:result.headers});}
@@ -143,4 +149,6 @@ export default {async fetch(req,env,ctx){
   if(path.includes('/auth/')&&path.endsWith('/callback'))return new Response(null,{status:303,headers:{location:'/#account?error='+encodeURIComponent(message),'cache-control':'no-store'}});
   return json({error:message},status);
  }
-},async scheduled(event,env,ctx){ctx.waitUntil(cleanupChatImages(env));ctx.waitUntil(classifyNext(env));}};
+},async scheduled(event,env,ctx){ctx.waitUntil(cleanupChatImages(env));ctx.waitUntil(classifyNext(env));ctx.waitUntil(syncRecentCrewGrowth(env));}};
+
+async function syncActorCrew(env,uid){const membership=await one(env,'SELECT crew_id FROM crew_members WHERE user_id=?',uid);if(membership)await syncCrewGrowth(env,membership.crew_id);}

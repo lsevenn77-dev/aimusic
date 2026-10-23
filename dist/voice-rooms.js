@@ -15,17 +15,17 @@ async function voiceRequest(path,body,method=body===undefined?'GET':'POST',signa
 }
 async function voiceView(base,id) {
  if(base!=='voice')return null;
- if(!me)return {html:heading('토킹룸','음악으로 만난 사람들과, 목소리로 더 가까이.')+'<a class="primary-button" href="#account">로그인하고 참여하기</a>'};
- if(id)return {html:voiceRoomHTML(id)};
- const status=await voiceRequest('status');
- if(!status.enabled)return {html:heading('토킹룸','음악으로 만난 사람들과, 목소리로 더 가까이.')+'<section class="voice-empty surface"><h2>토킹룸을 준비하고 있어요</h2><p>연결 준비가 끝나면 이곳에서 실시간으로 이야기할 수 있어요.</p><a class="small-button" href="#community">커뮤니티로 돌아가기</a></section>'};
- const data=await voiceRequest('rooms');
- return {html:heading('토킹룸','함께 듣고, 목소리로 이어지는 우리.')+`<section class="voice-lobby"><div class="voice-lobby-top"><span class="voice-live">TALKING ROOM</span><p>최대 30명 · 마이크 8석 · 청취자로 편하게 시작해요</p></div><details class="voice-create"><summary>+ 토킹룸 만들기</summary><form id="voice-create-form"><label>방 이름 <input name="title" maxlength="60" placeholder="오늘 듣고 싶은 음악 이야기" required></label><label>공개 범위 <select name="visibility"><option value="public">공개방</option><option value="private">초대받은 사람만</option><option value="crew">우리 크루만</option><option value="followers">팔로우만</option></select></label><label>크루 <select name="crew_id"><option value="">크루 선택</option>${data.crews.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('')}</select></label><button class="primary-button">토킹룸 만들기</button></form></details><div class="voice-room-grid">${data.rooms.map(r=>`<a class="voice-room-card" href="#voice/${esc(r.id)}"><span>${icon('headphones')}</span><small>${r.visibility==='crew'?'크루 토킹룸':r.visibility==='private'?'비공개 토킹룸':r.visibility==='followers'?'팔로우 토킹룸':'공개 토킹룸'}</small><h2>${esc(r.title)}</h2><p>목소리로 함께하는 시간</p><b>청취자로 입장 ${icon('arrow')}</b></a>`).join('')||'<p class="voice-empty">아직 열린 방이 없어요. 첫 대화를 시작해보세요.</p>'}</div></section>`};
+ if(id){if(!me)return {html:heading('토킹룸')+gate()};return {html:voiceRoomHTML(id)};}
+ const top=heading('커뮤니티','듣고 대화하고, 함께 성장하는 음악 커뮤니티')+communityNavigation('voice');
+ let data={rooms:[],crews:[]},enabled=false;
+ try{const status=await voiceRequest('status');enabled=status.enabled;if(enabled)data=await voiceRequest('public-rooms');}catch(e){return {html:top+'<p role="alert">'+esc(e.message)+'</p>'};}
+ return {html:top+voiceLobbyHTML(data,enabled),voiceLobby:true};
 }
 function cleanupVoiceRoute(base,id) {document.body.classList.toggle('voice-room-open',base==='voice'&&!!id);if(voiceController&&(!me||base!=='voice'||voiceController.id!==id)){const leaving=voiceController.leave();voiceController=null;return leaving;}}
 function bindVoice(base,id) {
- if(base!=='voice')return;
- const create=$('#voice-create-form');if(create){const request_id=crypto.randomUUID();create.onsubmit=busyForm(create,async()=>{const b=Object.fromEntries(new FormData(create));const r=await voiceRequest('rooms',{...b,request_id});location.hash='#voice/'+r.room.id;});}
+ if(base!=='voice'&&!(base==='community'&&!id))return;
+ bindVoiceLobby();
+ const create=$('#voice-create-form');if(create){const request_id=crypto.randomUUID();create.onsubmit=busyForm(create,async()=>{const b=Object.fromEntries(new FormData(create));const r=await voiceRequest('rooms',{...b,max_members:Number(b.max_members),request_id});location.hash='#voice/'+r.room.id;});}
  const host=document.querySelector('[data-voice-room]');if(!host)return;
  if(!voiceController||voiceController.closed||voiceController.id!==id)voiceController=new VoiceRoomClient(id);
  voiceController.bind(host);

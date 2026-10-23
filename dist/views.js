@@ -17,6 +17,7 @@ function saveNavigationSnapshot(raw,html,tracks,explorer,scroll=0){
 function bindRenderedRoute(base,param,explorer,ticket){
  if(typeof bindPlay==='function')bindPlay(explorer);
  if(typeof bindMyPage==='function')bindMyPage(explorer);
+ if(typeof bindCrewIntegrated==='function')void bindCrewIntegrated();
  if(typeof bindProfileManagement==='function')bindProfileManagement(explorer);
  if(typeof bindVoice==='function')bindVoice(explorer?.playVoice?'voice':base,param);
  icons();paintInteractions();bindForms(base,param);bindNotifications(explorer);bindGiftClaims($('#gift-shop-rewards'));bindExplorer(explorer);bindBrowse(explorer);bindImprovements(explorer);
@@ -68,7 +69,7 @@ async function render(){
   if(account!==(me?.id||'guest'))return render();
   const readRevision=apiRevision;
   const profileHeader=base==='library'?libraryProfileHTML().catch(error=>({error})):null;
-  const explorer=(typeof playView==='function'?await playView(base,param,raw):null)||(typeof myPageView==='function'?await myPageView(base,param,raw):null)||(typeof dubbingView==='function'?await dubbingView(base,param,raw):null)||(typeof voiceView==='function'?await voiceView(base,param):null)||await notificationsView(base,raw)||await playerView(base)||await improvementsView(base,param,raw)||await browseView(base,param,raw)||await explorerView(base,param,raw);
+  const explorer=(typeof profileCollectionView==='function'?await profileCollectionView(base,param,raw):null)||(typeof playView==='function'?await playView(base,param,raw):null)||(typeof myPageView==='function'?await myPageView(base,param,raw):null)||(typeof dubbingView==='function'?await dubbingView(base,param,raw):null)||(typeof voiceView==='function'?await voiceView(base,param):null)||await notificationsView(base,raw)||await playerView(base)||await improvementsView(base,param,raw)||await browseView(base,param,raw)||await explorerView(base,param,raw);
   if(explorer){html=explorer.html;nextTracks=remember(explorer.tracks||[]);}
   else if(['discover','charts','artists','producers','search'].includes(base)){
    let query='';const genre=base==='discover'?decodeURIComponent(param||'전체'):'전체',searchValue=base==='search'?decodeURIComponent(param||''):'';

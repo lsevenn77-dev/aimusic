@@ -13,7 +13,7 @@ test('global crew rankings sort level then accumulated XP, including beyond disc
  const r=await f.call('/api/crews','GET',null,null);
  assert.equal(r.status,200);assert.equal(r.body.crews.length,100);
  assert.ok(!r.body.crews.some(c=>c.id==='leader'));
- assert.deepEqual(r.body.rankings.map(c=>[c.id,c.level,c.xp]),[['leader',5,4600],['runner',5,3200],['third',4,1600],['fourth',3,900],['fifth',3,800]]);
+ assert.deepEqual(r.body.rankings.map(c=>[c.id,c.level,c.xp]),[['leader',6,4600],['runner',5,3200],['third',4,1600],['fourth',3,900],['fifth',3,800]]);
  const search=await f.call('/api/crews?q=not-found','GET',null,null);
  assert.equal(search.body.crews.length,0);assert.deepEqual(search.body.rankings,r.body.rankings);
 });

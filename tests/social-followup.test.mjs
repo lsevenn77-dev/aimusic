@@ -22,14 +22,14 @@ test('listeners can create and join a crew using their existing public ID withou
  assert.equal(joined.body.members.find(p=>p.user_id==='owner').name,'QA(Listener crew)');
  assert.equal(f.sql.prepare("SELECT name FROM producers WHERE user_id='owner'").get().name,'QA');
 });
-test('received gold earns one XP per gold once, while earlier gifts and free stars earn none',async t=>{
+test('received gold and free stars never grant growth mission XP',async t=>{
  const f=await setup(t),room='/api/crews/'+f.cid;
  f.sql.exec("INSERT INTO gifts(id,sender_id,track_id,gold,net_mw,creator_profile_id,creator_mw,platform_mw,month,created) VALUES('old','other','one',50,500000,'producer',350000,150000,'2026-09',0),('new','other','one',27,270000,'producer',189000,81000,'2026-09',unixepoch());UPDATE tracks SET created=unixepoch() WHERE id IN ('one','two','hidden')");
- assert.equal((await f.call(room)).body.crew.xp,29);
- assert.equal((await f.call(room)).body.crew.xp,29);
- assert.equal(f.sql.prepare("SELECT count(*) n FROM crew_xp WHERE id='gift:new'").get().n,1);
+ assert.equal((await f.call(room)).body.crew.xp,0);
+ assert.equal((await f.call(room)).body.crew.xp,0);
+ assert.equal(f.sql.prepare("SELECT count(*) n FROM crew_xp WHERE id='gift:new'").get().n,0);
  assert.equal(f.sql.prepare("SELECT count(*) n FROM crew_xp WHERE id='gift:old'").get().n,0);
- await f.call(room+'/join','POST',{},'other');await f.call(room+'/leave','POST');
+ await f.call(room+'/join','POST',{},'other');await f.call(room+'/leadership','POST',{user_id:'other'});await f.call(room+'/leave','POST');
  const newRoom=(await f.call('/api/crews','POST',{name:'New room'})).body.crew;
  assert.equal(newRoom.xp,0,'existing track and gift IDs must not reward a second crew');
 });

@@ -22,13 +22,15 @@ function communityViewHTML(base,param,raw='',data=null){
  return {html:communityLandingHTML(tracks,data,tab,{open,login}),tracks};
 }
 function communityPendingView(base,param,raw=''){
- if(typeof playView==='function'&&base==='community'&&(!param||param==='voice'))return {html:heading('커뮤니티')+communityNavigation('voice')+'<p role="status">토킹룸을 불러오는 중…</p>',tracks:[],cached:false};
+ if(base==='community'&&(!param||param==='voice'))return {html:heading('커뮤니티')+communityNavigation('voice')+'<p role="status">토킹룸을 불러오는 중…</p>',tracks:[],cached:false};
  if(!['community','covers'].includes(base)||param==='crews')return null;
  const {tab,path}=communityRouteOptions(base,param,raw);
  const data=typeof peekApiRead==='function'?peekApiRead(path,{display:true}):null;
  return {...communityViewHTML(base,param,raw,data),cached:!!data&&!(tab==='following'&&!me)};
 }
 async function communityView(base,param,raw=''){
+ if(base==='community'&&!param)return voiceView('voice');
+ if(base==='community'&&param==='rankings')return communityRankingV3(raw);
  const {tab,path}=communityRouteOptions(base,param,raw);
  if(tab==='rankings'||tab==='following'&&!me)return communityViewHTML(base,param,raw);
  return communityViewHTML(base,param,raw,await api(path));

@@ -103,7 +103,7 @@ export async function chatFeaturesRoute(req,env,path,user){
    await run(env,'UPDATE crew_members SET read_sequence=max(read_sequence,min(?,COALESCE((SELECT max(rowid) FROM crew_messages WHERE crew_id=?),0))) WHERE crew_id=? AND user_id=?',sequence,m[1],m[1],user.id);return json({ok:true});
   }
   if(m[2]==='image'&&method==='PUT'){
-   if(member.role!=='owner')fail(403,'크루장만 대표 이미지를 변경할 수 있어요.');
+   if(!['owner','deputy','manager','operator'].includes(member.role))fail(403,'크루 운영진만 사진을 변경할 수 있어요.');
    const old=await one(env,'SELECT image_version FROM crews WHERE id=?',m[1]);const {version}=await storeImage(req,env,'crew',m[1]);await run(env,'UPDATE crews SET image_version=? WHERE id=?',version,m[1]);
    if(old?.image_version)await env.BUCKET.delete(`images/crew/${m[1]}/${old.image_version}`);return json({image_version:version});
   }

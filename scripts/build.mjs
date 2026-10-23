@@ -8,7 +8,7 @@ import {bundleClient} from './client-bundle.mjs';
 await mkdir('dist/server',{recursive:true});
 await mkdir('dist/client',{recursive:true});
 for(const file of ['play-page.js','play-page.css'])await cp('dist/'+file,'dist/client/'+file);
-for(const file of ['profile-preview.js','profile-preview.css','mypage.js','mypage.css','profile-management.js'])await cp('dist/'+file,'dist/client/'+file);
+for(const file of ['image-crop.js','profile-collections.js','crew-integrated.js','integrated.css','profile-preview.js','profile-preview.css','mypage.js','mypage.css','profile-management.js'])await cp('dist/'+file,'dist/client/'+file);
 await cp('dist/voice-room-template.js','dist/client/voice-room-template.js');
 await cp('dist/voice-audio.js','dist/client/voice-audio.js');
 for(const file of ['voice-rooms.js','voice-rooms.css','voice-room-design.css','voice-room-controls.js','voice-diagnostics.js'])await cp('dist/'+file,'dist/client/'+file);
@@ -37,7 +37,7 @@ for(const file of ['admin.css','admin.js'])await cp(`dist/${file}`,`dist/client/
 await mkdir('dist/client/admin',{recursive:true});
 await cp('dist/admin.html','dist/client/admin/dashboard.html');
 await rm('dist/client/admin.html',{force:true});
-for (const file of ['player-queue.css','community.js','community.css','polish.css','browse.js','browse.css','index.html','app.js','media-session.js','icons.js','views.js','studio.js','karaoke.js','lyrics.js','library.js','explorer.js','membership.js','alignment.js','actions.js','style.css','studio.css','lyrics.css','discovery.css','explorer.css','membership.css','alignment.css','policies.css','assets']) await cp(`dist/${file}`,`dist/client/${file}`,{recursive:true});
+for (const file of ['community-v3.js','community-v3.css','player-queue.css','community.js','community.css','polish.css','browse.js','browse.css','index.html','app.js','media-session.js','icons.js','views.js','studio.js','karaoke.js','lyrics.js','library.js','explorer.js','membership.js','alignment.js','actions.js','style.css','studio.css','lyrics.css','discovery.css','explorer.css','membership.css','alignment.css','policies.css','assets']) await cp(`dist/${file}`,`dist/client/${file}`,{recursive:true});
 const indexHTML=await readFile('dist/index.html','utf8');
 if(!indexHTML.includes('<!--BUSINESS_FOOTER-->'))throw new Error('Business footer placeholder is missing');
 await writeFile('dist/client/index.html',indexHTML.replace('<!--BUSINESS_FOOTER-->',businessFooterHTML()));

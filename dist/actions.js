@@ -102,11 +102,11 @@ function deleteTrackDialog(id,title,kind){
  dialog(`<h2>이 곡을 삭제할까요?</h2><p class="delete-track-title">${esc(title)}</p><p>공개 목록과 내 스튜디오에서 삭제되며, 다시 공개할 수 없어요.${kind==='original'?' 이 곡의 노래방과 연결된 커버곡도 다른 이용자가 재생할 수 없게 됩니다.':''}</p><p class="field-help">이미 받은 선물과 정산 내역은 유지돼요.</p><form id="delete-track-form"><div class="inline-actions"><button type="button" class="small-button" data-close-dialog>취소</button><button type="submit" class="primary-button danger-button">곡 삭제</button></div><p class="form-error" role="alert"></p></form>`);
  const form=$('#delete-track-form');form.onsubmit=busyForm(form,async()=>{await uploadRequest('/api/uploads/'+id,'DELETE');if(current?.id===id||current?.original_id===id)closePlayer();queue=queue.filter(tid=>tid!==id&&trackMap.get(tid)?.original_id!==id);trackMap.delete(id);saveQueue();$('#dialog').close();toast('곡이 삭제됐어요.');await refreshLibrary();await render();});
 }
-async function uploadFile(url,file,onprogress=()=>{},imageOptions){file=await optimizeUploadImage(file,imageOptions);invalidateReads();try{return await new Promise((resolve,reject)=>{
+async function uploadFile(url,file,onprogress=()=>{},imageOptions){if(/\/api\/(?:studio\/(?:artists|producers)\/[^/]+\/image|(?:producers|artists)\/[^/]+\/gallery)$/.test(url))file=await cropPhoto(file);file=await optimizeUploadImage(file,imageOptions);invalidateReads();try{return await new Promise((resolve,reject)=>{
  const xhr=new XMLHttpRequest();let idle,stalled=false;const heartbeat=()=>{clearTimeout(idle);idle=setTimeout(()=>{stalled=true;xhr.abort();},120000);};
  xhr.open('PUT',url);xhr.timeout=15*60*1000;xhr.setRequestHeader('Content-Type',file.type||'application/octet-stream');
  xhr.upload.onprogress=e=>{heartbeat();if(e.lengthComputable)onprogress(e.loaded/e.total*100);};xhr.onloadend=()=>clearTimeout(idle);
- xhr.onload=()=>{if(xhr.status>=200&&xhr.status<300)resolve();else{let message='업로드에 실패했어요. 선택한 파일을 유지한 채 다시 시도해주세요.';try{message=JSON.parse(xhr.responseText).error||message;}catch{}reject(new Error(message));}};
+ xhr.onload=()=>{if(xhr.status>=200&&xhr.status<300){let result;try{result=JSON.parse(xhr.responseText);}catch{}resolve(result);}else{let message='업로드에 실패했어요. 선택한 파일을 유지한 채 다시 시도해주세요.';try{message=JSON.parse(xhr.responseText).error||message;}catch{}reject(new Error(message));}};
  xhr.onerror=()=>reject(new Error('연결이 끊어졌어요. 인터넷 연결을 확인하고 다시 업로드해주세요.'));
  xhr.ontimeout=()=>reject(new Error('파일 전송 시간이 초과됐어요. 연결 상태를 확인하고 다시 시도해주세요.'));
  xhr.onabort=()=>reject(new Error(stalled?'파일 전송이 멈췄어요. 선택한 파일은 유지되어 있으니 연결 상태를 확인하고 다시 시도해주세요.':'파일 전송이 취소됐어요.'));

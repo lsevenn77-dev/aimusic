@@ -13,6 +13,9 @@ function context(api=async()=>({tracks:[],singers:[]})){
   api:async path=>{calls.push(path);return api(path);}
  });
  vm.runInContext(source,c);
+ vm.runInContext(readFileSync(new URL('../dist/community-v3.js',import.meta.url),'utf8'),c);
+ vm.runInContext(readFileSync(new URL('../dist/voice-room-template.js',import.meta.url),'utf8'),c);
+ vm.runInContext(readFileSync(new URL('../dist/voice-rooms.js',import.meta.url),'utf8'),c);c.voiceRequest=async()=>({enabled:false});
  vm.runInContext(readFileSync(new URL('../dist/social-layouts.js',import.meta.url),'utf8'),c);
  vm.runInContext(readFileSync(new URL('../dist/release-refinements.js',import.meta.url),'utf8'),c);
  return {c,calls,played,remembered};
@@ -29,14 +32,10 @@ test('cover deep links validate values and preserve Unicode query, genre and ori
  const invalid=c.coverRankOptions('community/rankings?period=no&kind=admin&genre=no&original_id=%3Cscript%3E');
  assert.equal(invalid.period,'today');assert.equal(invalid.kind,'tracks');assert.equal(invalid.genre,'전체');assert.equal(invalid.original_id,'');
 });
-test('community entry renders all four ranking links without blocking on four ranking requests',async()=>{
- const {c,calls}=context(async()=>({tracks:[]}));
- const home=await c.communityView('community',undefined,'community');
- for(const period of ['today','week','month','all'])assert.match(home.html,new RegExp('period='+period));
- assert.equal(home.coverRanking,undefined);assert.match(home.html,/#community\/crews/);
- assert.deepEqual(calls,['/api/community']);
- const rank=await c.communityView('community','rankings','community/rankings?period=all');
- assert.equal(rank.coverRanking.limit,50);assert.deepEqual(calls,['/api/community']);
+test('community defaults to talking rooms and ranking exposes four categories with one request',async()=>{
+ const {c,calls}=context(async()=>({rows:[],from:0,until:1,updated_at:1}));
+ const home=await c.communityView('community',undefined,'community');assert.match(home.html,/토킹룸/);assert.match(home.html,/#community\/crews/);assert.deepEqual(calls,[]);
+ const rank=await c.communityView('community','rankings','community/rankings');for(const name of ['작품 랭킹','AI 아티스트','관계 랭킹','크루 랭킹'])assert.ok(rank.html.includes(name));assert.equal(calls.length,1);assert.match(calls[0],/period=week/);
 });
 test('ranking requests use the shared API filters and playback uses ranked songs only',async()=>{
  const items=[track('two'),track('one')],{c,calls,played}=context(async()=>({tracks:items}));

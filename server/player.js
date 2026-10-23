@@ -5,7 +5,7 @@ import {CREW_LEVELS,crewLevel} from '../shared/crews.js';
 const sqlString=value=>"'"+String(value).replaceAll("'","''")+"'";
 const rewards=Object.entries(PLAYER_ITEMS).filter(([,item])=>item.min_level||item.min_crew_level);
 const crewThreshold=item=>CREW_LEVELS.find(l=>l.level===item.min_crew_level)?.xp??0;
-const crewQualifiedSQL=(uid,item)=>`EXISTS(SELECT 1 FROM crew_members reward_member WHERE reward_member.user_id=${uid} AND COALESCE((SELECT sum(reward_xp.amount) FROM crew_xp reward_xp WHERE reward_xp.crew_id=reward_member.crew_id),0)>=${crewThreshold(item)})`;
+const crewQualifiedSQL=(uid,item)=>`EXISTS(SELECT 1 FROM crew_members reward_member WHERE reward_member.user_id=${uid} AND ((SELECT highest_level FROM crews WHERE id=reward_member.crew_id)>=${item.min_crew_level||1} OR COALESCE((SELECT sum(reward_xp.amount) FROM crew_xp reward_xp WHERE reward_xp.crew_id=reward_member.crew_id),0)>=${crewThreshold(item)}))`;
 const eligibleSQL=(uid,item)=>item.min_level?`COALESCE((SELECT sum(reward_xp.amount) FROM player_xp reward_xp WHERE reward_xp.user_id=${uid}),0)>=${50*item.min_level*(item.min_level-1)}`:crewQualifiedSQL(uid,item);
 const usableSQL=(alias,uid)=>`(${Object.entries(PLAYER_ITEMS).map(([key,item])=>`(${alias}.item_key=${sqlString(key)}${item.membership?' AND '+crewQualifiedSQL(uid,item):''})`).join(' OR ')})`;
 function rewardQueries(env,uid){return rewards.map(([key,item])=>{const source=item.min_level?'level':'crew-level';return query(env,`INSERT OR IGNORE INTO player_inventory(id,user_id,item_key,source,source_ref,granted_at) SELECT ${sqlString('reward:'+key+':')}||u.id,u.id,${sqlString(key)},${sqlString(source)},${sqlString(key)},unixepoch() FROM users u WHERE ${uid?'u.id=? AND ':''}${eligibleSQL('u.id',item)} AND NOT EXISTS(SELECT 1 FROM player_inventory existing WHERE existing.user_id=u.id AND existing.source=${sqlString(source)} AND existing.source_ref=${sqlString(key)}) LIMIT 500`,...(uid?[uid]:[]));});}
@@ -43,10 +43,10 @@ export async function playerSummary(env,uid){
  const [identity,inventory,crew,recent]=await Promise.all([
   playerIdentity(env,uid),
   rows(env,'SELECT pi.*,pe.frame_inventory_id=pi.id equipped FROM player_inventory pi LEFT JOIN player_equipment pe ON pe.user_id=pi.user_id WHERE pi.user_id=? ORDER BY pi.granted_at DESC,pi.id',uid),
-  one(env,'SELECT c.id,c.name,COALESCE((SELECT sum(cx.amount) FROM crew_xp cx WHERE cx.crew_id=c.id),0) xp FROM crew_members cm JOIN crews c ON c.id=cm.crew_id WHERE cm.user_id=?',uid),
+  one(env,'SELECT c.id,c.name,c.highest_level,COALESCE((SELECT sum(cx.amount) FROM crew_xp cx WHERE cx.crew_id=c.id),0) xp FROM crew_members cm JOIN crews c ON c.id=cm.crew_id WHERE cm.user_id=?',uid),
   rows(env,'SELECT kind,amount,created FROM player_xp WHERE user_id=? ORDER BY created DESC,source_key DESC LIMIT 20',uid)
  ]);
- const currentCrew=crew?{...crew,level:crewLevel(crew.xp).level}:null;
+ const currentCrew=crew?{...crew,level:crewLevel(crew.xp,crew.highest_level).level}:null;
  return {player:playerProgress(identity.player_xp),profile:identity,crew:currentCrew,rules:PLAYER_RULES,recent,
   rewards:rewards.filter(([key])=>!inventory.some(i=>i.item_key===key)).map(([key,item])=>({item_key:key,...item,owned:false,available:false,equipped:false,reason:item.min_level?`유저 레벨 ${item.min_level} 달성 시 자동 지급`:`크루 레벨 ${item.min_crew_level} 이상 가입 시 자동 지급`})),
   inventory:inventory.filter(i=>PLAYER_ITEMS[i.item_key]).map(i=>{

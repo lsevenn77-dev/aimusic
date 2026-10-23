@@ -24,7 +24,8 @@ export async function profileDashboard(env,profile,user){
    ORDER BY p.created DESC,p.id`,uid,uid,...(own?[uid]:[]),user?.id||'',user?.id||''):[],
   own?[]:relationList(env,uid,user?.id||'')
  ]);
- return {...identity,crew,artists,relations,dubbings:dubbings.map(({options_json,...p})=>({...p,kind:'dubbing',genres:JSON.parse(options_json).genres||[]}))};
+ const pin=await one(env,'SELECT ids_json FROM profile_artist_pins WHERE producer_id=?',profile.id),pinned=JSON.parse(pin?.ids_json||'[]');artists.sort((a,b)=>(pinned.includes(a.id)?pinned.indexOf(a.id):99)-(pinned.includes(b.id)?pinned.indexOf(b.id):99));
+ return {...identity,crew,artists,pinned,relations,dubbings:dubbings.map(({options_json,...p})=>({...p,kind:'dubbing',genres:JSON.parse(options_json).genres||[]}))};
 }
 
 // Called only after requireUser, always scoped to the authenticated UUID.

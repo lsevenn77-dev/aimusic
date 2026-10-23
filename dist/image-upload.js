@@ -2,7 +2,7 @@
 const optimizedImages=new WeakMap();
 const compatibleImages=new WeakMap();
 async function decodeUploadImage(file){
- if(typeof createImageBitmap==='function')try{return await createImageBitmap(file);}catch{}
+ if(typeof createImageBitmap==='function')try{return await createImageBitmap(file,{imageOrientation:'from-image'});}catch{}
  // Mobile browsers may decode a gallery photo through <img> even when ImageBitmap fails.
  const url=URL.createObjectURL(file),image=new Image();
  try{await new Promise((resolve,reject)=>{image.onload=resolve;image.onerror=()=>reject(new Error('이미지를 열 수 없어요. JPG·PNG·WebP 사진을 선택해주세요.'));image.src=url;});

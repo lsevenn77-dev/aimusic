@@ -3,7 +3,7 @@ Object.assign(VoiceRoomClient.prototype,{
  bindFinalControls(){
   const form=$('#voice-chat-form'),input=$('#voice-message');
   input.onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing&&e.keyCode!==229){e.preventDefault();if(input.value.trim())form.requestSubmit();}};
-  $('#voice-settings-form').onsubmit=busyForm($('#voice-settings-form'),async()=>{const values=Object.fromEntries(new FormData($('#voice-settings-form')));await this.command('settings',{...values,max_members:Number(values.max_members)});await this.refresh();$('#voice-room-settings').close();});
+  $('#voice-settings-form').onsubmit=busyForm($('#voice-settings-form'),async()=>{const values=Object.fromEntries(new FormData($('#voice-settings-form')));await this.command('settings',{...values,max_members:Number(values.max_members),revision:this.settingsRevision});await this.refresh();$('#voice-room-settings').close();});
   const supported=navigator.mediaDevices?.getSupportedConstraints?.()||{};
   for(const [id,key] of [['voice-echo','echoCancellation'],['voice-noise','noiseSuppression']])if(supported[key]===false){$('#'+id).disabled=true;$('#'+id).title='이 브라우저에서 지원하지 않는 설정이에요.';}
   $('#voice-echo').checked=this.preferences.echo;$('#voice-echo').onchange=()=>this.safe(async()=>{this.preferences.echo=$('#voice-echo').checked;await this.stream?.getAudioTracks()[0]?.applyConstraints({echoCancellation:this.preferences.echo});});
@@ -62,7 +62,7 @@ Object.assign(VoiceRoomClient.prototype,{
   $('#voice-seat-candidates').innerHTML=this.state.members.filter(p=>p.seat===null).map(p=>`<button type="button" class="voice-member-row" data-voice="invite-seat-user" data-target="${esc(p.id)}">${avatarImage({name:p.name,profile_id:p.profile_id,image_version:p.image_version})}<span>${esc(p.name)}</span></button>`).join('')||'<p class="quiet">현재 청취 중인 참여자가 없어요.</p>';
  },
  async openSettings(){
-  const s=this.state.room,form=$('#voice-settings-form');const options=await voiceRequest('options');
+  const s=this.state.room,form=$('#voice-settings-form');this.settingsRevision=s.settings_revision||0;const options=await voiceRequest('options');
   $('#voice-settings-crew').innerHTML='<option value="">크루 선택</option>'+options.crews.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
   for(const key of ['title','visibility','max_members','crew_id','background','announcement'])if(form.elements[key])form.elements[key].value=s[key]??({background:'navy',max_members:30,announcement:''}[key]||'');
   this.updateDesignField(form.elements.announcement);this.updateDesignField(form.elements.visibility[0]);

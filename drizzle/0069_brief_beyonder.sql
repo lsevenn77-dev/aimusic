@@ -1,0 +1,1 @@
+ALTER TABLE `crew_growth_events` ADD `evidence_id` text DEFAULT '' NOT NULL;

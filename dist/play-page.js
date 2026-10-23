@@ -60,7 +60,7 @@ function playResults(view){
 }
 async function playView(base,param,raw){
  if((base==='community'&&(!param||param==='voice'))||(base==='voice'&&!param)){
-  const v=await voiceView('voice');return {...v,html:'<div class="play-community">'+communityNavigation('voice')+'<p class="play-community-link"><a class="text-link" href="'+playHref('browse','following')+'">팔로잉한 창작자의 완성작 '+icon('arrow')+'</a></p>'+v.html+'</div>',playVoice:true};
+  const v=await voiceView('voice');return {...v,playVoice:true};
  }
  if(base!=='karaoke'||param==='chart')return null;
  const s=playSelection(param,raw),view={play:s,items:[],tracks:[],nextOffset:null};

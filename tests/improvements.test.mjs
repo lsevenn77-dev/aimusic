@@ -64,20 +64,20 @@ test('crew membership enforces capacity, single membership, recruitment and chat
  await f.call(`/api/crews/${cid}`,'PATCH',{recruiting:false});await f.call(`/api/crews/${cid}/leave`,'POST',{},'m0');
  assert.equal((await f.call(`/api/crews/${cid}/join`,'POST',{},'m9')).status,409);
  assert.equal((await f.call(`/api/crews/${cid}/messages`,'POST',{body:'not a member',request_id:rid()},'m0')).status,403);
- await f.call(`/api/crews/${cid}/leave`,'POST');
- const d=(await f.call(`/api/crews/${cid}`,'GET',null,'m1')).body;assert.equal(d.membership.role,'owner');assert.equal(d.crew.members,8);
+ assert.equal((await f.call(`/api/crews/${cid}/leave`,'POST')).status,409);
+ const d=(await f.call(`/api/crews/${cid}`,'GET',null,'m1')).body;assert.equal(d.membership.role,'member');assert.equal(d.crew.members,9);
 });
 
-test('crew XP comes from new public tracks and one daily chat, with exact level caps',async t=>{
- assert.deepEqual([0,100,500,1500,3000].map(x=>crewLevel(x).capacity),[10,20,50,100,150]);
+test('crew chat and unverifiable uploads cannot grant mission XP',async t=>{
+ assert.deepEqual([0,300,800,1600,18500].map(x=>crewLevel(x).capacity),[10,15,20,30,150]);
  const f=await fixture(t),cid=await crew(f),path=`/api/crews/${cid}/messages`,request_id=rid();
  await f.call(path,'POST',{body:'Hello',request_id});await f.call(path,'POST',{body:'Hello',request_id});await f.call(path,'POST',{body:'Again',request_id:rid()});
  assert.equal((await f.call(path)).body.messages.filter(m=>m.kind!=='system').length,2);
  assert.equal((await f.call(path,'POST',{body:'Changed',request_id})).status,409);
- let d=(await f.call(`/api/crews/${cid}`)).body;assert.equal(d.crew.xp,10);
+ let d=(await f.call(`/api/crews/${cid}`)).body;assert.equal(d.crew.xp,0);
  f.sql.exec("UPDATE tracks SET created=unixepoch() WHERE id IN ('one','two'); UPDATE tracks SET created=unixepoch() WHERE id='hidden'");
- d=(await f.call(`/api/crews/${cid}`)).body;assert.equal(d.crew.xp,12);assert.equal(d.crew.capacity,10);
- assert.equal((await f.call(`/api/crews/${cid}`)).body.crew.xp,12);
+ d=(await f.call(`/api/crews/${cid}`)).body;assert.equal(d.crew.xp,0);assert.equal(d.crew.capacity,10);
+ assert.equal((await f.call(`/api/crews/${cid}`)).body.crew.xp,0);
  assert.ok((await f.call('/api/crews')).body.tracks.some(x=>x.id==='one'));assert.ok(!d.tracks.some(x=>x.id==='hidden'));
 });
 

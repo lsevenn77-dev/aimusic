@@ -88,23 +88,13 @@ test('a mutation finishing during navigation retries the current route instead o
  assert.equal(reads,2);assert.match(c.main.innerHTML,/Current history/);assert.doesNotMatch(c.main.innerHTML,/Superseded history|불러오는 중/);assert.equal(c.main.getAttribute('aria-busy'),undefined);
 });
 
-test('community tabs paint before account initialization and cached API feeds warm first visits',{timeout:3000},async()=>{
- const held=deferred();const c=renderer(async()=>held.promise);
- Object.assign(c.context,{coverCollectionHTML:tracks=>tracks.map(t=>t.title).join(','),communityFeed:tracks=>tracks.map(t=>t.title).join(','),communityConceptCard:t=>t.title,musicIsOpenDuet:()=>false});
- vm.runInContext(source('social-layouts.js'),c.context);
- vm.runInContext(source('community.js'),c.context);c.run('browseView=(base,param,raw)=>base===\'community\'?communityView(base,param,raw):null;');
- const account=deferred();c.context.accountReady=account.promise;
- const opening=c.navigate('community');assert.match(c.main.innerHTML,/music-community-tabs/);assert.match(c.main.innerHTML,/#community\/crews/);
- account.resolve();held.resolve(response({tracks:[track('Fresh community')]}));await opening;
- assert.match(c.main.innerHTML,/Fresh community/);
- // No HTML snapshot for this route: reuse only its safely scoped API data.
- c.run('navigationSnapshots.clear();');c.context.location.hash='#history';c.advance(10001);
- let release;c.context.fetch=async()=>new Promise(resolve=>release=resolve);
- const reopening=c.navigate('community');assert.match(c.main.innerHTML,/Fresh community/);await Promise.resolve();await Promise.resolve();
- for(let n=0;n<10&&!release;n++)await Promise.resolve();assert.ok(release);
- release(response({tracks:[track('Updated community')]}));await reopening;assert.match(c.main.innerHTML,/Updated community/);
+test('community tabs paint before account initialization and public room data stays live',async()=>{
+ const c=renderer(async()=>response({}));vm.runInContext(source('community.js'),c.context);
+ c.run('browseView=(base,param,raw)=>base===\'community\'?communityView(base,param,raw):null;');
+ let calls=0;c.context.voiceView=async()=>({html:c.context.communityNavigation('voice')+'<p>Live rooms '+(++calls)+'</p>'});
+ const account=deferred();c.context.accountReady=account.promise;const opening=c.navigate('community');assert.match(c.main.innerHTML,/music-community-tabs/);account.resolve();await opening;assert.match(c.main.innerHTML,/Live rooms 1/);
+ c.run('navigationSnapshots.clear();');c.context.location.hash='#history';c.advance(10001);await c.navigate('community');assert.match(c.main.innerHTML,/Live rooms 2/);
 });
-
 test('money, membership, permissions, recording, editors and private chat never expose completed navigation caches',async()=>{
  let calls=0;const c=client(async()=>response({value:++calls}));
  for(const path of ['/api/gold','/api/gifts/free/claim','/api/membership','/api/studio','/api/studio/earnings','/api/studio/tracks/song','/api/auth/google/nonce','/api/me?state=1','/api/account/nickname','/api/tracks/song','/api/playlists/mix','/api/karaoke/song','/api/duets/cover','/api/dm','/api/dm/singer','/api/chat/events','/api/crews/crew','/api/crews/crew/messages']){

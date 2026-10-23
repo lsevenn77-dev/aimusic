@@ -47,8 +47,8 @@ test('crew invitation creates one unread DM, a push event and a live crew link; 
  const inbox=await f.call('/api/dm','GET',null,'other');assert.equal(inbox.body.conversations[0].unread,1);
  assert.equal(f.sql.prepare("SELECT count(*) n FROM crew_members WHERE user_id='other'").get().n,0,'invitation does not auto-join');
  assert.equal((await f.call(path,'POST',{...data,crew_id:'different'})).status,409);
- await f.call('/api/crews/'+cid+'/leave','POST');
- const historic=await f.call('/api/dm/producer','GET',null,'other');assert.equal(historic.body.messages[0].crew_invite_id,null);assert.match(historic.body.messages[0].body,/First crew/);
+ assert.equal((await f.call('/api/crews/'+cid+'/leave','POST')).status,409);
+ const historic=await f.call('/api/dm/producer','GET',null,'other');assert.equal(historic.body.messages[0].crew_invite_id,cid);assert.match(historic.body.messages[0].body,/First crew/);
 });
 
 test('invites enforce membership, blocking, same crew, bans, recruitment and capacity',async t=>{
