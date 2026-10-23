@@ -8,7 +8,7 @@ const detail={crew,membership:{role:'member'},members:[{id:'peer-profile',name:'
 function fixture(responses={}){
  const calls=[],context=vm.createContext({me:{id:'self-user'},apiRevision:0,structuredClone,Date,URLSearchParams,esc:escape,number:n=>String(n||0),icon:()=>'',portrait:p=>'<img alt="'+escape(p.name)+'">',heading:t=>'<h1>'+escape(t)+'</h1>',section:t=>'<h2>'+escape(t)+'</h2>',communityFeed:()=>'<div>MUSIC</div>',communityNavigation:()=>'<nav>COMMUNITY</nav>',document:{addEventListener(){}},api:async p=>{calls.push(p);if(!(p in responses))throw Error('Unexpected '+p);return typeof responses[p]==='function'?responses[p]():responses[p];}});
  Object.assign(context,{window:{addEventListener(){}},setInterval(){},cover:()=>'',trackStats:()=>''});
- for(const file of ['chat-features.js','social-chat.js','social-layouts.js','improvements.js','release-refinements.js'])vm.runInContext(readFileSync(new URL('../dist/'+file,import.meta.url),'utf8'),context);
+ for(const file of ['chat-features.js','social-chat.js','social-layouts.js','improvements.js','release-refinements.js','community-v3.js'])vm.runInContext(readFileSync(new URL('../dist/'+file,import.meta.url),'utf8'),context);
  return {context,calls};
 }
 test('joined crew landing shows music and a chat entry, with discovery secondary',async()=>{

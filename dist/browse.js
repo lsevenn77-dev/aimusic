@@ -34,6 +34,7 @@ async function popularChartView(raw=''){
  return {html:heading('AIFECT 인기차트','함께 듣고, 좋아하고, 응원한 음악의 순위.')+chartTabs()+chartLayoutHTML(periodsHTML+criteria+'<p class="field-help">'+esc(chart?.label||'이번 주')+' · 한국 시간 기준 · 어제 집계 대비</p>'+(chart?.comparison?.available?'':'<p class="field-help chart-comparison-note">전날 순위 기록이 준비되면 변동을 표시해요.</p>')+browsePlaybackActions(tracks)+(tracks.length?rows:empty('아직 공개된 곡이 없어요.','새로운 음악이 올라오면 여기서 만나요.')),tracks),tracks};
 }
 async function browseView(base,param,raw){
+ if(base==='karaoke'&&param==='browse')return playBrowseV3(raw);
  if(base==='charts'&&(!param||param==='top'))return popularChartView(raw);
  if(base==='search'&&!param)return {html:browseSearchHTML()};
  if(base==='charts'&&param==='karaoke'||base==='karaoke'&&param==='chart'){

@@ -1,3 +1,5 @@
+import {crewV3Route} from './crew-v3.js';
+import {communityRankingRoute} from './community-rankings.js';
 import {dubbingAdminRoute} from './dubbing-admin.js';
 import {adminMcpRoute} from './admin-mcp.js';
 import {dubbingReportsAdminRoute} from './dubbing-reports.js';
@@ -124,7 +126,7 @@ export default {async fetch(req,env,ctx){
    query(env,'DELETE FROM oauth_states WHERE expires<?',now()),
    query(env,'DELETE FROM rate_limits WHERE expires<?',now())
   ]).catch(()=>console.error('Expired authentication state cleanup failed')));
-  const result=await playerRoute(req,env,path,user)||await chatFeaturesRoute(req,env,path,user)||await applePaymentRoute(req,env,path,user)||await profileRoute(req,env,path,user)||await socialRoute(req,env,path,user)||await authRoute(req,env,path,user)||await billingRoute(req,env,path,user)||await membershipRoute(req,env,path,user)||await alignmentRoute(req,env,path,user)||await karaokeRoute(req,env,path,user)||await coverRoute(req,env,path,user)||await duetRoute(req,env,path,user)||await goldOrderRoute(req,env,path,user)||await giftRoute(req,env,path,user)||await coverRankingRoute(req,env,path)||await commentModerationRoute(req,env,path,user)||await trackModerationRoute(req,env,path,user)||await diamondRoute(req,env,path,user)||await payoutRoute(req,env,path,user)||await lyricsRoute(req,env,path,user)||await catalogRoute(req,env,path,user)||await mediaRoute(req,env,path,user);
+  const result=await playerRoute(req,env,path,user)||await chatFeaturesRoute(req,env,path,user)||await applePaymentRoute(req,env,path,user)||await profileRoute(req,env,path,user)||await crewV3Route(req,env,path,user)||await socialRoute(req,env,path,user)||await authRoute(req,env,path,user)||await billingRoute(req,env,path,user)||await membershipRoute(req,env,path,user)||await alignmentRoute(req,env,path,user)||await karaokeRoute(req,env,path,user)||await coverRoute(req,env,path,user)||await duetRoute(req,env,path,user)||await goldOrderRoute(req,env,path,user)||await giftRoute(req,env,path,user)||await communityRankingRoute(req,env,path)||await coverRankingRoute(req,env,path)||await commentModerationRoute(req,env,path,user)||await trackModerationRoute(req,env,path,user)||await diamondRoute(req,env,path,user)||await payoutRoute(req,env,path,user)||await lyricsRoute(req,env,path,user)||await catalogRoute(req,env,path,user)||await mediaRoute(req,env,path,user);
   if(result){
    if(req.method==='POST'&&result.ok&&(path.startsWith('/api/dm/')||/^\/api\/(tracks|producers)\/[^/]+\/(comments|gifts)$/.test(path)))ctx.waitUntil(dispatchPush(env).catch(()=>console.error('Push dispatch failed')));
    if(path.startsWith('/api/auth/')&&result.headers.get('content-type')?.includes('application/json')){

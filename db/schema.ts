@@ -110,6 +110,7 @@ export const goldOrders=sqliteTable('gold_orders',{
 },t=>[uniqueIndex('gold_orders_request').on(t.userId,t.requestId),uniqueIndex('gold_orders_tid').on(t.tid),index('gold_orders_reconcile').on(t.state,t.lastChecked)]);
 
 export const crews=sqliteTable('crews',{
+ joinPolicy:text('join_policy').notNull().default('open'),minimumLevel:integer('minimum_level').notNull().default(1),memberLimit:integer('member_limit').notNull().default(0),version:integer('version').notNull().default(1),notice:text('notice').notNull().default(''),
  nameChangedAt:integer('name_changed_at').notNull().default(0),
  id:text('id').primaryKey(),ownerId:text('owner_id').notNull().references(()=>users.id),name:text('name').notNull(),description:text('description').notNull().default(''),interests:text('interests').notNull().default(''),imageVersion:text('image_version').notNull().default(''),recruiting:integer('recruiting').notNull().default(1),created:integer('created').notNull()
 },t=>[uniqueIndex('crews_name').on(t.name)]);
@@ -278,3 +279,6 @@ export const dubbingProviderUsage=sqliteTable('dubbing_provider_usage',{
  jobId:text('job_id').notNull(),cueId:text('cue_id').notNull(),providerId:text('provider_id'),state:text('state').notNull(),
  usageJson:text('usage_json').notNull().default('{}'),billingJson:text('billing_json').notNull().default('{}'),created:integer('created').notNull(),updated:integer('updated').notNull()
 },t=>[primaryKey({columns:[t.jobId,t.cueId]}),index('dubbing_provider_usage_time').on(t.created)]);
+
+export const crewApplications=sqliteTable('crew_applications',{crewId:text('crew_id').notNull().references(()=>crews.id,{onDelete:'cascade'}),userId:text('user_id').notNull().references(()=>users.id),state:text('state').notNull().default('pending'),created:integer('created').notNull()},t=>[primaryKey({columns:[t.crewId,t.userId]})]);
+export const crewAudit=sqliteTable('crew_audit',{id:text('id').primaryKey(),crewId:text('crew_id').notNull().references(()=>crews.id,{onDelete:'cascade'}),actorId:text('actor_id').notNull().references(()=>users.id),action:text('action').notNull(),detail:text('detail').notNull().default(''),created:integer('created').notNull()},t=>[index('crew_audit_time').on(t.crewId,t.created)]);

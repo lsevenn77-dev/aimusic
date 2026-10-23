@@ -13,11 +13,11 @@ export default {async fetch(req, env) {
   const [,id,action]=match;
   if(id==='directory'&&action==='list') {
    const crews=(data.actor.crews||[]).slice(0,50),followed=(data.actor.followedHosts||[]);
-   const result=await env.ROOM_DB.prepare(`SELECT id,title,host_id,visibility,crew_id,created FROM voice_rooms WHERE closed=0 AND (visibility='public' OR host_id=? OR (visibility='crew' AND crew_id IN (${crews.map(()=>'?').join(',')||"''"})) OR (visibility='followers' AND host_id IN (SELECT value FROM json_each(?)))) ORDER BY created DESC LIMIT 100`).bind(data.actor.id,...crews,JSON.stringify(followed)).all();
+   const result=await env.ROOM_DB.prepare(`SELECT id,title,host_id,visibility,crew_id,created,max_members,background FROM voice_rooms WHERE closed=0 AND visibility='public' ORDER BY created DESC LIMIT 100`).bind().all();
    const active=await Promise.all(result.results.map(async room=>{
     const response=await env.ROOMS.get(env.ROOMS.idFromName(room.id)).fetch(new Request('https://room/presence',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({actor:data.actor,input:{},stamp,roomId:room.id})}));
     if(!response.ok)fault(503,'토킹룸 목록을 새로 불러오지 못했어요. 다시 시도해주세요.');
-    return (await response.json()).active?room:null;
+    const state=await response.json();return state.active&&state.visibility==='public'?{...room,member_count:state.member_count,host_name:state.host_name}:null;
    }));
    return reply({rooms:active.filter(Boolean)});
   }
