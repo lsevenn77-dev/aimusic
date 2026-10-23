@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {fixture} from './fixture.mjs';
 import worker from '../server/index.js';
-import {runBotEngine,queueBotHeartbeat} from '../server/ai-bots.js';
+import {runBotEngine,queueBotHeartbeat,selectSupportBot} from '../server/ai-bots.js';
 import {BOT_DEFAULTS,BOT_SEED_TEMPLATES} from '../shared/ai-bots.js';
 import {sampleScript,options} from './dubbing-fixtures.mjs';
 import {readFileSync} from 'node:fs';
@@ -131,6 +131,16 @@ test('retired, blocked and quota-limited targets skip, and bot profiles cannot e
  await assert.rejects(payoutRoute(new Request('https://aifect.test/api/studio/payout-account'),f.env,'/api/studio/payout-account',{id:'ai_000001'}),e=>e.status===403);
  assert.throws(()=>f.sql.exec("INSERT INTO likes(user_id,track_id,created) VALUES('ai_000001','one',0)"),/service account/);
 });
+test('bot selection starts at a random index, wraps, and skips inactive/capped/blocked profiles',async t=>{
+ const f=await setup(t);await f.seed(5);
+ const job={target_type:'track',target_id:'one',action:'comment',owner_id:'owner'},day='2026-10-24';
+ assert.equal((await selectSupportBot(f.env,job,day,()=>.5)).user_id,'ai_000003');
+ assert.equal((await selectSupportBot(f.env,job,day,()=>.99)).user_id,'ai_000005');
+ f.sql.exec("UPDATE ai_bots SET daily_limit=0 WHERE number=5; UPDATE ai_bots SET active=0 WHERE number=1; INSERT INTO user_blocks(user_id,blocked_id,created) VALUES('owner','ai_000002',0)");
+ assert.equal((await selectSupportBot(f.env,job,day,()=>.99)).user_id,'ai_000003');
+ f.sql.exec('UPDATE ai_bots SET active=0');assert.equal(await selectSupportBot(f.env,job,day),null);
+});
+
 test('operator tests only selected existing public works, keeps deduplication, permissions and zero-cash gifts',async t=>{
  const f=await setup(t),body={target_type:'track',target_id:'one',confirmed:true};await f.seed();
  assert.equal((await f.call(root+'/test-existing','POST',body)).status,409);

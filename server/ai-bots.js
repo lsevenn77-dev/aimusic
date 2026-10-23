@@ -206,7 +206,7 @@ async function processBotJob(env,j,s,token,at){
  const ownerCount=(await one(env,'SELECT count(DISTINCT target_type||target_id) n FROM ai_bot_activities WHERE owner_id=? AND day=?',j.owner_id,day)).n;
  const already=await one(env,'SELECT 1 FROM ai_bot_activities WHERE target_type=? AND target_id=?',j.target_type,j.target_id);
  if(c.creatorDaily===0||ownerCount>=c.creatorDaily&&!already)return skip('창작자 일일 지원 한도입니다.');
- const bot=await one(env,`SELECT b.* FROM ai_bots b WHERE b.active=1 AND b.daily_limit>(SELECT count(*) FROM ai_bot_activities a WHERE a.bot_id=b.user_id AND a.day=?) AND NOT EXISTS(SELECT 1 FROM ai_bot_activities a WHERE a.bot_id=b.user_id AND a.target_type=? AND a.target_id=? AND a.action=?) AND NOT EXISTS(SELECT 1 FROM user_blocks WHERE (user_id=? AND blocked_id=b.user_id) OR (blocked_id=? AND user_id=b.user_id)) ORDER BY b.number LIMIT 1`,day,j.target_type,j.target_id,j.action,j.owner_id,j.owner_id);
+ const bot=await selectSupportBot(env,j,day);
  if(!bot)throw new Error('활성 계정 또는 계정별 일일 여유가 없습니다.');
  let body='',quantity=0;
  if(j.action==='comment'){
@@ -226,4 +226,13 @@ async function processBotJob(env,j,s,token,at){
   const current=await botSettings(env);if(current.revision!==s.revision||!current.config.enabled)return;
   await run(env,'UPDATE ai_bot_jobs SET due=?,updated=? WHERE id=? AND state=\'pending\'',Math.floor(Date.parse(giftDay(at+86400)+'T00:00:00+09:00')/1000),at,j.id);
  }
+}
+
+export async function selectSupportBot(env,j,day,random=Math.random){
+ const last=(await one(env,'SELECT max(number) n FROM ai_bots WHERE active=1'))?.n;if(!last)return null;
+ const pivot=1+Math.floor(random()*last);
+ // Random start + indexed seek/wrap avoids sorting thousands of eligible profiles
+ // for every job. Inactive, blocked, capped or duplicate actors are still skipped.
+ const find=op=>one(env,`SELECT b.* FROM ai_bots b WHERE b.active=1 AND b.number${op}? AND b.daily_limit>(SELECT count(*) FROM ai_bot_activities a WHERE a.bot_id=b.user_id AND a.day=?) AND NOT EXISTS(SELECT 1 FROM ai_bot_activities a WHERE a.bot_id=b.user_id AND a.target_type=? AND a.target_id=? AND a.action=?) AND NOT EXISTS(SELECT 1 FROM user_blocks WHERE (user_id=? AND blocked_id=b.user_id) OR (blocked_id=? AND user_id=b.user_id)) ORDER BY b.number LIMIT 1`,pivot,day,j.target_type,j.target_id,j.action,j.owner_id,j.owner_id);
+ return await find('>=')||await find('<');
 }
