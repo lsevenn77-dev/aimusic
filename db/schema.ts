@@ -312,3 +312,4 @@ export const crewNotices=sqliteTable('crew_notices',{id:text('id').primaryKey(),
 export const crewNoticeImages=sqliteTable('crew_notice_images',{id:text('id').primaryKey(),crewId:text('crew_id').notNull().references(()=>crews.id,{onDelete:'cascade'}),authorId:text('author_id').notNull(),noticeId:text('notice_id').references(()=>crewNotices.id),r2Key:text('r2_key').notNull(),mimeType:text('mime_type').notNull(),sortOrder:integer('sort_order').notNull().default(0),created:integer('created').notNull()});
 
 export * from './ai-bots';
+export * from './cover-compression';

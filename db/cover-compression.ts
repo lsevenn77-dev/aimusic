@@ -1,0 +1,4 @@
+import {sqliteTable,text,integer,real,index} from 'drizzle-orm/sqlite-core';
+export const coverCompressions=sqliteTable('cover_compressions',{
+ trackId:text('track_id').primaryKey(),sourceKey:text('source_key').notNull(),sourceExt:text('source_ext').notNull(),sourceBytes:integer('source_bytes').notNull(),outputKey:text('output_key').notNull().default(''),outputBytes:integer('output_bytes').notNull().default(0),outputSha:text('output_sha').notNull().default(''),duration:real('duration').notNull(),state:text('state').notNull().default('queued'),attempts:integer('attempts').notNull().default(0),leaseToken:text('lease_token').notNull().default(''),leaseUntil:integer('lease_until').notNull().default(0),error:text('error').notNull().default(''),requestedBy:text('requested_by').notNull(),created:integer('created').notNull(),updated:integer('updated').notNull()
+},t=>[index('cover_compression_queue').on(t.state,t.leaseUntil)]);

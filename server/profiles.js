@@ -6,6 +6,7 @@ import {publicNameSQL,producerNameSQL} from './identity.js';
 import {storeImage} from './images.js';
 import {nickname,nicknameBatch,requireAvailableNickname} from './nicknames.js';
 import {assertUnblocked} from './account-safety.js';
+import {supportFollowCount,supportFollowers} from './ai-support-follows.js';
 
 export async function profileRoute(req,env,path,user){
  const preview=path.match(/^\/api\/producers\/([\w-]+)\/preview$/);
@@ -19,7 +20,8 @@ export async function profileRoute(req,env,path,user){
    one(env,'SELECT c.id,c.name,c.image_version FROM crew_members cm JOIN crews c ON c.id=cm.crew_id WHERE cm.user_id=? ORDER BY cm.joined,c.id LIMIT 1',profile.user_id),
    user?one(env,"SELECT 1 found FROM follows WHERE user_id=? AND kind='producer' AND target_id=?",user.id,profile.id):null
   ]);
-  return json({profile,followers:counts.followers,following_count:counts.following,following:!!following,crew});
+  const ai=await supportFollowCount(env,profile.user_id);
+  return json({profile,followers:counts.followers+ai,human_followers:counts.followers,ai_followers:ai,following_count:counts.following,following:!!following,crew});
  }
  const follower=path.match(/^\/api\/followers\/([\w-]+)$/);
  if(follower){
@@ -52,5 +54,6 @@ export async function profileRoute(req,env,path,user){
  const [followers,counts,identity,number]=await Promise.all([
  profile?rows(env,`SELECT p.id,u.id user_id,${playerColumnsSQL('u.id')},${publicNameSQL()} name,p.image_version,'producer' profile_kind FROM follows f JOIN users u ON u.id=f.user_id LEFT JOIN producers p ON p.user_id=f.user_id WHERE f.kind='producer' AND f.target_id=? ORDER BY f.created DESC LIMIT 200`,profile.id):[],
  one(env,"SELECT (SELECT count(*) FROM follows WHERE kind='producer' AND target_id=?) followers,(SELECT count(*) FROM follows WHERE user_id=?) following",profile?.id||'',user.id),playerIdentity(env,user.id),one(env,'SELECT number public_number FROM public_member_ids WHERE user_id=?',user.id)]);
- return json({profile:{...(profile||{name:user.name,bio:'',image_version:''}),user_id:user.id,...identity,...number},user:profile?{...user,name:profile.name,profile_id:profile.id,image_version:profile.image_version||''}:user,followers,follower_count:counts.followers,following_count:counts.following});
+ const [ai,official]=await Promise.all([supportFollowCount(env,user.id),supportFollowers(env,user.id)]);
+ return json({profile:{...(profile||{name:user.name,bio:'',image_version:''}),user_id:user.id,...identity,...number},user:profile?{...user,name:profile.name,profile_id:profile.id,image_version:profile.image_version||''}:user,followers:[...followers,...official],follower_count:counts.followers+ai,human_followers:counts.followers,ai_followers:ai,following_count:counts.following});
 }

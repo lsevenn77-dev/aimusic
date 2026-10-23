@@ -18,6 +18,7 @@ import {GENRES,validGenre,trackClassification,genreFilterSQL} from '../shared/ge
 import {rankingPeriod} from './ranking-period.js';
 import {CHART_WEIGHTS} from './popular-chart.js';
 import {dailyChart} from './chart-movement.js';
+import {supportFollowCount} from './ai-support-follows.js';
 export {GENRES};
 // A cover is public only while its original is public and still offered for karaoke (terms: hiding the original hides its covers).
 export const VISIBLE=(t='t')=>`(${t}.status='published' AND (${t}.original_id IS NULL OR EXISTS(SELECT 1 FROM tracks v WHERE v.id=${t}.original_id AND v.status='published' AND v.karaoke_at>0)) AND (${t}.duet_parent_id IS NULL OR EXISTS(SELECT 1 FROM tracks dp WHERE dp.id=${t}.duet_parent_id AND dp.status='published' AND dp.cover_mode='duet' AND dp.duet_parent_id IS NULL)))`;
@@ -96,7 +97,10 @@ export async function catalogRoute(req,env,path,user){
    const sort=url.searchParams.get('sort')||'popular';if(!Object.hasOwn(COVER_SORTS,sort))fail(400,'정렬 기준을 확인해주세요.');
    const mode=url.searchParams.get('mode')||'all';if(!['all','solo','duet'].includes(mode))fail(400,'커버 종류를 확인해주세요.');
    const filter=mode==='all'?'':" AND t.cover_mode='"+mode+"'";
-   return json({covers:await trackList(env,`t.original_id=? AND t.kind='cover' AND ${VISIBLE()}${filter}`,[tid],COVER_SORTS[sort]+',t.id',100),sort,mode,accepts_covers:detail.kind==='original'&&detail.karaoke_at>0});
+   const base=`t.original_id=? AND t.kind='cover' AND ${VISIBLE()}`;
+   const blocked=env.AIFECT_BLOCKED||[];
+   const [covers,counts]=await Promise.all([trackList(env,`${base}${filter}`,[tid],COVER_SORTS[sort]+',t.id',100),one(env,`SELECT count(*) 'all',count(CASE WHEN t.cover_mode='solo' THEN 1 END) solo,count(CASE WHEN t.cover_mode='duet' THEN 1 END) duet FROM tracks t WHERE ${base}${blocked.length?' AND t.user_id NOT IN ('+blocked.map(()=>'?').join(',')+')':''}`,tid,...blocked)]);
+   return json({covers,counts,sort,mode,accepts_covers:detail.kind==='original'&&detail.karaoke_at>0});
   }
   if(m[2]==='like'){
    requireUser(user);
@@ -155,12 +159,14 @@ export async function catalogRoute(req,env,path,user){
    ]);
    // Profile visitors receive public works, never their owner's private XP totals.
    if(!own)for(const track of [...tracks,...(covers||[])])delete track.player_xp;
-   return json({profile:kind==='producer'?{...entity,partner_badge:partner.badge,...identity,public_number:dashboard.public_number}:entity,tracks,followers:count.n,gallery,...(kind==='producer'?{...dashboard,covers,gifts,invite_crew:inviteCrew,gallery_limit:PROFILE_GALLERY_LIMIT}:{can_manage:user?.id===owner?.user_id,gallery_limit:GALLERY_LIMIT})});
+   const ai=kind==='producer'?await supportFollowCount(env,entity.user_id):0;
+   return json({profile:kind==='producer'?{...entity,partner_badge:partner.badge,...identity,public_number:dashboard.public_number}:entity,tracks,followers:count.n+ai,human_followers:count.n,ai_followers:ai,gallery,...(kind==='producer'?{...dashboard,covers,gifts,invite_crew:inviteCrew,gallery_limit:PROFILE_GALLERY_LIMIT}:{can_manage:user?.id===owner?.user_id,gallery_limit:GALLERY_LIMIT})});
   }
   requireUser(user);
   if(method==='PUT')await run(env,'INSERT OR IGNORE INTO follows(user_id,kind,target_id,created) VALUES(?,?,?,?)',user.id,kind,entity.id,now());
   else if(method==='DELETE')await run(env,'DELETE FROM follows WHERE user_id=? AND kind=? AND target_id=?',user.id,kind,entity.id);else fail(405,'지원하지 않는 요청입니다.');
-  return json({ok:true,following:method==='PUT',profile:entity,followers:(await one(env,'SELECT count(*) n FROM follows WHERE kind=? AND target_id=?',kind,entity.id)).n});
+  const ai=kind==='producer'?await supportFollowCount(env,entity.user_id):0,human=(await one(env,'SELECT count(*) n FROM follows WHERE kind=? AND target_id=?',kind,entity.id)).n;
+  return json({ok:true,following:method==='PUT',profile:entity,followers:human+ai,human_followers:human,ai_followers:ai});
  }
  if(path==='/api/history'&&method==='GET'){requireUser(user);return json({tracks:await trackList(env,VISIBLE()+" AND t.id IN (SELECT track_id FROM listens WHERE user_id=?)",[user.id],`(SELECT MAX(started) FROM listens l WHERE l.track_id=t.id AND l.user_id='${user.id.replaceAll("'",'')}') DESC`)});}
  if(path==='/api/playlists'&&method==='POST'){

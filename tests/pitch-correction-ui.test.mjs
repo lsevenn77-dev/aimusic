@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 import * as karaoke from '../shared/karaoke-audio.js';
+import {CoverMp3Encoder} from '../shared/cover-mp3.js';
+import {Mp3Encoder} from '@breezystack/lamejs';
 
 const effects=readFileSync(new URL('../dist/sing-effects.js',import.meta.url),'utf8');
 const recorder=readFileSync(new URL('../dist/karaoke.js',import.meta.url),'utf8');
@@ -10,7 +12,7 @@ function buffer(data=new Float32Array([.1,.2,.3,.4]),rate=32000){return {length:
 function setup({recording=false}={}){
  const workers=[],requests=[];let revoked=false;
  const ctx={createBuffer:(channels,length,rate)=>buffer(new Float32Array(length),rate)};
- const c=vm.createContext({Float32Array,Blob,Date,console,clearTimeout,setTimeout,member:{plan:'premium',premium_until:Date.now()/1000+3600},document:{querySelectorAll:()=>[],addEventListener(){}},window:{AifectKaraoke:karaoke,addEventListener(){}},icon:()=>'',setSingStatus(){},queueSingDraft(){},Worker:class{
+ const c=vm.createContext({encodeCoverMp3:async b=>{const e=new CoverMp3Encoder(Mp3Encoder,b.length,b.sampleRate);e.push([b.getChannelData(0),b.getChannelData(1)]);return new Blob([e.finish()],{type:'audio/mpeg'});},Float32Array,Blob,Date,console,clearTimeout,setTimeout,member:{plan:'premium',premium_until:Date.now()/1000+3600},document:{querySelectorAll:()=>[],addEventListener(){}},window:{AifectKaraoke:karaoke,addEventListener(){}},icon:()=>'',setSingStatus(){},queueSingDraft(){},Worker:class{
   constructor(url){this.url=url;workers.push(this);}
   postMessage(data){this.input=data;if(this.url.includes('vocal-render'))queueMicrotask(()=>this.onmessage({data:{samples:karaoke.renderVocals(data.samples,data.sampleRate,data.mix)}}));}
   terminate(){this.terminated=true;}
@@ -36,7 +38,7 @@ test('retired pitch settings never affect preview or export of legacy drafts',as
   async startRendering(){return buffer(new Float32Array(this.length),this.sampleRate);}
  };
  t.run('prepareSing=async s=>s.ctx;backingBuffer=s=>s.mr');
- const file=await t.run('renderSung(sing)');assert.equal(file.type,'audio/wav');assert.ok(file.size>44);assert.equal(s.processed.source,raw);assert.equal(t.run('vocalPlaybackBuffer(sing)'),raw);assert.equal(scheduled[0].buffer,s.mr);assert.equal(s.voice,raw);assert.equal(t.requests.length,0);
+ const file=await t.run('renderSung(sing)');assert.equal(file.type,'audio/mpeg');assert.ok(file.size>44);assert.equal(s.processed.source,raw);assert.equal(t.run('vocalPlaybackBuffer(sing)'),raw);assert.equal(scheduled[0].buffer,s.mr);assert.equal(s.voice,raw);assert.equal(t.requests.length,0);
 });
 test('review plays the exported PCM without a DSP worklet, and changing effects crossfades only the voice',async()=>{
  const t=setup({recording:true}),s=t.c.take;s.voice=buffer(new Float32Array(32000).fill(.1));s.mr=buffer(new Float32Array(32000).fill(.2));s.mode='solo';s.mix.pitchCorrection=0;

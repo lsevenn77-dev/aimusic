@@ -48,7 +48,7 @@ test('draft rendering offers separate edit/delete controls, empty state and safe
 test('MR cards retain six actual song IDs and co-located play, sing and cover discovery actions',()=>{
  const {c}=setup();vm.runInContext(read('home.js'),c);const tracks=Array.from({length:8},(_,i)=>({id:'song'+i,title:'Title '+i,artist:'<Singer>',covers:i,duration:100}));
  const html=c.homeSingHTML(tracks);assert.equal((html.match(/class="sing-discovery-tile /g)||[]).length,6);
- for(let i=0;i<6;i++){assert.match(html,new RegExp('data-play="song'+i+'"'));assert.match(html,new RegExp('#sing/song'+i));assert.match(html,new RegExp('#song/song'+i+'\\?covers=solo'));}
+ for(let i=0;i<6;i++){assert.match(html,new RegExp('data-play="song'+i+'"'));assert.match(html,new RegExp('#sing/song'+i));assert.match(html,new RegExp('#song/song'+i+'\\?covers=all'));}
  assert.doesNotMatch(html,/song6|<Singer>/);assert.match(html,/sing-discovery-featured/);assert.match(html,/sing-discovery-more/);
 });
 test('responsive cards and studio spacing are packaged after previous theme layers',()=>{

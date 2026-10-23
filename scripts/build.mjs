@@ -33,7 +33,7 @@ await cp('dist/motion.js','dist/client/motion.js');
 await cp('dist/motion.css','dist/client/motion.css');
 await cp('dist/home.js','dist/client/home.js');
 await cp('dist/brand.css','dist/client/brand.css');
-for(const file of ['admin.css','admin.js','admin-ai-bots.js'])await cp(`dist/${file}`,`dist/client/${file}`);
+for(const file of ['admin.css','admin.js','admin-ai-bots.js','admin-cover-compression.js'])await cp(`dist/${file}`,`dist/client/${file}`);
 await mkdir('dist/client/admin',{recursive:true});
 await cp('dist/admin.html','dist/client/admin/dashboard.html');
 await rm('dist/client/admin.html',{force:true});
@@ -56,6 +56,8 @@ await build({entryPoints:['shared/vocal-render-worker.js'],outfile:'dist/client/
 await build({entryPoints:['shared/vocal-worklet.js'],outfile:'dist/client/vocal-worklet.js',bundle:true,format:'esm',target:'es2022',minify:true});
 await build({entryPoints:['shared/duet-guide.js'],outfile:'dist/client/duet-guide-core.js',bundle:true,format:'iife',globalName:'AifectDuetGuide',target:'es2022',minify:true});
 await build({entryPoints:['shared/karaoke-audio.js'],outfile:'dist/client/karaoke-core.js',bundle:true,format:'iife',globalName:'AifectKaraoke',target:'es2022',minify:true});
+await cp('dist/cover-export.js','dist/client/cover-export.js');
+await build({entryPoints:['shared/cover-mp3-worker.js'],outfile:'dist/client/cover-mp3-worker.js',bundle:true,format:'esm',target:'es2022',external:['./third-party/lamejs-1.2.7/lamejs.js']});
 await build({entryPoints:['shared/lyrics.js'],outfile:'dist/client/lyrics-core.js',bundle:true,format:'iife',globalName:'AifectLyrics',target:'es2022',minify:true});
 await writeFile('dist/client/index.html',await bundleClient(indexHTML.replace('<!--BUSINESS_FOOTER-->',businessFooterHTML()),pathToFileURL(resolve('dist/client')+sep)));
 await build({entryPoints:['server/index.js'], outfile:'dist/server/index.js', bundle:true, format:'esm', platform:'neutral', mainFields:['module','main'], alias:{'node-fetch':resolve('server/apple-fetch.js')}, banner:{js:"import {createRequire as appleCreateRequire} from 'node:module'; const require=appleCreateRequire('/aifect-worker.js');"}, target:'es2022', external:['cloudflare:workers',...builtinModules,...builtinModules.map(x=>'node:'+x)], minify:false});

@@ -1,4 +1,4 @@
-import {sqliteTable,text,integer,index,uniqueIndex,check} from 'drizzle-orm/sqlite-core';
+import {sqliteTable,text,integer,index,uniqueIndex,check,primaryKey} from 'drizzle-orm/sqlite-core';
 import {sql} from 'drizzle-orm';
 export const aiBots=sqliteTable('ai_bots',{
  number:integer('number').primaryKey({autoIncrement:true}),userId:text('user_id').notNull(),sourceKey:text('source_key').notNull(),imageSha:text('image_sha').notNull(),active:integer('active').notNull().default(0),style:text('style').notNull().default('warm'),emoji:text('emoji').notNull().default('✨'),dailyLimit:integer('daily_limit').notNull().default(10),created:integer('created').notNull(),updated:integer('updated').notNull()
@@ -16,3 +16,6 @@ export const aiSupportGifts=sqliteTable('ai_support_gifts',{
 },t=>[uniqueIndex('ai_gift_job').on(t.jobId),index('ai_gift_target').on(t.targetType,t.targetId),index('ai_gift_owner').on(t.ownerId,t.created),check('ai_gift_zero_value',sql`${t.cashValue}=0`),check('ai_gift_quantity',sql`${t.quantity} BETWEEN 1 AND 20`)]);
 export const aiBotAssets=sqliteTable('ai_bot_assets',{sha:text('sha').primaryKey(),bytes:integer('bytes').notNull(),createdBy:text('created_by').notNull(),created:integer('created').notNull()});
 export const aiBotAudit=sqliteTable('ai_bot_audit',{id:text('id').primaryKey(),actor:text('actor').notNull(),action:text('action').notNull(),details:text('details').notNull(),created:integer('created').notNull()},t=>[index('ai_audit_created').on(t.created)]);
+export const aiSupportFollows=sqliteTable('ai_support_follows',{
+ botId:text('bot_id').notNull(),ownerId:text('owner_id').notNull(),activityId:text('activity_id').notNull(),created:integer('created').notNull()
+},t=>[primaryKey({columns:[t.botId,t.ownerId]}),index('ai_follow_owner').on(t.ownerId,t.created)]);

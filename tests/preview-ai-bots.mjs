@@ -25,6 +25,7 @@ if(process.env.AI_BOT_QA_SEED==='1'){
  f.sql.exec('UPDATE ai_bots SET active=0');
  console.log('335 reviewed AI profiles, one fixture comment/gift; automation OFF. This database is disposable.');
 }
+if(process.env.COVER_COMPRESSION_QA==='1')f.sql.exec("UPDATE tracks SET karaoke_at=1 WHERE id='two'; UPDATE tracks SET kind='cover',original_id='two',original_bytes=23040044,duration=180,title='기존 커버 압축 검증' WHERE id='one'");
 const server=createServer(async(req,res)=>{try{const bytes=[];for await(const b of req)bytes.push(b);const response=await worker.fetch(new Request('http://127.0.0.1:'+port+req.url,{method:req.method,headers:{...req.headers,cookie:(req.headers.cookie||'')+'; aifect_session=owner'},body:bytes.length?Buffer.concat(bytes):undefined}),env,{waitUntil(p){p.catch(console.error);}});res.writeHead(response.status,Object.fromEntries(response.headers));res.end(Buffer.from(await response.arrayBuffer()));}catch(e){console.error(e);res.writeHead(500);res.end('Local fixture failed');}});
 server.listen(port,'127.0.0.1',()=>console.log('Local bot review: http://127.0.0.1:'+port+'/admin/dashboard · password: local-bot-review-only'));
 process.on('SIGINT',()=>server.close(()=>{cleanups.forEach(f=>f());process.exit(0);}));

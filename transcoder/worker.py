@@ -1,6 +1,7 @@
 import json, os, time, tempfile, pathlib, subprocess, urllib.request, urllib.error, math
 from archive import archive_original
 from premium import convert_premium
+from cover_compression import compress_cover, decoded_duration
 
 BASE=os.environ['AIFECT_ORIGIN'].rstrip('/')
 TOKEN=os.environ['TRANSCODER_TOKEN']
@@ -33,6 +34,7 @@ def convert(job):
         download(prefix+'original',source,job)
         result=command(['ffprobe','-v','error','-protocol_whitelist','file,pipe','-select_streams','a:0','-show_entries','format=duration,format_name:stream=codec_type','-of','json',str(source)])
         probe=json.loads(result.stdout); duration=float(probe['format']['duration'])
+        if job['original_ext']=='mp3': duration=decoded_duration(source,command)
         allowed={'wav':['wav'],'flac':['flac'],'mp3':['mp3']}[job['original_ext']]
         if not any(f in probe['format']['format_name'].split(',') for f in allowed) or not probe.get('streams'): raise ValueError('Invalid audio format')
         if not math.isfinite(duration) or duration<5 or duration>1200: raise ValueError('Duration out of bounds')
@@ -52,7 +54,7 @@ def convert(job):
 
 def main():
     while True:
-        job=None; archive=None; premium=None
+        job=None; archive=None; premium=None; compact=None
         try:
             with request('/internal/jobs/claim','POST',{}) as response: job=json.load(response)['job']
             if job: convert(job)
@@ -60,8 +62,11 @@ def main():
                 with request('/internal/premium-audio/claim','POST',{}) as response: premium=json.load(response)['job']
                 if premium: convert_premium(premium,request,download,command)
                 else:
-                    with request('/internal/archives/claim','POST',{}) as response: archive=json.load(response)['job']
-                    if archive: archive_original(archive,request,download,command)
+                    with request('/internal/cover-compression/claim','POST',{}) as response: compact=json.load(response)['job']
+                    if compact: compress_cover(compact,request,download,command)
+                    else:
+                        with request('/internal/archives/claim','POST',{}) as response: archive=json.load(response)['job']
+                        if archive: archive_original(archive,request,download,command)
         except Exception as exc:
             print(json.dumps({'event':'transcode_error','kind':type(exc).__name__,'status':getattr(exc,'code',None),'track':job['id'] if job else None}),flush=True)
             if job:
@@ -75,6 +80,11 @@ def main():
                 print(json.dumps({'event':'premium_error','track':premium['track_id'],'kind':type(exc).__name__,'status':getattr(exc,'code',None)}),flush=True)
                 try: request('/internal/premium-audio/'+premium['track_id']+'/fail','POST',{},premium).close()
                 except Exception: pass
+            if compact:
+                print(json.dumps({'event':'cover_compaction_error','track':compact['track_id'],'kind':type(exc).__name__,'status':getattr(exc,'code',None)}),flush=True)
+                if compact['state']!='committed':
+                    try: request('/internal/cover-compression/'+compact['track_id']+'/fail','POST',{'reason':type(exc).__name__},compact).close()
+                    except Exception: pass
         time.sleep(5 if job or premium else 15)
 
 if __name__=='__main__': main()

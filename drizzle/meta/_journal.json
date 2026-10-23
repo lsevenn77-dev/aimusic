@@ -505,6 +505,20 @@
       "when": 1792766957197,
       "tag": "0071_parched_talos",
       "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "6",
+      "when": 1792776312834,
+      "tag": "0072_medical_madame_masque",
+      "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "6",
+      "when": 1792777070837,
+      "tag": "0073_tan_karen_page",
+      "breakpoints": true
     }
   ]
 }

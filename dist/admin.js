@@ -74,7 +74,7 @@
     if(view==='moderation'){loadCommentReports();loadDubbingReports();}
     if(view==='dubbing')loadDubbing();
     if(view==='payouts')loadPayouts();
-    if(view==='ai-bots')document.dispatchEvent(new CustomEvent('aifect-admin-ai-bots'));
+    if(view==='ai-bots')document.dispatchEvent(new CustomEvent('aifect-admin-ai-bots'));if(view==='cover-compression')document.dispatchEvent(new CustomEvent('aifect-admin-cover-compression'));
     window.scrollTo({top:0,behavior:'smooth'});
   }
 
@@ -503,7 +503,7 @@
   $('#dubbing-rights-status').addEventListener('change',loadDubbingReports);
   $$('.admin-nav-item').forEach(btn=>btn.addEventListener('click',()=>navigate(btn.dataset.view)));
   app.addEventListener('click',e=>{const jump=e.target.closest('[data-jump]');if(jump&&app.contains(jump))navigate(jump.dataset.jump);});
-  async function refreshCurrentView(){if(state.view==='ai-bots')document.dispatchEvent(new CustomEvent('aifect-admin-ai-bots'));await loadDashboard(true);if(state.view==='dubbing')await loadDubbing();if(state.view==='moderation')await Promise.all([loadCommentReports(),loadDubbingReports()]);}
+  async function refreshCurrentView(){if(state.view==='cover-compression')document.dispatchEvent(new CustomEvent('aifect-admin-cover-compression'));if(state.view==='ai-bots')document.dispatchEvent(new CustomEvent('aifect-admin-ai-bots'));await loadDashboard(true);if(state.view==='dubbing')await loadDubbing();if(state.view==='moderation')await Promise.all([loadCommentReports(),loadDubbingReports()]);}
   $('#period-select').addEventListener('change',async e=>{state.days=Number(e.target.value)||7;await refreshCurrentView();});
   $('#refresh-button').addEventListener('click',refreshCurrentView);
   $('#admin-search-form').addEventListener('submit',e=>{e.preventDefault();globalSearch($('#admin-search-input').value);});

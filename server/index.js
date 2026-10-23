@@ -1,4 +1,5 @@
 import {aiBotsRoute,runBotEngine,queueBotHeartbeat} from './ai-bots.js';
+import {coverCompressionAdmin} from './cover-compression.js';
 import {syncCrewGrowth,syncRecentCrewGrowth} from './crew-growth.js';
 import {profileCollectionsRoute} from './profile-collections.js';
 import {crewNoticeRoute} from './crew-notices.js';
@@ -109,6 +110,7 @@ export default {async fetch(req,env,ctx){
    return json({principal_id:principal,registered:principal===env.AIFECT_MCP_OWNER_ID,enabled:env.AIFECT_MCP_ENABLED==='true'});
   }
   const bots=await aiBotsRoute(req,env,path,user);if(bots)return bots;
+  const coverCompression=await coverCompressionAdmin(req,env,path,user);if(coverCompression)return coverCompression;
   env=await blockedContext(env,user);
   const play=await playRoute(req,env,path,user);if(play)return play;
   const voiceResponse=await voiceRoomsRoute(req,env,path,user,ctx);if(voiceResponse)return voiceResponse;

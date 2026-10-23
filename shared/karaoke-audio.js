@@ -3,8 +3,8 @@ export {roomGain,roomImpulse,restoreRoomMix} from './room-reverb.js';
 export {vocalPresets,presetMix,editVocalMix,defaultVocalMix,restoreVocalMix,VocalProcessor,renderVocals} from './vocal-effects.js';
 import {NoiseCleaner} from './vocal-effects.js';
 
-// Singing, preview and the uploaded mix all run at 32 kHz: it keeps phone memory low and a 10-minute
-// stereo 16-bit WAV (about 77 MB) under the 80 MB upload limit.
+// Singing, preview and final mixing run at 32 kHz to keep phone memory low.
+// Export/upload uses 256 kbps MP3; editable takes and dubbing lines remain PCM.
 export const MIX_RATE=32000;
 
 // The line and word sounding at `t` seconds, and how far through that word the singer is (0..1).

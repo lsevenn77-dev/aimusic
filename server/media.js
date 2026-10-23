@@ -21,6 +21,7 @@ import {originalArchiveRoute} from './original-archives.js';
 import {premiumAudio,premiumAudioRoute} from './premium-audio.js';
 import {premiumGrantInternalRoute} from './premium-grant.js';
 import {karaokeQueue,karaokeInternalRoute} from './karaoke.js';
+import {coverCompressionInternal} from './cover-compression.js';
 export {parseRange};
 export async function listener(req,user){return user?.id||await hash((req.headers.get('cf-connecting-ip')||'local')+'|'+(req.headers.get('user-agent')||'')+'|'+new Date().toISOString().slice(0,10));}
 export async function mediaRoute(req,env,path,user){
@@ -29,6 +30,9 @@ export async function mediaRoute(req,env,path,user){
  if(download&&['GET','HEAD'].includes(method)){
   requireUser(user);
   const t=await published(env,download[1]);if(t.kind!=='cover'||t.user_id!==user.id)fail(403,'본인이 녹음한 커버만 저장할 수 있어요. 다른 사람의 음악은 다운로드할 수 없어요.');
+  if(t.original_ext==='mp3'){
+   const r=await objectResponse(req,env,originalKey(t),'audio/mpeg'),h=new Headers(r.headers);h.set('content-disposition',`attachment; filename="AIFECT-cover.mp3"; filename*=UTF-8''${encodeURIComponent(t.title+'.mp3')}`);return new Response(r.body,{status:r.status,headers:h});
+  }
   const high=await premiumAudio(env,t,user),r=await objectResponse(req,env,high?.output_key||`stream/${t.id}.m4a`,'audio/mp4');
   const h=new Headers(r.headers);h.set('content-disposition',`attachment; filename="AIFECT-cover.m4a"; filename*=UTF-8''${encodeURIComponent(t.title+'.m4a')}`);
   return new Response(r.body,{status:r.status,headers:h});
@@ -146,6 +150,7 @@ export async function mediaRoute(req,env,path,user){
 }
 export async function internalRoute(req,env,path){
  if(!env.TRANSCODER_TOKEN||req.headers.get('authorization')!==`Bearer ${env.TRANSCODER_TOKEN}`)fail(401,'인증이 필요합니다.');
+ const compression=await coverCompressionInternal(req,env,path);if(compression)return compression;
  const generation=await dubbingGenerationInternalRoute(req,env,path);if(generation)return generation;
  const final=await dubbingFinalInternalRoute(req,env,path);if(final)return final;
  const dubbing=await dubbingSoundInternalRoute(req,env,path);if(dubbing)return dubbing;

@@ -29,6 +29,20 @@ test('defaults remain OFF, 120 templates are categorized, no public admin access
  assert.equal((await runBotEngine(f.env)).stopped,true);
 });
 
+test('successful support follows its creator once with an AI label and never changes human follows/rank metrics',async t=>{
+ const f=await setup(t);await f.seed(1);await f.enabled();f.publish();f.due();await runBotEngine(f.env);await runBotEngine(f.env);
+ assert.equal(f.sql.prepare('SELECT count(*) n FROM ai_support_follows').get().n,1);
+ assert.equal(f.sql.prepare('SELECT count(*) n FROM follows').get().n,0);
+ assert.equal(f.sql.prepare("SELECT count(*) n FROM ai_bot_audit WHERE action='follow'").get().n,1);
+ const own=(await f.call('/api/me/profile')).body;assert.equal(own.follower_count,1);assert.equal(own.human_followers,0);assert.equal(own.ai_followers,1);assert.equal(own.followers[0].account_type,'ai_bot');
+ for(const path of ['/api/producers/producer','/api/producers/producer/preview']){const d=(await f.call(path)).body;assert.equal(d.followers,1);assert.equal(d.ai_followers,1);assert.equal(d.human_followers,0);}
+ const added=(await f.call('/api/producers/producer/follow','PUT',null,'other')).body;assert.equal(added.followers,2);assert.equal(added.human_followers,1);assert.equal(added.ai_followers,1);
+ f.due();await runBotEngine(f.env);assert.equal(f.sql.prepare('SELECT count(*) n FROM ai_support_follows').get().n,1);
+ f.sql.exec("INSERT INTO user_blocks(user_id,blocked_id,created) VALUES('owner','ai_000001',0)");
+ const blocked=(await f.call('/api/me/profile')).body;assert.equal(blocked.follower_count,1);assert.equal(blocked.ai_followers,0);assert.ok(blocked.followers.every(x=>x.user_id!=='ai_000001'));
+ assert.throws(()=>f.sql.exec("INSERT INTO ai_support_follows VALUES('other','owner','fake',0)"),/Official AI/);
+});
+
 test('only authenticated transcoder polling runs unattended support, throttles repeat polls and respects OFF',async t=>{
  const f=await setup(t);await f.seed();await f.enabled({commentMin:0,commentMax:0,giftDelayMin:0,giftDelayMax:0});f.publish();f.due();
  const pending=[],ctx={waitUntil(p){pending.push(p);}},env={...f.env,TRANSCODER_TOKEN:'fixture-encoder-token'};
