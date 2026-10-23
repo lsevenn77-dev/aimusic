@@ -351,7 +351,7 @@ function bindDubbing(view){
   const mutate=async(path,method,body)=>{
    if(busy)return;if(!me){returnRoute=location.hash;location.hash='account';return;}
    busy=true;const disabled=new Map([...root.querySelectorAll('button')].map(b=>[b,b.disabled]));disabled.forEach((_,b)=>b.disabled=true);
-   try{const result=await api('/api/dubbing/projects/'+p.id+path,method,{revision:p.revision,...body});if(result.deleted||result.released&&!result.project)location.hash='dubbing?tab=mine';else if(result.id&&!result.project)location.hash='dubbing/'+result.id+'?record=1';else if(path.startsWith('/claims/')&&method==='POST')location.hash='dubbing/'+p.id+'?record=1';else await render();}
+   try{const result=await api('/api/dubbing/projects/'+p.id+path,method,{revision:p.revision,...body});if(path==='/publish'&&method==='POST')location.hash=playHref('dubbing','discover');else if(result.deleted||result.released&&!result.project)location.hash='dubbing?tab=mine';else if(result.id&&!result.project)location.hash='dubbing/'+result.id+'?record=1';else if(path.startsWith('/claims/')&&method==='POST')location.hash='dubbing/'+p.id+'?record=1';else await render();}
    catch(err){dubbingMessage(root,err.message);disabled.forEach((value,b)=>b.disabled=value);}
    finally{busy=false;}
   };

@@ -53,6 +53,20 @@ test('both AI writing paths plan causal detailed effects, reaction timing, silen
   assert.match(body.instructions,/몇 번\/어떤 간격/);assert.match(body.instructions,/반응하기 전에 그 소리가 먼저/);assert.match(body.instructions,/마지막 말 뒤의 소리는 after와 짧은 정적/);assert.match(body.instructions,/gapSeconds에 미리 확보/);assert.match(body.instructions,/모든 공포 작품에 귀신이나 비명을 붙이지/);assert.match(body.instructions,/타격과 간격·잔향/);
  }
 });
+test('sound direction receives exact recording slots and rejects an ending beyond the fixed clock',async()=>{
+ const s=drama(),clock=dubbingTimeline(s),last=clock.lines.at(-1),env={DUBBING_AI_ENABLED:'true',OPENAI_API_KEY:'mock-only'};
+ const ending={...s.soundCues[0],id:'ghost',lineId:s.lines.at(-1).id,anchor:'after',offsetSeconds:0,durationSeconds:2,generationSeconds:2};
+ const fetcher=async(url,init)=>{
+  const input=JSON.parse(JSON.parse(init.body).input);
+  assert.deepEqual(input.recordingClock,{duration:clock.duration,lines:clock.lines});
+  return Response.json({id:'resp_ending',status:'completed',usage:{input_tokens:10,output_tokens:20},output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({soundCues:[ending]})}]}]});
+ };
+ const result=await generateDubbingSoundPlan(env,s,{...options,minutes:1.5},fetcher);
+ assert.deepEqual(result.script.lines,s.lines);assert.equal(dubbingTimeline(result.script).sounds[0].start,last.end);
+ ending.offsetSeconds=3;
+ await assert.rejects(generateDubbingSoundPlan(env,s,{...options,minutes:1.5},fetcher),e=>e.planFailureCode==='clock_extended'&&e.providerRequestId==='resp_ending'&&e.usage.outputTokens===20);
+});
+
 test('new event requests generate only their playback window and preserve SFX timing and music gain',()=>{
  const s=drama();s.soundCues[0].generationSeconds=10;s.soundCues[0].durationSeconds=2.2;s.soundCues.push(music(s,'intro','intro'));
  const raw=dubbingTimeline(s),timeline=dubbingSoundTimeline(s),cue=timeline.sounds.find(c=>c.id==='door');

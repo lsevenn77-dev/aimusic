@@ -140,6 +140,7 @@ export async function dubbingSoundInternalRoute(req,env,path){
     for(const c of timeline.sounds)writes.push(query(env,"INSERT INTO dubbing_sound_assets(job_id,cue_id,updated) SELECT ?,?,? WHERE EXISTS(SELECT 1 FROM dubbing_sound_jobs WHERE id=? AND lease_token=? AND lease_until>?)",j.id,c.id,now(),j.id,j.lease_token,now()));
     await env.DB.batch(writes);
    }catch(e){
+    console.error('dubbing_sound_plan_failed',JSON.stringify({job:j.id,code:e.planFailureCode||'request_failed'}));
     await run(env,"UPDATE dubbing_generations SET state='unknown',usage_json=?,provider_id=?,updated=? WHERE id=?",JSON.stringify(e.usage||{}),e.providerRequestId||'',now(),gid);
     await checkpoint(env,j,"state='unknown',error=?,lease_token=NULL,lease_until=0",['음향 연출 결과를 확인하지 못했습니다. 자동 재요청하지 않았습니다.']);return json({state:'unknown'});
    }
