@@ -18,11 +18,11 @@
 .play-type-icon svg{width:18px;height:18px;flex-shrink:0}
 .play-duet-icon{gap:0;flex-basis:25px;width:25px}.play-duet-icon svg{width:15px;height:18px}.play-duet-icon svg+svg{margin-left:-5px}
 .play-page .play-dubbing-art{background:var(--ds-panel);color:var(--ds-muted);display:flex;flex-direction:column;justify-content:center;align-items:center;gap:14px;aspect-ratio:1}
-.play-dubbing-art svg{width:42px;height:42px}.play-dubbing-art span{font-size:12px}
+img.play-dubbing-art{display:block;width:100%;height:auto;aspect-ratio:1;object-fit:cover}.play-dubbing-art svg{width:42px;height:42px}.play-dubbing-art span{font-size:12px}
 .play-project-list{display:grid;gap:12px}
 .play-project-row{display:flex;align-items:center;gap:16px;padding:20px 0;border-bottom:1px solid var(--ds-line);min-width:0}
 .play-project-symbol{width:52px;height:52px;flex:0 0 52px;border-radius:var(--ds-radius-input);background:var(--ds-panel);display:grid;place-items:center;color:var(--ds-muted)}
-.play-project-symbol svg{width:24px;height:24px}.play-project-row>div{flex:1;min-width:0}
+.play-project-symbol svg{width:24px;height:24px}img.play-project-symbol{object-fit:cover}.play-project-row>div{flex:1;min-width:0}
 .play-project-row h2{display:flex;align-items:center;gap:6px;font-size:17px;margin:0 0 8px;min-width:0}
 .play-project-row h2>span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .play-project-row p,.play-project-row small{color:var(--ds-muted);font-size:13px;margin:0 0 5px}

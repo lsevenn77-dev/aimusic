@@ -1,5 +1,11 @@
 // Shared, dependency-free script contract. No provider secrets or audio generation here.
 export const DUBBING_GENRES=['SF','이세계물','판타지','사극','로맨스','액션','코미디','첩보','공포','스릴러','미스터리','일상','감동'];
+const DUBBING_ART_SLUGS=['sf','isekai','fantasy','historical','romance','action','comedy','spy','horror','thriller','mystery','daily','moving'];
+export function dubbingGenreArtwork(genres=[]){
+ const genre=Array.isArray(genres)?genres.find(g=>DUBBING_GENRES.includes(g)):null;
+ const index=DUBBING_GENRES.indexOf(genre);
+ return '/assets/dubbing-genres/'+(DUBBING_ART_SLUGS[index]||'daily')+'.webp';
+}
 export const DUBBING_MOODS=['유쾌하게','설레게','진지하게','긴장감 있게','슬프게','랜덤'];
 export const DUBBING_ENDINGS=['해피엔딩','새드엔딩','반전','열린 결말','랜덤'];
 export const DUBBING_MODEL='gpt-6-luna';
