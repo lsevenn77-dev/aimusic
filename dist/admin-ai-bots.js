@@ -33,6 +33,13 @@
  }catch(e){panel.innerHTML='<p>불러오지 못했어요.</p>';message(e.message);}}
 
  async function optimize(file){const bitmap=await createImageBitmap(file);try{const canvas=document.createElement('canvas');canvas.width=canvas.height=512;const ctx=canvas.getContext('2d'),size=Math.min(bitmap.width,bitmap.height);ctx.drawImage(bitmap,(bitmap.width-size)/2,(bitmap.height-size)/2,size,size,0,0,512,512);return await new Promise((ok,fail)=>canvas.toBlob(b=>b?ok(b):fail(new Error('사진 변환에 실패했어요.')),'image/webp',.85));}finally{bitmap.close();}}
+ async function catalogueImage(item){
+  if(!/^\/assets\/ai-bot-import\/[a-f0-9]{64}\.webp$/.test(item.image))throw new Error('허용된 사이그램 이미지가 아닙니다.');
+  const r=await fetch(item.image);if(!r.ok)throw new Error('이미지를 불러오지 못했어요.');
+  // Sites may serve WebP as octet-stream. Keep bytes intact; the upload API
+  // still validates RIFF/WEBP signatures, size and operator authorization.
+  return new Blob([await r.arrayBuffer()],{type:'image/webp'});
+ }
  function parseCSV(text){const rows=[];let row=[],cell='',quote=false;for(let i=0;i<text.length;i++){const c=text[i];if(c==='"'){if(quote&&text[i+1]==='"'){cell+='"';i++;}else quote=!quote;}else if(!quote&&(c===','||c==='\n')){row.push(cell.trim());cell='';if(c==='\n'){if(row.some(Boolean))rows.push(row);row=[];}}else if(c!=='\r')cell+=c;}if(quote)throw new Error('CSV 따옴표를 확인해주세요.');row.push(cell.trim());if(row.some(Boolean))rows.push(row);const headers=(rows.shift()||[]).map(s=>s.replace(/^\uFEFF/,''));return rows.map(r=>Object.fromEntries(headers.map((h,i)=>[h,r[i]||''])));}
  async function importPage(panel){
   panel.innerHTML=`<h2>사이그램 AI 캐릭터 · 이미지 일괄 등록</h2><p>일반 회원 사진을 가져오지 않습니다. 미리보기에서 선택한 항목만 비활성 서비스 계정으로 등록합니다.</p><div class="bot-inline"><button class="small-button" data-saigram-load>사이그램 캐릭터 목록</button><button class="small-button" data-import-all>등록 가능한 항목 전체 선택</button></div><form data-import-form class="admin-card">${label('프로필 이미지 여러 개 선택','<input name="images" type="file" multiple accept="image/jpeg,image/png,image/webp">')}${label('이름 매핑 CSV (선택)','<input name="csv" type="file" accept=".csv,text/csv">')}<p>CSV 열: source_key,name,image (이미지 파일명). CSV가 없으면 파일명을 닉네임으로 사용합니다.</p><button class="small-button">업로드 이미지 미리보기</button></form><label><input type="checkbox" data-owned-ai> 운영자 소유이며 재사용 권한이 확인된 AI 캐릭터 이미지입니다.</label><div data-import-preview class="bot-account-grid"></div><button class="primary-button" data-import-execute>선택 항목 검토 후 등록</button><p data-import-progress role="status"></p>`;
@@ -48,7 +55,7 @@
    reviewed=[];commit.hidden=true;const progress=q('[data-import-progress]');let done=0;
    for(let start=0;start<chosen.length;start+=5){const group=chosen.slice(start,start+5),ready=[];
     for(const item of group){try{progress.textContent=`${done+ready.length+1} / ${chosen.length} 이미지 확인 중`;
-     let blob;if(item.file)blob=await optimize(item.file);else{if(!item.image.startsWith('/assets/ai-bot-import/'))throw new Error('허용된 사이그램 이미지가 아닙니다.');const r=await fetch(item.image);if(!r.ok)throw new Error('이미지를 불러오지 못했어요.');blob=await r.blob();}
+     const blob=item.file?await optimize(item.file):await catalogueImage(item);
      const staged=await api('/assets','POST',blob);item.sha=staged.sha;ready.push({name:item.name,source_key:item.source_key,sha:item.sha});
     }catch(e){item.status='failed';item.error=e.message;}}
     if(ready.length){const preview=await api('/import/preview','POST',{items:ready,owned_ai:true});for(const r of preview.items){const item=group.find(i=>i.source_key===r.source_key);if(item)Object.assign(item,r);}reviewed.push({items:ready,owned_ai:true,preview_token:preview.preview_token});}
