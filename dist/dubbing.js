@@ -11,7 +11,7 @@ function dubbingGenresHTML(tab,genre){
  return `<section class="dubbing-discover" aria-label="장르별 더빙 찾기"><div class="dubbing-section-heading"><div><span class="eyebrow">FIND YOUR STORY</span><h2>어떤 이야기에 참여할까요?</h2><p>좋아하는 장르를 고르고, 참여할 극본과 완성된 더빙을 만나보세요.</p></div><a class="small-button" href="${dubbingNewURL(genre)}">${icon('sparkles')} 새로 시작하기</a></div><nav class="dubbing-genre-filter" aria-label="더빙 장르">${['',...AifectDubbing.DUBBING_GENRES].map(g=>`<a href="#dubbing?${esc(dubbingListQuery(tab,g))}" ${genre===g?'aria-current="true"':''}>${g||'전체'}</a>`).join('')}</nav></section>`;
 }
 function dubbingModeNav(active='dubbing'){
- return `<nav class="dubbing-mode" aria-label="부르기 종류"><a href="#karaoke" ${active==='song'?'aria-current="page"':''}>${icon('mic')} 노래</a><a href="#dubbing" ${active==='dubbing'?'aria-current="page"':''}>${icon('users')} 더빙</a></nav>`;
+ return `<nav class="dubbing-mode" aria-label="플레이 종류"><a href="#karaoke" ${active==='song'?'aria-current="page"':''}>${icon('mic')} 노래</a><a href="#dubbing" ${active==='dubbing'?'aria-current="page"':''}>${icon('users')} 더빙</a></nav>`;
 }
 function dubbingBeforeRoute(raw){
  if(!dubbingRecordBeforeRoute(raw))return false;

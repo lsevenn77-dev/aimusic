@@ -38,7 +38,7 @@ async function browseView(base,param,raw){
  if(base==='search'&&!param)return {html:browseSearchHTML()};
  if(base==='charts'&&param==='karaoke'||base==='karaoke'&&param==='chart'){
   const d=await api('/api/cover-rankings?kind=tracks&period=week&include_unranked=1'),tracks=d.tracks.filter(t=>t.kind==='cover');
-  return {html:heading('노래방 차트','공개된 커버곡만 모았어요. 이번 주 받은 좋아요 순으로 만나요.')+chartTabs('karaoke')+chartLayoutHTML(browsePlaybackActions(tracks)+(tracks.length?coverRankTracksHTML(tracks):empty('아직 등록된 커버곡이 없어요','첫 커버곡이 공개되면 이곳에서 만날 수 있어요.','#karaoke','노래 부르기')),tracks,'karaoke'),tracks};
+  return {html:heading('노래방 차트','공개된 커버곡만 모았어요. 이번 주 받은 좋아요 순으로 만나요.')+chartTabs('karaoke')+chartLayoutHTML(browsePlaybackActions(tracks)+(tracks.length?coverRankTracksHTML(tracks):empty('아직 등록된 커버곡이 없어요','첫 커버곡이 공개되면 이곳에서 만날 수 있어요.','#karaoke','플레이')),tracks,'karaoke'),tracks};
  }
  if(base==='karaoke'&&param==='drafts'){if(!me){returnRoute=location.hash;return {html:gate()};}return {html:karaokeDraftsHTML(await listSingDrafts())};}
  if(base==='karaoke'&&['songs','duets'].includes(param)){
@@ -57,7 +57,7 @@ async function browseView(base,param,raw){
   if(tab==='following'){await refreshLibrary();const people=kind=>library.follows.filter(f=>f.kind===kind).map(f=>({...f,id:f.target_id}));html+=`<p class="field-help"><a class="text-link" href="#community/following">팔로우한 창작자의 새 음악 듣기</a></p>`;for(const [kind,title] of [['producer','창작자'],['artist','AI 아티스트']])html+=section(title)+(people(kind).length?peopleListHTML(people(kind),kind):`<p class="empty-inline">아직 팔로우한 ${title}가 없어요. <a class="text-link" href="#${kind==='producer'?'producers':'artists'}">둘러보기</a></p>`);return {html};}
   if(tab==='history'){const d=await api('/api/history');return {html:html+browsePlaybackActions(d.tracks)+list(d.tracks),tracks:d.tracks};}
   const d=await api('/api/studio'),owned=d.tracks.filter(t=>t.kind===(tab==='covers'?'cover':'original')),published=owned.filter(t=>t.status==='published');
-  html+=`<div class="inline-actions playlist-actions"><a class="primary-button" href="#${tab==='covers'?'karaoke':'upload'}">${icon('plus')} ${tab==='covers'?'새 커버곡 부르기':'제작곡 올리기'}</a><a class="text-link" href="#studio">스튜디오에서 관리</a></div>`;
+  html+=`<div class="inline-actions playlist-actions"><a class="primary-button" href="#${tab==='covers'?'karaoke':'upload'}">${icon('plus')} ${tab==='covers'?'플레이로 이동':'제작곡 올리기'}</a><a class="text-link" href="#studio">스튜디오에서 관리</a></div>`;
   html+=tab==='covers'&&owned.length?coverCollectionHTML(owned,'my-covers',true):owned.length?`<div class="own-music-list">${owned.map(t=>`<article class="own-music-row">${cover(t,'mini-cover')}<div><strong>${esc(t.title)}</strong><small>${esc(({published:'공개 중',draft:'작성 중',processing:'음원 처리 중',hidden:'비공개',failed:'처리 실패'})[t.status]||'준비 중')}</small></div>${t.status==='published'?`<button class="icon-button" data-play="${esc(t.id)}" aria-label="${esc(t.title)} 듣기">${icon('play')}</button>`:''}<a class="small-button" href="#manage/${esc(t.id)}">관리</a></article>`).join('')}</div>`:empty(tab==='covers'?'아직 내 커버곡이 없어요.':'아직 내 제작곡이 없어요.','좋아하는 음악으로 나만의 이야기를 시작해보세요.',tab==='covers'?'#karaoke':'#upload',tab==='covers'?'부를 곡 찾아보기':'음악 올리기');
   return {html,tracks:published};
  }

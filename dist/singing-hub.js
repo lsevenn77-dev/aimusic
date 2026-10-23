@@ -2,7 +2,7 @@ function singingHubTiles(tracks){return tracks.length?tracks.map(t=>`<article cl
 function singingHubHTML(tracks,covers,duets){
  const quick=(type,title,desc,glyph)=>`<a class="hub-quick ${type}" href="#karaoke/${type==='duet'?'duets':'songs'}"><span class="hub-quick-symbol">${icon(glyph)}</span><span><strong>${title} ${icon('chevron')}</strong><small>${desc}</small></span><span class="hub-quick-arrow">${icon('arrow')}</span></a>`;
  const header=(title,sub,href)=>`<header class="hub-panel-heading"><div><h2>${title}</h2><p>${sub}</p></div><a href="${href}">더보기 ${icon('chevron')}</a></header>`;
- return `<div class="singing-hub"><section class="hub-intro"><div><h1>부르기</h1><h2>듣기만 하던 음악, 이번에는 내 목소리로.</h2><p>좋아하는 노래를, 나의 목소리로 다시 불러보세요.</p></div><span class="hub-intro-note">좋아하는 노래를<br>나의 목소리로, 다시.</span></section>
+ return `<div class="singing-hub"><section class="hub-intro"><div><h1>플레이</h1><h2>듣기만 하던 음악, 이번에는 내 목소리로.</h2><p>좋아하는 노래를, 나의 목소리로 다시 불러보세요.</p></div><span class="hub-intro-note">좋아하는 노래를<br>나의 목소리로, 다시.</span></section>
  ${singingHubNav()}
  <div class="hub-quick-grid">${quick('original','바로 부르기','지금 원하는 곡을 골라<br>나의 목소리로 불러보세요.','mic')}${quick('duet','듀엣 참여하기','누군가의 목소리가<br>당신을 기다리고 있어요.','users')}<a class="hub-quick drafts" href="#karaoke/drafts"><span class="hub-quick-symbol">${icon('edit')}</span><span><strong>내 초안 이어서 ${icon('chevron')}</strong><small>저장해 둔 초안을 이어서<br>완성해보세요.</small></span><span class="hub-quick-arrow">${icon('arrow')}</span></a></div>
  <div class="hub-panels"><section class="hub-panel hub-covers">${header('추천 커버','새롭게 공개된 목소리를 만나보세요.','#community/covers')}<div class="hub-cover-grid">${covers.length?covers.slice(0,4).map(t=>`<article><div class="hub-cover-art"><a href="#song/${esc(t.id)}">${cover(t)}</a><button data-play="${esc(t.id)}" aria-label="${esc(t.title)} 듣기">${icon('play')}</button><span>${time(t.duration)}</span></div><a href="#song/${esc(t.id)}"><strong>${esc(t.title)}</strong></a><a class="hub-artist" href="#producer/${esc(t.producer_id)}">${esc(t.producer)}</a><div class="hub-stats"><span>${icon('play')} ${number(t.plays||0)}</span><span>${icon('heart')} ${number(t.likes||0)}</span></div></article>`).join(''):'<p class="hub-empty">첫 커버의 주인공이 되어보세요.<br>공개된 커버가 여기에 모여요.</p>'}</div></section>
@@ -19,7 +19,7 @@ function bindSingingHub(view){
 
 function singingHubNav(active='recommend'){
  const tabs=[['recommend','추천','#karaoke'],['duets','듀엣','#karaoke/duets'],['songs','원곡','#karaoke/songs'],['drafts','내 초안','#karaoke/drafts'],['ranking','랭킹','#charts/karaoke']];
- return (typeof dubbingModeNav==='function'?dubbingModeNav('song'):'')+'<nav class="hub-tabs" aria-label="부르기 메뉴">'+tabs.map(([key,label,href])=>`<a href="${href}" ${key===active?'class="active" aria-current="page"':''}>${label}</a>`).join('')+'</nav>';
+ return (typeof dubbingModeNav==='function'?dubbingModeNav('song'):'')+'<nav class="hub-tabs" aria-label="플레이 메뉴">'+tabs.map(([key,label,href])=>`<a href="${href}" ${key===active?'class="active" aria-current="page"':''}>${label}</a>`).join('')+'</nav>';
 }
 function singingCollectionCards(tracks,duet){
  return tracks.map(t=>{
@@ -33,11 +33,11 @@ function singingCollectionCards(tracks,duet){
  }).join('');
 }
 function singingCollectionEmpty(duet,filtered=false){
- return `<div class="sing-collection-empty">${icon(duet?'users':'search')}<h2>${filtered?'일치하는 곡이 없어요':duet?'아직 참여를 기다리는 반곡이 없어요':'아직 부를 수 있는 곡이 없어요'}</h2><p>${filtered?'다른 제목이나 이름으로 검색하거나 필터를 초기화해보세요.':duet?'좋아하는 곡의 첫 파트를 남기고 함께 부를 사람을 만나보세요.':'MR이 준비된 음악이 여기에 모여요.'}</p>${filtered?'<button type="button" class="small-button" data-sing-filter-reset>필터 초기화</button>':`<a class="primary-button" href="${duet?'#karaoke/songs':'#karaoke'}">${duet?'부를 곡 고르기':'부르기로 돌아가기'} ${icon('arrow')}</a>`}</div>`;
+ return `<div class="sing-collection-empty">${icon(duet?'users':'search')}<h2>${filtered?'일치하는 곡이 없어요':duet?'아직 참여를 기다리는 반곡이 없어요':'아직 부를 수 있는 곡이 없어요'}</h2><p>${filtered?'다른 제목이나 이름으로 검색하거나 필터를 초기화해보세요.':duet?'좋아하는 곡의 첫 파트를 남기고 함께 부를 사람을 만나보세요.':'MR이 준비된 음악이 여기에 모여요.'}</p>${filtered?'<button type="button" class="small-button" data-sing-filter-reset>필터 초기화</button>':`<a class="primary-button" href="${duet?'#karaoke/songs':'#karaoke'}">${duet?'부를 곡 고르기':'플레이로 돌아가기'} ${icon('arrow')}</a>`}</div>`;
 }
 function singingCollectionHTML(tracks,kind){
  const duet=kind==='duets',genres=[...new Set(tracks.flatMap(t=>t.genres||[t.genre]))].filter(Boolean).sort();
- return `<div class="singing-hub singing-collection"><a class="sing-collection-back" href="#karaoke">← 부르기로</a>
+ return `<div class="singing-hub singing-collection"><a class="sing-collection-back" href="#karaoke">← 플레이로</a>
   <header class="sing-collection-hero${duet?' is-duet':''}"><div><span class="eyebrow">${duet?'SING TOGETHER':'YOUR VOICE, YOUR STAGE'}</span><h1>${duet?'듀엣 참여하기':'바로 부르기'}</h1><p>${duet?'누군가 남긴 반곡, 당신의 목소리로 완성해요.':'부르고 싶은 곡을 골라 나만의 무대를 시작해요.'}</p></div><span class="sing-collection-symbol" aria-hidden="true">${icon(duet?'users':'mic')}</span></header>
   ${singingHubNav(kind)}<section class="sing-collection-browser" aria-label="${duet?'참여 대기 반곡':'부를 수 있는 곡'} 목록">
   <div class="sing-collection-toolbar"><label class="sing-collection-search">${icon('search')}<input id="sing-collection-search" type="search" aria-label="${duet?'반곡':'원곡'} 검색" placeholder="${duet?'곡 제목, 부른 사람으로 찾기':'곡 제목, 아티스트로 찾기'}"></label><div class="sing-collection-filters"><select id="sing-collection-genre" aria-label="장르"><option value="">모든 장르</option>${genres.map(g=>`<option value="${esc(g)}">${esc(g)}</option>`).join('')}</select><select id="sing-collection-order" aria-label="정렬"><option value="${duet?'recent':'popular'}">${duet?'최신순':'인기순'}</option><option value="${duet?'popular':'recent'}">${duet?'인기순':'최신순'}</option><option value="title">제목순</option></select></div></div>
