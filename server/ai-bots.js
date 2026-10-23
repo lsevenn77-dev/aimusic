@@ -159,6 +159,15 @@ export async function officialSupport(env,type,target,owner=false){
  return {quantity:total.quantity,gifts,cash_value:0,excluded_from_rankings:true};
 }
 
+// Reuse the existing authenticated transcoder poll even when Sites has no cron.
+// Throttle per DB binding/isolate; the durable engine lease still prevents races.
+const heartbeatDue=new WeakMap();
+export function queueBotHeartbeat(env,ctx,at=now()){
+ if(!env.DB||!ctx?.waitUntil||at<(heartbeatDue.get(env.DB)||0))return;
+ heartbeatDue.set(env.DB,at+60);
+ ctx.waitUntil(runBotEngine(env,at).catch(()=>{console.error('AI support processing pending');}));
+}
+
 export async function runBotEngine(env,at=now()){
  const s=await botSettings(env),c=s.config;if(!c.enabled)return {stopped:true,processed:0};
  const token=id(),lease=await one(env,"UPDATE ai_bot_settings SET lease_token=?,lease_until=? WHERE id=1 AND lease_until<=? AND revision=? RETURNING id",token,at+120,at,s.revision);if(!lease)return {busy:true,processed:0};

@@ -1,4 +1,4 @@
-import {aiBotsRoute,runBotEngine} from './ai-bots.js';
+import {aiBotsRoute,runBotEngine,queueBotHeartbeat} from './ai-bots.js';
 import {syncCrewGrowth,syncRecentCrewGrowth} from './crew-growth.js';
 import {profileCollectionsRoute} from './profile-collections.js';
 import {crewNoticeRoute} from './crew-notices.js';
@@ -70,7 +70,7 @@ export default {async fetch(req,env,ctx){
   if(path==='/internal/billing/tick')return await billingTick(req,env);
   if(path==='/internal/player/backfill')return await playerBackfillRoute(req,env);
   if(path.startsWith('/internal/music-classification/'))return await musicClassificationInternal(req,env,path);
-  if(path.startsWith('/internal/')){const result=await internalRoute(req,env,path);if(result?.ok&&ctx?.waitUntil){if(env.GEMINI_API_KEY&&(path==='/internal/jobs/claim'||path.endsWith('/finish')))ctx.waitUntil(classifyNext(env).catch(()=>console.error('Music classification pending')));if(path.endsWith('/finish')){ctx.waitUntil(dispatchPush(env).catch(()=>console.error('Participation push pending')));ctx.waitUntil(syncRecentCrewGrowth(env).catch(()=>console.error('Crew growth pending')));}}return result;}
+  if(path.startsWith('/internal/')){const result=await internalRoute(req,env,path);if(result?.ok&&ctx?.waitUntil){if(path==='/internal/jobs/claim'&&req.method==='POST')queueBotHeartbeat(env,ctx);if(env.GEMINI_API_KEY&&(path==='/internal/jobs/claim'||path.endsWith('/finish')))ctx.waitUntil(classifyNext(env).catch(()=>console.error('Music classification pending')));if(path.endsWith('/finish')){ctx.waitUntil(dispatchPush(env).catch(()=>console.error('Participation push pending')));ctx.waitUntil(syncRecentCrewGrowth(env).catch(()=>console.error('Crew growth pending')));}}return result;}
   const musicResponse=await publicMusicRoute(req,env,path);if(musicResponse)return musicResponse;
   if(['/admin','/admin/','/admin.html'].includes(path))return new Response('페이지를 찾을 수 없습니다.',{status:404,headers:{'content-type':'text/plain; charset=utf-8','cache-control':'no-store'}});
   const publicResponse=publicPageRoute(req,path);if(publicResponse)return publicResponse;

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {fixture} from './fixture.mjs';
 import worker from '../server/index.js';
-import {runBotEngine} from '../server/ai-bots.js';
+import {runBotEngine,queueBotHeartbeat} from '../server/ai-bots.js';
 import {BOT_DEFAULTS,BOT_SEED_TEMPLATES} from '../shared/ai-bots.js';
 import {sampleScript,options} from './dubbing-fixtures.mjs';
 import {readFileSync} from 'node:fs';
@@ -27,6 +27,21 @@ test('defaults remain OFF, 120 templates are categorized, no public admin access
  assert.equal((await f.call(root+'/dashboard','GET',null,'other')).status,403);
  f.publish();assert.equal(f.sql.prepare('SELECT count(*) n FROM ai_bot_jobs').get().n,0);
  assert.equal((await runBotEngine(f.env)).stopped,true);
+});
+
+test('only authenticated transcoder polling runs unattended support, throttles repeat polls and respects OFF',async t=>{
+ const f=await setup(t);await f.seed();await f.enabled({commentMin:0,commentMax:0,giftDelayMin:0,giftDelayMax:0});f.publish();f.due();
+ const pending=[],ctx={waitUntil(p){pending.push(p);}},env={...f.env,TRANSCODER_TOKEN:'fixture-encoder-token'};
+ const poll=async token=>{
+  const r=await worker.fetch(new Request('https://aifect.test/internal/jobs/claim',{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:'{}'}),env,ctx);
+  await Promise.all(pending.splice(0));return r;
+ };
+ assert.equal((await poll('wrong')).status,401);assert.equal(f.sql.prepare('SELECT count(*) n FROM ai_bot_activities').get().n,0);
+ assert.equal((await poll('fixture-encoder-token')).status,200);assert.equal(f.sql.prepare('SELECT count(*) n FROM ai_bot_activities').get().n,2);
+ f.sql.exec("UPDATE tracks SET status='hidden' WHERE id='two'; UPDATE tracks SET status='published' WHERE id='two'; UPDATE ai_bot_jobs SET due=0");
+ assert.equal((await poll('fixture-encoder-token')).status,200);assert.equal(f.sql.prepare('SELECT count(*) n FROM ai_bot_activities').get().n,2);
+ await f.call(root+'/stop','POST',{});queueBotHeartbeat(env,ctx,at()+61);await Promise.all(pending.splice(0));
+ assert.equal(f.sql.prepare('SELECT count(*) n FROM ai_bot_activities').get().n,2);
 });
 test('import preview and execute create unique service profiles, reject duplicates and never issue credentials',async t=>{
  const f=await setup(t),items=await f.seed();
