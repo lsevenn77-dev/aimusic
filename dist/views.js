@@ -15,9 +15,10 @@ function saveNavigationSnapshot(raw,html,tracks,explorer,scroll=0){
  while(navigationSnapshots.size>24)navigationSnapshots.delete(navigationSnapshots.keys().next().value);
 }
 function bindRenderedRoute(base,param,explorer,ticket){
+ if(typeof bindPlay==='function')bindPlay(explorer);
  if(typeof bindMyPage==='function')bindMyPage(explorer);
  if(typeof bindProfileManagement==='function')bindProfileManagement(explorer);
- if(typeof bindVoice==='function')bindVoice(base,param);
+ if(typeof bindVoice==='function')bindVoice(explorer?.playVoice?'voice':base,param);
  icons();paintInteractions();bindForms(base,param);bindNotifications(explorer);bindGiftClaims($('#gift-shop-rewards'));bindExplorer(explorer);bindBrowse(explorer);bindImprovements(explorer);
  if(typeof bindDubbing==='function')bindDubbing(explorer);
  if(['community','covers'].includes(base))void loadCommunityCrews($('#community-crew-preview'),ticket);
@@ -32,6 +33,8 @@ function watchCachedNavigation(main){
 }
 async function render(){
  setMobileMenu(false);
+ const playRedirect=typeof playAlias==='function'?playAlias(location.hash):null;
+ if(playRedirect)history.replaceState(null,'',playRedirect);
 
  const ticket=++renderId,raw=location.hash.slice(1)||'home',[baseQuery,paramQuery]=raw.split('/'),[base]=baseQuery.split('?'),param=paramQuery?.split('?')[0];
  if(typeof dubbingBeforeRoute==='function'&&!dubbingBeforeRoute(raw))return;
@@ -65,7 +68,7 @@ async function render(){
   if(account!==(me?.id||'guest'))return render();
   const readRevision=apiRevision;
   const profileHeader=base==='library'?libraryProfileHTML().catch(error=>({error})):null;
-  const explorer=(typeof myPageView==='function'?await myPageView(base,param,raw):null)||(typeof dubbingView==='function'?await dubbingView(base,param,raw):null)||(typeof voiceView==='function'?await voiceView(base,param):null)||await notificationsView(base,raw)||await playerView(base)||await improvementsView(base,param,raw)||await browseView(base,param,raw)||await explorerView(base,param,raw);
+  const explorer=(typeof playView==='function'?await playView(base,param,raw):null)||(typeof myPageView==='function'?await myPageView(base,param,raw):null)||(typeof dubbingView==='function'?await dubbingView(base,param,raw):null)||(typeof voiceView==='function'?await voiceView(base,param):null)||await notificationsView(base,raw)||await playerView(base)||await improvementsView(base,param,raw)||await browseView(base,param,raw)||await explorerView(base,param,raw);
   if(explorer){html=explorer.html;nextTracks=remember(explorer.tracks||[]);}
   else if(['discover','charts','artists','producers','search'].includes(base)){
    let query='';const genre=base==='discover'?decodeURIComponent(param||'전체'):'전체',searchValue=base==='search'?decodeURIComponent(param||''):'';

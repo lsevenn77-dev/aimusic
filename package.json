@@ -3,6 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "lint:play": "eslint --config eslint.play.config.mjs dist/play-page.js server/play.js tests/play.test.mjs tests/preview-play.mjs",
+    "typecheck:play": "tsc -p tsconfig.play.json",
     "build": "node scripts/build.mjs",
     "dev": "wrangler dev --port 4174",
     "db:generate": "drizzle-kit generate",
@@ -20,6 +22,8 @@
     "drizzle-kit": "^0.31.4",
     "drizzle-orm": "^0.44.5",
     "esbuild": "^0.25.9",
+    "eslint": "9.39.1",
+    "typescript": "5.9.3",
     "wrangler": "^4.32.0",
     "ws": "8.21.0"
   }

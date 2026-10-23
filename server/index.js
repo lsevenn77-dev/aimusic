@@ -1,6 +1,7 @@
 import {relationRoute} from './relations.js';
 import {giftInventoryRoute} from './gift-inventory.js';
 import {dubbingAdminRoute} from './dubbing-admin.js';
+import {playRoute} from './play.js';
 import {adminMcpRoute} from './admin-mcp.js';
 import {dubbingReportsAdminRoute} from './dubbing-reports.js';
 import {pitchCorrectionRoute} from './pitch-correction.js';
@@ -102,6 +103,7 @@ export default {async fetch(req,env,ctx){
    return json({principal_id:principal,registered:principal===env.AIFECT_MCP_OWNER_ID,enabled:env.AIFECT_MCP_ENABLED==='true'});
   }
   env=await blockedContext(env,user);
+  const play=await playRoute(req,env,path,user);if(play)return play;
   const voiceResponse=await voiceRoomsRoute(req,env,path,user,ctx);if(voiceResponse)return voiceResponse;
   const dubbingReportAdmin=await dubbingReportsAdminRoute(req,env,path,user);if(dubbingReportAdmin)return dubbingReportAdmin;
   const dubbingAdmin=await dubbingAdminRoute(req,env,path,user);if(dubbingAdmin)return dubbingAdmin;
