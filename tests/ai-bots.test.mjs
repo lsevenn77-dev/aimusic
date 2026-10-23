@@ -131,6 +131,25 @@ test('retired, blocked and quota-limited targets skip, and bot profiles cannot e
  await assert.rejects(payoutRoute(new Request('https://aifect.test/api/studio/payout-account'),f.env,'/api/studio/payout-account',{id:'ai_000001'}),e=>e.status===403);
  assert.throws(()=>f.sql.exec("INSERT INTO likes(user_id,track_id,created) VALUES('ai_000001','one',0)"),/service account/);
 });
+test('operator tests only selected existing public works, keeps deduplication, permissions and zero-cash gifts',async t=>{
+ const f=await setup(t),body={target_type:'track',target_id:'one',confirmed:true};await f.seed();
+ assert.equal((await f.call(root+'/test-existing','POST',body)).status,409);
+ await f.enabled({humanThreshold:100});
+ assert.equal((await f.call(root+'/test-existing','POST',body,'other')).status,403);
+ assert.equal((await f.call(root+'/test-existing','POST',{...body,confirmed:false})).status,400);
+ assert.equal((await f.call(root+'/test-existing','POST',{...body,target_id:'hidden'})).status,404);
+ assert.ok((await f.call(root+'/existing-targets')).body.targets.some(t=>t.id==='one'));
+ assert.equal((await f.call(root+'/test-existing','POST',body)).status,200);
+ const before=f.sql.prepare('SELECT count(*) n FROM ai_bot_jobs').get().n;
+ await f.call(root+'/test-existing','POST',body);assert.equal(f.sql.prepare('SELECT count(*) n FROM ai_bot_jobs').get().n,before);
+ await runBotEngine(f.env);assert.equal(f.sql.prepare('SELECT count(*) n FROM ai_bot_activities').get().n,2);
+ await f.call(root+'/test-existing','POST',body);await runBotEngine(f.env);
+ assert.equal(f.sql.prepare('SELECT count(*) n FROM ai_bot_activities').get().n,2);
+ assert.equal(f.sql.prepare('SELECT sum(cash_value) n FROM ai_support_gifts').get().n,0);
+ assert.equal(f.sql.prepare('SELECT count(*) n FROM gifts').get().n,0);
+ assert.equal(f.sql.prepare("SELECT count(*) n FROM ai_bot_audit WHERE action='test_existing'").get().n,3);
+});
+
 test('reviewed Saigram catalogue contains exactly 335 real AI assets and imports only those 335 in a disposable database',async t=>{
  const f=await setup(t),catalog=JSON.parse(readFileSync(new URL('../dist/assets/ai-bot-import/catalog.json',import.meta.url),'utf8'));
  assert.equal(catalog.items.length,335);assert.ok(catalog.items.every(i=>i.status==='ready'));

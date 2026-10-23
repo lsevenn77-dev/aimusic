@@ -119,6 +119,17 @@ export async function aiBotsRoute(req,env,path,user){
   const b=await req.json(),jid=str(b.id,200);await env.DB.batch([query(env,"UPDATE ai_bot_jobs SET state='pending',attempts=0,due=?,updated=? WHERE id=? AND state='failed'",now(),now(),jid),audit(env,user,'job_retry',{id:jid})]);return json({ok:true});
  }
  if(tail==='/run'&&method==='POST'){await audit(env,user,'engine_run',{}).run();return json(await runBotEngine(env));}
+ if(tail==='/existing-targets'&&method==='GET')return json({targets:await rows(env,`SELECT 'track' target_type,t.id,t.title,t.user_id owner_id,u.name owner_name,CASE WHEN t.kind='original' THEN 'original' ELSE t.cover_mode END category FROM tracks t JOIN users u ON u.id=t.user_id WHERE t.status='published' AND u.account_type='human' AND (t.kind='original' OR t.duet_open=0) UNION ALL SELECT 'dubbing',p.id,p.title,p.owner_id,u.name,'dubbing' FROM dubbing_projects p JOIN users u ON u.id=p.owner_id WHERE p.state='complete' AND p.visibility='public' AND p.deleted_at=0 AND u.account_type='human' LIMIT 100`)});
+ if(tail==='/test-existing'&&method==='POST'){
+  const b=await req.json(),type=b.target_type,targetId=str(b.target_id,80),s=await botSettings(env);
+  if(!s.config.enabled||!await one(env,'SELECT 1 FROM ai_bots WHERE active=1 LIMIT 1'))fail(409,'계정과 전체 자동 활동을 먼저 활성화해주세요.');
+  if(b.confirmed!==true||!['track','dubbing'].includes(type))fail(400,'실제 공개 작품에 대한 테스트임을 확인해주세요.');
+  const target=type==='track'?await one(env,"SELECT t.user_id owner_id,CASE WHEN t.kind='original' THEN 'original' ELSE t.cover_mode END category FROM tracks t JOIN users u ON u.id=t.user_id WHERE t.id=? AND t.status='published' AND u.account_type='human' AND (t.kind='original' OR t.duet_open=0)",targetId):await one(env,"SELECT p.owner_id,'dubbing' category FROM dubbing_projects p JOIN users u ON u.id=p.owner_id WHERE p.id=? AND p.state='complete' AND p.visibility='public' AND p.deleted_at=0 AND u.account_type='human'",targetId);
+  if(!target||!s.config.kinds.includes(target.category))fail(404,'지원 가능한 공개 작품이 아닙니다.');
+  const at=now(),actions=[...(s.config.comments>0?['comment']:[]),...(s.config.gifts?['gift']:[])];
+  await env.DB.batch([...actions.map(action=>query(env,"INSERT OR IGNORE INTO ai_bot_jobs(id,target_type,target_id,owner_id,category,action,slot,due,state,created,updated) VALUES(?,?,?,?,?,?,0,?,'pending',?,?)",id(),type,targetId,target.owner_id,target.category,action,at,at,at)),audit(env,user,'test_existing',{target_type:type,target_id:targetId,actions})]);
+  return json({ok:true,jobs:await rows(env,'SELECT action,state,due FROM ai_bot_jobs WHERE target_type=? AND target_id=? AND slot=0',type,targetId)});
+ }
  fail(404,'AI 봇 관리 항목을 찾을 수 없어요.');
 }
 
