@@ -116,7 +116,8 @@ export function dubbingSoundTimeline(script){
   delete score.endLineId;
   selected.set(cue.id,score);used.add(use);
  }
- return {...timeline,sounds:timeline.sounds.flatMap(c=>c.kind==='bgm'?(selected.has(c.id)?[selected.get(c.id)]:[]):[c])};
+ return {...timeline,sounds:timeline.sounds.flatMap(c=>c.kind==='bgm'?(selected.has(c.id)?[selected.get(c.id)]:[]):
+  [{...c,...(c.kind==='sfx'?{generationSeconds:Math.max(1,Math.ceil(c.durationSeconds))}:{})}])};
 }
 
 // Responses Structured Outputs: every property required, objects closed.

@@ -41,7 +41,7 @@ test('historical instrument constraints reach the paid provider while SFX prompt
  assert.match(musicRequest.body.prompt,/gayageum/);assert.match(musicRequest.body.prompt,/No piano/);assert.doesNotMatch(musicRequest.body.prompt,/Sad piano melody|synthesizer pad/);
  const fx=directed.sounds.find(c=>c.kind==='sfx');assert.match(pikaRequest(fx).body.prompt,new RegExp(fx.prompt));
 });
-test('both AI writing paths request emotional scene music and concrete event effects without the old budget',async()=>{
+test('both AI writing paths plan causal detailed effects, reaction timing, silence and earned ending cues',async()=>{
  const s=drama(),requests=[],fetcher=async(url,init)=>{
   const body=JSON.parse(init.body);requests.push(body);
   const result=body.text.format.name==='aifect_sound_plan'?{soundCues:s.soundCues}:s;
@@ -49,7 +49,16 @@ test('both AI writing paths request emotional scene music and concrete event eff
  };
  const env={DUBBING_AI_ENABLED:'true',OPENAI_API_KEY:'mock-only'},opts={...options,minutes:1.5};
  await generateDubbingScript(env,opts,fetcher);await generateDubbingSoundPlan(env,s,opts,fetcher);
- for(const body of requests){assert.match(body.instructions,/대본 작성 단계부터 소리/);assert.match(body.instructions,/그 행동을 장면 설명 또는 연기 지시에 명시/);assert.match(body.instructions,/실제 사건의 SFX/);assert.match(body.instructions,/도입 1회와 실제 절정 장면 1회/);assert.match(body.instructions,/피아노·신시사이저/);assert.match(body.instructions,/diegetic/);assert.match(body.instructions,/빈 배열/);assert.match(body.instructions,/자동 감쇠는 BGM에만/);assert.doesNotMatch(body.instructions,/20%와 24초|0~3개만/);}
+ for(const body of requests){assert.match(body.instructions,/대본 작성 단계부터 소리/);assert.match(body.instructions,/그 행동을 장면 설명 또는 연기 지시에 명시/);assert.match(body.instructions,/실제 사건의 SFX/);assert.match(body.instructions,/도입 1회와 실제 절정 장면 1회/);assert.match(body.instructions,/피아노·신시사이저/);assert.match(body.instructions,/diegetic/);assert.match(body.instructions,/빈 배열/);assert.match(body.instructions,/자동 감쇠는 BGM에만/);assert.doesNotMatch(body.instructions,/20%와 24초|0~3개만/);
+  assert.match(body.instructions,/몇 번\/어떤 간격/);assert.match(body.instructions,/반응하기 전에 그 소리가 먼저/);assert.match(body.instructions,/마지막 말 뒤의 소리는 after와 짧은 정적/);assert.match(body.instructions,/gapSeconds에 미리 확보/);assert.match(body.instructions,/모든 공포 작품에 귀신이나 비명을 붙이지/);assert.match(body.instructions,/타격과 간격·잔향/);
+ }
+});
+test('new event requests generate only their playback window and preserve SFX timing and music gain',()=>{
+ const s=drama();s.soundCues[0].generationSeconds=10;s.soundCues[0].durationSeconds=2.2;s.soundCues.push(music(s,'intro','intro'));
+ const raw=dubbingTimeline(s),timeline=dubbingSoundTimeline(s),cue=timeline.sounds.find(c=>c.id==='door');
+ assert.equal(cue.generationSeconds,3);assert.equal(pikaRequest(cue).body.duration,3);assert.equal(cue.start,raw.sounds[0].start);assert.equal(cue.durationSeconds,2.2);assert.equal(cue.volume,raw.sounds[0].volume);
+ assert.match(pikaRequest(cue).body.prompt,/exact requested count/);assert.match(pikaRequest(cue).body.prompt,/within 2.2 seconds/);assert.match(pikaRequest(cue).body.prompt,/Nonverbal breath/);
+ assert.equal(timeline.sounds.find(c=>c.kind==='bgm').volume,.45);assert.deepEqual(timeline.lines,raw.lines);assert.equal(s.soundCues[0].generationSeconds,10);
 });
 test('new sound jobs preserve source music and its event effect',async t=>{
  const f=await fixture(t,{DUBBING_ENABLED:'true',DUBBING_SOUND_ENABLED:'true',DUBBING_PAID_API_ENABLED:'true',PIKA_API_KEY:'mock-only',TRANSCODER_TOKEN:'fixture',BUCKET:memoryBucket()});
