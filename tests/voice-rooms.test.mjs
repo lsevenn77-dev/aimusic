@@ -406,8 +406,7 @@ test('room settings persist and follower eligibility is verified again without i
  const config={title:'New title',visibility:'followers',background:'night',announcement:'Welcome',max_members:2};
  assert.equal((await h.call('settings',actor('host'),config)).status,200);
  const persisted=h.sql.prepare('SELECT * FROM voice_rooms').get();assert.equal(persisted.announcement,'Welcome');assert.equal(persisted.visibility,'followers');
- assert.equal((await h.call('heartbeat',actor('guest'))).status,200,'visibility edits retain existing listeners');
- assert.equal((await h.join(actor('guest'))).status,403,'a new join must satisfy the new visibility');
+ assert.equal((await h.call('heartbeat',actor('guest'))).status,403);
  await h.call('invite',actor('host'),{target_id:'guest'});assert.equal((await h.join(actor('guest'))).status,403);
  const follower={...actor('guest'),followedHosts:['host']};assert.equal((await h.join(follower)).status,200);
  assert.equal((await h.join({...actor('extra'),followedHosts:['host']})).status,409);

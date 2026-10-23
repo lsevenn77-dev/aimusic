@@ -47,7 +47,6 @@ export async function catalogRoute(req,env,path,user){
   let where=VISIBLE(),args=[];
   if(kind){if(!['cover','original'].includes(kind))fail(400,'곡 종류를 확인해주세요.');where+=' AND t.kind=?';args.push(kind);}
   const mode=url.searchParams.get('cover_mode');if(mode){if(!['solo','duet'].includes(mode))fail(400,'커버 종류를 확인해주세요.');where+=" AND t.kind='cover' AND t.cover_mode=?";args.push(mode);}
-  if(url.searchParams.get('completed')==='1')where+=" AND t.kind='cover' AND (t.cover_mode='solo' OR t.duet_parent_id IS NOT NULL)";
   if(following){requireUser(user);where+=" AND EXISTS(SELECT 1 FROM follows f WHERE f.user_id=? AND ((f.kind='producer' AND f.target_id=t.producer_id) OR (f.kind='artist' AND f.target_id=t.artist_id)))";args.push(user.id);}
   return json({tracks:await trackList(env,where,args,'t.created DESC',60)});
  }

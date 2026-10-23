@@ -22,7 +22,6 @@ async function result(response) {const r=await response.json();if(!response.ok)f
 export async function voiceRoomsRoute(req,env,path,user,ctx) {
  if(!path.startsWith('/api/voice/'))return null;
  if(path==='/api/voice/status'&&req.method==='GET')return json({enabled:voiceConfigured(env),max_members:30,mic_seats:8});
- if(path==='/api/voice/public-rooms'&&req.method==='GET')return json({...await result(await voiceCall(env,{id:'public-directory',crews:[],followedHosts:[],blocks:[]},'directory','list')),crews:[]});
  requireUser(user);
  // A realtime page must not cache another user's room membership or permission.
  const [crews,followed]=await Promise.all([

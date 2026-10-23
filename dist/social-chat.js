@@ -1,6 +1,6 @@
-const crewRoleLabels={owner:'크루장',deputy:'부크루장',manager:'매니저',member:'크루원'};
+const crewRoleLabels={owner:'크루장',deputy:'부크루장',operator:'운영자',manager:'매니저',member:'크루원'};
 const crewDisplayName=p=>p.name+(p.role&&p.role!=='member'?'('+(crewRoleLabels[p.role]||'크루원')+')':'');
-function crewPeopleHTML(d){return d.members.map(p=>{const content=portrait(p,'producer')+'<span class="crew-person-copy"><strong>'+esc(p.name)+'</strong><small>'+esc(crewRoleLabels[p.role]||'크루원')+'</small></span>';return ['owner','deputy'].includes(d.membership?.role)&&p.role!=='owner'?`<button class="crew-person" data-crew-member="${esc(p.id)}" data-crew="${esc(d.crew.id)}">${content}</button>`:`<a href="#producer/${esc(p.id)}">${content}</a>`;}).join('');}
+function crewPeopleHTML(d){return d.members.map(p=>{const content=portrait(p,'producer')+'<span class="crew-person-copy"><strong>'+esc(p.name)+'</strong><small>'+esc(crewRoleLabels[p.role]||'크루원')+'</small></span>';return d.membership?.role==='owner'&&p.role!=='owner'?`<button class="crew-person" data-crew-member="${esc(p.id)}" data-crew="${esc(d.crew.id)}">${content}</button>`:`<a href="#producer/${esc(p.id)}">${content}</a>`;}).join('');}
 function bindChatEnter(input,submit){
  let composing=false,pendingEnter=false;
  input.addEventListener('compositionstart',()=>{composing=true;pendingEnter=false;});
@@ -165,8 +165,8 @@ document.addEventListener('click',async event=>{
  try{
   const cid=button.dataset.crew,pid=button.dataset.crewMember,d=await api('/api/crews/'+cid),person=d.members.find(p=>p.id===pid);
   if(!person)return toast('이미 크루에서 나간 멤버예요.');
-  if(!['owner','deputy'].includes(d.membership?.role))return void(location.hash='producer/'+pid);
-  dialog(`<h2>${esc(person.name)}</h2><a class="text-link" href="#producer/${esc(pid)}" data-close-dialog>프로필 보기</a><form id="crew-role-form" ${d.membership?.role==='owner'?'':'hidden'}><label class="form-field">크루 직책<select name="role">${Object.entries(crewRoleLabels).filter(([role])=>role!=='owner').map(([role,label])=>`<option value="${role}" ${person.role===role?'selected':''}>${label}</option>`).join('')}</select></label><p class="field-help">직책 변경은 크루장, 강퇴는 크루장·부크루장이 할 수 있어요.</p><button class="primary-button">직책 저장</button><p class="form-error" role="alert"></p></form><button class="small-button crew-kick" id="crew-kick">크루에서 강퇴</button>`);
+  if(d.membership?.role!=='owner')return void(location.hash='producer/'+pid);
+  dialog(`<h2>${esc(person.name)}</h2><a class="text-link" href="#producer/${esc(pid)}" data-close-dialog>프로필 보기</a><form id="crew-role-form"><label class="form-field">크루 직책<select name="role">${Object.entries(crewRoleLabels).filter(([role])=>role!=='owner').map(([role,label])=>`<option value="${role}" ${person.role===role?'selected':''}>${label}</option>`).join('')}</select></label><p class="field-help">직책 변경과 강퇴는 크루장만 할 수 있어요.</p><button class="primary-button">직책 저장</button><p class="form-error" role="alert"></p></form><button class="small-button crew-kick" id="crew-kick">크루에서 강퇴</button>`);
   const refresh=async()=>{const draft=$('#chat-compose textarea')?.value;$('#dialog').close();await render();if(draft&&$('#chat-compose textarea'))$('#chat-compose textarea').value=draft;};
   const form=$('#crew-role-form');form.onsubmit=busyForm(form,async fd=>{await api(`/api/crews/${cid}/members/${pid}`,'PATCH',{role:fd.get('role')});await refresh();});
   $('#crew-kick').onclick=async()=>{if(!confirm(person.name+'님을 강퇴할까요? 이 크루에 다시 가입할 수 없게 됩니다.'))return;try{await api(`/api/crews/${cid}/members/${pid}`,'DELETE');await refresh();}catch(e){toast(e.message);}};

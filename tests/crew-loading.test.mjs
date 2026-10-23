@@ -12,7 +12,7 @@ test('crew detail synchronizes XP and reads current permissions/music in one DB 
  const get=async(user={id:'owner'},blocked=[])=>{
   const r=await socialRoute(new Request('https://aifect.test/api/crews/crew'),{DB:f.DB,AIFECT_BLOCKED:blocked},'/api/crews/crew',user);return r.json();
  };
- let d=await get();assert.equal(batches,1);assert.equal(standalone,0);assert.equal(d.crew.xp,3);assert.equal(d.membership.role,'owner');assert.equal(d.members.length,1);assert.equal(d.tracks.length,0,'originals are outside the completed crew works feed');
+ let d=await get();assert.equal(batches,1);assert.equal(standalone,0);assert.equal(d.crew.xp,3);assert.equal(d.membership.role,'owner');assert.equal(d.members.length,1);assert.equal(d.tracks.length,3);
  d=await get();assert.equal(d.crew.xp,3,'revisits cannot farm XP');
  assert.equal((await get(null)).membership,null,'guest never inherits membership');
  assert.equal((await get({id:'other'},['owner'])).tracks.length,0,'viewer blocks still filter music');
@@ -30,5 +30,5 @@ test('discovery summary omits unused music while home music and joined detail ar
  const summary=(await f.call('/api/crews?summary=1')).body;
  assert.equal(summary.crews.length,1);assert.equal(summary.rankings.length,1);assert.equal(summary.mine,'crew');assert.deepEqual(summary.tracks,[]);
  assert.equal((await f.call('/api/crews')).body.tracks.length,3);
- assert.equal((await f.call('/api/crews?summary=1&home=1')).body.detail.tracks.length,0);
+ assert.equal((await f.call('/api/crews?summary=1&home=1')).body.detail.tracks.length,3);
 });
