@@ -128,6 +128,13 @@ def render_background(timeline, assets, folder, download=download_asset, heartbe
         info = wave_info(decoded)
         if info['duration'] < seconds - .1 or info['duration'] > generated + 2:
             raise ValueError('Provider audio duration mismatch')
+        if volume <= 0 or info['peakDb'] < -60:
+            raise ValueError('Provider returned silent or inaudible audio')
+        # Validate the part we actually use, not an audible tail beyond atrim.
+        used = root / f'used-{index}.wav'
+        command(['-i', str(decoded), '-t', str(seconds), '-c:a', 'pcm_s16le', str(used)])
+        if wave_info(used)['peakDb'] < -60:
+            raise ValueError('Selected cue contains no audible audio')
         args += ['-protocol_whitelist', 'file,pipe', '-i', str(decoded)]
         loudness = -18 if cue['kind'] == 'bgm' else -20 if cue['kind'] == 'sfx' else -23
         chain = f'[{index}:a]atrim=duration={seconds},asetpts=PTS-STARTPTS,loudnorm=I={loudness}:TP=-6:LRA=7,aresample=48000'
@@ -151,10 +158,11 @@ def render_background(timeline, assets, folder, download=download_asset, heartbe
     verify = root / 'verify.wav'
     command(['-protocol_whitelist', 'file,pipe', '-i', str(output), '-t', str(duration + 1), '-ar', '48000', '-ac', '2', '-c:a', 'pcm_s16le', str(verify)])
     meta = wave_info(verify)
-    if abs(meta['duration'] - duration) > .1 or meta['peakDb'] > -1:
+    if abs(meta['duration'] - duration) > .1 or meta['peakDb'] > -1 or (sounds and meta['peakDb'] < -60):
         raise ValueError('Final audio failed duration/peak validation')
     # The PCM timeline duration is authoritative; AAC may add one padded frame.
     meta['duration'] = duration
+    meta['audibleCueCount'] = len(sounds)
     return output, meta
 
 def process(job, request):

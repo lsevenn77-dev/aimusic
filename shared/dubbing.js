@@ -71,7 +71,6 @@ export function validateDubbingScript(raw,options){
    fadeOutSeconds:num(c.fadeOutSeconds,0,durationSeconds/2,'페이드 아웃')};
  });
  unique(soundCues.map(c=>c.id),'음향 ID');
- if(soundCues.filter(c=>c.kind==='bgm').length>3)invalid('배경음악은 최대 3개까지 배치할 수 있습니다.');
  const script={version:1,title:text(raw.title,100,'작품 제목'),genres:o.genres,roles,scenes,lines,soundCues};
  const timeline=dubbingTimeline(script);
  if(timeline.duration>300)invalid('여유 구간과 음향을 포함해 5분 이내로 작성해주세요.');
@@ -95,35 +94,9 @@ export function dubbingTimeline(script){
 // Apply only when preparing NEW audio. Keep the original recording clock and
 // previously generated files intact, including older scripts with long scores.
 export function dubbingSoundTimeline(script){
- const timeline=dubbingTimeline(script),first=timeline.lines[0],last=timeline.lines.at(-1),used=new Set();
- const music=[];
- for(const cue of timeline.sounds.filter(c=>c.kind==='bgm')){
-  // Legacy full-scene scores become a short opening. Do not invent a twist
-  // from an unlabelled score in the middle of ordinary dialogue.
-  const use=cue.musicUse||(cue.start<=first.start?'intro':cue.start>=last.start?'outro':null);
-  if(!use||used.has(use)||music.length>=3)continue;
-  used.add(use);
-  const limit={intro:5,transition:3,outro:5,climax:12}[use];
-  music.push({...cue,musicUse:use,durationSeconds:Math.min(cue.durationSeconds,limit)});
- }
- const budget=Math.min(24,timeline.duration*.2),total=music.reduce((n,c)=>n+c.durationSeconds,0),scale=total?Math.min(1,budget/total):1;
- const round=n=>Math.round(n*100)/100;
- const placed=music.map(c=>{
-  const seconds=Math.floor(c.durationSeconds*scale*100)/100,line=timeline.lines.find(l=>l.id===c.lineId);
-  const start=c.musicUse==='intro'?0:c.musicUse==='outro'?timeline.duration-seconds:c.musicUse==='transition'?Math.max(0,line.start-seconds):c.start;
-  return {...c,start:round(start),end:round(Math.min(timeline.duration,start+seconds))};
- }).sort((a,b)=>a.start-b.start);
- let lastEnd=-2;
- const accents=[];
- for(const c of placed){
-  const start=round(Math.max(c.start,lastEnd+2)),seconds=round(c.end-start);
-  if(seconds<.5)continue;
-  accents.push({...c,endLineId:null,start,durationSeconds:seconds,generationSeconds:Math.max(10,Math.ceil(seconds)),
-   volume:Math.min(c.volume,c.musicUse==='climax'?.14:.1),
-   fadeInSeconds:Math.min(Math.max(c.fadeInSeconds,.3),seconds/2),fadeOutSeconds:Math.min(Math.max(c.fadeOutSeconds,.8),seconds/2)});
-  lastEnd=c.end;
- }
- return {...timeline,sounds:[...timeline.sounds.filter(c=>c.kind!=='bgm'),...accents].sort((a,b)=>a.start-b.start)};
+ // The director's scene anchors and durations are authoritative. Do not drop
+ // middle-scene music, shorten emotional scenes, or move the recording clock.
+ return dubbingTimeline(script);
 }
 
 // Responses Structured Outputs: every property required, objects closed.

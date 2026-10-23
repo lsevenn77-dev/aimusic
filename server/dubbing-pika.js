@@ -6,7 +6,7 @@ export function pikaRequest(cue){
  const music=cue.kind==='bgm',duration=cue.generationSeconds;
  if(!Number.isFinite(duration)||duration<(music?10:1)||duration>(music?300:20))fail(400,'Pika 음향 생성 길이를 확인해주세요.');
  return {model:music?'pika/pika-audio/pika-music':'pika/pika-audio/pika-sfx',body:{
-  prompt:music?`Short instrumental accent, not a continuous dialogue bed. ${cue.musicUse==='climax'?'A brief cinematic climax, then resolve.':'Sparse, restrained arrangement with a gentle ending; no heavy drums or booming bass.'} No vocals, singing, speech or sound effects. ${cue.prompt}`:`${cue.kind==='ambient'?'Environmental ambience only.':'Isolated sound effect; start promptly.'} No music, singing or speech. ${cue.prompt}`,duration,seed:-1,
+  prompt:music?`Instrumental underscore matching the requested scene emotion and duration. No vocals, singing, speech or sound effects. ${cue.prompt}`:`${cue.kind==='ambient'?'Environmental ambience only.':'Isolated sound effect; start promptly.'} No music, singing or speech. ${cue.prompt}`,duration,seed:-1,
   ...(music?{mode:'text_to_music',lyrics:'',rewrite_prompt:false}:{})}};
 }
 export function pikaAudioURL(value){

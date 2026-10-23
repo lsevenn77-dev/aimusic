@@ -47,6 +47,10 @@ export async function dubbingSoundProjectRoute(req,env,p,user,action){
  const timeline=dubbingSoundTimeline(script),jid=body.requestId,at=now();
  const bucket=Math.floor(at/soundStartWindow),rateKey=`dubbing-sound-start:${user.id}:${bucket}`,retryAt=(bucket+1)*soundStartWindow;
  const jobExists='EXISTS(SELECT 1 FROM dubbing_sound_jobs WHERE id=? AND project_id=? AND script_key=?)';
+ // Saved scripts may carry the previous sparse/quiet music directions. A new
+ // paid job gets fresh direction when available, without rewriting the script
+ // or touching any already generated/recorded project.
+ if(body.mode==='ai'&&dubbingAIAvailable(env))timeline.sounds=[];
  if(body.mode==='basic')timeline.sounds=[];
  // Admission, counting and payment commit together. Replays and rejected payments
  // never consume another slot, and concurrent requests cannot bypass the limit.
@@ -140,7 +144,13 @@ export async function dubbingSoundInternalRoute(req,env,path){
     await checkpoint(env,j,"state='unknown',error=?,lease_token=NULL,lease_until=0",['음향 연출 결과를 확인하지 못했습니다. 자동 재요청하지 않았습니다.']);return json({state:'unknown'});
    }
   }
+  if(j.mode==='ai'&&(!timeline.sounds.length||timeline.sounds.some(c=>c.volume<=0))){
+   await checkpoint(env,j,"state='failed',error=?,lease_token=NULL,lease_until=0",['재생 가능한 음향 연출이 없어 제작을 중단했습니다. 제작 골드는 자동 환급됩니다.']);return json({state:'failed'});
+  }
   const assets=await rows(env,'SELECT * FROM dubbing_sound_assets WHERE job_id=? ORDER BY cue_id',j.id);
+  if(j.mode==='ai'&&(assets.length!==timeline.sounds.length||timeline.sounds.some(c=>!assets.some(a=>a.cue_id===c.id)))){
+   await checkpoint(env,j,"state='failed',error=?,lease_token=NULL,lease_until=0",['음향 파일 목록이 연출과 일치하지 않아 제작을 취소했습니다. 제작 골드는 자동 환급됩니다.']);return json({state:'failed'});
+  }
   const a=assets.find(a=>a.state!=='completed');
   if(!a){
    await checkpoint(env,j,"state='mixing'");
@@ -193,6 +203,13 @@ export async function dubbingSoundInternalRoute(req,env,path){
   if(j.state!=='mixing'||j.output_key!==outputKey||!await env.BUCKET.head(outputKey))fail(409,'합성 파일 저장이 완료되지 않았습니다.');
   const meta=await req.json(),timeline=JSON.parse(j.timeline_json);
   if(!Number.isFinite(meta.duration)||Math.abs(meta.duration-timeline.duration)>.1||meta.sampleRate!==48000||!Number.isFinite(meta.peakDb)||meta.peakDb>-1)fail(400,'합성 오디오 검증에 실패했습니다.');
+  if(j.mode==='ai'){
+   const assets=await rows(env,"SELECT cue_id FROM dubbing_sound_assets WHERE job_id=? AND state='completed' AND output_url IS NOT NULL",j.id);
+   const verified=new Set(assets.map(a=>a.cue_id));
+   if(!timeline.sounds.length||timeline.sounds.some(c=>c.volume<=0||!verified.has(c.id))||meta.peakDb < -60||meta.audibleCueCount!==timeline.sounds.length){
+    await checkpoint(env,j,"state='failed',error=?,lease_token=NULL,lease_until=0",['생성된 음향이 없거나 무음이어서 제작을 취소했습니다. 제작 골드는 자동 환급됩니다.']);return json({state:'failed'});
+   }
+  }
   await checkpoint(env,j,"state='ready',output_meta=?,lease_until=0,lease_token=NULL",[JSON.stringify({duration:meta.duration,sampleRate:48000,peakDb:meta.peakDb})]);return json({ok:true});
  }
  fail(405,'지원하지 않는 요청입니다.');

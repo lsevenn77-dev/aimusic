@@ -30,7 +30,7 @@ def rms(path, start, end):
     return math.sqrt(sum(x*x for x in samples) / len(samples))
 
 class DubbingAudio(unittest.TestCase):
-    def test_short_music_accents_leave_speech_clear_and_keep_event_effects(self):
+    def test_scene_music_remains_audible_under_dialogue_and_keeps_event_effects(self):
         repo = pathlib.Path(__file__).parents[1]
         source = """
 import {sampleScript} from './tests/dubbing-fixtures.mjs';
@@ -46,24 +46,37 @@ console.log(JSON.stringify(dubbingSoundTimeline(s)));
             tone = root / 'provider-fixture.wav'
             music_source = root / 'music.wav'
             sine(tone, 2)
-            sine(music_source, 10)
+            sine(music_source, 30)
             assets = [{'cueId': 'door', 'url': 'sfx'}, {'cueId': 'intro', 'url': 'bgm'}]
             download = lambda url, dest: shutil.copyfile(music_source if url == 'bgm' else tone, dest)
-            current, old = root / 'current', root / 'old'
-            current.mkdir(); old.mkdir()
+            current = root / 'current'
+            current.mkdir()
             _, meta = dubbing.render_background(timeline, assets, current, download=download)
-            legacy = json.loads(json.dumps(timeline))
-            next(c for c in legacy['sounds'] if c['kind'] == 'bgm')['volume'] = .4
-            dubbing.render_background(legacy, assets, old, download=download)
-            audio, old_audio = current / 'verify.wav', old / 'verify.wav'
+            audio = current / 'verify.wav'
             self.assertEqual(meta['duration'], timeline['duration'])
-            ratio = rms(audio, .6, 1.2) / rms(old_audio, .6, 1.2)
-            self.assertTrue(.22 < ratio < .28, ratio)
+            self.assertEqual(meta['audibleCueCount'], 2)
             self.assertLess(rms(audio, 2.5, 3.5), rms(audio, .6, 1.2) * .65)
-            self.assertLess(rms(audio, 6, 12), 1, 'ordinary dialogue has no continuous music')
+            self.assertGreater(rms(audio, 6, 12), 100, 'scene music survives the old intro-only limiter')
             effect_start = next(c['start'] for c in timeline['sounds'] if c['kind'] == 'sfx')
-            self.assertGreater(rms(audio, effect_start + .3, effect_start + .8), rms(audio, .6, 1.2) * 2)
-            self.assertLess(rms(audio, 25, 28), 1)
+            self.assertGreater(rms(audio, effect_start + .3, effect_start + .8), rms(audio, 6, 12))
+            self.assertGreater(rms(audio, 25, 28), 100)
+
+    def test_silent_provider_and_silent_selected_segment_are_rejected(self):
+        for audible_tail in (False, True):
+            with tempfile.TemporaryDirectory() as folder:
+                root = pathlib.Path(folder)
+                source = root / 'silence.wav'
+                with wave.open(str(source), 'wb') as out:
+                    out.setparams((2, 2, 48000, 0, 'NONE', 'not compressed'))
+                    out.writeframes(b'\x00' * (48000 * 4 * 2))
+                    if audible_tail:
+                        out.writeframes(struct.pack('<hh', 10000, 10000) * 48000)
+                timeline = {'duration': 4, 'lines': [], 'sounds': [{'id': 'silent', 'kind': 'sfx',
+                    'generationSeconds': 3, 'durationSeconds': 1, 'start': 0, 'volume': .3,
+                    'fadeInSeconds': 0, 'fadeOutSeconds': 0}]}
+                with self.assertRaisesRegex(ValueError, 'silent|audible'):
+                    dubbing.render_background(timeline, [{'cueId': 'silent', 'url': 'fixture'}], root,
+                        download=lambda url, dest: shutil.copyfile(source, dest))
 
     def test_music_continues_past_thirty_seconds_and_stops_at_the_selected_line(self):
         with tempfile.TemporaryDirectory() as folder:

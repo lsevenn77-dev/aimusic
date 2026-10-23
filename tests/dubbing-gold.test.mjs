@@ -89,12 +89,54 @@ test('editing supersedes unfinished work and refunds it; deleting a job preserve
 test('successful output fulfills payment atomically and later project deletion does not refund consumed service',async t=>{
  const f=await setup(t),p=await f.create();f.seed('lot',100);await f.queue(p);const job=(await f.internal('claim')).body.job;
  f.sql.prepare("UPDATE dubbing_sound_jobs SET state='mixing' WHERE id=?").run(job.id);
+ f.sql.prepare("UPDATE dubbing_sound_assets SET state='completed',output_url='https://cdn.pika.art/fixture.wav' WHERE job_id=?").run(job.id);
  const bytes=new Uint8Array(32);bytes.set(new TextEncoder().encode('ftyp'),4);
  assert.equal((await f.internal(job.id+'/output',bytes,job,'PUT')).status,200);
- assert.equal((await f.internal(job.id+'/finish',{duration:p.duration,sampleRate:48000,peakDb:-3},job)).status,200);
+ assert.equal((await f.internal(job.id+'/finish',{duration:p.duration,sampleRate:48000,peakDb:-3,audibleCueCount:1},job)).status,200);
  assert.equal(f.sql.prepare('SELECT state FROM dubbing_gold_orders').get().state,'fulfilled');
  f.sql.prepare('DELETE FROM dubbing_projects WHERE id=?').run(p.id);await reconcileDubbingGold(f.env);
  assert.equal(await f.balance(),50);assert.equal(f.sql.prepare('SELECT state FROM dubbing_gold_orders').get().state,'fulfilled');
+});
+
+test('silent, missing, empty and unverified paid output fails and refunds exactly once',async t=>{
+ for(const fault of ['silent','empty','missing','unverified']){
+  const f=await setup(t),p=await f.create();f.seed('lot',100);await f.queue(p);const job=(await f.internal('claim')).body.job;
+  f.sql.prepare("UPDATE dubbing_sound_jobs SET state='mixing' WHERE id=?").run(job.id);
+  if(fault!=='missing')f.sql.prepare("UPDATE dubbing_sound_assets SET state='completed',output_url='https://cdn.pika.art/fixture.wav' WHERE job_id=?").run(job.id);
+  if(fault==='empty'){
+   const timeline=JSON.parse(f.sql.prepare('SELECT timeline_json FROM dubbing_sound_jobs WHERE id=?').get(job.id).timeline_json);timeline.sounds=[];
+   f.sql.prepare('UPDATE dubbing_sound_jobs SET timeline_json=? WHERE id=?').run(JSON.stringify(timeline),job.id);
+  }
+  const bytes=new Uint8Array(32);bytes.set(new TextEncoder().encode('ftyp'),4);await f.internal(job.id+'/output',bytes,job,'PUT');
+  const meta={duration:p.duration,sampleRate:48000,peakDb:fault==='silent'?-120:-3,...(fault==='unverified'?{}:{audibleCueCount:1})};
+  const result=await f.internal(job.id+'/finish',meta,job);assert.equal(result.body.state,'failed',fault);
+  assert.equal(await f.balance(),100,fault);await Promise.all([reconcileDubbingGold(f.env),refundDubbingGold(f.env,job.id)]);
+  assert.equal(await f.balance(),100,fault);assert.equal(f.sql.prepare('SELECT state FROM dubbing_gold_orders').get().state,'refunded');
+ }
+});
+
+test('empty AI sound plan refunds the reservation and never submits a paid audio request',async t=>{
+ const f=await setup(t);f.env.DUBBING_AI_ENABLED='true';f.env.OPENAI_API_KEY='fixture';
+ f.seed('lot',100);
+ // Exercise a persisted job that needs an AI plan, with no paid audio calls.
+ const normal=await f.create();await f.queue(normal);const job=(await f.internal('claim')).body.job;
+ const timeline=JSON.parse(f.sql.prepare('SELECT timeline_json FROM dubbing_sound_jobs').get().timeline_json);timeline.sounds=[];
+ f.sql.prepare('UPDATE dubbing_sound_jobs SET timeline_json=? WHERE id=?').run(JSON.stringify(timeline),job.id);
+ const old=globalThis.fetch;t.after(()=>globalThis.fetch=old);let paid=0;
+ globalThis.fetch=async url=>{if(!String(url).startsWith('https://api.openai.com/')){paid++;throw Error('unexpected paid audio');}
+  return Response.json({id:'empty_plan',status:'completed',output:[{type:'message',content:[{type:'output_text',text:'{"soundCues":[]}'}]}],usage:{}});};
+ const result=await f.internal(job.id+'/step',{},job);assert.equal(result.body.state,'failed');assert.equal(paid,0);assert.equal(await f.balance(),100);
+});
+
+test('new paid jobs replan old saved directions when AI is available without changing the script',async t=>{
+ const f=await fixture(t,{DUBBING_ENABLED:'true',DUBBING_SOUND_ENABLED:'true',DUBBING_PAID_API_ENABLED:'true',DUBBING_AI_ENABLED:'true',OPENAI_API_KEY:'mock-only',PIKA_API_KEY:'mock-only',TRANSCODER_TOKEN:'fixture',BUCKET:memoryBucket()});
+ const script=sampleScript();
+ const p=(await f.call('/api/dubbing/projects','POST',{id:crypto.randomUUID(),options,script})).body.project;
+ const before=f.sql.prepare('SELECT script_json FROM dubbing_projects WHERE id=?').get(p.id).script_json;
+ const r=await f.call('/api/dubbing/projects/'+p.id+'/sound','POST',{requestId:crypto.randomUUID(),mode:'ai',revision:1,acceptedGold:50,acceptedChargeGold:0});
+ assert.equal(r.status,202);assert.deepEqual(JSON.parse(f.sql.prepare('SELECT timeline_json FROM dubbing_sound_jobs').get().timeline_json).sounds,[]);
+ assert.equal(f.sql.prepare('SELECT COUNT(*) n FROM dubbing_sound_assets').get().n,0);
+ assert.equal(f.sql.prepare('SELECT script_json FROM dubbing_projects WHERE id=?').get(p.id).script_json,before);
 });
 test('payment history is scoped to its owner and survives deletion without exposing purchase identifiers',async t=>{
  const f=await setup(t),p=await f.create();f.seed('private-purchase',100);await f.queue(p);

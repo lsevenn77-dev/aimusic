@@ -14,40 +14,38 @@ function drama(){
 }
 function music(s,id,use,line=0){return {...s.soundCues[0],id,kind:'bgm',musicUse:use,lineId:s.lines[line].id,anchor:line?'start':'scene',durationSeconds:20,generationSeconds:20,volume:.45,fadeInSeconds:1,fadeOutSeconds:1};}
 
-test('legacy full-scene BGM becomes a quiet opening without moving speech, SFX or the recording clock',()=>{
+test('full-scene BGM remains audible through its selected scene without moving speech or SFX',()=>{
  const s=drama(),bg=music(s,'score',undefined);bg.endLineId=s.lines.at(-1).id;s.soundCues.push(bg);
  const before=structuredClone(s),raw=dubbingTimeline(s),directed=dubbingSoundTimeline(s),score=directed.sounds.find(c=>c.kind==='bgm');
  assert.equal(raw.sounds.find(c=>c.kind==='bgm').durationSeconds,90);
- assert.equal(score.durationSeconds,5);assert.equal(score.volume,.1);assert.equal(score.start,0);assert.equal(score.generationSeconds,10);
+ assert.equal(score.durationSeconds,90);assert.equal(score.volume,.45);assert.equal(score.start,0);assert.equal(score.generationSeconds,90);
  assert.deepEqual(directed.lines,raw.lines);assert.equal(directed.duration,raw.duration);
  assert.deepEqual(directed.sounds.find(c=>c.kind==='sfx'),raw.sounds.find(c=>c.kind==='sfx'));
  assert.deepEqual(s,before,'already saved script is not rewritten');
 });
-test('music appears only as separated intro, pre-twist and ending accents, bounded to 20 percent even for short scripts',()=>{
+test('music has no duration budget, purpose deduplication or forced silent gaps',()=>{
  for(const short of [false,true]){
   const s=drama();if(short)s.lines.forEach(l=>{l.durationSeconds=2;l.gapSeconds=.5;});
   s.soundCues.push(music(s,'intro','intro'),music(s,'turn','transition',4),music(s,'end','outro',7));
   const timeline=dubbingSoundTimeline(s),scores=timeline.sounds.filter(c=>c.kind==='bgm');
   assert.equal(scores.length,3);
-  assert.ok(scores.reduce((n,c)=>n+c.durationSeconds,0)<=Math.min(24,timeline.duration*.2)+.01);
-  assert.equal(scores[0].start,0);assert.equal(scores[1].end,timeline.lines[4].start);assert.equal(scores[2].end,timeline.duration);
-  for(const [i,c] of scores.entries()){
-   assert.ok(c.volume<=.1);assert.ok(c.durationSeconds<=5);assert.ok(c.generationSeconds<=10);
-   if(i)assert.ok(c.start-scores[i-1].end>=2);
-   assert.equal(pikaRequest(c).body.duration,10);
-  }
+  assert.deepEqual(timeline,dubbingTimeline(s));
+  assert.ok(scores.reduce((n,c)=>n+c.durationSeconds,0)>24);
+  for(const c of scores){assert.equal(c.durationSeconds,20);assert.equal(c.volume,.45);assert.equal(pikaRequest(c).body.duration,20);}
  }
 });
-test('ordinary middle dialogue gets no inferred score; an explicit climax is still brief and quiet',()=>{
+test('middle dialogue keeps its emotional score and more than three scene scores are supported',()=>{
  const s=drama();s.soundCues.push(music(s,'middle',undefined,3));
- assert.ok(dubbingSoundTimeline(s).sounds.every(c=>c.kind!=='bgm'));
+ assert.equal(dubbingSoundTimeline(s).sounds.find(c=>c.kind==='bgm').durationSeconds,20);
  s.soundCues[1].musicUse='climax';
  const score=dubbingSoundTimeline(s).sounds.find(c=>c.kind==='bgm');
- assert.equal(score.durationSeconds,12);assert.equal(score.volume,.14);assert.equal(score.generationSeconds,12);
- assert.match(pikaRequest(score).body.prompt,/brief cinematic climax/);
+ assert.equal(score.durationSeconds,20);assert.equal(score.volume,.45);assert.equal(score.generationSeconds,20);
+ assert.doesNotMatch(pikaRequest(score).body.prompt,/Short instrumental accent|not a continuous/);
+ s.soundCues.push(...[0,1,2].map(i=>music(s,'extra_'+i,'transition',i)));
+ assert.equal(validateDubbingScript(s,{...options,minutes:2}).soundCues.filter(c=>c.kind==='bgm').length,4);
  s.soundCues[1].musicUse='invalid';assert.throws(()=>validateDubbingScript(s,{...options,minutes:2}),/용도/);
 });
-test('both AI writing paths request sparse music and concrete event effects',async()=>{
+test('both AI writing paths request emotional scene music and concrete event effects without the old budget',async()=>{
  const s=drama(),requests=[],fetcher=async(url,init)=>{
   const body=JSON.parse(init.body);requests.push(body);
   const result=body.text.format.name==='aifect_sound_plan'?{soundCues:s.soundCues}:s;
@@ -55,17 +53,17 @@ test('both AI writing paths request sparse music and concrete event effects',asy
  };
  const env={DUBBING_AI_ENABLED:'true',OPENAI_API_KEY:'mock-only'},opts={...options,minutes:1.5};
  await generateDubbingScript(env,opts,fetcher);await generateDubbingSoundPlan(env,s,opts,fetcher);
- for(const body of requests){assert.match(body.instructions,/실제 사건의 SFX/);assert.match(body.instructions,/반전이 없으면 transition을 생략/);assert.match(body.instructions,/20%와 24초/);assert.doesNotMatch(body.instructions,/volume은 BGM 0.3/);}
+ for(const body of requests){assert.match(body.instructions,/실제 사건의 SFX/);assert.match(body.instructions,/슬픈 이별/);assert.match(body.instructions,/빈 배열/);assert.doesNotMatch(body.instructions,/20%와 24초|0~3개만/);}
 });
-test('new sound jobs persist the restrained mix rather than passing an old full score to Pika',async t=>{
+test('new sound jobs preserve full scene music and its event effect',async t=>{
  const f=await fixture(t,{DUBBING_ENABLED:'true',DUBBING_SOUND_ENABLED:'true',DUBBING_PAID_API_ENABLED:'true',PIKA_API_KEY:'mock-only',TRANSCODER_TOKEN:'fixture',BUCKET:memoryBucket()});
  const s=drama();s.soundCues.push({...music(s,'score',undefined),endLineId:s.lines.at(-1).id});
  const p=(await f.call('/api/dubbing/projects','POST',{id:crypto.randomUUID(),options:{...options,minutes:2},script:s})).body.project;
  const r=await f.call('/api/dubbing/projects/'+p.id+'/sound','POST',{requestId:crypto.randomUUID(),revision:p.revision,mode:'ai',acceptedGold:50,acceptedChargeGold:0});
  assert.equal(r.status,202,JSON.stringify(r));
  const timeline=JSON.parse(f.sql.prepare('SELECT timeline_json FROM dubbing_sound_jobs').get().timeline_json);
- assert.equal(timeline.sounds.find(c=>c.kind==='bgm').durationSeconds,5);
- assert.equal(timeline.sounds.find(c=>c.kind==='bgm').volume,.1);
+ assert.equal(timeline.sounds.find(c=>c.kind==='bgm').durationSeconds,90);
+ assert.equal(timeline.sounds.find(c=>c.kind==='bgm').volume,.45);
  assert.equal(timeline.sounds.find(c=>c.kind==='sfx').start,dubbingTimeline(s).sounds[0].start);
 });
 test('list badges reflect completed audible effects, including inherited audio, never cues alone or silent tracks',async t=>{
