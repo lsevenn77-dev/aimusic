@@ -28,7 +28,7 @@ const SELECT=`SELECT t.id,t.title,t.genre,t.genres_json,t.moods_json,t.classific
  CASE WHEN t.cover_mode='duet' AND t.duet_parent_id IS NOT NULL THEN (${producerNameSQL('fp')})||' & '||(${producerNameSQL()})||' · 듀엣' WHEN t.kind='cover' THEN (${producerNameSQL()})||CASE WHEN t.cover_mode='duet' THEN ' · 듀엣' ELSE ' · 커버' END WHEN ${namedArtistSQL()} THEN a.name ELSE ${producerNameSQL()} END artist,${memberNameSQL()} producer,t.user_id,t.kind,t.original_id,CASE WHEN t.kind='cover' THEN o.performance_mode ELSE t.performance_mode END performance_mode,t.cover_mode,t.duet_parent_id,t.duet_part,t.duet_open,dt.producer_id duet_partner_id,${producerNameSQL("fp")} duet_partner,(t.kind='original' AND t.karaoke_at>0) accepts_covers,
  o.title original_title,o.has_cover original_has_cover,o.cover_version original_cover_version,CASE WHEN ${namedArtistSQL()} THEN a.name ELSE ${producerNameSQL('op')} END original_artist,o.producer_id original_producer_id,${producerNameSQL('op')} original_producer,
  (SELECT count(*) FROM likes l WHERE l.track_id=t.id) likes,
- (SELECT count(*) FROM comments c WHERE c.track_id=t.id AND c.deleted_at=0) comments,
+ (SELECT count(*) FROM comments c JOIN users cu ON cu.id=c.user_id WHERE c.track_id=t.id AND c.deleted_at=0 AND cu.account_type='human') comments,
  (SELECT count(*) FROM tracks cv WHERE cv.original_id=t.id AND ${VISIBLE('cv')}) covers,
  (SELECT count(DISTINCT listener||day) FROM listens l WHERE l.track_id=t.id AND l.qualified=1) plays,
  (SELECT COALESCE(sum(g.gold),0) FROM gifts g WHERE g.track_id=t.id) gift_gold,
@@ -88,8 +88,8 @@ export async function catalogRoute(req,env,path,user){
  if(m){
   const tid=m[1],detail=await published(env,tid);
   if(!m[2]&&method==='GET'){
-   const [tracks,karaoke]=await Promise.all([trackList(env,`t.id=? AND ${VISIBLE()}`,[tid]),one(env,`SELECT 1 FROM tracks t WHERE t.id=? AND ${SINGABLE()}`,tid)]);
-   return json({track:{...tracks[0],...listenerLyrics(detail.kind==='cover'?await one(env,'SELECT lyrics FROM tracks WHERE id=?',detail.original_id):detail,user),karaoke_ready:!!karaoke}});
+   const [tracks,karaoke,ai]=await Promise.all([trackList(env,`t.id=? AND ${VISIBLE()}`,[tid]),one(env,`SELECT 1 FROM tracks t WHERE t.id=? AND ${SINGABLE()}`,tid),one(env,"SELECT count(*) n FROM comments c JOIN users u ON u.id=c.user_id WHERE c.track_id=? AND c.deleted_at=0 AND u.account_type='ai_bot'",tid)]);
+   return json({track:{...tracks[0],ai_comments:ai.n,...listenerLyrics(detail.kind==='cover'?await one(env,'SELECT lyrics FROM tracks WHERE id=?',detail.original_id):detail,user),karaoke_ready:!!karaoke}});
   }
   if(m[2]==='covers'){
    if(method!=='GET')fail(405,'지원하지 않는 요청입니다.');
@@ -108,7 +108,7 @@ export async function catalogRoute(req,env,path,user){
    if(method==='GET'){
     const sort=url.searchParams.get('sort'),order=sort==='popular'?'likes DESC,c.created DESC':sort==='timeline'?'c.timestamp IS NULL,c.timestamp ASC':'c.created DESC';
     const uid=user?.id||'';
-    const list=await rows(env,`SELECT c.id,c.track_id,c.user_id,c.parent_id,c.body,c.timestamp,c.created,c.edited,c.deleted_at,p.id profile_id,p.image_version,${publicNameSQL()} name,(c.user_id=t.user_id) creator,(SELECT count(*) FROM comment_likes l WHERE l.comment_id=c.id) likes,(SELECT count(*) FROM comment_likes l WHERE l.comment_id=c.id AND l.user_id=?) liked,EXISTS(SELECT 1 FROM comment_reports r WHERE r.comment_id=c.id AND r.user_id=?) reported FROM comments c JOIN users u ON u.id=c.user_id JOIN tracks t ON t.id=c.track_id LEFT JOIN producers p ON p.user_id=c.user_id WHERE c.track_id=? AND c.deleted_at=0 ORDER BY ${order} LIMIT 500`,uid,uid,tid);
+    const list=await rows(env,`SELECT u.account_type,c.id,c.track_id,c.user_id,c.parent_id,c.body,c.timestamp,c.created,c.edited,c.deleted_at,p.id profile_id,p.image_version,${publicNameSQL()} name,(c.user_id=t.user_id) creator,(SELECT count(*) FROM comment_likes l WHERE l.comment_id=c.id) likes,(SELECT count(*) FROM comment_likes l WHERE l.comment_id=c.id AND l.user_id=?) liked,EXISTS(SELECT 1 FROM comment_reports r WHERE r.comment_id=c.id AND r.user_id=?) reported FROM comments c JOIN users u ON u.id=c.user_id JOIN tracks t ON t.id=c.track_id LEFT JOIN producers p ON p.user_id=c.user_id WHERE c.track_id=? AND c.deleted_at=0 ORDER BY ${order} LIMIT 500`,uid,uid,tid);
     return json({comments:list.map(c=>({...c,can_delete:!!user&&!c.deleted_at&&(c.user_id===uid||(detail.kind==='cover'&&detail.user_id===uid)),can_report:!!user&&!c.deleted_at&&c.user_id!==uid&&!c.reported}))});
    }
    if(method==='POST'){
@@ -138,6 +138,7 @@ export async function catalogRoute(req,env,path,user){
  if(m){
   const kind=m[1]==='artists'?'artist':'producer';
   const entity=await one(env,`SELECT id,${kind==='producer'?producerNameSQL('producers'):'name'} name,bio,created,image_version${kind==='producer'?',banner_version,user_id,'+memberNameSQL('producers')+' display_name':''} FROM ${m[1]} WHERE id=?${kind==='artist'?' AND '+namedArtistSQL('name'):''}`,m[2]);if(!entity)fail(404,'프로필을 찾을 수 없습니다.');
+  if(kind==='producer')entity.account_type=(await one(env,'SELECT account_type FROM users WHERE id=?',entity.user_id))?.account_type;
   const owner=kind==='producer'?entity:await one(env,'SELECT p.user_id FROM artists a JOIN producers p ON p.id=a.producer_id WHERE a.id=?',entity.id);assertUnblocked(env,owner?.user_id);
   if(!m[3]&&method==='GET'){
    const own=kind==='producer'&&user?.id===entity.user_id,manage=own&&url.searchParams.get('dashboard')==='1';

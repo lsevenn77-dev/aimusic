@@ -1,4 +1,5 @@
 // Existing classic-script application boundaries. API payload contracts are exercised with SQLite integration tests.
+declare const AifectDubbing: typeof import('../shared/dubbing.js');
 declare var me: {id: string} | null;
 declare var returnRoute: string;
 declare var routeTracks: any[];

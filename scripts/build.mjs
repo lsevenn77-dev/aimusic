@@ -33,7 +33,7 @@ await cp('dist/motion.js','dist/client/motion.js');
 await cp('dist/motion.css','dist/client/motion.css');
 await cp('dist/home.js','dist/client/home.js');
 await cp('dist/brand.css','dist/client/brand.css');
-for(const file of ['admin.css','admin.js'])await cp(`dist/${file}`,`dist/client/${file}`);
+for(const file of ['admin.css','admin.js','admin-ai-bots.js'])await cp(`dist/${file}`,`dist/client/${file}`);
 await mkdir('dist/client/admin',{recursive:true});
 await cp('dist/admin.html','dist/client/admin/dashboard.html');
 await rm('dist/client/admin.html',{force:true});

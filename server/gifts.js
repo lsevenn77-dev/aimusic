@@ -1,3 +1,4 @@
+import {officialSupport} from './ai-bots.js';
 import {assertUnblocked} from './account-safety.js';
 import {publicCrewNameSQL as publicNameSQL} from './identity.js';
 import {one,rows,query,now,id,fail,json,rate} from './db.js';
@@ -19,14 +20,14 @@ const RANKING=`SELECT ${publicNameSQL()} name,(SELECT id FROM producers WHERE us
 const ranked=list=>list.map((r,i)=>({rank:i+1,name:r.name,profile_id:r.profile_id,image_version:r.image_version,gold:r.gold,stars:r.stars,score:r.score,gifts:r.gifts}));
 export async function trackGifts(env,trackId){
  const [total,free,ranking]=await Promise.all([one(env,'SELECT COALESCE(sum(gold),0) gold,count(*) gifts FROM gifts WHERE track_id=?',trackId),one(env,'SELECT COALESCE(sum(silver),0) n FROM free_gifts WHERE track_id=?',trackId),rows(env,`${RANKING} WHERE g.track_id=? GROUP BY g.sender_id ORDER BY score DESC,first ASC,g.sender_id ASC LIMIT 10`,trackId)]);
- return {available:true,total_gold:total.gold,gift_count:total.gifts,free_count:free.n,ranking:ranked(ranking)};
+ return {available:true,total_gold:total.gold,gift_count:total.gifts,free_count:free.n,official_ai:await officialSupport(env,'track',trackId),ranking:ranked(ranking)};
 }
 // A person's fans are the people who gifted what that person performs: their covers and their own originals.
 // Gifts to other people's covers of their songs still pay them the creator share, but belong to the singer's fans.
 export async function profileGifts(env,profileId){
  const where='(g.singer_profile_id=? OR (g.singer_profile_id IS NULL AND g.creator_profile_id=?))';
  const [total,free,ranking]=await Promise.all([one(env,`SELECT COALESCE(sum(g.gold),0) gold,count(*) gifts FROM gifts g WHERE ${where}`,profileId,profileId),one(env,'SELECT COALESCE(sum(f.silver),0) n FROM free_gifts f LEFT JOIN tracks t ON t.id=f.track_id WHERE COALESCE(f.recipient_profile_id,t.producer_id)=?',profileId),rows(env,`${RANKING} WHERE g.recipient_profile_id=? GROUP BY g.sender_id ORDER BY score DESC,first ASC,g.sender_id ASC LIMIT 50`,profileId)]);
- return {available:true,total_gold:total.gold,gift_count:total.gifts,free_count:free.n,ranking:ranked(ranking)};
+ return {available:true,total_gold:total.gold,gift_count:total.gifts,free_count:free.n,official_ai:await officialSupport(env,'producer',(await one(env,'SELECT user_id FROM producers WHERE id=?',profileId))?.user_id,true),ranking:ranked(ranking)};
 }
 
 const nextMonthDay=(month,day)=>{const [y,m]=month.split('-').map(Number),d=new Date(Date.UTC(y,m,day));return d.toISOString().slice(0,10);};
@@ -63,7 +64,7 @@ export async function giftRoute(req,env,path,user){
    freeGiftState(env,user.id),
    rows(env,'SELECT g.id,g.created,g.gift_type,g.gift_name,g.silver,g.quantity,t.id track_id,COALESCE(t.title,p.name) title,g.recipient_profile_id FROM free_gifts g LEFT JOIN tracks t ON t.id=g.track_id LEFT JOIN producers p ON p.id=g.recipient_profile_id WHERE g.sender_id=? ORDER BY g.created DESC LIMIT 20',user.id),
    rows(env,'SELECT g.id,g.gold,g.quantity,g.gift_type,g.gift_name,g.created,t.id track_id,COALESCE(t.title,p.name) title,COALESCE(t.kind,\'person\') kind,CASE WHEN g.track_id IS NULL THEN g.creator_profile_id END recipient_profile_id FROM gifts g LEFT JOIN tracks t ON t.id=g.track_id LEFT JOIN producers p ON p.id=g.creator_profile_id WHERE g.sender_id=? ORDER BY g.created DESC LIMIT 20',user.id)]);
-  return json({diamonds,balance,gold_krw:GOLD_KRW,packs:GOLD_PACKS,web_packs:WEB_GOLD_PACKS,web_bonus_percent:WEB_GOLD_BONUS_PERCENT,...goldCheckoutStatus(env,user),purchases,orders,gifts:GIFT_CATALOG,silver_gifts:SILVER_GIFT_CATALOG,free,free_sent,sent});
+  return json({diamonds,balance,gold_krw:GOLD_KRW,packs:GOLD_PACKS,web_packs:WEB_GOLD_PACKS,web_bonus_percent:WEB_GOLD_BONUS_PERCENT,...goldCheckoutStatus(env,user),official_received:await officialSupport(env,'producer',user.id,true),purchases,orders,gifts:GIFT_CATALOG,silver_gifts:SILVER_GIFT_CATALOG,free,free_sent,sent});
  }
  if(path==='/api/gold/checkout'&&method==='POST'){requireUser(user);return createGoldCheckout(req,env,user);}
  if(path==='/api/studio/earnings'&&method==='GET'){
@@ -88,6 +89,7 @@ export async function giftRoute(req,env,path,user){
  if(personal){const p=await one(env,"SELECT p.id,p.user_id FROM producers p JOIN users u ON u.id=p.user_id WHERE p.id=? AND u.provider!='deleted'",m[2]);if(!p)fail(404,'프로필을 찾을 수 없어요.');track={id:null,user_id:p.user_id,producer_id:p.id,kind:'original',personal:true};}
  else track=await published(env,m[2]);
  if(method==='GET')return json(personal?await profileGifts(env,track.producer_id):await trackGifts(env,track.id));
+ if((await one(env,'SELECT account_type FROM users WHERE id=?',track.user_id))?.account_type==='ai_bot')fail(400,'공식 AI 응원 계정에는 유료·실버 선물을 보낼 수 없어요.');
  if(method!=='POST')fail(405,'지원하지 않는 요청입니다.');
  requireUser(user);assertUnblocked(env,track.user_id);await rate(env,'gift:'+user.id,60,3600);
  const b=await req.json();if(silverGiftById(b.gift_type))return sendFreeGift(env,user,track,b);

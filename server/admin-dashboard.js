@@ -16,10 +16,10 @@ async function searchDashboard(env,q){
   rows(env,`SELECT p.id,p.name,p.created,
    (SELECT count(*) FROM tracks t WHERE t.producer_id=p.id AND t.status!='deleted') tracks,
    (SELECT count(*) FROM follows f WHERE f.kind='producer' AND f.target_id=p.id) followers
-   FROM producers p WHERE p.name LIKE ? ORDER BY p.created DESC LIMIT 12`,like),
+   FROM producers p WHERE EXISTS(SELECT 1 FROM users u WHERE u.id=p.user_id AND u.account_type='human') AND p.name LIKE ? ORDER BY p.created DESC LIMIT 12`,like),
   rows(env,`SELECT id,name,email,provider,created,
    CASE WHEN premium_until>? OR apple_premium_until>? THEN 1 ELSE 0 END premium
-   FROM users WHERE provider!='deleted' AND (name LIKE ? OR email LIKE ?)
+   FROM users WHERE provider!='deleted' AND account_type='human' AND (name LIKE ? OR email LIKE ?)
    ORDER BY created DESC LIMIT 12`,now(),now(),like,like)
  ]);
  return {query:q,tracks,creators,users};
@@ -43,17 +43,17 @@ export async function adminDashboardRoute(req,env,path,user){
   recentUsers,recentCreators,subscriptionStates,recentGold,payoutPending
  ]=await Promise.all([
   one(env,`SELECT
-   (SELECT count(*) FROM users WHERE provider!='deleted') users,
-   (SELECT count(*) FROM users WHERE provider!='deleted' AND created>=?) new_users,
-   (SELECT count(*) FROM users WHERE provider!='deleted' AND (premium_until>? OR apple_premium_until>?)) active_subscribers,
+   (SELECT count(*) FROM users WHERE provider!='deleted' AND account_type='human') users,
+   (SELECT count(*) FROM users WHERE provider!='deleted' AND account_type='human' AND created>=?) new_users,
+   (SELECT count(*) FROM users WHERE provider!='deleted' AND account_type='human' AND (premium_until>? OR apple_premium_until>?)) active_subscribers,
    (SELECT count(*) FROM listens WHERE qualified=1 AND started>=?) qualified_plays,
    (SELECT count(*) FROM tracks WHERE status='published') published_tracks,
-   (SELECT count(*) FROM producers) creators,
+   (SELECT count(*) FROM producers p JOIN users u ON u.id=p.user_id WHERE u.account_type='human') creators,
    (SELECT count(*) FROM comment_reports WHERE status='pending') pending_comment_reports,
    (SELECT count(DISTINCT track_id) FROM track_reports) reported_tracks`,cutoff,at,at,cutoff),
   rows(env,`SELECT day,count(*) n FROM listens WHERE qualified=1 AND started>=? GROUP BY day ORDER BY day`,cutoff),
   rows(env,`SELECT date(created,'unixepoch','+9 hours') day,count(*) n
-   FROM users WHERE provider!='deleted' AND created>=? GROUP BY day ORDER BY day`,cutoff),
+   FROM users WHERE provider!='deleted' AND account_type='human' AND created>=? GROUP BY day ORDER BY day`,cutoff),
   one(env,`SELECT COALESCE(sum(CASE WHEN status IN ('paid','partialCancelled') THEN MAX(amount-refunded,0) ELSE 0 END),0) krw,
    count(CASE WHEN status IN ('paid','partialCancelled') THEN 1 END) payments
    FROM billing_payments WHERE created>=?`,cutoff),
@@ -63,7 +63,7 @@ export async function adminDashboardRoute(req,env,path,user){
   one(env,`SELECT COALESCE(sum(platform_mw),0) platform_mw,
    COALESCE(sum(creator_mw+singer_mw),0) creator_mw,count(*) gifts
    FROM gifts WHERE created>=?`,cutoff),
-  rows(env,`SELECT provider,count(*) n FROM users WHERE provider!='deleted' GROUP BY provider ORDER BY n DESC`),
+  rows(env,`SELECT provider,count(*) n FROM users WHERE provider!='deleted' AND account_type='human' GROUP BY provider ORDER BY n DESC`),
   rows(env,`SELECT t.id,t.title,COALESCE(NULLIF(a.name,''),p.name) artist,count(l.id) plays,
    (SELECT count(*) FROM likes x WHERE x.track_id=t.id) likes
    FROM listens l JOIN tracks t ON t.id=l.track_id JOIN producers p ON p.id=t.producer_id
@@ -76,11 +76,11 @@ export async function adminDashboardRoute(req,env,path,user){
    WHERE t.status='published' ORDER BY t.created DESC LIMIT 6`),
   rows(env,`SELECT id,name,email,provider,created,
    CASE WHEN premium_until>? OR apple_premium_until>? THEN 1 ELSE 0 END premium
-   FROM users WHERE provider!='deleted' ORDER BY created DESC LIMIT 6`,at,at),
+   FROM users WHERE provider!='deleted' AND account_type='human' ORDER BY created DESC LIMIT 6`,at,at),
   rows(env,`SELECT p.id,p.name,p.created,
    (SELECT count(*) FROM tracks t WHERE t.producer_id=p.id AND t.status!='deleted') tracks,
    (SELECT count(*) FROM follows f WHERE f.kind='producer' AND f.target_id=p.id) followers
-   FROM producers p ORDER BY p.created DESC LIMIT 6`),
+   FROM producers p WHERE EXISTS(SELECT 1 FROM users u WHERE u.id=p.user_id AND u.account_type='human') ORDER BY p.created DESC LIMIT 6`),
   rows(env,`SELECT state,cancel_requested,count(*) n FROM billing_subscriptions GROUP BY state,cancel_requested ORDER BY n DESC`),
   rows(env,`SELECT gp.id,gp.gold,gp.price_krw,gp.channel,gp.paid_at,u.name
    FROM gold_purchases gp JOIN users u ON u.id=gp.user_id

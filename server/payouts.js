@@ -55,6 +55,7 @@ async function audit(env,admin,action,target){await run(env,'INSERT INTO admin_a
 export const closePeriod=finalizeGiftDiamonds;
 
 export async function payoutRoute(req,env,path,user){
+ if(user&&(path==='/api/studio/payout-account'||path.startsWith('/api/admin/payout'))&&(await one(env,'SELECT account_type FROM users WHERE id=?',user.id))?.account_type==='ai_bot')fail(403,'서비스 계정은 정산 대상이 아닙니다.');
  const method=req.method;
  if(path==='/api/studio/payout-account'){
   requireUser(user);

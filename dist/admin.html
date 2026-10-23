@@ -31,6 +31,7 @@
         <button class="admin-nav-item" data-view="people"><span>◌</span><b>사용자 · 창작자</b></button>
         <button class="admin-nav-item" data-view="moderation"><span>◇</span><b>신고 · 문의</b><i id="report-badge"></i></button>
 
+        <button class="admin-nav-item" data-view="ai-bots"><span>◌</span><b>AI 봇 관리</b></button>
         <p class="nav-section">MONEY</p>
         <button class="admin-nav-item" data-view="subscriptions"><span>♕</span><b>구독 관리</b></button>
         <button class="admin-nav-item" data-view="gold"><span>◎</span><b>골드 관리</b></button>
@@ -69,7 +70,7 @@
           <p>로그인 상태와 운영 권한을 확인하고 있어요.</p>
         </section>
 
-        <div id="admin-content" hidden>
+        <div id="admin-content" hidden><section class="view-page hidden" data-page="ai-bots"><div id="ai-bots-content"></div></section>
           <section class="view-page" data-page="dashboard">
             <div class="page-heading">
               <div><p class="eyebrow">AIFECT OPERATIONS</p><h1>안녕하세요, <span id="operator-heading">운영자</span>님.</h1><p>AI 음악 플랫폼의 핵심 지표와 운영 이슈를 한 화면에서 확인합니다.</p></div>
@@ -169,5 +170,6 @@
     <dialog id="admin-dialog"><div id="admin-dialog-content"></div><button type="button" id="admin-dialog-close" class="dialog-close" aria-label="닫기">×</button></dialog>
   </div>
   <script defer src="/admin.js?v=20261012-admin-login"></script>
+  <script defer src="/admin-ai-bots.js"></script>
 </body>
 </html>

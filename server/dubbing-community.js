@@ -1,3 +1,4 @@
+import {officialSupport} from './ai-bots.js';
 import {one,rows,run,now,id,fail,str,json,rate} from './db.js';
 import {requireUser} from './auth.js';
 import {publicNameSQL} from './identity.js';
@@ -5,9 +6,9 @@ import {removeComment,REPORT_REASONS} from './comment-moderation.js';
 import {assertDubbingCreator} from './dubbing-access.js';
 export async function dubbingCommunityStatus(env,p,user){
  const uid=user?.id||'';
- return one(env,`SELECT (SELECT COUNT(*) FROM likes WHERE dubbing_id=?) likes,
+ const state=await one(env,`SELECT (SELECT COUNT(*) FROM likes WHERE dubbing_id=?) likes,
  EXISTS(SELECT 1 FROM likes WHERE dubbing_id=? AND user_id=?) liked,
- (SELECT COUNT(*) FROM comments c WHERE c.dubbing_id=? AND c.deleted_at=0 AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=? AND b.blocked_id=c.user_id) OR (b.blocked_id=? AND b.user_id=c.user_id))) comments`,p.id,p.id,uid,p.id,uid,uid);
+ (SELECT COUNT(*) FROM comments c WHERE c.dubbing_id=? AND c.deleted_at=0 AND EXISTS(SELECT 1 FROM users commenter WHERE commenter.id=c.user_id AND commenter.account_type='human') AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=? AND b.blocked_id=c.user_id) OR (b.blocked_id=? AND b.user_id=c.user_id))) comments`,p.id,p.id,uid,p.id,uid,uid);return {...state,official_ai:await officialSupport(env,'dubbing',p.id)};
 }
 export async function dubbingCommunityRoute(req,env,p,user,action,tail){
  if(!['like','comments'].includes(action))return null;
@@ -21,7 +22,7 @@ export async function dubbingCommunityRoute(req,env,p,user,action,tail){
  }
  if(!tail&&method==='GET'){
   const offset=Math.max(0,Math.min(10000,Math.floor(Number(new URL(req.url).searchParams.get('offset'))||0)));
-  const list=await rows(env,`SELECT c.id,c.body,c.created,c.edited,${publicNameSQL('u')} name,c.user_id,
+  const list=await rows(env,`SELECT u.account_type,(SELECT id FROM producers WHERE user_id=c.user_id) profile_id,(SELECT image_version FROM producers WHERE user_id=c.user_id) image_version,c.id,c.body,c.created,c.edited,${publicNameSQL('u')} name,c.user_id,
    EXISTS(SELECT 1 FROM comment_reports r WHERE r.comment_id=c.id AND r.user_id=?) reported
    FROM comments c JOIN users u ON u.id=c.user_id WHERE c.dubbing_id=? AND c.deleted_at=0 AND u.provider!='deleted'
    AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=? AND b.blocked_id=c.user_id) OR (b.blocked_id=? AND b.user_id=c.user_id)) ORDER BY c.created DESC,c.id DESC LIMIT 31 OFFSET ?`,uid,p.id,uid,uid,offset);

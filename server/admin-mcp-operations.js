@@ -12,7 +12,7 @@ const nick = publicCrewNameSQL();
 const paging = a => [a.limit??25,a.offset??0];
 const audit = (env,key,actor,action,target,at=now()) => query(env,'INSERT INTO admin_audit(id,admin_id,action,target,created) VALUES(?,?,?,?,?)',key,actor.id,action,JSON.stringify(target),at);
 async function recipient(env,uid) {
- const row=await one(env,`SELECT u.id,${nick} nickname FROM users u WHERE u.id=? AND u.provider!='deleted'`,uid);
+ const row=await one(env,`SELECT u.id,${nick} nickname FROM users u WHERE u.id=? AND u.provider!='deleted' AND account_type='human'`,uid);
  if(!row)fail(404,'이용자를 찾을 수 없습니다.');
  return row;
 }
@@ -35,7 +35,7 @@ async function grant(env,actor,a) {
  const purchase='admin_test_'+await hash(a.request_id);
  try {
   await env.DB.batch([
-   query(env,"INSERT INTO gold_purchases(id,user_id,channel,gold,price_krw,fee_krw,tax_krw,status,provider_ref,created,paid_at) SELECT ?,?,'admin_test',?,0,0,0,'paid',?,?,? WHERE EXISTS(SELECT 1 FROM users WHERE id=? AND provider!='deleted')",purchase,a.user_id,a.gold,a.request_id,at,at,a.user_id),
+   query(env,"INSERT INTO gold_purchases(id,user_id,channel,gold,price_krw,fee_krw,tax_krw,status,provider_ref,created,paid_at) SELECT ?,?,'admin_test',?,0,0,0,'paid',?,?,? WHERE EXISTS(SELECT 1 FROM users WHERE id=? AND provider!='deleted' AND account_type='human')",purchase,a.user_id,a.gold,a.request_id,at,at,a.user_id),
    // The CHECK rejects the entire batch if concurrent grants exceed the daily budget.
    query(env,`INSERT INTO admin_test_gold_grants(request_id,operator_id,user_id,gold,reason,payload_hash,purchase_id,created)
     VALUES(?,?,?,CASE WHEN (SELECT COALESCE(SUM(gold),0) FROM admin_test_gold_grants WHERE created>=?)+?<=50000 THEN ? ELSE -1 END,?,?,?,?)`,a.request_id,actor.id,a.user_id,dayStart,a.gold,a.gold,a.reason,payload,purchase,at),
@@ -64,9 +64,9 @@ async function history(env,a) {
 async function stats(env,a) {
  const days=a.days??30,cutoff=now()-days*86400;
  const counts=await one(env,`SELECT
- (SELECT COUNT(*) FROM users WHERE provider!='deleted') users,
- (SELECT COUNT(*) FROM users WHERE provider!='deleted' AND created>=?) new_users,
- (SELECT COUNT(*) FROM users WHERE provider!='deleted' AND premium_until>?) active_premium,
+ (SELECT COUNT(*) FROM users WHERE provider!='deleted' AND account_type='human') users,
+ (SELECT COUNT(*) FROM users WHERE provider!='deleted' AND account_type='human' AND created>=?) new_users,
+ (SELECT COUNT(*) FROM users WHERE provider!='deleted' AND account_type='human' AND premium_until>?) active_premium,
  (SELECT COUNT(*) FROM tracks WHERE status='published') published_tracks,
  (SELECT COUNT(*) FROM tracks WHERE status='published' AND kind='cover') published_covers,
  (SELECT COUNT(*) FROM dubbing_projects WHERE deleted_at=0) dubbing_projects,
@@ -143,7 +143,7 @@ async function moderate(env,actor,a) {
 export async function executeAdminTool(env,actor,name,a) {
  if(!isMcpAdmin(actor))fail(403,'운영자 인증이 필요합니다.');
  switch(name) {
-  case 'aifect_search_users':return {users:await rows(env,`SELECT u.id user_id,${nick} nickname,(SELECT id FROM producers WHERE user_id=u.id) profile_id FROM users u WHERE u.provider!='deleted' AND ${nick} LIKE ? ESCAPE '\\' ORDER BY nickname,u.id LIMIT ? OFFSET ?`,'%'+a.nickname.replace(/[\\%_]/g,'\\$&')+'%',...paging(a))};
+  case 'aifect_search_users':return {users:await rows(env,`SELECT u.id user_id,${nick} nickname,(SELECT id FROM producers WHERE user_id=u.id) profile_id FROM users u WHERE u.provider!='deleted' AND account_type='human' AND ${nick} LIKE ? ESCAPE '\\' ORDER BY nickname,u.id LIMIT ? OFFSET ?`,'%'+a.nickname.replace(/[\\%_]/g,'\\$&')+'%',...paging(a))};
   case 'aifect_gold_balance':return balance(env,a.user_id);
   case 'aifect_grant_test_gold':return grant(env,actor,a);
   case 'aifect_gold_history':return history(env,a);

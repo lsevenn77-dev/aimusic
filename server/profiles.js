@@ -11,7 +11,7 @@ export async function profileRoute(req,env,path,user){
  const preview=path.match(/^\/api\/producers\/([\w-]+)\/preview$/);
  if(preview){
   if(req.method!=='GET')fail(405,'지원하지 않는 요청입니다.');
-  const profile=await one(env,`SELECT p.id,p.user_id,${publicNumberSQL('p.user_id')} public_number,${producerNameSQL()} name,p.bio,p.image_version FROM producers p WHERE p.id=?`,preview[1]);
+  const profile=await one(env,`SELECT p.id,p.user_id,(SELECT account_type FROM users WHERE id=p.user_id) account_type,${publicNumberSQL('p.user_id')} public_number,${producerNameSQL()} name,p.bio,p.image_version FROM producers p WHERE p.id=?`,preview[1]);
   if(!profile)fail(404,'프로필을 찾을 수 없습니다.');
   assertUnblocked(env,profile.user_id);
   const [counts,crew,following]=await Promise.all([
