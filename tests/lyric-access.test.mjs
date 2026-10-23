@@ -24,7 +24,18 @@ test('one-line client prefetches before boundaries and reuses nearby lines after
  for(const at of [1,4,9]){p.audio.currentTime=at;p.run('updateSyncedLyrics()');}await flush();assert.equal(p.calls.length,1);
  p.audio.currentTime=9.25;p.run('updateSyncedLyrics()');await flush();assert.equal(p.calls.length,2);assert.match(p.calls[1],/at=12\.25$/);assert.equal(p.hud.textContent,'첫 줄');
  p.audio.currentTime=12.25;p.run('updateSyncedLyrics()');assert.equal(p.hud.textContent,'둘째 줄');assert.equal(p.calls.length,2);
- p.audio.currentTime=12.2499;p.events.seeking();assert.equal(p.hud.textContent,'첫 줄');assert.equal(p.calls.length,2);
+ p.audio.currentTime=12.2499;p.events.seeking();assert.equal(p.hud.textContent,'둘째 줄');assert.equal(p.calls.length,2);
+});
+
+test('compact lyrics lead by half a second for free and premium listeners while retaining mobile one-line and desktop two-line display',async()=>{
+ const p=player(path=>{const at=Number(path.split('=')[1]);return {line:at<10?{text:'첫 줄',from:0,until:10}:{text:'다음 줄',from:10,until:20},lines:[{time:0,text:'첫 줄'},{time:10,text:'다음 줄'},{time:20,text:'마지막 줄'}]};});
+ p.context.matchMedia=()=>({matches:true});p.run('setCurrentLyrics(current)');await flush();
+ p.audio.currentTime=9.499;p.run('updateSyncedLyrics()');assert.equal(p.hud.textContent,'첫 줄');
+ p.audio.currentTime=9.5;p.run('updateSyncedLyrics()');assert.equal(p.hud.textContent,'다음 줄');assert.equal(p.audio.currentTime,9.5);
+ p.context.matchMedia=()=>({matches:false});p.run('updateSyncedLyrics()');assert.equal(p.hud.textContent,'다음 줄\n마지막 줄');
+ p.run("current={...current,lyrics:'[00:00]첫 줄\\n[00:10]다음 줄\\n[00:20]마지막 줄',lyrics_access:'full',lyrics_access_until:Date.now()/1000+1000};setCurrentLyrics(current)");
+ assert.equal(p.hud.textContent,'다음 줄\n마지막 줄');
+ p.audio.currentTime=9.499;p.run('updateSyncedLyrics()');assert.equal(p.hud.textContent,'첫 줄\n다음 줄');
 });
 test('slow next-line requests do not flash a loading message or duplicate requests',async()=>{
  let resolveNext;const p=player(path=>Number(path.split('=')[1])<12?{line:{text:'첫 줄',from:0,until:12}}:new Promise(resolve=>{resolveNext=resolve;}));

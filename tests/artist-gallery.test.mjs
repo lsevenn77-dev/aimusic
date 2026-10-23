@@ -2,6 +2,27 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {fixture} from './fixture.mjs';
 import worker from '../server/index.js';
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
+
+test('public artist representative image editor is visible only to the owner',()=>{
+ const context={document:{addEventListener(){}},heading:()=>'',portrait:()=>'<div>portrait</div>',esc:String,number:String,followed:()=>false,section:()=>'',list:()=>''};
+ vm.createContext(context);vm.runInContext(readFileSync(new URL('../dist/artist-gallery.js',import.meta.url),'utf8'),context);
+ const data={profile:{name:'Artist'},tracks:[],followers:0};
+ assert.doesNotMatch(context.artistPageHTML(data,'artist'),/data-artist-image/);
+ assert.match(context.artistPageHTML({...data,can_manage:true},'artist'),/data-artist-image="artist"/);
+});
+
+test('representative image update enforces ownership and updates the public portrait version',async t=>{
+ const f=await setup(t),path='/api/studio/artists/artist/image';
+ assert.equal((await f.send(path,'PUT',null)).status,401);
+ assert.equal((await f.send(path,'PUT','other')).status,404);
+ assert.equal(f.objects.size,0);
+ const saved=await f.send(path);assert.equal(saved.status,200);
+ assert.ok(saved.body.version);
+ assert.equal((await f.call('/api/artists/artist')).body.profile.image_version,saved.body.version);
+ assert.equal(f.objects.size,1);
+});
 
 async function setup(t){
  const objects=new Map(),BUCKET={put:async(k,v)=>objects.set(k,v),delete:async k=>objects.delete(k),head:async k=>objects.has(k)?{size:objects.get(k).length,etag:k}:null,get:async k=>({body:objects.get(k)})};

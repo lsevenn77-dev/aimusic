@@ -133,7 +133,7 @@ function bindImprovements(view){
  });
  const walletRetry=$('[data-my-wallet-retry]');if(walletRetry)walletRetry.onclick=async()=>{walletRetry.disabled=true;try{await render();}finally{walletRetry.disabled=false;}};
  const profile=$('#public-profile-form');if(profile)profile.onsubmit=busyForm(profile,async fd=>{
-  await api('/api/me/profile','PUT',{name:fd.get('name'),bio:fd.get('bio')});let image=fd.get('image');if(image?.size)image=await cropPhoto(image);
+  await api('/api/me/profile','PUT',{name:fd.get('name'),bio:fd.get('bio')});let image=fd.get('image');if(image?.size)image=await cropPhoto(image,{shape:'circle'});
   if(image?.size){if(image.size>5*1024*1024)throw new Error('사진은 5MB 이하로 선택해주세요.');const r=await fetch('/api/me/profile/image',{method:'PUT',headers:{'content-type':image.type},body:image});if(!r.ok)throw new Error((await r.json()).error);}
   me=(await api('/api/me')).user;updateAccount();toast('프로필을 저장했어요.');location.hash='library';
  });
