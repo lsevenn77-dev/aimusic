@@ -14,6 +14,10 @@ export async function coverRoute(req,env,path,user){
  requireUser(user);await rate(env,'upload-cover:'+user.id,60,60);
  const b=await req.json();
  const mode=b.cover_mode??'solo',parent=b.duet_parent_id||null;
+ const publication=mode==='solo'?'solo':parent?'duet_complete':'duet_invitation';
+ // New clients confirm publication intent separately from the recorder's remembered mode.
+ // Keep old released clients compatible; never guess the recording type from the original song.
+ if(b.publish_as!==undefined&&b.publish_as!==publication)fail(400,'선택한 공개 종류와 녹음 정보가 일치하지 않아요. 공개 종류를 다시 확인해주세요.');
  let part=b.duet_part||'';
  // Existing duet_part values are opaque legacy storage slots, not singer genders.
  if(b.duet_slot!==undefined){
@@ -42,5 +46,5 @@ export async function coverRoute(req,env,path,user){
  writes.push(query(env,`INSERT INTO tracks(id,user_id,artist_id,producer_id,title,genre,description,ai_tool,is_ai,participation,rights_accepted,original_ext,original_bytes,created,kind,original_id,cover_mode,duet_parent_id,duet_part,duet_open,duet_guide)
   VALUES(?,?,?,?,?,?,?,'',0,'보컬',?,?,?,?,'cover',?,?,?,?,?,?)`,tid,user.id,original.artist_id,profile.id,original.title,original.genre,description,now(),b.extension,b.bytes,now(),original.id,mode,parent,part,mode==='duet'&&!first?1:0,guide));
  await env.DB.batch([...writes,...coverClassificationWrites(env,{trackId:tid})]);
- return json({id:tid,producer_id:profile.id},201);
+ return json({id:tid,producer_id:profile.id,cover_mode:mode,duet_parent_id:parent,publish_as:publication},201);
 }

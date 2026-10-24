@@ -84,10 +84,13 @@ async function upload(fd){
 async function uploadCover(fd){
  const form=$('#cover-upload-form'),file=fd.get('audio'),image=fd.get('cover');
  if(!file?.size)throw new Error('커버 녹음 파일을 선택해주세요.');if(file.size>80*1024*1024)throw new Error('녹음 파일은 80MB 이하로 올려주세요.');await validateImage(image);
- const choice=fd.get('cover_kind')||'solo';const body={original_id:form.dataset.original,cover_mode:choice==='solo'?'solo':'duet',duet_slot:choice==='solo'?'':'first',duet_consent:fd.has('duet_consent'),description:fd.get('description')||'',own_voice:fd.has('own_voice'),rights:fd.has('rights'),extension:file.name.split('.').pop().toLowerCase(),bytes:file.size};
+ const choice=fd.get('cover_kind');if(!['solo','duet'].includes(choice))throw new Error('공개할 종류를 선택해주세요.');
+ if(choice==='duet'&&!fd.has('duet_consent'))throw new Error('듀엣 참여 모집은 다른 사람이 이어 부르는 것에 동의해주세요.');
+ const body={original_id:form.dataset.original,publish_as:choice==='solo'?'solo':'duet_invitation',cover_mode:choice,duet_slot:choice==='solo'?'':'first',duet_consent:choice==='duet'&&fd.has('duet_consent'),description:fd.get('description')||'',own_voice:fd.has('own_voice'),rights:fd.has('rights'),extension:file.name.split('.').pop().toLowerCase(),bytes:file.size};
  uploadStage(form,'1 / 3 · 커버곡 정보를 저장하고 있어요.');
  const fingerprint=JSON.stringify([body,file.name,file.lastModified]);if(await existingUploadSubmitted(form,fingerprint))return;
  let draft=form._draft;if(!draft||draft.fingerprint!==fingerprint){draft={...await uploadRequest('/api/covers','POST',body),fingerprint};form._draft=draft;}
+ if(draft.cover_mode!==body.cover_mode||draft.publish_as!==body.publish_as||draft.duet_parent_id)throw new Error('저장된 공개 종류가 선택과 달라 업로드를 중단했어요. 선택한 파일은 유지돼요.');
  await sendUploadFiles(form,draft.id,file,image);
 }
 async function sendUploadFiles(form,id,file,image){
