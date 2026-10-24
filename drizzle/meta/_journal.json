@@ -533,6 +533,13 @@
       "when": 1792837102378,
       "tag": "0075_perfect_vulcan",
       "breakpoints": true
+    },
+    {
+      "idx": 76,
+      "version": "6",
+      "when": 1792852915611,
+      "tag": "0076_repair_confirmed_solo_covers",
+      "breakpoints": true
     }
   ]
 }
