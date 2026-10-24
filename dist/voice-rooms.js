@@ -171,14 +171,33 @@ class VoiceRoomClient {
   if(!m.playing)a.pause();else if(a.paused&&!a.ended)a.play().catch(()=>{this.musicNotice('소리 켜기를 눌러주세요');const b=this.host?.querySelector('[data-voice="resume-audio"]');if(b)b.hidden=false;});
  }
  musicNotice(text){this.musicNoticeText=text;const el=typeof $==='function'?$('#voice-music-time'):null;if(el)el.textContent=text;}
- resumeSound(){try{const Context=window.AudioContext||window.webkitAudioContext;if(Context&&!this.levelContext)this.levelContext=new Context({latencyHint:'interactive'});void this.levelContext?.resume().then(()=>{this.applyListenVolumes();this.syncMusic();}).catch(()=>{});}catch{}void this.processing?.context?.resume().catch(()=>{});this.syncMusic();}
+ resumeSound(){
+  // A seat/mic tap is also a playback gesture. Unlock already-created remote
+  // elements here; resuming Web Audio alone does not restart a blocked element.
+  for(const a of this.audios?.values()||[])this.playRemote(a);
+  try{const Context=window.AudioContext||window.webkitAudioContext;if(Context&&!this.levelContext)this.levelContext=new Context({latencyHint:'interactive'});void this.levelContext?.resume().then(()=>{this.applyListenVolumes();this.syncMusic();}).catch(()=>{});}catch{}void this.processing?.context?.resume().catch(()=>{});this.syncMusic();
+ }
+ playRemote(a){
+  const blocked=()=>{if(this.closed||![...this.audios.values()].includes(a))return;const b=this.host?.querySelector('[data-voice="resume-audio"]');if(b)b.hidden=false;};
+  try{void a.play()?.catch(blocked);}catch{blocked();}
+ }
  playbackGain(element,volume){
   const ctx=this.levelContext;
   // A gain node also supports mobile browsers that ignore HTMLAudio.volume.
   // Create it only on a running, user-unlocked context; otherwise retain native audio.
-  if(ctx?.state==='running'&&!element.voiceGain)try{const gain=ctx.createGain(),source=ctx.createMediaElementSource(element);source.connect(gain);gain.connect(ctx.destination);element.voiceGain=gain;}catch{}
-  if(element.voiceGain){element.volume=1;element.voiceGain.gain.setTargetAtTime(volume,ctx.currentTime,.02);}else element.volume=volume;
+  if(ctx?.state==='running'&&!element.voiceGain)try{
+   // Live WebRTC audio is a MediaStream, not a URL-backed music resource.
+   // Pull the remote stream directly; the media-element source can yield silence.
+   const gain=ctx.createGain(),source=element.srcObject?ctx.createMediaStreamSource(element.srcObject):ctx.createMediaElementSource(element);
+   source.connect(gain);gain.connect(ctx.destination);element.voiceGain=gain;element.voiceSource=source;element.voiceStream=!!element.srcObject;
+  }catch{}
+  if(element.voiceGain){
+   const nativeFallback=element.voiceStream&&ctx.state!=='running';
+   if(element.voiceStream)element.muted=!nativeFallback;
+   element.volume=nativeFallback?volume:1;element.voiceGain.gain.setTargetAtTime(nativeFallback?0:volume,ctx.currentTime,.02);
+  }else element.volume=volume;
  }
+ releaseRemote(a){a.pause();a.voiceSource?.disconnect();a.voiceGain?.disconnect();a.voiceSource=null;a.voiceGain=null;a.srcObject=null;}
  applyListenVolumes(){for(const [id,a] of this.audios)this.playbackGain(a,this.state?.members?.find(p=>p.id===id)?.muted?0:Math.max(0,Math.min(1,(this.volumes.get(id)??1)*this.preferences.voice)));}
  meterTrack(id,track){try{const Context=window.AudioContext||window.webkitAudioContext;if(!Context)return;const ctx=this.levelContext||(this.levelContext=new Context({latencyHint:'interactive'})),source=ctx.createMediaStreamSource(new MediaStream([track])),analyser=ctx.createAnalyser();analyser.fftSize=256;source.connect(analyser);this.meters.set(id,{source,analyser});}catch{/* Playback stays independent of metering. */}}
  clearRemoteMeters(){for(const m of this.meters.values())m.source.disconnect();this.meters.clear();}
@@ -192,7 +211,32 @@ class VoiceRoomClient {
   if(this.receiver===p){const epoch=this.epoch;this.receiveKey=null;clearTimeout(this.receiveRetry);this.receiveRetry=setTimeout(()=>{if(!this.closed&&epoch===this.epoch&&this.receiver===p)this.receive();},500);}
  };return p;}
  async connected(pc){if(pc.connectionState==='connected')return;await new Promise((resolve,reject)=>{const finish=error=>{clearTimeout(timer);pc.removeEventListener('connectionstatechange',check);error?reject(error):resolve();},check=()=>{if(pc.connectionState==='connected')finish();else if(['failed','closed'].includes(pc.connectionState))finish(new Error('음성 연결을 다시 시작해주세요.'));},timer=setTimeout(()=>finish(new Error('음성 연결 시간이 초과됐어요. 네트워크를 확인해주세요.')),15000);pc.addEventListener('connectionstatechange',check);check();});}
- async ice(pc){if(pc.iceGatheringState==='complete')return;await new Promise((resolve,reject)=>{const timer=setTimeout(()=>{pc.removeEventListener('icegatheringstatechange',check);reject(new Error('네트워크 연결 준비가 지연돼요. 다시 시도해주세요.'));},10000);const check=()=>{if(pc.iceGatheringState==='complete'){clearTimeout(timer);pc.removeEventListener('icegatheringstatechange',check);resolve();}};pc.addEventListener('icegatheringstatechange',check);check();});}
+ async ice(pc){
+  const started=performance.now();
+  await new Promise((resolve,reject)=>{
+   let done=false,softExpired=false,soft,hard;
+   const candidates=()=>pc.localDescription?.sdp?.match(/^a=candidate:/gm)?.length||0;
+   const finish=error=>{
+    if(done)return;done=true;clearTimeout(soft);clearTimeout(hard);
+    for(const event of ['icegatheringstatechange','icecandidate','connectionstatechange'])pc.removeEventListener(event,check);
+    this.diagnostics?.record('iceGatherMs',performance.now()-started);
+    if(!error&&pc.iceGatheringState!=='complete')this.diagnostics?.record('icePartialCandidates',candidates());
+    error?reject(error):resolve();
+   };
+   const check=()=>{
+    if(pc.connectionState==='closed'){finish(new Error('음성 연결이 취소됐어요.'));return;}
+    const count=candidates();
+    if(count&&(pc.iceGatheringState==='complete'||softExpired)){finish();return;}
+    if(pc.iceGatheringState==='complete')finish(new Error('음성 연결 경로를 찾지 못했어요. 네트워크를 바꿔 다시 시도해주세요.'));
+   };
+   // A blocked STUN query may keep gathering alive long after host candidates
+   // exist. Send the candidates we have, then verify the actual SFU connection.
+   soft=setTimeout(()=>{softExpired=true;check();},1500);
+   hard=setTimeout(()=>finish(candidates()?undefined:new Error('음성 연결 경로를 찾지 못했어요. Wi-Fi나 모바일 네트워크를 바꿔 다시 시도해주세요.')),10000);
+   for(const event of ['icegatheringstatechange','icecandidate','connectionstatechange'])pc.addEventListener(event,check);
+   check();
+  });
+ }
  setMicPhase(phase,started){
   if(started!==undefined)this.diagnostics?.record('mic'+this.micState[0].toUpperCase()+this.micState.slice(1)+'Ms',performance.now()-started);
   this.micState=phase;this.paint();return this.micPhaseStarted=performance.now();
@@ -304,25 +348,33 @@ class VoiceRoomClient {
  receive(){
   const members=this.state?.members||[],key=members.filter(p=>p.id!==this.state?.self&&p.publishing).map(p=>p.id+':'+p.mediaKey).sort().join('|');
   if(key===this.receiveKey||this.closed)return this.mediaQueue;this.receiveKey=key;const version=this.receiveVersion=(this.receiveVersion||0)+1;
-  const epoch=this.epoch,generation=this.generation,stale=()=>this.closed||epoch!==this.epoch;
+  const epoch=this.epoch,generation=this.generation,stale=()=>this.closed||epoch!==this.epoch||version!==this.receiveVersion;
+  if(this.receiver&&this.receiver.connectionState!=='connected')this.receiver.close();
   this.mediaQueue=this.mediaQueue.catch(()=>{}).then(async()=>{
-   await new Promise(resolve=>setTimeout(resolve,100));if(stale()||version!==this.receiveVersion)return;this.receiver?.close();for(const a of this.audios.values()){a.pause();a.voiceGain?.disconnect();a.voiceGain=null;a.srcObject=null;}this.audios.clear();this.clearRemoteMeters();
+   await new Promise(resolve=>setTimeout(resolve,100));if(stale()||version!==this.receiveVersion)return;this.receiver?.close();for(const a of this.audios.values())this.releaseRemote(a);this.audios.clear();this.clearRemoteMeters();
    const pc=this.receiver=this.pc();let mapping=[];
    pc.ontrack=e=>{
     if(stale()||version!==this.receiveVersion||this.receiver!==pc)return;const id=mapping.find(t=>t.mid===e.transceiver.mid)?.user_id;if(!id)return;
-    const previous=this.audios.get(id);if(previous){previous.pause();previous.voiceGain?.disconnect();previous.srcObject=null;}this.meters.get(id)?.source.disconnect();
+    const previous=this.audios.get(id);if(previous)this.releaseRemote(previous);this.meters.get(id)?.source.disconnect();
     const a=new Audio();a.autoplay=true;a.srcObject=new MediaStream([e.track]);a.volume=(this.volumes.get(id)??1)*this.preferences.voice;this.audios.set(id,a);this.applyListenVolumes();this.meterTrack(id,e.track);this.startLevels();
     if('jitterBufferTarget' in e.receiver)try{e.receiver.jitterBufferTarget=100;}catch{}
-    a.play().catch(()=>{const b=this.host?.querySelector('[data-voice="resume-audio"]');if(b)b.hidden=false;});
+    this.playRemote(a);
    };
    const r=await voiceRequest(this.path('subscribe'),{generation});if(stale()||version!==this.receiveVersion){pc.close();return;}mapping=r.tracks||[];
-   if(r.sessionDescription){await pc.setRemoteDescription(r.sessionDescription);await pc.setLocalDescription(await pc.createAnswer());await this.ice(pc);if(stale()){pc.close();return;}await voiceRequest(this.path('answer'),{generation,negotiation:r.negotiation,sessionDescription:{type:pc.localDescription.type,sdp:pc.localDescription.sdp}});if(!stale())await this.output();}
+   if(r.sessionDescription){
+    const started=performance.now();await pc.setRemoteDescription(r.sessionDescription);await pc.setLocalDescription(await pc.createAnswer());await this.ice(pc);if(stale()){pc.close();return;}
+    await voiceRequest(this.path('answer'),{generation,negotiation:r.negotiation,sessionDescription:{type:pc.localDescription.type,sdp:pc.localDescription.sdp}});
+    if(stale()){pc.close();return;}await this.connected(pc);if(stale())return;
+    this.diagnostics?.record('receiveConnectMs',performance.now()-started);
+    // An unavailable output device must not recreate an otherwise healthy SFU session.
+    try{await this.output();}catch{if(!stale())this.status('출력 장치를 확인해주세요. 소리 설정에서 기본 출력을 선택할 수 있어요.');}
+   }else{pc.close();if(this.receiver===pc)this.receiver=null;}
   }).catch(e=>{if(stale()||version!==this.receiveVersion)return;this.receiveKey=null;this.status(e.message);if([401,403,404,409].includes(e.status))this.connectionError(e);else{clearTimeout(this.receiveRetry);this.receiveRetry=setTimeout(()=>{if(!stale())this.receive();},1500);}});
   return this.mediaQueue;
  }
  scheduleReconnect(){if(this.reconnectTimer||this.closed)return;this.reconnectTimer=setTimeout(()=>{this.reconnectTimer=null;this.reconnect();},Math.min(30000,1000*2**Math.min(this.retries++,5)));}
  async reconnect(){if(this.closed||this.reconnecting)return;const reconnectStarted=performance.now();this.reconnecting=true;this.status('연결이 끊겼어요. 다시 연결하는 중…');try{await this.join();}catch(e){this.status(e.message);if([401,403,404,409].includes(e.status))this.leave(false);else this.scheduleReconnect();}finally{this.reconnecting=false;this.diagnostics?.record('reconnectMs',performance.now()-reconnectStarted);}}
- stopMedia(){this.micDesired=false;this.micState='disconnected';this.warmSeat=null;this.micAttempt=(this.micAttempt||0)+1;this.micBusy=false;this.pendingStream?.getTracks().forEach(t=>t.stop());this.pendingStream=null;this.stopMicrophone();this.clearRemoteMeters();this.receiver?.close();this.receiver=null;for(const a of this.audios.values()){a.pause();a.srcObject=null;}this.audios.clear();this.receiveKey=null;}
+ stopMedia(){this.micDesired=false;this.micState='disconnected';this.warmSeat=null;this.micAttempt=(this.micAttempt||0)+1;this.micBusy=false;this.pendingStream?.getTracks().forEach(t=>t.stop());this.pendingStream=null;this.stopMicrophone();this.clearRemoteMeters();this.receiver?.close();this.receiver=null;for(const a of this.audios.values())this.releaseRemote(a);this.audios.clear();this.receiveKey=null;}
  leave(send=true){if(this.closed)return;const leaving=send&&this.joined?fetch('/api/voice/'+this.path('leave'),{method:'POST',credentials:'same-origin',keepalive:true,headers:{'content-type':'application/json'},body:JSON.stringify({generation:this.generation}),signal:AbortSignal.timeout(8000)}).catch(()=>{}):Promise.resolve();this.closed=true;this.joined=false;this.stopMicTest?.();this.diagnostics?.stop();clearInterval(this.levelTimer);clearInterval(this.musicTimer);clearTimeout(this.volumeTimer);clearTimeout(this.searchTimer);this.searchAbort?.abort();window.removeEventListener('resize',this.onViewport);clearTimeout(this.receiveRetry);clearTimeout(this.seatInviteTimer);this.musicAudio?.pause();if(this.musicAudio){this.musicAudio.removeAttribute('src');this.musicAudio.load();}this.levelContext?.close().catch(()=>{});this.levelContext=null;clearInterval(this.heartbeat);clearTimeout(this.socketRetry);clearTimeout(this.reconnectTimer);clearTimeout(this.animationTimer);this.ws?.close();this.stopMedia();if(this.host?.isConnected){$('#voice-content').hidden=true;$('#voice-entry').hidden=false;}window.removeEventListener('online',this.onOnline);window.removeEventListener('pagehide',this.onPageHide);document.removeEventListener('visibilitychange',this.onVisibility);window.visualViewport?.removeEventListener('resize',this.onViewport);return leaving;}
  animateGift(event){if(this.seenGifts.has(event.gift.id))return;this.seenGifts.add(event.gift.id);if(this.seenGifts.size>200)this.seenGifts.delete(this.seenGifts.values().next().value);const el=$('#voice-gift-animation');if(!el)return;const g=AifectGifts.GIFT_CATALOG.find(g=>g.id===event.gift.type);el.innerHTML=(g?giftArt(g):icon('gift'))+`<strong>${esc(event.from)} → ${esc(event.to)}</strong><span>${esc(event.gift.name)} × ${number(event.gift.quantity)}</span>`;el.hidden=false;clearTimeout(this.animationTimer);this.animationTimer=setTimeout(()=>el.hidden=true,4500);}
 }

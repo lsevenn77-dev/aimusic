@@ -27,7 +27,7 @@ class VoiceDiagnostics {
   }catch{/* Diagnostics must never affect transport. */}finally{this.busy=false;}
  }
  summary(){const result={};for(const key of ['rttMs','jitterMs','lossPercent','concealmentPercent']){const values=this.samples.map(s=>s[key]).filter(Number.isFinite).sort((a,b)=>a-b);result[key]=VoiceDiagnostics.percentiles(values);}
-  for(const key of ['micEnableMs','micPermissionMs','micCaptureMs','micProcessingMs','micIceMs','micSignalingMs','micTransportMs','micFailedStageMs','musicSearchMs','reconnectMs','musicDriftMs'])result[key]=VoiceDiagnostics.percentiles(this.events.filter(s=>s.metric===key).map(s=>s.value).sort((a,b)=>a-b));return result;
+  for(const key of ['micEnableMs','micPermissionMs','micCaptureMs','micProcessingMs','micIceMs','micSignalingMs','micTransportMs','micFailedStageMs','iceGatherMs','icePartialCandidates','receiveConnectMs','musicSearchMs','reconnectMs','musicDriftMs'])result[key]=VoiceDiagnostics.percentiles(this.events.filter(s=>s.metric===key).map(s=>s.value).sort((a,b)=>a-b));return result;
  }
  static percentiles(values){return values.length?{samples:values.length,p50:values[Math.min(values.length-1,Math.floor(values.length*.5))],p95:values[Math.min(values.length-1,Math.floor(values.length*.95))]}:null;}
  download(){const data={capturedAt:new Date().toISOString(),members:this.client.state?.members.length,summary:this.summary(),samples:this.samples,events:this.events,limits:'CPU and end-to-end mouth-to-ear latency are not measured by these browser RTP counters.'};const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='aifect-voice-stats.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
