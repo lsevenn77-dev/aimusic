@@ -2,6 +2,7 @@ let dubbingRecorder=null;
 function dubbingRecordingHTML(p,data){
  const mine=p.roles.find(r=>r.mine),record=data.recording.roles.find(r=>r.roleId===mine.id);
  return `<a class="dubbing-back" href="#dubbing/${esc(p.id)}">← 대본과 배역</a><header class="dubbing-heading"><span class="eyebrow">VOICE STUDIO · ${esc(mine.name)}</span><h1>${esc(p.title)}</h1><p>내 대사를 한 줄씩 연기하고, 서로의 목소리로 장면을 완성해요.</p></header>
+ ${window.AifectMicrophoneCheck?.html()||''}
  <div class="dubbing-record-layout"><section class="dubbing-panel dubbing-record-script"><div class="dubbing-section-heading"><div><span class="eyebrow">SCRIPT & TAKES</span><h2>장면의 대사</h2></div><span class="dubbing-tag">내 배역 · ${esc(mine.name)}</span></div><p class="dubbing-record-script-hint">현재 대사 앞뒤를 함께 보며 준비하세요. 내 대사를 누르면 녹음할 위치를 바꿀 수 있어요.</p><div id="dubbing-record-lines" class="dubbing-record-lines" aria-label="전체 대본과 녹음 위치"></div><p id="dubbing-record-next" class="dubbing-record-next"></p></section>
  <aside class="dubbing-panel dubbing-record-stage"><div class="dubbing-section-heading"><span class="eyebrow">NOW RECORDING</span><span id="dubbing-record-count"></span></div><div id="dubbing-record-current"></div><div id="dubbing-record-cue" class="dubbing-record-cue" role="status" aria-live="polite">녹음 시작 전 3, 2, 1로 알려드려요</div><div class="dubbing-record-time"><span id="dubbing-record-clock">0:00</span><progress id="dubbing-record-progress" max="1" value="0" aria-label="현재 대사 녹음 진행"></progress><span id="dubbing-record-limit"></span></div>
  <div class="dubbing-record-controls"><button type="button" class="primary-button" id="dubbing-record-start">${icon('mic')} 녹음 시작</button><button type="button" class="small-button" id="dubbing-record-pause" disabled>일시정지</button><button type="button" class="small-button" id="dubbing-record-stop" disabled>이 대사 마치기</button><button type="button" class="small-button" id="dubbing-record-again" disabled>다시 녹음</button></div>
@@ -17,7 +18,7 @@ function dubbingRecordBeforeRoute(raw){
  dubbingReleaseRecorder(s);return true;
 }
 function dubbingReleaseRecorder(s){
- if(dubbingRecorder===s)dubbingRecorder=null;s.closed=true;cancelAnimationFrame(s.frame);
+ if(dubbingRecorder===s)dubbingRecorder=null;s.micCheck?.destroy();s.closed=true;cancelAnimationFrame(s.frame);
  dubbingStopGuide(s);if(s.run){try{s.run.node.port.postMessage('stop');s.run.mic.disconnect();s.run.node.disconnect();s.run.mute.disconnect();}catch{}s.run.stream.getTracks().forEach(t=>t.stop());s.run=null;}
  s.ctx?.close().catch(()=>{});
 }
@@ -49,6 +50,7 @@ function dubbingRecordDraw(s){
  s.root.querySelectorAll('[data-dubbing-record-line]').forEach(b=>b.onclick=()=>{
   dubbingSelectTake(s,b.dataset.dubbingRecordLine);
  });
+ s.micCheck?.setBusy(s.busy||!!s.run);
  const set=(id,disabled)=>s.root.querySelector('#'+id).disabled=disabled;
  set('dubbing-record-start',s.busy||!!s.run||locked||s.cursor>=slot.recordEnd-slot.start-.05);
  s.root.querySelector('#dubbing-record-start').innerHTML=icon('mic')+' '+(s.cursor>0?'이어서 녹음':'녹음 시작');
@@ -90,7 +92,7 @@ function dubbingPlayGuide(s,from,when,includeMine=false){
  }
 }
 async function dubbingStartRecording(s){
- if(s.busy||s.run||s.closed)return;s.busy=true;dubbingRecordDraw(s);let stream;
+ if(s.busy||s.run||s.closed)return;s.busy=true;s.micCheck?.prepare();dubbingRecordDraw(s);let stream;
  try{
   if(!navigator.mediaDevices?.getUserMedia)throw Error('HTTPS 주소의 최신 브라우저에서 마이크를 허용해주세요.');
   const prepared=dubbingRecordAudio(s);prepared.catch(()=>{});
@@ -102,19 +104,20 @@ async function dubbingStartRecording(s){
   if(s.closed||document.hidden)throw Error('녹음 화면으로 돌아와 다시 시작해주세요.');
  const ctx=s.ctx,slot=s.data.lines.find(l=>l.id===s.line),from=s.cursor?slot.start+s.cursor:Math.min(slot.start,slot.cueStart??slot.start),preroll=Math.max(3,slot.start+s.cursor-from),when=ctx.currentTime+.15;
   const mic=ctx.createMediaStreamSource(stream),node=new AudioWorkletNode(ctx,'aifect-recorder',{numberOfInputs:1,numberOfOutputs:1,outputChannelCount:[1],channelCount:1,channelCountMode:'explicit'}),mute=ctx.createGain();mute.gain.value=0;mic.connect(node).connect(mute).connect(ctx.destination);
-  const run={stream,mic,node,mute,chunks:[],offset:s.cursor,t0:when+preroll};s.run=run;s.pendingTake=null;
+  const run={stream,mic,node,mute,chunks:[],offset:s.cursor,t0:when+preroll};s.run=run;s.pendingTake=null;s.micCheck?.attach(stream,ctx);
+  stream.getAudioTracks?.().forEach(track=>track.addEventListener('ended',()=>{if(s.run===run&&!s.closed)void dubbingPauseRecording(s);}));
   node.port.onmessage=e=>{if(e.data==='done')run.flushed?.();else if(e.data?.d instanceof Float32Array)run.chunks.push(e.data);};
   const guideFrom=Math.max(0,slot.start+s.cursor-preroll),guideWhen=when+Math.max(0,preroll-(slot.start+s.cursor));
   dubbingPlayGuide(s,guideFrom,guideWhen);s.preview=false;
   dubbingRecordMessage(s,'녹음 중 · 내 대사를 연기해주세요.');
- }catch(err){stream?.getTracks().forEach(t=>t.stop());dubbingRecordMessage(s,err.message);}
+ }catch(err){stream?.getTracks().forEach(t=>t.stop());if(!s.closed)s.micCheck?.error(err);dubbingRecordMessage(s,err.message);}
  finally{s.busy=false;dubbingRecordDraw(s);}
 }
 async function dubbingPauseRecording(s,ended=false){
  if(!s.run||s.busy)return;s.busy=true;const run=s.run,slot=s.data.lines.find(l=>l.id===s.line),limit=slot.recordEnd-slot.start;
  const cursor=Math.min(limit,run.offset+Math.max(0,s.ctx.currentTime-run.t0));dubbingStopGuide(s);cancelAnimationFrame(s.frame);
  await new Promise(resolve=>{const timer=setTimeout(resolve,600);run.flushed=()=>{clearTimeout(timer);resolve();};run.node.port.postMessage('stop');});
- run.stream.getTracks().forEach(t=>t.stop());run.mic.disconnect();run.node.disconnect();run.mute.disconnect();s.run=null;
+ s.micCheck?.detach(run.stream);run.stream.getTracks().forEach(t=>t.stop());run.mic.disconnect();run.node.disconnect();run.mute.disconnect();s.run=null;
  if(!s.closed){const rate=s.ctx.sampleRate,total=Math.floor(limit*rate);s.samples||=new Float32Array(total);const start=Math.round(run.offset*rate),frames=Math.min(total-start,Math.round((cursor-run.offset)*rate));if(frames>0){s.samples.set(AifectKaraoke.placeChunks(run.chunks,run.t0,rate,frames),start);s.cursor=cursor;dubbingRememberTake(s);}dubbingRecordMessage(s,ended?'✓ 이 대사를 녹음했어요. 다음 내 대사를 선택하세요. 임시 저장은 지금까지의 녹음을 모두 저장해요.':'잠시 멈췄어요. 다른 대사로 이동해도 지금까지 녹음한 내용은 이 화면에 유지돼요.');}
  s.busy=false;dubbingRecordDraw(s);
 }
@@ -140,7 +143,7 @@ async function dubbingSaveRecording(s){
 }
 function bindDubbingRecorder(view,root){
  const s={p:view.project,data:view.recordingData,role:view.project.roles.find(r=>r.mine).id,root,route:view.route,buffers:new Map(),takes:new Map(),sources:[],cursor:0,busy:false,dirty:false};
- if(dubbingRecorder)dubbingReleaseRecorder(dubbingRecorder);dubbingRecorder=s;s.line=s.p.script.lines.find(l=>l.roleId===s.role).id;
+ if(dubbingRecorder)dubbingReleaseRecorder(dubbingRecorder);dubbingRecorder=s;s.micCheck=window.AifectMicrophoneCheck?.bind(root.querySelector('.microphone-check'));s.line=s.p.script.lines.find(l=>l.roleId===s.role).id;
  root.querySelector('#dubbing-record-start').onclick=()=>dubbingStartRecording(s);
  root.querySelector('#dubbing-record-pause').onclick=()=>dubbingPauseRecording(s);
  root.querySelector('#dubbing-record-stop').onclick=()=>dubbingPauseRecording(s,true);
