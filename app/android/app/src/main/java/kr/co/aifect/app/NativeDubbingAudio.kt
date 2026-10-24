@@ -1,0 +1,107 @@
+package kr.co.aifect.app
+
+import android.annotation.SuppressLint
+import android.content.Context
+import android.media.AudioFormat
+import android.media.AudioRecord
+import android.media.MediaRecorder
+import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
+import androidx.media3.datasource.okhttp.OkHttpDataSource
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.asRequestBody
+import org.json.JSONObject
+import java.io.File
+import java.io.RandomAccessFile
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+import java.security.MessageDigest
+import kotlin.math.*
+
+internal fun dubbingWavHeader(samples:Int):ByteArray {
+ require(samples>=4800&&samples<=48*48000)
+ return ByteBuffer.allocate(44).order(ByteOrder.LITTLE_ENDIAN).apply{
+  put("RIFF".toByteArray());putInt(36+samples*2);put("WAVEfmt ".toByteArray());putInt(16);putShort(1);putShort(1);putInt(48000);putInt(96000);putShort(2);putShort(16);put("data".toByteArray());putInt(samples*2)
+ }.array()
+}
+internal data class DubbingWindow(val cueStart:Double,val start:Double,val end:Double){val duration get()=end-start}
+internal fun dubbingWindow(line:JSONObject):DubbingWindow {
+ val start=line.getDouble("start");val end=line.optDouble("recordEnd",line.getDouble("end"))
+ require(start.isFinite()&&end.isFinite()&&start>=0&&end-start in .1..48.0){"대사 녹음 시간을 확인해주세요."}
+ return DubbingWindow(line.optDouble("cueStart",start).coerceIn(0.0,start),start,end)
+}
+
+/** Private, account/sound/role scoped takes survive navigation and process death. */
+internal class DubbingDrafts(context:Context,account:String,project:String,sound:String,role:String){
+ val directory:File
+ private val manifest:File
+ val takes=mutableMapOf<String,JSONObject>()
+ init{
+  require(account.isNotBlank());listOf(project,sound,role).forEach{require(Regex("[A-Za-z0-9_-]{1,64}").matches(it))}
+  val owner=MessageDigest.getInstance("SHA-256").digest(account.toByteArray()).joinToString(""){"%02x".format(it)}
+  directory=File(context.filesDir,"dubbing-drafts/$owner/$project/$sound/$role").apply{mkdirs()};manifest=File(directory,"takes.json")
+  runCatching{val data=android.util.AtomicFile(manifest).openRead().bufferedReader().use{JSONObject(it.readText())};data.keys().forEach{k->val take=data.getJSONObject(k);if(file(take).isFile)takes[k]=take}}
+ }
+ fun file(take:JSONObject):File {val id=take.getString("id");require(Regex("[A-Za-z0-9_-]{1,64}").matches(id));return File(directory,"$id.wav")}
+ fun commit(line:String,take:JSONObject){require(Regex("[A-Za-z0-9_-]{1,64}").matches(line));val previous=takes.put(line,take);try{persist()}catch(e:Exception){if(previous==null)takes.remove(line)else takes[line]=previous;throw e};if(previous!=null&&previous.optString("id")!=take.optString("id"))file(previous).delete()}
+ fun uploaded(line:String,takeId:String){takes[line]?.takeIf{it.optString("id")==takeId}?.put("uploaded",true);persist()}
+ private fun persist(){val data=JSONObject();takes.forEach{(k,v)->data.put(k,v)};android.util.AtomicFile(manifest).let{atomic->val stream=atomic.startWrite();try{stream.write(data.toString().toByteArray());atomic.finishWrite(stream)}catch(e:Exception){atomic.failWrite(stream);throw e}}}
+}
+
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+internal class NativeDubbingAudio(context:Context,private val api:NativeApi){
+ val status=MutableStateFlow("");val countdown=MutableStateFlow(0);val level=MutableStateFlow(0f);val elapsed=MutableStateFlow(0.0);val running=MutableStateFlow(false)
+ private val scope=CoroutineScope(SupervisorJob()+Dispatchers.Main.immediate)
+ private val background=ExoPlayer.Builder(context).setMediaSourceFactory(DefaultMediaSourceFactory(OkHttpDataSource.Factory(api.client))).build()
+ private val preview=ExoPlayer.Builder(context).setMediaSourceFactory(DefaultMediaSourceFactory(OkHttpDataSource.Factory(api.client))).build()
+ private var job:Job?=null
+ @Volatile private var recorder:AudioRecord?=null
+ @Volatile private var stopRequested=false
+ private var closed=false
+ private var playerError:String?=null
+ init{background.addListener(object:Player.Listener{override fun onPlayerError(error:androidx.media3.common.PlaybackException){playerError="배경 음향을 불러오지 못했어요. 연결을 확인해주세요."}})}
+ private suspend fun ready(url:String,position:Long){playerError=null;background.setMediaItem(MediaItem.fromUri(Endpoint.url(url)),position);background.prepare();withTimeout(20000){while(background.playbackState!=Player.STATE_READY){playerError?.let{error(it)};delay(30)}}}
+ @SuppressLint("MissingPermission")
+ fun record(url:String,line:JSONObject,drafts:DubbingDrafts,complete:(JSONObject)->Unit,failure:(String)->Unit){
+  if(running.value)return
+  stop();running.value=true;stopRequested=false;elapsed.value=0.0
+  job=scope.launch{
+   val take=payload("id" to requestIdentity(),"uploaded" to false);val output=drafts.file(take);var accepted=false
+   try{
+    val window=dubbingWindow(line);status.value="배경 음향 준비 중";ready(url,(window.cueStart*1000).toLong())
+    val size=max(9600,AudioRecord.getMinBufferSize(48000,AudioFormat.CHANNEL_IN_MONO,AudioFormat.ENCODING_PCM_16BIT))
+    val input=AudioRecord.Builder().setAudioSource(MediaRecorder.AudioSource.VOICE_RECOGNITION).setAudioFormat(AudioFormat.Builder().setSampleRate(48000).setChannelMask(AudioFormat.CHANNEL_IN_MONO).setEncoding(AudioFormat.ENCODING_PCM_16BIT).build()).setBufferSizeInBytes(size).build();recorder=input
+    check(input.state==AudioRecord.STATE_INITIALIZED){"마이크를 연결하지 못했어요."}
+    for(i in 3 downTo 1){countdown.value=i;status.value="시작 준비";delay(1000)};countdown.value=0
+    background.play();status.value="효과음 듣는 중 · 대사 시작을 기다려주세요"
+    withTimeout(((window.start-window.cueStart)*1000+15000).toLong()){while(background.currentPosition< (window.start*1000).toLong()-15){playerError?.let{error(it)};delay(10)}}
+    status.value="녹음 중";input.startRecording();check(input.recordingState==AudioRecord.RECORDSTATE_RECORDING){"마이크를 시작하지 못했어요."}
+    val maximum=floor(window.duration*48000).toInt();val samples=withContext(Dispatchers.IO){
+     RandomAccessFile(output,"rw").use{out->out.setLength(0);out.write(ByteArray(44));val buffer=ShortArray(960);var count=0
+      while(isActive&&!stopRequested&&count<maximum){val n=input.read(buffer,0,min(buffer.size,maximum-count));check(n>0){"마이크 입력이 중단됐어요."};val bytes=ByteBuffer.allocate(n*2).order(ByteOrder.LITTLE_ENDIAN);var sum=0.0;repeat(n){bytes.putShort(buffer[it]);sum+=(buffer[it]/32768.0).pow(2)};out.write(bytes.array());count+=n;level.value=(sqrt(sum/n)*5).toFloat().coerceIn(0f,1f);elapsed.value=count/48000.0}
+      ensureActive();require(count>=4800){"녹음이 너무 짧아요. 다시 녹음해주세요."};out.seek(0);out.write(dubbingWavHeader(count));count
+     }
+    }
+    playerError?.let{error(it)};take.put("duration",samples/48000.0);drafts.commit(line.getString("id"),take);accepted=true;status.value="녹음 완료 · 임시 저장으로 한 번에 올릴 수 있어요";complete(take)
+   }catch(e:Exception){if(e is CancellationException)status.value="녹음이 중단됐어요. 완료한 대사는 그대로 남아 있어요." else{status.value="녹음 실패";failure(e.message?:"녹음을 확인해주세요.")}}
+   finally{if(!closed)background.pause();recorder?.run{runCatching{stop()};release()};recorder=null;running.value=false;countdown.value=0;level.value=0f;if(!accepted)output.delete()}
+  }
+ }
+ fun finishLine(){stopRequested=true;if(countdown.value>0)stop()}
+ fun stop(){job?.cancel();job=null;if(!closed){background.pause();preview.pause()}}
+ fun listen(url:String,position:Double=0.0){stop();preview.setMediaItem(MediaItem.fromUri(if(url.startsWith('/'))Endpoint.url(url)else url), (position*1000).toLong());preview.prepare();preview.play();status.value="미리 듣는 중"}
+ fun close(){if(closed)return;stop();closed=true;scope.cancel();background.release();preview.release()}
+}
+
+internal suspend fun NativeApi.uploadDubbingTake(path:String,file:File):JSONObject=withContext(Dispatchers.IO){
+ require(file.length() in 9644L..(48L*96000+44)){"녹음 파일을 확인해주세요."}
+ invalidateReads()
+ try{client.newCall(Request.Builder().url(Endpoint.url(path)).put(file.asRequestBody("audio/wav".toMediaType())).build()).execute().use{r->
+  val result=JSONObject(r.body?.string()?:"{}");if(!r.isSuccessful)throw ApiException(r.code,result.optString("error","녹음을 저장하지 못했어요."));result
+ }}finally{invalidateReads()}
+}

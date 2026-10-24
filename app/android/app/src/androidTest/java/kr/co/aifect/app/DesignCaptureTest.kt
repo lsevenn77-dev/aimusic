@@ -72,6 +72,16 @@ class DesignCaptureTest {
   responses["/api/search"]=responses.getValue("/api/catalog")
   responses["/api/community"]=payload("tracks" to arr(cover,duet,song),"producers" to arr(peer,own))
   responses["/api/karaoke"]=payload("tracks" to arr(song,second))
+  responses["/api/play/latest"]=payload("tracks" to arr(second,song))
+  responses["/api/voice/status"]=payload("enabled" to true)
+  responses["/api/voice/public-rooms"]=payload("rooms" to arr(payload("id" to "design-room","title" to "퇴근길 음악 이야기","host_name" to "하루","member_count" to 3,"background" to "navy"),payload("id" to "design-room-2","title" to "밤의 라디오","host_name" to "새벽","member_count" to 2,"background" to "night")))
+  responses["/api/voice/options"]=payload("crews" to arr(crew))
+  responses["/api/community/rankings"]=payload("rows" to arr(payload("name" to "밤의 산책","detail" to "솔로 · 하루","score" to 12,"href" to "#song/design-song")))
+  val dubbing=payload("id" to "design-dubbing","title" to "마지막 전철","ownerName" to "소리","owner_name" to "소리","genres" to arr("일상","감동"),"roleCount" to 2,"participants" to 1,"duration" to 60,"state" to "recruiting","visibility" to "public")
+  responses["/api/dubbing/projects"]=payload("projects" to arr(dubbing),"nextOffset" to null)
+  responses["/api/play/participate"]=payload("projects" to arr(dubbing),"nextOffset" to null)
+  responses["/api/play/works"]=payload("works" to arr(cover,duet,JSONObject(dubbing.toString()).put("type","dubbing")),"nextOffset" to null)
+  responses["/api/dubbing/config"]=payload("enabled" to true,"aiAvailable" to false,"recordingEnabled" to true,"soundPriceGold" to 50,"goldChargingEnabled" to false,"quota" to payload("limit" to 0,"remaining" to 0))
   responses["/api/duets"]=payload("tracks" to arr(duet))
   responses["/api/karaoke/design-song"]=payload("track" to song,"words" to JSONArray(),"mr" to "/media/sample/audio")
   responses["/api/duets/design-duet"]=payload("track" to song,"words" to JSONArray(),"mr" to "/media/sample/audio","duet" to payload("parent_id" to "design-duet","part" to "second","partner" to duet))
@@ -81,6 +91,7 @@ class DesignCaptureTest {
   responses["/api/cover-rankings"]=payload("tracks" to arr(JSONObject(cover.toString()).put("rank",1).put("rank_likes",24)),"singers" to arr(peer))
   responses["/api/producers/design-peer"]=payload("profile" to peer,"tracks" to JSONArray(),"covers" to arr(cover,duet),"followers" to 128)
   responses["/api/producers/design-own"]=payload("profile" to own,"tracks" to arr(song,second),"covers" to arr(cover),"followers" to 24)
+  responses["/api/producers/design-own?dashboard=1"]=payload("profile" to own,"tracks" to arr(song,second),"covers" to arr(cover,duet),"dubbings" to arr(dubbing),"followers" to 24,"following_count" to 18,"crew" to crew,"artists" to arr(payload("id" to "design-artist","name" to "NOVA")),"gallery" to arr(payload("url" to "/media/producer-gallery/design-photo?v=sample")))
   responses["/api/artists/design-artist"]=payload("profile" to payload("id" to "design-artist","name" to "NOVA","bio" to "도시의 밤과 푸른 순간을 노래하는 AI 아티스트","image_version" to "sample","user_id" to "design-user"),"tracks" to arr(song,second),"followers" to 86,"can_manage" to true,"gallery" to arr(payload("id" to "photo-1","url" to "/media/artist-gallery/photo-1?v=sample"),payload("id" to "photo-2","url" to "/media/artist-gallery/photo-2?v=sample")))
   for(t in listOf(song,second,cover,duet)){
    val id=t.getString("id")
@@ -126,7 +137,9 @@ class DesignCaptureTest {
     out.write("HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nConnection: close\r\n\r\n".toByteArray());repeat(30){out.write("event: heartbeat\ndata: {}\n\n".toByteArray());out.flush();Thread.sleep(1000)}
    }else{
     val type:String;val bytes:ByteArray
-    when{path=="/media/sample/audio"->{type="audio/wav";bytes=audio}
+    val webAsset=if(path.startsWith("/api/")||path.startsWith("/media/"))null else runCatching{instrumentation.context.assets.open("current-web/"+(if(path=="/")"index.html" else path.removePrefix("/"))).use{it.readBytes()}}.getOrNull()
+    when{webAsset!=null->{type=when{path.endsWith(".js")->"application/javascript; charset=utf-8";path.endsWith(".css")->"text/css; charset=utf-8";path.endsWith(".svg")->"image/svg+xml";else->"text/html; charset=utf-8"};bytes=webAsset}
+     path=="/media/sample/audio"->{type="audio/wav";bytes=audio}
      path.startsWith("/media/")->{type="image/png";bytes=photos[if(path.contains("ocean")||path.contains("own")||path.contains("photo-2")||path.contains("crew"))1 else 0]}
      path.startsWith("/assets/gifts/")->{type="image/webp";bytes=giftsBytes[path.substringAfterLast('/')]?:giftsBytes.values.first()}
      else->{type="application/json";bytes=(responses[request[1]]?:responses[path]?:payload("ok" to true)).toString().toByteArray()}}
@@ -144,6 +157,53 @@ class DesignCaptureTest {
  private fun text(value:String){ui.waitUntil(15000){ui.onAllNodesWithText(value).fetchSemanticsNodes().isNotEmpty()}}
  private fun act(block:(MusicModel)->Unit){screen.onActivity{block(model)};ui.waitForIdle()}
  private fun capture(name:String){ui.waitForIdle();instrumentation.waitForIdleSync();Thread.sleep(850);val image=instrumentation.uiAutomation.takeScreenshot();val dir=File(context.getExternalFilesDir(null),"design-2549");dir.mkdirs();FileOutputStream(File(dir,name+".png")).use{image.compress(Bitmap.CompressFormat.PNG,100,it)};image.recycle()}
+
+ @Test fun currentCommunityStartsWithPublicRoomsAndFiltersWithoutWrites(){
+  ui.onNodeWithTag("main-tab-3").performClick();ready("voice-room-design-room")
+  ui.onNodeWithTag("community-main-voice").assertIsSelected()
+  capture("current-01-talkingrooms")
+  ui.onNodeWithTag("voice-search").performTextInput("없는 방")
+  text("검색 결과가 없어요")
+  ui.onAllNodesWithTag("voice-room-design-room").assertCountEquals(0)
+  Espresso.closeSoftKeyboard();ui.onNodeWithTag("community-main-rankings").performClick();text("밤의 산책")
+  ui.onNodeWithTag("ranking-period-month").performClick()
+  ui.waitUntil(10000){requestUrls.any{it.startsWith("/api/community/rankings?")&&it.contains("period=month")}}
+  assertFalse(requestBodies.keys.any{it.startsWith("/api/voice/")})
+ }
+ @Test fun currentPlaySeparatesRecordingDubbingAndFinishedWorks(){
+  ui.onNodeWithTag("main-tab-2").performClick();ready("current-sing-design-song")
+  capture("current-02-play-songs")
+  ui.onNodeWithTag("play-main-dubbing").performClick();ready("dubbing-project-design-dubbing")
+  capture("current-03-play-dubbing")
+  ui.onNodeWithTag("play-section-join").performClick();ui.waitUntil(10000){requestUrls.any{it.startsWith("/api/play/participate")}}
+  ui.onNodeWithTag("play-section-mine").performClick();ui.waitUntil(10000){requestUrls.any{it.startsWith("/api/dubbing/projects?tab=mine")}}
+  ui.onNodeWithTag("play-main-browse").performClick();ready("play-kind-duet")
+  ui.onNodeWithTag("play-section-popular").performClick();ui.onNodeWithTag("play-kind-duet").performClick()
+  ui.waitUntil(10000){requestUrls.any{it.startsWith("/api/play/works?")&&it.contains("tab=popular")&&it.contains("type=duet")}}
+  assertFalse(requestBodies.keys.any{it.startsWith("/api/dubbing/")})
+ }
+ @Test fun currentMyRetainsProfileAndGalleryWhenChangingSections(){
+  ui.onNodeWithTag("main-tab-6").performClick();ready("my-section-works")
+  ui.waitUntil(15000){requestUrls.contains("/api/producers/design-own?dashboard=1")}
+  ui.onNodeWithTag("current-my").performScrollToNode(hasTestTag("my-section-activity"))
+  capture("current-04-my-works")
+  ui.onNodeWithTag("my-section-activity").performClick()
+  ui.onNodeWithTag("current-my").performScrollToNode(hasText("내 활동") and !hasTestTag("my-section-activity"))
+  capture("current-05-my-activity")
+  ui.onNodeWithTag("current-my").performScrollToIndex(0)
+  ui.onNodeWithText("프로필 수정").assertIsDisplayed()
+  ui.onNodeWithContentDescription("갤러리 사진").assertExists()
+  ui.onAllNodesWithText("사진 올리기").assertCountEquals(0)
+ }
+ @Test fun currentDubbingFormUsesNativeWorkflowWithoutMicrophone(){
+  ui.onNodeWithTag("main-tab-2").performClick();ui.onNodeWithTag("play-main-dubbing").performClick();ready("dubbing-create")
+  val before=ContextCompat.checkSelfPermission(context,Manifest.permission.RECORD_AUDIO)
+  ui.onNodeWithTag("dubbing-create").performClick();ready("native-dubbing-create")
+  ui.waitUntil(15000){requestUrls.contains("/api/dubbing/config")}
+  capture("current-06-dubbing-create")
+  assertEquals(before,ContextCompat.checkSelfPermission(context,Manifest.permission.RECORD_AUDIO))
+  assertFalse(requestBodies.keys.any{it.startsWith("/api/dubbing/")})
+ }
 
  @Test fun browserGoogleLoginKeepsVerifierUntilApproved(){
   val ticket="browser-test-ticket"

@@ -46,13 +46,12 @@ import java.util.Date
  }
  AppPage(title="녹음 초안",onDismissRequest={m.showRecordingDrafts=false},containerColor=Panel){
   Column(Modifier.fillMaxWidth().padding(horizontal=22.dp).testTag("recording-drafts")){
-   Row(verticalAlignment=Alignment.CenterVertically){Text("초안",Modifier.weight(1f),fontSize=25.sp,fontWeight=FontWeight.Bold);IconButton(onClick={m.showRecordingDrafts=false}){Icon(Icons.Rounded.Close,"초안 닫기")}}
    Text("이 기기에 저장한 녹음이에요. 다른 기기에는 표시되지 않아요.",color=Muted,fontSize=13.sp,lineHeight=20.sp,modifier=Modifier.padding(top=6.dp,bottom=20.dp))
    if(loading)CircularProgressIndicator(Modifier.padding(24.dp),color=Pink)
    else if(error!=null){Text(error!!,color=Muted);TextButton(onClick={loading=true;attempt++}){Text("다시 불러오기")}}
    else if(drafts.isEmpty())Text("아직 저장된 초안이 없어요. 녹음 후 임시 저장하면 여기에 모여요.",color=Muted,fontSize=15.sp,lineHeight=23.sp,modifier=Modifier.padding(vertical=28.dp))
    else LazyColumn(Modifier.heightIn(max=500.dp),verticalArrangement=Arrangement.spacedBy(12.dp),contentPadding=PaddingValues(bottom=30.dp)){
-    items(drafts,key={it.getString("folder")}){d->Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).musicSurface().padding(16.dp).testTag("draft-"+d.optString("trackId"))){
+    items(drafts,key={it.getString("folder")}){d->Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).musicSurface().padding(16.dp).testTag("draft-"+d.optString("trackId")).clickable(enabled=!deletingNow){m.showRecordingDrafts=false;open(d)}){
      Row(verticalAlignment=Alignment.CenterVertically){Icon(Icons.Rounded.Mic,null,tint=Pink,modifier=Modifier.size(24.dp));Column(Modifier.weight(1f).padding(start=12.dp)){Text(d.optString("title"),fontSize=15.sp,fontWeight=FontWeight.SemiBold);val seconds=d.optDouble("duration").toInt();Text((if(d.optString("coverMode")=="duet")"듀엣" else "솔로")+" · "+"%d:%02d".format(seconds/60,seconds%60)+" · "+DateFormat.getDateInstance(DateFormat.SHORT).format(Date(d.optLong("updated"))),color=Muted,fontSize=12.sp,modifier=Modifier.padding(top=6.dp))}}
      Row(Modifier.fillMaxWidth().padding(top=10.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)){
       OutlinedButton(onClick={m.showRecordingDrafts=false;open(d)},enabled=!deletingNow){Icon(Icons.Rounded.Edit,null,Modifier.size(17.dp));Text("이어 편집",fontSize=13.sp,modifier=Modifier.padding(start=5.dp))}

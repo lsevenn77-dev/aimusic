@@ -20,6 +20,20 @@ import android.util.Base64
 
 class MusicModel(app:Application):AndroidViewModel(app) {
  val api=NativeApi(app)
+ internal var workspace by mutableStateOf<CurrentWorkspace?>(null)
+ internal var playMode by mutableStateOf("song")
+ internal var playSection by mutableStateOf("recommended")
+ internal var communityMode by mutableStateOf("voice")
+ internal fun openCurrentWorkspace(route:String,title:String){
+  if(!CurrentNavigation.workspaceRoute(route)){notice="연결할 화면을 확인하지 못했어요.";return}
+  if((route.startsWith("voice/")||route=="dubbing/new"||route in setOf("relations","gift-inventory"))&&!authenticated())return
+  controller?.pause();fullPlayer=false
+  if(route=="voice/create"||route.startsWith("voice/")||route=="dubbing/new"||route.startsWith("dubbing/")){
+   openNativePerformance(getApplication(),this,if(route=="voice/create")"voice" else route);return
+  }
+  workspace=CurrentWorkspace(route,title)
+ }
+ internal fun openCurrentSong(id:String)=action{openSong(Song(api.call("/api/tracks/$id",fresh=true).getJSONObject("track")))}
  var showBilling by mutableStateOf(false)
  var showDiamonds by mutableStateOf(false)
  var showInventory by mutableStateOf(false)
@@ -60,7 +74,8 @@ class MusicModel(app:Application):AndroidViewModel(app) {
  }
  fun openCrew(id:String){
   dismissMessages();profile=null;detail=null;fullPlayer=false;showAccount=false
-  selectTab(3);communityCrewMode=true;communityCrewTarget=id;crewBrowsing=false
+  selectTab(3);communityMode="crews";communityCrewMode=true;communityCrewTarget=id;crewBrowsing=false
+  if(CurrentNavigation.safeID(id))openCurrentWorkspace("crew/$id","크루")
  }
  var singable by mutableStateOf<List<Song>>(emptyList())
  var duetInvitations by mutableStateOf<List<Song>>(emptyList())
@@ -96,6 +111,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   get()=activeUser
   set(value){
    if(activeUser?.optString("id")!=value?.optString("id")){
+    workspace=null;playMode="song";playSection="recommended";communityMode="voice"
     val stopPlayback=activeUser!=null
     accountGeneration++;api.invalidateReads();clearPrivateState(stopPlayback)
     PushNotifications.bind(getApplication(),value?.optString("id"))

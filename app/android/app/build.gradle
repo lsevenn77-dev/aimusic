@@ -10,8 +10,8 @@ android {
  ndkVersion "27.1.12297006"
  externalNativeBuild { cmake { path "src/main/cpp/CMakeLists.txt"; version "3.22.1" } }
  defaultConfig {
-  applicationId project.hasProperty('aifectTest') ? 'kr.co.aifect.app.test' : 'kr.co.aifect.app'
-  manifestPlaceholders = [appLabel: project.hasProperty('aifectTest') ? 'AIFECT 테스트' : 'AIFECT']
+  applicationId project.hasProperty('aifectPolish') ? 'kr.co.aifect.app.polish.test' : project.hasProperty('aifectTest') ? 'kr.co.aifect.app.test' : 'kr.co.aifect.app'
+  manifestPlaceholders = [appLabel: project.hasProperty('aifectPolish') ? 'AIFECT 디자인 테스트' : project.hasProperty('aifectTest') ? 'AIFECT 테스트' : 'AIFECT']
   // Public native platform identifier; never put a client secret in this app.
   def kakaoKey = providers.gradleProperty('aifectKakaoKey').getOrElse('464b5fae1d7bb9ec91c3a772c9b1b80d')
   buildConfigField 'String', 'KAKAO_NATIVE_KEY', '"' + kakaoKey + '"'
@@ -22,8 +22,8 @@ android {
   minSdk 26
   targetSdk 36
   ndk { abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86_64' }
-  versionCode 64
-  versionName '2.5.51'
+  versionCode 68
+  versionName '2.5.55'
   testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
  }
  buildFeatures { buildConfig true; compose true }
@@ -41,6 +41,7 @@ android {
  packaging.resources.excludes += ['META-INF/AL2.0', 'META-INF/LGPL2.1']
 }
 dependencies {
+ implementation 'io.github.webrtc-sdk:android:150.7871.01'
  implementation 'com.android.billingclient:billing-ktx:8.3.0'
  implementation platform('com.google.firebase:firebase-bom:34.19.0')
  implementation 'com.google.firebase:firebase-messaging'

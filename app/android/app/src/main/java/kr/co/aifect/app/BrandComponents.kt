@@ -7,11 +7,16 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.MoreHoriz
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke as DrawStroke
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 internal val BrandGradient get()=Brush.horizontalGradient(0f to Pink,.48f to Violet,1f to Aqua)
@@ -20,7 +25,7 @@ internal val BrandGradient get()=Brush.horizontalGradient(0f to Pink,.48f to Vio
 @Composable internal fun BrandButton(
  onClick:()->Unit,modifier:Modifier=Modifier,enabled:Boolean=true,
  shape:Shape=RoundedCornerShape(12.dp),colors:ButtonColors=ButtonDefaults.buttonColors(),
- elevation:ButtonElevation?=ButtonDefaults.buttonElevation(),border:BorderStroke?=null,
+ elevation:ButtonElevation?=ButtonDefaults.buttonElevation(defaultElevation=0.dp,pressedElevation=0.dp),border:BorderStroke?=null,
  contentPadding:PaddingValues=ButtonDefaults.ContentPadding,interactionSource:MutableInteractionSource?=null,
  content:@Composable RowScope.()->Unit
 ){
@@ -29,6 +34,20 @@ internal val BrandGradient get()=Brush.horizontalGradient(0f to Pink,.48f to Vio
  androidx.compose.material3.Button(onClick,paint,enabled,shape,
   if(branded&&enabled)colors.copy(containerColor=Color.Transparent,contentColor=Ink)else colors,
   elevation,border,contentPadding,interactionSource,content)
+}
+
+/** The approved web/app play control; touch semantics remain Material's. */
+@Composable internal fun BrandPlayButton(description:String,onClick:()->Unit,modifier:Modifier=Modifier,diameter:Dp=32.dp,enabled:Boolean=true){
+ IconButton(onClick=onClick,enabled=enabled,modifier=modifier.sizeIn(minWidth=48.dp,minHeight=48.dp)){
+  Box(Modifier.size(diameter).background(Ink,androidx.compose.foundation.shape.CircleShape),contentAlignment=Alignment.Center){
+   Canvas(Modifier.fillMaxSize()){
+    drawCircle(brush=BrandGradient,radius=size.minDimension/2-1.5.dp.toPx(),alpha=if(enabled)1f else .35f,style=DrawStroke(1.5.dp.toPx()))
+    val triangle=Path().apply{moveTo(size.width*.42f,size.height*.31f);lineTo(size.width*.42f,size.height*.69f);lineTo(size.width*.70f,size.height*.50f);close()}
+    drawPath(triangle,brush=BrandGradient,alpha=if(enabled)1f else .35f)
+   }
+   Icon(Icons.Rounded.PlayArrow,description,tint=Color.Transparent,modifier=Modifier.size(18.dp))
+  }
+ }
 }
 
 @Composable internal fun TrackActionsMenu(song:Song,m:MusicModel,modifier:Modifier=Modifier,includeRelated:Boolean=false){

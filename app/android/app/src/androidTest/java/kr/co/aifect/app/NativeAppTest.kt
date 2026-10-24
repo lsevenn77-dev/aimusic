@@ -857,9 +857,9 @@ class NativeAppTest {
   val instrument=InstrumentationRegistry.getInstrumentation();val monitor=instrument.addMonitor(kr.co.aifect.app.karaoke.KaraokeActivity::class.java.name,null,false);var room:android.app.Activity?=null
   try{
    assertEquals(1,kr.co.aifect.app.karaoke.RecordingDraftStore.list(context,Endpoint.origin,"test-user").length())
-   ui.onNodeWithText("부르기").performClick()
-   waitText("초안")
-   ui.onNodeWithText("초안",useUnmergedTree=true).performClick()
+   ui.onNodeWithTag("main-tab-2").performClick()
+   ui.onNodeWithTag("play-section-drafts").performClick()
+   ui.onNodeWithTag("play-drafts-open").performClick()
    ui.waitUntil(10000){ui.onAllNodesWithTag("draft-fixture").fetchSemanticsNodes().isNotEmpty()}
    ui.onNodeWithTag("draft-fixture").performClick();room=monitor.waitForActivityWithTimeout(10000);assertNotNull(room);assertEquals("fixture",room!!.intent.getStringExtra("trackId"));assertEquals("test-user",room!!.intent.getStringExtra("ownerId"))
    val deadline=System.nanoTime()+TimeUnit.SECONDS.toNanos(30);while(true){try{androidx.test.espresso.Espresso.onView(androidx.test.espresso.matcher.ViewMatchers.withTagValue(org.hamcrest.Matchers.`is`("recording-post"))).check(androidx.test.espresso.assertion.ViewAssertions.matches(androidx.test.espresso.matcher.ViewMatchers.isDisplayed()));break}catch(e:Throwable){if(System.nanoTime()>deadline)throw e;Thread.sleep(100)}}
@@ -876,6 +876,8 @@ class NativeAppTest {
    val wheel=room!!.window.decorView.findViewWithTag<View>("karaoke-lyrics");val beforeFont=AtomicReference<String>();instrument.runOnMainSync{beforeFont.set(wheel.javaClass.getDeclaredMethod("textSizeChoice").apply{isAccessible=true}.invoke(wheel) as String)};assertEquals("large",beforeFont.get())
    val stateClass=room!!.javaClass.declaredClasses.first{it.simpleName=="State"};val setState=room!!.javaClass.getDeclaredMethod("setState",stateClass).apply{isAccessible=true}
    instrument.runOnMainSync{setState.invoke(room,stateClass.enumConstants!!.first{it.toString()=="PREROLL"})};Thread.sleep(600);val visible=android.graphics.Rect();instrument.runOnMainSync{assertTrue(wheel.getGlobalVisibleRect(visible));assertTrue("Recording lyric viewport is fully in view",visible.height()>=wheel.height-4)};screenshot("native-polish-recording-large.png")
+   for(tag in listOf("recording-monitor","recording-primary","recording-settings","recording-restart"))tagged(tag).check(androidx.test.espresso.assertion.ViewAssertions.matches(androidx.test.espresso.matcher.ViewMatchers.isDisplayed()))
+   tagged("recording-primary").check(androidx.test.espresso.assertion.ViewAssertions.matches(androidx.test.espresso.matcher.ViewMatchers.withContentDescription("일시정지")))
    instrument.runOnMainSync{setState.invoke(room,stateClass.enumConstants!!.first{it.toString()=="PAUSED"})}
 
    assertEquals(48000*3*2L,dry.length());assertEquals(PackageManager.PERMISSION_DENIED,ContextCompat.checkSelfPermission(context,Manifest.permission.RECORD_AUDIO))

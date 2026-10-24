@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
@@ -27,7 +29,9 @@
                 <data android:scheme="${kakaoScheme}" android:host="oauth" />
             </intent-filter>
         </activity>
-        <activity android:name=".karaoke.KaraokeActivity" android:exported="false"
+        <activity android:name=".NativePerformanceActivity" android:exported="false" android:configChanges="orientation|screenSize|keyboardHidden|uiMode" android:windowSoftInputMode="adjustResize" android:theme="@style/AppTheme.NoActionBar" />
+        <service android:name=".NativeVoiceService" android:exported="false" android:foregroundServiceType="mediaPlayback|microphone" />
+        <activity android:name=".karaoke.KaraokeActivity" android:exported="false" android:windowSoftInputMode="adjustResize"
             android:configChanges="orientation|screenSize|keyboardHidden|uiMode"
             android:theme="@style/AppTheme.NoActionBar" />
         <activity

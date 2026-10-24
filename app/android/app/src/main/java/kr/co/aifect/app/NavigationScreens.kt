@@ -27,14 +27,14 @@ import org.json.JSONObject
     }
    }
    entry("홈",Icons.Outlined.Home){m.selectTab(0);m.listenPage="추천"}
-   entry("부르기",Icons.Outlined.MicNone){m.selectTab(2)}
+   entry("플레이",Icons.Outlined.PlayArrow){m.selectTab(2)}
    entry("커뮤니티",Icons.Outlined.PeopleOutline){m.selectTab(3)}
    entry("선물함",Icons.Outlined.CardGiftcard,page=true){m.openGifts()}
    entry("메시지",Icons.Outlined.ChatBubbleOutline){m.openMessages()}
    entry("알림 기록",Icons.Outlined.NotificationsNone,page=true){if(m.authenticated())m.showNotifications=true}
    entry("마이",Icons.Outlined.PersonOutline){m.selectTab(6)}
    entry("내 보관함",Icons.Outlined.LibraryMusic){m.library("보관함")}
-   entry("창작자 스튜디오",Icons.Outlined.Tune){m.openStudio()}
+   entry("스튜디오",Icons.Outlined.Tune){m.openStudio()}
    HorizontalDivider(Modifier.padding(vertical=12.dp),color=Stroke)
    entry("인기 차트",Icons.Outlined.BarChart){m.selectTab(0);m.listenPage="차트"}
    entry("기분 · 장르별 발견",Icons.Outlined.Explore){m.selectTab(1)}

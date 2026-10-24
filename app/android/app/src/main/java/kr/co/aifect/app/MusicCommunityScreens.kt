@@ -175,7 +175,7 @@ import org.json.JSONObject
   if(m.user!=null&&area=="내 음악"){
    item{MusicLibraryShortcuts(m)}
    item{Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
-    Box(Modifier.weight(1f)){MyWorkShortcut("내 작업","창작자 스튜디오",Icons.Rounded.Mic,StreamPurple){m.openStudio()}}
+    Box(Modifier.weight(1f)){MyWorkShortcut("내 작업","스튜디오",Icons.Rounded.Mic,StreamPurple){m.openStudio()}}
     Box(Modifier.weight(1f)){MyWorkShortcut("내 초안","녹음 이어 하기",Icons.Rounded.Edit,StreamCyan){m.showRecordingDrafts=true}}
    }}
    item{StreamingSection("내 플레이리스트",action="전체 보기",onAction={m.library("플레이리스트")})}
@@ -192,7 +192,7 @@ import org.json.JSONObject
     Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)){
      FilledTonalButton(onClick={m.library("플레이리스트")}){Text("내 플레이리스트")};OutlinedButton(onClick={m.library("좋아요")}){Text("좋아요")};OutlinedButton(onClick={m.library("최근 감상")},colors=ButtonDefaults.outlinedButtonColors(contentColor=SoftText)){Text("최근 감상")}
     }
-    Row(Modifier.horizontalScroll(rememberScrollState())){TextButton(onClick={m.showRecordingDrafts=true}){Text("녹음 초안")};TextButton(onClick={m.library("내 제작곡")},colors=ButtonDefaults.textButtonColors(contentColor=SoftText)){Text("업로드 관리")};TextButton(onClick={m.openStudio()}){Text("창작자 스튜디오")}}
+    Row(Modifier.horizontalScroll(rememberScrollState())){TextButton(onClick={m.showRecordingDrafts=true}){Text("녹음 초안")};TextButton(onClick={m.library("내 제작곡")},colors=ButtonDefaults.textButtonColors(contentColor=SoftText)){Text("업로드 관리")};TextButton(onClick={m.openStudio()}){Text("스튜디오")}}
     Text("저장한 음악은 내 보관함에서, 공개한 음악은 아래에서 확인해요.",color=Muted,fontSize=12.sp,modifier=Modifier.padding(vertical=12.dp))
     Chips(listOf("전체","제작곡","커버","듀엣"),tab){tab=it}
     MusicLayoutControl(tracks.size,grid,{grid=it},"my-music")

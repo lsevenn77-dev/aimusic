@@ -40,15 +40,16 @@ internal fun studioStatus(status:String)=when(status){"published"->"공개됨";"
  var operation by remember(account){mutableStateOf<Pair<Song,String>?>(null)}
  var filter by rememberSaveable{mutableStateOf("전체")}
  if(editing!=null){StudioTrackEditor(m,editing!!.takeUnless{it=="new"}){editing=null;m.loadStudio()};return}
- if(m.user==null){Column(Modifier.padding(20.dp)){Heading("창작자 스튜디오");BrandButton(onClick={m.showLogin=true}){Text("로그인")}};return}
+ if(m.user==null){Column(Modifier.padding(20.dp)){Heading("스튜디오");BrandButton(onClick={m.showLogin=true}){Text("로그인")}};return}
  val quota=m.studioData.optJSONObject("upload_quota")
  val artists=m.studioData.optJSONArray("artists").objects()
  val tracks=m.myTracks.filter{when(filter){"제작곡"->!it.cover;"커버"->it.cover;else->true}}
  LazyColumn(Modifier.fillMaxSize().testTag("creator-studio"),contentPadding=PaddingValues(18.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
   item{
    TextButton(onClick={m.selectTab(m.studioReturnTab)}){Icon(Icons.AutoMirrored.Outlined.ArrowBack,null,Modifier.size(18.dp));Text("돌아가기")}
-   StudioPanel{Text("창작자 스튜디오",fontSize=25.sp,fontWeight=FontWeight.Bold);Text("음악, 이미지, 프로필을 한곳에서 관리하세요.",color=Muted,fontSize=13.sp)}
+   StudioPanel{Text("스튜디오",fontSize=25.sp,fontWeight=FontWeight.Bold);Text("음악, 이미지, 프로필을 한곳에서 관리하세요.",color=Muted,fontSize=13.sp)}
   }
+  item{val context=androidx.compose.ui.platform.LocalContext.current;MusicEntry("내 더빙 관리","대본 · 녹음 · 완성작",Icons.Outlined.MicNone){openNativePerformance(context,m,"dubbing?tab=mine")}}
   quota?.let{q->item{StudioPanel{
    Text("이번 달 제작곡 ${q.optInt("used")} / ${q.optInt("limit")}곡 · ${q.optInt("remaining")}곡 남음",fontWeight=FontWeight.Bold,color=Pink)
    Text("무료 월 3곡 · Premium 월 10곡\n매월 1일 한국시간에 새로 시작해요. 커버곡은 제한 없이 올릴 수 있어요.",color=Muted,fontSize=13.sp)

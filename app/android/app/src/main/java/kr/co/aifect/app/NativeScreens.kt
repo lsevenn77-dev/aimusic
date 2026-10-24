@@ -47,15 +47,15 @@ internal val Ink=Color(0xFF0C121B)
 internal val Panel=Color(0xFF131B26)
 internal val Muted=Color(0xFFA9B0C1)
 internal val Violet=Color(0xFFB7B6FF)
-internal val Stroke=Color(0xFF3A3A48)
-internal val Raised=Color(0xFF2A2A35)
+internal val Stroke=Color(0xFFB7B6FF).copy(alpha=.16f)
+internal val Raised=Color(0xFF1F1F26)
 internal val SoftText=Color(0xFFCDD2DC)
 private fun TextStyle.readable()=copy(fontSize=(fontSize.value+1).sp)
-private val ReadableTypography=Typography().run{copy(displayLarge=displayLarge.readable(),displayMedium=displayMedium.readable(),displaySmall=displaySmall.readable(),headlineLarge=headlineLarge.readable(),headlineMedium=headlineMedium.readable(),headlineSmall=headlineSmall.readable(),titleLarge=titleLarge.readable(),titleMedium=titleMedium.readable(),titleSmall=titleSmall.readable(),bodyLarge=bodyLarge.readable(),bodyMedium=bodyMedium.readable(),bodySmall=bodySmall.readable(),labelLarge=labelLarge.readable(),labelMedium=labelMedium.readable(),labelSmall=labelSmall.readable())}
-private val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=Color(0xFF302B42),onPrimaryContainer=Pink,background=Ink,surface=Panel,onSurface=Color(0xFFF5F5FC),surfaceVariant=Stroke,onSurfaceVariant=Muted,secondary=Aqua,onSecondary=Ink,secondaryContainer=Color(0xFF20383C),onSecondaryContainer=Aqua)
+internal val ReadableTypography=Typography().run{copy(displayLarge=displayLarge.readable(),displayMedium=displayMedium.readable(),displaySmall=displaySmall.readable(),headlineLarge=headlineLarge.readable(),headlineMedium=headlineMedium.readable(),headlineSmall=headlineSmall.readable(),titleLarge=titleLarge.readable(),titleMedium=titleMedium.readable(),titleSmall=titleSmall.readable(),bodyLarge=bodyLarge.readable(),bodyMedium=bodyMedium.readable(),bodySmall=bodySmall.readable(),labelLarge=labelLarge.readable(),labelMedium=labelMedium.readable(),labelSmall=labelSmall.readable())}
+internal val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=Color(0xFF302B42),onPrimaryContainer=Pink,background=Ink,surface=Panel,onSurface=Color(0xFFF5F5FC),surfaceVariant=Stroke,onSurfaceVariant=Muted,secondary=Aqua,onSecondary=Ink,secondaryContainer=Color(0xFF20383C),onSecondaryContainer=Aqua)
 
 @Composable private fun BrandLockup(){
- Image(painterResource(R.drawable.aifect_wordmark_vector),contentDescription="AIFECT",modifier=Modifier.width(108.dp).height(28.dp),contentScale=ContentScale.Fit)
+ Image(painterResource(R.drawable.aifect_wordmark_vector),contentDescription="AIFECT",modifier=Modifier.width(120.dp).height(29.dp),contentScale=ContentScale.Fit)
 }
 
 @Composable fun AifectApp(m:MusicModel,sing:(Song)->Unit,browser:(String)->Unit,social:(String)->Unit={},adPrivacy:()->Unit={},resumeDraft:(JSONObject)->Unit={}){
@@ -89,10 +89,10 @@ private val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=C
    if(!keyboardVisible&&!m.studioEditing)Column {
     AnimatedVisibility(m.current!=null&&m.visibleChatCount==0&&!m.fullPlayer){m.current?.let {MiniPlayer(m,it)}}
     Row(Modifier.fillMaxWidth().background(Ink).navigationBarsPadding().heightIn(min=60.dp),verticalAlignment=Alignment.CenterVertically){
-     listOf(Triple(0,"홈",Icons.Outlined.Home),Triple(3,"커뮤니티",Icons.Outlined.PeopleOutline),Triple(2,"부르기",Icons.Outlined.MicNone),Triple(5,"메시지",Icons.Outlined.ChatBubbleOutline),Triple(6,"마이",Icons.Outlined.PersonOutline)).forEach{(i,name,icon)->
+     listOf(Triple(0,"홈",Icons.Outlined.Home),Triple(3,"커뮤니티",Icons.Outlined.PeopleOutline),Triple(2,"플레이",Icons.Outlined.PlayArrow),Triple(5,"메시지",Icons.Outlined.ChatBubbleOutline),Triple(6,"마이",Icons.Outlined.PersonOutline)).forEach{(i,name,icon)->
       val selected=m.tab==i||(m.tab==4&&i==m.libraryReturnTab)
       Column(Modifier.weight(1f).selectable(selected=selected,role=Role.Tab,onClick={pageStack.closeAll();m.selectTab(i)}).testTag("main-tab-$i").heightIn(min=60.dp).padding(vertical=5.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){
-       Box(Modifier.size(30.dp).background(Brush.radialGradient(listOf(if(selected)StreamPurple.copy(alpha=.28f)else Color.Transparent,Color.Transparent))),contentAlignment=Alignment.Center){
+       Box(Modifier.size(30.dp),contentAlignment=Alignment.Center){
         BadgedBox(badge={if(i==5&&m.unreadMessages>0)Badge(containerColor=StreamPurple,contentColor=Ink){Text(if(m.unreadMessages>99)"99+" else m.unreadMessages.toString(),fontSize=9.sp)}}){Icon(icon,name,Modifier.size(22.dp),tint=if(selected)StreamPurple else Muted)}
        }
        Text(if(compactNavLabels&&i==3)"커뮤" else name,fontSize=11.sp,lineHeight=15.sp,fontWeight=if(selected)FontWeight.Bold else FontWeight.Normal,color=if(selected)Pink else Muted,maxLines=1,overflow=TextOverflow.Ellipsis)
@@ -111,7 +111,7 @@ private val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=C
       IconButton(onClick={if(m.authenticated())m.showNotifications=true}){BadgedBox(badge={if(m.unreadActivities>0)Badge(containerColor=StreamPurple,contentColor=Ink){Text(if(m.unreadActivities>99)"99+" else "${m.unreadActivities}",fontSize=9.sp)}}){Icon(Icons.Rounded.NotificationsNone,"알림 기록",Modifier.size(22.dp),tint=SoftText)}}
       IconButton(onClick={m.selectTab(1)}){Icon(Icons.Rounded.Search,"검색",Modifier.size(22.dp),tint=SoftText)}
      }
-     IconButton(onClick={if(m.user==null)m.showLogin=true else m.showAccount=true},modifier=Modifier.testTag("account-menu")){Icon(if(m.tab==6)Icons.Outlined.Settings else Icons.Outlined.PersonOutline,if(m.user==null)"로그인" else "계정 메뉴",Modifier.size(22.dp),tint=SoftText)}
+     if(m.tab!=0)IconButton(onClick={if(m.user==null)m.showLogin=true else m.showAccount=true},modifier=Modifier.testTag("account-menu")){Icon(if(m.tab==6)Icons.Outlined.Settings else Icons.Outlined.PersonOutline,if(m.user==null)"로그인" else "계정 메뉴",Modifier.size(22.dp),tint=SoftText)}
     }
     if(m.error!=null)Row(Modifier.fillMaxWidth().background(Color(0xFF36261E)).padding(horizontal=20.dp,vertical=8.dp),verticalAlignment=Alignment.CenterVertically){
      Text(m.error?:"",Modifier.weight(1f),fontSize=13.sp,color=Color(0xFFFFC69C));TextButton(onClick=m::refresh){Text("재시도")}
@@ -119,17 +119,18 @@ private val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=C
     pages.SaveableStateProvider(m.tab){when(m.tab){
      0->ListenScreen(m,sing)
      1->SearchScreen(m)
-     2->SingScreen(m,sing,resumeDraft){navigationOpen=true}
-     3->MusicCommunityScreen(m,sing)
+     2->CurrentPlayScreen(m,sing,resumeDraft){navigationOpen=true}
+     3->CurrentCommunityScreen(m){navigationOpen=true}
      4->LibraryScreen(m,{createWithSong=null;createList=true},browser)
      5->MessagesSheet(m,embedded=true)
-     6->MyMusicScreen(m,browser)
+     6->CurrentMyScreen(m)
      7->CreatorStudioScreen(m)
      8->MusicDirectoryScreen(m)
     }
     }
    }
   if(navigationOpen)NavigationSheet(m,{navigationOpen=false})
+  m.workspace?.let{key(m.user?.optString("id"),it.route){CurrentWorkspacePage(m,it)}}
   if(m.rankOpen&&m.detail==null&&m.profile==null&&!m.fullPlayer&&!m.showLogin&&m.collection==null)CoverRankingSheet(m)
   m.collection?.let { CollectionSheet(m,it,sing) }
   if(m.showLogin)LoginSheet(m,browser,social)
@@ -168,13 +169,13 @@ private val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=C
 }
 @Composable internal fun Heading(title:String,subtitle:String?=null){
  Column(Modifier.fillMaxWidth().musicIllustration().padding(top=12.dp,bottom=20.dp)){
-  Text(title,fontSize=26.sp,fontWeight=FontWeight.Bold,letterSpacing=(-.6).sp)
+  Text(title,fontSize=22.sp,fontWeight=FontWeight.Bold,letterSpacing=(-.4).sp)
   if(subtitle!=null)Text(subtitle,color=Muted,fontSize=13.sp,modifier=Modifier.padding(top=7.dp))
  }
 }
 @Composable internal fun Section(title:String,subtitle:String?=null,action:String?=null,onAction:()->Unit={}){
  Row(Modifier.fillMaxWidth().padding(top=22.dp,bottom=12.dp),verticalAlignment=Alignment.CenterVertically){
-  Column(Modifier.weight(1f)){Text(title,fontSize=18.sp,fontWeight=FontWeight.Bold);subtitle?.let {Text(it,color=Muted,fontSize=12.sp,modifier=Modifier.padding(top=5.dp))}}
+  Column(Modifier.weight(1f)){Text(title,fontSize=20.sp,fontWeight=FontWeight.Bold);subtitle?.let {Text(it,color=Muted,fontSize=12.sp,modifier=Modifier.padding(top=5.dp))}}
   action?.let {TextButton(onClick=onAction,colors=ButtonDefaults.textButtonColors(contentColor=SoftText)){Text(it,fontSize=13.sp)}}
  }
 }
@@ -185,7 +186,7 @@ private val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=C
  }
 }
 @Composable internal fun neutralChipColors()=FilterChipDefaults.filterChipColors(selectedContainerColor=Raised,selectedLabelColor=MaterialTheme.colorScheme.onSurface)
-internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)Aqua.copy(alpha=.55f)else Stroke)
+internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)Pink.copy(alpha=.7f)else Stroke)
 @Composable internal fun Chips(items:List<String>,selected:String,onSelect:(String)->Unit){
  LazyRow(Modifier.testTag("chips-"+items.firstOrNull()),horizontalArrangement=Arrangement.spacedBy(8.dp)){
   items(items){label->val active=selected==label;FilterChip(active,{onSelect(label)},label={Text(label,fontSize=13.sp)},shape=RoundedCornerShape(24.dp),colors=FilterChipDefaults.filterChipColors(selectedContainerColor=Violet,selectedLabelColor=Ink),border=if(active)null else neutralChipBorder(false))}
@@ -236,7 +237,7 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)A
 }
 @Composable private fun MiniPlayer(m:MusicModel,song:Song){
  val shape=RoundedCornerShape(11.dp)
- Column(Modifier.padding(horizontal=10.dp,vertical=5.dp).fillMaxWidth().testTag("mini-player").clip(shape).background(Brush.horizontalGradient(listOf(Color(0xFF24233C),Color(0xFF142235)))).border(1.dp,StreamPurple.copy(alpha=.52f),shape)){
+ Column(Modifier.padding(horizontal=10.dp,vertical=5.dp).fillMaxWidth().testTag("mini-player").clip(shape).background(Panel).border(1.dp,Stroke,shape)){
   val line=compactLyrics(m.lyricRows,m.position/1000.0,m.lyric).first
   Row(Modifier.fillMaxWidth().testTag("mini-player-open").clickable{m.fullPlayer=true}.heightIn(min=62.dp).padding(start=7.dp,end=1.dp,top=5.dp,bottom=5.dp),verticalAlignment=Alignment.CenterVertically){
    Artwork(song,Modifier.size(40.dp),corner=7.dp)
@@ -244,7 +245,7 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)A
     Text(song.title,maxLines=1,fontSize=13.sp,lineHeight=16.sp,fontWeight=FontWeight.SemiBold,overflow=TextOverflow.Ellipsis)
     Text(song.credit,maxLines=1,fontSize=11.sp,lineHeight=14.sp,color=Muted,overflow=TextOverflow.Ellipsis)
     Box(Modifier.fillMaxWidth().testTag("mini-player-lyrics")){
-     Text(line.ifBlank{"♪"},modifier=Modifier.fillMaxWidth().testTag("mini-player-current-lyric"),fontSize=11.sp,lineHeight=14.sp,color=Aqua,minLines=1,maxLines=1,softWrap=false,overflow=TextOverflow.Ellipsis,style=TextStyle(platformStyle=androidx.compose.ui.text.PlatformTextStyle(includeFontPadding=false)))
+     Text(line.ifBlank{"♪"},modifier=Modifier.fillMaxWidth().testTag("mini-player-current-lyric"),fontSize=11.sp,lineHeight=14.sp,color=SoftText,minLines=1,maxLines=1,softWrap=false,overflow=TextOverflow.Ellipsis,style=TextStyle(platformStyle=androidx.compose.ui.text.PlatformTextStyle(includeFontPadding=false)))
     }
    }
    IconButton(onClick=m::toggle){if(m.buffering)CircularProgressIndicator(Modifier.size(18.dp),strokeWidth=2.dp,color=StreamPurple)else Icon(if(m.playing)Icons.Rounded.Pause else Icons.Rounded.PlayArrow,if(m.playing)"일시정지" else "재생",Modifier.size(25.dp),tint=Color.White)}
@@ -335,7 +336,7 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)A
    AccountMenuRow("알림 기록",Icons.Rounded.NotificationsNone){m.showNotifications=true}
    AccountMenuRow("다이아 · 내 정산",Icons.Rounded.AccountBalanceWallet){m.showDiamonds=true}
    AccountMenuRow("오늘의 실버",Icons.Rounded.Star){m.showRewards=true}
-   AccountMenuRow("창작자 스튜디오",Icons.Rounded.Tune){m.openStudio()}
+   AccountMenuRow("스튜디오",Icons.Rounded.Tune){m.openStudio()}
    AccountMenuRow("선물함",Icons.Rounded.CardGiftcard,tint=Pink){m.openGifts()}
    HorizontalDivider(Modifier.padding(vertical=12.dp),color=Stroke)
    AccountMenuRow("로그아웃",Icons.AutoMirrored.Rounded.Logout,tint=Color(0xFFFFB4A5),enabled=!m.busy){m.logout()}

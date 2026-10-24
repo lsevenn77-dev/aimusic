@@ -25,7 +25,7 @@ final class LyricsTimelineView extends ScrollView {
     private final int minimumRowHeight,slop,pink=Color.rgb(241,120,181),muted=Color.rgb(145,148,161);
     private Listener listener;
     private String[] partLabels=new String[0],partRoles=new String[0];
-    private final int mint=0xff7cf2df,partnerBlue=0xffb2c0ea;
+    private final int mint=0xff8eddd2,partnerBlue=0xffa9b0c1;
     void setPartLabels(String[] value){if(java.util.Arrays.equals(partLabels,value))return;partLabels=value;highlighted=-1;for(int i=0;i<labels.size();i++)decorate(i);}
     void setPartRoles(String[] value){if(Arrays.equals(partRoles,value))return;partRoles=value;highlighted=-1;for(int i=0;i<labels.size();i++)decorate(i);}
     private String role(int index){return index<partRoles.length?partRoles[index]:"";}
@@ -35,7 +35,7 @@ final class LyricsTimelineView extends ScrollView {
         TextView text=labels.get(index);text.setCompoundDrawablesRelativeWithIntrinsicBounds(null,null,null,null);text.setPadding(dp(12),dp(10),dp(12),dp(10));text.setGravity(Gravity.CENTER);
         text.setTag("duet-role-"+role(index));text.setContentDescription((index<partLabels.length?partLabels[index]+" ":"")+plain(index));text.setText(plain(index));text.setTextColor(partColor(index));text.setTypeface(null,Typeface.NORMAL);text.setBackground(null);
     }
-    private GradientDrawable currentBanner(){GradientDrawable bg=new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT,new int[]{0x9965507e,0x66454b73});bg.setCornerRadius(dp(12));bg.setStroke(dp(1),0x66b5a0e6);return bg;}
+    private GradientDrawable currentBanner(){GradientDrawable bg=new GradientDrawable();bg.setColor(0xff252b39);bg.setCornerRadius(dp(12));return bg;}
     private boolean dragging,available,pointerActive;
     private float down;
     private int highlighted=-1,lastPreview=-1;
