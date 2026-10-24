@@ -49,7 +49,7 @@ async function myPageView(base,param,raw){
  }else d=await api('/api/producers/'+encodeURIComponent(param)+'?dashboard=1','GET',undefined,{fresh:true});
  const own=me?.id===d.profile.user_id,tab=own&&new URLSearchParams(raw.split('?')[1]||'').get('view')==='activity'?'activity':'works';
  const state={d,own,tab,account:me?.id||'',activity:null};
- return {mypage:state,tracks:[...(d.tracks||[]),...(d.covers||[])],html:`<div class="mypage-layout"><div class="mp-main"><div class="mp-heading">${heading('마이','나의 순간과 음악이 만나는 공간')}</div>${myProfileHeader(d)}${myMoments(d)}${own?mySegment(tab):''}<div id="mp-content" ${own?'role="tabpanel" aria-labelledby="mp-tab-'+tab+'"':''}>${tab==='works'?myWorksHTML(d):myLoading()}</div></div><aside class="mp-aside" id="mp-aside">${tab==='works'?myWorksAside(d,own):myLoading()}</aside></div>`};
+ return {mypage:state,tracks:[...(d.tracks||[]),...(d.covers||[])],html:`<div class="mypage-layout"><div class="mp-main"><div class="mp-heading">${heading('마이','나의 순간과 음악이 만나는 공간')}</div>${myProfileHeader(d)}${myMoments(d)}${own?mySegment(tab):''}<div id="mp-content" ${own?'role="tabpanel" aria-labelledby="mp-tab-'+tab+'"':''}>${tab==='works'?myWorksHTML(d):myLoading()}</div></div><aside class="mp-aside" id="mp-aside">${tab==='works'?myWorksAside(d,own):myLoading()}</aside>${own?'<div class="mp-account-footer"><button type="button" class="small-button" id="logout">로그아웃</button></div>':''}</div>`};
 }
 async function myActivityData(){
  const paths={wallet:'/api/gold/balance',diamonds:'/api/diamonds',player:'/api/me/player',membership:'/api/membership',activity:'/api/me/profile?section=activity',notifications:'/api/notifications',relations:'/api/me/relations',inventory:'/api/me/gift-inventory'};
