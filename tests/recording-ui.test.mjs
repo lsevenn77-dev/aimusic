@@ -7,7 +7,7 @@ import * as duet from '../shared/duet-guide.js';
 const source=readFileSync(new URL('../dist/karaoke.js',import.meta.url),'utf8');
 const words=[{s:0,w:[{t:'<내 목소리>',s:0,e:3}]},{s:6,w:[{t:'파트너 목소리',s:6,e:9}]}];
 function sandbox(extra={}){
- const context=vm.createContext({window:{AifectKaraoke:karaoke,addEventListener(){}},AifectDuetGuide:duet,esc:s=>String(s).replaceAll('<','&lt;').replaceAll('>','&gt;'),time:n=>String(n),icon:()=>'',...extra,document:{addEventListener(){},...extra.document}});
+ const context=vm.createContext({window:{AifectKaraoke:karaoke,addEventListener(){}},AifectDuetGuide:duet,esc:s=>String(s).replaceAll('<','&lt;').replaceAll('>','&gt;'),time:n=>String(n),icon:()=>'',paintPunchCountdown(){},...extra,document:{addEventListener(){},...extra.document}});
  vm.runInContext(source,context);return context;
 }
 test('manual duet assignments must cover both singers before recording; free takes and inherited guides remain usable',()=>{

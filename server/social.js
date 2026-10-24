@@ -17,7 +17,7 @@ const xpSQL="COALESCE((SELECT sum(x.amount) FROM crew_xp x WHERE x.crew_id=c.id)
 const crewSelect=`SELECT c.*,${xpSQL} xp,(SELECT count(*) FROM crew_members m WHERE m.crew_id=c.id) members FROM crews c`;
 const CREW_RENAME_INTERVAL=30*86400;
 const nameChangeAvailableAt=c=>c.name_changed_at?c.name_changed_at+CREW_RENAME_INTERVAL:0;
-const present=c=>({...c,...crewLevel(c.xp,c.highest_level),capacity:Math.min(c.member_limit||150,crewLevel(c.xp,c.highest_level).capacity),xp:c.xp,name_change_available_at:nameChangeAvailableAt(c),can_rename:now()>=nameChangeAvailableAt(c)});
+const present=c=>({...c,...crewLevel(c.xp,c.highest_level,c.growth_started),capacity:Math.min(c.member_limit||150,crewLevel(c.xp,c.highest_level,c.growth_started).capacity),xp:c.xp,name_change_available_at:nameChangeAvailableAt(c),can_rename:now()>=nameChangeAvailableAt(c)});
 const requestId=b=>{if(typeof b.request_id!=='string'||!/^[\w-]{16,64}$/.test(b.request_id))fail(400,'전송 요청을 다시 시작해주세요.');return b.request_id;};
 async function member(env,crewId,user){requireUser(user);const m=await one(env,'SELECT m.*,c.name crew_name,c.image_version crew_image_version FROM crew_members m JOIN crews c ON c.id=m.crew_id WHERE m.crew_id=? AND m.user_id=?',crewId,user.id);if(!m)fail(403,'크루에 가입한 멤버만 이용할 수 있어요.');return m;}
 function crewXpQueries(env,crewId){return [query(env,'SELECT 1'),query(env,'SELECT 1')];}

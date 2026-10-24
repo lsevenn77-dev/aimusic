@@ -183,3 +183,57 @@ dialog.punch-complete-dialog::backdrop{background:#070c14b3;backdrop-filter:blur
 #sing.web-studio .studio-edit-tools{grid-template-columns:repeat(4,minmax(0,1fr))}.vocal-tune-heading{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.vocal-tune-heading h3{margin:0}.vocal-tune-premium{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border:1px solid #ac789a;border-radius:20px;color:#eeb3d5;font-size:12px}.vocal-tune-premium svg{width:15px;height:15px}.vocal-tune-options{display:flex;gap:10px;margin:18px 0}.vocal-tune-options button{flex:1;padding:13px 10px;border:1px solid #526174;background:#192332;color:#d5ddea;border-radius:10px}.vocal-tune-options button[aria-pressed=true]{border-color:#e4a1c6;background:#423046;color:#fff}.vocal-tune-options button:disabled{opacity:.5;cursor:not-allowed}.vocal-tune-status{min-height:22px;font-size:13px;color:#b2c8dc}.vocal-tune-locked{color:#e5b8d0}.studio-edit-tools button span{min-width:0}.studio-edit-tools small{white-space:normal}@media(max-width:700px){#sing.web-studio .studio-edit-tools{grid-template-columns:repeat(2,minmax(0,1fr))}.vocal-tune-options{gap:6px}.vocal-tune-options button{font-size:13px}}
 
 .studio-tone-levels{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}.studio-tone-levels button{flex:1;min-width:90px}.studio-tone-levels [aria-pressed=true]{background:#423046;border-color:#e4a1c6;color:#fff}
+
+#sing.web-studio .studio-page-label{display:block;color:var(--ds-mint);font-size:12px;margin-bottom:8px}
+#sing.web-studio .studio-editor-clean .studio-wave-surface{height:140px}
+#sing.web-studio .studio-editor-clean .studio-wave-surface canvas{height:140px;cursor:default}
+#sing.web-studio .studio-editor-clean .studio-preview-row{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:16px 0 24px}
+#sing.web-studio .studio-rerecord-entry{display:grid;gap:8px;text-align:right}
+#sing.web-studio .studio-rerecord-entry small{color:var(--ds-muted);font-size:11px}
+#sing.web-studio .studio-premium-label{display:inline-flex;align-items:center;border:1px solid var(--ds-lilac);border-radius:6px;padding:3px 7px;font-size:10px;line-height:1.4;color:var(--ds-lilac);white-space:nowrap}
+#sing.web-studio .studio-editor-clean .studio-edit-tools{grid-template-columns:repeat(3,minmax(0,1fr))}
+#sing.web-studio .studio-editor-clean .studio-edit-tools button{min-height:52px}
+#sing.web-studio .studio-editor-clean .studio-edit-actions{display:flex;justify-content:flex-end;gap:10px;margin:16px 0 24px}
+#sing.web-studio .studio-editor-clean .studio-edit-actions button{min-height:44px}
+#sing.web-studio .studio-editor-clean .studio-publish-panel{border-top:1px solid var(--ds-border);padding-top:24px;margin:0}
+#sing.web-studio .studio-editor-clean .studio-save-actions{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:20px}
+#sing.web-studio .studio-editor-clean .studio-save-actions>div{display:flex;gap:8px;flex-wrap:wrap}
+#sing.web-studio .studio-editor-inspector>h2{font-size:15px;margin:0 0 16px;color:var(--ds-muted)}
+#sing.web-studio .studio-punch-page{max-width:860px;margin:auto;padding:8px 0 28px}
+#sing.web-studio .studio-punch-page header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+#sing.web-studio .studio-punch-page h2{margin:28px 0 12px;font-size:24px}
+#sing.web-studio .studio-punch-page>p{color:var(--ds-muted);line-height:1.6}
+#sing.web-studio .studio-punch-lyrics{display:grid;gap:8px;margin:24px 0;max-height:420px;overflow:auto;padding:2px}
+#sing.web-studio .studio-punch-lyrics button{display:grid;grid-template-columns:115px 34px minmax(0,1fr);align-items:center;gap:12px;text-align:left;min-height:68px;padding:16px;background:var(--ds-panel);color:var(--ds-text);border:1px solid var(--ds-border);border-radius:12px}
+#sing.web-studio .studio-punch-lyrics time{color:var(--ds-muted);font-size:12px;font-variant-numeric:tabular-nums}
+#sing.web-studio .studio-punch-lyrics strong{font-size:16px;line-height:1.6;overflow-wrap:anywhere}
+#sing.web-studio .studio-punch-lyrics button[aria-pressed=true]{border-color:var(--ds-mint);background:color-mix(in srgb,var(--ds-mint) 9%,var(--ds-panel))}
+#sing.web-studio .studio-punch-marker{font-size:11px;color:var(--ds-mint)}
+#sing.web-studio .studio-punch-summary{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 0;border-top:1px solid var(--ds-border);font-size:14px}
+#sing.web-studio .studio-punch-summary span{color:var(--ds-mint)}
+#sing.web-studio .studio-punch-fine{padding:12px 0;color:var(--ds-muted);font-size:13px}
+#sing.web-studio .studio-punch-fine label{display:inline-flex;align-items:center;gap:12px;margin:8px 16px 8px 0}
+#sing.web-studio .studio-punch-fine input{width:100px;min-height:44px;background:var(--ds-panel);color:var(--ds-text);border:1px solid var(--ds-border);border-radius:8px;padding:8px}
+#sing.web-studio .studio-punch-actions{display:flex;justify-content:flex-end;gap:12px;margin:24px 0 16px}
+#sing.web-studio .studio-punch-actions button{min-height:46px}
+#sing.web-studio .studio-punch-result-lyrics{padding:24px;border-radius:12px;background:var(--ds-panel);text-align:center;line-height:1.8}
+#sing.web-studio #punch-waveform{width:100%;height:110px;margin-top:20px}
+#sing.web-studio .studio-punch-preview{display:flex;align-items:center;gap:16px;margin:16px 0 28px}
+#sing.web-studio .studio-punch-preview label{display:grid;gap:12px;flex:1;min-width:0;color:var(--ds-muted);font-size:12px}
+#sing.web-studio .studio-punch-preview input{width:100%}
+#sing.web-studio .studio-punch-preview output{font-size:12px;white-space:nowrap}
+#sing.web-studio .sing-punch-record-header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:16px 0}
+#sing.web-studio .sing-punch-record-header button{margin-left:auto}
+#sing.web-studio .sing-countdown{position:absolute;inset:0;z-index:4;background:color-mix(in srgb,var(--ds-bg) 94%,transparent);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;border-radius:16px;pointer-events:none}
+#sing.web-studio .sing-countdown strong{font-size:96px;color:var(--ds-mint);font-variant-numeric:tabular-nums}
+#sing.web-studio .sing-recording{position:relative}
+#sing.web-studio [hidden]{display:none!important}
+#sing.web-studio .studio-punch-page button:focus-visible{outline:2px solid var(--ds-mint);outline-offset:3px}
+@media(max-width:768px){#sing.web-studio .studio-editor-clean .studio-preview-row{flex-wrap:wrap}#sing.web-studio .studio-rerecord-entry{width:100%;text-align:left}#sing.web-studio .studio-rerecord-entry button{width:100%;min-height:48px}#sing.web-studio .studio-editor-clean .studio-save-actions>div{width:100%}#sing.web-studio .studio-editor-clean .studio-save-actions button{flex:1}#sing.web-studio .studio-punch-page h2{font-size:20px}#sing.web-studio .studio-punch-lyrics button{grid-template-columns:1fr 34px;gap:8px;padding:14px}#sing.web-studio .studio-punch-lyrics strong{grid-column:1/-1;font-size:15px}#sing.web-studio .studio-punch-summary{align-items:flex-start;flex-direction:column}#sing.web-studio .studio-punch-actions button{flex:1}#sing.web-studio .studio-punch-preview{flex-wrap:wrap}#sing.web-studio .studio-punch-preview output{width:100%;text-align:right}#sing.web-studio .studio-editor-clean .studio-edit-tools button{padding:10px 4px;font-size:12px;gap:6px}#sing.web-studio .studio-editor-clean .studio-tone-levels{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+
+#sing.web-studio.is-punch-page{display:block!important}#sing.web-studio.is-punch-page .sing-head{margin-bottom:20px}
+
+#sing.web-studio .studio-editor-clean .primary-button,#sing.web-studio .studio-punch-page .primary-button{background:var(--ds-gradient);color:var(--ds-ink);border:0}#sing.web-studio .studio-editor-clean .studio-edit-tools [aria-selected=true]{background:var(--ds-gradient);color:var(--ds-ink);border-color:var(--ds-lilac)}#sing.web-studio .studio-editor-clean .studio-play{border-color:var(--ds-lilac);color:var(--ds-lilac)}#sing.web-studio .studio-editor-clean input[type=range]{accent-color:var(--ds-lilac)!important}
+#sing.web-studio .studio-punch-page{width:100%;box-sizing:border-box}
+@media(max-width:768px){#sing.web-studio .studio-editor-clean .studio-preview-row{display:grid!important;grid-template-columns:1fr 1fr!important}#sing.web-studio .studio-rerecord-entry{grid-column:1/-1;width:100%;text-align:left}#sing.web-studio .studio-rerecord-entry button{display:flex!important;align-items:center;justify-content:center;gap:8px;white-space:nowrap;width:100%;min-height:48px}#sing.web-studio .studio-rerecord-entry small{text-align:left}#sing.web-studio .studio-punch-page{padding:0 0 24px}}

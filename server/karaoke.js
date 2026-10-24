@@ -4,6 +4,8 @@ import {requireUser} from './auth.js';
 import {MAX_AUDIO,put,objectResponse} from './storage.js';
 import {KARAOKE_MAX_SECONDS,karaokeLyrics,karaokeWords} from '../shared/karaoke.js';
 import {trackList,VISIBLE,SINGABLE} from './catalog.js';
+import {isPremium} from './membership.js';
+import {punchLyricRange} from '../shared/punch-recording.js';
 
 const MR_TYPES=['wav','flac','mp3'];
 const key=(trackId,name)=>`karaoke/${trackId}/${name}`;
@@ -25,6 +27,19 @@ export async function karaokeQueue(env,track,{mr='keep',ext='',bytes=0}={}){
 
 // Singing: the list of singable songs is public; the words and the MR need a signed-in singer.
 async function singRoute(req,env,path,user){
+ const punch=path.match(/^\/api\/karaoke\/([\w-]+)\/rerecord$/);
+ if(punch&&['GET','POST'].includes(req.method)){
+  requireUser(user);if(!isPremium(user))fail(403,'일부 구간 재녹음은 프리미엄 회원 전용 기능이에요.');
+  const track=(await trackList(env,`t.id=? AND ${VISIBLE()} AND ${SINGABLE()}`,[punch[1]]))[0];if(!track)fail(404,'부를 수 있는 곡을 찾을 수 없어요.');
+  if(req.method==='GET')return json({allowed:true});
+  const b=await req.json(),duration=b.duration;
+  if(!Number.isFinite(duration)||duration<=0||duration>track.duration+.5)fail(400,'녹음 길이를 확인해주세요.');
+  const words=JSON.parse((await one(env,'SELECT words FROM karaoke_jobs WHERE track_id=?',track.id)).words);
+  let range;
+  try{range=punchLyricRange(words,Math.min(duration,track.duration),b.first,b.last);}catch(e){fail(400,e.message);}
+  if(b.manual){if(!Number.isFinite(b.start)||!Number.isFinite(b.end)||b.start<0||b.end>duration||b.end>track.duration||b.end-b.start<.1)fail(400,'재녹음 시작·끝 시간을 확인해주세요.');range={...range,start:b.start,end:b.end};}
+  return json({allowed:true,range:{start:range.start,end:range.end},countdown:3});
+ }
  if(path==='/api/karaoke'&&req.method==='GET'){
   const blocked=env.AIFECT_BLOCKED||[];
   const [tracks,participants,recent_covers]=await Promise.all([

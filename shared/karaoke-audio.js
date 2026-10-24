@@ -1,5 +1,6 @@
 // Pure pieces of the singing screen, bundled for the browser as AifectKaraoke.
 export {roomGain,roomImpulse,restoreRoomMix} from './room-reverb.js';
+export {punchLyricLines,punchLyricRange,punchClock,punchCountdown} from './punch-recording.js';
 export {vocalPresets,presetMix,editVocalMix,defaultVocalMix,restoreVocalMix,VocalProcessor,renderVocals} from './vocal-effects.js';
 import {NoiseCleaner} from './vocal-effects.js';
 

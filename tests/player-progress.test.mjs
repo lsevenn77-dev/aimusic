@@ -13,7 +13,7 @@ test('level boundaries increase and cap without negative or overfilled progress'
  assert.equal(playerProgress(-100).xp,0);
 });
 test('publication XP is awarded once per song and cannot be supplied by a client',async t=>{
- const {sql,call}=await fixture(t);assert.equal(xp(sql),300);
+ const {sql,call}=await fixture(t);assert.equal(xp(sql),300);sql.exec('UPDATE player_xp SET created=0');
  sql.exec("UPDATE tracks SET status='processing' WHERE id='hidden'");assert.equal(xp(sql),300);
  sql.exec("UPDATE tracks SET kind='cover',status='published' WHERE id='hidden'");assert.equal(xp(sql),360);
  for(let n=0;n<3;n++)sql.exec("UPDATE tracks SET status='hidden' WHERE id='hidden'; UPDATE tracks SET status='published' WHERE id='hidden'");assert.equal(xp(sql),360);
@@ -54,11 +54,12 @@ test('expired and revoked grants never render or equip even with stale equipment
 test('bounded backfill awards existing songs and memberships once without overriding equipment',async()=>{
  const db=new DatabaseSync(':memory:');try{
  const files=readdirSync(new URL('../drizzle/',import.meta.url)).filter(n=>n.endsWith('.sql')).sort();
- for(const f of files.filter(n=>!['0040_player_progress.sql','0063_restore_comment_triggers.sql','0071_parched_talos.sql','0073_tan_karen_page.sql'].includes(n)))db.exec(readFileSync(new URL('../drizzle/'+f,import.meta.url),'utf8'));
+ for(const f of files.filter(n=>!['0040_player_progress.sql','0063_restore_comment_triggers.sql','0071_parched_talos.sql','0073_tan_karen_page.sql','0074_lean_hedge_knight.sql'].includes(n)))db.exec(readFileSync(new URL('../drizzle/'+f,import.meta.url),'utf8'));
  db.exec("INSERT INTO users(id,email,name,created) VALUES('u','u@test','User',0); INSERT INTO producers(id,user_id,name,created) VALUES('p','u','User',0); INSERT INTO artists(id,producer_id,name,created) VALUES('a','p','Singer',0); INSERT INTO tracks(id,user_id,artist_id,producer_id,title,genre,ai_tool,rights_accepted,original_ext,original_bytes,created,status) VALUES('t','u','a','p','Track','Pop','AI',1,'wav',10,1,'published'); INSERT INTO crews(id,owner_id,name,created) VALUES('c','u','Crew',0); INSERT INTO crew_members(crew_id,user_id,joined) VALUES('c','u',0)");
  db.exec(readFileSync(new URL('../drizzle/0040_player_progress.sql',import.meta.url),'utf8'));
  db.exec(readFileSync(new URL('../drizzle/0071_parched_talos.sql',import.meta.url),'utf8'));
  db.exec(readFileSync(new URL('../drizzle/0073_tan_karen_page.sql',import.meta.url),'utf8'));
+ db.exec(readFileSync(new URL('../drizzle/0074_lean_hedge_knight.sql',import.meta.url),'utf8'));
  const env={DB:{prepare(q){return {bind(...a){return {async run(){const r=db.prepare(q).run(...a);return {meta:{changes:Number(r.changes)}};}};}};},async batch(stmts){const results=[];for(const stmt of stmts)results.push(await stmt.run());return results;}}};
  assert.deepEqual((await playerBackfill(env)).changes,[1,1,1,0,0,0,0]);
  db.exec('UPDATE player_equipment SET frame_inventory_id=NULL');

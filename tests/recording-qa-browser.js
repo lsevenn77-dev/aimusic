@@ -8,3 +8,10 @@ setInterval(()=>{const s=sing;document.querySelector('#qa-state').textContent=s?
 
 for(const mode of ['premium','free'])document.querySelector('#qa-'+mode).onclick=async()=>{await fetch('/qa/'+mode);const d=await api('/api/me');setMembership(d.membership);if(sing?.voice)renderSingPanel();};
 document.querySelector('#qa-export').onclick=async()=>{if(!sing?.voice)return;try{const frames=sing.voice.length,start=performance.now(),expected=sing.mode==='duet'?sing.mr.duration:sing.voice.duration;const file=await renderSung(sing);const data=await file.arrayBuffer(),decoded=await sing.ctx.decodeAudioData(data.slice(0));document.querySelector('#qa-errors').textContent='저장 검사 통과 · '+file.type+' · '+data.byteLength+'바이트 · '+((performance.now()-start)/1000).toFixed(2)+'초 소요 · 복호 길이 '+decoded.duration.toFixed(5)+'초 · 타이밍 차이 '+Math.round((decoded.duration-expected)*1000)+'ms · 원음 보존 '+(frames===sing.voice.length);}catch(e){document.querySelector('#qa-errors').textContent='저장 차단 · '+e.message;}};
+
+// Observe real application transitions, never used in a production bundle.
+const punchQA=document.createElement('output');punchQA.id='qa-punch';qaPanel.append(punchQA);let originalTake,countdownSeen=[];
+document.addEventListener('click',e=>{if(e.target.closest('[data-open-punch]')){originalTake=sing?.voice;countdownSeen=[];}});
+setInterval(()=>{if(!sing)return;const s=sing,n=document.querySelector('.sing-countdown:not([hidden]) [data-punch-countdown]')?.textContent;if(n&&!countdownSeen.includes(n))countdownSeen.push(n);let outside=true,inside=false;
+if(originalTake&&s.pendingPunch){const a=originalTake.getChannelData(0),b=s.pendingPunch.voice.getChannelData(0),lo=Math.floor(s.pendingPunch.range.start*originalTake.sampleRate),hi=Math.ceil(s.pendingPunch.range.end*originalTake.sampleRate);outside=a.slice(0,lo).every((v,i)=>v===b[i])&&a.slice(hi).every((v,i)=>v===b[hi+i]);inside=a.slice(lo,hi).some((v,i)=>v!==b[lo+i]);}
+punchQA.textContent=`구간 ${s.punchPage||'편집'} · 카운트 ${countdownSeen.join('·')} · 원본 ${s.voice===originalTake?'유지':'변경'} · 후보 ${s.pendingPunch?'있음':'없음'} · 구간 밖 ${outside?'보존':'불일치'} · 구간 안 ${inside?'변경':'대기'}`;},100);

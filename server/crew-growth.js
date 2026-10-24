@@ -4,7 +4,7 @@ import {VISIBLE} from './catalog.js';
 import {dubbingVisibleSQL} from './dubbing-access.js';
 import {CREW_MISSIONS,CREW_GROWTH_LEVELS,crewPeriod,growthLevel} from '../shared/crew-growth.js';
 
-export const crewCapacitySQL=(alias='c')=>`CASE ${[...CREW_GROWTH_LEVELS].reverse().map(l=>`WHEN ${alias}.highest_level>=${l.level} OR COALESCE((SELECT sum(amount) FROM crew_xp WHERE crew_id=${alias}.id),0)>=${l.xp} THEN ${l.capacity}`).join(' ')} ELSE 10 END`;
+export const crewCapacitySQL=(alias='c')=>`CASE ${[...CREW_GROWTH_LEVELS].reverse().map(l=>`WHEN ${alias}.highest_level>=${l.level} OR (unixepoch()>=${alias}.growth_started+${l.min_days}*86400 AND COALESCE((SELECT sum(amount) FROM crew_xp WHERE crew_id=${alias}.id),0)>=${l.xp}) THEN ${l.capacity}`).join(' ')} ELSE 10 END`;
 // Global content keys prevent a member moving/re-uploading the same recording from earning twice.
 export async function syncCrewGrowth(env,cid,at=now()){
  const crew=await one(env,'SELECT growth_started FROM crews WHERE id=?',cid);if(!crew)return;
@@ -27,18 +27,18 @@ export async function syncCrewGrowth(env,cid,at=now()){
  const comments=await rows(env,`SELECT co.id,co.user_id,co.track_id,co.body,co.created FROM comments co JOIN tracks t ON t.id=co.track_id JOIN crew_members m ON m.user_id=co.user_id JOIN crew_members author ON author.user_id=t.user_id AND author.crew_id=m.crew_id WHERE m.crew_id=? AND co.created>=max(m.joined,?) AND co.deleted_at=0 AND co.user_id!=t.user_id AND ${VISIBLE()} AND length(trim(co.body))>=5`,cid,start);
  for(const c of comments){const normalized=c.body.normalize('NFKC').replace(/\s+/g,'').toLowerCase();if(new Set(normalized).size<4)continue;const digest=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(c.user_id+':'+normalized)))).map(b=>b.toString(16).padStart(2,'0')).join('');
   await query(env,"INSERT OR IGNORE INTO crew_growth_events(id,crew_id,user_id,source_id,evidence_id,kind,collaboration,created) SELECT ?,?,?,?,?,'review',0,? WHERE NOT EXISTS(SELECT 1 FROM crew_growth_events WHERE user_id=? AND source_id=? AND kind='review')",'review:'+digest,cid,c.user_id,c.track_id,c.id,c.created,c.user_id,c.track_id).run();}
- const allEvents=await rows(env,`SELECT e.* FROM crew_growth_events e WHERE e.crew_id=? AND e.created>=? AND e.created<=? AND (e.kind!='review' OR EXISTS(SELECT 1 FROM comments co WHERE co.id=e.evidence_id AND co.deleted_at=0)) AND (EXISTS(SELECT 1 FROM tracks t WHERE t.id=e.source_id AND ${VISIBLE()}) OR EXISTS(SELECT 1 FROM dubbing_projects p WHERE p.id=e.source_id AND p.visibility='public' AND p.state='complete' AND ${dubbingVisibleSQL()}))`,cid,start,at),writes=[];
+ const allEvents=await rows(env,`SELECT e.* FROM crew_growth_events e WHERE e.crew_id=? AND e.credited=1 AND e.created>=? AND e.created<=? AND (e.kind!='review' OR EXISTS(SELECT 1 FROM comments co WHERE co.id=e.evidence_id AND co.deleted_at=0)) AND (EXISTS(SELECT 1 FROM tracks t WHERE t.id=e.source_id AND ${VISIBLE()}) OR EXISTS(SELECT 1 FROM dubbing_projects p WHERE p.id=e.source_id AND p.visibility='public' AND p.state='complete' AND ${dubbingVisibleSQL()}))`,cid,start,at),writes=[];
  for(const mission of CREW_MISSIONS){const periods=new Set([crewPeriod(at,mission.period).start,...allEvents.map(e=>crewPeriod(e.created,mission.period).start)]);for(const periodStart of periods){const period=crewPeriod(periodStart,mission.period),events=allEvents.filter(e=>e.created>=period.start&&e.created<period.end);
  const metrics={works:new Set(events.filter(e=>e.kind==='work').map(e=>e.source_id)).size,collabs:new Set(events.filter(e=>e.kind==='work'&&e.collaboration).map(e=>e.source_id)).size,members:new Set(events.map(e=>e.user_id)).size,reviewers:new Set(events.filter(e=>e.kind==='review').map(e=>e.user_id)).size,days:new Set(events.map(e=>crewPeriod(e.created).start)).size},progress=Math.min(mission.target,metrics[mission.metric]);
  writes.push(query(env,'INSERT INTO crew_missions(crew_id,mission_key,period_start,progress,target,reward) VALUES(?,?,?,?,?,?) ON CONFLICT(crew_id,mission_key,period_start) DO UPDATE SET progress=excluded.progress',cid,mission.key,period.start,progress,mission.target,mission.xp),query(env,"INSERT OR IGNORE INTO crew_xp(id,crew_id,user_id,amount,created) SELECT ?,c.id,c.owner_id,?,? FROM crews c WHERE c.id=? AND EXISTS(SELECT 1 FROM crew_missions WHERE crew_id=c.id AND mission_key=? AND period_start=? AND progress>=target)",'mission:'+cid+':'+mission.key+':'+period.start,mission.xp,Math.min(at,period.end-1),cid,mission.key,period.start));}}
  if(writes.length)await env.DB.batch(writes);
  const total=await one(env,'SELECT COALESCE(sum(amount),0) xp FROM crew_xp WHERE crew_id=?',cid);
- await query(env,'UPDATE crews SET highest_level=max(highest_level,?) WHERE id=?',growthLevel(total.xp).level,cid).run();
+ await query(env,'UPDATE crews SET highest_level=max(highest_level,?) WHERE id=?',growthLevel(total.xp,1,crew.growth_started,at).level,cid).run();
 }
 export async function crewGrowthView(env,cid,at=now()){
- const c=await one(env,'SELECT highest_level,COALESCE((SELECT sum(amount) FROM crew_xp WHERE crew_id=crews.id),0) xp FROM crews WHERE id=?',cid);
+ const c=await one(env,'SELECT highest_level,growth_started,COALESCE((SELECT sum(amount) FROM crew_xp WHERE crew_id=crews.id),0) xp FROM crews WHERE id=?',cid);
  const progress=await rows(env,'SELECT * FROM crew_missions WHERE crew_id=? AND period_start>=?',cid,crewPeriod(at,'week').start);
- return {...growthLevel(c.xp,c.highest_level),xp:c.xp,levels:CREW_GROWTH_LEVELS,missions:CREW_MISSIONS.map(m=>{const period=crewPeriod(at,m.period),p=progress.find(x=>x.mission_key===m.key&&x.period_start===period.start);return {...m,...period,progress:p?.progress||0,complete:(p?.progress||0)>=m.target};})};
+ return {...growthLevel(c.xp,c.highest_level,c.growth_started,at),xp:c.xp,levels:CREW_GROWTH_LEVELS,missions:CREW_MISSIONS.map(m=>{const period=crewPeriod(at,m.period),p=progress.find(x=>x.mission_key===m.key&&x.period_start===period.start);return {...m,...period,progress:p?.progress||0,complete:(p?.progress||0)>=m.target};})};
 }
 
 // Also reconcile background publication on worker completion and scheduled maintenance.
