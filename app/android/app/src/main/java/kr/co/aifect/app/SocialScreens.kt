@@ -306,7 +306,7 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
  if(leaving)AlertDialog(onDismissRequest={leaving=false},title={Text("크루에서 탈퇴할까요?")},text={Text("크루장이라면 가장 먼저 가입한 멤버에게 크루장을 넘겨요. 마지막 멤버가 나가면 크루와 채팅이 삭제돼요.")},confirmButton={TextButton(onClick={m.action{m.api.call("/api/crews/$selected/leave","POST");selected?.let{denyMembership(it)};m.invalidateCrewPreviews();myCrew=null;m.lastKnownCrewId=null;selectCrew(null);leaving=false;load()}}){Text("탈퇴")}},dismissButton={TextButton(onClick={leaving=false}){Text("취소")}})
 }
 
-@Composable private fun CrewEditor(c:JSONObject?,busy:Boolean,dismiss:()->Unit,save:(String,String,String,Boolean)->Unit){
+@Composable internal fun CrewEditor(c:JSONObject?,busy:Boolean,dismiss:()->Unit,save:(String,String,String,Boolean)->Unit){
  var name by remember{mutableStateOf(c?.optString("name")?:"")};var description by remember{mutableStateOf(c?.optString("description")?:"")};var interests by remember{mutableStateOf(c?.optString("interests")?:"")};var recruiting by remember{mutableStateOf(c?.optInt("recruiting",1)!=0)}
  val renameAllowed=c==null||c.optBoolean("can_rename",false)
  AppFormPage(onDismissRequest=dismiss,title={Text(if(c==null)"새 크루" else "크루 정보 수정")},text={Column(Modifier){

@@ -217,16 +217,64 @@ class DesignCaptureTest {
  }
 
  @Test fun currentCommunityStartsWithPublicRoomsAndFiltersWithoutWrites(){
+  responses["/api/tracks/design-ocean"]=payload("track" to track("design-ocean","푸른 순간",true).put("producer_image_version","").put("original_id","rank-ocean").put("original_has_cover",1).put("original_cover_version","rank-fallback"))
+  val rankedWork=payload("id" to "design-cover","name" to "밤의 산책","detail" to "솔로","score" to 47.8,"rank_change" to 2,"href" to "#song/design-cover")
+  responses["/api/community/rankings"]=payload("rows" to arr(rankedWork,payload("id" to "design-ocean","name" to "푸른 순간","detail" to "솔로","score" to 35,"href" to "#song/design-ocean")))
+  responses["/api/community/rankings?category=work&period=month&workKind=solo"]=payload("rows" to arr(JSONObject(rankedWork.toString()).put("rank_change",-1)))
+  responses["/api/community/rankings?category=aiArtist&period=month&workKind=solo"]=payload("rows" to arr(payload("id" to "design-artist","name" to "NOVA","image_version" to "sample","detail" to "공개 원곡 2곡","score" to 72,"href" to "#artist/design-artist")))
+  responses["/api/community/rankings?category=crew&period=month&workKind=solo"]=payload("rows" to arr(payload("id" to "design-crew","name" to "밤산책","detail" to "12명 · 활동 참여 8명","score" to 99,"href" to "#crew/design-crew")))
+  responses["/api/community/rankings?category=dubbing&period=month&workKind=solo"]=payload("rows" to JSONArray(),"message" to "공개된 완성 더빙이 모이면 표시해요.")
   ui.onNodeWithTag("main-tab-3").performClick();ready("voice-room-design-room")
   ui.onNodeWithTag("community-main-voice").assertIsSelected()
-  capture("current-01-talkingrooms")
-  ui.onNodeWithTag("voice-search").performTextInput("없는 방")
-  text("검색 결과가 없어요")
+  ui.onNodeWithTag("voice-search").performTextInput("없는 방");text("검색 결과가 없어요")
   ui.onAllNodesWithTag("voice-room-design-room").assertCountEquals(0)
-  Espresso.closeSoftKeyboard();ui.onNodeWithTag("community-main-rankings").performClick();text("밤의 산책")
-  ui.onNodeWithTag("ranking-period-month").performClick()
+  Espresso.closeSoftKeyboard();ui.onNodeWithTag("community-main-rankings").performClick();ready("community-rank-work-design-cover")
+  ui.waitUntil(15000){requestUrls.contains("/api/tracks/design-cover")};text("하루 · 솔로")
+  ui.onNodeWithTag("ranking-category-relationship").assertDoesNotExist();ui.onNodeWithText("47점").assertDoesNotExist();ui.onNodeWithText("35점").assertDoesNotExist()
+  ui.onNodeWithTag("community-movement-work-design-cover",useUnmergedTree=true).assertTextEquals("▲2")
+  ui.onNodeWithTag("community-movement-work-design-ocean",useUnmergedTree=true).assertTextEquals("—")
+  ui.onNodeWithContentDescription("이전 순위 기록 없음",useUnmergedTree=true).assertExists()
+  val categoryHeights=listOf("work","aiArtist","crew","dubbing").map{ui.onNodeWithTag("ranking-category-$it").fetchSemanticsNode().boundsInRoot.height}
+  assertTrue("Ranking category cards keep equal heights",categoryHeights.max()-categoryHeights.min()<1f)
+  val artistLabel=mutableListOf<TextLayoutResult>();ui.onNodeWithTag("ranking-label-aiArtist",useUnmergedTree=true).performSemanticsAction(SemanticsActions.GetTextLayoutResult){it(artistLabel)}
+  capture("community-261-label-check");assertEquals(2,artistLabel.single().lineCount);assertFalse("AI artist label overflow: size=${artistLabel.single().size} width=${artistLabel.single().didOverflowWidth} height=${artistLabel.single().didOverflowHeight}",artistLabel.single().hasVisualOverflow)
+  ui.onNodeWithTag("ranking-art-design-cover",useUnmergedTree=true).assertExists()
+  ui.waitUntil(15000){requestUrls.any{it=="/media/rank-ocean/cover?v=rank-fallback"}}
+  capture("community-261-work")
+  ui.onNodeWithTag("community-rank-work-design-cover").performClick();ui.waitUntil(15000){model.detail?.id=="design-cover"};Espresso.pressBack();ready("ranking-period")
+  ui.onNodeWithTag("ranking-period").performClick();ui.onNodeWithTag("ranking-period-month").performClick()
   ui.waitUntil(10000){requestUrls.any{it.startsWith("/api/community/rankings?")&&it.contains("period=month")}}
-  assertFalse(requestBodies.keys.any{it.startsWith("/api/voice/")})
+  ui.waitUntil(10000){ui.onAllNodesWithText("▼1").fetchSemanticsNodes().isNotEmpty()}
+  ui.onNodeWithTag("ranking-category-aiArtist").performClick();ready("community-rank-aiArtist-design-artist")
+  ui.onNodeWithTag("community-photo-artist-design-artist",useUnmergedTree=true).assertExists();ui.onNodeWithText("72점").assertDoesNotExist();capture("community-261-artists")
+  ui.onNodeWithTag("community-rank-aiArtist-design-artist").performClick();ui.waitUntil(15000){model.profile?.optString("id")=="design-artist"};Espresso.pressBack();ready("ranking-category-crew")
+  ui.onNodeWithTag("ranking-category-crew").performClick();ready("community-rank-crew-design-crew")
+  ui.waitUntil(15000){requestUrls.any{it.startsWith("/media/crew/design-crew")}};ui.onNodeWithContentDescription("밤산책 사진",useUnmergedTree=true).assertExists();ui.onNodeWithText("99점").assertDoesNotExist();capture("community-261-crew-rank")
+  ui.onNodeWithTag("community-rank-crew-design-crew").performClick();ui.waitUntil(15000){model.workspace?.route=="crew/design-crew"};act{it.workspace=null};ready("ranking-category-dubbing")
+  ui.onNodeWithTag("ranking-category-dubbing").performClick();text("아직 집계된 순위가 없어요.")
+  assertFalse(requestUrls.any{it.contains("category=relationship")});assertFalse(requestBodies.keys.any{it.startsWith("/api/voice/")})
+ }
+ @Test fun crewDiscoveryUsesPhotosAndFiltersAndOpensDetails(){
+  val other=payload("id" to "other-crew","name" to "새벽 라디오","description" to "감성적인 목소리가 모이는 곳","image_version" to "sample-ocean","level" to 2,"xp" to 700,"members" to 8,"capacity" to 20,"recruiting" to 0,"interests" to "Jazz","created" to now)
+  responses["/api/crews?summary=1"]=payload("mine" to "design-crew","crews" to arr(crew,other),"rankings" to arr(crew,other))
+  ui.onNodeWithTag("main-tab-3").performClick();ui.onNodeWithTag("community-main-crews").performClick();ready("crew-featured-design-crew")
+  ui.waitUntil(15000){requestUrls.any{it.startsWith("/media/crew/design-crew")}};capture("community-261-crews-top")
+  val scroll=ui.onNodeWithTag("crew-directory-scroll",useUnmergedTree=true)
+  scroll.performScrollToNode(hasTestTag("crew-discovery-design-crew"))
+  val offset=ui.onNodeWithTag("crew-discovery-design-crew",useUnmergedTree=true).fetchSemanticsNode().boundsInRoot.top-scroll.fetchSemanticsNode().boundsInRoot.top
+  scroll.performSemanticsAction(SemanticsActions.ScrollBy){it(0f,offset)}
+  val one=ui.onNodeWithTag("crew-discovery-design-crew",useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
+  val two=ui.onNodeWithTag("crew-discovery-other-crew",useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
+  assertTrue(one.right<two.left);assertEquals(one.top,two.top,1f);assertTrue(one.width>125*context.resources.displayMetrics.density);capture("community-261-crews-grid")
+  ui.onNodeWithTag("crew-discovery-design-crew").performClick();ui.waitUntil(15000){model.workspace?.route=="crew/design-crew"};act{it.workspace=null};ready("crew-directory-scroll")
+  scroll.performScrollToNode(hasTestTag("crew-filters"));ui.onNodeWithTag("crew-filters").performClick();ready("crew-recruitment")
+  ui.onNodeWithTag("crew-recruitment").performClick();ui.onNodeWithTag("crew-recruitment-open").performClick();ui.onNodeWithTag("crew-filter-apply").performClick()
+  scroll.performScrollToNode(hasTestTag("crew-discovery-design-crew"));ui.onNodeWithTag("crew-discovery-other-crew").assertDoesNotExist()
+  scroll.performScrollToNode(hasTestTag("crew-directory-search"));ui.onNodeWithTag("crew-directory-search").performTextInput("없는 크루");Espresso.closeSoftKeyboard()
+  scroll.performScrollToNode(hasText("조건에 맞는 크루가 없어요"));ui.onNodeWithText("조건에 맞는 크루가 없어요").assertIsDisplayed()
+  scroll.performScrollToNode(hasTestTag("crew-directory-search"));ui.onNodeWithTag("crew-directory-search").performTextClearance();Espresso.closeSoftKeyboard()
+  scroll.performScrollToNode(hasTestTag("crew-directory-ranking"));capture("community-261-crews-ranking")
+  assertFalse(requestBodies.containsKey("/api/crews"))
  }
  @Test fun currentPlaySeparatesRecordingDubbingAndFinishedWorks(){
   ready("home-featured-play");capture("revision-00-home")

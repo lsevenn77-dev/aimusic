@@ -30,14 +30,14 @@ import kotlinx.coroutines.delay
 import androidx.lifecycle.repeatOnLifecycle
 import org.json.JSONObject
 
-private class CurrentRead {
+internal class CurrentRead {
  var data by mutableStateOf<JSONObject?>(null)
  var loading by mutableStateOf(true)
  var error by mutableStateOf<String?>(null)
  var revision by mutableIntStateOf(0)
  fun retry(){revision++}
 }
-@Composable private fun currentRead(m:MusicModel,path:String,enabled:Boolean=true,poll:Long=0):CurrentRead {
+@Composable internal fun currentRead(m:MusicModel,path:String,enabled:Boolean=true,poll:Long=0):CurrentRead {
  val account=m.user?.optString("id")
  val read=remember(path,account){CurrentRead()}
  val lifecycle=androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
@@ -55,7 +55,7 @@ private class CurrentRead {
  }
  return read
 }
-@Composable private fun ReadStatus(read:CurrentRead){
+@Composable internal fun ReadStatus(read:CurrentRead){
  if(read.loading)LinearProgressIndicator(Modifier.fillMaxWidth().padding(vertical=8.dp),color=Pink,trackColor=Stroke)
  read.error?.let{Column(Modifier.fillMaxWidth().padding(vertical=12.dp)){Text(it,color=Muted,fontSize=14.sp);TextButton(onClick=read::retry){Text("다시 불러오기")}}}
 }
@@ -131,7 +131,7 @@ private class CurrentRead {
 }
 private fun JSONObject.flag(key:String)=optBoolean(key,false)||optInt(key,0)==1
 @Composable private fun SignInEntry(m:MusicModel){Column(Modifier.padding(20.dp)){Text("로그인하고 내 작업을 이어가세요.",color=Muted);BrandButton(onClick={m.showLogin=true},modifier=Modifier.padding(top=16.dp)){Text("로그인")}}}
-@Composable private fun CurrentEmpty(title:String,body:String=""){
+@Composable internal fun CurrentEmpty(title:String,body:String=""){
  Column(Modifier.fillMaxWidth().padding(vertical=28.dp),horizontalAlignment=Alignment.CenterHorizontally){Text(title,fontSize=15.sp,color=SoftText);if(body.isNotBlank())Text(body,color=Muted,fontSize=13.sp,modifier=Modifier.padding(top=8.dp))}
 }
 @Composable private fun CurrentSongRow(song:Song,m:MusicModel,queue:List<Song>,sing:((Song)->Unit)?=null){
@@ -179,7 +179,7 @@ private val NoneDescription:String?=null
   CurrentHeader("커뮤니티",menu)
   CurrentTabs(listOf("voice" to "토킹룸","crews" to "크루","rankings" to "랭킹"),m.communityMode,"community-main"){m.communityMode=it}
   when(m.communityMode){
-   "crews"->Column(Modifier.padding(20.dp)){Text("음악으로 만나는 모임",fontSize=20.sp,fontWeight=FontWeight.SemiBold);BrandButton(onClick={m.openCurrentWorkspace("community/crews","크루 둘러보기")},modifier=Modifier.fillMaxWidth().padding(top=12.dp).testTag("current-crews-open")){Text("검색 · 필터 · 크루 만들기")};CurrentCrewDirectory(m)}
+   "crews"->CurrentCrewDirectory(m)
    "rankings"->CurrentRankings(m)
    else->LazyColumn(Modifier.fillMaxSize().testTag("voice-lobby"),contentPadding=PaddingValues(20.dp),verticalArrangement=Arrangement.spacedBy(16.dp)){
     item{Text("지금 열려 있는 토킹룸",fontSize=18.sp,fontWeight=FontWeight.SemiBold);Text("공개된 방만 보여줘요",fontSize=12.sp,color=Muted,modifier=Modifier.padding(top=6.dp))}
@@ -196,33 +196,6 @@ private val NoneDescription:String?=null
   }
  }
 }
-@Composable private fun CurrentCrewDirectory(m:MusicModel){
- val read=currentRead(m,"/api/crews?summary=1",poll=30000)
- var query by rememberSaveable{mutableStateOf("")}
- val crews=read.data?.optJSONArray("crews").objects().filter{it.optString("name").contains(query,true)}
- Column(Modifier.fillMaxSize()){
-  OutlinedTextField(query,{query=it},singleLine=true,placeholder={Text("크루 검색")},modifier=Modifier.fillMaxWidth().padding(vertical=12.dp),shape=RoundedCornerShape(12.dp));ReadStatus(read)
-  LazyColumn(verticalArrangement=Arrangement.spacedBy(12.dp)){
-   items(crews,key={it.optString("id")}){c->Surface(onClick={m.openCurrentWorkspace("crew/${c.optString("id")}",c.optString("name"))},color=Panel,shape=RoundedCornerShape(16.dp),modifier=Modifier.fillMaxWidth()){Row(Modifier.padding(14.dp),verticalAlignment=Alignment.CenterVertically){Icon(Icons.Rounded.Groups,null,tint=Muted);Column(Modifier.weight(1f).padding(horizontal=12.dp)){Text(c.optString("name"),fontWeight=FontWeight.SemiBold);Text("LV.${c.optInt("level",1)} · ${c.optInt("members")}명",color=Muted,fontSize=13.sp)};Icon(Icons.Rounded.ChevronRight,"크루 보기",tint=Muted)}}}
-   if(crews.isEmpty()&&!read.loading&&read.error==null)item{CurrentEmpty("조건에 맞는 크루가 없어요")}
-  }
- }
-}
-@Composable private fun CurrentRankings(m:MusicModel){
- var category by rememberSaveable{mutableStateOf("work")};var period by rememberSaveable{mutableStateOf("week")};var kind by rememberSaveable{mutableStateOf("solo")}
- val read=currentRead(m,"/api/community/rankings?category=$category&period=$period&workKind=$kind")
- Column(Modifier.fillMaxSize()){
-  CurrentTabs(listOf("work" to "작품 랭킹","aiArtist" to "AI 아티스트","relationship" to "관계 랭킹","crew" to "크루 랭킹","dubbing" to "더빙 랭킹"),category,"ranking-category"){category=it}
-  if(category=="work")CurrentTabs(listOf("solo" to "솔로","duet" to "듀엣","dubbing" to "더빙"),kind,"ranking-kind"){kind=it}
-  CurrentTabs(listOf("week" to "주간","month" to "월간"),period,"ranking-period"){period=it}
-  LazyColumn(Modifier.fillMaxSize(),contentPadding=PaddingValues(20.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
-   item{ReadStatus(read)}
-   itemsIndexed(read.data?.optJSONArray("rows").objects()){index,r->Row(Modifier.fillMaxWidth().padding(vertical=12.dp),verticalAlignment=Alignment.CenterVertically){Text("${index+1}",fontSize=20.sp,color=Muted,modifier=Modifier.width(36.dp));Column(Modifier.weight(1f)){Text(r.optString("name"),fontWeight=FontWeight.SemiBold);Text(r.optString("detail"),fontSize=12.sp,color=Muted)};Text("${r.optLong("score")}점",fontSize=14.sp)}}
-   if(read.data?.optJSONArray("rows").objects().isEmpty()&&!read.loading&&read.error==null)item{CurrentEmpty("아직 집계된 순위가 없어요.",read.data?.optString("message").orEmpty())}
-  }
- }
-}
-
 @Composable internal fun CurrentMyScreen(m:MusicModel){
  var area by rememberSaveable{mutableStateOf("works")};var kind by rememberSaveable{mutableStateOf("all")}
  val self=currentRead(m,"/api/me/profile",m.user!=null)
