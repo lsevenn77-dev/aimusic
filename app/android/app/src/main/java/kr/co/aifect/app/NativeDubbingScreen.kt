@@ -17,6 +17,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextOverflow
+import coil.compose.AsyncImage
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -58,21 +62,36 @@ internal fun manualDubbingScript(title:String,text:String,options:JSONObject):JS
 }
 
 @Composable private fun NativeDubbingLibrary(api:NativeApi,mine:Boolean,navigate:(String)->Unit,close:()->Unit){
+ var choosing by remember{mutableStateOf("")}
+ val tabs=listOf("open" to "참여 가능한 극본","complete" to "완성된 더빙","popular" to "인기","latest" to "최신","mine" to "내 더빙")
  var tab by rememberSaveable{mutableStateOf(if(mine)"mine" else "open")};var genre by rememberSaveable{mutableStateOf("")};var projects by remember{mutableStateOf<List<JSONObject>>(emptyList())};var next by remember{mutableStateOf<Int?>(null)};var error by remember{mutableStateOf<String?>(null)};var busy by remember{mutableStateOf(false)};val scope=rememberCoroutineScope()
  suspend fun fetch(offset:Int){busy=true;error=null;try{val result=api.call("/api/dubbing/projects?tab=$tab&genre=${URLEncoder.encode(genre,"UTF-8")}&offset=$offset",fresh=true);projects=if(offset==0)result.optJSONArray("projects").objects()else (projects+result.optJSONArray("projects").objects()).distinctBy{it.getString("id")};next=if(result.isNull("nextOffset"))null else result.optInt("nextOffset")}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}finally{busy=false}}
  LaunchedEffect(tab,genre){projects=emptyList();next=null;fetch(0)}
  Column(Modifier.fillMaxSize().testTag("native-dubbing-library")){
   NativeAudioHeader("더빙 스튜디오",close){IconButton({navigate("dubbing/new")}){Icon(Icons.Outlined.Add,"새 대본 만들기")}}
-  LazyRow(contentPadding=PaddingValues(horizontal=16.dp),horizontalArrangement=Arrangement.spacedBy(6.dp)){items(listOf("open" to "참여 가능한 극본","complete" to "완성된 더빙","popular" to "인기","latest" to "최신","mine" to "내 더빙")){(id,label)->FilterChip(tab==id,{tab=id},label={Text(label)})}}
-  LazyRow(contentPadding=PaddingValues(horizontal=16.dp),horizontalArrangement=Arrangement.spacedBy(6.dp)){items(listOf("")+dubbingGenres){g->FilterChip(genre==g,{genre=g},label={Text(g.ifBlank{"전체 장르"})})}}
+  Row(Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=12.dp),horizontalArrangement=Arrangement.spacedBy(10.dp)){
+   SelectionField("작품 목록",tabs.first{it.first==tab}.second,"dubbing-library-tab",Modifier.weight(1f)){choosing="tab"}
+   SelectionField("장르",genre.ifBlank{"전체 장르"},"dubbing-library-genre",Modifier.weight(1f)){choosing="genre"}
+  }
   LazyColumn(Modifier.weight(1f),contentPadding=PaddingValues(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
    if(busy)item{LinearProgressIndicator(Modifier.fillMaxWidth())}
    if(error!=null)item{Text(error.orEmpty(),color=Pink);TextButton({scope.launch{fetch(if(projects.isEmpty())0 else next?:0)}}){Text("다시 불러오기")}}
    if(!busy&&error==null&&projects.isEmpty())item{Text("아직 이 목록에 공개된 작품이 없어요.",color=Muted)}
-   items(projects,key={it.getString("id")}){p->Surface(onClick={navigate("dubbing/${p.getString("id")}")},color=Panel,shape=RoundedCornerShape(16.dp)){Row(Modifier.padding(14.dp),horizontalArrangement=Arrangement.spacedBy(14.dp)){Icon(Icons.Outlined.TheaterComedy,null,Modifier.size(40.dp),tint=Aqua);Column(Modifier.weight(1f)){Text(p.optString("title"),fontWeight=FontWeight.Bold);Text("${p.optString("ownerName")} · ${timeLabel((p.optDouble("duration")*1000).toLong())}",fontSize=12.sp,color=Muted);Text(if(p.optString("state")=="complete")"완성된 더빙" else "${p.optInt("participants")}/${p.optInt("roleCount")}명 참여",fontSize=12.sp,color=Aqua)};Icon(Icons.Outlined.ChevronRight,null)}}}
+   items(projects,key={it.getString("id")}){p->Surface(onClick={navigate("dubbing/${p.getString("id")}")},color=Panel,shape=RoundedCornerShape(14.dp),border=BorderStroke(1.dp,Stroke)){
+    Row(Modifier.padding(12.dp),horizontalArrangement=Arrangement.spacedBy(12.dp),verticalAlignment=Alignment.CenterVertically){
+     DubbingCover(p,Modifier.size(60.dp))
+     Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(4.dp)){
+      Text(p.optString("title"),fontSize=15.sp,lineHeight=21.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis)
+      Text(p.optString("ownerName"),fontSize=12.sp,color=Muted,maxLines=1,overflow=TextOverflow.Ellipsis)
+      Text(if(p.optString("state")=="complete")"완성된 더빙" else "${p.optInt("participants")}/${p.optInt("roleCount")}명 참여",fontSize=11.sp,color=SoftText)
+     }
+     Icon(Icons.Outlined.ChevronRight,null,Modifier.size(18.dp),tint=Muted)
+    }
+   }}
    if(next!=null)item{OutlinedButton({scope.launch{fetch(next!!)}},enabled=!busy,modifier=Modifier.fillMaxWidth()){Text("더 보기")}}
   }
  }
+ if(choosing.isNotBlank())SelectionSheet(if(choosing=="tab")"작품 목록" else "장르",if(choosing=="tab")tabs else listOf("" to "전체 장르")+dubbingGenres.map{it to it},listOf(if(choosing=="tab")tab else genre),"dubbing-library-choice",{choosing=""}){if(choosing=="tab")tab=it else genre=it}
 }
 
 @Composable private fun NativeDubbingCreate(api:NativeApi,account:String,existing:JSONObject?,saved:(String)->Unit,back:()->Unit){
@@ -83,6 +102,7 @@ internal fun manualDubbingScript(title:String,text:String,options:JSONObject):JS
  var script by remember{mutableStateOf(existing?.getJSONObject("script")?:cached.optJSONObject("script"))}
  var generationId by remember{mutableStateOf(cached.optString("generationId"))};var projectId by remember{mutableStateOf(cached.optString("projectId").ifBlank{requestIdentity()})}
  var generation by remember{mutableStateOf(cached.optJSONObject("generation")?:if(generationId.isNotBlank()&&script==null)payload("id" to generationId,"state" to "running")else JSONObject())};var config by remember{mutableStateOf(JSONObject())};var busy by remember{mutableStateOf(false)};var error by remember{mutableStateOf<String?>(null)}
+ var choosing by remember{mutableStateOf("")}
  var manual by remember{mutableStateOf(false)};var title by remember{mutableStateOf(cached.optString("manualTitle"))};var text by remember{mutableStateOf(cached.optString("manualText"))}
  fun persist(){preferences.edit().putString(draftKey,payload("options" to options,"script" to script,"projectId" to projectId,"generationId" to generationId,"generation" to generation,"manualTitle" to title,"manualText" to text).toString()).apply()}
  fun setOption(name:String,value:Any){options=JSONObject(options.toString()).put(name,value);persist()}
@@ -99,23 +119,39 @@ internal fun manualDubbingScript(title:String,text:String,options:JSONObject):JS
  LaunchedEffect(generation.optString("id"),generation.optString("state")){if(generation.optString("state")=="running")while(isActive){delay(5000);try{val result=api.call("/api/dubbing/generations/${generation.getString("id")}",fresh=true);acceptGeneration(result);if(result.optString("state")!="running")break}catch(e:Exception){if(e is CancellationException)throw e;error=e.message;break}}}
  BackHandler{persist();back()}
  Column(Modifier.fillMaxSize().testTag("native-dubbing-create")){
-  NativeAudioHeader(if(script==null)"어떤 이야기를 만들까요?" else "대본 편집",{persist();back()})
+  NativeAudioHeader(if(script==null)"더빙 만들기" else "대본 편집",{persist();back()})
   LazyColumn(Modifier.weight(1f).testTag("native-dubbing-form"),contentPadding=PaddingValues(18.dp),verticalArrangement=Arrangement.spacedBy(16.dp)){
    if(script==null){
-    item{Text("이야기의 장르 · 최대 2개",fontWeight=FontWeight.Bold);FlowRow(horizontalArrangement=Arrangement.spacedBy(5.dp)){dubbingGenres.forEach{g->val genres=options.getJSONArray("genres");val selected=(0 until genres.length()).map{genres.getString(it)};FilterChip(g in selected,{setOption("genres",JSONArray(if(g in selected&&selected.size>1)selected-g else if(g !in selected&&selected.size<2)selected+g else selected))},label={Text(g)})}}}
-    item{Text("참여 인원");FlowRow{(1..6).forEach{n->FilterChip(options.optInt("roleCount")==n,{setOption("roleCount",n)},label={Text("${n}명")})}};Text("대본 시간");FlowRow{(1..10).forEach{n->FilterChip(options.optDouble("minutes")==n*.5,{setOption("minutes",n*.5)},label={Text(timeLabel(n*30000L))})}}}
-    item{Text("분위기");FlowRow{listOf("유쾌하게","설레게","진지하게","긴장감 있게","슬프게","랜덤").forEach{v->FilterChip(options.optString("mood")==v,{setOption("mood",v)},label={Text(v)})}};Text("결말");FlowRow{listOf("해피엔딩","새드엔딩","반전","열린 결말","랜덤").forEach{v->FilterChip(options.optString("ending")==v,{setOption("ending",v)},label={Text(v)})}}}
-    item{Text("이야기의 세부사항",fontWeight=FontWeight.Bold);Text("‘랜덤’ 또는 ‘무작위’라고 적으면 AI가 이야기를 만들어요.",fontSize=12.sp,color=Muted);OutlinedTextField(options.optString("idea"),{if(it.length<=1500)setOption("idea",it)},modifier=Modifier.fillMaxWidth(),minLines=4,placeholder={Text("어떤 이야기를 만들까요?")});TextButton({setOption("idea","(랜덤)")}){Text("이야기 랜덤 생성")}}
-    item{val q=config.optJSONObject("quota")?:JSONObject();Text("일반 하루 1회 · 프리미엄 하루 3회 무료",color=Aqua);Text("오늘 남은 작성 ${q.optInt("remaining")}회 · 한국 시간 자정 초기화",fontSize=12.sp,color=Muted);Text("생성 예상 30초~2분 · 요청이 많으면 더 걸릴 수 있어요.",fontSize=12.sp,color=Muted)}
-    item{Button({task{generate()}},enabled=!busy&&generation.optString("state")!="running"&&config.optBoolean("aiAvailable"),modifier=Modifier.fillMaxWidth()){Text("AI 대본 작성하기")};OutlinedButton({manual=!manual},enabled=!busy,modifier=Modifier.fillMaxWidth()){Text("직접 대사 쓰기")};TextButton({task{acceptGeneration(api.call("/api/dubbing/generations/"+generationId.ifBlank{"latest"},fresh=true));if(generation.isNull("id"))error="이전 생성 요청이 없어요."}}){Text("이전 AI 생성 결과 확인")}}
-    if(manual)item{OutlinedTextField(title,{title=it.take(100);persist()},label={Text("작품 제목")},modifier=Modifier.fillMaxWidth());OutlinedTextField(text,{text=it;persist()},label={Text("A: 대사\nB: 대사\nA: 대사")},minLines=8,modifier=Modifier.fillMaxWidth().testTag("dubbing-manual-lines"));Button({try{require(title.isNotBlank()){ "작품 제목을 적어주세요." };script=manualDubbingScript(title,text,options);generationId="";persist()}catch(e:Exception){error=e.message}},enabled=title.isNotBlank()&&text.isNotBlank()){Text("대본으로 정리하기")}}
+    item{SelectionField("장르 · 최대 2개",options.getJSONArray("genres").let{a->(0 until a.length()).joinToString(" · "){a.getString(it)}},"dubbing-choice-genres",Modifier.fillMaxWidth()){choosing="genres"}}
+    item{Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){
+     SelectionField("참여 인원","${options.optInt("roleCount")}명","dubbing-choice-roleCount",Modifier.weight(1f)){choosing="roleCount"}
+     SelectionField("대본 길이",timeLabel((options.optDouble("minutes")*60000).toLong()),"dubbing-choice-minutes",Modifier.weight(1f)){choosing="minutes"}
+    }}
+    item{Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){
+     SelectionField("분위기",options.optString("mood"),"dubbing-choice-mood",Modifier.weight(1f)){choosing="mood"}
+     SelectionField("결말",options.optString("ending"),"dubbing-choice-ending",Modifier.weight(1f)){choosing="ending"}
+    }}
+    item{Text("이야기의 세부사항",fontWeight=FontWeight.Bold);Text("‘랜덤’ 또는 ‘무작위’라고 적으면 AI가 이야기를 만들어요.",fontSize=12.sp,color=Muted);OutlinedTextField(options.optString("idea"),{if(it.length<=1500)setOption("idea",it)},modifier=Modifier.fillMaxWidth(),minLines=3,shape=RoundedCornerShape(12.dp),placeholder={Text("예: 막차에서 만난 두 사람의 비밀")});TextButton({setOption("idea","(랜덤)")}){Text("이야기 랜덤 생성")}}
+    item{val q=config.optJSONObject("quota")?:JSONObject();Text("일반 하루 1회 · 프리미엄 하루 3회 무료",fontSize=13.sp,color=SoftText);Text("오늘 남은 작성 ${q.optInt("remaining")}회 · 한국 시간 자정 초기화",fontSize=12.sp,color=Muted);Text("생성 예상 30초~2분 · 요청이 많으면 더 걸릴 수 있어요.",fontSize=12.sp,color=Muted)}
+    item{Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
+     error?.let{Text(it,color=Pink,fontSize=13.sp)}
+     if(generation.optString("message").isNotBlank())Text(generation.optString("message"),color=SoftText,fontSize=13.sp)
+     BrandButton({task{generate()}},enabled=!busy&&generation.optString("state")!="running"&&config.optBoolean("aiAvailable"),modifier=Modifier.fillMaxWidth()){Text("AI 대본 작성하기")};OutlinedButton({manual=!manual},enabled=!busy,modifier=Modifier.fillMaxWidth().heightIn(min=48.dp),shape=RoundedCornerShape(12.dp),border=BorderStroke(1.dp,Stroke)){Text("직접 대사 쓰기",fontSize=14.sp,color=SoftText)};TextButton({task{acceptGeneration(api.call("/api/dubbing/generations/"+generationId.ifBlank{"latest"},fresh=true));if(generation.isNull("id"))error="이전 생성 요청이 없어요."}}){Text("이전 AI 생성 결과 확인")}}}
+    if(manual)item{OutlinedTextField(title,{title=it.take(100);persist()},label={Text("작품 제목")},modifier=Modifier.fillMaxWidth());OutlinedTextField(text,{text=it;persist()},label={Text("A: 대사\nB: 대사\nA: 대사")},minLines=8,modifier=Modifier.fillMaxWidth().testTag("dubbing-manual-lines"));BrandButton({try{require(title.isNotBlank()){ "작품 제목을 적어주세요." };script=manualDubbingScript(title,text,options);generationId="";persist()}catch(e:Exception){error=e.message}},enabled=title.isNotBlank()&&text.isNotBlank()){Text("대본으로 정리하기")}}
    }else{
     item{DubbingScriptEditor(script!!){script=it;persist()}}
-    item{Text("비공개 저장 · 골드 차감 없음",color=Muted,fontSize=12.sp);Button({task{val body=payload("id" to projectId,"options" to options,"script" to script);if(generationId.isNotBlank())body.put("generationId",generationId);if(existing!=null)body.put("revision",existing.getInt("revision"));val result=api.call("/api/dubbing/projects"+(existing?.let{"/${it.getString("id")}"}?:""),if(existing==null)"POST" else "PUT",body);preferences.edit().remove(draftKey).apply();saved(result.getJSONObject("project").getString("id"))}},enabled=!busy,modifier=Modifier.fillMaxWidth()){Text("대본 저장")}}
+    item{Text("비공개 저장 · 골드 차감 없음",color=Muted,fontSize=12.sp);BrandButton({task{val body=payload("id" to projectId,"options" to options,"script" to script);if(generationId.isNotBlank())body.put("generationId",generationId);if(existing!=null)body.put("revision",existing.getInt("revision"));val result=api.call("/api/dubbing/projects"+(existing?.let{"/${it.getString("id")}"}?:""),if(existing==null)"POST" else "PUT",body);preferences.edit().remove(draftKey).apply();saved(result.getJSONObject("project").getString("id"))}},enabled=!busy,modifier=Modifier.fillMaxWidth()){Text("대본 저장")}}
    }
    if(busy)item{LinearProgressIndicator(Modifier.fillMaxWidth())}
-   if(generation.optString("message").isNotBlank())item{Text(generation.optString("message"),color=Aqua)}
-   if(error!=null)item{Text(error.orEmpty(),color=Pink)}
+   if(script!=null&&generation.optString("message").isNotBlank())item{Text(generation.optString("message"),color=SoftText)}
+   if(script!=null&&error!=null)item{Text(error.orEmpty(),color=Pink)}
+  }
+ }
+ if(choosing.isNotBlank()){
+  val selected=when(choosing){"genres"->options.getJSONArray("genres").let{a->(0 until a.length()).map{a.getString(it)}};"roleCount"->listOf(options.optInt("roleCount").toString());"minutes"->listOf(options.optDouble("minutes").toString());else->listOf(options.optString(choosing))}
+  val choices=when(choosing){"genres"->dubbingGenres.map{it to it};"roleCount"->(1..6).map{it.toString() to "${it}명"};"minutes"->(1..10).map{(it*.5).toString() to timeLabel(it*30000L)};"mood"->listOf("유쾌하게","설레게","진지하게","긴장감 있게","슬프게","랜덤").map{it to it};else->listOf("해피엔딩","새드엔딩","반전","열린 결말","랜덤").map{it to it}}
+  SelectionSheet(when(choosing){"genres"->"장르 선택 · 최대 2개";"roleCount"->"참여 인원";"minutes"->"대본 길이";"mood"->"분위기";else->"결말"},choices,selected,"dubbing-option",{choosing=""},multiple=choosing=="genres"){value->
+   when(choosing){"genres"->setOption("genres",JSONArray(if(value in selected&&selected.size>1)selected-value else if(value !in selected&&selected.size<2)selected+value else selected));"roleCount"->setOption(choosing,value.toInt());"minutes"->setOption(choosing,value.toDouble());else->setOption(choosing,value)}
   }
  }
 }
@@ -170,30 +206,76 @@ internal fun manualDubbingScript(title:String,text:String,options:JSONObject):JS
  if(editing&&project!=null){NativeDubbingCreate(api,account,project,{editing=false;task{reload()}},{editing=false});return}
  if(recording&&project!=null&&currentRole!=null){NativeDubbingRecorder(api,account,project!!,currentRole,{recording=false;task{reload()}});return}
  Column(Modifier.fillMaxSize().testTag("native-dubbing-project")){
-  NativeAudioHeader("함께 만드는 더빙",back){IconButton({task{reload()}}){Icon(Icons.Outlined.Refresh,"새로고침")}}
+  NativeAudioHeader("더빙 스튜디오",back){IconButton({task{reload()}}){Icon(Icons.Outlined.Refresh,"새로고침")}}
   LazyColumn(Modifier.weight(1f),contentPadding=PaddingValues(18.dp),verticalArrangement=Arrangement.spacedBy(16.dp)){
    if(error!=null)item{Text(error.orEmpty(),color=Pink)}
    if(busy||project==null&&error==null)item{LinearProgressIndicator(Modifier.fillMaxWidth())}
    project?.let{p->
     val script=p.getJSONObject("script");val roles=p.getJSONArray("roles").objects()
-    item{Text(p.optString("title"),fontSize=27.sp,fontWeight=FontWeight.Bold);Text("${p.optString("ownerName")} · ${timeLabel((p.optDouble("duration")*1000).toLong())}",color=Muted)}
-    item{Surface(color=Panel,shape=RoundedCornerShape(16.dp)){Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
-     Text("장면의 소리",fontWeight=FontWeight.Bold);Text(when(sound.optString("state")){"ready"->"음향 준비 완료";"not_started"->"음향을 더하거나 기본 배경으로 녹음할 수 있어요.";"failed","unknown"->sound.optString("error","제작 결과를 확인해주세요.");else->"음향 제작 중 · ${sound.optInt("progress")}%"},color=Aqua)
-     if(sound.optString("state")=="ready")Row{TextButton({audio.listen(sound.optString("audioUrl","/api/dubbing/projects/$id/background"))}){Text("음향 듣기")};TextButton({audio.stop()}){Text("정지")}}
-     if(p.optBoolean("isOwner")&&sound.optString("state")=="not_started")FlowRow(horizontalArrangement=Arrangement.spacedBy(8.dp)){OutlinedButton({confirm="basic"},enabled=!busy){Text("기본 배경 준비")};Button({confirm="sound"},enabled=!busy&&sound.optBoolean("aiAvailable")){Text("효과음 생성 · ${sound.optInt("chargeGold",sound.optInt("priceGold",50))} G")}}
-     if(sound.optInt("refundedGold")>0)Text("${sound.optInt("refundedGold")} G 환급",color=Muted)
-    }}}
-    item{Text("어떤 배역을 맡을까요?",fontSize=20.sp,fontWeight=FontWeight.Bold)}
-    items(roles,key={it.getString("id")}){r->Surface(color=Panel,shape=RoundedCornerShape(16.dp)){Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
-     Text(r.optString("name")+when(r.optString("gender")){"male"->" (남)";"female"->" (여)";else->""},fontWeight=FontWeight.Bold);Text(r.optString("personality"),fontSize=13.sp,color=Muted);Text(if(r.optBoolean("mine"))"내가 맡은 배역" else r.optString("participant").takeIf{it!="null"&&it.isNotBlank()}?:"참여 가능",color=Aqua,fontSize=12.sp)
-     if(r.optBoolean("mine")){Button({audio.stop();recording=true},enabled=!busy&&p.optBoolean("recordingAvailable")){Text("녹음하기")};if(p.optJSONObject("recording")?.optJSONArray("roles").objects().none{it.getString("roleId")==r.getString("id")})TextButton({task{api.call("/api/dubbing/projects/$id/claims/${r.getString("id")}","DELETE",payload("revision" to p.getInt("revision")));reload()}}){Text("배역 취소")}}
-     else if(!r.optBoolean("claimed")&&currentRole==null&&p.optString("visibility")=="public"&&p.optString("state") in listOf("recruiting","recording"))Button({task{api.call("/api/dubbing/projects/$id/claims/${r.getString("id")}","POST",payload("revision" to p.getInt("revision")));reload();recording=true}},enabled=!busy){Text("배역 선택하고 녹음")}
-     if(p.optString("visibility")=="public"&&p.optString("rootId")==id&&sound.optString("state")=="ready")OutlinedButton({task{val result=api.call("/api/dubbing/projects/$id/performances","POST",payload("id" to performanceRequest,"roleId" to r.getString("id")));navigate("dubbing/${result.getString("id")}")}},enabled=!busy){Text("이 배역으로 새 더빙 시작")}
-    }}}
-    p.optJSONObject("recording")?.optJSONObject("final")?.let{final->item{if(final.optString("state")=="ready"){Button({audio.listen(final.getString("audioUrl"))},modifier=Modifier.fillMaxWidth()){Text("완성된 더빙 듣기")};TextButton({audio.stop()}){Text("재생 정지")}}else Text("더빙 합성 상태 · ${final.optString("state")}",color=Aqua)}}
-    if(p.optBoolean("isOwner"))item{FlowRow(horizontalArrangement=Arrangement.spacedBy(8.dp)){if(p.optBoolean("canEdit"))OutlinedButton({editing=true},enabled=!busy){Text("대본 수정")};if(p.optString("visibility")=="private")Button({confirm="publish"},enabled=!busy){Text("배역 모집 시작")}else OutlinedButton({confirm="unpublish"},enabled=!busy){Text("모집 중지")};TextButton({confirm="delete"},enabled=!busy){Text("작품 삭제",color=Pink)}}}
-    item{Text("대본",fontSize=22.sp,fontWeight=FontWeight.Bold)}
-    script.optJSONArray("scenes").objects().forEach{scene->item{Text(scene.optString("title"),fontWeight=FontWeight.Bold,color=Aqua);Text(scene.optString("description"),color=Muted,fontSize=13.sp)};items(script.optJSONArray("lines").objects().filter{it.getString("sceneId")==scene.getString("id")},key={it.getString("id")}){l->Column(Modifier.fillMaxWidth().background(if(l.getString("roleId")==currentRole?.optString("id"))Raised else Panel,RoundedCornerShape(12.dp)).padding(14.dp)){Text("${l.optInt("order")} · ${l.optString("emotion")} · ${l.optString("direction")}",fontSize=11.sp,color=Muted);Text("${roles.find{it.getString("id")==l.getString("roleId")}?.optString("name")}: ${l.optString("text")}",Modifier.padding(top=6.dp),fontSize=17.sp)}}}
+    item{Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(14.dp)){
+     DubbingCover(p,Modifier.size(76.dp))
+     Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(5.dp)){
+      Text(p.optString("title"),fontSize=21.sp,lineHeight=28.sp,fontWeight=FontWeight.Bold,maxLines=2,overflow=TextOverflow.Ellipsis)
+      Text("${p.optString("ownerName")} · ${timeLabel((p.optDouble("duration")*1000).toLong())}",fontSize=12.sp,color=Muted)
+     }
+    }}
+    item{Surface(color=Panel,shape=RoundedCornerShape(14.dp),border=BorderStroke(1.dp,Stroke),modifier=Modifier.fillMaxWidth()){
+     Column(Modifier.padding(14.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
+      Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
+       Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(4.dp)){
+        Text("배경 음향",fontSize=15.sp,fontWeight=FontWeight.SemiBold)
+        Text(when(sound.optString("state")){"ready"->"녹음 준비 완료";"not_started"->"기본 배경 또는 효과음을 선택해요";"failed","unknown"->sound.optString("error","제작 결과를 확인해주세요.");else->"음향 제작 중 · ${sound.optInt("progress")}%"},fontSize=12.sp,lineHeight=18.sp,color=Muted)
+       }
+       if(sound.optString("state")=="ready"){
+        BrandPlayButton("배경 음향 듣기",{audio.listen(sound.optString("audioUrl","/api/dubbing/projects/$id/background"))})
+        IconButton({audio.stop()}){Icon(Icons.Outlined.Stop,"배경 음향 정지",Modifier.size(20.dp),tint=Muted)}
+       }
+      }
+      if(p.optBoolean("isOwner")&&sound.optString("state")=="not_started")Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
+       OutlinedButton({confirm="basic"},enabled=!busy,modifier=Modifier.weight(1f),shape=RoundedCornerShape(12.dp),border=BorderStroke(1.dp,Stroke)){Text("기본 배경",fontSize=12.sp,color=SoftText)}
+       BrandButton({confirm="sound"},enabled=!busy&&sound.optBoolean("aiAvailable"),modifier=Modifier.weight(1f),contentPadding=PaddingValues(horizontal=8.dp)){Text("효과음 · ${sound.optInt("chargeGold",sound.optInt("priceGold",50))} G",fontSize=12.sp)}
+      }
+      if(sound.optInt("refundedGold")>0)Text("${sound.optInt("refundedGold")} G 환급",fontSize=12.sp,color=Muted)
+     }
+    }}
+    item{Text("배역 선택",fontSize=18.sp,fontWeight=FontWeight.Bold)}
+    items(roles,key={it.getString("id")}){r->
+     var more by remember{mutableStateOf(false)}
+     val cancel=r.optBoolean("mine")&&p.optJSONObject("recording")?.optJSONArray("roles").objects().none{it.getString("roleId")==r.getString("id")}
+     val fresh=p.optString("visibility")=="public"&&p.optString("rootId")==id&&sound.optString("state")=="ready"
+     Surface(color=Panel,shape=RoundedCornerShape(14.dp),border=BorderStroke(1.dp,if(r.optBoolean("mine"))Violet.copy(alpha=.5f) else Stroke),modifier=Modifier.fillMaxWidth()){
+      Column(Modifier.padding(14.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
+       Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)){
+        DefaultProfileArtwork(r.optString("name"),Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)))
+        Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(3.dp)){
+         Text(r.optString("name"),fontSize=16.sp,fontWeight=FontWeight.SemiBold)
+         Text(if(r.optBoolean("mine"))"내 배역" else r.optString("participant").takeIf{it!="null"&&it.isNotBlank()}?:"참여 가능",fontSize=11.sp,color=if(r.optBoolean("mine"))Pink else Muted)
+        }
+        if(cancel||fresh)Box{
+         IconButton({more=true}){Icon(Icons.Outlined.MoreVert,"${r.optString("name")} 배역 메뉴",Modifier.size(20.dp),tint=Muted)}
+         DropdownMenu(more,{more=false},containerColor=Panel){
+          if(cancel)DropdownMenuItem(text={Text("배역 취소")},enabled=!busy,onClick={more=false;task{api.call("/api/dubbing/projects/$id/claims/${r.getString("id")}","DELETE",payload("revision" to p.getInt("revision")));reload()}})
+          if(fresh)DropdownMenuItem(text={Text("이 배역으로 새 더빙 시작")},enabled=!busy,onClick={more=false;task{val result=api.call("/api/dubbing/projects/$id/performances","POST",payload("id" to performanceRequest,"roleId" to r.getString("id")));navigate("dubbing/${result.getString("id")}")}})
+         }
+        }
+       }
+       if(r.optString("personality").isNotBlank())Text(r.optString("personality"),fontSize=12.sp,lineHeight=18.sp,color=Muted,maxLines=2,overflow=TextOverflow.Ellipsis)
+       if(r.optBoolean("mine"))BrandButton({audio.stop();recording=true},enabled=!busy&&p.optBoolean("recordingAvailable"),modifier=Modifier.fillMaxWidth().heightIn(min=44.dp)){Icon(Icons.Outlined.Mic,null,Modifier.size(18.dp));Text("녹음하기",Modifier.padding(start=6.dp),fontSize=14.sp)}
+       else if(!r.optBoolean("claimed")&&currentRole==null&&p.optString("visibility")=="public"&&p.optString("state") in listOf("recruiting","recording"))BrandButton({task{api.call("/api/dubbing/projects/$id/claims/${r.getString("id")}","POST",payload("revision" to p.getInt("revision")));reload();recording=true}},enabled=!busy,modifier=Modifier.fillMaxWidth().heightIn(min=44.dp)){Text("배역 선택하고 녹음",fontSize=14.sp)}
+      }
+     }
+    }
+    p.optJSONObject("recording")?.optJSONObject("final")?.let{final->item{if(final.optString("state")=="ready"){BrandButton({audio.listen(final.getString("audioUrl"))},modifier=Modifier.fillMaxWidth()){Text("완성된 더빙 듣기")};TextButton({audio.stop()}){Text("재생 정지")}}else Text("더빙 합성 상태 · ${final.optString("state")}",color=SoftText)}}
+    if(p.optBoolean("isOwner"))item{var management by remember{mutableStateOf(false)};Box(Modifier.fillMaxWidth()){
+     OutlinedButton({management=true},enabled=!busy,modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(12.dp),border=BorderStroke(1.dp,Stroke)){Text("작품 관리",color=SoftText,fontSize=13.sp);Icon(Icons.Outlined.ExpandMore,null,Modifier.size(18.dp))}
+     DropdownMenu(management,{management=false},containerColor=Panel){
+      if(p.optBoolean("canEdit"))DropdownMenuItem(text={Text("대본 수정")},onClick={management=false;editing=true})
+      DropdownMenuItem(text={Text(if(p.optString("visibility")=="private")"배역 모집 시작" else "모집 중지")},onClick={management=false;confirm=if(p.optString("visibility")=="private")"publish" else "unpublish"})
+      DropdownMenuItem(text={Text("작품 삭제",color=Pink)},onClick={management=false;confirm="delete"})
+     }
+    }}
+    item{Text("대본",fontSize=18.sp,fontWeight=FontWeight.Bold)}
+    script.optJSONArray("scenes").objects().forEach{scene->item{Text(scene.optString("title"),fontWeight=FontWeight.Bold,color=SoftText);Text(scene.optString("description"),color=Muted,fontSize=13.sp)};items(script.optJSONArray("lines").objects().filter{it.getString("sceneId")==scene.getString("id")},key={it.getString("id")}){l->Column(Modifier.fillMaxWidth().background(if(l.getString("roleId")==currentRole?.optString("id"))Raised else Panel,RoundedCornerShape(12.dp)).padding(14.dp)){Text("${l.optInt("order")} · ${l.optString("emotion")} · ${l.optString("direction")}",fontSize=11.sp,color=Muted);Text("${roles.find{it.getString("id")==l.getString("roleId")}?.optString("name")}: ${l.optString("text")}",Modifier.padding(top=6.dp),fontSize=17.sp)}}}
     if(p.optJSONArray("versions").objects().size>1)item{Text("다른 더빙",fontWeight=FontWeight.Bold);p.getJSONArray("versions").objects().filter{it.getString("id")!=id}.forEach{v->TextButton({navigate("dubbing/${v.getString("id")}")}){Text("${v.optString("ownerName")} · ${v.optInt("participants")}/${v.optInt("roleCount")}명 · ${v.optString("state")}")}}}
     if(p.optString("visibility")=="public")item{NativeDubbingComments(api,p)}
    }
@@ -286,6 +368,6 @@ internal fun manualDubbingScript(title:String,text:String,options:JSONObject):JS
  LaunchedEffect(Unit){try{load()}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}}
  Column(verticalArrangement=Arrangement.spacedBy(10.dp)){TextButton({task{community=api.call("$path/like",if((community.optBoolean("liked")||community.optInt("liked")==1))"DELETE" else "PUT")}},enabled=!busy){Icon(if((community.optBoolean("liked")||community.optInt("liked")==1))Icons.Outlined.Favorite else Icons.Outlined.FavoriteBorder,null);Text("좋아요 ${community.optInt("likes")}")};Text("함께 나누는 이야기",fontWeight=FontWeight.Bold)
   comments.forEach{c->Column{Row(verticalAlignment=Alignment.CenterVertically){Text(c.optString("name"),fontWeight=FontWeight.Bold);OfficialAiBadge(c)};Text(c.optString("body"),fontSize=14.sp);if(c.optBoolean("canDelete"))TextButton({task{api.call("$path/comments/${c.getString("id")}","DELETE");load()}}){Text("삭제")}}}
-  OutlinedTextField(text,{text=it.take(2000);request=requestIdentity()},label={Text("응원의 말을 남겨주세요")},modifier=Modifier.fillMaxWidth());Button({task{api.call("$path/comments","POST",payload("id" to request,"body" to text));text="";request=requestIdentity();load()}},enabled=!busy&&text.isNotBlank()){Text("댓글 등록")};error?.let{Text(it,color=Pink)}
+  OutlinedTextField(text,{text=it.take(2000);request=requestIdentity()},label={Text("응원의 말을 남겨주세요")},modifier=Modifier.fillMaxWidth());BrandButton({task{api.call("$path/comments","POST",payload("id" to request,"body" to text));text="";request=requestIdentity();load()}},enabled=!busy&&text.isNotBlank()){Text("댓글 등록")};error?.let{Text(it,color=Pink)}
  }
 }

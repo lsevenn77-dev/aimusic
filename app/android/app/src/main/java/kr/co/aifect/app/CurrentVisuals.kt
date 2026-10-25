@@ -55,7 +55,7 @@ import org.json.JSONObject
   Text(song.credit,color=Muted,fontSize=13.sp,lineHeight=19.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
   Text("${song.genreLabel} · ${timeLabel((song.duration*1000).toLong())}",color=Muted,fontSize=12.sp,lineHeight=18.sp,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=3.dp))
   if(sing!=null)OutlinedButton(onClick={m.singTarget(song,sing)},modifier=Modifier.fillMaxWidth().padding(top=10.dp).heightIn(min=44.dp).testTag("current-sing-${song.id}"),shape=RoundedCornerShape(12.dp),border=BorderStroke(1.dp,SoftText.copy(alpha=.3f)),colors=ButtonDefaults.outlinedButtonColors(contentColor=SoftText),contentPadding=PaddingValues(horizontal=8.dp,vertical=8.dp)){
-   Icon(Icons.Rounded.Mic,null,Modifier.size(16.dp));Text(if(song.cover)"듀엣 참여" else "노래하기",fontSize=13.sp,lineHeight=18.sp,modifier=Modifier.padding(start=5.dp))
+   Icon(Icons.Rounded.Mic,null,Modifier.size(16.dp));Text(if(song.openDuetFor(m.user?.optString("id")))"듀엣 참여" else "노래하기",fontSize=13.sp,lineHeight=18.sp,modifier=Modifier.padding(start=5.dp))
   }
  }
 }
@@ -70,7 +70,7 @@ import org.json.JSONObject
 }
 
 internal fun currentDubbingImage(p:JSONObject):String {
- val genre=p.optJSONArray("genres")?.optString(0).orEmpty()
+ val genre=(p.optJSONArray("genres")?:p.optJSONObject("options")?.optJSONArray("genres"))?.optString(0).orEmpty()
  val slug=mapOf("SF" to "sf","이세계물" to "isekai","판타지" to "fantasy","사극" to "historical","로맨스" to "romance","액션" to "action","코미디" to "comedy","첩보" to "spy","공포" to "horror","스릴러" to "thriller","미스터리" to "mystery","일상" to "daily","감동" to "moving")[genre]?:"daily"
  return Endpoint.url("/assets/dubbing-genres/$slug.webp")
 }

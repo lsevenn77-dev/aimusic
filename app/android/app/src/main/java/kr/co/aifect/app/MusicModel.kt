@@ -166,7 +166,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   loadMe();loadOwnProfile(fresh=true);done();notice="프로필을 저장했어요."
  }
  fun singTarget(song:Song,sing:(Song)->Unit)=action{
-  if(song.cover&&song.raw.optInt("duet_open")==1){sing(song);return@action}
+  if(song.openDuetFor(user?.optString("id"))){sing(song);return@action}
   val id=if(song.cover)song.raw.optString("original_id") else song.id
   val original=Song(api.call("/api/tracks/$id",fresh=true).getJSONObject("track"))
   if(original.raw.optBoolean("karaoke_ready"))sing(original) else notice="이 곡은 아직 부르기를 준비하고 있어요."

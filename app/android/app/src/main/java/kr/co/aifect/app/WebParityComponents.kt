@@ -88,7 +88,7 @@ import org.json.JSONObject
   error?.let{Text(it,color=Pink);TextButton(onClick={revision++}){Text("다시 불러오기")}}
   tracks.take(5).forEachIndexed{index,cover->
    Row(verticalAlignment=Alignment.CenterVertically){if(tab=="랭킹")Text("${index+1}",color=Pink,modifier=Modifier.width(26.dp));Box(Modifier.weight(1f)){SongRow(cover,m,tracks)}}
-   if(cover.raw.optInt("duet_open")==1&&cover.raw.optString("user_id")!=m.user?.optString("id"))TextButton(onClick={sing(cover)}){Text("이 듀엣에 참여하기")}
+   if(cover.openDuetFor(m.user?.optString("id")))TextButton(onClick={sing(cover)}){Text("이 듀엣에 참여하기")}
   }
   if(!busy&&error==null&&tracks.isEmpty())Text("아직 공개된 ${if(tab=="랭킹")"" else "$tab "}커버가 없어요.",fontSize=13.sp,color=Muted,modifier=Modifier.padding(vertical=16.dp))
   if(tracks.size>5)TextButton(onClick={m.detail=null;m.browseCollection("${song.title} · $tab",path,if(tab=="랭킹")"누적 조회수 순" else "",resultKey="covers")}){Text("커버 더 보기")}

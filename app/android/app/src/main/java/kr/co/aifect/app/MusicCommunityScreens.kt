@@ -87,7 +87,7 @@ import org.json.JSONObject
   Row(verticalAlignment=Alignment.CenterVertically){
    // The outer padding reserves room for the frame's 1.26x decoration.
    Box(Modifier.padding(8.dp).size(60.dp).testTag("$context-photo-frame"),contentAlignment=Alignment.Center){
-    if(p.optString("image_version").isBlank())Text(name.take(1).ifBlank{"♪"},fontSize=26.sp,color=Aqua)
+    if(p.optString("image_version").let{it.isBlank()||it=="null"||it=="0"})DefaultProfileArtwork(name,Modifier.fillMaxSize().clip(androidx.compose.foundation.shape.CircleShape))
     else AsyncImage(Endpoint.url("/media/${p.optString("profile_kind","producer")}/${p.optString("id")}?v=${p.optString("image_version")}"),"$name 프로필 사진",Modifier.fillMaxSize().clip(androidx.compose.foundation.shape.CircleShape).testTag("$context-cover-image"),contentScale=ContentScale.Crop)
     if(person)PlayerAvatarDecoration(p,60)
    }

@@ -11,6 +11,11 @@ public class CoverPublicationTest {
   for(String bad:new String[]{"","solo","duet_invitation"})try{new CoverPublication(bad,"partner");fail();}catch(IllegalArgumentException expected){}
   try{new CoverPublication("duet_complete","");fail();}catch(IllegalArgumentException expected){}
  }
+ @Test public void soloRecordingCannotBecomeADuetInvitation(){
+  CoverPublication solo=new CoverPublication("solo","");solo.requireRecordingMode("solo");solo.requireRecordingMode("duet");
+  CoverPublication invitation=new CoverPublication("duet_invitation","");invitation.requireRecordingMode("duet");
+  try{invitation.requireRecordingMode("solo");fail();}catch(IllegalArgumentException expected){}
+ }
  @Test public void retriesRejectAnyRemoteTypeParentOrOriginalMismatch(){
   CoverPublication solo=new CoverPublication("solo","");solo.verify("solo",null,"song","song");
   for(String[] bad:new String[][]{{"duet","","song"},{"solo","partner","song"},{"solo","","different"}})try{solo.verify(bad[0],bad[1],bad[2],"song");fail();}catch(IllegalStateException expected){}

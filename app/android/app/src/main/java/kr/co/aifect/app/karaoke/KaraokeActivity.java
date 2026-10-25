@@ -543,16 +543,19 @@ public class KaraokeActivity extends AppCompatActivity {
     private void upload(){
         if(draftId!=null){String kind=publicationKind.isEmpty()?CoverPublication.legacy(coverMode,duetParent):publicationKind;CoverPublication previous=new CoverPublication(kind,duetParent);new AlertDialog.Builder(this).setTitle(previous.label()+" 업로드 이어하기").setMessage("이전 요청의 공개 종류를 유지해서 이어 올려요. 서버에 저장된 종류도 다시 확인해요.").setNegativeButton("취소",null).setPositiveButton("이어 올리기",(d,w)->uploadConfirmed(kind)).show();return;}
         if(!duetParent.isEmpty()){uploadConfirmed("duet_complete");return;}
+        if(!coverMode.equals("duet")){new AlertDialog.Builder(this).setTitle("솔로 커버로 공개할까요?").setMessage("내가 부른 완성 커버로 공개해요.").setNegativeButton("취소",null).setPositiveButton("공개하기",(d,w)->uploadConfirmed("solo")).show();return;}
         new AlertDialog.Builder(this).setTitle("어떤 작품으로 공개할까요?").setItems(new String[]{"솔로 커버 · 내 녹음으로 완성","듀엣 참여 모집 · 다른 사람이 이어 부르기"},(dialog,which)->{
             if(which==0){uploadConfirmed("solo");return;}
             if(coverMode.equals("duet")&&!validateDuetParts())return;
-            new AlertDialog.Builder(this).setTitle("듀엣 참여 모집으로 공개").setMessage("다른 사람이 이 녹음의 빈 파트에 목소리를 더할 수 있어요. 완성 작품 둘러보기 대신 듀엣 참여 목록에 표시됩니다.").setNegativeButton("취소",null).setPositiveButton("동의하고 모집",(d,w)->uploadConfirmed("duet_invitation")).show();
+            CheckBox partConsent=new CheckBox(this);partConsent.setText("내 파트만 녹음했고, 상대가 부를 파트를 비워 두었어요.");partConsent.setPadding(dp(20),dp(8),dp(20),dp(8));
+            AlertDialog confirm=new AlertDialog.Builder(this).setTitle("빈 파트에 함께 부를 사람 모집").setMessage("한 사람이 먼저 자신의 파트를 부르고, 다른 사람이 남은 파트를 부르면 듀엣이 완성돼요.").setView(partConsent).setNegativeButton("취소",null).setPositiveButton("듀엣 모집",(d,w)->uploadConfirmed("duet_invitation")).create();
+            confirm.setOnShowListener(d->{confirm.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(false);partConsent.setOnCheckedChangeListener((b,checked)->confirm.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(checked));});confirm.show();
         }).setNegativeButton("취소",null).show();
     }
     private void uploadConfirmed(String kind){
         if(state!=State.REVIEW&&state!=State.PAUSED)return;
         if(!ownVoice.isChecked()||!rights.isChecked()){message("직접 부른 목소리와 공개 권한에 동의해주세요.");return;}
-        final CoverPublication publication=new CoverPublication(kind,duetParent);publicationKind=kind;
+        final CoverPublication publication=new CoverPublication(kind,duetParent);try{publication.requireRecordingMode(coverMode);}catch(IllegalArgumentException e){message(e.getMessage());return;}publicationKind=kind;
         VocalEffects.Settings settings=engine.settings;String note=description.getText().toString();JSONObject guideSnapshot=null;try{if(duetGuide!=null)guideSnapshot=new JSONObject(duetGuide.toString());}catch(Exception ignored){}final JSONObject chosenGuide=guideSnapshot;setState(State.UPLOADING);message("선택한 효과를 반영해 커버곡을 만들고 있어요…");
         files.execute(()->{
             try{

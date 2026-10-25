@@ -132,7 +132,13 @@ import java.net.URLEncoder
   Spacer(Modifier.height(16.dp))
  }}
 }
-@Composable internal fun NativeMemberAvatar(p:JSONObject,size:Int){val id=p.optString("profile_id",p.optString("id"));AsyncImage(if(id.isNotBlank())Endpoint.url("/media/producer/$id?v=${p.optString("image_version")}")else Endpoint.url("/assets/default-avatar.png"),null,Modifier.size(size.dp).clip(CircleShape),contentScale=androidx.compose.ui.layout.ContentScale.Crop)}
+@Composable internal fun NativeMemberAvatar(p:JSONObject,size:Int){
+ val id=p.optString("profile_id",p.optString("id"));val version=p.optString("image_version")
+ Box(Modifier.size(size.dp).clip(CircleShape)){
+  DefaultProfileArtwork(p.optString("name"),Modifier.fillMaxSize())
+  if(id.isNotBlank()&&version.isNotBlank()&&version!="null")AsyncImage(Endpoint.url("/media/producer/$id?v=$version"),null,Modifier.fillMaxSize(),contentScale=androidx.compose.ui.layout.ContentScale.Crop)
+ }
+}
 @Composable private fun NativeVoiceSoundSettings(e:NativeVoiceEngine){
  var preset by remember{mutableStateOf(e.preset)};var gain by remember{mutableFloatStateOf(e.inputGain)};var voice by remember{mutableFloatStateOf(e.voiceVolume.toFloat())};var reverb by remember{mutableFloatStateOf(e.reverb)};var speaker by remember{mutableStateOf(e.isSpeaker())}
  var localMusic by remember{mutableFloatStateOf(e.localMusicVolume)};var echo by remember{mutableStateOf(e.echoCancellation)};var noise by remember{mutableStateOf(e.noiseSuppression)}

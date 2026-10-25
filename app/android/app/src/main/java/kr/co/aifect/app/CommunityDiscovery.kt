@@ -36,7 +36,7 @@ private fun crewInterests(c:JSONObject)=c.clean("interests").split(',', '·', '#
 
 @Composable private fun CommunityPhoto(id:String,name:String,version:String,kind:String,modifier:Modifier,round:Boolean=false){
  Box(modifier.clip(if(round)CircleShape else RoundedCornerShape(12.dp)).background(Raised).testTag("community-photo-$kind-$id"),contentAlignment=Alignment.Center){
-  Icon(if(kind=="crew")Icons.Rounded.Groups else Icons.Rounded.Person,null,Modifier.size(28.dp),tint=Muted)
+  if(kind=="artist")DefaultProfileArtwork(name,Modifier.fillMaxSize())else DefaultCrewArtwork(Modifier.fillMaxSize())
   if(CurrentNavigation.safeID(id)&&version.isNotBlank())AsyncImage(Endpoint.url("/media/$kind/$id?v=${CurrentNavigation.query(version)}"),"$name 사진",Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
  }
 }
@@ -201,8 +201,15 @@ private fun crewInterests(c:JSONObject)=c.clean("interests").split(',', '·', '#
    ReadStatus(read)
   }
   val rows=read.data?.optJSONArray("rows").objects()
-  itemsIndexed(rows,key={i,r->"$category-${r.clean("id").ifBlank{r.clean("href").ifBlank{i.toString()}}}"}){index,r->
-   CommunityRankRow(r,index+1,category,crewPhotos[r.clean("id")],m)
+  val podium=category=="crew"
+  if(podium&&rows.isNotEmpty()){
+   item{CrewRankPodium(rows,crewPhotos){r->val id=r.clean("id");if(CurrentNavigation.safeID(id))m.openCurrentWorkspace("crew/$id",r.clean("name"))}}
+   val mine=crews.data?.clean("mine").orEmpty()
+   val myIndex=rows.indexOfFirst{it.clean("id")==mine}
+   if(mine.isNotBlank()&&myIndex>=0)item{val row=rows[myIndex];MyCrewRank(row,row.optInt("rank",myIndex+1),crewPhotos[mine]){m.openCurrentWorkspace("crew/$mine",row.clean("name"))}}
+  }
+  itemsIndexed(if(podium)rows.drop(3)else rows,key={i,r->"$category-${r.clean("id").ifBlank{r.clean("href").ifBlank{i.toString()}}}"}){index,r->
+   CommunityRankRow(r,index+1+(if(podium)3 else 0),category,crewPhotos[r.clean("id")],m)
   }
   if(rows.isNotEmpty())item{Text("이전 순위 기록이 없는 항목은 —로 표시해요.",fontSize=11.sp,lineHeight=17.sp,color=Muted,modifier=Modifier.padding(top=16.dp))}
   if(rows.isEmpty()&&!read.loading&&read.error==null)item{CurrentEmpty("아직 집계된 순위가 없어요.",read.data?.optString("message").orEmpty())}
@@ -230,14 +237,8 @@ internal fun communityRankChange(row:JSONObject,rank:Int):Pair<String,String>{
   when(category){
    "aiArtist"->CommunityPhoto(id,name,row.clean("image_version"),"artist",Modifier.size(56.dp),true)
    "crew"->CommunityPhoto(id,name,crew?.clean("image_version").orEmpty().ifBlank{row.clean("image_version")},"crew",Modifier.size(56.dp))
-   "work"->{
-    val artwork=track?.let{t->
-     // A cover without a performer photo can still show its original album.
-     if(t.clean("kind")=="cover"&&t.clean("producer_image_version").isBlank()&&t.optInt("original_has_cover")>0&&CurrentNavigation.safeID(t.clean("original_id")))
-      payload("id" to t.clean("original_id"),"title" to name,"has_cover" to 1,"cover_version" to t.clean("original_cover_version")) else t
-    }?:payload("id" to id,"title" to name)
-    Artwork(Song(artwork),Modifier.size(56.dp).testTag("ranking-art-$id"),10.dp)
-   }
+   // Cover works use the uploader's profile photo, including its default avatar.
+   "work"->Artwork(Song(track?:payload("id" to id,"title" to name)),Modifier.size(56.dp).testTag("ranking-art-$id"),10.dp)
    else->Box(Modifier.size(56.dp).clip(RoundedCornerShape(10.dp)).background(Raised).testTag("ranking-art-$id"),contentAlignment=Alignment.Center){Icon(Icons.Rounded.RecordVoiceOver,"$name 더빙",tint=Pink);AsyncImage(currentDubbingImage(row),null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)}
   }
   Column(Modifier.weight(1f)){

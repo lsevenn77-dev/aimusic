@@ -9,6 +9,7 @@ final class CoverPublication {
         if((!this.parent.isEmpty())!=kind.equals("duet_complete"))throw new IllegalArgumentException("파트너와 부른 녹음은 완성 듀엣으로 공개해주세요.");
         this.kind=kind;mode=kind.equals("solo")?"solo":"duet";slot=kind.equals("solo")?"":this.parent.isEmpty()?"first":"second";
     }
+    void requireRecordingMode(String recordingMode){if(invitation()&&!"duet".equals(recordingMode))throw new IllegalArgumentException("듀엣 모드에서 내 파트를 녹음한 뒤 모집해주세요.");}
     String label(){return kind.equals("solo")?"솔로 커버":kind.equals("duet_invitation")?"듀엣 참여 모집":"완성 듀엣";}
     boolean invitation(){return kind.equals("duet_invitation");}
     void verify(String mode,String parent,String originalId,String expectedOriginal){

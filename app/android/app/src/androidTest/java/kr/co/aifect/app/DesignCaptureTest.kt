@@ -222,7 +222,9 @@ class DesignCaptureTest {
   responses["/api/community/rankings"]=payload("rows" to arr(rankedWork,payload("id" to "design-ocean","name" to "푸른 순간","detail" to "솔로","score" to 35,"href" to "#song/design-ocean")))
   responses["/api/community/rankings?category=work&period=month&workKind=solo"]=payload("rows" to arr(JSONObject(rankedWork.toString()).put("rank_change",-1)))
   responses["/api/community/rankings?category=aiArtist&period=month&workKind=solo"]=payload("rows" to arr(payload("id" to "design-artist","name" to "NOVA","image_version" to "sample","detail" to "공개 원곡 2곡","score" to 72,"href" to "#artist/design-artist")))
-  responses["/api/community/rankings?category=crew&period=month&workKind=solo"]=payload("rows" to arr(payload("id" to "design-crew","name" to "밤산책","detail" to "12명 · 활동 참여 8명","score" to 99,"href" to "#crew/design-crew")))
+  val rankedCrews=listOf("design-crew" to "밤산책","crew-zero" to "ZERO","crew-eclipse" to "ECLIPSE","crew-mine" to "NOVA","crew-prism" to "PRISM").mapIndexed{i,(id,name)->payload("id" to id,"name" to name,"rank" to i+1,"detail" to "${12+i*4}명 · 활동 참여 8명","rank_change" to if(i==0)2 else if(i==2)-1 else 0,"score" to 99-i,"href" to "#crew/$id")}
+  responses["/api/community/rankings?category=crew&period=month&workKind=solo"]=payload("rows" to JSONArray(rankedCrews))
+  responses["/api/crews?summary=1"]=payload("mine" to "crew-mine","crews" to JSONArray(rankedCrews.mapIndexed{i,c->JSONObject(c.toString()).put("level",15-i).put("members",12+i*4).put("image_version",if(i==0)"sample" else "")}))
   responses["/api/community/rankings?category=dubbing&period=month&workKind=solo"]=payload("rows" to JSONArray(),"message" to "공개된 완성 더빙이 모이면 표시해요.")
   ui.onNodeWithTag("main-tab-3").performClick();ready("voice-room-design-room")
   ui.onNodeWithTag("community-main-voice").assertIsSelected()
@@ -239,7 +241,8 @@ class DesignCaptureTest {
   val artistLabel=mutableListOf<TextLayoutResult>();ui.onNodeWithTag("ranking-label-aiArtist",useUnmergedTree=true).performSemanticsAction(SemanticsActions.GetTextLayoutResult){it(artistLabel)}
   capture("community-261-label-check");assertEquals(2,artistLabel.single().lineCount);assertFalse("AI artist label overflow: size=${artistLabel.single().size} width=${artistLabel.single().didOverflowWidth} height=${artistLabel.single().didOverflowHeight}",artistLabel.single().hasVisualOverflow)
   ui.onNodeWithTag("ranking-art-design-cover",useUnmergedTree=true).assertExists()
-  ui.waitUntil(15000){requestUrls.any{it=="/media/rank-ocean/cover?v=rank-fallback"}}
+  ui.waitUntil(15000){requestUrls.any{it=="/media/producer/design-peer?v=sample"}&&ui.onAllNodesWithTag("default-profile-artwork",useUnmergedTree=true).fetchSemanticsNodes().isNotEmpty()}
+  assertFalse("A cover without a profile photo must not use the original album",requestUrls.any{it.startsWith("/media/rank-ocean/cover")})
   capture("community-261-work")
   ui.onNodeWithTag("community-rank-work-design-cover").performClick();ui.waitUntil(15000){model.detail?.id=="design-cover"};Espresso.pressBack();ready("ranking-period")
   ui.onNodeWithTag("ranking-period").performClick();ui.onNodeWithTag("ranking-period-month").performClick()
@@ -249,7 +252,16 @@ class DesignCaptureTest {
   ui.onNodeWithTag("community-photo-artist-design-artist",useUnmergedTree=true).assertExists();ui.onNodeWithText("72점").assertDoesNotExist();capture("community-261-artists")
   ui.onNodeWithTag("community-rank-aiArtist-design-artist").performClick();ui.waitUntil(15000){model.profile?.optString("id")=="design-artist"};Espresso.pressBack();ready("ranking-category-crew")
   ui.onNodeWithTag("ranking-category-crew").performClick();ready("community-rank-crew-design-crew")
-  ui.waitUntil(15000){requestUrls.any{it.startsWith("/media/crew/design-crew")}};ui.onNodeWithContentDescription("밤산책 사진",useUnmergedTree=true).assertExists();ui.onNodeWithText("99점").assertDoesNotExist();capture("community-261-crew-rank")
+  ui.waitUntil(15000){requestUrls.any{it.startsWith("/media/crew/design-crew")}};ui.onNodeWithContentDescription("밤산책 사진",useUnmergedTree=true).assertExists();ui.onNodeWithText("99점").assertDoesNotExist()
+  val first=ui.onNodeWithTag("community-rank-crew-design-crew").fetchSemanticsNode().boundsInRoot
+  val second=ui.onNodeWithTag("community-rank-crew-crew-zero").fetchSemanticsNode().boundsInRoot
+  val third=ui.onNodeWithTag("community-rank-crew-crew-eclipse").fetchSemanticsNode().boundsInRoot
+  assertTrue("Podium order is 2, 1, 3",second.right<first.left&&first.right<third.left)
+  assertTrue("Winner has the tallest card",first.top<second.top&&first.top<third.top)
+  ui.onNodeWithTag("community-movement-crew-design-crew",useUnmergedTree=true).assertTextEquals("▲2")
+  ui.onNodeWithTag("my-crew-ranking").assertExists();capture("community-263-crew-rank")
+  ui.onNodeWithTag("community-rankings-scroll").performScrollToNode(hasTestTag("community-rank-crew-crew-mine"));ui.onNodeWithTag("community-rank-crew-crew-mine").assertExists()
+  ui.onNodeWithTag("community-rankings-scroll").performScrollToNode(hasTestTag("crew-rank-podium"))
   ui.onNodeWithTag("community-rank-crew-design-crew").performClick();ui.waitUntil(15000){model.workspace?.route=="crew/design-crew"};act{it.workspace=null};ready("ranking-category-dubbing")
   ui.onNodeWithTag("ranking-category-dubbing").performClick();text("아직 집계된 순위가 없어요.")
   assertFalse(requestUrls.any{it.contains("category=relationship")});assertFalse(requestBodies.keys.any{it.startsWith("/api/voice/")})
@@ -277,17 +289,37 @@ class DesignCaptureTest {
   assertFalse(requestBodies.containsKey("/api/crews"))
  }
  @Test fun currentPlaySeparatesRecordingDubbingAndFinishedWorks(){
+  val invalid=JSONObject(cover.toString()).put("duet_open",1).put("cover_mode","solo")
+  val completed=JSONObject(duet.toString()).put("id","completed-duet").put("duet_parent_id","parent")
+  val closed=JSONObject(duet.toString()).put("id","closed-duet").put("duet_open",0)
+  val ownDuet=JSONObject(duet.toString()).put("id","own-duet").put("user_id","design-user")
+  responses["/api/duets"]=payload("tracks" to arr(duet,invalid,completed,closed,ownDuet))
+  responses["/api/tracks/design-song/covers?mode=duet&sort=recent"]=payload("covers" to arr(
+   payload("id" to "join1","duet_parent_id" to "design-duet","duet_open" to 0,"user_id" to "user-a"),
+   payload("id" to "join2","duet_parent_id" to "design-duet","duet_open" to 0,"user_id" to "user-a"),
+   payload("id" to "join3","duet_parent_id" to "design-duet","duet_open" to 0,"user_id" to "user-b"),
+   payload("id" to "join4","duet_parent_id" to "another-invitation","duet_open" to 0,"user_id" to "user-c")),"counts" to payload("duet" to 4))
   ready("home-featured-play");capture("revision-00-home")
   ui.onNodeWithTag("main-tab-2").performClick();ready("current-sing-design-song")
   ui.onNodeWithTag("current-sing-design-song").assertIsDisplayed()
   ui.onNodeWithTag("current-sing-design-ocean").assertIsDisplayed()
-  capture("current-02-play-songs")
+  capture("play-263-songs")
+  ui.onNodeWithTag("play-section-duets").performClick();ready("current-sing-design-duet");text("2명 참여")
+  for(id in listOf("design-cover","completed-duet","closed-duet","own-duet"))ui.onNodeWithTag("current-track-$id").assertDoesNotExist()
+  val row=ui.onNodeWithTag("current-track-design-duet").fetchSemanticsNode().boundsInRoot
+  assertTrue("Duet rows stay compact",row.height/context.resources.displayMetrics.density<=96f)
+  capture("play-263-duets")
+  val monitor=instrumentation.addMonitor("kr.co.aifect.app.karaoke.KaraokeActivity",null,false)
+  try{ui.onNodeWithTag("current-sing-design-duet").performClick();val room=instrumentation.waitForMonitorWithTimeout(monitor,15000);assertNotNull(room)
+   assertEquals("design-duet",room.intent.getStringExtra("duetParentId"));assertEquals("design-song",room.intent.getStringExtra("trackId"));room.runOnUiThread{room.finish()}
+  }finally{instrumentation.removeMonitor(monitor)}
+  ready("play-main-dubbing")
   ui.onNodeWithTag("play-main-dubbing").performClick();ready("dubbing-project-design-dubbing")
   capture("current-03-play-dubbing")
   ui.onNodeWithTag("play-section-join").performClick();ui.waitUntil(10000){requestUrls.any{it.startsWith("/api/play/participate")}}
   ui.onNodeWithTag("play-section-mine").performClick();ui.waitUntil(10000){requestUrls.any{it.startsWith("/api/dubbing/projects?tab=mine")}}
-  ui.onNodeWithTag("play-main-browse").performClick();ready("play-kind-duet")
-  ui.onNodeWithTag("play-section-popular").performClick();ui.onNodeWithTag("play-kind-duet").performClick()
+  ui.onNodeWithTag("play-main-browse").performClick();ready("play-kind-picker")
+  ui.onNodeWithTag("play-section-popular").performClick();ui.onNodeWithTag("play-kind-picker").performClick();ui.onNodeWithTag("play-kind-duet").performClick()
   ui.waitUntil(10000){requestUrls.any{it.startsWith("/api/play/works?")&&it.contains("tab=popular")&&it.contains("type=duet")}}
   assertFalse(requestBodies.keys.any{it.startsWith("/api/dubbing/")})
  }

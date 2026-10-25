@@ -36,7 +36,7 @@ internal fun socialTime(seconds:Long):String {
  val followed=m.follows.any{it.optString("kind")=="producer"&&it.optString("target_id")==song.producerId}
  val liked=m.likes.any{it.id==song.id}
  val isDuet=song.cover&&song.raw.optString("cover_mode")=="duet"
- val openDuet=isDuet&&song.raw.optInt("duet_open")==1&&!own
+ val openDuet=song.openDuetFor(m.user?.optString("id"))
  val singable=!(isDuet&&song.raw.optInt("duet_open")==1&&own)&&(openDuet||song.cover||song.raw.optBoolean("karaoke_ready"))
  val active=m.current?.id==song.id&&m.playing
  val largeType=LocalDensity.current.fontScale>1.15f

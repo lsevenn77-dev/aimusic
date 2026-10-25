@@ -182,7 +182,8 @@ internal val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=
 @Composable internal fun Artwork(song:Song,modifier:Modifier=Modifier,corner:androidx.compose.ui.unit.Dp=16.dp,imageAlignment:Alignment=Alignment.Center){
  Box(modifier.clip(RoundedCornerShape(corner)).background(Brush.linearGradient(listOf(Color(0xFF2A313E),Color(0xFF23343B)))),contentAlignment=Alignment.Center){
   Icon(if(song.cover)Icons.Rounded.Mic else Icons.Rounded.MusicNote,null,tint=SoftText.copy(alpha=.45f),modifier=Modifier.fillMaxSize(.4f))
-  song.art?.let {AsyncImage(it,contentDescription="${song.title} 앨범 표지",modifier=Modifier.fillMaxSize(),contentScale=ContentScale.Crop,alignment=imageAlignment)}
+  if(song.cover&&song.producerImageVersion.let{it.isBlank()||it=="null"})DefaultProfileArtwork(song.credit,Modifier.fillMaxSize())
+  else song.art?.let {AsyncImage(it,contentDescription=if(song.cover)"${song.credit} 프로필" else "${song.title} 앨범 표지",modifier=Modifier.fillMaxSize(),contentScale=ContentScale.Crop,alignment=imageAlignment)}
  }
 }
 @Composable internal fun neutralChipColors()=FilterChipDefaults.filterChipColors(selectedContainerColor=Raised,selectedLabelColor=MaterialTheme.colorScheme.onSurface)
@@ -212,8 +213,8 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)P
 @Composable internal fun Avatar(name:String,p:JSONObject?=null,size:Int=38){
  Box(Modifier.size(size.dp),contentAlignment=Alignment.Center){
  Box(Modifier.fillMaxSize().clip(CircleShape).background(Raised),contentAlignment=Alignment.Center){
-  Icon(Icons.Rounded.PersonOutline,contentDescription="$name 기본 프로필",tint=SoftText,modifier=Modifier.size((size*.56).dp))
-  if(p?.optString("image_version")?.isNotBlank()==true)AsyncImage(Endpoint.url("/media/${p.optString("profile_kind","producer")}/${p.optString("id")}?v=${p.optString("image_version")}"),"$name 프로필",Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
+  DefaultProfileArtwork(name,Modifier.fillMaxSize())
+  if(p?.optString("image_version")?.let{it.isNotBlank()&&it!="null"&&it!="0"}==true)AsyncImage(Endpoint.url("/media/${p.optString("profile_kind","producer")}/${p.optString("id")}?v=${p.optString("image_version")}"),"$name 프로필",Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
  }
  PlayerAvatarDecoration(p,size)
  }
@@ -413,7 +414,7 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)P
     Row(verticalAlignment=Alignment.CenterVertically){Artwork(song,Modifier.size(84.dp));Column(Modifier.weight(1f).padding(start=16.dp)){Text(song.title,fontSize=23.sp,fontWeight=FontWeight.Bold);Text(song.credit,color=Muted,fontSize=14.sp,modifier=Modifier.padding(top=6.dp).clickable{if(song.hasAiArtist)m.openProfile(song.raw.optString("artist_id"),"artist")else m.openProfile(song.producerId)})}}
     Row(Modifier.fillMaxWidth().padding(top=12.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)){BrandButton(onClick={m.play(song)},colors=ButtonDefaults.buttonColors(containerColor=Aqua,contentColor=Ink)){Icon(Icons.Rounded.PlayArrow,null);Text("노래 듣기")};OutlinedButton(onClick={save(song)},colors=ButtonDefaults.outlinedButtonColors(contentColor=SoftText)){Icon(Icons.AutoMirrored.Rounded.PlaylistAdd,null);Text("담기")};IconButton(onClick={m.like(song)},enabled=!m.busy){Icon(if(m.likes.any{it.id==song.id})Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,"좋아요",tint=Pink)}}
     if(song.raw.optBoolean("karaoke_ready"))OutlinedButton(onClick={sing(song)},modifier=Modifier.fillMaxWidth()){Icon(Icons.Rounded.Mic,null);Text("이 노래 부르기",Modifier.padding(start=8.dp))}
-    if(song.cover&&song.raw.optInt("duet_open")==1&&song.raw.optString("user_id")!=m.user?.optString("id"))BrandButton(onClick={sing(song)},modifier=Modifier.fillMaxWidth()){Text("듀엣 참여")}
+    if(song.openDuetFor(m.user?.optString("id")))BrandButton(onClick={sing(song)},modifier=Modifier.fillMaxWidth()){Text("듀엣 참여")}
     if(song.cover)Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){TextButton(onClick={m.openProfile(song.producerId,showCovers=true)},modifier=Modifier.weight(1f)){Text("${song.producer}의 커버곡",fontSize=13.sp)};OutlinedButton(onClick={m.followPerson(song.producerId)},enabled=!m.busy){Text(if(m.follows.any{it.optString("target_id")==song.producerId&&it.optString("kind")=="producer"})"팔로잉" else "팔로우",fontSize=13.sp)}}
     if(song.cover)TextButton(onClick={m.openOriginal(song)}){Icon(Icons.Rounded.Album,null);Text("이 커버의 원곡 듣기",modifier=Modifier.padding(start=8.dp))}
     if(song.description.isNotBlank())Text(song.description,fontSize=14.sp,color=Muted,modifier=Modifier.padding(vertical=12.dp))

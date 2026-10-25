@@ -55,6 +55,7 @@ class NativePerformanceTest{
   responses["$path/comments"]=payload("comments" to JSONArray())
   responses["/api/voice/options"]=payload("crews" to JSONArray())
   state=payload("generation" to "native-generation","self" to me,"revision" to 1,"serverNow" to System.currentTimeMillis(),"room" to payload("id" to "native-room","title" to "밤하늘 음악 이야기","host_id" to "host","max_members" to 30,"visibility" to "public"),"members" to arr(payload("id" to "host","profile_id" to "host-profile","name" to "지유","role" to "host","seat" to 0,"muted" to true,"publishing" to false),payload("id" to me,"profile_id" to "mine","name" to "하린","role" to "listener","seat" to null,"muted" to true,"publishing" to false)),"chat" to JSONArray(),"seat_invites" to JSONArray(),"music" to payload("queue" to JSONArray(),"index" to -1))
+  val genreImage=ins.context.assets.open("design/dubbing-daily.webp").use{it.readBytes()}
   val audio=wave
   server=ServerSocket(0,50,InetAddress.getByName("127.0.0.1"));Endpoint.configureTest("http://127.0.0.1:${server.localPort}")
   workers.execute{while(!server.isClosed)try{val socket=server.accept();workers.execute{try{socket.use{client->
@@ -77,7 +78,7 @@ class NativePerformanceTest{
     }
     key.endsWith("/submit")->{recording.getJSONObject("recording").getJSONArray("roles").getJSONObject(0).put("state","submitted");data=recording}
    }
-   val isAudio=key.endsWith("/background")||key.contains("/lines/")&&method=="GET";val body=if(isAudio)audio else data.toString().toByteArray();val type=if(isAudio)"audio/wav" else "application/json";client.getOutputStream().write("HTTP/1.1 $code Response\r\nContent-Type: $type\r\nContent-Length: ${body.size}\r\nConnection: close\r\n\r\n".toByteArray()+body)
+   val isAudio=key.endsWith("/background")||key.contains("/lines/")&&method=="GET";val isImage=key.startsWith("/assets/dubbing-genres/");val body=if(isAudio)audio else if(isImage)genreImage else data.toString().toByteArray();val type=if(isAudio)"audio/wav" else if(isImage)"image/webp" else "application/json";client.getOutputStream().write("HTTP/1.1 $code Response\r\nContent-Type: $type\r\nContent-Length: ${body.size}\r\nConnection: close\r\n\r\n".toByteArray()+body)
   }}catch(_:Exception){}}}catch(_:SocketException){}}
  }
  @After fun teardown(){activity?.close();context.stopService(Intent(context,NativeVoiceService::class.java));if(::server.isInitialized)server.close();workers.shutdownNow()}
@@ -117,6 +118,22 @@ class NativePerformanceTest{
   assertTrue(DubbingDrafts(context,"other",projectId,d.directory.parentFile!!.name,"role_1").takes.isEmpty())
   assertEquals(.6,dubbingWindow(recording.getJSONArray("lines").getJSONObject(0)).start,0.0)
   val music=payload("queue" to arr(payload("duration" to 10)),"index" to 0,"position" to 3,"playing" to true,"updated" to 1000);assertEquals(7000L,voiceMusicPosition(music,5000));assertEquals(10000L,voiceMusicPosition(music,20000))
+ }
+ @Test fun dubbingOptionsOpenOnDemandAndPersistWithoutCreating(){
+  val prefs=context.getSharedPreferences("native_dubbing",0);val key="script:$me:new";prefs.edit().remove(key).commit()
+  launch("dubbing/new");visible("native-dubbing-form")
+  ui.onNodeWithTag("dubbing-option-SF").assertDoesNotExist()
+  ui.onNodeWithTag("dubbing-choice-genres").performClick();ui.onNodeWithTag("dubbing-option-코미디").performScrollTo().performClick()
+  ui.onNodeWithText("선택 완료").performClick()
+  for((field,value) in listOf("roleCount" to "3","minutes" to "2.5","mood" to "유쾌하게","ending" to "반전")){
+   ui.onNodeWithTag("dubbing-choice-$field").performScrollTo().performClick();ui.onNodeWithTag("dubbing-option-$value").performScrollTo().performClick()
+  }
+  val saved=JSONObject(prefs.getString(key,"{}")!!).getJSONObject("options")
+  assertEquals(3,saved.getInt("roleCount"));assertEquals(2.5,saved.getDouble("minutes"),0.0);assertEquals("유쾌하게",saved.getString("mood"));assertEquals("반전",saved.getString("ending"));assertEquals(2,saved.getJSONArray("genres").length())
+  ui.onNodeWithTag("native-dubbing-form").performScrollToNode(hasTestTag("dubbing-choice-genres"));capture("dubbing-create-263")
+  assertFalse(requests.any{it.first.startsWith("POST ")})
+  activity?.close();activity=null;launch("dubbing/$projectId");visible("native-dubbing-project");text("닫힌 복도");capture("dubbing-studio-263")
+  prefs.edit().remove(key).commit()
  }
  @Test fun generationRejectionUnlocksAndLostResponseRecoversWithoutReposting(){
   val prefs=context.getSharedPreferences("native_dubbing",0);val key="script:$me:new";prefs.edit().remove(key).commit()

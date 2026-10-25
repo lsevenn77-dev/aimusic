@@ -60,7 +60,7 @@ internal class CurrentRead {
  read.error?.let{Column(Modifier.fillMaxWidth().padding(vertical=12.dp)){Text(it,color=Muted,fontSize=14.sp);TextButton(onClick=read::retry){Text("다시 불러오기")}}}
 }
 @Composable internal fun CurrentTabs(items:List<Pair<String,String>>,selected:String,tag:String,onSelect:(String)->Unit){
- val equalWidth=tag=="community-main"
+ val equalWidth=tag in setOf("community-main","play-main")
  Column(Modifier.fillMaxWidth()){
  Row(Modifier.fillMaxWidth().then(if(equalWidth)Modifier else Modifier.horizontalScroll(rememberScrollState())).padding(horizontal=if(tag.startsWith("my-"))0.dp else 20.dp).testTag(tag),horizontalArrangement=Arrangement.spacedBy(if(equalWidth)0.dp else 20.dp)){
   items.forEach{(key,label)->
@@ -80,6 +80,7 @@ internal class CurrentRead {
 @Composable internal fun CurrentPlayScreen(m:MusicModel,sing:(Song)->Unit,resumeDraft:(JSONObject)->Unit,menu:()->Unit){
  var query by rememberSaveable(m.playMode,m.playSection){mutableStateOf("")}
  var kind by rememberSaveable{mutableStateOf("all")}
+ var choosingKind by remember{mutableStateOf(false)}
  var offset by rememberSaveable(m.playMode,m.playSection,kind){mutableIntStateOf(0)}
  val mode=m.playMode;val section=m.playSection
  val sections=when(mode){"dubbing"->listOf("discover" to "작품찾기","join" to "더빙참여","mine" to "내 작업");"browse"->listOf("recommended" to "추천","following" to "팔로잉","popular" to "인기","latest" to "최신");else->listOf("recommended" to "추천곡","duets" to "듀엣참여","latest" to "최신곡","drafts" to "내 초안")}
@@ -91,22 +92,22 @@ internal class CurrentRead {
  LaunchedEffect(read.data){read.data?.let{d->val incoming=d.optJSONArray(if(mode=="dubbing")"projects" else if(mode=="browse")"works" else "tracks").objects();records=(if(offset==0)incoming else records+incoming).distinctBy{it.optString("id")}}}
  val filtered=records.filter{r->
   val match=query.isBlank()||listOf("title","artist","producer","ownerName","owner_name").any{r.optString(it).contains(query.trim(),true)}
-  match&&!(mode=="song"&&section=="duets"&&(!r.flag("duet_open")||r.optString("user_id")==m.user?.optString("id")||r.optString("duet_parent_id").let{it.isNotBlank()&&it!="null"}))
+  match&&(mode!="song"||section!="duets"||Song(r).openDuetFor(m.user?.optString("id")))
  }
  Column(Modifier.fillMaxSize().testTag("current-play")){
   CurrentHeader("플레이",menu)
-  Text("노래하고, 연기하고, 새로운 목소리를 만나보세요.",color=Muted,fontSize=13.sp,lineHeight=19.sp,modifier=Modifier.padding(start=20.dp,end=20.dp,bottom=12.dp))
   CurrentTabs(listOf("song" to "노래","dubbing" to "더빙","browse" to "둘러보기"),mode,"play-main"){m.playMode=it;m.playSection=if(it=="dubbing")"discover" else "recommended"}
-  CurrentTabs(sections,section,"play-section"){m.playSection=it}
+  PlaySections(sections,section){m.playSection=it}
   if(mode=="song"&&section=="drafts"){
    if(gated)SignInEntry(m)else RecordingDraftsContent(m,resumeDraft)
-  }else LazyColumn(Modifier.fillMaxSize().testTag("play-results"),contentPadding=PaddingValues(20.dp),verticalArrangement=Arrangement.spacedBy(20.dp)){
+  }else LazyColumn(Modifier.fillMaxSize().testTag("play-results"),contentPadding=PaddingValues(16.dp,4.dp,16.dp,24.dp),verticalArrangement=Arrangement.spacedBy(if(mode=="song"&&section=="duets")0.dp else 16.dp)){
    if(gated)item{SignInEntry(m)}else{
     if(mode=="dubbing")item{BrandButton(onClick={m.openCurrentWorkspace("dubbing/new","더빙 만들기")},modifier=Modifier.fillMaxWidth().testTag("dubbing-create")){Icon(Icons.Rounded.Add,null);Text("더빙 만들기")}}
     item{CurrentSearch(query,{query=it},if(mode=="song")"곡 · 아티스트 · 제작자 검색" else "작품 · 창작자 검색","play-search")}
-    if(mode=="browse")item{CurrentTabs(listOf("all" to "전체","solo" to "솔로","duet" to "듀엣","dubbing" to "더빙"),kind,"play-kind"){kind=it}}
+    if(mode=="browse")item{SelectionField("작품 유형",mapOf("all" to "전체","solo" to "솔로","duet" to "듀엣","dubbing" to "더빙").getValue(kind),"play-kind-picker",Modifier.fillMaxWidth()){choosingKind=true}}
     if(read.loading||read.error!=null)item{ReadStatus(read)}
     if(mode=="dubbing")items(filtered,key={it.optString("id")}){r->CurrentDubbingRow(r,section,m)}
+    else if(mode=="song"&&section=="duets")items(filtered,key={it.optString("id")}){r->DuetParticipationRow(Song(r),m,filtered.map{Song(it)},sing)}
     else items(filtered.chunked(2),key={row->row.joinToString("|"){it.optString("id")}}){row->
      Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(14.dp)){
       row.forEach{r->Box(Modifier.weight(1f)){
@@ -121,6 +122,7 @@ internal class CurrentRead {
    }
   }
  }
+ if(choosingKind)SelectionSheet("작품 유형",listOf("all" to "전체","solo" to "솔로","duet" to "듀엣","dubbing" to "더빙"),listOf(kind),"play-kind",{choosingKind=false}){kind=it}
 }
 @Composable private fun RecordingDraftsContent(m:MusicModel,resume:(JSONObject)->Unit){
  Column(Modifier.fillMaxSize().padding(20.dp)){
@@ -145,7 +147,7 @@ private fun JSONObject.flag(key:String)=optBoolean(key,false)||optInt(key,0)==1
    }
    IconButton(onClick={m.play(song,queue)}){Icon(Icons.Rounded.PlayArrow,"${song.title} 먼저 듣기",tint=SoftText)}
   }
-  if(sing!=null)OutlinedButton(onClick={m.singTarget(song,sing)},modifier=Modifier.fillMaxWidth().padding(top=8.dp).testTag("current-sing-${song.id}"),shape=RoundedCornerShape(12.dp)){Icon(Icons.Rounded.Mic,null,Modifier.size(18.dp));Text(if(song.cover)"듀엣 참여" else "노래하기",Modifier.padding(start=6.dp))}
+  if(sing!=null)OutlinedButton(onClick={m.singTarget(song,sing)},modifier=Modifier.fillMaxWidth().padding(top=8.dp).testTag("current-sing-${song.id}"),shape=RoundedCornerShape(12.dp)){Icon(Icons.Rounded.Mic,null,Modifier.size(18.dp));Text(if(song.openDuetFor(m.user?.optString("id")))"듀엣 참여" else "노래하기",Modifier.padding(start=6.dp))}
   HorizontalDivider(Modifier.padding(top=12.dp),color=Stroke.copy(alpha=.6f))
  }
 }

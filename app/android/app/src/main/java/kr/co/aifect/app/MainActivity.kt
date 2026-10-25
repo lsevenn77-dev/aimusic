@@ -82,7 +82,8 @@ class MainActivity:ComponentActivity(){
    model.controller?.pause()
    recordingLauncher.launch(Intent(this,KaraokeActivity::class.java).putExtra("origin",Endpoint.origin).putExtra("trackId",if(parent.isBlank())song.id else song.raw.optString("original_id")).putExtra("ownerId",model.user?.optString("id")).putExtra("coverMode",mode).putExtra("duetPart",part).putExtra("duetParentId",parent))
   }
-  if(song.cover&&song.raw.optInt("duet_open")==1){open("duet",if(song.raw.optString("duet_part")=="male")"female" else "male",song.id);return}
+  if(song.openDuetFor(model.user?.optString("id"))){open("duet",if(song.raw.optString("duet_part")=="male")"female" else "male",song.id);return}
+  if(song.cover){model.singTarget(song){sing(it)};return}
   open("solo","")
  }
 }
