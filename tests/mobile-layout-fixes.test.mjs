@@ -19,10 +19,10 @@ test('gift shop renders every approved silver and gold choice for guests and mem
 
 test('gift sheet keeps all choices and detailed policy inside one scroll region, with checkout outside',async()=>{
  let html='';
- const form={querySelectorAll:()=>[]},nodes={'#dialog':{open:true,classList:{add(){}}},'#gift-form':form,'#gift-send-summary':{},'#gift-send':{},'#gift-quantity':{value:'1'}};
+ const form={querySelectorAll:()=>[],querySelector:()=>null},nodes={'#dialog':{open:true,classList:{add(){}}},'#gift-form':form,'#gift-send-summary':{},'#gift-send':{},'#gift-quantity':{value:'1'}};
  const context=vm.createContext({AifectGifts,crypto,me:{id:'self'},accountReady:Promise.resolve(),esc:String,number:String,icon:()=>'',
   $:selector=>nodes[selector]||null,dialog:content=>{html=content;},remember(){},busyForm:()=>()=>{},
-  api:async path=>path==='/api/gold'?{balance:500,free:{balance:3},gifts:AifectGifts.GIFT_CATALOG}:{profile:{user_id:'other',name:'긴 이름의 친구'}}});
+  api:async path=>path==='/api/me/gift-inventory'?{items:[]}:path==='/api/gold'?{balance:500,free:{balance:3},gifts:AifectGifts.GIFT_CATALOG}:{profile:{user_id:'other',name:'긴 이름의 친구'}}});
  vm.runInContext(read('gifts.js'),context);
  await context.giftDialog('other','star',true);
  assert.match(html,/role="region" aria-label="선물 선택"/);

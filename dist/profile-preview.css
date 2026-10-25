@@ -40,3 +40,4 @@ dialog.profile-preview::backdrop{background:#030812aa;backdrop-filter:blur(5px)}
  .profile-preview-actions>.primary-button,.profile-preview-actions>.small-button{min-height:44px;font-size:12px;gap:6px;padding:8px 4px}
  .profile-preview-actions svg{width:19px;height:19px}
 }
+.profile-preview-actions .profile-preview-gift{grid-column:1/-1;min-height:44px}

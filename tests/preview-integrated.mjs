@@ -5,6 +5,8 @@ import {resolve,extname,sep} from 'node:path';
 import {options,sampleScript} from './dubbing-fixtures.mjs';
 import {fixture} from './fixture.mjs';
 import worker from '../server/index.js';
+const port=Number(process.argv[process.argv.indexOf('--port')+1])||4192;
+const host=process.argv.includes('--host')?process.argv[process.argv.indexOf('--host')+1]:'127.0.0.1';
 const cleanups=[],f=await fixture({after(fn){cleanups.push(fn);}}),objects=new Map();
 const ocean=await readFile('dist/assets/ocean.png'),nova=await readFile('dist/assets/nova.png');
 const wav=new Uint8Array(44+44100*2*45),view=new DataView(wav.buffer);
@@ -57,16 +59,16 @@ const base=resolve('dist/client');
 f.sql.prepare('UPDATE likes SET created=?').run(at-3600);
 for(const [i,role] of sampleScript().roles.entries())f.sql.prepare("INSERT INTO dubbing_recordings(id,project_id,role_id,user_id,script_key,state,write_token,created,updated) VALUES(?,'11111111-1111-4111-8111-111111111111',?,?,'dubbing/owner/11111111-1111-4111-8111-111111111111/script.json','submitted','qa',?,?)").run('qa-record-'+i,role.id,i?'other':'owner',at,at);
 const env={DUBBING_ENABLED:'true',DUBBING_RECORDING_ENABLED:'true',ADMIN_USER_IDS:'owner',DB:f.DB,BUCKET:{async put(k,v){objects.set(k,new Uint8Array(v));},async delete(k){objects.delete(k);},async head(k){const b=objects.get(k);return b?{size:b.length,etag:k}:null;},async get(k,opts){const v=objects.get(k);return v?{body:opts?.range?v.slice(opts.range.offset,opts.range.offset+opts.range.length):v}:null;},async list(){return {objects:[],truncated:false};}},
- ASSETS:{async fetch(req){const url=new URL(req.url),file=resolve(base,'.'+(url.pathname==='/'?'/index.html':decodeURIComponent(url.pathname)));if(!file.startsWith(base+sep))return new Response('',{status:404});try{const data=await readFile(file);return new Response(data,{headers:{'content-type':({'.html':'text/html;charset=utf-8','.css':'text/css','.js':'text/javascript','.svg':'image/svg+xml','.png':'image/png','.webp':'image/webp'})[extname(file)]||'application/octet-stream'}});}catch{return new Response('Not found',{status:404});}}}};
+ ASSETS:{async fetch(req){const url=new URL(req.url),file=resolve(base,'.'+(url.pathname==='/'?'/index.html':decodeURIComponent(url.pathname)));if(!file.startsWith(base+sep))return new Response('',{status:404});try{let data=await readFile(file);if(file.endsWith('/index.html'))data=Buffer.from(data.toString().replace('<head>','<head><script>if(!crypto.randomUUID)crypto.randomUUID=()=>"10000000-1000-4000-8000-100000000000".replace(/[018]/g,c=>(c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16));</script>'));return new Response(data,{headers:{'content-type':({'.html':'text/html;charset=utf-8','.css':'text/css','.js':'text/javascript','.svg':'image/svg+xml','.png':'image/png','.webp':'image/webp'})[extname(file)]||'application/octet-stream'}});}catch{return new Response('Not found',{status:404});}}}};
 for(const type of ['heart','lollipop','silver-letter']){
  const response=await worker.fetch(new Request('http://127.0.0.1:4192/api/admin/gift-inventory/grant',{method:'POST',headers:{Origin:'http://127.0.0.1:4192','Content-Type':'application/json',Cookie:'aifect_session=owner'},body:JSON.stringify({user_id:'owner',gift_type:type,quantity:3,reason:'Isolated local QA only',request_id:crypto.randomUUID()})}),env,{waitUntil(p){p.catch(()=>{});}});if(!response.ok)throw Error(await response.text());
 }
 const server=createServer(async(req,res)=>{
- try{if(req.url.startsWith('/__qa/viewer/')){const who=req.url.split('/').pop();res.writeHead(302,{'Set-Cookie':'qa_viewer='+(['owner','other','guest'].includes(who)?who:'owner')+'; Path=/; SameSite=Lax',Location:who==='owner'?'/#profile':'/#producer/producer'});res.end();return;}const body=[];for await(const chunk of req)body.push(chunk);const url='http://127.0.0.1:4192'+req.url;
+ try{if(req.url.startsWith('/__qa/responsive')){const q=new URL(req.url,'http://localhost').searchParams,w=Number(q.get('width'))||390,h=Number(q.get('height'))||844;if(![320,390,768,1440].includes(w)||![844,900].includes(h))throw Error('Invalid QA viewport');res.writeHead(200,{'Content-Type':'text/html;charset=utf-8'});res.end(`<html><head><title>AIFECT isolated responsive QA</title></head><body style="margin:0;background:#0c121b;width:${w}px;height:${h}px"><iframe title="실제 앱" src="/#producer/friend" style="display:block;border:0;width:${w}px;height:${h}px"></iframe></body></html>`);return;}if(req.url.startsWith('/__qa/viewer/')){const who=req.url.split('/').pop();res.writeHead(302,{'Set-Cookie':'qa_viewer='+(['owner','other','guest'].includes(who)?who:'owner')+'; Path=/; SameSite=Lax',Location:who==='owner'?'/#profile':'/#producer/producer'});res.end();return;}const body=[];for await(const chunk of req)body.push(chunk);const url=(req.headers.origin||'http://'+req.headers.host)+req.url;
  const response=await worker.fetch(new Request(url,{method:req.method,headers:{...req.headers,cookie:'aifect_session='+(/qa_viewer=(owner|other|guest)/.exec(req.headers.cookie||'')?.[1]||'owner')},body:body.length?Buffer.concat(body):undefined}),env,{waitUntil(p){p.catch(()=>{});}});
  res.writeHead(response.status,Object.fromEntries(response.headers));res.end(Buffer.from(await response.arrayBuffer()));
  }catch(e){console.error(e);res.writeHead(500);res.end('Local preview error');}
 });
-server.listen(4192,'127.0.0.1',()=>console.log('Local preview: http://127.0.0.1:4192/#profile'));
+server.listen(port,host,()=>console.log(`Local preview: http://${host}:${port}/#profile`));
 process.on('SIGINT',()=>server.close(()=>{cleanups.forEach(f=>f());process.exit(0);}));
 

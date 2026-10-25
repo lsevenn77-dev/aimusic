@@ -20,32 +20,69 @@ async function chooseGiftRecipient(type){
  document.querySelectorAll('[data-gift-recipient]').forEach(b=>b.onclick=()=>profileGiftDialog(b.dataset.giftRecipient,type));
  }catch(e){if(serial===giftDialogSerial&&$('#dialog').open)dialog('<h2>선물을 선택하지 못했어요</h2><p>'+esc(e.message)+'</p><button class="small-button" data-close-dialog>닫기</button>');}
 }
+function ownedGiftGroups(items=[]){
+ const groups=new Map();
+ for(const item of items){const key=item.gift_type+':'+!!item.available;const group=groups.get(key);if(group)group.quantity++;else groups.set(key,{...item,quantity:1});}
+ return [...groups.values()].sort((a,b)=>Number(b.available)-Number(a.available));
+}
+function ownedGiftCards(inventory){
+ const groups=ownedGiftGroups(inventory?.items||[]);
+ return `<section class="gift-owned" aria-labelledby="gift-owned-title"><div class="gift-catalog-heading"><h3 id="gift-owned-title">보유 아이템</h3><span>추가 차감 없음</span></div>${inventory?.error?'<p class="gift-owned-empty" role="status">보유 아이템을 불러오지 못했어요. <button type="button" class="text-link" data-gift-inventory-retry>다시 불러오기</button></p>':!me?'<p class="gift-owned-empty">로그인하면 보유한 선물을 볼 수 있어요.</p>':!groups.length?'<p class="gift-owned-empty">보유한 선물이 없어요.</p>':`<div class="gift-catalog gift-owned-catalog">${groups.map(g=>`<button type="button" class="gift-choice" data-owned-gift="${esc(g.id)}" aria-pressed="false" ${g.available?'':'disabled'}>${giftArt(g)}<strong>${esc(g.gift_name)}</strong><span>보유 ${number(g.quantity)}개</span>${g.available?'':'<small>사용 불가</small>'}</button>`).join('')}</div>`}</section>`;
+}
 let giftDialogSerial=0;
-async function giftDialog(tid,initial='silver-letter',personal=false){
+async function giftDialog(tid,initial=null,personal=false){
  $('#dialog').classList.add('gift-sheet');
  const serial=++giftDialogSerial;dialog('<section class="gift-dialog"><h2>선물하기</h2><p role="status">선물함을 불러오고 있어요…</p></section>');
- try{await accountReady;const [wallet,track]=await Promise.all([me?api('/api/gold'):Promise.resolve(null),api('/api/'+(personal?'producers/':'tracks/')+encodeURIComponent(tid))]);
- if(serial!==giftDialogSerial||!$('#dialog').open)return;
+ try{await accountReady;const account=me?.id;const [wallet,track,inventory]=await Promise.all([me?api('/api/gold'):Promise.resolve(null),api('/api/'+(personal?'producers/':'tracks/')+encodeURIComponent(tid)),me?api('/api/me/gift-inventory','GET',undefined,{fresh:true}).catch(()=>({error:true})):Promise.resolve({items:[]})]);
+ if(serial!==giftDialogSerial||!$('#dialog').open||account!==me?.id)return;
  const t=personal?{user_id:track.profile.user_id,producer:track.profile.display_name||track.profile.name,title:'직접 선물'}:track.track;if(!personal)remember([t]);
  if(me?.id===t.user_id){dialog('<h2>내 음악이에요</h2><p>다른 창작자의 음악에 응원을 보내주세요.</p><a class="primary-button" href="#community" data-close-dialog>커뮤니티 둘러보기</a>');return;}
  const silverGifts=wallet?.silver_gifts||AifectGifts.SILVER_GIFT_CATALOG,gifts=wallet?.gifts||AifectGifts.GIFT_CATALOG,choices=[...silverGifts,...gifts];
+ const recipientId=personal?track.profile.id||tid:t.producer_id,groups=ownedGiftGroups(inventory?.items||[]);
  let chosen=choices.some(g=>g.id===initial)?initial:'silver-letter',quantity=1,requestId=crypto.randomUUID();
- dialog(`<section class="gift-dialog"><header><span class="eyebrow">SEND YOUR ENCORE</span><h2>${personal?'마음을 바로 전해요':'음악에 마음을 담아'}</h2><p><strong>${esc(t.producer)}</strong>에게 · ${esc(t.title)}</p></header><div class="gift-wallet-line"><span>보유 <b>${number(wallet?.free?.balance||0)} S</b> · <b>${number(wallet?.balance||0)} G</b></span><a href="#gold" data-close-dialog>골드 충전 ${icon('chevron')}</a></div><form id="gift-form"><div class="gift-options" tabindex="0" role="region" aria-label="선물 선택"><div class="gift-catalog-heading"><h3>실버 선물</h3><a class="gift-rewards-link" href="#rewards" data-close-dialog>오늘의 실버 받기</a></div>${giftCards(silverGifts,null,true)}<div class="gift-catalog-heading"><h3>골드 선물</h3><a href="#gold" data-close-dialog>골드 충전</a></div>${giftCards(gifts,null,true)}<details class="gift-policy-details"><summary>선물 수익 · 정산 안내</summary><p class="gift-fineprint">${esc(AifectGifts.GIFT_SETTLEMENT_NOTICE)} 실버 선물은 수익 정산에 반영되지 않아요.</p></details></div><div class="gift-checkout"><div class="gift-quantity"><label for="gift-quantity">선물 수량</label><button type="button" data-gift-step="-1" aria-label="수량 줄이기">−</button><input id="gift-quantity" type="number" min="1" max="100" step="1" inputmode="numeric" value="1" required><button type="button" data-gift-step="1" aria-label="수량 늘리기">+</button><div class="gift-quantity-presets">${[1,5,10].map(n=>`<button type="button" data-gift-quantity="${n}">${n}개</button>`).join('')}</div></div><div class="gift-send-summary" id="gift-send-summary" aria-live="polite"></div><p class="gift-fineprint">선택한 수량만큼 차감돼요. 보낸 선물은 직접 취소할 수 없어요.</p><button type="submit" class="primary-button gift-send-button" id="gift-send"></button><p class="form-error" role="alert"></p></div></form></section>`);
+ let owned=choices.some(g=>g.id===initial)?null:groups.find(g=>g.available)||null,confirmOwned=false;
+ const ownedRequests=new Map();
+ dialog(`<section class="gift-dialog"><header><span class="eyebrow">SEND YOUR ENCORE</span><h2>${personal?'마음을 바로 전해요':'음악에 마음을 담아'}</h2><p><strong>${esc(t.producer)}</strong>에게 · ${esc(t.title)}</p></header><div class="gift-wallet-line"><span>보유 <b>${number(wallet?.free?.balance||0)} S</b> · <b>${number(wallet?.balance||0)} G</b></span><a href="#gold" data-close-dialog>골드 충전 ${icon('chevron')}</a></div><form id="gift-form"><div class="gift-options" tabindex="0" role="region" aria-label="선물 선택">${ownedGiftCards(inventory)}<div class="gift-catalog-heading gift-purchase-heading"><h3>구매해서 보내기</h3></div><div class="gift-catalog-heading"><h4>실버 선물</h4><a class="gift-rewards-link" href="#rewards" data-close-dialog>오늘의 실버 받기</a></div>${giftCards(silverGifts,null,true)}<div class="gift-catalog-heading"><h4>골드 선물</h4><a href="#gold" data-close-dialog>골드 충전</a></div>${giftCards(gifts,null,true)}<details class="gift-policy-details"><summary>선물 수익 · 정산 안내</summary><p class="gift-fineprint">${esc(AifectGifts.GIFT_SETTLEMENT_NOTICE)} 실버 선물은 수익 정산에 반영되지 않아요.</p></details></div><div class="gift-checkout"><div class="gift-quantity"><label for="gift-quantity">선물 수량</label><button type="button" data-gift-step="-1" aria-label="수량 줄이기">−</button><input id="gift-quantity" type="number" min="1" max="100" step="1" inputmode="numeric" value="1" required><button type="button" data-gift-step="1" aria-label="수량 늘리기">+</button><div class="gift-quantity-presets">${[1,5,10].map(n=>`<button type="button" data-gift-quantity="${n}">${n}개</button>`).join('')}</div></div><div class="gift-send-summary" id="gift-send-summary" aria-live="polite"></div><p class="gift-fineprint" id="gift-send-notice">선택한 수량만큼 차감돼요. 보낸 선물은 직접 취소할 수 없어요.</p><div class="gift-send-actions"><button type="button" class="small-button" id="gift-owned-cancel" hidden>선택으로 돌아가기</button><button type="submit" class="primary-button gift-send-button" id="gift-send"></button></div><p class="form-error" role="alert"></p></div></form></section>`);
  const form=$('#gift-form'),input=$('#gift-quantity');
- const update=()=>{const g=choices.find(g=>g.id===chosen),free=!!g.free,balance=free?(wallet?.free?.balance||0):(wallet?.balance||0),valid=Number.isInteger(quantity)&&quantity>=1&&quantity<=100,cost=(free?g.silver:g.gold)*quantity,within=free||cost<=AifectGifts.GIFT_MAX_GOLD,enough=balance>=cost,unit=free?'S':'G';
+ const update=()=>{
+ form.querySelectorAll('[data-owned-gift]').forEach(b=>{const selected=b.dataset.ownedGift===owned?.id;b.classList.toggle('selected',selected);b.setAttribute('aria-pressed',String(selected));});
+ const qty=form.querySelector('.gift-quantity'),notice=$('#gift-send-notice'),cancel=$('#gift-owned-cancel');
+ if(qty)qty.hidden=!!owned;input.disabled=!!owned;if(cancel)cancel.hidden=!confirmOwned;
+ if(owned){
+  form.querySelectorAll('[data-gift-type]').forEach(b=>{b.classList.remove('selected');b.setAttribute('aria-pressed','false');});
+  $('#gift-send-summary').innerHTML=`<span>${esc(owned.gift_name)} × 1<small>${esc(t.producer)}님의 프로필에 보내요</small></span><strong>추가 차감 없음</strong>`;
+  if(notice)notice.textContent=confirmOwned?'보유 선물 1개를 사용합니다. 보내면 취소할 수 없어요.':'보유 선물 1개를 사용해요. 실버·골드는 차감되지 않아요.';
+  $('#gift-send').disabled=!recipientId||!owned.available;$('#gift-send').textContent=confirmOwned?'확인하고 보내기':'보유 선물 1개 보내기';return;
+ }
+ if(notice)notice.textContent='선택한 수량만큼 차감돼요. 보낸 선물은 직접 취소할 수 없어요.';
+ const g=choices.find(g=>g.id===chosen),free=!!g.free,balance=free?(wallet?.free?.balance||0):(wallet?.balance||0),valid=Number.isInteger(quantity)&&quantity>=1&&quantity<=100,cost=(free?g.silver:g.gold)*quantity,within=free||cost<=AifectGifts.GIFT_MAX_GOLD,enough=balance>=cost,unit=free?'S':'G';
  form.querySelectorAll('[data-gift-type]').forEach(b=>{b.classList.toggle('selected',b.dataset.giftType===chosen);b.setAttribute('aria-pressed',String(b.dataset.giftType===chosen));});
  form.querySelectorAll('[data-gift-quantity]').forEach(b=>b.setAttribute('aria-pressed',String(Number(b.dataset.giftQuantity)===quantity)));
  $('#gift-send-summary').innerHTML=!valid?'수량은 1개부터 100개까지 선택해주세요.':!within?'한 번에 최대 100,000 G까지 보낼 수 있어요.':me?`<span>${esc(g.name)} × ${quantity}<small>총 ${number(cost)} ${unit} 차감</small></span><strong>${enough?`보낸 뒤 ${number(balance-cost)} ${unit}`:free?'실버가 부족해요':'골드가 부족해요'}</strong>`:'로그인하고 마음을 전해보세요.';
  $('#gift-send').disabled=!!me&&(!valid||!within||!enough);$('#gift-send').textContent=!me?'로그인하고 선물하기':!valid?'수량을 확인해주세요':!within?'총 수량을 줄여주세요':enough?`${esc(g.name)} ${quantity}개 · ${number(cost)} ${unit} 선물하기`:free?'실버가 부족해요':'골드 충전이 필요해요';
  };update();
+ const retry=form.querySelector('[data-gift-inventory-retry]');if(retry)retry.onclick=()=>{if(!form._busy)void giftDialog(tid,initial,personal);};
+ const cancel=$('#gift-owned-cancel');if(cancel)cancel.onclick=()=>{if(form._busy)return;confirmOwned=false;update();};
+ form.querySelectorAll('[data-owned-gift]').forEach(b=>b.onclick=()=>{if(form._busy||b.disabled)return;owned=groups.find(g=>g.id===b.dataset.ownedGift&&g.available)||null;confirmOwned=false;formError(form).textContent='';update();});
  const changeQuantity=n=>{if(form._busy)return;quantity=n;input.value=String(n);requestId=crypto.randomUUID();formError(form).textContent='';update();};
  input.oninput=()=>changeQuantity(Number(input.value));
  form.querySelectorAll('[data-gift-step]').forEach(b=>b.onclick=()=>changeQuantity(Math.max(1,Math.min(100,(Number.isFinite(quantity)?quantity:1)+Number(b.dataset.giftStep)))));
  form.querySelectorAll('[data-gift-quantity]').forEach(b=>b.onclick=()=>changeQuantity(Number(b.dataset.giftQuantity)));
- form.querySelectorAll('[data-gift-type]').forEach(b=>b.onclick=()=>{if(form._busy)return;chosen=b.dataset.giftType;requestId=crypto.randomUUID();formError(form).textContent='';update();});
- form.onsubmit=busyForm(form,async()=>{if(!me){$('#dialog').close();return askLogin();}if(!Number.isInteger(quantity)||quantity<1||quantity>100)throw new Error('수량을 확인해주세요.');const g=choices.find(g=>g.id===chosen),sentQuantity=quantity;$('#gift-send').textContent='보내는 중…';const r=await api(`/api/${personal?'producers':'tracks'}/${tid}/gifts`,'POST',{gift_type:chosen,quantity:sentQuantity,request_id:requestId,...(g.free?{silver:g.silver*sentQuantity}:{gold:g.gold*sentQuantity})});
+ form.querySelectorAll('[data-gift-type]').forEach(b=>b.onclick=()=>{if(form._busy)return;owned=null;confirmOwned=false;chosen=b.dataset.giftType;requestId=crypto.randomUUID();formError(form).textContent='';update();});
+ const submit=busyForm(form,async()=>{if(!me){$('#dialog').close();return askLogin();}if(account!==me?.id)throw new Error('로그인 계정이 변경됐어요. 선물창을 다시 열어주세요.');
+ if(owned){
+  if(!owned.available||!recipientId)throw new Error('선물할 프로필을 확인해주세요.');
+  if(!confirmOwned){confirmOwned=true;return;}
+  const sent=owned;let key=ownedRequests.get(sent.id);if(!key){key=crypto.randomUUID();ownedRequests.set(sent.id,key);}
+  $('#gift-send').textContent='보내는 중…';
+  await api('/api/me/gift-inventory/'+encodeURIComponent(sent.id)+'/send','POST',{profile_id:recipientId,request_id:key});
+  if(serial!==giftDialogSerial||!form.isConnected||account!==me?.id)return;
+  dialog(`<section class="gift-success"><div class="gift-celebration">${giftArt(sent)}</div><h2>${esc(sent.gift_name)} 1개를 보냈어요</h2><p>${esc(t.producer)}님의 프로필에 전달했어요.</p><p>보유 선물 사용 · 실버·골드 추가 차감 없음</p><button class="primary-button" data-close-dialog>확인</button></section>`);await render();return;
+ }
+ if(!Number.isInteger(quantity)||quantity<1||quantity>100)throw new Error('수량을 확인해주세요.');const g=choices.find(g=>g.id===chosen),sentQuantity=quantity;$('#gift-send').textContent='보내는 중…';const r=await api(`/api/${personal?'producers':'tracks'}/${tid}/gifts`,'POST',{gift_type:chosen,quantity:sentQuantity,request_id:requestId,...(g.free?{silver:g.silver*sentQuantity}:{gold:g.gold*sentQuantity})});
  if(serial!==giftDialogSerial||!form.isConnected)return;
  dialog(`<section class="gift-success"><div class="gift-celebration">${giftArt(g)}</div><span class="eyebrow">THANK YOU FOR YOUR ENCORE</span><h2>${esc(g.name)} ${sentQuantity}개를 보냈어요</h2><p>${esc(t.producer)}${personal?'님에게':'님의 「'+esc(t.title)+'」에'}<br>응원이 전해졌어요.</p><p>${r.gift.free?`남은 실버 ${number(r.free_balance)} S · 수익 정산 없음`:`남은 골드 ${number(r.balance)} G`}</p><button class="primary-button" data-close-dialog>계속 음악 듣기</button></section>`);await render();});
+ form.onsubmit=async ev=>{if(form._busy)return;await submit(ev);if(form.isConnected&&serial===giftDialogSerial&&account===me?.id)update();};
  }catch(e){if(serial===giftDialogSerial&&$('#dialog').open)dialog(`<h2>선물함을 열지 못했어요</h2><p role="alert">${esc(e.message)}</p><button class="primary-button" ${personal?'data-profile-gift':'data-gift'}="${esc(tid)}">다시 시도</button>`);}
 }
 function bindGiftClaims(root,onChange=()=>{}){if(!root)return;root.onclick=async e=>{const b=e.target.closest('[data-claim-gift]');if(!b||b.disabled||root._busy||$('#gift-form')?._busy)return;root._busy=true;b.disabled=true;b.textContent='받는 중…';try{const s=await api('/api/gifts/free/claim','POST',{kind:b.dataset.claimGift});if(!root.isConnected)return;root.innerHTML=freeRewardsHTML(s,root.id==='gift-rewards');onChange(s);toast('실버를 받았어요. 좋아하는 음악에 보내보세요.');}catch(err){toast(err.message);b.disabled=false;b.textContent='다시 받기';}finally{root._busy=false;}};}

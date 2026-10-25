@@ -160,3 +160,25 @@ main.secondary-page .own-music-list{border:1px solid #ffffff10;border-radius:12p
 
 /* Keep photos above the card background on mobile compositors. */
 main.secondary-page .browse-genres .genre-photo-card>span,main.secondary-page .browse-genres .genre-photo-card>svg{position:relative;z-index:2}
+
+/* Owned gifts and direct purchases share the existing recipient sheet. */
+.gift-sheet .gift-owned{margin-bottom:16px}
+.gift-sheet .gift-catalog-heading :is(h3,h4){margin:0;font-size:.9rem}
+.gift-sheet .gift-catalog-heading h4{color:var(--ds-muted);font-size:.8rem;font-weight:500}
+.gift-sheet .gift-catalog-heading>span{color:var(--ds-muted);font-size:.75rem}
+.gift-sheet .gift-owned-empty{margin:0;padding:8px 0;color:var(--ds-muted);font-size:.82rem;line-height:1.6}
+.gift-sheet .gift-owned-empty button{min-height:44px}
+.gift-sheet .gift-purchase-heading{margin-top:18px}
+.gift-sheet .gift-owned-catalog .gift-choice{min-height:108px;padding:8px 4px;gap:4px}
+.gift-sheet .gift-owned-catalog .gift-art{width:48px;height:48px}
+.gift-sheet .gift-owned-catalog strong{font-size:.8rem;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gift-sheet .gift-owned-catalog .gift-choice>span{font-size:.75rem;color:var(--ds-mint)}
+.gift-sheet .gift-owned-catalog .gift-choice:disabled{opacity:.5;cursor:not-allowed}
+.gift-sheet .gift-quantity[hidden],.gift-sheet #gift-owned-cancel[hidden]{display:none}
+.gift-sheet .gift-send-actions{display:flex;gap:8px}
+.gift-sheet .gift-send-actions>button{min-width:0;min-height:44px;margin:0}
+.gift-sheet .gift-send-actions .gift-send-button{flex:1}
+.gift-sheet .gift-send-summary>span{min-width:0;overflow-wrap:anywhere}
+.gift-sheet .gift-quantity>button,.gift-sheet .gift-quantity input,.gift-sheet .gift-quantity-presets button{min-height:44px}
+.gift-sheet .gift-quantity>button{min-width:44px}
+@media(max-width:380px){.gift-sheet .gift-send-actions{flex-direction:column}.gift-sheet .gift-send-actions>button{width:100%}.gift-sheet .gift-quantity-presets{margin-left:auto}.gift-sheet .gift-send-summary{gap:8px}.gift-sheet .gift-send-summary>strong{font-size:.75rem;white-space:nowrap}}

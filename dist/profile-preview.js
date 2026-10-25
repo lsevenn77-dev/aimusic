@@ -18,7 +18,7 @@ function closeProfilePreview(){
 function profilePreviewHTML(d){
  const p=d.profile,own=!!me&&p.user_id===me.id,key='producer/'+p.id,c=d.crew;
  const header=own?'<span class="profile-preview-own">내 프로필</span>':'<button type="button" data-preview-report>신고</button><span aria-hidden="true">|</span><button type="button" data-person-block="'+esc(p.user_id)+'" data-block-name="'+esc(p.name)+'">차단</button>';
- const buttons=own?'<a class="primary-button" href="#profile/edit">'+profilePreviewIcons.edit+'<span>프로필 수정</span></a><button type="button" class="small-button" data-preview-share="'+esc(p.id||'')+'">'+profilePreviewIcons.share+'<span>공유</span></button><a class="small-button" href="#profile">'+icon('chevron')+'<span>내 페이지</span></a>':'<button type="button" class="primary-button" data-follow="'+esc(key)+'" aria-pressed="'+!!d.following+'">'+profilePreviewIcons.follow+'<span data-follow-label>'+(d.following?'팔로잉':'팔로우')+'</span></button><a class="small-button" href="#dm/'+esc(p.id)+'" data-preview-message>'+icon('message')+'<span>메시지</span></a><a class="small-button" href="#producer/'+esc(p.id)+'">'+icon('chevron')+'<span>더보기</span></a>';
+ const buttons=own?'<a class="primary-button" href="#profile/edit">'+profilePreviewIcons.edit+'<span>프로필 수정</span></a><button type="button" class="small-button" data-preview-share="'+esc(p.id||'')+'">'+profilePreviewIcons.share+'<span>공유</span></button><a class="small-button" href="#profile">'+icon('chevron')+'<span>내 페이지</span></a>':'<button type="button" class="primary-button" data-follow="'+esc(key)+'" aria-pressed="'+!!d.following+'">'+profilePreviewIcons.follow+'<span data-follow-label>'+(d.following?'팔로잉':'팔로우')+'</span></button><a class="small-button" href="#dm/'+esc(p.id)+'" data-preview-message>'+icon('message')+'<span>메시지</span></a><a class="small-button" href="#producer/'+esc(p.id)+'">'+icon('chevron')+'<span>더보기</span></a><button type="button" class="small-button profile-preview-gift" data-preview-gift="'+esc(p.id)+'">'+icon('gift')+'<span>선물 보내기</span></button>';
  return '<section class="profile-preview-card"><button type="button" class="profile-preview-photo" aria-label="프로필 사진 크게 보기">'+avatarImage(p)+'</button><header class="profile-preview-header"><h2 id="profile-preview-title" title="'+esc(p.name)+'">'+esc(p.name)+(p.account_type==='ai_bot'?'<span class="ai-account-badge" title="공식 AI 응원 계정">AI</span>':'')+'</h2><div class="profile-preview-tools">'+header+'<button type="button" class="profile-preview-close" data-preview-close aria-label="프로필 미리보기 닫기">'+profilePreviewIcons.close+'</button></div></header><p class="profile-preview-bio">'+esc(p.bio||'')+'</p><div class="profile-preview-stats"><div data-followers="'+esc(key)+'" data-count="'+Number(d.followers||0)+'"><strong data-follow-count>'+number(d.followers)+'</strong><span>팔로워'+(d.ai_followers?' · AI '+number(d.ai_followers)+' 포함':'')+'</span></div><div><strong>'+number(d.following_count)+'</strong><span>팔로잉</span></div>'+(c?'<a class="small-button profile-preview-crew" href="#crew/'+esc(c.id)+'" title="'+esc(c.name)+'">'+(c.image_version?'<img src="/media/crew/'+encodeURIComponent(c.id)+'?v='+encodeURIComponent(c.image_version)+'" alt="">':'')+'<span>'+esc(c.name)+'</span>'+icon('chevron')+'</a>':'')+'</div><nav class="profile-preview-actions" aria-label="프로필 작업">'+buttons+'</nav></section>';
 }
 async function openProfilePreview(id,origin){
@@ -48,6 +48,7 @@ async function openProfilePreview(id,origin){
    const target=event.target;
    if(target===panel){const r=panel.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)closeProfilePreview();return;}
    if(target.closest('[data-preview-close]'))return closeProfilePreview();
+   const gift=target.closest('[data-preview-gift]');if(gift){closeProfilePreview();await profileGiftDialog(gift.dataset.previewGift);return;}
    if(target.closest('[data-preview-report]')){closeProfilePreview();if(!me)return askLogin();toast('사용자 프로필 신고는 아직 연결되지 않았어요. 신고가 접수되지 않았습니다.');return;}
    const share=target.closest('[data-preview-share]');
    if(share){
@@ -62,11 +63,11 @@ async function openProfilePreview(id,origin){
 }
 document.addEventListener('click',event=>{
  const image=event.target.closest('[data-profile-preview]');
- if(!image||image.closest('dialog,button,label,[contenteditable="true"]')||event.button!==0||event.ctrlKey||event.metaKey||event.shiftKey||event.altKey)return;
+ if(!image||image.closest('dialog,label,[contenteditable="true"]')||(image.closest('button')&&image.closest('button')!==image)||event.button!==0||event.ctrlKey||event.metaKey||event.shiftKey||event.altKey)return;
  event.preventDefault();event.stopImmediatePropagation();void openProfilePreview(image.dataset.profilePreview,image);
 },true);
 document.addEventListener('keydown',event=>{
- if(!['Enter',' '].includes(event.key)||!event.target.matches('[data-profile-preview]')||event.target.closest('dialog,button,label'))return;
+ if(!['Enter',' '].includes(event.key)||!event.target.matches('[data-profile-preview]')||event.target.closest('dialog,label')||event.target.closest('button'))return;
  event.preventDefault();event.stopImmediatePropagation();void openProfilePreview(event.target.dataset.profilePreview,event.target);
 },true);
 window.addEventListener('hashchange',closeProfilePreview);
