@@ -1,4 +1,5 @@
 import {one,query,now,fail} from './db.js';
+import {DUBBING_DAILY_AD_LIMIT} from '../shared/dubbing.js';
 
 export function dubbingDay(at=now()){
  const start=Math.floor((at+9*3600)/86400)*86400-9*3600;
@@ -9,7 +10,7 @@ const counted="input_hash NOT LIKE 'sound-plan:%' AND state IN ('running','ready
 // completed requests, so concurrent generation cannot spend the same credit twice.
 const allowanceSQL=`WITH clock AS (SELECT ? user_id,? at,? start,? end,? day)
  SELECT CASE WHEN MAX(u.premium_until,u.apple_premium_until)>c.at THEN 3 ELSE 1 END freeDaily,
- MIN(4,(SELECT COUNT(*) FROM dubbing_script_rewards WHERE user_id=u.id AND day=c.day)) adsEarned,
+ MIN(${DUBBING_DAILY_AD_LIMIT},(SELECT COUNT(*) FROM dubbing_script_rewards WHERE user_id=u.id AND day=c.day)) adsEarned,
  (SELECT COUNT(*) FROM dubbing_generations WHERE user_id=u.id AND created>=c.start AND created<c.end AND quota_source='daily' AND ${counted}) dailyUsed,
  (SELECT COUNT(*) FROM dubbing_generations WHERE user_id=u.id AND created>=c.start AND created<c.end AND ${counted}) used,
  COALESCE((SELECT SUM(amount) FROM dubbing_script_credits WHERE user_id=u.id),0) bonusGranted,
@@ -20,8 +21,8 @@ export async function dubbingQuota(env,userId,at=now()){
  const q=await one(env,allowanceSQL,userId,at,day.start,day.end,day.day);
  if(!q)fail(404,'계정을 찾을 수 없습니다.');
  const dailyRemaining=Math.max(0,q.freeDaily+q.adsEarned-q.dailyUsed),bonusRemaining=Math.max(0,q.bonusGranted-q.bonusUsed);
- return {day:day.day,resetsAt:day.end,...q,dailyRemaining,bonusRemaining,adLimit:4,remaining:dailyRemaining+bonusRemaining,
-  adRemaining:4-q.adsEarned,rewardedAdAvailable:false}; // Route adds provider/region availability.
+ return {day:day.day,resetsAt:day.end,...q,dailyRemaining,bonusRemaining,adLimit:DUBBING_DAILY_AD_LIMIT,remaining:dailyRemaining+bonusRemaining,
+  adRemaining:DUBBING_DAILY_AD_LIMIT-q.adsEarned,rewardedAdAvailable:false}; // Route adds provider/region availability.
 }
 export async function reserveDubbingGeneration(env,userId,gid,inputHash,at=now()){
  const day=dubbingDay(at);
@@ -41,7 +42,7 @@ export async function creditVerifiedDubbingAd(env,{userId,transactionId,complete
  if(old){if(old.user_id!==userId||old.day!==day.day)fail(409,'이미 처리된 광고 보상입니다.');return dubbingQuota(env,userId,at);}
  await query(env,`INSERT INTO dubbing_script_rewards(transaction_id,user_id,day,completed_at)
  SELECT ?,?,?,? WHERE EXISTS(SELECT 1 FROM users WHERE id=? AND provider!='deleted')
- AND (SELECT COUNT(*) FROM dubbing_script_rewards WHERE user_id=? AND day=?)<4
+ AND (SELECT COUNT(*) FROM dubbing_script_rewards WHERE user_id=? AND day=?)<${DUBBING_DAILY_AD_LIMIT}
  ON CONFLICT(transaction_id) DO NOTHING`,transactionId,userId,day.day,completedAt,userId,userId,day.day).run();
  return dubbingQuota(env,userId,at);
 }

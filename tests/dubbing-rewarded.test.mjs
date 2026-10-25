@@ -34,18 +34,18 @@ test('authentication, region and session binding reject unrelated claims',async 
  assert.equal((await f.call('/complete',{...s,event:'rewardedSlotVideoCompleted'})).status,400);
  assert.equal((await dubbingQuota(f.env,'owner')).adsEarned,0);
 });
-test('parallel starts allow one active session; grants are one-use and capped at four',async t=>{
+test('parallel starts allow one active session; grants are one-use and capped at two',async t=>{
  const f=await setup(t),starts=await Promise.all([f.start(),f.start()]);
  assert.deepEqual(starts.map(s=>s.status).sort(),[201,409]);
  let s=starts.find(s=>s.status===201);
- for(let i=0;i<4;i++){
+ for(let i=0;i<2;i++){
   if(i)s=await f.start();
   const responses=await Promise.all(Array.from({length:5},()=>f.call('/complete',{...s,event:'rewardedSlotGranted'})));
   assert.ok(responses.every(r=>r.status===200&&r.granted));
   assert.equal((await dubbingQuota(f.env,'owner')).adsEarned,i+1);
  }
  assert.equal((await f.start()).status,429);
- assert.equal(f.sql.prepare("SELECT COUNT(*) n FROM dubbing_ad_sessions WHERE source='web_gpt_client' AND state='granted'").get().n,4);
+ assert.equal(f.sql.prepare("SELECT COUNT(*) n FROM dubbing_ad_sessions WHERE source='web_gpt_client' AND state='granted'").get().n,2);
 });
 test('cancel, expiry and Korea midnight never grant; completed replay remains safe',async t=>{
  const f=await setup(t),cancelled=await f.start();
@@ -62,6 +62,16 @@ test('cancel, expiry and Korea midnight never grant; completed replay remains sa
  assert.equal((await f.call('/cancel',done)).granted,true);
  assert.equal((await dubbingQuota(f.env,'owner')).adsEarned,1);
  assert.equal((await dubbingQuota(f.env,'owner',dubbingDay().end)).adsEarned,0);
+});
+test('an already-open ad cannot exceed the two-reward cap at completion',async t=>{
+ const f=await setup(t),s=await f.start(),day=dubbingDay();
+ for(let i=0;i<2;i++)f.sql.prepare('INSERT INTO dubbing_script_rewards(transaction_id,user_id,day,completed_at) VALUES(?,?,?,?)').run('verified-'+i,'owner',day.day,day.start+1);
+ const result=await f.call('/complete',{...s,event:'rewardedSlotGranted'});
+ assert.equal(result.status,200);assert.equal(result.granted,false);
+ assert.equal(result.quota.adsEarned,2);assert.equal(result.quota.adRemaining,0);assert.equal(result.quota.remaining,3);
+ assert.equal(f.sql.prepare('SELECT state FROM dubbing_ad_sessions WHERE id=?').get(s.sessionId).state,'capped');
+ assert.equal((await f.call('/complete',{...s,event:'rewardedSlotGranted'})).status,409);
+ assert.equal(f.sql.prepare('SELECT COUNT(*) n FROM dubbing_script_rewards').get().n,2);
 });
 test('lost commit acknowledgement can be retried without another reward',async t=>{
  const f=await setup(t),s=await f.start(),batch=f.DB.batch;let lost=true;

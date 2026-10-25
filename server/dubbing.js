@@ -7,7 +7,7 @@ import {dubbingGoldEnabled,reconcileDubbingGold} from './dubbing-gold.js';
 import {one,rows,query,run,now,id,json,fail,rate} from './db.js';
 import {requireUser,hash} from './auth.js';
 import {publicNameSQL} from './identity.js';
-import {dubbingOptions,validateDubbingScript,dubbingTimeline,DUBBING_MODEL,DUBBING_GENRES} from '../shared/dubbing.js';
+import {dubbingOptions,validateDubbingScript,dubbingTimeline,DUBBING_MODEL,DUBBING_GENRES,DUBBING_DAILY_AD_LIMIT} from '../shared/dubbing.js';
 import {dubbingAIAvailable,generateDubbingScript} from './dubbing-ai.js';
 import {generationResult} from './dubbing-generation.js';
 import {dubbingSoundStatus,dubbingSoundProjectRoute} from './dubbing-sound.js';
@@ -90,7 +90,7 @@ export async function dubbingRoute(req,env,path,user){
   if(!dubbingAIAvailable(env))fail(503,'AI 대본 연동 대기 중입니다. 직접 대본을 작성할 수 있어요.');
   await rate(env,'dubbing-ai-user:'+user.id,20,86400);await rate(env,'dubbing-ai-all',100,86400);
   const reserved=await reserveDubbingGeneration(env,user.id,gid,inputHash);
-  if(!reserved){g=await one(env,'SELECT * FROM dubbing_generations WHERE id=? AND user_id=?',gid,user.id);if(!g)fail(429,'오늘의 대본 작성 횟수를 모두 사용했어요. 광고 보상으로 최대 4회 더 이용할 수 있습니다.');if(g.input_hash!==inputHash)conflict();return generationResult(env,g);}
+  if(!reserved){g=await one(env,'SELECT * FROM dubbing_generations WHERE id=? AND user_id=?',gid,user.id);if(!g)fail(429,`오늘의 대본 작성 횟수를 모두 사용했어요. 광고 보상은 하루 최대 ${DUBBING_DAILY_AD_LIMIT}회까지 받을 수 있습니다.`);if(g.input_hash!==inputHash)conflict();return generationResult(env,g);}
   try{
    await run(env,"UPDATE dubbing_generations SET result_json=? WHERE id=? AND state='running'",JSON.stringify({options}),gid);
    const recent=await rows(env,"SELECT result_json FROM dubbing_generations WHERE user_id=? AND state='ready' ORDER BY created DESC LIMIT 6",user.id);

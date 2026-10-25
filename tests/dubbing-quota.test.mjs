@@ -24,17 +24,17 @@ test('one free generation is reserved atomically and replay never consumes anoth
  assert.deepEqual(results.map(r=>r.status).sort(),[200,429]);assert.equal(calls,1);
  assert.equal((await f.call('/api/dubbing/generations','POST',first)).body.state,'ready');assert.equal(calls,1);
  const config=(await f.call('/api/dubbing/config')).body;
- assert.equal(config.quota.remaining,0);assert.equal(config.quota.adLimit,4);assert.equal(config.goldChargingEnabled,false);
+ assert.equal(config.quota.remaining,0);assert.equal(config.quota.adLimit,2);assert.equal(config.goldChargingEnabled,false);
  assert.equal(config.quota.rewardedAdAvailable,false);
 });
-test('verified ads grant at most four extra turns and reject replay across accounts',async t=>{
+test('verified ads grant at most two extra turns and reject replay across accounts',async t=>{
  const f=await fixture(t,settings),env={DB:f.DB},at=Date.parse('2026-10-20T04:00:00Z')/1000;
  const grant=id=>creditVerifiedDubbingAd(env,{userId:'owner',transactionId:id,completedAt:at},at);
  await Promise.all(Array.from({length:8},(_,i)=>grant('receipt-'+i)));
- assert.equal((await dubbingQuota(env,'owner',at)).adsEarned,4);
- await grant('receipt-0');assert.equal((await dubbingQuota(env,'owner',at)).adsEarned,4);
+ assert.equal((await dubbingQuota(env,'owner',at)).adsEarned,2);
+ await grant('receipt-0');assert.equal((await dubbingQuota(env,'owner',at)).adsEarned,2);
  await assert.rejects(creditVerifiedDubbingAd(env,{userId:'other',transactionId:'receipt-0',completedAt:at},at),/이미 처리/);
- for(let i=0;i<5;i++)assert.ok(await reserveDubbingGeneration(env,'owner',crypto.randomUUID(),'script',at));
+ for(let i=0;i<3;i++)assert.ok(await reserveDubbingGeneration(env,'owner',crypto.randomUUID(),'script',at));
  assert.equal(await reserveDubbingGeneration(env,'owner',crypto.randomUUID(),'script',at),null);
  assert.equal((await dubbingQuota(env,'owner',at)).remaining,0);
  const next=dubbingDay(at).end;

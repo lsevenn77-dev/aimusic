@@ -11,6 +11,7 @@ export const DUBBING_ENDINGS=['해피엔딩','새드엔딩','반전','열린 결
 export const DUBBING_MODEL='gpt-6-luna';
 export const DUBBING_LENGTHS=Array.from({length:10},(_,i)=>(i+1)/2);
 export const DUBBING_SOUND_GOLD=50;
+export const DUBBING_DAILY_AD_LIMIT=2;
 export const DUBBING_GENDERS=['male','female','unspecified'];
 export const DUBBING_MUSIC_USES=['intro','transition','outro','climax','diegetic'];
 export function dubbingGenderLabel(gender){return gender==='male'?'남':gender==='female'?'여':'미정';}

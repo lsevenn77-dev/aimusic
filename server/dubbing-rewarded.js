@@ -2,6 +2,7 @@ import {one,query,run,now,id,json,fail,rate} from './db.js';
 import {requireUser} from './auth.js';
 import {dubbingDay,dubbingQuota} from './dubbing-quota.js';
 import {dubbingRewardAvailable,dubbingRewardUnit} from './dubbing-ad-config.js';
+import {DUBBING_DAILY_AD_LIMIT} from '../shared/dubbing.js';
 
 const validId=v=>typeof v==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
 // GPT for web reports rewardedSlotGranted in the browser, not via a signed SSV
@@ -18,7 +19,7 @@ export async function dubbingRewardRoute(req,env,path,user){
   const old=await one(env,'SELECT * FROM dubbing_ad_sessions WHERE request_id=?',body.requestId);
   if(old){if(old.user_id!==user.id)fail(404,'광고 요청을 찾을 수 없습니다.');if(old.state!=='open'||old.expires_at<=at)fail(409,'종료된 광고 요청입니다. 다시 시작해주세요.');return json({sessionId:old.id,adUnit:old.ad_unit,expiresAt:old.expires_at});}
   const q=await dubbingQuota(env,user.id);
-  if(!q.adRemaining)fail(429,'오늘의 광고 보상 4회를 모두 받았어요. 내일 다시 이용해주세요.');
+  if(!q.adRemaining)fail(429,`오늘의 광고 보상 ${DUBBING_DAILY_AD_LIMIT}회를 모두 받았어요. 내일 다시 이용해주세요.`);
   await rate(env,'dubbing-ad-start:'+user.id,20,86400);
   await run(env,"UPDATE dubbing_ad_sessions SET state='expired' WHERE user_id=? AND state='open' AND expires_at<=?",user.id,at);
   const sid=id(),expires=Math.min(day.end,at+900),unit=dubbingRewardUnit(env);
@@ -43,7 +44,7 @@ export async function dubbingRewardRoute(req,env,path,user){
   query(env,`INSERT INTO dubbing_script_rewards(transaction_id,user_id,day,completed_at)
    SELECT ?,?,?,? WHERE EXISTS(SELECT 1 FROM dubbing_ad_sessions WHERE id=? AND state='open' AND expires_at>?)
    AND EXISTS(SELECT 1 FROM users WHERE id=? AND provider!='deleted')
-   AND (SELECT COUNT(*) FROM dubbing_script_rewards WHERE user_id=? AND day=?)<4
+   AND (SELECT COUNT(*) FROM dubbing_script_rewards WHERE user_id=? AND day=?)<${DUBBING_DAILY_AD_LIMIT}
    ON CONFLICT(transaction_id) DO NOTHING`,transaction,user.id,day.day,at,s.id,at,user.id,user.id,day.day),
   query(env,`UPDATE dubbing_ad_sessions SET state=CASE WHEN EXISTS(SELECT 1 FROM dubbing_script_rewards WHERE transaction_id=?) THEN 'granted' ELSE 'capped' END,completed_at=?
    WHERE id=? AND state='open'`,transaction,at,s.id)
