@@ -1,3 +1,4 @@
+import {walletHistory} from './wallet-history.js';
 import {officialSupport} from './ai-bots.js';
 import {assertUnblocked} from './account-safety.js';
 import {publicCrewNameSQL as publicNameSQL} from './identity.js';
@@ -45,6 +46,7 @@ export function settlementMonths(months,current){
 }
 
 export async function giftRoute(req,env,path,user){
+ if(path==='/api/gold/history')return walletHistory(req,env,user);
  const method=req.method;
  if(path==='/api/gifts/catalog'&&method==='GET')return json({gifts:GIFT_CATALOG,silver_gifts:SILVER_GIFT_CATALOG,free_gift:FREE_GIFT,gold_krw:GOLD_KRW,...goldCheckoutStatus(env,user)});
  if(path==='/api/gifts/free'&&method==='GET'){requireUser(user);return json(await freeGiftState(env,user.id));}
