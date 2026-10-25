@@ -5,12 +5,19 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
@@ -52,8 +59,8 @@ private val RankColors=listOf(Pink,Aqua,Violet,Color(0xFFE8CFA0))
  val selected=CoverPeriods.first{it.first==m.rankPeriod}.second
  val state=rememberLazyListState()
  LaunchedEffect(m.rankPeriod,m.rankKind,m.rankGenre,m.rankOriginal?.id){state.scrollToItem(0)}
- AppPage(title="커버 랭킹",onDismissRequest=m::dismissRanking,containerColor=Ink){
-  LazyColumn(Modifier.fillMaxWidth().imePadding().testTag("ranking-scroll"),state=state,contentPadding=PaddingValues(22.dp,0.dp,22.dp,32.dp)){
+ AppPage(title=if(m.karaokeChart)"노래방 차트" else "커버 랭킹",onDismissRequest=m::dismissRanking,containerColor=Ink){
+  LazyColumn(Modifier.fillMaxWidth().imePadding().testTag("ranking-scroll"),state=state,contentPadding=PaddingValues(start=if(m.karaokeChart)14.dp else 22.dp,end=if(m.karaokeChart)14.dp else 22.dp,bottom=32.dp)){
    item{
     Row(verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){Text(if(m.karaokeChart)"노래방 차트" else if(m.rankOriginal==null)"커버 랭킹" else "이 곡의 커버 랭킹",fontSize=26.sp,fontWeight=FontWeight.Bold);m.rankOriginal?.let{Text(it.title,fontSize=14.sp,color=Aqua,modifier=Modifier.padding(top=7.dp))}};IconButton(onClick=m::dismissRanking){Icon(Icons.Rounded.Close,"랭킹 닫기")}}
     Spacer(Modifier.height(18.dp));Chips(CoverPeriods.map{it.second},selected){label->m.rankPeriod=CoverPeriods.first{it.second==label}.first;m.loadRankings()}
@@ -69,7 +76,8 @@ private val RankColors=listOf(Pink,Aqua,Violet,Color(0xFFE8CFA0))
     m.rankError?.let{Text(it,fontSize=14.sp,color=Pink);TextButton(onClick={m.loadRankings()}){Text("다시 불러오기")}}
    }
    if(m.rankKind=="tracks")items(m.rankTracks,key={it.id}){song->
-    Column(Modifier.fillMaxWidth().padding(vertical=12.dp)){
+    if(m.karaokeChart)KaraokeChartRow(song,m,selected)
+    else Column(Modifier.fillMaxWidth().padding(vertical=12.dp)){
      Row(verticalAlignment=Alignment.CenterVertically){
       Text("${song.raw.optInt("rank")}",fontSize=25.sp,color=if(song.raw.optInt("rank")<=3)Pink else Muted,fontWeight=FontWeight.Bold,modifier=Modifier.width(34.dp))
       Artwork(song,Modifier.size(56.dp).clickable{m.openSong(song)})
@@ -95,4 +103,51 @@ private val RankColors=listOf(Pink,Aqua,Violet,Color(0xFFE8CFA0))
    item{TextButton(onClick={val original=m.rankOriginal;m.dismissRanking();if(original!=null)m.openCovers(original) else {m.community("커버곡");m.selectTab(3)}},modifier=Modifier.fillMaxWidth()){Text(if(m.rankOriginal!=null)"이 곡의 모든 커버 듣기" else "새로운 커버곡 둘러보기")}}
   }
  }
+}
+
+
+/** A ranked cover is three lines; profile and reactions stay inline. */
+@Composable private fun KaraokeChartRow(song:Song,m:MusicModel,selected:String){
+ val measure=rememberTextMeasurer()
+ val titleHeight=measure.measure("가",style=LocalTextStyle.current.copy(fontSize=16.sp,lineHeight=22.sp,fontWeight=FontWeight.SemiBold),maxLines=1).size.height
+ val creditHeight=measure.measure("가",style=LocalTextStyle.current.copy(fontSize=13.sp,lineHeight=18.sp),maxLines=1).size.height
+ val artSize=with(LocalDensity.current){titleHeight.toDp()+creditHeight.toDp()+32.dp}
+ val rank=song.raw.optInt("rank")
+ val period=when(m.rankPeriod){"today"->"오늘";"week"->"주간";"month"->"월간";else->"누적"}
+ val periodLikes=song.raw.optInt("rank_likes")
+ val liked=m.likes.any{it.id==song.id}
+ Column(Modifier.fillMaxWidth().testTag("karaoke-row-${song.id}")){
+  Row(Modifier.fillMaxWidth().padding(vertical=12.dp),verticalAlignment=Alignment.CenterVertically){
+   Text(if(rank>0)rank.toString()else "—",fontSize=16.sp,fontWeight=FontWeight.Bold,color=if(rank in 1..3)Pink else Muted,modifier=Modifier.width(26.dp),maxLines=1)
+   Box(Modifier.size(artSize).clip(RoundedCornerShape(10.dp)).clickable(role=Role.Button){m.play(song,m.rankTracks)}.semantics{contentDescription="${song.title} 재생"}.testTag("karaoke-play-${song.id}")){
+    Artwork(song,Modifier.fillMaxSize(),corner=10.dp)
+    Box(Modifier.align(Alignment.BottomEnd).padding(4.dp).size(26.dp).background(Ink.copy(alpha=.88f),CircleShape).border(1.dp,BrandGradient,CircleShape),contentAlignment=Alignment.Center){Icon(Icons.Rounded.PlayArrow,null,tint=Pink,modifier=Modifier.size(18.dp))}
+   }
+   Column(Modifier.weight(1f).padding(start=12.dp).testTag("karaoke-copy-${song.id}"),verticalArrangement=Arrangement.spacedBy(4.dp)){
+    Text(song.title,fontSize=16.sp,lineHeight=22.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.fillMaxWidth().clickable{m.openSong(song)}.testTag("karaoke-title-${song.id}"))
+    Row(Modifier.fillMaxWidth().clickable(role=Role.Button){m.openProfile(song.producerId,showCovers=true)}.semantics{contentDescription="${song.credit} 가수 보기"}.testTag("karaoke-artist-${song.id}"),verticalAlignment=Alignment.CenterVertically){
+     Text(song.credit,fontSize=13.sp,lineHeight=18.sp,color=Muted,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.weight(1f,false))
+     Icon(Icons.Rounded.ChevronRight,null,tint=Muted,modifier=Modifier.padding(start=2.dp).size(13.dp))
+    }
+    Row(Modifier.fillMaxWidth().testTag("karaoke-stats-${song.id}"),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(4.dp)){
+     Text("$period ${rankingCount(periodLikes)}",fontSize=11.sp,lineHeight=16.sp,color=SoftText,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.weight(1f).semantics{contentDescription="$selected 좋아요 $periodLikes"})
+     Box(Modifier.widthIn(min=44.dp).height(24.dp).clickable(enabled=!m.busy,role=Role.Button){m.like(song)}.semantics{contentDescription="${song.title} 전체 좋아요 ${song.likes}, ${if(liked)"좋아요 취소" else "좋아요"}"}.testTag("karaoke-like-${song.id}"),contentAlignment=Alignment.Center){
+      Row(Modifier.padding(horizontal=3.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(3.dp)){
+       Icon(if(liked)Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,null,tint=if(liked)Pink else Muted,modifier=Modifier.size(13.dp));Text(rankingCount(song.likes),fontSize=11.sp,lineHeight=16.sp,color=Muted,maxLines=1)
+      }
+     }
+     Box(Modifier.widthIn(min=44.dp).height(24.dp).clickable(role=Role.Button){m.openSong(song)}.semantics{contentDescription="${song.title} 댓글 ${song.comments}개 보기"}.testTag("karaoke-comments-${song.id}"),contentAlignment=Alignment.Center){
+      Row(Modifier.padding(horizontal=3.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(3.dp)){
+       Icon(Icons.Rounded.ChatBubbleOutline,null,tint=Muted,modifier=Modifier.size(13.dp));Text(rankingCount(song.comments),fontSize=11.sp,lineHeight=16.sp,color=Muted,maxLines=1)
+      }
+     }
+    }
+   }
+  }
+  HorizontalDivider(color=Stroke)
+ }
+}
+private fun rankingCount(value:Int):String{
+ val scale=when{value>=100000000->100000000 to "억";value>=10000->10000 to "만";value>=1000->1000 to "천";else->return value.toString()}
+ return String.format(java.util.Locale.ROOT,"%.1f",value.toDouble()/scale.first).removeSuffix(".0")+scale.second
 }

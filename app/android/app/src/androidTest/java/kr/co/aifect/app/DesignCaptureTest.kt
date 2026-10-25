@@ -461,8 +461,24 @@ class DesignCaptureTest {
   ui.onNode(more).assertIsDisplayed()
  }
  @Test fun chartsHavePanelsAndSearchStaysOneLine(){
+  val longCover=JSONObject(second.toString()).put("kind","cover").put("has_ai_artist",0).put("producer","이름이 아주 긴 가수와 함께하는 밤").put("producer_id","design-peer").put("title","한 걸음씩 너에게 다가가고 있어요 우리의 이야기를 들어줘").put("rank",3).put("rank_likes",9).put("likes",12840).put("comments",128)
+  responses["/api/cover-rankings"]=payload("tracks" to arr(JSONObject(cover.toString()).put("rank",1).put("rank_likes",24),JSONObject(duet.toString()).put("rank",2).put("rank_likes",12),longCover),"singers" to arr(peer))
   act{it.listenPage="차트";it.selectTab(0)};ready("chart-popular");capture("41-chart-panels")
-  ui.onNodeWithTag("chart-category-karaoke").performClick();ui.waitUntil(15000){model.rankOpen&&!model.rankBusy};capture("42-karaoke-chart-panel");act{it.dismissRanking()}
+  ui.onNodeWithTag("chart-category-karaoke").performClick();ui.waitUntil(15000){model.rankOpen&&!model.rankBusy};ready("karaoke-row-design-cover");capture("karaoke-259-top")
+  val ranking=ui.onNodeWithTag("ranking-scroll",useUnmergedTree=true)
+  ranking.performScrollToNode(hasTestTag("karaoke-row-design-cover"))
+  val offset=ui.onNodeWithTag("karaoke-row-design-cover",useUnmergedTree=true).fetchSemanticsNode().boundsInRoot.top-ranking.fetchSemanticsNode().boundsInRoot.top
+  ranking.performSemanticsAction(SemanticsActions.ScrollBy){it(0f,offset)}
+  val titleLayout=mutableListOf<TextLayoutResult>()
+  ui.onNodeWithTag("karaoke-title-design-ocean",useUnmergedTree=true).performSemanticsAction(SemanticsActions.GetTextLayoutResult){it(titleLayout)}
+  assertEquals(1,titleLayout.single().lineCount)
+  capture("karaoke-259-rows")
+  ui.onNodeWithTag("karaoke-like-design-cover").assertIsEnabled()
+  ui.onNodeWithTag("karaoke-play-design-cover").performClick();ui.waitUntil(15000){model.current?.id=="design-cover"&&model.playing}
+  ui.onNodeWithTag("karaoke-artist-design-cover").performClick();ui.waitUntil(15000){model.profile?.optString("id")=="design-peer"&&!model.profileLoading}
+  act{it.dismissProfile()}
+  ui.onNodeWithTag("karaoke-comments-design-cover").performClick();ui.waitUntil(15000){model.detail?.id=="design-cover"&&!model.detailBusy}
+  act{it.detail=null;it.dismissRanking();it.closePlayer()}
   act{it.listenPage="최신곡"};ready("stream-song-design-song");capture("43-latest-panels")
   act{it.selectTab(1)};ready("global-search")
   val layouts=mutableListOf<TextLayoutResult>()
