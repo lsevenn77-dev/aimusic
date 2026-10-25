@@ -12,7 +12,10 @@ export async function walletHistory(req,env,user){
  if(currency==='silver'){
   [earned,spent]=await Promise.all([
    rows(env,`SELECT 'claim:'||day||':'||kind id,kind,amount,created FROM free_gift_claims WHERE user_id=? ORDER BY created DESC,day DESC,kind LIMIT 20`,uid),
-   rows(env,`SELECT id,'gift' kind,silver amount,created,gift_name title FROM free_gifts WHERE sender_id=? ORDER BY created DESC,id LIMIT 20`,uid)
+   rows(env,`SELECT * FROM (
+    SELECT f.id,'gift' kind,f.silver amount,f.created,f.gift_name title FROM free_gifts f WHERE f.sender_id=? AND f.silver>0 AND NOT EXISTS(SELECT 1 FROM gift_inventory i WHERE i.id=f.id)
+    UNION ALL SELECT 'inventory:'||request_id,'inventory',SUM(value),created,gift_name||' 구매' FROM gift_inventory WHERE user_id=? AND currency='silver' AND source='purchase' GROUP BY request_id
+   ) ORDER BY created DESC,id LIMIT 20`,uid,uid)
   ]);
  }else{
   [earned,spent]=await Promise.all([
@@ -21,9 +24,10 @@ export async function walletHistory(req,env,user){
     UNION ALL SELECT 'refund:'||o.job_id,'dubbing_refund',SUM(l.refunded_gold),o.updated,'' FROM dubbing_gold_orders o JOIN dubbing_gold_lots l ON l.job_id=o.job_id WHERE o.user_id=? AND l.refunded_gold>0 GROUP BY o.job_id
    ) ORDER BY created DESC,id LIMIT 20`,uid,uid),
    rows(env,`SELECT * FROM (
-    SELECT id,'gift' kind,gold amount,created,gift_name title FROM gifts WHERE sender_id=?
+    SELECT g.id,'gift' kind,g.gold amount,g.created,g.gift_name title FROM gifts g WHERE g.sender_id=? AND NOT EXISTS(SELECT 1 FROM gift_inventory i WHERE i.id=g.id)
+    UNION ALL SELECT 'inventory:'||request_id,'inventory',SUM(value),created,gift_name||' 구매' FROM gift_inventory WHERE user_id=? AND currency='gold' AND source='purchase' GROUP BY request_id
     UNION ALL SELECT 'dubbing:'||job_id,'dubbing',gold,created,'' FROM dubbing_gold_orders WHERE user_id=?
-   ) ORDER BY created DESC,id LIMIT 20`,uid,uid)
+   ) ORDER BY created DESC,id LIMIT 20`,uid,uid,uid)
   ]);
  }
  return json({currency,earned,spent});

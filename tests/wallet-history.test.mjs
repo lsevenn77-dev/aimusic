@@ -23,3 +23,19 @@ test('gold receipts show charges and refunds separately without changing money',
  assert.equal(r.status,200);assert.deepEqual(r.body.earned.map(x=>[x.kind,x.amount]),[['dubbing_refund',20],['purchase',100]]);assert.deepEqual(r.body.spent.map(x=>[x.kind,x.amount]),[['dubbing',20]]);
  assert.deepEqual(f.sql.prepare('SELECT * FROM gold_purchases ORDER BY id').all(),before);
 });
+
+
+test('inventory purchases count once when a stored gift is later sent',async t=>{
+ const f=await fixture(t);
+ const {GIFT_CATALOG,SILVER_GIFT_CATALOG}=await import('../shared/gifts.js');
+ f.sql.exec("INSERT INTO gold_purchases(id,user_id,channel,gold,price_krw,status,created,paid_at) VALUES('funds','owner','web',10000,100000,'paid',1,1)");
+ f.sql.exec("INSERT INTO free_gift_wallets(user_id,balance) VALUES('owner',10000)");
+ f.sql.exec("INSERT INTO producers(id,user_id,name,created) VALUES('recipient','other','Other',0)");
+ for(const [currency,gift] of [['gold',GIFT_CATALOG[0]],['silver',SILVER_GIFT_CATALOG[0]]]){
+  const buy=await f.call('/api/me/gift-inventory/buy','POST',{gift_type:gift.id,quantity:2,request_id:`purchase-${currency}-receipt-test`});assert.equal(buy.status,201,JSON.stringify(buy.body));
+  const item=buy.body.items.find(x=>x.currency===currency);
+  const sent=await f.call(`/api/me/gift-inventory/${item.id}/send`,'POST',{profile_id:'recipient',request_id:`send-${currency}-receipt-test`});assert.equal(sent.status,200,JSON.stringify(sent.body));
+  const history=await f.call(`/api/gold/history?currency=${currency}`);assert.equal(history.status,200);
+  assert.deepEqual(history.body.spent.map(x=>[x.kind,x.amount]),[['inventory',2*(gift.gold||gift.silver)]]);
+ }
+});
