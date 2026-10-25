@@ -490,6 +490,10 @@ class DesignCaptureTest {
   Espresso.closeSoftKeyboard()
  }
  @Test fun chartPeriodsUseServerRanksAndOpenTrackActions(){
+  val rising="/api/catalog?section=tracks&chart=rising"
+  val newcomers="/api/catalog?section=tracks&chart=newcomers"
+  responses[rising]=payload("tracks" to arr(second,song))
+  responses[newcomers]=payload("tracks" to arr(song,second,JSONObject(song.toString()).put("id","design-new").put("title","새로운 목소리의 긴 노래 제목을 확인해요")))
   val month="/api/catalog?section=tracks&chart=top&period=month"
   responses[month]=payload("tracks" to arr(JSONObject(second.toString()).put("chart_rank",7).put("rank_change",2).put("chart_movement","up")),"chart" to payload("comparison" to payload("available" to true)))
   act{it.listenPage="차트";it.selectTab(0)};ready("chart-period-month")
@@ -500,6 +504,28 @@ class DesignCaptureTest {
   ui.onNodeWithText("7").assertExists()
   ui.onNodeWithTag("chart-song-design-song").assertDoesNotExist()
   capture("66-chart-month")
+  ui.onNodeWithTag("chart-category-rising").performScrollTo().performClick()
+  ui.waitUntil(15000){requestUrls.contains(rising)&&ui.onAllNodesWithTag("chart-loading").fetchSemanticsNodes().isEmpty()}
+  ui.onNodeWithTag("chart-rank-design-ocean",useUnmergedTree=true).assertTextEquals("1")
+  ui.onNodeWithTag("chart-rank-design-song",useUnmergedTree=true).assertTextEquals("2")
+  ui.onNodeWithTag("chart-movement-design-ocean",useUnmergedTree=true).assertDoesNotExist()
+  val risingTitle=mutableListOf<TextLayoutResult>()
+  ui.onNodeWithTag("music-title-design-ocean",useUnmergedTree=true).performSemanticsAction(SemanticsActions.GetTextLayoutResult){it(risingTitle)}
+  assertEquals(1,risingTitle.single().lineCount)
+  ui.onNodeWithContentDescription("푸른 순간 재생").performClick();ui.waitUntil(15000){model.playing&&model.current?.id=="design-ocean"}
+  capture("chart-260-rising")
+  ui.onNodeWithTag("chart-category-newcomers").performScrollTo().performClick()
+  ui.waitUntil(15000){requestUrls.contains(newcomers)&&ui.onAllNodesWithTag("chart-loading").fetchSemanticsNodes().isEmpty()}
+  val first=ui.onNodeWithTag("newcomer-card-design-song",useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
+  val secondCard=ui.onNodeWithTag("newcomer-card-design-ocean",useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
+  assertTrue("Newcomers have large artwork cards",first.width>120*context.resources.displayMetrics.density)
+  assertTrue(first.right<secondCard.left);assertEquals(first.top,secondCard.top,1f)
+  ui.onNodeWithTag("newcomer-like-design-song").assertIsEnabled()
+  capture("chart-260-newcomers")
+  ui.onNodeWithContentDescription("밤의 산책 먼저 듣기").performClick();ui.waitUntil(15000){model.playing&&model.current?.id=="design-song"}
+  ui.onNodeWithTag("chart-category-top").performScrollTo().performClick()
+  ui.waitUntil(15000){ui.onAllNodesWithTag("chart-loading").fetchSemanticsNodes().isEmpty()&&ui.onAllNodesWithTag("chart-movement-design-ocean",useUnmergedTree=true).fetchSemanticsNodes().isNotEmpty()}
+  ui.onNodeWithTag("chart-movement-design-ocean",useUnmergedTree=true).assertTextEquals("▲2")
   ui.onNodeWithContentDescription("${second.getString("title")} 더보기").performClick()
   ui.onNodeWithText("플레이리스트 담기").assertIsDisplayed()
   ui.onNodeWithText("선물하기").assertIsDisplayed()
@@ -726,11 +752,24 @@ class DesignCaptureTest {
   ui.onNodeWithContentDescription("푸른 순간 재생").performClick();ui.waitUntil(15000){model.current?.id=="design-ocean"};phaseCapture("03-chart")
   ui.onNodeWithTag("listen-tab-최신곡").performClick();ready("stream-play-design-song")
   ui.onNodeWithTag("stream-play-design-song").performClick();ui.waitUntil(15000){model.current?.id=="design-song"};phaseCapture("04-latest")
-  ui.onNodeWithTag("listen-tab-발견").performClick();ready("global-search");phaseCapture("05-discover")
+  ui.onNodeWithTag("listen-tab-발견").performClick();ready("global-search");phaseCapture("05-discover");capture("chart-260-discovery-top")
+  ui.onNodeWithTag("discover-mood-comfort").performScrollTo().performClick();ready("collection-page")
+  ui.waitUntil(15000){requestUrls.contains("/api/discovery?mood=comfort")&&!model.collectionBusy}
+  ui.onNodeWithTag("collection-back").performClick();ready("global-search")
+  ui.onNodeWithTag("discover-genre-K-POP").performScrollTo()
+  val searchScroll=ui.onNodeWithTag("search-scroll",useUnmergedTree=true)
+  val genreOffset=ui.onNodeWithTag("discover-genre-K-POP",useUnmergedTree=true).fetchSemanticsNode().boundsInRoot.top-searchScroll.fetchSemanticsNode().boundsInRoot.top
+  searchScroll.performSemanticsAction(SemanticsActions.ScrollBy){it(0f,genreOffset)};capture("chart-260-discovery-genres")
+  ui.onNodeWithTag("discover-genre-K-POP").performClick();ready("collection-page")
+  ui.waitUntil(15000){requestUrls.contains("/api/catalog?section=tracks&genre=K-POP")&&!model.collectionBusy}
+  ui.onNodeWithTag("collection-back").performClick();ready("search-scroll")
+  searchScroll.performScrollToIndex(0);ready("global-search")
   ui.onNodeWithTag("global-search").performTextInput("푸른")
   ui.waitUntil(15000){model.searched&&!model.searching};Espresso.closeSoftKeyboard()
+  ui.onNodeWithTag("discover-filter-곡").performClick();ui.onNodeWithTag("discover-filter-곡").assertIsSelected();capture("chart-260-discovery-results")
   ui.onNodeWithTag("listen-tab-추천").performClick();ui.onNodeWithTag("listen-tab-발견").performClick()
   ui.onNodeWithTag("global-search").assertTextContains("푸른")
+  ui.onNodeWithTag("discover-filter-곡").assertIsSelected()
   ui.onNodeWithTag("search-scroll").performScrollToNode(hasContentDescription("푸른 순간 재생"))
   ui.onNodeWithContentDescription("푸른 순간 재생").performClick();ui.waitUntil(15000){model.current?.id=="design-ocean"}
   assertTrue(requestUrls.any{it.startsWith("/api/search")})

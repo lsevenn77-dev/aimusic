@@ -216,14 +216,11 @@ private fun homeCount(value:Int):String {
  }
 }
 @Composable private fun MoodTile(mood:Mood,m:MusicModel){
- Surface(onClick={m.browseCollection(mood.name,"/api/discovery?mood=${mood.id}",mood.caption)},shape=RoundedCornerShape(18.dp),color=mood.color){
-  Box(Modifier.width(168.dp).height(120.dp).background(Brush.verticalGradient(listOf(Color.Transparent,Color.Black.copy(alpha=.25f))))){
-   Icon(mood.icon,null,tint=Color.White.copy(alpha=.16f),modifier=Modifier.align(Alignment.CenterEnd).size(62.dp).rotate(-14f))
-   Column(Modifier.fillMaxSize().padding(16.dp)){
-    Icon(mood.icon,null,Modifier.size(20.dp),tint=Color.White.copy(alpha=.8f))
-    Spacer(Modifier.weight(1f));Text(mood.name,fontSize=18.sp,fontWeight=FontWeight.Bold,color=Color.White)
-    Text(mood.caption,fontSize=12.sp,color=Color.White.copy(alpha=.8f),modifier=Modifier.padding(top=5.dp))
-   }
+ Surface(onClick={m.browseCollection(mood.name,"/api/discovery?mood=${mood.id}",mood.caption)},shape=RoundedCornerShape(16.dp),color=Panel,border=BorderStroke(1.dp,Stroke),modifier=Modifier.testTag("discover-mood-${mood.id}")){
+  Column(Modifier.width(168.dp).heightIn(min=120.dp).background(Brush.linearGradient(listOf(Pink.copy(alpha=.09f),Aqua.copy(alpha=.04f)))).padding(16.dp)){
+   Icon(mood.icon,null,Modifier.size(22.dp),tint=Pink)
+   Spacer(Modifier.height(14.dp));Text(mood.name,fontSize=16.sp,lineHeight=22.sp,fontWeight=FontWeight.SemiBold,color=SoftText,maxLines=2,overflow=TextOverflow.Ellipsis)
+   Text(mood.caption,fontSize=12.sp,lineHeight=17.sp,color=Muted,maxLines=2,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=4.dp))
   }
  }
 }
@@ -304,15 +301,14 @@ private fun homeCount(value:Int):String {
  }
 }
 @Composable private fun GenreGrid(m:MusicModel){
- val colors=listOf(Color(0xFF68509D),Color(0xFF347D74),Color(0xFFAA5F38),Color(0xFF4F739E))
  Column(verticalArrangement=Arrangement.spacedBy(12.dp)){
-  Genres.chunked(2).forEachIndexed{row,items->Row(horizontalArrangement=Arrangement.spacedBy(12.dp)){
-   items.forEachIndexed{index,genre->Surface(onClick={m.browseCollection(genre,"/api/catalog?section=tracks&genre="+URLEncoder.encode(genre,"UTF-8"),"장르별 음악 탐색")},modifier=Modifier.weight(1f),shape=RoundedCornerShape(16.dp),color=colors[(row*2+index)%colors.size]){
+  Genres.chunked(2).forEach{items->Row(horizontalArrangement=Arrangement.spacedBy(12.dp)){
+   items.forEach{genre->Surface(onClick={m.browseCollection(genre,"/api/catalog?section=tracks&genre="+URLEncoder.encode(genre,"UTF-8"),"장르별 음악 탐색")},modifier=Modifier.weight(1f).testTag("discover-genre-$genre"),shape=RoundedCornerShape(16.dp),color=Panel,border=BorderStroke(1.dp,Stroke)){
     Box(Modifier.heightIn(min=96.dp).fillMaxWidth()){
      GenreArtwork[genre]?.let{AsyncImage(Endpoint.url(it),null,Modifier.matchParentSize(),contentScale=ContentScale.Crop)}
      Box(Modifier.matchParentSize().background(Brush.horizontalGradient(listOf(Ink.copy(alpha=.88f),Ink.copy(alpha=.20f)))))
-     Icon(Icons.Rounded.Album,null,tint=Color.White.copy(alpha=.13f),modifier=Modifier.align(Alignment.BottomEnd).size(64.dp).rotate(20f))
-     Text(genre,fontSize=18.sp,fontWeight=FontWeight.Bold,color=Color.White,modifier=Modifier.padding(16.dp))
+     Icon(Icons.Rounded.ChevronRight,null,tint=SoftText,modifier=Modifier.align(Alignment.BottomEnd).padding(12.dp).size(18.dp))
+     Text(genre,fontSize=16.sp,lineHeight=22.sp,fontWeight=FontWeight.SemiBold,color=Color.White,maxLines=3,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(start=14.dp,end=28.dp,top=14.dp,bottom=14.dp))
     }
    }}
    if(items.size==1)Spacer(Modifier.weight(1f))
@@ -320,18 +316,29 @@ private fun homeCount(value:Int):String {
  }
 }
 
+@Composable private fun DiscoveryChip(label:String,icon:ImageVector?=null,selected:Boolean?=null,tag:String="",onClick:()->Unit){
+ val active=selected==true
+ val shape=RoundedCornerShape(12.dp)
+ val interaction=if(selected==null)Modifier.clickable(role=androidx.compose.ui.semantics.Role.Button,onClick=onClick)else Modifier.selectable(selected,role=androidx.compose.ui.semantics.Role.Tab,onClick=onClick)
+ Row(Modifier.clip(shape).then(if(active)Modifier.background(BrandGradient)else Modifier.background(Panel)).border(1.dp,if(active)Color.Transparent else Stroke,shape).then(interaction).testTag(tag).heightIn(min=44.dp).padding(horizontal=13.dp,vertical=9.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(6.dp)){
+  icon?.let{Icon(it,null,Modifier.size(17.dp),tint=if(active)Ink else Pink)}
+  Text(label,fontSize=13.sp,lineHeight=18.sp,fontWeight=FontWeight.Medium,color=if(active)Ink else SoftText,maxLines=1)
+ }
+}
+
 @Composable internal fun SearchScreen(m:MusicModel){
  var category by rememberSaveable{mutableStateOf("전체")}
  LazyColumn(Modifier.fillMaxSize().testTag("search-scroll"),contentPadding=PagePadding){
   item{
-   Heading("발견하는 즐거움","어떤 음악을 찾고 있나요?")
-   OutlinedTextField(m.search,m::searchFor,modifier=Modifier.fillMaxWidth().testTag("global-search"),placeholder={Text("곡 · 아티스트 검색",fontSize=14.sp,maxLines=1,softWrap=false,overflow=TextOverflow.Ellipsis)},leadingIcon={Icon(Icons.Rounded.Search,null)},trailingIcon={if(m.search.isNotEmpty())IconButton(onClick={m.searchFor("")}){Icon(Icons.Rounded.Close,"검색 지우기")}},singleLine=true,shape=RoundedCornerShape(16.dp))
+   Text("발견",fontSize=22.sp,lineHeight=30.sp,fontWeight=FontWeight.Bold,modifier=Modifier.padding(top=16.dp))
+   Text("지금의 기분에서, 다음 취향까지",fontSize=13.sp,lineHeight=19.sp,color=Muted,modifier=Modifier.padding(top=5.dp,bottom=16.dp))
+   CurrentSearch(m.search,m::searchFor,"곡 · 아티스트 검색","global-search")
    Text("제작자와 플레이리스트도 함께 찾아요",fontSize=11.sp,color=Muted,modifier=Modifier.padding(top=8.dp))
   }
   if(m.search.isNotBlank()){
-   item{Spacer(Modifier.height(16.dp));Chips(listOf("전체","곡","사람","플레이리스트"),category){category=it};if(m.searching)LinearProgressIndicator(Modifier.fillMaxWidth().padding(top=12.dp))}
+   item{Spacer(Modifier.height(16.dp));LazyRow(horizontalArrangement=Arrangement.spacedBy(8.dp)){items(listOf("전체","곡","사람","플레이리스트")){label->DiscoveryChip(label,selected=category==label,tag="discover-filter-$label"){category=label}}};if(m.searching)LinearProgressIndicator(Modifier.fillMaxWidth().padding(top=12.dp),color=Violet,trackColor=Stroke)}
    if(category in listOf("전체","곡")&&m.searchResults.isNotEmpty()){
-    item{Section("곡 · ${m.searchResults.size}")};items(m.searchResults,key={"song-"+it.id}){SongRow(it,m,m.searchResults)}
+    item{Section("곡 · ${m.searchResults.size}")};items(m.searchResults,key={"song-"+it.id}){TwoLineSongRow(it,m,m.searchResults)}
    }
    if(category in listOf("전체","사람")&&m.searchPeople.isNotEmpty()){
     item{Section("음악을 만드는 사람들")}
@@ -346,9 +353,9 @@ private fun homeCount(value:Int):String {
    item{
     Section("바로 발견하기")
     Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)){
-     FilterChip(false,{m.listenPage="차트";m.selectTab(0)},label={Text("인기 차트")},leadingIcon={Icon(Icons.AutoMirrored.Rounded.TrendingUp,null,Modifier.size(17.dp))})
-     FilterChip(false,{m.selectTab(2)},label={Text("노래방")},leadingIcon={Icon(Icons.Rounded.Mic,null,Modifier.size(17.dp))})
-     FilterChip(false,{m.browseCollection("커버곡 둘러보기","/api/community?kind=cover")},label={Text("커버곡")},leadingIcon={Icon(Icons.Rounded.PeopleOutline,null,Modifier.size(17.dp))})
+     DiscoveryChip("인기 차트",Icons.AutoMirrored.Rounded.TrendingUp){m.listenPage="차트";m.selectTab(0)}
+     DiscoveryChip("플레이",Icons.Rounded.PlayArrow){m.selectTab(2)}
+     DiscoveryChip("커버곡",Icons.Rounded.PeopleOutline){m.browseCollection("커버곡 둘러보기","/api/community?kind=cover")}
     }
     Section("기분과 순간");MoodShelf(m)
     Section("장르별로 둘러보기");GenreGrid(m)

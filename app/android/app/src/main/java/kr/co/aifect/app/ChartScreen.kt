@@ -15,7 +15,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.LineBreak
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.CancellationException
@@ -47,10 +47,10 @@ import kotlinx.coroutines.CancellationException
  Box(Modifier.fillMaxSize().testTag("chart-popular")){
  LazyColumn(Modifier.fillMaxSize().testTag("listen-scroll"),state=state,contentPadding=PaddingValues(14.dp,12.dp,14.dp,24.dp)){
   item{
-   Text("인기 차트",fontSize=18.sp,fontWeight=FontWeight.Bold)
+   Text(categories.first{it.first==category}.second,fontSize=18.sp,fontWeight=FontWeight.Bold)
    ChartTabs(categories,category,"chart-category"){key->if(key=="karaoke")m.openRanking("week",chart=true)else category=key}
    if(category=="top")ChartTabs(periods,period,"chart-period"){period=it}
-   Text(if(category=="top")"${periods.first{it.first==period}.second} · 한국 시간 기준 · 어제 집계 대비" else categories.first{it.first==category}.second,fontSize=12.sp,color=Muted,modifier=Modifier.padding(top=18.dp,bottom=8.dp))
+   Text(if(category=="top")"${periods.first{it.first==period}.second} · 한국 시간 기준 · 어제 집계 대비" else if(category=="rising")"최근 7일 청취자 수 기준" else if(category=="newcomers")"새로운 창작자의 음악을 만나보세요" else categories.first{it.first==category}.second,fontSize=12.sp,color=Muted,modifier=Modifier.padding(top=18.dp,bottom=8.dp))
    if(category=="top"&&!busy&&!comparison)Text("전날 순위 기록이 준비되면 변동을 표시해요.",fontSize=11.sp,color=Muted)
    Row(Modifier.fillMaxWidth().padding(top=12.dp,bottom=18.dp),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=Alignment.CenterVertically){
     BrandButton(onClick={m.playAll(tracks)},enabled=tracks.isNotEmpty(),contentPadding=PaddingValues(horizontal=14.dp)){
@@ -64,8 +64,14 @@ import kotlinx.coroutines.CancellationException
    if(busy)LinearProgressIndicator(Modifier.fillMaxWidth().testTag("chart-loading"),color=Aqua,trackColor=Stroke)
    error?.let{Text(it,color=Pink);TextButton(onClick={retry++}){Text("다시 시도")}}
   }
-  itemsIndexed(tracks,key={_,s->s.id}){index,song->
-   ChartSongRow(song,m,tracks,if(category=="top")song.raw.optInt("chart_rank",index+1)else null,category=="top",index==0,index==tracks.lastIndex)
+  if(category=="newcomers")items(tracks.chunked(2),key={"newcomer-"+it.first().id}){row->
+   Row(Modifier.fillMaxWidth().padding(bottom=20.dp),horizontalArrangement=Arrangement.spacedBy(14.dp)){
+    row.forEach{song->Box(Modifier.weight(1f)){NewcomerCard(song,m,tracks)}}
+    if(row.size==1)Spacer(Modifier.weight(1f))
+   }
+  }else itemsIndexed(tracks,key={_,s->s.id}){index,song->
+   val rank=when(category){"top"->song.raw.optInt("chart_rank",index+1);"rising"->index+1;else->null}
+   ChartSongRow(song,m,tracks,rank,category=="top",index==0,index==tracks.lastIndex)
   }
   if(!busy&&error==null&&tracks.isEmpty())item{Empty("아직 집계할 음악이 없어요","다른 기간의 차트도 둘러보세요.")}
  }
@@ -90,7 +96,7 @@ import kotlinx.coroutines.CancellationException
  Column(Modifier.fillMaxWidth().clip(shape).background(if(active)Violet.copy(alpha=.14f)else Panel.copy(alpha=.55f))){
   Row(Modifier.fillMaxWidth().testTag("chart-song-${song.id}").clickable{m.openSong(song)}.padding(start=5.dp,end=0.dp,top=5.dp,bottom=5.dp),verticalAlignment=Alignment.CenterVertically){
    if(rank!=null)Column(Modifier.width(26.dp),horizontalAlignment=Alignment.CenterHorizontally){
-    Text("$rank",fontWeight=FontWeight.Bold,fontSize=14.sp)
+    Text("$rank",fontWeight=FontWeight.Bold,fontSize=14.sp,modifier=Modifier.testTag("chart-rank-${song.id}"))
     if(movement){
      val direction=song.raw.optString("chart_movement")
      val delta=song.raw.optInt("rank_change")
@@ -98,19 +104,33 @@ import kotlinx.coroutines.CancellationException
      Text(label,color=when(direction){"up","new"->Pink;"down"->Aqua;else->Muted},fontSize=10.sp,modifier=Modifier.testTag("chart-movement-${song.id}"))
     }
    }
-   Artwork(song,Modifier.size(44.dp),corner=6.dp)
-   Column(Modifier.weight(1f).padding(start=10.dp,end=4.dp)){
-    Text(song.title,fontSize=14.sp,lineHeight=19.sp,fontWeight=FontWeight.SemiBold,style=MaterialTheme.typography.bodyMedium.copy(lineBreak=LineBreak.Paragraph),modifier=Modifier.testTag("music-title-${song.id}"))
-    Text(song.credit,fontSize=12.sp,lineHeight=16.sp,color=Muted,modifier=Modifier.padding(top=4.dp))
+   Box(Modifier.size(48.dp)){
+    Artwork(song,Modifier.fillMaxSize(),corner=6.dp)
+    IconButton(onClick={m.play(song,queue)},modifier=Modifier.fillMaxSize()){
+     Box(Modifier.size(25.dp).background(Ink.copy(alpha=.82f),CircleShape).border(1.dp,Violet,CircleShape),contentAlignment=Alignment.Center){Icon(Icons.Rounded.PlayArrow,"${song.title} 재생",Modifier.size(17.dp),tint=Pink)}
+    }
    }
-   IconButton(onClick={m.like(song)},modifier=Modifier.size(48.dp)){
+   Column(Modifier.weight(1f).padding(start=10.dp,end=4.dp)){
+    Text(song.title,fontSize=14.sp,lineHeight=19.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.testTag("music-title-${song.id}"))
+    Text(song.credit,fontSize=12.sp,lineHeight=16.sp,color=Muted,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=4.dp))
+   }
+   IconButton(onClick={m.like(song)},modifier=Modifier.size(44.dp)){
     Icon(if(m.likes.any{it.id==song.id})Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,"${song.title} 좋아요",Modifier.size(19.dp),tint=if(m.likes.any{it.id==song.id})Pink else Muted)
    }
-   IconButton(onClick={m.play(song,queue)},modifier=Modifier.size(48.dp)){
-    Box(Modifier.size(30.dp).background(BrandGradient,CircleShape),contentAlignment=Alignment.Center){Icon(Icons.Rounded.PlayArrow,"${song.title} 재생",Modifier.size(20.dp),tint=Ink)}
-   }
-   TrackActionsMenu(song,m,Modifier.size(48.dp))
+   TrackActionsMenu(song,m,Modifier.size(44.dp))
   }
   if(!last)HorizontalDivider(color=Stroke)
+ }
+}
+
+
+@Composable private fun NewcomerCard(song:Song,m:MusicModel,queue:List<Song>){
+ Box(Modifier.fillMaxWidth().testTag("newcomer-card-${song.id}")){
+  CurrentSongCard(song,m,queue)
+  IconButton(onClick={m.like(song)},enabled=!m.busy,modifier=Modifier.align(Alignment.TopEnd).padding(4.dp).size(44.dp).testTag("newcomer-like-${song.id}")){
+   Box(Modifier.size(30.dp).background(Ink.copy(alpha=.82f),CircleShape),contentAlignment=Alignment.Center){
+    Icon(if(m.likes.any{it.id==song.id})Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,"${song.title} 좋아요",Modifier.size(18.dp),tint=if(m.likes.any{it.id==song.id})Pink else SoftText)
+   }
+  }
  }
 }
