@@ -158,6 +158,56 @@ class DesignCaptureTest {
  private fun act(block:(MusicModel)->Unit){screen.onActivity{block(model)};ui.waitForIdle()}
  private fun capture(name:String){ui.waitForIdle();instrumentation.waitForIdleSync();Thread.sleep(850);val image=instrumentation.uiAutomation.takeScreenshot();val dir=File(context.getExternalFilesDir(null),"design-2549");dir.mkdirs();FileOutputStream(File(dir,name+".png")).use{image.compress(Bitmap.CompressFormat.PNG,100,it)};image.recycle()}
 
+ @Test fun homeKeepsTwoLineRowsAndFollowsItsTabOrder(){
+  ready("home-featured-play");capture("home-257-01-top")
+  val scroll=ui.onNodeWithTag("listen-scroll",useUnmergedTree=true)
+  fun focus(tag:String){
+   scroll.performScrollToNode(hasTestTag(tag))
+   val offset=ui.onNodeWithTag(tag,useUnmergedTree=true).fetchSemanticsNode().boundsInRoot.top-scroll.fetchSemanticsNode().boundsInRoot.top
+   scroll.performSemanticsAction(SemanticsActions.ScrollBy){it(0f,offset)}
+  }
+  val sections=listOf("recommended","charts","latest","discover","playlists")
+  val encountered=linkedSetOf<String>()
+  repeat(35){
+   if(encountered.size<sections.size){
+    val viewport=scroll.fetchSemanticsNode().boundsInRoot
+    sections.mapNotNull{section->
+     ui.onAllNodesWithTag("home-section-$section",useUnmergedTree=true).fetchSemanticsNodes().firstOrNull()
+      ?.boundsInRoot?.takeIf{it.top>=viewport.top&&it.top<viewport.bottom}?.let{section to it.top}
+    }.sortedBy{it.second}.forEach{encountered.add(it.first)}
+    if(encountered.size<sections.size)scroll.performSemanticsAction(SemanticsActions.ScrollBy){it(0f,viewport.height*.28f)}
+   }
+  }
+  assertEquals("Home must follow the same order as its four navigation tabs",sections,encountered.toList())
+  focus("home-section-charts");capture("home-257-02-charts-latest")
+  focus("home-section-discover");capture("home-257-03-discover-playlists")
+  val longSong=Song(JSONObject(song.toString()).put("title","조금씩 멀어지고 있었나 봐 우리의 이야기를 끝까지 들어주세요").put("artist","아주 긴 이름의 가수와 함께 부르는 밤").put("plays",12840).put("likes",2410).put("comments",128))
+  val original=model.home
+  act{it.home=listOf(longSong)+original.drop(1)}
+  scroll.performScrollToNode(hasTestTag("home-song-copy-design-song"))
+  fun bounds(tag:String)=ui.onAllNodesWithTag(tag,useUnmergedTree=true).onFirst().fetchSemanticsNode().boundsInRoot
+  for(tag in listOf("music-title-design-song","home-song-artist-design-song")){
+   val layouts=mutableListOf<TextLayoutResult>()
+   ui.onAllNodesWithTag(tag,useUnmergedTree=true).onFirst().performSemanticsAction(SemanticsActions.GetTextLayoutResult){it(layouts)}
+   assertEquals("Title and artist each occupy one line",1,layouts.single().lineCount)
+  }
+  val artist=bounds("home-song-artist-design-song");val stats=bounds("home-song-stats-design-song")
+  val copy=bounds("home-song-copy-design-song")
+  val art=ui.onNode(hasTestTag("stream-play-design-song") and hasAnyAncestor(hasTestTag("stream-song-design-song")),useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
+  capture("home-257-04-long-row")
+  assertTrue("Artist remains readable beside counts",artist.width>24*context.resources.displayMetrics.density)
+  assertTrue("Counts cannot overlap the artist",stats.left>=artist.right)
+  assertTrue("Counts stay on the artist line",kotlin.math.abs(artist.center.y-stats.center.y)<3*context.resources.displayMetrics.density)
+  assertTrue("Two-line block fits the artwork: text=$copy art=$art",copy.height<=art.height+6*context.resources.displayMetrics.density)
+  assertTrue("Metadata stays within the row",stats.right<=copy.right+1)
+  ui.onNodeWithContentDescription("재생 12840",useUnmergedTree=true).assertExists()
+  act{it.home=original};scroll.performScrollToIndex(0)
+  ui.onAllNodesWithContentDescription("밤의 산책 더보기").onFirst().performClick();text("플레이리스트 담기")
+  Espresso.pressBack()
+  ui.onAllNodesWithTag("stream-play-design-song").onFirst().performClick()
+  ui.waitUntil(15000){model.playing&&model.current?.id=="design-song"}
+ }
+
  @Test fun currentCommunityStartsWithPublicRoomsAndFiltersWithoutWrites(){
   ui.onNodeWithTag("main-tab-3").performClick();ready("voice-room-design-room")
   ui.onNodeWithTag("community-main-voice").assertIsSelected()
