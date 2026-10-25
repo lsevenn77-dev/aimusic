@@ -74,8 +74,8 @@ private val PagePadding=PaddingValues(start=14.dp,end=14.dp,bottom=24.dp)
       val releases=m.latest.ifEmpty{m.home}
       item{Spacer(Modifier.height(14.dp));if(releases.isNotEmpty())FeaturedCarousel(releases,m)else WelcomeMusic(m)}
       item{Spacer(Modifier.height(12.dp));ListenTabs(m)}
-      item(key="home-recommended"){Box(Modifier.testTag("home-section-recommended")){StreamingSection("추천 음악",action="모두 보기",onAction={m.showCollection("추천 음악",m.home)})}}
-      items(m.home.take(3),key={"approved-home-"+it.id}){song->ApprovedHomeSongRow(song,m,m.home)}
+      item(key="home-recommended"){Box(Modifier.testTag("home-section-recommended")){StreamingSection("추천 음악",action="모두 보기",onAction={m.showCollection("추천 음악",m.home,twoLineRows=true)})}}
+      items(m.home.take(3),key={"approved-home-"+it.id}){song->TwoLineSongRow(song,m,m.home)}
       if(m.home.isEmpty())item{Empty(if(m.loading)"음악을 불러오고 있어요" else "새로운 음악을 기다려요","발견에서 장르와 아티스트를 둘러보세요.")}
       item(key="home-charts"){Box(Modifier.testTag("home-section-charts")){StreamingSection("인기 차트",action="전체 보기",onAction={m.listenPage="차트"})}}
       itemsIndexed(m.home.take(3),key={_,song->"rank-"+song.id}){index,song->StreamingSongRow(song,m,m.home,rank=index+1);Spacer(Modifier.height(4.dp))}
@@ -119,7 +119,7 @@ private val PagePadding=PaddingValues(start=14.dp,end=14.dp,bottom=24.dp)
 }
 
 /** Two aligned text lines; artwork plays, the row opens details and the menu stays separate. */
-@Composable private fun ApprovedHomeSongRow(song:Song,m:MusicModel,queue:List<Song>){
+@Composable private fun TwoLineSongRow(song:Song,m:MusicModel,queue:List<Song>,sing:(()->Unit)?=null){
  val textMeasurer=rememberTextMeasurer()
  val titleHeight=textMeasurer.measure("가",style=LocalTextStyle.current.copy(fontSize=16.sp,lineHeight=22.sp,fontWeight=FontWeight.SemiBold),maxLines=1).size.height
  val artistHeight=textMeasurer.measure("가",style=LocalTextStyle.current.copy(fontSize=13.sp,lineHeight=18.sp),maxLines=1).size.height
@@ -130,7 +130,8 @@ private val PagePadding=PaddingValues(start=14.dp,end=14.dp,bottom=24.dp)
    Column(Modifier.weight(1f).padding(start=12.dp).testTag("home-song-copy-${song.id}"),verticalArrangement=Arrangement.spacedBy(6.dp)){
     Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
      Text(song.title,fontSize=16.sp,lineHeight=22.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.weight(1f).testTag("music-title-${song.id}"))
-     TrackActionsMenu(song,m,Modifier.size(24.dp))
+     if(sing!=null)IconButton(onClick=sing,modifier=Modifier.width(44.dp).height(24.dp)){Icon(Icons.Rounded.Mic,"${song.title} 부르기",tint=Violet,modifier=Modifier.size(18.dp))}
+     TrackActionsMenu(song,m,Modifier.width(if(sing!=null)44.dp else 24.dp).height(24.dp))
     }
     Row(Modifier.fillMaxWidth().testTag("home-song-meta-${song.id}"),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
      Text(song.credit,fontSize=13.sp,lineHeight=18.sp,color=Muted,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.weight(1f).testTag("home-song-artist-${song.id}"))
@@ -432,7 +433,7 @@ private fun homeCount(value:Int):String {
 @Composable internal fun CollectionSheet(m:MusicModel,c:MusicCollection,sing:(Song)->Unit){
  var grid by rememberSaveable(c.path,c.title){mutableStateOf(true)}
  val columns=musicGalleryColumns()
- val covers=c.path?.contains("kind=cover")==true||c.tracks.any{it.cover}
+ val covers=!c.twoLineRows&&(c.path?.contains("kind=cover")==true||c.tracks.any{it.cover})
  val content:@Composable ()->Unit={
   LazyColumn(Modifier.fillMaxSize().testTag("collection-scroll"),contentPadding=PagePadding){
    item{
@@ -442,7 +443,8 @@ private fun homeCount(value:Int):String {
     if(c.tracks.isNotEmpty())PlayButtons(c.tracks,m)
     if(covers)MusicLayoutControl(c.tracks.size,grid,{grid=it},"collection")
    }
-   if(covers)musicGallery(c.tracks,m,grid,columns,"collection")
+   if(c.twoLineRows)items(c.tracks,key={it.id}){song->TwoLineSongRow(song,m,c.tracks,if(m.singable.any{it.id==song.id})({sing(song)})else null)}
+   else if(covers)musicGallery(c.tracks,m,grid,columns,"collection")
    else items(c.tracks,key={it.id}){song->SongRow(song,m,c.tracks){Row{
     IconButton(onClick={m.play(song,c.tracks)}){Icon(Icons.Rounded.PlayArrow,"${song.title} 재생",tint=SoftText)}
     if(m.singable.any{it.id==song.id})IconButton(onClick={sing(song)}){Icon(Icons.Rounded.Mic,"${song.title} 부르기",tint=Violet)}

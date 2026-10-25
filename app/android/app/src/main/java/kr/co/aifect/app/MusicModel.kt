@@ -428,8 +428,8 @@ class MusicModel(app:Application):AndroidViewModel(app) {
  }
  fun library(page:String){if(tab!=4)libraryReturnTab=tab;libraryPage=page;selectTab(4)}
  fun leaveLibrary(){selectTab(libraryReturnTab)}
- fun showCollection(title:String,tracks:List<Song>,caption:String=""){
-  collectionRequest++;collectionJob?.cancel();collectionBusy=false;collectionError=null;collection=MusicCollection(title,caption,tracks,asPage=true)
+ fun showCollection(title:String,tracks:List<Song>,caption:String="",twoLineRows:Boolean=false){
+  collectionRequest++;collectionJob?.cancel();collectionBusy=false;collectionError=null;collection=MusicCollection(title,caption,tracks,asPage=true,twoLineRows=twoLineRows)
  }
  fun dismissCollection(){collectionRequest++;collectionJob?.cancel();collection=null;collectionBusy=false;collectionError=null}
  fun browseCollection(title:String,path:String,caption:String="",resultKey:String="tracks",asPage:Boolean=false){
