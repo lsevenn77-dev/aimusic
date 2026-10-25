@@ -4,6 +4,8 @@ package kr.co.aifect.app
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PageSize
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -22,6 +24,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -52,6 +55,7 @@ private fun crewInterests(c:JSONObject)=c.clean("interests").split(',', '·', '#
 }
 
 @Composable internal fun CurrentCrewDirectory(m:MusicModel){
+ val list=rememberLazyListState()
  val read=currentRead(m,"/api/crews?summary=1",poll=30000)
  var query by rememberSaveable{mutableStateOf("")}
  var interest by rememberSaveable{mutableStateOf("")}
@@ -76,22 +80,26 @@ private fun crewInterests(c:JSONObject)=c.clean("interests").split(',', '·', '#
   else->list.sortedWith(compareByDescending<JSONObject>{it.optInt("match")}.thenByDescending{it.optLong("xp")})
  }}
  fun open(c:JSONObject){val id=c.clean("id");if(CurrentNavigation.safeID(id))m.openCurrentWorkspace("crew/$id",c.clean("name"))}
- LazyColumn(Modifier.fillMaxSize().testTag("crew-directory-scroll"),contentPadding=PaddingValues(16.dp,18.dp,16.dp,28.dp),verticalArrangement=Arrangement.spacedBy(18.dp)){
+ LazyColumn(Modifier.fillMaxSize().testTag("crew-directory-scroll"),state=list,contentPadding=PaddingValues(16.dp,18.dp,16.dp,28.dp),verticalArrangement=Arrangement.spacedBy(18.dp)){
   item{Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)){
    Column(Modifier.weight(1f)){Text("함께하는 음악 모임",fontSize=19.sp,lineHeight=26.sp,fontWeight=FontWeight.Bold);Text("듣고, 부르고, 이야기해요",fontSize=12.sp,color=Muted,modifier=Modifier.padding(top=5.dp))}
    BrandButton(onClick={if(mine.isNotBlank())m.openCurrentWorkspace("crew/$mine","내 크루")else if(m.authenticated())creating=true},enabled=!read.loading,modifier=Modifier.testTag("current-crews-open"),contentPadding=PaddingValues(horizontal=12.dp)){Text(if(mine.isNotBlank())"내 크루" else "크루 만들기",fontSize=12.sp)}
   }}
   if(read.loading||read.error!=null)item{ReadStatus(read)}
-  if(recommended.isNotEmpty())item{
+  if(recommended.isNotEmpty())item(key="featured-crews"){
+   val featured=recommended.take(5)
+   val pager=rememberAutoCarousel(featured.size,list.layoutInfo.visibleItemsInfo.any{it.key=="featured-crews"})
+   val current=pager.currentPage%featured.size
    Surface(color=Panel,shape=RoundedCornerShape(18.dp),border=BorderStroke(1.dp,Stroke)){
     Column(Modifier.background(Brush.linearGradient(listOf(Pink.copy(alpha=.06f),Aqua.copy(alpha=.02f)))).padding(vertical=16.dp)){
      Text("지금 주목할 만한 크루",fontSize=16.sp,fontWeight=FontWeight.Bold,modifier=Modifier.padding(horizontal=14.dp).padding(bottom=14.dp))
      BoxWithConstraints(Modifier.fillMaxWidth()){
       val cardWidth=(maxWidth-44.dp).coerceAtMost(268.dp)
-      LazyRow(contentPadding=PaddingValues(horizontal=14.dp),horizontalArrangement=Arrangement.spacedBy(12.dp)){
-       items(recommended.take(3),key={it.clean("id")}){c->FeaturedCrewCard(c,mine,Modifier.width(cardWidth)){open(c)}}
+      HorizontalPager(state=pager,pageSize=PageSize.Fixed(cardWidth),contentPadding=PaddingValues(horizontal=14.dp),pageSpacing=12.dp,modifier=Modifier.fillMaxWidth().testTag("crew-carousel").semantics{stateDescription="${current+1} / ${featured.size}"}){page->
+       val c=featured[page%featured.size];FeaturedCrewCard(c,mine,Modifier.fillMaxWidth()){open(c)}
       }
      }
+     if(featured.size>1)Row(Modifier.fillMaxWidth().padding(top=12.dp),horizontalArrangement=Arrangement.Center){repeat(featured.size){page->Box(Modifier.padding(horizontal=3.dp).size(5.dp).clip(CircleShape).background(if(page==current)Pink else Muted.copy(alpha=.35f)))}}
     }
    }
   }

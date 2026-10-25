@@ -7,6 +7,7 @@ import android.graphics.Bitmap
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
@@ -65,6 +66,7 @@ class DesignCaptureTest {
   responses["/api/me"]=payload("user" to me,"membership" to payload("plan" to "free"),"providers" to JSONArray(),"emailEnabled" to true)
   responses["/api/me/profile"]=payload("profile" to own,"followers" to arr(peer),"follower_count" to 24,"following_count" to 18)
   responses["/api/me/player"]=payload("player" to payload("level" to 3,"xp" to 180,"remaining" to 120,"progress" to 0.2),"inventory" to JSONArray(),"rewards" to JSONArray(),"rules" to JSONArray())
+  responses["/api/me/gift-inventory"]=payload("items" to JSONArray())
   responses["/api/library"]=payload("likes" to arr(song,cover),"collections" to arr(playlist),"follows" to arr(payload("target_id" to "design-peer","kind" to "producer","name" to "하루")))
   responses["/api/history"]=payload("tracks" to arr(second,song,cover))
   responses["/api/catalog"]=payload("tracks" to arr(song,second,cover,duet),"producers" to arr(peer,own),"artists" to arr(payload("id" to "design-artist","name" to "NOVA","image_version" to "sample")))
@@ -105,7 +107,7 @@ class DesignCaptureTest {
   }
   responses["/api/producers/design-peer/gifts"]=payload("ranking" to rank)
   responses["/api/producers/design-own/gifts"]=payload("ranking" to rank)
-  val gifts=JSONArray();listOf(Triple("balloon","풍선",5),Triple("clover","행운",30),Triple("heart","하트",50),Triple("cheer-star","응원별",100),Triple("rose","장미",200),Triple("coffee","커피",300),Triple("microphone","마이크",500),Triple("crown","왕관",777),Triple("superstar","스타",1000),Triple("moon","달빛",2000)).forEach{(id,name,cost)->gifts.put(payload("id" to id,"name" to name,"gold" to cost,"image" to "/assets/gifts/$id.webp"))}
+  val gifts=JSONArray();listOf(Triple("lollipop","막대사탕",1),Triple("balloon","풍선",5),Triple("clover","행운",30),Triple("heart","하트",50),Triple("cheer-star","응원별",100),Triple("coffee","커피",300),Triple("microphone","마이크",500),Triple("crown","왕관",777),Triple("superstar","스타",1000),Triple("moon","달빛",2000)).forEach{(id,name,cost)->gifts.put(payload("id" to id,"name" to name,"gold" to cost,"image" to "/assets/gifts/$id.${if(id=="lollipop")"png"else"webp"}"))}
   responses["/api/gold"]=payload("balance" to 500,"free" to payload("balance" to 8,"gift" to payload("id" to "star","name" to "응원별","image" to "/assets/gifts/star.webp"),"rewards" to arr(payload("kind" to "checkin","amount" to 3,"eligible" to true,"claimed" to false),payload("kind" to "listen","amount" to 1,"progress" to 2,"target" to 5,"eligible" to false,"claimed" to false))),"gifts" to gifts,"packs" to JSONArray())
   val silver=JSONArray();listOf(Triple("letter","손편지",2),Triple("sticker","반짝 스티커",5),Triple("bell","은종",10),Triple("ribbon","리본 배지",20),Triple("bouquet","작은 부케",50),Triple("photo-frame","포토액자",100),Triple("lantern","응원 등불",200),Triple("trophy","미니 트로피",500),Triple("music-box","달빛 오르골",1000)).forEach{(id,name,cost)->silver.put(payload("id" to "silver-$id","name" to name,"silver" to cost,"free" to true,"image" to "/assets/gifts/silver-$id.webp"))}
   responses.getValue("/api/gold").put("silver_gifts",silver).getJSONObject("free").put("balance",80).put("gift",payload("id" to "star","name" to "실버","image" to "/assets/gifts/silver-coin-v1.webp"))
@@ -141,7 +143,7 @@ class DesignCaptureTest {
     when{webAsset!=null->{type=when{path.endsWith(".js")->"application/javascript; charset=utf-8";path.endsWith(".css")->"text/css; charset=utf-8";path.endsWith(".svg")->"image/svg+xml";else->"text/html; charset=utf-8"};bytes=webAsset}
      path=="/media/sample/audio"->{type="audio/wav";bytes=audio}
      path.startsWith("/media/")->{type="image/png";bytes=photos[if(path.contains("ocean")||path.contains("own")||path.contains("photo-2")||path.contains("crew"))1 else 0]}
-     path.startsWith("/assets/gifts/")->{type="image/webp";bytes=giftsBytes[path.substringAfterLast('/')]?:giftsBytes.values.first()}
+     path.startsWith("/assets/gifts/")->{type=if(path.endsWith(".png"))"image/png"else"image/webp";bytes=giftsBytes[path.substringAfterLast('/')]?:ByteArray(0)}
      else->{type="application/json";bytes=(responses[request[1]]?:responses[path]?:payload("ok" to true)).toString().toByteArray()}}
     val status=responseStatuses[path]?:200
     val session=if(path=="/api/auth/mobile/exchange"&&status==200)"Set-Cookie: aifect_session=browser-fixture; Path=/; HttpOnly\r\n" else ""
@@ -323,6 +325,114 @@ class DesignCaptureTest {
   ui.waitUntil(10000){requestUrls.any{it.startsWith("/api/play/works?")&&it.contains("tab=popular")&&it.contains("type=duet")}}
   assertFalse(requestBodies.keys.any{it.startsWith("/api/dubbing/")})
  }
+ @Test fun polish266RecipientShowsOwnedBeforePurchasableGifts(){
+  val first=payload("id" to "owned-first","gift_type" to "heart","gift_name" to "하트","image" to "/assets/gifts/heart.webp","available" to true)
+  val second=JSONObject(first.toString()).put("id","owned-second")
+  responses["/api/me/gift-inventory"]=payload("items" to arr(first,second))
+  act{it.openProfile("design-peer")};ready("profile-gift");ui.onNodeWithTag("profile-gift").performScrollTo().performClick();ready("recipient-owned-heart")
+  ui.onNodeWithTag("recipient-owned-count-heart",useUnmergedTree=true).assertTextEquals("2개 보유")
+  val owned=ui.onNodeWithTag("recipient-owned-gifts").fetchSemanticsNode().boundsInRoot
+  val purchasable=ui.onNodeWithTag("recipient-purchase-gifts").fetchSemanticsNode().boundsInRoot
+  assertTrue(owned.bottom<=purchasable.top);capture("polish-266-recipient-gifts")
+  ui.onNodeWithTag("recipient-owned-heart").performClick();ui.onNodeWithText("취소").performClick();assertFalse(requestBodies.containsKey("/api/me/gift-inventory/owned-first/send"))
+  ui.onNodeWithTag("recipient-owned-heart").performClick()
+  responseStatuses["/api/me/gift-inventory/owned-first/send"]=503;responses["/api/me/gift-inventory/owned-first/send"]=payload("error" to "선물 결과 확인 필요")
+  ui.onNodeWithTag("recipient-owned-send-confirm").performClick();ui.waitUntil(10000){requestBodies.containsKey("/api/me/gift-inventory/owned-first/send")};text("선물 결과 확인 필요")
+  val attempted=JSONObject(requestBodies.getValue("/api/me/gift-inventory/owned-first/send"))
+  responseStatuses["/api/me/gift-inventory/owned-first/send"]=200;responses["/api/me/gift-inventory/owned-first/send"]=payload("items" to arr(second))
+  ui.onNodeWithTag("recipient-owned-send-confirm").performClick();ready("recipient-owned-success");ui.onNodeWithTag("recipient-owned-count-heart",useUnmergedTree=true).assertTextEquals("1개 보유")
+  val sent=JSONObject(requestBodies.getValue("/api/me/gift-inventory/owned-first/send"))
+  assertEquals(attempted.getString("request_id"),sent.getString("request_id"));assertEquals("design-peer",sent.getString("profile_id"))
+  assertFalse(requestBodies.containsKey("/api/producers/design-peer/gifts"));assertFalse(requestBodies.containsKey("/api/me/gift-inventory/buy"))
+ }
+
+ @Test fun polish266ProfilePhotoAndPublicGallery(){
+  act{it.selectTab(6)};ready("my-avatar-open");ui.onNodeWithTag("my-avatar-open").performClick();ready("profile-photo-viewer")
+  assertTrue(model.photoPreview?.url?.contains("/media/producer/design-own")==true);capture("polish-266-profile-photo")
+  Espresso.pressBack();ready("current-my")
+  responses.getValue("/api/producers/design-peer").put("gallery",arr(payload("id" to "peer-photo","url" to "/media/profile-gallery/peer-photo?v=sample"),payload("id" to "peer-photo-2","url" to "/media/profile-gallery/peer-photo-2?v=sample-ocean")))
+  act{it.openProfile("design-peer")};ready("profile-public-gallery")
+  ui.onNodeWithTag("profile-scroll").performScrollToNode(hasTestTag("profile-public-gallery"));ui.onNodeWithTag("profile-gallery-peer-photo").assertIsDisplayed();capture("polish-266-profile-gallery")
+  ui.onNodeWithTag("profile-gallery-peer-photo").performClick();ready("profile-photo-viewer");assertTrue(model.photoPreview?.url?.contains("/media/profile-gallery/peer-photo")==true)
+  Espresso.pressBack();ready("profile-public-gallery")
+ }
+
+ @Test fun polish266HomeAndCrewCarouselsAdvanceAndPause(){
+  fun state(tag:String)=ui.onNodeWithTag(tag).fetchSemanticsNode().config[SemanticsProperties.StateDescription]
+  ready("home-carousel");val first=state("home-carousel");val started=android.os.SystemClock.uptimeMillis()
+  ui.waitUntil(4700){state("home-carousel")!=first};assertTrue(android.os.SystemClock.uptimeMillis()-started>=2100)
+  ui.onNodeWithTag("home-carousel").performTouchInput{swipeLeft(durationMillis=350)};ui.waitForIdle();val manual=state("home-carousel")
+  Thread.sleep(1000);assertEquals(manual,state("home-carousel"))
+  act{it.showInventory=true};ready("owned-inventory");Thread.sleep(3400);Espresso.pressBack();ready("home-carousel");assertEquals(manual,state("home-carousel"));capture("polish-266-home-carousel")
+  act{it.selectTab(3);it.communityMode="crews"};ready("crew-carousel");val crewFirst=state("crew-carousel")
+  assertTrue(crewFirst.endsWith(" / 2"));ui.waitUntil(4700){state("crew-carousel")!=crewFirst};capture("polish-266-crew-carousel")
+  val crewNext=state("crew-carousel");ui.waitUntil(4700){state("crew-carousel")!=crewNext};assertEquals(crewFirst,state("crew-carousel"))
+  act{it.selectTab(0)};responses["/api/crews"]=payload("crews" to arr(crew));act{it.api.invalidateReads();it.selectTab(3);it.communityMode="crews"}
+  ready("crew-carousel");ui.waitUntil(10000){state("crew-carousel")=="1 / 1"};Thread.sleep(3400);assertEquals("1 / 1",state("crew-carousel"))
+ }
+
+ @Test fun polish265LevelInventoryNavigationAndStudio(){
+  responses["/api/me/player"]=payload("player" to payload("level" to 3,"xp" to 420,"level_xp" to 120,"next_xp" to 600,"remaining" to 180,"progress" to .4),"inventory" to JSONArray(),"rules" to arr(payload("kind" to "listen","label" to "음악 감상","xp" to 10,"limit" to "하루 한 번")),"recent" to arr(payload("kind" to "listen","amount" to 10,"created" to now)))
+  act{it.selectTab(6)};ready("current-my");ui.onNodeWithTag("my-shop").assertIsDisplayed()
+  val scroll=ui.onNodeWithTag("current-my")
+  scroll.performScrollToNode(hasTestTag("my-section-activity"));ui.onNodeWithTag("my-section-activity").performClick()
+  scroll.performScrollToNode(hasTestTag("my-level"));ui.onNodeWithTag("my-level").performClick()
+  ready("player-experience");ui.onNodeWithTag("owned-inventory").assertDoesNotExist()
+  ui.onNodeWithTag("xp-level").assertTextEquals("Lv. 3");ui.onNodeWithTag("xp-remaining").assertTextEquals("레벨 4까지 180 XP")
+  ui.onNodeWithTag("xp-progress").assertTextEquals("현재 레벨 경험치  120 / 300 XP")
+  ui.onNodeWithTag("xp-total").assertTextEquals("420 XP");capture("polish-265-experience")
+  ui.onNodeWithTag("player-experience").performScrollToNode(hasText("최근 획득 내역"));text("+10 XP")
+  Espresso.pressBack()
+  responses.getValue("/api/me/player").put("player",payload("level" to 100,"xp" to 495000,"level_xp" to 0,"next_xp" to JSONObject.NULL,"remaining" to 0,"progress" to 1))
+  scroll.performScrollToNode(hasTestTag("my-level"));ui.onNodeWithTag("my-level").performClick();text("최고 레벨에 도달했어요")
+  ui.onNodeWithTag("xp-required").assertDoesNotExist();Espresso.pressBack()
+  scroll.performScrollToNode(hasTestTag("music-shortcut-인벤토리"));capture("polish-265-my-shortcuts")
+  ui.onNodeWithTag("music-shortcut-보관함").assertDoesNotExist();ui.onNodeWithTag("music-shortcut-인벤토리").performClick();ready("owned-inventory");text("보유한 아이템이 없어요.");Espresso.pressBack()
+  scroll.performScrollToNode(hasText("계정 관리"));ui.onAllNodesWithText("나의 관계").assertCountEquals(0);ui.onAllNodesWithText("받은 선물").assertCountEquals(0)
+  act{it.openStudio()};ready("creator-studio");ui.waitUntil(15000){!model.studioBusy};capture("polish-265-studio")
+  ui.onNodeWithTag("creator-studio").performScrollToNode(hasTestTag("studio-edit-design-song"));ui.onNodeWithTag("studio-edit-design-song").performClick();ready("studio-title");capture("polish-265-studio-editor")
+ }
+
+ @Test fun polish265ShopPurchaseRetryAndOwnedGift(){
+  act{it.selectTab(6)};ready("my-shop");ui.onNodeWithTag("current-my").performScrollToNode(hasTestTag("my-section-activity"));ui.onNodeWithTag("my-section-activity").performClick()
+  ui.onNodeWithTag("my-shop").performClick();ready("shop-item-balloon");capture("polish-265-shop")
+  ui.onNodeWithTag("shop-item-balloon").performClick();ui.onNodeWithTag("shop-quantity-more").performClick();ui.onNodeWithTag("shop-quantity").assertTextEquals("2개")
+  assertFalse(requestBodies.containsKey("/api/me/gift-inventory/buy"));capture("polish-265-buy-confirm")
+  responseStatuses["/api/me/gift-inventory/buy"]=503;responses["/api/me/gift-inventory/buy"]=payload("error" to "일시적인 연결 오류")
+  ui.onNodeWithTag("shop-buy-confirm").performClick();text("일시적인 연결 오류")
+  val attempted=JSONObject(requestBodies.getValue("/api/me/gift-inventory/buy"))
+  assertEquals("balloon",attempted.getString("gift_type"));assertEquals(2,attempted.getInt("quantity"));assertTrue(attempted.getString("request_id").length>=16)
+  val purchased=arr(payload("id" to "gift-one","gift_type" to "balloon","gift_name" to "풍선","image" to "/assets/gifts/balloon.webp","available" to true),payload("id" to "gift-two","gift_type" to "balloon","gift_name" to "풍선","image" to "/assets/gifts/balloon.webp","available" to true))
+  responseStatuses["/api/me/gift-inventory/buy"]=201;responses["/api/me/gift-inventory/buy"]=payload("items" to purchased);responses["/api/me/gift-inventory"]=payload("items" to purchased)
+  responses.getValue("/api/gold").put("balance",490)
+  responses.getValue("/api/gold/balance").put("balance",490)
+  ui.onNodeWithTag("shop-buy-confirm").performClick();ready("shop-success")
+  assertEquals(attempted.getString("request_id"),JSONObject(requestBodies.getValue("/api/me/gift-inventory/buy")).getString("request_id"))
+  text("490 G");ui.onNodeWithTag("shop-inventory").performClick();ready("inventory-gift-balloon");text("2개 보유");capture("polish-265-inventory")
+  ui.onNodeWithTag("inventory-gift-balloon").performClick();ready("owned-gift-send");ready("owned-gift-recipient-design-peer")
+  ui.onNodeWithTag("owned-gift-recipient-design-own").assertDoesNotExist();capture("polish-265-gift-recipient")
+  ui.onNodeWithTag("owned-gift-recipient-design-peer").performClick();ui.onNodeWithText("취소").performClick()
+  assertFalse(requestBodies.containsKey("/api/me/gift-inventory/gift-one/send"))
+  responses["/api/me/gift-inventory/gift-one/send"]=payload("items" to arr(purchased.getJSONObject(1)))
+  ui.onNodeWithTag("owned-gift-recipient-design-peer").performClick();ui.onNodeWithTag("owned-gift-send-confirm").performClick();text("1개 보유")
+  val sent=JSONObject(requestBodies.getValue("/api/me/gift-inventory/gift-one/send"));assertEquals("design-peer",sent.getString("profile_id"));assertFalse(sent.has("gold"));assertFalse(sent.has("silver"))
+  Espresso.pressBack();Espresso.pressBack();ready("current-my");ui.onNodeWithTag("current-my").performScrollToNode(hasTestTag("wallet-gold"));text("골드 490 G")
+ }
+
+ @Test fun polish265ShopInsufficientBalanceAndCharge(){
+  responses.getValue("/api/gold").put("balance",0)
+  act{it.selectTab(6);it.showShop=true};ready("shop-item-balloon");ui.onNodeWithTag("shop-item-balloon").performClick();text("골드가 부족해요.")
+  ui.onNodeWithTag("shop-buy-confirm").assertDoesNotExist();ui.onNodeWithTag("shop-order-charge").performClick();ui.waitUntil(10000){model.showBilling};assertEquals("gold",model.billingInitialTab)
+  assertFalse(requestBodies.containsKey("/api/me/gift-inventory/buy"));Espresso.pressBack();ready("item-shop")
+  ui.onNodeWithTag("shop-tab-silver").performClick();ready("shop-item-silver-letter");capture("polish-265-silver-shop")
+  ui.onNodeWithTag("shop-item-silver-letter").performClick();ui.onNodeWithTag("shop-buy-confirm").assertIsEnabled();ui.onNodeWithText("취소").performClick()
+  assertFalse(requestBodies.containsKey("/api/me/gift-inventory/buy"))
+  responses["/api/me/gift-inventory/buy"]=payload("items" to arr(payload("id" to "silver-owned","gift_type" to "silver-letter","gift_name" to "손편지","available" to true)))
+  responses.getValue("/api/gold").getJSONObject("free").put("balance",78)
+  ui.onNodeWithTag("shop-item-silver-letter").performClick();ui.onNodeWithTag("shop-buy-confirm").performClick();ready("shop-success");text("실버 78 S")
+  val purchase=JSONObject(requestBodies.getValue("/api/me/gift-inventory/buy"));assertEquals("silver-letter",purchase.getString("gift_type"));assertEquals(1,purchase.getInt("quantity"))
+ }
+
  @Test fun polish264MyGridInventoryWalletAndCachedGallery(){
   val dashboard=responses.getValue("/api/producers/design-own?dashboard=1")
   dashboard.getJSONObject("profile").put("public_number",1)
@@ -344,8 +454,8 @@ class DesignCaptureTest {
    ui.onNodeWithTag("wallet-$currency").performClick();ready("wallet-history-$currency");text(if(currency=="silver")"출석 보상" else "골드 충전")
    ui.onNodeWithText("최근 사용").performClick();text("하트 선물");capture("polish-264-$currency-history");Espresso.pressBack()
   }
-  scroll.performScrollToNode(hasTestTag("music-shortcut-보관함"))
-  val boxes=listOf("보관함","좋아요","최근 감상","플레이리스트").map{ui.onNodeWithTag("music-shortcut-$it").fetchSemanticsNode().boundsInRoot}
+  scroll.performScrollToNode(hasTestTag("music-shortcut-인벤토리"))
+  val boxes=listOf("인벤토리","좋아요","최근 감상","플레이리스트").map{ui.onNodeWithTag("music-shortcut-$it").fetchSemanticsNode().boundsInRoot}
   boxes.forEach{assertEquals(boxes[0].height,it.height,.5f);assertEquals(boxes[0].width,it.width,.5f)}
   capture("polish-264-library")
   act{it.showInventory=true};ready("owned-inventory");text("프레임 1")

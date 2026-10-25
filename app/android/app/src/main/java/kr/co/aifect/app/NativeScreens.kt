@@ -112,6 +112,7 @@ internal val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=
       IconButton(onClick={m.selectTab(1)}){Icon(Icons.Rounded.Search,"검색",Modifier.size(22.dp),tint=SoftText)}
      }
      if(m.tab!=0)IconButton(onClick={if(m.user==null)m.showLogin=true else m.showAccount=true},modifier=Modifier.testTag("account-menu")){Icon(if(m.tab==6)Icons.Outlined.Settings else Icons.Outlined.PersonOutline,if(m.user==null)"로그인" else "계정 메뉴",Modifier.size(22.dp),tint=SoftText)}
+     if(m.tab==6)IconButton(onClick={if(m.authenticated())m.showShop=true},modifier=Modifier.testTag("my-shop")){Icon(Icons.Outlined.Storefront,"상점",Modifier.size(22.dp),tint=SoftText)}
     }
     if(m.error!=null)Row(Modifier.fillMaxWidth().background(Color(0xFF36261E)).padding(horizontal=20.dp,vertical=8.dp),verticalAlignment=Alignment.CenterVertically){
      Text(m.error?:"",Modifier.weight(1f),fontSize=13.sp,color=Color(0xFFFFC69C));TextButton(onClick=m::refresh){Text("재시도")}
@@ -136,6 +137,7 @@ internal val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=
   if(m.showLogin)LoginSheet(m,browser,social)
   if(m.showAccount)AccountSheet(m,browser,adPrivacy)
   if(m.showAccountSettings)AccountSettingsSheet(m)
+  if(m.showShop)ItemShopPage(m)
   if(m.showBilling)PlayBillingSheet(m)
   if(m.showDiamonds)DiamondSheet(m)
   if(m.showInventory)PlayerInventorySheet(m,{m.showInventory=false}){}
@@ -149,6 +151,7 @@ internal val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=
   if(m.showGifts)GiftSheet(m)
   if(m.showRewards)RewardsSheet(m)
   if(m.showProfileEdit)ProfileEditorSheet(m)
+  m.photoPreview?.let{photo->ProfilePhotoViewer(photo){m.photoPreview=null}}
   if(m.showMessages)MessagesSheet(m)
   listPicker?.let { song->
    AppPage(title="음악 담기",onDismissRequest={listPicker=null},containerColor=Panel){
@@ -513,6 +516,7 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)P
    }
    else item{MusicProfileHeader(m,p,m.profileSongs,m.profileCovers,m.profileFollowers,close=m::dismissProfile)}
    if(!m.profileLoading&&m.profileError==null){
+   if(p.optString("profile_kind","producer")=="producer")item{PublicProfileGallery(m,p)}
    item{Chips(if(p.optString("profile_kind")=="artist")listOf("음악","갤러리")else listOf("전체","제작곡","커버","듀엣"),if(tab=="전체"&&p.optString("profile_kind")=="artist")"음악" else tab){tab=it};if(tab!="갤러리")MusicLayoutControl(tracks.size,grid,{grid=it},"profile")}
    if(tab=="갤러리")item{ArtistPhotoGallery(m,p)}else{
    musicGallery(tracks,m,grid,columns,"profile")

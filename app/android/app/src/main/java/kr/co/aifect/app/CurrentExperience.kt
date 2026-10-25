@@ -213,7 +213,7 @@ private val NoneDescription:String?=null
     if(loading)LinearProgressIndicator(Modifier.fillMaxWidth(),color=Pink,trackColor=Stroke)
     m.ownDashboardError?.let{Text(it,fontSize=12.sp,color=Muted);TextButton({m.refreshMyDashboard(fresh=true)}){Text("다시 불러오기")}}
     Row(verticalAlignment=Alignment.CenterVertically){
-     Avatar(p.optString("name",m.user?.optString("name").orEmpty()),p,80)
+     Box(Modifier.testTag("my-avatar-open").clickable{m.viewProfilePhoto(p)}){Avatar(p.optString("name",m.user?.optString("name").orEmpty()),p,80)}
      Column(Modifier.weight(1f).padding(start=14.dp)){
       Text(p.optString("name",m.user?.optString("name").orEmpty()),fontSize=21.sp,lineHeight=28.sp,fontWeight=FontWeight.Bold)
       val crew=data?.optJSONObject("crew")
@@ -278,7 +278,7 @@ private val NoneDescription:String?=null
    }else{
     item{CurrentPanel("내 지갑",action="골드 충전",onAction={m.billingInitialTab="gold";m.showBilling=true}){MyWalletPanel(m)}}
     item{PlayerHomePanel(m,compact=true)}
-    item{CurrentPanel("내 보관함"){MusicLibraryShortcuts(m,compact=true)}}
+    item{CurrentPanel("바로가기"){MusicLibraryShortcuts(m,compact=true,inventoryFirst=true)}}
     item{CurrentActivityLinks(m)}
    }
   }
@@ -286,6 +286,6 @@ private val NoneDescription:String?=null
 }
 @Composable private fun CurrentActivityLinks(m:MusicModel){
  CurrentPanel("내 활동"){
-  listOf("보유 이용권","인벤토리","나의 관계","내 크루","받은 선물","최근 활동","알림 기록","계정 관리").forEach{label->TextButton(onClick={when(label){"보유 이용권"->m.showBilling=true;"인벤토리"->m.showInventory=true;"나의 관계"->m.openCurrentWorkspace("relations","나의 관계");"내 크루"->{m.selectTab(3);m.communityMode="crews"};"받은 선물"->m.openCurrentWorkspace("gift-inventory","받은 선물");"최근 활동","알림 기록"->m.showNotifications=true;else->m.showAccount=true}},modifier=Modifier.fillMaxWidth().heightIn(min=48.dp),colors=ButtonDefaults.textButtonColors(contentColor=SoftText)){Text(label,Modifier.weight(1f),fontSize=14.sp);Icon(Icons.Rounded.ChevronRight,null,Modifier.size(18.dp),tint=Muted)}}
+  listOf("보유 이용권","내 크루","최근 활동","알림 기록","계정 관리").forEach{label->TextButton(onClick={when(label){"보유 이용권"->m.showBilling=true;"내 크루"->{m.selectTab(3);m.communityMode="crews"};"최근 활동","알림 기록"->m.showNotifications=true;else->m.showAccount=true}},modifier=Modifier.fillMaxWidth().heightIn(min=48.dp),colors=ButtonDefaults.textButtonColors(contentColor=SoftText)){Text(label,Modifier.weight(1f),fontSize=14.sp);Icon(Icons.Rounded.ChevronRight,null,Modifier.size(18.dp),tint=Muted)}}
  }
 }

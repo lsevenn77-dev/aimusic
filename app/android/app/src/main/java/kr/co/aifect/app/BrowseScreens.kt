@@ -29,6 +29,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
@@ -63,16 +64,17 @@ private val PagePadding=PaddingValues(start=14.dp,end=14.dp,bottom=24.dp)
 
 @Composable internal fun ListenScreen(m:MusicModel,sing:(Song)->Unit){
  val tabs=rememberSaveableStateHolder()
+ val list=rememberLazyListState()
  Column(Modifier.fillMaxSize()){
   if(m.listenPage!="추천")ListenTabs(m,Modifier.padding(horizontal=14.dp,vertical=8.dp))
   tabs.SaveableStateProvider(m.listenPage){
    when(m.listenPage){
     "발견"->SearchScreen(m)
     "차트"->ChartScreen(m)
-    else->LazyColumn(Modifier.fillMaxSize().testTag("listen-scroll"),contentPadding=PagePadding){
+    else->LazyColumn(Modifier.fillMaxSize().testTag("listen-scroll"),state=list,contentPadding=PagePadding){
      if(m.listenPage=="추천"){
       val releases=m.latest.ifEmpty{m.home}
-      item{Spacer(Modifier.height(14.dp));if(releases.isNotEmpty())FeaturedCarousel(releases,m)else WelcomeMusic(m)}
+      item(key="home-featured"){Spacer(Modifier.height(14.dp));if(releases.isNotEmpty())FeaturedCarousel(releases,m,list.layoutInfo.visibleItemsInfo.any{it.key=="home-featured"})else WelcomeMusic(m)}
       item{Spacer(Modifier.height(12.dp));ListenTabs(m)}
       item(key="home-recommended"){Box(Modifier.testTag("home-section-recommended")){StreamingSection("추천 음악",action="모두 보기",onAction={m.showCollection("추천 음악",m.home,twoLineRows=true)})}}
       items(m.home.take(3),key={"approved-home-"+it.id}){song->TwoLineSongRow(song,m,m.home)}
@@ -160,10 +162,12 @@ private fun homeCount(value:Int):String {
   else TextButton(onClick={m.selectTab(1)},colors=ButtonDefaults.textButtonColors(contentColor=SoftText)){Text("새로운 음악 찾아보기");Icon(Icons.Rounded.ChevronRight,null)}
  }
 }
-@Composable private fun FeaturedCarousel(tracks:List<Song>,m:MusicModel){
+@Composable private fun FeaturedCarousel(tracks:List<Song>,m:MusicModel,visible:Boolean){
  val featured=tracks.take(5)
- val pager=rememberPagerState(pageCount={featured.size})
- HorizontalPager(state=pager,pageSpacing=12.dp,modifier=Modifier.fillMaxWidth()) { index->
+ val pager=rememberAutoCarousel(featured.size,visible)
+ val current=pager.currentPage%featured.size
+ HorizontalPager(state=pager,pageSpacing=12.dp,modifier=Modifier.fillMaxWidth().testTag("home-carousel").semantics{stateDescription="${current+1} / ${featured.size}"}) { pageIndex->
+  val index=pageIndex%featured.size
   val song=featured[index]
   val coverText=LocalTextStyle.current.copy(shadow=Shadow(Color.Black.copy(alpha=.7f),Offset(0f,1f),4f))
   Box(Modifier.fillMaxWidth().heightIn(min=176.dp).clip(RoundedCornerShape(22.dp)).background(Panel)){
@@ -174,8 +178,8 @@ private fun homeCount(value:Int):String {
     Text(song.title,style=coverText,color=Color.White,fontSize=23.sp,lineHeight=30.sp,fontWeight=FontWeight.Bold,maxLines=2,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=18.dp).clickable{m.openSong(song)})
     Text(song.credit,style=coverText,color=SoftText,fontSize=14.sp,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=12.dp))
    }
-   BrandPlayButton("${song.title} 지금 듣기",{m.play(song,tracks)},Modifier.align(Alignment.BottomEnd).padding(end=12.dp,bottom=18.dp).then(if(index==pager.currentPage)Modifier.testTag("home-featured-play")else Modifier),diameter=38.dp)
-   if(featured.size>1)Row(Modifier.align(Alignment.BottomCenter).padding(bottom=10.dp),horizontalArrangement=Arrangement.spacedBy(5.dp)){repeat(featured.size){page->Box(Modifier.size(5.dp).clip(CircleShape).background(if(page==pager.currentPage)Color.White else Color.White.copy(alpha=.4f)))}}
+   BrandPlayButton("${song.title} 지금 듣기",{m.play(song,tracks)},Modifier.align(Alignment.BottomEnd).padding(end=12.dp,bottom=18.dp).then(if(pageIndex==pager.currentPage)Modifier.testTag("home-featured-play")else Modifier),diameter=38.dp)
+   if(featured.size>1)Row(Modifier.align(Alignment.BottomCenter).padding(bottom=10.dp),horizontalArrangement=Arrangement.spacedBy(5.dp)){repeat(featured.size){page->Box(Modifier.size(5.dp).clip(CircleShape).background(if(page==current)Color.White else Color.White.copy(alpha=.4f)))}}
   }
  }
 }

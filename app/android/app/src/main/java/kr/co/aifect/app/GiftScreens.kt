@@ -72,20 +72,18 @@ import java.util.UUID
  val giftColumns=if(LocalConfiguration.current.screenWidthDp<400||LocalDensity.current.fontScale>1.2f)3 else 4
  AppPage(title="선물",onDismissRequest={if(!working)m.showGifts=false},containerColor=Panel){
   LazyColumn(Modifier.fillMaxWidth().fillMaxHeight(.96f).testTag("gift-list"),contentPadding=PaddingValues(22.dp,0.dp,22.dp,28.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
-   item{Text(if(person!=null)"${recipient}님에게 선물" else if(target==null)"내 선물함" else "음악에 응원 보내기",fontSize=25.sp);target?.let{Text("${it.producer} · ${it.title}",color=Muted,modifier=Modifier.padding(top=8.dp))}}
+   item{Text(if(person!=null)"${recipient}님에게 선물" else if(target==null)"내 선물함" else "음악에 응원 보내기",fontSize=20.sp,lineHeight=28.sp,fontWeight=FontWeight.SemiBold,maxLines=2,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis,style=LocalTextStyle.current.copy(lineBreak=androidx.compose.ui.text.style.LineBreak.Heading));target?.let{Text("${it.producer} · ${it.title}",color=Muted,modifier=Modifier.padding(top=8.dp))}}
    if(loading)item{LinearProgressIndicator(Modifier.fillMaxWidth())}
    error?.let{message->item{Text(message,color=Pink);if(wallet==null)TextButton(onClick={scope.launch{loading=true;error=null;try{refresh()}catch(e:Exception){error=e.message}finally{loading=false}}}){Text("다시 불러오기")}}}
    success?.let{item{Text(it,color=Aqua,fontSize=17.sp)}}
+   item{RecipientOwnedGifts(m,person?.optString("id")?:target?.producerId,recipient,target!=null,working,{working=it}){
+    scope.launch{try{if(giftPath!=null)ranking=m.api.call(giftPath,fresh=true)}catch(e:Exception){if(e is kotlinx.coroutines.CancellationException)throw e}}
+   }}
    if(wallet!=null){
-    item{
-     Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).musicSurface(feature=true).padding(18.dp)){
-      Row(Modifier.align(Alignment.TopEnd)){AsyncImage(Endpoint.url("/assets/gifts/heart.webp"),null,Modifier.size(58.dp));AsyncImage(Endpoint.url("/assets/gifts/crown.webp"),null,Modifier.size(58.dp))}
-      Column{Text("마음을 전하는\n특별한 선물이에요",fontSize=23.sp,fontWeight=FontWeight.Bold,modifier=Modifier.padding(top=56.dp));Text("작은 응원이 더 큰 음악을 만듭니다.",color=Muted,fontSize=12.sp,modifier=Modifier.padding(top=10.dp))}
-     }
-    }
+    item{Text("구매해서 보내기",fontSize=19.sp,fontWeight=FontWeight.Bold,modifier=Modifier.padding(top=8.dp).testTag("recipient-purchase-gifts"))}
     item{Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(12.dp)){
-     Surface(onClick={m.showGifts=false;m.showRewards=true},color=Raised,shape=RoundedCornerShape(12.dp),modifier=Modifier.weight(1f)){Column(Modifier.padding(12.dp)){Text("실버 ${free?.optInt("balance")?:0} S",color=Violet,fontWeight=FontWeight.Bold);Text("오늘의 실버 받기 ›",color=Muted,fontSize=12.sp)}}
-     Surface(onClick={m.showGifts=false;m.showBilling=true},color=Raised,shape=RoundedCornerShape(12.dp),modifier=Modifier.weight(1f)){Column(Modifier.padding(12.dp)){Text("골드 ${wallet?.optInt("balance")} G",color=Pink,fontWeight=FontWeight.Bold);Text("골드 충전하기 ›",color=Muted,fontSize=12.sp)}}
+     Surface(onClick={m.showGifts=false;m.showRewards=true},enabled=!working,color=Raised,shape=RoundedCornerShape(12.dp),modifier=Modifier.weight(1f)){Column(Modifier.height(86.dp).padding(12.dp),verticalArrangement=Arrangement.spacedBy(6.dp)){Text("실버 ${free?.optInt("balance")?:0} S",color=Violet,fontSize=14.sp,lineHeight=20.sp,fontWeight=FontWeight.Bold);Text("실버 받기 ›",color=Muted,fontSize=12.sp,lineHeight=18.sp)}}
+     Surface(onClick={m.showGifts=false;m.billingInitialTab="gold";m.showBilling=true},enabled=!working,color=Raised,shape=RoundedCornerShape(12.dp),modifier=Modifier.weight(1f)){Column(Modifier.height(86.dp).padding(12.dp),verticalArrangement=Arrangement.spacedBy(6.dp)){Text("골드 ${wallet?.optInt("balance")} G",color=Pink,fontSize=14.sp,lineHeight=20.sp,fontWeight=FontWeight.Bold);Text("골드 충전 ›",color=Muted,fontSize=12.sp,lineHeight=18.sp)}}
     }}
     for((section,sectionCatalog) in listOf("실버 선물" to silverCatalog,"골드 선물" to goldCatalog)){
     item{Row(verticalAlignment=Alignment.CenterVertically){Text(section,fontSize=21.sp,fontWeight=FontWeight.Bold,color=if(section=="실버 선물")Violet else Pink,modifier=Modifier.weight(1f));TextButton(onClick={giftInfo=true}){Text("선물 안내",fontSize=12.sp)}}}

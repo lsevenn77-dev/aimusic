@@ -40,6 +40,8 @@ class MusicModel(app:Application):AndroidViewModel(app) {
  var showDiamonds by mutableStateOf(false)
  var billingInitialTab by mutableStateOf("premium")
  var showInventory by mutableStateOf(false)
+ var showShop by mutableStateOf(false)
+ internal var photoPreview by mutableStateOf<ProfilePhotoPreview?>(null)
  var directoryKind by mutableStateOf("artists")
  var visibleChatCount by mutableIntStateOf(0)
  var playBilling:PlayBilling?=null
@@ -325,7 +327,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   detail=null;comments=emptyList();detailBusy=false;profile=null;profileSongs=emptyList();profileCovers=emptyList();profileFollowers=0
   profileCache.clear();retryProfileLoad=null;profileLoading=false;profileError=null;messageSourceProfile=null
   showNotifications=false;unreadActivities=0;showDiamonds=false;showMessages=false;messagePeer=null;messageCrew=null;unreadMessages=0;inboxCrew=null;showProfileEdit=false;showAccountSettings=false;showRecordingDrafts=false;showRewards=false;showGifts=false;giftTarget=null;giftPerson=null
-  showAccount=false;showInventory=false;accountError=null;nicknameCheck=null;studioBusy=false;studioError=null;studioData=JSONObject()
+  showAccount=false;showInventory=false;showShop=false;photoPreview=null;accountError=null;nicknameCheck=null;studioBusy=false;studioError=null;studioData=JSONObject()
   feed=emptyList();feedFilter="전체";feedLoading=false;feedError=null;displayedFeedPath=null
   feedRequest++;feedReadScope=null;communityCrewMode=false;communityCrewTarget=null;crewBrowsing=false;lastKnownCrewId=null
   invalidateCrewPreviews()

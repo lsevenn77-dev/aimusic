@@ -63,7 +63,7 @@ internal fun playerLevel(xp:Int)=((1+sqrt(1+xp.coerceAtLeast(0)/12.5))/2).toInt(
    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Text("레벨 $level",fontSize=18.sp,fontWeight=FontWeight.Bold);Spacer(Modifier.weight(1f));Text("$xp XP",color=Aqua,fontSize=14.sp)}
    LinearProgressIndicator(progress={p.optDouble("progress",0.0).toFloat().coerceIn(0f,1f)},modifier=Modifier.fillMaxWidth().height(5.dp),color=Aqua,trackColor=Raised)
    Text(if(level>=100)"최고 레벨에 도달했어요." else "다음 레벨까지 $remaining XP",fontSize=12.sp,color=Muted)
-   if(open!=null)TextButton(onClick=open,colors=ButtonDefaults.textButtonColors(contentColor=Aqua),contentPadding=PaddingValues(0.dp)){Text("인벤토리  ›",fontSize=12.sp)}
+   if(open!=null)TextButton(onClick=open,colors=ButtonDefaults.textButtonColors(contentColor=Aqua),contentPadding=PaddingValues(0.dp)){Text("경험치 자세히 보기  ›",fontSize=12.sp)}
   }
  }
 }
@@ -75,8 +75,8 @@ internal fun playerLevel(xp:Int)=((1+sqrt(1+xp.coerceAtLeast(0)/12.5))/2).toInt(
  var revision by remember{mutableIntStateOf(0)}
  LaunchedEffect(account,revision){if(account!=null)try{val d=m.api.call("/api/me/player");if(m.user?.optString("id")==account){data=d;error=null}}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}}
  data?.optJSONObject("player")?.let{if(compact)PlayerLevelStrip(it){show=true}else PlayerXPCard(it){show=true}}
- if(error!=null)TextButton(onClick={revision++}){Text("레벨 · 아이템 다시 불러오기")}
- if(show)PlayerInventorySheet(m,{show=false;revision++}){data=it}
+ if(error!=null)TextButton(onClick={revision++}){Text("레벨 다시 불러오기")}
+ if(show)PlayerExperiencePage(m,data,{show=false;revision++})
 }
 @Composable internal fun PlayerInventorySheet(m:MusicModel,close:()->Unit,updated:(JSONObject)->Unit){
  val account=m.user?.optString("id")
@@ -85,14 +85,18 @@ internal fun playerLevel(xp:Int)=((1+sqrt(1+xp.coerceAtLeast(0)/12.5))/2).toInt(
  var error by remember(account){mutableStateOf<String?>(null)}
  var busy by remember{mutableStateOf(false)}
  var retry by remember{mutableIntStateOf(0)}
+ var gifts by remember(account){mutableStateOf<List<JSONObject>?>(null)}
+ var giftError by remember(account){mutableStateOf<String?>(null)}
+ var gift by remember(account){mutableStateOf<JSONObject?>(null)}
  LaunchedEffect(account,retry){try{val d=m.api.call("/api/me/player");if(m.user?.optString("id")==account){data=d;error=null}}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}}
+ LaunchedEffect(account,retry){try{val d=m.api.call("/api/me/gift-inventory",fresh=true);if(m.user?.optString("id")==account){gifts=d.optJSONArray("items").objects();giftError=null}}catch(e:Exception){if(e is CancellationException)throw e;giftError=e.message}}
  AppPage(title="인벤토리",onDismissRequest=close,containerColor=Ink){
   LazyColumn(Modifier.fillMaxSize().testTag("owned-inventory"),contentPadding=PaddingValues(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
    if(data==null&&error==null)item{LinearProgressIndicator(Modifier.fillMaxWidth(),color=Aqua)}
    error?.let{item{Text(it,color=Pink);TextButton(onClick={retry++}){Text("다시 불러오기")}}}
    data?.let{d->
     val inventory=d.optJSONArray("inventory").objects().filter{it.optBoolean("owned",true)}
-    if(inventory.isEmpty())item{Text("보유한 아이템이 없어요.",fontSize=14.sp,color=Muted)}
+    if(inventory.isNotEmpty())item{Text("프레임",fontSize=16.sp,fontWeight=FontWeight.SemiBold)}
     items(inventory.chunked(3)){row->Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)){
      row.forEach{i->
       val equipped=i.optBoolean("equipped")
@@ -111,13 +115,30 @@ internal fun playerLevel(xp:Int)=((1+sqrt(1+xp.coerceAtLeast(0)/12.5))/2).toInt(
      repeat(3-row.size){Spacer(Modifier.weight(1f))}
     }}
    }
+   if(gifts==null&&giftError==null)item{LinearProgressIndicator(Modifier.fillMaxWidth(),color=Aqua)}
+   giftError?.let{item{Text(it,color=Pink);TextButton(onClick={retry++}){Text("보유 선물 다시 불러오기")}}}
+   val ownedGifts=gifts.orEmpty().groupBy{it.optString("gift_type")+":"+it.optBoolean("available",true)}.values.toList()
+   if(ownedGifts.isNotEmpty())item{Text("선물",fontSize=16.sp,fontWeight=FontWeight.SemiBold)}
+   items(ownedGifts.chunked(3)){row->Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)){
+    row.forEach{group->val i=group.first();val available=i.optBoolean("available",true)
+     Surface(onClick={gift=i},enabled=available,color=Panel,shape=RoundedCornerShape(12.dp),modifier=Modifier.weight(1f).testTag("inventory-gift-${i.optString("gift_type")}")){
+      Column(Modifier.height(156.dp).padding(8.dp),horizontalAlignment=Alignment.CenterHorizontally){
+       Box(Modifier.fillMaxWidth().weight(1f),contentAlignment=Alignment.Center){GiftItemImage(i.optString("image"),Modifier.size(64.dp))}
+       Text(i.optString("gift_name"),fontSize=12.sp,lineHeight=17.sp,maxLines=2,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis,textAlign=androidx.compose.ui.text.style.TextAlign.Center,modifier=Modifier.fillMaxWidth().height(44.dp).wrapContentHeight())
+       Text(if(available)"${group.size}개 보유" else "${group.size}개 · 사용 보류",fontSize=11.sp,lineHeight=16.sp,color=Muted)
+      }
+     }
+    };repeat(3-row.size){Spacer(Modifier.weight(1f))}
+   }}
+   if(data!=null&&data?.optJSONArray("inventory").objects().none{it.optBoolean("owned",true)}&&gifts?.isEmpty()==true)item{Text("보유한 아이템이 없어요.",fontSize=14.sp,color=Muted)}
   }
  }
+ gift?.let{selected->OwnedGiftSendPage(m,selected,{gift=null}){result->gifts=result.optJSONArray("items").objects();gift=null;m.notice="선물을 보냈어요."}}
 }
 
 @Composable private fun PlayerLevelStrip(p:JSONObject,open:()->Unit){
  val level=p.optInt("level",1);val xp=p.optInt("xp")
- Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(Brush.horizontalGradient(listOf(Color(0xFF8B40DA),Color(0xFF5830C8),Color(0xFF2BACC9)))).clickable(onClick=open).heightIn(min=54.dp).padding(horizontal=12.dp,vertical=8.dp),verticalAlignment=Alignment.CenterVertically){
+ Row(Modifier.fillMaxWidth().testTag("my-level").semantics{contentDescription="레벨 $level · 경험치 정보 보기"}.clip(RoundedCornerShape(10.dp)).background(Brush.horizontalGradient(listOf(Color(0xFF8B40DA),Color(0xFF5830C8),Color(0xFF2BACC9)))).clickable(onClick=open).heightIn(min=54.dp).padding(horizontal=12.dp,vertical=8.dp),verticalAlignment=Alignment.CenterVertically){
   Icon(Icons.Rounded.EmojiEvents,null,Modifier.size(28.dp),tint=Pink)
   Column(Modifier.weight(1f).padding(start=10.dp)){
    Row(Modifier.fillMaxWidth()){Text("Lv.$level",fontSize=14.sp,fontWeight=FontWeight.Bold,color=Color.White);Spacer(Modifier.weight(1f));Text("$xp XP",fontSize=11.sp,color=Color.White)}

@@ -27,6 +27,7 @@ internal class AppPageStack {
  fun closeAll(){entries.toList().asReversed().forEach{it.state.value.back()}}
 }
 private val LocalPageStack=staticCompositionLocalOf<AppPageStack>{error("AppPageHost is required")}
+@Composable internal fun appPageIsOpen()=LocalPageStack.current.entries.isNotEmpty()
 
 @Composable internal fun AppPageScope(stack:AppPageStack,content:@Composable ()->Unit){
  CompositionLocalProvider(LocalPageStack provides stack,content=content)

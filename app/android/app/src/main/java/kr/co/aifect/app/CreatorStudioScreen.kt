@@ -47,16 +47,19 @@ internal fun studioStatus(status:String)=when(status){"published"->"공개됨";"
  LazyColumn(Modifier.fillMaxSize().testTag("creator-studio"),contentPadding=PaddingValues(18.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
   item{
    TextButton(onClick={m.selectTab(m.studioReturnTab)}){Icon(Icons.AutoMirrored.Outlined.ArrowBack,null,Modifier.size(18.dp));Text("돌아가기")}
-   StudioPanel{Text("스튜디오",fontSize=25.sp,fontWeight=FontWeight.Bold);Text("음악, 이미지, 프로필을 한곳에서 관리하세요.",color=Muted,fontSize=13.sp)}
+   Text("스튜디오",fontSize=25.sp,fontWeight=FontWeight.Bold)
+   Text("음악, 이미지, 프로필을 한곳에서 관리하세요.",color=Muted,fontSize=13.sp,modifier=Modifier.padding(top=8.dp))
   }
-  item{val context=androidx.compose.ui.platform.LocalContext.current;MusicEntry("내 더빙 관리","대본 · 녹음 · 완성작",Icons.Outlined.MicNone){openNativePerformance(context,m,"dubbing?tab=mine")}}
-  quota?.let{q->item{StudioPanel{
+  item{val context=androidx.compose.ui.platform.LocalContext.current;Surface(onClick={openNativePerformance(context,m,"dubbing?tab=mine")},color=Panel,shape=RoundedCornerShape(14.dp),modifier=Modifier.fillMaxWidth()){
+   Row(Modifier.padding(16.dp),verticalAlignment=Alignment.CenterVertically){Icon(Icons.Outlined.MicNone,null,tint=Aqua);Column(Modifier.weight(1f).padding(start=12.dp)){Text("내 더빙 관리",fontSize=15.sp,fontWeight=FontWeight.SemiBold);Text("대본 · 녹음 · 완성작",color=Muted,fontSize=12.sp)};Icon(Icons.Outlined.ChevronRight,null,tint=Muted)}
+  }}
+  quota?.let{q->item{Column(Modifier.padding(vertical=8.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
    Text("이번 달 제작곡 ${q.optInt("used")} / ${q.optInt("limit")}곡 · ${q.optInt("remaining")}곡 남음",fontWeight=FontWeight.Bold,color=Pink)
    Text("무료 월 3곡 · Premium 월 10곡\n매월 1일 한국시간에 새로 시작해요. 커버곡은 제한 없이 올릴 수 있어요.",color=Muted,fontSize=13.sp)
   }}}
   item{Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
    listOf("공개 음악" to m.myTracks.count{it.raw.optString("status")=="published"},"처리 중" to m.myTracks.count{it.raw.optString("status") in listOf("uploading","queued","processing")},"AI 아티스트" to artists.size).forEach{(name,count)->
-    Box(Modifier.weight(1f)){StudioPanel{Text(name,fontSize=12.sp,color=Muted);Text("$count",fontSize=24.sp,color=Pink,fontWeight=FontWeight.Bold)}}
+    Column(Modifier.weight(1f).padding(vertical=8.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){Text(name,fontSize=12.sp,color=Muted);Text("$count",fontSize=24.sp,color=SoftText,fontWeight=FontWeight.Bold)}
    }
   }}
   item{
@@ -73,7 +76,7 @@ internal fun studioStatus(status:String)=when(status){"published"->"공개됨";"
      Text(if(song.cover)"커버 · ${song.credit}" else song.genreLabel,color=Muted,fontSize=12.sp)
     }}
     song.raw.optString("error").takeIf{it.isNotBlank()&&it!="null"}?.let{Text(it,color=Pink,fontSize=12.sp)}
-    OutlinedButton(onClick={editing=song.id},modifier=Modifier.fillMaxWidth().testTag("studio-edit-${song.id}")){Icon(Icons.Outlined.Edit,null,Modifier.size(18.dp));Text(if(song.cover)"커버곡 정보 수정" else "커버 · 가사 · 정보 수정",Modifier.padding(start=6.dp))}
+    FilledTonalButton(onClick={editing=song.id},modifier=Modifier.fillMaxWidth().testTag("studio-edit-${song.id}")){Icon(Icons.Outlined.Edit,null,Modifier.size(18.dp));Text(if(song.cover)"커버곡 정보 수정" else "커버 · 가사 · 정보 수정",Modifier.padding(start=6.dp))}
     FlowRow(horizontalArrangement=Arrangement.spacedBy(6.dp)){
      if(song.raw.optString("status")=="published"){
       TextButton(onClick={m.openSong(song)}){Text("곡 보기")}
@@ -85,10 +88,10 @@ internal fun studioStatus(status:String)=when(status){"published"->"공개됨";"
    }
   }
   if(tracks.isEmpty()&&!m.studioBusy&&m.studioError==null)item{Empty("아직 올린 음악이 없어요","음원 업로드 또는 부르기에서 첫 음악을 남겨보세요.")}
-  item{StudioPanel{Text("내 프로필",fontSize=18.sp,fontWeight=FontWeight.Bold);Text("제작곡과 커버곡이 모두 내 프로필에 모여요.",color=Muted,fontSize=13.sp);OutlinedButton(onClick=m::editProfile,modifier=Modifier.fillMaxWidth()){Text("프로필 사진 · 소개 수정")}}}
+  item{StudioPanel{Text("내 프로필",fontSize=18.sp,fontWeight=FontWeight.Bold);Text("제작곡과 커버곡이 모두 내 프로필에 모여요.",color=Muted,fontSize=13.sp);TextButton(onClick=m::editProfile,modifier=Modifier.fillMaxWidth()){Text("프로필 사진 · 소개 수정")}}}
   if(artists.isNotEmpty())item{Text("AI 가수 · 아티스트 프로필",fontSize=18.sp,fontWeight=FontWeight.Bold)}
   items(artists,key={"artist-"+it.getString("id")}){a->StudioPanel{Row(verticalAlignment=Alignment.CenterVertically){Avatar(a.optString("name"),JSONObject(a.toString()).put("profile_kind","artist"),48);Text(a.optString("name"),Modifier.weight(1f).padding(start=12.dp));TextButton(onClick={artist=a}){Text("수정")}}}}
-  item{OutlinedButton(onClick={m.showDiamonds=true},modifier=Modifier.fillMaxWidth()){Text("다이아 · 정산 내역 보기")}}
+  item{TextButton(onClick={m.showDiamonds=true},modifier=Modifier.fillMaxWidth()){Text("다이아 · 정산 내역 보기")}}
  }
  operation?.let{(song,action)->AlertDialog(onDismissRequest={if(!m.busy)operation=null},title={Text(if(action=="delete")"음원을 삭제할까요?" else if(action=="unpublish")"비공개로 바꿀까요?" else "다시 처리할까요?")},text={Text(if(action=="delete")"${song.title}\n삭제한 음원은 복구할 수 없어요." else song.title)},confirmButton={TextButton(enabled=!m.busy,onClick={m.action{
   m.api.call("/api/uploads/${song.id}"+(if(action=="delete")"" else "/$action"),if(action=="delete")"DELETE" else "POST")
@@ -98,7 +101,7 @@ internal fun studioStatus(status:String)=when(status){"published"->"공개됨";"
 }
 
 @Composable internal fun StudioPanel(modifier:Modifier=Modifier,content:@Composable ColumnScope.()->Unit){
- Surface(modifier.fillMaxWidth(),shape=RoundedCornerShape(18.dp),color=Panel,border=BorderStroke(1.dp,Stroke.copy(alpha=.7f))){Column(Modifier.musicSurface().padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp),content=content)}
+ Surface(modifier.fillMaxWidth(),shape=RoundedCornerShape(18.dp),color=Panel){Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp),content=content)}
 }
 
 @Composable private fun StudioImage(data:Any?,m:MusicModel,modifier:Modifier){

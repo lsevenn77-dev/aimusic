@@ -44,10 +44,10 @@ internal val StreamBorder=Stroke
 }
 
 /** Same account-scoped library from both entrances. Counts are loaded data, not mock values. */
-@Composable internal fun MusicLibraryShortcuts(m:MusicModel,compact:Boolean=false){
+@Composable internal fun MusicLibraryShortcuts(m:MusicModel,compact:Boolean=false,inventoryFirst:Boolean=false){
  data class Entry(val label:String,val page:String,val icon:ImageVector,val tint:Color,val caption:String)
  val entries=listOf(
-  Entry("내 보관함","보관함",Icons.Rounded.LibraryMusic,StreamCyan,"저장한 음악"),
+  if(inventoryFirst)Entry("인벤토리","인벤토리",Icons.Rounded.Inventory2,StreamCyan,"보유 아이템") else Entry("내 보관함","보관함",Icons.Rounded.LibraryMusic,StreamCyan,"저장한 음악"),
   Entry("좋아요한 노래","좋아요",Icons.Rounded.Favorite,StreamPink,"${m.likes.size}곡"),
   Entry("최근 감상","최근 감상",Icons.Rounded.Schedule,StreamBlue,"${m.history.size}곡"),
   Entry("플레이리스트","플레이리스트",Icons.AutoMirrored.Rounded.QueueMusic,StreamPurple,"${m.playlists.size}개"))
@@ -59,7 +59,7 @@ internal val StreamBorder=Stroke
    ordered.chunked(columns).forEach{row->Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
     row.forEach{e->
      val shape=RoundedCornerShape(if(columns==4)12.dp else 13.dp)
-     Surface(onClick={m.library(e.page)},color=Color.Transparent,shape=shape,border=BorderStroke(1.dp,Stroke),modifier=Modifier.weight(1f).testTag("music-shortcut-${e.page}")){
+     Surface(onClick={if(e.page=="인벤토리"){if(m.authenticated())m.showInventory=true}else m.library(e.page)},color=Color.Transparent,shape=shape,border=BorderStroke(1.dp,Stroke),modifier=Modifier.weight(1f).testTag("music-shortcut-${e.page}")){
       val backdrop=Modifier.background(Panel)
       if(compact||largeType)Column(backdrop.height(if(largeType)112.dp else 98.dp).padding(horizontal=3.dp,vertical=8.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){
        StreamingIcon(e.icon,e.tint)

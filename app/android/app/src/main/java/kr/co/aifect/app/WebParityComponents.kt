@@ -32,7 +32,7 @@ import org.json.JSONObject
  var historyCurrency by remember(account){mutableStateOf<String?>(null)}
  var failed by remember(account){mutableStateOf(false)}
  var revision by remember{mutableIntStateOf(0)}
- LaunchedEffect(account,revision,m.showGifts,m.showRewards,m.showBilling,m.showDiamonds){
+ LaunchedEffect(account,revision,m.showGifts,m.showRewards,m.showBilling,m.showDiamonds,m.showShop){
   if(account==null)return@LaunchedEffect
   try{val d=m.api.call("/api/gold/balance",fresh=true);if(account==m.user?.optString("id")){wallet=d;failed=false}}catch(e:Exception){if(e is CancellationException)throw e;failed=true}
  }
