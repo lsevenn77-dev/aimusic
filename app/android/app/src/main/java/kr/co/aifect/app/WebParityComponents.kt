@@ -4,6 +4,10 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
@@ -25,6 +29,7 @@ import org.json.JSONObject
 @Composable internal fun MyWalletPanel(m:MusicModel){
  val account=m.user?.optString("id")
  var wallet by remember(account){mutableStateOf<JSONObject?>(null)}
+ var historyCurrency by remember(account){mutableStateOf<String?>(null)}
  var failed by remember(account){mutableStateOf(false)}
  var revision by remember{mutableIntStateOf(0)}
  LaunchedEffect(account,revision,m.showGifts,m.showRewards,m.showBilling,m.showDiamonds){
@@ -32,10 +37,39 @@ import org.json.JSONObject
   try{val d=m.api.call("/api/gold/balance",fresh=true);if(account==m.user?.optString("id")){wallet=d;failed=false}}catch(e:Exception){if(e is CancellationException)throw e;failed=true}
  }
  Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(10.dp)){
-  OutlinedButton(onClick={m.showRewards=true},modifier=Modifier.weight(1f)){Text("실버 ${wallet?.let{"${it.optInt("silver_balance")} S"}?:"—"}")}
-  OutlinedButton(onClick={m.showBilling=true},modifier=Modifier.weight(1f)){Text("골드 ${wallet?.let{"${it.optInt("balance")} G"}?:"—"}")}
+  OutlinedButton(onClick={historyCurrency="silver"},modifier=Modifier.weight(1f).heightIn(min=48.dp).testTag("wallet-silver")){Text("실버 ${wallet?.let{"${it.optInt("silver_balance")} S"}?:"—"}")}
+  OutlinedButton(onClick={historyCurrency="gold"},modifier=Modifier.weight(1f).heightIn(min=48.dp).testTag("wallet-gold")){Text("골드 ${wallet?.let{"${it.optInt("balance")} G"}?:"—"}")}
  }
  if(failed)TextButton(onClick={revision++}){Text("잔액 다시 불러오기")}
+ historyCurrency?.let{currency->WalletHistoryPage(m,currency){historyCurrency=null}}
+}
+
+@Composable private fun WalletHistoryPage(m:MusicModel,currency:String,close:()->Unit){
+ val account=m.user?.optString("id")
+ var data by remember(account,currency){mutableStateOf<JSONObject?>(null)}
+ var error by remember(account,currency){mutableStateOf<String?>(null)}
+ var revision by remember{mutableIntStateOf(0)}
+ var section by remember(currency){mutableStateOf("earned")}
+ LaunchedEffect(account,currency,revision){try{val result=m.api.call("/api/gold/history?currency=$currency",fresh=true);if(account==m.user?.optString("id")){data=result;error=null}}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}}
+ val unit=if(currency=="silver")"S" else "G"
+ AppPage(title=if(currency=="silver")"실버 내역" else "골드 내역",onDismissRequest=close,containerColor=Ink){
+  LazyColumn(Modifier.fillMaxSize().testTag("wallet-history-$currency"),contentPadding=PaddingValues(20.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+   item{Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)){
+    listOf("earned" to "최근 획득","spent" to "최근 사용").forEach{(key,label)->OutlinedButton(onClick={section=key},modifier=Modifier.weight(1f).heightIn(min=48.dp),border=BorderStroke(1.dp,if(section==key)Pink else Stroke)){Text(label,fontSize=13.sp,color=if(section==key)Pink else Muted)}}
+   }}
+   if(data==null&&error==null)item{LinearProgressIndicator(Modifier.fillMaxWidth(),color=Pink)}
+   error?.let{item{Text(it,fontSize=13.sp,color=Muted);TextButton(onClick={revision++}){Text("다시 불러오기")}}}
+   val receipts=data?.optJSONArray(section).objects()
+   items(receipts){entry->
+    val label=when(entry.optString("kind")){"purchase"->"골드 충전";"dubbing"->"더빙 배경음 제작";"dubbing_refund"->"더빙 제작 환불";"checkin"->"출석 보상";"cover"->"커버 게시 보상";"listen"->"감상 보상";"comment1","comment2","comment3"->"댓글 보상";else->entry.optString("title").ifBlank{"선물"}}
+    Row(Modifier.fillMaxWidth().padding(vertical=10.dp),verticalAlignment=Alignment.CenterVertically){
+     Column(Modifier.weight(1f).padding(end=12.dp)){Text(label,fontSize=14.sp,maxLines=2);Text(java.text.SimpleDateFormat("MM.dd HH:mm",java.util.Locale.KOREA).format(java.util.Date(entry.optLong("created")*1000)),fontSize=12.sp,color=Muted,modifier=Modifier.padding(top=4.dp))}
+     Text("${if(section=="earned")"+" else "−"}${entry.optInt("amount")} $unit",fontSize=15.sp,fontWeight=FontWeight.SemiBold,color=if(section=="earned")Aqua else SoftText)
+    }
+   }
+   if(data!=null&&receipts.isEmpty())item{Text(if(section=="earned")"획득 내역이 없어요." else "사용 내역이 없어요.",fontSize=14.sp,color=Muted)}
+  }
+ }
 }
 
 /** Private playlist covers are never written to the public image cache. */

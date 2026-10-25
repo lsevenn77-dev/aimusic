@@ -41,7 +41,7 @@ import org.json.JSONObject
    entry("공개 플레이리스트",Icons.Outlined.QueueMusic){m.directoryKind="playlists";m.selectTab(8)}
    entry("AI 아티스트",Icons.Outlined.PeopleOutline){m.directoryKind="artists";m.selectTab(8)}
    entry("팔로우",Icons.Outlined.PersonAddAlt){m.library("팔로잉")}
-   entry("아이템 보관함",Icons.Outlined.Inventory2,page=true){if(m.authenticated())m.showInventory=true}
+   entry("인벤토리",Icons.Outlined.Inventory2,page=true){if(m.authenticated())m.showInventory=true}
    entry("오늘의 실버",Icons.Outlined.Stars,page=true){if(m.authenticated())m.showRewards=true}
    entry("다이아 · 내 정산",Icons.Outlined.AccountBalanceWallet,page=true){if(m.authenticated())m.showDiamonds=true}
   }

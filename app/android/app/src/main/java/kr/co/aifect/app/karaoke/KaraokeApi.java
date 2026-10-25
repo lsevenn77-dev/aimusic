@@ -62,7 +62,7 @@ final class KaraokeApi {
         if(!id.matches("[\\w-]{1,80}"))throw new IOException("잘못된 업로드 ID예요.");
         HttpURLConnection c=connect("/api/uploads/"+id+"/audio","PUT");
         try{
-            c.setDoOutput(true);c.setRequestProperty("Content-Type","audio/wav");c.setFixedLengthStreamingMode(wav.length());
+            c.setDoOutput(true);c.setRequestProperty("Content-Type",wav.getName().endsWith(".mp3")?"audio/mpeg":"audio/wav");c.setFixedLengthStreamingMode(wav.length());
             try(InputStream in=new BufferedInputStream(new FileInputStream(wav));OutputStream out=c.getOutputStream()){
                 byte[] b=new byte[65536];int n;while((n=in.read(b))!=-1){if(Thread.currentThread().isInterrupted())throw new InterruptedIOException();out.write(b,0,n);}
             }

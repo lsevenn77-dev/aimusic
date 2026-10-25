@@ -30,7 +30,7 @@ internal object CurrentNavigation {
  fun playPath(mode:String,section:String,type:String="all"):String=when(mode){
   "dubbing"->if(section=="join")"/api/play/participate" else "/api/dubbing/projects?tab="+if(section=="mine")"mine" else "open"
   "browse"->"/api/play/works?tab=${if(section in setOf("recommended","following","popular","latest"))section else "recommended"}&type=${if(type in setOf("all","solo","duet","dubbing"))type else "all"}"
-  else->when(section){"duets"->"/api/duets";"latest"->"/api/play/latest";else->"/api/karaoke"}
+  else->when(section){"duets"->"/api/duets";"latest"->"/api/community?kind=cover";else->"/api/karaoke"}
  }
 }
 

@@ -1,5 +1,7 @@
 package kr.co.aifect.app
 
+import coil.imageLoader
+import coil.request.ImageRequest
 import android.app.Application
 import android.content.ComponentName
 import android.net.Uri
@@ -36,6 +38,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
  internal fun openCurrentSong(id:String)=action{openSong(Song(api.call("/api/tracks/$id",fresh=true).getJSONObject("track")))}
  var showBilling by mutableStateOf(false)
  var showDiamonds by mutableStateOf(false)
+ var billingInitialTab by mutableStateOf("premium")
  var showInventory by mutableStateOf(false)
  var directoryKind by mutableStateOf("artists")
  var visibleChatCount by mutableIntStateOf(0)
@@ -153,6 +156,37 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   selectTab(5);messageCrew=cid
  }
  var ownProfile by mutableStateOf(JSONObject())
+ var ownDashboard by mutableStateOf<JSONObject?>(null)
+ var ownDashboardLoading by mutableStateOf(false)
+ var ownDashboardError by mutableStateOf<String?>(null)
+ private var ownDashboardJob:Job?=null
+ private var ownDashboardRevision=-1L
+ private var ownDashboardAt=0L
+ fun refreshMyDashboard(fresh:Boolean=false){
+  if(user==null)return
+  if(ownDashboardJob?.isActive==true){if(!fresh)return;ownDashboardJob?.cancel()}
+  if(!fresh&&ownDashboard!=null&&ownDashboardRevision==api.readRevision&&android.os.SystemClock.elapsedRealtime()-ownDashboardAt<20000)return
+  val scope=readScope();ownDashboardLoading=ownDashboard==null;ownDashboardError=null
+  ownDashboardJob=viewModelScope.launch{
+   try{
+    if(ownProfile.optJSONObject("profile")==null)loadOwnProfile()
+    val id=ownProfile.optJSONObject("profile")?.optString("id").orEmpty()
+    if(!CurrentNavigation.safeID(id))return@launch
+    val path="/api/producers/$id?dashboard=1"
+    if(ownDashboard==null)api.peek(path)?.let{if(currentRead(scope))ownDashboard=it}
+    val data=api.call(path,fresh=true);ensureRead(scope)
+    check(data.optJSONObject("profile")?.optString("user_id")==scope.account){"내 프로필을 다시 확인해주세요."}
+    ownDashboard=data;ownDashboardRevision=api.readRevision;ownDashboardAt=android.os.SystemClock.elapsedRealtime()
+    val context=getApplication<Application>()
+    data.optJSONArray("gallery").objects().take(4).forEach{photo->val url=photo.optString("url");if(url.isNotBlank())context.imageLoader.enqueue(ImageRequest.Builder(context).data(if(url.startsWith('/'))Endpoint.url(url)else url).size(312).build())}
+   }catch(e:Exception){if(e is CancellationException)throw e;if(sameAccount(scope)){ownDashboardError=e.message;if(e is ApiException&&e.status in listOf(401,403,404))ownDashboard=null}}
+   finally{if(sameAccount(scope))ownDashboardLoading=false}
+  }
+ }
+ var pendingTrackDelete by mutableStateOf<Song?>(null)
+ var trackContentRevision by mutableIntStateOf(0)
+ fun ownsTrack(song:Song):Boolean=user?.optString("id")?.takeIf{it.isNotBlank()}?.let{it==song.raw.optString("user_id")}==true
+ fun requestTrackDelete(song:Song){if(ownsTrack(song))pendingTrackDelete=song}
  fun editProfile(){if(!authenticated())return;showProfileEdit=true;ownProfileJob?.cancel();ownProfileJob=viewModelScope.launch{try{loadOwnProfile()}catch(e:Exception){if(e is CancellationException)throw e;failure(e)}}}
  suspend fun loadOwnProfile(fresh:Boolean=false){
   if(user==null)return
@@ -163,7 +197,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
  fun saveProfile(name:String,bio:String,image:Uri?,done:()->Unit)=action{
   api.call("/api/me/profile","PUT",payload("name" to name,"bio" to bio))
   if(image!=null)api.profileImage(image)
-  loadMe();loadOwnProfile(fresh=true);done();notice="프로필을 저장했어요."
+  loadMe();loadOwnProfile(fresh=true);refreshMyDashboard(fresh=true);done();notice="프로필을 저장했어요."
  }
  fun singTarget(song:Song,sing:(Song)->Unit)=action{
   if(song.openDuetFor(user?.optString("id"))){sing(song);return@action}
@@ -171,8 +205,21 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   val original=Song(api.call("/api/tracks/$id",fresh=true).getJSONObject("track"))
   if(original.raw.optBoolean("karaoke_ready"))sing(original) else notice="이 곡은 아직 부르기를 준비하고 있어요."
  }
- fun deleteCover(song:Song)=action{
-  api.call("/api/uploads/${song.id}","DELETE");myTracks=myTracks.filterNot{it.id==song.id};if(current?.id==song.id)closePlayer();detail=null;loadLibrary();notice="커버곡을 삭제했어요."
+ fun deleteCover(song:Song)=deleteOwnTrack(song)
+ fun deleteOwnTrack(song:Song)=action{
+  check(ownsTrack(song)){"내가 올린 곡만 삭제할 수 있어요."}
+  val account=user?.optString("id")
+  api.call("/api/uploads/${song.id}","DELETE")
+  if(user?.optString("id")!=account)return@action
+  val remove: (List<Song>) -> List<Song> = { list ->list.filterNot{it.id==song.id}}
+  myTracks=remove(myTracks);home=remove(home);latest=remove(latest);recentCovers=remove(recentCovers);feed=remove(feed);singable=remove(singable);duetInvitations=remove(duetInvitations)
+  likes=remove(likes);history=remove(history);searchResults=remove(searchResults);listSongs=remove(listSongs);profileSongs=remove(profileSongs);profileCovers=remove(profileCovers);rankTracks=remove(rankTracks)
+  collection=collection?.let{it.copy(tracks=remove(it.tracks))}
+  ownDashboard=ownDashboard?.let{data->JSONObject(data.toString()).apply{listOf("tracks","covers").forEach{key->put(key,JSONArray(data.optJSONArray(key).objects().filterNot{it.optString("id")==song.id}))}}}
+  controller?.let{player->for(i in player.mediaItemCount-1 downTo 0)if(player.getMediaItemAt(i).mediaId==song.id)player.removeMediaItem(i)}
+  songs.remove(song.id);if(detail?.id==song.id)detail=null
+  pendingTrackDelete=null;trackContentRevision++;notice=if(song.cover)"커버곡을 삭제했어요." else "음원을 삭제했어요."
+  refreshLibrary(fresh=true);refreshMyDashboard(fresh=true);if(tab==7)loadStudio()
  }
  var busy by mutableStateOf(false)
  var detail by mutableStateOf<Song?>(null)
@@ -271,8 +318,8 @@ class MusicModel(app:Application):AndroidViewModel(app) {
  private suspend fun ensureRead(scope:ReadScope){currentCoroutineContext().ensureActive();if(!currentRead(scope))throw CancellationException("A newer account or action replaced this read")}
  private fun clearPrivateState(stopPlayback:Boolean){
   duetRequest++;duetLoading=false
-  listOf(libraryJob,ownProfileJob,listJob,studioJob,profileJob,detailJob,feedJob,searchJob,collectionJob,rankJob,highlightsJob,originalJob).forEach{it?.cancel()}
-  likes=emptyList();playlists=emptyList();history=emptyList();follows=emptyList();ownProfile=JSONObject();myTracks=emptyList()
+  listOf(ownDashboardJob,libraryJob,ownProfileJob,listJob,studioJob,profileJob,detailJob,feedJob,searchJob,collectionJob,rankJob,highlightsJob,originalJob).forEach{it?.cancel()}
+  likes=emptyList();playlists=emptyList();history=emptyList();follows=emptyList();ownProfile=JSONObject();myTracks=emptyList();ownDashboard=null;ownDashboardLoading=false;ownDashboardError=null;ownDashboardRevision=-1L;pendingTrackDelete=null
   membership=JSONObject();followRevision++;followPending=false
   selectedList=null;listSongs=emptyList();listLoading=false;playlistTarget=null;collection=null;collectionBusy=false;collectionError=null
   detail=null;comments=emptyList();detailBusy=false;profile=null;profileSongs=emptyList();profileCovers=emptyList();profileFollowers=0
@@ -393,7 +440,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   fun apply(path:String,data:JSONObject){if(!currentRead(scope))return;when(path){
    "/api/library"->{likes=data.tracks("likes");playlists=data.optJSONArray("collections").objects();if(revision==followRevision&&!followPending)follows=data.optJSONArray("follows").objects()}
    "/api/history"->history=data.tracks()
-   "/api/me/profile"->ownProfile=data
+   "/api/me/profile"->{ownProfile=data;refreshMyDashboard()}
   }}
   val paths=listOf("/api/library","/api/history","/api/me/profile")
   if(!fresh)paths.forEach{path->api.peek(path)?.let{apply(path,it)}}
@@ -424,6 +471,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   tab=if(index==1)0 else index
   if(index==1)listenPage="발견"
   if(index in listOf(4,6) && user!=null)refreshLibrary()
+  if(index==6&&user!=null)refreshMyDashboard()
   if(index==5){messagePeer=null;messageCrew=null}
  }
  fun library(page:String){if(tab!=4)libraryReturnTab=tab;libraryPage=page;selectTab(4)}

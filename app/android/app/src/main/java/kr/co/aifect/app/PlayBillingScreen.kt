@@ -14,16 +14,20 @@ import com.android.billingclient.api.BillingClient
 
 @Composable fun PlayBillingSheet(m:MusicModel){
  val billing=m.playBilling
+ val goldOnly=remember{m.billingInitialTab=="gold"}
+ DisposableEffect(Unit){onDispose{m.billingInitialTab="premium"}}
  LaunchedEffect(m.user?.optString("id")){billing?.load()}
- AppPage(title="이용권·골드",onDismissRequest={m.showBilling=false},containerColor=Panel){
+ AppPage(title=if(goldOnly)"골드 충전" else "이용권·골드",onDismissRequest={m.showBilling=false},containerColor=Panel){
   Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(22.dp)){
-   Text("Premium · 골드",fontSize=25.sp,fontWeight=FontWeight.Bold)
+   Text(if(goldOnly)"골드 충전" else "Premium · 골드",fontSize=25.sp,fontWeight=FontWeight.Bold)
    Text("Google Play에서 안전하게 구매해요.",color=Muted,modifier=Modifier.padding(top=8.dp))
+   if(!goldOnly){
    Text("Premium",fontSize=20.sp,fontWeight=FontWeight.Bold,modifier=Modifier.padding(top=24.dp))
    Text("광고 없이 AAC 256 감상 · 제작곡 월 10곡 · 플레이리스트 10개",color=Muted,modifier=Modifier.padding(vertical=12.dp))
    billing?.products?.filter{it.productType==BillingClient.ProductType.SUBS}?.forEach{product->
     BrandButton(onClick={billing.buy(product)},enabled=!billing.busy,modifier=Modifier.fillMaxWidth()){Text("${billing.price(product)} / 월 · Premium 구독")}
     Text("매월 자동 갱신되며 Google Play에서 해지할 수 있어요. 최종 가격과 갱신 조건은 구매창에서 확인해주세요.",color=Muted,fontSize=12.sp,modifier=Modifier.padding(top=8.dp))
+   }
    }
    Text("골드 충전",fontSize=20.sp,fontWeight=FontWeight.Bold,modifier=Modifier.padding(top=24.dp))
    Text("좋아하는 음악에 선물을 보낼 때 사용해요. 실버는 무료 보상으로 따로 모을 수 있어요.",color=Muted,modifier=Modifier.padding(vertical=12.dp))

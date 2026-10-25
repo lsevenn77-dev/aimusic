@@ -41,7 +41,7 @@ internal class CurrentRead {
  val account=m.user?.optString("id")
  val read=remember(path,account){CurrentRead()}
  val lifecycle=androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
- LaunchedEffect(path,account,enabled,read.revision){
+ LaunchedEffect(path,account,enabled,read.revision,m.trackContentRevision){
   if(!enabled){read.loading=false;return@LaunchedEffect}
   lifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.RESUMED){
    do{
@@ -92,7 +92,7 @@ internal class CurrentRead {
  LaunchedEffect(read.data){read.data?.let{d->val incoming=d.optJSONArray(if(mode=="dubbing")"projects" else if(mode=="browse")"works" else "tracks").objects();records=(if(offset==0)incoming else records+incoming).distinctBy{it.optString("id")}}}
  val filtered=records.filter{r->
   val match=query.isBlank()||listOf("title","artist","producer","ownerName","owner_name").any{r.optString(it).contains(query.trim(),true)}
-  match&&(mode!="song"||section!="duets"||Song(r).openDuetFor(m.user?.optString("id")))
+  match&&(mode!="song"||section!="duets"||Song(r).openDuetFor(m.user?.optString("id")))&&(mode!="song"||section!="latest"||Song(r).cover)
  }
  Column(Modifier.fillMaxSize().testTag("current-play")){
   CurrentHeader("플레이",menu)
@@ -200,26 +200,27 @@ private val NoneDescription:String?=null
 }
 @Composable internal fun CurrentMyScreen(m:MusicModel){
  var area by rememberSaveable{mutableStateOf("works")};var kind by rememberSaveable{mutableStateOf("all")}
- val self=currentRead(m,"/api/me/profile",m.user!=null)
- val pid=self.data?.optJSONObject("profile")?.optString("id").orEmpty()
- val read=currentRead(m,if(CurrentNavigation.safeID(pid))"/api/producers/$pid?dashboard=1" else "/api/me/profile",m.user!=null&&pid.isNotBlank())
- val data=read.data;val p=data?.optJSONObject("profile")?:self.data?.optJSONObject("profile")?:JSONObject()
+ LaunchedEffect(m.user?.optString("id")){m.refreshMyDashboard()}
+ val self=m.ownProfile
+ val pid=self.optJSONObject("profile")?.optString("id").orEmpty()
+ val data=m.ownDashboard;val p=data?.optJSONObject("profile")?:self.optJSONObject("profile")?:JSONObject()
+ val loading=m.ownDashboardLoading||data==null&&m.ownDashboardError==null
  val tracks=data?.tracks().orEmpty();val covers=data?.tracks("covers").orEmpty();val dubbings=data?.optJSONArray("dubbings").objects()
  val gallery=data?.optJSONArray("gallery").objects()
  LazyColumn(Modifier.fillMaxSize().testTag("current-my"),contentPadding=PaddingValues(start=20.dp,end=20.dp,top=8.dp,bottom=24.dp),verticalArrangement=Arrangement.spacedBy(16.dp)){
   if(m.user==null)item{SignInEntry(m)}else{
    item{
-    ReadStatus(self);ReadStatus(read)
+    if(loading)LinearProgressIndicator(Modifier.fillMaxWidth(),color=Pink,trackColor=Stroke)
+    m.ownDashboardError?.let{Text(it,fontSize=12.sp,color=Muted);TextButton({m.refreshMyDashboard(fresh=true)}){Text("다시 불러오기")}}
     Row(verticalAlignment=Alignment.CenterVertically){
-     Avatar(p.optString("name",m.user?.optString("name")),p,80)
+     Avatar(p.optString("name",m.user?.optString("name").orEmpty()),p,80)
      Column(Modifier.weight(1f).padding(start=14.dp)){
-      Text(p.optString("name",m.user?.optString("name")),fontSize=21.sp,lineHeight=28.sp,fontWeight=FontWeight.Bold)
-      p.optLong("public_number").takeIf{it>0}?.let{Text("ID: $it",fontSize=12.sp,color=Muted,modifier=Modifier.padding(top=3.dp))}
+      Text(p.optString("name",m.user?.optString("name").orEmpty()),fontSize=21.sp,lineHeight=28.sp,fontWeight=FontWeight.Bold)
       val crew=data?.optJSONObject("crew")
       if(crew!=null)Text(crew.optString("name"),fontSize=12.sp,color=Muted,modifier=Modifier.padding(top=6.dp).clickable{m.openCurrentWorkspace("crew/${crew.optString("id")}",crew.optString("name"))})
       else Text("소속 크루 없음",fontSize=12.sp,color=Muted,modifier=Modifier.padding(top=6.dp))
       Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
-       Text("${data?.optInt("followers",self.data?.optInt("follower_count")?:0)?:0} 팔로워",fontSize=12.sp,color=SoftText,modifier=Modifier.weight(1f).heightIn(min=44.dp).wrapContentHeight().clickable{m.library("팔로워")})
+       Text("${data?.optInt("followers",self.optInt("follower_count"))?:0} 팔로워",fontSize=12.sp,color=SoftText,modifier=Modifier.weight(1f).heightIn(min=44.dp).wrapContentHeight().clickable{m.library("팔로워")})
        Text("${data?.optInt("following_count",0)?:0} 팔로잉",fontSize=12.sp,color=SoftText,modifier=Modifier.weight(1f).heightIn(min=44.dp).wrapContentHeight().clickable{m.library("팔로잉")})
       }
      }
@@ -230,7 +231,8 @@ private val NoneDescription:String?=null
     }
    }
    item{CurrentPanel("갤러리",gallery.size,"전체보기",{if(pid.isNotBlank())m.openCurrentWorkspace("profile-gallery/$pid","갤러리")}){
-    if(gallery.isEmpty())Text("아직 등록한 사진이 없어요.",color=Muted,fontSize=13.sp,modifier=Modifier.padding(bottom=12.dp))
+    if(gallery.isEmpty()&&loading)Row(horizontalArrangement=Arrangement.spacedBy(12.dp),modifier=Modifier.testTag("my-gallery-loading")){repeat(2){Box(Modifier.weight(1f).aspectRatio(1f).clip(RoundedCornerShape(10.dp)).background(Raised))}}
+    else if(gallery.isEmpty())Text("아직 등록한 사진이 없어요.",color=Muted,fontSize=13.sp,modifier=Modifier.padding(bottom=12.dp))
     else BoxWithConstraints(Modifier.fillMaxWidth()){
      val size=((maxWidth-12.dp)/2).coerceAtMost(156.dp)
      LazyRow(horizontalArrangement=Arrangement.spacedBy(12.dp)){items(gallery){photo->val url=photo.optString("url");AsyncImage(if(url.startsWith('/'))Endpoint.url(url)else url,"갤러리 사진",Modifier.size(size).clip(RoundedCornerShape(10.dp)).clickable{m.openCurrentWorkspace("profile-gallery/$pid","갤러리")},contentScale=ContentScale.Crop)}}
@@ -239,7 +241,7 @@ private val NoneDescription:String?=null
    item{CurrentMySwitch(area){area=it}}
    if(area=="works"){
     item{CurrentPanel("제작곡",tracks.size,"전체보기",{m.library("내 제작곡")}){
-     if(tracks.isEmpty()&&!read.loading)Text("등록된 제작곡이 없어요.",color=Muted,fontSize=13.sp)
+     if(tracks.isEmpty()&&!loading)Text("등록된 제작곡이 없어요.",color=Muted,fontSize=13.sp)
      else CurrentSongGrid(tracks.take(4),m,tracks)
     }}
     item{CurrentPanel("커버 · 듀엣 · 더빙",covers.size+dubbings.size){
@@ -248,11 +250,21 @@ private val NoneDescription:String?=null
      val visible=covers.filter{kind=="all"||kind=="duet"&&it.raw.optString("cover_mode")=="duet"||kind=="cover"&&it.raw.optString("cover_mode")!="duet"}
      CurrentSongGrid(visible,m,covers)
      if(kind in listOf("all","dubbing"))dubbings.chunked(2).forEach{row->Row(Modifier.padding(top=16.dp),horizontalArrangement=Arrangement.spacedBy(14.dp)){row.forEach{dub->Box(Modifier.weight(1f)){CurrentDubbingCard(dub,m)}};if(row.size==1)Spacer(Modifier.weight(1f))}}
-     if(visible.isEmpty()&&(kind !in listOf("all","dubbing")||dubbings.isEmpty())&&!read.loading)Text("아직 등록된 작품이 없어요.",fontSize=13.sp,color=Muted,modifier=Modifier.padding(vertical=12.dp))
+     if(visible.isEmpty()&&(kind !in listOf("all","dubbing")||dubbings.isEmpty())&&!loading)Text("아직 등록된 작품이 없어요.",fontSize=13.sp,color=Muted,modifier=Modifier.padding(vertical=12.dp))
     }}
     item{CurrentPanel("소속 아티스트",action="전체보기",onAction={if(pid.isNotBlank())m.openCurrentWorkspace("profile-artists/$pid","소속 아티스트")}){
      val artists=data?.optJSONArray("artists").objects()
-     artists.forEach{a->Row(Modifier.fillMaxWidth().heightIn(min=56.dp).clickable{m.openProfile(a.optString("id"),"artist")},verticalAlignment=Alignment.CenterVertically){Avatar(a.optString("name"),a,40);Text(a.optString("name"),fontSize=14.sp,modifier=Modifier.padding(start=10.dp).weight(1f));Icon(Icons.Rounded.ChevronRight,null,Modifier.size(18.dp),tint=Muted)}}
+     artists.chunked(2).forEach{row->Row(Modifier.fillMaxWidth().padding(bottom=12.dp),horizontalArrangement=Arrangement.spacedBy(12.dp)){
+      row.forEach{artist->Column(Modifier.weight(1f).testTag("my-artist-${artist.optString("id")}").clickable{m.openProfile(artist.optString("id"),"artist")}){
+       Box(Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(12.dp)).background(Raised)){
+        DefaultProfileArtwork(artist.optString("name"),Modifier.fillMaxSize())
+        val version=artist.optString("image_version")
+        if(version.isNotBlank()&&version!="0"&&version!="null")AsyncImage(Endpoint.url("/media/artist/${artist.optString("id")}?v=$version"),"${artist.optString("name")} 아티스트 사진",Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
+       }
+       Text(artist.optString("name"),fontSize=14.sp,lineHeight=20.sp,fontWeight=FontWeight.SemiBold,maxLines=2,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=8.dp))
+      }}
+      if(row.size==1)Spacer(Modifier.weight(1f))
+     }}
      if(artists.isEmpty())Text("등록된 아티스트가 없어요.",fontSize=13.sp,color=Muted)
     }}
     item{CurrentPanel("스튜디오"){
@@ -264,7 +276,7 @@ private val NoneDescription:String?=null
      TextButton(onClick={m.selectTab(2);m.playMode="dubbing";m.playSection="join"},colors=ButtonDefaults.textButtonColors(contentColor=SoftText)){Text("참여 가능한 더빙",fontSize=14.sp);Icon(Icons.Rounded.ChevronRight,null,Modifier.size(18.dp))}
     }}
    }else{
-    item{CurrentPanel("내 지갑"){MyWalletPanel(m)}}
+    item{CurrentPanel("내 지갑",action="골드 충전",onAction={m.billingInitialTab="gold";m.showBilling=true}){MyWalletPanel(m)}}
     item{PlayerHomePanel(m,compact=true)}
     item{CurrentPanel("내 보관함"){MusicLibraryShortcuts(m,compact=true)}}
     item{CurrentActivityLinks(m)}

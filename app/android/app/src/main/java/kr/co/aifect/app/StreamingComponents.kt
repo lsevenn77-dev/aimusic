@@ -61,9 +61,9 @@ internal val StreamBorder=Stroke
      val shape=RoundedCornerShape(if(columns==4)12.dp else 13.dp)
      Surface(onClick={m.library(e.page)},color=Color.Transparent,shape=shape,border=BorderStroke(1.dp,Stroke),modifier=Modifier.weight(1f).testTag("music-shortcut-${e.page}")){
       val backdrop=Modifier.background(Panel)
-      if(columns==4||largeType)Column(backdrop.heightIn(min=78.dp).padding(horizontal=3.dp,vertical=8.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){
+      if(compact||largeType)Column(backdrop.height(if(largeType)112.dp else 98.dp).padding(horizontal=3.dp,vertical=8.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){
        StreamingIcon(e.icon,e.tint)
-       Text(e.label,color=SoftText,fontSize=if(largeType)13.sp else 11.sp,lineHeight=18.sp,fontWeight=FontWeight.Medium,textAlign=TextAlign.Center,modifier=Modifier.padding(top=3.dp))
+       Text(e.label,color=SoftText,fontSize=12.sp,lineHeight=18.sp,fontWeight=FontWeight.Medium,textAlign=TextAlign.Center,maxLines=2,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=3.dp))
        if(largeType&&!compact)Text(e.caption,color=Muted,fontSize=11.sp,lineHeight=15.sp,textAlign=TextAlign.Center)
       }else Row(backdrop.heightIn(min=68.dp).padding(10.dp),verticalAlignment=Alignment.CenterVertically){
        StreamingIcon(e.icon,e.tint,boxed=true)

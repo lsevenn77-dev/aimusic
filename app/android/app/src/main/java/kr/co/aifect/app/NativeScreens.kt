@@ -141,6 +141,7 @@ internal val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=
   if(m.showInventory)PlayerInventorySheet(m,{m.showInventory=false}){}
   if(m.showRecordingDrafts)RecordingDraftsSheet(m,resumeDraft)
   m.detail?.let { SongSheet(m,it,sing,{listPicker=it}) }
+  m.pendingTrackDelete?.let{song->AlertDialog(onDismissRequest={if(!m.busy)m.pendingTrackDelete=null},title={Text(if(song.cover)"커버곡을 삭제할까요?" else "음원을 삭제할까요?")},text={Text("${song.title}\n삭제하면 되돌릴 수 없어요.")},confirmButton={TextButton({m.deleteOwnTrack(song)},enabled=!m.busy,modifier=Modifier.testTag("delete-track-confirm")){Text("삭제")}},dismissButton={TextButton({m.pendingTrackDelete=null},enabled=!m.busy){Text("취소")}})}
   m.selectedList?.let { PlaylistSheet(m,it) }
   if(m.detail==null&&!m.fullPlayer)m.profile?.let { p->pages.SaveableStateProvider("profile:"+p.optString("id")){ProfileSheet(m,p)} }
   if(m.fullPlayer)m.current?.let { PlayerSheet(m,it,{listPicker=it},sing) }
@@ -410,15 +411,20 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)P
  var report by remember(song.id) {mutableStateOf<JSONObject?>(null)}
  AppPage(title="곡 정보",onDismissRequest={m.detail=null},containerColor=Panel){
   LazyColumn(Modifier.fillMaxWidth().imePadding(),contentPadding=PaddingValues(22.dp,0.dp,22.dp,28.dp)){
-   item{
+   item{Column(Modifier.fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(12.dp)){
     Row(verticalAlignment=Alignment.CenterVertically){Artwork(song,Modifier.size(84.dp));Column(Modifier.weight(1f).padding(start=16.dp)){Text(song.title,fontSize=23.sp,fontWeight=FontWeight.Bold);Text(song.credit,color=Muted,fontSize=14.sp,modifier=Modifier.padding(top=6.dp).clickable{if(song.hasAiArtist)m.openProfile(song.raw.optString("artist_id"),"artist")else m.openProfile(song.producerId)})}}
-    Row(Modifier.fillMaxWidth().padding(top=12.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)){BrandButton(onClick={m.play(song)},colors=ButtonDefaults.buttonColors(containerColor=Aqua,contentColor=Ink)){Icon(Icons.Rounded.PlayArrow,null);Text("노래 듣기")};OutlinedButton(onClick={save(song)},colors=ButtonDefaults.outlinedButtonColors(contentColor=SoftText)){Icon(Icons.AutoMirrored.Rounded.PlaylistAdd,null);Text("담기")};IconButton(onClick={m.like(song)},enabled=!m.busy){Icon(if(m.likes.any{it.id==song.id})Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,"좋아요",tint=Pink)}}
-    if(song.raw.optBoolean("karaoke_ready"))OutlinedButton(onClick={sing(song)},modifier=Modifier.fillMaxWidth()){Icon(Icons.Rounded.Mic,null);Text("이 노래 부르기",Modifier.padding(start=8.dp))}
-    if(song.openDuetFor(m.user?.optString("id")))BrandButton(onClick={sing(song)},modifier=Modifier.fillMaxWidth()){Text("듀엣 참여")}
+    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=Alignment.CenterVertically){
+     BrandButton(onClick={m.play(song)},modifier=Modifier.weight(1f).heightIn(min=48.dp).testTag("song-detail-listen"),contentPadding=PaddingValues(horizontal=10.dp)){Icon(Icons.Rounded.PlayArrow,null,Modifier.size(20.dp));Text("노래 듣기",fontSize=14.sp,modifier=Modifier.padding(start=4.dp))}
+     IconButton(onClick={save(song)},modifier=Modifier.size(48.dp).border(1.dp,Stroke,RoundedCornerShape(12.dp))){Icon(Icons.AutoMirrored.Rounded.PlaylistAdd,"플레이리스트 담기",tint=SoftText)}
+     IconButton(onClick={m.like(song)},enabled=!m.busy,modifier=Modifier.size(48.dp)){Icon(if(m.likes.any{it.id==song.id})Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,"좋아요",tint=Pink)}
+    }
+    if(!song.cover&&song.raw.optBoolean("karaoke_ready"))OutlinedButton(onClick={sing(song)},modifier=Modifier.fillMaxWidth()){Icon(Icons.Rounded.Mic,null);Text("이 노래 부르기",Modifier.padding(start=8.dp))}
+    if(song.openDuetFor(m.user?.optString("id")))BrandButton(onClick={sing(song)},modifier=Modifier.fillMaxWidth().heightIn(min=48.dp).testTag("song-detail-duet")){Text("듀엣 참여")}
     if(song.cover)Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){TextButton(onClick={m.openProfile(song.producerId,showCovers=true)},modifier=Modifier.weight(1f)){Text("${song.producer}의 커버곡",fontSize=13.sp)};OutlinedButton(onClick={m.followPerson(song.producerId)},enabled=!m.busy){Text(if(m.follows.any{it.optString("target_id")==song.producerId&&it.optString("kind")=="producer"})"팔로잉" else "팔로우",fontSize=13.sp)}}
     if(song.cover)TextButton(onClick={m.openOriginal(song)}){Icon(Icons.Rounded.Album,null);Text("이 커버의 원곡 듣기",modifier=Modifier.padding(start=8.dp))}
     if(song.description.isNotBlank())Text(song.description,fontSize=14.sp,color=Muted,modifier=Modifier.padding(vertical=12.dp))
     Text("재생 ${song.plays} · 좋아요 ${song.likes} · 댓글 ${song.comments}",color=Muted,fontSize=12.sp,modifier=Modifier.padding(vertical=15.dp))
+    if(m.ownsTrack(song))TextButton({m.requestTrackDelete(song)},modifier=Modifier.testTag("song-detail-delete")){Icon(Icons.Rounded.DeleteOutline,null,Modifier.size(18.dp));Text("${if(song.cover)"커버곡" else "음원"} 삭제",Modifier.padding(start=6.dp))}
     AlbumImageEditor(m,song)
     GiftEntry(m,song)
     if(!song.cover&&(song.raw.optInt("covers")>0||song.raw.optInt("accepts_covers")==1))SongCoverTabs(m,song,sing)
@@ -430,7 +436,7 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)P
      OutlinedTextField(text,{text=it.take(2000)},placeholder={Text("어떤 순간이 마음에 닿았나요?",fontSize=14.sp)},modifier=Modifier.fillMaxWidth(),minLines=2,maxLines=5,shape=RoundedCornerShape(16.dp))
      Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.End){TextButton(onClick={m.comment(text,reply?.optString("id")){text="";reply=null}},enabled=text.isNotBlank()&&!m.busy){Text("댓글 남기기");Icon(Icons.AutoMirrored.Rounded.Send,null,Modifier.size(17.dp).padding(start=4.dp))}}
     }
-   }
+   }}
    items(threadedComments(m.comments),key={it.getString("id")}){c->
     Row(Modifier.fillMaxWidth().padding(start=if(!c.isNull("parent_id"))24.dp else 0.dp).padding(vertical=12.dp),verticalAlignment=Alignment.Top){
      Avatar(c.optString("name"),JSONObject().put("id",c.optString("profile_id")).put("image_version",c.optString("image_version")),size=30)

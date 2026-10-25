@@ -104,7 +104,7 @@ class NativePerformanceTest{
   ui.onNodeWithTag("dubbing-record-line").assertIsDisplayed();ui.onNodeWithTag("dubbing-save-all").assertIsDisplayed();ui.onNodeWithTag("dubbing-script-line2").assertExists()
   ui.onNodeWithTag("dubbing-record-line").performClick();text("3");capture("dubbing-countdown");text("내 대사 1 / 2")
   assertTrue(requests.none{it.first.startsWith("PUT ")})
-  ui.onNodeWithText("다음").performClick();ui.onNodeWithTag("dubbing-record-line").performClick();text("내 대사 2 / 2");capture("dubbing-checks")
+  ui.onNodeWithText("다음").performClick();ui.onNodeWithTag("dubbing-record-line").performClick();text("내 대사 2 / 2");capture("dubbing-checks");assertEquals("Two lines reuse a single complete background download",1,requests.count{it.first.endsWith("/background")})
   ui.onNodeWithTag("dubbing-save-all").performClick();text("응답 유실")
   ui.onNodeWithTag("dubbing-save-all").performClick();text("모두 임시 저장했어요")
   assertEquals(2,requests.count{it.first.startsWith("PUT ")})

@@ -63,7 +63,7 @@ internal fun playerLevel(xp:Int)=((1+sqrt(1+xp.coerceAtLeast(0)/12.5))/2).toInt(
    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Text("레벨 $level",fontSize=18.sp,fontWeight=FontWeight.Bold);Spacer(Modifier.weight(1f));Text("$xp XP",color=Aqua,fontSize=14.sp)}
    LinearProgressIndicator(progress={p.optDouble("progress",0.0).toFloat().coerceIn(0f,1f)},modifier=Modifier.fillMaxWidth().height(5.dp),color=Aqua,trackColor=Raised)
    Text(if(level>=100)"최고 레벨에 도달했어요." else "다음 레벨까지 $remaining XP",fontSize=12.sp,color=Muted)
-   if(open!=null)TextButton(onClick=open,colors=ButtonDefaults.textButtonColors(contentColor=Aqua),contentPadding=PaddingValues(0.dp)){Text("아이템 보관함  ›",fontSize=12.sp)}
+   if(open!=null)TextButton(onClick=open,colors=ButtonDefaults.textButtonColors(contentColor=Aqua),contentPadding=PaddingValues(0.dp)){Text("인벤토리  ›",fontSize=12.sp)}
   }
  }
 }
@@ -86,33 +86,30 @@ internal fun playerLevel(xp:Int)=((1+sqrt(1+xp.coerceAtLeast(0)/12.5))/2).toInt(
  var busy by remember{mutableStateOf(false)}
  var retry by remember{mutableIntStateOf(0)}
  LaunchedEffect(account,retry){try{val d=m.api.call("/api/me/player");if(m.user?.optString("id")==account){data=d;error=null}}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}}
- AppPage(title="내 아이템",onDismissRequest=close,containerColor=Ink){
-  LazyColumn(Modifier.fillMaxWidth().fillMaxHeight(),contentPadding=PaddingValues(20.dp),verticalArrangement=Arrangement.spacedBy(16.dp)){
-   item{Text("아이템 보관함",fontSize=24.sp,fontWeight=FontWeight.Bold)}
+ AppPage(title="인벤토리",onDismissRequest=close,containerColor=Ink){
+  LazyColumn(Modifier.fillMaxSize().testTag("owned-inventory"),contentPadding=PaddingValues(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
    if(data==null&&error==null)item{LinearProgressIndicator(Modifier.fillMaxWidth(),color=Aqua)}
    error?.let{item{Text(it,color=Pink);TextButton(onClick={retry++}){Text("다시 불러오기")}}}
    data?.let{d->
-    item{PlayerXPCard(d.optJSONObject("player")?:JSONObject())}
-    val inventory=d.optJSONArray("inventory").objects()
-    if(inventory.isEmpty())item{Empty("첫 액자를 만나보세요","크루에 가입하면 전용 장식 액자를 무료로 드려요.");TextButton(onClick={close();m.selectTab(3);m.communityCrewMode=true;m.crewBrowsing=true}){Text("크루 둘러보기")}}
-    val rewards=d.optJSONArray("rewards").objects()
-    items(inventory+rewards,key={it.optString("id").ifBlank{"reward:"+it.optString("item_key")}}){i->
-     val owned=i.optBoolean("owned",true)
-     if(!owned&&i==rewards.firstOrNull())Text("달성할 수 있는 보상",fontSize=18.sp,fontWeight=FontWeight.Bold)
-     val p=JSONObject((m.ownProfile.optJSONObject("profile")?:JSONObject()).toString()).put("profile_frame",i.optString("item_key")).put("profile_frame_artwork",i.optString("artwork")).put("player_xp",d.optJSONObject("player")?.optInt("xp")?:0)
-     Surface(color=Panel,shape=RoundedCornerShape(18.dp)){Column(Modifier.padding(20.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
-      Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(20.dp)){Avatar(p.optString("name"),p,64);Column{Text(i.optString("name"),fontWeight=FontWeight.Bold);Text(if(i.optBoolean("equipped"))"장착 중" else if(owned)"보유 중" else "달성 보상",color=Aqua,fontSize=12.sp)}}
-      Text(i.optString("description"),color=Muted,fontSize=13.sp)
-      Text(i.optString("reason").ifBlank{i.optString("usage","보유 아이템")},color=Muted,fontSize=12.sp)
-      if(owned)BrandButton(enabled=i.optBoolean("available")&&!busy,onClick={busy=true;scope.launch{try{
-       val result=m.api.call("/api/me/player/equipment","PUT",payload("frame_inventory_id" to if(i.optBoolean("equipped"))JSONObject.NULL else i.optString("id")))
+    val inventory=d.optJSONArray("inventory").objects().filter{it.optBoolean("owned",true)}
+    if(inventory.isEmpty())item{Text("보유한 아이템이 없어요.",fontSize=14.sp,color=Muted)}
+    items(inventory.chunked(3)){row->Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)){
+     row.forEach{i->
+      val equipped=i.optBoolean("equipped")
+      val p=JSONObject((m.ownProfile.optJSONObject("profile")?:JSONObject()).toString()).put("profile_frame",i.optString("item_key")).put("profile_frame_artwork",i.optString("artwork")).put("player_xp",d.optJSONObject("player")?.optInt("xp")?:0)
+      Surface(onClick={busy=true;scope.launch{try{
+       val result=m.api.call("/api/me/player/equipment","PUT",payload("frame_inventory_id" to if(equipped)JSONObject.NULL else i.optString("id")))
        if(m.user?.optString("id")==account){data=result;updated(result);error=null;m.loadOwnProfile(fresh=true)}
-      }catch(e:Exception){if(e is CancellationException)throw e;error=e.message}finally{busy=false}}},modifier=Modifier.fillMaxWidth(),colors=ButtonDefaults.buttonColors(containerColor=Aqua,contentColor=Ink)){Text(if(i.optBoolean("equipped"))"해제하기" else "장착하기")}
-     }}
-    }
-    item{Text("이렇게 레벨이 올라요",fontWeight=FontWeight.Bold)}
-    items(d.optJSONArray("rules").objects()){r->Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){Text(r.optString("label"),fontSize=14.sp);Text(r.optString("limit"),fontSize=11.sp,color=Muted)};Text("+${r.optInt("xp")} XP",color=Aqua,fontSize=13.sp)}}
-    item{Text("매일 활동은 한국 시간 자정에 새로 시작해요. 기존 공개곡도 반영되며 같은 곡의 경험치는 한 번만 지급돼요.",fontSize=12.sp,color=Muted)}
+      }catch(e:Exception){if(e is CancellationException)throw e;error=e.message}finally{busy=false}}},enabled=i.optBoolean("available")&&!busy,color=Panel,shape=RoundedCornerShape(12.dp),border=BorderStroke(1.dp,if(equipped)Pink else Stroke),modifier=Modifier.weight(1f).testTag("inventory-item-${i.optString("id")}")){
+       Column(Modifier.height(156.dp).padding(8.dp),horizontalAlignment=Alignment.CenterHorizontally){
+        Box(Modifier.fillMaxWidth().weight(1f),contentAlignment=Alignment.Center){Avatar(p.optString("name"),p,56)}
+        Text(i.optString("name"),fontSize=12.sp,lineHeight=17.sp,maxLines=2,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis,textAlign=androidx.compose.ui.text.style.TextAlign.Center,modifier=Modifier.fillMaxWidth().height(44.dp).wrapContentHeight())
+        Text(if(equipped)"장착 중" else if(i.optBoolean("available"))"장착" else "보유",fontSize=11.sp,lineHeight=16.sp,color=if(equipped)Pink else Muted)
+       }
+      }
+     }
+     repeat(3-row.size){Spacer(Modifier.weight(1f))}
+    }}
    }
   }
  }

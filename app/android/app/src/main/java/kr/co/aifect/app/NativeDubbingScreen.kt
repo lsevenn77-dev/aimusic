@@ -302,6 +302,7 @@ internal fun manualDubbingScript(title:String,text:String,options:JSONObject):JS
   if(sound.optString("state")!="ready"){audio.status.value="배경 음향을 준비하고 있어요. 완료되면 녹음을 시작할 수 있어요.";try{withTimeout(180000){while(sound.optString("state") in listOf("queued","planning","generating","mixing")){delay(5000);sound=api.call("$path/sound",fresh=true).getJSONObject("sound")}}}catch(e:TimeoutCancellationException){throw IllegalStateException("음향 준비에 시간이 더 필요해요. 준비 상태를 다시 확인해주세요.",e)}}
   check(sound.optString("state")=="ready"){sound.optString("error","배경 음향 상태를 확인해주세요.")}
   view=api.call("$path/recording/$roleId/start","POST",payload("soundId" to sound.getString("id")))
+  audio.prepareBackground("$path/background")
   drafts=DubbingDrafts(context,account,id,sound.getString("id"),roleId);selected=mine.indexOfFirst{!it.has("takeId")}.coerceAtLeast(0)
  }
  LaunchedEffect(Unit){busy=true;try{prepare()}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}finally{busy=false}}

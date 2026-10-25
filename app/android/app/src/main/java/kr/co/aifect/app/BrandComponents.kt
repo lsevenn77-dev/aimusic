@@ -57,6 +57,7 @@ internal val BrandGradient get()=Brush.horizontalGradient(0f to Pink,.48f to Vio
   AppMenuPage(title=song.title,expanded=open,onDismissRequest={open=false}){
    PageMenuItem(text={Text("플레이리스트 담기")},onClick={open=false;m.pickPlaylist(song)})
    PageMenuItem(text={Text("선물하기")},onClick={open=false;m.openGifts(song)})
+   if(m.ownsTrack(song))PageMenuItem(text={Text("삭제")},onClick={open=false;m.requestTrackDelete(song)})
    PageMenuItem(text={Text("댓글 보기")},onClick={open=false;m.openSong(song)})
    if(includeRelated&&song.cover)PageMenuItem(text={Text("원곡 듣기")},onClick={open=false;m.openOriginal(song)})
    else if(includeRelated&&song.raw.optInt("accepts_covers")==1)PageMenuItem(text={Text("다른 목소리")},onClick={open=false;m.openCovers(song)})

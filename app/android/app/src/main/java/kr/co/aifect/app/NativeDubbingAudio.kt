@@ -7,6 +7,7 @@ import android.media.AudioRecord
 import android.media.MediaRecorder
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
@@ -54,18 +55,47 @@ internal class DubbingDrafts(context:Context,account:String,project:String,sound
 }
 
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
-internal class NativeDubbingAudio(context:Context,private val api:NativeApi){
+internal class NativeDubbingAudio(private val context:Context,private val api:NativeApi){
  val status=MutableStateFlow("");val countdown=MutableStateFlow(0);val level=MutableStateFlow(0f);val elapsed=MutableStateFlow(0.0);val running=MutableStateFlow(false)
  private val scope=CoroutineScope(SupervisorJob()+Dispatchers.Main.immediate)
- private val background=ExoPlayer.Builder(context).setMediaSourceFactory(DefaultMediaSourceFactory(OkHttpDataSource.Factory(api.client))).build()
- private val preview=ExoPlayer.Builder(context).setMediaSourceFactory(DefaultMediaSourceFactory(OkHttpDataSource.Factory(api.client))).build()
+ private val background=ExoPlayer.Builder(context).setMediaSourceFactory(DefaultMediaSourceFactory(DefaultDataSource.Factory(context,OkHttpDataSource.Factory(api.client)))).build()
+ private val preview=ExoPlayer.Builder(context).setMediaSourceFactory(DefaultMediaSourceFactory(DefaultDataSource.Factory(context,OkHttpDataSource.Factory(api.client)))).build()
  private var job:Job?=null
  @Volatile private var recorder:AudioRecord?=null
  @Volatile private var stopRequested=false
  private var closed=false
  private var playerError:String?=null
+ private var preparedUrl:String?=null
+ private var preparedFile:File?=null
+ private var backgroundCall:okhttp3.Call?=null
  init{background.addListener(object:Player.Listener{override fun onPlayerError(error:androidx.media3.common.PlaybackException){playerError="배경 음향을 불러오지 못했어요. 연결을 확인해주세요."}})}
- private suspend fun ready(url:String,position:Long){playerError=null;background.setMediaItem(MediaItem.fromUri(Endpoint.url(url)),position);background.prepare();withTimeout(20000){while(background.playbackState!=Player.STATE_READY){playerError?.let{error(it)};delay(30)}}}
+ /** One complete download per recorder. Each line only seeks the same local sound. */
+ suspend fun prepareBackground(url:String){
+  if(preparedUrl==url&&preparedFile?.isFile==true)return
+  status.value="배경 음향을 한 번에 준비하고 있어요"
+  val file=File.createTempFile("dubbing-background-",".audio",context.cacheDir)
+  try{
+   withContext(Dispatchers.IO){
+    val call=api.client.newCall(Request.Builder().url(Endpoint.url(url)).build());backgroundCall=call
+    try{call.execute().use{response->
+     check(response.isSuccessful){"배경 음향을 내려받지 못했어요. 다시 시도해주세요."}
+     val body=response.body?:error("배경 음향이 비어 있어요.");val expected=body.contentLength();val limit=96L*1024*1024
+     check(expected<=limit){"배경 음향 파일이 너무 커요."}
+     var bytes=0L
+     body.byteStream().use{input->file.outputStream().buffered().use{out->val buffer=ByteArray(65536);while(true){ensureActive();val n=input.read(buffer);if(n<0)break;bytes+=n;check(bytes<=limit){"배경 음향 파일이 너무 커요."};out.write(buffer,0,n)}}}
+     check(bytes>=44&&(expected<0||bytes==expected)){"배경 음향 다운로드가 끝나지 않았어요."}
+    }}finally{backgroundCall=null}
+   }
+   currentCoroutineContext().ensureActive();check(!closed)
+   playerError=null;background.setMediaItem(MediaItem.fromUri(android.net.Uri.fromFile(file)));background.prepare();awaitReady()
+   preparedFile?.delete();preparedFile=file;preparedUrl=url;status.value="배경 음향 준비 완료"
+  }catch(e:Exception){file.delete();throw e}
+ }
+ private suspend fun awaitReady(){withTimeout(20000){while(background.playbackState!=Player.STATE_READY){playerError?.let{error(it)};delay(30)}}}
+ private suspend fun ready(url:String,position:Long){
+  check(preparedUrl==url&&preparedFile?.isFile==true){"배경 음향을 먼저 준비해주세요."}
+  playerError?.let{error(it)};background.pause();background.seekTo(position);awaitReady()
+ }
  @SuppressLint("MissingPermission")
  fun record(url:String,line:JSONObject,drafts:DubbingDrafts,complete:(JSONObject)->Unit,failure:(String)->Unit){
   if(running.value)return
@@ -73,7 +103,7 @@ internal class NativeDubbingAudio(context:Context,private val api:NativeApi){
   job=scope.launch{
    val take=payload("id" to requestIdentity(),"uploaded" to false);val output=drafts.file(take);var accepted=false
    try{
-    val window=dubbingWindow(line);status.value="배경 음향 준비 중";ready(url,(window.cueStart*1000).toLong())
+    val window=dubbingWindow(line);status.value="시작 준비";ready(url,(window.cueStart*1000).toLong())
     val size=max(9600,AudioRecord.getMinBufferSize(48000,AudioFormat.CHANNEL_IN_MONO,AudioFormat.ENCODING_PCM_16BIT))
     val input=AudioRecord.Builder().setAudioSource(MediaRecorder.AudioSource.VOICE_RECOGNITION).setAudioFormat(AudioFormat.Builder().setSampleRate(48000).setChannelMask(AudioFormat.CHANNEL_IN_MONO).setEncoding(AudioFormat.ENCODING_PCM_16BIT).build()).setBufferSizeInBytes(size).build();recorder=input
     check(input.state==AudioRecord.STATE_INITIALIZED){"마이크를 연결하지 못했어요."}
@@ -95,7 +125,7 @@ internal class NativeDubbingAudio(context:Context,private val api:NativeApi){
  fun finishLine(){stopRequested=true;if(countdown.value>0)stop()}
  fun stop(){job?.cancel();job=null;if(!closed){background.pause();preview.pause()}}
  fun listen(url:String,position:Double=0.0){stop();preview.setMediaItem(MediaItem.fromUri(if(url.startsWith('/'))Endpoint.url(url)else url), (position*1000).toLong());preview.prepare();preview.play();status.value="미리 듣는 중"}
- fun close(){if(closed)return;stop();closed=true;scope.cancel();background.release();preview.release()}
+ fun close(){if(closed)return;stop();closed=true;backgroundCall?.cancel();scope.cancel();background.release();preview.release();preparedFile?.delete();preparedFile=null}
 }
 
 internal suspend fun NativeApi.uploadDubbingTake(path:String,file:File):JSONObject=withContext(Dispatchers.IO){

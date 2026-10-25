@@ -323,6 +323,58 @@ class DesignCaptureTest {
   ui.waitUntil(10000){requestUrls.any{it.startsWith("/api/play/works?")&&it.contains("tab=popular")&&it.contains("type=duet")}}
   assertFalse(requestBodies.keys.any{it.startsWith("/api/dubbing/")})
  }
+ @Test fun polish264MyGridInventoryWalletAndCachedGallery(){
+  val dashboard=responses.getValue("/api/producers/design-own?dashboard=1")
+  dashboard.getJSONObject("profile").put("public_number",1)
+  dashboard.put("artists",arr(payload("id" to "design-artist","name" to "NOVA","image_version" to "sample"),payload("id" to "design-artist-2","name" to "ARIA","image_version" to "sample-ocean")))
+  val inventory=JSONArray();repeat(5){inventory.put(payload("id" to "frame-$it","item_key" to "crew-outline","name" to "프레임 ${it+1}","owned" to true,"available" to true,"equipped" to (it==0),"description" to "숨길 설명"))}
+  responses["/api/me/player"]=payload("inventory" to inventory,"rewards" to arr(payload("id" to "locked","name" to "미보유 보상","owned" to false)),"player" to payload("level" to 3))
+  for(currency in listOf("silver","gold"))responses["/api/gold/history?currency=$currency"]=payload("currency" to currency,"earned" to arr(payload("kind" to if(currency=="silver")"checkin" else "purchase","amount" to 100,"created" to now)),"spent" to arr(payload("kind" to "gift","title" to "하트 선물","amount" to 20,"created" to now-10)))
+  act{it.refreshMyDashboard(true)};ui.waitUntil(15000){!model.ownDashboardLoading&&model.ownDashboard?.optJSONArray("artists")?.length()==2}
+  act{it.selectTab(6)};ready("current-my");ui.onAllNodesWithText("ID 1",substring=true).assertCountEquals(0)
+  val scroll=ui.onNodeWithTag("current-my")
+  scroll.performScrollToNode(hasTestTag("my-artist-design-artist"));ui.onNodeWithContentDescription("NOVA 아티스트 사진").assertIsDisplayed()
+  val first=ui.onNodeWithTag("my-artist-design-artist").fetchSemanticsNode().boundsInRoot
+  val second=ui.onNodeWithTag("my-artist-design-artist-2").fetchSemanticsNode().boundsInRoot
+  assertEquals(first.top,second.top,.5f);assertEquals(first.width,second.width,.5f);assertTrue(first.right<second.left)
+  capture("polish-264-artists")
+  scroll.performScrollToNode(hasTestTag("my-section-activity"));ui.onNodeWithTag("my-section-activity").performClick()
+  scroll.performScrollToNode(hasTestTag("wallet-silver"));capture("polish-264-wallet")
+  for(currency in listOf("silver","gold")){
+   ui.onNodeWithTag("wallet-$currency").performClick();ready("wallet-history-$currency");text(if(currency=="silver")"출석 보상" else "골드 충전")
+   ui.onNodeWithText("최근 사용").performClick();text("하트 선물");capture("polish-264-$currency-history");Espresso.pressBack()
+  }
+  scroll.performScrollToNode(hasTestTag("music-shortcut-보관함"))
+  val boxes=listOf("보관함","좋아요","최근 감상","플레이리스트").map{ui.onNodeWithTag("music-shortcut-$it").fetchSemanticsNode().boundsInRoot}
+  boxes.forEach{assertEquals(boxes[0].height,it.height,.5f);assertEquals(boxes[0].width,it.width,.5f)}
+  capture("polish-264-library")
+  act{it.showInventory=true};ready("owned-inventory");text("프레임 1")
+  ui.onAllNodesWithText("달성할 수 있는 보상").assertCountEquals(0);ui.onAllNodesWithText("숨길 설명").assertCountEquals(0);ui.onAllNodesWithText("미보유 보상").assertCountEquals(0)
+  val items=(0..2).map{ui.onNodeWithTag("inventory-item-frame-$it").fetchSemanticsNode().boundsInRoot};items.forEach{assertEquals(items[0].top,it.top,.5f);assertEquals(items[0].width,it.width,1.1f)}
+  capture("polish-264-inventory");Espresso.pressBack()
+  act{it.selectTab(0)};val gate=CountDownLatch(1);heldResponses["/api/producers/design-own"]=gate
+  try{act{it.selectTab(6)};ui.onNodeWithTag("current-my").performScrollToIndex(0);ui.onNodeWithContentDescription("갤러리 사진").assertExists()}finally{gate.countDown();heldResponses.clear()}
+ }
+ @Test fun polish264CoverActionsLatestAndOwnDeletion(){
+  act{it.openSong(Song(duet))};ready("song-detail-duet")
+  ui.onNodeWithTag("song-detail-duet").performScrollTo()
+  val listen=ui.onNodeWithTag("song-detail-listen").fetchSemanticsNode().boundsInRoot
+  val join=ui.onNodeWithTag("song-detail-duet").fetchSemanticsNode().boundsInRoot
+  assertTrue("Listen and join cannot overlap",listen.bottom<=join.top);capture("polish-264-cover-detail")
+  ui.onNodeWithTag("song-detail-delete").assertDoesNotExist();Espresso.pressBack()
+  act{it.selectTab(2);it.playMode="song";it.playSection="latest"};ui.waitUntil(15000){requestUrls.contains("/api/community?kind=cover")}
+  ui.onNodeWithTag("current-play").assertExists();assertFalse(model.playSection!="latest")
+  act{it.openSong(Song(song))};ready("song-detail-delete");ui.onNodeWithTag("song-detail-delete").performScrollTo().performClick()
+  ui.onNodeWithText("취소").performClick();assertFalse(requestUrls.contains("/api/uploads/design-song"))
+  responseStatuses["/api/uploads/design-song"]=403;responses["/api/uploads/design-song"]=payload("error" to "삭제 권한 확인")
+  ui.onNodeWithTag("song-detail-delete").performClick();ui.onNodeWithTag("delete-track-confirm").performClick();ui.waitUntil(15000){!model.busy&&requestUrls.contains("/api/uploads/design-song")};assertNotNull(model.detail)
+  responseStatuses["/api/uploads/design-song"]=200;responses["/api/uploads/design-song"]=payload("ok" to true)
+  responses["/api/producers/design-own?dashboard=1"]?.put("tracks",arr(second));responses["/api/me/profile"]?.put("tracks",arr(second))
+  ui.onNodeWithTag("delete-track-confirm").performClick();ui.waitUntil(15000){model.detail==null&&model.pendingTrackDelete==null};assertFalse(model.home.any{it.id=="design-song"})
+  val ownedCover=JSONObject(cover.toString()).put("user_id","design-user");responses["/api/tracks/design-cover"]=payload("track" to ownedCover)
+  act{it.openSong(Song(ownedCover))};ready("song-detail-delete");ui.onNodeWithTag("song-detail-delete").performScrollTo().performClick();ui.onNodeWithTag("delete-track-confirm").performClick()
+  ui.waitUntil(15000){model.detail==null&&model.pendingTrackDelete==null};assertTrue(requestUrls.contains("/api/uploads/design-cover"))
+ }
  @Test fun currentMyRetainsProfileAndGalleryWhenChangingSections(){
   ui.onNodeWithTag("main-tab-6").performClick();ready("my-section-works")
   ui.waitUntil(15000){requestUrls.contains("/api/producers/design-own?dashboard=1")}
@@ -960,6 +1012,7 @@ class DesignCaptureTest {
   assertTrue(model.listSongs.any{it.id=="design-cover"});assertEquals(2,model.playlists.single().getInt("tracks"))
  }
  @Test fun streamingDraftResumesExistingRecordingWithoutMicrophone(){
+  val microphoneBefore=ContextCompat.checkSelfPermission(context,Manifest.permission.RECORD_AUDIO)
   val ownerMethod=kr.co.aifect.app.karaoke.KaraokeActivity::class.java.getDeclaredMethod("draftOwner",String::class.java,String::class.java).apply{isAccessible=true}
   val owner=ownerMethod.invoke(null,Endpoint.origin,"user:design-user") as String
   val dir=File(context.filesDir,"karaoke-design-song-$owner").apply{mkdirs()}
@@ -968,14 +1021,20 @@ class DesignCaptureTest {
   val monitor=instrumentation.addMonitor(kr.co.aifect.app.karaoke.KaraokeActivity::class.java.name,null,false)
   var room:android.app.Activity?=null
   try{
-   act{it.selectTab(2)};ready("draft-preview");text("이어 부를 초안");phaseCapture("23-draft-preview")
-   ui.onNodeWithTag("draft-preview").performClick();room=instrumentation.waitForMonitorWithTimeout(monitor,15000)
+   room=instrumentation.startActivitySync(Intent(context,kr.co.aifect.app.karaoke.KaraokeActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK).putExtra("origin",Endpoint.origin).putExtra("trackId","design-song").putExtra("ownerId","design-user").putExtra("resumeDraft",true).putExtra("draftFolder",dir.name))
    assertNotNull(room);assertTrue(room!!.intent.getBooleanExtra("resumeDraft",false));assertEquals(dir.name,room!!.intent.getStringExtra("draftFolder"))
    val deadline=System.nanoTime()+TimeUnit.SECONDS.toNanos(30)
    while(true){try{androidx.test.espresso.Espresso.onView(androidx.test.espresso.matcher.ViewMatchers.withTagValue(org.hamcrest.Matchers.`is`("recording-post"))).check(androidx.test.espresso.assertion.ViewAssertions.matches(androidx.test.espresso.matcher.ViewMatchers.isDisplayed()));break}catch(e:Throwable){if(System.nanoTime()>deadline)throw e;Thread.sleep(100)}}
-   phaseCapture("22-resumed-recording")
+   androidx.test.espresso.Espresso.onView(androidx.test.espresso.matcher.ViewMatchers.withTagValue(org.hamcrest.Matchers.`is`("recording-complete"))).check(androidx.test.espresso.assertion.ViewAssertions.matches(org.hamcrest.Matchers.not(androidx.test.espresso.matcher.ViewMatchers.isDisplayed())))
+   for(tag in listOf("recording-again","recording-draft","recording-publish","recording-publication","post-settings")){
+    androidx.test.espresso.Espresso.onView(androidx.test.espresso.matcher.ViewMatchers.withTagValue(org.hamcrest.Matchers.`is`(tag))).perform(androidx.test.espresso.action.ViewActions.scrollTo()).check(androidx.test.espresso.assertion.ViewAssertions.matches(androidx.test.espresso.matcher.ViewMatchers.isDisplayed()))
+   }
+   phaseCapture("polish-264-review-actions")
    assertEquals(48000*3*2L,dry.length())
-   assertEquals(PackageManager.PERMISSION_DENIED,ContextCompat.checkSelfPermission(context,Manifest.permission.RECORD_AUDIO))
+   assertEquals(microphoneBefore,ContextCompat.checkSelfPermission(context,Manifest.permission.RECORD_AUDIO))
+   androidx.test.espresso.Espresso.onView(androidx.test.espresso.matcher.ViewMatchers.withTagValue(org.hamcrest.Matchers.`is`("recording-again"))).perform(androidx.test.espresso.action.ViewActions.scrollTo(),androidx.test.espresso.action.ViewActions.click())
+   androidx.test.espresso.Espresso.onView(androidx.test.espresso.matcher.ViewMatchers.withTagValue(org.hamcrest.Matchers.`is`("recording-key-settings"))).perform(androidx.test.espresso.action.ViewActions.scrollTo()).check{view,error->if(error!=null)throw error;assertTrue("Key control stays compact",view.height<=64*context.resources.displayMetrics.density)}
+   phaseCapture("polish-264-recording-key")
   }finally{
    instrumentation.removeMonitor(monitor);room?.let{a->instrumentation.runOnMainSync{a.finish()}}
    // Only files created by this isolated fixture are removed.
@@ -1006,9 +1065,9 @@ class DesignCaptureTest {
   ui.onNodeWithTag("page-back").performClick();ui.onNodeWithTag("account-actions").assertIsDisplayed()
   Espresso.pressBack();ui.onNodeWithTag("listen-tabs").assertIsDisplayed()
   ui.onNodeWithTag("navigation-menu").performClick();ready("all-navigation")
-  ui.onNodeWithTag("menu-아이템 보관함").performScrollTo().performClick();text("아이템 보관함")
+  ui.onNodeWithTag("menu-인벤토리").performScrollTo().performClick();text("인벤토리")
   ui.onAllNodes(isDialog()).assertCountEquals(0);phaseCapture("25-inventory-page")
-  Espresso.pressBack();ui.onNodeWithTag("menu-아이템 보관함").assertIsDisplayed()
+  Espresso.pressBack();ui.onNodeWithTag("menu-인벤토리").assertIsDisplayed()
   ui.onNodeWithTag("main-tab-6").performClick();ready("my-music-page")
   ui.onNodeWithTag("app-page").assertDoesNotExist();assertFalse(model.showInventory)
   assertEquals(playing,model.current?.id);assertTrue(model.playing)

@@ -17,7 +17,7 @@ class CurrentNavigationTest {
  @Test fun playListsUseCurrentWebEndpointsAndDoNotMixFinishedWorksWithInvitations(){
   assertEquals("/api/karaoke",CurrentNavigation.playPath("song","recommended"))
   assertEquals("/api/duets",CurrentNavigation.playPath("song","duets"))
-  assertEquals("/api/play/latest",CurrentNavigation.playPath("song","latest"))
+  assertEquals("/api/community?kind=cover",CurrentNavigation.playPath("song","latest"))
   assertEquals("/api/play/participate",CurrentNavigation.playPath("dubbing","join"))
   assertEquals("/api/dubbing/projects?tab=mine",CurrentNavigation.playPath("dubbing","mine"))
   assertEquals("/api/play/works?tab=following&type=duet",CurrentNavigation.playPath("browse","following","duet"))
