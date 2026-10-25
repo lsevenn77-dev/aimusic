@@ -11,6 +11,36 @@ test('public artist representative image editor is visible only to the owner',()
  const data={profile:{name:'Artist'},tracks:[],followers:0};
  assert.doesNotMatch(context.artistPageHTML(data,'artist'),/data-artist-image/);
  assert.match(context.artistPageHTML({...data,can_manage:true},'artist'),/data-artist-image="artist"/);
+ assert.match(context.artistPageHTML({...data,can_manage:true},'artist'),/<button type="button"[^>]*data-artist-image-pick/);
+});
+
+function imagePicker(uploadFile=async()=>{}){
+ const listeners={},notices=[];let clicks=0,renders=0;
+ const context={document:{addEventListener(type,fn){(listeners[type]??=[]).push(fn);}},uploadFile,location:{hash:'#artist/artist'},render:async()=>{renders++;},toast:message=>notices.push(message)};
+ vm.createContext(context);vm.runInContext(readFileSync(new URL('../dist/artist-gallery.js',import.meta.url),'utf8'),context);
+ const group={querySelector:selector=>selector==='[data-artist-image]'?input:button};
+ const button={disabled:false,closest:()=>group};
+ const input={disabled:false,files:[],value:'',dataset:{artistImage:'artist'},click(){clicks++;},closest:()=>group};
+ const eventFor=element=>({target:{closest:selector=>selector==='[data-artist-image-pick]'&&element===button?button:selector==='[data-artist-image]'&&element===input?input:null}});
+ return {button,input,notices,get clicks(){return clicks;},get renders(){return renders;},click(element=button){return listeners.click.map(fn=>fn(eventFor(element)));},change(){return listeners.change[0](eventFor(input));}};
+}
+
+test('representative photo button opens the picker synchronously once and ignores busy or input clicks',()=>{
+ const picker=imagePicker();picker.click();assert.equal(picker.clicks,1,'picker must open during the original user gesture');
+ picker.click(picker.input);assert.equal(picker.clicks,1,'forwarded input click must not recurse');
+ picker.input.disabled=true;picker.click();assert.equal(picker.clicks,1);
+ picker.input.disabled=false;picker.button.disabled=true;picker.click();assert.equal(picker.clicks,1);
+});
+
+test('cancelled selection is harmless and a failed image save allows selecting the same photo again',async()=>{
+ let finish,calls=0;const picker=imagePicker(()=>{calls++;return new Promise((resolve,reject)=>{finish=reject;});});
+ await picker.change();assert.equal(calls,0);assert.equal(picker.button.disabled,false);
+ picker.input.files=[new File(['photo'],'photo.png',{type:'image/png'})];picker.input.value='photo.png';
+ const saving=picker.change();assert.equal(calls,1);assert.equal(picker.button.disabled,true);assert.equal(picker.input.disabled,true);
+ picker.click();await picker.change();assert.equal(calls,1);assert.equal(picker.clicks,0);
+ finish(new Error('사진 편집을 취소했어요.'));await saving;
+ assert.equal(picker.button.disabled,false);assert.equal(picker.input.disabled,false);assert.equal(picker.input.value,'');assert.equal(picker.renders,0);
+ picker.click();assert.equal(picker.clicks,1);assert.match(picker.notices[0],/취소/);
 });
 
 test('representative image update enforces ownership and updates the public portrait version',async t=>{
