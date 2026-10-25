@@ -131,7 +131,7 @@ private val PagePadding=PaddingValues(start=14.dp,end=14.dp,bottom=24.dp)
    }
    TrackActionsMenu(song,m)
   }
-  HorizontalDivider(color=Stroke.copy(alpha=.45f))
+  HorizontalDivider(color=Stroke)
  }
 }
 @Composable private fun WelcomeMusic(m:MusicModel){

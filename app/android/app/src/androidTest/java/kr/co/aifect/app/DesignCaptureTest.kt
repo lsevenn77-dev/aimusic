@@ -171,7 +171,10 @@ class DesignCaptureTest {
   assertFalse(requestBodies.keys.any{it.startsWith("/api/voice/")})
  }
  @Test fun currentPlaySeparatesRecordingDubbingAndFinishedWorks(){
+  ready("home-featured-play");capture("revision-00-home")
   ui.onNodeWithTag("main-tab-2").performClick();ready("current-sing-design-song")
+  ui.onNodeWithTag("current-sing-design-song").assertIsDisplayed()
+  ui.onNodeWithTag("current-sing-design-ocean").assertIsDisplayed()
   capture("current-02-play-songs")
   ui.onNodeWithTag("play-main-dubbing").performClick();ready("dubbing-project-design-dubbing")
   capture("current-03-play-dubbing")
@@ -185,6 +188,9 @@ class DesignCaptureTest {
  @Test fun currentMyRetainsProfileAndGalleryWhenChangingSections(){
   ui.onNodeWithTag("main-tab-6").performClick();ready("my-section-works")
   ui.waitUntil(15000){requestUrls.contains("/api/producers/design-own?dashboard=1")}
+  capture("revision-04-my-top")
+  ui.onNodeWithText("프로필 수정").assertIsDisplayed()
+  ui.onNodeWithText("스튜디오",useUnmergedTree=true).assertIsDisplayed()
   ui.onNodeWithTag("current-my").performScrollToNode(hasTestTag("my-section-activity"))
   capture("current-04-my-works")
   ui.onNodeWithTag("my-section-activity").performClick()

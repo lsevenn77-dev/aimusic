@@ -6,7 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.MoreHoriz
+import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -53,7 +53,7 @@ internal val BrandGradient get()=Brush.horizontalGradient(0f to Pink,.48f to Vio
 @Composable internal fun TrackActionsMenu(song:Song,m:MusicModel,modifier:Modifier=Modifier,includeRelated:Boolean=false){
  var open by remember(song.id){mutableStateOf(false)}
  Box{
-  IconButton(onClick={open=true},modifier=modifier){Icon(Icons.Outlined.MoreHoriz,"${song.title} 더보기",tint=Muted)}
+  IconButton(onClick={open=true},modifier=modifier){Icon(Icons.Rounded.Menu,"${song.title} 더보기",modifier=Modifier.size(18.dp),tint=Muted)}
   AppMenuPage(title=song.title,expanded=open,onDismissRequest={open=false}){
    PageMenuItem(text={Text("플레이리스트 담기")},onClick={open=false;m.pickPlaylist(song)})
    PageMenuItem(text={Text("선물하기")},onClick={open=false;m.openGifts(song)})
