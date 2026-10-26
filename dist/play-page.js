@@ -12,6 +12,7 @@ function playAlias(hash){
  if(route==='dubbing')return ['complete','popular','latest'].includes(q.get('tab'))?playHref('browse',q.get('tab')==='complete'?'recommended':q.get('tab'),'dubbing'):playHref('dubbing',q.get('tab')==='mine'?'mine':'discover');
  if(route==='covers'||route==='community/covers')return playHref('browse','recommended',['solo','duet'].includes(q.get('mode'))?q.get('mode'):'all');
  if(route==='community/latest')return playHref('browse','latest');
+ if(route==='community/following'&&!['following','followers'].includes(q.get('people')))return playHref('browse','following',playTypes.some(([k])=>k===q.get('type'))?q.get('type'):'all');
  if(route==='community/duets')return q.get('open')==='1'?playHref('song','duets'):playHref('browse','recommended','duet');
  return null;
 }
@@ -22,7 +23,7 @@ function playSelection(param,raw){
 }
 function playTypeIcon(type){
  const label={solo:'솔로',duet:'듀엣',dubbing:'더빙'}[type];
- return `<span class="play-type-icon${type==='duet'?' play-duet-icon':''}" role="img" aria-label="${label}">${type==='duet'?icon('mic')+icon('mic'):icon(type==='dubbing'?'message':'mic')}</span>`;
+ return `<span class="play-type-icon${type==='duet'?' play-duet-icon':type==='dubbing'?' play-dubbing-icon':''}" role="img" aria-label="${label}">${type==='duet'?icon('mic')+icon('mic'):type==='dubbing'?icon('message')+icon('waveform'):icon('mic')}</span>`;
 }
 function playTabs(items,active,label,href,extra=''){
  return `<nav class="tabs play-tabs ${extra}" role="tablist" aria-label="${label}">${items.map(([key,title])=>`<a class="tab ${active===key?'active':''}" role="tab" aria-selected="${active===key}" ${active===key?'aria-current="page"':''} href="${esc(href(key))}">${title}</a>`).join('')}</nav>`;
@@ -46,15 +47,24 @@ function playDubbingCard(p){
  const href='#dubbing/'+encodeURIComponent(p.id);
  return `<article class="album-card"><div class="album-art-wrap"><a href="${href}" aria-label="${esc(p.title)} 작품 보기"><img class="album-art cover play-dubbing-art" src="${AifectDubbing.dubbingGenreArtwork(p.genres)}" alt="${esc((p.genres||[]).join(' · '))} 장르 이미지" width="640" height="640" loading="lazy" decoding="async"></a><a class="card-play" href="${href}" aria-label="${esc(p.title)} 더빙 듣기">${icon('audio-play',36)}</a></div><div class="album-title-row"><a class="album-title play-work-title" href="${href}">${playTypeIcon('dubbing')}<span>${esc(p.title)}</span></a></div><span class="album-artist">${esc(p.ownerName)}</span><span class="album-meta">${esc((p.genres||[]).join(' · '))} · ${time(p.duration)}</span></article>`;
 }
+function playSongRows(tracks,tab){
+ const duet=tab==='duets';
+ return `<div class="play-song-list">${tracks.map(t=>{
+  const href=duet?'#sing/'+encodeURIComponent(t.original_id)+'?duet='+encodeURIComponent(t.id):'#song/'+encodeURIComponent(t.id);
+  const artist=duet?t.original_artist:(t.has_ai_artist?t.artist:'AI 가수 미지정');
+  return `<a class="play-song-row" href="${esc(href)}" aria-label="${esc(t.title)} ${duet?'듀엣 참여':'곡 이야기'}">${cover(t,'play-song-art')}<span class="play-song-title" title="${esc(t.title)}">${esc(t.title)}</span><span class="play-song-producer" title="제작자: ${esc(t.producer)}">${esc(t.producer)}</span><span class="play-song-artist" title="AI 가수: ${esc(artist)}">${esc(artist)}</span><span class="play-song-count">${esc(t.participants)}명 참여</span></a>`;
+ }).join('')}</div>`;
+}
 function playProjectRows(projects,tab){
  const states={script_ready:'초안',recruiting:'배역 모집 중',recording:'녹음 중',mixing:'믹싱 중',complete:'완료'};
  return `<div class="play-project-list">${projects.map(p=>`<article class="play-project-row"><img class="play-project-symbol" src="${AifectDubbing.dubbingGenreArtwork(p.genres)}" alt="" width="52" height="52" loading="lazy" decoding="async"><div><a href="#dubbing/${esc(p.id)}"><h2>${playTypeIcon('dubbing')}<span>${esc(p.title)}</span></h2></a><p>${esc(p.ownerName)} · ${esc((p.genres||[]).join(' · '))} · ${time(p.duration)}</p><small>${tab==='discover'?'극본 · '+p.roleCount+'개 배역':(states[p.state]||'제작 중')+' · '+p.participants+' / '+p.roleCount+'명'}${p.visibility==='private'?' · 비공개':''}</small></div><a class="small-button" href="#dubbing/${esc(p.id)}">${tab==='discover'?'작품 보기':tab==='join'?'배역 보기':'이어서 보기'}${icon('chevron')}</a></article>`).join('')}</div>`;
 }
-function playToolbar(s){return `<form id="play-search" class="aifect-search play-search">${icon('search')}<input name="q" type="search" aria-label="플레이 작품 검색" placeholder="${s.mode==='song'?'곡 제목, 아티스트, 창작자 검색':'작품 제목, 창작자 검색'}" maxlength="100"><button class="small-button" type="submit">검색</button></form>`;}
+function playToolbar(s){return `<form id="play-search" class="aifect-search play-search">${icon('search')}<input name="q" type="search" aria-label="플레이 작품 검색" placeholder="${s.mode==='song'?'곡명, 제작자, AI 가수명 검색':'작품 제목, 창작자 검색'}" maxlength="100"><button class="small-button" type="submit">검색</button></form>`;}
 function playResults(view){
  const s=view.play,items=view.items;
  if(!items.length)return playEmpty(s.tab==='following'?'팔로잉한 창작자의 완성작을 기다려요':'아직 표시할 작품이 없어요',s.mode==='browse'?'공개 완료된 솔로·듀엣·더빙이 여기에 모여요.':s.mode==='dubbing'?'공개된 극본을 둘러보거나 내 이야기를 시작해보세요.':'MR이 준비된 곡과 참여할 수 있는 듀엣이 여기에 모여요.',s.mode==='dubbing'?'#dubbing/new':undefined,'더빙 만들기');
  if(s.mode==='dubbing')return playProjectRows(items,s.tab);
+ if(s.mode==='song')return playSongRows(items,s.tab);
  return `<div class="home-music-grid play-grid">${items.map(t=>t.type==='dubbing'?playDubbingCard(t):playMusicCard(t,s.mode==='song'?(s.tab==='duets'?'duet':'song'):null)).join('')}</div>`;
 }
 async function playView(base,param,raw){
@@ -67,8 +77,8 @@ async function playView(base,param,raw){
   if((s.mode==='song'&&s.tab==='drafts'||s.mode==='dubbing'&&s.tab==='mine'||s.mode==='browse'&&s.tab==='following')&&!me){returnRoute=location.hash;return {...view,html:playShell(s,gate())};}
   if(s.mode==='song'&&s.tab==='drafts')return {...view,html:playShell(s,karaokeDraftsHTML(await listSingDrafts()).replace(/^.*?(?=<section class="draft-workspace">)/s,''))};
   if(s.mode==='song'){
-   const d=await api(s.tab==='duets'?'/api/duets':s.tab==='latest'?'/api/play/latest':'/api/karaoke','GET',undefined,{fresh:true});
-   view.items=s.tab==='duets'?d.tracks.filter(t=>t.cover_mode==='duet'&&t.duet_open&&!t.duet_parent_id&&t.user_id!==me?.id):d.tracks;
+   const d=await api('/api/play/songs?'+new URLSearchParams({tab:s.tab}),'GET',undefined,{fresh:true});
+   view.items=d.tracks;view.nextOffset=d.nextOffset;
   }else if(s.mode==='dubbing'){
    const d=await api(s.tab==='join'?'/api/play/participate':'/api/dubbing/projects?tab='+(s.tab==='mine'?'mine':'open'),'GET',undefined,{fresh:true});view.items=d.projects;view.nextOffset=d.nextOffset;
   }else{
@@ -97,15 +107,15 @@ function bindPlay(view){
   const ticket=++generation;more.disabled=true;results.setAttribute('aria-busy','true');
   try{
    const params=new URLSearchParams({tab:s.tab,type:s.type,offset:String(append?view.nextOffset:0),q:query});
-   const path=s.mode==='browse'?'/api/play/works?'+params:s.tab==='join'?'/api/play/participate?'+params:'/api/dubbing/projects?tab='+(s.tab==='mine'?'mine':'open')+'&offset='+(append?view.nextOffset:0);
+   const path=s.mode==='song'?'/api/play/songs?'+params:s.mode==='browse'?'/api/play/works?'+params:s.tab==='join'?'/api/play/participate?'+params:'/api/dubbing/projects?tab='+(s.tab==='mine'?'mine':'open')+'&offset='+(append?view.nextOffset:0);
    const d=await api(path,'GET',undefined,{fresh:true});if(ticket!==generation||!root.isConnected)return;
-   const items=d.works||d.projects;view.items=append?[...view.items,...items]:items;view.nextOffset=d.nextOffset;
+   const items=d.tracks||d.works||d.projects;view.items=append?[...view.items,...items]:items;view.nextOffset=d.nextOffset;
    // The legacy script/my-work service has no text query. Keep its paging accessible while filtering loaded records.
-   if(s.mode==='dubbing'&&s.tab!=='join'){if(append)all.push(...items);else all.splice(0,all.length,...items);view.items=all.filter(t=>[t.title,t.ownerName].join(' ').toLocaleLowerCase().includes(query));}
+   if(s.mode==='dubbing'&&s.tab!=='join'){if(append)all.push(...items);else all.splice(0,all.length,...items);view.items=all.filter(t=>[t.title,t.ownerName].join(' ').toLocaleLowerCase().includes(query.toLocaleLowerCase()));}
    paint();
   }catch(e){if(ticket===generation&&root.isConnected){let note=root.querySelector('.play-load-error');if(!note){note=document.createElement('p');note.className='play-load-error';note.setAttribute('role','alert');results.before(note);}note.textContent=e.message+' · 다시 검색하거나 더 보기를 눌러주세요.';}}
   finally{if(ticket===generation&&root.isConnected){more.disabled=false;results.removeAttribute('aria-busy');}}
  };
- form.onsubmit=e=>{e.preventDefault();query=form.querySelector('input').value.trim().toLocaleLowerCase();root.querySelector('.play-load-error')?.remove();if(s.mode==='song'){view.items=all.filter(t=>[t.title,t.artist,t.producer].join(' ').toLocaleLowerCase().includes(query));paint();}else void load();};
+ form.onsubmit=e=>{e.preventDefault();query=form.querySelector('input').value.trim();root.querySelector('.play-load-error')?.remove();void load();};
  more.onclick=()=>load(true);
 }

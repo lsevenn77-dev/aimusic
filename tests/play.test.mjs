@@ -67,10 +67,44 @@ test('latest MR requires the existing singable conditions',async t=>{
 });
 test('all navigation aliases preserve engine entry routes and return stable URLs',()=>{
  const c=vm.createContext({URLSearchParams});vm.runInContext(readFileSync(new URL('../dist/play-page.js',import.meta.url),'utf8'),c);
- assert.equal(c.playAlias('#community/following'),null);
+ assert.equal(c.playAlias('#community/following'),'#karaoke/browse?tab=following&type=all');
+ assert.equal(c.playAlias('#community/following?type=duet'),'#karaoke/browse?tab=following&type=duet');
+ for(const people of ['following','followers'])assert.equal(c.playAlias('#community/following?people='+people),null);
  assert.equal(c.playAlias('#community/covers?mode=solo'),'#karaoke/browse?tab=recommended&type=solo');
  assert.equal(c.playAlias('#community/covers?mode=duet'),'#karaoke/browse?tab=recommended&type=duet');
  assert.equal(c.playAlias('#dubbing?tab=mine'),'#karaoke/dubbing?tab=mine');
  for(const route of ['#sing/one?duet=half','#sing/one?draft=1','#dubbing/new?mode=manual','#dubbing/id?record=1','#song/one?covers=duet'])assert.equal(c.playAlias(route),null);
  for(const mode of ['song','dubbing','browse'])for(const [key] of vm.runInContext('playSections.'+mode,c)){const href=c.playHref(mode,key),raw=href.slice(1),param=raw.split('/')[1]?.split('?')[0];assert.equal(c.playSelection(param,raw).tab,key);}
+});
+
+test('song rows search the full singable catalog and count people instead of recordings',async t=>{
+ const f=await setup(t);
+ f.sql.exec("INSERT INTO karaoke_jobs(track_id,id,state,mr_ready,words_state,created,updated) VALUES('one','ready','ready',1,'ready',0,0); UPDATE artists SET name='Voice Moon'; UPDATE producers SET name='Creator Sun' WHERE id='producer'");
+ f.cover('another-solo');
+ for(const q of ['one','Creator Sun','Voice Moon']){
+  const r=await f.call('/api/play/songs?q='+encodeURIComponent(q));assert.equal(r.status,200,JSON.stringify(r));
+  assert.deepEqual(r.body.tracks.map(x=>x.id),['one']);assert.equal(r.body.tracks[0].participants,1);
+ }
+ assert.equal((await f.call('/api/play/songs?q=missing')).body.tracks.length,0);
+ assert.equal((await f.call('/api/play/songs?tab=invalid')).status,400);
+ assert.equal((await f.call('/api/play/songs','POST',{})).status,405);
+ f.sql.exec("UPDATE karaoke_jobs SET mr_ready=0 WHERE track_id='one'");
+ assert.equal((await f.call('/api/play/songs')).body.tracks.length,0);
+});
+
+test('song pagination searches beyond the first page and duet entry keeps existing eligibility',async t=>{
+ const f=await setup(t);
+ f.sql.exec("INSERT INTO karaoke_jobs(track_id,id,state,mr_ready,words_state,created,updated) VALUES('one','ready','ready',1,'ready',0,0)");
+ for(let i=0;i<30;i++){
+  const id='mr-'+i;
+  f.sql.prepare("INSERT INTO tracks(id,user_id,artist_id,producer_id,title,genre,ai_tool,rights_accepted,original_ext,original_bytes,created,status,karaoke_at) VALUES(?,'owner','artist','producer',?,'Rock','QA',1,'wav',128,?,'published',1)").run(id,id,i+1);
+  f.sql.prepare("INSERT INTO karaoke_jobs(track_id,id,state,mr_ready,words_state,created,updated) VALUES(?,?,'ready',1,'ready',0,0)").run(id,id);
+ }
+ const first=(await f.call('/api/play/songs?tab=latest')).body,next=(await f.call('/api/play/songs?tab=latest&offset='+first.nextOffset)).body;
+ assert.equal(first.tracks.length,25);assert.equal(next.tracks.length,6);assert.equal(new Set([...first.tracks,...next.tracks].map(x=>x.id)).size,31);
+ assert.deepEqual((await f.call('/api/play/songs?q=mr-0')).body.tracks.map(x=>x.id),['mr-0']);
+ assert.deepEqual((await f.call('/api/play/songs?tab=duets')).body.tracks.map(x=>x.id),['half']);
+ assert.equal((await f.call('/api/play/songs?tab=duets','GET',null,'other')).body.tracks.length,0);
+ f.sql.exec("UPDATE karaoke_jobs SET mr_ready=0 WHERE track_id='one'");
+ assert.equal((await f.call('/api/play/songs?tab=duets')).body.tracks.length,0);
 });

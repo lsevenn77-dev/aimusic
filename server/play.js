@@ -4,7 +4,7 @@ import {rows,json,fail} from './db.js';
 import {requireUser} from './auth.js';
 import {trackList,VISIBLE,SINGABLE} from './catalog.js';
 import {dubbingVisibleSQL} from './dubbing-access.js';
-import {publicNameSQL} from './identity.js';
+import {publicNameSQL,memberNameSQL} from './identity.js';
 
 const unblocked=`NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=? AND b.blocked_id=p.owner_id) OR (b.blocked_id=? AND b.user_id=p.owner_id))`;
 const finished=`p.state='complete' AND EXISTS(SELECT 1 FROM dubbing_final_jobs j WHERE j.project_id=p.id AND j.script_key=p.script_key AND j.state='ready' AND j.output_key!='')`;
@@ -37,11 +37,24 @@ async function dubbings(env,user,{tab='latest',type='all',offset=0,limit=25,q=''
 }
 
 export async function playRoute(req,env,path,user){
- if(!['/api/play/works','/api/play/participate','/api/play/latest'].includes(path))return null;
+ if(!['/api/play/works','/api/play/participate','/api/play/latest','/api/play/songs'].includes(path))return null;
  if(req.method!=='GET')fail(405,'목록 조회만 지원합니다.');
  const params=new URL(req.url).searchParams;
  const offset=Math.max(0,Math.min(10000,Math.floor(Number(params.get('offset'))||0)));
  const q=(params.get('q')||'').trim().slice(0,100);
+ if(path==='/api/play/songs'){
+  const tab=params.get('tab')||'recommended',args=[];
+  if(!['recommended','latest','duets'].includes(tab))fail(400,'목록 종류를 확인해주세요.');
+  const duet=tab==='duets';
+  let where=duet?`${VISIBLE()} AND t.kind='cover' AND t.cover_mode='duet' AND t.duet_open=1 AND t.duet_parent_id IS NULL AND EXISTS(SELECT 1 FROM tracks d WHERE d.id=t.original_id AND ${VISIBLE('d')} AND ${SINGABLE('d')})`:`${VISIBLE()} AND ${SINGABLE()}`;
+  if(duet&&user){where+=' AND t.user_id!=?';args.push(user.id);}
+  // Use the catalog's public display names, including the inherited AI artist on duets.
+  if(q){where+=' AND (t.title LIKE ? OR a.name LIKE ? OR ('+memberNameSQL()+') LIKE ?)';args.push(...Array(3).fill('%'+q+'%'));}
+  const tracks=await trackList(env,where,args,tab==='recommended'?'(plays+likes*3) DESC,t.created DESC,t.id':'t.created DESC,t.id',offset+26);
+  const page=tracks.slice(offset,offset+25),ids=[...new Set(page.map(t=>duet?t.original_id:t.id))],blocked=env.AIFECT_BLOCKED||[];
+  const counts=ids.length?await rows(env,`SELECT cv.original_id,COUNT(DISTINCT cv.user_id) participants FROM tracks cv WHERE cv.kind='cover' AND ${VISIBLE('cv')} AND cv.original_id IN (${ids.map(()=>'?').join(',')})${blocked.length?' AND cv.user_id NOT IN ('+blocked.map(()=>'?').join(',')+')':''} GROUP BY cv.original_id`,...ids,...blocked):[];
+  return json({tracks:page.map(t=>({...t,participants:counts.find(c=>c.original_id===(duet?t.original_id:t.id))?.participants||0})),nextOffset:tracks.length>offset+25?offset+25:null});
+ }
  if(path==='/api/play/latest')return json({tracks:await trackList(env,`${VISIBLE()} AND ${SINGABLE()}`,[],'t.created DESC,t.id',100)});
  if(path==='/api/play/participate'){
   if(env.DUBBING_ENABLED!=='true')fail(503,'더빙 스튜디오를 준비하고 있습니다.');
