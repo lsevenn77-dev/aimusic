@@ -25,3 +25,18 @@
 - 설치 파일: `C:\Users\lseve\Desktop\AIFECT-2.5.69.apk`.
 - APK SHA-256: `5CD445C72AFB6223A1420880BE165D98490E6B2372FDE02F4DD384666FEB4E07`.
 - 기존 앱과 동일 서명: `e106b717ee42de9f1a76f4d15b1749c0d8f127b3569c444bce190b4dcdfddfdf`.
+
+
+## Google Play 프로덕션 준비
+
+- 사용자 추가 승인: 빌드 후 콘솔에 올려 프로덕션 업데이트.
+- 기존 프로덕션: 2.5.66 (79). 관리형 게시 사용 중지, 게시되지 않은 변경사항 없음 확인 후 새 릴리스 3을 만들었다.
+- 스토어용 `bundleRelease`, `testReleaseUnitTest`, `lintRelease` 성공. 릴리스 단위 테스트 74개 통과, lint 오류 0개.
+- 기존 업로드 키로 서명한 파일: `C:\Users\lseve\Desktop\AIFECT-2.5.69-release.aab`, 44,160,351바이트.
+- AAB SHA-256: `6DE1E8AE08CE4171591B88DF07F8ECDA24A46C4674310295BADA351043837C92`.
+- 업로드 인증서 SHA-256: `12:CA:CA:10:4A:B4:5F:A8:82:9F:A7:80:1A:16:F8:AA:D2:84:CC:68:4B:86:D7:60:16:70:34:73:83:75:2F:8C`.
+- 콘솔 출시명 `2.5.69 (82) · 토크룸·갤러리·더빙 개선` 및 한국어 출시 노트 저장 완료.
+- 자동 파일 선택/업로드 도중 브라우저 요청이 시간초과되었다. 재연결 후 AAB가 첨부되지 않았음을 확인했다. 아직 심사 제출 또는 프로덕션 출시가 완료된 상태가 아니다.
+- 브라우저 업로드 오류 안내에 따라 Chrome ChatGPT 확장 프로그램의 파일 URL 접근 설정 확인을 사용자에게 요청했다. 설정을 임의 변경하지 않았다.
+- 이어갈 콘솔 초안: https://play.google.com/console/u/1/developers/7268613246600484456/app/4976018585197166833/tracks/4697410465710351559/releases/3/prepare
+- 증빙: `polish-269/play-production-draft.jpg`.
