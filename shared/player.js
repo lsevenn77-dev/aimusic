@@ -6,6 +6,7 @@ export const PLAYER_RULES=Object.freeze([
  {kind:'crew_chat',label:'크루에서 대화',xp:5,limit:'하루 한 번'}
 ]);
 export const PLAYER_ITEMS=Object.freeze({
+ 'frame_aurora_ring':{name:'오로라 링',type:'frame',artwork:'/assets/products/aurora_ring_frame.png',description:'프로필 사진을 감싸는 오로라 링',usage:'구매한 기간 동안 사용 가능',paid:true},
  'crew-outline':{name:'기본 크루 액자',type:'frame',artwork:'/assets/crew-basic-v2.webp',description:'푸른 빛과 실버 장식으로 이어지는 크루의 상징',membership:true,usage:'크루 가입 중 사용 가능 · 무료 지급'},
  'player-level-10':{name:'숲속 마법의 화관 · LV.10',type:'frame',artwork:'/assets/player-level-10-forest-v1.webp',description:'레벨 10을 달성한 음악가에게 드리는 빛나는 숲의 화관',min_level:10,usage:'유저 레벨 10 달성 보상 · 영구 소장'},
  'crew-level-3':{name:'크루 LV.3 액자',type:'frame',artwork:'/assets/crew-level-3-v2.webp',description:'크루와 함께 이룬 레벨 3의 푸른 왕관',membership:true,min_crew_level:3,usage:'크루 레벨 3 이상 가입 중 사용 가능'},

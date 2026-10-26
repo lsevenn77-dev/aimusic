@@ -187,6 +187,23 @@ export const playerInventory=sqliteTable('player_inventory',{
 export const playerEquipment=sqliteTable('player_equipment',{
  userId:text('user_id').primaryKey().references(()=>users.id,{onDelete:'cascade'}),frameInventoryId:text('frame_inventory_id').references(()=>playerInventory.id,{onDelete:'set null'})
 });
+// Cosmetic sales spend existing gold lots; they never enter creator gift settlement.
+export const decorationOrders=sqliteTable('decoration_orders',{
+ id:text('id').primaryKey(),payerId:text('payer_id').notNull().references(()=>users.id),recipientId:text('recipient_id').notNull().references(()=>users.id),requestId:text('request_id').notNull(),sku:text('sku').notNull(),periodCode:text('period_code').notNull(),gold:integer('gold').notNull(),inventoryId:text('inventory_id').notNull().references(()=>playerInventory.id),created:integer('created').notNull()
+},t=>[uniqueIndex('decoration_order_request').on(t.payerId,t.requestId),index('decoration_order_inventory').on(t.inventoryId),check('decoration_price_positive',sql`${t.gold}>0`),check('decoration_period',sql`${t.periodCode} IN ('P7D','P1M','P3M')`)]);
+export const decorationOrderLots=sqliteTable('decoration_order_lots',{
+ orderId:text('order_id').notNull().references(()=>decorationOrders.id),purchaseId:text('purchase_id').notNull().references(()=>goldPurchases.id),gold:integer('gold').notNull(),netMw:integer('net_mw').notNull()
+},t=>[primaryKey({columns:[t.orderId,t.purchaseId]}),check('decoration_lot_positive',sql`${t.gold}>0 AND ${t.netMw}>=0`)]);
+export const decorationRedemptions=sqliteTable('decoration_redemptions',{
+ inventoryId:text('inventory_id').primaryKey().references(()=>playerInventory.id),userId:text('user_id').notNull().references(()=>users.id),requestId:text('request_id').notNull(),activeInventoryId:text('active_inventory_id').notNull().references(()=>playerInventory.id),previousExpires:integer('previous_expires').notNull(),previousRevoked:integer('previous_revoked').notNull(),expiresAt:integer('expires_at').notNull(),created:integer('created').notNull()
+},t=>[uniqueIndex('decoration_redemption_request').on(t.userId,t.requestId),index('decoration_redemption_active').on(t.activeInventoryId)]);
+export const decorationTransfers=sqliteTable('decoration_transfers',{
+ id:text('id').primaryKey(),inventoryId:text('inventory_id').notNull().references(()=>playerInventory.id),senderId:text('sender_id').notNull().references(()=>users.id),recipientId:text('recipient_id').notNull().references(()=>users.id),requestId:text('request_id').notNull(),created:integer('created').notNull()
+},t=>[uniqueIndex('decoration_transfer_request').on(t.senderId,t.requestId)]);
+// Display settings are separate from realtime voice transport and its database.
+export const roomDecorations=sqliteTable('room_decorations',{
+ roomId:text('room_id').primaryKey(),hostId:text('host_id').notNull().references(()=>users.id),sku:text('sku').notNull(),revision:integer('revision').notNull(),updated:integer('updated').notNull()
+});
 export const musicClassificationHistory=sqliteTable('music_classification_history',{id:text('id').primaryKey(),trackId:text('track_id').notNull().references(()=>tracks.id),beforeJson:text('before_json').notNull(),afterJson:text('after_json').notNull(),created:integer('created').notNull()},t=>[index('music_classification_history_track').on(t.trackId,t.created)]);
 
 // Monetary precision stays in milli-won; 1 diamond is 100 KRW, not one ledger unit.
