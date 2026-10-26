@@ -36,6 +36,7 @@ import java.net.URLEncoder
  val state by engine.state.collectAsState();val status by engine.status.collectAsState();val error by engine.error.collectAsState();val mic by engine.micOn.collectAsState();val level by engine.level.collectAsState()
  val context=LocalContext.current;val scope=rememberCoroutineScope();val members=state.optJSONArray("members").objects();val room=state.optJSONObject("room")?:JSONObject();val self=members.find{it.optString("id")==state.optString("self")};val host=self?.optString("role")=="host"
  var panel by remember{mutableStateOf("")};var target by remember{mutableStateOf<JSONObject?>(null)};var message by remember{mutableStateOf("")};var messageId by remember{mutableStateOf(requestIdentity())};var sending by remember{mutableStateOf(false)}
+ var roomSaving by remember{mutableStateOf(false)};var roomSaveError by remember{mutableStateOf<String?>(null)}
  var phonePermissionAsked by remember{mutableStateOf(false)}
  var playlistSong by remember{mutableStateOf<JSONObject?>(null)}
  val micPermission=rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()){result->
@@ -62,6 +63,8 @@ import java.net.URLEncoder
   scope.launch{try{engine.command("chat",payload("body" to message,"request_id" to messageId));message="";messageId=requestIdentity();engine.command("heartbeat")}
    catch(e:Exception){if(e is kotlinx.coroutines.CancellationException)throw e;engine.error.value=e.message}finally{sending=false}}
  }
+ Box(Modifier.fillMaxSize()){
+ VoiceRoomBackdrop(room.optString("background","navy"),room.optJSONObject("theme"),Modifier.matchParentSize())
  Column(Modifier.fillMaxSize().testTag("native-voice-room")){
   VoiceMusicBar(engine,state,{panel="music"}){playlistSong=it;panel="playlist"}
   VoiceSeatAlert(state,host){panel="seats"}
@@ -110,7 +113,6 @@ import java.net.URLEncoder
   room.optString("announcement").takeIf{it.isNotBlank()&&!keyboard}?.let{Text(it,Modifier.padding(horizontal=16.dp,vertical=6.dp),color=Muted,fontSize=12.sp,maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)}
   if(error!=null)TextButton({engine.error.value=null;engine.retry()},modifier=Modifier.fillMaxWidth()){Text(error.orEmpty()+" · 다시 확인",fontSize=12.sp,maxLines=2,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)}
   Box(Modifier.weight(1f).fillMaxWidth()){
-  profileMediaUrl(room.optJSONObject("theme")?.optJSONObject("assets")?.optString("roomMobile").orEmpty())?.let{url->AsyncImage(url,null,Modifier.matchParentSize().alpha(.35f),contentScale=androidx.compose.ui.layout.ContentScale.Crop)}
   LazyColumn(Modifier.fillMaxSize().testTag("native-voice-conversation"),state=chatList,contentPadding=PaddingValues(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
    itemsIndexed(chats,key={index,chat->chat.optString("id").ifBlank{"notice-${chat.optLong("sequence")}-${index}"}}){_,chat->
     if(chat.optString("kind")=="system")Text(chat.optString("body"),color=Muted,fontSize=12.sp)
@@ -130,6 +132,7 @@ import java.net.URLEncoder
   }
 
  }
+ }
  if(panel.isNotBlank())ModalBottomSheet(onDismissRequest={panel=""},containerColor=Panel,dragHandle=null){Column(Modifier.fillMaxWidth().verticalScroll(sheetScroll).padding(20.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.End){IconButton({panel=""}){Icon(Icons.Outlined.Close,"팝업 닫기")}}
   when(panel){
@@ -142,7 +145,7 @@ import java.net.URLEncoder
      Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){NativeMemberAvatar(p,36);Text(p.optString("name"),Modifier.weight(1f).padding(start=10.dp),color=SeatRequestGreen,maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis);TextButton({action("approve-mic",payload("target_id" to p.getString("id")))}){Text("승인",color=SeatRequestGreen)};TextButton({action("reject-mic",payload("target_id" to p.getString("id")))}){Text("거절",color=Muted)}}
     }}else state.optJSONArray("seat_invites").objects().forEach{invite->Text("${invite.optInt("seat")+1}번 좌석 초대",color=SeatRequestGreen);Row{TextButton({action("seat-answer",payload("invitation_id" to invite.getString("id"),"accept" to true));panel=""}){Text("수락")};TextButton({action("seat-answer",payload("invitation_id" to invite.getString("id"),"accept" to false));panel=""}){Text("거절")}}}
    }
-   "room"->if(host)NativeRoomForm(engine.api,room){data->engine.launch{val result=engine.command("settings",data.put("revision",room.optInt("settings_revision")));check(result.optJSONObject("room")?.optString("seating_mode","approval")==data.optString("seating_mode")){"좌석 방식 변경은 서버 업데이트 후 사용할 수 있어요."};panel=""}}else{Text(room.optString("title"),fontSize=20.sp);Text(room.optString("announcement"),color=Muted)}
+   "room"->if(host)NativeRoomForm(engine.api,room,busy=roomSaving,submissionError=roomSaveError){data->if(!roomSaving){roomSaving=true;roomSaveError=null;engine.launch{try{val result=engine.command("settings",data.put("revision",room.optInt("settings_revision")));check(result.optJSONObject("room")?.optString("seating_mode","approval")==data.optString("seating_mode")){"좌석 방식 변경은 서버 업데이트 후 사용할 수 있어요."};panel=""}catch(e:Exception){if(e is kotlinx.coroutines.CancellationException)throw e;roomSaveError=e.message}finally{roomSaving=false}}}}else{Text(room.optString("title"),fontSize=20.sp);Text(room.optString("announcement"),color=Muted)}
    "members"->{Text("참여자 ${members.size}",fontSize=20.sp);members.forEach{p->TextButton({target=p;panel="person"}){NativeMemberAvatar(p,36);Text(p.optString("name"),Modifier.padding(start=10.dp))}}}
    "person"->target?.let{p->Text(p.optString("name"),fontSize=22.sp);OutlinedButton({panel="profile"},modifier=Modifier.fillMaxWidth()){Text("프로필 보기")};if(p.optString("id")!=state.optString("self")){Button({panel="gift"}){Text("선물 보내기")};if(host){listOf("mute" to "마이크 제한","unlock" to "제한 해제","remove-seat" to "좌석 내리기","kick" to "강퇴").forEach{(op,label)->TextButton({action("moderate",payload("target_id" to p.getString("id"),"operation" to op));panel=""}){Text(label)}}}}}
    "gift"->target?.let{NativeRoomGift(engine,it){panel=""}}
@@ -178,25 +181,6 @@ import java.net.URLEncoder
  Row(verticalAlignment=Alignment.CenterVertically){Text("에코 제거",Modifier.weight(1f));Switch(echo,{echo=it;e.launch{e.processing(echo,noise)}})}
  Row(verticalAlignment=Alignment.CenterVertically){Text("잡음 억제",Modifier.weight(1f));Switch(noise,{noise=it;e.launch{e.processing(echo,noise)}})}
  Text("이어폰을 사용하면 상대방 목소리가 마이크에 다시 들어가는 것을 줄일 수 있어요.",fontSize=12.sp,color=Muted)
-}
-@Composable internal fun NativeRoomForm(api:NativeApi,initial:JSONObject=JSONObject(),submit:(JSONObject)->Unit){
- var seating by remember{mutableStateOf(initial.optString("seating_mode","approval"))}
- var title by remember{mutableStateOf(initial.optString("title"))};var visibility by remember{mutableStateOf(initial.optString("visibility","public"))};var max by remember{mutableFloatStateOf(initial.optInt("max_members",30).toFloat())};var announcement by remember{mutableStateOf(initial.optString("announcement"))};var background by remember{mutableStateOf(initial.optString("background","navy"))};var crew by remember{mutableStateOf(initial.optString("crew_id"))};var crews by remember{mutableStateOf<List<JSONObject>>(emptyList())};var error by remember{mutableStateOf<String?>(null)}
- var themes by remember{mutableStateOf<List<JSONObject>>(emptyList())}
- var selectedTheme by remember{mutableStateOf(initial.optJSONObject("theme")?.optString("sku").orEmpty().ifBlank{background})}
- LaunchedEffect(Unit){try{val options=api.call("/api/voice/options",fresh=true);crews=options.optJSONArray("crews").objects();themes=options.optJSONArray("themes").objects()}catch(e:Exception){if(e is kotlinx.coroutines.CancellationException)throw e;error=e.message}}
- Text("토킹룸 설정",fontSize=22.sp,fontWeight=FontWeight.Bold);OutlinedTextField(title,{if(it.length<=60)title=it},label={Text("방 이름")},modifier=Modifier.fillMaxWidth());OutlinedTextField(announcement,{if(it.length<=200)announcement=it},label={Text("공지")},modifier=Modifier.fillMaxWidth())
- FlowRow{listOf("public" to "공개","private" to "초대 전용","followers" to "팔로워","crew" to "크루").forEach{(id,label)->FilterChip(visibility==id,{visibility=id},label={Text(label)})}}
- if(visibility=="crew")crews.forEach{c->FilterChip(crew==c.getString("id"),{crew=c.getString("id")},label={Text(c.optString("name"))})}
- Text("좌석 참여 방식",fontWeight=FontWeight.Medium)
- Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){listOf("approval" to "허락 후 착석","free" to "자유 착석").forEach{(id,label)->FilterChip(seating==id,{seating=id},label={Text(label)})}}
- Text("최대 ${max.toInt()}명");Slider(max,{max=it},valueRange=2f..30f,steps=27)
- Text("토크룸 배경",fontWeight=FontWeight.Medium)
- FlowRow(horizontalArrangement=Arrangement.spacedBy(6.dp)){listOf("navy" to "네이비","sunset" to "노을","night" to "밤하늘").forEach{(id,label)->FilterChip(selectedTheme==id,{background=id;selectedTheme=id},label={Text(label)})}
-  themes.filter{it.optBoolean("paid")&&it.optBoolean("selectable")}.forEach{theme->FilterChip(selectedTheme==theme.optString("sku"),{selectedTheme=theme.optString("sku");background="navy"},label={Text(theme.optString("name"))})}
- }
- error?.let{Text(it,color=Pink)}
- Button({submit(payload("seating_mode" to seating,"title" to title.trim(),"visibility" to visibility,"max_members" to max.toInt(),"announcement" to announcement.trim(),"background" to background,"theme_sku" to selectedTheme,"crew_id" to crew.takeIf{visibility=="crew"}))},enabled=title.isNotBlank()&&(visibility!="crew"||crew.isNotBlank()),modifier=Modifier.fillMaxWidth()){Text(if(initial.has("id"))"설정 저장" else "방 만들기")}
 }
 @Composable private fun NativeRoomMusic(e:NativeVoiceEngine){
  var query by remember{mutableStateOf("")};var result by remember{mutableStateOf(JSONObject())};var error by remember{mutableStateOf<String?>(null)};var consent by remember{mutableStateOf<JSONObject?>(null)};val state by e.state.collectAsState();val scope=rememberCoroutineScope();val music=state.optJSONObject("music")?:JSONObject()

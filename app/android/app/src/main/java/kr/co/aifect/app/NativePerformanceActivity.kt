@@ -46,12 +46,9 @@ class NativePerformanceActivity:ComponentActivity(){
    Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.systemBars).imePadding()){
     when {
      route=="voice"->{
-      NativeAudioHeader("새 토킹룸",{finish()})
-      Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(18.dp)){
-       if(busy)LinearProgressIndicator(Modifier.fillMaxWidth())
-       error?.let{Text(it,color=Pink)}
-       NativeRoomForm(api){body->if(!busy){busy=true;scope.launch{try{val result=api.call("/api/voice/rooms","POST",body.put("request_id",createId));route="voice/"+result.getJSONObject("room").getString("id")}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}finally{busy=false}}}}
-      }
+      NativeAudioHeader("방 만들기",{finish()})
+      NativeRoomForm(api,fullScreen=true,busy=busy,submissionError=error){body->if(!busy){busy=true;error=null;scope.launch{try{val result=api.call("/api/voice/rooms","POST",body.put("request_id",createId));route="voice/"+result.getJSONObject("room").getString("id")}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}finally{busy=false}}}}
+
      }
      route.startsWith("voice/")->{
       val id=route.substringAfter('/')

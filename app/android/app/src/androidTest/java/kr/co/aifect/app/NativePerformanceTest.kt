@@ -69,6 +69,12 @@ class NativePerformanceTest{
      if(generationMode=="rejected"){code=429;data=payload("error" to "테스트: 작성 횟수 제한")}else{code=503;data=payload("error" to "테스트: 생성 접수 후 응답 유실")}
     }
     key.startsWith("/api/dubbing/generations/")->{data=if(generationReady)payload("id" to generatedId,"state" to "ready","options" to options,"script" to script)else payload("id" to generatedId,"state" to "running")}
+    key=="/api/voice/rooms"&&method=="POST"->{
+     val form=JSONObject(bytes.toString(Charsets.UTF_8));form.put("id","native-room").put("host_id","host")
+     val sku=form.optString("theme_sku");val chosen=responses["/api/voice/options"]?.optJSONArray("themes")?.objects()?.find{it.optString("sku")==sku}
+     form.put("theme",payload("sku" to sku,"assets" to chosen?.optJSONObject("assetPaths")))
+     state.put("room",form);data=payload("room" to form)
+    }
     key.startsWith("/api/voice/rooms/native-room/")->{val op=key.substringAfterLast('/');if(op=="chat"){val b=JSONObject(bytes.toString(Charsets.UTF_8));state.getJSONArray("chat").put(payload("id" to b.getString("request_id"),"name" to "하린","profile_id" to "mine","body" to b.getString("body")));state.put("revision",state.getInt("revision")+1)};if(op=="request-mic")state.getJSONArray("members").getJSONObject(1).put("requested",true)
      if(op=="settings"){val b=JSONObject(bytes.toString(Charsets.UTF_8));b.keys().forEach{k->if(k!="generation")state.getJSONObject("room").put(k,b.get(k))}}
      if(op=="approve-mic"){val b=JSONObject(bytes.toString(Charsets.UTF_8));state.getJSONArray("members").objects().find{it.optString("id")==b.optString("target_id")}?.put("requested",false)?.put("seat",1)}
@@ -90,6 +96,53 @@ class NativePerformanceTest{
  private fun visible(tag:String){ui.waitUntil(20000){ui.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty()}}
  private fun text(value:String){ui.waitUntil(20000){ui.onAllNodesWithText(value,substring=true).fetchSemanticsNodes().isNotEmpty()}}
  private fun capture(name:String){val dir=File(context.getExternalFilesDir(null),"native-audio").apply{mkdirs()};ins.waitForIdleSync();Thread.sleep(200);ins.uiAutomation.takeScreenshot().let{bitmap->FileOutputStream(File(dir,"$name.png")).use{bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG,100,it)};bitmap.recycle()}}
+ @Test fun roomCreationUsesSelectedBackgroundAndKeepsPrimaryActionVisible(){
+  responses["/api/voice/options"]=payload("crews" to arr(payload("id" to "crew-one","name" to "밤산책")))
+  launch("voice");visible("voice-room-form")
+  ui.onNodeWithTag("room-submit").assertIsDisplayed().assertIsNotEnabled()
+  ui.onNodeWithTag("room-title").performTextInput("오늘의 음악 이야기")
+  androidx.test.espresso.Espresso.closeSoftKeyboard()
+  ui.onNodeWithText("허락 후 착석").assertIsSelected()
+  ui.onNodeWithTag("room-theme-night").performScrollTo().performClick().assertIsSelected()
+  ui.onNodeWithTag("room-submit").assertIsDisplayed().assertIsEnabled()
+  capture("room-269-create")
+  ui.onNodeWithText("최대 인원").performScrollTo().performClick()
+  ui.onNodeWithTag("room-capacity-picker").performScrollToIndex(10)
+  ui.onNodeWithText("12명").performClick()
+  ui.onNodeWithText("공지",useUnmergedTree=true).performScrollTo().performClick()
+  ui.onNodeWithTag("room-announcement").performTextInput("편하게 음악 이야기 나눠요")
+  androidx.test.espresso.Espresso.closeSoftKeyboard();ui.onNodeWithText("적용").performClick()
+  ui.onNodeWithText("크루",useUnmergedTree=true).performScrollTo().performClick()
+  ui.onNodeWithTag("room-submit").assertIsNotEnabled()
+  ui.onNodeWithText("참여할 크루").performScrollTo().performClick();ui.onNodeWithText("밤산책").performClick()
+  ui.onNodeWithText("자유 착석").performScrollTo().performClick()
+  ui.onNodeWithTag("room-submit").performClick();visible("native-voice-room")
+  val submitted=JSONObject(requests.single{it.first=="POST /api/voice/rooms"}.second.toString(Charsets.UTF_8))
+  assertEquals("오늘의 음악 이야기",submitted.getString("title"));assertEquals(12,submitted.getInt("max_members"))
+  assertEquals("night",submitted.getString("background"));assertEquals("night",submitted.getString("theme_sku"))
+  assertEquals("free",submitted.getString("seating_mode"));assertEquals("crew-one",submitted.getString("crew_id"))
+  assertEquals("편하게 음악 이야기 나눠요",submitted.getString("announcement"))
+  ui.onNodeWithTag("voice-background-night",useUnmergedTree=true).assertIsDisplayed();capture("room-269-applied")
+ }
+ @Test fun roomCreationUsesOwnedThemeAndPreservesDraftOnRecreation(){
+  val image="/assets/dubbing-genres/daily.webp"
+  responses["/api/voice/options"]=payload("crews" to JSONArray(),"themes" to arr(
+   payload("sku" to "theme-owned","name" to "보유한 라운지","paid" to true,"selectable" to true,"assetPaths" to payload("roomMobile" to image)),
+   payload("sku" to "theme-locked","name" to "미보유 테마","paid" to true,"selectable" to false)))
+  launch("voice");visible("voice-room-form");ui.onNodeWithTag("room-title").performTextInput("함께 듣는 밤")
+  androidx.test.espresso.Espresso.closeSoftKeyboard();ui.onNodeWithText("전체 보기").performScrollTo().performClick()
+  visible("room-theme-picker");ui.onNodeWithText("미보유 테마").assertDoesNotExist();capture("room-269-themes")
+  ui.onNodeWithTag("room-theme-theme-owned").performScrollTo().performClick()
+  ui.onNodeWithTag("room-theme-theme-owned").assertIsSelected()
+  activity!!.recreate();visible("voice-room-form");text("보유한 라운지")
+  ui.onNodeWithTag("room-title").assertTextContains("함께 듣는 밤")
+  ui.onNodeWithTag("room-theme-theme-owned").performScrollTo().assertIsSelected()
+  ui.onNodeWithTag("room-submit").performClick();visible("native-voice-room")
+  val submitted=JSONObject(requests.single{it.first=="POST /api/voice/rooms"}.second.toString(Charsets.UTF_8))
+  assertEquals("theme-owned",submitted.getString("theme_sku"));assertEquals("navy",submitted.getString("background"))
+  ui.onNodeWithTag("voice-background-theme-owned",useUnmergedTree=true).assertIsDisplayed()
+  ui.onNodeWithTag("voice-background-image",useUnmergedTree=true).assertIsDisplayed();capture("room-269-owned-applied")
+ }
  @Test fun listenerJoinsAndChatsWithoutRequestingMicrophone(){
   val permissionBefore=ContextCompat.checkSelfPermission(context,Manifest.permission.RECORD_AUDIO)
   launch("voice/native-room");visible("native-voice-room");text("청취 중")

@@ -123,8 +123,8 @@ internal fun currentDubbingImage(p:JSONObject):String {
 @Composable internal fun CurrentRoomCard(room:JSONObject,m:MusicModel){
  val id=room.optString("id")
  Column(Modifier.fillMaxWidth().clickable{if(CurrentNavigation.safeID(id))m.openCurrentWorkspace("voice/$id",room.optString("title","토킹룸"))}.testTag("voice-room-$id")){
-  val colors=when(room.optString("background")){"sunset"->listOf(Color(0xFF434978),Color(0xFFAD738B),Color(0xFF343450));"night"->listOf(Color(0xFF0C1A36),Color(0xFF203658));else->listOf(Color(0xFF29344D),Color(0xFF091626))}
-  Box(Modifier.fillMaxWidth().height(112.dp).clip(RoundedCornerShape(12.dp)).background(Brush.verticalGradient(colors))){
+  Box(Modifier.fillMaxWidth().height(112.dp).clip(RoundedCornerShape(12.dp))){
+   VoiceRoomBackdrop(room.optString("background","navy"),room.optJSONObject("theme"),Modifier.matchParentSize())
    Text("● LIVE",fontSize=10.sp,color=Color(0xFF8EDDD2),modifier=Modifier.padding(10.dp).clip(RoundedCornerShape(6.dp)).background(Ink.copy(alpha=.9f)).padding(horizontal=7.dp,vertical=4.dp))
    Row(Modifier.align(Alignment.BottomEnd).padding(10.dp).clip(RoundedCornerShape(6.dp)).background(Ink.copy(alpha=.9f)).padding(horizontal=7.dp,vertical=4.dp),verticalAlignment=Alignment.CenterVertically){Icon(Icons.Rounded.PeopleOutline,null,Modifier.size(13.dp),tint=SoftText);Text(" ${room.optInt("member_count")}명",fontSize=11.sp,color=SoftText)}
   }
