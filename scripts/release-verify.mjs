@@ -1,7 +1,7 @@
 import {readFileSync} from 'node:fs';
 import {checkProject} from './release-files.mjs';
 const {policy}=checkProject();
-const expected=readFileSync('dist/client/index.html','utf8').match(/aifect-app-[a-f0-9]{16}\.js/)?.[0];
+const expected=readFileSync('dist/client/aifect-shell.txt','utf8').match(/aifect-app-[a-f0-9]{16}\.js/)?.[0];
 if(!expected)throw new Error('Build first; expected client asset is missing.');
 const home=await fetch(policy.production_url+'/',{headers:{'cache-control':'no-cache'},signal:AbortSignal.timeout(15000)});
 if(!home.ok||new URL(home.url).origin!==policy.production_url)throw new Error('Production URL failed');

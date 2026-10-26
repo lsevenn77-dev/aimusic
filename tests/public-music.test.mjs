@@ -3,6 +3,22 @@ import assert from 'node:assert/strict';
 import {fixture} from './fixture.mjs';
 import {publicMusicRoute} from '../server/public-music.js';
 import worker from '../server/index.js';
+test('homepage and index use the separate shell and current public rows for GET and HEAD',async t=>{
+ const f=await fixture(t),requests=[],env={DB:f.DB,ASSETS:{async fetch(req){
+  requests.push(req);assert.equal(new URL(req.url).pathname,'/aifect-shell.txt');
+  assert.equal(req.method,'GET');assert.equal([...req.headers].length,0);
+  return new Response('<html><main id="main">old</main><script src="/app.js"></script></html>');
+ }}};
+ const get=path=>publicMusicRoute(new Request('https://aifect.test'+path,{headers:{cookie:'private-session',range:'bytes=0-20'}}),env,new URL('https://aifect.test'+path).pathname);
+ let result=await get('/?source=share');let html=await result.text();
+ assert.equal(result.status,200);assert.equal(result.headers.get('cache-control'),'no-store');
+ assert.match(html,/href="\/music\/one"/);assert.match(html,/<script src="\/app.js"><\/script>/);
+ f.sql.exec("UPDATE tracks SET status='hidden' WHERE id='one'");
+ html=await (await get('/index.html')).text();assert.doesNotMatch(html,/href="\/music\/one"/);assert.match(html,/href="\/music\/two"/);
+ const head=await publicMusicRoute(new Request('https://aifect.test/',{method:'HEAD'}),env,'/');
+ assert.equal(head.status,200);assert.equal(await head.text(),'');assert.equal(requests.length,3);
+});
+
 test('public music HTML and sitemap contain real visible tracks, escaped descriptions and no private songs',async t=>{
  const f=await fixture(t),env={DB:f.DB,ASSETS:{fetch:async()=>new Response('<html><main id="main"><noscript>old</noscript></main></html>')}};
  f.sql.prepare('UPDATE tracks SET description=? WHERE id=?').run('<script>alert(1)</script>','one');

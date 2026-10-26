@@ -1,11 +1,15 @@
 // Real local Workers/assets routing with an isolated fixture DB and R2 bucket.
 // This is never deployed and never connects to production storage.
 import {Miniflare,convertV4MiniflareOptions} from 'miniflare';
-import {readFileSync} from 'node:fs';
+import {readFileSync,existsSync} from 'node:fs';
 import {resolve} from 'node:path';
 import assert from 'node:assert/strict';
 import {fixture} from './fixture.mjs';
 const config=JSON.parse(readFileSync('dist/server/wrangler.json','utf8'));
+// Reproduce Sites' asset-first routing instead of relying on local-only overrides.
+assert.equal(config.assets.run_worker_first,undefined);
+assert.equal(existsSync('dist/client/index.html'),false,'An index asset would bypass the live homepage renderer');
+assert.ok(existsSync('dist/client/aifect-shell.txt'));
 const cleanups=[],f=await fixture({after(fn){cleanups.push(fn);}});
 f.sql.exec("UPDATE artists SET name='로컬 검증 아티스트',bio='운영 데이터와 분리된 화면 검증용 소개입니다. 실제 서비스에는 등록되지 않습니다.'; UPDATE tracks SET duration=60,description='로컬 화면 검증용 샘플입니다. 창작자가 등록한 곡 소개와 미리듣기가 함께 표시되는지 확인합니다.',has_cover=0 WHERE status='published';");
 f.sql.prepare('UPDATE tracks SET title=? WHERE id=?').run('공개 음악 미리듣기 · 로컬 검증','one');
@@ -32,10 +36,22 @@ const bucket=await mf.getR2Bucket('BUCKET');
 // A one-second silent PCM sample checks the media control without recording a microphone.
 const wav=Buffer.alloc(44+8000*2);wav.write('RIFF');wav.writeUInt32LE(wav.length-8,4);wav.write('WAVEfmt ',8);wav.writeUInt32LE(16,16);wav.writeUInt16LE(1,20);wav.writeUInt16LE(1,22);wav.writeUInt32LE(8000,24);wav.writeUInt32LE(16000,28);wav.writeUInt16LE(2,32);wav.writeUInt16LE(16,34);wav.write('data',36);wav.writeUInt32LE(wav.length-44,40);
 for(const id of ['one','two','three'])await bucket.put('preview/'+id+'.m4a',wav);
-const root=await mf.dispatchFetch('http://localhost/');const rootHTML=await root.text();assert.equal(root.status,200,rootHTML);assert.match(rootHTML,/href="\/music\/one"/);
+for(const path of ['/','/index.html','/?source=share']){
+ for(const headers of [{},{'sec-fetch-mode':'navigate',accept:'text/html'}]){
+  const root=await mf.dispatchFetch('http://localhost'+path,{headers});const rootHTML=await root.text();
+  assert.equal(root.status,200,rootHTML);assert.match(rootHTML,/href="\/music\/one"/);assert.doesNotMatch(rootHTML,/href="\/music\/hidden"/);
+  assert.equal(root.headers.get('cache-control'),'no-store');
+  const clientPath=rootHTML.match(/src="(\/aifect-app-[a-f0-9]+\.js)"/)?.[1];assert.ok(clientPath);
+  const client=await mf.dispatchFetch('http://localhost'+clientPath);assert.equal(client.status,200);assert.ok((await client.text()).length>1000);
+ }
+ const head=await mf.dispatchFetch('http://localhost'+path,{method:'HEAD'});assert.equal(head.status,200);assert.equal(await head.text(),'');
+}
+await db.prepare("UPDATE tracks SET status='hidden' WHERE id='two'").run();
+const refreshed=await (await mf.dispatchFetch('http://localhost/')).text();assert.doesNotMatch(refreshed,/href="\/music\/two"/);
+const ads=await mf.dispatchFetch('http://localhost/ads.txt');assert.equal(ads.status,200);assert.match(await ads.text(),/pub-5910265378731607/);
 const head=await mf.dispatchFetch('http://localhost/media/one/preview',{method:'HEAD',headers:{'content-length':'0'}});assert.equal(head.status,200);
 const hidden=await mf.dispatchFetch('http://localhost/music/hidden');assert.equal(hidden.status,404);
-console.log('Verified built Workers/assets routing, homepage catalog, media HEAD and hidden-track denial.');
+console.log('Verified asset-first homepage GET/HEAD/navigation, index alias, fresh visibility, client bundle, ads.txt, media HEAD and hidden-track denial.');
 if(process.argv.includes('--check'))await stop();
 else{
  console.log('Local preview: '+(await mf.ready).href+'music/one');

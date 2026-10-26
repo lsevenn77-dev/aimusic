@@ -37,10 +37,9 @@ for(const file of ['admin.css','admin.js','admin-ai-bots.js','admin-cover-compre
 await mkdir('dist/client/admin',{recursive:true});
 await cp('dist/admin.html','dist/client/admin/dashboard.html');
 await rm('dist/client/admin.html',{force:true});
-for (const file of ['inventory.js','inventory.css','music-library.js','music-library.css','menu-integration.js','community-v3.js','community-v3.css','player-queue.css','community.js','community.css','polish.css','browse.js','browse.css','index.html','app.js','media-session.js','icons.js','views.js','studio.js','karaoke.js','lyrics.js','library.js','explorer.js','membership.js','alignment.js','actions.js','style.css','studio.css','lyrics.css','discovery.css','explorer.css','membership.css','alignment.css','policies.css','assets']) await cp(`dist/${file}`,`dist/client/${file}`,{recursive:true});
+for (const file of ['inventory.js','inventory.css','music-library.js','music-library.css','menu-integration.js','community-v3.js','community-v3.css','player-queue.css','community.js','community.css','polish.css','browse.js','browse.css','app.js','media-session.js','icons.js','views.js','studio.js','karaoke.js','lyrics.js','library.js','explorer.js','membership.js','alignment.js','actions.js','style.css','studio.css','lyrics.css','discovery.css','explorer.css','membership.css','alignment.css','policies.css','assets']) await cp(`dist/${file}`,`dist/client/${file}`,{recursive:true});
 const indexHTML=await readFile('dist/index.html','utf8');
 if(!indexHTML.includes('<!--BUSINESS_FOOTER-->'))throw new Error('Business footer placeholder is missing');
-await writeFile('dist/client/index.html',indexHTML.replace('<!--BUSINESS_FOOTER-->',businessFooterHTML()));
 await build({entryPoints:['shared/player.js'],outfile:'dist/client/player-core.js',bundle:true,format:'iife',globalName:'AifectPlayer',target:'es2022',minify:true});
 await build({entryPoints:['shared/dubbing.js'],outfile:'dist/client/dubbing-core.js',bundle:true,format:'iife',globalName:'AifectDubbing',target:'es2022',minify:true});
 await build({entryPoints:['shared/dubbing-reward-player.js'],outfile:'dist/client/dubbing-reward-core.js',bundle:true,format:'iife',globalName:'AifectDubbingRewards',target:'es2022',minify:true});
@@ -59,7 +58,11 @@ await build({entryPoints:['shared/karaoke-audio.js'],outfile:'dist/client/karaok
 await cp('dist/cover-export.js','dist/client/cover-export.js');
 await build({entryPoints:['shared/cover-mp3-worker.js'],outfile:'dist/client/cover-mp3-worker.js',bundle:true,format:'esm',target:'es2022',external:['./third-party/lamejs-1.2.7/lamejs.js']});
 await build({entryPoints:['shared/lyrics.js'],outfile:'dist/client/lyrics-core.js',bundle:true,format:'iife',globalName:'AifectLyrics',target:'es2022',minify:true});
-await writeFile('dist/client/index.html',await bundleClient(indexHTML.replace('<!--BUSINESS_FOOTER-->',businessFooterHTML()),pathToFileURL(resolve('dist/client')+sep)));
+// Sites serves matching static assets before the Worker. Keep the app shell at
+// a non-index path so / and /index.html always reach the live catalog renderer.
+// A .txt asset avoids HTML canonical redirects when fetched through ASSETS.
+await writeFile('dist/client/aifect-shell.txt',await bundleClient(indexHTML.replace('<!--BUSINESS_FOOTER-->',businessFooterHTML()),pathToFileURL(resolve('dist/client')+sep)));
+await rm('dist/client/index.html',{force:true});
 await build({entryPoints:['server/index.js'], outfile:'dist/server/index.js', bundle:true, format:'esm', platform:'neutral', mainFields:['module','main'], alias:{'node-fetch':resolve('server/apple-fetch.js')}, banner:{js:"import {createRequire as appleCreateRequire} from 'node:module'; const require=appleCreateRequire('/aifect-worker.js');"}, target:'es2022', external:['cloudflare:workers',...builtinModules,...builtinModules.map(x=>'node:'+x)], minify:false});
 await mkdir('dist/.openai',{recursive:true});
 await cp('.openai/hosting.json','dist/.openai/hosting.json');
@@ -68,6 +71,5 @@ const migrationOutput=resolve('dist/.openai/drizzle'),metadataRoot=resolve('dist
 if(!migrationOutput.startsWith(metadataRoot+sep))throw new Error('Migration output is outside the build directory');
 await rm(migrationOutput,{recursive:true,force:true});
 await cp('drizzle',migrationOutput,{recursive:true});
-// The homepage must run the public catalog renderer before the index asset.
-// Keep other static assets on the asset-first path (no database work per image).
-await writeFile('dist/server/wrangler.json',JSON.stringify({main:'index.js',compatibility_date:'2026-09-01',assets:{directory:'../client',binding:'ASSETS',run_worker_first:['/','/index.html']}}));
+// Asset-first routing now works without a host-specific run_worker_first override.
+await writeFile('dist/server/wrangler.json',JSON.stringify({main:'index.js',compatibility_date:'2026-09-01',assets:{directory:'../client',binding:'ASSETS'}}));

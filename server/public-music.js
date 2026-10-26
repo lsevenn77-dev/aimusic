@@ -58,6 +58,8 @@ export async function publicMusicRoute(req,env,path){
   const list=tracks.slice(0,24),body=filters+(list.length?`<div class="public-music-grid">${list.map(card).join('')}</div>`:'<p role="status">조건에 맞는 공개 음악이 없습니다. <a href="/music">전체 음악 보기</a></p>')+`<nav class="public-pagination" aria-label="음악 목록 페이지">${page>1?`<a href="${esc(pageLink(page-1))}">이전 페이지</a>`:''}<span>${page} 페이지</span>${tracks.length>24?`<a href="${esc(pageLink(page+1))}">다음 페이지</a>`:''}</nav>`;
   return response(req,document('공개 음악',body,page>1?path+'?page='+page:path,{noindex:!!q||!!genre||!!category||!list.length}));
  }
- const asset=await env.ASSETS.fetch(req),html=await asset.text();
+ // Fetch the template with GET even for HEAD, without visitor cookies or range
+ // headers. Only the final response uses the visitor's method and live catalog.
+ const asset=await env.ASSETS.fetch(new Request(new URL('/aifect-shell.txt',req.url))),html=await asset.text();
  return response(req,html.replace(/<main id="main"[^>]*>[\s\S]*?<\/main>/,`<main id="main" tabindex="-1">${content}</main>`),asset.status);
 }
