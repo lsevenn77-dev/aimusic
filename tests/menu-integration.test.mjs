@@ -8,7 +8,9 @@ function context(extra={}){const c=vm.createContext({URLSearchParams,location:{h
 
 test('legacy menu routes preserve identifiers, repeated query parameters and canonical stability',()=>{
  const c=context(),cases={
-  '#library':'#profile?view=library&section=saved',
+  '#library':'#profile?view=library&section=likes',
+  '#library/saved':'#profile?view=library&section=likes',
+  '#gift-inventory':'#inventory',
   '#library/playlists':'#profile?view=library&section=playlists',
   '#library/history':'#profile?view=library&section=history',
   '#library/covers':'#profile?view=works&section=covers',
@@ -25,7 +27,7 @@ test('legacy menu routes preserve identifiers, repeated query parameters and can
 });
 
 test('profile navigation carries filters and creates distinct, restorable tab destinations',()=>{
- const c=context();assert.equal(c.myTabHref('library','#profile?tag=keep&view=activity'),'#profile?tag=keep&view=library&section=saved');
+ const c=context();assert.equal(c.myTabHref('library','#profile?tag=keep&view=activity'),'#profile?tag=keep&view=library&section=likes');
  assert.equal(c.myTabHref('works','#profile?view=library&section=history&id=abc'),'#profile?view=works&id=abc');
 });
 
@@ -45,8 +47,8 @@ test('only owners can render the private library; all three tabs share the profi
  const esc=s=>String(s??''),d={profile:{id:'p',user_id:'owner'},tracks:[],covers:[]};
  const c=context({me:{id:'owner'},document:{addEventListener(){}},window:{addEventListener(){}},api:async()=>({...d}),esc,heading:()=>'',gate:()=>'<p>LOGIN</p>'});
  vm.runInContext(source('mypage.js'),c);
- Object.assign(c,{myProfileHeader:()=>'<header>PROFILE</header>',myMoments:()=>'<div>GALLERY</div>',myWorksAside:()=>'<aside>COMMON</aside>',myWorksHTML:()=>'<p>WORKS</p>',myLibraryView:async()=>({html:'<p>PRIVATE MUSIC</p>',libraryAside:'<aside>LIBRARY ONLY</aside>',tracks:[{id:'liked'}]})});
- for(const tab of ['works','activity','library']){const v=await c.myPageView('profile',null,'profile?view='+tab);assert.match(v.html,/<header>PROFILE<\/header>/);assert.match(v.html,/<div>GALLERY<\/div>/);assert.match(v.html,tab==='library'?/<aside>LIBRARY ONLY<\/aside>/:/<aside>COMMON<\/aside>/);assert.match(v.html,/mp-tab-library/);if(tab==='library')assert.equal(v.tracks[0].id,'liked');}
+ Object.assign(c,{myStudioBanner:()=>'<section>STUDIO</section>',myProfileHeader:()=>'<header>PROFILE</header>',myMoments:()=>'<div>GALLERY</div>',myWorksAside:()=>'<aside>COMMON</aside>',myWorksHTML:()=>'<p>WORKS</p>',myLibraryView:async()=>({html:'<p>PRIVATE MUSIC</p>',libraryAside:'<aside>LIBRARY ONLY</aside>',tracks:[{id:'liked'}]})});
+ for(const tab of ['works','activity','library']){const v=await c.myPageView('profile',null,'profile?view='+tab);assert.match(v.html,/<header>PROFILE<\/header>/);assert.match(v.html,/<div>GALLERY<\/div>/);assert.match(v.html,tab==='library'?/<aside>LIBRARY ONLY<\/aside>/:tab==='activity'?/불러오는 중/:/<aside>COMMON<\/aside>/);assert.match(v.html,/mp-tab-library/);assert.equal((v.html.match(/<section>STUDIO<\/section>/g)||[]).length,1);if(tab==='library')assert.equal(v.tracks[0].id,'liked');}
  c.me={id:'visitor'};const visitor=await c.myPageView('producer','p','producer/p?view=library');assert.doesNotMatch(visitor.html,/PRIVATE MUSIC|mp-tab-library/);assert.match(visitor.html,/WORKS/);
  c.me=null;assert.match((await c.myPageView('profile',null,'profile?view=library')).html,/LOGIN/);
 });

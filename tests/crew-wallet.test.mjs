@@ -22,7 +22,7 @@ test('private My shows gold, silver and a toolbox instead of diamonds, with or w
   const {c,calls}=ui({profile}),view=await c.improvementsView('profile','','profile');
   assert.match(view.html,/1,234/);assert.doesNotMatch(view.html,/12\.34567|💎|다이아/);
   assert.match(view.html,/5,678/);assert.match(view.html,/보유 실버/);assert.match(view.html,/href="#rewards"/);
-  assert.match(view.html,/href="#gold"/);assert.match(view.html,/href="#inventory"/);assert.match(view.html,/내 도구함/);
+  assert.match(view.html,/href="#gold"/);assert.match(view.html,/href="#inventory"/);assert.match(view.html,/인벤토리/);
   assert.equal(calls.filter(p=>p==='/api/gold/balance').length,1);
   await c.improvementsView('profile','','profile');assert.equal(calls.filter(p=>p==='/api/gold/balance').length,2,'re-entry refetches');
  }
@@ -53,17 +53,12 @@ test('gold checkout hides diamond balances while settlement retains the blue dia
  const settlement=c.diamondWalletHTML(diamonds);assert.match(settlement,/💎/);assert.match(settlement,/12\.34567/);
 });
 
-test('toolbox links to the existing authenticated inventory without creating a purchase flow',async()=>{
- const {c}=ui();Object.assign(c,{AifectPlayer,heading:title=>'<h1>'+title+'</h1>'});
- vm.runInContext(read('dist/player-progress.js'),c);
- const d={inventory:[],rewards:[],player:{xp:0},profile:{},rules:[],recent:[]};
- const rendered=c.playerInventoryHTML(d,{name:'QA'});
- assert.match(rendered,/<h1>내 도구함<\/h1>/);assert.match(rendered,/보유 아이템/);assert.doesNotMatch(rendered,/다이아|data-buy-/);
- const calls=[];c.api=async path=>{calls.push(path);return path==='/api/me/player'?d:{profile:{name:'QA'}};};
- assert.match((await c.playerView('inventory')).html,/내 도구함/);
- assert.deepEqual(calls,['/api/me/player','/api/me/profile']);
- c.me=null;calls.length=0;assert.match((await c.playerView('inventory')).html,/로그인/);assert.equal(calls.length,0);
+test('former toolbox delegates to the unified inventory route',async()=>{
+ const {c}=ui();vm.runInContext(read('dist/player-progress.js'),c);const calls=[];
+ c.unifiedInventoryView=async raw=>{calls.push(raw);return {html:'UNIFIED'};};c.location.hash='#inventory?section=active';
+ assert.equal((await c.playerView('inventory')).html,'UNIFIED');assert.deepEqual(calls,['inventory?section=active']);assert.equal(await c.playerView('home'),null);
 });
+
 test('crew media preserves the entire image and frame versions map to unchanged reward keys',()=>{
  const css=read('dist/october-polish.css').match(/\.crew-main-image\{([^}]+)\}/)[1];
  assert.match(css,/height:auto/);assert.match(css,/object-fit:contain/);assert.doesNotMatch(css,/object-fit:cover/);

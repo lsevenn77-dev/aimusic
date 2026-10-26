@@ -56,18 +56,18 @@ test('owned and saved playlists retain existing editing, visibility, tracks and 
  assert.equal((await f.call('/api/me/music-library?section=playlists')).body.total,0);
  assert.equal((await f.call('/api/playlists/'+publicId,'GET',null,'other')).status,200);
 });
-test('swipes reject vertical/diagonal/slow/edge/multitouch gestures and clamp to four categories',()=>{
+test('swipes reject vertical/diagonal/slow/edge/multitouch gestures and clamp to three categories',()=>{
  const c=vm.createContext({URLSearchParams});vm.runInContext(source,c);
  const start={x:200,y:200,time:0,width:390};
  const swipe=(end,index=1,patch={})=>c.musicLibrarySwipe({...start,...patch},{time:300,y:205,...end},index);
  assert.equal(swipe({x:100}),2);assert.equal(swipe({x:280}),0);
  assert.equal(swipe({x:150}),1);assert.equal(swipe({x:100,y:300}),1);assert.equal(swipe({x:100,time:800}),1);
  assert.equal(swipe({x:100},1,{x:10}),1);assert.equal(swipe({x:100},1,{x:380}),1);assert.equal(swipe({x:100},1,{cancelled:true}),1);
- assert.equal(swipe({x:100},3),3);assert.equal(swipe({x:280},0),0);
+ assert.equal(swipe({x:100},2),2);assert.equal(swipe({x:280},0),0);
 });
-test('legacy query state stays bounded and saved is the initial category',()=>{
+test('legacy query state stays bounded and likes is the initial category',()=>{
  const c=vm.createContext({URLSearchParams});vm.runInContext(source,c);
- assert.equal(c.musicLibraryOptions('profile?view=library').section,'saved');assert.equal(c.musicLibraryOptions('profile?view=library&section=uploads').section,'saved');
+ assert.equal(c.musicLibraryOptions('profile?view=library').section,'likes');assert.equal(c.musicLibraryOptions('profile?view=library&section=uploads').section,'likes');
  assert.equal(c.musicLibraryOptions('profile?view=library&section=playlists&sort=name').sort,'title');
  assert.equal(c.musicLibraryOptions('profile?view=library&q='+'a'.repeat(200)).q.length,100);
 });
