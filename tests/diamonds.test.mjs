@@ -15,7 +15,7 @@ test('500 diamonds becomes 5000 spendable gold once; pennies retained; no new fe
  assert.equal((await f.call('/api/diamonds','GET',undefined,null)).status,401);
  const b={diamonds:500,request_id:'diamond-request-001'};
  const [a,c]=await Promise.all([f.call('/api/diamonds/exchange','POST',b),f.call('/api/diamonds/exchange','POST',b)]);
- assert.equal(a.status,201,JSON.stringify(a));assert.equal(c.body.id,a.body.id);assert.equal(a.body.gold,5000);
+ assert.deepEqual([a.status,c.status].sort(),[200,201],"one concurrent request creates and the other reuses the receipt");assert.equal(c.body.id,a.body.id);assert.equal(a.body.gold,5000);
  const lot=f.sql.prepare("SELECT * FROM gold_purchases WHERE channel='diamond'").get();
  assert.deepEqual([lot.gold,lot.price_krw,lot.tax_krw,lot.fee_krw],[5000,50000,0,0]);
  const w=(await f.call('/api/diamonds')).body;assert.equal(w.balance_mw,1);assert.equal(w.balance,0.00001);assert.equal(w.partner.eligible_krw,50000);

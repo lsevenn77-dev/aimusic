@@ -489,3 +489,34 @@ test('seat removal during publication retires the late allocation without revivi
  assert.equal((await pending).status,409);assert.equal(h.room.data.members.a.pub,null);assert.equal(h.room.data.members.a.seat,null);
  assert.equal((await h.call('published',actor('a'))).status,409);
 });
+
+test('seating defaults to approval and only a host can change the policy',async t=>{
+ const h=harness(t);await h.create();await h.join(actor('guest'));
+ assert.equal(h.room.data.config.seating_mode,'approval');
+ assert.equal((await h.call('settings',actor('guest'),{seating_mode:'free'})).status,403);
+ assert.equal((await h.call('settings',actor('host'),{seating_mode:'untrusted'})).status,400);
+ await h.call('request-mic',actor('guest'),{seat:1});assert.equal(h.room.data.members.guest.seat,null);
+ assert.equal(h.room.data.members.guest.requested,true);
+ await h.call('settings',actor('host'),{seating_mode:'free'});assert.equal(h.room.data.members.guest.requested,false);
+ assert.equal(h.room.data.members.guest.seat,null,'policy change never moves or opens someone’s microphone');
+});
+test('free seating is atomic, muted, published to every participant and still respects host locks',async t=>{
+ const h=harness(t);await h.create();await h.call('settings',actor('host'),{seating_mode:'free'});
+ await h.join(actor('one'));await h.join(actor('two'));const notifications=[];h.room.notify=(event,recipients)=>notifications.push({event,recipients});
+ const results=await Promise.all(['one','two'].map(id=>h.call('request-mic',actor(id),{seat:1})));
+ assert.deepEqual(results.map(r=>r.status).sort(),[200,409]);
+ const seated=Object.values(h.room.data.members).find(p=>p.seat===1);assert.equal(seated.muted,true);assert.equal(seated.pub,null);assert.equal(seated.requested,false);
+ assert.equal(notifications.at(-1).recipients,null,'new occupant must appear to all listeners');
+ await h.call('moderate',actor('host'),{target_id:seated.id,operation:'mute'});await h.call('release-mic',actor(seated.id));
+ assert.equal((await h.call('request-mic',actor(seated.id),{seat:2})).status,403);
+ assert.equal((await h.call('request-mic',actor('two'),{seat:0})).status,409);
+});
+test('free seating survives durable reload and unrelated settings, then returns to approval',async t=>{
+ const h=harness(t);await h.create();await h.call('settings',actor('host'),{seating_mode:'free'});h.room.data=null;
+ assert.equal((await h.call('state')).body.room.seating_mode,'free');
+ await h.call('settings',actor('host'),{title:'Changed title'});assert.equal(h.room.data.config.seating_mode,'free');
+ await h.call('settings',actor('host'),{seating_mode:'approval'});await h.join(actor('guest'));await h.call('request-mic',actor('guest'),{seat:2});
+ assert.equal(h.room.data.members.guest.seat,null);assert.equal(h.room.data.members.guest.requested,true);
+ delete h.room.data.config.seating_mode;await h.room.save();h.room.data=null;
+ assert.equal((await h.call('state')).body.room.seating_mode,'approval');
+});

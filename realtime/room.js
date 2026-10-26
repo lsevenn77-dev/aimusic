@@ -11,6 +11,7 @@ export class VoiceRoom {
   if(this.data)return;
   this.data=await this.ctx.storage.get('room')||{config:null,members:{},bans:{},invites:{},chat:[],gifts:[],cleanup:[],nonces:{},rates:{},revision:0,chatSequence:0};
   this.data.seatInvites ||= {};this.data.music ||= emptyRoomMusic();this.data.musicRequests ||= [];this.data.notices ||= [];
+  if(this.data.config)this.data.config.seating_mode??='approval';
   const host=this.data.members[this.data.config?.host_id];const occupant=Object.values(this.data.members).find(p=>p.seat===0&&p.id!==this.data.config?.host_id);if(occupant){const used=new Set(Object.values(this.data.members).map(p=>p.seat));occupant.seat=Array.from({length:7},(_,i)=>i+1).find(i=>!used.has(i))??null;if(occupant.seat===null)await this.stopPublish(occupant);}if(host)host.seat=0;
   // Older rooms have no reliable per-member history boundary. Start a fresh boundary on upgrade.
   if(!Number.isSafeInteger(this.data.chatSequence)) {
@@ -157,6 +158,7 @@ export class VoiceRoom {
    this.moderator(actor);if(b.revision!==undefined&&b.revision!==(d.config.settings_revision||0))fault(409,'방 설정이 변경됐어요. 다시 열어주세요.');let settings;try{settings=roomSettings(b,actor,d.config);}catch(e){fault(400,e.message);}
    await this.env.ROOM_DB.prepare('UPDATE voice_rooms SET title=?,visibility=?,crew_id=?,max_members=?,background=?,announcement=? WHERE id=?').bind(settings.title,settings.visibility,settings.crew_id,settings.max_members,settings.background,settings.announcement,d.config.id).run();
    if(settings.visibility!==d.config.visibility)for(const member of Object.values(d.members))member.visibilityRetained=true;
+   if(settings.seating_mode==='free'&&d.config.seating_mode!=='free')for(const member of Object.values(d.members))this.clearRequest(member);
    Object.assign(d.config,settings,{settings_revision:(d.config.settings_revision||0)+1});this.notice(p,'방 설정이 변경됐어요.');await this.audit(actor,'settings');
   }
   else if(action==='seat-invite'){
@@ -181,7 +183,8 @@ export class VoiceRoom {
    if(!d.members[d.config.host_id]||d.members[d.config.host_id].expires<=Date.now())fault(409,'방장이 다시 연결된 뒤 신청해주세요.');
    const seat=b.seat??Array.from({length:7},(_,i)=>i+1).find(i=>!Object.values(d.members).some(m=>m.seat===i));
    if(!Number.isInteger(seat)||seat<1||seat>7||Object.values(d.members).some(m=>m.seat===seat))fault(409,'빈 좌석을 선택해주세요.');
-   p.requested=true;p.requestedSeat=seat;p.requestExpires=Date.now()+SEAT_REQUEST_TTL;
+   if(d.config.seating_mode==='free'){p.seat=seat;p.muted=true;this.clearRequest(p);delete d.seatInvites[p.id];this.notice(p,p.name+'님이 '+(seat+1)+'번 좌석에 올라왔어요.');await this.audit(actor,'free-seat',p.id);}
+   else {p.requested=true;p.requestedSeat=seat;p.requestExpires=Date.now()+SEAT_REQUEST_TTL;}
   }
   else if(action==='cancel-mic'){if(!p.requested)return this.snapshot(actor);this.clearRequest(p);}
   else if(action==='reject-mic'){this.moderator(actor);const t=d.members[identifier(b.target_id)];if(!t)fault(404,'회원이 나갔어요.');this.clearRequest(t);await this.audit(actor,'reject-mic',t.id);}
@@ -235,7 +238,7 @@ export class VoiceRoom {
   }
   else if(action==='published'){if(p.seat===null||p.locked||!p.pub||(!p.pub.ready&&(!p.pub.negotiated||p.pub.deadline<Date.now())))fault(409,'마이크 연결을 다시 시작해주세요.');if(p.pub.ready)return this.snapshot(actor);p.pub.ready=true;p.pub.deadline=0;p.muted=b.muted===true;p.micSequence=-1;}
   else fault(404,'지원하지 않는 토킹룸 요청이에요.');
-  d.revision++;this.notify(action==='music'?{type:'music',music:d.music,revision:d.revision,serverNow:Date.now()}:{type:'changed'},['request-mic','cancel-mic','reject-mic'].includes(action)?[d.config.host_id,b.target_id||p.id]:null);return this.snapshot(actor);
+  d.revision++;this.notify(action==='music'?{type:'music',music:d.music,revision:d.revision,serverNow:Date.now()}:{type:'changed'},(['request-mic','cancel-mic','reject-mic'].includes(action)&&!(action==='request-mic'&&d.config.seating_mode==='free'))?[d.config.host_id,b.target_id||p.id]:null);return this.snapshot(actor);
  }
  async prepareMedia(action,actor,b){
   // Reserve inside the room lock, perform SFU I/O outside it, then commit only
