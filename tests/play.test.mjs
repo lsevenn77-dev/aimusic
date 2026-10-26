@@ -67,7 +67,7 @@ test('latest MR requires the existing singable conditions',async t=>{
 });
 test('all navigation aliases preserve engine entry routes and return stable URLs',()=>{
  const c=vm.createContext({URLSearchParams});vm.runInContext(readFileSync(new URL('../dist/play-page.js',import.meta.url),'utf8'),c);
- assert.equal(c.playAlias('#community/following'),'#karaoke/browse?tab=following&type=all');
+ assert.equal(c.playAlias('#community/following'),null);
  assert.equal(c.playAlias('#community/covers?mode=solo'),'#karaoke/browse?tab=recommended&type=solo');
  assert.equal(c.playAlias('#community/covers?mode=duet'),'#karaoke/browse?tab=recommended&type=duet');
  assert.equal(c.playAlias('#dubbing?tab=mine'),'#karaoke/dubbing?tab=mine');

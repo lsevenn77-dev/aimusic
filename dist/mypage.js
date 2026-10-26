@@ -1,5 +1,5 @@
 // Desktop composition reuses existing routes, media, playback and social actions.
-let myPageState=null;
+let myPageState=null,myPendingTabFocus='';
 const myDate=n=>n?new Date(n*1000).toLocaleDateString('ko-KR',{timeZone:'Asia/Seoul'}):'';
 const myEmpty=text=>`<p class="mp-empty">${esc(text)}</p>`;
 const myLoading=()=>'<p class="mp-empty" role="status">불러오는 중…</p>';
@@ -14,7 +14,7 @@ function myKindIcon(kind){
 }
 function myProfileHeader(d){
  const p=d.profile,own=me?.id===p.user_id,c=d.crew,publicSongs=d.public_track_count??[...(d.tracks||[]),...(d.covers||[])].filter(t=>!t.status||t.status==='published').length;
- return `<header class="mp-profile"><div class="mp-avatar">${avatarImage(p)}</div><div class="mp-identity"><h2>${esc(p.name)}${p.account_type==='ai_bot'?'<span class="ai-account-badge" title="공식 AI 응원 계정">AI</span>':''}</h2>${p.account_type==='ai_bot'?'<p class="field-help">공식 AI 응원 계정</p>':''}<p class="mp-public-id">ID: ${p.account_type==='ai_bot'?esc(p.user_id):Number.isSafeInteger(p.public_number)?p.public_number:'발급 확인 중'}</p><div class="mp-crew-line">${c?`<a href="#crew/${esc(c.id)}">${c.image_version?`<img src="/media/crew/${esc(c.id)}?v=${esc(c.image_version)}" alt="">`:icon('users')}${esc(c.name)}</a>`:'소속 크루 없음'}</div><div class="mp-stats"><${own?'a href="#library/followers"':'span'} data-followers="producer/${esc(p.id||'')}" data-count="${Number(d.followers||0)}"><b data-follow-count>${number(d.followers||0)}</b> 팔로워${d.ai_followers?` · AI ${number(d.ai_followers)} 포함`:''}</${own?'a':'span'}><${own?'a href="#following"':'span'}><b>${number(d.following_count||0)}</b> 팔로잉</${own?'a':'span'}><span><b>${number(publicSongs)}</b> 공개곡</span></div></div><div class="mp-profile-actions">${own?'<a class="primary-button" href="#profile/edit">프로필 수정</a><a class="small-button" href="#studio">스튜디오</a>':`<button class="primary-button" data-follow="producer/${esc(p.id)}" aria-pressed="${followed('producer',p.id)}">${followed('producer',p.id)?'팔로잉':'팔로우'}</button><button class="mp-more" data-profile-preview="${esc(p.id)}" aria-label="프로필 더보기 · 선물·차단·신고">${icon('more')}</button>`}</div></header>`;
+ return `<header class="mp-profile"><div class="mp-avatar">${avatarImage(p)}</div><div class="mp-identity"><h2>${esc(p.name)}${p.account_type==='ai_bot'?'<span class="ai-account-badge" title="공식 AI 응원 계정">AI</span>':''}</h2>${p.account_type==='ai_bot'?'<p class="field-help">공식 AI 응원 계정</p>':''}<p class="mp-public-id">ID: ${p.account_type==='ai_bot'?esc(p.user_id):Number.isSafeInteger(p.public_number)?p.public_number:'발급 확인 중'}</p><div class="mp-crew-line">${c?`<a href="#crew/${esc(c.id)}">${c.image_version?`<img src="/media/crew/${esc(c.id)}?v=${esc(c.image_version)}" alt="">`:icon('users')}${esc(c.name)}</a>`:'소속 크루 없음'}</div><div class="mp-stats"><${own?'a href="#community/following?people=followers"':'span'} data-followers="producer/${esc(p.id||'')}" data-count="${Number(d.followers||0)}"><b data-follow-count>${number(d.followers||0)}</b> 팔로워${d.ai_followers?` · AI ${number(d.ai_followers)} 포함`:''}</${own?'a':'span'}><${own?'a href="#community/following?people=following"':'span'}><b>${number(d.following_count||0)}</b> 팔로잉</${own?'a':'span'}><span><b>${number(publicSongs)}</b> 공개곡</span></div></div><div class="mp-profile-actions">${own?'<a class="primary-button" href="#profile/edit">프로필 수정</a><a class="small-button" href="#studio">스튜디오</a>':`<button class="primary-button" data-follow="producer/${esc(p.id)}" aria-pressed="${followed('producer',p.id)}">${followed('producer',p.id)?'팔로잉':'팔로우'}</button><button class="mp-more" data-profile-preview="${esc(p.id)}" aria-label="프로필 더보기 · 선물·차단·신고">${icon('more')}</button>`}</div></header>`;
 }
 function myMoments(d){
  const photos=d.gallery||[],pid=d.profile.id,own=me?.id===d.profile.user_id;
@@ -35,7 +35,7 @@ function myWorksHTML(d){
  mySection('커버 · 듀엣 · 더빙',`<div class="mp-work-controls"><div class="mp-filters" role="group" aria-label="작품 종류">${[['all','전체'],['cover','커버'],['duet','듀엣'],['dubbing','더빙']].map(([key,label])=>`<button data-mp-filter="${key}" aria-pressed="${key==='all'}">${key==='all'?'':myKindIcon(key)}${label} <span>${counts[key]}</span></button>`).join('')}</div><label class="sr-only" for="mp-sort">작품 정렬</label><select id="mp-sort"><option value="recent">최신순</option><option value="plays">재생순</option></select>${me?.id===d.profile.user_id?'<label class="sr-only" for="mp-visibility">작품 공개 범위</label><select id="mp-visibility"><option value="all">모든 공개 범위</option><option value="public">공개</option><option value="private">비공개</option></select>':''}</div><div class="inline-actions"><a class="text-link" href="${esc(opportunityHref(d.profile.id,'duet'))}">참여 가능 · 듀엣</a><a class="text-link" href="${esc(opportunityHref(d.profile.id,'dubbing'))}">참여 가능 · 더빙</a></div><div id="mp-recordings" class="mp-recordings home-music-grid">${all.length?all.sort((a,b)=>b.created-a.created).map(t=>myTrackCard(t)).join(''):myEmpty('아직 등록된 커버·듀엣·더빙이 없어요.')}</div>`, '',all.length);
 }
 function myWorksAside(d,own){return myArtists(d)+myStudioBanner()+mySection('참여 가능한 듀엣','<div id="mp-open-duets">'+myLoading()+'</div>',myAll(opportunityHref(d.profile.id,'duet')))+mySection('참여 가능한 더빙','<div id="mp-open-dubbing">'+myLoading()+'</div>',myAll(opportunityHref(d.profile.id,'dubbing')));}
-function mySegment(active){return `<div class="mp-segment" role="tablist" aria-label="마이페이지" data-active="${active}"><span class="mp-segment-slide" aria-hidden="true"></span>${[['works','내 작품'],['activity','내 활동']].map(([key,label])=>`<button type="button" role="tab" id="mp-tab-${key}" aria-controls="mp-content" aria-selected="${active===key}" tabindex="${active===key?0:-1}" data-mp-tab="${key}">${label}</button>`).join('')}</div>`;}
+function mySegment(active){return `<div class="mp-segment" role="tablist" aria-label="마이페이지" data-active="${active}"><span class="mp-segment-slide" aria-hidden="true"></span>${[['works','내 작품'],['activity','내 활동'],['library','내 보관함']].map(([key,label])=>`<button type="button" role="tab" id="mp-tab-${key}" aria-controls="mp-content" aria-selected="${active===key}" tabindex="${active===key?0:-1}" data-mp-tab="${key}">${label}</button>`).join('')}</div>`;}
 async function myPageView(base,param,raw){
  if(base==='profile-gallery')return myGalleryView(param);
  if(base==='relations')return myRelationsView();
@@ -47,9 +47,10 @@ async function myPageView(base,param,raw){
   const self=await api('/api/me/profile','GET',undefined,{fresh:true});
   d=self.profile.id?await api('/api/producers/'+encodeURIComponent(self.profile.id)+'?dashboard=1','GET',undefined,{fresh:true}):{profile:self.profile,followers:self.follower_count,following_count:self.following_count,tracks:[],covers:[],dubbings:[],artists:[],gallery:[]};
  }else d=await api('/api/producers/'+encodeURIComponent(param)+'?dashboard=1','GET',undefined,{fresh:true});
- const own=me?.id===d.profile.user_id,tab=own&&new URLSearchParams(raw.split('?')[1]||'').get('view')==='activity'?'activity':'works';
+ const own=me?.id===d.profile.user_id,q=new URLSearchParams(raw.split('?')[1]||''),tab=own&&['activity','library'].includes(q.get('view'))?q.get('view'):'works';
+ const collection=own&&tab==='library'?await myLibraryView(raw):own&&tab==='works'&&['covers','originals'].includes(q.get('section'))?await browseView('library',q.get('section'),raw,true):null;
  const state={d,own,tab,account:me?.id||'',activity:null};
- return {mypage:state,tracks:[...(d.tracks||[]),...(d.covers||[])],html:`<div class="mypage-layout"><div class="mp-main"><div class="mp-heading">${heading('마이','나의 순간과 음악이 만나는 공간')}</div>${myProfileHeader(d)}${myMoments(d)}${own?mySegment(tab):''}<div id="mp-content" ${own?'role="tabpanel" aria-labelledby="mp-tab-'+tab+'"':''}>${tab==='works'?myWorksHTML(d):myLoading()}</div></div><aside class="mp-aside" id="mp-aside">${tab==='works'?myWorksAside(d,own):myLoading()}</aside>${own?'<div class="mp-account-footer"><button type="button" class="small-button" id="logout">로그아웃</button></div>':''}</div>`};
+ return {mypage:state,musicLibrary:collection?.musicLibrary,tracks:collection?.tracks||[...(d.tracks||[]),...(d.covers||[])],html:`<div class="mypage-layout"><div class="mp-main"><div class="mp-heading">${heading('마이','나의 순간과 음악이 만나는 공간')}</div>${myProfileHeader(d)}${myMoments(d)}${own?mySegment(tab):''}<div id="mp-content" ${own?'role="tabpanel" aria-labelledby="mp-tab-'+tab+'"':''}>${collection?collection.html:tab==='works'?myWorksHTML(d):myLoading()}</div></div><aside class="mp-aside" id="mp-aside">${collection?.libraryAside??myWorksAside(d,own)}</aside>${own?'<div class="mp-account-footer"><button type="button" class="small-button" id="logout">로그아웃</button></div>':''}</div>`};
 }
 async function myActivityData(){
  const paths={wallet:'/api/gold/balance',diamonds:'/api/diamonds',player:'/api/me/player',membership:'/api/membership',activity:'/api/me/profile?section=activity',notifications:'/api/notifications',relations:'/api/me/relations',inventory:'/api/me/gift-inventory'};
@@ -79,16 +80,16 @@ function myActivityAside(d,a){
 }
 async function mySelectTab(tab,updateURL=true){
  const s=myPageState;if(!s?.own||s.account!==me?.id)return;s.tab=tab;
- if(updateURL){const href='#profile'+(tab==='activity'?'?view=activity':'');history.replaceState(null,'',href);$('#main').dataset.route=href.slice(1);}
+ if(updateURL){location.hash=myTabHref(tab);return;}
  const segment=$('.mp-segment');segment.dataset.active=tab;segment.querySelectorAll('[role="tab"]').forEach(b=>{const active=b.dataset.mpTab===tab;b.setAttribute('aria-selected',active);b.tabIndex=active?0:-1;});
  const content=$('#mp-content'),aside=$('#mp-aside');content.setAttribute('aria-labelledby','mp-tab-'+tab);
- if(tab==='works'){content.innerHTML=myWorksHTML(s.d);aside.innerHTML=myWorksAside(s.d,true);void myLoadOpportunities(s);return;}
- content.innerHTML=myLoading();aside.innerHTML=myLoading();content.setAttribute('aria-busy','true');
+ if(tab==='works'){content.innerHTML=myWorksHTML(s.d);aside.innerHTML=myWorksAside(s.d,true);if(view.musicLibrary)bindMusicLibrary(view.musicLibrary);else void myLoadOpportunities(s);return;}
+ content.innerHTML=myLoading();content.setAttribute('aria-busy','true');
  const a=await myActivityData();if(myPageState!==s||s.tab!==tab||me?.id!==s.account||!content.isConnected)return;
- s.activity=a;content.innerHTML=myActivityHTML(a);aside.innerHTML=myActivityAside(s.d,a);content.removeAttribute('aria-busy');icons();
+ s.activity=a;content.innerHTML=myActivityHTML(a)+'<div class="mp-activity-details">'+myActivityAside(s.d,a)+'</div>';content.removeAttribute('aria-busy');icons();
 }
 async function myLoadOpportunities(s){await Promise.all(['duet','dubbing'].map(async type=>{const root=$(type==='duet'?'#mp-open-duets':'#mp-open-dubbing');if(!root)return;try{const d=await api('/api/producers/'+encodeURIComponent(s.d.profile.id)+'/opportunities?type='+type);if(myPageState!==s||!root.isConnected)return;root.innerHTML=opportunityCards(d.items.slice(0,3),type);}catch(e){if(root.isConnected)root.innerHTML=myEmpty(e.message);}}));}
-function bindMyPage(view){if(!view?.mypage)return;const s=view.mypage;myPageState=s;if(s.tab==='activity')void mySelectTab('activity',false);else void myLoadOpportunities(s);}
+function bindMyPage(view){if(!view?.mypage){myPendingTabFocus='';return;}const s=view.mypage;myPageState=s;if(s.tab==='activity')void mySelectTab('activity',false);if(view.musicLibrary)bindMusicLibrary(view.musicLibrary);else void myLoadOpportunities(s);if(myPendingTabFocus===s.tab)$('#mp-tab-'+s.tab)?.focus({preventScroll:true});myPendingTabFocus='';}
 function myFilterWorks(){
  const root=$('#mp-recordings');if(!root||!myPageState)return;const key=$('[data-mp-filter][aria-pressed="true"]')?.dataset.mpFilter||'all',visibility=$('#mp-visibility')?.value||'all',sort=$('#mp-sort')?.value;
  const items=[...(myPageState.d.covers||[]),...(myPageState.d.dubbings||[])].filter(t=>(key==='all'||myKind(t)===key)&&(visibility==='all'||(t.kind==='dubbing'?t.visibility==='public':t.status==='published')===(visibility==='public'))).sort((a,b)=>(sort==='plays'?(b.plays||0)-(a.plays||0):0)||b.created-a.created);
@@ -96,7 +97,7 @@ function myFilterWorks(){
 }
 document.addEventListener('change',e=>{if(e.target.matches('#mp-sort,#mp-visibility'))myFilterWorks();});
 document.addEventListener('keydown',e=>{
- const b=e.target.closest('[data-mp-tab]');if(!b||!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();const key=e.key==='Home'?'works':e.key==='End'?'activity':b.dataset.mpTab==='works'?'activity':'works';$('[data-mp-tab="'+key+'"]').focus();void mySelectTab(key);
+ const b=e.target.closest('[data-mp-tab]');if(!b||!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();const tabs=['works','activity','library'],i=tabs.indexOf(b.dataset.mpTab),key=tabs[e.key==='Home'?0:e.key==='End'?tabs.length-1:(i+(e.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length];myPendingTabFocus=key;$('[data-mp-tab="'+key+'"]').focus();void mySelectTab(key);
 });
 document.addEventListener('click',async e=>{
  const b=e.target.closest('[data-mp-tab],[data-mp-filter],[data-mp-retry],[data-mp-opportunity-retry],[data-mp-originals],[data-mp-artists],[data-mp-recent],[data-mp-dubbing-play]');if(!b)return;e.preventDefault();

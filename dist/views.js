@@ -35,10 +35,13 @@ function watchCachedNavigation(main){
 }
 async function render(){
  setMobileMenu(false);
+ const menuRedirect=typeof menuAlias==='function'?menuAlias(location.hash):null;
+ if(menuRedirect)history.replaceState(history.state,'',menuRedirect);
  const playRedirect=typeof playAlias==='function'?playAlias(location.hash):null;
  if(playRedirect)history.replaceState(null,'',playRedirect);
 
  const ticket=++renderId,raw=location.hash.slice(1)||'home',[baseQuery,paramQuery]=raw.split('/'),[base]=baseQuery.split('?'),param=paramQuery?.split('?')[0];
+ if(typeof refreshMusicLibraryRoute==='function'&&await refreshMusicLibraryRoute(raw,ticket))return;
  if(typeof dubbingBeforeRoute==='function'&&!dubbingBeforeRoute(raw))return;
  if(typeof dubbingRefreshList==='function'&&await dubbingRefreshList(raw,ticket))return;
  if(sing){
@@ -68,9 +71,10 @@ async function render(){
   if(base==='home')return await renderHome(ticket);
   await accountReady;if(ticket!==renderId)return;
   if(account!==(me?.id||'guest'))return render();
+  if(typeof rememberMenuLogin==='function')rememberMenuLogin(base,param);
   const readRevision=apiRevision;
   const profileHeader=base==='library'?libraryProfileHTML().catch(error=>({error})):null;
-  const explorer=(typeof profileCollectionView==='function'?await profileCollectionView(base,param,raw):null)||(typeof playView==='function'?await playView(base,param,raw):null)||(typeof myPageView==='function'?await myPageView(base,param,raw):null)||(typeof dubbingView==='function'?await dubbingView(base,param,raw):null)||(typeof voiceView==='function'?await voiceView(base,param):null)||await notificationsView(base,raw)||await playerView(base)||await improvementsView(base,param,raw)||await browseView(base,param,raw)||await explorerView(base,param,raw);
+  const explorer=(typeof integratedMenuView==='function'?await integratedMenuView(base,param,raw):null)||(typeof profileCollectionView==='function'?await profileCollectionView(base,param,raw):null)||(typeof playView==='function'?await playView(base,param,raw):null)||(typeof myPageView==='function'?await myPageView(base,param,raw):null)||(typeof dubbingView==='function'?await dubbingView(base,param,raw):null)||(typeof voiceView==='function'?await voiceView(base,param):null)||await notificationsView(base,raw)||await playerView(base)||await improvementsView(base,param,raw)||await browseView(base,param,raw)||await explorerView(base,param,raw);
   if(explorer){html=explorer.html;nextTracks=remember(explorer.tracks||[]);}
   else if(['discover','charts','artists','producers','search'].includes(base)){
    let query='';const genre=base==='discover'?decodeURIComponent(param||'전체'):'전체',searchValue=base==='search'?decodeURIComponent(param||''):'';
@@ -117,7 +121,7 @@ async function render(){
   else if(base==='manage'&&param){studioData=await api('/api/studio');const {profile,alignment,karaoke}=await api('/api/studio/tracks/'+param);html=profile.kind==='cover'?coverEditHTML(profile):trackEditHTML({...profile,alignment,karaoke},studioData);}
   else if(base==='studio'||base==='manage'){
    const d=await api('/api/studio');
-   studioData=d;html=studioHTML(d)+`<section class="studio-payout-callout"><div><span class="eyebrow">FOR CREATORS</span><h2>음악으로 쌓은 응원</h2><p>정산 현황과 지급 내역을 한곳에서 확인하세요.</p></div><a class="primary-button" href="#payouts">${icon('wallet')} 정산 내역 보기 ${icon('arrow')}</a></section>`;
+   studioData=d;html=studioHTML(d)+`<section class="studio-payout-callout"><div><span class="eyebrow">FOR CREATORS</span><h2>음악으로 쌓은 응원</h2><p>정산 현황과 지급 내역을 한곳에서 확인하세요.</p></div><a class="primary-button" href="#studio/payouts">${icon('wallet')} 수익·정산 보기 ${icon('arrow')}</a></section>`;
   }else html=heading('페이지를 찾을 수 없어요')+empty('잠시 길을 잃었네요','홈에서 새로운 음악을 발견해보세요.','#home','홈으로 이동');
   if(profileHeader){const header=await profileHeader;if(header.error)throw header.error;html=header+html;}
   if(['search','discover','charts','collections'].includes(base))html=listenNav(base==='search'||base==='discover'?'search':base)+html;

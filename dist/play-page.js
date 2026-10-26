@@ -11,7 +11,6 @@ function playAlias(hash){
  if(route==='play'||route==='karaoke/songs')return '#karaoke';
  if(route==='dubbing')return ['complete','popular','latest'].includes(q.get('tab'))?playHref('browse',q.get('tab')==='complete'?'recommended':q.get('tab'),'dubbing'):playHref('dubbing',q.get('tab')==='mine'?'mine':'discover');
  if(route==='covers'||route==='community/covers')return playHref('browse','recommended',['solo','duet'].includes(q.get('mode'))?q.get('mode'):'all');
- if(route==='community/following')return playHref('browse','following');
  if(route==='community/latest')return playHref('browse','latest');
  if(route==='community/duets')return q.get('open')==='1'?playHref('song','duets'):playHref('browse','recommended','duet');
  return null;
@@ -91,7 +90,7 @@ function bindPlay(view){
   tabs[e.key==='Home'?0:e.key==='End'?tabs.length-1:(i+(e.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length].focus();
  }));
  const form=/** @type {HTMLFormElement} */(root.querySelector('#play-search')),more=/** @type {HTMLButtonElement} */(root.querySelector('#play-more')),results=root.querySelector('#play-results');if(!form)return;
- let query='',generation=0;
+ let query=form?.querySelector('input')?.value||'',generation=0;
  const all=[...view.items],s=view.play;
  const paint=()=>{results.innerHTML=playResults(view);remember(view.items.filter(t=>t.type!=='dubbing'&&s.mode!=='dubbing'));routeTracks=view.items.filter(t=>t.type!=='dubbing'&&s.mode!=='dubbing');more.hidden=view.nextOffset===null;};
  const load=async(append=false)=>{
