@@ -1,5 +1,6 @@
 import {rows,fail,json} from './db.js';
 import {requireUser} from './auth.js';
+import {DECORATIONS,PERIOD_LABELS} from '../shared/decorations.js';
 
 // Account-scoped read only view of existing receipts. Never recompute balances.
 export async function walletHistory(req,env,user){
@@ -26,9 +27,14 @@ export async function walletHistory(req,env,user){
    rows(env,`SELECT * FROM (
     SELECT g.id,'gift' kind,g.gold amount,g.created,g.gift_name title FROM gifts g WHERE g.sender_id=? AND NOT EXISTS(SELECT 1 FROM gift_inventory i WHERE i.id=g.id)
     UNION ALL SELECT 'inventory:'||request_id,'inventory',SUM(value),created,gift_name||' 구매' FROM gift_inventory WHERE user_id=? AND currency='gold' AND source='purchase' GROUP BY request_id
+    UNION ALL SELECT 'decoration:'||id,'decoration',gold,created,sku||' · '||period_code FROM decoration_orders WHERE payer_id=?
     UNION ALL SELECT 'dubbing:'||job_id,'dubbing',gold,created,'' FROM dubbing_gold_orders WHERE user_id=?
-   ) ORDER BY created DESC,id LIMIT 20`,uid,uid,uid)
+   ) ORDER BY created DESC,id LIMIT 20`,uid,uid,uid,uid)
   ]);
  }
- return json({currency,earned,spent});
+ return json({currency,earned,spent:spent.map(row=>{
+  if(row.kind!=='decoration')return row;
+  const [sku,period]=row.title.split(' · ');
+  return {...row,title:(DECORATIONS[sku]?.name||'꾸미기 상품')+' · '+(PERIOD_LABELS[period]||'')+' 구매'};
+ })});
 }

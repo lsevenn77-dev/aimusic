@@ -55,12 +55,12 @@ test('gold checkout hides diamond balances while settlement retains the blue dia
 
 test('toolbox links to the existing authenticated inventory without creating a purchase flow',async()=>{
  const {c}=ui();Object.assign(c,{AifectPlayer,heading:title=>'<h1>'+title+'</h1>'});
- vm.runInContext(read('dist/player-progress.js'),c);
+ vm.runInContext(read('dist/decorations.js'),c);vm.runInContext(read('dist/player-progress.js'),c);
  const d={inventory:[],rewards:[],player:{xp:0},profile:{},rules:[],recent:[]};
  const rendered=c.playerInventoryHTML(d,{name:'QA'});
- assert.match(rendered,/<h1>내 도구함<\/h1>/);assert.match(rendered,/보유 아이템/);assert.doesNotMatch(rendered,/다이아|data-buy-/);
+ assert.match(rendered,/<h1>인벤토리<\/h1>/);assert.match(rendered,/보유 보상 아이템/);assert.doesNotMatch(rendered,/다이아|data-buy-/);
  const calls=[];c.api=async path=>{calls.push(path);return path==='/api/me/player'?d:{profile:{name:'QA'}};};
- assert.match((await c.playerView('inventory')).html,/내 도구함/);
+ assert.match((await c.playerView('inventory')).html,/인벤토리/);
  assert.deepEqual(calls,['/api/me/player','/api/me/profile']);
  c.me=null;calls.length=0;assert.match((await c.playerView('inventory')).html,/로그인/);assert.equal(calls.length,0);
 });
@@ -92,3 +92,11 @@ for(const [date,due] of [['2026-10-25T23:59:59+09:00','2026-10-25'],['2026-10-26
   assert.equal((await f.call('/api/gold','GET',undefined,'other')).body.diamonds.available,0);
  });
 }
+
+test('inventory separates unopened purchases, running periods and unavailable products',()=>{
+ const {c}=ui();Object.assign(c,{AifectPlayer,heading:title=>'<h1>'+title+'</h1>'});vm.runInContext(read('dist/decorations.js'),c);vm.runInContext(read('dist/player-progress.js'),c);
+ const d={inventory:[{id:'active-frame',paid:true,name:'활성 테두리',available:true,equipped:false,item_key:'frame_aurora_ring',artwork:'/assets/products/aurora_ring_frame.png',expires_at:Math.floor(Date.now()/1000)+86400},{id:'ended-frame',paid:true,name:'만료 테두리',available:false,expires_at:1,artwork:'/assets/products/aurora_ring_frame.png'}],stored_decorations:[{id:'stock',available:true,period_code:'P7D',product:{name:'보관 테마',kind:'TALKING_ROOM_THEME',assetPaths:{roomCard:'/assets/products/starlight_lounge_card.webp'}}}],decorations:[],rewards:[],player:{xp:0},profile:{},rules:[],recent:[]};
+ const html=c.playerInventoryHTML(d,{name:'QA'}),purchased=html.slice(html.indexOf('aria-labelledby="inventory-purchased"'),html.indexOf('aria-labelledby="inventory-active"')),active=html.slice(html.indexOf('aria-labelledby="inventory-active"'),html.indexOf('<details class="decoration-ended"'));
+ assert.match(purchased,/보관 테마/);assert.doesNotMatch(purchased,/활성 테두리|만료 테두리/);assert.match(purchased,/사용 시작/);assert.match(purchased,/선물하기/);
+ assert.match(active,/활성 테두리/);assert.match(active,/미착용 · 기간 진행 중/);assert.doesNotMatch(active,/보관 테마|만료 테두리|선물하기/);assert.match(html,/만료·사용 불가 상품 1/);assert.doesNotMatch(html,/공개 ID/);
+});

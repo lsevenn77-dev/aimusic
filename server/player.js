@@ -1,3 +1,4 @@
+import {decorationInventory,decorationFundingSQL} from './decorations.js';
 import {one,rows,run,query,fail,json,now} from './db.js';
 import {PLAYER_ITEMS,PLAYER_RULES,playerProgress} from '../shared/player.js';
 import {CREW_LEVELS,crewLevel} from '../shared/crews.js';
@@ -8,7 +9,7 @@ const crewMaturity=item=>CREW_LEVELS.find(l=>l.level===item.min_crew_level)?.min
 const crewThreshold=item=>CREW_LEVELS.find(l=>l.level===item.min_crew_level)?.xp??0;
 const crewQualifiedSQL=(uid,item)=>`EXISTS(SELECT 1 FROM crew_members reward_member WHERE reward_member.user_id=${uid} AND ((SELECT highest_level FROM crews WHERE id=reward_member.crew_id)>=${item.min_crew_level||1} OR ((SELECT growth_started FROM crews WHERE id=reward_member.crew_id)+${crewMaturity(item)}*86400<=unixepoch() AND COALESCE((SELECT sum(reward_xp.amount) FROM crew_xp reward_xp WHERE reward_xp.crew_id=reward_member.crew_id),0)>=${crewThreshold(item)})))`;
 const eligibleSQL=(uid,item)=>item.min_level?`COALESCE((SELECT sum(reward_xp.amount) FROM player_xp reward_xp WHERE reward_xp.user_id=${uid}),0)>=${50*item.min_level*(item.min_level-1)}`:crewQualifiedSQL(uid,item);
-const usableSQL=(alias,uid)=>`(${Object.entries(PLAYER_ITEMS).map(([key,item])=>`(${alias}.item_key=${sqlString(key)}${item.membership?' AND '+crewQualifiedSQL(uid,item):''})`).join(' OR ')})`;
+const usableSQL=(alias,uid)=>`(${Object.entries(PLAYER_ITEMS).map(([key,item])=>`(${alias}.item_key=${sqlString(key)}${item.paid?` AND ${alias}.source='decoration' AND ${alias}.expires_at>unixepoch() AND ${decorationFundingSQL(alias)}`:item.membership?' AND '+crewQualifiedSQL(uid,item):''})`).join(' OR ')})`;
 function rewardQueries(env,uid){return rewards.map(([key,item])=>{const source=item.min_level?'level':'crew-level';return query(env,`INSERT OR IGNORE INTO player_inventory(id,user_id,item_key,source,source_ref,granted_at) SELECT ${sqlString('reward:'+key+':')}||u.id,u.id,${sqlString(key)},${sqlString(source)},${sqlString(key)},unixepoch() FROM users u WHERE ${uid?'u.id=? AND ':''}${eligibleSQL('u.id',item)} AND NOT EXISTS(SELECT 1 FROM player_inventory existing WHERE existing.user_id=u.id AND existing.source=${sqlString(source)} AND existing.source_ref=${sqlString(key)}) LIMIT 500`,...(uid?[uid]:[]));});}
 // Grant from server XP only, once, including users who qualified before release.
 export async function grantPlayerRewards(env,uid){await env.DB.batch(rewardQueries(env,uid));}
@@ -41,17 +42,17 @@ export async function playerIdentity(env,uid){
 }
 export async function playerSummary(env,uid){
  await grantPlayerRewards(env,uid);
- const [identity,inventory,crew,recent]=await Promise.all([
+ const [identity,inventory,crew,recent,decorations]=await Promise.all([
   playerIdentity(env,uid),
   rows(env,'SELECT pi.*,pe.frame_inventory_id=pi.id equipped FROM player_inventory pi LEFT JOIN player_equipment pe ON pe.user_id=pi.user_id WHERE pi.user_id=? ORDER BY pi.granted_at DESC,pi.id',uid),
   one(env,'SELECT c.id,c.name,c.highest_level,c.growth_started,COALESCE((SELECT sum(cx.amount) FROM crew_xp cx WHERE cx.crew_id=c.id),0) xp FROM crew_members cm JOIN crews c ON c.id=cm.crew_id WHERE cm.user_id=?',uid),
-  rows(env,'SELECT kind,amount,created FROM player_xp WHERE user_id=? ORDER BY created DESC,source_key DESC LIMIT 20',uid)
+  rows(env,'SELECT kind,amount,created FROM player_xp WHERE user_id=? ORDER BY created DESC,source_key DESC LIMIT 20',uid),decorationInventory(env,uid)
  ]);
  const currentCrew=crew?{...crew,level:crewLevel(crew.xp,crew.highest_level,crew.growth_started).level}:null;
- return {player:playerProgress(identity.player_xp),profile:identity,crew:currentCrew,rules:PLAYER_RULES,recent,
+ return {player:playerProgress(identity.player_xp),profile:identity,crew:currentCrew,rules:PLAYER_RULES,recent,decorations:decorations.filter(i=>i.source==='decoration'&&i.product.kind==='TALKING_ROOM_THEME'),stored_decorations:decorations.filter(i=>i.source==='decoration_stock'),
   rewards:rewards.filter(([key])=>!inventory.some(i=>i.item_key===key)).map(([key,item])=>({item_key:key,...item,owned:false,available:false,equipped:false,reason:item.min_level?`유저 레벨 ${item.min_level} 달성 시 자동 지급`:`크루 레벨 ${item.min_crew_level} 이상 가입 시 자동 지급`})),
-  inventory:inventory.filter(i=>PLAYER_ITEMS[i.item_key]).map(i=>{
-   const item=PLAYER_ITEMS[i.item_key],reason=i.revoked?'사용이 종료된 아이템이에요.':i.expires_at&&i.expires_at<=now()?'사용 기간이 끝났어요.':item.membership&&!crew?'크루에 가입하면 사용할 수 있어요.':item.min_crew_level&&currentCrew.level<item.min_crew_level?`크루 레벨 ${item.min_crew_level} 이상에서 사용할 수 있어요.`:'';
+  inventory:inventory.filter(i=>i.source!=='decoration_stock'&&PLAYER_ITEMS[i.item_key]).map(i=>{
+   const item=PLAYER_ITEMS[i.item_key],reason=item.paid&&!decorations.find(d=>d.id===i.id)?.available?'사용 기간이나 결제 상태를 확인해주세요.':i.revoked?'사용이 종료된 아이템이에요.':i.expires_at&&i.expires_at<=now()?'사용 기간이 끝났어요.':item.membership&&!crew?'크루에 가입하면 사용할 수 있어요.':item.min_crew_level&&currentCrew.level<item.min_crew_level?`크루 레벨 ${item.min_crew_level} 이상에서 사용할 수 있어요.`:'';
    return {id:i.id,item_key:i.item_key,...item,owned:true,source:i.source,granted_at:i.granted_at,expires_at:i.expires_at,available:!reason,reason,equipped:!reason&&!!i.equipped};
   })};
 }

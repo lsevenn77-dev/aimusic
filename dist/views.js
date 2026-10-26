@@ -63,7 +63,7 @@ async function render(){
  let refreshWatch=null;
  if(restored){routeTracks=remember(cached.tracks);main.innerHTML=cached.html;main.removeAttribute('aria-busy');bindRenderedRoute(base,param,cached.explorer,ticket);window.scrollTo({top:cached.scroll||0,behavior:'instant'});refreshWatch=watchCachedNavigation(main);}
  else main.setAttribute('aria-busy','true');
- if(!restored&&base!=='home'&&(pendingView||main.dataset.route!==raw||main.dataset.account!==account)){const titles={notifications:'알림',inventory:'내 도구함',charts:'차트',karaoke:'플레이',community:'커뮤니티',library:'내 보관함',following:'팔로우',gifts:'선물함',gold:'골드',dm:'DM 메시지',crew:'크루',payouts:'정산',rewards:'오늘의 실버',song:'곡 이야기',producer:'프로필',artist:'AI 아티스트',profile:'내 프로필',account:'내 계정',upload:'음원 업로드',studio:'스튜디오',search:'음악 검색',discover:'음악 발견',history:'최근 들은 음악'};main.classList.remove('motion-enter');main.innerHTML=pendingView?.html||heading(titles[base]||'음악 둘러보기')+'<div class="route-loading" role="status"><span>불러오는 중…</span><div></div><div></div><div></div></div>';window.scrollTo({top:0,behavior:'instant'});}
+ if(!restored&&base!=='home'&&(pendingView||main.dataset.route!==raw||main.dataset.account!==account)){const titles={notifications:'알림',inventory:'인벤토리',charts:'차트',karaoke:'플레이',community:'커뮤니티',library:'내 보관함',following:'팔로우',gifts:'선물함',gold:'골드',dm:'DM 메시지',crew:'크루',payouts:'정산',rewards:'오늘의 실버',song:'곡 이야기',producer:'프로필',artist:'AI 아티스트',profile:'내 프로필',account:'내 계정',upload:'음원 업로드',studio:'스튜디오',search:'음악 검색',discover:'음악 발견',history:'최근 들은 음악'};main.classList.remove('motion-enter');main.innerHTML=pendingView?.html||heading(titles[base]||'음악 둘러보기')+'<div class="route-loading" role="status"><span>불러오는 중…</span><div></div><div></div><div></div></div>';window.scrollTo({top:0,behavior:'instant'});}
  main.dataset.account=account;
  main.classList.toggle('secondary-page',['charts','search','discover','collections','artists','producers','library','history','playlist','following','studio','manage','upload','cover','account','membership','rewards','payouts','inventory','gold'].includes(base)||base==='karaoke'&&param==='drafts');
  main.dataset.route=raw;let html='',nextTracks=[];
@@ -113,7 +113,7 @@ async function render(){
   else if(base==='karaoke'){const [d,duets]=await Promise.all([api('/api/karaoke'),api('/api/duets')]);nextTracks=[...d.tracks,...duets.tracks];html=karaokeListHTML(d.tracks,duets.tracks);}
   else if(base==='sing'){const d=await loadSingRoute(param,new URLSearchParams(paramQuery?.split('?')[1]||''));if(ticket!==renderId)return;routeSing=d;html=singHTML(d);}
   else if(base==='cover'){const {track:o}=await api('/api/tracks/'+param);remember([o]);html=coverUploadHTML(o);}
-  else if(base==='gifts')html=giftShopHTML(me?await api('/api/gold'):null);
+  else if(base==='gifts')html=['frames','themes'].includes(param)?await decorationShopView(param):decorationNav()+giftShopHTML(me?await api('/api/gold'):null);
   else if(base==='gold')html=(param==='history'?heading('보낸 선물 내역')+'<a class="text-link" href="#gold">골드 충전으로</a>'+sentGiftHistoryHTML(await api('/api/gold')):goldHTML(await api('/api/gold')));
   else if(base==='admin'&&param==='track-review'){const q=new URLSearchParams(paramQuery?.split('?')[1]||'');html=trackReviewHTML(await api('/api/admin/track-review?'+q.toString()));if(authConfig?.admin)html+='<section class="surface"><button class="small-button danger-button" data-purge-all-covers>사이트 전체 커버곡 삭제</button></section>';}
   else if(base==='admin'&&param==='partners')html=partnerAdminHTML(await api('/api/admin/diamonds'));
