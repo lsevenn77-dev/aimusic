@@ -206,7 +206,7 @@ private val NoneDescription:String?=null
  val data=m.ownDashboard;val p=data?.optJSONObject("profile")?:self.optJSONObject("profile")?:JSONObject()
  val loading=m.ownDashboardLoading||data==null&&m.ownDashboardError==null
  val tracks=data?.tracks().orEmpty();val covers=data?.tracks("covers").orEmpty();val dubbings=data?.optJSONArray("dubbings").objects()
- val gallery=data?.optJSONArray("gallery").objects()
+ val gallery=m.ownGallery?:data?.optJSONArray("gallery").objects()
  LazyColumn(Modifier.fillMaxSize().testTag("current-my"),contentPadding=PaddingValues(start=20.dp,end=20.dp,top=8.dp,bottom=24.dp),verticalArrangement=Arrangement.spacedBy(16.dp)){
   if(m.user==null)item{SignInEntry(m)}else{
    item{
@@ -230,12 +230,12 @@ private val NoneDescription:String?=null
      OutlinedButton(onClick=m::openStudio,modifier=Modifier.weight(1f).height(48.dp),shape=RoundedCornerShape(12.dp),border=BorderStroke(1.dp,SoftText.copy(alpha=.3f)),colors=ButtonDefaults.outlinedButtonColors(contentColor=SoftText),contentPadding=PaddingValues(8.dp)){Text("스튜디오",fontSize=13.sp,lineHeight=18.sp,fontWeight=FontWeight.SemiBold)}
     }
    }
-   item{CurrentPanel("갤러리",gallery.size,"전체보기",{if(pid.isNotBlank())m.openCurrentWorkspace("profile-gallery/$pid","갤러리")}){
+   item{CurrentPanel("갤러리",gallery.size,"전체보기",{m.galleryPreview=ProfileGalleryPreview(p.optString("name"),gallery,pid.takeIf{it.isNotBlank()})}){
     if(gallery.isEmpty()&&loading)Row(horizontalArrangement=Arrangement.spacedBy(12.dp),modifier=Modifier.testTag("my-gallery-loading")){repeat(2){Box(Modifier.weight(1f).aspectRatio(1f).clip(RoundedCornerShape(10.dp)).background(Raised))}}
     else if(gallery.isEmpty())Text("아직 등록한 사진이 없어요.",color=Muted,fontSize=13.sp,modifier=Modifier.padding(bottom=12.dp))
     else BoxWithConstraints(Modifier.fillMaxWidth()){
      val size=((maxWidth-12.dp)/2).coerceAtMost(156.dp)
-     LazyRow(horizontalArrangement=Arrangement.spacedBy(12.dp)){items(gallery){photo->val url=photo.optString("url");AsyncImage(if(url.startsWith('/'))Endpoint.url(url)else url,"갤러리 사진",Modifier.size(size).clip(RoundedCornerShape(10.dp)).clickable{m.openCurrentWorkspace("profile-gallery/$pid","갤러리")},contentScale=ContentScale.Crop)}}
+     LazyRow(horizontalArrangement=Arrangement.spacedBy(12.dp)){items(gallery){photo->val url=profileMediaUrl(photo.optString("url"));ProfileImage(m,url,"갤러리 사진",Modifier.size(size).clip(RoundedCornerShape(10.dp)).clickable{m.photoPreview=ProfilePhotoPreview(p.optString("name")+" 갤러리",url)})}}
     }
    }}
    item{CurrentMySwitch(area){area=it}}

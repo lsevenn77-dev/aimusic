@@ -150,7 +150,7 @@ class NativePerformanceTest{
 
  @Test fun nativeRecordingCountsDownSavesTogetherAndRecoversLostResponse(){
   ins.uiAutomation.grantRuntimePermission(context.packageName,Manifest.permission.RECORD_AUDIO)
-  launch("dubbing/$projectId");visible("native-dubbing-project");ui.onNodeWithText("녹음하기").performScrollTo().performClick();visible("native-dubbing-recorder");ui.waitUntil(20000){ui.onNodeWithTag("dubbing-record-line").fetchSemanticsNode().config.contains(androidx.compose.ui.semantics.SemanticsProperties.Disabled).not()}
+  launch("dubbing/$projectId");visible("native-dubbing-project");ui.onNodeWithText("녹음하기").performScrollTo().performClick();visible("native-dubbing-recorder");try{ui.waitUntil(20000){ui.onNodeWithTag("dubbing-record-line").fetchSemanticsNode().config.contains(androidx.compose.ui.semantics.SemanticsProperties.Disabled).not()}}catch(e:Throwable){capture("polish-268-dubbing-prepare-failure");throw AssertionError(ui.onRoot().printToString(),e)}
   ui.onNodeWithTag("dubbing-record-line").assertIsDisplayed();ui.onNodeWithTag("dubbing-save-all").assertIsDisplayed();ui.onNodeWithTag("dubbing-script-line2").assertExists()
   ui.onNodeWithTag("dubbing-record-line").performClick();text("3");capture("dubbing-countdown");text("내 대사 1 / 2")
   assertTrue(requests.none{it.first.startsWith("PUT ")})
@@ -178,9 +178,11 @@ class NativePerformanceTest{
   for((field,value) in listOf("roleCount" to "3","minutes" to "2.5","mood" to "유쾌하게","ending" to "반전")){
    ui.onNodeWithTag("dubbing-choice-$field").performScrollTo().performClick();ui.onNodeWithTag("dubbing-option-$value").performScrollTo().performClick()
   }
+  assertFalse("Editing must not automatically save",prefs.contains(key))
+  capture("polish-268-dubbing-options")
+  androidx.test.espresso.Espresso.pressBack();visible("dubbing-save-leave");capture("polish-268-dubbing-save-confirm");ui.onNodeWithTag("dubbing-save-leave").performClick()
   val saved=JSONObject(prefs.getString(key,"{}")!!).getJSONObject("options")
   assertEquals(3,saved.getInt("roleCount"));assertEquals(2.5,saved.getDouble("minutes"),0.0);assertEquals("유쾌하게",saved.getString("mood"));assertEquals("반전",saved.getString("ending"));assertEquals(2,saved.getJSONArray("genres").length())
-  ui.onNodeWithTag("native-dubbing-form").performScrollToNode(hasTestTag("dubbing-choice-genres"));capture("dubbing-create-263")
   assertFalse(requests.any{it.first.startsWith("POST ")})
   activity?.close();activity=null;launch("dubbing/$projectId");visible("native-dubbing-project");text("닫힌 복도");capture("dubbing-studio-263")
   prefs.edit().remove(key).commit()
@@ -195,7 +197,33 @@ class NativePerformanceTest{
   generationReady=true;ui.onNodeWithText("이전 AI 생성 결과 확인").performScrollTo().performClick();text("대본 편집");capture("dubbing-native-editor")
   assertEquals(2,requests.count{it.first=="POST /api/dubbing/generations"})
   assertTrue(requests.any{it.first=="GET /api/dubbing/generations/$generatedId"})
+  assertFalse(prefs.contains(key));androidx.test.espresso.Espresso.pressBack();visible("dubbing-save-leave");ui.onNodeWithTag("dubbing-save-leave").performClick()
   assertEquals("ready",JSONObject(prefs.getString(key,"{}")!!).getJSONObject("generation").getString("state"))
   prefs.edit().remove(key).commit()
+ }
+ @Test fun dubbingDiscardDoesNotKeepNewScript(){
+  val prefs=context.getSharedPreferences("native_dubbing",0);val key="script:$me:new";prefs.edit().remove(key).commit()
+  launch("dubbing/new");visible("native-dubbing-form");ui.onNodeWithTag("dubbing-choice-roleCount").performClick();ui.onNodeWithTag("dubbing-option-3").performScrollTo().performClick()
+  androidx.test.espresso.Espresso.pressBack();visible("dubbing-discard-leave");ui.onNodeWithTag("dubbing-continue").performClick();visible("native-dubbing-form")
+  androidx.test.espresso.Espresso.pressBack();visible("dubbing-discard-leave");ui.onNodeWithTag("dubbing-discard-leave").performClick();assertFalse(prefs.contains(key))
+ }
+ @Test fun dubbingDraftStorageKeepsOnlyExplicitlySavedTakes(){
+  val sound="save-${System.nanoTime()}";val d=DubbingDrafts(context,me,projectId,sound,"role_1")
+  val first=payload("id" to requestIdentity());d.file(first).writeBytes(wave);d.commit("line1",first);assertTrue(d.hasUnsavedChanges)
+  d.discard();assertTrue(d.takes.isEmpty());assertFalse(d.file(first).exists())
+  val saved=payload("id" to requestIdentity());d.file(saved).writeBytes(wave);d.commit("line1",saved);d.save();assertFalse(d.hasUnsavedChanges)
+  val replacement=payload("id" to requestIdentity());d.file(replacement).writeBytes(wave);d.commit("line1",replacement);d.discard()
+  assertEquals(saved.getString("id"),d.takes.getValue("line1").getString("id"));assertFalse(d.file(replacement).exists());assertTrue(d.file(saved).exists())
+  val restored=DubbingDrafts(context,me,projectId,sound,"role_1");assertEquals(saved.getString("id"),restored.takes.getValue("line1").getString("id"));restored.directory.deleteRecursively()
+ }
+ @Test fun dubbingRecordedProgressAsksBeforeLeaving(){
+  ins.uiAutomation.grantRuntimePermission(context.packageName,Manifest.permission.RECORD_AUDIO)
+  launch("dubbing/$projectId");visible("native-dubbing-project")
+  fun openRecorder(){ui.onNodeWithText("녹음하기").performScrollTo().performClick();visible("native-dubbing-recorder");try{ui.waitUntil(30000){!ui.onNodeWithTag("dubbing-record-line").fetchSemanticsNode().config.contains(androidx.compose.ui.semantics.SemanticsProperties.Disabled)}}catch(e:Throwable){capture("polish-268-reopen-failure");throw AssertionError(ui.onRoot().printToString()+"\nRequests: "+requests.map{it.first},e)}}
+  openRecorder();ui.onNodeWithTag("dubbing-record-line").performClick();text("내 대사 1 / 2")
+  androidx.test.espresso.Espresso.pressBack();visible("dubbing-discard-leave");capture("polish-268-recording-save-confirm");ui.onNodeWithTag("dubbing-discard-leave").performClick();visible("native-dubbing-project")
+  openRecorder();text("내 대사 0 / 2");ui.onNodeWithTag("dubbing-record-line").performClick();text("내 대사 1 / 2")
+  androidx.test.espresso.Espresso.pressBack();visible("dubbing-save-leave");ui.onNodeWithTag("dubbing-save-leave").performClick();visible("native-dubbing-project")
+  openRecorder();text("내 대사 1 / 2");assertFalse("Leaving only keeps the explicitly requested local draft",requests.any{it.first.startsWith("PUT ")});capture("polish-268-recording-resumed")
  }
 }

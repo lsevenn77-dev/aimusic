@@ -110,6 +110,7 @@ import java.net.URLEncoder
   room.optString("announcement").takeIf{it.isNotBlank()&&!keyboard}?.let{Text(it,Modifier.padding(horizontal=16.dp,vertical=6.dp),color=Muted,fontSize=12.sp,maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)}
   if(error!=null)TextButton({engine.error.value=null;engine.retry()},modifier=Modifier.fillMaxWidth()){Text(error.orEmpty()+" · 다시 확인",fontSize=12.sp,maxLines=2,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)}
   Box(Modifier.weight(1f).fillMaxWidth()){
+  profileMediaUrl(room.optJSONObject("theme")?.optJSONObject("assets")?.optString("roomMobile").orEmpty())?.let{url->AsyncImage(url,null,Modifier.matchParentSize().alpha(.35f),contentScale=androidx.compose.ui.layout.ContentScale.Crop)}
   LazyColumn(Modifier.fillMaxSize().testTag("native-voice-conversation"),state=chatList,contentPadding=PaddingValues(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
    itemsIndexed(chats,key={index,chat->chat.optString("id").ifBlank{"notice-${chat.optLong("sequence")}-${index}"}}){_,chat->
     if(chat.optString("kind")=="system")Text(chat.optString("body"),color=Muted,fontSize=12.sp)
@@ -181,16 +182,21 @@ import java.net.URLEncoder
 @Composable internal fun NativeRoomForm(api:NativeApi,initial:JSONObject=JSONObject(),submit:(JSONObject)->Unit){
  var seating by remember{mutableStateOf(initial.optString("seating_mode","approval"))}
  var title by remember{mutableStateOf(initial.optString("title"))};var visibility by remember{mutableStateOf(initial.optString("visibility","public"))};var max by remember{mutableFloatStateOf(initial.optInt("max_members",30).toFloat())};var announcement by remember{mutableStateOf(initial.optString("announcement"))};var background by remember{mutableStateOf(initial.optString("background","navy"))};var crew by remember{mutableStateOf(initial.optString("crew_id"))};var crews by remember{mutableStateOf<List<JSONObject>>(emptyList())};var error by remember{mutableStateOf<String?>(null)}
- LaunchedEffect(Unit){try{crews=api.call("/api/voice/options").optJSONArray("crews").objects()}catch(e:Exception){error=e.message}}
+ var themes by remember{mutableStateOf<List<JSONObject>>(emptyList())}
+ var selectedTheme by remember{mutableStateOf(initial.optJSONObject("theme")?.optString("sku").orEmpty().ifBlank{background})}
+ LaunchedEffect(Unit){try{val options=api.call("/api/voice/options",fresh=true);crews=options.optJSONArray("crews").objects();themes=options.optJSONArray("themes").objects()}catch(e:Exception){if(e is kotlinx.coroutines.CancellationException)throw e;error=e.message}}
  Text("토킹룸 설정",fontSize=22.sp,fontWeight=FontWeight.Bold);OutlinedTextField(title,{if(it.length<=60)title=it},label={Text("방 이름")},modifier=Modifier.fillMaxWidth());OutlinedTextField(announcement,{if(it.length<=200)announcement=it},label={Text("공지")},modifier=Modifier.fillMaxWidth())
  FlowRow{listOf("public" to "공개","private" to "초대 전용","followers" to "팔로워","crew" to "크루").forEach{(id,label)->FilterChip(visibility==id,{visibility=id},label={Text(label)})}}
  if(visibility=="crew")crews.forEach{c->FilterChip(crew==c.getString("id"),{crew=c.getString("id")},label={Text(c.optString("name"))})}
  Text("좌석 참여 방식",fontWeight=FontWeight.Medium)
  Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){listOf("approval" to "허락 후 착석","free" to "자유 착석").forEach{(id,label)->FilterChip(seating==id,{seating=id},label={Text(label)})}}
  Text("최대 ${max.toInt()}명");Slider(max,{max=it},valueRange=2f..30f,steps=27)
- FlowRow{listOf("navy" to "네이비","sunset" to "노을","night" to "밤하늘").forEach{(id,label)->FilterChip(background==id,{background=id},label={Text(label)})}}
+ Text("토크룸 배경",fontWeight=FontWeight.Medium)
+ FlowRow(horizontalArrangement=Arrangement.spacedBy(6.dp)){listOf("navy" to "네이비","sunset" to "노을","night" to "밤하늘").forEach{(id,label)->FilterChip(selectedTheme==id,{background=id;selectedTheme=id},label={Text(label)})}
+  themes.filter{it.optBoolean("paid")&&it.optBoolean("selectable")}.forEach{theme->FilterChip(selectedTheme==theme.optString("sku"),{selectedTheme=theme.optString("sku");background="navy"},label={Text(theme.optString("name"))})}
+ }
  error?.let{Text(it,color=Pink)}
- Button({submit(payload("seating_mode" to seating,"title" to title.trim(),"visibility" to visibility,"max_members" to max.toInt(),"announcement" to announcement.trim(),"background" to background,"crew_id" to crew.takeIf{visibility=="crew"}))},enabled=title.isNotBlank()&&(visibility!="crew"||crew.isNotBlank()),modifier=Modifier.fillMaxWidth()){Text(if(initial.has("id"))"설정 저장" else "방 만들기")}
+ Button({submit(payload("seating_mode" to seating,"title" to title.trim(),"visibility" to visibility,"max_members" to max.toInt(),"announcement" to announcement.trim(),"background" to background,"theme_sku" to selectedTheme,"crew_id" to crew.takeIf{visibility=="crew"}))},enabled=title.isNotBlank()&&(visibility!="crew"||crew.isNotBlank()),modifier=Modifier.fillMaxWidth()){Text(if(initial.has("id"))"설정 저장" else "방 만들기")}
 }
 @Composable private fun NativeRoomMusic(e:NativeVoiceEngine){
  var query by remember{mutableStateOf("")};var result by remember{mutableStateOf(JSONObject())};var error by remember{mutableStateOf<String?>(null)};var consent by remember{mutableStateOf<JSONObject?>(null)};val state by e.state.collectAsState();val scope=rememberCoroutineScope();val music=state.optJSONObject("music")?:JSONObject()

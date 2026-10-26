@@ -37,20 +37,27 @@ internal fun dubbingWindow(line:JSONObject):DubbingWindow {
  return DubbingWindow(line.optDouble("cueStart",start).coerceIn(0.0,start),start,end)
 }
 
-/** Private, account/sound/role scoped takes survive navigation and process death. */
+/** Only explicitly saved takes survive leaving the recorder. New takes are session work. */
 internal class DubbingDrafts(context:Context,account:String,project:String,sound:String,role:String){
  val directory:File
  private val manifest:File
  val takes=mutableMapOf<String,JSONObject>()
+ private val saved=mutableMapOf<String,JSONObject>()
+ val hasUnsavedChanges get()=takes.mapValues{it.value.toString()}!=saved.mapValues{it.value.toString()}
  init{
   require(account.isNotBlank());listOf(project,sound,role).forEach{require(Regex("[A-Za-z0-9_-]{1,64}").matches(it))}
   val owner=MessageDigest.getInstance("SHA-256").digest(account.toByteArray()).joinToString(""){"%02x".format(it)}
   directory=File(context.filesDir,"dubbing-drafts/$owner/$project/$sound/$role").apply{mkdirs()};manifest=File(directory,"takes.json")
   runCatching{val data=android.util.AtomicFile(manifest).openRead().bufferedReader().use{JSONObject(it.readText())};data.keys().forEach{k->val take=data.getJSONObject(k);if(file(take).isFile)takes[k]=take}}
+  takes.forEach{(k,v)->saved[k]=JSONObject(v.toString())}
+  cleanup()
  }
  fun file(take:JSONObject):File {val id=take.getString("id");require(Regex("[A-Za-z0-9_-]{1,64}").matches(id));return File(directory,"$id.wav")}
- fun commit(line:String,take:JSONObject){require(Regex("[A-Za-z0-9_-]{1,64}").matches(line));val previous=takes.put(line,take);try{persist()}catch(e:Exception){if(previous==null)takes.remove(line)else takes[line]=previous;throw e};if(previous!=null&&previous.optString("id")!=take.optString("id"))file(previous).delete()}
- fun uploaded(line:String,takeId:String){takes[line]?.takeIf{it.optString("id")==takeId}?.put("uploaded",true);persist()}
+ fun commit(line:String,take:JSONObject){require(Regex("[A-Za-z0-9_-]{1,64}").matches(line));takes[line]=take;cleanup()}
+ fun save(){persist();saved.clear();takes.forEach{(k,v)->saved[k]=JSONObject(v.toString())};cleanup()}
+ fun discard(){takes.clear();saved.forEach{(k,v)->takes[k]=JSONObject(v.toString())};cleanup()}
+ private fun cleanup(){val keep=(takes.values+saved.values).map{file(it).name}.toSet();directory.listFiles()?.filter{it.extension=="wav"&&it.name !in keep}?.forEach{it.delete()}}
+ fun uploaded(line:String,takeId:String){takes[line]?.takeIf{it.optString("id")==takeId}?.put("uploaded",true);save()}
  private fun persist(){val data=JSONObject();takes.forEach{(k,v)->data.put(k,v)};android.util.AtomicFile(manifest).let{atomic->val stream=atomic.startWrite();try{stream.write(data.toString().toByteArray());atomic.finishWrite(stream)}catch(e:Exception){atomic.failWrite(stream);throw e}}}
 }
 
@@ -70,8 +77,8 @@ internal class NativeDubbingAudio(private val context:Context,private val api:Na
  private var backgroundCall:okhttp3.Call?=null
  init{background.addListener(object:Player.Listener{override fun onPlayerError(error:androidx.media3.common.PlaybackException){playerError="배경 음향을 불러오지 못했어요. 연결을 확인해주세요."}})}
  /** One complete download per recorder. Each line only seeks the same local sound. */
- suspend fun prepareBackground(url:String){
-  if(preparedUrl==url&&preparedFile?.isFile==true)return
+ suspend fun prepareBackground(url:String)=withContext(Dispatchers.Main.immediate){
+  if(preparedUrl==url&&preparedFile?.isFile==true)return@withContext
   status.value="배경 음향을 한 번에 준비하고 있어요"
   val file=File.createTempFile("dubbing-background-",".audio",context.cacheDir)
   try{
@@ -91,7 +98,7 @@ internal class NativeDubbingAudio(private val context:Context,private val api:Na
    preparedFile?.delete();preparedFile=file;preparedUrl=url;status.value="배경 음향 준비 완료"
   }catch(e:Exception){file.delete();throw e}
  }
- private suspend fun awaitReady(){withTimeout(20000){while(background.playbackState!=Player.STATE_READY){playerError?.let{error(it)};delay(30)}}}
+ private suspend fun awaitReady(){try{withTimeout(20000){while(background.playbackState!=Player.STATE_READY){playerError?.let{error(it)};delay(30)}}}catch(e:TimeoutCancellationException){throw IllegalStateException("배경 음향을 재생할 준비가 지연되고 있어요. 준비 상태를 다시 확인해주세요.",e)}}
  private suspend fun ready(url:String,position:Long){
   check(preparedUrl==url&&preparedFile?.isFile==true){"배경 음향을 먼저 준비해주세요."}
   playerError?.let{error(it)};background.pause();background.seekTo(position);awaitReady()

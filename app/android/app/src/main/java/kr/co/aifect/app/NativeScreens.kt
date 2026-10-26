@@ -151,7 +151,8 @@ internal val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=
   if(m.showGifts)GiftSheet(m)
   if(m.showRewards)RewardsSheet(m)
   if(m.showProfileEdit)ProfileEditorSheet(m)
-  m.photoPreview?.let{photo->ProfilePhotoViewer(photo){m.photoPreview=null}}
+  m.galleryPreview?.let{gallery->ProfileGalleryDialog(m,gallery){m.galleryPreview=null}}
+  m.photoPreview?.let{photo->ProfilePhotoViewer(m,photo){m.photoPreview=null}}
   if(m.showMessages)MessagesSheet(m)
   listPicker?.let { song->
    AppPage(title="음악 담기",onDismissRequest={listPicker=null},containerColor=Panel){

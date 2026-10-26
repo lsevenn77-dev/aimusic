@@ -42,6 +42,26 @@ class MusicModel(app:Application):AndroidViewModel(app) {
  var showInventory by mutableStateOf(false)
  var showShop by mutableStateOf(false)
  internal var photoPreview by mutableStateOf<ProfilePhotoPreview?>(null)
+ internal var galleryPreview by mutableStateOf<ProfileGalleryPreview?>(null)
+ internal val profileImages by lazy{coil.ImageLoader.Builder(api.appContext).okHttpClient(api.client).diskCachePolicy(coil.request.CachePolicy.DISABLED).build()}
+ internal var ownGallery by mutableStateOf<List<JSONObject>?>(null)
+ private var ownGalleryJob:Job?=null
+ private var ownGalleryAt=0L
+ private var ownGalleryRevision=-1L
+ internal fun refreshMyGallery(fresh:Boolean=false){
+  val account=user?.optString("id")?:return
+  val id=user?.optString("profile_id").orEmpty().ifBlank{ownProfile.optJSONObject("profile")?.optString("id").orEmpty()}
+  if(!CurrentNavigation.safeID(id))return
+  if(ownGalleryJob?.isActive==true){if(!fresh)return;ownGalleryJob?.cancel()}
+  if(!fresh&&ownGallery!=null&&ownGalleryRevision==api.readRevision&&android.os.SystemClock.elapsedRealtime()-ownGalleryAt<20000)return
+  val scope=readScope();val path="/api/producers/$id/gallery"
+  if(ownGallery==null)api.peek(path)?.optJSONArray("photos")?.let{ownGallery=it.objects()}
+  ownGalleryJob=viewModelScope.launch{try{
+   val data=api.call(path,fresh=true);ensureRead(scope)
+   ownGallery=data.optJSONArray("photos").objects();ownGalleryRevision=api.readRevision;ownGalleryAt=android.os.SystemClock.elapsedRealtime()
+   ownGallery.orEmpty().take(4).forEach{photo->profileMediaUrl(photo.optString("url"))?.let{profileImages.enqueue(photoRequest(it))}}
+  }catch(e:Exception){if(e is CancellationException)throw e;if(user?.optString("id")==account&&e is ApiException&&e.status in listOf(401,403,404))ownGallery=null}}
+ }
  var directoryKind by mutableStateOf("artists")
  var visibleChatCount by mutableIntStateOf(0)
  var playBilling:PlayBilling?=null
@@ -166,6 +186,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
  private var ownDashboardAt=0L
  fun refreshMyDashboard(fresh:Boolean=false){
   if(user==null)return
+  refreshMyGallery(fresh)
   if(ownDashboardJob?.isActive==true){if(!fresh)return;ownDashboardJob?.cancel()}
   if(!fresh&&ownDashboard!=null&&ownDashboardRevision==api.readRevision&&android.os.SystemClock.elapsedRealtime()-ownDashboardAt<20000)return
   val scope=readScope();ownDashboardLoading=ownDashboard==null;ownDashboardError=null
@@ -179,8 +200,8 @@ class MusicModel(app:Application):AndroidViewModel(app) {
     val data=api.call(path,fresh=true);ensureRead(scope)
     check(data.optJSONObject("profile")?.optString("user_id")==scope.account){"내 프로필을 다시 확인해주세요."}
     ownDashboard=data;ownDashboardRevision=api.readRevision;ownDashboardAt=android.os.SystemClock.elapsedRealtime()
-    val context=getApplication<Application>()
-    data.optJSONArray("gallery").objects().take(4).forEach{photo->val url=photo.optString("url");if(url.isNotBlank())context.imageLoader.enqueue(ImageRequest.Builder(context).data(if(url.startsWith('/'))Endpoint.url(url)else url).size(312).build())}
+    if(ownGallery==null&&data.has("gallery"))ownGallery=data.optJSONArray("gallery").objects()
+    ownGallery.orEmpty().take(4).forEach{photo->profileMediaUrl(photo.optString("url"))?.let{profileImages.enqueue(photoRequest(it))}}
    }catch(e:Exception){if(e is CancellationException)throw e;if(sameAccount(scope)){ownDashboardError=e.message;if(e is ApiException&&e.status in listOf(401,403,404))ownDashboard=null}}
    finally{if(sameAccount(scope))ownDashboardLoading=false}
   }
@@ -327,7 +348,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   detail=null;comments=emptyList();detailBusy=false;profile=null;profileSongs=emptyList();profileCovers=emptyList();profileFollowers=0
   profileCache.clear();retryProfileLoad=null;profileLoading=false;profileError=null;messageSourceProfile=null
   showNotifications=false;unreadActivities=0;showDiamonds=false;showMessages=false;messagePeer=null;messageCrew=null;unreadMessages=0;inboxCrew=null;showProfileEdit=false;showAccountSettings=false;showRecordingDrafts=false;showRewards=false;showGifts=false;giftTarget=null;giftPerson=null
-  showAccount=false;showInventory=false;showShop=false;photoPreview=null;accountError=null;nicknameCheck=null;studioBusy=false;studioError=null;studioData=JSONObject()
+  showAccount=false;showInventory=false;showShop=false;photoPreview=null;galleryPreview=null;ownGalleryJob?.cancel();ownGallery=null;ownGalleryAt=0;ownGalleryRevision=-1;profileImages.memoryCache?.clear();accountError=null;nicknameCheck=null;studioBusy=false;studioError=null;studioData=JSONObject()
   feed=emptyList();feedFilter="전체";feedLoading=false;feedError=null;displayedFeedPath=null
   feedRequest++;feedReadScope=null;communityCrewMode=false;communityCrewTarget=null;crewBrowsing=false;lastKnownCrewId=null
   invalidateCrewPreviews()
@@ -430,6 +451,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   val nextMembership=me.optJSONObject("membership")?:JSONObject()
   if(user?.optString("id")==me.optJSONObject("user")?.optString("id")&&membership.optLong("premium_until")!=nextMembership.optLong("premium_until")){api.invalidateReads();profileCache.clear();resetLyrics()}
   user=me.optJSONObject("user");membership=nextMembership
+  if(user!=null)refreshMyGallery()
   SongAdBreaks.configure(getApplication(),user?.optString("id"),membership.optLong("premium_until",0))
   providers=me.optJSONArray("providers")?.let { a->(0 until a.length()).map { a.getString(it) } }?:emptyList()
   emailEnabled=me.optBoolean("emailEnabled")

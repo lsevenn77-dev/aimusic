@@ -104,7 +104,10 @@ internal fun manualDubbingScript(title:String,text:String,options:JSONObject):JS
  var generation by remember{mutableStateOf(cached.optJSONObject("generation")?:if(generationId.isNotBlank()&&script==null)payload("id" to generationId,"state" to "running")else JSONObject())};var config by remember{mutableStateOf(JSONObject())};var busy by remember{mutableStateOf(false)};var error by remember{mutableStateOf<String?>(null)}
  var choosing by remember{mutableStateOf("")}
  var manual by remember{mutableStateOf(false)};var title by remember{mutableStateOf(cached.optString("manualTitle"))};var text by remember{mutableStateOf(cached.optString("manualText"))}
- fun persist(){preferences.edit().putString(draftKey,payload("options" to options,"script" to script,"projectId" to projectId,"generationId" to generationId,"generation" to generation,"manualTitle" to title,"manualText" to text).toString()).apply()}
+ var dirty by remember{mutableStateOf(false)};var confirmLeave by remember{mutableStateOf(false)}
+ fun persist(){dirty=true}
+ fun saveDraft(){preferences.edit().putString(draftKey,payload("options" to options,"script" to script,"projectId" to projectId,"generationId" to generationId,"generation" to generation,"manualTitle" to title,"manualText" to text).toString()).apply();dirty=false}
+ fun leave(){if(dirty||busy)confirmLeave=true else back()}
  fun setOption(name:String,value:Any){options=JSONObject(options.toString()).put(name,value);persist()}
  fun acceptGeneration(result:JSONObject){generation=result;if(!result.isNull("id"))generationId=result.getString("id");result.optJSONObject("script")?.let{script=it;options=result.getJSONObject("options")};persist()}
  suspend fun generate(){
@@ -117,9 +120,10 @@ internal fun manualDubbingScript(title:String,text:String,options:JSONObject):JS
  fun task(block:suspend ()->Unit){if(busy)return;busy=true;error=null;scope.launch{try{block()}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}finally{busy=false}}}
  LaunchedEffect(Unit){try{config=api.call("/api/dubbing/config",fresh=true)}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}}
  LaunchedEffect(generation.optString("id"),generation.optString("state")){if(generation.optString("state")=="running")while(isActive){delay(5000);try{val result=api.call("/api/dubbing/generations/${generation.getString("id")}",fresh=true);acceptGeneration(result);if(result.optString("state")!="running")break}catch(e:Exception){if(e is CancellationException)throw e;error=e.message;break}}}
- BackHandler{persist();back()}
+ BackHandler{leave()}
+ if(confirmLeave)DubbingLeaveDialog(busy=false,onContinue={confirmLeave=false},onSave={saveDraft();confirmLeave=false;back()},onDiscard={preferences.edit().remove(draftKey).apply();confirmLeave=false;back()})
  Column(Modifier.fillMaxSize().testTag("native-dubbing-create")){
-  NativeAudioHeader(if(script==null)"더빙 만들기" else "대본 편집",{persist();back()})
+  NativeAudioHeader(if(script==null)"더빙 만들기" else "대본 편집",::leave)
   LazyColumn(Modifier.weight(1f).testTag("native-dubbing-form"),contentPadding=PaddingValues(18.dp),verticalArrangement=Arrangement.spacedBy(16.dp)){
    if(script==null){
     item{SelectionField("장르 · 최대 2개",options.getJSONArray("genres").let{a->(0 until a.length()).joinToString(" · "){a.getString(it)}},"dubbing-choice-genres",Modifier.fillMaxWidth()){choosing="genres"}}
@@ -290,11 +294,15 @@ internal fun manualDubbingScript(title:String,text:String,options:JSONObject):JS
  val context=LocalContext.current;val scope=rememberCoroutineScope();val owner=LocalLifecycleOwner.current;val id=project.getString("id");val roleId=role.getString("id");val path="/api/dubbing/projects/$id"
  val audio=remember{NativeDubbingAudio(context,api)};val running by audio.running.collectAsState();val status by audio.status.collectAsState();val count by audio.countdown.collectAsState();val level by audio.level.collectAsState();val elapsed by audio.elapsed.collectAsState()
  var view by remember{mutableStateOf(JSONObject())};var sound by remember{mutableStateOf(project.optJSONObject("sound")?:JSONObject())};var error by remember{mutableStateOf<String?>(null)};var busy by remember{mutableStateOf(false)};var drafts by remember{mutableStateOf<DubbingDrafts?>(null)};var changed by remember{mutableIntStateOf(0)};var selected by rememberSaveable{mutableIntStateOf(0)};var submit by remember{mutableStateOf(false)};var recordLine by remember{mutableStateOf<JSONObject?>(null)}
+ var confirmLeave by remember{mutableStateOf(false)};var leaving by remember{mutableStateOf(false)}
+ val latestDrafts by rememberUpdatedState(drafts)
+ fun leave(){if(busy)return;if(running){leaving=true;audio.finishLine()}else if(drafts?.hasUnsavedChanges==true)confirmLeave=true else{audio.stop();back()}}
  val mine=view.optJSONArray("lines").objects().filter{it.getString("roleId")==roleId};val all=project.getJSONObject("script").optJSONArray("lines").objects();val current=mine.getOrNull(selected);val own=view.optJSONObject("recording")?.optJSONArray("roles").objects().find{it.getString("roleId")==roleId};val submitted=own?.optString("state")=="submitted"
  fun start(l:JSONObject){drafts?.let{d->audio.record("$path/background",l,d,{changed++;recordLine=null},{error=it;recordLine=null})}}
  val permission=rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()){granted->if(granted)recordLine?.let(::start)else{error="녹음하려면 마이크 권한을 허용해주세요.";recordLine=null}}
- DisposableEffect(owner){val observer=LifecycleEventObserver{_,event->if(event==Lifecycle.Event.ON_STOP)audio.stop()};owner.lifecycle.addObserver(observer);onDispose{owner.lifecycle.removeObserver(observer);audio.close()}}
- BackHandler{audio.stop();back()}
+ DisposableEffect(owner){val observer=LifecycleEventObserver{_,event->if(event==Lifecycle.Event.ON_STOP){audio.stop();if(latestDrafts?.hasUnsavedChanges==true)confirmLeave=true}};owner.lifecycle.addObserver(observer);onDispose{owner.lifecycle.removeObserver(observer);audio.close();latestDrafts?.discard()}}
+ BackHandler{leave()}
+ LaunchedEffect(running,leaving){if(leaving&&!running){leaving=false;leave()}}
  suspend fun refresh(){view=api.call("$path/recording",fresh=true)}
  fun task(block:suspend ()->Unit){if(busy)return;busy=true;error=null;scope.launch{try{block()}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}finally{busy=false}}}
  suspend fun prepare(){
@@ -306,7 +314,7 @@ internal fun manualDubbingScript(title:String,text:String,options:JSONObject):JS
   drafts=DubbingDrafts(context,account,id,sound.getString("id"),roleId);selected=mine.indexOfFirst{!it.has("takeId")}.coerceAtLeast(0)
  }
  LaunchedEffect(Unit){busy=true;try{prepare()}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}finally{busy=false}}
- suspend fun saveAll(){audio.stop();val d=drafts?:error("녹음 준비를 확인해주세요.");refresh();for(l in view.optJSONArray("lines").objects().filter{it.getString("roleId")==roleId}){val key=l.getString("id");val take=d.takes[key]?:continue;if(l.optString("takeId")==take.optString("id")){d.uploaded(key,take.getString("id"));continue};if(take.optBoolean("uploaded"))continue;val rev=view.getJSONObject("recording").getJSONArray("roles").objects().first{it.getString("roleId")==roleId}.getInt("revision");view=api.uploadDubbingTake("$path/recording/$roleId/lines/$key?revision=$rev&take=${take.getString("id")}",d.file(take));d.uploaded(key,take.getString("id"));changed++};audio.status.value="지금까지 녹음한 대사를 모두 임시 저장했어요."}
+ suspend fun saveAll(){audio.stop();val d=drafts?:error("녹음 준비를 확인해주세요.");d.save();refresh();for(l in view.optJSONArray("lines").objects().filter{it.getString("roleId")==roleId}){val key=l.getString("id");val take=d.takes[key]?:continue;if(l.optString("takeId")==take.optString("id")){d.uploaded(key,take.getString("id"));continue};if(take.optBoolean("uploaded"))continue;val rev=view.getJSONObject("recording").getJSONArray("roles").objects().first{it.getString("roleId")==roleId}.getInt("revision");view=api.uploadDubbingTake("$path/recording/$roleId/lines/$key?revision=$rev&take=${take.getString("id")}",d.file(take));d.uploaded(key,take.getString("id"));changed++};audio.status.value="지금까지 녹음한 대사를 모두 임시 저장했어요."}
  val complete=mine.count{it.has("takeId")||drafts?.takes?.containsKey(it.getString("id"))==true}
  val scriptList=rememberLazyListState()
  val selectedId=current?.optString("id")
@@ -314,7 +322,7 @@ internal fun manualDubbingScript(title:String,text:String,options:JSONObject):JS
  val roles=project.getJSONObject("script").optJSONArray("roles").objects()
  val colors=listOf(Color(0xFFA7C9FF),Color(0xFFF4B1D3),Color(0xFF9DE1C7),Color(0xFFF1D38F),Color(0xFFCFB5F5),Color(0xFFFFB6A1))
  Column(Modifier.fillMaxSize().testTag("native-dubbing-recorder")){
-  NativeAudioHeader("${role.optString("name")} · 녹음",{audio.stop();back()})
+  NativeAudioHeader("${role.optString("name")} · 녹음",::leave)
   Column(Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=8.dp)){
    Text(project.optString("title"),fontSize=18.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)
    Text("내 대사 $complete / ${mine.size} · ${if(submitted)"제출 완료" else "대사를 선택해 녹음하세요"}",color=Muted,fontSize=12.sp,modifier=Modifier.padding(top=5.dp))
@@ -359,7 +367,15 @@ internal fun manualDubbingScript(title:String,text:String,options:JSONObject):JS
    }
   }
  }
+ if(confirmLeave)DubbingLeaveDialog(busy,onContinue={confirmLeave=false},onSave={try{drafts?.save();confirmLeave=false;audio.stop();back()}catch(e:Exception){error=e.message;confirmLeave=false}},onDiscard={drafts?.discard();confirmLeave=false;audio.stop();back()})
  if(submit)AlertDialog(onDismissRequest={if(!busy)submit=false},title={Text("모든 대사를 제출할까요?")},text={Text("내 음성을 함께 만든 더빙 작품으로 공개하는 데 동의합니다. 제출한 녹음은 수정할 수 없어요.")},confirmButton={TextButton(enabled=!busy,onClick={task{saveAll();val rev=view.getJSONObject("recording").getJSONArray("roles").objects().first{it.getString("roleId")==roleId}.getInt("revision");view=api.call("$path/recording/$roleId/submit","POST",payload("revision" to rev,"rightsAccepted" to true));submit=false;audio.status.value="제출했어요. 모든 배역이 완료되면 더빙이 합성돼요."}}){Text("동의하고 제출")}},dismissButton={TextButton({submit=false},enabled=!busy){Text("취소")}})
+}
+
+@Composable internal fun DubbingLeaveDialog(busy:Boolean,onContinue:()->Unit,onSave:()->Unit,onDiscard:()->Unit){
+ AlertDialog(onDismissRequest=onContinue,title={Text("진행사항을 저장할까요?")},text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
+  Text("저장을 선택하면 이 기기에서 이어서 작업할 수 있어요. 저장하지 않으면 이번 작업의 저장 전 변경사항을 삭제해요.")
+  TextButton(onContinue,enabled=!busy,modifier=Modifier.testTag("dubbing-continue")){Text("계속 작업하기")}
+ }},confirmButton={TextButton(onSave,enabled=!busy,modifier=Modifier.testTag("dubbing-save-leave")){Text("저장하고 나가기")}},dismissButton={TextButton(onDiscard,enabled=!busy,modifier=Modifier.testTag("dubbing-discard-leave")){Text("저장 안 함")}})
 }
 
 @Composable private fun NativeDubbingComments(api:NativeApi,project:JSONObject){

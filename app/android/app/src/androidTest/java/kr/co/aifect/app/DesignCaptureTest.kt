@@ -94,6 +94,7 @@ class DesignCaptureTest {
   responses["/api/producers/design-peer"]=payload("profile" to peer,"tracks" to JSONArray(),"covers" to arr(cover,duet),"followers" to 128)
   responses["/api/producers/design-own"]=payload("profile" to own,"tracks" to arr(song,second),"covers" to arr(cover),"followers" to 24)
   responses["/api/producers/design-own?dashboard=1"]=payload("profile" to own,"tracks" to arr(song,second),"covers" to arr(cover,duet),"dubbings" to arr(dubbing),"followers" to 24,"following_count" to 18,"crew" to crew,"artists" to arr(payload("id" to "design-artist","name" to "NOVA")),"gallery" to arr(payload("url" to "/media/producer-gallery/design-photo?v=sample")))
+  responses["/api/producers/design-own/gallery"]=payload("photos" to arr(payload("id" to "own-photo","url" to "/media/profile-gallery/own-photo?v=sample")))
   responses["/api/artists/design-artist"]=payload("profile" to payload("id" to "design-artist","name" to "NOVA","bio" to "도시의 밤과 푸른 순간을 노래하는 AI 아티스트","image_version" to "sample","user_id" to "design-user"),"tracks" to arr(song,second),"followers" to 86,"can_manage" to true,"gallery" to arr(payload("id" to "photo-1","url" to "/media/artist-gallery/photo-1?v=sample"),payload("id" to "photo-2","url" to "/media/artist-gallery/photo-2?v=sample")))
   for(t in listOf(song,second,cover,duet)){
    val id=t.getString("id")
@@ -160,6 +161,34 @@ class DesignCaptureTest {
  private fun act(block:(MusicModel)->Unit){screen.onActivity{block(model)};ui.waitForIdle()}
  private fun capture(name:String){ui.waitForIdle();instrumentation.waitForIdleSync();Thread.sleep(850);val image=instrumentation.uiAutomation.takeScreenshot();val dir=File(context.getExternalFilesDir(null),"design-2549");dir.mkdirs();FileOutputStream(File(dir,name+".png")).use{image.compress(Bitmap.CompressFormat.PNG,100,it)};image.recycle()}
 
+ @Test fun polish268GalleryScrollsAndPhotosReallyLoad(){
+  val photos=JSONArray((0..15).map{payload("id" to "own-$it","url" to "/media/profile-gallery/own-$it?v=sample")})
+  responses["/api/producers/design-own/gallery"]=payload("photos" to photos)
+  act{it.refreshMyGallery(true)};ui.waitUntil(15000){model.ownGallery?.size==16}
+  act{it.selectTab(6)};ready("my-avatar-open");ui.onNodeWithTag("my-avatar-open").performClick();ready("profile-photo-viewer");ready("profile-image-loaded");capture("polish-268-own-avatar");Espresso.pressBack()
+  ui.onNodeWithTag("current-my").performScrollToNode(hasText("갤러리"));ui.onAllNodesWithText("전체보기").onFirst().performClick();ready("gallery-photo-grid")
+  ui.onNodeWithTag("gallery-photo-grid").performScrollToIndex(15);ui.onNodeWithTag("gallery-photo-15").performClick();ready("profile-photo-viewer");ready("profile-image-loaded")
+  assertTrue(model.photoPreview?.url?.contains("own-15")==true);capture("polish-268-gallery-zoom");Espresso.pressBack();ready("gallery-photo-15");capture("polish-268-gallery-scroll");Espresso.pressBack()
+  act{it.openProfile("design-peer")};ready("profile-photo-frame");ui.onNodeWithTag("profile-photo-frame").performClick();ready("profile-photo-viewer");ready("profile-image-loaded");assertTrue(model.photoPreview?.url?.contains("/producer/design-peer")==true);Espresso.pressBack();Espresso.pressBack()
+  responses.getValue("/api/artists/design-artist").getJSONObject("profile").put("bio",("루넷은 달빛을 노래하는 AI 가수예요. 새로운 음악과 이야기를 여러분과 나눕니다. ").repeat(8))
+  act{it.openProfile("design-artist","artist")};ready("profile-bio-toggle");ui.onNodeWithTag("profile-bio-toggle").performClick();ui.onNodeWithTag("profile-scroll").performScrollToNode(hasTestTag("profile-bio-toggle"));ui.onNodeWithText("숨기기").assertIsDisplayed();capture("polish-268-artist-bio");ui.onNodeWithTag("profile-bio-toggle").performClick()
+  ui.onNodeWithTag("profile-scroll").performScrollToNode(hasText("갤러리") and hasClickAction());ui.onNode(hasText("갤러리") and hasClickAction()).performClick();ready("artist-photo-gallery")
+  ui.onNodeWithTag("profile-scroll").performScrollToNode(hasTestTag("artist-photo-gallery"));ui.onAllNodesWithContentDescription("NOVA 갤러리 사진 크게 보기").onFirst().performClick();ready("profile-photo-viewer");ready("profile-image-loaded");capture("polish-268-artist-photo")
+ }
+ @Test fun polish268GalleryArrivesBeforeSlowDashboard(){
+  ui.waitUntil(15000){model.ownGallery?.isNotEmpty()==true}
+  val gate=CountDownLatch(1);heldResponses["/api/producers/design-own"]=gate
+  try{act{it.ownDashboard=null;it.refreshMyDashboard(true);it.selectTab(6)};ui.onNodeWithTag("current-my").performScrollToNode(hasText("갤러리"));ui.onAllNodesWithContentDescription("갤러리 사진").onFirst().assertIsDisplayed();capture("polish-268-fast-gallery")}finally{gate.countDown();heldResponses.clear()}
+ }
+ @Test fun polish268ShopCategoriesKeepCurrencyWithinGifts(){
+  val frame=payload("sku" to "frame-test","name" to "오로라 링","kind" to "PROFILE_FRAME","periodPrices" to payload("P7D" to 50,"P1M" to 150,"P3M" to 390),"assetPaths" to payload("thumbnail" to "/media/frame/image"))
+  val theme=payload("sku" to "theme-test","name" to "별빛 라운지","kind" to "TALKING_ROOM_THEME","periodPrices" to payload("P7D" to 100,"P1M" to 300,"P3M" to 790),"assetPaths" to payload("roomCard" to "/media/theme/image"))
+  responses["/api/decorations"]=payload("products" to arr(frame,theme),"periods" to payload("P7D" to "7일","P1M" to "1개월","P3M" to "3개월"))
+  act{it.selectTab(6);it.showShop=true};ready("shop-item-balloon");ui.onNodeWithTag("shop-tab-silver").performClick();ready("shop-item-silver-letter");capture("polish-268-gift-tabs")
+  ui.onNodeWithTag("shop-category-frames").performClick();ready("shop-decoration-frame-test");ui.onNodeWithTag("shop-tab-silver").assertDoesNotExist();ui.onNodeWithTag("shop-decoration-frame-test").performClick();ui.onNodeWithTag("decoration-period-P1M").performClick();text("150 G");capture("polish-268-frame-purchase");ui.onNodeWithText("취소").performClick()
+  ui.onNodeWithTag("shop-category-themes").performClick();ready("shop-decoration-theme-test");capture("polish-268-theme-shop")
+  assertFalse(requestBodies.containsKey("/api/decorations/buy"));ui.onNodeWithTag("shop-category-gifts").performClick();ready("shop-item-silver-letter")
+ }
  @Test fun homeKeepsTwoLineRowsAndFollowsItsTabOrder(){
   ready("home-featured-play");capture("home-257-01-top")
   val scroll=ui.onNodeWithTag("listen-scroll",useUnmergedTree=true)

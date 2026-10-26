@@ -94,11 +94,12 @@ import org.json.JSONObject
    Column(Modifier.weight(1f).padding(start=8.dp)){
     Text(name,fontSize=19.sp,fontWeight=FontWeight.Bold,maxLines=2,overflow=TextOverflow.Ellipsis,modifier=Modifier.testTag("$context-name"))
     if(person&&p.optString("partner_badge").let{it.isNotBlank()&&it!="null"})Text(p.optString("partner_badge"),fontSize=11.sp,color=Aqua,modifier=Modifier.padding(top=4.dp))
-    if(p.optString("bio").isNotBlank())Text(p.optString("bio"),color=Muted,fontSize=12.sp,maxLines=2,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=5.dp))
+    if(person&&p.optString("bio").isNotBlank())ProfileBiography(p.optString("bio"))
    }
    if(myPage)IconButton(onClick={m.showAccount=true},modifier=Modifier.testTag("my-profile-settings")){Icon(Icons.Rounded.Settings,"계정 설정",tint=Aqua,modifier=Modifier.size(21.dp))}
    else close?.let{dismiss->IconButton(onClick=dismiss,modifier=Modifier.testTag("profile-close")){Icon(Icons.Rounded.Close,"프로필 닫기",tint=SoftText)}}
   }
+  if(!person&&p.optString("bio").isNotBlank())ProfileBiography(p.optString("bio"))
   HorizontalDivider(Modifier.padding(top=12.dp,bottom=4.dp),color=Stroke.copy(alpha=.6f))
   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(4.dp)){
    ProfileStatistic("공개곡",music.size,Modifier.weight(1f),"$context-stat-music")
@@ -120,6 +121,15 @@ import org.json.JSONObject
    ProfileCrewInvite(m,p)
    ProfileGiftRanking(m,p)
   }
+ }
+}
+
+@Composable internal fun ProfileBiography(bio:String){
+ var expanded by rememberSaveable(bio){mutableStateOf(false)}
+ var overflow by remember(bio){mutableStateOf(false)}
+ Column(Modifier.padding(top=5.dp)){
+  Text(bio,color=Muted,fontSize=12.sp,lineHeight=19.sp,maxLines=if(expanded)Int.MAX_VALUE else 2,overflow=TextOverflow.Ellipsis,modifier=Modifier.testTag("profile-biography"),onTextLayout={if(!expanded)overflow=it.hasVisualOverflow})
+  if(overflow||expanded)TextButton({expanded=!expanded},contentPadding=PaddingValues(horizontal=0.dp),modifier=Modifier.heightIn(min=44.dp).testTag("profile-bio-toggle")){Text(if(expanded)"숨기기" else "더보기",fontSize=12.sp,color=Aqua)}
  }
 }
 

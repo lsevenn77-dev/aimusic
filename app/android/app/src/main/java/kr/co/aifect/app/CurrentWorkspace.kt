@@ -41,7 +41,7 @@ import org.json.JSONObject
  var fileReply by remember{mutableStateOf<ValueCallback<Array<Uri>>?>(null)}
  val picker=rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()){r->fileReply?.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(r.resultCode,r.data));fileReply=null}
  val route=destination.route
- fun close(){m.api.invalidateReads();m.workspace=null}
+ fun close(){m.api.invalidateReads();m.workspace=null;if(destination.route.startsWith("profile-gallery/"))m.refreshMyDashboard(fresh=true)}
  fun requestClose(){close()}
  fun nativeDestination(raw:String):Boolean{
   val root=raw.substringBefore('?')

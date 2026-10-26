@@ -43,6 +43,7 @@ import java.util.UUID
  var error by remember{mutableStateOf<String?>(null)}
  var success by remember{mutableStateOf<String?>(null)}
  var currency by rememberSaveable{mutableStateOf("gold")}
+ var category by rememberSaveable{mutableStateOf("gifts")}
  var selected by rememberSaveable{mutableStateOf<String?>(null)}
  var quantity by rememberSaveable{mutableIntStateOf(1)}
  var requestId by rememberSaveable{mutableStateOf(UUID.randomUUID().toString())}
@@ -78,8 +79,12 @@ import java.util.UUID
    success?.let{item{Surface(color=Aqua.copy(alpha=.08f),shape=RoundedCornerShape(12.dp)){
     Column(Modifier.fillMaxWidth().padding(12.dp)){Text(it,color=Aqua,fontSize=14.sp,modifier=Modifier.testTag("shop-success"));TextButton(onClick={m.showInventory=true}){Text("인벤토리에서 보기")}}
    }}}
-   item{TabRow(selectedTabIndex=if(currency=="gold")0 else 1,containerColor=Ink,contentColor=Aqua){
-    listOf("gold" to "골드 아이템","silver" to "실버 아이템").forEach{(key,label)->Tab(selected=currency==key,onClick={currency=key},enabled=!working,text={Text(label)},modifier=Modifier.testTag("shop-tab-$key"))}
+   item{TabRow(selectedTabIndex=listOf("gifts","frames","themes").indexOf(category),containerColor=Ink,contentColor=Aqua){
+    listOf("gifts" to "선물","frames" to "액자","themes" to "토크룸 배경").forEach{(key,label)->Tab(selected=category==key,onClick={category=key},enabled=!working,text={Text(label,fontSize=13.sp,maxLines=1)},modifier=Modifier.testTag("shop-category-$key"))}
+   }}
+   if(category=="gifts"){
+   item{Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
+    listOf("gold" to "골드","silver" to "실버").forEach{(key,label)->FilterChip(selected=currency==key,onClick={currency=key},enabled=!working,label={Text(label)},modifier=Modifier.testTag("shop-tab-$key"))}
    }}
    items(catalog.chunked(3)){row->Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)){
     row.forEach{gift->Surface(onClick={selected=gift.optString("id");quantity=1;requestId=UUID.randomUUID().toString();orderError=null},enabled=!working&&!loading,color=Panel,shape=RoundedCornerShape(14.dp),modifier=Modifier.weight(1f).testTag("shop-item-${gift.optString("id")}")){
@@ -91,6 +96,7 @@ import java.util.UUID
     }}
     repeat(3-row.size){Spacer(Modifier.weight(1f))}
    }}
+   }else item{DecorationShopPanel(m,category,wallet?.optLong("balance")?:0,working,{working=it}){refresh()}}
   }
  }
  if(choice!=null){

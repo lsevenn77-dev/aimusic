@@ -135,6 +135,9 @@ internal class NativeVoiceEngine(private val context:Context,val roomId:String,p
   if(closed||next.optString("generation")!=generation||next.optLong("revision")<state.value.optLong("revision",-1))return
   next.optJSONArray("chat").objects().filter{it.optString("kind")=="gift"}.forEach{chat->if(seenGifts.add(chat.optString("id"))&&giftsInitialized)giftAnimations.tryEmit(chat)}
   giftsInitialized=true;while(seenGifts.size>200)seenGifts.remove(seenGifts.first())
+  // Socket snapshots contain voice state only; keep the HTTP-validated room artwork.
+  val nextRoom=next.optJSONObject("room");val previousRoom=state.value.optJSONObject("room")
+  if(nextRoom!=null&&!nextRoom.has("theme")&&nextRoom.optString("host_id")==previousRoom?.optString("host_id"))previousRoom.optJSONObject("theme")?.let{nextRoom.put("theme",it)}
   state.value=next
   val me=self()
   if((me==null||me.isNull("seat")||me.optBoolean("locked"))&&publisher!=null){

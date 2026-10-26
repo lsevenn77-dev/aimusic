@@ -26,7 +26,6 @@ import org.json.JSONObject
  val aid=p.optString("id")
  val photos=p.optJSONArray("gallery").objects()
  val manage=p.optBoolean("can_manage")
- var selected by remember(aid){mutableStateOf<JSONObject?>(null)}
  var deleting by remember(aid){mutableStateOf<JSONObject?>(null)}
  val picker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()){uri->
   if(uri!=null)m.action{
@@ -46,7 +45,8 @@ import org.json.JSONObject
    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(10.dp)){
     pair.forEach{photo->
      Box(Modifier.weight(1f).aspectRatio(1f).clip(RoundedCornerShape(16.dp)).background(Panel)){
-      AsyncImage(Endpoint.url(photo.optString("url")),"${p.optString("name")} 갤러리 사진 크게 보기",Modifier.fillMaxSize().clickable{selected=photo},contentScale=ContentScale.Crop)
+      val url=profileMediaUrl(photo.optString("url"))
+      ProfileImage(m,url,"${p.optString("name")} 갤러리 사진 크게 보기",Modifier.fillMaxSize().clickable{m.photoPreview=ProfilePhotoPreview(p.optString("name")+" 갤러리",url)})
       if(manage)FilledTonalButton(onClick={deleting=photo},enabled=!m.busy,modifier=Modifier.align(Alignment.BottomEnd).padding(4.dp),contentPadding=PaddingValues(horizontal=12.dp)){Text("삭제",fontSize=14.sp)}
      }
     }
@@ -54,12 +54,6 @@ import org.json.JSONObject
    }
   }
  }
- selected?.let{photo->AppPage(title="사진 보기",onDismissRequest={selected=null}){
-  Surface(shape=RoundedCornerShape(20.dp),color=Ink){Column(Modifier.fillMaxWidth()){
-   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Text(p.optString("name"),Modifier.weight(1f).padding(start=16.dp));IconButton(onClick={selected=null}){Icon(Icons.Rounded.Close,"사진 닫기")}}
-   AsyncImage(Endpoint.url(photo.optString("url")),"${p.optString("name")} 갤러리 사진",Modifier.fillMaxWidth().heightIn(min=200.dp,max=560.dp),contentScale=ContentScale.Fit)
-  }}
- }}
  deleting?.let{photo->AlertDialog(onDismissRequest={deleting=null},title={Text("이 사진을 삭제할까요?")},text={Text("AI 가수 갤러리에서 제거됩니다.")},confirmButton={TextButton(onClick={
   deleting=null;m.action{m.api.call("/api/artists/$aid/gallery/${photo.optString("id")}","DELETE");if(m.profile?.optString("id")==aid)m.openProfile(aid,"artist");m.notice="사진을 삭제했어요."}
  }){Text("사진 삭제")}},dismissButton={TextButton(onClick={deleting=null}){Text("취소")}})}

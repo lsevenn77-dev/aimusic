@@ -88,6 +88,7 @@ internal fun playerLevel(xp:Int)=((1+sqrt(1+xp.coerceAtLeast(0)/12.5))/2).toInt(
  var gifts by remember(account){mutableStateOf<List<JSONObject>?>(null)}
  var giftError by remember(account){mutableStateOf<String?>(null)}
  var gift by remember(account){mutableStateOf<JSONObject?>(null)}
+ var decoration by remember(account){mutableStateOf<JSONObject?>(null)}
  LaunchedEffect(account,retry){try{val d=m.api.call("/api/me/player");if(m.user?.optString("id")==account){data=d;error=null}}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}}
  LaunchedEffect(account,retry){try{val d=m.api.call("/api/me/gift-inventory",fresh=true);if(m.user?.optString("id")==account){gifts=d.optJSONArray("items").objects();giftError=null}}catch(e:Exception){if(e is CancellationException)throw e;giftError=e.message}}
  AppPage(title="인벤토리",onDismissRequest=close,containerColor=Ink){
@@ -115,6 +116,19 @@ internal fun playerLevel(xp:Int)=((1+sqrt(1+xp.coerceAtLeast(0)/12.5))/2).toInt(
      repeat(3-row.size){Spacer(Modifier.weight(1f))}
     }}
    }
+   val decorations=(data?.optJSONArray("stored_decorations").objects()+data?.optJSONArray("decorations").objects()).distinctBy{it.optString("id")}
+   if(decorations.isNotEmpty())item{Text("액자 · 토크룸 배경",fontSize=16.sp,fontWeight=FontWeight.SemiBold)}
+   items(decorations.chunked(3)){row->Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)){
+    row.forEach{i->val product=i.optJSONObject("product")?:i;val stored=i.optBoolean("stored")||i.optString("source")=="decoration_stock"
+     Surface(onClick={decoration=i},enabled=stored&&i.optBoolean("available")&&!busy,color=Panel,shape=RoundedCornerShape(12.dp),modifier=Modifier.weight(1f).testTag("inventory-decoration-${i.optString("id")}")){
+      Column(Modifier.height(156.dp).padding(8.dp),horizontalAlignment=Alignment.CenterHorizontally){
+       AsyncImage(decorationImage(product),product.optString("name"),Modifier.fillMaxWidth().weight(1f),contentScale=ContentScale.Fit)
+       Text(product.optString("name"),fontSize=12.sp,maxLines=2,modifier=Modifier.height(44.dp).wrapContentHeight())
+       Text(if(stored)"보관 중" else if(i.optBoolean("available"))"사용 가능" else "기간 만료",fontSize=11.sp,color=Muted)
+      }
+     }
+    };repeat(3-row.size){Spacer(Modifier.weight(1f))}
+   }}
    if(gifts==null&&giftError==null)item{LinearProgressIndicator(Modifier.fillMaxWidth(),color=Aqua)}
    giftError?.let{item{Text(it,color=Pink);TextButton(onClick={retry++}){Text("보유 선물 다시 불러오기")}}}
    val ownedGifts=gifts.orEmpty().groupBy{it.optString("gift_type")+":"+it.optBoolean("available",true)}.values.toList()
@@ -130,10 +144,11 @@ internal fun playerLevel(xp:Int)=((1+sqrt(1+xp.coerceAtLeast(0)/12.5))/2).toInt(
      }
     };repeat(3-row.size){Spacer(Modifier.weight(1f))}
    }}
-   if(data!=null&&data?.optJSONArray("inventory").objects().none{it.optBoolean("owned",true)}&&gifts?.isEmpty()==true)item{Text("보유한 아이템이 없어요.",fontSize=14.sp,color=Muted)}
+   if(data!=null&&data?.optJSONArray("inventory").objects().none{it.optBoolean("owned",true)}&&decorations.isEmpty()&&gifts?.isEmpty()==true)item{Text("보유한 아이템이 없어요.",fontSize=14.sp,color=Muted)}
   }
  }
  gift?.let{selected->OwnedGiftSendPage(m,selected,{gift=null}){result->gifts=result.optJSONArray("items").objects();gift=null;m.notice="선물을 보냈어요."}}
+ decoration?.let{i->val request=remember(i.optString("id")){requestIdentity()};AlertDialog(onDismissRequest={if(!busy)decoration=null},title={Text("아이템을 사용할까요?")},text={Text("사용을 시작하면 이용 기간이 적용돼요. 액자는 장착하고, 배경은 토크룸 설정에서 선택할 수 있어요.")},dismissButton={TextButton({decoration=null},enabled=!busy){Text("취소")}},confirmButton={TextButton(enabled=!busy,onClick={busy=true;scope.launch{try{m.api.call("/api/decorations/inventory/${i.optString("id")}/use","POST",payload("request_id" to request));val result=m.api.call("/api/me/player",fresh=true);if(account==m.user?.optString("id")){data=result;decoration=null;error=null}}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}finally{busy=false}}}){Text("사용 시작")}})}
 }
 
 @Composable private fun PlayerLevelStrip(p:JSONObject,open:()->Unit){
