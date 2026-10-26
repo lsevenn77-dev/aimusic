@@ -23,12 +23,14 @@ const testLog=readFileSync(base+'-tests.log','utf8');
 console.log(testLog.split('\n').filter(x=>/^# (tests|pass|fail|skipped|duration_ms) /.test(x)).join('\n'));
 console.log('Building the existing Sites Worker and client.');
 await run(['scripts/build.mjs'],base+'-build.log');
+console.log('Checking built Worker/assets routing and public media with isolated local storage.');
+await run(['tests/preview-public-music.mjs','--check'],base+'-public-smoke.log');
 if(hashFiles(sourceFiles())!==fingerprint)throw new Error('Source changed while testing/building; run release:prepare again.');
 const changed=changedFiles(),migrations=changed.filter(f=>/^drizzle\/[^/]+\.sql$/.test(f));
 const report={prepared_at:new Date().toISOString(),project_id:policy.project_id,production_url:policy.production_url,
  source_head:git('rev-parse','HEAD'),branch:git('branch','--show-current'),source_sha256:fingerprint,build_sha256:hashFiles(buildFiles()),
  changed_files:changed,pending_migrations:migrations,tests:{files:tests.length,passed:Number(testLog.match(/^# pass (\d+)/m)?.[1]||0),failed:0,log:base+'-tests.log'},
- build:{passed:true,log:base+'-build.log'},saved_version:null,deployment_approved:false,database_change_approved:false};
+ build:{passed:true,log:base+'-build.log'},public_smoke:{passed:true,log:base+'-public-smoke.log'},saved_version:null,deployment_approved:false,database_change_approved:false};
 writeFileSync(latest,JSON.stringify(report,null,2)+'\n');writeFileSync(base+'.json',JSON.stringify(report,null,2)+'\n');
 console.log('Prepared without saving or deploying: '+latest);
 console.log('Pending migration files: '+(migrations.join(', ')||'none'));

@@ -1,0 +1,173 @@
+[
+  {
+    "id": "a12c93eb-4894-4109-8345-971c507febec",
+    "title": "별일 아닌 것처럼",
+    "producer_id": "ff6a2f36-5277-4a99-b00d-9586543580d0",
+    "kind": "cover",
+    "cover_mode": "duet",
+    "original_id": "d4c239cc-d765-4ca3-a62e-97283a7c9e8b",
+    "description": ""
+  },
+  {
+    "id": "e8ce3d21-43f4-4eee-bf8c-e6187b417d7d",
+    "title": "별일 아닌 것처럼",
+    "producer_id": "ff6a2f36-5277-4a99-b00d-9586543580d0",
+    "kind": "cover",
+    "cover_mode": "solo",
+    "original_id": "d4c239cc-d765-4ca3-a62e-97283a7c9e8b",
+    "description": ""
+  },
+  {
+    "id": "40d9c296-8098-4f3a-a4d5-344a3621d60f",
+    "title": "비행운",
+    "producer_id": "ff6a2f36-5277-4a99-b00d-9586543580d0",
+    "kind": "cover",
+    "cover_mode": "solo",
+    "original_id": "2b4a4bce-a7e9-4f80-b688-d49b551c0cef",
+    "description": ""
+  },
+  {
+    "id": "2b4a4bce-a7e9-4f80-b688-d49b551c0cef",
+    "title": "비행운",
+    "producer_id": "75e8dbe4-b8b9-4b8a-83f2-e92583ebfdae",
+    "kind": "original",
+    "cover_mode": "solo",
+    "original_id": null,
+    "description": "0000"
+  },
+  {
+    "id": "1026bba2-0b78-4bea-8a08-04398a6bd497",
+    "title": "Turn it up",
+    "producer_id": "75e8dbe4-b8b9-4b8a-83f2-e92583ebfdae",
+    "kind": "original",
+    "cover_mode": "solo",
+    "original_id": null,
+    "description": ""
+  },
+  {
+    "id": "8aa3c4cb-dcc0-41af-9260-b6f758075d05",
+    "title": "Aftershock",
+    "producer_id": "3f8cfa01-9f9c-4c09-88d5-2ff01cc67dec",
+    "kind": "original",
+    "cover_mode": "solo",
+    "original_id": null,
+    "description": ""
+  },
+  {
+    "id": "8be24352-e0b4-4645-b0fb-1f31f14f41b3",
+    "title": "Okinawa",
+    "producer_id": "38abf68f-60b7-4086-967c-834a09ffc954",
+    "kind": "original",
+    "cover_mode": "solo",
+    "original_id": null,
+    "description": ""
+  },
+  {
+    "id": "4cef5b92-6ab0-4e89-882e-63574db0f783",
+    "title": "Blurry on purpose",
+    "producer_id": "b4a74727-a644-4a1b-bc96-5b8b45cae068",
+    "kind": "original",
+    "cover_mode": "solo",
+    "original_id": null,
+    "description": ""
+  },
+  {
+    "id": "fa24aee4-6ef5-41f9-b2e6-819a144d72b0",
+    "title": "물수제비",
+    "producer_id": "75e8dbe4-b8b9-4b8a-83f2-e92583ebfdae",
+    "kind": "original",
+    "cover_mode": "solo",
+    "original_id": null,
+    "description": "잘 불러보세요"
+  },
+  {
+    "id": "28a2aa28-c0ed-4198-a0f0-4bf7a76abf8b",
+    "title": "Caught Ya!",
+    "producer_id": "b4a74727-a644-4a1b-bc96-5b8b45cae068",
+    "kind": "original",
+    "cover_mode": "solo",
+    "original_id": null,
+    "description": ""
+  },
+  {
+    "id": "fef77394-8dd9-4638-9e82-a241b77b738c",
+    "title": "한 번뿐이니까",
+    "producer_id": "3f8cfa01-9f9c-4c09-88d5-2ff01cc67dec",
+    "kind": "original",
+    "cover_mode": "solo",
+    "original_id": null,
+    "description": ""
+  },
+  {
+    "id": "068aa26a-cb99-41be-96e1-7e61beb54de1",
+    "title": "참 좋다",
+    "producer_id": "b4a74727-a644-4a1b-bc96-5b8b45cae068",
+    "kind": "original",
+    "cover_mode": "solo",
+    "original_id": null,
+    "description": ""
+  },
+  {
+    "id": "d4c239cc-d765-4ca3-a62e-97283a7c9e8b",
+    "title": "별일 아닌 것처럼",
+    "producer_id": "b4a74727-a644-4a1b-bc96-5b8b45cae068",
+    "kind": "original",
+    "cover_mode": "solo",
+    "original_id": null,
+    "description": ""
+  },
+  {
+    "id": "91252ca1-1715-4dfb-9fee-aa01a05ca6be",
+    "title": "조금씩 멀어지고 있었나 봐",
+    "producer_id": "b4a74727-a644-4a1b-bc96-5b8b45cae068",
+    "kind": "original",
+    "cover_mode": "solo",
+    "original_id": null,
+    "description": ""
+  },
+  {
+    "id": "d4eeb934-5662-4a85-9474-ba29b85d8e75",
+    "title": "널 사랑하지 않아",
+    "producer_id": "75e8dbe4-b8b9-4b8a-83f2-e92583ebfdae",
+    "kind": "original",
+    "cover_mode": "solo",
+    "original_id": null,
+    "description": "-"
+  },
+  {
+    "id": "b545d1c3-6c8d-46b7-bf64-0a5c91032cf2",
+    "title": "난 안 괜찮아",
+    "producer_id": "b4a74727-a644-4a1b-bc96-5b8b45cae068",
+    "kind": "original",
+    "cover_mode": "solo",
+    "original_id": null,
+    "description": "없음"
+  },
+  {
+    "id": "f922a40a-6aa8-4be2-9ba6-17eb2237ad63",
+    "title": "금단증상",
+    "producer_id": "b4a74727-a644-4a1b-bc96-5b8b45cae068",
+    "kind": "original",
+    "cover_mode": "solo",
+    "original_id": null,
+    "description": "위험하지만 즐기고 있는 사랑"
+  },
+  {
+    "id": "fb173848-a634-4f2d-a30d-22b57fb7776e",
+    "title": "도깨비 신부",
+    "producer_id": "b4a74727-a644-4a1b-bc96-5b8b45cae068",
+    "kind": "original",
+    "cover_mode": "solo",
+    "original_id": null,
+    "description": "도깨비신부 설화"
+  },
+  {
+    "id": "69e208a7-f7c0-45b9-8f2d-1621ace4fabb",
+    "title": "조금 많이 좋아해서..",
+    "producer_id": "b4a74727-a644-4a1b-bc96-5b8b45cae068",
+    "kind": "original",
+    "cover_mode": "solo",
+    "original_id": null,
+    "description": "이루어질 수 없는 사랑에 대한 노래"
+  }
+]

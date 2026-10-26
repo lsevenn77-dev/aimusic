@@ -68,4 +68,6 @@ const migrationOutput=resolve('dist/.openai/drizzle'),metadataRoot=resolve('dist
 if(!migrationOutput.startsWith(metadataRoot+sep))throw new Error('Migration output is outside the build directory');
 await rm(migrationOutput,{recursive:true,force:true});
 await cp('drizzle',migrationOutput,{recursive:true});
-await writeFile('dist/server/wrangler.json',JSON.stringify({main:'index.js',compatibility_date:'2026-09-01',assets:{directory:'../client',binding:'ASSETS'}}));
+// The homepage must run the public catalog renderer before the index asset.
+// Keep other static assets on the asset-first path (no database work per image).
+await writeFile('dist/server/wrangler.json',JSON.stringify({main:'index.js',compatibility_date:'2026-09-01',assets:{directory:'../client',binding:'ASSETS',run_worker_first:['/','/index.html']}}));

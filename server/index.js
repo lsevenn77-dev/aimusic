@@ -95,7 +95,9 @@ export default {async fetch(req,env,ctx){
   if(path.startsWith('/api/auth/')&&!path.endsWith('/callback'))await rate(env,'auth-ip:'+await hash(req.headers.get('cf-connecting-ip')||'local'),40,900);
   const maxJson=path==='/api/uploads'||/^\/api\/dubbing\/projects(?:\/[^/]+)?$/.test(path)||/^\/api\/studio\/tracks\/[^/]+(?:\/lyrics\/align)?$/.test(path)?131072:32768;
   const binary=path==='/api/admin/ai-bots/assets'||/^\/api\/crews\/[\w-]+\/notice-images$/.test(path)||/^\/api\/dubbing\/projects\/[^/]+\/recording\/[\w-]+\/lines\/[\w-]+$/.test(path)||/^\/api\/playlists\/[\w-]+\/image$/.test(path)||/^\/api\/producers\/[\w-]+\/gallery$/.test(path)||/^\/api\/artists\/[\w-]+\/gallery$/.test(path)||/^\/api\/(dm\/[\w-]+\/images|crews\/[\w-]+\/images?)$/.test(path)||path==='/api/me/profile/image'||/^\/api\/uploads\/[^/]+\/(audio|cover)$/.test(path)||/^\/api\/studio\/(artists|producers|tracks)\/[^/]+\/image$/.test(path)||/^\/api\/studio\/tracks\/[^/]+\/karaoke\/mr$/.test(path);
-  if(!binary&&req.body){
+  // Some ingress requests expose an empty stream for HEAD/GET (Content-Length: 0).
+  // Rebuilding those with a body throws before the public media handler runs.
+  if(!['GET','HEAD'].includes(req.method)&&!binary&&req.body){
    if(Number(req.headers.get('content-length')||0)>maxJson)fail(413,'요청이 너무 큽니다.');
    const reader=req.body.getReader(),chunks=[];let size=0;
    try{while(true){const {value,done}=await reader.read();if(done)break;size+=value.byteLength;if(size>maxJson){await reader.cancel().catch(()=>{});fail(413,'요청이 너무 큽니다.');}chunks.push(value);}}finally{reader.releaseLock();}
