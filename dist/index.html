@@ -74,6 +74,7 @@
 <script defer src="profile-management.js"></script>
 <link rel="stylesheet" href="/community-v3.css">
 <link rel="stylesheet" href="integrated.css">
+<link rel="stylesheet" href="/decorations.css">
 </head>
 <body>
   <aside class="sidebar" id="sidebar">
@@ -125,7 +126,7 @@
 <button type="button" id="player-collapse" class="icon-button player-collapse" aria-label="재생바 접기" aria-expanded="true" title="재생바 접기"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
 <a id="player-lyric" class="player-lyric" hidden></a><div class="player-track"><div class="now-playing" id="now-playing"><div class="mini-cover cover cover-lime">A</div><div><strong>새로운 음악을 만나보세요</strong><span>곡을 선택하면 재생됩니다</span></div></div>
 <div class="player-track-tools"><div id="player-actions" class="player-actions" aria-label="현재 곡 메뉴"></div><button type="button" class="icon-button" id="player-more" aria-label="현재 곡 더보기" aria-haspopup="dialog"><i data-icon="more"></i></button></div></div>
-<div class="player-center"><div class="player-buttons"><button class="icon-button" id="shuffle" aria-label="섞어 듣기 꺼짐" title="섞어 듣기 꺼짐" aria-pressed="false"><i data-icon="shuffle"></i></button><button class="icon-button" id="previous" aria-label="이전 곡"><i data-icon="previous"></i></button><button class="play-button" id="play-toggle" aria-label="재생"><i data-icon="play"></i></button><button class="icon-button" id="next" aria-label="다음 곡"><i data-icon="next"></i></button><button class="icon-button" id="repeat" aria-label="반복 끔" aria-pressed="false"><i data-icon="repeat"></i></button></div><div class="timeline"><span id="elapsed">0:00</span><input id="seek" type="range" min="0" max="0" step="0.1" value="0" aria-label="재생 위치"><span id="duration">0:00</span></div></div>
+<div class="player-center"><div class="player-buttons"><button class="icon-button" id="shuffle" aria-label="섞어 듣기 꺼짐" title="섞어 듣기 꺼짐" aria-pressed="false"><i data-icon="shuffle"></i></button><button class="icon-button" id="previous" aria-label="이전 곡"><i data-icon="previous"></i></button><button class="play-button" id="play-toggle" aria-label="재생"><i data-icon="audio-play"></i></button><button class="icon-button" id="next" aria-label="다음 곡"><i data-icon="next"></i></button><button class="icon-button" id="repeat" aria-label="반복 끔" aria-pressed="false"><i data-icon="repeat"></i></button></div><div class="timeline"><span id="elapsed">0:00</span><input id="seek" type="range" min="0" max="0" step="0.1" value="0" aria-label="재생 위치"><span id="duration">0:00</span></div></div>
 <div class="player-right"><button type="button" id="player-lyrics-toggle" class="small-button" aria-pressed="true" aria-controls="player-lyric"><i data-icon="list"></i>가사</button><span class="free-listen" id="listen-mode">회원은 전체곡 무료</span><i data-icon="volume"></i><input id="volume" type="range" min="0" max="1" value="0.75" step="0.01" aria-label="음량"><button type="button" id="queue-toggle" aria-label="재생목록 열기" aria-haspopup="dialog" title="재생목록 보기 · 곡 순서 편집"><i data-icon="list"></i><span>재생목록</span><span id="queue-count" aria-hidden="true" hidden>0</span></button></div><button type="button" class="icon-button player-close" id="player-close" aria-label="재생 종료 및 재생바 닫기" title="재생 종료 및 재생바 닫기"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></section>
   <div class="toast" id="toast" role="status"></div>
   <dialog id="dialog" aria-label="AIFECT"><div id="dialog-content"></div><button class="dialog-close" aria-label="닫기" id="dialog-close">×</button></dialog>
@@ -135,5 +136,7 @@
 <script defer src="profile-preview.js"></script>
 <script defer src="/community-v3.js"></script>
 <script defer src="image-crop.js"></script><script defer src="profile-collections.js"></script><script defer src="crew-integrated.js"></script>
+<script defer src="/decorations.js"></script>
+<script defer src="/decoration-display.js"></script>
 </body>
 </html>

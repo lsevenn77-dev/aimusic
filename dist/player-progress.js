@@ -20,7 +20,7 @@ document.addEventListener('click',async event=>{
  const account=me?.id;button.disabled=true;
  try{
   const d=await api('/api/me/player/equipment','PUT',{frame_inventory_id:button.dataset.playerEquip||null});
-  if(me?.id!==account)return;Object.assign(me,d.profile);updateAccount();toast(button.dataset.playerEquip?'액자를 장착했어요.':'액자를 해제했어요.');
+  if(me?.id!==account)return;Object.assign(me,d.profile);updateAccount();window.dispatchEvent(new Event('aifect:equipment'));toast(button.dataset.playerEquip?'액자를 장착했어요.':'액자를 해제했어요.');
   if(location.hash.split('?')[0]==='#inventory')await render();
  }catch(e){toast(e.message);}finally{button.disabled=false;}
 });

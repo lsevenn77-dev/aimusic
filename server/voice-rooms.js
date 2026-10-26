@@ -1,3 +1,4 @@
+import {roomThemeChoices,assertRoomTheme,saveRoomTheme,resolveRoomDecoration,decorateRoomResult} from './room-decorations.js';
 import {voiceMusicRoute} from './voice-music.js';
 import {one,rows,rate,json,fail,str} from './db.js';
 import {requireUser,hash,viewerBlockedIds} from './auth.js';
@@ -22,7 +23,7 @@ async function result(response) {const r=await response.json();if(!response.ok)f
 export async function voiceRoomsRoute(req,env,path,user,ctx) {
  if(!path.startsWith('/api/voice/'))return null;
  if(path==='/api/voice/status'&&req.method==='GET')return json({enabled:voiceConfigured(env),max_members:30,mic_seats:8});
- if(path==='/api/voice/public-rooms'&&req.method==='GET')return json({...await result(await voiceCall(env,{id:'public-directory',crews:[],followedHosts:[],blocks:[]},'directory','list')),crews:[]});
+ if(path==='/api/voice/public-rooms'&&req.method==='GET')return json({...await decorateRoomResult(env,await result(await voiceCall(env,{id:'public-directory',crews:[],followedHosts:[],blocks:[]},'directory','list'))),crews:[]});
  requireUser(user);
  // A realtime page must not cache another user's room membership or permission.
  const [crews,followed]=await Promise.all([
@@ -30,12 +31,14 @@ export async function voiceRoomsRoute(req,env,path,user,ctx) {
   rows(env,"SELECT DISTINCT p.user_id FROM follows f JOIN producers p ON p.id=f.target_id WHERE f.user_id=? AND f.kind='producer'",user.id)
  ]);
  const actor={id:user.id,profile_id:user.profile_id||null,name:user.display_name||user.name,image_version:user.image_version||'',crews:crews.map(c=>c.id),followedHosts:followed.map(p=>p.user_id),blocks:viewerBlockedIds(user)||[]};
- if(path==='/api/voice/options'&&req.method==='GET')return json({crews});
- if(path==='/api/voice/rooms'&&req.method==='GET')return json({...await result(await voiceCall(env,actor,'directory','list')),crews});
+ if(path==='/api/voice/options'&&req.method==='GET')return json({crews,themes:await roomThemeChoices(env,user.id)});
+ if(path==='/api/voice/rooms'&&req.method==='GET')return json({...await decorateRoomResult(env,await result(await voiceCall(env,actor,'directory','list'))),crews});
  if(path==='/api/voice/rooms'&&req.method==='POST') {
   if(!actor.profile_id)fail(409,'마이에서 프로필을 먼저 만들어주세요.');
   await rate(env,'voice-create:'+user.id,5,3600);const b=await req.json();
-  return json(await result(await voiceCall(env,actor,requestId(b.request_id),'create',{title:str(b.title,60),visibility:b.visibility,crew_id:b.crew_id,max_members:b.max_members,background:b.background,announcement:b.announcement})),201);
+  const selected=await assertRoomTheme(env,user.id,b.theme_sku||b.background||'navy');
+  const data=await result(await voiceCall(env,actor,requestId(b.request_id),'create',{title:str(b.title,60),visibility:b.visibility,crew_id:b.crew_id,max_members:b.max_members,background:selected.startsWith('theme_')?'navy':selected,announcement:b.announcement}));
+  await saveRoomTheme(env,actor,data.room,selected,{creating:true});return json(await decorateRoomResult(env,data),201);
  }
  const m=path.match(/^\/api\/voice\/rooms\/([\w-]+)\/([a-z-]+)$/);if(!m)fail(404,'토킹룸을 찾을 수 없어요.');
  const [,room,action]=m;
@@ -43,11 +46,21 @@ export async function voiceRoomsRoute(req,env,path,user,ctx) {
   if(req.headers.get('origin')!==new URL(req.url).origin||req.headers.get('upgrade')?.toLowerCase()!=='websocket')fail(403,'사이트에서 토킹룸에 다시 입장해주세요.');
   const generation=new URL(req.url).searchParams.get('generation');if(!generation)fail(409,'토킹룸에 다시 입장해주세요.');return voiceCall(env,actor,room,'socket',{generation},true);
  }
- if(action==='state'&&req.method==='GET')return voiceCall(env,actor,room,'state');
+ if(action==='theme'&&req.method==='GET'){
+  const data=await result(await voiceCall(env,actor,room,'state'));return json({theme:await resolveRoomDecoration(env,data.room)});
+ }
+ if(action==='state'&&req.method==='GET')return json(await decorateRoomResult(env,await result(await voiceCall(env,actor,room,'state'))));
  if(['music-search','music-stream','music-consent','music'].includes(action)){const b=req.method==='POST'?await req.json():{};await rate(env,'voice-music:'+user.id,90,60);return voiceMusicRoute(req,env,user,room,action,b,async(a,input)=>result(await voiceCall(env,actor,room,a,input)));}
  if(req.method!=='POST')fail(405,'허용되지 않는 요청이에요.');
  await rate(env,'voice-api:'+user.id,180,60);
  const b=await req.json();
+ if(action==='settings'){
+  const current=await result(await voiceCall(env,actor,room,'state'));
+  if(current.room.host_id!==user.id)fail(403,'방장만 테마를 변경할 수 있어요.');
+  const selected=await assertRoomTheme(env,user.id,b.theme_sku||b.background||(await resolveRoomDecoration(env,current.room)).sku);
+  const data=await result(await voiceCall(env,actor,room,'settings',{...b,background:selected.startsWith('theme_')?'navy':selected}));
+  await saveRoomTheme(env,actor,data.room,selected);return json(await decorateRoomResult(env,data));
+ }
  if(action==='invite') {
   const target=await one(env,"SELECT id,user_id,name FROM producers WHERE id=? AND user_id IN (SELECT id FROM users WHERE provider!='deleted')",identifier(b.profile_id));if(!target)fail(404,'회원이 없어요.');
   await assertUnblocked(env,user,target.user_id);const rid=requestId(b.request_id);

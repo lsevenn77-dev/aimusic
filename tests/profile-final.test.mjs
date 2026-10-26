@@ -3,12 +3,13 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 import {fixture} from './fixture.mjs';
+import {decorationsFixture} from './decorations-fixture.mjs';
 import * as AifectPlayer from '../shared/player.js';
 const source=name=>readFileSync(new URL('../dist/'+name,import.meta.url),'utf8');
 const esc=s=>String(s??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;');
 function ui(extra={}){
  const c=vm.createContext({URLSearchParams,AifectPlayer,me:{id:'owner'},apiRevision:0,authConfig:{},location:{hash:'#inventory'},document:{addEventListener(){}},window:{addEventListener(){}},esc,number:String,icon:()=>'',portrait:()=>'<img alt="프로필">',heading:t=>'<h1>'+t+'</h1>',gate:()=>'<p>LOGIN</p>',playerProgressHTML:()=>'',...extra});
- for(const name of ['music-library.js','inventory.js','mypage.js','menu-integration.js'])vm.runInContext(source(name),c);
+ for(const name of ['decorations.js','music-library.js','inventory.js','mypage.js','menu-integration.js'])vm.runInContext(source(name),c);
  return c;
 }
 test('unified inventory preserves every stock ID and expiry, filters real equipment, and reflects equip/unequip on public profile',async t=>{
@@ -47,4 +48,18 @@ test('activity retains actual gold/silver and restored links while hiding deferr
 test('same gesture rules bound two inventory tabs and protect vertical scrolling and native back edges',()=>{
  const c=ui(),s={x:180,y:200,time:0,width:390};assert.equal(c.boundedCategorySwipe(s,{x:80,y:200,time:300},0,2),1);assert.equal(c.boundedCategorySwipe(s,{x:80,y:200,time:300},1,2),1);assert.equal(c.boundedCategorySwipe(s,{x:280,y:200,time:300},1,2),0);
  for(const p of [{x:20},{x:380},{cancelled:true}])assert.equal(c.boundedCategorySwipe({...s,...p},{x:100,y:200,time:300},0,2),0);assert.equal(c.boundedCategorySwipe(s,{x:80,y:320,time:300},0,2),0);
+});
+
+test('unified inventory retains deployed decoration stock, active paid frames and theme dates without data writes',async t=>{
+ const f=await decorationsFixture(t),stock=await f.buy(),frame=await f.buyUse(),theme=await f.buyUse('theme_starlight_lounge');
+ assert.equal(stock.status,201);assert.equal(frame.status,200);assert.equal(theme.status,200);
+ const p=(await f.call('/api/me/player')).body,paid=p.inventory.find(i=>i.item_key==='frame_aurora_ring');assert.ok(paid);
+ assert.equal((await f.call('/api/me/player/equipment','PUT',{frame_inventory_id:paid.id})).status,200);
+ const before=f.sql.prepare('SELECT * FROM player_inventory ORDER BY id').all(),calls=[];
+ const c=ui({api:async(path,method='GET')=>{calls.push(method);const r=await f.call(path,method);assert.equal(r.status,200);return r.body;}});
+ const owned=await c.unifiedInventoryView('inventory');assert.match(owned.html,/data-stored-decoration=/);assert.match(owned.html,/사용 시작/);assert.match(owned.html,/선물하기/);assert.match(owned.html,/data-active-item=/);assert.match(owned.html,/토킹룸에서 사용하기/);
+ assert.equal((owned.html.match(new RegExp('data-inventory-item="'+paid.id+'"','g'))||[]).length,1);
+ const active=await c.unifiedInventoryView('inventory?section=active'),panel=c.inventoryPanel(active.unifiedInventory);
+ assert.match(panel,/data-player-equip=""/);assert.doesNotMatch(panel,/data-stored-decoration=|data-active-item=/);assert.match(panel,/각 방의 설정/);
+ assert.ok(calls.every(m=>m==='GET'));assert.deepEqual(f.sql.prepare('SELECT * FROM player_inventory ORDER BY id').all(),before);
 });

@@ -36,6 +36,10 @@ for(let i=0;i<16;i++){
 // Isolated fixture records exercise real wallet, inventory and equipment APIs.
 f.sql.exec("INSERT INTO crews(id,owner_id,name,description,created) VALUES('qa-crew','owner','ZERO','함께 만들고 노래하는 크루',0); INSERT INTO crew_members(crew_id,user_id,role,joined) VALUES('qa-crew','owner','leader',0),('qa-crew','other','member',0); INSERT INTO gold_purchases(id,user_id,channel,gold,price_krw,fee_krw,tax_krw,created,status) VALUES('qa-paid','owner','web',2500,25000,825,2273,0,'paid'); INSERT INTO free_gift_wallets(user_id,balance) VALUES('owner',1280); INSERT INTO player_inventory(id,user_id,item_key,source,source_ref,granted_at,expires_at) VALUES('qa-active','owner','crew-outline','reward','qa-active',unixepoch()-86400,unixepoch()+86400*14),('qa-expired','owner','crew-outline','reward','qa-expired',unixepoch()-86400*30,unixepoch()-86400); INSERT OR REPLACE INTO player_equipment(user_id,frame_inventory_id) VALUES('owner','qa-active'); INSERT INTO free_gifts(id,sender_id,recipient_profile_id,request_id,created,gift_type,gift_name,silver,quantity) VALUES('qa-gift','other','producer','qa-gift',unixepoch(),'silver-letter','손편지',6,3)");
 const qaBuy=await f.call('/api/me/gift-inventory/buy','POST',{gift_type:'silver-letter',quantity:2,request_id:crypto.randomUUID()});if(qaBuy.status!==201&&qaBuy.status!==200)throw Error(JSON.stringify(qaBuy));
+for(const sku of ['frame_aurora_ring','theme_starlight_lounge']){
+ const bought=await f.call('/api/decorations/buy','POST',{sku,period:'P7D',request_id:crypto.randomUUID()});if(bought.status!==201)throw Error(JSON.stringify(bought));
+ if(sku.startsWith('theme_')){const used=await f.call('/api/decorations/inventory/'+bought.body.order.inventory_id+'/use','POST',{request_id:crypto.randomUUID()});if(used.status!==200)throw Error(JSON.stringify(used));}
+}
 const baseline=process.argv.includes('--baseline'),port=baseline?4207:4208;
 const base=resolve(baseline?'work/profile-input/client':'dist/client');
 await f.call('/api/producers/friend/follow','PUT');

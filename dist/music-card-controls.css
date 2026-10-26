@@ -16,3 +16,28 @@
 }
 .album-card .album-title-row .card-more svg {width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round}
 .album-card .card-play:focus-visible,.album-card .card-more:focus-visible {outline:2px solid #c3b5ef;outline-offset:3px}
+
+/* Preserve each control's existing svg box; never recolor the external asset. */
+svg.audio-play-icon {aspect-ratio:1;flex-shrink:0;filter:none!important}
+svg.audio-play-icon image {filter:none!important}
+.album-card .card-play svg.audio-play-icon {width:36px;height:36px}
+
+/* The overlay is purely visual; input and accessibility stay native. */
+.native-audio-play {position:relative;display:inline-block;width:100%;max-width:100%}
+.native-audio-play-art {position:absolute;width:24px;height:24px;transform:translateY(-50%);pointer-events:none}
+.native-audio-play-art .audio-play-icon {display:block;width:24px;height:24px}
+.native-audio-play.is-playing .native-audio-play-art {display:none}
+.native-audio-play:not(.is-playing) audio::-webkit-media-controls-play-button {opacity:0}
+
+/* The artwork already contains its black circle and rim. Icon-only controls
+   keep their hit boxes, without a second colored circle or triangle padding.
+   The :has() condition releases these overrides when pause replaces play. */
+:is(button,a.card-play):has(> .audio-play-icon) {filter:none!important}
+:is(.icon-button,.song-table-play,.play-button,.studio-play,.mp-play,.community-art-play,.card-play,.hub-cover-art>button,[data-voice="music-play"]):has(> .audio-play-icon) {
+  padding:0!important;border-color:transparent!important;
+  background:transparent!important;box-shadow:none!important;
+}
+:is(.icon-button,.song-table-play,.play-button,.studio-play,.mp-play,.community-art-play,.card-play,.hub-cover-art>button,[data-voice="music-play"]):has(> .audio-play-icon) > .audio-play-icon {
+  display:block;width:100%!important;height:100%!important;
+  max-width:100%;max-height:100%;margin:0!important;
+}

@@ -5,7 +5,7 @@ declare var returnRoute: string;
 declare var routeTracks: any[];
 declare function api(path: string, method?: string, body?: unknown, options?: {fresh?: boolean}): Promise<any>;
 declare function card(track: any): string;
-declare function icon(name: string): string;
+declare function icon(name: string, size?: number): string;
 declare function esc(value: unknown): string;
 declare function heading(title: string, subtitle?: string): string;
 declare function time(seconds: number): string;
