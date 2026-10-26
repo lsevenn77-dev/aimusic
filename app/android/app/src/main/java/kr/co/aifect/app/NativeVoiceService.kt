@@ -13,6 +13,9 @@ import kotlinx.coroutines.*
 class NativeVoiceService:Service(){
  companion object {internal val current=MutableStateFlow<NativeVoiceEngine?>(null);internal val lastError=MutableStateFlow<String?>(null)}
  private var roomId=""
+ private var microphoneForeground=false
+ private val calls by lazy{VoiceCallMonitor(this){active->current.value?.phoneCallChanged(active)}}
+ private val wake by lazy{(getSystemService(POWER_SERVICE) as android.os.PowerManager).newWakeLock(android.os.PowerManager.PARTIAL_WAKE_LOCK,"AIFECT:VoiceRoom").apply{setReferenceCounted(false)}}
  private val serviceScope=CoroutineScope(SupervisorJob()+Dispatchers.Main.immediate)
  private var watch:Job?=null
  override fun onBind(intent:Intent):IBinder=Binder()
@@ -20,11 +23,14 @@ class NativeVoiceService:Service(){
   if(intent?.action=="leave"){stopSelf();return START_NOT_STICKY}
   val id=intent?.getStringExtra("room").orEmpty()
   if(!Regex("^[A-Za-z0-9_-]{1,64}$").matches(id)){stopSelf();return START_NOT_STICKY}
-  roomId=id;lastError.value=null;foreground(false)
+  roomId=id;lastError.value=null;foreground(if(current.value?.roomId==id)microphoneForeground else false)
+  if(!wake.isHeld)wake.acquire()
   if(current.value?.roomId!=id){watch?.cancel();current.value?.close();try{current.value=NativeVoiceEngine(this,id,::foreground).also{engine->engine.join();watch=serviceScope.launch{engine.finished.collect{if(it)stopSelf()}}}}catch(e:Exception){android.widget.Toast.makeText(this,"음성 연결을 시작하지 못했어요.",android.widget.Toast.LENGTH_LONG).show();stopSelf()}}
   return START_NOT_STICKY
  }
  private fun foreground(mic:Boolean){
+  microphoneForeground=mic
+  if(mic)calls.start()
   val manager=getSystemService(NotificationManager::class.java)
   manager.createNotificationChannel(NotificationChannel("native-talking-room","토킹룸 음성",NotificationManager.IMPORTANCE_LOW))
   val open=PendingIntent.getActivity(this,601,Intent(this,NativePerformanceActivity::class.java).putExtra("route","voice/$roomId"),PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
@@ -34,5 +40,5 @@ class NativeVoiceService:Service(){
   ServiceCompat.startForeground(this,601,note,type)
  }
  override fun onTaskRemoved(rootIntent:Intent?){stopSelf()}
- override fun onDestroy(){watch?.cancel();serviceScope.cancel();lastError.value=current.value?.error?.value?:"토킹룸에서 나왔어요.";current.value?.close();current.value=null;super.onDestroy()}
+ override fun onDestroy(){calls.close();if(wake.isHeld)wake.release();watch?.cancel();serviceScope.cancel();lastError.value=current.value?.error?.value?:"토킹룸에서 나왔어요.";current.value?.close();current.value=null;super.onDestroy()}
 }

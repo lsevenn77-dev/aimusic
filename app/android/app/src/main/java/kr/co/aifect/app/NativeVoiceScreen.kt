@@ -16,6 +16,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -34,11 +36,23 @@ import java.net.URLEncoder
  val state by engine.state.collectAsState();val status by engine.status.collectAsState();val error by engine.error.collectAsState();val mic by engine.micOn.collectAsState();val level by engine.level.collectAsState()
  val context=LocalContext.current;val scope=rememberCoroutineScope();val members=state.optJSONArray("members").objects();val room=state.optJSONObject("room")?:JSONObject();val self=members.find{it.optString("id")==state.optString("self")};val host=self?.optString("role")=="host"
  var panel by remember{mutableStateOf("")};var target by remember{mutableStateOf<JSONObject?>(null)};var message by remember{mutableStateOf("")};var messageId by remember{mutableStateOf(requestIdentity())};var sending by remember{mutableStateOf(false)}
- val micPermission=rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()){ok->if(ok)engine.launch{engine.microphone(true)}else engine.error.value="마이크 권한이 필요해요. 대화 청취는 계속할 수 있어요."}
+ var phonePermissionAsked by remember{mutableStateOf(false)}
+ var playlistSong by remember{mutableStateOf<JSONObject?>(null)}
+ val micPermission=rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()){result->
+  if(result[Manifest.permission.RECORD_AUDIO]==true||androidx.core.content.ContextCompat.checkSelfPermission(context,Manifest.permission.RECORD_AUDIO)==android.content.pm.PackageManager.PERMISSION_GRANTED)engine.launch{engine.microphone(true)}else engine.error.value="마이크 권한이 필요해요. 대화 청취는 계속할 수 있어요."
+ }
+ fun enableMicrophone(){
+  val permissions=mutableListOf<String>()
+  if(androidx.core.content.ContextCompat.checkSelfPermission(context,Manifest.permission.RECORD_AUDIO)!=android.content.pm.PackageManager.PERMISSION_GRANTED)permissions+=Manifest.permission.RECORD_AUDIO
+  if(!phonePermissionAsked&&androidx.core.content.ContextCompat.checkSelfPermission(context,Manifest.permission.READ_PHONE_STATE)!=android.content.pm.PackageManager.PERMISSION_GRANTED){phonePermissionAsked=true;permissions+=Manifest.permission.READ_PHONE_STATE}
+  if(permissions.isEmpty())engine.launch{engine.microphone(true)}else micPermission.launch(permissions.toTypedArray())
+ }
  fun action(name:String,data:JSONObject=JSONObject()){engine.launch{engine.command(name,data)}}
  val keyboard=WindowInsets.isImeVisible
  val chats=(state.optJSONArray("chat").objects()+state.optJSONArray("notices").objects()).sortedBy{it.optLong("sequence")}
  val chatList=rememberLazyListState()
+ val sheetScroll=rememberScrollState()
+ LaunchedEffect(panel){sheetScroll.scrollTo(0)}
  LaunchedEffect(chats.lastOrNull()?.optString("id")){
   if(chats.isNotEmpty()&&!chatList.isScrollInProgress&&(chatList.layoutInfo.visibleItemsInfo.lastOrNull()?.index?:0)>=chats.lastIndex-3)chatList.animateScrollToItem(chats.lastIndex)
  }
@@ -49,10 +63,12 @@ import java.net.URLEncoder
    catch(e:Exception){if(e is kotlinx.coroutines.CancellationException)throw e;engine.error.value=e.message}finally{sending=false}}
  }
  Column(Modifier.fillMaxSize().testTag("native-voice-room")){
+  VoiceMusicBar(engine,state,{panel="music"}){playlistSong=it;panel="playlist"}
+  VoiceSeatAlert(state,host){panel="seats"}
   NativeAudioHeader("토킹룸",leave){
    IconButton({panel="members"}){Icon(Icons.Outlined.Group,"참여자")}
-   IconButton({panel="sound"}){Icon(Icons.Outlined.MicNone,"소리 설정")}
-   IconButton({panel="room"}){Icon(Icons.Outlined.Home,"방 설정")}
+   IconButton({panel="sound"}){Icon(Icons.Outlined.Settings,"소리 설정")}
+   if(host)IconButton({panel="room"}){Icon(Icons.Outlined.Tune,"방 설정")}
    IconButton({context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT,"${room.optString("title")}\nhttps://aifect.co.kr/#voice/${engine.roomId}"),"토킹룸 공유"))}){Icon(Icons.Outlined.Share,"공유")}
   }
   Column(Modifier.fillMaxWidth().padding(horizontal=16.dp)){
@@ -65,12 +81,16 @@ import java.net.URLEncoder
       Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)){
        seats.forEach{seat->
         val person=members.find{!it.isNull("seat")&&it.optInt("seat")==seat}
-        Column(Modifier.weight(1f).clickable{if(person!=null){target=person;panel="person"}else if(seat>0)action("request-mic",payload("seat" to seat))}.testTag("voice-seat-$seat"),horizontalAlignment=Alignment.CenterHorizontally){
+        Column(Modifier.weight(1f).clickable{if(person!=null){target=person;panel="person"}else if(seat>0){if(host)panel="members" else action("request-mic",payload("seat" to seat))}}.testTag("voice-seat-$seat"),horizontalAlignment=Alignment.CenterHorizontally){
          Box(Modifier.size(diameter).border(1.dp,if(person?.optString("role")=="host")Pink else Stroke,CircleShape),contentAlignment=Alignment.Center){
-          if(person!=null){NativeMemberAvatar(person,(diameter.value-4).toInt());if(person.optBoolean("muted"))Icon(Icons.Outlined.MicOff,null,Modifier.align(Alignment.BottomEnd).size(18.dp).background(Panel,CircleShape),tint=Muted)}
-          else Icon(Icons.Outlined.Add,"좌석 참여 신청",Modifier.size(22.dp),tint=Muted)
+          if(person!=null){
+           val muted=if(person.optString("id")==state.optString("self"))!mic else person.optBoolean("muted")
+           val opacity by animateFloatAsState(if(muted).38f else 1f,label="muted-avatar")
+           Box(Modifier.alpha(opacity)){NativeMemberAvatar(person,(diameter.value-4).toInt())}
+           if(muted)Icon(Icons.Outlined.MicOff,"${person.optString("name")} 음소거",Modifier.size(23.dp).testTag("voice-muted-${person.optString("id")}"),tint=SoftText)
+          }else Icon(Icons.Outlined.Add,if(room.optString("seating_mode")=="free")"자유 착석" else "좌석 참여 신청",Modifier.size(22.dp),tint=SeatRequestGreen)
          }
-         Text(person?.optString("name")?:"빈 좌석",fontSize=12.sp,maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis,modifier=Modifier.padding(top=5.dp))
+         Text(person?.optString("name")?:if(host)"초대하기" else if(room.optString("seating_mode")=="free")"앉기" else "자리 신청",color=if(person==null)SeatRequestGreen else SoftText,fontSize=12.sp,maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis,modifier=Modifier.padding(top=5.dp))
         }
        }
       }
@@ -78,45 +98,52 @@ import java.net.URLEncoder
     }
    }
    Row(Modifier.fillMaxWidth().heightIn(min=44.dp),verticalAlignment=Alignment.CenterVertically){
-    Text(if(self?.optBoolean("requested")==true)"방장 승인 대기" else if(self?.isNull("seat")!=false)"대화 청취 중" else if(mic)"내 마이크 켜짐" else "내 마이크 꺼짐",fontSize=12.sp,color=Muted,modifier=Modifier.weight(1f))
+    Text(if(self?.optBoolean("requested")==true)"좌석 신청 · 승인 대기" else if(self?.isNull("seat")!=false)"대화 청취 중" else if(mic)"내 마이크 켜짐" else "내 마이크 꺼짐",fontSize=12.sp,color=if(self?.optBoolean("requested")==true)SeatRequestGreen else Muted,modifier=Modifier.weight(1f))
     if(self?.optBoolean("requested")==true)TextButton({action("cancel-mic")}){Text("신청 취소")}
     if(self?.isNull("seat")==false){
-     IconButton(onClick={if(mic)engine.launch{engine.microphone(false)}else micPermission.launch(Manifest.permission.RECORD_AUDIO)},enabled=!self.optBoolean("locked"),modifier=Modifier.testTag("voice-microphone")){Icon(if(mic)Icons.Outlined.Mic else Icons.Outlined.MicOff,if(mic)"내 마이크 끄기" else "내 마이크 켜기",tint=if(mic)Pink else Muted)}
+     IconButton(onClick={if(mic)engine.launch{engine.microphone(false)}else enableMicrophone()},enabled=!self.optBoolean("locked"),modifier=Modifier.testTag("voice-microphone")){Icon(if(mic)Icons.Outlined.Mic else Icons.Outlined.MicOff,if(mic)"내 마이크 끄기" else "내 마이크 켜기",tint=if(mic)Pink else Muted)}
      if(!host)IconButton({action("release-mic")}){Icon(Icons.Outlined.Logout,"좌석 내려가기",tint=Muted)}
     }
    }
   }
   HorizontalDivider(color=Stroke)
-  LazyColumn(Modifier.weight(1f).fillMaxWidth().testTag("native-voice-conversation"),state=chatList,contentPadding=PaddingValues(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
-   room.optString("announcement").takeIf{it.isNotBlank()}?.let{notice->item{Text(notice,color=SoftText,fontSize=13.sp)}}
-   state.optJSONArray("seat_invites").objects().forEach{invite->item{Text("좌석 초대가 왔어요",fontSize=13.sp);Row{TextButton({action("seat-answer",payload("invitation_id" to invite.getString("id"),"accept" to true))}){Text("수락")};TextButton({action("seat-answer",payload("invitation_id" to invite.getString("id"),"accept" to false))}){Text("거절")}}}}
-   if(host)members.filter{it.optBoolean("requested")}.forEach{person->item{Row(verticalAlignment=Alignment.CenterVertically){Text("${person.optString("name")} · 좌석 신청",Modifier.weight(1f),fontSize=13.sp);TextButton({action("approve-mic",payload("target_id" to person.getString("id")))}){Text("승인")};TextButton({action("reject-mic",payload("target_id" to person.getString("id")))}){Text("거절")}}}}
-   if(error!=null)item{Text(error.orEmpty(),color=Muted,fontSize=13.sp);TextButton({engine.error.value=null;engine.retry()}){Text("연결 다시 확인")}}
+  room.optString("announcement").takeIf{it.isNotBlank()&&!keyboard}?.let{Text(it,Modifier.padding(horizontal=16.dp,vertical=6.dp),color=Muted,fontSize=12.sp,maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)}
+  if(error!=null)TextButton({engine.error.value=null;engine.retry()},modifier=Modifier.fillMaxWidth()){Text(error.orEmpty()+" · 다시 확인",fontSize=12.sp,maxLines=2,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)}
+  Box(Modifier.weight(1f).fillMaxWidth()){
+  LazyColumn(Modifier.fillMaxSize().testTag("native-voice-conversation"),state=chatList,contentPadding=PaddingValues(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
    itemsIndexed(chats,key={index,chat->chat.optString("id").ifBlank{"notice-${chat.optLong("sequence")}-${index}"}}){_,chat->
     if(chat.optString("kind")=="system")Text(chat.optString("body"),color=Muted,fontSize=12.sp)
+    else if(chat.optString("kind")=="gift")VoiceGiftMessage(chat)
     else Row(verticalAlignment=Alignment.Top,horizontalArrangement=Arrangement.spacedBy(9.dp)){
-     NativeMemberAvatar(chat,30)
-     Column{Text(chat.optString("name"),fontSize=11.sp,color=Muted);Text(chat.optString("body"),fontSize=14.sp,color=if(chat.optString("kind")=="gift")Pink else SoftText,modifier=Modifier.padding(top=4.dp))}
+     val author=members.find{it.optString("id")==chat.optString("user_id")}?:JSONObject(chat.toString()).put("id",chat.optString("user_id"))
+     Box(Modifier.clickable{target=author;panel="person"}){NativeMemberAvatar(author,30)}
+     Column(Modifier.weight(1f)){Text(chat.optString("name"),fontSize=11.sp,color=Muted,modifier=Modifier.clickable{target=author;panel="person"}.heightIn(min=24.dp));Text(chat.optString("body"),fontSize=14.sp,color=SoftText,modifier=Modifier.padding(top=2.dp))}
     }
    }
+  }
+  VoiceGiftAnimation(engine,Modifier.align(Alignment.Center))
   }
   Row(Modifier.padding(horizontal=12.dp,vertical=6.dp),verticalAlignment=Alignment.CenterVertically){
    OutlinedTextField(message,{if(it.length<=500){message=it;messageId=requestIdentity()}},placeholder={Text("메시지를 입력하세요",fontSize=14.sp)},modifier=Modifier.weight(1f),shape=RoundedCornerShape(12.dp),maxLines=3,enabled=!sending,keyboardOptions=androidx.compose.foundation.text.KeyboardOptions(imeAction=androidx.compose.ui.text.input.ImeAction.Send),keyboardActions=androidx.compose.foundation.text.KeyboardActions(onSend={send()}))
    IconButton(enabled=message.isNotBlank()&&!sending,onClick=::send){Icon(Icons.Outlined.Send,"메시지 보내기",tint=Muted)}
   }
-  val music=state.optJSONObject("music")?:JSONObject();val song=music.optJSONArray("queue")?.optJSONObject(music.optInt("index",-1))
-  if(!keyboard)Row(Modifier.fillMaxWidth().background(Panel).heightIn(min=54.dp).padding(horizontal=8.dp),verticalAlignment=Alignment.CenterVertically){
-   IconButton({panel="music"}){Icon(Icons.Outlined.QueueMusic,"공동 음악",tint=Muted)}
-   Column(Modifier.weight(1f)){Text(song?.optString("title")?:"함께 들을 음악",fontSize=14.sp,maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis);song?.optString("artist")?.let{Text(it,fontSize=11.sp,color=Muted)}}
-   if(host){IconButton({action("music",payload("operation" to if(music.optBoolean("playing"))"pause" else "play","request_id" to requestIdentity()))}){Icon(if(music.optBoolean("playing"))Icons.Outlined.Pause else Icons.Outlined.PlayArrow,"공동 음악 재생",tint=Muted)};IconButton({action("music",payload("operation" to "next","request_id" to requestIdentity()))}){Icon(Icons.Outlined.SkipNext,"다음 곡",tint=Muted)}}
-  }
+
  }
- if(panel.isNotBlank())ModalBottomSheet(onDismissRequest={panel=""},containerColor=Panel,dragHandle=null){Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(20.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+ if(panel.isNotBlank())ModalBottomSheet(onDismissRequest={panel=""},containerColor=Panel,dragHandle=null){Column(Modifier.fillMaxWidth().verticalScroll(sheetScroll).padding(20.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+  Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.End){IconButton({panel=""}){Icon(Icons.Outlined.Close,"팝업 닫기")}}
   when(panel){
    "sound"->NativeVoiceSoundSettings(engine)
-   "room"->if(host)NativeRoomForm(engine.api,room){data->engine.launch{engine.command("settings",data.put("revision",room.optInt("settings_revision")));panel=""}}else{Text(room.optString("title"),fontSize=20.sp);Text(room.optString("announcement"),color=Muted)}
+   "playlist"->playlistSong?.let{VoicePlaylistPicker(engine.api,it,state.optString("self")){panel=""}}
+   "profile"->target?.let{VoiceProfilePopup(engine.api,it,it.optString("id")!=state.optString("self")){panel="gift"}}
+   "seats"->{
+    Text(if(host)"좌석 신청" else "좌석 초대",fontSize=20.sp,fontWeight=FontWeight.Bold)
+    if(host){val pending=members.filter{it.optBoolean("requested")};if(pending.isEmpty())Text("대기 중인 신청이 없어요.",color=Muted);pending.forEach{p->
+     Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){NativeMemberAvatar(p,36);Text(p.optString("name"),Modifier.weight(1f).padding(start=10.dp),color=SeatRequestGreen,maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis);TextButton({action("approve-mic",payload("target_id" to p.getString("id")))}){Text("승인",color=SeatRequestGreen)};TextButton({action("reject-mic",payload("target_id" to p.getString("id")))}){Text("거절",color=Muted)}}
+    }}else state.optJSONArray("seat_invites").objects().forEach{invite->Text("${invite.optInt("seat")+1}번 좌석 초대",color=SeatRequestGreen);Row{TextButton({action("seat-answer",payload("invitation_id" to invite.getString("id"),"accept" to true));panel=""}){Text("수락")};TextButton({action("seat-answer",payload("invitation_id" to invite.getString("id"),"accept" to false));panel=""}){Text("거절")}}}
+   }
+   "room"->if(host)NativeRoomForm(engine.api,room){data->engine.launch{val result=engine.command("settings",data.put("revision",room.optInt("settings_revision")));check(result.optJSONObject("room")?.optString("seating_mode","approval")==data.optString("seating_mode")){"좌석 방식 변경은 서버 업데이트 후 사용할 수 있어요."};panel=""}}else{Text(room.optString("title"),fontSize=20.sp);Text(room.optString("announcement"),color=Muted)}
    "members"->{Text("참여자 ${members.size}",fontSize=20.sp);members.forEach{p->TextButton({target=p;panel="person"}){NativeMemberAvatar(p,36);Text(p.optString("name"),Modifier.padding(start=10.dp))}}}
-   "person"->target?.let{p->Text(p.optString("name"),fontSize=22.sp);if(p.optString("id")!=state.optString("self")){Button({panel="gift"}){Text("선물 보내기")};if(host){listOf("mute" to "마이크 제한","unlock" to "제한 해제","remove-seat" to "좌석 내리기","kick" to "강퇴").forEach{(op,label)->TextButton({action("moderate",payload("target_id" to p.getString("id"),"operation" to op));panel=""}){Text(label)}}}}}
+   "person"->target?.let{p->Text(p.optString("name"),fontSize=22.sp);OutlinedButton({panel="profile"},modifier=Modifier.fillMaxWidth()){Text("프로필 보기")};if(p.optString("id")!=state.optString("self")){Button({panel="gift"}){Text("선물 보내기")};if(host){listOf("mute" to "마이크 제한","unlock" to "제한 해제","remove-seat" to "좌석 내리기","kick" to "강퇴").forEach{(op,label)->TextButton({action("moderate",payload("target_id" to p.getString("id"),"operation" to op));panel=""}){Text(label)}}}}}
    "gift"->target?.let{NativeRoomGift(engine,it){panel=""}}
    "music"->NativeRoomMusic(engine)
    "invite"->NativeRoomInvite(engine)
@@ -128,7 +155,7 @@ import java.net.URLEncoder
     OutlinedButton({if(person.isNull("seat"))action("seat-invite",payload("target_id" to person.getString("id"),"seat" to s))else action("moderate",payload("target_id" to person.getString("id"),"operation" to "move-seat","seat" to s));panel=""}){Text("${s+1}번")}
    }}
   }
-  if(panel=="room")OutlinedButton({engine.launch{engine.command("close");leave()}}){Text("방 종료")}
+  if(panel=="room"&&host)OutlinedButton({engine.launch{engine.command("close");leave()}}){Text("방 종료")}
   Spacer(Modifier.height(16.dp))
  }}
 }
@@ -152,15 +179,18 @@ import java.net.URLEncoder
  Text("이어폰을 사용하면 상대방 목소리가 마이크에 다시 들어가는 것을 줄일 수 있어요.",fontSize=12.sp,color=Muted)
 }
 @Composable internal fun NativeRoomForm(api:NativeApi,initial:JSONObject=JSONObject(),submit:(JSONObject)->Unit){
+ var seating by remember{mutableStateOf(initial.optString("seating_mode","approval"))}
  var title by remember{mutableStateOf(initial.optString("title"))};var visibility by remember{mutableStateOf(initial.optString("visibility","public"))};var max by remember{mutableFloatStateOf(initial.optInt("max_members",30).toFloat())};var announcement by remember{mutableStateOf(initial.optString("announcement"))};var background by remember{mutableStateOf(initial.optString("background","navy"))};var crew by remember{mutableStateOf(initial.optString("crew_id"))};var crews by remember{mutableStateOf<List<JSONObject>>(emptyList())};var error by remember{mutableStateOf<String?>(null)}
  LaunchedEffect(Unit){try{crews=api.call("/api/voice/options").optJSONArray("crews").objects()}catch(e:Exception){error=e.message}}
  Text("토킹룸 설정",fontSize=22.sp,fontWeight=FontWeight.Bold);OutlinedTextField(title,{if(it.length<=60)title=it},label={Text("방 이름")},modifier=Modifier.fillMaxWidth());OutlinedTextField(announcement,{if(it.length<=200)announcement=it},label={Text("공지")},modifier=Modifier.fillMaxWidth())
  FlowRow{listOf("public" to "공개","private" to "초대 전용","followers" to "팔로워","crew" to "크루").forEach{(id,label)->FilterChip(visibility==id,{visibility=id},label={Text(label)})}}
  if(visibility=="crew")crews.forEach{c->FilterChip(crew==c.getString("id"),{crew=c.getString("id")},label={Text(c.optString("name"))})}
+ Text("좌석 참여 방식",fontWeight=FontWeight.Medium)
+ Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){listOf("approval" to "허락 후 착석","free" to "자유 착석").forEach{(id,label)->FilterChip(seating==id,{seating=id},label={Text(label)})}}
  Text("최대 ${max.toInt()}명");Slider(max,{max=it},valueRange=2f..30f,steps=27)
  FlowRow{listOf("navy" to "네이비","sunset" to "노을","night" to "밤하늘").forEach{(id,label)->FilterChip(background==id,{background=id},label={Text(label)})}}
  error?.let{Text(it,color=Pink)}
- Button({submit(payload("title" to title.trim(),"visibility" to visibility,"max_members" to max.toInt(),"announcement" to announcement.trim(),"background" to background,"crew_id" to crew.takeIf{visibility=="crew"}))},enabled=title.isNotBlank()&&(visibility!="crew"||crew.isNotBlank()),modifier=Modifier.fillMaxWidth()){Text(if(initial.has("id"))"설정 저장" else "방 만들기")}
+ Button({submit(payload("seating_mode" to seating,"title" to title.trim(),"visibility" to visibility,"max_members" to max.toInt(),"announcement" to announcement.trim(),"background" to background,"crew_id" to crew.takeIf{visibility=="crew"}))},enabled=title.isNotBlank()&&(visibility!="crew"||crew.isNotBlank()),modifier=Modifier.fillMaxWidth()){Text(if(initial.has("id"))"설정 저장" else "방 만들기")}
 }
 @Composable private fun NativeRoomMusic(e:NativeVoiceEngine){
  var query by remember{mutableStateOf("")};var result by remember{mutableStateOf(JSONObject())};var error by remember{mutableStateOf<String?>(null)};var consent by remember{mutableStateOf<JSONObject?>(null)};val state by e.state.collectAsState();val scope=rememberCoroutineScope();val music=state.optJSONObject("music")?:JSONObject()

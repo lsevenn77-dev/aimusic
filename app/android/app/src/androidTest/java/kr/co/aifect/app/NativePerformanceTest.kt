@@ -56,6 +56,7 @@ class NativePerformanceTest{
   responses["/api/voice/options"]=payload("crews" to JSONArray())
   state=payload("generation" to "native-generation","self" to me,"revision" to 1,"serverNow" to System.currentTimeMillis(),"room" to payload("id" to "native-room","title" to "밤하늘 음악 이야기","host_id" to "host","max_members" to 30,"visibility" to "public"),"members" to arr(payload("id" to "host","profile_id" to "host-profile","name" to "지유","role" to "host","seat" to 0,"muted" to true,"publishing" to false),payload("id" to me,"profile_id" to "mine","name" to "하린","role" to "listener","seat" to null,"muted" to true,"publishing" to false)),"chat" to JSONArray(),"seat_invites" to JSONArray(),"music" to payload("queue" to JSONArray(),"index" to -1))
   val genreImage=ins.context.assets.open("design/dubbing-daily.webp").use{it.readBytes()}
+  val giftImage=ins.context.assets.open("design/gifts/lollipop.png").use{it.readBytes()}
   val audio=wave
   server=ServerSocket(0,50,InetAddress.getByName("127.0.0.1"));Endpoint.configureTest("http://127.0.0.1:${server.localPort}")
   workers.execute{while(!server.isClosed)try{val socket=server.accept();workers.execute{try{socket.use{client->
@@ -68,7 +69,10 @@ class NativePerformanceTest{
      if(generationMode=="rejected"){code=429;data=payload("error" to "테스트: 작성 횟수 제한")}else{code=503;data=payload("error" to "테스트: 생성 접수 후 응답 유실")}
     }
     key.startsWith("/api/dubbing/generations/")->{data=if(generationReady)payload("id" to generatedId,"state" to "ready","options" to options,"script" to script)else payload("id" to generatedId,"state" to "running")}
-    key.startsWith("/api/voice/rooms/native-room/")->{val op=key.substringAfterLast('/');if(op=="chat"){val b=JSONObject(bytes.toString(Charsets.UTF_8));state.getJSONArray("chat").put(payload("id" to b.getString("request_id"),"name" to "하린","profile_id" to "mine","body" to b.getString("body")));state.put("revision",state.getInt("revision")+1)};if(op=="request-mic")state.getJSONArray("members").getJSONObject(1).put("requested",true);data=state}
+    key.startsWith("/api/voice/rooms/native-room/")->{val op=key.substringAfterLast('/');if(op=="chat"){val b=JSONObject(bytes.toString(Charsets.UTF_8));state.getJSONArray("chat").put(payload("id" to b.getString("request_id"),"name" to "하린","profile_id" to "mine","body" to b.getString("body")));state.put("revision",state.getInt("revision")+1)};if(op=="request-mic")state.getJSONArray("members").getJSONObject(1).put("requested",true)
+     if(op=="settings"){val b=JSONObject(bytes.toString(Charsets.UTF_8));b.keys().forEach{k->if(k!="generation")state.getJSONObject("room").put(k,b.get(k))}}
+     if(op=="approve-mic"){val b=JSONObject(bytes.toString(Charsets.UTF_8));state.getJSONArray("members").objects().find{it.optString("id")==b.optString("target_id")}?.put("requested",false)?.put("seat",1)}
+     if(op!="socket")state.put("revision",state.optInt("revision")+1);data=state}
     key=="$path/recording"||key.endsWith("/start")->data=recording
     key.contains("/recording/role_1/lines/")&&method=="PUT"->{
      assertEquals("RIFF",bytes.copyOfRange(0,4).toString(Charsets.US_ASCII));assertEquals(48000,ByteBuffer.wrap(bytes,24,4).order(ByteOrder.LITTLE_ENDIAN).int);assertTrue(bytes.size<=44+86402)
@@ -78,7 +82,7 @@ class NativePerformanceTest{
     }
     key.endsWith("/submit")->{recording.getJSONObject("recording").getJSONArray("roles").getJSONObject(0).put("state","submitted");data=recording}
    }
-   val isAudio=key.endsWith("/background")||key.contains("/lines/")&&method=="GET";val isImage=key.startsWith("/assets/dubbing-genres/");val body=if(isAudio)audio else if(isImage)genreImage else data.toString().toByteArray();val type=if(isAudio)"audio/wav" else if(isImage)"image/webp" else "application/json";client.getOutputStream().write("HTTP/1.1 $code Response\r\nContent-Type: $type\r\nContent-Length: ${body.size}\r\nConnection: close\r\n\r\n".toByteArray()+body)
+   val isAudio=key.endsWith("/background")||key.contains("/lines/")&&method=="GET";val isImage=key.startsWith("/assets/dubbing-genres/")||key.startsWith("/assets/gifts/")||key.startsWith("/media/producer/");val body=if(isAudio)audio else if(key.startsWith("/assets/gifts/"))giftImage else if(isImage)genreImage else data.toString().toByteArray();val type=if(isAudio)"audio/wav" else if(isImage)"image/webp" else "application/json";client.getOutputStream().write("HTTP/1.1 $code Response\r\nContent-Type: $type\r\nContent-Length: ${body.size}\r\nConnection: close\r\n\r\n".toByteArray()+body)
   }}catch(_:Exception){}}}catch(_:SocketException){}}
  }
  @After fun teardown(){activity?.close();context.stopService(Intent(context,NativeVoiceService::class.java));if(::server.isInitialized)server.close();workers.shutdownNow()}
@@ -91,13 +95,59 @@ class NativePerformanceTest{
   launch("voice/native-room");visible("native-voice-room");text("청취 중")
   assertEquals("Listening must not request microphone permission",permissionBefore,ContextCompat.checkSelfPermission(context,Manifest.permission.RECORD_AUDIO));assertFalse(NativeVoiceService.current.value!!.micOn.value)
   ui.onNodeWithText("메시지를 입력하세요").performTextInput("같이 이야기해요")
-  ui.onNodeWithContentDescription("메시지 보내기").performClick();text("같이 이야기해요");capture("voice-listener")
+  ui.onNodeWithContentDescription("메시지 보내기").performClick();text("같이 이야기해요");ui.waitUntil(10000){ui.onNodeWithText("메시지를 입력하세요").isDisplayed()};assertNull(NativeVoiceService.current.value!!.error.value);capture("voice-listener")
   for(seat in 0..7)ui.onNodeWithTag("voice-seat-$seat").assertIsDisplayed()
   ui.onNodeWithText("메시지를 입력하세요").assertIsDisplayed()
   androidx.test.espresso.Espresso.closeSoftKeyboard();ui.onNodeWithTag("voice-seat-1").performClick();text("신청 취소")
   assertTrue(requests.none{it.first.contains("/publish")});assertTrue(requests.any{it.first.endsWith("/chat")})
   ui.onNodeWithContentDescription("소리 설정").performClick();text("내가 듣는 음악");capture("voice-settings")
  }
+
+ private fun voiceMusicFixture(){
+  val song=payload("id" to "voice-song","title" to "너와 함께 걷는 밤의 아주 긴 노래 제목","artist" to "NOVA","duration" to 180)
+  state.put("music",payload("queue" to arr(song),"index" to 0,"playing" to false,"position" to 0,"updated" to System.currentTimeMillis()))
+  responses["/api/library"]=payload("likes" to JSONArray(),"collections" to arr(payload("id" to "voice-list","user_id" to me,"name" to "함께 들은 음악")))
+  responses["/api/producers/host-profile"]=payload("profile" to payload("id" to "host-profile","name" to "지유","bio" to "음악으로 이야기해요"),"followers" to 12,"tracks" to arr(song),"covers" to JSONArray(),"gallery" to arr(payload("id" to "photo","url" to "/media/producer/sample")),"crew" to payload("name" to "밤산책"))
+ }
+ @Test fun voiceTopMusicProfileAndPlaylistKeepRoomConnected(){
+  voiceMusicFixture();launch("voice/native-room");visible("voice-top-music");text("NOVA")
+  ui.onNodeWithContentDescription("방 설정").assertDoesNotExist();ui.onNodeWithTag("voice-muted-host",useUnmergedTree=true).assertIsDisplayed()
+  val top=ui.onNodeWithTag("voice-top-music").fetchSemanticsNode().boundsInRoot
+  val seat=ui.onNodeWithTag("voice-seat-0").fetchSemanticsNode().boundsInRoot;assertTrue(top.bottom<=seat.top)
+  val engine=NativeVoiceService.current.value
+  ui.waitUntil(10000){ui.onAllNodesWithContentDescription("좋아요").fetchSemanticsNodes().isNotEmpty()};ui.onNodeWithContentDescription("좋아요").performClick();text("너와 함께")
+  ui.waitUntil(10000){requests.any{it.first=="PUT /api/tracks/voice-song/like"}}
+  ui.onNodeWithContentDescription("내 플레이리스트에 담기").performClick();text("함께 들은 음악");ui.onNodeWithText("함께 들은 음악").performClick()
+  ui.waitUntil(10000){requests.any{it.first=="PUT /api/playlists/voice-list/tracks/voice-song"}}
+  ui.onNodeWithTag("voice-seat-0").performClick();ui.onNodeWithText("프로필 보기").performClick();visible("voice-profile-popup");text("밤산책");capture("voice-267-profile")
+  ui.onNodeWithContentDescription("팝업 닫기").performClick();assertSame(engine,NativeVoiceService.current.value);assertFalse(requests.any{it.first.endsWith("/leave")});assertEquals(1,requests.count{it.first.endsWith("/join")})
+  capture("voice-267-listener")
+ }
+ @Test fun voiceHostRequestsStayAtTopAndSeatingPolicySaves(){
+  voiceMusicFixture();state.put("self","host");state.getJSONArray("members").getJSONObject(1).put("requested",true).put("requestedSeat",1)
+  repeat(35){i->state.getJSONArray("chat").put(payload("id" to "chat-$i","name" to "하린","user_id" to me,"body" to "대화 $i","sequence" to i))}
+  launch("voice/native-room");visible("voice-seat-alert");ui.onNodeWithTag("native-voice-conversation").performScrollToIndex(34)
+  ui.onNodeWithTag("voice-seat-alert").assertIsDisplayed();capture("voice-267-seat-alert");ui.onNodeWithTag("voice-seat-alert").performClick();ui.onNodeWithText("승인").performClick()
+  ui.waitUntil(10000){state.getJSONArray("members").getJSONObject(1).optInt("seat")==1};ui.onNodeWithContentDescription("팝업 닫기").performClick()
+  ui.onNodeWithTag("voice-seat-alert").assertDoesNotExist();ui.onNodeWithContentDescription("방 설정").performClick()
+  ui.onNodeWithText("자유 착석").performScrollTo().performClick();capture("voice-267-room-settings")
+  ui.onNodeWithText("설정 저장").performScrollTo().performClick()
+  ui.waitUntil(10000){requests.any{it.first.endsWith("/settings")}};assertEquals("free",JSONObject(requests.last{it.first.endsWith("/settings")}.second.toString(Charsets.UTF_8)).getString("seating_mode"))
+ }
+ @Test fun voiceGiftImagesAnimateOnceAndCallsMuteWithoutLeaving(){
+  voiceMusicFixture();launch("voice/native-room");visible("voice-top-music");val engine=NativeVoiceService.current.value!!
+  val gift=payload("id" to "gift-test","kind" to "gift","name" to "지유","recipient_name" to "하린","sequence" to 1,"gift" to payload("id" to "receipt-test","type" to "lollipop","name" to "막대사탕","quantity" to 2))
+  state.getJSONArray("chat").put(gift);ins.runOnMainSync{engine.launch{engine.command("heartbeat")}}
+  visible("voice-gift-gift-test");visible("voice-gift-animation");capture("voice-267-gift")
+  ui.waitUntil(8000){ui.onAllNodesWithTag("voice-gift-animation").fetchSemanticsNodes().isEmpty()}
+  ins.runOnMainSync{engine.launch{engine.command("heartbeat")}};Thread.sleep(400);ui.onNodeWithTag("voice-gift-animation").assertDoesNotExist()
+  ins.runOnMainSync{engine.micOn.value=true;engine.phoneCallChanged(true)}
+  assertFalse(engine.micOn.value);assertFalse(engine.finished.value);assertSame(engine,NativeVoiceService.current.value)
+  ins.runOnMainSync{engine.phoneCallChanged(false);engine.audioFocusChanged(android.media.AudioManager.AUDIOFOCUS_GAIN)}
+  runBlocking(kotlinx.coroutines.Dispatchers.IO){engine.command("heartbeat")};assertNull(engine.error.value)
+  assertFalse("No automatic mic restart after a call",engine.micOn.value);assertFalse(requests.any{it.first.endsWith("/leave")});capture("voice-267-after-call")
+ }
+
  @Test fun nativeRecordingCountsDownSavesTogetherAndRecoversLostResponse(){
   ins.uiAutomation.grantRuntimePermission(context.packageName,Manifest.permission.RECORD_AUDIO)
   launch("dubbing/$projectId");visible("native-dubbing-project");ui.onNodeWithText("녹음하기").performScrollTo().performClick();visible("native-dubbing-recorder");ui.waitUntil(20000){ui.onNodeWithTag("dubbing-record-line").fetchSemanticsNode().config.contains(androidx.compose.ui.semantics.SemanticsProperties.Disabled).not()}
