@@ -14,3 +14,4 @@ declare function hasArtist(track:SongDetailTrack):boolean;
 declare function credits(track:SongDetailTrack):string;
 declare function songCredits(track:SongDetailTrack):string;
 declare function songReleaseDateHTML(track:SongDetailTrack):string;
+declare function trackModerationToolsHTML(track:SongDetailTrack):string;

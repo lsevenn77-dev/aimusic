@@ -18,9 +18,11 @@ f.sql.exec("INSERT INTO playlists(id,user_id,name,is_public,created) VALUES('qa-
 const wav=Buffer.alloc(44+44100*2*45),v=new DataView(wav.buffer,wav.byteOffset,wav.length);
 wav.write('RIFF');v.setUint32(4,wav.length-8,true);wav.write('WAVEfmt ',8);v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,44100,true);v.setUint32(28,88200,true);v.setUint16(32,2,true);v.setUint16(34,16,true);wav.write('data',36);v.setUint32(40,wav.length-44,true);
 for(let i=0;i<44100*45;i++)v.setInt16(44+i*2,Math.sin(i*2*Math.PI*220/44100)*400,true);
+f.sql.exec("INSERT INTO users(id,email,name,created) VALUES('long-user','long@example.test','Long fixture',0); INSERT INTO producers(id,user_id,name,bio,created) VALUES('long-producer','long-user','매우긴제작자이름매우긴제작자이름매우긴제작자이름매우긴제작자이름','',0); INSERT INTO tracks(id,user_id,producer_id,artist_id,title,genre,ai_tool,rights_accepted,original_ext,original_bytes,created,status,description) SELECT 'long','other','long-producer','friend-artist',title,genre,ai_tool,rights_accepted,original_ext,original_bytes,created,status,description FROM tracks WHERE id='one'");
+f.sql.prepare("UPDATE tracks SET title=?,description=? WHERE id='long'").run('긴곡제목'.repeat(30),'첫 문단\n\n'+'긴소개글과공백없는문장'.repeat(180)+'\n마지막 줄');
 const root=resolve(baseline?'work/song-detail-ui/baseline-client':'dist/client');
 const env={DB:f.DB,BUCKET:{async head(key){return {size:key.startsWith('images/')?art.length:wav.length};},async get(key,options){const data=key.startsWith('images/')?art:wav,body=options?.range?data.subarray(options.range.offset,options.range.offset+options.range.length):data;return {body,size:data.length};}},ASSETS:{async fetch(req){const u=new URL(req.url),file=resolve(root,'.'+u.pathname);if(!file.startsWith(root+sep))return new Response('',{status:404});try{return new Response(await readFile(file),{headers:{'content-type':({'.txt':'text/html;charset=utf-8','.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.png':'image/png','.webp':'image/webp'})[extname(file)]||'application/octet-stream'}});}catch{return new Response('',{status:404});}}}};
-const widths=[320,360,390,430,768,1024,1440,1920],tracks=['one','two','three','invitation','own-cover','not-ready'];
+const widths=[320,360,375,390,430,768,1024,1440,1920],tracks=['one','long','two','three','invitation','own-cover','not-ready'];
 const server=createServer(async(req,res)=>{
  try{
   const u=new URL(req.url,'http://127.0.0.1:'+port);

@@ -1,36 +1,13 @@
 // Song-header presentation only. Playback, recording and social actions keep
 // their existing delegated data attributes and server permission checks.
-const SONG_LEGACY_GUIDE_FINGERPRINTS=new Set([
- '245:a61cda3cf20c01c2', // Turn it up
- '249:26b322b910aca1a3', // Aftershock
- '261:1fe3c16dd55a8154', // Okinawa
- '253:51b0d98c815a13c9', // Blurry on purpose
- '260:c78b2a8675a2bf90', // Caught Ya!
- '246:62a798077bd721e8', // 한 번뿐이니까
- '252:c327f404418289e2', // 참 좋다
- '262:a9634f4852e8c38e', // 별일 아닌 것처럼
- '263:a9c0b353ce1d4d26', // 조금씩 멀어지고 있었나 봐
- '252:2afb568399f4deef', // 난 안 괜찮아
- '257:621a89fee184386e', // 금단증상
- '246:9a8c18631f0596b9', // 도깨비 신부
- '244:3923d0c6854e0970', // 조금 많이 좋아해서..
-]);
-function songDescriptionFingerprint(value){
- // A content fingerprint, not an authorship guess: edits no longer match.
- const text=value.replace(/\\r\\n|\\n|\\r|\r\n?/g,'\n').trim();
- let hash=0xcbf29ce484222325n;
- for(let i=0;i<text.length;i++)hash=BigInt.asUintN(64,(hash^BigInt(text.charCodeAt(i)))*0x100000001b3n);
- return text.length+':'+hash.toString(16);
-}
 function songCreatorDescription(t){
  if(typeof t.description!=='string')return '';
- const text=t.description.trim();
- if(!text||['없음','없어요','none','null','undefined','음악을 듣고 감상을 나눠보세요.'].includes(text.toLowerCase()))return '';
- return SONG_LEGACY_GUIDE_FINGERPRINTS.has(songDescriptionFingerprint(text))?'':text;
+ // The saved field is authoritative. Content cannot establish authorship.
+ return t.description.trim()?t.description:'';
 }
 function songDescriptionHTML(t){
  const text=songCreatorDescription(t);
- return text?'<p class="song-description">'+esc(text)+'</p>':'';
+ return text?'<section class="song-introduction" aria-label="곡 소개"><h3>곡 소개</h3><p class="song-description">'+esc(text)+'</p></section>':'';
 }
 function songActionIcon(name){
  const key=name==='sing'?'waveform':name;
@@ -61,5 +38,5 @@ function songDetailHeaderHTML(t){
  return '<section class="song-detail song-detail-refined">'+cover(t)+'<div class="song-detail-copy">'+
  '<span class="eyebrow song-track-meta">'+esc(genres)+(genres?' · ':'')+time(t.duration)+'</span><h2>'+esc(t.title)+'</h2>'+
  songDetailCreditsHTML(t)+songReleaseDateHTML(t)+songDescriptionHTML(t)+songDetailActionsHTML(t)+songOwnerActionsHTML(t)+
- '<p class="song-metrics">'+number(t.plays||0)+'회 감상 · '+number(t.comments||0)+'개 댓글'+(t.ai_comments?' · 공식 AI 응원 '+number(t.ai_comments)+'개':'')+'</p></div></section>';
+ '<div class="song-engagement"><p class="song-metrics">'+number(t.plays||0)+'회 감상 · '+number(t.comments||0)+'개 댓글'+(t.ai_comments?' · 공식 AI 응원 '+number(t.ai_comments)+'개':'')+'</p>'+trackModerationToolsHTML(t)+'</div></div></section>';
 }

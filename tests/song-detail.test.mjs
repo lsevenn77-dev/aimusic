@@ -12,14 +12,17 @@ function header(user='owner',active=false){
  vm.runInContext(read('dist/icons.js'),c);
  const views=read('dist/views.js');
  vm.runInContext(views.slice(views.indexOf('function songCredits('),views.indexOf('function coversPanelHTML(')),c);
+ c.authConfig={};
+ c.songReleaseDateHTML=()=>'<p class="song-release-date">발매일</p>';
+ vm.runInContext(views.slice(views.indexOf('function trackModerationToolsHTML('),views.indexOf('function trackReviewHTML(')),c);
  vm.runInContext(read('dist/song-detail.js'),c);return c;
 }
-test('known legacy automatic guides are hidden by exact content, including escaped line breaks',()=>{
+test('saved descriptions display without guessing authorship from content',()=>{
  const c=header();assert.equal(samples.legacy_auto.length,13);
  for(const t of samples.legacy_auto){
-  assert.equal(c.songCreatorDescription(t),'',t.title);
-  assert.equal(c.songCreatorDescription({description:t.description.replaceAll('\\n','\n')}),'',t.title);
-  assert.equal(c.songDescriptionHTML(t),'');
+  assert.equal(c.songCreatorDescription(t),t.description,t.title);
+  assert.equal(c.songCreatorDescription({description:t.description.replaceAll('\\n','\n')}),t.description.replaceAll('\\n','\n'),t.title);
+  assert.ok(c.songDescriptionHTML(t).includes(esc(t.description)));
  }
 });
 test('creator text, paragraphs and amended descriptions stay intact and HTML-safe',()=>{
@@ -31,10 +34,21 @@ test('creator text, paragraphs and amended descriptions stay intact and HTML-saf
  const edited=samples.legacy_auto[0].description+'\n제작자가 새로 수정한 소개입니다.';
  assert.equal(c.songCreatorDescription({description:edited}),edited,'Similar prose is not guessed to be automatic');
 });
-test('empty introductions and the former fixed fallback do not reserve a paragraph',()=>{
+test('empty introductions do not reserve a card and saved text stays intact',()=>{
  const c=header();
- for(const description of [undefined,null,'',' \n\t ','none','없음','음악을 듣고 감상을 나눠보세요.'])assert.equal(c.songDescriptionHTML({description}),'');
+ for(const description of [undefined,null,'',' \n\t '])assert.equal(c.songDescriptionHTML({description}),'');
+ for(const description of ['none','없음','음악을 듣고 감상을 나눠보세요.','  첫 줄\n둘째 줄  '])assert.equal(c.songCreatorDescription({description}),description);
  assert.doesNotMatch(c.songDetailHeaderHTML(track),/song-description|음악을 듣고 감상을/);
+});
+
+test('one introduction follows the date and precedes actions; metrics and report share a row',()=>{
+ const c=header(),html=c.songDetailHeaderHTML({...track,description:'제작자 소개'});
+ const order=['song-release-date','song-introduction','song-actions','song-engagement','song-metrics','data-report-track'];
+ let previous=-1;for(const key of order){const at=html.indexOf(key);assert.ok(at>previous,key);previous=at;}
+ assert.equal(html.match(/class="song-introduction"/g).length,1);
+ assert.match(html,/<h3>곡 소개<\/h3>/);assert.match(html,/20회 감상 · 2개 댓글/);
+ assert.doesNotMatch(header(null).songDetailHeaderHTML(track),/data-report-track/);
+ assert.doesNotMatch(header('other').songDetailHeaderHTML(track),/data-report-track/);
 });
 test('the five actions keep their delegates, links, order, active state and count',()=>{
  const c=header('owner',true),html=c.songDetailActionsHTML(track);
@@ -71,6 +85,6 @@ test('the existing track API returns saved introductions unchanged and performs 
   const r=await f.call('/api/tracks/one','GET',undefined,null);
   assert.equal(r.status,200);assert.equal(r.body.track.description,description);
   assert.equal(f.sql.prepare("SELECT description FROM tracks WHERE id='one'").get().description,description);
-  assert.equal(c.songCreatorDescription(r.body.track),description===values[1]?'':description);
+  assert.equal(c.songCreatorDescription(r.body.track),description);
  }
 });
