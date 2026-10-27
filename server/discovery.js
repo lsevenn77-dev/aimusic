@@ -1,3 +1,4 @@
+import {assertUnblocked} from './account-safety.js';
 import {trackArtworkSQL} from './track-artwork.js';
 import {namedArtistSQL} from './artist-identity.js';
 import {publicNameSQL,producerNameSQL} from './identity.js';
@@ -29,6 +30,12 @@ async function libraryMember(env,uid,pid){const p=await one(env,`SELECT p.* FROM
 
 export async function discoveryRoute(req,env,path,user){
  const url=new URL(req.url),method=req.method;
+ const member=path.match(/^\/api\/members\/([A-Za-z]{3}[0-9]{4})$/);
+ if(member&&method==='GET'){
+  const profile=await one(env,`SELECT p.id,u.id user_id,m.code public_id,${publicNameSQL()} name,COALESCE(p.bio,'') bio,COALESCE(p.image_version,'') image_version FROM public_profile_ids m JOIN users u ON u.id=m.user_id LEFT JOIN producers p ON p.user_id=u.id WHERE m.code=? AND u.provider!='deleted'`,member[1].toUpperCase());
+  if(!profile)fail(404,'프로필을 찾을 수 없습니다.');assertUnblocked(env,profile.user_id);return json({profile});
+ }
+
  if(path==='/api/discovery'&&method==='GET'){
   const mood=MOODS.find(m=>m.id===url.searchParams.get('mood')),genre=url.searchParams.get('genre'),following=url.searchParams.get('following')==='1';
   if(url.searchParams.has('mood')&&!mood)fail(400,'분위기를 다시 선택해주세요.');
@@ -44,7 +51,7 @@ export async function discoveryRoute(req,env,path,user){
   const [tracks,artists,producers,playlists]=await Promise.all([
    trackList(env,VISIBLE()+` AND t.kind='original' AND (t.title LIKE ? OR a.name LIKE ? OR (${producerNameSQL()}) LIKE ? OR (t.genre||t.genres_json) LIKE ? OR t.tags LIKE ?)`,Array(5).fill(pattern),'t.created DESC',100),
    rows(env,`SELECT a.*,(SELECT count(*) FROM follows f WHERE f.kind='artist' AND f.target_id=a.id) followers FROM artists a WHERE ${namedArtistSQL()} AND (a.name LIKE ? OR a.bio LIKE ?) AND EXISTS(SELECT 1 FROM tracks t WHERE t.artist_id=a.id AND t.kind='original' AND t.status='published') ORDER BY a.name LIMIT 100`,pattern,pattern),
-   rows(env,`SELECT p.id,${producerNameSQL()} name,p.bio,p.image_version,(SELECT count(*) FROM follows f WHERE f.kind='producer' AND f.target_id=p.id) followers FROM producers p WHERE ((${producerNameSQL()}) LIKE ? OR p.bio LIKE ?) AND EXISTS(SELECT 1 FROM tracks t WHERE t.producer_id=p.id AND ${VISIBLE()}) ORDER BY name LIMIT 100`,pattern,pattern),
+   rows(env,`SELECT p.id,u.id user_id,m.code public_id,${publicNameSQL()} name,COALESCE(p.bio,'') bio,COALESCE(p.image_version,'') image_version,(SELECT count(*) FROM follows f WHERE f.kind='producer' AND f.target_id=p.id) followers FROM users u JOIN public_profile_ids m ON m.user_id=u.id LEFT JOIN producers p ON p.user_id=u.id WHERE u.provider!='deleted' AND ((${publicNameSQL()}) LIKE ? ESCAPE '\\' OR m.code=?) ORDER BY name,u.id LIMIT 100`,'%'+q.replace(/[\\%_]/g,'\\$&')+'%',q.toUpperCase()),
    playlistSummaries(env,user?.id||'',`p.is_public=1 AND ${activePlaylistSQL()} AND (p.name LIKE ? OR p.description LIKE ? OR ${publicNameSQL()} LIKE ?)`,[pattern,pattern,pattern])]);
   return json({tracks,artists,producers,playlists});
  }

@@ -29,7 +29,7 @@ function bindForms(base,param){
  bindAccountSettings();
  bindSearchForms();
  if($('#auth-form')){
-  const form=$('#auth-form');$('#auth-switch').onclick=()=>{const signup=form.dataset.mode!=='register';form.dataset.mode=signup?'register':'login';$('#signup-name').hidden=!signup;form.elements.name.required=signup;form.elements.password.autocomplete=signup?'new-password':'current-password';$('#auth-title').textContent=signup?'무료 회원가입':'이메일로 로그인';$('#auth-submit').textContent=signup?'가입하고 음악 듣기':'로그인';$('#auth-switch').textContent=signup?'이미 회원이신가요? 로그인':'처음 오셨나요? 무료 회원가입';};
+  const form=$('#auth-form');$('#auth-switch').onclick=()=>{const signup=form.dataset.mode!=='register';form.dataset.mode=signup?'register':'login';$('#signup-name').hidden=!signup;form.elements.name.required=signup;form.elements.name.disabled=!signup;form.elements.name.setCustomValidity('');$('#auth-submit').disabled=false;form.elements.password.autocomplete=signup?'new-password':'current-password';$('#auth-title').textContent=signup?'무료 회원가입':'이메일로 로그인';$('#auth-submit').textContent=signup?'가입하고 음악 듣기':'로그인';$('#auth-switch').textContent=signup?'이미 회원이신가요? 로그인':'처음 오셨나요? 무료 회원가입';};
   form.onsubmit=busyForm(form,async fd=>{const d=await api('/api/auth/'+form.dataset.mode,'POST',Object.fromEntries(fd));me=d.user;await refreshAuthState();await refreshLibrary();updateAccount();toast('반가워요! 이제 전체곡을 들을 수 있습니다.');try{await resumeAfterLogin();}catch(e){toast(e.message);}if(location.hash===returnRoute)await render();else location.hash=returnRoute;});
   if(authConfig.googleClientId)prepareGoogle().catch(e=>toast(e.message));
  }

@@ -64,3 +64,5 @@ main .social-profile-identity h2>.mp-public-id{display:block;font-size:13px;font
  .mp-work-list .song-cover-child>.song-cover-play{grid-column:3;grid-row:1}
  .mp-work-list .song-cover-child>.song-cover-more{grid-column:4;grid-row:1}
 }
+
+.mp-public-id [data-copy-public-id]{min-width:44px;min-height:44px;padding:0 8px;font-size:inherit;vertical-align:middle;background:transparent;border:0;color:inherit;cursor:pointer;text-decoration:underline}

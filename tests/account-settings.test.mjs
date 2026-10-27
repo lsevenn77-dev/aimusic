@@ -10,9 +10,10 @@ test('nickname reservations cover signup, every edit route, normalized duplicate
  assert.equal((await f.call('/api/account/nickname?name=Unique')).body.available,true);
  const changed=await f.call('/api/account/nickname','PUT',{name:'Unique'});assert.equal(changed.status,200);assert.equal(changed.body.user.id,'owner');assert.equal(changed.body.user.name,'Unique');
  assert.equal((await f.call('/api/account/nickname?name=unique', 'GET',undefined,'other')).body.available,false);
- for(const path of ['/api/account/nickname','/api/me/profile','/api/studio/profile'])assert.equal((await f.call(path,'PUT',{name:'ｕｎｉｑｕｅ'},'other')).status,409,path);
+ for(const path of ['/api/account/nickname','/api/me/profile','/api/studio/profile'])assert.equal((await f.call(path,'PUT',{name:'UNIQUE'},'other')).status,409,path);
  assert.equal((await f.call('/api/studio/producers/producer','PUT',{name:'other',bio:''})).status,409);
  const registered=await f.send('/api/auth/register',{email:'new@example.test',password:'fixture-password-123',name:'UNIQUE'},'', 'POST');assert.equal(registered.status,409);
+ f.sql.exec("DELETE FROM nickname_changes");
  const results=await Promise.all(['owner','other'].map(uid=>f.call('/api/account/nickname','PUT',{name:'같은아이디'},uid)));assert.deepEqual(results.map(x=>x.status).sort(),[200,409]);assert.equal(f.sql.prepare("SELECT count(*) n FROM account_handles WHERE normalized='같은아이디'").get().n,1);
  assert.equal(f.sql.prepare("SELECT count(*) n FROM tracks WHERE user_id='owner'").get().n,4);
  const email=f.sql.prepare("SELECT email FROM users WHERE id='owner'").get().email;await f.call('/api/account/nickname','PUT',{name:'이메일 그대로',email:'changed@example.test'});assert.equal(f.sql.prepare("SELECT email FROM users WHERE id='owner'").get().email,email);

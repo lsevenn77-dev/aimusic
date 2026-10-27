@@ -23,7 +23,7 @@ export const viewerBlockedIds=user=>viewerBlocks.get(user);
 export async function viewer(req,env){
  const token=cookies(req).aifect_session;if(!token)return null;
  // Resolve the session and public nickname together on every request; no auth cache.
- const record=await one(env,`SELECT u.id,u.email,u.provider,u.premium_until,u.apple_premium_until,COALESCE(${producerNameSQL()},CASE WHEN u.provider='email' THEN u.name ELSE '리스너 '||substr(u.id,1,8) END) name,${publicCrewNameSQL()} display_name,p.id profile_id,COALESCE(p.image_version,'') image_version,(SELECT json_group_array(CASE WHEN b.user_id=u.id THEN b.blocked_id ELSE b.user_id END) FROM user_blocks b WHERE b.user_id=u.id OR b.blocked_id=u.id) blocked_ids FROM sessions s JOIN users u ON u.id=s.user_id LEFT JOIN producers p ON p.user_id=u.id WHERE s.token=? AND s.expires>? AND u.provider!='deleted' AND u.account_type='human'`,await hash(token),now());
+ const record=await one(env,`SELECT u.id,(SELECT code FROM public_profile_ids WHERE user_id=u.id) public_id,u.email,u.provider,u.premium_until,u.apple_premium_until,COALESCE(${producerNameSQL()},CASE WHEN u.provider='email' THEN u.name ELSE '리스너 '||substr(u.id,1,8) END) name,${publicCrewNameSQL()} display_name,p.id profile_id,COALESCE(p.image_version,'') image_version,(SELECT json_group_array(CASE WHEN b.user_id=u.id THEN b.blocked_id ELSE b.user_id END) FROM user_blocks b WHERE b.user_id=u.id OR b.blocked_id=u.id) blocked_ids FROM sessions s JOIN users u ON u.id=s.user_id LEFT JOIN producers p ON p.user_id=u.id WHERE s.token=? AND s.expires>? AND u.provider!='deleted' AND u.account_type='human'`,await hash(token),now());
  if(!record)return null;
  const {blocked_ids,...user}=record;
  const granted=await applyPremiumGrant(env,user);
@@ -111,7 +111,7 @@ export async function authRoute(req,env,path,user){
   let u=await one(env,"SELECT * FROM users WHERE email=? AND provider='email'",email);
   if(path.endsWith('/register')){
    if(u)fail(409,'이미 가입된 이메일입니다. 로그인해주세요.');
-   const salt=id(),name=nickname(str(body.name,40)).name,uid=id();
+   const salt=id(),name=nickname(body.name).name,uid=id();
    await nicknameBatch(env,uid,name,[query(env,'INSERT INTO users(id,email,name,password,provider,subject,created) VALUES(?,?,?,?,?,?,?)',uid,email,name,salt+':'+await passwordHash(password,salt,env),'email',email,now())]);
    u={id:uid,email,name,provider:'email'};
   }else{

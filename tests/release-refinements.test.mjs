@@ -44,7 +44,7 @@ test('Enter sends consonants once across both Korean IME orderings; Shift+Enter 
  }
 });
 test('server accepts shortened Korean in DM and crew chat without bypassing normal identity checks',async t=>{
- const f=await fixture(t);await f.call('/api/me/profile','PUT',{name:'Other Listener'},'other');const peer=f.sql.prepare("SELECT id FROM producers WHERE user_id='other'").get().id;
+ const f=await fixture(t);await f.call('/api/me/profile','PUT',{name:'OtherUser'},'other');const peer=f.sql.prepare("SELECT id FROM producers WHERE user_id='other'").get().id;
  for(const [i,body]of ['ㄳㄳ','ㅇㅇ','ㅋㅋ'].entries()){const r=await f.call('/api/dm/'+peer,'POST',{body,request_id:'consonant-dm-request-'+i});assert.equal(r.status,201,JSON.stringify(r.body));}
  const crew=await f.call('/api/crews','POST',{name:'Consonant Crew',description:'',interests:''});assert.equal(crew.status,201);
  assert.equal((await f.call('/api/crews/'+crew.body.crew.id+'/messages','POST',{body:'ㄳㄳ',request_id:'consonant-crew-request'})).status,201);

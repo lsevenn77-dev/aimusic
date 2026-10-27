@@ -6,12 +6,11 @@ import {reconcileDubbingGold} from './dubbing-gold.js';
 import {PIKA_ORIGIN} from './dubbing-pika.js';
 import {dubbingQuota} from './dubbing-quota.js';
 import {publicNameSQL} from './identity.js';
-import {nickname} from './nicknames.js';
 export async function dubbingAdminRoute(req,env,path,user){
  if(!path.startsWith('/api/admin/dubbing'))return null;
  requireUser(user);if(!isAdmin(env,user))fail(403,'관리자만 확인할 수 있습니다.');
  if(path==='/api/admin/dubbing/script-credits'&&req.method==='GET'){
-  const search=nickname(new URL(req.url).searchParams.get('q'));
+  const name=str(new URL(req.url).searchParams.get('q'),100),search={name,key:name.normalize('NFKC').toLowerCase()};
   const found=await rows(env,`SELECT u.id,${publicNameSQL()} name,h.normalized handle FROM users u
    LEFT JOIN account_handles h ON h.user_id=u.id WHERE u.provider!='deleted'
    AND (u.id=? OR h.normalized=? OR lower(trim(${publicNameSQL()}))=?) LIMIT 2`,search.name,search.key,search.key);

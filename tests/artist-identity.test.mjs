@@ -15,11 +15,11 @@ test('songs without an AI singer use the public nickname in every catalog respon
  assert.equal((await f.call('/api/studio')).body.artists.some(a=>a.id===placeholder),false);
  assert.equal((await f.call('/api/catalog?section=artists')).body.artists.some(a=>a.id===placeholder),false);
  assert.equal((await f.call('/api/search?q=없음')).body.artists.length,0);
- await f.call('/api/studio/profile','PUT',{name:'바뀐 활동명',bio:''});
- assert.equal((await f.call('/api/tracks/'+draft.body.id)).body.track.artist,'바뀐 활동명');
+ await f.call('/api/studio/profile','PUT',{name:'바뀐활동명',bio:''});
+ assert.equal((await f.call('/api/tracks/'+draft.body.id)).body.track.artist,'바뀐활동명');
  for(const name of ['없음','미등록','-','선택 안함','선택안함']){
   f.sql.prepare('UPDATE artists SET name=? WHERE id=?').run(name,placeholder);
-  assert.equal((await f.call('/api/tracks/'+draft.body.id)).body.track.artist,'바뀐 활동명');
+  assert.equal((await f.call('/api/tracks/'+draft.body.id)).body.track.artist,'바뀐활동명');
  }
 });
 

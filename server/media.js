@@ -43,12 +43,12 @@ export async function mediaRoute(req,env,path,user){
  }
  if(path==='/api/studio/profile'&&method==='PUT'){
   requireUser(user);const b=await req.json(),p=await one(env,'SELECT id FROM producers WHERE user_id=?',user.id),pid=p?.id||id();
-  const name=nickname(b.name).name;await nicknameBatch(env,user.id,name,[p?query(env,'UPDATE producers SET name=?,bio=?,nickname_confirmed=1 WHERE id=?',name,str(b.bio||'',1000,false),p.id):query(env,'INSERT INTO producers(id,user_id,name,bio,created,nickname_confirmed) VALUES(?,?,?,?,?,1)',pid,user.id,name,str(b.bio||'',1000,false),now())]);
+  const name=str(b.name,60);await nicknameBatch(env,user.id,name,[p?query(env,'UPDATE producers SET name=?,bio=?,nickname_confirmed=1 WHERE id=?',name,str(b.bio||'',1000,false),p.id):query(env,'INSERT INTO producers(id,user_id,name,bio,created,nickname_confirmed) VALUES(?,?,?,?,?,1)',pid,user.id,name,str(b.bio||'',1000,false),now())]);
   return json({ok:true,id:pid});
  }
  if(path==='/api/uploads'&&method==='POST'){
   requireUser(user);await rate(env,'upload-original:'+user.id,30,60);await requireUploadQuota(env,user);
-  const b=await req.json(),title=str(b.title,120),producerName=nickname(b.producer).name,tool=str(b.ai_tool,100),lyricData=lyricsFields(b);
+  const b=await req.json(),title=str(b.title,120),producerName=str(b.producer,60),tool=str(b.ai_tool,100),lyricData=lyricsFields(b);
   const performance=b.performance_mode??'solo';if(!['solo','duet'].includes(performance))fail(400,'솔로 또는 듀엣을 선택해주세요.');
   if(b.rights!==true||b.is_ai!==true)fail(400,'AI 제작 여부와 음원 권리 보유 확인이 필요합니다.');
   if(b.karaoke!==true)fail(400,'노래방 MR 제공과 커버 허락에 동의해야 업로드할 수 있습니다.');

@@ -8,6 +8,7 @@ function collectionGrid(items,message='아직 플레이리스트가 없어요'){
 function discoveryTabs(active){return `<div class="tabs explorer-tabs">${[['','추천'],['themes','기분·활동'],['genres','장르'],['following','팔로잉 신곡']].map(([id,label])=>`<a class="tab ${active===id?'active':''}" href="#discover${id?'/'+id:''}">${label}</a>`).join('')}<a class="tab" href="#collections">공개 플레이리스트</a></div>`;}
 function moodCards(moods,selected=''){return `<div class="mood-grid">${moods.map((m,i)=>`<a class="mood-card mood-${i} ${selected===m.id?'selected':''}" href="#discover/mood?m=${m.id}" ${selected===m.id?'aria-current="page"':''}><span aria-hidden="true">${icon(m.symbol||'music')}</span><strong>${esc(m.name)}</strong><small>${esc(m.caption)}</small><em>${m.count}곡</em></a>`).join('')}</div>`;}
 async function explorerView(base,param,raw,embedded=false){
+ if(base==='member'){const d=await api('/api/members/'+encodeURIComponent(param));return {html:listenerProfileHTML(d.profile)};}
  const params=new URLSearchParams(raw.split('?')[1]||'');
  if(base==='membership'){if(me)await refreshLibrary();let billing;try{billing=await api('/api/billing/status');}catch{}return {html:membershipHTML(billing)};}
  if(base==='discover'){

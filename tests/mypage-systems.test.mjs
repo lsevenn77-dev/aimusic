@@ -19,12 +19,12 @@ test('public member ID backfill preserves existing numbers and is replay-safe',(
 });
 test('registration, concurrent allocation, nickname and login preserve public identity',async t=>{
  const f=await fixture(t,{AUTH_PEPPER:'local-test-only'});
- const signup=await f.call('/api/auth/register','POST',{email:'member@example.test',name:'신규 회원',password:'very-long-test-password'},null);assert.equal(signup.status,200,JSON.stringify(signup.body));
+ const signup=await f.call('/api/auth/register','POST',{email:'member@example.test',name:'신규회원',password:'very-long-test-password'},null);assert.equal(signup.status,200,JSON.stringify(signup.body));
  const member=signup.body.user.id,num=f.sql.prepare('SELECT number FROM public_member_ids WHERE user_id=?').get(member).number;
  await Promise.all(Array.from({length:40},(_,i)=>f.DB.prepare('INSERT INTO users(id,email,name,created) VALUES(?,?,?,?)').bind('parallel-'+i,i+'@example.test','가입자'+i,i).run()));
  const counts=f.sql.prepare('SELECT count(*) n,count(DISTINCT number) unique_n FROM public_member_ids').get();assert.equal(counts.n,counts.unique_n);
  const own=(await f.call('/api/me/profile')).body.profile.public_number;assert.equal(typeof own,'number');
- assert.equal((await f.call('/api/me/profile','PUT',{name:'변경한 닉네임',bio:'소개',public_number:99999})).status,200);
+ assert.equal((await f.call('/api/me/profile','PUT',{name:'변경한닉네임',bio:'소개',public_number:99999})).status,200);
  assert.equal((await f.call('/api/me/profile')).body.profile.public_number,own);
  assert.equal((await f.call('/api/producers/producer','GET',null,'other')).body.profile.public_number,own);
  const login=await f.call('/api/auth/login','POST',{email:'member@example.test',password:'very-long-test-password'},null);assert.equal(login.status,200);assert.equal(login.body.user.id,member);assert.equal(f.sql.prepare('SELECT number FROM public_member_ids WHERE user_id=?').get(member).number,num);

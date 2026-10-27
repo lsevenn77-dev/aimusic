@@ -330,3 +330,7 @@ export const crewNoticeImages=sqliteTable('crew_notice_images',{id:text('id').pr
 
 export * from './ai-bots';
 export * from './cover-compression';
+
+// Public profile codes never replace users.id or legacy numeric public_member_ids.
+export const publicProfileIds=sqliteTable('public_profile_ids',{userId:text('user_id').primaryKey(),code:text('code').notNull()},t=>[uniqueIndex('public_profile_ids_code').on(t.code),check('public_profile_ids_format',sql`length(${t.code})=7 AND ${t.code} GLOB '[A-Z][A-Z][A-Z][0-9][0-9][0-9][0-9]'`)]);
+export const nicknameChanges=sqliteTable('nickname_changes',{userId:text('user_id').primaryKey().references(()=>users.id,{onDelete:'cascade'}),changedAt:integer('changed_at').notNull()});

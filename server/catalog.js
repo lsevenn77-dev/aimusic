@@ -164,7 +164,7 @@ export async function catalogRoute(req,env,path,user){
    // Profile visitors receive public works, never their owner's private XP totals.
    if(!own)for(const track of [...tracks,...(covers||[])])delete track.player_xp;
    const ai=kind==='producer'?await supportFollowCount(env,entity.user_id):0;
-   return json({profile:kind==='producer'?{...entity,partner_badge:partner.badge,...identity,public_number:dashboard.public_number}:entity,tracks,followers:count.n+ai,human_followers:count.n,ai_followers:ai,gallery,...(kind==='producer'?{...dashboard,covers,gifts,invite_crew:inviteCrew,gallery_limit:PROFILE_GALLERY_LIMIT}:{can_manage:user?.id===owner?.user_id,gallery_limit:GALLERY_LIMIT})});
+   return json({profile:kind==='producer'?{...entity,partner_badge:partner.badge,...identity,public_number:dashboard.public_number,public_id:dashboard.public_id}:entity,tracks,followers:count.n+ai,human_followers:count.n,ai_followers:ai,gallery,...(kind==='producer'?{...dashboard,covers,gifts,invite_crew:inviteCrew,gallery_limit:PROFILE_GALLERY_LIMIT}:{can_manage:user?.id===owner?.user_id,gallery_limit:GALLERY_LIMIT})});
   }
   requireUser(user);
   if(method==='PUT')await run(env,'INSERT OR IGNORE INTO follows(user_id,kind,target_id,created) VALUES(?,?,?,?)',user.id,kind,entity.id,now());
