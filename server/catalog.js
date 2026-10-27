@@ -1,4 +1,5 @@
 import {profileDashboard} from './profile-dashboard.js';
+import {songCovers} from './song-covers.js';
 import {trackArtworkSQL} from './track-artwork.js';
 import {profileGallery,PROFILE_GALLERY_LIMIT} from './profile-gallery.js';
 import {partnerState} from './diamonds.js';
@@ -41,7 +42,7 @@ export const trackListQuery=(env,where=VISIBLE(),args=[],sort='t.created DESC',l
 };
 export const trackList=async(...args)=>(await trackListQuery(...args).all()).results.map(trackClassification);
 export async function published(env,tid){const t=await one(env,`SELECT t.* FROM tracks t WHERE t.id=? AND ${VISIBLE()}`,tid);if(!t)fail(404,'공개된 곡을 찾을 수 없습니다.');assertUnblocked(env,t.user_id);return t;}
-const COVER_SORTS={popular:'likes DESC,plays DESC,t.created DESC',gifts:'(gift_gold+gift_stars) DESC,likes DESC,t.created DESC',plays:'plays DESC,likes DESC,t.created DESC',recent:'t.created DESC'};
+export const COVER_SORTS={popular:'likes DESC,plays DESC,t.created DESC',gifts:'(gift_gold+gift_stars) DESC,likes DESC,t.created DESC',plays:'plays DESC,likes DESC,t.created DESC',recent:'t.created DESC'};
 export async function catalogRoute(req,env,path,user){
  const url=new URL(req.url),method=req.method;const discovery=await discoveryRoute(req,env,path,user);if(discovery)return discovery;
  if(path==='/api/community'&&method==='GET'){
@@ -94,6 +95,7 @@ export async function catalogRoute(req,env,path,user){
   }
   if(m[2]==='covers'){
    if(method!=='GET')fail(405,'지원하지 않는 요청입니다.');
+   if(url.searchParams.has('view'))return songCovers(env,detail,url.searchParams,user);
    const sort=url.searchParams.get('sort')||'popular';if(!Object.hasOwn(COVER_SORTS,sort))fail(400,'정렬 기준을 확인해주세요.');
    const mode=url.searchParams.get('mode')||'all';if(!['all','solo','duet'].includes(mode))fail(400,'커버 종류를 확인해주세요.');
    const filter=mode==='all'?'':" AND t.cover_mode='"+mode+"'";

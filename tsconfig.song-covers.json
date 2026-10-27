@@ -1,0 +1,7 @@
+{
+  "extends": "./tsconfig.play.json",
+  "files": [
+    "dist/song-covers.js",
+    "tests/song-cover-globals.d.ts"
+  ]
+}

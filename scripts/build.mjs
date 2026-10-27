@@ -14,6 +14,7 @@ await cp('dist/voice-audio.js','dist/client/voice-audio.js');
 for(const file of ['voice-rooms.js','voice-rooms.css','voice-room-design.css','voice-room-controls.js','voice-diagnostics.js'])await cp('dist/'+file,'dist/client/'+file);
 await cp('dist/music-card-controls.css','dist/client/music-card-controls.css');
 await cp('dist/song-sidebar.css','dist/client/song-sidebar.css');
+for(const file of ['song-covers.js','song-covers.css'])await cp('dist/'+file,'dist/client/'+file);
 for(const file of ['dubbing-community.js','dubbing.js','dubbing.css','dubbing-rewarded.js','dubbing-recording.js'])await cp(`dist/${file}`,`dist/client/${file}`);
 for(const file of ['mobile-ux.js','mobile-ux.css','player-shell.js','player-shell.css','public-music.css','design-system.css','design-system.js'])await cp(`dist/${file}`,`dist/client/${file}`);
 await cp('dist/unified-ui.css','dist/client/unified-ui.css');
