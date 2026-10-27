@@ -1,4 +1,5 @@
 import {profileDashboard} from './profile-dashboard.js';
+import {profileCoverParticipation} from './profile-works.js';
 import {songCovers} from './song-covers.js';
 import {trackArtworkSQL} from './track-artwork.js';
 import {profileGallery,PROFILE_GALLERY_LIMIT} from './profile-gallery.js';
@@ -159,6 +160,7 @@ export async function catalogRoute(req,env,path,user){
     kind==='producer'&&user&&entity.user_id!==user.id?one(env,'SELECT c.id,c.name FROM crew_members cm JOIN crews c ON c.id=cm.crew_id WHERE cm.user_id=? AND NOT EXISTS(SELECT 1 FROM crew_members target WHERE target.crew_id=c.id AND target.user_id=?) AND NOT EXISTS(SELECT 1 FROM crew_bans WHERE crew_id=c.id AND user_id=?)',user.id,entity.user_id,entity.user_id):null,
     kind==='producer'?profileDashboard(env,entity,user):null
    ]);
+   if(kind==='producer'&&url.searchParams.get('dashboard')==='1')await profileCoverParticipation(env,covers,user);
    // Profile visitors receive public works, never their owner's private XP totals.
    if(!own)for(const track of [...tracks,...(covers||[])])delete track.player_xp;
    const ai=kind==='producer'?await supportFollowCount(env,entity.user_id):0;

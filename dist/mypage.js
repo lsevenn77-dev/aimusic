@@ -33,7 +33,49 @@ function myTrackCard(t,compact=false){
 function myWorksHTML(d){
  const all=[...(d.covers||[]),...(d.dubbings||[])],counts={all:all.length,cover:0,duet:0,dubbing:0};all.forEach(t=>counts[myKind(t)]++);
  return mySection('제작곡',d.tracks?.length?`<div class="mp-originals home-music-grid">${d.tracks.slice(0,3).map(t=>myTrackCard(t,true)).join('')}</div>`:myEmpty('등록된 제작곡이 없어요.'),myAll('#producer-songs/'+encodeURIComponent(d.profile.id)),d.tracks?.length||0)+
- mySection('커버 · 듀엣 · 더빙',`<div class="mp-work-controls"><div class="mp-filters" role="group" aria-label="작품 종류">${[['all','전체'],['cover','커버'],['duet','듀엣'],['dubbing','더빙']].map(([key,label])=>`<button data-mp-filter="${key}" aria-pressed="${key==='all'}">${key==='all'?'':myKindIcon(key)}${label} <span>${counts[key]}</span></button>`).join('')}</div><label class="sr-only" for="mp-sort">작품 정렬</label><select id="mp-sort"><option value="recent">최신순</option><option value="plays">재생순</option></select>${me?.id===d.profile.user_id?'<label class="sr-only" for="mp-visibility">작품 공개 범위</label><select id="mp-visibility"><option value="all">모든 공개 범위</option><option value="public">공개</option><option value="private">비공개</option></select>':''}</div><div class="inline-actions"><a class="text-link" href="${esc(opportunityHref(d.profile.id,'duet'))}">참여 가능 · 듀엣</a><a class="text-link" href="${esc(opportunityHref(d.profile.id,'dubbing'))}">참여 가능 · 더빙</a></div><div id="mp-recordings" class="mp-recordings home-music-grid">${all.length?all.sort((a,b)=>b.created-a.created).map(t=>myTrackCard(t)).join(''):myEmpty('아직 등록된 커버·듀엣·더빙이 없어요.')}</div>`, '',all.length);
+ mySection('커버 · 듀엣 · 더빙',`<div class="mp-work-controls"><div class="mp-filters" role="group" aria-label="작품 종류">${[['all','전체'],['cover','커버'],['duet','듀엣'],['dubbing','더빙']].map(([key,label])=>`<button data-mp-filter="${key}" aria-pressed="${key==='all'}">${label} <span>${counts[key]}</span></button>`).join('')}</div><label class="sr-only" for="mp-sort">작품 정렬</label><select id="mp-sort"><option value="recent">최신순</option><option value="plays">재생순</option></select>${me?.id===d.profile.user_id?'<label class="sr-only" for="mp-visibility">작품 공개 범위</label><select id="mp-visibility"><option value="all">모든 공개 범위</option><option value="public">공개</option><option value="private">비공개</option></select>':''}</div><div class="inline-actions"><a class="text-link" href="${esc(opportunityHref(d.profile.id,'duet'))}">참여 가능 · 듀엣</a><a class="text-link" href="${esc(opportunityHref(d.profile.id,'dubbing'))}">참여 가능 · 더빙</a></div><div id="mp-recordings" class="mp-recordings mp-work-list">${all.length?all.sort((a,b)=>b.created-a.created).map(t=>myWorkItemHTML(t)).join(''):myEmpty('아직 등록된 커버·듀엣·더빙이 없어요.')}</div>`, '',all.length);
+}
+function myWorkItemHTML(t,child=false){
+ const dub=t.kind==='dubbing',id=esc(t.id),title=esc(t.title),published=!t.status||t.status==='published';
+ const expandable=!child&&(t.completions||0)>0;
+ let row;
+ if(!dub&&published){
+  row=songCoverRowHTML(t,{child,invitation:!child&&t.cover_mode==='duet'&&!t.duet_parent_id,profile:true});
+  row=row.replace('data-cover-children=', 'data-mp-children=').replace('aria-controls="cover-children-', 'aria-controls="mp-children-');
+ }else{
+  const href=dub?'#dubbing/'+id:'#manage/'+id;
+  const metadata=[t.performers||t.owner_name||t.producer,dub?'더빙':'커버',dub?({complete:'완성',recording:'녹음 중',recruiting:'참여 모집'}[t.state]||'작성 중'):'비공개 · '+({hidden:'비공개',processing:'처리 중',uploading:'업로드 중',failed:'처리 실패'}[t.status]||'작성 중'),...(t.genres||[]),t.duration>0?time(t.duration):''].filter(Boolean).join(' · ');
+  const art=dub?`<img src="${esc(AifectDubbing.dubbingGenreArtwork(t.genres||[]))}" alt="" loading="lazy">`:cover(t,'mini-cover');
+  row=`<article class="song-cover-row${child?' song-cover-child':''}"><a class="song-cover-detail" href="${href}" aria-label="${title} 상세 보기"><span class="song-cover-art">${art}</span><span class="song-cover-copy"><strong title="${title}">${title}</strong><span class="song-cover-meta" title="${esc(metadata)}">${esc(metadata)}</span></span></a>
+   ${!child?`<button type="button" class="song-cover-expand" ${expandable?`data-mp-children="${id}" aria-controls="mp-children-${id}"`:'disabled'} aria-expanded="false">${number(t.completed_participants||0)}명 참여${expandable?' <span data-cover-arrow aria-hidden="true">▼</span>':''}</button>`:''}
+   ${dub&&t.state==='complete'?`<button type="button" class="song-cover-play" data-mp-dubbing-play="${id}" aria-label="${title} 재생">${icon('audio-play',36)}</button>`:''}
+   ${!child&&t.can_join?`<a class="primary-button song-cover-join" href="${href}">참여하기</a>`:''}
+   ${!dub?`<a class="song-cover-more" href="${href}">관리</a>`:''}</article>`;
+ }
+ return `<div class="mp-work-group" data-mp-work="${id}" data-mp-kind="${dub?'dubbing':'duet'}" data-mp-original="${esc(t.original_id||'')}">${row}${expandable?`<div class="song-cover-children" id="mp-children-${id}" hidden></div>`:''}</div>`;
+}
+let myWorkListBound=false;
+function bindMyWorkList(){
+ if(myWorkListBound)return;myWorkListBound=true;
+ for(const event of ['play','pause','ended','emptied','loadedmetadata'])audio.addEventListener(event,syncSongCoverPlayback);
+ document.addEventListener('click',async e=>{
+  const control=e.target.closest('#mp-recordings button,#mp-recordings a');if(control)e.stopPropagation();
+  const b=e.target.closest('[data-mp-children],[data-mp-child-more]');if(!b||b.disabled)return;
+  e.preventDefault();e.stopPropagation();
+  const group=b.closest('.mp-work-group'),target=group.querySelector('.song-cover-children'),toggle=group.querySelector('[data-mp-children]');
+  if(b===toggle&&target.dataset.loaded){setSongCoverExpanded(toggle,target,target.hidden);return;}
+  const dub=group.dataset.mpKind==='dubbing',offset=b.dataset.mpChildMore||0;
+  b.disabled=true;b.setAttribute('aria-busy','true');
+  try{
+   const url=dub?'/api/dubbing/projects/'+encodeURIComponent(group.dataset.mpWork)+'/completed?offset='+offset:'/api/tracks/'+encodeURIComponent(group.dataset.mpOriginal)+'/covers?view=children&parent='+encodeURIComponent(group.dataset.mpWork)+'&offset='+offset;
+   const d=await api(url);if(!group.isConnected)return;
+   const items=dub?d.items:d.covers;if(!dub)remember(items);
+   const html=items.map(t=>myWorkItemHTML(t,true)).join('')+(d.next_offset==null?'':`<button type="button" class="small-button" data-mp-child-more="${d.next_offset}">더 보기</button>`);
+   if(b===toggle){target.innerHTML=items.length?`<h3>완성된 참여작 ${number(d.total)}개</h3>${html}`:myEmpty('아직 공개된 완성 참여작이 없어요.');target.dataset.loaded='true';setSongCoverExpanded(toggle,target,true);}
+   else{b.insertAdjacentHTML('beforebegin',html);b.remove();}
+   icons();paintInteractions();syncSongCoverPlayback();
+  }catch(err){toast(err.message);}finally{b.disabled=false;b.removeAttribute('aria-busy');}
+ });
 }
 function myWorksAside(d,own){return myArtists(d)+(own?'':myStudioBanner())+mySection('참여 가능한 듀엣','<div id="mp-open-duets">'+myLoading()+'</div>',myAll(opportunityHref(d.profile.id,'duet')))+mySection('참여 가능한 더빙','<div id="mp-open-dubbing">'+myLoading()+'</div>',myAll(opportunityHref(d.profile.id,'dubbing')));}
 function mySegment(active){return `<div class="mp-segment" role="tablist" aria-label="마이페이지" data-active="${active}"><span class="mp-segment-slide" aria-hidden="true"></span>${[['works','내 작품'],['activity','내 활동'],['library','내 보관함']].map(([key,label])=>`<button type="button" role="tab" id="mp-tab-${key}" aria-controls="mp-content" aria-selected="${active===key}" tabindex="${active===key?0:-1}" data-mp-tab="${key}">${label}</button>`).join('')}</div>`;}
@@ -84,7 +126,7 @@ async function mySelectTab(tab,updateURL=true){
  s.tab=tab;const request=s.request=(s.request||0)+1;
  const segment=$('.mp-segment');segment.dataset.active=tab;segment.querySelectorAll('[role="tab"]').forEach(b=>{const active=b.dataset.mpTab===tab;b.setAttribute('aria-selected',active);b.tabIndex=active?0:-1;});
  const content=$('#mp-content'),aside=$('#mp-aside-content');content.setAttribute('aria-labelledby','mp-tab-'+tab);content.removeAttribute('aria-busy');
- if(tab==='works'){content.innerHTML=myWorksHTML(s.d);aside.innerHTML=myWorksAside(s.d,true);routeTracks=remember([...(s.d.tracks||[]),...(s.d.covers||[])]);void myLoadOpportunities(s);icons();paintInteractions();return;}
+ if(tab==='works'){content.innerHTML=myWorksHTML(s.d);aside.innerHTML=myWorksAside(s.d,true);routeTracks=remember([...(s.d.tracks||[]),...(s.d.covers||[])]);void myLoadOpportunities(s);icons();paintInteractions();syncSongCoverPlayback();return;}
  content.setAttribute('aria-busy','true');
  try{
   const result=tab==='library'?await myLibraryView(location.hash.slice(1)):await myActivityData();
@@ -106,11 +148,12 @@ async function refreshMyPageRoute(raw,ticket){
  return true;
 }
 async function myLoadOpportunities(s){await Promise.all(['duet','dubbing'].map(async type=>{const root=$(type==='duet'?'#mp-open-duets':'#mp-open-dubbing');if(!root)return;try{const d=await api('/api/producers/'+encodeURIComponent(s.d.profile.id)+'/opportunities?type='+type);if(myPageState!==s||!root.isConnected)return;root.innerHTML=opportunityCards(d.items.slice(0,3),type);}catch(e){if(root.isConnected)root.innerHTML=myEmpty(e.message);}}));}
-function bindMyPage(view){if(!view?.mypage){myPendingTabFocus='';return;}const s=view.mypage;myPageState=s;if(s.tab==='activity')void mySelectTab('activity',false);if(view.musicLibrary)bindMusicLibrary(view.musicLibrary);else void myLoadOpportunities(s);if(myPendingTabFocus===s.tab)$('#mp-tab-'+s.tab)?.focus({preventScroll:true});myPendingTabFocus='';}
+function bindMyPage(view){bindMyWorkList();syncSongCoverPlayback();if(!view?.mypage){myPendingTabFocus='';return;}const s=view.mypage;myPageState=s;if(s.tab==='activity')void mySelectTab('activity',false);if(view.musicLibrary)bindMusicLibrary(view.musicLibrary);else void myLoadOpportunities(s);if(myPendingTabFocus===s.tab)$('#mp-tab-'+s.tab)?.focus({preventScroll:true});myPendingTabFocus='';}
 function myFilterWorks(){
  const root=$('#mp-recordings');if(!root||!myPageState)return;const key=$('[data-mp-filter][aria-pressed="true"]')?.dataset.mpFilter||'all',visibility=$('#mp-visibility')?.value||'all',sort=$('#mp-sort')?.value;
  const items=[...(myPageState.d.covers||[]),...(myPageState.d.dubbings||[])].filter(t=>(key==='all'||myKind(t)===key)&&(visibility==='all'||(t.kind==='dubbing'?t.visibility==='public':t.status==='published')===(visibility==='public'))).sort((a,b)=>(sort==='plays'?(b.plays||0)-(a.plays||0):0)||b.created-a.created);
- root.innerHTML=items.length?items.map(t=>myTrackCard(t)).join(''):myEmpty('선택한 조건에 맞는 작품이 없어요.');
+ root.innerHTML=items.length?items.map(t=>myWorkItemHTML(t)).join(''):myEmpty('선택한 조건에 맞는 작품이 없어요.');
+ syncSongCoverPlayback();
 }
 document.addEventListener('change',e=>{if(e.target.matches('#mp-sort,#mp-visibility'))myFilterWorks();});
 document.addEventListener('keydown',e=>{

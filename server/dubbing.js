@@ -1,4 +1,5 @@
 import {dubbingSettings} from './dubbing-settings.js';
+import {completedDubbingWorks} from './profile-works.js';
 import {dubbingVersions,startDubbingPerformance,deleteDubbingProject} from './dubbing-performances.js';
 import {dubbingVisibleSQL,dubbingRemoved,assertDubbingCreator} from './dubbing-access.js';
 import {dubbingCommunityStatus,dubbingCommunityRoute} from './dubbing-community.js';
@@ -133,13 +134,19 @@ export async function dubbingRoute(req,env,path,user){
   }catch(e){await discard(env,key);throw e;}
   return json({project:await dto(env,await project(env,pid,user),user)},201);
  }
- const match=path.match(/^\/api\/dubbing\/projects\/([^/]+)(?:\/(publish|unpublish|performances|claims|sound|background|recording|final|like|comments|report|appeal)(?:\/(.+))?)?$/);
+ const match=path.match(/^\/api\/dubbing\/projects\/([^/]+)(?:\/(completed|publish|unpublish|performances|claims|sound|background|recording|final|like|comments|report|appeal)(?:\/(.+))?)?$/);
  if(!match)fail(404,'요청을 찾을 수 없습니다.');
  const pid=uuid(match[1]),action=match[2],roleId=match[3],p=await project(env,pid,user);
  const report=await dubbingReportRoute(req,env,p,user,action,roleId);if(report)return report;
  if(!action&&method==='DELETE')return deleteDubbingProject(req,env,p,user);
  if(p.removed&&(action||method!=='GET'))fail(403,'권리 신고 검토로 이용이 중단된 작품입니다. 이의신청을 이용해주세요.');
  if(!['GET','HEAD','DELETE'].includes(method)&&user)await assertDubbingCreator(env,user.id);
+ if(action==='completed'&&method==='GET'){
+  const offset=Number(new URL(req.url).searchParams.get('offset')||0);
+  if(!Number.isSafeInteger(offset)||offset<0)fail(400,'목록 위치를 확인해주세요.');
+  const items=await completedDubbingWorks(env,p.id,user,offset),total=items[0]?.total||0;
+  return json({items:items.slice(0,50).map(({options_json,...t})=>({...t,genres:JSON.parse(options_json).genres||[]})),total,next_offset:items.length>50?offset+50:null});
+ }
  if(action==='performances'&&method==='POST')return startDubbingPerformance(req,env,p,user);
  const community=await dubbingCommunityRoute(req,env,p,user,action,roleId);if(community)return community;
  const recording=await dubbingRecordingRoute(req,env,p,user,action,roleId);if(recording)return recording;
