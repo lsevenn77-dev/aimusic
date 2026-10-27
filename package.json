@@ -15,7 +15,9 @@
     "release:check": "node scripts/release-check.mjs",
     "release:verify": "node scripts/release-verify.mjs",
     "typecheck:song-covers": "tsc -p tsconfig.song-covers.json",
-    "lint:song-covers": "eslint --config eslint.song-covers.config.mjs dist/song-covers.js server/song-covers.js tests/song-cover-list.test.mjs tests/preview-song-covers.mjs"
+    "lint:song-covers": "eslint --config eslint.song-covers.config.mjs dist/song-covers.js server/song-covers.js tests/song-cover-list.test.mjs tests/preview-song-covers.mjs",
+    "lint:song-detail": "eslint --config eslint.song-detail.config.mjs dist/song-detail.js tests/song-detail.test.mjs tests/preview-song-detail.mjs tests/song-detail-qa.js",
+    "typecheck:song-detail": "tsc -p tsconfig.song-detail.json"
   },
   "dependencies": {
     "@apple/app-store-server-library": "^3.1.0",
