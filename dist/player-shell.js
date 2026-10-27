@@ -10,7 +10,7 @@
  });
  more?.addEventListener('click',()=>{
   if(!current)return;
-  dialog('<h2>'+esc(current.title)+'</h2><div class="player-song-menu">'+document.querySelector('#player-actions').innerHTML+'</div>');
+  trackMenu(current.id);
  });
  function paintProgress(){
   const max=Number(seek.max)||0,value=Math.max(0,Math.min(max,Number(audio.currentTime)||0));

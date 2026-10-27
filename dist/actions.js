@@ -103,7 +103,18 @@ async function sendUploadFiles(form,id,file,image){
 }
 function deleteTrackDialog(id,title,kind){
  dialog(`<h2>이 곡을 삭제할까요?</h2><p class="delete-track-title">${esc(title)}</p><p>공개 목록과 내 스튜디오에서 삭제되며, 다시 공개할 수 없어요.${kind==='original'?' 이 곡의 노래방과 연결된 커버곡도 다른 이용자가 재생할 수 없게 됩니다.':''}</p><p class="field-help">이미 받은 선물과 정산 내역은 유지돼요.</p><form id="delete-track-form"><div class="inline-actions"><button type="button" class="small-button" data-close-dialog>취소</button><button type="submit" class="primary-button danger-button">곡 삭제</button></div><p class="form-error" role="alert"></p></form>`);
- const form=$('#delete-track-form');form.onsubmit=busyForm(form,async()=>{await uploadRequest('/api/uploads/'+id,'DELETE');if(current?.id===id||current?.original_id===id)closePlayer();queue=queue.filter(tid=>tid!==id&&trackMap.get(tid)?.original_id!==id);trackMap.delete(id);saveQueue();$('#dialog').close();toast('곡이 삭제됐어요.');await refreshLibrary();await render();});
+ const form=$('#delete-track-form');form.onsubmit=busyForm(form,async()=>{
+  await uploadRequest('/api/uploads/'+id,'DELETE');
+  invalidateReads();
+  const affected=t=>t.id===id||t.original_id===id;
+  const resumeAffected=pendingResume&&(pendingResume.id===id||trackMap.get(pendingResume.id)?.original_id===id);
+  if(current&&affected(current))closePlayer();
+  queue=queue.filter(tid=>tid!==id&&trackMap.get(tid)?.original_id!==id);
+  for(const [tid,t] of trackMap)if(affected(t))trackMap.delete(tid);
+  routeTracks=routeTracks.filter(t=>!affected(t));library.likes=library.likes.filter(t=>!affected(t));
+  if(resumeAffected){pendingResume=null;sessionStorage.removeItem('aifect-player-resume');}
+  saveQueue();$('#dialog').close();toast('곡이 삭제됐어요.');await refreshLibrary(true);await render();
+ });
 }
 async function uploadFile(url,file,onprogress=()=>{},imageOptions){if(/\/api\/(?:studio\/(?:artists|producers)\/[^/]+\/image|(?:producers|artists)\/[^/]+\/gallery)$/.test(url))file=await cropPhoto(file,{shape:/\/image$/.test(url)?'circle':'square'});file=await optimizeUploadImage(file,imageOptions);invalidateReads();try{return await new Promise((resolve,reject)=>{
  const xhr=new XMLHttpRequest();let idle,stalled=false;const heartbeat=()=>{clearTimeout(idle);idle=setTimeout(()=>{stalled=true;xhr.abort();},120000);};
