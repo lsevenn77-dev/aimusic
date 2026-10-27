@@ -32,12 +32,12 @@ main .social-profile-identity p{font-size:.86rem;margin:8px 0;color:var(--ds-mut
 main .music-profile-stats{gap:16px!important;flex-wrap:wrap;font-size:.8rem}
 main .social-profile-square .social-profile-actions{display:flex;align-items:center;flex-wrap:wrap;justify-content:flex-end;max-width:440px;flex-shrink:0;gap:8px}
 main :is(.social-profile-actions,.song-detail,.library-overview) button.text-link{background:transparent;border:0;color:var(--ds-muted);padding:8px 0}
-main :is(.social-profile-actions,.song-detail,.library-overview) button.text-link:hover{color:var(--page-pink)}
+main :is(.social-profile-actions,.song-detail,.library-overview) button.text-link:hover{color:var(--ds-selected)}
 main .social-profile-actions button.profile-gift-ranking{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-size:.78rem;padding:10px 15px;min-height:40px;border:1px solid #ed91bc45;border-radius:99px;background:#ed91bc0d;color:var(--ds-body)}
 .profile-page-layout{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:30px;margin-bottom:32px}
 .profile-content-tabs{margin:0 0 24px!important;display:flex;gap:26px!important;border-bottom:1px solid #ffffff18}
 .profile-content-tabs a{border-radius:0!important;background:none!important;padding:0 0 15px!important;border:0!important;font-size:.88rem}
-.profile-content-tabs a.active{border-bottom:2px solid var(--page-pink)!important;color:var(--page-pink)}
+.profile-content-tabs a.active{border-bottom:2px solid var(--page-pink)!important;color:var(--ds-selected)}
 .profile-content-tabs a span{font-size:.7rem}
 .profile-record-grid .album-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:25px 16px}
 .profile-record-grid .album-card{padding:0;background:none;border:0}

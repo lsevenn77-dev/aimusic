@@ -3,7 +3,10 @@
   --ds-lavender:#b7b6ff; --ds-lilac:#d6baff; --ds-mint:#aeebdf; --ds-white:#fff;
   --ds-bg:#0c121b; --ds-panel:#131b26; --ds-raised:#1f1f26;
   --ds-secondary:#2a2a35; --ds-border:#3a3a48; --ds-dim:#6b7280;
-  --ds-text:#F5F6FA; --ds-body:#D1D5DB; --ds-muted:#9CA3AF; --ds-disabled:#6B7280; --ds-ink:#171b2b;
+  --ds-text:#F8FAFC; --ds-body:#BEC1C9; --ds-muted:#9CA3AF; --ds-disabled:#6B7280; --ds-ink:#101722;
+  /* Text accents are separate from the existing gradient stops and product colors. */
+  --ds-accent-lavender:#D3BAFF; --ds-accent-mint:#AFE5E3; --ds-accent-pink:#F4A8CE;
+  --ds-selected:var(--ds-accent-lavender); --ds-progress:var(--ds-accent-mint); --ds-social:var(--ds-accent-pink);
   --ds-space-3:12px;
   --ds-success:#4ade80; --ds-warning:#facc15; --ds-error:#f87171; --ds-info:#60a5fa;
   --ds-gradient:linear-gradient(105deg,var(--ds-lilac),var(--ds-lavender) 48%,var(--ds-mint));
@@ -25,7 +28,7 @@ body,.page-wrap {background:var(--ds-bg);color:var(--ds-body)}
 :is(button,a,input,select,textarea,summary):focus-visible {outline:2px solid var(--ds-mint);outline-offset:3px}
 button svg,a svg,summary svg {stroke-width:1.6}
 .icon-button {color:var(--ds-body)}
-.icon-button:hover,.text-link:hover,.header-login:hover {color:var(--ds-lilac)}
+.icon-button:hover,.text-link:hover,.header-login:hover {color:var(--ds-selected)}
 .tiny-eyebrow,.eyebrow {color:var(--ds-body)}
 
 /* Navigation and outlined controls. */
@@ -41,10 +44,10 @@ button svg,a svg,summary svg {stroke-width:1.6}
 .search-box,.topbar .search-box {background:linear-gradient(110deg,#1b2230,#151d28);border-color:#3a3a48;border-radius:12px}
 .search-box button,#global-search .search-submit {background:#b7b6ff18;color:var(--ds-body);border-radius:8px}
 .upload-button {border-color:#5f6175;border-radius:999px;color:var(--ds-text)}
-.upload-button:hover {border-color:var(--ds-lilac);background:var(--ds-soft);color:var(--ds-lilac)}
+.upload-button:hover {border-color:var(--ds-lilac);background:var(--ds-soft);color:var(--ds-selected)}
 .mobile-navigation {background:#101722f7;border-color:var(--ds-line)}
 .mobile-navigation a {color:var(--ds-muted)}
-.mobile-navigation a.active,.mobile-navigation a[aria-current=page] {color:var(--ds-lilac);background:transparent}
+.mobile-navigation a.active,.mobile-navigation a[aria-current=page] {color:var(--ds-selected);background:transparent}
 .mobile-navigation a.active svg,.mobile-navigation a[aria-current=page] svg {color:var(--ds-body)}
 .mobile-menu[aria-expanded=true] {color:var(--ds-body);background:transparent}
 
@@ -61,11 +64,11 @@ button svg,a svg,summary svg {stroke-width:1.6}
 .small-button,.secondary-button,.outline-button {
   background:linear-gradient(130deg,#20273580,#161c2680);border:1px solid #53566a;color:var(--ds-text);border-radius:12px;
 }
-.small-button:hover,.secondary-button:hover,.outline-button:hover {background:#b7b6ff12;border-color:var(--ds-lavender);color:#f5edff}
+.small-button:hover,.secondary-button:hover,.outline-button:hover {background:#b7b6ff12;border-color:var(--ds-lavender);color:var(--ds-text)}
 :is(button,input,select,textarea):disabled {cursor:not-allowed}
 .primary-button:disabled,.small-button:disabled,.secondary-button:disabled {background:#2a2d38;border-color:#3a3d4a;color:var(--ds-disabled);filter:none;box-shadow:none}
 .tab.active,.view-tabs .selected,.view-tabs [aria-selected=true],.community-redesign .music-community-tabs .tab.active {
-  color:var(--ds-lilac);border-bottom-color:var(--ds-lavender);
+  color:var(--ds-selected);border-bottom-color:var(--ds-lavender);
 }
 .genre-row a:first-child,.chip.active,.filter-chip.active,.filter-chip[aria-pressed=true],.gift-quantity-presets [aria-pressed=true] {
   background:var(--ds-gradient);color:var(--ds-ink);border-color:transparent;
@@ -90,7 +93,7 @@ button svg,a svg,summary svg {stroke-width:1.6}
 .community-redesign .social-side-card,.community-redesign .community-song-panel {background:var(--ds-surface);border-color:var(--ds-line)}
 .community-redesign .community-art-play:hover,.community-redesign .is-playing .community-art-play {background:var(--ds-gradient);color:var(--ds-ink);border-color:var(--ds-lilac)}
 .community-redesign .community-song-like {color:var(--ds-body);background:radial-gradient(circle at 30% 20%,#d6baff35,#b7b6ff0d);border-color:#d6baff60;box-shadow:none}
-.community-redesign .community-reactions [data-like].is-active {color:var(--ds-lilac)}
+.community-redesign .community-reactions [data-like].is-active {color:var(--ds-social)}
 .community-redesign .community-reactions [data-gift] {color:var(--ds-body)}
 .community-redesign .music-follow {background:var(--ds-soft);border-color:#b7b6ff40;color:var(--ds-text)}
 .gift-rewards-link {background:linear-gradient(110deg,#b7b6ff16,#aeebdf0d)!important;border-color:#b7b6ff38!important;color:var(--ds-body)!important}
@@ -117,7 +120,7 @@ button svg,a svg,summary svg {stroke-width:1.6}
 dialog,.queue-dialog {background:var(--ds-surface);border:1px solid #b7b6ff38;border-radius:20px;color:var(--ds-text);box-shadow:0 24px 80px #0007}
 dialog::backdrop {background:#050911b8;backdrop-filter:blur(6px)}
 .toast {background:linear-gradient(115deg,#22283b,#17232d);border:1px solid #b7b6ff55;color:var(--ds-text);border-radius:12px;box-shadow:0 10px 35px #0005}
-.toast.success,[role=alert].success {border-color:#4ade8055;color:#a0f0b9}
+.toast.success,[role=alert].success {border-color:#4ade8055;color:var(--ds-progress)}
 .toast.error,[role=alert].error {border-color:#f8717177;color:#ffb7b7}
 [role=alert].warning {border-color:#facc1566;color:#f8de7b}
 .field-error {color:var(--ds-error)}
@@ -128,7 +131,7 @@ dialog::backdrop {background:#050911b8;backdrop-filter:blur(6px)}
 .player .play-button svg {fill:currentColor;stroke-width:1.3}
 .player .player-buttons>.icon-button.is-active {color:var(--ds-body)!important}
 .player .player-right>#player-lyrics-toggle {background:#b7b6ff09;border-color:#53566a;color:var(--ds-text)}
-.player .player-right>#player-lyrics-toggle[aria-pressed=true] {color:var(--ds-lilac);border-color:#b7b6ff80}
+.player .player-right>#player-lyrics-toggle[aria-pressed=true] {color:var(--ds-selected);border-color:#b7b6ff80}
 .player .player-right>#listen-mode {color:var(--ds-body);border-color:#d6baff55}
 .player .player-lyric {color:var(--ds-text);background:#171f2df7;border-color:#b7b6ff35}
 .player #seek::-webkit-slider-runnable-track {background:linear-gradient(90deg,var(--ds-lilac),var(--ds-mint)) left/var(--seek-progress) 100% no-repeat,#343a48}
@@ -174,3 +177,19 @@ input.design-range[type=range]::-moz-range-progress {height:5px;border-radius:99
 input.design-range[type=range]::-moz-range-thumb {width:13px;height:13px;border:0;border-radius:50%;background:#fff}
 input.design-range[type=range]:disabled {opacity:.45}
 @media(prefers-reduced-motion:reduce){.primary-button,.sidebar .nav-link{transition:none}}
+
+/* Semantic text states. Keep gradient controls' dark ink, currency and duet roles. */
+[data-like].is-active,[data-like][aria-pressed=true],[data-comment-like].is-active,
+.song-table-like.is-active,#dubbing-like[aria-pressed=true],.sing-favorite.active {color:var(--ds-social)!important}
+.activity-gift-quantity {color:var(--ds-social)}
+:is(.crew-growth-summary strong,.crew-growth-grid>.surface:first-child>strong,.crew-level-steps strong,.crew-max-badge,.player-progress-title h2,.mp-level>strong) {color:var(--ds-selected)}
+:is(.status-published,.studio-alignment-state.is-ready,.crew-recruit-state.is-open,.chart-movement.new strong,.toast.success,[role=alert].success) {color:var(--ds-progress)}
+.crew-mission>span:last-child {color:var(--ds-progress)}
+.music-participate,.cover-collection-join,.karaoke-participation a:not(:disabled),.sing-discovery-covers,.duet-fill {color:var(--ds-progress)}
+.diamond-actions #diamond-exchange-form .diamond-preview {color:var(--ds-progress)}
+/* Selected tools on dark surfaces use lavender; filled gradient controls keep ink. */
+.voice-room :is(.voice-music-mini,.voice-music-transport) [aria-pressed=true],
+#sing.web-studio .studio-noise-levels [aria-pressed=true],
+#sing.web-studio .studio-transport [aria-pressed=true] {color:var(--ds-selected)!important}
+
+.player .player-lyric {color:var(--ds-selected)}

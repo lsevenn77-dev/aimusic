@@ -3,17 +3,27 @@
  const frames=new Map(),themes=new Map();let busy=false,queued=false,lastRead=0;
  const validAsset=p=>typeof p==='string'&&/^\/assets\/[a-zA-Z0-9_./-]+\.(png|webp)$/.test(p)&&!p.includes('..');
  const expired=(entry,at)=>entry?.expires_at&&entry.expires_at<=at;
+ const observed=new Set(),sizeObserver=typeof ResizeObserver==='function'?new ResizeObserver(()=>paintFrames()):null;
+ function alignFrame(img,host){
+  host.classList.add('avatar-frame-host');
+  // Local layout coordinates share the positioned parent's padding box. Unlike
+  // client rects, they are not scaled by page/dialog entrance animations.
+  const width=img.offsetWidth,height=img.offsetHeight;
+  for(const [key,value] of Object.entries({x:img.offsetLeft+width/2,y:img.offsetTop+height/2,width:width*1.26,height:height*1.26}))host.style.setProperty('--avatar-frame-'+key,value+'px');
+  if(sizeObserver&&!observed.has(img)){sizeObserver.observe(img);observed.add(img);}
+ }
  function paintFrames(){
+  for(const img of observed)if(!img.isConnected){sizeObserver?.unobserve(img);observed.delete(img);}
   for(const img of document.querySelectorAll('img[data-avatar-profile]')){
    if(img.closest('.player-item-preview'))continue;
    const host=img.parentElement,entry=frames.get(img.dataset.avatarProfile),at=Date.now()/1000+(entry?.offset||0);
    for(const artwork of host.querySelectorAll(':scope > img.player-frame-artwork[src="/assets/products/aurora_ring_frame.png"]'))artwork.style.visibility=entry&&(!entry.artwork||expired(entry,at))?'hidden':'';
+   if(host.querySelector(':scope > img.player-frame-artwork'))alignFrame(img,host);
    let overlay=host.querySelector(':scope > .decoration-avatar-overlay');
    if(!entry?.artwork||expired(entry,at)||!validAsset(entry.artwork)){overlay?.remove();continue;}
    if(!overlay){overlay=document.createElement('img');overlay.className='decoration-avatar-overlay';overlay.alt='';overlay.setAttribute('aria-hidden','true');host.append(overlay);host.classList.add('decoration-avatar-host');}
    if(overlay.getAttribute('src')!==entry.artwork)overlay.src=entry.artwork;
-   const a=img.getBoundingClientRect(),h=host.getBoundingClientRect();
-   overlay.style.cssText=`left:${a.left-h.left-host.clientLeft+host.scrollLeft-a.width*.13}px;top:${a.top-h.top-host.clientTop+host.scrollTop-a.height*.13}px;width:${a.width*1.26}px;height:${a.height*1.26}px`;
+   alignFrame(img,host);
   }
  }
  function paintTheme(el,t,card=false){
