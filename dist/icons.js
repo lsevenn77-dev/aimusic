@@ -4,12 +4,17 @@ paths.star='m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6
 paths.wallet='M20 8V5H5a2 2 0 0 0 0 4h16v11H5a2 2 0 0 1-2-2V7m18 5h-5v5h5m-3-2.5h.01';
 paths.user='M20 21a8 8 0 0 0-16 0M12 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z';
 paths.settings='M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Zm7.4-3.5a7.4 7.4 0 0 0-.1-1l2-1.6-2-3.4-2.4 1a8 8 0 0 0-1.8-1L14.8 3h-4l-.4 2.9a8 8 0 0 0-1.8 1l-2.4-1-2 3.4 2 1.6a7.4 7.4 0 0 0 0 2.1l-2 1.6 2 3.4 2.4-1a8 8 0 0 0 1.8 1l.4 2.9h4l.4-2.9a8 8 0 0 0 1.8-1l2.4 1 2-3.4-2-1.6c.1-.3.1-.7.1-1Z';
-const icon=(n,size=24)=>n==='audio-play'?playIcon(size):`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${paths[n]||paths.sparkles}"/></svg>`;
+const icon=(n,size=24)=>{
+ if(n==='audio-play')return playIcon(size);
+ const menu=n==='menu'||n==='more';
+ return `<svg viewBox="0 0 24 24"${menu?' class="menu-icon" width="20" height="20"':''} fill="none" stroke="currentColor" stroke-width="${menu?'1.8':'1.6'}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${paths[n]||paths.sparkles}"/></svg>`;
+};
 
 paths.diamond='m3 8 4-5h10l4 5-9 13L3 8Zm0 0h18M7 3l5 18 5-18';
 paths.ticket='M3 5h18v5a2 2 0 0 0 0 4v5H3v-5a2 2 0 0 0 0-4V5Zm13 0v3m0 3v2m0 3v3';
 paths.back='m15 6-6 6 6 6';
-paths.more='M5 12h.01M12 12h.01M19 12h.01';
+// Compatibility alias: all existing overflow-menu callers share the hamburger glyph.
+paths.more=paths.menu;
 paths.image='M4 3h16v18H4zM4 16l5-6 4 4 3-3 4 5M15 7h.01';
 paths.bellOff='m3 3 18 18M7 7c-1 3 0 7-3 10h13M10 4a6 6 0 0 1 8 5v3M10 21h4';
 paths.trash='M4 7h16M9 3h6l1 4M6 7l1 14h10l1-14M10 11v6m4-6v6';
