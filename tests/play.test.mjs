@@ -6,6 +6,43 @@ import {fixture} from './fixture.mjs';
 import * as AifectDubbing from '../shared/dubbing.js';
 import {options,sampleScript,memoryBucket} from './dubbing-fixtures.mjs';
 
+function playUI(){
+ const c=vm.createContext({URLSearchParams,esc:s=>String(s??'').replaceAll('&','&amp;').replaceAll('"','&quot;'),icon:name=>`<svg data-icon="${name}" aria-hidden="true"></svg>`,heading:()=>'<h1>플레이</h1>',cover:()=>'<img class="existing-cover">',card:t=>`<article class="album-card"><a href="#song/${t.id}">${t.title}</a></article>`});
+ vm.runInContext(readFileSync(new URL('../dist/play-page.js',import.meta.url),'utf8'),c);return c;
+}
+
+test('Android PLAY navigation keeps every existing route, selected state and creator entry',()=>{
+ const c=playUI();
+ for(const mode of ['song','dubbing','browse'])for(const [tab] of vm.runInContext('playSections.'+mode,c)){
+  const s={mode,tab,type:'duet'},html=c.playShell(s,c.playToolbar(s));
+  const main=html.match(/<nav[^>]*play-main-tabs[\s\S]*?<\/nav>/)[0];
+  assert.doesNotMatch(main,/<svg/,'main navigation stays text-only');
+  assert.equal((html.match(/aria-selected="true"/g)||[]).length,2,'one selection in each level');
+  assert.equal((html.match(/tabindex="0"/g)||[]).length,2);
+  assert.ok(html.includes('href="'+c.playHref(mode,tab,'duet').replaceAll('&','&amp;')+'"'));
+  if(mode==='dubbing'){
+   assert.ok(html.indexOf('play-category-tabs')<html.indexOf('play-create'));
+   assert.ok(html.indexOf('play-create')<html.indexOf('id="play-search"'));
+   assert.match(html,/play-create" href="#dubbing\/new"/);
+  }else assert.doesNotMatch(html,/play-create/);
+  if(mode==='browse'){
+   assert.ok(html.indexOf('id="play-search"')<html.indexOf('id="play-work-type"'));
+   assert.match(html,/<option value="duet" selected>/);
+  }
+ }
+});
+
+test('mobile song cards reuse the catalog and preserve solo and duet recording targets',()=>{
+ const c=playUI(),track={id:'cover-1',original_id:'original-1',title:'기존 곡',participants:2};
+ for(const tab of ['recommended','duets']){
+  const html=c.playResults({play:{mode:'song',tab},items:[track]});
+  assert.match(html,/play-song-desktop/);assert.match(html,/play-song-mobile/);
+  assert.match(html,/existing-cover/);assert.ok(html.includes('기존 곡'));
+  const target=tab==='duets'?'#sing/original-1?duet=cover-1':'#sing/cover-1';
+  assert.ok(html.includes('href="'+target+'"'),target);
+ }
+});
+
 async function setup(t){
  const f=await fixture(t,{DUBBING_ENABLED:'true',BUCKET:memoryBucket()});
  f.sql.exec("UPDATE tracks SET karaoke_at=1; INSERT INTO producers(id,user_id,name,created) VALUES('friend','other','Friend',0)");

@@ -1,6 +1,6 @@
 // @ts-check
 // PLAY is a navigation/list layer. It never creates or modifies recording state.
-const playSections={song:[['recommended','추천곡'],['duets','듀엣참여'],['latest','최신곡'],['drafts','내 초안']],dubbing:[['discover','작품찾기'],['join','더빙참여'],['mine','내 작업']],browse:[['recommended','추천'],['following','팔로잉'],['popular','인기'],['latest','최신']]};
+const playSections={song:[['recommended','추천곡','sparkles'],['duets','듀엣참여','users'],['latest','최신곡','clock'],['drafts','내 초안','list-pen']],dubbing:[['discover','작품찾기','compass'],['join','더빙참여','users'],['mine','내 작업','folder']],browse:[['recommended','추천','sparkles'],['following','팔로잉','heart'],['popular','인기','chart'],['latest','최신','clock']]};
 const playTypes=[['all','전체'],['solo','솔로'],['duet','듀엣'],['dubbing','더빙']];
 function playHref(mode='song',tab=playSections[mode][0][0],type='all'){
  if(mode==='song')return '#karaoke'+(tab==='recommended'?'':'/'+tab);
@@ -26,12 +26,11 @@ function playTypeIcon(type){
  return `<span class="play-type-icon${type==='duet'?' play-duet-icon':type==='dubbing'?' play-dubbing-icon':''}" role="img" aria-label="${label}">${type==='duet'?icon('mic')+icon('mic'):type==='dubbing'?icon('message')+icon('waveform'):icon('mic')}</span>`;
 }
 function playTabs(items,active,label,href,extra=''){
- return `<nav class="tabs play-tabs ${extra}" role="tablist" aria-label="${label}">${items.map(([key,title])=>`<a class="tab ${active===key?'active':''}" role="tab" aria-selected="${active===key}" ${active===key?'aria-current="page"':''} href="${esc(href(key))}">${title}</a>`).join('')}</nav>`;
+ return `<nav class="tabs play-tabs ${extra}" role="tablist" aria-label="${label}">${items.map(([key,title,symbol])=>`<a class="tab ${active===key?'active':''}" role="tab" aria-selected="${active===key}" tabindex="${active===key?'0':'-1'}" ${active===key?'aria-current="page"':''} href="${esc(href(key))}">${symbol?icon(symbol):''}<span>${title}</span></a>`).join('')}</nav>`;
 }
 function playShell(s,content){
  return `<div class="play-page">${heading('플레이','노래하고, 연기하고, 새로운 목소리를 만나보세요.')}${playTabs([['song','노래'],['dubbing','더빙'],['browse','둘러보기']],s.mode,'플레이 종류',m=>playHref(m),'play-main-tabs')}
- <div class="play-subbar">${playTabs(playSections[s.mode],s.tab,'플레이 하위 메뉴',t=>playHref(s.mode,t,s.type))}${s.mode==='dubbing'?'<a class="small-button play-create" href="#dubbing/new">'+icon('plus')+' 더빙 만들기</a>':''}</div>
- ${s.mode==='browse'?`<nav class="genre-chips play-types" aria-label="작품 유형">${playTypes.map(([k,l])=>`<a class="genre-chip ${s.type===k?'active':''}" href="${esc(playHref(s.mode,s.tab,k))}" ${s.type===k?'aria-current="true"':''}>${l}</a>`).join('')}</nav>`:''}
+ <div class="play-subbar">${playTabs(playSections[s.mode],s.tab,'플레이 하위 메뉴',t=>playHref(s.mode,t,s.type),'play-category-tabs')}${s.mode==='dubbing'?'<a class="primary-button play-create" href="#dubbing/new">'+icon('plus')+' 더빙 만들기</a>':''}</div>
  <section class="play-content" aria-label="${playSections[s.mode].find(([k])=>k===s.tab)[1]}">${content}</section></div>`;
 }
 function playEmpty(title,body,href,label){return `<div class="play-empty" role="status"><h2>${esc(title)}</h2><p>${esc(body)}</p>${href?`<a class="small-button" href="${esc(href)}">${esc(label)}</a>`:''}</div>`;}
@@ -64,12 +63,12 @@ function playProjectRows(projects,tab){
  const states={script_ready:'초안',recruiting:'배역 모집 중',recording:'녹음 중',mixing:'믹싱 중',complete:'완료'};
  return `<div class="play-project-list">${projects.map(p=>`<article class="play-project-row"><img class="play-project-symbol" src="${AifectDubbing.dubbingGenreArtwork(p.genres)}" alt="" width="52" height="52" loading="lazy" decoding="async"><div><a href="#dubbing/${esc(p.id)}"><h2>${playTypeIcon('dubbing')}<span>${esc(p.title)}</span></h2></a><p>${esc(p.ownerName)} · ${esc((p.genres||[]).join(' · '))} · ${time(p.duration)}</p><small>${tab==='discover'?'극본 · '+p.roleCount+'개 배역':(states[p.state]||'제작 중')+' · '+p.participants+' / '+p.roleCount+'명'}${p.visibility==='private'?' · 비공개':''}</small></div><a class="small-button" href="#dubbing/${esc(p.id)}">${tab==='discover'?'작품 보기':tab==='join'?'배역 보기':'이어서 보기'}${icon('chevron')}</a></article>`).join('')}</div>`;
 }
-function playToolbar(s){return `<form id="play-search" class="aifect-search play-search">${icon('search')}<input name="q" type="search" aria-label="플레이 작품 검색" placeholder="${s.mode==='song'?'곡명, 제작자, AI 가수명 검색':'작품 제목, 창작자 검색'}" maxlength="100"><button class="small-button" type="submit">검색</button></form>`;}
+function playToolbar(s){return `<form id="play-search" class="aifect-search play-search">${icon('search')}<input name="q" type="search" aria-label="플레이 작품 검색" placeholder="${s.mode==='song'?'곡명, 제작자, AI 가수명 검색':'작품 제목, 창작자 검색'}" maxlength="100"><button class="small-button" type="submit">검색</button></form>${s.mode==='browse'?`<label class="play-type-filter"><span>작품 유형</span><select id="play-work-type">${playTypes.map(([k,l])=>`<option value="${k}" ${s.type===k?'selected':''}>${l}</option>`).join('')}</select></label>`:''}`;}
 function playResults(view){
  const s=view.play,items=view.items;
  if(!items.length)return playEmpty(s.tab==='following'?'팔로잉한 창작자의 완성작을 기다려요':'아직 표시할 작품이 없어요',s.mode==='browse'?'공개 완료된 솔로·듀엣·더빙이 여기에 모여요.':s.mode==='dubbing'?'공개된 극본을 둘러보거나 내 이야기를 시작해보세요.':'MR이 준비된 곡과 참여할 수 있는 듀엣이 여기에 모여요.',s.mode==='dubbing'?'#dubbing/new':undefined,'더빙 만들기');
  if(s.mode==='dubbing')return playProjectRows(items,s.tab);
- if(s.mode==='song')return playSongRows(items,s.tab);
+ if(s.mode==='song')return `<div class="play-song-desktop">${playSongRows(items,s.tab)}</div><div class="home-music-grid play-grid play-song-mobile">${items.map(t=>playMusicCard(t,s.tab==='duets'?'duet':'song')).join('')}</div>`;
  return `<div class="home-music-grid play-grid">${items.map(t=>t.type==='dubbing'?playDubbingCard(t):playMusicCard(t,s.mode==='song'?(s.tab==='duets'?'duet':'song'):null)).join('')}</div>`;
 }
 async function playView(base,param,raw){
@@ -104,8 +103,11 @@ function bindPlay(view){
   if(nav.getAttribute('role')!=='tablist'||!(e.target instanceof HTMLAnchorElement))return;
   if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;
   const tabs=[...nav.querySelectorAll('a')],i=tabs.indexOf(e.target);if(i<0)return;e.preventDefault();
-  tabs[e.key==='Home'?0:e.key==='End'?tabs.length-1:(i+(e.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length].focus();
+  const next=tabs[e.key==='Home'?0:e.key==='End'?tabs.length-1:(i+(e.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length];
+  tabs.forEach(tab=>{tab.tabIndex=tab===next?0:-1;});next.focus();
  }));
+ const typeFilter=/** @type {HTMLSelectElement} */(root.querySelector('#play-work-type'));
+ if(typeFilter)typeFilter.onchange=()=>{location.hash=playHref(view.play.mode,view.play.tab,typeFilter.value);};
  const form=/** @type {HTMLFormElement} */(root.querySelector('#play-search')),more=/** @type {HTMLButtonElement} */(root.querySelector('#play-more')),results=root.querySelector('#play-results');if(!form)return;
  let query=form?.querySelector('input')?.value||'',generation=0;
  const all=[...view.items],s=view.play;

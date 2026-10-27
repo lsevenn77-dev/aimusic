@@ -34,6 +34,9 @@ paths.filter='M3 6h4m4 0h10M3 12h10m4 0h4M3 18h4m4 0h10M7 3v6m6 0v6m-6 0v6';
 paths.headphones='M4 14v-3a8 8 0 0 1 16 0v3M4 13h3v8H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2Zm16 0h-3v8h3a2 2 0 0 0 2-2v-4a2 2 0 0 0-2-2Z';
 paths.logout='M9 4H4v16h5m6-12 4 4-4 4m-6-4h12';
 paths.check='m5 12 4 4L19 6';
+// PLAY categories extend the existing 24px outline family without another icon library.
+paths.folder='M3 7V5a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z';
+paths['list-pen']='M4 5h12M4 10h8M4 15h4m5 5 3-1 6-6-2-2-6 6-1 3Zm5-7 2 2';
 
 // Audio controls use the unchanged external artwork. The SVG viewport retains
 // existing svg sizing selectors and isolates the asset's gradient IDs.
