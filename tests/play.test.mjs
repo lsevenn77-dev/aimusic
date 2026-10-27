@@ -174,3 +174,22 @@ test('browse artwork keeps each project genre and detail URL across recommended 
  for(const genre of AifectDubbing.DUBBING_GENRES){const path=AifectDubbing.dubbingGenreArtwork([genre]);assert.ok(readFileSync(new URL('../dist'+path,import.meta.url)).length>0);}
  for(const genres of [[],null,['알 수 없는 장르']])assert.equal(AifectDubbing.dubbingGenreArtwork(genres),'/assets/dubbing-genres/daily.webp');
 });
+
+ test('compact browse controls preserve work types and put the select next to search',()=>{
+ const c=vm.createContext({esc:String,icon:()=>'',Date});vm.runInContext(readFileSync(new URL('../dist/play-page.js',import.meta.url),'utf8'),c);
+ const html=c.playToolbar({mode:'browse',tab:'following',type:'duet'});
+ assert.match(html,/play-discovery-tools/);assert.match(html,/id="play-search"/);assert.match(html,/aria-label="플레이 작품 검색"/);assert.match(html,/value="duet" selected/);
+ assert.deepEqual([...html.matchAll(/option value="([^"]+)"/g)].map(m=>m[1]),['all','solo','duet','dubbing']);
+ assert.doesNotMatch(c.playToolbar({mode:'song'}),/play-work-type|play-discovery-tools/);
+ });
+
+ test('flat PLAY drafts preserve solo and duet resume URLs and deletion keys',()=>{
+ const c=vm.createContext({esc:s=>String(s??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('\"','&quot;'),icon:()=>'',heading:()=>'',time:String,Date,document:{addEventListener(){}}});
+ vm.runInContext(readFileSync(new URL('../dist/sing-drafts.js',import.meta.url),'utf8'),c);vm.runInContext(readFileSync(new URL('../dist/play-page.js',import.meta.url),'utf8'),c);
+ const drafts=[{draftKey:'owner:one',id:'one',mode:'solo',part:'male',title:'<길고 긴 제목>',artist:'음악가',duration:12,updated:0},{draftKey:'owner:two:duet:female:first',id:'two',mode:'duet',part:'female',duration:22,updated:0},{draftKey:'owner:one:duet:male:parent',id:'one',mode:'duet',part:'male',parent:'parent',duration:32,updated:0}];
+ const old=c.karaokeDraftsHTML(drafts),html=c.playDraftRows(drafts);
+ assert.deepEqual([...html.matchAll(/href="(#[^"]*draft=1)"/g)].map(m=>m[1]),[...old.matchAll(/href="(#[^"]*draft=1)"/g)].map(m=>m[1]));
+ for(const key of ['data-draft-key','data-delete-draft','data-draft-title'])assert.deepEqual([...html.matchAll(new RegExp(key+'="([^"]+)"','g'))].map(m=>m[1]),[...old.matchAll(new RegExp(key+'="([^"]+)"','g'))].map(m=>m[1]));
+ assert.doesNotMatch(html,/MY RECORDINGS|draft-workspace|recording-draft/);assert.match(html,/&lt;길고 긴 제목>/);assert.match(html,/play-draft-row/);
+ const empty=c.playDraftRows([]);assert.match(empty,/data-delete-all-drafts disabled/);assert.match(empty,/첫 목소리를 기다리고 있어요/);
+ });
