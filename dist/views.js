@@ -16,6 +16,7 @@ function saveNavigationSnapshot(raw,html,tracks,explorer,scroll=0){
  while(navigationSnapshots.size>24)navigationSnapshots.delete(navigationSnapshots.keys().next().value);
 }
 function bindRenderedRoute(base,param,explorer,ticket){
+ if(typeof bindShopShelves==='function')bindShopShelves();
  if(typeof bindPlay==='function')bindPlay(explorer);
  if(base==='song')bindSongCoverList();
  if(typeof bindMyPage==='function')bindMyPage(explorer);
