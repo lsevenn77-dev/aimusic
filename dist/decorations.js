@@ -1,4 +1,70 @@
 // Cosmetics use server inventory. No ownership or purchases are stored in the browser.
+async function bindGiftCategoryTabs(form,{recipientId,initial,serial,account,initialOwned}){
+ const section=form.closest('.gift-dialog'),list=form.querySelector('.gift-options'),checkout=form.querySelector('.gift-checkout'),owned=list.querySelector('.gift-owned');
+ const ordinary=document.createElement('div');ordinary.className='gift-ordinary-products';
+ for(const el of [...list.children])if(el!==owned)ordinary.append(el);list.append(ordinary);
+ const extra=document.createElement('div');extra.className='gift-decoration-products';extra.hidden=true;list.append(extra);
+ const extraCheckout=document.createElement('div');extraCheckout.className='gift-checkout gift-decoration-checkout';extraCheckout.hidden=true;form.append(extraCheckout);
+ let catalog,selected,period=initial?.period||'P7D',buyKey=crypto.randomUUID(),sendKey=crypto.randomUUID(),bought=null,busy=false;
+
+ function choose(p,item=null){if(busy)return;selected={p,item};bought=null;buyKey=crypto.randomUUID();sendKey=crypto.randomUUID();paint();}
+ function paint(){
+  const p=selected?.p;extraCheckout.innerHTML=p?`<strong>${esc(p.name)}</strong>${selected.item?'<p>보유 상품 · 추가 차감 없음</p>':`<label>이용 기간<select id="gift-decoration-period">${Object.entries(catalog.periods).map(([k,v])=>`<option value="${k}" ${k===period?'selected':''}>${v} · ${number(p.periodPrices[k])} G</option>`).join('')}</select></label>`}<p class="field-help">${bought?'구매 완료 · 인벤토리에 보관됨. 선물 전송을 다시 시도할 수 있어요.':'보내기를 누르면 선택한 상품을 전달합니다.'}</p><div class="compact-actions"><a class="small-button" href="#gold" data-close-dialog>충전하기</a><button type="button" class="primary-button" id="gift-decoration-send">${bought?'선물 전송 다시 시도':'선물하기'}</button></div><p class="form-error" role="alert"></p>`:'<p>선물할 상품을 선택해주세요.</p>';
+  const select=extraCheckout.querySelector('select');if(select)select.onchange=()=>{period=select.value;buyKey=crypto.randomUUID();};
+  const send=extraCheckout.querySelector('#gift-decoration-send');if(send)send.onclick=async()=>{
+   if(busy||form._busy)return;if(!me)return askLogin();busy=true;send.disabled=true;if(select)select.disabled=true;
+   try{if(me.id!==account)throw Error('계정이 변경됐어요. 다시 열어주세요.');
+    if(!bought)bought=selected.item?.id||(await api('/api/decorations/buy','POST',{sku:p.sku,period,request_id:buyKey})).order.inventory_id;
+    if(serial!==giftDialogSerial||!form.isConnected||me?.id!==account)return;
+    await api('/api/decorations/inventory/'+encodeURIComponent(bought)+'/send','POST',{profile_id:recipientId,request_id:sendKey});
+    if(serial!==giftDialogSerial||!form.isConnected||me?.id!==account)return;$('#dialog').close();toast(p.name+'을 선물했어요.');
+   }catch(e){if(form.isConnected){paint();extraCheckout.querySelector('.form-error').textContent=e.message;}}finally{busy=false;if(send.isConnected)send.disabled=false;}
+  };
+ }
+ async function show(key){
+  if(form._busy||busy)return;
+  section.querySelectorAll('[data-gift-category]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.giftCategory===key)));
+  ordinary.hidden=key!=='gifts';owned.hidden=key!=='inventory';extra.hidden=key==='gifts';checkout.hidden=!['gifts','inventory'].includes(key);extraCheckout.hidden=['gifts','inventory'].includes(key);extra.innerHTML='';
+  selected=null;paint();if(key==='gifts')return;
+  try{catalog=await api('/api/decorations','GET',undefined,{fresh:true});if(!form.isConnected||serial!==giftDialogSerial)return;
+   const current=section.querySelector('[data-gift-category][aria-pressed=true]')?.dataset.giftCategory;if(current!==key)return;
+   const items=key==='inventory'?catalog.inventory.filter(i=>i.stored&&i.available).map(i=>({p:catalog.products.find(p=>p.sku===i.item_key),item:i})):catalog.products.filter(p=>p.kind===(key==='frames'?'PROFILE_FRAME':'TALKING_ROOM_THEME')).map(p=>({p}));
+   extra.innerHTML='<div class="gift-catalog">'+items.map(({p,item},i)=>`<button type="button" class="gift-choice" data-gift-decoration-index="${i}"><img class="gift-art" src="${esc(p.assetPaths.overlay||p.assetPaths.roomCard)}" alt=""><strong>${esc(p.name)}</strong><span>${item?catalog.periods[item.period_code]:number(p.periodPrices.P7D)+' G / 7일'}</span></button>`).join('')+'</div>';
+   extra.querySelectorAll('button').forEach(b=>b.onclick=()=>{const value=items[Number(b.dataset.giftDecorationIndex)];if(busy||form._busy)return;checkout.hidden=true;extraCheckout.hidden=false;choose(value.p,value.item);});
+   if(key!=='inventory'){const value=items.find(v=>v.p.sku===initial?.sku)||items[0];if(value)choose(value.p);else{selected=null;paint();}}
+  }catch(e){extra.textContent=e.message;}
+ }
+ section.querySelectorAll('[data-gift-category]').forEach(b=>b.onclick=()=>void show(b.dataset.giftCategory));
+ // Keep existing ordinary-gift and owned-gift submission handlers intact.
+ form.addEventListener('submit',e=>{if(checkout.hidden){e.preventDefault();e.stopImmediatePropagation();}},true);
+ form.querySelectorAll('[data-owned-gift]').forEach(b=>b.addEventListener('click',()=>{extraCheckout.hidden=true;checkout.hidden=false;}));
+ await show(initial?.sku?.startsWith('frame_')?'frames':initial?.sku?'themes':initialOwned?'inventory':'gifts');
+}
+async function finalGiftShopView(category){
+ const [wallet,d]=await Promise.all([me?api('/api/gold'):null,api('/api/decorations','GET',undefined,{fresh:true})]);
+ const sections=[['PROFILE_FRAME','프로필 테두리','frames'],['TALKING_ROOM_THEME','토킹룸 테마','themes']].map(([kind,title,id])=>`<section class="gift-dashboard-section" id="gift-section-${id}"><header class="gift-section-heading"><h2>${title}</h2></header><div class="gift-catalog decoration-shop-row" tabindex="0" aria-label="${title}">${d.products.filter(p=>p.kind===kind).map(p=>`<article class="gift-shop-product"><button type="button" class="gift-choice" data-decoration="${esc(p.sku)}"><img class="gift-art ${kind==='PROFILE_FRAME'?'is-frame':''}" src="${esc(kind==='PROFILE_FRAME'?p.assetPaths.overlay:p.assetPaths.roomCard)}" alt="" loading="lazy"><strong>${esc(p.name)}</strong><span>${number(p.periodPrices.P7D)} G / 7일</span></button><button type="button" class="text-link" data-product-gift="${esc(p.sku)}">선물하기</button></article>`).join('')}</div></section>`).join('');
+ let html=giftShopHTML(wallet).replace('<nav class="gift-dashboard-actions"',sections+'<nav class="gift-dashboard-actions"');
+ html=html.replaceAll(/(<button type="button" class="gift-choice" data-gift-buy="([^"]+)">.*?<\/button>)/gs,(_,card,id)=>`<article class="gift-shop-product">${card}<button type="button" class="text-link" data-gift-shop="${id}">선물하기</button></article>`);
+ return html;
+}
+async function giftPurchaseDialog(id){
+ const serial=++giftDialogSerial,account=me?.id;
+ dialog('<h2>상품 구매하기</h2><p role="status">불러오는 중…</p>');
+ try{
+  const [catalog,wallet]=await Promise.all([api('/api/gifts/catalog'),me?api('/api/gold'):null]);
+  if(serial!==giftDialogSerial||!$('#dialog').open)return;
+  const g=[...(catalog.gifts||[]),...(catalog.silver_gifts||[])].find(g=>g.id===id);if(!g)throw Error('상품을 찾을 수 없어요.');
+  const unit=g.free?'S':'G',price=g.free?g.silver:g.gold,balance=g.free?wallet?.free?.balance:wallet?.balance;
+  let requestId=crypto.randomUUID();
+  dialog(`<section class="compact-purchase"><h2>상품 구매하기</h2><form id="gift-purchase"><div class="compact-product">${giftArt(g)}<div><h3>${esc(g.name)}</h3><p>구매한 선물은 인벤토리에 보관돼요.</p></div></div><label class="form-field">수량<input name="quantity" type="number" min="1" max="100" value="1" required></label><p id="compact-gift-total" aria-live="polite"></p><button type="button" class="small-button" id="compact-gift-send">다른 사람에게 선물하기</button><div class="compact-actions"><a class="small-button" href="${g.free?'#gifts/rewards':'#gold'}" data-close-dialog>${g.free?'오늘의 실버받기':'충전하기'}</a><button class="primary-button" type="submit">구매하기</button></div><p class="form-error" role="alert"></p></form></section>`);
+  const form=$('#gift-purchase'),submit=form.querySelector('[type=submit]');
+  const update=()=>{const n=Number(form.elements.quantity.value);$('#compact-gift-total').textContent=`보유 ${number(balance||0)} ${unit} · 총 ${number(price*n)} ${unit}`;submit.disabled=!!me&&(!Number.isInteger(n)||n<1||n>100||price*n>(balance||0));};
+  form.oninput=()=>{if(form._busy)return;requestId=crypto.randomUUID();update();};update();
+  $('#compact-gift-send').onclick=()=>{if(!form._busy)void chooseGiftRecipient(id);};
+  form.onsubmit=busyForm(form,async()=>{if(!me){$('#dialog').close();return askLogin();}if(me.id!==account)throw Error('계정이 변경됐어요. 다시 열어주세요.');const quantity=Number(form.elements.quantity.value);await api('/api/me/gift-inventory/buy','POST',{gift_type:id,quantity,request_id:requestId});if(serial!==giftDialogSerial||!form.isConnected||me?.id!==account)return;$('#dialog').close();toast('인벤토리에 보관했어요.');location.hash='#inventory';});
+ }catch(e){if(serial===giftDialogSerial&&$('#dialog').open)dialog('<h2>상품을 열지 못했어요</h2><p role="alert">'+esc(e.message)+'</p>');}
+}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-gift-buy],[data-product-gift]');if(!b)return;e.preventDefault();e.stopPropagation();if(b.dataset.giftBuy)void giftPurchaseDialog(b.dataset.giftBuy);else void chooseGiftRecipient({sku:b.dataset.productGift,period:'P7D'});});
 function decorationNav(active='gifts'){
  return '<nav class="v3-segments decoration-nav" aria-label="선물함 카테고리">'+[['gifts','선물','#gifts'],['frames','테두리','#gifts/frames'],['themes','테마','#gifts/themes'],['inventory','인벤토리','#inventory']].map(([id,label,href])=>`<a href="${href}" ${id===active?'aria-current="page"':''}>${label}</a>`).join('')+'</nav>';
 }
@@ -23,10 +89,10 @@ async function decorationDialog(sku,period='P7D'){
   if(serial!==giftDialogSerial||!$('#dialog').open)return;
   const p=d.products.find(p=>p.sku===sku);if(!p)throw Error('상품을 찾을 수 없어요.');
   let requestId=crypto.randomUUID();const image=p.assetPaths.thumbnail||p.assetPaths.roomCard;
-  dialog(`<section class="gift-dialog decoration-dialog"><header><h2>${esc(p.name)}</h2><p>구매한 상품은 인벤토리에 보관돼요.</p></header><form id="decoration-order"><div class="gift-options"><img class="decoration-detail-image" src="${esc(image)}" alt="${esc(p.name)}">${p.kind==='TALKING_ROOM_THEME'?'<p>PC·모바일 배경과 방 목록 카드가 함께 적용돼요. 방장만 사용할 수 있어요.</p>':'<p>인벤토리에서 착용하거나 해제할 수 있어요.</p>'}<label class="form-field">이용 기간<select name="period">${Object.entries(d.periods).map(([key,label])=>`<option value="${key}" ${key===period?'selected':''}>${label} · ${number(p.periodPrices[key])} G</option>`).join('')}</select></label></div><div class="gift-checkout"><div class="gift-send-summary" id="decoration-total"></div><p class="gift-fineprint">구매 후 인벤토리에서 사용을 시작하거나 회원을 선택해 선물할 수 있어요. 사용 시작 전에는 기간이 줄어들지 않아요.</p><button class="primary-button gift-send-button" type="submit">${me?'구매하기':'로그인하고 이용하기'}</button><p class="form-error" role="alert"></p></div></form></section>`);
-  const form=$('#decoration-order'),submit=form.querySelector('button[type="submit"]');
+  dialog(`<section class="gift-dialog decoration-dialog"><header><h2>상품 구매하기</h2></header><form id="decoration-order"><div class="gift-options"><div class="compact-product"><img class="decoration-detail-image" src="${esc(image)}" alt=""><div><h3>${esc(p.name)}</h3><p>구매한 상품은 인벤토리에 보관돼요.</p></div></div><fieldset class="compact-periods"><legend>이용 기간 선택</legend>${Object.entries(d.periods).map(([key,label])=>`<label><input type="radio" name="period" value="${key}" ${key===period?'checked':''}><span>${label}<strong>${number(p.periodPrices[key])} G</strong></span></label>`).join('')}</fieldset><button type="button" class="small-button" id="compact-decoration-gift">다른 사람에게 선물하기</button></div><div class="gift-checkout"><div class="gift-send-summary" id="decoration-total"></div><p class="gift-fineprint">인벤토리에서 사용 시작·선물하기를 선택하세요. 사용 전에는 기간이 줄어들지 않아요.</p><div class="compact-actions"><a class="small-button" href="#gold" data-close-dialog>충전하기</a><button class="primary-button gift-send-button" type="submit">${me?'구매하기':'로그인하고 이용하기'}</button></div><p class="form-error" role="alert"></p></div></form></section>`);
+  const form=$('#decoration-order'),submit=form.querySelector('button[type="submit"]');$('#compact-decoration-gift').onclick=()=>chooseGiftRecipient({sku,period:form.elements.period.value});
   const update=()=>{const cost=p.periodPrices[form.elements.period.value];$('#decoration-total').textContent=`${number(cost)} G · 보유 ${number(wallet?.balance||0)} G`;submit.disabled=!!me&&(wallet?.balance||0)<cost;};
-  form.elements.period.onchange=()=>{if(form._busy)return;requestId=crypto.randomUUID();update();};
+  form.onchange=()=>{if(form._busy)return;requestId=crypto.randomUUID();update();};
   update();const send=busyForm(form,async()=>{
    if(!me){$('#dialog').close();return askLogin();}if(me.id!==account)throw Error('로그인 계정이 변경됐어요. 다시 열어주세요.');
    const selectedPeriod=form.elements.period.value;for(const el of form.elements)el.disabled=true;
@@ -52,7 +118,7 @@ function decorationInventorySectionsHTML(d){
 }
 function fillRoomThemeChoices(form,options,selected='navy'){
  if(!options.themes)return;
- form.querySelector('.voice-backgrounds').innerHTML=options.themes.map(t=>`<label data-background="${esc(t.paid?'navy':t.sku)}" class="${t.paid?'decoration-theme-choice':''} ${t.selectable?'':'is-locked'}">${t.paid?`<img src="${esc(t.assetPaths.roomCard)}" alt="">`:''}<input type="radio" name="background" value="${esc(t.sku)}" ${t.sku===selected?'checked':''} ${t.selectable?'':'disabled'}><span>${esc(t.name)}${t.paid?'<small>'+(t.selectable?'보유 중':'잠김 · 미보유/만료')+'</small>':''}</span></label>`).join('');
+ form.querySelector('.voice-backgrounds').innerHTML=options.themes.filter(t=>t.selectable).map(t=>`<label data-background="${esc(t.paid?'navy':t.sku)}" class="${t.paid?'decoration-theme-choice':''} ${t.selectable?'':'is-locked'}">${t.paid?`<img src="${esc(t.assetPaths.roomCard)}" alt="">`:''}<input type="radio" name="background" value="${esc(t.sku)}" ${t.sku===selected?'checked':''} ${t.selectable?'':'disabled'}><span>${esc(t.name)}${t.paid?'<small>'+(t.selectable?'보유 중':'잠김 · 미보유/만료')+'</small>':''}</span></label>`).join('');
  if(!options.themes.some(t=>t.sku===selected&&t.selectable))form.elements.background.value='navy';
 }
 document.addEventListener('click',e=>{const b=e.target.closest('[data-decoration]');if(!b)return;e.preventDefault();void decorationDialog(b.dataset.decoration,b.closest('[data-decoration-card]')?.querySelector('[data-decoration-period]')?.value||'P7D');});

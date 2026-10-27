@@ -10,7 +10,7 @@ function node(dataset={}){return {dataset,hidden:false,disabled:false,isConnecte
 function browser(api,user={id:'owner'}){
  let html='',form,buttons=[],renders=0;
  const nodes={'#dialog':{open:true,classList:{add(){}},close(){this.open=false;}}};
- const c=vm.createContext({AifectGifts,crypto,me:user,accountReady:Promise.resolve(),esc:s=>String(s??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;'),number:n=>String(n||0),icon:()=>'',remember(){},api,
+ const c=vm.createContext({bindGiftCategoryTabs:async()=>{},AifectGifts,crypto,me:user,accountReady:Promise.resolve(),esc:s=>String(s??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;'),number:n=>String(n||0),icon:()=>'',remember(){},api,
   $:selector=>nodes[selector]||null,FormData:class{},window:{addEventListener(){},removeEventListener(){}},uploadStage(){},formError:f=>f.error,toast(){},askLogin(){},render:async()=>{renders++;},
   dialog(value){html=value;if(form)form.isConnected=false;if(!value.includes('id="gift-form"'))return;
    form=node();form.error=node();const qty=node();buttons=[];

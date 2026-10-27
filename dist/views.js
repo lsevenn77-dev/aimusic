@@ -116,7 +116,7 @@ async function render(){
   else if(base==='karaoke'){const [d,duets]=await Promise.all([api('/api/karaoke'),api('/api/duets')]);nextTracks=[...d.tracks,...duets.tracks];html=karaokeListHTML(d.tracks,duets.tracks);}
   else if(base==='sing'){const d=await loadSingRoute(param,new URLSearchParams(paramQuery?.split('?')[1]||''));if(ticket!==renderId)return;routeSing=d;html=singHTML(d);}
   else if(base==='cover'){const {track:o}=await api('/api/tracks/'+param);remember([o]);html=coverUploadHTML(o);}
-  else if(base==='gifts')html=['frames','themes'].includes(param)?await decorationShopView(param):decorationNav()+giftShopHTML(me?await api('/api/gold'):null);
+  else if(base==='gifts')html=await finalGiftShopView(param);
   else if(base==='gold')html=(param==='history'?heading('보낸 선물 내역')+'<a class="text-link" href="#gold">골드 충전으로</a>'+sentGiftHistoryHTML(await api('/api/gold')):goldHTML(await api('/api/gold')));
   else if(base==='admin'&&param==='track-review'){const q=new URLSearchParams(paramQuery?.split('?')[1]||'');html=trackReviewHTML(await api('/api/admin/track-review?'+q.toString()));if(authConfig?.admin)html+='<section class="surface"><button class="small-button danger-button" data-purge-all-covers>사이트 전체 커버곡 삭제</button></section>';}
   else if(base==='admin'&&param==='partners')html=partnerAdminHTML(await api('/api/admin/diamonds'));

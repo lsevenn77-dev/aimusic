@@ -13,7 +13,7 @@
 .v3-room-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:24px 18px}
 .v3-room-card{display:block;min-width:0;background:none;border:0;border-radius:0}
 .v3-room-card[hidden]{display:none}
-.v3-room-art{height:150px;position:relative;overflow:hidden;border-radius:var(--ds-radius-input);background:radial-gradient(ellipse at 50% 0,#42508080,transparent 80%),#091626}
+.v3-room-art{height:auto;aspect-ratio:1;position:relative;overflow:hidden;border-radius:var(--ds-radius-input);background:radial-gradient(ellipse at 50% 0,#42508080,transparent 80%),#091626}
 .v3-room-art[data-theme=sunset]{background:radial-gradient(ellipse at 60% 70%,#cf97c88c,transparent 60%),linear-gradient(#434978,#ad738b 70%,#343450)}
 .v3-room-art[data-theme=night]{background:radial-gradient(circle at 60% 29%,#d6d5eb 0 5px,#c4c4e733 6px,transparent 16px),radial-gradient(ellipse at 50% 95%,#37568288,transparent),#0c1a36}
 .v3-live,.v3-room-count{position:absolute;display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:var(--ds-radius-sm);font-size:.6875rem;background:var(--ds-bg);color:var(--ds-text)}
@@ -60,7 +60,7 @@ main[data-route^="community"]::before,main[data-route^="crew/"]::before{display:
 @media(max-width:1100px){.v3-room-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.v3-toolbar{align-items:flex-start;flex-wrap:wrap}}
 @media(max-width:600px){
  .music-community-tabs{gap:0}.music-community-tabs .tab{flex:1;min-width:0}
- .v3-room-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 14px}.v3-room-art{height:112px}.v3-room-copy h3{font-size:.875rem}.v3-room-copy small{display:none}
+ .v3-room-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 14px}.v3-room-art{height:auto;aspect-ratio:1}.v3-room-copy h3{font-size:.875rem}.v3-room-copy small{display:none}
  .v3-toolbar{gap:16px;margin:24px 0 20px}.v3-toolbar h2{font-size:1.125rem}.v3-toolbar p{font-size:.75rem}
  .v3-tools{width:100%;gap:8px}.v3-tools input{width:0;flex:1;font-size:.8125rem}.v3-tools button{padding:10px 12px;font-size:.8125rem}
  .v3-segments{gap:6px}.v3-segments a{padding:8px 10px;font-size:.75rem}.v3-ranking li{gap:10px;padding:15px 0}.v3-ranking li>span{max-width:90px;text-align:right}.v3-empty{padding:32px 18px}.crew-hero{gap:12px!important}.crew-hero h1{font-size:1.25rem!important}

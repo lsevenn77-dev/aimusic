@@ -1,6 +1,11 @@
 // Display-only refresh. This never enters the audio/WebRTC graph or room socket.
 (()=>{
- const frames=new Map(),themes=new Map();let busy=false,queued=false,lastRead=0;
+ const frames=new Map(),themes=new Map(),assetHealth=new Map();let busy=false,queued=false,lastRead=0;
+ function usableAsset(path){
+  if(!validAsset(path))return false;
+  if(!assetHealth.has(path)){assetHealth.set(path,'loading');const image=new Image();image.onload=()=>{assetHealth.set(path,'ready');paintThemes();};image.onerror=()=>{assetHealth.set(path,'failed');paintThemes();};image.src=path;}
+  return assetHealth.get(path)!=='failed';
+ }
  const validAsset=p=>typeof p==='string'&&/^\/assets\/[a-zA-Z0-9_./-]+\.(png|webp)$/.test(p)&&!p.includes('..');
  const expired=(entry,at)=>entry?.expires_at&&entry.expires_at<=at;
  const observed=new Set(),sizeObserver=typeof ResizeObserver==='function'?new ResizeObserver(()=>paintFrames()):null;
@@ -28,7 +33,7 @@
  }
  function paintTheme(el,t,card=false){
   if(!t)return;
-  const active=t.assets&&!expired(t,Date.now()/1000+(t.offset||0));
+  const active=t.assets&&!expired(t,Date.now()/1000+(t.offset||0))&&Object.values(t.assets).every(usableAsset);
   const sku=active?t.sku:t.assets?'navy':t.sku;
   if(card)el.dataset.theme=sku;else el.dataset.background=sku;
   el.dataset.themeSku=sku;
