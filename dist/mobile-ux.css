@@ -11,7 +11,7 @@
 .player {padding-right:108px}
 .player-collapse {
   position:absolute; right:56px; top:12px; width:44px; height:44px;
-  border-radius:50%; color:var(--aqua);
+  border-radius:50%;color:var(--ds-body);
 }
 .player-collapse svg {width:20px;height:20px}
 .player.is-collapsed {

@@ -17,7 +17,7 @@
 .v3-room-art[data-theme=sunset]{background:radial-gradient(ellipse at 60% 70%,#cf97c88c,transparent 60%),linear-gradient(#434978,#ad738b 70%,#343450)}
 .v3-room-art[data-theme=night]{background:radial-gradient(circle at 60% 29%,#d6d5eb 0 5px,#c4c4e733 6px,transparent 16px),radial-gradient(ellipse at 50% 95%,#37568288,transparent),#0c1a36}
 .v3-live,.v3-room-count{position:absolute;display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:var(--ds-radius-sm);font-size:.6875rem;background:var(--ds-bg);color:var(--ds-text)}
-.v3-live{top:12px;left:12px;color:#8eddd2}
+.v3-live{top:12px;left:12px;color:var(--ds-body)}
 .v3-live::before{content:'';width:5px;height:5px;border-radius:50%;background:currentColor}
 .v3-room-count{bottom:12px;right:12px}.v3-room-count svg{width:14px;height:14px}
 .v3-room-copy{padding:12px 0}.v3-room-copy h3{font-size:.9375rem;font-weight:600;margin:0 0 6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -28,7 +28,7 @@
 .v3-segments a{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:8px 16px;border-radius:var(--ds-radius-input);background:none;color:var(--ds-muted);border:1px solid var(--ds-line);font-size:.875rem;white-space:nowrap}
 .v3-segments a[aria-current]{background:var(--ds-soft);color:var(--ds-lilac);border-color:var(--ds-lavender)}
 .v3-period{margin:0 0 24px}.v3-ranking{list-style:none;padding:0;margin:0}.v3-ranking li{display:flex;gap:20px;align-items:center;padding:20px 0;border-bottom:1px solid var(--ds-line)}
-.v3-ranking li>a{flex:1;min-width:0}.v3-ranking small{display:block;color:var(--ds-muted);margin-top:6px;font-size:.75rem}.v3-rank{font-size:1.25rem;color:var(--ds-lilac);width:30px}.v3-ranking .profile-avatar-image{width:44px;height:44px;object-fit:cover;border-radius:50%;float:left;margin-right:12px}
+.v3-ranking li>a{flex:1;min-width:0}.v3-ranking small{display:block;color:var(--ds-muted);margin-top:6px;font-size:.75rem}.v3-rank{font-size:1.25rem;color:var(--ds-body);width:30px}.v3-ranking .profile-avatar-image{width:44px;height:44px;object-fit:cover;border-radius:50%;float:left;margin-right:12px}
 .crew-hero{min-height:0!important;padding:20px!important;background:var(--ds-surface)!important;border:1px solid var(--ds-line);border-radius:var(--ds-radius-card);box-shadow:none!important}
 .crew-hero:before,.crew-hero:after{display:none!important}.crew-hero-picture{width:72px!important;height:72px!important;flex-basis:72px!important;border-radius:var(--ds-radius-card)!important}.crew-hero h1{font-size:1.5rem!important}.crew-hero .eyebrow{display:none}.crew-hero-description{margin:6px 0!important}
 .v3-crew-work{display:flex;align-items:center;gap:16px;padding:14px 0;border-bottom:1px solid var(--ds-line)}.v3-crew-work>a{flex:1;min-width:0}.v3-crew-work strong{display:flex;gap:8px;align-items:center}.v3-crew-work strong svg{width:18px;height:18px;color:var(--ds-muted);flex-shrink:0}.v3-crew-work small{display:block;color:var(--ds-muted);margin-top:6px}.v3-application{display:flex;align-items:center;gap:12px;padding:12px 0}.v3-application span{flex:1}

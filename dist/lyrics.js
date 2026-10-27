@@ -67,25 +67,40 @@ function bindLyricsPanel(){
  const panel=$('#song-lyrics');if(!panel)return;const track=trackMap.get(panel.dataset.track);if(current?.id===track?.id){current=track;try{currentCues=hasFullLyrics(track)?AifectLyrics.parseLrc(track.lyrics):[];}catch{currentCues=[];}}
  const expand=$('#lyrics-expand');if(expand)expand.onclick=()=>openExpandedLyrics(track);
  const state=lyricPanelState={panel,follow:!!panel.querySelector('.lyrics-scroll'),index:-2};const follow=$('#lyrics-follow'),scroller=panel.querySelector('.lyrics-scroll');
- if(follow&&scroller){const setFollow=value=>{state.follow=value;follow.textContent='자동 따라가기';if(!value)scroller.scrollTo({top:scroller.scrollTop,behavior:'instant'});follow.setAttribute('aria-pressed',String(value));};follow.onclick=()=>{setFollow(!state.follow);updateSyncedLyrics(true);};setFollow(state.follow);for(const event of ['wheel','touchmove'])scroller.addEventListener(event,()=>setFollow(false),{passive:true});}
+ if(follow&&scroller){const setFollow=value=>{setLyricsFollow(value);if(!value)scroller.scrollTo({top:scroller.scrollTop,behavior:'instant'});};follow.onclick=()=>{setFollow(!state.follow);updateSyncedLyrics(true);};setFollow(state.follow);for(const event of ['wheel','touchmove'])scroller.addEventListener(event,()=>setFollow(false),{passive:true});}
  updateSyncedLyrics(true);
 }
 let expandedLyrics=null;
-function expandedLyricsHTML(t,cues){return '<section class="surface expanded-song-lyrics" id="expanded-song-lyrics" aria-labelledby="expanded-lyrics-title"><header><h2 id="expanded-lyrics-title">전체 가사</h2><button type="button" class="icon-button expanded-lyrics-close" aria-label="전체 가사 닫기">×</button></header><div class="expanded-lyrics-track">'+cover(t)+'<div><h3>'+esc(t.title)+'</h3><p>'+esc(t.kind==='cover'?t.producer:t.artist||t.producer||'')+'</p><small>'+esc((t.genres?.length?t.genres:[t.genre]).filter(Boolean).join(' · '))+'</small></div></div><div class="expanded-lyrics-scroll" tabindex="0" role="region" aria-label="전체 가사">'+cues.map((c,i)=>'<p data-expanded-lyric="'+i+'">'+esc(c.text||'♪ 간주')+'</p>').join('')+'</div></section>';}
-function closeExpandedLyrics(){const card=expandedLyrics?.card;expandedLyrics=null;card?.remove();const button=$('#lyrics-expand');button?.setAttribute('aria-expanded','false');}
+function expandedLyricsHTML(t,cues){return '<section class="surface expanded-song-lyrics" id="expanded-song-lyrics" aria-labelledby="expanded-lyrics-title"><header><h2 id="expanded-lyrics-title">전체 가사</h2><div class="expanded-lyrics-actions"><button type="button" class="small-button expanded-lyrics-follow" aria-pressed="'+String(!!lyricPanelState?.follow)+'">자동 따라가기</button><button type="button" class="icon-button expanded-lyrics-close" aria-label="전체 가사 닫기">×</button></div></header><div class="expanded-lyrics-track">'+cover(t)+'<div><h3>'+esc(t.title)+'</h3><p>'+esc(t.kind==='cover'?t.producer:t.artist||t.producer||'')+'</p><small>'+esc((t.genres?.length?t.genres:[t.genre]).filter(Boolean).join(' · '))+'</small></div></div><div class="expanded-lyrics-scroll" role="region" aria-label="전체 가사">'+cues.map((c,i)=>'<button type="button" data-expanded-lyric="'+i+'" data-lyric-index="'+i+'" data-seek="'+c.time+'" data-track="'+esc(t.id)+'" aria-label="'+time(c.time)+' 가사로 이동">'+esc(c.text||'♪ 간주')+'</button>').join('')+'</div></section>';}
+function setLyricsFollow(value){if(lyricPanelState)lyricPanelState.follow=value;$('#lyrics-follow')?.setAttribute('aria-pressed',String(value));expandedLyrics?.card.querySelector('.expanded-lyrics-follow')?.setAttribute('aria-pressed',String(value));}
+function expandedLyricsScrollOwner(card){for(let el=card.parentElement;el&&el!==document.body;el=el.parentElement){if(/auto|scroll/.test(getComputedStyle(el).overflowY)&&el.scrollHeight>el.clientHeight)return el;}return document.scrollingElement;}
+function centerExpandedLyric(line){
+ const state=expandedLyrics;if(!state||!line)return;const owner=state.scrollOwner,root=owner===document.scrollingElement,box=root?{top:0,bottom:innerHeight}:owner.getBoundingClientRect();
+ const header=state.card.querySelector('header'),top=box.top+(header?.getBoundingClientRect().height||0)+16;let bottom=box.bottom-16;
+ for(const el of document.querySelectorAll('.player,.mobile-navigation,.player-lyric:not([hidden])')){const r=el.getBoundingClientRect();if(r.height>0&&r.top<bottom&&r.bottom>box.top&&getComputedStyle(el).display!=='none')bottom=Math.min(bottom,r.top-16);}
+ const rect=line.getBoundingClientRect(),delta=rect.top+rect.height/2-(top+Math.max(top,bottom))/2;
+ owner.scrollTo({top:owner.scrollTop+delta,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});
+}
+function closeExpandedLyrics(){const state=expandedLyrics;expandedLyrics=null;state?.cleanup?.();state?.card.remove();const button=$('#lyrics-expand');button?.setAttribute('aria-expanded','false');}
 function openExpandedLyrics(t){
  if(!t||!hasFullLyrics(t)){location.hash='membership';return;}
  const column=$('.song-main-column');if(!column)return;
  if(expandedLyrics?.card.isConnected&&expandedLyrics.track.id===t.id){expandedLyrics.card.scrollIntoView({behavior:'smooth',block:'start'});return;}
  closeExpandedLyrics();let cues;try{cues=AifectLyrics.parseLrc(t.lyrics);}catch{return;}
  column.insertAdjacentHTML('afterbegin',expandedLyricsHTML(t,cues));const card=$('#expanded-song-lyrics');if(!card)return;
- expandedLyrics={card,track:t,cues,index:-2};card.querySelector('.expanded-lyrics-close').onclick=()=>{closeExpandedLyrics();$('#lyrics-expand')?.focus();};$('#lyrics-expand')?.setAttribute('aria-expanded','true');updateExpandedLyrics(true);card.scrollIntoView({behavior:'smooth',block:'start'});
+ const scrollOwner=expandedLyricsScrollOwner(card),events=scrollOwner===document.scrollingElement?document:scrollOwner;
+ const manual=()=>setLyricsFollow(false),key=e=>{if(['ArrowUp','ArrowDown','PageUp','PageDown','Home','End',' '].includes(e.key)&&!e.target.closest('button,input,textarea,select'))manual();};
+ for(const name of ['wheel','touchmove'])events.addEventListener(name,manual,{passive:true});events.addEventListener('keydown',key);
+ expandedLyrics={card,track:t,cues,index:-2,scrollOwner,cleanup(){for(const name of ['wheel','touchmove'])events.removeEventListener(name,manual);events.removeEventListener('keydown',key);}};
+ card.querySelector('.expanded-lyrics-close').onclick=()=>{closeExpandedLyrics();$('#lyrics-expand')?.focus();};card.querySelector('.expanded-lyrics-follow').onclick=()=>{setLyricsFollow(!lyricPanelState?.follow);updateExpandedLyrics(true);};
+ card.addEventListener('click',e=>{const line=e.target.closest('[data-expanded-lyric]');if(line)centerExpandedLyric(line);});
+ $('#lyrics-expand')?.setAttribute('aria-expanded','true');card.scrollIntoView({behavior:'instant',block:'start'});updateExpandedLyrics(true);
 }
 function updateExpandedLyrics(force=false){
  const state=expandedLyrics;if(!state?.card.isConnected)return;if(!hasFullLyrics(state.track)){closeExpandedLyrics();return;}
  const index=current?.id===state.track.id?AifectLyrics.activeCueIndex(state.cues,audio.currentTime):-1;if(!force&&index===state.index)return;state.index=index;
  const lines=state.card.querySelectorAll('[data-expanded-lyric]');lines.forEach((line,i)=>{line.classList.toggle('is-current',i===index);if(i===index)line.setAttribute('aria-current','true');else line.removeAttribute('aria-current');});
- if(index>=0&&lyricPanelState?.follow){const scroller=state.card.querySelector('.expanded-lyrics-scroll'),line=lines[index];if(scroller&&line){const top=line.offsetTop-scroller.offsetTop-scroller.clientHeight/2+line.clientHeight/2;scroller.scrollTo({top,behavior:'smooth'});}}
+ if(index>=0&&lyricPanelState?.follow)centerExpandedLyric(lines[index]);
 }
 function containsLyricTime(line,seconds){return line?.id===current?.id&&seconds>=line.from&&(seconds<line.until||(line.until>=current.duration&&seconds<=current.duration));}
 function lineAtTime(seconds=audio.currentTime){return lyricLines.find(line=>containsLyricTime(line,seconds))||null;}
