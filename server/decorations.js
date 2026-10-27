@@ -1,4 +1,4 @@
-import {one,rows,query,now,id,fail,json,rate} from './db.js';
+import {one,rows,query,now,id,fail,json,rate,str} from './db.js';
 import {requireUser,viewerBlockedIds} from './auth.js';
 import {assertUnblocked} from './account-safety.js';
 import {producerNameSQL} from './identity.js';
@@ -18,11 +18,13 @@ export async function decorationInventory(env,uid){
  const inventory=await rows(env,`SELECT pi.*,co.period_code,((pi.source='decoration_stock' AND pi.revoked=0 AND ${decorationFundingSQL('pi')}) OR (${activeDecorationSQL('pi')})) available,pe.frame_inventory_id=pi.id selected FROM player_inventory pi LEFT JOIN decoration_orders co ON co.inventory_id=pi.id LEFT JOIN player_equipment pe ON pe.user_id=pi.user_id WHERE pi.user_id=? AND (pi.source='decoration' OR (pi.source='decoration_stock' AND pi.revoked=0)) ORDER BY pi.granted_at DESC,pi.id`,uid);
  return inventory.filter(i=>Object.hasOwn(DECORATIONS,i.item_key)).map(i=>({...i,product:DECORATIONS[i.item_key],available:!!i.available,equipped:!!i.available&&!!i.selected,stored:i.source==='decoration_stock'}));
 }
-async function buyDecoration(env,user,b){
+async function buyDecoration(env,user,b,gifting=false){
  const key=requestId(b);let quote;try{quote=quoteDecoration(b.sku,b.period);}catch(e){fail(400,e.message);}
- if(b.profile_id!==undefined)fail(400,'구매한 상품은 본인 인벤토리에 보관한 후 선물해주세요.');
- const recipient=user.id;
- const replay=async()=>{const old=await one(env,'SELECT * FROM decoration_orders WHERE payer_id=? AND request_id=?',user.id,key);if(old&&(old.sku!==quote.sku||old.period_code!==quote.period||old.recipient_id!==recipient))fail(409,'이미 다른 구매에 사용한 요청 번호예요.');return old;};
+ if(!gifting&&b.profile_id!==undefined)fail(400,'구매한 상품은 본인 인벤토리에 보관한 후 선물해주세요.');
+ const receiver=gifting?await recipientUser(env,user,b.profile_id):null,recipient=user.id;
+ const message=gifting&&b.message!==undefined?str(b.message,2000,false):'';
+ if(message){if(!await one(env,'SELECT id FROM producers WHERE user_id=?',user.id))fail(409,'닉네임을 먼저 저장해주세요.');await rate(env,'dm:'+user.id,30,60);}
+ const replay=async()=>{const old=await one(env,'SELECT * FROM decoration_orders WHERE payer_id=? AND request_id=?',user.id,key);if(old&&(old.sku!==quote.sku||old.period_code!==quote.period||old.recipient_id!==recipient))fail(409,'이미 다른 구매에 사용한 요청 번호예요.');if(old&&gifting){const sent=await one(env,'SELECT recipient_id FROM decoration_transfers WHERE sender_id=? AND request_id=?',user.id,key);if(sent?.recipient_id!==receiver)fail(409,'이미 다른 선물에 사용한 요청 번호예요.');const savedNote=await one(env,'SELECT body FROM direct_messages WHERE sender_id=? AND request_id=?',user.id,'decoration:'+key);if((savedNote?.body||'')!==message)fail(409,'이미 다른 메시지에 사용한 선물 요청이에요.');}return old;};
  const previous=await replay();if(previous)return previous;await rate(env,'decoration-buy:'+user.id,30,3600);
  const at=now(),inventoryId=id(),orderId=id(),lots=await rows(env,`SELECT * FROM gold_purchases WHERE user_id=? AND used<gold AND ${decorationSpendableSQL} ORDER BY paid_at,id`,user.id);
  let spent;try{spent=allocateLots(lots,quote.gold);}catch{const saved=await replay();if(saved)return saved;fail(409,'골드가 부족해요.');}
@@ -30,7 +32,14 @@ async function buyDecoration(env,user,b){
  try{await env.DB.batch([
   query(env,"INSERT INTO player_inventory(id,user_id,item_key,source,source_ref,granted_at) VALUES(?,?,?,'decoration_stock',?,?)",inventoryId,recipient,quote.sku,orderId,at),
   query(env,'INSERT INTO decoration_orders(id,payer_id,recipient_id,request_id,sku,period_code,gold,inventory_id,created) VALUES(?,?,?,?,?,?,?,?,?)',orderId,user.id,recipient,key,quote.sku,quote.period,quote.gold,inventoryId,at),
-  ...spent.flatMap(l=>[query(env,`UPDATE gold_purchases SET used=CASE WHEN ${decorationSpendableSQL} THEN used+? ELSE -1 END WHERE id=? AND user_id=?`,l.gold,l.purchase_id,user.id),query(env,'INSERT INTO decoration_order_lots(order_id,purchase_id,gold,net_mw) VALUES(?,?,?,?)',orderId,l.purchase_id,l.gold,l.net_mw)])
+  ...spent.flatMap(l=>[query(env,`UPDATE gold_purchases SET used=CASE WHEN ${decorationSpendableSQL} THEN used+? ELSE -1 END WHERE id=? AND user_id=?`,l.gold,l.purchase_id,user.id),query(env,'INSERT INTO decoration_order_lots(order_id,purchase_id,gold,net_mw) VALUES(?,?,?,?)',orderId,l.purchase_id,l.gold,l.net_mw)]),
+  ...(gifting?[
+   query(env,'INSERT INTO decoration_transfers(id,inventory_id,sender_id,recipient_id,request_id,created) VALUES(?,?,?,?,?,?)',id(),inventoryId,user.id,receiver,key,at),
+   query(env,'UPDATE player_inventory SET user_id=? WHERE id=?',receiver,inventoryId),
+   query(env,"INSERT INTO activity_notifications(id,recipient,actor_id,kind,target,gift_name,quantity,currency,amount,created) VALUES(?,?,?,'person_gift',?,?,1,'gold',?,?)",'decoration:'+orderId,receiver,user.id,b.profile_id,DECORATIONS[quote.sku].name,quote.gold,at),
+   query(env,"INSERT INTO push_outbox(id,recipient,kind,target,created) VALUES(?,?,'person_gift',?,?)",'decoration:'+orderId,receiver,b.profile_id,at),
+   ...(message?[query(env,'INSERT INTO direct_messages(id,sender_id,recipient_id,body,request_id,created) VALUES(?,?,?,?,?,?)',id(),user.id,receiver,message,'decoration:'+key,at)]:[])
+  ]:[])
  ]);return await replay();}catch(e){const saved=await replay();if(saved)return saved;if(/constraint|decoration_|refunded/i.test(e.message))fail(409,'잔액이나 보유 상태가 바뀌었어요. 다시 확인해주세요.');throw e;}
 }
 async function useDecoration(env,user,inventoryId,b){
@@ -71,9 +80,10 @@ export async function decorationRoute(req,env,path,user){
   const q=(new URL(req.url).searchParams.get('q')||'').trim().slice(0,60);
   await rate(env,'decoration-recipients:'+user.id,120,60);
   const name=producerNameSQL();
-  const profiles=await rows(env,`SELECT p.id,${name} name,p.image_version FROM producers p JOIN users u ON u.id=p.user_id WHERE p.user_id!=? AND u.provider!='deleted' AND u.account_type='human' AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=? AND b.blocked_id=p.user_id) OR (b.blocked_id=? AND b.user_id=p.user_id)) AND ${q?`instr(lower(${name}),lower(?))>0`:`(EXISTS(SELECT 1 FROM follows f WHERE f.user_id=? AND f.kind='producer' AND f.target_id=p.id) OR EXISTS(SELECT 1 FROM direct_messages d WHERE (d.sender_id=? AND d.recipient_id=p.user_id) OR (d.recipient_id=? AND d.sender_id=p.user_id)))`} ORDER BY name,p.id LIMIT 20`,user.id,user.id,user.id,...(q?[q]:[user.id,user.id,user.id]));
+  const profiles=await rows(env,`SELECT p.id,${name} name,p.image_version,m.number public_number FROM producers p JOIN users u ON u.id=p.user_id LEFT JOIN public_member_ids m ON m.user_id=u.id WHERE p.user_id!=? AND u.provider!='deleted' AND u.account_type='human' AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=? AND b.blocked_id=p.user_id) OR (b.blocked_id=? AND b.user_id=p.user_id)) AND ${q?`(m.number=? OR instr(lower(${name}),lower(?))>0)`:`(EXISTS(SELECT 1 FROM follows f WHERE f.user_id=? AND f.kind='producer' AND f.target_id=p.id) OR EXISTS(SELECT 1 FROM direct_messages d WHERE (d.sender_id=? AND d.recipient_id=p.user_id) OR (d.recipient_id=? AND d.sender_id=p.user_id)))`} ORDER BY ${q?'CASE WHEN m.number=? THEN 0 ELSE 1 END,':''} name,p.id LIMIT 20`,user.id,user.id,user.id,...(q?[/^\d+$/.test(q)?Number(q):-1,q,/^\d+$/.test(q)?Number(q):-1]:[user.id,user.id,user.id]));
   return json({profiles});
  }
+ if(path==='/api/decorations/gift'&&req.method==='POST')return json({order:await buyDecoration(env,user,await req.json(),true)},201);
  if(path==='/api/decorations/buy'&&req.method==='POST')return json({order:await buyDecoration(env,user,await req.json()),inventory:await decorationInventory(env,user.id),server_now:now()},201);
  const match=path.match(/^\/api\/decorations\/inventory\/([\w-]+)\/(use|send)$/);
  if(match&&req.method==='POST')return json({receipt:await (match[2]==='use'?useDecoration:sendDecoration)(env,user,match[1],await req.json()),inventory:await decorationInventory(env,user.id),server_now:now()});

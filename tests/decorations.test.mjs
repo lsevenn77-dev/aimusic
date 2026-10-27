@@ -156,7 +156,7 @@ test('member picker uses public names and excludes self, blocks, deleted and bot
  f.sql.exec("INSERT INTO follows(user_id,kind,target_id,created) VALUES('owner','producer','friend',0)");
  const suggested=await f.call('/api/decorations/recipients');assert.deepEqual(suggested.body.profiles.map(p=>p.id),['friend']);
  const result=await f.call('/api/decorations/recipients?q='+encodeURIComponent('테스트'));
- assert.equal(result.status,200);assert.equal(result.body.profiles[0].name,'테스트 친구');assert.deepEqual(Object.keys(result.body.profiles[0]).sort(),['id','image_version','name']);
+ assert.equal(result.status,200);assert.equal(result.body.profiles[0].name,'테스트 친구');assert.deepEqual(Object.keys(result.body.profiles[0]).sort(),['id','image_version','name','public_number']);
  assert.deepEqual((await f.call('/api/decorations/recipients?q=QA')).body.profiles,[]);
  assert.deepEqual((await f.call('/api/decorations/recipients?q=%25')).body.profiles,[]);
  for(const [actor,target] of [['owner','other'],['other','owner']]){

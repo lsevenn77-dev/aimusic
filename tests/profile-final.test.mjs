@@ -8,7 +8,7 @@ import * as AifectPlayer from '../shared/player.js';
 const source=name=>readFileSync(new URL('../dist/'+name,import.meta.url),'utf8');
 const esc=s=>String(s??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;');
 function ui(extra={}){
- const c=vm.createContext({URLSearchParams,AifectPlayer,me:{id:'owner'},apiRevision:0,authConfig:{},location:{hash:'#inventory'},document:{addEventListener(){}},window:{addEventListener(){}},esc,number:String,icon:()=>'',portrait:()=>'<img alt="프로필">',heading:t=>'<h1>'+t+'</h1>',gate:()=>'<p>LOGIN</p>',playerProgressHTML:()=>'',...extra});
+ const c=vm.createContext({URLSearchParams,AifectPlayer,DEFAULT_AVATAR:'/assets/default-avatar.png',me:{id:'owner'},apiRevision:0,authConfig:{},location:{hash:'#inventory'},document:{addEventListener(){}},window:{addEventListener(){}},esc,number:String,icon:()=>'',portrait:()=>'<img alt="프로필">',heading:t=>'<h1>'+t+'</h1>',gate:()=>'<p>LOGIN</p>',playerProgressHTML:()=>'',...extra});
  for(const name of ['decorations.js','music-library.js','inventory.js','mypage.js','menu-integration.js'])vm.runInContext(source(name),c);
  return c;
 }
@@ -18,7 +18,7 @@ test('unified inventory preserves every stock ID and expiry, filters real equipm
  let v=await c.unifiedInventoryView('inventory');const before=f.sql.prepare('SELECT * FROM player_inventory ORDER BY id').all(),stockBefore=f.sql.prepare('SELECT * FROM gift_inventory ORDER BY id').all();
  assert.match(v.html,/보유 상품/);assert.match(v.html,/사용 중/);assert.match(v.html,/data-inventory-item="temporary"/);assert.match(v.html,/data-inventory-item="expired"/);assert.match(v.html,/만료일/);assert.match(v.html,/사용 기간이 끝났어요/);assert.match(v.html,/× 2/);assert.doesNotMatch(v.html,/내 도구함|토킹룸 테마|다이아/);assert.ok(calls.every(x=>x.method==='GET'));
  assert.equal((await f.call('/api/me/player/equipment','PUT',{frame_inventory_id:'temporary'})).status,200);
- v=await c.unifiedInventoryView('inventory?section=active');const active=c.inventoryPanel(v.unifiedInventory);
+ v=await c.unifiedInventoryView('inventory?section=active');const active=c.inventoryPanel(v.unifiedInventory);assert.match(active,/inventory-frame-original/);assert.doesNotMatch(active,/player-frame-artwork|data-avatar-profile/);
  assert.equal((active.match(/data-inventory-item=/g)||[]).length,1);assert.match(active,/data-inventory-item="temporary"/);assert.match(active,/data-player-equip=""/);assert.match(active,/다른 상품으로 교체/);assert.doesNotMatch(active,/data-inventory-send|data-inventory-item="expired"/);
  const publicProfile=(await f.call('/api/producers/producer')).body;assert.equal(publicProfile.profile.profile_frame,'crew-outline');
  vm.runInContext(source('player-progress.js'),c);c.avatarImage=()=>'<img alt="프로필">';assert.match(c.myProfileHeader(publicProfile),/player-frame-artwork/);
