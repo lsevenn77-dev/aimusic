@@ -1,0 +1,1 @@
+{"extends":"./tsconfig.play.json","files":["dist/home.js","tests/home-globals.d.ts"]}

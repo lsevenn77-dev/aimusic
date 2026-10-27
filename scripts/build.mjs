@@ -33,6 +33,7 @@ await cp('dist/gold-checkout.js','dist/client/gold-checkout.js');
 await cp('dist/motion.js','dist/client/motion.js');
 await cp('dist/motion.css','dist/client/motion.css');
 await cp('dist/home.js','dist/client/home.js');
+await cp('dist/home.css','dist/client/home.css');
 await cp('dist/brand.css','dist/client/brand.css');
 for(const file of ['admin.css','admin.js','admin-ai-bots.js','admin-cover-compression.js'])await cp(`dist/${file}`,`dist/client/${file}`);
 await mkdir('dist/client/admin',{recursive:true});

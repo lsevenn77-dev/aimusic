@@ -53,7 +53,7 @@ async function render(){
   if(sing.dirty){try{await saveSingDraft(sing);}catch(e){history.replaceState(null,'',singRouteHref(sing));toast('임시저장하지 못했어요. 저장 공간을 확인한 뒤 다시 시도해주세요.');return;}}
  }
  clearInterval(socialTimer);socialTimer=null;socialCleanup?.();socialCleanup=null;
- cleanupLyricsEditor();cleanupSing();
+ cleanupLyricsEditor();cleanupSing();if(typeof cleanupHome==='function')cleanupHome();
  if(typeof cleanupVoiceRoute==='function')await cleanupVoiceRoute(base,param);
  if(ticket!==renderId)return;
  updateBrowseNavigation(base,param);

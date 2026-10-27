@@ -43,6 +43,8 @@ function homeRenderer(fetch){
  c.document.querySelector=selector=>sections.get(selector.slice(1))||select(selector);
  Object.assign(c.context,{homeBrowseObserver:null,musicListeningShortcuts:()=>'',playlistSaveButton:()=>'',musicTrackCard:t=>'<article>'+t.title+'</article>',collectionGrid:items=>items.map(item=>item.name).join(','),playlistArt:()=>''});
  vm.runInContext(source('home.js'),c.context);
+ // These cache tests exercise rendering and account isolation, not DOM event wiring.
+ c.run('bindHome=()=>{};bindHomeCarousel=()=>{};');
  c.run("icons=()=>{};updateAccount=()=>{};setMembership=()=>{};refreshLibrary=async()=>{};");
  const boot=source('actions.js').match(/async function boot\(\)\{[\s\S]*?\r?\n\}\r?\n/);
  assert.ok(boot,'the startup function must remain independently testable');vm.runInContext(boot[0],c.context);
@@ -320,12 +322,31 @@ test('home startup remains playable when the account resolves before the guest c
  }finally{account.resolve(response({user:null}));guestCatalog.resolve(response({tracks:[]}));await startup;}
 });
 
-test('home continues down through full music grids and optional discovery sections',async()=>{
+test('home retains all thirteen ordered sections, full latest rail and existing chart order',async()=>{
  const tracks=Array.from({length:12},(_,i)=>({...track('Song '+i),id:'song-'+i}));
  const c=homeRenderer(async path=>response(path.includes('playlists')?{playlists:[]}:{tracks}));
  c.context.card=t=>'<article>'+t.title+'</article>';
  await c.navigate('home');await new Promise(resolve=>setImmediate(resolve));
- assert.match(c.section('home-more').innerHTML,/home-music-grid/);assert.match(c.section('home-more').innerHTML,/Song 11/);
- for(const id of ['home-popular','home-duets','home-crew-music']){assert.equal(c.section(id).hidden,false);assert.match(c.section(id).innerHTML,/Song 11/);}
- assert.doesNotMatch(c.section('home-more').innerHTML,/browse-rail/);
+ assert.deepEqual([...c.main.innerHTML.matchAll(/data-home-section="(\d+)"/g)].map(m=>+m[1]),Array.from({length:13},(_,i)=>i+1));
+ assert.match(c.section('home-latest').innerHTML,/home-rail/);assert.match(c.section('home-latest').innerHTML,/Song 11/);
+ assert.equal((c.section('home-popular').innerHTML.match(/class="home-rank"/g)||[]).length,5);
+ assert.ok(c.section('home-popular').innerHTML.indexOf('Song 0')<c.section('home-popular').innerHTML.indexOf('Song 4'));
+ assert.equal(c.section('home-curations').hidden,false);assert.match(c.section('home-curations').innerHTML,/공개 플레이리스트를 기다리고/);
+});
+
+test('guest home never reads personal history and a late owner history cannot appear after sign-out',async()=>{
+ const held=deferred(),started=deferred(),calls=[];
+ const c=homeRenderer(async path=>{calls.push(path);if(path==='/api/history'){started.resolve();return held.promise;}return response(path.includes('playlists')?{playlists:[]}:{tracks:[]});});
+ const owner=c.navigate('home');await started.promise;
+ c.run("me=null;invalidateReads();");await c.navigate('home');const count=calls.filter(p=>p==='/api/history').length;
+ held.resolve(response({tracks:[track('PRIVATE OWNER HISTORY')]}));await owner;await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(count,1);assert.equal(calls.filter(p=>p==='/api/history').length,1);assert.doesNotMatch(c.section('home-history').innerHTML,/PRIVATE OWNER HISTORY/);assert.match(c.section('home-history').innerHTML,/로그인하면/);
+});
+
+test('home lazy shelves still load after a like invalidates cached reads',async()=>{
+ let observer;const c=homeRenderer(async(path,options)=>response(options.method!=='GET'?{ok:true}:path.includes('playlists')?{playlists:[]}:{tracks:[track('Visible after like')]}));
+ c.context.IntersectionObserver=class{constructor(callback){observer=callback;}observe(){}unobserve(){}disconnect(){}};
+ await c.navigate('home');assert.equal(c.section('home-sing').innerHTML,'HOME_LOADING');
+ await c.run("api('/api/tracks/song/like','PUT')");observer([{isIntersecting:true,target:c.section('home-sing')}]);
+ await new Promise(resolve=>setImmediate(resolve));assert.match(c.section('home-sing').innerHTML,/Visible after like/);
 });
