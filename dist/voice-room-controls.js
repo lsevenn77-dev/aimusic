@@ -70,6 +70,7 @@ Object.assign(VoiceRoomClient.prototype,{
   this.showSheet('voice-room-settings');
  },
  async finalAction(action,target){
+  if(action==='panel-chat'){for(const sheet of this.host.querySelectorAll('.voice-panel-docked[open]'))sheet.close();return true;}
   if(action==='member-menu'){this.memberTools(target);return true;}
   if(action==='music-down'){await this.musicCommand('move',{index:Number(target),to:Number(target)+1});return true;}
   if(action==='settings'){await this.openSettings();return true;}

@@ -4,7 +4,7 @@ export const DECORATION_PRICES_GOLD=Object.freeze({
  PROFILE_FRAME:Object.freeze({P7D:50,P1M:150,P3M:390}),
  TALKING_ROOM_THEME:Object.freeze({P7D:100,P1M:300,P3M:790})
 });
-const theme=(sku,name,prefix)=>Object.freeze({sku,name,kind:'TALKING_ROOM_THEME',currency:'G',motion:'STATIC',periodPrices:DECORATION_PRICES_GOLD.TALKING_ROOM_THEME,assetPaths:Object.freeze({roomDesktop:`/assets/products/${prefix}_pc.webp`,roomMobile:`/assets/products/${prefix}_mobile.webp`,roomCard:`/assets/products/${prefix}_card.webp`})});
+const theme=(sku,name,prefix)=>Object.freeze({sku,name,kind:'TALKING_ROOM_THEME',currency:'G',motion:'STATIC',periodPrices:DECORATION_PRICES_GOLD.TALKING_ROOM_THEME,assetPaths:Object.freeze({roomDesktop:`/assets/themes/v20261027/${sku}/background-pc.webp`,roomMobile:`/assets/themes/v20261027/${sku}/background-mobile.webp`,roomCard:`/assets/themes/v20261027/${sku}/cover.webp`})});
 export const DECORATIONS=Object.freeze({
  frame_aurora_ring:Object.freeze({sku:'frame_aurora_ring',name:'오로라 링',kind:'PROFILE_FRAME',currency:'G',motion:'STATIC',periodPrices:DECORATION_PRICES_GOLD.PROFILE_FRAME,assetPaths:Object.freeze({overlay:'/assets/products/aurora_ring_frame.png',thumbnail:'/assets/previews/aurora_ring_thumbnail.webp'})}),
  theme_starlight_lounge:theme('theme_starlight_lounge','별빛 라운지','starlight_lounge'),

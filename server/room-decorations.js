@@ -3,7 +3,7 @@ import {DECORATIONS,FREE_ROOM_THEMES,DEFAULT_ROOM_THEME} from '../shared/decorat
 import {activeDecorationSQL} from './decorations.js';
 export async function roomThemeChoices(env,uid){
  const owned=await rows(env,`SELECT item_key,expires_at FROM player_inventory pi WHERE user_id=? AND ${activeDecorationSQL('pi')}`,uid);
- return [...FREE_ROOM_THEMES.map(p=>({...p,selectable:true,paid:false})),...Object.values(DECORATIONS).filter(p=>p.kind==='TALKING_ROOM_THEME').map(p=>({...p,paid:true,selectable:owned.some(i=>i.item_key===p.sku),expires_at:owned.find(i=>i.item_key===p.sku)?.expires_at||0}))];
+ return [...FREE_ROOM_THEMES.map(p=>({...p,selectable:true,paid:false})),...Object.values(DECORATIONS).filter(p=>p.kind==='TALKING_ROOM_THEME'&&owned.some(i=>i.item_key===p.sku)).map(p=>({...p,paid:true,selectable:owned.some(i=>i.item_key===p.sku),expires_at:owned.find(i=>i.item_key===p.sku)?.expires_at||0}))];
 }
 export async function assertRoomTheme(env,uid,sku){
  if(FREE_ROOM_THEMES.some(t=>t.sku===sku))return sku;

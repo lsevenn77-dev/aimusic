@@ -193,3 +193,38 @@ input.design-range[type=range]:disabled {opacity:.45}
 #sing.web-studio .studio-transport [aria-pressed=true] {color:var(--ds-selected)!important}
 
 .player .player-lyric {color:var(--ds-selected)}
+
+/* Shared song options only; other dialogs keep their existing presentation. */
+#dialog:has(.track-options) {
+  box-sizing:border-box;width:min(360px,calc(100vw - 48px));height:fit-content;
+  max-width:360px;max-height:none;margin:auto;padding:12px 16px;
+  background:var(--ds-panel);color:var(--ds-text);border:1px solid var(--ds-line);
+  border-radius:var(--ds-radius-input);box-shadow:none;overflow:visible;
+}
+#dialog:has(.track-options)::backdrop {backdrop-filter:none}
+#dialog .track-options {
+  display:block;margin:0;padding:0;overflow-x:hidden;overflow-y:auto;
+  max-height:calc(100vh - 96px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));
+  max-height:calc(100dvh - 96px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));
+  overscroll-behavior:contain;scrollbar-width:thin;
+}
+#dialog .track-option {
+  box-sizing:border-box;display:grid;grid-template-columns:20px minmax(0,1fr) 18px;
+  align-items:center;gap:12px;width:100%;min-height:45px;margin:0;padding:0 4px;
+  border:0;border-bottom:1px solid var(--ds-line);border-radius:0;
+  background:transparent;box-shadow:none;color:var(--ds-text)!important;
+  font-family:inherit;font-size:14px;font-weight:400;line-height:1.5;text-align:left;text-decoration:none;
+}
+#dialog .track-option:last-child {border-bottom:0}
+#dialog .track-option svg {width:20px;height:20px;fill:none;stroke:currentColor;filter:none}
+#dialog .track-option>svg:last-child {width:18px;height:18px;color:var(--ds-muted)}
+#dialog .track-option-now {background:color-mix(in srgb,var(--ds-muted) 9%,transparent);border-radius:var(--ds-radius-sm)}
+#dialog .track-option-delete {color:var(--ds-accent-pink)!important}
+#dialog .track-option:focus-visible {outline:1px solid var(--ds-muted);outline-offset:-2px}
+#dialog .track-option:hover {text-decoration:underline;text-underline-offset:3px}
+#dialog:has(.track-options) #dialog-close {
+  position:absolute;top:-22px;right:-12px;display:grid;place-items:center;
+  width:44px;height:44px;min-width:44px;min-height:44px;margin:0;padding:0;
+  border:0;border-radius:0;background:transparent;box-shadow:none;filter:none;
+  color:var(--ds-text);font-size:24px;font-weight:400;line-height:1;z-index:1;
+}

@@ -85,7 +85,7 @@ test('only host with own active theme can create/update; unknown SKU and stale s
  assert.equal((await f.call('/api/voice/rooms/'+rid+'/settings','POST',{background:'night',revision:0})).status,200);
  assert.equal((await f.call('/api/voice/rooms/'+rid+'/settings','POST',{background:'navy',revision:0})).status,409);
  assert.equal((await f.call('/api/voice/rooms/'+rid+'/theme')).body.theme.sku,'night');
- const options=await f.call('/api/voice/options');assert.deepEqual(options.body.themes.slice(0,3).map(t=>t.sku),['navy','sunset','night']);assert.equal(options.body.themes.length,6);
+ const options=await f.call('/api/voice/options');assert.deepEqual(options.body.themes.slice(0,3).map(t=>t.sku),['navy','sunset','night']);assert.equal(options.body.themes.length,3);
 });
 test('stored item never expires before use; transfer retains the full period without a second gold charge',async t=>{
  const f=await decorationsFixture(t),b=await f.buy('frame_aurora_ring','P1M'),iid=b.body.order.inventory_id,key=crypto.randomUUID();
@@ -114,7 +114,7 @@ test('recipient write failure rolls back transfer receipt and preserves sender s
 });
 test('stored themes are locked until activated; revocation reverts card and room and renewal does not re-equip',async t=>{
  const f=await decorationsFixture(t,{voice:true}),b=await f.buy('theme_cherry_blossom');
- assert.equal((await f.call('/api/voice/options')).body.themes.find(t=>t.sku==='theme_cherry_blossom').selectable,false);
+ assert.equal((await f.call('/api/voice/options')).body.themes.some(t=>t.sku==='theme_cherry_blossom'),false);
  await f.use(b.body.order.inventory_id);
  const r=await f.call('/api/voice/rooms','POST',{request_id:crypto.randomUUID(),title:'취소 테스트',background:'theme_cherry_blossom'}),rid=r.body.room.id;
  assert.equal(r.status,201);f.sql.exec("UPDATE player_inventory SET revoked=1 WHERE source='decoration'");
