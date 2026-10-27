@@ -1,7 +1,7 @@
 interface SongCover {
  id:string; title:string; producer:string; genre:string; duration:number; original_id:string;
  cover_mode:'solo'|'duet'; rank?:number; participants?:number; completions?:number;
- can_join?:boolean; likes:number; plays:number;
+ duet_partner?:string; can_join?:boolean; likes:number; plays:number;
 }
 interface SongCoverPage {
  view:'all'|'duet'|'recent'|'children'; covers:SongCover[];

@@ -3,16 +3,18 @@
 /** @param {SongCover} t */
 function songCoverRowHTML(t,{ranked=false,child=false,invitation=false}={}){
  const id=esc(t.id),title=esc(t.title),duet=t.cover_mode==='duet';
+ const performer=child&&t.duet_partner?[t.duet_partner,t.producer].filter(Boolean).join(' & '):t.producer;
+ const metadata=[performer,duet?'듀엣':t.cover_mode==='solo'?'솔로':'',t.genre,Number.isFinite(t.duration)&&t.duration>0?time(t.duration):''].filter(Boolean).join(' · ');
+ const expandable=(t.participants||0)>0&&(t.completions||0)>0;
  return `<article class="song-cover-row${child?' song-cover-child':''}" data-song-cover="${id}">
   <a class="song-cover-detail${ranked?' is-ranked':''}" href="#song/${id}" aria-label="${title} 상세 보기">
    ${ranked?`<span class="song-cover-rank" aria-label="${t.rank}위">${t.rank}</span>`:''}
    <span class="song-cover-art">${cover(t,'mini-cover')}</span>
    <span class="song-cover-copy"><strong title="${title}">${title}</strong>
-    <span class="song-cover-by" title="${esc(t.producer)}">${esc(t.producer)}</span>
-    <span class="song-cover-meta"><span class="song-cover-badge${duet?' is-duet':''}">${duet?'듀엣':'솔로'}</span><span class="song-cover-genre">${esc(t.genre)}</span><span>${time(t.duration)}</span></span>
-    ${invitation?`<span class="song-cover-counts" title="참여 ${number(t.participants)}명 · 완성작 ${number(t.completions)}개"><span class="song-cover-counts-full">참여 ${number(t.participants)}명 · 완성작 ${number(t.completions)}개</span><span class="song-cover-counts-short">${number(t.participants)}명 · ${number(t.completions)}개</span></span>`:''}
+    <span class="song-cover-meta" title="${esc(metadata)}">${esc(metadata)}</span>
    </span>
   </a>
+  ${invitation?`<button type="button" class="song-cover-expand" ${expandable?`data-cover-children="${id}" aria-controls="cover-children-${id}"`:'disabled'} aria-expanded="false" title="참여자 ${number(t.participants||0)}명 · 완성작 ${number(t.completions||0)}개">${number(t.participants||0)}명 참여${expandable?' <span data-cover-arrow aria-hidden="true">▼</span>':''}</button>`:''}
   ${!invitation&&!child?`<button class="song-cover-like" data-like="${id}" aria-label="${title} 좋아요" aria-pressed="${liked(t.id)}">${icon('heart')}<span data-like-count>${number(t.likes||0)}</span></button><span class="song-cover-plays">${number(t.plays||0)}회 감상</span>`:''}
   <button type="button" class="song-cover-play" data-play="${id}" data-community-toggle data-song-cover-toggle data-title="${title}" aria-label="${title} 재생" aria-pressed="false"><span class="song-cover-play-art">${icon('audio-play',36)}<span class="song-cover-pause" hidden>${icon('pause')}</span></span></button>
   ${invitation&&t.can_join?`<a class="primary-button song-cover-join" href="#sing/${esc(t.original_id)}?duet=${id}" aria-label="${title} 참여하기">참여하기</a>`:''}
@@ -23,7 +25,7 @@ function songCoverRowHTML(t,{ranked=false,child=false,invitation=false}={}){
 function songCoverItemHTML(t,view){
  const row=songCoverRowHTML(t,{ranked:view==='all',invitation:view==='duet',child:view==='children'});
  if(view!=='duet')return row;
- return `<div class="song-cover-group">${row}${t.completions?`<button type="button" class="song-cover-expand" data-cover-children="${esc(t.id)}" aria-expanded="false" aria-controls="cover-children-${esc(t.id)}">완성된 참여작 ${number(t.completions)}개 보기</button><div class="song-cover-children" id="cover-children-${esc(t.id)}" hidden></div>`:'<p class="song-cover-no-children">아직 완성된 참여작 없음</p>'}</div>`;
+ return `<div class="song-cover-group">${row}${(t.participants||0)>0&&(t.completions||0)>0?`<div class="song-cover-children" id="cover-children-${esc(t.id)}" hidden></div>`:''}</div>`;
 }
 /** @param {SongCoverPage} d */
 function songCoversMoreHTML(d,parent=''){
@@ -44,6 +46,11 @@ function syncSongCoverPlayback(){
   /** @type {HTMLElement} */(button.querySelector('.song-cover-pause')).hidden=!playing;
  });
 }
+/** @param {HTMLButtonElement} button @param {HTMLElement} target @param {boolean} expanded */
+function setSongCoverExpanded(button,target,expanded){
+ target.hidden=!expanded;button.setAttribute('aria-expanded',String(expanded));
+ const arrow=button.querySelector('[data-cover-arrow]');if(arrow)arrow.textContent=expanded?'▲':'▼';
+}
 function bindSongCoverList(){
  const panel=/** @type {HTMLElement} */(document.querySelector('.song-covers-panel'));if(!panel)return;
  if(!songCoverPlaybackBound){songCoverPlaybackBound=true;for(const event of ['play','pause','ended','emptied','loadedmetadata'])audio.addEventListener(event,syncSongCoverPlayback);}
@@ -55,14 +62,14 @@ function bindSongCoverList(){
   event.preventDefault();event.stopPropagation();
   const parent=button.dataset.coverChildren||button.dataset.coverParent||'',view=parent?'children':button.dataset.coverView;
   const target=button.dataset.coverChildren?document.getElementById('cover-children-'+parent):button.parentElement;
-  if(button.dataset.coverChildren&&target.dataset.loaded){target.hidden=!target.hidden;button.setAttribute('aria-expanded',String(!target.hidden));return;}
+  if(button.dataset.coverChildren&&target.dataset.loaded){setSongCoverExpanded(button,target,target.hidden);return;}
   button.disabled=true;button.setAttribute('aria-busy','true');
   try{
    const d=await api('/api/tracks/'+encodeURIComponent(panel.dataset.coverOriginal)+'/covers?view='+view+'&offset='+(button.dataset.coverLoad||0)+(parent?'&parent='+encodeURIComponent(parent):''));
    if(!panel.isConnected)return;
    remember(d.covers);
    const html=d.covers.map(t=>songCoverItemHTML(t,view)).join('')+songCoversMoreHTML(d,parent);
-   if(button.dataset.coverChildren){target.innerHTML=html||'<p class="empty-note">아직 완성된 참여작 없음</p>';target.dataset.loaded='true';target.hidden=false;button.setAttribute('aria-expanded','true');}
+   if(button.dataset.coverChildren){target.innerHTML=html||'<p class="empty-note">아직 완성된 참여작 없음</p>';target.dataset.loaded='true';setSongCoverExpanded(button,target,true);}
    else {button.insertAdjacentHTML('beforebegin',html);button.remove();}
    paintInteractions();syncSongCoverPlayback();
   }catch(error){toast(error.message);}

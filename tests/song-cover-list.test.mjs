@@ -99,7 +99,18 @@ test('row markup has separate native links and controls, exact tabs, escaped IDs
  assert.match(html,/covers=all/);assert.match(html,/covers=duet/);assert.match(html,/covers=recent/);assert.doesNotMatch(html,/covers=solo|covers=ranking/);
  assert.match(html,/&lt;Long title&gt;/);assert.match(html,/data-community-toggle/);assert.match(html,/data-icon="audio-play"/);
  assert.match(html,/<\/a>\s*<button/);assert.match(html,/#cover\/original/);assert.match(html,/#song\/cover/);
- const duet=c.songCoverItemHTML(track,'duet');assert.match(duet,/#sing\/original\?duet=cover/);assert.match(duet,/완성된 참여작 2개 보기/);
- assert.doesNotMatch(c.songCoverItemHTML({...track,completions:0},'duet'),/data-cover-children/);
- assert.match(c.songCoverItemHTML({...track,completions:0},'duet'),/아직 완성된 참여작 없음/);
+ const duet=c.songCoverItemHTML(track,'duet');assert.match(duet,/#sing\/original\?duet=cover/);assert.match(duet,/1명 참여/);assert.match(duet,/완성작 2개/);assert.doesNotMatch(duet,/완성된 참여작|song-cover-counts/);
+ assert.doesNotMatch(c.songCoverItemHTML({...track,participants:0,completions:0},'duet'),/data-cover-children/);
+ assert.match(c.songCoverItemHTML({...track,participants:0,completions:0},'duet'),/disabled[^>]*>0명 참여/);
 });
+
+ test('two-line metadata omits unavailable fields and exposes real duet performers in child rows',()=>{
+ const c=vm.createContext({esc:v=>String(v??''),number:String,time:()=> '0:45',cover:()=>'',liked:()=>false,icon:()=>''});vm.runInContext(readFileSync(new URL('../dist/song-covers.js',import.meta.url),'utf8'),c);
+ const t={id:'a',title:'제목',producer:'참여자',duet_partner:'먼저 부른 사람',genre:'Rock',duration:45,cover_mode:'duet'};
+ assert.match(c.songCoverRowHTML(t),/>참여자 · 듀엣 · Rock · 0:45<\/span>/);
+ assert.match(c.songCoverRowHTML(t,{child:true}),/먼저 부른 사람 & 참여자 · 듀엣/);
+ const missing=c.songCoverRowHTML({id:'a',title:'제목'});assert.match(missing,/song-cover-meta" title=""><\/span>/);assert.doesNotMatch(missing,/undefined|NaN|0:45|>솔로</);
+ const state={},arrow={textContent:'▼'},button={setAttribute(k,v){state[k]=v;},querySelector(){return arrow;}},target={hidden:true};
+ c.setSongCoverExpanded(button,target,true);assert.equal(target.hidden,false);assert.equal(state['aria-expanded'],'true');assert.equal(arrow.textContent,'▲');
+ c.setSongCoverExpanded(button,target,false);assert.equal(target.hidden,true);assert.equal(state['aria-expanded'],'false');assert.equal(arrow.textContent,'▼');
+ });
