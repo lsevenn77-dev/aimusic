@@ -23,8 +23,16 @@ export async function notificationsRoute(req,env,path,user){
  if(before&&!cursor)fail(400,'알림 목록을 새로 열어주세요.');
  const type=filter==='gifts'?"AND n.kind IN ('gift','person_gift')":filter==='participation'?"AND n.kind IN ('cover','duet')":'';
  const items=await rows(env,`SELECT n.*,COALESCE(${publicNameSQL('u')},'탈퇴한 회원') actor_name,p.id actor_profile_id,p.image_version actor_image_version,
+ COALESCE(g.gift_type,f.gift_type) gift_type,
+ CASE WHEN g.id IS NOT NULL OR f.id IS NOT NULL THEN CASE WHEN COALESCE(g.track_id,f.track_id) IS NOT NULL THEN 'song' ELSE 'producer' END END gift_source_kind,
+ COALESCE(g.track_id,f.track_id,g.creator_profile_id,f.recipient_profile_id) gift_source_target,
+ COALESCE(gt.title,pr.name,NULLIF(n.source_title,''),'') gift_source_title,
  CASE WHEN n.kind='crew_notice' THEN EXISTS(SELECT 1 FROM crew_members cm WHERE cm.crew_id=n.target AND cm.user_id=n.recipient) WHEN n.kind IN ('person_gift','follow') THEN EXISTS(SELECT 1 FROM producers pr WHERE pr.id=n.target) ELSE EXISTS(SELECT 1 FROM tracks t WHERE t.id=n.target AND ${VISIBLE()}) END available
  FROM activity_notifications n LEFT JOIN users u ON u.id=n.actor_id LEFT JOIN producers p ON p.user_id=n.actor_id
+ LEFT JOIN gifts g ON n.kind IN ('gift','person_gift') AND n.currency='gold' AND g.id=substr(n.id,6,length(n.id)-6-length(n.recipient)) AND n.id='gift:'||g.id||':'||n.recipient AND g.sender_id=n.actor_id
+ LEFT JOIN free_gifts f ON n.kind IN ('gift','person_gift') AND n.currency='silver' AND f.id=substr(n.id,6) AND n.id='star:'||f.id AND f.sender_id=n.actor_id
+ LEFT JOIN tracks gt ON gt.id=COALESCE(g.track_id,f.track_id)
+ LEFT JOIN producers pr ON pr.id=CASE WHEN COALESCE(g.track_id,f.track_id) IS NULL THEN COALESCE(g.creator_profile_id,f.recipient_profile_id) END
  WHERE n.recipient=? AND ${allowed} ${type} ${cursor?'AND (n.created<? OR (n.created=? AND n.id<?))':''}
  ORDER BY n.created DESC,n.id DESC LIMIT 31`,user.id,...(cursor?[cursor.created,cursor.created,cursor.id]:[]));
  const more=items.length>30;items.length=Math.min(items.length,30);

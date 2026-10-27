@@ -16,6 +16,12 @@ test('gold and silver gifts persist actor, quantity, value and date exactly once
  const silverItem=data.items.find(x=>x.currency==='silver'),goldItem=data.items.find(x=>x.currency==='gold');
  assert.deepEqual([silverItem.actor_name,silverItem.gift_name,silverItem.quantity,silverItem.amount,silverItem.target],['친구','손편지',3,6,'producer']);
  assert.deepEqual([goldItem.gift_name,goldItem.quantity,goldItem.amount,goldItem.target],['왕관',1,777,'one']);
+ assert.deepEqual([silverItem.gift_type,silverItem.gift_source_kind,silverItem.gift_source_target,silverItem.gift_source_title],['silver-letter','producer','producer','QA']);
+ assert.deepEqual([goldItem.gift_type,goldItem.gift_source_kind,goldItem.gift_source_target,goldItem.gift_source_title],['crown','song','one','one']);
+ f.sql.exec("UPDATE tracks SET title='바뀐 곡 제목' WHERE id='one'; UPDATE activity_notifications SET source_title='잘못된 표시 제목',gift_name='다른 상품명' WHERE currency='gold'");
+ const updated=(await f.call('/api/notifications')).body.items.find(x=>x.currency==='gold');
+ assert.equal(updated.gift_type,'crown','product identity is read from the receipt, not its display name');
+ assert.equal(updated.gift_source_title,'바뀐 곡 제목','source is the actual receipt target');
  assert.ok(goldItem.created>=stamp);assert.equal((await f.call('/api/notifications','GET',null,'other')).body.items.length,0);
  assert.equal((await f.call('/api/notifications','GET',null,null)).status,401);
  await f.call('/api/notifications/read','POST',{ids:[silverItem.id]},'other');assert.equal((await f.call('/api/notifications/summary')).body.unread,2);
