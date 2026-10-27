@@ -1,7 +1,7 @@
 /* Community layout only. Shared palette and controls come from design-system.css. */
 .music-community-tabs{display:flex;width:100%;gap:28px;margin:24px 0;padding:0;border:0;border-bottom:1px solid var(--ds-line);border-radius:0;background:none}
 .music-community-tabs .tab{display:flex;align-items:center;justify-content:center;min-height:44px;padding:0 4px 14px;border-radius:0;background:none;color:var(--ds-muted)}
-.music-community-tabs .tab.active{background:none;color:var(--ds-lilac);border-bottom:2px solid var(--ds-lavender)}
+.music-community-tabs .tab.active{background:none;color:var(--ds-selected);border-bottom:2px solid var(--ds-lavender)}
 .community-v3{color:var(--ds-text)}
 .v3-toolbar{display:flex;align-items:center;justify-content:space-between;gap:24px;margin:28px 0 20px}
 .v3-toolbar h2{font-size:1.25rem;margin:0 0 8px;line-height:1.4;letter-spacing:-.035em}
@@ -26,7 +26,7 @@
 .v3-empty h3{font-size:1.125rem;color:var(--ds-text);margin:0 0 10px}.v3-empty p{margin:0;font-size:.875rem}
 .v3-segments{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0}
 .v3-segments a{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:8px 16px;border-radius:var(--ds-radius-input);background:none;color:var(--ds-muted);border:1px solid var(--ds-line);font-size:.875rem;white-space:nowrap}
-.v3-segments a[aria-current]{background:var(--ds-soft);color:var(--ds-lilac);border-color:var(--ds-lavender)}
+.v3-segments a[aria-current]{background:var(--ds-soft);color:var(--ds-selected);border-color:var(--ds-lavender)}
 .v3-period{margin:0 0 24px}.v3-ranking{list-style:none;padding:0;margin:0}.v3-ranking li{display:flex;gap:20px;align-items:center;padding:20px 0;border-bottom:1px solid var(--ds-line)}
 .v3-ranking li>a{flex:1;min-width:0}.v3-ranking small{display:block;color:var(--ds-muted);margin-top:6px;font-size:.75rem}.v3-rank{font-size:1.25rem;color:var(--ds-body);width:30px}.v3-ranking .profile-avatar-image{width:44px;height:44px;object-fit:cover;border-radius:50%;float:left;margin-right:12px}
 .crew-hero{min-height:0!important;padding:20px!important;background:var(--ds-surface)!important;border:1px solid var(--ds-line);border-radius:var(--ds-radius-card);box-shadow:none!important}

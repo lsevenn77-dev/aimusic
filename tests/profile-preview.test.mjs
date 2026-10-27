@@ -26,3 +26,16 @@ test('preview handles no crew, missing profiles, method and block restrictions',
  await f.call('/api/blocks/owner','PUT',null,'other');
  assert.equal((await f.call('/api/producers/producer/preview','GET',null,'other')).status,403);
 });
+
+ test('preview includes only valid equipped frame artwork and reflects unequip',async t=>{
+ const f=await fixture(t);
+ await f.call('/api/crews','POST',{name:'Frame crew'});
+ await f.call('/api/me/player');
+ const item=f.sql.prepare("SELECT id FROM player_inventory WHERE user_id='owner' AND item_key='crew-outline'").get();
+ assert.ok(item);
+ assert.equal((await f.call('/api/me/player/equipment','PUT',{frame_inventory_id:item.id})).status,200);
+ const p=(await f.call('/api/producers/producer/preview','GET',null,null)).body.profile;
+ assert.equal(p.profile_frame,'crew-outline');assert.equal(p.profile_frame_artwork,'/assets/crew-basic-v2.webp');assert.equal(p.player_xp,undefined);
+ await f.call('/api/me/player/equipment','PUT',{frame_inventory_id:null});
+ assert.equal((await f.call('/api/producers/producer/preview')).body.profile.profile_frame,null);
+ });

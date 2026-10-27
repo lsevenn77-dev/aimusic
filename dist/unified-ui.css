@@ -14,14 +14,14 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible 
 .sidebar {background:#111824;border-right:1px solid var(--ui-border)}
 .sidebar .nav-link {border-radius:10px;transition:background .18s ease,color .18s ease}
 .sidebar .nav-link:hover {background:#242c3b;color:var(--ds-text)}
-.sidebar .nav-link.active,.sidebar .nav-link[aria-current="page"] {background:#293244;color:#f5a3c7;box-shadow:inset 3px 0 #ed85b3}
+.sidebar .nav-link.active,.sidebar .nav-link[aria-current="page"] {background:#293244;color:var(--ds-selected);box-shadow:inset 3px 0 #ed85b3}
 .sidebar .nav-label {color:var(--ds-muted)}
 .sidebar .second-label {border-top:1px solid var(--ui-border);padding-top:18px}
 .page-wrap {width:min(100%,1440px);max-width:1440px;margin-left:auto;margin-right:auto}
 .page-heading {margin-bottom:22px}
 .page-heading h1 {font-weight:750;letter-spacing:-.04em}
 .view-tabs {border-bottom:1px solid var(--ui-border)}
-.view-tabs .selected,.view-tabs [aria-selected="true"] {color:#f5a3c7}
+.view-tabs .selected,.view-tabs [aria-selected="true"] {color:var(--ds-selected)}
 .surface,.music-card,.community-entry,.crew-card,.conversation-row,.social-profile,.singing-intro,.music-my-links a,.music-shortcuts a {
  background:#1b2230;border:1px solid var(--ui-border);border-radius:var(--ui-radius);box-shadow:none;
 }
@@ -41,7 +41,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible 
 .profile-hero .artist-portrait {box-shadow:0 0 0 4px #111824;border-radius:50%}
 .social-profile-square.social-profile {gap:26px}
 .music-profile-stats {gap:24px}
-.music-profile-stats>a:hover {color:#f5a3c7}
+.music-profile-stats>a:hover {color:var(--ds-text)}
 .gift-rewards-link {border:1px solid rgba(237,133,179,.2)!important;background:#252638!important;color:var(--ds-body)!important;border-radius:14px}
 .gift-shop-balance,.gold-pack,.gift-card {border-color:var(--ui-border);border-radius:14px}
 .conversation-row {border-radius:12px}

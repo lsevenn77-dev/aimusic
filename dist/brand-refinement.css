@@ -45,7 +45,7 @@ body,.page-wrap,.sidebar {background:var(--music-bg)}
 .music-kind,.music-participate {color:var(--ds-body)}
 .music-collection-toolbar button[aria-pressed=true] {color:var(--ds-text);background:var(--music-raised)}
 .music-collection-toolbar button[aria-pressed=true] svg {color:var(--ds-body)}
-.music-social-actions .is-active,.cover-collection-social [aria-pressed=true] {color:var(--music-accent)}
+.music-social-actions .is-active,.cover-collection-social [aria-pressed=true] {color:var(--ds-selected)}
 .avatar {background:#29323f;color:var(--ds-body)}
 .social-profile-cover {background:radial-gradient(ellipse at 85% 0,#8eddd217,transparent 65%),#202835}
 .social-profile-cover:after {background:linear-gradient(180deg,#10131b0a 35%,#191e29b5 80%,#191e29)}

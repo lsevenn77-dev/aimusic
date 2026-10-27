@@ -78,6 +78,7 @@ test('rapid double submit keeps the send button disabled and issues one request'
 });
 test('profile more button opens its preview and only other profiles expose the gift entry',()=>{
  const handlers={};const c=vm.createContext({me:{id:'self'},esc:String,number:String,icon:()=>'',avatarImage:()=>'',document:{addEventListener:(type,fn)=>handlers[type]=fn},window:{addEventListener(){}}});
+ vm.runInContext(readFileSync(new URL('../dist/player-progress.js',import.meta.url),'utf8'),c);
  vm.runInContext(readFileSync(new URL('../dist/profile-preview.js',import.meta.url),'utf8'),c);
  const profile={id:'friend',user_id:'other',name:'친구'};
  assert.match(c.profilePreviewHTML({profile}),/data-preview-gift="friend"/);
