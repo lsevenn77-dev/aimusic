@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 import {fixture} from './fixture.mjs';
+import * as AifectDubbing from '../shared/dubbing.js';
 import {options,sampleScript,memoryBucket} from './dubbing-fixtures.mjs';
 
 async function setup(t){
@@ -107,4 +108,32 @@ test('song pagination searches beyond the first page and duet entry keeps existi
  assert.equal((await f.call('/api/play/songs?tab=duets','GET',null,'other')).body.tracks.length,0);
  f.sql.exec("UPDATE karaoke_jobs SET mr_ready=0 WHERE track_id='one'");
  assert.equal((await f.call('/api/play/songs?tab=duets')).body.tracks.length,0);
+});
+
+
+test('dubbing artwork failures use the existing default artwork once and never touch music/profile images',()=>{
+ const c=vm.createContext({AifectDubbing});vm.runInContext(readFileSync(new URL('../dist/play-page.js',import.meta.url),'utf8'),c);
+ let src='/assets/dubbing-genres/action.webp',writes=0;
+ const image={matches:s=>s==='img.play-dubbing-art',getAttribute:()=>src,setAttribute(k,v){assert.equal(k,'src');src=v;writes++;}};
+ c.playDubbingArtworkError({target:image});assert.equal(src,AifectDubbing.dubbingGenreArtwork());assert.equal(writes,1);
+ c.playDubbingArtworkError({target:image});assert.equal(writes,1,'a missing default cannot create an error loop');
+ c.playDubbingArtworkError({target:{...image,matches:()=>false}});assert.equal(writes,1);
+ c.playDubbingArtworkError({target:{}});assert.equal(writes,1);
+});
+
+
+test('browse artwork keeps each project genre and detail URL across recommended and following',async t=>{
+ const f=await setup(t),action=await f.dub('액션 작품'),romance=await f.dub('로맨스 작품');
+ for(const [work,genres] of [[action,['액션']],[romance,['로맨스']]])f.sql.prepare("UPDATE dubbing_projects SET options_json=json_set(options_json,'$.genres',json(?)) WHERE id=?").run(JSON.stringify(genres),work.id);
+ f.sql.exec("INSERT INTO follows VALUES('owner','producer','friend',0)");
+ const c=vm.createContext({AifectDubbing,esc:s=>String(s??''),time:String,icon:()=>''});vm.runInContext(readFileSync(new URL('../dist/play-page.js',import.meta.url),'utf8'),c);
+ for(const tab of ['recommended','following']){
+  const r=await f.call('/api/play/works?tab='+tab);assert.equal(r.status,200);
+  for(const [work,slug] of [[action,'action'],[romance,'romance']]){
+   const project=r.body.works.find(w=>w.id===work.id),html=c.playDubbingCard(project);assert.match(html,new RegExp('/assets/dubbing-genres/'+slug+'\\.webp'));assert.ok(html.includes('#dubbing/'+work.id));assert.doesNotMatch(html,/\/media\/producer|profile-avatar-image/);
+  }
+  assert.ok(r.body.works.some(w=>w.type==='solo'));assert.ok(r.body.works.some(w=>w.type==='duet'));
+ }
+ for(const genre of AifectDubbing.DUBBING_GENRES){const path=AifectDubbing.dubbingGenreArtwork([genre]);assert.ok(readFileSync(new URL('../dist'+path,import.meta.url)).length>0);}
+ for(const genres of [[],null,['알 수 없는 장르']])assert.equal(AifectDubbing.dubbingGenreArtwork(genres),'/assets/dubbing-genres/daily.webp');
 });

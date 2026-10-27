@@ -47,6 +47,11 @@ function playDubbingCard(p){
  const href='#dubbing/'+encodeURIComponent(p.id);
  return `<article class="album-card"><div class="album-art-wrap"><a href="${href}" aria-label="${esc(p.title)} 작품 보기"><img class="album-art cover play-dubbing-art" src="${AifectDubbing.dubbingGenreArtwork(p.genres)}" alt="${esc((p.genres||[]).join(' · '))} 장르 이미지" width="640" height="640" loading="lazy" decoding="async"></a><a class="card-play" href="${href}" aria-label="${esc(p.title)} 더빙 듣기">${icon('audio-play',36)}</a></div><div class="album-title-row"><a class="album-title play-work-title" href="${href}">${playTypeIcon('dubbing')}<span>${esc(p.title)}</span></a></div><span class="album-artist">${esc(p.ownerName)}</span><span class="album-meta">${esc((p.genres||[]).join(' · '))} · ${time(p.duration)}</span></article>`;
 }
+function playDubbingArtworkError(event){
+ const image=event.target;if(!image?.matches?.('img.play-dubbing-art'))return;
+ const fallback=AifectDubbing.dubbingGenreArtwork();
+ if(image.getAttribute('src')!==fallback)image.setAttribute('src',fallback);
+}
 function playSongRows(tracks,tab){
  const duet=tab==='duets';
  return `<div class="play-song-list">${tracks.map(t=>{
@@ -92,6 +97,8 @@ async function playView(base,param,raw){
 function bindPlay(view){
  if(!view?.play)return;
  const root=document.querySelector('.play-page');if(!root)return;
+ root.addEventListener('error',playDubbingArtworkError,true);
+ root.querySelectorAll('img.play-dubbing-art').forEach(image=>{if(image instanceof HTMLImageElement&&image.complete&&!image.naturalWidth)playDubbingArtworkError({target:image});});
  root.querySelector('[data-play-retry]')?.addEventListener('click',()=>render());
  root.querySelectorAll('nav').forEach(nav=>nav.addEventListener('keydown',e=>{
   if(nav.getAttribute('role')!=='tablist'||!(e.target instanceof HTMLAnchorElement))return;
