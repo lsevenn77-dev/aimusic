@@ -1,5 +1,5 @@
 // Presentation only: existing delegated actions keep their permissions and APIs.
-function playerCredit(track){return track.kind==='cover'?track.producer||'':track.artist||track.producer||'';}
+function playerCredit(track){return track.kind==='cover'?track.producer||'':hasArtist(track)?track.artist:track.producer||'';}
 function renderPlayerActions(track){
  const credit=playerCredit(track),id=esc(track.id);
  document.querySelector('#player-action-meta').innerHTML=cover(track,'mini-cover')+'<div><strong title="'+esc(track.title)+'">'+esc(track.title)+'</strong><span title="'+esc(credit)+'">'+esc(credit)+'</span></div>';
@@ -13,6 +13,16 @@ function renderPlayerActions(track){
  const extension=document.querySelector('#player-extension'),actions=document.querySelector('#player-action-panel'),hud=document.querySelector('#player-lyric');
  if(!player||!seek)return;
  const volumeToggle=document.querySelector('#player-volume-toggle');
+ // Move the existing controls, with their original handlers, into mobile options.
+ const compact=window.matchMedia?.('(max-width:480px)');
+ const transport=document.querySelector('.player-buttons'),utilities=document.querySelector('.player-utility-buttons');
+ const shuffleButton=document.querySelector('#shuffle'),repeatButton=document.querySelector('#repeat');
+ function placeTransport(){
+  if(!transport||!utilities||!shuffleButton||!repeatButton)return;
+  if(compact?.matches)utilities.prepend(shuffleButton,repeatButton);
+  else{transport.prepend(shuffleButton);transport.append(repeatButton);}
+ }
+ compact?.addEventListener('change',placeTransport);placeTransport();
  let view='none',scrubbing=false,toolsOpen=false;
  function setTools(open){
   toolsOpen=open;player.dataset.playerTools=String(open);volumeToggle.setAttribute('aria-expanded',String(open));
@@ -34,10 +44,12 @@ function renderPlayerActions(track){
  player.addEventListener('keydown',event=>{if(event.key==='Escape'&&toolsOpen){setTools(false);volumeToggle.focus();event.stopPropagation();return;}if(event.key==='Escape'&&view!=='none'){const trigger=view==='lyrics'?lyrics:more;setView('none');trigger.focus();event.stopPropagation();}});
  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!document.querySelector('dialog[open]'))setView('none');});
  function paintProgress(){
-  if(scrubbing)return;
+  if(scrubbing||window.AifectAudioAds?.active)return;
   const max=Number(seek.max)||0,value=Math.max(0,Math.min(max,Number(audio.currentTime)||0));
   seek.style.setProperty('--seek-progress',(max?value/max*100:0)+'%');
   seek.setAttribute('aria-valuetext',time(value)+' / '+time(max));seek.title=time(value)+' / '+time(max);
+  document.querySelector('#elapsed').textContent=time(value);
+  document.querySelector('#duration').textContent=time(max);
  }
  for(const event of ['timeupdate','loadedmetadata','durationchange','emptied','seeked'])audio.addEventListener(event,paintProgress);
  seek.addEventListener('pointerdown',()=>{scrubbing=true;});
