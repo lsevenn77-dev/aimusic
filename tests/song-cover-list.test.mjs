@@ -97,11 +97,11 @@ test('row markup has separate native links and controls, exact tabs, escaped IDs
  const track={id:'cover',title:'<Long title>',producer:'Singer',rank:1,cover_mode:'duet',original_id:'original',completions:2,participants:1,can_join:true};
  const html=c.songCoversPanelHTML({id:'original'},{view:'all',covers:[track],counts:{all:1,recent:1,duet:1},accepts_covers:true},'all');
  assert.match(html,/covers=all/);assert.match(html,/covers=duet/);assert.match(html,/covers=recent/);assert.doesNotMatch(html,/covers=solo|covers=ranking/);
- assert.match(html,/&lt;Long title&gt;/);assert.match(html,/data-community-toggle/);assert.match(html,/data-icon="play"/);
+ assert.match(html,/&lt;Long title&gt;/);assert.match(html,/data-community-toggle/);assert.match(html,/data-icon="ui-play-action"/);
  assert.match(html,/<\/a>\s*<button/);assert.match(html,/#cover\/original/);assert.match(html,/#song\/cover/);
- const duet=c.songCoverItemHTML(track,'duet');assert.match(duet,/#sing\/original\?duet=cover/);assert.match(duet,/1<span class="sr-only">명 참여<\/span>/);assert.match(duet,/완성작 2개/);assert.doesNotMatch(duet,/완성된 참여작|song-cover-counts/);
+ const duet=c.songCoverItemHTML(track,'duet');assert.match(duet,/#sing\/original\?duet=cover/);assert.match(duet,/<span>1<\/span><span class="sr-only">명 참여<\/span>/);assert.match(duet,/완성작 2개/);assert.doesNotMatch(duet,/완성된 참여작|song-cover-counts/);
  assert.doesNotMatch(c.songCoverItemHTML({...track,participants:0,completions:0},'duet'),/data-cover-children/);
- assert.match(c.songCoverItemHTML({...track,participants:0,completions:0},'duet'),/disabled[^>]*>0<span class="sr-only">명 참여<\/span>/);
+ assert.match(c.songCoverItemHTML({...track,participants:0,completions:0},'duet'),/disabled[^>]*><span>0<\/span><span class="sr-only">명 참여<\/span>/);
 });
 
  test('two-line metadata omits unavailable fields and exposes real duet performers in child rows',()=>{
@@ -111,6 +111,6 @@ test('row markup has separate native links and controls, exact tabs, escaped IDs
  assert.match(c.songCoverRowHTML(t,{child:true}),/먼저 부른 사람 & 참여자 · 듀엣/);
  const missing=c.songCoverRowHTML({id:'a',title:'제목'});assert.match(missing,/song-cover-meta" title=""><\/span>/);assert.doesNotMatch(missing,/undefined|NaN|0:45|>솔로</);
  const state={},arrow={textContent:'▼'},button={setAttribute(k,v){state[k]=v;},querySelector(){return arrow;}},target={hidden:true};
- c.setSongCoverExpanded(button,target,true);assert.equal(target.hidden,false);assert.equal(state['aria-expanded'],'true');assert.equal(arrow.textContent,'⌃');
- c.setSongCoverExpanded(button,target,false);assert.equal(target.hidden,true);assert.equal(state['aria-expanded'],'false');assert.equal(arrow.textContent,'⌄');
+ c.setSongCoverExpanded(button,target,true);assert.equal(target.hidden,false);assert.equal(state['aria-expanded'],'true');assert.equal(arrow.textContent,'▼');
+ c.setSongCoverExpanded(button,target,false);assert.equal(target.hidden,true);assert.equal(state['aria-expanded'],'false');assert.equal(arrow.textContent,'▼');
  });

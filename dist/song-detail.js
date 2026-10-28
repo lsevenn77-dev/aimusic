@@ -10,8 +10,9 @@ function songDescriptionHTML(t){
  return text?'<section class="song-introduction" aria-label="곡 소개"><h3>곡 소개</h3><p class="song-description">'+esc(text)+'</p></section>':'';
 }
 function songActionIcon(name){
- const key=name==='sing'?'waveform':name;
- return icon(key).replace('<svg ','<svg class="song-action-icon song-action-icon-'+name+'" ');
+ const key=name==='sing'?'waveform':name==='play'?'ui-play-action':name==='plus'?'ui-plus-action':name==='heart'?'ui-heart':name;
+ const svg=icon(key),classes='song-action-icon song-action-icon-'+name;
+ return svg.includes('class="')?svg.replace('class="','class="'+classes+' '):svg.replace('<svg ','<svg class="'+classes+'" ');
 }
 function songDetailCreditsHTML(t){
  if(t.kind==='cover')return songCredits(t);
@@ -38,5 +39,5 @@ function songDetailHeaderHTML(t){
  return '<section class="song-detail song-detail-refined">'+cover(t)+'<div class="song-detail-copy">'+
  '<span class="eyebrow song-track-meta">'+esc(genres)+(genres?' · ':'')+time(t.duration)+'</span><h2>'+esc(t.title)+'</h2>'+
  songDetailCreditsHTML(t)+songReleaseDateHTML(t)+songDescriptionHTML(t)+songDetailActionsHTML(t)+songOwnerActionsHTML(t)+
- '<div class="song-engagement"><p class="song-metrics">'+number(t.plays||0)+'회 감상 · '+number(t.comments||0)+'개 댓글'+(t.ai_comments?' · 공식 AI 응원 '+number(t.ai_comments)+'개':'')+'</p>'+trackModerationToolsHTML(t)+'</div></div></section>';
+ '<div class="song-engagement"><p class="song-metrics"><span class="metric-inline" aria-label="재생 '+number(t.plays||0)+'회">'+icon('ui-plays')+number(t.plays||0)+'</span><span class="metric-inline" aria-label="댓글 '+number(t.comments||0)+'개">'+icon('ui-comment')+number(t.comments||0)+'</span>'+(t.ai_comments?' · 공식 AI 응원 '+number(t.ai_comments)+'개':'')+'</p>'+trackModerationToolsHTML(t)+'</div></div></section>';
 }

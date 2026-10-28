@@ -1,5 +1,11 @@
 # AIFECT 운영 및 배포 지침
 
+## 2026-10-28 사용자 확정 음악 버튼 기준
+
+- 음악 카운터·액션은 [확정 지시서](docs/AIFECT_ICON_STYLE_LOCK_20261028.md)와 [원본 이미지](reference/AIFECT_ICON_STYLE_LOCK_20261028.png)를 최종 시각 기준으로 사용한다.
+- 구현은 `dist/icons.js`의 `aifectControlPaths`/`aifectControlIcon`, `dist/icon-style-lock.css`에 공통화한다. 카운터는 테두리 없이, 재생은 빈 삼각형, 메뉴는 같은 길이의 세 줄, 액션만 얇은 그라데이션 원형 외곽선이다.
+- 이 기준은 음악 UI의 동일 역할에 한정한다. 내비게이션·미니플레이어·녹음 도구 등 요청 밖 구성은 유지하며, 데이터·이벤트·활성 상태·권한을 변경하지 않는다.
+
 ## 고정 연결
 
 - 기존 Sites 프로젝트: `appgprj_6aa56aec3434819186f9a42d9a557520`.

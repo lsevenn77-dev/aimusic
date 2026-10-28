@@ -46,7 +46,7 @@ test('one introduction follows the date and precedes actions; metrics and report
  const order=['song-release-date','song-introduction','song-actions','song-engagement','song-metrics','data-report-track'];
  let previous=-1;for(const key of order){const at=html.indexOf(key);assert.ok(at>previous,key);previous=at;}
  assert.equal(html.match(/class="song-introduction"/g).length,1);
- assert.match(html,/<h3>곡 소개<\/h3>/);assert.match(html,/20회 감상 · 2개 댓글/);
+ assert.match(html,/<h3>곡 소개<\/h3>/);assert.match(html,/aria-label="재생 20회"/);assert.match(html,/aria-label="댓글 2개"/);assert.match(html,/aifect-icon-plays/);assert.match(html,/aifect-icon-comment/);
  assert.doesNotMatch(header(null).songDetailHeaderHTML(track),/data-report-track/);
  assert.doesNotMatch(header('other').songDetailHeaderHTML(track),/data-report-track/);
 });

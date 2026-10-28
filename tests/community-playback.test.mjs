@@ -16,8 +16,8 @@ test('feed toggles the same song without restarting, but uses the shared queue f
  c.window.AifectAudioAds={active:true};await c.playCommunityTrack('two');assert.equal(requests.length,2);
 });
 test('feed rebind does not duplicate listeners and progress follows audio, pause and route departures',()=>{
- const {c,audio,events,elapsed,button,attrs,style,card}=player();c.bindCommunityPlayback();c.bindCommunityPlayback();assert.equal(events.get('timeupdate').length,1);assert.equal(elapsed.textContent,'30');assert.equal(style['--play-progress'],'25%');assert.equal(button.innerHTML,'pause');assert.equal(attrs['aria-label'],'One 일시정지');
- audio.paused=true;events.get('pause')[0]();assert.equal(button.innerHTML,'audio-play');assert.equal(elapsed.textContent,'30');
+ const {c,audio,events,elapsed,button,attrs,style,card}=player();c.bindCommunityPlayback();c.bindCommunityPlayback();assert.equal(events.get('timeupdate').length,1);assert.equal(elapsed.textContent,'30');assert.equal(style['--play-progress'],'25%');assert.equal(button.innerHTML,'ui-pause-action');assert.equal(attrs['aria-label'],'One 일시정지');
+ audio.paused=true;events.get('pause')[0]();assert.equal(button.innerHTML,'ui-play-action');assert.equal(elapsed.textContent,'30');
  c.current={id:'two'};events.get('timeupdate')[0]();assert.equal(elapsed.textContent,'0');assert.equal(style['--play-progress'],'0%');
  card.isConnected=false;assert.doesNotThrow(()=>events.get('timeupdate')[0]());
 });

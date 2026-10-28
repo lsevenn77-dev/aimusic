@@ -21,6 +21,7 @@ for(const file of ['dubbing-community.js','dubbing.js','dubbing.css','dubbing-re
 for(const file of ['mobile-ux.js','mobile-ux.css','player-shell.js','player-shell.css','public-music.css','design-system.css','design-system.js'])await cp(`dist/${file}`,`dist/client/${file}`);
 await cp('dist/unified-ui.css','dist/client/unified-ui.css');
 await cp('dist/list-actions.css','dist/client/list-actions.css');
+await cp('dist/icon-style-lock.css','dist/client/icon-style-lock.css');
 await cp('dist/uiux-space.css','dist/client/uiux-space.css');
 await cp('dist/secondary-pages.css','dist/client/secondary-pages.css');
 await cp('dist/app-ads.txt','dist/client/app-ads.txt');

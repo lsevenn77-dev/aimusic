@@ -5,6 +5,7 @@ paths.wallet='M20 8V5H5a2 2 0 0 0 0 4h16v11H5a2 2 0 0 1-2-2V7m18 5h-5v5h5m-3-2.5
 paths.user='M20 21a8 8 0 0 0-16 0M12 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z';
 paths.settings='M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Zm7.4-3.5a7.4 7.4 0 0 0-.1-1l2-1.6-2-3.4-2.4 1a8 8 0 0 0-1.8-1L14.8 3h-4l-.4 2.9a8 8 0 0 0-1.8 1l-2.4-1-2 3.4 2 1.6a7.4 7.4 0 0 0 0 2.1l-2 1.6 2 3.4 2.4-1a8 8 0 0 0 1.8 1l.4 2.9h4l.4-2.9a8 8 0 0 0 1.8-1l2.4 1 2-3.4-2-1.6c.1-.3.1-.7.1-1Z';
 const icon=(n,size=24)=>{
+ if(n.startsWith('ui-'))return aifectControlIcon(n.slice(3),size);
  if(n==='audio-play')return playIcon(size);
  const menu=n==='menu'||n==='more';
  return `<svg viewBox="0 0 24 24"${menu?' class="menu-icon" width="20" height="20"':''} fill="none" stroke="currentColor" stroke-width="${menu?'1.8':'1.6'}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${paths[n]||paths.sparkles}"/></svg>`;
@@ -52,3 +53,20 @@ paths['list-plus']='M3 5h15M3 11h15M3 17h8M18 14v8M14 18h8';
 
 paths['player-quote']='M4 5h6v7l-4 6H3l3-6H4zM14 5h6v7l-4 6h-3l3-6h-2z';
 paths['player-comment']='M3 4h18v13H9l-6 4V4ZM8 10h.01M12 10h.01M16 10h.01';
+
+// Locked music controls, isolated from navigation and the mini-player.
+// The supplied raster is the visual reference; these paths are shared by every
+// music renderer so wrappers never change the glyph's angle or proportions.
+const aifectControlPaths=Object.freeze({
+ play:'m8 4 12 8-12 8z',
+ minus:'M5 12h14', plus:'M12 5v14M5 12h14',
+ menu:'M5 6h14M5 12h14M5 18h14',
+ heart:paths.heart,
+ comment:'M5 2h14a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3h-9l-7 3 2-7a3 3 0 0 1-3-3V5a3 3 0 0 1 3-3Z',
+ chevron:'m6 9 6 6 6-6', up:'M12 20V4m-6 6 6-6 6 6', down:'M12 4v16m-6-6 6 6 6-6'
+});
+function aifectControlIcon(name,size=24){
+ const action=name.endsWith('-action'),key=name.replace(/-action$/,'');
+ const glyph=key==='plays'?'play':key==='pause'?'pause':key;
+ return `<svg class="aifect-control-icon ${action?'outline-gradient-action':'metric-inline-icon'} aifect-icon-${key}" viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="${aifectControlPaths[glyph]||paths[glyph]||paths.sparkles}"/></svg>`;
+}
