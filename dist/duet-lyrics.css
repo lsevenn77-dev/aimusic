@@ -216,8 +216,8 @@ dialog.duet-editor-dialog{width:min(860px,calc(100% - 24px));padding:24px;backgr
 /* PC recording only: reserve the existing 80px header and 62px player.
    Keep the lyric follow anchor and all recording/editor/mobile behavior intact. */
 @media(min-width:1024px){
- .page-wrap #main:has(#sing.web-studio:not(.is-reviewing):not(.is-punch-page)){height:calc(100% - 80px - 62px);display:flex;align-items:center;justify-content:center;padding:16px 24px!important}
- #main #sing.web-studio:not(.is-reviewing):not(.is-punch-page){width:100%;max-width:1060px!important;height:min(700px,100%);max-height:700px;margin:0 auto!important;grid-template-columns:minmax(0,1fr) 310px;column-gap:18px}
+ .page-wrap #main:has(#sing.web-studio:not(.is-reviewing):not(.is-punch-page)){height:calc(100% - 80px - 62px);display:flex;align-items:flex-start;justify-content:flex-start;padding:24px!important}
+ #main #sing.web-studio:not(.is-reviewing):not(.is-punch-page){width:80%;max-width:1100px!important;height:min(620px,100%);max-height:620px;margin:0!important;grid-template-columns:minmax(0,1fr) minmax(280px,32%);column-gap:18px}
  #sing.web-studio:not(.is-reviewing):not(.is-punch-page) .sing-head{padding:8px 0!important}
  #sing.web-studio:not(.is-reviewing):not(.is-punch-page) .sing-recording{grid-template-rows:auto auto minmax(0,1fr) 16px 78px auto}
  #sing.web-studio:not(.is-reviewing):not(.is-punch-page) .sing-wheel{height:100%!important;max-height:350px!important;align-self:center;overflow-y:auto!important;padding:0 8px!important}
@@ -237,3 +237,42 @@ dialog.duet-editor-dialog{width:min(860px,calc(100% - 24px));padding:24px;backgr
 #recording-mode-dialog [data-sing-mode]{width:100%;min-height:48px;margin:0;justify-content:center;background:var(--ds-bg);border:1px solid var(--ds-border);color:var(--ds-text);font:inherit;box-shadow:none}
 #recording-mode-dialog [data-sing-mode]:hover,#recording-mode-dialog [data-sing-mode]:focus-visible,#recording-mode-dialog [data-sing-mode]:active{background:linear-gradient(105deg,color-mix(in srgb,var(--ds-lavender) 20%,var(--ds-panel)),color-mix(in srgb,var(--ds-mint) 20%,var(--ds-panel)));border-color:var(--ds-mint);box-shadow:none}
 #recording-mode-dialog [data-sing-mode]:focus-visible{outline:2px solid var(--ds-mint);outline-offset:3px}
+
+/* Final compact part picker. Only the lyric list scrolls. */
+dialog.duet-editor-dialog{height:auto;max-height:80dvh;padding:20px;border-radius:var(--ds-radius-card);box-shadow:none}
+.duet-editor-dialog #dialog-content{min-height:0;overflow:hidden}
+.duet-editor-dialog .duet-editor{max-height:calc(80dvh - 42px);gap:12px}
+.duet-editor-dialog .dialog-close{width:44px;height:44px;top:6px;right:6px;background:none}
+.duet-editor-dialog .duet-editor h2{margin:0 32px 0 0;font-size:20px;flex-shrink:0}
+.duet-editor-dialog .duet-methods{margin:0;padding:3px;background:var(--ds-bg);gap:6px}
+.duet-editor-dialog .duet-methods [aria-selected=true]{background:color-mix(in srgb,var(--ds-lavender) 16%,var(--ds-panel));color:var(--ds-text)}
+.duet-editor-dialog .duet-brushes{margin:0;gap:8px}
+.duet-editor-dialog .duet-brushes button{display:flex;align-items:center;justify-content:center;gap:8px}
+.duet-editor-dialog .duet-brushes button:before{content:'';width:12px;height:12px;flex-shrink:0;background:var(--line-color);border-radius:50%}
+.duet-editor-dialog .duet-editor-lines{padding:0 4px 0 0;touch-action:pan-y}
+.duet-editor-dialog .duet-edit-line{display:flex;gap:12px;padding:8px 10px;margin:0 0 4px;min-height:44px;border-radius:8px;user-select:none;touch-action:pan-y;--line-color:var(--ds-body)}
+.duet-editor-dialog .duet-edit-line[data-part-role=mine]{--line-color:var(--duet-mine)}
+.duet-editor-dialog .duet-edit-line[data-part-role=partner]{--line-color:var(--duet-partner)}
+.duet-editor-dialog .duet-edit-line[data-part-role=both]{--line-color:var(--duet-both)}
+.duet-editor-dialog .duet-edit-line[aria-checked=true]{background:color-mix(in srgb,var(--line-color) 10%,var(--ds-bg));border-color:color-mix(in srgb,var(--line-color) 38%,var(--ds-border))}
+.duet-editor-dialog .duet-edit-lyric{display:block;text-align:left;font-size:14px;line-height:1.6;overflow-wrap:anywhere}
+.duet-edit-check{box-sizing:border-box;display:grid;place-items:center;flex:0 0 18px;width:18px;height:18px;border:1px solid var(--ds-muted);border-radius:4px}
+[aria-checked=true]>.duet-edit-check{background:var(--line-color);border-color:var(--line-color);color:var(--ds-ink)}
+[aria-checked=true]>.duet-edit-check:after{content:'';width:8px;height:5px;border-left:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg);margin-top:-3px}
+.duet-editor-dialog [data-duet-note]{margin:0;font-size:11px;line-height:1.4}
+.duet-editor-dialog .duet-editor-footer{padding:0;gap:12px}
+.duet-editor-dialog .duet-editor-footer button{min-height:44px;border-radius:var(--ds-radius-sm)}
+@media(max-width:480px){
+ dialog.duet-editor-dialog{width:calc(100% - 24px)!important;padding:16px!important}
+ .duet-editor-dialog .duet-editor{max-height:calc(80dvh - 34px);gap:10px}
+ .duet-editor-dialog .duet-editor h2{font-size:18px}
+ .duet-editor-dialog .duet-brushes{gap:5px}
+ .duet-editor-dialog .duet-brushes button{font-size:11px;gap:5px;padding:5px 2px}
+ .duet-editor-dialog .duet-edit-lyric{font-size:13px}
+}
+
+/* Keep the native checkbox switch, including Space and its live change handler. */
+#sing.web-studio #sing-live-settings .sing-monitor,.recording-settings .sing-monitor{min-height:44px;flex-wrap:nowrap}
+#sing.web-studio #sing-live-settings .sing-monitor input,.recording-settings .sing-monitor input{appearance:none;box-sizing:border-box;display:block;position:relative;width:44px;height:24px;min-width:44px;min-height:24px;max-height:24px;margin:0;border:0;border-radius:12px;box-shadow:none;cursor:pointer;background:radial-gradient(circle at 12px 12px,var(--ds-text) 9px,transparent 9.5px),var(--ds-border)}
+#sing.web-studio #sing-live-settings .sing-monitor input:checked,.recording-settings .sing-monitor input:checked{background:radial-gradient(circle at 32px 12px,var(--ds-text) 9px,transparent 9.5px),var(--ds-gradient)}
+#sing.web-studio #sing-live-settings .sing-monitor input:focus-visible,.recording-settings .sing-monitor input:focus-visible{outline:2px solid var(--ds-lavender);outline-offset:4px}
