@@ -65,3 +65,23 @@ test('cached web cover data cannot fall back to the original album art',()=>{
  assert.equal(path({id:'cover',kind:'cover',has_cover:1,cover_version:'old-upload',producer_image_version:'fresh'}),'/media/cover/cover?v=profile-fresh');
  assert.equal(path({id:'original',kind:'original',has_cover:1,cover_version:'art'}),'/media/original/cover?v=art');
 });
+
+test('home can read stored artwork without changing legacy cover presentation or visibility',async t=>{
+ const f=await setup(t),song=(await f.call('/api/community?kind=cover')).body.tracks[0];
+ assert.equal(song.cover_version,'profile-photo-one');assert.equal(song.work_has_cover,1);assert.equal(song.work_cover_version,'custom-art');
+ const raw=await f.image('custom-art&artwork=track');assert.equal(raw.status,200);assert.equal(await raw.text(),'old cover art');
+ assert.equal(await (await f.image('profile-photo-one')).text(),'singer photo');
+ const playlists=(await f.call('/api/playlists?sort=popular')).body.playlists;
+ assert.equal(playlists[0].covers[0].work_cover_version,'custom-art');assert.equal(playlists[0].covers[0].original_has_cover,1);
+ f.sql.exec("UPDATE tracks SET status='hidden' WHERE id='one'");assert.equal((await f.image('custom-art&artwork=track')).status,404);
+});
+
+test('home artwork prioritizes the work, original and default without profile substitution',()=>{
+ const c=vm.createContext({});vm.runInContext(readFileSync(new URL('../dist/home.js',import.meta.url),'utf8'),c);
+ const song={id:'child',kind:'cover',has_cover:1,cover_version:'profile-photo',work_has_cover:1,work_cover_version:'upload',original_id:'original',original_has_cover:1,original_cover_version:'original-art'};
+ assert.equal(c.homeArtworkPath(song),'/media/child/cover?artwork=track&v=upload');
+ assert.equal(c.homeArtworkPath({...song,work_has_cover:0}),'/media/original/cover?artwork=track&v=original-art');
+ assert.equal(c.homeArtworkPath({...song,work_has_cover:0,original_has_cover:0}),'');
+ assert.equal(c.homeArtworkPath({id:'dub',kind:'dubbing',has_cover:1,cover_version:'dub-art'}),'/media/dub/cover?artwork=track&v=dub-art');
+ assert.equal(c.homeArtworkPath({id:'cached',kind:'cover',has_cover:1,cover_version:'profile-photo'}),'');
+});

@@ -112,7 +112,7 @@ export async function mediaRoute(req,env,path,user){
    const high=await premiumAudio(env,t,user);if(!high)fail(404,'고음질 파일을 준비하고 있습니다.');
    return objectResponse(req,env,high.output_key,'audio/mp4');
   }
-  if(kind==='cover'&&t.kind==='cover'){
+  if(kind==='cover'&&t.kind==='cover'&&new URL(req.url).searchParams.get('artwork')!=='track'){
    const profile=await one(env,'SELECT id,image_version,image_type FROM producers WHERE id=?',t.producer_id),version=coverArtworkVersion(profile);
    if(profile?.image_version)return objectResponse(req,env,`images/producer/${profile.id}/${profile.image_version}`,profile.image_type,!!t.visible,{imageVersion:version});
    const fallback=await env.ASSETS.fetch(new Request(new URL('/assets/default-avatar.png',req.url),{method:req.method}));

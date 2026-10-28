@@ -323,9 +323,11 @@ test('home startup remains playable when the account resolves before the guest c
 test('home continues down through full music grids and optional discovery sections',async()=>{
  const tracks=Array.from({length:12},(_,i)=>({...track('Song '+i),id:'song-'+i}));
  const c=homeRenderer(async path=>response(path.includes('playlists')?{playlists:[]}:{tracks}));
- c.context.card=t=>'<article>'+t.title+'</article>';
+ c.context.card=t=>'<article>'+t.title+'</article>';c.context.chartMovementHTML=()=>'';
  await c.navigate('home');await new Promise(resolve=>setImmediate(resolve));
  assert.match(c.section('home-more').innerHTML,/home-music-grid/);assert.match(c.section('home-more').innerHTML,/Song 11/);
- for(const id of ['home-popular','home-duets','home-crew-music']){assert.equal(c.section(id).hidden,false);assert.match(c.section(id).innerHTML,/Song 11/);}
+ for(const id of ['home-popular','home-discovery']){assert.equal(c.section(id).hidden,false);assert.match(c.section(id).innerHTML,/Song 11/);}
+ assert.match(c.section('home-recommended').innerHTML,/Song 5/);
+ const html=c.main.innerHTML;assert.ok(html.indexOf('id="home-popular"')<html.indexOf('id="home-more"'));assert.ok(html.indexOf('id="home-library"')<html.indexOf('id="home-sing"'));
  assert.doesNotMatch(c.section('home-more').innerHTML,/browse-rail/);
 });

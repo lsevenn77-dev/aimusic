@@ -17,8 +17,8 @@ export async function playlistSummaries(env,userId='',where='p.is_public=1',args
  (SELECT COALESCE(sum(t.duration),0) FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id WHERE pt.playlist_id=p.id AND ${VISIBLE()}) duration,
  (SELECT count(*) FROM playlist_saves s WHERE s.playlist_id=p.id) saves,
  (ps.user_id IS NOT NULL) saved,COALESCE(pref.pinned,0) pinned,COALESCE(pref.position,0) position,
- (SELECT json_group_array(json_object('id',c.id,'title',c.title,'kind',c.kind,'has_cover',c.has_cover,'cover_version',c.cover_version)) FROM
-  (SELECT t.id,t.title,t.kind,${trackArtworkSQL('t','cp')} FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id JOIN producers cp ON cp.id=t.producer_id WHERE pt.playlist_id=p.id AND ${VISIBLE()} ORDER BY pt.position,pt.created,pt.track_id LIMIT 4) c) covers_json
+ (SELECT json_group_array(json_object('id',c.id,'title',c.title,'kind',c.kind,'work_has_cover',c.work_has_cover,'work_cover_version',c.work_cover_version,'original_id',c.original_id,'original_has_cover',c.original_has_cover,'original_cover_version',c.original_cover_version,'has_cover',c.has_cover,'cover_version',c.cover_version)) FROM
+  (SELECT t.id,t.title,t.kind,t.has_cover work_has_cover,t.cover_version work_cover_version,t.original_id,(SELECT has_cover FROM tracks WHERE id=t.original_id) original_has_cover,(SELECT cover_version FROM tracks WHERE id=t.original_id) original_cover_version,${trackArtworkSQL('t','cp')} FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id JOIN producers cp ON cp.id=t.producer_id WHERE pt.playlist_id=p.id AND ${VISIBLE()} ORDER BY pt.position,pt.created,pt.track_id LIMIT 4) c) covers_json
  FROM playlists p JOIN users u ON u.id=p.user_id
  LEFT JOIN playlist_saves ps ON ps.playlist_id=p.id AND ps.user_id=?
  LEFT JOIN playlist_preferences pref ON pref.playlist_id=p.id AND pref.user_id=?
