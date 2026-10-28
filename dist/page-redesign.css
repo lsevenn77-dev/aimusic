@@ -308,4 +308,13 @@ main[data-route^="sing/"]{background:radial-gradient(ellipse at 50% 25%,#5834493
 }
 
 
-@media(min-width:801px){.message-workspace{min-height:0;align-items:stretch}.message-welcome{min-height:0;overflow:auto}}
+@media(min-width:801px){
+ main:has(>.message-workspace){padding-top:0;margin-left:0;margin-right:auto}
+ .message-workspace{height:clamp(520px,70dvh,700px);min-height:0;align-items:stretch}
+ .message-list-pane{display:flex;flex-direction:column;overflow:hidden}
+ .message-list-pane>.dm-inbox-tabs,.message-list-pane>.dm-section-heading,.message-list-pane>#dm-list-error{flex-shrink:0}
+ .message-list-pane>#dm-conversations{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain}
+ .message-welcome{min-height:0;overflow:auto}
+ .message-thread-pane .chat-panel{overflow:hidden}
+ .message-thread-pane #chat-log{max-height:none}
+}

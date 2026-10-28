@@ -9,7 +9,7 @@ function libraryOverviewHTML(){
 }
 function dmInboxHTML(d,thread='',selected=''){
  rememberDmInbox(d);
- return '<div class="message-page-heading">'+heading('메시지','음악으로 이어진 대화, 이곳에서 계속해요.')+'</div><section class="message-workspace'+(thread?' has-thread':'')+'"><aside class="message-list-pane" aria-label="대화 상대 목록">'+dmInboxTabsHTML()+'<div class="dm-section-heading"><div><span class="eyebrow">INBOX</span><h2>대화 <small id="dm-inbox-count">'+number(d.conversations.length)+'</small></h2></div>'+inboxControlsHTML()+'</div><div id="dm-conversations">'+conversationListHTML(d.conversations,d.crew,selected)+'</div><p id="dm-list-error" role="status">'+esc(d.error||'')+'</p></aside>'+(thread?'<div class="message-thread-pane" aria-label="선택한 대화">'+thread+'</div>':'<div class="message-welcome"><span class="message-welcome-icon">'+icon('message')+'</span><h2>누구와 이야기할까요?</h2><p>왼쪽에서 대화상대를 선택하면<br>이곳에서 바로 대화할 수 있어요.</p><a class="primary-button" href="#following">'+icon('users')+' 새로운 대화 시작</a></div>')+'</section>';
+ return '<section class="message-workspace'+(thread?' has-thread':'')+'"><aside class="message-list-pane" aria-label="대화 상대 목록">'+dmInboxTabsHTML()+'<div class="dm-section-heading"><div><span class="eyebrow">INBOX</span><h2>대화 <small id="dm-inbox-count">'+number(d.conversations.length)+'</small></h2></div>'+inboxControlsHTML()+'</div><div id="dm-conversations">'+conversationListHTML(d.conversations,d.crew,selected)+'</div><p id="dm-list-error" role="status">'+esc(d.error||'')+'</p></aside>'+(thread?'<div class="message-thread-pane" aria-label="선택한 대화">'+thread+'</div>':'<div class="message-welcome"><span class="message-welcome-icon">'+icon('message')+'</span><h2>누구와 이야기할까요?</h2><p>왼쪽에서 대화상대를 선택하면<br>이곳에서 바로 대화할 수 있어요.</p><a class="primary-button" href="#following">'+icon('users')+' 새로운 대화 시작</a></div>')+'</section>';
 }
 async function dmWorkspaceView(view){
  // The thread must not wait for a second inbox request. Refresh the sidebar after paint.
@@ -26,7 +26,7 @@ function dmPendingView(base,param,raw){
  copy.querySelectorAll('.is-selected').forEach(e=>e.classList.remove('is-selected'));
  copy.querySelectorAll('[aria-current]').forEach(e=>e.removeAttribute('aria-current'));
  for(const link of copy.querySelectorAll('a[href^="#dm/"]'))if(link.getAttribute('href')==='#dm/'+selected){link.setAttribute('aria-current','true');link.closest('.conversation-row')?.classList.add('is-selected');}
- return {html:'<div class="message-page-heading">'+heading('메시지','음악으로 이어진 대화, 이곳에서 계속해요.')+'</div><section class="message-workspace'+(param?' has-thread':'')+'">'+copy.outerHTML+'<div class="message-thread-pane message-thread-loading" role="status"><p>대화를 불러오는 중…</p></div></section>'};
+ return {html:'<section class="message-workspace'+(param?' has-thread':'')+'">'+copy.outerHTML+'<div class="message-thread-pane message-thread-loading" role="status"><p>대화를 불러오는 중…</p></div></section>'};
 }
 function singingDiscoverHTML(duets,covers=[]){
  return '<section class="sing-cover-discovery" aria-label="커버곡 둘러보기"><header><div><h2>커버 둘러보기</h2><p>다른 사람의 솔로·듀엣 커버를 들어보세요.</p></div><nav><a href="#community/covers?mode=solo">'+icon('mic')+' 솔로 커버 듣기 '+icon('chevron')+'</a><a href="#community/covers?mode=duet">'+icon('users')+' 듀엣 커버 듣기 '+icon('chevron')+'</a><a href="#community/covers">더보기 '+icon('chevron')+'</a></nav></header>'+
