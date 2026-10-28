@@ -51,9 +51,16 @@ export async function playRoute(req,env,path,user){
   // Use the catalog's public display names, including the inherited AI artist on duets.
   if(q){where+=' AND (t.title LIKE ? OR a.name LIKE ? OR ('+memberNameSQL()+') LIKE ?)';args.push(...Array(3).fill('%'+q+'%'));}
   const tracks=await trackList(env,where,args,tab==='recommended'?'(plays+likes*3) DESC,t.created DESC,t.id':'t.created DESC,t.id',offset+26);
-  const page=tracks.slice(offset,offset+25),ids=[...new Set(page.map(t=>duet?t.original_id:t.id))],blocked=env.AIFECT_BLOCKED||[];
-  const counts=ids.length?await rows(env,`SELECT cv.original_id,COUNT(DISTINCT cv.user_id) participants FROM tracks cv WHERE cv.kind='cover' AND ${VISIBLE('cv')} AND cv.original_id IN (${ids.map(()=>'?').join(',')})${blocked.length?' AND cv.user_id NOT IN ('+blocked.map(()=>'?').join(',')+')':''} GROUP BY cv.original_id`,...ids,...blocked):[];
-  return json({tracks:page.map(t=>({...t,participants:counts.find(c=>c.original_id===(duet?t.original_id:t.id))?.participants||0})),nextOffset:tracks.length>offset+25?offset+25:null});
+  const page=tracks.slice(offset,offset+25),ids=[...new Set(page.map(t=>t.id))],blocked=env.AIFECT_BLOCKED||[];
+  const block=blocked.length?' AND cv.user_id NOT IN ('+blocked.map(()=>'?').join(',')+')':'';
+  // Recruitment counts must belong to this exact half, not every cover of its original.
+  const counts=ids.length?await rows(env,duet?`SELECT cv.duet_parent_id parent_id,COUNT(*) completions,
+   COUNT(DISTINCT CASE WHEN cv.user_id!=parent.user_id THEN cv.user_id END) participants
+   FROM tracks cv JOIN tracks parent ON parent.id=cv.duet_parent_id
+   WHERE cv.kind='cover' AND cv.cover_mode='duet' AND cv.duet_open=0 AND cv.original_id=parent.original_id AND ${VISIBLE('cv')}
+   AND cv.duet_parent_id IN (${ids.map(()=>'?').join(',')})${block} GROUP BY cv.duet_parent_id`:
+   `SELECT cv.original_id,COUNT(DISTINCT cv.user_id) participants FROM tracks cv WHERE cv.kind='cover' AND ${VISIBLE('cv')} AND cv.original_id IN (${ids.map(()=>'?').join(',')})${block} GROUP BY cv.original_id`,...ids,...blocked):[];
+  return json({tracks:page.map(t=>{const c=counts.find(c=>duet?c.parent_id===t.id:c.original_id===t.id);return {...t,participants:c?.participants||0,...(duet?{completions:c?.completions||0,can_join:true}:{} )};}),nextOffset:tracks.length>offset+25?offset+25:null});
  }
  if(path==='/api/play/latest')return json({tracks:await trackList(env,`${VISIBLE()} AND ${SINGABLE()}`,[],'t.created DESC,t.id',100)});
  if(path==='/api/play/participate'){

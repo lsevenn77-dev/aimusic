@@ -64,6 +64,28 @@ for(let i=0;i<4;i++){
  if(i===0)await f.call('/api/dubbing/projects/'+pid+'/claims/role_2','POST',{revision:2},'other');
  if(i===1){f.sql.prepare("UPDATE dubbing_projects SET state='complete',updated=200 WHERE id=?").run(pid);f.sql.prepare("INSERT INTO dubbing_final_jobs(id,project_id,script_key,manifest_json,state,output_key,output_meta,created,updated) VALUES(?,?,?,'{}','ready',?,'{}',100,200)").run(crypto.randomUUID(),pid,sk,'qa-dub-final');objects.set('qa-dub-final',wav);}
 }
+// Optional stress data is confined to this disposable SQLite preview.
+if(process.env.LIST_ACTIONS_QA==='1'){
+ f.sql.prepare('UPDATE tracks SET title=? WHERE id IN (?,?,?)').run('아주 긴 곡 제목으로 목록의 말줄임과 버튼 정렬을 확인하는 로컬 검증 작품입니다 — 함께 부르는 목소리','one','preview-duet','preview-complete-duet');
+ f.sql.prepare('UPDATE producers SET name=? WHERE id=?').run('아주 긴 닉네임을 사용하는 로컬 검증 음악가','friend');
+ // Exact-parent, zero-count, multi-work and pagination cases stay in the local fixture.
+ f.sql.exec("INSERT INTO users(id,email,name,created) VALUES('qa-guest','qa-guest@example.test','참여자',0); INSERT INTO producers(id,user_id,name,image_version,image_type,created) VALUES('qa-guest-profile','qa-guest','다른 참여자','demo','image/png',0)");
+ objects.set('images/producer/qa-guest-profile/demo',nova);
+ f.sql.prepare("INSERT INTO tracks(id,user_id,artist_id,producer_id,title,genre,ai_tool,rights_accepted,original_ext,original_bytes,created,status,kind,original_id,duration,cover_mode,duet_open,duet_part) VALUES('preview-empty-half','other','artist','friend',?,'Rock','',1,'wav',128,1,'published','cover','one',45,'duet',1,'male')").run('참여작 없는 반곡');
+ objects.set('stream/preview-empty-half.m4a',wav);objects.set('preview/preview-empty-half.m4a',wav);
+ for(let i=0;i<52;i++){
+  const id='qa-child-'+i,guest=i===51;
+  f.sql.prepare("INSERT INTO tracks(id,user_id,artist_id,producer_id,title,genre,ai_tool,rights_accepted,original_ext,original_bytes,created,status,kind,original_id,duration,cover_mode,duet_parent_id) VALUES(? ,?,'artist',?,?,'Rock','',1,'wav',128,?,'published','cover','one',45,'duet','preview-duet')").run(id,guest?'qa-guest':'owner',guest?'qa-guest-profile':'producer','함께 완성한 참여 커버 '+(i+1),30+i);
+  objects.set('stream/'+id+'.m4a',wav);objects.set('preview/'+id+'.m4a',wav);
+ }
+ const playlist=await f.call('/api/playlists','POST',{name:'목록 검증용 플레이리스트',track_ids:['one','two','preview-duet','preview-complete-duet']});
+ console.log('Local QA playlist: #playlist/'+playlist.body.id);
+ const now=Math.floor(Date.now()/1000);
+ f.sql.prepare("INSERT INTO listens(id,track_id,listener,user_id,started,seconds,day,qualified) VALUES('qa-ai-listen','one','u:other','other',?,45,?,1)").run(now,'2026-10-28');
+ f.sql.prepare("INSERT INTO listens(id,track_id,listener,user_id,started,seconds,day,qualified) VALUES('qa-ranking-listen','preview-complete-duet','u:qa-guest','qa-guest',?,45,?,1)").run(now,'2026-10-28');
+ for(const [i,id] of ['one','preview-cover','preview-complete-duet'].entries())f.sql.prepare("INSERT INTO listens(id,track_id,listener,user_id,started,seconds,day,qualified) VALUES(?,?,?,'owner',?,45,?,1)").run('qa-listen-'+i,id,'u:owner',now-i,'2026-10-28');
+
+}
 const base=resolve('dist/client');
 const qa=await readFile('tests/recording-qa-browser.js');
 const env={...featureEnv,DB:f.DB,BUCKET:{async put(k,v){objects.set(k,v);},async delete(k){objects.delete(k);},async head(k){const b=objects.get(k);return b?{size:b.length,etag:k}:null;},async get(k){return {body:objects.get(k)};},async list(){return {objects:[],truncated:false};}},

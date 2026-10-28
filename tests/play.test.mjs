@@ -195,3 +195,49 @@ test('browse artwork keeps each project genre and detail URL across recommended 
  assert.doesNotMatch(html,/MY RECORDINGS|draft-workspace|recording-draft/);assert.match(html,/&lt;길고 긴 제목>/);assert.match(html,/play-draft-row/);
  const empty=c.playDraftRows([]);assert.match(empty,/data-delete-all-drafts disabled/);assert.match(empty,/첫 목소리를 기다리고 있어요/);
  });
+
+test('PLAY duet counts and child pages use the exact half ID and distinct visible participants',async t=>{
+ const f=await setup(t);
+ f.sql.exec("INSERT INTO karaoke_jobs(track_id,id,state,mr_ready,words_state,created,updated) VALUES('one','duet-qa','ready',1,'ready',0,0)");
+ f.cover('other-half',{mode:'duet',open:1});
+ f.cover('child-a',{mode:'duet',parent:'half',owner:'owner'});
+ f.cover('child-b',{mode:'duet',parent:'half',owner:'owner'});
+ f.cover('wrong-parent',{mode:'duet',parent:'other-half',owner:'owner'});
+ f.cover('inconsistent-child',{mode:'duet',parent:'half',owner:'owner'});
+ f.sql.exec("UPDATE tracks SET original_id='two' WHERE id='inconsistent-child'");
+ f.cover('hidden-child',{mode:'duet',parent:'half',status:'hidden',owner:'owner'});
+ f.sql.exec("UPDATE tracks SET title='same title' WHERE kind='cover'");
+ const page=(await f.call('/api/play/songs?tab=duets')).body;
+ const half=page.tracks.find(x=>x.id==='half');assert.equal(half.participants,1);assert.equal(half.completions,3);
+ assert.equal(half.producer,'Friend');assert(page.tracks.every(x=>!x.duet_parent_id));
+ const children=(await f.call('/api/tracks/one/covers?view=children&parent=half')).body;
+ assert.deepEqual(new Set(children.covers.map(x=>x.id)),new Set(['duet','child-a','child-b']));
+ assert(children.covers.every(x=>x.duet_parent_id==='half'&&x.producer));
+ f.sql.exec("INSERT INTO user_blocks(user_id,blocked_id,created) VALUES('owner','other',1)");
+ assert.equal((await f.call('/api/play/songs?tab=duets')).body.tracks.length,0);
+});
+
+test('duet child pagination reaches every completion without mixing another recruitment',async t=>{
+ const f=await setup(t);
+ f.sql.exec("INSERT INTO karaoke_jobs(track_id,id,state,mr_ready,words_state,created,updated) VALUES('one','duet-pages','ready',1,'ready',0,0)");
+ for(let i=0;i<55;i++)f.cover('child-'+i,{mode:'duet',parent:'half',owner:'owner'});
+ const half=(await f.call('/api/play/songs?tab=duets')).body.tracks.find(x=>x.id==='half');assert.equal(half.completions,56);assert.equal(half.participants,1);
+ const first=(await f.call('/api/tracks/one/covers?view=children&parent=half')).body;
+ const second=(await f.call('/api/tracks/one/covers?view=children&parent=half&offset='+first.next_offset)).body;
+ assert.equal(first.covers.length,50);assert.equal(second.covers.length,6);assert.equal(second.next_offset,null);
+ assert.equal(new Set([...first.covers,...second.covers].map(x=>x.id)).size,56);
+});
+
+test('PLAY duet expansion fetches children once, toggles locally and keeps child playback IDs',async()=>{
+ const attrs={},target={dataset:{},hidden:true,innerHTML:'',isConnected:true},calls=[];
+ class Element{closest(){return this;}}
+ class Button extends Element{constructor(){super();this.dataset={playDuetChildren:'half',original:'original'};this.disabled=false;}setAttribute(k,v){attrs[k]=v;}removeAttribute(k){delete attrs[k];}}
+ const button=new Button(),root={dataset:{},isConnected:true,addEventListener(type,fn){this.listener=fn;},querySelector(){return button;}};
+ const c=vm.createContext({URLSearchParams,Element,HTMLButtonElement:Button,CSS:{escape:s=>s},document:{getElementById:()=>target},esc:String,icon:()=>'',
+  api:async path=>{calls.push(path);return {covers:[{id:'child',duet_parent_id:'half'}],next_offset:null};},remember(){},paintInteractions(){},bindSongCoverPlayback(){},toast(){},
+  songCoverRowHTML:t=>'<button data-play="'+t.id+'">child</button>',setSongCoverExpanded(b,t,on){t.hidden=!on;b.setAttribute('aria-expanded',String(on));}});
+ vm.runInContext(readFileSync(new URL('../dist/play-page.js',import.meta.url),'utf8'),c);c.bindPlayDuetChildren(root);
+ const click=()=>root.listener({target:button,preventDefault(){},stopPropagation(){}});
+ await click();assert.match(calls[0],/tracks\/original\/covers\?view=children&parent=half&offset=0/);assert.equal(target.hidden,false);assert.match(target.innerHTML,/data-play="child"/);assert.doesNotMatch(target.innerHTML,/data-play="half"/);
+ await click();assert.equal(target.hidden,true);await click();assert.equal(target.hidden,false);assert.equal(calls.length,1);assert.equal(button.disabled,false);assert.equal(attrs['aria-busy'],undefined);
+});
