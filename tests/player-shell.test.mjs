@@ -24,4 +24,13 @@ test('finite clock formatting handles hours, missing and invalid values',()=>{co
 test('seek preview survives time ticks and cancellation releases scrubbing',()=>{const f=fixture();f.e('#seek').events.pointerdown({pointerId:1});f.e('#seek').value=70;f.e('#seek').events.input();f.audioEvents.timeupdate();assert.equal(f.e('#seek').style['--seek-progress'],'70%');assert.equal(f.e('#seek').attributes['aria-valuetext'],'1:10 / 1:40');assert.equal(f.context.window.AifectPlayerShell.scrubbing,true);f.e('#seek').events.pointercancel();assert.equal(f.context.window.AifectPlayerShell.scrubbing,false);assert.equal(f.e('#elapsed').textContent,'0:25');});
 test('display clamps time to duration and disables unknown duration seeking',()=>{const f=fixture();f.audio.currentTime=150;f.audioEvents.seeked();assert.equal(f.e('#elapsed').textContent,'1:40');assert.equal(f.e('#seek').style['--seek-progress'],'100%');f.e('#seek').max=0;f.audio.currentTime=0;f.audioEvents.emptied();assert.equal(f.e('#duration').textContent,'0:00');assert.equal(f.e('#seek').disabled,true);});
 test('repeat and shuffle presentation reflects the engine globals independently',()=>{const f=fixture();f.context.shuffle=true;for(const mode of [0,1,2,0]){f.context.repeatMode=mode;f.context.window.AifectPlayerShell.paintModes();assert.equal(f.e('#repeat').dataset.repeatMode,String(mode));assert.equal(f.e('#shuffle').attributes['aria-pressed'],'true');assert.equal(f.e('#repeat').innerHTML.includes('repeat-one'),mode===2);}});
+test('repeat clicks cycle all engine modes without emitting a toast',()=>{
+ const f=fixture(),notices=[];
+ f.context.$=f.e;f.context.toast=message=>notices.push(message);
+ const handler=readFileSync(new URL('../dist/actions.js',import.meta.url),'utf8').split('\n').find(line=>line.startsWith("$('#repeat').onclick="));
+ vm.runInContext(handler,f.context);
+ for(const mode of [1,2,0]){f.e('#repeat').onclick();assert.equal(f.context.repeatMode,mode);assert.equal(f.e('#repeat').dataset.repeatMode,String(mode));assert.equal(f.e('#repeat').attributes['aria-pressed'],String(!!mode));assert.equal(f.audio.currentTime,25);}
+ assert.deepEqual(notices,[]);
+ f.context.toast('normal notification');assert.deepEqual(notices,['normal notification']);
+});
 test('settings leave the requested panel open; X resets it for the next session',()=>{const f=fixture();f.click('#player-more');f.click('#player-volume-toggle');assert.equal(f.view(),'actions');assert.equal(f.e('.player').dataset.playerTools,'true');f.click('#player-close');assert.equal(f.view(),'none');assert.equal(f.e('.player').dataset.playerTools,'false');});
