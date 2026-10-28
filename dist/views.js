@@ -43,11 +43,16 @@ async function render(){
  if(playRedirect)history.replaceState(null,'',playRedirect);
 
  const ticket=++renderId,raw=location.hash.slice(1)||'home',[baseQuery,paramQuery]=raw.split('/'),[base]=baseQuery.split('?'),param=paramQuery?.split('?')[0];
- if(typeof refreshMusicLibraryRoute==='function'&&await refreshMusicLibraryRoute(raw,ticket))return;
- if(typeof refreshMyPageRoute==='function'&&await refreshMyPageRoute(raw,ticket))return;
+ if(base!=='home'){
+  if(typeof refreshMusicLibraryRoute==='function'&&await refreshMusicLibraryRoute(raw,ticket))return;
+  if(ticket!==renderId)return;
+  if(typeof refreshMyPageRoute==='function'&&await refreshMyPageRoute(raw,ticket))return;
+  if(ticket!==renderId)return;
+ }
  if(typeof refreshInventoryRoute==='function'&&refreshInventoryRoute(raw))return;
  if(typeof dubbingBeforeRoute==='function'&&!dubbingBeforeRoute(raw))return;
- if(typeof dubbingRefreshList==='function'&&await dubbingRefreshList(raw,ticket))return;
+ if(base!=='home'&&typeof dubbingRefreshList==='function'&&await dubbingRefreshList(raw,ticket))return;
+ if(ticket!==renderId)return;
  if(sing){
   if(!singBusy(sing)&&!confirm('녹음 화면에서 나갈까요? 녹음한 내용은 이 기기의 초안에 보관됩니다.')){history.replaceState(null,'',singRouteHref(sing));return;}
   if(singLive(sing))await finishSinging();
@@ -56,7 +61,10 @@ async function render(){
  }
  clearInterval(socialTimer);socialTimer=null;socialCleanup?.();socialCleanup=null;
  cleanupLyricsEditor();cleanupSing();
- if(typeof cleanupVoiceRoute==='function')await cleanupVoiceRoute(base,param);
+ if(typeof cleanupHome==='function')cleanupHome();
+ // Voice leave disposes local media/subscriptions synchronously. Its keepalive
+ // acknowledgement must not keep the outgoing page mounted for up to 8 seconds.
+ if(typeof cleanupVoiceRoute==='function')void Promise.resolve(cleanupVoiceRoute(base,param)).catch(()=>{});
  if(ticket!==renderId)return;
  updateBrowseNavigation(base,param);
  const main=$('#main'),account=me?.id||'guest';navigationRefreshCleanup?.();navigationRefreshCleanup=null;

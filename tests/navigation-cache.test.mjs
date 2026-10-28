@@ -41,13 +41,84 @@ function homeRenderer(fetch){
   for(const match of html.matchAll(/id="(home-[^"]+)"/g)){const node={innerHTML:'HOME_LOADING',hidden:false,isConnected:true,attributes:new Map(),setAttribute(name,value){this.attributes.set(name,value);},removeAttribute(name){this.attributes.delete(name);},querySelector:()=>({onclick:null})};sections.set(match[1],node);}
  }});
  c.document.querySelector=selector=>sections.get(selector.slice(1))||select(selector);
- Object.assign(c.context,{homeBrowseObserver:null,musicListeningShortcuts:()=>'',playlistSaveButton:()=>'',musicTrackCard:t=>'<article>'+t.title+'</article>',collectionGrid:items=>items.map(item=>item.name).join(','),playlistArt:()=>''});
+ Object.assign(c.context,{AbortController,homeBrowseObserver:null,musicListeningShortcuts:()=>'',playlistSaveButton:()=>'',musicTrackCard:t=>'<article>'+t.title+'</article>',collectionGrid:items=>items.map(item=>item.name).join(','),playlistArt:()=>''});
  vm.runInContext(source('home.js'),c.context);
  c.run("icons=()=>{};updateAccount=()=>{};setMembership=()=>{};refreshLibrary=async()=>{};");
  const boot=source('actions.js').match(/async function boot\(\)\{[\s\S]*?\r?\n\}\r?\n/);
  assert.ok(boot,'the startup function must remain independently testable');vm.runInContext(boot[0],c.context);
  return {...c,section:id=>sections.get(id)};
 }
+
+test('home replaces the outgoing page before a delayed voice leave acknowledgement',{timeout:3000},async()=>{
+ const leaving=deferred(),catalog=deferred();
+ const c=homeRenderer(async path=>path.includes('catalog')?catalog.promise:response({tracks:[],playlists:[]}));
+ c.main.innerHTML='<article>OUTGOING ROOM</article>';
+ c.context.cleanupVoiceRoute=()=>leaving.promise;
+ // The real app always installs these async fast paths, even on home.
+ c.context.refreshMusicLibraryRoute=async()=>false;c.context.refreshMyPageRoute=async()=>false;c.context.dubbingRefreshList=async()=>false;
+ const opening=c.navigate('home');
+ try{
+  assert.match(c.main.innerHTML,/listening-home/,'home must paint in the navigation task, without waiting for a network acknowledgement');
+  assert.doesNotMatch(c.main.innerHTML,/OUTGOING ROOM/);
+ }finally{leaving.resolve();catalog.resolve(response({tracks:[]}));await opening;}
+});
+
+test('a superseded async fast path cannot dispose or replace the newly mounted home',async()=>{
+ const held=deferred();let cleanups=0;
+ const c=homeRenderer(async()=>response({tracks:[],playlists:[]}));
+ c.context.refreshMusicLibraryRoute=raw=>raw==='history'?held.promise:Promise.resolve(false);
+ c.context.cleanupVoiceRoute=()=>{cleanups++;};
+ const old=c.navigate('history');await c.navigate('home');
+ held.resolve(false);await old;
+ assert.equal(cleanups,1);assert.equal(c.main.dataset.route,'home');assert.match(c.main.innerHTML,/listening-home/);
+});
+
+test('leaving home cancels its requests and late completions cannot change the next visit',async()=>{
+ const held=[],signals=[];let delayed=true;
+ const c=homeRenderer(async(path,options)=>{
+  if(!options.signal)return response({tracks:[]});
+  signals.push(options.signal);
+  if(delayed){const read=deferred();held.push(read);return read.promise;}
+  return response({tracks:[track('CURRENT HOME')],playlists:[]});
+ });
+ const first=c.navigate('home');const previous=c.section('home-release');
+ await c.navigate('history');assert.ok(signals.every(signal=>signal.aborted));
+ delayed=false;await c.navigate('home');
+ for(const read of held)read.resolve(response({tracks:[track('STALE HOME')],playlists:[]}));
+ await first;await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(previous.isConnected,false);assert.match(c.section('home-release').innerHTML,/CURRENT HOME/);
+ assert.doesNotMatch(c.section('home-release').innerHTML,/STALE HOME/);
+});
+
+test('aborting a home read does not cancel an independent reader of the same resource',async()=>{
+ const requests=[];const c=client((path,options)=>new Promise((resolve,reject)=>{
+  requests.push({resolve,signal:options.signal});options.signal?.addEventListener('abort',()=>reject(new Error('aborted')),{once:true});
+ }));
+ c.context.AbortController=AbortController;c.run('var controller=new AbortController();');
+ const home=c.run("api('/api/discovery?','GET',undefined,{signal:controller.signal})");
+ const independent=c.run("api('/api/discovery?')");assert.equal(requests.length,2);
+ c.run('controller.abort()');await assert.rejects(home,/aborted/);
+ requests[1].resolve(response({tracks:[track('Independent')]}));assert.equal((await independent).tracks[0].title,'Independent');
+});
+
+test('home image error listeners stay bounded across repeated visits',async()=>{
+ const c=homeRenderer(async()=>response({tracks:[],playlists:[]})),listeners=new Set();
+ c.main.addEventListener=(event,listener)=>{if(event==='error')listeners.add(listener);};
+ c.main.removeEventListener=(event,listener)=>{if(event==='error')listeners.delete(listener);};
+ for(let i=0;i<8;i++){
+  await c.navigate('home');assert.equal(listeners.size,1);
+  await c.navigate('history');assert.equal(listeners.size,0);
+ }
+});
+
+test('hidden optional home bridge does not issue singing or community requests',async()=>{
+ const calls=[];const c=homeRenderer(async path=>{calls.push(path);return response({tracks:[],playlists:[]});});
+ const original=Object.getOwnPropertyDescriptor(c.main,'innerHTML');
+ Object.defineProperty(c.main,'innerHTML',{get:original.get,set(html){original.set.call(c.main,html);if(c.section('home-bridge'))c.section('home-bridge').hidden=true;}});
+ await c.navigate('home');await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(calls.length,4);assert.ok(!calls.includes('/api/karaoke'));assert.ok(!calls.includes('/api/community?kind=cover'));
+ assert.ok(calls.includes('/api/playlists?sort=popular'),'the visible playlist section must remain available');
+});
 
 test('readonly history, followers and public detail reads expose isolated cache snapshots',async()=>{
  const calls=[];

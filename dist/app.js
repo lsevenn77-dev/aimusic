@@ -40,10 +40,10 @@ async function api(path,method='GET',body,options={}){
  // Ten seconds, memory only, account scoped. Money, chat, permissions and studio always stay live.
  const reusable=canCacheApiRead(path);
  const prior=apiReads.get(key);
- if(read&&!options.fresh&&prior&&prior.revision===revision&&(prior.pending||prior.until>Date.now()))return structuredClone(await prior.promise);
- const entry={revision,pending:true,until:0};
+ if(read&&!options.fresh&&prior&&prior.revision===revision&&(prior.pending?!prior.signal?.aborted&&prior.signal===options.signal:prior.until>Date.now()))return structuredClone(await prior.promise);
+ const entry={revision,pending:true,until:0,signal:options.signal};
  const request=(async()=>{
-  try{const r=await fetch(path,{method,credentials:'same-origin',headers:body?{'content-type':'application/json'}:undefined,body:body?JSON.stringify(body):undefined});let data;try{data=await r.json();}catch{throw new Error('서버에 연결할 수 없습니다. 다시 시도해주세요.');}if(!r.ok){if((r.status===401||r.status===403)&&account===(me?.id||'guest')&&revision===apiRevision)invalidateReads();throw Object.assign(new Error(data.error||'다시 시도해주세요.'),{status:r.status});}return data;}
+  try{const r=await fetch(path,{method,credentials:'same-origin',signal:options.signal,headers:body?{'content-type':'application/json'}:undefined,body:body?JSON.stringify(body):undefined});let data;try{data=await r.json();}catch{throw new Error('서버에 연결할 수 없습니다. 다시 시도해주세요.');}if(!r.ok){if((r.status===401||r.status===403)&&account===(me?.id||'guest')&&revision===apiRevision)invalidateReads();throw Object.assign(new Error(data.error||'다시 시도해주세요.'),{status:r.status});}return data;}
   finally{if(mutates)invalidateReads();}
  })();
  if(read){entry.promise=request;apiReads.set(key,entry);request.then(value=>{entry.pending=false;entry.value=structuredClone(value);entry.until=reusable?Date.now()+10000:0;entry.displayUntil=reusable?Date.now()+60000:0;if(!reusable&&apiReads.get(key)===entry)apiReads.delete(key);while(apiReads.size>60)apiReads.delete(apiReads.keys().next().value);},()=>{if(apiReads.get(key)===entry)apiReads.delete(key);});}

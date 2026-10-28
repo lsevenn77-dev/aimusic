@@ -1,4 +1,9 @@
-let homeCarouselCleanup=null;
+let homeCarouselCleanup=null,homeImagesCleanup=null,homeRequestController=null;
+function cleanupHome(){
+ homeBrowseObserver?.disconnect();homeCarouselCleanup?.();homeCarouselCleanup=null;
+ homeImagesCleanup?.();homeImagesCleanup=null;
+ homeRequestController?.abort();homeRequestController=null;
+}
 function homeArtworkPath(t){
  const has=t.work_has_cover??(t.cover_version?.startsWith('profile-')?false:t.has_cover);
  const version=t.work_cover_version??t.cover_version;
@@ -38,9 +43,11 @@ function releaseHTML(t,next){
  return `<div class="home-feature-background" aria-hidden="true"><div class="home-feature-backdrop"${art?` style="background-image:url(&quot;${esc(art)}&quot;)"`:''}>${art?`<img src="${esc(art)}" alt="" decoding="async">`:''}</div></div><article class="home-feature-slide"><a class="home-feature-cover" href="#song/${esc(t.id)}" aria-label="${esc(t.title)} 곡 정보">${homeCover(t,'home-feature-art',true)}</a><div class="home-feature-copy"><span class="home-feature-label">FEATURED MUSIC</span><div class="home-feature-title-row"><h2><a href="#song/${esc(t.id)}" title="${esc(t.title)}">${esc(t.title)}</a></h2><span class="home-feature-divider" aria-hidden="true"></span><button type="button" class="home-feature-play" data-play="${esc(t.id)}" data-community-toggle aria-label="${esc(t.title)} ${playing?'일시정지':'재생'}" aria-pressed="${playing}">${icon(playing?'ui-pause-action':'ui-play-action')}</button></div><div class="home-feature-artist">${credits(t)}</div>${t.description?`<p class="home-feature-description">${esc(t.description)}</p>`:''}<div class="home-feature-actions"><a class="text-link" href="#song/${esc(t.id)}">곡 정보 보기</a></div></div>${next?`<button class="home-feature-preview" data-home-next aria-label="다음 곡 ${esc(next.title)} 보기">${homeCover(next,'home-preview-art')}<span>UP NEXT</span></button>`:''}</article>`;
 }
 function bindHomeImages(root){
+ homeImagesCleanup?.();homeImagesCleanup=null;
  if(!root?.addEventListener)return;
  const fallback=event=>{const img=event.target;if(img.tagName!=='IMG'||!img.closest('.home-track-art,.home-feature-background'))return;img.hidden=true;if(img.closest('.home-feature-background'))img.parentElement.style.backgroundImage='none';const label=img.parentElement.querySelector('.cover-word');if(label)label.hidden=false;};
  root.addEventListener('error',fallback,true);
+ homeImagesCleanup=()=>root.removeEventListener('error',fallback,true);
 }
 function mountHomeCarousel(root,tracks){
  homeCarouselCleanup?.();homeCarouselCleanup=null;
@@ -71,7 +78,7 @@ function mountHomeCarousel(root,tracks){
  for(const [name,fn] of listeners)feature.addEventListener(name,fn);
  const playbackEvents=['play','pause','ended','emptied','loadedmetadata'];
  if(typeof audio!=='undefined')for(const event of playbackEvents)audio.addEventListener(event,syncPlayback);
- for(const t of tracks){const src=homeArtworkPath(t);if(src&&typeof Image!=='undefined'){const image=new Image();image.src=src;}}
+ // Only the displayed artwork is eager; preview/remaining slides load on demand.
  document.addEventListener('visibilitychange',schedule);window.addEventListener('hashchange',cleanup);motion.addEventListener('change',schedule);
  function cleanup(){clear();for(const [name,fn] of listeners)feature.removeEventListener(name,fn);if(typeof audio!=='undefined')for(const event of playbackEvents)audio.removeEventListener(event,syncPlayback);document.removeEventListener('visibilitychange',schedule);window.removeEventListener('hashchange',cleanup);motion.removeEventListener('change',schedule);}
  homeCarouselCleanup=cleanup;schedule();
@@ -91,10 +98,11 @@ function homeSingHTML(tracks){
 }
 
 function renderHome(ticket){
- homeBrowseObserver?.disconnect();homeCarouselCleanup?.();homeCarouselCleanup=null;
+ cleanupHome();
+ const controller=homeRequestController=new AbortController();
  const main=$('#main');routeTracks=[];main.classList.remove('motion-enter');main.innerHTML=homeHTML();main.removeAttribute('aria-busy');window.scrollTo({top:0,behavior:'instant'});updateHomeAccount();bindHomeImages(main);
  const revision=apiRevision,displayed=new Set();
- const active=target=>ticket===renderId&&target?.isConnected&&revision===apiRevision;
+ const active=target=>!controller.signal.aborted&&ticket===renderId&&target?.isConnected&&revision===apiRevision;
  const addTracks=tracks=>{remember(tracks);const known=new Set(routeTracks.map(t=>t.id));routeTracks.push(...tracks.filter(t=>!known.has(t.id)));};
  const paint=(target,html)=>{if(target.innerHTML!==html)target.innerHTML=html;displayed.add(target);target.removeAttribute('aria-busy');};
  const release=$('#home-release');
@@ -110,6 +118,10 @@ function renderHome(ticket){
  const paintCurations=d=>{const items=(d.playlists||[]).filter(p=>p.tracks>0).slice(0,6),target=$('#home-curations');target.hidden=!items.length;paint(target,items.length?'<h3 class="home-curation-title">취향을 나누는 플레이리스트</h3>'+homeCollectionGrid(items):'');};
  const jobs=[['/api/catalog?section=tracks&limit=12',paintRelease,'home-release'],['/api/discovery?',paintDiscovery,'home-recommended'],['/api/catalog?section=tracks&chart=top&period=week&limit=12',paintChart,'home-popular'],['/api/karaoke',paintSing,'home-sing'],['/api/community?kind=cover',paintConversations,'home-conversations'],['/api/playlists?sort=popular',paintCurations,'home-curations']];
  for(const [path,show] of jobs){const cached=peekApiRead(path,{display:true});if(cached)show(cached);}
- const load=async([path,show,id])=>{const target=$('#'+id);try{const d=await api(path);if(id==='home-release'&&ticket===renderId&&target.isConnected&&revision!==apiRevision)return renderHome(ticket);if(active(target)){show(d);updateHomeAccount();}}catch{if(active(target)&&!displayed.has(target)){paint(target,'<div class="home-load-error"><p>음악을 불러오지 못했어요.</p><button class="small-button">다시 시도</button></div>');target.querySelector('button').onclick=()=>load([path,show,id]);if(id==='home-recommended')paint($('#home-discovery'),homeSection('발견','#discover')+'<a class="text-link" href="#discover">음악 둘러보기</a>');}}};
- const first=load(jobs[0]);for(const job of jobs.slice(1))void load(job);return first;
+ const load=async([path,show,id])=>{const target=$('#'+id);try{const d=await api(path,'GET',undefined,{signal:controller.signal});if(!controller.signal.aborted&&id==='home-release'&&ticket===renderId&&target.isConnected&&revision!==apiRevision)return renderHome(ticket);if(active(target)){show(d);updateHomeAccount();}}catch{if(active(target)&&!displayed.has(target)){paint(target,'<div class="home-load-error"><p>음악을 불러오지 못했어요.</p><button class="small-button">다시 시도</button></div>');target.querySelector('button').onclick=()=>load([path,show,id]);if(id==='home-recommended')paint($('#home-discovery'),homeSection('발견','#discover')+'<a class="text-link" href="#discover">음악 둘러보기</a>');}}};
+ const first=load(jobs[0]);for(const job of jobs.slice(1)){
+  // The optional singing/community bridge is currently hidden by design.
+  if(['home-sing','home-conversations'].includes(job[2])&&$('#home-bridge')?.hidden)continue;
+  void load(job);
+ }return first;
 }
