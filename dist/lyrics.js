@@ -135,9 +135,9 @@ function updateSyncedLyrics(force=false){
   const cues=full?currentCues:(ahead?.lines||[]).filter(c=>c.time>=ahead.from),aheadIndex=AifectLyrics.activeCueIndex(cues,at),aheadCue=cues[aheadIndex];
   const aheadText=limitReached?text:aheadCue?(aheadCue.text||'♪ 간주'):full?'♪ '+(aheadIndex<0?'전주':'간주'):ahead?(ahead.text||'♪ '+(ahead.intro?'전주':'간주')):text;
   const rows=limitReached?[]:cues.slice(Math.max(0,aheadIndex),Math.max(0,aheadIndex)+2),twoLines=rows.length?rows.map(c=>c.text||'♪').join('\n'):aheadText;
-  hud.hidden=!hasLyrics;hud.href=current?'#song/'+current.id:'#home';
+  hud.hidden=!current;hud.href=current?'#song/'+current.id:'#home';
   // Two independent single-line rows keep long lyrics from hiding the next cue.
-  hud.replaceChildren(...(hasLyrics?twoLines.split('\n').slice(0,2):[]).map(text=>{const row=document.createElement('span');row.textContent=text;row.title=text;return row;}));
+  hud.replaceChildren(...(hasLyrics?twoLines.split('\n').slice(0,2):current?['아직 등록된 가사가 없어요.']:[]).map(text=>{const row=document.createElement('span');row.textContent=text;row.title=text;return row;}));
  }
  const state=lyricPanelState;if(state?.panel.isConnected){const active=current?.id===state.panel.dataset.track,indexHere=active?index:-1;
   if(state.panel.dataset.mode==='line'){const el=$('#current-lyric-line');if(el){el.classList.add('lyric-preview-lines');el.textContent=active?previewText:'♪ 음악을 재생해주세요';}const status=$('#lyrics-play-status');if(status)status.textContent=active?(lyricRetryAt>Date.now()&&!line?'가사를 불러오지 못했어요. 잠시 후 다시 시도합니다.':'음악에 맞춰 현재·다음 가사이 바뀝니다.'):'이 곡을 재생하면 현재 가사가 표시됩니다.';}

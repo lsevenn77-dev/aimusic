@@ -166,7 +166,7 @@ document.addEventListener('click',async ev=>{
   else if(el.dataset.karaokeTrack){if(!$('#karaoke-accept')?.checked){toast('동의 항목을 먼저 체크해주세요.');return;}await api(`/api/uploads/${el.dataset.karaokeTrack}/karaoke`,'POST',{accept:true});toast('노래방 MR 제공 · 커버 허락에 동의했습니다.');await render();}
   else if(el.dataset.karaokeRegenerate){if(confirm('지금 노래방 MR을 지우고 원곡에서 보컬을 다시 분리할까요?')){await api(`/api/studio/tracks/${el.dataset.karaokeRegenerate}/karaoke`,'POST',{});toast('노래방 MR을 다시 만들기 시작했어요.');await render();}}
   else if(el.dataset.retryTrack){await api(`/api/uploads/${el.dataset.retryTrack}/retry`,'POST');await render();}
-  else if(el.hasAttribute('data-share')){await navigator.clipboard.writeText(location.href);toast('공개 링크를 복사했습니다.');}
+  else if(el.hasAttribute('data-share')){await navigator.clipboard.writeText(el.dataset.share?new URL('/#song/'+encodeURIComponent(el.dataset.share),location.origin).href:location.href);toast('공개 링크를 복사했습니다.');}
   else if(el.dataset.playerAction&&['shuffle','repeat','previous'].includes(el.dataset.playerAction)){
    $('#'+el.dataset.playerAction).click();
    if(el.dataset.playerAction==='shuffle')el.textContent=shuffle?'셔플 켜짐':'셔플 끔';
@@ -176,7 +176,7 @@ document.addEventListener('click',async ev=>{
   else if(el.hasAttribute('data-oauth'))saveResume();
  }catch(e){toast(e.message);}finally{el.disabled=false;el.removeAttribute('aria-busy');}
 });
-audio.ontimeupdate=()=>{if(window.AifectAudioAds?.active)return;$('#elapsed').textContent=time(audio.currentTime);$('#seek').value=audio.currentTime;};
+audio.ontimeupdate=()=>{if(window.AifectAudioAds?.active)return;$('#elapsed').textContent=time(audio.currentTime);if(!window.AifectPlayerShell?.scrubbing)$('#seek').value=audio.currentTime;};
 audio.onplay=()=>{if(window.AifectAudioAds?.active)return;if(!current||!playSession){audio.pause();return;}setPlayerVisible(true);lastTick=performance.now();$('#play-toggle').innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg>';$('#play-toggle').setAttribute('aria-label','일시정지');};
 audio.onpause=()=>{if(window.AifectAudioAds?.active)return;countAdListening();$('#play-toggle').innerHTML=icon('audio-play');$('#play-toggle').setAttribute('aria-label','재생');report();};
 audio.onended=()=>{if(window.AifectAudioAds?.active||!current||!playSession)return;report();countAdListening();if(preview&&current.duration>=60){setPlayerVisible(false);saveResume();dialog('<h2>좋은 음악은 끝까지.</h2><p>무료 회원가입 후 60초 지점부터 이어 들으세요.</p><a class="primary-button" href="#account" id="preview-login">무료 회원가입 후 전체곡 듣기</a>');$('#preview-login').onclick=()=>{$('#dialog').close();returnRoute='#song/'+current.id;};return;}if(repeatMode===2)play(current.id).catch(e=>toast(e.message));else nextTrack(1,true).catch(e=>toast(e.message));};
@@ -185,8 +185,8 @@ setInterval(()=>{if(!window.AifectAudioAds?.active&&!audio.paused&&!audio.seekin
 setInterval(report,10000);
 $('#play-toggle').onclick=async()=>{try{if(window.AifectAudioAds?.active){window.AifectAudioAds.toggle();return;}if(!current){if(queue.length)await play(queue[0]);else if(routeTracks.length)await play(routeTracks[0].id,routeTracks);else toast('먼저 음악을 선택해주세요.');}else if(!playSession||preview!==!me)await play(current.id,null,audio.currentTime);else if(audio.ended)await play(current.id);else if(audio.paused)await audio.play();else audio.pause();}catch(e){toast(e.message);}};
 $('#next').onclick=()=>nextTrack(1).catch(e=>toast(e.message));$('#previous').onclick=()=>{if(audio.currentTime>3)audio.currentTime=0;else nextTrack(-1).catch(e=>toast(e.message));};
-$('#shuffle').onclick=()=>{shuffle=!shuffle;const button=$('#shuffle'),label=shuffle?'섞어 듣기 켜짐':'섞어 듣기 꺼짐';button.classList.toggle('is-active',shuffle);button.setAttribute('aria-pressed',String(shuffle));button.setAttribute('aria-label',label);button.title=label;};
-$('#repeat').onclick=()=>{repeatMode=(repeatMode+1)%3;$('#repeat').classList.toggle('is-active',!!repeatMode);$('#repeat').setAttribute('aria-pressed',String(!!repeatMode));const label=['반복 끔','전체 반복','한 곡 반복'][repeatMode];$('#repeat').setAttribute('aria-label',label);toast(label);};
+$('#shuffle').onclick=()=>{shuffle=!shuffle;const button=$('#shuffle'),label=shuffle?'섞어 듣기 켜짐':'섞어 듣기 꺼짐';button.classList.toggle('is-active',shuffle);button.setAttribute('aria-pressed',String(shuffle));button.setAttribute('aria-label',label);button.title=label;window.AifectPlayerShell?.paintModes();};
+$('#repeat').onclick=()=>{repeatMode=(repeatMode+1)%3;$('#repeat').classList.toggle('is-active',!!repeatMode);$('#repeat').setAttribute('aria-pressed',String(!!repeatMode));const label=['반복 끔','전체 반복','한 곡 반복'][repeatMode];$('#repeat').setAttribute('aria-label',label);window.AifectPlayerShell?.paintModes();toast(label);};
 $('#volume').oninput=e=>{audio.volume=Number(e.target.value);window.AifectAudioAds?.volume(audio.volume);};$('#seek').oninput=e=>{if(current&&!window.AifectAudioAds?.active)audio.currentTime=Number(e.target.value);};
 $('#queue-toggle').onclick=queueDialog;
 $('#player-close').onclick=closePlayer;

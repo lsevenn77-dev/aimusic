@@ -129,7 +129,7 @@ function askLogin(){returnRoute=location.hash;saveResume();location.hash='accoun
 function saveResume(){saveQueue();if(current){pendingResume={id:current.id,time:preview?Math.min(audio.currentTime,60):audio.currentTime};sessionStorage.setItem('aifect-player-resume',JSON.stringify(pendingResume));}}
 function dialog(html){$('#dialog-content').innerHTML=html;if(!$('#dialog').open)$('#dialog').showModal();decorateNativeAudioPlay();}
 // Match content padding to the actual player height, including wrapped controls and safe areas.
-if(typeof ResizeObserver==='function')new ResizeObserver(entries=>{const h=entries[0].target.getBoundingClientRect().height;if(h)document.body.style.setProperty('--player-height',Math.ceil(Math.max(h,matchMedia('(min-width:801px)').matches?103:0))+'px');}).observe($('.player'));
+if(typeof ResizeObserver==='function')new ResizeObserver(entries=>{const h=entries[0].target.getBoundingClientRect().height;if(h)document.body.style.setProperty('--player-height',Math.ceil(h)+'px');}).observe($('.player'));
 function setPlayerVisible(visible){$('.player').hidden=!visible;document.body.classList.toggle('has-player',visible);}
 function countAdListening(){
  if(current&&playSession&&!window.AifectAudioAds?.active)window.AifectAudioAds?.completed({session:playSession,preview,duration:audio.duration,listened:AifectAudioAdsCore.playedSeconds(audio.played)});
@@ -142,7 +142,7 @@ function closePlayer(){
  audio.removeAttribute('src');audio.load();
  try{sessionStorage.removeItem('aifect-player-resume');}catch{}
  setCurrentLyrics(null);$('#elapsed').textContent='0:00';$('#duration').textContent='0:00';$('#seek').value=0;$('#seek').max=0;
- setPlayerVisible(false);
+ window.AifectPlayerShell?.close();setPlayerVisible(false);
  if(restoreFocus)$('#main').focus({preventScroll:true});
 }
 function formField(label,name,type='text',value='',extra=''){return `<label class="form-field">${label}<input type="${type}" name="${name}" value="${esc(value)}" ${extra}></label>`;}
@@ -153,9 +153,9 @@ async function play(tid,tracks=null,start=0){
  const [{track:t},session]=await Promise.all([api('/api/tracks/'+tid),api('/api/playback/'+tid,'POST')]);if(serial!==playSerial)return;remember([t]);
  current=t;playSession=session.id;preview=session.preview;heard=0;lastTick=0;
  if(tracks?.length)queue=[...new Set(tracks.map(t=>t.id))];else if(!queue.includes(tid))queue=[tid];saveQueue();
- audio.src=session.src;$('#now-playing').innerHTML=`<a href="#song/${t.id}" aria-label="${esc(t.title)} 곡 보기">${cover(t,'mini-cover')}</a><div><strong title="${esc(t.title)}">${esc(t.title)}</strong><span>${esc(t.artist)}</span></div>`;
+ audio.src=session.src;
  renderPlayerActions(t);
- $('#listen-mode').textContent=preview?'60초 미리 듣기':session.bitrate_kbps===256?'AAC 256':'AAC 128';$('#seek').max=preview?Math.min(t.duration,60):t.duration;$('#duration').textContent=time($('#seek').max);
+ $('#listen-mode').textContent=preview?'60초 미리 듣기':session.bitrate_kbps===256?'AAC 256':'AAC 128';$('#seek').max=preview?Math.min(t.duration,60):t.duration;$('#duration').textContent=playerClock($('#seek').max);
  if(start)audio.currentTime=Math.min(start,preview?59.9:t.duration);
  setCurrentLyrics(t);refreshLyricsPanel();setPlayerVisible(true);
  try{await audio.play();}catch(e){if(e.name==='NotAllowedError')toast('재생 버튼을 눌러 음악을 이어 들어보세요.');else if(e.name!=='AbortError')throw new Error('음원을 재생할 수 없습니다. 잠시 후 다시 시도해주세요.');}
