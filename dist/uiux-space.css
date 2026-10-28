@@ -1,0 +1,166 @@
+/* Approved browsing surfaces only. No selectors target sing, dubbing editors,
+   global navigation, player, purchase dialogs or recording state. */
+
+/* Home retains the Android section order, carousel and individual music cards. */
+#main[data-route="home"] .aifect-home>section{margin-bottom:28px}
+#main[data-route="home"] .aifect-home>#home-release,
+#main[data-route="home"] .aifect-home>#home-categories{margin-bottom:14px}
+
+/* Flatten only the extra section frames, not their interactive contents. */
+#main .mypage-layout .mp-main>.mp-moments-card,
+#main .mypage-layout #mp-content>.mp-card,
+#main .mypage-layout #mp-aside-content>.mp-card,
+#main .mypage-layout:not(.mp-own)>.mp-aside>.mp-card:not(.mp-studio){
+ background:transparent;border:0;border-top:1px solid var(--ds-line);
+ border-radius:0;box-shadow:none;padding:16px 0;margin-bottom:12px;
+}
+#main .mypage-layout .mp-profile-bio{font-size:13px;line-height:1.6;color:var(--ds-body);white-space:pre-wrap;overflow-wrap:anywhere;margin:8px 0 0}
+#main .mypage-layout .mp-profile-actions{flex-wrap:wrap}
+#main .mypage-layout .mp-profile-actions>:is(.primary-button,.small-button){min-width:0;min-height:44px;height:auto;padding:8px 12px}
+#main .mypage-layout .mp-profile-actions>.mp-more{width:44px;height:44px;min-width:44px}
+#main .mypage-layout .mp-profile-actions>.mp-more:focus-visible{outline:2px solid var(--ds-selected)}
+#main .mypage-layout .mp-moments{grid-auto-columns:calc((100% - 36px)/4)}
+#main .mypage-layout .mp-moments button{min-height:64px}
+
+/* Reuse the current row controls and artwork, at a common 44px hit area. */
+#main .mypage-layout .mp-work-list .song-cover-row,
+#main[data-route^="song/"] .song-cover-row{min-height:72px;padding:10px 0;gap:4px}
+#main .mypage-layout .song-cover-more,
+#main[data-route^="song/"] .song-cover-more{width:44px;height:44px;min-width:44px;padding:0;color:var(--ds-body);display:inline-flex;align-items:center;justify-content:center}
+#main .mypage-layout .song-cover-more svg,
+#main[data-route^="song/"] .song-cover-more svg{width:20px;height:20px;stroke-width:1.6}
+#main .mypage-layout .song-cover-expand,
+#main[data-route^="song/"] .song-cover-expand{min-width:44px;min-height:44px;justify-content:center}
+#main .mypage-layout .mp-work-participants{min-width:44px;text-align:center;font-variant-numeric:tabular-nums}
+#main .mypage-layout .song-cover-meta,
+#main[data-route^="song/"] .song-cover-meta{font-size:11px}
+#main[data-route^="song/"] .song-cover-join-icon{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;min-width:44px;padding:0;background:transparent;color:var(--ds-body);border:0}
+#main[data-route^="song/"] .song-cover-join-icon svg{box-sizing:content-box;width:20px;height:20px;padding:5px;border:1px solid currentColor;border-radius:50%;stroke-width:1.6}
+
+/* MR rows keep the existing detail URL and recording link. Only recorded duets
+   have playback. No new player or recording implementation is introduced. */
+#main .play-page .play-song-row{display:flex;gap:8px;min-height:72px;padding:10px 0}
+#main .play-page .play-song-detail{display:flex;align-items:center;gap:12px;min-width:0;flex:1;color:var(--ds-text)}
+#main .play-page .play-song-detail .play-song-art{flex:0 0 48px;width:48px;height:48px}
+#main .play-page .play-song-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#main .play-page .play-song-producer,
+#main .play-page .play-song-artist{width:14%;flex-shrink:0}
+#main .play-page .play-song-count{min-width:44px;text-align:center;font-variant-numeric:tabular-nums}
+#main .play-page .play-row-icon{width:44px;height:44px;min-width:44px;min-height:44px;flex:none;display:inline-flex;align-items:center;justify-content:center;padding:0;border:0;background:transparent;color:var(--ds-body)}
+#main .play-page .play-row-icon svg{width:20px;height:20px;stroke-width:1.6}
+#main .play-page .play-row-icon .audio-play-icon{width:36px;height:36px}
+#main .play-page .play-row-record svg{box-sizing:content-box;padding:5px;border:1px solid currentColor;border-radius:50%}
+#main .play-page .play-project-list{gap:0}
+#main .play-page .play-project-row{padding:12px 0;gap:12px}
+#main .play-page .play-project-row h2{margin-bottom:4px}
+#main .play-page .play-empty{padding:28px 12px}
+
+/* Community retains its tabs, room/crew cards, search and room actions. */
+#main:is([data-route="community"],[data-route^="community/"]) .v3-empty{padding:24px 12px;border:0;border-top:1px solid var(--ds-line);border-radius:0;background:transparent}
+#main:is([data-route="community"],[data-route^="community/"]) .v3-toolbar{margin-top:18px}
+
+/* Product cards and all checkout dialogs retain their original boundaries. */
+#main[data-route="gifts"] .shop-shelf{border:0;border-top:1px solid var(--ds-line);border-radius:0;padding:16px 0;margin-bottom:16px;background:transparent;box-shadow:none}
+#main[data-route="gifts"] .shop-actions{align-items:stretch}
+#main[data-route="gifts"] .shop-actions a{min-height:44px;justify-content:center}
+#main[data-route="gifts"] .shop-arrows button{width:44px;height:44px;min-height:44px}
+
+/* Song: remove wrapper duplication while preserving lyrics/player boundaries. */
+#main[data-route^="song/"] .song-covers-panel,
+#main[data-route^="song/"] .comments-panel{border:0;border-top:1px solid var(--ds-line);border-radius:0;padding:16px 0;background:transparent;box-shadow:none}
+#main[data-route^="song/"] .song-introduction{border:0;border-top:1px solid var(--ds-line);border-radius:0;background:transparent;padding:12px 0;box-shadow:none}
+
+/* Notifications: keep unread states, dates and gift artwork in lighter rows. */
+#main[data-route^="notifications"] .activity-row{border:0;border-bottom:1px solid var(--ds-line);border-radius:0;margin:0;padding:16px 4px;background:transparent;box-shadow:none}
+#main[data-route^="notifications"] .activity-row.is-unread{background:var(--ds-soft)}
+#main[data-route^="notifications"] .activity-copy>p{margin:5px 0}
+#main[data-route^="notifications"] .activity-open{margin-top:6px;min-height:44px}
+#main[data-route^="notifications"] .activity-tools button{min-height:44px}
+#main[data-route^="notifications"] .activity-empty{padding:32px 12px}
+
+/* Preserve the desktop two-pane workspace and the mobile back navigation.
+   Existing legacy rules use !important on these exact row backgrounds; these
+   narrow overrides affect only inbox rows, never chat bubbles or other cards. */
+#main[data-route^="dm"] .message-workspace{border:0;border-top:1px solid var(--ds-line);border-radius:0;background:transparent;box-shadow:none}
+#main[data-route^="dm"] .message-list-pane{padding:16px 12px 16px 0}
+#main[data-route^="dm"] .conversation-row{border:0!important;border-bottom:1px solid var(--ds-line)!important;border-radius:0!important;margin:0;padding:12px 4px!important;background:transparent!important;box-shadow:none}
+#main[data-route^="dm"] .conversation-row:is(:hover,.is-selected){background:var(--ds-panel)!important}
+#main[data-route^="dm"] .conversation-list{gap:0}
+#main[data-route^="dm"] .conversation-copy strong{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+#main[data-route^="dm"] .message-list-pane .dm-section-heading{margin:0 4px 8px}
+#main[data-route^="dm"] .inbox-tools>:is(a,button){min-height:44px;display:inline-flex;align-items:center}
+
+@media(max-width:767px){
+ #main:is([data-route="home"],[data-route^="karaoke"],[data-route="community"],[data-route^="community/"],[data-route="gifts"],[data-route="profile"],[data-route^="profile?"],[data-route^="producer/"],[data-route^="song/"],[data-route="studio"],[data-route^="notifications"]):before{display:none}
+ /* Mobile titles remain in the accessibility tree. These headings contain
+    only a title, explanatory copy and a decorative free-listening badge. */
+ #main .play-page>.page-heading,
+ #main .mypage-layout .mp-heading,
+ #main[data-route^="notifications"] .activity-heading,
+ #main[data-route^="dm"]>.message-page-heading,
+ #main[data-route="gifts"] .shop-heading>h1,
+ #main:is([data-route="community"],[data-route^="community/"],[data-route="studio"],[data-route^="song/"])>.page-heading{
+  position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);clip-path:inset(50%);white-space:nowrap;border:0;
+ }
+ #main:is([data-route="home"],[data-route^="karaoke"],[data-route="community"],[data-route^="community/"],[data-route="gifts"],[data-route="profile"],[data-route^="profile?"],[data-route^="producer/"],[data-route^="song/"],[data-route="studio"],[data-route^="notifications"],[data-route^="dm"]){padding-inline:14px;padding-top:12px}
+ #main[data-route="home"] .aifect-home>section{margin-bottom:24px}
+ #main[data-route="home"] .aifect-home .home-heading{margin-bottom:10px}
+ #main .play-page .play-main-tabs{margin:0 0 12px}
+ #main .play-page .play-subbar{gap:12px;margin-bottom:12px}
+ #main .play-page .play-category-tabs{gap:4px}
+ #main .play-page .play-category-tabs .tab{min-height:52px;padding:6px 2px;gap:4px;border:0;border-radius:0;background:transparent;font-size:12px}
+ #main .play-page .play-category-tabs .tab.active{background:var(--ds-soft);border-radius:var(--ds-radius-sm)}
+ #main .play-page .play-category-tabs .tab svg{width:18px;height:18px}
+ #main .play-page .play-search{margin-bottom:12px}
+ #main .play-page .play-song-producer,#main .play-page .play-song-artist{display:none}
+ #main .play-page .play-song-row{gap:0;min-height:68px}
+ #main .play-page .play-song-detail{gap:8px}
+ #main .play-page .play-song-detail .play-song-art{width:44px;height:44px;flex-basis:44px}
+ #main .play-page .play-project-row{gap:8px}
+ #main .play-page .play-project-row>.small-button{padding:8px;font-size:11px}
+ #main .play-page .play-project-row p{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ #main .play-page .play-project-row small{font-size:11px}
+ #main:is([data-route="community"],[data-route^="community/"])>.music-community-tabs{margin:0 0 12px}
+ #main:is([data-route="community"],[data-route^="community/"]) .play-community-link{margin-bottom:12px;font-size:12px}
+ #main:is([data-route="community"],[data-route^="community/"]) .v3-toolbar{margin:12px 0}
+ #main[data-route="gifts"] .shop-heading{gap:10px;margin-bottom:12px}
+ #main .mypage-layout .mp-profile{padding:8px 0 16px;gap:12px}
+ #main .mypage-layout .mp-profile-actions{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%;gap:6px;justify-content:stretch;margin:0}
+ #main .mypage-layout.mp-own .mp-profile-actions{grid-template-columns:repeat(2,minmax(0,1fr))}
+ #main .mypage-layout .mp-profile-actions>:is(.primary-button,.small-button){width:100%;min-width:0;padding:8px 4px;font-size:12px}
+ #main .mypage-layout:not(.mp-own) .mp-identity{padding-right:24px}
+ #main .mypage-layout .mp-profile-actions>.mp-more{right:0;top:0}
+ #main .mypage-layout .mp-moments{grid-auto-columns:84px;gap:8px}
+ #main .mypage-layout .mp-moments button{aspect-ratio:1.15}
+ #main .mypage-layout .mp-section-head{margin-bottom:10px}
+ #main .mypage-layout .mp-section-head h2{font-size:17px}
+ #main .mypage-layout .mp-all{min-height:44px}
+ #main .mypage-layout .mp-work-list .song-cover-row{display:flex;gap:0;min-height:68px}
+ #main .mypage-layout .mp-work-list .song-cover-detail{flex:1;min-width:0;grid-template-columns:44px minmax(0,1fr);gap:8px}
+ #main .mypage-layout .mp-work-list .song-cover-row:has(.song-cover-join){flex-wrap:wrap}
+ #main .mypage-layout .mp-work-list .song-cover-row:has(.song-cover-join)>.song-cover-detail{flex-basis:calc(100% - 48px)}
+ #main .mypage-layout .mp-work-list .song-cover-row:has(.song-cover-join)>.song-cover-play{margin-left:auto}
+ #main .mypage-layout .mp-work-list .song-cover-copy strong{font-size:13px}
+ #main .mypage-layout .mp-work-list .song-cover-meta{font-size:10px}
+ #main[data-route^="song/"] .song-detail-refined{padding:0 0 16px}
+ #main[data-route^="song/"] .song-covers-panel{margin-inline:0}
+ #main[data-route^="song/"] .song-cover-group>.song-cover-row{display:flex;gap:0}
+ #main[data-route^="song/"] .song-cover-group>.song-cover-row>.song-cover-detail{flex:1;min-width:0}
+ #main[data-route^="song/"] .song-covers-panel .section-heading,
+ #main[data-route^="song/"] .song-covers-panel .covers-sort{margin-inline:0}
+ #main[data-route="studio"]>.surface{border:0;border-top:1px solid var(--ds-line);border-radius:0;padding:16px 0;background:transparent;box-shadow:none}
+ #main[data-route="studio"]>.section-heading{margin-top:20px}
+ #main[data-route^="notifications"] .activity-toolbar{flex-wrap:wrap;gap:0}
+ #main[data-route^="notifications"] .activity-toolbar .tabs{width:100%;display:flex;justify-content:space-between}
+ #main[data-route^="notifications"] .activity-toolbar .tab{min-height:44px;font-size:13px;padding-inline:4px}
+ #main[data-route^="notifications"] .activity-tools{margin-left:auto;gap:16px}
+ #main[data-route^="notifications"] .activity-tools button{font-size:11px}
+ #main[data-route^="notifications"] .activity-day{margin:18px 0 6px}
+ #main[data-route^="notifications"] .activity-row{gap:10px;padding:12px 0}
+ #main[data-route^="notifications"] .activity-copy>p{font-size:13px}
+ #main[data-route^="notifications"] .activity-note{margin:8px 0}
+ #main[data-route^="dm"] .message-list-pane{padding:0}
+ #main[data-route^="dm"] .message-workspace{border:0}
+ #main[data-route^="dm"] .conversation-row{min-height:76px}
+ #main[data-route^="dm"] .dm-inbox-tabs{margin-top:0}
+}

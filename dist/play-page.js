@@ -56,7 +56,8 @@ function playSongRows(tracks,tab){
  return `<div class="play-song-list">${tracks.map(t=>{
   const href=duet?'#sing/'+encodeURIComponent(t.original_id)+'?duet='+encodeURIComponent(t.id):'#song/'+encodeURIComponent(t.id);
   const artist=duet?t.original_artist:(t.has_ai_artist?t.artist:'AI 가수 미지정');
-  return `<a class="play-song-row" href="${esc(href)}" aria-label="${esc(t.title)} ${duet?'듀엣 참여':'곡 이야기'}">${cover(t,'play-song-art')}<span class="play-song-title" title="${esc(t.title)}">${esc(t.title)}</span><span class="play-song-producer" title="제작자: ${esc(t.producer)}">${esc(t.producer)}</span><span class="play-song-artist" title="AI 가수: ${esc(artist)}">${esc(artist)}</span><span class="play-song-count">${esc(t.participants)}명 참여</span></a>`;
+  const recordHref=duet?href:'#sing/'+encodeURIComponent(t.id);
+  return `<article class="play-song-row"><a class="play-song-detail" href="${esc(href)}" aria-label="${esc(t.title)} ${duet?'듀엣 참여':'곡 이야기'}">${cover(t,'play-song-art')}<span class="play-song-title" title="${esc(t.title)}">${esc(t.title)}</span></a><span class="play-song-producer" title="제작자: ${esc(t.producer)}">${esc(t.producer)}</span><span class="play-song-artist" title="AI 가수: ${esc(artist)}">${esc(artist)}</span><span class="play-song-count">${esc(t.participants)}<span class="sr-only">명 참여</span></span>${duet?`<button class="play-row-icon" data-play="${esc(t.id)}" aria-label="${esc(t.title)} 재생">${icon('audio-play',36)}</button>`:''}<a class="play-row-icon play-row-record" href="${esc(recordHref)}" aria-label="${esc(t.title)} ${duet?'듀엣 참여':'노래하기'}">${icon(duet?'plus':'mic')}</a><button type="button" class="play-row-icon" data-track-menu="${esc(t.id)}" aria-label="${esc(t.title)} 더보기">${icon('menu')}</button></article>`;
  }).join('')}</div>`;
 }
 function playProjectRows(projects,tab){
@@ -77,7 +78,7 @@ function playResults(view){
  const s=view.play,items=view.items;
  if(!items.length)return playEmpty(s.tab==='following'?'팔로잉한 창작자의 완성작을 기다려요':'아직 표시할 작품이 없어요',s.mode==='browse'?'공개 완료된 솔로·듀엣·더빙이 여기에 모여요.':s.mode==='dubbing'?'공개된 극본을 둘러보거나 내 이야기를 시작해보세요.':'MR이 준비된 곡과 참여할 수 있는 듀엣이 여기에 모여요.',s.mode==='dubbing'?'#dubbing/new':undefined,'더빙 만들기');
  if(s.mode==='dubbing')return playProjectRows(items,s.tab);
- if(s.mode==='song')return `<div class="play-song-desktop">${playSongRows(items,s.tab)}</div><div class="home-music-grid play-grid play-song-mobile">${items.map(t=>playMusicCard(t,s.tab==='duets'?'duet':'song')).join('')}</div>`;
+ if(s.mode==='song')return `<div class="play-song-unified">${playSongRows(items,s.tab)}</div>`;
  return `<div class="home-music-grid play-grid">${items.map(t=>t.type==='dubbing'?playDubbingCard(t):playMusicCard(t,s.mode==='song'?(s.tab==='duets'?'duet':'song'):null)).join('')}</div>`;
 }
 async function playView(base,param,raw){

@@ -4,7 +4,7 @@
 function songCoverRowHTML(t,{ranked=false,child=false,invitation=false,profile=false}={}){
  const id=esc(t.id),title=esc(t.title),duet=t.cover_mode==='duet';
  const performer=child&&t.duet_partner?[t.duet_partner,t.producer].filter(Boolean).join(' & '):t.producer;
- const metadata=[performer,duet?'듀엣':t.cover_mode==='solo'?'솔로':'',t.genre,Number.isFinite(t.duration)&&t.duration>0?time(t.duration):''].filter(Boolean).join(' · ');
+ const metadata=[performer,duet?'듀엣':t.cover_mode==='solo'?'솔로':''].filter(Boolean).join(' · ');
  const expandable=(profile||(t.participants||0)>0)&&(t.completions||0)>0;
  return `<article class="song-cover-row${child?' song-cover-child':''}" data-song-cover="${id}">
   <a class="song-cover-detail${ranked?' is-ranked':''}" href="#song/${id}" aria-label="${title} 상세 보기">
@@ -14,12 +14,12 @@ function songCoverRowHTML(t,{ranked=false,child=false,invitation=false,profile=f
     <span class="song-cover-meta" title="${esc(metadata)}">${esc(metadata)}</span>
    </span>
   </a>
-  ${invitation?`<button type="button" class="song-cover-expand" ${expandable?`data-cover-children="${id}" aria-controls="cover-children-${id}"`:'disabled'} aria-expanded="false" title="참여자 ${number(t.participants||0)}명 · 완성작 ${number(t.completions||0)}개">${number(t.participants||0)}명 참여${expandable?' <span data-cover-arrow aria-hidden="true">▼</span>':''}</button>`:''}
-  ${profile&&!invitation&&!child?'<span class="mp-work-participants">0명 참여</span>':''}
+  ${invitation?`<button type="button" class="song-cover-expand" ${expandable?`data-cover-children="${id}" aria-controls="cover-children-${id}"`:'disabled'} aria-expanded="false" title="참여자 ${number(t.participants||0)}명 · 완성작 ${number(t.completions||0)}개">${number(t.participants||0)}<span class="sr-only">명 참여</span>${expandable?' <span data-cover-arrow aria-hidden="true">▼</span>':''}</button>`:''}
+  ${profile&&!invitation&&!child?'<span class="mp-work-participants">0<span class="sr-only">명 참여</span></span>':''}
   ${!profile&&!invitation&&!child?`<button class="song-cover-like" data-like="${id}" aria-label="${title} 좋아요" aria-pressed="${liked(t.id)}">${icon('heart')}<span data-like-count>${number(t.likes||0)}</span></button><span class="song-cover-plays">${number(t.plays||0)}회 감상</span>`:''}
   <button type="button" class="song-cover-play" data-play="${id}" data-community-toggle data-song-cover-toggle data-title="${title}" aria-label="${title} 재생" aria-pressed="false"><span class="song-cover-play-art">${icon('audio-play',36)}<span class="song-cover-pause" hidden>${icon('pause')}</span></span></button>
-  ${invitation&&t.can_join?`<a class="primary-button song-cover-join" href="#sing/${esc(t.original_id)}?duet=${id}" aria-label="${title} 참여하기">참여하기</a>`:''}
-  <button type="button" class="song-cover-more" data-track-menu="${id}" aria-label="${title} 더보기">${icon('more')}</button>
+  ${invitation&&t.can_join?`<a class="primary-button song-cover-join${profile?'':' song-cover-join-icon'}" href="#sing/${esc(t.original_id)}?duet=${id}" aria-label="${title} 참여하기">${profile?'참여하기':icon('plus')}</a>`:''}
+  <button type="button" class="song-cover-more" data-track-menu="${id}" aria-label="${title} 더보기">${icon('menu')}</button>
  </article>`;
 }
 /** @param {SongCover} t */

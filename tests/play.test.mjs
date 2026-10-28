@@ -32,11 +32,13 @@ test('Android PLAY navigation keeps every existing route, selected state and cre
  }
 });
 
-test('mobile song cards reuse the catalog and preserve solo and duet recording targets',()=>{
+test('responsive song rows preserve catalog and recording targets without giving MR a player',()=>{
  const c=playUI(),track={id:'cover-1',original_id:'original-1',title:'기존 곡',participants:2};
  for(const tab of ['recommended','duets']){
   const html=c.playResults({play:{mode:'song',tab},items:[track]});
-  assert.match(html,/play-song-desktop/);assert.match(html,/play-song-mobile/);
+  assert.match(html,/play-song-unified/);assert.equal((html.match(/play-song-row"/g)||[]).length,1);
+  if(tab==='recommended')assert.doesNotMatch(html,/data-play=/);else assert.match(html,/data-play="cover-1"/);
+  assert.match(html,/data-track-menu="cover-1"/);
   assert.match(html,/existing-cover/);assert.ok(html.includes('기존 곡'));
   const target=tab==='duets'?'#sing/original-1?duet=cover-1':'#sing/cover-1';
   assert.ok(html.includes('href="'+target+'"'),target);
