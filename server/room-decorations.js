@@ -1,9 +1,13 @@
 import {one,rows,run,now,fail} from './db.js';
 import {DECORATIONS,FREE_ROOM_THEMES,DEFAULT_ROOM_THEME} from '../shared/decorations.js';
 import {activeDecorationSQL} from './decorations.js';
+import {playerColumnsSQL} from './player.js';
 export async function roomThemeChoices(env,uid){
- const owned=await rows(env,`SELECT item_key,expires_at FROM player_inventory pi WHERE user_id=? AND ${activeDecorationSQL('pi')}`,uid);
- return [...FREE_ROOM_THEMES.map(p=>({...p,selectable:true,paid:false})),...Object.values(DECORATIONS).filter(p=>p.kind==='TALKING_ROOM_THEME'&&owned.some(i=>i.item_key===p.sku)).map(p=>({...p,paid:true,selectable:owned.some(i=>i.item_key===p.sku),expires_at:owned.find(i=>i.item_key===p.sku)?.expires_at||0}))];
+ // A stock purchase is not active equipment. Prefer the latest explicitly
+ // activated, still-valid paid theme, then offer the free backgrounds.
+ const owned=await rows(env,`SELECT item_key,expires_at,(SELECT max(created) FROM decoration_redemptions dr WHERE dr.active_inventory_id=pi.id) activated,(SELECT max(rowid) FROM decoration_redemptions dr WHERE dr.active_inventory_id=pi.id) activation_order FROM player_inventory pi WHERE user_id=? AND ${activeDecorationSQL('pi')} ORDER BY COALESCE(activated,pi.granted_at) DESC,COALESCE(activation_order,0) DESC,pi.id`,uid);
+ const paid=Object.values(DECORATIONS).filter(p=>p.kind==='TALKING_ROOM_THEME'&&owned.some(i=>i.item_key===p.sku)).sort((a,b)=>owned.findIndex(i=>i.item_key===a.sku)-owned.findIndex(i=>i.item_key===b.sku)).map(p=>({...p,paid:true,selectable:true,expires_at:owned.find(i=>i.item_key===p.sku).expires_at}));
+ return [...paid,...FREE_ROOM_THEMES.map(p=>({...p,selectable:true,paid:false}))];
 }
 export async function assertRoomTheme(env,uid,sku){
  if(FREE_ROOM_THEMES.some(t=>t.sku===sku))return sku;
@@ -32,5 +36,14 @@ export async function resolveRoomDecoration(env,room){
 export async function decorateRoomResult(env,data){
  if(data.room)data={...data,room:{...data.room,theme:await resolveRoomDecoration(env,data.room)}};
  if(data.rooms)data={...data,rooms:await Promise.all(data.rooms.map(async r=>({...r,theme:await resolveRoomDecoration(env,r)})))};
+ if(Array.isArray(data.members)&&data.members.length){
+  const ids=[...new Set(data.members.map(m=>m.id))];
+  // One bounded lookup validates every member's current equipment, including
+  // ownership, funding, expiry and crew requirements. No private inventory or
+  // XP history is sent to a room, and nulls explicitly clear stale decoration.
+  const identities=await rows(env,`SELECT u.id,${playerColumnsSQL('u.id')} FROM users u WHERE u.id IN (${ids.map(()=>'?').join(',')}) AND u.provider!='deleted'`,...ids);
+  const frames=new Map(identities.map(p=>[p.id,{profile_frame:p.profile_frame,profile_frame_artwork:p.profile_frame_artwork}]));
+  data={...data,members:data.members.map(member=>({...member,...(frames.get(member.id)||{profile_frame:null,profile_frame_artwork:null})}))};
+ }
  return data;
 }

@@ -33,12 +33,15 @@ export async function voiceRoomsRoute(req,env,path,user,ctx) {
  // Authentication already resolves the privacy-safe public nickname. Crew
  // membership still authorizes room access, but is not part of a room label.
  const actor={id:user.id,profile_id:user.profile_id||null,name:user.name,image_version:user.image_version||'',crews:crews.map(c=>c.id),followedHosts:followed.map(p=>p.user_id),blocks:viewerBlockedIds(user)||[]};
- if(path==='/api/voice/options'&&req.method==='GET')return json({crews,themes:await roomThemeChoices(env,user.id)});
+ if(path==='/api/voice/options'&&req.method==='GET'){
+  const themes=await roomThemeChoices(env,user.id);
+  return json({crews,themes,preferred_theme:themes.find(t=>t.paid)?.sku||'navy'});
+ }
  if(path==='/api/voice/rooms'&&req.method==='GET')return json({...await decorateRoomResult(env,await result(await voiceCall(env,actor,'directory','list'))),crews});
  if(path==='/api/voice/rooms'&&req.method==='POST') {
   if(!actor.profile_id)fail(409,'마이에서 프로필을 먼저 만들어주세요.');
   await rate(env,'voice-create:'+user.id,5,3600);const b=await req.json();
-  const selected=await assertRoomTheme(env,user.id,b.theme_sku||b.background||'navy');
+  const selected=await assertRoomTheme(env,user.id,b.theme_sku||b.background||(await roomThemeChoices(env,user.id)).find(t=>t.paid)?.sku||'navy');
   const data=await result(await voiceCall(env,actor,requestId(b.request_id),'create',{title:str(b.title,60),visibility:b.visibility,crew_id:b.crew_id,max_members:b.max_members,background:selected.startsWith('theme_')?'navy':selected,announcement:b.announcement,seating_mode:b.seating_mode}));
   await saveRoomTheme(env,actor,data.room,selected,{creating:true});return json(await decorateRoomResult(env,data),201);
  }
@@ -91,5 +94,9 @@ export async function voiceRoomsRoute(req,env,path,user,ctx) {
  }
  const allowed=['join','heartbeat','leave','close','settings','seat-invite','seat-answer','self-mute','request-mic','cancel-mic','reject-mic','approve-mic','release-mic','mute','moderate','chat','publish','published','subscribe','answer'];
  if(!allowed.includes(action))fail(404,'지원하지 않는 토킹룸 요청이에요.');
- return voiceCall(env,actor,room,action,b);
+ const response=await voiceCall(env,actor,room,action,b);
+ // The transport service owns membership and audio, while the Site owns paid
+ // theme/frame entitlement. Native listeners receive both on entry/refresh.
+ if(response.ok&&['join','heartbeat'].includes(action))return json(await decorateRoomResult(env,await response.json()),response.status);
+ return response;
 }

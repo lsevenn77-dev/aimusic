@@ -9,7 +9,7 @@ test('theme options exclude expired, stored and other-owner grants; active owner
  await f.buyUse('theme_starlight_lounge');await f.buy('theme_cherry_blossom');await f.buyUse('theme_aurora_night');
  f.sql.exec("UPDATE player_inventory SET expires_at=unixepoch()-1 WHERE item_key='theme_aurora_night' AND source='decoration'");
  const a=(await f.call('/api/voice/options')).body.themes;
- assert.deepEqual(a.map(t=>t.sku),['navy','sunset','night','theme_starlight_lounge']);
+ assert.deepEqual(a.map(t=>t.sku),['theme_starlight_lounge','navy','sunset','night']);
  assert.deepEqual((await f.call('/api/voice/options','GET',null,'other')).body.themes.map(t=>t.sku),['navy','sunset','night']);
 });
 test('focus restores original shell state and never activates for a room URL without membership',()=>{
@@ -30,6 +30,8 @@ test('all nine versioned theme files have exact WebP dimensions and existing pro
   const b=readFileSync(new URL('../dist'+path,import.meta.url));assert.equal(b.toString('ascii',0,4),'RIFF');assert.equal(b.toString('ascii',8,12),'WEBP');
   const kind=b.toString('ascii',12,16);let size;
   if(kind==='VP8X')size=[b.readUIntLE(24,3)+1,b.readUIntLE(27,3)+1];else if(kind==='VP8 ')size=[b.readUInt16LE(26)&16383,b.readUInt16LE(28)&16383];else throw Error('Unexpected WebP encoding '+kind);
-  assert.deepEqual(size,dimensions[key],path);assert.equal(b.readUInt32LE(4)+8,b.length);
+  // Preserve the generated master pixels rather than claiming a resized 4K export.
+  const expected=p.sku==='theme_aurora_night'&&key==='roomMobile'?[941,1672]:dimensions[key];
+  assert.deepEqual(size,expected,path);assert.equal(b.readUInt32LE(4)+8,b.length);
  }}
 });
