@@ -1,4 +1,4 @@
-interface HomeTrack {id:string;title:string;artist?:string;producer?:string;kind?:string;duet_partner?:string;original_id?:string;plays?:number;likes?:number;comments?:number;chart_rank?:number;}
+interface HomeTrack {id:string;title:string;artist?:string;producer?:string;kind?:string;duet_partner?:string;original_id?:string;plays?:number;likes?:number;comments?:number;chart_rank?:number;genre?:string;genres?:string[];description?:string;chart_movement?:string;rank_change?:number;}
 interface HomePlaylist {id:string;name:string;tracks:number;locked?:boolean;owner_name?:string;}
 interface HomePerson {id:string;name:string;bio?:string;}
 interface HomeData {tracks?:HomeTrack[];playlists?:HomePlaylist[];producers?:HomePerson[];}
@@ -17,3 +17,5 @@ declare function liked(id:string):boolean;
 declare function remember(tracks:HomeTrack[]):void;
 declare function peekApiRead(path:string,options:{display:boolean}):HomeData|null;
 declare function api(path:string):Promise<HomeData>;
+
+declare const genreArtwork:Record<string,string>;

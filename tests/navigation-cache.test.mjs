@@ -38,10 +38,10 @@ function homeRenderer(fetch){
  const c=renderer(fetch),sections=new Map(),oldHTML=Object.getOwnPropertyDescriptor(c.main,'innerHTML'),select=c.document.querySelector;
  Object.defineProperty(c.main,'innerHTML',{get:oldHTML.get,set(html){
   oldHTML.set.call(c.main,html);for(const node of sections.values())node.isConnected=false;sections.clear();
-  for(const match of html.matchAll(/id="(home-[^"]+)"/g)){const node={innerHTML:'HOME_LOADING',hidden:false,isConnected:true,attributes:new Map(),setAttribute(name,value){this.attributes.set(name,value);},removeAttribute(name){this.attributes.delete(name);},querySelector:()=>({onclick:null})};sections.set(match[1],node);}
+  for(const match of html.matchAll(/id="(home-[^"]+)"/g)){const node={innerHTML:'HOME_LOADING',hidden:false,isConnected:true,attributes:new Map(),setAttribute(name,value){this.attributes.set(name,value);},removeAttribute(name){this.attributes.delete(name);},querySelectorAll:()=>[],querySelector:()=>({onclick:null})};sections.set(match[1],node);}
  }});
  c.document.querySelector=selector=>sections.get(selector.slice(1))||select(selector);
- Object.assign(c.context,{homeBrowseObserver:null,musicListeningShortcuts:()=>'',playlistSaveButton:()=>'',musicTrackCard:t=>'<article>'+t.title+'</article>',collectionGrid:items=>items.map(item=>item.name).join(','),playlistArt:()=>''});
+ Object.assign(c.context,{genreArtwork:{Rock:"/assets/genres/08.webp"},homeBrowseObserver:null,musicListeningShortcuts:()=>'',playlistSaveButton:()=>'',musicTrackCard:t=>'<article>'+t.title+'</article>',collectionGrid:items=>items.map(item=>item.name).join(','),playlistArt:()=>''});
  vm.runInContext(source('home.js'),c.context);
  // These cache tests exercise rendering and account isolation, not DOM event wiring.
  c.run('bindHome=()=>{};bindHomeCarousel=()=>{};');
@@ -279,24 +279,24 @@ test('route snapshots evict old pages and expire after sixty seconds',async()=>{
 test('home hydrates playable shelves from display snapshots while expired reads refresh',{timeout:3000},async()=>{
  const paths=new Map([
   ['/api/catalog?section=tracks&limit=12',{tracks:[track('Cached release')]}],
-  ['/api/karaoke',{tracks:[track('Cached sing')]}],
+  ['/api/discovery',{tracks:[track('Cached recommendation')]}],
   ['/api/community?kind=cover',{tracks:[track('Cached cover')]}],
-  ['/api/playlists?sort=popular',{playlists:[{id:'selection',name:'Cached selection',tracks:1}]}]
+  ['/api/catalog?section=tracks&chart=top&period=week&limit=12',{tracks:[track('Cached chart')]}]
  ]),held=new Map([...paths.keys()].map(path=>[path,deferred()]));let refreshing=false;
  const calls=[];const c=homeRenderer(async path=>{if(!paths.has(path))return response({tracks:[]});calls.push(path);return refreshing?held.get(path).promise:response(paths.get(path));});
  for(const path of paths.keys())await c.run(`api(${JSON.stringify(path)})`);
  c.advance(10001);refreshing=true;
  const opening=c.navigate('home');
  try{
-  for(const [id,title] of [['home-release','Cached release'],['home-sing','Cached sing'],['home-conversations','Cached cover'],['home-curations','Cached selection']])assert.match(c.section(id).innerHTML,new RegExp(title),'the '+id+' shelf should render synchronously from its display cache');
+  for(const [id,title] of [['home-release','Cached release'],['home-recommended','Cached recommendation'],['home-conversations','Cached cover'],['home-popular','Cached chart']])assert.match(c.section(id).innerHTML,new RegExp(title),'the '+id+' shelf should render synchronously from its display cache');
   assert.equal(calls.length,8,'every expired shelf must refresh despite being displayed from cache');
   held.get('/api/catalog?section=tracks&limit=12').resolve(response({error:'offline'},503));
-  held.get('/api/karaoke').resolve(response({tracks:[track('Fresh sing')]}));
+  held.get('/api/discovery').resolve(response({tracks:[track('Fresh recommendation')]}));
   held.get('/api/community?kind=cover').resolve(response({tracks:[track('Fresh cover')]}));
-  held.get('/api/playlists?sort=popular').resolve(response({error:'offline'},503));
+  held.get('/api/catalog?section=tracks&chart=top&period=week&limit=12').resolve(response({error:'offline'},503));
   await opening;await new Promise(resolve=>setImmediate(resolve));
-  assert.match(c.section('home-release').innerHTML,/Cached release/);assert.match(c.section('home-curations').innerHTML,/Cached selection/);
-  assert.match(c.section('home-sing').innerHTML,/Fresh sing/);assert.match(c.section('home-conversations').innerHTML,/Fresh cover/);
+  assert.match(c.section('home-release').innerHTML,/Cached release/);assert.match(c.section('home-popular').innerHTML,/Cached chart/);
+  assert.match(c.section('home-recommended').innerHTML,/Fresh recommendation/);assert.match(c.section('home-conversations').innerHTML,/Fresh cover/);
  }finally{for(const control of held.values())control.resolve(response({tracks:[],playlists:[]}));await opening;}
 });
 
@@ -322,31 +322,31 @@ test('home startup remains playable when the account resolves before the guest c
  }finally{account.resolve(response({user:null}));guestCatalog.resolve(response({tracks:[]}));await startup;}
 });
 
-test('home retains all thirteen ordered sections, full latest rail and existing chart order',async()=>{
+test('home retains approved ordered sections, six latest cards and existing chart order',async()=>{
  const tracks=Array.from({length:12},(_,i)=>({...track('Song '+i),id:'song-'+i}));
  const c=homeRenderer(async path=>response(path.includes('playlists')?{playlists:[]}:{tracks}));
  c.context.card=t=>'<article>'+t.title+'</article>';
  await c.navigate('home');await new Promise(resolve=>setImmediate(resolve));
- assert.deepEqual([...c.main.innerHTML.matchAll(/data-home-section="(\d+)"/g)].map(m=>+m[1]),Array.from({length:13},(_,i)=>i+1));
- assert.match(c.section('home-latest').innerHTML,/home-rail/);assert.match(c.section('home-latest').innerHTML,/Song 11/);
+ assert.deepEqual([...c.main.innerHTML.matchAll(/data-home-section="(\d+)"/g)].map(m=>+m[1]),Array.from({length:9},(_,i)=>i+1));
+ assert.match(c.section('home-latest').innerHTML,/home-rail/);assert.match(c.section('home-latest').innerHTML,/Song 5/);assert.doesNotMatch(c.section('home-latest').innerHTML,/Song 6/);
  assert.equal((c.section('home-popular').innerHTML.match(/class="home-rank"/g)||[]).length,5);
  assert.ok(c.section('home-popular').innerHTML.indexOf('Song 0')<c.section('home-popular').innerHTML.indexOf('Song 4'));
- assert.equal(c.section('home-curations').hidden,false);assert.match(c.section('home-curations').innerHTML,/공개 플레이리스트를 기다리고/);
+ assert.equal(c.section('home-curations'),undefined);assert.equal(c.section('home-history'),undefined);
 });
 
-test('guest home never reads personal history and a late owner history cannot appear after sign-out',async()=>{
- const held=deferred(),started=deferred(),calls=[];
- const c=homeRenderer(async path=>{calls.push(path);if(path==='/api/history'){started.resolve();return held.promise;}return response(path.includes('playlists')?{playlists:[]}:{tracks:[]});});
- const owner=c.navigate('home');await started.promise;
- c.run("me=null;invalidateReads();");await c.navigate('home');const count=calls.filter(p=>p==='/api/history').length;
- held.resolve(response({tracks:[track('PRIVATE OWNER HISTORY')]}));await owner;await new Promise(resolve=>setImmediate(resolve));
- assert.equal(count,1);assert.equal(calls.filter(p=>p==='/api/history').length,1);assert.doesNotMatch(c.section('home-history').innerHTML,/PRIVATE OWNER HISTORY/);assert.match(c.section('home-history').innerHTML,/로그인하면/);
+test('guest home never reads history or retains owner playlist cards after sign-out',{timeout:3000},async()=>{
+ const calls=[];const c=homeRenderer(async path=>{calls.push(path);return response({tracks:[]});});
+ c.run("library={playlists:[{id:'private',name:'PRIVATE OWNER PLAYLIST',tracks:2}]};");
+ await c.navigate('home');assert.match(c.section('home-playlists').innerHTML,/PRIVATE OWNER PLAYLIST/);
+ c.run("me=null;invalidateReads();");await c.navigate('home');
+ assert.equal(calls.filter(p=>p==='/api/history').length,0);
+ assert.doesNotMatch(c.section('home-playlists').innerHTML,/PRIVATE OWNER PLAYLIST/);assert.match(c.section('home-playlists').innerHTML,/로그인하면/);
 });
 
 test('home lazy shelves still load after a like invalidates cached reads',async()=>{
  let observer;const c=homeRenderer(async(path,options)=>response(options.method!=='GET'?{ok:true}:path.includes('playlists')?{playlists:[]}:{tracks:[track('Visible after like')]}));
  c.context.IntersectionObserver=class{constructor(callback){observer=callback;}observe(){}unobserve(){}disconnect(){}};
- await c.navigate('home');assert.equal(c.section('home-sing').innerHTML,'HOME_LOADING');
- await c.run("api('/api/tracks/song/like','PUT')");observer([{isIntersecting:true,target:c.section('home-sing')}]);
- await new Promise(resolve=>setImmediate(resolve));assert.match(c.section('home-sing').innerHTML,/Visible after like/);
+ await c.navigate('home');assert.equal(c.section('home-conversations').innerHTML,'HOME_LOADING');
+ await c.run("api('/api/tracks/song/like','PUT')");observer([{isIntersecting:true,target:c.section('home-conversations')}]);
+ await new Promise(resolve=>setImmediate(resolve));assert.match(c.section('home-conversations').innerHTML,/Visible after like/);
 });

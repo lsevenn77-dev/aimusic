@@ -19,6 +19,25 @@ test('carousel auto-advances, makes only the active slide interactive and pauses
  h.document.hidden=false;h.document.emit('visibilitychange');assert.equal(h.timers.size,1);
  h.observer.callback([{isIntersecting:false}]);assert.equal(h.timers.size,0);
 });
+
+test('genre filtering uses real multi-genre metadata without inventing categories',()=>{
+ const c=vm.createContext({esc});vm.runInContext(source,c);
+ const tracks=[{id:'a',genres:['Jazz','Soul']},{id:'b',genre:'Rock'},{id:'c',genre:'분석 대기'},{id:'d'}];
+ assert.equal(c.homeFilterTracks(tracks,'').length,4);
+ assert.deepEqual(c.homeFilterTracks(tracks,'Soul').map(t=>t.id),['a']);
+ assert.equal(c.homeFilterTracks(tracks,'Pop').length,0);
+ assert.equal(c.homeGenres(tracks[2]).length,0);
+});
+
+test('chart movement distinguishes missing history from unchanged rank and escapes descriptions',()=>{
+ const c=vm.createContext({esc,hasArtist:()=>true,icon:name=>name,cover:()=>'<div></div>',number:String,liked:()=>false});vm.runInContext(source,c);
+ assert.match(c.homeMovement({chart_movement:'up',rank_change:2}),/▲ 2/);
+ assert.match(c.homeMovement({chart_movement:'down',rank_change:-3}),/▼ 3/);
+ assert.match(c.homeMovement({}),/비교 기록 없음/);
+ assert.match(c.homeMovement({chart_movement:'same',rank_change:0}),/변동 없음/);
+ assert.doesNotMatch(c.releaseHTML([{id:'a',title:'곡',description:'<script>unsafe</script>'}]),/<script>/);
+ assert.match(c.homePlay({id:'a',title:'곡'},true),/audio-play/);
+});
 test('manual carousel navigation, focus and reduced motion stop unsolicited movement',()=>{
  const h=carousel();h.click('data-home-slide','2');assert.equal(h.rail.scrollLeft,720);assert.equal(h.timers.size,0);assert.equal(h.auto.getAttribute('aria-label'),'자동 전환 시작');
  h.click('data-home-auto');assert.equal(h.timers.size,1);h.root.emit('focusin');assert.equal(h.timers.size,0);
@@ -36,7 +55,9 @@ test('participant names use real API fields, reject null names, and escape rende
 });
 test('home routes preserve existing navigation and distinguish playback, details and recording',()=>{
  const c=vm.createContext({esc,hasArtist:()=>true,icon:()=>'',cover:()=>'<div></div>',number:String,liked:()=>false});vm.runInContext(source,c);
- const nav=c.homeShortcuts();for(const route of ['#charts','#charts/releases','#search'])assert.ok(nav.includes('href="'+route+'"'));
- const personal=c.homeShortcuts(true);for(const route of ['#library','#library/likes','#library/history','#library/playlists'])assert.ok(personal.includes('href="'+route+'"'));
+ const nav=c.homeShortcuts();for(const section of ['recommended','popular','latest','discover'])assert.ok(nav.includes('data-home-jump="home-'+section+'"'));
+ assert.equal((nav.match(/href="#home"/g)||[]).length,4);
+ assert.doesNotMatch(c.homeHTML(),/home-library|home-history|home-curations|home-people/);
+ for(const route of ['#karaoke','#karaoke/duets','#karaoke/dubbing?tab=join'])assert.ok(c.homeSingHTML().includes('href="'+route+'"'));
  const row=c.homeRowHTML({id:'song',title:'곡'},{singable:true});assert.match(row,/data-play="song" data-community-toggle/);assert.match(row,/href="#song\/song"/);assert.match(row,/href="#sing\/song"/);
 });

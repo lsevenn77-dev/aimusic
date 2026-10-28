@@ -23,6 +23,7 @@ for(let i=0;i<12;i++){
  f.sql.prepare("INSERT INTO listens(id,track_id,listener,day,started,qualified) VALUES(?,?,?,'2026-10-27',?,1)").run('qa-listen'+i,id,'user:owner',now-i*40);
  f.sql.prepare("INSERT INTO likes(user_id,track_id,created) VALUES('owner',?,?)").run(id,now-i);
 }
+f.sql.exec("UPDATE tracks SET genre='Jazz',genres_json='[\"Jazz\"]' WHERE id IN ('home-track-2','home-track-3'); UPDATE tracks SET description='실제 데이터 필드를 연결하는 로컬 검증용 곡 소개입니다.' WHERE id LIKE 'home-track-%'");
 for(let i=0;i<6;i++)f.sql.prepare("INSERT INTO tracks(id,user_id,artist_id,producer_id,title,genre,ai_tool,rights_accepted,original_ext,original_bytes,created,status,kind,original_id,duration) VALUES(?,?,'artist',?,?,'Indie Pop','',1,'wav',128,?,'published','cover',?,45)").run('home-cover-'+i,'qa-user'+i%5,'qa-person'+i%5,titles[i]+' — 내 목소리로',now-i,'home-track-'+i);
 for(let i=0;i<3;i++){
  f.sql.prepare("INSERT INTO playlists(id,user_id,name,description,is_public,created) VALUES(?,?,?,'로컬 테스트 플레이리스트',1,?)").run('home-list-'+i,i===0?'owner':'qa-user'+i,'내가 좋아하는 순간들 '+(i+1),now-i);
@@ -36,7 +37,7 @@ const server=createServer(async(req,res)=>{
   if(u.pathname==='/qa-errors.js'){res.setHeader('content-type','text/javascript');res.end("addEventListener('error',e=>{if(e.error)document.documentElement.dataset.qaErrors=(document.documentElement.dataset.qaErrors||'')+' '+e.error.stack;});");return;}
   if(u.pathname==='/qa-metrics.js'){res.setHeader('content-type','text/javascript');res.end(await readFile('tests/home-qa.js'));return;}
   if(u.pathname==='/qa-layout'){
-   const widths=[320,360,390,768,1024,1440,1920],w=widths.includes(+u.searchParams.get('width'))?+u.searchParams.get('width'):1440,h=w>=1024?900:844,user=u.searchParams.get('user')==='guest'?'guest':'owner';
+   const widths=[320,360,390,430,768,1024,1280,1440,1920],w=widths.includes(+u.searchParams.get('width'))?+u.searchParams.get('width'):1440,h=w>=1024?900:844,user=u.searchParams.get('user')==='guest'?'guest':'owner';
    res.setHeader('content-type','text/html;charset=utf-8');res.end(`<!doctype html><html lang="ko"><meta charset="utf-8"><title>AIFECT 홈 로컬 검증</title><body style="position:fixed;inset:0;overflow:hidden;margin:0;background:#0c121b;color:white;font:13px sans-serif"><p style="margin:10px">${publicMode?'공개 API 읽기 전용 · 로컬 클라이언트':'격리된 로컬 테스트 데이터'} · ${w}×${h} · ${user} ${widths.map(n=>`<a style="color:white" href="/qa-layout?width=${n}&user=${user}">${n}</a>`).join(' ')} <a style="color:white" href="/qa-layout?width=${w}&user=${user==='guest'?'owner':'guest'}">로그인 상태 전환</a></p><p style="margin:10px"><select id="qa-section" aria-label="섹션 이동"><option value="0">맨 위</option></select> <button id="qa-jump">섹션 보기</button> <button id="qa-scan">모든 섹션 불러오기</button> <button id="qa-bottom">맨 아래</button></p><output id="qa-metrics" style="display:block;font-size:11px;margin:4px 10px"></output><script src="/qa-metrics.js"></script><iframe title="AIFECT ${w}px" src="/?qa-user=${user}#home" style="width:${w}px;height:${h}px;border:0;transform-origin:top left;position:absolute;top:150px;left:10px"></iframe><script>function fit(){document.querySelector('iframe').style.transform='scale('+Math.min(1,(innerWidth-24)/${w},(innerHeight-150)/${h})+')'}addEventListener('resize',fit);fit();</script></body></html>`);return;
   }
   if(publicMode){
