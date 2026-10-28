@@ -30,7 +30,9 @@ export async function voiceRoomsRoute(req,env,path,user,ctx) {
   rows(env,'SELECT c.id,c.name FROM crews c JOIN crew_members m ON m.crew_id=c.id WHERE m.user_id=? LIMIT 50',user.id),
   rows(env,"SELECT DISTINCT p.user_id FROM follows f JOIN producers p ON p.id=f.target_id WHERE f.user_id=? AND f.kind='producer'",user.id)
  ]);
- const actor={id:user.id,profile_id:user.profile_id||null,name:user.display_name||user.name,image_version:user.image_version||'',crews:crews.map(c=>c.id),followedHosts:followed.map(p=>p.user_id),blocks:viewerBlockedIds(user)||[]};
+ // Authentication already resolves the privacy-safe public nickname. Crew
+ // membership still authorizes room access, but is not part of a room label.
+ const actor={id:user.id,profile_id:user.profile_id||null,name:user.name,image_version:user.image_version||'',crews:crews.map(c=>c.id),followedHosts:followed.map(p=>p.user_id),blocks:viewerBlockedIds(user)||[]};
  if(path==='/api/voice/options'&&req.method==='GET')return json({crews,themes:await roomThemeChoices(env,user.id)});
  if(path==='/api/voice/rooms'&&req.method==='GET')return json({...await decorateRoomResult(env,await result(await voiceCall(env,actor,'directory','list'))),crews});
  if(path==='/api/voice/rooms'&&req.method==='POST') {

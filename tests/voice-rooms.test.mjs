@@ -272,6 +272,34 @@ test('frontend ignores old heartbeat after rejoin and stops a late microphone gr
  let grant,stops=0;c.navigator.mediaDevices.getUserMedia=()=>new Promise(r=>grant=r);client.paint=()=>{};
  const opening=client.enableMic();client.leave(false);grant({getTracks:()=>[{stop:()=>stops++}]});await opening;assert.equal(stops,1);assert.equal(client.stream,undefined);
 });
+test('voice labels use the public nickname without the crew suffix and preserve crew-only admission',async t=>{
+ const name='코코(노래)',crewName='밤산책';
+ const h=harness(t),oldActor={...actor('owner',['crew']),name:name+'('+crewName+')',profile_id:'producer'};
+ await h.call('create',oldActor,{title:'Crew conversation',visibility:'crew',crew_id:'crew'});
+ const f=await fixture(t,{VOICE_SERVICE_URL:'https://voice.test',VOICE_BRIDGE_SECRET:secret});
+ f.sql.prepare('UPDATE producers SET name=?,nickname_confirmed=1 WHERE id=?').run(name,'producer');
+ f.sql.exec("INSERT INTO crews(id,owner_id,name,created) VALUES('crew','owner','밤산책',0); INSERT INTO crew_members(crew_id,user_id,role,joined) VALUES('crew','owner','owner',0)");
+ const original=globalThis.fetch;t.after(()=>globalThis.fetch=original);
+ const actors=[];
+ globalThis.fetch=async(url,init)=>{
+  const signed=JSON.parse(init.body);actors.push(signed.actor);
+  return voiceWorker.fetch(new Request(url,init),{...h.env,VOICE_BRIDGE_SECRET:secret,ROOMS:{idFromName:id=>id,get:()=>({fetch:r=>h.room.fetch(r)})}});
+ };
+ const root='/api/voice/rooms/test-room/';
+ // A fresh join replaces a persisted label from an older room without losing
+ // the original nickname's own parentheses or the host's seat and role.
+ const joined=await f.call(root+'join','POST',{request_id:crypto.randomUUID()});
+ assert.equal(joined.status,200,JSON.stringify(joined.body));
+ assert.equal(actors.at(-1).name,name);assert.deepEqual(actors.at(-1).crews,['crew']);
+ const member=joined.body.members.find(p=>p.id==='owner');
+ assert.equal(member.name,name);assert.equal(member.role,'host');assert.equal(member.seat,0);
+ const chat=await f.call(root+'chat','POST',{generation:joined.body.generation,body:'대화해요',request_id:crypto.randomUUID()});
+ assert.equal(chat.status,200);assert.equal(h.room.data.chat.at(-1).name,name);
+ const outsider=await f.call(root+'join','POST',{request_id:crypto.randomUUID()},'other');
+ assert.equal(outsider.status,403,'hiding the crew label must not remove crew membership authorization');
+ assert.equal(Object.keys(h.room.data.members).length,1);
+});
+
 test('voice gifts reject silver BEFORE deduction',async t=>{
  const f=await fixture(t);f.sql.exec("INSERT INTO producers(id,user_id,name,created) VALUES('other-profile','other','Other',0)");
  const user={id:'owner',profile_id:'producer',name:'Owner'},ctx={waitUntil:p=>p.catch(()=>{})};
