@@ -335,7 +335,7 @@ function refreshVocalGuide(s){if(s?.mode==='duet'&&!s.parent&&s.voice&&s.duetGui
 function duetRoleLabel(part,second=false){return part==='both'?'함께':part==='A'?(second?'상대 파트':'내 파트'):part==='B'?(second?'내 파트':'상대 파트'):part==='partial'?'일부 빈 구간':'미지정';}
 function duetAssignmentIssue(s){
  if(s?.mode!=='duet'||s.parent||s.duetGuide?.mode!=='lyrics')return '';
- const lines=s.data.words.map((_,i)=>s.duetGuide.lines?.[i]||''),missing=lines.filter(p=>!p).length;
+ const lines=s.data.words.map((_,i)=>s.duetGuide.lines?.[i]||''),missing=lines.filter(p=>!['A','B','both'].includes(p)).length;
  if(missing)return '아직 '+missing+'줄의 파트가 비어 있어요. 아래에서 선택해주세요.';
  if(!lines.length||!lines.some(p=>p==='A'||p==='both')||!lines.some(p=>p==='B'||p==='both'))return '내 파트와 파트너가 부를 파트를 모두 지정해주세요.';
  return '';

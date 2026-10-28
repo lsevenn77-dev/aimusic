@@ -13,6 +13,7 @@ function sandbox(extra={}){
 test('manual duet assignments must cover both singers before recording; free takes and inherited guides remain usable',()=>{
  const c=sandbox();c.take={mode:'duet',data:{words},duetGuide:{mode:'lyrics',lines:['A','']}};
  assert.match(vm.runInContext('duetAssignmentIssue(take)',c),/1줄/);
+ c.take.duetGuide.lines=['A','partial'];assert.match(vm.runInContext('duetAssignmentIssue(take)',c),/1줄/);
  c.take.duetGuide.lines=['A','A'];assert.match(vm.runInContext('duetAssignmentIssue(take)',c),/모두/);
  for(const lines of [['A','B'],['both','both']]){c.take.duetGuide.lines=lines;assert.equal(vm.runInContext('duetAssignmentIssue(take)',c),'');}
  c.take.duetGuide={mode:'free',lines:[]};assert.equal(vm.runInContext('duetAssignmentIssue(take)',c),'');
