@@ -73,7 +73,7 @@ function watchSocialChat(query,changed,status,revoked){
  document.addEventListener('visibilitychange',visibility);window.addEventListener('online',visibility);window.addEventListener('offline',visibility);window.addEventListener('pagehide',pagehide);window.addEventListener('pageshow',visibility);
  connect();return cleanup;
 }
-function dmWorkspaceHeight(bottom,top,inset,payoutLine){return Math.max(180,Math.min(bottom-inset,Number.isFinite(payoutLine)?payoutLine-12:bottom-inset)-top);}
+function dmWorkspaceHeight(bottom,top,inset,payoutLine,keyboard=false){return Math.max(keyboard?0:180,Math.min(bottom-inset,Number.isFinite(payoutLine)?payoutLine-12:bottom-inset)-top);}
 function dmPayoutLine(){if(innerWidth<=800)return undefined;const r=document.querySelector('#sidebar a[href="#payouts"]')?.getBoundingClientRect();return r?.height>0?r.top+r.height/2:undefined;}
 function bindSocialChat(view){
  if(!view?.inbox&&!view?.chat)return;
@@ -98,7 +98,8 @@ function bindSocialChat(view){
  let latestSequence=Math.max(0,...(initial?.messages||[]).map(m=>m.sequence||0)),joinedSequence=crew?(initial?.membership?.joined_sequence??null):null;
  const sorted=()=>[...messages.values()].sort((a,b)=>(a.sequence||Number.MAX_SAFE_INTEGER)-(b.sequence||Number.MAX_SAFE_INTEGER)||a.created-b.created);
  const merge=incoming=>incoming.forEach(m=>{if(m.request_id&&(m.user_id===uid||m.sender_id===uid))messages.delete('pending:'+m.request_id);messages.set(m.id,m);});
- const paint=(older=false,forceBottom=false)=>{const nearBottom=forceBottom||document.activeElement===input||log.scrollHeight-log.scrollTop-log.clientHeight<90,top=log.scrollTop,height=log.scrollHeight;const html=chatHTML(sorted(),peer,crew);if(html===lastHTML){if(forceBottom)log.scrollTop=log.scrollHeight;return;}lastHTML=html;log.innerHTML=html;if(older)log.scrollTop=top+log.scrollHeight-height;else if(nearBottom)log.scrollTop=log.scrollHeight;};
+ const mobileChat=()=>window.AifectMobileInput?.isMobile()??innerWidth<=800;
+ const paint=(older=false,forceBottom=false)=>{const nearBottom=forceBottom||(!mobileChat()&&document.activeElement===input)||log.scrollHeight-log.scrollTop-log.clientHeight<90,top=log.scrollTop,height=log.scrollHeight;const html=chatHTML(sorted(),peer,crew);if(html===lastHTML){if(forceBottom)log.scrollTop=log.scrollHeight;return;}lastHTML=html;log.innerHTML=html;if(older)log.scrollTop=top+log.scrollHeight-height;else if(nearBottom)log.scrollTop=log.scrollHeight;};
  const deny=()=>{denied=true;socialCleanup?.();if(crew){chatGeneration++;messages.clear();latestSequence=0;lastHTML=null;paint(false,true);}input.disabled=true;sendButton.disabled=true;$('#chat-connection').textContent='연결 종료';$('#chat-error').textContent='로그인 또는 크루 가입 상태를 다시 확인해주세요.';};
  if(initial)paint(false,true);else log.innerHTML='<p class="quiet" role="status">대화를 불러오는 중…</p>';
  const load=async(older=false)=>{
@@ -149,15 +150,16 @@ function bindSocialChat(view){
  const stopInbox=crew&&view.inbox?watchSocialChat('',loadInbox,()=>{},deny):()=>{};
  // Resize only the conversation pane, never scroll the whole document while typing.
  document.body.classList.add('chat-active');
- const panel=log.closest('.chat-panel'),viewportHeightAtOpen=innerHeight;let pinned=true,frame=0;
+ const panel=log.closest('.chat-panel');let pinned=true,frame=0;
  const onScroll=()=>{pinned=log.scrollHeight-log.scrollTop-log.clientHeight<90;};
- const anchor=()=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(()=>{if(!current())return;if(document.activeElement===input||pinned)log.scrollTop=log.scrollHeight;});};
- const viewport=()=>{if(!current())return;const vv=window.visualViewport;const bottom=(vv?.height||innerHeight)+(vv?.offsetTop||0);const workspace=panel.closest?.('.message-workspace'),target=workspace||panel;const top=target.getBoundingClientRect().top;const keyboard=document.activeElement===input&&Math.max(viewportHeightAtOpen,innerHeight)-(vv?.height||innerHeight)>120;document.body.classList.toggle('chat-keyboard',keyboard);const playerHeight=document.querySelector('.player:not([hidden])')?.getBoundingClientRect().height||0;const inset=keyboard?12:(innerWidth<=800?78:16)+playerHeight;target.style.height=dmWorkspaceHeight(bottom,top,inset,keyboard?undefined:dmPayoutLine())+'px';if(workspace)panel.style.height='';anchor();};
+ const anchor=()=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(()=>{if(!current())return;if(pinned||(!mobileChat()&&document.activeElement===input))log.scrollTop=log.scrollHeight;});};
+ const viewport=()=>{if(!current())return;const vv=window.visualViewport,geometry=window.AifectMobileInput?.measure();if(geometry?.scaled)return;const bottom=geometry?.bottom??((vv?.height||innerHeight)+(vv?.offsetTop||0));const workspace=panel.closest?.('.message-workspace'),target=workspace||panel;const top=target.getBoundingClientRect().top;const keyboard=!!geometry?.keyboard&&document.documentElement.hasAttribute('data-mobile-keyboard');document.body.classList.toggle('chat-keyboard',keyboard);const playerHeight=document.querySelector('.player:not([hidden])')?.getBoundingClientRect().height||0;const inset=keyboard?12:(innerWidth<=800?78:16)+playerHeight;target.style.height=dmWorkspaceHeight(bottom,top,inset,keyboard?undefined:dmPayoutLine(),keyboard)+'px';if(workspace)panel.style.height='';anchor();};
  const resize=new ResizeObserver(anchor);resize.observe(log);
  log.addEventListener('scroll',onScroll,{passive:true});log.addEventListener('load',anchor,true);
  input.addEventListener('focus',viewport);input.addEventListener('blur',viewport);
  window.visualViewport?.addEventListener('resize',viewport);window.addEventListener('resize',viewport);viewport();
- socialCleanup=()=>{clearInboxEvents();tabs?.removeEventListener('click',filter);document.body.classList.remove('chat-keyboard','chat-active');stopStream();stopInbox();resize.disconnect();cancelAnimationFrame(frame);log.removeEventListener('scroll',onScroll);log.removeEventListener('load',anchor,true);input.removeEventListener('focus',viewport);input.removeEventListener('blur',viewport);window.visualViewport?.removeEventListener('resize',viewport);window.removeEventListener('resize',viewport);};
+ window.addEventListener('aifect:input-viewport',viewport);
+ socialCleanup=()=>{clearInboxEvents();tabs?.removeEventListener('click',filter);document.body.classList.remove('chat-keyboard','chat-active');stopStream();stopInbox();resize.disconnect();cancelAnimationFrame(frame);log.removeEventListener('scroll',onScroll);log.removeEventListener('load',anchor,true);input.removeEventListener('focus',viewport);input.removeEventListener('blur',viewport);window.visualViewport?.removeEventListener('resize',viewport);window.removeEventListener('resize',viewport);window.removeEventListener('aifect:input-viewport',viewport);};
 }
 
 document.addEventListener('click',async event=>{

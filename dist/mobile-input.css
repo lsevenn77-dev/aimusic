@@ -1,0 +1,60 @@
+/* Input-only floor. Leave root typography, browser zoom and PC UI untouched.
+   Also cover landscape phones whose CSS width exceeds the usual breakpoint. */
+@media (max-width:800px), (max-width:1100px) and (pointer:coarse) {
+  :is(input:not([type=hidden]):not([type=range]):not([type=checkbox]):not([type=radio]):not([type=button]):not([type=submit]):not([type=reset]):not([type=file]):not([type=color]):not([type=image]),textarea,select,[contenteditable=""],[contenteditable="true"],[contenteditable="plaintext-only"]) {
+    font-size:max(16px,1em)!important;
+    min-width:0;
+    max-width:100%;
+    scroll-margin-block:12px;
+  }
+  #chat-compose textarea {padding-block:10px}
+  .voice-chat-panel #voice-message {padding-block:8px}
+  /* This is visibility only; no keyboard padding or body scroll lock is added. */
+  :root[data-mobile-keyboard] .mobile-navigation {visibility:hidden;pointer-events:none}
+
+  /* Only a popup containing the current input gets VisualViewport dimensions. */
+  :is(dialog,.voice-sheet)[data-input-viewport] {
+    position:fixed!important;
+    top:var(--input-viewport-top)!important;
+    bottom:auto!important;
+    margin-block:0!important;
+    min-height:0!important;
+    max-height:var(--input-viewport-height)!important;
+    max-width:calc(100% - 16px);
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    padding-bottom:max(16px,env(safe-area-inset-bottom,0px));
+  }
+  #dialog[data-input-viewport] {display:flex;flex-direction:column;overflow:hidden!important}
+  #dialog[data-input-viewport] #dialog-content {
+    flex:1 1 auto;min-height:0;max-height:100%;overflow-y:auto!important;overscroll-behavior:contain;
+  }
+  #dialog[data-input-viewport] #dialog-content>h2:first-child,
+  [data-input-viewport] .voice-sheet-heading {
+    position:sticky;top:0;z-index:2;background:var(--ds-surface);padding-right:32px;
+  }
+  #dialog[data-input-viewport] #dialog-close {z-index:3}
+  :is(#v3-room-create,#voice-room-settings)[data-input-viewport] {display:flex;flex-direction:column;overflow:hidden}
+  :is(#v3-room-create,#voice-room-settings)[data-input-viewport]>form {min-height:0;overflow-y:auto;overscroll-behavior:contain}
+  :root[data-mobile-keyboard] .chat-panel {min-height:0!important}
+  :root[data-mobile-keyboard] .message-thread-pane {min-height:0}
+  :root[data-mobile-keyboard] #main[data-room-focus] {
+    top:var(--mobile-input-top);bottom:auto;height:var(--mobile-input-height);
+  }
+  :root[data-mobile-keyboard] #main[data-room-focus] .voice-room {height:100%;min-height:0}
+  :root[data-mobile-keyboard] .voice-room .voice-stage {flex:0 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain}
+  :root[data-mobile-keyboard] .voice-room .voice-chat-panel {flex:1 0 100px}
+  /* On a short visual viewport, keep the conversation header and send control
+     reachable. Attachment tools return as soon as the keyboard closes. */
+  :root[data-mobile-keyboard-compact] .message-thread-pane .dm-thread-header {
+    display:flex;flex-wrap:nowrap;min-height:44px;padding:4px 8px!important;gap:6px;
+  }
+  :root[data-mobile-keyboard-compact] .dm-thread-person {flex:1;min-width:0}
+  :root[data-mobile-keyboard-compact] .dm-thread-person h1 {overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  :root[data-mobile-keyboard-compact] .dm-thread-actions {flex-shrink:0;width:auto;margin-left:auto;padding-top:0;border-top:0}
+  :root[data-mobile-keyboard-compact] .chat-panel {padding:6px!important}
+  :root[data-mobile-keyboard-compact] .chat-attachment-tools,
+  :root[data-mobile-keyboard-compact] #chat-connection {display:none}
+  :root[data-mobile-keyboard-compact] #chat-compose {margin-top:0;padding-top:4px}
+  :root[data-mobile-keyboard-compact] #chat-log {padding-block:0}
+}
