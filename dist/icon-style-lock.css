@@ -309,3 +309,41 @@
 #chart-track-menu .track-option:is(:hover,:focus-visible){background:var(--ds-soft);outline:1px solid var(--ds-line);outline-offset:-1px}
 #chart-track-menu .track-option-delete{color:var(--ds-social)}
 @media(max-width:600px){#chart-track-menu .track-option{min-height:44px}}
+
+/* All mobile charts share nine fixed slots; only the song copy may shrink.
+   Home nests artwork/copy in .song-table-info; the full chart separates them. */
+#main .song-table-chart .chart-mobile-play{display:none}
+@media(max-width:800px){
+ #main .song-table.song-table-chart{display:block;--music-stat-icon:13px;--music-stat-plays:13px;--music-stat-number:11px;--music-stat-gap:2px}
+ #main .song-table.song-table-chart .song-table-head{display:none}
+ #main .song-table.song-table-chart .song-table-row{
+  --list-row-inset:2px;--list-thumb-size:32px;--control-diameter:24px;--control-glyph-inset:4px;
+  display:grid;grid-template-columns:16px 32px minmax(0,1fr) 36px 36px 40px 24px 28px 26px;
+  grid-template-rows:44px;gap:0 3px;align-items:center;min-height:52px;padding-block:4px;white-space:nowrap;
+ }
+ #main .song-table.song-table-chart .song-table-row>*{grid-row:1;min-width:0;margin:0;white-space:nowrap}
+ #main .song-table.song-table-chart .song-table-row .song-table-position{grid-column:1;width:auto;font-size:12px;text-align:center}
+ #main .song-table.song-table-chart .song-table-row .song-table-info{display:contents}
+ #main .song-table.song-table-chart .song-table-row :is(.song-table-info>.song-table-cover,.chart-art-wrap){grid-column:2;grid-row:1;width:var(--list-thumb-size);height:var(--list-thumb-size);min-width:0;margin:0}
+ #main .song-table.song-table-chart .song-table-row :is(.song-table-info>div,.chart-song-copy){grid-column:3;grid-row:1;display:flex;flex-flow:row nowrap;align-items:center;gap:4px;min-width:0;overflow:hidden}
+ #main .song-table.song-table-chart .song-table-row :is(.song-table-info>div,.chart-song-copy)>*{display:block;flex:0 1 auto;min-width:0;max-width:100%;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:18px}
+ #main .song-table.song-table-chart .song-table-row :is(.song-table-info strong,.chart-song-title){display:inline;font-size:12px;font-weight:600;white-space:nowrap}
+ #main .song-table.song-table-chart .song-table-row :is(.song-table-info>div>span,.chart-song-credit){font-size:11px;color:var(--ds-muted)}
+ #main .song-table.song-table-chart .song-table-row :is(.song-table-stat,.chart-movement){display:flex;align-items:center;justify-content:center;width:100%;min-width:0;gap:var(--music-stat-gap);padding:0;white-space:nowrap}
+ #main .song-table.song-table-chart .song-table-row .song-table-like{grid-row:1;grid-column:4}
+ #main .song-table.song-table-chart .song-table-row .song-table-comments{grid-row:1;grid-column:5}
+ #main .song-table.song-table-chart .song-table-row .song-table-plays{grid-row:1;grid-column:6}
+ #main .song-table.song-table-chart .song-table-row .chart-movement{grid-row:1;grid-column:7}
+ #main .song-table.song-table-chart .song-table-row .chart-movement strong{gap:2px;font-size:10px!important}
+ #main .song-table.song-table-chart .song-table-row .chart-movement.up{color:#E9A1CE}
+ #main .song-table.song-table-chart .song-table-row .chart-movement.down{color:#8EDDD2}
+ #main .song-table.song-table-chart .song-table-row .song-table-play{grid-row:1;grid-column:8;display:inline-flex;justify-self:stretch}
+ #main .song-table.song-table-chart .song-table-row .song-table-tools{grid-row:1;grid-column:9;justify-self:stretch;justify-content:center;gap:0}
+ #main .song-table.song-table-chart .song-table-row :is(.song-table-play,.song-table-tools .icon-button){width:100%;min-width:0;height:44px;min-height:44px;padding:0}
+ #main .song-table.song-table-chart .song-table-row :is(.chart-cover-count,.chart-mobile-covers,.chart-cover-play){display:none}
+}
+@media(max-width:360px){
+ #main .song-table.song-table-chart{--music-stat-icon:12px;--music-stat-plays:12px;--music-stat-number:10px;--music-stat-gap:1px}
+ #main .song-table.song-table-chart .song-table-row{--list-row-inset:0px;--list-thumb-size:28px;--control-diameter:22px;grid-template-columns:12px 28px minmax(0,1fr) 34px 34px 38px 22px 24px 22px;column-gap:1px;min-height:50px;padding-block:3px}
+ #main .song-table.song-table-chart .song-table-row :is(.song-table-info>div,.chart-song-copy){gap:2px}
+}
