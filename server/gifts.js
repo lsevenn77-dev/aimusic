@@ -25,10 +25,32 @@ export async function trackGifts(env,trackId){
 }
 // A person's fans are the people who gifted what that person performs: their covers and their own originals.
 // Gifts to other people's covers of their songs still pay them the creator share, but belong to the singer's fans.
+// Personal support includes official AI cheers, but never replaces paid/fan ranking inputs.
+// Aggregate before LIMIT: the last 100 official receipts are a history preview, not a total.
+const PROFILE_SUPPORT_RANKING=`SELECT ${publicNameSQL()} name,p.id profile_id,p.image_version,u.account_type,
+ (SELECT code FROM public_profile_ids WHERE user_id=u.id) public_id,
+ sum(g.gold) gold,sum(g.stars) stars,sum(g.official_stars) official_stars,
+ sum(g.gold+g.stars+g.official_stars) score,count(*) gifts,min(g.created) first
+ FROM (
+  SELECT sender_id,gold,0 stars,0 official_stars,created FROM gifts
+   WHERE singer_profile_id=? OR (singer_profile_id IS NULL AND creator_profile_id=?)
+  UNION ALL SELECT f.sender_id,0 gold,f.silver stars,0 official_stars,f.created
+   FROM free_gifts f LEFT JOIN tracks t ON t.id=f.track_id WHERE COALESCE(f.recipient_profile_id,t.producer_id)=?
+  UNION ALL SELECT sender_id,0 gold,0 stars,quantity official_stars,created FROM ai_support_gifts WHERE owner_id=?
+ ) g JOIN users u ON u.id=g.sender_id LEFT JOIN producers p ON p.user_id=u.id
+ WHERE (u.account_type='human' AND g.official_stars=0) OR (u.account_type='ai_bot' AND g.official_stars>0)
+ GROUP BY g.sender_id ORDER BY score DESC,first ASC,g.sender_id ASC LIMIT 50`;
 export async function profileGifts(env,profileId){
  const where='(g.singer_profile_id=? OR (g.singer_profile_id IS NULL AND g.creator_profile_id=?))';
- const [total,free,ranking]=await Promise.all([one(env,`SELECT COALESCE(sum(g.gold),0) gold,count(*) gifts FROM gifts g WHERE ${where}`,profileId,profileId),one(env,'SELECT COALESCE(sum(f.silver),0) n FROM free_gifts f LEFT JOIN tracks t ON t.id=f.track_id WHERE COALESCE(f.recipient_profile_id,t.producer_id)=?',profileId),rows(env,`${RANKING} WHERE g.recipient_profile_id=? GROUP BY g.sender_id ORDER BY score DESC,first ASC,g.sender_id ASC LIMIT 50`,profileId)]);
- return {available:true,total_gold:total.gold,gift_count:total.gifts,free_count:free.n,official_ai:await officialSupport(env,'producer',(await one(env,'SELECT user_id FROM producers WHERE id=?',profileId))?.user_id,true),ranking:ranked(ranking)};
+ const owner=(await one(env,'SELECT user_id FROM producers WHERE id=?',profileId))?.user_id;
+ const [total,free,ranking,support,official]=await Promise.all([
+  one(env,`SELECT COALESCE(sum(g.gold),0) gold,count(*) gifts FROM gifts g WHERE ${where}`,profileId,profileId),
+  one(env,'SELECT COALESCE(sum(f.silver),0) n FROM free_gifts f LEFT JOIN tracks t ON t.id=f.track_id WHERE COALESCE(f.recipient_profile_id,t.producer_id)=?',profileId),
+  rows(env,`${RANKING} WHERE g.recipient_profile_id=? GROUP BY g.sender_id ORDER BY score DESC,first ASC,g.sender_id ASC LIMIT 50`,profileId),
+  rows(env,PROFILE_SUPPORT_RANKING,profileId,profileId,profileId,owner||''),
+  officialSupport(env,'producer',owner,true)
+ ]);
+ return {available:true,total_gold:total.gold,gift_count:total.gifts,free_count:free.n,official_ai:official,ranking:ranked(ranking),support_ranking:support.map((r,i)=>({rank:i+1,name:r.name,profile_id:r.profile_id,image_version:r.image_version,account_type:r.account_type,public_id:r.public_id,gold:r.gold,stars:r.stars,official_stars:r.official_stars,score:r.score,gifts:r.gifts}))};
 }
 
 const nextMonthDay=(month,day)=>{const [y,m]=month.split('-').map(Number),d=new Date(Date.UTC(y,m,day));return d.toISOString().slice(0,10);};
