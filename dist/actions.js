@@ -140,7 +140,7 @@ document.addEventListener('click',async ev=>{
  try{
   if(el.matches('[data-play],[data-play-all],[data-like],[data-follow],[data-add],[data-seek]')){el.setAttribute('aria-busy','true');await accountReady;}
   if(el.hasAttribute('data-play')){if($('#dialog').open)$('#dialog').close();if(el.hasAttribute('data-community-toggle'))await playCommunityTrack(el.dataset.play);else await play(el.dataset.play,routeTracks.some(t=>t.id===el.dataset.play)?routeTracks:null);}
-  else if(el.hasAttribute('data-play-all')){if(routeTracks.length)await play(routeTracks[0].id,routeTracks);else toast('먼저 곡을 추가해주세요.');}
+  else if(el.hasAttribute('data-play-all')){if(el.closest('.charts-final')&&shuffle)$('#shuffle').click();if(routeTracks.length)await play(routeTracks[0].id,routeTracks);else toast('먼저 곡을 추가해주세요.');}
   else if(el.dataset.giftShop){await chooseGiftRecipient(el.dataset.giftShop);}
   else if(el.dataset.gift){await giftDialog(el.dataset.gift,el.dataset.giftType);}
   else if(el.dataset.profileGift){await profileGiftDialog(el.dataset.profileGift);}

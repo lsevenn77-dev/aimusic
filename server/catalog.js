@@ -18,7 +18,7 @@ import {listenerLyrics} from './lyrics.js';
 import {profileGifts} from './gifts.js';
 import {GENRES,validGenre,trackClassification,genreFilterSQL} from '../shared/genres.js';
 import {rankingPeriod} from './ranking-period.js';
-import {CHART_WEIGHTS} from './popular-chart.js';
+import {CHART_WEIGHTS,CHART_ORIGINAL} from './popular-chart.js';
 import {dailyChart} from './chart-movement.js';
 import {supportFollowCount} from './ai-support-follows.js';
 export {GENRES};
@@ -62,22 +62,23 @@ export async function catalogRoute(req,env,path,user){
   if(genre&&validGenre(genre)){where+=' AND '+genreFilterSQL();args.push(genre,genre);}
   let sort='t.created DESC';
 
-  if(chart==='rising')sort="(SELECT count(DISTINCT listener) FROM listens l WHERE l.track_id=t.id AND l.qualified=1 AND l.started>unixepoch()-604800) DESC,t.created DESC";
-  if(chart==='newcomers')where+=' AND p.created>unixepoch()-2592000 AND (SELECT count(*) FROM follows f WHERE f.kind=\'producer\' AND f.target_id=p.id)<1000';
+  const ranked=['top','rising','releases'].includes(chart);
+  if(ranked)where+=' AND '+CHART_ORIGINAL();
   const section=url.searchParams.get('section')||'all';
   if(!['all','tracks','artists','producers'].includes(section))fail(400,'목록 종류를 확인해주세요.');
   const requested=Number(url.searchParams.get('limit')||100),limit=Number.isFinite(requested)?Math.max(1,Math.min(100,Math.trunc(requested))):100;
-  const period=chart==='top'?rankingPeriod(url.searchParams.get('period')||'week'):null;
+  const period=ranked?rankingPeriod(url.searchParams.get('period')||(chart==='top'?'week':'all')):null;
   let comparison=null;
   const loaders={
    tracks:async()=>{
     if(!period)return trackList(env,where,args,sort,limit);
-    const daily=await dailyChart(env,period);comparison=daily.comparison;
+    const daily=await dailyChart(env,period,chart);comparison=daily.comparison;
     if(!daily.tracks.length)return [];
     const chunks=[];for(let i=0;i<daily.tracks.length;i+=40)chunks.push(daily.tracks.slice(i,i+40));
     const tracks=(await Promise.all(chunks.map(chunk=>trackList(env,where+' AND t.id IN ('+chunk.map(()=>'?').join(',')+')',[...args,...chunk.map(s=>s.id)],'t.id',40)))).flat();
     const byId=new Map(tracks.map(t=>[t.id,t]));
-    return daily.tracks.filter(s=>byId.has(s.id)).slice(0,limit).map(s=>({...byId.get(s.id),...s}));
+    const selected=daily.tracks.filter(s=>byId.has(s.id));
+    return (url.searchParams.get('full')==='1'?selected:selected.slice(0,limit)).map(s=>({...byId.get(s.id),...s,covers:s.chart_covers}));
    },
    artists:()=>rows(env,`SELECT a.*, (SELECT count(*) FROM follows f WHERE f.kind='artist' AND f.target_id=a.id) followers FROM artists a WHERE ${namedArtistSQL()} AND EXISTS(SELECT 1 FROM tracks t WHERE t.artist_id=a.id AND t.kind='original' AND t.status='published') ORDER BY created DESC LIMIT ${limit}`),
    producers:()=>rows(env,`SELECT p.id,${playerColumnsSQL('p.user_id')},${producerNameSQL()} name,p.bio,p.created,p.image_version,(SELECT count(*) FROM follows f WHERE f.kind='producer' AND f.target_id=p.id) followers FROM producers p WHERE EXISTS(SELECT 1 FROM tracks t WHERE t.producer_id=p.id AND ${VISIBLE()}) ORDER BY created DESC LIMIT ${limit}`)
