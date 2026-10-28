@@ -19,7 +19,7 @@ function karaokeListHTML(tracks,duets=[]){
  remember([...tracks,...duets]);return '<a class="small-button" href="#karaoke/drafts">초안</a>'+duetLobbyHTML(duets)+heading('노래방','마이크와 이어폰을 준비하고 MR·가사와 함께 불러보세요.')+(tracks.length?`<div class="track-list">${tracks.map((t,i)=>`<div class="live-track"><span class="track-rank">${i+1}</span>${cover(t,'mini-cover')}<div class="track-info"><a href="#song/${t.id}"><strong>${esc(t.title)}</strong></a><span>${credits(t)}</span></div><span class="track-time">${time(t.duration)}</span><a class="small-button" href="#sing/${t.id}">${icon('mic')} 부르기</a></div>`).join('')}</div>`:'<p class="surface empty-note">아직 부를 수 있는 곡이 없어요.</p>');
 }
 function singHTML(d){
- if(d.chooseMode)return singModeHTML(d);
+ if(d.chooseMode)return '';
  const t=d.track;
  return `<section class="surface sing web-studio" id="sing">
  <header class="sing-head"><a class="sing-back icon-button" href="#karaoke" aria-label="플레이로 돌아가기">${icon('back')}</a><div class="studio-song-meta"><span class="studio-page-label" data-editor-caption hidden>녹음 편집</span><h1>${esc(t.title)}</h1><p>${esc(t.artist)} <span>·</span> ${esc(t.genre||'음악')} <span>·</span> <small data-recording-key>원곡 키</small></p></div><div class="sing-header-mode"><span data-record-mic role="status">마이크 확인 필요</span><button type="button" class="record-settings-icon" data-sing-settings aria-label="녹음 설정">${recordSettingsIcon()}</button></div></header>
@@ -299,7 +299,36 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden){if(sing){s
 window.addEventListener?.('beforeunload',e=>{if(sing?.dirty||singLive(sing)||sing?.state==='exporting'){e.preventDefault();e.returnValue='';}});
 
 function duetLobbyHTML(tracks){return `<section class="surface duet-lobby"><h2>커버 둘러보기</h2><p class="field-help">다른 사람의 솔로·듀엣 커버를 들어보세요.</p><div class="cover-browse-links"><a class="small-button" href="#community/covers?mode=solo">솔로 커버 듣기</a><a class="small-button" href="#community/covers?mode=duet">듀엣 커버 듣기</a></div><h2>참여를 기다리는 듀엣</h2>${tracks.length?tracks.map(t=>`<div class="duet-invitation">${cover(t,'mini-cover')}<div><a href="#song/${esc(t.id)}"><strong>${esc(t.title)}</strong></a><p>${esc(t.producer)} · 먼저 녹음한 목소리</p></div><a class="primary-button" href="${t.user_id===me?.id?'#song/'+esc(t.id):'#sing/'+esc(t.original_id)+'?duet='+esc(t.id)}">${t.user_id===me?.id?'내 듀엣 보기':'듀엣 참여'}</a></div>`).join(''):'<p class="empty-note">아직 참여를 기다리는 듀엣이 없어요. 아래 곡을 골라 첫 파트를 남겨보세요.</p>'}</section>`;}
-function singModeHTML(d){const t=d.track;return `<section class="surface recording-entry" aria-labelledby="recording-entry-title"><a class="small-button recording-entry-back" href="#karaoke">플레이로 돌아가기</a><header><p class="recording-entry-song">${esc(t.title||'')}<span>${esc(t.artist||'')}</span></p><h1 id="recording-entry-title">어떻게 녹음할까요?</h1><p>녹음 방식을 선택해주세요.</p></header><div class="recording-mode-choices">${[['solo','솔로 녹음','내 목소리로 한 곡을 완성해요.'],['duet','듀엣 녹음','파트를 나누고, 함께 부를 목소리를 기다려요.']].map(([mode,title,description])=>`<a class="small-button recording-mode-choice" data-sing-mode="${mode}" href="#sing/${encodeURIComponent(t.id)}?mode=${mode}"><strong>${title}</strong><span>${description}</span><span class="recording-mode-action">${title} 시작 <span aria-hidden="true">→</span></span></a>`).join('')}</div><p class="field-help">다른 방식으로 녹음하려면 녹음 화면에서 나간 뒤 다시 선택해주세요.</p></section>`;}
+function singModeHTML(){return '<h2 id="recording-mode-title">녹음 방식</h2><div class="recording-mode-choices"><button type="button" class="small-button" data-sing-mode="solo">솔로</button><button type="button" class="small-button" data-sing-mode="duet">듀엣</button></div>';}
+function openRecordingMode(d){
+ if(document.querySelector('#recording-mode-dialog'))return;
+ const trigger=document.activeElement,previousState=history.state,dlg=document.createElement('dialog');
+ dlg.id='recording-mode-dialog';dlg.setAttribute('aria-labelledby','recording-mode-title');dlg.innerHTML=singModeHTML();
+ document.body.append(dlg);history.pushState({...previousState,recordingMode:true},'');
+ const overflow=document.documentElement.style.overflow;document.documentElement.style.overflow='hidden';
+ const cleanup=()=>{window.removeEventListener('popstate',onBack);window.removeEventListener('hashchange',onNavigate);dlg.close();dlg.remove();document.documentElement.style.overflow=overflow;if(trigger?.isConnected)trigger.focus();};
+ const onBack=()=>cleanup(),onNavigate=()=>cleanup();
+ const dismiss=()=>{if(dlg.dataset.closing)return;dlg.dataset.closing='1';history.back();};
+ window.addEventListener('popstate',onBack);window.addEventListener('hashchange',onNavigate);
+ dlg.addEventListener('cancel',e=>{e.preventDefault();dismiss();});
+ dlg.addEventListener('click',e=>{if(e.target===dlg){const r=dlg.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)dismiss();}});
+ dlg.querySelectorAll('[data-sing-mode]').forEach(button=>button.onclick=()=>{
+  const target='#sing/'+encodeURIComponent(d.track.id)+'?mode='+button.dataset.singMode;
+  cleanup();history.replaceState(previousState,'',target);void render();
+ });
+ dlg.showModal();
+}
+let recordingEntryPending=false;
+async function recordingEntryClick(e){
+ const link=e.target.closest('a[href^="#sing/"]');
+ if(!link||e.defaultPrevented||e.button!==0||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey||link.hasAttribute('download')||link.target&&link.target!=='_self')return;
+ const [path,query='']=link.getAttribute('href').split('?'),q=new URLSearchParams(query);
+ if(q.has('duet')||q.get('draft')==='1'||['solo','duet'].includes(q.get('mode')))return;
+ e.preventDefault();if(recordingEntryPending||sing)return;
+ const origin=location.hash;recordingEntryPending=true;
+ try{const d=await loadSingRoute(decodeURIComponent(path.slice(6)),q);if(location.hash===origin)openRecordingMode(d);}
+ catch(error){toast(error.message);}finally{recordingEntryPending=false;}
+}
 
 function duetTime(seconds){const n=Math.round(Math.max(0,seconds)*10);return Math.floor(n/600)+':'+String(Math.floor(n%600/10)).padStart(2,'0')+'.'+n%10;}
 function refreshVocalGuide(s){if(s?.mode==='duet'&&!s.parent&&s.voice&&s.duetGuide?.mode==='free')s.duetGuide.activity=AifectDuetGuide.detectVocalActivity(s.voice.getChannelData(0),s.voice.sampleRate,s.mix.offset,s.mr?.duration||s.data.track.duration);}

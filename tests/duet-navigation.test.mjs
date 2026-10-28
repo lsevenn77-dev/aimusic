@@ -23,7 +23,8 @@ test('ordinary entry asks once; explicit modes, legacy drafts and joining paths 
  const c=context({api:async()=>({track:{id:'one'}}),esc:s=>s});
  for(const [query,choose,mode] of [['',true,'solo'],['mode=bad',true,'solo'],['mode=solo',false,'solo'],['mode=duet',false,'duet'],['draft=1',false,'solo'],['mode=duet&part=female&draft=1',false,'duet']]){c.query=new URLSearchParams(query);const d=await vm.runInContext("loadSingRoute('one',query)",c);assert.equal(d.chooseMode,choose,query);assert.equal(d.mode,mode,query);}
  c.d=await vm.runInContext("loadSingRoute('one',new URLSearchParams())",c);
- const html=vm.runInContext('singHTML(d)',c);assert.match(html,/mode=solo/);assert.match(html,/mode=duet/);assert.doesNotMatch(html,/id="sing"|data-sing-start|data-duet-editor/);
+ assert.equal(vm.runInContext('singHTML(d)',c),'');
+ const html=vm.runInContext('singModeHTML(d)',c);assert.match(html,/data-sing-mode="solo"/);assert.match(html,/data-sing-mode="duet"/);assert.doesNotMatch(html,/data-sing-start|data-duet-editor/);
 });
 test('cancelled leaving preserves the current mode and never stops or saves the take',async()=>{
  for(const mode of ['solo','duet']){let restored='';const c=context({confirm:()=>false,renderId:0,location:{hash:'#sing/one?mode='+ (mode==='solo'?'duet':'solo')},setMobileMenu(){},history:{replaceState(a,b,href){restored=href;}},finishSinging(){throw Error('must not stop');},saveSingDraft(){throw Error('must not save');}});vm.runInContext(readFileSync(new URL('../dist/views.js',import.meta.url),'utf8'),c);vm.runInContext(`sing={id:'one',mode:'${mode}',state:'singing',dirty:true}`,c);await vm.runInContext('render()',c);assert.match(restored,new RegExp('mode='+mode));}

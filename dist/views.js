@@ -116,7 +116,7 @@ async function render(){
   }else if(base==='account')html=accountHTML()+(authConfig?.track_moderator?'<p><a class="small-button" href="#admin/track-review">음원 검토 목록</a></p>':'');
   else if(base==='upload'){studioData=await api('/api/studio');html=uploadHTML(studioData);}
   else if(base==='karaoke'){const [d,duets]=await Promise.all([api('/api/karaoke'),api('/api/duets')]);nextTracks=[...d.tracks,...duets.tracks];html=karaokeListHTML(d.tracks,duets.tracks);}
-  else if(base==='sing'){const d=await loadSingRoute(param,new URLSearchParams(paramQuery?.split('?')[1]||''));if(ticket!==renderId)return;routeSing=d;html=singHTML(d);}
+  else if(base==='sing'){const d=await loadSingRoute(param,new URLSearchParams(paramQuery?.split('?')[1]||''));if(ticket!==renderId)return;if(d.chooseMode){history.replaceState(history.state,'','#song/'+encodeURIComponent(param));await render();openRecordingMode(d);return;}routeSing=d;html=singHTML(d);}
   else if(base==='cover'){const {track:o}=await api('/api/tracks/'+param);remember([o]);html=coverUploadHTML(o);}
   else if(base==='gifts')html=await finalGiftShopView(param);
   else if(base==='gold')html=(param==='history'?heading('보낸 선물 내역')+'<a class="text-link" href="#gold">골드 충전으로</a>'+sentGiftHistoryHTML(await api('/api/gold')):goldHTML(await api('/api/gold')));
