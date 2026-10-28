@@ -49,6 +49,7 @@ async function render(){
  if(typeof dubbingBeforeRoute==='function'&&!dubbingBeforeRoute(raw))return;
  if(typeof dubbingRefreshList==='function'&&await dubbingRefreshList(raw,ticket))return;
  if(sing){
+  if(!singBusy(sing)&&!confirm('녹음 화면에서 나갈까요? 녹음한 내용은 이 기기의 초안에 보관됩니다.')){history.replaceState(null,'',singRouteHref(sing));return;}
   if(singLive(sing))await finishSinging();
   if(singBusy(sing)){history.replaceState(null,'',singRouteHref(sing));toast('녹음을 정리한 뒤 이동해주세요.');return;}
   if(sing.dirty){try{await saveSingDraft(sing);}catch(e){history.replaceState(null,'',singRouteHref(sing));toast('임시저장하지 못했어요. 저장 공간을 확인한 뒤 다시 시도해주세요.');return;}}
