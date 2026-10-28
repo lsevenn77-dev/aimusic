@@ -35,11 +35,20 @@ run.onclick=async()=>{
     check(rect(arrows[0]).right<=rect(arrows[1]).left,'Arrow hit targets overlap');
     check(parseFloat(style(heading).fontSize)===(width<=768?13:14),'Section title scale');
     check(new Set(cards.map(c=>Math.round(rect(c).height))).size===1,'Unequal heights');
-    const expectedWidth=width<=600?76:84,expectedHeight=width<=600?98:106;
-    check(cards.every(c=>rect(c).width<=expectedWidth+.1&&rect(c).height===expectedHeight),'Card dimensions');
-    const rowBounds=rect(row),visible=cards.filter(c=>rect(c).left>=rowBounds.left-.5&&rect(c).right<=rowBounds.right+.5).length,capacity=Math.floor((row.clientWidth+6)/(rect(cards[0]).width+6));
-    if(width===375)check(visible===Math.min(cards.length,4),'Mobile must show four complete products');
-    if(width===1440)check(capacity>=11&&capacity<=12,'Desktop capacity must be 11–12');
+    const theme=row.id==='shelf-themes',expectedWidth=width<=600?91:101,expectedHeight=width<=600?118:127;
+    if(!theme)check(cards.every(c=>Math.abs(rect(c).width-expectedWidth)<.2&&rect(c).height===expectedHeight),'Card dimensions');
+    else{
+     const count=width<=600?2:width<=950?3:4,gap=width<=600?10:12;
+     check(Math.abs(rect(row.children[0]).width-Math.min(width>950?240:Infinity,(row.clientWidth-gap*(count-1))/count))<1,'Theme columns');
+     check(cards.every(c=>Math.abs(rect(c.querySelector('img')).width/rect(c.querySelector('img')).height-4/3)<.01),'Theme image 4:3');
+     check(new Set([...row.children].map(c=>Math.round(rect(c).height))).size===1,'Theme equal heights');
+     check(new Set([...row.children].map(c=>Math.round(rect(c.querySelector('.shop-theme-actions')).top))).size===1,'Theme action alignment');
+     check(cards.every(c=>c.querySelector('span').textContent==='100 G부터'),'Theme minimum price');
+     check(new Set(cards.map(c=>c.dataset.decoration)).size===cards.length,'Duplicate theme SKU');
+    }
+    const rowBounds=rect(row),visible=cards.filter(c=>rect(c).left>=rowBounds.left-.5&&rect(c).right<=rowBounds.right+.5).length,capacity=Math.floor((row.clientWidth+8)/(rect(cards[0]).width+8));
+    if(width===375)check(visible===Math.min(cards.length,theme?2:3),'Mobile visible products');
+    if(width===1440&&!theme)check(capacity>=9&&capacity<=10,'Desktop ordinary capacity');
     check(new Set(cards.map(c=>Math.round(rect(c.querySelector('span')).bottom-rect(c).top))).size===1,'Price baseline');
     check(cards.every(c=>{const r=rect(c),p=rect(c.querySelector('span'));return p.left>=r.left&&p.right<=r.right;}),'Price clipping');
     check(cards.every(c=>{const t=c.querySelector('strong');return t.scrollHeight<=t.clientHeight+1;}),'Registered product name clipped');
