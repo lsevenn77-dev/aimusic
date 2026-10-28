@@ -30,6 +30,14 @@ test('backdrop closes options only when clicking outside its bounds',()=>{
  assert.equal(closed,1);
  modal.querySelector=()=>false;listeners.click({currentTarget:modal,target:modal,clientX:0,clientY:0});assert.equal(closed,1);
 });
+
+test('chart menu reuses existing song actions in an anchored popover, never adds chart playlist creation',()=>{
+ const {c}=menu('other');let anchorReceived;
+ c.chartTrackPopover=(html,anchor)=>{c.html=html;anchorReceived=anchor;};const anchor={};c.trackMenu('one',anchor);
+ assert.equal(anchorReceived,anchor);
+ for(const action of ['data-play="one"','data-add="one"','data-share="one"','data-report-track="one"','data-queue-insert="one"'])assert.ok(c.html.includes(action));
+ assert.doesNotMatch(c.html,/data-chart-playlist|플리 만들기|data-delete-track/);
+});
 function deletion(fail=false){
  const calls=[],form={},removed=[],c=vm.createContext({esc,dialog:html=>{c.html=html;},$:selector=>selector==='#delete-track-form'?form:{close:()=>calls.push('close')},busyForm:(_,fn)=>fn,uploadRequest:async()=>{calls.push('delete');if(fail)throw Error('삭제 실패');},invalidateReads:()=>calls.push('invalidate'),current:{id:'cover',original_id:'one'},closePlayer:()=>calls.push('stop'),queue:['one','cover','safe'],trackMap:new Map([['one',{id:'one'}],['cover',{id:'cover',original_id:'one'}],['safe',{id:'safe'}]]),routeTracks:[{id:'one'},{id:'cover',original_id:'one'},{id:'safe'}],library:{likes:[{id:'one'},{id:'safe'}]},pendingResume:{id:'cover'},sessionStorage:{removeItem:key=>removed.push(key)},saveQueue:()=>calls.push('queue'),toast:()=>{},refreshLibrary:async fresh=>calls.push('library:'+fresh),render:async()=>calls.push('render')});
  const text=source('actions.js');vm.runInContext(text.slice(text.indexOf('function deleteTrackDialog('),text.indexOf('async function uploadFile(')),c);c.deleteTrackDialog('one','<Song>','original');return {c,calls,form,removed};

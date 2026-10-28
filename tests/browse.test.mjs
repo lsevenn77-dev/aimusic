@@ -25,11 +25,10 @@ function viewContext(responses={},user=null){
  vm.runInContext(readFileSync(new URL('../dist/release-refinements.js',import.meta.url),'utf8'),context);
  return {context,calls,view:(base,param,raw='')=>context.browseView(base,param,raw)};
 }
-test('karaoke chart contains covers only and reports an empty chart without substituting MR originals',async()=>{
- const path='/api/cover-rankings?kind=tracks&period=week&include_unranked=1';
- const {view,calls}=viewContext({[path]:{tracks:[{id:'cover',kind:'cover',title:'Cover',rank:1},{id:'original',kind:'original',title:'Original'}]}});
- const d=await view('charts','karaoke');assert.deepEqual(calls,[path]);assert.deepEqual(Array.from(d.tracks,t=>t.id),['cover']);assert.doesNotMatch(d.html,/Original|#sing\/original/);
- const empty=await viewContext({[path]:{tracks:[]}}).view('charts','karaoke');assert.match(empty.html,/아직 등록된 커버곡이 없어요/);assert.match(empty.html,/disabled/);
+test('removed chart tabs resolve to weekly originals without querying or deleting cover data',async()=>{
+ const path='/api/catalog?section=tracks&full=1&chart=top&period=week';
+ const {view,calls}=viewContext({[path]:{tracks:[]}});
+ const d=await view('charts','karaoke');assert.deepEqual(calls,[path]);assert.doesNotMatch(d.html,/노래방 차트|신인|AIFECT 인기차트/);assert.match(d.html,/총 0곡/);assert.match(d.html,/disabled/);
  const sing=await viewContext({'/api/karaoke':{tracks:[{id:'ready',title:'Ready',created:0}]},'/api/duets':{tracks:[]}}).view('karaoke');assert.match(sing.html,/#sing\/ready/);assert.match(sing.html,/바로 부르기/);assert.match(sing.html,/참여 대기 듀엣/);
 });
 test('community filters covers and originals through the public API',async()=>{
@@ -52,7 +51,19 @@ test('search landing and unrelated routes do not perform unnecessary requests',a
 });
 
 test('popular chart shows yesterday movement instead of scores and retains calendar navigation',async()=>{
- const path='/api/catalog?section=tracks&chart=top&period=month',track={id:'song',title:'<script>',chart_score:65.5,chart_movement:'up',rank_change:3,chart_plays:3,chart_likes:2,chart_comments:1,chart_gifts:5};
+ const path='/api/catalog?section=tracks&full=1&chart=top&period=month',track={id:'song',title:'<script>',duration:60,chart_score:65.5,chart_movement:'up',rank_change:3,chart_plays:3,chart_likes:2,chart_comments:1,chart_gifts:5};
  const {view,calls}=viewContext({[path]:{chart:{label:'이달'},tracks:[track]}});const d=await view('charts',undefined,'charts?period=month');
- assert.deepEqual(calls,[path]);assert.doesNotMatch(d.html,/65.50|인기점수|최대 100점/);assert.match(d.html,/chart-movement up/);assert.ok(d.html.includes('<span class="chart-direction">▲</span><span>3</span>'));assert.match(d.html,/어제보다 3위 상승/);assert.match(d.html,/명예의 전당/);assert.match(d.html,/#charts\?period=today/);assert.match(d.html,/&lt;script&gt;/);assert.equal(d.tracks[0].id,'song');
+ assert.deepEqual(calls,[path]);assert.doesNotMatch(d.html,/65.50|인기점수|최대 100점|period=today|명예의 전당/);assert.match(d.html,/chart-movement up/);assert.ok(d.html.includes('<span class="chart-direction">▲</span><span>3</span>'));assert.match(d.html,/어제보다 3위 상승/);assert.match(d.html,/#charts\?period=all/);assert.match(d.html,/총 1곡/);assert.match(d.html,/&lt;script&gt;/);assert.equal(d.tracks[0].id,'song');
+});
+
+test('chart playback keeps all playable results and shuffles a fresh queue without dropping songs',async()=>{
+ const {context:c}=viewContext(),button={},mode={click(){vm.runInContext('shuffle=false',c);}};
+ vm.runInContext('let routeTracks=[],shuffle=true;',c);
+ c.bindCommunity=()=>{};c.document.querySelectorAll=()=>[];c.$=s=>s==='[data-browse-shuffle]'?button:s==='#shuffle'?mode:null;
+ const tracks=Array.from({length:123},(_,i)=>({id:'song'+i,duration:i===0?0:60})),calls=[];
+ c.play=async(id,queue)=>calls.push({id,queue:Array.from(queue,t=>t.id)});
+ c.bindBrowse({chartPage:true,tracks});
+ assert.equal(vm.runInContext('routeTracks.length',c),122);
+ await button.onclick();assert.equal(calls.length,1);assert.equal(calls[0].id,calls[0].queue[0]);assert.equal(new Set(calls[0].queue).size,122);assert.ok(!calls[0].queue.includes('song0'));assert.equal(vm.runInContext('shuffle',c),false);
+ assert.deepEqual(Array.from(tracks,t=>t.id),Array.from({length:123},(_,i)=>'song'+i));
 });

@@ -69,20 +69,49 @@ async function trackPicker(pid){
 
 function updateQueueButton(){const button=$('#queue-toggle'),count=$('#queue-count');if(button)button.setAttribute('aria-label',`재생목록 열기 · ${queue.length}곡`);if(count){count.textContent=number(queue.length);count.hidden=!queue.length;}}
 function saveQueue(){updateQueueButton();try{sessionStorage.setItem('aifect-queue',JSON.stringify({ids:queue,tracks:queue.map(id=>({id,title:trackMap.get(id)?.title,artist:trackMap.get(id)?.artist}))}));}catch{}}
-function trackMenu(tid){
+function trackMenu(tid,anchor=null){
  const t=trackMap.get(tid);if(!t)return;const id=esc(tid);
  const row=(name,label,attrs,extra='')=>`<button type="button" class="track-option ${extra}" ${attrs}>${icon(name)}<span>${label}</span>${icon('chevron')}</button>`;
- dialog(`<nav class="track-options" aria-label="곡 옵션">
+ const html=`<nav class="track-options" aria-label="곡 옵션">
  ${row('play','지금 재생',`data-play="${id}"`,'track-option-now')}
  ${row('next','다음에 재생',`data-queue-insert="${id}" data-placement="next"`)}
  ${row('list','재생목록 맨 뒤에 추가',`data-queue-insert="${id}" data-placement="last"`)}
  ${row('plus','플레이리스트에 저장',`data-add="${id}"`)}
  ${row('heart',`<span data-track-like-label>${liked(tid)?'좋아요 해제':'좋아요'}</span>`,`data-like="${id}" aria-pressed="${liked(tid)}"`)}
+ ${anchor?row('share','공유하기',`data-share="${id}"`):''}
+ ${anchor&&me?.id!==t.user_id?row('info','음질 문제 신고',`data-report-track="${id}"`):''}
  ${giftButton(t,'track-option').replace('</button>',icon('chevron')+'</button>')}
  <a class="track-option" href="#song/${id}" data-close-dialog>${icon('info')}<span>곡 정보 · 가사 · 댓글</span>${icon('chevron')}</a>
  ${me?.id&&me.id===t.user_id?row('trash','곡 삭제',`data-delete-track="${id}" data-track-title="${esc(t.title)}" data-track-kind="${esc(t.kind)}"`,'track-option-delete'):''}
- </nav>`);
+ </nav>`;
+ if(anchor)chartTrackPopover(html,anchor);else dialog(html);
  paintInteractions();
+}
+function chartTrackPopover(html,anchor){
+ let menu=document.getElementById('chart-track-menu');
+ if(!menu){menu=document.createElement('div');menu.id='chart-track-menu';menu.popover='auto';menu.className='chart-track-popover';document.body.append(menu);}
+ menu._chartCleanup?.();
+ if(menu.matches(':popover-open'))menu.hidePopover();
+ menu.innerHTML=html;menu.style.visibility='hidden';
+ anchor.setAttribute('aria-controls',menu.id);anchor.setAttribute('aria-expanded','true');
+ menu.showPopover();
+ const viewport=window.visualViewport,left=viewport?.offsetLeft||0,top=viewport?.offsetTop||0,width=viewport?.width||window.innerWidth,height=viewport?.height||window.innerHeight;
+ menu.style.maxHeight=Math.max(80,height-16)+'px';menu.style.maxWidth=Math.max(80,width-16)+'px';
+ const rect=anchor.getBoundingClientRect(),size=menu.getBoundingClientRect(),x=Math.max(left+8,Math.min(rect.right-size.width,left+width-size.width-8)),below=rect.bottom+6;
+ const y=Math.max(top+8,Math.min(below+size.height<=top+height-8?below:rect.top-size.height-6,top+height-size.height-8));
+ menu.style.left=x+'px';menu.style.top=y+'px';menu.style.visibility='';
+ const close=()=>{if(menu.matches(':popover-open'))menu.hidePopover();cleanup();};
+ const onScroll=e=>{if(!menu.contains(e.target))close();};
+ const onToggle=e=>{if(e.newState==='closed')cleanup();};
+ const cleanup=()=>{anchor.setAttribute('aria-expanded','false');window.removeEventListener('scroll',onScroll,true);window.removeEventListener('resize',close);window.removeEventListener('hashchange',close);menu.removeEventListener('toggle',onToggle);};
+ menu._chartCleanup=cleanup;menu.addEventListener('toggle',onToggle);
+ window.addEventListener('scroll',onScroll,true);window.addEventListener('resize',close);window.addEventListener('hashchange',close,{once:true});
+ menu.onclick=e=>{if(e.target.closest('a,button'))close();};
+ menu.onkeydown=e=>{
+  if(e.key==='Escape'){e.preventDefault();close();anchor.focus();}
+  if(['ArrowDown','ArrowUp','Home','End'].includes(e.key)){e.preventDefault();const items=[...menu.querySelectorAll('a,button')],index=items.indexOf(document.activeElement);items[e.key==='Home'?0:e.key==='End'?items.length-1:(index+(e.key==='ArrowDown'?1:items.length-1))%items.length]?.focus();}
+ };
+ menu.querySelector('button,a')?.focus();
 }
 // Native dialog keeps ESC and focus trapping. Backdrop dismissal is scoped to this menu.
 $('#dialog').addEventListener('click',event=>{
@@ -100,7 +129,7 @@ document.addEventListener('click',async e=>{const b=e.target.closest('button,a')
  if(b.dataset.saveCollection){if(!me)return askLogin();const saved=b.dataset.saved==='true';b.disabled=true;await api(`/api/playlists/${b.dataset.saveCollection}/save`,saved?'DELETE':'PUT');await refreshLibrary();if(location.hash.startsWith('#playlist/'))await render();else{b.dataset.saved=String(!saved);b.textContent=saved?'보관함 저장':'보관함 저장됨';}toast(saved?'보관함에서 저장을 해제했습니다.':'공개 플레이리스트를 내 보관함에 저장했습니다.');}
  else if(b.dataset.pinCollection){b.disabled=true;await api('/api/library/playlists/'+b.dataset.pinCollection,'PATCH',{pinned:b.dataset.pinned!=='true'});await render();}
  else if(b.hasAttribute('data-order-collections'))await orderCollections();
- else if(b.dataset.trackMenu)trackMenu(b.dataset.trackMenu);
+ else if(b.dataset.trackMenu)trackMenu(b.dataset.trackMenu,b.closest('.charts-final')?b:null);
  else if(b.dataset.queuePlay){$('#dialog').close();await play(b.dataset.queuePlay);}
  else if(b.dataset.queueInsert){if(b.dataset.queueInsert===current?.id)return toast('지금 재생 중인 곡입니다.');if(queue.length>=500)return toast('현재 재생목록에는 최대 500곡까지 담을 수 있어요.');queue=AifectQueue.insertTrack(queue,b.dataset.queueInsert,current?.id,b.dataset.placement);saveQueue();$('#dialog').close();toast(b.dataset.placement==='next'?'다음에 재생할 곡으로 담았습니다.':'재생목록 맨 뒤에 담았습니다.');}
  else if(b.hasAttribute('data-move-queue')){queue=AifectQueue.moveTrack(queue,Number(b.dataset.moveQueue),Number(b.dataset.dir));saveQueue();queueDialog();}
