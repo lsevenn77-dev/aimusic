@@ -381,3 +381,41 @@
  #main .home-content-refresh .home-chart-feature{display:none}
  #main .home-content-refresh #home-popular+.listening-section{margin-top:24px}
 }
+
+/* Desktop chart readability. Keep the shared shell and <=1100px layouts intact.
+   Scale actual dimensions; subgrid shares intrinsic count widths across rows. */
+@media(min-width:1101px){
+ #main .charts-final{
+  --music-stat-icon:19.8px;--music-stat-plays:18.7px;
+  --music-stat-number:15.4px;--music-stat-gap:4.4px;
+  --control-diameter:39.6px;--control-glyph-inset:5.5px;
+ }
+ #main .charts-final>h1{font-size:26.4px;margin-bottom:8.8px}
+ #main .charts-final .chart-toolbar{gap:8.8px;margin-bottom:13.2px}
+ #main .charts-final .chart-tabs{gap:26.4px}
+ #main .charts-final .chart-tabs .tab{font-size:15.4px;min-height:44px;padding-bottom:9.9px}
+ #main .charts-final .chart-toolbar .chart-action{height:35.2px;min-height:35.2px;gap:7.7px;padding-inline:11px;font-size:12.1px!important}
+ #main .charts-final .chart-toolbar .chart-action>svg{width:16.5px!important;height:16.5px!important;flex-basis:16.5px!important}
+ #main .charts-final .chart-period{min-width:99px}
+ #main .charts-final .chart-period-menu{padding:4.4px}
+ #main .charts-final .chart-period-menu a{font-size:14.3px;min-height:39.6px;padding-inline:13.2px}
+ #main .charts-final .chart-meta{gap:4.4px 13.2px}
+ #main .charts-final .chart-meta :is(.chart-period-note,[data-browse-count]){font-size:12.1px}
+ #main .charts-final .song-table-chart{
+  grid-template-columns:30.8px 52.8px minmax(0,1fr) 63.8px 50.6px repeat(3,minmax(63.8px,max-content)) 57.2px;
+  column-gap:11px;margin-block:13.2px 17.6px;
+ }
+ #main .charts-final .song-table-chart :is(.song-table-head,.song-table-row){column-gap:11px;padding-inline:13.2px}
+ #main .charts-final .song-table-chart .song-table-head{height:41.8px;font-size:12.1px;padding-inline:13.2px!important}
+ #main .charts-final .song-table-chart .song-table-row{--list-thumb-size:52.8px;--list-row-inset:13.2px;min-height:77px}
+ #main .charts-final .song-table-chart .song-table-position{font-size:18.7px}
+ #main .charts-final :is(.chart-art-wrap,.mini-cover){width:52.8px;height:52.8px}
+ #main .charts-final .chart-song-copy{flex-flow:row nowrap;gap:13.2px;min-width:0}
+ #main .charts-final .chart-song-title{flex:0 1 auto;display:block;font-size:16.9px;color:var(--ds-text);line-height:1.5}
+ #main .charts-final .chart-song-title strong{font-size:inherit;font-weight:650}
+ #main .charts-final .chart-song-credit{flex:0 1 auto;max-width:40%;font-size:15px;font-weight:400;line-height:1.5;color:var(--ds-muted)}
+ #main .charts-final .chart-cover-count{font-size:13.2px}
+ #main .charts-final .chart-movement strong{gap:4.4px;font-size:15.4px!important}
+ #main .charts-final .chart-movement .chart-direction{font-size:9.9px!important}
+ #main .charts-final .song-table-tools .icon-button{width:44px;height:48.4px}
+}
