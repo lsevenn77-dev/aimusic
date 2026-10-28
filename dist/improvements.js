@@ -82,7 +82,6 @@ async function improvementsView(base,param,raw){
   const people=library.follows.filter(p=>p.kind==='producer').map(p=>({...p,id:p.target_id})),artists=library.follows.filter(p=>p.kind==='artist').map(p=>({...p,id:p.target_id}));
   return {html:heading('팔로우','내가 팔로우한 사람들의 음악을 만나보세요.')+(people.length?peopleListHTML(people,'producer'):empty('아직 팔로우한 사람이 없어요','마음에 드는 프로필에서 팔로우를 눌러보세요.','#community','커뮤니티 둘러보기'))+(artists.length?section('팔로우한 AI 아티스트')+peopleListHTML(artists,'artist'):'')};
  }
- if(base==='discover'&&!param)return {html:browseSearchHTML()};
  if(base==='community'&&param==='crews'){
   const params=new URLSearchParams(raw.split('?')[1]||''),q=params.get('q')||'',hint=peekCrewNavigation('discovery');
   if(hint?.mine&&!params.has('q')&&params.get('browse')!=='1'){try{return await liveCrewDetail(hint.mine);}catch(e){if(e.status!==404)throw e;clearCrewNavigation();}}
