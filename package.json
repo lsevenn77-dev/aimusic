@@ -5,8 +5,6 @@
   "scripts": {
     "lint:play": "eslint --config eslint.play.config.mjs dist/play-page.js server/play.js tests/play.test.mjs tests/preview-play.mjs",
     "typecheck:play": "tsc -p tsconfig.play.json",
-    "lint:home": "eslint --config eslint.home.config.mjs dist/home.js tests/home.test.mjs tests/home-qa.js tests/preview-home.mjs",
-    "typecheck:home": "tsc -p tsconfig.home.json",
     "build": "node scripts/build.mjs",
     "dev": "wrangler dev --port 4174",
     "db:generate": "drizzle-kit generate",

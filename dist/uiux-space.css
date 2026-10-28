@@ -1,10 +1,6 @@
 /* Approved browsing surfaces only. No selectors target sing, dubbing editors,
    global navigation, player, purchase dialogs or recording state. */
 
-/* Home retains the Android section order, carousel and individual music cards. */
-#main[data-route="home"] .aifect-home>section{margin-bottom:28px}
-#main[data-route="home"] .aifect-home>#home-release,
-#main[data-route="home"] .aifect-home>#home-categories{margin-bottom:14px}
 
 /* Flatten only the extra section frames, not their interactive contents. */
 #main .mypage-layout .mp-main>.mp-moments-card,
@@ -90,8 +86,6 @@
   position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);clip-path:inset(50%);white-space:nowrap;border:0;
  }
  #main:is([data-route="home"],[data-route^="karaoke"],[data-route="community"],[data-route^="community/"],[data-route="gifts"],[data-route="profile"],[data-route^="profile?"],[data-route^="producer/"],[data-route^="song/"],[data-route="studio"],[data-route^="notifications"]){padding-inline:14px;padding-top:12px}
- #main[data-route="home"] .aifect-home>section{margin-bottom:24px}
- #main[data-route="home"] .aifect-home .home-heading{margin-bottom:10px}
  #main .play-page .play-main-tabs{margin:0 0 12px}
  #main .play-page .play-subbar{gap:12px;margin-bottom:12px}
  #main .play-page .play-category-tabs{gap:4px}
@@ -146,149 +140,4 @@
  #main[data-route^="notifications"] .activity-row{gap:10px;padding:12px 0}
  #main[data-route^="notifications"] .activity-copy>p{font-size:13px}
  #main[data-route^="notifications"] .activity-note{margin:8px 0}
-}
-
-/* 2026-10-28: role-based typography and spacing, scoped to app content/dialogs.
-   No palette, artwork, navigation, playback or recording-state overrides. */
-#main,#dialog{
- --ui-page-title:24px;--ui-section-title:18px;--ui-card-title:15px;
- --ui-body-size:14px;--ui-meta-size:12px;--ui-button-size:14px;
- --ui-group-gap:8px;--ui-panel-gap:16px;--ui-section-gap:24px;
-}
-#main :is(.page-heading h1,.mp-heading h1,.shop-heading h1,.gift-dashboard-hero h1){font-size:var(--ui-page-title);font-weight:600;line-height:1.35;letter-spacing:-.02em}
-#main :is(.page-heading p,.surface>p,.field-help,.play-empty p,.v3-empty p){font-size:var(--ui-body-size);line-height:1.55;letter-spacing:0}
-#main .page-heading{margin-bottom:var(--ui-section-gap);gap:var(--ui-panel-gap)}
-#main.secondary-page>.page-heading{min-height:0;padding:20px 24px}
-#main :is(.section-heading h2,.mp-section-head h2,.v3-toolbar h2,.gift-section-heading h2,.shop-shelf h2,.studio-payout-callout h2){font-size:var(--ui-section-title);font-weight:600;line-height:1.4;letter-spacing:-.015em}
-#main .section-heading{gap:12px;margin-bottom:16px;align-items:center}
-#main :is(.primary-button,.small-button,.secondary-button,.outline-button){font-size:var(--ui-button-size);font-weight:500;line-height:1.4;gap:8px;min-height:44px;padding:8px 14px;align-items:center;justify-content:center}
-#main :is(.primary-button,.small-button,.secondary-button,.outline-button)>svg{flex-shrink:0}
-#main :is(.tab,.filter-chip){font-size:14px;font-weight:500;line-height:1.4}
-#main :is(.album-title,.track-info strong,.play-song-title,.song-cover-copy strong,.mp-work-title,.v3-room-copy h3,.play-draft-copy h3){font-size:var(--ui-card-title);font-weight:600;line-height:1.45;letter-spacing:0}
-#main :is(.album-artist,.album-producer,.album-meta,.track-info>span,.play-song-uploader,.song-cover-meta,.mp-work-meta,.play-draft-copy p){font-size:var(--ui-meta-size);font-weight:400;line-height:1.5}
-#main :is(.track-info>span,.album-artist){margin-top:4px}
-#main :is(.song-cover-expand,.mp-work-participants,.play-song-count,.track-count,.song-like-count){font-size:13px;font-weight:600;font-variant-numeric:tabular-nums}
-#main :is(.song-cover-expand,.play-song-count){display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px}
-#main :is(.track-info,.play-song-copy,.song-cover-copy,.mp-identity,.v3-room-copy){min-width:0}
-#main :is(.live-comment p,.mp-profile-bio,.v3-description){font-size:14px;line-height:1.55;overflow-wrap:anywhere}
-
-/* Home keeps the approved grid; remove the old margin plus grid-gap double spacing. */
-#main[data-route="home"] #home-root>section{margin-bottom:0}
-#main #home-root{gap:24px}
-#main #home-root .home-heading{margin-bottom:8px}
-#main #home-root .home-row-copy strong,#main #home-root .home-album-title{font-size:14px;font-weight:500;line-height:1.45}
-#main #home-root .home-row-copy>span,#main #home-root .home-album p{font-size:12px;line-height:1.45}
-#main #home-root .home-row-stats>*{font-size:12px}
-#main #home-root .home-genre{font-size:11px}
-#main #home-root :is(.home-public-playlist>strong,.home-discovery-card strong){font-size:14px;line-height:1.45}
-#main #home-root .home-public-playlist>span{font-size:12px}
-#main #home-root .home-participation strong{font-size:13px;line-height:1.4}
-#main #home-root .home-hero-copy h2{font-size:26px;line-height:1.35}
-
-/* Play/community: keep existing tabs and columns, tighten their internal rhythm. */
-#main .play-page .play-main-tabs{margin:16px 0}
-#main .play-page .play-category-tabs .tab{min-height:72px;padding:10px 8px;gap:6px;font-weight:500}
-#main .play-page .play-subbar{gap:16px;margin-bottom:16px}
-#main .play-page .play-search{margin-bottom:16px}
-#main .play-page .play-create{font-size:14px;min-height:44px}
-#main .play-page .play-grid{gap:20px 16px}
-#main .play-page .play-project-row h2{font-size:15px;line-height:1.45;font-weight:600;margin-bottom:4px}
-#main .play-page .play-project-row :is(p,small){font-size:12px;line-height:1.5}
-#main .play-page .play-draft-row{min-height:72px;padding-block:12px}
-#main .v3-toolbar{gap:12px;margin-block:16px}
-#main .v3-toolbar h2{margin-bottom:4px}
-#main .v3-toolbar p{font-size:13px;line-height:1.5}
-#main .v3-room-copy{padding-block:10px}
-#main .v3-room-copy h3{margin-bottom:4px}
-#main .v3-crew-work{gap:12px;padding-block:12px}
-
-/* Song title remains the focal point; prose and credits become easier to scan. */
-#main .song-detail-refined{gap:24px;margin-bottom:24px}
-#main .song-detail-refined h2{font-size:26px;line-height:1.4;font-weight:600;letter-spacing:-.02em;margin:8px 0 12px}
-#main .song-detail-refined .song-credits{gap:12px 24px}
-#main .song-detail-refined .song-credits>div>span{font-size:12px;letter-spacing:.02em}
-#main .song-detail-refined .song-description{font-size:14px;line-height:1.6}
-#main .song-detail-refined .song-actions :is(button,a){font-size:13px;line-height:1.4;gap:6px;padding-inline:12px}
-#main .song-detail-refined .song-engagement{gap:8px;flex-wrap:wrap}
-#main .song-sidebar :is(.section-heading h2,.song-support-heading){font-size:17px;font-weight:600;line-height:1.45}
-#main .live-comment{padding-block:16px;gap:12px}
-
-/* Profile preserves its fixed hierarchy and all account controls. */
-#main .mypage-layout .mp-identity h2{font-size:22px;font-weight:600;line-height:1.4;letter-spacing:-.02em}
-#main .mypage-layout .mp-card{line-height:1.5}
-#main .mypage-layout .mp-section-head{margin-bottom:12px;gap:8px}
-#main .mypage-layout .mp-profile{gap:16px}
-#main .mypage-layout .mp-profile-actions{gap:8px}
-#main .mypage-layout :is(.mp-activity-rows strong,.mp-account-links>a){font-size:13px;line-height:1.45}
-#main .mypage-layout :is(.mp-activity-rows small,.mp-pass small,.mp-asset small){font-size:12px;line-height:1.5}
-#main .mypage-layout .mp-profile-actions>:is(.primary-button,.small-button){font-size:13px}
-#main .mypage-layout .mp-my-crew strong{font-size:18px;font-weight:600}
-
-/* Creator tools and settlement: long labels remain readable in narrow columns. */
-#main:is([data-route="studio"],[data-route="studio/payouts"]) .stats-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:24px}
-#main:is([data-route="studio"],[data-route="studio/payouts"]) .stat-card{min-width:0;padding:16px}
-#main:is([data-route="studio"],[data-route="studio/payouts"]) .stat-card :is(span,p){font-size:13px;line-height:1.45;overflow-wrap:anywhere}
-#main:is([data-route="studio"],[data-route="studio/payouts"]) .stat-card strong{font-size:24px;font-weight:600;line-height:1.3;font-variant-numeric:tabular-nums;margin-top:8px}
-#main[data-route="studio"] .studio-track{gap:12px;padding-block:16px}
-#main[data-route="studio"] .studio-track p{font-size:13px;line-height:1.5;margin-block:4px}
-#main .studio-payout-callout{gap:16px;padding:20px;margin-top:24px}
-#main .studio-payout-callout p{font-size:14px;line-height:1.55;margin-block:8px}
-#main .upload-quota{padding:16px;margin-bottom:20px}
-#main .upload-quota strong{font-size:14px;font-weight:600;line-height:1.45}
-#main .upload-quota p{font-size:13px;line-height:1.55;margin-top:6px}
-#main :is(.payout-schedule p,.payout-account p){font-size:14px;line-height:1.55}
-#main .payout-schedule h3{font-size:16px;font-weight:600;line-height:1.45}
-#main .payout-counts dd{font-weight:600;font-variant-numeric:tabular-nums}
-#main :is(.earnings-table,.payout-history){font-size:13px;line-height:1.5}
-
-/* Recording controls only; lyrics, waveforms and selected lyric-size modes are untouched. */
-#main #sing.web-studio .studio-song-meta h1{font-size:22px;letter-spacing:-.02em;line-height:1.4}
-#main #sing.web-studio .studio-song-meta p{font-size:13px;line-height:1.5;margin-top:6px}
-#main #sing.web-studio .studio-setting-card{padding:16px}
-#main #sing.web-studio .studio-setting-card h2{font-size:17px;line-height:1.4;margin-bottom:12px;gap:8px}
-#main #sing.web-studio .studio-setting-card .studio-range .studio-control-name{font-size:12px;line-height:1.45}
-#main #sing.web-studio .studio-setting-card .studio-range output{font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
-#main #sing.web-studio :is(.studio-side-note,.sing-header-mode p,.sing-local-note){font-size:12px;line-height:1.5}
-#main #sing.web-studio .sing-mode button{font-size:13px;min-height:44px;padding:8px 12px}
-
-/* Catalogs and dialogs keep product art, five-column gift sheets and checkout behavior. */
-#main .shop-heading{gap:12px;margin-bottom:16px}
-#main .shop-shelf{margin-bottom:20px}
-#main :is(.shop-product>strong,.shop-item h3,.gift-choice strong){font-size:14px;font-weight:600;line-height:1.4}
-#main .shop-product>span{font-size:13px;font-weight:600;font-variant-numeric:tabular-nums}
-#main :is(.shop-price,.gift-price,.gift-quantity){font-size:13px;font-weight:600;font-variant-numeric:tabular-nums}
-#main .shop-actions{gap:8px}
-#dialog h2{font-size:20px;font-weight:600;line-height:1.4;letter-spacing:-.015em;margin-bottom:16px}
-#dialog :is(p,.form-field){font-size:14px;line-height:1.55}
-#dialog :is(.field-help,.form-note,.gift-fineprint){font-size:12px;line-height:1.5}
-#dialog :is(.primary-button,.small-button,.secondary-button){font-size:14px;font-weight:500;line-height:1.4;min-height:44px;gap:8px;padding:8px 14px}
-#dialog .inline-actions{gap:8px}
-#dialog .dialog-close{width:44px;height:44px}
-#dialog :is(.gift-quantity select,.gift-quantity-select,.gift-count){font-weight:600;font-variant-numeric:tabular-nums}
-#dialog .gift-quantity{align-items:center;gap:8px}
-@media(min-width:1200px){
- #main:is([data-route="studio"],[data-route="studio/payouts"],[data-route="gifts"],[data-route="community"]){max-width:1440px}
-}
-@media(max-width:767px){
- #main,#dialog{--ui-page-title:21px;--ui-section-title:17px;--ui-card-title:14px;--ui-button-size:13px}
- #main .section-heading{gap:8px;margin-bottom:12px}
- #main .play-page .play-category-tabs .tab{min-height:52px;padding:6px 2px;font-size:13px}
- #main .play-page .play-main-tabs .tab{font-size:14px;min-height:44px;padding-block:10px}
- #main .play-page .play-grid{gap:16px 12px}
- #main #home-root .home-hero-copy h2{font-size:22px}
- #main #home-root .home-participation strong{font-size:12px}
- #main .song-detail-refined{gap:16px}
- #main .song-detail-refined h2{font-size:22px}
- #main .song-detail-refined .song-credits{gap:8px 16px}
- #main .song-detail-refined .song-credits :is(a,.song-producer-name){font-size:14px}
- #main .mypage-layout .mp-identity h2{font-size:20px}
- #main .mypage-layout .mp-profile{gap:12px}
- #main[data-route="studio"] .stat-card{padding:12px 8px}
- #main[data-route="studio"] .stat-card strong{font-size:22px}
- #main[data-route="studio"] .stats-grid{gap:8px}
- #main #sing.web-studio .studio-song-meta h1{font-size:20px}
- #main #sing.web-studio .studio-song-meta p{font-size:12px}
- #main #sing.web-studio .studio-setting-card{padding:14px 12px}
- #dialog h2{font-size:20px;padding-right:28px}
- #dialog :is(input,textarea,select):not([type=range]):not([type=checkbox]):not([type=radio]){font-size:16px}
 }

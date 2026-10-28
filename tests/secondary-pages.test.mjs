@@ -45,12 +45,11 @@ test('draft rendering offers separate edit/delete controls, empty state and safe
  assert.match(c.karaokeDraftsHTML([]),/data-delete-all-drafts disabled/);assert.match(c.karaokeDraftsHTML([]),/첫 목소리/);
  assert.match(read('sing-drafts.js'),/복구할 수 없어요/);assert.match(read('sing-drafts.js'),/cancel-draft-delete'\)\.onclick=\(\)=>\$\('#dialog'\)\.close/);
 });
-test('home participation cards navigate to existing solo, duet and dubbing entrypoints',()=>{
- const {c}=setup();vm.runInContext(read('home.js'),c);
- const html=c.homeSingHTML();
- for(const route of ['#karaoke','#karaoke/duets','#karaoke/dubbing?tab=join'])assert.ok(html.includes('href="'+route+'"'));
- for(const label of ['솔로로 부르기','듀엣 참여','더빙 참여'])assert.ok(html.includes(label));
- assert.doesNotMatch(html,/data-play|#sing\/undefined/);
+test('MR cards retain six actual song IDs and co-located play, sing and cover discovery actions',()=>{
+ const {c}=setup();vm.runInContext(read('home.js'),c);const tracks=Array.from({length:8},(_,i)=>({id:'song'+i,title:'Title '+i,artist:'<Singer>',covers:i,duration:100}));
+ const html=c.homeSingHTML(tracks);assert.equal((html.match(/class="sing-discovery-tile /g)||[]).length,6);
+ for(let i=0;i<6;i++){assert.match(html,new RegExp('data-play="song'+i+'"'));assert.match(html,new RegExp('#sing/song'+i));assert.match(html,new RegExp('#song/song'+i+'\\?covers=all'));}
+ assert.doesNotMatch(html,/song6|<Singer>/);assert.match(html,/sing-discovery-featured/);assert.match(html,/sing-discovery-more/);
 });
 test('responsive cards and studio spacing are packaged after previous theme layers',()=>{
  const css=read('secondary-pages.css');assert.match(css,/home-sing-grid\{display:grid;grid-template-columns:repeat\(2/);assert.match(css,/@media\(max-width:650px\).*home-sing-grid\{grid-template-columns:1fr/s);
