@@ -213,6 +213,22 @@ dialog.duet-editor-dialog{width:min(860px,calc(100% - 24px));padding:24px;backgr
  .recording-settings .studio-key-actions{margin-left:84px}
 }
 
+/* PC recording only: reserve the existing 80px header and 62px player.
+   Keep the lyric follow anchor and all recording/editor/mobile behavior intact. */
+@media(min-width:1024px){
+ .page-wrap #main:has(#sing.web-studio:not(.is-reviewing):not(.is-punch-page)){height:calc(100% - 80px - 62px);display:flex;align-items:center;justify-content:center;padding:16px 24px!important}
+ #main #sing.web-studio:not(.is-reviewing):not(.is-punch-page){width:100%;max-width:1060px!important;height:min(700px,100%);max-height:700px;margin:0 auto!important;grid-template-columns:minmax(0,1fr) 310px;column-gap:18px}
+ #sing.web-studio:not(.is-reviewing):not(.is-punch-page) .sing-head{padding:8px 0!important}
+ #sing.web-studio:not(.is-reviewing):not(.is-punch-page) .sing-recording{grid-template-rows:auto auto minmax(0,1fr) 16px 78px auto}
+ #sing.web-studio:not(.is-reviewing):not(.is-punch-page) .sing-wheel{height:100%!important;max-height:350px!important;align-self:center;overflow-y:auto!important;padding:0 8px!important}
+ /* Scroll spacers scale with the viewport instead of imposing a minimum height. */
+ #sing.web-studio:not(.is-reviewing):not(.is-punch-page) .sing-wheel::before{content:'';display:block;height:42%}
+ #sing.web-studio:not(.is-reviewing):not(.is-punch-page) .sing-wheel::after{content:'';display:block;height:58%}
+ #sing.web-studio:not(.is-reviewing):not(.is-punch-page) .studio-position-help{margin:6px 4px 0}
+ #sing.web-studio:not(.is-reviewing):not(.is-punch-page) #sing-live-settings{align-self:start;min-height:0;max-height:100%;overflow-y:auto}
+ #sing.web-studio:not(.is-reviewing):not(.is-punch-page) #sing-live-settings .studio-side-note{flex-shrink:0}
+}
+
 /* Compact recording entry; both layouts use the existing dark navy tokens. */
 #recording-mode-dialog{box-sizing:border-box;width:300px;max-width:calc(100vw - 32px);inset:0;height:fit-content;margin:auto;padding:24px;border:1px solid var(--ds-border);border-radius:var(--ds-radius-card,16px);background:var(--ds-panel);color:var(--ds-text);font:inherit;box-shadow:none}
 #recording-mode-dialog::backdrop{background:rgba(0,0,0,.48);backdrop-filter:none}
