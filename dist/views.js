@@ -129,7 +129,7 @@ async function render(){
    studioData=d;html=studioHTML(d)+`<section class="studio-payout-callout"><div><span class="eyebrow">FOR CREATORS</span><h2>음악으로 쌓은 응원</h2><p>정산 현황과 지급 내역을 한곳에서 확인하세요.</p></div><a class="primary-button" href="#studio/payouts">${icon('wallet')} 수익·정산 보기 ${icon('arrow')}</a></section>`;
   }else html=heading('페이지를 찾을 수 없어요')+empty('잠시 길을 잃었네요','홈에서 새로운 음악을 발견해보세요.','#home','홈으로 이동');
   if(profileHeader){const header=await profileHeader;if(header.error)throw header.error;html=header+html;}
-  if(['search','discover','collections'].includes(base))html=listenNav(base==='search'||base==='discover'?'search':base)+html;
+  if(['search','collections'].includes(base))html=listenNav(base==='search'?'search':base)+html;
   if(ticket!==renderId||account!==(me?.id||'guest'))return;
   if(readRevision!==apiRevision)return render();
   saveNavigationSnapshot(raw,html,nextTracks,explorer,restored?window.scrollY||0:0);
