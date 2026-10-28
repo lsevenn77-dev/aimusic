@@ -6,6 +6,14 @@ import {partnerState} from './diamonds.js';
 import {producerNameSQL} from './identity.js';
 
 const requestId=b=>{if(typeof b.request_id!=='string'||!/^[a-zA-Z0-9-]{16,64}$/.test(b.request_id))fail(400,'요청 번호를 다시 확인해주세요.');return b.request_id;};
+// Codes are allocated and reserved by public_profile_ids; a lookup never
+// generates or rewrites identity. Older clients can still send numeric IDs.
+const publicIdentity=(value,legacy=false)=>{
+ const text=String(value??'').trim().toUpperCase();
+ if(/^[A-Z]{3}\d{4}$/.test(text))return {code:text};
+ if(legacy&&/^\d+$/.test(text)&&Number.isSafeInteger(Number(text))&&Number(text)>0)return {number:Number(text)};
+ fail(400,'회원 ID를 확인해주세요. 영문 3자리와 숫자 4자리로 입력해주세요.');
+};
 const paid=`status='paid' AND NOT EXISTS(SELECT 1 FROM gold_orders o WHERE o.id=gold_purchases.id AND o.state!='paid') AND NOT EXISTS(SELECT 1 FROM play_purchases pp WHERE 'play_'||pp.token_hash=gold_purchases.id AND pp.state='refunded')`;
 export async function giftInventoryList(env,uid){
  const items=await rows(env,`SELECT i.id,i.gift_type,i.gift_name,i.currency,i.value,i.source,i.created,
@@ -52,13 +60,14 @@ export async function giftInventoryRoute(req,env,path,user){
  if(path==='/api/admin/gift-inventory/grant'){
   requireUser(user);if(!isAdmin(env,user))fail(403,'관리자 권한이 필요해요.');if(req.method!=='POST')fail(405,'지원하지 않는 요청입니다.');
   const b=await req.json();if(typeof b.reason!=='string'||!b.reason.trim()||b.reason.length>300)fail(400,'지급 사유를 입력해주세요.');
-  const recipient=b.public_number?await one(env,"SELECT u.id FROM users u JOIN public_member_ids m ON m.user_id=u.id WHERE m.number=? AND u.provider!='deleted'",b.public_number):await one(env,"SELECT id FROM users WHERE id=? AND provider!='deleted'",b.user_id||'');
+  const identity=b.public_id!==undefined?publicIdentity(b.public_id):b.public_number!==undefined?publicIdentity(b.public_number,true):null;
+  const recipient=identity?.code?await one(env,"SELECT u.id FROM users u JOIN public_profile_ids m ON m.user_id=u.id WHERE m.code=? AND u.provider!='deleted'",identity.code):identity?await one(env,"SELECT u.id FROM users u JOIN public_member_ids m ON m.user_id=u.id WHERE m.number=? AND u.provider!='deleted'",identity.number):await one(env,"SELECT id FROM users WHERE id=? AND provider!='deleted'",b.user_id||'');
   if(!recipient)fail(404,'회원을 찾을 수 없어요.');await acquire(env,recipient.id,b,user);return json({ok:true});
  }
  if(!path.startsWith('/api/me/gift-inventory'))return null;requireUser(user);
  if(path==='/api/me/gift-inventory/recipient'&&req.method==='GET'){
-  const n=Number(new URL(req.url).searchParams.get('number'));if(!Number.isSafeInteger(n)||n<1)fail(400,'숫자 ID를 입력해주세요.');
-  const p=await one(env,`SELECT p.id,p.user_id,${producerNameSQL()} name,m.number public_number FROM public_member_ids m JOIN users u ON u.id=m.user_id JOIN producers p ON p.user_id=u.id WHERE m.number=? AND u.provider!='deleted'`,n);
+  const params=new URL(req.url).searchParams,identity=params.has('public_id')?publicIdentity(params.get('public_id')):publicIdentity(params.get('number'),true);
+  const p=await one(env,`SELECT p.id,p.user_id,${producerNameSQL()} name,m.number public_number,ids.code public_id FROM public_member_ids m JOIN users u ON u.id=m.user_id JOIN public_profile_ids ids ON ids.user_id=u.id JOIN producers p ON p.user_id=u.id WHERE ${identity.code?'ids.code':'m.number'}=? AND u.provider!='deleted'`,identity.code??identity.number);
   if(!p||p.user_id===user.id)fail(404,'선물할 다른 회원의 프로필을 찾을 수 없어요.');assertUnblocked(env,p.user_id);const {user_id,...profile}=p;return json({profile});
  }
  if(path==='/api/me/gift-inventory'&&req.method==='GET')return json({items:await giftInventoryList(env,user.id)});
