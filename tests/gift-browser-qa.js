@@ -24,15 +24,18 @@ run.onclick=async()=>{
    check(d.documentElement.scrollWidth<=d.documentElement.clientWidth,'Page overflow '+width);
    check(all('.shop-scrollbar').length===all('.shop-track').length,'Every shelf has its own scrollbar');
    const top=q('.shop-heading'),title=top.querySelector('h1'),wallet=top.querySelector('.shop-balances'),actions=top.querySelector('.shop-actions');
-   check(rect(title).right<=rect(wallet).left+.2,'Header title overlaps balances');
+   if(width>=1280)check(rect(title).right<=rect(wallet).left+.2,'Header title overlaps balances');
    if(width>=1280)check(rect(wallet).right<=rect(actions).left+.2&&rect(actions).top<rect(wallet).bottom,'Desktop one-row header');
-   if(width<=600)check(rect(actions).top>=Math.max(rect(title).bottom,rect(wallet).bottom),'Mobile two-row header');
+   if(width<=768)check(rect(wallet).top>=rect(title).bottom&&rect(actions).top>=rect(wallet).bottom,'Mobile header rows');
+   check(parseFloat(style(title).fontSize)===(width<=768?20:24),'Compact header title');
+   check(all('.shop-actions a').every(e=>Math.abs(rect(e).height-40)<.1&&style(e).display==='flex'&&style(e).lineHeight===(width<=768?'13px':'14px')),'Compact centered header buttons');
+   for(const balance of all('.shop-balance')){const centers=[...balance.children].map(e=>(rect(e).top+rect(e).bottom)/2);check(Math.max(...centers)-Math.min(...centers)<1,'Balance label/amount/icon inline');}
    for(const b of all('.shop-actions a,.shop-theme-actions button')){const range=d.createRange();range.selectNodeContents(b);check(range.getBoundingClientRect().width<=rect(b).width-2,'Action text clipped: '+b.textContent);}
 
    check(all('[data-theme-preview]').length===3&&all('#shelf-gold [data-theme-preview],#shelf-silver [data-theme-preview],#shelf-frames [data-theme-preview]').length===0,'Theme-only preview');
    const rows=[],arrowVisual=width<=768?34.32:37.18,arrowHit=width<=768?34.32:37.18,arrowHeight=width<=768?48.4:44;
-   check(all('.shop-balances b').every(e=>parseFloat(style(e).fontSize)<=(width<=600?(width<360?18:20):30.8)),'Balance text scale');
-   check(all('.shop-actions a').every(e=>parseFloat(style(e).fontSize)<=(width<=600?(width<360?15.5:17):24.2)),'Top action text scale');
+   check(all('.shop-balances b').every(e=>parseFloat(style(e).fontSize)<=(width<=768?16:18)),'Balance text scale');
+   check(all('.shop-actions a').every(e=>parseFloat(style(e).fontSize)<=(width<=768?13:14)),'Top action text scale');
    for(const shelf of all('.shop-shelf')){
     const row=shelf.querySelector('.shop-track'),toggle=shelf.querySelector('[data-shelf-expand]'),cards=[...row.querySelectorAll('.shop-product')];
     const arrows=[...shelf.querySelectorAll('[data-shelf]')],heading=shelf.querySelector('h2');
