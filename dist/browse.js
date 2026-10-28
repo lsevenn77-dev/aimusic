@@ -1,5 +1,22 @@
 const genreArtwork={"Ballad":"/assets/genres/04.webp","Dark Pop":"/assets/genres/03.webp","Soul":"/assets/genres/06.webp","R&B":"/assets/genres/05.webp","Hip-Hop":"/assets/genres/07.webp","Rock":"/assets/genres/08.webp","Alternative":"/assets/genres/09.webp","Indie Pop":"/assets/genres/10.webp","K-POP":"/assets/genres/01.webp","Pop":"/assets/genres/02.webp","EDM":"/assets/genres/11.webp","Electronic":"/assets/genres/12.webp","Synth Pop":"/assets/genres/13.webp","City Pop":"/assets/genres/14.webp","Lo-fi":"/assets/genres/15.webp","Jazz":"/assets/genres/16.webp","Blues":"/assets/genres/17.webp","Folk":"/assets/genres/18.webp","Acoustic":"/assets/genres/19.webp","Country":"/assets/genres/20.webp","Classical":"/assets/genres/21.webp","Ambient":"/assets/genres/22.webp","Fusion":"/assets/genres/23.webp","Korean Folklore Fusion":"/assets/genres/24.webp","World Music":"/assets/genres/25.webp","국악":"/assets/genres/26.webp","트로트":"/assets/genres/27.webp","J-POP":"/assets/genres/28.webp","OST":"/assets/genres/29.webp","Instrumental":"/assets/genres/30.webp","Dance":"/assets/genres/31.webp","Funk":"/assets/genres/32.webp","Disco":"/assets/genres/33.webp","Metal":"/assets/genres/34.webp","Punk":"/assets/genres/35.webp","Reggae":"/assets/genres/36.webp","Latin":"/assets/genres/37.webp","Reggaeton":"/assets/genres/38.webp","Afrobeats":"/assets/genres/39.webp","House":"/assets/genres/40.webp","Techno":"/assets/genres/41.webp","Trance":"/assets/genres/42.webp","Drum & Bass":"/assets/genres/43.webp","Trap":"/assets/genres/44.webp","Gospel":"/assets/genres/45.webp","New Age":"/assets/genres/46.webp","Chillout":"/assets/genres/47.webp","Cinematic":"/assets/genres/48.webp","Orchestral":"/assets/genres/49.webp","Children":"/assets/genres/50.webp"};
 function genreCardHTML(g){return `<a class="genre-photo-card" href="#discover/genres?g=${encodeURIComponent(g)}"><img src="${esc(genreArtwork[g])}" alt="" loading="lazy" decoding="async"><span><small>EXPLORE MUSIC</small><strong>${esc(g)}</strong></span>${icon('chevron')}</a>`;}
+let chartPlaybackBound=false;
+function syncChartPlayback(){
+ const active=typeof current!=='undefined'&&current&&!audio.paused&&!audio.ended&&!audio.error&&!window.AifectAudioAds?.active;
+ document.querySelectorAll('.song-table-chart .song-table-row').forEach(row=>{
+  const button=row.querySelector('.song-table-play[data-play]');
+  const playing=!!(active&&button?.dataset.play===current.id);
+  row.classList.toggle('is-chart-playing',playing);
+ });
+}
+function bindChartPlayback(){
+ if(typeof audio==='undefined')return;
+ if(!chartPlaybackBound){
+  chartPlaybackBound=true;
+  for(const event of ['play','pause','ended','emptied','loadedmetadata','error'])audio.addEventListener(event,syncChartPlayback);
+ }
+ syncChartPlayback();
+}
 function chartMovementHTML(t){
  const state=t.chart_movement,delta=Math.abs(Number(t.rank_change)||0),labels={up:`어제보다 ${delta}위 상승`,down:`어제보다 ${delta}위 하락`,same:'어제와 같은 순위',new:'새롭게 차트 진입',unavailable:'전날 비교 기록 없음'},label=labels[state]||labels.unavailable;
  return `<div class="chart-score chart-movement ${Object.hasOwn(labels,state)?state:'unavailable'}" aria-label="${label}" title="${label}"><strong aria-hidden="true">${state==='up'?'<span class="chart-direction">▲</span><span>'+delta+'</span>':state==='down'?'<span class="chart-direction">▼</span><span>'+delta+'</span>':state==='new'?'NEW':'—'}</strong></div>`;
@@ -117,6 +134,7 @@ async function browseView(base,param,raw,embedded=false){
 }
 function bindBrowse(view){
  bindCommunity(view);
+ bindChartPlayback();
  if(view?.chartPage){
   bindChartToolbar(view);
   routeTracks=view.tracks.filter(t=>t.playable!==false&&Number(t.duration)>0);

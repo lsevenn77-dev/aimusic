@@ -67,3 +67,17 @@ test('chart playback keeps all playable results and shuffles a fresh queue witho
  await button.onclick();assert.equal(calls.length,1);assert.equal(calls[0].id,calls[0].queue[0]);assert.equal(new Set(calls[0].queue).size,122);assert.ok(!calls[0].queue.includes('song0'));assert.equal(vm.runInContext('shuffle',c),false);
  assert.deepEqual(Array.from(tracks,t=>t.id),Array.from({length:123},(_,i)=>'song'+i));
 });
+
+test('chart highlight follows actual playback, clearing on pause, ads and media errors',()=>{
+ const {context:c}=viewContext();
+ const rows=['one','two','five'].map(id=>({id,playing:false,querySelector(){return {dataset:{play:id}};},classList:{toggle(_name,value){rows.find(r=>r.id===id).playing=value;}}}));
+ c.document.querySelectorAll=()=>rows;
+ const events={};c.audio={paused:false,ended:false,error:null,addEventListener(name,fn){events[name]=fn;}};
+ c.current={id:'two'};c.window={};c.bindChartPlayback();
+ assert.deepEqual(rows.map(r=>r.playing),[false,true,false]);
+ c.audio.paused=true;events.pause();assert.ok(rows.every(r=>!r.playing));
+ c.audio.paused=false;c.current={id:'five'};events.play();assert.deepEqual(rows.map(r=>r.playing),[false,false,true]);
+ c.window.AifectAudioAds={active:true};events.play();assert.ok(rows.every(r=>!r.playing));
+ c.window.AifectAudioAds.active=false;c.audio.error={code:4};events.error();assert.ok(rows.every(r=>!r.playing));
+ c.audio.error=null;c.audio.ended=true;events.ended();assert.ok(rows.every(r=>!r.playing));
+});

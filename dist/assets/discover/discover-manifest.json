@@ -1,0 +1,444 @@
+{
+  "source": "AIFECT GitHub ai음원사이트/shared/genres.js",
+  "generated": "2026-10-29",
+  "genreCount": 50,
+  "moodCount": 12,
+  "genres": [
+    {
+      "name": "K-POP",
+      "slug": "k-pop",
+      "file": "/assets/discover/genres/k-pop.webp",
+      "scene": "stage microphone with magenta concert lights",
+      "bytes": 18028
+    },
+    {
+      "name": "Pop",
+      "slug": "pop",
+      "file": "/assets/discover/genres/pop.webp",
+      "scene": "studio headphones, purple ambient studio",
+      "bytes": 19948
+    },
+    {
+      "name": "Dark Pop",
+      "slug": "dark-pop",
+      "file": "/assets/discover/genres/dark-pop.webp",
+      "scene": "black leather boots on rainy neon street",
+      "bytes": 28616
+    },
+    {
+      "name": "Ballad",
+      "slug": "ballad",
+      "file": "/assets/discover/genres/ballad.webp",
+      "scene": "grand piano in candlelit intimate hall",
+      "bytes": 18456
+    },
+    {
+      "name": "R&B",
+      "slug": "r-and-b",
+      "file": "/assets/discover/genres/r-and-b.webp",
+      "scene": "warm vinyl turntable",
+      "bytes": 20210
+    },
+    {
+      "name": "Soul",
+      "slug": "soul",
+      "file": "/assets/discover/genres/soul.webp",
+      "scene": "smoky soulful singer silhouette at golden microphone",
+      "bytes": 13544
+    },
+    {
+      "name": "Hip-Hop",
+      "slug": "hip-hop",
+      "file": "/assets/discover/genres/hip-hop.webp",
+      "scene": "urban graffiti wall and condenser microphone",
+      "bytes": 22204
+    },
+    {
+      "name": "Rock",
+      "slug": "rock",
+      "file": "/assets/discover/genres/rock.webp",
+      "scene": "electric guitar and amplifier under red stage lights",
+      "bytes": 30854
+    },
+    {
+      "name": "Alternative",
+      "slug": "alternative",
+      "file": "/assets/discover/genres/alternative.webp",
+      "scene": "worn sneakers and guitar pedals on blue-lit stage",
+      "bytes": 31708
+    },
+    {
+      "name": "Indie Pop",
+      "slug": "indie-pop",
+      "file": "/assets/discover/genres/indie-pop.webp",
+      "scene": "cozy bedroom with cassette and guitar",
+      "bytes": 30332
+    },
+    {
+      "name": "EDM",
+      "slug": "edm",
+      "file": "/assets/discover/genres/edm.webp",
+      "scene": "DJ festival deck and crowd, pink neon",
+      "bytes": 25078
+    },
+    {
+      "name": "Electronic",
+      "slug": "electronic",
+      "file": "/assets/discover/genres/electronic.webp",
+      "scene": "patch-cabled modular synthesizer",
+      "bytes": 26782
+    },
+    {
+      "name": "Synth Pop",
+      "slug": "synth-pop",
+      "file": "/assets/discover/genres/synth-pop.webp",
+      "scene": "purple synthesizer keyboard",
+      "bytes": 16572
+    },
+    {
+      "name": "City Pop",
+      "slug": "city-pop",
+      "file": "/assets/discover/genres/city-pop.webp",
+      "scene": "wet night city lights in car mirror",
+      "bytes": 28880
+    },
+    {
+      "name": "Lo-fi",
+      "slug": "lo-fi",
+      "file": "/assets/discover/genres/lo-fi.webp",
+      "scene": "vintage cassette player with headphones and coffee",
+      "bytes": 23080
+    },
+    {
+      "name": "Jazz",
+      "slug": "jazz",
+      "file": "/assets/discover/genres/jazz.webp",
+      "scene": "golden saxophone in jazz lounge",
+      "bytes": 25446
+    },
+    {
+      "name": "Blues",
+      "slug": "blues",
+      "file": "/assets/discover/genres/blues.webp",
+      "scene": "vintage guitar being played in warm blues bar",
+      "bytes": 18962
+    },
+    {
+      "name": "Folk",
+      "slug": "folk",
+      "file": "/assets/discover/genres/folk.webp",
+      "scene": "acoustic guitar and lantern by lake at dusk",
+      "bytes": 28778
+    },
+    {
+      "name": "Acoustic",
+      "slug": "acoustic",
+      "file": "/assets/discover/genres/acoustic.webp",
+      "scene": "macro acoustic guitar strings and wood grain",
+      "bytes": 16992
+    },
+    {
+      "name": "Country",
+      "slug": "country",
+      "file": "/assets/discover/genres/country.webp",
+      "scene": "cowboy hat on rustic timber table",
+      "bytes": 21800
+    },
+    {
+      "name": "Classical",
+      "slug": "classical",
+      "file": "/assets/discover/genres/classical.webp",
+      "scene": "violin and score in ornate hall",
+      "bytes": 20900
+    },
+    {
+      "name": "Ambient",
+      "slug": "ambient",
+      "file": "/assets/discover/genres/ambient.webp",
+      "scene": "misty moonlit lake and stars",
+      "bytes": 22742
+    },
+    {
+      "name": "Fusion",
+      "slug": "fusion",
+      "file": "/assets/discover/genres/fusion.webp",
+      "scene": "synthesizer and acoustic guitar in hybrid studio",
+      "bytes": 23232
+    },
+    {
+      "name": "Korean Folklore Fusion",
+      "slug": "korean-folklore-fusion",
+      "file": "/assets/discover/genres/korean-folklore-fusion.webp",
+      "scene": "traditional Korean zither and electronic synthesizer",
+      "bytes": 35990
+    },
+    {
+      "name": "World Music",
+      "slug": "world-music",
+      "file": "/assets/discover/genres/world-music.webp",
+      "scene": "hand drums and oud in warm international instrument collection",
+      "bytes": 34862
+    },
+    {
+      "name": "국악",
+      "slug": "gugak",
+      "file": "/assets/discover/genres/gugak.webp",
+      "scene": "Korean janggu and gayageum in moonlit hanok",
+      "bytes": 34266
+    },
+    {
+      "name": "트로트",
+      "slug": "trot",
+      "file": "/assets/discover/genres/trot.webp",
+      "scene": "retro stage microphone with rose gold spotlights",
+      "bytes": 24288
+    },
+    {
+      "name": "J-POP",
+      "slug": "j-pop",
+      "file": "/assets/discover/genres/j-pop.webp",
+      "scene": "neon Japanese cityscape and headphones",
+      "bytes": 30552
+    },
+    {
+      "name": "OST",
+      "slug": "ost",
+      "file": "/assets/discover/genres/ost.webp",
+      "scene": "projector film reels and sheet music",
+      "bytes": 29598
+    },
+    {
+      "name": "Instrumental",
+      "slug": "instrumental",
+      "file": "/assets/discover/genres/instrumental.webp",
+      "scene": "piano and guitars in studio without vocals",
+      "bytes": 33138
+    },
+    {
+      "name": "Dance",
+      "slug": "dance",
+      "file": "/assets/discover/genres/dance.webp",
+      "scene": "silhouettes moving on pink-lit dance floor",
+      "bytes": 17400
+    },
+    {
+      "name": "Funk",
+      "slug": "funk",
+      "file": "/assets/discover/genres/funk.webp",
+      "scene": "amber-lit electric bass guitar",
+      "bytes": 27574
+    },
+    {
+      "name": "Disco",
+      "slug": "disco",
+      "file": "/assets/discover/genres/disco.webp",
+      "scene": "mirror disco ball with vibrant pink lights",
+      "bytes": 25418
+    },
+    {
+      "name": "Metal",
+      "slug": "metal",
+      "file": "/assets/discover/genres/metal.webp",
+      "scene": "black distorted electric guitar on red smoky stage",
+      "bytes": 22214
+    },
+    {
+      "name": "Punk",
+      "slug": "punk",
+      "file": "/assets/discover/genres/punk.webp",
+      "scene": "black boots and grunge concert posters",
+      "bytes": 23258
+    },
+    {
+      "name": "Reggae",
+      "slug": "reggae",
+      "file": "/assets/discover/genres/reggae.webp",
+      "scene": "tropical sunset and vintage sound system",
+      "bytes": 35284
+    },
+    {
+      "name": "Latin",
+      "slug": "latin",
+      "file": "/assets/discover/genres/latin.webp",
+      "scene": "conga drums in amber-lit music room",
+      "bytes": 18262
+    },
+    {
+      "name": "Reggaeton",
+      "slug": "reggaeton",
+      "file": "/assets/discover/genres/reggaeton.webp",
+      "scene": "neon boombox and beat controller",
+      "bytes": 30302
+    },
+    {
+      "name": "Afrobeats",
+      "slug": "afrobeats",
+      "file": "/assets/discover/genres/afrobeats.webp",
+      "scene": "hand-carved percussion drums in tropical studio",
+      "bytes": 29212
+    },
+    {
+      "name": "House",
+      "slug": "house",
+      "file": "/assets/discover/genres/house.webp",
+      "scene": "cool violet DJ club turntables",
+      "bytes": 17324
+    },
+    {
+      "name": "Techno",
+      "slug": "techno",
+      "file": "/assets/discover/genres/techno.webp",
+      "scene": "industrial techno warehouse and consoles",
+      "bytes": 43924
+    },
+    {
+      "name": "Trance",
+      "slug": "trance",
+      "file": "/assets/discover/genres/trance.webp",
+      "scene": "futuristic laser lights and hypnotic tunnel",
+      "bytes": 49134
+    },
+    {
+      "name": "Drum & Bass",
+      "slug": "drum-and-bass",
+      "file": "/assets/discover/genres/drum-and-bass.webp",
+      "scene": "powerful drummer and cymbals under blue lighting",
+      "bytes": 43034
+    },
+    {
+      "name": "Trap",
+      "slug": "trap",
+      "file": "/assets/discover/genres/trap.webp",
+      "scene": "dark electronic beat pad and purple studio",
+      "bytes": 29856
+    },
+    {
+      "name": "Gospel",
+      "slug": "gospel",
+      "file": "/assets/discover/genres/gospel.webp",
+      "scene": "grand church organ and stained glass",
+      "bytes": 45128
+    },
+    {
+      "name": "New Age",
+      "slug": "new-age",
+      "file": "/assets/discover/genres/new-age.webp",
+      "scene": "singing bowls and moonlit peaceful garden",
+      "bytes": 33706
+    },
+    {
+      "name": "Chillout",
+      "slug": "chillout",
+      "file": "/assets/discover/genres/chillout.webp",
+      "scene": "headphones on sunset beach",
+      "bytes": 23430
+    },
+    {
+      "name": "Cinematic",
+      "slug": "cinematic",
+      "file": "/assets/discover/genres/cinematic.webp",
+      "scene": "film projector and reels with golden spotlight",
+      "bytes": 28342
+    },
+    {
+      "name": "Orchestral",
+      "slug": "orchestral",
+      "file": "/assets/discover/genres/orchestral.webp",
+      "scene": "full orchestra music stands in warm hall",
+      "bytes": 36166
+    },
+    {
+      "name": "Children",
+      "slug": "children",
+      "file": "/assets/discover/genres/children.webp",
+      "scene": "playroom colorful xylophone and small ukulele",
+      "bytes": 29968
+    }
+  ],
+  "moods": [
+    {
+      "id": "comfort",
+      "name": "위로 · 감성",
+      "file": "/assets/discover/moods/comfort.webp",
+      "scene": "cozy bedroom with warm lamp",
+      "bytes": 32742
+    },
+    {
+      "id": "energy",
+      "name": "기분 업",
+      "file": "/assets/discover/moods/energy.webp",
+      "scene": "bright fireworks and sparklers",
+      "bytes": 56302
+    },
+    {
+      "id": "focus",
+      "name": "집중",
+      "file": "/assets/discover/moods/focus.webp",
+      "scene": "warm study and headphones",
+      "bytes": 28916
+    },
+    {
+      "id": "drive",
+      "name": "드라이브",
+      "file": "/assets/discover/moods/drive.webp",
+      "scene": "twilight city road with car",
+      "bytes": 39106
+    },
+    {
+      "id": "sleep",
+      "name": "잠들기 전",
+      "file": "/assets/discover/moods/sleep.webp",
+      "scene": "rainy bedroom window at night",
+      "bytes": 35610
+    },
+    {
+      "id": "workout",
+      "name": "운동",
+      "file": "/assets/discover/moods/workout.webp",
+      "scene": "dumbbells in moody gym",
+      "bytes": 36796
+    },
+    {
+      "id": "romance",
+      "name": "설렘 · 사랑",
+      "file": "/assets/discover/moods/romance.webp",
+      "scene": "cherry blossoms at pink sunset",
+      "bytes": 58808
+    },
+    {
+      "id": "nostalgia",
+      "name": "추억",
+      "file": "/assets/discover/moods/nostalgia.webp",
+      "scene": "vintage cassette and old photographs",
+      "bytes": 40332
+    },
+    {
+      "id": "rain",
+      "name": "비 오는 날",
+      "file": "/assets/discover/moods/rain.webp",
+      "scene": "raindrops against colorful city lights",
+      "bytes": 65558
+    },
+    {
+      "id": "night",
+      "name": "밤 · 새벽",
+      "file": "/assets/discover/moods/night.webp",
+      "scene": "moonlit skyline over city",
+      "bytes": 50774
+    },
+    {
+      "id": "party",
+      "name": "파티",
+      "file": "/assets/discover/moods/party.webp",
+      "scene": "colorful purple stage lights",
+      "bytes": 35144
+    },
+    {
+      "id": "meditation",
+      "name": "휴식 · 명상",
+      "file": "/assets/discover/moods/meditation.webp",
+      "scene": "quiet tropical beach at dusk",
+      "bytes": 49568
+    }
+  ]
+}
