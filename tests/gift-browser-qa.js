@@ -22,33 +22,45 @@ run.onclick=async()=>{
   for(const width of [320,360,375,390,430,768,1024,1280,1440]){
    frame.width=width;frame.height=width>=1280?900:844;await new Promise(r=>setTimeout(r,120));
    check(d.documentElement.scrollWidth<=d.documentElement.clientWidth,'Page overflow '+width);
+   check(all('.shop-scrollbar').length===all('.shop-track').length,'Every shelf has its own scrollbar');
+   const top=q('.shop-heading'),title=top.querySelector('h1'),wallet=top.querySelector('.shop-balances'),actions=top.querySelector('.shop-actions');
+   check(rect(title).right<=rect(wallet).left+.2,'Header title overlaps balances');
+   if(width>=1280)check(rect(wallet).right<=rect(actions).left+.2&&rect(actions).top<rect(wallet).bottom,'Desktop one-row header');
+   if(width<=600)check(rect(actions).top>=Math.max(rect(title).bottom,rect(wallet).bottom),'Mobile two-row header');
+   for(const b of all('.shop-actions a,.shop-theme-actions button')){const range=d.createRange();range.selectNodeContents(b);check(range.getBoundingClientRect().width<=rect(b).width-2,'Action text clipped: '+b.textContent);}
+
    check(all('[data-theme-preview]').length===3&&all('#shelf-gold [data-theme-preview],#shelf-silver [data-theme-preview],#shelf-frames [data-theme-preview]').length===0,'Theme-only preview');
-   const rows=[],arrowVisual=width<=768?26.4:28.6,arrowHit=width<=768?48.4:28.6;
-   check(all('.shop-balances b').every(e=>parseFloat(style(e).fontSize)<=(width<=600?14.3:15.4)),'Balance text scale');
-   check(all('.shop-actions a').every(e=>parseFloat(style(e).fontSize)<=12.1),'Top action text scale');
+   const rows=[],arrowVisual=width<=768?34.32:37.18,arrowHit=width<=768?34.32:37.18,arrowHeight=width<=768?48.4:44;
+   check(all('.shop-balances b').every(e=>parseFloat(style(e).fontSize)<=(width<=600?(width<360?18:20):30.8)),'Balance text scale');
+   check(all('.shop-actions a').every(e=>parseFloat(style(e).fontSize)<=(width<=600?(width<360?15.5:17):24.2)),'Top action text scale');
    for(const shelf of all('.shop-shelf')){
     const row=shelf.querySelector('.shop-track'),toggle=shelf.querySelector('[data-shelf-expand]'),cards=[...row.querySelectorAll('.shop-product')];
     const arrows=[...shelf.querySelectorAll('[data-shelf]')],heading=shelf.querySelector('h2');
-    check(arrows.every(b=>Math.abs(rect(b).width-arrowHit)<.1&&Math.abs(rect(b).height-arrowHit)<.1&&Math.abs(rect(b.querySelector('.shop-arrow-glyph')).width-arrowVisual)<.1&&Math.abs(rect(b.querySelector('.shop-arrow-glyph')).height-arrowVisual)<.1),'Arrow visual/hit sizes');
+    check(arrows.every(b=>Math.abs(rect(b).width-arrowHit)<.1&&Math.abs(rect(b).height-arrowHeight)<.1&&Math.abs(rect(b.querySelector('.shop-arrow-glyph')).width-arrowVisual)<.1&&Math.abs(rect(b.querySelector('.shop-arrow-glyph')).height-arrowVisual)<.1),'Arrow visual/hit sizes');
     const headingGap=rect(arrows[0].querySelector('.shop-arrow-glyph')).left-rect(heading).right;
-    check(headingGap>=0&&headingGap<=12,'Arrow beside heading');
+    check(Math.abs(headingGap-20)<.2,'Arrow beside heading');
     check(rect(arrows[0]).right<=rect(arrows[1]).left,'Arrow hit targets overlap');
-    check(parseFloat(style(heading).fontSize)===(width<=768?14.3:15.4),'Section title scale');
+    check(parseFloat(style(heading).fontSize)===(width<=768?18.59:20.02),'Section title scale');
     check(new Set(cards.map(c=>Math.round(rect(c).height))).size===1,'Unequal heights');
-    const theme=row.id==='shelf-themes',expectedWidth=width<=600?100.1:111.1,expectedHeight=width<=600?129.8:139.7;
+    const theme=row.id==='shelf-themes',expectedWidth=width<=600?130.13:144.43,expectedHeight=width<=600?168.74:181.61;
     if(!theme)check(cards.every(c=>Math.abs(rect(c).width-expectedWidth)<.2&&Math.abs(rect(c).height-expectedHeight)<.1),'Card dimensions');
     else{
-     const count=width<=600?2:width<=950?3:4,gap=width<=600?11:13.2;
-     check(Math.abs(rect(row.children[0]).width-Math.min(width>950?264:Infinity,(row.clientWidth-gap*(count-1))/count))<1,'Theme columns');
+     check(Math.abs(rect(row.children[0]).width-(width<=600?(row.clientWidth-14.3)/2:width<=950?(row.clientWidth-26.4)/3*1.3:Math.min(264,(row.clientWidth-39.6)/4)*1.3))<1,'Theme columns');
      check(cards.every(c=>Math.abs(rect(c.querySelector('img')).width/rect(c.querySelector('img')).height-4/3)<.01),'Theme image 4:3');
      check(new Set([...row.children].map(c=>Math.round(rect(c).height))).size===1,'Theme equal heights');
      check(new Set([...row.children].map(c=>Math.round(rect(c.querySelector('.shop-theme-actions')).top))).size===1,'Theme action alignment');
      check(cards.every(c=>c.querySelector('span').textContent==='100 G부터'),'Theme minimum price');
      check(new Set(cards.map(c=>c.dataset.decoration)).size===cards.length,'Duplicate theme SKU');
     }
+    const bar=shelf.querySelector('.shop-scrollbar'),thumb=bar.querySelector('.shop-scrollbar-thumb');
+    check(rect(bar).top>=rect(row).bottom-.2,'Scrollbar must follow product list');
+    check(parseFloat(w.getComputedStyle(bar,'::before').height)===3.5,'Thin scrollbar track');
+    check(parseFloat(style(shelf).borderTopWidth)===0&&parseFloat(style(shelf).borderBottomWidth)===0,'No category divider');
+    const sync=()=>{const maximum=row.scrollWidth-row.clientWidth,enabled=maximum>1;check((bar.getAttribute('aria-disabled')==='false')===enabled,'Scrollbar enabled state');check(thumb.hidden===!enabled,'Empty track for nonoverflow');if(enabled){check(Math.abs(Number(bar.getAttribute('aria-valuenow'))-row.scrollLeft)<1.1,'Scrollbar ARIA sync');const position=(rect(thumb).left-rect(bar).left)/(bar.clientWidth-rect(thumb).width);check(Math.abs(position-row.scrollLeft/maximum)<.015,'Scrollbar visual sync');}};
+    sync();
     const rowBounds=rect(row),visible=cards.filter(c=>rect(c).left>=rowBounds.left-.5&&rect(c).right<=rowBounds.right+.5).length,capacity=Math.floor((row.clientWidth+8)/(rect(cards[0]).width+8));
-    if(width===375)check(visible===Math.min(cards.length,theme?2:3),'Mobile visible products');
-    if(width===1440&&!theme)check(capacity>=9&&capacity<=10,'Desktop ordinary capacity');
+    if(width===375)check(visible===Math.min(cards.length,theme?2:2),'Mobile visible products');
+    if(width===1440&&!theme)check(capacity>=6&&capacity<=7,'Desktop ordinary capacity');
     check(new Set(cards.map(c=>Math.round(rect(c.querySelector('span')).bottom-rect(c).top))).size===1,'Price baseline');
     check(cards.every(c=>{const r=rect(c),p=rect(c.querySelector('span'));return p.left>=r.left&&p.right<=r.right;}),'Price clipping');
     check(cards.every(c=>{const t=c.querySelector('strong');return t.scrollHeight<=t.clientHeight+1;}),'Registered product name clipped');
@@ -59,11 +71,12 @@ run.onclick=async()=>{
     check(new Set([...row.children].map(c=>Math.round(rect(c).top))).size<=2,'More than 2 expanded rows');
     check(style(row).overflowX==='auto','Expanded horizontal scroll');toggle.click();
     const next=shelf.querySelector('[data-direction="1"]'),prev=shelf.querySelector('[data-direction="-1"]');
-    if(row.scrollWidth>row.clientWidth+1){next.click();await wait(()=>row.scrollLeft>1);await new Promise(r=>setTimeout(r,600));prev.click();await wait(()=>row.scrollLeft<2);}
+    if(row.scrollWidth>row.clientWidth+1){next.click();await wait(()=>row.scrollLeft>1);await new Promise(r=>setTimeout(r,600));prev.click();await wait(()=>row.scrollLeft<2);await new Promise(r=>setTimeout(r,30));sync();bar.dispatchEvent(new w.KeyboardEvent('keydown',{key:'End',bubbles:true}));await wait(()=>row.scrollLeft>=row.scrollWidth-row.clientWidth-1);sync();bar.dispatchEvent(new w.KeyboardEvent('keydown',{key:'Home',bubbles:true}));await wait(()=>row.scrollLeft<2);sync();}
     else check(next.disabled&&prev.disabled,'Nonoverflow arrows');
     rows.push({id:row.id,card:{width:rect(cards[0]).width,height:rect(cards[0]).height},thumb:rect(cards[0].querySelector('img')).width,visible,capacity,total:cards.length,arrowVisual,arrowHit,headingGap,titleFont:style(heading).fontSize,scrollbar:w.getComputedStyle(row,'::-webkit-scrollbar').height});
    }
    await open('#shelf-frames .shop-product');
+   check(Math.abs(parseFloat(style(q('.shop-checkout h2')).fontSize)-25.74)<.01,'Checkout title 130%');check(Math.abs(parseFloat(style(q('.shop-product-summary h3')).fontSize)-22.88)<.01,'Checkout product 130%');
    money('.shop-value-product','50 G');money('.shop-value-payment','50 G');money('.shop-value-period','7일');
    const colors=['.shop-value-product','.shop-value-payment','.shop-value-period'].map(s=>style(q(s)).color);
    check(colors.join('|')==='rgb(142, 221, 210)|rgb(245, 156, 203)|rgb(181, 160, 244)','Value colors');

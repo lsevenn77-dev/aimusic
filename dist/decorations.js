@@ -50,7 +50,7 @@ function shopShelf(id,title,items){
   if(theme)return '<article class="shop-item shop-theme-card"><button type="button" class="shop-product shop-theme-product" data-decoration="'+esc(p.sku)+'" aria-label="'+esc(p.name)+' 상품 선택"><img src="'+esc(decorationProductImage(p))+'" alt="" loading="lazy"><strong title="'+esc(p.name)+'">'+esc(p.name)+'</strong><span>'+number(Math.min(...Object.values(p.periodPrices).filter(v=>Number.isFinite(v)&&v>=0)))+' G부터</span></button><div class="shop-theme-actions"><button type="button" class="small-button shop-preview-button" data-theme-preview="'+esc(p.assetPaths.roomMobile||'')+'" data-theme-name="'+esc(p.name)+'" aria-label="'+esc(p.name)+' 미리보기" '+(p.assetPaths.roomMobile?'':'disabled')+'>미리보기</button><button type="button" class="primary-button" data-product-gift="'+esc(p.sku)+'" aria-label="'+esc(p.name)+' 상품 구매">상품 구매</button></div></article>';
   return '<div class="shop-item"><button type="button" class="shop-product" '+(p.sku?'data-decoration="'+esc(p.sku)+'"':'data-gift-buy="'+esc(p.id)+'"')+'><img src="'+esc(p.sku?decorationProductImage(p):p.image)+'" alt="" loading="lazy"><strong title="'+esc(p.name)+'">'+esc(p.name)+'</strong><span>'+number(p.sku?p.periodPrices.P7D:p.free?p.silver:p.gold)+' '+(p.free?'S':'G')+(p.sku?' / 7일':'')+'</span></button>'+'</div>';
  }).join('');
- return '<section class="shop-shelf" aria-labelledby="shop-'+id+'"><header><h2 id="shop-'+id+'">'+title+'</h2><div class="shop-arrows"><button class="small-button" type="button" data-shelf="'+id+'" data-direction="-1" aria-controls="shelf-'+id+'" aria-label="'+title+' 이전" disabled><span class="shop-arrow-glyph" aria-hidden="true">'+icon('chevron')+'</span></button><button class="small-button" type="button" data-shelf="'+id+'" data-direction="1" aria-controls="shelf-'+id+'" aria-label="'+title+' 다음"><span class="shop-arrow-glyph" aria-hidden="true">'+icon('chevron')+'</span></button></div><button type="button" class="text-link shop-expand" data-shelf-expand="'+id+'" aria-controls="shelf-'+id+'" aria-expanded="false" aria-label="'+title+' 전체보기">전체보기</button></header><div class="shop-track" id="shelf-'+id+'" tabindex="0" role="region" aria-label="'+title+' 상품 목록">'+cards+'</div></section>';
+ return '<section class="shop-shelf" aria-labelledby="shop-'+id+'"><header><h2 id="shop-'+id+'">'+title+'</h2><div class="shop-arrows"><button class="small-button" type="button" data-shelf="'+id+'" data-direction="-1" aria-controls="shelf-'+id+'" aria-label="'+title+' 이전" disabled><span class="shop-arrow-glyph" aria-hidden="true">'+icon('chevron')+'</span></button><button class="small-button" type="button" data-shelf="'+id+'" data-direction="1" aria-controls="shelf-'+id+'" aria-label="'+title+' 다음"><span class="shop-arrow-glyph" aria-hidden="true">'+icon('chevron')+'</span></button></div><button type="button" class="text-link shop-expand" data-shelf-expand="'+id+'" aria-controls="shelf-'+id+'" aria-expanded="false" aria-label="'+title+' 전체보기">전체보기</button></header><div class="shop-track" id="shelf-'+id+'" tabindex="0" role="region" aria-label="'+title+' 상품 목록">'+cards+'</div><div class="shop-scrollbar" role="scrollbar" aria-label="'+esc(title)+' 가로 스크롤" aria-controls="shelf-'+id+'" aria-orientation="horizontal" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0" aria-disabled="true" tabindex="-1"><span class="shop-scrollbar-thumb" hidden></span></div></section>';
 }
 // The registered portrait room background only; never substitute the card/desktop art.
 let shopPreviewCleanup=()=>{};
@@ -88,20 +88,53 @@ function bindShopShelves(){
  shopLayoutCleanup();const root=$('.shop-page');if(!root)return;
  const controller=new AbortController(),rows=[...root.querySelectorAll('.shop-track')];
  const update=row=>{
-  const width=row.clientWidth;
-  const shelf=row.closest('.shop-shelf');
+  const shelf=row.closest('.shop-shelf'),bar=shelf.querySelector('.shop-scrollbar'),thumb=bar.querySelector('.shop-scrollbar-thumb');
+  const maximum=Math.max(0,row.scrollWidth-row.clientWidth),enabled=maximum>1,trackWidth=bar.clientWidth;
+  const thumbWidth=enabled?Math.min(trackWidth,Math.max(24,trackWidth*row.clientWidth/row.scrollWidth)):0;
+  const left=enabled?Math.max(0,Math.min(maximum,row.scrollLeft))/maximum*(trackWidth-thumbWidth):0;
+  thumb.style.width=thumbWidth+'px';thumb.style.left=left+'px';thumb.hidden=!enabled;
+  bar.setAttribute('aria-valuemax',String(maximum));bar.setAttribute('aria-valuenow',String(Math.round(Math.max(0,Math.min(maximum,row.scrollLeft)))));
+  bar.setAttribute('aria-disabled',String(!enabled));bar.tabIndex=enabled?0:-1;
   shelf.querySelector('.shop-arrows').hidden=false;
-  shelf.querySelectorAll('[data-shelf]').forEach(b=>{b.disabled=(Number(b.dataset.direction)<0?row.scrollLeft<=1:row.scrollLeft+width>=row.scrollWidth-1);});
+  shelf.querySelectorAll('[data-shelf]').forEach(b=>{b.disabled=!enabled||(Number(b.dataset.direction)<0?row.scrollLeft<=1:row.scrollLeft+row.clientWidth>=row.scrollWidth-1);});
  };
- const observer=new ResizeObserver(entries=>entries.forEach(({target})=>update(target)));
- rows.forEach(row=>{observer.observe(row);row.addEventListener('scroll',()=>update(row),{passive:true,signal:controller.signal});update(row);});
+ const observer=new ResizeObserver(()=>rows.forEach(update));
+ rows.forEach(row=>{
+  const bar=row.closest('.shop-shelf').querySelector('.shop-scrollbar'),thumb=bar.querySelector('.shop-scrollbar-thumb');
+  let drag=null;
+  const move=e=>{
+   if(!drag||e.pointerId!==drag.id)return;
+   const bounds=bar.getBoundingClientRect(),travel=bar.clientWidth-thumb.getBoundingClientRect().width,maximum=Math.max(0,row.scrollWidth-row.clientWidth);
+   if(travel>0)row.scrollLeft=Math.max(0,Math.min(travel,e.clientX-bounds.left-drag.offset))/travel*maximum;
+   update(row);
+  };
+  bar.addEventListener('pointerdown',e=>{
+   if(e.button!==0||bar.getAttribute('aria-disabled')==='true')return;
+   e.preventDefault();update(row);row.classList.add('is-scroll-dragging');
+   const bounds=thumb.getBoundingClientRect();drag={id:e.pointerId,offset:e.target===thumb?e.clientX-bounds.left:bounds.width/2};
+   bar.setPointerCapture(e.pointerId);move(e);
+  },{signal:controller.signal});
+  bar.addEventListener('pointermove',move,{signal:controller.signal});
+  const end=e=>{if(drag?.id!==e.pointerId)return;drag=null;row.classList.remove('is-scroll-dragging');update(row);};
+  for(const type of ['pointerup','pointercancel','lostpointercapture'])bar.addEventListener(type,end,{signal:controller.signal});
+  bar.addEventListener('keydown',e=>{
+   if(bar.getAttribute('aria-disabled')==='true')return;
+   const stride=(row.firstElementChild?.getBoundingClientRect().width||40)+(parseFloat(getComputedStyle(row).columnGap)||0);
+   const targets={ArrowLeft:row.scrollLeft-stride,ArrowRight:row.scrollLeft+stride,PageUp:row.scrollLeft-row.clientWidth,PageDown:row.scrollLeft+row.clientWidth,Home:0,End:row.scrollWidth-row.clientWidth};
+   if(!(e.key in targets))return;e.preventDefault();row.scrollTo({left:targets[e.key],behavior:'instant'});update(row);
+  },{signal:controller.signal});
+  observer.observe(row);observer.observe(bar);if(row.firstElementChild)observer.observe(row.firstElementChild);
+  row.addEventListener('scroll',()=>update(row),{passive:true,signal:controller.signal});update(row);
+ });
  root.querySelectorAll('[data-shelf-expand]').forEach(button=>button.addEventListener('click',()=>{
   const row=$('#shelf-'+button.dataset.shelfExpand),shelf=row.closest('.shop-shelf'),expanded=shelf.classList.toggle('is-expanded');
   button.setAttribute('aria-expanded',String(expanded));button.textContent=expanded?'접기':'전체보기';button.setAttribute('aria-label',shelf.querySelector('h2').textContent+' '+button.textContent);
   row.scrollLeft=0;update(row);
  },{signal:controller.signal}));
+ document.fonts?.ready.then(()=>{if(root.isConnected&&!controller.signal.aborted)rows.forEach(update);});
  shopLayoutCleanup=()=>{observer.disconnect();controller.abort();};
 }
+
 async function refreshShopBalances(){
  const root=$('.shop-page'),account=me?.id;if(!root||!account)return;
  try{const wallet=await api('/api/gold/balance','GET',undefined,{fresh:true});if(!root.isConnected||account!==me?.id)return;
