@@ -39,9 +39,12 @@
 .home-content-refresh .home-feature-outgoing .home-feature-slide{animation:none}
 .home-content-refresh :is(button,a):focus-visible{outline:2px solid var(--ds-selected);outline-offset:3px}
 .home-content-refresh .listening-section{margin-top:30px}
-.home-content-refresh .section-heading{margin-bottom:18px;align-items:center}
-.home-content-refresh .home-more-link{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;color:var(--ds-muted)}
-.home-content-refresh .home-more-link svg{width:19px;height:19px}
+.home-content-refresh .section-heading{margin-bottom:18px;align-items:center;flex-wrap:nowrap;gap:12px}
+.home-content-refresh :is(.section-heading,.sing-discovery-heading)>:first-child{min-width:0;flex:1}
+.home-content-refresh :is(.section-heading,.sing-discovery-heading) h2{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.home-content-refresh .sing-discovery-heading{flex-wrap:nowrap;align-items:flex-start;gap:12px}
+.home-content-refresh :is(.section-heading,.sing-discovery-heading)>.home-more-link{display:inline-flex;align-items:center;justify-content:flex-end;flex:none;margin-left:auto;min-width:44px;min-height:44px;padding:0;border:0;border-radius:0;background:none;box-shadow:none;color:var(--ds-muted);font-size:12px;font-weight:500;line-height:1.4;white-space:nowrap;text-decoration:none;transition:color .15s ease}
+.home-content-refresh :is(.section-heading,.sing-discovery-heading)>.home-more-link:is(:hover,:focus-visible){color:var(--ds-accent-mint)}
 .home-content-refresh .home-music-grid .album-title{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-height:1.5;min-height:3em;overflow:hidden;overflow-wrap:anywhere;white-space:normal}
 .home-content-refresh .home-music-grid .album-title-row{align-items:flex-start}
 .home-content-refresh .home-music-grid .album-artist{display:block;white-space:nowrap;text-overflow:ellipsis;overflow:hidden;max-width:100%}
