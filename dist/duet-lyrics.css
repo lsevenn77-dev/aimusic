@@ -213,20 +213,31 @@ dialog.duet-editor-dialog{width:min(860px,calc(100% - 24px));padding:24px;backgr
  .recording-settings .studio-key-actions{margin-left:84px}
 }
 
-/* PC recording only: reserve the existing 80px header and 62px player.
-   Keep the lyric follow anchor and all recording/editor/mobile behavior intact. */
+/* Approved PC recording workspace. The existing shell remains 228px / 80px;
+   use its content origin rather than overlapping the sidebar or header. */
 @media(min-width:1024px){
- .page-wrap #main:has(#sing.web-studio:not(.is-reviewing):not(.is-punch-page)){height:calc(100% - 80px - 62px);display:flex;align-items:flex-start;justify-content:flex-start;padding:24px!important}
- #main #sing.web-studio:not(.is-reviewing):not(.is-punch-page){width:80%;max-width:1100px!important;height:min(620px,100%);max-height:620px;margin:0!important;grid-template-columns:minmax(0,1fr) minmax(280px,32%);column-gap:18px}
- #sing.web-studio:not(.is-reviewing):not(.is-punch-page) .sing-head{padding:8px 0!important}
- #sing.web-studio:not(.is-reviewing):not(.is-punch-page) .sing-recording{grid-template-rows:auto auto minmax(0,1fr) 16px 78px auto}
- #sing.web-studio:not(.is-reviewing):not(.is-punch-page) .sing-wheel{height:100%!important;max-height:350px!important;align-self:center;overflow-y:auto!important;padding:0 8px!important}
- /* Scroll spacers scale with the viewport instead of imposing a minimum height. */
+ .page-wrap:has(#sing.web-studio:not(.is-reviewing):not(.is-punch-page)){height:auto;min-height:100dvh;overflow:visible}
+ .page-wrap #main:has(#sing.web-studio:not(.is-reviewing):not(.is-punch-page)){height:auto;min-height:calc(100dvh - 80px);display:flex;align-items:flex-start;justify-content:flex-start;padding:16px 16px 80px!important;overflow:visible}
+ #main #sing.web-studio:not(.is-reviewing):not(.is-punch-page){position:relative;isolation:isolate;box-sizing:border-box;flex:0 1 980px;width:100%;max-width:980px!important;height:750px;min-height:750px;max-height:none;margin:0!important;grid-template-columns:minmax(0,58fr) minmax(0,42fr);grid-template-rows:auto minmax(0,1fr) auto;column-gap:12px;overflow:visible}
+ #sing.web-studio:not(.is-reviewing):not(.is-punch-page)::before{content:'';position:absolute;z-index:-1;inset:0 auto 0 0;width:calc((100% - 12px)*.58);box-sizing:border-box;background:var(--ds-panel);border:1px solid var(--ds-line);border-radius:var(--ds-radius-card)}
+ #sing.web-studio:not(.is-reviewing):not(.is-punch-page) .sing-head{padding:16px 16px 8px!important;background:none!important}
+ #sing.web-studio:not(.is-reviewing):not(.is-punch-page) .sing-recording{grid-template-rows:auto auto minmax(0,1fr) 20px 88px auto;padding:0 16px!important;background:none!important}
+ #sing.web-studio:not(.is-reviewing):not(.is-punch-page) .sing-wheel{height:100%!important;max-height:none!important;align-self:center;overflow-y:auto!important;padding:0 8px!important;scrollbar-width:none}
+ #sing.web-studio:not(.is-reviewing):not(.is-punch-page) .sing-wheel::-webkit-scrollbar{display:none}
+ /* Preserve drawLyrics' 42% follow anchor and first/last line reachability. */
  #sing.web-studio:not(.is-reviewing):not(.is-punch-page) .sing-wheel::before{content:'';display:block;height:42%}
  #sing.web-studio:not(.is-reviewing):not(.is-punch-page) .sing-wheel::after{content:'';display:block;height:58%}
- #sing.web-studio:not(.is-reviewing):not(.is-punch-page) .studio-position-help{margin:6px 4px 0}
- #sing.web-studio:not(.is-reviewing):not(.is-punch-page) #sing-live-settings{align-self:start;min-height:0;max-height:100%;overflow-y:auto}
+ #sing.web-studio:not(.is-reviewing):not(.is-punch-page) .studio-position-help{margin:10px 4px 0;line-height:1.6}
+ #sing.web-studio:not(.is-reviewing):not(.is-punch-page)>.sing-status{margin:12px 16px 16px!important;white-space:normal}
+ #sing.web-studio:not(.is-reviewing):not(.is-punch-page) #sing-live-settings{box-sizing:border-box;align-self:stretch;min-width:0;min-height:0;max-height:none;overflow:visible;padding:8px 16px;border-radius:var(--ds-radius-card)}
+ #sing.web-studio:not(.is-reviewing):not(.is-punch-page) #sing-live-settings .studio-setting-card{padding:6px 0}
+ #sing.web-studio:not(.is-reviewing):not(.is-punch-page) #sing-live-settings h2{margin-bottom:4px}
+ #sing.web-studio:not(.is-reviewing):not(.is-punch-page) #sing-live-settings .studio-range{margin:0!important}
+ #sing.web-studio:not(.is-reviewing):not(.is-punch-page) #sing-live-settings .microphone-check{column-gap:16px;row-gap:6px;padding:8px 0;align-items:center}
+ #sing.web-studio:not(.is-reviewing):not(.is-punch-page) #sing-live-settings .microphone-check-info{min-width:0}
  #sing.web-studio:not(.is-reviewing):not(.is-punch-page) #sing-live-settings .studio-side-note{flex-shrink:0}
+ /* Extra effect controls grow both panels and use the page's scrollbar. */
+ #main #sing.web-studio:not(.is-reviewing):not(.is-punch-page):has(.sing-effect-details[open]){height:auto;grid-template-rows:auto minmax(480px,1fr) auto}
 }
 
 /* Compact recording entry; both layouts use the existing dark navy tokens. */
