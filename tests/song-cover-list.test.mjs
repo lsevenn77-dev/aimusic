@@ -91,13 +91,13 @@ test('blocked performers are omitted consistently from lists, counts and child p
  const d=await f.list();assert.deepEqual(d.counts,{all:0,recent:0,duet:0});assert.equal(d.covers.length,0);
  assert.equal((await f.call('/api/tracks/one/covers?view=children&parent=source')).status,403);
 });
-test('row markup has separate native links and controls, exact tabs, escaped IDs and existing play artwork',()=>{
+test('row markup has separate native links and controls, exact tabs, escaped IDs and shared line play icon',()=>{
  const c=vm.createContext({esc:s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),number:String,time:()=> '0:45',cover:()=>'<img>',liked:()=>false,icon:n=>`<i data-icon="${n}"></i>`});
  vm.runInContext(readFileSync(new URL('../dist/song-covers.js',import.meta.url),'utf8'),c);
  const track={id:'cover',title:'<Long title>',producer:'Singer',rank:1,cover_mode:'duet',original_id:'original',completions:2,participants:1,can_join:true};
  const html=c.songCoversPanelHTML({id:'original'},{view:'all',covers:[track],counts:{all:1,recent:1,duet:1},accepts_covers:true},'all');
  assert.match(html,/covers=all/);assert.match(html,/covers=duet/);assert.match(html,/covers=recent/);assert.doesNotMatch(html,/covers=solo|covers=ranking/);
- assert.match(html,/&lt;Long title&gt;/);assert.match(html,/data-community-toggle/);assert.match(html,/data-icon="audio-play"/);
+ assert.match(html,/&lt;Long title&gt;/);assert.match(html,/data-community-toggle/);assert.match(html,/data-icon="play"/);
  assert.match(html,/<\/a>\s*<button/);assert.match(html,/#cover\/original/);assert.match(html,/#song\/cover/);
  const duet=c.songCoverItemHTML(track,'duet');assert.match(duet,/#sing\/original\?duet=cover/);assert.match(duet,/1<span class="sr-only">명 참여<\/span>/);assert.match(duet,/완성작 2개/);assert.doesNotMatch(duet,/완성된 참여작|song-cover-counts/);
  assert.doesNotMatch(c.songCoverItemHTML({...track,participants:0,completions:0},'duet'),/data-cover-children/);
@@ -111,6 +111,6 @@ test('row markup has separate native links and controls, exact tabs, escaped IDs
  assert.match(c.songCoverRowHTML(t,{child:true}),/먼저 부른 사람 & 참여자 · 듀엣/);
  const missing=c.songCoverRowHTML({id:'a',title:'제목'});assert.match(missing,/song-cover-meta" title=""><\/span>/);assert.doesNotMatch(missing,/undefined|NaN|0:45|>솔로</);
  const state={},arrow={textContent:'▼'},button={setAttribute(k,v){state[k]=v;},querySelector(){return arrow;}},target={hidden:true};
- c.setSongCoverExpanded(button,target,true);assert.equal(target.hidden,false);assert.equal(state['aria-expanded'],'true');assert.equal(arrow.textContent,'▲');
- c.setSongCoverExpanded(button,target,false);assert.equal(target.hidden,true);assert.equal(state['aria-expanded'],'false');assert.equal(arrow.textContent,'▼');
+ c.setSongCoverExpanded(button,target,true);assert.equal(target.hidden,false);assert.equal(state['aria-expanded'],'true');assert.equal(arrow.textContent,'⌃');
+ c.setSongCoverExpanded(button,target,false);assert.equal(target.hidden,true);assert.equal(state['aria-expanded'],'false');assert.equal(arrow.textContent,'⌄');
  });

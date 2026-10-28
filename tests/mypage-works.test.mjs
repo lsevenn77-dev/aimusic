@@ -48,7 +48,7 @@ test('profile uses song rows, separates actions, hides unavailable joins and rem
  const c=vm.createContext({esc:String,number:String,time:()=> '0:45',cover:()=>'<img>',liked:()=>false,icon:n=>`<svg data-icon="${n}"></svg>`,me:{id:'viewer'},document:{addEventListener(){}},window:{addEventListener(){}},AifectDubbing:{dubbingGenreArtwork:()=>'/art'},opportunityHref:()=> '#karaoke'});
  for(const file of ['song-covers.js','mypage.js'])vm.runInContext(readFileSync(new URL('../dist/'+file,import.meta.url),'utf8'),c);
  const t={id:'parent',title:'제목',kind:'cover',producer:'가수',cover_mode:'duet',duet_open:1,original_id:'original',participants:2,completions:3,can_join:true};
- const html=c.myWorkItemHTML(t);assert.match(html,/song-cover-row/);assert.match(html,/data-mp-children="parent"/);assert.match(html,/#sing\/original\?duet=parent/);assert.match(html,/audio-play/);assert.doesNotMatch(c.myWorkItemHTML({...t,can_join:false}),/참여하기/);
+ const html=c.myWorkItemHTML(t);assert.match(html,/song-cover-row/);assert.match(html,/data-mp-children="parent"/);assert.match(html,/#sing\/original\?duet=parent/);assert.match(html,/data-icon="play"/);assert.match(html,/data-play="parent"/);assert.doesNotMatch(c.myWorkItemHTML({...t,can_join:false}),/참여하기/);
  assert.doesNotMatch(c.myWorkItemHTML({...t,completions:0,participants:0}),/id="mp-children|data-mp-children/);
  const works=c.myWorksHTML({profile:{id:'p'},covers:[t],tracks:[],dubbings:[]});assert.doesNotMatch(works.match(/class="mp-filters"[\s\S]*?<\/div>/)[0],/<svg/);assert.match(works,/mp-work-list/);
  assert.match(c.myWorkItemHTML({...t,status:'hidden'}),/#manage\/parent/);assert.doesNotMatch(c.myWorkItemHTML({...t,status:'hidden'}),/data-play=/);

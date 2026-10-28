@@ -5,8 +5,8 @@ function songCoverRowHTML(t,{ranked=false,child=false,invitation=false,profile=f
  const id=esc(t.id),title=esc(t.title),duet=t.cover_mode==='duet';
  const performer=child&&t.duet_partner?[t.duet_partner,t.producer].filter(Boolean).join(' & '):t.producer;
  const metadata=[performer,duet?'듀엣':t.cover_mode==='solo'?'솔로':''].filter(Boolean).join(' · ');
- const expandable=(profile||(t.participants||0)>0)&&(t.completions||0)>0;
- return `<article class="song-cover-row${child?' song-cover-child':''}" data-song-cover="${id}">
+ const expandable=(t.completions||0)>0;
+ return `<article data-list-row class="song-cover-row${child?' song-cover-child':''}" data-song-cover="${id}">
   <a class="song-cover-detail${ranked?' is-ranked':''}" href="#song/${id}" aria-label="${title} 상세 보기">
    ${ranked?`<span class="song-cover-rank" aria-label="${t.rank}위">${t.rank}</span>`:''}
    <span class="song-cover-art">${cover(t,'mini-cover')}</span>
@@ -14,19 +14,20 @@ function songCoverRowHTML(t,{ranked=false,child=false,invitation=false,profile=f
     <span class="song-cover-meta" title="${esc(metadata)}">${esc(metadata)}</span>
    </span>
   </a>
-  ${invitation?`<button type="button" class="song-cover-expand" ${expandable?`data-cover-children="${id}" aria-controls="cover-children-${id}"`:'disabled'} aria-expanded="false" title="참여자 ${number(t.participants||0)}명 · 완성작 ${number(t.completions||0)}개">${number(t.participants||0)}<span class="sr-only">명 참여</span>${expandable?' <span data-cover-arrow aria-hidden="true">▼</span>':''}</button>`:''}
+  ${invitation?`<button type="button" class="list-action song-cover-expand" ${expandable?`data-cover-children="${id}" aria-controls="cover-children-${id}"`:'disabled'} aria-expanded="false" title="참여자 ${number(t.participants||0)}명 · 완성작 ${number(t.completions||0)}개">${number(t.participants||0)}<span class="sr-only">명 참여</span><span data-cover-arrow aria-hidden="true">⌄</span></button>`:''}
   ${profile&&!invitation&&!child?'<span class="mp-work-participants">0<span class="sr-only">명 참여</span></span>':''}
-  ${!profile&&!invitation&&!child?`<button class="song-cover-like" data-like="${id}" aria-label="${title} 좋아요" aria-pressed="${liked(t.id)}">${icon('heart')}<span data-like-count>${number(t.likes||0)}</span></button><span class="song-cover-plays">${number(t.plays||0)}회 감상</span>`:''}
-  <button type="button" class="song-cover-play" data-play="${id}" data-community-toggle data-song-cover-toggle data-title="${title}" aria-label="${title} 재생" aria-pressed="false"><span class="song-cover-play-art">${icon('audio-play',36)}<span class="song-cover-pause" hidden>${icon('pause')}</span></span></button>
-  ${invitation&&t.can_join?`<a class="primary-button song-cover-join${profile?'':' song-cover-join-icon'}" href="#sing/${esc(t.original_id)}?duet=${id}" aria-label="${title} 참여하기">${profile?'참여하기':icon('plus')}</a>`:''}
-  <button type="button" class="song-cover-more" data-track-menu="${id}" aria-label="${title} 더보기">${icon('menu')}</button>
+  ${!profile&&!invitation&&!child?`<button class="list-action song-cover-like" data-like="${id}" title="${title} 좋아요" aria-label="${title} 좋아요" aria-pressed="${liked(t.id)}">${icon('heart')}<span data-like-count>${number(t.likes||0)}</span></button><span class="song-cover-plays">${number(t.plays||0)}회 감상</span>`:''}
+  <div class="list-actions">
+  ${invitation&&t.can_join?`<a class="list-action primary-button song-cover-join${profile?'':' song-cover-join-icon'}" href="#sing/${esc(t.original_id)}?duet=${id}" title="${title} 참여하기" aria-label="${title} 참여하기">${icon('plus')}</a>`:''}
+  <button type="button" class="list-action song-cover-play" data-play="${id}" data-community-toggle data-song-cover-toggle data-title="${title}" title="${title} 재생" aria-label="${title} 재생" aria-pressed="false"><span class="song-cover-play-art">${icon('play')}<span class="song-cover-pause" hidden>${icon('pause')}</span></span></button>
+  <button type="button" class="list-action song-cover-more" data-track-menu="${id}" title="${title} 더보기" aria-label="${title} 더보기">${icon('menu')}</button></div>
  </article>`;
 }
 /** @param {SongCover} t */
 function songCoverItemHTML(t,view){
  const row=songCoverRowHTML(t,{ranked:view==='all',invitation:view==='duet',child:view==='children'});
  if(view!=='duet')return row;
- return `<div class="song-cover-group">${row}${(t.participants||0)>0&&(t.completions||0)>0?`<div class="song-cover-children" id="cover-children-${esc(t.id)}" hidden></div>`:''}</div>`;
+ return `<div class="song-cover-group">${row}${(t.completions||0)>0?`<div class="song-cover-children" id="cover-children-${esc(t.id)}" hidden></div>`:''}</div>`;
 }
 /** @param {SongCoverPage} d */
 function songCoversMoreHTML(d,parent=''){
@@ -44,18 +45,22 @@ function syncSongCoverPlayback(){
   const playing=current?.id===button.dataset.play&&!audio.paused&&!audio.ended&&!window.AifectAudioAds?.active;
   button.setAttribute('aria-pressed',String(playing));
   button.setAttribute('aria-label',button.dataset.title+(playing?' 일시정지':' 재생'));
+  button.setAttribute('title',button.dataset.title+(playing?' 일시정지':' 재생'));
   /** @type {HTMLElement} */(button.querySelector('.song-cover-pause')).hidden=!playing;
  });
 }
 /** @param {HTMLButtonElement} button @param {HTMLElement} target @param {boolean} expanded */
 function setSongCoverExpanded(button,target,expanded){
  target.hidden=!expanded;button.setAttribute('aria-expanded',String(expanded));
- const arrow=button.querySelector('[data-cover-arrow]');if(arrow)arrow.textContent=expanded?'▲':'▼';
+ const arrow=button.querySelector('[data-cover-arrow]');if(arrow)arrow.textContent=expanded?'⌃':'⌄';
+}
+function bindSongCoverPlayback(){
+ if(!songCoverPlaybackBound){songCoverPlaybackBound=true;for(const event of ['play','pause','ended','emptied','loadedmetadata'])audio.addEventListener(event,syncSongCoverPlayback);}
+ syncSongCoverPlayback();
 }
 function bindSongCoverList(){
  const panel=/** @type {HTMLElement} */(document.querySelector('.song-covers-panel'));if(!panel)return;
- if(!songCoverPlaybackBound){songCoverPlaybackBound=true;for(const event of ['play','pause','ended','emptied','loadedmetadata'])audio.addEventListener(event,syncSongCoverPlayback);}
- syncSongCoverPlayback();
+ bindSongCoverPlayback();
  panel.addEventListener('click',async event=>{
   if(!(event.target instanceof Element))return;
   const button=/** @type {HTMLButtonElement} */(event.target.closest('[data-cover-children],[data-cover-load]'));if(!button||button.disabled)return;

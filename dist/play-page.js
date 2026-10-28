@@ -44,7 +44,7 @@ function playMusicCard(t,action){
 }
 function playDubbingCard(p){
  const href='#dubbing/'+encodeURIComponent(p.id);
- return `<article class="album-card"><div class="album-art-wrap"><a href="${href}" aria-label="${esc(p.title)} 작품 보기"><img class="album-art cover play-dubbing-art" src="${AifectDubbing.dubbingGenreArtwork(p.genres)}" alt="${esc((p.genres||[]).join(' · '))} 장르 이미지" width="640" height="640" loading="lazy" decoding="async"></a><a class="card-play" href="${href}" aria-label="${esc(p.title)} 더빙 듣기">${icon('audio-play',36)}</a></div><div class="album-title-row"><a class="album-title play-work-title" href="${href}">${playTypeIcon('dubbing')}<span>${esc(p.title)}</span></a></div><span class="album-artist">${esc(p.ownerName)}</span><span class="album-meta">${esc((p.genres||[]).join(' · '))} · ${time(p.duration)}</span></article>`;
+ return `<article class="album-card"><div class="album-art-wrap"><a href="${href}" aria-label="${esc(p.title)} 작품 보기"><img class="album-art cover play-dubbing-art" src="${AifectDubbing.dubbingGenreArtwork(p.genres)}" alt="${esc((p.genres||[]).join(' · '))} 장르 이미지" width="640" height="640" loading="lazy" decoding="async"></a><a class="card-play" href="${href}" aria-label="${esc(p.title)} 더빙 듣기">${icon('audio-play',36)}</a></div><div class="album-title-row"><a class="album-title play-work-title" href="${href}">${playTypeIcon('dubbing')}<span>${esc(p.title)}</span></a></div><span class="album-artist">${esc(p.ownerName)}</span></article>`;
 }
 function playDubbingArtworkError(event){
  const image=event.target;if(!image?.matches?.('img.play-dubbing-art'))return;
@@ -54,15 +54,42 @@ function playDubbingArtworkError(event){
 function playSongRows(tracks,tab){
  const duet=tab==='duets';
  return `<div class="play-song-list">${tracks.map(t=>{
-  const href=duet?'#sing/'+encodeURIComponent(t.original_id)+'?duet='+encodeURIComponent(t.id):'#song/'+encodeURIComponent(t.id);
-  const artist=duet?t.original_artist:(t.has_ai_artist?t.artist:'AI 가수 미지정');
-  const recordHref=duet?href:'#sing/'+encodeURIComponent(t.id);
-  return `<article class="play-song-row"><a class="play-song-detail" href="${esc(href)}" aria-label="${esc(t.title)} ${duet?'듀엣 참여':'곡 이야기'}">${cover(t,'play-song-art')}<span class="play-song-title" title="${esc(t.title)}">${esc(t.title)}</span></a><span class="play-song-producer" title="제작자: ${esc(t.producer)}">${esc(t.producer)}</span><span class="play-song-artist" title="AI 가수: ${esc(artist)}">${esc(artist)}</span><span class="play-song-count">${esc(t.participants)}<span class="sr-only">명 참여</span></span>${duet?`<button class="play-row-icon" data-play="${esc(t.id)}" aria-label="${esc(t.title)} 재생">${icon('audio-play',36)}</button>`:''}<a class="play-row-icon play-row-record" href="${esc(recordHref)}" aria-label="${esc(t.title)} ${duet?'듀엣 참여':'노래하기'}">${icon(duet?'plus':'mic')}</a><button type="button" class="play-row-icon" data-track-menu="${esc(t.id)}" aria-label="${esc(t.title)} 더보기">${icon('menu')}</button></article>`;
+  const id=esc(t.id),title=esc(t.title),href=duet?'#sing/'+encodeURIComponent(t.original_id)+'?duet='+encodeURIComponent(t.id):'#song/'+encodeURIComponent(t.id);
+  const artist=t.has_ai_artist?t.artist:'AI 가수 미지정',recordHref=duet?href:'#sing/'+encodeURIComponent(t.id),expandable=Number(t.completions||0)>0;
+  const count=duet?`<button type="button" class="list-action play-duet-expand" data-play-duet-children="${id}" data-original="${esc(t.original_id)}" aria-controls="play-duet-children-${id}" aria-expanded="false" ${expandable?'':'disabled'} title="고유 참여자 ${Number(t.participants||0)}명 · 완성작 ${Number(t.completions||0)}개"><span>${Number(t.participants||0)}</span><span data-cover-arrow aria-hidden="true">⌄</span><span class="sr-only">명 참여 · 완성작 펼치기</span></button>`:`<span class="play-song-count">${Number(t.participants||0)}<span class="sr-only">명 참여</span></span>`;
+  const row=`<article data-list-row class="play-song-row"><a class="play-song-detail" href="${esc(href)}" aria-label="${title} ${duet?'듀엣 참여':'곡 이야기'}">${cover(t,'play-song-art')}<span class="play-song-copy"><span class="play-song-title" title="${title}">${title}</span><span class="play-song-uploader" title="${esc(t.producer)}">${esc(t.producer||'창작자')}</span></span></a>${duet?'':`<span class="play-song-producer" title="제작자: ${esc(t.producer)}">${esc(t.producer)}</span><span class="play-song-artist" title="AI 가수: ${esc(artist)}">${esc(artist)}</span>`}${count}<div class="list-actions"><a class="list-action play-row-icon play-row-record" href="${esc(recordHref)}" title="${title} ${duet?'듀엣 참여':'노래하기'}" aria-label="${title} ${duet?'듀엣 참여':'노래하기'}">${icon(duet?'plus':'mic')}</a>${duet?`<button class="list-action play-row-icon" data-play="${id}" title="${title} 반곡 재생" aria-label="${title} 반곡 재생">${icon('play')}</button>`:''}<button type="button" class="list-action play-row-icon" data-track-menu="${id}" title="${title} 더보기" aria-label="${title} 더보기">${icon('menu')}</button></div></article>`;
+  return row+(duet?`<div class="play-duet-children song-cover-children" id="play-duet-children-${id}" data-parent="${id}" hidden></div>`:'');
  }).join('')}</div>`;
+}
+function playDuetChildrenHTML(d,parent,original){
+ return d.covers.map(t=>songCoverRowHTML(t,{child:true})).join('')+(d.next_offset==null?'':`<button type="button" class="small-button" data-play-duet-more="${esc(parent)}" data-original="${esc(original)}" data-offset="${d.next_offset}">참여작 더 보기</button>`);
+}
+function bindPlayDuetChildren(root){
+ if(root.dataset.playDuetBound)return;
+ root.dataset.playDuetBound='true';
+ root.addEventListener('click',async event=>{
+  if(!(event.target instanceof Element))return;
+  const button=event.target.closest('[data-play-duet-children],[data-play-duet-more]');if(!(button instanceof HTMLButtonElement)||button.disabled)return;
+  event.preventDefault();event.stopPropagation();
+  const parent=button.dataset.playDuetChildren||button.dataset.playDuetMore,target=document.getElementById('play-duet-children-'+parent);
+  if(!target)return;
+  const toggle=root.querySelector('[data-play-duet-children="'+CSS.escape(parent)+'"]');
+  if(button===toggle&&target.dataset.loaded){setSongCoverExpanded(button,target,target.hidden);return;}
+  button.disabled=true;button.setAttribute('aria-busy','true');
+  try{
+   const d=await api('/api/tracks/'+encodeURIComponent(button.dataset.original)+'/covers?view=children&parent='+encodeURIComponent(parent)+'&offset='+(button.dataset.offset||0),'GET',undefined,{fresh:true});
+   if(!root.isConnected||!target.isConnected)return;
+   remember(d.covers);const html=playDuetChildrenHTML(d,parent,button.dataset.original);
+   if(button===toggle){target.innerHTML=html||'<p class="empty-note">아직 완성된 참여작이 없어요.</p>';target.dataset.loaded='true';setSongCoverExpanded(button,target,true);}
+   else {button.insertAdjacentHTML('beforebegin',html);button.remove();}
+   paintInteractions();bindSongCoverPlayback();
+  }catch(error){toast(error.message);}
+  finally{button.disabled=false;button.removeAttribute('aria-busy');}
+ });
 }
 function playProjectRows(projects,tab){
  const states={script_ready:'초안',recruiting:'배역 모집 중',recording:'녹음 중',mixing:'믹싱 중',complete:'완료'};
- return `<div class="play-project-list">${projects.map(p=>`<article class="play-project-row"><img class="play-project-symbol" src="${AifectDubbing.dubbingGenreArtwork(p.genres)}" alt="" width="52" height="52" loading="lazy" decoding="async"><div><a href="#dubbing/${esc(p.id)}"><h2>${playTypeIcon('dubbing')}<span>${esc(p.title)}</span></h2></a><p>${esc(p.ownerName)} · ${esc((p.genres||[]).join(' · '))} · ${time(p.duration)}</p><small>${tab==='discover'?'극본 · '+p.roleCount+'개 배역':(states[p.state]||'제작 중')+' · '+p.participants+' / '+p.roleCount+'명'}${p.visibility==='private'?' · 비공개':''}</small></div><a class="small-button" href="#dubbing/${esc(p.id)}">${tab==='discover'?'작품 보기':tab==='join'?'배역 보기':'이어서 보기'}${icon('chevron')}</a></article>`).join('')}</div>`;
+ return `<div class="play-project-list">${projects.map(p=>`<article data-list-row class="play-project-row"><img class="play-project-symbol" src="${AifectDubbing.dubbingGenreArtwork(p.genres)}" alt="" width="52" height="52" loading="lazy" decoding="async"><div><a href="#dubbing/${esc(p.id)}"><h2>${playTypeIcon('dubbing')}<span>${esc(p.title)}</span></h2></a><p>${esc(p.ownerName)}</p><small>${tab==='discover'?'극본 · '+p.roleCount+'개 배역':tab==='join'?'빈 배역 '+Math.max(0,p.roleCount-p.participants)+'개 · '+p.participants+' / '+p.roleCount+'명':(states[p.state]||'제작 중')+' · '+p.participants+' / '+p.roleCount+'명'}${p.visibility==='private'?' · 비공개':''}</small></div><a class="list-action small-button" href="#dubbing/${esc(p.id)}" aria-label="${esc(p.title)} ${tab==='join'?'배역 보기':tab==='mine'?'이어서 보기':'작품 보기'}" title="${esc(p.title)} 작품 열기">${tab==='join'?icon('plus'):(tab==='discover'?'작품 보기':'이어서 보기')+icon('chevron')}</a></article>`).join('')}</div>`;
 }
 function playToolbar(s){
  const search=`<form id="play-search" class="aifect-search play-search">${icon('search')}<input name="q" type="search" aria-label="플레이 작품 검색" placeholder="${s.mode==='song'?'곡명, 제작자, AI 가수명 검색':'작품 제목, 창작자 검색'}" maxlength="100"><button class="small-button" type="submit">검색</button></form>`;
@@ -71,7 +98,7 @@ function playToolbar(s){
 function playDraftRows(drafts){
  return `<section class="play-drafts" aria-label="저장한 녹음"><header class="play-draft-toolbar"><h2>저장한 녹음 <span>${drafts.length}</span></h2><button class="small-button danger-button" data-delete-all-drafts ${drafts.length?'':'disabled'}>${icon('trash')} 전체 삭제</button></header><p class="play-draft-note">이 계정으로 현재 기기·브라우저에 저장한 녹음이에요. 다른 기기에는 표시되지 않아요.<br>공개한 커버곡은 초안을 삭제해도 유지돼요.</p>`+(drafts.length?'<div class="play-draft-list">'+drafts.map(d=>{
   const query=d.parent?'duet='+encodeURIComponent(d.parent):'mode='+d.mode+'&part='+encodeURIComponent(d.part),title=d.title||'임시 저장한 녹음';
-  return `<article class="play-draft-row" data-draft-key="${esc(d.draftKey)}"><span class="play-draft-art" aria-hidden="true">${icon('mic')}</span><div class="play-draft-copy"><h3 title="${esc(title)}">${esc(title)}</h3><p><span>${esc(d.artist||'나의 목소리')}</span><span>${d.mode==='duet'?'DUET':'SOLO'} · ${time(d.duration)}</span><span>${esc(new Date(d.updated).toLocaleDateString('ko-KR'))} 저장</span></p></div><a class="small-button play-draft-resume" href="#sing/${encodeURIComponent(d.id)}?${esc(query)}&draft=1">${icon('edit')} 이어하기</a><button class="icon-button play-draft-delete" data-delete-draft="${esc(d.draftKey)}" data-draft-title="${esc(title)}" aria-label="${esc(title)} 삭제">${icon('trash')}</button></article>`;
+  return `<article data-list-row class="play-draft-row" data-draft-key="${esc(d.draftKey)}"><span class="play-draft-art" aria-hidden="true">${icon('mic')}</span><div class="play-draft-copy"><h3 title="${esc(title)}">${esc(title)}</h3><p><span>${esc(d.artist||'나의 목소리')}</span><span>${d.mode==='duet'?'DUET':'SOLO'} · ${time(d.duration)}</span><span>${esc(new Date(d.updated).toLocaleDateString('ko-KR'))} 저장</span></p></div><a class="list-action small-button play-draft-resume" href="#sing/${encodeURIComponent(d.id)}?${esc(query)}&draft=1">${icon('edit')} 이어하기</a><button class="list-action icon-button play-draft-delete" data-delete-draft="${esc(d.draftKey)}" data-draft-title="${esc(title)}" aria-label="${esc(title)} 삭제">${icon('trash')}</button></article>`;
  }).join('')+'</div>':`<div class="play-empty" role="status"><h3>첫 목소리를 기다리고 있어요</h3><p>녹음 후 임시 저장하면 여기에 모여요.<br>마음에 들 때까지 편집하고, 준비되면 공개하세요.</p><a class="small-button" href="#karaoke">부를 곡 찾기 ${icon('arrow')}</a></div>`)+'</section>';
 }
 function playResults(view){
@@ -107,6 +134,7 @@ function bindPlay(view){
  if(!view?.play)return;
  const root=document.querySelector('.play-page');if(!root)return;
  root.addEventListener('error',playDubbingArtworkError,true);
+ bindPlayDuetChildren(root);
  root.querySelectorAll('img.play-dubbing-art').forEach(image=>{if(image instanceof HTMLImageElement&&image.complete&&!image.naturalWidth)playDubbingArtworkError({target:image});});
  root.querySelector('[data-play-retry]')?.addEventListener('click',()=>render());
  root.querySelectorAll('nav').forEach(nav=>nav.addEventListener('keydown',e=>{

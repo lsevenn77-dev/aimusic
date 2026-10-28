@@ -17,3 +17,9 @@ declare function karaokeDraftsHTML(drafts: any[]): string;
 declare function communityNavigation(tab: string): string;
 declare function voiceView(base: string, id?: string): Promise<{html: string}>;
 declare function render(): Promise<void>;
+
+declare function songCoverRowHTML(track:any, options?:any):string;
+declare function setSongCoverExpanded(button:HTMLButtonElement,target:HTMLElement,expanded:boolean):void;
+declare function bindSongCoverPlayback():void;
+declare function paintInteractions():void;
+declare function toast(message:string):void;
