@@ -35,11 +35,12 @@ function homeHTML(){return `<div class="listening-home listening-home-v2 home-co
  </div>`;}
 function releaseHTML(t,next){
  const art=homeArtworkPath(t);
- return `<div class="home-feature-background" aria-hidden="true">${art?`<img src="${esc(art)}" alt="" decoding="async">`:''}</div><article class="home-feature-slide"><a class="home-feature-cover" href="#song/${esc(t.id)}" aria-label="${esc(t.title)} 곡 정보">${homeCover(t,'home-feature-art',true)}</a><div class="home-feature-copy"><span class="home-feature-label">FEATURED MUSIC</span><h2><a href="#song/${esc(t.id)}" title="${esc(t.title)}">${esc(t.title)}</a></h2><div class="home-feature-artist">${credits(t)}</div>${t.description?`<p class="home-feature-description">${esc(t.description)}</p>`:''}<div class="home-feature-actions"><button class="primary-button" data-play="${esc(t.id)}" data-community-toggle>${icon('ui-plays')} 지금 듣기</button><a class="text-link" href="#song/${esc(t.id)}">곡 정보 보기</a></div></div>${next?`<button class="home-feature-preview" data-home-next aria-label="다음 곡 ${esc(next.title)} 보기">${homeCover(next,'home-preview-art')}<span>UP NEXT</span></button>`:''}</article>`;
+ const playing=typeof current!=='undefined'&&current?.id===t.id&&!audio.paused&&!audio.ended&&!window.AifectAudioAds?.active;
+ return `<div class="home-feature-background" aria-hidden="true"><div class="home-feature-backdrop"${art?` style="background-image:url(&quot;${esc(art)}&quot;)"`:''}>${art?`<img src="${esc(art)}" alt="" decoding="async">`:''}</div></div><article class="home-feature-slide"><a class="home-feature-cover" href="#song/${esc(t.id)}" aria-label="${esc(t.title)} 곡 정보">${homeCover(t,'home-feature-art',true)}</a><div class="home-feature-copy"><span class="home-feature-label">FEATURED MUSIC</span><div class="home-feature-title-row"><h2><a href="#song/${esc(t.id)}" title="${esc(t.title)}">${esc(t.title)}</a></h2><span class="home-feature-divider" aria-hidden="true"></span><button type="button" class="home-feature-play" data-play="${esc(t.id)}" data-community-toggle aria-label="${esc(t.title)} ${playing?'일시정지':'재생'}" aria-pressed="${playing}">${icon(playing?'ui-pause-action':'ui-play-action')}</button></div><div class="home-feature-artist">${credits(t)}</div>${t.description?`<p class="home-feature-description">${esc(t.description)}</p>`:''}<div class="home-feature-actions"><a class="text-link" href="#song/${esc(t.id)}">곡 정보 보기</a></div></div>${next?`<button class="home-feature-preview" data-home-next aria-label="다음 곡 ${esc(next.title)} 보기">${homeCover(next,'home-preview-art')}<span>UP NEXT</span></button>`:''}</article>`;
 }
 function bindHomeImages(root){
  if(!root?.addEventListener)return;
- const fallback=event=>{const img=event.target;if(img.tagName!=='IMG'||!img.closest('.home-track-art'))return;img.hidden=true;const label=img.parentElement.querySelector('.cover-word');if(label)label.hidden=false;};
+ const fallback=event=>{const img=event.target;if(img.tagName!=='IMG'||!img.closest('.home-track-art,.home-feature-background'))return;img.hidden=true;if(img.closest('.home-feature-background'))img.parentElement.style.backgroundImage='none';const label=img.parentElement.querySelector('.cover-word');if(label)label.hidden=false;};
  root.addEventListener('error',fallback,true);
 }
 function mountHomeCarousel(root,tracks){
@@ -51,13 +52,14 @@ function mountHomeCarousel(root,tracks){
  if(!root.addEventListener)return;
  const feature=root.querySelector('.home-feature'),stage=root.querySelector('.home-feature-stage'),motion=window.matchMedia('(prefers-reduced-motion: reduce)');
  let index=0,timer=null,manualPause=false,hover=false,focus=false,start=null;
+ const syncPlayback=()=>{const b=stage.querySelector?.('.home-feature-slide .home-feature-play');if(!b||typeof audio==='undefined')return;const playing=current?.id===tracks[index].id&&!audio.paused&&!audio.ended&&!window.AifectAudioAds?.active;b.innerHTML=icon(playing?'ui-pause-action':'ui-play-action');b.setAttribute('aria-pressed',String(playing));b.setAttribute('aria-label',tracks[index].title+(playing?' 일시정지':' 재생'));};
  const clear=()=>{clearTimeout(timer);timer=null;};
  const schedule=()=>{clear();if(multi&&!manualPause&&!hover&&!focus&&!motion.matches&&!document.hidden)timer=setTimeout(()=>{if(!root.isConnected)return cleanup();go(index+1);},5500);};
  const go=value=>{
   index=(value+tracks.length)%tracks.length;
   stage.querySelectorAll('.home-feature-outgoing').forEach(el=>el.remove());
   const old=document.createElement('div');old.className='home-feature-outgoing';old.setAttribute('aria-hidden','true');old.inert=true;
-  old.innerHTML=stage.innerHTML;stage.innerHTML=releaseHTML(tracks[index],multi?tracks[(index+1)%tracks.length]:null);stage.append(old);
+  old.innerHTML=stage.innerHTML;stage.innerHTML=releaseHTML(tracks[index],multi?tracks[(index+1)%tracks.length]:null);stage.append(old);syncPlayback();
   old.addEventListener('animationend',()=>old.remove(),{once:true});if(motion.matches)old.remove();
   feature.querySelectorAll('[data-home-slide]').forEach((b,i)=>b.setAttribute('aria-pressed',String(i===index)));schedule();
  };
@@ -68,8 +70,11 @@ function mountHomeCarousel(root,tracks){
  const cancel=()=>{start=null;};
  const listeners=[['click',click],['pointerenter',enter],['pointerleave',leave],['focusin',focusIn],['focusout',focusOut],['keydown',key],['pointerdown',down],['pointerup',up],['pointercancel',cancel]];
  for(const [name,fn] of listeners)feature.addEventListener(name,fn);
+ const playbackEvents=['play','pause','ended','emptied','loadedmetadata'];
+ if(typeof audio!=='undefined')for(const event of playbackEvents)audio.addEventListener(event,syncPlayback);
+ for(const t of tracks){const src=homeArtworkPath(t);if(src&&typeof Image!=='undefined'){const image=new Image();image.src=src;}}
  document.addEventListener('visibilitychange',schedule);window.addEventListener('hashchange',cleanup);motion.addEventListener('change',schedule);
- function cleanup(){clear();for(const [name,fn] of listeners)feature.removeEventListener(name,fn);document.removeEventListener('visibilitychange',schedule);window.removeEventListener('hashchange',cleanup);motion.removeEventListener('change',schedule);}
+ function cleanup(){clear();for(const [name,fn] of listeners)feature.removeEventListener(name,fn);if(typeof audio!=='undefined')for(const event of playbackEvents)audio.removeEventListener(event,syncPlayback);document.removeEventListener('visibilitychange',schedule);window.removeEventListener('hashchange',cleanup);motion.removeEventListener('change',schedule);}
  homeCarouselCleanup=cleanup;schedule();
 }
 function updateHomeAccount(){

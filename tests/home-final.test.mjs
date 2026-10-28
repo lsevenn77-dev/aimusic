@@ -9,6 +9,15 @@ function setup(){
  c.track={id:'real-song',title:'긴 제목 <곡> "원곡"',artist:'실제 가수',artist_id:'artist',producer_id:'producer',kind:'original',has_cover:1,cover_version:'real-art',description:'등록된 소개 <설명>',chart_rank:1,previous_rank:3,chart_movement:'up',rank_change:2,chart_likes:123,chart_comments:45,chart_plays:6789};
  return c;
 }
+
+test('featured title action preserves real artwork, detail URLs and the locked player control',()=>{
+ const c=setup(),html=c.releaseHTML(c.track,{...c.track,id:'next-song'});
+ assert.match(html,/home-feature-title-row/);assert.match(html,/home-feature-play[^>]+data-play="real-song"[^>]+data-community-toggle/);
+ assert.match(html,/aifect-icon-play/);assert.match(html,/aria-pressed="false"/);
+ assert.match(html,/background-image:url/);assert.match(html,/\/media\/real-song\/cover\?artwork=track/);
+ assert.equal((html.match(/href="#song\/real-song"/g)||[]).length,3);
+ assert.match(html,/다음 곡/);assert.doesNotMatch(html,/지금 듣기|primary-button/);
+});
 test('home chart preserves all rows, metrics and existing actions with a real rank-one feature',()=>{
  const c=setup();const tracks=Array.from({length:12},(_,i)=>({...c.track,id:'song-'+i,chart_rank:i+1}));
  const html=c.homeChartHTML(tracks);
