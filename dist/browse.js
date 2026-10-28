@@ -2,7 +2,7 @@ const genreArtwork={"Ballad":"/assets/genres/04.webp","Dark Pop":"/assets/genres
 function genreCardHTML(g){return `<a class="genre-photo-card" href="#discover/genres?g=${encodeURIComponent(g)}"><img src="${esc(genreArtwork[g])}" alt="" loading="lazy" decoding="async"><span><small>EXPLORE MUSIC</small><strong>${esc(g)}</strong></span>${icon('chevron')}</a>`;}
 function chartMovementHTML(t){
  const state=t.chart_movement,delta=Math.abs(Number(t.rank_change)||0),labels={up:`어제보다 ${delta}위 상승`,down:`어제보다 ${delta}위 하락`,same:'어제와 같은 순위',new:'새롭게 차트 진입',unavailable:'전날 비교 기록 없음'},label=labels[state]||labels.unavailable;
- return `<div class="chart-score chart-movement ${Object.hasOwn(labels,state)?state:'unavailable'}" aria-label="${label}" title="${label}"><strong aria-hidden="true">${state==='up'?icon('ui-up')+delta:state==='down'?icon('ui-down')+delta:state==='new'?'NEW':'—'}</strong></div>`;
+ return `<div class="chart-score chart-movement ${Object.hasOwn(labels,state)?state:'unavailable'}" aria-label="${label}" title="${label}"><strong aria-hidden="true">${state==='up'?'<span class="chart-direction">▲</span><span>'+delta+'</span>':state==='down'?'<span class="chart-direction">▼</span><span>'+delta+'</span>':state==='new'?'NEW':'—'}</strong></div>`;
 }
 // Shared navigation for listening, singing and the community on desktop and mobile.
 function updateBrowseNavigation(base,param){

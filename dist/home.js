@@ -12,13 +12,12 @@ function homeCover(t,cls='album-art',eager=false){
 function homeReplaceArtwork(html,tracks,cls='album-art'){for(const t of tracks)html=html.replace(cover(t,cls),homeCover(t,cls));return html;}
 function homeCard(t){return homeReplaceArtwork(card(t),[t]).replace('class="album-title"','class="album-title" title="'+esc(t.title)+'"');}
 function homeChartHTML(tracks){
- let table=homeReplaceArtwork(songTable(tracks,{chart:true}),tracks,'mini-cover');
- // Keep the shared chart data and controls; only home uses the approved triangles.
- for(const t of tracks){const movement=chartMovementHTML(t);table=table.replace(movement,movement.replace(icon('ui-up'),'▲').replace(icon('ui-down'),'▼'));}
- const top=tracks.find((t,i)=>(t.chart_rank||i+1)===1);
+ const visible=tracks.slice(0,7);
+ const table=homeReplaceArtwork(songTable(visible,{chart:true}),visible,'mini-cover');
+ const top=visible.find((t,i)=>(t.chart_rank||i+1)===1);
  if(!top)return '<div class="home-chart-layout">'+table+'</div>';
  const art=homeArtworkPath(top);
- return '<div class="home-chart-layout">'+table+`<aside class="home-chart-feature" aria-label="현재 차트 1위 곡"><div class="home-chart-backdrop" aria-hidden="true">${art?`<img src="${esc(art)}" alt="">`:''}</div><a class="home-chart-cover" href="#song/${esc(top.id)}" aria-label="${esc(top.title)} 곡 정보">${homeCover(top,'home-chart-art')}</a><div class="home-chart-copy"><a class="home-chart-title" href="#song/${esc(top.id)}" title="${esc(top.title)}">${esc(top.title)}</a><div class="home-chart-artist">${credits(top)}</div>${top.description?`<p>${esc(top.description)}</p>`:''}<button class="list-action" data-play="${esc(top.id)}" aria-label="${esc(top.title)} 재생">${icon('ui-play-action')}</button></div></aside></div>`;
+ return '<div class="home-chart-layout">'+table+`<aside class="home-chart-feature" aria-label="현재 차트 1위 곡"><div class="home-chart-backdrop" aria-hidden="true">${art?`<img src="${esc(art)}" alt="">`:''}</div><div class="home-chart-rank"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m3 7 5 4 4-7 4 7 5-4-2 12H5Z"/></svg><span>#1</span></div><a class="home-chart-cover" href="#song/${esc(top.id)}" aria-label="${esc(top.title)} 곡 정보">${homeCover(top,'home-chart-art')}</a><div class="home-chart-copy"><a class="home-chart-title" href="#song/${esc(top.id)}" title="${esc(top.title)}">${esc(top.title)}</a><div class="home-chart-artist">${credits(top)}</div>${top.description?`<p>${esc(top.description)}</p>`:''}<button class="list-action home-chart-listen" data-play="${esc(top.id)}" aria-label="${esc(top.title)} 지금 듣기">${icon('ui-play-action')}<span>지금 듣기</span></button></div></aside></div>`;
 }
 function homeCollectionGrid(items){let html=collectionGrid(items);for(const p of items)html=homeReplaceArtwork(html,p.covers||[],'collection-tile');return html;}
 function homeMore(title,href){return href?`<a class="home-more-link" href="${href}" aria-label="${esc(title)} 더보기">+ 더보기</a>`:'';}

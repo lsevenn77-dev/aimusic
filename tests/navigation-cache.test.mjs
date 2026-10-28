@@ -326,7 +326,8 @@ test('home continues down through full music grids and optional discovery sectio
  c.context.card=t=>'<article>'+t.title+'</article>';c.context.chartMovementHTML=()=>'';
  await c.navigate('home');await new Promise(resolve=>setImmediate(resolve));
  assert.match(c.section('home-more').innerHTML,/home-music-grid/);assert.match(c.section('home-more').innerHTML,/Song 11/);
- for(const id of ['home-popular','home-discovery']){assert.equal(c.section(id).hidden,false);assert.match(c.section(id).innerHTML,/Song 11/);}
+ assert.equal(c.section('home-popular').hidden,false);assert.match(c.section('home-popular').innerHTML,/Song 6/);assert.doesNotMatch(c.section('home-popular').innerHTML,/Song 7|Song 11/);
+ assert.equal(c.section('home-discovery').hidden,false);assert.match(c.section('home-discovery').innerHTML,/Song 11/);
  assert.match(c.section('home-recommended').innerHTML,/Song 5/);
  const html=c.main.innerHTML;assert.ok(html.indexOf('id="home-popular"')<html.indexOf('id="home-more"'));assert.ok(html.indexOf('id="home-library"')<html.indexOf('id="home-sing"'));
  assert.doesNotMatch(c.section('home-more').innerHTML,/browse-rail/);
