@@ -13,6 +13,7 @@ function sandbox(extra={}){
 test('manual duet assignments must cover both singers before recording; free takes and inherited guides remain usable',()=>{
  const c=sandbox();c.take={mode:'duet',data:{words},duetGuide:{mode:'lyrics',lines:['A','']}};
  assert.match(vm.runInContext('duetAssignmentIssue(take)',c),/1줄/);
+ c.take.duetGuide.lines=['A','partial'];assert.match(vm.runInContext('duetAssignmentIssue(take)',c),/1줄/);
  c.take.duetGuide.lines=['A','A'];assert.match(vm.runInContext('duetAssignmentIssue(take)',c),/모두/);
  for(const lines of [['A','B'],['both','both']]){c.take.duetGuide.lines=lines;assert.equal(vm.runInContext('duetAssignmentIssue(take)',c),'');}
  c.take.duetGuide={mode:'free',lines:[]};assert.equal(vm.runInContext('duetAssignmentIssue(take)',c),'');
@@ -89,8 +90,31 @@ test('part brush persists across consecutive lines and applies only after explic
  const host={querySelectorAll:q=>q==='[data-duet-brush]'?brushes:q==='[data-duet-line]'?rows:[],querySelector:q=>q==='[data-duet-done]'?done:q==='[data-duet-note]'?note:null};
  let writes=0;const c=sandbox({$:q=>q==='#dialog'?dlg:host,dialog(){},queueSingDraft(){writes++;}});
  vm.runInContext("sing={mode:'duet',state:'idle',cursor:0,data:{words:[{s:0,w:[{t:'first'}]},{s:6,w:[{t:'second'}]}],track:{duration:12}},duetGuide:{version:1,mode:'lyrics',lines:['A','B']}};renderDuetGuide=()=>{};drawLyrics=()=>{}",c);
- vm.runInContext('openDuetEditor()',c);brushes[2].onclick();rows[0].onclick();rows[1].onclick();
+ vm.runInContext('openDuetEditor()',c);brushes[2].onclick();rows[0].onpointerdown({pointerType:'mouse',button:0});rows[1].onpointerenter({pointerType:'mouse',buttons:1});rows[1].onpointerup();rows[1].onclick();
  assert.equal(rows[0].dataset.partRole,'both');assert.equal(rows[1].dataset.partRole,'both');assert.equal(brushes[2].attrs['aria-pressed'],'true');
  assert.equal(vm.runInContext('sing.duetGuide.lines.join()',c),'A,B');assert.equal(writes,0);
  done.onclick();assert.equal(vm.runInContext('sing.duetGuide.lines.join()',c),'both,both');assert.equal(writes,1);assert.equal(dlg.closed,true);
+});
+
+test('phrase assignment groups adjacent lyrics, balances singers and preserves timing data',()=>{
+ const lines=Array.from({length:16},(_,i)=>({s:i*2,w:[{t:'phrase '+i,s:i*2,e:i*2+1.8}]})),before=JSON.stringify(lines);
+ const parts=duet.assignPhraseParts(lines,32,{bpm:120,random:()=>0});
+ assert.equal(parts.length,16);assert.equal(parts.join(''),'AAAABBBBAAAABBBB');
+ assert.equal(JSON.stringify(lines),before);
+ assert.deepEqual(duet.assignPhraseParts([],0),[]);
+ assert.deepEqual(duet.assignPhraseParts(lines.slice(0,2),4,{random:()=>1}),['B','A']);
+ const untimed=lines.map(line=>({...line,s:0,w:line.w.map(w=>({t:w.t}))}));
+ const fallback=duet.assignPhraseParts(untimed,60,{random:()=>0});
+ assert.ok(fallback.includes('A')&&fallback.includes('B'));assert.ok(fallback.some((part,i)=>i&&part===fallback[i-1]));
+ const sections=lines.map((line,i)=>({...line,section:i<4?'Verse 1':i<8?'Verse 2':i<12?'Chorus':'Bridge'}));
+ assert.deepEqual(duet.assignPhraseParts(sections,32,{bpm:120,random:()=>0}).slice(8,12),['both','both','both','both']);
+});
+
+test('final part picker exposes checkboxes and two modes, and removes the paused review shortcut',()=>{
+ const c=sandbox();c.take={data:{words,track:{duration:12}},duetGuide:{mode:'lyrics',lines:['A','B']}};
+ const html=vm.runInContext('duetEditorHTML(take)',c);
+ assert.equal((html.match(/role="checkbox"/g)||[]).length,2);
+ assert.equal((html.match(/aria-checked="true"/g)||[]).length,2);
+ assert.ok(html.includes('랜덤 지정'));assert.ok(html.includes('함께 부르기'));
+ assert.ok(!html.includes('자유롭게 부르기'));assert.ok(!source.includes('data-sing-review'));assert.ok(!source.includes('편집 화면으로 돌아가기'));
 });
