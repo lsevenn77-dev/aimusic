@@ -10,13 +10,13 @@ function player(api,clock=Date){
  vm.runInContext(source,context);return {context,hud,calls,audio,events,run:s=>vm.runInContext(s,context)};
 }
 const flush=()=>new Promise(resolve=>setImmediate(resolve));
-test('mobile player displays only the current lyric while desktop retains the two-line preview',async()=>{
+test('mobile and desktop player share the two-line preview',async()=>{
  const p=player(()=>({line:{text:'현재 가사',from:0,until:10},lines:[{time:0,text:'현재 가사'},{time:10,text:'다음 가사'}]}));
  let mobile=true;p.context.matchMedia=()=>({matches:mobile});
- p.run('setCurrentLyrics(current)');await flush();assert.equal(p.hud.textContent,'현재 가사');
+ p.run('setCurrentLyrics(current)');await flush();assert.equal(p.hud.textContent,'현재 가사\n다음 가사');
  mobile=false;p.run('updateSyncedLyrics(true)');assert.equal(p.hud.textContent,'현재 가사\n다음 가사');
  mobile=true;p.run("current={...current,lyrics:'[00:00]첫 줄\\n[00:10]다음 줄',lyrics_access:'full',lyrics_access_until:Date.now()/1000+1000};setCurrentLyrics(current)");
- assert.equal(p.hud.textContent,'첫 줄');
+ assert.equal(p.hud.textContent,'첫 줄\n다음 줄');
 });
 test('one-line client prefetches before boundaries and reuses nearby lines after seeks',async()=>{
  const p=player(path=>{const at=Number(path.split('=')[1]);return {line:at<12.25?{text:'첫 줄',from:0,until:12.25}:{text:'둘째 줄',from:12.25,until:90}};});
@@ -27,11 +27,11 @@ test('one-line client prefetches before boundaries and reuses nearby lines after
  p.audio.currentTime=12.2499;p.events.seeking();assert.equal(p.hud.textContent,'둘째 줄');assert.equal(p.calls.length,2);
 });
 
-test('compact lyrics lead by half a second for free and premium listeners while retaining mobile one-line and desktop two-line display',async()=>{
+test('compact lyrics lead by half a second for free and premium listeners while retaining a shared two-line display',async()=>{
  const p=player(path=>{const at=Number(path.split('=')[1]);return {line:at<10?{text:'첫 줄',from:0,until:10}:{text:'다음 줄',from:10,until:20},lines:[{time:0,text:'첫 줄'},{time:10,text:'다음 줄'},{time:20,text:'마지막 줄'}]};});
  p.context.matchMedia=()=>({matches:true});p.run('setCurrentLyrics(current)');await flush();
- p.audio.currentTime=9.499;p.run('updateSyncedLyrics()');assert.equal(p.hud.textContent,'첫 줄');
- p.audio.currentTime=9.5;p.run('updateSyncedLyrics()');assert.equal(p.hud.textContent,'다음 줄');assert.equal(p.audio.currentTime,9.5);
+ p.audio.currentTime=9.499;p.run('updateSyncedLyrics()');assert.equal(p.hud.textContent,'첫 줄\n다음 줄');
+ p.audio.currentTime=9.5;p.run('updateSyncedLyrics()');assert.equal(p.hud.textContent,'다음 줄\n마지막 줄');assert.equal(p.audio.currentTime,9.5);
  p.context.matchMedia=()=>({matches:false});p.run('updateSyncedLyrics()');assert.equal(p.hud.textContent,'다음 줄\n마지막 줄');
  p.run("current={...current,lyrics:'[00:00]첫 줄\\n[00:10]다음 줄\\n[00:20]마지막 줄',lyrics_access:'full',lyrics_access_until:Date.now()/1000+1000};setCurrentLyrics(current)");
  assert.equal(p.hud.textContent,'다음 줄\n마지막 줄');

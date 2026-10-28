@@ -46,3 +46,9 @@ paths['list-pen']='M4 5h12M4 10h8M4 15h4m5 5 3-1 6-6-2-2-6 6-1 3Zm5-7 2 2';
 // Audio controls use the unchanged external artwork. The SVG viewport retains
 // existing svg sizing selectors and isolates the asset's gradient IDs.
 function playIcon(size=24){return `<svg class="audio-play-icon" viewBox="0 0 36 36" width="${size}" height="${size}" aria-hidden="true" focusable="false"><image href="/assets/card-play.svg?v=b5cb3d802391" width="36" height="36" preserveAspectRatio="xMidYMid meet"/></svg>`;}
+
+paths.quote='M4 6h6v7l-4 5M14 6h6v7l-4 5';
+paths['list-plus']='M3 5h15M3 11h15M3 17h8M18 14v8M14 18h8';
+
+paths['player-quote']='M4 5h6v7l-4 6H3l3-6H4zM14 5h6v7l-4 6h-3l3-6h-2z';
+paths['player-comment']='M3 4h18v13H9l-6 4V4ZM8 10h.01M12 10h.01M16 10h.01';
