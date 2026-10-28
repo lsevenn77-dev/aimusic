@@ -70,11 +70,11 @@ async function startSelectedPunch(s=sing,retry=false){
 function paintPunchCountdown(s,run){
  const header=$('.sing-punch-record-header'),countdown=$('.sing-countdown');if(!header||!countdown)return;
  const active=!!run?.punchRange;header.hidden=!active;
- if(!active){countdown.hidden=true;return;}
- header.querySelector('[data-punch-record-range]').textContent=preciseTime(run.punchRange.start)+' – '+preciseTime(run.punchRange.end);
+ if(active)header.querySelector('[data-punch-record-range]').textContent=preciseTime(run.punchRange.start)+' – '+preciseTime(run.punchRange.end);
  header.querySelector('[data-punch-cancel]').onclick=()=>finishSinging({discardPunch:true});
- const n=K().punchCountdown(run.recordClock,s.ctx.currentTime);countdown.hidden=!n;
- const number=countdown.querySelector('[data-punch-countdown]');if(number.textContent!==String(n))number.textContent=String(n);
+ const n=run?Math.max(0,Math.min(3,K().punchCountdown(run.recordClock,s.ctx.currentTime))):0;countdown.hidden=false;
+ const number=countdown.querySelector('[data-punch-countdown]');number.setAttribute('aria-label',n?n+'박 뒤 녹음 시작':'');
+ if(number.dataset.count!==String(n)){number.dataset.count=String(n);number.innerHTML=Array.from({length:3},(_,i)=>'<i aria-hidden="true" class="'+(i<n?'is-visible':'')+'"></i>').join('');}
 }
 function paintPunchPlayback(s){
  if(sing!==s||s.punchPage!=='result'||!s.pendingPunch)return;const p=s.pendingPunch,elapsed=Math.max(0,Math.min(p.range.end-p.range.start,s.cursor-p.range.start));

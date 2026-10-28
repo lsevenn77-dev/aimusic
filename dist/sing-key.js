@@ -1,12 +1,12 @@
 function singingKey(s){return Math.max(-6,Math.min(6,Math.round(Number(s?.keySemitones)||0)));}
 function keyName(s){const key=singingKey(s);return s?.parent?'파트너 키':key===0?'원곡 키':`${key>0?'+':''}${key} 반음`;}
-function singingKeyHTML(){return `<div class="studio-key"><span>음높이</span><div class="studio-key-stepper" role="group" aria-label="반주 키 조절"><button type="button" data-key-step="-1" aria-label="키 반음 낮추기">−</button><output data-key-value aria-live="polite">원곡 키</output><button type="button" data-key-step="1" aria-label="키 반음 높이기">+</button></div></div><div class="studio-key-actions"><button type="button" data-key-reset>원곡 키로</button><button type="button" data-backing-preview>${icon('audio-play')} 반주 듣기</button></div><p class="field-help" data-key-help>녹음 전에 −6 ~ +6 반음으로 조절하세요.</p>`;}
+function singingKeyHTML(){return `<div class="studio-key"><span>음높이</span><div class="studio-key-stepper" role="group" aria-label="반주 키 조절"><button type="button" data-key-step="-1" aria-label="키 반음 낮추기">−</button><output data-key-value aria-live="polite">원곡 키</output><button type="button" data-key-step="1" aria-label="키 반음 높이기">+</button></div></div><div class="studio-key-actions"><button type="button" data-key-reset>원곡 키로</button><button type="button" data-backing-preview><span aria-hidden="true">▶</span> 반주 듣기</button></div><p class="field-help" data-key-help>녹음 전에 −6 ~ +6 반음으로 조절하세요.</p>`;}
 function updateKeyControls(){
  const s=sing;if(!s)return;const locked=(singBusy(s)&&!s.keyChange)||singLive(s)||!!s.voice||!!s.parent||!!nativeSinging(),key=singingKey(s);
  document.querySelectorAll('[data-key-step]').forEach(b=>b.disabled=locked||key+Number(b.dataset.keyStep)<-6||key+Number(b.dataset.keyStep)>6);
  document.querySelectorAll('[data-key-value],[data-recording-key]').forEach(el=>el.textContent=keyName(s));
  document.querySelectorAll('[data-key-reset]').forEach(b=>b.disabled=locked||!key);
- document.querySelectorAll('[data-backing-preview]').forEach(b=>{b.disabled=singBusy(s)||singLive(s)||!!nativeSinging();b.innerHTML=(s.state==='backing'?'':icon('audio-play')+' ')+(s.parent?(s.state==='backing'?'파트너 녹음 멈추기':'파트너 녹음 듣기'):(s.state==='backing'?'반주 멈추기':'반주 듣기'));});
+ document.querySelectorAll('[data-backing-preview]').forEach(b=>{b.disabled=singBusy(s)||singLive(s)||!!nativeSinging();b.innerHTML=(s.state==='backing'?'':'<span aria-hidden="true">▶</span> ')+(s.parent?(s.state==='backing'?'파트너 녹음 멈추기':'파트너 녹음 듣기'):(s.state==='backing'?'반주 멈추기':'반주 듣기'));});
  document.querySelectorAll('[data-key-help]').forEach(el=>el.textContent=s.parent?'파트너가 녹음한 키에 맞춰 함께 불러요.':s.voice?'녹음된 목소리와 맞도록 이 녹음의 키를 유지합니다.':'녹음 전에 −6 ~ +6 반음으로 조절하세요. 속도는 유지됩니다.');
 }
 function bindKeyControls(){document.querySelectorAll('[data-key-step]').forEach(b=>b.onclick=()=>changeSingingKey(singingKey(sing)+Number(b.dataset.keyStep)));$('[data-key-reset]').onclick=()=>changeSingingKey(0);$('[data-backing-preview]').onclick=toggleBackingPreview;}
