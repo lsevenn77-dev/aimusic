@@ -45,9 +45,77 @@
 .home-content-refresh .sing-discovery-heading{flex-wrap:nowrap;align-items:flex-start;gap:12px}
 .home-content-refresh :is(.section-heading,.sing-discovery-heading)>.home-more-link{display:inline-flex;align-items:center;justify-content:flex-end;flex:none;margin-left:auto;min-width:44px;min-height:44px;padding:0;border:0;border-radius:0;background:none;box-shadow:none;color:var(--ds-muted);font-size:12px;font-weight:500;line-height:1.4;white-space:nowrap;text-decoration:none;transition:color .15s ease}
 .home-content-refresh :is(.section-heading,.sing-discovery-heading)>.home-more-link:is(:hover,:focus-visible){color:var(--ds-accent-mint)}
-.home-content-refresh .home-music-grid .album-title{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-height:1.5;min-height:3em;overflow:hidden;overflow-wrap:anywhere;white-space:normal}
-.home-content-refresh .home-music-grid .album-title-row{align-items:flex-start}
-.home-content-refresh .home-music-grid .album-artist{display:block;white-space:nowrap;text-overflow:ellipsis;overflow:hidden;max-width:100%}
+.home-content-refresh .home-music-grid .album-title{display:block;line-height:1.5;min-height:0;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.home-content-refresh .home-music-grid .album-title-row{align-items:center;gap:4px;margin-top:6px}
+.home-content-refresh .home-music-grid .album-artist{display:block;white-space:nowrap;text-overflow:ellipsis;overflow:hidden;max-width:100%;margin-top:0}
+#main .home-content-refresh .home-music-grid .card-more{flex:0 0 44px;background:none!important;border:0!important;border-radius:0;box-shadow:none!important}
+#main .home-content-refresh .home-music-grid .card-more svg{padding:0!important;border:0!important;background:none!important;border-radius:0!important;width:20px!important;height:20px!important;flex-basis:20px!important}
+.home-content-refresh .home-music-grid .album-art-wrap>a{display:block;transition:filter .18s ease}
+.home-content-refresh .home-music-grid .card-play{opacity:1;transition:opacity .18s ease}
+@media(hover:hover) and (pointer:fine){
+ .home-content-refresh .home-music-grid .card-play{opacity:0;pointer-events:none}
+ .home-content-refresh .home-music-grid .album-card:is(:hover,:focus-within) .card-play{opacity:1;pointer-events:auto}
+ .home-content-refresh .home-music-grid .album-card:is(:hover,:focus-within) .album-art-wrap>a{filter:brightness(.92)}
+}
+/* All overrides are home-scoped, including the shared table's tablet rules. */
+.home-content-refresh .home-chart-layout{display:grid;grid-template-columns:minmax(0,1fr);gap:20px;align-items:start;min-width:0}
+.home-content-refresh .home-chart-feature{display:none;position:relative;isolation:isolate;overflow:hidden;border-radius:var(--ds-radius-card);background:var(--ds-panel);padding:18px;gap:14px;align-items:start}
+.home-content-refresh .home-chart-backdrop{position:absolute;inset:0;z-index:-1;overflow:hidden}
+.home-content-refresh .home-chart-backdrop img{width:100%;height:100%;object-fit:cover;filter:blur(28px);transform:scale(1.2);opacity:.3}
+.home-content-refresh .home-chart-backdrop::after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,var(--ds-panel),#0c121b88)}
+.home-content-refresh .home-chart-cover{display:block;width:80px}
+.home-content-refresh .home-chart-art{width:100%;aspect-ratio:1;border-radius:8px}
+.home-content-refresh .home-chart-copy{min-width:0}
+.home-content-refresh .home-chart-title{display:block;font-size:16px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.home-content-refresh .home-chart-artist{font-size:12px;color:var(--ds-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:5px}
+.home-content-refresh .home-chart-copy p{font-size:12px;line-height:1.6;color:var(--ds-muted);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;margin:10px 0 4px;overflow-wrap:anywhere}
+.home-content-refresh .home-chart-copy button{margin-top:8px}
+#main .home-content-refresh .song-table-chart{display:grid;grid-template-columns:28px minmax(0,1fr) repeat(3,minmax(56px,max-content)) 64px minmax(40px,max-content) 44px 44px;column-gap:8px;min-width:0;margin:0}
+#main .home-content-refresh .song-table-chart :is(.song-table-head,.song-table-row){display:grid;grid-column:1/-1;grid-template-columns:subgrid;gap:0 8px;align-items:center}
+#main .home-content-refresh .song-table-head{height:36px}
+#main .home-content-refresh .song-table-head>span{display:flex;white-space:nowrap;align-items:center;justify-content:center}
+#main .home-content-refresh .song-table-head>span:nth-child(2){justify-content:flex-start}
+#main .home-content-refresh .song-table-row{--list-thumb-size:40px;--list-text-gap:10px;min-height:58px;padding-block:7px}
+#main .home-content-refresh .song-table-row>*{grid-column:auto;margin:0}
+#main .home-content-refresh .song-table-tools svg.outline-gradient-action{border:1.5px solid transparent!important;background:linear-gradient(var(--control-surface),var(--control-surface)) padding-box,var(--control-gradient) border-box!important}
+#main .home-content-refresh .song-table-row :is(.song-table-stat,.song-table-previous,.chart-movement){display:flex;justify-content:center;align-items:center}
+#main .home-content-refresh .song-table-info{min-width:0;flex-basis:auto}
+#main .home-content-refresh .song-table-cover{flex-basis:var(--list-thumb-size)}
+#main .home-content-refresh .song-table-info>div{display:flex;align-items:center;gap:12px;min-width:0;flex:1}
+#main .home-content-refresh .song-table-info>div>a{min-width:0;flex:1}
+#main .home-content-refresh .song-table-info strong{font-size:15px;font-weight:600}
+#main .home-content-refresh .song-table-info>div>span{margin:0;font-size:12px;flex:0 1 34%;min-width:0}
+#main .home-content-refresh .chart-movement.up{color:var(--page-pink,#E9A1CE)}
+#main .home-content-refresh .chart-movement.down{color:#8EDDD2}
+@container(min-width:1100px){
+ .home-content-refresh .home-chart-layout:has(.home-chart-feature){grid-template-columns:minmax(820px,3fr) minmax(240px,1fr)}
+ .home-content-refresh .home-chart-feature{display:grid}
+}
+@container(max-width:790px){
+ #main .home-content-refresh .song-table-chart{grid-template-columns:24px minmax(0,1fr) repeat(3,minmax(44px,max-content)) 60px 36px 44px 44px;column-gap:4px}
+ #main .home-content-refresh .song-table-chart :is(.song-table-head,.song-table-row){column-gap:4px}
+ #main .home-content-refresh .song-table-info>div{display:block}
+ #main .home-content-refresh .song-table-info strong{font-size:14px}
+}
+@media(max-width:700px){
+ .home-content-refresh .home-music-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:18px 8px}
+ .home-content-refresh .home-music-grid>.album-card:nth-child(n+7){display:none}
+ .home-content-refresh .home-music-grid .album-title-row{gap:0;margin-top:4px}
+ .home-content-refresh .home-music-grid .album-title{font-size:13px;font-weight:600}
+ .home-content-refresh .home-music-grid .album-artist{font-size:11px;line-height:1.5}
+ #main .home-content-refresh .home-music-grid .card-more{position:relative;flex-basis:28px;width:28px;min-width:28px;height:32px;min-height:32px;padding:0}
+ #main .home-content-refresh .home-music-grid .card-more::after{content:"";position:absolute;inset:-6px -4px}
+ #main .home-content-refresh .home-music-grid .card-play{right:2px;bottom:2px;opacity:1;pointer-events:auto}
+ .home-content-refresh #home-own-playlists .collection-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+ .home-content-refresh #home-own-playlists .collection-card:nth-child(n+3),.home-content-refresh #home-curations{display:none}
+ #main .home-content-refresh .song-table-chart{display:block}
+ #main .home-content-refresh .song-table-chart .song-table-head{display:none}
+ #main .home-content-refresh .song-table-chart .song-table-row{display:grid;grid-template-columns:20px minmax(0,1fr) 44px 44px;gap:4px;min-height:60px;--list-thumb-size:36px;--list-text-gap:8px;--list-row-inset:6px;padding-block:6px}
+ #main .home-content-refresh .song-table-row :is(.song-table-stat,.song-table-previous,.chart-movement),#main .home-content-refresh .song-table-row:nth-of-type(n+6){display:none!important}
+ #main .home-content-refresh .song-table-info>div{display:block}
+ #main .home-content-refresh .song-table-info strong{font-size:13px}
+ #main .home-content-refresh .song-table-info>div>span{font-size:11px}
+}
 .home-content-refresh .home-playlist-links{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
 .home-content-refresh .home-playlist-links>a{display:flex;align-items:center;gap:12px;padding:14px;background:var(--ds-panel);border-radius:12px;min-width:0}
 .home-content-refresh .home-playlist-links>a>svg{width:20px;flex:none;color:var(--ds-muted)}
@@ -93,4 +161,4 @@
  .home-content-refresh .home-feature-slide{grid-template-columns:88px minmax(0,1fr);gap:12px;padding-inline:14px}
  .home-content-refresh .home-feature-copy h2{font-size:18px}
 }
-@media(prefers-reduced-motion:reduce){.home-content-refresh .home-feature-slide,.home-content-refresh .home-feature-outgoing{animation:none}.home-content-refresh .home-feature-dots button::after{transition:none}}
+@media(prefers-reduced-motion:reduce){.home-content-refresh .home-feature-slide,.home-content-refresh .home-feature-outgoing{animation:none}.home-content-refresh .home-feature-dots button::after,.home-content-refresh .home-music-grid :is(.card-play,.album-art-wrap>a){transition:none}}
