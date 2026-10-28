@@ -42,7 +42,33 @@ async function bindGiftCategoryTabs(form,{recipientId,initial,serial,account,ini
 }
 function decorationProductImage(p){return p.kind==='PROFILE_FRAME'?p.assetPaths.overlay:p.assetPaths.roomCard;}
 function shopShelf(id,title,items){
- return '<section class="shop-shelf" aria-labelledby="shop-'+id+'"><header><h2 id="shop-'+id+'">'+title+'</h2><div class="shop-arrows"><button class="small-button" type="button" data-shelf="'+id+'" data-direction="-1" aria-controls="shelf-'+id+'" aria-label="'+title+' 이전" disabled>‹</button><button class="small-button" type="button" data-shelf="'+id+'" data-direction="1" aria-controls="shelf-'+id+'" aria-label="'+title+' 다음">›</button></div><button type="button" class="text-link shop-expand" data-shelf-expand="'+id+'" aria-controls="shelf-'+id+'" aria-expanded="false" aria-label="'+title+' 전체보기">전체보기</button></header><div class="shop-track" id="shelf-'+id+'" tabindex="0" role="region" aria-label="'+title+' 상품 목록">'+items.map(p=>'<button type="button" class="shop-product" '+(p.sku?'data-decoration="'+esc(p.sku)+'"':'data-gift-buy="'+esc(p.id)+'"')+'><img src="'+esc(p.sku?decorationProductImage(p):p.image)+'" alt="" loading="lazy"><strong title="'+esc(p.name)+'">'+esc(p.name)+'</strong><span>'+number(p.sku?p.periodPrices.P7D:p.free?p.silver:p.gold)+' '+(p.free?'S':'G')+(p.sku?' / 7일':'')+'</span></button>').join('')+'</div></section>';
+ const cards=items.map(p=>{
+  const theme=p.kind==='TALKING_ROOM_THEME';
+  return '<div class="shop-item"><button type="button" class="shop-product" '+(p.sku?'data-decoration="'+esc(p.sku)+'"':'data-gift-buy="'+esc(p.id)+'"')+'><img src="'+esc(p.sku?decorationProductImage(p):p.image)+'" alt="" loading="lazy"><strong title="'+esc(p.name)+'">'+esc(p.name)+'</strong><span>'+number(p.sku?p.periodPrices.P7D:p.free?p.silver:p.gold)+' '+(p.free?'S':'G')+(p.sku?' / 7일':'')+'</span></button>'+(theme?'<button type="button" class="small-button shop-preview-button" data-theme-preview="'+esc(p.assetPaths.roomMobile||'')+'" data-theme-name="'+esc(p.name)+'" aria-label="'+esc(p.name)+' 미리보기" '+(p.assetPaths.roomMobile?'':'disabled')+'>미리보기</button>':'')+'</div>';
+ }).join('');
+ return '<section class="shop-shelf" aria-labelledby="shop-'+id+'"><header><h2 id="shop-'+id+'">'+title+'</h2><div class="shop-arrows"><button class="small-button" type="button" data-shelf="'+id+'" data-direction="-1" aria-controls="shelf-'+id+'" aria-label="'+title+' 이전" disabled><span class="shop-arrow-glyph" aria-hidden="true">'+icon('chevron')+'</span></button><button class="small-button" type="button" data-shelf="'+id+'" data-direction="1" aria-controls="shelf-'+id+'" aria-label="'+title+' 다음"><span class="shop-arrow-glyph" aria-hidden="true">'+icon('chevron')+'</span></button></div><button type="button" class="text-link shop-expand" data-shelf-expand="'+id+'" aria-controls="shelf-'+id+'" aria-expanded="false" aria-label="'+title+' 전체보기">전체보기</button></header><div class="shop-track" id="shelf-'+id+'" tabindex="0" role="region" aria-label="'+title+' 상품 목록">'+cards+'</div></section>';
+}
+// The registered portrait room background only; never substitute the card/desktop art.
+let shopPreviewCleanup=()=>{};
+async function shopThemePreview(button){
+ const src=button.dataset.themePreview;if(!src||button.disabled)return;
+ const serial=++giftDialogSerial,image=new Image();button.disabled=true;button.setAttribute('aria-busy','true');
+ try{
+  image.src=src;await image.decode();
+  if(!button.isConnected||serial!==giftDialogSerial)return;
+  if(image.naturalHeight<=image.naturalWidth)throw Error('세로형 방 배경을 확인할 수 없어요.');
+  shopPreviewCleanup();
+  const modal=$('#dialog'),controller=new AbortController();
+  modal.classList.remove('gift-sheet');
+  dialog('<section class="shop-theme-preview" aria-label="'+esc(button.dataset.themeName)+' 방 배경 미리보기"><img src="'+esc(src)+'" alt="'+esc(button.dataset.themeName)+' 세로형 토킹룸 방 배경"></section>');
+  const oldLabel=modal.getAttribute('aria-label');modal.setAttribute('aria-label',button.dataset.themeName+' 미리보기');
+  modal.addEventListener('click',e=>{if(e.target!==modal)return;const r=modal.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)modal.close();},{signal:controller.signal});
+  const close=()=>modal.close();window.addEventListener('popstate',close,{signal:controller.signal});window.addEventListener('hashchange',close,{signal:controller.signal});
+  shopPreviewCleanup=()=>{controller.abort();if(oldLabel===null)modal.removeAttribute('aria-label');else modal.setAttribute('aria-label',oldLabel);};
+  modal.addEventListener('close',()=>{if(modal.open)return;shopPreviewCleanup();if(button.isConnected)button.focus({preventScroll:true});},{signal:controller.signal});
+  $('#dialog-close').focus({preventScroll:true});
+ }catch{if(serial===giftDialogSerial)toast('세로형 방 배경을 불러오지 못했어요.');}
+ finally{button.disabled=false;button.removeAttribute('aria-busy');}
 }
 function shopBalancesHTML(wallet){
  return '<span class="shop-balance shop-balance-gold"><i class="gold-coin" aria-hidden="true">G</i><span>보유 골드</span><b data-shop-gold>'+number(wallet?.balance||0)+' G</b></span><span class="shop-balance shop-balance-silver"><img src="'+esc(AifectGifts.FREE_GIFT.image)+'" alt="" width="20" height="20"><span>보유 실버</span><b data-shop-silver>'+number(wallet?.free?.balance||0)+' S</b></span>';
@@ -58,11 +84,10 @@ function bindShopShelves(){
  shopLayoutCleanup();const root=$('.shop-page');if(!root)return;
  const controller=new AbortController(),rows=[...root.querySelectorAll('.shop-track')];
  const update=row=>{
-  const width=row.clientWidth,gap=12,count=Math.max(1,Math.min(10,Math.floor((width+gap)/148)));
-  row.style.setProperty('--shop-card-width',Math.min(148,(width-gap*(count-1))/count)+'px');
-  const shelf=row.closest('.shop-shelf'),expanded=shelf.classList.contains('is-expanded');
-  shelf.querySelector('.shop-arrows').hidden=expanded;
-  shelf.querySelectorAll('[data-shelf]').forEach(b=>{b.disabled=expanded||(Number(b.dataset.direction)<0?row.scrollLeft<=1:row.scrollLeft+width>=row.scrollWidth-1);});
+  const width=row.clientWidth;
+  const shelf=row.closest('.shop-shelf');
+  shelf.querySelector('.shop-arrows').hidden=false;
+  shelf.querySelectorAll('[data-shelf]').forEach(b=>{b.disabled=(Number(b.dataset.direction)<0?row.scrollLeft<=1:row.scrollLeft+width>=row.scrollWidth-1);});
  };
  const observer=new ResizeObserver(entries=>entries.forEach(({target})=>update(target)));
  rows.forEach(row=>{observer.observe(row);row.addEventListener('scroll',()=>update(row),{passive:true,signal:controller.signal});update(row);});
@@ -102,7 +127,7 @@ async function shopPurchaseDialog(initial){
   const balance=()=>p.free?wallet?.silver_balance||0:wallet?.balance||0;
   const valid=()=>p.sku?Object.hasOwn(p.periodPrices,state.period):Number.isInteger(state.quantity)&&state.quantity>=1&&state.quantity<=100;
   const product=()=>'<div class="shop-product-summary"><img src="'+esc(image)+'" alt="'+esc(p.name)+'"><div><h3>'+esc(p.name)+'</h3><p>'+(state.step==='purchase'?'구매한 상품은 인벤토리에 보관돼요.':p.sku?decorations.periods[state.period]:state.quantity+'개')+'</p></div></div>';
-  const money=()=>'<div class="shop-money" aria-live="polite"><p><span>보유 '+(p.free?'실버':'골드')+'</span><b>'+number(balance())+' '+unit+'</b></p><p><span>총 결제 금액</span><strong>'+number(price())+' '+unit+'</strong></p>'+(me&&balance()<price()?'<p class="shop-insufficient">잔액이 부족해요. <a href="'+(p.free?'#gifts/rewards':'#gold')+'" data-close-dialog>'+(p.free?'실버 받기':'골드 충전')+'</a></p>':'')+'</div>';
+  const money=()=>'<div class="shop-money" aria-live="polite"><p><span>보유 '+(p.free?'실버':'골드')+'</span><b>'+number(balance())+' '+unit+'</b></p><p><span>상품금액</span><b class="shop-value-product">'+number(p.sku?p.periodPrices[state.period]:p.free?p.silver:p.gold)+' '+unit+'</b></p>'+(p.sku&&state.step!=='review'?'<p><span>이용기간</span><b class="shop-value-period">'+esc(decorations.periods[state.period])+'</b></p>':'')+'<p><span>총 결제 금액</span><strong class="shop-value-payment">'+number(price())+' '+unit+'</strong></p>'+(me&&balance()<price()?'<p class="shop-insufficient">잔액이 부족해요. <a href="'+(p.free?'#gifts/rewards':'#gold')+'" data-close-dialog>'+(p.free?'실버 받기':'골드 충전')+'</a></p>':'')+'</div>';
   const resetKey=()=>{state.key=crypto.randomUUID();};
   function paint(){
    if(!active())return;
@@ -118,7 +143,7 @@ async function shopPurchaseDialog(initial){
     body=product()+'<p class="shop-receiver">'+esc(state.recipient.name)+' <small>고유 ID '+esc(state.recipient.public_number)+'</small></p><label class="shop-field" for="shop-message">선물 메시지 <small>(선택)</small></label><textarea id="shop-message" name="message" rows="3" maxlength="2000" placeholder="함께 전하고 싶은 말을 적어주세요.">'+esc(state.message)+'</textarea><p class="field-help">메시지는 기존 1:1 대화로 함께 전달돼요. 최대 2,000자</p>';
     actions='<button type="button" class="small-button" data-step="recipient">뒤로</button><button class="primary-button" type="submit">최종 확인</button>';
    }else if(step==='review'){
-    body=product()+'<dl class="shop-review"><div><dt>받는 사람</dt><dd>'+esc(state.recipient.name)+'</dd></div><div><dt>고유 ID 번호</dt><dd>'+esc(state.recipient.public_number)+'</dd></div><div><dt>'+(p.sku?'이용 기간':'수량')+'</dt><dd>'+(p.sku?esc(decorations.periods[state.period]):state.quantity+'개')+'</dd></div><div><dt>선물 메시지</dt><dd class="shop-note">'+(esc(state.message)||'없음')+'</dd></div></dl>'+money();
+    body=product()+'<dl class="shop-review"><div><dt>받는 사람</dt><dd>'+esc(state.recipient.name)+'</dd></div><div><dt>고유 ID 번호</dt><dd>'+esc(state.recipient.public_number)+'</dd></div><div><dt>'+(p.sku?'이용 기간':'수량')+'</dt><dd class="'+(p.sku?'shop-value-period':'')+'">'+(p.sku?esc(decorations.periods[state.period]):state.quantity+'개')+'</dd></div><div><dt>선물 메시지</dt><dd class="shop-note">'+(esc(state.message)||'없음')+'</dd></div></dl>'+money();
     actions='<button type="button" class="small-button" data-step="message" '+(state.uncertain?'disabled':'')+'>뒤로</button><button class="primary-button" type="submit" '+(!enough||!within?'disabled':'')+'>'+(state.uncertain?'전송 결과 다시 확인':'선물 보내기')+'</button>';
    }else{body=product()+'<p role="status">'+(state.sent?esc(state.recipient.name)+'님 (고유 ID '+esc(state.recipient.public_number)+')에게 선물을 보냈어요.':'인벤토리에 상품을 보관했어요.')+'</p>';actions='<button type="button" class="primary-button" data-close-dialog>확인</button>';}
    const top=step==='purchase'?'상품 구매하기':step==='review'?'선물 최종 확인':step==='done'?'완료':'선물하기';
@@ -162,8 +187,9 @@ async function shopPurchaseDialog(initial){
  }catch(e){if(serial===giftDialogSerial&&$('#dialog').open)dialog('<section class="shop-checkout"><h2>상품을 열지 못했어요</h2><p role="alert">'+esc(e.message)+'</p></section>');}
 }
 document.addEventListener('click',e=>{
+ const preview=e.target.closest('[data-theme-preview]');if(preview){e.preventDefault();e.stopPropagation();void shopThemePreview(preview);return;}
  const b=e.target.closest('[data-gift-buy],[data-product-gift],[data-shelf]');if(!b)return;e.preventDefault();
- if(b.dataset.shelf){const row=$('#shelf-'+b.dataset.shelf),stride=row.firstElementChild.getBoundingClientRect().width+12,step=Math.max(1,Math.floor((row.clientWidth+12)/stride))*stride;row.scrollBy({left:Number(b.dataset.direction)*step,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});return;}
+ if(b.dataset.shelf){const row=$('#shelf-'+b.dataset.shelf),stride=row.firstElementChild.getBoundingClientRect().width+(parseFloat(getComputedStyle(row).columnGap)||0),step=Math.max(1,Math.floor((row.clientWidth+(parseFloat(getComputedStyle(row).columnGap)||0))/stride))*stride;row.scrollBy({left:Number(b.dataset.direction)*step,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});return;}
  if(b.dataset.giftBuy)void giftPurchaseDialog(b.dataset.giftBuy);else void shopPurchaseDialog({sku:b.dataset.productGift});
 });
 function decorationNav(active='gifts'){
