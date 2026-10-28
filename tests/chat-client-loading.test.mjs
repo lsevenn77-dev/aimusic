@@ -21,7 +21,7 @@ test('keyboard resizing keeps latest content visible while composing without ste
  f.log.scrollHeight=1000;f.log.clientHeight=300;f.log.scrollTop=700;f.events.scroll();
  f.log.clientHeight=150;f.resize();assert.equal(f.log.scrollTop,1000);
  f.log.scrollTop=200;f.events.scroll();f.resize();assert.equal(f.log.scrollTop,200);
- f.context.document.activeElement=f.input;f.resize();assert.equal(f.log.scrollTop,1000);
+ f.context.document.activeElement=f.input;f.resize();assert.equal(f.log.scrollTop,200);
 });
 
 test('crew history starts immediately without waiting for any realtime event',async()=>{
@@ -32,6 +32,22 @@ test('crew history starts immediately without waiting for any realtime event',as
  release({messages:[{id:'message',user_id:'other',name:'Singer',body:'Ready immediately',created:1,sequence:2}],membership:{joined_sequence:1},has_more:false});
  await new Promise(resolve=>setImmediate(resolve));
  assert.match(f.log.innerHTML,/Ready immediately/);assert.doesNotMatch(f.log.innerHTML,/불러오는 중/);
+});
+
+test('incoming history preserves a user scroll even while the composer retains focus',async()=>{
+ let release;const f=fixture(()=>new Promise(resolve=>release=resolve));
+ f.context.bindSocialChat({chat:{path:'/api/crews/crew/messages',crew:{id:'crew'}}});
+ f.log.scrollHeight=1000;f.log.clientHeight=300;f.log.scrollTop=200;
+ f.context.document.activeElement=f.input;f.events.scroll();
+ release({messages:[{id:'history',user_id:'other',name:'Singer',body:'History',created:1,sequence:1}],membership:{joined_sequence:1},has_more:false});
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(f.log.scrollTop,200);assert.match(f.log.innerHTML,/History/);
+});
+test('desktop chat keeps its existing focus-follow behavior',()=>{
+ const f=fixture(()=>new Promise(()=>{}));f.context.innerWidth=1440;
+ f.context.bindSocialChat({chat:{path:'/api/crews/crew/messages',crew:{id:'crew'}}});
+ f.log.scrollHeight=1000;f.log.clientHeight=300;f.log.scrollTop=200;f.events.scroll();
+ f.context.document.activeElement=f.input;f.resize();assert.equal(f.log.scrollTop,1000);
 });
 
 test('a revoked initial crew read disables the composer without retaining chat content',async()=>{
