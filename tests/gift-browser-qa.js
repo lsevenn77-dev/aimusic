@@ -19,27 +19,27 @@ run.onclick=async()=>{
  };
  try{
   await wait(()=>q('.shop-page'));
-  for(const width of [320,375,390,430,768,1024,1280,1440]){
+  for(const width of [320,360,375,390,430,768,1024,1280,1440]){
    frame.width=width;frame.height=width>=1280?900:844;await new Promise(r=>setTimeout(r,120));
    check(d.documentElement.scrollWidth<=d.documentElement.clientWidth,'Page overflow '+width);
    check(all('[data-theme-preview]').length===3&&all('#shelf-gold [data-theme-preview],#shelf-silver [data-theme-preview],#shelf-frames [data-theme-preview]').length===0,'Theme-only preview');
-   const rows=[],arrowVisual=width<=768?24:26,arrowHit=width<=768?44:26;
-   check(all('.shop-balances b').every(e=>parseFloat(style(e).fontSize)<=(width<=600?13:14)),'Balance text scale');
-   check(all('.shop-actions a').every(e=>parseFloat(style(e).fontSize)<=11),'Top action text scale');
+   const rows=[],arrowVisual=width<=768?26.4:28.6,arrowHit=width<=768?48.4:28.6;
+   check(all('.shop-balances b').every(e=>parseFloat(style(e).fontSize)<=(width<=600?14.3:15.4)),'Balance text scale');
+   check(all('.shop-actions a').every(e=>parseFloat(style(e).fontSize)<=12.1),'Top action text scale');
    for(const shelf of all('.shop-shelf')){
     const row=shelf.querySelector('.shop-track'),toggle=shelf.querySelector('[data-shelf-expand]'),cards=[...row.querySelectorAll('.shop-product')];
     const arrows=[...shelf.querySelectorAll('[data-shelf]')],heading=shelf.querySelector('h2');
-    check(arrows.every(b=>rect(b).width===arrowHit&&rect(b).height===arrowHit&&rect(b.querySelector('.shop-arrow-glyph')).width===arrowVisual&&rect(b.querySelector('.shop-arrow-glyph')).height===arrowVisual),'Arrow visual/hit sizes');
+    check(arrows.every(b=>Math.abs(rect(b).width-arrowHit)<.1&&Math.abs(rect(b).height-arrowHit)<.1&&Math.abs(rect(b.querySelector('.shop-arrow-glyph')).width-arrowVisual)<.1&&Math.abs(rect(b.querySelector('.shop-arrow-glyph')).height-arrowVisual)<.1),'Arrow visual/hit sizes');
     const headingGap=rect(arrows[0].querySelector('.shop-arrow-glyph')).left-rect(heading).right;
-    check(headingGap>=0&&headingGap<=10,'Arrow beside heading');
+    check(headingGap>=0&&headingGap<=12,'Arrow beside heading');
     check(rect(arrows[0]).right<=rect(arrows[1]).left,'Arrow hit targets overlap');
-    check(parseFloat(style(heading).fontSize)===(width<=768?13:14),'Section title scale');
+    check(parseFloat(style(heading).fontSize)===(width<=768?14.3:15.4),'Section title scale');
     check(new Set(cards.map(c=>Math.round(rect(c).height))).size===1,'Unequal heights');
-    const theme=row.id==='shelf-themes',expectedWidth=width<=600?91:101,expectedHeight=width<=600?118:127;
-    if(!theme)check(cards.every(c=>Math.abs(rect(c).width-expectedWidth)<.2&&rect(c).height===expectedHeight),'Card dimensions');
+    const theme=row.id==='shelf-themes',expectedWidth=width<=600?100.1:111.1,expectedHeight=width<=600?129.8:139.7;
+    if(!theme)check(cards.every(c=>Math.abs(rect(c).width-expectedWidth)<.2&&Math.abs(rect(c).height-expectedHeight)<.1),'Card dimensions');
     else{
-     const count=width<=600?2:width<=950?3:4,gap=width<=600?10:12;
-     check(Math.abs(rect(row.children[0]).width-Math.min(width>950?240:Infinity,(row.clientWidth-gap*(count-1))/count))<1,'Theme columns');
+     const count=width<=600?2:width<=950?3:4,gap=width<=600?11:13.2;
+     check(Math.abs(rect(row.children[0]).width-Math.min(width>950?264:Infinity,(row.clientWidth-gap*(count-1))/count))<1,'Theme columns');
      check(cards.every(c=>Math.abs(rect(c.querySelector('img')).width/rect(c.querySelector('img')).height-4/3)<.01),'Theme image 4:3');
      check(new Set([...row.children].map(c=>Math.round(rect(c).height))).size===1,'Theme equal heights');
      check(new Set([...row.children].map(c=>Math.round(rect(c.querySelector('.shop-theme-actions')).top))).size===1,'Theme action alignment');

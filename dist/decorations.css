@@ -161,3 +161,116 @@ main:has(>.shop-page){max-width:1800px;padding:22px 28px 48px}
  .shop-theme-actions{padding:0 8px 8px;gap:4px}
  .shop-page .shop-theme-actions :is(.shop-preview-button,.primary-button){font-size:12px}
 }
+
+/* Gift shop size pass: 110% of the immediately preceding 57293b8 source.
+   Explicit dimensions, applied once after the existing cascade. The shared
+   shell/main widths and mobile two-column theme layout remain unchanged. */
+.shop-page{font-size:19.0663px}
+.shop-page .shop-heading{gap:8.8px 13.2px;margin-bottom:8.8px}
+.shop-page .shop-heading h1{font-size:24.2px}
+.shop-page .shop-balances{padding:6.6px 8.8px;font-size:12.1px}
+.shop-page .shop-balance{gap:4.4px}
+.shop-page .shop-balance+.shop-balance{margin-left:8.8px;padding-left:8.8px}
+.shop-page .shop-balance img,.shop-page .shop-balance .gold-coin{width:17.6px;height:17.6px}
+.shop-page .gold-coin{font-size:13.2px}
+.shop-page .shop-balances b{font-size:15.4px}
+.shop-page .shop-actions{gap:6.6px}
+.shop-page .shop-actions a{min-height:35.2px;padding:6.6px 11px;font-size:12.1px;gap:6.6px}
+.shop-page .shop-actions a svg{width:22px;height:22px}
+.shop-page .shop-shelf{margin-bottom:8.8px}
+.shop-page .shop-shelf>header{gap:4.4px;margin-bottom:2.2px;min-height:33px}
+.shop-page .shop-shelf h2{font-size:15.4px}
+.shop-page .shop-arrows{gap:2.2px}
+.shop-page .shop-arrows button,.shop-page .shop-arrow-glyph{width:28.6px;height:28.6px;min-height:28.6px}
+.shop-page .shop-arrow-glyph svg{width:14.3px;height:14.3px}
+.shop-page .shop-expand{font-size:12.1px;min-height:33px;padding:0 2.2px}
+.shop-page .shop-track{--shop-card-width:111.1px;gap:8.8px;padding:2.2px 0 6.6px}
+.shop-page .shop-item{gap:4.4px}
+.shop-page .shop-product{height:139.7px;min-height:139.7px;padding:7.7px 5.5px;gap:3.3px}
+.shop-page .shop-product img{width:50.6px;height:50.6px}
+.shop-page .shop-product strong{font-size:14.52px;height:38.5px;min-height:38.5px}
+.shop-page .shop-product>span{font-size:13.86px}
+.shop-page #shelf-themes{grid-auto-columns:min(264px,calc((100% - 39.6px)/4));gap:13.2px}
+.shop-page .shop-theme-card{gap:0}
+.shop-page .shop-theme-product{height:auto;min-height:0;padding:11px;gap:8.8px}
+.shop-page .shop-theme-product img{width:100%;height:auto}
+.shop-page .shop-theme-product strong{height:39.6px;min-height:39.6px;line-height:19.8px}
+.shop-page .shop-theme-product>span{line-height:19.8px}
+.shop-page .shop-theme-actions{gap:6.6px;padding:0 11px 11px}
+.shop-page .shop-theme-actions :is(.shop-preview-button,.primary-button){height:48.4px;min-height:48.4px;padding:6.6px 4.4px;font-size:14.52px;gap:6.6px}
+.shop-page .shop-policy{font-size:13.2px}
+.shop-page .shop-policy summary{min-height:48.4px}
+@supports selector(::-webkit-scrollbar){.shop-page .shop-track::-webkit-scrollbar{height:5.5px}}
+
+/* Popup overrides only while the gift shop is mounted; other routes retain
+   their existing shared purchase/preview component sizes. */
+body:has(main>.shop-page) #dialog:has(.shop-checkout){padding:22px}
+body:has(main>.shop-page) #dialog:has(:is(.shop-checkout,.shop-theme-preview)) #dialog-close{width:48.4px;height:48.4px;min-height:48.4px;font-size:32.2663px}
+body:has(main>.shop-page) #dialog:has(.shop-checkout) #dialog-close{top:11px;right:11px}
+body:has(main>.shop-page) .shop-checkout{font-size:19.0663px}
+body:has(main>.shop-page) .shop-checkout p{font-size:17.9663px}
+body:has(main>.shop-page) .shop-checkout .field-help{font-size:14.6663px;margin-top:9.9px}
+body:has(main>.shop-page) .shop-checkout h2{font-size:19.8px;line-height:28.6px;margin:0 39.6px 22px 0}
+body:has(main>.shop-page) .shop-product-summary{gap:17.6px;margin-bottom:22px}
+body:has(main>.shop-page) .shop-product-summary>img{width:88px;height:88px}
+body:has(main>.shop-page) .shop-product-summary h3{font-size:17.6px}
+body:has(main>.shop-page) .shop-product-summary p{font-size:13.2px;margin-top:8.8px}
+body:has(main>.shop-page) .shop-checkout :is(.shop-field,.shop-periods legend){font-size:14.3px;margin-bottom:8.8px}
+body:has(main>.shop-page) .shop-periods{margin-bottom:17.6px;gap:8.8px}
+body:has(main>.shop-page) .shop-periods span{gap:8.8px;padding:11px 4.4px;min-height:48.4px;font-size:14.3px}
+body:has(main>.shop-page) .shop-periods small{font-size:13.2px}
+body:has(main>.shop-page) .shop-quantity{gap:8.8px;margin-bottom:17.6px}
+body:has(main>.shop-page) .shop-quantity button{width:48.4px;height:48.4px;font-size:22px}
+body:has(main>.shop-page) .shop-checkout input:not([type=radio]),body:has(main>.shop-page) .shop-checkout textarea{min-height:48.4px;padding:11px 13.2px;font-size:19.0663px}
+body:has(main>.shop-page) .shop-money{padding-top:8.8px;margin-top:17.6px}
+body:has(main>.shop-page) .shop-money p{gap:8.8px;margin:8.8px 0;font-size:14.3px}
+body:has(main>.shop-page) .shop-money strong{font-size:17.6px}
+body:has(main>.shop-page) .shop-checkout-actions{gap:8.8px;margin-top:22px}
+body:has(main>.shop-page) .shop-checkout-actions>*{height:48.4px;min-height:48.4px;padding:8.8px;font-size:15.4px;gap:6.6px;white-space:nowrap}
+body:has(main>.shop-page) .shop-search{gap:8.8px}
+body:has(main>.shop-page) .shop-search button{min-height:48.4px;padding:8.8px 16.5px;font-size:14.96px;gap:6.6px}
+body:has(main>.shop-page) .shop-recipients{gap:8.8px;margin-top:13.2px}
+body:has(main>.shop-page) .shop-recipient{gap:13.2px;padding:11px}
+body:has(main>.shop-page) .shop-recipient img{width:44px;height:44px;flex:none}
+body:has(main>.shop-page) .shop-recipient strong{font-size:15.4px}
+body:has(main>.shop-page) :is(.shop-recipient small,.shop-recipient-state){font-size:13.2px;margin-top:4.4px}
+body:has(main>.shop-page) .shop-receiver{font-size:15.4px}
+body:has(main>.shop-page) .shop-receiver small{margin-top:8.8px}
+body:has(main>.shop-page) .shop-review{font-size:14.3px}
+body:has(main>.shop-page) .shop-review>div{gap:17.6px;margin:13.2px 0}
+body:has(main>.shop-page) .shop-insufficient{font-size:14.3px}
+body:has(main>.shop-page) .shop-checkout .form-error{margin-top:13.2px;font-size:14.3px}
+body:has(main>.shop-page) #dialog:has(.shop-theme-preview){padding:52.8px 13.2px 13.2px}
+body:has(main>.shop-page) .shop-theme-preview img{max-width:min(396px,calc(100vw - 52.4px));max-height:min(704px,calc(100dvh - 92px))}
+@media(min-width:601px) and (max-width:950px){.shop-page #shelf-themes{grid-auto-columns:calc((100% - 26.4px)/3)}}
+@media(max-width:768px){
+ .shop-page .shop-heading{gap:8.8px}
+ .shop-page .shop-actions a{padding:6.6px 4.4px;font-size:11.55px}
+ .shop-page .shop-shelf h2{font-size:14.3px}
+ .shop-page .shop-shelf>header{min-height:48.4px}
+ .shop-page .shop-arrows{gap:0;margin-left:-6.6px}
+ .shop-page .shop-arrows button{width:48.4px;height:48.4px;min-height:48.4px}
+ .shop-page .shop-arrow-glyph{width:26.4px;height:26.4px;min-height:26.4px}
+ .shop-page .shop-arrow-glyph svg{width:13.2px;height:13.2px}
+ .shop-page .shop-expand{min-height:48.4px}
+}
+@media(max-width:600px){
+ .shop-page .shop-balances{font-size:11px}
+ .shop-page .shop-balances b{font-size:14.3px}
+ .shop-page .shop-balance img,.shop-page .shop-balance .gold-coin{width:15.4px;height:15.4px}
+ .shop-page .shop-track{--shop-card-width:100.1px}
+ .shop-page .shop-product{height:129.8px;min-height:129.8px;padding:6.6px 4.4px}
+ .shop-page .shop-product img{width:46.2px;height:46.2px}
+ .shop-page .shop-product strong{height:37.4px;min-height:37.4px}
+ .shop-page .shop-product>span{font-size:13.2px}
+ .shop-page .shop-expand{font-size:11px}
+ /* Fluid width takes precedence over 110% width to retain two visible themes. */
+ .shop-page #shelf-themes{grid-auto-columns:calc((100% - 11px)/2);gap:11px}
+ .shop-page .shop-theme-product{height:auto;min-height:0;padding:8.8px;gap:8.8px}
+ .shop-page .shop-theme-product img{width:110%;max-width:calc(100% + 17.6px);height:auto}
+ .shop-page .shop-theme-product strong{height:39.6px;min-height:39.6px}
+ .shop-page .shop-theme-actions{padding:0 8.8px 8.8px;gap:4.4px}
+ .shop-page .shop-theme-actions :is(.shop-preview-button,.primary-button){font-size:13.2px}
+ body:has(main>.shop-page) #dialog:has(.shop-checkout){padding:17.6px}
+ body:has(main>.shop-page) .shop-product-summary>img{width:83.6px;height:83.6px}
+}
