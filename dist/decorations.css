@@ -328,3 +328,74 @@ body:has(main>.shop-page) #dialog:has(.shop-checkout){width:min(572px,calc(100vw
  .shop-page .shop-heading .shop-actions{flex:1 1 100%;width:100%;gap:8px;margin-left:0}
  .shop-page .shop-heading .shop-actions a{flex:1;min-width:0;padding:0 10px;font-size:13px}
 }
+
+/* Final gift-shop layout: scoped to this page and its purchase dialog. */
+.shop-page .shop-product{height:auto;min-height:0;padding:14px;gap:0;justify-content:flex-start}
+.shop-page .shop-product img{margin:0 0 10px}
+.shop-page .shop-product strong{height:2.6em;min-height:2.6em;margin:0 0 8px;font-size:16px;line-height:1.3}
+.shop-page .shop-product>.shop-price{margin:0;font-size:15px;line-height:1.4;white-space:normal}
+.shop-page .shop-price-value{font-weight:700;white-space:nowrap}
+.shop-page .is-gold .shop-price-value{color:#F5C85B}
+.shop-page .is-silver .shop-price-value{color:#C9D1E3}
+.shop-page .shop-price-period{color:var(--ds-body);font-size:.85em;white-space:nowrap}
+.shop-page .shop-frame-product img{width:90px;height:90px;max-width:100%;object-fit:contain}
+.shop-page .shop-theme-product img{width:100%;max-width:100%;height:auto;margin-bottom:12px}
+.shop-page .shop-theme-product strong{font-size:16px;line-height:1.3;height:2.6em;min-height:2.6em}
+.shop-page .shop-theme-actions{margin-top:0;padding:12px 14px 16px}
+.shop-page .shop-theme-actions .shop-preview-button{height:44px;min-height:44px;font-size:14px;padding:8px}
+body:has(main>.shop-page) #dialog:has(.shop-checkout){width:min(460px,calc(100vw - 24px));height:auto;min-height:0;max-height:calc(100dvh - 24px);padding:20px;overflow:auto;overscroll-behavior:contain}
+body:has(main>.shop-page) #dialog:has(.shop-checkout) #dialog-close{top:8px;right:8px;width:44px;height:44px;min-height:44px;font-size:28px}
+body:has(main>.shop-page) .shop-checkout{font-size:15px}
+body:has(main>.shop-page) .shop-checkout h2{font-size:20px;line-height:28px;margin:0 36px 20px 0}
+body:has(main>.shop-page) .shop-product-summary{gap:16px;margin:0 0 20px}
+body:has(main>.shop-page) .shop-product-summary>img{width:88px;height:88px}
+body:has(main>.shop-page) .shop-product-summary h3{font-size:18px;color:var(--ds-text)}
+body:has(main>.shop-page) .shop-product-summary p{font-size:13px;line-height:1.5;margin:8px 0 0}
+body:has(main>.shop-page) .is-duration .shop-product-summary{flex-direction:column;text-align:center;gap:12px}
+body:has(main>.shop-page) .is-duration .shop-product-summary>img{width:120px;height:100px;object-fit:contain}
+body:has(main>.shop-page) .shop-checkout :is(.shop-field,.shop-periods legend){font-size:14px;margin-bottom:8px}
+body:has(main>.shop-page) .shop-periods{gap:8px;margin:0 0 18px}
+body:has(main>.shop-page) .shop-periods span{box-sizing:border-box;gap:6px;padding:10px 4px;min-height:68px;font-size:14px;color:var(--ds-text)}
+body:has(main>.shop-page) .shop-periods small{font-size:13px;color:var(--ds-text);white-space:nowrap}
+body:has(main>.shop-page) .shop-quantity{gap:10px;margin-bottom:18px}
+body:has(main>.shop-page) .shop-quantity button{width:44px;height:44px;font-size:22px}
+body:has(main>.shop-page) .shop-checkout input:not([type=radio]),body:has(main>.shop-page) .shop-checkout textarea{min-height:44px;padding:10px 12px;font-size:16px}
+body:has(main>.shop-page) .shop-money{padding-top:18px;margin-top:0}
+body:has(main>.shop-page) .shop-money p{gap:8px;margin:0;font-size:15px;flex-wrap:wrap}
+body:has(main>.shop-page) .shop-money p>span{color:var(--ds-text)}
+body:has(main>.shop-page) .shop-money strong{font-size:20px;text-align:right;font-weight:700;max-width:100%}
+body:has(main>.shop-page) .shop-value-payment.is-gold{color:#F5C85B}
+body:has(main>.shop-page) .shop-value-payment.is-silver{color:#C9D1E3}
+body:has(main>.shop-page) .shop-money .shop-insufficient{margin-top:10px;font-size:13px}
+body:has(main>.shop-page) .shop-checkout-actions{gap:10px;margin-top:22px}
+body:has(main>.shop-page) .shop-checkout-actions>*{height:46px;min-height:46px;padding:10px;font-size:15px;white-space:nowrap}
+body:has(main>.shop-page) .shop-checkout .field-help{font-size:13px;margin-top:8px}
+body:has(main>.shop-page) .shop-checkout .form-error{margin-top:12px;font-size:13px}
+body:has(main>.shop-page) #dialog:has(.shop-theme-preview){padding:48px 16px 16px;overflow:auto}
+body:has(main>.shop-page) #dialog:has(.shop-theme-preview) #dialog-close{width:44px;height:44px;min-height:44px;font-size:28px}
+body:has(main>.shop-page) .shop-theme-preview{flex-direction:column;gap:14px}
+body:has(main>.shop-page) .shop-theme-preview img{max-width:min(360px,calc(100vw - 58px));max-height:min(640px,calc(100dvh - 160px))}
+body:has(main>.shop-page) .shop-theme-preview .primary-button{width:100%;min-height:44px}
+@media(max-width:768px){
+ #main[data-route="gifts"]>.shop-page .shop-heading h1{display:none}
+ #main[data-route="gifts"]>.shop-page .shop-heading{margin-bottom:16px}
+ .shop-page .shop-heading .shop-balances{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;width:100%;padding:6px 2px;flex-wrap:nowrap;font-size:12px}
+ .shop-page .shop-heading .shop-balance{display:grid;grid-template-columns:20px minmax(0,1fr);gap:6px;justify-content:start;min-width:0;position:relative}
+ .shop-page .shop-heading .shop-balance>span{grid-column:2;line-height:1.2}
+ .shop-page .shop-heading .shop-balance>b{grid-column:2;white-space:nowrap;font-size:18px;line-height:1.2;min-width:0;max-width:100%;overflow-x:auto;scrollbar-width:none}
+ .shop-page .shop-heading .shop-balance img,.shop-page .shop-heading .shop-balance .gold-coin{grid-column:1;grid-row:1 / 3;width:20px;height:20px;align-self:center}
+ .shop-page .shop-heading .shop-balance+.shop-balance{margin-left:0;padding-left:12px}
+}
+@media(max-width:600px){
+ .shop-page .shop-product{padding:14px}
+ .shop-page .shop-product strong{font-size:15px}
+ .shop-page .shop-product>.shop-price{font-size:14px}
+ .shop-page .shop-frame-product img{width:82px;height:82px}
+ .shop-page .shop-theme-product img{width:100%;max-width:100%}
+ .shop-page .shop-theme-actions{padding:12px 14px 16px}
+ body:has(main>.shop-page) #dialog:has(.shop-checkout){padding:18px 16px calc(18px + env(safe-area-inset-bottom));max-height:calc(100dvh - 24px)}
+ body:has(main>.shop-page) .shop-product-summary>img{width:80px;height:80px}
+ body:has(main>.shop-page) .shop-periods span{font-size:13px;min-height:66px}
+ body:has(main>.shop-page) .shop-periods small{font-size:12px}
+}
+body:has(main>.shop-page) #dialog:has(.shop-checkout){height:fit-content}
