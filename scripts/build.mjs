@@ -50,6 +50,7 @@ await rm('dist/client/admin.html',{force:true});
 for (const file of ['inventory.js','inventory.css','music-library.js','music-library.css','menu-integration.js','community-v3.js','community-v3.css','player-queue.css','community.js','community.css','polish.css','browse.js','browse.css','app.js','media-session.js','icons.js','views.js','studio.js','karaoke.js','lyrics.js','library.js','explorer.js','membership.js','alignment.js','actions.js','style.css','studio.css','lyrics.css','discovery.css','explorer.css','membership.css','alignment.css','policies.css','assets']) await cp(`dist/${file}`,`dist/client/${file}`,{recursive:true});
 const indexHTML=await readFile('dist/index.html','utf8');
 await cp('dist/ui-region-scale.css','dist/client/ui-region-scale.css');
+await cp('dist/gift-scale.css','dist/client/gift-scale.css');
 for(const name of await readdir('dist/client')){
  if(!name.endsWith('.css')||name.startsWith('aifect-app-')||name==='ui-region-scale.css')continue;
  const file='dist/client/'+name;

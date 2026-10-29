@@ -1,0 +1,35 @@
+/* Gift shop exception to ui-region-scale.css. Values start at the existing
+   browser-100% UI; no inverse multiplier or visual transform is involved.
+   Semantic dialog contents opt in independently of their portal/location. */
+@media(min-width:801px){
+ #main:is([data-route="gifts"],[data-route^="gifts/"]),
+ #dialog:has(.shop-checkout,.shop-theme-preview,.gift-dialog,.gift-success,.gift-target-list,#gift-recipient-search,#gold-checkout-form){
+  --gift-ui-scale:1.1;
+  --ui-type-scale:var(--gift-ui-scale);
+  --ui-space-scale:var(--gift-ui-scale);
+  --ui-icon-scale:var(--gift-ui-scale);
+  --ui-control-height:44px;
+  font-size:calc(1.0833125rem * var(--gift-ui-scale));
+ }
+ #main:is([data-route="gifts"],[data-route^="gifts/"]) .shop-track{--shop-card-width:calc(144.43px * var(--gift-ui-scale))}
+ #main:is([data-route="gifts"],[data-route^="gifts/"]) .shop-product img{width:calc(65.78px * var(--gift-ui-scale));height:calc(65.78px * var(--gift-ui-scale))}
+ #main:is([data-route="gifts"],[data-route^="gifts/"]) .shop-frame-product img{width:calc(90px * var(--gift-ui-scale));height:calc(90px * var(--gift-ui-scale))}
+ #main:is([data-route="gifts"],[data-route^="gifts/"]) .shop-theme-product img{width:100%;height:auto}
+ #main:is([data-route="gifts"],[data-route^="gifts/"]) .shop-actions a{height:44px;min-height:44px}
+ #main:is([data-route="gifts"],[data-route^="gifts/"]) .shop-heading .shop-balance :is(img,.gold-coin){width:22px;height:22px}
+ #main:is([data-route="gifts"],[data-route^="gifts/"]) .shop-arrow-glyph svg{width:calc(17.16px * var(--gift-ui-scale));height:calc(17.16px * var(--gift-ui-scale))}
+ #dialog:has(.shop-checkout) .shop-product-summary>img{width:calc(88px * var(--gift-ui-scale));height:calc(88px * var(--gift-ui-scale))}
+ #dialog:has(.shop-checkout) .is-duration .shop-product-summary>img{width:calc(120px * var(--gift-ui-scale));height:calc(100px * var(--gift-ui-scale))}
+ #dialog:has(.shop-checkout) .shop-quantity button{width:48.4px;height:48.4px}
+ #dialog:has(.shop-checkout) .shop-checkout :is(input:not([type=radio],[type=checkbox]),textarea){min-height:48.4px}
+ #dialog:has(.shop-checkout) .shop-checkout-actions>*{height:50.6px;min-height:50.6px}
+}
+/* Narrow screens retain the approved rows, scroll behavior and touch targets. */
+@media(max-width:800px){
+ #main:is([data-route="gifts"],[data-route^="gifts/"]),
+ #dialog:has(.shop-checkout,.shop-theme-preview,.gift-dialog,.gift-success,.gift-target-list,#gift-recipient-search,#gold-checkout-form){
+  --gift-ui-scale:1;--ui-type-scale:1;--ui-space-scale:1;--ui-icon-scale:1;
+ }
+}
+/* Payment totals are neutral white; product/period prices keep their gold. */
+#dialog:has(.shop-checkout) .shop-money .shop-value-payment{color:var(--ds-text)}
