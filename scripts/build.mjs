@@ -23,6 +23,7 @@ for(const file of ['dubbing-community.js','dubbing.js','dubbing.css','dubbing-re
 for(const file of ['mobile-ux.js','mobile-ux.css','player-shell.js','player-shell.css','public-music.css','design-system.css','design-system.js'])await cp(`dist/${file}`,`dist/client/${file}`);
 await cp('dist/footer-layout.js','dist/client/footer-layout.js');
 await cp('dist/unified-ui.css','dist/client/unified-ui.css');
+for(const file of ['unified-search.js','unified-search.css'])await cp('dist/'+file,'dist/client/'+file);
 await cp('dist/list-actions.css','dist/client/list-actions.css');
 await cp('dist/icon-style-lock.css','dist/client/icon-style-lock.css');
 await cp('dist/uiux-space.css','dist/client/uiux-space.css');

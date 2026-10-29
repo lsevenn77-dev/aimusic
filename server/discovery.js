@@ -1,3 +1,4 @@
+import {unifiedSearch} from './search.js';
 import {assertUnblocked} from './account-safety.js';
 import {trackArtworkSQL} from './track-artwork.js';
 import {namedArtistSQL} from './artist-identity.js';
@@ -46,15 +47,7 @@ export async function discoveryRoute(req,env,path,user){
   const filters=MOODS.map(moodFilter),[counts,tracks]=await Promise.all([one(env,`SELECT ${filters.map((f,i)=>`COALESCE(sum(CASE WHEN ${f.sql} THEN 1 ELSE 0 END),0) n${i}`).join(',')} FROM tracks t WHERE ${VISIBLE()} AND t.kind='original'`,...filters.flatMap(f=>f.args)),trackList(env,where,args,following?'t.created DESC':'(plays+likes*3) DESC,t.created DESC')]);
   return json({tracks,moods:MOODS.map((m,i)=>({id:m.id,name:m.name,caption:m.caption,symbol:m.symbol,count:counts['n'+i]})),basis:following?'following':mood?'ai':'popular'});
  }
- if(path==='/api/search'&&method==='GET'){
-  const q=(url.searchParams.get('q')||'').trim().slice(0,100);if(!q)return json({tracks:[],artists:[],producers:[],playlists:[]});const pattern='%'+q+'%';
-  const [tracks,artists,producers,playlists]=await Promise.all([
-   trackList(env,VISIBLE()+` AND t.kind='original' AND (t.title LIKE ? OR a.name LIKE ? OR (${producerNameSQL()}) LIKE ? OR (t.genre||t.genres_json) LIKE ? OR t.tags LIKE ?)`,Array(5).fill(pattern),'t.created DESC',100),
-   rows(env,`SELECT a.*,(SELECT count(*) FROM follows f WHERE f.kind='artist' AND f.target_id=a.id) followers FROM artists a WHERE ${namedArtistSQL()} AND (a.name LIKE ? OR a.bio LIKE ?) AND EXISTS(SELECT 1 FROM tracks t WHERE t.artist_id=a.id AND t.kind='original' AND t.status='published') ORDER BY a.name LIMIT 100`,pattern,pattern),
-   rows(env,`SELECT p.id,u.id user_id,m.code public_id,${publicNameSQL()} name,COALESCE(p.bio,'') bio,COALESCE(p.image_version,'') image_version,(SELECT count(*) FROM follows f WHERE f.kind='producer' AND f.target_id=p.id) followers FROM users u JOIN public_profile_ids m ON m.user_id=u.id LEFT JOIN producers p ON p.user_id=u.id WHERE u.provider!='deleted' AND ((${publicNameSQL()}) LIKE ? ESCAPE '\\' OR m.code=?) ORDER BY name,u.id LIMIT 100`,'%'+q.replace(/[\\%_]/g,'\\$&')+'%',q.toUpperCase()),
-   playlistSummaries(env,user?.id||'',`p.is_public=1 AND ${activePlaylistSQL()} AND (p.name LIKE ? OR p.description LIKE ? OR ${publicNameSQL()} LIKE ?)`,[pattern,pattern,pattern])]);
-  return json({tracks,artists,producers,playlists});
- }
+ if(path==='/api/search'&&method==='GET')return unifiedSearch(env,user,url.searchParams);
  if(path==='/api/playlists'&&method==='GET'){
   const q=(url.searchParams.get('q')||'').slice(0,100),sort=url.searchParams.get('sort')==='popular'?'saves DESC,p.created DESC,p.id':'p.created DESC,p.id';
   return json({playlists:await playlistSummaries(env,user?.id||'',`p.is_public=1 AND ${activePlaylistSQL()} AND EXISTS(SELECT 1 FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id WHERE pt.playlist_id=p.id AND ${VISIBLE()}) AND (p.name LIKE ? OR p.description LIKE ? OR ${publicNameSQL()} LIKE ?)`,Array(3).fill('%'+q+'%'),sort)});

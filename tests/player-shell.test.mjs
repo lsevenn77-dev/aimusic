@@ -27,7 +27,7 @@ test('clock reserves the same space before and after crossing one hour',()=>{con
 test('repeat and shuffle presentation reflects the engine globals independently',()=>{const f=fixture();f.context.shuffle=true;for(const mode of [0,1,2,0]){f.context.repeatMode=mode;f.context.window.AifectPlayerShell.paintModes();assert.equal(f.e('#repeat').dataset.repeatMode,String(mode));assert.equal(f.e('#shuffle').attributes['aria-pressed'],'true');assert.equal(f.e('#repeat').innerHTML.includes('repeat-one'),mode===2);}});
 test('repeat clicks cycle all engine modes without emitting a toast',()=>{
  const f=fixture(),notices=[];
- f.context.$=f.e;f.context.toast=message=>notices.push(message);
+ f.context.$=f.e;f.context.toast=message=>notices.push(message);f.context.saveResume=()=>{};
  const handler=readFileSync(new URL('../dist/actions.js',import.meta.url),'utf8').split('\n').find(line=>line.startsWith("$('#repeat').onclick="));
  vm.runInContext(handler,f.context);
  for(const mode of [1,2,0]){f.e('#repeat').onclick();assert.equal(f.context.repeatMode,mode);assert.equal(f.e('#repeat').dataset.repeatMode,String(mode));assert.equal(f.e('#repeat').attributes['aria-pressed'],String(!!mode));assert.equal(f.audio.currentTime,25);}

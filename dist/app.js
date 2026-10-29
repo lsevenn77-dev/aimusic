@@ -10,8 +10,8 @@ const pendingLikes=new Map(),apiReads=new Map();let apiRevision=0;
 const audio=new Audio();audio.preload='metadata';audio.volume=.75;
 // True inside the AIFECT Android/iOS app (Capacitor shell around this site).
 const inApp=!!window.Capacitor?.isNativePlatform?.();
-let queue=[],current=null,playSession=null,preview=false,heard=0,lastTick=0,repeatMode=0,shuffle=false,playSerial=0,pendingResume=null,reportBusy=false;
-try{pendingResume=JSON.parse(sessionStorage.getItem('aifect-player-resume')||'null');}catch{}
+let queue=[],current=null,playSession=null,preview=false,heard=0,lastTick=0,repeatMode=0,shuffle=false,playSerial=0,pendingResume=null,reportBusy=false,restoredPosition=0;
+try{pendingResume=JSON.parse(sessionStorage.getItem('aifect-player-resume')||localStorage.getItem('aifect-player-resume')||'null');const modes=JSON.parse(localStorage.getItem('aifect-player-modes')||'{}');shuffle=modes.shuffle===true;repeatMode=[0,1,2].includes(modes.repeatMode)?modes.repeatMode:0;}catch{}
 function icons(){document.querySelectorAll('[data-icon]').forEach(el=>{el.innerHTML=icon(el.dataset.icon);el.removeAttribute('data-icon');});decorateNativeAudioPlay();}
 function toast(message,kind=''){
  const el=$('#toast');if(!el)return;
@@ -126,7 +126,8 @@ document.addEventListener('error',event=>{
 },true);
 function updateAccount(){const accountTarget=me?'#profile':'#account';$('.profile').href=accountTarget;$('.header-login').href=accountTarget;$('.profile').innerHTML=`<span class="avatar profile-avatar ${playerAvatarClass(me)}">${avatarImage(me||{})}${playerBadgeHTML(me)}</span><span><strong>${esc(me?(me.display_name||me.name):'무료로 시작하기')}</strong><small>${me?'내 계정 · '+(member.plan==='premium'?'Premium':'무료 회원'):'로그인 · 회원가입'}</small></span>${icon('chevron')}`;$('.header-login').textContent=me?'내 계정':'로그인';if(typeof refreshActivityBadge==='function')void refreshActivityBadge();}
 function askLogin(){returnRoute=location.hash;saveResume();location.hash='account';toast('무료로 가입하고 음악을 이어 들어보세요.');return false;}
-function saveResume(){saveQueue();if(current){pendingResume={id:current.id,time:preview?Math.min(audio.currentTime,60):audio.currentTime};sessionStorage.setItem('aifect-player-resume',JSON.stringify(pendingResume));}}
+function saveResume(){saveQueue();try{localStorage.setItem('aifect-player-modes',JSON.stringify({shuffle,repeatMode}));if(current){pendingResume={id:current.id,time:playSession?(preview?Math.min(audio.currentTime,60):audio.currentTime):restoredPosition};const value=JSON.stringify(pendingResume);sessionStorage.setItem('aifect-player-resume',value);localStorage.setItem('aifect-player-resume',value);}}catch{}}
+
 function dialog(html){$('#dialog-content').innerHTML=html;if(!$('#dialog').open)$('#dialog').showModal();decorateNativeAudioPlay();}
 // Match content padding to the actual player height, including wrapped controls and safe areas.
 if(typeof ResizeObserver==='function')new ResizeObserver(entries=>{const h=entries[0].target.getBoundingClientRect().height;if(h)document.body.style.setProperty('--player-height',Math.ceil(h)+'px');}).observe($('.player'));
@@ -140,7 +141,7 @@ function closePlayer(){
  ++playSerial;window.AifectAudioAds?.cancel();audio.pause();void report();
  current=null;playSession=null;preview=false;heard=0;lastTick=0;pendingResume=null;
  audio.removeAttribute('src');audio.load();
- try{sessionStorage.removeItem('aifect-player-resume');}catch{}
+ try{sessionStorage.removeItem('aifect-player-resume');localStorage.removeItem('aifect-player-resume');}catch{}
  setCurrentLyrics(null);$('#elapsed').textContent='0:00';$('#duration').textContent='0:00';$('#seek').value=0;$('#seek').max=0;
  window.AifectPlayerShell?.close();setPlayerVisible(false);
  if(restoreFocus)$('#main').focus({preventScroll:true});
@@ -151,16 +152,30 @@ async function play(tid,tracks=null,start=0){
  const serial=++playSerial;if(!window.AifectAudioAds?.active)audio.pause();report();
  await window.AifectAudioAds?.beforeTrack();if(serial!==playSerial)return;
  const [{track:t},session]=await Promise.all([api('/api/tracks/'+tid),api('/api/playback/'+tid,'POST')]);if(serial!==playSerial)return;remember([t]);
- current=t;playSession=session.id;preview=session.preview;heard=0;lastTick=0;
+ restoredPosition=0;current=t;playSession=session.id;preview=session.preview;heard=0;lastTick=0;
  if(tracks?.length)queue=[...new Set(tracks.map(t=>t.id))];else if(!queue.includes(tid))queue=[tid];saveQueue();
  audio.src=session.src;
  renderPlayerActions(t);
  $('#listen-mode').textContent=preview?'60초 미리 듣기':session.bitrate_kbps===256?'AAC 256':'AAC 128';$('#seek').max=preview?Math.min(t.duration,60):t.duration;$('#duration').textContent=playerClock($('#seek').max);
- if(start)audio.currentTime=Math.min(start,preview?59.9:t.duration);
+ audio.currentTime=Math.min(Math.max(0,Number(start)||0),preview?59.9:t.duration);
  setCurrentLyrics(t);refreshLyricsPanel();setPlayerVisible(true);
  try{await audio.play();}catch(e){if(e.name==='NotAllowedError')toast('재생 버튼을 눌러 음악을 이어 들어보세요.');else if(e.name!=='AbortError')throw new Error('음원을 재생할 수 없습니다. 잠시 후 다시 시도해주세요.');}
 }
-async function resumeAfterLogin(){if(pendingResume){const r=pendingResume;sessionStorage.removeItem('aifect-player-resume');pendingResume=null;await play(r.id,null,r.time);}}
+async function resumeAfterLogin(){
+ // Restore metadata only. Playback sessions, ads and audio.play require a user action.
+ if(!pendingResume||current)return;
+ const saved=pendingResume,serial=playSerial;
+ const {track:t}=await api('/api/tracks/'+encodeURIComponent(saved.id));
+ if(serial!==playSerial||current)return;
+ remember([t]);current=t;preview=!me;restoredPosition=Math.max(0,Math.min(Number(saved.time)||0,preview?Math.min(t.duration,60):t.duration));
+ audio.pause();audio.currentTime=restoredPosition;renderPlayerActions(t);setCurrentLyrics(t);refreshLyricsPanel();
+ $('#seek').max=preview?Math.min(t.duration,60):t.duration;$('#seek').value=restoredPosition;
+ $('#elapsed').textContent=playerClock(restoredPosition);$('#duration').textContent=playerClock($('#seek').max);
+ $('#listen-mode').textContent=preview?'60초 미리 듣기':'';
+ $('#play-toggle').innerHTML=icon('player-play');$('#play-toggle').setAttribute('aria-label','재생');
+ window.AifectPlayerShell?.paintModes();setPlayerVisible(true);
+}
+
 async function report(){if(!playSession||heard<1||reportBusy)return;reportBusy=true;try{await api('/api/listens/'+playSession,'PATCH',{seconds:Math.floor(heard)});}catch{}finally{reportBusy=false;}}
 async function nextTrack(delta,automatic=false){if(!queue.length){if(automatic)setPlayerVisible(false);return;}let i=queue.indexOf(current?.id);if(shuffle&&queue.length>1){const choices=queue.filter(id=>id!==current?.id);await play(choices[Math.floor(Math.random()*choices.length)]);return;}i+=delta;if(automatic&&i>=queue.length&&!repeatMode){setPlayerVisible(false);return;}i=(i+queue.length)%queue.length;await play(queue[i]);}
 

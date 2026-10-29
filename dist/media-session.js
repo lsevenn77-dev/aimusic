@@ -45,7 +45,7 @@
  };
  const guarded=handler=>(...args)=>{if(window.AifectAudioAds?.active)return;return handler(...args);};
  for(const action of ['previoustrack','nexttrack','seekto','seekbackward','seekforward'])handlers[action]=guarded(handlers[action]);
- handlers.play=()=>window.AifectAudioAds?.active?window.AifectAudioAds.resume():audio.play().catch(()=>{});
+ handlers.play=()=>$('#play-toggle').click();
  handlers.pause=()=>window.AifectAudioAds?.active?window.AifectAudioAds.pause():audio.pause();
  handlers.stop=closePlayer;
  for(const [action,handler] of Object.entries(handlers)){

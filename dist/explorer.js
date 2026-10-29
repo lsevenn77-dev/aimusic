@@ -18,9 +18,9 @@ function discoverLayoutHTML(manifest,selectedMood='',selectedGenre='전체'){
  const shortcuts=[['charts','chart','인기 차트',''],['karaoke/duets','mic','함께 부르기','듣고, 직접 부르고'],['community/covers','users','커버곡 둘러보기','같은 곡, 다른 목소리'],['collections','library','공개 플레이리스트','취향을 나누는 선곡']];
  return `<div class="discover-photo-layout"><form id="search-form" class="discover-search" role="search">${icon('search')}<input type="search" name="q" aria-label="곡, 아티스트, 제작자 검색" placeholder="${esc(discoverVisitHint)}" maxlength="100"><button type="submit" aria-label="음악 검색">${icon('sparkles')}</button></form>
  <nav class="discover-shortcuts" aria-label="음악 즐기기">${shortcuts.map(([route,symbol,title,subtitle])=>`<a href="#${route}">${icon(symbol)}<span><strong>${title}</strong>${subtitle?`<small>${subtitle}</small>`:''}</span>${icon('chevron')}</a>`).join('')}</nav>
- <section class="discover-moods" aria-labelledby="discover-moods-title"><header class="discover-section-heading"><h2 id="discover-moods-title">오늘, 어떤 기분인가요?</h2><button type="button" data-discover-moods-toggle aria-expanded="false" aria-controls="discover-mood-track">전체 보기 ${icon('chevron')}</button></header>
- <div class="discover-carousel"><button type="button" class="discover-prev" data-discover-scroll="-1" aria-label="이전 기분">${icon('chevron')}</button><div id="discover-mood-track" class="discover-mood-track" tabindex="0" aria-label="기분 목록 · 좌우로 이동">${order.map(id=>{const m=moodById.get(id),asset=manifest.moods.find(x=>x.id===id);return `<a class="discover-mood-card" href="#discover/mood?m=${encodeURIComponent(id)}" ${selectedMood===id?'aria-current="page"':''} title="${esc(m.name)}"><img src="${esc(asset.file)}" alt="" draggable="false" decoding="async"><span>${icon(m.symbol)}<strong>${esc(m.name)}</strong></span></a>`;}).join('')}</div><button type="button" class="discover-next" data-discover-scroll="1" aria-label="다음 기분">${icon('chevron')}</button><div class="discover-scroll-progress" aria-hidden="true"><span></span></div></div></section>
- <section class="discover-genres" aria-labelledby="discover-genres-title"><header class="discover-section-heading"><h2 id="discover-genres-title">장르 둘러보기</h2><button type="button" data-discover-genres-toggle aria-expanded="false" aria-controls="discover-genre-grid">전체 보기 ${icon('chevron')}</button></header><div id="discover-genre-grid" class="discover-genre-grid">${AifectGenres.GENRES.map((name,i)=>`<a class="discover-genre-card" href="#discover/genres?g=${encodeURIComponent(name)}" title="${esc(name)}" ${selectedGenre===name?'aria-current="page"':''} ${i>=20?'data-discover-extra hidden':''}><img src="${esc(genreByName.get(name).file)}" alt="" loading="lazy" decoding="async" draggable="false"><span><small>EXPLORE MUSIC</small><strong>${esc(name)}</strong></span>${icon('chevron')}</a>`).join('')}</div></section></div>`;
+ <section class="discover-moods" aria-labelledby="discover-moods-title"><header class="discover-section-heading"><h2 id="discover-moods-title">오늘, 어떤 기분인가요?</h2><button type="button" data-discover-moods-toggle aria-controls="discover-mood-track">더 둘러보기 ${icon('chevron')}</button></header>
+ <div class="discover-carousel"><button type="button" class="discover-prev" data-discover-scroll="-1" aria-label="이전 기분">${icon('chevron')}</button><div id="discover-mood-track" class="discover-mood-track" tabindex="0" aria-label="기분 목록 · 좌우로 이동">${order.map(id=>{const m=moodById.get(id),asset=manifest.moods.find(x=>x.id===id);return `<a class="discover-mood-card" href="#search?mood=${encodeURIComponent(id)}" ${selectedMood===id?'aria-current="page"':''} title="${esc(m.name)}"><img src="${esc(asset.file)}" alt="" draggable="false" decoding="async"><span>${icon(m.symbol)}<strong>${esc(m.name)}</strong></span></a>`;}).join('')}</div><button type="button" class="discover-next" data-discover-scroll="1" aria-label="다음 기분">${icon('chevron')}</button><div class="discover-scroll-progress" aria-hidden="true"><span></span></div></div></section>
+ <section class="discover-genres" aria-labelledby="discover-genres-title"><header class="discover-section-heading"><h2 id="discover-genres-title">장르 둘러보기</h2><button type="button" data-discover-genres-toggle aria-expanded="false" aria-controls="discover-genre-grid">전체 보기 ${icon('chevron')}</button></header><div id="discover-genre-grid" class="discover-genre-grid">${AifectGenres.GENRES.map((name,i)=>`<a class="discover-genre-card" href="#search?genre=${encodeURIComponent(name)}" title="${esc(name)}" ${selectedGenre===name?'aria-current="page"':''} ${i>=20?'data-discover-extra hidden':''}><img src="${esc(genreByName.get(name).file)}" alt="" loading="lazy" decoding="async" draggable="false"><span><small>EXPLORE MUSIC</small><strong>${esc(name)}</strong></span>${icon('chevron')}</a>`).join('')}</div></section></div>`;
 }
 function bindDiscover(){
  discoverCleanup?.();discoverCleanup=null;
@@ -28,7 +28,7 @@ function bindDiscover(){
  const track=root.querySelector('.discover-mood-track'),moodToggle=root.querySelector('[data-discover-moods-toggle]'),genreToggle=root.querySelector('[data-discover-genres-toggle]');
  const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
  const toggleLabel=(button,expanded)=>{button.setAttribute('aria-expanded',String(expanded));button.innerHTML=(expanded?'접기':'전체 보기')+' '+icon('chevron');};
- moodToggle.onclick=()=>{const expanded=moodToggle.getAttribute('aria-expanded')!=='true';root.querySelector('.discover-moods').classList.toggle('is-expanded',expanded);toggleLabel(moodToggle,expanded);update();};
+ moodToggle.onclick=()=>{track.scrollTo({left:track.scrollWidth,behavior:reduced?'instant':'smooth'});};
  genreToggle.onclick=()=>{const expanded=genreToggle.getAttribute('aria-expanded')!=='true';root.querySelectorAll('[data-discover-extra]').forEach(card=>card.hidden=!expanded);toggleLabel(genreToggle,expanded);};
  const update=()=>{const max=track.scrollWidth-track.clientWidth;root.querySelector('[data-discover-scroll="-1"]').disabled=track.scrollLeft<=1;root.querySelector('[data-discover-scroll="1"]').disabled=max<=0||track.scrollLeft>=max-1;const progress=root.querySelector('.discover-scroll-progress span'),ratio=Math.min(1,track.clientWidth/Math.max(1,track.scrollWidth));progress.style.width=ratio*100+'%';progress.style.marginLeft=(max>0?track.scrollLeft/max*(1-ratio)*100:0)+'%';};
  root.querySelectorAll('[data-discover-scroll]').forEach(b=>b.onclick=()=>track.scrollBy({left:Number(b.dataset.discoverScroll)*track.clientWidth*.8,behavior:reduced?'instant':'smooth'}));
@@ -59,27 +59,23 @@ async function explorerView(base,param,raw,embedded=false){
  if(base==='membership'){if(me)await refreshLibrary();let billing;try{billing=await api('/api/billing/status');}catch{}return {html:membershipHTML(billing)};}
  if(base==='discover'){
   const active=param==='mood'?'themes':genres.includes(decodeURIComponent(param||''))?'genres':param||'',mood=params.get('m')||'',genre=params.get('g')||(genres.includes(decodeURIComponent(param||''))?decodeURIComponent(param):'전체');
-  const manifest=await loadDiscoverManifest();
-  const shell=discoverLayoutHTML(manifest,mood,genre);
-  if(active==='following'&&!me){returnRoute=location.hash;return {discoverPage:true,html:shell+heading('팔로잉 신곡','좋아하는 창작자의 새 음악을 만나보세요.')+gate()};}
-  const query=new URLSearchParams();if(param==='mood'&&mood)query.set('mood',mood);if(active==='genres'&&genre!=='전체')query.set('genre',genre);if(active==='following')query.set('following','1');
-  const d=await api('/api/discovery?'+query),selected=d.moods.find(x=>x.id===mood);
-  let html=shell+'<section class="discover-results" aria-label="음악 결과"><nav class="discover-result-filters" aria-label="음악 결과 필터"><a class="text-link" href="#discover">전체 음악</a><a class="text-link" href="#discover/following">팔로잉 신곡</a></nav>';
-  html+=section(selected?selected.name+'에 듣는 음악':active==='following'?'팔로우한 창작자의 새 음악':active==='genres'?genre+' 음악':'지금 만나는 음악');
-  html+=`<p class="field-help">${selected?'음악의 분위기와 리듬을 AI가 분석해 모았어요. 한 곡이 여러 기분에 어울릴 수 있어요.':active==='following'?'팔로우한 AI 아티스트와 제작자의 곡을 최신순으로 보여드려요.':'공개된 음악의 감상·좋아요와 등록 시점을 바탕으로 보여드려요.'}</p>`;
-  html+=d.tracks.length?grid(d.tracks):empty(selected?'이 분위기의 음악을 기다리고 있어요.':active==='following'?'팔로우한 창작자의 음악이 아직 없어요.':'등록된 음악이 아직 없어요.','다른 음악과 새로운 창작자를 만나보세요.',active==='following'?'#artists':'#discover/genres',active==='following'?'아티스트 둘러보기':'다른 장르 둘러보기');
-  if(active===''){const p=await api('/api/playlists?sort=popular');html+=section('함께 나누는 플레이리스트','#collections')+collectionGrid(p.playlists.slice(0,4),'첫 공개 플레이리스트를 만들어보세요.');}
-  return {html:html+'</section>',tracks:d.tracks,discoverPage:true};
+  // Preserve old bookmarked filters while all new cards use the unified route.
+  if(mood||genre!=='전체'){
+   const target='#search?'+new URLSearchParams(mood?{mood}:{genre});
+   history.replaceState(history.state,'',target);
+   return explorerView('search','',target.slice(1));
+  }
+  const shell=discoverLayoutHTML(await loadDiscoverManifest());
+  if(active!=='following')return {html:shell,tracks:[],discoverPage:true};
+  if(!me){returnRoute=location.hash;return {discoverPage:true,html:shell+heading('팔로잉 신곡')+gate()};}
+  const d=await api('/api/discovery?following=1');
+  return {html:shell+section('팔로우한 창작자의 새 음악')+grid(d.tracks),tracks:d.tracks,discoverPage:true};
  }
  if(base==='collections'){
   const q=params.get('q')||'',sort=params.get('sort')==='recent'?'recent':'popular',d=await api('/api/playlists?'+new URLSearchParams({q,sort}));
   return {html:heading('공개 플레이리스트','다른 사람의 취향에서 새로운 음악을 발견하세요.')+`<form id="collection-search" class="explorer-toolbar"><input name="q" aria-label="공개 플레이리스트 검색" placeholder="제목, 소개, 만든 사람 검색" value="${esc(q)}" maxlength="100"><select name="sort" aria-label="공개 플레이리스트 정렬"><option value="popular" ${sort==='popular'?'selected':''}>많이 저장한 순</option><option value="recent" ${sort==='recent'?'selected':''}>최신순</option></select><button class="primary-button">검색</button></form><p class="field-help">공개 목록을 저장하면 만든 사람이 추가한 곡도 함께 반영됩니다.</p>`+collectionGrid(d.playlists,q?'검색 결과가 없어요.':'아직 공개된 플레이리스트가 없어요.')};
  }
- if(base==='search'){
-  const q=decodeURIComponent(param||''),tab=['tracks','artists','producers','playlists'].includes(params.get('type'))?params.get('type'):'tracks',d=await api('/api/search?q='+encodeURIComponent(q));
-  let html=heading('음악 검색','음악과 창작자, 취향이 담긴 플레이리스트까지.')+`<form id="search-form" class="aifect-search">${icon('search')}<input name="q" aria-label="곡, 아티스트, 제작자 검색" placeholder="곡, 아티스트, 제작자, 플레이리스트" value="${esc(q)}" maxlength="100"><button class="primary-button">검색</button></form><div class="tabs">${[['tracks','곡'],['artists','AI 아티스트'],['producers','제작자'],['playlists','플레이리스트']].map(([k,v])=>`<a class="tab ${tab===k?'active':''}" href="#search/${encodeURIComponent(q)}?type=${k}">${v} <span>${d[k].length}</span></a>`).join('')}</div>`;
-  html+=!q?empty('어떤 음악을 찾고 계신가요?','제목이나 창작자 이름을 검색해보세요.','#discover','음악 발견하기'):!d[tab].length?empty('검색 결과가 없어요.','다른 검색어나 결과 탭을 선택해보세요.','#discover','음악 발견하기'):tab==='tracks'?list(d.tracks):tab==='playlists'?collectionGrid(d.playlists):identityCards(d[tab],tab==='artists'?'artist':'producer');return {html,tracks:d.tracks};
- }
+ if(base==='search')return unifiedSearchView(param,raw);
  if(base==='library'){
   if(!me){returnRoute=location.hash;return {html:gate()};}await refreshLibrary();const tab=param||'likes';
   let html=(embedded?'':heading('내 보관함','좋아하는 음악을 모으고, 오늘의 기분대로 들어보세요.'))+libraryTabs(tab);
@@ -115,7 +111,7 @@ async function trackPicker(pid){
 }
 
 function updateQueueButton(){const button=$('#queue-toggle'),count=$('#queue-count');if(button)button.setAttribute('aria-label',`재생목록 열기 · ${queue.length}곡`);if(count){count.textContent=number(queue.length);count.hidden=!queue.length;}}
-function saveQueue(){updateQueueButton();try{sessionStorage.setItem('aifect-queue',JSON.stringify({ids:queue,tracks:queue.map(id=>({id,title:trackMap.get(id)?.title,artist:trackMap.get(id)?.artist}))}));}catch{}}
+function saveQueue(){updateQueueButton();try{const value=JSON.stringify({ids:queue,tracks:queue.map(id=>({id,title:trackMap.get(id)?.title,artist:trackMap.get(id)?.artist}))});sessionStorage.setItem('aifect-queue',value);localStorage.setItem('aifect-queue',value);}catch{}}
 function trackMenu(tid,anchor=null){
  const t=trackMap.get(tid);if(!t)return;const id=esc(tid);
  const row=(name,label,attrs,extra='')=>`<button type="button" class="track-option ${extra}" ${attrs}>${icon(name)}<span>${label}</span>${icon('chevron')}</button>`;
@@ -185,6 +181,6 @@ document.addEventListener('click',async e=>{const b=e.target.closest('button,a')
  else if(b.hasAttribute('data-close-dialog'))$('#dialog').close();
  }catch(err){toast(err.message);}finally{b.disabled=false;}});
 
-try{const restored=AifectQueue.restoreQueue(sessionStorage.getItem('aifect-queue'));queue=restored.ids;remember(restored.tracks);}catch{}
+try{const restored=AifectQueue.restoreQueue(sessionStorage.getItem('aifect-queue')||localStorage.getItem('aifect-queue'));queue=restored.ids;remember(restored.tracks);}catch{}
 
 updateQueueButton();

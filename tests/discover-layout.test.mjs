@@ -31,19 +31,20 @@ test('discover has one search, four valid shortcuts, 12 moods and 20 + 30 exact 
  assert.equal((html.match(/class="discover-mood-card"/g)||[]).length,12);
  assert.equal((html.match(/class="discover-genre-card"/g)||[]).length,50);
  assert.equal((html.match(/data-discover-extra hidden/g)||[]).length,30);
- for(const g of GENRES)assert.ok(html.includes('#discover/genres?g='+encodeURIComponent(g)),g);
- for(const m of MOODS)assert.ok(html.includes('#discover/mood?m='+m.id),m.id);
+ for(const g of GENRES)assert.ok(html.includes('#search?genre='+encodeURIComponent(g)),g);
+ for(const m of MOODS)assert.ok(html.includes('#search?mood='+m.id),m.id);
  for(const path of ['#charts','#karaoke/duets','#community/covers','#collections'])assert.ok(html.includes('href="'+path+'"'));
  assert.doesNotMatch(html,/노래방 차트|<h1|explorer-tabs|assets\/genres\//);
  const first=html.match(/placeholder="([^"]+)"/)[1];
  assert.equal(vm.runInContext('discoverLayoutHTML(manifest)',c).match(/placeholder="([^"]+)"/)[1],first);
  assert.equal(vm.runInContext('discoverHints.length',c),8);
 });
-test('all genre and mood routes retain exact discovery API parameters and the existing result grid',async()=>{
- const {c,calls}=context();
- for(const name of GENRES){const raw='discover/genres?g='+encodeURIComponent(name);const d=await c.explorerView('discover','genres',raw);assert.equal(new URL('https://local'+calls.at(-1)).searchParams.get('genre'),name);assert.match(d.html,/data-existing-grid/);assert.equal(d.tracks[0].id,'one');assert.equal(d.discoverPage,true);}
- for(const m of MOODS){await c.explorerView('discover','mood','discover/mood?m='+m.id);assert.equal(calls.at(-1),'/api/discovery?mood='+m.id);}
+test('discover landing has no inline results or filter requests',async()=>{
+ const {c,calls}=context();const view=await c.explorerView('discover','','discover');
+ assert.equal(view.discoverPage,true);assert.equal(calls.length,0);
+ assert.doesNotMatch(view.html,/discover-results|data-existing-grid/);
 });
+
 test('missing taxonomy mappings fail explicitly and a failed manifest request can retry',async()=>{
  const {c}=context();const errors=[];c.console={error:(...a)=>errors.push(a)};c.fetch=async()=>({ok:true,json:async()=>({...manifest,genres:manifest.genres.slice(1)})});
  await assert.rejects(c.loadDiscoverManifest(),/K-POP/);assert.equal(errors.length,1);

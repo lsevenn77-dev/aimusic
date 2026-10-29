@@ -23,6 +23,7 @@ function bindRenderedRoute(base,param,explorer,ticket){
  if(typeof bindCrewIntegrated==='function')void bindCrewIntegrated();
  if(typeof bindProfileManagement==='function')bindProfileManagement(explorer);
  if(typeof bindVoice==='function')bindVoice(explorer?.playVoice?'voice':base,param);
+ if(typeof bindUnifiedSearch==='function')bindUnifiedSearch(explorer);
  icons();paintInteractions();bindForms(base,param);bindNotifications(explorer);bindGiftClaims($('#gift-shop-rewards'));bindExplorer(explorer);bindBrowse(explorer);bindImprovements(explorer);
  if(typeof bindDubbing==='function')bindDubbing(explorer);
  if(['community','covers'].includes(base))void loadCommunityCrews($('#community-crew-preview'),ticket);
@@ -43,6 +44,7 @@ async function render(){
  if(playRedirect)history.replaceState(null,'',playRedirect);
 
  const ticket=++renderId,raw=location.hash.slice(1)||'home',[baseQuery,paramQuery]=raw.split('/'),[base]=baseQuery.split('?'),param=paramQuery?.split('?')[0];
+ if(typeof syncSearchNavigation==='function')syncSearchNavigation(raw);
  if(base!=='home'){
   if(typeof refreshMusicLibraryRoute==='function'&&await refreshMusicLibraryRoute(raw,ticket))return;
   if(ticket!==renderId)return;

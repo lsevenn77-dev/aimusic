@@ -112,7 +112,7 @@ function deleteTrackDialog(id,title,kind){
   queue=queue.filter(tid=>tid!==id&&trackMap.get(tid)?.original_id!==id);
   for(const [tid,t] of trackMap)if(affected(t))trackMap.delete(tid);
   routeTracks=routeTracks.filter(t=>!affected(t));library.likes=library.likes.filter(t=>!affected(t));
-  if(resumeAffected){pendingResume=null;sessionStorage.removeItem('aifect-player-resume');}
+  if(resumeAffected){pendingResume=null;sessionStorage.removeItem('aifect-player-resume');try{localStorage.removeItem('aifect-player-resume');}catch{}}
   saveQueue();$('#dialog').close();toast('곡이 삭제됐어요.');await refreshLibrary(true);await render();
  });
 }
@@ -183,11 +183,11 @@ audio.onended=()=>{if(window.AifectAudioAds?.active||!current||!playSession)retu
 audio.onerror=()=>{if(window.AifectAudioAds?.active)return;if(audio.src)toast('음원을 불러오지 못했습니다. 재생을 다시 눌러주세요.');};
 setInterval(()=>{if(!window.AifectAudioAds?.active&&!audio.paused&&!audio.seeking&&audio.readyState>=3){const n=performance.now();if(lastTick)heard+=Math.min((n-lastTick)/1000,1.1);lastTick=n;}else lastTick=0;},1000);
 setInterval(report,10000);
-$('#play-toggle').onclick=async()=>{try{if(window.AifectAudioAds?.active){window.AifectAudioAds.toggle();return;}if(!current){if(queue.length)await play(queue[0]);else if(routeTracks.length)await play(routeTracks[0].id,routeTracks);else toast('먼저 음악을 선택해주세요.');}else if(!playSession||preview!==!me)await play(current.id,null,audio.currentTime);else if(audio.ended)await play(current.id);else if(audio.paused)await audio.play();else audio.pause();}catch(e){toast(e.message);}};
+$('#play-toggle').onclick=async()=>{try{if(window.AifectAudioAds?.active){window.AifectAudioAds.toggle();return;}if(!current){if(queue.length)await play(queue[0]);else if(routeTracks.length)await play(routeTracks[0].id,routeTracks);else toast('먼저 음악을 선택해주세요.');}else if(!playSession||preview!==!me)await play(current.id,null,playSession?audio.currentTime:restoredPosition);else if(audio.ended)await play(current.id);else if(audio.paused)await audio.play();else audio.pause();}catch(e){toast(e.message);}};
 $('#next').onclick=()=>nextTrack(1).catch(e=>toast(e.message));$('#previous').onclick=()=>{if(audio.currentTime>3)audio.currentTime=0;else nextTrack(-1).catch(e=>toast(e.message));};
-$('#shuffle').onclick=()=>{shuffle=!shuffle;const button=$('#shuffle'),label=shuffle?'섞어 듣기 켜짐':'섞어 듣기 꺼짐';button.classList.toggle('is-active',shuffle);button.setAttribute('aria-pressed',String(shuffle));button.setAttribute('aria-label',label);button.title=label;window.AifectPlayerShell?.paintModes();};
-$('#repeat').onclick=()=>{repeatMode=(repeatMode+1)%3;$('#repeat').classList.toggle('is-active',!!repeatMode);$('#repeat').setAttribute('aria-pressed',String(!!repeatMode));const label=['반복 끔','전체 반복','한 곡 반복'][repeatMode];$('#repeat').setAttribute('aria-label',label);window.AifectPlayerShell?.paintModes();};
-$('#seek').oninput=e=>{if(current&&!window.AifectAudioAds?.active)audio.currentTime=Number(e.target.value);};
+$('#shuffle').onclick=()=>{shuffle=!shuffle;const button=$('#shuffle'),label=shuffle?'섞어 듣기 켜짐':'섞어 듣기 꺼짐';button.classList.toggle('is-active',shuffle);button.setAttribute('aria-pressed',String(shuffle));button.setAttribute('aria-label',label);button.title=label;window.AifectPlayerShell?.paintModes();saveResume();};
+$('#repeat').onclick=()=>{repeatMode=(repeatMode+1)%3;$('#repeat').classList.toggle('is-active',!!repeatMode);$('#repeat').setAttribute('aria-pressed',String(!!repeatMode));const label=['반복 끔','전체 반복','한 곡 반복'][repeatMode];$('#repeat').setAttribute('aria-label',label);window.AifectPlayerShell?.paintModes();saveResume();};
+$('#seek').oninput=e=>{if(current&&!window.AifectAudioAds?.active){restoredPosition=Number(e.target.value);audio.currentTime=restoredPosition;}};
 $('#queue-toggle').onclick=queueDialog;
 $('#player-close').onclick=closePlayer;
 $('#dialog-close').onclick=()=>$('#dialog').close();
@@ -213,7 +213,7 @@ async function boot(){
  if(startupAccount!==(me?.id||'guest')){invalidateReads();if((location.hash.slice(1)||'home')==='home'){firstRender.catch(()=>{});firstRender=render();}}
  if(typeof updateHomeAccount==='function')updateHomeAccount();
  if(me)refreshLibrary().catch(e=>toast(e.message));
- if(me&&pendingResume)try{await resumeAfterLogin();}catch(e){toast(e.message);}
+ if(pendingResume)try{await resumeAfterLogin();}catch(e){toast(e.message);}
  await firstRender;
 }
 icons();boot();
@@ -233,7 +233,7 @@ document.addEventListener('click',async e=>{
 
 async function refreshAuthState(){const d=await api("/api/me");authConfig=d;me=d.user;setMembership(d.membership);}
 
-async function logoutAccount(){try{await api('/api/auth/logout','POST');++playSerial;window.AifectAudioAds?.cancel();audio.pause();audio.removeAttribute('src');me=null;authConfig={...authConfig,admin:false,track_moderator:false,user:null};playSession=null;library={likes:[],playlists:[],follows:[]};setMembership(null);current=null;setCurrentLyrics(null);setPlayerVisible(false);sessionStorage.removeItem('aifect-player-resume');pendingResume=null;updateAccount();void refreshMessageBadge();if(location.hash==='#account')await render();else location.hash='account';toast('로그아웃했습니다.');}catch(e){toast(e.message);}}
+async function logoutAccount(){try{await api('/api/auth/logout','POST');++playSerial;window.AifectAudioAds?.cancel();audio.pause();audio.removeAttribute('src');me=null;authConfig={...authConfig,admin:false,track_moderator:false,user:null};playSession=null;library={likes:[],playlists:[],follows:[]};setMembership(null);current=null;setCurrentLyrics(null);setPlayerVisible(false);sessionStorage.removeItem('aifect-player-resume');try{localStorage.removeItem('aifect-player-resume');}catch{}pendingResume=null;updateAccount();void refreshMessageBadge();if(location.hash==='#account')await render();else location.hash='account';toast('로그아웃했습니다.');}catch(e){toast(e.message);}}
 
 async function deleteAllCoversDialog(){
  const d=await api('/api/admin/track-review/covers/purge');

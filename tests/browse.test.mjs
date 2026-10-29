@@ -47,7 +47,7 @@ test('community content is escaped and covers link back to their original song',
  const d=await view('community','covers');assert.doesNotMatch(d.html,/<script>|<iframe|<img onerror/);assert.match(d.html,/&lt;script&gt;/);assert.match(d.html,/#song\/original/);assert.match(d.html,/#song\/cover\?comments=1/);
 });
 test('search landing and unrelated routes do not perform unnecessary requests',async()=>{
- const {view,calls}=viewContext();assert.match((await view('search')).html,/노래방 차트/);assert.equal(await view('song','one'),null);assert.deepEqual(calls,[]);
+ const {view,calls}=viewContext();assert.equal(await view('search'),null);assert.equal(await view('song','one'),null);assert.deepEqual(calls,[]);
 });
 
 test('popular chart shows yesterday movement instead of scores and retains calendar navigation',async()=>{

@@ -104,7 +104,7 @@ async function popularChartView(raw='',kind=''){
 async function browseView(base,param,raw,embedded=false){
  if(base==='karaoke'&&param==='browse')return playBrowseV3(raw);
  if(base==='charts')return popularChartView(raw,['rising','releases'].includes(param)?param:'');
- if(base==='search'&&!param)return {html:browseSearchHTML()};
+ if(base==='search')return null;
  if(base==='charts'&&param==='karaoke'||base==='karaoke'&&param==='chart'){
   const d=await api('/api/cover-rankings?kind=tracks&period=week&include_unranked=1'),tracks=d.tracks.filter(t=>t.kind==='cover');
   return {html:heading('노래방 차트','공개된 커버곡만 모았어요. 이번 주 받은 좋아요 순으로 만나요.')+chartTabs('karaoke')+chartLayoutHTML(browsePlaybackActions(tracks)+(tracks.length?coverRankTracksHTML(tracks):empty('아직 등록된 커버곡이 없어요','첫 커버곡이 공개되면 이곳에서 만날 수 있어요.','#karaoke','플레이')),tracks,'karaoke'),tracks};
