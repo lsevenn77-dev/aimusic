@@ -21,6 +21,7 @@ import {rankingPeriod} from './ranking-period.js';
 import {CHART_WEIGHTS,CHART_ORIGINAL} from './popular-chart.js';
 import {dailyChart} from './chart-movement.js';
 import {supportFollowCount} from './ai-support-follows.js';
+import {profileDiscovery} from './profile-discovery.js';
 export {GENRES};
 // A cover is public only while its original is public and still offered for karaoke (terms: hiding the original hides its covers).
 export const VISIBLE=(t='t')=>`(${t}.status='published' AND (${t}.original_id IS NULL OR EXISTS(SELECT 1 FROM tracks v WHERE v.id=${t}.original_id AND v.status='published' AND v.karaoke_at>0)) AND (${t}.duet_parent_id IS NULL OR EXISTS(SELECT 1 FROM tracks dp WHERE dp.id=${t}.duet_parent_id AND dp.status='published' AND dp.cover_mode='duet' AND dp.duet_parent_id IS NULL)))`;
@@ -56,6 +57,8 @@ export async function catalogRoute(req,env,path,user){
   return json({tracks:await trackList(env,where,args,'t.created DESC',60)});
  }
  if(path==='/api/catalog'&&method==='GET'){
+  // Explicit discovery entry only; the existing unfiltered producer list is unchanged.
+  if(url.searchParams.get('section')==='producers'&&url.searchParams.get('sort')==='popular')return json({producers:await profileDiscovery(env,'producer','popular',100)});
   if(url.searchParams.get('section')==='artists'&&url.searchParams.get('directory')==='1'){
    const sort=url.searchParams.get('sort')==='recent'?'recent':'popular',offset=Math.max(0,Math.floor(Number(url.searchParams.get('offset'))||0)),size=50;
    const where=`${namedArtistSQL()} AND EXISTS(SELECT 1 FROM tracks t WHERE t.artist_id=a.id AND t.kind='original' AND t.status='published')`;

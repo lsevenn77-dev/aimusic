@@ -183,7 +183,7 @@ test('hidden optional home bridge does not issue singing or community requests',
  const original=Object.getOwnPropertyDescriptor(c.main,'innerHTML');
  Object.defineProperty(c.main,'innerHTML',{get:original.get,set(html){original.set.call(c.main,html);if(c.section('home-bridge'))c.section('home-bridge').hidden=true;}});
  await c.navigate('home');await new Promise(resolve=>setImmediate(resolve));
- assert.equal(calls.length,4);assert.ok(!calls.includes('/api/karaoke'));assert.ok(!calls.includes('/api/community?kind=cover'));
+ assert.equal(calls.length,6);assert.ok(calls.includes('/api/discovery/profiles?kind=artist&sort=popular'));assert.ok(calls.includes('/api/discovery/profiles?kind=producer&sort=popular'));assert.ok(!calls.includes('/api/karaoke'));assert.ok(!calls.includes('/api/community?kind=cover'));
  assert.ok(calls.includes('/api/playlists?sort=popular'),'the visible playlist section must remain available');
 });
 
@@ -417,7 +417,7 @@ test('home hydrates playable shelves from display snapshots while expired reads 
   ['/api/catalog?section=tracks&limit=12',{tracks:[track('Cached release')]}],
   ['/api/karaoke',{tracks:[track('Cached sing')]}],
   ['/api/community?kind=cover',{tracks:[track('Cached cover')]}],
-  ['/api/playlists?sort=popular',{playlists:[{id:'selection',name:'Cached selection',tracks:1}]}]
+  ['/api/playlists?sort=popular',{playlists:[{id:'selection',name:'Cached selection',tracks:1,is_public:1}]}]
  ]),held=new Map([...paths.keys()].map(path=>[path,deferred()]));let refreshing=false;
  const calls=[];const c=homeRenderer(async path=>{if(!paths.has(path))return response({tracks:[]});calls.push(path);return refreshing?held.get(path).promise:response(paths.get(path));});
  for(const path of paths.keys())await c.run(`api(${JSON.stringify(path)})`);
