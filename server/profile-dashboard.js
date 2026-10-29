@@ -14,7 +14,7 @@ export async function profileDashboard(env,profile,user){
   one(env,`SELECT ${publicNumberSQL('u.id')} public_number,(SELECT code FROM public_profile_ids WHERE user_id=u.id) public_id,(SELECT count(*) FROM follows WHERE user_id=u.id) following_count,
    (SELECT count(*) FROM tracks t LEFT JOIN tracks dt ON dt.id=t.duet_parent_id WHERE (t.user_id=u.id OR dt.user_id=u.id) AND ${VISIBLE()}) public_track_count FROM users u WHERE u.id=?`,uid),
   one(env,'SELECT c.id,c.name,c.description,c.image_version,(SELECT count(*) FROM crew_members WHERE crew_id=c.id) members FROM crews c JOIN crew_members cm ON cm.crew_id=c.id WHERE cm.user_id=?',uid),
-  rows(env,`SELECT a.id,a.name,a.image_version FROM artists a WHERE a.producer_id=? AND ${namedArtistSQL()} ORDER BY a.created DESC,a.id`,profile.id),
+  rows(env,`SELECT a.id,a.name,a.image_version,(SELECT count(*) FROM follows f WHERE f.kind='artist' AND f.target_id=a.id) followers FROM artists a WHERE a.producer_id=? AND ${namedArtistSQL()} ORDER BY a.created DESC,a.id`,profile.id),
   env.DUBBING_ENABLED==='true'?rows(env,`SELECT p.id,p.owner_id,p.title,p.duration,p.state,p.visibility,p.created,p.role_count,p.root_id,p.options_json,${publicNameSQL('u')} owner_name,
    (p.visibility='public' AND EXISTS(SELECT 1 FROM dubbing_projects source JOIN dubbing_sound_jobs j ON j.project_id=source.id AND j.script_key=source.script_key WHERE source.id=COALESCE(p.root_id,p.id) AND source.visibility='public' AND ${dubbingVisibleSQL('source')} AND j.state='ready' AND j.output_key!='')) can_join,
    (SELECT count(*) FROM dubbing_role_claims c WHERE c.project_id=p.id) participants

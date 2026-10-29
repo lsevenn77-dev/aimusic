@@ -26,6 +26,7 @@ paths.info='M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM12 11v6m0-10v.01';
 paths.waveform='M2 10v4m4-8v12m4-16v20m4-15v10m4-13v16m4-10v4';
 
 paths.restart='M3 10a9 9 0 1 1 2.6 8.3M3 4v6h6';
+paths.grid='M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z';
 paths.edit='M16 3l5 5M4 20l4-1L21 6a2.8 2.8 0 0 0-4-4L4 15l-1 6Z';
 
 paths.pause='M6 4h4v16H6zM14 4h4v16h-4z';

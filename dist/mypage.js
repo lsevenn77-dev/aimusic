@@ -30,7 +30,7 @@ function myArtists(d){
  return mySection('소속 아티스트',`<div class="mp-artists">${slots.join('')}</div>`,myAll('#profile-artists/'+encodeURIComponent(d.profile.id)),artists.length,'mp-artists-card');
 }
 function myArtistAddDialog(){
- if(!myPageState?.own)return;
+ if(!me||(!myPageState?.own&&!document.querySelector('.artist-directory[data-can-manage="true"]')))return;
  dialog(`<div class="mypage-dialog"><h2>아티스트 추가</h2><form id="mp-artist-create" class="upload-form">${formField('아티스트 이름','name','text','','required maxlength="60"')}${bioField('소개','bio')}${genreField()}${imageField('프로필 사진','image')}<button type="submit" class="primary-button">아티스트 추가</button><p class="form-error" role="alert"></p></form></div>`);
  bindImageInputs();
  const form=$('#mp-artist-create');

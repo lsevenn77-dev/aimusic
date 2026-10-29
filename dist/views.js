@@ -99,11 +99,13 @@ async function render(){
    if(base==='charts')query='?chart='+({rising:'rising',newcomers:'newcomers',releases:'releases'}[param]||'top');
    if(base==='discover'&&genre!=='전체')query='?genre='+encodeURIComponent(genre);
    if(base==='search')query='?q='+encodeURIComponent(searchValue);
+   if(base==='artists')query='?'+new URLSearchParams({directory:'1',sort:new URLSearchParams(raw.split('?')[1]||'').get('sort')||'popular',offset:new URLSearchParams(raw.split('?')[1]||'').get('offset')||0});
    query+=(query?'&':'?')+'section='+(['artists','producers'].includes(base)?base:'tracks');
    const data=await api('/api/catalog'+query);nextTracks=remember(data.tracks||[]);
    if(base==='discover')html=heading('음악 발견','장르를 넘나들며 새로운 취향을 찾아보세요.')+`<div class="genre-chips">${genres.map(g=>`<a class="genre-chip ${g===genre?'active':''}" href="#discover/${encodeURIComponent(g)}">${g}</a>`).join('')}</div>`+grid(data.tracks);
    else if(base==='charts'){const titles={releases:['새로 도착한 음악','새로운 곡, 가장 먼저 만나는 취향.'],rising:['급상승 차트','지금 더 많은 리스너에게 발견되는 음악.'],newcomers:['새로운 아티스트','처음 만나는 목소리와 새로운 음악 세계.']},copy=titles[param]||['AIFECT 차트','함께 듣고 발견하는 음악.'];html=heading(...copy)+chartTabs(param||'')+chartLayoutHTML(browsePlaybackActions(data.tracks)+list(data.tracks),data.tracks,param);}
-   else if(base==='artists'||base==='producers')html=heading(base==='artists'?'AI 아티스트':'제작자',base==='artists'?'새로운 목소리, 새로운 세계.':'당신이 좋아하는 음악을 만드는 사람들.')+identityCards(data[base],base==='artists'?'artist':'producer');
+   else if(base==='artists')html=publicArtistDirectory(data,raw);
+   else if(base==='producers')html=heading(base==='artists'?'AI 아티스트':'제작자',base==='artists'?'새로운 목소리, 새로운 세계.':'당신이 좋아하는 음악을 만드는 사람들.')+identityCards(data[base],base==='artists'?'artist':'producer');
    else html=heading('음악 검색')+`<form id="search-form" class="aifect-search">${icon('search')}<input name="q" aria-label="곡, 아티스트, 제작자 검색" placeholder="곡, 아티스트, 제작자, 태그" value="${esc(searchValue)}" maxlength="100"><button class="primary-button">검색</button></form><p class="search-caption">${searchValue?`“${esc(searchValue)}” 검색 결과 ${data.tracks.length}곡`:'어떤 음악을 찾고 계신가요?'}</p>`+list(data.tracks);
   }else if(base==='song'){
    const requestedCoverTab=new URLSearchParams(paramQuery?.split('?')[1]||'').get('covers'),coverTab=['all','duet','recent'].includes(requestedCoverTab)?requestedCoverTab:'all';

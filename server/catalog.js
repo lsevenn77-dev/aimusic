@@ -56,6 +56,16 @@ export async function catalogRoute(req,env,path,user){
   return json({tracks:await trackList(env,where,args,'t.created DESC',60)});
  }
  if(path==='/api/catalog'&&method==='GET'){
+  if(url.searchParams.get('section')==='artists'&&url.searchParams.get('directory')==='1'){
+   const sort=url.searchParams.get('sort')==='recent'?'recent':'popular',offset=Math.max(0,Math.floor(Number(url.searchParams.get('offset'))||0)),size=50;
+   const where=`${namedArtistSQL()} AND EXISTS(SELECT 1 FROM tracks t WHERE t.artist_id=a.id AND t.kind='original' AND t.status='published')`;
+   const [artists,count]=await Promise.all([
+    rows(env,`SELECT a.*,${producerNameSQL()} producer_name,(SELECT count(*) FROM follows f WHERE f.kind='artist' AND f.target_id=a.id) followers FROM artists a JOIN producers p ON p.id=a.producer_id WHERE ${where} ORDER BY ${sort==='popular'?'followers DESC,':''}a.created DESC,a.id LIMIT ? OFFSET ?`,size,offset),
+    one(env,`SELECT count(*) n FROM artists a WHERE ${where}`)
+   ]);
+   return json({artists,total:count.n,sort,offset,nextOffset:offset+artists.length<count.n?offset+size:null});
+  }
+
   const q=(url.searchParams.get('q')||'').slice(0,100),genre=url.searchParams.get('genre'),chart=url.searchParams.get('chart');
   let where=VISIBLE()+" AND t.kind='original'",args=[];
   if(q){where+=` AND (t.title LIKE ? OR a.name LIKE ? OR (${producerNameSQL()}) LIKE ? OR (t.genre||t.genres_json) LIKE ? OR t.tags LIKE ?)`;args=Array(5).fill('%'+q+'%');}
