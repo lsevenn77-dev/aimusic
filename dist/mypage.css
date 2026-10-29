@@ -154,3 +154,4 @@ main .social-profile-identity h2>.mp-public-id{display:block;font-size:13px;font
  #main .mp-own .mp-stats>:nth-child(odd){padding-left:0;border:0}
  #main .mp-own .mp-stats b{font-size:14px}
 }
+#main .mp-own .mp-stats>:last-child{padding-right:0}
