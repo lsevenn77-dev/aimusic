@@ -1,0 +1,43 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import vm from 'node:vm';
+import {readFileSync} from 'node:fs';
+import {fixture} from './fixture.mjs';
+import {options,sampleScript,memoryBucket} from './dubbing-fixtures.mjs';
+
+test('profile counters separate actual account follows, completed public works and all owned originals without list limits',async t=>{
+ const f=await fixture(t,{DUBBING_ENABLED:'true',BUCKET:memoryBucket()});
+ f.sql.exec("INSERT INTO producers(id,user_id,name,created) VALUES('friend','other','친구',0); INSERT INTO follows(user_id,kind,target_id,created) VALUES('owner','producer','friend',0),('owner','artist','artist',0),('other','producer','producer',0); UPDATE tracks SET karaoke_at=1 WHERE id='one'");
+ const insert=f.sql.prepare("INSERT INTO tracks(id,user_id,artist_id,producer_id,title,genre,ai_tool,rights_accepted,original_ext,original_bytes,created,status,kind,original_id,cover_mode,duet_parent_id) VALUES(?,'owner','artist','producer',?,'Rock','QA',1,'wav',128,0,?,?,?,?,?)");
+ for(const [id,status,kind,original,mode,parent] of [['solo','published','cover','one','solo',null],['invite','published','cover','one','duet',null],['duet','published','cover','one','duet','invite'],['private-cover','hidden','cover','one','solo',null],['removed','deleted','original',null,'solo',null]])insert.run(id,id,status,kind,original,mode,parent);
+ for(let i=0;i<501;i++)insert.run('original-'+i,'원곡','published','original',null,'solo',null);
+ for(const [state,visibility] of [['complete','public'],['script_ready','public'],['complete','private']]){
+  const created=await f.call('/api/dubbing/projects','POST',{id:crypto.randomUUID(),options,script:sampleScript()});assert.equal(created.status,201);
+  f.sql.prepare('UPDATE dubbing_projects SET state=?,visibility=? WHERE id=?').run(state,visibility,created.body.project.id);
+ }
+ const d=(await f.call('/api/producers/producer?dashboard=1')).body;
+ assert.equal(d.profile_following_count,1);assert.equal(d.following_count,2);assert.equal(d.human_followers,1);
+ assert.equal(d.profile_work_count,3);assert.equal(d.produced_track_count,505);assert.equal(d.tracks.length,500);
+ const visitor=(await f.call('/api/producers/producer','GET',null,'other')).body;
+ assert.equal(visitor.produced_track_count,504);assert.equal(visitor.profile_work_count,3);
+ f.sql.exec("UPDATE tracks SET status='hidden' WHERE id='one'");
+ assert.equal((await f.call('/api/producers/producer?dashboard=1')).body.profile_work_count,1);
+});
+
+test('own header uses human counts in label-first order, separate totals and persisted public ID',()=>{
+ const c=vm.createContext({me:{id:'owner'},document:{addEventListener(){}},window:{addEventListener(){}},esc:String,number:String,playerAvatarClass:()=>'',avatarImage:()=>'',playerBadgeHTML:()=>''});
+ vm.runInContext(readFileSync('dist/mypage.js','utf8'),c);
+ const html=c.myProfileHeader({profile:{id:'p',user_id:'owner',name:'Artist',public_id:'REAL1234'},human_followers:3,followers:13,ai_followers:10,following_count:8,profile_following_count:1,profile_work_count:5,produced_track_count:4});
+ assert.match(html,/팔로워 <b>3<\/b>.*팔로잉 <b>1<\/b>.*작품 <b>5<\/b>.*제작곡 <b>4<\/b>/);
+ assert.doesNotMatch(html,/AI 10|공개곡|>복사<|data-followers=/);assert.match(html,/data-copy-public-id="REAL1234"[^>]*><svg/);
+ assert.match(html,/href="#profile\/edit"/);assert.match(html,/href="#studio"/);
+});
+
+test('copy handler writes exactly the current ID and confirms only successful clipboard writes',async()=>{
+ const handlers=[],messages=[],written=[];
+ const c=vm.createContext({document:{body:{},addEventListener(type,fn){if(type==='click')handlers.push(fn);}},MutationObserver:class{observe(){}},navigator:{clipboard:{async writeText(id){written.push(id);}}},toast:s=>messages.push(s)});
+ vm.runInContext(readFileSync('dist/account-settings.js','utf8'),c);
+ const handler=handlers.at(-1),button={dataset:{copyPublicId:'PERSISTED987'},closest:()=>true};
+ await handler({target:{closest:()=>button}});assert.deepEqual(written,['PERSISTED987']);assert.deepEqual(messages,['ID가 복사되었습니다.']);
+ c.navigator.clipboard.writeText=async()=>{throw Error('denied');};await handler({target:{closest:()=>button}});assert.match(messages.at(-1),/복사할 수 없습니다/);
+});

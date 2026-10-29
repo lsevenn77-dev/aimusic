@@ -12,6 +12,9 @@ export async function profileDashboard(env,profile,user){
  const own=user?.id===profile.user_id,uid=profile.user_id;
  const [identity,crew,artists,dubbings,relations]=await Promise.all([
   one(env,`SELECT ${publicNumberSQL('u.id')} public_number,(SELECT code FROM public_profile_ids WHERE user_id=u.id) public_id,(SELECT count(*) FROM follows WHERE user_id=u.id) following_count,
+   (SELECT count(*) FROM follows WHERE user_id=u.id AND kind='producer') profile_following_count,
+   (SELECT count(*) FROM tracks t WHERE t.user_id=u.id AND t.kind='original' AND ${own?"t.status!='deleted'":VISIBLE()}) produced_track_count,
+   (SELECT count(*) FROM tracks t LEFT JOIN tracks dt ON dt.id=t.duet_parent_id WHERE (t.user_id=u.id OR dt.user_id=u.id) AND t.kind='cover' AND (COALESCE(t.cover_mode,'solo')!='duet' OR t.duet_parent_id IS NOT NULL) AND ${VISIBLE()}) profile_cover_count,
    (SELECT count(*) FROM tracks t LEFT JOIN tracks dt ON dt.id=t.duet_parent_id WHERE (t.user_id=u.id OR dt.user_id=u.id) AND ${VISIBLE()}) public_track_count FROM users u WHERE u.id=?`,uid),
   one(env,'SELECT c.id,c.name,c.description,c.image_version,(SELECT count(*) FROM crew_members WHERE crew_id=c.id) members FROM crews c JOIN crew_members cm ON cm.crew_id=c.id WHERE cm.user_id=?',uid),
   rows(env,`SELECT a.id,a.name,a.image_version,(SELECT count(*) FROM follows f WHERE f.kind='artist' AND f.target_id=a.id) followers FROM artists a WHERE a.producer_id=? AND ${namedArtistSQL()} ORDER BY a.created DESC,a.id`,profile.id),
@@ -29,7 +32,7 @@ export async function profileDashboard(env,profile,user){
  await profileDubbingParticipation(env,dubbings,user);
  for(const p of dubbings)p.can_join=!!user&&!!p.can_join;
  const pin=await one(env,'SELECT ids_json FROM profile_artist_pins WHERE producer_id=?',profile.id),pinned=JSON.parse(pin?.ids_json||'[]');artists.sort((a,b)=>(pinned.includes(a.id)?pinned.indexOf(a.id):99)-(pinned.includes(b.id)?pinned.indexOf(b.id):99));
- return {...identity,crew,artists,pinned,relations,dubbings:dubbings.map(({options_json,...p})=>({...p,kind:'dubbing',genres:JSON.parse(options_json).genres||[]}))};
+ return {...identity,profile_work_count:(identity.profile_cover_count||0)+dubbings.filter(p=>p.state==='complete'&&p.visibility==='public').length,crew,artists,pinned,relations,dubbings:dubbings.map(({options_json,...p})=>({...p,kind:'dubbing',genres:JSON.parse(options_json).genres||[]}))};
 }
 
 // Called only after requireUser, always scoped to the authenticated UUID.

@@ -37,4 +37,4 @@ function bindIdentityInputs(){
 }
 new MutationObserver(bindIdentityInputs).observe(document.body,{childList:true,subtree:true});
 
-document.addEventListener('click',async event=>{const button=event.target.closest('[data-copy-public-id]');if(!button)return;try{await navigator.clipboard.writeText(button.dataset.copyPublicId);toast('고유 ID를 복사했습니다.');}catch{toast('복사할 수 없습니다. ID를 직접 선택해주세요.');}});
+document.addEventListener('click',async event=>{const button=event.target.closest('[data-copy-public-id]');if(!button)return;try{await navigator.clipboard.writeText(button.dataset.copyPublicId);toast(button.closest('.mp-own .mp-profile')?'ID가 복사되었습니다.':'고유 ID를 복사했습니다.');}catch{toast('복사할 수 없습니다. ID를 직접 선택해주세요.');}});
