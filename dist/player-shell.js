@@ -76,6 +76,8 @@ function renderPlayerActions(track){
   seek.max=max;seek.disabled=!max;if(!scrubbing)seek.value=value;
   seek.style.setProperty('--seek-progress',(max?value/max*100:0)+'%');
   const label=playerClock(value)+' / '+playerClock(max);seek.setAttribute('aria-valuetext',label);seek.title=label;
+  // Reserve both sides from the duration, including the transition into hours.
+  document.querySelector('.player-clock').style.setProperty('--player-clock-width',Math.max(13,playerClock(max).length*2+3)+'ch');
   document.querySelector('#elapsed').textContent=playerClock(value);document.querySelector('#duration').textContent=playerClock(max);
  }
  for(const event of ['timeupdate','loadedmetadata','durationchange','emptied','seeked'])audio.addEventListener(event,()=>paintProgress());

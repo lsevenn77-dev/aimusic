@@ -13,7 +13,7 @@
 .player .player-meta-line{display:flex;align-items:center;gap:9px;min-width:0;font-size:11px;line-height:16px;color:var(--ds-body);white-space:nowrap}
 .player .now-playing .player-credit{display:block;min-width:0;max-width:150px;overflow:hidden;text-overflow:ellipsis;font-size:11px}
 .player .player-track-details{display:contents}
-.player .player-clock{flex:none;white-space:nowrap;font-size:10px;font-variant-numeric:tabular-nums;min-width:13ch;text-align:right;border-left:1px solid var(--ds-line);padding-left:9px}
+.player .player-clock{flex:none;white-space:nowrap;font-size:10px;font-variant-numeric:tabular-nums;width:var(--player-clock-width,13ch);min-width:13ch;text-align:right;border-left:1px solid var(--ds-line);padding-left:9px}
 .player .player-clock span{display:inline;font-size:inherit}
 .player #player-genre{min-width:0;border-left:1px solid var(--ds-line);padding-left:9px;overflow:hidden;text-overflow:ellipsis;font-size:10px}
 .player .player-center{display:flex;align-items:center;justify-content:center;min-width:0;width:auto;max-width:none}
