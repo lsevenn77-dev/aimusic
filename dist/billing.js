@@ -32,7 +32,9 @@ async function openBillingCheckout(){
  });
 }
 async function openBillingCancellation(){
+ const ticket=renderId;
  const data=await api('/api/billing/status');
+ if(ticket!==renderId)return;
  dialog(`<h2>자동갱신을 해지할까요?</h2><p>다음 결제부터 청구하지 않습니다. 이미 결제한 이용권은 ${billingDate(data.subscription?.period_end)}까지 이용할 수 있어요.</p><p>이미 결제한 금액의 환불은 <a href="/refund" target="_blank" rel="noopener">환불 안내</a>에서 요청해주세요.</p><form id="billing-cancel-form"><button class="primary-button">자동갱신 해지하기</button><p class="form-error" role="alert"></p></form>`);
  const form=$('#billing-cancel-form');form.onsubmit=busyForm(form,async()=>{await api('/api/billing/cancel','POST',{});$('#dialog').close();await refreshLibrary();updateAccount();await render();toast('자동갱신을 해지했습니다.');});
 }

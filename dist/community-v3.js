@@ -4,26 +4,26 @@ function voiceLobbyHTML(data,enabled){
 }
 function bindVoiceLobby(){
  const open=$('#v3-create-room'),modal=$('#v3-room-create');if(!open)return;
- open.onclick=async()=>{if(!me){location.hash='#account';return;}try{const options=await voiceRequest('options');const f=$('#voice-create-form');f.reset();f.elements.visibility.value='public';f.elements.max_members.value='30';fillRoomThemeChoices(f,options,'navy');f.elements.background.value='navy';f.elements.crew_id.innerHTML='<option value="">크루 선택</option>'+options.crews.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');f.querySelector('#voice-notice-length').textContent='0/200';f.querySelector('.voice-crew-setting').hidden=true;modal.showModal();}catch(e){toast(e.message);}};
+ open.onclick=async()=>{if(!me){location.hash='#account';return;}const ticket=renderId;try{const options=await voiceRequest('options');if(ticket!==renderId||!open.isConnected)return;const f=$('#voice-create-form');f.reset();f.elements.visibility.value='public';f.elements.max_members.value='30';fillRoomThemeChoices(f,options,'navy');f.elements.background.value='navy';f.elements.crew_id.innerHTML='<option value="">크루 선택</option>'+options.crews.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');f.querySelector('#voice-notice-length').textContent='0/200';f.querySelector('.voice-crew-setting').hidden=true;modal.showModal();}catch(e){if(ticket===renderId&&open.isConnected)toast(e.message);}};
  $('#v3-close-create').onclick=()=>modal.close();
  modal.addEventListener('click',e=>{if(e.target===modal){const r=modal.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)modal.close();}});
  const form=$('#voice-create-form');form.addEventListener('input',()=>{form.querySelector('#voice-notice-length').textContent=form.elements.announcement.value.length+'/200';});
  const visibility=()=>{form.querySelector('.voice-crew-setting').hidden=form.elements.visibility.value!=='crew';};form.addEventListener('change',visibility);visibility();
  $('#v3-room-search').oninput=e=>{const q=e.target.value.trim().toLowerCase();let count=0;document.querySelectorAll('[data-room-search]').forEach(c=>{c.hidden=!c.dataset.roomSearch.includes(q);if(!c.hidden)count++;});$('#v3-search-empty').hidden=!q||count>0;};
 }
-async function playBrowseV3(raw){
+async function playBrowseV3(raw,readApi=api){
  const p=new URLSearchParams(raw.split('?')[1]||''),type=['solo','duet','dubbing','following'].includes(p.get('type'))?p.get('type'):'solo';
  let html=heading('플레이','완성된 목소리를 만나보세요.')+singingHubNav('browse')+'<nav class="v3-segments" aria-label="작품 둘러보기">'+[['solo','솔로'],['duet','듀엣'],['dubbing','더빙'],['following','팔로잉']].map(([key,label])=>'<a href="#karaoke/browse?type='+key+'" '+(key===type?'aria-current="page"':'')+'>'+label+'</a>').join('')+'</nav>';
  if(type==='following'&&!me){returnRoute=location.hash;return {html:html+gate()};}
- if(type==='dubbing'){const d=await api('/api/dubbing/projects?tab=complete');return {html:html+'<div class="dubbing-grid">'+(d.projects.map(dubbingCard).join('')||'<p class="v3-empty">아직 공개된 완성 더빙이 없어요.</p>')+'</div>'};}
- const d=await api('/api/community?kind=cover&completed=1&'+(type==='following'?'following=1':'cover_mode='+type));return {html:html+communityFeed(d.tracks),tracks:d.tracks};
+ if(type==='dubbing'){const d=await readApi('/api/dubbing/projects?tab=complete');return {html:html+'<div class="dubbing-grid">'+(d.projects.map(dubbingCard).join('')||'<p class="v3-empty">아직 공개된 완성 더빙이 없어요.</p>')+'</div>'};}
+ const d=await readApi('/api/community?kind=cover&completed=1&'+(type==='following'?'following=1':'cover_mode='+type));return {html:html+communityFeed(d.tracks),tracks:d.tracks};
 }
-async function communityRankingV3(raw){
+async function communityRankingV3(raw,readApi=api){
  const p=new URLSearchParams(raw.split('?')[1]||''),category=['work','aiArtist','relationship','crew','dubbing'].includes(p.get('category'))?p.get('category'):'work',period=p.get('period')==='month'?'month':'week',kind=['solo','duet','dubbing'].includes(p.get('workKind'))?p.get('workKind'):'solo';
  const href=changes=>'#community/rankings?'+new URLSearchParams({category,period,workKind:kind,...changes});
  const nav=(items,key,value)=>'<nav class="v3-segments" aria-label="'+(key==='period'?'집계 기간':'랭킹 종류')+'">'+items.map(([v,label])=>`<a href="${esc(href({[key]:v}))}" ${value===v?'aria-current="page"':''}>${label}</a>`).join('')+'</nav>';
  let html=heading('커뮤니티','듣고 대화하고, 함께 성장하는 음악 커뮤니티')+communityNavigation('rankings')+'<section class="community-v3">'+nav([['work','작품 랭킹'],['aiArtist','AI 아티스트'],['relationship','관계 랭킹'],['crew','크루 랭킹'],['dubbing','더빙 랭킹']],'category',category)+'<div class="v3-toolbar">'+(category==='work'?nav([['solo','솔로'],['duet','듀엣'],['dubbing','더빙']],'workKind',kind):'<h2>'+({aiArtist:'AI 아티스트 랭킹',relationship:'관계 랭킹',crew:'크루 랭킹',dubbing:'더빙 랭킹'}[category])+'</h2>')+nav([['week','주간'],['month','월간']],'period',period)+'</div>';
- try{const d=await api('/api/community/rankings?'+new URLSearchParams({category,period,workKind:kind}));
+ try{const d=await readApi('/api/community/rankings?'+new URLSearchParams({category,period,workKind:kind}));
  const isDub=category==='dubbing'||category==='work'&&kind==='dubbing';
  const date=n=>new Date(n*1000).toLocaleString('ko-KR',{timeZone:'Asia/Seoul'});
  html+='<p class="v3-period">'+esc(date(d.from))+' ~ '+esc(date(d.until))+' · KST<br>최종 갱신 '+esc(date(d.updated_at))+'</p>';

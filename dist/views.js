@@ -1,6 +1,36 @@
 function officialSupportHTML(d){return d?.quantity?'<section class="official-ai-support"><strong>공식 AI 응원별 '+number(d.quantity)+'개</strong><p>공식 AI 응원 계정의 무료 선물 · 정산·팬 순위 제외</p>'+d.gifts.map(g=>'<a href="#producer/'+esc(g.profile_id)+'">'+esc(g.name)+' <span class="ai-account-badge">AI</span> · 응원별 ×'+number(g.quantity)+'</a>').join('')+'</section>':'';}
 // Only browsing surfaces are kept. Editors, messages, money and membership stay live.
-const navigationSnapshots=new Map();let navigationRefreshCleanup=null;
+const navigationSnapshots=new Map();let navigationRefreshCleanup=null,navigationController=null;
+const routeBindingCleanups=new Set();
+function registerRouteCleanup(cleanup){
+ const release=()=>{routeBindingCleanups.delete(release);cleanup();};routeBindingCleanups.add(release);return release;
+}
+function navigationRead(ticket,signal){
+ const account=me?.id||'guest';
+ const current=()=>ticket===renderId&&!signal?.aborted&&account===(me?.id||'guest');
+ const check=()=>{if(!current())throw Object.assign(new Error('이전 화면의 요청입니다.'),{name:'AbortError'});};
+ const read=async(path,method='GET',body,options={})=>{
+  check();const value=await api(path,method,body,method==='GET'?{...options,signal:options.signal||signal}:options);check();return value;
+ };
+ read.signal=signal;read.current=current;return read;
+}
+function cleanupRouteBindings(main){
+ navigationRefreshCleanup?.();navigationRefreshCleanup=null;
+ if(typeof discoverCleanup==='function'){discoverCleanup();discoverCleanup=null;}
+ if(typeof searchResizeCleanup==='function'){searchResizeCleanup();searchResizeCleanup=null;}
+ if(typeof chartToolbarCleanup==='function'){chartToolbarCleanup();chartToolbarCleanup=null;}
+ if(typeof playBannerCleanup==='function'){playBannerCleanup();playBannerCleanup=null;}
+ for(const cleanup of [...routeBindingCleanups])cleanup();
+ if(typeof activityReadObserver==='function'){document.removeEventListener('visibilitychange',activityReadObserver);activityReadObserver=null;}
+ // Inline previews belong to the page. The persistent player uses its own Audio.
+ for(const media of main.querySelectorAll('audio,video')){media.pause();media.removeAttribute('src');media.load();}
+}
+function cleanupRouteOverlays(){
+ if(typeof giftDialogSerial==='number')giftDialogSerial++;
+ for(const modal of document.querySelectorAll('dialog[open]'))modal.close();
+ const menu=$('#chart-track-menu');
+ if(menu){menu._chartCleanup?.();if(menu.matches(':popover-open'))menu.hidePopover();}
+}
 function clearNavigationSnapshots(){navigationSnapshots.clear();}
 function canCacheRoute(raw){
  const [route]=raw.replace(/^#/,'').split('?'),[base,param]=route.split('/');
@@ -44,23 +74,28 @@ async function render(){
  if(playRedirect)history.replaceState(null,'',playRedirect);
 
  const ticket=++renderId,raw=location.hash.slice(1)||'home',[baseQuery,paramQuery]=raw.split('/'),[base]=baseQuery.split('?'),param=paramQuery?.split('?')[0];
+ navigationController?.abort();
+ const controller=navigationController=typeof AbortController==='function'?new AbortController():null;
+ const readApi=navigationRead(ticket,controller?.signal);
  if(typeof syncSearchNavigation==='function')syncSearchNavigation(raw);
  if(base!=='home'){
-  if(typeof refreshMusicLibraryRoute==='function'&&await refreshMusicLibraryRoute(raw,ticket))return;
+  if(typeof refreshMusicLibraryRoute==='function'&&await refreshMusicLibraryRoute(raw,ticket,false,readApi))return;
   if(ticket!==renderId)return;
-  if(typeof refreshMyPageRoute==='function'&&await refreshMyPageRoute(raw,ticket))return;
+  if(typeof refreshMyPageRoute==='function'&&await refreshMyPageRoute(raw,ticket,readApi))return;
   if(ticket!==renderId)return;
  }
  if(typeof refreshInventoryRoute==='function'&&refreshInventoryRoute(raw))return;
  if(typeof dubbingBeforeRoute==='function'&&!dubbingBeforeRoute(raw))return;
- if(base!=='home'&&typeof dubbingRefreshList==='function'&&await dubbingRefreshList(raw,ticket))return;
+ if(base!=='home'&&typeof dubbingRefreshList==='function'&&await dubbingRefreshList(raw,ticket,readApi))return;
  if(ticket!==renderId)return;
  if(sing){
   if(!singBusy(sing)&&!confirm('녹음 화면에서 나갈까요? 녹음한 내용은 이 기기의 초안에 보관됩니다.')){history.replaceState(null,'',singRouteHref(sing));return;}
   if(singLive(sing))await finishSinging();
+  if(ticket!==renderId)return;
   if(singBusy(sing)){history.replaceState(null,'',singRouteHref(sing));toast('녹음을 정리한 뒤 이동해주세요.');return;}
-  if(sing.dirty){try{await saveSingDraft(sing);}catch(e){history.replaceState(null,'',singRouteHref(sing));toast('임시저장하지 못했어요. 저장 공간을 확인한 뒤 다시 시도해주세요.');return;}}
+  if(sing.dirty){try{await saveSingDraft(sing);}catch(e){if(ticket!==renderId)return;history.replaceState(null,'',singRouteHref(sing));toast('임시저장하지 못했어요. 저장 공간을 확인한 뒤 다시 시도해주세요.');return;}}
  }
+ if(ticket!==renderId)return;
  clearInterval(socialTimer);socialTimer=null;socialCleanup?.();socialCleanup=null;
  cleanupLyricsEditor();cleanupSing();
  if(typeof cleanupHome==='function')cleanupHome();
@@ -69,7 +104,9 @@ async function render(){
  if(typeof cleanupVoiceRoute==='function')void Promise.resolve(cleanupVoiceRoute(base,param)).catch(()=>{});
  if(ticket!==renderId)return;
  updateBrowseNavigation(base,param);
- const main=$('#main'),account=me?.id||'guest';navigationRefreshCleanup?.();navigationRefreshCleanup=null;
+ const main=$('#main'),account=me?.id||'guest';
+ if(main.dataset.route!==raw||main.dataset.account!==account)cleanupRouteOverlays();
+ cleanupRouteBindings(main);
  const previous=navigationSnapshots.get(navigationKey(main.dataset.route));if(previous&&main.dataset.account===account)previous.scroll=window.scrollY||0;
  let cached=navigationSnapshots.get(navigationKey(raw));
  const pendingView=(typeof crewPendingView==='function'?crewPendingView(base,param,raw):null)||(typeof communityPendingView==='function'?communityPendingView(base,param,raw):null)||(typeof dmPendingView==='function'?dmPendingView(base,param,raw):null);
@@ -90,10 +127,22 @@ async function render(){
   if(account!==(me?.id||'guest'))return render();
   if(typeof rememberMenuLogin==='function')rememberMenuLogin(base,param);
   const readRevision=apiRevision;
-  const profileHeader=base==='library'?libraryProfileHTML().catch(error=>({error})):null;
-  const explorer=(typeof integratedMenuView==='function'?await integratedMenuView(base,param,raw):null)||(typeof profileCollectionView==='function'?await profileCollectionView(base,param,raw):null)||(typeof playView==='function'?await playView(base,param,raw):null)||(typeof myPageView==='function'?await myPageView(base,param,raw):null)||(typeof dubbingView==='function'?await dubbingView(base,param,raw):null)||(typeof voiceView==='function'?await voiceView(base,param):null)||await notificationsView(base,raw)||await playerView(base)||await improvementsView(base,param,raw)||await browseView(base,param,raw)||await explorerView(base,param,raw);
+  const profileHeader=base==='library'?libraryProfileHTML(readApi).catch(error=>({error})):null;
+  const loaders=[
+   ()=>typeof integratedMenuView==='function'?integratedMenuView(base,param,raw,readApi):null,
+   ()=>typeof profileCollectionView==='function'?profileCollectionView(base,param,raw,readApi):null,
+   ()=>typeof playView==='function'?playView(base,param,raw,readApi):null,
+   ()=>typeof myPageView==='function'?myPageView(base,param,raw,readApi):null,
+   ()=>typeof dubbingView==='function'?dubbingView(base,param,raw,readApi):null,
+   ()=>typeof voiceView==='function'?voiceView(base,param,readApi.signal):null,
+   ()=>notificationsView(base,raw,readApi),()=>playerView(base,readApi),
+   ()=>improvementsView(base,param,raw,readApi),()=>browseView(base,param,raw,false,readApi),()=>explorerView(base,param,raw,false,readApi)
+  ];
+  let explorer=null;
+  for(const load of loaders){if(!readApi.current())return;explorer=await load();if(!readApi.current())return;if(explorer)break;}
+  if(raw!==(location.hash.slice(1)||'home'))return render();
   if(explorer){html=explorer.html;nextTracks=remember(explorer.tracks||[]);}
-  else if(base==='member'){const d=await api('/api/members/'+encodeURIComponent(param));html=listenerProfileHTML(d.profile);}
+  else if(base==='member'){const d=await readApi('/api/members/'+encodeURIComponent(param));html=listenerProfileHTML(d.profile);}
   else if(['discover','charts','artists','producers','search'].includes(base)){
    let query='';const genre=base==='discover'?decodeURIComponent(param||'전체'):'전체',searchValue=base==='search'?decodeURIComponent(param||''):'';
    if(base==='charts')query='?chart='+({rising:'rising',newcomers:'newcomers',releases:'releases'}[param]||'top');
@@ -101,7 +150,7 @@ async function render(){
    if(base==='search')query='?q='+encodeURIComponent(searchValue);
    if(base==='artists')query='?'+new URLSearchParams({directory:'1',sort:new URLSearchParams(raw.split('?')[1]||'').get('sort')||'popular',offset:new URLSearchParams(raw.split('?')[1]||'').get('offset')||0});
    query+=(query?'&':'?')+'section='+(['artists','producers'].includes(base)?base:'tracks');
-   const data=await api('/api/catalog'+query);nextTracks=remember(data.tracks||[]);
+   const data=await readApi('/api/catalog'+query);nextTracks=remember(data.tracks||[]);
    if(base==='discover')html=heading('음악 발견','장르를 넘나들며 새로운 취향을 찾아보세요.')+`<div class="genre-chips">${genres.map(g=>`<a class="genre-chip ${g===genre?'active':''}" href="#discover/${encodeURIComponent(g)}">${g}</a>`).join('')}</div>`+grid(data.tracks);
    else if(base==='charts'){const titles={releases:['새로 도착한 음악','새로운 곡, 가장 먼저 만나는 취향.'],rising:['급상승 차트','지금 더 많은 리스너에게 발견되는 음악.'],newcomers:['새로운 아티스트','처음 만나는 목소리와 새로운 음악 세계.']},copy=titles[param]||['AIFECT 차트','함께 듣고 발견하는 음악.'];html=heading(...copy)+chartTabs(param||'')+chartLayoutHTML(browsePlaybackActions(data.tracks)+list(data.tracks),data.tracks,param);}
    else if(base==='artists')html=publicArtistDirectory(data,raw);
@@ -109,37 +158,42 @@ async function render(){
    else html=heading('음악 검색')+`<form id="search-form" class="aifect-search">${icon('search')}<input name="q" aria-label="곡, 아티스트, 제작자 검색" placeholder="곡, 아티스트, 제작자, 태그" value="${esc(searchValue)}" maxlength="100"><button class="primary-button">검색</button></form><p class="search-caption">${searchValue?`“${esc(searchValue)}” 검색 결과 ${data.tracks.length}곡`:'어떤 음악을 찾고 계신가요?'}</p>`+list(data.tracks);
   }else if(base==='song'){
    const requestedCoverTab=new URLSearchParams(paramQuery?.split('?')[1]||'').get('covers'),coverTab=['all','duet','recent'].includes(requestedCoverTab)?requestedCoverTab:'all';
-   const [{track:t},{comments},allCovers,giftData]=await Promise.all([api('/api/tracks/'+param),api('/api/tracks/'+param+'/comments'),api('/api/tracks/'+param+'/covers?view='+coverTab),api('/api/tracks/'+param+'/gifts')]);
+   const core=readApi('/api/tracks/'+param).then(d=>{
+    if(ticket===renderId&&readRevision===apiRevision&&account===(me?.id||'guest')){
+     routeTracks=remember([d.track]);main.innerHTML=heading('곡 이야기')+songDetailHeaderHTML(d.track)+'<div class="route-loading" role="status"><span>이야기와 참여 작품을 불러오는 중…</span><div></div><div></div></div>';icons();paintInteractions();
+    }return d;
+   });
+   const [{track:t},{comments},allCovers,giftData]=await Promise.all([core,readApi('/api/tracks/'+param+'/comments'),readApi('/api/tracks/'+param+'/covers?view='+coverTab),readApi('/api/tracks/'+param+'/gifts')]);
    remember([t]);nextTracks=[t];const coverData=t.kind==='original'?allCovers:null;if(coverData)remember(coverData.covers);
    html=heading('곡 이야기')+`${songDetailHeaderHTML(t)}<div class="song-page-layout"><div class="song-main-column">${coversPanelHTML(t,coverData,coverTab)}<section class="surface comments-panel"><div class="section-heading"><h2>함께 듣는 이야기</h2><select id="comment-sort" aria-label="댓글 정렬"><option value="latest">최신순</option><option value="popular">인기순</option><option value="timeline">타임라인순</option></select></div><form id="comment-form"><textarea name="body" maxlength="2000" required placeholder="${me?'이 곡의 어떤 순간이 좋았나요?':'로그인 후 감상을 남겨보세요.'}" aria-label="댓글"></textarea><div class="comment-compose-bottom"><label><input name="with_time" type="checkbox" checked> 현재 재생 시간 포함</label><button class="primary-button">댓글 등록</button></div><p class="form-error" role="alert"></p></form><div id="comments">${commentsHTML(comments,t)}</div></section></div><aside class="song-sidebar">${lyricsPanel(t)}${giftsPanelHTML(giftData,'응원 순위',{track:t})}${songCreditCardHTML(t)}</aside></div>`;
   }else if(base==='artist'||base==='producer'){
-   const d=await api(`/api/${base==='artist'?'artists':'producers'}/${param}`);nextTracks=remember(d.tracks);
+   const d=await readApi(`/api/${base==='artist'?'artists':'producers'}/${param}`);nextTracks=remember(d.tracks);
    if(base==='producer'){const q=new URLSearchParams(paramQuery?.split('?')[1]||''),tab=['tracks','covers','duets'].includes(q.get('tab'))?q.get('tab'):'all';remember(d.covers||[]);nextTracks=musicProfileItems(d,tab);html=heading('음악가의 페이지')+personProfileHTML(d,param,tab);}
    else html=artistPageHTML(d,param,new URLSearchParams(paramQuery?.split('?')[1]||'').get('tab'));
   }else if(['library','history','studio','upload','manage','cover','gold','admin','sing'].includes(base)&&!me){returnRoute=location.hash;html=gate();}
   else if(base==='library'){
-   await refreshLibrary();const tab=param||'likes';nextTracks=library.likes;
+   await refreshLibrary(false,readApi);const tab=param||'likes';nextTracks=library.likes;
    html=heading('내 보관함','좋아하는 음악과 창작자를 한곳에서.')+`<div class="tabs">${[['likes','좋아요'],['playlists','플레이리스트'],['artists','아티스트'],['producers','제작자']].map(([k,v])=>`<a class="tab ${tab===k?'active':''}" href="#library/${k}">${v}</a>`).join('')}</div>`;
    if(tab==='playlists')html+=`<div class="playlist-actions"><button class="primary-button" id="new-playlist">${icon('plus')} 플레이리스트 만들기</button></div>`+playlistsHTML(library.playlists);
    else if(tab==='artists'||tab==='producers')html+=identityCards(library.follows.filter(f=>f.kind===(tab==='artists'?'artist':'producer')).map(f=>({...f,id:f.target_id})),tab==='artists'?'artist':'producer');
    else html+=`<div class="inline-actions playlist-actions"><button class="primary-button" data-organize-likes ${library.likes.length?'':'disabled'}>좋아요한 곡으로 플레이리스트 만들기 ${icon('plus')}</button><span class="field-help">우울할 때, 기분 업… 기분에 맞게 모아보세요.</span></div>`+list(library.likes);
-  }else if(base==='history'){const d=await api('/api/history');nextTracks=remember(d.tracks);html=heading('최근 들은 음악','다시 듣고 싶은 순간을 찾아보세요.')+list(d.tracks);}
+  }else if(base==='history'){const d=await readApi('/api/history');nextTracks=remember(d.tracks);html=heading('최근 들은 음악','다시 듣고 싶은 순간을 찾아보세요.')+list(d.tracks);}
   else if(base==='playlist'){
-   const d=await api('/api/playlists/'+param);nextTracks=remember(d.tracks);const owned=me?.id===d.playlist.user_id;
+   const d=await readApi('/api/playlists/'+param);nextTracks=remember(d.tracks);const owned=me?.id===d.playlist.user_id;
    html=heading(esc(d.playlist.name),`${d.tracks.length}곡 · ${d.playlist.is_public?'공개 플레이리스트':'나만 보는 플레이리스트'}`)+`<div class="inline-actions playlist-actions"><button class="primary-button" data-play-all>전체 재생 ${icon('audio-play')}</button>${owned?`<button class="small-button" data-pick-playlist="${param}">좋아요한 곡 담기</button><button class="small-button" data-order-playlist="${param}">곡 순서 편집</button><button class="small-button" data-edit-playlist="${param}">이름 · 공개 설정</button><button class="small-button" data-delete-playlist="${param}">삭제</button>`:''}${d.playlist.is_public?`<button class="small-button" data-share>링크 복사</button>`:''}</div>`+list(d.tracks,owned?param:null);
   }else if(base==='account')html=accountHTML()+(authConfig?.track_moderator?'<p><a class="small-button" href="#admin/track-review">음원 검토 목록</a></p>':'');
-  else if(base==='upload'){studioData=await api('/api/studio');html=uploadHTML(studioData);}
-  else if(base==='karaoke'){const [d,duets]=await Promise.all([api('/api/karaoke'),api('/api/duets')]);nextTracks=[...d.tracks,...duets.tracks];html=karaokeListHTML(d.tracks,duets.tracks);}
-  else if(base==='sing'){const d=await loadSingRoute(param,new URLSearchParams(paramQuery?.split('?')[1]||''));if(ticket!==renderId)return;if(d.chooseMode){history.replaceState(history.state,'','#song/'+encodeURIComponent(param));await render();openRecordingMode(d);return;}routeSing=d;html=singHTML(d);}
-  else if(base==='cover'){const {track:o}=await api('/api/tracks/'+param);remember([o]);html=coverUploadHTML(o);}
-  else if(base==='gifts')html=await finalGiftShopView(param);
-  else if(base==='gold')html=(param==='history'?heading('보낸 선물 내역')+'<a class="text-link" href="#gold">골드 충전으로</a>'+sentGiftHistoryHTML(await api('/api/gold')):goldHTML(await api('/api/gold')));
-  else if(base==='admin'&&param==='track-review'){const q=new URLSearchParams(paramQuery?.split('?')[1]||'');html=trackReviewHTML(await api('/api/admin/track-review?'+q.toString()));if(authConfig?.admin)html+='<section class="surface"><button class="small-button danger-button" data-purge-all-covers>사이트 전체 커버곡 삭제</button></section>';}
-  else if(base==='admin'&&param==='partners')html=partnerAdminHTML(await api('/api/admin/diamonds'));
-  else if(base==='admin')html=adminHTML(await api('/api/admin/payouts'+(param?'?period='+encodeURIComponent(param):'')));
-  else if(base==='manage'&&param){studioData=await api('/api/studio');const {profile,alignment,karaoke}=await api('/api/studio/tracks/'+param);html=profile.kind==='cover'?coverEditHTML(profile):trackEditHTML({...profile,alignment,karaoke},studioData);}
+  else if(base==='upload'){studioData=await readApi('/api/studio');html=uploadHTML(studioData);}
+  else if(base==='karaoke'){const [d,duets]=await Promise.all([readApi('/api/karaoke'),readApi('/api/duets')]);nextTracks=[...d.tracks,...duets.tracks];html=karaokeListHTML(d.tracks,duets.tracks);}
+  else if(base==='sing'){const d=await loadSingRoute(param,new URLSearchParams(paramQuery?.split('?')[1]||''),readApi);if(ticket!==renderId)return;if(d.chooseMode){history.replaceState(history.state,'','#song/'+encodeURIComponent(param));await render();openRecordingMode(d);return;}routeSing=d;html=singHTML(d);}
+  else if(base==='cover'){const {track:o}=await readApi('/api/tracks/'+param);remember([o]);html=coverUploadHTML(o);}
+  else if(base==='gifts')html=await finalGiftShopView(param,readApi);
+  else if(base==='gold')html=(param==='history'?heading('보낸 선물 내역')+'<a class="text-link" href="#gold">골드 충전으로</a>'+sentGiftHistoryHTML(await readApi('/api/gold')):goldHTML(await readApi('/api/gold')));
+  else if(base==='admin'&&param==='track-review'){const q=new URLSearchParams(paramQuery?.split('?')[1]||'');html=trackReviewHTML(await readApi('/api/admin/track-review?'+q.toString()));if(authConfig?.admin)html+='<section class="surface"><button class="small-button danger-button" data-purge-all-covers>사이트 전체 커버곡 삭제</button></section>';}
+  else if(base==='admin'&&param==='partners')html=partnerAdminHTML(await readApi('/api/admin/diamonds'));
+  else if(base==='admin')html=adminHTML(await readApi('/api/admin/payouts'+(param?'?period='+encodeURIComponent(param):'')));
+  else if(base==='manage'&&param){studioData=await readApi('/api/studio');const {profile,alignment,karaoke}=await readApi('/api/studio/tracks/'+param);html=profile.kind==='cover'?coverEditHTML(profile):trackEditHTML({...profile,alignment,karaoke},studioData);}
   else if(base==='studio'||base==='manage'){
-   const d=await api('/api/studio');
+   const d=await readApi('/api/studio');
    studioData=d;html=studioHTML(d)+`<section class="studio-payout-callout"><div><span class="eyebrow">FOR CREATORS</span><h2>음악으로 쌓은 응원</h2><p>정산 현황과 지급 내역을 한곳에서 확인하세요.</p></div><a class="primary-button" href="#studio/payouts">${icon('wallet')} 수익·정산 보기 ${icon('arrow')}</a></section>`;
   }else html=heading('페이지를 찾을 수 없어요')+empty('잠시 길을 잃었네요','홈에서 새로운 음악을 발견해보세요.','#home','홈으로 이동');
   if(profileHeader){const header=await profileHeader;if(header.error)throw header.error;html=header+html;}

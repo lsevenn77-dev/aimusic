@@ -119,9 +119,9 @@ function playResults(view){
  if(s.mode==='song')return `<div class="play-song-unified">${playSongRows(items,s.tab)}</div>`;
  return `<div class="home-music-grid play-grid">${items.map(t=>t.type==='dubbing'?playDubbingCard(t):playMusicCard(t,s.mode==='song'?(s.tab==='duets'?'duet':'song'):null)).join('')}</div>`;
 }
-async function playView(base,param,raw){
+async function playView(base,param,raw,readApi=api){
  if((base==='community'&&(!param||param==='voice'))||(base==='voice'&&!param)){
-  const v=await voiceView('voice');return {...v,playVoice:true};
+  const v=await voiceView('voice',undefined,readApi.signal);return {...v,playVoice:true};
  }
  if(base!=='karaoke'||param==='chart')return null;
  const s=playSelection(param,raw),view={play:s,items:[],tracks:[],nextOffset:null};
@@ -129,12 +129,12 @@ async function playView(base,param,raw){
   if((s.mode==='song'&&s.tab==='drafts'||s.mode==='dubbing'&&s.tab==='mine'||s.mode==='browse'&&s.tab==='following')&&!me){returnRoute=location.hash;return {...view,html:playShell(s,gate())};}
   if(s.mode==='song'&&s.tab==='drafts')return {...view,html:playShell(s,playDraftRows(await listSingDrafts()))};
   if(s.mode==='song'){
-   const d=await api('/api/play/songs?'+new URLSearchParams({tab:s.tab}),'GET',undefined,{fresh:true});
+   const d=await readApi('/api/play/songs?'+new URLSearchParams({tab:s.tab}),'GET',undefined,{fresh:true});
    view.items=d.tracks;view.nextOffset=d.nextOffset;
   }else if(s.mode==='dubbing'){
-   const d=await api(s.tab==='join'?'/api/play/participate':'/api/dubbing/projects?tab='+(s.tab==='mine'?'mine':'open'),'GET',undefined,{fresh:true});view.items=d.projects;view.nextOffset=d.nextOffset;
+   const d=await readApi(s.tab==='join'?'/api/play/participate':'/api/dubbing/projects?tab='+(s.tab==='mine'?'mine':'open'),'GET',undefined,{fresh:true});view.items=d.projects;view.nextOffset=d.nextOffset;
   }else{
-   const d=await api('/api/play/works?'+new URLSearchParams({tab:s.tab,type:s.type}),'GET',undefined,{fresh:true});view.items=d.works;view.nextOffset=d.nextOffset;view.dubbingAvailable=d.dubbingAvailable;
+   const d=await readApi('/api/play/works?'+new URLSearchParams({tab:s.tab,type:s.type}),'GET',undefined,{fresh:true});view.items=d.works;view.nextOffset=d.nextOffset;view.dubbingAvailable=d.dubbingAvailable;
   }
   view.tracks=view.items.filter(t=>t.type!=='dubbing'&&s.mode!=='dubbing');
   view.html=playShell(s,playToolbar(s)+(view.dubbingAvailable===false?'<p class="field-help">더빙 목록은 현재 준비 중이에요.</p>':'')+'<div id="play-results" aria-live="polite">'+playResults(view)+'</div><button class="small-button play-more" id="play-more" '+(view.nextOffset===null?'hidden':'')+'>더 보기</button>');

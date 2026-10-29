@@ -11,7 +11,7 @@ const track=title=>({id:title,title,genre:'Rock',duration:30});
 function client(fetch){
  let now=1_790_000_000_000;
  class Clock extends Date {static now(){return now;}}
- const context=vm.createContext({fetch,structuredClone,URL,URLSearchParams,Map,Date:Clock,console,AifectGenres:{GENRES:[]},window:{},Audio:class{},sessionStorage:{getItem:()=>null},document:{querySelectorAll:()=>[],addEventListener(){}}});
+ const context=vm.createContext({fetch,AbortController,structuredClone,URL,URLSearchParams,Map,Date:Clock,console,AifectGenres:{GENRES:[]},window:{},Audio:class{},sessionStorage:{getItem:()=>null},document:{querySelectorAll:()=>[],addEventListener(){}}});
  vm.runInContext(source('app.js'),context);
  vm.runInContext("toast=()=>{};me={id:'owner'};",context);
  return {context,run:code=>vm.runInContext(code,context),advance:ms=>{now+=ms;}};
@@ -49,6 +49,67 @@ function homeRenderer(fetch){
  return {...c,section:id=>sections.get(id)};
 }
 
+test('an obsolete route stops the provider chain before starting another page read',async()=>{
+ const held=deferred(),started=deferred(),c=homeRenderer(async()=>response({tracks:[],playlists:[]}));let staleCalls=0;
+ c.context.improvementsView=async base=>{if(base==='history'){started.resolve();await held.promise;}return null;};
+ c.context.browseView=async base=>{if(base==='history')staleCalls++;return null;};
+ const first=c.navigate('history');await started.promise;await c.navigate('home');held.resolve();await first;
+ assert.equal(staleCalls,0);assert.match(c.main.innerHTML,/listening-home/);
+});
+
+test('song core is playable while comments, covers and gifts are still pending',async()=>{
+ const held=deferred(),started=deferred(),c=renderer(async path=>{
+  if(path==='/api/tracks/song')return response({track:track('CORE SONG')});
+  started.resolve();await held.promise;
+  return response(path.endsWith('/comments')?{comments:[]}:{});
+ });
+ Object.assign(c.context,{songDetailHeaderHTML:t=>'<article>'+t.title+'</article>',coversPanelHTML:()=>'',commentsHTML:()=>'',lyricsPanel:()=>'',giftsPanelHTML:()=>'',songCreditCardHTML:()=>'',bindSongCoverList(){}});
+ const opening=c.navigate('song/song');await started.promise;await new Promise(resolve=>setImmediate(resolve));
+ assert.match(c.main.innerHTML,/CORE SONG/);assert.match(c.main.innerHTML,/이야기와 참여 작품을 불러오는 중/);
+ assert.equal(c.run('routeTracks[0].title'),'CORE SONG');held.resolve();await opening;
+ assert.match(c.main.innerHTML,/comments-panel/);assert.doesNotMatch(c.main.innerHTML,/이야기와 참여 작품을 불러오는 중/);
+});
+
+test('late studio data cannot overwrite the active studio state after navigation',async()=>{
+ const held=deferred(),started=deferred(),c=homeRenderer(async path=>{if(path==='/api/studio'){started.resolve();return held.promise;}return response({tracks:[],playlists:[]});});
+ c.context.studioData={name:'CURRENT'};c.context.uploadHTML=()=>'<p>Upload</p>';
+ const first=c.navigate('upload');await started.promise;await c.navigate('home');held.resolve(response({name:'OBSOLETE'}));await first;
+ assert.equal(c.context.studioData.name,'CURRENT');assert.match(c.main.innerHTML,/listening-home/);
+});
+
+test('rapid search changes abort the old request and ignore its late result',async()=>{
+ const held=deferred(),started=deferred();let signal;
+ const c=renderer(async(path,options)=>{if(path.includes('q=first')){signal=options.signal;started.resolve();return held.promise;}return response({tracks:[track('Second search result')]});});
+ const first=c.navigate('search/first');await started.promise;await c.navigate('search/second');
+ assert.equal(signal?.aborted,true);held.resolve(response({tracks:[track('Obsolete search result')]}));await first;
+ assert.match(c.main.innerHTML,/Second search result/);assert.doesNotMatch(c.main.innerHTML,/Obsolete search result/);
+});
+
+test('route changes close page overlays and release inline previews without touching the global player',async()=>{
+ const c=renderer(async()=>response({tracks:[]}));let closed=0,paused=0,loaded=0,globalPauses=0;
+ c.run('audio.pause=()=>globalPause();');c.context.globalPause=()=>globalPauses++;
+ const query=c.main.querySelectorAll;c.main.querySelectorAll=selector=>selector==='audio,video'?[{pause(){paused++;},removeAttribute(){},load(){loaded++;}}]:query.call(c.main,selector);
+ c.document.querySelectorAll=selector=>selector==='dialog[open]'?[{close(){closed++;}}]:[];
+ c.main.dataset.route='playlist/previous';await c.navigate('history');
+ assert.equal(closed,1);assert.equal(paused,1);assert.equal(loaded,1);assert.equal(globalPauses,0);
+});
+
+test('new navigation releases page observers but preserves a matching voice connection',async()=>{
+ const c=renderer(async()=>response({tracks:[]}));let observers=0,voiceLeaves=0;
+ c.context.searchResizeCleanup=()=>observers++;c.context.discoverCleanup=()=>observers++;
+ c.context.playBannerCleanup=()=>observers++;c.context.cleanupVoiceRoute=(base,id)=>{if(base!=='voice'||id!=='same')voiceLeaves++;};
+ c.context.voiceView=async()=>({html:'<p>SAME VOICE ROOM</p>'});await c.navigate('voice/same');
+ assert.equal(observers,3);assert.equal(voiceLeaves,0);assert.match(c.main.innerHTML,/SAME VOICE ROOM/);
+});
+
+test('late-loaded components register cleanup without accessing their uninitialized globals',async()=>{
+ const c=renderer(async()=>response({tracks:[]}));let cleaned=0;c.context.lateCleanup=()=>cleaned++;
+ // typeof a lexical binding in its temporal dead zone must never be evaluated.
+ const script=new vm.Script("render();let shopLayoutCleanup;let shopPreviewCleanup;");
+ await script.runInContext(c.context);c.run('registerRouteCleanup(lateCleanup)');await c.navigate('history');
+ assert.equal(cleaned,1);await c.navigate('history');assert.equal(cleaned,1);
+});
+
 test('home replaces the outgoing page before a delayed voice leave acknowledgement',{timeout:3000},async()=>{
  const leaving=deferred(),catalog=deferred();
  const c=homeRenderer(async path=>path.includes('catalog')?catalog.promise:response({tracks:[],playlists:[]}));
@@ -76,7 +137,7 @@ test('a superseded async fast path cannot dispose or replace the newly mounted h
 test('leaving home cancels its requests and late completions cannot change the next visit',async()=>{
  const held=[],signals=[];let delayed=true;
  const c=homeRenderer(async(path,options)=>{
-  if(!options.signal)return response({tracks:[]});
+  if(!options.signal||path==='/api/history')return response({tracks:[]});
   signals.push(options.signal);
   if(delayed){const read=deferred();held.push(read);return read.promise;}
   return response({tracks:[track('CURRENT HOME')],playlists:[]});

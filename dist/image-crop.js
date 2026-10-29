@@ -2,10 +2,12 @@
 // Cover art, banners and chat attachments retain their own ratios.
 const croppedPhotos=new WeakMap();
 async function cropPhotoEditor(file,{shape='square'}={}){
+ const ticket=typeof renderId==='number'?renderId:null;
  if(croppedPhotos.get(file)?.has(shape))return croppedPhotos.get(file).get(shape);
  if(!['image/jpeg','image/png','image/webp'].includes(file?.type)||file.size>5*1024*1024)throw new Error('JPG·PNG·WebP, 5MB 이하 사진을 선택해주세요.');
  const decode=async f=>{const b=await decodeUploadImage(f);if(!b.width||!b.height||b.width*b.height>64000000){b.close();throw Error('이미지가 너무 커요. 가로·세로 크기를 줄여주세요.');}return b;};
  let bitmap=await decode(file),zoom=1,x=.5,y=.5;
+ if(ticket!==null&&ticket!==renderId){bitmap.close();throw Error('사진 편집을 취소했어요.');}
  const circle=shape==='circle';
  const modal=document.createElement('dialog');modal.className='photo-crop-dialog';modal.innerHTML='<h2>사진 편집</h2><p>사진을 움직이거나 확대·축소해 '+(circle?'원형 가이드 안':'정사각형 안')+'에 맞춰주세요. 전체 사진 버튼으로 사진을 모두 넣을 수 있어요.</p><div class="photo-crop-preview"><canvas width="800" height="800" aria-label="저장할 사진 미리보기"></canvas>'+(circle?'<span class="photo-crop-circle" aria-hidden="true"></span>':'')+'</div><label>확대·축소<input type="range" min=".5" max="4" step=".001" value="1"></label><div class="photo-crop-tools"><button type="button" class="small-button" data-crop-fit>전체 사진</button><label class="small-button">다른 사진 선택<input type="file" accept="image/jpeg,image/png,image/webp" class="sr-only"></label></div><div class="inline-actions"><button class="small-button" data-crop-cancel>취소</button><button class="primary-button" data-crop-save>사진 사용</button></div><p role="alert"></p>';
  document.body.append(modal);modal.showModal();const canvas=modal.querySelector('canvas'),slider=modal.querySelector('[type=range]'),pointers=new Map();

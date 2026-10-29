@@ -40,12 +40,12 @@ async function voiceRequest(path,body,method=body===undefined?'GET':'POST',signa
  const r=await fetch('/api/voice/'+path,{method,signal,credentials:'same-origin',headers:body===undefined?{}:{'content-type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)});
  const data=await r.json();if(!r.ok)throw Object.assign(new Error(data.error||'토킹룸 연결에 실패했어요.'),{status:r.status});return data;
 }
-async function voiceView(base,id) {
+async function voiceView(base,id,signal) {
  if(base!=='voice')return null;
  if(id){if(!me)return {html:heading('토킹룸')+gate()};return {html:voiceRoomHTML(id)};}
  const top=heading('커뮤니티','듣고 대화하고, 함께 성장하는 음악 커뮤니티')+communityNavigation('voice');
  let data={rooms:[],crews:[]},enabled=false;
- try{const status=await voiceRequest('status');enabled=status.enabled;if(enabled)data=await voiceRequest('public-rooms');}catch(e){return {html:top+'<p role="alert">'+esc(e.message)+'</p>'};}
+ try{const status=await voiceRequest('status',undefined,'GET',signal);enabled=status.enabled;if(enabled)data=await voiceRequest('public-rooms',undefined,'GET',signal);}catch(e){return {html:top+'<p role="alert">'+esc(e.message)+'</p>'};}
  return {html:top+voiceLobbyHTML(data,enabled),voiceLobby:true};
 }
 function cleanupVoiceRoute(base,id) {setVoiceFocus(!!me&&base==='voice'&&voiceController?.id===id&&voiceController.joined&&!voiceController.closed);if(voiceController&&(!me||base!=='voice'||voiceController.id!==id)){const leaving=voiceController.leave();voiceController=null;return leaving;}}

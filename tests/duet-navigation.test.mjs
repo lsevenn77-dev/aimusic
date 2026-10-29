@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
-function context(extra={}){const c=vm.createContext({URLSearchParams,confirm:()=>true,window:{addEventListener(){}},document:{addEventListener(){}},...extra});vm.runInContext(readFileSync(new URL('../dist/karaoke.js',import.meta.url),'utf8'),c);return c;}
+function context(extra={}){const c=vm.createContext({me:null,URLSearchParams,confirm:()=>true,window:{addEventListener(){}},document:{addEventListener(){}},...extra});vm.runInContext(readFileSync(new URL('../dist/karaoke.js',import.meta.url),'utf8'),c);return c;}
 test('blocked navigation and failed draft saving preserve the duet parent across reload',async()=>{
  for(const state of ['loading','idle']){
   let restored='';const c=context({renderId:0,location:{hash:'#home'},setMobileMenu(){},toast(){},history:{replaceState(a,b,href){restored=href;}},saveSingDraft:async()=>{throw Error('storage full');}});

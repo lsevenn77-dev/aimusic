@@ -8,7 +8,7 @@ function client({user={id:'owner'},range='top20',post,quota=true}={}){
  const calls=[],messages=[],button={innerHTML:'만들기',setAttribute(){},removeAttribute(){}},cancel={},error={scrollIntoView(){}},values=new Map([['name','월간 인기 차트'],['range',range]]);
  let shown=false;
  const form={querySelector:s=>s==='[data-chart-cancel]'?cancel:s.includes('form-error')?error:null},modal={open:false,addEventListener(){},removeEventListener(){},close(){this.open=false;}};
- const c=vm.createContext({me:user,location:{hash:'#charts?period=month'},chartTabs:()=>'',icon:()=>'',number:String,esc:String,formField:()=>'',formError:()=>error,uploadStage(){},toast:s=>messages.push(s),window:{addEventListener(){},removeEventListener(){}},
+ const c=vm.createContext({renderId:0,me:user,location:{hash:'#charts?period=month'},chartTabs:()=>'',icon:()=>'',number:String,esc:String,formField:()=>'',formError:()=>error,uploadStage(){},toast:s=>messages.push(s),window:{addEventListener(){},removeEventListener(){}},
   $:s=>s==='#dialog'?modal:s==='#chart-playlist-form'&&shown?form:null,
   dialog(html){shown=true;modal.open=true;c.html=html;},askLogin(){calls.push('login');},refreshLibrary:async()=>{},canCreatePlaylist:()=>quota,
   FormData:class{get(k){return values.get(k);}},api:async(path,method,body)=>{calls.push({path,method,body});return post?post():{id:'created'};}
@@ -17,6 +17,12 @@ function client({user={id:'owner'},range='top20',post,quota=true}={}){
  const a=source('actions.js');vm.runInContext(a.slice(a.indexOf('function busyForm('),a.indexOf('function bindUploadForm(')),c);
  return {c,calls,messages,form,modal,button,event:()=>({preventDefault(){},submitter:button}),tracks:Array.from({length:113},(_,i)=>({id:'track-'+i})),values};
 }
+test('an old chart dialog is discarded when its library read finishes after navigation',async()=>{
+ const h=client();let finish;h.c.refreshLibrary=()=>new Promise(resolve=>finish=resolve);
+ const opening=h.c.chartPlaylistDialog({tracks:h.tracks,chartPeriod:'week'});h.c.renderId++;finish();await opening;
+ assert.equal(h.modal.open,false);assert.equal(h.calls.length,0);
+});
+
 test('chart playlist snapshots rank order and submits once under repeated create clicks',async()=>{
  let finish;const h=client({post:()=>new Promise(r=>finish=r)});
  await h.c.chartPlaylistDialog({tracks:h.tracks,chartKind:'',chartPeriod:'month'});

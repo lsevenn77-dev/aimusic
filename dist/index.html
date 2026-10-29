@@ -122,6 +122,15 @@
     </header>
     <main id="main" tabindex="-1"><section><h1>AIFECT · 듣고, 부르고, 함께 만드는 음악</h1><p>창작자가 공개한 제작곡과 회원이 직접 부른 커버곡을 함께 듣는 음악 커뮤니티입니다. 좋은 커버도 플레이리스트에 담고, 창작자 프로필에서 다른 음악을 발견할 수 있습니다.</p><h2>공개된 음악부터 둘러보세요</h2><p>곡별 페이지에는 실제 공개 음악의 제목, 활동명, 장르, 곡 소개와 공개일이 표시됩니다. 로그인 전에도 곡 정보를 확인할 수 있고, 로그인 없이 1분 미리듣기가 가능하며, 전체곡 감상과 개인 플레이리스트 이용에는 로그인이 필요합니다.</p><a href="/music">공개 음악 목록과 곡 소개 보기</a><h2>내 목소리로 참여하기</h2><p>플레이에서 반주 준비가 완료된 곡을 고르고 솔로 또는 듀엣으로 녹음하세요. 완성 전 녹음은 초안으로 저장하고, 공개 전 미리듣기로 싱크와 볼륨, 효과를 확인할 수 있습니다.</p><nav aria-label="음악 이용 안내"><a href="/guide/listening">음악 감상과 플레이리스트</a> · <a href="/guide/recording">녹음과 초안 사용 안내</a> · <a href="/guide/community">커뮤니티와 크루 안내</a></nav></section></main>
 
+    <script id="route-initial-content">
+    // A fragment is never sent to the server. Paint its destination shell while
+    // deferred application code loads, keeping the public home as the no-JS fallback.
+    (()=>{const base=location.hash.slice(1).split(/[/?]/)[0];if(!base||base==='home')return;
+      const titles={song:'곡 이야기',playlist:'플레이리스트',search:'음악 검색',discover:'음악 발견',charts:'차트',collections:'공개 플레이리스트',artists:'AI 아티스트',artist:'AI 아티스트',producers:'음악가',producer:'프로필',member:'프로필',profile:'마이',community:'커뮤니티',crew:'크루',voice:'토킹룸',karaoke:'플레이',sing:'녹음',cover:'커버 업로드',dubbing:'더빙',library:'내 보관함',history:'최근 들은 음악',following:'팔로우',account:'계정',studio:'스튜디오',upload:'음원 업로드',manage:'음원 관리',gifts:'선물함',inventory:'인벤토리',dm:'메시지',notifications:'알림',membership:'이용권',gold:'골드',payouts:'정산',rewards:'오늘의 실버',relations:'관계',admin:'관리'};
+      const main=document.getElementById('main'),title=Object.hasOwn(titles,base)?titles[base]:'페이지';
+      main.setAttribute('aria-busy','true');main.innerHTML='<div class="page-heading"><h1>'+title+'</h1></div><div class="route-loading" role="status"><span>불러오는 중…</span><div></div><div></div><div></div></div>';
+    })();
+    </script>
     <footer class="page-footer"><!--BUSINESS_FOOTER--></footer>
   </div>
   <nav class="mobile-navigation social-mobile-navigation" aria-label="하단 주 메뉴">

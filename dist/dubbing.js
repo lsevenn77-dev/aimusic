@@ -58,9 +58,9 @@ function dubbingOptionsHTML(config,mode,genre=''){
  </form>
  <aside class="dubbing-panel dubbing-guide"><span class="eyebrow">HOW IT WORKS</span><h2>대본 한 편,<br>함께 만드는 장면.</h2><ol><li><b>장르 · 인원 · 시간 선택</b><p>짧은 30초 장면부터 5분 이야기까지.</p></li><li><b>세부사항 직접 입력</b><p>등장인물과 상황을 적으면 AI가 연기할 대본으로 만들어요.</p></li><li><b>배역 선택과 음향 제작</b><p>완성된 대본을 다듬고 함께할 목소리를 모집해요.</p></li></ol><div class="dubbing-guide-note">AI 음향 연출 · 작품당 ${Number(config.soundPriceGold)}G<br>상황별 효과음 + 짧은 BGM + 자동 믹싱<br><small>${config.goldChargingEnabled?'생성 전 최종 금액을 확인해요. 실패하면 자동 환급돼요.':'개발 검증 중에는 골드가 차감되지 않아요.'}</small></div></aside></div>`;
 }
-async function dubbingView(base,param,raw){
+async function dubbingView(base,param,raw,readApi=api){
  if(base!=='dubbing')return null;
- const config=await api('/api/dubbing/config');
+ const config=await readApi('/api/dubbing/config');
  if(!config.enabled)return {html:dubbingShell(dubbingEmpty('더빙 스튜디오를 준비하고 있어요.','이야기를 함께 연기하는 새로운 공간으로 곧 만나요.',false)),dubbing:true};
  if((param==='new'||new URLSearchParams(raw.split('?')[1]).get('tab')==='mine')&&!me){returnRoute=location.hash;return {html:gate(),dubbing:true};}
  if(param==='new'){
@@ -69,9 +69,9 @@ async function dubbingView(base,param,raw){
   return {html:dubbingShell(dubbingOptionsHTML(config,mode,genre)),dubbing:true,dubbingCreate:true,config,route:raw};
  }
  if(param){
-  const {project:p}=await api('/api/dubbing/projects/'+encodeURIComponent(param));
+  const {project:p}=await readApi('/api/dubbing/projects/'+encodeURIComponent(param));
   if(!p.removed&&new URLSearchParams(raw.split('?')[1]).get('record')==='1'&&p.recordingAvailable&&p.roles.some(r=>r.mine)&&p.sound.state==='ready'){
-   const recordingData=await api('/api/dubbing/projects/'+p.id+'/recording');
+   const recordingData=await readApi('/api/dubbing/projects/'+p.id+'/recording');
    return {html:dubbingShell(dubbingRecordingHTML(p,recordingData)),dubbing:true,recordingData,project:p,config,route:raw};
   }
   const editing=new URLSearchParams(raw.split('?')[1]).get('edit')==='1'&&p.canEdit;
@@ -79,8 +79,8 @@ async function dubbingView(base,param,raw){
  }
  const query=new URLSearchParams(raw.split('?')[1]),tab=dubbingTabs.some(t=>t[0]===query.get('tab'))?query.get('tab'):'open';
  const genre=AifectDubbing.DUBBING_GENRES.includes(query.get('genre'))?query.get('genre'):'';
- const data=await api('/api/dubbing/projects?'+dubbingListQuery(tab,genre));
- const payments=tab==='mine'?(await api('/api/dubbing/payments')).payments:[];
+ const data=await readApi('/api/dubbing/projects?'+dubbingListQuery(tab,genre));
+ const payments=tab==='mine'?(await readApi('/api/dubbing/payments')).payments:[];
 
  return {html:dubbingShell(`<section class="dubbing-hero"><div><span class="eyebrow">AIFECT DUBBING STUDIO</span><h1>이야기에,<br>우리의 목소리를.</h1><p>한 편의 대본, 서로 다른 목소리.<br>함께 연기할 당신만의 이야기를 시작하세요.</p><div class="dubbing-form-actions"><a class="primary-button" href="#dubbing/new">${icon('sparkles')} AI 대본 만들기</a><a class="small-button" href="#dubbing/new?mode=manual">직접 대본 만들기 ${icon('arrow')}</a></div></div><div class="dubbing-hero-steps"><div class="dubbing-hero-step"><span>01</span><div><b>이야기를 고르고</b><p>30초부터 5분까지 · 1~6명의 배역</p></div></div><div class="dubbing-hero-step"><span>02</span><div><b>장면에 소리를 더하고</b><p>대본에 어울리는 효과음과 배경음악</p></div></div><div class="dubbing-hero-step"><span>03</span><div><b>함께할 목소리를 모아요</b><p>마음에 드는 배역을 선택해 참여하기</p></div></div></div></section>
  ${dubbingGenresHTML(tab,genre)}
@@ -99,16 +99,17 @@ function dubbingListSelection(raw){
  const q=new URLSearchParams(raw.split('?')[1]);
  return {tab:dubbingTabs.some(t=>t[0]===q.get('tab'))?q.get('tab'):'open',genre:AifectDubbing.DUBBING_GENRES.includes(q.get('genre'))?q.get('genre'):''};
 }
-async function dubbingRefreshList(raw,ticket){
+async function dubbingRefreshList(raw,ticket,readApi=api){
  const main=$('#main'),results=$('#dubbing-list-results');
  if(!results||!/^dubbing(?:\?|$)/.test(raw)||!/^dubbing(?:\?|$)/.test(main.dataset.route||'')||main.dataset.account!==(me?.id||'guest'))return false;
  const {tab,genre}=dubbingListSelection(raw);
  if(tab==='mine'&&!me)return false;
  main.dataset.route=raw;results.setAttribute('aria-busy','true');
+ results.innerHTML='<p class="dubbing-muted" role="status">불러오는 중…</p>';
  main.querySelectorAll('.dubbing-tabs a').forEach((a,i)=>{const key=dubbingTabs[i][0];a.href='#dubbing?'+dubbingListQuery(key,genre);a.toggleAttribute('aria-current',key===tab);if(key===tab)a.setAttribute('aria-current','page');});
  main.querySelectorAll('.dubbing-genre-filter a').forEach((a,i)=>{const g=['',...AifectDubbing.DUBBING_GENRES][i];a.href='#dubbing?'+dubbingListQuery(tab,g);a.toggleAttribute('aria-current',g===genre);});
  try{
-  const [data,paymentData]=await Promise.all([api('/api/dubbing/projects?'+dubbingListQuery(tab,genre)),tab==='mine'?api('/api/dubbing/payments'):Promise.resolve({payments:[]})]);
+  const [data,paymentData]=await Promise.all([readApi('/api/dubbing/projects?'+dubbingListQuery(tab,genre)),tab==='mine'?readApi('/api/dubbing/payments'):Promise.resolve({payments:[]})]);
   if(ticket!==renderId||!results.isConnected)return true;
   results.innerHTML=dubbingListResultsHTML(data,paymentData.payments,tab,genre);results.removeAttribute('aria-busy');
   bindDubbing({dubbing:true,tab,genre,nextOffset:data.nextOffset,cardCount:data.projects.length});icons();
@@ -125,8 +126,10 @@ function dubbingSoundHTML(sound={},isOwner){
  <p class="dubbing-feedback" role="status" aria-live="polite"></p>`;
 }
 async function dubbingConfirmSound(sound){
+ const ticket=renderId;
  let balance=null;
  if(sound.chargeGold){try{balance=(await api('/api/gold/balance')).balance;}catch{toast('골드 잔액을 확인하지 못했어요. 잠시 뒤 다시 시도해주세요.');return false;}}
+ if(ticket!==renderId)return false;
  return new Promise(resolve=>{
   const price=Number(sound.priceGold)||50,charge=Number(sound.chargeGold)||0;
   dialog(`<section class="dubbing-page"><span class="eyebrow">AI SOUND DIRECTION</span><h2>이야기에 소리를 더할까요?</h2><p>대본의 사건에 맞는 효과음을 중심으로 만들어요.<br>BGM은 장르에 맞춰 도입과 절정에 넣어요. 도입은 첫 대사 전에 멈추며, 무도회처럼 장면 안에서 흐르는 음악은 대사 중에도 이어질 수 있어요.</p><div class="dubbing-quota"><strong>작품당 ${price}G</strong><p>이번 차감 금액 <b>${charge}G</b></p>${balance===null?'':`<p>보유 ${Number(balance)}G · ${balance>=charge?`제작 후 ${Number(balance)-charge}G`:'잔액이 부족해요.'}</p>`}<small>${charge?'확인하면 골드가 차감돼요. 제작 실패 시 자동 환급되며, 같은 대본의 중복 요청에는 다시 결제하지 않아요.':'개발 검증 중으로 실제 골드는 차감되지 않아요.'}</small></div><div class="dubbing-form-actions"><button type="button" class="small-button" id="dubbing-sound-cancel">취소</button>${balance!==null&&balance<charge?'<a class="small-button" href="#gold" id="dubbing-gold-link">골드 충전</a>':''}<button type="button" class="primary-button" id="dubbing-sound-confirm" ${balance!==null&&balance<charge?'disabled':''}>${charge?charge+'G로 제작하기':'확인하고 생성'}</button></div></section>`);

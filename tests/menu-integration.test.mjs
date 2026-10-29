@@ -61,10 +61,11 @@ test('following uses the current works API with paging/type/search and retains n
 });
 
 test('payout and reward integration reuse the existing protected handlers',async()=>{
- const calls=[],c=context({improvementsView:async(...args)=>{calls.push(args);return {html:'existing'};}});
+ const calls=[],c=context({api:async()=>{throw Error('Unexpected request');},improvementsView:async(...args)=>{calls.push(args);return {html:'existing'};}});
  assert.match((await c.integratedMenuView('studio','payouts','studio/payouts?period=2026-09')).html,/existing/);
  assert.match((await c.integratedMenuView('gifts','rewards','gifts/rewards')).html,/existing/);
- assert.deepEqual(calls,[['payouts',null,'studio/payouts?period=2026-09'],['rewards',null,'gifts/rewards']]);
+ assert.deepEqual(calls.map(args=>args.slice(0,3)),[['payouts',null,'studio/payouts?period=2026-09'],['rewards',null,'gifts/rewards']]);
+ assert.ok(calls.every(args=>args[3]===c.api),'nested handlers retain the route-scoped reader');
 });
 
 test('following lists, profile counts and follow mutations remain backed by the same records',async t=>{

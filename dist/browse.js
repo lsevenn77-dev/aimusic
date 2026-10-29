@@ -55,7 +55,7 @@ function chartPlaybackActions(tracks,kind='',period='week',note='한국 시간 �
 }
 let chartPlaylistOpening=false,chartPlaylistSaving=false;
 function chartPlaylistIds(tracks,range){return tracks.slice(0,range==='top20'?20:tracks.length).map(t=>t.id);}
-async function chartPlaylistDialog(view){
+async function chartPlaylistDialog(view){const ticket=renderId;
  if(chartPlaylistOpening||chartPlaylistSaving||($('#dialog')?.open&&$('#chart-playlist-form')))return;
  if(!me){returnRoute=location.hash;return askLogin();}
  chartPlaylistOpening=true;
@@ -63,7 +63,7 @@ async function chartPlaylistDialog(view){
  try{
   await refreshLibrary(true);if(me?.id!==uid)return;
   if(!canCreatePlaylist())return;
-  dialog(`<section class="chart-playlist-dialog"><h2>차트로 플리 만들기</h2><form id="chart-playlist-form">${formField('플레이리스트 이름','name','text',name,'required maxlength="80"')}<fieldset class="chart-range"><legend>담을 곡</legend><label><input type="radio" name="range" value="top20" checked> 상위 20곡 <span>${Math.min(20,tracks.length)}곡</span></label><label><input type="radio" name="range" value="all"> 차트 전체 <span>${number(tracks.length)}곡</span></label></fieldset><p class="field-help">선택한 차트의 순서대로 내 플레이리스트에 저장해요.</p><p class="form-error" role="alert"></p><div class="chart-dialog-actions"><button type="button" class="small-button" data-chart-cancel>취소</button><button type="submit" class="small-button chart-confirm">만들기</button></div></form></section>`);
+  if(ticket!==renderId)return;dialog(`<section class="chart-playlist-dialog"><h2>차트로 플리 만들기</h2><form id="chart-playlist-form">${formField('플레이리스트 이름','name','text',name,'required maxlength="80"')}<fieldset class="chart-range"><legend>담을 곡</legend><label><input type="radio" name="range" value="top20" checked> 상위 20곡 <span>${Math.min(20,tracks.length)}곡</span></label><label><input type="radio" name="range" value="all"> 차트 전체 <span>${number(tracks.length)}곡</span></label></fieldset><p class="field-help">선택한 차트의 순서대로 내 플레이리스트에 저장해요.</p><p class="form-error" role="alert"></p><div class="chart-dialog-actions"><button type="button" class="small-button" data-chart-cancel>취소</button><button type="submit" class="small-button chart-confirm">만들기</button></div></form></section>`);
   const form=$('#chart-playlist-form'),modal=$('#dialog'),cancel=form.querySelector('[data-chart-cancel]');let createdId=null;
   const preventCancel=e=>{if(form._busy)e.preventDefault();};modal.addEventListener('cancel',preventCancel);modal.addEventListener('close',()=>modal.removeEventListener('cancel',preventCancel),{once:true});
   cancel.onclick=()=>{if(!form._busy)modal.close();};
@@ -91,41 +91,41 @@ function bindChartToolbar(view){
  details.addEventListener('click',e=>{const choice=e.target.closest('a');if(choice){details.querySelector('summary span').textContent=choice.textContent;details.open=false;}});
  const close=e=>{if(e.type==='keydown'){if(e.key==='Escape'&&details.open){details.open=false;details.querySelector('summary').focus();}}else if(!details.contains(e.target))details.open=false;};
  document.addEventListener('click',close);document.addEventListener('keydown',close);
- chartToolbarCleanup=()=>{document.removeEventListener('click',close);document.removeEventListener('keydown',close);};
- window.addEventListener('hashchange',chartToolbarCleanup,{once:true});
+ const cleanup=()=>{document.removeEventListener('click',close);document.removeEventListener('keydown',close);window.removeEventListener('hashchange',cleanup);};
+ chartToolbarCleanup=cleanup;window.addEventListener('hashchange',cleanup,{once:true});
 }
-async function popularChartView(raw='',kind=''){
+async function popularChartView(raw='',kind='',readApi=api){
  const query=new URLSearchParams(raw.includes('?')?raw.split('?')[1]:''),requested=query.get('period'),period=['week','month','all'].includes(requested)?requested:'week';
- const d=await api('/api/catalog?section=tracks&full=1&chart='+(kind||'top')+'&period='+period);
+ const d=await readApi('/api/catalog?section=tracks&full=1&chart='+(kind||'top')+'&period='+period);
  const chart=d.chart,tracks=d.tracks;
  const note=kind==='rising'?'최근 7일과 이전 7일의 유효 감상 증가량 · 증가율 기준':kind==='releases'?'최초 공개 후 30일 이내 · 인기도 기준':'한국 시간 기준 · 전날 집계 대비';
  return {html:'<section class="charts-final"><h1>차트</h1>'+chartPlaybackActions(tracks,kind,period,note)+(tracks.length?chartPageTable(tracks):empty('아직 집계된 곡이 없어요.','선택한 차트에 해당하는 공개 제작곡이 여기에 표시됩니다.','#home','홈으로'))+(chart?.comparison?.available?'':'<p class="field-help chart-comparison-note">같은 집계 기준의 전날 기록이 준비되면 순위 변동을 표시해요.</p>')+'</section>',tracks,chartPage:true,chartKind:kind,chartPeriod:period};
 }
-async function browseView(base,param,raw,embedded=false){
- if(base==='karaoke'&&param==='browse')return playBrowseV3(raw);
- if(base==='charts')return popularChartView(raw,['rising','releases'].includes(param)?param:'');
+async function browseView(base,param,raw,embedded=false,readApi=api){
+ if(base==='karaoke'&&param==='browse')return playBrowseV3(raw,readApi);
+ if(base==='charts')return popularChartView(raw,['rising','releases'].includes(param)?param:'',readApi);
  if(base==='search')return null;
  if(base==='charts'&&param==='karaoke'||base==='karaoke'&&param==='chart'){
-  const d=await api('/api/cover-rankings?kind=tracks&period=week&include_unranked=1'),tracks=d.tracks.filter(t=>t.kind==='cover');
+  const d=await readApi('/api/cover-rankings?kind=tracks&period=week&include_unranked=1'),tracks=d.tracks.filter(t=>t.kind==='cover');
   return {html:heading('노래방 차트','공개된 커버곡만 모았어요. 이번 주 받은 좋아요 순으로 만나요.')+chartTabs('karaoke')+chartLayoutHTML(browsePlaybackActions(tracks)+(tracks.length?coverRankTracksHTML(tracks):empty('아직 등록된 커버곡이 없어요','첫 커버곡이 공개되면 이곳에서 만날 수 있어요.','#karaoke','플레이')),tracks,'karaoke'),tracks};
  }
  if(base==='karaoke'&&param==='drafts'){if(!me){returnRoute=location.hash;return {html:gate()};}return {html:karaokeDraftsHTML(await listSingDrafts())};}
  if(base==='karaoke'&&['songs','duets'].includes(param)){
-  const duet=param==='duets',d=await api(duet?'/api/duets':'/api/karaoke','GET',undefined,{fresh:duet});
+  const duet=param==='duets',d=await readApi(duet?'/api/duets':'/api/karaoke','GET',undefined,{fresh:duet});
   const tracks=duet?d.tracks.filter(t=>musicIsOpenDuet(t)&&!t.duet_parent_id&&t.original_id):d.tracks;
   return {html:singingCollectionHTML(tracks,param),tracks,karaokeTracks:tracks,singingHub:true,singingCollection:param};
  }
  if(base==='karaoke'){
-  const [d,duets]=await Promise.all([api('/api/karaoke'),api('/api/duets')]),tracks=d.tracks.map((t,i)=>({...t,browseRank:i+1}));
+  const [d,duets]=await Promise.all([readApi('/api/karaoke'),readApi('/api/duets')]),tracks=d.tracks.map((t,i)=>({...t,browseRank:i+1}));
   remember([...(d.recent_covers||[]),...duets.tracks]);return {html:singingHubHTML(tracks,d.recent_covers||[],duets.tracks),tracks,karaokeTracks:tracks,singingHub:true};
  }
- if(base==='community'||base==='covers')return communityView(base,param,raw);
+ if(base==='community'||base==='covers')return communityView(base,param,raw,readApi);
  if(base==='history'||base==='library'&&['history','covers','originals','following'].includes(param)){
   if(!me){returnRoute=location.hash;return {html:gate()};}
   const tab=base==='history'?'history':param;let html=(embedded?'':heading('내 보관함','좋아하는 음악과 내가 남긴 목소리를 한곳에서.'))+(embedded&&tab!=='history'?'':libraryTabs(tab));
   if(tab==='following'){await refreshLibrary();const people=kind=>library.follows.filter(f=>f.kind===kind).map(f=>({...f,id:f.target_id}));html+=`<p class="field-help"><a class="text-link" href="#community/following">팔로우한 창작자의 새 음악 듣기</a></p>`;for(const [kind,title] of [['producer','창작자'],['artist','AI 아티스트']])html+=section(title)+(people(kind).length?peopleListHTML(people(kind),kind):`<p class="empty-inline">아직 팔로우한 ${title}가 없어요. <a class="text-link" href="#${kind==='producer'?'producers':'artists'}">둘러보기</a></p>`);return {html};}
-  if(tab==='history'){const d=await api('/api/history');return {html:html+browsePlaybackActions(d.tracks)+list(d.tracks),tracks:d.tracks};}
-  const d=await api('/api/studio'),owned=d.tracks.filter(t=>t.kind===(tab==='covers'?'cover':'original')),published=owned.filter(t=>t.status==='published');
+  if(tab==='history'){const d=await readApi('/api/history');return {html:html+browsePlaybackActions(d.tracks)+list(d.tracks),tracks:d.tracks};}
+  const d=await readApi('/api/studio'),owned=d.tracks.filter(t=>t.kind===(tab==='covers'?'cover':'original')),published=owned.filter(t=>t.status==='published');
   html+=`<div class="inline-actions playlist-actions"><a class="primary-button" href="#${tab==='covers'?'karaoke':'upload'}">${icon('plus')} ${tab==='covers'?'플레이로 이동':'제작곡 올리기'}</a><a class="text-link" href="#studio">스튜디오에서 관리</a></div>`;
   html+=tab==='covers'&&owned.length?coverCollectionHTML(owned,'my-covers',true):owned.length?`<div class="own-music-list">${owned.map(t=>`<article data-list-row class="own-music-row">${cover(t,'mini-cover')}<div><strong>${esc(t.title)}</strong><small>${esc(({published:'공개 중',draft:'작성 중',processing:'음원 처리 중',hidden:'비공개',failed:'처리 실패'})[t.status]||'준비 중')}</small></div><div class="list-actions">${t.status==='published'?`<button class="list-action icon-button" data-play="${esc(t.id)}" aria-label="${esc(t.title)} 듣기">${icon('ui-play-action')}</button>`:''}<a class="small-button" href="#manage/${esc(t.id)}">관리</a></div></article>`).join('')}</div>`:empty(tab==='covers'?'아직 내 커버곡이 없어요.':'아직 내 제작곡이 없어요.','좋아하는 음악으로 나만의 이야기를 시작해보세요.',tab==='covers'?'#karaoke':'#upload',tab==='covers'?'부를 곡 찾아보기':'음악 올리기');
   return {html,tracks:published};

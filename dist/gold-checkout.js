@@ -13,10 +13,12 @@ function loadGoldSDK(){
  niceGoldSdk=new Promise((resolve,reject)=>{const script=document.createElement('script');script.src='https://pay.nicepay.co.kr/v1/js/';script.onload=()=>window.AUTHNICE?resolve():reject(new Error('결제창을 불러오지 못했어요.'));script.onerror=()=>{niceGoldSdk=null;script.remove();reject(new Error('결제창 연결을 확인해주세요.'));};document.head.append(script);});return niceGoldSdk;
 }
 async function openGoldCheckout(gold){
+ const ticket=renderId;
  if(!me){returnRoute='#gold';return askLogin();}
  if(inApp)throw new Error('앱 내 골드 결제는 준비 중입니다.');
  const d=await api('/api/gold'),pack=(d.web_packs||d.packs).find(p=>p.gold===gold);if(!pack||(!d.checkout_available&&!d.review_only))throw new Error('골드 충전 준비 중입니다.');
  const requestId=crypto.randomUUID();
+ if(ticket!==renderId)return;
  dialog(`<h2>골드 충전 · 결제</h2><div class="billing-checkout-summary"><strong>${number(pack.total_gold??pack.gold)}골드</strong>${pack.bonus_gold?`<p class="gold-bonus">기본 ${number(pack.gold)}G + 추가 ${number(pack.bonus_gold)}G (5%)</p>`:''}<p>이번 결제금액 <b>${number(pack.price)}원</b> (부가세 포함)</p><p>결제 승인 후 로그인한 계정에 지급돼요.<br>신용카드 일시불로 한 번만 결제해요.<br>카드를 등록하거나 다음 달 자동결제하지 않아요.</p></div><p>골드는 선물에 사용하며, 받은 창작자의 수익은 세금·결제 수수료와 배분 기준을 반영해 별도로 계산합니다.</p><form id="gold-checkout-form">${d.review_only?'<p class="billing-notice">심사 전용입니다. 실제 카드 인증을 진행하지 마세요. 서버에서 결제 승인을 차단합니다.</p>':'<label class="checkbox-line"><input type="checkbox" name="consent" required> <span>충전 금액과 제공 수량, <a href="/terms#gold" target="_blank" rel="noopener">이용약관</a> 및 <a href="/refund#gold" target="_blank" rel="noopener">환불 정책</a>을 확인하고 이번 단건 구매에 동의합니다.</span></label>'}<button class="primary-button">${d.review_only?'NICEPAY 심사용 결제창 열기':number(pack.price)+'원 결제'}</button><p class="form-error" role="alert"></p></form>`);
  const form=$('#gold-checkout-form');form.onsubmit=busyForm(form,async fd=>{
   await loadGoldSDK();const result=await api('/api/gold/checkout','POST',{gold,request_id:requestId,consent:fd.has('consent')});

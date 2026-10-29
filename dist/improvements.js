@@ -9,14 +9,14 @@ function myBalanceSummaryHTML(wallet){
   '<a class="my-balance-card my-toolbox-card" href="#inventory"><span class="my-balance-label">'+icon('gift')+'인벤토리</span><strong>액자 · 아이템</strong><span class="my-balance-link">보관함 열기 '+icon('chevron')+'</span></a></div>'+
   (ready?'':'<p class="my-balance-error" role="status">잔액을 모두 불러오지 못했어요. <button type="button" class="text-link" data-my-wallet-retry>다시 불러오기</button></p>')+'</section>';
 }
-async function loadMyBalanceSummary(){
- try{return myBalanceSummaryHTML(await api('/api/gold/balance','GET',undefined,{fresh:true}));}
+async function loadMyBalanceSummary(readApi=api){
+ try{return myBalanceSummaryHTML(await readApi('/api/gold/balance','GET',undefined,{fresh:true}));}
  catch(e){if(e.status===401||e.status===403)throw e;return myBalanceSummaryHTML(null);}
 }
 let socialTimer=null;
-async function loadMyCrewSummary(){
+async function loadMyCrewSummary(readApi=api){
  try{
-  const d=await api('/api/crews?summary=1&home=1','GET',undefined,{fresh:true}),c=d.detail?.membership?d.detail.crew:null;
+  const d=await readApi('/api/crews?summary=1&home=1','GET',undefined,{fresh:true}),c=d.detail?.membership?d.detail.crew:null;
   return '<section class="surface my-current-crew"><h3>가입한 크루</h3>'+(c?'<a class="my-current-crew-link" href="#crew/'+esc(c.id)+'">'+crewPicture(c,'crew-circle')+'<span><strong>'+esc(c.name)+'</strong><small>LV.'+number(c.level)+' · '+number(c.members)+'명</small></span>'+icon('chevron')+'</a>':'<p>현재 가입한 크루가 없어요.</p><a class="small-button" href="#community/crews?browse=1">크루 둘러보기</a>')+'</section>';
  }catch{return '<section class="surface my-current-crew"><h3>가입한 크루</h3><p>가입 정보를 불러오지 못했어요.</p><a href="#community/crews">다시 확인하기</a></section>';}
 }
@@ -34,8 +34,8 @@ function rememberCrewNavigation(key,value){crewNavigation.delete(crewNavigationS
 function peekCrewNavigation(key){const entry=crewNavigation.get(crewNavigationScope()+key);return entry?.until>Date.now()?structuredClone(entry.value):null;}
 function crewNavigationCurrent(account,revision){return account===(me?.id||'guest')&&revision===(typeof apiRevision==='number'?apiRevision:0);}
 function rememberCrewDiscovery(d,q,account,revision){if(q||!crewNavigationCurrent(account,revision))return;rememberCrewNavigation('discovery',{mine:d.mine||null,crews:d.crews||[]});for(const c of d.crews||[])rememberCrewNavigation(c.id,c);}
-async function liveCrewDetail(id,tab='music'){
- const account=me?.id||'guest',revision=typeof apiRevision==='number'?apiRevision:0,d=await api('/api/crews/'+encodeURIComponent(id));
+async function liveCrewDetail(id,tab='music',readApi=api){
+ const account=me?.id||'guest',revision=typeof apiRevision==='number'?apiRevision:0,d=await readApi('/api/crews/'+encodeURIComponent(id));
  if(crewNavigationCurrent(account,revision)){rememberCrewNavigation(id,d.crew);const prior=peekCrewNavigation('discovery');if(d.membership)rememberCrewNavigation('discovery',{mine:id,crews:prior?.crews||[d.crew]});else if(prior?.mine===id)rememberCrewNavigation('discovery',{...prior,mine:null});}
  return crewDetailView(d,id,tab);
 }
@@ -68,56 +68,56 @@ function crewDetailView(d,param,tab='music'){
  if(tab==='about')html+=crewGrowthHTML(d.growth,c,m);
  return {html,tracks:d.tracks,crew:c,chat:m&&tab==='chat'?{path:'/api/crews/'+param+'/messages',crew:{id:c.id,owner:m.role==='owner'}}:null};
 }
-async function improvementsView(base,param,raw){
+async function improvementsView(base,param,raw,readApi=api){
  if(base==='follower'&&param){
   if(!me){returnRoute=location.hash;return {html:gate()};}
-  const d=await api('/api/followers/'+encodeURIComponent(param));
-  if(d.profile.id){const social=await api('/api/producers/'+encodeURIComponent(d.profile.id));return {html:heading('음악가의 페이지')+personProfileHTML(social,d.profile.id),tracks:musicProfileItems(social)};}
+  const d=await readApi('/api/followers/'+encodeURIComponent(param));
+  if(d.profile.id){const social=await readApi('/api/producers/'+encodeURIComponent(d.profile.id));return {html:heading('음악가의 페이지')+personProfileHTML(social,d.profile.id),tracks:musicProfileItems(social)};}
   return {html:heading('음악 친구')+'<a class="small-button" href="#library/followers">'+icon('back')+' 팔로워 목록</a>'+listenerProfileHTML(d.profile)};
  }
  if(base==='following'){
   if(!me){returnRoute=location.hash;return {html:gate()};}
-  const uid=me.id,revision=followRevision,d=await api('/api/follows');if(me?.id!==uid)return {html:gate()};
+  const uid=me.id,revision=followRevision,d=await readApi('/api/follows');if(me?.id!==uid)return {html:gate()};
   if(revision===followRevision&&!pendingFollows.size)library.follows=d.follows;
   const people=library.follows.filter(p=>p.kind==='producer').map(p=>({...p,id:p.target_id})),artists=library.follows.filter(p=>p.kind==='artist').map(p=>({...p,id:p.target_id}));
   return {html:heading('팔로우','내가 팔로우한 사람들의 음악을 만나보세요.')+(people.length?peopleListHTML(people,'producer'):empty('아직 팔로우한 사람이 없어요','마음에 드는 프로필에서 팔로우를 눌러보세요.','#community','커뮤니티 둘러보기'))+(artists.length?section('팔로우한 AI 아티스트')+peopleListHTML(artists,'artist'):'')};
  }
  if(base==='community'&&param==='crews'){
   const params=new URLSearchParams(raw.split('?')[1]||''),q=params.get('q')||'',hint=peekCrewNavigation('discovery');
-  if(hint?.mine&&!params.has('q')&&params.get('browse')!=='1'){try{return await liveCrewDetail(hint.mine);}catch(e){if(e.status!==404)throw e;clearCrewNavigation();}}
-  const account=me?.id||'guest',revision=typeof apiRevision==='number'?apiRevision:0,d=await api('/api/crews?q='+encodeURIComponent(q)+'&summary=1'+(!params.has('q')&&params.get('browse')!=='1'?'&home=1':''));rememberCrewDiscovery(d,q,account,revision);
+  if(hint?.mine&&!params.has('q')&&params.get('browse')!=='1'){try{return await liveCrewDetail(hint.mine,'music',readApi);}catch(e){if(e.status!==404)throw e;clearCrewNavigation();}}
+  const account=me?.id||'guest',revision=typeof apiRevision==='number'?apiRevision:0,d=await readApi('/api/crews?q='+encodeURIComponent(q)+'&summary=1'+(!params.has('q')&&params.get('browse')!=='1'?'&home=1':''));rememberCrewDiscovery(d,q,account,revision);
   if(d.detail){if(crewNavigationCurrent(account,revision))rememberCrewNavigation(d.mine,d.detail.crew);return crewDetailView(d.detail,d.mine);}
-  if(d.mine&&!params.has('q')&&params.get('browse')!=='1')return liveCrewDetail(d.mine);
+  if(d.mine&&!params.has('q')&&params.get('browse')!=='1')return liveCrewDetail(d.mine,'music',readApi);
   return {html:crewDiscoveryHTML(d,q),tracks:[],crewDiscovery:d};
  }
- if(base==='crew'&&param){return liveCrewDetail(param,new URLSearchParams(raw.split('?')[1]||'').get('tab')||'music');}
+ if(base==='crew'&&param){return liveCrewDetail(param,new URLSearchParams(raw.split('?')[1]||'').get('tab')||'music',readApi);}
  if(['profile','dm','rewards','payouts'].includes(base)||base==='library'&&param==='followers'){
   if(!me){returnRoute=location.hash;return {html:gate()};}
   if(base==='profile'){
    // Fetch independent reads together; money remains live and is never cached.
    const knownProfile=me.profile_id;
    const [d,balances,knownSocial]=await Promise.all([
-    api('/api/me/profile'),param!=='edit'?Promise.all([loadMyBalanceSummary(),loadMyCrewSummary()]).then(parts=>parts.join('')):null,
-    param!=='edit'&&knownProfile?api('/api/producers/'+encodeURIComponent(knownProfile)):null
+    readApi('/api/me/profile'),param!=='edit'?Promise.all([loadMyBalanceSummary(readApi),loadMyCrewSummary(readApi)]).then(parts=>parts.join('')):null,
+    param!=='edit'&&knownProfile?readApi('/api/producers/'+encodeURIComponent(knownProfile)):null
    ]),p=d.profile;
    if(param!=='edit'){
-    if(p.id){const social=p.id===knownProfile&&knownSocial?knownSocial:await api('/api/producers/'+encodeURIComponent(p.id));social.following_count=d.following_count;return {html:myPageHeading('나의 순간과 음악이 만나는 공간')+personProfileHTML(social,p.id,new URLSearchParams(raw.split('?')[1]||'').get('tab')||'all',balances),tracks:musicProfileItems(social,new URLSearchParams(raw.split('?')[1]||'').get('tab')||'all')};}
+    if(p.id){const social=p.id===knownProfile&&knownSocial?knownSocial:await readApi('/api/producers/'+encodeURIComponent(p.id));social.following_count=d.following_count;return {html:myPageHeading('나의 순간과 음악이 만나는 공간')+personProfileHTML(social,p.id,new URLSearchParams(raw.split('?')[1]||'').get('tab')||'all',balances),tracks:musicProfileItems(social,new URLSearchParams(raw.split('?')[1]||'').get('tab')||'all')};}
     return {html:myPageHeading('음악을 듣기만 해도 좋아요.')+balances+'<section class="music-self-head"><div><h2>'+esc(p.name||me.name||'내 음악')+'</h2><p class="mp-public-id">ID · '+esc(p.public_id||'발급 확인 중')+'</p><p>아직 공개한 프로필이나 음악이 없어요.</p></div><div class="inline-actions"><a class="small-button" href="#profile/edit">프로필 만들기</a><a class="small-button" href="#studio">스튜디오</a></div></section>'+playerProgressHTML(p)+musicMyShortcuts()};
    }
    return {html:heading('프로필 수정')+`<div class="inline-actions account-menu" style="margin-bottom:24px"><a class="small-button" href="#profile">내 페이지</a><a class="small-button" href="#account">계정·이용권</a><button type="button" class="small-button" id="logout">로그아웃</button></div><form id="public-profile-form" class="surface upload-form profile-form">${p.id?portrait(p,'producer'):''}<label class="form-field">프로필 사진<input name="image" type="file" accept="image/png,image/jpeg,image/webp"><small>JPG·PNG·WebP · 5MB 이하</small></label>${formField('공개 닉네임','name','text',p.name,'required maxlength="12"')}<p class="field-help">2~12자 · 한글, 영문, 숫자, 밑줄(_) · 변경은 30일에 1회. 댓글·선물·크루·DM에 표시돼요.</p><label class="form-field">소개<textarea name="bio" maxlength="1000">${esc(p.bio)}</textarea></label><button class="primary-button">프로필 저장</button><p class="form-error" role="alert"></p></form>`};
   }
-  if(base==='library'){const d=await api('/api/me/profile');return {html:heading('팔로워')+libraryTabs('followers')+(d.followers.length?peopleListHTML(d.followers,'producer'):'<p class="surface">아직 팔로워가 없어요.</p>')};}
-  if(base==='payouts')return {html:heading('정산')+earningsHTML(await api('/api/studio/earnings'))};
-  if(base==='rewards'){const d=await api('/api/gold');return {html:`<div class="rewards-page">${heading('오늘의 실버','작은 활동을 모아 좋아하는 음악에 응원해보세요.')}<div id="gift-shop-rewards">${freeRewardsHTML(d.free)}</div></div>`};}
-  if(param==='crew')return dmWorkspaceView(await crewChatView(raw));
-  if(param==='blocked')return blockedPeopleView();
-  if(!param){const d=await api('/api/dm');return {html:dmInboxHTML(d),inbox:true};}
-  let d;try{d=await api('/api/dm/'+encodeURIComponent(param));}catch(e){if(e.status===403){const blocked=await blockedPeopleView(param);if(blocked)return blocked;}throw e;}return dmWorkspaceView({html:'<header class="dm-thread-header"><a href="#dm" class="small-button dm-back" aria-label="대화 목록으로 돌아가기">'+icon('back')+' 뒤로</a>'+dmProfileLink(d.peer,portrait(d.peer,'producer')+'<div><h1>'+esc(d.peer.name)+'</h1><small>프로필 보기</small></div>','dm-thread-person')+dmThreadActions(d.peer,d.settings)+'</header>'+chatPanelHTML('개인 메시지',d,d.peer),chat:{path:'/api/dm/'+param,peer:d.peer,initial:d}});
+  if(base==='library'){const d=await readApi('/api/me/profile');return {html:heading('팔로워')+libraryTabs('followers')+(d.followers.length?peopleListHTML(d.followers,'producer'):'<p class="surface">아직 팔로워가 없어요.</p>')};}
+  if(base==='payouts')return {html:heading('정산')+earningsHTML(await readApi('/api/studio/earnings'))};
+  if(base==='rewards'){const d=await readApi('/api/gold');return {html:`<div class="rewards-page">${heading('오늘의 실버','작은 활동을 모아 좋아하는 음악에 응원해보세요.')}<div id="gift-shop-rewards">${freeRewardsHTML(d.free)}</div></div>`};}
+  if(param==='crew')return dmWorkspaceView(await crewChatView(raw,readApi));
+  if(param==='blocked')return blockedPeopleView(undefined,null,readApi);
+  if(!param){const d=await readApi('/api/dm');return {html:dmInboxHTML(d),inbox:true};}
+  let d;try{d=await readApi('/api/dm/'+encodeURIComponent(param));}catch(e){if(e.status===403){const blocked=await blockedPeopleView(param,null,readApi);if(blocked)return blocked;}throw e;}return dmWorkspaceView({html:'<header class="dm-thread-header"><a href="#dm" class="small-button dm-back" aria-label="대화 목록으로 돌아가기">'+icon('back')+' 뒤로</a>'+dmProfileLink(d.peer,portrait(d.peer,'producer')+'<div><h1>'+esc(d.peer.name)+'</h1><small>프로필 보기</small></div>','dm-thread-person')+dmThreadActions(d.peer,d.settings)+'</header>'+chatPanelHTML('개인 메시지',d,d.peer),chat:{path:'/api/dm/'+param,peer:d.peer,initial:d}});
  }
  return null;
 }
-async function libraryProfileHTML(){
- if(!me)return '';const d=await api('/api/me/profile'),p=d.profile;
+async function libraryProfileHTML(readApi=api){
+ if(!me)return '';const d=await readApi('/api/me/profile'),p=d.profile;
  return `<section class="surface library-profile"><a href="#profile" aria-label="내 프로필 수정">${portrait(p,'producer')}</a><div><h2>${esc(p.name)}</h2><div class="inline-actions"><a href="#profile">프로필 수정</a><a href="#library/followers">팔로워 ${d.follower_count}</a><a href="#library/following">팔로잉 ${d.following_count}</a></div></div><div class="inline-actions"><a href="#rewards" class="small-button">오늘의 실버</a><a href="#dm" class="small-button">DM</a><a href="#payouts" class="small-button">정산</a></div></section>`;
 }
 function bindCrewForm(){const form=$('#crew-form');const crop=bindCrewImageEditor(form);form.dataset.originalName=form.elements.name.value;form.onsubmit=busyForm(form,async fd=>{const cid=form.dataset.crew;const cropped=await crop.file();if(cid&&fd.get('name')!==form.dataset.originalName&&!confirm('크루 이름을 변경하면 30일(720시간) 동안 다시 변경할 수 없어요. 변경할까요?'))return;const d=await api('/api/crews'+(cid?'/'+cid:''),cid?'PATCH':'POST',{name:fd.get('name'),description:fd.get('description'),interests:fd.get('interests'),recruiting:fd.has('recruiting'),join_policy:fd.get('join_policy'),minimum_level:Number(fd.get('minimum_level')),member_limit:Number(fd.get('member_limit')),notice:fd.get('notice'),...(cid?{version:Number(form.dataset.version)}:{})});form.dataset.crew=d.crew.id;clearCrewNavigation();try{me=(await api('/api/me')).user;updateAccount();}catch{}if(cropped)await uploadChatImage('/api/crews/'+d.crew.id+'/image',cropped);$('#dialog').close();location.hash='crew/'+d.crew.id;if(cid)await render();});}

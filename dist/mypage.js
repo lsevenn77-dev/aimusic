@@ -106,25 +106,25 @@ function bindMyWorkList(){
 }
 function myWorksAside(d,own){return myArtists(d)+(own?'':myStudioBanner())+mySection('참여 가능한 듀엣','<div id="mp-open-duets">'+myLoading()+'</div>',myAll(opportunityHref(d.profile.id,'duet')))+mySection('참여 가능한 더빙','<div id="mp-open-dubbing">'+myLoading()+'</div>',myAll(opportunityHref(d.profile.id,'dubbing')));}
 function mySegment(active){return `<div class="mp-segment" role="tablist" aria-label="마이페이지" data-active="${active}"><span class="mp-segment-slide" aria-hidden="true"></span>${[['works','내 작품'],['library','내 보관함'],['activity','내 활동']].map(([key,label])=>`<button type="button" role="tab" id="mp-tab-${key}" aria-controls="mp-content" aria-selected="${active===key}" tabindex="${active===key?0:-1}" data-mp-tab="${key}">${label}</button>`).join('')}</div>`;}
-async function myPageView(base,param,raw){
- if(base==='profile-gallery')return myGalleryView(param);
- if(base==='relations')return myRelationsView();
- if(base==='gift-inventory')return myGiftInventoryView();
+async function myPageView(base,param,raw,readApi=api){
+ if(base==='profile-gallery')return myGalleryView(param,readApi);
+ if(base==='relations')return myRelationsView(readApi);
+ if(base==='gift-inventory')return myGiftInventoryView(readApi);
  if(!((base==='profile'&&param!=='edit')||base==='producer'))return null;
  if(base==='profile'&&!me){returnRoute=location.hash;return {html:gate()};}
  let d;
  if(base==='profile'){
-  const self=await api('/api/me/profile','GET',undefined,{fresh:true});
-  d=self.profile.id?await api('/api/producers/'+encodeURIComponent(self.profile.id)+'?dashboard=1','GET',undefined,{fresh:true}):{profile:self.profile,followers:self.follower_count,following_count:self.following_count,tracks:[],covers:[],dubbings:[],artists:[],gallery:[]};
- }else d=await api('/api/producers/'+encodeURIComponent(param)+'?dashboard=1','GET',undefined,{fresh:true});
+  const self=await readApi('/api/me/profile','GET',undefined,{fresh:true});
+  d=self.profile.id?await readApi('/api/producers/'+encodeURIComponent(self.profile.id)+'?dashboard=1','GET',undefined,{fresh:true}):{profile:self.profile,followers:self.follower_count,following_count:self.following_count,tracks:[],covers:[],dubbings:[],artists:[],gallery:[]};
+ }else d=await readApi('/api/producers/'+encodeURIComponent(param)+'?dashboard=1','GET',undefined,{fresh:true});
  const own=me?.id===d.profile.user_id,q=new URLSearchParams(raw.split('?')[1]||''),tab=own&&['activity','library'].includes(q.get('view'))?q.get('view'):'works';
- const collection=own&&tab==='library'?await myLibraryView(raw):own&&tab==='works'&&['covers','originals'].includes(q.get('section'))?await browseView('library',q.get('section'),raw,true):null;
+ const collection=own&&tab==='library'?await myLibraryView(raw,readApi):own&&tab==='works'&&['covers','originals'].includes(q.get('section'))?await browseView('library',q.get('section'),raw,true,readApi):null;
  const state={d,own,tab,account:me?.id||'',activity:null};
  return {mypage:state,musicLibrary:collection?.musicLibrary,tracks:collection?.tracks||[...(d.tracks||[]),...(d.covers||[])],html:`<div class="mypage-layout ${own?'mp-own':''}"><div class="mp-main">${own?'':`<div class="mp-heading">${heading('마이','나의 순간과 음악이 만나는 공간')}</div>`}${myProfileHeader(d)}${myMoments(d)}${own?mySegment(tab):''}<div id="mp-content" ${own?'role="tabpanel" aria-labelledby="mp-tab-'+tab+'"':''}>${collection?collection.html:tab==='works'?myWorksHTML(d):myLoading()}</div></div><aside class="mp-aside" id="mp-aside">${own?'<div id="mp-aside-content">'+(collection?.libraryAside??(tab==='activity'?myLoading():myWorksAside(d,true)))+'</div>':myWorksAside(d,false)}</aside>${own?'<div class="mp-account-footer"><button type="button" class="small-button" id="logout">로그아웃</button></div>':''}</div>`};
 }
-async function myActivityData(){
+async function myActivityData(readApi=api){
  const paths={wallet:'/api/gold/balance',player:'/api/me/player',activity:'/api/me/profile?section=activity',notifications:'/api/notifications',inventory:'/api/me/gift-inventory'};
- return Object.fromEntries(await Promise.all(Object.entries(paths).map(async([key,path])=>{try{return [key,await api(path,'GET',undefined,{fresh:true})];}catch(e){return [key,{error:e.message}];}})));
+ return Object.fromEntries(await Promise.all(Object.entries(paths).map(async([key,path])=>{try{return [key,await readApi(path,'GET',undefined,{fresh:true})];}catch(e){return [key,{error:e.message}];}})));
 }
 function myError(d){return d?.error?`<p class="mp-empty" role="alert">${esc(d.error)} <button class="text-link" data-mp-retry>다시 시도</button></p>`:'';}
 function myActivityHTML(a){
@@ -147,7 +147,7 @@ function myActivityAside(d,a){
  mySection('알림 기록',myError(a.notifications)||(notes.length?rows(notes.slice(0,3).map(n=>`<a href="#notifications">${icon(n.kind.includes('gift')?'gift':'bell')}<span><strong>${esc(n.actor_name)}</strong><small>${esc(n.gift_name||n.source_title||'새로운 활동 알림')}</small></span><time>${myDate(n.created)}</time></a>`)):myEmpty('새로운 알림이 없어요.')),myAll('#notifications'))+
  mySection('계정 관리',`<nav class="mp-account-links"><a href="#membership">${icon('ticket')} 구독 · 이용권 관리 ${icon('chevron')}</a><a href="#payouts">${icon('wallet')} 정산 내역 ${icon('chevron')}</a><a href="#account">${icon('settings')} 계정 설정 ${icon('chevron')}</a></nav>`);
 }
-async function mySelectTab(tab,updateURL=true){
+async function mySelectTab(tab,updateURL=true,readApi=api){
  const s=myPageState;if(!s?.own||s.account!==me?.id)return;
  if(updateURL){location.hash=myTabHref(tab);return;}
  s.tab=tab;const request=s.request=(s.request||0)+1;
@@ -155,22 +155,23 @@ async function mySelectTab(tab,updateURL=true){
  const content=$('#mp-content'),aside=$('#mp-aside-content');content.setAttribute('aria-labelledby','mp-tab-'+tab);content.removeAttribute('aria-busy');
  if(tab==='works'){content.innerHTML=myWorksHTML(s.d);aside.innerHTML=myWorksAside(s.d,true);routeTracks=remember([...(s.d.tracks||[]),...(s.d.covers||[])]);void myLoadOpportunities(s);icons();paintInteractions();syncSongCoverPlayback();return;}
  content.setAttribute('aria-busy','true');
+ content.innerHTML=myLoading();aside.innerHTML=myLoading();
  try{
-  const result=tab==='library'?await myLibraryView(location.hash.slice(1)):await myActivityData();
+  const result=tab==='library'?await myLibraryView(location.hash.slice(1),readApi):await myActivityData(readApi);
   if(myPageState!==s||s.request!==request||s.tab!==tab||me?.id!==s.account||!content.isConnected)return;
   if(tab==='library'){content.innerHTML=result.html;aside.innerHTML=result.libraryAside;remember(result.tracks||[]);bindMusicLibrary(result.musicLibrary);}
   else{s.activity=result;content.innerHTML=myActivityHTML(result);aside.innerHTML=myActivityAside(s.d,result);routeTracks=[];}
   content.removeAttribute('aria-busy');icons();paintInteractions();
  }catch(e){if(myPageState===s&&s.request===request&&content.isConnected){content.removeAttribute('aria-busy');content.innerHTML=myEmpty(e.message);aside.innerHTML='';const retry=document.createElement('button');retry.className='small-button';retry.textContent='다시 시도';retry.onclick=()=>mySelectTab(tab,false);content.append(retry);}}
 }
-async function refreshMyPageRoute(raw,ticket){
+async function refreshMyPageRoute(raw,ticket,readApi=api){
  const s=myPageState,main=$('#main');
  if(!s?.own||s.account!==me?.id||!main?.querySelector('.mp-own')||!/^profile(?:\?|$)/.test(raw))return false;
  const q=new URLSearchParams(raw.split('?')[1]||''),tab=['activity','library'].includes(q.get('view'))?q.get('view'):'works';
  // Legacy works collections use their existing list view, not the dashboard fast path.
  if(['covers','originals'].includes(q.get('section'))||['covers','originals'].includes(new URLSearchParams((main.dataset.route||'').split('?')[1]||'').get('section')))return false;
  if(s.tab===tab)return false;
- main.dataset.route=raw;await mySelectTab(tab,false);
+ main.dataset.route=raw;await mySelectTab(tab,false,readApi);
  if(ticket===renderId&&myPendingTabFocus===tab)$('#mp-tab-'+tab)?.focus({preventScroll:true});myPendingTabFocus='';
  return true;
 }

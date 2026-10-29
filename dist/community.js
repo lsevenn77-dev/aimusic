@@ -28,12 +28,12 @@ function communityPendingView(base,param,raw=''){
  const data=typeof peekApiRead==='function'?peekApiRead(path,{display:true}):null;
  return {...communityViewHTML(base,param,raw,data),cached:!!data&&!(tab==='following'&&!me)};
 }
-async function communityView(base,param,raw=''){
- if(base==='community'&&!param)return voiceView('voice');
- if(base==='community'&&param==='rankings')return communityRankingV3(raw);
+async function communityView(base,param,raw='',readApi=api){
+ if(base==='community'&&!param)return voiceView('voice',undefined,readApi.signal);
+ if(base==='community'&&param==='rankings')return communityRankingV3(raw,readApi);
  const {tab,path}=communityRouteOptions(base,param,raw);
  if(tab==='rankings'||tab==='following'&&!me)return communityViewHTML(base,param,raw);
- return communityViewHTML(base,param,raw,await api(path));
+ return communityViewHTML(base,param,raw,await readApi(path));
 }
 function coverRankTracksHTML(tracks){return `<ol class="cover-ranked-list">${tracks.map(t=>`<li data-list-row class="cover-ranked-row"><span class="cover-position">${number(t.rank)}<span class="sr-only">위</span></span><button class="cover-ranked-art" data-play="${esc(t.id)}" aria-label="${esc(t.title)} 커버 듣기">${cover(t,'mini-cover')}<span>${icon('ui-play-action')}</span></button><div class="cover-ranked-info"><a href="#song/${esc(t.id)}"><strong>${esc(t.title)}</strong></a><a href="#producer/${esc(t.producer_id)}?tab=covers">${esc(t.producer)}</a><small>원곡 ${esc(t.original_title)}</small></div><span class="cover-rank-votes">${icon('ui-heart')} ${number(t.rank_likes)}<small>랭킹 좋아요</small></span><div class="cover-ranked-actions">${giftButton(t).replace('class="','class="list-action ')}<button class="list-action icon-button ${liked(t.id)?'is-active':''}" data-like="${esc(t.id)}" aria-label="${esc(t.title)} 좋아요" aria-pressed="${liked(t.id)}">${icon('ui-heart')}</button><a class="list-action icon-button" href="#song/${esc(t.id)}?comments=1" aria-label="${esc(t.title)} 댓글 ${number(t.comments)}개">${icon('ui-comment')}</a><button class="list-action icon-button" data-add="${esc(t.id)}" aria-label="${esc(t.title)} 플레이리스트에 저장">${icon('ui-plus-action')}</button></div></li>`).join('')}</ol>`;}
 function coverRankSingersHTML(singers){return `<ol class="cover-singer-list">${singers.map(p=>`<li data-list-row class="cover-singer-row"><span class="cover-position">${number(p.rank)}<span class="sr-only">위</span></span><a href="#producer/${esc(p.id)}?tab=covers" aria-label="${esc(p.name)}의 커버곡">${portrait(p,'producer')}</a><div class="cover-singer-info"><a href="#producer/${esc(p.id)}?tab=covers"><strong>${esc(p.name)}</strong></a><p>${esc(p.bio||'이 목소리의 다른 커버도 만나보세요.')}</p><small>랭킹 커버 ${number(p.ranked_covers)}곡 · 팔로워 ${number(p.followers)}명</small></div><span class="cover-rank-votes">${icon('ui-heart')} ${number(p.rank_likes)}<small>랭킹 좋아요</small></span><button class="small-button" data-follow="producer/${esc(p.id)}" aria-label="${esc(p.name)} 팔로우">${followed('producer',p.id)?'팔로잉':'팔로우'}</button></li>`).join('')}</ol>`;}

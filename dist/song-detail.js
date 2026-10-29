@@ -36,7 +36,7 @@ function songOwnerActionsHTML(t){
 }
 function songDetailHeaderHTML(t){
  const genres=(t.genres?.length?t.genres:[t.genre]).filter(Boolean).join(' · ');
- return '<section class="song-detail song-detail-refined">'+cover(t)+'<div class="song-detail-copy">'+
+ return '<section class="song-detail song-detail-refined">'+cover(t).replace('loading="lazy"','loading="eager" fetchpriority="high"')+'<div class="song-detail-copy">'+
  '<span class="eyebrow song-track-meta">'+esc(genres)+(genres?' · ':'')+time(t.duration)+'</span><h2>'+esc(t.title)+'</h2>'+
  songDetailCreditsHTML(t)+songReleaseDateHTML(t)+songDescriptionHTML(t)+songDetailActionsHTML(t)+songOwnerActionsHTML(t)+
  '<div class="song-engagement"><p class="song-metrics"><span class="metric-inline" aria-label="재생 '+number(t.plays||0)+'회">'+icon('ui-plays')+number(t.plays||0)+'</span><span class="metric-inline" aria-label="댓글 '+number(t.comments||0)+'개">'+icon('ui-comment')+number(t.comments||0)+'</span>'+(t.ai_comments?' · 공식 AI 응원 '+number(t.ai_comments)+'개':'')+'</p>'+trackModerationToolsHTML(t)+'</div></div></section>';

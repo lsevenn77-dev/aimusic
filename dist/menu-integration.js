@@ -32,18 +32,18 @@ function rememberLibraryFilters(){
  const href=menuHref('profile',{q:collectionSearch||null,filter:collectionFilter,sort:collectionSort},location.hash);
  history.replaceState(history.state,'',href);$('#main').dataset.route=href.slice(1);
 }
-async function myLibraryView(raw){return musicLibraryView(raw);}
+async function myLibraryView(raw,readApi=api){return musicLibraryView(raw,readApi);}
 function followingMenu(raw){
  const q=new URLSearchParams(raw.split('?')[1]||''),selected=['following','followers'].includes(q.get('people'))?q.get('people'):'works';
  return '<nav class="tabs menu-following-tabs" aria-label="팔로잉 영역">'+[['works','작품'],['following','팔로우 관리'],['followers','팔로워']].map(([key,label])=>'<a class="tab '+(selected===key?'active':'')+'" href="'+esc(menuHref('community/following',{people:key==='works'?null:key,kind:null},raw))+'" '+(selected===key?'aria-current="page"':'')+'>'+label+'</a>').join('')+'</nav>';
 }
-async function integratedMenuView(base,param,raw){
+async function integratedMenuView(base,param,raw,readApi=api){
  if(base==='studio'&&param==='payouts'){
-  const view=await improvementsView('payouts',null,raw);
+  const view=await improvementsView('payouts',null,raw,readApi);
   return {...view,html:'<a class="text-link" href="#studio">← 스튜디오</a>'+view.html};
  }
  if(base==='gifts'&&param==='rewards'){
-  const view=await improvementsView('rewards',null,raw);
+  const view=await improvementsView('rewards',null,raw,readApi);
   return {...view,html:'<a class="text-link" href="#gifts">← 선물함</a>'+view.html};
  }
  if(base!=='community'||param!=='following')return null;
@@ -53,10 +53,10 @@ async function integratedMenuView(base,param,raw){
  if(people==='following'||people==='followers'){
   let body;
   if(people==='followers'){
-   const d=await api('/api/me/profile','GET',undefined,{fresh:true});
+   const d=await readApi('/api/me/profile','GET',undefined,{fresh:true});
    body=d.followers.length?peopleListHTML(d.followers,'producer'):'<p class="surface">아직 팔로워가 없어요.</p>';
   }else{
-   const uid=me.id,revision=followRevision,d=await api('/api/follows','GET',undefined,{fresh:true});
+   const uid=me.id,revision=followRevision,d=await readApi('/api/follows','GET',undefined,{fresh:true});
    if(me?.id!==uid)return {html:gate()};
    if(revision===followRevision&&!pendingFollows.size)library.follows=d.follows;
    const kind=q.get('kind'),groups=kind==='artists'?[['artist','AI 아티스트']]:kind==='producers'?[['producer','창작자']]:[['producer','창작자'],['artist','AI 아티스트']];
@@ -66,7 +66,7 @@ async function integratedMenuView(base,param,raw){
   return {html:shell(body)};
  }
  const type=['all','solo','duet','dubbing'].includes(q.get('type'))?q.get('type'):'all',search=(q.get('q')||'').slice(0,100),offset=Math.max(0,Math.min(10000,Math.floor(Number(q.get('offset'))||0)));
- const data=await api('/api/play/works?'+new URLSearchParams({tab:'following',type,q:search,offset}),'GET',undefined,{fresh:true});
+ const data=await readApi('/api/play/works?'+new URLSearchParams({tab:'following',type,q:search,offset}),'GET',undefined,{fresh:true});
  const view={play:{mode:'browse',tab:'following',type},items:data.works,tracks:data.works.filter(t=>t.type!=='dubbing'),nextOffset:data.nextOffset,dubbingAvailable:data.dubbingAvailable};
  const types='<nav class="genre-chips play-types" aria-label="작품 유형">'+playTypes.map(([key,label])=>'<a class="genre-chip '+(type===key?'active':'')+'" href="'+esc(menuHref('community/following',{type:key,offset:null},raw))+'">'+label+'</a>').join('')+'</nav>';
  view.html=shell(types+playToolbar(view.play).replace('name="q"','name="q" value="'+esc(search)+'"')+(data.dubbingAvailable===false?'<p class="field-help">더빙 목록은 현재 준비 중이에요.</p>':'')+'<div id="play-results" aria-live="polite">'+playResults(view)+'</div><button class="small-button play-more" id="play-more" '+(view.nextOffset===null?'hidden':'')+'>더 보기</button>');

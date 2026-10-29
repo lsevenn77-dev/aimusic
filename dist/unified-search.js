@@ -25,9 +25,9 @@ function searchBack(){
  if(origin?.depth>0)history.go(-origin.depth);else location.hash=origin?.route||'home';
 }
 function searchQuery(state){const query=new URLSearchParams();if(state.q)query.set('q',state.q);if(state.genre)query.set('genre',state.genre);if(state.mood)query.set('mood',state.mood);return query;}
-async function unifiedSearchView(param,raw){
+async function unifiedSearchView(param,raw,readApi=api){
  const state=searchState(raw),tab=['tracks','artists','producers','playlists'].includes(state.params.get('type'))?state.params.get('type'):'tracks';
- const d=await api('/api/search?'+searchQuery(state)),counts=d.counts||Object.fromEntries(['tracks','artists','producers','playlists'].map(k=>[k,d[k].length]));
+ const d=await readApi('/api/search?'+searchQuery(state)),counts=d.counts||Object.fromEntries(['tracks','artists','producers','playlists'].map(k=>[k,d[k].length]));
  let html='<div class="unified-search-results"><button type="button" class="text-link search-back" data-search-back>'+icon('chevron-left')+' 돌아가기</button>';
  if(d.recommended?.length)html+='<section class="listening-home-v2 home-content-refresh search-recommendations" aria-label="추천 검색결과">'+section('추천 검색결과')+'<div class="home-music-grid search-recommendation-shelf" tabindex="0" aria-label="추천 검색결과 · 좌우로 이동">'+d.recommended.slice(0,6).map(homeCard).join('')+'</div></section>';
  html+='<div class="search-gradient-divider" aria-hidden="true"></div><section class="search-all-results" aria-label="전체 검색결과"><div class="section-heading search-results-heading"><h2>전체 검색결과</h2>'+`<span class="search-result-count" role="status">${number(counts[tab])}${tab==='tracks'?'곡':'개'}</span></div><nav class="tabs search-type-tabs" aria-label="검색 유형">`;
@@ -69,11 +69,14 @@ function normalizeSearchInputs(root=document){
 function markHorizontalScrollers(){
  for(const el of document.querySelectorAll('#main *,#dialog *,#global-search,.topbar .tabs')){
   if(el.matches('input,textarea,select,svg,svg *')||el.classList.contains('brand-horizontal-scroll'))continue;
-  const style=getComputedStyle(el);if(['auto','scroll'].includes(style.overflowX)&&el.scrollWidth>el.clientWidth+1){el.classList.add('brand-horizontal-scroll');if(el.scrollHeight<=el.clientHeight+1)el.classList.add('brand-horizontal-only');}
+  if(el.scrollWidth<=el.clientWidth+1)continue;
+  const style=getComputedStyle(el);if(['auto','scroll'].includes(style.overflowX)){el.classList.add('brand-horizontal-scroll');if(el.scrollHeight<=el.clientHeight+1)el.classList.add('brand-horizontal-only');}
  }
 }
 let searchSkinFrame=0;
 function refreshSearchSkin(){if(searchSkinFrame)return;searchSkinFrame=requestAnimationFrame(()=>{searchSkinFrame=0;normalizeSearchInputs();markHorizontalScrollers();const topbar=document.querySelector('.topbar'),wrap=document.querySelector('.page-wrap');if(topbar&&wrap)wrap.style.setProperty('--topbar-height',topbar.offsetHeight+'px');});}
-new MutationObserver(refreshSearchSkin).observe(document.body,{childList:true,subtree:true});
+// Playback clocks and counters update text frequently; only structure changes
+// require searching for new inputs and horizontal scrollers across the page.
+new MutationObserver(changes=>{if(changes.some(c=>[...c.addedNodes,...c.removedNodes].some(n=>n.nodeType===1)))refreshSearchSkin();}).observe(document.body,{childList:true,subtree:true});
 window.addEventListener('resize',refreshSearchSkin,{passive:true});refreshSearchSkin();
 

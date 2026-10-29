@@ -1,19 +1,19 @@
 function opportunityHref(pid,type,sort='recent',offset=0){return '#karaoke/browse?'+new URLSearchParams({profileOwner:pid,type,participation:'open',sort,offset});}
 function opportunityCards(items,type){return items.length?'<div class="home-music-grid">'+items.map(t=>type==='duet'?playMusicCard(t,t.can_participate?'duet':null):playDubbingCard({...t,type:'dubbing',ownerName:t.owner_name||'',genres:JSON.parse(t.options_json||'{}').genres||[]}).replace('</article>','<a class="small-button play-record-link" href="#dubbing/'+esc(t.id)+'">'+(t.can_participate?'배역 확인 · 참여하기':'배역 확인')+'</a></article>')).join('')+'</div>':myEmpty('현재 참여 가능한 공개 작품이 없어요.');}
-async function profileCollectionView(base,param,raw){
+async function profileCollectionView(base,param,raw,readApi=api){
  const q=new URLSearchParams(raw.split('?')[1]||'');
  if(base==='karaoke'&&param==='browse'&&q.get('participation')==='open'){
   const pid=q.get('profileOwner'),type=q.get('type')==='dubbing'?'dubbing':'duet',sort=q.get('sort')==='plays'?'plays':'recent',offset=Number(q.get('offset'))||0;
   if(!pid)return {html:heading('프로필을 선택해주세요.')};
-  const d=await api('/api/producers/'+encodeURIComponent(pid)+'/opportunities?'+new URLSearchParams({type,sort,offset}));
+  const d=await readApi('/api/producers/'+encodeURIComponent(pid)+'/opportunities?'+new URLSearchParams({type,sort,offset}));
   return {tracks:type==='duet'?d.items:[],html:heading(esc(d.profile.name)+'의 참여 가능한 '+(type==='duet'?'듀엣':'더빙'))+'<div class="inline-actions"><a class="small-button" href="#producer/'+esc(pid)+'">프로필</a><span class="small-button" aria-current="true">참여 가능</span>'+[['recent','최신순'],['plays','재생순']].map(([k,l])=>'<a class="text-link" href="'+esc(opportunityHref(pid,type,k))+'" '+(sort===k?'aria-current="true"':'')+'>'+l+'</a>').join('')+'</div>'+(type==='dubbing'&&sort==='plays'?'<p class="field-help">더빙은 재생 집계가 없어 최신순으로 표시해요.</p>':'')+opportunityCards(d.items,type)+(offset?'<a class="small-button" href="'+esc(opportunityHref(pid,type,sort,Math.max(0,offset-24)))+'">이전</a>':'')+(d.nextOffset!==null?'<a class="small-button" href="'+esc(opportunityHref(pid,type,sort,d.nextOffset))+'">더보기</a>':'')};
  }
  if(base==='producer-songs'){
-  const sort=q.get('sort')==='plays'?'plays':'recent',offset=Number(q.get('offset'))||0,d=await api('/api/producers/'+encodeURIComponent(param)+'/originals?'+new URLSearchParams({sort,offset})),href=(s,o=0)=>'#producer-songs/'+encodeURIComponent(param)+'?'+new URLSearchParams({sort:s,offset:o});
+  const sort=q.get('sort')==='plays'?'plays':'recent',offset=Number(q.get('offset'))||0,d=await readApi('/api/producers/'+encodeURIComponent(param)+'/originals?'+new URLSearchParams({sort,offset})),href=(s,o=0)=>'#producer-songs/'+encodeURIComponent(param)+'?'+new URLSearchParams({sort:s,offset:o});
   return {tracks:d.tracks,html:heading(esc(d.profile.name)+'의 제작곡')+'<div class="inline-actions"><a class="small-button" href="#producer/'+esc(param)+'">프로필</a>'+[['recent','최신순'],['plays','재생순']].map(([s,l])=>'<a class="text-link" href="'+href(s)+'" '+(s===sort?'aria-current="true"':'')+'>'+l+'</a>').join('')+'</div>'+list(d.tracks)+(offset?'<a class="small-button" href="'+href(sort,Math.max(0,offset-24))+'">이전</a>':'')+(d.nextOffset!==null?'<a class="small-button" href="'+href(sort,d.nextOffset)+'">더보기</a>':'')};
  }
  if(base==='profile-artists'){
-  const d=await api('/api/producers/'+encodeURIComponent(param)+'?dashboard=1'),pins=await api('/api/producers/'+encodeURIComponent(param)+'/pinned-artists');
+  const [d,pins]=await Promise.all([readApi('/api/producers/'+encodeURIComponent(param)+'?dashboard=1'),readApi('/api/producers/'+encodeURIComponent(param)+'/pinned-artists')]);
   return {html:ownedArtistDirectory(d,pins,param)};
  }return null;
 }

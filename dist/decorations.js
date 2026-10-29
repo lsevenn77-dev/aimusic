@@ -77,6 +77,7 @@ async function shopThemePreview(button){
   modal.addEventListener('click',e=>{if(e.target!==modal)return;const r=modal.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)modal.close();},{signal:controller.signal});
   const close=()=>modal.close();window.addEventListener('popstate',close,{signal:controller.signal});window.addEventListener('hashchange',close,{signal:controller.signal});
   shopPreviewCleanup=()=>{controller.abort();if(oldLabel===null)modal.removeAttribute('aria-label');else modal.setAttribute('aria-label',oldLabel);};
+  if(typeof registerRouteCleanup==='function')shopPreviewCleanup=registerRouteCleanup(shopPreviewCleanup);
   modal.addEventListener('close',()=>{if(modal.open)return;shopPreviewCleanup();if(button.isConnected)button.focus({preventScroll:true});},{signal:controller.signal});
   $('#dialog-close').focus({preventScroll:true});
  }catch{if(serial===giftDialogSerial)toast('세로형 방 배경을 불러오지 못했어요.');}
@@ -85,8 +86,8 @@ async function shopThemePreview(button){
 function shopBalancesHTML(wallet){
  return '<span class="shop-balance shop-balance-gold"><i class="gold-coin" aria-hidden="true">G</i><span>보유 골드</span><b data-shop-gold>'+number(wallet?.balance||0)+' G</b></span><span class="shop-balance shop-balance-silver"><img src="'+esc(AifectGifts.FREE_GIFT.image)+'" alt="" width="20" height="20"><span>보유 실버</span><b data-shop-silver>'+number(wallet?.free?.balance||0)+' S</b></span>';
 }
-async function finalGiftShopView(category){
- const [wallet,d,c]=await Promise.all([me?api('/api/gold','GET',undefined,{fresh:true}):null,api('/api/decorations','GET',undefined,{fresh:true}),api('/api/gifts/catalog')]);
+async function finalGiftShopView(category,readApi=api){
+ const [wallet,d,c]=await Promise.all([me?readApi('/api/gold','GET',undefined,{fresh:true}):null,readApi('/api/decorations','GET',undefined,{fresh:true}),readApi('/api/gifts/catalog')]);
  return '<div class="gift-dashboard shop-page"><header class="shop-heading"><h1>선물함</h1><div class="shop-balances" role="status" aria-label="보유 자산" aria-live="polite">'+shopBalancesHTML(wallet)+'</div><nav class="shop-actions" aria-label="선물함 관리"><a class="small-button" href="#gold">골드 충전</a><a class="small-button" href="#gifts/rewards">실버 받기</a><a class="small-button" href="#inventory">인벤토리</a></nav></header>'+
  shopShelf('gold','골드 상품',c.gifts)+shopShelf('silver','실버 상품',c.silver_gifts)+shopShelf('frames','테두리',d.products.filter(p=>p.kind==='PROFILE_FRAME'),d.periods)+shopShelf('themes','테마',shopThemeProducts(d.products),d.periods)+
  '<details class="shop-policy"><summary>선물 및 정산 안내</summary><p>'+esc(AifectGifts.GIFT_SETTLEMENT_NOTICE)+' 실버는 현금 정산·골드 전환 대상이 아니에요.</p><a class="text-link" href="#gold/history">보낸 선물 내역</a></details></div>';
@@ -141,6 +142,7 @@ function bindShopShelves(){
  },{signal:controller.signal}));
  document.fonts?.ready.then(()=>{if(root.isConnected&&!controller.signal.aborted)rows.forEach(update);});
  shopLayoutCleanup=()=>{observer.disconnect();controller.abort();};
+ if(typeof registerRouteCleanup==='function')shopLayoutCleanup=registerRouteCleanup(shopLayoutCleanup);
 }
 
 async function refreshShopBalances(){

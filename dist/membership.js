@@ -13,9 +13,9 @@ function canCreatePlaylist(){
  if(member.owned_count<member.playlist_limit)return true;
  dialog(`<h2>플레이리스트 ${member.playlist_limit}개를 모두 만들었어요.</h2><p>${member.plan==='premium'?'Premium은 최대 10개':'무료 회원은 최대 2개'}까지 만들 수 있습니다. 기존 목록에 곡을 더 담거나, 필요 없는 목록을 삭제한 뒤 만들어주세요.</p>${member.locked_count?'<button class="small-button" data-select-active>사용할 목록 선택</button>':''}<a class="text-link" href="#membership" data-close-dialog>이용 혜택 보기</a>`);return false;
 }
-async function selectActivePlaylists(){
+async function selectActivePlaylists(){const ticket=renderId;
  if(!me)return askLogin();await refreshLibrary();const count=Math.min(member.playlist_limit,library.playlists.length);
- dialog(`<h2>사용할 플레이리스트 선택</h2><p>${count}개를 선택해주세요. 선택하지 않은 목록과 담긴 곡은 보관됩니다.</p><form id="active-playlist-form"><div class="active-playlist-picker">${library.playlists.map(p=>`<label class="checkbox-line"><input type="checkbox" name="playlist_ids" value="${p.id}" ${member.active_ids.includes(p.id)?'checked':''}><span><strong>${esc(p.name)}</strong><small>${p.tracks}곡${p.locked?' · 보관 중':''}</small></span></label>`).join('')}</div><output id="active-playlist-count"></output><button class="primary-button">선택한 목록 사용하기</button><p class="form-error" role="alert"></p></form>`);
+ if(ticket!==renderId)return;dialog(`<h2>사용할 플레이리스트 선택</h2><p>${count}개를 선택해주세요. 선택하지 않은 목록과 담긴 곡은 보관됩니다.</p><form id="active-playlist-form"><div class="active-playlist-picker">${library.playlists.map(p=>`<label class="checkbox-line"><input type="checkbox" name="playlist_ids" value="${p.id}" ${member.active_ids.includes(p.id)?'checked':''}><span><strong>${esc(p.name)}</strong><small>${p.tracks}곡${p.locked?' · 보관 중':''}</small></span></label>`).join('')}</div><output id="active-playlist-count"></output><button class="primary-button">선택한 목록 사용하기</button><p class="form-error" role="alert"></p></form>`);
  const form=$('#active-playlist-form'),update=()=>{const n=form.querySelectorAll('input:checked').length;$('#active-playlist-count').textContent=`${n} / ${count}개 선택`;form.querySelector('button').disabled=n!==count;};form.onchange=update;update();
  form.onsubmit=busyForm(form,async fd=>{await api('/api/library/playlists/active','PUT',{playlist_ids:fd.getAll('playlist_ids')});$('#dialog').close();await refreshLibrary();await render();toast('사용할 플레이리스트를 저장했습니다.');});
 }
