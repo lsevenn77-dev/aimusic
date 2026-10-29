@@ -82,7 +82,7 @@ async function render(){
  main.dataset.account=account;
  main.classList.toggle('secondary-page',['charts','search','discover','collections','artists','producers','library','history','playlist','following','studio','manage','upload','cover','account','membership','rewards','payouts','inventory','gold'].includes(base)||base==='karaoke'&&param==='drafts');
  main.dataset.route=raw;
- main.dataset.commonBackground=String(!['karaoke','sing','cover','studio','manage','upload','dubbing-record','dubbing-edit'].includes(base));
+ main.dataset.commonBackground=String(!['karaoke','sing','cover','studio','manage','upload','dubbing'].includes(base));
  let html='',nextTracks=[];
  try{
   if(base==='home')return await renderHome(ticket);
