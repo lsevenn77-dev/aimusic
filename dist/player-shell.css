@@ -1,5 +1,5 @@
 /* FINAL MASTER 01_APPROVED_TARGET: one stable row; all rules stay inside the player. */
-.player:not(.is-collapsed){--player-mint:#8eddd2;--player-repeat:var(--player-mint);--player-one:var(--ds-selected);--player-track:#283650;position:fixed;left:0;right:0;bottom:0;width:100%;height:62px;min-height:62px;display:grid;grid-template-columns:minmax(0,1fr) 220px auto;align-items:center;gap:10px;padding:10px 10px 8px;border:0;border-radius:0;box-shadow:none;background:var(--ds-panel);color:var(--ds-text);overflow:visible}
+.player:not(.is-collapsed){--player-mint:#8eddd2;--player-repeat:var(--player-mint);--player-one:var(--ds-selected);--player-track:#283650;position:fixed;left:0;right:0;bottom:0;width:100%;height:62px;min-height:62px;display:grid;grid-template-columns:minmax(0,1fr) 220px minmax(0,1fr);align-items:center;gap:10px;padding:10px 10px 8px;border:0;border-radius:0;box-shadow:none;background:var(--ds-panel);color:var(--ds-text);overflow:visible}
 .player[hidden]:not(.is-collapsed){display:none}
 .player .player-track{min-width:0;overflow:hidden;container:player-track / inline-size}
 .player .now-playing{display:flex;align-items:center;gap:10px;min-width:0}
@@ -25,13 +25,14 @@
 .player #repeat[data-repeat-mode="1"]{color:var(--player-repeat);background:transparent}
 .player #repeat[data-repeat-mode="2"]{color:var(--player-one);background:transparent}
 .player .repeat-one{font:700 9px sans-serif;fill:currentColor;stroke:none}
-.player .player-controls{display:flex;align-items:center;justify-content:flex-end;gap:6px;min-width:0}
-.player .player-volume-box{display:contents}
+.player .player-controls{display:flex;justify-self:end;width:max-content;align-items:center;justify-content:flex-end;gap:6px;min-width:0}
+.player .player-volume-box{display:flex;align-items:center;gap:4px;flex:none}
+.player #volume{display:block;width:88px;min-width:88px;height:44px;flex:none;margin:0;padding:0;cursor:pointer}
 .player #player-volume-toggle{display:grid;place-items:center;position:relative;width:36px;height:44px;padding:0;flex:none;color:var(--ds-text)}
 .player #player-volume-toggle svg{width:18px;height:18px}
-.player .player-utility-panel{display:block;width:100%}
+.player .player-utility-panel{display:block;flex:none;width:auto}
 .player .player-utility-buttons{display:flex;align-items:center;justify-content:center;gap:6px}
-.player #player-inline-actions{display:contents}
+.player #player-inline-actions{display:block;flex:none}
 .player .player-actions{display:flex;align-items:center;gap:0;padding:0;margin:0;flex:none;border:0;background:transparent}
 .player .player-actions>.icon-button{display:flex;position:relative;align-items:center;justify-content:center;gap:6px;flex:none;width:auto;height:44px;min-height:0;padding:0 10px;border:0;border-radius:0;background:transparent;color:var(--ds-body);font-size:12px;line-height:1;white-space:nowrap}
 .player .player-actions>.icon-button:not(:first-child)::before{content:"";position:absolute;left:0;top:14px;height:16px;border-left:1px solid var(--ds-line)}
@@ -45,11 +46,13 @@
 .player #player-close svg{width:19px;height:19px;stroke-width:1.5}
 .player #listen-mode{display:none}
 .player[data-player-layout=icons] .player-action-label,.player[data-player-layout=compact] .player-track-details{display:none}
-.player[data-player-layout=labels]{grid-template-columns:minmax(0,1fr) 220px auto}
-.player[data-player-layout=icons]{grid-template-columns:minmax(0,1fr) 204px auto}
+.player[data-player-layout=labels]{grid-template-columns:minmax(0,1fr) 220px minmax(0,1fr)}
+.player[data-player-layout=icons]{grid-template-columns:minmax(0,1fr) 204px minmax(0,1fr)}
 .player[data-player-layout=icons] .player-buttons>:is(#shuffle,#repeat){width:34px}
 .player[data-player-layout=icons] .player-actions>.icon-button{width:35px;padding-left:7px;padding-right:7px}
-.player:not([data-player-layout=compact]) #player-close{margin-left:5px}
+.player:not([data-player-layout=compact]) #player-more{display:none}
+.player .player-controls #queue-toggle{display:grid;place-items:center;width:36px;height:44px;flex:none;border:0;background:transparent}
+.player[data-player-layout=compact] #player-inline-actions{display:none}
 .player[data-player-layout=compact]{grid-template-columns:minmax(0,1fr) 132px minmax(0,1fr)}
 
 .player[data-player-layout=compact] .player-actions{width:100%;justify-content:space-around}

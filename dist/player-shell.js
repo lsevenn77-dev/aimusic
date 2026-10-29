@@ -18,12 +18,13 @@ function renderPlayerActions(track){
  const actions=document.querySelector('#player-actions'),inline=document.querySelector('#player-inline-actions'),volumeToggle=document.querySelector('#player-volume-toggle'),transport=document.querySelector('.player-buttons');
  const utilities=document.querySelector('.player-utility-buttons'),shuffleButton=document.querySelector('#shuffle'),repeatButton=document.querySelector('#repeat');
  let view='none',scrubbing=false,layout='compact',previousVolume=audio.volume>0?audio.volume:.75;
- const utilityPanel=document.querySelector('#player-utility-panel'),volumeBox=document.querySelector('.player-volume-box');
+ const utilityPanel=document.querySelector('#player-utility-panel'),volumeBox=document.querySelector('.player-volume-box'),volume=document.querySelector('#volume'),controls=document.querySelector('.player-controls');
  function paintMute(){
   if(audio.volume>0)previousVolume=audio.volume;
   const muted=audio.muted||audio.volume===0,label=muted?'음소거 해제':'음소거';
   volumeToggle.innerHTML=icon(muted?'volume-off':'volume');
   volumeToggle.setAttribute('aria-pressed',String(muted));volumeToggle.setAttribute('aria-label',label);volumeToggle.title=label;
+  volume.value=String(audio.volume);volume.style.setProperty('--ds-range-progress',audio.volume*100+'%');
   window.AifectAudioAds?.volume(muted?0:audio.volume);
  }
  volumeToggle.addEventListener('click',()=>{
@@ -31,6 +32,9 @@ function renderPlayerActions(track){
   paintMute();
  });
  audio.addEventListener('volumechange',paintMute);
+ volume.addEventListener('input',()=>{
+  audio.volume=Math.max(0,Math.min(1,Number(volume.value)));audio.muted=false;paintMute();
+ });
  function paintView(){
   const visible=view==='lyrics'||view==='actions';
   player.dataset.playerView=view;player.classList.toggle('show-lyrics',view==='lyrics');extension.hidden=!visible;panel.hidden=view!=='actions';
@@ -45,22 +49,32 @@ function renderPlayerActions(track){
   repeatButton.title=['반복 끔','전체 반복','한 곡 반복'][repeatMode];repeatButton.setAttribute('aria-label',repeatButton.title);
  }
  function measureLayout(){
-  const width=player.getBoundingClientRect().width;if(!width)return;
-  // Budget the reference's metadata/transport, then measure the actual Korean labels.
-  const ctx=document.createElement('canvas').getContext('2d');ctx.font='600 12px '+getComputedStyle(player).fontFamily;
-  const labelWidth=[...actions.querySelectorAll('.player-action-label')].reduce((sum,label)=>sum+ctx.measureText(label.textContent).width+46,0);
-  layout=width>=Math.max(1320,920+labelWidth)?'labels':width>=900?'icons':'compact';
-  player.dataset.playerLayout=layout;player.dataset.playerSmall=String(width<700);
+  const width=player.clientWidth;if(!width)return;
+  const style=getComputedStyle(player),available=width-parseFloat(style.paddingLeft)-parseFloat(style.paddingRight),gap=parseFloat(style.columnGap)||0;
+  player.dataset.playerSmall=String(width<700);
+  // Equal side columns fix the transport's visual centre. Measure live controls
+  // in each presentation instead of estimating text widths or viewport breakpoints.
+  inline.append(actions);volumeBox.prepend(volumeToggle,volume);controls.insertBefore(utilityPanel,lyrics);
+  transport.prepend(shuffleButton);transport.append(repeatButton);
+  layout='compact';
+  for(const candidate of ['labels','icons']){
+   player.dataset.playerLayout=candidate;
+   const side=(available-parseFloat(getComputedStyle(player).gridTemplateColumns.split(' ')[1])-2*gap)/2;
+   const right=[...controls.children].filter(el=>getComputedStyle(el).display!=='none');
+   const needed=right.reduce((sum,el)=>sum+el.getBoundingClientRect().width,0)+Math.max(0,right.length-1)*(parseFloat(getComputedStyle(controls).columnGap)||0);
+   if(side>=Math.max(170,needed)){layout=candidate;break;}
+  }
+  player.dataset.playerLayout=layout;
   const destination=layout==='compact'?panel:inline;if(actions.parentElement!==destination)destination.append(actions);
   if(layout==='compact'){
    if(shuffleButton.parentElement!==utilities)utilities.prepend(shuffleButton,repeatButton);
-   if(volumeToggle.parentElement!==utilities)utilities.prepend(volumeToggle);
+   utilities.prepend(volumeToggle,volume);
+   if(utilityPanel.parentElement!==panel)panel.prepend(utilityPanel);
   }
   else {
    if(shuffleButton.parentElement!==transport){transport.prepend(shuffleButton);transport.append(repeatButton);}
-   if(volumeToggle.parentElement!==volumeBox)volumeBox.prepend(volumeToggle);
+   volumeBox.prepend(volumeToggle,volume);
   }
-  if(utilityPanel.parentElement!==panel)panel.prepend(utilityPanel);
   paintView();
  }
  window.AifectPlayerShell={close:()=>setView('none'),refresh:()=>{measureLayout();paintModes();},paintModes,get scrubbing(){return scrubbing;}};

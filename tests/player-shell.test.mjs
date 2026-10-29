@@ -7,11 +7,15 @@ const artistRule=readFileSync(new URL('../dist/app.js',import.meta.url),'utf8').
 function fixture(){
  const nodes=new Map(),audioEvents={},documentEvents={};let width=390;
  function node(id){const classes=new Set();return {id,hidden:false,innerHTML:'',textContent:'',max:100,value:25,dataset:{},attributes:{},events:{},parentElement:null,contains:()=>true,style:{setProperty(k,v){this[k]=v;}},getBoundingClientRect:()=>({width}),querySelectorAll:()=>[],classList:{contains:k=>classes.has(k),remove:k=>classes.delete(k),toggle(k,v){v?classes.add(k):classes.delete(k);}},setAttribute(k,v){this.attributes[k]=v;},getAttribute(k){return this.attributes[k];},addEventListener(k,fn){this.events[k]=fn;},focus(){this.focused=true;},append(...els){els.forEach(el=>el.parentElement=this);},prepend(...els){this.append(...els);}};}
- for(const id of ['.player','#seek','#player-lyrics-toggle','#player-more','#player-extension','#player-action-panel','#player-actions','#player-inline-actions','#player-volume-toggle','#player-utility-panel','.player-volume-box','.player-buttons','.player-utility-buttons','#shuffle','#repeat','#play-toggle','#player-close','#queue-toggle','#elapsed','#duration','#now-playing','#player-genre','.player-track-details','.player-meta-line','.player-clock'])nodes.set(id,node(id));
+ for(const id of ['.player','#volume','.player-controls','#seek','#player-lyrics-toggle','#player-more','#player-extension','#player-action-panel','#player-actions','#player-inline-actions','#player-volume-toggle','#player-utility-panel','.player-volume-box','.player-buttons','.player-utility-buttons','#shuffle','#repeat','#play-toggle','#player-close','#queue-toggle','#elapsed','#duration','#now-playing','#player-genre','.player-track-details','.player-meta-line','.player-clock'])nodes.set(id,node(id));
  const e=s=>nodes.get(s);e('#player-actions').parentElement=e('#player-action-panel');e('#shuffle').parentElement=e('.player-buttons');e('#repeat').parentElement=e('.player-buttons');
+ Object.defineProperty(e('.player'),'clientWidth',{get:()=>width});
+ e('.player-buttons').getBoundingClientRect=()=>({width:220});
+ e('.player-controls').children=[{getBoundingClientRect:()=>({width:e('.player').dataset.playerLayout==='labels'?720:441})}];
+ e('.player-controls').insertBefore=el=>el.parentElement=e('.player-controls');
  const audio={currentTime:25,duration:NaN,volume:.75,muted:false,paused:false,addEventListener(k,fn){audioEvents[k]=fn;}};
  const document={querySelector:s=>e(s)||null,addEventListener(k,fn){documentEvents[k]=fn;},createElement:()=>({getContext:()=>({measureText:t=>({width:t.length*8})})})};
- const context=vm.createContext({document,audio,window:{},getComputedStyle:()=>({fontFamily:'sans-serif'}),ResizeObserver:class{observe(){}},MutationObserver:class{observe(){}},current:{id:'one'},shuffle:false,repeatMode:0,esc:s=>String(s??'').replaceAll('<','&lt;').replaceAll('"','&quot;'),cover:()=>'<img>',icon:s=>'<svg>'+s+'</svg>',liked:()=>true,giftButton:t=>t.own?'':'<button data-gift="'+t.id+'"><span>선물</span></button>'});
+ const context=vm.createContext({document,audio,window:{},getComputedStyle:()=>({fontFamily:'sans-serif',paddingLeft:'10px',paddingRight:'10px',columnGap:'10px',gridTemplateColumns:'1px 220px 1px',display:'flex'}),ResizeObserver:class{observe(){}},MutationObserver:class{observe(){}},current:{id:'one'},shuffle:false,repeatMode:0,esc:s=>String(s??'').replaceAll('<','&lt;').replaceAll('"','&quot;'),cover:()=>'<img>',icon:s=>'<svg>'+s+'</svg>',liked:()=>true,giftButton:t=>t.own?'':'<button data-gift="'+t.id+'"><span>선물</span></button>'});
  vm.runInContext(artistRule,context);vm.runInContext(source,context);
  return {e,context,audio,audioEvents,documentEvents,click:s=>e(s).events.click(),view:()=>e('.player').dataset.playerView,run:s=>vm.runInContext(s,context),resize:n=>{width=n;context.window.AifectPlayerShell.refresh();}};
 }
@@ -43,4 +47,22 @@ test('external volume changes update the mute icon and zero volume restores last
  const f=fixture();f.audio.volume=.42;f.audioEvents.volumechange();f.audio.volume=0;f.audioEvents.volumechange();assert.match(f.e('#player-volume-toggle').innerHTML,/volume-off/);
  f.click('#player-volume-toggle');assert.equal(f.audio.volume,.42);assert.equal(f.audio.muted,false);assert.match(f.e('#player-volume-toggle').innerHTML,/>volume</);
  f.audio.muted=true;f.audioEvents.volumechange();assert.equal(f.e('#player-volume-toggle').attributes['aria-pressed'],'true');
+});
+
+test('slider updates the existing audio and dragging out of mute restores audibility',()=>{
+ const f=fixture();f.e('#volume').value='0.37';f.e('#volume').events.input();
+ assert.equal(f.audio.volume,.37);assert.equal(f.audio.muted,false);
+ f.click('#player-volume-toggle');assert.equal(f.audio.muted,true);
+ f.e('#volume').value='0.62';f.e('#volume').events.input();
+ assert.equal(f.audio.volume,.62);assert.equal(f.audio.muted,false);
+ f.e('#volume').value='0';f.e('#volume').events.input();
+ f.click('#player-volume-toggle');assert.equal(f.audio.volume,.62);
+ assert.equal(f.e('#volume').value,'0.62');assert.equal(f.audio.currentTime,25);
+});
+
+test('live width budget switches labels, icons and overflow without losing the volume input',()=>{
+ const f=fixture();for(const [width,layout] of [[1920,'labels'],[1440,'icons'],[1024,'compact'],[390,'compact'],[1280,'icons']]){
+  f.resize(width);assert.equal(f.e('.player').dataset.playerLayout,layout);
+  assert.equal(f.e('#volume').parentElement,f.e(layout==='compact'?'.player-utility-buttons':'.player-volume-box'));
+ }
 });
