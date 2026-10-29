@@ -7,6 +7,7 @@ paths.settings='M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Zm7.4-3.5a7.4 7.4 0 
 const icon=(n,size=24)=>{
  if(n.startsWith('ui-'))return aifectControlIcon(n.slice(3),size);
  if(n==='audio-play')return playIcon(size);
+ if(n==='player-play'||n==='player-pause')return playerToggleIcon(n==='player-play',size);
  const menu=n==='menu'||n==='more';
  return `<svg viewBox="0 0 24 24"${menu?' class="menu-icon" width="20" height="20"':''} fill="none" stroke="currentColor" stroke-width="${menu?'1.8':'1.6'}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${paths[n]||paths.sparkles}"/></svg>`;
 };
@@ -70,3 +71,11 @@ function aifectControlIcon(name,size=24){
  const glyph=key==='plays'?'play':key==='pause'?'pause':key;
  return `<svg class="aifect-control-icon ${action?'outline-gradient-action':'metric-inline-icon'} aifect-icon-${key}" viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="${aifectControlPaths[glyph]||paths[glyph]||paths.sparkles}"/></svg>`;
 }
+
+// Only the bottom player's two states share this artwork. Preserve the original
+// card-play gradient, circle and triangle without altering other audio controls.
+function playerToggleIcon(paused,size=40){
+ const glyph=paused?'<path d="M14 11.9Q14 10.7 15.05 11.35L24.4 17.1Q25.85 18 24.4 18.9L15.05 24.65Q14 25.3 14 24.1Z" fill="url(#player-toggle-pastel)"/>':'<path d="M14 12v12M22 12v12" fill="none" stroke="url(#player-toggle-pastel)" stroke-width="2.5" stroke-linecap="round"/>';
+ return '<svg class="player-toggle-icon" viewBox="0 0 36 36" width="'+size+'" height="'+size+'" aria-hidden="true" focusable="false"><defs><linearGradient id="player-toggle-pastel" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#7dd8f3"/><stop offset=".52" stop-color="#b9b3f0"/><stop offset="1" stop-color="#f1b3ee"/></linearGradient></defs><circle cx="18" cy="18" r="17.375" fill="#000" stroke="url(#player-toggle-pastel)" stroke-width="1.25"/>'+glyph+'</svg>';
+}
+paths['volume-off']='m11 5-6 4H2v6h3l6 4ZM16 9l6 6M22 9l-6 6';
