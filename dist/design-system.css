@@ -30,7 +30,7 @@ button svg,a svg,summary svg {stroke-width:1.6}
 /* Keep menu strokes consistent, including the player's legacy overflow override. */
 button svg.menu-icon,.player #player-more svg.menu-icon {stroke-width:1.8}
 .icon-button {color:var(--ds-body)}
-.icon-button:hover,.text-link:hover,.header-login:hover {color:var(--ds-selected)}
+.icon-button:hover,.text-link:hover,.header-login:hover,.topbar :is(.header-messages,.header-activity):hover {color:var(--ds-selected)}
 .tiny-eyebrow,.eyebrow {color:var(--ds-body)}
 
 /* Navigation and outlined controls. */
