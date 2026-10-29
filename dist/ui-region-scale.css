@@ -17,7 +17,9 @@
  .topbar #global-search input{min-width:0;width:100%}
  .topbar .search-submit{min-height:35.2px;flex:none}
  .topbar .top-actions{align-items:center;flex-shrink:0;gap:19.8px}
- .topbar :is(.header-login,.header-messages,.header-activity,.upload-button){display:inline-flex;align-items:center;justify-content:center;min-height:44px}
+ .topbar :is(.header-login,.header-messages,.header-activity){display:inline-flex;align-items:center;justify-content:center;min-height:44px}
+ .topbar .upload-button{display:flex;align-items:center;justify-content:center;gap:calc(8px * var(--ui-space-scale));padding:calc(8px * var(--ui-space-scale)) calc(14px * var(--ui-space-scale));min-height:44px;height:auto;line-height:1.4}
+ .topbar .upload-button>i{display:flex;align-items:center;justify-content:center;line-height:1}
  .topbar :is(.header-messages,.header-activity)>i>svg{width:22px;height:22px}
  .topbar .upload-button svg{width:16.5px;height:16.5px}
  #main :is(.primary-button,.small-button,.submit-button,.form-submit):not(#sing.web-studio *,.dubbing-record-layout *){min-height:var(--ui-control-height);height:auto;white-space:normal}
