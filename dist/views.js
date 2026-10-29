@@ -151,6 +151,7 @@ async function render(){
    if(base==='discover'&&genre!=='전체')query='?genre='+encodeURIComponent(genre);
    if(base==='search')query='?q='+encodeURIComponent(searchValue);
    if(base==='artists')query='?'+new URLSearchParams({directory:'1',sort:new URLSearchParams(raw.split('?')[1]||'').get('sort')||'popular',offset:new URLSearchParams(raw.split('?')[1]||'').get('offset')||0});
+   if(base==='producers'&&new URLSearchParams(raw.split('?')[1]||'').get('sort')==='popular')query='?sort=popular';
    query+=(query?'&':'?')+'section='+(['artists','producers'].includes(base)?base:'tracks');
    const data=await readApi('/api/catalog'+query);nextTracks=remember(data.tracks||[]);
    if(base==='discover')html=heading('음악 발견','장르를 넘나들며 새로운 취향을 찾아보세요.')+`<div class="genre-chips">${genres.map(g=>`<a class="genre-chip ${g===genre?'active':''}" href="#discover/${encodeURIComponent(g)}">${g}</a>`).join('')}</div>`+grid(data.tracks);
@@ -182,7 +183,7 @@ async function render(){
   }else if(base==='history'){const d=await readApi('/api/history');nextTracks=remember(d.tracks);html=heading('최근 들은 음악','다시 듣고 싶은 순간을 찾아보세요.')+list(d.tracks);}
   else if(base==='playlist'){
    const d=await readApi('/api/playlists/'+param);nextTracks=remember(d.tracks);const owned=me?.id===d.playlist.user_id;
-   html=heading(esc(d.playlist.name),`${d.tracks.length}곡 · ${d.playlist.is_public?'공개 플레이리스트':'나만 보는 플레이리스트'}`)+`<div class="inline-actions playlist-actions"><button class="primary-button" data-play-all>전체 재생 ${icon('audio-play')}</button>${owned?`<button class="small-button" data-pick-playlist="${param}">좋아요한 곡 담기</button><button class="small-button" data-order-playlist="${param}">곡 순서 편집</button><button class="small-button" data-edit-playlist="${param}">이름 · 공개 설정</button><button class="small-button" data-delete-playlist="${param}">삭제</button>`:''}${d.playlist.is_public?`<button class="small-button" data-share>링크 복사</button>`:''}</div>`+list(d.tracks,owned?param:null);
+   html=heading(esc(d.playlist.name),`${d.tracks.length}곡 · ${d.playlist.is_public?'추천 플레이리스트':'나만 보는 플레이리스트'}`)+`<div class="inline-actions playlist-actions"><button class="primary-button" data-play-all>전체 재생 ${icon('audio-play')}</button>${owned?`<button class="small-button" data-pick-playlist="${param}">좋아요한 곡 담기</button><button class="small-button" data-order-playlist="${param}">곡 순서 편집</button><button class="small-button" data-edit-playlist="${param}">이름 · 공개 설정</button><button class="small-button" data-delete-playlist="${param}">삭제</button>`:''}${d.playlist.is_public?`<button class="small-button" data-share>링크 복사</button>`:''}</div>`+list(d.tracks,owned?param:null);
   }else if(base==='account')html=accountHTML()+(authConfig?.track_moderator?'<p><a class="small-button" href="#admin/track-review">음원 검토 목록</a></p>':'');
   else if(base==='upload'){studioData=await readApi('/api/studio');html=uploadHTML(studioData);}
   else if(base==='karaoke'){const [d,duets]=await Promise.all([readApi('/api/karaoke'),readApi('/api/duets')]);nextTracks=[...d.tracks,...duets.tracks];html=karaokeListHTML(d.tracks,duets.tracks);}

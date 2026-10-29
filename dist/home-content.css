@@ -1,4 +1,37 @@
 /* Home content only. Shared navigation, player and other routes retain their CSS. */
+.home-content-refresh .home-rail-shell{position:relative;min-width:0;padding-top:4px}
+.home-content-refresh .home-rail-controls{display:flex;justify-content:flex-end;gap:4px;margin:-10px 0 6px}
+.home-content-refresh .home-rail-controls button{display:grid;place-items:center;width:44px;height:44px;padding:0;border:0;border-radius:var(--ds-radius-button,12px);background:transparent;color:var(--ds-body);cursor:pointer}
+.home-content-refresh .home-rail-controls button:disabled{opacity:.3;cursor:default}
+.home-content-refresh .home-rail-controls button:not(:disabled):hover{color:var(--ds-accent-mint)}
+.home-content-refresh .home-rail-controls button:first-child svg{transform:rotate(180deg)}
+.home-content-refresh .home-rail-controls svg{width:20px;height:20px}
+.home-content-refresh .home-rail{display:flex;gap:24px;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x mandatory;scroll-padding-inline:4px;padding:4px 4px 12px;scrollbar-width:thin;scrollbar-color:var(--ds-border) transparent;min-width:0}
+.home-content-refresh .home-playlist-card{flex:0 0 200px;min-width:0;scroll-snap-align:start}
+.home-content-refresh .home-playlist-art{position:relative}
+.home-content-refresh .home-playlist-art>a{display:block}
+.home-content-refresh .home-playlist-art .collection-art{width:100%;aspect-ratio:1;margin:0;border-radius:var(--ds-radius-card);overflow:hidden}
+.home-content-refresh .home-playlist-art img{width:100%;height:100%;object-fit:cover}
+.home-content-refresh .home-playlist-art .list-action{position:absolute;bottom:8px;right:8px;min-width:44px;min-height:44px}
+.home-content-refresh .home-playlist-name{display:block;margin-top:12px;font-size:15px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.5}
+.home-content-refresh .home-playlist-card p{margin:4px 0 0;font-size:12px;line-height:1.6;color:var(--ds-body);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.home-content-refresh .home-playlist-card small{display:block;margin-top:6px;font-size:12px;line-height:1.5;color:var(--ds-muted)}
+.home-content-refresh .home-profile-tabs{margin:0 0 8px;gap:24px}
+.home-content-refresh .home-profile-tabs .tab{min-height:44px;padding:0 0 10px;font:inherit;font-size:14px;font-weight:600;cursor:pointer}
+.home-content-refresh .home-profile-tabs .tab[aria-selected=true]{color:var(--ds-selected)}
+.home-content-refresh .home-profile-card{flex:0 0 128px;min-width:0;text-align:center;scroll-snap-align:start}
+.home-content-refresh .home-profile-card>a{display:block;padding:2px}
+.home-content-refresh .home-profile-card .artist-portrait{width:120px;height:120px;aspect-ratio:1;border-radius:50%;overflow:hidden;margin:0 auto;background:var(--ds-panel)}
+.home-content-refresh .home-profile-card .profile-avatar-image{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.home-content-refresh .home-profile-name{display:flex;align-items:center;justify-content:center;gap:4px;margin-top:12px;font-size:14px;font-weight:650;line-height:1.5;min-width:0}
+.home-content-refresh .home-profile-name>span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.home-content-refresh .home-profile-name .partner-badge{flex:none;font-size:10px;max-width:65px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+@media(max-width:600px){
+ .home-content-refresh .home-rail{gap:16px}
+ .home-content-refresh .home-playlist-card{flex-basis:44cqi;max-width:200px}
+ .home-content-refresh .home-profile-card{flex-basis:104px}
+ .home-content-refresh .home-profile-card .artist-portrait{width:96px;height:96px}
+}
 .home-content-refresh{container-type:inline-size;min-width:0}
 .home-content-refresh #home-release{min-width:0}
 .home-content-refresh .home-feature{position:relative;isolation:isolate;height:272px;overflow:hidden;border-radius:var(--ds-radius-feature,20px);background:var(--ds-panel);touch-action:pan-y}
@@ -115,8 +148,6 @@
  #main .home-content-refresh .home-music-grid .card-more{position:relative;flex-basis:28px;width:28px;min-width:28px;height:32px;min-height:32px;padding:0}
  #main .home-content-refresh .home-music-grid .card-more::after{content:"";position:absolute;inset:-6px -4px}
  #main .home-content-refresh .home-music-grid .card-play{right:2px;bottom:2px;opacity:1;pointer-events:auto}
- .home-content-refresh #home-own-playlists .collection-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
- .home-content-refresh #home-own-playlists .collection-card:nth-child(n+3),.home-content-refresh #home-curations{display:none}
  #main .home-content-refresh .song-table-row{--list-thumb-size:36px;--list-text-gap:8px;min-height:60px}
  #main .home-content-refresh .song-table-info strong{font-size:13px}
  #main .home-content-refresh .song-table-info>div>span{font-size:11px}

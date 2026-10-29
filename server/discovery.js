@@ -8,6 +8,7 @@ import {rows,one,run,query,now,fail,str,json} from './db.js';
 import {requireUser} from './auth.js';
 import {trackList,published,GENRES,VISIBLE} from './catalog.js';
 import {activePlaylistSQL,membership} from './membership.js';
+import {profileDiscovery} from './profile-discovery.js';
 
 export {MOODS};
 function moodFilter(mood){return {sql:'EXISTS(SELECT 1 FROM json_each(t.moods_json) jm WHERE jm.value=?)',args:[mood.id]};}
@@ -31,6 +32,11 @@ async function libraryMember(env,uid,pid){const p=await one(env,`SELECT p.* FROM
 
 export async function discoveryRoute(req,env,path,user){
  const url=new URL(req.url),method=req.method;
+ if(path==='/api/discovery/profiles'&&method==='GET'){
+  const kind=url.searchParams.get('kind'),sort=url.searchParams.get('sort')||'popular';
+  if(!['artist','producer'].includes(kind)||!['popular','latest'].includes(sort))fail(400,'프로필 탐색 조건을 확인해주세요.');
+  return json({profiles:await profileDiscovery(env,kind,sort),sort});
+ }
  const member=path.match(/^\/api\/members\/([A-Za-z]{3}[0-9]{4})$/);
  if(member&&method==='GET'){
   const profile=await one(env,`SELECT p.id,u.id user_id,m.code public_id,${publicNameSQL()} name,COALESCE(p.bio,'') bio,COALESCE(p.image_version,'') image_version FROM public_profile_ids m JOIN users u ON u.id=m.user_id LEFT JOIN producers p ON p.user_id=u.id WHERE m.code=? AND u.provider!='deleted'`,member[1].toUpperCase());
@@ -66,7 +72,7 @@ export async function discoveryRoute(req,env,path,user){
   requireUser(user);
   if(method==='DELETE'){await run(env,'DELETE FROM playlist_saves WHERE user_id=? AND playlist_id=?',user.id,m[1]);await run(env,'DELETE FROM playlist_preferences WHERE user_id=? AND playlist_id=? AND NOT EXISTS(SELECT 1 FROM playlists WHERE id=? AND user_id=?)',user.id,m[1],m[1],user.id);return json({ok:true});}
   if(method!=='PUT')fail(405,'지원하지 않는 요청입니다.');
-  const p=await one(env,`SELECT p.* FROM playlists p WHERE id=? AND is_public=1 AND ${activePlaylistSQL()}`,m[1]);if(!p)fail(404,'공개 플레이리스트를 찾을 수 없습니다.');if(p.user_id===user.id)fail(400,'내 플레이리스트는 이미 보관함에 있습니다.');
+  const p=await one(env,`SELECT p.* FROM playlists p WHERE id=? AND is_public=1 AND ${activePlaylistSQL()}`,m[1]);if(!p)fail(404,'추천 플레이리스트를 찾을 수 없습니다.');if(p.user_id===user.id)fail(400,'내 플레이리스트는 이미 보관함에 있습니다.');
   await run(env,'INSERT OR IGNORE INTO playlist_saves(user_id,playlist_id,created) VALUES(?,?,?)',user.id,p.id,now());return json({ok:true});
  }
  if(path==='/api/library/playlists/order'&&method==='PUT'){
