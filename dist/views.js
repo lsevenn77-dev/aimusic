@@ -27,7 +27,9 @@ function cleanupRouteBindings(main){
 }
 function cleanupRouteOverlays(){
  if(typeof giftDialogSerial==='number')giftDialogSerial++;
- for(const modal of document.querySelectorAll('dialog[open]'))modal.close();
+ for(const modal of document.querySelectorAll('dialog[open]')){
+  if(modal.matches?.('.profile-preview')&&typeof closeProfilePreview==='function')closeProfilePreview();else modal.close();
+ }
  const menu=$('#chart-track-menu');
  if(menu){menu._chartCleanup?.();if(menu.matches(':popover-open'))menu.hidePopover();}
 }

@@ -94,6 +94,12 @@ test('route changes close page overlays and release inline previews without touc
  assert.equal(closed,1);assert.equal(paused,1);assert.equal(loaded,1);assert.equal(globalPauses,0);
 });
 
+test('profile previews use their closer so document scrolling is restored',async()=>{
+ const c=renderer(async()=>response({tracks:[]}));let restored=0;
+ c.document.querySelectorAll=()=>[{matches:selector=>selector==='.profile-preview',close(){throw Error('The custom closer must restore scrolling');}}];
+ c.context.closeProfilePreview=()=>restored++;await c.navigate('history');assert.equal(restored,1);
+});
+
 test('new navigation releases page observers but preserves a matching voice connection',async()=>{
  const c=renderer(async()=>response({tracks:[]}));let observers=0,voiceLeaves=0;
  c.context.searchResizeCleanup=()=>observers++;c.context.discoverCleanup=()=>observers++;
