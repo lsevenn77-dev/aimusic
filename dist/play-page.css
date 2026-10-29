@@ -160,7 +160,6 @@ img.play-dubbing-art{display:block;width:100%;height:auto;aspect-ratio:1;object-
 .play-page .play-banner .home-feature-copy{grid-column:2/-1}
 .play-page .play-banner .home-feature-copy h2{overflow:visible;overflow-wrap:anywhere;word-break:keep-all}
 .play-page .play-banner .home-feature-description{display:block;max-height:none;overflow:visible;-webkit-line-clamp:unset;word-break:keep-all}
-.play-page .play-banner-photo{width:100%;height:100%;background-size:cover;background-position:center;opacity:.65}
-.play-page .play-banner .home-feature-background:after{background:linear-gradient(90deg,#0c121b80,#0c121bcc 65%,#0c121b33)}
+.play-page .play-banner-photo{width:100%;height:100%;background-size:cover;background-position:center;filter:blur(14px) saturate(1.18);transform:scale(1.12);opacity:.6}
 .play-page .play-banner-art{display:block;object-fit:cover}
 @media(max-width:600px){#main .play-page .count-dropdown{font-size:13.6px}}

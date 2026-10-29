@@ -40,11 +40,12 @@
 .home-content-refresh .home-feature-backdrop{width:100%;height:100%;background-size:cover;background-position:center;filter:blur(14px) saturate(1.18);transform:scale(1.12);opacity:.6}
 .home-content-refresh .home-feature-background img{width:100%;height:100%;opacity:0}
 .home-content-refresh .home-feature-background img[hidden]{display:none}
-/* Home only: let the original artwork light overlap the page without masking controls.
+/* Shared home/play banners: let original artwork light overlap the page without masking controls.
    The stage/outgoing layer stays unclipped so the existing crossfade includes the halo. */
-.home-content-refresh #home-release .home-feature{overflow:visible;background:transparent}
-.home-content-refresh #home-release .home-feature-background{inset:-20px -12px;pointer-events:none;background:transparent;mask-image:linear-gradient(90deg,transparent,#000 9%,#000 91%,transparent),linear-gradient(transparent,#000 23%,#000 65%,transparent);mask-composite:intersect}
-.home-content-refresh #home-release .home-feature-hangul{font-size:.88em}
+:is(.home-content-refresh #home-release,.home-content-refresh.play-banner) .home-feature{overflow:visible;background:transparent}
+:is(.home-content-refresh #home-release,.home-content-refresh.play-banner) .home-feature-background{inset:-20px -12px;pointer-events:none;background:transparent;mask-image:linear-gradient(90deg,transparent,#000 9%,#000 91%,transparent),linear-gradient(transparent,#000 23%,#000 65%,transparent);mask-composite:intersect}
+:is(.home-content-refresh #home-release,.home-content-refresh.play-banner){--feature-hangul-scale:.88}
+:is(.home-content-refresh #home-release,.home-content-refresh.play-banner) .home-feature-hangul{font-size:calc(1em * var(--feature-hangul-scale))}
 .home-content-refresh .home-feature-background::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,#0c121b00 0%,#0c121b0a 20%,#0c121b38 44%,#0c121b33 64%,#0c121b0a 86%,#0c121b00 100%),radial-gradient(ellipse at 50% 120%,#0c121b26 0%,#0c121b0f 40%,#0c121b00 72%)}
 .home-content-refresh .home-feature-slide{position:relative;z-index:1;height:100%;display:grid;grid-template-columns:194px minmax(0,1fr) 170px;gap:30px;align-items:center;padding:26px 82px 42px 100px;min-width:0;animation:home-content-in .55s ease both}
 .home-content-refresh .home-feature-cover{display:block;min-width:0;border-radius:12px;box-shadow:0 8px 20px #0003}
