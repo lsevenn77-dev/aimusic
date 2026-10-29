@@ -66,3 +66,47 @@ main .social-profile-identity h2>.mp-public-id{display:block;font-size:13px;font
 }
 
 .mp-public-id [data-copy-public-id]{min-width:44px;min-height:44px;padding:0 8px;font-size:inherit;vertical-align:middle;background:transparent;border:0;color:inherit;cursor:pointer;text-decoration:underline}
+
+/* Final owner-profile composition. Keep the existing column widths and wash. */
+#main .mp-own .mp-avatar-space{width:116px;height:116px;display:grid;place-items:center;align-self:center}
+#main .mp-own .mp-avatar{width:86px;height:86px}
+#main .mp-own .mp-profile-actions{align-self:end;align-items:end;gap:8px;margin:0}
+#main .mp-own .mp-profile-actions>:is(.primary-button,.small-button){height:44px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;line-height:1.5}
+#main .mp-own .mp-moments{padding-bottom:14px;scrollbar-width:auto;scrollbar-color:auto}
+#main .mp-own .mp-moments::-webkit-scrollbar{height:5px}
+#main .mp-own .mp-moments::-webkit-scrollbar-track{background:transparent}
+#main .mp-own .mp-moments::-webkit-scrollbar-thumb{background:var(--control-gradient);border-radius:8px}
+#main .mp-own .mp-segment{width:100%;max-width:100%;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));padding:0;border:0;border-bottom:1px solid var(--ds-line);border-radius:0;background:none;box-sizing:border-box}
+#main .mp-own .mp-segment-slide{display:none}
+#main .mp-own .mp-segment button{width:100%;border-radius:0;border:0;border-bottom:2px solid transparent;color:var(--ds-body);background:none;text-align:center;min-height:44px}
+#main .mp-own .mp-segment button[aria-selected=true]{color:var(--ds-accent-pink);border-bottom-color:var(--ds-accent-pink)}
+#main .mp-own .mp-artists{align-items:start;grid-template-columns:repeat(3,minmax(0,1fr))}
+#main .mp-own .mp-artists .artist-portrait{display:grid;place-items:center;box-sizing:border-box;aspect-ratio:1;width:100%;max-width:86px;height:auto;border-radius:50%}
+#main .mp-own :is(.mp-artist-placeholder,.mp-artist-add .artist-portrait){border:1px solid transparent;background:linear-gradient(var(--ds-bg),var(--ds-bg)) padding-box,var(--control-gradient) border-box;border-radius:50%}
+#main .mp-own .mp-artists svg{width:26px;height:26px;color:var(--ds-body)}
+#main .mp-own .mp-artist-add{display:block;width:100%;min-width:44px;min-height:44px;padding:0;border:0;background:none;cursor:pointer}
+#main .mp-own .mp-originals .card-play{opacity:1;pointer-events:auto;transition:opacity .18s ease}
+@media(hover:hover) and (pointer:fine){
+ #main .mp-own .mp-originals .card-play{opacity:0;pointer-events:none}
+ #main .mp-own .mp-originals .album-card:is(:hover,:focus-within) .card-play{opacity:1;pointer-events:auto}
+}
+@media(min-width:1101px){
+ #main .mypage-layout.mp-own>.mp-main{display:contents}
+ #main .mp-own>.mp-main>.mp-profile{grid-column:1;grid-row:1}
+ #main .mp-own>.mp-main>.mp-moments-card{grid-column:1;grid-row:2;margin-bottom:0}
+ #main .mp-own>.mp-main>.mp-segment{grid-column:1;grid-row:3;margin-bottom:0}
+ #main .mp-own>.mp-main>#mp-content{grid-column:1;grid-row:4}
+ #main .mp-own>.mp-aside{grid-column:2;grid-row:2/span 3}
+ #main .mp-own .mp-profile{margin-bottom:-22px}
+}
+@media(min-width:1101px) and (max-width:1399px){
+ #main .mp-own .mp-profile{grid-template-columns:90px minmax(0,1fr);margin-bottom:-16px}
+ #main .mp-own .mp-avatar-space{width:90px;height:90px}
+ #main .mp-own .mp-profile-actions{grid-column:2;grid-row:1;align-self:end;justify-self:end}
+ #main .mp-own .mp-identity{grid-column:2;grid-row:1}
+ #main .mp-own .mp-stats{box-sizing:border-box;padding-right:210px;min-height:50px;align-items:end;gap:8px}
+}
+@media(max-width:1100px){
+ #main .mp-own .mp-avatar-space{width:88px;height:88px}
+ #main .mp-own .mp-avatar{width:72px;height:72px}
+}

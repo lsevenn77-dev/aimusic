@@ -13,6 +13,16 @@ import {alignmentStatus,alignmentWrite} from './alignment.js';
 import {karaokeQueue,karaokeStatus} from './karaoke.js';
 
 export async function studioRoute(req,env,path,user){
+ if(path==='/api/studio/artists'&&req.method==='POST'){
+  requireUser(user);await rate(env,'artist-create:'+user.id,20,3600);
+  const producer=await one(env,'SELECT id FROM producers WHERE user_id=?',user.id);
+  if(!producer)fail(409,'프로필을 먼저 저장해주세요.');
+  const b=await req.json(),name=str(b.name,60);
+  if(!hasArtistName(name))fail(400,'아티스트 이름을 입력해주세요.');
+  if(!validGenre(b.genre))fail(400,'장르를 선택해주세요.');
+  const artist=await chooseArtist(env,producer.id,{artist:name,artist_bio:str(b.bio||'',1000,false)},b.genre);
+  return json({ok:true,id:artist.id},201);
+ }
  const m=path.match(/^\/api\/studio\/(artists|producers|tracks)\/([\w-]+)(\/image|\/banner)?$/);if(!m)return null;
  requireUser(user);const [,,entityId]=m,table=m[1],kind={artists:'artist',producers:'producer',tracks:'track'}[table];
  const entity=await one(env,table==='artists'?'SELECT a.* FROM artists a JOIN producers p ON p.id=a.producer_id WHERE a.id=? AND p.user_id=?':`SELECT * FROM ${table} WHERE id=? AND user_id=?`,entityId,user.id);
