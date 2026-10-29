@@ -52,12 +52,12 @@ function mountHomeRail(target){
 function homeHTML(){return `<div class="listening-home listening-home-v2 home-content-refresh">
  <section id="home-release" aria-label="추천 음악 배너" aria-busy="true">${homePlaceholder()}</section>
  <section id="home-library" class="listening-section">${homeSection('추천 플레이리스트','#collections')}<div id="home-curations" aria-busy="true"><p class="home-load-message" role="status">플레이리스트를 불러오고 있어요.</p></div></section>
- ${homeProfileSection('artist','지금 뜨는 AI 아티스트','#artists?sort=popular')}
- ${homeProfileSection('producer','주목할만한 작곡가','#producers?sort=popular')}
  <section id="home-recommended" class="listening-section" aria-busy="true">${homeSection('추천 음악','#discover')}<p class="home-load-message">음악을 불러오고 있어요.</p></section>
  <section id="home-popular" class="listening-section" aria-busy="true">${homeSection('인기 차트','#charts')}</section>
  <section id="home-more" class="listening-section" hidden></section>
+ ${homeProfileSection('artist','지금 뜨는 AI 아티스트','#artists?sort=popular')}
  <section id="home-discovery" class="listening-section" aria-busy="true">${homeSection('발견','#discover')}</section>
+ ${homeProfileSection('producer','주목할 작곡가','#producers?sort=popular')}
  <div id="home-bridge" class="home-bridge" hidden><section id="home-sing" class="listening-section" aria-busy="true">${homeSection('이번엔 내 목소리로','#karaoke')}</section><section id="home-conversations" class="listening-section" aria-busy="true">${homeSection('같은 노래, 다른 목소리','#community/covers')}</section></div>
  </div>`;}
 // Escape each run before adding markup; keep Latin glyphs at the original size.
@@ -151,7 +151,7 @@ function renderHome(ticket){
   homeRailCleanups.get(target.id)?.();homeRailCleanups.delete(target.id);
   target.innerHTML='<p class="home-load-message" role="status">프로필을 불러오고 있어요.</p>';
   const path='/api/discovery/profiles?'+new URLSearchParams({kind,sort});
-  const show=d=>{if(!active(target)||sequence!==profileRequests[kind])return;const items=(d.profiles||[]).slice(0,10),label=kind==='artist'?'지금 뜨는 AI 아티스트':'주목할만한 작곡가';paint(target,items.length?homeRailHTML('home-'+kind+'-rail',label,items.map(p=>homeProfileCard(p,kind)).join(''),'profile'):'<p class="home-empty-inline" role="status">아직 공개곡이 있는 프로필이 없어요.</p>');mountHomeRail(target);};
+  const show=d=>{if(!active(target)||sequence!==profileRequests[kind])return;const items=(d.profiles||[]).slice(0,10),label=kind==='artist'?'지금 뜨는 AI 아티스트':'주목할 작곡가';paint(target,items.length?homeRailHTML('home-'+kind+'-rail',label,items.map(p=>homeProfileCard(p,kind)).join(''),'profile'):'<p class="home-empty-inline" role="status">아직 공개곡이 있는 프로필이 없어요.</p>');mountHomeRail(target);};
   const cached=peekApiRead(path,{display:true});if(cached)show(cached);
   try{show(await api(path,'GET',undefined,{signal:controller.signal}));}catch{if(active(target)&&sequence===profileRequests[kind]&&!cached){paint(target,'<div class="home-load-error" role="alert"><p>프로필을 불러오지 못했어요.</p><button type="button" class="small-button" data-home-profile-retry="'+kind+'">다시 시도</button></div>');}}
  };
