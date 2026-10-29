@@ -35,7 +35,7 @@
  }
  function playingUI(paused){
   if(!active)return;active.paused=paused;
-  $('#play-toggle').innerHTML=paused?icon('audio-play'):'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg>';
+  $('#play-toggle').innerHTML=paused?icon('player-play'):icon('player-pause');
   $('#play-toggle').setAttribute('aria-label',paused?'광고 이어 듣기':'광고 일시정지');
   if('mediaSession' in navigator)navigator.mediaSession.playbackState=paused?'paused':'playing';
  }
@@ -48,7 +48,7 @@
   try{loader?.contentComplete();}catch{}
   panel.classList.remove('audio-ad-active');controls.forEach((s,i)=>$(s).disabled=item.disabled[i]);
   $('#now-playing').innerHTML=item.markup;$('#listen-mode').textContent=item.mode;
-  $('#play-toggle').innerHTML=icon('audio-play');$('#play-toggle').setAttribute('aria-label','재생');
+  $('#play-toggle').innerHTML=icon('player-play');$('#play-toggle').setAttribute('aria-label','재생');
   window.dispatchEvent(new Event('aifect-ad-end'));item.resolve();
  }
  function managerLoaded(event){
