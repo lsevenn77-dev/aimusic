@@ -1,0 +1,36 @@
+/* Outer content frame measured from the live home, 2026-10-29.
+   Fixed computed values deliberately do not inherit per-page UI scaling.
+   Only #main owns the gutter; navigation and card/section interiors are untouched. */
+#main {
+ --main-frame-max:1512px;
+ --main-frame-gutter:47.25px;
+ --main-frame-top:24.75px;
+}
+@media(min-width:1300px){#main{--main-frame-gutter:51.75px}}
+@media(max-width:1150px){#main{--main-frame-gutter:31.5px;--main-frame-top:22.5px}}
+@media(max-width:800px){#main{--main-frame-gutter:20px;--main-frame-top:22px}}
+@media(max-width:767px){#main{--main-frame-top:12px}}
+
+/* Fullscreen rooms and production workspaces retain their own geometry.
+   Exclude by rendered content as well as route, including loading transitions. */
+#main:not([data-room-focus]):not([data-route^="sing/"]):not([data-route^="dubbing/record/"]):not(:has(#sing.web-studio,.dubbing-record-layout,#dubbing-editor-root,.studio-edit-workspace,.studio-edit-panel)) {
+ box-sizing:border-box;
+ width:100%;
+ min-width:0;
+ max-width:var(--main-frame-max)!important;
+ margin-inline:auto!important;
+ padding-inline:var(--main-frame-gutter)!important;
+ padding-top:var(--main-frame-top)!important;
+}
+
+/* These are unframed page wrappers, not cards, forms or content sections.
+   Remove their second outer cap/inset while preserving all internal layout. */
+#main > :is(.activity-page,.mp-manage-page,.singing-hub,.dubbing-page,.rewards-page) {
+ max-width:none;
+ min-width:0;
+ margin-inline:0;
+}
+#main > .dubbing-page:not(:has(.dubbing-record-layout,#dubbing-editor-root)) {
+ padding-top:0;
+ padding-inline:0;
+}
