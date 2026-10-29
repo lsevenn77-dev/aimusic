@@ -46,3 +46,16 @@ test('banner playback follows the shared player independently of carousel pause 
  f.audio.paused=false;f.c.current={id:'other'};f.audioEvents.get('play')();assert.equal(f.playButton['aria-pressed'],'false');
  f.globalEvents.get('hashchange')();assert.equal(f.audioEvents.size,0);
 });
+
+test('editorial carousel reuses controls and timing without subscribing to or changing music',()=>{
+ const f=setup();f.audio.paused=false;f.c.current={id:'music'};
+ const cleanup=f.c.mountFeatureCarousel(f.root,[{id:'song',title:'Song'},{id:'dubbing',title:'Dubbing'},{id:'browse',title:'Browse'}],{renderSlide:b=>'tab:'+b.id,label:'Play',previousLabel:'Previous banner',nextLabel:'Next banner',dotsLabel:'Banners',syncAudio:false});
+ assert.match(f.root.innerHTML,/aria-label="Play"/);assert.match(f.root.innerHTML,/aria-label="Next banner"/);
+ assert.equal(f.audioEvents.size,0);assert.equal(f.timers.size,1);
+ f.advance();assert.equal(f.stage.innerHTML,'tab:dubbing');assert.equal(f.audio.paused,false);
+ const next={matches:s=>s==='.home-feature-next,[data-home-next]',hasAttribute:()=>false};
+ f.fire('click',{target:{closest:()=>next}});assert.equal(f.stage.innerHTML,'tab:browse');
+ const dot={matches:()=>false,hasAttribute:n=>n==='data-home-slide',dataset:{homeSlide:'0'}};
+ f.fire('click',{target:{closest:()=>dot}});assert.equal(f.stage.innerHTML,'tab:song');
+ cleanup();assert.equal(f.timers.size,0);assert.equal(f.audioEvents.size,0);assert.equal(f.audio.paused,false);
+});

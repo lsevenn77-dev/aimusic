@@ -23,3 +23,5 @@ declare function setSongCoverExpanded(button:HTMLButtonElement,target:HTMLElemen
 declare function bindSongCoverPlayback():void;
 declare function paintInteractions():void;
 declare function toast(message:string):void;
+
+declare function mountFeatureCarousel(root:Element,slides:any[],options?:any): (()=>void)|undefined;

@@ -1,3 +1,14 @@
+// Editorial banners reuse the home carousel without player subscriptions.
+let playBannerCleanup=null;
+const playBanners=[
+ {id:'song',title:'오늘은 네 목소리가 주인공',description:'좋아하는 노래를 직접 부르고 솔로·듀엣 커버에 참여해 봐.',label:'노래'},
+ {id:'dubbing',title:'목소리 하나로 달라지는 장면',description:'다양한 캐릭터와 장면에 나만의 목소리를 입혀봐.',label:'더빙'},
+ {id:'browse',title:'다른 사람들은 어떻게 표현했을까?',description:'완성된 노래와 더빙 작품을 감상하고 새로운 목소리를 발견해 봐.',label:'둘러보기'}
+];
+function playBannerHTML(b){
+ const image='/assets/play-banners/'+b.id+'.webp',href=playHref(b.id);
+ return '<div class="home-feature-background" aria-hidden="true"><div class="play-banner-photo" style="background-image:url('+image+')"></div></div><a class="home-feature-slide play-banner-link" href="'+href+'" aria-label="'+esc(b.title)+' · '+b.label+' 탭으로 이동"><span class="home-feature-cover" aria-hidden="true"><img class="home-feature-art play-banner-art" src="'+image+'" alt="" decoding="async"></span><div class="home-feature-copy"><span class="home-feature-label">'+b.label+'</span><div class="home-feature-title-row"><h2>'+esc(b.title)+'</h2></div><p class="home-feature-description">'+esc(b.description)+'</p></div></a>';
+}
 // @ts-check
 // PLAY is a navigation/list layer. It never creates or modifies recording state.
 const playSections={song:[['recommended','추천곡','sparkles'],['duets','듀엣참여','users'],['latest','최신곡','clock'],['drafts','내 초안','list-pen']],dubbing:[['discover','작품찾기','compass'],['join','더빙참여','users'],['mine','내 작업','folder']],browse:[['recommended','추천','sparkles'],['following','팔로잉','heart'],['popular','인기','chart'],['latest','최신','clock']]};
@@ -29,7 +40,7 @@ function playTabs(items,active,label,href,extra=''){
  return `<nav class="tabs play-tabs ${extra}" role="tablist" aria-label="${label}">${items.map(([key,title,symbol])=>`<a class="tab ${active===key?'active':''}" role="tab" aria-selected="${active===key}" tabindex="${active===key?'0':'-1'}" ${active===key?'aria-current="page"':''} href="${esc(href(key))}">${symbol?icon(symbol):''}<span>${title}</span></a>`).join('')}</nav>`;
 }
 function playShell(s,content){
- return `<div class="play-page">${heading('플레이','노래하고, 연기하고, 새로운 목소리를 만나보세요.')}${playTabs([['song','노래'],['dubbing','더빙'],['browse','둘러보기']],s.mode,'플레이 종류',m=>playHref(m),'play-main-tabs')}
+ return `<div class="play-page" data-play-mode="${s.mode}"><div class="home-content-refresh play-banner" id="play-banner" aria-label="플레이 추천 배너"></div>${playTabs([['song','노래'],['dubbing','더빙'],['browse','둘러보기']],s.mode,'플레이 종류',m=>playHref(m),'play-main-tabs')}
  <div class="play-subbar">${playTabs(playSections[s.mode],s.tab,'플레이 하위 메뉴',t=>playHref(s.mode,t,s.type),'play-category-tabs')}${s.mode==='dubbing'?'<a class="primary-button play-create" href="#dubbing/new">'+icon('ui-plus-action')+' 더빙 만들기</a>':''}</div>
  <section class="play-content" aria-label="${playSections[s.mode].find(([k])=>k===s.tab)[1]}">${content}</section></div>`;
 }
@@ -133,6 +144,9 @@ async function playView(base,param,raw){
 function bindPlay(view){
  if(!view?.play)return;
  const root=document.querySelector('.play-page');if(!root)return;
+ playBannerCleanup?.();
+ const banner=root.querySelector('#play-banner');
+ if(banner)playBannerCleanup=mountFeatureCarousel(banner,playBanners,{renderSlide:playBannerHTML,label:'플레이 추천',previousLabel:'이전 플레이 배너',nextLabel:'다음 플레이 배너',dotsLabel:'플레이 배너 선택',syncAudio:false});
  root.addEventListener('error',playDubbingArtworkError,true);
  bindPlayDuetChildren(root);
  root.querySelectorAll('img.play-dubbing-art').forEach(image=>{if(image instanceof HTMLImageElement&&image.complete&&!image.naturalWidth)playDubbingArtworkError({target:image});});

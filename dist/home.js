@@ -50,22 +50,25 @@ function bindHomeImages(root){
  homeImagesCleanup=()=>root.removeEventListener('error',fallback,true);
 }
 function mountHomeCarousel(root,tracks){
- homeCarouselCleanup?.();homeCarouselCleanup=null;
+ homeCarouselCleanup?.();homeCarouselCleanup=mountFeatureCarousel(root,tracks);
+}
+// Each consumer owns its cleanup; editorial slides never subscribe to audio.
+function mountFeatureCarousel(root,tracks,{renderSlide=releaseHTML,label='추천 음악',previousLabel='이전 추천곡',nextLabel='다음 추천곡',dotsLabel='추천곡 선택',syncAudio=true}={}){
  if(!tracks.length)return;
  const multi=tracks.length>1;
- root.innerHTML=`<div class="home-feature" role="region" aria-roledescription="캐러셀" aria-label="추천 음악">${multi?`<button class="home-feature-arrow home-feature-prev" aria-label="이전 추천곡">${icon('chevron')}</button>`:''}<div class="home-feature-stage">${releaseHTML(tracks[0],multi?tracks[1]:null)}</div>${multi?`<button class="home-feature-arrow home-feature-next" aria-label="다음 추천곡">${icon('chevron')}</button><div class="home-feature-pagination"><button class="home-feature-autoplay" aria-label="자동 롤링 일시정지">${icon('pause')}</button><div class="home-feature-dots" aria-label="추천곡 선택">${tracks.map((t,i)=>`<button data-home-slide="${i}" aria-label="${i+1}. ${esc(t.title)}" aria-pressed="${i===0}"></button>`).join('')}</div></div>`:''}</div>`;
+ root.innerHTML=`<div class="home-feature" role="region" aria-roledescription="캐러셀" aria-label="${esc(label)}">${multi?`<button class="home-feature-arrow home-feature-prev" aria-label="${esc(previousLabel)}">${icon('chevron')}</button>`:''}<div class="home-feature-stage">${renderSlide(tracks[0],multi?tracks[1]:null)}</div>${multi?`<button class="home-feature-arrow home-feature-next" aria-label="${esc(nextLabel)}">${icon('chevron')}</button><div class="home-feature-pagination"><button class="home-feature-autoplay" aria-label="자동 롤링 일시정지">${icon('pause')}</button><div class="home-feature-dots" aria-label="${esc(dotsLabel)}">${tracks.map((t,i)=>`<button data-home-slide="${i}" aria-label="${i+1}. ${esc(t.title)}" aria-pressed="${i===0}"></button>`).join('')}</div></div>`:''}</div>`;
  // Minimal DOM renderers used by navigation tests do not implement browser events.
  if(!root.addEventListener)return;
  const feature=root.querySelector('.home-feature'),stage=root.querySelector('.home-feature-stage'),motion=window.matchMedia('(prefers-reduced-motion: reduce)');
  let index=0,timer=null,manualPause=false,hover=false,focus=false,start=null;
- const syncPlayback=()=>{const b=stage.querySelector?.('.home-feature-slide .home-feature-play');if(!b||typeof audio==='undefined')return;const playing=current?.id===tracks[index].id&&!audio.paused&&!audio.ended&&!window.AifectAudioAds?.active;b.innerHTML=icon(playing?'ui-pause-action':'ui-play-action');b.setAttribute('aria-pressed',String(playing));b.setAttribute('aria-label',tracks[index].title+(playing?' 일시정지':' 재생'));};
+ const syncPlayback=()=>{if(!syncAudio)return;const b=stage.querySelector?.('.home-feature-slide .home-feature-play');if(!b||typeof audio==='undefined')return;const playing=current?.id===tracks[index].id&&!audio.paused&&!audio.ended&&!window.AifectAudioAds?.active;b.innerHTML=icon(playing?'ui-pause-action':'ui-play-action');b.setAttribute('aria-pressed',String(playing));b.setAttribute('aria-label',tracks[index].title+(playing?' 일시정지':' 재생'));};
  const clear=()=>{clearTimeout(timer);timer=null;};
  const schedule=()=>{clear();if(multi&&!manualPause&&!hover&&!focus&&!motion.matches&&!document.hidden)timer=setTimeout(()=>{if(!root.isConnected)return cleanup();go(index+1);},5500);};
  const go=value=>{
   index=(value+tracks.length)%tracks.length;
   stage.querySelectorAll('.home-feature-outgoing').forEach(el=>el.remove());
   const old=document.createElement('div');old.className='home-feature-outgoing';old.setAttribute('aria-hidden','true');old.inert=true;
-  old.innerHTML=stage.innerHTML;stage.innerHTML=releaseHTML(tracks[index],multi?tracks[(index+1)%tracks.length]:null);stage.append(old);syncPlayback();
+  old.innerHTML=stage.innerHTML;stage.innerHTML=renderSlide(tracks[index],multi?tracks[(index+1)%tracks.length]:null);stage.append(old);syncPlayback();
   old.addEventListener('animationend',()=>old.remove(),{once:true});if(motion.matches)old.remove();
   feature.querySelectorAll('[data-home-slide]').forEach((b,i)=>b.setAttribute('aria-pressed',String(i===index)));schedule();
  };
@@ -77,11 +80,11 @@ function mountHomeCarousel(root,tracks){
  const listeners=[['click',click],['pointerenter',enter],['pointerleave',leave],['focusin',focusIn],['focusout',focusOut],['keydown',key],['pointerdown',down],['pointerup',up],['pointercancel',cancel]];
  for(const [name,fn] of listeners)feature.addEventListener(name,fn);
  const playbackEvents=['play','pause','ended','emptied','loadedmetadata'];
- if(typeof audio!=='undefined')for(const event of playbackEvents)audio.addEventListener(event,syncPlayback);
+ if(syncAudio&&typeof audio!=='undefined')for(const event of playbackEvents)audio.addEventListener(event,syncPlayback);
  // Only the displayed artwork is eager; preview/remaining slides load on demand.
  document.addEventListener('visibilitychange',schedule);window.addEventListener('hashchange',cleanup);motion.addEventListener('change',schedule);
- function cleanup(){clear();for(const [name,fn] of listeners)feature.removeEventListener(name,fn);if(typeof audio!=='undefined')for(const event of playbackEvents)audio.removeEventListener(event,syncPlayback);document.removeEventListener('visibilitychange',schedule);window.removeEventListener('hashchange',cleanup);motion.removeEventListener('change',schedule);}
- homeCarouselCleanup=cleanup;schedule();
+ function cleanup(){clear();for(const [name,fn] of listeners)feature.removeEventListener(name,fn);if(syncAudio&&typeof audio!=='undefined')for(const event of playbackEvents)audio.removeEventListener(event,syncPlayback);document.removeEventListener('visibilitychange',schedule);window.removeEventListener('hashchange',cleanup);motion.removeEventListener('change',schedule);}
+ schedule();return cleanup;
 }
 function updateHomeAccount(){
  document.querySelectorAll('.listening-home [data-like]').forEach(b=>{b.classList.toggle('is-active',liked(b.dataset.like));b.setAttribute('aria-pressed',String(liked(b.dataset.like)));});
