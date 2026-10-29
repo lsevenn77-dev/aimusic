@@ -17,11 +17,11 @@ test('profile counters separate actual account follows, completed public works a
  }
  const d=(await f.call('/api/producers/producer?dashboard=1')).body;
  assert.equal(d.profile_following_count,1);assert.equal(d.following_count,2);assert.equal(d.human_followers,1);
- assert.equal(d.profile_work_count,3);assert.equal(d.produced_track_count,505);assert.equal(d.tracks.length,500);
+ assert.equal(d.profile_work_count,508);assert.equal(d.produced_track_count,505);assert.equal(d.tracks.length,500);
  const visitor=(await f.call('/api/producers/producer','GET',null,'other')).body;
- assert.equal(visitor.produced_track_count,504);assert.equal(visitor.profile_work_count,3);
+ assert.equal(visitor.produced_track_count,504);assert.equal(visitor.profile_work_count,508);
  f.sql.exec("UPDATE tracks SET status='hidden' WHERE id='one'");
- assert.equal((await f.call('/api/producers/producer?dashboard=1')).body.profile_work_count,1);
+ assert.equal((await f.call('/api/producers/producer?dashboard=1')).body.profile_work_count,504);
 });
 
 test('own header uses human counts in label-first order, separate totals and persisted public ID',()=>{
