@@ -1,4 +1,39 @@
 /* Scoped layout only; home tokens, card controls and the global shell remain authoritative. */
+/* Paint on the full-width shell, outside the capped main content. Each layer
+   fades into the existing navy and never tiles as the song list grows. */
+.page-wrap:has(> #main > .play-page){
+ --play-wash-height:780px;
+ --play-wash-position:0 88px;
+ --play-wash-purple:ellipse 40% 48% at 13% 8%;
+ --play-wash-mint:ellipse 38% 48% at 22% 6%;
+ --play-wash-teal:ellipse 48% 52% at 50% 8%;
+ --play-wash-right:ellipse 40% 50% at 90% 6%;
+ --play-wash-blue:ellipse 36% 48% at 100% 12%;
+ background-color:var(--ds-bg);
+ background-image:
+  linear-gradient(to bottom,transparent,var(--ds-bg) 95%),
+  radial-gradient(var(--play-wash-purple),rgba(114,71,166,.12),transparent 85%),
+  radial-gradient(var(--play-wash-mint),rgba(75,145,136,.045),transparent 85%),
+  radial-gradient(var(--play-wash-teal),rgba(37,143,145,.10),transparent 85%),
+  radial-gradient(var(--play-wash-right),rgba(102,64,158,.11),transparent 85%),
+  radial-gradient(var(--play-wash-blue),rgba(51,81,139,.065),transparent 85%);
+ background-size:100% var(--play-wash-height);
+ background-position:var(--play-wash-position);
+ background-repeat:no-repeat;
+}
+/* Replace only the play hub's old image; other routes retain their atmosphere. */
+#main[data-route]:has(> .play-page)::before{content:none}
+@media(max-width:800px){
+ .page-wrap:has(> #main > .play-page){
+  --play-wash-height:620px;
+  --play-wash-position:0 78px;
+  --play-wash-purple:ellipse 78% 48% at 20% 4%;
+  --play-wash-mint:ellipse 72% 48% at 40% 5%;
+  --play-wash-teal:ellipse 85% 52% at 53% 6%;
+  --play-wash-right:ellipse 75% 50% at 88% 4%;
+  --play-wash-blue:ellipse 70% 48% at 100% 10%;
+ }
+}
 .play-page .play-tabs{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);overflow:visible;white-space:nowrap}
 .play-page .play-tabs .tab{min-width:0;min-height:48px;display:flex;align-items:center;justify-content:center;text-decoration:none}
 .play-page .play-main-tabs{margin:22px 0 20px;gap:0;border-bottom:1px solid var(--ds-line)}
