@@ -2,14 +2,14 @@
    MetricInline, OutlineGradientAction, CountDropdown and RankDelta. */
 :is(#main,#dialog){
  --control-gradient:linear-gradient(135deg,#8EDDD2 0%,#A78BFA 52%,#E9A1CE 100%);
- --control-surface:var(--ds-bg,#101722);--control-diameter:36px;
- --control-glyph-inset:5px;--control-gap:8px;
- --music-stat-icon:18px;--music-stat-plays:17px;--music-stat-number:11px;--music-stat-gap:4px;
+ --control-surface:var(--ds-bg,#101722);--control-diameter:32px;
+ --control-glyph-inset:4px;--control-gap:8px;
+ --music-stat-icon:17px;--music-stat-plays:17px;--music-stat-number:13px;--music-stat-gap:5.5px;
 }
 :is(#main,#dialog) svg.aifect-control-icon{
  box-sizing:border-box!important;display:inline-block;flex-shrink:0!important;
  margin:0!important;max-width:none!important;max-height:none!important;
- fill:none!important;stroke:currentColor;stroke-width:1.8!important;vertical-align:middle;
+ fill:none!important;stroke:currentColor;stroke-width:1.65!important;vertical-align:middle;
 }
 /* The circle belongs to the wrapper; the path always keeps its 24px canvas. */
 :is(#main,#dialog) svg.outline-gradient-action{
@@ -164,7 +164,6 @@
 }
 
 /* Popular-chart presentation only: preserve every shared glyph and action. */
-#main .song-table-chart{--music-stat-number:14px}
 #main .song-table-chart .chart-direction{font-size:10px;line-height:1;flex:none}
 #main .song-table-chart .chart-movement strong{white-space:nowrap;line-height:1.3;color:inherit}
 #main .song-table-chart [data-track-menu]>svg.outline-gradient-action{
@@ -178,7 +177,7 @@
  #main .song-table-chart .song-table-row>*{grid-column:auto;grid-row:auto;margin:0}
 }
 @media(max-width:800px){
- #main .song-table-chart{--music-stat-number:12px;display:block}
+ #main .song-table-chart{display:block}
  #main .song-table-chart .song-table-head{display:none}
  #main .song-table-chart .song-table-row{display:grid;grid-template-columns:20px repeat(4,minmax(0,1fr)) 44px 44px;gap:2px 4px}
  #main .song-table-chart .song-table-row .song-table-position{grid-column:1;grid-row:1}
@@ -314,11 +313,11 @@
    Home nests artwork/copy in .song-table-info; the full chart separates them. */
 #main .song-table-chart .chart-mobile-play{display:none}
 @media(min-width:768px) and (max-width:800px){
- #main .song-table.song-table-chart{display:block;--music-stat-icon:13px;--music-stat-plays:13px;--music-stat-number:11px;--music-stat-gap:2px}
+ #main .song-table.song-table-chart{display:block}
  #main .song-table.song-table-chart .song-table-head{display:none}
  #main .song-table.song-table-chart .song-table-row{
-  --list-row-inset:2px;--list-thumb-size:32px;--control-diameter:24px;--control-glyph-inset:4px;
-  display:grid;grid-template-columns:16px 32px minmax(0,1fr) 36px 36px 40px 24px 28px 26px;
+  --list-row-inset:2px;--list-thumb-size:32px;
+  display:grid;grid-template-columns:16px 32px minmax(0,1fr) repeat(3,minmax(44px,max-content)) 24px 44px 32px;
   grid-template-rows:44px;gap:0 3px;align-items:center;min-height:52px;padding-block:4px;white-space:nowrap;
  }
  #main .song-table.song-table-chart .song-table-row>*{grid-row:1;min-width:0;margin:0;white-space:nowrap}
@@ -348,7 +347,7 @@
  #main .song-table.song-table-chart{display:grid;grid-template-columns:minmax(0,1fr);gap:4px;min-width:0;overflow:visible;border:0;border-radius:0;background:none;margin-block:0}
  #main .song-table.song-table-chart .song-table-head{display:none}
  #main .song-table.song-table-chart .song-table-row{
-  --list-row-inset:10px;--list-thumb-size:44px;--control-diameter:30px;--control-glyph-inset:4px;
+  --list-row-inset:10px;--list-thumb-size:44px;
   display:grid;grid-template-columns:20px 44px minmax(0,1fr) 32px 40px 40px;
   grid-template-rows:46px;gap:0 4px;align-items:center;min-height:68px;
   padding:10px;border:1px solid var(--ds-line);border-radius:11px;
@@ -385,11 +384,6 @@
 /* Desktop chart readability. Keep the shared shell and <=1100px layouts intact.
    Scale actual dimensions; subgrid shares intrinsic count widths across rows. */
 @media(min-width:1101px){
- #main .charts-final{
-  --music-stat-icon:19.8px;--music-stat-plays:18.7px;
-  --music-stat-number:15.4px;--music-stat-gap:4.4px;
-  --control-diameter:39.6px;--control-glyph-inset:5.5px;
- }
  #main .charts-final>h1{font-size:26.4px;margin-bottom:8.8px}
  #main .charts-final .chart-toolbar{gap:8.8px;margin-bottom:13.2px}
  #main .charts-final .chart-tabs{gap:26.4px}

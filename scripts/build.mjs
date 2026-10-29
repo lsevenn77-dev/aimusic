@@ -5,6 +5,8 @@ import {resolve,sep} from 'node:path';
 import {businessFooterHTML} from '../shared/site-info.js';
 import {pathToFileURL} from 'node:url';
 import {bundleClient} from './client-bundle.mjs';
+import {regionTokenCSS} from './ui-region-tokens.mjs';
+import {readdir} from 'node:fs/promises';
 await mkdir('dist/server',{recursive:true});
 await mkdir('dist/client',{recursive:true});
 for(const file of ['mobile-input.js','mobile-input.css'])await cp('dist/'+file,'dist/client/'+file);
@@ -47,6 +49,12 @@ await cp('dist/admin.html','dist/client/admin/dashboard.html');
 await rm('dist/client/admin.html',{force:true});
 for (const file of ['inventory.js','inventory.css','music-library.js','music-library.css','menu-integration.js','community-v3.js','community-v3.css','player-queue.css','community.js','community.css','polish.css','browse.js','browse.css','app.js','media-session.js','icons.js','views.js','studio.js','karaoke.js','lyrics.js','library.js','explorer.js','membership.js','alignment.js','actions.js','style.css','studio.css','lyrics.css','discovery.css','explorer.css','membership.css','alignment.css','policies.css','assets']) await cp(`dist/${file}`,`dist/client/${file}`,{recursive:true});
 const indexHTML=await readFile('dist/index.html','utf8');
+await cp('dist/ui-region-scale.css','dist/client/ui-region-scale.css');
+for(const name of await readdir('dist/client')){
+ if(!name.endsWith('.css')||name.startsWith('aifect-app-')||name==='ui-region-scale.css')continue;
+ const file='dist/client/'+name;
+ await writeFile(file,regionTokenCSS(await readFile(file,'utf8')));
+}
 if(!indexHTML.includes('<!--BUSINESS_FOOTER-->'))throw new Error('Business footer placeholder is missing');
 await build({entryPoints:['shared/player.js'],outfile:'dist/client/player-core.js',bundle:true,format:'iife',globalName:'AifectPlayer',target:'es2022',minify:true});
 await build({entryPoints:['shared/dubbing.js'],outfile:'dist/client/dubbing-core.js',bundle:true,format:'iife',globalName:'AifectDubbing',target:'es2022',minify:true});

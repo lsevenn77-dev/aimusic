@@ -69,7 +69,9 @@ const aifectControlPaths=Object.freeze({
 function aifectControlIcon(name,size=24){
  const action=name.endsWith('-action'),key=name.replace(/-action$/,'');
  const glyph=key==='plays'?'play':key==='pause'?'pause':key;
- return `<svg class="aifect-control-icon ${action?'outline-gradient-action':'metric-inline-icon'} aifect-icon-${key}" viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="${aifectControlPaths[glyph]||paths[glyph]||paths.sparkles}"/></svg>`;
+ // Preserve the locked paths; compensate their actual ink bounds, not just CSS boxes.
+ const viewBox=!action&&(key==='heart'||key==='comment')?'-4 -4 32 32':'0 0 24 24';
+ return `<svg class="aifect-control-icon ${action?'outline-gradient-action':'metric-inline-icon'} aifect-icon-${key}" viewBox="${viewBox}" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path vector-effect="non-scaling-stroke" d="${aifectControlPaths[glyph]||paths[glyph]||paths.sparkles}"/></svg>`;
 }
 
 // Only the bottom player's two states share this artwork. Preserve the original
