@@ -46,6 +46,11 @@ for(const path of ['/','/index.html','/?source=share']){
  }
  const head=await mf.dispatchFetch('http://localhost'+path,{method:'HEAD'});assert.equal(head.status,200);assert.equal(await head.text(),'');
 }
+// Exercise the actual D1 engine too: its SQL expression-depth limit differs from node:sqlite.
+for(const q of ['Rock','rock','록','Rokc','ㄹㅋㄱㅈㅇㅌㅅㅌ']){
+ const response=await mf.dispatchFetch('http://localhost/api/search?'+new URLSearchParams({q})),result=await response.json();
+ assert.equal(response.status,200,JSON.stringify(result));assert.equal(result.counts.tracks,3,q);
+}
 await db.prepare("UPDATE tracks SET status='hidden' WHERE id='two'").run();
 const refreshed=await (await mf.dispatchFetch('http://localhost/')).text();assert.doesNotMatch(refreshed,/href="\/music\/two"/);
 const ads=await mf.dispatchFetch('http://localhost/ads.txt');assert.equal(ads.status,200);assert.match(await ads.text(),/pub-5910265378731607/);

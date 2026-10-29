@@ -8,7 +8,9 @@
 .brand-search>button,.brand-search>.search-sparkle{display:grid;place-items:center;flex:none;width:36px;min-width:0;height:36px;min-height:0;padding:6px;border:0;background:none;box-shadow:none;color:var(--ds-accent-pink)}
 .brand-search>button svg,.brand-search>.search-sparkle svg{width:20px;height:20px}
 .brand-search:focus-within,#global-search.brand-search:focus-within,.discover-photo-layout .discover-search.brand-search:focus-within{outline:0;box-shadow:none;filter:brightness(1.2)}
-.brand-search>button:focus-visible{outline:0;box-shadow:none}
+.brand-search>button:focus-visible{outline:2px solid var(--ds-selected);outline-offset:2px;box-shadow:none}
+/* Outrank the topbar's legacy button surface in every interactive state. */
+#global-search.brand-search>button,.brand-search>button:is(:hover,:focus,:active),#global-search.brand-search>button:is(:hover,:focus,:active){background:transparent;border:0;box-shadow:none}
 .discover-photo-layout .discover-search.brand-search{gap:18px;height:66px;padding:0 22px}
 .discover-photo-layout .discover-search.brand-search>svg,.discover-photo-layout .discover-search.brand-search button svg{width:26px;height:26px}
 .discover-photo-layout .discover-search.brand-search input{font-size:18px}
@@ -20,14 +22,18 @@
 .discover-photo-layout .discover-mood-track{scrollbar-width:thin;scrollbar-color:var(--ds-lavender) var(--ds-bg);padding-bottom:12px}
 .discover-photo-layout .discover-mood-track::-webkit-scrollbar{display:block;height:5px}
 .unified-search-results{min-width:0}
-.search-back{display:inline-flex;align-items:center;min-height:44px;margin-bottom:4px;padding:0;border:0;background:none;font:inherit;font-size:.875rem;cursor:pointer;color:var(--ds-body)}
+.search-back{display:inline-flex;align-items:center;gap:4px;min-height:44px;margin-bottom:4px;padding:0;border:0;background:none;font:inherit;font-size:.875rem;cursor:pointer;color:var(--ds-body)}
 .search-back:hover{color:var(--ds-selected)}
 .search-type-tabs{display:flex;flex-wrap:nowrap;white-space:nowrap;overflow-x:auto;margin-bottom:24px}
 .search-type-tabs .tab{flex:none}
 .search-recommendation-shelf{grid-auto-flow:column;grid-template-rows:auto;overflow-x:auto;overflow-y:hidden;padding-bottom:14px;scroll-snap-type:x proximity}
 .search-recommendation-shelf>.album-card{scroll-snap-align:start}
 .search-all-results{margin-top:28px}
-.search-result-count{margin:-8px 0 16px;color:var(--ds-muted);font-size:.875rem}
+.search-results-heading{display:flex;justify-content:flex-start;gap:12px!important;white-space:nowrap}
+.unified-search-results .search-results-heading>h2{flex:0 0 auto}
+.unified-search-results .search-results-heading>.search-result-count{display:inline-block;margin:0;color:var(--ds-muted);font-size:.875rem;flex:none}
+.search-gradient-divider{height:1px;background:linear-gradient(90deg,var(--ds-accent-pink),var(--ds-lavender),var(--ds-mint));margin-top:12px}
+.search-recommendations .section-heading{margin-top:0}
 .search-all-results>[data-search-more]{display:block;margin:20px auto}
 /* Only horizontal axes receive the brand thumb; vertical rules stay intact. */
 .brand-horizontal-only{scrollbar-width:thin;scrollbar-color:var(--ds-lavender) var(--ds-bg)}
@@ -43,6 +49,11 @@
    The original aurora ellipses remain unchanged, with a lower-edge fade only. */
 .page-wrap{background:none}
 #main[data-route]::before{content:"";display:block;position:absolute;pointer-events:none;z-index:-1;top:0;left:0;right:0;width:100%;height:auto;aspect-ratio:340 / 65;opacity:1;background:url('/assets/atmosphere/06_approved_aurora_original.svg') left top / 100% auto no-repeat;mask-image:linear-gradient(#000,transparent)}
+/* The existing play aurora, on the full main column rather than its capped child.
+   The play page itself retains its exact original layer and visual dimensions. */
+.page-wrap:has(>#main[data-common-background="true"]){position:relative;isolation:isolate}
+.page-wrap:has(>#main[data-common-background="true"])::before{content:"";position:absolute;pointer-events:none;z-index:-1;top:var(--topbar-height,88px);left:0;right:0;aspect-ratio:340 / 65;background:url('/assets/atmosphere/06_approved_aurora_original.svg') left top / 100% auto no-repeat;mask-image:linear-gradient(#000,transparent)}
+#main[data-common-background="true"]::before{display:none}
 @media(max-width:700px){
  .brand-search input,#global-search.brand-search input{font-size:16px}
  #global-search.brand-search{padding-inline:10px;gap:6px}
@@ -55,5 +66,6 @@
  #main .unified-search-results .music-list-region .song-table .song-table-row .song-table-tools{grid-column:3;grid-row:1}
  #main .unified-search-results .song-table-head,#main .unified-search-results .song-table-position,#main .unified-search-results .music-list-region .song-table .song-table-row .song-table-stat{display:none}
  .unified-search-results .song-table-tools .icon-button{width:44px;height:44px}
- .search-type-tabs{gap:20px}
+ .search-type-tabs{gap:10px;justify-content:space-between}
+ .search-type-tabs .tab{font-size:.75rem;min-height:44px}
 }
