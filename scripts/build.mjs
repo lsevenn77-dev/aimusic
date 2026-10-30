@@ -15,7 +15,7 @@ for(const file of ['decorations.js','decoration-display.js','decorations.css','m
 for(const file of ['image-crop.js','profile-collections.js','crew-integrated.js','integrated.css','profile-preview.js','profile-preview.css','mypage.js','mypage.css','profile-management.js'])await cp('dist/'+file,'dist/client/'+file);
 await cp('dist/voice-room-template.js','dist/client/voice-room-template.js');
 await cp('dist/voice-audio.js','dist/client/voice-audio.js');
-for(const file of ['voice-rooms.js','voice-rooms.css','voice-room-design.css','voice-room-controls.js','voice-diagnostics.js'])await cp('dist/'+file,'dist/client/'+file);
+for(const file of ['voice-rooms.js','voice-rooms.css','voice-room-design.css','voice-room-controls.js','voice-diagnostics.js','live-karaoke.js','live-karaoke.css'])await cp('dist/'+file,'dist/client/'+file);
 await cp('dist/music-card-controls.css','dist/client/music-card-controls.css');
 await cp('dist/song-sidebar.css','dist/client/song-sidebar.css');
 for(const file of ['song-covers.js','song-covers.css'])await cp('dist/'+file,'dist/client/'+file);
