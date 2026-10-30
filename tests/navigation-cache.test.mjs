@@ -38,12 +38,12 @@ function homeRenderer(fetch){
  const c=renderer(fetch),sections=new Map(),oldHTML=Object.getOwnPropertyDescriptor(c.main,'innerHTML'),select=c.document.querySelector;
  Object.defineProperty(c.main,'innerHTML',{get:oldHTML.get,set(html){
   oldHTML.set.call(c.main,html);for(const node of sections.values())node.isConnected=false;sections.clear();
-  for(const match of html.matchAll(/id="(home-[^"]+)"/g)){const node={innerHTML:'HOME_LOADING',hidden:false,isConnected:true,attributes:new Map(),setAttribute(name,value){this.attributes.set(name,value);},removeAttribute(name){this.attributes.delete(name);},querySelector:()=>({onclick:null})};sections.set(match[1],node);}
+  for(const match of html.matchAll(/id="(home-[^"]+)"/g)){const node={innerHTML:'HOME_LOADING',hidden:false,isConnected:true,attributes:new Map(),setAttribute(name,value){this.attributes.set(name,value);},removeAttribute(name){this.attributes.delete(name);},querySelectorAll:()=>[],querySelector:()=>({onclick:null})};sections.set(match[1],node);}
  }});
  c.document.querySelector=selector=>sections.get(selector.slice(1))||select(selector);
  Object.assign(c.context,{AbortController,homeBrowseObserver:null,musicListeningShortcuts:()=>'',playlistSaveButton:()=>'',musicTrackCard:t=>'<article>'+t.title+'</article>',collectionGrid:items=>items.map(item=>item.name).join(','),playlistArt:()=>''});
  vm.runInContext(source('home.js'),c.context);
- c.run("icons=()=>{};updateAccount=()=>{};setMembership=()=>{};refreshLibrary=async()=>{};");
+ c.run("audio.addEventListener=()=>{};icons=()=>{};updateAccount=()=>{};setMembership=()=>{};refreshLibrary=async()=>{};");
  const boot=source('actions.js').match(/async function boot\(\)\{[\s\S]*?\r?\n\}\r?\n/);
  assert.ok(boot,'the startup function must remain independently testable');vm.runInContext(boot[0],c.context);
  return {...c,section:id=>sections.get(id)};
