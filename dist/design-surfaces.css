@@ -23,7 +23,7 @@
 .form-field input,.form-field textarea,.form-field select {
   background:#151b25;border-color:#ffffff12;border-radius:10px;color:var(--ds-text);min-height:44px;
 }
-.form-field input:focus,.form-field textarea:focus,.form-field select:focus {border-color:var(--music-aqua);outline-color:var(--music-aqua)}
+
 .form-field input::placeholder,.form-field textarea::placeholder {color:var(--ds-muted)}
 .field-help,.upload-guide p,.form-field .optional {color:var(--ds-muted)}
 .file-zone {background:linear-gradient(125deg,#8eddd210,#8eddd204 60%,#b7a6da0a);border-color:#8eddd23d;border-radius:16px}

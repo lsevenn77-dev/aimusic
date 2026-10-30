@@ -48,38 +48,40 @@ function chartPageTable(tracks){
  }).join('')+'</div>';
 }
 const chartPeriodLabels={week:'주간',month:'월간',all:'전체'};
-const chartKindLabels={'':'인기',top:'인기',rising:'급상승',releases:'신곡'};
+const chartKindLabels={'':'인기',top:'인기',rising:'급상승',releases:'신곡',karaoke:'커버'};
 function chartPlaybackActions(tracks,kind='',period='week',note='한국 시간 기준 · 전날 집계 대비'){
  const playable=tracks.filter(t=>t.playable!==false&&Number(t.duration)>0);
  return `<div class="chart-toolbar">${chartTabs(kind,period)}<button class="chart-action chart-listen" data-play-all ${playable.length?'':'disabled'}>${icon('ui-plays')}<span>전체 듣기</span></button><details class="chart-period"><summary class="chart-action" aria-label="차트 기간: ${chartPeriodLabels[period]}"><span>${chartPeriodLabels[period]}</span>${icon('ui-chevron')}</summary><nav class="chart-period-menu" aria-label="차트 기간 선택">${Object.entries(chartPeriodLabels).map(([key,label])=>`<a href="#charts${kind?'/'+kind:''}?period=${key}" ${key===period?'aria-current="true"':''}>${label}</a>`).join('')}</nav></details><button class="chart-action chart-shuffle" data-browse-shuffle ${playable.length?'':'disabled'}>${icon('shuffle')}<span>섞어 듣기</span></button><button class="chart-action chart-create" data-chart-playlist ${tracks.length?'':'disabled'}>${icon('list-plus')}<span>플리 만들기</span></button><div class="chart-meta"><span class="chart-period-note">${note}</span><span data-browse-count>총 ${number(tracks.length)}곡</span></div></div>`;
 }
 let chartPlaylistOpening=false,chartPlaylistSaving=false;
-function chartPlaylistIds(tracks,range){return tracks.slice(0,range==='top20'?20:tracks.length).map(t=>t.id);}
+function chartPlaylistIds(tracks,range,selected=[]){const picked=new Set(selected);return [...new Set(tracks.filter(t=>range==='all'||picked.has(t.id)).map(t=>t.id))];}
 async function chartPlaylistDialog(view){const ticket=renderId;
  if(chartPlaylistOpening||chartPlaylistSaving||($('#dialog')?.open&&$('#chart-playlist-form')))return;
  if(!me){returnRoute=location.hash;return askLogin();}
  chartPlaylistOpening=true;
- const uid=me.id,tracks=view.tracks.map(t=>({id:t.id})),name=`AIFECT ${chartKindLabels[view.chartKind||'']} 차트 · ${chartPeriodLabels[view.chartPeriod]}`;
+ const uid=me.id,tracks=view.tracks.map(t=>({...t})),name=`AIFECT ${chartKindLabels[view.chartKind||'']} 차트 · ${chartPeriodLabels[view.chartPeriod]}`;
  try{
   await refreshLibrary(true);if(me?.id!==uid)return;
   if(!canCreatePlaylist())return;
-  if(ticket!==renderId)return;dialog(`<section class="chart-playlist-dialog"><h2>차트로 플리 만들기</h2><form id="chart-playlist-form">${formField('플레이리스트 이름','name','text',name,'required maxlength="80"')}<fieldset class="chart-range"><legend>담을 곡</legend><label><input type="radio" name="range" value="top20" checked> 상위 20곡 <span>${Math.min(20,tracks.length)}곡</span></label><label><input type="radio" name="range" value="all"> 차트 전체 <span>${number(tracks.length)}곡</span></label></fieldset><p class="field-help">선택한 차트의 순서대로 내 플레이리스트에 저장해요.</p><p class="form-error" role="alert"></p><div class="chart-dialog-actions"><button type="button" class="small-button" data-chart-cancel>취소</button><button type="submit" class="small-button chart-confirm">만들기</button></div></form></section>`);
-  const form=$('#chart-playlist-form'),modal=$('#dialog'),cancel=form.querySelector('[data-chart-cancel]');let createdId=null;
+  if(ticket!==renderId)return;dialog(`<section class="chart-playlist-dialog"><h2>차트로 플리 만들기</h2><form id="chart-playlist-form">${formField('플레이리스트 이름','name','text',name,'required maxlength="80"')}<fieldset class="chart-range"><legend>담을 곡</legend><label><input type="radio" name="range" value="selected" aria-controls="chart-track-picker"> 선택 지정 <span data-chart-selected-count aria-live="polite">0곡</span></label><label><input type="radio" name="range" value="all" checked> 차트 전체 <span>${number(tracks.length)}곡</span></label></fieldset><div id="chart-track-picker" class="chart-track-picker" hidden>${tracks.map((t,i)=>`<label class="chart-pick-row"><input type="checkbox" name="track_ids" value="${esc(t.id)}"><span class="chart-pick-rank">${t.chart_rank||i+1}</span><span class="chart-pick-copy"><strong>${esc(t.title||t.id)}</strong><small>${esc(t.artist||t.producer||'')}</small></span></label>`).join('')}</div><p class="field-help">선택한 차트의 순서대로 내 플레이리스트에 저장해요.</p><p class="form-error" role="alert"></p><div class="chart-dialog-actions"><button type="submit" class="small-button chart-confirm">만들기</button></div></form></section>`);
+  const form=$('#chart-playlist-form'),modal=$('#dialog'),confirm=form.querySelector('[type="submit"]'),picker=form.querySelector('#chart-track-picker');let createdId=null;
+  const syncSelection=()=>{const selected=form.querySelector('[name="range"]:checked').value==='selected',count=form.querySelectorAll('[name="track_ids"]:checked').length;picker.hidden=!selected;form.querySelector('[data-chart-selected-count]').textContent=number(count)+'곡';confirm.disabled=!!form._busy||!(selected?count:tracks.length);};
+  form.onchange=syncSelection;syncSelection();
   const preventCancel=e=>{if(form._busy)e.preventDefault();};modal.addEventListener('cancel',preventCancel);modal.addEventListener('close',()=>modal.removeEventListener('cancel',preventCancel),{once:true});
-  cancel.onclick=()=>{if(!form._busy)modal.close();};
-  form.onsubmit=busyForm(form,async fd=>{
+  const submit=busyForm(form,async fd=>{
    if(me?.id!==uid)throw Error('계정이 변경됐어요. 창을 다시 열어주세요.');
-   const ids=chartPlaylistIds(tracks,fd.get('range'));
+   const ids=chartPlaylistIds(tracks,fd.get('range'),fd.getAll('track_ids'));
    if(!ids.length)throw Error('담을 곡이 없어요.');
-   if(ids.length>500)throw Error('기존 플레이리스트는 최대 500곡까지 저장할 수 있어요. 상위 20곡을 선택해주세요.');
-   cancel.disabled=true;chartPlaylistSaving=true;
+   if(ids.length>500)throw Error('기존 플레이리스트는 최대 500곡까지 저장할 수 있어요. 선택 지정으로 500곡 이하를 선택해주세요.');
+   chartPlaylistSaving=true;
    try{
     if(!createdId)createdId=(await api('/api/playlists','POST',{name:fd.get('name'),is_public:false,track_ids:ids})).id;
     modal.close();toast('내 플레이리스트에 저장했습니다.');
     try{await refreshLibrary(true);}catch{/* Creation succeeded; never repeat POST to retry a library read. */}
     if(me?.id===uid)location.hash='#playlist/'+createdId;
-   }finally{cancel.disabled=false;chartPlaylistSaving=false;}
+   }finally{chartPlaylistSaving=false;}
   });
+  form.onsubmit=async event=>{await submit(event);syncSelection();};
  }finally{chartPlaylistOpening=false;}
 }
 let chartToolbarCleanup=null;
@@ -103,11 +105,12 @@ async function popularChartView(raw='',kind='',readApi=api){
 }
 async function browseView(base,param,raw,embedded=false,readApi=api){
  if(base==='karaoke'&&param==='browse')return playBrowseV3(raw,readApi);
- if(base==='charts')return popularChartView(raw,['rising','releases'].includes(param)?param:'',readApi);
+ if(base==='charts'&&param!=='karaoke')return popularChartView(raw,['rising','releases'].includes(param)?param:'',readApi);
  if(base==='search')return null;
  if(base==='charts'&&param==='karaoke'||base==='karaoke'&&param==='chart'){
-  const d=await readApi('/api/cover-rankings?kind=tracks&period=week&include_unranked=1'),tracks=d.tracks.filter(t=>t.kind==='cover');
-  return {html:heading('노래방 차트','공개된 커버곡만 모았어요. 이번 주 받은 좋아요 순으로 만나요.')+chartTabs('karaoke')+chartLayoutHTML(browsePlaybackActions(tracks)+(tracks.length?coverRankTracksHTML(tracks):empty('아직 등록된 커버곡이 없어요','첫 커버곡이 공개되면 이곳에서 만날 수 있어요.','#karaoke','플레이')),tracks,'karaoke'),tracks};
+  const requested=new URLSearchParams(raw.includes('?')?raw.split('?')[1]:'').get('period'),period=['week','month','all'].includes(requested)?requested:'week';
+  const d=await readApi('/api/cover-rankings?kind=tracks&period='+period+'&include_unranked=1&full=1'),tracks=d.tracks.filter(t=>t.kind==='cover');
+  return {html:heading('노래방 차트','공개된 커버곡만 모았어요. 선택한 기간에 받은 좋아요 순으로 만나요.')+chartTabs('karaoke',period)+chartLayoutHTML(`<div class="chart-toolbar"><details class="chart-period"><summary class="chart-action">${chartPeriodLabels[period]}</summary><nav class="chart-period-menu">${Object.entries(chartPeriodLabels).map(([key,label])=>`<a href="#charts/karaoke?period=${key}">${label}</a>`).join('')}</nav></details><button class="chart-action chart-create" data-chart-playlist ${tracks.length?'':'disabled'}>${icon('list-plus')}<span>플리 만들기</span></button></div>`+browsePlaybackActions(tracks)+(tracks.length?coverRankTracksHTML(tracks):empty('아직 등록된 커버곡이 없어요','첫 커버곡이 공개되면 이곳에서 만날 수 있어요.','#karaoke','플레이')),tracks,'karaoke'),tracks,chartPage:true,chartKind:'karaoke',chartPeriod:period};
  }
  if(base==='karaoke'&&param==='drafts'){if(!me){returnRoute=location.hash;return {html:gate()};}return {html:karaokeDraftsHTML(await listSingDrafts())};}
  if(base==='karaoke'&&['songs','duets'].includes(param)){

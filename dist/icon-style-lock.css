@@ -298,7 +298,7 @@
 #dialog .chart-range input{accent-color:var(--ds-selected)}
 #dialog .chart-playlist-dialog .field-help{font-size:11px;line-height:1.6}
 #dialog .chart-dialog-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
-#dialog .chart-dialog-actions button{height:38px;min-height:38px;margin:0;padding:0 16px;font-size:13px;border:1px solid var(--ds-line);background:transparent;box-shadow:none;color:var(--ds-body)}
+#dialog .chart-dialog-actions button{height:38px;min-height:38px;margin:0;padding:0 16px;font-size:13px;line-height:1;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--ds-line);background:transparent;box-shadow:none;color:var(--ds-body)}
 #dialog .chart-dialog-actions .chart-confirm{color:var(--ds-progress);border-color:color-mix(in srgb,var(--ds-progress) 30%,transparent)}
 #chart-track-menu{position:fixed;inset:auto;box-sizing:border-box;width:248px;margin:0;padding:5px 8px;background:var(--ds-panel);color:var(--ds-text);border:1px solid var(--ds-line);border-radius:var(--ds-radius-input);box-shadow:none;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin}
 #chart-track-menu .track-options{margin:0;padding:0}
@@ -413,3 +413,14 @@
  #main .charts-final .chart-movement .chart-direction{font-size:9.9px!important}
  #main .charts-final .song-table-tools .icon-button{width:44px;height:48.4px}
 }
+
+/* Chart selection stays inside the existing compact dialog. */
+#dialog .chart-playlist-dialog .form-field{margin-bottom:12px}
+#dialog .chart-track-picker{max-height:min(260px,32dvh);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;margin:8px 0 12px}
+#dialog .chart-pick-row{display:flex;align-items:center;gap:10px;min-height:44px;padding:6px 0;border-bottom:1px solid var(--ds-line);cursor:pointer}
+#dialog .chart-pick-row input{flex:none;accent-color:var(--ds-selected)}
+#dialog .chart-pick-rank{flex:none;width:24px;text-align:center;font-size:12px;color:var(--ds-muted)}
+#dialog .chart-pick-copy{min-width:0;flex:1}
+#dialog .chart-pick-copy strong,#dialog .chart-pick-copy small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
+#dialog .chart-pick-copy small{margin-top:3px;color:var(--ds-muted);font-size:11px}
+#dialog .chart-playlist-dialog .form-error:empty{display:none}

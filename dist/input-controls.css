@@ -1,0 +1,26 @@
+/* One focus border per text entry. Sliders, toggles and checkboxes retain their
+   existing keyboard indicators. This file loads after component styles. */
+:is(input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):not([type=button]):not([type=submit]):not([type=reset]):not([type=image]):not([type=color]),textarea,select,[role=textbox],[role=combobox],[contenteditable=true]) {
+ outline:none!important;box-shadow:none!important;
+}
+:is(input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):not([type=button]):not([type=submit]):not([type=reset]):not([type=image]):not([type=color]),textarea,select,[role=textbox],[role=combobox],[contenteditable=true]):is(:focus,:focus-visible) {
+ border-color:var(--input-focus-border,#8EDDD2)!important;
+}
+/* Labels provide layout; their actual control owns the border. */
+.form-field:has(> :is(input,textarea,select)) {border:0!important;outline:0!important;box-shadow:none!important}
+/* Search composites own one border around the icon, input and action. */
+:is(#global-search,.brand-search,.aifect-search,.search-large,.search-box,.ml-search-box,.play-search,.crew-discovery-search,.sing-collection-search,.hub-search,.cover-rank-search,.admin-search):has(input) {
+ outline:0!important;box-shadow:none!important;
+}
+:is(#global-search,.brand-search,.aifect-search,.search-large,.search-box,.ml-search-box,.play-search,.crew-discovery-search,.sing-collection-search,.hub-search,.cover-rank-search,.admin-search):has(input:focus) {
+ border:1px solid #8EDDD2!important;
+}
+:is(#global-search,.brand-search,.aifect-search,.search-large,.search-box,.ml-search-box,.play-search,.crew-discovery-search,.sing-collection-search,.hub-search,.cover-rank-search,.admin-search) input {
+ border:0!important;outline:0!important;box-shadow:none!important;
+}
+/* Preserve error priority even while focused, with no second outline. */
+:is(input,textarea,select,[role=textbox],[role=combobox],[contenteditable=true]):is([aria-invalid=true],:user-invalid) {--input-focus-border:var(--ds-error,#f87171);border-color:var(--ds-error,#f87171)!important}
+:is(#global-search,.brand-search,.aifect-search,.search-large,.search-box,.ml-search-box,.play-search,.crew-discovery-search,.sing-collection-search,.hub-search,.cover-rank-search,.admin-search):has(input:is([aria-invalid=true],:user-invalid)) {border-color:var(--ds-error,#f87171)!important}
+@media(forced-colors:active){
+ :is(input,textarea,select,[role=textbox],[role=combobox],[contenteditable=true]):focus{border-color:Highlight!important}
+}
