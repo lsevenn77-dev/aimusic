@@ -31,6 +31,7 @@ await cp('dist/main-layout.css','dist/client/main-layout.css');
 await cp('dist/secondary-pages.css','dist/client/secondary-pages.css');
 await cp('dist/app-ads.txt','dist/client/app-ads.txt');
 await cp('dist/artist-gallery.js','dist/client/artist-gallery.js');
+for(const file of ['artist-fanpage.js','artist-fanpage.css'])await cp('dist/'+file,'dist/client/'+file);
 for(const file of ['artist-directory.js','artist-directory.css'])await cp('dist/'+file,'dist/client/'+file);
 for(const file of ['page-redesign.js','page-redesign.css','community-feed.css','gift-dashboard.css'])await cp('dist/'+file,'dist/client/'+file);
 for(const file of ['release-refinements.js','release-refinements.css','notifications.js','notifications.css'])await cp('dist/'+file,'dist/client/'+file);

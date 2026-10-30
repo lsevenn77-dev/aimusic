@@ -99,6 +99,10 @@ export async function deleteAccount(env,user){
  if(await one(env,"SELECT name FROM sqlite_master WHERE type='table' AND name='dubbing_script_rewards'"))writes.push(q('DELETE FROM dubbing_script_rewards WHERE user_id=?',uid));
  if(await one(env,"SELECT name FROM sqlite_master WHERE type='table' AND name='dubbing_ad_sessions'"))writes.push(q('DELETE FROM dubbing_ad_sessions WHERE user_id=?',uid));
  if(await one(env,"SELECT name FROM sqlite_master WHERE type='table' AND name='dubbing_recordings'"))writes.push(q("UPDATE dubbing_projects SET state='recording' WHERE id IN (SELECT project_id FROM dubbing_recordings WHERE user_id=?) AND state='complete'",uid),q("UPDATE dubbing_final_jobs SET state='invalidated',lease_token=NULL,lease_until=0,output_key=NULL WHERE project_id IN (SELECT project_id FROM dubbing_recordings WHERE user_id=?)",uid),q('DELETE FROM dubbing_recordings WHERE user_id=?',uid));
+ if(await one(env,"SELECT name FROM sqlite_master WHERE type='table' AND name='artist_fanpages'")){
+  writes.push(q('DELETE FROM artist_fan_reports WHERE user_id=?',uid),q('DELETE FROM artist_fan_likes WHERE user_id=?',uid),q('DELETE FROM artist_fan_posts WHERE user_id=? OR parent_id IN (SELECT id FROM artist_fan_posts WHERE user_id=?)',uid,uid),q('DELETE FROM artist_operators WHERE user_id=?',uid));
+  for(const table of ['artist_fanpages','artist_fan_posts','artist_operators'])writes.push(q('DELETE FROM '+table+' WHERE artist_id IN (SELECT a.id FROM artists a JOIN producers p ON p.id=a.producer_id WHERE p.user_id=?)',uid));
+ }
  writes.push(q('DELETE FROM activity_notifications WHERE recipient=?',uid),q('UPDATE activity_notifications SET actor_id=NULL WHERE actor_id=?',uid));
  for(const crew of await rows(env,'SELECT id FROM crews WHERE owner_id=?',uid)){
   const next=await one(env,'SELECT user_id FROM crew_members WHERE crew_id=? AND user_id!=? ORDER BY joined,user_id LIMIT 1',crew.id,uid);

@@ -59,7 +59,7 @@ async function setup(t){
  const f=await fixture(t,{BUCKET});
  // A syntactically valid image container exercises the existing bounded image reader.
  const image=new Uint8Array(24);image.set([82,73,70,70]);new DataView(image.buffer).setUint32(4,16,true);image.set([87,69,66,80],8);
- const send=async(path,method='PUT',who='owner',data=image,type='image/webp')=>{
+ const send=async(path,method='PUT',who='owner',data=readFileSync(new URL('../dist/assets/nova.png',import.meta.url)),type='image/png')=>{
   const r=await worker.fetch(new Request('https://aifect.test'+path,{method,headers:{Origin:'https://aifect.test',...(who?{Cookie:'aifect_session='+who}:{}),'content-type':type},body:['PUT','POST'].includes(method)?data:undefined}),{DB:f.DB,BUCKET},{waitUntil(p){p.catch(()=>{});}});
   return {status:r.status,body:r.headers.get('content-type')?.includes('json')?await r.json():await r.arrayBuffer(),headers:r.headers};
  };
@@ -83,7 +83,7 @@ test('invalid, oversized and over-limit uploads leave no stored photos',async t=
  const f=await setup(t),path='/api/artists/artist/gallery';
  assert.equal((await f.send(path,'PUT','owner',new TextEncoder().encode('<svg/>'),'image/svg+xml')).status,400);
  assert.equal((await f.send(path,'PUT','owner',new Uint8Array(5*1024*1024+1))).status,413);
- for(let i=0;i<30;i++)f.sql.prepare('INSERT INTO artist_photos VALUES(?,?,?,?,?)').run('p'+i,'artist','v'+i,'image/webp',i);
+ for(let i=0;i<20;i++)f.sql.prepare('INSERT INTO artist_photos VALUES(?,?,?,?,?)').run('p'+i,'artist','v'+i,'image/webp',i);
  assert.equal((await f.send(path)).status,409);assert.equal(f.objects.size,0);
 });
 test('gallery mutations cannot cross artists and blocked owners are inaccessible',async t=>{

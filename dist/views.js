@@ -51,6 +51,7 @@ function bindRenderedRoute(base,param,explorer,ticket){
  if(typeof bindShopShelves==='function')bindShopShelves();
  if(typeof bindPlay==='function')bindPlay(explorer);
  if(base==='song')bindSongCoverList();
+ if(base==='artist'&&typeof bindArtistFanpage==='function')bindArtistFanpage();
  if(typeof bindMyPage==='function')bindMyPage(explorer);
  if(typeof bindCrewIntegrated==='function')void bindCrewIntegrated();
  if(typeof bindProfileManagement==='function')bindProfileManagement(explorer);
