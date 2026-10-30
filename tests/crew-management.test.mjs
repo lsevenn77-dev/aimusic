@@ -43,7 +43,7 @@ test('crew invitation creates one unread DM, a push event and a live crew link; 
  const thread=await f.call('/api/dm/producer','GET',null,'other'),message=thread.body.messages[0];
  assert.equal(thread.body.messages.length,1);assert.equal(message.crew_invite_id,cid);assert.equal(message.read_at,0);
  assert.match(message.body,/First crew.*크루에 초대합니다/);assert.ok(message.body.includes('https://aifect.co.kr/#crew/'+cid));
- assert.equal(f.sql.prepare("SELECT count(*) n FROM push_outbox WHERE kind='dm' AND recipient='other'").get().n,1);
+ assert.equal(f.sql.prepare("SELECT count(*) n FROM push_outbox WHERE kind='crew_invite' AND recipient='other'").get().n,1);
  const inbox=await f.call('/api/dm','GET',null,'other');assert.equal(inbox.body.conversations[0].unread,1);
  assert.equal(f.sql.prepare("SELECT count(*) n FROM crew_members WHERE user_id='other'").get().n,0,'invitation does not auto-join');
  assert.equal((await f.call(path,'POST',{...data,crew_id:'different'})).status,409);

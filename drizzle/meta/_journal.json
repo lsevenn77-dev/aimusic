@@ -575,6 +575,13 @@
       "when": 1793338521689,
       "tag": "0081_artist_fan_operators",
       "breakpoints": true
+    },
+    {
+      "idx": 82,
+      "version": "6",
+      "when": 1793358187256,
+      "tag": "0082_notification_integration",
+      "breakpoints": true
     }
   ]
 }

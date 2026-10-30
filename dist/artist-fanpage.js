@@ -88,7 +88,7 @@ function bindArtistFanpage(){
  on(root.querySelector('[data-fan-sort]'),'change',e=>{const sort=e.target.value,tracks=[...d.tracks].sort((a,b)=>Number(b[sort==='recent'?'created':sort]||0)-Number(a[sort==='recent'?'created':sort]||0));root.querySelector('[data-fan-music]').innerHTML=artistMusicList(tracks);routeTracks=remember(tracks);icons();paintInteractions();});
  function postHTML(p){
   const own=me?.id===p.user_id,button=(action,text)=>'<button class="fan-text-button'+(action==='like'&&p.liked?' is-active':'')+'" data-post-action="'+action+'" data-post-id="'+esc(p.id)+'" '+(action==='like'?'aria-label="응원글 좋아요 '+p.likes+'개" aria-pressed="'+!!p.liked+'"':'')+'>'+text+'</button>';
-  return '<article class="fan-post" data-post="'+esc(p.id)+'"><div class="fan-post-meta"><span class="fan-post-author"><span class="fan-post-avatar">'+avatarImage({profile_id:p.profile_id,name:p.author,image_version:p.image_version},'producer',false)+'</span>'+(p.producer_id?'<a href="#producer/'+esc(p.producer_id)+'">'+esc(p.author)+'</a>':'<span>'+esc(p.author)+'</span>')+'</span>'+(p.official?'<span class="fan-official">공식 제작자</span>':p.operator?'<span class="fan-official">공식 운영자</span>':'')+(p.pinned?'<span>고정</span>':'')+'<time datetime="'+new Date(p.created*1000).toISOString()+'">'+new Date(p.created*1000).toLocaleDateString('ko-KR')+'</time>'+(p.edited?' · 수정됨':'')+'</div>'+(p.title?'<h3>'+esc(p.title)+'</h3>':'')+'<p class="fan-post-body">'+(p.deleted?'삭제된 글입니다.':esc(p.body))+'</p>'+(!p.deleted?'<div class="fan-post-actions">'+button('like',icon('ui-heart',16)+' '+p.likes)+(!p.parent_id&&p.kind==='lounge'?button('reply','답글 '+p.replies):'')+(own?button('edit','수정')+button('delete','삭제'):button('report','신고'))+(d.can_manage&&!p.parent_id?button('pin',p.pinned?'고정 해제':'상단 고정'):'')+'</div>':'')+'<div data-fan-replies="'+esc(p.id)+'"></div></article>';
+  return '<article class="fan-post" data-post="'+esc(p.id)+'"><div class="fan-post-meta"><span class="fan-post-author"><span class="fan-post-avatar">'+avatarImage({profile_id:p.profile_id,name:p.author,image_version:p.image_version},'producer',false)+'</span>'+(p.producer_id?'<a href="#producer/'+esc(p.producer_id)+'">'+esc(p.author)+'</a>':'<span>'+esc(p.author)+'</span>')+'</span>'+(p.official?'<span class="fan-official">공식 제작자</span>':p.operator?'<span class="fan-official">공식 운영자</span>':'')+(p.pinned?'<span>고정</span>':'')+'<time datetime="'+new Date(p.created*1000).toISOString()+'">'+new Date(p.created*1000).toLocaleDateString('ko-KR')+'</time>'+(p.edited?' · 수정됨':'')+'</div>'+(p.title?'<h3>'+esc(p.title)+'</h3>':'')+'<p class="fan-post-body">'+(p.deleted?'삭제된 글입니다.':esc(p.body))+'</p>'+(!p.deleted?'<div class="fan-post-actions">'+button('like',icon('ui-heart',16)+' '+p.likes)+(p.kind==='lounge'?button('reply','답글 '+p.replies):'')+(own?button('edit','수정')+button('delete','삭제'):button('report','신고'))+(d.can_manage&&!p.parent_id?button('pin',p.pinned?'고정 해제':'상단 고정'):'')+'</div>':'')+'<div data-fan-replies="'+esc(p.id)+'"></div></article>';
  }
  const postMap=new Map(),feedRequests=new WeakMap();
  async function loadFeed(target,kind,offset=0,parent=null){
@@ -100,7 +100,15 @@ function bindArtistFanpage(){
    return res;
   }catch(e){if(!signal.aborted&&feedRequests.get(target)===request){target.innerHTML='<p role="alert">'+esc(e.message)+'</p>';}}
  }
- root.querySelectorAll('[data-fan-feed]').forEach(el=>void loadFeed(el,el.dataset.fanFeed));
+ const focusId=new URLSearchParams(location.hash.split('?')[1]||'').get('post');
+ root.querySelectorAll('[data-fan-feed]').forEach(el=>{
+  if(focusId&&el.dataset.fanFeed==='lounge')void (async()=>{
+   try{const res=await read('/posts?kind=lounge&focus='+encodeURIComponent(focusId));if(signal.aborted||!el.isConnected)return;res.items.forEach(p=>postMap.set(p.id,p));
+    el.innerHTML=res.items.map(postHTML).join('')||'<p class="fan-empty">삭제되었거나 볼 수 없는 응원글·댓글이에요.</p>';
+    const node=[...el.querySelectorAll('[data-post]')].find(n=>n.dataset.post===focusId);if(node){node.setAttribute('tabindex','-1');node.scrollIntoView({block:'center'});node.focus({preventScroll:true});}
+   }catch(e){if(!signal.aborted)el.innerHTML='<p role="status">'+esc(e.message)+'</p>';}
+  })();else void loadFeed(el,el.dataset.fanFeed);
+ });
  function compose(kind,p=null,parent=null){
   if(!me){toast('로그인 후 작성해주세요.');return;}
   dialog('<h2>'+(p?'글 수정':kind==='news'?'공식 소식':'팬 응원글')+'</h2><form id="fan-post-form" class="upload-form">'+(kind==='news'?'<label class="form-field">제목<input name="title" maxlength="160" value="'+esc(p?.title||'')+'" required></label>':'')+'<label class="form-field">내용<textarea name="body" maxlength="2000" rows="5" required>'+esc(p?.body||'')+'</textarea></label><button class="primary-button">저장</button><p class="form-error" role="alert"></p></form>');
@@ -111,7 +119,7 @@ function bindArtistFanpage(){
   const el=e.target.closest('[data-post-action]');if(!el||el.disabled)return;const p=postMap.get(el.dataset.postId),action=el.dataset.postAction;if(!p)return;
   if(action==='edit'){compose(p.kind,p);return;}
   if(action==='reply'){
-   const target=root.querySelector('[data-fan-replies="'+p.id+'"]');
+   const parentId=p.parent_id||p.id,target=root.querySelector('[data-fan-replies="'+parentId+'"]');
    const existing=target.querySelector('.fan-reply-form');if(existing){existing.elements.body.focus({preventScroll:true});return;}
    let list=target.querySelector('[data-reply-list]');
    if(!list){list=document.createElement('div');list.dataset.replyList='';list.innerHTML='<p role="status">답글을 불러오는 중…</p>';target.append(list);}
@@ -124,10 +132,10 @@ function bindArtistFanpage(){
     form.onsubmit=busyForm(form,async fd=>{
      cancel.disabled=true;
      try{
-      await read('/posts','POST',{kind:p.kind,title:'',body:fd.get('body'),parent_id:p.id,request_id:requestId});
+      await read('/posts','POST',{kind:p.kind,title:'',body:fd.get('body'),parent_id:parentId,reply_to_id:p.id,request_id:requestId});
       if(signal.aborted||!target.isConnected)return;
       form.remove();el.focus({preventScroll:true});
-      const result=await loadFeed(list,p.kind,0,p.id);
+      const result=await loadFeed(list,p.kind,0,parentId);
       if(result){p.replies=result.parent_replies;el.textContent='답글 '+p.replies;}
      }finally{cancel.disabled=false;}
     });

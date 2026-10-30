@@ -75,7 +75,7 @@ export default {async fetch(req,env,ctx){
   if(path==='/internal/billing/tick')return await billingTick(req,env);
   if(path==='/internal/player/backfill')return await playerBackfillRoute(req,env);
   if(path.startsWith('/internal/music-classification/'))return await musicClassificationInternal(req,env,path);
-  if(path.startsWith('/internal/')){const result=await internalRoute(req,env,path);if(result?.ok&&ctx?.waitUntil){if(path==='/internal/jobs/claim'&&req.method==='POST')queueBotHeartbeat(env,ctx);if(env.GEMINI_API_KEY&&(path==='/internal/jobs/claim'||path.endsWith('/finish')))ctx.waitUntil(classifyNext(env).catch(()=>console.error('Music classification pending')));if(path.endsWith('/finish')){ctx.waitUntil(dispatchPush(env).catch(()=>console.error('Participation push pending')));ctx.waitUntil(syncRecentCrewGrowth(env).catch(()=>console.error('Crew growth pending')));}}return result;}
+  if(path.startsWith('/internal/')){const result=await internalRoute(req,env,path);if(result?.ok&&ctx?.waitUntil){if(path==='/internal/jobs/claim'&&req.method==='POST'){queueBotHeartbeat(env,ctx);retryPush(env,ctx);}if(env.GEMINI_API_KEY&&(path==='/internal/jobs/claim'||path.endsWith('/finish')))ctx.waitUntil(classifyNext(env).catch(()=>console.error('Music classification pending')));if(path.endsWith('/finish')){ctx.waitUntil(dispatchPush(env).catch(()=>console.error('Participation push pending')));ctx.waitUntil(syncRecentCrewGrowth(env).catch(()=>console.error('Crew growth pending')));}}return result;}
   const musicResponse=await publicMusicRoute(req,env,path);if(musicResponse)return musicResponse;
   if(['/admin','/admin/','/admin.html'].includes(path))return new Response('페이지를 찾을 수 없습니다.',{status:404,headers:{'content-type':'text/plain; charset=utf-8','cache-control':'no-store'}});
   const publicResponse=publicPageRoute(req,path);if(publicResponse)return publicResponse;
@@ -122,19 +122,19 @@ export default {async fetch(req,env,ctx){
   const voiceResponse=await voiceRoomsRoute(req,env,path,user,ctx);if(voiceResponse)return voiceResponse;
   const dubbingReportAdmin=await dubbingReportsAdminRoute(req,env,path,user);if(dubbingReportAdmin)return dubbingReportAdmin;
   const dubbingAdmin=await dubbingAdminRoute(req,env,path,user);if(dubbingAdmin)return dubbingAdmin;
-  const dubbing=await dubbingRoute(req,env,path,user);if(dubbing){if(dubbing.ok&&['POST','PUT','PATCH'].includes(req.method)&&user&&ctx?.waitUntil)ctx.waitUntil(syncActorCrew(env,user.id).catch(()=>console.error('Crew growth pending')));return dubbing;}
+  const dubbing=await dubbingRoute(req,env,path,user);if(dubbing){if(dubbing.ok&&req.method==='POST')ctx.waitUntil(dispatchPush(env));if(dubbing.ok&&['POST','PUT','PATCH'].includes(req.method)&&user&&ctx?.waitUntil)ctx.waitUntil(syncActorCrew(env,user.id).catch(()=>console.error('Crew growth pending')));return dubbing;}
   const correction=await pitchCorrectionRoute(req,env,path,user);if(correction)return correction;
   const safety=await accountSafetyRoute(req,env,path,user);if(safety)return safety;
   const playlistImage=await playlistImageRoute(req,env,path,user);if(playlistImage)return playlistImage;
   if(path==='/api/studio'&&ctx?.waitUntil&&env.GEMINI_API_KEY)ctx.waitUntil(classifyNext(env).catch(()=>console.error('Music classification pending')));
   const classificationResponse=await musicClassificationRoute(req,env,path,user);if(classificationResponse)return classificationResponse;
   const profileGalleryResponse=await profileGalleryRoute(req,env,path,user);if(profileGalleryResponse)return profileGalleryResponse;
-  const fanpageResponse=await artistFanpageRoute(req,env,path,user);if(fanpageResponse)return fanpageResponse;
+  const fanpageResponse=await artistFanpageRoute(req,env,path,user);if(fanpageResponse){if(fanpageResponse.ok&&req.method==='POST')ctx.waitUntil(dispatchPush(env));return fanpageResponse;}
   const galleryResponse=await artistGalleryRoute(req,env,path,user);if(galleryResponse)return galleryResponse;
   const playResponse=await playBillingRoute(req,env,path,user);if(playResponse)return playResponse;
   retryPush(env,ctx);
   const pushResponse=await pushRoute(req,env,path,user);if(pushResponse)return pushResponse;
-  const notifications=await notificationsRoute(req,env,path,user);if(notifications)return notifications;
+  const notifications=await notificationsRoute(req,env,path,user);if(notifications){if(notifications.ok&&req.method==='POST')ctx.waitUntil(dispatchPush(env));return notifications;}
   const chatStream=await chatStreamRoute(req,env,path,user);if(chatStream)return chatStream;
   const adminDashboard=await adminDashboardRoute(req,env,path,user);if(adminDashboard)return adminDashboard;
   const audioAdsResponse=audioAdsRoute(req,env,path,user);if(audioAdsResponse)return audioAdsResponse;
@@ -147,7 +147,7 @@ export default {async fetch(req,env,ctx){
   const result=await giftCheckoutRoute(req,env,path,user)||await musicLibraryRoute(req,env,path,user)||await profileCollectionsRoute(req,env,path,user)||await crewNoticeRoute(req,env,path,user)||await relationRoute(req,env,path,user)||await decorationRoute(req,env,path,user)||await giftInventoryRoute(req,env,path,user)||await playerRoute(req,env,path,user)||await chatFeaturesRoute(req,env,path,user)||await applePaymentRoute(req,env,path,user)||await profileRoute(req,env,path,user)||await crewV3Route(req,env,path,user)||await socialRoute(req,env,path,user)||await authRoute(req,env,path,user)||await billingRoute(req,env,path,user)||await membershipRoute(req,env,path,user)||await alignmentRoute(req,env,path,user)||await karaokeRoute(req,env,path,user)||await coverRoute(req,env,path,user)||await duetRoute(req,env,path,user)||await goldOrderRoute(req,env,path,user)||await giftRoute(req,env,path,user)||await communityRankingRoute(req,env,path)||await coverRankingRoute(req,env,path)||await commentModerationRoute(req,env,path,user)||await trackModerationRoute(req,env,path,user)||await diamondRoute(req,env,path,user)||await payoutRoute(req,env,path,user)||await lyricsRoute(req,env,path,user)||await catalogRoute(req,env,path,user)||await mediaRoute(req,env,path,user);
   if(result){
    if(result.ok&&['POST','PUT','PATCH'].includes(req.method)&&user&&ctx?.waitUntil&&/^\/api\/(tracks|uploads|studio|covers)/.test(path))ctx.waitUntil(syncActorCrew(env,user.id).catch(()=>console.error('Crew growth pending')));
-   if(req.method==='POST'&&result.ok&&(path.startsWith('/api/dm/')||/^\/api\/(tracks|producers)\/[^/]+\/(comments|gifts)$/.test(path)||/^\/api\/me\/gift-inventory\/[\w-]+\/send$/.test(path)))ctx.waitUntil(dispatchPush(env).catch(()=>console.error('Push dispatch failed')));
+   if(['POST','PUT','PATCH'].includes(req.method)&&result.ok&&(path.startsWith('/api/artists/')||path.startsWith('/api/crews/')||path.startsWith('/api/dubbing/')||path.startsWith('/api/dm/')||/^\/api\/(tracks|producers)\/[^/]+\/(comments|gifts)$/.test(path)||/^\/api\/me\/gift-inventory\/[\w-]+\/send$/.test(path)))ctx.waitUntil(dispatchPush(env).catch(()=>console.error('Push dispatch failed')));
    if(path.startsWith('/api/auth/')&&result.headers.get('content-type')?.includes('application/json')){
     const body=await result.clone().json();if(body.user){body.user=await publicUser(env,body.user);return new Response(JSON.stringify(body),{status:result.status,headers:result.headers});}
    }
@@ -160,6 +160,6 @@ export default {async fetch(req,env,ctx){
   if(path.includes('/auth/')&&path.endsWith('/callback'))return new Response(null,{status:303,headers:{location:'/#account?error='+encodeURIComponent(message),'cache-control':'no-store'}});
   return json({error:message},status);
  }
-},async scheduled(event,env,ctx){ctx.waitUntil(runBotEngine(env));ctx.waitUntil(cleanupChatImages(env));ctx.waitUntil(classifyNext(env));ctx.waitUntil(syncRecentCrewGrowth(env));}};
+},async scheduled(event,env,ctx){ctx.waitUntil(dispatchPush(env));ctx.waitUntil(runBotEngine(env));ctx.waitUntil(cleanupChatImages(env));ctx.waitUntil(classifyNext(env));ctx.waitUntil(syncRecentCrewGrowth(env));}};
 
 async function syncActorCrew(env,uid){const membership=await one(env,'SELECT crew_id FROM crew_members WHERE user_id=?',uid);if(membership)await syncCrewGrowth(env,membership.crew_id);}

@@ -6,7 +6,7 @@ import * as AifectGifts from '../shared/gifts.js';
 const source=readFileSync(new URL('../dist/notifications.js',import.meta.url),'utf8');
 const tick=()=>new Promise(r=>setImmediate(r));
 function setup(){
- const requests=[],badge={setAttribute(){}},error={},root={isConnected:true,querySelectorAll:()=>[],querySelector:()=>error},listeners={};
+ const requests=[],badge={setAttribute(){}},error={},root={isConnected:true,querySelectorAll:()=>[],querySelector:s=>s==='[data-activity-settings]'?null:error},listeners={};
  const c=vm.createContext({me:{id:'owner'},document:{hidden:false,querySelectorAll:()=>[badge],addEventListener:(k,fn)=>listeners[k]=fn,removeEventListener(){}},window:{addEventListener(){}},setInterval(){},$:()=>root,location:{hash:'#notifications'},toast(){},api:async(path,method,body)=>{requests.push({path,method,body});return {unread:0};}});
  vm.runInContext(source,c);c.view={activity:{account:'owner',unread:2,items:[{id:'one',read_at:0},{id:'two',read_at:0}]}};
  return {c,badge,error,requests,root,listeners,run:s=>vm.runInContext(s,c)};
@@ -36,4 +36,8 @@ test('all registered gifts use their existing product art and a receipt source l
  t.c.n.gift_source_kind='producer';t.c.n.gift_source_title='음악가';t.c.n.available=1;
  assert.match(t.run('activityRowHTML(n)'),/프로필 · 음악가/);
  t.c.n.gift_type='unregistered';t.c.n.gift_name='과거 선물';const legacy=t.run('activityRowHTML(n)');assert.doesNotMatch(legacy,/activity-gift-art/);assert.match(legacy,/과거 선물/);
+});
+
+test('unavailable content links preserve the real notification ID for server revalidation',()=>{
+ const t=setup();Object.assign(t.c,{esc:s=>String(s??''),number:n=>String(n),icon:()=>''});t.c.n={id:'unavailable-id',kind:'dubbing_complete',created:1,read_at:1,actor_name:'음악가',available:0,href:''};const html=t.run('activityRowHTML(n)');assert.match(html,/data-activity-open="unavailable-id"/);assert.doesNotMatch(html,/\$\{/);
 });

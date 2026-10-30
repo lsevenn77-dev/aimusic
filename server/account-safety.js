@@ -95,6 +95,7 @@ export async function deleteAccount(env,user){
  const hasDubbing=!!await one(env,"SELECT name FROM sqlite_master WHERE type='table' AND name='dubbing_projects'");
  const targets=await storageTargets(env,user.id,hasDubbing),q=(sql,...args)=>query(env,sql,...args),uid=user.id;
  const writes=[];
+ if(await one(env,"SELECT name FROM sqlite_master WHERE type='table' AND name='crew_participation_requests'"))writes.push(q('DELETE FROM crew_participation_requests WHERE sender=? OR recipient=?',uid,uid),q('DELETE FROM notification_digests WHERE recipient=?',uid));
  if(hasDubbing)writes.push(q('DELETE FROM dubbing_role_claims WHERE user_id=?',uid),q('DELETE FROM dubbing_generations WHERE user_id=?',uid),q('DELETE FROM dubbing_projects WHERE owner_id=?',uid));
  if(await one(env,"SELECT name FROM sqlite_master WHERE type='table' AND name='dubbing_script_rewards'"))writes.push(q('DELETE FROM dubbing_script_rewards WHERE user_id=?',uid));
  if(await one(env,"SELECT name FROM sqlite_master WHERE type='table' AND name='dubbing_ad_sessions'"))writes.push(q('DELETE FROM dubbing_ad_sessions WHERE user_id=?',uid));

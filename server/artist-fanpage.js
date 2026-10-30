@@ -14,16 +14,16 @@ export async function fanpageData(env,aid){
  const operators=await rows(env,`SELECT p.id,${producerNameSQL()} name FROM artist_fan_operators o JOIN producers p ON p.user_id=o.user_id WHERE o.artist_id=? ORDER BY o.created,p.id`,aid);
  return {settings:settings||{},producer,operators};
 }
-async function posts(env,aid,user,kind,parent,offset){
+async function posts(env,aid,user,kind,parent,offset,focus=null){
  const blocked=env.AIFECT_BLOCKED||[],visible=blocked.length?' AND f.user_id NOT IN ('+blocked.map(()=>'?').join(',')+')':'';
- const items=await rows(env,`SELECT f.id,f.user_id,f.kind,f.title,f.body,f.parent_id,f.pinned,f.created,f.edited,f.deleted,
+ const items=await rows(env,`SELECT f.id,f.user_id,f.kind,f.title,f.body,f.parent_id,f.reply_to_id,f.pinned,f.created,f.edited,f.deleted,
  ${publicNameSQL()} author,p.id producer_id,p.id profile_id,p.image_version image_version,(u.id=auser.user_id) official,EXISTS(SELECT 1 FROM artist_fan_operators op WHERE op.artist_id=f.artist_id AND op.user_id=u.id) operator,
  (SELECT count(*) FROM artist_fan_likes l WHERE l.post_id=f.id) likes,
  EXISTS(SELECT 1 FROM artist_fan_likes l WHERE l.post_id=f.id AND l.user_id=?) liked,
  (SELECT count(*) FROM artist_fan_posts r WHERE r.parent_id=f.id) replies
  FROM artist_fan_posts f JOIN users u ON u.id=f.user_id LEFT JOIN producers p ON p.user_id=u.id
  JOIN artists a ON a.id=f.artist_id JOIN producers auser ON auser.id=a.producer_id
- WHERE f.artist_id=? AND f.kind=? AND f.parent_id IS ?${visible} ORDER BY f.pinned DESC,f.created DESC,f.id DESC LIMIT 21 OFFSET ?`,user?.id||'',aid,kind,parent,...blocked,offset);
+ WHERE f.artist_id=? AND f.kind=? ${focus?'AND (f.id=? OR f.id=(SELECT parent_id FROM artist_fan_posts WHERE id=? AND artist_id=f.artist_id))':'AND f.parent_id IS ?'}${visible} ORDER BY f.pinned DESC,f.created DESC,f.id DESC LIMIT 21 OFFSET ?`,user?.id||'',aid,kind,...(focus?[focus,focus]:[parent]),...blocked,offset);
  return {items:items.slice(0,20),next:items.length>20?offset+20:null,...(parent?{parent_replies:(await one(env,'SELECT count(*) n FROM artist_fan_posts WHERE parent_id=? AND artist_id=?',parent,aid)).n}:{})};
 }
 export async function artistFanpageRoute(req,env,path,user){
@@ -47,7 +47,7 @@ export async function artistFanpageRoute(req,env,path,user){
    if(!['news','lounge'].includes(kind)||!Number.isSafeInteger(rawOffset)||rawOffset<0||rawOffset>100000)fail(400,'목록 카테고리와 위치를 확인해주세요.');
    const offset=rawOffset;
    if(pid&&action!=='replies')return json({post});
-   return json(await posts(env,aid,user,post?.kind||kind,action==='replies'?pid:null,offset));
+   return json(await posts(env,aid,user,post?.kind||kind,action==='replies'?pid:null,offset,url.searchParams.get('focus')));
   }
   fail(405,'지원하지 않는 요청입니다.');
  }
@@ -104,13 +104,13 @@ export async function artistFanpageRoute(req,env,path,user){
    const b=await req.json();await run(env,'UPDATE artist_fan_posts SET title=?,body=?,edited=? WHERE id=?',str(b.title||'',160,false),str(b.body,2000),now(),pid);return json({ok:true});
   }
  }else if(req.method==='POST'){
-  const b=await req.json(),kind=b.kind==='news'?'news':'lounge',parent=b.parent_id||null,key=str(b.request_id,80),body=str(b.body,2000);
+  const b=await req.json(),kind=b.kind==='news'?'news':'lounge';let parent=b.parent_id||null;const replyTo=b.reply_to_id||parent,key=str(b.request_id,80),body=str(b.body,2000);
   if(kind==='news'&&!manage)fail(403,'제작자만 공식 소식을 작성할 수 있습니다.');
   const existing=await one(env,'SELECT id FROM artist_fan_posts WHERE artist_id=? AND user_id=? AND request_id=?',aid,user.id,key);if(existing)return json(existing);
-  if(parent){const target=await one(env,"SELECT id,user_id FROM artist_fan_posts WHERE id=? AND artist_id=? AND kind=? AND parent_id IS NULL AND deleted=0",parent,aid,kind);if(!target)fail(400,'답글 대상을 확인해주세요.');assertUnblocked(env,target.user_id);}
+  if(replyTo){const target=await one(env,"SELECT id,user_id,parent_id FROM artist_fan_posts WHERE id=? AND artist_id=? AND kind=? AND deleted=0",replyTo,aid,kind);if(!target)fail(400,'답글 대상을 확인해주세요.');assertUnblocked(env,target.user_id);parent=target.parent_id||target.id;const root=await one(env,'SELECT user_id FROM artist_fan_posts WHERE id=? AND artist_id=? AND deleted=0',parent,aid);if(!root)fail(400,'삭제된 응원글입니다.');assertUnblocked(env,root.user_id);}
   await rate(env,'fan-post:'+user.id,5,60);
   if(await one(env,'SELECT id FROM artist_fan_posts WHERE artist_id=? AND user_id=? AND body=? AND created>?',aid,user.id,body,now()-60))fail(409,'같은 내용을 연속으로 등록할 수 없습니다.');
-  const postId=id();await run(env,'INSERT INTO artist_fan_posts(id,artist_id,user_id,kind,title,body,parent_id,request_id,created) VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(artist_id,user_id,request_id) DO NOTHING',postId,aid,user.id,kind,str(b.title||'',160,false),body,parent,key,now());
+  const postId=id();await run(env,'INSERT INTO artist_fan_posts(id,artist_id,user_id,kind,title,body,parent_id,reply_to_id,request_id,created) VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(artist_id,user_id,request_id) DO NOTHING',postId,aid,user.id,kind,str(b.title||'',160,false),body,parent,replyTo,key,now());
   return json(await one(env,'SELECT id FROM artist_fan_posts WHERE artist_id=? AND user_id=? AND request_id=?',aid,user.id,key),201);
  }
  fail(405,'지원하지 않는 요청입니다.');
