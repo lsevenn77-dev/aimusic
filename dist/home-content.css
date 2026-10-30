@@ -207,17 +207,17 @@
 
 /* FEATURED MUSIC only: keep the shared editorial banners and page aurora intact. */
 .home-content-refresh #home-release .home-feature{overflow:hidden;background:transparent;border:0}
-.home-content-refresh #home-release .home-feature-background{inset:0;mask-image:none;background:transparent}
-.home-content-refresh #home-release .home-feature-backdrop{position:absolute;inset:-64px;width:auto;height:auto;filter:blur(52px) saturate(.8);transform:scale(1.15);opacity:.48}
+.home-content-refresh #home-release .home-feature-background{inset:0;mask-image:none;background:transparent;animation:home-feature-background-in .8s ease both}
+.home-content-refresh #home-release .home-feature-backdrop{position:absolute;inset:-80px;width:auto;height:auto;filter:blur(64px) saturate(.75);transform:scale(1.15);opacity:.42}
 .home-content-refresh #home-release .home-feature-background::after{background:linear-gradient(100deg,#0c121bba,#0c121b99 55%,#0c121ba6)}
-.home-content-refresh #home-release .home-feature-slide{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:40px;padding:26px 62px 42px;animation:home-content-in .45s ease both}
+.home-content-refresh #home-release .home-feature-slide{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:40px;padding:26px 62px 42px;animation:home-feature-background-in .45s ease both}
 .home-content-refresh #home-release .home-feature-copy{grid-column:1;max-width:100%}
 .home-content-refresh #home-release .home-feature-copy h2{font-size:clamp(24px,3.1cqi,38px)}
 .home-content-refresh #home-release .home-feature-actions{gap:12px;margin-top:12px;flex-wrap:nowrap}
 .home-content-refresh #home-release .home-feature-info{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:18px;min-height:44px;padding:0 16px;border:0;border-radius:12px;background:#10172299;color:var(--ds-text);font-size:12px;white-space:nowrap;flex:none}
 .home-content-refresh #home-release .home-feature-info::before{content:"";position:absolute;inset:0;border-radius:inherit;padding:1px;background:linear-gradient(110deg,var(--ds-accent-mint),var(--ds-accent-lavender));mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);mask-composite:exclude;pointer-events:none}
 .home-content-refresh #home-release .home-feature-info svg{width:13px;height:13px}
-.home-content-refresh #home-release .home-feature-covers{--feature-cover:194px;position:relative;isolation:isolate;display:grid;place-items:center;min-width:0;height:var(--feature-cover);grid-column:2;grid-row:1;perspective:700px}
+.home-content-refresh #home-release .home-feature-covers{--feature-cover:clamp(142px,22cqi,194px);position:relative;isolation:isolate;display:grid;place-items:center;min-width:0;height:var(--feature-cover);grid-column:2;grid-row:1;perspective:700px}
 .home-content-refresh #home-release .home-feature-cover{position:relative;z-index:5;width:var(--feature-cover);height:var(--feature-cover);border:0}
 .home-content-refresh #home-release .home-feature-cover::after{content:"";position:absolute;inset:0;border-radius:inherit;padding:1.25px;background:linear-gradient(130deg,color-mix(in srgb,var(--ds-accent-mint) 65%,transparent),color-mix(in srgb,var(--ds-accent-lavender) 65%,transparent));mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);mask-composite:exclude;pointer-events:none}
 .home-content-refresh #home-release .home-feature-rear{position:absolute;left:calc(50% - var(--feature-cover)/2);top:0;width:var(--feature-cover);height:var(--feature-cover);padding:0;border:0;outline:0;border-radius:12px;background:none;box-shadow:none;z-index:3;cursor:pointer;filter:brightness(.48);transform:translateX(calc(var(--feature-cover)*-.32)) scale(.84) rotateY(24deg)}
@@ -236,9 +236,11 @@
 .home-content-refresh #home-release .home-feature-arrow{top:calc(50% - 30px);background:none;border:0;box-shadow:none}
 /* Only the previous background fades out; old text, covers and actions never duplicate. */
 .home-content-refresh #home-release .home-feature-outgoing{z-index:0}
+.home-content-refresh #home-release .home-feature-outgoing .home-feature-background{animation:none}
+@keyframes home-feature-background-in{from{opacity:0}to{opacity:1}}
 @container(max-width:900px){
  .home-content-refresh #home-release .home-feature-slide{gap:24px;padding-inline:28px}
- .home-content-refresh #home-release .home-feature-covers{--feature-cover:174px}
+ .home-content-refresh #home-release .home-feature-covers{--feature-cover:clamp(142px,22cqi,174px)}
  .home-content-refresh #home-release .home-feature-pagination{left:calc(75% - 8px)}
  .home-content-refresh #home-release .home-feature-prev{left:calc(50% - 8px)}
  .home-content-refresh #home-release .home-feature-next{right:0}
@@ -253,11 +255,14 @@
  .home-content-refresh #home-release .home-feature-artist{font-size:12px}
  .home-content-refresh #home-release .home-feature-description{font-size:11px;line-height:1.4;margin-top:4px;-webkit-line-clamp:1;max-height:1.4em}
  .home-content-refresh #home-release .home-feature-actions{margin-top:6px;gap:10px}
- .home-content-refresh #home-release .home-feature-covers{--feature-cover:146px;grid-column:1;grid-row:2}
+ .home-content-refresh #home-release .home-feature-covers{--feature-cover:clamp(132px,42cqi,146px);grid-column:1;grid-row:2}
  .home-content-refresh #home-release .home-feature-pagination{left:50%;bottom:2px}
  .home-content-refresh #home-release .home-feature-arrow{display:grid;top:auto;bottom:99px}
  .home-content-refresh #home-release .home-feature-prev{left:0}
  .home-content-refresh #home-release .home-feature-next{right:0}
+}
+@media(prefers-reduced-motion:reduce){
+ .home-content-refresh #home-release :is(.home-feature-background,.home-feature-slide){animation:none}
 }
 @container(max-width:340px){
  .home-content-refresh #home-release .home-feature-covers{--feature-cover:132px}
