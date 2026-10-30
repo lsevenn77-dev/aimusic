@@ -17,14 +17,14 @@ export async function fanpageData(env,aid){
 async function posts(env,aid,user,kind,parent,offset){
  const blocked=env.AIFECT_BLOCKED||[],visible=blocked.length?' AND f.user_id NOT IN ('+blocked.map(()=>'?').join(',')+')':'';
  const items=await rows(env,`SELECT f.id,f.user_id,f.kind,f.title,f.body,f.parent_id,f.pinned,f.created,f.edited,f.deleted,
- ${publicNameSQL()} author,p.id producer_id,(u.id=auser.user_id) official,EXISTS(SELECT 1 FROM artist_fan_operators op WHERE op.artist_id=f.artist_id AND op.user_id=u.id) operator,
+ ${publicNameSQL()} author,p.id producer_id,p.id profile_id,p.image_version image_version,(u.id=auser.user_id) official,EXISTS(SELECT 1 FROM artist_fan_operators op WHERE op.artist_id=f.artist_id AND op.user_id=u.id) operator,
  (SELECT count(*) FROM artist_fan_likes l WHERE l.post_id=f.id) likes,
  EXISTS(SELECT 1 FROM artist_fan_likes l WHERE l.post_id=f.id AND l.user_id=?) liked,
  (SELECT count(*) FROM artist_fan_posts r WHERE r.parent_id=f.id) replies
  FROM artist_fan_posts f JOIN users u ON u.id=f.user_id LEFT JOIN producers p ON p.user_id=u.id
  JOIN artists a ON a.id=f.artist_id JOIN producers auser ON auser.id=a.producer_id
  WHERE f.artist_id=? AND f.kind=? AND f.parent_id IS ?${visible} ORDER BY f.pinned DESC,f.created DESC,f.id DESC LIMIT 21 OFFSET ?`,user?.id||'',aid,kind,parent,...blocked,offset);
- return {items:items.slice(0,20),next:items.length>20?offset+20:null};
+ return {items:items.slice(0,20),next:items.length>20?offset+20:null,...(parent?{parent_replies:(await one(env,'SELECT count(*) n FROM artist_fan_posts WHERE parent_id=? AND artist_id=?',parent,aid)).n}:{})};
 }
 export async function artistFanpageRoute(req,env,path,user){
  const m=path.match(/^\/api\/artists\/([\w-]+)\/fanpage(?:\/(banner|photos|posts|operators)(?:\/([\w-]+)(?:\/(like|report|replies|pin))?)?)?$/),media=path.match(/^\/media\/artist-banner\/([\w-]+)$/);

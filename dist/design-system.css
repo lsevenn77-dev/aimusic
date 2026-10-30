@@ -116,7 +116,7 @@ button svg.menu-icon,.player #player-more svg.menu-icon {stroke-width:1.8}
 }
 .search-box input {background:transparent}
 .form-field :is(input,textarea)::placeholder {color:var(--ds-muted)}
-.form-field :is(input,textarea,select):focus {border-color:var(--ds-lavender);outline-color:var(--ds-mint)}
+
 .form-field :is(input,textarea,select)[aria-invalid=true] {border-color:var(--ds-error);outline-color:var(--ds-error)}
 .form-field :is(input,textarea,select):disabled {background:#252a34;color:var(--ds-disabled);border-color:#343b47}
 dialog,.queue-dialog {background:var(--ds-surface);border:1px solid #b7b6ff38;border-radius:20px;color:var(--ds-text);box-shadow:0 24px 80px #0007}

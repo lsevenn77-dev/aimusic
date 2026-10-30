@@ -1,3 +1,9 @@
+function fanHeaderBackground(profile,settings,artistId){
+ const media='/media/'+(settings.banner_version?'artist-banner/':'artist/')+encodeURIComponent(artistId)+'?v='+encodeURIComponent(settings.banner_version||profile.image_version||'');
+ if(settings.banner_version)return '<div class="fan-header-background" aria-hidden="true"><img src="'+esc(media)+'" alt=""></div>';
+ if(!profile.image_version)return '';
+ return '<div class="fan-header-background fan-header-profile" aria-hidden="true"><img class="fan-background-blur" src="'+esc(media)+'" alt=""><div class="fan-background-person"><img src="'+esc(media)+'" alt=""></div></div>';
+}
 function artistFanpageHTML(d,aid,tab='home'){
  const tabs=[['home','홈'],['music','음악'],['gallery','갤러리'],['lounge','팬라운지'],['news','소식'],['profile','프로필']];
  if(!tabs.some(t=>t[0]===tab))tab='home';
@@ -11,7 +17,7 @@ function artistFanpageHTML(d,aid,tab='home'){
  let content='';
  if(tab==='gallery')content=gallery;
  if(tab==='music')content='<div class="fan-music-tools"><button class="small-button" data-play-all>전체듣기</button><button class="small-button" data-fan-shuffle>섞어듣기</button><select data-fan-sort aria-label="음악 정렬"><option value="recent">최신순</option><option value="plays">인기순</option><option value="likes">좋아요순</option></select></div><div data-fan-music>'+artistMusicList(d.tracks)+'</div>';
- if(tab==='lounge'||tab==='news')content='<section class="fan-section"><div class="section-heading"><h2>'+(tab==='news'?'공식 소식':'팬라운지')+'</h2>'+((tab==='lounge'||d.can_manage)?'<button class="small-button" data-fan-compose="'+tab+'">'+(tab==='news'?'소식 쓰기':'응원글 쓰기')+'</button>':'')+'</div>'+stream(tab)+'</section>';
+ if(tab==='lounge'||tab==='news')content='<section class="fan-section"><div class="section-heading">'+(tab==='news'?'<h2>공식 소식</h2>':'<p class="fan-lounge-prompt">응원의 한마디를 남겨보세요.</p>')+''+((tab==='lounge'||d.can_manage)?'<button class="small-button" data-fan-compose="'+tab+'">'+(tab==='news'?'소식 쓰기':'응원글 쓰기')+'</button>':'')+'</div>'+stream(tab)+'</section>';
  if(tab==='profile')content='<section class="fan-profile">'+[['상세 소개',s.introduction||p.bio],['음악 스타일과 콘셉트',s.concept],['세계관',s.world]].map(([title,text])=>'<section><h2>'+title+'</h2><p>'+esc(text||'아직 등록된 소개가 없어요.')+'</p></section>').join('')+(producer?'<section><h2>소속 제작자</h2><a href="#producer/'+esc(producer.id)+'">'+esc(producer.name)+'</a></section>':'')+(d.fanpage?.operators?.length?'<section><h2>공식 운영자</h2>'+d.fanpage.operators.map(o=>'<p><a href="#producer/'+esc(o.id)+'">'+esc(o.name)+'</a></p>').join('')+'</section>':'')+(d.can_manage?'<button class="small-button" data-fan-settings>프로필 편집</button>':'')+(portraitOwner?'<button class="small-button" data-fan-operators>공식 운영자 관리</button>':'')+'</section>';
  if(tab==='home')content='<div class="fan-home-columns"><div class="fan-home-music">'+more('최신 음악','music',artistMusicList(d.tracks.slice(0,3)))+'</div><div class="fan-home-updates">'+more('최근 공식 소식','news',stream('news'))+more('최신 팬 응원글','lounge',stream('lounge'))+'</div></div>';
  const headerActions='<div class="fan-header-actions"><button class="fan-icon" data-share aria-label="팬페이지 공유">'+icon('share',20)+'</button>'+(d.can_manage?'<div class="fan-settings-anchor"><button class="fan-icon" data-fan-menu-toggle aria-label="아티스트 설정" aria-expanded="false" aria-controls="fan-header-menu">'+icon('settings',20)+'</button><div class="fan-settings-menu" id="fan-header-menu" aria-label="아티스트 관리" hidden><div class="artist-image-editor"><button type="button" data-artist-image-pick '+(!portraitOwner?'disabled title="대표 이미지는 제작자만 변경할 수 있습니다"':'')+'>대표 이미지 변경</button>'+(portraitOwner?'<input type="file" accept="image/jpeg,image/png,image/webp" data-artist-image="'+esc(aid)+'" aria-label="대표 이미지 사진 선택" hidden>':'')+'</div><button type="button" data-fan-banner>배경 이미지 변경</button><a href="'+href('gallery')+'">갤러리 관리</a></div></div>':'')+'</div>';
@@ -44,29 +50,32 @@ function bindArtistFanpage(){
  const read=(path,method='GET',body)=>api(base+path,method,body,method==='GET'?{signal}:{});
  const refresh=async()=>{if(root.isConnected)await render();};
  const settings=()=>({...d.settings,focus_x:d.settings.focus_x??50,focus_y:d.settings.focus_y??50,mobile_x:d.settings.mobile_x??50,mobile_y:d.settings.mobile_y??50});
- root.querySelector('.fan-header-background img')?.addEventListener('error',e=>e.target.parentElement.remove(),{once:true,signal});
+ root.querySelector('.fan-header-background img')?.addEventListener('error',e=>e.target.closest('.fan-header-background').remove(),{once:true,signal});
  const carousel=root.querySelector('[data-fan-carousel]'),cards=[...root.querySelectorAll('[data-card-index]')],reduced=matchMedia('(prefers-reduced-motion: reduce)');
  let currentIndex=0,paused=false,hover=false,touch=false,focus=false,timer,movingUntil=0;
  const transitions=new Set();
  const paint=()=>{cards.forEach((card,i)=>{
   let offset=(i-currentIndex+cards.length)%cards.length;if(offset>cards.length/2)offset-=cards.length;
   const previous=Number(card.dataset.offset),wrap=card.hasAttribute('data-offset')&&Math.abs(previous-offset)>cards.length/2;
-  const from=wrap?getComputedStyle(card).transform:null;
+  const from=getComputedStyle(card),previousPose={transform:from.transform,opacity:from.opacity};
   card.dataset.offset=offset;card.style.zIndex=String(20-Math.abs(offset));card.setAttribute('aria-current',String(offset===0));
-  if(wrap&&!reduced.matches){
-   // Recycle through the rear depth plane, never across the foreground.
-   card.style.transition='none';const to=getComputedStyle(card).transform;card.style.zIndex='1';
-   const animation=card.animate([{transform:from,opacity:1},{transform:'translateX(-50%) translateZ(-180px) scale(.3)',opacity:0,offset:.45},{transform:to,opacity:0,offset:.55},{transform:to,opacity:1}],{duration:900,easing:'cubic-bezier(.4,0,.2,1)'});
-   transitions.add(animation);animation.onfinish=()=>{transitions.delete(animation);card.style.transition='';card.style.zIndex=String(20-Math.abs(offset));};
+  if(card.hasAttribute('data-motion-ready')&&!reduced.matches){
+   const computed=getComputedStyle(card),to={transform:computed.transform,opacity:computed.opacity};
+   const direction=previous<offset?1:-1;
+   // Fade out at the edge, recycle invisibly, then enter from the other edge.
+   const frames=wrap?[previousPose,{transform:previousPose.transform+` translateX(${-direction*40}px)`,opacity:0,offset:.45},{transform:to.transform+` translateX(${direction*40}px)`,opacity:0,offset:.55},to]:[previousPose,to];
+   const animation=card.animate(frames,{duration:850,easing:'cubic-bezier(0.22, 1, 0.36, 1)'});
+   transitions.add(animation);animation.onfinish=()=>transitions.delete(animation);
   }
+  card.setAttribute('data-motion-ready','true');
  });const count=root.querySelector('[data-fan-counter]');if(count)count.textContent=String(currentIndex+1).padStart(2,'0')+' / '+String(cards.length).padStart(2,'0');};
- const move=delta=>{if(cards.length<2||transitions.size||performance.now()<movingUntil)return;movingUntil=performance.now()+(reduced.matches?0:900);currentIndex=(currentIndex+delta+cards.length)%cards.length;paint();};
- const schedule=()=>{clearInterval(timer);const stopped=signal.aborted||paused||hover||touch||focus||document.hidden;if(carousel)carousel.dataset.motionPaused=String(stopped);for(const animation of transitions){if(reduced.matches)animation.finish();else if(document.hidden)animation.pause();else animation.play();}if(!stopped&&cards.length>1&&!reduced.matches)timer=setInterval(()=>move(1),5000);};
- if(carousel){paint();schedule();on(carousel,'pointerenter',e=>{if(e.pointerType==='mouse'){hover=true;schedule();}});on(carousel,'pointerleave',()=>{hover=false;schedule();});on(carousel,'focusin',()=>{focus=true;schedule();});on(carousel,'focusout',()=>{queueMicrotask(()=>{focus=carousel.contains(document.activeElement);schedule();});});on(document,'visibilitychange',schedule);on(reduced,'change',schedule);signal.addEventListener('abort',()=>{clearInterval(timer);for(const animation of transitions)animation.cancel();transitions.clear();},{once:true});
+ const move=delta=>{if(cards.length<2||transitions.size||performance.now()<movingUntil)return;movingUntil=performance.now()+(reduced.matches?0:850);currentIndex=(currentIndex+delta+cards.length)%cards.length;paint();};
+ const schedule=()=>{clearTimeout(timer);const stopped=signal.aborted||paused||hover||touch||focus||document.hidden;if(carousel)carousel.dataset.motionPaused=String(stopped);for(const animation of transitions){if(reduced.matches)animation.finish();else if(document.hidden)animation.pause();else animation.play();}if(!stopped&&cards.length>1&&!reduced.matches)timer=setTimeout(()=>{timer=null;if(!root.isConnected)return controller.abort();move(1);schedule();},5000);};
+ if(carousel){paint();schedule();on(carousel,'pointerenter',e=>{if(e.pointerType==='mouse'){hover=true;schedule();}});on(carousel,'pointerleave',()=>{hover=false;schedule();});on(carousel,'focusin',e=>{focus=!!e.target.matches?.(':focus-visible');schedule();});on(carousel,'focusout',()=>{queueMicrotask(()=>{focus=carousel.contains(document.activeElement)&&!!document.activeElement?.matches?.(':focus-visible');schedule();});});on(document,'visibilitychange',schedule);on(reduced,'change',schedule);signal.addEventListener('abort',()=>{clearTimeout(timer);for(const animation of transitions)animation.cancel();transitions.clear();},{once:true});
   on(root.querySelector('[data-fan-prev]'),'click',()=>{move(-1);schedule();});on(root.querySelector('[data-fan-next]'),'click',()=>{move(1);schedule();});
   on(root.querySelector('[data-fan-pause]'),'click',e=>{paused=!paused;e.currentTarget.setAttribute('aria-pressed',String(paused));e.currentTarget.innerHTML=icon(paused?'play':'pause',16);e.currentTarget.setAttribute('aria-label',paused?'포토카드 자동 넘김 시작':'포토카드 자동 넘김 일시정지');schedule();});
   on(carousel,'keydown',e=>{if(['ArrowLeft','ArrowRight'].includes(e.key)){e.preventDefault();move(e.key==='ArrowLeft'?-1:1);schedule();}});
-  let startX=0,startY=0,suppressClickUntil=0;on(carousel,'pointerdown',e=>{startX=e.clientX;startY=e.clientY;e.target.closest?.('button')?.setPointerCapture?.(e.pointerId);touch=true;schedule();});on(carousel,'pointerup',e=>{touch=false;if(Math.abs(e.clientX-startX)>40&&Math.abs(e.clientX-startX)>Math.abs(e.clientY-startY)){move(e.clientX<startX?1:-1);suppressClickUntil=Date.now()+500;}schedule();});on(carousel,'pointercancel',()=>{touch=false;schedule();});on(carousel,'lostpointercapture',()=>{if(touch){touch=false;schedule();}});on(carousel,'click',e=>{if(Date.now()<suppressClickUntil){e.preventDefault();e.stopPropagation();}},{capture:true});
+  let startX=0,startY=0,suppressClickUntil=0;on(carousel,'pointerdown',e=>{if(e.isPrimary===false||e.button>0)return;startX=e.clientX;startY=e.clientY;e.target.closest?.('button')?.setPointerCapture?.(e.pointerId);touch=true;schedule();});on(carousel,'pointerup',e=>{if(!touch)return;touch=false;if(Math.abs(e.clientX-startX)>40&&Math.abs(e.clientX-startX)>Math.abs(e.clientY-startY)){move(e.clientX<startX?1:-1);suppressClickUntil=Date.now()+500;}schedule();});on(carousel,'pointercancel',()=>{touch=false;schedule();});on(carousel,'lostpointercapture',()=>{if(touch){touch=false;schedule();}});on(carousel,'click',e=>{if(Date.now()<suppressClickUntil){e.preventDefault();e.stopPropagation();}},{capture:true});
  }
  let lightboxOpen=false,previousPaused=false;
  const openPhoto=index=>{
@@ -79,15 +88,17 @@ function bindArtistFanpage(){
  on(root.querySelector('[data-fan-sort]'),'change',e=>{const sort=e.target.value,tracks=[...d.tracks].sort((a,b)=>Number(b[sort==='recent'?'created':sort]||0)-Number(a[sort==='recent'?'created':sort]||0));root.querySelector('[data-fan-music]').innerHTML=artistMusicList(tracks);routeTracks=remember(tracks);icons();paintInteractions();});
  function postHTML(p){
   const own=me?.id===p.user_id,button=(action,text)=>'<button class="fan-text-button'+(action==='like'&&p.liked?' is-active':'')+'" data-post-action="'+action+'" data-post-id="'+esc(p.id)+'" '+(action==='like'?'aria-label="응원글 좋아요 '+p.likes+'개" aria-pressed="'+!!p.liked+'"':'')+'>'+text+'</button>';
-  return '<article class="fan-post" data-post="'+esc(p.id)+'"><div class="fan-post-meta">'+(p.producer_id?'<a href="#producer/'+esc(p.producer_id)+'">'+esc(p.author)+'</a>':'<span>'+esc(p.author)+'</span>')+(p.official?'<span class="fan-official">공식 제작자</span>':p.operator?'<span class="fan-official">공식 운영자</span>':'')+(p.pinned?'<span>고정</span>':'')+'<time datetime="'+new Date(p.created*1000).toISOString()+'">'+new Date(p.created*1000).toLocaleDateString('ko-KR')+'</time>'+(p.edited?' · 수정됨':'')+'</div>'+(p.title?'<h3>'+esc(p.title)+'</h3>':'')+'<p class="fan-post-body">'+(p.deleted?'삭제된 글입니다.':esc(p.body))+'</p>'+(!p.deleted?'<div class="fan-post-actions">'+button('like',icon('ui-heart',16)+' '+p.likes)+(!p.parent_id&&p.kind==='lounge'?button('reply','답글 '+p.replies):'')+(own?button('edit','수정')+button('delete','삭제'):button('report','신고'))+(d.can_manage&&!p.parent_id?button('pin',p.pinned?'고정 해제':'상단 고정'):'')+'</div>':'')+'<div data-fan-replies="'+esc(p.id)+'"></div></article>';
+  return '<article class="fan-post" data-post="'+esc(p.id)+'"><div class="fan-post-meta"><span class="fan-post-author"><span class="fan-post-avatar">'+avatarImage({profile_id:p.profile_id,name:p.author,image_version:p.image_version},'producer',false)+'</span>'+(p.producer_id?'<a href="#producer/'+esc(p.producer_id)+'">'+esc(p.author)+'</a>':'<span>'+esc(p.author)+'</span>')+'</span>'+(p.official?'<span class="fan-official">공식 제작자</span>':p.operator?'<span class="fan-official">공식 운영자</span>':'')+(p.pinned?'<span>고정</span>':'')+'<time datetime="'+new Date(p.created*1000).toISOString()+'">'+new Date(p.created*1000).toLocaleDateString('ko-KR')+'</time>'+(p.edited?' · 수정됨':'')+'</div>'+(p.title?'<h3>'+esc(p.title)+'</h3>':'')+'<p class="fan-post-body">'+(p.deleted?'삭제된 글입니다.':esc(p.body))+'</p>'+(!p.deleted?'<div class="fan-post-actions">'+button('like',icon('ui-heart',16)+' '+p.likes)+(!p.parent_id&&p.kind==='lounge'?button('reply','답글 '+p.replies):'')+(own?button('edit','수정')+button('delete','삭제'):button('report','신고'))+(d.can_manage&&!p.parent_id?button('pin',p.pinned?'고정 해제':'상단 고정'):'')+'</div>':'')+'<div data-fan-replies="'+esc(p.id)+'"></div></article>';
  }
- const postMap=new Map();
+ const postMap=new Map(),feedRequests=new WeakMap();
  async function loadFeed(target,kind,offset=0,parent=null){
-  try{const res=await read('/posts'+(parent?'/'+encodeURIComponent(parent)+'/replies':'')+'?kind='+kind+'&offset='+offset);if(signal.aborted||!target.isConnected)return;
+  const request=(feedRequests.get(target)||0)+1;feedRequests.set(target,request);
+  try{const res=await read('/posts'+(parent?'/'+encodeURIComponent(parent)+'/replies':'')+'?kind='+kind+'&offset='+offset);if(signal.aborted||!target.isConnected||feedRequests.get(target)!==request)return;
    res.items.forEach(p=>postMap.set(p.id,p));if(!offset)target.innerHTML='';target.querySelector('[data-feed-more]')?.remove();
-   const items=d.tab==='home'?res.items.slice(0,3):res.items;target.insertAdjacentHTML('beforeend',items.map(postHTML).join('')||(!offset?'<p class="fan-empty">'+(kind==='news'?'아직 등록된 소식이 없어요.':'첫 응원글을 남겨보세요.')+'</p>':''));
-   if(res.next!==null&&d.tab!=='home'){const button=document.createElement('button');button.className='small-button';button.dataset.feedMore='';button.textContent='더 불러오기';button.onclick=()=>{button.disabled=true;void loadFeed(target,kind,res.next,parent);};target.append(button);}
-  }catch(e){if(!signal.aborted){target.innerHTML='<p role="alert">'+esc(e.message)+'</p>';}}
+   const items=d.tab==='home'&&!parent?res.items.slice(0,3):res.items;target.insertAdjacentHTML('beforeend',items.map(postHTML).join('')||(!offset?'<p class="fan-empty">'+(parent?'아직 답글이 없어요.':kind==='news'?'아직 등록된 소식이 없어요.':'첫 응원글을 남겨보세요.')+'</p>':''));
+   if(res.next!==null&&(parent||d.tab!=='home')){const button=document.createElement('button');button.className='small-button';button.dataset.feedMore='';button.textContent='더 불러오기';button.onclick=()=>{button.disabled=true;void loadFeed(target,kind,res.next,parent);};target.append(button);}
+   return res;
+  }catch(e){if(!signal.aborted&&feedRequests.get(target)===request){target.innerHTML='<p role="alert">'+esc(e.message)+'</p>';}}
  }
  root.querySelectorAll('[data-fan-feed]').forEach(el=>void loadFeed(el,el.dataset.fanFeed));
  function compose(kind,p=null,parent=null){
@@ -100,7 +111,30 @@ function bindArtistFanpage(){
   const el=e.target.closest('[data-post-action]');if(!el||el.disabled)return;const p=postMap.get(el.dataset.postId),action=el.dataset.postAction;if(!p)return;
   if(action==='edit'){compose(p.kind,p);return;}
   if(action==='reply'){
-   const target=root.querySelector('[data-fan-replies="'+p.id+'"]');await loadFeed(target,p.kind,0,p.id);if(me){const b=document.createElement('button');b.className='small-button';b.textContent='답글 쓰기';b.onclick=()=>compose(p.kind,null,p.id);target.prepend(b);}return;
+   const target=root.querySelector('[data-fan-replies="'+p.id+'"]');
+   const existing=target.querySelector('.fan-reply-form');if(existing){existing.elements.body.focus({preventScroll:true});return;}
+   let list=target.querySelector('[data-reply-list]');
+   if(!list){list=document.createElement('div');list.dataset.replyList='';list.innerHTML='<p role="status">답글을 불러오는 중…</p>';target.append(list);}
+   if(me){
+    const form=document.createElement('form');form.className='fan-reply-form';
+    form.innerHTML='<label class="form-field">답글<textarea name="body" rows="2" maxlength="2000" placeholder="응원의 답글을 남겨보세요." required></textarea></label><div class="fan-reply-controls"><button type="button" class="fan-text-button" data-reply-cancel>취소</button><button class="small-button" type="submit">등록</button></div><p class="form-error" role="alert"></p>';
+    target.append(form);form.elements.body.focus({preventScroll:true});
+    const requestId=globalThis.crypto?.randomUUID?.()||('reply-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2)),cancel=form.querySelector('[data-reply-cancel]');
+    cancel.onclick=()=>{form.remove();el.focus({preventScroll:true});};
+    form.onsubmit=busyForm(form,async fd=>{
+     cancel.disabled=true;
+     try{
+      await read('/posts','POST',{kind:p.kind,title:'',body:fd.get('body'),parent_id:p.id,request_id:requestId});
+      if(signal.aborted||!target.isConnected)return;
+      form.remove();el.focus({preventScroll:true});
+      const result=await loadFeed(list,p.kind,0,p.id);
+      if(result){p.replies=result.parent_replies;el.textContent='답글 '+p.replies;}
+     }finally{cancel.disabled=false;}
+    });
+   }
+   // The editor exists before the request, so repeated clicks preserve the draft and focus.
+   if(!list.dataset.loaded){list.dataset.loaded='true';const result=await loadFeed(list,p.kind,0,p.id);if(!result)delete list.dataset.loaded;}
+   return;
   }
   if(!me){toast('로그인 후 이용해주세요.');return;}
   if(action==='delete'||action==='report'){
@@ -127,10 +161,10 @@ function bindArtistFanpage(){
  });
  on(root.querySelector('[data-fan-banner]'),'click',()=>{
   const s=settings();let previewURL=null;
-  dialog('<h2>헤더 배경</h2><form id="fan-banner-form" class="upload-form"><label class="form-field">배경 사진<input type="file" name="image" accept="image/jpeg,image/png,image/webp"></label><p class="field-help">JPG · PNG · WebP, 5MB 이하, 가로·세로 320~8000px</p><div class="fan-banner-preview"><img alt="배경 미리보기" '+(s.banner_version?'src="/media/artist-banner/'+esc(d.aid)+'?v='+esc(s.banner_version)+'"':'hidden')+'></div><label class="form-field">미리보기 화면<select data-banner-device><option value="pc">PC</option><option value="mobile">모바일</option></select></label>'+[['focus_x','PC 가로 초점'],['focus_y','PC 세로 초점'],['mobile_x','모바일 가로 초점'],['mobile_y','모바일 세로 초점']].map(([key,label])=>'<label class="form-field">'+label+'<input type="range" name="'+key+'" min="0" max="100" value="'+s[key]+'"></label>').join('')+'<div class="inline-actions"><button class="primary-button">저장</button><button type="button" class="small-button" data-banner-remove>배경 삭제</button></div><p class="form-error" role="alert"></p></form>');
+  dialog('<h2>헤더 배경</h2><form id="fan-banner-form" class="upload-form"><label class="form-field">배경 사진<input type="file" name="image" accept="image/jpeg,image/png,image/webp"></label><p class="field-help">JPG · PNG · WebP, 5MB 이하, 가로·세로 320~5000px</p><div class="fan-banner-preview"><img alt="배경 미리보기" '+(s.banner_version?'src="/media/artist-banner/'+esc(d.aid)+'?v='+esc(s.banner_version)+'"':'hidden')+'></div><label class="form-field">미리보기 화면<select data-banner-device><option value="pc">PC</option><option value="mobile">모바일</option></select></label>'+[['focus_x','PC 가로 초점'],['focus_y','PC 세로 초점'],['mobile_x','모바일 가로 초점'],['mobile_y','모바일 세로 초점']].map(([key,label])=>'<label class="form-field">'+label+'<input type="range" name="'+key+'" min="0" max="100" value="'+s[key]+'"></label>').join('')+'<div class="inline-actions"><button class="primary-button">저장</button><button type="button" class="small-button" data-banner-remove>배경 삭제</button></div><p class="form-error" role="alert"></p></form>');
   const form=$('#fan-banner-form'),img=form.querySelector('.fan-banner-preview img'),preview=form.querySelector('.fan-banner-preview');
   const paintPreview=()=>{const mobile=form.querySelector('[data-banner-device]').value==='mobile';preview.classList.toggle('mobile',mobile);img.style.objectPosition=form.elements[mobile?'mobile_x':'focus_x'].value+'% '+form.elements[mobile?'mobile_y':'focus_y'].value+'%';};form.oninput=paintPreview;paintPreview();
-  const validate=async file=>{if(!file)return;if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>5*1024*1024)throw new Error('JPG·PNG·WebP, 5MB 이하 사진을 선택해주세요.');const bitmap=await createImageBitmap(file);const valid=Math.min(bitmap.width,bitmap.height)>=320&&Math.max(bitmap.width,bitmap.height)<=8000;bitmap.close();if(!valid)throw new Error('사진의 가로·세로는 320~8000px이어야 합니다.');};
+  const validate=async file=>{if(!file)return;if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>5*1024*1024)throw new Error('JPG·PNG·WebP, 5MB 이하 사진을 선택해주세요.');const bitmap=await createImageBitmap(file);const valid=Math.min(bitmap.width,bitmap.height)>=320&&Math.max(bitmap.width,bitmap.height)<=5000;bitmap.close();if(!valid)throw new Error('사진의 가로·세로는 320~5000px이어야 합니다.');};
   form.elements.image.onchange=async()=>{const file=form.elements.image.files[0];try{await validate(file);if(previewURL)URL.revokeObjectURL(previewURL);if(file){previewURL=URL.createObjectURL(file);img.src=previewURL;img.hidden=false;}}catch(e){form.querySelector('.form-error').textContent=e.message;form.elements.image.value='';}};
   $('#dialog').addEventListener('close',()=>{if(previewURL)URL.revokeObjectURL(previewURL);},{once:true});
   form.onsubmit=busyForm(form,async fd=>{const file=fd.get('image');await validate(file?.size?file:null);if(file?.size)await uploadFile(base+'/banner',file);await read('','PUT',{...s,...Object.fromEntries(['focus_x','focus_y','mobile_x','mobile_y'].map(k=>[k,Number(fd.get(k))]))});$('#dialog').close();await refresh();});

@@ -79,7 +79,7 @@ test('official news ownership, pagination and cross-artist reply validation',asy
 });
 test('server validates banner dimensions, not just MIME or filename',()=>{
  const png=new Uint8Array(45),v=new DataView(png.buffer);v.setUint32(16,1200);v.setUint32(20,800);assert.doesNotThrow(()=>validateArtistBanner(png,'image/png'));
- v.setUint32(16,9000);assert.throws(()=>validateArtistBanner(png,'image/png'),/320~8000/);assert.throws(()=>validateArtistBanner(new Uint8Array(24),'image/webp'));
+ v.setUint32(16,9000);assert.throws(()=>validateArtistBanner(png,'image/png'),/320~5000/);assert.throws(()=>validateArtistBanner(new Uint8Array(24),'image/webp'));
 });
 test('banner upload uses existing R2 storage, enforces ownership, versions and deletion',async t=>{
  const objects=new Map(),BUCKET={put:async(k,v)=>objects.set(k,v),delete:async k=>objects.delete(k),head:async k=>objects.has(k)?{size:objects.get(k).length}:null,get:async k=>({body:objects.get(k)})};
@@ -110,17 +110,17 @@ test('carousel timer pauses for hover, focus, touch and reduced motion; loops on
   setAttribute(k,v){this.attrs[k]=v;}
   contains(){return false;}
   hasAttribute(k){return k==='data-offset'?this.dataset.offset!==undefined:k in this.attrs;}
-  animate(){const animation={paused:false,pause(){this.paused=true;},play(){this.paused=false;},cancel(){},finish(){this.onfinish?.();}};animations.push(animation);return animation;}
+  animate(frames,options){assert.equal(options.duration,850);assert.equal(options.easing,'cubic-bezier(0.22, 1, 0.36, 1)');assert.ok(frames.every(f=>!f.transform.includes('rotate')&&!f.transform.includes('translateZ')));const animation={paused:false,pause(){this.paused=true;},play(){this.paused=false;},cancel(){},finish(){this.onfinish?.();}};animations.push(animation);return animation;}
  }
  const root=new Element(),carousel=new Element(),prev=new Element(),next=new Element(),pause=new Element(),counter=new Element(),doc=new Element(),media=new Element(),cards=Array.from({length:3},()=>new Element()),timers=new Map(),cleanups=[];
  root.dataset.fanpage=JSON.stringify({aid:'artist',tab:'gallery',photos:[],settings:{},tracks:[]});root.isConnected=true;root.contains=()=>false;
  root.querySelector=selector=>({'[data-fan-carousel]':carousel,'[data-fan-prev]':prev,'[data-fan-next]':next,'[data-fan-pause]':pause,'[data-fan-counter]':counter})[selector]||null;
  root.querySelectorAll=selector=>selector==='[data-card-index]'?cards:[];doc.querySelector=()=>root;doc.hidden=false;media.matches=false;
- let serial=0,clock=0;const context={document:doc,performance:{now:()=>clock},getComputedStyle:()=>({transform:'none'}),icon:()=>'',AbortController,matchMedia:()=>media,registerRouteCleanup:fn=>{cleanups.push(fn);return fn;},setInterval(fn,ms){assert.equal(ms,5000);const key=++serial;timers.set(key,fn);return key;},clearInterval:key=>timers.delete(key),requestAnimationFrame:fn=>fn(),queueMicrotask:fn=>fn()};vm.createContext(context);vm.runInContext(readFileSync(new URL('../dist/artist-fanpage.js',import.meta.url),'utf8'),context);context.bindArtistFanpage();
- const fire=(element,type,props={})=>{clock+=1000;finishAnimations();return element.dispatchEvent(Object.assign(new Event(type),props));},tick=()=>{clock+=5000;finishAnimations();[...timers.values()].forEach(fn=>fn());};
+ let serial=0,clock=0;const context={document:doc,performance:{now:()=>clock},getComputedStyle:()=>({transform:'none',opacity:'1'}),icon:()=>'',AbortController,matchMedia:()=>media,registerRouteCleanup:fn=>{cleanups.push(fn);return fn;},setTimeout(fn,ms){assert.equal(ms,5000);const key=++serial;timers.set(key,fn);return key;},clearTimeout:key=>timers.delete(key),requestAnimationFrame:fn=>fn(),queueMicrotask:fn=>fn()};vm.createContext(context);vm.runInContext(readFileSync(new URL('../dist/artist-fanpage.js',import.meta.url),'utf8'),context);context.bindArtistFanpage();
+ const fire=(element,type,props={})=>{clock+=1000;finishAnimations();return element.dispatchEvent(Object.assign(new Event(type),props));},tick=()=>{clock+=5000;finishAnimations();const callbacks=[...timers.values()];timers.clear();callbacks.forEach(fn=>fn());};
  assert.equal(timers.size,1);assert.equal(counter.textContent,'01 / 03');tick();assert.equal(counter.textContent,'02 / 03');tick();tick();assert.equal(counter.textContent,'01 / 03');
  fire(carousel,'pointerenter',{pointerType:'mouse'});assert.equal(timers.size,0);fire(carousel,'pointerleave');assert.equal(timers.size,1);
- fire(carousel,'focusin');assert.equal(timers.size,0);fire(carousel,'focusout');assert.equal(timers.size,1);
+ carousel.matches=()=>true;fire(carousel,'focusin');assert.equal(timers.size,0);fire(carousel,'focusout');assert.equal(timers.size,1);
  fire(carousel,'pointerdown',{clientX:150,clientY:100});assert.equal(timers.size,0);fire(carousel,'pointerup',{clientX:40,clientY:110});assert.equal(counter.textContent,'02 / 03');
  fire(prev,'click');assert.equal(counter.textContent,'01 / 03');next.dispatchEvent(new Event('click'));assert.equal(counter.textContent,'01 / 03','ignore competing input during the transition');fire(next,'click');assert.equal(counter.textContent,'02 / 03');
  doc.hidden=true;doc.dispatchEvent(new Event('visibilitychange'));clock+=10000;doc.hidden=false;doc.dispatchEvent(new Event('visibilitychange'));const held=counter.textContent;next.dispatchEvent(new Event('click'));assert.equal(counter.textContent,held,'a paused rear transition still owns its slot after tab restoration');finishAnimations();
@@ -155,4 +155,34 @@ test('header shares one action row and restricts settings without widening portr
  const visitor=c.artistFanpageHTML(data,'artist');assert.doesNotMatch(visitor,/data-fan-menu-toggle/);assert.match(visitor,/팔로잉/);
  const owner=c.artistFanpageHTML({...data,can_manage:true},'artist');assert.equal((owner.match(/data-follow=/g)||[]).length,1);assert.equal((owner.match(/data-share /g)||[]).length,1);assert.match(owner,/data-fan-menu-toggle/);assert.match(owner,/id="fan-header-menu"[^>]+hidden/);assert.doesNotMatch(owner,/fan-photo-entry|fan-manage-actions|artist-image-change/);
  const operator=c.artistFanpageHTML({...data,can_manage:true,can_edit_portrait:false},'artist');assert.match(operator,/data-artist-image-pick disabled/);assert.doesNotMatch(operator,/data-artist-image="/);assert.match(operator,/data-fan-banner/);
+});
+
+test('fan post and reply APIs expose only public avatar metadata and refresh versions',async t=>{
+ const f=await fixture(t);
+ f.sql.exec("UPDATE producers SET image_version='photo-v1' WHERE id='producer'");
+ const post=await f.call(base+'/posts','POST',{kind:'lounge',body:'사진 메타데이터',request_id:'avatar-post'});
+ await f.call(base+'/posts','POST',{kind:'lounge',body:'사진 답글',parent_id:post.body.id,request_id:'avatar-reply'});
+ for(const path of [base+'/posts',base+'/posts/'+post.body.id+'/replies']){
+  const res=(await f.call(path)).body,p=res.items[0];
+  assert.equal(p.profile_id,'producer');assert.equal(p.image_version,'photo-v1');
+  assert.equal('email' in p,false);assert.equal('image_type' in p,false);
+  if(path.endsWith('replies'))assert.equal(res.parent_replies,1);
+ }
+ f.sql.exec("UPDATE producers SET image_version='photo-v2' WHERE id='producer'");
+ assert.equal((await f.call(base+'/posts')).body.items[0].image_version,'photo-v2');
+ const other=await f.call(base+'/posts','POST',{kind:'lounge',body:'프로필 없음',request_id:'no-avatar'},'other');
+ assert.equal((await f.call(base+'/posts')).body.items.find(p=>p.id===other.body.id).profile_id,null);
+});
+
+test('header prioritizes custom banner, returns to versioned portrait and then aurora',()=>{
+ const c={esc:v=>String(v).replaceAll('"','&quot;')};vm.createContext(c);
+ vm.runInContext(readFileSync(new URL('../dist/artist-fanpage.js',import.meta.url),'utf8'),c);
+ const p={image_version:'v1'};
+ const custom=c.fanHeaderBackground(p,{banner_version:'banner'},'artist');
+ assert.match(custom,/\/media\/artist-banner\/artist\?v=banner/);assert.doesNotMatch(custom,/fan-header-profile/);
+ const fallback=c.fanHeaderBackground(p,{},'artist');
+ assert.match(fallback,/fan-background-blur/);assert.match(fallback,/fan-background-person/);
+ assert.equal((fallback.match(/\/media\/artist\/artist\?v=v1/g)||[]).length,2);
+ p.image_version='v2';assert.match(c.fanHeaderBackground(p,{},'artist'),/v=v2/);
+ p.image_version='';assert.equal(c.fanHeaderBackground(p,{},'artist'),'');
 });

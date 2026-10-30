@@ -50,7 +50,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible 
 .dm-message .dm-bubble {background:#293246}
 .dm-message.mine .dm-bubble {background:#51354b;color:var(--ds-text)}
 .form-field input,.form-field textarea,.form-field select {background:#151d29;border:1px solid var(--ui-border);color:var(--ds-text)}
-.form-field input:focus,.form-field textarea:focus,.form-field select:focus {border-color:#ed85b3;outline-color:#ed85b3}
+
 .form-field input::placeholder,.form-field textarea::placeholder {color:var(--ds-muted)}
 .primary-button {background:#ed85b3;color:var(--ds-ink);border-radius:999px;font-weight:700;box-shadow:none}
 .primary-button:hover {background:#f3a1c6;box-shadow:none}
