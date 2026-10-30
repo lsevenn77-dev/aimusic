@@ -55,3 +55,9 @@
 .fan-header-background:after{z-index:2}
 .fan-identity-text h1{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
 .fan-affiliation{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* Keep the complete category row visible on narrow fanpages. */
+.artist-fanpage .fan-tabs{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px!important;overflow:visible}
+.artist-fanpage .fan-tabs a{min-width:0;text-align:center;white-space:nowrap}
+.fan-identity-text h1{display:block;white-space:nowrap;text-overflow:ellipsis}
+@media(max-width:700px){.artist-fanpage .fan-tabs{gap:4px!important}.artist-fanpage .fan-tabs a{font-size:12px}}
