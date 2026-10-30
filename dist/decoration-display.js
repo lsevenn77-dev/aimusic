@@ -30,6 +30,7 @@
    if(overlay.getAttribute('src')!==entry.artwork)overlay.src=entry.artwork;
    alignFrame(img,host);
   }
+  layoutProfileFrames();
  }
  function paintTheme(el,t,card=false){
   if(!t)return;
@@ -67,8 +68,60 @@
  document.addEventListener('load',e=>{if(e.target.matches?.('img[data-avatar-profile]'))paintFrames();},true);
  window.addEventListener('resize',()=>{paintFrames();paintThemes();});
  document.addEventListener('visibilitychange',()=>{if(!document.hidden)void refresh(true);});
- window.addEventListener('aifect:equipment',()=>{frames.clear();void refresh(true);});
+ window.addEventListener('aifect:equipment',()=>{
+  frames.clear();
+  // Existing equipment action updates me before emitting this event. Refresh
+  // already-open profile/edit surfaces too, without waiting for a route render.
+  for(const img of document.querySelectorAll('img[data-avatar-profile]'))if(img.dataset.avatarProfile===me?.profile_id){
+   const host=img.parentElement;host.querySelectorAll(':scope > .player-frame-artwork,:scope > .decoration-avatar-overlay').forEach(el=>el.remove());
+   const path=playerFrameURL(me);host.classList.toggle('player-has-frame',!!path);
+   if(path){const art=document.createElement('img');art.className='player-frame-artwork';art.src=path;art.alt='';art.setAttribute('aria-hidden','true');host.append(art);alignFrame(img,host);}
+  }
+  layoutProfileFrames();void refresh(true);
+ });
  window.addEventListener('aifect:room-theme',()=>{themes.clear();void refresh(true);});
  setInterval(()=>{paintFrames();paintThemes();if(!document.hidden)void refresh();},1000);
  schedule();
 })();
+
+// Shared display geometry only: never changes equipment or ownership.
+const profileFrameBounds=new Map();
+function frameArtworkBounds(art){
+ const metadata=art.dataset.frameBounds?.split(',').map(Number);
+ if(metadata?.length===4&&metadata.every(Number.isFinite))return metadata;
+ const key=art.currentSrc||art.src;
+ if(profileFrameBounds.has(key))return profileFrameBounds.get(key);
+ if(!art.complete||!art.naturalWidth)return [0,0,1,1];
+ try{
+  const canvas=document.createElement('canvas');canvas.width=art.naturalWidth;canvas.height=art.naturalHeight;
+  const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(art,0,0);
+  const {data}=ctx.getImageData(0,0,canvas.width,canvas.height);let l=canvas.width,t=canvas.height,r=0,b=0;
+  for(let y=0;y<canvas.height;y++)for(let x=0;x<canvas.width;x++)if(data[(y*canvas.width+x)*4+3]>0){l=Math.min(l,x);r=Math.max(r,x+1);t=Math.min(t,y);b=Math.max(b,y+1);}
+  const bounds=r?[l/canvas.width,t/canvas.height,r/canvas.width,b/canvas.height]:[.5,.5,.5,.5];profileFrameBounds.set(key,bounds);return bounds;
+ }catch{return [0,0,1,1];}
+}
+function layoutProfileFrames(){
+ for(const host of document.querySelectorAll('.fan-identity .artist-portrait,.mp-profile .mp-avatar,#public-profile-form .artist-portrait,.profile-preview-photo')){
+  const photo=host.querySelector('.profile-avatar-image');if(!photo)continue;
+  const rect=photo.getBoundingClientRect(),out={left:0,right:0,top:0,bottom:0};
+  for(const art of host.querySelectorAll(':scope > .player-frame-artwork,:scope > .decoration-avatar-overlay')){
+   if(getComputedStyle(art).visibility==='hidden')continue;
+   const a=art.getBoundingClientRect(),[l,t,r,b]=frameArtworkBounds(art);
+   out.left=Math.max(out.left,rect.left-a.left-a.width*l);out.right=Math.max(out.right,a.left+a.width*r-rect.right);
+   out.top=Math.max(out.top,rect.top-a.top-a.height*t);out.bottom=Math.max(out.bottom,a.top+a.height*b-rect.bottom);
+  }
+  host.classList.add('profile-frame-layout');
+  for(const [side,value] of Object.entries(out))host.style.setProperty('--frame-'+side,Math.ceil(Math.max(0,value))+'px');
+  const row=host.closest('.mp-profile,.fan-identity'),heading=row?.querySelector('.mp-identity h2,.fan-identity-text h1');
+  if(row){
+   const space=host.closest('.mp-avatar-space');
+   if(space){space.style.setProperty('--frame-span',Math.ceil(rect.width+out.left+out.right)+'px');space.style.setProperty('--frame-height',Math.ceil(rect.height+out.bottom)+'px');}
+   if(heading){
+    const old=parseFloat(host.style.getPropertyValue('--photo-align'))||0;
+    host.style.setProperty('--photo-align',Math.max(0,old+heading.getBoundingClientRect().top-rect.top)+'px');
+   }
+   row.style.setProperty('--frame-headroom',Math.ceil(out.top)+'px');
+  }
+ }
+}
+document.addEventListener('load',e=>{if(e.target.matches?.('.player-frame-artwork,.decoration-avatar-overlay,.profile-avatar-image'))layoutProfileFrames();},true);

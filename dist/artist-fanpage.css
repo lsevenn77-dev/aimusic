@@ -61,3 +61,26 @@
 .artist-fanpage .fan-tabs a{min-width:0;text-align:center;white-space:nowrap}
 .fan-identity-text h1{display:block;white-space:nowrap;text-overflow:ellipsis}
 @media(max-width:700px){.artist-fanpage .fan-tabs{gap:4px!important}.artist-fanpage .fan-tabs a{font-size:12px}}
+
+/* Photo top follows the name; only the background layer is clipped/blurred. */
+.artist-fanpage .fan-header{height:auto;min-height:250px;overflow:visible}
+.fan-identity{align-items:flex-start;padding-top:max(16px,var(--frame-headroom,0px))}
+.fan-identity .artist-image-editor{flex:none;width:auto}
+.fan-identity-text{flex:1}
+.fan-identity-text h1{white-space:normal;overflow-wrap:anywhere;line-height:1.2}
+.fan-photocard{overflow:visible;transition:transform .9s cubic-bezier(.4,0,.2,1),filter .9s ease,opacity .9s ease}
+.fan-card-float{display:block;width:100%;height:100%;border-radius:inherit;overflow:hidden;animation:fan-card-drift var(--float-duration,19s) ease-in-out var(--float-delay,0s) infinite alternate;will-change:transform;--float-x:2px;--float-y:2.5px}
+.fan-photocard:is([data-offset="-1"],[data-offset="0"],[data-offset="1"]) .fan-card-float{--float-x:1px;--float-y:1.5px}
+.fan-photocard:nth-child(even) .fan-card-float{animation-direction:alternate-reverse}
+.fan-carousel[data-motion-paused="true"] .fan-card-float{animation-play-state:paused}
+@keyframes fan-card-drift{0%{transform:translate3d(calc(-1 * var(--float-x)),0,0) rotate(-.3deg) scale(1)}43%{transform:translate3d(0,calc(-1 * var(--float-y)),0) rotate(.15deg) scale(1.004)}100%{transform:translate3d(var(--float-x),var(--float-y),0) rotate(.3deg) scale(1.001)}}
+@media(max-width:700px){
+ .artist-fanpage .fan-header{min-height:210px}
+ .fan-identity{padding-top:max(12px,var(--frame-headroom,0px))}
+ .fan-photocard .fan-card-float{--float-x:.6px;--float-y:1px}
+ .fan-photocard:is([data-offset="-1"],[data-offset="0"],[data-offset="1"]) .fan-card-float{--float-x:.4px;--float-y:.7px}
+ .fan-photocard:is([data-offset="-3"],[data-offset="3"]){visibility:visible;opacity:1}
+ .fan-photocard[data-offset="-3"]{transform:translateX(calc(-50% - 146px)) scale(.62) rotateY(22deg)}
+ .fan-photocard[data-offset="3"]{transform:translateX(calc(-50% + 146px)) scale(.62) rotateY(-22deg)}
+}
+@media(prefers-reduced-motion:reduce){.fan-card-float{animation:none;will-change:auto}.fan-photocard{transition:none}}

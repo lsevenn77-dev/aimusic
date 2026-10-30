@@ -6,6 +6,8 @@ import {fixture} from './fixture.mjs';
 import worker from '../server/index.js';
 const cleanups=[],f=await fixture({after(fn){cleanups.push(fn);}}),objects=new Map(),port=Number(process.env.PORT)||4198;
 const photo=await readFile('dist/assets/nova.png');
+// Display/equipment QA remains entirely inside this disposable SQLite fixture.
+f.sql.exec("INSERT INTO player_xp(user_id,source_key,kind,amount,created) VALUES('owner','qa-frame','publish',50000,0); INSERT INTO player_inventory(id,user_id,item_key,source,source_ref,granted_at) VALUES('qa-forest','owner','player-level-10','reward','qa-forest',0); INSERT INTO player_equipment(user_id,frame_inventory_id) VALUES('owner','qa-forest') ON CONFLICT(user_id) DO UPDATE SET frame_inventory_id='qa-forest';");
 f.sql.exec("UPDATE producers SET name='로컬 제작자'; UPDATE artists SET name='로컬 아티스트 1',image_version='qa',image_type='image/png'; INSERT INTO producers(id,user_id,name,created) VALUES('visitor','other','다른 제작자',0)");
 objects.set('images/artist/artist/qa',photo);
 

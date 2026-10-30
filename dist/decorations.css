@@ -16,6 +16,9 @@
  transform:translate(-50%,-50%)!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;object-fit:contain!important;object-position:center!important;aspect-ratio:auto!important;
  background:transparent!important;box-shadow:none!important;pointer-events:none!important;
 }
+.profile-frame-layout{margin-left:var(--frame-left,0px)!important;margin-right:var(--frame-right,0px)!important;margin-bottom:var(--frame-bottom,0px)!important;margin-top:var(--photo-align,0px)!important;overflow:visible!important}
+#public-profile-form .profile-frame-layout,.profile-preview-photo.profile-frame-layout{margin-top:var(--frame-top,0px)!important}
+.profile-preview-card:has(.profile-frame-layout){grid-template-columns:max-content minmax(0,1fr)}
 /* This asset's transparent photo opening is centered at (259.1,251.0) in
    its original 512px canvas. Align the opening without rewriting the artwork. */
 :is(.player-avatar,.avatar-frame-host)>img.player-frame-artwork[src^="/assets/player-level-10-forest-v1.webp"]{transform:translate(-50.605%,-49.029%)!important}

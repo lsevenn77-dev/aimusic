@@ -155,3 +155,12 @@ main .social-profile-identity h2>.mp-public-id{display:block;font-size:13px;font
  #main .mp-own .mp-stats b{font-size:14px}
 }
 #main .mp-own .mp-stats>:last-child{padding-right:0}
+
+/* Shared measured frame clearance; preserve the existing avatar size. */
+#main .mp-profile{grid-template-columns:max-content minmax(0,1fr) auto}
+#main .mp-own .mp-profile{align-items:start;padding-top:max(6px,var(--frame-headroom,0px))}
+#main .mp-own .mp-avatar-space{width:max(116px,var(--frame-span,0px));height:auto;min-height:var(--frame-height,104px);align-self:start;place-items:start center}
+#main .mp-profile .mp-identity{min-width:0}
+#main .mp-profile .mp-identity h2{white-space:normal;overflow-wrap:anywhere}
+@media(max-width:1399px){#main .mp-own .mp-profile{grid-template-columns:max-content minmax(0,1fr)}#main .mp-own .mp-avatar-space{width:max(90px,var(--frame-span,0px))}}
+@media(max-width:1100px){#main .mp-own .mp-avatar-space{width:max(88px,var(--frame-span,0px))}}
