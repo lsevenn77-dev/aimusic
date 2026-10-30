@@ -47,7 +47,7 @@ export async function notificationsRoute(req,env,path,user){
  if(!['all','gifts','participation','comments','works','artists','crew'].includes(filter))fail(400,'알림 종류를 확인해주세요.');
  const before=q.get('before'),cursor=before?await one(env,'SELECT created,id FROM activity_notifications WHERE id=? AND recipient=?',before,user.id):null;
  if(before&&!cursor)fail(400,'알림 목록을 새로 열어주세요.');
- const type=filter==='gifts'?"AND n.kind IN ('gift','person_gift')":filter==='participation'?"AND n.kind IN ('cover','duet','dubbing_participation','dubbing_complete','work_status')":filter==='comments'?"AND n.kind IN ('comment','fan_comment','fan_post')":filter==='works'?"AND n.kind IN ('cover','duet','dubbing_participation','dubbing_complete','work_status')":filter==='artists'?"AND n.kind IN ('follow','artist_follower','artist_release')":filter==='crew'?"AND n.kind IN ('crew_notice','crew_invite','crew_approved','crew_request','gift','person_gift')":'';
+ const type=filter==='gifts'?"AND n.kind IN ('gift','person_gift')":filter==='participation'?"AND n.kind IN ('cover','duet','dubbing_participation','dubbing_complete','work_status')":filter==='comments'?"AND n.kind IN ('comment','fan_comment','fan_post')":filter==='works'?"AND n.kind IN ('cover','duet','dubbing_participation','dubbing_complete','work_status')":filter==='artists'?"AND n.kind IN ('follow','artist_follower','artist_release')":filter==='crew'?"AND n.kind IN ('crew_notice','crew_invite','crew_approved','crew_request')":'';
  const items=await rows(env,`SELECT n.*,CASE WHEN n.kind='work_status' AND n.actor_id IS NULL THEN 'AIFECT' ELSE COALESCE(${publicNameSQL('u')},'탈퇴한 회원') END actor_name,p.id actor_profile_id,p.image_version actor_image_version,
  COALESCE(g.gift_type,f.gift_type) gift_type,(SELECT name FROM artists WHERE id=n.artist_id) artist_name,
  CASE WHEN g.id IS NOT NULL OR f.id IS NOT NULL THEN CASE WHEN COALESCE(g.track_id,f.track_id) IS NOT NULL THEN 'song' ELSE 'producer' END END gift_source_kind,
@@ -60,8 +60,8 @@ export async function notificationsRoute(req,env,path,user){
  LEFT JOIN tracks gt ON gt.id=COALESCE(g.track_id,f.track_id)
  LEFT JOIN producers pr ON pr.id=CASE WHEN COALESCE(g.track_id,f.track_id) IS NULL THEN COALESCE(g.creator_profile_id,f.recipient_profile_id) END
  WHERE n.recipient=? AND ${allowed} ${type} ${cursor?'AND (n.created<? OR (n.created=? AND n.id<?))':''}
- ORDER BY n.created DESC,n.id DESC LIMIT 31`,user.id,...(cursor?[cursor.created,cursor.created,cursor.id]:[]));
- const more=items.length>30;items.length=Math.min(items.length,30);
+ ORDER BY n.created DESC,n.id DESC LIMIT 21`,user.id,...(cursor?[cursor.created,cursor.created,cursor.id]:[]));
+ const more=items.length>20;items.length=Math.min(items.length,20);
  return json({items:await Promise.all(items.map(async n=>{const {recipient,actor_id,...item}=n;return {...item,...await resolveNotification(env,n)};})),unread,next:more?items.at(-1).id:null});
 }
 

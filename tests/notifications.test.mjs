@@ -53,7 +53,7 @@ test('participation is publication-only, deduplicates recipients and republishin
 test('pagination has no gaps at identical timestamps and blocked activity is hidden',async t=>{
  const f=await fixture(t);for(let i=0;i<37;i++)f.sql.prepare("INSERT INTO activity_notifications(id,recipient,actor_id,kind,target,created) VALUES(?,'owner','other','gift','one',10)").run('event-'+String(i).padStart(2,'0'));
  const first=(await f.call('/api/notifications?filter=gifts')).body,second=(await f.call('/api/notifications?filter=gifts&before='+first.next)).body;
- assert.equal(first.items.length,30);assert.equal(second.items.length,7);assert.equal(new Set([...first.items,...second.items].map(n=>n.id)).size,37);assert.equal(second.next,null);
+ assert.equal(first.items.length,20);assert.equal(second.items.length,17);assert.equal(new Set([...first.items,...second.items].map(n=>n.id)).size,37);assert.equal(second.next,null);
  assert.equal((await f.call('/api/notifications?before='+first.next,'GET',null,'other')).status,400);
  assert.equal((await f.call('/api/notifications?filter=participation')).body.items.length,0);
  await f.call('/api/blocks/other','PUT',{});assert.equal((await f.call('/api/notifications')).body.items.length,0);assert.equal((await f.call('/api/notifications/summary')).body.unread,0);
