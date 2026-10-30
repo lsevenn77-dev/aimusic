@@ -1,5 +1,6 @@
 import {roomThemeChoices,assertRoomTheme,saveRoomTheme,resolveRoomDecoration,decorateRoomResult} from './room-decorations.js';
 import {voiceMusicRoute} from './voice-music.js';
+import {voiceKaraokeRoute} from './voice-karaoke.js';
 import {one,rows,rate,json,fail,str} from './db.js';
 import {requireUser,hash,viewerBlockedIds} from './auth.js';
 import {assertUnblocked} from './account-safety.js';
@@ -42,7 +43,7 @@ export async function voiceRoomsRoute(req,env,path,user,ctx) {
   if(!actor.profile_id)fail(409,'마이에서 프로필을 먼저 만들어주세요.');
   await rate(env,'voice-create:'+user.id,5,3600);const b=await req.json();
   const selected=await assertRoomTheme(env,user.id,b.theme_sku||b.background||(await roomThemeChoices(env,user.id)).find(t=>t.paid)?.sku||'navy');
-  const data=await result(await voiceCall(env,actor,requestId(b.request_id),'create',{title:str(b.title,60),visibility:b.visibility,crew_id:b.crew_id,max_members:b.max_members,background:selected.startsWith('theme_')?'navy':selected,announcement:b.announcement,seating_mode:b.seating_mode}));
+  const data=await result(await voiceCall(env,actor,requestId(b.request_id),'create',{title:str(b.title,60),visibility:b.visibility,crew_id:b.crew_id,max_members:b.max_members,background:selected.startsWith('theme_')?'navy':selected,announcement:b.announcement,seating_mode:b.seating_mode,mode:b.mode}));
   await saveRoomTheme(env,actor,data.room,selected,{creating:true});return json(await decorateRoomResult(env,data),201);
  }
  const m=path.match(/^\/api\/voice\/rooms\/([\w-]+)\/([a-z-]+)$/);if(!m)fail(404,'토킹룸을 찾을 수 없어요.');
@@ -55,6 +56,7 @@ export async function voiceRoomsRoute(req,env,path,user,ctx) {
   const data=await result(await voiceCall(env,actor,room,'state'));return json({theme:await resolveRoomDecoration(env,data.room)});
  }
  if(action==='state'&&req.method==='GET')return json(await decorateRoomResult(env,await result(await voiceCall(env,actor,room,'state'))));
+ if(['karaoke-search','karaoke'].includes(action)){const b=req.method==='POST'?await req.json():{};await rate(env,'voice-karaoke:'+user.id,90,60);return voiceKaraokeRoute(req,env,room,action,b,async(a,input)=>decorateRoomResult(env,await result(await voiceCall(env,actor,room,a,input))));}
  if(['music-search','music-stream','music-consent','music'].includes(action)){const b=req.method==='POST'?await req.json():{};await rate(env,'voice-music:'+user.id,90,60);return voiceMusicRoute(req,env,user,room,action,b,async(a,input)=>result(await voiceCall(env,actor,room,a,input)));}
  if(req.method!=='POST')fail(405,'허용되지 않는 요청이에요.');
  await rate(env,'voice-api:'+user.id,180,60);
@@ -72,7 +74,7 @@ export async function voiceRoomsRoute(req,env,path,user,ctx) {
   const targetCrews=await rows(env,'SELECT crew_id FROM crew_members WHERE user_id=?',target.user_id);
   const {room:info}=await result(await voiceCall(env,actor,room,'invite',{generation:b.generation,target_id:target.user_id,target_crews:targetCrews.map(c=>c.crew_id)}));
   const dmPath='/api/dm/'+target.id;
-  const response=await socialRoute(new Request(new URL(dmPath,req.url),{method:'POST',body:JSON.stringify({request_id:await hash('voice-invite:'+room+':'+rid),body:`「${info.title}」 토킹룸에 초대해요.\nhttps://aifect.co.kr/#voice/${room}`})}),env,dmPath,user);
+  const response=await socialRoute(new Request(new URL(dmPath,req.url),{method:'POST',body:JSON.stringify({request_id:await hash('voice-invite:'+room+':'+rid),body:`「${info.title}」 ${info.mode==='karaoke'?'라이브 노래방':'토킹룸'}에 초대해요.\nhttps://aifect.co.kr/#${info.mode==='karaoke'?'live':'voice'}/${room}`})}),env,dmPath,user);
   if(response.ok&&ctx?.waitUntil)ctx.waitUntil(dispatchPush(env));return response;
  }
  if(action==='gifts') {

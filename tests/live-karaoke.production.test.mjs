@@ -1,0 +1,68 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {DatabaseSync} from 'node:sqlite';
+import {readFileSync} from 'node:fs';
+import {VoiceRoom} from '../realtime/worker-live-karaoke.js';
+import voiceWorker from '../realtime/worker-live-karaoke.js';
+import {signedHeaders} from '../realtime/protocol.js';
+const actor=id=>({id,name:id,profile_id:id+'-profile',crews:[],blocks:[],followedHosts:[]});
+const track=id=>({id,title:id,artist:'AIFECT',duration:120,cover:'/cover'});
+function harness(t,mode='karaoke'){
+ const db=new DatabaseSync(':memory:');
+ for(const file of ['0001_rooms.sql','0002_room_settings.sql'])db.exec(readFileSync(new URL('../realtime/migrations/'+file,import.meta.url),'utf8'));
+ t.after(()=>db.close());
+ const env={ROOM_DB:{prepare(q){return {bind(...args){const stmt=db.prepare(q);return {async run(){stmt.run(...args);},async all(){return {results:stmt.all(...args)};}};}};}}};
+ const saved=new Map(),ctx={storage:{async get(k){return structuredClone(saved.get(k));},async put(k,v){saved.set(k,structuredClone(v));},async setAlarm(){}},getWebSockets(){return [];}};
+ const room=new VoiceRoom(ctx,env);room.notify=()=>{};room.sfu={async create(){return 'fake';},async close(){return {resolved:true};},async tracks(){throw Error('mock audio not supported');}};
+ const call=async(action,a=actor('host'),input={})=>{const r=await room.fetch(new Request('https://room/'+action,{method:'POST',body:JSON.stringify({actor:a,input,roomId:'live-test',stamp:{nonce:crypto.randomUUID(),timestamp:Date.now()}})}));return {status:r.status,body:await r.json()};};
+ const create=()=>call('create',actor('host'),{title:'Live karaoke',visibility:'public',mode});
+ const join=id=>call('join',actor(id),{request_id:crypto.randomUUID()});
+ const request=(id,song)=>call('karaoke',actor(id),{operation:'request',request_id:crypto.randomUUID(),track:track(song)});
+ return {db,env,room,ctx,call,create,join,request};
+}
+test('current production Worker: one singer only, protected queue, finish and next',async t=>{
+ const h=harness(t);assert.equal((await h.create()).status,200);await h.join('alice');await h.join('bob');
+ assert.equal(h.room.data.config.mode,'karaoke');
+ assert.equal((await h.call('publish',actor('bob'))).status,403);
+ assert.equal((await h.call('request-mic',actor('alice'))).status,409);
+ assert.equal((await h.request('alice','one')).status,200);
+ assert.equal((await h.request('bob','two')).status,200);
+ assert.equal((await h.request('alice','two')).status,409);
+ assert.equal((await h.call('karaoke',actor('bob'),{operation:'call'})).status,403);
+ assert.equal((await h.call('karaoke',actor('host'),{operation:'call'})).status,200);
+ assert.equal(h.room.data.karaoke.active.user_id,'alice');
+ assert.equal(h.room.data.members.alice.seat,1);
+ assert.equal((await h.call('published',actor('host'))).status,403);
+ assert.equal((await h.call('karaoke',actor('alice'),{operation:'start'})).status,409);
+ h.room.data.members.alice.pub={ready:true};h.room.data.members.alice.muted=false;
+ assert.equal((await h.call('karaoke',actor('alice'),{operation:'start'})).status,200);
+ assert.equal(h.room.data.karaoke.phase,'singing');
+ assert.equal((await h.call('karaoke',actor('bob'),{operation:'finish'})).status,403);
+ assert.equal((await h.call('karaoke',actor('host'),{operation:'next'})).status,200);
+ assert.equal(h.room.data.karaoke.active.user_id,'bob');
+ assert.equal(h.room.data.members.alice.pub,null);assert.equal(h.room.data.members.alice.seat,null);
+ assert.equal((await h.call('karaoke',actor('bob'),{operation:'finish'})).status,200);
+ assert.equal(h.room.data.karaoke.active,null);
+});
+test('existing talking rooms keep current free-seat behavior and cannot change type',async t=>{
+ const h=harness(t,'talk');assert.equal((await h.create()).status,200);await h.join('alice');
+ assert.equal((await h.call('karaoke',actor('host'),{operation:'request',request_id:crypto.randomUUID(),track:track('one')})).status,409);
+ assert.equal((await h.call('settings',actor('host'),{mode:'karaoke',title:'alter'})).status,400);
+ assert.equal(h.room.data.config.mode,'talk');
+ const changes=await h.call('settings',actor('host'),{seating_mode:'free',title:'free seating'});
+ assert.equal(changes.status,200);assert.equal(h.room.data.config.seating_mode,'free');
+ assert.equal((await h.call('request-mic',actor('alice'),{seat:1})).status,200);
+});
+test('production directory exposes karaoke mode and rejects unauthorized singers',async t=>{
+ const h=harness(t);await h.create();await h.join('alice');
+ const secret='test-karaoke-production-only-000001';
+ const path='/rooms/directory/list',body=JSON.stringify({actor:actor('host'),input:{}});
+ const r=await voiceWorker.fetch(new Request('https://worker'+path,{method:'POST',headers:await signedHeaders(secret,path,body),body}),{...h.env,VOICE_BRIDGE_SECRET:secret,ROOMS:{idFromName:id=>id,get:()=>({fetch:input=>h.room.fetch(input)})}});
+ assert.equal(r.status,200);assert.equal((await r.json()).rooms[0].mode,'karaoke');
+ await h.request('alice','one');await h.call('karaoke',actor('host'),{operation:'call'});
+ assert.equal((await h.call('self-mute',actor('host'),{muted:false})).status,403);
+ const member=h.room.data.members.alice;member.pub={ready:true};member.muted=false;
+ await h.call('karaoke',actor('host'),{operation:'start'});
+ h.room.data.karaoke.startsAt=Date.now()-130000;
+ await h.room.alarm();assert.equal(h.room.data.karaoke.active,null);
+});

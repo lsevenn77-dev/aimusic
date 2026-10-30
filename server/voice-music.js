@@ -15,6 +15,7 @@ export async function voiceMusicRoute(req,env,user,room,action,b,call){
  if(!['music-search','music-consent','music','music-stream'].includes(action))return null;
  const url=new URL(req.url),generation=b?.generation||url.searchParams.get('generation');
  const state=await call('state',{generation});
+ if(state.room?.mode==='karaoke')fail(409,'라이브 노래방에서는 공동 음악 재생목록 대신 MR을 사용해요.');
  const host=state.members.find(m=>m.id===state.self)?.role==='host';
  if(action!=='music-stream'&&!host)fail(403,'방장만 공동 음악을 관리할 수 있어요.');
  if(action==='music-consent'){
