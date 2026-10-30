@@ -24,6 +24,24 @@
 .home-content-refresh .home-profile-name{display:flex;align-items:center;justify-content:center;gap:4px;margin-top:12px;font-size:14px;font-weight:650;line-height:1.5;min-width:0}
 .home-content-refresh .home-profile-name>span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .home-content-refresh .home-profile-name .partner-badge{flex:none;font-size:10px;max-width:65px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+/* Measured desktop title-to-portrait gap: 28.59375 CSS px (18px heading
+   margin + rail/card padding + the 44px link's line-height allowance).
+   One local token now owns that visible gap, with a compact mobile equivalent. */
+.listening-home.home-content-refresh{--home-section-space:28.59375px;--home-profile-inset:calc(2px * var(--ui-space-scale,1));--home-heading-slack:max(0px,calc((44px - 32.66625px * var(--ui-type-scale,1)) / 2))}
+.listening-home.home-content-refresh :is(#home-artists,#home-producers){margin-top:var(--home-section-space)}
+.listening-home.home-content-refresh #home-library{margin-top:calc(var(--home-section-space) - var(--home-profile-inset))}
+.listening-home.home-content-refresh #home-discovery{margin-top:calc(var(--home-section-space) - var(--home-profile-inset) - var(--home-heading-slack))}
+.listening-home.home-content-refresh :is(#home-artists,#home-producers,#home-library)>.section-heading{position:relative;margin-bottom:var(--home-section-space)}
+.listening-home.home-content-refresh :is(#home-artists,#home-producers)>.section-heading{margin-bottom:calc(var(--home-section-space) - var(--home-profile-inset))}
+/* Keep the existing 44px links, but let the title determine the heading row's
+   height so removing a link cannot change the title-to-image spacing. */
+.listening-home.home-content-refresh :is(#home-artists,#home-library)>.section-heading{padding-inline-end:80px}
+.listening-home.home-content-refresh :is(#home-artists,#home-library)>.section-heading>.home-more-link{position:absolute;inset-inline-end:0;inset-block:0;height:44px;margin-block:auto}
+.listening-home.home-content-refresh :is(#home-artists,#home-producers,#home-library) .home-rail-shell{padding-block:0}
+.listening-home.home-content-refresh :is(#home-artists,#home-producers,#home-library) .home-rail{padding-block:0}
+.listening-home.home-content-refresh :is(#home-artists,#home-producers) .home-rail{scrollbar-width:none}
+.listening-home.home-content-refresh :is(#home-artists,#home-producers) .home-rail::-webkit-scrollbar{display:none}
+@media(max-width:800px){.listening-home.home-content-refresh{--home-section-space:24px;--home-heading-slack:calc((44px - 31.2662px) / 2)}}
 @media(max-width:600px){
  .home-content-refresh .home-rail{gap:16px}
  .home-content-refresh .home-playlist-card{flex-basis:44cqi;max-width:200px}
