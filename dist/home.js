@@ -86,64 +86,101 @@ function mountHomeCarousel(root,tracks){
 // Stable track nodes: position, anticipation and floating each own a transform layer.
 function homeFloatSlot(i,index,count){let d=(i-index+count)%count;if(d>count/2)d-=count;return d;}
 function homeFeaturedTracks(recommended=[],fallback=[]){return [...recommended,...fallback].filter((t,i,a)=>a.findIndex(x=>x.id===t.id)===i).slice(0,7);}
-function homeFloatPose(slot){
- const d=Math.abs(slot),sign=Math.sign(slot);
- return `translate3d(${sign*[0,32,55,74][d]}%,0,0) scale(${[1,.84,.68,.54][d]}) rotateY(${-sign*[0,24,32,38][d]}deg)`;
+// Geometry uses projected widths (perspective + rotation), with 12% overlap.
+function homeFloatGeometry(width,count){
+ const radius=Math.min(width>=540?3:width>=360?2:1,Math.floor(count/2));
+ const scales=[1,.84,.69,.55,.42],angles=[0,14,22,28,34],depth=[0,-12,-24,-36,-60];
+ const widths=scales.map((s,i)=>s*Math.cos(angles[i]*Math.PI/180)*1000/(1000-depth[i]));
+ const positions=[0];for(let i=1;i<5;i++)positions[i]=positions[i-1]+.88*(widths[i-1]+widths[i])/2;
+ const size=Math.min(220,Math.max(1,width-12)/(2*positions[radius]+widths[radius]));
+ return {radius,size,positions,scales,angles,depth};
+}
+function homeFloatPose(slot,g){
+ const d=Math.min(4,Math.abs(slot)),sign=Math.sign(slot),z=g.depth[d];
+ return `translate3d(${sign*g.positions[d]*g.size*(1000-z)/1000}px,${d*d*1.5}px,${z}px) rotateY(${-sign*g.angles[d]}deg) scale(${g.scales[d]})`;
 }
 function mountFloatingHome(root,input){
- const tracks=homeFeaturedTracks(input);if(!tracks.length)return;
- // Reuse the existing banner markup, actions, typography and player bindings.
- root.innerHTML=`<div class="home-feature home-floating" role="region" aria-roledescription="캐러셀" aria-label="추천 음악"><div class="home-feature-stage">${releaseHTML(tracks[0],tracks[1],tracks,0)}</div>${tracks.length>1?`<button class="home-feature-arrow home-feature-prev" aria-label="이전 추천곡">${icon('chevron')}</button><button class="home-feature-arrow home-feature-next" aria-label="다음 추천곡">${icon('chevron')}</button><div class="home-feature-pagination"><button class="home-feature-autoplay" aria-label="자동 롤링 일시정지" aria-pressed="false">${icon('pause')}</button><div class="home-feature-dots" aria-label="추천곡 선택">${tracks.map((t,i)=>`<button data-home-slide="${i}" aria-label="${i+1}. ${esc(t.title)}" aria-pressed="${i===0}"></button>`).join('')}</div></div>`:''}</div>`;
+ const tracks=input.filter((t,i,a)=>a.findIndex(x=>x.id===t.id)===i);if(!tracks.length)return;
+ root.innerHTML=`<div class="home-feature home-floating" role="region" aria-roledescription="캐러셀" aria-label="추천 음악"><div class="home-feature-stage">${releaseHTML(tracks[0],tracks[1],tracks,0)}</div></div>`;
  if(!root.addEventListener)return;
  const feature=root.querySelector('.home-feature'),stage=feature.querySelector('.home-feature-covers'),copy=feature.querySelector('.home-feature-copy'),bg=feature.querySelector('.home-feature-background');
  const motion=window.matchMedia('(prefers-reduced-motion: reduce)');
- stage.innerHTML=tracks.map((t,i)=>`<a class="home-floating-card" data-float-card="${i}" href="#song/${esc(t.id)}" aria-label="${esc(t.title)} 곡 정보" draggable="false"><span class="home-floating-lean"><span class="home-floating-drift" style="--float-duration:${6+i*.29}s;--float-delay:${-i*1.13}s;--float-direction:${i%2?'reverse':'normal'}">${homeCover(t,'home-feature-art',true).replace('<img ','<img draggable="false" ')}</span></span></a>`).join('');
- bg.innerHTML=tracks.map(t=>{const src=homeArtworkPath(t);return `<div class="home-floating-wash"><div class="home-feature-backdrop">${src?`<img src="${esc(src)}" alt="" decoding="async">`:''}</div></div>`;}).join('');
- const cards=[...stage.children],washes=[...bg.children],dots=[...feature.querySelectorAll('.home-feature-dots button')],animations=new Map();
- let index=0,timer=null,leadTimer=null,paused=false,hover=false,focus=false,start=null,suppressClick=false,disposed=false,leaning=false;
+ stage.innerHTML=tracks.map((t,i)=>`<a class="home-floating-card" data-float-card="${i}" data-track-id="${esc(t.id)}" href="#song/${esc(t.id)}" aria-label="${esc(t.title)} 곡 정보" draggable="false"><span class="home-floating-lean"><span class="home-floating-drift" style="--float-duration:${6+i%7*.29}s;--float-delay:${-i*1.13}s;--float-direction:${i%2?'reverse':'normal'}">${homeCover(t,'home-feature-art',true).replace('<img ','<img draggable="false" ')}</span></span></a>`).join('');
+ const cards=[...stage.children];
+ if(tracks.length>1)stage.insertAdjacentHTML('beforeend',`<div class="home-feature-pagination"><button class="home-feature-autoplay" aria-label="자동 롤링 일시정지" aria-pressed="false">${icon('pause')}</button><div class="home-feature-dots" aria-label="추천곡 선택">${tracks.map((t,i)=>`<button data-home-slide="${i}" aria-label="${i+1}. ${esc(t.title)}" aria-pressed="${i===0}"></button>`).join('')}</div></div>`);
+ // One compositing group caps total artwork opacity, including during crossfades.
+ bg.innerHTML='<div class="home-floating-washes"><div class="home-floating-wash"></div><div class="home-floating-wash"></div></div>';
+ const washes=[...bg.querySelector('.home-floating-washes').children],dots=[...feature.querySelectorAll('.home-feature-dots button')],animations=new Map();
+ let index=0,timer=null,leadTimer=null,paused=false,hover=false,focus=false,start=null,suppressClick=false,disposed=false,leaning=false,busy=false,pending=null,washIndex=0;
+ let geometry=homeFloatGeometry(stage.clientWidth,tracks.length),resizePending=false;
  const blocked=()=>paused||hover||focus||document.hidden||motion.matches;
  const animate=(el,frames,duration=850)=>{
-  const previous=animations.get(el);previous?.cancel();
-  const last=frames.at(-1);Object.assign(el.style,last);
-  if(motion.matches)return;
+  animations.get(el)?.cancel();Object.assign(el.style,frames.at(-1));
+  if(motion.matches)return null;
   const animation=el.animate(frames,{duration,easing:'cubic-bezier(.35,0,.2,1)'});animations.set(el,animation);
-  animation.onfinish=()=>{if(animations.get(el)===animation)animations.delete(el);};
+  animation.onfinish=()=>{if(animations.get(el)===animation)animations.delete(el);};return animation;
  };
+ // Decode before exposing either a cover or its background. Failed artwork stays navy.
+ const ready=cards.map(card=>{
+  const img=card.querySelector('img');if(!img)return Promise.resolve();
+  return img.decode().then(()=>{if(!disposed)img.classList.add('is-decoded');}).catch(()=>{if(!disposed){img.hidden=true;const label=card.querySelector('.cover-word');if(label)label.hidden=false;}});
+ });
  const sync=()=>{const b=copy.querySelector('.home-feature-play');if(!b||typeof audio==='undefined')return;const playing=current?.id===tracks[index].id&&!audio.paused&&!audio.ended&&!window.AifectAudioAds?.active;b.innerHTML=icon(playing?'ui-pause-action':'ui-play-action');b.setAttribute('aria-pressed',String(playing));b.setAttribute('aria-label',tracks[index].title+(playing?' 일시정지':' 재생'));};
  const lean=angle=>{leaning=angle!==0;for(const card of cards){const el=card.firstElementChild;animate(el,[{transform:getComputedStyle(el).transform},{transform:`rotateY(${angle}deg)`}],500);}};
  const clear=()=>{clearTimeout(timer);clearTimeout(leadTimer);timer=leadTimer=null;};
  const schedule=(freezeTransitions=true)=>{
-  clear();if(leaning&&!paused&&!document.hidden)lean(0);feature.classList.toggle('is-floating-paused',blocked());
-  for(const a of animations.values())if(freezeTransitions&&(paused||document.hidden))a.pause();else if(a.playState==='paused')a.play();
-  if(motion.matches){for(const a of animations.values())a.finish();animations.clear();}
+  clear();feature.classList.toggle('is-floating-paused',blocked());
+  for(const a of animations.values())if((freezeTransitions&&paused)||document.hidden)a.pause();else if(a.playState==='paused')a.play();
+  if(motion.matches){for(const a of [...animations.values()])a.finish();}
   if(tracks.length>1&&!blocked()&&!disposed){leadTimer=setTimeout(()=>lean(-.7),5000);timer=setTimeout(()=>{if(!root.isConnected)return cleanup();go(index+1);},5500);}
  };
- const paint=(previous=null)=>{
-  for(const [i,card] of cards.entries()){
-   const slot=homeFloatSlot(i,index,tracks.length),oldSlot=homeFloatSlot(i,previous??index,tracks.length);
-   const transform=homeFloatPose(slot),alpha=1;
-   card.style.setProperty('--float-shade',[0,.52,.7,.8][Math.abs(slot)]);
-   // The wrapping far card travels continuously behind the row, never across its face.
-   const from={transform:getComputedStyle(card).transform,opacity:getComputedStyle(card).opacity};
-   card.style.zIndex=String(10-Math.abs(slot));card.setAttribute('aria-current',String(slot===0));
-   if(previous===null){card.style.transform=transform;card.style.opacity=alpha;}
-   else {const frames=[from];if(Math.abs(slot-oldSlot)>tracks.length/2){card.style.zIndex='1';frames.push({transform:'translate3d(0,0,-180px) scale(.44) rotateY(0deg)',opacity:.12});}frames.push({transform,opacity:alpha});animate(card,frames);}
-  }
-  for(const [i,wash] of washes.entries()){const opacity=i===index?1:0;if(previous===null)wash.style.opacity=opacity;else animate(wash,[{opacity:getComputedStyle(wash).opacity},{opacity}]);}
-  dots.forEach((dot,i)=>dot.setAttribute('aria-pressed',String(i===index)));sync();
+ const state=slot=>({transform:homeFloatPose(slot,geometry),opacity:Math.abs(slot)<=geometry.radius?1:0,filter:`brightness(${[1,.68,.48,.34,.25][Math.min(4,Math.abs(slot))]})`});
+ const paint=(previous=null,direction=1)=>{
+  stage.style.setProperty('--feature-cover',geometry.size+'px');feature.style.setProperty('--feature-cover',geometry.size+'px');
+  let transition=null;
+  cards.forEach((card,i)=>{
+   const slot=homeFloatSlot(i,index,tracks.length),old=homeFloatSlot(i,previous??index,tracks.length),visible=Math.abs(slot)<=geometry.radius;
+   const end=state(slot),from={transform:getComputedStyle(card).transform,opacity:getComputedStyle(card).opacity,filter:getComputedStyle(card).filter};
+   card.style.zIndex=String(20-Math.abs(slot));card.setAttribute('aria-current',String(slot===0));card.setAttribute('aria-hidden',String(!visible));card.tabIndex=visible?0:-1;card.style.pointerEvents=visible?'':'none';
+   if(previous===null){Object.assign(card.style,end);return;}
+   const frames=[from];
+   if(Math.abs(slot-old)>tracks.length/2){
+    // Reposition only while fully invisible outside the row; never cross its face.
+    frames.push({...state(-direction*(geometry.radius+1)),opacity:0,offset:.45});
+    frames.push({...state(direction*(geometry.radius+1)),opacity:0,offset:.55});
+   }
+   frames.push(end);const a=animate(card,frames);if(i===index)transition=a;
+  });
+  dots.forEach((dot,i)=>dot.setAttribute('aria-pressed',String(i===index)));sync();return transition;
  };
- const go=value=>{
-  const next=(value+tracks.length)%tracks.length;if(next===index){schedule();return;}
-  const previous=index;index=next;
-  const template=document.createElement('template');template.innerHTML=releaseHTML(tracks[index],null,tracks,index);
-  copy.innerHTML=template.content.querySelector('.home-feature-copy').innerHTML;
-  if(leaning)lean(0);paint(previous);schedule(false);
+ const background=(initial=false)=>{
+  const next=initial?washIndex:1-washIndex,el=washes[next],old=washes[washIndex];
+  el.replaceChildren();const source=cards[index].querySelector('img.is-decoded');
+  if(source){const img=source.cloneNode();img.alt='';el.append(img);}
+  if(initial){el.style.opacity=1;return;}
+  el.style.zIndex='1';old.style.zIndex='0';old.style.opacity=1;
+  const a=animate(el,[{opacity:0},{opacity:1}]);washIndex=next;
+  const finish=()=>{old.style.opacity=0;old.replaceChildren();};
+  if(a){const done=a.onfinish;a.onfinish=()=>{done();finish();};}else finish();
+ };
+ const finish=()=>{
+  busy=false;if(resizePending){resizePending=false;geometry=homeFloatGeometry(stage.clientWidth,tracks.length);paint();}
+  const target=pending;pending=null;if(target!==null&&target!==index)go(target);else if(!timer)schedule();
+ };
+ const go=async value=>{
+  const next=((value%tracks.length)+tracks.length)%tracks.length;
+  if(busy){pending=next;return;}if(next===index){schedule();return;}
+  busy=true;clear();await ready[next];if(disposed)return;
+  const previous=index,direction=homeFloatSlot(next,index,tracks.length)<0?-1:1;index=next;
+  const template=document.createElement('template');template.innerHTML=releaseHTML(tracks[index],null,tracks,index);copy.innerHTML=template.content.querySelector('.home-feature-copy').innerHTML;
+  if(leaning)lean(0);background();const a=paint(previous,direction);
+  if(a){const done=a.onfinish;a.onfinish=()=>{done();finish();};schedule(false);}else finish();
  };
  const click=e=>{
   if(suppressClick){suppressClick=false;e.preventDefault();e.stopPropagation();return;}
   const card=e.target.closest('[data-float-card]');if(card&&Number(card.dataset.floatCard)!==index){e.preventDefault();go(Number(card.dataset.floatCard));return;}
   const b=e.target.closest('button');if(!b)return;
-  if(b.matches('.home-feature-prev'))go(index-1);else if(b.matches('.home-feature-next'))go(index+1);else if(b.hasAttribute('data-home-slide'))go(Number(b.dataset.homeSlide));
+  if(b.hasAttribute('data-home-slide'))go(Number(b.dataset.homeSlide));
   else if(b.matches('.home-feature-autoplay')){paused=!paused;b.setAttribute('aria-pressed',String(paused));b.setAttribute('aria-label',paused?'자동 롤링 재개':'자동 롤링 일시정지');b.innerHTML=icon(paused?'play':'pause');schedule();}
  };
  const enter=e=>{if(e.pointerType==='touch')return;hover=true;schedule();},leave=()=>{hover=false;schedule();};
@@ -154,10 +191,11 @@ function mountFloatingHome(root,input){
  const key=e=>{if(!['ArrowLeft','ArrowRight'].includes(e.key))return;e.preventDefault();go(index+(e.key==='ArrowLeft'?-1:1));};
  const listeners=[['click',click],['pointerenter',enter],['pointerleave',leave],['focusin',focusIn],['focusout',focusOut],['pointerdown',down],['pointerup',up],['pointercancel',cancel],['keydown',key]];
  for(const [name,fn] of listeners)feature.addEventListener(name,fn);
+ const resize=new ResizeObserver(()=>{if(busy){resizePending=true;return;}geometry=homeFloatGeometry(stage.clientWidth,tracks.length);paint();});resize.observe(stage);
  const audioEvents=['play','pause','ended','emptied','loadedmetadata'];if(typeof audio!=='undefined')for(const name of audioEvents)audio.addEventListener(name,sync);
  document.addEventListener('visibilitychange',schedule);motion.addEventListener('change',schedule);window.addEventListener('hashchange',cleanup);
- function cleanup(){disposed=true;clear();for(const a of animations.values())a.cancel();animations.clear();for(const [name,fn] of listeners)feature.removeEventListener(name,fn);if(typeof audio!=='undefined')for(const name of audioEvents)audio.removeEventListener(name,sync);document.removeEventListener('visibilitychange',schedule);motion.removeEventListener('change',schedule);window.removeEventListener('hashchange',cleanup);}
- paint();schedule();return cleanup;
+ function cleanup(){disposed=true;clear();resize.disconnect();for(const a of animations.values())a.cancel();animations.clear();for(const [name,fn] of listeners)feature.removeEventListener(name,fn);if(typeof audio!=='undefined')for(const name of audioEvents)audio.removeEventListener(name,sync);document.removeEventListener('visibilitychange',schedule);motion.removeEventListener('change',schedule);window.removeEventListener('hashchange',cleanup);}
+ paint();Promise.all(ready).then(()=>{if(!disposed){background(true);feature.classList.add('is-ready');schedule();}});return cleanup;
 }
 // Each consumer owns its cleanup; editorial slides never subscribe to audio.
 function mountFeatureCarousel(root,tracks,{renderSlide=releaseHTML,label='추천 음악',previousLabel='이전 추천곡',nextLabel='다음 추천곡',dotsLabel='추천곡 선택',syncAudio=true,coverflow=false}={}){

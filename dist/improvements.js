@@ -34,15 +34,15 @@ function rememberCrewNavigation(key,value){crewNavigation.delete(crewNavigationS
 function peekCrewNavigation(key){const entry=crewNavigation.get(crewNavigationScope()+key);return entry?.until>Date.now()?structuredClone(entry.value):null;}
 function crewNavigationCurrent(account,revision){return account===(me?.id||'guest')&&revision===(typeof apiRevision==='number'?apiRevision:0);}
 function rememberCrewDiscovery(d,q,account,revision){if(q||!crewNavigationCurrent(account,revision))return;rememberCrewNavigation('discovery',{mine:d.mine||null,crews:d.crews||[]});for(const c of d.crews||[])rememberCrewNavigation(c.id,c);}
-async function liveCrewDetail(id,tab='music',readApi=api){
+async function liveCrewDetail(id,tab='music',readApi=api,community=false){
  const account=me?.id||'guest',revision=typeof apiRevision==='number'?apiRevision:0,d=await readApi('/api/crews/'+encodeURIComponent(id));
  if(crewNavigationCurrent(account,revision)){rememberCrewNavigation(id,d.crew);const prior=peekCrewNavigation('discovery');if(d.membership)rememberCrewNavigation('discovery',{mine:id,crews:prior?.crews||[d.crew]});else if(prior?.mine===id)rememberCrewNavigation('discovery',{...prior,mine:null});}
- return crewDetailView(d,id,tab);
+ return crewDetailView(d,id,tab,community);
 }
 function crewPendingView(base,param,raw=''){
  if(base!=='crew'&&!(base==='community'&&param==='crews'))return null;
  const hint=peekCrewNavigation('discovery'),q=new URLSearchParams(raw.split('?')[1]||''),id=base==='crew'?param:!q.has('q')&&q.get('browse')!=='1'?hint?.mine:null,c=id?peekCrewNavigation(id):null;
- let html=heading(c?esc(c.name):'크루','함께 듣고, 부르고, 이야기하는 음악 모임')+communityNavigation('crews');
+ let html=(base==='crew'?heading(c?esc(c.name):'크루','함께 듣고, 부르고, 이야기하는 음악 모임'):'')+communityNavigation('crews');
  if(c)html+='<p class="crew-meta">LV '+number(c.level)+' · '+number(c.members)+'명이 함께해요</p>';
  html+='<div class="route-loading" role="status"><span>크루를 불러오는 중…</span><div></div><div></div></div>';
  return {html,tracks:[],cached:false};
@@ -55,10 +55,10 @@ function crewEditor(c=null){
  const help=locked?`${days}일 뒤에 수정 가능합니다. (${new Date(available).toLocaleString('ko-KR')}부터)`:'크루 이름은 변경 후 30일에 한 번 수정할 수 있어요.';
  return `<h2>${c?'크루 정보 수정':'새 크루 만들기'}</h2><form id="crew-form" data-crew="${esc(c?.id||'')}" data-version="${c?.version||1}">${formField('크루 이름','name','text',c?.name||'','required maxlength="40" aria-describedby="crew-name-help" '+(locked?'readonly aria-readonly="true"':''))}<p id="crew-name-help" class="field-help" role="status">${esc(help)}</p><label class="form-field">소개<textarea name="description" maxlength="1000">${esc(c?.description||'')}</textarea></label>${formField('관심사 · 예: Ballad, K-POP','interests','text',c?.interests||'','maxlength="160"')}<label class="checkbox-line"><input name="recruiting" type="checkbox" ${c?.recruiting===0?'':'checked'}>새 멤버 모집</label>${crewV3SettingsHTML(c)}${crewImageEditorHTML(c)}<p class="field-help">완성 작품·협업·감상평 미션으로 성장해요. 하루 최대 100 XP, 주간 최대 270 XP.</p><button class="primary-button">저장</button><p class="form-error" role="alert"></p></form>`;
 }
-function crewDetailView(d,param,tab='music'){
+function crewDetailView(d,param,tab='music',community=false){
  const c=d.crew,m=d.membership,staff=['owner','deputy','manager','operator'].includes(m?.role);if(!['music','members','chat','notice','about','manage'].includes(tab))tab='music';
  const tabs=[['music','작품'],['members','멤버'],['notice','공지'],['about','소개']];if(staff)tabs.push(['manage','관리']);
- let html=heading('커뮤니티','듣고 대화하고, 함께 성장하는 음악 커뮤니티')+communityNavigation('crews')+crewHeroHTML(c,m)+'<nav class="tabs crew-room-tabs" aria-label="크루 활동">'+tabs.map(([key,label])=>'<a class="tab '+(tab===key?'active':'')+'" href="#crew/'+esc(c.id)+'?tab='+key+'" '+(tab===key?'aria-current="page"':'')+'>'+label+'</a>').join('')+'</nav>';
+ let html=(community?'':heading('커뮤니티','듣고 대화하고, 함께 성장하는 음악 커뮤니티'))+communityNavigation('crews')+crewHeroHTML(c,m)+'<nav class="tabs crew-room-tabs" aria-label="크루 활동">'+tabs.map(([key,label])=>'<a class="tab '+(tab===key?'active':'')+'" href="#crew/'+esc(c.id)+'?tab='+key+'" '+(tab===key?'aria-current="page"':'')+'>'+label+'</a>').join('')+'</nav>';
  if(!m)html+='<button class="primary-button" data-join-crew="'+esc(c.id)+'" '+(d.banned||!c.recruiting||c.members>=c.capacity?'disabled':'')+'>'+(c.join_policy==='approval'?'가입 신청':'크루 가입')+'</button>';
  if(tab==='music')html+=crewV3WorksHTML(d);
  if(tab==='members')html+='<div class="crew-people">'+crewPeopleHTML(d)+'</div>';
@@ -84,10 +84,10 @@ async function improvementsView(base,param,raw,readApi=api){
  }
  if(base==='community'&&param==='crews'){
   const params=new URLSearchParams(raw.split('?')[1]||''),q=params.get('q')||'',hint=peekCrewNavigation('discovery');
-  if(hint?.mine&&!params.has('q')&&params.get('browse')!=='1'){try{return await liveCrewDetail(hint.mine,'music',readApi);}catch(e){if(e.status!==404)throw e;clearCrewNavigation();}}
+  if(hint?.mine&&!params.has('q')&&params.get('browse')!=='1'){try{return await liveCrewDetail(hint.mine,'music',readApi,true);}catch(e){if(e.status!==404)throw e;clearCrewNavigation();}}
   const account=me?.id||'guest',revision=typeof apiRevision==='number'?apiRevision:0,d=await readApi('/api/crews?q='+encodeURIComponent(q)+'&summary=1'+(!params.has('q')&&params.get('browse')!=='1'?'&home=1':''));rememberCrewDiscovery(d,q,account,revision);
-  if(d.detail){if(crewNavigationCurrent(account,revision))rememberCrewNavigation(d.mine,d.detail.crew);return crewDetailView(d.detail,d.mine);}
-  if(d.mine&&!params.has('q')&&params.get('browse')!=='1')return liveCrewDetail(d.mine,'music',readApi);
+  if(d.detail){if(crewNavigationCurrent(account,revision))rememberCrewNavigation(d.mine,d.detail.crew);return crewDetailView(d.detail,d.mine,'music',true);}
+  if(d.mine&&!params.has('q')&&params.get('browse')!=='1')return liveCrewDetail(d.mine,'music',readApi,true);
   return {html:crewDiscoveryHTML(d,q),tracks:[],crewDiscovery:d};
  }
  if(base==='crew'&&param){return liveCrewDetail(param,new URLSearchParams(raw.split('?')[1]||'').get('tab')||'music',readApi);}
