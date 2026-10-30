@@ -79,7 +79,7 @@ test('official news ownership, pagination and cross-artist reply validation',asy
 });
 test('server validates banner dimensions, not just MIME or filename',()=>{
  const png=new Uint8Array(45),v=new DataView(png.buffer);v.setUint32(16,1200);v.setUint32(20,800);assert.doesNotThrow(()=>validateArtistBanner(png,'image/png'));
- v.setUint32(16,9000);assert.throws(()=>validateArtistBanner(png,'image/png'),/320~5000/);assert.throws(()=>validateArtistBanner(new Uint8Array(24),'image/webp'));
+ v.setUint32(16,9000);assert.throws(()=>validateArtistBanner(png,'image/png'),/320~8000/);assert.throws(()=>validateArtistBanner(new Uint8Array(24),'image/webp'));
 });
 test('banner upload uses existing R2 storage, enforces ownership, versions and deletion',async t=>{
  const objects=new Map(),BUCKET={put:async(k,v)=>objects.set(k,v),delete:async k=>objects.delete(k),head:async k=>objects.has(k)?{size:objects.get(k).length}:null,get:async k=>({body:objects.get(k)})};
