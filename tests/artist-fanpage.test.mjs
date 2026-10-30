@@ -6,6 +6,15 @@ import {fixture} from './fixture.mjs';
 import {validateArtistBanner} from '../server/artist-banner-image.js';
 import worker from '../server/index.js';
 const base='/api/artists/artist/fanpage';
+test('fan feeds hide blocked authors and reject blocked reply targets and invalid offsets',async t=>{
+ const f=await fixture(t);
+ const p=await f.call(base+'/posts','POST',{kind:'lounge',body:'응원합니다',request_id:'blocked-post'},'other');assert.equal(p.status,201);
+ assert.equal((await f.call(base+'/posts')).body.items.length,1);
+ f.sql.exec("INSERT INTO user_blocks(user_id,blocked_id,created) VALUES('owner','other',0)");
+ assert.equal((await f.call(base+'/posts')).body.items.length,0);
+ assert.equal((await f.call(base+'/posts','POST',{kind:'lounge',body:'차단한 글에 답글',parent_id:p.body.id,request_id:'blocked-reply'})).status,403);
+ for(const query of ['offset=0.5','offset=-1','offset=NaN','offset=100001','kind=invalid'])assert.equal((await f.call(base+'/posts?'+query)).status,400);
+});
 test('fanpage uploads preserve portrait originals while other photo uploads keep their crop flow',async()=>{
  const source=readFileSync(new URL('../dist/actions.js',import.meta.url),'utf8'),start=source.indexOf('async function uploadFile('),end=source.indexOf('async function playlistDialog(',start),crops=[],sent=[];
  class XHR{constructor(){this.upload={};this.status=201;this.responseText='{}';}open(){}setRequestHeader(){}send(file){sent.push(file);this.onload();this.onloadend();}}
