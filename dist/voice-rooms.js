@@ -43,7 +43,7 @@ async function voiceRequest(path,body,method=body===undefined?'GET':'POST',signa
 async function voiceView(base,id,signal) {
  if(base!=='voice')return null;
  if(id){if(!me)return {html:heading('토킹룸')+gate()};return {html:voiceRoomHTML(id)};}
- const top=heading('커뮤니티','듣고 대화하고, 함께 성장하는 음악 커뮤니티')+communityNavigation('voice');
+ const top=communityNavigation('voice');
  let data={rooms:[],crews:[]},enabled=false;
  try{const status=await voiceRequest('status',undefined,'GET',signal);enabled=status.enabled;if(enabled)data=await voiceRequest('public-rooms',undefined,'GET',signal);}catch(e){return {html:top+'<p role="alert">'+esc(e.message)+'</p>'};}
  return {html:top+voiceLobbyHTML(data,enabled),voiceLobby:true};

@@ -84,7 +84,7 @@ img.play-dubbing-art{display:block;width:100%;height:auto;aspect-ratio:1;object-
 .play-project-row>.small-button{flex-shrink:0;min-height:44px}
 .play-empty{padding:48px 16px;text-align:center;color:var(--ds-muted)}.play-empty h2{font-size:19px;color:var(--ds-text)}.play-empty p{line-height:1.7}
 .play-more{display:block;margin:24px auto;min-height:44px}.play-more[hidden]{display:none}
-.play-community-link{margin:0 0 24px}.play-community .music-community-tabs{overflow-x:auto;white-space:nowrap}
+.play-community .music-community-tabs{overflow-x:auto;white-space:nowrap}
 .play-page :is(a,button,input,select):focus-visible{outline:1px solid var(--ds-muted);outline-offset:2px}
 @media(max-width:1100px){.play-page .play-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:600px){

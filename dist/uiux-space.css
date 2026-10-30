@@ -101,7 +101,6 @@
  #main .play-page .play-project-row p{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
  #main .play-page .play-project-row small{font-size:11px}
  #main:is([data-route="community"],[data-route^="community/"])>.music-community-tabs{margin:0 0 12px}
- #main:is([data-route="community"],[data-route^="community/"]) .play-community-link{margin-bottom:12px;font-size:12px}
  #main:is([data-route="community"],[data-route^="community/"]) .v3-toolbar{margin:12px 0}
  #main[data-route="gifts"] .shop-heading{gap:8px;margin-bottom:8px}
  #main .mypage-layout .mp-profile{padding:8px 0 16px;gap:12px}
