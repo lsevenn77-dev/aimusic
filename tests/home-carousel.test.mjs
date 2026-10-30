@@ -4,22 +4,23 @@ import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 
 function setup(reduced=false){
- const events=new Map(),globalEvents=new Map(),timers=new Map();let serial=0;
+ const events=new Map(),globalEvents=new Map(),timers=new Map(),fades=new Map();let serial=0;
  const dots=Array.from({length:3},()=>({setAttribute(k,v){this[k]=v;}}));
  const playButton={setAttribute(k,v){this[k]=v;}};
- const stage={innerHTML:'one',querySelectorAll:()=>[],querySelector:()=>playButton,append(){}};
+ const outgoing=[];
+ const stage={innerHTML:'one',querySelectorAll:()=>outgoing,querySelector:s=>s==='.home-feature-background'?{outerHTML:'<div class="home-feature-background">old-art</div>'}:playButton,append(el){outgoing.push(el);}};
  const feature={querySelectorAll:()=>dots,contains:target=>target===feature,addEventListener:(n,f)=>events.set(n,f),removeEventListener:n=>events.delete(n)};
  const root={isConnected:true,innerHTML:'',addEventListener(){},querySelector:s=>s==='.home-feature'?feature:stage};
  const motion={matches:reduced,addEventListener:(n,f)=>globalEvents.set('motion',f),removeEventListener:()=>globalEvents.delete('motion')};
- const document={hidden:false,addEventListener:(n,f)=>globalEvents.set(n,f),removeEventListener:n=>globalEvents.delete(n),createElement:()=>({setAttribute(){},addEventListener(){},remove(){}})};
+ const document={hidden:false,addEventListener:(n,f)=>globalEvents.set(n,f),removeEventListener:n=>globalEvents.delete(n),createElement:()=>({setAttribute(){},addEventListener(){},remove(){const i=outgoing.indexOf(this);if(i>=0)outgoing.splice(i,1);}})};
  const audioEvents=new Map(),audio={paused:true,ended:false,addEventListener:(n,f)=>audioEvents.set(n,f),removeEventListener:n=>audioEvents.delete(n)};
- const c=vm.createContext({document,audio,current:null,window:{matchMedia:()=>motion,addEventListener:(n,f)=>globalEvents.set(n,f),removeEventListener:n=>globalEvents.delete(n)},setTimeout:(f,delay)=>{assert.equal(delay,5500);timers.set(++serial,f);return serial;},clearTimeout:id=>timers.delete(id),esc:String,icon:n=>n});
+ const c=vm.createContext({document,audio,current:null,window:{matchMedia:()=>motion,addEventListener:(n,f)=>globalEvents.set(n,f),removeEventListener:n=>globalEvents.delete(n)},setTimeout:(f,delay)=>{assert.ok([5500,850].includes(delay));(delay===850?fades:timers).set(++serial,f);return serial;},clearTimeout:id=>{timers.delete(id);fades.delete(id);},esc:String,icon:n=>n});
  vm.runInContext(readFileSync(new URL('../dist/home.js',import.meta.url),'utf8'),c);c.releaseHTML=t=>t.id;
  const tracks=['one','two','three'].map(id=>({id,title:id}));
  const mount=list=>c.mountHomeCarousel(root,list||tracks);
  const fire=(name,e={})=>events.get(name)?.(e);
  const advance=()=>{const f=[...timers.values()][0];timers.clear();f?.();};
- return {c,root,stage,feature,dots,motion,document,events,globalEvents,timers,mount,fire,advance,audio,audioEvents,playButton};
+ return {c,root,stage,feature,dots,motion,document,events,globalEvents,timers,fades,outgoing,mount,fire,advance,audio,audioEvents,playButton};
 }
 
 test('carousel rolls at 5.5s, pauses on hover and focus, and cleans up on navigation',()=>{
@@ -58,4 +59,19 @@ test('editorial carousel reuses controls and timing without subscribing to or ch
  const dot={matches:()=>false,hasAttribute:n=>n==='data-home-slide',dataset:{homeSlide:'0'}};
  f.fire('click',{target:{closest:()=>dot}});assert.equal(f.stage.innerHTML,'tab:song');
  cleanup();assert.equal(f.timers.size,0);assert.equal(f.audioEvents.size,0);assert.equal(f.audio.paused,false);
+});
+
+test('rapid home changes retain only one inert background and dispose the fallback timer',()=>{
+ const f=setup();f.mount();f.advance();assert.equal(f.outgoing.length,1);
+ assert.equal(f.outgoing[0].inert,true);assert.equal(f.outgoing[0].innerHTML,'<div class="home-feature-background">old-art</div>');
+ f.advance();assert.equal(f.stage.innerHTML,'three');assert.equal(f.outgoing.length,1);assert.equal(f.fades.size,1);
+ const fade=[...f.fades.values()][0];f.fades.clear();fade();assert.equal(f.outgoing.length,0);
+ f.advance();f.globalEvents.get('hashchange')();assert.equal(f.fades.size,0);assert.equal(f.timers.size,0);
+});
+
+test('home touch swipe suppresses the trailing link click and touch entry allows automatic resume',()=>{
+ const f=setup();f.mount();f.fire('pointerenter',{pointerType:'touch'});assert.equal(f.timers.size,1);
+ f.fire('pointerdown',{clientX:180,clientY:20});f.fire('pointerup',{clientX:100,clientY:20});
+ let prevented=false,stopped=false;f.fire('click',{preventDefault(){prevented=true;},stopPropagation(){stopped=true;}});
+ assert.equal(prevented,true);assert.equal(stopped,true);assert.equal(f.stage.innerHTML,'two');
 });

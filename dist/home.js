@@ -64,10 +64,14 @@ function homeHTML(){return `<div class="listening-home listening-home-v2 home-co
 function homeFeatureTitle(title){
  return String(title??'').split(/([\u1100-\u11ff\u3130-\u318f\ua960-\ua97f\uac00-\ud7af]+)/u).map((run,i)=>i%2?`<span class="home-feature-hangul">${esc(run)}</span>`:esc(run)).join('');
 }
-function releaseHTML(t,next){
+function releaseHTML(t,next,tracks=[t,next].filter(Boolean),index=0){
  const art=homeArtworkPath(t);
  const playing=typeof current!=='undefined'&&current?.id===t.id&&!audio.paused&&!audio.ended&&!window.AifectAudioAds?.active;
- return `<div class="home-feature-background" aria-hidden="true"><div class="home-feature-backdrop"${art?` style="background-image:url(&quot;${esc(art)}&quot;)"`:''}>${art?`<img src="${esc(art)}" alt="" decoding="async">`:''}</div></div><article class="home-feature-slide"><a class="home-feature-cover" href="#song/${esc(t.id)}" aria-label="${esc(t.title)} 곡 정보">${homeCover(t,'home-feature-art',true)}</a><div class="home-feature-copy"><span class="home-feature-label">FEATURED MUSIC</span><div class="home-feature-title-row"><h2><a href="#song/${esc(t.id)}" title="${esc(t.title)}">${homeFeatureTitle(t.title)}</a></h2><span class="home-feature-divider" aria-hidden="true"></span><button type="button" class="home-feature-play" data-play="${esc(t.id)}" data-community-toggle aria-label="${esc(t.title)} ${playing?'일시정지':'재생'}" aria-pressed="${playing}">${icon(playing?'ui-pause-action':'ui-play-action')}</button></div><div class="home-feature-artist">${credits(t)}</div>${t.description?`<p class="home-feature-description">${esc(t.description)}</p>`:''}<div class="home-feature-actions"><a class="text-link" href="#song/${esc(t.id)}">곡 정보 보기</a></div></div>${next?`<button class="home-feature-preview" data-home-next aria-label="다음 곡 ${esc(next.title)} 보기">${homeCover(next,'home-preview-art')}<span>UP NEXT</span></button>`:''}</article>`;
+ // Choose each neighbouring track once, even with fewer than five slides.
+ const cover=(track,eager=false)=>homeCover(track,'home-feature-art',eager).replace('<img ','<img draggable="false" ');
+ const seen=new Set([index]),neighbours=[];
+ for(const offset of [1,-1,2,-2]){const i=(index+offset+tracks.length)%tracks.length;if(seen.has(i))continue;seen.add(i);neighbours.push(`<button type="button" class="home-feature-rear ${offset<0?'is-left':'is-right'} ${Math.abs(offset)===2?'is-far':''}" data-home-slide="${i}" aria-label="${offset<0?'이전':'다음'} 곡 ${esc(tracks[i].title)} 보기">${cover(tracks[i])}</button>`);}
+ return `<div class="home-feature-background" aria-hidden="true"><div class="home-feature-backdrop"${art?` style="background-image:url(&quot;${esc(art)}&quot;)"`:''}>${art?`<img src="${esc(art)}" alt="" decoding="async">`:''}</div></div><article class="home-feature-slide"><div class="home-feature-copy"><span class="home-feature-label">FEATURED MUSIC</span><div class="home-feature-title-row"><h2><a href="#song/${esc(t.id)}" title="${esc(t.title)}">${homeFeatureTitle(t.title)}</a></h2></div><div class="home-feature-artist">${credits(t)}</div>${t.description?`<p class="home-feature-description">${esc(t.description)}</p>`:''}<div class="home-feature-actions"><a class="home-feature-info" href="#song/${esc(t.id)}">곡 정보 보기 ${icon('chevron')}</a><button type="button" class="home-feature-play" data-play="${esc(t.id)}" data-community-toggle aria-label="${esc(t.title)} ${playing?'일시정지':'재생'}" aria-pressed="${playing}">${icon(playing?'ui-pause-action':'ui-play-action')}</button></div></div><div class="home-feature-covers">${neighbours.join('')}<a class="home-feature-cover" draggable="false" href="#song/${esc(t.id)}" aria-label="${esc(t.title)} 곡 정보">${cover(t,true)}</a></div></article>`;
 }
 function bindHomeImages(root){
  homeImagesCleanup?.();homeImagesCleanup=null;
@@ -77,32 +81,35 @@ function bindHomeImages(root){
  homeImagesCleanup=()=>root.removeEventListener('error',fallback,true);
 }
 function mountHomeCarousel(root,tracks){
- homeCarouselCleanup?.();homeCarouselCleanup=mountFeatureCarousel(root,tracks);
+ homeCarouselCleanup?.();homeCarouselCleanup=mountFeatureCarousel(root,tracks,{coverflow:true});
 }
 // Each consumer owns its cleanup; editorial slides never subscribe to audio.
-function mountFeatureCarousel(root,tracks,{renderSlide=releaseHTML,label='추천 음악',previousLabel='이전 추천곡',nextLabel='다음 추천곡',dotsLabel='추천곡 선택',syncAudio=true}={}){
+function mountFeatureCarousel(root,tracks,{renderSlide=releaseHTML,label='추천 음악',previousLabel='이전 추천곡',nextLabel='다음 추천곡',dotsLabel='추천곡 선택',syncAudio=true,coverflow=false}={}){
  if(!tracks.length)return;
  const multi=tracks.length>1;
- root.innerHTML=`<div class="home-feature" role="region" aria-roledescription="캐러셀" aria-label="${esc(label)}">${multi?`<button class="home-feature-arrow home-feature-prev" aria-label="${esc(previousLabel)}">${icon('chevron')}</button>`:''}<div class="home-feature-stage">${renderSlide(tracks[0],multi?tracks[1]:null)}</div>${multi?`<button class="home-feature-arrow home-feature-next" aria-label="${esc(nextLabel)}">${icon('chevron')}</button><div class="home-feature-pagination"><button class="home-feature-autoplay" aria-label="자동 롤링 일시정지">${icon('pause')}</button><div class="home-feature-dots" aria-label="${esc(dotsLabel)}">${tracks.map((t,i)=>`<button data-home-slide="${i}" aria-label="${i+1}. ${esc(t.title)}" aria-pressed="${i===0}"></button>`).join('')}</div></div>`:''}</div>`;
+ root.innerHTML=`<div class="home-feature" role="region" aria-roledescription="캐러셀" aria-label="${esc(label)}">${multi?`<button class="home-feature-arrow home-feature-prev" aria-label="${esc(previousLabel)}">${icon('chevron')}</button>`:''}<div class="home-feature-stage">${renderSlide(tracks[0],multi?tracks[1]:null,tracks,0)}</div>${multi?`<button class="home-feature-arrow home-feature-next" aria-label="${esc(nextLabel)}">${icon('chevron')}</button><div class="home-feature-pagination"><button class="home-feature-autoplay" aria-label="자동 롤링 일시정지">${icon('pause')}</button><div class="home-feature-dots" aria-label="${esc(dotsLabel)}">${tracks.map((t,i)=>`<button data-home-slide="${i}" aria-label="${i+1}. ${esc(t.title)}" aria-pressed="${i===0}"></button>`).join('')}</div></div>`:''}</div>`;
  // Minimal DOM renderers used by navigation tests do not implement browser events.
  if(!root.addEventListener)return;
  const feature=root.querySelector('.home-feature'),stage=root.querySelector('.home-feature-stage'),motion=window.matchMedia('(prefers-reduced-motion: reduce)');
- let index=0,timer=null,manualPause=false,hover=false,focus=false,start=null;
+ let index=0,timer=null,fadeTimer=null,manualPause=false,hover=false,focus=false,start=null,suppressClick=false;
  const syncPlayback=()=>{if(!syncAudio)return;const b=stage.querySelector?.('.home-feature-slide .home-feature-play');if(!b||typeof audio==='undefined')return;const playing=current?.id===tracks[index].id&&!audio.paused&&!audio.ended&&!window.AifectAudioAds?.active;b.innerHTML=icon(playing?'ui-pause-action':'ui-play-action');b.setAttribute('aria-pressed',String(playing));b.setAttribute('aria-label',tracks[index].title+(playing?' 일시정지':' 재생'));};
  const clear=()=>{clearTimeout(timer);timer=null;};
  const schedule=()=>{clear();if(multi&&!manualPause&&!hover&&!focus&&!motion.matches&&!document.hidden)timer=setTimeout(()=>{if(!root.isConnected)return cleanup();go(index+1);},5500);};
  const go=value=>{
-  index=(value+tracks.length)%tracks.length;
+  const target=(value+tracks.length)%tracks.length;if(coverflow&&target===index)return;index=target;
+  clearTimeout(fadeTimer);fadeTimer=null;
   stage.querySelectorAll('.home-feature-outgoing').forEach(el=>el.remove());
   const old=document.createElement('div');old.className='home-feature-outgoing';old.setAttribute('aria-hidden','true');old.inert=true;
-  old.innerHTML=stage.innerHTML;stage.innerHTML=renderSlide(tracks[index],multi?tracks[(index+1)%tracks.length]:null);stage.append(old);syncPlayback();
-  old.addEventListener('animationend',()=>old.remove(),{once:true});if(motion.matches)old.remove();
-  feature.querySelectorAll('[data-home-slide]').forEach((b,i)=>b.setAttribute('aria-pressed',String(i===index)));schedule();
+  old.innerHTML=coverflow?(stage.querySelector('.home-feature-background')?.outerHTML||''):stage.innerHTML;
+  stage.innerHTML=renderSlide(tracks[index],multi?tracks[(index+1)%tracks.length]:null,tracks,index);stage.append(old);syncPlayback();
+  old.addEventListener('animationend',()=>old.remove(),{once:true});if(motion.matches)old.remove();else if(coverflow)fadeTimer=setTimeout(()=>{old.remove();fadeTimer=null;},850);
+  if(coverflow&&focus)focus=feature.contains(document.activeElement);
+  feature.querySelectorAll('.home-feature-dots [data-home-slide]').forEach((b,i)=>b.setAttribute('aria-pressed',String(i===index)));schedule();
  };
- const click=e=>{const b=e.target.closest('button');if(!b)return;if(b.matches('.home-feature-prev'))go(index-1);else if(b.matches('.home-feature-next,[data-home-next]'))go(index+1);else if(b.hasAttribute('data-home-slide'))go(Number(b.dataset.homeSlide));else if(b.matches('.home-feature-autoplay')){manualPause=!manualPause;b.setAttribute('aria-label',manualPause?'자동 롤링 재개':'자동 롤링 일시정지');b.innerHTML=icon(manualPause?'play':'pause');schedule();}else schedule();};
- const enter=()=>{hover=true;clear();},leave=()=>{hover=false;schedule();},focusIn=()=>{focus=true;clear();},focusOut=e=>{focus=feature.contains(e.relatedTarget);schedule();};
+ const click=e=>{if(coverflow&&suppressClick){suppressClick=false;e.preventDefault();e.stopPropagation();return;}const b=e.target.closest('button');if(!b)return;if(b.matches('.home-feature-prev'))go(index-1);else if(b.matches('.home-feature-next,[data-home-next]'))go(index+1);else if(b.hasAttribute('data-home-slide'))go(Number(b.dataset.homeSlide));else if(b.matches('.home-feature-autoplay')){manualPause=!manualPause;b.setAttribute('aria-label',manualPause?'자동 롤링 재개':'자동 롤링 일시정지');b.innerHTML=icon(manualPause?'play':'pause');schedule();}else schedule();};
+ const enter=e=>{if(coverflow&&e.pointerType==='touch')return;hover=true;clear();},leave=()=>{hover=false;schedule();},focusIn=()=>{focus=true;clear();},focusOut=e=>{focus=feature.contains(e.relatedTarget);schedule();};
  const key=e=>{if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();go(index+(e.key==='ArrowLeft'?-1:1));}};
- const down=e=>{start={x:e.clientX,y:e.clientY};},up=e=>{if(!start)return;const dx=e.clientX-start.x,dy=e.clientY-start.y;start=null;if(Math.abs(dx)>45&&Math.abs(dx)>Math.abs(dy)){go(index+(dx<0?1:-1));}};
+ const down=e=>{suppressClick=false;start={x:e.clientX,y:e.clientY};},up=e=>{if(!start)return;const dx=e.clientX-start.x,dy=e.clientY-start.y;start=null;if(Math.abs(dx)>45&&Math.abs(dx)>Math.abs(dy)){suppressClick=coverflow;go(index+(dx<0?1:-1));}};
  const cancel=()=>{start=null;};
  const listeners=[['click',click],['pointerenter',enter],['pointerleave',leave],['focusin',focusIn],['focusout',focusOut],['keydown',key],['pointerdown',down],['pointerup',up],['pointercancel',cancel]];
  for(const [name,fn] of listeners)feature.addEventListener(name,fn);
@@ -110,7 +117,7 @@ function mountFeatureCarousel(root,tracks,{renderSlide=releaseHTML,label='추천
  if(syncAudio&&typeof audio!=='undefined')for(const event of playbackEvents)audio.addEventListener(event,syncPlayback);
  // Only the displayed artwork is eager; preview/remaining slides load on demand.
  document.addEventListener('visibilitychange',schedule);window.addEventListener('hashchange',cleanup);motion.addEventListener('change',schedule);
- function cleanup(){clear();for(const [name,fn] of listeners)feature.removeEventListener(name,fn);if(syncAudio&&typeof audio!=='undefined')for(const event of playbackEvents)audio.removeEventListener(event,syncPlayback);document.removeEventListener('visibilitychange',schedule);window.removeEventListener('hashchange',cleanup);motion.removeEventListener('change',schedule);}
+ function cleanup(){clear();clearTimeout(fadeTimer);for(const [name,fn] of listeners)feature.removeEventListener(name,fn);if(syncAudio&&typeof audio!=='undefined')for(const event of playbackEvents)audio.removeEventListener(event,syncPlayback);document.removeEventListener('visibilitychange',schedule);window.removeEventListener('hashchange',cleanup);motion.removeEventListener('change',schedule);}
  schedule();return cleanup;
 }
 function updateHomeAccount(){
