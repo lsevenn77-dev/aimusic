@@ -220,3 +220,27 @@
 }
 /* Subgrid edge padding must not pull the final 44px control over playback. */
 #main .music-list-region .song-table-tools{justify-content:flex-start}
+
+/* Fan-page music only: fixed credit starts on desktop, two compact lines on mobile. */
+#main .artist-music-list{container-type:inline-size;container-name:artist-music;min-width:0}
+#main .artist-music-row{display:grid;grid-template-columns:20px 42px minmax(0,1fr) auto;gap:12px;align-items:center;padding:6px 0;--list-row-inset:0px;--list-thumb-size:42px;--list-action-gap:4px;border-bottom:1px solid var(--ds-line)}
+#main .artist-music-position{color:var(--ds-muted);font-variant-numeric:tabular-nums;text-align:center}
+#main .artist-music-cover,#main .artist-music-cover .mini-cover{display:block;width:42px;height:42px;min-width:0}
+#main .artist-music-info{display:grid;grid-template-columns:minmax(0,220px) 90px 110px;gap:12px;align-items:center;min-width:0}
+#main .artist-music-credits{display:contents}
+#main .artist-music-info a,#main .artist-music-info>span,#main .artist-music-credits>span:not(.artist-music-separator){display:block;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+#main .artist-music-title{font-weight:650;color:var(--ds-text)}
+#main .artist-music-singer,#main .artist-music-producer{color:var(--ds-muted);font-size:13px}
+#main .artist-music-separator{display:none}
+#main .artist-music-row>.artist-music-actions{gap:0;margin-left:0}
+#main .artist-music-actions .artist-music-like-count{max-width:5ch;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
+@container artist-music (max-width:700px){
+ #main .artist-music-row{grid-template-columns:20px 40px minmax(0,1fr) auto;gap:6px;padding-block:4px;--list-thumb-size:40px}
+ #main .artist-music-cover,#main .artist-music-cover .mini-cover{width:40px;height:40px}
+ #main .artist-music-info{display:flex;flex-direction:column;align-items:stretch;gap:1px;line-height:1.2}
+ #main .artist-music-credits{display:flex;align-items:center;gap:4px;min-width:0;font-size:13px;line-height:1.2}
+ #main .artist-music-credits>:is(a,span):not(.artist-music-separator){flex:0 1 auto;min-width:0}
+ #main .artist-music-credits .artist-music-separator{display:block;flex:none;color:var(--ds-muted)}
+ #main .artist-music-actions .list-action{width:44px;min-width:44px;padding:0}
+ #main .artist-music-actions .artist-music-like-count{display:none}
+}
