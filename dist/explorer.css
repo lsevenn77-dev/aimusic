@@ -6,9 +6,7 @@
 .playlist-custom-art>img{width:100%;height:100%;object-fit:cover;display:block;min-width:0;min-height:0}
 /* Recommendation-only layout; home owns artwork sizing, columns and grid gaps. */
 .recommended-playlists{--home-grid-fill:auto-fill;min-width:0}
-#main .recommended-playlist-tabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));grid-auto-columns:minmax(0,1fr);gap:0;width:100%;overflow:visible}
-#main .recommended-playlist-tabs a.tab{border-bottom-width:2px;white-space:normal;text-align:center;overflow-wrap:anywhere}
-#main .recommended-playlist-tabs a.tab.active{color:var(--ds-accent-pink);border-bottom-color:var(--ds-accent-pink)}
+.recommended-playlists #recommended-playlists-title{margin:0 0 24px;padding:0;border:0;background:none;color:var(--ds-text);font-size:calc(24px);font-weight:500;line-height:1.4;text-align:left}
 .recommended-playlists #collection-search{margin:0 0 12px;min-width:0}
 .recommended-playlists #collection-search input{min-width:0;width:0}
 .recommended-playlists>.field-help{margin:0 0 20px;line-height:1.6}
@@ -27,17 +25,19 @@
 .recommended-playlist-owner>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .recommended-playlist-owner>svg{flex:none;width:16px;height:16px}
 .recommended-playlist-meta>span:last-child{flex:none;white-space:nowrap}
-.recommended-playlist-save{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;column-gap:8px;color:var(--ds-muted);font-size:12px;line-height:1.5}
-.recommended-playlist-save small{font:inherit}
-.recommended-playlist-save .text-link{min-height:44px;padding:0;border:0;border-radius:0;background:none;box-shadow:none;font:inherit;color:var(--ds-body)}
-.recommended-playlist-save [aria-pressed=true]{color:var(--ds-accent-pink)}
+.recommended-playlist-save{display:flex;align-items:center;justify-content:flex-start;flex-wrap:nowrap;column-gap:8px;color:var(--ds-muted);font-size:12px;line-height:1.5}
+.recommended-playlist-save small{font:inherit;white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.recommended-playlists .recommended-playlist-bookmark{display:inline-flex;align-items:center;justify-content:center;flex:none;width:44px;height:44px;min-width:44px;min-height:44px;padding:0;border:0;border-radius:0;background:none;box-shadow:none;color:var(--ds-body)}
+.recommended-playlists .recommended-playlist-bookmark>svg{width:18px;height:18px;stroke-width:1.7;fill:none}
+.recommended-playlists .recommended-playlist-bookmark[aria-pressed=true]{color:#8EDDD2}
+.recommended-playlists .recommended-playlist-bookmark[aria-pressed=true]>svg{fill:currentColor}
 .recommended-playlists :is(a,button,input,select):focus-visible{outline:2px solid var(--ds-accent-pink);outline-offset:2px}
 @media(hover:hover) and (pointer:fine){
  .recommended-playlists .recommended-playlist-play:not(:disabled){opacity:0;pointer-events:none}
  .recommended-playlist-card:is(:hover,:focus-within) .recommended-playlist-play:not(:disabled){opacity:1;pointer-events:auto}
 }
 @media(max-width:600px){
- #main .recommended-playlist-tabs a.tab{font-size:12px;padding-inline:2px;min-height:48px}
+ .recommended-playlists #recommended-playlists-title{font-size:calc(20px)}
  .recommended-playlists #collection-search{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
  .recommended-playlists #collection-search>.brand-search,.recommended-playlists #collection-search>input{grid-column:1/-1;width:100%;min-width:0}
  .recommended-playlists #collection-search select{width:100%;min-width:0}
@@ -45,6 +45,9 @@
  .recommended-playlist-meta{flex-wrap:wrap;gap:2px 6px}
 }
 @media(prefers-reduced-motion:reduce){.recommended-playlists .recommended-playlist-play{transition:none}}
+@media(max-width:360px){
+ #main .recommended-playlists .home-music-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
 /* Discover-only photo layout. Shared shell, music cards and player remain unchanged. */
 .discover-photo-layout{min-width:0;color:var(--ds-text)}
 .discover-photo-layout .discover-search{display:flex;align-items:center;gap:18px;height:66px;margin:0 0 22px;padding:0 22px;border:2px solid transparent;border-radius:40px;background:linear-gradient(110deg,var(--ds-panel),var(--ds-bg)) padding-box,linear-gradient(105deg,#8EDDD2,var(--ds-lavender),var(--ds-accent-pink)) border-box}

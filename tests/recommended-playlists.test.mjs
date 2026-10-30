@@ -8,7 +8,7 @@ function client(api=async()=>({tracks:[{id:'first'},{id:'second'}]})){
  let click;const played=[],messages=[];
  const c=vm.createContext({me:{id:'listener'},renderId:1,api,esc:s=>String(s),number:String,icon:s=>`<svg data-icon="${s}"></svg>`,playlistArt:()=>'<div>real art</div>',empty:m=>m,
   document:{addEventListener:(type,fn)=>{click=fn;}},remember:tracks=>c.remembered=tracks,play:async(id,tracks)=>played.push({id,tracks}),toast:m=>messages.push(m),location:{hash:'#collections'},askLogin:()=>messages.push('login')});
- vm.runInContext(source.slice(source.indexOf('function recommendedPlaylistCard'),source.indexOf('function discoveryTabs')),c);
+ vm.runInContext(source.slice(source.indexOf('function recommendedPlaylistBookmark'),source.indexOf('function discoveryTabs')),c);
  vm.runInContext(source.slice(source.indexOf("document.addEventListener('click',async e=>"),source.indexOf('try{const restored=')),c);
  return {c,played,messages,click:b=>click({target:{closest:()=>b}})};
 }
@@ -44,3 +44,25 @@ test('empty and failed playlist reads recover controls and show existing feedbac
   assert.equal(h.played.length,0);assert.equal(b.disabled,false);assert.equal(h.messages.length,1);
  }
 });
+
+ test('bookmark save and unsave preserve SVG, labels, API methods and refreshed counts',async()=>{
+ const calls=[];const h=client(async(path,method)=>{calls.push({path,method});return {playlist:{saves:method?0:8}};});
+ h.c.refreshLibrary=async()=>{calls.push({refresh:true});};
+ const count={isConnected:true,textContent:'7'},card={querySelector:()=>count},attrs={};
+ const b={dataset:{saveCollection:'actual-id',saved:'false'},innerHTML:h.c.recommendedPlaylistBookmark(),isConnected:true,
+ closest:()=>card,setAttribute:(k,v)=>attrs[k]=v};
+ const svg=b.innerHTML;
+ await h.click(b);
+ assert.equal(b.innerHTML,svg);assert.equal(b.textContent,undefined);assert.equal(b.dataset.saved,'true');
+ assert.equal(attrs['aria-pressed'],'true');assert.equal(attrs['aria-label'],'보관함 저장 해제');assert.equal(attrs.title,'보관함 저장 해제');assert.equal(count.textContent,'8');
+ await h.click(b);
+ assert.equal(b.innerHTML,svg);assert.equal(b.dataset.saved,'false');assert.equal(attrs['aria-label'],'보관함 저장');assert.equal(b.disabled,false);
+ assert.deepEqual(calls.filter(x=>x.method).map(x=>x.method),['PUT','DELETE']);assert.equal(calls.filter(x=>x.refresh).length,2);
+ });
+ test('anonymous and failed saves keep the original bookmark state',async()=>{
+ for(const anonymous of [true,false]){
+ const h=client(async()=>{throw Error('Save failed');});h.c.refreshLibrary=async()=>{};if(anonymous)h.c.me=null;
+ const attrs={},b={dataset:{saveCollection:'actual-id',saved:'false'},innerHTML:h.c.recommendedPlaylistBookmark(),closest:()=>({}),setAttribute:(k,v)=>attrs[k]=v};
+ const svg=b.innerHTML;await h.click(b);assert.equal(b.innerHTML,svg);assert.equal(b.dataset.saved,'false');assert.equal(b.disabled,false);assert.equal(h.messages[0],anonymous?'login':'Save failed');
+ }
+ });
