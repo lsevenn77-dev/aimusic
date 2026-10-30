@@ -20,7 +20,7 @@ async function setup(count=7,reduced=false){
  const fire=(n,e={})=>events.get(n)?.(e),run=delay=>{const entry=[...timers].find(([,v])=>v.delay===delay);assert.ok(entry);timers.delete(entry[0]);entry[1].fn();};
  const click=selector=>fire('click',{target:{closest:s=>s==='button'?{matches:s=>s===selector,hasAttribute:()=>false,setAttribute(){}}:null}});
  const settle=()=>{for(const el of [...washes,...cards.map(c=>c.firstElementChild),...cards,copy])el.animation?.finish();};
- return {settle,c,root,feature,cards,washes,dots,stage,bg,motion,document,audio,audioEvents,timers,events,globals,cleanup,fire,run,click};
+ return {settle,c,root,feature,cards,washes,dots,stage,bg,motion,document,audio,audioEvents,play,timers,events,globals,cleanup,fire,run,click};
 }
 
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
@@ -81,7 +81,7 @@ test('touch hold, cancellation and capture loss resume exactly one fresh countdo
  f.fire('pointerdown',{clientX:180,clientY:30});f.fire('pointerup',{clientX:70,clientY:30});await tick();f.settle();assert.equal(f.cards[1].attrs['aria-current'],'true');assert.equal(f.timers.size,1);f.cleanup();
 });
 
-test('the artwork crossfade owns serialization until 900ms and copy fades without moving',async()=>{
+test('the artwork crossfade owns serialization until 900ms without moving the copy',async()=>{
  const f=await setup();f.run(7000);await tick();
  assert.equal(f.washes[1].animation.options.duration,900);
  assert.ok(f.washes[1].animation.frames.every(frame=>!('transform' in frame)));
@@ -89,4 +89,13 @@ test('the artwork crossfade owns serialization until 900ms and copy fades withou
  for(const card of f.cards)card.animation.finish();
  f.fire('keydown',{key:'ArrowRight',preventDefault(){}});await tick();assert.equal(f.cards[1].attrs['aria-current'],'true','750ms cards cannot interrupt the longer background fade');
  f.washes[1].animation.finish();await tick();assert.equal(f.cards[2].attrs['aria-current'],'true');f.cleanup();
+});
+
+test('new arrows wrap and playback status follows selected track without starting audio',async()=>{
+ const f=await setup(7,true);
+ f.c.current={id:'t0'};f.audio.paused=false;f.audioEvents.get('play')();assert.equal(f.play.attrs['aria-pressed'],'true');
+ f.click('.home-feature-next');await tick();assert.equal(f.cards[1].attrs['aria-current'],'true');assert.equal(f.play.attrs['aria-pressed'],'false');assert.equal(f.audio.paused,false);
+ f.click('.home-feature-prev');await tick();assert.equal(f.cards[0].attrs['aria-current'],'true');assert.equal(f.play.attrs['aria-pressed'],'true');
+ f.audio.paused=true;f.audioEvents.get('pause')();assert.equal(f.play.innerHTML,'ui-play-action');
+ f.click('.home-feature-prev');await tick();assert.equal(f.cards[6].attrs['aria-current'],'true');assert.equal(f.audio.paused,true);f.cleanup();
 });
