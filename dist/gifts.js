@@ -32,7 +32,6 @@ function ownedGiftCards(inventory){
 }
 let giftDialogSerial=0;
 async function giftDialog(tid,initial=null,personal=false){
- $('#dialog').classList.add('gift-sheet');
  const serial=++giftDialogSerial;dialog('<section class="gift-dialog"><h2>선물하기</h2><p role="status">선물함을 불러오고 있어요…</p></section>');
  try{await accountReady;const account=me?.id;const [wallet,track,inventory]=await Promise.all([me?api('/api/gold'):Promise.resolve(null),api('/api/'+(personal?'producers/':'tracks/')+encodeURIComponent(tid)),me?api('/api/me/gift-inventory','GET',undefined,{fresh:true}).catch(()=>({error:true})):Promise.resolve({items:[]})]);
  if(serial!==giftDialogSerial||!$('#dialog').open||account!==me?.id)return;

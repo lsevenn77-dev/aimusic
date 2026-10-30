@@ -20,3 +20,8 @@
 }
 /* Gift scaling has a more specific legacy text-size rule. */
 body:has(main > .shop-page) #dialog:has(:is(.shop-checkout, .shop-theme-preview)) #dialog-close { font-size: 0; }
+
+/* These compact headers need a separate title line below the 44px dismiss target. */
+@media (max-width: 360px) {
+  #dialog-content .popup-title-clearance { padding-block-start: 20px; }
+}

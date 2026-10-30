@@ -42,7 +42,7 @@ document.addEventListener('click',async e=>{
  }
  if(el.dataset.galleryDelete){
   const aid=el.dataset.galleryArtist,pid=el.dataset.galleryDelete;
-  dialog('<h2>이 사진을 삭제할까요?</h2><p>AI 가수 갤러리에서 제거됩니다.</p><form id="gallery-delete-form"><div class="inline-actions"><button type="button" class="small-button" data-close-dialog>취소</button><button type="submit" class="primary-button">사진 삭제</button></div><p class="form-error" role="alert"></p></form>');
+  dialog('<h2 class="popup-title-clearance">이 사진을 삭제할까요?</h2><p>AI 가수 갤러리에서 제거됩니다.</p><form id="gallery-delete-form"><div class="inline-actions"><button type="button" class="small-button" data-close-dialog>취소</button><button type="submit" class="primary-button">사진 삭제</button></div><p class="form-error" role="alert"></p></form>');
   const form=$('#gallery-delete-form');form.onsubmit=busyForm(form,async()=>{await api('/api/artists/'+aid+'/gallery/'+pid,'DELETE');$('#dialog').close();if(location.hash.startsWith('#artist/'+aid))await render();toast('사진을 삭제했어요.');});
  }
 });

@@ -144,7 +144,7 @@ function bindArtistFanpage(){
  });
  on(root.querySelector('[data-fan-photo-manage]'),'click',()=>{
   let photos=d.photos.map(p=>({...p,carousel:p.carousel!==false}));
-  dialog('<h2>사진 순서와 캐러셀</h2><form id="fan-photos-form"><div data-photo-rows></div><p class="field-help">갤러리 최대 20장 · 캐러셀 최대 10장</p><button class="primary-button">저장</button><p class="form-error" role="alert"></p></form>');const form=$('#fan-photos-form'),area=form.querySelector('[data-photo-rows]');
+  dialog('<h2 class="popup-title-clearance">사진 순서와 캐러셀</h2><form id="fan-photos-form"><div data-photo-rows></div><p class="field-help">갤러리 최대 20장 · 캐러셀 최대 10장</p><button class="primary-button">저장</button><p class="form-error" role="alert"></p></form>');const form=$('#fan-photos-form'),area=form.querySelector('[data-photo-rows]');
   const paintRows=()=>{area.innerHTML=photos.map((p,i)=>'<div class="fan-photo-edit"><img src="'+esc(p.url)+'" alt="사진 '+(i+1)+'"><label><input type="checkbox" data-photo-toggle="'+i+'" '+(p.carousel?'checked':'')+'> 캐러셀</label><button type="button" class="fan-text-button" data-photo-up="'+i+'" '+(!i?'disabled':'')+'>위로</button><button type="button" class="fan-text-button" data-photo-down="'+i+'" '+(i===photos.length-1?'disabled':'')+'>아래로</button></div>').join('');};paintRows();
   area.onchange=e=>{const i=Number(e.target.dataset.photoToggle);if(e.target.checked&&photos.filter(p=>p.carousel).length>=10){e.target.checked=false;toast('캐러셀은 최대 10장까지 선택해주세요.');return;}photos[i].carousel=e.target.checked;};
   area.onclick=e=>{const b=e.target.closest('[data-photo-up],[data-photo-down]');if(!b)return;const i=Number(b.dataset.photoUp??b.dataset.photoDown),j=i+(b.hasAttribute('data-photo-up')?-1:1);[photos[i],photos[j]]=[photos[j],photos[i]];paintRows();};
@@ -157,7 +157,7 @@ function bindArtistFanpage(){
   $('#dialog').querySelectorAll('[data-operator-remove]').forEach(button=>{button.onclick=async()=>{button.disabled=true;try{await read('/operators','DELETE',{producer_id:button.dataset.operatorRemove});$('#dialog').close();await refresh();}catch(e){toast(e.message);button.disabled=false;}};});
  });
  on(root.querySelector('[data-fan-settings]'),'click',()=>{
-  const s=settings();dialog('<h2>아티스트 프로필</h2><form id="fan-settings-form" class="upload-form">'+[['introduction','상세 소개',4000],['concept','음악 스타일과 콘셉트',2000],['world','세계관',4000]].map(([key,label,max])=>'<label class="form-field">'+label+'<textarea name="'+key+'" rows="4" maxlength="'+max+'">'+esc(s[key]||'')+'</textarea></label>').join('')+'<button class="primary-button">저장</button><p class="form-error" role="alert"></p></form>');const form=$('#fan-settings-form');form.onsubmit=busyForm(form,async fd=>{await read('','PUT',{...s,...Object.fromEntries(fd)});$('#dialog').close();await refresh();});
+  const s=settings();dialog('<h2 class="popup-title-clearance">아티스트 프로필</h2><form id="fan-settings-form" class="upload-form">'+[['introduction','상세 소개',4000],['concept','음악 스타일과 콘셉트',2000],['world','세계관',4000]].map(([key,label,max])=>'<label class="form-field">'+label+'<textarea name="'+key+'" rows="4" maxlength="'+max+'">'+esc(s[key]||'')+'</textarea></label>').join('')+'<button class="primary-button">저장</button><p class="form-error" role="alert"></p></form>');const form=$('#fan-settings-form');form.onsubmit=busyForm(form,async fd=>{await read('','PUT',{...s,...Object.fromEntries(fd)});$('#dialog').close();await refresh();});
  });
  on(root.querySelector('[data-fan-banner]'),'click',()=>{
   const s=settings();let previewURL=null;
