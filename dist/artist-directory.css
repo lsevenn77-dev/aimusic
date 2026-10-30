@@ -62,22 +62,22 @@
 #main .artist-directory select{min-height:40px!important;height:40px}
 
 /* Final artist cards: shared visual layer, independent directory/dashboard grids. */
-/* Only fallback images use this background-free glyph; uploaded photos stay intact. */
+/* Only fallback images use this filled silhouette; uploaded photos stay intact. */
 #main :is(.artist-directory,.mp-artists-card) .artist-ui-card .profile-avatar:has(>img[src="/assets/default-avatar.svg"]){background:var(--ds-secondary)}
 #main :is(.artist-directory,.mp-artists-card) .artist-ui-card .profile-avatar>img[src="/assets/default-avatar.svg"]{content:url('/assets/artist-card-placeholder.svg');border-radius:10px;object-fit:contain;object-position:center;background:var(--ds-secondary)}
-#main :is(.artist-directory,.mp-artists-card) .artist-ui-card{box-sizing:border-box;min-width:0;border:1px solid var(--ds-line);border-radius:12px;background:color-mix(in srgb,var(--ds-panel) 78%,transparent);background-image:none;box-shadow:none;transition:background-color .18s ease,border-color .18s ease;color:var(--ds-text)}
+#main :is(.artist-directory,.mp-artists-card) .artist-ui-card{--artist-card-padding:6%;box-sizing:border-box;min-width:0;border:1px solid var(--ds-line);border-radius:12px;background:color-mix(in srgb,var(--ds-panel) 78%,transparent);background-image:none;box-shadow:none;transition:background-color .18s ease,border-color .18s ease;color:var(--ds-text)}
 #main :is(.artist-directory,.mp-artists-card) .artist-ui-card:hover{background-color:color-mix(in srgb,var(--ds-panel) 92%,transparent);border-color:color-mix(in srgb,var(--ds-body) 25%,transparent);box-shadow:none;transform:none}
 #main :is(.artist-directory,.mp-artists-card) .artist-ui-card::before,#main :is(.artist-directory,.mp-artists-card) .artist-ui-card::after{content:none;display:none}
-#main .artist-ui-affiliation{color:var(--ds-body);font-size:13px;font-weight:400;line-height:1.5;margin:4px 0 8px;max-width:100%;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#main .artist-ui-affiliation{color:#BB9AD7;font-size:13px;font-weight:400;line-height:1.5;margin:4px 0 8px;max-width:100%;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #main .artist-ui-affiliation>span{color:#BB9AD7}
 #main .artist-directory .directory-grid:not(.directory-list){grid-template-columns:repeat(6,minmax(0,1fr))}
-#main .artist-directory .directory-artist{min-height:0;padding:16px 10px 14px}
+#main .artist-directory .directory-artist{min-height:0;padding:var(--artist-card-padding)}
 #main .artist-directory .directory-photo{width:100%;margin-bottom:10px}
 #main .artist-directory .artist-portrait{width:100%;height:auto;aspect-ratio:1;border-radius:10px}
 #main .artist-directory .artist-portrait :is(img,.identity-avatar){border-radius:10px}
 #main .artist-directory .directory-social{display:flex;align-items:center;justify-content:center;gap:8px;max-width:100%;min-width:0;margin-top:2px}
 #main .artist-directory .directory-followers{font-size:12px;min-width:0;overflow:hidden;text-overflow:ellipsis;margin:0}
-#main .artist-directory .directory-follow{gap:4px;font-size:12px;padding-inline:8px;min-width:0;margin:0}
+#main .artist-directory .directory-follow{gap:4px;font-size:12px;padding-inline:8px;min-width:0;margin:0;background:linear-gradient(105deg,#8EDDD2,var(--ds-lilac) 55%,#F4C9DE);color:var(--ds-ink)}
 /* State styling never paints a wrapper/button rectangle, including pseudo-elements. */
 #main .artist-directory .directory-views,
 #main .artist-directory .directory-views a{background:transparent!important;background-image:none!important;border:0!important;box-shadow:none!important;outline:0!important;filter:none!important}
@@ -95,7 +95,7 @@
 #main .artist-directory .directory-add-symbol{background:none;border:0;border-radius:0}
 #main .mp-artists-card{container-type:inline-size}
 #main .mp-artists-card .mp-artists{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-rows:1fr;gap:10px;align-items:stretch}
-#main .mp-artists-card .artist-ui-card{display:flex;flex-direction:column;align-items:center;padding:10px 8px;text-align:center;min-height:0;font:inherit}
+#main .mp-artists-card .artist-ui-card{display:flex;flex-direction:column;align-items:center;padding:var(--artist-card-padding);text-align:center;min-height:0;font:inherit}
 #main .mp-artists-card .mp-artists .artist-portrait{width:100%;height:auto;max-width:none;aspect-ratio:1;border-radius:10px;overflow:hidden;margin:0 0 10px;border:0;box-shadow:none;background:var(--ds-secondary)}
 #main .mp-artists-card .mp-artists .artist-portrait::before,#main .mp-artists-card .mp-artists .artist-portrait::after{display:none}
 #main .mp-artists-card .mp-artists .artist-portrait :is(img,.identity-avatar){width:100%;height:100%;object-fit:cover;border-radius:10px;border:0;box-shadow:none}
@@ -108,7 +108,7 @@
 @container(max-width:719px){#main .artist-directory .directory-grid:not(.directory-list){grid-template-columns:repeat(3,minmax(0,1fr))}}
 @container(max-width:539px){
  #main .artist-directory .directory-grid:not(.directory-list),#main .artist-directory.artist-directory-owned .directory-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
- #main .artist-directory .directory-artist{padding:12px 8px}
+ #main .artist-directory .directory-artist{padding:var(--artist-card-padding)}
  #main .artist-directory .artist-portrait{width:100%;height:auto}
  #main .artist-directory .directory-name{font-size:16px}
  #main .artist-directory .directory-follow{padding-inline:6px}
