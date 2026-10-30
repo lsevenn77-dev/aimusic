@@ -139,3 +139,20 @@ test('photo counts, six tabs, XSS escaping and page-only compact music renderer'
  }
  const css=readFileSync(new URL('../dist/list-actions.css',import.meta.url),'utf8');assert.match(css,/minmax\(0,220px\) 90px 110px/);
 });
+
+test('gallery file selection keeps its original aspect ratio before upload',async()=>{
+ const handlers={};
+ const context={document:{addEventListener(type,fn){handlers[type]=fn;}}};
+ vm.createContext(context);vm.runInContext(readFileSync(new URL('../dist/image-crop.js',import.meta.url),'utf8'),context);
+ const files=[{name:'portrait.png',type:'image/png',size:100}],input={files,isConnected:true,matches(selector){return selector.split(',').includes('#gallery-upload-form input[type=file]');}};
+ await handlers.change({target:input});
+ assert.equal(input.files,files,'gallery selection must not invoke the square crop editor or replace the original files');
+});
+
+test('header shares one action row and restricts settings without widening portrait permissions',()=>{
+ const c={esc:v=>String(v??''),number:String,portrait:()=>'<div class="artist-portrait"></div>',followed:()=>true,icon:name=>name,artistMusicList:()=>''};vm.createContext(c);vm.runInContext(readFileSync(new URL('../dist/artist-fanpage.js',import.meta.url),'utf8'),c);
+ const data={profile:{name:'Artist'},tracks:[],gallery:[]};
+ const visitor=c.artistFanpageHTML(data,'artist');assert.doesNotMatch(visitor,/data-fan-menu-toggle/);assert.match(visitor,/팔로잉/);
+ const owner=c.artistFanpageHTML({...data,can_manage:true},'artist');assert.equal((owner.match(/data-follow=/g)||[]).length,1);assert.equal((owner.match(/data-share /g)||[]).length,1);assert.match(owner,/data-fan-menu-toggle/);assert.match(owner,/id="fan-header-menu"[^>]+hidden/);assert.doesNotMatch(owner,/fan-photo-entry|fan-manage-actions|artist-image-change/);
+ const operator=c.artistFanpageHTML({...data,can_manage:true,can_edit_portrait:false},'artist');assert.match(operator,/data-artist-image-pick disabled/);assert.doesNotMatch(operator,/data-artist-image="/);assert.match(operator,/data-fan-banner/);
+});
