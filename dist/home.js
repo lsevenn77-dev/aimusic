@@ -83,7 +83,7 @@ function bindHomeImages(root){
 function mountHomeCarousel(root,tracks){
  homeCarouselCleanup?.();homeCarouselCleanup=mountFloatingHome(root,tracks);
 }
-// Stable track nodes: position, anticipation and floating each own a transform layer.
+// Stable track nodes glide between fixed poses without idle motion.
 function homeFloatSlot(i,index,count){let d=(i-index+count)%count;if(d>count/2)d-=count;return d;}
 function homeFeaturedTracks(recommended=[],fallback=[]){return [...recommended,...fallback].filter((t,i,a)=>a.findIndex(x=>x.id===t.id)===i).slice(0,7);}
 // Geometry uses projected widths (perspective + rotation), with 12% overlap.
@@ -97,7 +97,7 @@ function homeFloatGeometry(width,count){
 }
 function homeFloatPose(slot,g){
  const d=Math.min(4,Math.abs(slot)),sign=Math.sign(slot),z=g.depth[d];
- return `translate3d(${sign*g.positions[d]*g.size*(1000-z)/1000}px,${d*d*1.5}px,${z}px) rotateY(${-sign*g.angles[d]}deg) scale(${g.scales[d]})`;
+ return `translate3d(${sign*g.positions[d]*g.size*(1000-z)/1000}px,${d*d*1.5}px,${z}px) rotateY(${-sign*g.angles[d]}deg) scale(${g.scales[d]*(slot===0?1.05:1)})`;
 }
 function mountFloatingHome(root,input){
  const tracks=input.filter((t,i,a)=>a.findIndex(x=>x.id===t.id)===i);if(!tracks.length)return;
@@ -105,19 +105,19 @@ function mountFloatingHome(root,input){
  if(!root.addEventListener)return;
  const feature=root.querySelector('.home-feature'),stage=feature.querySelector('.home-feature-covers'),copy=feature.querySelector('.home-feature-copy'),bg=feature.querySelector('.home-feature-background');
  const motion=window.matchMedia('(prefers-reduced-motion: reduce)');
- stage.innerHTML=tracks.map((t,i)=>`<a class="home-floating-card" data-float-card="${i}" data-track-id="${esc(t.id)}" href="#song/${esc(t.id)}" aria-label="${esc(t.title)} 곡 정보" draggable="false"><span class="home-floating-lean"><span class="home-floating-drift" style="--float-duration:${6+i%7*.29}s;--float-delay:${-i*1.13}s;--float-direction:${i%2?'reverse':'normal'}">${homeCover(t,'home-feature-art',true).replace('<img ','<img draggable="false" ')}</span></span></a>`).join('');
+ stage.innerHTML=tracks.map((t,i)=>`<a class="home-floating-card" data-float-card="${i}" data-track-id="${esc(t.id)}" href="#song/${esc(t.id)}" aria-label="${esc(t.title)} 곡 정보" draggable="false"><span class="home-floating-lean"><span class="home-floating-drift">${homeCover(t,'home-feature-art',true).replace('<img ','<img draggable="false" ')}</span></span></a>`).join('');
  const cards=[...stage.children];
  if(tracks.length>1)stage.insertAdjacentHTML('beforeend',`<div class="home-feature-pagination"><button class="home-feature-autoplay" aria-label="자동 롤링 일시정지" aria-pressed="false">${icon('pause')}</button><div class="home-feature-dots" aria-label="추천곡 선택">${tracks.map((t,i)=>`<button data-home-slide="${i}" aria-label="${i+1}. ${esc(t.title)}" aria-pressed="${i===0}"></button>`).join('')}</div></div>`);
  // One compositing group caps total artwork opacity, including during crossfades.
  bg.innerHTML='<div class="home-floating-washes"><div class="home-floating-wash"></div><div class="home-floating-wash"></div></div>';
  const washes=[...bg.querySelector('.home-floating-washes').children],dots=[...feature.querySelectorAll('.home-feature-dots button')],animations=new Map();
- let index=0,timer=null,leadTimer=null,paused=false,hover=false,focus=false,start=null,suppressClick=false,disposed=false,leaning=false,busy=false,pending=null,washIndex=0;
+ let index=0,timer=null,paused=false,hover=false,focus=false,start=null,suppressClick=false,disposed=false,busy=false,pending=null,washIndex=0;
  let geometry=homeFloatGeometry(stage.clientWidth,tracks.length),resizePending=false;
- const blocked=()=>paused||hover||focus||document.hidden||motion.matches;
- const animate=(el,frames,duration=850)=>{
+ const blocked=()=>paused||hover||focus||start!==null||document.hidden||motion.matches;
+ const animate=(el,frames,duration=750)=>{
   animations.get(el)?.cancel();Object.assign(el.style,frames.at(-1));
   if(motion.matches)return null;
-  const animation=el.animate(frames,{duration,easing:'cubic-bezier(.35,0,.2,1)'});animations.set(el,animation);
+  const animation=el.animate(frames,{duration,easing:'cubic-bezier(0.22, 1, 0.36, 1)'});animations.set(el,animation);
   animation.onfinish=()=>{if(animations.get(el)===animation)animations.delete(el);};return animation;
  };
  // Decode before exposing either a cover or its background. Failed artwork stays navy.
@@ -126,13 +126,12 @@ function mountFloatingHome(root,input){
   return img.decode().then(()=>{if(!disposed)img.classList.add('is-decoded');}).catch(()=>{if(!disposed){img.hidden=true;const label=card.querySelector('.cover-word');if(label)label.hidden=false;}});
  });
  const sync=()=>{const b=copy.querySelector('.home-feature-play');if(!b||typeof audio==='undefined')return;const playing=current?.id===tracks[index].id&&!audio.paused&&!audio.ended&&!window.AifectAudioAds?.active;b.innerHTML=icon(playing?'ui-pause-action':'ui-play-action');b.setAttribute('aria-pressed',String(playing));b.setAttribute('aria-label',tracks[index].title+(playing?' 일시정지':' 재생'));};
- const lean=angle=>{leaning=angle!==0;for(const card of cards){const el=card.firstElementChild;animate(el,[{transform:getComputedStyle(el).transform},{transform:`rotateY(${angle}deg)`}],500);}};
- const clear=()=>{clearTimeout(timer);clearTimeout(leadTimer);timer=leadTimer=null;};
+ const clear=()=>{clearTimeout(timer);timer=null;};
  const schedule=(freezeTransitions=true)=>{
   clear();feature.classList.toggle('is-floating-paused',blocked());
   for(const a of animations.values())if((freezeTransitions&&paused)||document.hidden)a.pause();else if(a.playState==='paused')a.play();
   if(motion.matches){for(const a of [...animations.values()])a.finish();}
-  if(tracks.length>1&&!blocked()&&!disposed){leadTimer=setTimeout(()=>lean(-.7),5000);timer=setTimeout(()=>{if(!root.isConnected)return cleanup();go(index+1);},5500);}
+  if(tracks.length>1&&!blocked()&&!disposed)timer=setTimeout(()=>{timer=null;if(!root.isConnected)return cleanup();go(index+1);},7000);
  };
  const state=slot=>({transform:homeFloatPose(slot,geometry),opacity:Math.abs(slot)<=geometry.radius?1:0,filter:`brightness(${[1,.68,.48,.34,.25][Math.min(4,Math.abs(slot))]})`});
  const paint=(previous=null,direction=1)=>{
@@ -146,8 +145,8 @@ function mountFloatingHome(root,input){
    const frames=[from];
    if(Math.abs(slot-old)>tracks.length/2){
     // Reposition only while fully invisible outside the row; never cross its face.
-    frames.push({...state(-direction*(geometry.radius+1)),opacity:0,offset:.45});
-    frames.push({...state(direction*(geometry.radius+1)),opacity:0,offset:.55});
+    frames.push({...state(old-direction),opacity:0,offset:.45});
+    frames.push({...state(slot+direction),opacity:0,offset:.55});
    }
    frames.push(end);const a=animate(card,frames);if(i===index)transition=a;
   });
@@ -159,21 +158,25 @@ function mountFloatingHome(root,input){
   if(source){const img=source.cloneNode();img.alt='';el.append(img);}
   if(initial){el.style.opacity=1;return;}
   el.style.zIndex='1';old.style.zIndex='0';old.style.opacity=1;
-  const a=animate(el,[{opacity:0},{opacity:1}]);washIndex=next;
+  const a=animate(el,[{opacity:0},{opacity:1}],900);washIndex=next;
   const finish=()=>{old.style.opacity=0;old.replaceChildren();};
   if(a){const done=a.onfinish;a.onfinish=()=>{done();finish();};}else finish();
+  return a;
  };
  const finish=()=>{
   busy=false;if(resizePending){resizePending=false;geometry=homeFloatGeometry(stage.clientWidth,tracks.length);paint();}
-  const target=pending;pending=null;if(target!==null&&target!==index)go(target);else if(!timer)schedule();
+  const target=pending;pending=null;if(target!==null&&target!==index)go(target);else if(timer===null)schedule();
  };
  const go=async value=>{
   const next=((value%tracks.length)+tracks.length)%tracks.length;
   if(busy){pending=next;return;}if(next===index){schedule();return;}
   busy=true;clear();await ready[next];if(disposed)return;
   const previous=index,direction=homeFloatSlot(next,index,tracks.length)<0?-1:1;index=next;
-  const template=document.createElement('template');template.innerHTML=releaseHTML(tracks[index],null,tracks,index);copy.innerHTML=template.content.querySelector('.home-feature-copy').innerHTML;
-  if(leaning)lean(0);background();const a=paint(previous,direction);
+  const template=document.createElement('template');template.innerHTML=releaseHTML(tracks[index],null,tracks,index);
+  const updateCopy=()=>{if(disposed)return;copy.innerHTML=template.content.querySelector('.home-feature-copy').innerHTML;sync();animate(copy,[{opacity:0},{opacity:1}],450);};
+  const fade=animate(copy,[{opacity:1},{opacity:0}],200);
+  if(fade){const done=fade.onfinish;fade.onfinish=()=>{done();updateCopy();};}else updateCopy();
+  const a=background();paint(previous,direction);
   if(a){const done=a.onfinish;a.onfinish=()=>{done();finish();};schedule(false);}else finish();
  };
  const click=e=>{
@@ -183,19 +186,19 @@ function mountFloatingHome(root,input){
   if(b.hasAttribute('data-home-slide'))go(Number(b.dataset.homeSlide));
   else if(b.matches('.home-feature-autoplay')){paused=!paused;b.setAttribute('aria-pressed',String(paused));b.setAttribute('aria-label',paused?'자동 롤링 재개':'자동 롤링 일시정지');b.innerHTML=icon(paused?'play':'pause');schedule();}
  };
- const enter=e=>{if(e.pointerType==='touch')return;hover=true;schedule();},leave=()=>{hover=false;schedule();};
- const focusIn=e=>{focus=!e.target.closest('.home-feature-autoplay');schedule();},focusOut=e=>{focus=feature.contains(e.relatedTarget)&&!e.relatedTarget?.closest('.home-feature-autoplay');schedule();};
- const down=e=>{if(e.isPrimary===false||e.button>0)return;suppressClick=false;start={x:e.clientX,y:e.clientY};clear();};
+ const enter=e=>{if(e.pointerType&&e.pointerType!=='mouse')return;hover=true;schedule();},leave=()=>{hover=false;schedule();};
+ const focusIn=e=>{focus=!!e.target.matches?.(':focus-visible')&&!e.target.closest('.home-feature-autoplay');schedule();},focusOut=e=>{focus=feature.contains(e.relatedTarget)&&!!e.relatedTarget?.matches?.(':focus-visible')&&!e.relatedTarget?.closest('.home-feature-autoplay');schedule();};
+ const down=e=>{if(e.isPrimary===false||e.button>0)return;suppressClick=false;start={x:e.clientX,y:e.clientY};e.target?.setPointerCapture?.(e.pointerId);clear();};
  const up=e=>{if(!start)return;const dx=e.clientX-start.x,dy=e.clientY-start.y;start=null;if(Math.abs(dx)>45&&Math.abs(dx)>Math.abs(dy)*1.3){suppressClick=true;go(index+(dx<0?1:-1));}else schedule();};
  const cancel=()=>{start=null;schedule();};
  const key=e=>{if(!['ArrowLeft','ArrowRight'].includes(e.key))return;e.preventDefault();go(index+(e.key==='ArrowLeft'?-1:1));};
- const listeners=[['click',click],['pointerenter',enter],['pointerleave',leave],['focusin',focusIn],['focusout',focusOut],['pointerdown',down],['pointerup',up],['pointercancel',cancel],['keydown',key]];
+ const listeners=[['click',click],['pointerenter',enter],['pointerleave',leave],['focusin',focusIn],['focusout',focusOut],['pointerdown',down],['pointerup',up],['pointercancel',cancel],['lostpointercapture',cancel],['keydown',key]];
  for(const [name,fn] of listeners)feature.addEventListener(name,fn);
  const resize=new ResizeObserver(()=>{if(busy){resizePending=true;return;}geometry=homeFloatGeometry(stage.clientWidth,tracks.length);paint();});resize.observe(stage);
  const audioEvents=['play','pause','ended','emptied','loadedmetadata'];if(typeof audio!=='undefined')for(const name of audioEvents)audio.addEventListener(name,sync);
- document.addEventListener('visibilitychange',schedule);motion.addEventListener('change',schedule);window.addEventListener('hashchange',cleanup);
- function cleanup(){disposed=true;clear();resize.disconnect();for(const a of animations.values())a.cancel();animations.clear();for(const [name,fn] of listeners)feature.removeEventListener(name,fn);if(typeof audio!=='undefined')for(const name of audioEvents)audio.removeEventListener(name,sync);document.removeEventListener('visibilitychange',schedule);motion.removeEventListener('change',schedule);window.removeEventListener('hashchange',cleanup);}
- paint();Promise.all(ready).then(()=>{if(!disposed){background(true);feature.classList.add('is-ready');schedule();}});return cleanup;
+ const reschedule=()=>schedule();document.addEventListener('visibilitychange',reschedule);motion.addEventListener('change',reschedule);window.addEventListener('hashchange',cleanup);
+ function cleanup(){disposed=true;clear();resize.disconnect();for(const a of animations.values())a.cancel();animations.clear();for(const [name,fn] of listeners)feature.removeEventListener(name,fn);if(typeof audio!=='undefined')for(const name of audioEvents)audio.removeEventListener(name,sync);document.removeEventListener('visibilitychange',reschedule);motion.removeEventListener('change',reschedule);window.removeEventListener('hashchange',cleanup);}
+ paint();feature.classList.add('is-ready');schedule();ready[0].then(()=>{if(!disposed&&index===0&&!busy)background(true);});return cleanup;
 }
 // Each consumer owns its cleanup; editorial slides never subscribe to audio.
 function mountFeatureCarousel(root,tracks,{renderSlide=releaseHTML,label='추천 음악',previousLabel='이전 추천곡',nextLabel='다음 추천곡',dotsLabel='추천곡 선택',syncAudio=true,coverflow=false}={}){
