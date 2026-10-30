@@ -81,7 +81,83 @@ function bindHomeImages(root){
  homeImagesCleanup=()=>root.removeEventListener('error',fallback,true);
 }
 function mountHomeCarousel(root,tracks){
- homeCarouselCleanup?.();homeCarouselCleanup=mountFeatureCarousel(root,tracks,{coverflow:true});
+ homeCarouselCleanup?.();homeCarouselCleanup=mountFloatingHome(root,tracks);
+}
+// Stable track nodes: position, anticipation and floating each own a transform layer.
+function homeFloatSlot(i,index,count){let d=(i-index+count)%count;if(d>count/2)d-=count;return d;}
+function homeFeaturedTracks(recommended=[],fallback=[]){return [...recommended,...fallback].filter((t,i,a)=>a.findIndex(x=>x.id===t.id)===i).slice(0,7);}
+function homeFloatPose(slot){
+ const d=Math.abs(slot),sign=Math.sign(slot);
+ return `translate3d(${sign*[0,32,55,74][d]}%,0,0) scale(${[1,.84,.68,.54][d]}) rotateY(${-sign*[0,24,32,38][d]}deg)`;
+}
+function mountFloatingHome(root,input){
+ const tracks=homeFeaturedTracks(input);if(!tracks.length)return;
+ // Reuse the existing banner markup, actions, typography and player bindings.
+ root.innerHTML=`<div class="home-feature home-floating" role="region" aria-roledescription="캐러셀" aria-label="추천 음악"><div class="home-feature-stage">${releaseHTML(tracks[0],tracks[1],tracks,0)}</div>${tracks.length>1?`<button class="home-feature-arrow home-feature-prev" aria-label="이전 추천곡">${icon('chevron')}</button><button class="home-feature-arrow home-feature-next" aria-label="다음 추천곡">${icon('chevron')}</button><div class="home-feature-pagination"><button class="home-feature-autoplay" aria-label="자동 롤링 일시정지" aria-pressed="false">${icon('pause')}</button><div class="home-feature-dots" aria-label="추천곡 선택">${tracks.map((t,i)=>`<button data-home-slide="${i}" aria-label="${i+1}. ${esc(t.title)}" aria-pressed="${i===0}"></button>`).join('')}</div></div>`:''}</div>`;
+ if(!root.addEventListener)return;
+ const feature=root.querySelector('.home-feature'),stage=feature.querySelector('.home-feature-covers'),copy=feature.querySelector('.home-feature-copy'),bg=feature.querySelector('.home-feature-background');
+ const motion=window.matchMedia('(prefers-reduced-motion: reduce)');
+ stage.innerHTML=tracks.map((t,i)=>`<a class="home-floating-card" data-float-card="${i}" href="#song/${esc(t.id)}" aria-label="${esc(t.title)} 곡 정보" draggable="false"><span class="home-floating-lean"><span class="home-floating-drift" style="--float-duration:${6+i*.29}s;--float-delay:${-i*1.13}s;--float-direction:${i%2?'reverse':'normal'}">${homeCover(t,'home-feature-art',true).replace('<img ','<img draggable="false" ')}</span></span></a>`).join('');
+ bg.innerHTML=tracks.map(t=>{const src=homeArtworkPath(t);return `<div class="home-floating-wash"><div class="home-feature-backdrop">${src?`<img src="${esc(src)}" alt="" decoding="async">`:''}</div></div>`;}).join('');
+ const cards=[...stage.children],washes=[...bg.children],dots=[...feature.querySelectorAll('.home-feature-dots button')],animations=new Map();
+ let index=0,timer=null,leadTimer=null,paused=false,hover=false,focus=false,start=null,suppressClick=false,disposed=false,leaning=false;
+ const blocked=()=>paused||hover||focus||document.hidden||motion.matches;
+ const animate=(el,frames,duration=850)=>{
+  const previous=animations.get(el);previous?.cancel();
+  const last=frames.at(-1);Object.assign(el.style,last);
+  if(motion.matches)return;
+  const animation=el.animate(frames,{duration,easing:'cubic-bezier(.35,0,.2,1)'});animations.set(el,animation);
+  animation.onfinish=()=>{if(animations.get(el)===animation)animations.delete(el);};
+ };
+ const sync=()=>{const b=copy.querySelector('.home-feature-play');if(!b||typeof audio==='undefined')return;const playing=current?.id===tracks[index].id&&!audio.paused&&!audio.ended&&!window.AifectAudioAds?.active;b.innerHTML=icon(playing?'ui-pause-action':'ui-play-action');b.setAttribute('aria-pressed',String(playing));b.setAttribute('aria-label',tracks[index].title+(playing?' 일시정지':' 재생'));};
+ const lean=angle=>{leaning=angle!==0;for(const card of cards){const el=card.firstElementChild;animate(el,[{transform:getComputedStyle(el).transform},{transform:`rotateY(${angle}deg)`}],500);}};
+ const clear=()=>{clearTimeout(timer);clearTimeout(leadTimer);timer=leadTimer=null;};
+ const schedule=(freezeTransitions=true)=>{
+  clear();if(leaning&&!paused&&!document.hidden)lean(0);feature.classList.toggle('is-floating-paused',blocked());
+  for(const a of animations.values())if(freezeTransitions&&(paused||document.hidden))a.pause();else if(a.playState==='paused')a.play();
+  if(motion.matches){for(const a of animations.values())a.finish();animations.clear();}
+  if(tracks.length>1&&!blocked()&&!disposed){leadTimer=setTimeout(()=>lean(-.7),5000);timer=setTimeout(()=>{if(!root.isConnected)return cleanup();go(index+1);},5500);}
+ };
+ const paint=(previous=null)=>{
+  for(const [i,card] of cards.entries()){
+   const slot=homeFloatSlot(i,index,tracks.length),oldSlot=homeFloatSlot(i,previous??index,tracks.length);
+   const transform=homeFloatPose(slot),alpha=1;
+   card.style.setProperty('--float-shade',[0,.52,.7,.8][Math.abs(slot)]);
+   // The wrapping far card travels continuously behind the row, never across its face.
+   const from={transform:getComputedStyle(card).transform,opacity:getComputedStyle(card).opacity};
+   card.style.zIndex=String(10-Math.abs(slot));card.setAttribute('aria-current',String(slot===0));
+   if(previous===null){card.style.transform=transform;card.style.opacity=alpha;}
+   else {const frames=[from];if(Math.abs(slot-oldSlot)>tracks.length/2){card.style.zIndex='1';frames.push({transform:'translate3d(0,0,-180px) scale(.44) rotateY(0deg)',opacity:.12});}frames.push({transform,opacity:alpha});animate(card,frames);}
+  }
+  for(const [i,wash] of washes.entries()){const opacity=i===index?1:0;if(previous===null)wash.style.opacity=opacity;else animate(wash,[{opacity:getComputedStyle(wash).opacity},{opacity}]);}
+  dots.forEach((dot,i)=>dot.setAttribute('aria-pressed',String(i===index)));sync();
+ };
+ const go=value=>{
+  const next=(value+tracks.length)%tracks.length;if(next===index){schedule();return;}
+  const previous=index;index=next;
+  const template=document.createElement('template');template.innerHTML=releaseHTML(tracks[index],null,tracks,index);
+  copy.innerHTML=template.content.querySelector('.home-feature-copy').innerHTML;
+  if(leaning)lean(0);paint(previous);schedule(false);
+ };
+ const click=e=>{
+  if(suppressClick){suppressClick=false;e.preventDefault();e.stopPropagation();return;}
+  const card=e.target.closest('[data-float-card]');if(card&&Number(card.dataset.floatCard)!==index){e.preventDefault();go(Number(card.dataset.floatCard));return;}
+  const b=e.target.closest('button');if(!b)return;
+  if(b.matches('.home-feature-prev'))go(index-1);else if(b.matches('.home-feature-next'))go(index+1);else if(b.hasAttribute('data-home-slide'))go(Number(b.dataset.homeSlide));
+  else if(b.matches('.home-feature-autoplay')){paused=!paused;b.setAttribute('aria-pressed',String(paused));b.setAttribute('aria-label',paused?'자동 롤링 재개':'자동 롤링 일시정지');b.innerHTML=icon(paused?'play':'pause');schedule();}
+ };
+ const enter=e=>{if(e.pointerType==='touch')return;hover=true;schedule();},leave=()=>{hover=false;schedule();};
+ const focusIn=e=>{focus=!e.target.closest('.home-feature-autoplay');schedule();},focusOut=e=>{focus=feature.contains(e.relatedTarget)&&!e.relatedTarget?.closest('.home-feature-autoplay');schedule();};
+ const down=e=>{if(e.isPrimary===false||e.button>0)return;suppressClick=false;start={x:e.clientX,y:e.clientY};clear();};
+ const up=e=>{if(!start)return;const dx=e.clientX-start.x,dy=e.clientY-start.y;start=null;if(Math.abs(dx)>45&&Math.abs(dx)>Math.abs(dy)*1.3){suppressClick=true;go(index+(dx<0?1:-1));}else schedule();};
+ const cancel=()=>{start=null;schedule();};
+ const key=e=>{if(!['ArrowLeft','ArrowRight'].includes(e.key))return;e.preventDefault();go(index+(e.key==='ArrowLeft'?-1:1));};
+ const listeners=[['click',click],['pointerenter',enter],['pointerleave',leave],['focusin',focusIn],['focusout',focusOut],['pointerdown',down],['pointerup',up],['pointercancel',cancel],['keydown',key]];
+ for(const [name,fn] of listeners)feature.addEventListener(name,fn);
+ const audioEvents=['play','pause','ended','emptied','loadedmetadata'];if(typeof audio!=='undefined')for(const name of audioEvents)audio.addEventListener(name,sync);
+ document.addEventListener('visibilitychange',schedule);motion.addEventListener('change',schedule);window.addEventListener('hashchange',cleanup);
+ function cleanup(){disposed=true;clear();for(const a of animations.values())a.cancel();animations.clear();for(const [name,fn] of listeners)feature.removeEventListener(name,fn);if(typeof audio!=='undefined')for(const name of audioEvents)audio.removeEventListener(name,sync);document.removeEventListener('visibilitychange',schedule);motion.removeEventListener('change',schedule);window.removeEventListener('hashchange',cleanup);}
+ paint();schedule();return cleanup;
 }
 // Each consumer owns its cleanup; editorial slides never subscribe to audio.
 function mountFeatureCarousel(root,tracks,{renderSlide=releaseHTML,label='추천 음악',previousLabel='이전 추천곡',nextLabel='다음 추천곡',dotsLabel='추천곡 선택',syncAudio=true,coverflow=false}={}){
@@ -140,12 +216,20 @@ function renderHome(ticket){
  const addTracks=tracks=>{remember(tracks);const known=new Set(routeTracks.map(t=>t.id));routeTracks.push(...tracks.filter(t=>!known.has(t.id)));};
  const paint=(target,html)=>{if(target.innerHTML!==html)target.innerHTML=html;displayed.add(target);target.removeAttribute('aria-busy');};
  const release=$('#home-release');
+ let featuredCatalog=null,featuredRecommended=null,featuredSignature='';
+ const paintFeatured=()=>{
+  if(featuredRecommended===null&&featuredCatalog===null)return;
+  const tracks=homeFeaturedTracks(featuredRecommended||[],featuredCatalog||[]),signature=JSON.stringify(tracks);
+  if(signature===featuredSignature)return;featuredSignature=signature;
+  addTracks(tracks);if(tracks.length){mountHomeCarousel(release,tracks);displayed.add(release);release.removeAttribute('aria-busy');}
+  else paint(release,empty('첫 음악의 주인공이 되어주세요.','당신의 음악으로 새로운 취향을 시작하세요.','#upload','음악 올리기'));
+ };
  const paintRelease=d=>{
-  addTracks(d.tracks);if(d.tracks.length){mountHomeCarousel(release,d.tracks.slice(0,6));displayed.add(release);release.removeAttribute('aria-busy');}else paint(release,empty('첫 음악의 주인공이 되어주세요.','당신의 음악으로 새로운 취향을 시작하세요.','#upload','음악 올리기'));
+  addTracks(d.tracks);featuredCatalog=d.tracks;paintFeatured();
   const more=$('#home-more');more.hidden=!d.tracks.length;paint(more,homeSection('최신곡','#charts/releases')+'<div class="home-music-grid">'+d.tracks.map(homeCard).join('')+'</div>');
  };
  const shelf=(id,title,href,d)=>{const target=$('#'+id),tracks=(d.tracks||[]).slice(0,12);addTracks(tracks);paint(target,homeSection(title,href)+(tracks.length?'<div class="home-music-grid">'+tracks.map(homeCard).join('')+'</div>':'<p class="home-empty-inline">아직 공개된 음악이 없어요.</p>'));};
- const paintDiscovery=d=>{shelf('home-recommended','추천 음악','#discover',{tracks:(d.tracks||[]).slice(0,6)});shelf('home-discovery','발견','#discover',{tracks:(d.tracks||[]).slice(6,12)});};
+ const paintDiscovery=d=>{featuredRecommended=d.tracks||[];paintFeatured();shelf('home-recommended','추천 음악','#discover',{tracks:(d.tracks||[]).slice(0,6)});shelf('home-discovery','발견','#discover',{tracks:(d.tracks||[]).slice(6,12)});};
  const paintChart=d=>{const target=$('#home-popular'),tracks=d.tracks||[];addTracks(tracks);paint(target,homeSection('인기 차트','#charts')+(tracks.length?homeChartHTML(tracks):'<p class="home-empty-inline">아직 집계된 음악이 없어요.</p>'));bindChartPlayback();};
  const paintSing=d=>{addTracks(d.tracks);paint($('#home-sing'),homeSingHTML(d.tracks));};
  const paintConversations=d=>shelf('home-conversations','같은 노래, 다른 목소리','#community/covers',{tracks:(d.tracks||[]).slice(0,6)});
@@ -172,7 +256,7 @@ function renderHome(ticket){
  for(const kind of ['artist','producer'])void loadProfiles(kind);
  const jobs=[['/api/catalog?section=tracks&limit=12',paintRelease,'home-release'],['/api/discovery?',paintDiscovery,'home-recommended'],['/api/catalog?section=tracks&chart=top&period=week&limit=12',paintChart,'home-popular'],['/api/karaoke',paintSing,'home-sing'],['/api/community?kind=cover',paintConversations,'home-conversations'],['/api/playlists?sort=popular',paintCurations,'home-curations']];
  for(const [path,show] of jobs){const cached=peekApiRead(path,{display:true});if(cached)show(cached);}
- const load=async([path,show,id])=>{const target=$('#'+id);try{const d=await api(path,'GET',undefined,{signal:controller.signal});if(!controller.signal.aborted&&id==='home-release'&&ticket===renderId&&target.isConnected&&revision!==apiRevision)return renderHome(ticket);if(active(target)){show(d);updateHomeAccount();}}catch{if(active(target)&&!displayed.has(target)){paint(target,'<div class="home-load-error"><p>음악을 불러오지 못했어요.</p><button class="small-button">다시 시도</button></div>');target.querySelector('button').onclick=()=>load([path,show,id]);if(id==='home-recommended')paint($('#home-discovery'),homeSection('발견','#discover')+'<a class="text-link" href="#discover">음악 둘러보기</a>');}}};
+ const load=async([path,show,id])=>{const target=$('#'+id);try{const d=await api(path,'GET',undefined,{signal:controller.signal});if(!controller.signal.aborted&&id==='home-release'&&ticket===renderId&&target.isConnected&&revision!==apiRevision)return renderHome(ticket);if(active(target)){show(d);updateHomeAccount();}}catch{if(active(target)){if(id==='home-recommended'){featuredRecommended??=[];paintFeatured();}if(id==='home-release'){featuredCatalog??=[];paintFeatured();}}if(active(target)&&!displayed.has(target)){paint(target,'<div class="home-load-error"><p>음악을 불러오지 못했어요.</p><button class="small-button">다시 시도</button></div>');target.querySelector('button').onclick=()=>load([path,show,id]);if(id==='home-recommended')paint($('#home-discovery'),homeSection('발견','#discover')+'<a class="text-link" href="#discover">음악 둘러보기</a>');}}};
  const first=load(jobs[0]);for(const job of jobs.slice(1)){
   // The optional singing/community bridge is currently hidden by design.
   if(['home-sing','home-conversations'].includes(job[2])&&$('#home-bridge')?.hidden)continue;

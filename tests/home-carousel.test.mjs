@@ -17,7 +17,7 @@ function setup(reduced=false){
  const c=vm.createContext({document,audio,current:null,window:{matchMedia:()=>motion,addEventListener:(n,f)=>globalEvents.set(n,f),removeEventListener:n=>globalEvents.delete(n)},setTimeout:(f,delay)=>{assert.ok([5500,850].includes(delay));(delay===850?fades:timers).set(++serial,f);return serial;},clearTimeout:id=>{timers.delete(id);fades.delete(id);},esc:String,icon:n=>n});
  vm.runInContext(readFileSync(new URL('../dist/home.js',import.meta.url),'utf8'),c);c.releaseHTML=t=>t.id;
  const tracks=['one','two','three'].map(id=>({id,title:id}));
- const mount=list=>c.mountHomeCarousel(root,list||tracks);
+ const mount=list=>c.mountFeatureCarousel(root,list||tracks,{coverflow:true});
  const fire=(name,e={})=>events.get(name)?.(e);
  const advance=()=>{const f=[...timers.values()][0];timers.clear();f?.();};
  return {c,root,stage,feature,dots,motion,document,events,globalEvents,timers,fades,outgoing,mount,fire,advance,audio,audioEvents,playButton};
