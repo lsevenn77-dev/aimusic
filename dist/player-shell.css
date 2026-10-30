@@ -130,4 +130,8 @@
 @container player-track (max-width:299px){.player #player-genre{display:none}}
 @container player-track (max-width:179px){.player .now-playing .player-credit{display:none}}
 .player[data-player-time-hidden=true] .player-clock{display:none}
+/* Below the minimum inline budget, lyrics stays reachable in the existing + panel. */
+.player[data-player-narrow=true] .player-controls{gap:0}
+.player[data-player-narrow=true] #player-utility-panel{width:100%}
+.player[data-player-narrow=true] .player-utility-buttons{flex-wrap:wrap}
 @media(prefers-reduced-motion:reduce){.player :is(button,a),.player svg{transition:none}}
