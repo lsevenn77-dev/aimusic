@@ -88,7 +88,7 @@
 #main .artist-directory .directory-list .directory-photo{width:72px;grid-row:1/3;margin:0}
 #main .artist-directory .directory-list .artist-portrait{width:72px;height:72px}
 #main .artist-directory .directory-list .directory-social{grid-column:3;grid-row:1/3;margin:0}
-#main .artist-directory.artist-directory-owned .directory-grid{grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-rows:1fr}
+#main .artist-directory.artist-directory-owned .directory-grid{grid-auto-rows:1fr}
 #main .artist-directory .directory-add-symbol{background:none;border:0;border-radius:0}
 #main .mp-artists-card{container-type:inline-size}
 #main .mp-artists-card .mp-artists{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-rows:1fr;gap:10px;align-items:stretch}
@@ -100,11 +100,11 @@
 #main .mp-artists-card .artist-ui-affiliation{font-size:12px;margin-bottom:0}
 #main .mp-artists-card .mp-artist-add{justify-content:center;cursor:pointer;min-height:160px}
 #main .mp-artists-card .mp-artist-add>svg{width:42px;height:42px;stroke-width:1;color:var(--ds-body)}
-@container(max-width:1039px){#main .artist-directory:not(.artist-directory-owned) .directory-grid:not(.directory-list){grid-template-columns:repeat(5,minmax(0,1fr))}}
-@container(max-width:899px){#main .artist-directory:not(.artist-directory-owned) .directory-grid:not(.directory-list){grid-template-columns:repeat(4,minmax(0,1fr))}}
-@container(max-width:719px){#main .artist-directory:not(.artist-directory-owned) .directory-grid:not(.directory-list){grid-template-columns:repeat(3,minmax(0,1fr))}}
+@container(max-width:1039px){#main .artist-directory .directory-grid:not(.directory-list){grid-template-columns:repeat(5,minmax(0,1fr))}}
+@container(max-width:899px){#main .artist-directory .directory-grid:not(.directory-list){grid-template-columns:repeat(4,minmax(0,1fr))}}
+@container(max-width:719px){#main .artist-directory .directory-grid:not(.directory-list){grid-template-columns:repeat(3,minmax(0,1fr))}}
 @container(max-width:539px){
- #main .artist-directory:not(.artist-directory-owned) .directory-grid:not(.directory-list),#main .artist-directory.artist-directory-owned .directory-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+ #main .artist-directory .directory-grid:not(.directory-list),#main .artist-directory.artist-directory-owned .directory-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
  #main .artist-directory .directory-artist{padding:12px 8px}
  #main .artist-directory .artist-portrait{width:100%;height:auto}
  #main .artist-directory .directory-name{font-size:16px}
@@ -115,6 +115,47 @@
  #main .artist-directory .directory-list .artist-portrait{width:60px;height:60px}
  #main .artist-directory .directory-list .directory-social{grid-column:2;grid-row:3;justify-content:flex-start}
 }
-@container(max-width:279px){#main .artist-directory:not(.artist-directory-owned) .directory-grid:not(.directory-list){grid-template-columns:minmax(0,1fr)}}
+@container(max-width:279px){#main .artist-directory .directory-grid:not(.directory-list){grid-template-columns:minmax(0,1fr)}}
 @media(max-width:600px){#main .mp-artists-card .mp-artists{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @container(max-width:239px){#main .mp-artists-card .mp-artists{grid-template-columns:minmax(0,1fr)}}
+
+/* This editor owns a native top-layer dialog, independent of shared popup layouts. */
+#directory-editor{position:fixed;inset:0;margin:auto;box-sizing:border-box;width:min(500px,calc(100vw - 24px));max-width:calc(100vw - 24px);height:fit-content;min-height:0;max-height:calc(100dvh - 24px);padding:20px;overflow:auto;overscroll-behavior:contain;border-radius:var(--ds-radius-card);color:var(--ds-text);font-size:14px}
+#directory-editor::backdrop{background:rgba(0,0,0,.65);backdrop-filter:none}
+body:has(#directory-editor[open]){overflow:hidden}
+#directory-editor>header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+#directory-editor h2{font-size:20px;margin:0;line-height:1.4}
+#directory-editor .dialog-close{position:static;width:44px;height:44px;min-height:44px;flex:none;margin:-10px -10px -10px 0;font-size:26px}
+#directory-editor .upload-form{display:grid;gap:12px;margin:0;padding:0;min-width:0}
+#directory-editor .form-field{display:flex;flex-direction:column;gap:6px;margin:0;min-width:0;font-size:13px}
+#directory-editor :is(input:not([type=checkbox]),select,textarea){box-sizing:border-box;width:100%;min-width:0;max-width:100%;font-size:14px;line-height:1.5;margin:0;padding:8px 10px}
+#directory-editor :is(input:not([type=checkbox]),select){height:42px;min-height:42px}
+#directory-editor textarea{height:76px;min-height:76px;resize:vertical}
+#directory-editor .field-help{font-size:11px;line-height:1.5;margin:0;color:var(--ds-body)}
+#directory-editor .image-field{display:grid;grid-template-columns:76px minmax(0,1fr);align-items:center;gap:12px;padding:0;border:0;background:none;margin:0}
+#directory-editor .image-preview{width:76px;height:76px;min-width:0;margin:0;flex:none}
+#directory-editor .image-preview img{width:100%;height:100%;object-fit:cover}
+#directory-editor .image-field-controls{min-width:0;display:grid;gap:6px}
+#directory-editor input[type=file]{padding:4px;line-height:32px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
+#directory-editor input[type=file]::file-selector-button{box-sizing:border-box;height:32px;min-height:0;padding:0 8px;margin:0 8px 0 0;vertical-align:top;font:inherit;line-height:30px;border-radius:6px}
+#directory-editor .image-selection:empty{display:none}
+#directory-editor .image-selection{font-size:11px;overflow-wrap:anywhere}
+#directory-editor .genre-field{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px 12px}
+#directory-editor .genre-field>.field-help{grid-column:1/-1}
+#directory-editor .directory-editor-pins{display:grid;gap:6px;min-width:0}
+#directory-editor .checkbox-line{display:flex;align-items:center;gap:8px;min-height:32px;margin:0;font-size:13px}
+#directory-editor input[type=checkbox]{width:16px;height:16px;min-height:0;flex:none;margin:0}
+#directory-editor .directory-editor-pin-row{display:flex;align-items:center;gap:6px;min-width:0}
+#directory-editor .directory-editor-pin-row>span{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
+#directory-editor .directory-editor-pin-row button{width:auto;min-height:36px;flex:none;padding:4px 8px;margin:0;font-size:12px}
+#directory-editor .form-error{margin:0;font-size:12px}
+#directory-editor .form-error:empty{display:none}
+#directory-editor footer{display:flex;justify-content:flex-end;padding:0;margin:0}
+#directory-editor footer .primary-button{width:auto;min-width:100px;min-height:42px;height:42px;padding:8px 16px;margin:0;font-size:14px}
+@media(max-width:600px){#directory-editor{padding:16px}#directory-editor .image-field{grid-template-columns:60px minmax(0,1fr);gap:10px}#directory-editor .image-preview{width:60px;height:60px}#directory-editor .genre-field{grid-template-columns:minmax(0,1fr)}#directory-editor .directory-editor-pin-row button{min-height:44px}}
+
+#directory-editor .directory-editor-pins{margin:0;padding:0}
+#directory-editor .directory-discard{position:sticky;bottom:0;padding:12px;border:1px solid var(--ds-line);border-radius:12px;background:var(--ds-panel);font-size:13px}
+#directory-editor .directory-discard p{margin:0 0 10px}
+#directory-editor .directory-discard>div{display:flex;justify-content:flex-end;gap:8px}
+#directory-editor .directory-discard button{width:auto;min-height:44px}
