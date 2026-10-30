@@ -1,0 +1,107 @@
+/* Home TOP 7 and full charts only. Explicit component sizes preserve the shell's
+   region scale. Both renderers retain their data, links and event attributes. */
+#main .song-table.song-table-chart.chart-ui{
+ --chart-row-height:68px;--chart-art-size:48px;--chart-title-size:17px;
+ --chart-rank-size:20px;--chart-stat-size:14px;--chart-copy-gap:12px;
+ --chart-cell-gap:8px;--chart-inset:12px;--chart-muted:var(--ds-muted);
+ --chart-grid:32px var(--chart-art-size) minmax(0,1fr) 56px 44px 76px 68px 60px 44px 44px;
+ --music-stat-icon:17px;--music-stat-plays:17px;--music-stat-number:var(--chart-stat-size);
+ display:block;container-type:inline-size;min-width:0;overflow:hidden;
+ border:1px solid rgba(160,185,210,.08);border-radius:14px;
+ background:var(--ds-panel);box-shadow:none;margin-block:var(--chart-copy-gap);
+}
+#main .song-table.song-table-chart.chart-ui--compact{
+ --chart-row-height:60px;--chart-art-size:42px;--chart-title-size:16px;
+ --chart-rank-size:18px;--chart-stat-size:13px;--chart-copy-gap:10px;
+ --chart-grid:28px var(--chart-art-size) minmax(0,1fr) 40px 64px 58px 52px 44px 44px;
+ margin:0;
+}
+#main .song-table.song-table-chart.chart-ui :is(.song-table-head,.song-table-row){
+ display:grid;grid-template-columns:var(--chart-grid);grid-template-rows:auto;
+ grid-column:auto;align-items:center;gap:0 var(--chart-cell-gap);
+ padding:0 var(--chart-inset);padding-inline:var(--chart-inset)!important;min-width:0;
+}
+#main .song-table.song-table-chart.chart-ui .song-table-head{
+ height:38px;padding-inline:var(--chart-inset)!important;font-size:calc(13px);font-weight:500;color:var(--chart-muted);
+ background:color-mix(in srgb,var(--ds-panel) 88%,var(--ds-muted));
+ border-bottom:1px solid rgba(160,185,210,.055);
+}
+#main .song-table.song-table-chart.chart-ui .song-table-head>span{
+ display:flex;align-items:center;justify-content:center;white-space:nowrap;grid-row:1;
+}
+#main .song-table.song-table-chart.chart-ui .song-table-head>span:nth-child(3){justify-content:flex-start}
+#main .song-table.song-table-chart.chart-ui--compact .song-table-head>span:nth-child(2){grid-column:2/4;justify-content:flex-start}
+#main .song-table.song-table-chart.chart-ui--compact .song-table-head>span:nth-child(3){grid-column:6}
+#main .song-table.song-table-chart.chart-ui--compact .song-table-head>span:nth-child(4){grid-column:7}
+#main .song-table.song-table-chart.chart-ui--compact .song-table-head>span:nth-child(5){grid-column:5;grid-row:1}
+#main .song-table.song-table-chart.chart-ui--compact .song-table-head>span:nth-child(6){grid-column:4;grid-row:1}
+#main .song-table.song-table-chart.chart-ui--compact .song-table-head>span:nth-child(7){grid-column:8;grid-row:1}
+#main .song-table.song-table-chart.chart-ui--compact .song-table-head>span:nth-child(8){grid-column:9;grid-row:1}
+#main .song-table.song-table-chart.chart-ui .song-table-row{
+ --list-thumb-size:var(--chart-art-size);box-sizing:border-box;height:var(--chart-row-height);min-height:var(--chart-row-height);
+ border:0;border-bottom:1px solid rgba(160,185,210,.055);border-radius:0;
+ background:transparent;box-shadow:none;transition:background-color 160ms ease;
+}
+#main .song-table.song-table-chart.chart-ui .song-table-row:last-child{border-bottom:0}
+#main .song-table.song-table-chart.chart-ui .song-table-row:is(:hover,:focus-within){background:rgba(142,221,210,.045);box-shadow:none;border-radius:0}
+#main .song-table.song-table-chart.chart-ui .song-table-row.is-chart-playing{background:rgba(142,221,210,.065);box-shadow:none}
+#main .song-table.song-table-chart.chart-ui .song-table-row>*{grid-column:auto;grid-row:1;margin:0;min-width:0}
+#main .song-table.song-table-chart.chart-ui .song-table-position{grid-column:1;width:auto;text-align:center;font-size:var(--chart-rank-size);font-weight:700;font-variant-numeric:tabular-nums}
+#main .song-table.song-table-chart.chart-ui .song-table-info{display:contents}
+#main .song-table.song-table-chart.chart-ui :is(.chart-art-wrap,.song-table-info>.song-table-cover){grid-column:2;width:var(--chart-art-size);height:var(--chart-art-size);display:block}
+#main .song-table.song-table-chart.chart-ui .mini-cover{width:var(--chart-art-size);height:var(--chart-art-size);min-width:var(--chart-art-size);max-width:var(--chart-art-size);min-height:var(--chart-art-size);max-height:var(--chart-art-size);flex:0 0 var(--chart-art-size);border-radius:7px;overflow:hidden}
+#main .song-table.song-table-chart.chart-ui :is(.chart-song-copy,.song-table-info>div){grid-column:3;display:flex;flex-flow:row nowrap;align-items:center;gap:var(--chart-copy-gap);overflow:hidden;min-width:0}
+#main .song-table.song-table-chart.chart-ui :is(.chart-song-title,.song-table-info>div>a){display:block;flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ds-text);font-size:var(--chart-title-size);line-height:1.4}
+#main .song-table.song-table-chart.chart-ui :is(.chart-song-title strong,.song-table-info strong){display:block;font-size:inherit;font-weight:600;line-height:1.4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#main .song-table.song-table-chart.chart-ui :is(.chart-song-credit,.song-table-info>div>span){display:block;flex:0 1 auto;max-width:40%;min-width:0;margin:0;font-size:calc(14px);font-weight:400;line-height:1.4;color:var(--chart-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#main .song-table.song-table-chart.chart-ui .chart-cover-count{display:block;grid-column:4;font-size:calc(13px);color:var(--chart-muted);text-align:center;white-space:nowrap}
+#main .song-table.song-table-chart.chart-ui .chart-movement{display:flex;grid-column:5;justify-content:center;align-items:center;width:auto;min-width:0;padding:0}
+#main .song-table.song-table-chart.chart-ui .chart-movement strong{display:inline-flex;gap:calc(4px);font-size:calc(13px)!important;font-weight:500;font-variant-numeric:tabular-nums}
+#main .song-table.song-table-chart.chart-ui .chart-direction{font-size:calc(9px)!important}
+#main .song-table.song-table-chart.chart-ui .chart-movement.up{color:#8EDDD2}
+#main .song-table.song-table-chart.chart-ui .chart-movement.down{color:var(--ds-social,#F4A8CE)}
+#main .song-table.song-table-chart.chart-ui .chart-movement:is(.same,.unavailable){color:var(--chart-muted)}
+#main .song-table.song-table-chart.chart-ui .song-table-stat{display:inline-flex;align-items:center;justify-content:center;gap:calc(5px);width:100%;min-width:0;padding:0;font-size:var(--chart-stat-size)!important;font-weight:500;line-height:1.4;white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--chart-muted)}
+#main .song-table.song-table-chart.chart-ui .song-table-plays{grid-column:6}
+#main .song-table.song-table-chart.chart-ui .song-table-like{grid-column:7;color:var(--ds-social,#F4A8CE)}
+#main .song-table.song-table-chart.chart-ui .song-table-like span{display:inline}
+#main .song-table.song-table-chart.chart-ui .song-table-comments{grid-column:8}
+#main .song-table.song-table-chart.chart-ui .song-table-play{display:inline-flex;grid-column:9;justify-self:center}
+#main .song-table.song-table-chart.chart-ui .song-table-tools{display:flex;grid-column:10;justify-content:center;justify-self:center;gap:0}
+#main .song-table.song-table-chart.chart-ui :is(.song-table-play,.song-table-tools .icon-button){box-sizing:border-box;width:44px;min-width:44px;height:44px;min-height:44px;padding:0;border:0;border-radius:0;background:none;box-shadow:none}
+#main .song-table.song-table-chart.chart-ui .song-table-play>svg{width:30px!important;height:30px!important;flex-basis:30px!important;padding:calc(6px)!important;border:1px solid currentColor!important;border-radius:50%!important;background:none!important;color:var(--chart-muted)}
+#main .song-table.song-table-chart.chart-ui [data-track-menu]>svg{width:18px!important;height:18px!important;flex-basis:18px!important;padding:0!important;border:0!important;border-radius:0!important;background:none!important;color:var(--chart-muted)}
+#main .song-table.song-table-chart.chart-ui :is(.song-table-play,[data-track-menu]):hover>svg{color:#8EDDD2}
+#main .song-table.song-table-chart.chart-ui :is(button,a):focus-visible{outline:2px solid var(--ds-selected);outline-offset:-2px}
+#main .song-table.song-table-chart.chart-ui :is(.chart-cover-play,.chart-mobile-covers){display:none!important}
+#main .song-table.song-table-chart.chart-ui--compact .chart-movement{grid-column:4}
+#main .song-table.song-table-chart.chart-ui--compact .song-table-plays{grid-column:5}
+#main .song-table.song-table-chart.chart-ui--compact .song-table-like{grid-column:6}
+#main .song-table.song-table-chart.chart-ui--compact .song-table-comments{grid-column:7}
+#main .song-table.song-table-chart.chart-ui--compact .song-table-play{grid-column:8}
+#main .song-table.song-table-chart.chart-ui--compact .song-table-tools{grid-column:9}
+#main .charts-final>h1{font-size:calc(26px);font-weight:700}
+#main .charts-final .chart-tabs .tab{font-size:calc(16px);font-weight:600}
+#main .charts-final .chart-meta :is(.chart-period-note,[data-browse-count]){font-size:calc(13px)}
+/* Query the table itself so home also adapts when its existing feature uses space. */
+@container(max-width:850px){
+ #main .song-table.song-table-chart.chart-ui :is(.song-table-row,.song-table-head){--chart-cell-gap:4px;--chart-inset:8px;--chart-grid:28px var(--chart-art-size) minmax(0,1fr) 48px 36px 64px 56px 52px 44px 44px}
+ #main .song-table.song-table-chart.chart-ui--compact :is(.song-table-row,.song-table-head){--chart-grid:24px var(--chart-art-size) minmax(0,1fr) 36px 58px 52px 48px 44px 44px}
+}
+@container(max-width:700px){
+ #main .song-table.song-table-chart.chart-ui :is(.song-table-row,.song-table-head){--chart-row-height:66px;--chart-art-size:42px;--chart-title-size:15px;--chart-rank-size:17px;--chart-grid:24px 42px minmax(0,1fr) 32px 44px 44px;--chart-cell-gap:6px}
+ #main .song-table.song-table-chart.chart-ui .song-table-head{display:none}
+ #main .song-table.song-table-chart.chart-ui .song-table-row :is(.song-table-stat,.chart-cover-count){display:none!important}
+ #main .song-table.song-table-chart.chart-ui :is(.chart-song-copy,.song-table-info>div){flex-direction:column;align-items:stretch;justify-content:center;gap:calc(2px)}
+ #main .song-table.song-table-chart.chart-ui :is(.chart-song-credit,.song-table-info>div>span){max-width:100%;font-size:calc(13px)}
+ #main .song-table.song-table-chart.chart-ui .chart-movement{grid-column:4}
+ #main .song-table.song-table-chart.chart-ui .song-table-play{grid-column:5}
+ #main .song-table.song-table-chart.chart-ui .song-table-tools{grid-column:6}
+}
+@container(max-width:380px){
+ #main .song-table.song-table-chart.chart-ui .song-table-row{--chart-grid:22px 42px minmax(0,1fr) 44px 44px;--chart-cell-gap:4px;--chart-inset:4px}
+ #main .song-table.song-table-chart.chart-ui .chart-movement{display:none}
+ #main .song-table.song-table-chart.chart-ui .song-table-play{grid-column:4}
+ #main .song-table.song-table-chart.chart-ui .song-table-tools{grid-column:5}
+}
+@media(prefers-reduced-motion:reduce){#main .song-table.song-table-chart.chart-ui .song-table-row{transition:none}}
