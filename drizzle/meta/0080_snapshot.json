@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "201529bf-fc27-47be-8bc6-4d5a59368499",
+  "id": "cbe7063c-2490-423f-bfdf-6b2a8dd5225d",
   "prevId": "a68cb5b9-9fea-4d6f-84c5-0afac3f67e34",
   "tables": {
     "account_file_deletions": {
@@ -760,15 +760,15 @@
     "artist_fan_likes": {
       "name": "artist_fan_likes",
       "columns": {
-        "post_id": {
-          "name": "post_id",
+        "user_id": {
+          "name": "user_id",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
-        "user_id": {
-          "name": "user_id",
+        "post_id": {
+          "name": "post_id",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
@@ -777,19 +777,6 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "artist_fan_likes_post_id_artist_fan_posts_id_fk": {
-          "name": "artist_fan_likes_post_id_artist_fan_posts_id_fk",
-          "tableFrom": "artist_fan_likes",
-          "tableTo": "artist_fan_posts",
-          "columnsFrom": [
-            "post_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
         "artist_fan_likes_user_id_users_id_fk": {
           "name": "artist_fan_likes_user_id_users_id_fk",
           "tableFrom": "artist_fan_likes",
@@ -802,15 +789,28 @@
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"
+        },
+        "artist_fan_likes_post_id_artist_fan_posts_id_fk": {
+          "name": "artist_fan_likes_post_id_artist_fan_posts_id_fk",
+          "tableFrom": "artist_fan_likes",
+          "tableTo": "artist_fan_posts",
+          "columnsFrom": [
+            "post_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
-        "artist_fan_likes_post_id_user_id_pk": {
+        "artist_fan_likes_user_id_post_id_pk": {
           "columns": [
-            "post_id",
-            "user_id"
+            "user_id",
+            "post_id"
           ],
-          "name": "artist_fan_likes_post_id_user_id_pk"
+          "name": "artist_fan_likes_user_id_post_id_pk"
         }
       },
       "uniqueConstraints": {},
@@ -847,13 +847,6 @@
           "notNull": true,
           "autoincrement": false
         },
-        "parent_id": {
-          "name": "parent_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
         "title": {
           "name": "title",
           "type": "text",
@@ -867,6 +860,13 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false
+        },
+        "parent_id": {
+          "name": "parent_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
           "autoincrement": false
         },
         "request_id": {
@@ -884,14 +884,6 @@
           "autoincrement": false,
           "default": 0
         },
-        "revision": {
-          "name": "revision",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 0
-        },
         "created": {
           "name": "created",
           "type": "integer",
@@ -899,15 +891,16 @@
           "notNull": true,
           "autoincrement": false
         },
-        "updated": {
-          "name": "updated",
+        "edited": {
+          "name": "edited",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false
+          "autoincrement": false,
+          "default": 0
         },
-        "deleted_at": {
-          "name": "deleted_at",
+        "deleted": {
+          "name": "deleted",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
@@ -930,6 +923,8 @@
           "columns": [
             "artist_id",
             "kind",
+            "parent_id",
+            "pinned",
             "created"
           ],
           "isUnique": false
@@ -969,10 +964,6 @@
         "artist_fan_kind": {
           "name": "artist_fan_kind",
           "value": "\"artist_fan_posts\".\"kind\" IN ('lounge','news')"
-        },
-        "artist_fan_pinned": {
-          "name": "artist_fan_pinned",
-          "value": "\"artist_fan_posts\".\"pinned\" IN (0,1)"
         }
       }
     },
@@ -1007,9 +998,9 @@
           "notNull": true,
           "autoincrement": false
         },
-        "body_snapshot": {
-          "name": "body_snapshot",
-          "type": "text",
+        "created": {
+          "name": "created",
+          "type": "integer",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
@@ -1021,31 +1012,16 @@
           "notNull": true,
           "autoincrement": false,
           "default": "'pending'"
-        },
-        "created": {
-          "name": "created",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
         }
       },
       "indexes": {
-        "artist_fan_reporter": {
-          "name": "artist_fan_reporter",
+        "artist_fan_report_once": {
+          "name": "artist_fan_report_once",
           "columns": [
             "post_id",
             "user_id"
           ],
           "isUnique": true
-        },
-        "artist_fan_reports_pending": {
-          "name": "artist_fan_reports_pending",
-          "columns": [
-            "status",
-            "created"
-          ],
-          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -1080,8 +1056,8 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "artist_fanpages": {
-      "name": "artist_fanpages",
+    "artist_fan_settings": {
+      "name": "artist_fan_settings",
       "columns": {
         "artist_id": {
           "name": "artist_id",
@@ -1089,14 +1065,6 @@
           "primaryKey": true,
           "notNull": true,
           "autoincrement": false
-        },
-        "revision": {
-          "name": "revision",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 0
         },
         "banner_version": {
           "name": "banner_version",
@@ -1114,17 +1082,17 @@
           "autoincrement": false,
           "default": "''"
         },
-        "desktop_x": {
-          "name": "desktop_x",
-          "type": "integer",
+        "focus_x": {
+          "name": "focus_x",
+          "type": "real",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
           "default": 50
         },
-        "desktop_y": {
-          "name": "desktop_y",
-          "type": "integer",
+        "focus_y": {
+          "name": "focus_y",
+          "type": "real",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
@@ -1132,7 +1100,7 @@
         },
         "mobile_x": {
           "name": "mobile_x",
-          "type": "integer",
+          "type": "real",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
@@ -1140,38 +1108,22 @@
         },
         "mobile_y": {
           "name": "mobile_y",
-          "type": "integer",
+          "type": "real",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
           "default": 50
         },
-        "photo_order": {
-          "name": "photo_order",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "'[]'"
-        },
-        "carousel_ids": {
-          "name": "carousel_ids",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "'[]'"
-        },
-        "intro": {
-          "name": "intro",
+        "introduction": {
+          "name": "introduction",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
           "default": "''"
         },
-        "style": {
-          "name": "style",
+        "concept": {
+          "name": "concept",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
@@ -1189,9 +1141,9 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "artist_fanpages_artist_id_artists_id_fk": {
-          "name": "artist_fanpages_artist_id_artists_id_fk",
-          "tableFrom": "artist_fanpages",
+        "artist_fan_settings_artist_id_artists_id_fk": {
+          "name": "artist_fan_settings_artist_id_artists_id_fk",
+          "tableFrom": "artist_fan_settings",
           "tableTo": "artists",
           "columnsFrom": [
             "artist_id"
@@ -1207,45 +1159,41 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "artist_operators": {
-      "name": "artist_operators",
+    "artist_photo_layout": {
+      "name": "artist_photo_layout",
       "columns": {
-        "artist_id": {
-          "name": "artist_id",
+        "photo_id": {
+          "name": "photo_id",
           "type": "text",
-          "primaryKey": false,
+          "primaryKey": true,
           "notNull": true,
           "autoincrement": false
         },
-        "user_id": {
-          "name": "user_id",
-          "type": "text",
+        "position": {
+          "name": "position",
+          "type": "integer",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false
+          "autoincrement": false,
+          "default": 0
+        },
+        "carousel": {
+          "name": "carousel",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
         }
       },
       "indexes": {},
       "foreignKeys": {
-        "artist_operators_artist_id_artists_id_fk": {
-          "name": "artist_operators_artist_id_artists_id_fk",
-          "tableFrom": "artist_operators",
-          "tableTo": "artists",
+        "artist_photo_layout_photo_id_artist_photos_id_fk": {
+          "name": "artist_photo_layout_photo_id_artist_photos_id_fk",
+          "tableFrom": "artist_photo_layout",
+          "tableTo": "artist_photos",
           "columnsFrom": [
-            "artist_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "artist_operators_user_id_users_id_fk": {
-          "name": "artist_operators_user_id_users_id_fk",
-          "tableFrom": "artist_operators",
-          "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
+            "photo_id"
           ],
           "columnsTo": [
             "id"
@@ -1254,17 +1202,14 @@
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {
-        "artist_operators_artist_id_user_id_pk": {
-          "columns": [
-            "artist_id",
-            "user_id"
-          ],
-          "name": "artist_operators_artist_id_user_id_pk"
-        }
-      },
+      "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "checkConstraints": {}
+      "checkConstraints": {
+        "artist_photo_carousel": {
+          "name": "artist_photo_carousel",
+          "value": "\"artist_photo_layout\".\"carousel\" IN (0,1)"
+        }
+      }
     },
     "artist_photos": {
       "name": "artist_photos",

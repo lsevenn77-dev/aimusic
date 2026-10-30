@@ -52,8 +52,10 @@ function renderPlayerActions(track){
   const width=player.clientWidth;if(!width)return;
   const style=getComputedStyle(player),available=width-parseFloat(style.paddingLeft)-parseFloat(style.paddingRight),gap=parseFloat(style.columnGap)||0;
   player.dataset.playerSmall=String(width<700);
+  player.dataset.playerNarrow=String(width<308);
   // Equal side columns fix the transport's visual centre. Measure live controls
   // in each presentation instead of estimating text widths or viewport breakpoints.
+  controls.insertBefore(lyrics,more);
   inline.append(actions);volumeBox.prepend(volumeToggle,volume);controls.insertBefore(utilityPanel,lyrics);
   transport.prepend(shuffleButton);transport.append(repeatButton);
   layout='compact';
@@ -69,6 +71,7 @@ function renderPlayerActions(track){
   if(layout==='compact'){
    if(shuffleButton.parentElement!==utilities)utilities.prepend(shuffleButton,repeatButton);
    utilities.prepend(volumeToggle,volume);
+   if(width<308)utilities.append(lyrics);
    if(utilityPanel.parentElement!==panel)panel.prepend(utilityPanel);
   }
   else {

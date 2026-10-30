@@ -116,7 +116,7 @@ function deleteTrackDialog(id,title,kind){
   saveQueue();$('#dialog').close();toast('곡이 삭제됐어요.');await refreshLibrary(true);await render();
  });
 }
-async function uploadFile(url,file,onprogress=()=>{},imageOptions){if(/\/api\/(?:studio\/(?:artists|producers)\/[^/]+\/image|(?:producers|artists)\/[^/]+\/gallery)$/.test(url))file=await cropPhoto(file,{shape:/\/image$/.test(url)?'circle':'square'});file=await optimizeUploadImage(file,imageOptions);invalidateReads();try{return await new Promise((resolve,reject)=>{
+async function uploadFile(url,file,onprogress=()=>{},imageOptions){if(!imageOptions?.preserveAspectRatio&&/\/api\/(?:studio\/(?:artists|producers)\/[^/]+\/image|(?:producers|artists)\/[^/]+\/gallery)$/.test(url))file=await cropPhoto(file,{shape:/\/image$/.test(url)?'circle':'square'});file=await optimizeUploadImage(file,imageOptions);invalidateReads();try{return await new Promise((resolve,reject)=>{
  const xhr=new XMLHttpRequest();let idle,stalled=false;const heartbeat=()=>{clearTimeout(idle);idle=setTimeout(()=>{stalled=true;xhr.abort();},120000);};
  xhr.open('PUT',url);xhr.timeout=15*60*1000;xhr.setRequestHeader('Content-Type',file.type||'application/octet-stream');
  xhr.upload.onprogress=e=>{heartbeat();if(e.lengthComputable)onprogress(e.loaded/e.total*100);};xhr.onloadend=()=>clearTimeout(idle);

@@ -15,8 +15,9 @@ export async function readImage(req){
  if(!valid)fail(400,'이미지 파일 형식이 올바르지 않습니다. JPG·PNG·WebP 파일을 다시 선택해주세요.');
  return {data,type};
 }
-export async function storeImage(req,env,kind,entityId){
+export async function storeImage(req,env,kind,entityId,validate){
  const {data,type}=await readImage(req),version=id(),key=`images/${kind}/${entityId}/${version}`;
+ if(validate)validate(data,type);
  await env.BUCKET.put(key,data,{httpMetadata:{contentType:type}});
  return {version,type};
 }

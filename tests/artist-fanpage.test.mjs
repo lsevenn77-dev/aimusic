@@ -3,92 +3,127 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {fixture} from './fixture.mjs';
+import {validateArtistBanner} from '../server/artist-banner-image.js';
 import worker from '../server/index.js';
-import {artistImageDimensions} from '../server/artist-images.js';
-
-const base='/api/artists/artist';
-test('settings reject visitors, foreign photos, excess selection, stale revisions and invalid focus',async t=>{
- const f=await fixture(t);
- assert.equal((await f.call(base+'/fanpage','PATCH',{revision:0},null)).status,401);
- assert.equal((await f.call(base+'/fanpage','PATCH',{revision:0},'other')).status,403);
- assert.equal((await f.call(base+'/fanpage','PATCH',{revision:0,carousel_ids:['foreign']})).status,400);
- for(let i=0;i<20;i++)f.sql.prepare('INSERT INTO artist_photos VALUES(?,?,?,?,?)').run('p'+i,'artist','v'+i,'image/png',i);
- assert.equal((await f.call(base+'/fanpage','PATCH',{revision:0,carousel_ids:Array.from({length:11},(_,i)=>'p'+i)})).status,400);
- assert.equal((await f.call(base+'/fanpage','PATCH',{revision:0,mobile_x:101})).status,400);
- const r=await f.call(base+'/fanpage','PATCH',{revision:0,carousel_ids:['p2','p1'],photo_order:['p2','p1'],intro:'소개',style:'팝',world:'세계관',desktop_x:30,mobile_y:70});assert.equal(r.status,200);
- assert.equal((await f.call(base+'/fanpage','PATCH',{revision:0,intro:'stale'})).status,409);
- const d=(await f.call(base)).body;assert.equal(d.gallery[0].id,'p2');assert.equal(d.gallery.length,20);assert.deepEqual(d.fanpage.carousel_ids,['p2','p1']);assert.equal(d.fanpage.mobile_y,70);
- f.sql.exec("INSERT INTO artist_operators VALUES('artist','other')");assert.equal((await f.call(base+'/fanpage','PATCH',{revision:1,intro:'approved'},'other')).status,200);
+const base='/api/artists/artist/fanpage';
+test('fanpage uploads preserve portrait originals while other photo uploads keep their crop flow',async()=>{
+ const source=readFileSync(new URL('../dist/actions.js',import.meta.url),'utf8'),start=source.indexOf('async function uploadFile('),end=source.indexOf('async function playlistDialog(',start),crops=[],sent=[];
+ class XHR{constructor(){this.upload={};this.status=201;this.responseText='{}';}open(){}setRequestHeader(){}send(file){sent.push(file);this.onload();this.onloadend();}}
+ const context={cropPhoto:async(file,options)=>{crops.push(options.shape);return {...file,cropped:true};},optimizeUploadImage:async file=>file,invalidateReads(){},XMLHttpRequest:XHR,setTimeout:()=>1,clearTimeout(){}};
+ vm.createContext(context);vm.runInContext(source.slice(start,end),context);const file={type:'image/webp',width:900,height:1200};
+ await context.uploadFile('/api/artists/artist/gallery',file,undefined,{preserveAspectRatio:true});assert.equal(sent[0],file);assert.equal(crops.length,0);
+ await context.uploadFile('/api/producers/producer/gallery',file);assert.equal(crops[0],'square');
+ await context.uploadFile('/api/studio/artists/artist/image',file);assert.equal(crops[1],'circle');
 });
-test('artist posts are separate from song comments and enforce authorship, official news, replies, pins, likes and reports',async t=>{
- const f=await fixture(t),url=base+'/posts',post={body:'응원합니다 <script>alert(1)</script>',request_id:'once'};
- assert.equal((await f.call(url,'POST',post,null)).status,401);
- assert.equal((await f.call(url,'POST',{...post,kind:'news',title:'무단 소식'},'other')).status,403);
- const created=await f.call(url,'POST',post,'other');assert.equal(created.status,201);const pid=created.body.id;
- assert.equal((await f.call(url,'POST',post,'other')).body.id,pid);
- assert.equal((await f.call(url,'POST',{...post,request_id:'duplicate'},'other')).status,409);
+test('fanpage owner settings, bounds, cross-artist access and legacy data preservation',async t=>{
+ const f=await fixture(t),settings={focus_x:25,focus_y:65,mobile_x:80,mobile_y:30,introduction:'소개',concept:'Pop',world:'세계관'};
+ assert.equal((await f.call(base,'PUT',settings,null)).status,401);assert.equal((await f.call(base,'PUT',settings,'other')).status,403);
+ assert.equal((await f.call(base,'PUT',{...settings,focus_x:101})).status,400);
+ assert.equal((await f.call(base,'PUT',settings)).status,200);
+ const d=(await f.call('/api/artists/artist','GET',null,null)).body;
+ assert.equal(d.fanpage.settings.mobile_x,80);assert.equal(d.fanpage.producer.id,'producer');assert.equal(d.tracks.length,3);assert.equal(d.can_manage,false);
+ assert.equal(f.sql.prepare('SELECT count(*) n FROM tracks').get().n,4);
+});
+test('gallery order and selection survive reload; ten selected maximum; legacy 30 photos kept',async t=>{
+ const f=await fixture(t);for(let i=0;i<30;i++)f.sql.prepare('INSERT INTO artist_photos VALUES(?,?,?,?,?)').run('p'+i,'artist','v'+i,'image/webp',i);
+ let gallery=(await f.call('/api/artists/artist')).body.gallery;assert.equal(gallery.length,30);assert.equal(gallery.filter(p=>p.carousel).length,10);
+ const photos=[...gallery].reverse().map((p,i)=>({id:p.id,carousel:i<3}));
+ assert.equal((await f.call(base+'/photos','PUT',{photos},'other')).status,403);
+ assert.equal((await f.call(base+'/photos','PUT',{photos:photos.map(p=>({...p,carousel:true}))})).status,400);
+ assert.equal((await f.call(base+'/photos','PUT',{photos:photos.slice(1)})).status,400);
+ assert.equal((await f.call(base+'/photos','PUT',{photos})).status,200);
+ gallery=(await f.call('/api/artists/artist')).body.gallery;assert.deepEqual(gallery.map(p=>p.id),photos.map(p=>p.id));assert.equal(gallery.filter(p=>p.carousel).length,3);
+ assert.equal((await f.call('/api/artists/artist/gallery')).body.limit,20);
+});
+test('lounge permissions, retry idempotency, duplicate prevention, replies, likes and reports',async t=>{
+ const f=await fixture(t),body={body:'<script>alert(1)</script>',request_id:'once',kind:'lounge'};
+ assert.equal((await f.call(base+'/posts','POST',body,null)).status,401);
+ const p=await f.call(base+'/posts','POST',body,'other');assert.equal(p.status,201);const pid=p.body.id;
+ assert.equal((await f.call(base+'/posts','POST',body,'other')).body.id,pid);
+ assert.equal((await f.call(base+'/posts','POST',{...body,request_id:'again'},'other')).status,409);
+ assert.equal((await f.call(base+'/posts/'+pid,'PUT',{body:'hijack'})).status,403);
+ assert.equal((await f.call(base+'/posts/'+pid+'/pin','PUT',{pinned:true},'other')).status,403);
+ assert.equal((await f.call(base+'/posts/'+pid+'/pin','PUT',{pinned:true})).status,200);
+ assert.equal((await f.call(base+'/posts/'+pid+'/like','PUT',{},'owner')).status,200);
+ assert.equal((await f.call(base+'/posts/'+pid+'/like','PUT',{},'owner')).status,200);
+ assert.equal((await f.call(base+'/posts/'+pid+'/report','POST',{reason:'spam'})).status,200);
+ assert.equal((await f.call(base+'/posts/'+pid+'/report','POST',{reason:'spam'})).status,200);
+ assert.equal(f.sql.prepare('SELECT count(*) n FROM artist_fan_reports').get().n,1);
+ assert.equal((await f.call(base+'/posts','POST',{kind:'lounge',body:'응원합니다',parent_id:pid,request_id:'reply'})).status,201);
+ let feed=(await f.call(base+'/posts')).body;assert.equal(feed.items.length,1);assert.equal(feed.items[0].likes,1);assert.equal(feed.items[0].replies,1);assert.equal(feed.items[0].pinned,1);
+ const replies=(await f.call(base+'/posts/'+pid+'/replies')).body;assert.equal(replies.items[0].official,1);
+ assert.equal((await f.call(base+'/posts/'+pid,'DELETE',null,'other')).status,200);
+ feed=(await f.call(base+'/posts')).body;assert.equal(feed.items[0].body,'');assert.equal(feed.items[0].deleted,1);
  assert.equal(f.sql.prepare('SELECT count(*) n FROM comments').get().n,0);
- assert.equal((await f.call(url+'/'+pid,'PATCH',{body:'변경',revision:0})).status,403);
- assert.equal((await f.call(url+'/'+pid,'PATCH',{body:'변경',revision:0},'other')).status,200);
- assert.equal((await f.call(url+'/'+pid,'PATCH',{body:'충돌',revision:0},'other')).status,409);
- assert.equal((await f.call(url+'/'+pid+'/pin','PATCH',{pinned:true},'other')).status,403);
- assert.equal((await f.call(url+'/'+pid+'/pin','PATCH',{pinned:true})).status,200);
- await f.call(url+'/'+pid+'/like','PUT');await f.call(url+'/'+pid+'/like','PUT');assert.equal(f.sql.prepare('SELECT count(*) n FROM artist_fan_likes').get().n,1);
- const reply=await f.call(url,'POST',{body:'감사해요',request_id:'reply',parent_id:pid});assert.equal(reply.status,201);
- assert.equal((await f.call(url,'POST',{body:'잘못된 답글',request_id:'nested',parent_id:reply.body.id})).status,400);
- await f.call(url+'/'+pid+'/report','POST',{reason:'스팸'});await f.call(url+'/'+pid+'/report','POST',{reason:'스팸'});assert.equal(f.sql.prepare('SELECT count(*) n FROM artist_fan_reports').get().n,1);
- const news=await f.call(url,'POST',{kind:'news',title:'신곡 발매',body:'새 앨범을 소개합니다',request_id:'news'});assert.equal(news.status,201);
- const list=(await f.call(url+'?kind=news')).body.posts;assert.equal(list.length,1);assert.equal(list[0].official,1);
- f.sql.exec("INSERT INTO artists(id,producer_id,name,created) VALUES('second','producer','Second',0)");assert.equal((await f.call('/api/artists/second/posts/'+pid,'DELETE')).status,404);
- assert.equal((await f.call(url+'/'+pid,'DELETE')).status,200);assert.equal((await f.call(url)).body.posts.length,0);assert.equal(f.sql.prepare('SELECT count(*) n FROM artist_fan_likes').get().n,0);
+ assert.equal((await f.call(base+'/posts/'+pid+'/like','PUT',{})).status,409);
 });
-test('posting is rate limited and blocking applies to posts and replies',async t=>{
- const f=await fixture(t);for(let i=0;i<6;i++)assert.equal((await f.call(base+'/posts','POST',{body:'응원 '+i,request_id:'r'+i},'other')).status,201);
- assert.equal((await f.call(base+'/posts','POST',{body:'도배',request_id:'spam'},'other')).status,429);
- f.sql.exec("INSERT INTO user_blocks VALUES('owner','other',0)");assert.equal((await f.call(base+'/posts','GET',null,'other')).status,403);
+test('official news ownership, pagination and cross-artist reply validation',async t=>{
+ const f=await fixture(t),news={kind:'news',title:'신곡',body:'발매 소식',request_id:'news'};
+ assert.equal((await f.call(base+'/posts','POST',news,'other')).status,403);
+ assert.equal((await f.call(base+'/posts','POST',news)).status,201);
+ assert.equal((await f.call(base+'/posts?kind=news')).body.items[0].official,1);
+ f.sql.exec("INSERT INTO artists(id,producer_id,name,created) VALUES('second','producer','Second',0)");
+ const parent=(await f.call(base+'/posts?kind=news')).body.items[0].id;
+ assert.equal((await f.call('/api/artists/second/fanpage/posts','POST',{body:'cross',kind:'news',parent_id:parent,request_id:'cross'})).status,400);
+ for(let i=0;i<25;i++)f.sql.prepare("INSERT INTO artist_fan_posts(id,artist_id,user_id,kind,body,request_id,created) VALUES(?,'artist','other','lounge','page',?,?)").run('page'+i,'page'+i,i);
+ const page=(await f.call(base+'/posts')).body;assert.equal(page.items.length,20);assert.equal(page.next,20);assert.equal((await f.call(base+'/posts?offset=20')).body.items.length,5);
 });
-test('banner upload validates bytes/dimensions and enforces owner, delete, version and fallback contracts',async t=>{
- const objects=new Map(),BUCKET={put:async(k,v)=>objects.set(k,v),delete:async k=>objects.delete(k),head:async k=>objects.has(k)?{size:objects.get(k).length,etag:k}:null,get:async k=>objects.has(k)?{body:objects.get(k)}:null},f=await fixture(t,{BUCKET});
- const png=readFileSync(new URL('../dist/assets/nova.png',import.meta.url));
- const send=async(who='owner',data=png)=>{const r=await worker.fetch(new Request('https://aifect.test'+base+'/banner',{method:'PUT',headers:{origin:'https://aifect.test','content-type':'image/png',...(who?{cookie:'aifect_session='+who}:{})},body:data}),{DB:f.DB,BUCKET},{waitUntil(){}});return {status:r.status,body:await r.json()};};
- assert.equal((await send(null)).status,401);assert.equal((await send('other')).status,403);assert.equal((await send('owner',new Uint8Array(12))).status,400);
- const tooBig=Buffer.from(png);tooBig.writeUInt32BE(9000,16);assert.equal((await send('owner',tooBig)).status,400);assert.equal(objects.size,0);
- const first=await send();assert.equal(first.status,200);const second=await send();assert.equal(objects.size,1);assert.notEqual(first.body.settings.banner_url,second.body.settings.banner_url);
- assert.equal((await f.call(base+'/banner','DELETE',null,'other')).status,403);assert.equal((await f.call(base+'/banner','DELETE')).status,200);assert.equal(objects.size,0);assert.equal((await f.call(base)).body.fanpage.banner_url,'');
- assert.deepEqual(artistImageDimensions(png,'image/png'),[1254,1254]);
+test('server validates banner dimensions, not just MIME or filename',()=>{
+ const png=new Uint8Array(45),v=new DataView(png.buffer);v.setUint32(16,1200);v.setUint32(20,800);assert.doesNotThrow(()=>validateArtistBanner(png,'image/png'));
+ v.setUint32(16,9000);assert.throws(()=>validateArtistBanner(png,'image/png'),/320~8000/);assert.throws(()=>validateArtistBanner(new Uint8Array(24),'image/webp'));
 });
-test('fanpage rendering handles photo counts and escapes all authored content',()=>{
- const context={document:{addEventListener(){}},icon:()=>'',portrait:()=>'',esc:s=>String(s??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;'),number:String,followed:()=>false,artistMusicList:()=>'',me:{id:'owner'}};
- vm.createContext(context);vm.runInContext(readFileSync(new URL('../dist/artist-fanpage.js',import.meta.url),'utf8'),context);
- for(const count of [0,1,3,10,20]){
-  const photos=Array.from({length:count},(_,i)=>({id:'p'+i,url:'/media/p'+i})),d={profile:{name:'<img onerror=evil>',bio:'소개'},tracks:[],followers:0,gallery:photos,fanpage:{carousel_ids:photos.slice(0,10).map(p=>p.id)},lounge:[{id:'post',name:'<script>',body:'<script>alert(1)</script>',created:1,kind:'lounge'}]};
-  const html=context.artistFanpageHTML(d,'artist','lounge');assert.equal((html.match(/class="fan-card"/g)||[]).length,Math.min(count,10));assert.doesNotMatch(html,/<script>/);assert.match(html,/&lt;script>/);assert.equal((html.match(/aria-current="page"/g)||[]).length,1);
-  const gallery=context.artistFanpageHTML(d,'artist','gallery');assert.equal((gallery.match(/class="artist-photo"/g)||[]).length,count);
+test('banner upload uses existing R2 storage, enforces ownership, versions and deletion',async t=>{
+ const objects=new Map(),BUCKET={put:async(k,v)=>objects.set(k,v),delete:async k=>objects.delete(k),head:async k=>objects.has(k)?{size:objects.get(k).length}:null,get:async k=>({body:objects.get(k)})};
+ const f=await fixture(t,{BUCKET}),photo=readFileSync(new URL('../dist/assets/nova.png',import.meta.url));
+ const upload=async(who,bytes=photo,type='image/png')=>worker.fetch(new Request('https://aifect.test'+base+'/banner',{method:'PUT',headers:{Origin:'https://aifect.test',...(who?{Cookie:'aifect_session='+who}:{}),'content-type':type},body:bytes}),{DB:f.DB,BUCKET},{waitUntil(){}});
+ assert.equal((await upload(null)).status,401);assert.equal((await upload('other')).status,403);assert.equal(objects.size,0);
+ assert.equal((await upload('owner',new Uint8Array(24),'image/webp')).status,400);assert.equal(objects.size,0);
+ assert.equal((await upload('owner')).status,200);const first=(await f.call(base)).body.settings.banner_version;assert.ok(first);
+ const image=await worker.fetch(new Request('https://aifect.test/media/artist-banner/artist?v='+first),{DB:f.DB,BUCKET},{waitUntil(){}});assert.equal(image.status,200);assert.match(image.headers.get('cache-control'),/immutable/);
+ assert.equal((await f.call(base+'/banner','DELETE',null,'other')).status,403);assert.equal((await f.call(base+'/banner','DELETE')).status,200);
+ assert.equal((await f.call(base)).body.settings.banner_version,'');
+});
+test('creator approves operators, badges and delegated rights; operators cannot grant rights',async t=>{
+ const f=await fixture(t);f.sql.exec("INSERT INTO producers(id,user_id,name,created) VALUES('operator-profile','other','Operator',0)");
+ assert.equal((await f.call(base+'/operators','PUT',{producer_id:'operator-profile'},'other')).status,403);
+ assert.equal((await f.call(base+'/operators','PUT',{producer_id:'operator-profile'})).status,200);
+ const page=(await f.call('/api/artists/artist','GET',null,'other')).body;assert.equal(page.can_manage,true);assert.equal(page.can_edit_portrait,false);assert.equal(page.fanpage.operators[0].name,'Operator');
+ assert.equal((await f.call(base+'/posts','POST',{kind:'news',title:'공식 소식',body:'공식 운영자 소식',request_id:'operator'},'other')).status,201);
+ assert.equal((await f.call(base+'/posts?kind=news')).body.items[0].operator,1);
+ assert.equal((await f.call(base+'/operators','DELETE',{producer_id:'operator-profile'})).status,200);
+ assert.equal((await f.call(base+'/posts','POST',{kind:'news',body:'권한 만료',request_id:'revoked'},'other')).status,403);
+ assert.equal((await f.call('/api/artists/artist','GET',null,'other')).body.can_manage,false);
+});
+test('carousel timer pauses for hover, focus, touch and reduced motion; loops once and cleans up',()=>{
+ class Element extends EventTarget{
+  constructor(){super();this.dataset={};this.style={};this.attrs={};}
+  setAttribute(k,v){this.attrs[k]=v;}
+  contains(){return false;}
+  hasAttribute(k){return k==='data-offset'?this.dataset.offset!==undefined:k in this.attrs;}
  }
+ const root=new Element(),carousel=new Element(),prev=new Element(),next=new Element(),pause=new Element(),counter=new Element(),doc=new Element(),media=new Element(),cards=Array.from({length:3},()=>new Element()),timers=new Map(),cleanups=[];
+ root.dataset.fanpage=JSON.stringify({aid:'artist',tab:'gallery',photos:[],settings:{},tracks:[]});root.isConnected=true;root.contains=()=>false;
+ root.querySelector=selector=>({'[data-fan-carousel]':carousel,'[data-fan-prev]':prev,'[data-fan-next]':next,'[data-fan-pause]':pause,'[data-fan-counter]':counter})[selector]||null;
+ root.querySelectorAll=selector=>selector==='[data-card-index]'?cards:[];doc.querySelector=()=>root;doc.hidden=false;media.matches=false;
+ let serial=0;const context={document:doc,icon:()=>'',AbortController,matchMedia:()=>media,registerRouteCleanup:fn=>{cleanups.push(fn);return fn;},setInterval(fn,ms){assert.equal(ms,5000);const key=++serial;timers.set(key,fn);return key;},clearInterval:key=>timers.delete(key),requestAnimationFrame:fn=>fn(),queueMicrotask:fn=>fn()};vm.createContext(context);vm.runInContext(readFileSync(new URL('../dist/artist-fanpage.js',import.meta.url),'utf8'),context);context.bindArtistFanpage();
+ const fire=(element,type,props={})=>element.dispatchEvent(Object.assign(new Event(type),props)),tick=()=>[...timers.values()].forEach(fn=>fn());
+ assert.equal(timers.size,1);assert.equal(counter.textContent,'01 / 03');tick();assert.equal(counter.textContent,'02 / 03');tick();tick();assert.equal(counter.textContent,'01 / 03');
+ fire(carousel,'pointerenter',{pointerType:'mouse'});assert.equal(timers.size,0);fire(carousel,'pointerleave');assert.equal(timers.size,1);
+ fire(carousel,'focusin');assert.equal(timers.size,0);fire(carousel,'focusout');assert.equal(timers.size,1);
+ fire(carousel,'pointerdown',{clientX:150,clientY:100});assert.equal(timers.size,0);fire(carousel,'pointerup',{clientX:40,clientY:110});assert.equal(counter.textContent,'02 / 03');
+ fire(prev,'click');assert.equal(counter.textContent,'01 / 03');fire(next,'click');assert.equal(counter.textContent,'02 / 03');
+ fire(pause,'click');assert.equal(timers.size,0);fire(pause,'click');assert.equal(timers.size,1);
+ media.matches=true;fire(media,'change');assert.equal(timers.size,0);media.matches=false;fire(media,'change');assert.equal(timers.size,1);
+ context.bindArtistFanpage();assert.equal(timers.size,1,'cached root replacement must dispose its previous timer');cleanups.forEach(fn=>fn());assert.equal(timers.size,0);context.bindArtistFanpage();assert.equal(timers.size,1);cleanups.at(-1)();assert.equal(timers.size,0);
 });
-
-test('legacy migration preserves 30 photos and selects only ten without overriding saved settings',async t=>{
- const f=await fixture(t);for(let i=0;i<30;i++)f.sql.prepare('INSERT INTO artist_photos VALUES(?,?,?,?,?)').run('p'+i,'artist','v'+i,'image/png',i);
- const migration=readFileSync(new URL('../drizzle/0081_artist_fanpage_photo_defaults.sql',import.meta.url),'utf8');f.sql.exec(migration);
- const s=(await f.call(base)).body;assert.equal(s.gallery.length,30);assert.equal(s.fanpage.carousel_ids.length,10);assert.equal(s.fanpage.carousel_ids[0],'p29');
- f.sql.exec("UPDATE artist_fanpages SET carousel_ids='[]',intro='custom'");f.sql.exec(migration);assert.equal((await f.call(base)).body.fanpage.intro,'custom');assert.equal((await f.call(base)).body.fanpage.carousel_ids.length,0);
-});
-
-test('carousel advances one card, loops, pauses for interaction/reduced motion, and cleans up each route',()=>{
- class Target{constructor(){this.events=new Map();}addEventListener(k,fn){if(!this.events.has(k))this.events.set(k,new Set());this.events.get(k).add(fn);}removeEventListener(k,fn){this.events.get(k)?.delete(fn);}fire(k,e={}){for(const fn of this.events.get(k)||[])fn(e);}}
- const document=new Target(),carousel=new Target(),reduced=new Target(),timers=new Map(),cleanups=[];let serial=0;
- const count={textContent:''},cards=Array.from({length:3},()=>({style:{setProperty(){}},dataset:{},setAttribute(){}}));
- carousel.querySelectorAll=()=>cards;carousel.querySelector=s=>s==='[data-fan-count]'?count:null;carousel.contains=()=>false;
- const root={dataset:{fanArtist:'artist'},querySelector:s=>s==='.fan-carousel'?carousel:null,querySelectorAll:()=>[]};document.querySelector=()=>root;reduced.matches=false;document.hidden=false;
- const context={document,matchMedia:()=>reduced,registerRouteCleanup:fn=>cleanups.push(fn),setInterval:(fn,ms)=>{assert.equal(ms,5000);timers.set(++serial,fn);return serial;},clearInterval:id=>timers.delete(id)};
- vm.createContext(context);vm.runInContext(readFileSync(new URL('../dist/artist-fanpage.js',import.meta.url),'utf8'),context);vm.runInContext("artistFanData={aid:'artist'}",context);context.bindArtistFanpage();
- assert.equal(timers.size,1);assert.equal(count.textContent,'01 / 03');
- [...timers.values()][0]();assert.equal(count.textContent,'02 / 03');[...timers.values()][0]();[...timers.values()][0]();assert.equal(count.textContent,'01 / 03');assert.equal(timers.size,1);
- carousel.fire('mouseenter');assert.equal(timers.size,0);carousel.fire('mouseleave');assert.equal(timers.size,1);
- carousel.fire('focusin');assert.equal(timers.size,0);carousel.fire('focusout');assert.equal(timers.size,1);
- carousel.fire('pointerdown',{pointerType:'touch',clientX:150,clientY:100});assert.equal(timers.size,0);document.fire('pointerup',{clientX:50,clientY:102});assert.equal(count.textContent,'02 / 03');assert.equal(timers.size,1);
- reduced.matches=true;reduced.fire('change');assert.equal(timers.size,0);reduced.matches=false;reduced.fire('change');assert.equal(timers.size,1);
- document.hidden=true;document.fire('visibilitychange');assert.equal(timers.size,0);document.hidden=false;document.fire('visibilitychange');assert.equal(timers.size,1);
- cleanups.pop()();assert.equal(timers.size,0);assert.equal(document.events.get('pointerup').size,0);
- cards.splice(1);context.bindArtistFanpage();assert.equal(timers.size,0);cleanups.pop()();assert.equal(carousel.events.get('mouseenter').size,0);
+test('photo counts, six tabs, XSS escaping and page-only compact music renderer',()=>{
+ const escape=v=>String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
+ const context={document:{addEventListener(){}},esc:escape,number:String,portrait:()=>'',followed:()=>false,icon:()=>'',list:()=>'',remember(){},liked:()=>false,cover:()=>''};vm.createContext(context);
+ for(const file of ['artist-gallery.js','artist-fanpage.js'])vm.runInContext(readFileSync(new URL('../dist/'+file,import.meta.url),'utf8'),context);
+ for(const count of [0,1,3,10,20]){
+  const d={profile:{name:'<script>x</script>',bio:'소개'},tracks:[],followers:2,gallery:Array.from({length:count},(_,i)=>({id:'p'+i,url:'/photo/'+i,carousel:i<10}))};
+  const home=context.artistPageHTML(d,'artist');assert.equal((home.match(/data-card-index=/g)||[]).length,Math.min(count,10));assert.equal((home.match(/aria-current="page"/g)||[]).length,1);assert.doesNotMatch(home,/<script>x/);
+  const gallery=context.artistPageHTML(d,'artist','gallery');assert.equal((gallery.match(/class="artist-photo"/g)||[]).length,count);
+ }
+ const css=readFileSync(new URL('../dist/list-actions.css',import.meta.url),'utf8');assert.match(css,/minmax\(0,220px\) 90px 110px/);
 });

@@ -76,3 +76,13 @@ test('long titles hide the clock first and a shorter title restores it on refres
  title.scrollWidth=400;f.resize(1024);assert.equal(f.e('.player').dataset.playerTimeHidden,'true');
  assert.equal(f.audio.currentTime,25);assert.equal(f.audio.paused,false);
 });
+
+test('only the narrowest player moves the same lyrics control into the existing options panel',()=>{
+ const f=fixture(),lyrics=f.e('#player-lyrics-toggle');
+ f.resize(256);assert.equal(f.e('.player').dataset.playerNarrow,'true');
+ assert.equal(lyrics.parentElement,f.e('.player-utility-buttons'));
+ f.click('#player-more');f.click('#player-lyrics-toggle');assert.equal(f.view(),'lyrics');
+ f.resize(390);assert.equal(f.e('.player').dataset.playerNarrow,'false');
+ assert.equal(lyrics.parentElement,f.e('.player-controls'));
+ assert.equal(f.audio.currentTime,25);assert.equal(f.audio.paused,false);
+});

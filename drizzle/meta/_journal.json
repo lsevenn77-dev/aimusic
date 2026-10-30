@@ -565,15 +565,15 @@
     {
       "idx": 80,
       "version": "6",
-      "when": 1793339312063,
-      "tag": "0080_square_blonde_phantom",
+      "when": 1793337980093,
+      "tag": "0080_artist_fanpage",
       "breakpoints": true
     },
     {
       "idx": 81,
       "version": "6",
-      "when": 1793339760188,
-      "tag": "0081_artist_fanpage_photo_defaults",
+      "when": 1793338521689,
+      "tag": "0081_artist_fan_operators",
       "breakpoints": true
     }
   ]

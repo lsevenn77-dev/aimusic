@@ -6,8 +6,8 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 
 test('public artist representative image editor is visible only to the owner',()=>{
- const context={document:{addEventListener(){}},heading:()=>'',portrait:()=>'<div>portrait</div>',esc:String,number:String,followed:()=>false,section:()=>'',list:()=>''};
- vm.createContext(context);vm.runInContext(readFileSync(new URL('../dist/artist-gallery.js',import.meta.url),'utf8'),context);
+ const context={document:{addEventListener(){}},heading:()=>'',portrait:()=>'<div>portrait</div>',esc:String,number:String,followed:()=>false,section:()=>'',list:()=>'',icon:()=>''};
+ vm.createContext(context);vm.runInContext(readFileSync(new URL('../dist/artist-fanpage.js',import.meta.url),'utf8'),context);vm.runInContext(readFileSync(new URL('../dist/artist-gallery.js',import.meta.url),'utf8'),context);
  const data={profile:{name:'Artist'},tracks:[],followers:0};
  assert.doesNotMatch(context.artistPageHTML(data,'artist'),/data-artist-image/);
  assert.match(context.artistPageHTML({...data,can_manage:true},'artist'),/data-artist-image="artist"/);
@@ -59,7 +59,7 @@ async function setup(t){
  const f=await fixture(t,{BUCKET});
  // A syntactically valid image container exercises the existing bounded image reader.
  const image=new Uint8Array(24);image.set([82,73,70,70]);new DataView(image.buffer).setUint32(4,16,true);image.set([87,69,66,80],8);
- const send=async(path,method='PUT',who='owner',data=readFileSync(new URL('../dist/assets/nova.png',import.meta.url)),type='image/png')=>{
+ const send=async(path,method='PUT',who='owner',data=image,type='image/webp')=>{
   const r=await worker.fetch(new Request('https://aifect.test'+path,{method,headers:{Origin:'https://aifect.test',...(who?{Cookie:'aifect_session='+who}:{}),'content-type':type},body:['PUT','POST'].includes(method)?data:undefined}),{DB:f.DB,BUCKET},{waitUntil(p){p.catch(()=>{});}});
   return {status:r.status,body:r.headers.get('content-type')?.includes('json')?await r.json():await r.arrayBuffer(),headers:r.headers};
  };
