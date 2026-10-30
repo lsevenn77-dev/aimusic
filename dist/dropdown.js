@@ -6,7 +6,7 @@
   const native=host instanceof HTMLSelectElement?host:null;
   const labelSources=native?Array.from(native.labels||[]):[];
   if(mounted.has(host))return mounted.get(host);
-  const wrap=document.createElement('span'),button=document.createElement('button'),label=document.createElement('span');
+  const wrap=document.createElement('div'),button=document.createElement('button'),label=document.createElement('span');
   wrap.className='aifect-dropdown';button.className='aifect-dropdown-trigger';button.type='button';
   label.className='aifect-dropdown-label';
   button.append(label);button.insertAdjacentHTML('beforeend','<svg class="aifect-dropdown-chevron" width="13" height="13" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>');
