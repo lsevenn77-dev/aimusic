@@ -66,3 +66,13 @@ test('live width budget switches labels, icons and overflow without losing the v
   assert.equal(f.e('#volume').parentElement,f.e(layout==='compact'?'.player-utility-buttons':'.player-volume-box'));
  }
 });
+
+test('long titles hide the clock first and a shorter title restores it on refresh',()=>{
+ const f=fixture(),find=f.context.document.querySelector,title={scrollWidth:400,clientWidth:250};
+ f.context.document.querySelector=s=>s==='.player-metadata strong'?title:find(s);
+ f.resize(1440);assert.equal(f.e('.player').dataset.playerTimeHidden,'true');
+ title.scrollWidth=100;f.context.window.AifectPlayerShell.refresh();
+ assert.equal(f.e('.player').dataset.playerTimeHidden,'false');
+ title.scrollWidth=400;f.resize(1024);assert.equal(f.e('.player').dataset.playerTimeHidden,'true');
+ assert.equal(f.audio.currentTime,25);assert.equal(f.audio.paused,false);
+});

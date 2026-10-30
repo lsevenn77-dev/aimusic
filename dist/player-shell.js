@@ -75,6 +75,10 @@ function renderPlayerActions(track){
    if(shuffleButton.parentElement!==transport){transport.prepend(shuffleButton);transport.append(repeatButton);}
    volumeBox.prepend(volumeToggle,volume);
   }
+  // Drop the clock before truncating a long title within the left information column.
+  const title=document.querySelector('.player-metadata strong');
+  player.dataset.playerTimeHidden='false';
+  if(title)player.dataset.playerTimeHidden=String(title.scrollWidth>title.clientWidth);
   paintView();
  }
  window.AifectPlayerShell={close:()=>setView('none'),refresh:()=>{measureLayout();paintModes();},paintModes,get scrubbing(){return scrubbing;}};
