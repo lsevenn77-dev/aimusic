@@ -9,18 +9,39 @@
 /* Labels provide layout; their actual control owns the border. */
 .form-field:has(> :is(input,textarea,select)) {border:0!important;outline:0!important;box-shadow:none!important}
 /* Search composites own one border around the icon, input and action. */
-:is(#global-search,.brand-search,.aifect-search,.search-large,.search-box,.ml-search-box,.play-search,.crew-discovery-search,.sing-collection-search,.hub-search,.cover-rank-search,.admin-search):has(input) {
+:is(#global-search,.brand-search,.aifect-search,.search-large,.search-box,.ml-search-box,.play-search,.crew-discovery-search,.crew-music-search,.sing-collection-search,.hub-search,.cover-rank-search,.admin-search):has(input) {
+ outline:0!important;box-shadow:none!important;filter:none!important;
+}
+:is(#global-search,.brand-search,.aifect-search,.search-large,.search-box,.ml-search-box,.play-search,.crew-discovery-search,.crew-music-search,.sing-collection-search,.hub-search,.cover-rank-search,.admin-search):has(input:focus-visible,input:focus) {
+ border-color:#8EDDD2!important;
+}
+:is(#global-search,.brand-search,.aifect-search,.search-large,.search-box,.ml-search-box,.play-search,.crew-discovery-search,.crew-music-search,.sing-collection-search,.hub-search,.cover-rank-search,.admin-search) input {
+ border:0!important;outline:0!important;box-shadow:none!important;
+}
+/* A custom textbox/combobox can itself wrap a native control. The outer
+   component owns the border in that case, just like a search composite. */
+:is([role=textbox],[role=combobox],[data-input-shell]):has(:is(input,textarea,select,[contenteditable=true])) {
  outline:0!important;box-shadow:none!important;
 }
-:is(#global-search,.brand-search,.aifect-search,.search-large,.search-box,.ml-search-box,.play-search,.crew-discovery-search,.sing-collection-search,.hub-search,.cover-rank-search,.admin-search):has(input:focus) {
- border:1px solid #8EDDD2!important;
-}
-:is(#global-search,.brand-search,.aifect-search,.search-large,.search-box,.ml-search-box,.play-search,.crew-discovery-search,.sing-collection-search,.hub-search,.cover-rank-search,.admin-search) input {
+:is([role=textbox],[role=combobox],[data-input-shell]):has(:focus) {border-color:#8EDDD2!important}
+:is([role=textbox],[role=combobox],[data-input-shell]) :is(input,textarea,select,[contenteditable=true]) {
  border:0!important;outline:0!important;box-shadow:none!important;
+}
+/* Borderless standalone editors still need a visible keyboard focus. Reserve
+   their single border before focus so the content does not move. */
+:where([contenteditable=true],[role=textbox],[role=combobox],[data-input-shell]):not(input,textarea,select) {
+ border:1px solid transparent;
+}
+/* Chat editors use a filled surface without a visible idle border. Reserve the
+   border inside their existing padding to retain dimensions and focus access. */
+:is(.dm-chat-panel,.crew-chat-panel) #chat-compose textarea {
+ border:1px solid transparent;padding:11px 13px;
 }
 /* Preserve error priority even while focused, with no second outline. */
 :is(input,textarea,select,[role=textbox],[role=combobox],[contenteditable=true]):is([aria-invalid=true],:user-invalid) {--input-focus-border:var(--ds-error,#f87171);border-color:var(--ds-error,#f87171)!important}
-:is(#global-search,.brand-search,.aifect-search,.search-large,.search-box,.ml-search-box,.play-search,.crew-discovery-search,.sing-collection-search,.hub-search,.cover-rank-search,.admin-search):has(input:is([aria-invalid=true],:user-invalid)) {border-color:var(--ds-error,#f87171)!important}
+:is(#global-search,.brand-search,.aifect-search,.search-large,.search-box,.ml-search-box,.play-search,.crew-discovery-search,.crew-music-search,.sing-collection-search,.hub-search,.cover-rank-search,.admin-search):has(input:is([aria-invalid=true],:user-invalid)) {border-color:var(--ds-error,#f87171)!important}
+:is([role=textbox],[role=combobox],[data-input-shell]):has(:is([aria-invalid=true],:user-invalid)) {border-color:var(--ds-error,#f87171)!important}
 @media(forced-colors:active){
  :is(input,textarea,select,[role=textbox],[role=combobox],[contenteditable=true]):focus{border-color:Highlight!important}
+ :is(#global-search,.brand-search,.aifect-search,.search-large,.search-box,.ml-search-box,.play-search,.crew-discovery-search,.crew-music-search,.sing-collection-search,.hub-search,.cover-rank-search,.admin-search,[role=textbox],[role=combobox],[data-input-shell]):has(:focus){border-color:Highlight!important}
 }

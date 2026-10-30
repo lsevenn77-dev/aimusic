@@ -46,10 +46,22 @@ test('selection count, zero-song disabling, rank order and reopening reset',asyn
  const h=client({range:'selected'});await h.c.chartPlaylistDialog({tracks:h.tracks,chartPeriod:'week'});
  assert.equal(h.button.disabled,true);assert.equal(h.picker.hidden,false);
  h.values.set('track_ids',['track-80','track-2','track-80']);h.form.onchange();
- assert.equal(h.button.disabled,false);assert.equal(h.counter.textContent,'3곡');
+ assert.equal(h.button.disabled,false);assert.equal(h.counter.textContent,'2곡');
  await h.form.onsubmit(h.event());assert.deepEqual(Array.from(h.calls[0].body.track_ids),['track-2','track-80']);
  h.values.set('range','all');h.values.set('track_ids',[]);await h.c.chartPlaylistDialog({tracks:h.tracks,chartPeriod:'month'});
  assert.equal(h.picker.hidden,true);assert.equal(h.counter.textContent,'0곡');
+});
+
+test('duplicate chart entries have one picker row, one total and one saved position',async()=>{
+ const h=client();await h.c.chartPlaylistDialog({tracks:[...h.tracks,h.tracks[0]],chartPeriod:'week'});
+ assert.match(h.c.html,/113곡/);assert.equal((h.c.html.match(/value="track-0"/g)||[]).length,1);
+ await h.form.onsubmit(h.event());assert.equal(h.calls[0].body.track_ids.length,113);
+});
+
+test('changing chart or period cannot submit the previous dialog snapshot',async()=>{
+ const h=client();await h.c.chartPlaylistDialog({tracks:h.tracks,chartPeriod:'week'});
+ h.c.renderId++;await h.form.onsubmit(h.event());assert.equal(h.calls.length,0);
+ assert.match(h.form.querySelector('.form-error').textContent,/차트가 변경/);
 });
 
 for(const kind of ['top','rising','releases','karaoke'])for(const period of ['week','month','all'])test(`${kind}/${period}: full results and selected songs persist in rank order`,async t=>{

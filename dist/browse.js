@@ -59,16 +59,19 @@ async function chartPlaylistDialog(view){const ticket=renderId;
  if(chartPlaylistOpening||chartPlaylistSaving||($('#dialog')?.open&&$('#chart-playlist-form')))return;
  if(!me){returnRoute=location.hash;return askLogin();}
  chartPlaylistOpening=true;
- const uid=me.id,tracks=view.tracks.map(t=>({...t})),name=`AIFECT ${chartKindLabels[view.chartKind||'']} 차트 · ${chartPeriodLabels[view.chartPeriod]}`;
+ // Use the full ranked API result held by the view, never DOM rows. Keep the
+ // first occurrence so the picker, displayed total and saved count agree.
+ const seen=new Set(),uid=me.id,tracks=view.tracks.filter(t=>t.id&&!seen.has(t.id)&&seen.add(t.id)).map(t=>({...t})),name=`AIFECT ${chartKindLabels[view.chartKind||'']} 차트 · ${chartPeriodLabels[view.chartPeriod]}`;
  try{
   await refreshLibrary(true);if(me?.id!==uid)return;
   if(!canCreatePlaylist())return;
   if(ticket!==renderId)return;dialog(`<section class="chart-playlist-dialog"><h2>차트로 플리 만들기</h2><form id="chart-playlist-form">${formField('플레이리스트 이름','name','text',name,'required maxlength="80"')}<fieldset class="chart-range"><legend>담을 곡</legend><label><input type="radio" name="range" value="selected" aria-controls="chart-track-picker"> 선택 지정 <span data-chart-selected-count aria-live="polite">0곡</span></label><label><input type="radio" name="range" value="all" checked> 차트 전체 <span>${number(tracks.length)}곡</span></label></fieldset><div id="chart-track-picker" class="chart-track-picker" hidden>${tracks.map((t,i)=>`<label class="chart-pick-row"><input type="checkbox" name="track_ids" value="${esc(t.id)}"><span class="chart-pick-rank">${t.chart_rank||i+1}</span><span class="chart-pick-copy"><strong>${esc(t.title||t.id)}</strong><small>${esc(t.artist||t.producer||'')}</small></span></label>`).join('')}</div><p class="field-help">선택한 차트의 순서대로 내 플레이리스트에 저장해요.</p><p class="form-error" role="alert"></p><div class="chart-dialog-actions"><button type="submit" class="small-button chart-confirm">만들기</button></div></form></section>`);
   const form=$('#chart-playlist-form'),modal=$('#dialog'),confirm=form.querySelector('[type="submit"]'),picker=form.querySelector('#chart-track-picker');let createdId=null;
-  const syncSelection=()=>{const selected=form.querySelector('[name="range"]:checked').value==='selected',count=form.querySelectorAll('[name="track_ids"]:checked').length;picker.hidden=!selected;form.querySelector('[data-chart-selected-count]').textContent=number(count)+'곡';confirm.disabled=!!form._busy||!(selected?count:tracks.length);};
+  const syncSelection=()=>{const fd=new FormData(form),selected=fd.get('range')==='selected',count=chartPlaylistIds(tracks,'selected',fd.getAll('track_ids')).length;picker.hidden=!selected;form.querySelector('[data-chart-selected-count]').textContent=number(count)+'곡';confirm.disabled=!!form._busy||!(selected?count:tracks.length);};
   form.onchange=syncSelection;syncSelection();
   const preventCancel=e=>{if(form._busy)e.preventDefault();};modal.addEventListener('cancel',preventCancel);modal.addEventListener('close',()=>modal.removeEventListener('cancel',preventCancel),{once:true});
   const submit=busyForm(form,async fd=>{
+   if(ticket!==renderId)throw Error('차트가 변경됐어요. 창을 다시 열어주세요.');
    if(me?.id!==uid)throw Error('계정이 변경됐어요. 창을 다시 열어주세요.');
    const ids=chartPlaylistIds(tracks,fd.get('range'),fd.getAll('track_ids'));
    if(!ids.length)throw Error('담을 곡이 없어요.');
