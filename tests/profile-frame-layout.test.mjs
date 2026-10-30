@@ -13,6 +13,8 @@ test('frame metadata wins, transparent bounds are measured once, unavailable art
  assert.deepEqual(bounds(),[0,0,1,1]);art.complete=true;
  assert.deepEqual(bounds(),[.5,.25,.75,.5]);assert.deepEqual(bounds(),[.5,.25,.75,.5]);assert.equal(reads,1);
  art.dataset.frameBounds='0.1,0.2,0.8,0.9';assert.deepEqual(bounds(),[.1,.2,.8,.9]);
+ art.dataset.frameBounds='-1,0,2,1';assert.deepEqual(bounds(),[.5,.25,.75,.5],'invalid metadata falls back to measured pixels');
+ art.dataset.frameBounds='.9,0,.2,1';assert.deepEqual(bounds(),[.5,.25,.75,.5],'inverted metadata cannot reserve negative space');
 });
 
 test('shared layout reserves asymmetric decoration clearance and resets after removal',()=>{

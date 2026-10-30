@@ -104,24 +104,26 @@ test('creator approves operators, badges and delegated rights; operators cannot 
  assert.equal((await f.call('/api/artists/artist','GET',null,'other')).body.can_manage,false);
 });
 test('carousel timer pauses for hover, focus, touch and reduced motion; loops once and cleans up',()=>{
+ const animations=[];const finishAnimations=()=>{for(const animation of animations.splice(0))if(!animation.paused)animation.finish();else animations.push(animation);};
  class Element extends EventTarget{
   constructor(){super();this.dataset={};this.style={};this.attrs={};}
   setAttribute(k,v){this.attrs[k]=v;}
   contains(){return false;}
   hasAttribute(k){return k==='data-offset'?this.dataset.offset!==undefined:k in this.attrs;}
-  animate(){return {pause(){},play(){},cancel(){}};}
+  animate(){const animation={paused:false,pause(){this.paused=true;},play(){this.paused=false;},cancel(){},finish(){this.onfinish?.();}};animations.push(animation);return animation;}
  }
  const root=new Element(),carousel=new Element(),prev=new Element(),next=new Element(),pause=new Element(),counter=new Element(),doc=new Element(),media=new Element(),cards=Array.from({length:3},()=>new Element()),timers=new Map(),cleanups=[];
  root.dataset.fanpage=JSON.stringify({aid:'artist',tab:'gallery',photos:[],settings:{},tracks:[]});root.isConnected=true;root.contains=()=>false;
  root.querySelector=selector=>({'[data-fan-carousel]':carousel,'[data-fan-prev]':prev,'[data-fan-next]':next,'[data-fan-pause]':pause,'[data-fan-counter]':counter})[selector]||null;
  root.querySelectorAll=selector=>selector==='[data-card-index]'?cards:[];doc.querySelector=()=>root;doc.hidden=false;media.matches=false;
  let serial=0,clock=0;const context={document:doc,performance:{now:()=>clock},getComputedStyle:()=>({transform:'none'}),icon:()=>'',AbortController,matchMedia:()=>media,registerRouteCleanup:fn=>{cleanups.push(fn);return fn;},setInterval(fn,ms){assert.equal(ms,5000);const key=++serial;timers.set(key,fn);return key;},clearInterval:key=>timers.delete(key),requestAnimationFrame:fn=>fn(),queueMicrotask:fn=>fn()};vm.createContext(context);vm.runInContext(readFileSync(new URL('../dist/artist-fanpage.js',import.meta.url),'utf8'),context);context.bindArtistFanpage();
- const fire=(element,type,props={})=>{clock+=1000;return element.dispatchEvent(Object.assign(new Event(type),props));},tick=()=>{clock+=5000;[...timers.values()].forEach(fn=>fn());};
+ const fire=(element,type,props={})=>{clock+=1000;finishAnimations();return element.dispatchEvent(Object.assign(new Event(type),props));},tick=()=>{clock+=5000;finishAnimations();[...timers.values()].forEach(fn=>fn());};
  assert.equal(timers.size,1);assert.equal(counter.textContent,'01 / 03');tick();assert.equal(counter.textContent,'02 / 03');tick();tick();assert.equal(counter.textContent,'01 / 03');
  fire(carousel,'pointerenter',{pointerType:'mouse'});assert.equal(timers.size,0);fire(carousel,'pointerleave');assert.equal(timers.size,1);
  fire(carousel,'focusin');assert.equal(timers.size,0);fire(carousel,'focusout');assert.equal(timers.size,1);
  fire(carousel,'pointerdown',{clientX:150,clientY:100});assert.equal(timers.size,0);fire(carousel,'pointerup',{clientX:40,clientY:110});assert.equal(counter.textContent,'02 / 03');
  fire(prev,'click');assert.equal(counter.textContent,'01 / 03');next.dispatchEvent(new Event('click'));assert.equal(counter.textContent,'01 / 03','ignore competing input during the transition');fire(next,'click');assert.equal(counter.textContent,'02 / 03');
+ doc.hidden=true;doc.dispatchEvent(new Event('visibilitychange'));clock+=10000;doc.hidden=false;doc.dispatchEvent(new Event('visibilitychange'));const held=counter.textContent;next.dispatchEvent(new Event('click'));assert.equal(counter.textContent,held,'a paused rear transition still owns its slot after tab restoration');finishAnimations();
  fire(pause,'click');assert.equal(timers.size,0);fire(pause,'click');assert.equal(timers.size,1);
  media.matches=true;fire(media,'change');assert.equal(timers.size,0);media.matches=false;fire(media,'change');assert.equal(timers.size,1);
  context.bindArtistFanpage();assert.equal(timers.size,1,'cached root replacement must dispose its previous timer');cleanups.forEach(fn=>fn());assert.equal(timers.size,0);context.bindArtistFanpage();assert.equal(timers.size,1);cleanups.at(-1)();assert.equal(timers.size,0);
@@ -132,7 +134,7 @@ test('photo counts, six tabs, XSS escaping and page-only compact music renderer'
  for(const file of ['artist-gallery.js','artist-fanpage.js'])vm.runInContext(readFileSync(new URL('../dist/'+file,import.meta.url),'utf8'),context);
  for(const count of [0,1,3,10,20]){
   const d={profile:{name:'<script>x</script>',bio:'소개'},tracks:[],followers:2,gallery:Array.from({length:count},(_,i)=>({id:'p'+i,url:'/photo/'+i,carousel:i<10}))};
-  const home=context.artistPageHTML(d,'artist');assert.equal((home.match(/data-card-index=/g)||[]).length,Math.min(count,10));assert.equal((home.match(/class="fan-card-float"/g)||[]).length,Math.min(count,10));assert.equal((home.match(/aria-current="page"/g)||[]).length,1);assert.doesNotMatch(home,/<script>x/);
+  const home=context.artistPageHTML(d,'artist');assert.equal((home.match(/data-card-index=/g)||[]).length,Math.min(count,10));assert.equal((home.match(/class="fan-card-float"/g)||[]).length,Math.min(count,10));assert.equal((home.match(/aria-current="page"/g)||[]).length,1);assert.doesNotMatch(home,/<script>x/);assert.match(home,/fan-home-columns/);assert.match(home,/fan-home-music/);assert.match(home,/fan-home-updates/);
   const gallery=context.artistPageHTML(d,'artist','gallery');assert.equal((gallery.match(/class="artist-photo"/g)||[]).length,count);
  }
  const css=readFileSync(new URL('../dist/list-actions.css',import.meta.url),'utf8');assert.match(css,/minmax\(0,220px\) 90px 110px/);

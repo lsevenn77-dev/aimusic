@@ -1,4 +1,7 @@
 .artist-fanpage{min-width:0;--fan-mint:#8EDDD2}
+.fan-home-columns{display:grid;grid-template-columns:minmax(0,1fr);gap:0}
+.fan-home-columns>div{min-width:0}
+@media(min-width:1100px){.fan-home-columns{grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:24px}}
 .artist-fanpage .fan-header{position:relative;isolation:isolate;min-height:220px;height:250px;display:flex;align-items:center;margin-bottom:8px;background:transparent;overflow:hidden}
 .fan-header-background{position:absolute;inset:0;z-index:-1;overflow:hidden;mask-image:linear-gradient(90deg,transparent,#000 18%,#000 82%,transparent);-webkit-mask-image:linear-gradient(90deg,transparent,#000 18%,#000 82%,transparent)}
 .fan-header-background img{width:100%;height:100%;object-fit:cover;object-position:var(--fan-focus);mask-image:linear-gradient(transparent,#000 18%,#000 72%,transparent);filter:brightness(.64)}

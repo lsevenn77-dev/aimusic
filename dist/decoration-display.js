@@ -80,7 +80,7 @@
   layoutProfileFrames();void refresh(true);
  });
  window.addEventListener('aifect:room-theme',()=>{themes.clear();void refresh(true);});
- setInterval(()=>{paintFrames();paintThemes();if(!document.hidden)void refresh();},1000);
+ setInterval(()=>{if(document.hidden)return;paintFrames();paintThemes();void refresh();},1000);
  schedule();
 })();
 
@@ -88,7 +88,7 @@
 const profileFrameBounds=new Map();
 function frameArtworkBounds(art){
  const metadata=art.dataset.frameBounds?.split(',').map(Number);
- if(metadata?.length===4&&metadata.every(Number.isFinite))return metadata;
+ if(metadata?.length===4&&metadata.every(n=>Number.isFinite(n)&&n>=0&&n<=1)&&metadata[0]<=metadata[2]&&metadata[1]<=metadata[3])return metadata;
  const key=art.currentSrc||art.src;
  if(profileFrameBounds.has(key))return profileFrameBounds.get(key);
  if(!art.complete||!art.naturalWidth)return [0,0,1,1];
