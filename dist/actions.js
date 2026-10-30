@@ -216,6 +216,7 @@ async function boot(){
  if(pendingResume)try{await resumeAfterLogin();}catch(e){toast(e.message);}
  await firstRender;
 }
+window.AifectRender?.connect(()=>render());
 icons();boot();
 
 async function reviewTrackDialog(id){const ticket=renderId;

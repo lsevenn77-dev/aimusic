@@ -5,13 +5,14 @@ import {readFileSync} from 'node:fs';
 const source=file=>readFileSync(new URL('../dist/'+file,import.meta.url),'utf8');
 const deferred=()=>{let resolve;const promise=new Promise(done=>resolve=done);return {resolve,promise};};
 
-test('direct fragment entry paints the destination before the main bundle while home keeps its public fallback',()=>{
- const script=source('index.html').match(/<script id="route-initial-content">([\s\S]*?)<\/script>/)?.[1];assert.ok(script);
- for(const [hash,title] of [['#song/one','곡 이야기'],['#profile','마이'],['#community','커뮤니티'],['#search/%3Cscript%3E','음악 검색']]){
-  const main={innerHTML:'SERVER HOME',setAttribute(){}};vm.runInNewContext(script,{location:{hash},document:{getElementById:()=>main}});
-  assert.doesNotMatch(main.innerHTML,/SERVER HOME|<script>/);assert.match(main.innerHTML,new RegExp(title));assert.match(main.innerHTML,/role="status"/);
+test('all direct fragments hide public HTML until the current app render is ready',()=>{
+ for(const hash of ['', '#home','#song/one','#profile','#community','#search/%3Cscript%3E']){
+  const root={dataset:{}},main={innerHTML:'PUBLIC MUSIC',setAttribute(){},removeAttribute(){}};
+  const c={location:{hash},document:{documentElement:root,getElementById:id=>id==='main'?main:null},window:{addEventListener(){}},setTimeout(){},clearTimeout(){}};
+  vm.runInNewContext(source('render-state.js'),c);c.window.AifectRender.mount();
+  assert.equal(root.dataset.renderState,'loading');assert.equal(main.inert,true);assert.equal(main.innerHTML,'PUBLIC MUSIC','SEO/no-JS content is retained behind the head gate');
+  const id=c.window.AifectRender.begin(hash,'',()=>{});main.innerHTML='CURRENT DESIGN';c.window.AifectRender.ready(id);assert.equal(root.dataset.renderState,'ready');assert.equal(main.inert,false);
  }
- for(const hash of ['','#home']){const main={innerHTML:'PUBLIC MUSIC'};vm.runInNewContext(script,{location:{hash},document:{getElementById:()=>main}});assert.equal(main.innerHTML,'PUBLIC MUSIC');}
 });
 
 test('a pending playlist dialog cannot reopen over a different route',async()=>{

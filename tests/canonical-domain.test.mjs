@@ -19,5 +19,5 @@ test('browser origin normalization preserves the login route behind a host-norma
  let target;const location={hostname:'wavv-music-design-lseve.sassy-auk-0975.chatgpt.site',pathname:'/',search:'?from=app',hash:'#account',replace:url=>target=url};
  vm.runInNewContext(script,{location});assert.equal(target,'https://aifect.co.kr/?from=app#account');
  target=undefined;location.hostname='aifect.co.kr';vm.runInNewContext(script,{location});assert.equal(target,undefined);
- const html=readFileSync(new URL('../dist/index.html',import.meta.url),'utf8');assert.match(html,/<head><script src="\/canonical-origin.js"><\/script>/);
+ const html=readFileSync(new URL('../dist/index.html',import.meta.url),'utf8');assert.match(html,/<head><meta charset="UTF-8"><!--INITIAL_RENDER_HEAD--><script src="\/canonical-origin.js"><\/script>/);
 });
