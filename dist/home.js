@@ -51,7 +51,6 @@ function mountHomeRail(target){
 }
 function homeHTML(){return `<div class="listening-home listening-home-v2 home-content-refresh">
  <section id="home-release" aria-label="추천 음악 배너" aria-busy="true">${homePlaceholder()}</section>
- <section id="home-library" class="listening-section">${homeSection('추천 플레이리스트','#collections')}<div id="home-curations" aria-busy="true"><p class="home-load-message" role="status">플레이리스트를 불러오고 있어요.</p></div></section>
  <section id="home-recommended" class="listening-section" aria-busy="true">${homeSection('추천 음악','#discover')}<p class="home-load-message">음악을 불러오고 있어요.</p></section>
  <section id="home-popular" class="listening-section" aria-busy="true">${homeSection('인기 차트','#charts')}</section>
  <section id="home-more" class="listening-section" hidden></section>
@@ -59,6 +58,7 @@ function homeHTML(){return `<div class="listening-home listening-home-v2 home-co
  <section id="home-discovery" class="listening-section" aria-busy="true">${homeSection('발견','#discover')}</section>
  ${homeProfileSection('producer','주목할 작곡가','#producers?sort=popular')}
  <div id="home-bridge" class="home-bridge" hidden><section id="home-sing" class="listening-section" aria-busy="true">${homeSection('이번엔 내 목소리로','#karaoke')}</section><section id="home-conversations" class="listening-section" aria-busy="true">${homeSection('같은 노래, 다른 목소리','#community/covers')}</section></div>
+ <section id="home-library" class="listening-section">${homeSection('추천 플레이리스트','#collections')}<div id="home-curations" aria-busy="true"><p class="home-load-message" role="status">플레이리스트를 불러오고 있어요.</p></div></section>
  </div>`;}
 // Escape each run before adding markup; keep Latin glyphs at the original size.
 function homeFeatureTitle(title){

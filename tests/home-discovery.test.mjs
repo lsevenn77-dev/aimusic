@@ -43,7 +43,7 @@ test('home cards expose only profile identity and playlist metadata, preserving 
  assert.match(html,/href="#producer\/real-id"/);assert.match(html,/긴 이름 &lt;실제&gt;/);assert.match(html,/partner-badge/);
  assert.doesNotMatch(html,/999|888|Rock|data-profile-preview|tabindex|rank|팔로워/);
  assert.match(c.avatarImage(p,'producer'),/data-profile-preview/);
- const home=c.homeHTML(),order=['home-library','home-recommended','home-popular','home-more','home-artists','home-discovery','home-producers'];for(let i=1;i<order.length;i++)assert.ok(home.indexOf('id="'+order[i-1]+'"')<home.indexOf('id="'+order[i]+'"'));assert.match(home,/주목할 작곡가/);assert.doesNotMatch(home,/내 플레이리스트|home-own-playlists|주목할만한 작곡가/);
+ const home=c.homeHTML(),order=['home-recommended','home-popular','home-more','home-artists','home-discovery','home-producers','home-bridge','home-library'];for(let i=1;i<order.length;i++)assert.ok(home.indexOf('id="'+order[i-1]+'"')<home.indexOf('id="'+order[i]+'"'));assert.match(home,/주목할 작곡가/);assert.doesNotMatch(home,/내 플레이리스트|home-own-playlists|주목할만한 작곡가/);
  const playlist=c.homePlaylistCard({id:'real-playlist',name:'선곡',description:'기존 소개',tracks:2,is_public:1,covers:[]});
  for(const text of ['#playlist/real-playlist','data-home-playlist="real-playlist"','기존 소개','2곡 · 공개'])assert.ok(playlist.includes(text));
 });

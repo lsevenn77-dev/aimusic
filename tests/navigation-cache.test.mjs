@@ -467,6 +467,6 @@ test('home continues down through full music grids and optional discovery sectio
  assert.equal(c.section('home-popular').hidden,false);assert.match(c.section('home-popular').innerHTML,/Song 6/);assert.doesNotMatch(c.section('home-popular').innerHTML,/Song 7|Song 11/);
  assert.equal(c.section('home-discovery').hidden,false);assert.match(c.section('home-discovery').innerHTML,/Song 11/);
  assert.match(c.section('home-recommended').innerHTML,/Song 5/);
- const html=c.main.innerHTML;assert.ok(html.indexOf('id="home-popular"')<html.indexOf('id="home-more"'));assert.ok(html.indexOf('id="home-library"')<html.indexOf('id="home-sing"'));
+ const html=c.main.innerHTML;assert.ok(html.indexOf('id="home-popular"')<html.indexOf('id="home-more"'));assert.ok(html.indexOf('id="home-conversations"')<html.indexOf('id="home-library"'));
  assert.doesNotMatch(c.section('home-more').innerHTML,/browse-rail/);
 });
