@@ -11,10 +11,10 @@ function ownedArtistDirectory(d,pins,pid){
  const owner=!!pins.can_manage&&me?.id===d.profile.user_id;
  return `<section class="artist-directory artist-directory-owned" data-can-manage="${owner}"><header class="directory-heading"><div><h1>소속 아티스트</h1><p>${owner?'내가 제작하고 관리하는 AI 아티스트입니다.':esc(d.profile.name)+'의 AI 아티스트입니다.'}</p></div><div class="directory-controls"><span>총 ${number(d.artists.length)}명</span>${owner?`<button type="button" class="primary-button directory-add" data-mp-artist-add>${icon('plus',18)} 아티스트 추가</button>`:''}</div></header><div class="directory-grid">${d.artists.map(a=>directoryArtistCard(a,{owner,producerName:d.profile.name})).join('')}${owner?`<button type="button" class="directory-artist artist-ui-card directory-add-card" data-mp-artist-add><span class="directory-add-symbol">${icon('plus',56)}</span><strong>아티스트 추가</strong><span>새로운 AI 아티스트를 생성하고<br>나만의 음악 세계를 확장해보세요.</span></button>`:''}</div>${!d.artists.length&&!owner?'<p class="directory-empty">등록된 아티스트가 없어요.</p>':''}</section>`;
 }
-function publicArtistDirectory(d,raw){
- const q=new URLSearchParams(raw.split('?')[1]||''),view=q.get('view')==='list'?'list':'grid',sort=d.sort||'popular';
- const href=(v=view,s=sort,o=0)=>'#artists?'+new URLSearchParams({sort:s,view:v,offset:o});
- return `<section class="artist-directory"><header class="directory-heading"><div><h1>AI 아티스트</h1><p>다양한 AI 아티스트의 음악을 만나보세요.</p></div><div class="directory-controls"><span>총 ${number(d.total)}명</span><select data-directory-sort aria-label="아티스트 정렬"><option value="popular" ${sort==='popular'?'selected':''}>인기순</option><option value="recent" ${sort==='recent'?'selected':''}>최신순</option></select><nav class="directory-views" aria-label="아티스트 보기"><a href="${esc(href('grid',sort,d.offset))}" aria-label="그리드 보기" ${view==='grid'?'aria-current="true"':''}>${icon('grid',24)}</a><a href="${esc(href('list',sort,d.offset))}" aria-label="리스트 보기" ${view==='list'?'aria-current="true"':''}>${icon('list',24)}</a></nav></div></header>${d.artists.length?`<div class="directory-grid ${view==='list'?'directory-list':''}">${d.artists.map(a=>directoryArtistCard(a)).join('')}</div>`:'<p class="directory-empty">아직 공개된 AI 아티스트가 없어요.</p>'}<nav class="directory-pagination" aria-label="아티스트 페이지">${d.offset?`<a class="small-button" href="${esc(href(view,sort,Math.max(0,d.offset-50)))}">이전</a>`:''}${d.nextOffset!==null?`<a class="small-button" href="${esc(href(view,sort,d.nextOffset))}">다음</a>`:''}</nav></section>`;
+function publicArtistDirectory(d){
+ const sort=d.sort||'popular';
+ const href=o=>'#artists?'+new URLSearchParams({sort,offset:o});
+ return `<section class="artist-directory"><header class="directory-heading"><div><h1>AI 아티스트</h1><p>다양한 AI 아티스트의 음악을 만나보세요.</p></div><div class="directory-controls"><span>총 ${number(d.total)}명</span><select data-directory-sort aria-label="아티스트 정렬"><option value="popular" ${sort==='popular'?'selected':''}>인기순</option><option value="recent" ${sort==='recent'?'selected':''}>최신순</option></select></div></header>${d.artists.length?`<div class="directory-grid">${d.artists.map(a=>directoryArtistCard(a)).join('')}</div>`:'<p class="directory-empty">아직 공개된 AI 아티스트가 없어요.</p>'}<nav class="directory-pagination" aria-label="아티스트 페이지">${d.offset?`<a class="small-button" href="${esc(href(Math.max(0,d.offset-50)))}">이전</a>`:''}${d.nextOffset!==null?`<a class="small-button" href="${esc(href(d.nextOffset))}">다음</a>`:''}</nav></section>`;
 }
 // Draft pin operations use the same ordered IDs and three-artist limit as the API.
 function directoryPinChange(ids,id,action){
@@ -72,7 +72,7 @@ async function openDirectoryEditor(a,d,trigger){
 }
 document.addEventListener('change',e=>{
  if(!e.target.matches('[data-directory-sort]'))return;
- const q=new URLSearchParams(location.hash.split('?')[1]||'');q.set('sort',e.target.value);q.set('offset','0');location.hash='artists?'+q;
+ const q=new URLSearchParams(location.hash.split('?')[1]||'');q.delete('view');q.set('sort',e.target.value);q.set('offset','0');location.hash='artists?'+q;
 });
 document.addEventListener('click',async e=>{
  const button=e.target.closest('[data-directory-edit]');if(!button)return;e.preventDefault();button.disabled=true;

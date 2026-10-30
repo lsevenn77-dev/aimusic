@@ -8,10 +8,6 @@
 #main .artist-directory .directory-add{min-height:42px;padding:9px 18px;font-size:14px;gap:8px;border-radius:10px;white-space:nowrap}
 #main .artist-directory .directory-add>svg{width:18px;height:18px}
 #main .artist-directory select{min-height:40px;width:126px;padding:8px 14px;border:1px solid var(--ds-border);border-radius:24px;background:var(--ds-bg);color:var(--ds-text);font:inherit}
-.artist-directory .directory-views{display:flex;gap:4px;align-items:center}
-.artist-directory .directory-views a{display:grid;place-items:center;width:40px;height:44px;color:var(--ds-muted);border-radius:8px}
-.artist-directory .directory-views a[aria-current]{color:var(--ds-selected);background:var(--ds-panel)}
-.artist-directory .directory-views svg{width:24px;height:24px}
 .artist-directory .directory-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:16px;align-items:stretch}
 .artist-directory .directory-artist{min-width:0;display:flex;flex-direction:column;align-items:center;text-align:center;padding:18px 12px 16px;border:1px solid var(--line);border-radius:12px;background:var(--ds-panel);box-shadow:none;min-height:286px}
 .artist-directory .directory-photo{display:block;flex:none;margin:0 0 10px;max-width:100%}
@@ -43,18 +39,10 @@
 .artist-directory .directory-pin-row>a{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:auto}
 .artist-directory .directory-empty{padding:32px 16px;text-align:center;color:var(--ds-body);font-size:14px}
 .artist-directory .directory-pagination{display:flex;justify-content:center;gap:12px;margin-top:24px}
-.artist-directory .directory-list{grid-template-columns:minmax(0,1fr)}
-.artist-directory .directory-list .directory-artist{display:grid;grid-template-columns:72px minmax(0,1fr) 140px 104px;grid-template-rows:auto auto;gap:4px 20px;text-align:left;min-height:104px;padding:16px 20px;align-items:center}
-.artist-directory .directory-list .directory-photo{grid-row:1/3;margin:0}
-#main .artist-directory .directory-list .artist-portrait{width:72px;height:72px}
-.artist-directory .directory-list .directory-name{justify-content:flex-start;align-self:end}
-.artist-directory .directory-list .directory-creator{grid-column:2;grid-row:2;margin:0;align-self:start}
-.artist-directory .directory-list .directory-followers{grid-column:3;grid-row:1/3;margin:0}
-.artist-directory .directory-list .directory-follow{grid-column:4;grid-row:1/3;margin:0;justify-self:end}
-@container(max-width:999px){.artist-directory .directory-grid:not(.directory-list){grid-template-columns:repeat(4,minmax(0,1fr))}}
-@container(max-width:799px){.artist-directory .directory-grid:not(.directory-list){grid-template-columns:repeat(3,minmax(0,1fr))}}
-@container(max-width:579px){.artist-directory .directory-grid:not(.directory-list){grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.artist-directory .directory-artist{padding:16px 10px;min-height:278px}#main .artist-directory .artist-portrait{width:116px;height:116px}.artist-directory .directory-controls{gap:8px;margin-left:0;width:100%;justify-content:flex-start}.artist-directory .directory-heading{gap:14px}.artist-directory h1{font-size:26px}.artist-directory .directory-controls>span{margin-right:auto}.artist-directory .directory-list .directory-artist{grid-template-columns:60px minmax(0,1fr) 92px;gap:4px 10px;min-height:112px;padding:12px}#main .artist-directory .directory-list .artist-portrait{width:60px;height:60px}.artist-directory .directory-list .directory-followers{grid-column:2;grid-row:3;font-size:12px}.artist-directory .directory-list .directory-photo{grid-row:1/4}.artist-directory .directory-list .directory-follow{grid-column:3;grid-row:1/4;padding:4px 8px}.artist-directory .directory-list .directory-name{font-size:16px}.artist-directory .directory-list .directory-creator{font-size:12px}}
-@container(max-width:319px){.artist-directory .directory-grid:not(.directory-list){grid-template-columns:minmax(0,1fr)}}
+@container(max-width:999px){.artist-directory .directory-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@container(max-width:799px){.artist-directory .directory-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@container(max-width:579px){.artist-directory .directory-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.artist-directory .directory-artist{padding:16px 10px;min-height:278px}#main .artist-directory .artist-portrait{width:116px;height:116px}.artist-directory .directory-controls{gap:8px;margin-left:0;width:100%;justify-content:flex-start}.artist-directory .directory-heading{gap:14px}.artist-directory h1{font-size:26px}.artist-directory .directory-controls>span{margin-right:auto}}
+@container(max-width:319px){.artist-directory .directory-grid{grid-template-columns:minmax(0,1fr)}}
 @media(pointer:coarse){.artist-directory .directory-name button{width:36px;min-height:44px}}
 
 #main .artist-directory .directory-add{min-height:42px!important}
@@ -70,7 +58,7 @@
 #main :is(.artist-directory,.mp-artists-card) .artist-ui-card::before,#main :is(.artist-directory,.mp-artists-card) .artist-ui-card::after{content:none;display:none}
 #main .artist-ui-affiliation{color:#BB9AD7;font-size:13px;font-weight:400;line-height:1.5;margin:4px 0 8px;max-width:100%;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #main .artist-ui-affiliation>span{color:#BB9AD7}
-#main .artist-directory .directory-grid:not(.directory-list){grid-template-columns:repeat(6,minmax(0,1fr))}
+#main .artist-directory .directory-grid{grid-template-columns:repeat(6,minmax(0,1fr))}
 #main .artist-directory .directory-artist{min-height:0;padding:var(--artist-card-padding)}
 #main .artist-directory .directory-photo{width:100%;margin-bottom:10px}
 #main .artist-directory .artist-portrait{width:100%;height:auto;aspect-ratio:1;border-radius:10px}
@@ -78,19 +66,6 @@
 #main .artist-directory .directory-social{display:flex;align-items:center;justify-content:center;gap:8px;max-width:100%;min-width:0;margin-top:2px}
 #main .artist-directory .directory-followers{font-size:12px;min-width:0;overflow:hidden;text-overflow:ellipsis;margin:0}
 #main .artist-directory .directory-follow{gap:4px;font-size:12px;padding-inline:8px;min-width:0;margin:0;background:linear-gradient(105deg,#8EDDD2,var(--ds-lilac) 55%,#F4C9DE);color:var(--ds-ink)}
-/* State styling never paints a wrapper/button rectangle, including pseudo-elements. */
-#main .artist-directory .directory-views,
-#main .artist-directory .directory-views a{background:transparent!important;background-image:none!important;border:0!important;box-shadow:none!important;outline:0!important;filter:none!important}
-#main .artist-directory .directory-views::before,#main .artist-directory .directory-views::after,
-#main .artist-directory .directory-views a::before,#main .artist-directory .directory-views a::after{content:none!important;display:none!important}
-#main .artist-directory .directory-views a{color:var(--ds-muted);transition:color .18s ease}
-#main .artist-directory .directory-views a[aria-current]{color:var(--ds-selected)}
-#main .artist-directory .directory-views a:is(:hover,:focus-visible){color:#8EDDD2}
-#main .artist-directory .directory-views a:focus-visible svg{stroke-width:2.5}
-#main .artist-directory .directory-list .directory-artist{grid-template-columns:72px minmax(0,1fr) auto;grid-template-rows:auto auto;gap:4px 20px;padding:16px 20px}
-#main .artist-directory .directory-list .directory-photo{width:72px;grid-row:1/3;margin:0}
-#main .artist-directory .directory-list .artist-portrait{width:72px;height:72px}
-#main .artist-directory .directory-list .directory-social{grid-column:3;grid-row:1/3;margin:0}
 #main .artist-directory.artist-directory-owned .directory-grid{grid-auto-rows:1fr}
 #main .artist-directory .directory-add-symbol{background:none;border:0;border-radius:0}
 #main .mp-artists-card{container-type:inline-size}
@@ -103,22 +78,18 @@
 #main .mp-artists-card .artist-ui-affiliation{font-size:12px;margin-bottom:0}
 #main .mp-artists-card .mp-artist-add{justify-content:center;cursor:pointer;min-height:160px}
 #main .mp-artists-card .mp-artist-add>svg{width:42px;height:42px;stroke-width:1;color:var(--ds-body)}
-@container(max-width:1039px){#main .artist-directory .directory-grid:not(.directory-list){grid-template-columns:repeat(5,minmax(0,1fr))}}
-@container(max-width:899px){#main .artist-directory .directory-grid:not(.directory-list){grid-template-columns:repeat(4,minmax(0,1fr))}}
-@container(max-width:719px){#main .artist-directory .directory-grid:not(.directory-list){grid-template-columns:repeat(3,minmax(0,1fr))}}
+@container(max-width:1039px){#main .artist-directory .directory-grid{grid-template-columns:repeat(5,minmax(0,1fr))}}
+@container(max-width:899px){#main .artist-directory .directory-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@container(max-width:719px){#main .artist-directory .directory-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @container(max-width:539px){
- #main .artist-directory .directory-grid:not(.directory-list),#main .artist-directory.artist-directory-owned .directory-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+ #main .artist-directory .directory-grid,#main .artist-directory.artist-directory-owned .directory-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
  #main .artist-directory .directory-artist{padding:var(--artist-card-padding)}
  #main .artist-directory .artist-portrait{width:100%;height:auto}
  #main .artist-directory .directory-name{font-size:16px}
  #main .artist-directory .directory-follow{padding-inline:6px}
  #main .artist-directory .directory-follow svg{display:none}
- #main .artist-directory .directory-list .directory-artist{grid-template-columns:60px minmax(0,1fr);gap:4px 10px;padding:12px}
- #main .artist-directory .directory-list .directory-photo{width:60px;grid-row:1/4}
- #main .artist-directory .directory-list .artist-portrait{width:60px;height:60px}
- #main .artist-directory .directory-list .directory-social{grid-column:2;grid-row:3;justify-content:flex-start}
 }
-@container(max-width:279px){#main .artist-directory .directory-grid:not(.directory-list){grid-template-columns:minmax(0,1fr)}}
+@container(max-width:279px){#main .artist-directory .directory-grid{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:600px){#main .mp-artists-card .mp-artists{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @container(max-width:239px){#main .mp-artists-card .mp-artists{grid-template-columns:minmax(0,1fr)}}
 
