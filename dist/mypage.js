@@ -26,7 +26,7 @@ function myMoments(d){
 function myStudioBanner(){return `<section class="mp-card mp-studio"><h2>스튜디오</h2><p>나만의 음악과 더빙을<br>제작하고 관리해보세요.</p><a class="primary-button" href="#studio">스튜디오 바로가기 ${icon('arrow')}</a></section>`;}
 function myArtists(d){
  const artists=d.artists||[],own=me?.id===d.profile.user_id;
- const slots=artists.slice(0,3).map(a=>`<a class="artist-ui-card mp-artist-card" href="#artist/${esc(a.id)}">${portrait(a,'artist')}<strong title="${esc(a.name)}">${esc(a.name)}</strong>${artistAffiliation(a,d.profile.name)}</a>`);
+ const slots=artists.slice(0,3).map(a=>`<a class="artist-ui-card mp-artist-card" href="#artist/${esc(a.id)}"><div class="artist-avatar-wrapper">${portrait(a,'artist')}</div><strong title="${esc(a.name)}">${esc(a.name)}</strong>${artistAffiliation(a,d.profile.name)}</a>`);
  while(own&&slots.length<3)slots.push(`<button type="button" class="artist-ui-card mp-artist-add" data-mp-artist-add aria-label="아티스트 추가">${icon('plus')}</button>`);
  return mySection('소속 아티스트',slots.length?`<div class="mp-artists">${slots.join('')}</div>`:myEmpty('등록된 아티스트가 없어요.'),myAll('#profile-artists/'+encodeURIComponent(d.profile.id)),artists.length,'mp-artists-card');
 }

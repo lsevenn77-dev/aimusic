@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="754" height="754" viewBox="0 0 754 754"><defs><linearGradient id="p" x1="0.04" y1="0.17" x2="0.94" y2="0.92" gradientUnits="objectBoundingBox"><stop offset="0" stop-color="#a5f5f0"/><stop offset="0.36" stop-color="#86cbf5"/><stop offset="0.66" stop-color="#9d9dff"/><stop offset="1" stop-color="#e7a5f3"/></linearGradient></defs><path transform="translate(-122,-172)" fill="url(#p)" d="M 499 305
+C 420 305 356 370 356 449
+C 356 502 383 551 427 576
+C 425 584 418 586 401 590
+C 322 609 272 667 264 740
+L 264 774
+Q 264 793 283 793
+L 715 793
+Q 734 793 734 774
+L 734 740
+C 726 667 676 609 597 590
+C 580 586 573 584 571 576
+C 615 551 642 502 642 449
+C 642 370 578 305 499 305 Z" /></svg>

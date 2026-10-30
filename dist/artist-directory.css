@@ -1,5 +1,5 @@
 /* Scope all geometry to the two artist directories. Shared shell stays intact. */
-#main .artist-directory{--ui-type-scale:1;--ui-space-scale:1;--ui-icon-scale:1;container-type:inline-size;color:var(--ds-text);min-width:0}
+#main .artist-directory{--ui-type-scale:1;--ui-space-scale:1;--ui-icon-scale:1;container-type:inline-size;container-name:artist-directory;color:var(--ds-text);min-width:0}
 .artist-directory .directory-heading{display:flex;align-items:center;justify-content:space-between;gap:20px;margin:0 0 20px;flex-wrap:wrap}
 .artist-directory h1{font-size:30px;line-height:1.3;letter-spacing:-.7px;margin:0 0 6px;font-weight:700}
 .artist-directory .directory-heading p{font-size:14px;color:var(--ds-body);margin:0;line-height:1.6}
@@ -39,10 +39,10 @@
 .artist-directory .directory-pin-row>a{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:auto}
 .artist-directory .directory-empty{padding:32px 16px;text-align:center;color:var(--ds-body);font-size:14px}
 .artist-directory .directory-pagination{display:flex;justify-content:center;gap:12px;margin-top:24px}
-@container(max-width:999px){.artist-directory .directory-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
-@container(max-width:799px){.artist-directory .directory-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@container(max-width:579px){.artist-directory .directory-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.artist-directory .directory-artist{padding:16px 10px;min-height:278px}#main .artist-directory .artist-portrait{width:116px;height:116px}.artist-directory .directory-controls{gap:8px;margin-left:0;width:100%;justify-content:flex-start}.artist-directory .directory-heading{gap:14px}.artist-directory h1{font-size:26px}.artist-directory .directory-controls>span{margin-right:auto}}
-@container(max-width:319px){.artist-directory .directory-grid{grid-template-columns:minmax(0,1fr)}}
+@container artist-directory (max-width:999px){.artist-directory .directory-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@container artist-directory (max-width:799px){.artist-directory .directory-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@container artist-directory (max-width:579px){.artist-directory .directory-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.artist-directory .directory-artist{padding:16px 10px;min-height:278px}#main .artist-directory .artist-portrait{width:116px;height:116px}.artist-directory .directory-controls{gap:8px;margin-left:0;width:100%;justify-content:flex-start}.artist-directory .directory-heading{gap:14px}.artist-directory h1{font-size:26px}.artist-directory .directory-controls>span{margin-right:auto}}
+@container artist-directory (max-width:319px){.artist-directory .directory-grid{grid-template-columns:minmax(0,1fr)}}
 @media(pointer:coarse){.artist-directory .directory-name button{width:36px;min-height:44px}}
 
 #main .artist-directory .directory-add{min-height:42px!important}
@@ -51,26 +51,26 @@
 
 /* Final artist cards: shared visual layer, independent directory/dashboard grids. */
 /* Only fallback images use this filled silhouette; uploaded photos stay intact. */
-#main :is(.artist-directory,.mp-artists-card) .artist-ui-card .profile-avatar:has(>img[src="/assets/default-avatar.svg"]){background:var(--ds-secondary)}
-#main :is(.artist-directory,.mp-artists-card) .artist-ui-card .profile-avatar>img[src="/assets/default-avatar.svg"]{content:url('/assets/artist-card-placeholder.svg');border-radius:10px;object-fit:contain;object-position:center;background:var(--ds-secondary)}
-#main :is(.artist-directory,.mp-artists-card) .artist-ui-card{--artist-card-padding:6%;box-sizing:border-box;min-width:0;border:1px solid var(--ds-line);border-radius:12px;background:color-mix(in srgb,var(--ds-panel) 78%,transparent);background-image:none;box-shadow:none;transition:background-color .18s ease,border-color .18s ease;color:var(--ds-text)}
+#main :is(.artist-directory,.mp-artists-card) .artist-ui-card .profile-avatar:has(>img[src="/assets/default-avatar.svg"]){background:linear-gradient(135deg,#2A2E3F,#272B3B)}
+#main :is(.artist-directory,.mp-artists-card) .artist-ui-card .profile-avatar>img[src="/assets/default-avatar.svg"]{content:url('/assets/aifect_default_avatar_refined.svg');border-radius:10px;object-fit:contain;object-position:center;background:linear-gradient(135deg,#2A2E3F,#272B3B)}
+#main :is(.artist-directory,.mp-artists-card) .artist-ui-card{container-type:inline-size;box-sizing:border-box;min-width:0;border:1px solid var(--ds-line);border-radius:12px;background:color-mix(in srgb,var(--ds-panel) 78%,transparent);background-image:none;box-shadow:none;transition:background-color .18s ease,border-color .18s ease;color:var(--ds-text)}
 #main :is(.artist-directory,.mp-artists-card) .artist-ui-card:hover{background-color:color-mix(in srgb,var(--ds-panel) 92%,transparent);border-color:color-mix(in srgb,var(--ds-body) 25%,transparent);box-shadow:none;transform:none}
 #main :is(.artist-directory,.mp-artists-card) .artist-ui-card::before,#main :is(.artist-directory,.mp-artists-card) .artist-ui-card::after{content:none;display:none}
 #main .artist-ui-affiliation{color:#BB9AD7;font-size:13px;font-weight:400;line-height:1.5;margin:4px 0 8px;max-width:100%;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #main .artist-ui-affiliation>span{color:#BB9AD7}
 #main .artist-directory .directory-grid{grid-template-columns:repeat(6,minmax(0,1fr))}
-#main .artist-directory .directory-artist{min-height:0;padding:var(--artist-card-padding)}
-#main .artist-directory .directory-photo{width:100%;margin-bottom:10px}
+#main .artist-directory .directory-artist{min-height:0;padding:0 0 16px}
+#main .artist-directory .directory-photo{box-sizing:border-box;width:100%;padding:var(--artist-avatar-inset) var(--artist-avatar-inset) 0;margin-bottom:10px}
 #main .artist-directory .artist-portrait{width:100%;height:auto;aspect-ratio:1;border-radius:10px}
 #main .artist-directory .artist-portrait :is(img,.identity-avatar){border-radius:10px}
 #main .artist-directory .directory-social{display:flex;align-items:center;justify-content:center;gap:8px;max-width:100%;min-width:0;margin-top:2px}
 #main .artist-directory .directory-followers{font-size:12px;min-width:0;overflow:hidden;text-overflow:ellipsis;margin:0}
-#main .artist-directory .directory-follow{gap:4px;font-size:12px;padding-inline:8px;min-width:0;margin:0;background:linear-gradient(105deg,#8EDDD2,var(--ds-lilac) 55%,#F4C9DE);color:var(--ds-ink)}
+#main .artist-directory .directory-follow{gap:4px;font-size:12px;padding-inline:8px;min-width:0;margin:0;border:1px solid transparent;background:linear-gradient(var(--ds-bg),var(--ds-bg)) padding-box,linear-gradient(105deg,var(--ds-lilac),#8EDDD2) border-box;color:var(--ds-text)}
 #main .artist-directory.artist-directory-owned .directory-grid{grid-auto-rows:1fr}
 #main .artist-directory .directory-add-symbol{background:none;border:0;border-radius:0}
-#main .mp-artists-card{container-type:inline-size}
+#main .mp-artists-card{container-type:inline-size;container-name:artist-dashboard}
 #main .mp-artists-card .mp-artists{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-rows:1fr;gap:10px;align-items:stretch}
-#main .mp-artists-card .artist-ui-card{display:flex;flex-direction:column;align-items:center;padding:var(--artist-card-padding);text-align:center;min-height:0;font:inherit}
+#main .mp-artists-card .artist-ui-card{display:flex;flex-direction:column;align-items:center;padding:0 0 16px;text-align:center;min-height:0;font:inherit}
 #main .mp-artists-card .mp-artists .artist-portrait{width:100%;height:auto;max-width:none;aspect-ratio:1;border-radius:10px;overflow:hidden;margin:0 0 10px;border:0;box-shadow:none;background:var(--ds-secondary)}
 #main .mp-artists-card .mp-artists .artist-portrait::before,#main .mp-artists-card .mp-artists .artist-portrait::after{display:none}
 #main .mp-artists-card .mp-artists .artist-portrait :is(img,.identity-avatar){width:100%;height:100%;object-fit:cover;border-radius:10px;border:0;box-shadow:none}
@@ -78,20 +78,20 @@
 #main .mp-artists-card .artist-ui-affiliation{font-size:12px;margin-bottom:0}
 #main .mp-artists-card .mp-artist-add{justify-content:center;cursor:pointer;min-height:160px}
 #main .mp-artists-card .mp-artist-add>svg{width:42px;height:42px;stroke-width:1;color:var(--ds-body)}
-@container(max-width:1039px){#main .artist-directory .directory-grid{grid-template-columns:repeat(5,minmax(0,1fr))}}
-@container(max-width:899px){#main .artist-directory .directory-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
-@container(max-width:719px){#main .artist-directory .directory-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@container(max-width:539px){
+@container artist-directory (max-width:1039px){#main .artist-directory .directory-grid{grid-template-columns:repeat(5,minmax(0,1fr))}}
+@container artist-directory (max-width:899px){#main .artist-directory .directory-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@container artist-directory (max-width:719px){#main .artist-directory .directory-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@container artist-directory (max-width:539px){
  #main .artist-directory .directory-grid,#main .artist-directory.artist-directory-owned .directory-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
- #main .artist-directory .directory-artist{padding:var(--artist-card-padding)}
+ #main .artist-directory .directory-artist{padding:0 0 16px}
  #main .artist-directory .artist-portrait{width:100%;height:auto}
  #main .artist-directory .directory-name{font-size:16px}
  #main .artist-directory .directory-follow{padding-inline:6px}
- #main .artist-directory .directory-follow svg{display:none}
+ #main .artist-directory .directory-follow svg{display:block}
 }
-@container(max-width:279px){#main .artist-directory .directory-grid{grid-template-columns:minmax(0,1fr)}}
+@container artist-directory (max-width:279px){#main .artist-directory .directory-grid{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:600px){#main .mp-artists-card .mp-artists{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@container(max-width:239px){#main .mp-artists-card .mp-artists{grid-template-columns:minmax(0,1fr)}}
+@container artist-dashboard (max-width:239px){#main .mp-artists-card .mp-artists{grid-template-columns:minmax(0,1fr)}}
 
 /* This editor owns a native top-layer dialog, independent of shared popup layouts. */
 #directory-editor{position:fixed;inset:0;margin:auto;box-sizing:border-box;width:min(500px,calc(100vw - 24px));max-width:calc(100vw - 24px);height:fit-content;min-height:0;max-height:calc(100dvh - 24px);padding:20px;overflow:auto;overscroll-behavior:contain;border-radius:var(--ds-radius-card);color:var(--ds-text);font-size:14px}
@@ -133,3 +133,15 @@ body:has(#directory-editor[open]){overflow:hidden}
 #directory-editor .directory-discard p{margin:0 0 10px}
 #directory-editor .directory-discard>div{display:flex;justify-content:flex-end;gap:8px}
 #directory-editor .directory-discard button{width:auto;min-height:44px}
+
+/* The approved 846px card uses a 46px inset measured from its outer border. Compact cards scale the same
+   explicit ratio against their OWN inline size, never the directory width.
+   One wrapper owns all three insets, so top/left/right cannot drift apart. */
+#main :is(.artist-directory,.mp-artists-card) .artist-ui-card{--artist-avatar-inset:clamp(6px,calc(46 * (100cqi + 2px) / 846 - 1px),45px)}
+#main .mp-artists-card .artist-avatar-wrapper{box-sizing:border-box;flex:none;width:100%;padding:var(--artist-avatar-inset) var(--artist-avatar-inset) 0;margin:0 0 10px}
+#main .mp-artists-card .artist-avatar-wrapper .artist-portrait{margin:0}
+#main :is(.artist-directory,.mp-artists-card) .artist-ui-card .artist-portrait{display:grid;place-items:center;flex:none;position:relative;min-height:0}
+#main :is(.artist-directory,.mp-artists-card) .artist-ui-card .profile-avatar>img{position:static;inset:auto;display:block;width:100%;height:100%;margin:0;padding:0;object-position:center}
+#main .artist-directory .directory-grid .directory-artist>:is(.directory-name,.artist-ui-affiliation,.directory-social){max-width:calc(100% - 16px)}
+#main .artist-directory .directory-add-card{padding:16px}
+@container artist-directory (max-width:319px){#main .artist-directory .directory-social{gap:4px}#main .artist-directory .directory-follow{padding-inline:6px}}
