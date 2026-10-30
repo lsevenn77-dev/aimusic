@@ -16,9 +16,7 @@
 .home-content-refresh .home-playlist-name{display:block;margin-top:12px;font-size:15px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.5}
 .home-content-refresh .home-playlist-card p{margin:4px 0 0;font-size:12px;line-height:1.6;color:var(--ds-body);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .home-content-refresh .home-playlist-card small{display:block;margin-top:6px;font-size:12px;line-height:1.5;color:var(--ds-muted)}
-.home-content-refresh .home-profile-tabs{margin:0 0 8px;gap:24px}
-.home-content-refresh .home-profile-tabs .tab{min-height:44px;padding:0 0 10px;font:inherit;font-size:14px;font-weight:600;cursor:pointer}
-.home-content-refresh .home-profile-tabs .tab[aria-selected=true]{color:var(--ds-selected)}
+.home-content-refresh .home-profile-section .home-rail-shell{padding-top:0}
 .home-content-refresh .home-profile-card{flex:0 0 128px;min-width:0;text-align:center;scroll-snap-align:start}
 .home-content-refresh .home-profile-card>a{display:block;padding:2px}
 .home-content-refresh .home-profile-card .artist-portrait{width:120px;height:120px;aspect-ratio:1;border-radius:50%;overflow:hidden;margin:0 auto;background:var(--ds-panel)}
