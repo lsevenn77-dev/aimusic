@@ -64,6 +64,15 @@ test('live loader returns a real route with membership-filtered rooms/options an
  assert.equal((await vm.runInContext('voiceView("voice","one")',c)).html,'regular room');
 });
 
+test('an enabled empty live lobby reports no rooms to guests rather than a disabled service',()=>{
+ const {c}=context({me:null});
+ const html=vm.runInContext('liveKaraokeLobbyHTML({rooms:[],crews:[]},true)',c);
+ assert.match(html,/아직 열린 노래방이 없어요\./);assert.doesNotMatch(html,/연결을 준비하고/);
+ assert.match(html,/id="v3-create-room" disabled/);assert.match(html,/로그인하면/);
+ const disabled=vm.runInContext('liveKaraokeLobbyHTML({rooms:[],crews:[]},false)',c);
+ assert.match(disabled,/라이브 노래방 연결을 준비하고 있어요\./);
+});
+
 test('live entry preserves the listening user gesture without requesting a microphone',()=>{
  const {c,calls,events}=context();const event={button:0,target:{closest:()=>({href:'https://aifect.co.kr/#live/one',hasAttribute:()=>false,target:''})}};
  events.get('click')(event);assert.deepEqual(calls,[['listen','one']]);

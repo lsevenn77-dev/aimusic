@@ -3,7 +3,8 @@
 const productionVoiceLobbyHTML=voiceLobbyHTML;
 voiceLobbyHTML=function(data,enabled){return productionVoiceLobbyHTML({...data,rooms:(data.rooms||[]).filter(r=>r.mode!=='karaoke')},enabled);};
 function liveKaraokeLobbyHTML(data,enabled=true){
- const html=productionVoiceLobbyHTML({...data,rooms:(data.rooms||[]).filter(r=>r.mode==='karaoke')},enabled&&!!me);
+ let html=productionVoiceLobbyHTML({...data,rooms:(data.rooms||[]).filter(r=>r.mode==='karaoke')},enabled);
+ if(!me&&enabled)html=html.replace('id="v3-create-room" ','id="v3-create-room" disabled ');
  return html.replace('class="community-v3"','class="community-v3 live-lobby"')
   .replace('지금 열려 있는 토킹룸','라이브 노래방')
   .replace('공개된 방만 보여줘 · 방장 승인 후 마이크에 참여할 수 있어','한 명씩 노래하고 함께 응원해요 · 최대 30명')
