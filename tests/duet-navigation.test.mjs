@@ -29,3 +29,10 @@ test('ordinary entry asks once; explicit modes, legacy drafts and joining paths 
 test('cancelled leaving preserves the current mode and never stops or saves the take',async()=>{
  for(const mode of ['solo','duet']){let restored='';const c=context({confirm:()=>false,renderId:0,location:{hash:'#sing/one?mode='+ (mode==='solo'?'duet':'solo')},setMobileMenu(){},history:{replaceState(a,b,href){restored=href;}},finishSinging(){throw Error('must not stop');},saveSingDraft(){throw Error('must not save');}});vm.runInContext(readFileSync(new URL('../dist/views.js',import.meta.url),'utf8'),c);vm.runInContext(`sing={id:'one',mode:'${mode}',state:'singing',dirty:true}`,c);await vm.runInContext('render()',c);assert.match(restored,new RegExp('mode='+mode));}
 });
+
+test('cancelled recording exit republishes its restored canonical URL without replacing the recorder',async()=>{
+ const main={dataset:{route:'sing/one?mode=solo&draft=1'},innerHTML:'LIVE RECORDER'};
+ let published='';const c=context({confirm:()=>false,renderId:0,location:{hash:'#community'},$:()=>main,setMobileMenu(){},history:{replaceState(a,b,href){c.location.hash=href;}},window:{AifectRender:{begin(){return 1;},ready(){published=main.dataset.route;}},addEventListener(){}}});
+ vm.runInContext(readFileSync(new URL('../dist/views.js',import.meta.url),'utf8'),c);vm.runInContext("sing={id:'one',mode:'solo',state:'singing',dirty:true}",c);
+ await vm.runInContext('render()',c);assert.equal(main.innerHTML,'LIVE RECORDER');assert.equal(published,c.location.hash.slice(1));assert.match(published,/sing\/one/);
+});

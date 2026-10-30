@@ -19,9 +19,24 @@
   expired=true;clearTimeout(timer);cancel?.();
   root.dataset.renderState='error';mount();
  }
+ // CSS :target tracks URL changes before hashchange callbacks can run.
+ // Keep this hidden marker ahead of page IDs; it never participates in layout.
+ function syncTarget(){
+  const marker=document.querySelector?.('[data-render-target]');
+  if(!marker)return true;
+  const raw=location.hash.slice(1)||'home';
+  if(document.getElementById('main')?.dataset.route!==raw)return false;
+  if(!location.hash)history.replaceState(history.state,'',location.pathname+location.search+'#home');
+  try{marker.id=decodeURIComponent(raw);}catch{marker.id=new URLSearchParams('r='+raw.replaceAll('+','%2B').replaceAll('&','%26')).get('r');}
+  // Updating an ID alone does not update :target. Same-fragment replacement
+  // retargets without a new history entry, document reload or hashchange event.
+  if(!marker.matches(':target'))location.replace(location.href);
+  return marker.matches(':target');
+ }
  function arm(){clearTimeout(timer);timer=setTimeout(()=>fail(epoch),20000);}
  window.AifectRender={
   mount,
+  syncTarget,
   connect(callback){retry=callback;},
   begin(raw,previous,onTimeout){
    ++epoch;expired=false;cancel=onTimeout;
@@ -29,7 +44,7 @@
    arm();return epoch;
   },
   ready(id){
-   if(id!==epoch||expired||assetsFailed)return;
+   if(id!==epoch||expired||assetsFailed||!syncTarget())return;
    clearTimeout(timer);cancel=null;initialized=true;
    root.dataset.renderState='ready';mount();
    document.getElementById('main')?.removeAttribute('aria-busy');

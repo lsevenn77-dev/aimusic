@@ -78,8 +78,13 @@ async function render(){
   if(typeof cleanupHome==='function')cleanupHome();
  });
  try{
-  await renderRoute();
-  if(serial===presentationSerial)presentation?.ready(epoch);
+  const outcome=await renderRoute();
+  if(serial===presentationSerial){
+   // A rejected recording/editor exit keeps the same live DOM but may restore
+   // a canonical URL (for example, removing a draft query parameter).
+   if(outcome?.retained&&main)main.dataset.route=location.hash.slice(1)||'home';
+   presentation?.ready(epoch);
+  }
  }catch(error){
   if(serial!==presentationSerial)return;
   if(presentation)presentation.fail(epoch);
@@ -105,15 +110,15 @@ async function renderRoute(){
   if(ticket!==renderId)return;
  }
  if(typeof refreshInventoryRoute==='function'&&refreshInventoryRoute(raw))return;
- if(typeof dubbingBeforeRoute==='function'&&!dubbingBeforeRoute(raw))return;
+ if(typeof dubbingBeforeRoute==='function'&&!dubbingBeforeRoute(raw))return {retained:true};
  if(base!=='home'&&typeof dubbingRefreshList==='function'&&await dubbingRefreshList(raw,ticket,readApi))return;
  if(ticket!==renderId)return;
  if(sing){
-  if(!singBusy(sing)&&!confirm('녹음 화면에서 나갈까요? 녹음한 내용은 이 기기의 초안에 보관됩니다.')){history.replaceState(null,'',singRouteHref(sing));return;}
+  if(!singBusy(sing)&&!confirm('녹음 화면에서 나갈까요? 녹음한 내용은 이 기기의 초안에 보관됩니다.')){history.replaceState(null,'',singRouteHref(sing));return {retained:true};}
   if(singLive(sing))await finishSinging();
   if(ticket!==renderId)return;
-  if(singBusy(sing)){history.replaceState(null,'',singRouteHref(sing));toast('녹음을 정리한 뒤 이동해주세요.');return;}
-  if(sing.dirty){try{await saveSingDraft(sing);}catch(e){if(ticket!==renderId)return;history.replaceState(null,'',singRouteHref(sing));toast('임시저장하지 못했어요. 저장 공간을 확인한 뒤 다시 시도해주세요.');return;}}
+  if(singBusy(sing)){history.replaceState(null,'',singRouteHref(sing));toast('녹음을 정리한 뒤 이동해주세요.');return {retained:true};}
+  if(sing.dirty){try{await saveSingDraft(sing);}catch(e){if(ticket!==renderId)return;history.replaceState(null,'',singRouteHref(sing));toast('임시저장하지 못했어요. 저장 공간을 확인한 뒤 다시 시도해주세요.');return {retained:true};}}
  }
  if(ticket!==renderId)return;
  clearInterval(socialTimer);socialTimer=null;socialCleanup?.();socialCleanup=null;

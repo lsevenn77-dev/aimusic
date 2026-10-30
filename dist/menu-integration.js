@@ -30,7 +30,7 @@ function rememberMenuLogin(base,param){
 function rememberLibraryFilters(){
  if(!location.hash.startsWith('#profile?')||new URLSearchParams(location.hash.split('?')[1]).get('view')!=='library')return;
  const href=menuHref('profile',{q:collectionSearch||null,filter:collectionFilter,sort:collectionSort},location.hash);
- history.replaceState(history.state,'',href);$('#main').dataset.route=href.slice(1);
+ history.replaceState(history.state,'',href);$('#main').dataset.route=href.slice(1);window.AifectRender?.syncTarget();
 }
 async function myLibraryView(raw,readApi=api){return musicLibraryView(raw,readApi);}
 function followingMenu(raw){

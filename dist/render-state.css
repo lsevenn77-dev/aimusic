@@ -18,3 +18,9 @@ html[data-render-state="loading"] #route-pending,html[data-render-state="error"]
 @media(max-width:767px){#route-pending{padding-top:12px}.render-skeleton{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.render-skeleton>div{height:140px}.render-skeleton>div:last-child{display:none}}
 
 #route-pending::before{content:"";position:absolute;z-index:-1;pointer-events:none;top:0;left:0;right:0;aspect-ratio:340/65;background:url('/assets/atmosphere/06_approved_aurora_original.svg') left top/100% auto no-repeat;mask-image:linear-gradient(#000,transparent)}
+
+/* The fragment target changes synchronously with the URL, before JS routing.
+   A ready page is visible only while its completed route is still targeted. */
+html[data-render-state="ready"]:not(:has([data-render-target]:target)) #main{display:none!important}
+html[data-render-state="ready"]:not(:has([data-render-target]:target)) #route-pending{display:block}
+html[data-render-state="ready"]:not(:has([data-render-target]:target)) .page-wrap>.page-footer{visibility:hidden}
