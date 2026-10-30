@@ -104,7 +104,7 @@ function playProjectRows(projects,tab){
 }
 function playToolbar(s){
  const search=`<form id="play-search" class="aifect-search play-search">${icon('search')}<input name="q" type="search" aria-label="플레이 작품 검색" placeholder="${s.mode==='song'?'곡명, 제작자, AI 가수명 검색':'작품 제목, 창작자 검색'}" maxlength="100"><button class="small-button" type="submit">검색</button></form>`;
- return s.mode==='browse'?`<div class="play-discovery-tools">${search}<label class="play-type-filter"><span>작품 유형</span><select id="play-work-type">${playTypes.map(([k,l])=>`<option value="${k}" ${s.type===k?'selected':''}>${l}</option>`).join('')}</select></label></div>`:search;
+ return s.mode==='browse'?`<div class="play-discovery-tools">${search}<label class="play-type-filter"><span>작품 유형</span><select data-dropdown="sm" id="play-work-type">${playTypes.map(([k,l])=>`<option value="${k}" ${s.type===k?'selected':''}>${l}</option>`).join('')}</select></label></div>`:search;
 }
 function playDraftRows(drafts){
  return `<section class="play-drafts" aria-label="저장한 녹음"><header class="play-draft-toolbar"><h2>저장한 녹음 <span>${drafts.length}</span></h2><button class="small-button danger-button" data-delete-all-drafts ${drafts.length?'':'disabled'}>${icon('trash')} 전체 삭제</button></header><p class="play-draft-note">이 계정으로 현재 기기·브라우저에 저장한 녹음이에요. 다른 기기에는 표시되지 않아요.<br>공개한 커버곡은 초안을 삭제해도 유지돼요.</p>`+(drafts.length?'<div class="play-draft-list">'+drafts.map(d=>{

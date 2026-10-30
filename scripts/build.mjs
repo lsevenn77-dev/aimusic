@@ -49,6 +49,7 @@ await cp('dist/home.js','dist/client/home.js');
 await cp('dist/home-content.css','dist/client/home-content.css');
 await cp('dist/chart-ui.css','dist/client/chart-ui.css');
 await cp('dist/input-controls.css','dist/client/input-controls.css');
+for(const file of ['dropdown.js','dropdown.css'])await cp('dist/'+file,'dist/client/'+file);
 await cp('dist/brand.css','dist/client/brand.css');
 for(const file of ['admin.css','admin.js','admin-ai-bots.js','admin-cover-compression.js'])await cp(`dist/${file}`,`dist/client/${file}`);
 await mkdir('dist/client/admin',{recursive:true});
