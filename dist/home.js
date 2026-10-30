@@ -71,7 +71,7 @@ function releaseHTML(t,next,tracks=[t,next].filter(Boolean),index=0){
  const cover=(track,eager=false)=>homeCover(track,'home-feature-art',eager).replace('<img ','<img draggable="false" ');
  const seen=new Set([index]),neighbours=[];
  for(const offset of [1,-1,2,-2]){const i=(index+offset+tracks.length)%tracks.length;if(seen.has(i))continue;seen.add(i);neighbours.push(`<button type="button" class="home-feature-rear ${offset<0?'is-left':'is-right'} ${Math.abs(offset)===2?'is-far':''}" data-home-slide="${i}" aria-label="${offset<0?'이전':'다음'} 곡 ${esc(tracks[i].title)} 보기">${cover(tracks[i])}</button>`);}
- return `<div class="home-feature-background" aria-hidden="true"><div class="home-feature-backdrop"${art?` style="background-image:url(&quot;${esc(art)}&quot;)"`:''}>${art?`<img src="${esc(art)}" alt="" decoding="async">`:''}</div></div><article class="home-feature-slide"><div class="home-feature-copy"><span class="home-feature-label">FEATURED MUSIC</span><div class="home-feature-title-row"><h2><a href="#song/${esc(t.id)}" title="${esc(t.title)}">${homeFeatureTitle(t.title)}</a></h2></div><div class="home-feature-artist">${credits(t)}</div>${t.description?`<p class="home-feature-description">${esc(t.description)}</p>`:''}<div class="home-feature-actions"><a class="home-feature-info" href="#song/${esc(t.id)}">곡 정보 보기 ${icon('chevron')}</a><button type="button" class="home-feature-play" data-play="${esc(t.id)}" data-community-toggle aria-label="${esc(t.title)} ${playing?'일시정지':'재생'}" aria-pressed="${playing}">${icon(playing?'ui-pause-action':'ui-play-action')}</button></div></div><div class="home-feature-covers">${neighbours.join('')}<a class="home-feature-cover" draggable="false" href="#song/${esc(t.id)}" aria-label="${esc(t.title)} 곡 정보">${cover(t,true)}</a></div></article>`;
+ return `<div class="home-feature-background" aria-hidden="true"><div class="home-feature-backdrop"${art?` style="background-image:url(&quot;${esc(art)}&quot;)"`:''}>${art?`<img src="${esc(art)}" alt="" decoding="async">`:''}</div></div><article class="home-feature-slide"><div class="home-feature-copy"><span class="home-feature-label">TRENDING NOW</span><div class="home-feature-title-row"><h2><a href="#song/${esc(t.id)}" title="${esc(t.title)}"><span class="home-feature-title-text">${homeFeatureTitle(t.title)}</span></a></h2></div><div class="home-feature-artist-row"><div class="home-feature-artist">${credits(t)}</div></div>${t.description?`<p class="home-feature-description">${esc(t.description)}</p>`:''}<div class="home-feature-actions"><a class="home-feature-info" href="#song/${esc(t.id)}">곡 정보 보기 ${icon('chevron')}</a><button type="button" class="home-feature-play" data-play="${esc(t.id)}" data-community-toggle aria-label="${esc(t.title)} ${playing?'일시정지':'재생'}" aria-pressed="${playing}">${icon(playing?'ui-pause-action':'ui-play-action')}</button></div></div><div class="home-feature-covers">${neighbours.join('')}<a class="home-feature-cover" draggable="false" href="#song/${esc(t.id)}" aria-label="${esc(t.title)} 곡 정보">${cover(t,true)}</a></div></article>`;
 }
 function bindHomeImages(root){
  homeImagesCleanup?.();homeImagesCleanup=null;
@@ -87,17 +87,40 @@ function mountHomeCarousel(root,tracks){
 function homeFloatSlot(i,index,count){let d=(i-index+count)%count;if(d>count/2)d-=count;return d;}
 function homeFeaturedTracks(recommended=[],fallback=[]){return [...recommended,...fallback].filter((t,i,a)=>a.findIndex(x=>x.id===t.id)===i).slice(0,7);}
 // Geometry uses projected widths (perspective + rotation), with 12% overlap.
-function homeFloatGeometry(width,count){
+function homeFloatGeometry(width,count,coverSize=0){
  const radius=Math.min(width>=540?3:width>=360?2:1,Math.floor(count/2));
  const scales=[1,.84,.69,.55,.42],angles=[0,14,22,28,34],depth=[0,-12,-24,-36,-60];
  const widths=scales.map((s,i)=>s*Math.cos(angles[i]*Math.PI/180)*1000/(1000-depth[i]));
  const positions=[0];for(let i=1;i<5;i++)positions[i]=positions[i-1]+.88*(widths[i-1]+widths[i])/2;
- const size=Math.min(220,Math.max(1,width-12)/(2*positions[radius]+widths[radius]));
+ const size=coverSize||Math.min(220,Math.max(1,width-12)/(2*positions[radius]+widths[radius]));
+ if(coverSize&&radius){const fit=Math.max(0,(width-88)/size-widths[radius])/(2*positions[radius]);for(let i=1;i<5;i++)positions[i]*=Math.min(.63,fit);}
  return {radius,size,positions,scales,angles,depth};
 }
 function homeFloatPose(slot,g){
  const d=Math.min(4,Math.abs(slot)),sign=Math.sign(slot),z=g.depth[d];
- return `translate3d(${sign*g.positions[d]*g.size*(1000-z)/1000}px,${d*d*1.5}px,${z}px) rotateY(${-sign*g.angles[d]}deg) scale(${g.scales[d]*(slot===0?1.05:1)})`;
+ return `translate3d(${sign*g.positions[d]*g.size*(1000-z)/1000}px,${d*d*1.5}px,${z}px) rotateY(${-sign*g.angles[d]}deg) scale(${g.scales[d]})`;
+}
+// One player button is moved between its desktop actions and mobile artist row.
+// The title alone animates; no duplicated links or player event handlers.
+function mountHomeFeatureCopy(feature,copy,motion){
+ let animation=null,lastKey='',lastText=null,disposed=false;
+ const update=()=>{
+  if(disposed)return;
+  const mobile=getComputedStyle(feature).getPropertyValue?.('--feature-mobile').trim()==='1';
+  const button=copy.querySelector('.home-feature-play'),destination=copy.querySelector(mobile?'.home-feature-artist-row':'.home-feature-actions');
+  if(button&&destination&&button.parentElement!==destination)destination.append(button);
+  const link=copy.querySelector('.home-feature-title-row h2 a'),text=link?.querySelector('.home-feature-title-text');
+  if(!text)return;
+  const distance=mobile?Math.max(0,text.scrollWidth-link.clientWidth):0;
+  const key=[text.textContent,link.clientWidth,distance,mobile,motion.matches].join('|');
+  if(key===lastKey&&text===lastText)return;lastKey=key;lastText=text;animation?.cancel();animation=null;
+  if(!mobile||motion.matches||distance<=1)return;
+  const travel=distance/24*1000,total=travel+3300;
+  animation=text.animate([{transform:'translateX(0)',offset:0},{transform:'translateX(0)',offset:1500/total},{transform:`translateX(${-distance}px)`,offset:(1500+travel)/total},{transform:`translateX(${-distance}px)`,offset:(3000+travel)/total},{transform:'translateX(0)',offset:1}],{duration:total,iterations:Infinity,easing:'linear'});
+ };
+ const observer=new ResizeObserver(update);observer.observe(copy);
+ motion.addEventListener('change',update);document.fonts?.ready.then(update);update();
+ return {update,cleanup(){disposed=true;observer.disconnect();motion.removeEventListener('change',update);animation?.cancel();}};
 }
 function mountFloatingHome(root,input){
  const tracks=input.filter((t,i,a)=>a.findIndex(x=>x.id===t.id)===i);if(!tracks.length)return;
@@ -107,12 +130,15 @@ function mountFloatingHome(root,input){
  const motion=window.matchMedia('(prefers-reduced-motion: reduce)');
  stage.innerHTML=tracks.map((t,i)=>`<a class="home-floating-card" data-float-card="${i}" data-track-id="${esc(t.id)}" href="#song/${esc(t.id)}" aria-label="${esc(t.title)} 곡 정보" draggable="false"><span class="home-floating-lean"><span class="home-floating-drift">${homeCover(t,'home-feature-art',true).replace('<img ','<img draggable="false" ')}</span></span></a>`).join('');
  const cards=[...stage.children];
+ const copyLayout=mountHomeFeatureCopy(feature,copy,motion);
+ if(tracks.length>1)stage.insertAdjacentHTML('beforeend',`<button type="button" class="home-feature-arrow home-feature-prev" aria-label="이전 추천곡">${icon('chevron')}</button><button type="button" class="home-feature-arrow home-feature-next" aria-label="다음 추천곡">${icon('chevron')}</button>`);
  if(tracks.length>1)stage.insertAdjacentHTML('beforeend',`<div class="home-feature-pagination"><button class="home-feature-autoplay" aria-label="자동 롤링 일시정지" aria-pressed="false">${icon('pause')}</button><div class="home-feature-dots" aria-label="추천곡 선택">${tracks.map((t,i)=>`<button data-home-slide="${i}" aria-label="${i+1}. ${esc(t.title)}" aria-pressed="${i===0}"></button>`).join('')}</div></div>`);
  // One compositing group caps total artwork opacity, including during crossfades.
  bg.innerHTML='<div class="home-floating-washes"><div class="home-floating-wash"></div><div class="home-floating-wash"></div></div>';
  const washes=[...bg.querySelector('.home-floating-washes').children],dots=[...feature.querySelectorAll('.home-feature-dots button')],animations=new Map();
  let index=0,timer=null,paused=false,hover=false,focus=false,start=null,suppressClick=false,disposed=false,busy=false,pending=null,washIndex=0;
- let geometry=homeFloatGeometry(stage.clientWidth,tracks.length),resizePending=false;
+ const measure=()=>{const mobile=getComputedStyle(feature).getPropertyValue?.('--feature-mobile').trim()==='1',thumb=document.querySelector?.('#home-recommended .album-art');return homeFloatGeometry(stage.clientWidth,tracks.length,mobile?Math.min(156,stage.clientWidth*.46):(thumb?.getBoundingClientRect().width||Math.min(198,stage.clientWidth*.36)));};
+ let geometry=measure(),resizePending=false;
  const blocked=()=>paused||hover||focus||start!==null||document.hidden||motion.matches;
  const animate=(el,frames,duration=750)=>{
   animations.get(el)?.cancel();Object.assign(el.style,frames.at(-1));
@@ -123,7 +149,7 @@ function mountFloatingHome(root,input){
  // Decode before exposing either a cover or its background. Failed artwork stays navy.
  const ready=cards.map(card=>{
   const img=card.querySelector('img');if(!img)return Promise.resolve();
-  return img.decode().then(()=>{if(!disposed)img.classList.add('is-decoded');}).catch(()=>{if(!disposed){img.hidden=true;const label=card.querySelector('.cover-word');if(label)label.hidden=false;}});
+  return img.decode().then(()=>{if(!disposed){img.classList.add('is-decoded');const reflection=document.createElement('span');reflection.className='home-feature-reflection';reflection.setAttribute('aria-hidden','true');const reflected=img.cloneNode();reflected.alt='';reflection.append(reflected);card.querySelector('.home-floating-drift').append(reflection);}}).catch(()=>{if(!disposed){img.hidden=true;const label=card.querySelector('.cover-word');if(label)label.hidden=false;}});
  });
  const sync=()=>{const b=copy.querySelector('.home-feature-play');if(!b||typeof audio==='undefined')return;const playing=current?.id===tracks[index].id&&!audio.paused&&!audio.ended&&!window.AifectAudioAds?.active;b.innerHTML=icon(playing?'ui-pause-action':'ui-play-action');b.setAttribute('aria-pressed',String(playing));b.setAttribute('aria-label',tracks[index].title+(playing?' 일시정지':' 재생'));};
  const clear=()=>{clearTimeout(timer);timer=null;};
@@ -133,7 +159,7 @@ function mountFloatingHome(root,input){
   if(motion.matches){for(const a of [...animations.values()])a.finish();}
   if(tracks.length>1&&!blocked()&&!disposed)timer=setTimeout(()=>{timer=null;if(!root.isConnected)return cleanup();go(index+1);},7000);
  };
- const state=slot=>({transform:homeFloatPose(slot,geometry),opacity:Math.abs(slot)<=geometry.radius?1:0,filter:`brightness(${[1,.68,.48,.34,.25][Math.min(4,Math.abs(slot))]})`});
+ const state=slot=>({transform:homeFloatPose(slot,geometry),opacity:Math.abs(slot)<=geometry.radius?[1,.88,.60,.30,0][Math.min(4,Math.abs(slot))]:0,filter:`brightness(${[1,.78,.60,.44,.25][Math.min(4,Math.abs(slot))]}) blur(${[0,.2,.7,1.3,2][Math.min(4,Math.abs(slot))]}px)`});
  const paint=(previous=null,direction=1)=>{
   stage.style.setProperty('--feature-cover',geometry.size+'px');feature.style.setProperty('--feature-cover',geometry.size+'px');
   let transition=null;
@@ -164,7 +190,7 @@ function mountFloatingHome(root,input){
   return a;
  };
  const finish=()=>{
-  busy=false;if(resizePending){resizePending=false;geometry=homeFloatGeometry(stage.clientWidth,tracks.length);paint();}
+  busy=false;if(resizePending){resizePending=false;geometry=measure();paint();}
   const target=pending;pending=null;if(target!==null&&target!==index)go(target);else if(timer===null)schedule();
  };
  const go=async value=>{
@@ -173,9 +199,7 @@ function mountFloatingHome(root,input){
   busy=true;clear();await ready[next];if(disposed)return;
   const previous=index,direction=homeFloatSlot(next,index,tracks.length)<0?-1:1;index=next;
   const template=document.createElement('template');template.innerHTML=releaseHTML(tracks[index],null,tracks,index);
-  const updateCopy=()=>{if(disposed)return;copy.innerHTML=template.content.querySelector('.home-feature-copy').innerHTML;sync();animate(copy,[{opacity:0},{opacity:1}],450);};
-  const fade=animate(copy,[{opacity:1},{opacity:0}],200);
-  if(fade){const done=fade.onfinish;fade.onfinish=()=>{done();updateCopy();};}else updateCopy();
+  copy.innerHTML=template.content.querySelector('.home-feature-copy').innerHTML;sync();copyLayout.update();
   const a=background();paint(previous,direction);
   if(a){const done=a.onfinish;a.onfinish=()=>{done();finish();};schedule(false);}else finish();
  };
@@ -183,7 +207,9 @@ function mountFloatingHome(root,input){
   if(suppressClick){suppressClick=false;e.preventDefault();e.stopPropagation();return;}
   const card=e.target.closest('[data-float-card]');if(card&&Number(card.dataset.floatCard)!==index){e.preventDefault();go(Number(card.dataset.floatCard));return;}
   const b=e.target.closest('button');if(!b)return;
-  if(b.hasAttribute('data-home-slide'))go(Number(b.dataset.homeSlide));
+  if(b.matches('.home-feature-prev'))go(index-1);
+  else if(b.matches('.home-feature-next'))go(index+1);
+  else if(b.hasAttribute('data-home-slide'))go(Number(b.dataset.homeSlide));
   else if(b.matches('.home-feature-autoplay')){paused=!paused;b.setAttribute('aria-pressed',String(paused));b.setAttribute('aria-label',paused?'자동 롤링 재개':'자동 롤링 일시정지');b.innerHTML=icon(paused?'play':'pause');schedule();}
  };
  const enter=e=>{if(e.pointerType&&e.pointerType!=='mouse')return;hover=true;schedule();},leave=()=>{hover=false;schedule();};
@@ -194,10 +220,11 @@ function mountFloatingHome(root,input){
  const key=e=>{if(!['ArrowLeft','ArrowRight'].includes(e.key))return;e.preventDefault();go(index+(e.key==='ArrowLeft'?-1:1));};
  const listeners=[['click',click],['pointerenter',enter],['pointerleave',leave],['focusin',focusIn],['focusout',focusOut],['pointerdown',down],['pointerup',up],['pointercancel',cancel],['lostpointercapture',cancel],['keydown',key]];
  for(const [name,fn] of listeners)feature.addEventListener(name,fn);
- const resize=new ResizeObserver(()=>{if(busy){resizePending=true;return;}geometry=homeFloatGeometry(stage.clientWidth,tracks.length);paint();});resize.observe(stage);
+ const resize=new ResizeObserver(()=>{if(busy){resizePending=true;for(const a of [...animations.values()])a.finish();}geometry=measure();paint();});resize.observe(stage);
+ const recommended=document.querySelector?.('#home-recommended');if(recommended)resize.observe(recommended);
  const audioEvents=['play','pause','ended','emptied','loadedmetadata'];if(typeof audio!=='undefined')for(const name of audioEvents)audio.addEventListener(name,sync);
  const reschedule=()=>schedule();document.addEventListener('visibilitychange',reschedule);motion.addEventListener('change',reschedule);window.addEventListener('hashchange',cleanup);
- function cleanup(){disposed=true;clear();resize.disconnect();for(const a of animations.values())a.cancel();animations.clear();for(const [name,fn] of listeners)feature.removeEventListener(name,fn);if(typeof audio!=='undefined')for(const name of audioEvents)audio.removeEventListener(name,sync);document.removeEventListener('visibilitychange',reschedule);motion.removeEventListener('change',reschedule);window.removeEventListener('hashchange',cleanup);}
+ function cleanup(){disposed=true;clear();resize.disconnect();copyLayout.cleanup();for(const a of animations.values())a.cancel();animations.clear();for(const [name,fn] of listeners)feature.removeEventListener(name,fn);if(typeof audio!=='undefined')for(const name of audioEvents)audio.removeEventListener(name,sync);document.removeEventListener('visibilitychange',reschedule);motion.removeEventListener('change',reschedule);window.removeEventListener('hashchange',cleanup);}
  paint();feature.classList.add('is-ready');schedule();ready[0].then(()=>{if(!disposed&&index===0&&!busy)background(true);});return cleanup;
 }
 // Each consumer owns its cleanup; editorial slides never subscribe to audio.
