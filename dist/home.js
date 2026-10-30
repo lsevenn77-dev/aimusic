@@ -20,7 +20,7 @@ function homeReplaceArtwork(html,tracks,cls='album-art'){for(const t of tracks)h
 function homeCard(t){return homeReplaceArtwork(card(t),[t]).replace('class="album-title"','class="album-title" title="'+esc(t.title)+'"');}
 function homeChartHTML(tracks){
  const visible=tracks.slice(0,7);
- const table=homeReplaceArtwork(songTable(visible,{chart:true}),visible,'mini-cover');
+ const table=homeReplaceArtwork(songTable(visible,{chart:true}),visible,'mini-cover').replace('song-table-chart','song-table-chart chart-ui chart-ui--compact');
  const top=visible.find((t,i)=>(t.chart_rank||i+1)===1);
  if(!top)return '<div class="home-chart-layout">'+table+'</div>';
  const art=homeArtworkPath(top);
