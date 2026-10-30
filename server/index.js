@@ -1,3 +1,4 @@
+import {artistFanpageRoute} from './artist-fanpage.js';
 import {giftCheckoutRoute} from './gift-checkout.js';
 import {aiBotsRoute,runBotEngine,queueBotHeartbeat} from './ai-bots.js';
 import {coverCompressionAdmin} from './cover-compression.js';
@@ -95,7 +96,7 @@ export default {async fetch(req,env,ctx){
   }
   if(path.startsWith('/api/auth/')&&!path.endsWith('/callback'))await rate(env,'auth-ip:'+await hash(req.headers.get('cf-connecting-ip')||'local'),40,900);
   const maxJson=path==='/api/uploads'||/^\/api\/dubbing\/projects(?:\/[^/]+)?$/.test(path)||/^\/api\/studio\/tracks\/[^/]+(?:\/lyrics\/align)?$/.test(path)?131072:32768;
-  const binary=path==='/api/admin/ai-bots/assets'||/^\/api\/crews\/[\w-]+\/notice-images$/.test(path)||/^\/api\/dubbing\/projects\/[^/]+\/recording\/[\w-]+\/lines\/[\w-]+$/.test(path)||/^\/api\/playlists\/[\w-]+\/image$/.test(path)||/^\/api\/producers\/[\w-]+\/gallery$/.test(path)||/^\/api\/artists\/[\w-]+\/gallery$/.test(path)||/^\/api\/(dm\/[\w-]+\/images|crews\/[\w-]+\/images?)$/.test(path)||path==='/api/me/profile/image'||/^\/api\/uploads\/[^/]+\/(audio|cover)$/.test(path)||/^\/api\/studio\/(artists|producers|tracks)\/[^/]+\/image$/.test(path)||/^\/api\/studio\/tracks\/[^/]+\/karaoke\/mr$/.test(path);
+  const binary=/^\/api\/artists\/[\w-]+\/fanpage\/banner$/.test(path)||path==='/api/admin/ai-bots/assets'||/^\/api\/crews\/[\w-]+\/notice-images$/.test(path)||/^\/api\/dubbing\/projects\/[^/]+\/recording\/[\w-]+\/lines\/[\w-]+$/.test(path)||/^\/api\/playlists\/[\w-]+\/image$/.test(path)||/^\/api\/producers\/[\w-]+\/gallery$/.test(path)||/^\/api\/artists\/[\w-]+\/gallery$/.test(path)||/^\/api\/(dm\/[\w-]+\/images|crews\/[\w-]+\/images?)$/.test(path)||path==='/api/me/profile/image'||/^\/api\/uploads\/[^/]+\/(audio|cover)$/.test(path)||/^\/api\/studio\/(artists|producers|tracks)\/[^/]+\/image$/.test(path)||/^\/api\/studio\/tracks\/[^/]+\/karaoke\/mr$/.test(path);
   // Some ingress requests expose an empty stream for HEAD/GET (Content-Length: 0).
   // Rebuilding those with a body throws before the public media handler runs.
   if(!['GET','HEAD'].includes(req.method)&&!binary&&req.body){
@@ -128,6 +129,7 @@ export default {async fetch(req,env,ctx){
   if(path==='/api/studio'&&ctx?.waitUntil&&env.GEMINI_API_KEY)ctx.waitUntil(classifyNext(env).catch(()=>console.error('Music classification pending')));
   const classificationResponse=await musicClassificationRoute(req,env,path,user);if(classificationResponse)return classificationResponse;
   const profileGalleryResponse=await profileGalleryRoute(req,env,path,user);if(profileGalleryResponse)return profileGalleryResponse;
+  const fanpageResponse=await artistFanpageRoute(req,env,path,user);if(fanpageResponse)return fanpageResponse;
   const galleryResponse=await artistGalleryRoute(req,env,path,user);if(galleryResponse)return galleryResponse;
   const playResponse=await playBillingRoute(req,env,path,user);if(playResponse)return playResponse;
   retryPush(env,ctx);

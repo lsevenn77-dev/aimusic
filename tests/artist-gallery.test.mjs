@@ -6,8 +6,8 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 
 test('public artist representative image editor is visible only to the owner',()=>{
- const context={document:{addEventListener(){}},heading:()=>'',portrait:()=>'<div>portrait</div>',esc:String,number:String,followed:()=>false,section:()=>'',list:()=>''};
- vm.createContext(context);vm.runInContext(readFileSync(new URL('../dist/artist-gallery.js',import.meta.url),'utf8'),context);
+ const context={document:{addEventListener(){}},heading:()=>'',portrait:()=>'<div>portrait</div>',esc:String,number:String,followed:()=>false,section:()=>'',list:()=>'',icon:()=>''};
+ vm.createContext(context);vm.runInContext(readFileSync(new URL('../dist/artist-fanpage.js',import.meta.url),'utf8'),context);vm.runInContext(readFileSync(new URL('../dist/artist-gallery.js',import.meta.url),'utf8'),context);
  const data={profile:{name:'Artist'},tracks:[],followers:0};
  assert.doesNotMatch(context.artistPageHTML(data,'artist'),/data-artist-image/);
  assert.match(context.artistPageHTML({...data,can_manage:true},'artist'),/data-artist-image="artist"/);
@@ -83,7 +83,7 @@ test('invalid, oversized and over-limit uploads leave no stored photos',async t=
  const f=await setup(t),path='/api/artists/artist/gallery';
  assert.equal((await f.send(path,'PUT','owner',new TextEncoder().encode('<svg/>'),'image/svg+xml')).status,400);
  assert.equal((await f.send(path,'PUT','owner',new Uint8Array(5*1024*1024+1))).status,413);
- for(let i=0;i<30;i++)f.sql.prepare('INSERT INTO artist_photos VALUES(?,?,?,?,?)').run('p'+i,'artist','v'+i,'image/webp',i);
+ for(let i=0;i<20;i++)f.sql.prepare('INSERT INTO artist_photos VALUES(?,?,?,?,?)').run('p'+i,'artist','v'+i,'image/webp',i);
  assert.equal((await f.send(path)).status,409);assert.equal(f.objects.size,0);
 });
 test('gallery mutations cannot cross artists and blocked owners are inaccessible',async t=>{

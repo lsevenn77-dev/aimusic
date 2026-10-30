@@ -114,6 +114,9 @@ export async function deleteAccount(env,user){
  writes.push(q('DELETE FROM crew_chat_images WHERE sender_id=?',uid));
  writes.push(q('DELETE FROM dm_settings WHERE user_id=? OR peer_id=?',uid,uid),q('DELETE FROM chat_images WHERE sender_id=? OR recipient_id=?',uid,uid));
  writes.push(q('DELETE FROM profile_photos WHERE producer_id IN (SELECT id FROM producers WHERE user_id=?)',uid));
+ writes.push(q("UPDATE artist_fan_posts SET body='',title='',deleted=1,pinned=0 WHERE user_id=?",uid),q('DELETE FROM artist_fan_likes WHERE user_id=?',uid),q('DELETE FROM artist_fan_reports WHERE user_id=?',uid));
+ writes.push(q('DELETE FROM artist_fan_operators WHERE user_id=? OR approved_by=?',uid,uid));
+ writes.push(q('DELETE FROM artist_fan_settings WHERE artist_id IN (SELECT a.id FROM artists a JOIN producers p ON p.id=a.producer_id WHERE p.user_id=?)',uid));
  // Minimal anonymous keys remain only where accounting rows require stable foreign keys.
  writes.push(q("UPDATE tracks SET status='deleted',title='삭제된 음악',genre='',tags='',description='',lyrics='',lyrics_mode='none',ai_tool='',participation='',original_key='',original_bytes=0,duration=0,has_cover=0,cover_version='',cover_type='',error=NULL,lease_token=NULL,lease_until=0,karaoke_terms='',karaoke_at=0,duet_guide='' WHERE user_id=?",uid));
  writes.push(q("UPDATE artists SET name='삭제된 아티스트',bio='',genre='',image_version='',image_type='' WHERE producer_id IN (SELECT id FROM producers WHERE user_id=?)",uid));
