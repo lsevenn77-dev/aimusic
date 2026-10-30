@@ -31,9 +31,17 @@ function homeMore(title,href){return href?`<a class="home-more-link" href="${hre
 function homeSection(title,href){return `<div class="section-heading"><h2>${esc(title)}</h2>${homeMore(title,href)}</div>`;}
 function homePlaceholder(){return '<div class="release-placeholder" role="status" aria-label="음악을 불러오는 중"><div></div><span>음악을 불러오고 있어요.</span></div>';}
 function homeRailHTML(id,label,content,kind){return `<div class="home-rail-shell">${kind==='profile'||id==='home-playlist-rail'?'':`<div class="home-rail-controls"><button type="button" data-home-scroll="-1" aria-controls="${id}" aria-label="${esc(label)} 이전 보기">${icon('chevron')}</button><button type="button" data-home-scroll="1" aria-controls="${id}" aria-label="${esc(label)} 다음 보기">${icon('chevron')}</button></div>`}<div id="${id}" class="home-rail home-${kind}-rail" role="region" aria-roledescription="캐러셀" aria-label="${esc(label)}" tabindex="0">${content}</div></div>`;}
-function homePlaylistCard(p){
+function homePlaylistCard(p,tracks=null){
  let art=playlistArt(p);for(const t of p.covers||[])art=homeReplaceArtwork(art,[t],'collection-tile');
- return `<article class="home-playlist-card"><div class="home-playlist-art"><a href="#playlist/${esc(p.id)}" aria-label="${esc(p.name)} 상세">${art}</a><button type="button" class="list-action" data-home-playlist="${esc(p.id)}" aria-label="${esc(p.name)} 재생">${icon('ui-play-action')}</button></div><a class="home-playlist-name" href="#playlist/${esc(p.id)}" title="${esc(p.name)}">${esc(p.name)}</a>${p.description?`<p title="${esc(p.description)}">${esc(p.description)}</p>`:''}<small>${number(p.tracks)}곡 · ${p.is_public?'공개':'비공개'}</small></article>`;
+ const preview=tracks?.slice(0,3)||[],total=tracks?tracks.length:Number(p.tracks)||0,extra=Math.max(0,total-preview.length);
+ return `<article class="home-playlist-card"><div class="home-playlist-art"><a href="#playlist/${esc(p.id)}" aria-label="${esc(p.name)} 상세">${art}</a><button type="button" class="list-action" data-home-playlist="${esc(p.id)}" data-playlist-name="${esc(p.name)}" aria-pressed="false" aria-label="${esc(p.name)} 재생">${icon('ui-play-action')}</button></div><a class="home-playlist-info" href="#playlist/${esc(p.id)}"><h3 class="home-playlist-name" title="${esc(p.name)}">${esc(p.name)}</h3><p class="home-playlist-description" title="${esc(p.description||'')}">${esc(p.description||'')}</p><ol class="home-playlist-preview" aria-label="수록곡 미리보기">${preview.map((t,i)=>`<li title="${esc(t.title)} · ${esc(t.artist||'')}"><span class="home-playlist-index">${String(i+1).padStart(2,'0')}</span><span class="home-playlist-song">${esc(t.title)}</span><span class="home-playlist-artist">${esc(t.artist||'')}</span></li>`).join('')}${tracks===null?'<li class="home-playlist-status">수록곡을 불러오는 중</li>':''}</ol><div class="home-playlist-count"><span>${tracks&&extra?'외 '+number(extra)+'곡':''}</span><span>${number(total)}곡 수록</span></div></a></article>`;
+}
+function homePlaylistQueueMatches(tracks){return !!tracks?.length&&typeof current!=='undefined'&&tracks.some(t=>t.id===current?.id)&&queue.length===tracks.length&&tracks.every((t,i)=>queue[i]===t.id);}
+function syncHomePlaylistButtons(target,playlists){
+ for(const b of target.querySelectorAll('[data-home-playlist]')){
+  const playing=homePlaylistQueueMatches(playlists.get(b.dataset.homePlaylist))&&!audio.paused&&!audio.ended&&!window.AifectAudioAds?.active;
+  b.innerHTML=icon(playing?'ui-pause-action':'ui-play-action');b.setAttribute('aria-pressed',String(playing));b.setAttribute('aria-label',b.dataset.playlistName+(playing?' 일시정지':' 재생'));
+ }
 }
 function homeProfileCard(p,kind){return `<article class="home-profile-card"><a href="#${kind}/${esc(p.id)}" title="${esc(p.name)}"><div class="artist-portrait cover cover-custom profile-avatar">${avatarImage(p,kind,false)}</div><div class="home-profile-name"><span>${esc(p.name)}</span>${p.partner_badge?`<span class="partner-badge" aria-label="${esc(p.partner_badge)}">✓ ${esc(p.partner_badge)}</span>`:''}</div></a></article>`;}
 function homeProfileSection(kind,title,href){return `<section id="home-${kind}s" class="listening-section home-profile-section" data-home-kind="${kind}"><div class="section-heading"><h2 id="home-${kind}-heading">${esc(title)}</h2>${kind==='producer'?'':`<a class="home-more-link" href="${href}" aria-label="${esc(title)} 전체보기">전체보기</a>`}</div><div id="home-${kind}-panel" role="group" aria-labelledby="home-${kind}-heading" aria-busy="true"><p class="home-load-message" role="status">프로필을 불러오고 있어요.</p></div></section>`;}
@@ -301,7 +309,23 @@ function renderHome(ticket){
  const paintChart=d=>{const target=$('#home-popular'),tracks=d.tracks||[];addTracks(tracks);paint(target,homeSection('인기 차트','#charts')+(tracks.length?homeChartHTML(tracks):'<p class="home-empty-inline">아직 집계된 음악이 없어요.</p>'));bindChartPlayback();};
  const paintSing=d=>{addTracks(d.tracks);paint($('#home-sing'),homeSingHTML(d.tracks));};
  const paintConversations=d=>shelf('home-conversations','같은 노래, 다른 목소리','#community/covers',{tracks:(d.tracks||[]).slice(0,6)});
- const paintCurations=d=>{const items=(d.playlists||[]).filter(p=>p.tracks>0&&p.is_public&&!p.locked).slice(0,12),target=$('#home-curations');paint(target,items.length?homeRailHTML('home-playlist-rail','추천 플레이리스트',items.map(homePlaylistCard).join(''),'playlist'):'<p class="home-empty-inline" role="status">아직 추천 플레이리스트가 없어요.</p>');mountHomeRail(target);};
+ const homePlaylists=new Map();let curationSequence=0;
+ const syncCurations=()=>syncHomePlaylistButtons($('#home-curations'),homePlaylists);
+ for(const event of ['play','pause','ended','emptied','loadedmetadata'])audio.addEventListener(event,syncCurations,{signal:controller.signal});
+ const paintCurations=d=>{
+  const items=(d.playlists||[]).filter(p=>p.tracks>0&&p.is_public&&!p.locked).slice(0,6),target=$('#home-curations'),sequence=++curationSequence;
+  paint(target,items.length?'<div class="home-playlist-grid">'+items.map(p=>homePlaylistCard(p)).join('')+'</div>':'<p class="home-empty-inline" role="status">아직 추천 플레이리스트가 없어요.</p>');
+  for(const p of items)void (async()=>{
+   try{
+    const detail=await api('/api/playlists/'+encodeURIComponent(p.id),'GET',undefined,{signal:controller.signal});
+    if(!active(target)||sequence!==curationSequence)return;
+    const card=[...target.querySelectorAll('[data-home-playlist]')].find(b=>b.dataset.homePlaylist===p.id)?.closest('.home-playlist-card');
+    if(!card)return;
+    if(!detail.playlist.is_public||detail.playlist.locked){card.remove();homePlaylists.delete(p.id);return;}
+    homePlaylists.set(p.id,detail.tracks||[]);card.outerHTML=homePlaylistCard(detail.playlist,detail.tracks||[]);syncCurations();
+   }catch{if(active(target)&&sequence===curationSequence){const b=[...target.querySelectorAll('[data-home-playlist]')].find(b=>b.dataset.homePlaylist===p.id),status=b?.closest('.home-playlist-card').querySelector('.home-playlist-status');if(status)status.textContent='수록곡은 상세에서 확인';}}
+  })();
+ };
  const profileRequests={artist:0,producer:0};
  const loadProfiles=async kind=>{
   const target=$('#home-'+kind+'-panel');if(!target?.isConnected)return;const sequence=++profileRequests[kind];
@@ -317,7 +341,16 @@ function renderHome(ticket){
   main.addEventListener('click',async e=>{
    const retry=e.target.closest('[data-home-profile-retry]'),button=e.target.closest('[data-home-playlist]');
    if(retry)void loadProfiles(retry.dataset.homeProfileRetry);
-   if(button){button.disabled=true;try{const d=await api('/api/playlists/'+encodeURIComponent(button.dataset.homePlaylist),'GET',undefined,{signal:controller.signal});if(!active(button))return;if(d.tracks?.length){remember(d.tracks);await play(d.tracks[0].id,d.tracks);}else toast('재생할 수 있는 공개곡이 없어요.');}catch(error){if(!controller.signal.aborted)toast(error.message);}finally{if(button.isConnected)button.disabled=false;}}
+   if(button){
+    e.preventDefault();e.stopPropagation();button.disabled=true;
+    try{
+     const id=button.dataset.homePlaylist;
+     if(homePlaylistQueueMatches(homePlaylists.get(id))){$('#play-toggle').click();return;}
+     const d=await api('/api/playlists/'+encodeURIComponent(id),'GET',undefined,{signal:controller.signal});if(!active(button))return;
+     homePlaylists.set(id,d.tracks||[]);
+     if(d.tracks?.length){remember(d.tracks);await play(d.tracks[0].id,d.tracks);}else toast('재생할 수 있는 공개곡이 없어요.');
+    }catch(error){if(!controller.signal.aborted)toast(error.message);}finally{if(button.isConnected)button.disabled=false;if(!controller.signal.aborted)syncCurations();}
+   }
   },{signal:controller.signal});
 
  }
