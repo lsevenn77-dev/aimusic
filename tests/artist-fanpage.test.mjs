@@ -139,3 +139,33 @@ test('photo counts, six tabs, XSS escaping and page-only compact music renderer'
  }
  const css=readFileSync(new URL('../dist/list-actions.css',import.meta.url),'utf8');assert.match(css,/minmax\(0,220px\) 90px 110px/);
 });
+
+test('fan post and reply APIs expose only public avatar metadata and refresh versions',async t=>{
+ const f=await fixture(t);
+ f.sql.exec("UPDATE producers SET image_version='photo-v1' WHERE id='producer'");
+ const post=await f.call(base+'/posts','POST',{kind:'lounge',body:'사진 메타데이터',request_id:'avatar-post'});
+ await f.call(base+'/posts','POST',{kind:'lounge',body:'사진 답글',parent_id:post.body.id,request_id:'avatar-reply'});
+ for(const path of [base+'/posts',base+'/posts/'+post.body.id+'/replies']){
+  const res=(await f.call(path)).body,p=res.items[0];
+  assert.equal(p.profile_id,'producer');assert.equal(p.image_version,'photo-v1');
+  assert.equal('email' in p,false);assert.equal('image_type' in p,false);
+  if(path.endsWith('replies'))assert.equal(res.parent_replies,1);
+ }
+ f.sql.exec("UPDATE producers SET image_version='photo-v2' WHERE id='producer'");
+ assert.equal((await f.call(base+'/posts')).body.items[0].image_version,'photo-v2');
+ const other=await f.call(base+'/posts','POST',{kind:'lounge',body:'프로필 없음',request_id:'no-avatar'},'other');
+ assert.equal((await f.call(base+'/posts')).body.items.find(p=>p.id===other.body.id).profile_id,null);
+});
+
+test('header prioritizes custom banner, returns to versioned portrait and then aurora',()=>{
+ const c={esc:v=>String(v).replaceAll('"','&quot;')};vm.createContext(c);
+ vm.runInContext(readFileSync(new URL('../dist/artist-fanpage.js',import.meta.url),'utf8'),c);
+ const p={image_version:'v1'};
+ const custom=c.fanHeaderBackground(p,{banner_version:'banner'},'artist');
+ assert.match(custom,/\/media\/artist-banner\/artist\?v=banner/);assert.doesNotMatch(custom,/fan-header-profile/);
+ const fallback=c.fanHeaderBackground(p,{},'artist');
+ assert.match(fallback,/fan-background-blur/);assert.match(fallback,/fan-background-person/);
+ assert.equal((fallback.match(/\/media\/artist\/artist\?v=v1/g)||[]).length,2);
+ p.image_version='v2';assert.match(c.fanHeaderBackground(p,{},'artist'),/v=v2/);
+ p.image_version='';assert.equal(c.fanHeaderBackground(p,{},'artist'),'');
+});

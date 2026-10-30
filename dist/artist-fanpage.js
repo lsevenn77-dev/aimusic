@@ -1,3 +1,9 @@
+function fanHeaderBackground(profile,settings,artistId){
+ const media='/media/'+(settings.banner_version?'artist-banner/':'artist/')+encodeURIComponent(artistId)+'?v='+encodeURIComponent(settings.banner_version||profile.image_version||'');
+ if(settings.banner_version)return '<div class="fan-header-background" aria-hidden="true"><img src="'+esc(media)+'" alt=""></div>';
+ if(!profile.image_version)return '';
+ return '<div class="fan-header-background fan-header-profile" aria-hidden="true"><img class="fan-background-blur" src="'+esc(media)+'" alt=""><div class="fan-background-person"><img src="'+esc(media)+'" alt=""></div></div>';
+}
 function artistFanpageHTML(d,aid,tab='home'){
  const tabs=[['home','홈'],['music','음악'],['gallery','갤러리'],['lounge','팬라운지'],['news','소식'],['profile','프로필']];
  if(!tabs.some(t=>t[0]===tab))tab='home';
@@ -11,10 +17,10 @@ function artistFanpageHTML(d,aid,tab='home'){
  let content='';
  if(tab==='gallery')content=gallery;
  if(tab==='music')content='<div class="fan-music-tools"><button class="small-button" data-play-all>전체듣기</button><button class="small-button" data-fan-shuffle>섞어듣기</button><select data-fan-sort aria-label="음악 정렬"><option value="recent">최신순</option><option value="plays">인기순</option><option value="likes">좋아요순</option></select></div><div data-fan-music>'+artistMusicList(d.tracks)+'</div>';
- if(tab==='lounge'||tab==='news')content='<section class="fan-section"><div class="section-heading"><h2>'+(tab==='news'?'공식 소식':'팬라운지')+'</h2>'+((tab==='lounge'||d.can_manage)?'<button class="small-button" data-fan-compose="'+tab+'">'+(tab==='news'?'소식 쓰기':'응원글 쓰기')+'</button>':'')+'</div>'+stream(tab)+'</section>';
+ if(tab==='lounge'||tab==='news')content='<section class="fan-section"><div class="section-heading">'+(tab==='news'?'<h2>공식 소식</h2>':'<p class="fan-lounge-prompt">응원의 한마디를 남겨보세요.</p>')+''+((tab==='lounge'||d.can_manage)?'<button class="small-button" data-fan-compose="'+tab+'">'+(tab==='news'?'소식 쓰기':'응원글 쓰기')+'</button>':'')+'</div>'+stream(tab)+'</section>';
  if(tab==='profile')content='<section class="fan-profile">'+[['상세 소개',s.introduction||p.bio],['음악 스타일과 콘셉트',s.concept],['세계관',s.world]].map(([title,text])=>'<section><h2>'+title+'</h2><p>'+esc(text||'아직 등록된 소개가 없어요.')+'</p></section>').join('')+(producer?'<section><h2>소속 제작자</h2><a href="#producer/'+esc(producer.id)+'">'+esc(producer.name)+'</a></section>':'')+(d.fanpage?.operators?.length?'<section><h2>공식 운영자</h2>'+d.fanpage.operators.map(o=>'<p><a href="#producer/'+esc(o.id)+'">'+esc(o.name)+'</a></p>').join('')+'</section>':'')+(d.can_manage?'<button class="small-button" data-fan-settings>프로필 편집</button>':'')+(portraitOwner?'<button class="small-button" data-fan-operators>공식 운영자 관리</button>':'')+'</section>';
  if(tab==='home')content='<div class="fan-home-columns"><div class="fan-home-music">'+more('최신 음악','music',artistMusicList(d.tracks.slice(0,3)))+more('대표 음악','music',artistMusicList([...d.tracks].sort((a,b)=>(b.plays||0)-(a.plays||0)).slice(0,3)))+'</div><div class="fan-home-updates">'+more('최근 공식 소식','news',stream('news'))+more('최신 팬 응원글','lounge',stream('lounge'))+'</div></div>';
- return '<article class="artist-fanpage" data-fanpage="'+esc(JSON.stringify({aid,tab,photos,settings:s,can_manage:!!d.can_manage,is_owner:!!portraitOwner,operators:d.fanpage?.operators||[],tracks:d.tracks}))+'"><header class="fan-header" style="--fan-focus:'+Number(s.focus_x??50)+'% '+Number(s.focus_y??50)+'%;--fan-mobile-focus:'+Number(s.mobile_x??50)+'% '+Number(s.mobile_y??50)+'%">'+(s.banner_version?'<div class="fan-header-background" aria-hidden="true"><img src="/media/artist-banner/'+esc(aid)+'?v='+esc(s.banner_version)+'" alt=""></div>':'')+'<div class="fan-identity">'+(portraitOwner?'<div class="artist-image-editor">'+portrait(p,'artist')+'<button type="button" class="small-button artist-image-change" data-artist-image-pick>대표 이미지 변경</button><input type="file" accept="image/jpeg,image/png,image/webp" data-artist-image="'+esc(aid)+'" aria-label="대표 이미지 사진 선택" hidden></div>':portrait(p,'artist'))+'<div class="fan-identity-text"><h1>'+esc(p.name)+'</h1><p class="fan-bio" title="'+esc(p.bio||'')+'">'+esc((p.bio||'새로운 음악으로 만나요.').split('\n')[0])+'</p>'+(producer?'<a class="fan-affiliation" href="#producer/'+esc(producer.id)+'">소속 '+esc(producer.name)+'</a>':'')+'<div class="fan-stats"><span data-followers="artist/'+esc(aid)+'" data-count="'+Number(d.followers||0)+'">'+number(d.followers||0)+' 팔로워</span><span>공개곡 '+number(d.tracks.length)+'</span></div><div class="inline-actions"><button class="primary-button" data-follow="artist/'+esc(aid)+'">'+(followed('artist',aid)?'팔로잉':'팔로우')+'</button><button class="fan-icon" data-share aria-label="팬페이지 공유">'+icon('share',20)+'</button>'+(d.can_manage?'<button class="fan-icon" data-fan-banner aria-label="헤더 배경 설정">'+icon('edit',20)+'</button>':'')+'</div></div></div></header>'+carousel+'<nav class="profile-content-tabs fan-tabs" aria-label="아티스트 카테고리">'+tabs.map(([key,title])=>'<a href="'+href(key)+'" '+(tab===key?'class="active" aria-current="page"':'')+'>'+title+'</a>').join('')+'</nav><div class="fan-content">'+content+'</div></article>';
+ return '<article class="artist-fanpage" data-fanpage="'+esc(JSON.stringify({aid,tab,photos,settings:s,can_manage:!!d.can_manage,is_owner:!!portraitOwner,operators:d.fanpage?.operators||[],tracks:d.tracks}))+'"><header class="fan-header" style="--fan-focus:'+Number(s.focus_x??50)+'% '+Number(s.focus_y??50)+'%;--fan-mobile-focus:'+Number(s.mobile_x??50)+'% '+Number(s.mobile_y??50)+'%">'+fanHeaderBackground(p,s,aid)+'<div class="fan-identity">'+(portraitOwner?'<div class="artist-image-editor">'+portrait(p,'artist')+'<button type="button" class="small-button artist-image-change" data-artist-image-pick>대표 이미지 변경</button><input type="file" accept="image/jpeg,image/png,image/webp" data-artist-image="'+esc(aid)+'" aria-label="대표 이미지 사진 선택" hidden></div>':portrait(p,'artist'))+'<div class="fan-identity-text"><h1>'+esc(p.name)+'</h1><p class="fan-bio" title="'+esc(p.bio||'')+'">'+esc((p.bio||'새로운 음악으로 만나요.').split('\n')[0])+'</p>'+(producer?'<a class="fan-affiliation" href="#producer/'+esc(producer.id)+'">소속 '+esc(producer.name)+'</a>':'')+'<div class="fan-stats"><span data-followers="artist/'+esc(aid)+'" data-count="'+Number(d.followers||0)+'">'+number(d.followers||0)+' 팔로워</span><span>공개곡 '+number(d.tracks.length)+'</span></div><div class="inline-actions"><button class="primary-button" data-follow="artist/'+esc(aid)+'">'+(followed('artist',aid)?'팔로잉':'팔로우')+'</button><button class="fan-icon" data-share aria-label="팬페이지 공유">'+icon('share',20)+'</button>'+(d.can_manage?'<button class="fan-icon" data-fan-banner aria-label="헤더 배경 설정">'+icon('edit',20)+'</button>':'')+'</div></div></div></header>'+carousel+'<nav class="profile-content-tabs fan-tabs" aria-label="아티스트 카테고리">'+tabs.map(([key,title])=>'<a href="'+href(key)+'" '+(tab===key?'class="active" aria-current="page"':'')+'>'+title+'</a>').join('')+'</nav><div class="fan-content">'+content+'</div></article>';
 }
 
 let artistFanpageCleanup=null;
@@ -27,7 +33,7 @@ function bindArtistFanpage(){
  const read=(path,method='GET',body)=>api(base+path,method,body,method==='GET'?{signal}:{});
  const refresh=async()=>{if(root.isConnected)await render();};
  const settings=()=>({...d.settings,focus_x:d.settings.focus_x??50,focus_y:d.settings.focus_y??50,mobile_x:d.settings.mobile_x??50,mobile_y:d.settings.mobile_y??50});
- root.querySelector('.fan-header-background img')?.addEventListener('error',e=>e.target.parentElement.remove(),{once:true,signal});
+ root.querySelector('.fan-header-background img')?.addEventListener('error',e=>e.target.closest('.fan-header-background').remove(),{once:true,signal});
  const carousel=root.querySelector('[data-fan-carousel]'),cards=[...root.querySelectorAll('[data-card-index]')],reduced=matchMedia('(prefers-reduced-motion: reduce)');
  let currentIndex=0,paused=false,hover=false,touch=false,focus=false,timer,movingUntil=0;
  const transitions=new Set();
@@ -65,15 +71,17 @@ function bindArtistFanpage(){
  on(root.querySelector('[data-fan-sort]'),'change',e=>{const sort=e.target.value,tracks=[...d.tracks].sort((a,b)=>Number(b[sort==='recent'?'created':sort]||0)-Number(a[sort==='recent'?'created':sort]||0));root.querySelector('[data-fan-music]').innerHTML=artistMusicList(tracks);routeTracks=remember(tracks);icons();paintInteractions();});
  function postHTML(p){
   const own=me?.id===p.user_id,button=(action,text)=>'<button class="fan-text-button'+(action==='like'&&p.liked?' is-active':'')+'" data-post-action="'+action+'" data-post-id="'+esc(p.id)+'" '+(action==='like'?'aria-label="응원글 좋아요 '+p.likes+'개" aria-pressed="'+!!p.liked+'"':'')+'>'+text+'</button>';
-  return '<article class="fan-post" data-post="'+esc(p.id)+'"><div class="fan-post-meta">'+(p.producer_id?'<a href="#producer/'+esc(p.producer_id)+'">'+esc(p.author)+'</a>':'<span>'+esc(p.author)+'</span>')+(p.official?'<span class="fan-official">공식 제작자</span>':p.operator?'<span class="fan-official">공식 운영자</span>':'')+(p.pinned?'<span>고정</span>':'')+'<time datetime="'+new Date(p.created*1000).toISOString()+'">'+new Date(p.created*1000).toLocaleDateString('ko-KR')+'</time>'+(p.edited?' · 수정됨':'')+'</div>'+(p.title?'<h3>'+esc(p.title)+'</h3>':'')+'<p class="fan-post-body">'+(p.deleted?'삭제된 글입니다.':esc(p.body))+'</p>'+(!p.deleted?'<div class="fan-post-actions">'+button('like',icon('ui-heart',16)+' '+p.likes)+(!p.parent_id&&p.kind==='lounge'?button('reply','답글 '+p.replies):'')+(own?button('edit','수정')+button('delete','삭제'):button('report','신고'))+(d.can_manage&&!p.parent_id?button('pin',p.pinned?'고정 해제':'상단 고정'):'')+'</div>':'')+'<div data-fan-replies="'+esc(p.id)+'"></div></article>';
+  return '<article class="fan-post" data-post="'+esc(p.id)+'"><div class="fan-post-meta"><span class="fan-post-author"><span class="fan-post-avatar">'+avatarImage({profile_id:p.profile_id,name:p.author,image_version:p.image_version},'producer',false)+'</span>'+(p.producer_id?'<a href="#producer/'+esc(p.producer_id)+'">'+esc(p.author)+'</a>':'<span>'+esc(p.author)+'</span>')+'</span>'+(p.official?'<span class="fan-official">공식 제작자</span>':p.operator?'<span class="fan-official">공식 운영자</span>':'')+(p.pinned?'<span>고정</span>':'')+'<time datetime="'+new Date(p.created*1000).toISOString()+'">'+new Date(p.created*1000).toLocaleDateString('ko-KR')+'</time>'+(p.edited?' · 수정됨':'')+'</div>'+(p.title?'<h3>'+esc(p.title)+'</h3>':'')+'<p class="fan-post-body">'+(p.deleted?'삭제된 글입니다.':esc(p.body))+'</p>'+(!p.deleted?'<div class="fan-post-actions">'+button('like',icon('ui-heart',16)+' '+p.likes)+(!p.parent_id&&p.kind==='lounge'?button('reply','답글 '+p.replies):'')+(own?button('edit','수정')+button('delete','삭제'):button('report','신고'))+(d.can_manage&&!p.parent_id?button('pin',p.pinned?'고정 해제':'상단 고정'):'')+'</div>':'')+'<div data-fan-replies="'+esc(p.id)+'"></div></article>';
  }
- const postMap=new Map();
+ const postMap=new Map(),feedRequests=new WeakMap();
  async function loadFeed(target,kind,offset=0,parent=null){
-  try{const res=await read('/posts'+(parent?'/'+encodeURIComponent(parent)+'/replies':'')+'?kind='+kind+'&offset='+offset);if(signal.aborted||!target.isConnected)return;
+  const request=(feedRequests.get(target)||0)+1;feedRequests.set(target,request);
+  try{const res=await read('/posts'+(parent?'/'+encodeURIComponent(parent)+'/replies':'')+'?kind='+kind+'&offset='+offset);if(signal.aborted||!target.isConnected||feedRequests.get(target)!==request)return;
    res.items.forEach(p=>postMap.set(p.id,p));if(!offset)target.innerHTML='';target.querySelector('[data-feed-more]')?.remove();
-   const items=d.tab==='home'?res.items.slice(0,3):res.items;target.insertAdjacentHTML('beforeend',items.map(postHTML).join('')||(!offset?'<p class="fan-empty">'+(kind==='news'?'아직 등록된 소식이 없어요.':'첫 응원글을 남겨보세요.')+'</p>':''));
-   if(res.next!==null&&d.tab!=='home'){const button=document.createElement('button');button.className='small-button';button.dataset.feedMore='';button.textContent='더 불러오기';button.onclick=()=>{button.disabled=true;void loadFeed(target,kind,res.next,parent);};target.append(button);}
-  }catch(e){if(!signal.aborted){target.innerHTML='<p role="alert">'+esc(e.message)+'</p>';}}
+   const items=d.tab==='home'&&!parent?res.items.slice(0,3):res.items;target.insertAdjacentHTML('beforeend',items.map(postHTML).join('')||(!offset?'<p class="fan-empty">'+(parent?'아직 답글이 없어요.':kind==='news'?'아직 등록된 소식이 없어요.':'첫 응원글을 남겨보세요.')+'</p>':''));
+   if(res.next!==null&&(parent||d.tab!=='home')){const button=document.createElement('button');button.className='small-button';button.dataset.feedMore='';button.textContent='더 불러오기';button.onclick=()=>{button.disabled=true;void loadFeed(target,kind,res.next,parent);};target.append(button);}
+   return res;
+  }catch(e){if(!signal.aborted&&feedRequests.get(target)===request){target.innerHTML='<p role="alert">'+esc(e.message)+'</p>';}}
  }
  root.querySelectorAll('[data-fan-feed]').forEach(el=>void loadFeed(el,el.dataset.fanFeed));
  function compose(kind,p=null,parent=null){
@@ -86,7 +94,30 @@ function bindArtistFanpage(){
   const el=e.target.closest('[data-post-action]');if(!el||el.disabled)return;const p=postMap.get(el.dataset.postId),action=el.dataset.postAction;if(!p)return;
   if(action==='edit'){compose(p.kind,p);return;}
   if(action==='reply'){
-   const target=root.querySelector('[data-fan-replies="'+p.id+'"]');await loadFeed(target,p.kind,0,p.id);if(me){const b=document.createElement('button');b.className='small-button';b.textContent='답글 쓰기';b.onclick=()=>compose(p.kind,null,p.id);target.prepend(b);}return;
+   const target=root.querySelector('[data-fan-replies="'+p.id+'"]');
+   const existing=target.querySelector('.fan-reply-form');if(existing){existing.elements.body.focus({preventScroll:true});return;}
+   let list=target.querySelector('[data-reply-list]');
+   if(!list){list=document.createElement('div');list.dataset.replyList='';list.innerHTML='<p role="status">답글을 불러오는 중…</p>';target.append(list);}
+   if(me){
+    const form=document.createElement('form');form.className='fan-reply-form';
+    form.innerHTML='<label class="form-field">답글<textarea name="body" rows="2" maxlength="2000" placeholder="응원의 답글을 남겨보세요." required></textarea></label><div class="fan-reply-controls"><button type="button" class="fan-text-button" data-reply-cancel>취소</button><button class="small-button" type="submit">등록</button></div><p class="form-error" role="alert"></p>';
+    target.append(form);form.elements.body.focus({preventScroll:true});
+    const requestId=globalThis.crypto?.randomUUID?.()||('reply-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2)),cancel=form.querySelector('[data-reply-cancel]');
+    cancel.onclick=()=>{form.remove();el.focus({preventScroll:true});};
+    form.onsubmit=busyForm(form,async fd=>{
+     cancel.disabled=true;
+     try{
+      await read('/posts','POST',{kind:p.kind,title:'',body:fd.get('body'),parent_id:p.id,request_id:requestId});
+      if(signal.aborted||!target.isConnected)return;
+      form.remove();el.focus({preventScroll:true});
+      const result=await loadFeed(list,p.kind,0,p.id);
+      if(result){p.replies=result.parent_replies;el.textContent='답글 '+p.replies;}
+     }finally{cancel.disabled=false;}
+    });
+   }
+   // The editor exists before the request, so repeated clicks preserve the draft and focus.
+   if(!list.dataset.loaded){list.dataset.loaded='true';const result=await loadFeed(list,p.kind,0,p.id);if(!result)delete list.dataset.loaded;}
+   return;
   }
   if(!me){toast('로그인 후 이용해주세요.');return;}
   if(action==='delete'||action==='report'){
