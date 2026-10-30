@@ -88,10 +88,10 @@
 #main .artist-directory .directory-list .directory-photo{width:72px;grid-row:1/3;margin:0}
 #main .artist-directory .directory-list .artist-portrait{width:72px;height:72px}
 #main .artist-directory .directory-list .directory-social{grid-column:3;grid-row:1/3;margin:0}
-#main .artist-directory.artist-directory-owned .directory-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+#main .artist-directory.artist-directory-owned .directory-grid{grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-rows:1fr}
 #main .artist-directory .directory-add-symbol{background:none;border:0;border-radius:0}
 #main .mp-artists-card{container-type:inline-size}
-#main .mp-artists-card .mp-artists{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;align-items:stretch}
+#main .mp-artists-card .mp-artists{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-rows:1fr;gap:10px;align-items:stretch}
 #main .mp-artists-card .artist-ui-card{display:flex;flex-direction:column;align-items:center;padding:10px 8px;text-align:center;min-height:0;font:inherit}
 #main .mp-artists-card .mp-artists .artist-portrait{width:100%;height:auto;max-width:none;aspect-ratio:1;border-radius:10px;overflow:hidden;margin:0 0 10px;border:0;box-shadow:none;background:var(--ds-secondary)}
 #main .mp-artists-card .mp-artists .artist-portrait::before,#main .mp-artists-card .mp-artists .artist-portrait::after{display:none}
