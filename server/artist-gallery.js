@@ -1,5 +1,5 @@
 import {canManageArtist} from './artist-fan-access.js';
-import {one,rows,run,id,now,json,fail,rate} from './db.js';
+import {one,rows,run,query,id,now,json,fail,rate} from './db.js';
 import {requireUser} from './auth.js';
 import {assertUnblocked} from './account-safety.js';
 import {hasArtistName} from './artist-identity.js';
@@ -7,12 +7,12 @@ import {storeImage} from './images.js';
 import {objectResponse} from './storage.js';
 
 export const GALLERY_LIMIT=20;
-export async function artistGallery(env,artistId){
- return (await rows(env,'SELECT p.id,p.image_version,p.created,l.carousel,l.position FROM artist_photos p LEFT JOIN artist_photo_layout l ON l.photo_id=p.id WHERE p.artist_id=? ORDER BY COALESCE(l.position,2147483647),p.created DESC,p.id DESC',artistId))
+export async function artistGallery(env,artistId,user=null){
+ return (await rows(env,'SELECT p.id,p.image_version,p.created,l.carousel,l.position,(SELECT count(*) FROM artist_photo_likes k WHERE k.photo_id=p.id) like_count,EXISTS(SELECT 1 FROM artist_photo_likes k WHERE k.photo_id=p.id AND k.user_id=?) liked_by_me FROM artist_photos p LEFT JOIN artist_photo_layout l ON l.photo_id=p.id WHERE p.artist_id=? ORDER BY COALESCE(l.position,2147483647),p.created DESC,p.id DESC',user?.id||'',artistId))
   .map((p,i)=>({...p,carousel:p.carousel===null?i<10:!!p.carousel,url:`/media/artist-gallery/${p.id}?v=${p.image_version}`}));
 }
 export async function artistGalleryRoute(req,env,path,user){
- const edit=path.match(/^\/api\/artists\/([\w-]+)\/gallery(?:\/([\w-]+))?$/);
+ const edit=path.match(/^\/api\/artists\/([\w-]+)\/gallery(?:\/([\w-]+)(?:\/(like))?)?$/);
  const media=path.match(/^\/media\/artist-gallery\/([\w-]+)$/);
  if(!edit&&!media)return null;
  const photo=(media||edit?.[2])?await one(env,'SELECT * FROM artist_photos WHERE id=?',media?.[1]||edit[2]):null;
@@ -26,8 +26,17 @@ export async function artistGalleryRoute(req,env,path,user){
   return objectResponse(req,env,`images/artist/${aid}/gallery/${photo.image_version}`,photo.image_type,true,{imageVersion:photo.image_version});
  }
  const canManage=await canManageArtist(env,aid,user);
- if(req.method==='GET'&&!edit[2])return json({photos:await artistGallery(env,aid),can_manage:canManage,limit:GALLERY_LIMIT});
+ if(req.method==='GET'&&!edit[2])return json({photos:await artistGallery(env,aid,user),can_manage:canManage,limit:GALLERY_LIMIT});
  requireUser(user);
+ if(edit[3]==='like'){
+  if(!['PUT','DELETE'].includes(req.method))fail(405,'지원하지 않는 요청입니다.');
+  await rate(env,'artist-photo-like:'+user.id,120,60);
+  const result=await env.DB.batch([
+   req.method==='PUT'?query(env,'INSERT OR IGNORE INTO artist_photo_likes(photo_id,user_id,created) SELECT id,?,? FROM artist_photos WHERE id=? AND artist_id=?',user.id,now(),photo.id,aid):query(env,'DELETE FROM artist_photo_likes WHERE photo_id=? AND user_id=?',photo.id,user.id),
+   query(env,'SELECT count(*) like_count,EXISTS(SELECT 1 FROM artist_photo_likes WHERE photo_id=? AND user_id=?) liked_by_me FROM artist_photo_likes WHERE photo_id=?',photo.id,user.id,photo.id)
+  ]);
+  return json(result[1].results[0]);
+ }
  if(!canManage)fail(403,'이 AI 가수의 제작자만 사진을 관리할 수 있어요.');
  if(req.method==='PUT'&&!edit[2]){
   await rate(env,'artist-gallery:'+user.id,60,3600);

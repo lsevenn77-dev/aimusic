@@ -172,7 +172,7 @@ export async function catalogRoute(req,env,path,user){
     kind==='producer'?profileGifts(env,entity.id):null,
     kind==='producer'?partnerState(env,entity.user_id):null,
     own?playerIdentity(env,entity.user_id):null,
-    kind==='producer'?profileGallery(env,entity.id,own):artistGallery(env,entity.id),
+    kind==='producer'?profileGallery(env,entity.id,own):artistGallery(env,entity.id,user),
     kind==='producer'&&user&&entity.user_id!==user.id?one(env,'SELECT c.id,c.name FROM crew_members cm JOIN crews c ON c.id=cm.crew_id WHERE cm.user_id=? AND NOT EXISTS(SELECT 1 FROM crew_members target WHERE target.crew_id=c.id AND target.user_id=?) AND NOT EXISTS(SELECT 1 FROM crew_bans WHERE crew_id=c.id AND user_id=?)',user.id,entity.user_id,entity.user_id):null,
     kind==='producer'?profileDashboard(env,entity,user):null
    ]);

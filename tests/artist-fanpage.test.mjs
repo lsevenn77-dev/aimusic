@@ -110,14 +110,14 @@ test('carousel timer pauses for hover, focus, touch and reduced motion; loops on
   setAttribute(k,v){this.attrs[k]=v;}
   contains(){return false;}
   hasAttribute(k){return k==='data-offset'?this.dataset.offset!==undefined:k in this.attrs;}
-  animate(frames,options){assert.equal(options.duration,850);assert.equal(options.easing,'cubic-bezier(0.22, 1, 0.36, 1)');assert.ok(frames.every(f=>!f.transform.includes('rotate')&&!f.transform.includes('translateZ')));const animation={paused:false,pause(){this.paused=true;},play(){this.paused=false;},cancel(){},finish(){this.onfinish?.();}};animations.push(animation);return animation;}
+  animate(frames,options){assert.equal(options.duration,750);assert.equal(options.easing,'cubic-bezier(0.22, 1, 0.36, 1)');assert.ok(frames.every(f=>!f.transform.includes('rotate')&&!f.transform.includes('translateZ')));const animation={paused:false,pause(){this.paused=true;},play(){this.paused=false;},cancel(){},finish(){this.onfinish?.();}};animations.push(animation);return animation;}
  }
  const root=new Element(),carousel=new Element(),prev=new Element(),next=new Element(),pause=new Element(),counter=new Element(),doc=new Element(),media=new Element(),cards=Array.from({length:3},()=>new Element()),timers=new Map(),cleanups=[];
  root.dataset.fanpage=JSON.stringify({aid:'artist',tab:'gallery',photos:[],settings:{},tracks:[]});root.isConnected=true;root.contains=()=>false;
  root.querySelector=selector=>({'[data-fan-carousel]':carousel,'[data-fan-prev]':prev,'[data-fan-next]':next,'[data-fan-pause]':pause,'[data-fan-counter]':counter})[selector]||null;
  root.querySelectorAll=selector=>selector==='[data-card-index]'?cards:[];doc.querySelector=()=>root;doc.hidden=false;media.matches=false;
- let serial=0,clock=0;const context={URLSearchParams,location:{hash:'#artist/artist?tab=gallery'},document:doc,performance:{now:()=>clock},getComputedStyle:()=>({transform:'none',opacity:'1'}),icon:()=>'',AbortController,matchMedia:()=>media,registerRouteCleanup:fn=>{cleanups.push(fn);return fn;},setTimeout(fn,ms){assert.equal(ms,5000);const key=++serial;timers.set(key,fn);return key;},clearTimeout:key=>timers.delete(key),requestAnimationFrame:fn=>fn(),queueMicrotask:fn=>fn()};vm.createContext(context);vm.runInContext(readFileSync(new URL('../dist/artist-fanpage.js',import.meta.url),'utf8'),context);context.bindArtistFanpage();
- const fire=(element,type,props={})=>{clock+=1000;finishAnimations();return element.dispatchEvent(Object.assign(new Event(type),props));},tick=()=>{clock+=5000;finishAnimations();const callbacks=[...timers.values()];timers.clear();callbacks.forEach(fn=>fn());};
+ let serial=0,clock=0;const context={URLSearchParams,location:{hash:'#artist/artist?tab=gallery'},document:doc,performance:{now:()=>clock},getComputedStyle:()=>({transform:'none',opacity:'1'}),icon:()=>'',AbortController,matchMedia:()=>media,registerRouteCleanup:fn=>{cleanups.push(fn);return fn;},setTimeout(fn,ms){assert.equal(ms,7000);const key=++serial;timers.set(key,fn);return key;},clearTimeout:key=>timers.delete(key),requestAnimationFrame:fn=>fn(),queueMicrotask:fn=>fn()};vm.createContext(context);vm.runInContext(readFileSync(new URL('../dist/artist-fanpage.js',import.meta.url),'utf8'),context);context.bindArtistFanpage();
+ const fire=(element,type,props={})=>{clock+=1000;finishAnimations();return element.dispatchEvent(Object.assign(new Event(type),props));},tick=()=>{clock+=7000;finishAnimations();const callbacks=[...timers.values()];timers.clear();callbacks.forEach(fn=>fn());};
  assert.equal(timers.size,1);assert.equal(counter.textContent,'01 / 03');tick();assert.equal(counter.textContent,'02 / 03');tick();tick();assert.equal(counter.textContent,'01 / 03');
  fire(carousel,'pointerenter',{pointerType:'mouse'});assert.equal(timers.size,0);fire(carousel,'pointerleave');assert.equal(timers.size,1);
  carousel.matches=()=>true;fire(carousel,'focusin');assert.equal(timers.size,0);fire(carousel,'focusout');assert.equal(timers.size,1);
@@ -181,8 +181,8 @@ test('header prioritizes custom banner, returns to versioned portrait and then a
  const custom=c.fanHeaderBackground(p,{banner_version:'banner'},'artist');
  assert.match(custom,/\/media\/artist-banner\/artist\?v=banner/);assert.doesNotMatch(custom,/fan-header-profile/);
  const fallback=c.fanHeaderBackground(p,{},'artist');
- assert.match(fallback,/fan-background-blur/);assert.match(fallback,/fan-background-person/);
- assert.equal((fallback.match(/\/media\/artist\/artist\?v=v1/g)||[]).length,2);
+ assert.match(fallback,/fan-background-blur/);assert.doesNotMatch(fallback,/fan-background-person/);
+ assert.equal((fallback.match(/\/media\/artist\/artist\?v=v1/g)||[]).length,1);
  p.image_version='v2';assert.match(c.fanHeaderBackground(p,{},'artist'),/v=v2/);
  p.image_version='';assert.equal(c.fanHeaderBackground(p,{},'artist'),'');
 });
