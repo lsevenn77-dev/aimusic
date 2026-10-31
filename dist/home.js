@@ -119,7 +119,8 @@ function mountHomeFeatureCopy(feature,copy,motion){
   if(button&&destination&&button.parentElement!==destination)destination.append(button);
   const link=copy.querySelector('.home-feature-title-row h2 a'),text=link?.querySelector('.home-feature-title-text');
   if(!text)return;
-  const distance=mobile?Math.max(0,text.scrollWidth-link.clientWidth):0;
+  const wraps=getComputedStyle(text).whiteSpace==='normal';
+  const distance=mobile&&!wraps?Math.max(0,text.scrollWidth-link.clientWidth):0;
   const key=[text.textContent,link.clientWidth,distance,mobile,motion.matches].join('|');
   if(key===lastKey&&text===lastText)return;lastKey=key;lastText=text;animation?.cancel();animation=null;
   if(!mobile||motion.matches||distance<=1)return;
