@@ -5,6 +5,18 @@ import {cleanupChatImages,CHAT_IMAGE_TTL} from '../server/chat-features.js';
 import {fixture} from './fixture.mjs';
 const msg=body=>({body,request_id:crypto.randomUUID()});
 async function setup(t){const f=await fixture(t);const p=(await f.call('/api/me/profile','PUT',{name:'Moon'},'other')).body.profile.id;return {...f,p};}
+
+test('bounded DM read acknowledgement leaves messages arriving after history unread',async t=>{
+ const f=await setup(t),path='/api/dm/'+f.p;
+ await f.call('/api/dm/producer','POST',msg('seen'),'other');
+ const history=(await f.call(path)).body.messages;
+ await f.call('/api/dm/producer','POST',msg('arrived later'),'other');
+ assert.equal((await f.call(path,'PATCH',{sequence:history.at(-1).sequence})).status,200);
+ const latest=(await f.call(path)).body.messages;assert.ok(latest[0].read_at);assert.equal(latest[1].read_at,0);
+ assert.equal((await f.call('/api/dm/summary')).body.unread,1);
+ assert.equal((await f.call(path,'PATCH',{sequence:-1})).status,400);
+ await f.call(path,'PATCH',{sequence:latest.at(-1).sequence});assert.equal((await f.call('/api/dm/summary')).body.unread,0);
+});
 test('per-account deletion hides old pages while preserving the recipient and new messages',async t=>{
  const f=await setup(t),path='/api/dm/'+f.p;
  await f.call(path,'POST',msg('one'));await f.call('/api/dm/producer','POST',msg('two'),'other');

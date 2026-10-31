@@ -2,7 +2,7 @@
 .social-mobile-navigation a{position:relative;display:grid!important;grid-template-rows:38px 18px;justify-items:center;align-items:center;align-content:center;gap:2px!important;padding:5px 0!important}
 .social-mobile-navigation a>svg{align-self:center}.social-mobile-navigation a>span:last-of-type{align-self:center;line-height:18px;font-size:12px}
 .social-mobile-navigation .mobile-sing-orb{width:36px;height:36px;display:grid;place-items:center}.mobile-sing-orb svg{width:23px;height:23px}
-.nav-message-badge{position:absolute;top:2px;left:calc(50% + 7px);min-width:17px;height:17px;border-radius:10px;padding:0 4px;background:var(--music-aqua,#8eddd2);color:var(--ds-ink);font:600 10px/17px system-ui;text-align:center}
+.nav-message-badge{position:absolute;top:2px;left:calc(50% + 7px);min-width:17px;height:17px;border-radius:10px;padding:0 4px;background:var(--ds-lilac);color:var(--ds-ink);font:600 10px/17px system-ui;text-align:center}
 .nav-message-badge[hidden]{display:none}#sidebar a[href="#dm"]{position:relative}#sidebar .nav-message-badge{position:static;margin-left:auto}
 .gift-entry,.music-social-actions .gift-entry,.track-row .gift-entry{background:transparent!important;border-color:transparent!important;box-shadow:none!important}
 #menu-toggle,#menu-toggle:hover,#menu-toggle:focus{background:transparent!important;color:var(--ds-muted)!important;box-shadow:none!important}
@@ -53,3 +53,10 @@
 .my-page-heading .free-badge{display:none}
 .my-logout{flex-shrink:0;min-height:44px;margin-top:4px;color:var(--ds-body);border:1px solid #363c49;background:transparent;font-size:14px}
 @media(max-width:600px){.artist-photo-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.artist-photo{border-radius:14px}.artist-gallery .section-heading h2{font-size:20px}.artist-gallery .section-heading p{font-size:14px;line-height:1.5}.my-page-heading .page-heading p{font-size:14px}.my-logout{padding:8px 12px}}
+/* Approved inbox metadata: small solid lavender count above the timestamp. */
+.message-workspace .unread-badge {background:var(--ds-lilac)!important;color:var(--ds-ink)!important;background-image:none!important}
+.message-workspace .conversation-row {position:relative;min-height:88px}
+.message-workspace .conversation-meta {display:grid;grid-template-columns:auto 44px;grid-template-rows:auto auto;gap:4px;align-content:center;align-self:stretch;justify-items:end}
+.message-workspace .conversation-meta .unread-badge {grid-column:1;grid-row:1;min-width:18px;padding:2px 6px;font-size:10px}
+.message-workspace .conversation-meta time {grid-column:1/-1;grid-row:2;font-size:10px;white-space:nowrap}
+.message-workspace .conversation-row>.dm-mute {position:absolute;right:14px;top:8px;min-width:44px;min-height:44px}

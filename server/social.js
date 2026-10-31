@@ -225,7 +225,13 @@ export async function socialRoute(req,env,path,user){
    const has_more=messages.length>100;messages.length=Math.min(messages.length,100);if(!after)messages.reverse();
    return json({peer:{id:p.id,user_id:p.user_id,name:p.name,image_version:p.image_version},settings,messages,has_more,read_receipt});
   }
-  if(method==='PATCH'){await run(env,'UPDATE direct_messages SET read_at=? WHERE sender_id=? AND recipient_id=? AND read_at=0',now(),p.user_id,user.id);return json({ok:true});}
+  if(method==='PATCH'){
+   // Bound acknowledgements to history the client actually received. A message
+   // arriving between GET and PATCH must remain unread until the next GET.
+   const b=await req.json().catch(()=>({})),sequence=b.sequence;
+   if(sequence!==undefined&&(!Number.isSafeInteger(sequence)||sequence<0))fail(400,'읽음 위치를 확인해주세요.');
+   await run(env,'UPDATE direct_messages SET read_at=? WHERE sender_id=? AND recipient_id=? AND read_at=0'+(sequence===undefined?'':' AND rowid<=?'),now(),p.user_id,user.id,...(sequence===undefined?[]:[sequence]));return json({ok:true});
+  }
   if(method==='POST'){
    const b=await req.json(),rid=requestId(b),imageId=b.image_id||null,body=imageId?'사진':str(b.body,2000);
    if(imageId&&(typeof imageId!=='string'||!/^[-\w]{1,80}$/.test(imageId)))fail(400,'이미지 정보를 확인해주세요.');
