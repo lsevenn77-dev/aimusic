@@ -67,7 +67,7 @@ test('unavailable inventory is disabled and a changed account cannot send anothe
  f.sql.exec("DELETE FROM gold_orders WHERE id='paid'");await b.c.profileGiftDialog('friend');b.c.me={id:'other'};await b.submit();assert.match(b.form.error.textContent,/계정이 변경/);assert.equal(calls.filter(r=>r.method==='POST').length,0);
 });
 test('song entry makes the profile recipient explicit for stored gifts and preserves track purchases',async t=>{
- const {b,f,calls}=await setup(t);f.sql.exec("UPDATE tracks SET user_id='other',producer_id='friend' WHERE id='one'");await b.c.giftDialog('one');assert.match(b.nodes['#gift-send-summary'].innerHTML,/프로필에 보내요/);await b.submit();await b.submit();assert.equal(calls.find(r=>r.path.endsWith('/send')).body.profile_id,'friend');
+ const {b,f,calls}=await setup(t);f.sql.exec("INSERT INTO artists(id,producer_id,name,created) VALUES('friend-artist','friend','Guest artist',0);UPDATE tracks SET user_id='other',producer_id='friend',artist_id='friend-artist' WHERE id='one'");await b.c.giftDialog('one');assert.match(b.nodes['#gift-send-summary'].innerHTML,/프로필에 보내요/);await b.submit();await b.submit();assert.equal(calls.find(r=>r.path.endsWith('/send')).body.profile_id,'friend');
  await b.c.giftDialog('one','silver-letter');await b.submit();assert.ok(calls.some(r=>r.path==='/api/tracks/one/gifts'&&r.method==='POST'));
 });
 test('rapid double submit keeps the send button disabled and issues one request',async t=>{

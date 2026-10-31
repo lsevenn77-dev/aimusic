@@ -1,3 +1,4 @@
+import {assertDubbingGiftContext,giftBlockReason} from './gift-eligibility.js';
 import {walletHistory} from './wallet-history.js';
 import {officialSupport} from './ai-bots.js';
 import {assertUnblocked} from './account-safety.js';
@@ -115,8 +116,10 @@ export async function giftRoute(req,env,path,user){
  if(method==='GET')return json(personal?await profileGifts(env,track.producer_id):await trackGifts(env,track.id));
  if((await one(env,'SELECT account_type FROM users WHERE id=?',track.user_id))?.account_type==='ai_bot')fail(400,'공식 AI 응원 계정에는 유료·실버 선물을 보낼 수 없어요.');
  if(method!=='POST')fail(405,'지원하지 않는 요청입니다.');
- requireUser(user);assertUnblocked(env,track.user_id);await rate(env,'gift:'+user.id,60,3600);
- const b=await req.json();if(silverGiftById(b.gift_type))return sendFreeGift(env,user,track,b);
+ requireUser(user);assertUnblocked(env,track.user_id);
+ const reason=await giftBlockReason(env,user.id,track);if(reason)fail(400,reason);
+ await rate(env,'gift:'+user.id,60,3600);
+ const b=await req.json();await assertDubbingGiftContext(env,user.id,track.producer_id,b.dubbing_id);if(silverGiftById(b.gift_type))return sendFreeGift(env,user,track,b);
  const selected=b.gift_type===undefined?null:giftById(b.gift_type);
  if(b.gift_type!==undefined&&!selected)fail(400,'선물 종류를 다시 선택해주세요.');
  const quantity=b.quantity===undefined?1:b.quantity;if(!Number.isInteger(quantity)||quantity<1||quantity>100||(!selected&&quantity!==1))fail(400,'수량은 1개부터 100개까지 선택해주세요.');
@@ -125,7 +128,7 @@ export async function giftRoute(req,env,path,user){
  if((selected&&!requestId)||(requestId!==null&&(typeof requestId!=='string'||!/^[a-zA-Z0-9-]{16,64}$/.test(requestId))))fail(400,'선물 요청을 새로 시작해주세요.');
  // Catalog gifts use their server-owned price; legacy amount-only clients retain their minimum.
  if(!Number.isInteger(gold)||gold<(selected?1:GIFT_MIN_GOLD)||gold>GIFT_MAX_GOLD)fail(400,`선물은 ${GIFT_MIN_GOLD}골드부터 ${GIFT_MAX_GOLD.toLocaleString('ko-KR')}골드까지 보낼 수 있어요.`);
- if(track.user_id===user.id)fail(400,'자신에게 선물할 수 없어요.');
+
  const replay=async()=>{if(!requestId)return null;const old=await one(env,'SELECT id,track_id,creator_profile_id,gold,gift_type,gift_name,quantity FROM gifts WHERE sender_id=? AND request_id=?',user.id,requestId);if(!old)return null;if(old.track_id!==track.id||(personal&&old.creator_profile_id!==track.producer_id)||old.gold!==gold||old.quantity!==quantity||old.gift_type!==(selected?.id??null))fail(409,'이미 사용된 선물 요청이에요. 새로 선택해주세요.');return json({gift:{id:old.id,gold:old.gold,type:old.gift_type,name:old.gift_name,quantity:old.quantity},balance:await goldBalance(env,user.id)});};
  const previous=await replay();if(previous)return previous;
  const creator=track.kind==='cover'?(await one(env,'SELECT producer_id FROM tracks WHERE id=?',track.original_id)).producer_id:track.producer_id;

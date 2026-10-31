@@ -1,3 +1,5 @@
+import {assertDubbingGiftContext,giftBlockReason} from './gift-eligibility.js';
+import {published} from './catalog.js';
 import {one,rows,query,now,id,fail,json,rate} from './db.js';
 import {requireUser,isAdmin} from './auth.js';
 import {assertUnblocked} from './account-safety.js';
@@ -42,12 +44,14 @@ async function acquire(env,uid,b,operator=null){
  if(operator)statements.push(query(env,'INSERT INTO admin_audit(id,admin_id,action,target,created) VALUES(?,?,?,?,?)',id(),operator.id,'gift_inventory_grant',JSON.stringify({user_id:uid,gift_type:gift.id,quantity,request_id:key,reason:b.reason}),now()));
  try{await env.DB.batch(statements);}catch(e){if(/constraint/i.test(e.message)&&await replay())return;if(/constraint|refunded/i.test(e.message))fail(409,'잔액 또는 결제 상태가 바뀌었어요. 다시 확인해주세요.');throw e;}
 }
-async function send(env,user,itemId,b){
+export async function sendInventoryGift(env,user,itemId,b){
  const key=requestId(b),i=await one(env,'SELECT * FROM gift_inventory WHERE id=? AND user_id=?',itemId,user.id);
  if(!i)fail(404,'보관 선물을 찾을 수 없어요.');
  if(i.used_at){if(i.send_request_id===key&&i.recipient_id===b.profile_id)return;fail(409,'이미 사용한 선물이에요.');}
  const p=await one(env,"SELECT p.id,p.user_id FROM producers p JOIN users u ON u.id=p.user_id WHERE p.id=? AND u.provider!='deleted'",b.profile_id||'');
- if(!p||p.user_id===user.id)fail(400,'선물할 다른 회원을 선택해주세요.');assertUnblocked(env,p.user_id);
+ if(p?.user_id===user.id)fail(400,'본인에게는 선물할 수 없어요.');if(!p)fail(400,'선물할 다른 회원을 선택해주세요.');assertUnblocked(env,p.user_id);
+ await assertDubbingGiftContext(env,user.id,p.id,b.dubbing_id);
+ if(b.track_id){const t=await published(env,b.track_id);if(t.producer_id!==p.id)fail(400,'작품의 수신자를 확인해주세요.');const reason=await giftBlockReason(env,user.id,t);if(reason)fail(400,reason);}
  const at=now(),statements=[query(env,'UPDATE gift_inventory SET used_at=?,send_request_id=?,recipient_id=? WHERE id=? AND user_id=?',at,key,p.id,i.id,user.id)];
  if(i.currency==='gold'){
   const lots=await rows(env,'SELECT purchase_id,gold,net_mw FROM gift_inventory_lots WHERE inventory_id=?',i.id),net=lots.reduce((n,l)=>n+l.net_mw,0),share=splitGift('original',net,(await partnerState(env,p.user_id)).tier==='partner');
@@ -73,6 +77,6 @@ export async function giftInventoryRoute(req,env,path,user){
  if(path==='/api/me/gift-inventory'&&req.method==='GET')return json({items:await giftInventoryList(env,user.id)});
  if(path==='/api/me/gift-inventory/buy'&&req.method==='POST'){await acquire(env,user.id,await req.json());return json({items:await giftInventoryList(env,user.id)},201);}
  const m=path.match(/^\/api\/me\/gift-inventory\/([\w-]+)\/send$/);
- if(m&&req.method==='POST'){await send(env,user,m[1],await req.json());return json({items:await giftInventoryList(env,user.id)});}
+ if(m&&req.method==='POST'){await sendInventoryGift(env,user,m[1],await req.json());return json({items:await giftInventoryList(env,user.id)});}
  fail(404,'보관 선물을 찾을 수 없어요.');
 }

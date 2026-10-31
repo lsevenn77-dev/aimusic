@@ -1,3 +1,4 @@
+import {giftBlockReason} from './gift-eligibility.js';
 import {canManageArtist} from './artist-fan-access.js';
 import {fanpageData} from './artist-fanpage.js';
 import {profileDashboard} from './profile-dashboard.js';
@@ -108,7 +109,7 @@ export async function catalogRoute(req,env,path,user){
   const tid=m[1],detail=await published(env,tid);
   if(!m[2]&&method==='GET'){
    const [tracks,karaoke,ai]=await Promise.all([trackList(env,`t.id=? AND ${VISIBLE()}`,[tid]),one(env,`SELECT 1 FROM tracks t WHERE t.id=? AND ${SINGABLE()}`,tid),one(env,"SELECT count(*) n FROM comments c JOIN users u ON u.id=c.user_id WHERE c.track_id=? AND c.deleted_at=0 AND u.account_type='ai_bot'",tid)]);
-   return json({track:{...tracks[0],ai_comments:ai.n,...listenerLyrics(detail.kind==='cover'?await one(env,'SELECT lyrics FROM tracks WHERE id=?',detail.original_id):detail,user),karaoke_ready:!!karaoke}});
+   return json({track:{...tracks[0],gift_block_reason:await giftBlockReason(env,user?.id,detail),ai_comments:ai.n,...listenerLyrics(detail.kind==='cover'?await one(env,'SELECT lyrics FROM tracks WHERE id=?',detail.original_id):detail,user),karaoke_ready:!!karaoke}});
   }
   if(m[2]==='covers'){
    if(method!=='GET')fail(405,'지원하지 않는 요청입니다.');
@@ -165,10 +166,11 @@ export async function catalogRoute(req,env,path,user){
   const owner=kind==='producer'?entity:await one(env,'SELECT p.user_id FROM artists a JOIN producers p ON p.id=a.producer_id WHERE a.id=?',entity.id);assertUnblocked(env,owner?.user_id);
   if(!m[3]&&method==='GET'){
    const own=kind==='producer'&&user?.id===entity.user_id,dashboardRequested=kind==='producer'&&url.searchParams.get('dashboard')==='1',manage=own&&dashboardRequested;
+   const workLimit=manage&&url.searchParams.get('work_list')==='1'?-1:500;
    const [count,tracks,covers,gifts,partner,identity,gallery,inviteCrew,dashboard]=await Promise.all([
     one(env,'SELECT count(*) n FROM follows WHERE kind=? AND target_id=?',kind,entity.id),
-    trackList(env,`${manage?"((t.user_id=? AND t.status!='deleted') OR "+VISIBLE()+')':VISIBLE()} AND t.kind='original' AND t.${kind}_id=?`,[...(manage?[user.id]:[]),entity.id], 't.created DESC',500,manage),
-    kind==='producer'?trackList(env,`${manage?"((t.user_id=? AND t.status!='deleted') OR "+VISIBLE()+')':VISIBLE()} AND t.kind='cover' AND (t.producer_id=? OR dt.producer_id=?)`,[...(manage?[user.id]:[]),entity.id,entity.id], 't.created DESC',500,manage):null,
+    trackList(env,`${manage?"((t.user_id=? AND t.status!='deleted') OR "+VISIBLE()+')':VISIBLE()} AND t.kind='original' AND t.${kind}_id=?`,[...(manage?[user.id]:[]),entity.id], 't.created DESC',workLimit,manage),
+    kind==='producer'?trackList(env,`${manage?"((t.user_id=? AND t.status!='deleted') OR "+VISIBLE()+')':VISIBLE()} AND t.kind='cover' AND (t.producer_id=? OR dt.producer_id=? OR EXISTS(SELECT 1 FROM tracks child WHERE child.duet_parent_id=t.id AND child.producer_id=? AND ${VISIBLE('child')}))`,[...(manage?[user.id]:[]),entity.id,entity.id,entity.id], 't.created DESC',workLimit,manage):null,
     kind==='producer'?profileGifts(env,entity.id):null,
     kind==='producer'?partnerState(env,entity.user_id):null,
     own||dashboardRequested?playerIdentity(env,entity.user_id):null,

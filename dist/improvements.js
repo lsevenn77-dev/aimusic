@@ -17,7 +17,7 @@ let socialTimer=null;
 async function loadMyCrewSummary(readApi=api){
  try{
   const d=await readApi('/api/crews?summary=1&home=1','GET',undefined,{fresh:true}),c=d.detail?.membership?d.detail.crew:null;
-  return '<section class="surface my-current-crew"><h3>가입한 크루</h3>'+(c?'<a class="my-current-crew-link" href="#crew/'+esc(c.id)+'">'+crewPicture(c,'crew-circle')+'<span><strong>'+esc(c.name)+'</strong><small>LV.'+number(c.level)+' · '+number(c.members)+'명</small></span>'+icon('chevron')+'</a>':'<p>현재 가입한 크루가 없어요.</p><a class="small-button" href="#community/crews?browse=1">크루 둘러보기</a>')+'</section>';
+  return '<section class="surface my-current-crew"><h3>가입한 크루</h3>'+(c?'<a class="my-current-crew-link" href="#crew/'+esc(c.id)+'">'+crewPicture(c,'crew-circle')+'<span><strong>'+crewNameHTML(c)+'</strong><small>LV.'+number(c.level)+' · '+number(c.members)+'명</small></span>'+icon('chevron')+'</a>':'<p>현재 가입한 크루가 없어요.</p><a class="small-button" href="#community/crews?browse=1">크루 둘러보기</a>')+'</section>';
  }catch{return '<section class="surface my-current-crew"><h3>가입한 크루</h3><p>가입 정보를 불러오지 못했어요.</p><a href="#community/crews">다시 확인하기</a></section>';}
 }
 function crewImageEditorHTML(c){
@@ -55,18 +55,24 @@ function crewEditor(c=null){
  const help=locked?`${days}일 뒤에 수정 가능합니다. (${new Date(available).toLocaleString('ko-KR')}부터)`:'크루 이름은 변경 후 30일에 한 번 수정할 수 있어요.';
  return `<h2>${c?'크루 정보 수정':'새 크루 만들기'}</h2><form id="crew-form" data-crew="${esc(c?.id||'')}" data-version="${c?.version||1}">${formField('크루 이름','name','text',c?.name||'','required maxlength="40" aria-describedby="crew-name-help" '+(locked?'readonly aria-readonly="true"':''))}<p id="crew-name-help" class="field-help" role="status">${esc(help)}</p><label class="form-field">소개<textarea name="description" maxlength="1000">${esc(c?.description||'')}</textarea></label>${formField('관심사 · 예: Ballad, K-POP','interests','text',c?.interests||'','maxlength="160"')}<label class="checkbox-line"><input name="recruiting" type="checkbox" ${c?.recruiting===0?'':'checked'}>새 멤버 모집</label>${crewV3SettingsHTML(c)}${crewImageEditorHTML(c)}<p class="field-help">완성 작품·협업·감상평 미션으로 성장해요. 하루 최대 100 XP, 주간 최대 270 XP.</p><button class="primary-button">저장</button><p class="form-error" role="alert"></p></form>`;
 }
-function crewDetailView(d,param,tab='music',community=false){
- const c=d.crew,m=d.membership,staff=['owner','deputy','manager','operator'].includes(m?.role);if(!['music','members','chat','notice','about','manage'].includes(tab))tab='music';
- const tabs=[['music','작품'],['members','멤버'],['notice','공지'],['about','소개']];if(staff)tabs.push(['manage','관리']);
- let html=(community?'':heading('커뮤니티','듣고 대화하고, 함께 성장하는 음악 커뮤니티'))+communityNavigation('crews')+crewHeroHTML(c,m)+'<nav class="tabs crew-room-tabs" aria-label="크루 활동">'+tabs.map(([key,label])=>'<a class="tab '+(tab===key?'active':'')+'" href="#crew/'+esc(c.id)+'?tab='+key+'" '+(tab===key?'aria-current="page"':'')+'>'+label+'</a>').join('')+'</nav>';
- if(!m)html+='<button class="primary-button" data-join-crew="'+esc(c.id)+'" '+(d.banned||!c.recruiting||c.members>=c.capacity?'disabled':'')+'>'+(c.join_policy==='approval'?'가입 신청':'크루 가입')+'</button>';
- if(tab==='music')html+=crewV3WorksHTML(d);
- if(tab==='members')html+='<div class="crew-people">'+crewPeopleHTML(d)+'</div>';
- if(tab==='chat')html+=m?chatPanelHTML('크루 채팅'):'<p class="v3-empty">크루에 가입하면 채팅에 참여할 수 있어요.</p>';
+function crewDetailView(d,param,tab='music',community=false,discovery=''){
+ const c=d.crew,m=d.membership,owner=m?.role==='owner',staff=['owner','deputy','manager','operator'].includes(m?.role);
+ const tabs=[['music','작품'],['members','멤버'],['notice','공지'],['about','소개'],...(staff?[['manage','관리']]:[]),['find','크루 찾기']];
+ if(!tabs.some(([key])=>key===tab)&&tab!=='chat')tab='music';
+ const nav='<nav class="tabs crew-room-tabs" aria-label="크루 활동">'+tabs.map(([key,label])=>'<a class="tab '+(tab===key?'active':'')+'" href="'+(key==='find'?'#community/crews?browse=1':'#crew/'+esc(c.id)+'?tab='+key)+'" '+(tab===key?'aria-current="page"':'')+'>'+label+'</a>').join('')+'</nav>';
+ let html=communityNavigation('crews')+'<section class="crew-page" '+(m?'data-current-crew="'+esc(c.id)+'"':'')+'>'+crewHeroHTML(c,m)+nav;
+ if(!m)html+='<button class="primary-button" data-join-crew="'+esc(c.id)+'" '+(d.other_crew||d.banned||!c.recruiting||c.members>=c.capacity?'disabled':'')+'>'+(d.other_crew?'다른 크루에 가입 중':c.join_policy==='approval'?'가입 신청':'크루 가입')+'</button>';
+ if(tab==='music')html+=workBrowserHTML('크루 작품',d.tracks,d.dubbings);
+ if(tab==='members')html+='<div class="section-heading"><h2>멤버 <small>'+c.members+' / '+c.capacity+'</small></h2></div><div class="artist-directory"><div class="directory-grid crew-member-cards">'+d.members.map(p=>directoryArtistCard({...p,name:p.profile_name||p.name},{member:true})).join('')+'</div></div>'+(m&&!owner?'<button class="text-link crew-leave" data-leave-crew="'+esc(c.id)+'">크루 탈퇴</button>':'');
+ if(tab==='chat')html+=m?chatPanelHTML('크루 채팅'):'<p>크루에 가입하면 채팅에 참여할 수 있어요.</p>';
  if(tab==='notice')html+='<section data-crew-notices="'+esc(c.id)+'">불러오는 중…</section>';
- if(tab==='manage')html+=staff?'<button class="primary-button" data-edit-crew="'+esc(c.id)+'">크루 설정</button>':'<p>운영 권한이 필요해요.</p>';
+ if(tab==='manage'&&staff){
+  html+='<div class="section-heading"><h2>크루 관리</h2><button class="small-button" data-edit-crew="'+esc(c.id)+'">크루 설정</button></div>';
+  if(['owner','deputy'].includes(m.role))html+='<section><h3>멤버 관리</h3>'+d.members.filter(p=>p.role!=='owner').map(p=>'<button class="small-button" data-crew-member="'+esc(p.id)+'" data-crew="'+esc(c.id)+'">'+esc(p.name)+'</button>').join('')+'</section>';
+ }
+ if(tab==='find')html+=discovery;
  if(tab==='about')html+=crewGrowthHTML(d.growth,c,m);
- return {html,tracks:d.tracks,crew:c,chat:m&&tab==='chat'?{path:'/api/crews/'+param+'/messages',crew:{id:c.id,owner:m.role==='owner'}}:null};
+ return {html:html+'</section>',tracks:d.tracks,crew:c,chat:m&&tab==='chat'?{path:'/api/crews/'+param+'/messages',crew:{id:c.id,owner}}:null};
 }
 async function improvementsView(base,param,raw,readApi=api){
  if(base==='follower'&&param){
@@ -88,6 +94,7 @@ async function improvementsView(base,param,raw,readApi=api){
   const account=me?.id||'guest',revision=typeof apiRevision==='number'?apiRevision:0,d=await readApi('/api/crews?q='+encodeURIComponent(q)+'&summary=1'+(!params.has('q')&&params.get('browse')!=='1'?'&home=1':''));rememberCrewDiscovery(d,q,account,revision);
   if(d.detail){if(crewNavigationCurrent(account,revision))rememberCrewNavigation(d.mine,d.detail.crew);return crewDetailView(d.detail,d.mine,'music',true);}
   if(d.mine&&!params.has('q')&&params.get('browse')!=='1')return liveCrewDetail(d.mine,'music',readApi,true);
+  if(d.mine){const mine=await readApi('/api/crews/'+encodeURIComponent(d.mine));if(mine.membership){const view=crewDetailView(mine,d.mine,'find',true,crewDiscoveryHTML(d,q,true));return {...view,crewDiscovery:d};}}
   return {html:crewDiscoveryHTML(d,q),tracks:[],crewDiscovery:d};
  }
  if(base==='crew'&&param){return liveCrewDetail(param,new URLSearchParams(raw.split('?')[1]||'').get('tab')||'music',readApi);}
@@ -140,7 +147,7 @@ function bindImprovements(view){
  const search=$('#crew-search');if(search)search.onsubmit=e=>{e.preventDefault();location.hash='community/crews?browse=1&q='+encodeURIComponent(new FormData(search).get('q'));};
  document.querySelectorAll('[data-create-crew],[data-edit-crew]').forEach(b=>b.onclick=async()=>{if(!me)return askLogin();dialog(crewEditor(b.dataset.editCrew?view.crew:null));bindCrewForm();if(view.crew){const host=document.createElement('section');host.dataset.crewV3Manage=view.crew.id;host.innerHTML='<h3>가입 신청</h3><div id="crew-applications"></div><div id="crew-audit"></div>';$('#crew-form').append(host);void bindCrewV3();void addCrewLeadership(view.crew.id);}if(b.hasAttribute('data-edit-crew-photo'))$('#crew-form [name=crew_image]').click();});
  for(const action of ['join','leave'])document.querySelectorAll(`[data-${action}-crew]`).forEach(b=>b.onclick=async()=>{
-  if(!me)return askLogin();if(action==='leave'&&!confirm('크루에서 탈퇴할까요? 크루장은 먼저 가입한 멤버에게 위임되고, 마지막 멤버가 나가면 크루와 채팅이 삭제돼요.'))return;
+  if(!me)return askLogin();if(action==='leave'&&!confirm('정말 탈퇴하시겠어요? 탈퇴하면 크루 채팅을 볼 수 없어요.'))return;
   b.disabled=true;try{const result=await api('/api/crews/'+b.dataset[action+'Crew']+'/'+action,'POST');if(result.pending)toast(result.message);clearCrewNavigation();if(action==='leave')location.hash='community/crews';else await render();}catch(e){toast(e.message);b.disabled=false;}
  });
  bindSocialChat(view);bindCrewV3();

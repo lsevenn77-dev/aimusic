@@ -3,9 +3,9 @@ function artistAffiliation(a,producerName=''){
  const name=a.producer_name||producerName;
  return `<p class="directory-creator artist-ui-affiliation" title="소속 ${esc(name)}"><span>소속</span> ${esc(name)}</p>`;
 }
-function directoryArtistCard(a,{owner=false,producerName=''}={}){
- const key='artist/'+a.id,following=followed('artist',a.id);
- return `<article class="directory-artist artist-ui-card"><a class="directory-photo" href="#artist/${esc(a.id)}" aria-label="${esc(a.name)} 상세">${portrait(a,'artist')}</a><div class="directory-name"><a href="#artist/${esc(a.id)}" title="${esc(a.name)}">${esc(a.name)}</a>${owner?`<button type="button" data-directory-edit="${esc(a.id)}" aria-label="${esc(a.name)} 수정">${icon('edit',16)}</button>`:''}</div>${artistAffiliation(a,producerName)}<div class="directory-social"><p class="directory-followers" data-followers="${esc(key)}" data-count="${Number(a.followers)||0}">팔로워 <span data-follow-count>${number(a.followers)}</span></p><button type="button" class="directory-follow" data-follow="${esc(key)}" aria-pressed="${following}">${icon('user',14)}<span data-follow-label>${following?'팔로잉':'팔로우'}</span></button></div></article>`;
+function directoryArtistCard(a,{owner=false,producerName='',member=false}={}){
+ const kind=member?'producer':'artist',key=kind+'/'+a.id,following=followed(kind,a.id);
+ return `<article class="directory-artist artist-ui-card"><a class="directory-photo" href="#${kind}/${esc(a.id)}" aria-label="${esc(a.name)} 상세">${portrait(a,kind)}</a><div class="directory-name"><a href="#${kind}/${esc(a.id)}" title="${esc(a.name)}">${esc(a.name)}</a>${owner?`<button type="button" data-directory-edit="${esc(a.id)}" aria-label="${esc(a.name)} 수정">${icon('edit',16)}</button>`:''}</div>${member?(a.role==='owner'?'<small class="crew-owner-tag">크루장</small>':''):artistAffiliation(a,producerName)}<div class="directory-social"><p class="directory-followers" data-followers="${esc(key)}" data-count="${Number(a.followers)||0}">팔로워 <span data-follow-count>${number(a.followers)}</span></p><button type="button" class="directory-follow" ${member&&me?.id===a.user_id?'hidden':''} data-follow="${esc(key)}" aria-pressed="${following}">${icon('user',14)}<span data-follow-label>${following?'팔로잉':'팔로우'}</span></button></div></article>`;
 }
 function ownedArtistDirectory(d,pins,pid){
  const owner=!!pins.can_manage&&me?.id===d.profile.user_id;

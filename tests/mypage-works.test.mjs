@@ -9,7 +9,7 @@ test('profile counts completed public children of the exact duet parent and pres
  const f=await fixture(t);
  f.sql.exec("UPDATE tracks SET karaoke_at=1; INSERT INTO karaoke_jobs(track_id,id,state,mr_ready,words_state,created,updated) VALUES('one','job','ready',1,'ready',0,0)");
  const seed=(id,owner,parent,open,status='published')=>f.sql.prepare("INSERT INTO tracks(id,user_id,producer_id,artist_id,title,genre,ai_tool,rights_accepted,original_ext,original_bytes,created,status,kind,original_id,cover_mode,duet_parent_id,duet_open) VALUES(?,?,'producer','artist',?,'Rock','',1,'wav',128,0,?,'cover','one','duet',?,?)").run(id,owner,id,status,parent,open);
- seed('parent','owner',null,1);seed('child','other','parent',0);seed('draft','other','parent',0,'hidden');seed('unfinished','other','parent',1);seed('unrelated','other',null,0);
+ seed('parent','owner',null,1);seed('child','other','parent',0);seed('draft','other','parent',0,'hidden');seed('unfinished','other','parent',1);seed('unrelated','other',null,0);f.sql.exec("UPDATE tracks SET duet_part='male',original_key='ready' WHERE id='parent'");
  const get=async user=>(await f.call('/api/producers/producer?dashboard=1','GET',undefined,user)).body.covers.find(t=>t.id==='parent');
  const own=await get('owner'),visitor=await get('other'),guest=await get(null);
  assert.equal(own.completions,1);assert.equal(own.participants,1);assert.equal(own.can_join,false);assert.equal(visitor.can_join,true);assert.equal(guest.can_join,false);
@@ -44,12 +44,12 @@ test('dubbing children exclude drafts, unavailable mixes, private, unrelated and
  assert.equal((await f.call('/api/dubbing/projects/'+root+'/completed','GET',undefined,'other')).status,404);
 });
 
-test('profile uses song rows, separates actions, hides unavailable joins and removes category icons',()=>{
+test('profile uses song rows, separates actions, hides unavailable joins and shares the six-option work filter',()=>{
  const c=vm.createContext({esc:String,number:String,time:()=> '0:45',cover:()=>'<img>',liked:()=>false,icon:n=>`<svg data-icon="${n}"></svg>`,me:{id:'viewer'},document:{addEventListener(){}},window:{addEventListener(){}},AifectDubbing:{dubbingGenreArtwork:()=>'/art'},opportunityHref:()=> '#karaoke'});
- for(const file of ['song-covers.js','mypage.js'])vm.runInContext(readFileSync(new URL('../dist/'+file,import.meta.url),'utf8'),c);
+ for(const file of ['song-covers.js','mypage.js','crew-integrated.js'])vm.runInContext(readFileSync(new URL('../dist/'+file,import.meta.url),'utf8'),c);
  const t={id:'parent',title:'제목',kind:'cover',producer:'가수',cover_mode:'duet',duet_open:1,original_id:'original',participants:2,completions:3,can_join:true};
  const html=c.myWorkItemHTML(t);assert.match(html,/song-cover-row/);assert.match(html,/data-mp-children="parent"/);assert.match(html,/#sing\/original\?duet=parent/);assert.match(html,/data-icon="ui-play-action"/);assert.match(html,/data-play="parent"/);assert.doesNotMatch(c.myWorkItemHTML({...t,can_join:false}),/참여하기/);
  assert.doesNotMatch(c.myWorkItemHTML({...t,completions:0,participants:0}),/id="mp-children|data-mp-children/);
- const works=c.myWorksHTML({profile:{id:'p'},covers:[t],tracks:[],dubbings:[]});assert.doesNotMatch(works.match(/class="mp-filters"[\s\S]*?<\/div>/)[0],/<svg/);assert.match(works,/mp-work-list/);
+ const works=c.myWorksHTML({profile:{id:'p'},covers:[t],tracks:[],dubbings:[]});assert.match(works,/data-work-filter/);assert.match(works,/<option value="recruit">모집중/);assert.match(works,/work-wide/);
  assert.match(c.myWorkItemHTML({...t,status:'hidden'}),/#manage\/parent/);assert.doesNotMatch(c.myWorkItemHTML({...t,status:'hidden'}),/data-play=/);
 });

@@ -11,7 +11,7 @@ export async function giftCheckoutRoute(req,env,path,user){
  const b=await req.json();
  if(typeof b.profile_id!=='string'||typeof b.request_id!=='string'||!/^[a-zA-Z0-9-]{16,64}$/.test(b.request_id))fail(400,'받는 회원과 요청 번호를 확인해주세요.');
  const p=await one(env,"SELECT p.id,p.user_id FROM producers p JOIN users u ON u.id=p.user_id WHERE p.id=? AND u.provider!='deleted' AND u.account_type='human'",b.profile_id||'');
- if(!p||p.user_id===user.id)fail(400,'선물할 다른 회원을 선택해주세요.');assertUnblocked(env,p.user_id);
+ if(p?.user_id===user.id)fail(400,'본인에게는 선물할 수 없어요.');if(!p)fail(400,'선물할 다른 회원을 선택해주세요.');assertUnblocked(env,p.user_id);
  const note=b.message===undefined?'':str(b.message,2000,false);
  const previous=await one(env,"SELECT id FROM gifts WHERE sender_id=? AND request_id=? UNION ALL SELECT id FROM free_gifts WHERE sender_id=? AND request_id=?",user.id,b.request_id||'',user.id,b.request_id||'');
  const savedNote=await one(env,'SELECT body,recipient_id FROM direct_messages WHERE sender_id=? AND request_id=?',user.id,'gift:'+b.request_id);

@@ -1,3 +1,4 @@
+import {producerNameSQL} from './identity.js';
 import {crewCapacitySQL} from './crew-growth.js';
 import {one,rows,query,run,now,id,json,fail,str} from './db.js';
 import {requireUser,isAdmin} from './auth.js';
@@ -30,6 +31,7 @@ export async function crewV3Route(req,env,path,user){
  await assertCrewLevel(env,c,target);
  try{await env.DB.batch([
  query(env,`INSERT INTO crew_members(crew_id,user_id,role,joined,joined_sequence) SELECT c.id,?,'member',?,COALESCE((SELECT max(rowid) FROM crew_messages WHERE crew_id=c.id),0)+1 FROM crews c WHERE c.id=? AND c.recruiting=1 AND NOT EXISTS(SELECT 1 FROM crew_bans WHERE crew_id=c.id AND user_id=?) AND (SELECT count(*) FROM crew_members WHERE crew_id=c.id)<min(CASE WHEN c.member_limit>0 THEN c.member_limit ELSE 150 END,${crewCapacitySQL()}) AND EXISTS(SELECT 1 FROM crew_applications WHERE crew_id=c.id AND user_id=? AND state='pending')`,target,now(),cid,target,target),
+ query(env,`INSERT INTO crew_messages(id,crew_id,user_id,body,request_id,created,kind) SELECT ?,?,?,COALESCE((SELECT ${producerNameSQL()} FROM producers p WHERE p.user_id=?),'크루원')||'님이 크루에 참여했습니다. 인사를 나눠보세요.',?,?,'system' WHERE changes()=1`,id(),cid,target,target,'join:'+id(),now()),
  query(env,"UPDATE crew_applications SET state='approved' WHERE crew_id=? AND user_id=? AND EXISTS(SELECT 1 FROM crew_members WHERE crew_id=? AND user_id=?)",cid,target,cid,target),
  query(env,"INSERT INTO crew_audit(id,crew_id,actor_id,action,detail,created) SELECT ?,?,?,'application_approved',?,? WHERE EXISTS(SELECT 1 FROM crew_members WHERE crew_id=? AND user_id=?)",id(),cid,user.id,target,now(),cid,target)
  ]);}catch(e){if(/UNIQUE/.test(e.message))fail(409,'이미 다른 크루에 가입했어요.');throw e;}

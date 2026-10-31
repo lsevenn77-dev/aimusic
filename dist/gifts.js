@@ -32,11 +32,13 @@ function ownedGiftCards(inventory){
 }
 let giftDialogSerial=0;
 async function giftDialog(tid,initial=null,personal=false){
- const serial=++giftDialogSerial;dialog('<section class="gift-dialog"><h2>선물하기</h2><p role="status">선물함을 불러오고 있어요…</p></section>');
+ const serial=++giftDialogSerial,route=globalThis.location?.hash;
+ if(personal&&me?.profile_id===tid){toast('본인에게는 선물할 수 없어요.');return;}
  try{await accountReady;const account=me?.id;const [wallet,track,inventory]=await Promise.all([me?api('/api/gold'):Promise.resolve(null),api('/api/'+(personal?'producers/':'tracks/')+encodeURIComponent(tid)),me?api('/api/me/gift-inventory','GET',undefined,{fresh:true}).catch(()=>({error:true})):Promise.resolve({items:[]})]);
- if(serial!==giftDialogSerial||!$('#dialog').open||account!==me?.id)return;
+ if(serial!==giftDialogSerial||route!==globalThis.location?.hash||account!==me?.id)return;
  const t=personal?{user_id:track.profile.user_id,producer:track.profile.display_name||track.profile.name,title:'직접 선물'}:track.track;if(!personal)remember([t]);
- if(me?.id===t.user_id){dialog('<h2>내 음악이에요</h2><p>다른 창작자의 음악에 응원을 보내주세요.</p><a class="primary-button" href="#community" data-close-dialog>커뮤니티 둘러보기</a>');return;}
+ const reason=t.gift_block_reason||(me&&me.id===t.user_id?(personal?'본인에게는 선물할 수 없어요.':'내 작품에는 선물할 수 없어요.'):'');
+ if(reason){toast(reason);return;}
  const silverGifts=wallet?.silver_gifts||AifectGifts.SILVER_GIFT_CATALOG,gifts=wallet?.gifts||AifectGifts.GIFT_CATALOG,choices=[...silverGifts,...gifts];
  const recipientId=personal?track.profile.id||tid:t.producer_id,groups=ownedGiftGroups(inventory?.items||[]);
  let chosen=choices.some(g=>g.id===initial)?initial:'silver-letter',quantity=1,requestId=crypto.randomUUID();
@@ -76,7 +78,7 @@ async function giftDialog(tid,initial=null,personal=false){
   if(!confirmOwned){confirmOwned=true;return;}
   const sent=owned;let key=ownedRequests.get(sent.id);if(!key){key=crypto.randomUUID();ownedRequests.set(sent.id,key);}
   $('#gift-send').textContent='보내는 중…';
-  await api('/api/me/gift-inventory/'+encodeURIComponent(sent.id)+'/send','POST',{profile_id:recipientId,request_id:key});
+  await api('/api/me/gift-inventory/'+encodeURIComponent(sent.id)+'/send','POST',{profile_id:recipientId,request_id:key,...(!personal?{track_id:tid}:{})});
   if(serial!==giftDialogSerial||!form.isConnected||account!==me?.id)return;
   dialog(`<section class="gift-success"><div class="gift-celebration">${giftArt(sent)}</div><h2>${esc(sent.gift_name)} 1개를 보냈어요</h2><p>${esc(t.producer)}님의 프로필에 전달했어요.</p><p>보유 선물 사용 · 실버·골드 추가 차감 없음</p><button class="primary-button" data-close-dialog>확인</button></section>`);await render();return;
  }
@@ -84,7 +86,7 @@ async function giftDialog(tid,initial=null,personal=false){
  if(serial!==giftDialogSerial||!form.isConnected)return;
  dialog(`<section class="gift-success"><div class="gift-celebration">${giftArt(g)}</div><span class="eyebrow">THANK YOU FOR YOUR ENCORE</span><h2>${esc(g.name)} ${sentQuantity}개를 보냈어요</h2><p>${esc(t.producer)}${personal?'님에게':'님의 「'+esc(t.title)+'」에'}<br>응원이 전해졌어요.</p><p>${r.gift.free?`남은 실버 ${number(r.free_balance)} S · 수익 정산 없음`:`남은 골드 ${number(r.balance)} G`}</p><button class="primary-button" data-close-dialog>계속 음악 듣기</button></section>`);await render();});
  form.onsubmit=async ev=>{if(form._busy)return;await submit(ev);if(form.isConnected&&serial===giftDialogSerial&&account===me?.id)update();};
- }catch(e){if(serial===giftDialogSerial&&$('#dialog').open)dialog(`<h2>선물함을 열지 못했어요</h2><p role="alert">${esc(e.message)}</p><button class="primary-button" ${personal?'data-profile-gift':'data-gift'}="${esc(tid)}">다시 시도</button>`);}
+ }catch(e){if(serial===giftDialogSerial&&route===globalThis.location?.hash)dialog(`<h2>선물함을 열지 못했어요</h2><p role="alert">${esc(e.message)}</p><button class="primary-button" ${personal?'data-profile-gift':'data-gift'}="${esc(tid)}">다시 시도</button>`);}
 }
 function bindGiftClaims(root,onChange=()=>{}){if(!root)return;root.onclick=async e=>{const b=e.target.closest('[data-claim-gift]');if(!b||b.disabled||root._busy||$('#gift-form')?._busy)return;root._busy=true;b.disabled=true;b.textContent='받는 중…';try{const s=await api('/api/gifts/free/claim','POST',{kind:b.dataset.claimGift});if(!root.isConnected)return;root.innerHTML=freeRewardsHTML(s,root.id==='gift-rewards');onChange(s);toast('실버를 받았어요. 좋아하는 음악에 보내보세요.');}catch(err){toast(err.message);b.disabled=false;b.textContent='다시 받기';}finally{root._busy=false;}};}
 async function profileGiftDialog(pid,initial='star'){return giftDialog(pid,initial,true);}

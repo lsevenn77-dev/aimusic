@@ -1,6 +1,16 @@
 const crewRoleLabels={owner:'크루장',deputy:'부크루장',manager:'매니저',member:'크루원'};
 const crewDisplayName=p=>p.name+(p.role&&p.role!=='member'?'('+(crewRoleLabels[p.role]||'크루원')+')':'');
 function crewPeopleHTML(d){return d.members.map(p=>{const content=portrait(p,'producer')+'<span class="crew-person-copy"><strong>'+esc(p.name)+'</strong><small>'+esc(crewRoleLabels[p.role]||'크루원')+'</small></span>';return ['owner','deputy'].includes(d.membership?.role)&&p.role!=='owner'?`<button class="crew-person" data-crew-member="${esc(p.id)}" data-crew="${esc(d.crew.id)}">${content}</button>`:`<a href="#producer/${esc(p.id)}">${content}</a>`;}).join('');}
+const crewHellos={
+ intro:['안녕하세요! 오늘부터 함께하게 됐어요.','반갑습니다. 여러분의 음악을 듣고 싶어요.','새로 가입했어요. 잘 부탁드려요!','안녕하세요, 함께 노래하게 되어 기뻐요.','첫인사 드립니다. 어떤 곡부터 들어볼까요?','반가워요! 앞으로 자주 이야기 나눠요.'],
+ welcome:['어서 오세요! 함께하게 되어 반가워요.','환영합니다. 좋아하는 음악을 들려주세요!','반가워요. 편하게 이야기 나눠요.','크루에 오신 걸 환영해요!','안녕하세요! 함께 만들 음악이 기대돼요.','잘 오셨어요. 요즘 어떤 곡을 듣고 계세요?']
+};
+const recentCrewHellos=new Map();
+function suggestCrewHello(crew,intro){
+ const group=intro?'intro':'welcome',key=JSON.stringify([me?.id,crew,group]),recent=recentCrewHellos.get(key)||[];
+ const options=crewHellos[group].filter(s=>!recent.includes(s)),text=options[Math.floor(Math.random()*options.length)];
+ recentCrewHellos.set(key,[...recent.slice(-2),text]);return text;
+}
 function bindChatEnter(input,submit){
  let composing=false,pendingEnter=false;
  input.addEventListener('compositionstart',()=>{composing=true;pendingEnter=false;});
@@ -35,7 +45,7 @@ function chatBodyHTML(body){return esc(body).replace(/(?:[ \t]*\r?\n[ \t]*)?http
 function chatHTML(messages,peer=null,crew=null){
  let day='';return messages.map(m=>{
   const currentDay=new Date(m.created*1000).toLocaleDateString('ko-KR',{timeZone:'Asia/Seoul'}),separator=currentDay!==day?'<div class="chat-day">'+currentDay+'</div>':'';day=currentDay;
-  if(m.kind==='system')return separator+'<div class="chat-system">'+esc(m.body)+'</div>';
+  if(m.kind==='system')return separator+'<div class="chat-system">'+esc(m.body)+(crew&&m.body.endsWith('님이 크루에 참여했습니다. 인사를 나눠보세요.')?' <button type="button" class="text-link" data-crew-hello="'+esc(m.id)+'" data-intro="'+(m.user_id===me?.id)+'">인사하기</button>':'')+'</div>';
   const mine=m.sender_id===me?.id||m.user_id===me?.id,name=m.chat_nickname||m.name||(mine?'나':chatNickname(peer||{}))||'리스너',label=crew?crewDisplayName({...m,name}):name;
   const delivery=m.delivery==='sending'?'<small class="chat-delivery">전송 중…</small>':m.delivery==='failed'?'<button class="chat-retry" data-chat-retry="'+esc(m.id)+'">다시 보내기</button>':'';
   const person=peer||{id:m.profile_id,name:label,image_version:m.image_version,player_xp:m.player_xp,profile_frame:m.profile_frame,profile_frame_artwork:m.profile_frame_artwork};
@@ -137,7 +147,7 @@ function bindSocialChat(view){
  merge(initial?.messages||[]);
  const mobileChat=()=>window.AifectMobileInput?.isMobile()??innerWidth<=800;
  const paint=(older=false,forceBottom=false)=>{const nearBottom=forceBottom||(!mobileChat()&&document.activeElement===input)||log.scrollHeight-log.scrollTop-log.clientHeight<90,top=log.scrollTop,height=log.scrollHeight;const html=chatHTML(sorted(),peer,crew);if(html===lastHTML){if(forceBottom)log.scrollTop=log.scrollHeight;return;}lastHTML=html;patchChatLog(log,html);if(older)log.scrollTop=top+log.scrollHeight-height;else if(nearBottom)log.scrollTop=log.scrollHeight;};
- const deny=()=>{denied=true;socialCleanup?.();if(crew){chatGeneration++;messages.clear();latestSequence=0;lastHTML=null;paint(false,true);}input.disabled=true;sendButton.disabled=true;$('#chat-connection').textContent='연결 종료';$('#chat-error').textContent='로그인 또는 크루 가입 상태를 다시 확인해주세요.';};
+ const deny=()=>{denied=true;socialCleanup?.();if(crew){chatGeneration++;unsent.pending.clear();unsent.draft='';input.value='';messages.clear();latestSequence=0;lastHTML=null;paint(false,true);}input.disabled=true;sendButton.disabled=true;$('#chat-connection').textContent='연결 종료';$('#chat-error').textContent='로그인 또는 크루 가입 상태를 다시 확인해주세요.';};
  if(initial)paint(false,true);else log.innerHTML='<p class="quiet" role="status">대화를 불러오는 중…</p>';
  const load=async(older=false)=>{
   if(!current()||denied)return;if(fetching){if(!older)again=true;else earlier.disabled=false;return;}fetching=true;
@@ -161,6 +171,11 @@ function bindSocialChat(view){
  };
  earlier.onclick=()=>{earlier.disabled=true;load(true);};
  const isComposing=bindChatEnter(input,()=>{if(input.isConnected&&current()&&input.value.trim()&&!sendButton.disabled)form.requestSubmit();});
+
+ log.addEventListener('click',e=>{const b=e.target.closest('[data-crew-hello]');if(!b||denied||!crew)return;
+  input.value=suggestCrewHello(crew.id,b.dataset.intro==='true');
+  b.textContent='다른 인사';input.dispatchEvent(new Event('input',{bubbles:true}));input.focus();
+ });
  const send=async pending=>{
   const generation=chatGeneration;
   if(sending||unsent.sending||denied||!current())return;sending=true;unsent.sending=true;sendButton.disabled=true;pending.delivery='sending';unsent.pending.set(pending.id,pending);messages.set(pending.id,pending);paint(false,true);$('#chat-error').textContent='';

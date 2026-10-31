@@ -7,8 +7,8 @@ const crew={id:'crew',name:'Music crew',members:2,capacity:10,level:1,xp:2,recru
 const detail={growth:{level:1,xp:0,next_xp:300,next_capacity:15,progress:0,missions:[]},crew,membership:{role:'member'},members:[{id:'peer-profile',name:'Singer',role:'manager'}],tracks:[]};
 function fixture(responses={}){
  const calls=[],context=vm.createContext({me:{id:'self-user'},apiRevision:0,structuredClone,Date,URLSearchParams,esc:escape,number:n=>String(n||0),icon:()=>'',portrait:p=>'<img alt="'+escape(p.name)+'">',heading:t=>'<h1>'+escape(t)+'</h1>',section:t=>'<h2>'+escape(t)+'</h2>',communityFeed:()=>'<div>MUSIC</div>',communityNavigation:()=>'<nav>COMMUNITY</nav>',document:{addEventListener(){}},api:async p=>{calls.push(p);if(!(p in responses))throw Error('Unexpected '+p);return typeof responses[p]==='function'?responses[p]():responses[p];}});
- Object.assign(context,{window:{addEventListener(){}},setInterval(){},cover:()=>'',trackStats:()=>''});
- for(const file of ['chat-features.js','social-chat.js','social-layouts.js','improvements.js','release-refinements.js','community-v3.js','crew-integrated.js'])vm.runInContext(readFileSync(new URL('../dist/'+file,import.meta.url),'utf8'),context);
+ Object.assign(context,{followed:()=>false,window:{addEventListener(){}},setInterval(){},cover:()=>'',trackStats:()=>''});
+ for(const file of ['artist-directory.js','chat-features.js','social-chat.js','social-layouts.js','improvements.js','release-refinements.js','community-v3.js','crew-integrated.js'])vm.runInContext(readFileSync(new URL('../dist/'+file,import.meta.url),'utf8'),context);
  return {context,calls};
 }
 test('joined crew landing shows music and a chat entry, with discovery secondary',async()=>{
