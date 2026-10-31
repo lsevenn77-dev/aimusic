@@ -316,3 +316,14 @@
  .home-content-refresh #home-release .home-floating-drift::after{transition:none}
  .home-content-refresh #home-release .home-floating-card,.home-content-refresh #home-release .home-floating-wash{will-change:auto}
 }
+@media (max-width: 620px) {
+  .home-content-refresh #home-release .home-feature-copy { grid-row: 1; }
+  .home-content-refresh #home-release .home-feature-covers { grid-row: 2; }
+  .home-content-refresh #home-release .home-feature-label { display: none; }
+  .home-content-refresh #home-release .home-feature-artist {
+    font-size: 17px;
+    line-height: 1.25;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
