@@ -12,7 +12,7 @@ function context(overrides={}){
   leave(){this.closed=true;calls.push(['leave',this.id]);return Promise.resolve();}
  }
  const nodes=new Map(),node=()=>({textContent:'',innerHTML:'',hidden:false,value:0,readyState:0,isConnected:true});
- const host={isConnected:true,querySelector:sel=>{if(!nodes.has(sel))nodes.set(sel,node());return nodes.get(sel);},querySelectorAll:()=>[]};
+ const host={isConnected:true,dataset:{},querySelector:sel=>{if(!nodes.has(sel))nodes.set(sel,node());return nodes.get(sel);},querySelectorAll:()=>[]};
  const c=vm.createContext({
   icon:()=>'<svg></svg>',esc:s=>String(s??'').replaceAll('<','&lt;').replaceAll('"','&quot;'),number:x=>String(x),time:x=>String(x),avatarImage:()=>'<img>',
   AifectGifts:{GIFT_CATALOG:[]},URL,URLSearchParams,AbortController,crypto,Date,
@@ -83,7 +83,8 @@ test('live entry preserves the listening user gesture without requesting a micro
 test('listener clients never warm microphone and outgoing live routes release room resources',async()=>{
  const {c,calls}=context();vm.runInContext('voiceController=new VoiceRoomClient("one");voiceController.liveMode=true;voiceController.joined=true;voiceController.state={self:"listener",karaoke:{active:{user_id:"singer"}}};voiceController.warmMicrophone()',c);
  assert.equal(c.voiceController.warmCount,0);
- vm.runInContext('voiceController.state.self="singer";voiceController.warmMicrophone()',c);assert.equal(c.voiceController.warmCount,1);
+ vm.runInContext('voiceController.state.self="singer";voiceController.state.karaoke.phase="invited";voiceController.warmMicrophone()',c);assert.equal(c.voiceController.warmCount,0);
+ vm.runInContext('voiceController.state.karaoke.phase="ready";voiceController.warmMicrophone()',c);assert.equal(c.voiceController.warmCount,1);
  vm.runInContext('cleanupVoiceRoute("live","one")',c);assert.ok(!c.voiceController.closed);
  await vm.runInContext('cleanupVoiceRoute("live",undefined)',c);assert.equal(c.voiceController,null);assert.ok(calls.some(x=>x[0]==='leave'));
  vm.runInContext('cleanupVoiceRoute("home")',c);assert.ok(calls.some(x=>x[0]==='base-cleanup'));
@@ -113,4 +114,44 @@ test('live script follows all current room extensions and is included in the bui
  assert.match(readFileSync(new URL('../scripts/build.mjs',import.meta.url),'utf8'),/'live-karaoke.js','live-karaoke.css'/);
  assert.match(source('views.js'),/voiceView\(base,param,readApi.signal\)/);
  const css=source('live-karaoke.css');assert.doesNotMatch(css,/(?:^|\n)(?:body|:root|\*)\s*\{/);assert.match(css,/min-height:44px/);
+});
+
+
+test('nickname call, next card and horizontal reservation controls preserve escaping and real identities',()=>{
+ const {c,host,nodes}=context();
+ c.client={closed:false,host,state:{self:'self',room:{mode:'karaoke'},members:[{id:'self',role:'host'},{id:'next',name:'<코코>',profile_id:'p'}],karaoke:{active:null,queue:[{user_id:'next',name:'stale',track:{id:'song',title:'예약곡',artist:'가수'}}],phase:'idle'}}};
+ vm.runInContext('paintLiveKaraoke(client)',c);
+ assert.match(nodes.get('#live-actions').innerHTML,/&lt;코코>님 부르기/);
+ assert.doesNotMatch(nodes.get('#live-actions').innerHTML,/<코코>|다음 가창자/);
+ assert.match(nodes.get('#live-next-card').innerHTML,/예약곡/);assert.equal(nodes.get('#live-next-card').hidden,false);
+ assert.match(nodes.get('#live-queue').innerHTML,/&lt;코코>/);
+ const html=vm.runInContext('liveKaraokeRoomHTML("room")',c);
+ for(const id of ['live-search-sheet','live-search','live-mr-volume','live-delay','voice-chat','voice-members'])assert.equal((html.match(new RegExp('id="'+id+'"','g'))||[]).length,1,id);
+ assert.match(html,/data-voice="karaoke-search-open"/);
+});
+
+test('invitation countdown follows server time and accept completes before microphone setup without extra refresh',async()=>{
+ const now=100000,clock={now:()=>now};const {c,host,nodes}=context({Date:clock});let mic=0,refresh=0,seen;
+ const state={self:'self',room:{mode:'karaoke'},members:[{id:'self',name:'코코',role:'host'}],karaoke:{phase:'invited',inviteExpiresAt:now+10500,active:{user_id:'self',invitation_id:'nonce',track:{id:'song',title:'곡',artist:'가수',duration:90}},queue:[]}};
+ c.client={closed:false,host,state,musicClock:500,liveTrack:'song',command:async(_path,b)=>{seen=b;assert.equal(mic,0);return {...state,karaoke:{...state.karaoke,phase:'ready',inviteExpiresAt:0}};},acceptState(s){this.state=s;return true;},refresh:async()=>{refresh++;},enableMic:async()=>{mic++;}};
+ vm.runInContext('paintLiveKaraoke(client)',c);assert.equal(nodes.get('#live-phase').textContent,'응답 대기 · 10초');assert.equal(nodes.get('#live-invite').hidden,false);
+ await vm.runInContext('liveKaraokeAction(client,"karaoke-accept","nonce")',c);
+ assert.equal(seen.invitation_id,'nonce');assert.equal(mic,1);assert.equal(refresh,0);assert.equal(nodes.get('#live-invite').hidden,true);
+ state.karaoke.inviteExpiresAt=now; c.client.state=state;
+ vm.runInContext('liveSync(client)',c);assert.equal(nodes.get('[data-voice="karaoke-accept"]').disabled,true);assert.equal(nodes.get('#live-phase').textContent,'다음 예약자로 이동 중');
+});
+
+test('song picker opens through the existing dialog manager without issuing a search or microphone request',async()=>{
+ const {c,host,nodes,calls}=context();let opened,focused=false;
+ host.querySelector('#live-query').focus=()=>{focused=true;};c.client={host,showSheet:id=>{opened=id;}};
+ await vm.runInContext('liveKaraokeAction(client,"karaoke-search-open")',c);
+ assert.equal(opened,'live-search-sheet');assert.ok(focused);assert.equal(calls.length,0);
+});
+
+
+test('static search button is re-enabled after a request finishes',()=>{
+ const {c,host}=context();const picker={disabled:false};host.querySelectorAll=selector=>selector.includes('karaoke-search-open')?[picker]:[];
+ c.client={closed:false,host,liveCommandPending:true,state:{self:'self',room:{mode:'karaoke'},members:[{id:'self',role:'host'}],karaoke:{active:null,queue:[],phase:'idle'}}};
+ vm.runInContext('paintLiveKaraoke(client)',c);assert.equal(picker.disabled,true);
+ vm.runInContext('client.liveCommandPending=false;paintLiveKaraoke(client)',c);assert.equal(picker.disabled,false);
 });

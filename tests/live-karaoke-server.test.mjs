@@ -1,66 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {DatabaseSync} from 'node:sqlite';
-import {readFileSync} from 'node:fs';
-import {fixture} from './fixture.mjs';
-import voiceWorker,{VoiceRoom} from '../realtime/worker-live-karaoke.js';
+import {liveFixture} from './live-karaoke-fixture.mjs';
+import voiceWorker from '../realtime/worker-live-karaoke.js';
 import {DECORATIONS} from '../shared/decorations.js';
 
-// Run the real Site router, signed bridge and exact uploaded room Worker against
-// local SQLite and isolated Durable Objects. No production or audio API is used.
-async function liveFixture(t){
- const bridge={VOICE_SERVICE_URL:'https://live-karaoke-fixture.test',VOICE_BRIDGE_SECRET:'local-live-karaoke-bridge-00000001'};
- const f=await fixture(t,bridge),roomSql=new DatabaseSync(':memory:');
- for(const file of ['0001_rooms.sql','0002_room_settings.sql'])roomSql.exec(readFileSync(new URL('../realtime/migrations/'+file,import.meta.url),'utf8'));
- t.after(()=>roomSql.close());
- const rooms=new Map(),calls=[];
- const env={...bridge,ROOM_DB:{prepare(q){return {bind(...args){const stmt=roomSql.prepare(q);return {async run(){stmt.run(...args);},async all(){return {results:stmt.all(...args)};}};}};}}};
- env.ROOMS={idFromName:id=>id,get(id){
-  if(!rooms.has(id)){
-   const saved=new Map(),ctx={storage:{async get(k){return structuredClone(saved.get(k));},async put(k,v){saved.set(k,structuredClone(v));},async setAlarm(){}},getWebSockets(){return [];}};
-   const room=new VoiceRoom(ctx,env);room.notify=()=>{};
-   room.sfu={async create(){throw Error('Unexpected SFU creation in local integration test');},async close(){return {resolved:true};},async tracks(){throw Error('Unexpected live SFU request');}};
-   rooms.set(id,room);
-  }
-  return rooms.get(id);
- }};
- const original=globalThis.fetch;
- t.mock.method(globalThis,'fetch',async(input,init)=>{
-  const req=new Request(input,init);
-  if(new URL(req.url).hostname!=='live-karaoke-fixture.test')return original(input,init);
-  calls.push({path:new URL(req.url).pathname,body:JSON.parse(await req.clone().text())});
-  return voiceWorker.fetch(req,env);
- });
- f.sql.exec("INSERT INTO producers(id,user_id,name,created) VALUES('friend','other','Live friend',0)");
- f.sql.exec("UPDATE tracks SET title='Live '||id,duration=120,karaoke_at=1,lyrics='Test lyric' WHERE id IN ('one','two','three','hidden')");
- f.sql.exec("UPDATE tracks SET karaoke_at=0 WHERE id='two'");
- const words=JSON.stringify([{s:0,e:2,w:[{t:'Test',s:0,e:1},{t:'lyric',s:1,e:2}]}]);
- for(const id of ['one','two','three','hidden'])f.sql.prepare("INSERT INTO karaoke_jobs(track_id,id,state,mr_ready,words_state,lyrics_text,words,created,updated) VALUES(?,?,'ready',1,'ready','Test lyric',?,0,0)").run(id,'job-'+id,words);
- f.sql.exec("UPDATE karaoke_jobs SET state='queued' WHERE track_id='three'");
- const addSong=(id,changes={})=>{
-  f.sql.prepare("INSERT INTO tracks(id,user_id,artist_id,producer_id,title,genre,ai_tool,rights_accepted,original_ext,original_bytes,created,status,duration,karaoke_at) VALUES(?,'owner','artist','producer',?,'Rock','QA',1,'wav',128,0,'published',120,1)").run(id,'Live '+id);
-  f.sql.prepare("INSERT INTO karaoke_jobs(track_id,id,state,mr_ready,words_state,lyrics_text,words,created,updated) VALUES(?,?,'ready',1,'ready','Test lyric',?,0,0)").run(id,'job-'+id,words);
-  for(const [column,value] of Object.entries(changes)){
-   assert.ok(['kind','original_id','rights_accepted','duration','karaoke_at'].includes(column));
-   f.sql.prepare('UPDATE tracks SET '+column+'=? WHERE id=?').run(value,id);
-  }
- };
- const create=async(more={})=>{
-  const response=await f.call('/api/voice/rooms','POST',{request_id:crypto.randomUUID(),title:'Local live karaoke',visibility:'public',mode:'karaoke',...more});
-  assert.equal(response.status,201,JSON.stringify(response.body));
-  const root='/api/voice/rooms/'+response.body.room.id+'/';
-  const joined=await f.call(root+'join','POST',{request_id:crypto.randomUUID()});
-  assert.equal(joined.status,200,JSON.stringify(joined.body));
-  return {root,state:joined.body,room:rooms.get(response.body.room.id)};
- };
- const join=async(r,user='other')=>{
-  const response=await f.call(r.root+'join','POST',{request_id:crypto.randomUUID()},user);
-  assert.equal(response.status,200,JSON.stringify(response.body));return response.body;
- };
- const command=(r,state,operation,more={},user='owner')=>f.call(r.root+'karaoke','POST',{generation:state.generation,request_id:crypto.randomUUID(),operation,...more},user);
- const search=(r,state,q='Live',user='owner')=>f.call(r.root+'karaoke-search?generation='+encodeURIComponent(state.generation)+'&q='+encodeURIComponent(q),'GET',undefined,user);
- return {...f,roomSql,rooms,calls,addSong,create,join,command,search};
-}
 
 test('live Site bridge creates karaoke rooms, lists only available consented originals and does not trust client track metadata',async t=>{
  const f=await liveFixture(t);
@@ -108,7 +51,8 @@ test('live queue ownership and one-singer permissions are enforced through the S
  assert.equal((await f.command(r,other,'cancel',{target_id:'owner'},'other')).status,403);
  assert.equal((await f.command(r,other,'call',{},'other')).status,403);
  const called=await f.command(r,r.state,'call');assert.equal(called.status,200,JSON.stringify(called.body));
- assert.equal(called.body.karaoke.active.user_id,'other');assert.equal(called.body.karaoke.phase,'ready');
+ assert.equal(called.body.karaoke.active.user_id,'other');assert.equal(called.body.karaoke.phase,'invited');
+ assert.equal((await f.command(r,other,'accept',{invitation_id:called.body.karaoke.active.invitation_id},'other')).status,200);
  assert.equal((await f.command(r,other,'request',{track_id:'one'},'other')).status,409);
  assert.equal((await f.call(r.root+'publish','POST',{generation:r.state.generation})).status,403,'host cannot publish while another member is the singer');
  assert.equal((await f.call(r.root+'self-mute','POST',{generation:r.state.generation,muted:false})).status,403);
@@ -127,6 +71,7 @@ test('live queue ownership and one-singer permissions are enforced through the S
 test('live start rechecks creator permission, publication and MR availability after a request is queued',async t=>{
  const f=await liveFixture(t),r=await f.create();
  await f.command(r,r.state,'request',{track_id:'one'});await f.command(r,r.state,'call');
+ await f.command(r,r.state,'accept',{invitation_id:r.room.data.karaoke.active.invitation_id});
  r.room.data.members.owner.pub={ready:true};r.room.data.members.owner.muted=false;
  for(const change of [
   "UPDATE tracks SET karaoke_at=0 WHERE id='one'",
@@ -174,6 +119,7 @@ test('ordinary talk rooms retain free seating and reject karaoke operations with
  const seat=await f.call(r.root+'request-mic','POST',{generation:other.generation,seat:1},'other');
  assert.equal(seat.status,200,JSON.stringify(seat.body));assert.equal(seat.body.members.find(x=>x.id==='other').seat,1);
  const live=await f.create();await f.command(live,live.state,'request',{track_id:'one'});await f.command(live,live.state,'call');
+ await f.command(live,live.state,'accept',{invitation_id:live.room.data.karaoke.active.invitation_id});
  live.room.data.members.owner.pub={ready:true};live.room.data.members.owner.muted=false;
  assert.equal((await f.command(live,live.state,'start')).status,200);assert.equal((await f.command(live,live.state,'finish')).status,200);
  assert.deepEqual(economy(),before,'creating, queueing, singing and leaving do not charge gold, create gifts or count as paid streaming');
@@ -199,4 +145,17 @@ test('live private, follower and crew restrictions use the existing admission ru
  assert.equal((await enter(crewRoom)).status,200);
  const directory=await f.call('/api/voice/public-rooms','GET',undefined,null);
  assert.deepEqual(directory.body.rooms,[],'private, followers and crew room metadata stays out of the public directory');
+});
+
+
+test('search uses a bounded metadata query without engagement aggregation or theme decoration',async t=>{
+ const f=await liveFixture(t),r=await f.create(),queries=[];
+ const prepare=f.DB.prepare.bind(f.DB);f.DB.prepare=q=>{queries.push(q);return prepare(q);};
+ const result=await f.search(r,r.state,'Live');assert.equal(result.status,200);
+ const song=queries.find(q=>q.includes('SELECT t.id,t.title'));
+ assert.ok(song);assert.match(song,/LIMIT \?/);assert.doesNotMatch(song,/COUNT\(|SUM\(|FROM gifts|FROM listens|FROM comments/i);
+ assert.ok(!queries.some(q=>q.includes('FROM player_inventory')),'search must not fetch room cosmetics');
+ assert.deepEqual(Object.keys(result.body.tracks[0]).sort(),['artist','cover','duration','id','title']);
+ for(let i=0;i<50;i++)f.addSong('bulk-'+i);
+ assert.equal((await f.search(r,r.state)).body.tracks.length,40);
 });

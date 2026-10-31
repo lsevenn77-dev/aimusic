@@ -20,22 +20,26 @@ function liveKaraokeRoomHTML(id){
   <div class="live-stage-top"><span>ON STAGE</span><span id="live-phase" role="status">가창자 기다리는 중</span></div>
   <div id="live-current" class="live-current"><span>${icon('mic')}</span><strong>다음 가창자를 기다리는 중</strong></div>
   <p id="live-song" class="live-song"></p>
-  <div class="live-song-progress"><span id="live-timer">0:00 / 0:00</span><progress id="live-progress" max="100" value="0" aria-label="곡 진행률"></progress></div>
   <div id="live-lyrics" class="live-lyrics" aria-live="off"><p>노래가 시작되면 가사가 여기에 나와요.</p></div>
+  <div id="live-next-card" class="live-next-card" hidden></div>
+  <div class="live-song-progress"><span id="live-timer">0:00 / 0:00</span><progress id="live-progress" max="100" value="0" aria-label="곡 진행률"></progress></div>
   <div id="live-actions" class="live-actions"></div>
+  <p id="live-invite" class="live-invite" role="status" hidden></p>
   <button class="small-button live-audio-unlock" id="live-audio-unlock" type="button" data-voice="karaoke-resume" hidden>소리 켜기</button>
   <p class="live-stage-note" id="live-stage-note">이어폰을 사용하면 반주가 마이크에 섞이지 않아요.</p>
  </section>
- <section class="live-request-area"><div class="live-section-title"><h2>노래 신청 순서</h2><small id="live-queue-count">0명 대기</small></div><ol id="live-queue" class="live-queue"></ol>
- <form id="live-search" class="live-search" role="search"><label for="live-query">부를 노래 찾기</label><div><input id="live-query" type="search" maxlength="80" placeholder="곡명 또는 아티스트 검색" required><button type="submit" class="small-button">${icon('search')} 검색</button></div></form>
- <div id="live-results" class="live-results" aria-live="polite"></div></section>
- <div class="live-audio-settings"><label>내 반주 음량 <input id="live-mr-volume" type="range" min="0" max="100" value="75"></label><label>청취 싱크 보정 <input id="live-delay" type="range" min="0" max="500" step="50" value="200"><output id="live-delay-value">200ms</output></label></div></div>`;
+ <section class="live-request-area" aria-label="노래 신청과 예약 순서"><button type="button" class="live-request-button" data-voice="karaoke-search-open">${icon('mic')}<span><strong>노래 신청하기</strong><small id="live-queue-count">0명 대기</small></span></button><ol id="live-queue" class="live-queue" tabindex="0" aria-label="예약 순서, 좌우로 스크롤"></ol></section>
+ </div>`;
+ const search=`<dialog id="live-search-sheet" class="voice-sheet" aria-labelledby="live-search-title"><button type="button" class="voice-dialog-close" data-voice="dismiss" aria-label="닫기">×</button><h2 id="live-search-title">부를 노래 찾기</h2><form id="live-search" class="live-search" role="search"><label for="live-query">곡명 또는 아티스트</label><div><input id="live-query" type="search" maxlength="80" placeholder="곡명 또는 아티스트 검색" required><button type="submit" class="small-button">${icon('search')} 검색</button></div></form><div id="live-results" class="live-results" aria-live="polite"></div></dialog>`;
+ const audio=`<div class="live-audio-settings"><label>내 반주 음량 <input id="live-mr-volume" type="range" min="0" max="100" value="75"></label><label>청취 싱크 보정 <input id="live-delay" type="range" min="0" max="500" step="50" value="200"><output id="live-delay-value">200ms</output></label></div>`;
  return voiceRoomHTML(id).replace('class="voice-room"','class="voice-room live-karaoke-room"')
   .replace('href="#voice">← 토킹룸','href="#live">〈 라이브 노래방')
   .replace('좌석을 눌러 참여 신청해보세요.','신청 순서대로 한 명씩 노래해요.')
   .replace('id="voice-title">토킹룸','id="voice-title">라이브 노래방')
   .replace('토킹룸 종료','노래방 종료')
-  .replace('<div id="voice-seats" class="voice-seats"></div>',stage+'<div id="voice-seats" class="voice-seats"></div>');
+  .replace('<div id="voice-seats" class="voice-seats"></div>',stage+'<div id="voice-seats" class="voice-seats"></div>')
+  .replace('<dialog id="voice-members"',search+'<dialog id="voice-members"')
+  .replace('<section id="voice-host-audio"',audio+'<section id="voice-host-audio"');
 }
 function bindLiveKaraokeLobby(){
  bindVoiceLobby();
@@ -88,7 +92,7 @@ function bindLiveKaraoke(c){
   const q=form.querySelector('#live-query').value.trim(),out=c.host.querySelector('#live-results');
   if(!q)return;out.textContent='노래를 찾는 중…';
   c.liveSearchAbort?.abort();const controller=c.liveSearchAbort=new AbortController(),serial=c.liveSearchSerial=(c.liveSearchSerial||0)+1;
-  let data;try{data=await voiceRequest(c.path('karaoke-search')+'?generation='+encodeURIComponent(c.generation)+'&q='+encodeURIComponent(q),undefined,'GET',controller.signal);}catch(e){if(controller.signal.aborted||c.closed)return;throw e;}
+  let data;try{data=await voiceRequest(c.path('karaoke-search')+'?generation='+encodeURIComponent(c.generation)+'&q='+encodeURIComponent(q),undefined,'GET',controller.signal);}catch(e){if(controller.signal.aborted||c.closed||serial!==c.liveSearchSerial)return;out.textContent='검색하지 못했어요. 잠시 후 다시 검색해주세요.';throw e;}
   if(c.closed||!out.isConnected||serial!==c.liveSearchSerial)return;
   out.innerHTML=data.tracks.length?data.tracks.map(t=>`<div class="live-result"><div><strong>${esc(t.title)}</strong><small>${esc(t.artist||'')} · ${time(t.duration)}</small></div><button class="small-button" type="button" data-voice="karaoke-request" data-target="${esc(t.id)}">신청</button></div>`).join(''):'<p class="quiet">MR과 가사가 준비된 곡을 찾지 못했어요.</p>';
  });};
@@ -98,17 +102,19 @@ function bindLiveKaraoke(c){
  c.liveTimer=setInterval(()=>liveSync(c),200);
 }
 async function liveKaraokeAction(c,action,target){
+ if(action==='karaoke-search-open'){c.showSheet('live-search-sheet');c.host.querySelector('#live-query').focus();return;}
  if(action==='karaoke-resume'){
   c.resumeSound();c.livePlayBlocked=false;if(c.liveAudio&&c.state?.karaoke?.phase==='singing'){try{await c.liveAudio.play();c.host.querySelector('#live-audio-unlock').hidden=true;}catch(e){c.livePlayBlocked=true;throw e;}}return;
  }
  if(action==='karaoke-retry'){c.liveTrack=null;const active=c.state?.karaoke?.active;if(active)livePrepareTrack(c,active);return;}
  const operation=action.slice('karaoke-'.length);
- if(!['request','cancel','call','start','finish','next'].includes(operation))return;
+ if(!['request','cancel','call','accept','start','finish','next'].includes(operation))return;
  const command={operation,request_id:crypto.randomUUID()};
  if(c.liveCommandPending)return;
  if(operation==='start'&&!liveTrackReady(c))throw Error('반주를 불러온 뒤 시작해주세요.');
  if(operation==='request')command.track_id=target;
  if(operation==='cancel'&&target)command.target_id=target;
+ if(operation==='accept'||operation==='start')command.invitation_id=target||c.state?.karaoke?.active?.invitation_id;
  c.liveCommandPending=true;paintLiveKaraoke(c);
  try{
   if(operation==='start'){
@@ -119,7 +125,12 @@ async function liveKaraokeAction(c,action,target){
    try{await prepared.play();prepared.pause();prepared.currentTime=0;}finally{prepared.volume=volume;c.livePriming=false;}
    if(c.closed)return;
   }
-  const result=await c.command('karaoke',command);c.acceptState?.(result);await c.refresh();
+  const result=await c.command('karaoke',command);
+  if(!c.acceptState?.(result))await c.refresh();
+  if(operation==='request'){c.host.querySelector('#live-search-sheet')?.close();toast('노래를 신청했어요.');}
+  if(operation==='accept'&&!c.closed&&c.state?.karaoke?.active?.invitation_id===command.invitation_id&&c.state.karaoke.phase==='ready'){
+   c.micDesired=true;await c.enableMic();
+  }
  }
  finally{c.liveCommandPending=false;paintLiveKaraoke(c);}
 }
@@ -128,24 +139,31 @@ function paintLiveKaraoke(c){
  if(s.room.mode!=='karaoke'){location.hash='#voice/'+c.id;return;}
  const self=s.members.find(p=>p.id===s.self),host=self?.role==='host',active=k?.active,singer=s.members.find(p=>p.id===active?.user_id);
  c.host.querySelector('#voice-count').textContent='전체 '+s.members.length+'명 · 1인 가창';
- c.host.querySelector('#live-current').innerHTML=singer?`${avatarImage({name:singer.name,profile_id:singer.profile_id,image_version:singer.image_version})}<strong>${esc(singer.name)}</strong><small>${k.phase==='ready'?'마이크 준비 중':'노래하는 중'}</small>`:`<span>${icon('mic')}</span><strong>다음 가창자를 기다리는 중</strong>`;
+ c.host.querySelector('#live-current').innerHTML=singer?`${avatarImage({name:singer.name,profile_id:singer.profile_id,image_version:singer.image_version})}<strong>${esc(singer.name)}</strong><small>${k.phase==='invited'?'응답 기다리는 중':k.phase==='ready'?'마이크 준비 중':'노래하는 중'}</small>`:`<span>${icon('mic')}</span><strong>${k?.queue?.length?'다음 가창자를 기다리는 중':'노래 신청을 기다리는 중'}</strong>`;
  c.host.querySelector('#live-song').textContent=active?active.track.title+' · '+active.track.artist:'신청 순서대로 노래를 불러봐요.';
  const hasQueued=k?.queue?.some(q=>q.user_id===s.self),isSinger=active?.user_id===s.self,singingMic=!!singer?.publishing&&!singer.muted;
  const buttons=[];
- if(!active&&host&&k?.queue?.length)buttons.push('<button class="primary-button" data-voice="karaoke-call">다음 가창자 부르기</button>');
+ const next=k?.queue?.[0],nextName=next&&(s.members.find(p=>p.id===next.user_id)?.name||next.name);
+ const nextCard=c.host.querySelector('#live-next-card');
+ if(nextCard){nextCard.hidden=!!active||!next;nextCard.innerHTML=!active&&next?`${avatarImage({...s.members.find(p=>p.id===next.user_id),name:nextName})}<div><small>다음 순서</small><strong>${esc(nextName)}님</strong><p>${esc(next.track.title)} · ${esc(next.track.artist)}</p></div>`:'';}
+ c.host.dataset.livePhase=k?.phase||'idle';
+ if(!active&&host&&next)buttons.push(`<button class="primary-button" data-voice="karaoke-call">${esc(nextName)}님 부르기</button>`);
+ if(isSinger&&k.phase==='invited')buttons.push(`<button class="primary-button" data-voice="karaoke-accept" data-target="${esc(active.invitation_id)}" ${liveNow(c)>=k.inviteExpiresAt?'disabled':''}>부르기</button>`);
  if(isSinger&&k.phase==='ready'&&!singingMic)buttons.push('<button class="primary-button" data-voice="enable-mic">마이크 켜기</button>');
  if(isSinger&&k.phase==='ready')buttons.push(`<button class="primary-button" data-voice="karaoke-start" ${singingMic&&liveTrackReady(c)?'':'disabled'}>3·2·1 카운트다운 시작</button>`);
  if(active&&host&&!isSinger&&k.phase==='ready')buttons.push('<span class="quiet">가창자가 준비를 마치면 시작해요.</span>');
  if(active&&c.liveError)buttons.push('<button class="small-button" data-voice="karaoke-retry">반주 다시 불러오기</button>');
  if(isSinger&&k.phase==='singing')buttons.push(`<button class="small-button" data-voice="${self.muted?'enable-mic':'mute'}">${self.muted?'마이크 켜기':'마이크 끄기'}</button>`);
  if(active&&(host||isSinger))buttons.push('<button class="small-button" data-voice="karaoke-finish">노래 종료</button>');
- if(active&&host&&k.queue.length)buttons.push('<button class="small-button" data-voice="karaoke-next">다음 가창자</button>');
+ if(active&&host&&next)buttons.push(`<button class="small-button" data-voice="karaoke-next">${esc(nextName)}님 부르기</button>`);
  if(hasQueued)buttons.push('<button class="small-button" data-voice="karaoke-cancel">내 신청 취소</button>');
  c.host.querySelector('#live-actions').innerHTML=buttons.join('');
  for(const button of c.host.querySelectorAll('[data-voice^="karaoke-"]'))if(c.liveCommandPending)button.disabled=true;
+ // Static picker/result buttons are not rebuilt with the stage controls.
+ for(const button of c.host.querySelectorAll('[data-voice="karaoke-search-open"],#live-results [data-voice="karaoke-request"]'))button.disabled=!!c.liveCommandPending;
  c.host.querySelector('#live-queue-count').textContent=(k?.queue?.length||0)+'명 대기';
- c.host.querySelector('#live-queue').innerHTML=k?.queue?.length?k.queue.map((q,i)=>`<li><span>${i+1}</span><div><strong>${esc(q.name)}</strong><small>${esc(q.track.title)}</small></div>${host?`<button type="button" class="small-button" data-voice="karaoke-cancel" data-target="${esc(q.user_id)}">제외</button>`:''}</li>`).join(''):'<li class="live-queue-empty">신청한 사람이 없어. 첫 번째로 신청해봐!</li>';
- if(active)livePrepareTrack(c,active);else if(c.liveAudio||c.liveTrack||c.liveAbort)liveStopAudio(c);
+ c.host.querySelector('#live-queue').innerHTML=k?.queue?.length?k.queue.map((q,i)=>{const person=s.members.find(p=>p.id===q.user_id);return `<li${i===0?' class="is-next"':''}><span>${i+1}</span><span class="live-queue-avatar">${avatarImage({...person,name:person?.name||q.name})}</span><div><strong>${esc(person?.name||q.name)}</strong><small title="${esc(q.track.title)}">${esc(q.track.title)}</small><small>${esc(q.track.artist)}</small></div>${host?`<button type="button" class="small-button" data-voice="karaoke-cancel" data-target="${esc(q.user_id)}" aria-label="${esc(person?.name||q.name)}님 신청 제외">×</button>`:''}</li>`;}).join(''):'<li class="live-queue-empty">첫 번째 노래를 신청해보세요.</li>';
+ if(active)livePrepareTrack(c,active);else {if(c.liveAudio||c.liveTrack||c.liveAbort)liveStopAudio(c);c.liveError='';}
  c.host.querySelector('#live-stage-note').textContent=c.liveError||'이어폰을 사용하면 반주가 마이크에 섞이지 않아요.';
  liveSync(c);
 }
@@ -160,11 +178,18 @@ function liveRenderLyrics(c,seconds){
 function liveSync(c){
  const k=c.state?.karaoke,active=k?.active;if(c.closed||!c.host?.isConnected)return;
  const phase=c.host.querySelector('#live-phase'),timer=c.host.querySelector('#live-timer'),progress=c.host.querySelector('#live-progress');
+ const invite=c.host.querySelector('#live-invite');
+ if(invite)invite.hidden=!active||k.phase!=='invited';
  if(!active){phase.textContent='가창자 대기 중';timer.textContent='0:00 / 0:00';progress.value=0;const lyrics=c.host.querySelector('#live-lyrics');if(lyrics)lyrics.textContent='노래를 신청하면 이곳에서 가사를 함께 볼 수 있어요.';return;}
  const now=liveNow(c),isSinger=c.state?.self===active.user_id,duration=active.track.duration;
  const waiting=k.phase!=='singing'||now<k.startsAt;
  const seconds=waiting?0:Math.max(0,Math.min(duration,(now-k.startsAt-(isSinger?0:c.liveDelayMs||0))/1000));
- phase.textContent=k.phase==='ready'?'마이크 준비 중':now<k.startsAt?Math.max(1,Math.ceil((k.startsAt-now)/1000))+'초 뒤 시작':'노래하는 중 · LIVE';
+ if(k.phase==='invited'){
+  const remaining=Math.max(0,Math.ceil((k.inviteExpiresAt-now)/1000));
+  phase.textContent=remaining?'응답 대기 · '+remaining+'초':'다음 예약자로 이동 중';
+  if(invite)invite.textContent=isSinger?'10초 안에 부르기를 눌러주세요. 누르면 마이크를 연결해요.':'응답이 없으면 다음 예약자로 자동 이동해요.';
+  const accept=c.host.querySelector('[data-voice="karaoke-accept"]');if(accept)accept.disabled=!remaining||!!c.liveCommandPending;
+ }else phase.textContent=k.phase==='ready'?'마이크 준비 중':now<k.startsAt?Math.max(1,Math.ceil((k.startsAt-now)/1000))+'초 뒤 시작':'노래하는 중 · LIVE';
  timer.textContent=time(seconds)+' / '+time(duration);progress.max=duration;progress.value=seconds;
  const audio=c.liveAudio;
  if(audio&&!c.livePriming){
@@ -239,7 +264,7 @@ const productionVoicePaint=VoiceRoomClient.prototype.paint;
 VoiceRoomClient.prototype.paint=function(){
  const result=productionVoicePaint.call(this);
  if(this.liveMode){
-  const isSinger=this.state?.karaoke?.active?.user_id===this.state?.self;
+  const isSinger=this.state?.karaoke?.active?.user_id===this.state?.self&&['ready','singing'].includes(this.state?.karaoke?.phase);
   if(!isSinger&&(this.micDesired||this.stream||this.pendingStream)){
    this.micDesired=false;this.micAttempt=(this.micAttempt||0)+1;this.stopMicrophone();this.micState='muted';
   }
@@ -249,7 +274,7 @@ VoiceRoomClient.prototype.paint=function(){
 };
 const productionWarmMicrophone=VoiceRoomClient.prototype.warmMicrophone;
 VoiceRoomClient.prototype.warmMicrophone=function(...a){
- if(this.liveMode&&this.state?.karaoke?.active?.user_id!==this.state?.self)return;
+ if(this.liveMode&&(this.state?.karaoke?.active?.user_id!==this.state?.self||!['ready','singing'].includes(this.state?.karaoke?.phase)))return;
  return productionWarmMicrophone.apply(this,a);
 };
 const productionVoiceAction=VoiceRoomClient.prototype.action;

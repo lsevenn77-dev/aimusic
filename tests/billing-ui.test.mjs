@@ -24,3 +24,23 @@ test('public pricing and refund examples agree with the current subscription pol
  const html=publicPage('/pricing');assert.match(html,/순매출의 50%/);assert.match(html,/50%를 플랫폼/);assert.match(html,/운영자가 월별 실제 결제/);
  assert.match(publicPage('/refund'),/1,633원을 공제하고 3,267원을 환불/);
 });
+
+test('Premium review entry navigates to Toss TEST before requesting NICEPAY terms or card details',async()=>{
+ const calls=[],navigations=[],dialogs=[];
+ const context=vm.createContext({document:{addEventListener(){}},me:{id:'review'},dialog:html=>dialogs.push(html),api:async path=>{calls.push(path);return{review_only:true,checkout_available:false};},location:{assign:path=>navigations.push(path)}});
+ vm.runInContext(fs.readFileSync(new URL('../dist/billing.js',import.meta.url),'utf8'),context);
+ await context.openBillingCheckout();
+ assert.deepEqual(calls,['/api/billing/status']);assert.deepEqual(navigations,['/checkout/toss']);
+ assert.ok(dialogs.every(html=>!html.includes('cardNo')));
+ const html=billingView({review_only:true,checkout_available:false});assert.match(html,/토스 TEST/);assert.doesNotMatch(html,/NICEPAY/);
+});
+
+test('Gold review entry routes only to Toss, never creates a legacy order or loads the NICEPAY SDK',async()=>{
+ const calls=[],navigations=[];
+ const context=vm.createContext({document:{addEventListener(){}},me:{id:'review'},inApp:false,renderId:1,api:async path=>{calls.push(path);return{review_only:true,checkout_available:false,web_packs:[{gold:500,price:5500,total_gold:525}]};},location:{assign:path=>navigations.push(path)}});
+ vm.runInContext(fs.readFileSync(new URL('../dist/gold-checkout.js',import.meta.url),'utf8'),context);
+ await context.openGoldCheckout(500);
+ assert.deepEqual(calls,['/api/gold']);assert.deepEqual(navigations,['/checkout/toss/gold']);
+ navigations.length=0;context.inApp=true;
+ await assert.rejects(context.openGoldCheckout(500),/앱 내 골드/);assert.deepEqual(navigations,[]);
+});
