@@ -11,15 +11,16 @@ test('calendar periods: exact 168 hours, KST month-end, leap-year and 3-month cl
  assert.equal(decorationExpiry(0,'P7D'),604800);
  assert.throws(()=>quoteDecoration('__proto__','P7D'));assert.throws(()=>quoteDecoration('frame_aurora_ring','forever'));
 });
-test('server quotes all four SKUs and three periods; spoofed client price is ignored',async t=>{
+test('server quotes all seven SKUs and three periods; spoofed client price is ignored',async t=>{
  const f=await decorationsFixture(t);let total=0;
  for(const p of Object.values(DECORATIONS))for(const period of ['P7D','P1M','P3M']){
   const r=await f.buy(p.sku,period,{gold:1});assert.equal(r.status,201,JSON.stringify(r.body));total+=p.periodPrices[period];
   assert.equal(r.body.order.gold,p.periodPrices[period]);assert.equal(r.body.inventory.find(i=>i.item_key===p.sku).available,true);
  }
  assert.equal(f.sql.prepare('SELECT used FROM gold_purchases').get().used,total);
- assert.equal(count(f,'decoration_orders'),12);assert.equal(count(f,'player_inventory'),12);assert.equal(count(f,'gifts'),0);assert.equal(count(f,'diamond_ledger'),0);
- const h=await f.call('/api/gold/history?currency=gold');assert.equal(h.status,200);assert.equal(h.body.spent.filter(r=>r.kind==='decoration').length,12);assert.ok((await f.call('/api/decorations')).body.inventory.every(i=>i.stored&&i.expires_at===0));
+ assert.equal(count(f,'decoration_orders'),21);assert.equal(count(f,'player_inventory'),21);assert.equal(count(f,'gifts'),0);assert.equal(count(f,'diamond_ledger'),0);
+ // Wallet history returns the 20 most recent entries, independently of the number of orders.
+ const h=await f.call('/api/gold/history?currency=gold');assert.equal(h.status,200);assert.equal(h.body.spent.filter(r=>r.kind==='decoration').length,20);assert.ok((await f.call('/api/decorations')).body.inventory.every(i=>i.stored&&i.expires_at===0));
 });
 test('same request replay and concurrent duplicates spend and grant exactly once; mismatched replay rejects',async t=>{
  const f=await decorationsFixture(t),request_id=crypto.randomUUID();

@@ -175,7 +175,11 @@ async function shopPurchaseDialog(initial){
   const price=()=>p.sku?p.periodPrices[state.period]:(p.free?p.silver:p.gold)*state.quantity;
   const balance=()=>p.free?wallet?.silver_balance||0:wallet?.balance||0;
   const valid=()=>p.sku?periods.some(([key])=>key===state.period):Number.isInteger(state.quantity)&&state.quantity>=1&&state.quantity<=100;
-  const product=()=>'<div class="shop-product-summary"><img src="'+esc(image)+'" alt="'+esc(p.name)+'"><div><h3>'+esc(p.name)+'</h3><p>'+(state.step==='purchase'?'구매한 상품은 인벤토리에 보관돼요.':p.sku?decorations.periods[state.period]:state.quantity+'개')+'</p></div></div>';
+  const product=()=>{
+   const img='<img src="'+esc(image)+'" alt="'+esc(p.name)+'">';
+   const preview=state.step==='purchase'&&p.assetPaths?.effect?'<span class="frame-detail-layers">'+img+'</span>':img;
+   return '<div class="shop-product-summary">'+preview+'<div><h3>'+esc(p.name)+'</h3><p>'+(state.step==='purchase'?'구매한 상품은 인벤토리에 보관돼요.':p.sku?decorations.periods[state.period]:state.quantity+'개')+'</p></div></div>';
+  };
   const money=()=>'<div class="shop-money" aria-live="polite"><p><span>총 결제 금액</span><strong class="shop-value-payment '+(p.free?'is-silver':'is-gold')+'">'+number(price())+' '+unit+'</strong></p>'+(me&&balance()<price()?'<p class="shop-insufficient">잔액이 부족해요. <a href="'+(p.free?'#gifts/rewards':'#gold')+'" data-close-dialog>'+(p.free?'실버 받기':'골드 충전')+'</a></p>':'')+'</div>';
   const resetKey=()=>{state.key=crypto.randomUUID();};
   function paint(){
@@ -198,6 +202,7 @@ async function shopPurchaseDialog(initial){
    const top=step==='purchase'?'상품 구매하기':step==='review'?'선물 최종 확인':step==='done'?'완료':'선물하기';
    dialog('<section class="shop-checkout '+(p.sku?'is-duration':'is-quantity')+'"><h2 tabindex="-1">'+top+'</h2><form id="shop-order">'+body+(step==='purchase'&&!within?'<p class="field-help">선물은 한 번에 최대 100,000 G까지 보낼 수 있어요.</p>':'')+'<div class="shop-checkout-actions">'+actions+'</div><p class="form-error" role="alert"></p></form></section>');
    const form=$('#shop-order');
+   if(step==='purchase'&&p.assetPaths?.effect)frameEffects.set(form.querySelector('.frame-detail-layers>img'),p.assetPaths.effect);
    for(const b of form.querySelectorAll('[data-step]'))b.onclick=()=>{if(state.busy)return;if(b.dataset.step==='recipient'&&!me){$('#dialog').close();return askLogin();}state.step=b.dataset.step;paint();};
    form.querySelectorAll('[name=period]').forEach(r=>r.onchange=()=>{if(state.busy)return;state.period=r.value;resetKey();paint();});
    const qty=form.querySelector('[name=quantity]');

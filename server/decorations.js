@@ -72,8 +72,11 @@ export async function decorationRoute(req,env,path,user){
  if(path==='/api/decorations'&&req.method==='GET')return json({products:Object.values(DECORATIONS),periods:PERIOD_LABELS,inventory:user?await decorationInventory(env,user.id):[],server_now:now()});
  if(path==='/api/decorations/avatars'&&req.method==='GET'){
   const ids=[...new Set((new URL(req.url).searchParams.get('profiles')||'').split(','))];if(ids.length>80||ids.some(x=>!/^[-\w]{1,100}$/.test(x)))fail(400,'프로필을 확인해주세요.');
-  const avatars=await rows(env,`SELECT p.id profile_id,pi.item_key,pi.expires_at FROM producers p JOIN users u ON u.id=p.user_id LEFT JOIN player_equipment pe ON pe.user_id=p.user_id LEFT JOIN player_inventory pi ON pi.id=pe.frame_inventory_id AND pi.user_id=p.user_id AND pi.item_key='frame_aurora_ring' AND ${activeDecorationSQL('pi')} WHERE p.id IN (${ids.map(()=>'?').join(',')}) AND u.provider!='deleted'`,...ids);
-  return json({avatars:avatars.map(p=>({...p,artwork:p.item_key?DECORATIONS.frame_aurora_ring.assetPaths.overlay:null})),server_now:now()});
+  const avatars=await rows(env,`SELECT p.id profile_id,pi.item_key,pi.expires_at FROM producers p JOIN users u ON u.id=p.user_id LEFT JOIN player_equipment pe ON pe.user_id=p.user_id LEFT JOIN player_inventory pi ON pi.id=pe.frame_inventory_id AND pi.user_id=p.user_id AND ${activeDecorationSQL('pi')} WHERE p.id IN (${ids.map(()=>'?').join(',')}) AND u.provider!='deleted'`,...ids);
+  return json({avatars:avatars.map(p=>{
+   const product=DECORATIONS[p.item_key],assets=product?.kind==='PROFILE_FRAME'?product.assetPaths:null;
+   return {...p,item_key:assets?p.item_key:null,expires_at:assets?p.expires_at:null,artwork:assets?.overlay||null,...(assets?.effect?{effect:assets.effect}:{})};
+  }),server_now:now()});
  }
  requireUser(user);
  if(path==='/api/decorations/recipients'&&req.method==='GET'){

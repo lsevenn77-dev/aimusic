@@ -1,12 +1,25 @@
-// The four approved SKUs. Prices live here and are quoted by the server.
+// Registered SKUs. Prices live here and are quoted by the server.
 export const PERIOD_LABELS=Object.freeze({P7D:'7일',P1M:'1개월',P3M:'3개월'});
 export const DECORATION_PRICES_GOLD=Object.freeze({
  PROFILE_FRAME:Object.freeze({P7D:50,P1M:150,P3M:390}),
  TALKING_ROOM_THEME:Object.freeze({P7D:100,P1M:300,P3M:790})
 });
 const theme=(sku,name,prefix)=>Object.freeze({sku,name,kind:'TALKING_ROOM_THEME',currency:'G',motion:'STATIC',periodPrices:DECORATION_PRICES_GOLD.TALKING_ROOM_THEME,assetPaths:Object.freeze({roomDesktop:`/assets/themes/v20261027/${sku}/background-pc.webp`,roomMobile:`/assets/themes/${sku==='theme_aurora_night'?'v20261028':'v20261027'}/${sku}/background-mobile.webp`,roomCard:`/assets/themes/v20261027/${sku}/cover.webp`})});
+const frameDir='/assets/products/bunnies-v1/';
+const bunny=(sku,name,file,multiplier=1,fx=null)=>{
+ const overlay=frameDir+file,prices=DECORATION_PRICES_GOLD.PROFILE_FRAME;
+ return Object.freeze({sku,name,kind:'PROFILE_FRAME',currency:'G',motion:fx?'LAYERED':'STATIC',
+  periodPrices:multiplier===1?prices:Object.freeze(Object.fromEntries(Object.entries(prices).map(([period,gold])=>[period,gold*multiplier]))),
+  assetPaths:Object.freeze({overlay,thumbnail:overlay,...(fx?{effect:frameDir+fx}:{})})});
+};
+export const BUNNY_FRAMES=Object.freeze([
+ bunny('frame_moonlight_bunny','달빛토끼','moonlight_bunny.png'),
+ bunny('frame_mecha_bunny','로봇토끼','mecha_bunny.png'),
+ bunny('frame_space_bunny','우주 행성토끼','space_bunny_base.png',2,'space_bunny_fx.webp')
+]);
 export const DECORATIONS=Object.freeze({
  frame_aurora_ring:Object.freeze({sku:'frame_aurora_ring',name:'오로라 링',kind:'PROFILE_FRAME',currency:'G',motion:'STATIC',periodPrices:DECORATION_PRICES_GOLD.PROFILE_FRAME,assetPaths:Object.freeze({overlay:'/assets/products/aurora_ring_frame.png',thumbnail:'/assets/previews/aurora_ring_thumbnail.webp'})}),
+ ...Object.fromEntries(BUNNY_FRAMES.map(p=>[p.sku,p])),
  theme_starlight_lounge:theme('theme_starlight_lounge','별빛 라운지','starlight_lounge'),
  theme_cherry_blossom:theme('theme_cherry_blossom','벚꽃 멜로디 라운지','cherry_blossom_lounge'),
  theme_aurora_night:theme('theme_aurora_night','오로라 나이트 라운지','aurora_night_lounge')

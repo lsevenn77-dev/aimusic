@@ -10,13 +10,16 @@
    Frame geometry must not inherit generic portrait img max-width/crop rules. */
 .player-avatar,.avatar-frame-host{position:relative;isolation:isolate}
 .avatar-frame-host,.profile-preview-photo.player-avatar{overflow:visible!important}
-:is(.player-avatar,.avatar-frame-host)>img:is(.player-frame-artwork,.decoration-avatar-overlay){
+:is(.player-avatar,.avatar-frame-host)>img:is(.player-frame-artwork,.decoration-avatar-overlay,.frame-fx-layer){
  position:absolute!important;left:var(--avatar-frame-x,50%)!important;top:var(--avatar-frame-y,50%)!important;right:auto!important;bottom:auto!important;
  width:var(--avatar-frame-width,126%)!important;height:var(--avatar-frame-height,126%)!important;max-width:none!important;max-height:none!important;min-width:0!important;min-height:0!important;
  transform:translate(-50%,-50%)!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;object-fit:contain!important;object-position:center!important;aspect-ratio:auto!important;
  background:transparent!important;box-shadow:none!important;pointer-events:none!important;
 }
 .profile-frame-layout{margin-left:var(--frame-left,0px)!important;margin-right:var(--frame-right,0px)!important;margin-bottom:var(--frame-bottom,0px)!important;margin-top:var(--photo-align,0px)!important;overflow:visible!important}
+.avatar-frame-host>img.frame-fx-layer{z-index:3}
+.shop-product-summary>.frame-detail-layers{position:relative;display:block;flex:none;width:120px;height:100px}
+.shop-product-summary>.frame-detail-layers>img{position:absolute;inset:0;width:100%;height:100%;max-width:none;object-fit:contain;pointer-events:none;background:transparent;border:0;border-radius:0;padding:0;margin:0}
 #public-profile-form .profile-frame-layout,.profile-preview-photo.profile-frame-layout{margin-top:var(--frame-top,0px)!important}
 .profile-preview-card:has(.profile-frame-layout){grid-template-columns:max-content minmax(0,1fr)}
 /* This asset's transparent photo opening is centered at (259.1,251.0) in

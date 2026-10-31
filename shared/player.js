@@ -1,3 +1,4 @@
+import {BUNNY_FRAMES} from './decorations.js';
 export const PLAYER_RULES=Object.freeze([
  {kind:'publish',label:'제작곡 공개',xp:100,limit:'곡마다 한 번 · 공개 보상 합산 하루 최대 3회'},
  {kind:'cover',label:'커버 · 듀엣 공개',xp:60,limit:'곡마다 한 번 · 공개 보상 합산 하루 최대 3회'},
@@ -6,6 +7,7 @@ export const PLAYER_RULES=Object.freeze([
  {kind:'crew_chat',label:'크루에서 대화',xp:5,limit:'하루 한 번'}
 ]);
 export const PLAYER_ITEMS=Object.freeze({
+ ...Object.fromEntries(BUNNY_FRAMES.map(p=>[p.sku,{name:p.name,type:'frame',artwork:p.assetPaths.overlay,description:'프로필 사진을 감싸는 '+p.name,usage:'구매한 기간 동안 사용 가능',paid:true}])),
  'frame_aurora_ring':{name:'오로라 링',type:'frame',artwork:'/assets/products/aurora_ring_frame.png',description:'프로필 사진을 감싸는 오로라 링',usage:'구매한 기간 동안 사용 가능',paid:true},
  'crew-outline':{name:'기본 크루 액자',type:'frame',artwork:'/assets/crew-basic-v2.webp',description:'푸른 빛과 실버 장식으로 이어지는 크루의 상징',membership:true,usage:'크루 가입 중 사용 가능 · 무료 지급'},
  'player-level-10':{name:'숲속 마법의 화관 · LV.10',type:'frame',artwork:'/assets/player-level-10-forest-v1.webp',description:'레벨 10을 달성한 음악가에게 드리는 빛나는 숲의 화관',min_level:10,usage:'유저 레벨 10 달성 보상 · 영구 소장'},

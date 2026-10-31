@@ -1,3 +1,31 @@
+// Only equipped avatars and the open product detail register a base image here.
+// An offscreen/hidden base keeps its static PNG but no animated image node.
+const frameEffects=(()=>{
+ const effects=new Map();
+ function paint(base,e){
+  if(!base.isConnected||!e.visible||document.hidden||(e.dialog&&!e.dialog.open)){
+   e.layer?.remove();e.layer=null;return;
+  }
+  if(!e.layer){
+   const layer=document.createElement('img');layer.className='frame-fx-layer';layer.alt='';
+   layer.setAttribute('aria-hidden','true');layer.decoding='async';layer.src=e.src;
+   base.after(layer);e.layer=layer;
+  }
+ }
+ const observer=typeof IntersectionObserver==='function'?new IntersectionObserver(entries=>{
+  for(const entry of entries){const e=effects.get(entry.target);if(e){e.visible=entry.isIntersecting;paint(entry.target,e);}}
+ }):null;
+ function forget(base){const e=effects.get(base);if(!e)return;e.layer?.remove();observer?.unobserve(base);effects.delete(base);}
+ function sweep(){for(const [base,e] of effects){if(!base.isConnected||(e.dialog&&!e.dialog.open))forget(base);else paint(base,e);}}
+ document.addEventListener('visibilitychange',sweep);
+ document.addEventListener('close',sweep,true);
+ return {set(base,src){
+  if(!base)return;
+  if(effects.get(base)?.src===src)return;
+  forget(base);if(!observer||!src||!/^\/assets\/[\w/-]+\.webp$/.test(src))return;
+  effects.set(base,{src,visible:false,layer:null,dialog:base.closest('dialog')});observer.observe(base);
+ },sweep};
+})();
 // Display-only refresh. This never enters the audio/WebRTC graph or room socket.
 (()=>{
  const frames=new Map(),themes=new Map(),assetHealth=new Map();let busy=false,queued=false,lastRead=0;
@@ -22,12 +50,13 @@
   for(const img of document.querySelectorAll('img[data-avatar-profile]')){
    if(img.closest('.player-item-preview'))continue;
    const host=img.parentElement,entry=frames.get(img.dataset.avatarProfile),at=Date.now()/1000+(entry?.offset||0);
-   for(const artwork of host.querySelectorAll(':scope > img.player-frame-artwork[src="/assets/products/aurora_ring_frame.png"]'))artwork.style.visibility=entry&&(!entry.artwork||expired(entry,at))?'hidden':'';
+   for(const artwork of host.querySelectorAll(':scope > img.player-frame-artwork[src="/assets/products/aurora_ring_frame.png"],:scope > img.player-frame-artwork[src^="/assets/products/bunnies-v1/"]'))artwork.style.visibility=entry&&(entry.artwork!==artwork.getAttribute('src')||expired(entry,at))?'hidden':'';
    if(host.querySelector(':scope > img.player-frame-artwork'))alignFrame(img,host);
    let overlay=host.querySelector(':scope > .decoration-avatar-overlay');
-   if(!entry?.artwork||expired(entry,at)||!validAsset(entry.artwork)){overlay?.remove();continue;}
+   if(!entry?.artwork||expired(entry,at)||!validAsset(entry.artwork)){frameEffects.set(overlay,null);overlay?.remove();continue;}
    if(!overlay){overlay=document.createElement('img');overlay.className='decoration-avatar-overlay';overlay.alt='';overlay.setAttribute('aria-hidden','true');host.append(overlay);host.classList.add('decoration-avatar-host');}
    if(overlay.getAttribute('src')!==entry.artwork)overlay.src=entry.artwork;
+   frameEffects.set(overlay,entry.effect);
    alignFrame(img,host);
   }
   layoutProfileFrames();
@@ -63,7 +92,7 @@
   finally{busy=false;paintFrames();paintThemes();if(queued){queued=false;schedule();}}
  }
  let timer;function schedule(){clearTimeout(timer);timer=setTimeout(()=>void refresh(),80);}
- const observer=new MutationObserver(changes=>{if(changes.some(c=>[...c.addedNodes,...c.removedNodes].some(n=>n.nodeType===1&&!n.classList?.contains('decoration-avatar-overlay'))))schedule();});
+ const observer=new MutationObserver(changes=>{if(changes.some(c=>[...c.addedNodes,...c.removedNodes].some(n=>n.nodeType===1&&!n.classList?.contains('decoration-avatar-overlay')&&!n.classList?.contains('frame-fx-layer')))){frameEffects.sweep();schedule();}});
  observer.observe(document.documentElement,{childList:true,subtree:true});
  document.addEventListener('load',e=>{if(e.target.matches?.('img[data-avatar-profile]'))paintFrames();},true);
  window.addEventListener('resize',()=>{paintFrames();paintThemes();});

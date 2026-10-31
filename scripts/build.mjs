@@ -84,6 +84,8 @@ await build({entryPoints:['shared/vocal-worklet.js'],outfile:'dist/client/vocal-
 await build({entryPoints:['shared/duet-guide.js'],outfile:'dist/client/duet-guide-core.js',bundle:true,format:'iife',globalName:'AifectDuetGuide',target:'es2022',minify:true});
 await build({entryPoints:['shared/karaoke-audio.js'],outfile:'dist/client/karaoke-core.js',bundle:true,format:'iife',globalName:'AifectKaraoke',target:'es2022',minify:true});
 await cp('dist/cover-export.js','dist/client/cover-export.js');
+// These immutable filenames live in a versioned folder on the static asset host.
+await writeFile('dist/client/_headers','/assets/products/bunnies-v1/*\n  Cache-Control: public, max-age=31536000, immutable\n');
 await build({entryPoints:['shared/cover-mp3-worker.js'],outfile:'dist/client/cover-mp3-worker.js',bundle:true,format:'esm',target:'es2022',external:['./third-party/lamejs-1.2.7/lamejs.js']});
 await build({entryPoints:['shared/lyrics.js'],outfile:'dist/client/lyrics-core.js',bundle:true,format:'iife',globalName:'AifectLyrics',target:'es2022',minify:true});
 // Sites serves matching static assets before the Worker. Keep the app shell at
