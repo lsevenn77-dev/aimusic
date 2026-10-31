@@ -43,6 +43,7 @@ for(const file of ['diamonds.js','player-progress.css','player-progress.js','des
 for(const file of ['web-ads.js','web-ads.css','sing-tune.js'])await rm(`dist/client/${file}`,{force:true});
 await cp('dist/billing.js','dist/client/billing.js');
 await cp('dist/gold-checkout.js','dist/client/gold-checkout.js');
+for(const file of ['payment-checkout.js','payment-checkout.css'])await cp('dist/'+file,'dist/client/'+file);
 await cp('dist/motion.js','dist/client/motion.js');
 await cp('dist/motion.css','dist/client/motion.css');
 await cp('dist/home.js','dist/client/home.js');

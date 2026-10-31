@@ -54,6 +54,8 @@ import {adminDashboardRoute} from './admin-dashboard.js';
 import {adminSessionRoute,consoleViewer,isConsoleAdmin} from './admin-session.js';
 import {diamondRoute} from './diamonds.js';
 import {publicPageRoute} from './public-pages.js';
+import {paymentPageRoute} from './payment-page.js';
+import {tossTestCheckoutRoute} from './toss-test-checkout.js';
 import {publicMusicRoute} from './public-music.js';
 import {goldCallback,goldOrderRoute} from './gold-checkout.js';
 import {billingRoute,billingWebhook,billingTick} from './billing.js';
@@ -61,6 +63,7 @@ export default {async fetch(req,env,ctx){
  const url=new URL(req.url),path=url.pathname;
  try{
   if(path==='/mcp')return await adminMcpRoute(req,env);
+  const tossTestResponse=await tossTestCheckoutRoute(req,env,path);if(tossTestResponse)return tossTestResponse;
   // Google sign-in is registered for the public domain, not the legacy Sites
   // address. Redirect page visits before a login flow creates domain cookies.
   if(url.hostname==='wavv-music-design-lseve.sassy-auk-0975.chatgpt.site'&&['GET','HEAD'].includes(req.method)&&!/^\/(api|media|internal)\//.test(path)){
@@ -79,6 +82,7 @@ export default {async fetch(req,env,ctx){
   const musicResponse=await publicMusicRoute(req,env,path);if(musicResponse)return musicResponse;
   if(['/admin','/admin/','/admin.html'].includes(path))return new Response('페이지를 찾을 수 없습니다.',{status:404,headers:{'content-type':'text/plain; charset=utf-8','cache-control':'no-store'}});
   const publicResponse=publicPageRoute(req,path);if(publicResponse)return publicResponse;
+  const paymentResponse=paymentPageRoute(req,path);if(paymentResponse)return paymentResponse;
   if(!path.startsWith('/api/')&&!path.startsWith('/media/')){
    if(!['GET','HEAD'].includes(req.method))return json({error:'허용되지 않는 요청입니다.'},405);
    const asset=await env.ASSETS.fetch(req);

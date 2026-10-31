@@ -108,8 +108,9 @@ test('new push types use compatible string data on Android/iOS; disabled push le
 });
 
 test('a partial device failure retries only the failed device for the same single daily digest',async t=>{
- const f=await fixture(t);await third(f);
  const cutoff=Date.parse('2026-10-30T20:00:00+09:00')/1000;
+ t.mock.timers.enable({apis:['Date'],now:cutoff*1000});
+ const f=await fixture(t);await third(f);
  f.sql.prepare("INSERT INTO follows(user_id,kind,target_id,created) VALUES('other','artist','artist',?)").run(cutoff-1);
  await queueArtistDigests({DB:f.DB},cutoff);
  for(const token of ['a'.repeat(40),'b'.repeat(40)])assert.equal((await f.call('/api/push/device','PUT',{token,platform:'android',account_id:'owner'})).status,200);
