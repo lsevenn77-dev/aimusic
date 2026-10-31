@@ -37,7 +37,7 @@ export async function voiceKaraokeRoute(req,env,room,action,body,call){
   return json({tracks:tracks.map(readable)});
  }
  if(action!=='karaoke'||req.method!=='POST')fail(405,'허용되지 않는 요청이에요.');
- const allowed=['request','cancel','call','accept','start','finish','next'];
+ const allowed=['request','cancel','call','accept','start','abandon','finish','next'];
  if(!allowed.includes(body.operation))fail(400,'노래방 동작을 확인해주세요.');
  let track;
  if(body.operation==='request'){

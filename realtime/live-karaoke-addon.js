@@ -8,14 +8,15 @@ roomSettings=function(input,actor,previous={}){
  return {...s,mode};
 };
 const LIVE_INVITE_MS=10000;
-const liveEmpty=()=>({queue:[],active:null,phase:'idle',startsAt:0,inviteExpiresAt:0,revision:0});
+const LIVE_READY_MS=10000;
+const liveEmpty=()=>({queue:[],active:null,phase:'idle',startsAt:0,inviteExpiresAt:0,readyExpiresAt:0,revision:0});
 const liveHas=(d,id)=>!!d.members[id]&&d.members[id].expires>Date.now();
 async function liveStopSinger(room){
  const k=room.data.karaoke;
  if(!k?.active)return;
  const member=room.data.members[k.active.user_id];
  if(member){await room.stopPublish(member);if(member.role!=='host')member.seat=null;}
- k.active=null;k.phase='idle';k.startsAt=0;k.inviteExpiresAt=0;k.revision++;
+ k.active=null;k.phase='idle';k.startsAt=0;k.inviteExpiresAt=0;k.readyExpiresAt=0;k.revision++;
 }
 function liveNext(room,allowEmpty=false){
  const {karaoke:k,members}=room.data;
@@ -23,7 +24,7 @@ function liveNext(room,allowEmpty=false){
   const next=k.queue.shift(),member=members[next.user_id];
   if(!liveHas(room.data,next.user_id)||member.locked)continue;
   k.active={user_id:member.id,name:member.name,track:next.track,invitation_id:next.request_id};
-  k.phase='invited';k.startsAt=0;k.inviteExpiresAt=Date.now()+LIVE_INVITE_MS;k.revision++;
+  k.phase='invited';k.startsAt=0;k.inviteExpiresAt=Date.now()+LIVE_INVITE_MS;k.readyExpiresAt=0;k.revision++;
   if(member.role!=='host')member.seat=1;
   member.muted=true;
   room.notice(member,member.name+'님 차례예요. 10초 안에 부르기를 눌러주세요.');
@@ -65,7 +66,7 @@ async function liveCommand(room,actor,b){
    if(!b.invitation_id||b.invitation_id!==k.active.invitation_id)fault(409,'노래 순서가 변경됐어요. 현재 차례를 확인해주세요.');
    if(k.phase==='ready')return room.snapshot(actor); // A retry must not restart the invitation timer.
    if(k.phase!=='invited'||Date.now()>=k.inviteExpiresAt)fault(409,'응답 시간이 지났어요. 다시 예약해주세요.');
-   k.phase='ready';k.inviteExpiresAt=0;k.revision++;
+   k.phase='ready';k.inviteExpiresAt=0;k.readyExpiresAt=Date.now()+LIVE_READY_MS;k.revision++;
    break;
   }
   case 'start':{
@@ -74,15 +75,17 @@ async function liveCommand(room,actor,b){
    if(b.invitation_id&&b.invitation_id!==k.active.invitation_id)fault(409,'노래 순서가 변경됐어요. 현재 차례를 확인해주세요.');
    const singer=d.members[k.active.user_id];
    if(!singer||singer.expires<=Date.now()||!singer.pub?.ready||singer.muted)fault(409,'가창자가 마이크를 켜야 시작할 수 있어요.');
-   k.phase='singing';k.startsAt=Date.now()+3000;k.revision++;
+   k.phase='singing';k.startsAt=Date.now()+3000;k.readyExpiresAt=0;k.revision++;
    room.notice(singer,'3초 뒤 '+k.active.track.title+' 시작!');
    break;
   }
-  case 'finish':case 'next': {
+  case 'abandon':case 'finish':case 'next': {
    if(b.operation==='next'&&!isHost)fault(403,'방장만 다음 순서를 진행할 수 있어요.');
    if(!isHost&&k.active?.user_id!==p.id)fault(403,'방장 또는 가창자만 종료할 수 있어요.');
+   if((b.operation==='abandon'||b.invitation_id)&&(!b.invitation_id||b.invitation_id!==k.active?.invitation_id))fault(409,'노래 순서가 변경됐어요. 현재 차례를 확인해주세요.');
+   if(b.operation==='abandon'&&k.active){const singer=d.members[k.active.user_id];if(singer)room.notice(singer,singer.name+'님이 노래를 포기했어요.');}
    if(k.active)await liveStopSinger(room);
-   if(b.operation==='next'&&k.queue.some(x=>liveHas(d,x.user_id)&&!d.members[x.user_id].locked))liveNext(room);
+   if(b.operation==='next'||b.operation==='abandon')liveNext(room,true);
    break;
   }
   default:fault(400,'노래방 명령을 확인해주세요.');
@@ -90,15 +93,20 @@ async function liveCommand(room,actor,b){
  d.revision++;room.notify();return room.snapshot(actor);
 }
 const originalLoad=VoiceRoom.prototype.load;
-VoiceRoom.prototype.load=async function(...a){await originalLoad.apply(this,a);this.data.karaoke||=liveEmpty();};
+VoiceRoom.prototype.load=async function(...a){
+ await originalLoad.apply(this,a);this.data.karaoke||=liveEmpty();
+ const k=this.data.karaoke;
+ // Existing rooms get one bounded preparation window after this upgrade.
+ if(this.data.config?.mode==='karaoke'&&k.active&&k.phase==='ready'&&!Number.isFinite(k.readyExpiresAt))k.readyExpiresAt=Date.now()+LIVE_READY_MS;
+};
 // The base room's 15-second housekeeping alarm is too late for a 10-second
 // invitation. Persist the absolute deadline, including across DO restarts.
 const originalLiveSave=VoiceRoom.prototype.save;
 VoiceRoom.prototype.save=async function(...a){
  await originalLiveSave.apply(this,a);
  const k=this.data?.karaoke;
- if(this.data?.config?.mode==='karaoke'&&!this.data.config.closed&&k?.active&&k.phase==='invited'){
-  await this.ctx.storage.setAlarm(Math.max(Date.now()+1,k.inviteExpiresAt));
+ if(this.data?.config?.mode==='karaoke'&&!this.data.config.closed&&k?.active&&['invited','ready'].includes(k.phase)){
+  await this.ctx.storage.setAlarm(Math.max(Date.now()+1,k.phase==='invited'?k.inviteExpiresAt:k.readyExpiresAt));
  }
 };
 const originalSnapshot=VoiceRoom.prototype.snapshot;
@@ -129,6 +137,11 @@ VoiceRoom.prototype.expire=async function(...a){
  if(this.data?.config?.mode==='karaoke'&&!this.data.config.closed&&k?.active&&k.phase==='invited'&&Date.now()>=k.inviteExpiresAt){
   const member=this.data.members[k.active.user_id];
   if(member)this.notice(member,member.name+'님이 응답하지 않아 다음 예약자로 넘어가요.');
+  await liveStopSinger(this);liveNext(this,true);this.data.revision++;this.notify();
+ }
+ if(this.data?.config?.mode==='karaoke'&&!this.data.config.closed&&k?.active&&k.phase==='ready'&&Date.now()>=k.readyExpiresAt){
+  const member=this.data.members[k.active.user_id];
+  if(member)this.notice(member,member.name+'님의 마이크 준비 시간이 지나 다음 예약자로 넘어가요.');
   await liveStopSinger(this);liveNext(this,true);this.data.revision++;this.notify();
  }
  if(this.data?.config?.mode==='karaoke'&&!this.data.config.closed&&k?.active&&k.phase==='singing'&&Date.now()>=k.startsAt+(k.active.track.duration+3)*1000){

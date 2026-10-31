@@ -3,6 +3,7 @@ Object.assign(VoiceRoomClient.prototype,{
  bindFinalControls(){
   const form=$('#voice-chat-form'),input=$('#voice-message');
   input.onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing&&e.keyCode!==229){e.preventDefault();if(input.value.trim())form.requestSubmit();}};
+  this.host.querySelector('.voice-chat-panel').addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#voice-emoji-picker').hidden){e.preventDefault();e.stopPropagation();this.toggleEmojiPicker(false,true);}});
   $('#voice-settings-form').onsubmit=busyForm($('#voice-settings-form'),async()=>{const values=Object.fromEntries(new FormData($('#voice-settings-form')));await this.command('settings',{...values,max_members:Number(values.max_members),revision:this.settingsRevision});await this.refresh();window.dispatchEvent(new Event('aifect:room-theme'));$('#voice-room-settings').close();});
   const supported=navigator.mediaDevices?.getSupportedConstraints?.()||{};
   for(const [id,key] of [['voice-echo','echoCancellation'],['voice-noise','noiseSuppression']])if(supported[key]===false){$('#'+id).disabled=true;$('#'+id).title='이 브라우저에서 지원하지 않는 설정이에요.';}
@@ -69,14 +70,25 @@ Object.assign(VoiceRoomClient.prototype,{
   const theme=await voiceRequest(this.path('theme'));fillRoomThemeChoices(form,options,theme.theme.sku);
   this.showSheet('voice-room-settings');
  },
+ toggleEmojiPicker(open,focus=false){
+  const picker=$('#voice-emoji-picker'),button=this.host.querySelector('[data-voice="emoji"]');
+  if(!picker)return;
+  picker.hidden=!open;button?.setAttribute('aria-expanded',String(open));
+  if(focus)button?.focus();
+ },
  async finalAction(action,target){
   if(action==='panel-chat'){for(const sheet of this.host.querySelectorAll('.voice-panel-docked[open]'))sheet.close();return true;}
   if(action==='member-menu'){this.memberTools(target);return true;}
   if(action==='music-down'){await this.musicCommand('move',{index:Number(target),to:Number(target)+1});return true;}
   if(action==='settings'){await this.openSettings();return true;}
-  if(action==='emoji'){this.showSheet('voice-emoji-sheet');return true;}
-  if(action==='insert-emoji'){const input=$('#voice-message');input.setRangeText(target,input.selectionStart,input.selectionEnd,'end');$('#voice-emoji-sheet').close();input.focus();return true;}
-  if(action==='send-chat'){$('#voice-emoji-sheet').close();$('#voice-chat-form').requestSubmit();return true;}
+  if(action==='emoji'){this.toggleEmojiPicker($('#voice-emoji-picker').hidden);return true;}
+  if(action==='emoji-close'){this.toggleEmojiPicker(false,true);return true;}
+  if(action==='insert-emoji'){
+   const input=$('#voice-message'),start=input.selectionStart,end=input.selectionEnd;
+   if(typeof target==='string'&&input.value.length-(end-start)+target.length<=input.maxLength){input.setRangeText(target,start,end,'end');input.dispatchEvent(new Event('input',{bubbles:true}));}
+   input.focus({preventScroll:true});return true;
+  }
+  if(action==='send-chat'){if($('#voice-message').value.trim())$('#voice-chat-form').requestSubmit();return true;}
   if(action==='ask-kick'){this.kickTarget=target;this.showSheet('voice-kick-confirm');return true;}
   if(action==='confirm-kick'){await this.command('moderate',{target_id:this.kickTarget,operation:'kick'});$('#voice-kick-confirm').close();this.closeMemberTools();await this.refresh();return true;}
   if(action==='invite-seat-user'){await this.command('seat-invite',{target_id:target,seat:this.invitingSeat});$('#voice-seat-picker').close();await this.refresh();return true;}

@@ -88,18 +88,60 @@ test('server invitation expires at ten seconds, advances once and leaves an empt
  now+=10000;await h.room.alarm();assert.equal(k.active,null);assert.equal(k.phase,'idle');assert.equal(k.inviteExpiresAt,0);
 });
 
-test('acceptance is tied to one invitation and media setup is not charged to the response deadline',async t=>{
+test('acceptance starts a separate ten-second preparation deadline and starting preserves 3-2-1',async t=>{
  let now=Date.now();t.mock.method(Date,'now',()=>now);
  const h=harness(t);await h.create();await h.join('alice');await h.request('alice','one');await h.call('karaoke',actor('host'),{operation:'call'});
  const k=h.room.data.karaoke,id=k.active.invitation_id;
  assert.equal((await h.call('karaoke',actor('alice'),{operation:'accept',invitation_id:'stale'})).status,409);
  now+=9999;assert.equal((await h.accept('alice')).status,200);assert.equal(k.phase,'ready');assert.equal(k.inviteExpiresAt,0);
- now+=12000;await h.room.alarm();assert.equal(k.active.user_id,'alice');assert.equal(k.phase,'ready');
+ const deadline=now+10000;assert.equal(k.readyExpiresAt,deadline);assert.equal(h.alarms.at(-1),deadline);
+ now+=9999;await h.room.alarm();assert.equal(k.active.user_id,'alice');assert.equal(k.phase,'ready');
  assert.equal((await h.accept('alice')).status,200,'accept retry is idempotent');
+ assert.equal(k.readyExpiresAt,deadline,'retry must not extend preparation');
  assert.equal((await h.call('karaoke',actor('alice'),{operation:'start',invitation_id:id})).status,409,'actual microphone is still required');
  h.room.data.members.alice.pub={ready:true};h.room.data.members.alice.muted=false;
  assert.equal((await h.call('karaoke',actor('alice'),{operation:'start',invitation_id:id})).status,200);
  assert.equal(k.startsAt,now+3000,'keep the separate music countdown');
+ assert.equal(k.readyExpiresAt,0);now+=2;await h.room.alarm();assert.equal(k.phase,'singing');
+});
+
+test('preparation timeout retires pending microphone and moves once to the next singer at ten seconds',async t=>{
+ let now=Date.now();t.mock.method(Date,'now',()=>now);
+ const h=harness(t);await h.create();await h.join('alice');await h.join('bob');
+ await h.request('alice','one');await h.request('bob','two');await h.call('karaoke',actor('host'),{operation:'call'});await h.accept('alice');
+ const k=h.room.data.karaoke,id=k.active.invitation_id;
+ h.room.data.members.alice.pub={ready:false,deadline:now+35000};
+ now+=10000;await h.room.alarm();
+ assert.equal(k.active.user_id,'bob');assert.equal(k.phase,'invited');assert.equal(k.readyExpiresAt,0);assert.equal(k.inviteExpiresAt,now+10000);
+ assert.equal(h.room.data.members.alice.pub,null);assert.equal(h.room.data.members.alice.muted,true);assert.equal(h.room.data.members.alice.seat,null);
+ for(const operation of ['start','abandon'])assert.notEqual((await h.call('karaoke',actor('alice'),{operation,invitation_id:id})).status,200);
+ assert.equal((await h.call('published',actor('alice'))).status,403);
+ await h.room.alarm();assert.equal(k.active.user_id,'bob');
+ await h.accept('bob');now+=10000;await h.room.alarm();assert.equal(k.active,null);assert.equal(k.phase,'idle');
+});
+
+test('preparation deadline survives worker restart and legacy ready rooms receive only one window',async t=>{
+ let now=Date.now();t.mock.method(Date,'now',()=>now);
+ const h=harness(t);await h.create();await h.join('alice');await h.request('alice','one');await h.call('karaoke',actor('host'),{operation:'call'});await h.accept('alice');
+ const deadline=h.room.data.karaoke.readyExpiresAt,restored=new VoiceRoom(h.ctx,h.env);restored.notify=()=>{};
+ now+=9999;await restored.alarm();assert.equal(restored.data.karaoke.readyExpiresAt,deadline);assert.equal(h.alarms.at(-1),deadline);
+ now++;await restored.alarm();assert.equal(restored.data.karaoke.active,null);
+ // Upgrade a persisted ready room without resetting its deadline on every load.
+ const legacy=h.saved.get('room');legacy.karaoke={queue:[],active:{user_id:'alice',invitation_id:'old',track:track('one')},phase:'ready',revision:1};h.saved.set('room',legacy);
+ const upgraded=new VoiceRoom(h.ctx,h.env);upgraded.notify=()=>{};await upgraded.alarm();assert.equal(upgraded.data.karaoke.readyExpiresAt,now+10000);
+ now+=9999;await upgraded.alarm();assert.equal(upgraded.data.karaoke.readyExpiresAt,now+1);
+ now++;await upgraded.alarm();assert.equal(upgraded.data.karaoke.active,null);
+});
+
+test('give up advances immediately and a repeated host request cannot abandon the next singer',async t=>{
+ const h=harness(t);await h.create();await h.join('alice');await h.join('bob');
+ await h.request('alice','one');await h.request('bob','two');await h.call('karaoke',actor('host'),{operation:'call'});await h.accept('alice');
+ const id=h.room.data.karaoke.active.invitation_id;
+ assert.equal((await h.call('karaoke',actor('bob'),{operation:'abandon',invitation_id:id})).status,403);
+ assert.equal((await h.call('karaoke',actor('host'),{operation:'abandon',invitation_id:id})).status,200);
+ assert.equal(h.room.data.karaoke.active.user_id,'bob');
+ assert.equal((await h.call('karaoke',actor('host'),{operation:'abandon',invitation_id:id})).status,409);
+ assert.equal(h.room.data.karaoke.active.user_id,'bob');
 });
 
 test('persisted invitations survive reload and skip locked or departed reservations',async t=>{
