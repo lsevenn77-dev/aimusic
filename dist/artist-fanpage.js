@@ -21,7 +21,13 @@ function artistFanpageHTML(d,aid,tab='home'){
  if(tab==='profile')content='<section class="fan-profile">'+[['상세 소개',s.introduction||p.bio],['음악 스타일과 콘셉트',s.concept],['세계관',s.world]].map(([title,text])=>'<section><h2>'+title+'</h2><p>'+esc(text||'아직 등록된 소개가 없어요.')+'</p></section>').join('')+(producer?'<section><h2>소속 제작자</h2><a href="#producer/'+esc(producer.id)+'">'+esc(producer.name)+'</a></section>':'')+(d.fanpage?.operators?.length?'<section><h2>공식 운영자</h2>'+d.fanpage.operators.map(o=>'<p><a href="#producer/'+esc(o.id)+'">'+esc(o.name)+'</a></p>').join('')+'</section>':'')+(d.can_manage?'<button class="small-button" data-fan-settings>프로필 편집</button>':'')+(portraitOwner?'<button class="small-button" data-fan-operators>공식 운영자 관리</button>':'')+'</section>';
  if(tab==='home')content='<div class="fan-home-columns"><div class="fan-home-music">'+more('최신 음악','music',artistMusicList(d.tracks.slice(0,3)))+'</div><div class="fan-home-updates">'+more('최근 공식 소식','news',stream('news'))+more('최신 팬 응원글','lounge',stream('lounge'))+'</div></div>';
  const headerActions='<div class="fan-header-actions"><button class="fan-icon" data-share aria-label="팬페이지 공유">'+icon('share',20)+'</button>'+(d.can_manage?'<div class="fan-settings-anchor"><button class="fan-icon" data-fan-menu-toggle aria-label="아티스트 설정" aria-expanded="false" aria-controls="fan-header-menu">'+icon('settings',20)+'</button><div class="fan-settings-menu" id="fan-header-menu" aria-label="아티스트 관리" hidden><div class="artist-image-editor"><button type="button" data-artist-image-pick '+(!portraitOwner?'disabled title="대표 이미지는 제작자만 변경할 수 있습니다"':'')+'>대표 이미지 변경</button>'+(portraitOwner?'<input type="file" accept="image/jpeg,image/png,image/webp" data-artist-image="'+esc(aid)+'" aria-label="대표 이미지 사진 선택" hidden>':'')+'</div><button type="button" data-fan-banner>배경 이미지 변경</button><a href="'+href('gallery')+'">갤러리 관리</a></div></div>':'')+'</div>';
- return '<article class="artist-fanpage" data-fanpage="'+esc(JSON.stringify({aid,tab,photos,settings:s,can_manage:!!d.can_manage,is_owner:!!portraitOwner,operators:d.fanpage?.operators||[],tracks:d.tracks}))+'"><div class="fan-hero-shell" style="--fan-focus:'+Number(s.focus_x??50)+'% '+Number(s.focus_y??50)+'%;--fan-mobile-focus:'+Number(s.mobile_x??50)+'% '+Number(s.mobile_y??50)+'%">'+fanHeaderBackground(p,s,aid)+'<header class="fan-header">'+headerActions+'<div class="fan-identity"><div class="fan-photo-follow">'+portrait(p,'artist')+'</div><div class="fan-identity-text"><h1>'+esc(p.name)+'</h1><p class="fan-bio" title="'+esc(p.bio||'')+'">'+esc((p.bio||'새로운 음악으로 만나요.').split('\n')[0])+'</p>'+(producer?'<a class="fan-affiliation" href="#producer/'+esc(producer.id)+'">소속 '+esc(producer.name)+'</a>':'')+'<div class="fan-stats"><span>공개곡 '+number(d.tracks.length)+'</span><span aria-hidden="true">·</span><span data-followers="artist/'+esc(aid)+'" data-count="'+Number(d.followers||0)+'">팔로워 <span data-follow-count>'+number(d.followers||0)+'</span></span><span aria-hidden="true">·</span><button class="primary-button" data-follow="artist/'+esc(aid)+'" aria-pressed="'+followed('artist',aid)+'">'+(followed('artist',aid)?'팔로잉':'팔로우')+'</button></div></div></div></header>'+carousel+'</div><nav class="profile-content-tabs fan-tabs" aria-label="아티스트 카테고리">'+tabs.map(([key,title])=>'<a href="'+href(key)+'" '+(tab===key?'class="active" aria-current="page"':'')+'>'+title+'</a>').join('')+'</nav><div class="fan-content">'+content+'</div></article>';
+ const intro=(p.bio||'새로운 음악으로 만나요.').split('\n')[0];
+ const stats='<div class="fan-stats"><span class="fan-stats-group">'+
+  '<span>공개곡 '+number(d.tracks.length)+'</span><span aria-hidden="true">·</span>'+
+  '<span data-followers="artist/'+esc(aid)+'" data-count="'+Number(d.followers||0)+'">팔로워 <span data-follow-count>'+number(d.followers||0)+'</span></span></span>'+
+  '<span class="fan-stats-divider" aria-hidden="true">·</span>'+
+  '<button type="button" class="fan-follow-button" data-follow="artist/'+esc(aid)+'" aria-pressed="'+followed('artist',aid)+'"><span data-follow-label="팔로우">팔로우</span></button></div>';
+ return '<article class="artist-fanpage" data-fanpage="'+esc(JSON.stringify({aid,tab,photos,settings:s,can_manage:!!d.can_manage,is_owner:!!portraitOwner,operators:d.fanpage?.operators||[],tracks:d.tracks}))+'"><div class="fan-hero-shell" style="--fan-focus:'+Number(s.focus_x??50)+'% '+Number(s.focus_y??50)+'%;--fan-mobile-focus:'+Number(s.mobile_x??50)+'% '+Number(s.mobile_y??50)+'%">'+fanHeaderBackground(p,s,aid)+'<header class="fan-header">'+headerActions+'<div class="fan-identity"><div class="fan-photo-follow">'+portrait(p,'artist')+'</div><div class="fan-identity-text"><h1>'+esc(p.name)+'</h1><p class="fan-bio" title="'+esc(p.bio||'')+'">'+esc(intro)+'</p>'+(producer?'<a class="fan-affiliation" href="#producer/'+esc(producer.id)+'">소속 '+esc(producer.name)+'</a>':'')+stats+'</div></div></header>'+carousel+'</div><nav class="profile-content-tabs fan-tabs" aria-label="아티스트 카테고리">'+tabs.map(([key,title])=>'<a href="'+href(key)+'" '+(tab===key?'class="active" aria-current="page"':'')+'>'+title+'</a>').join('')+'</nav><div class="fan-content">'+content+'</div></article>';
 }
 
 let artistFanpageCleanup=null;
@@ -39,9 +45,22 @@ function bindArtistFanpage(){
  // Keep file selection inside the existing trusted document click handler.
  on(menu,'click',e=>{if(e.target.closest('button:not(:disabled),a'))queueMicrotask(()=>closeMenu());});
  const header=root.querySelector('.fan-hero-shell'),pageWrap=root.closest?.('.page-wrap');
- const group=root.querySelector('.fan-photo-follow'),photo=group?.querySelector('.artist-portrait');
+ const tabs=root.querySelector('.fan-tabs'),active=tabs?.querySelector('[aria-current="page"]');
+ const revealTab=()=>{
+  if(!active||tabs.scrollWidth<=tabs.clientWidth)return;
+  const tab=active.getBoundingClientRect(),view=tabs.getBoundingClientRect();
+  const offset=tab.left<view.left?tab.left-view.left:Math.max(0,tab.right-view.right);
+  if(offset)tabs.scrollBy({left:offset,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});
+ };
+ if(tabs&&typeof ResizeObserver!=='undefined'){
+  const observer=new ResizeObserver(revealTab);
+  observer.observe(tabs);
+  signal.addEventListener('abort',()=>observer.disconnect(),{once:true});
+ }else if(tabs){
+  requestAnimationFrame(revealTab);
+  on(document.defaultView,'resize',revealTab);
+ }
  const fitHeader=()=>{
-  if(group&&photo){const g=group.getBoundingClientRect(),p=photo.getBoundingClientRect();group.style.setProperty('--fan-follow-shift',(p.left+p.width/2-g.left-g.width/2)+'px');}
   if(!header||!pageWrap)return;
   const hero=header.getBoundingClientRect(),area=pageWrap.getBoundingClientRect();
   header.style.setProperty('--fan-bleed-left',Math.max(0,hero.left-area.left)+'px');
@@ -50,7 +69,7 @@ function bindArtistFanpage(){
  fitHeader();
  if(typeof ResizeObserver!=='undefined'){
   const observer=new ResizeObserver(fitHeader);
-  for(const el of [root,pageWrap,group])if(el)observer.observe(el);
+  for(const el of [root,pageWrap])if(el)observer.observe(el);
   signal.addEventListener('abort',()=>observer.disconnect(),{once:true});
  }else on(document.defaultView,'resize',fitHeader);
  const read=(path,method='GET',body)=>api(base+path,method,body,method==='GET'?{signal}:{});

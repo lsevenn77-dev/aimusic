@@ -100,7 +100,14 @@ function updateFollowLocal(kind,id,following,profile){
  followRevision++;
 }
 function paintFollowState(key,following,busy,followers){
- document.querySelectorAll('[data-follow]').forEach(button=>{if(button.dataset.follow!==key)return;(button.querySelector('[data-follow-label]')||button).textContent=following?'팔로잉':'팔로우';button.disabled=busy;button.setAttribute('aria-pressed',String(following));button.setAttribute('aria-busy',String(busy));});
+ document.querySelectorAll('[data-follow]').forEach(button=>{
+  if(button.dataset.follow!==key)return;
+  const label=button.querySelector('[data-follow-label]')||button;
+  label.textContent=label.dataset.followLabel||(following?'팔로잉':'팔로우');
+  button.disabled=busy;
+  button.setAttribute('aria-pressed',String(following));
+  button.setAttribute('aria-busy',String(busy));
+ });
  if(followers!==undefined)document.querySelectorAll('[data-followers]').forEach(node=>{if(node.dataset.followers!==key)return;node.dataset.count=String(followers);const value=node.querySelector('[data-follow-count]');if(value)value.textContent=number(followers);else node.textContent=number(followers)+' 팔로워';});
 }
 async function toggleFollow(button){

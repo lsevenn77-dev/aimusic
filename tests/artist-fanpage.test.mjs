@@ -152,7 +152,7 @@ test('gallery file selection keeps its original aspect ratio before upload',asyn
 test('header shares one action row and restricts settings without widening portrait permissions',()=>{
  const c={esc:v=>String(v??''),number:String,portrait:()=>'<div class="artist-portrait"></div>',followed:()=>true,icon:name=>name,artistMusicList:()=>''};vm.createContext(c);vm.runInContext(readFileSync(new URL('../dist/artist-fanpage.js',import.meta.url),'utf8'),c);
  const data={profile:{name:'Artist'},tracks:[],gallery:[]};
- const visitor=c.artistFanpageHTML(data,'artist');assert.doesNotMatch(visitor,/data-fan-menu-toggle/);assert.match(visitor,/팔로잉/);
+ const visitor=c.artistFanpageHTML(data,'artist');assert.doesNotMatch(visitor,/data-fan-menu-toggle/);assert.match(visitor,/aria-pressed="true"><span data-follow-label="팔로우">팔로우<\/span><\/button>/);assert.doesNotMatch(visitor,/팔로잉/);
  const owner=c.artistFanpageHTML({...data,can_manage:true},'artist');assert.equal((owner.match(/data-follow=/g)||[]).length,1);assert.equal((owner.match(/data-share /g)||[]).length,1);assert.match(owner,/data-fan-menu-toggle/);assert.match(owner,/id="fan-header-menu"[^>]+hidden/);assert.doesNotMatch(owner,/fan-photo-entry|fan-manage-actions|artist-image-change/);
  const operator=c.artistFanpageHTML({...data,can_manage:true,can_edit_portrait:false},'artist');assert.match(operator,/data-artist-image-pick disabled/);assert.doesNotMatch(operator,/data-artist-image="/);assert.match(operator,/data-fan-banner/);
 });
