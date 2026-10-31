@@ -109,3 +109,19 @@ test('complete chart result exceeds pagination and weekly home results remain an
  const all=(await f.call('/api/catalog?section=tracks&chart=top&period=week&full=1')).body.tracks;
  assert.equal(all.length,113);assert.deepEqual(home,all.slice(0,7));assert.equal(all.at(-1).chart_rank,113);
 });
+
+test('chart periods isolate qualified listens, public solo covers and first-release eligibility',async t=>{
+ const f=await fixture(t),period=rankingPeriod('today',at);
+ const {pageScores}=await import('../server/popular-chart.js');
+ const ranked=kind=>pageScores({DB:f.DB},period,kind);
+ f.sql.prepare("UPDATE tracks SET first_published_at=?,karaoke_at=1").run(at-2592001);
+ f.sql.prepare("UPDATE tracks SET first_published_at=? WHERE id='two'").run(at-2592000);
+ listen(f,'qualified','two');listen(f,'old','one',period.from-1);
+ const insert=f.sql.prepare("INSERT INTO tracks(id,user_id,artist_id,producer_id,title,genre,ai_tool,rights_accepted,original_ext,original_bytes,created,first_published_at,status,kind,original_id,cover_mode) VALUES(?,'other','artist','producer','QA','Rock','QA',1,'wav',128,0,?,?,'cover','one',?)");
+ for(const [id,time,status,mode] of [['valid',at,'published','solo'],['older',period.from-1,'published','solo'],['hidden-cover',at,'hidden','solo'],['duet',at,'published','duet']])insert.run(id,time,status,mode);
+ assert.equal((await ranked('listens'))[0].id,'two');
+ const [first]=await ranked('covers');assert.equal(first.id,'one');assert.equal(first.chart_covers,1);
+ const detail=await f.call('/api/tracks/one/covers?mode=solo');
+ assert.equal((await pageScores({DB:f.DB},rankingPeriod('all',at),'covers'))[0].chart_covers,detail.body.counts.solo);
+ assert.deepEqual((await ranked('new')).map(t=>t.id),['two']);
+});

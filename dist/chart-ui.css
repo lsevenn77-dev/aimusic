@@ -105,3 +105,38 @@
  #main .song-table.song-table-chart.chart-ui .song-table-tools{grid-column:5}
 }
 @media(prefers-reduced-motion:reduce){#main .song-table.song-table-chart.chart-ui .song-table-row{transition:none}}
+
+/* Page tabs and toolbar share the available width independently of the table. */
+#main .charts-final .chart-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;margin:0 0 12px}
+#main .charts-final .chart-tabs .tab{color:var(--ds-muted)}
+#main .charts-final .chart-tabs .tab.active{color:var(--ds-accent-pink)}
+#main .charts-final .chart-tabs .tab.active::after{background:var(--ds-accent-pink);bottom:0}
+#main .charts-final .chart-toolbar{grid-template-columns:minmax(0,1fr) repeat(4,auto);grid-template-areas:"meta period listen shuffle create"}
+#main .charts-final .chart-period{min-width:0;width:100%}
+#main .charts-final .chart-date{grid-column:4;text-align:center;font-size:13px;font-variant-numeric:tabular-nums}
+@container(min-width:701px){
+ #main .charts-final .song-table.chart-standard :is(.song-table-head,.song-table-row){--chart-grid:28px var(--chart-art-size) minmax(0,1fr) 40px 64px 58px 52px 44px 44px}
+ #main .charts-final .song-table.chart-standard .song-table-row>*{grid-column:auto}
+ #main .charts-final .song-table.chart-releases :is(.song-table-head,.song-table-row){--chart-grid:28px var(--chart-art-size) minmax(0,1fr) 84px 40px 64px 58px 52px 44px 44px}
+}
+@container(max-width:700px){
+ #main .charts-final .chart-date{display:none}
+ #main .charts-final .song-table.song-table-chart.chart-ui .song-table-row .chart-song-copy{flex-direction:row;align-items:center;justify-content:flex-start}
+}
+@media(max-width:900px){
+ #main .charts-final .chart-toolbar{grid-template-columns:repeat(4,minmax(0,1fr));grid-template-areas:"meta meta meta meta" "period listen shuffle create";gap:5px}
+ #main .charts-final .chart-toolbar .chart-action{width:100%;min-width:0;padding-inline:3px;gap:3px}
+ #main .charts-final .chart-period-menu{left:0;right:auto}
+}
+@media(max-width:420px){
+ #main .charts-final .chart-toolbar button.chart-action>svg{display:none!important}
+}
+#dialog .chart-playlist-dialog input[name=name]{box-sizing:border-box;width:100%;min-width:0;line-height:normal}
+#dialog .chart-playlist-dialog .chart-confirm{display:inline-flex;align-items:center;justify-content:center;line-height:1;padding-block:0}
+#main .charts-final .chart-toolbar>.aifect-dropdown{grid-area:period;width:100%!important;--dropdown-height:var(--chart-control-height)}
+#main .charts-final .chart-toolbar{--chart-control-height:40px}
+#main .charts-final .chart-toolbar :is(.chart-action,.aifect-dropdown-trigger){height:var(--chart-control-height);min-height:var(--chart-control-height)}
+@media(max-width:900px){#main .charts-final .chart-toolbar{--chart-control-height:44px}}
+@container(max-width:700px){
+ #main .charts-final .chart-ui .song-table-row .chart-song-copy>*{flex:0 1 auto;min-width:0;max-width:65%}
+}
