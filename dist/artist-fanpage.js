@@ -38,15 +38,21 @@ function bindArtistFanpage(){
  on(document,'keydown',e=>{if(e.key==='Escape'&&menu&&!menu.hidden){e.preventDefault();closeMenu(true);}});
  // Keep file selection inside the existing trusted document click handler.
  on(menu,'click',e=>{if(e.target.closest('button:not(:disabled),a'))queueMicrotask(()=>closeMenu());});
+ const header=root.querySelector('.fan-hero-shell'),pageWrap=root.closest?.('.page-wrap');
+ const group=root.querySelector('.fan-photo-follow'),photo=group?.querySelector('.artist-portrait');
  const fitHeader=()=>{
-  const header=root.querySelector('.fan-hero-shell'),main=root.closest?.('main,#main');if(!header||!main)return;
-  const h=header.getBoundingClientRect(),m=main.getBoundingClientRect();
-  const group=root.querySelector('.fan-photo-follow'),photo=group?.querySelector('.artist-portrait');
   if(group&&photo){const g=group.getBoundingClientRect(),p=photo.getBoundingClientRect();group.style.setProperty('--fan-follow-shift',(p.left+p.width/2-g.left-g.width/2)+'px');}
-  header.style.setProperty('--fan-bleed-left',Math.max(0,h.left-m.left)+'px');
-  header.style.setProperty('--fan-bleed-right',Math.max(0,m.right-h.right)+'px');
+  if(!header||!pageWrap)return;
+  const hero=header.getBoundingClientRect(),area=pageWrap.getBoundingClientRect();
+  header.style.setProperty('--fan-bleed-left',Math.max(0,hero.left-area.left)+'px');
+  header.style.setProperty('--fan-bleed-right',Math.max(0,area.right-hero.right)+'px');
  };
- if(typeof ResizeObserver!=='undefined'){const observer=new ResizeObserver(fitHeader);observer.observe(root);const group=root.querySelector('.fan-photo-follow');if(group)observer.observe(group);signal.addEventListener('abort',()=>observer.disconnect(),{once:true});fitHeader();}
+ fitHeader();
+ if(typeof ResizeObserver!=='undefined'){
+  const observer=new ResizeObserver(fitHeader);
+  for(const el of [root,pageWrap,group])if(el)observer.observe(el);
+  signal.addEventListener('abort',()=>observer.disconnect(),{once:true});
+ }else on(document.defaultView,'resize',fitHeader);
  const read=(path,method='GET',body)=>api(base+path,method,body,method==='GET'?{signal}:{});
  const refresh=async()=>{if(root.isConnected)await render();};
  const settings=()=>({...d.settings,focus_x:d.settings.focus_x??50,focus_y:d.settings.focus_y??50,mobile_x:d.settings.mobile_x??50,mobile_y:d.settings.mobile_y??50});

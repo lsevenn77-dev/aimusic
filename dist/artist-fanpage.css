@@ -231,11 +231,19 @@
 /* One shared photo layer beneath the identity and carousel. The transparent
    feather blends into the existing page aurora instead of painting a dark box. */
 .artist-fanpage .fan-hero-shell{position:relative;isolation:isolate;min-width:0}
-.artist-fanpage .fan-header-background{position:absolute;inset:-24px calc(-1 * var(--fan-bleed-right,0px)) -12px calc(-1 * var(--fan-bleed-left,0px));z-index:0;overflow:hidden;pointer-events:none;mask-image:linear-gradient(transparent,#000 12%,#000 55%,transparent 100%);-webkit-mask-image:linear-gradient(transparent,#000 12%,#000 55%,transparent 100%)}
-.artist-fanpage .fan-header-background img{display:block;width:100%;height:100%;opacity:1;object-fit:cover;object-position:var(--fan-focus,50% 50%)}
-.artist-fanpage .fan-header-profile img{filter:blur(56px);transform:scale(1.45)}
-.artist-fanpage .fan-header-background:after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,var(--ds-bg),transparent 18%,transparent 82%,var(--ds-bg)),linear-gradient(#0c121b40,#0c121b59);pointer-events:none}
-.artist-fanpage .fan-header-background:not(.fan-header-profile):after{background:linear-gradient(90deg,var(--ds-bg),transparent 18%,transparent 82%,var(--ds-bg)),#0c121b55}
+.artist-fanpage .fan-header-background{
+ --fan-side-fade:linear-gradient(90deg,transparent,#000 20%,#000 80%,transparent);
+ --fan-vertical-fade:linear-gradient(transparent,#000 12%,#000 50%,rgba(0,0,0,.35) 78%,transparent 100%);
+ position:absolute;inset:-24px calc(-1 * var(--fan-bleed-right,0px)) -12px calc(-1 * var(--fan-bleed-left,0px));
+ z-index:0;overflow:hidden;pointer-events:none;
+ -webkit-mask-image:var(--fan-side-fade),var(--fan-vertical-fade);-webkit-mask-composite:source-in;
+ mask-image:var(--fan-side-fade),var(--fan-vertical-fade);mask-composite:intersect;
+}
+.artist-fanpage .fan-header-background img{
+ display:block;width:100%;height:100%;object-fit:cover;object-position:var(--fan-focus,50% 50%);
+ filter:blur(12px);
+}
+.artist-fanpage .fan-header-background:after{content:'';position:absolute;inset:0;background:color-mix(in srgb,var(--ds-bg) 52%,transparent)}
 .artist-fanpage .fan-header{position:relative;z-index:2;display:block;height:auto;min-height:0;margin:0;padding:0;border:0;box-shadow:none;background:transparent;overflow:visible}
 .artist-fanpage .fan-header :is(.fan-bio,.fan-affiliation,.fan-stats){color:var(--ds-text);text-shadow:0 1px 3px #0c121b80}
 .artist-fanpage .fan-carousel{--fan-card-size:300px;position:relative;z-index:1;width:100%;max-width:100%;height:auto;margin:0 auto;overflow:hidden;isolation:isolate;touch-action:pan-y}
@@ -263,8 +271,7 @@
 .fan-carousel[data-card-count="1"] .fan-card-float{animation:none}
 @keyframes fan-card-idle{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
 @media(max-width:700px){
- .artist-fanpage .fan-header-profile img{filter:blur(48px)}
- .artist-fanpage .fan-header-background img{object-position:var(--fan-mobile-focus,50% 50%)}
+ .artist-fanpage .fan-header-background img{filter:blur(8px);object-position:var(--fan-mobile-focus,50% 50%)}
  .artist-fanpage .fan-carousel-dots button{width:20px;flex-basis:20px}
  .artist-fanpage .fan-carousel-dots button[aria-pressed=true]{width:28px;flex-basis:28px}
  .fan-carousel-dots button[aria-pressed=true]:after{width:20px}
