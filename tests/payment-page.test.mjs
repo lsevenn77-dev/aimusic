@@ -23,12 +23,13 @@ test('Premium product image uses a real same-origin asset with an accessible pro
 test('public pricing exposes the test route and privacy states its limited Toss processing',()=>{
  const pricing=publicPage('/pricing'),privacy=publicPage('/privacy');
  assert.ok(pricing.includes('href="/checkout/toss"'));
- assert.ok(pricing.includes('실제 청구·자동결제·이용권 지급은 없습니다'));
+ assert.ok(pricing.includes('href="/checkout/toss/gold"'));
+ assert.ok(pricing.includes('실제 청구·자동결제·이용권·골드 지급은 없습니다'));
  assert.ok(privacy.includes('토스페이먼츠(TEST 심사용)'));
  assert.ok(privacy.includes('테스트 확인 쿠키는 최대 30분'));
  assert.ok(privacy.includes('20분 동안만 유효'));
  assert.ok(privacy.includes('반환 인증 요청값을 저장하거나 승인에 사용하지 않습니다'));
- assert.ok(privacy.includes('테스트 완료는 실제 카드 등록·결제·구독 시작을 의미하지 않습니다'));
+ assert.ok(privacy.includes('테스트 완료는 실제 카드 등록·결제·구독 시작이나 골드 충전을 의미하지 않습니다'));
 });
 
 test('standalone checkout renders the authoritative monthly Premium product and test-only registration',async()=>{
