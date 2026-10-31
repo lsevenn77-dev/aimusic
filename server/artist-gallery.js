@@ -1,3 +1,4 @@
+import {assertArtistInteraction} from './follow-management.js';
 import {canManageArtist} from './artist-fan-access.js';
 import {one,rows,run,query,id,now,json,fail,rate} from './db.js';
 import {requireUser} from './auth.js';
@@ -20,7 +21,7 @@ export async function artistGalleryRoute(req,env,path,user){
  const aid=edit?.[1]||photo.artist_id;
  const artist=await one(env,'SELECT a.*,p.user_id FROM artists a JOIN producers p ON p.id=a.producer_id WHERE a.id=?',aid);
  if(!artist||!hasArtistName(artist.name)||photo&&photo.artist_id!==aid)fail(404,'AI 가수를 찾을 수 없습니다.');
- assertUnblocked(env,artist.user_id);
+ assertUnblocked(env,artist.user_id);await assertArtistInteraction(env,aid,user?.id);
  if(media){
   if(!['GET','HEAD'].includes(req.method))fail(405,'지원하지 않는 요청입니다.');
   return objectResponse(req,env,`images/artist/${aid}/gallery/${photo.image_version}`,photo.image_type,true,{imageVersion:photo.image_version});

@@ -1,3 +1,4 @@
+import {assertArtistInteraction} from './follow-management.js';
 import {canManageArtist} from './artist-fan-access.js';
 import {one,rows,run,query,id,now,str,json,fail,rate} from './db.js';
 import {hasArtistName} from './artist-identity.js';
@@ -30,7 +31,7 @@ export async function artistFanpageRoute(req,env,path,user){
  const m=path.match(/^\/api\/artists\/([\w-]+)\/fanpage(?:\/(banner|photos|posts|operators)(?:\/([\w-]+)(?:\/(like|report|replies|pin))?)?)?$/),media=path.match(/^\/media\/artist-banner\/([\w-]+)$/);
  if(!m&&!media)return null;
  const aid=m?.[1]||media[1],artist=await one(env,'SELECT a.id,a.name,p.user_id FROM artists a JOIN producers p ON p.id=a.producer_id WHERE a.id=?',aid);
- if(!artist||!hasArtistName(artist.name))fail(404,'아티스트를 찾을 수 없습니다.');assertUnblocked(env,artist.user_id);
+ if(!artist||!hasArtistName(artist.name))fail(404,'아티스트를 찾을 수 없습니다.');assertUnblocked(env,artist.user_id);await assertArtistInteraction(env,aid,user?.id);
  const owner=user?.id===artist.user_id,manage=await canManageArtist(env,aid,user),part=m?.[2],pid=m?.[3],action=m?.[4],url=new URL(req.url);
  if(media){
   if(!['GET','HEAD'].includes(req.method))fail(405,'지원하지 않는 요청입니다.');

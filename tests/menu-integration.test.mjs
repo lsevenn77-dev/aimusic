@@ -15,11 +15,11 @@ test('legacy menu routes preserve identifiers, repeated query parameters and can
   '#library/history':'#profile?view=library&section=history',
   '#library/covers':'#profile?view=works&section=covers',
   '#library/originals':'#profile?view=works&section=originals',
-  '#library/followers':'#community/following?people=followers',
-  '#library/following':'#community/following?people=following',
-  '#library/artists':'#community/following?people=following&kind=artists',
-  '#library/producers':'#community/following?people=following&kind=producers',
-  '#following':'#community/following','#payouts':'#studio/payouts','#rewards':'#gifts/rewards'
+  '#library/followers':'#follow?tab=followers',
+  '#library/following':'#follow?tab=following',
+  '#library/artists':'#follow?tab=following&kind=artists',
+  '#library/producers':'#follow?tab=following&kind=producers',
+  '#following':'#follow?tab=following','#payouts':'#studio/payouts','#rewards':'#gifts/rewards'
  };
  for(const [old,next] of Object.entries(cases)){assert.equal(c.menuAlias(old),next);assert.equal(c.menuAlias(next),null);}
  for(const old of Object.keys(cases)){const next=c.menuAlias(old+'?id=target-1&filter=saved&q=%ED%95%9C%EA%B8%80&tag=a&tag=b'),q=new URLSearchParams(next.split('?')[1]);assert.equal(q.get('id'),'target-1');assert.equal(q.get('filter'),'saved');assert.equal(q.get('q'),'한글');assert.deepEqual(q.getAll('tag'),['a','b']);assert.equal(c.menuAlias(next),null);}

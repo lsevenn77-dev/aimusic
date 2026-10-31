@@ -36,7 +36,12 @@ test('community filters covers and originals through the public API',async()=>{
  await view('community','covers');await view('community','originals');assert.deepEqual(calls,['/api/community?kind=cover&cover_mode=solo','/api/community?kind=original']);
 });
 test('private library and following routes require login before fetching personal data',async()=>{
- const {view,calls}=viewContext();for(const [base,param] of [['community','following'],['library','history'],['library','covers'],['library','originals'],['library','following']])assert.match((await view(base,param)).html,/LOGIN REQUIRED/);assert.deepEqual(calls,[]);
+ const {view,calls}=viewContext();for(const [base,param] of [['community','following'],['library','history'],['library','covers'],['library','originals']])assert.match((await view(base,param)).html,/LOGIN REQUIRED/);assert.deepEqual(calls,[]);
+ const c=vm.createContext({URLSearchParams,me:null,location:{hash:'#library/following'},gate:()=>'LOGIN REQUIRED'});
+ vm.runInContext(readFileSync(new URL('../dist/menu-integration.js',import.meta.url),'utf8'),c);
+ vm.runInContext(readFileSync(new URL('../dist/follow-management.js',import.meta.url),'utf8'),c);
+ const canonical=c.menuAlias(c.location.hash);assert.equal(canonical,'#follow?tab=following');
+ assert.match((await c.followManagementView(canonical.slice(1),()=>{throw Error('private read');})).html,/LOGIN REQUIRED/);
 });
 test('owned covers exclude original songs and unpublished songs from the playback queue',async()=>{
  const {view}=viewContext({'/api/studio':{tracks:[{id:'cover',title:'Cover',kind:'cover',status:'published'},{id:'draft',title:'Draft',kind:'cover',status:'draft'},{id:'original',title:'Original',kind:'original',status:'published'}]}},{id:'owner'});

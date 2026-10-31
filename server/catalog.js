@@ -1,4 +1,5 @@
 import {giftBlockReason} from './gift-eligibility.js';
+import {followCounts,assertArtistInteraction} from './follow-management.js';
 import {canManageArtist} from './artist-fan-access.js';
 import {fanpageData} from './artist-fanpage.js';
 import {profileDashboard} from './profile-dashboard.js';
@@ -106,7 +107,7 @@ export async function catalogRoute(req,env,path,user){
  }
  let m=path.match(/^\/api\/tracks\/([\w-]+)(?:\/(like|comments|covers))?$/);
  if(m){
-  const tid=m[1],detail=await published(env,tid);
+  const tid=m[1],detail=await published(env,tid);if(method!=='GET'&&detail.kind==='original')await assertArtistInteraction(env,detail.artist_id,user?.id);
   if(!m[2]&&method==='GET'){
    const [tracks,karaoke,ai]=await Promise.all([trackList(env,`t.id=? AND ${VISIBLE()}`,[tid]),one(env,`SELECT 1 FROM tracks t WHERE t.id=? AND ${SINGABLE()}`,tid),one(env,"SELECT count(*) n FROM comments c JOIN users u ON u.id=c.user_id WHERE c.track_id=? AND c.deleted_at=0 AND u.account_type='ai_bot'",tid)]);
    return json({track:{...tracks[0],gift_block_reason:await giftBlockReason(env,user?.id,detail),ai_comments:ai.n,...listenerLyrics(detail.kind==='cover'?await one(env,'SELECT lyrics FROM tracks WHERE id=?',detail.original_id):detail,user),karaoke_ready:!!karaoke}});
@@ -147,7 +148,7 @@ export async function catalogRoute(req,env,path,user){
  }
  m=path.match(/^\/api\/comments\/([\w-]+)(\/like)?$/);
  if(m){
-  requireUser(user);const c=await one(env,'SELECT * FROM comments WHERE id=?',m[1]);if(!c)fail(404,'댓글을 찾을 수 없습니다.');const track=await published(env,c.track_id);if(c.deleted_at)fail(409,'이미 삭제된 댓글입니다.');
+  requireUser(user);const c=await one(env,'SELECT * FROM comments WHERE id=?',m[1]);if(!c)fail(404,'댓글을 찾을 수 없습니다.');const track=await published(env,c.track_id);if(track.kind==='original')await assertArtistInteraction(env,track.artist_id,user?.id);if(c.deleted_at)fail(409,'이미 삭제된 댓글입니다.');
   if(m[2]){
    if(method==='PUT')await run(env,'INSERT OR IGNORE INTO comment_likes(user_id,comment_id) VALUES(?,?)',user.id,c.id);
    else if(method==='DELETE')await run(env,'DELETE FROM comment_likes WHERE user_id=? AND comment_id=?',user.id,c.id);else fail(405,'지원하지 않는 요청입니다.');
@@ -164,11 +165,12 @@ export async function catalogRoute(req,env,path,user){
   const entity=await one(env,`SELECT id,${kind==='producer'?producerNameSQL('producers'):'name'} name,bio,created,image_version${kind==='producer'?',banner_version,user_id,'+memberNameSQL('producers')+' display_name':''} FROM ${m[1]} WHERE id=?${kind==='artist'?' AND '+namedArtistSQL('name'):''}`,m[2]);if(!entity)fail(404,'프로필을 찾을 수 없습니다.');
   if(kind==='producer')entity.account_type=(await one(env,'SELECT account_type FROM users WHERE id=?',entity.user_id))?.account_type;
   const owner=kind==='producer'?entity:await one(env,'SELECT p.user_id FROM artists a JOIN producers p ON p.id=a.producer_id WHERE a.id=?',entity.id);assertUnblocked(env,owner?.user_id);
+  if(kind==='artist')await assertArtistInteraction(env,entity.id,user?.id);
   if(!m[3]&&method==='GET'){
    const own=kind==='producer'&&user?.id===entity.user_id,dashboardRequested=kind==='producer'&&url.searchParams.get('dashboard')==='1',manage=own&&dashboardRequested;
    const workLimit=manage&&url.searchParams.get('work_list')==='1'?-1:500;
    const [count,tracks,covers,gifts,partner,identity,gallery,inviteCrew,dashboard]=await Promise.all([
-    one(env,'SELECT count(*) n FROM follows WHERE kind=? AND target_id=?',kind,entity.id),
+    followCounts(env,owner.user_id,user?.id,kind==='artist'?entity.id:''),
     trackList(env,`${manage?"((t.user_id=? AND t.status!='deleted') OR "+VISIBLE()+')':VISIBLE()} AND t.kind='original' AND t.${kind}_id=?`,[...(manage?[user.id]:[]),entity.id], 't.created DESC',workLimit,manage),
     kind==='producer'?trackList(env,`${manage?"((t.user_id=? AND t.status!='deleted') OR "+VISIBLE()+')':VISIBLE()} AND t.kind='cover' AND (t.producer_id=? OR dt.producer_id=? OR EXISTS(SELECT 1 FROM tracks child WHERE child.duet_parent_id=t.id AND child.producer_id=? AND ${VISIBLE('child')}))`,[...(manage?[user.id]:[]),entity.id,entity.id,entity.id], 't.created DESC',workLimit,manage):null,
     kind==='producer'?profileGifts(env,entity.id):null,
@@ -182,14 +184,14 @@ export async function catalogRoute(req,env,path,user){
    const profileIdentity=identity&&!own?{profile_frame:identity.profile_frame,profile_frame_artwork:identity.profile_frame_artwork}:identity;
    // Profile visitors receive public works, never their owner's private XP totals.
    if(!own)for(const track of [...tracks,...(covers||[])])delete track.player_xp;
-   const ai=kind==='producer'?await supportFollowCount(env,entity.user_id):0;
-   return json({profile:kind==='producer'?{...entity,partner_badge:partner.badge,...profileIdentity,public_number:dashboard.public_number,public_id:dashboard.public_id}:entity,tracks,followers:count.n+ai,human_followers:count.n,ai_followers:ai,gallery,...(kind==='producer'?{...dashboard,covers,gifts,invite_crew:inviteCrew,gallery_limit:PROFILE_GALLERY_LIMIT}:{can_manage:await canManageArtist(env,entity.id,user),can_edit_portrait:user?.id===owner?.user_id,gallery_limit:GALLERY_LIMIT,fanpage:await fanpageData(env,entity.id)})});
+   const ai=kind==='producer'?await supportFollowCount(env,entity.user_id,user?.id||null):0;
+   return json({profile:kind==='producer'?{...entity,partner_badge:partner.badge,...profileIdentity,public_number:dashboard.public_number,public_id:dashboard.public_id}:entity,tracks,followers:count.followers,human_followers:Math.max(0,count.followers-ai),ai_followers:ai,gallery,...(kind==='producer'?{...dashboard,following_count:count.following,covers,gifts,invite_crew:inviteCrew,gallery_limit:PROFILE_GALLERY_LIMIT}:{can_manage:await canManageArtist(env,entity.id,user),can_edit_portrait:user?.id===owner?.user_id,gallery_limit:GALLERY_LIMIT,fanpage:await fanpageData(env,entity.id)})});
   }
   requireUser(user);
   if(method==='PUT')await run(env,'INSERT OR IGNORE INTO follows(user_id,kind,target_id,created) VALUES(?,?,?,?)',user.id,kind,entity.id,now());
   else if(method==='DELETE')await run(env,'DELETE FROM follows WHERE user_id=? AND kind=? AND target_id=?',user.id,kind,entity.id);else fail(405,'지원하지 않는 요청입니다.');
-  const ai=kind==='producer'?await supportFollowCount(env,entity.user_id):0,human=(await one(env,'SELECT count(*) n FROM follows WHERE kind=? AND target_id=?',kind,entity.id)).n;
-  return json({ok:true,following:method==='PUT',profile:entity,followers:human+ai,human_followers:human,ai_followers:ai});
+  const ai=kind==='producer'?await supportFollowCount(env,entity.user_id,user?.id||null):0,counts=await followCounts(env,owner.user_id,user.id,kind==='artist'?entity.id:'');
+  return json({ok:true,following:method==='PUT',profile:entity,followers:counts.followers,human_followers:Math.max(0,counts.followers-ai),ai_followers:ai});
  }
  if(path==='/api/history'&&method==='GET'){requireUser(user);return json({tracks:await trackList(env,VISIBLE()+" AND t.id IN (SELECT track_id FROM listens WHERE user_id=?)",[user.id],`(SELECT MAX(started) FROM listens l WHERE l.track_id=t.id AND l.user_id='${user.id.replaceAll("'",'')}') DESC`)});}
  if(path==='/api/playlists'&&method==='POST'){

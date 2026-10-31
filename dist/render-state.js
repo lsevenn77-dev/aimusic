@@ -57,7 +57,9 @@
   const asset=target?.getAttribute?.('src')||target?.getAttribute?.('href')||'';
   const critical=target?.matches?.('link[rel="stylesheet"],script[src]')&&(/^\/?aifect-app-[a-f0-9]{16}\.(js|css)(?:\?|$)/.test(asset)||asset==='/canonical-origin.js');
   if(critical){assetsFailed=true;fail();}
-  else if(target===window&&!initialized&&state()==='loading')fail();
+  // ResizeObserver defers further layout notifications to the next frame. This
+  // browser advisory has no script exception and is not a failed app startup.
+  else if(target===window&&!initialized&&state()==='loading'&&(event.error||!/^ResizeObserver loop (?:limit exceeded|completed with undelivered notifications)\.?$/.test(event.message||'')))fail();
  },true);
  window.addEventListener('unhandledrejection',event=>{
   if(!initialized&&state()==='loading'&&event.reason?.name!=='AbortError')fail();

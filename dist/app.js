@@ -115,7 +115,7 @@ async function toggleFollow(button){
  const [kind,id]=key.split('/'),uid=me.id,prior=library.follows.find(f=>f.kind===kind&&f.target_id===id),following=!prior;
  const counter=[...document.querySelectorAll('[data-followers]')].find(node=>node.dataset.followers===key),oldCount=counter?Number(counter.dataset.count):undefined;
  pendingFollows.set(key,uid);updateFollowLocal(kind,id,following,prior||{name:button.closest('article,section')?.querySelector('h2,h3')?.textContent||''});paintFollowState(key,following,true,oldCount===undefined?undefined:Math.max(0,oldCount+(following?1:-1)));
- try{const result=await api('/api/'+(kind==='artist'?'artists':'producers')+'/'+id+'/follow',following?'PUT':'DELETE');if(me?.id!==uid)return;updateFollowLocal(kind,id,result.following,result.profile);paintFollowState(key,result.following,false,result.followers);}
+ try{const result=await api('/api/'+(kind==='artist'?'artists':'producers')+'/'+id+'/follow',following?'PUT':'DELETE');if(me?.id!==uid)return;updateFollowLocal(kind,id,result.following,result.profile);paintFollowState(key,result.following,false,result.followers);if(typeof window!=='undefined'&&window.dispatchEvent)window.dispatchEvent(new CustomEvent('aifect:follow-saved',{detail:{kind,id,following:result.following}}));}
  catch(error){if(me?.id===uid){updateFollowLocal(kind,id,!!prior,prior);paintFollowState(key,!!prior,false,oldCount);}throw error;}
  finally{if(pendingFollows.get(key)===uid)pendingFollows.delete(key);if(me?.id===uid)paintFollowState(key,followed(kind,id),false);}
 }

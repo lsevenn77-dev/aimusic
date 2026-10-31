@@ -45,20 +45,22 @@ for(const [id,owner,state,visibility,title] of [['11111111-1111-4111-8111-111111
  objects.set('dubbing/'+owner+'/'+id+'/script.json',new TextEncoder().encode(JSON.stringify(script)));
  if(state==='complete'){f.sql.prepare("INSERT INTO dubbing_final_jobs(id,project_id,script_key,state,manifest_json,output_key,created,updated) VALUES(?,?,?,'ready','{}',?,?,?)").run('qa-final',id,'dubbing/'+owner+'/'+id+'/script.json','qa-final.wav',at,at);objects.set('qa-final.wav',wav);}
 }
+if(process.argv.includes('--follow-qa'))(await import('./follow-preview-fixture.mjs')).seedFollowPreview(f.sql);
+const port=Number(process.env.AIFECT_PREVIEW_PORT||4188),origin='http://127.0.0.1:'+port;
 const base=resolve('dist/client');
 f.sql.prepare('UPDATE likes SET created=?').run(at-3600);
 for(const [i,role] of sampleScript().roles.entries())f.sql.prepare("INSERT INTO dubbing_recordings(id,project_id,role_id,user_id,script_key,state,write_token,created,updated) VALUES(?,'11111111-1111-4111-8111-111111111111',?,?,'dubbing/owner/11111111-1111-4111-8111-111111111111/script.json','submitted','qa',?,?)").run('qa-record-'+i,role.id,i?'other':'owner',at,at);
 const env={DUBBING_ENABLED:'true',DUBBING_RECORDING_ENABLED:'true',ADMIN_USER_IDS:'owner',DB:f.DB,BUCKET:{async put(k,v){objects.set(k,new Uint8Array(v));},async delete(k){objects.delete(k);},async head(k){const b=objects.get(k);return b?{size:b.length,etag:k}:null;},async get(k,opts){const v=objects.get(k);return v?{body:opts?.range?v.slice(opts.range.offset,opts.range.offset+opts.range.length):v}:null;},async list(){return {objects:[],truncated:false};}},
  ASSETS:{async fetch(req){const url=new URL(req.url),file=resolve(base,'.'+(url.pathname==='/'?'/index.html':decodeURIComponent(url.pathname)));if(!file.startsWith(base+sep))return new Response('',{status:404});try{const data=await readFile(file);return new Response(data,{headers:{'content-type':({'.html':'text/html;charset=utf-8','.css':'text/css','.js':'text/javascript','.svg':'image/svg+xml','.png':'image/png','.webp':'image/webp'})[extname(file)]||'application/octet-stream'}});}catch{return new Response('Not found',{status:404});}}}};
 for(const type of ['heart','lollipop','silver-letter']){
- const response=await worker.fetch(new Request('http://127.0.0.1:4188/api/admin/gift-inventory/grant',{method:'POST',headers:{Origin:'http://127.0.0.1:4188','Content-Type':'application/json',Cookie:'aifect_session=owner'},body:JSON.stringify({user_id:'owner',gift_type:type,quantity:3,reason:'Isolated local QA only',request_id:crypto.randomUUID()})}),env,{});if(!response.ok)throw Error(await response.text());
+ const response=await worker.fetch(new Request(origin+'/api/admin/gift-inventory/grant',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json',Cookie:'aifect_session=owner'},body:JSON.stringify({user_id:'owner',gift_type:type,quantity:3,reason:'Isolated local QA only',request_id:crypto.randomUUID()})}),env,{});if(!response.ok)throw Error(await response.text());
 }
 const server=createServer(async(req,res)=>{
- try{if(req.url.startsWith('/__qa/viewer/')){const who=req.url.split('/').pop();res.writeHead(302,{'Set-Cookie':'qa_viewer='+(['owner','other','guest'].includes(who)?who:'owner')+'; Path=/; SameSite=Lax',Location:who==='owner'?'/#profile':'/#producer/producer'});res.end();return;}const body=[];for await(const chunk of req)body.push(chunk);const url='http://127.0.0.1:4188'+req.url;
+ try{if(req.url.startsWith('/__qa/viewer/')){const who=req.url.split('/').pop();res.writeHead(302,{'Set-Cookie':'qa_viewer='+(['owner','other','guest'].includes(who)?who:'owner')+'; Path=/; SameSite=Lax',Location:who==='owner'?'/#profile':'/#producer/producer'});res.end();return;}const body=[];for await(const chunk of req)body.push(chunk);const url=origin+req.url;
  const response=await worker.fetch(new Request(url,{method:req.method,headers:{...req.headers,cookie:'aifect_session='+(/qa_viewer=(owner|other|guest)/.exec(req.headers.cookie||'')?.[1]||'owner')},body:body.length?Buffer.concat(body):undefined}),env,{waitUntil(p){p.catch(()=>{});}});
  res.writeHead(response.status,Object.fromEntries(response.headers));res.end(Buffer.from(await response.arrayBuffer()));
  }catch(e){console.error(e);res.writeHead(500);res.end('Local preview error');}
 });
-server.listen(4188,'127.0.0.1',()=>console.log('Local preview: http://127.0.0.1:4188/#profile'));
+server.listen(port,'127.0.0.1',()=>console.log('Local preview: '+origin+'/#profile'));
 process.on('SIGINT',()=>server.close(()=>{cleanups.forEach(f=>f());process.exit(0);}));
 

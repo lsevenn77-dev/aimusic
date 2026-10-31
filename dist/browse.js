@@ -23,7 +23,7 @@ function chartMovementHTML(t){
 }
 // Shared navigation for listening, singing and the community on desktop and mobile.
 function updateBrowseNavigation(base,param){
- const primary=['karaoke','sing','cover','dubbing'].includes(base)?'karaoke':['community','voice','covers','crew','producer','artist','following'].includes(base)?'community':base==='dm'?'dm':base==='notifications'?'notifications':['inventory','profile','account','studio','manage','upload','payouts','rewards'].includes(base)?'profile':['library','history'].includes(base)?'home':'home';
+ const primary=['karaoke','sing','cover','dubbing'].includes(base)?'karaoke':['community','voice','covers','crew','producer','artist','following'].includes(base)?'community':base==='dm'?'dm':base==='notifications'?'notifications':['inventory','follow','profile','account','studio','manage','upload','payouts','rewards'].includes(base)?'profile':['library','history'].includes(base)?'home':'home';
  const routeHref='#'+base+(param?'/'+param:''),hasSidebarPage=[...document.querySelectorAll('.sidebar .nav-link[data-view]:not([data-primary-view])')].some(a=>(a.getAttribute('href')===routeHref||['studio','gifts'].includes(base)&&a.getAttribute('href')==='#'+base));
  document.querySelectorAll('[data-primary-view]').forEach(a=>{const inSidebar=!!a.closest('.sidebar'),active=!(inSidebar&&hasSidebarPage)&&a.dataset.primaryView===(inSidebar&&['library','history'].includes(base)?'library':primary);a.classList.toggle('active',active);if(active)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});
  document.querySelectorAll('.nav-link[data-view]:not([data-primary-view])').forEach(a=>{const active=a.getAttribute('href')==='#'+base+(param?'/'+param:'')||['studio','gifts'].includes(base)&&a.getAttribute('href')==='#'+base;a.classList.toggle('active',active);if(active)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});
@@ -134,10 +134,9 @@ async function browseView(base,param,raw,embedded=false,readApi=api){
   remember([...(d.recent_covers||[]),...duets.tracks]);return {html:singingHubHTML(tracks,d.recent_covers||[],duets.tracks),tracks,karaokeTracks:tracks,singingHub:true};
  }
  if(base==='community'||base==='covers')return communityView(base,param,raw,readApi);
- if(base==='history'||base==='library'&&['history','covers','originals','following'].includes(param)){
+ if(base==='history'||base==='library'&&['history','covers','originals'].includes(param)){
   if(!me){returnRoute=location.hash;return {html:gate()};}
   const tab=base==='history'?'history':param;let html=(embedded?'':heading('내 보관함','좋아하는 음악과 내가 남긴 목소리를 한곳에서.'))+(embedded&&tab!=='history'?'':libraryTabs(tab));
-  if(tab==='following'){await refreshLibrary();const people=kind=>library.follows.filter(f=>f.kind===kind).map(f=>({...f,id:f.target_id}));html+=`<p class="field-help"><a class="text-link" href="#community/following">팔로우한 창작자의 새 음악 듣기</a></p>`;for(const [kind,title] of [['producer','창작자'],['artist','AI 아티스트']])html+=section(title)+(people(kind).length?peopleListHTML(people(kind),kind):`<p class="empty-inline">아직 팔로우한 ${title}가 없어요. <a class="text-link" href="#${kind==='producer'?'producers':'artists'}">둘러보기</a></p>`);return {html};}
   if(tab==='history'){const d=await readApi('/api/history');return {html:html+browsePlaybackActions(d.tracks)+list(d.tracks),tracks:d.tracks};}
   const d=await readApi('/api/studio'),owned=d.tracks.filter(t=>t.kind===(tab==='covers'?'cover':'original')),published=owned.filter(t=>t.status==='published');
   html+=`<div class="inline-actions playlist-actions"><a class="primary-button" href="#${tab==='covers'?'karaoke':'upload'}">${icon('plus')} ${tab==='covers'?'플레이로 이동':'제작곡 올리기'}</a><a class="text-link" href="#studio">스튜디오에서 관리</a></div>`;

@@ -1,3 +1,4 @@
+import {followManagement} from './follow-management.js';
 import {expireDubbingCombinations} from './dubbing-casting.js';
 import {artistFanpageRoute} from './artist-fanpage.js';
 import {giftCheckoutRoute} from './gift-checkout.js';
@@ -127,6 +128,7 @@ export default {async fetch(req,env,ctx){
   const bots=await aiBotsRoute(req,env,path,user);if(bots)return bots;
   const coverCompression=await coverCompressionAdmin(req,env,path,user);if(coverCompression)return coverCompression;
   env=await blockedContext(env,user);
+  const followPage=await followManagement(req,env,path,user);if(followPage)return followPage;
   const play=await playRoute(req,env,path,user);if(play)return play;
   const voiceResponse=await voiceRoomsRoute(req,env,path,user,ctx);if(voiceResponse)return voiceResponse;
   const dubbingReportAdmin=await dubbingReportsAdminRoute(req,env,path,user);if(dubbingReportAdmin)return dubbingReportAdmin;

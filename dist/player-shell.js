@@ -107,6 +107,7 @@ function renderPlayerActions(track){
  for(const event of ['pointerup','pointercancel'])document.addEventListener(event,()=>{scrubbing=false;paintProgress();});
  seek.addEventListener('input',()=>paintProgress(Number(seek.value)));
  document.querySelector('#player-close').addEventListener('click',()=>setView('none'));
- new ResizeObserver(measureLayout).observe(player);
+ let layoutFrame=0;
+ new ResizeObserver(()=>{if(!layoutFrame)layoutFrame=requestAnimationFrame(()=>{layoutFrame=0;measureLayout();});}).observe(player);
  paintMute();paintModes();setView('none');measureLayout();
 })();

@@ -1,3 +1,4 @@
+import {followCounts} from './follow-management.js';
 import {unifiedSearch} from './search.js';
 import {assertUnblocked} from './account-safety.js';
 import {trackArtworkSQL} from './track-artwork.js';
@@ -40,7 +41,7 @@ export async function discoveryRoute(req,env,path,user){
  const member=path.match(/^\/api\/members\/([A-Za-z]{3}[0-9]{4})$/);
  if(member&&method==='GET'){
   const profile=await one(env,`SELECT p.id,u.id user_id,m.code public_id,${publicNameSQL()} name,COALESCE(p.bio,'') bio,COALESCE(p.image_version,'') image_version FROM public_profile_ids m JOIN users u ON u.id=m.user_id LEFT JOIN producers p ON p.user_id=u.id WHERE m.code=? AND u.provider!='deleted'`,member[1].toUpperCase());
-  if(!profile)fail(404,'프로필을 찾을 수 없습니다.');assertUnblocked(env,profile.user_id);return json({profile});
+  if(!profile)fail(404,'프로필을 찾을 수 없습니다.');assertUnblocked(env,profile.user_id);return json({profile,counts:await followCounts(env,profile.user_id,user?.id)});
  }
 
  if(path==='/api/discovery'&&method==='GET'){
@@ -60,11 +61,11 @@ export async function discoveryRoute(req,env,path,user){
  }
  if(path==='/api/follows'&&method==='GET'){
   requireUser(user);
-  return json({follows:await rows(env,`SELECT f.*,COALESCE(a.name,(${producerNameSQL()})) name,COALESCE(a.bio,p.bio) bio,COALESCE(a.image_version,p.image_version) image_version FROM follows f LEFT JOIN artists a ON f.kind='artist' AND a.id=f.target_id LEFT JOIN producers p ON f.kind='producer' AND p.id=f.target_id WHERE f.user_id=? AND (a.id IS NOT NULL OR p.id IS NOT NULL) ORDER BY f.created DESC,f.target_id`,user.id)});
+  return json({follows:await rows(env,`SELECT f.*,COALESCE(a.name,(${producerNameSQL()}),CASE WHEN m.id IS NOT NULL THEN ${publicNameSQL('m')} END) name,COALESCE(a.bio,p.bio) bio,COALESCE(a.image_version,p.image_version) image_version FROM follows f LEFT JOIN users m ON f.kind='member' AND m.id=f.target_id LEFT JOIN artists a ON f.kind='artist' AND a.id=f.target_id LEFT JOIN producers p ON f.kind='producer' AND p.id=f.target_id WHERE f.user_id=? AND (a.id IS NOT NULL OR p.id IS NOT NULL OR m.id IS NOT NULL) ORDER BY f.created DESC,f.target_id`,user.id)});
  }
  if(path==='/api/library'&&method==='GET'){
   requireUser(user);
-  const [items,plan,likes,follows]=await Promise.all([accessibleLibrary(env,user.id),membership(env,user),trackList(env,VISIBLE()+" AND t.id IN (SELECT track_id FROM likes WHERE user_id=?)",[user.id],'t.created DESC',500),rows(env,`SELECT f.*,COALESCE(a.name,(${producerNameSQL()})) name,COALESCE(a.bio,p.bio) bio,COALESCE(a.image_version,p.image_version) image_version FROM follows f LEFT JOIN artists a ON f.kind='artist' AND a.id=f.target_id LEFT JOIN producers p ON f.kind='producer' AND p.id=f.target_id WHERE f.user_id=?`,user.id)]);
+  const [items,plan,likes,follows]=await Promise.all([accessibleLibrary(env,user.id),membership(env,user),trackList(env,VISIBLE()+" AND t.id IN (SELECT track_id FROM likes WHERE user_id=?)",[user.id],'t.created DESC',500),rows(env,`SELECT f.*,COALESCE(a.name,(${producerNameSQL()}),CASE WHEN m.id IS NOT NULL THEN ${publicNameSQL('m')} END) name,COALESCE(a.bio,p.bio) bio,COALESCE(a.image_version,p.image_version) image_version FROM follows f LEFT JOIN users m ON f.kind='member' AND m.id=f.target_id LEFT JOIN artists a ON f.kind='artist' AND a.id=f.target_id LEFT JOIN producers p ON f.kind='producer' AND p.id=f.target_id WHERE f.user_id=?`,user.id)]);
   return json({membership:plan,likes,playlists:items.filter(p=>p.user_id===user.id),saved:items.filter(p=>p.user_id!==user.id),collections:items,follows});
  }
  let m=path.match(/^\/api\/playlists\/([\w-]+)\/save$/);

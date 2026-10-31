@@ -1,4 +1,5 @@
 import {assertDubbingGiftContext,giftBlockReason} from './gift-eligibility.js';
+import {assertArtistInteraction} from './follow-management.js';
 import {walletHistory} from './wallet-history.js';
 import {officialSupport} from './ai-bots.js';
 import {assertUnblocked} from './account-safety.js';
@@ -116,7 +117,7 @@ export async function giftRoute(req,env,path,user){
  if(method==='GET')return json(personal?await profileGifts(env,track.producer_id):await trackGifts(env,track.id));
  if((await one(env,'SELECT account_type FROM users WHERE id=?',track.user_id))?.account_type==='ai_bot')fail(400,'공식 AI 응원 계정에는 유료·실버 선물을 보낼 수 없어요.');
  if(method!=='POST')fail(405,'지원하지 않는 요청입니다.');
- requireUser(user);assertUnblocked(env,track.user_id);
+ requireUser(user);assertUnblocked(env,track.user_id);if(track.kind==='original')await assertArtistInteraction(env,track.artist_id,user.id);
  const reason=await giftBlockReason(env,user.id,track);if(reason)fail(400,reason);
  await rate(env,'gift:'+user.id,60,3600);
  const b=await req.json();await assertDubbingGiftContext(env,user.id,track.producer_id,b.dubbing_id);if(silverGiftById(b.gift_type))return sendFreeGift(env,user,track,b);

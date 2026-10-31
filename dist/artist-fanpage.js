@@ -24,7 +24,7 @@ function artistFanpageHTML(d,aid,tab='home'){
  const intro=(p.bio||'새로운 음악으로 만나요.').split('\n')[0];
  const stats='<div class="fan-stats"><span class="fan-stats-group">'+
   '<span>공개곡 '+number(d.tracks.length)+'</span><span aria-hidden="true">·</span>'+
-  '<span data-followers="artist/'+esc(aid)+'" data-count="'+Number(d.followers||0)+'">팔로워 <span data-follow-count>'+number(d.followers||0)+'</span></span></span>'+
+  '<a href="#follow?tab=artists&amp;artist='+encodeURIComponent(aid)+'" data-followers="artist/'+esc(aid)+'" data-count="'+Number(d.followers||0)+'">팔로워 <span data-follow-count>'+number(d.followers||0)+'</span></a></span>'+
   '<span class="fan-stats-divider" aria-hidden="true">·</span>'+
   '<button type="button" class="fan-follow-button" data-follow="artist/'+esc(aid)+'" aria-pressed="'+followed('artist',aid)+'"><span data-follow-label="팔로우">팔로우</span></button></div>';
  return '<article class="artist-fanpage" data-fanpage="'+esc(JSON.stringify({aid,tab,photos,settings:s,can_manage:!!d.can_manage,is_owner:!!portraitOwner,operators:d.fanpage?.operators||[],tracks:d.tracks}))+'"><div class="fan-hero-shell" style="--fan-focus:'+Number(s.focus_x??50)+'% '+Number(s.focus_y??50)+'%;--fan-mobile-focus:'+Number(s.mobile_x??50)+'% '+Number(s.mobile_y??50)+'%">'+fanHeaderBackground(p,s,aid)+'<header class="fan-header">'+headerActions+'<div class="fan-identity"><div class="fan-photo-follow">'+portrait(p,'artist')+'</div><div class="fan-identity-text"><h1>'+esc(p.name)+'</h1><p class="fan-bio" title="'+esc(p.bio||'')+'">'+esc(intro)+'</p>'+(producer?'<a class="fan-affiliation" href="#producer/'+esc(producer.id)+'">소속 '+esc(producer.name)+'</a>':'')+stats+'</div></div></header>'+carousel+'</div><nav class="profile-content-tabs fan-tabs" aria-label="아티스트 카테고리">'+tabs.map(([key,title])=>'<a href="'+href(key)+'" '+(tab===key?'class="active" aria-current="page"':'')+'>'+title+'</a>').join('')+'</nav><div class="fan-content">'+content+'</div></article>';
@@ -72,7 +72,7 @@ function bindArtistFanpage(){
   for(const el of [root,pageWrap])if(el)observer.observe(el);
   signal.addEventListener('abort',()=>observer.disconnect(),{once:true});
  }else on(document.defaultView,'resize',fitHeader);
- const read=(path,method='GET',body)=>api(base+path,method,body,method==='GET'?{signal}:{});
+ const read=async(path,method='GET',body)=>{const result=await api(base+path,method,body,method==='GET'?{signal}:{});if(signal.aborted||!root.isConnected)throw new DOMException('화면이 변경됐어요.','AbortError');return result;};
  const refresh=async()=>{if(root.isConnected)await render();};
  const settings=()=>({...d.settings,focus_x:d.settings.focus_x??50,focus_y:d.settings.focus_y??50,mobile_x:d.settings.mobile_x??50,mobile_y:d.settings.mobile_y??50});
  root.querySelector('.fan-header-background img')?.addEventListener('error',e=>e.target.closest('.fan-header-background').remove(),{once:true,signal});

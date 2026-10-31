@@ -1,3 +1,5 @@
+import {namedArtistSQL} from './artist-identity.js';
+import {followCounts,assertArtistInteraction} from './follow-management.js';
 import {publicNumberSQL,profileActivity} from './profile-dashboard.js';
 import {playerIdentity,playerColumnsSQL} from './player.js';
 import {one,rows,query,id,now,str,json,fail,rate} from './db.js';
@@ -9,6 +11,19 @@ import {assertUnblocked} from './account-safety.js';
 import {supportFollowCount,supportFollowers} from './ai-support-follows.js';
 
 export async function profileRoute(req,env,path,user){
+ const fan=path.match(/^\/api\/artist-preview\/([\w-]+)$/);
+ if(fan){
+  if(req.method!=='GET')fail(405,'지원하지 않는 요청입니다.');
+  const profile=await one(env,`SELECT a.id,a.name,a.bio,a.image_version,p.user_id FROM artists a JOIN producers p ON p.id=a.producer_id WHERE a.id=? AND ${namedArtistSQL()}`,fan[1]);
+  if(!profile)fail(404,'아티스트를 찾을 수 없어요.');assertUnblocked(env,profile.user_id);await assertArtistInteraction(env,profile.id,user?.id);
+  return json({profile,artist:true,...await followCounts(env,profile.user_id,user?.id,profile.id)});
+ }
+ const listener=path.match(/^\/api\/member-preview\/([\w-]+)$/);
+ if(listener){
+  if(req.method!=='GET')fail(405,'지원하지 않는 요청입니다.');
+  assertUnblocked(env,listener[1]);const profile=await one(env,`SELECT u.id user_id,p.id,${publicNameSQL()} name,p.bio,p.image_version,(SELECT code FROM public_profile_ids WHERE user_id=u.id) public_id FROM users u LEFT JOIN producers p ON p.user_id=u.id WHERE u.id=? AND u.provider!='deleted'`,listener[1]);
+  if(!profile)fail(404,'회원을 찾을 수 없어요.');const c=await followCounts(env,profile.user_id,user?.id);return json({profile,followers:c.followers,following_count:c.following});
+ }
  const preview=path.match(/^\/api\/producers\/([\w-]+)\/preview$/);
  if(preview){
   if(req.method!=='GET')fail(405,'지원하지 않는 요청입니다.');
@@ -17,12 +32,12 @@ export async function profileRoute(req,env,path,user){
   delete profile.player_xp; // Preview adds only the existing equipped artwork, without a level badge.
   assertUnblocked(env,profile.user_id);
   const [counts,crew,following]=await Promise.all([
-   one(env,"SELECT (SELECT count(*) FROM follows WHERE kind='producer' AND target_id=?) followers,(SELECT count(*) FROM follows WHERE user_id=?) following",profile.id,profile.user_id),
+   followCounts(env,profile.user_id,user?.id),
    one(env,'SELECT c.id,c.name,c.image_version FROM crew_members cm JOIN crews c ON c.id=cm.crew_id WHERE cm.user_id=? ORDER BY cm.joined,c.id LIMIT 1',profile.user_id),
    user?one(env,"SELECT 1 found FROM follows WHERE user_id=? AND kind='producer' AND target_id=?",user.id,profile.id):null
   ]);
-  const ai=await supportFollowCount(env,profile.user_id);
-  return json({profile,followers:counts.followers+ai,human_followers:counts.followers,ai_followers:ai,following_count:counts.following,following:!!following,crew});
+  const ai=await supportFollowCount(env,profile.user_id,user?.id||null);
+  return json({profile,followers:counts.followers,human_followers:Math.max(0,counts.followers-ai),ai_followers:ai,following_count:counts.following,following:!!following,crew});
  }
  const follower=path.match(/^\/api\/followers\/([\w-]+)$/);
  if(follower){
@@ -57,7 +72,7 @@ export async function profileRoute(req,env,path,user){
  const profile=await one(env,`SELECT p.id,${producerNameSQL()} name,p.bio,p.image_version FROM producers p WHERE p.user_id=?`,user.id);
  const [followers,counts,identity,number]=await Promise.all([
  profile?rows(env,`SELECT p.id,u.id user_id,${playerColumnsSQL('u.id')},${publicNameSQL()} name,p.image_version,'producer' profile_kind FROM follows f JOIN users u ON u.id=f.user_id LEFT JOIN producers p ON p.user_id=f.user_id WHERE f.kind='producer' AND f.target_id=? ORDER BY f.created DESC LIMIT 200`,profile.id):[],
- one(env,"SELECT (SELECT count(*) FROM follows WHERE kind='producer' AND target_id=?) followers,(SELECT count(*) FROM follows WHERE user_id=?) following",profile?.id||'',user.id),playerIdentity(env,user.id),one(env,'SELECT number public_number,(SELECT code FROM public_profile_ids WHERE user_id=public_member_ids.user_id) public_id FROM public_member_ids WHERE user_id=?',user.id)]);
+ followCounts(env,user.id,user.id),playerIdentity(env,user.id),one(env,'SELECT number public_number,(SELECT code FROM public_profile_ids WHERE user_id=public_member_ids.user_id) public_id FROM public_member_ids WHERE user_id=?',user.id)]);
  const [ai,official]=await Promise.all([supportFollowCount(env,user.id),supportFollowers(env,user.id)]);
- return json({profile:{...(profile||{name:user.name,bio:'',image_version:''}),user_id:user.id,...identity,...number},user:profile?{...user,name:profile.name,profile_id:profile.id,image_version:profile.image_version||''}:user,followers:[...followers,...official],follower_count:counts.followers+ai,human_followers:counts.followers,ai_followers:ai,following_count:counts.following});
+ return json({profile:{...(profile||{name:user.name,bio:'',image_version:''}),user_id:user.id,...identity,...number},user:profile?{...user,name:profile.name,profile_id:profile.id,image_version:profile.image_version||''}:user,followers:[...followers,...official],follower_count:counts.followers,human_followers:Math.max(0,counts.followers-ai),ai_followers:ai,following_count:counts.following});
 }

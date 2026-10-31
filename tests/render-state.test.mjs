@@ -11,7 +11,7 @@ function boot({marker=null,hash='#home',route='home'}={}){
  const history={state:{retained:true},replaceState(state,title,url){this.state=state;location.href='https://aifect.test'+url;location.hash=url.slice(url.indexOf('#'));}};
  const context=vm.createContext({URLSearchParams,document:{documentElement:root,getElementById:id=>nodes.get(id),querySelector:()=>marker},location,history,window:{addEventListener(name,fn){handlers.set(name,fn);}},setTimeout(fn){const id=++sequence;timers.set(id,fn);return id;},clearTimeout(id){timers.delete(id);}});
  vm.runInContext(source,context);const api=context.window.AifectRender;
- return {api,root,main,nodes,handlers,location,history,get replacements(){return replacements;},tick(){const tasks=[...timers.values()];timers.clear();tasks.forEach(fn=>fn());},get reloads(){return reloads;},get timers(){return timers.size;}};
+ return {api,root,main,nodes,handlers,location,history,win:context.window,get replacements(){return replacements;},tick(){const tasks=[...timers.values()];timers.clear();tasks.forEach(fn=>fn());},get reloads(){return reloads;},get timers(){return timers.size;}};
 }
 test('head establishes loading before any body or application request',()=>{
  const c=boot();assert.equal(c.root.dataset.renderState,'loading');c.api.mount();assert.equal(c.main.inert,true);
@@ -65,4 +65,11 @@ test('bare home URL is normalized without pushing history and no-JS fallback rem
 test('malformed UTF-8 fragments use the browser tolerant decoding and keep literal plus signs',()=>{
  const marker={id:'',targeted:false,matches(){return this.targeted;}},raw='search/%E0%A4%A+tag&filter=all',c=boot({marker,hash:'#'+raw,route:raw});
  c.api.ready(c.api.begin(raw,'home',()=>{}));assert.equal(marker.id,'search/�%A+tag&filter=all');assert.equal(c.root.dataset.renderState,'ready');
+});
+
+test('browser resize delivery notices during bootstrap do not mask a valid route or suppress real exceptions',()=>{
+ for(const message of ['ResizeObserver loop completed with undelivered notifications.','ResizeObserver loop limit exceeded']){
+  const c=boot(),epoch=c.api.begin('home','',()=>{});c.handlers.get('error')({target:c.win,message,error:null});c.api.ready(epoch);assert.equal(c.root.dataset.renderState,'ready');
+ }
+ const c=boot();c.handlers.get('error')({target:c.win,message:'Uncaught TypeError',error:new TypeError('bad bootstrap')});assert.equal(c.root.dataset.renderState,'error');
 });

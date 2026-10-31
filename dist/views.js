@@ -36,6 +36,7 @@ function cleanupRouteOverlays(){
 function clearNavigationSnapshots(){navigationSnapshots.clear();}
 function canCacheRoute(raw){
  const [route]=raw.replace(/^#/,'').split('?'),[base,param]=route.split('/');
+ if(raw.startsWith('community/following?')&&new URLSearchParams(raw.split('?')[1]).has('people'))return false;
  if(['member','charts','discover','search','collections','artists','producers','artist','following','history'].includes(base))return true;
  if(base==='library')return !param||['likes','playlists','artists','producers','following','followers','history'].includes(param);
  return base==='community'&&(!param||['recommend','covers','latest','duets','following'].includes(param));
@@ -48,6 +49,7 @@ function saveNavigationSnapshot(raw,html,tracks,explorer,scroll=0){
  while(navigationSnapshots.size>24)navigationSnapshots.delete(navigationSnapshots.keys().next().value);
 }
 function bindRenderedRoute(base,param,explorer,ticket){
+ if(explorer?.followPage)bindFollowManagement(explorer.followPage);
  if(base==='artist'&&typeof bindArtistFanpage==='function')bindArtistFanpage();
  if(typeof bindShopShelves==='function')bindShopShelves();
  if(typeof bindPlay==='function')bindPlay(explorer);
@@ -105,15 +107,7 @@ async function renderRoute(){
  const controller=navigationController=typeof AbortController==='function'?new AbortController():null;
  const readApi=navigationRead(ticket,controller?.signal);
  if(typeof syncSearchNavigation==='function')syncSearchNavigation(raw);
- if(base!=='home'){
-  if(typeof refreshMusicLibraryRoute==='function'&&await refreshMusicLibraryRoute(raw,ticket,false,readApi))return;
-  if(ticket!==renderId)return;
-  if(typeof refreshMyPageRoute==='function'&&await refreshMyPageRoute(raw,ticket,readApi))return;
-  if(ticket!==renderId)return;
- }
- if(typeof refreshInventoryRoute==='function'&&refreshInventoryRoute(raw))return;
  if(typeof dubbingBeforeRoute==='function'&&!dubbingBeforeRoute(raw))return {retained:true};
- if(base!=='home'&&typeof dubbingRefreshList==='function'&&await dubbingRefreshList(raw,ticket,readApi))return;
  if(ticket!==renderId)return;
  if(sing){
   if(!singBusy(sing)&&!confirm('녹음 화면에서 나갈까요? 녹음한 내용은 이 기기의 초안에 보관됩니다.')){history.replaceState(null,'',singRouteHref(sing));return {retained:true};}
@@ -122,6 +116,17 @@ async function renderRoute(){
   if(singBusy(sing)){history.replaceState(null,'',singRouteHref(sing));toast('녹음을 정리한 뒤 이동해주세요.');return {retained:true};}
   if(sing.dirty){try{await saveSingDraft(sing);}catch(e){if(ticket!==renderId)return;history.replaceState(null,'',singRouteHref(sing));toast('임시저장하지 못했어요. 저장 공간을 확인한 뒤 다시 시도해주세요.');return {retained:true};}}
  }
+ if(ticket!==renderId)return;
+ const outgoing=$('#main');
+ if(outgoing.dataset.route!==raw||outgoing.dataset.account!==(me?.id||'guest'))cleanupRouteOverlays();
+ if(base!=='home'){
+  if(typeof refreshMusicLibraryRoute==='function'&&await refreshMusicLibraryRoute(raw,ticket,false,readApi))return;
+  if(ticket!==renderId)return;
+  if(typeof refreshMyPageRoute==='function'&&await refreshMyPageRoute(raw,ticket,readApi))return;
+  if(ticket!==renderId)return;
+ }
+ if(typeof refreshInventoryRoute==='function'&&refreshInventoryRoute(raw))return;
+ if(base!=='home'&&typeof dubbingRefreshList==='function'&&await dubbingRefreshList(raw,ticket,readApi))return;
  if(ticket!==renderId)return;
  clearInterval(socialTimer);socialTimer=null;socialCleanup?.();socialCleanup=null;
  cleanupLyricsEditor();cleanupSing();
@@ -132,7 +137,6 @@ async function renderRoute(){
  if(ticket!==renderId)return;
  updateBrowseNavigation(base,param);
  const main=$('#main'),account=me?.id||'guest';
- if(main.dataset.route!==raw||main.dataset.account!==account)cleanupRouteOverlays();
  cleanupRouteBindings(main);
  const previous=navigationSnapshots.get(navigationKey(main.dataset.route));if(previous&&main.dataset.account===account)previous.scroll=window.scrollY||0;
  let cached=navigationSnapshots.get(navigationKey(raw));
@@ -169,7 +173,7 @@ async function renderRoute(){
   for(const load of loaders){if(!readApi.current())return;explorer=await load();if(!readApi.current())return;if(explorer)break;}
   if(raw!==(location.hash.slice(1)||'home'))return render();
   if(explorer){html=explorer.html;nextTracks=remember(explorer.tracks||[]);}
-  else if(base==='member'){const d=await readApi('/api/members/'+encodeURIComponent(param));html=listenerProfileHTML(d.profile);}
+  else if(base==='member'){const d=await readApi('/api/members/'+encodeURIComponent(param));html=listenerProfileHTML(d.profile,d.counts);}
   else if(['discover','charts','artists','producers','search'].includes(base)){
    let query='';const genre=base==='discover'?decodeURIComponent(param||'전체'):'전체',searchValue=base==='search'?decodeURIComponent(param||''):'';
    if(base==='charts')query='?chart='+({rising:'rising',newcomers:'newcomers',releases:'releases'}[param]||'top');

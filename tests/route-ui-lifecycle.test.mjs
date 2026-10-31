@@ -56,3 +56,15 @@ test('an image decoded after leaving the editor releases its bitmap without open
  const opening=c.cropPhotoEditor({type:'image/png',size:10});c.renderId++;
  read.resolve({width:100,height:100,close(){closed++;}});await assert.rejects(opening,/취소/);assert.equal(closed,1);assert.equal(created,0);
 });
+
+test('entering the talk-room lobby with no active voice room releases focus without interrupting navigation',()=>{
+ const focus=[];const c=vm.createContext({me:{id:'member'},voiceController:null,setVoiceFocus:value=>focus.push(value)});
+ vm.runInContext(source('voice-rooms.js').match(/function cleanupVoiceRoute[^\r\n]*/)[0],c);
+ c.cleanupVoiceRoute('voice',undefined);assert.deepEqual(focus,[false]);
+});
+test('a late playlist limit check cannot open a membership dialog over the next page',async()=>{
+ const pending=deferred();let checked=0;
+ const c=vm.createContext({me:{id:'owner'},renderId:7,refreshLibrary:()=>pending.promise,canCreatePlaylist:()=>{checked++;return false;}});
+ vm.runInContext(source('actions.js').match(/async function playlistDialog[^\r\n]*/)[0],c);
+ const work=c.playlistDialog();c.renderId++;pending.resolve();await work;assert.equal(checked,0);
+});

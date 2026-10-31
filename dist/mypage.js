@@ -17,17 +17,17 @@ function isMyProfile(p){return !!me?.id&&me.id===p.user_id;}
 function myProfileStats(d,own){
  if(d.followers==null)return '';
  if(own){
-  const followers=d.human_followers??Math.max(0,(d.followers||0)-(d.ai_followers||0));
+  const followers=d.followers;
   return `<div class="mp-stats">
-   <a href="#community/following?people=followers">팔로워 <b>${number(followers)}</b></a>
-   <a href="#community/following?people=following">팔로잉 <b>${number(d.profile_following_count??d.following_count??0)}</b></a>
+   <a href="#follow?tab=followers">팔로워 <b>${number(followers)}</b></a>
+   <a href="#follow?tab=following">팔로잉 <b>${number(d.following_count??0)}</b></a>
    <span title="공개된 원곡·커버·듀엣·완성 더빙">작품 <b>${number(d.profile_work_count??0)}</b></span>
    <span title="내가 등록한 원곡 · 삭제 제외">제작곡 <b>${number(d.produced_track_count??(d.tracks||[]).length)}</b></span></div>`;
  }
  const publicSongs=d.public_track_count??[...(d.tracks||[]),...(d.covers||[])].filter(t=>!t.status||t.status==='published').length;
  return `<div class="mp-stats">
-  <span data-followers="producer/${esc(d.profile.id)}" data-count="${Number(d.followers)}">팔로워 <b data-follow-count>${number(d.followers)}</b>${d.ai_followers?` · AI ${number(d.ai_followers)} 포함`:''}</span>
-  <span>팔로잉 <b>${number(d.following_count||0)}</b></span><span>공개곡 <b>${number(publicSongs)}</b></span></div>`;
+  <a href="#follow?tab=followers&amp;user=${encodeURIComponent(d.profile.user_id)}" data-followers="producer/${esc(d.profile.id)}" data-count="${Number(d.followers)}">팔로워 <b data-follow-count>${number(d.followers)}</b>${d.ai_followers?` · AI ${number(d.ai_followers)} 포함`:''}</a>
+  <a href="#follow?tab=following&amp;user=${encodeURIComponent(d.profile.user_id)}">팔로잉 <b>${number(d.following_count||0)}</b></a><span>공개곡 <b>${number(publicSongs)}</b></span></div>`;
 }
 
 function myProfileHeader(d){
@@ -87,7 +87,7 @@ function myMoments(d){
 function myStudioBanner(){return `<section class="mp-card mp-studio"><h2>스튜디오</h2><p>나만의 음악과 더빙을<br>제작하고 관리해보세요.</p><a class="primary-button" href="#studio">스튜디오 바로가기 ${icon('arrow')}</a></section>`;}
 function myArtists(d){
  const artists=d.artists||[],own=isMyProfile(d.profile);
- const slots=artists.slice(0,3).map(a=>`<a class="artist-ui-card mp-artist-card" href="#artist/${esc(a.id)}"><div class="artist-avatar-wrapper">${portrait(a,'artist')}</div><strong title="${esc(a.name)}">${esc(a.name)}</strong>${artistAffiliation(a,d.profile.name)}</a>`);
+ const slots=artists.slice(0,3).map(a=>`<div class="mp-artist-entry"><a class="artist-ui-card mp-artist-card" href="#artist/${esc(a.id)}"><div class="artist-avatar-wrapper">${portrait(a,'artist')}</div><strong title="${esc(a.name)}">${esc(a.name)}</strong>${artistAffiliation(a,d.profile.name)}</a><a class="mp-all" href="#follow?tab=artists&amp;artist=${encodeURIComponent(a.id)}">팔로워 ${number(a.followers||0)}</a></div>`);
  while(own&&slots.length<3)slots.push(`<button type="button" class="artist-ui-card mp-artist-add" data-mp-artist-add aria-label="아티스트 추가">${icon('plus')}</button>`);
  return mySection('소속 아티스트',slots.length?`<div class="mp-artists">${slots.join('')}</div>`:myEmpty('등록된 아티스트가 없어요.'),myAll('#profile-artists/'+encodeURIComponent(d.profile.id)),artists.length,'mp-artists-card');
 }
@@ -179,7 +179,7 @@ async function myPageView(base,param,raw,readApi=api){
  if(base==='profile'&&!me){returnRoute=location.hash;return {html:gate()};}
  let d;
  if(base==='profile'){
-  const self=await readApi('/api/me/profile','GET',undefined,{fresh:true});
+  const self=me.profile_id?{profile:{id:me.profile_id}}:await readApi('/api/me/profile','GET',undefined,{fresh:true});
   d=self.profile.id?await readApi('/api/producers/'+encodeURIComponent(self.profile.id)+'?dashboard=1','GET',undefined,{fresh:true}):{profile:self.profile,followers:self.follower_count,following_count:self.following_count,tracks:[],covers:[],dubbings:[],artists:[],gallery:[]};
  }else d=await readApi('/api/producers/'+encodeURIComponent(param)+'?dashboard=1','GET',undefined,{fresh:true});
  if(isMyProfile(d.profile)&&[d.tracks,d.covers].some(items=>items?.length===500))d=await readApi('/api/producers/'+encodeURIComponent(d.profile.id)+'?dashboard=1&work_list=1','GET',undefined,{fresh:true});

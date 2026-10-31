@@ -596,6 +596,13 @@
       "when": 1793463236164,
       "tag": "0084_military_stark_industries",
       "breakpoints": true
+    },
+    {
+      "idx": 85,
+      "version": "6",
+      "when": 1793467702059,
+      "tag": "0085_follow_management",
+      "breakpoints": true
     }
   ]
 }
