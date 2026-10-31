@@ -30,6 +30,7 @@ await cp('dist/icon-style-lock.css','dist/client/icon-style-lock.css');
 await cp('dist/popup-close.css','dist/client/popup-close.css');
 await cp('dist/uiux-space.css','dist/client/uiux-space.css');
 await cp('dist/main-layout.css','dist/client/main-layout.css');
+await cp('dist/message-notification.css','dist/client/message-notification.css');
 await cp('dist/secondary-pages.css','dist/client/secondary-pages.css');
 await cp('dist/app-ads.txt','dist/client/app-ads.txt');
 await cp('dist/artist-gallery.js','dist/client/artist-gallery.js');

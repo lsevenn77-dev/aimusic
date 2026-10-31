@@ -1,0 +1,62 @@
+/* Final message/notification presentation. Shared values stay exact under region scaling. */
+:root{--activity-accent:#C7A8F4;--activity-ink:#142033;--activity-dot-size:6px;--activity-count-size:18px;--activity-count-font:10px;--activity-time-font:11px;--activity-status-gap:7px;--activity-time-color:#8898AD}
+:is(.activity-badge,.nav-message-badge,.activity-dot){display:inline-block;flex:none;width:var(--activity-dot-size);min-width:var(--activity-dot-size);height:var(--activity-dot-size);padding:0;border:0;border-radius:50%;background:var(--activity-accent);background-image:none;box-shadow:none;transform:none;font-size:0;line-height:0}
+:is(.activity-badge,.nav-message-badge)[hidden]{display:none}
+#sidebar :is(a[href="#dm"],a[href="#notifications"]){position:relative;padding-right:calc(14px + 0px)}
+#sidebar :is(.activity-badge,.nav-message-badge){position:static;inset:auto;margin:0 0 0 auto;align-self:center}
+.topbar :is(.header-messages,.header-activity){position:relative;display:inline-flex;align-items:center;justify-content:center;flex:none;width:44px;min-height:44px;padding:0}
+.topbar :is(.activity-badge,.nav-message-badge){position:absolute;top:6px;right:5px;left:auto;margin:0}
+.social-mobile-navigation :is(.activity-badge,.nav-message-badge){position:absolute;top:5px;left:calc(50% + 12px);right:auto;margin:0}
+/* This file is loaded after legacy page styles; no forced pink card/badge rules remain. */
+.message-workspace{grid-template-columns:minmax(0,min(clamp(420px,32vw,520px),48%)) minmax(0,1fr)}
+#dm-conversations{min-width:0;max-width:none}
+#dm-conversations .conversation-list{gap:0;max-width:none}
+#dm-conversations .conversation-row{display:flex;align-items:center;gap:calc(12px + 0px);margin:0;border:0;border-bottom:1px solid #ffffff0b;border-radius:0;background:transparent;box-shadow:none;min-width:0}
+#dm-conversations .conversation-row:hover{background:#ffffff04}
+#dm-conversations .conversation-row.is-selected{background:rgb(199 168 244 / 10%);border-left:0;box-shadow:none}
+#dm-conversations .conversation-row::before,#dm-conversations .conversation-row::after{content:none}
+#dm-conversations :is(.artist-portrait,.crew-inbox-art){width:44px;height:44px;flex:0 0 44px;margin:0}
+#dm-conversations .conversation-open{display:flex;align-items:center;gap:calc(12px + 0px);padding:0;min-height:52px;min-width:0}
+#dm-conversations .conversation-copy{min-width:0;max-width:none;flex:1}
+#dm-conversations .conversation-copy :is(strong,p,small){display:block;min-width:0;max-width:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;overflow-wrap:normal}
+#dm-conversations .conversation-meta{display:grid;grid-template-rows:18px auto;justify-items:end;align-content:center;gap:calc(5px + 0px);flex:none;min-width:42px}
+.conversation-status{display:flex;align-items:center;justify-content:flex-end;gap:var(--activity-status-gap);min-height:var(--activity-count-size)}
+.conversation-meta time{color:var(--activity-time-color);font-size:var(--activity-time-font);font-variant-numeric:tabular-nums;line-height:1.4;white-space:nowrap}
+.unread-badge{display:inline-flex;align-items:center;justify-content:center;flex:none;min-width:var(--activity-count-size);height:var(--activity-count-size);padding:0 calc(4px + 0px);border:0;border-radius:999px;background:var(--activity-accent);background-image:none;color:var(--activity-ink);font-size:var(--activity-count-font);font-weight:700;line-height:1;box-shadow:none}
+.conversation-muted{display:inline-flex;color:var(--activity-accent);background:none;border:0;line-height:1}
+.conversation-muted svg{width:16px;height:16px}
+.message-thread-pane .dm-thread-header{display:flex;flex-wrap:nowrap;align-items:center;gap:calc(8px + 0px)}
+.message-thread-pane .dm-thread-person{flex:1;min-width:0;gap:calc(10px + 0px)}
+.message-thread-pane .dm-thread-person>div:not(.artist-portrait){min-width:0}
+.message-thread-pane .dm-thread-person h1{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;overflow-wrap:normal}
+.message-thread-pane .dm-back{font-size:0;background:none;border:0;padding:calc(6px + 0px);min-width:32px}
+.message-thread-pane .dm-thread-actions{display:flex;flex:none;flex-wrap:nowrap;gap:0;width:auto;margin:0;padding:0;border:0}
+.message-thread-pane .dm-thread-actions>.icon-button{min-width:36px;min-height:44px}
+.message-thread-pane .dm-block-button{min-height:44px;padding:0 calc(6px + 0px);border:0;border-radius:0;background:none;box-shadow:none;white-space:nowrap}
+.message-workspace .dm-chat-panel{background:var(--music-bg)!important;box-shadow:none}
+.message-workspace .dm-bubble{background:#242d3c;border:0;box-shadow:none}
+.message-workspace .dm-message.mine .dm-bubble{background:#363349}
+.message-workspace .chat-day{display:flex;align-items:center;gap:calc(12px + 0px);color:var(--ds-muted)}
+.message-workspace .chat-day::before,.message-workspace .chat-day::after{content:"";flex:1;height:1px;background:#ffffff0b}
+#main[data-route^="dm"]::before{content:none}
+/* Time and unread dot form one intrinsic group to the right of the actual row. */
+.activity-page .activity-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:start;gap:calc(12px + 0px);padding:calc(18px + 0px) 0;margin:0;border:0;border-bottom:1px solid #ffffff0b;border-radius:0;background:none;box-shadow:none}
+.activity-page .activity-row.is-unread{background:rgb(199 168 244 / 3%);border-color:#ffffff0b}
+.activity-page .activity-row:hover{background:#ffffff04}
+.activity-page .activity-time{display:inline-flex;align-items:center;justify-content:flex-end;gap:var(--activity-status-gap);white-space:nowrap;color:var(--activity-time-color);font-size:var(--activity-time-font);font-variant-numeric:tabular-nums;line-height:20px}
+.activity-page .activity-meta{line-height:20px}
+.activity-page .activity-copy{min-width:0}
+.activity-page .activity-copy>p{margin-top:calc(5px + 0px)}
+@media(max-width:1100px) and (min-width:801px){.message-workspace{grid-template-columns:minmax(0,44%) minmax(0,1fr)}}
+@media(max-width:800px){
+ .message-workspace{grid-template-columns:minmax(0,1fr)}
+ .topbar :is(.header-messages,.header-activity){display:none}
+ .message-thread-pane .dm-thread-header{padding-inline:8px!important}
+ .message-thread-pane .dm-thread-person{gap:calc(6px + 0px)}
+ .message-thread-pane .dm-thread-person>.artist-portrait{width:36px;height:36px;flex-basis:36px}
+ .message-thread-pane .dm-thread-actions>.icon-button{min-width:36px}
+}
+@media(max-width:600px){
+ .activity-page .activity-row{gap:calc(9px + 0px)}
+ .activity-page .activity-avatar{width:36px;height:36px}
+}

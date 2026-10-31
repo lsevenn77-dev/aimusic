@@ -76,8 +76,8 @@ button svg.menu-icon,.player #player-more svg.menu-icon {stroke-width:1.8}
   background:var(--ds-gradient);color:var(--ds-ink);border-color:transparent;
 }
 .genre-row a:hover {border-color:var(--ds-lavender)}
-.activity-badge,.dm-unread-badge {background:var(--ds-gradient);color:var(--ds-ink)}
-.activity-dot {background:var(--ds-lilac)}
+
+
 .activity-heading-icon,.activity-avatar>span {color:var(--ds-body);background:#b7b6ff15}
 
 /* Surfaces use a restrained tint so album artwork and gift art remain prominent. */

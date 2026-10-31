@@ -26,7 +26,8 @@ test('whole-room deletion belongs only in the DM header, not inbox rows or messa
   assert.match(header,/data-dm-clear="a"/);
   assert.match(header,/aria-label="이 대화방 내용 전체 삭제"/);
   assert.doesNotMatch(c.chatHTML([{id:'one',sender_id:'other',created:1,body:'Hi'}],{id:'a',name:'One'}),/data-dm-clear/);
-  assert.match(html,/<\/a><button[^>]*data-dm-mute/);
+  assert.doesNotMatch(html,/data-dm-mute/);
+  assert.match(header,/data-dm-mute="a"/);
 });
 
 function clearContext({confirmed=true,request=async()=>({})}={}){
