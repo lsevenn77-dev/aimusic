@@ -77,6 +77,16 @@ test('a hidden router mount is measured again after it becomes visible',()=>{
  visible=true;f.input.scrollHeight=75;f.resize();assert.equal(f.panel.style.height,'688px');assert.equal(f.input.style.height,'77px');
 });
 
+test('a short mobile workspace compacts the header and tools even without a keyboard',()=>{
+ const f=fixture(()=>new Promise(()=>{})),attrs=new Map(),workspace={style:{setProperty(){}},getClientRects:()=>[{}],toggleAttribute:(key,on)=>attrs.set(key,on)};
+ f.panel.closest=()=>workspace;f.context.innerHeight=420;
+ f.nodes['.topbar']={getBoundingClientRect:()=>({bottom:78})};
+ f.nodes['.mobile-navigation']={getBoundingClientRect:()=>({height:66,top:f.context.innerHeight-66})};
+ f.context.bindSocialChat({chat:{path:'/crew',crew:{id:'crew'}}});
+ assert.equal(workspace.style.height,'252px');assert.equal(attrs.get('data-chat-compact'),true);
+ f.context.innerHeight=844;f.resize();assert.equal(workspace.style.height,'676px');assert.equal(attrs.get('data-chat-compact'),false);
+});
+
 test('room drafts survive navigation and remain isolated by account and room',()=>{
  const f=fixture(()=>new Promise(()=>{})),view=path=>({chat:{path,crew:{id:path}}});
  f.context.bindSocialChat(view('/one'));f.input.value='한글 🎵 초안';f.inputEvents.input();vm.runInContext('socialCleanup()',f.context);

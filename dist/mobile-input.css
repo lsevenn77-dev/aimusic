@@ -67,15 +67,15 @@
   :root[data-mobile-keyboard] .voice-room .voice-chat-panel {flex:1 0 100px}
   /* On a short visual viewport, keep the conversation header and send control
      reachable. Attachment tools return as soon as the keyboard closes. */
-  :root[data-mobile-keyboard-compact] .message-thread-pane .dm-thread-header {
+  :is(:root[data-mobile-keyboard-compact],body:has(.message-workspace[data-chat-compact])) .message-thread-pane .dm-thread-header {
     display:flex;flex-wrap:nowrap;min-height:44px;padding:4px 8px!important;gap:6px;
   }
-  :root[data-mobile-keyboard-compact] .dm-thread-person {flex:1;min-width:0}
-  :root[data-mobile-keyboard-compact] .dm-thread-person h1 {overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  :root[data-mobile-keyboard-compact] .dm-thread-actions {flex-shrink:0;width:auto;margin-left:auto;padding-top:0;border-top:0}
-  :root[data-mobile-keyboard-compact] .chat-panel {padding:6px!important}
-  :root[data-mobile-keyboard-compact] .chat-attachment-tools,
-  :root[data-mobile-keyboard-compact] #chat-connection {display:none}
-  :root[data-mobile-keyboard-compact] #chat-compose {margin-top:0;padding-top:4px}
-  :root[data-mobile-keyboard-compact] #chat-log {padding-block:0}
+  :is(:root[data-mobile-keyboard-compact],body:has(.message-workspace[data-chat-compact])) .dm-thread-person {flex:1;min-width:0}
+  :is(:root[data-mobile-keyboard-compact],body:has(.message-workspace[data-chat-compact])) .dm-thread-person h1 {overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  :is(:root[data-mobile-keyboard-compact],body:has(.message-workspace[data-chat-compact])) .dm-thread-actions {flex-shrink:0;width:auto;margin-left:auto;padding-top:0;border-top:0}
+  :is(:root[data-mobile-keyboard-compact],body:has(.message-workspace[data-chat-compact])) .chat-panel {padding:6px!important}
+  :is(:root[data-mobile-keyboard-compact],body:has(.message-workspace[data-chat-compact])) .chat-attachment-tools,
+  :is(:root[data-mobile-keyboard-compact],body:has(.message-workspace[data-chat-compact])) #chat-connection {display:none}
+  :is(:root[data-mobile-keyboard-compact],body:has(.message-workspace[data-chat-compact])) #chat-compose {margin-top:0;padding-top:4px}
+  :is(:root[data-mobile-keyboard-compact],body:has(.message-workspace[data-chat-compact])) #chat-log {padding-block:0}
 }

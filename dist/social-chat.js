@@ -204,7 +204,9 @@ function bindSocialChat(view){
   const nav=document.querySelector('.mobile-navigation')?.getBoundingClientRect();
   const player=document.querySelector('.player:not([hidden])')?.getBoundingClientRect();
   const boundary=keyboard?bottom:Math.min(bottom,nav?.height?nav.top:bottom,player?.height?player.top:bottom);
-  target.style.height=dmWorkspaceHeight(boundary,top,keyboard?0:12,keyboard?undefined:dmPayoutLine(),true)+'px';
+  const available=dmWorkspaceHeight(boundary,top,keyboard?0:12,keyboard?undefined:dmPayoutLine(),true);
+  workspace?.toggleAttribute('data-chat-compact',available<340);
+  target.style.height=available+'px';
   if(workspace)panel.style.height='';anchor();
  };
  const resize=new ResizeObserver(anchor);resize.observe(log);
