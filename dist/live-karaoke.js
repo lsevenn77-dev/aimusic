@@ -17,7 +17,7 @@ function liveKaraokeLobbyHTML(data,enabled=true){
 }
 function liveKaraokeRoomHTML(id){
  const stage=`<div id="live-karaoke-stage"><section class="live-stage-main">
-  <div class="live-stage-top"><span>ON STAGE</span><span id="live-phase" role="status">가창자 기다리는 중</span></div>
+  <div class="live-stage-top"><div class="live-room-caption"><span>LIVE KARAOKE</span><strong id="live-room-name"></strong></div><span id="live-phase" role="status">가창자 기다리는 중</span></div>
   <div id="live-current" class="live-current"><span>${icon('mic')}</span><strong>다음 가창자를 기다리는 중</strong></div>
   <p id="live-song" class="live-song"></p>
   <div id="live-lyrics" class="live-lyrics" aria-live="off"><p>노래가 시작되면 가사가 여기에 나와요.</p></div>
@@ -138,6 +138,7 @@ function paintLiveKaraoke(c){
  const s=c.state,k=s?.karaoke;if(!s||!c.host?.isConnected)return;
  if(s.room.mode!=='karaoke'){location.hash='#voice/'+c.id;return;}
  const self=s.members.find(p=>p.id===s.self),host=self?.role==='host',active=k?.active,singer=s.members.find(p=>p.id===active?.user_id);
+ c.host.querySelector('#live-room-name').textContent=s.room.title||'라이브 노래방';
  c.host.querySelector('#voice-count').textContent='전체 '+s.members.length+'명 · 1인 가창';
  c.host.querySelector('#live-current').innerHTML=singer?`${avatarImage({name:singer.name,profile_id:singer.profile_id,image_version:singer.image_version})}<strong>${esc(singer.name)}</strong><small>${k.phase==='invited'?'응답 기다리는 중':k.phase==='ready'?'마이크 준비 중':'노래하는 중'}</small>`:`<span>${icon('mic')}</span><strong>${k?.queue?.length?'다음 가창자를 기다리는 중':'노래 신청을 기다리는 중'}</strong>`;
  c.host.querySelector('#live-song').textContent=active?active.track.title+' · '+active.track.artist:'신청 순서대로 노래를 불러봐요.';

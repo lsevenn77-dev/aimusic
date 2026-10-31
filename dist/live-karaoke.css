@@ -13,12 +13,15 @@
 .live-stage-main{position:relative;min-height:340px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:24px;border-radius:var(--ds-radius-card);background:color-mix(in srgb,var(--ds-bg) 42%,transparent);border:1px solid var(--ds-line);text-align:center}
 .live-stage-top{width:100%;display:flex;justify-content:space-between;align-items:center;gap:10px;color:var(--ds-body);font-size:12px;margin-bottom:auto}
 .live-stage-top span:first-child{font-size:11px;letter-spacing:.12em;font-weight:700;color:var(--ds-accent-mint)}
+.live-room-caption{text-align:left;display:grid;gap:8px;min-width:0}
+.live-room-caption strong{font-size:clamp(22px,2.2vw,34px);line-height:1.25;color:var(--ds-text);overflow-wrap:anywhere}
 .live-current{display:flex;align-items:center;justify-content:center;gap:12px;min-height:58px;flex-wrap:wrap;max-width:100%}
 .live-current .avatar-fallback,.live-current img,.live-current>span{width:54px;height:54px;border-radius:50%;flex-shrink:0;object-fit:cover}
 .live-current>span{display:grid;place-items:center;background:var(--ds-soft);color:var(--ds-accent-mint)}
 .live-current strong{font-size:19px;font-weight:700;letter-spacing:-.025em;color:var(--ds-text);overflow-wrap:anywhere}
 .live-current small{font-size:12px;color:var(--ds-body)}
-.live-karaoke-room[data-live-phase=idle] .live-current{flex-direction:column;gap:16px}
+.live-karaoke-room[data-live-phase=idle] .live-current{flex-direction:column;flex-wrap:nowrap;flex-shrink:0;gap:16px}
+.live-stage-main>*{flex-shrink:0}
 .live-karaoke-room[data-live-phase=idle] .live-current>span{width:80px;height:80px;border:1px solid var(--ds-accent-lavender);background:color-mix(in srgb,var(--ds-panel) 65%,transparent)}
 .live-karaoke-room[data-live-phase=idle] .live-current>span svg{width:36px;height:36px}
 .live-karaoke-room[data-live-phase=idle] .live-current strong{font-size:clamp(22px,2.4vw,34px)}
@@ -52,6 +55,7 @@
 .live-queue{display:flex;flex:1;gap:8px;min-width:0;padding:2px;margin:0;list-style:none;overflow-x:auto;scrollbar-width:thin;scrollbar-color:var(--ds-line) transparent}
 .live-queue li{flex:0 0 240px;padding:12px 8px;display:flex;gap:8px;align-items:center;border:1px solid var(--ds-line);border-radius:var(--ds-radius-input);background:var(--ds-soft)}
 .live-queue li.is-next{border-color:var(--ds-accent-lavender)}
+.live-queue li.is-next>div:before{content:'다음 순서';color:var(--ds-accent-lavender);font-size:10px;line-height:1.2}
 .live-queue li>span:first-child{width:18px;text-align:center;font-size:20px;font-weight:700;color:var(--ds-accent-lavender)}
 .live-queue-avatar{width:36px;height:36px;flex:none}.live-queue-avatar img,.live-queue-avatar .avatar-fallback{width:36px;height:36px;object-fit:cover;border-radius:50%}
 .live-queue li>button{width:32px;min-height:44px;padding:3px;border:0;background:transparent;flex:none}
@@ -81,6 +85,43 @@
 .live-audio-settings label{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
 .live-audio-settings input{accent-color:var(--ds-progress);max-width:125px;min-height:30px}
 .live-audio-settings output{font-size:12px;color:var(--ds-body)}
+/* Keep the selected room artwork visible; only the reading surfaces are tinted. */
+.live-karaoke-room .live-stage-main{background:linear-gradient(180deg,#0c121b38,#0c121b70);border-color:color-mix(in srgb,var(--ds-accent-lavender) 55%,transparent);border-radius:22px}
+.live-karaoke-room .live-next-card{background:#131b26c4;border-color:color-mix(in srgb,var(--ds-accent-lavender) 45%,transparent);padding:16px 20px}
+.live-karaoke-room .live-next-card>img{width:64px;height:64px;min-width:64px;border:1px solid var(--ds-accent-lavender)}
+.live-karaoke-room .live-queue li{flex-basis:228px;padding:12px 10px;gap:10px;background:#131b26c4;position:relative}
+.live-karaoke-room .live-queue-avatar,.live-karaoke-room .live-queue-avatar img{display:block;width:52px;height:52px;min-width:52px;max-width:52px;border-radius:50%;object-fit:cover}
+.live-karaoke-room .live-queue li>button{position:absolute;right:0;top:0;width:44px;min-height:44px;font-size:14px}
+.live-karaoke-room .live-queue li>div{padding-right:20px}
+.live-karaoke-room .live-request-area{background:#131b26c9;border-radius:20px}
+.live-karaoke-room .live-actions .primary-button{min-width:220px;min-height:52px;font-size:16px}
+.live-karaoke-room .live-actions .small-button{min-width:140px;min-height:52px;font-size:14px}
+.live-karaoke-room .voice-panel-tabs{padding:4px;border:1px solid var(--ds-line);border-radius:16px;background:#131b2680}
+.live-karaoke-room .voice-panel-tabs button{border:0;background:transparent;border-radius:12px;min-height:52px}
+.live-karaoke-room .voice-panel-tabs button:first-child{background:linear-gradient(110deg,#b7b6ff3b,#8eddd226);box-shadow:inset 0 -2px 0 var(--ds-accent-mint)}
+@media(min-width:801px){
+ #main[data-room-focus] .live-karaoke-room{grid-template-rows:72px minmax(0,1fr);padding:14px 20px 18px}
+ #main[data-room-focus] .live-karaoke-room .voice-heading{padding-right:38%;display:flex;align-items:flex-start;gap:16px}
+ .live-karaoke-room .voice-heading h1{font-size:18px;line-height:30px;margin:0;max-width:46%}
+ .live-karaoke-room .voice-heading>p{position:absolute;left:0;bottom:10px;font-size:11px}
+ #main[data-room-focus] .live-karaoke-room .voice-columns{grid-template-columns:minmax(0,1fr) minmax(300px,27%);gap:16px}
+ .live-karaoke-room #live-karaoke-stage{min-height:0;flex:1 1 0;grid-template-rows:minmax(0,1fr) 126px}
+ .live-karaoke-room .live-stage-main{min-height:0;overflow-y:auto;gap:12px;padding:20px 28px}
+ .live-karaoke-room .live-request-area{min-height:0;padding:10px}
+ .live-karaoke-room .live-queue{height:100%;min-height:0}
+ .live-karaoke-room .voice-stage{overflow:hidden}
+ .live-karaoke-room[data-live-phase=idle] .live-current>span{width:80px;height:80px}
+ .live-karaoke-room .live-request-button{flex-basis:160px;background:transparent;border:0}
+}
+@media(min-width:801px) and (max-height:820px){
+ .live-karaoke-room .live-stage-main{gap:8px;padding:16px 24px;justify-content:flex-start}
+ .live-karaoke-room .live-stage-top{margin-bottom:0}.live-karaoke-room .live-stage-note{margin-top:0}
+ .live-karaoke-room[data-live-phase=idle] .live-current{gap:8px}
+ .live-karaoke-room[data-live-phase=idle] .live-current>span{width:64px;height:64px}
+ .live-karaoke-room[data-live-phase=idle] .live-current strong{font-size:26px}
+ .live-karaoke-room .live-next-card{padding:10px 16px}
+ .live-karaoke-room .live-next-card>img{width:48px;height:48px;min-width:48px}
+}
 @media(max-width:800px){
  #main[data-room-focus] .live-karaoke-room,.live-karaoke-room{overflow-y:auto;height:var(--voice-viewport,100dvh)}
  .live-karaoke-room #voice-content{flex:none;height:auto;min-height:0}
@@ -89,6 +130,10 @@
  .live-karaoke-room .voice-chat-panel{min-height:340px;height:48dvh;max-height:none}
  #live-karaoke-stage{grid-template-rows:auto auto}
  .live-stage-main{min-height:300px;padding:16px 12px}
+ .live-room-caption strong{font-size:19px}.live-room-caption{gap:4px}
+ .live-karaoke-room .live-actions{width:100%}.live-karaoke-room .live-actions button{flex:1;min-width:0!important}
+ .live-karaoke-room .live-queue li>button{width:44px;min-height:44px;right:0;top:0}
+ .live-karaoke-room .live-queue li>div{padding-right:20px}
  .live-current strong{font-size:17px}.live-lyrics p.is-current{font-size:20px}
  .live-request-area{padding:8px;gap:8px;flex-direction:column}.live-request-button{flex:none;justify-content:flex-start;min-height:48px;padding:8px 12px}.live-request-button>span{display:flex;align-items:center;justify-content:space-between;flex:1}.live-queue{min-height:76px;flex:auto}
  .live-lobby .v3-toolbar h2{font-size:24px}
