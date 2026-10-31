@@ -7,11 +7,11 @@ This candidate preserves the existing Sites identity, storage bindings, room the
 - Song search returns up to 40 eligible public songs with lean title/artist metadata. It retains rights, MR/lyrics, visibility and blocked-creator checks, without querying listening/comment/gift aggregates or decorating room inventory for the search permission check.
 - The stage uses the selected room background. Chat/participants remain on the right on desktop; the song-request entry and horizontally scrolling queue sit below the stage. Mobile stacks these regions. The supplied starry background was a layout example, not an asset request.
 - The host calls the named next singer. Only that singer may accept the matching invitation within 10 seconds. The persisted absolute deadline and Durable Object alarm advance past absent/locked users and cannot advance the same invitation twice.
-- Accepting stops the response timer before microphone/MR preparation. Singing still begins after the existing 3-second countdown. Listeners do not request microphone access.
+- Accepting starts a separate 10-second microphone/MR preparation window. Failure to start in time retires pending microphone media and advances to the next reservation. The deadline survives reloads and retries; older ready rooms get one new 10-second window on upgrade. Singing still begins after the existing 3-second countdown. Listeners do not request microphone access.
 
 ## Matched rollout and rollback
 
-1. Obtain explicit approval for the saved Sites version and existing `aifect-voice-rooms` Worker change. There is no DB change.
+1. Under the user’s 2026-11-01 standing authorization, publish after all required validation succeeds. There is no DB change.
 2. Publish the saved Sites version first. The client tolerates the previous Worker's ready phase. Verify the published client assets.
 3. Refresh existing karaoke tabs before the Worker switch: previously loaded clients do not have the invitation acceptance button. Avoid switching during an active karaoke performance. Capture the current deployed Worker version for rollback.
 4. Deploy **realtime/worker-live-karaoke.js** using **realtime/wrangler.jsonc** explicitly. Its main defaults to the older worker.js, so do not invoke an unqualified deploy. Preserve the current account, ROOMS Durable Object namespace, ROOM_DB and secrets; do not apply migrations.
@@ -29,3 +29,9 @@ Gold and Premium review-account buttons navigate to the existing isolated Toss T
 `npm run release:prepare` executes the complete regression suite and production build. `npm run release:check` validates unchanged source/build hashes before packaging. Focused tests cover visibility and search bounds, invitation nonce/deadline/retry/restart/leave, unchanged talking-room operations, route cleanup and client controls.
 
 `node tests/preview-live-karaoke.mjs` runs the actual UI/router with a disposable local database. `/qa-layout?width=1440` and widths 390, 320, 768 provide responsive checks. `before=1` displays the previous client from commit 22e487ce3095d09b9df8b51b5a5942571b3db5d3. All displayed accounts/content are local fixtures. Local media intentionally has no R2/MR data and the Node fixture uses heartbeat fallback rather than an upgraded WebSocket.
+
+## 2026-11-01 chat and preparation refinement
+
+- “노래 포기” cancels the current turn and invites the next eligible reservation. Invitation IDs protect the next singer from stale repeated commands.
+- The inline emoji picker sits above the chat composer in talking rooms and karaoke. Selection and sending keep it open; the close button, toggle or Escape hides it. Multiple selections preserve cursor position and the 500-character limit.
+- Local clock-driven tests cover deadline boundaries, restart, microphone cleanup and stale commands. Physical microphone/network timing still requires a real-device check.

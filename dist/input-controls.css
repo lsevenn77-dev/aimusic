@@ -45,3 +45,10 @@
  :is(input,textarea,select,[role=textbox],[role=combobox],[contenteditable=true]):focus{border-color:Highlight!important}
  :is(#global-search,.brand-search,.aifect-search,.search-large,.search-box,.ml-search-box,.play-search,.crew-discovery-search,.crew-music-search,.sing-collection-search,.hub-search,.cover-rank-search,.admin-search,[role=textbox],[role=combobox],[data-input-shell]):has(:focus){border-color:Highlight!important}
 }
+/* Borderless editors and standalone inputs need a visible focus edge even
+   when their component resets border-style. An inset edge preserves sizing. */
+:is(input:not([type]),input:is([type=text],[type=search],[type=email],[type=password],[type=url],[type=number],[type=tel],[type=date]),textarea,select,[contenteditable=true]):focus-visible{
+ border-style:solid;border-width:1px;box-sizing:border-box
+}
+.aifect-dropdown:has(>.aifect-dropdown-trigger){border:0;outline:0;box-shadow:none}
+.aifect-dropdown>.aifect-dropdown-trigger:focus-visible{border:1px solid var(--ds-mint,#8EDDD2)!important;outline:0;box-shadow:none}

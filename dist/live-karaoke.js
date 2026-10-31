@@ -108,13 +108,13 @@ async function liveKaraokeAction(c,action,target){
  }
  if(action==='karaoke-retry'){c.liveTrack=null;const active=c.state?.karaoke?.active;if(active)livePrepareTrack(c,active);return;}
  const operation=action.slice('karaoke-'.length);
- if(!['request','cancel','call','accept','start','finish','next'].includes(operation))return;
+ if(!['request','cancel','call','accept','start','abandon','finish','next'].includes(operation))return;
  const command={operation,request_id:crypto.randomUUID()};
  if(c.liveCommandPending)return;
  if(operation==='start'&&!liveTrackReady(c))throw Error('반주를 불러온 뒤 시작해주세요.');
  if(operation==='request')command.track_id=target;
  if(operation==='cancel'&&target)command.target_id=target;
- if(operation==='accept'||operation==='start')command.invitation_id=target||c.state?.karaoke?.active?.invitation_id;
+ if(['accept','start','abandon','finish','next'].includes(operation))command.invitation_id=target||c.state?.karaoke?.active?.invitation_id;
  c.liveCommandPending=true;paintLiveKaraoke(c);
  try{
   if(operation==='start'){
@@ -128,11 +128,12 @@ async function liveKaraokeAction(c,action,target){
   const result=await c.command('karaoke',command);
   if(!c.acceptState?.(result))await c.refresh();
   if(operation==='request'){c.host.querySelector('#live-search-sheet')?.close();toast('노래를 신청했어요.');}
-  if(operation==='accept'&&!c.closed&&c.state?.karaoke?.active?.invitation_id===command.invitation_id&&c.state.karaoke.phase==='ready'){
-   c.micDesired=true;await c.enableMic();
-  }
  }
  finally{c.liveCommandPending=false;paintLiveKaraoke(c);}
+ // Permission prompts can remain unanswered. Keep the give-up control usable.
+ if(operation==='accept'&&!c.closed&&c.state?.karaoke?.active?.invitation_id===command.invitation_id&&c.state.karaoke.phase==='ready'){
+  c.micDesired=true;await c.enableMic();
+ }
 }
 function paintLiveKaraoke(c){
  const s=c.state,k=s?.karaoke;if(!s||!c.host?.isConnected)return;
@@ -155,7 +156,7 @@ function paintLiveKaraoke(c){
  if(active&&host&&!isSinger&&k.phase==='ready')buttons.push('<span class="quiet">가창자가 준비를 마치면 시작해요.</span>');
  if(active&&c.liveError)buttons.push('<button class="small-button" data-voice="karaoke-retry">반주 다시 불러오기</button>');
  if(isSinger&&k.phase==='singing')buttons.push(`<button class="small-button" data-voice="${self.muted?'enable-mic':'mute'}">${self.muted?'마이크 켜기':'마이크 끄기'}</button>`);
- if(active&&(host||isSinger))buttons.push('<button class="small-button" data-voice="karaoke-finish">노래 종료</button>');
+ if(active&&(host||isSinger))buttons.push(`<button class="small-button" data-voice="karaoke-abandon" data-target="${esc(active.invitation_id)}">노래 포기</button>`);
  if(active&&host&&next)buttons.push(`<button class="small-button" data-voice="karaoke-next">${esc(nextName)}님 부르기</button>`);
  if(hasQueued)buttons.push('<button class="small-button" data-voice="karaoke-cancel">내 신청 취소</button>');
  c.host.querySelector('#live-actions').innerHTML=buttons.join('');
@@ -180,7 +181,7 @@ function liveSync(c){
  const k=c.state?.karaoke,active=k?.active;if(c.closed||!c.host?.isConnected)return;
  const phase=c.host.querySelector('#live-phase'),timer=c.host.querySelector('#live-timer'),progress=c.host.querySelector('#live-progress');
  const invite=c.host.querySelector('#live-invite');
- if(invite)invite.hidden=!active||k.phase!=='invited';
+ if(invite)invite.hidden=!active||!['invited','ready'].includes(k.phase);
  if(!active){phase.textContent='가창자 대기 중';timer.textContent='0:00 / 0:00';progress.value=0;const lyrics=c.host.querySelector('#live-lyrics');if(lyrics)lyrics.textContent='노래를 신청하면 이곳에서 가사를 함께 볼 수 있어요.';return;}
  const now=liveNow(c),isSinger=c.state?.self===active.user_id,duration=active.track.duration;
  const waiting=k.phase!=='singing'||now<k.startsAt;
@@ -190,7 +191,14 @@ function liveSync(c){
   phase.textContent=remaining?'응답 대기 · '+remaining+'초':'다음 예약자로 이동 중';
   if(invite)invite.textContent=isSinger?'10초 안에 부르기를 눌러주세요. 누르면 마이크를 연결해요.':'응답이 없으면 다음 예약자로 자동 이동해요.';
   const accept=c.host.querySelector('[data-voice="karaoke-accept"]');if(accept)accept.disabled=!remaining||!!c.liveCommandPending;
- }else phase.textContent=k.phase==='ready'?'마이크 준비 중':now<k.startsAt?Math.max(1,Math.ceil((k.startsAt-now)/1000))+'초 뒤 시작':'노래하는 중 · LIVE';
+ }else if(k.phase==='ready'){
+  const remaining=Number.isFinite(k.readyExpiresAt)?Math.max(0,Math.ceil((k.readyExpiresAt-now)/1000)):null;
+  phase.textContent=remaining===0?'다음 예약자로 이동 중':'마이크 준비'+(remaining===null?' 중':' · '+remaining+'초');
+  if(invite)invite.textContent=isSinger?'10초 안에 마이크를 켜고 카운트다운을 시작해주세요.':'준비 시간이 지나면 다음 예약자로 자동 이동해요.';
+  const mic=c.host.querySelector('#live-actions [data-voice="enable-mic"]'),start=c.host.querySelector('[data-voice="karaoke-start"]');
+  if(mic)mic.disabled=remaining===0;
+  if(start)start.disabled=remaining===0||!!c.liveCommandPending||!liveTrackReady(c)||!c.state.members?.some(p=>p.id===active.user_id&&p.publishing&&!p.muted);
+ }else phase.textContent=now<k.startsAt?Math.max(1,Math.ceil((k.startsAt-now)/1000))+'초 뒤 시작':'노래하는 중 · LIVE';
  timer.textContent=time(seconds)+' / '+time(duration);progress.max=duration;progress.value=seconds;
  const audio=c.liveAudio;
  if(audio&&!c.livePriming){

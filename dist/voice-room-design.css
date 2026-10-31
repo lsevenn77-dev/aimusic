@@ -95,6 +95,19 @@
 .voice-chat .voice-chat-system p{padding:7px 13px;border:1px solid #28415e;border-radius:20px;margin:0;background:transparent;color:var(--ds-body);font-size:11px;line-height:1.5;max-width:80%}
 .voice-chat .voice-chat-system time{font-size:9px}
 .voice-chat-panel #voice-chat-form{display:flex;align-items:center;position:relative;flex:0 0 auto;gap:10px;margin:0}
+.voice-chat-panel .voice-emoji-picker{flex:0 0 auto;min-width:0;margin:0 0 10px;padding:8px 10px;border:1px solid #315075;border-radius:14px;background:#101b2d;color:var(--ds-text)}
+.voice-chat-panel .voice-emoji-picker[hidden]{display:none}
+.voice-emoji-picker header,.voice-emoji-picker footer{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.voice-emoji-picker header strong{font-size:14px;font-weight:600}
+.voice-emoji-picker footer{flex-wrap:wrap}
+.voice-emoji-picker footer span{font-size:12px;color:var(--ds-body)}
+.voice-room .voice-emoji-picker [data-voice=emoji-close]{display:grid;place-items:center;width:44px;height:44px;padding:10px;border:0;border-radius:10px;background:none;color:var(--ds-body)}
+.voice-emoji-picker [data-voice=emoji-close] svg{width:20px;height:20px}
+.voice-room .voice-emoji-picker .voice-emojis{display:grid;grid-template-columns:repeat(auto-fit,minmax(44px,1fr));gap:4px;margin:0 0 8px;max-height:144px;overflow-y:auto}
+.voice-room .voice-emoji-picker .voice-emojis button{min-width:44px;min-height:44px;padding:4px;border-radius:10px;font-size:26px;line-height:1}
+.voice-room .voice-emoji-picker .voice-emojis button:hover,.voice-room .voice-emoji-picker [data-voice=emoji-close]:hover{background:#37304e}
+.voice-room .voice-emoji-picker button:focus-visible{outline:2px solid var(--ds-mint);outline-offset:-2px}
+.voice-room .voice-emoji-picker [data-voice=send-chat]{min-height:44px;font-size:13px}
 .voice-chat-panel #voice-message{display:block;flex:1;min-width:0;width:0;height:64px;min-height:64px;max-height:96px;resize:none;padding:20px 49px 18px 18px;border:1px solid #315075;border-radius:20px;background:#091626;color:var(--ds-text);font:inherit;font-size:15px;line-height:1.5}
 .voice-chat-panel #voice-message::placeholder{color:var(--ds-body)}
 .voice-chat-panel #voice-chat-form [data-voice=emoji]{position:absolute;right:72px;bottom:14px;width:34px;height:34px;padding:3px;background:none;border:0;border-radius:50%;color:var(--ds-body)}

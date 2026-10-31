@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
-function setup(){
+function setup(wraps=false){
  let mobile=true,resize,changes;
  const animations=[];
  const text={textContent:'long title',scrollWidth:340,animate(frames,options){const a={frames,options,cancelled:false,cancel(){this.cancelled=true;}};animations.push(a);return a;}};
@@ -10,7 +10,7 @@ function setup(){
  const button={};const artist={append(b){b.parentElement=this;}},actions={append(b){b.parentElement=this;}};button.parentElement=actions;
  const copy={querySelector:s=>s==='.home-feature-play'?button:s==='.home-feature-artist-row'?artist:s==='.home-feature-actions'?actions:link};
  const motion={matches:false,addEventListener(n,f){changes=f;},removeEventListener(){changes=null;}};
- const c=vm.createContext({document:{},getComputedStyle:()=>({getPropertyValue:()=>mobile?'1':'0'}),ResizeObserver:class{constructor(f){resize=f;}observe(){}disconnect(){resize=null;}}});
+ const c=vm.createContext({document:{},getComputedStyle:()=>({whiteSpace:wraps?'normal':'nowrap',getPropertyValue:()=>mobile?'1':'0'}),ResizeObserver:class{constructor(f){resize=f;}observe(){}disconnect(){resize=null;}}});
  vm.runInContext(readFileSync(new URL('../dist/home.js',import.meta.url),'utf8'),c);
  const layout=c.mountHomeFeatureCopy({},copy,motion);
  return {c,layout,animations,text,link,button,artist,actions,motion,setMobile(v){mobile=v;resize();},resize(){resize();},reduce(){motion.matches=true;changes();}};
@@ -28,6 +28,10 @@ test('desktop restores same play button and static title; reduced motion cancels
  const f=setup();f.setMobile(false);assert.equal(f.button.parentElement,f.actions);assert.equal(f.animations[0].cancelled,true);
  f.setMobile(true);assert.equal(f.button.parentElement,f.artist);assert.equal(f.animations.length,2);
  f.reduce();assert.equal(f.animations[1].cancelled,true);f.layout.cleanup();
+});
+test('wrapped mobile titles stay still even when line clamping reports horizontal overflow',()=>{
+ const f=setup(true);assert.equal(f.button.parentElement,f.artist);assert.equal(f.animations.length,0);
+ f.resize();assert.equal(f.animations.length,0);f.layout.cleanup();
 });
 test('desktop uses measured recommendation size without center enlargement and keeps arrow space',()=>{
  const f=setup();for(const [width,size] of [[500,198],[600,218],[800,240]]){

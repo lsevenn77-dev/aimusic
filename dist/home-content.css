@@ -317,13 +317,27 @@
  .home-content-refresh #home-release .home-floating-card,.home-content-refresh #home-release .home-floating-wash{will-change:auto}
 }
 @media (max-width: 620px) {
-  .home-content-refresh #home-release .home-feature-copy { grid-row: 1; }
-  .home-content-refresh #home-release .home-feature-covers { grid-row: 2; }
+  /* Home phone layout: copy height drives the cover; retain carousel geometry. */
+  .home-content-refresh #home-release .home-feature-slide { padding: 20px 0 0; }
+  .home-content-refresh #home-release .home-feature-copy { grid-row: 1; display: flex; flex-direction: column; align-items: center; }
+  .home-content-refresh #home-release .home-feature-title-row { width: 100%; margin: 0 0 10px; }
+  .home-content-refresh #home-release .home-feature-copy h2 { font-size: 22px; line-height: 1.3; font-weight: 750; }
+  .home-content-refresh #home-release .home-feature-title-row h2 a { display: block; min-height: 0; white-space: normal; }
+  .home-content-refresh #home-release .home-feature-title-text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; width: auto; max-width: 100%; white-space: normal; overflow: hidden; overflow-wrap: anywhere; }
+  .home-content-refresh #home-release .home-feature-hangul { font-size: 1em; }
+  .home-content-refresh #home-release .home-feature-artist-row { gap: 8px; max-width: 100%; }
+  .home-content-refresh #home-release .home-feature-covers { grid-row: 2; margin-top: 16px; margin-bottom: calc(var(--feature-cover)*.3 + 49px); }
   .home-content-refresh #home-release .home-feature-label { display: none; }
   .home-content-refresh #home-release .home-feature-artist {
-    font-size: 17px;
-    line-height: 1.25;
+    font-size: 16px;
+    font-weight: 500;
+    line-height: 1.4;
+    max-width: calc(100% - 38px);
     white-space: normal;
     overflow-wrap: anywhere;
   }
+  #main .home-content-refresh #home-release .home-feature-play { width: 30px; height: 30px; min-width: 30px; min-height: 30px; flex: 0 0 30px; }
+  #main .home-content-refresh #home-release .home-feature-play::after { content: ""; position: absolute; inset: -7px; }
+  .home-content-refresh #home-recommended { margin-top: 34px; }
+  .home-content-refresh #home-recommended > .section-heading { align-items: center; margin-bottom: 18px; }
 }

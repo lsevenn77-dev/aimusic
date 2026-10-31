@@ -64,7 +64,7 @@ test('changing chart or period cannot submit the previous dialog snapshot',async
  assert.match(h.form.querySelector('.form-error').textContent,/차트가 변경/);
 });
 
-for(const kind of ['top','rising','releases','karaoke'])for(const period of ['week','month','all'])test(`${kind}/${period}: full results and selected songs persist in rank order`,async t=>{
+for(const kind of ['listens','covers','new','top','rising','releases','karaoke'])for(const period of ['week','month','all'])test(`${kind}/${period}: full results and selected songs persist in rank order`,async t=>{
  const f=await fixture(t),at=Math.floor(Date.now()/1000);
  for(let i=0;i<115;i++)f.sql.prepare("INSERT INTO tracks(id,user_id,artist_id,producer_id,title,genre,ai_tool,rights_accepted,original_ext,original_bytes,created,first_published_at,status,kind) VALUES(?,'owner','artist','producer',?,'Rock','QA',1,'wav',128,?,?,'published',?)").run('rank-'+i,'rank-'+i,at-i,at-i,kind==='karaoke'?'cover':'original');
  if(kind==='rising')for(let i=0;i<115;i++)f.sql.prepare("INSERT INTO listens(id,track_id,listener,user_id,started,day,qualified) VALUES(?,?,'other','other',?,?,1)").run('listen-'+i,'rank-'+i,at-5,new Date(at*1000).toISOString().slice(0,10));
@@ -94,4 +94,9 @@ test('chart period selection reaches every ranked API without changing seven-day
   const r=await f.call(`/api/catalog?section=tracks&chart=${kind}&period=${period}&full=1`);assert.equal(r.status,200);assert.equal(r.body.chart.period,period);assert.deepEqual(r.body.chart.weights,{plays:55,reactions:25,covers:20});
  }
  assert.equal((await f.call('/api/catalog?chart=rising&period=invalid')).status,400);
+});
+test('default chart names use the Korean creation day at midnight',()=>{
+ const {c}=client();
+ assert.equal(c.chartDate(new Date('2026-10-31T14:59:59Z'),true),'26.10.31');
+ assert.equal(c.chartDate(new Date('2026-10-31T15:00:00Z'),true),'26.11.01');
 });

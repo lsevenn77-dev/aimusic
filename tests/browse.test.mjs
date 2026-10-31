@@ -51,7 +51,7 @@ test('search landing and unrelated routes do not perform unnecessary requests',a
 });
 
 test('popular chart shows yesterday movement instead of scores and retains calendar navigation',async()=>{
- const path='/api/catalog?section=tracks&full=1&chart=top&period=month',track={id:'song',title:'<script>',duration:60,chart_score:65.5,chart_movement:'up',rank_change:3,chart_plays:3,chart_likes:2,chart_comments:1,chart_gifts:5};
+ const path='/api/catalog?section=tracks&full=1&chart=listens&period=month',track={id:'song',title:'<script>',duration:60,chart_score:65.5,chart_movement:'up',rank_change:3,chart_plays:3,chart_likes:2,chart_comments:1,chart_gifts:5};
  const {view,calls}=viewContext({[path]:{chart:{label:'이달'},tracks:[track]}});const d=await view('charts',undefined,'charts?period=month');
  assert.deepEqual(calls,[path]);assert.doesNotMatch(d.html,/65.50|인기점수|최대 100점|period=today|명예의 전당/);assert.match(d.html,/chart-movement up/);assert.ok(d.html.includes('<span class="chart-direction">▲</span><span>3</span>'));assert.match(d.html,/어제보다 3위 상승/);assert.match(d.html,/#charts\?period=all/);assert.match(d.html,/총 1곡/);assert.match(d.html,/&lt;script&gt;/);assert.equal(d.tracks[0].id,'song');
 });

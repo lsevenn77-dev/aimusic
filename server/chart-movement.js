@@ -1,5 +1,5 @@
 import {one,run} from './db.js';
-import {popularScores,CHART_ORIGINAL} from './popular-chart.js';
+import {popularScores,pageCharts,pageScores,CHART_ORIGINAL} from './popular-chart.js';
 export const chartDay=at=>new Date((at+32400)*1000).toISOString().slice(0,10);
 export function rankChanges(current,previous){
  const before=previous===null?null:new Map(previous.map((id,i)=>[id,i+1]));
@@ -11,7 +11,7 @@ export async function dailyChart(env,period,kind='top'){
  const day=chartDay(period.until),previousDay=chartDay(period.until-86400);
  const snapshotPeriod='v2:'+kind+':'+period.period;
  const [scores,previous,current]=await Promise.all([
-  popularScores(env,period,CHART_ORIGINAL(),[],-1,kind),
+  pageCharts.includes(kind)?pageScores(env,period,kind):popularScores(env,period,CHART_ORIGINAL(),[],-1,kind),
   one(env,'SELECT ranks_json,captured FROM chart_daily_snapshots WHERE day=? AND period=?',previousDay,snapshotPeriod),
   one(env,'SELECT captured FROM chart_daily_snapshots WHERE day=? AND period=?',day,snapshotPeriod)
  ]);

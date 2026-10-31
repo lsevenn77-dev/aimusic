@@ -6,6 +6,21 @@ const human=user=>`NOT EXISTS(SELECT 1 FROM users bot WHERE bot.id=${user} AND b
 const linkedCover=`cv.original_id=t.id AND cv.kind='cover' AND cv.status='published' AND t.karaoke_at>0 AND ((cv.cover_mode='solo' AND cv.duet_parent_id IS NULL) OR (cv.cover_mode='duet' AND cv.duet_parent_id IS NOT NULL AND cv.duet_open=0 AND EXISTS(SELECT 1 FROM tracks dp WHERE dp.id=cv.duet_parent_id AND dp.original_id=t.id AND dp.kind='cover' AND dp.status='published' AND dp.cover_mode='duet' AND dp.duet_parent_id IS NULL)))`;
 const plays=(from,until)=>`SELECT count(DISTINCT l.listener||'|'||date(l.started,'unixepoch','+9 hours')) FROM listens l WHERE l.track_id=t.id AND l.qualified=1 AND l.listener!='' AND (l.user_id IS NULL OR l.user_id!=t.user_id) AND ${human('l.user_id')} AND l.started>${from} AND l.started<=${until}`;
 
+// Full chart pages use one period metric. Other discovery surfaces retain their scoring contract.
+export const pageCharts=['listens','covers','new'];
+export async function pageScores(env,period,kind){
+ const covers=kind==='covers';
+ const metric=covers?`SELECT count(*) FROM tracks cv WHERE cv.original_id=t.id
+  AND cv.kind='cover' AND cv.cover_mode='solo' AND cv.duet_parent_id IS NULL
+  AND cv.status='published' AND t.karaoke_at>0
+  AND ${chartPublication('cv')} BETWEEN ?1 AND ?2`:plays('?1-1','?2');
+ const field=covers?'chart_covers':'chart_plays';
+ return rows(env,`SELECT t.id,${chartPublication()} published_at,(${metric}) ${field}
+  FROM tracks t WHERE ${CHART_ORIGINAL()}
+  ${kind==='new'?`AND ${chartPublication()} BETWEEN ?2-2592000 AND ?2`:''}
+  ORDER BY ${field} DESC,published_at DESC,t.id`,period.from,period.until);
+}
+
 // Normalize against the entire public original catalog BEFORE filters/limits.
 // Gifts remain response metadata, but do not influence the 55/25/20 score.
 // Like/save counts are unique fans across both actions. Cover activity is
