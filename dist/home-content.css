@@ -251,9 +251,9 @@
 .home-content-refresh #home-release .home-floating-wash img{width:100%;height:100%;object-fit:cover;opacity:1}
 .home-content-refresh #home-release .home-feature-slide{grid-template-columns:minmax(0,.72fr) minmax(0,1fr);gap:28px;padding:26px 24px 56px;animation:none}
 .home-content-refresh #home-release .home-feature-copy{grid-column:1;max-width:100%}
-.home-content-refresh #home-release .home-feature-copy h2{font-size:clamp(24px,3.1cqi,38px)}
+.listening-home #home-release .home-feature-copy h2{font-size:var(--home-title-size);font-weight:650;line-height:1.3;letter-spacing:-.02em}
 .home-content-refresh #home-release .home-feature-actions{gap:12px;margin-top:12px;flex-wrap:nowrap}
-.home-content-refresh #home-release .home-feature-info{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:18px;min-height:44px;padding:0 16px;border:1px solid #b8b0f5;border-radius:12px;background:#10172299;color:var(--ds-text);font-size:12px;white-space:nowrap;flex:none}
+.listening-home #home-release .home-feature-info{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:var(--home-button-gap);min-height:44px;padding:0 16px;border:1px solid #b8b0f5;border-radius:12px;background:#10172299;color:var(--ds-text);font-size:var(--home-control-size);line-height:1.4;white-space:normal;text-align:center;max-width:100%;min-width:0;overflow-wrap:anywhere}
 .home-content-refresh #home-release .home-feature-info svg{width:13px;height:13px}
 .home-content-refresh #home-release .home-feature-covers{position:relative;isolation:isolate;display:block;min-width:0;height:var(--feature-cover,190px);grid-column:2;grid-row:1;perspective:1000px;perspective-origin:50% 50%;touch-action:pan-y}
 .home-content-refresh #home-release .home-floating-card{position:absolute;left:calc(50% - var(--feature-cover)/2);top:0;width:var(--feature-cover);height:var(--feature-cover);border:0;border-radius:12px;will-change:transform,opacity;transform-origin:center;outline-offset:4px;opacity:0;filter:brightness(.34)}
@@ -300,13 +300,12 @@
  .home-content-refresh #home-release .home-feature-covers{grid-column:1;grid-row:1;transform:none;margin-bottom:calc(var(--feature-cover)*.3 + 49px)}
  .home-content-refresh #home-release .home-feature-pagination{top:calc(130% + 5px)}
  .home-content-refresh #home-release .home-feature-copy{grid-column:1;grid-row:2;text-align:center;width:100%;min-width:0;padding:0 12px}
- .home-content-refresh #home-release .home-feature-copy h2{font-size:22px;line-height:1.3;width:100%;max-width:100%}
+ .home-content-refresh #home-release .home-feature-copy h2{width:100%;max-width:100%}
  .home-content-refresh #home-release .home-feature-title-row{margin:4px 0 0;justify-content:center}
  .home-content-refresh #home-release .home-feature-title-row h2 a{text-overflow:clip;min-height:44px;display:flex;align-items:center;justify-content:safe center}
  .home-content-refresh #home-release .home-feature-title-text{display:inline-block;flex:none;width:max-content;max-width:none;white-space:nowrap}
- .home-content-refresh #home-release .home-feature-label{font-size:9px}
  .home-content-refresh #home-release .home-feature-artist-row{display:flex;align-items:center;justify-content:center;gap:2px;min-width:0}
- .home-content-refresh #home-release .home-feature-artist{font-size:12px;min-width:0;max-width:calc(100% - 46px)}
+ .home-content-refresh #home-release .home-feature-artist{min-width:0;max-width:calc(100% - 46px)}
  #main .home-content-refresh #home-release .home-feature-play{--control-diameter:30px;width:44px;height:44px;min-width:44px;flex:0 0 44px}
  .home-content-refresh #home-release .home-feature-description,.home-content-refresh #home-release .home-feature-actions{display:none}
  .home-content-refresh #home-release .home-floating-wash{filter:blur(30px) saturate(.75)}
@@ -321,17 +320,12 @@
   .home-content-refresh #home-release .home-feature-slide { padding: 20px 0 0; }
   .home-content-refresh #home-release .home-feature-copy { grid-row: 1; display: flex; flex-direction: column; align-items: center; }
   .home-content-refresh #home-release .home-feature-title-row { width: 100%; margin: 0 0 10px; }
-  .home-content-refresh #home-release .home-feature-copy h2 { font-size: 22px; line-height: 1.3; font-weight: 750; }
   .home-content-refresh #home-release .home-feature-title-row h2 a { display: block; min-height: 0; white-space: normal; }
   .home-content-refresh #home-release .home-feature-title-text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; width: auto; max-width: 100%; white-space: normal; overflow: hidden; overflow-wrap: anywhere; }
-  .home-content-refresh #home-release .home-feature-hangul { font-size: 1em; }
   .home-content-refresh #home-release .home-feature-artist-row { gap: 8px; max-width: 100%; }
   .home-content-refresh #home-release .home-feature-covers { grid-row: 2; margin-top: 16px; margin-bottom: calc(var(--feature-cover)*.3 + 49px); }
   .home-content-refresh #home-release .home-feature-label { display: none; }
   .home-content-refresh #home-release .home-feature-artist {
-    font-size: 16px;
-    font-weight: 500;
-    line-height: 1.4;
     max-width: calc(100% - 38px);
     white-space: normal;
     overflow-wrap: anywhere;
@@ -341,3 +335,119 @@
   .home-content-refresh #home-recommended { margin-top: 34px; }
   .home-content-refresh #home-recommended > .section-heading { align-items: center; margin-bottom: 18px; }
 }
+
+/* The playlist directory, search results and Play banner also use
+   .home-content-refresh. Only the home renderer supplies .listening-home.
+   Role sizes are final CSS pixels, independent of the desktop region scaler. */
+.listening-home.home-content-refresh {
+  --home-title-size: 24px;
+  --home-heading-size: 20px;
+  --home-card-size: 15px;
+  --home-meta-size: 13px;
+  --home-body-size: 14px;
+  --home-control-size: 14px;
+  --home-button-gap: 8px;
+}
+@media (max-width: 800px) {
+  .listening-home.home-content-refresh {
+    --home-title-size: 22px;
+    --home-heading-size: 18px;
+    --home-control-size: 13px;
+  }
+}
+@media (max-width: 700px) {
+  .listening-home.home-content-refresh {
+    --home-card-size: 14px;
+    --home-meta-size: 12px;
+  }
+}
+.listening-home #home-release { --feature-hangul-scale: 1; }
+.listening-home #home-release .home-feature-label {
+  font-size: var(--home-meta-size);
+  font-weight: 600;
+  letter-spacing: .1em;
+}
+.listening-home #home-release .home-feature-artist {
+  font-size: var(--home-meta-size);
+  line-height: 1.45;
+}
+.listening-home #home-release .home-feature-description,
+.listening-home.home-content-refresh :is(.home-chart-copy p, .home-empty-inline, .home-load-message, .home-load-error p, .release-placeholder span, .empty-design p) {
+  font-size: var(--home-body-size);
+  line-height: 1.55;
+}
+/* The desktop carousel centers its covers on the text row. Retain its
+   original line slots when shortening the type so the covers stay put. */
+@media (min-width: 801px) {
+  @container (min-width: 621px) {
+    .listening-home #home-release .home-feature-title-row { min-block-size: calc(1.2 * clamp(24px, 3.1cqi, 38px)); }
+    .listening-home #home-release .home-feature-artist { min-block-size: 22px; }
+    .listening-home #home-release .home-feature-description { line-height: calc(19.8px * var(--ui-type-scale, 1)); max-height: none; }
+  }
+}
+.listening-home.home-content-refresh :is(.section-heading, .empty-design) h2 {
+  font-size: var(--home-heading-size);
+  line-height: 1.4;
+  font-weight: 650;
+  letter-spacing: -.02em;
+}
+.listening-home.home-content-refresh :is(.home-music-grid .album-title, .home-chart-title, .home-playlist-name) {
+  font-size: var(--home-card-size);
+  line-height: 1.5;
+  font-weight: 600;
+}
+.listening-home.home-content-refresh :is(.home-music-grid .album-artist, .home-chart-artist, .home-chart-rank) {
+  font-size: var(--home-meta-size);
+  line-height: 1.45;
+}
+/* Retain the existing single-line caption slots and square artwork sizes. */
+.listening-home .home-music-grid .album-artist { min-block-size: calc(.9583125rem * 1.55 * var(--ui-type-scale, 1)); }
+.listening-home .home-profile-name {
+  font-size: var(--home-card-size);
+  font-weight: 600;
+  min-block-size: calc(21px * var(--ui-type-scale, 1));
+}
+@media (max-width: 800px) {
+  .listening-home.home-content-refresh .home-profile-name { font-size: var(--home-body-size); }
+}
+.listening-home .home-profile-name .partner-badge { font-size: var(--home-meta-size); }
+.listening-home .home-playlist-name { min-block-size: calc(22.5px * var(--ui-type-scale, 1)); }
+.listening-home .home-playlist-description {
+  font-size: var(--home-body-size);
+  line-height: calc(19.2px * var(--ui-type-scale, 1));
+  min-height: calc(19.2px * var(--ui-type-scale, 1));
+}
+.listening-home .home-playlist-song { font-size: var(--home-card-size); }
+.listening-home :is(.home-playlist-index, .home-playlist-artist, .home-playlist-count, .home-playlist-status) { font-size: var(--home-meta-size); }
+.listening-home .home-playlist-count { line-height: calc(16.5px * var(--ui-type-scale, 1)); }
+@media (max-width: 700px) {
+  .listening-home.home-content-refresh .home-music-grid .album-artist { min-block-size: 0; line-height: 1.375; }
+}
+@media (max-width: 600px) {
+  .listening-home .home-playlist-name { min-block-size: 21px; }
+}
+/* chart-ui lays out the shared table after this stylesheet. Target its
+   compact home instance while leaving the chart route's tokens intact. */
+.listening-home #home-popular .home-chart-artist { line-height: calc(16px * var(--ui-type-scale, 1)); }
+.listening-home #home-popular .home-chart-copy p { line-height: calc(19.2px * var(--ui-type-scale, 1)); }
+@media (min-width: 801px) {
+  /* The featured chart cover fills the height left by these text slots. */
+  .listening-home #home-popular .home-chart-title { min-height: 29px; }
+}
+.listening-home #home-popular .song-table.song-table-chart.chart-ui--compact .song-table-row { --chart-title-size: var(--home-card-size); }
+.listening-home #home-popular .song-table.song-table-chart.chart-ui--compact .song-table-info > div > span {
+  font-size: var(--home-meta-size);
+}
+.listening-home.home-content-refresh :is(.section-heading > .home-more-link, .home-chart-listen, .home-load-error .small-button, .empty-design .primary-button, :where(#home-discovery) > .text-link) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--home-button-gap);
+  min-height: 44px;
+  max-width: 100%;
+  font-size: var(--home-control-size);
+  font-weight: 500;
+  line-height: 1.4;
+  text-align: center;
+}
+.listening-home .section-heading > .home-more-link { max-width: min(50%, 80px); white-space: normal; overflow-wrap: anywhere; }
