@@ -7,6 +7,16 @@ const profilePreviewIcons={
  share:profilePreviewSVG('M12 16V2m-4 4 4-4 4 4M7 10H4v12h16V10h-3'),
  close:profilePreviewSVG('m5 5 14 14M19 5 5 19')
 };
+async function shareMemberProfile(p){
+ const route=p.id?'producer/'+encodeURIComponent(p.id):p.public_id?'member/'+encodeURIComponent(p.public_id):'';
+ if(!route){toast('프로필을 먼저 저장해주세요.');return;}
+ const url=new URL('/#'+route,location.origin).href;
+ try{
+  if(navigator.share)await navigator.share({title:p.name+' · AIFECT',url});
+  else{await navigator.clipboard.writeText(url);toast('프로필 링크를 복사했어요.');}
+ }catch(error){if(error.name!=='AbortError')toast('프로필 링크를 공유하지 못했어요. 다시 시도해주세요.');}
+}
+
 function closeProfilePreview(){
  ++profilePreviewSerial;
  if(!profilePreviewDialog)return;
@@ -51,11 +61,7 @@ async function openProfilePreview(id,origin){
    const gift=target.closest('[data-preview-gift]');if(gift){closeProfilePreview();await profileGiftDialog(gift.dataset.previewGift);return;}
    if(target.closest('[data-preview-report]')){closeProfilePreview();if(!me)return askLogin();toast('사용자 프로필 신고는 아직 연결되지 않았어요. 신고가 접수되지 않았습니다.');return;}
    const share=target.closest('[data-preview-share]');
-   if(share){
-    if(!share.dataset.previewShare){toast('프로필을 먼저 저장해주세요.');return;}
-    const url=new URL('/#producer/'+encodeURIComponent(share.dataset.previewShare),location.origin).href;
-    try{if(navigator.share)await navigator.share({title:d.profile.name+' · AIFECT',url});else{await navigator.clipboard.writeText(url);toast('프로필 링크를 복사했어요.');}}catch(error){if(error.name!=='AbortError')toast('프로필 링크를 공유하지 못했어요. 다시 시도해주세요.');}return;
-   }
+   if(share)return shareMemberProfile(d.profile);
    if(target.closest('[data-person-block]')&&!me){event.stopPropagation();closeProfilePreview();return askLogin();}
    if(target.closest('a')){const needsLogin=target.closest('[data-preview-message]')&&!me;closeProfilePreview();if(needsLogin){event.preventDefault();askLogin();}}
   });

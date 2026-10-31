@@ -12,20 +12,81 @@ function myKindIcon(kind){
  const path=kind==='dubbing'?'<path d="M7 19l-4 3v-6A8 8 0 0 1 3 5a8 8 0 0 1 6-2h6a8 8 0 0 1 0 16H7Zm1-9v3m4-6v9m4-7v5"/>':kind==='duet'?'<path d="M7 2a2 2 0 0 0-2 2v7a2 2 0 0 0 4 0V4a2 2 0 0 0-2-2Zm-5 8v1a5 5 0 0 0 10 0v-1M7 16v5m-3 0h6M18 2a2 2 0 0 0-2 2v7a2 2 0 0 0 4 0V4a2 2 0 0 0-2-2Zm-5 8v1a5 5 0 0 0 10 0v-1M18 16v5m-3 0h6"/>':'<path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Zm7 8v2a7 7 0 0 1-14 0v-2m7 9v3m-4 0h8"/>';
  return `<svg class="mp-kind mp-kind-${kind}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="${{cover:'커버',duet:'듀엣',dubbing:'더빙'}[kind]}">${path}</svg>`;
 }
-function myProfileHeader(d){
- const p=d.profile,own=me?.id===p.user_id,c=d.crew,publicSongs=d.public_track_count??[...(d.tracks||[]),...(d.covers||[])].filter(t=>!t.status||t.status==='published').length;
- const frame={profile_frame:p.profile_frame,profile_frame_artwork:p.profile_frame_artwork};
- const followers=d.human_followers??Math.max(0,(d.followers||0)-(d.ai_followers||0));
- const stats=own?`<div class="mp-stats"><a href="#community/following?people=followers">팔로워 <b>${number(followers)}</b></a><a href="#community/following?people=following">팔로잉 <b>${number(d.profile_following_count??d.following_count??0)}</b></a><span title="공개된 원곡·커버·듀엣·완성 더빙">작품 <b>${number(d.profile_work_count??0)}</b></span><span title="내가 등록한 원곡 · 삭제 제외">제작곡 <b>${number(d.produced_track_count??(d.tracks||[]).length)}</b></span></div>`:'';
- return `<header class="mp-profile"><div class="mp-avatar-space"><div class="mp-avatar${playerAvatarClass(frame)}">${avatarImage(p)}${playerBadgeHTML(frame)}</div></div><div class="mp-identity">${own?'<p class="mp-category">ARTIST PROFILE</p>':''}<h2>${esc(p.name)}${p.account_type==='ai_bot'?'<span class="ai-account-badge" title="공식 AI 응원 계정">AI</span>':''}</h2>${p.account_type==='ai_bot'?'<p class="field-help">공식 AI 응원 계정</p>':''}<p class="mp-public-id">ID · ${esc(p.public_id||'발급 확인 중')}${p.public_id?` <button type="button" class="text-link" data-copy-public-id="${esc(p.public_id)}" aria-label="고유 ID 복사">${own?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg>':'복사'}</button>`:''}</p><div class="mp-crew-line">${c?`<a href="#crew/${esc(c.id)}">${c.image_version?`<img src="/media/crew/${esc(c.id)}?v=${esc(c.image_version)}" alt="">`:icon('users')}${esc(c.name)}</a>`:'소속 크루 없음'}</div>${p.bio?`<p class="mp-profile-bio">${esc(p.bio)}</p>`:''}${own?stats:`<div class="mp-stats"><${own?'a href="#community/following?people=followers"':'span'} data-followers="producer/${esc(p.id||'')}" data-count="${Number(d.followers||0)}"><b data-follow-count>${number(d.followers||0)}</b> 팔로워${d.ai_followers?` · AI ${number(d.ai_followers)} 포함`:''}</${own?'a':'span'}><${own?'a href="#community/following?people=following"':'span'}><b>${number(d.following_count||0)}</b> 팔로잉</${own?'a':'span'}><span><b>${number(publicSongs)}</b> 공개곡</span></div>`}</div><div class="mp-profile-actions">${own?'<a class="primary-button" href="#profile/edit">프로필 수정</a><a class="small-button" href="#studio">스튜디오</a>':`<button class="primary-button" data-follow="producer/${esc(p.id)}" aria-pressed="${followed('producer',p.id)}">${followed('producer',p.id)?'팔로잉':'팔로우'}</button><a class="small-button" href="#dm/${esc(p.id)}">메시지</a><button type="button" class="small-button" data-profile-gift="${esc(p.id)}">선물하기</button><button class="mp-more" data-profile-preview="${esc(p.id)}" aria-label="프로필 더보기 · 선물·차단·신고">${icon('ui-menu-action')}</button>`}</div></header>`;
+function isMyProfile(p){return !!me?.id&&me.id===p.user_id;}
+
+function myProfileStats(d,own){
+ if(d.followers==null)return '';
+ if(own){
+  const followers=d.human_followers??Math.max(0,(d.followers||0)-(d.ai_followers||0));
+  return `<div class="mp-stats">
+   <a href="#community/following?people=followers">팔로워 <b>${number(followers)}</b></a>
+   <a href="#community/following?people=following">팔로잉 <b>${number(d.profile_following_count??d.following_count??0)}</b></a>
+   <span title="공개된 원곡·커버·듀엣·완성 더빙">작품 <b>${number(d.profile_work_count??0)}</b></span>
+   <span title="내가 등록한 원곡 · 삭제 제외">제작곡 <b>${number(d.produced_track_count??(d.tracks||[]).length)}</b></span></div>`;
+ }
+ const publicSongs=d.public_track_count??[...(d.tracks||[]),...(d.covers||[])].filter(t=>!t.status||t.status==='published').length;
+ return `<div class="mp-stats">
+  <span data-followers="producer/${esc(d.profile.id)}" data-count="${Number(d.followers)}">팔로워 <b data-follow-count>${number(d.followers)}</b>${d.ai_followers?` · AI ${number(d.ai_followers)} 포함`:''}</span>
+  <span>팔로잉 <b>${number(d.following_count||0)}</b></span><span>공개곡 <b>${number(publicSongs)}</b></span></div>`;
 }
+
+function myProfileHeader(d){
+ const p=d.profile,own=isMyProfile(p),c=d.crew,bio=p.bio?.trim();
+ const frame={profile_frame:p.profile_frame,profile_frame_artwork:p.profile_frame_artwork};
+ const photo=p.id&&p.image_version?'/media/producer/'+encodeURIComponent(p.id)+'?v='+encodeURIComponent(p.image_version):'';
+ const banner=p.id&&p.banner_version?'/media/banner/'+encodeURIComponent(p.id)+'?v='+encodeURIComponent(p.banner_version):'';
+ const background=`<div class="mp-header-background" aria-hidden="true">${banner||photo?`<img src="${esc(banner||photo)}"${banner&&photo?` data-fallback="${esc(photo)}"`:''} alt="">`:''}</div>`;
+ const tools=`<div class="mp-header-tools">
+  <button type="button" class="fan-icon" data-mp-share aria-label="프로필 공유" title="프로필 공유">${icon('share',20)}</button>
+  ${own?`<details class="mp-settings"><summary class="fan-icon" aria-label="프로필 설정" title="프로필 설정">${icon('settings',20)}</summary>
+   <nav class="fan-settings-menu" aria-label="프로필 관리"><a href="#profile/edit">프로필 수정</a><a href="#studio">스튜디오</a></nav></details>`:''}
+ </div>`;
+ const social=!own&&d.followers!=null&&p.id?`<div class="mp-social-actions">
+  <button class="primary-button" data-follow="producer/${esc(p.id)}" aria-pressed="${followed('producer',p.id)}">${followed('producer',p.id)?'팔로잉':'팔로우'}</button>
+  <a class="small-button" href="#dm/${esc(p.id)}">메시지</a><button type="button" class="small-button" data-profile-gift="${esc(p.id)}">선물하기</button>
+  <button type="button" class="fan-icon" data-profile-preview="${esc(p.id)}" aria-label="프로필 더보기 · 선물·차단·신고">${icon('ui-menu-action',20)}</button>
+ </div>`:'';
+ return `<div class="mp-profile-area"><header class="mp-profile">${background}
+  <div class="mp-avatar-space"><div class="mp-avatar${playerAvatarClass(frame)}">${avatarImage(p)}${playerBadgeHTML(frame)}</div></div>
+  <div class="mp-identity">${tools}<h2>${esc(p.name)}${p.account_type==='ai_bot'?'<span class="ai-account-badge" title="공식 AI 응원 계정">AI</span>':''}</h2>
+   ${p.account_type==='ai_bot'?'<p class="field-help">공식 AI 응원 계정</p>':''}
+   ${p.public_id?`<p class="mp-public-id">ID · ${esc(p.public_id)} <button type="button" class="text-link" data-copy-public-id="${esc(p.public_id)}" aria-label="고유 ID 복사"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg></button></p>`:''}
+   ${c?`<div class="mp-crew-line"><a href="#crew/${esc(c.id)}">${c.image_version?`<img src="/media/crew/${esc(c.id)}?v=${esc(c.image_version)}" alt="">`:icon('users')}${esc(c.name)}</a></div>`:''}
+   ${bio&&bio!=='-'?`<p class="mp-profile-bio">${esc(bio)}</p>`:''}${myProfileStats(d,own)}
+  </div></header>${social}</div>`;
+}
+
+function bindMemberHeader(profile){
+ const header=document.querySelector('.mp-profile');
+ if(!header)return;
+ const image=header.querySelector('.mp-header-background img');
+ if(image){
+  const fallback=()=>{
+   if(image.dataset.fallback){image.src=image.dataset.fallback;delete image.dataset.fallback;}
+   else image.remove();
+  };
+  image.addEventListener('error',fallback);
+  if(image.complete&&!image.naturalWidth)fallback();
+ }
+ header.querySelector('[data-mp-share]').onclick=()=>shareMemberProfile(profile);
+ const settings=header.querySelector('.mp-settings');
+ if(!settings)return;
+ const events=new AbortController();
+ const close=()=>{settings.open=false;};
+ document.addEventListener('click',e=>{if(!settings.contains(e.target)||e.target.closest('a'))close();},{signal:events.signal});
+ document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&settings.open){close();settings.querySelector('summary').focus();e.preventDefault();}
+ },{signal:events.signal});
+ registerRouteCleanup(()=>{events.abort();settings.remove();});
+}
+
 function myMoments(d){
- const photos=d.gallery||[],pid=d.profile.id,own=me?.id===d.profile.user_id;
+ const photos=d.gallery||[],pid=d.profile.id,own=isMyProfile(d.profile);
  return mySection('갤러리',photos.length?`<div class="mp-moments">${photos.slice(0,10).map((p,i)=>`<button type="button" data-gallery-photo="${esc(p.url)}" data-photo-label="${esc(d.profile.name)} 사진 ${i+1}" aria-label="사진 ${i+1} 크게 보기"><img src="${esc(p.url)}" alt="${esc(d.profile.name)}의 순간 ${i+1}" loading="${i<5?'eager':'lazy'}"></button>`).join('')}</div>`:myEmpty(own?'아직 등록한 사진이 없어요. 전체보기에서 순간을 기록해보세요.':'공개된 사진이 없어요.'),pid?myAll('#profile-gallery/'+encodeURIComponent(pid)):myAll('#profile/edit'),photos.length,'mp-moments-card');
 }
 function myStudioBanner(){return `<section class="mp-card mp-studio"><h2>스튜디오</h2><p>나만의 음악과 더빙을<br>제작하고 관리해보세요.</p><a class="primary-button" href="#studio">스튜디오 바로가기 ${icon('arrow')}</a></section>`;}
 function myArtists(d){
- const artists=d.artists||[],own=me?.id===d.profile.user_id;
+ const artists=d.artists||[],own=isMyProfile(d.profile);
  const slots=artists.slice(0,3).map(a=>`<a class="artist-ui-card mp-artist-card" href="#artist/${esc(a.id)}"><div class="artist-avatar-wrapper">${portrait(a,'artist')}</div><strong title="${esc(a.name)}">${esc(a.name)}</strong>${artistAffiliation(a,d.profile.name)}</a>`);
  while(own&&slots.length<3)slots.push(`<button type="button" class="artist-ui-card mp-artist-add" data-mp-artist-add aria-label="아티스트 추가">${icon('plus')}</button>`);
  return mySection('소속 아티스트',slots.length?`<div class="mp-artists">${slots.join('')}</div>`:myEmpty('등록된 아티스트가 없어요.'),myAll('#profile-artists/'+encodeURIComponent(d.profile.id)),artists.length,'mp-artists-card');
@@ -108,6 +169,10 @@ function bindMyWorkList(){
 function myWorksAside(d,own){return myArtists(d)+(own?'':myStudioBanner())+mySection('참여 가능한 듀엣','<div id="mp-open-duets">'+myLoading()+'</div>',myAll(opportunityHref(d.profile.id,'duet')))+mySection('참여 가능한 더빙','<div id="mp-open-dubbing">'+myLoading()+'</div>',myAll(opportunityHref(d.profile.id,'dubbing')));}
 function mySegment(active){return `<div class="mp-segment" role="tablist" aria-label="마이페이지" data-active="${active}"><span class="mp-segment-slide" aria-hidden="true"></span>${[['works','내 작품'],['library','내 보관함'],['activity','내 활동']].map(([key,label])=>`<button type="button" role="tab" id="mp-tab-${key}" aria-controls="mp-content" aria-selected="${active===key}" tabindex="${active===key?0:-1}" data-mp-tab="${key}">${label}</button>`).join('')}</div>`;}
 async function myPageView(base,param,raw,readApi=api){
+ if(base==='member'){
+  const {profile}=await readApi('/api/members/'+encodeURIComponent(param));
+  return {memberHeader:profile,html:`<div class="mypage-layout">${myProfileHeader({profile})}<p class="field-help">아직 공개한 음악이 없어요.</p></div>`};
+ }
  if(base==='profile-gallery')return myGalleryView(param,readApi);
  if(base==='relations')return myRelationsView(readApi);
  if(base==='gift-inventory')return myGiftInventoryView(readApi);
@@ -118,10 +183,10 @@ async function myPageView(base,param,raw,readApi=api){
   const self=await readApi('/api/me/profile','GET',undefined,{fresh:true});
   d=self.profile.id?await readApi('/api/producers/'+encodeURIComponent(self.profile.id)+'?dashboard=1','GET',undefined,{fresh:true}):{profile:self.profile,followers:self.follower_count,following_count:self.following_count,tracks:[],covers:[],dubbings:[],artists:[],gallery:[]};
  }else d=await readApi('/api/producers/'+encodeURIComponent(param)+'?dashboard=1','GET',undefined,{fresh:true});
- const own=me?.id===d.profile.user_id,q=new URLSearchParams(raw.split('?')[1]||''),tab=own&&['activity','library'].includes(q.get('view'))?q.get('view'):'works';
+ const own=isMyProfile(d.profile),q=new URLSearchParams(raw.split('?')[1]||''),tab=own&&['activity','library'].includes(q.get('view'))?q.get('view'):'works';
  const collection=own&&tab==='library'?await myLibraryView(raw,readApi):own&&tab==='works'&&['covers','originals'].includes(q.get('section'))?await browseView('library',q.get('section'),raw,true,readApi):null;
  const state={d,own,tab,account:me?.id||'',activity:null};
- return {mypage:state,musicLibrary:collection?.musicLibrary,tracks:collection?.tracks||[...(d.tracks||[]),...(d.covers||[])],html:`<div class="mypage-layout ${own?'mp-own':''}"><div class="mp-main">${own?'':`<div class="mp-heading">${heading('마이','나의 순간과 음악이 만나는 공간')}</div>`}${myProfileHeader(d)}${myMoments(d)}${own?mySegment(tab):''}<div id="mp-content" ${own?'role="tabpanel" aria-labelledby="mp-tab-'+tab+'"':''}>${collection?collection.html:tab==='works'?myWorksHTML(d):myLoading()}</div></div><aside class="mp-aside" id="mp-aside">${own?'<div id="mp-aside-content">'+(collection?.libraryAside??(tab==='activity'?myLoading():myWorksAside(d,true)))+'</div>':myWorksAside(d,false)}</aside>${own?'<div class="mp-account-footer"><button type="button" class="small-button" id="logout">로그아웃</button></div>':''}</div>`};
+ return {mypage:state,musicLibrary:collection?.musicLibrary,tracks:collection?.tracks||[...(d.tracks||[]),...(d.covers||[])],html:`<div class="mypage-layout ${own?'mp-own':''}">${myProfileHeader(d)}<div class="mp-main">${myMoments(d)}${own?mySegment(tab):''}<div id="mp-content" ${own?'role="tabpanel" aria-labelledby="mp-tab-'+tab+'"':''}>${collection?collection.html:tab==='works'?myWorksHTML(d):myLoading()}</div></div><aside class="mp-aside" id="mp-aside">${own?'<div id="mp-aside-content">'+(collection?.libraryAside??(tab==='activity'?myLoading():myWorksAside(d,true)))+'</div>':myWorksAside(d,false)}</aside>${own?'<div class="mp-account-footer"><button type="button" class="small-button" id="logout">로그아웃</button></div>':''}</div>`};
 }
 async function myActivityData(readApi=api){
  const paths={wallet:'/api/gold/balance',player:'/api/me/player',activity:'/api/me/profile?section=activity',notifications:'/api/notifications',inventory:'/api/me/gift-inventory'};
@@ -177,7 +242,16 @@ async function refreshMyPageRoute(raw,ticket,readApi=api){
  return true;
 }
 async function myLoadOpportunities(s){await Promise.all(['duet','dubbing'].map(async type=>{const root=$(type==='duet'?'#mp-open-duets':'#mp-open-dubbing');if(!root)return;try{const d=await api('/api/producers/'+encodeURIComponent(s.d.profile.id)+'/opportunities?type='+type);if(myPageState!==s||!root.isConnected)return;root.innerHTML=opportunityCards(d.items.slice(0,3),type);}catch(e){if(root.isConnected)root.innerHTML=myEmpty(e.message);}}));}
-function bindMyPage(view){bindMyWorkList();syncSongCoverPlayback();if(!view?.mypage){myPendingTabFocus='';return;}const s=view.mypage;myPageState=s;if(s.tab==='activity')void mySelectTab('activity',false);if(view.musicLibrary)bindMusicLibrary(view.musicLibrary);else void myLoadOpportunities(s);if(myPendingTabFocus===s.tab)$('#mp-tab-'+s.tab)?.focus({preventScroll:true});myPendingTabFocus='';}
+function bindMyPage(view){
+ const s=myPageState=view?.mypage||null,profile=s?.d.profile||view?.memberHeader;
+ if(profile)bindMemberHeader(profile);
+ bindMyWorkList();syncSongCoverPlayback();
+ if(!s){myPendingTabFocus='';return;}
+ if(s.tab==='activity')void mySelectTab('activity',false);
+ if(view.musicLibrary)bindMusicLibrary(view.musicLibrary);else void myLoadOpportunities(s);
+ if(myPendingTabFocus===s.tab)$('#mp-tab-'+s.tab)?.focus({preventScroll:true});
+ myPendingTabFocus='';
+}
 function myFilterWorks(){
  const root=$('#mp-recordings');if(!root||!myPageState)return;const key=$('[data-mp-filter][aria-pressed="true"]')?.dataset.mpFilter||'all',visibility=$('#mp-visibility')?.value||'all',sort=$('#mp-sort')?.value;
  const items=[...(myPageState.d.covers||[]),...(myPageState.d.dubbings||[])].filter(t=>(key==='all'||myKind(t)===key)&&(visibility==='all'||(t.kind==='dubbing'?t.visibility==='public':t.status==='published')===(visibility==='public'))).sort((a,b)=>(sort==='plays'?(b.plays||0)-(a.plays||0):0)||b.created-a.created);
