@@ -7,7 +7,8 @@ import * as AifectDubbing from '../shared/dubbing.js';
 import {options,sampleScript,memoryBucket} from './dubbing-fixtures.mjs';
 
 function playUI(){
- const c=vm.createContext({URLSearchParams,esc:s=>String(s??'').replaceAll('&','&amp;').replaceAll('"','&quot;'),icon:name=>`<svg data-icon="${name}" aria-hidden="true"></svg>`,heading:()=>'<h1>플레이</h1>',cover:()=>'<img class="existing-cover">',card:t=>`<article class="album-card"><a href="#song/${t.id}">${t.title}</a></article>`});
+ const c=vm.createContext({window:{addEventListener(){}},URLSearchParams,esc:s=>String(s??'').replaceAll('&','&amp;').replaceAll('"','&quot;'),icon:name=>`<svg data-icon="${name}" aria-hidden="true"></svg>`,heading:()=>'<h1>플레이</h1>',cover:()=>'<img class="existing-cover">',card:t=>`<article class="album-card"><a href="#song/${t.id}">${t.title}</a></article>`});
+ vm.runInContext(readFileSync(new URL('../dist/dubbing-casting.js',import.meta.url),'utf8'),c);
  vm.runInContext(readFileSync(new URL('../dist/play-page.js',import.meta.url),'utf8'),c);return c;
 }
 
@@ -106,7 +107,7 @@ test('latest MR requires the existing singable conditions',async t=>{
  assert.deepEqual((await f.call('/api/play/latest')).body.tracks.map(w=>w.id),['two']);
 });
 test('all navigation aliases preserve engine entry routes and return stable URLs',()=>{
- const c=vm.createContext({URLSearchParams});vm.runInContext(readFileSync(new URL('../dist/play-page.js',import.meta.url),'utf8'),c);
+ const c=playUI();
  assert.equal(c.playAlias('#community/following'),'#karaoke/browse?tab=following&type=all');
  assert.equal(c.playAlias('#community/following?type=duet'),'#karaoke/browse?tab=following&type=duet');
  for(const people of ['following','followers'])assert.equal(c.playAlias('#community/following?people='+people),null);

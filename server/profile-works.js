@@ -20,7 +20,7 @@ export async function profileCoverParticipation(env,covers,user){
 }
 
 // Reusable root relationship, moderation and block checks match dubbingVersions.
-const finished=`p.state='complete' AND EXISTS(SELECT 1 FROM dubbing_final_jobs j WHERE j.project_id=p.id AND j.script_key=p.script_key AND j.state='ready' AND j.output_key!='')`;
+const finished=`p.state='complete' AND (EXISTS(SELECT 1 FROM dubbing_combinations c WHERE c.project_id=p.id AND c.expired_at=0) OR EXISTS(SELECT 1 FROM dubbing_final_jobs j WHERE j.project_id=p.id AND j.script_key=p.script_key AND j.state='ready' AND j.output_key!=''))`;
 export async function completedDubbingWorks(env,root,user,offset=0){
  const uid=user?.id||'';
  return rows(env,`SELECT p.id,p.title,'dubbing' kind,p.owner_id,p.duration,p.state,p.visibility,p.created,p.options_json,COUNT(*) OVER() total,

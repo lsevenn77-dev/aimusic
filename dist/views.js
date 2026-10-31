@@ -93,6 +93,7 @@ async function render(){
  }
 }
 async function renderRoute(){
+ if(location.hash.startsWith('#/'))history.replaceState(history.state,'','#'+location.hash.slice(2));
  setMobileMenu(false);
  const menuRedirect=typeof menuAlias==='function'?menuAlias(location.hash):null;
  if(menuRedirect)history.replaceState(history.state,'',menuRedirect);

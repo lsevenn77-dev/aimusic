@@ -5,7 +5,8 @@ import {fixture} from './fixture.mjs';
 
 const source=JSON.parse(readFileSync(new URL('../docs/music-description-reviewed-source-20261026.json',import.meta.url)));
 const copy=JSON.parse(readFileSync(new URL('../docs/music-description-copy-20261026.json',import.meta.url)));
-const migration=readFileSync(new URL('../drizzle/0078_public_music_descriptions.sql',import.meta.url),'utf8');
+// Git checks out SQL with CRLF on Windows; compare the repository's LF literal content.
+const migration=readFileSync(new URL('../drizzle/0078_public_music_descriptions.sql',import.meta.url),'utf8').replaceAll('\r\n','\n');
 function seed(f){
  for(const producer of new Set(source.map(t=>t.producer_id))){
   f.sql.prepare("INSERT INTO users(id,email,name,created) VALUES(?,?,'Copy fixture',0)").run('copy-'+producer,producer+'@example.test');

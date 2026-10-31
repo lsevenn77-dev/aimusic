@@ -30,7 +30,7 @@ function playAlias(hash){
 function playSelection(param,raw){
  const mode=['dubbing','browse'].includes(param)?param:'song',q=new URLSearchParams(raw.split('?')[1]||'');
  const requested=mode==='song'?param:q.get('tab');
- return {mode,tab:playSections[mode].some(([k])=>k===requested)?requested:playSections[mode][0][0],type:playTypes.some(([k])=>k===q.get('type'))?q.get('type'):'all'};
+ return {mode,tab:playSections[mode].some(([k])=>k===requested)?requested:playSections[mode][0][0],type:playTypes.some(([k])=>k===q.get('type'))?q.get('type'):'all',kind:dubbingCastingKinds.some(([k])=>k===q.get('kind'))?q.get('kind'):'original'};
 }
 function playTypeIcon(type){
  const label={solo:'솔로',duet:'듀엣',dubbing:'더빙'}[type];
@@ -115,7 +115,7 @@ function playDraftRows(drafts){
 function playResults(view){
  const s=view.play,items=view.items;
  if(!items.length)return playEmpty(s.tab==='following'?'팔로잉한 창작자의 완성작을 기다려요':'아직 표시할 작품이 없어요',s.mode==='browse'?'공개 완료된 솔로·듀엣·더빙이 여기에 모여요.':s.mode==='dubbing'?'공개된 극본을 둘러보거나 내 이야기를 시작해보세요.':'MR이 준비된 곡과 참여할 수 있는 듀엣이 여기에 모여요.',s.mode==='dubbing'?'#dubbing/new':undefined,'더빙 만들기');
- if(s.mode==='dubbing')return playProjectRows(items,s.tab);
+ if(s.mode==='dubbing')return s.tab==='mine'?playProjectRows(items,s.tab):dubbingCastingHTML(view);
  if(s.mode==='song')return `<div class="play-song-unified">${playSongRows(items,s.tab)}</div>`;
  return `<div class="home-music-grid play-grid">${items.map(t=>t.type==='dubbing'?playDubbingCard(t):playMusicCard(t,s.mode==='song'?(s.tab==='duets'?'duet':'song'):null)).join('')}</div>`;
 }
@@ -132,12 +132,12 @@ async function playView(base,param,raw,readApi=api){
    const d=await readApi('/api/play/songs?'+new URLSearchParams({tab:s.tab}),'GET',undefined,{fresh:true});
    view.items=d.tracks;view.nextOffset=d.nextOffset;
   }else if(s.mode==='dubbing'){
-   const d=await readApi(s.tab==='join'?'/api/play/participate':'/api/dubbing/projects?tab='+(s.tab==='mine'?'mine':'open'),'GET',undefined,{fresh:true});view.items=d.projects;view.nextOffset=d.nextOffset;
+   const d=await readApi(s.tab==='mine'?'/api/dubbing/casting/mine?kind='+s.kind:'/api/dubbing/projects?tab=open','GET',undefined,{fresh:true});view.items=d.projects;view.nextOffset=d.nextOffset;
   }else{
    const d=await readApi('/api/play/works?'+new URLSearchParams({tab:s.tab,type:s.type}),'GET',undefined,{fresh:true});view.items=d.works;view.nextOffset=d.nextOffset;view.dubbingAvailable=d.dubbingAvailable;
   }
   view.tracks=view.items.filter(t=>t.type!=='dubbing'&&s.mode!=='dubbing');
-  view.html=playShell(s,playToolbar(s)+(view.dubbingAvailable===false?'<p class="field-help">더빙 목록은 현재 준비 중이에요.</p>':'')+'<div id="play-results" aria-live="polite">'+playResults(view)+'</div><button class="small-button play-more" id="play-more" '+(view.nextOffset===null?'hidden':'')+'>더 보기</button>');
+  view.html=playShell(s,playToolbar(s)+(s.mode==='dubbing'&&s.tab==='mine'?castingMineTabs(s.kind):'')+(view.dubbingAvailable===false?'<p class="field-help">더빙 목록은 현재 준비 중이에요.</p>':'')+'<div id="play-results" aria-live="polite">'+playResults(view)+'</div><button class="small-button play-more" id="play-more" '+(view.nextOffset===null?'hidden':'')+'>더 보기</button>');
  }catch(e){view.html=playShell(s,`<div class="play-empty" role="alert"><h2>목록을 불러오지 못했어요</h2><p>${esc(e.message)}</p><button class="small-button" data-play-retry>다시 불러오기</button></div>`);}
  return view;
 }
@@ -149,6 +149,7 @@ function bindPlay(view){
  if(banner)playBannerCleanup=mountFeatureCarousel(banner,playBanners,{renderSlide:playBannerHTML,label:'플레이 추천',previousLabel:'이전 플레이 배너',nextLabel:'다음 플레이 배너',dotsLabel:'플레이 배너 선택',syncAudio:false});
  root.addEventListener('error',playDubbingArtworkError,true);
  bindPlayDuetChildren(root);
+ if(view.play.mode==='dubbing'&&view.play.tab!=='mine')bindDubbingCasting(view,root);
  root.querySelectorAll('img.play-dubbing-art').forEach(image=>{if(image instanceof HTMLImageElement&&image.complete&&!image.naturalWidth)playDubbingArtworkError({target:image});});
  root.querySelector('[data-play-retry]')?.addEventListener('click',()=>render());
  root.querySelectorAll('nav').forEach(nav=>nav.addEventListener('keydown',e=>{
@@ -162,17 +163,15 @@ function bindPlay(view){
  if(typeFilter)typeFilter.onchange=()=>{location.hash=playHref(view.play.mode,view.play.tab,typeFilter.value);};
  const form=/** @type {HTMLFormElement} */(root.querySelector('#play-search')),more=/** @type {HTMLButtonElement} */(root.querySelector('#play-more')),results=root.querySelector('#play-results');if(!form)return;
  let query=form?.querySelector('input')?.value||'',generation=0;
- const all=[...view.items],s=view.play;
- const paint=()=>{results.innerHTML=playResults(view);remember(view.items.filter(t=>t.type!=='dubbing'&&s.mode!=='dubbing'));routeTracks=view.items.filter(t=>t.type!=='dubbing'&&s.mode!=='dubbing');more.hidden=view.nextOffset===null;};
+ const s=view.play;
+ const paint=()=>{results.innerHTML=playResults(view);remember(view.items.filter(t=>t.type!=='dubbing'&&s.mode!=='dubbing'));routeTracks=view.items.filter(t=>t.type!=='dubbing'&&s.mode!=='dubbing');more.hidden=view.nextOffset===null;if(s.mode==='dubbing'&&s.tab!=='mine')bindDubbingCasting(view,root);};
  const load=async(append=false)=>{
   const ticket=++generation;more.disabled=true;results.setAttribute('aria-busy','true');
   try{
    const params=new URLSearchParams({tab:s.tab,type:s.type,offset:String(append?view.nextOffset:0),q:query});
-   const path=s.mode==='song'?'/api/play/songs?'+params:s.mode==='browse'?'/api/play/works?'+params:s.tab==='join'?'/api/play/participate?'+params:'/api/dubbing/projects?tab='+(s.tab==='mine'?'mine':'open')+'&offset='+(append?view.nextOffset:0);
+   const path=s.mode==='song'?'/api/play/songs?'+params:s.mode==='browse'?'/api/play/works?'+params:s.tab==='mine'?'/api/dubbing/casting/mine?'+params+'&kind='+s.kind:'/api/dubbing/projects?tab=open&offset='+(append?view.nextOffset:0)+'&q='+encodeURIComponent(query);
    const d=await api(path,'GET',undefined,{fresh:true});if(ticket!==generation||!root.isConnected)return;
    const items=d.tracks||d.works||d.projects;view.items=append?[...view.items,...items]:items;view.nextOffset=d.nextOffset;
-   // The legacy script/my-work service has no text query. Keep its paging accessible while filtering loaded records.
-   if(s.mode==='dubbing'&&s.tab!=='join'){if(append)all.push(...items);else all.splice(0,all.length,...items);view.items=all.filter(t=>[t.title,t.ownerName].join(' ').toLocaleLowerCase().includes(query.toLocaleLowerCase()));}
    paint();
   }catch(e){if(ticket===generation&&root.isConnected){let note=root.querySelector('.play-load-error');if(!note){note=document.createElement('p');note.className='play-load-error';note.setAttribute('role','alert');results.before(note);}note.textContent=e.message+' · 다시 검색하거나 더 보기를 눌러주세요.';}}
   finally{if(ticket===generation&&root.isConnected){more.disabled=false;results.removeAttribute('aria-busy');}}

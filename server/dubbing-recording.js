@@ -4,6 +4,7 @@ import {requireUser} from './auth.js';
 import {dubbingRecordingWindows,validateDubbingTake} from '../shared/dubbing-recording.js';
 import {dubbingSoundStatus} from './dubbing-sound.js';
 import {dubbingTimeline} from '../shared/dubbing.js';
+import {submitCastingRecording,castingLines} from './dubbing-casting.js';
 
 export const recordingEnabled=env=>env.DUBBING_RECORDING_ENABLED==='true'&&!!env.BUCKET&&!!env.TRANSCODER_TOKEN;
 const active=`${dubbingVisibleSQL()} AND EXISTS(SELECT 1 FROM users WHERE id=p.owner_id AND provider!='deleted')`;
@@ -14,11 +15,11 @@ async function audioResponse(req,env,key,type='audio/wav'){
  return new Response(req.method==='HEAD'?null:obj.body,{headers:{'content-type':type,'cache-control':'private, no-store','x-content-type-options':'nosniff',...(obj.size?{'content-length':String(obj.size)}:{})}});
 }
 export async function dubbingRecordingStatus(env,p,user){
- const recordings=await rows(env,`SELECT r.id,r.role_id,r.user_id,r.state,r.revision,(SELECT COUNT(*) FROM dubbing_recording_lines l WHERE l.recording_id=r.id) saved FROM dubbing_recordings r JOIN users u ON u.id=r.user_id WHERE r.project_id=? AND u.provider!='deleted'`,p.id);
+ const recordings=await rows(env,`SELECT r.id,r.role_id,r.user_id,r.state,r.revision,(SELECT visibility FROM dubbing_recording_permissions v WHERE v.recording_id=r.id) casting_visibility,(SELECT COUNT(*) FROM dubbing_recording_lines l WHERE l.recording_id=r.id) saved FROM dubbing_recordings r JOIN users u ON u.id=r.user_id WHERE r.project_id=? AND u.provider!='deleted'`,p.id);
  const final=await one(env,'SELECT state,error FROM dubbing_final_jobs WHERE project_id=? AND script_key=?',p.id,p.script_key);
  const allSubmitted=recordings.length===p.role_count&&recordings.every(r=>r.state==='submitted');
  const blocked=recordings.some(r=>env.AIFECT_BLOCKED?.includes(r.user_id));
- return {available:recordingEnabled(env),roles:recordings.map(r=>({roleId:r.role_id,state:r.state,saved:r.saved,...(r.user_id===user?.id?{revision:r.revision}:{})})),
+ return {available:recordingEnabled(env),roles:recordings.map(r=>({roleId:r.role_id,state:r.state,saved:r.saved,...(r.user_id===user?.id?{revision:r.revision,castingVisibility:r.casting_visibility}: {})})),
   final:final?{state:allSubmitted?final.state:'invalidated',error:final.error,audioUrl:allSubmitted&&!blocked&&final.state==='ready'?`/api/dubbing/projects/${p.id}/final`:null}:null};
 }
 async function recordingView(env,p,user){
@@ -27,18 +28,23 @@ async function recordingView(env,p,user){
  const takes=await rows(env,`SELECT r.role_id,r.user_id,r.state,l.line_id,l.duration,l.take_id FROM dubbing_recordings r JOIN dubbing_recording_lines l ON l.recording_id=r.id JOIN users u ON u.id=r.user_id
   WHERE r.project_id=? AND u.provider!='deleted' AND (r.user_id=? OR r.state='submitted')`,p.id,user.id);
  const visible=takes.filter(t=>!env.AIFECT_BLOCKED?.includes(t.user_id));
+ const draft=await one(env,'SELECT root_id,target_id FROM dubbing_casting_drafts WHERE project_id=?',p.id);
+ let guide=[];if(draft){try{guide=(await castingLines(env,draft.target_id||draft.root_id,user)).lines;}catch{/* A closed target cannot expose audio; the draft remains editable. */}}
  return {recording:await dubbingRecordingStatus(env,p,user),timeline,lines:timeline.lines.map(l=>{
-  const t=visible.find(t=>t.line_id===l.id);return {...l,...(t?{takeId:t.take_id,duration:t.duration,audioUrl:`/api/dubbing/projects/${p.id}/recording/${t.role_id}/lines/${l.id}`}:{})};
+  const t=visible.find(t=>t.line_id===l.id),g=guide.find(t=>t.id===l.id);return {...l,...(t?{takeId:t.take_id,duration:t.duration,audioUrl:`/api/dubbing/projects/${p.id}/recording/${t.role_id}/lines/${l.id}`}:(g?.audioUrl?{duration:g.duration,audioUrl:g.audioUrl}:{}))};
  })};
 }
 export async function queueDubbingFinal(env,p){
+ const combo=await one(env,'SELECT render_requested,offsets_json FROM dubbing_combinations WHERE project_id=? AND expired_at=0',p.id);
+ if(combo&&!combo.render_requested||await one(env,'SELECT project_id FROM dubbing_casting_drafts WHERE project_id=?',p.id))return;
  const recordings=await rows(env,"SELECT * FROM dubbing_recordings WHERE project_id=? AND state='submitted'",p.id);
  if(recordings.length!==p.role_count)return;
- const bg=await one(env,"SELECT output_key FROM dubbing_sound_jobs WHERE project_id=? AND script_key=? AND state='ready'",p.id,p.script_key);if(!bg)return;
+ const bg=await one(env,"SELECT output_key,timeline_json FROM dubbing_sound_jobs WHERE project_id=? AND script_key=? AND state='ready'",p.id,p.script_key);if(!bg)return;
  const lines=await rows(env,'SELECT l.*,r.role_id,r.user_id FROM dubbing_recording_lines l JOIN dubbing_recordings r ON r.id=l.recording_id WHERE r.project_id=?',p.id);
- const timeline=dubbingRecordingWindows(JSON.parse(p.script_json));
+ const timeline=dubbingRecordingWindows(JSON.parse(p.script_json),JSON.parse(bg.timeline_json));
  if(lines.length!==timeline.lines.length)return;
- const manifest={duration:timeline.duration,background:bg.output_key,lines:timeline.lines.map(l=>{const take=lines.find(t=>t.line_id===l.id);return {id:l.id,start:l.start,end:l.recordEnd,key:take.audio_key,takeId:take.take_id,userId:take.user_id};})};
+ const offsets=JSON.parse(combo?.offsets_json||'{}');
+ const manifest={duration:timeline.duration,background:bg.output_key,lines:timeline.lines.map(l=>{const take=lines.find(t=>t.line_id===l.id),delta=offsets[l.id]||0;return {id:l.id,start:Math.max(0,l.start+delta),end:Math.min(timeline.duration,l.recordEnd+delta),key:take.audio_key,takeId:take.take_id,userId:take.user_id};})};
  await query(env,`INSERT INTO dubbing_final_jobs(id,project_id,script_key,manifest_json,created,updated)
   SELECT ?,?,?,?,?,? WHERE (SELECT COUNT(*) FROM dubbing_recordings r JOIN users u ON u.id=r.user_id WHERE r.project_id=? AND r.state='submitted' AND u.provider!='deleted')=? AND EXISTS(SELECT 1 FROM dubbing_projects p WHERE p.id=? AND ${dubbingVisibleSQL()})
   ON CONFLICT(project_id,script_key) DO UPDATE SET id=excluded.id,state='queued',manifest_json=excluded.manifest_json,attempts=0,lease_token=NULL,lease_until=0,output_key=NULL,output_meta=NULL,error='',updated=excluded.updated WHERE dubbing_final_jobs.state='invalidated'`,id(),p.id,p.script_key,JSON.stringify(manifest),now(),now(),p.id,p.role_count,p.id).run();
@@ -127,11 +133,13 @@ export async function dubbingRecordingRoute(req,env,p,user,action,rest=''){
      ON CONFLICT(recording_id,line_id) DO UPDATE SET take_id=excluded.take_id,audio_key=excluded.audio_key,audio_hash=excluded.audio_hash,duration=excluded.duration,bytes=excluded.bytes,updated=excluded.updated`,record.id,lineId,takeId,key,digest,info.duration,info.bytes,now(),record.id,token)
    ]);if(!result[0].results.length)conflict();
   }catch(e){try{if(!await one(env,'SELECT take_id FROM dubbing_recording_lines WHERE audio_key=?',key))await env.BUCKET.delete(key);}catch{}if(/unique|constraint/i.test(e.message))conflict();throw e;}
-  if(old?.audio_key&&old.audio_key!==key)await env.BUCKET.delete(old.audio_key).catch(()=>{});
+  if(old?.audio_key&&old.audio_key!==key&&!await one(env,'SELECT 1 FROM dubbing_recording_lines WHERE audio_key=?',old.audio_key))await env.BUCKET.delete(old.audio_key).catch(()=>{});
   return json(await recordingView(env,p,user));
  }
  if(operation==='submit'&&req.method==='POST'){
-  const body=await req.json();if(body.rightsAccepted!==true)fail(400,'내 음성의 공동 작품 공개에 동의해주세요.');
+  const body=await req.json();
+  const casting=await submitCastingRecording(env,p,user,record,body);if(casting)return json({...await recordingView(env,p,user),casting});
+  if(body.rightsAccepted!==true)fail(400,'내 음성의 공동 작품 공개에 동의해주세요.');
   if(record.state==='submitted'){await queueDubbingFinal(env,p);return json(await recordingView(env,p,user));}
   const count=JSON.parse(p.script_json).lines.filter(l=>l.roleId===role).length;
   const saved=await query(env,`UPDATE dubbing_recordings SET state='submitted',revision=revision+1,rights_at=?,updated=? WHERE id=? AND revision=? AND state='draft'

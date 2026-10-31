@@ -17,6 +17,7 @@ import {dubbingQuota,reserveDubbingGeneration} from './dubbing-quota.js';
 import {dubbingRewardRoute} from './dubbing-rewarded.js';
 import {dubbingRewardAvailable} from './dubbing-ad-config.js';
 import {dubbingRecordingRoute,dubbingRecordingStatus,recordingEnabled} from './dubbing-recording.js';
+import {dubbingCastingRoute,castingInfo} from './dubbing-casting.js';
 
 const uuid=value=>{if(typeof value!=='string'||!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value))fail(400,'요청 식별자를 확인해주세요.');return value;};
 const revision=value=>{if(!Number.isSafeInteger(value)||value<1)fail(400,'저장 버전을 확인해주세요.');return value;};
@@ -41,7 +42,7 @@ async function dto(env,p,user){
   roles:script.roles.map(r=>{const c=claims.find(c=>c.role_id===r.id);const blocked=c&&env.AIFECT_BLOCKED?.includes(c.user_id);
    return {...r,claimed:!!c,mine:c?.user_id===user?.id,participant:c?(blocked?'참여자':c.name):null};}),
   canEdit:!p.removed&&!p.root_id&&p.owner_id===user?.id&&!p.first_recorded_at&&claims.length===0&&p.visibility==='private'&&!await one(env,'SELECT id FROM dubbing_projects WHERE root_id=? LIMIT 1',p.id),recordingAvailable:recordingEnabled(env),recording:await dubbingRecordingStatus(env,p,user),
-  sound:await dubbingSoundStatus(env,p)};
+  casting:await castingInfo(env,p,user),sound:await dubbingSoundStatus(env,p)};
 }
 async function storeScript(env,ownerId,pid,script,rev){
  if(!env.BUCKET)fail(503,'대본 저장소 연결이 필요합니다.');
@@ -59,6 +60,7 @@ export async function dubbingRoute(req,env,path,user){
  if(!path.startsWith('/api/dubbing/'))return null;
  if(path==='/api/dubbing/config'&&req.method==='GET')return json({enabled:env.DUBBING_ENABLED==='true',aiAvailable:env.DUBBING_ENABLED==='true'&&dubbingAIAvailable(env),model:DUBBING_MODEL,recordingAvailable:recordingEnabled(env),soundAvailable:env.DUBBING_ENABLED==='true'&&env.DUBBING_SOUND_ENABLED==='true',pikaAvailable:pikaAvailable(env),soundPriceGold:(await dubbingSettings(env)).soundGold,goldChargingEnabled:dubbingGoldEnabled(env),quota:env.DUBBING_ENABLED==='true'&&user?{...await dubbingQuota(env,user.id),rewardedAdAvailable:dubbingRewardAvailable(req,env)}:null});
  if(env.DUBBING_ENABLED!=='true')fail(503,'더빙 스튜디오를 준비하고 있습니다.');
+ const casting=await dubbingCastingRoute(req,env,path,user);if(casting)return casting;
  const reward=await dubbingRewardRoute(req,env,path,user);if(reward)return reward;
  const url=new URL(req.url),method=req.method;
  if(path==='/api/dubbing/payments'&&method==='GET'){
@@ -69,6 +71,7 @@ export async function dubbingRoute(req,env,path,user){
  }
  if(path==='/api/dubbing/projects'&&method==='GET'){
   const tab=url.searchParams.get('tab')||'latest';if(!['latest','popular','open','complete','mine'].includes(tab))fail(400,'목록을 확인해주세요.');
+  const search=(url.searchParams.get('q')||'').trim().slice(0,100);
   const genre=url.searchParams.get('genre')||'';if(genre&&!DUBBING_GENRES.includes(genre))fail(400,'장르를 확인해주세요.');
   if(tab==='mine')requireUser(user);
   const offset=Math.max(0,Math.min(10000,Math.floor(Number(url.searchParams.get('offset'))||0)));
@@ -78,9 +81,10 @@ export async function dubbingRoute(req,env,path,user){
     AND EXISTS(SELECT 1 FROM json_each(j.timeline_json,'$.sounds') cue WHERE json_extract(cue.value,'$.kind') IN ('sfx','ambient') AND json_extract(cue.value,'$.volume')>0)) has_sound_effects,
    (SELECT COUNT(*) FROM dubbing_role_claims c WHERE c.project_id=p.id) participants FROM dubbing_projects p JOIN users u ON u.id=p.owner_id
    WHERE u.provider!='deleted' AND p.deleted_at=0 AND (p.root_id IS NULL OR EXISTS(SELECT 1 FROM dubbing_projects root WHERE root.id=p.root_id AND root.deleted_at=0)) AND ${where} AND ${unblocked} ${tab==='mine'?'':`AND ${dubbingVisibleSQL()}`}
+   ${search?'AND (p.title LIKE ? OR '+publicNameSQL('u')+' LIKE ?)':''}
    ${genre?"AND EXISTS(SELECT 1 FROM json_each(p.options_json,'$.genres') g WHERE g.value=?)":''}
    ORDER BY ${tab==='popular'?'(SELECT COUNT(*) FROM likes WHERE dubbing_id=p.id) DESC,':''}${tab==='latest'?'p.updated':'p.created'} DESC,p.id LIMIT 25 OFFSET ?`,
-   ...(tab==='mine'?[user.id,user.id]:[]),user?.id||'',user?.id||'',...(genre?[genre]:[]),offset);
+   ...(tab==='mine'?[user.id,user.id]:[]),user?.id||'',user?.id||'',...(search?['%'+search+'%','%'+search+'%']:[]),...(genre?[genre]:[]),offset);
   return json({projects:list.map(p=>({id:p.id,title:p.title,genres:JSON.parse(p.options_json).genres,roleCount:p.role_count,duration:p.duration,
    state:p.state,visibility:p.visibility,reusable:tab==='open',hasSoundEffects:!!p.has_sound_effects,ownerName:p.owner_name,participants:p.participants,created:p.created})),nextOffset:list.length===25?offset+25:null});
  }
@@ -141,6 +145,9 @@ export async function dubbingRoute(req,env,path,user){
  if(!action&&method==='DELETE')return deleteDubbingProject(req,env,p,user);
  if(p.removed&&(action||method!=='GET'))fail(403,'권리 신고 검토로 이용이 중단된 작품입니다. 이의신청을 이용해주세요.');
  if(!['GET','HEAD','DELETE'].includes(method)&&user)await assertDubbingCreator(env,user.id);
+ const managed=await one(env,'SELECT project_id FROM dubbing_combinations WHERE project_id=? UNION ALL SELECT project_id FROM dubbing_casting_drafts WHERE project_id=?',pid,pid);
+ if(managed&&['claims','performances'].includes(action)&&method!=='GET')fail(409,'참여 조합의 빈 배역에서 녹음해주세요. 제출된 배역은 변경할 수 없어요.');
+ if(action==='publish'&&await one(env,'SELECT project_id FROM dubbing_casting_drafts WHERE project_id=?',pid))fail(409,'개인 녹음은 녹음 화면의 공개 설정으로 제출해주세요.');
  if(action==='completed'&&method==='GET'){
   const offset=Number(new URL(req.url).searchParams.get('offset')||0);
   if(!Number.isSafeInteger(offset)||offset<0)fail(400,'목록 위치를 확인해주세요.');

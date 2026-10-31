@@ -197,6 +197,7 @@ function dubbingCueHTML(script,lineId){
 }
 function dubbingDetailHTML(p){
  if(p.removed)return dubbingRemovedHTML(p);
+ if(p.casting?.isRoot||p.casting?.combination)return castingDetailHTML(p);
  const s=p.script,role=id=>s.roles.find(r=>r.id===id),mine=p.roles.find(r=>r.mine),mineRecording=p.recording?.roles?.find(r=>r.roleId===mine?.id);
  return `<a class="dubbing-back" href="#dubbing">← 더빙 스튜디오</a><header class="dubbing-heading"><span class="eyebrow">${esc(s.genres.join(' · '))} · ${p.visibility==='private'?'비공개 대본':'배역 모집'}</span><h1>${esc(s.title)}</h1><p>${esc(p.ownerName)} · ${s.roles.length}개의 목소리 · 약 ${time(p.duration)}</p></header>
  <div class="dubbing-detail-layout"><div class="dubbing-panel dubbing-script-reader"><div class="dubbing-section-heading"><h2>대본</h2><span>${s.lines.length}개의 대사</span></div>${s.lines.map((l,i)=>`${i===0||s.lines[i-1].sceneId!==l.sceneId?`<div class="dubbing-scene-heading"><span>SCENE ${s.scenes.findIndex(sc=>sc.id===l.sceneId)+1}</span><h3>${esc(s.scenes.find(sc=>sc.id===l.sceneId)?.title||'')}</h3><p>${esc(s.scenes.find(sc=>sc.id===l.sceneId)?.description||'')}</p></div>`:''}${dubbingCueHTML(s,l.id)}<article class="dubbing-reader-line dubbing-cast-${s.roles.findIndex(r=>r.id===l.roleId)%6} ${mine?.id===l.roleId?'is-mine':''}"><span class="dubbing-line-number">${String(i+1).padStart(2,'0')}</span><div><small>${esc([l.emotion,l.direction].filter(Boolean).join(' · '))}</small><p><b>${esc(role(l.roleId)?.name||'')}: </b>${esc(l.text)}</p></div></article>`).join('')}</div>
@@ -348,6 +349,7 @@ function bindDubbing(view){
  if(view.project){
   const p=view.project;let busy=false;
   bindDubbingCommunity(p,root);
+  void bindCastingDetail(p,root);
   bindDubbingSound(p);
   bindDubbingRecordEntry(p,root,view.route);
   const share=root.querySelector('[data-dubbing-share]');if(share)share.onclick=async()=>{const url=location.origin+'/#dubbing/'+p.id;try{if(navigator.share)await navigator.share({title:p.title,url});else{await navigator.clipboard.writeText(url);toast('작품 링크를 복사했어요.');}}catch{}};

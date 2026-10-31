@@ -589,6 +589,13 @@
       "when": 1793361604686,
       "tag": "0083_unique_the_stranger",
       "breakpoints": true
+    },
+    {
+      "idx": 84,
+      "version": "6",
+      "when": 1793463236164,
+      "tag": "0084_military_stark_industries",
+      "breakpoints": true
     }
   ]
 }

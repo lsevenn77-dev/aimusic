@@ -310,6 +310,22 @@ export const dubbingFinalJobs=sqliteTable('dubbing_final_jobs',{
  outputKey:text('output_key'),outputMeta:text('output_meta'),error:text('error').notNull().default(''),created:integer('created').notNull(),updated:integer('updated').notNull()
 },t=>[uniqueIndex('dubbing_final_project').on(t.projectId,t.scriptKey),index('dubbing_final_queue').on(t.state,t.leaseUntil)]);
 
+// Variant A: private takes are staged independently; only an accepted submission occupies a cast slot.
+export const dubbingCastingDrafts=sqliteTable('dubbing_casting_drafts',{
+ projectId:text('project_id').primaryKey().references(()=>dubbingProjects.id,{onDelete:'cascade'}),rootId:text('root_id').notNull().references(()=>dubbingProjects.id),
+ targetId:text('target_id'),destinationId:text('destination_id').notNull(),committedId:text('committed_id'),roleId:text('role_id').notNull(),created:integer('created').notNull()
+},t=>[index('dubbing_casting_drafts_root').on(t.rootId),index('dubbing_casting_drafts_committed').on(t.committedId)]);
+export const dubbingCombinations=sqliteTable('dubbing_combinations',{
+ projectId:text('project_id').primaryKey().references(()=>dubbingProjects.id,{onDelete:'cascade'}),rootId:text('root_id').notNull().references(()=>dubbingProjects.id),
+ lastParticipation:integer('last_participation').notNull(),expiredAt:integer('expired_at').notNull().default(0),renderRequested:integer('render_requested').notNull().default(0),offsetsJson:text('offsets_json').notNull().default('{}')
+},t=>[index('dubbing_combinations_root').on(t.rootId,t.expiredAt),index('dubbing_combinations_expiry').on(t.expiredAt,t.lastParticipation)]);
+export const dubbingRecordingPermissions=sqliteTable('dubbing_recording_permissions',{
+ recordingId:text('recording_id').primaryKey().references(()=>dubbingRecordings.id,{onDelete:'cascade'}),visibility:text('visibility').notNull(),licenseVersion:text('license_version').notNull().default(''),acceptedAt:integer('accepted_at').notNull().default(0)
+},t=>[check('dubbing_recording_privacy',sql`${t.visibility} IN ('public','private')`)]);
+export const dubbingAudioCleanup=sqliteTable('dubbing_audio_cleanup',{
+ objectKey:text('object_key').primaryKey(),created:integer('created').notNull(),attempts:integer('attempts').notNull().default(0),lastError:text('last_error').notNull().default('')
+});
+
 // Operator changes are versioned; each sound order keeps its agreed price.
 export const dubbingSettings=sqliteTable('dubbing_settings',{
  key:text('key').primaryKey(),soundGold:integer('sound_gold').notNull().default(50),version:integer('version').notNull().default(1),updated:integer('updated').notNull(),updatedBy:text('updated_by').notNull()

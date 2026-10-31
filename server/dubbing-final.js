@@ -9,7 +9,7 @@ export async function dubbingFinalInternalRoute(req,env,path){
  if(env.DUBBING_ENABLED!=='true'||!recordingEnabled(env))return json({job:null});
  if(path==='/internal/dubbing-final/claim'&&req.method==='POST'){
   // Recover a final-submit acknowledgement/queue failure without another user action.
-  const pending=await rows(env,`SELECT p.* FROM dubbing_projects p WHERE p.state='recording' AND ${dubbingVisibleSQL()}
+  const pending=await rows(env,`SELECT p.* FROM dubbing_projects p WHERE (p.state='recording' OR (p.state='complete' AND EXISTS(SELECT 1 FROM dubbing_combinations c WHERE c.project_id=p.id AND c.render_requested>0 AND c.expired_at=0))) AND ${dubbingVisibleSQL()}
    AND (SELECT COUNT(*) FROM dubbing_recordings r WHERE r.project_id=p.id AND r.state='submitted')=p.role_count
    AND NOT EXISTS(SELECT 1 FROM dubbing_final_jobs j WHERE j.project_id=p.id AND j.script_key=p.script_key AND j.state!='invalidated') LIMIT 5`);
   for(const p of pending)await queueDubbingFinal(env,p);

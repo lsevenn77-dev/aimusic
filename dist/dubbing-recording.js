@@ -8,7 +8,7 @@ function dubbingRecordingHTML(p,data){
  <div class="dubbing-record-controls"><button type="button" class="primary-button" id="dubbing-record-start">${icon('mic')} 녹음 시작</button><button type="button" class="small-button" id="dubbing-record-pause" disabled>일시정지</button><button type="button" class="small-button" id="dubbing-record-stop" disabled>이 대사 마치기</button><button type="button" class="small-button" id="dubbing-record-again" disabled>다시 녹음</button></div>
  <div class="dubbing-form-actions"><button type="button" class="small-button" id="dubbing-record-listen">${icon('audio-play')} 미리 듣기</button><button type="button" class="small-button" id="dubbing-record-save" disabled>${icon('save')} 임시 저장</button></div>
  <p class="dubbing-feedback" role="status" aria-live="polite">${record?.state==='submitted'?'내 배역의 녹음을 제출했어요. 다른 배역의 목소리를 기다리고 있어요.':'이어폰을 사용해주세요. 배경음과 다른 배역의 목소리는 별도로 재생하며 마이크 파일에 합치지 않아요.'}</p>
- <div class="dubbing-record-submit"><label class="dubbing-consent"><input type="checkbox" id="dubbing-record-rights"> 내 음성을 이 공동 작품에 사용하고 공개하는 데 동의합니다.</label><button class="primary-button" id="dubbing-record-submit">내 배역 녹음 제출</button><small>모든 대사를 저장해야 제출할 수 있어요. 제출 후에는 목소리를 변경할 수 없어요.</small></div>
+ <div class="dubbing-record-submit"><fieldset class="dc-privacy"><legend><h3>내 더빙 녹음 공개 설정</h3></legend><label><input type="radio" name="dubbing-visibility" value="public"> 공개 캐스팅 허용</label><label><input type="radio" name="dubbing-visibility" value="private"> 비공개 보관</label><p>공개하면 이 대본의 선택한 조합에 내 음성이 포함되며, 참여자가 대사를 미리 듣고 공동 작품으로 합성·저장·게시할 수 있어요. 원작자 녹음은 기본 조합으로 유지되어 이 대본의 새 조합에 사용됩니다. 다른 대본에 자동 재사용하지 않아요.</p><p>비공개 보관은 공개 조합에 참여하지 않고 내 작업에만 저장합니다. 공개 후 삭제 요청은 작품 관리·고객센터에서 접수하며, 이미 완성된 공동 작품의 처리 범위는 별도 안내합니다. 미완성 조합은 신규 녹음 참여 없이 30일이 지나면 삭제되며, 그 조합에만 쓰인 음성도 삭제됩니다.</p><label class="dubbing-consent"><input type="checkbox" id="dubbing-record-rights"> 공개 캐스팅을 선택한 경우 위 음성 이용 범위에 동의합니다.</label></fieldset><button class="primary-button" id="dubbing-record-submit">공개 설정에 따라 제출</button><small>모든 대사를 임시 저장한 뒤 제출해주세요. 공개 제출된 목소리는 다른 참여자의 녹음을 보호하기 위해 덮어쓰지 않습니다.</small><div id="dc-record-result" role="status"></div></div>
  <details class="dubbing-record-help"><summary>녹음은 이렇게 진행해요</summary><p>효과음을 듣고 3, 2, 1 안내에 맞춰 대사를 시작하세요. 녹음한 내 대사는 체크로 표시돼요. 다른 대사로 이동해도 녹음은 이 화면에 모아두며, 임시 저장을 누르면 지금까지 녹음한 대사를 모두 저장해요. 저장 전에는 화면을 닫지 마세요.</p></details></aside></div>`;
 }
 function dubbingRecordBeforeRoute(raw){
@@ -57,7 +57,8 @@ function dubbingRecordDraw(s){
  set('dubbing-record-pause',s.busy||!s.run);set('dubbing-record-stop',s.busy||!s.run);
  set('dubbing-record-again',s.busy||!!s.run||locked||(!s.samples&&!slot.audioUrl));
  set('dubbing-record-save',s.busy||!!s.run||locked||!s.dirty);set('dubbing-record-listen',s.busy||!!s.run);
- set('dubbing-record-submit',s.busy||!!s.run||s.dirty||locked||saved!==total);set('dubbing-record-rights',locked||s.busy||!!s.run);
+ const needsConsent=locked&&s.p.casting?.isRoot&&!state.castingVisibility;
+ set('dubbing-record-submit',s.busy||!!s.run||s.dirty||(locked&&!needsConsent)||saved!==total);set('dubbing-record-rights',(locked&&!needsConsent)||s.busy||!!s.run);
  s.root.querySelector('#dubbing-record-limit').textContent=time(slot.recordEnd-slot.start);
  dubbingRecordTick(s);
 }
@@ -158,12 +159,26 @@ function bindDubbingRecorder(view,root){
   }catch(err){dubbingRecordMessage(s,err.message);}finally{s.busy=false;dubbingRecordDraw(s);}
  };
  root.querySelector('#dubbing-record-submit').onclick=async()=>{
-  if(!root.querySelector('#dubbing-record-rights').checked){dubbingRecordMessage(s,'공동 작품 공개에 동의한 뒤 제출해주세요.');return;}
+  const visibility=root.querySelector('[name="dubbing-visibility"]:checked')?.value,rights=root.querySelector('#dubbing-record-rights').checked;
+  if(!visibility){dubbingRecordMessage(s,'내 더빙 녹음 공개 설정을 선택해주세요.');return;}
+  if(visibility==='public'&&!rights){dubbingRecordMessage(s,'공개 캐스팅의 음성 이용 범위를 확인해주세요.');return;}
   if(s.busy||s.run||s.dirty)return;s.busy=true;dubbingStopGuide(s);dubbingRecordDraw(s);
-  try{s.data=await api(`/api/dubbing/projects/${s.p.id}/recording/${s.role}/submit`,'POST',{revision:dubbingRecordState(s).revision,rightsAccepted:true});dubbingRecordMessage(s,s.data.recording.final?'모든 배역이 모였어요. 완성 오디오를 합성하고 있습니다.':'배역 녹음을 제출했어요. 다른 참여자의 녹음을 기다립니다.');}
-  catch(err){dubbingRecordMessage(s,err.message);}finally{s.busy=false;dubbingRecordDraw(s);}
+  try{s.data=await api(`/api/dubbing/projects/${s.p.id}/recording/${s.role}/submit`,'POST',{revision:dubbingRecordState(s).revision,visibility,rightsAccepted:rights,licenseVersion:'casting-2026-11-01'});
+   const result=s.data.casting,box=root.querySelector('#dc-record-result');
+   dubbingRecordMessage(s,result?.private?'내 작업에 비공개로 보관했어요. 공개 조합에는 참여하지 않았어요.':result?.base?'원작자의 기본 녹음을 공개했어요. 다른 배역이 이 목소리에서 새 조합을 시작할 수 있어요.':'배역 녹음을 제출했어요. 모든 배역이 모이면 완성작으로 이동합니다.');
+   box.innerHTML=result?.combinationId?`<a class="small-button" href="#dubbing/${esc(result.combinationId)}">참여한 작품 확인</a>`:`<a class="small-button" href="#karaoke/dubbing?tab=${result?.private?'mine&kind=recording':'discover'}">${result?.private?'내 녹음 보기':'작품찾기로'}</a>`;
+  }catch(err){dubbingRecordMessage(s,err.message);if(err.status===409&&s.p.casting?.draft)void castingRetargetRecording(s);}
+  finally{s.busy=false;dubbingRecordDraw(s);}
  };
  dubbingRecordDraw(s);
 }
 window.addEventListener('beforeunload',e=>{if(dubbingRecorder?.dirty||dubbingRecorder?.run){e.preventDefault();e.returnValue='';}});
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&dubbingRecorder?.run)void dubbingPauseRecording(dubbingRecorder);});
+
+async function castingRetargetRecording(s){
+ const box=s.root.querySelector('#dc-record-result');try{const data=await api('/api/dubbing/casting/'+s.p.casting.draft.rootId,'GET',undefined,{fresh:true});if(!box.isConnected)return;
+ const choices=data.combinations.filter(c=>c.state!=='complete'&&!c.members.some(m=>m.roleId===s.role));
+ box.innerHTML='<p class="dc-help">저장된 녹음을 유지한 채 참여할 조합을 다시 선택하세요.</p><label>참여 조합 <select id="dc-retarget">'+choices.map((c,i)=>`<option value="${c.base?'':esc(c.id)}">${esc(c.base?'기본 녹음에서 새 조합':c.count+'/'+data.root.roleCount+' 조합 '+(i+1)+' · '+c.members.map(m=>m.name).join(', '))}</option>`).join('')+'</select></label><button type="button" class="small-button" id="dc-retarget-save">조합 변경</button>';
+ box.querySelector('#dc-retarget-save').disabled=!choices.length;box.querySelector('#dc-retarget-save').onclick=async event=>{event.currentTarget.disabled=true;try{await api('/api/dubbing/casting/'+s.p.id+'/retarget','POST',{targetId:box.querySelector('select').value||null});box.textContent='조합을 변경했어요. 공개 설정을 확인하고 다시 제출해주세요.';}catch(e){dubbingRecordMessage(s,e.message);event.currentTarget.disabled=false;}};
+ }catch(e){dubbingRecordMessage(s,e.message+' 임시 저장한 녹음은 내 작업에서 다시 열 수 있어요.');}
+}

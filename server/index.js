@@ -1,3 +1,4 @@
+import {expireDubbingCombinations} from './dubbing-casting.js';
 import {artistFanpageRoute} from './artist-fanpage.js';
 import {giftCheckoutRoute} from './gift-checkout.js';
 import {aiBotsRoute,runBotEngine,queueBotHeartbeat} from './ai-bots.js';
@@ -168,6 +169,6 @@ export default {async fetch(req,env,ctx){
   if(path.includes('/auth/')&&path.endsWith('/callback'))return new Response(null,{status:303,headers:{location:'/#account?error='+encodeURIComponent(message),'cache-control':'no-store'}});
   return json({error:message},status);
  }
-},async scheduled(event,env,ctx){ctx.waitUntil(dispatchPush(env));ctx.waitUntil(runBotEngine(env));ctx.waitUntil(cleanupChatImages(env));ctx.waitUntil(classifyNext(env));ctx.waitUntil(syncRecentCrewGrowth(env));}};
+},async scheduled(event,env,ctx){ctx.waitUntil(dispatchPush(env));ctx.waitUntil(runBotEngine(env));ctx.waitUntil(cleanupChatImages(env));ctx.waitUntil(expireDubbingCombinations(env));ctx.waitUntil(classifyNext(env));ctx.waitUntil(syncRecentCrewGrowth(env));}};
 
 async function syncActorCrew(env,uid){const membership=await one(env,'SELECT crew_id FROM crew_members WHERE user_id=?',uid);if(membership)await syncCrewGrowth(env,membership.crew_id);}

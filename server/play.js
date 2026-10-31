@@ -7,7 +7,7 @@ import {dubbingVisibleSQL} from './dubbing-access.js';
 import {publicNameSQL,memberNameSQL} from './identity.js';
 
 const unblocked=`NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=? AND b.blocked_id=p.owner_id) OR (b.blocked_id=? AND b.user_id=p.owner_id))`;
-const finished=`p.state='complete' AND EXISTS(SELECT 1 FROM dubbing_final_jobs j WHERE j.project_id=p.id AND j.script_key=p.script_key AND j.state='ready' AND j.output_key!='')`;
+const finished=`p.state='complete' AND (EXISTS(SELECT 1 FROM dubbing_combinations c WHERE c.project_id=p.id AND c.expired_at=0) OR EXISTS(SELECT 1 FROM dubbing_final_jobs j WHERE j.project_id=p.id AND j.script_key=p.script_key AND j.state='ready' AND j.output_key!=''))`;
 const publishedAt=`COALESCE((SELECT MAX(j.updated) FROM dubbing_final_jobs j WHERE j.project_id=p.id AND j.script_key=p.script_key AND j.state='ready'),p.updated)`;
 const likes=`(SELECT COUNT(*) FROM likes l WHERE l.dubbing_id=p.id)`;
 const count=`(SELECT COUNT(*) FROM dubbing_role_claims c WHERE c.project_id=p.id)`;
