@@ -85,6 +85,8 @@ await build({entryPoints:['shared/duet-guide.js'],outfile:'dist/client/duet-guid
 await build({entryPoints:['shared/karaoke-audio.js'],outfile:'dist/client/karaoke-core.js',bundle:true,format:'iife',globalName:'AifectKaraoke',target:'es2022',minify:true});
 await cp('dist/cover-export.js','dist/client/cover-export.js');
 // These immutable filenames live in a versioned folder on the static asset host.
+// Keep the source copies outside dist, since Sites packages the entire dist tree.
+await cp('assets/products/bunnies-v1','dist/client/assets/products/bunnies-v1',{recursive:true});
 await writeFile('dist/client/_headers','/assets/products/bunnies-v1/*\n  Cache-Control: public, max-age=31536000, immutable\n');
 await build({entryPoints:['shared/cover-mp3-worker.js'],outfile:'dist/client/cover-mp3-worker.js',bundle:true,format:'esm',target:'es2022',external:['./third-party/lamejs-1.2.7/lamejs.js']});
 await build({entryPoints:['shared/lyrics.js'],outfile:'dist/client/lyrics-core.js',bundle:true,format:'iife',globalName:'AifectLyrics',target:'es2022',minify:true});
