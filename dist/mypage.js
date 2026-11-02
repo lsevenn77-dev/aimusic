@@ -38,9 +38,14 @@ function myProfileHeader(d){
  const background=`<div class="mp-header-background" aria-hidden="true">${banner||photo?`<img src="${esc(banner||photo)}"${banner&&photo?` data-fallback="${esc(photo)}"`:''} alt="">`:''}</div>`;
  const tools=`<div class="mp-header-tools">
   <button type="button" class="fan-icon" data-mp-share aria-label="프로필 공유" title="프로필 공유">${icon('share',20)}</button>
-  ${own?`<details class="mp-settings"><summary class="fan-icon" aria-label="프로필 설정" title="프로필 설정">${icon('settings',20)}</summary>
-   <nav class="fan-settings-menu" aria-label="프로필 관리"><a href="#profile/edit">프로필 수정</a><a href="#studio">스튜디오</a></nav></details>`:''}
+  ${own?`<button type="button" class="fan-icon" data-mp-settings aria-label="프로필 설정" title="프로필 설정" aria-controls="mp-settings-menu" aria-expanded="false">${icon('settings',20)}</button>`:''}
  </div>`;
+ const settings=own?`<nav id="mp-settings-menu" class="fan-settings-menu mp-settings-menu" aria-label="프로필 설정" hidden>
+  <a href="#membership">${icon('ticket',18)}구독·이용권 관리</a>
+  <a href="#payouts">${icon('wallet',18)}정산내역</a>
+  <a href="#account">${icon('settings',18)}계정설정</a>
+  <button type="button" data-quick-logout>${icon('logout',18)}로그아웃</button>
+ </nav>`:'';
  const actions=own?`<div class="mp-header-actions mp-owner-actions">
   <a class="primary-button" href="#profile/edit">프로필 수정</a><a class="small-button" href="#studio">스튜디오</a>
  </div>`:d.followers!=null&&p.id?`<div class="mp-header-actions mp-social-actions">
@@ -53,7 +58,7 @@ function myProfileHeader(d){
    ${p.account_type==='ai_bot'?'<p class="field-help">공식 AI 응원 계정</p>':''}
    ${p.public_id?`<p class="mp-public-id">ID · ${esc(p.public_id)} <button type="button" class="text-link" data-copy-public-id="${esc(p.public_id)}" aria-label="고유 ID 복사"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg></button></p>`:''}
    ${c?`<div class="mp-crew-line"><a href="#crew/${esc(c.id)}">${c.image_version?`<img src="/media/crew/${esc(c.id)}?v=${esc(c.image_version)}" alt="">`:icon('users')}${esc(c.name)}</a></div>`:''}
-   </div>${bio&&bio!=='-'?`<p class="mp-profile-bio">${esc(bio)}</p>`:''}${myProfileStats(d,own)}
+   </div>${settings}${bio&&bio!=='-'?`<p class="mp-profile-bio">${esc(bio)}</p>`:''}${myProfileStats(d,own)}
   </div>${actions}</header></div>`;
 }
 
@@ -70,15 +75,28 @@ function bindMemberHeader(profile){
   if(image.complete&&!image.naturalWidth)fallback();
  }
  header.querySelector('[data-mp-share]').onclick=()=>shareMemberProfile(profile);
- const settings=header.querySelector('.mp-settings');
- if(!settings)return;
+ const trigger=header.querySelector('[data-mp-settings]'),menu=header.querySelector('.mp-settings-menu');
+ if(!trigger||!menu)return;
  const events=new AbortController();
- const close=()=>{settings.open=false;};
- document.addEventListener('click',e=>{if(!settings.contains(e.target)||e.target.closest('a'))close();},{signal:events.signal});
- document.addEventListener('keydown',e=>{
-  if(e.key==='Escape'&&settings.open){close();settings.querySelector('summary').focus();e.preventDefault();}
+ const setOpen=open=>{menu.hidden=!open;trigger.setAttribute('aria-expanded',String(open));};
+ trigger.onclick=()=>{
+  setOpen(menu.hidden);
+  if(!menu.hidden)menu.querySelector('a').focus({preventScroll:true});
+ };
+ document.addEventListener('click',e=>{
+  if(menu.hidden||trigger.contains(e.target))return;
+  if(!menu.contains(e.target)||e.target.closest('a,button')){
+   if(menu.contains(e.target))trigger.focus({preventScroll:true});
+   setOpen(false);
+  }
+ },{capture:true,signal:events.signal});
+ document.addEventListener('focusin',e=>{
+  if(!menu.hidden&&!menu.contains(e.target)&&e.target!==trigger)setOpen(false);
  },{signal:events.signal});
- registerRouteCleanup(()=>{events.abort();settings.remove();});
+ document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&!menu.hidden){setOpen(false);trigger.focus();e.preventDefault();}
+ },{signal:events.signal});
+ registerRouteCleanup(()=>{events.abort();setOpen(false);});
 }
 
 function myMoments(d){

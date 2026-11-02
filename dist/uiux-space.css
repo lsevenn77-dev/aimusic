@@ -10,6 +10,12 @@
  background:transparent;border:0;border-top:1px solid var(--ds-line);
  border-radius:0;box-shadow:none;padding:16px 0;margin-bottom:12px;
 }
+/* Only the first section in each column meets the profile header. */
+#main .mp-member-page .mp-main>.mp-moments-card{border-top:0;padding-top:8px}
+@media(min-width:1101px){
+ #main .mp-member-page #mp-aside-content>.mp-card:first-child,
+ #main .mp-member-page:not(.mp-own)>.mp-aside>.mp-card:first-child:not(.mp-studio){border-top:0;padding-top:8px}
+}
 #main .mypage-layout .mp-profile-bio{font-size:13px;line-height:1.6;color:var(--ds-body);white-space:pre-wrap;overflow-wrap:anywhere;margin:8px 0 0}
 #main .mypage-layout .mp-profile-actions{flex-wrap:wrap}
 #main .mypage-layout .mp-profile-actions>:is(.primary-button,.small-button){min-width:0;min-height:44px;height:auto;padding:8px 12px}

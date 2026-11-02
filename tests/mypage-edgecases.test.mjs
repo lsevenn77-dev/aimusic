@@ -23,13 +23,14 @@ test('independent SQLite writers issue unique public numbers atomically',async()
 
 test('logout and login keep the same public ID with actual session cookies',async t=>{
  const f=await fixture(t),env={DB:f.DB,AUTH_PEPPER:'fixture-only'};
- const call=async(path,body,cookie='')=>worker.fetch(new Request('https://aifect.test'+path,{method:'POST',headers:{Origin:'https://aifect.test','Content-Type':'application/json',Cookie:cookie},body:JSON.stringify(body||{})}),env,{waitUntil(p){p.catch(()=>{});}});
+ const ctx={waitUntil(p){p.catch(()=>{});}};
+ const call=async(path,body,cookie='')=>worker.fetch(new Request('https://aifect.test'+path,{method:'POST',headers:{Origin:'https://aifect.test','Content-Type':'application/json',Cookie:cookie},body:JSON.stringify(body||{})}),env,ctx);
  const credentials={email:'roundtrip@example.test',name:'재로그인회원',password:'fixture-long-password'};
  const registered=await call('/api/auth/register',credentials);assert.equal(registered.status,200);const uid=(await registered.json()).user.id,number=f.sql.prepare('SELECT number FROM public_member_ids WHERE user_id=?').get(uid).number;
  const cookie=registered.headers.get('set-cookie').split(';')[0];assert.equal((await call('/api/auth/logout',{},cookie)).status,200);
- const denied=await worker.fetch(new Request('https://aifect.test/api/me/profile',{headers:{Cookie:cookie}}),env,{});assert.equal(denied.status,401);
+ const denied=await worker.fetch(new Request('https://aifect.test/api/me/profile',{headers:{Cookie:cookie}}),env,ctx);assert.equal(denied.status,401);
  const login=await call('/api/auth/login',credentials);assert.equal(login.status,200);const fresh=login.headers.get('set-cookie').split(';')[0];
- const profile=await worker.fetch(new Request('https://aifect.test/api/me/profile',{headers:{Cookie:fresh}}),env,{});assert.equal((await profile.json()).profile.public_number,number);
+ const profile=await worker.fetch(new Request('https://aifect.test/api/me/profile',{headers:{Cookie:fresh}}),env,ctx);assert.equal((await profile.json()).profile.public_number,number);
 });
 
 test('public profiles exclude unfinished/private dubbing and deleted works',async t=>{

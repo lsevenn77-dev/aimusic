@@ -56,7 +56,9 @@ test('header management requires two matching IDs and blank bios leave no row',(
  for(const [me,userId,owner] of [[null,undefined,false],[{},undefined,false],[{id:'visitor'},'owner',false],[{id:'owner'},'owner',true]]){
   c.me=me;
   const html=c.myProfileHeader({profile:{...profile,user_id:userId,bio:'  -  '}});
-  assert.equal(html.includes('<details'),owner);
+  assert.equal(html.includes('data-mp-settings'),owner);
+  assert.equal(html.includes('id="mp-settings-menu"'),owner);
+  assert.equal(html.includes('data-quick-logout'),owner);
   assert.equal(html.includes('href="#profile/edit"'),owner);
   assert.match(html,/data-mp-share/);assert.doesNotMatch(html,/mp-profile-bio|ARTIST PROFILE/);
   assert.match(html,/src="\/media\/banner\/target\?v=banner" data-fallback="\/media\/producer\/target\?v=photo"/);
