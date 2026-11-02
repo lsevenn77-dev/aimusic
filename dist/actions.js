@@ -36,7 +36,7 @@ function bindForms(base,param){
  if($('#logout'))$('#logout').onclick=logoutAccount;
  if($('#comment-form')){
   syncCoverListen();
-  const form=$('#comment-form');form.onsubmit=busyForm(form,async fd=>{if(!me){askLogin();return;}const ts=fd.has('with_time')&&current?.id===param?Math.floor(audio.currentTime):null;await api(`/api/tracks/${param}/comments`,'POST',{body:fd.get('body'),timestamp:ts});form.reset();await reloadComments(param);toast('댓글을 등록했습니다.');});
+  const form=$('#comment-form');form.onsubmit=busyForm(form,async fd=>{if(!me){askLogin();return;}const ts=fd.has('with_time')&&current?.id===param?Math.floor(audio.currentTime):null;await api(`/api/tracks/${param}/comments`,'POST',{body:fd.get('body'),timestamp:ts});form.reset();await reloadComments(param,true);toast('댓글을 등록했습니다.');});
   $('#comment-sort').onchange=()=>reloadComments(param).catch(e=>toast(e.message));
  }
  if($('#new-playlist'))$('#new-playlist').onclick=()=>playlistDialog().catch(e=>toast(e.message));
@@ -54,7 +54,25 @@ async function prepareGoogle(){
  google.accounts.id.initialize({client_id:authConfig.googleClientId,nonce,auto_select:false,callback:async result=>{try{saveResume();const d=await api('/api/auth/google/token','POST',{credential:result.credential});me=d.user;await refreshAuthState();await refreshLibrary();updateAccount();await resumeAfterLogin();location.hash=returnRoute;await render();toast('Google 계정으로 로그인했습니다.');}catch(e){toast(e.message);await prepareGoogle();}}});
  google.accounts.id.renderButton(host,{theme:'outline',size:'large',type:'standard',text:'continue_with',width:Math.min(host.parentElement.clientWidth-60,340),locale:'ko',click_listener:saveResume});
 }
-async function reloadComments(tid){const {comments}=await api(`/api/tracks/${tid}/comments?sort=${$('#comment-sort')?.value||'latest'}`);if($('#comments'))$('#comments').innerHTML=commentsHTML(comments,trackMap.get(tid));}
+async function reloadComments(tid,refreshCount=false){
+ const list=$('#comments');
+ if(!list||list.dataset.track!==tid)return;
+ const request=String(Number(list.dataset.request||0)+1);list.dataset.request=request;
+ if(refreshCount)list.dataset.countPending='true';
+ const [{comments},detail]=await Promise.all([
+  api('/api/tracks/'+tid+'/comments?sort='+($('#comment-sort')?.value||'latest')),
+  list.dataset.countPending?api('/api/tracks/'+tid):null
+ ]);
+ if(!list.isConnected||list.dataset.request!==request)return;
+ const track=trackMap.get(tid);
+ list.innerHTML=commentsHTML(comments,track);
+ if(detail){
+  delete list.dataset.countPending;
+  track.comments=detail.track.comments;
+  const metric=document.querySelector('[data-song-comment-count]');
+  if(metric){metric.setAttribute('aria-label','댓글 '+number(track.comments)+'개');metric.innerHTML=icon('ui-comment')+number(track.comments);}
+ }
+}
 async function uploadRequest(path,method='GET',body){
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),60000);
  try{const r=await fetch(path,{method,credentials:'same-origin',signal:controller.signal,headers:body?{'content-type':'application/json'}:undefined,body:body?JSON.stringify(body):undefined});let data;try{data=await r.json();}catch{throw Error('서버 응답을 확인하지 못했어요. 잠시 후 다시 시도해주세요.');}if(!r.ok)throw Object.assign(Error(data.error||'업로드 요청을 처리하지 못했어요.'),{status:r.status});return data;}
@@ -218,8 +236,8 @@ document.addEventListener('click',async ev=>{
   else if(el.dataset.editPlaylist){const d=await api('/api/playlists/'+el.dataset.editPlaylist);await playlistDialog(d.playlist);}
   else if(el.dataset.deletePlaylist){if(confirm('이 플레이리스트를 삭제할까요?')){await api('/api/playlists/'+el.dataset.deletePlaylist,'DELETE');location.hash='library/playlists';}}
   else if(el.dataset.commentLike){if(!me)return askLogin();await api(`/api/comments/${el.dataset.commentLike}/like`,el.dataset.liked==='true'?'DELETE':'PUT');await reloadComments(location.hash.split('/')[1]?.split('?')[0]);}
-  else if(el.dataset.deleteComment){if(confirm('댓글을 삭제할까요?')){await api('/api/comments/'+el.dataset.deleteComment,'DELETE');await reloadComments(location.hash.split('/')[1]?.split('?')[0]);}}
-  else if(el.dataset.editComment||el.dataset.reply){if(!me)return askLogin();const edit=el.dataset.editComment;dialog(`<h2>${edit?'댓글 수정':'답글 남기기'}</h2><form id="reply-form"><textarea data-comment-input rows="1" name="body" required maxlength="2000" aria-label="${edit?'댓글 수정':'답글'}">${esc(edit?el.dataset.body:'')}</textarea><button class="primary-button">등록</button><p class="form-error" role="alert"></p></form>`);const form=$('#reply-form');sizeCommentInput(form.elements.body);form.onsubmit=busyForm(form,async fd=>{await api(edit?`/api/comments/${edit}`:`/api/tracks/${el.dataset.track}/comments`,edit?'PATCH':'POST',{body:fd.get('body'),parent_id:el.dataset.reply||null});$('#dialog').close();await reloadComments(location.hash.split('/')[1]?.split('?')[0]);});}
+  else if(el.dataset.deleteComment){if(confirm('댓글을 삭제할까요?')){await api('/api/comments/'+el.dataset.deleteComment,'DELETE');await reloadComments(el.closest('[data-track]')?.dataset.track,true);}}
+  else if(el.dataset.editComment||el.dataset.reply){if(!me)return askLogin();const edit=el.dataset.editComment;dialog(`<h2>${edit?'댓글 수정':'답글 남기기'}</h2><form id="reply-form"><textarea data-comment-input rows="1" name="body" required maxlength="2000" aria-label="${edit?'댓글 수정':'답글'}">${esc(edit?el.dataset.body:'')}</textarea><button class="primary-button">등록</button><p class="form-error" role="alert"></p></form>`);const form=$('#reply-form');sizeCommentInput(form.elements.body);form.onsubmit=busyForm(form,async fd=>{await api(edit?`/api/comments/${edit}`:`/api/tracks/${el.dataset.track}/comments`,edit?'PATCH':'POST',{body:fd.get('body'),parent_id:el.dataset.reply||null});$('#dialog').close();await reloadComments(edit?el.closest('#comments')?.dataset.track:el.dataset.track,!edit);});}
   else if(el.hasAttribute('data-seek')){if(window.AifectAudioAds?.active){toast('광고가 끝나면 곡의 재생 위치를 바꿀 수 있어요.');return;}if(current?.id!==el.dataset.track)await play(el.dataset.track);if(el.hasAttribute('data-lyric-index')&&!hasFullLyrics(current)){refreshLyricsPanel();toast('전체 싱크 가사는 Premium에서 이용할 수 있어요.');return;}const seconds=Number(el.dataset.seek);if(preview&&seconds>=60){askLogin();return;}audio.currentTime=seconds;await audio.play();}
   else if(el.matches('.detail-photo-change')){const input=el.nextElementSibling;if(!pendingCoverPhotos.has(input.dataset.coverPhoto))input.click();}
   else if(el.dataset.deleteTrack)deleteTrackDialog(el.dataset.deleteTrack,el.dataset.trackTitle,el.dataset.trackKind);
@@ -306,3 +324,82 @@ async function deleteAllCoversDialog(){const ticket=renderId;
  });
 }
 document.addEventListener('click',e=>{if(e.target.closest('[data-purge-all-covers]'))deleteAllCoversDialog().catch(err=>toast(err.message));});
+
+/* Touch menus forward to the same controls as the desktop action row. */
+(function installCommentLongPressActions(){
+ const mobile=()=>window.matchMedia('(max-width:767px)').matches;
+ let press=null,activeSheet=null;
+ const clearPress=()=>{if(press){clearTimeout(press.timer);press=null;}};
+ const interactive='button,a,input,textarea,select,[role="button"]';
+ function openActions(card){
+  if(!mobile()||!card?.isConnected||activeSheet)return;
+  const sources=[...card.querySelectorAll('[data-comment-action]')].filter(button=>
+   button.closest('[data-comment-card]')===card&&!button.disabled&&(me||button.dataset.postAction==='reply'));
+  if(!sources.length)return;
+  const sheet=document.createElement('dialog');
+  sheet.className='comment-context-dialog';
+  sheet.setAttribute('aria-label','댓글 메뉴');
+  sheet.innerHTML='<div class="comment-context-sheet"><header><strong>댓글 메뉴</strong><button type="button" aria-label="닫기">×</button></header><div class="comment-context-options"></div></div>';
+  const labels={like:'좋아요',reply:'답글',report:'신고',edit:'수정',delete:'삭제'};
+  const marker=crypto.randomUUID(),url=location.href;
+  let selected=null;
+  function finish(){
+   window.removeEventListener('popstate',finish);
+   window.removeEventListener('hashchange',finish);
+   sheet.close();sheet.remove();activeSheet=null;
+   if(url===location.href&&card.isConnected){
+    card.focus({preventScroll:true});
+    if(selected?.isConnected)selected.click();
+   }
+  }
+  function dismiss(source=null){
+   if(sheet.dataset.closing)return;
+   sheet.dataset.closing='true';selected=source;
+   if(history.state?.commentMenu===marker&&location.href===url)history.back();else finish();
+  }
+  for(const source of sources){
+   const action=source.dataset.commentAction,button=document.createElement('button');
+   button.type='button';button.dataset.menuAction=action;
+   button.textContent=action==='like'&&source.getAttribute('aria-pressed')==='true'?'좋아요 취소':labels[action]||source.textContent.trim();
+   button.addEventListener('click',()=>dismiss(source));
+   sheet.querySelector('.comment-context-options').append(button);
+  }
+  // A touch released after opening can synthesize a click on the new backdrop.
+  // Only handle pointer clicks whose gesture actually started inside this dialog.
+  let tappedSheet=false;
+  sheet.addEventListener('pointerdown',()=>{tappedSheet=true;});
+  sheet.addEventListener('click',ev=>{
+   if(ev.detail&&!tappedSheet){ev.preventDefault();ev.stopImmediatePropagation();}
+   tappedSheet=false;
+  },true);
+  sheet.querySelector('header button').addEventListener('click',()=>dismiss());
+  sheet.addEventListener('click',ev=>{if(ev.target===sheet)dismiss();});
+  sheet.addEventListener('cancel',ev=>{ev.preventDefault();dismiss();});
+  document.body.append(sheet);sheet.showModal();activeSheet=sheet;
+  history.pushState({...history.state,commentMenu:marker},'',url);
+  window.addEventListener('popstate',finish);
+  window.addEventListener('hashchange',finish);
+ }
+ document.addEventListener('pointerdown',ev=>{
+  clearPress();
+  if(!mobile()||!ev.isPrimary||ev.pointerType!=='touch'||ev.button!==0||ev.target.closest?.(interactive))return;
+  const card=ev.target.closest?.('[data-comment-card]');
+  if(!card)return;
+  const timer=setTimeout(()=>{clearPress();openActions(card);},520);
+  press={id:ev.pointerId,x:ev.clientX,y:ev.clientY,timer};
+ },{passive:true});
+ document.addEventListener('pointermove',ev=>{
+  if(press?.id===ev.pointerId&&Math.hypot(ev.clientX-press.x,ev.clientY-press.y)>8)clearPress();
+ },{passive:true});
+ document.addEventListener('pointerup',clearPress,{passive:true});
+ document.addEventListener('pointercancel',clearPress,{passive:true});
+ document.addEventListener('scroll',clearPress,true);
+ document.addEventListener('contextmenu',ev=>{
+  if(mobile()&&ev.target.closest?.('[data-comment-card]')&&!ev.target.closest(interactive))ev.preventDefault();
+ });
+ document.addEventListener('keydown',ev=>{
+  if(mobile()&&ev.target.matches?.('[data-comment-card]')&&(ev.key==='Enter'||ev.key==='ContextMenu'||(ev.key==='F10'&&ev.shiftKey))){
+   ev.preventDefault();openActions(ev.target);
+  }
+ });
+})();

@@ -134,7 +134,7 @@ export async function catalogRoute(req,env,path,user){
     const sort=url.searchParams.get('sort'),order=sort==='popular'?'likes DESC,c.created DESC':sort==='timeline'?'c.timestamp IS NULL,c.timestamp ASC':'c.created DESC';
     const uid=user?.id||'';
     const list=await rows(env,`SELECT u.account_type,c.id,c.track_id,c.user_id,c.parent_id,c.body,c.timestamp,c.created,c.edited,c.deleted_at,p.id profile_id,p.image_version,${publicNameSQL()} name,(c.user_id=t.user_id) creator,(SELECT count(*) FROM comment_likes l WHERE l.comment_id=c.id) likes,(SELECT count(*) FROM comment_likes l WHERE l.comment_id=c.id AND l.user_id=?) liked,EXISTS(SELECT 1 FROM comment_reports r WHERE r.comment_id=c.id AND r.user_id=?) reported FROM comments c JOIN users u ON u.id=c.user_id JOIN tracks t ON t.id=c.track_id LEFT JOIN producers p ON p.user_id=c.user_id WHERE c.track_id=? AND c.deleted_at=0 ORDER BY ${order} LIMIT 500`,uid,uid,tid);
-    return json({comments:list.map(c=>({...c,can_delete:!!user&&!c.deleted_at&&(c.user_id===uid||(detail.kind==='cover'&&detail.user_id===uid)),can_report:!!user&&!c.deleted_at&&c.user_id!==uid&&!c.reported}))});
+    return json({comments:list.map(c=>({...c,can_delete:!!user&&!c.deleted_at&&(c.user_id===uid||detail.user_id===uid),can_report:!!user&&!c.deleted_at&&c.user_id!==uid&&!c.reported}))});
    }
    if(method==='POST'){
     requireUser(user);await rate(env,'comment:'+user.id,20,3600);const b=await req.json(),text=str(b.body,2000);
@@ -153,7 +153,7 @@ export async function catalogRoute(req,env,path,user){
    if(method==='PUT')await run(env,'INSERT OR IGNORE INTO comment_likes(user_id,comment_id) VALUES(?,?)',user.id,c.id);
    else if(method==='DELETE')await run(env,'DELETE FROM comment_likes WHERE user_id=? AND comment_id=?',user.id,c.id);else fail(405,'지원하지 않는 요청입니다.');
   }else{
-   if(c.user_id!==user.id&&!(method==='DELETE'&&track.kind==='cover'&&track.user_id===user.id))fail(403,'내 댓글 또는 내 커버곡의 댓글만 삭제할 수 있습니다.');
+   if(c.user_id!==user.id&&!(method==='DELETE'&&track.user_id===user.id))fail(403,'내 댓글 또는 내 작품의 댓글만 삭제할 수 있습니다.');
    if(method==='PATCH'){const b=await req.json();await run(env,'UPDATE comments SET body=?,edited=? WHERE id=? AND deleted_at=0',str(b.body,2000),now(),c.id);}
    else if(method==='DELETE')await removeComment(env,c.id,user.id);
    else fail(405,'지원하지 않는 요청입니다.');

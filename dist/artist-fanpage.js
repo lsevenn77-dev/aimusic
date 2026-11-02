@@ -123,8 +123,8 @@ function bindArtistFanpage(){
  on(root.querySelector('[data-fan-shuffle]'),'click',async()=>{if(!routeTracks.length)return;const tracks=[...routeTracks];for(let i=tracks.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[tracks[i],tracks[j]]=[tracks[j],tracks[i]];}try{await play(tracks[0].id,tracks);}catch(e){toast(e.message);}});
  on(root.querySelector('[data-fan-sort]'),'change',e=>{const sort=e.target.value,tracks=[...d.tracks].sort((a,b)=>Number(b[sort==='recent'?'created':sort]||0)-Number(a[sort==='recent'?'created':sort]||0));root.querySelector('[data-fan-music]').innerHTML=artistMusicList(tracks);routeTracks=remember(tracks);icons();paintInteractions();});
  function postHTML(p){
-  const own=me?.id===p.user_id,button=(action,text)=>'<button class="fan-text-button'+(action==='like'&&p.liked?' is-active':'')+'" data-post-action="'+action+'" data-post-id="'+esc(p.id)+'" '+(action==='like'?'aria-label="응원글 좋아요 '+p.likes+'개" aria-pressed="'+!!p.liked+'"':'')+'>'+text+'</button>';
-  return '<article class="fan-post" data-post="'+esc(p.id)+'"><div class="fan-post-meta"><span class="fan-post-author"><span class="fan-post-avatar">'+avatarImage({profile_id:p.profile_id,name:p.author,image_version:p.image_version},'producer',false)+'</span>'+(p.producer_id?'<a href="#producer/'+esc(p.producer_id)+'">'+esc(p.author)+'</a>':'<span>'+esc(p.author)+'</span>')+'</span>'+(p.official?'<span class="fan-official">공식 제작자</span>':p.operator?'<span class="fan-official">공식 운영자</span>':'')+(p.pinned?'<span>고정</span>':'')+'<time datetime="'+new Date(p.created*1000).toISOString()+'">'+new Date(p.created*1000).toLocaleDateString('ko-KR')+'</time>'+(p.edited?' · 수정됨':'')+'</div>'+(p.title?'<h3>'+esc(p.title)+'</h3>':'')+'<p class="fan-post-body">'+(p.deleted?'삭제된 글입니다.':esc(p.body))+'</p>'+(!p.deleted?'<div class="fan-post-actions">'+button('like',icon('ui-heart',16)+' '+p.likes)+(p.kind==='lounge'?button('reply','답글 '+p.replies):'')+(own?button('edit','수정')+button('delete','삭제'):button('report','신고'))+(d.can_manage&&!p.parent_id?button('pin',p.pinned?'고정 해제':'상단 고정'):'')+'</div>':'')+'<div data-fan-replies="'+esc(p.id)+'"></div></article>';
+  const own=me?.id===p.user_id,canDelete=!!me&&p.can_delete,comment=p.kind==='lounge',button=(action,text)=>'<button class="fan-text-button'+(action==='like'&&p.liked?' is-active':'')+'" '+(comment?'data-comment-action="'+action+'" ':'')+'data-post-action="'+action+'" data-post-id="'+esc(p.id)+'" '+(action==='reply'?'aria-label="답글 '+p.replies+'개" ':'')+(action==='like'?'aria-label="응원글 좋아요 '+p.likes+'개" aria-pressed="'+!!p.liked+'"':'')+'>'+text+'</button>';
+  return '<article class="fan-post" '+(comment&&!p.deleted?'data-comment-card tabindex="0" aria-label="응원글" ':'')+'data-post="'+esc(p.id)+'"><div class="fan-post-meta"><span class="fan-post-author"><span class="fan-post-avatar">'+avatarImage({profile_id:p.profile_id,name:p.author,image_version:p.image_version},'producer',false)+'</span>'+(p.producer_id?'<a href="#producer/'+esc(p.producer_id)+'">'+esc(p.author)+'</a>':'<span>'+esc(p.author)+'</span>')+'</span>'+(p.official?'<span class="fan-official">공식 제작자</span>':p.operator?'<span class="fan-official">공식 운영자</span>':'')+(p.pinned?'<span>고정</span>':'')+'<time datetime="'+new Date(p.created*1000).toISOString()+'">'+new Date(p.created*1000).toLocaleDateString('ko-KR')+'</time>'+(p.edited?' · 수정됨':'')+'</div>'+(p.title?'<h3>'+esc(p.title)+'</h3>':'')+'<p class="fan-post-body">'+(p.deleted?'삭제된 글입니다.':esc(p.body))+'</p>'+(!p.deleted?'<div class="fan-post-actions'+(comment?' comment-actions-row':'')+'">'+button('like',icon('ui-heart',16)+' '+p.likes)+(p.kind==='lounge'?button('reply',icon('message')+'<span>답글 '+p.replies+'</span>'):'')+(own?button('edit','수정'):me?button('report','신고'):'')+(canDelete?button('delete','삭제'):'')+(d.can_manage&&!p.parent_id?button('pin',p.pinned?'고정 해제':'상단 고정'):'')+'</div>':'')+'<div data-fan-replies="'+esc(p.id)+'"></div></article>';
  }
  const postMap=new Map(),feedRequests=new WeakMap();
  async function loadFeed(target,kind,offset=0,parent=null){
@@ -135,6 +135,11 @@ function bindArtistFanpage(){
    if(res.next!==null&&(parent||d.tab!=='home')){const button=document.createElement('button');button.className='small-button';button.dataset.feedMore='';button.textContent='더 불러오기';button.onclick=()=>{button.disabled=true;void loadFeed(target,kind,res.next,parent);};target.append(button);}
    return res;
   }catch(e){if(!signal.aborted&&feedRequests.get(target)===request){target.innerHTML='<p role="alert">'+esc(e.message)+'</p>';}}
+ }
+ function updateReplyCount(parentId,count){
+  const parent=postMap.get(parentId),button=root.querySelector('[data-post-action="reply"][data-post-id="'+CSS.escape(parentId)+'"]');
+  if(parent)parent.replies=count;
+  if(button){button.setAttribute('aria-label','답글 '+count+'개');button.querySelector('span').textContent='답글 '+count;}
  }
  const focusId=new URLSearchParams(location.hash.split('?')[1]||'').get('post');
  root.querySelectorAll('[data-fan-feed]').forEach(el=>{
@@ -172,17 +177,23 @@ function bindArtistFanpage(){
       if(signal.aborted||!target.isConnected)return;
       form.remove();el.focus({preventScroll:true});
       const result=await loadFeed(list,p.kind,0,parentId);
-      if(result){p.replies=result.parent_replies;el.textContent='답글 '+p.replies;}
+      if(result)updateReplyCount(parentId,result.parent_replies);
      }finally{cancel.disabled=false;}
     });
    }
    // The editor exists before the request, so repeated clicks preserve the draft and focus.
-   if(!list.dataset.loaded){list.dataset.loaded='true';const result=await loadFeed(list,p.kind,0,p.id);if(!result)delete list.dataset.loaded;}
+   if(!list.dataset.loaded){list.dataset.loaded='true';const result=await loadFeed(list,p.kind,0,parentId);if(!result)delete list.dataset.loaded;}
    return;
   }
   if(!me){toast('로그인 후 이용해주세요.');return;}
   if(action==='delete'||action==='report'){
-   dialog('<h2>'+(action==='delete'?'이 글을 삭제할까요?':'응원글 신고')+'</h2><form id="fan-action-form" class="upload-form">'+(action==='report'?'<label class="form-field">신고 사유<textarea name="reason" maxlength="500" required></textarea></label>':'')+'<button class="primary-button">'+(action==='delete'?'삭제':'신고 접수')+'</button><p class="form-error" role="alert"></p></form>');const form=$('#fan-action-form');form.onsubmit=busyForm(form,async fd=>{await read('/posts/'+p.id+(action==='report'?'/report':''),action==='report'?'POST':'DELETE',action==='report'?{reason:fd.get('reason')}:undefined);$('#dialog').close();await refresh();toast(action==='report'?'신고를 접수했어요.':'삭제했어요.');});return;
+   dialog('<h2>'+(action==='delete'?'이 글을 삭제할까요?':'응원글 신고')+'</h2><form id="fan-action-form" class="upload-form">'+(action==='report'?'<label class="form-field">신고 사유<textarea name="reason" maxlength="500" required></textarea></label>':'')+'<button class="primary-button">'+(action==='delete'?'삭제':'신고 접수')+'</button><p class="form-error" role="alert"></p></form>');const form=$('#fan-action-form');form.onsubmit=busyForm(form,async fd=>{await read('/posts/'+p.id+(action==='report'?'/report':''),action==='report'?'POST':'DELETE',action==='report'?{reason:fd.get('reason')}:undefined);$('#dialog').close();
+    const list=el.closest('[data-reply-list]');
+    if(action==='delete'&&p.parent_id&&list){
+     const result=await loadFeed(list,p.kind,0,p.parent_id);
+     if(result)updateReplyCount(p.parent_id,result.parent_replies);
+    }else await refresh();
+    toast(action==='report'?'신고를 접수했어요.':'삭제했어요.');});return;
   }
   el.disabled=true;try{await read('/posts/'+p.id+'/'+action,action==='like'&&p.liked?'DELETE':'PUT',action==='pin'?{pinned:!p.pinned}:undefined);await refresh();}catch(err){toast(err.message);el.disabled=false;}
  });

@@ -15,6 +15,22 @@ test('fan feeds hide blocked authors and reject blocked reply targets and invali
  assert.equal((await f.call(base+'/posts','POST',{kind:'lounge',body:'차단한 글에 답글',parent_id:p.body.id,request_id:'blocked-reply'})).status,403);
  for(const query of ['offset=0.5','offset=-1','offset=NaN','offset=100001','kind=invalid'])assert.equal((await f.call(base+'/posts?'+query)).status,400);
 });
+test('fan thread author can delete another reply but cannot edit it',async t=>{
+ const f=await fixture(t),posts=base+'/posts';
+ const root=(await f.call(posts,'POST',{body:'Thread',request_id:'root'},'other')).body.id;
+ const child=(await f.call(posts,'POST',{body:'Reply',request_id:'child',parent_id:root},'owner')).body.id;
+ const replies=posts+'/'+root+'/replies';
+ for(const [who,allowed] of [[null,0],['other',1],['owner',1]]){
+  assert.equal((await f.call(replies,'GET',null,who)).body.items[0].can_delete,allowed);
+ }
+ assert.equal((await f.call(posts+'/'+child,'DELETE',null,null)).status,401);
+ assert.equal((await f.call(posts+'/'+child,'PUT',{body:'foreign'},'other')).status,403);
+ assert.equal((await f.call(posts+'/'+root,'DELETE',null,'owner')).status,403);
+ assert.equal((await f.call(posts+'/'+child,'DELETE',null,'other')).status,200);
+ const after=(await f.call(replies)).body;
+ assert.equal(after.parent_replies,0);assert.deepEqual(after.items,[]);
+ assert.equal((await f.call(posts)).body.items[0].replies,0);
+});
 test('fanpage uploads preserve portrait originals while other photo uploads keep their crop flow',async()=>{
  const source=readFileSync(new URL('../dist/actions.js',import.meta.url),'utf8'),start=source.indexOf('async function uploadFile('),end=source.indexOf('async function playlistDialog(',start),crops=[],sent=[];
  class XHR{constructor(){this.upload={};this.status=201;this.responseText='{}';}open(){}setRequestHeader(){}send(file){sent.push(file);this.onload();this.onloadend();}}
