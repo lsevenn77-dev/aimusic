@@ -258,7 +258,9 @@
  .listening-home.home-content-refresh>#home-release{container-type:inline-size}
  .listening-home.home-content-refresh #home-release .release-placeholder{height:272px;border-radius:0}
  .listening-home.home-content-refresh #home-recommended{margin-top:16px}
- .home-content-refresh .home-feature-arrow,.home-content-refresh .home-feature-autoplay{display:none}
+ /* Outrank the shared :is(...,.home-feature-dots button) display rule. */
+ .home-content-refresh .home-feature :is(.home-feature-arrow,.home-feature-autoplay){display:none}
+ .home-content-refresh .home-feature-pagination{--feature-step:24px}
  .home-content-refresh .home-feature-preview{display:none}
  .home-content-refresh .home-feature-slide{grid-template-columns:174px minmax(0,1fr);padding:26px 14px 44px}
  @container(max-width:540px){
