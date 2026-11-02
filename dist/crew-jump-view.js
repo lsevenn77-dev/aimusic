@@ -12,6 +12,7 @@ export function mount(root,{crew,api,esc}){
  const abort=new AbortController(),events={signal:abort.signal};
  function listen(el,name,fn){el.addEventListener(name,fn,events)}
  function panel(eyebrow,title,body,buttons){
+  layer.classList.remove('counting');
   layer.hidden=false;layer.innerHTML='<div class="jump-copy"><small>'+eyebrow+'</small><h1>'+title+'</h1><p>'+body+'</p><div class="jump-actions">'+buttons+'</div></div>';
  }
  const btn=(key,label,primary=false)=>'<button class="'+(primary?'primary-button':'small-button')+'" data-do="'+key+'">'+label+'</button>';

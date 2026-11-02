@@ -245,8 +245,9 @@ return {ready:()=>SHEET.decode(),draw(s){
  for(const p of parts){p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;if(!p.txt)p.vy+=400*dt}
  parts=parts.filter(p=>p.life>0);
  const ents=[];
- for(let i=s.nextObstacle;i<s.pattern.obstacles.length;i++){
- const o=s.pattern.obstacles[i],x=o.x-s.distance;if(x>W+80)break;if(x+o.width<0)continue;
+ // An obstacle behind the runner is still on camera; allow for wings, strokes and glow.
+ for(let i=0;i<s.pattern.obstacles.length;i++){
+ const o=s.pattern.obstacles[i],x=o.x-s.distance;if(x>W+80)break;if(x+o.width < -32)continue;
  ents.push({k:o.type,x:o.type==='bird'?x+o.width/2:x,y:GROUND-o.bottom-o.height/2,w:o.width,h:o.height,n:o.width/34,ph:i});
  }
  for(let i=s.nextJelly;i<s.pattern.jellies.length;i++){const j=s.pattern.jellies[i],x=j.x-s.distance;if(x>W+20)break;if(x>-20)ents.push({k:'jelly',x,y:GROUND-j.height,r:15})}
