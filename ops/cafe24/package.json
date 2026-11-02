@@ -1,0 +1,8 @@
+{
+  "name": "aifect-cafe24-public-origin",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "sharp": "0.35.5"
+  }
+}

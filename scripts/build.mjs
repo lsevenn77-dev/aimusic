@@ -1,3 +1,4 @@
+import {buildOrigin} from '../ops/cafe24/build-origin.mjs';
 import {builtinModules} from 'node:module';
 import { build } from 'esbuild';
 import { mkdir, cp, writeFile, readFile, rm } from 'node:fs/promises';
@@ -96,7 +97,8 @@ await build({entryPoints:['shared/lyrics.js'],outfile:'dist/client/lyrics-core.j
 // A .txt asset avoids HTML canonical redirects when fetched through ASSETS.
 await writeFile('dist/client/aifect-shell.txt',await bundleClient(indexHTML.replace('<!--BUSINESS_FOOTER-->',businessFooterHTML()),pathToFileURL(resolve('dist/client')+sep)));
 await rm('dist/client/index.html',{force:true});
-await build({entryPoints:['server/index.js'], outfile:'dist/server/index.js', bundle:true, format:'esm', platform:'neutral', mainFields:['module','main'], alias:{'node-fetch':resolve('server/apple-fetch.js')}, banner:{js:"import {createRequire as appleCreateRequire} from 'node:module'; const require=appleCreateRequire('/aifect-worker.js');"}, target:'es2022', external:['cloudflare:workers',...builtinModules,...builtinModules.map(x=>'node:'+x)], minify:false});
+const originRevision=await buildOrigin();
+await build({define:{__CAFE24_BUILD__:JSON.stringify(originRevision)},entryPoints:['server/index.js'], outfile:'dist/server/index.js', bundle:true, format:'esm', platform:'neutral', mainFields:['module','main'], alias:{'node-fetch':resolve('server/apple-fetch.js')}, banner:{js:"import {createRequire as appleCreateRequire} from 'node:module'; const require=appleCreateRequire('/aifect-worker.js');"}, target:'es2022', external:['cloudflare:workers',...builtinModules,...builtinModules.map(x=>'node:'+x)], minify:false});
 await mkdir('dist/.openai',{recursive:true});
 await cp('.openai/hosting.json','dist/.openai/hosting.json');
 // Replace generated migration output: renamed source files must never remain in a release archive.

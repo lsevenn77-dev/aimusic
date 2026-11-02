@@ -1,3 +1,4 @@
+import {originRequest} from './cafe24-origin.js';
 import {fail,id} from './db.js';
 
 const MAX_IMAGE=5*1024*1024;
@@ -16,8 +17,13 @@ export async function readImage(req){
  return {data,type};
 }
 export async function storeImage(req,env,kind,entityId,validate){
- const {data,type}=await readImage(req),version=id(),key=`images/${kind}/${entityId}/${version}`;
+ let {data,type}=await readImage(req);const version=id(),key=`images/${kind}/${entityId}/${version}`;
  if(validate)validate(data,type);
+ if(env.CAFE24_ORIGIN_KEY&&['track','producer','artist'].includes(kind)&&!validate&&type!=='image/webp'){
+  let r;try{r=await originRequest(env,'webp',data,type,7000);}catch{}
+  if(!r?.ok||r.headers.get('content-type')!=='image/webp')fail(503,'이미지 변환을 완료하지 못했습니다. 잠시 뒤 다시 시도해주세요.');
+  ({data,type}=await readImage(r));
+ }
  await env.BUCKET.put(key,data,{httpMetadata:{contentType:type}});
  return {version,type};
 }

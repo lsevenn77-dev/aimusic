@@ -1,3 +1,4 @@
+import {tryPublicOrigin} from './cafe24-origin.js';
 import {followManagement} from './follow-management.js';
 import {expireDubbingCombinations} from './dubbing-casting.js';
 import {artistFanpageRoute} from './artist-fanpage.js';
@@ -84,6 +85,7 @@ export default {async fetch(req,env,ctx){
   if(path==='/internal/player/backfill')return await playerBackfillRoute(req,env);
   if(path.startsWith('/internal/music-classification/'))return await musicClassificationInternal(req,env,path);
   if(path.startsWith('/internal/')){const result=await internalRoute(req,env,path);if(result?.ok&&ctx?.waitUntil){if(path==='/internal/jobs/claim'&&req.method==='POST'){queueBotHeartbeat(env,ctx);retryPush(env,ctx);}if(env.GEMINI_API_KEY&&(path==='/internal/jobs/claim'||path.endsWith('/finish')))ctx.waitUntil(classifyNext(env).catch(()=>console.error('Music classification pending')));if(path.endsWith('/finish')){ctx.waitUntil(dispatchPush(env).catch(()=>console.error('Participation push pending')));ctx.waitUntil(syncRecentCrewGrowth(env).catch(()=>console.error('Crew growth pending')));}}return result;}
+  const originPage=await tryPublicOrigin(req,env,path);if(originPage)return originPage;
   const musicResponse=await publicMusicRoute(req,env,path);if(musicResponse)return musicResponse;
   if(['/admin','/admin/','/admin.html'].includes(path))return new Response('페이지를 찾을 수 없습니다.',{status:404,headers:{'content-type':'text/plain; charset=utf-8','cache-control':'no-store'}});
   const publicResponse=publicPageRoute(req,path);if(publicResponse)return publicResponse;
