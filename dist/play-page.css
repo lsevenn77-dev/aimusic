@@ -349,7 +349,8 @@ img.play-dubbing-art{display:block;width:100%;height:auto;aspect-ratio:1;object-
   --play-banner-description-size: 14px;
   --play-banner-background: #050c17;
 
-  .home-feature { height: clamp(272px, 30cqi, 400px); background: var(--play-banner-background); }
+  /* Let home-content.css own the frame height at every breakpoint. */
+  .home-feature { background: var(--play-banner-background); }
   .home-feature-background { background: var(--play-banner-background); }
   .home-feature-background::after {
     background: linear-gradient(0deg, #050c174d, transparent 35%);
@@ -408,18 +409,19 @@ img.play-dubbing-art{display:block;width:100%;height:auto;aspect-ratio:1;object-
   @container (max-width: 640px) {
     .home-feature {
       --play-banner-label-size: 12px;
-      --play-banner-title-size: 22px;
+      --play-banner-title-size: clamp(20px, 5.5cqi, 22px);
       --play-banner-description-size: 13px;
-      height: 344px;
     }
-    .play-banner-photo { height: 190px; object-position: left center; }
+    .play-banner-photo { width: 75%; object-position: 20% center; }
+    .play-banner-photo[src$="/browse.webp"] { object-position: 35% center; }
     .home-feature-background::after {
-      background: linear-gradient(180deg, transparent 90px, #050c1759 135px, var(--play-banner-background) 204px);
+      background: linear-gradient(90deg, transparent 22%, #050c17a6 38%, var(--play-banner-background) 68%);
     }
-    .play-banner-link { align-items: end; padding: 0 24px 40px; }
+    .play-banner-link { align-items: center; padding: 8px 16px 44px 35%; }
     .home-feature-arrow { top: auto; bottom: 0; }
-    .home-feature-copy h2 { min-height: 2.7em; }
-    .home-feature-description { min-height: 4.8em; margin-top: 8px; }
+    .home-feature-title-row { margin-top: 4px; }
+    .home-feature-copy h2 { line-height: 1.25; }
+    .home-feature-description { margin-top: 6px; line-height: 1.4; }
   }
 }
 
