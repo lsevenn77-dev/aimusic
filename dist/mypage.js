@@ -253,14 +253,17 @@ async function mySelectTab(tab,updateURL=true,readApi=api){
   content.removeAttribute('aria-busy');icons();paintInteractions();
  }catch(e){if(myPageState===s&&s.request===request&&content.isConnected){content.removeAttribute('aria-busy');content.innerHTML=myEmpty(e.message);aside.innerHTML='';const retry=document.createElement('button');retry.className='small-button';retry.textContent='다시 시도';retry.onclick=()=>mySelectTab(tab,false);content.append(retry);}}
 }
-async function refreshMyPageRoute(raw,ticket,readApi=api){
+async function refreshMyPageRoute(raw,ticket,readApi=api,showCurrentTab){
  const s=myPageState,main=$('#main');
  if(!s?.own||s.account!==me?.id||!main?.querySelector('.mp-own')||!/^profile(?:\?|$)/.test(raw))return false;
  const q=new URLSearchParams(raw.split('?')[1]||''),tab=['activity','library'].includes(q.get('view'))?q.get('view'):'works';
  // Legacy works collections use their existing list view, not the dashboard fast path.
  if(['covers','originals'].includes(q.get('section'))||['covers','originals'].includes(new URLSearchParams((main.dataset.route||'').split('?')[1]||'').get('section')))return false;
  if(s.tab===tab)return false;
- main.dataset.route=raw;await mySelectTab(tab,false,readApi);
+ main.dataset.route=raw;
+ const pending=mySelectTab(tab,false,readApi);
+ if(ticket===renderId)showCurrentTab?.();
+ await pending;
  if(ticket===renderId&&myPendingTabFocus===tab)$('#mp-tab-'+tab)?.focus({preventScroll:true});myPendingTabFocus='';
  return true;
 }

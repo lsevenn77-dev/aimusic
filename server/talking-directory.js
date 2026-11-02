@@ -26,7 +26,7 @@ export async function talkingRoomPage(env,user,params,readDirectory){
    AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=? AND b.blocked_id=p.user_id) OR (b.blocked_id=? AND b.user_id=p.user_id))`,user.id,JSON.stringify(memberIds),user.id,user.id):[]
  ]);
  const followed=new Map(profiles.map(({user_id,...profile})=>[user_id,profile]));
- return json({rooms:visible.map(({member_ids,host_id,...room})=>{
+ return json({enabled:true,rooms:visible.map(({member_ids,host_id,...room})=>{
   const people=member_ids.map(id=>followed.get(id)).filter(Boolean);
   return {...room,host_name:names.get(host_id)||'',theme:themes.get(room.id),followed_profiles:people.slice(0,3),followed_count:people.length};
  }),next_cursor:next,crews:[]});

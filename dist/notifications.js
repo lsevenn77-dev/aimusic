@@ -26,19 +26,19 @@ async function notificationsView(base,raw,readApi=api){
  if(q.has('request')){let r;try{r=await readApi('/api/notifications/crew-requests/'+encodeURIComponent(q.get('request')));}catch{return {html:heading('참여 요청 안내')+empty('요청을 열 수 없어요','크루 가입 상태 또는 작품의 공개 상태가 변경되었어요.','#notifications?filter=crew','알림함'),tracks:[]};}return {html:heading('작품 참여 요청')+`<section class="activity-page"><p>${esc(r.title)} 작품 참여 요청이 도착했어요.</p><a class="small-button" href="${esc(r.href)}">작품 확인</a><a class="small-button" href="#notifications?filter=crew">알림함</a></section>`,tracks:[]};}
  const filter=['gifts','participation','comments','works','artists','crew'].includes(q.get('filter'))?q.get('filter'):'all',data=await readApi('/api/notifications?filter='+filter,'GET',undefined,{fresh:true});
  const resume=activityResume?.account===me.id&&activityResume.filter===filter?activityResume:null;
- if(resume){while(data.next&&data.items.length<resume.count){const page=await readApi('/api/notifications?filter='+filter+'&before='+encodeURIComponent(data.next),'GET',undefined,{fresh:true});data.items.push(...page.items);data.next=page.next;}}
  activityResume=null;
- return {activity:{...data,filter,account:me.id,restoreScroll:resume?.scroll},tracks:[],html:`<section class="activity-page"><h1 class="activity-title">알림</h1><div class="activity-toolbar"><nav class="tabs" aria-label="알림 종류">${[['all','전체'],['comments','댓글·응원'],['works','작품·참여'],['artists','아티스트'],['crew','크루'],['gifts','선물']].map(([key,name])=>`<a href="#notifications?filter=${key}" class="tab ${filter===key?'active':''}" ${filter===key?'aria-current="page"':''}>${name}</a>`).join('')}</nav></div>${activitySettingsHTML()}<div id="activity-list">${data.items.length?activityGroupsHTML(data.items):`<div class="activity-empty">${icon('bell')}<h2>아직 도착한 알림이 없어요</h2><p>누군가 내 곡에 참여하거나 선물을 보내면<br>이곳에서 확인할 수 있어요.</p></div>`}</div><button class="small-button activity-more" data-activity-more ${data.next?'':'hidden'}>이전 알림 더 보기</button><p class="activity-error" role="status"></p><button type="button" class="activity-top" aria-label="알림 맨 위로" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 10 6-6 6 6M12 4v16"/></svg></button></section>`};
+ return {activity:{...data,filter,account:me.id,restoreCount:resume?.count,restoreScroll:resume?.scroll},tracks:[],html:`<section class="activity-page"><h1 class="activity-title">알림</h1><div class="activity-toolbar"><nav class="tabs" aria-label="알림 종류">${[['all','전체'],['comments','댓글·응원'],['works','작품·참여'],['artists','아티스트'],['crew','크루'],['gifts','선물']].map(([key,name])=>`<a href="#notifications?filter=${key}" class="tab ${filter===key?'active':''}" ${filter===key?'aria-current="page"':''}>${name}</a>`).join('')}</nav></div>${activitySettingsHTML()}<div id="activity-list">${data.items.length?activityGroupsHTML(data.items):`<div class="activity-empty">${icon('bell')}<h2>아직 도착한 알림이 없어요</h2><p>누군가 내 곡에 참여하거나 선물을 보내면<br>이곳에서 확인할 수 있어요.</p></div>`}</div><button class="small-button activity-more" data-activity-more ${data.next?'':'hidden'}>이전 알림 더 보기</button><p class="activity-error" role="status"></p><button type="button" class="activity-top" aria-label="알림 맨 위로" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 10 6-6 6 6M12 4v16"/></svg></button></section>`};
 }
 function bindNotifications(view){
  const state=view?.activity,root=$('.activity-page');if(!state||!root||me?.id!==state.account)return;
- void bindActivitySettings(root,state.account);paintActivityBadge(state.unread);const active=()=>me?.id===state.account&&root.isConnected;
+ let disposed=false;
+ void bindActivitySettings(root,state.account);paintActivityBadge(state.unread);const active=()=>!disposed&&me?.id===state.account&&root.isConnected;
  const mark=async ids=>{if(!ids.length)return;const result=await api('/api/notifications/read','POST',{ids});if(me?.id!==state.account)return;++activityReadRevision;activityAccount=state.account;activityCount=result.unread;paintActivityBadge(result.unread);if(!active())return;for(const n of state.items)if(ids.includes(n.id))n.read_at=Date.now()/1000;root.querySelectorAll('[data-activity-id]').forEach(row=>{if(ids.includes(row.dataset.activityId)){row.classList.remove('is-unread');row.querySelector('.activity-dot')?.remove();row.querySelector('[data-activity-read]')?.remove();}});};
- let loading=false,refreshing=false;const emptyHTML=root.querySelector('#activity-list')?.innerHTML||'';
+ let loading=false,refreshing=false,restoring=false;const emptyHTML=root.querySelector('#activity-list')?.innerHTML||'';
  const draw=()=>{root.querySelector('#activity-list').innerHTML=state.items.length?activityGroupsHTML(state.items):emptyHTML;root.querySelector('[data-activity-more]').hidden=!state.next;};
  root.onclick=async e=>{
   const b=e.target.closest('[data-activity-open],[data-activity-more],[data-activity-request]');if(!b||b.disabled||!active())return;e.preventDefault();
-  if(loading)return;loading=true;b.setAttribute('aria-busy','true');
+  if(loading||restoring)return;loading=true;b.setAttribute('aria-busy','true');
   try{
    if(b.hasAttribute('data-activity-request')){await activityRequestComposer(state.account);}else if(b.hasAttribute('data-activity-more')){
     if(!state.next)return;
@@ -53,7 +53,7 @@ function bindNotifications(view){
   }catch(err){if(active())root.querySelector('.activity-error').textContent=err.message;}finally{loading=false;b.removeAttribute('aria-busy');}
  };
  const refresh=async()=>{
-  if(!active()||document.hidden||loading||refreshing)return;refreshing=true;
+  if(!active()||document.hidden||loading||refreshing||restoring)return;refreshing=true;
   const revision=activityReadRevision;
   try{const data=await api('/api/notifications?filter='+state.filter,'GET',undefined,{fresh:true});
    if(!active()||loading||revision!==activityReadRevision)return;
@@ -67,8 +67,35 @@ function bindNotifications(view){
  const timer=setInterval(refresh,30000),visible=()=>{if(!document.hidden)void refresh();};
  window.addEventListener('focus',refresh);document.addEventListener('visibilitychange',visible);
  const cleanupLayout=bindActivityLayout(root,active);
- if(state.restoreScroll&&typeof requestAnimationFrame==='function')requestAnimationFrame(()=>requestAnimationFrame(()=>{if(active())window.scrollTo({top:state.restoreScroll,behavior:'instant'});}));
- if(typeof registerRouteCleanup==='function')registerRouteCleanup(()=>{if(me?.id===state.account&&!/^#notifications(?:\?filter=|$)/.test(location.hash))activityResume={account:state.account,filter:state.filter,count:state.items.length,scroll:window.scrollY};clearInterval(timer);window.removeEventListener('focus',refresh);document.removeEventListener('visibilitychange',visible);cleanupLayout();});
+ let cancelRestore=()=>{};
+ if(state.restoreCount&&typeof requestAnimationFrame==='function'){
+  const controller=new AbortController(),more=root.querySelector('[data-activity-more]');
+  const events=['wheel','touchstart','pointerdown','keydown','input'];
+  restoring=true;more.disabled=true;
+  cancelRestore=()=>{
+   controller.abort();restoring=false;more.disabled=false;
+   events.forEach(event=>window.removeEventListener(event,cancelRestore,true));
+  };
+  events.forEach(event=>window.addEventListener(event,cancelRestore,{capture:true,passive:true}));
+  // Show the fresh first page before restoring older, cursor-dependent pages.
+  requestAnimationFrame(async()=>{
+   const visited=new Set();
+   try{
+    while(active()&&!controller.signal.aborted&&state.next&&state.items.length<state.restoreCount){
+     const cursor=state.next;
+     if(visited.has(cursor))return;
+     visited.add(cursor);
+     const page=await api('/api/notifications?filter='+state.filter+'&before='+encodeURIComponent(cursor),'GET',undefined,{fresh:true,signal:controller.signal});
+     if(!active()||controller.signal.aborted)return;
+     const known=new Set(state.items.map(n=>n.id));
+     state.items.push(...page.items.filter(n=>!known.has(n.id)));state.next=page.next;draw();
+    }
+    if(active()&&!controller.signal.aborted&&state.restoreScroll)window.scrollTo({top:state.restoreScroll,behavior:'instant'});
+   }catch(error){if(active()&&!controller.signal.aborted)root.querySelector('.activity-error').textContent=error.message;}
+   finally{cancelRestore();}
+  });
+ }
+ if(typeof registerRouteCleanup==='function')registerRouteCleanup(()=>{if(me?.id===state.account&&!/^#notifications(?:\?filter=|$)/.test(location.hash))activityResume={account:state.account,filter:state.filter,count:state.items.length,scroll:window.scrollY};disposed=true;cancelRestore();clearInterval(timer);window.removeEventListener('focus',refresh);document.removeEventListener('visibilitychange',visible);cleanupLayout();});
 }
 function bindActivityLayout(root,active){
  const top=root.querySelector('.activity-top'),tabs=root.querySelector('.tabs');

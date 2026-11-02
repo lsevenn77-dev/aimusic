@@ -122,7 +122,7 @@ async function renderRoute(showCachedRoute){
  if(base!=='home'){
   if(typeof refreshMusicLibraryRoute==='function'&&await refreshMusicLibraryRoute(raw,ticket,false,readApi))return;
   if(ticket!==renderId)return;
-  if(typeof refreshMyPageRoute==='function'&&await refreshMyPageRoute(raw,ticket,readApi))return;
+  if(typeof refreshMyPageRoute==='function'&&await refreshMyPageRoute(raw,ticket,readApi,showCachedRoute))return;
   if(ticket!==renderId)return;
  }
  if(typeof refreshInventoryRoute==='function'&&refreshInventoryRoute(raw))return;

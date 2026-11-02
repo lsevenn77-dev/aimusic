@@ -2,8 +2,16 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {liveFixture} from './live-karaoke-fixture.mjs';
 import {hash} from '../server/auth.js';
+import {fixture} from './fixture.mjs';
 
 const path='/api/voice/public-rooms?limit=24';
+
+test('one directory request also reports unavailable voice service without contacting it',async t=>{
+ const f=await fixture(t);
+ const result=await f.call(path,'GET',undefined,null);
+ assert.equal(result.status,200);
+ assert.deepEqual(result.body,{enabled:false,rooms:[],next_cursor:null,crews:[]});
+});
 test('talking directory returns only followed current members, public rooms and verified cover artwork',async t=>{
  const f=await liveFixture(t);
  f.sql.exec("INSERT INTO player_inventory(id,user_id,item_key,source,source_ref,granted_at,expires_at) VALUES('theme','owner','theme_aurora_night','decoration','directory-test',0,unixepoch()+600)");
@@ -19,7 +27,7 @@ test('talking directory returns only followed current members, public rooms and 
  }
  await f.join(r,'other'); // A present non-followed listener also stays out of the badges.
  const read=async(user='owner')=>(await f.call(path,'GET',undefined,user)).body;
- const result=await read();assert.equal(result.next_cursor,null);assert.equal(result.rooms.length,1);
+ const result=await read();assert.equal(result.enabled,true);assert.equal(result.next_cursor,null);assert.equal(result.rooms.length,1);
  const card=result.rooms[0];assert.equal(card.member_count,7);assert.equal(card.max_members,12);
  assert.equal(card.followed_count,5);assert.equal(card.followed_profiles.length,3);
  assert.deepEqual(card.followed_profiles.map(p=>p.profile_id),['profile-0','profile-1','profile-2']);

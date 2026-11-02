@@ -26,6 +26,7 @@ export async function voiceRoomsRoute(req,env,path,user,ctx) {
  if(!path.startsWith('/api/voice/'))return null;
  if(path==='/api/voice/status'&&req.method==='GET')return json({enabled:voiceConfigured(env),max_members:30,mic_seats:8});
  if(path==='/api/voice/public-rooms'&&req.method==='GET'&&new URL(req.url).searchParams.has('limit')){
+  if(!voiceConfigured(env))return json({enabled:false,rooms:[],next_cursor:null,crews:[]});
   const read=(action,input)=>voiceCall(env,{id:'public-directory'},'directory',action,input).then(result);
   return talkingRoomPage(env,user,new URL(req.url).searchParams,read);
  }

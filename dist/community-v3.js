@@ -19,7 +19,7 @@ function bindTalkingDirectory(root){
  const viewer=me?.id||'';
  const saved=talkingRoomReturn?.viewer===viewer&&talkingRoomReturn.until>Date.now()?talkingRoomReturn:null;
  talkingRoomReturn=null;
- let items=new Map(saved?.items),cursor=saved?.cursor||null,done=saved?.done||false,enabled=saved?true:null;
+ let items=new Map(saved?.items),cursor=saved?.cursor||null,done=saved?.done||false;
  let controller=null,debounce,expiry,disposed=false;
  let observer,watching=false;
  function watchEnd(on){
@@ -68,16 +68,12 @@ function bindTalkingDirectory(root){
    if(controller===active&&!disposed)notice('토킹룸 목록을 불러오는 중이에요.');
   },450);
   try{
-   if(enabled===null){
-    const service=await voiceRequest('status',undefined,'GET',active.signal);
-    if(active.signal.aborted)return;
-    enabled=service.enabled;create.disabled=!enabled;
-   }
-   if(!enabled){done=true;notice('토킹룸 서비스 연결을 준비하고 있어요.');return;}
    const params=new URLSearchParams({limit:'24'}),query=search.value.trim();
    if(query)params.set('q',query);if(cursor)params.set('cursor',cursor);
    const page=await voiceRequest('public-rooms?'+params,undefined,'GET',active.signal);
    if(active.signal.aborted||disposed)return;
+   create.disabled=page.enabled===false;
+   if(page.enabled===false){done=true;notice('토킹룸 서비스 연결을 준비하고 있어요.');return;}
    const added=[];
    for(const room of page.rooms){
     if(items.has(room.id))continue;

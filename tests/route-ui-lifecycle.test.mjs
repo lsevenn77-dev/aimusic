@@ -34,6 +34,29 @@ test('profile activity replaces outgoing tab data with a local loading state',as
  read.resolve({});await opening;assert.match(content.innerHTML,/NEW ACTIVITY/);
 });
 
+test('profile tab shows the account-validated header and local loader before its fresh data returns',async()=>{
+ const read=deferred(),content={innerHTML:'OLD WORKS',isConnected:true,setAttribute(){},removeAttribute(){}},aside={innerHTML:'OLD ASIDE'};
+ const main={dataset:{route:'profile'},querySelector:()=>true};
+ const nodes={'#main':main,'#mp-content':content,'#mp-aside-content':aside,'.mp-segment':{dataset:{},querySelectorAll:()=>[]}};
+ const c=vm.createContext({api:async()=>({}),renderId:1,URLSearchParams,me:{id:'owner'},window:{addEventListener(){}},document:{addEventListener(){}},$:selector=>nodes[selector],icons(){},paintInteractions(){},syncSongCoverPlayback(){}});
+ vm.runInContext(source('mypage.js'),c);
+ c.myActivityData=()=>read.promise;c.myActivityHTML=()=>'<p>NEW ACTIVITY</p>';c.myActivityAside=()=>'<p>NEW ASIDE</p>';
+ vm.runInContext("myPageState={own:true,account:'owner',tab:'works',d:{}}",c);
+ let visible=0;
+ const opening=c.refreshMyPageRoute('profile?view=activity',1,undefined,()=>{
+  visible++;
+  assert.equal(main.dataset.route,'profile?view=activity');
+  assert.match(content.innerHTML,/불러오는/);
+  assert.doesNotMatch(content.innerHTML,/OLD WORKS/);
+ });
+ assert.equal(visible,1);
+ read.resolve({});await opening;
+ assert.match(content.innerHTML,/NEW ACTIVITY/);
+ c.me={id:'other'};
+ assert.equal(await c.refreshMyPageRoute('profile',1,undefined,()=>visible++),false);
+ assert.equal(visible,1,'another account cannot reveal the old header');
+});
+
 function skin(){
  let observer,scans=0,styles=0;
  const item={matches:()=>false,classList:{contains:()=>false,add(){}},scrollWidth:100,clientWidth:100};
