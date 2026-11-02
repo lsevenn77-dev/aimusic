@@ -41,7 +41,7 @@ export function flexibleSearchCondition(input, fields, flexibleFields = fields) 
  // Match multiple meaningful words across title + artist + other searchable metadata.
  // Skip single-character word combinations to avoid overly broad result sets.
  const tokens = q.split(' ').map(compactSearchText).filter(Boolean);
- if (tokens.length > 1 && tokens.length <= 8 && compact.length >= 3 && tokens.some(t => t.length >= 2)) {
+ if (!aliases && tokens.length > 1 && tokens.length <= 8 && compact.length >= 3 && tokens.some(t => t.length >= 2)) {
    const perToken = [];
    const columns = (flexibleFields.length ? flexibleFields : fields).map(compactSearchSQL);
    for (const token of tokens) {

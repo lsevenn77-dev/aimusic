@@ -1,4 +1,4 @@
-import {songSearchScope,songBlockScope} from './song-search.js';
+import {exactSongScope,fallbackSongScope,songBlockScope} from './song-search.js';
 import {songTextMatch,searchText} from './search-match.js';
 import {giftBlockReason} from './gift-eligibility.js';
 import {followCounts,assertArtistInteraction} from './follow-management.js';
@@ -93,9 +93,13 @@ export async function catalogRoute(req,env,path,user){
     if(q&&!chart){
      const block=songBlockScope(env.AIFECT_BLOCKED||[]);
      const scope=where+block.sql,params=[...args,...block.args];
-     const song=await songSearchScope(env,q,scope,params);
-     correction=song.correction;
-     return trackList({...env,AIFECT_BLOCKED:[]},song.where,[...params,...song.args,...song.sortArgs],song.sort+',t.created DESC,t.id',limit);
+     const load=song=>trackList({...env,AIFECT_BLOCKED:[]},song.where,[...params,...song.args,...song.sortArgs],song.sort+',t.created DESC,t.id',limit);
+     const direct=await load(exactSongScope(q,scope));
+     if(direct.length)return direct;
+     const fallback=await fallbackSongScope(env,q,scope,params);
+     if(!fallback)return [];
+     correction=fallback.correction;
+     return load(fallback);
     }
     if(!period)return trackList(env,where,args,sort,limit);
     const daily=await dailyChart(env,period,chart);comparison=daily.comparison;

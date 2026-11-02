@@ -83,3 +83,14 @@ test('catalog and unified search rank the exact title first and suppress near mi
   const exact=await call(path+'?q=SUPER%20SHY','GET',null,null);assert.equal(exact.body.tracks[0].id,'one');
  }
 });
+
+test('spaced genre aliases cannot match unrelated K and POP tokens on either route',async t=>{
+ const {sql,call}=await fixture(t);
+ sql.exec("UPDATE tracks SET genre='K-POP' WHERE id='one'; UPDATE tracks SET title='Okinawa',genre='Indie Pop' WHERE id='two'");
+ for(const path of ['/api/search','/api/catalog']){
+  for(const q of ['K-POP','KPOP','K POP','케이팝']){
+   const result=await call(path+'?'+new URLSearchParams({q}),'GET',null,null);
+   assert.equal(result.status,200);assert.deepEqual(result.body.tracks.map(t=>t.id),['one'],path+' '+q);
+  }
+ }
+});
