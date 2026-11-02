@@ -1,19 +1,4 @@
 // One singer at a time. Reuses the authenticated voice room, SFU and karaoke MR catalogue.
-// The final current lobby renderer is reused, including room art and form fields.
-const productionVoiceLobbyHTML=voiceLobbyHTML;
-voiceLobbyHTML=function(data,enabled){return productionVoiceLobbyHTML({...data,rooms:(data.rooms||[]).filter(r=>r.mode!=='karaoke')},enabled);};
-function liveKaraokeLobbyHTML(data,enabled=true){
- let html=productionVoiceLobbyHTML({...data,rooms:(data.rooms||[]).filter(r=>r.mode==='karaoke')},enabled,false);
- if(!me&&enabled)html=html.replace('id="v3-create-room" ','id="v3-create-room" disabled ');
- return html.replace('지금 열려 있는 토킹룸','라이브 노래방')
-  .replace('공개된 방만 보여줘 · 방장 승인 후 마이크에 참여할 수 있어','한 명씩 노래하고 함께 응원해요 · 최대 30명')
-  .replaceAll('href="#voice/','href="#live/')
-  .replaceAll('함께 듣는 중','청취자로 입장')
-  .replace('아직 열린 공개 토킹룸이 없어요.','아직 열린 노래방이 없어요.')
-  .replace('토킹룸 서비스 연결을 준비하고 있어요.','라이브 노래방 연결을 준비하고 있어요.')
-  .replace('id="v3-create-title">방 만들기','id="v3-create-title">라이브 노래방 만들기')
-  +(me?'':'<p class="quiet live-login"><a class="text-link" href="#account">로그인하면 노래방을 만들거나 참여할 수 있어요.</a></p>');
-}
 function liveVoiceMix(c){
  if(!c.liveVocalMix)c.liveVocalMix=typeof AifectKaraoke!=='undefined'?AifectKaraoke.defaultVocalMix():{echo:0,room:0,size:.5,tone:0,noise:2};
  return c.liveVocalMix;
@@ -78,18 +63,6 @@ function liveKaraokeRoomHTML(id){
   .replace('<div id="voice-seats" class="voice-seats"></div>',stage+'<div id="voice-seats" class="voice-seats"></div>')
   .replace('<dialog id="voice-members"',search+'<dialog id="voice-members"')
   .replace('<section id="voice-host-audio"',audio+'<section id="voice-host-audio"');
-}
-function bindLiveKaraokeLobby(){
- bindVoiceLobby();
- const form=document.querySelector('#voice-create-form');if(!form)return;
- const request_id=crypto.randomUUID();
- form.onsubmit=busyForm(form,async()=>{
-  if(!me){location.hash='#account';return;}
-  prepareVoiceListening();
-  const b=Object.fromEntries(new FormData(form));
-  const result=await voiceRequest('rooms',{...b,max_members:Number(b.max_members),mode:'karaoke',request_id});
-  location.hash='#live/'+result.room.id;
- });
 }
 function prepareLiveEntryClick(e){
  if(e.defaultPrevented||e.button!==0||e.ctrlKey||e.metaKey||e.shiftKey||e.altKey||!me)return;
@@ -320,28 +293,11 @@ function liveSync(c){
  if(c.liveError)c.host.querySelector('#live-stage-note').textContent=c.liveError;
 }
 
-// Integrate with the exact current Sites talking-room client without replacing its code.
-// Give the live mode a community tab without replacing the current community source.
-const productionCommunityNavigation=communityNavigation;
-communityNavigation=function(tab){
- const html=productionCommunityNavigation(tab);
- const link=`<a class="tab ${tab==='live'?'active':''}" href="#live" ${tab==='live'?'aria-current="page"':''}>라이브 노래방</a>`;
- return html.includes('href="#live"')?html:html.replace(/<nav\b[^>]*>/,opening=>opening+link);
-};
 const productionVoiceView=voiceView;
 voiceView=async function(base,id,signal){
  if(base!=='live')return productionVoiceView(base,id,signal);
  if(id){if(!me)return {html:heading('라이브 노래방')+gate()};return {html:liveKaraokeRoomHTML(id)};}
- let data={rooms:[],crews:[]},enabled=false;
- try{
-  const status=await voiceRequest('status',undefined,'GET',signal);
-  enabled=!!status.enabled;
-  if(enabled){
-   const [rooms,options]=await Promise.all([voiceRequest(me?'rooms':'public-rooms',undefined,'GET',signal),me?voiceRequest('options',undefined,'GET',signal):Promise.resolve({})]);
-   data={...rooms,...options};
-  }
- }catch(e){return {html:heading('라이브 노래방')+'<p role="alert">'+esc(e.message)+'</p>'};}
- return {html:communityNavigation('live')+liveKaraokeLobbyHTML(data,enabled),liveLobby:true};
+ return {html:liveDirectoryHTML('karaoke'),liveLobby:true};
 };
 const productionCleanupVoiceRoute=cleanupVoiceRoute;
 cleanupVoiceRoute=function(base,id){
@@ -355,7 +311,7 @@ cleanupVoiceRoute=function(base,id){
 const productionBindVoice=bindVoice;
 bindVoice=function(base,id){
  if(base!=='live')return productionBindVoice(base,id);
- if(!id){bindLiveKaraokeLobby();return;}
+ if(!id){bindVoiceLobby();return;}
  const host=document.querySelector('[data-voice-room]');if(!host)return;
  if(!voiceController||voiceController.closed||voiceController.id!==id||!voiceController.liveMode){
   if(voiceController&&!voiceController.closed)voiceController.leave();

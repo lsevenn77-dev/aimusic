@@ -160,7 +160,7 @@ export class VoiceRoom {
    await this.command('join',actor,{request_id:crypto.randomUUID()},roomId);return {room:config};
   }
   // Internal directory reconciliation also retires empty rooms left by an older release.
-  if(action==='directory-card')return talkingDirectoryCard(d,b.members);
+  if(action==='directory-card')return talkingDirectoryCard(d,b.members,b.mode);
   if(action==='presence')return {active:!!d.config&&!d.config.closed&&Object.keys(d.members).length>0,host_id:d.config?.host_id,background:d.config?.background,theme_sku:d.config?.theme_sku,settings_revision:d.config?.settings_revision,mode:d.config?.mode,visibility:d.config?.visibility,member_count:Object.keys(d.members).length,host_name:d.members[d.config?.host_id]?.name||''};
   if(action==='leave'&&!d.members[actor.id]){
    // The last host tab can explicitly leave during the network recovery window.

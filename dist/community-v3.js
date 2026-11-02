@@ -1,27 +1,62 @@
+const liveRoomLabels={karaoke:'노래방',talk:'토킹룸'};
+function liveTypeIcon(mode){
+ return `<span aria-hidden="true" class="live-type-icon live-type-${mode}"></span>`;
+}
+function liveRoomTypeFields(){
+ return '<fieldset class="live-mode"><legend>방 유형</legend><div>'+Object.entries(liveRoomLabels).map(([mode,label])=>
+  `<label><input type="radio" name="mode" value="${mode}">${liveTypeIcon(mode)}${label}</label>`).join('')+'</div></fieldset>';
+}
 function talkingRoomCard(room){
- const profiles=room.followed_profiles||[],extra=room.followed_count-profiles.length,theme=room.theme;
- const path=theme?.assets?.roomCard,art=path&&/^\/assets\/[\w/-]+\.webp$/.test(path)&&(!room.themeUntil||room.themeUntil>Date.now())
+ const mode=room.mode==='karaoke'?'karaoke':'talk',host=room.host_name||'';
+ const profiles=room.followed_profiles||[],extra=room.followed_count-profiles.length;
+ const path=room.theme?.assets?.roomCard;
+ const art=path&&/^\/assets\/[\w/-]+\.webp$/.test(path)&&(!room.themeUntil||room.themeUntil>Date.now())
   ?`<img class="talk-cover" src="${esc(path)}" alt="" loading="lazy" decoding="async">`:'';
- const host=room.host_name||'';
- return `<a class="v3-room-card" data-talk-id="${esc(room.id)}" href="#voice/${esc(room.id)}">
-  <div class="v3-room-art" data-theme="${esc(theme?.sku||room.background||'navy')}">${art}
+ return `<a class="v3-room-card" data-talk-id="${esc(room.id)}" data-room-mode="${mode}" href="#${mode==='karaoke'?'live':'voice'}/${esc(room.id)}">
+  <div class="v3-room-art" data-theme="${esc(room.theme?.sku||room.background||'navy')}">${art}
+   <span class="live-type-badge" aria-label="${liveRoomLabels[mode]}" role="img">${liveTypeIcon(mode)}</span>
    ${Number.isInteger(room.member_count)&&Number.isInteger(room.max_members)?`<span class="v3-room-count" aria-label="참여 ${room.member_count}명, 정원 ${room.max_members}명">${icon('users')}${room.member_count}/${room.max_members}</span>`:''}
    <div class="talk-meta">${profiles.length?`<span class="talk-follows" aria-label="팔로우한 참여자 ${room.followed_count}명">${profiles.map(p=>avatarImage(p,'producer',false,false)).join('')}${extra>0?`<span>+${extra}</span>`:''}</span>`:''}
     ${host?`<span class="talk-host" title="${esc(host)}">${esc(host)}</span>`:''}</div>
-  </div><div class="v3-room-copy"><h3>${esc(room.title)}</h3></div></a>`;
+  </div><div class="v3-room-copy"><h3 title="${esc(room.title)}">${esc(room.title)}</h3></div></a>`;
+}
+function liveDirectoryHTML(defaultMode){
+ const filters=Object.entries({all:'전체',...liveRoomLabels}).map(([value,label])=>
+  `<button type="button" data-room-filter="${value}" aria-pressed="${value==='all'}">${value==='all'?'':liveTypeIcon(value)}${label}</button>`).join('');
+ return `<div class="talk-directory" data-default-mode="${defaultMode}">${communityNavigation('live')}
+ <section class="community-v3 room-lobby live-directory" aria-label="라이브 방">
+  <div class="live-tools"><div class="live-filters" role="group" aria-label="방 유형 필터">${filters}</div>
+   <div class="directory-actions"><div class="brand-search directory-search">${icon('search')}<input id="v3-room-search" type="search" maxlength="100" placeholder="방 제목 또는 방장 검색" aria-label="방 제목 또는 방장 검색">
+   <button type="button" data-live-reset aria-label="전체 방 보기" title="전체 방 보기"><span aria-hidden="true" class="live-home-icon"></span></button></div>
+   <button type="button" class="primary-button" id="v3-create-room" disabled>${icon('plus')} 방 만들기</button></div></div>
+  <div class="talk-scroll" role="region" aria-label="라이브 방 목록"><div class="v3-room-grid"></div>
+   <div class="talk-status" role="status" hidden><span></span> <button type="button" class="small-button" hidden>다시 시도</button></div>
+   <div class="talk-sentinel" aria-hidden="true"></div></div>
+  <dialog id="v3-room-create" class="voice-sheet" aria-labelledby="v3-create-title"><header class="voice-sheet-heading"><h2 id="v3-create-title">방 만들기</h2>
+   <button type="button" id="v3-close-create" aria-label="닫기">${voiceGlyph('close')}</button></header>${voiceSettingsFormHTML('create',true)}</dialog></section></div>`;
 }
 let talkingRoomReturn=null;
+
 function bindTalkingDirectory(root){
  const grid=root.querySelector('.v3-room-grid'),search=root.querySelector('#v3-room-search'),create=root.querySelector('#v3-create-room');
  const status=root.querySelector('.talk-status'),message=status.querySelector('span'),retry=status.querySelector('button'),sentinel=root.querySelector('.talk-sentinel');
  const pane=root.querySelector('.talk-scroll'),desktop=window.matchMedia('(min-width:801px)');
  const shell=root.closest('.page-wrap'),footer=shell.querySelector(':scope > .page-footer');
  const viewer=me?.id||'';
- const saved=talkingRoomReturn?.viewer===viewer&&talkingRoomReturn.until>Date.now()?talkingRoomReturn:null;
+ const saved=talkingRoomReturn?.route===location.hash&&talkingRoomReturn.viewer===viewer&&talkingRoomReturn.until>Date.now()?talkingRoomReturn:null;
  talkingRoomReturn=null;
  let items=new Map(saved?.items),cursor=saved?.cursor||null,done=saved?.done||false;
  let controller=null,debounce,expiry,disposed=false;
- let observer,watching=false;
+ let observer,watching=false,mode=saved?.mode||'all',refreshController;
+ const filterButtons=root.querySelectorAll('[data-room-filter]');
+ function setFilter(value){
+  mode=value;root.dataset.filter=value;
+  for(const btn of filterButtons)btn.setAttribute('aria-pressed',String(btn.dataset.roomFilter===value));
+ }
+ setFilter(mode);
+ for(const btn of filterButtons)btn.onclick=()=>{if(mode!==btn.dataset.roomFilter){setFilter(btn.dataset.roomFilter);reset();}};
+ root.querySelector('[data-live-reset]').onclick=()=>{search.value='';setFilter('all');reset();};
+ grid.addEventListener('error',e=>{if(e.target.matches?.('.talk-cover'))e.target.remove();},true);
  function watchEnd(on){
   watching=on;
   if(on)observer.observe(sentinel);else observer.unobserve(sentinel);
@@ -57,23 +92,24 @@ function bindTalkingDirectory(root){
   if(Number.isFinite(next))expiry=setTimeout(expireCovers,Math.min(next-Date.now()+50,2147483647));
  }
  function ready(){
-  if(!items.size&&done)notice(search.value.trim()?'검색 결과가 없어요.':'아직 열린 공개 토킹룸이 없어요.');
+  if(!items.size&&done)notice(search.value.trim()?'검색 결과가 없어요.':'아직 열린 방이 없어요.');
   if(!done)watchEnd(true);
  }
  async function load(){
   if(disposed||controller||done)return;
+  refreshController?.abort();
   watchEnd(false);const active=controller=new AbortController();
   notice();grid.setAttribute('aria-busy','true');
   const pendingNotice=setTimeout(()=>{
-   if(controller===active&&!disposed)notice('토킹룸 목록을 불러오는 중이에요.');
+   if(controller===active&&!disposed)notice('라이브 목록을 불러오는 중이에요.');
   },450);
   try{
-   const params=new URLSearchParams({limit:'24'}),query=search.value.trim();
+   const params=new URLSearchParams({limit:'24',mode}),query=search.value.trim();
    if(query)params.set('q',query);if(cursor)params.set('cursor',cursor);
    const page=await voiceRequest('public-rooms?'+params,undefined,'GET',active.signal);
    if(active.signal.aborted||disposed)return;
-   create.disabled=page.enabled===false;
-   if(page.enabled===false){done=true;notice('토킹룸 서비스 연결을 준비하고 있어요.');return;}
+   root.dataset.enabled=String(page.enabled!==false);if(!create.dataset.opening)create.disabled=page.enabled===false;
+   if(page.enabled===false){done=true;notice('라이브 서비스 연결을 준비하고 있어요.');return;}
    const added=[];
    for(const room of page.rooms){
     if(items.has(room.id))continue;
@@ -83,59 +119,144 @@ function bindTalkingDirectory(root){
    grid.insertAdjacentHTML('beforeend',added.join(''));
    done=!page.next_cursor||page.next_cursor===cursor;cursor=page.next_cursor;
    notice();expireCovers();ready();
-  }catch(e){if(!active.signal.aborted)notice('토킹룸 목록을 불러오지 못했어요.',true);}
+  }catch(e){if(!active.signal.aborted)notice('라이브 목록을 불러오지 못했어요.',true);}
   finally{clearTimeout(pendingNotice);if(controller===active){controller=null;grid.setAttribute('aria-busy','false');}}
  }
  function reset(){
-  clearTimeout(debounce);clearTimeout(expiry);watchEnd(false);
+  clearTimeout(debounce);clearTimeout(expiry);refreshController?.abort();watchEnd(false);
   if(desktop.matches)pane.scrollTop=0;
   controller?.abort();controller=null;items=new Map();cursor=null;done=false;
   grid.replaceChildren();notice();grid.setAttribute('aria-busy','true');
   debounce=setTimeout(load,220);
  }
- search.oninput=reset;retry.onclick=load;
+ async function refresh(){
+  if(document.hidden||disposed||controller||refreshController||!done&&!items.size||root.querySelector('dialog[open]'))return;
+  const atTop=()=>desktop.matches?pane.scrollTop<2:window.scrollY<2;
+  const refreshTop=atTop()&&!grid.contains(document.activeElement);
+  const visible=refreshTop?[]:[...grid.children].filter(el=>{
+   const rect=el.getBoundingClientRect();return rect.bottom>0&&rect.top<innerHeight;
+  }).slice(0,24);
+  if(!refreshTop&&!visible.length)return;
+  const active=refreshController=new AbortController();
+  const params=new URLSearchParams({limit:'24',mode,q:search.value.trim()});
+  if(!refreshTop)params.set('ids',visible.map(el=>el.dataset.talkId).join(','));
+  try{
+   const page=await voiceRequest('public-rooms?'+params,undefined,'GET',active.signal);
+   if(active.signal.aborted||disposed||controller)return;
+   if(refreshTop&&(!atTop()||grid.contains(document.activeElement)))return;
+   const latest=new Map(page.rooms.map(room=>{
+    if(room.theme?.expires_at)room.themeUntil=Date.now()+(room.theme.expires_at-room.theme.server_now)*1000;
+    return [room.id,room];
+   }));
+   if(refreshTop){
+    watchEnd(false);items=latest;cursor=page.next_cursor;done=!cursor;
+    grid.innerHTML=[...items.values()].map(talkingRoomCard).join('');
+   }else for(const el of visible){
+    const id=el.dataset.talkId,room=latest.get(id);
+    if(!room){items.delete(id);el.remove();continue;}
+    items.set(id,room);
+    const next=document.createElement('template');next.innerHTML=talkingRoomCard(room);
+    el.replaceChildren(...next.content.firstElementChild.childNodes);
+   }
+   root.dataset.enabled=String(page.enabled!==false);if(!create.dataset.opening)create.disabled=page.enabled===false;
+   notice();expireCovers();ready();
+   if(page.enabled===false)notice('라이브 서비스 연결을 준비하고 있어요.');
+  }catch{/* Retain the last successful page during a background refresh. */}
+  finally{if(refreshController===active)refreshController=null;}
+ }
+ const poll=setInterval(refresh,20000);
+ document.addEventListener('visibilitychange',refresh);
+ search.oninput=reset;retry.onclick=()=>{done=false;void load();};
  grid.addEventListener('click',e=>{
   if(e.defaultPrevented||e.button!==0||e.ctrlKey||e.metaKey||e.shiftKey||e.altKey||!e.target.closest('[data-talk-id]'))return;
-  talkingRoomReturn={viewer,until:Date.now()+120000,query:search.value,items:[...items],cursor,done,scroll:desktop.matches?pane.scrollTop:window.scrollY};
+  talkingRoomReturn={viewer,mode,route:location.hash,until:Date.now()+120000,query:search.value,items:[...items],cursor,done,scroll:desktop.matches?pane.scrollTop:window.scrollY};
  });
  registerRouteCleanup(()=>{
-  disposed=true;observer.disconnect();controller?.abort();clearTimeout(debounce);clearTimeout(expiry);
+  disposed=true;clearInterval(poll);refreshController?.abort();document.removeEventListener('visibilitychange',refresh);observer.disconnect();controller?.abort();clearTimeout(debounce);clearTimeout(expiry);
   desktop.removeEventListener('change',syncScrollMode);
   if(footer&&footer.parentElement===pane)shell.append(footer);
  });
  if(saved){
-  search.value=saved.query;create.disabled=false;grid.innerHTML=[...items.values()].map(talkingRoomCard).join('');expireCovers();
-  requestAnimationFrame(()=>{if(!disposed){(desktop.matches?pane:window).scrollTo({top:saved.scroll,behavior:'instant'});ready();}});
+  search.value=saved.query;root.dataset.enabled='true';create.disabled=false;grid.innerHTML=[...items.values()].map(talkingRoomCard).join('');expireCovers();
+  requestAnimationFrame(()=>{if(!disposed){(desktop.matches?pane:window).scrollTo({top:saved.scroll,behavior:'instant'});ready();void refresh();}});
  }else void load();
 }
-function voiceLobbyHTML(data,enabled,talking=true){
- const input='<input id="v3-room-search" type="search" maxlength="100" aria-label="방 제목 또는 방장 검색" placeholder="방 제목 또는 방장 검색">';
- let list;
- if(talking){
-  list=`<div class="talk-scroll" role="region" aria-label="토킹룸 목록"><div class="v3-room-grid">${data.rooms.map(talkingRoomCard).join('')}</div>
-   <div class="talk-status" role="status" hidden><span></span> <button type="button" class="small-button" hidden>다시 시도</button></div>
-   <div class="talk-sentinel" aria-hidden="true"></div></div>`;
- }else{
-  const cards=data.rooms.map(r=>`<a class="v3-room-card" href="#voice/${esc(r.id)}" data-room-search="${esc((r.title+' '+r.host_name).toLowerCase())}"><div class="v3-room-art" data-decoration-room="${esc(r.id)}" data-theme="${esc(r.background||'navy')}"><span class="v3-live">LIVE</span><span class="v3-room-count">${icon('users')} ${number(r.member_count||0)}명</span></div><div class="v3-room-copy"><h3>${esc(r.title)}</h3><p>${esc(r.host_name||'방장')}<small>함께 듣는 중</small></p></div></a>`).join('');
-  const empty=enabled?'아직 열린 공개 토킹룸이 없어요.':'토킹룸 서비스 연결을 준비하고 있어요.';
-  list=`<div class="v3-room-grid">${cards||'<p class="v3-empty">'+empty+'</p>'}</div><p id="v3-search-empty" hidden>검색 결과가 없어요.</p>`;
- }
- return `<section class="community-v3 room-lobby${talking?'':' live-lobby'}"><div class="v3-toolbar">
-  <div><h2>지금 열려 있는 토킹룸</h2><p>${talking?'공개된 방만 보여줘 · 방장 승인 후 마이크 참여 가능':'공개된 방만 보여줘 · 방장 승인 후 마이크에 참여할 수 있어'}</p></div>
-  <div class="v3-tools">${input}<button class="primary-button" id="v3-create-room" ${enabled?'':'disabled'}>${icon('plus')} 방 만들기</button></div>
- </div>${list}<dialog id="v3-room-create" class="voice-sheet" aria-labelledby="v3-create-title"><button type="button" id="v3-close-create" aria-label="닫기">${voiceGlyph('close')}</button><header class="voice-sheet-heading"><h2 id="v3-create-title">방 만들기</h2></header>${voiceSettingsFormHTML('create',talking)}</dialog></section>`;
-}
 function bindVoiceLobby(){
- const open=$('#v3-create-room'),modal=$('#v3-room-create');if(!open)return;
- open.onclick=async()=>{if(!me){location.hash='#account';return;}const ticket=renderId;try{const options=await voiceRequest('options');if(ticket!==renderId||!open.isConnected)return;const f=$('#voice-create-form');f.reset();if(open.closest('.talk-directory'))f.elements.title.value=options.suggested_title||'';f.elements.visibility.value='public';f.elements.max_members.value='30';fillRoomThemeChoices(f,options,'navy');f.elements.background.value='navy';f.elements.crew_id.innerHTML='<option value="">크루 선택</option>'+options.crews.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');f.querySelector('#voice-notice-length').textContent='0/200';f.querySelector('.voice-crew-setting').hidden=true;modal.showModal();}catch(e){if(ticket===renderId&&open.isConnected)toast(e.message);}};
- $('#v3-close-create').onclick=()=>modal.close();
- modal.addEventListener('click',e=>{if(e.target===modal){const r=modal.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)modal.close();}});
- const form=$('#voice-create-form');form.addEventListener('input',()=>{form.querySelector('#voice-notice-length').textContent=form.elements.announcement.value.length+'/200';});
- const visibility=()=>{form.querySelector('.voice-crew-setting').hidden=form.elements.visibility.value!=='crew';};form.addEventListener('change',visibility);visibility();
- const directory=open.closest('.talk-directory');
- if(directory){bindTalkingDirectory(directory);return;}
- $('#v3-room-search').oninput=e=>{const q=e.target.value.trim().toLowerCase();let count=0;document.querySelectorAll('[data-room-search]').forEach(c=>{c.hidden=!c.dataset.roomSearch.includes(q);if(!c.hidden)count++;});$('#v3-search-empty').hidden=!q||count>0;};
+ const root=document.querySelector('.talk-directory');if(!root)return;
+ const open=root.querySelector('#v3-create-room'),modal=root.querySelector('#v3-room-create'),form=modal.querySelector('form');
+ const fields=form.elements,generate=form.querySelector('[data-auto-title]'),error=form.querySelector('.form-error');
+ let requestId,suggestion='',generation=0,titleEdited=false,closing=false;
+ function updateMode(){
+  fields.title.required=fields.mode.value==='karaoke';
+  if(!titleEdited)fields.title.value=fields.title.required?'':suggestion;
+ }
+ function updateCrew(){form.querySelector('.voice-crew-setting').hidden=fields.visibility.value!=='crew';}
+ const viewport=window.visualViewport;
+ function fitViewport(){
+  if(!viewport||!modal.open)return;
+  modal.style.setProperty('--live-vh',viewport.height+'px');
+  modal.style.setProperty('--live-top',viewport.offsetTop+'px');
+ }
+ function focusBack(){if(open.isConnected&&!open.disabled)open.focus({preventScroll:true});}
+ function finish(){
+  generation++;closing=false;
+  if(modal.open){modal.close();requestAnimationFrame(focusBack);}
+ }
+ function dismiss(){
+  if(form._busy||closing)return;
+  if(history.state?.liveCreate===requestId){closing=true;history.back();}else finish();
+ }
+ open.onclick=async()=>{
+  if(!me){returnRoute=location.hash;location.hash='#account';return;}
+  if(open.dataset.opening||modal.open)return;
+  open.dataset.opening='true';open.disabled=true;
+  try{
+   const options=await voiceRequest('options');if(!root.isConnected)return;
+   requestId=crypto.randomUUID();generation++;titleEdited=false;suggestion=options.suggested_title||'';
+   form.reset();generate.disabled=false;error.textContent='';
+   fields.mode.value=root.dataset.filter==='all'?root.dataset.defaultMode:root.dataset.filter;
+   fields.visibility.value='public';fields.max_members.value='30';
+   fillRoomThemeChoices(form,options,'navy');fields.background.value='navy';
+   fields.crew_id.innerHTML='<option value="">크루 선택</option>'+options.crews.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
+   form.querySelector('#voice-notice-length').textContent='0/200';updateMode();updateCrew();
+   history.pushState({...history.state,liveCreate:requestId},'');modal.showModal();fitViewport();
+  }catch(e){if(root.isConnected)toast(e.message);}
+  finally{delete open.dataset.opening;open.disabled=root.dataset.enabled==='false';}
+ };
+ fields.title.oninput=()=>{titleEdited=true;generation++;};
+ form.onchange=e=>{if(e.target.name==='mode'){generation++;updateMode();}if(e.target.name==='visibility')updateCrew();};
+ fields.announcement.oninput=()=>{form.querySelector('#voice-notice-length').textContent=fields.announcement.value.length+'/200';};
+ generate.onclick=async()=>{
+  const token=++generation;generate.disabled=true;error.textContent='';
+  try{
+   const options=await voiceRequest('options');
+   if(token===generation&&modal.open){suggestion=options.suggested_title;fields.title.value=suggestion;titleEdited=true;}
+  }catch(e){if(token===generation&&modal.open)error.textContent=e.message;}
+  finally{if(form.isConnected)generate.disabled=false;}
+ };
+ modal.querySelector('#v3-close-create').onclick=dismiss;
+ modal.oncancel=e=>{e.preventDefault();dismiss();};
+ modal.onclick=e=>{if(e.target===modal){const r=modal.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)dismiss();}};
+ const onBack=()=>{if(history.state?.liveCreate!==requestId)finish();};
+ window.addEventListener('popstate',onBack);
+ viewport?.addEventListener('resize',fitViewport);viewport?.addEventListener('scroll',fitViewport);
+ registerRouteCleanup(()=>{
+  generation++;window.removeEventListener('popstate',onBack);
+  viewport?.removeEventListener('resize',fitViewport);viewport?.removeEventListener('scroll',fitViewport);
+  if(modal.open)modal.close();
+ });
+ form.onsubmit=busyForm(form,async data=>{
+  const b=Object.fromEntries(data);prepareVoiceListening();
+  const creating=requestId;
+  const result=await voiceRequest('rooms',{...b,max_members:Number(b.max_members),request_id:creating});
+  if(root.isConnected&&modal.open&&creating===requestId){
+   modal.close();
+   location.replace('#'+(result.room.mode==='karaoke'?'live':'voice')+'/'+encodeURIComponent(result.room.id));
+  }
+ });
+ bindTalkingDirectory(root);
 }
+
 async function playBrowseV3(raw,readApi=api){
  const p=new URLSearchParams(raw.split('?')[1]||''),type=['solo','duet','dubbing','following'].includes(p.get('type'))?p.get('type'):'solo';
  let html=heading('플레이','완성된 목소리를 만나보세요.')+singingHubNav('browse')+'<nav class="v3-segments" aria-label="작품 둘러보기">'+[['solo','솔로'],['duet','듀엣'],['dubbing','더빙'],['following','팔로잉']].map(([key,label])=>'<a href="#karaoke/browse?type='+key+'" '+(key===type?'aria-current="page"':'')+'>'+label+'</a>').join('')+'</nav>';

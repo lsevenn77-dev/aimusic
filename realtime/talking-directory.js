@@ -18,7 +18,7 @@ export async function talkingDirectory(env,action,input,actor,stamp){
  if(!Array.isArray(input.ids)||input.ids.length>24)fault(400,'목록 크기를 확인해주세요.');
  const rooms=await Promise.all(input.ids.map(async raw=>{
   const id=identifier(raw),room=env.ROOMS.get(env.ROOMS.idFromName(id));
-  const response=await room.fetch(new Request('https://room/directory-card',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({actor,stamp,roomId:id,input:{members:!!input.members}})}));
+  const response=await room.fetch(new Request('https://room/directory-card',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({actor,stamp,roomId:id,input:{members:!!input.members,mode:input.mode}})}));
   if(!response.ok)fault(503,'토킹룸 목록을 다시 불러와주세요.');
   return response.json();
  }));
@@ -27,9 +27,10 @@ export async function talkingDirectory(env,action,input,actor,stamp){
 
 // Called after the room's usual lease expiry pass. Only the signed Site bridge
 // receives the IDs needed to intersect presence with the viewer's follows.
-export function talkingDirectoryCard(data,includeMembers){
+export function talkingDirectoryCard(data,includeMembers,filter='talk'){
  const r=data.config,members=Object.values(data.members);
- if(!r||r.closed||r.visibility!=='public'||r.mode==='karaoke'||!members.length)return null;
- return {id:r.id,title:r.title,host_id:r.host_id,max_members:r.max_members||30,background:r.background,
+ const mode=r?.mode==='karaoke'?'karaoke':'talk';
+ if(!r||r.closed||r.visibility!=='public'||(filter!=='all'&&filter!==mode)||!members.length)return null;
+ return {id:r.id,title:r.title,mode,host_id:r.host_id,max_members:r.max_members||30,background:r.background,
   theme_sku:r.theme_sku,settings_revision:r.settings_revision,member_count:members.length,member_ids:includeMembers?members.map(m=>m.id):[]};
 }

@@ -68,3 +68,27 @@ test('cursor remains stable across ties and newer rooms, and search beyond the o
  assert.equal((await f.call('/api/voice/public-rooms?limit=100')).status,400);
  assert.ok((await f.call('/api/voice/public-rooms')).body.rooms.length>=3);
 });
+
+test('mixed public directory honors mode, presence, search and privacy on first load and refresh',async t=>{
+ const f=await liveFixture(t);
+ const sing=await f.create({mode:'karaoke',title:'같이 노래해요',max_members:9});
+ const talk=await f.create({mode:'talk',title:'같이 이야기해요'});
+ const hidden=await f.create({mode:'karaoke',visibility:'private'});
+ f.sql.exec("INSERT INTO follows(user_id,kind,target_id,created) VALUES('owner','producer','friend',0)");
+ const member=await f.join(sing,'other');
+ const read=async(params,viewer='owner')=>(await f.call(path+'&'+new URLSearchParams(params),'GET',undefined,viewer)).body.rooms;
+ const all=await read({mode:'all',q:'같이'});
+ assert.deepEqual(all.map(r=>r.mode).sort(),['karaoke','talk']);
+ const [card]=await read({mode:'karaoke',q:'같이'});
+ assert.equal(card.id,sing.state.room.id);assert.equal(card.member_count,2);assert.equal(card.max_members,9);
+ assert.deepEqual(card.followed_profiles.map(p=>p.profile_id),['friend']);
+ assert.equal((await read({mode:'all',ids:card.id},null))[0].followed_count,0);
+ assert.deepEqual(await read({mode:'talk',ids:card.id}),[]);
+ assert.deepEqual(await read({mode:'all',ids:hidden.state.room.id}),[]);
+ assert.deepEqual((await read({mode:'talk',q:card.host_name})).map(r=>r.id),[talk.state.room.id]);
+ await f.call(sing.root+'leave','POST',{generation:member.generation},'other');
+ const [updated]=await read({mode:'all',ids:card.id});
+ assert.equal(updated.member_count,1);assert.equal(updated.followed_count,0);assert.ok(!('member_ids' in updated));
+ assert.equal((await f.call(path+'&mode=unknown')).status,400);
+ assert.equal((await f.call(path+'&ids=broken!')).status,400);
+});

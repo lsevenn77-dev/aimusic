@@ -31,6 +31,7 @@ function context(overrides={}){
   voiceRequest:async path=>{calls.push(['request',path]);return path==='status'?{enabled:true}:path==='options'?{crews:[{id:'crew',name:'크루'}]}:{rooms:[{id:'sing',mode:'karaoke',title:'Live',visibility:'public'},{id:'talk',mode:'talk',title:'Chat',visibility:'public'}]};},
   ...overrides,
  });
+ vm.runInContext(source('community.js'),c);
  vm.runInContext(source('voice-room-template.js'),c);
  vm.runInContext(source('community-v3.js'),c);
  vm.runInContext(source('live-karaoke.js'),c);
@@ -102,39 +103,32 @@ test('live room wraps the current template while preserving chat, gifts, setting
  assert.equal((html.match(/id="live-monitor-toggle"/g)||[]).length,1);
 });
 
-test('existing talking room lobby excludes karaoke rooms while live reuses the current card/form design',()=>{
+test('unified directory links each real type to its original room and exposes the same settings',()=>{
  const {c}=context();
- const data={rooms:[{id:'sing',mode:'karaoke',title:'Live',visibility:'public'},{id:'talk',mode:'talk',title:'Chat',visibility:'public'}],crews:[]};c.data=data;
- const talk=vm.runInContext('voiceLobbyHTML(data,true)',c),live=vm.runInContext('liveKaraokeLobbyHTML(data,true)',c);
- assert.match(talk,/#voice\/talk/);assert.doesNotMatch(talk,/#voice\/sing/);
- assert.match(live,/#live\/sing/);assert.doesNotMatch(live,/#live\/talk/);
- assert.match(live,/class="v3-room-card"/);assert.match(live,/id="voice-create-form"/);
- assert.match(live,/name="background"/);assert.match(live,/name="announcement"/);
+ const talk=vm.runInContext("talkingRoomCard({id:'chat',title:'Talk'})",c);
+ const sing=vm.runInContext("talkingRoomCard({id:'sing',title:'Sing',mode:'karaoke'})",c);
+ assert.match(talk,/#voice\/chat/);assert.match(sing,/#live\/sing/);
+ assert.match(sing,/live-type-karaoke/);assert.match(talk,/live-type-talk/);
+ assert.doesNotMatch(talk,/talk-follows|>LIVE</);
+ const html=vm.runInContext("liveDirectoryHTML('karaoke')",c);
+ for(const field of ['background','announcement','mode','visibility','max_members','crew_id','title'])
+  assert.match(html,new RegExp('name="'+field+'"'));
+ for(const selector of ['data-live-reset','data-auto-title','data-room-filter="all"','data-room-filter="talk"','data-room-filter="karaoke"'])
+  assert.ok(html.includes(selector),selector);
  const tabs=vm.runInContext('communityNavigation("live")',c);
  assert.match(tabs,/href="#live" aria-current="page"/);
- assert.deepEqual([...tabs.matchAll(/href="([^"]+)"/g)].map(match=>match[1]),['#live','#community','#community/crews','#community/rankings']);
+ assert.deepEqual([...tabs.matchAll(/href="([^"]+)"/g)].map(match=>match[1]),['#live','#community/crews','#community/rankings']);
 });
 
-test('live loader returns a real route with membership-filtered rooms/options and gates anonymous creation',async()=>{
+test('live lobby mounts a paginated shell without eager legacy reads and retains anonymous room gates',async()=>{
  const {c,calls}=context();const view=await vm.runInContext('voiceView("live",undefined)',c);
- assert.match(view.html,/라이브 노래방/);assert.match(view.html,/#live\/sing/);
- assert.ok(calls.some(x=>x[1]==='rooms'));assert.ok(calls.some(x=>x[1]==='options'));
- assert.equal(view.liveLobby,true);
- c.me=null;calls.length=0;const guest=await vm.runInContext('voiceView("live",undefined)',c);
- assert.ok(calls.some(x=>x[1]==='public-rooms'));assert.ok(!calls.some(x=>x[1]==='rooms'));
- assert.match(guest.html,/id="v3-create-room" disabled/);assert.match(guest.html,/href="#account"/);
+ assert.equal(view.liveLobby,true);assert.match(view.html,/talk-sentinel/);assert.equal(calls.length,0);
+ c.me=null;const guest=await vm.runInContext('voiceView("live",undefined)',c);
+ assert.match(guest.html,/v3-create-room/);assert.equal(calls.length,0);
  assert.match((await vm.runInContext('voiceView("live","one")',c)).html,/로그인/);
  assert.equal((await vm.runInContext('voiceView("voice","one")',c)).html,'regular room');
 });
 
-test('an enabled empty live lobby reports no rooms to guests rather than a disabled service',()=>{
- const {c}=context({me:null});
- const html=vm.runInContext('liveKaraokeLobbyHTML({rooms:[],crews:[]},true)',c);
- assert.match(html,/아직 열린 노래방이 없어요\./);assert.doesNotMatch(html,/연결을 준비하고/);
- assert.match(html,/id="v3-create-room" disabled/);assert.match(html,/로그인하면/);
- const disabled=vm.runInContext('liveKaraokeLobbyHTML({rooms:[],crews:[]},false)',c);
- assert.match(disabled,/라이브 노래방 연결을 준비하고 있어요\./);
-});
 
 test('live entry preserves the listening user gesture without requesting a microphone',()=>{
  const {c,calls,events}=context();const event={button:0,target:{closest:()=>({href:'https://aifect.co.kr/#live/one',hasAttribute:()=>false,target:''})}};

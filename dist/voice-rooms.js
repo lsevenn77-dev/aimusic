@@ -45,15 +45,13 @@ async function voiceRequest(path,body,method=body===undefined?'GET':'POST',signa
 async function voiceView(base,id,signal) {
  if(base!=='voice')return null;
  if(id){if(!me)return {html:heading('토킹룸')+gate()};return {html:voiceRoomHTML(id)};}
- const top=communityNavigation('voice');
- return {html:'<div class="talk-directory">'+top+voiceLobbyHTML({rooms:[]},false)+'</div>',voiceLobby:true};
+ return {html:liveDirectoryHTML('talk'),voiceLobby:true};
 }
 function cleanupVoiceRoute(base,id) {setVoiceFocus(!!me&&base==='voice'&&!!voiceController&&voiceController.id===id&&voiceController.joined&&!voiceController.closed);if(voiceController&&(!me||base!=='voice'||voiceController.id!==id)){const leaving=voiceController.leave();voiceController=null;return leaving;}}
 function bindVoice(base,id) {
  if(base!=='voice'&&!(base==='community'&&!id))return;
- bindVoiceLobby();
- const create=$('#voice-create-form');if(create){const request_id=crypto.randomUUID();create.onsubmit=busyForm(create,async()=>{prepareVoiceListening();const b=Object.fromEntries(new FormData(create));const r=await voiceRequest('rooms',{...b,max_members:Number(b.max_members),request_id});location.hash='#voice/'+r.room.id;});}
- const host=document.querySelector('[data-voice-room]');if(!host)return;
+ const host=document.querySelector('[data-voice-room]');
+ if(!host){bindVoiceLobby();return;}
  if(!voiceController||voiceController.closed||voiceController.id!==id)voiceController=new VoiceRoomClient(id);
  if(voiceEntryAudio&&(voiceEntryAudio.id===null||voiceEntryAudio.id===id)){clearTimeout(voiceEntryAudio.timer);voiceController.levelContext=voiceEntryAudio.context;voiceEntryAudio=null;}
  voiceController.bind(host);
