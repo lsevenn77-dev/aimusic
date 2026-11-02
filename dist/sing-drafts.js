@@ -3,11 +3,13 @@ let draftDbPromise;
 function openDraftDB(){return draftDbPromise||=new Promise((resolve,reject)=>{const r=indexedDB.open('aifect-recordings',1);r.onupgradeneeded=()=>r.result.createObjectStore('drafts',{keyPath:'key'});r.onsuccess=()=>resolve(r.result);r.onerror=()=>{draftDbPromise=null;reject(r.error);};});}
 async function draftOp(mode,key,value){const db=await openDraftDB();return new Promise((resolve,reject)=>{const tx=db.transaction('drafts',mode==='get'?'readonly':'readwrite'),store=tx.objectStore('drafts');const r=mode==='get'?store.get(key):mode==='delete'?store.delete(key):store.put(value);if(mode==='put')store.put(singDraftSummary(value));else if(mode==='delete')store.delete('index:'+key);tx.oncomplete=()=>resolve(r.result);tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||new Error('임시저장이 중단됐어요.'));});}
 const singDraftKey=s=>s.owner+':'+s.id+(s.mode==='duet'?':duet:'+s.part+':'+(s.parent||'first'):'');
-function paintDraftStatus(s){if(s!==sing)return;const text=s.draftError?'저장 실패 · 다시 저장해주세요':s.dirty?'저장 중…':s.savedAt?'자동 저장됨 '+new Date(s.savedAt).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',hour12:false}):'';document.querySelectorAll('[data-save-status]').forEach(el=>{if(el.textContent!==text)el.textContent=text;});}
+function paintDraftStatus(s){if(s!==sing)return;const text=s.draftError?'저장 실패 · 다시 저장해주세요':s.draftWrite?'저장 중…':s.dirty?'저장되지 않은 변경사항':s.savedAt?'초안 저장됨 '+new Date(s.savedAt).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',hour12:false}):'';document.querySelectorAll('[data-save-status]').forEach(el=>{if(el.textContent!==text)el.textContent=text;});}
 async function saveSingDraft(s=sing){
- if(!s||!s.owner||!s.voice&&s.mode!=='duet')return;const revision=s.revision||0;
+ if(!s?.owner||!s.voice?.length||singExitKind(s)!=='edit'||s.state==='stopping'||s.state==='exporting')throw new Error('녹음을 완료한 뒤 초안을 저장해주세요.');
+ const revision=s.revision||0;
+ if(s.draftWrite&&s.writeRevision===revision)return s.draftWrite;
  const data={key:singDraftKey(s),owner:s.owner,id:s.id,mode:s.mode,part:s.part,parent:s.parent,title:s.data.track.title,artist:s.data.track.artist,samples:s.voice?.getChannelData(0).slice()||new Float32Array(),beforePunch:s.beforePunch?.getChannelData(0),rate:s.voice?.sampleRate||32000,duetGuide:s.duetGuide,keySemitones:singingKey(s),keyEvents:s.keyEvents,mix:{...s.mix},editBaseline:s.editMixBaseline,cursor:s.cursor,description:s.description||'',updated:Date.now()};
- s.draftWrite=(s.draftWrite||Promise.resolve()).catch(()=>{}).then(()=>draftOp('put',data.key,data));try{await s.draftWrite;s.savedAt=data.updated;s.draftError=false;if((s.revision||0)===revision)s.dirty=false;}catch(e){s.draftError=true;throw e;}finally{paintDraftStatus(s);}
+ const write=(s.draftWrite||Promise.resolve()).catch(()=>{}).then(()=>draftOp('put',data.key,data));s.draftWrite=write;s.writeRevision=revision;paintDraftStatus(s);try{await write;s.savedAt=data.updated;s.draftError=false;if((s.revision||0)===revision)s.dirty=false;}catch(e){s.draftError=true;throw e;}finally{if(s.draftWrite===write)s.draftWrite=null;paintDraftStatus(s);}
 }
 async function restoreSingDraft(s){
  try{const d=await draftOp('get',singDraftKey(s));if(sing!==s||!d||d.owner!==s.owner||!(d.samples instanceof Float32Array)||d.samples.length>600*d.rate )return;
@@ -16,10 +18,10 @@ async function restoreSingDraft(s){
  finally{if(sing===s&&s.state==='loading'){s.state=s.voice?'review':'idle';updateTransport();}}
 }
 async function removeSingDraft(s){await s.draftWrite?.catch(()=>{});await draftOp('delete',singDraftKey(s));}
-function queueSingDraft(s){clearTimeout(s.draftTimer);s.revision=(s.revision||0)+1;s.dirty=true;s.draftError=false;paintDraftStatus(s);s.draftTimer=setTimeout(()=>saveSingDraft(s).catch(()=>{if(sing===s)setSingStatus('임시저장하지 못했어요. 저장 공간을 확인해주세요.');}),450);}
+function queueSingDraft(s){s.revision=(s.revision||0)+1;s.dirty=true;s.draftError=false;paintDraftStatus(s);}
 document.addEventListener('click',async e=>{
- if(e.target.closest('[data-sing-draft]')&&sing){const s=sing;try{if(singLive(s))await finishSinging();await saveSingDraft(s);if(sing===s)setSingStatus('이 계정의 녹음을 현재 기기·브라우저에 초안을 저장했어요.');}catch{setSingStatus('임시저장하지 못했어요. 저장 공간을 확인해주세요.');}}
- if(e.target.closest('[data-discard-draft]')&&sing?.voice&&!singLive(sing)&&!singBusy(sing)&&confirm('이 기기에 임시저장한 녹음을 삭제할까요?')){const s=sing;try{stopPreview();clearTimeout(s.draftTimer);await removeSingDraft(s);s.voice=null;s.beforePunch=null;s.editMixBaseline=null;s.savedAt=0;s.processed=null;s.dirty=false;s.cursor=0;s.state='idle';renderSingPanel();drawLyrics(0);}catch(e){setSingStatus('임시 녹음을 삭제하지 못했어요. 다시 시도해주세요.');}}
+ if(e.target.closest('[data-sing-draft]')&&singExitKind(sing)==='edit'&&!singBusy(sing)){const s=sing;try{await saveSingDraft(s);if(sing===s)setSingStatus('이 계정의 녹음을 현재 기기·브라우저에 초안을 저장했어요.');}catch{setSingStatus('임시저장하지 못했어요. 저장 공간을 확인해주세요.');}}
+ if(e.target.closest('[data-discard-draft]')&&sing?.voice&&!singLive(sing)&&!singBusy(sing)&&confirm('이 기기에 임시저장한 녹음을 삭제할까요?')){const s=sing;try{stopPreview();await removeSingDraft(s);s.voice=null;s.beforePunch=null;s.editMixBaseline=null;s.savedAt=0;s.processed=null;s.dirty=false;s.cursor=0;s.state='idle';renderSingPanel();drawLyrics(0);}catch(e){setSingStatus('임시 녹음을 삭제하지 못했어요. 다시 시도해주세요.');}}
 });
 
 function singDraftSummary(d){const suffix=d.key.slice((d.owner+':'+d.id).length),legacy=suffix.startsWith(':duet:')?suffix.slice(6).split(':'):null;return {key:'index:'+d.key,draftKey:d.key,owner:d.owner,id:d.id,title:d.title||'',artist:d.artist||'',mode:d.mode||(legacy?'duet':'solo'),part:d.part||legacy?.[0]||'male',parent:d.parent||(legacy?.[1]!=='first'?legacy?.[1]:'')||'',duration:(d.samples?.length||0)/Math.max(1,d.rate||32000),updated:d.updated||0};}

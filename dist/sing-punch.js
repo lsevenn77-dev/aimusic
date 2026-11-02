@@ -99,7 +99,7 @@ async function previewPunchResult(s=sing,from=s.pendingPunch?.range.start){
 }
 async function acceptPunchResult(s=sing){
  const p=s.pendingPunch;if(sing!==s||!canEditPaid()||!p||singBusy(s))return;
- try{await authorizePunch(s);if(sing!==s||s.pendingPunch!==p)return;stopPreview();s.beforePunch??=s.voice;s.voice=p.voice;s.processed=null;s.pendingPunch=null;s.punchPage=null;s.punchRange=null;s.editingRecording=false;s.state='review';s.cursor=p.range.start;s.dirty=true;s.revision=(s.revision||0)+1;refreshVocalGuide(s);renderDuetGuide();renderSingPanel();drawLyrics(s.cursor);$('#sing')?.scrollIntoView({block:'start'});await saveSingDraft(s);setSingStatus('선택한 구간을 바꾸고 초안에 저장했어요. 앞뒤 녹음은 유지했어요.');}
+ try{await authorizePunch(s);if(sing!==s||s.pendingPunch!==p)return;stopPreview();s.beforePunch??=s.voice;s.voice=p.voice;s.processed=null;s.pendingPunch=null;s.punchPage=null;s.punchRange=null;s.editingRecording=false;s.state='review';s.cursor=p.range.start;s.dirty=true;s.revision=(s.revision||0)+1;refreshVocalGuide(s);renderDuetGuide();renderSingPanel();drawLyrics(s.cursor);$('#sing')?.scrollIntoView({block:'start'});setSingStatus('선택한 구간을 바꿨어요. 앞뒤 녹음은 유지했어요.');}
  catch(e){if(sing===s)setSingStatus(e.message||'녹음을 저장하지 못했어요.');}
 }
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&sing?.punchRange&&singLive(sing))void finishSinging({discardPunch:true});});

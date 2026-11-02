@@ -73,6 +73,7 @@ function watchCachedNavigation(main){
 }
 let presentationSerial=0;
 async function render(){
+ if(typeof sing!=='undefined'&&sing&&await retainSingRoute(sing))return;
  const serial=++presentationSerial,main=typeof $==='function'?$('#main'):null,raw=location.hash.slice(1)||'home';
  const presentation=window.AifectRender;
  const epoch=presentation?.begin(raw,main?.dataset.route,()=>{
@@ -83,8 +84,7 @@ async function render(){
  try{
   const outcome=await renderRoute(()=>presentation?.ready(epoch));
   if(serial===presentationSerial){
-   // A rejected recording/editor exit keeps the same live DOM but may restore
-   // a canonical URL (for example, removing a draft query parameter).
+   // A retained editor keeps the same live DOM.
    if(outcome?.retained&&main)main.dataset.route=location.hash.slice(1)||'home';
    presentation?.ready(epoch);
   }
@@ -108,14 +108,6 @@ async function renderRoute(showCachedRoute){
  const readApi=navigationRead(ticket,controller?.signal);
  if(typeof syncSearchNavigation==='function')syncSearchNavigation(raw);
  if(typeof dubbingBeforeRoute==='function'&&!dubbingBeforeRoute(raw))return {retained:true};
- if(ticket!==renderId)return;
- if(sing){
-  if(!singBusy(sing)&&!confirm('녹음 화면에서 나갈까요? 녹음한 내용은 이 기기의 초안에 보관됩니다.')){history.replaceState(null,'',singRouteHref(sing));return {retained:true};}
-  if(singLive(sing))await finishSinging();
-  if(ticket!==renderId)return;
-  if(singBusy(sing)){history.replaceState(null,'',singRouteHref(sing));toast('녹음을 정리한 뒤 이동해주세요.');return {retained:true};}
-  if(sing.dirty){try{await saveSingDraft(sing);}catch(e){if(ticket!==renderId)return;history.replaceState(null,'',singRouteHref(sing));toast('임시저장하지 못했어요. 저장 공간을 확인한 뒤 다시 시도해주세요.');return {retained:true};}}
- }
  if(ticket!==renderId)return;
  const outgoing=$('#main');
  if(outgoing.dataset.route!==raw||outgoing.dataset.account!==(me?.id||'guest'))cleanupRouteOverlays();
