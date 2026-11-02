@@ -149,39 +149,52 @@
  --main-frame-top:0px;
  --activity-text-size:16px;
  --activity-meta-size:13px;
+ --activity-tab-gap:16px;
+ --activity-dot-inset:18px;
 }
+.page-wrap:has(>#main[data-route^="notifications"]>.activity-inbox)::before{content:none}
+/* Only the tabs determine the desktop column width, regardless of a row's text. */
+#main>.activity-inbox{width:max-content;max-width:100%}
+.activity-inbox #activity-list,.activity-inbox .activity-error{contain:inline-size}
 #main[data-route^="notifications"] .activity-toolbar{position:sticky;top:var(--activity-header,80px);z-index:25;display:block;background:transparent;border-bottom:1px solid var(--ds-line)}
 #main[data-route^="notifications"] .activity-page.tabs-stuck .activity-toolbar{backdrop-filter:blur(16px)}
-#main[data-route^="notifications"] .activity-toolbar .tabs{display:flex;flex-wrap:nowrap;justify-content:flex-start;gap:24px;width:100%;max-width:100%;overflow-x:auto;scrollbar-width:none;margin:0}
+#main[data-route^="notifications"] .activity-toolbar .tabs{display:flex;align-items:center;flex-wrap:nowrap;justify-content:flex-start;gap:var(--activity-tab-gap);width:auto;max-width:100%;overflow-x:auto;scrollbar-width:none;margin:0;padding:0;background:none;box-shadow:none;border:0}
 #main[data-route^="notifications"] .activity-toolbar .tabs::-webkit-scrollbar{display:none}
 #main[data-route^="notifications"] .activity-toolbar .tab{
  display:inline-flex;align-items:center;justify-content:center;gap:6px;flex:none;
- min-height:44px;min-width:44px;padding:8px 0;border-bottom:2px solid transparent;
+ min-height:44px;min-width:0;padding:8px 0;border-bottom:2px solid transparent;
  white-space:nowrap;font-size:var(--activity-text-size);color:var(--ds-muted);
 }
-#main[data-route^="notifications"] .activity-toolbar .tab>svg{flex:none;width:1em;height:1em}
+.activity-toolbar .activity-settings-trigger{display:inline-flex;align-items:center;flex:none;min-height:44px;margin:0;padding:0;border:0;background:none;color:var(--ds-body);font:inherit;font-size:var(--activity-meta-size);cursor:pointer}
+.activity-settings-trigger>span{padding:3px 8px;border:1px solid var(--ds-border);border-radius:var(--ds-radius-sm);line-height:1.5;white-space:nowrap}
+.activity-settings-trigger:hover>span{border-color:var(--ds-lilac);color:var(--ds-text)}
+.activity-page .activity-settings-trigger:focus-visible{outline-offset:-2px}
 #main[data-route^="notifications"] .activity-toolbar .tab:focus-visible{outline-offset:-2px}
 #main[data-route^="notifications"] .activity-toolbar .tab.active{color:var(--ds-text);border-bottom:2px solid var(--ds-lilac)}
-#main[data-route^="notifications"] .activity-day{font-size:var(--activity-meta-size);margin:14px 0 4px;color:var(--ds-muted)}
-#main[data-route^="notifications"] .activity-row{display:flex;align-items:center;flex-wrap:nowrap;gap:14px;min-height:72px;padding:10px 4px;transition:background .15s}
+#main[data-route^="notifications"] .activity-day{font-size:var(--activity-meta-size);margin:14px 0 0;padding:0 0 6px var(--activity-dot-inset);border-bottom:1px solid var(--ds-line);color:var(--ds-muted)}
+#main[data-route^="notifications"] .activity-row{--list-row-inset:var(--activity-dot-inset);display:flex;align-items:center;flex-wrap:nowrap;gap:14px;min-height:72px;padding-block:10px;transition:background .15s}
 #main[data-route^="notifications"] .activity-row:hover{background:var(--ds-soft)}
-#main[data-route^="notifications"] .activity-avatar{width:40px;height:40px}
+#main[data-route^="notifications"] .activity-avatar{width:40px;height:40px;margin-inline-start:calc(var(--activity-dot-size) + 9px)}
 #main[data-route^="notifications"] .activity-avatar>.activity-dot{
- position:absolute;inset-inline-end:calc(100% + 4px);top:50%;transform:translateY(-50%);pointer-events:none;
+ position:absolute;inset-inline-end:calc(100% + 9px);top:50%;transform:translateY(-50%);pointer-events:none;
 }
 #main[data-route^="notifications"] .activity-meta{flex-wrap:nowrap;gap:5px;font-size:var(--activity-meta-size);white-space:nowrap}
-#main[data-route^="notifications"] .activity-meta time{font-size:inherit;color:var(--activity-time-color);font-variant-numeric:tabular-nums}
+#main[data-route^="notifications"] .activity-meta time{font-size:calc(var(--activity-meta-size) - 1px);color:var(--activity-time-color);font-variant-numeric:tabular-nums}
 #main[data-route^="notifications"] .activity-copy>p{margin:3px 0;font-size:var(--activity-text-size);line-height:1.5;word-break:keep-all;overflow-wrap:anywhere}
 #main[data-route^="notifications"] .activity-detail{display:flex;flex-wrap:nowrap;gap:8px;font-size:12px;overflow:hidden}
 #main[data-route^="notifications"] .activity-detail>span{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 #main[data-route^="notifications"] .activity-arrow{flex:none;color:var(--ds-muted)}
 #main[data-route^="notifications"] .activity-arrow svg{width:16px;height:16px}
-#main[data-route^="notifications"] .activity-settings{margin:4px 0}
 .activity-top{position:fixed;z-index:26;display:grid;place-items:center;width:44px;height:44px;border:1px solid var(--ds-line);border-radius:8px;background:var(--ds-panel);color:var(--ds-text);transition:opacity .15s,background .15s}
 .activity-top[hidden]{display:none}.activity-top:hover{color:#8EDDD2}.activity-top:disabled{opacity:.65}
 @media(max-width:800px){
  #main[data-route^="notifications"]:has(> .activity-page .activity-toolbar){--activity-text-size:14px;--activity-meta-size:12px;--main-frame-gutter:12px}
- #main[data-route^="notifications"] .activity-toolbar .tabs{gap:10px}
+}
+@media(max-width:600px){
+ #main[data-route^="notifications"]:has(> .activity-inbox .activity-toolbar){--activity-dot-inset:calc(16px - var(--main-frame-gutter));--activity-tab-gap:4px}
+ #main>.activity-inbox{width:100%}
+ #main[data-route^="notifications"] .activity-toolbar .tabs{justify-content:space-between}
+ #main[data-route^="notifications"] .activity-toolbar .tab{font-size:clamp(12px,3.3vw,14px)}
 }
 @media(max-width:600px){#main[data-route^="notifications"] .activity-row{gap:10px}.activity-top{margin-bottom:env(safe-area-inset-bottom,0px)}}
 @media(prefers-reduced-motion:reduce){.activity-top,#main[data-route^="notifications"] .activity-row{transition:none}}
