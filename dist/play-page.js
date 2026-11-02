@@ -6,8 +6,8 @@ const playBanners=[
  {id:'browse',title:'다른 사람들은 어떻게 표현했을까?',description:'완성된 노래와 더빙 작품을 감상하고 새로운 목소리를 발견해 봐.',label:'둘러보기'}
 ];
 function playBannerHTML(b){
- const image='/assets/play-banners/objects-v1/'+b.id+'.webp',href=playHref(b.id);
- return '<div class="home-feature-background" aria-hidden="true"><img class="play-banner-photo" src="'+image+'" width="2172" height="724" alt="" decoding="async"></div><a class="home-feature-slide play-banner-link" data-play-banner="'+b.id+'" href="'+href+'" aria-label="'+esc(b.title)+' · '+b.label+' 탭으로 이동"><div class="home-feature-copy"><span class="home-feature-label">'+b.label+'</span><div class="home-feature-title-row"><h2>'+esc(b.title)+'</h2></div><p class="home-feature-description">'+esc(b.description)+'</p></div></a>';
+ const image='/assets/play-banners/responsive-v2/'+b.id,href=playHref(b.id),mobileWidth=b.id==='dubbing'?1655:1656;
+ return '<div class="home-feature-background" aria-hidden="true"><picture class="play-banner-picture"><source media="(max-width: 800px)" srcset="'+image+'-mobile.webp" width="'+mobileWidth+'" height="950"><img class="play-banner-photo" src="'+image+'-desktop.webp" width="1983" height="793" alt="" decoding="async"></picture></div><a class="home-feature-slide play-banner-link" data-play-banner="'+b.id+'" href="'+href+'" aria-label="'+esc(b.title)+' · '+b.label+' 탭으로 이동"><div class="home-feature-copy"><span class="home-feature-label">'+b.label+'</span><div class="home-feature-title-row"><h2>'+esc(b.title)+'</h2></div><p class="home-feature-description">'+esc(b.description)+'</p></div></a>';
 }
 // @ts-check
 // PLAY is a navigation/list layer. It never creates or modifies recording state.

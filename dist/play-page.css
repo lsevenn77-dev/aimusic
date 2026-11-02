@@ -390,13 +390,25 @@ img.play-dubbing-art{display:block;width:100%;height:auto;aspect-ratio:1;object-
   .home-feature-background::after {
     background: linear-gradient(0deg, #050c174d, transparent 35%);
   }
+  .play-banner-picture {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+  }
+  /* Each viewport has its own composition. Preserve the entire source image;
+     extra frame width uses the matching navy background instead of cropping. */
   .play-banner-photo {
     display: block;
     opacity: 1;
-    width: 100%;
+    flex: none;
+    width: auto;
+    max-width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
     object-position: center;
+    mask-image: linear-gradient(90deg, transparent, #000 2%, #000 98%, transparent);
   }
   .play-banner-link {
     grid-template-columns: minmax(0, 1fr);
@@ -447,16 +459,20 @@ img.play-dubbing-art{display:block;width:100%;height:auto;aspect-ratio:1;object-
       --play-banner-title-size: clamp(20px, 5.5cqi, 22px);
       --play-banner-description-size: 13px;
     }
-    .play-banner-photo { width: 75%; object-position: 20% center; }
-    .play-banner-photo[src$="/browse.webp"] { object-position: 35% center; }
-    .home-feature-background::after {
-      background: linear-gradient(90deg, transparent 22%, #050c17a6 38%, var(--play-banner-background) 68%);
-    }
-    .play-banner-link { align-items: center; padding: 8px 16px 44px 35%; }
+    .play-banner-link { align-items: center; padding: 8px 16px 44px 38%; }
     .home-feature-arrow { top: auto; bottom: 0; }
     .home-feature-title-row { margin-top: 4px; }
     .home-feature-copy h2 { line-height: 1.25; }
     .home-feature-description { margin-top: 6px; line-height: 1.4; }
+    @media (min-width: 801px) {
+      .play-banner-link { padding-left: 50%; }
+    }
+  }
+  @container (max-width: 340px) {
+    .home-feature { --play-banner-title-size: 18px; }
+  }
+  @media (max-width: 800px) {
+    .play-banner-photo { mask-image: none; }
   }
 }
 
