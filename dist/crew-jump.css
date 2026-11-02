@@ -16,3 +16,20 @@
 
 .jump-board{display:grid;grid-template-columns:minmax(180px,1fr) 2fr;gap:16px}.jump-board[hidden]{display:none}.jump-board>div{padding:16px;border:1px solid var(--ds-border,#323b4c);border-radius:14px;background:var(--ds-panel,#131b26)}.jump-board small,.jump-board strong{display:block}.jump-board small{color:var(--ds-mint,#8eddd2);margin-bottom:7px}.jump-board p{color:var(--muted);margin-bottom:0}.jump-board ol{padding:0;margin-bottom:0}.jump-board li{display:flex;gap:12px;border-top:1px solid var(--ds-border,#323b4c);padding:8px 0}.jump-board li span{flex:1}.jump-stage canvas{aspect-ratio:16/9}.jump-overlay:has(.jump-copy){justify-content:center;text-align:center;background:#17142e65}.jump-copy{background:#241f47ed;border:1px solid #9381d3;border-radius:18px;padding:clamp(12px,2.5vw,30px)}.jump-actions{justify-content:center}.jump-overlay.counting{pointer-events:none}.jump-stage:has(.jump-copy){padding:0}.jump-copy h1{font-size:clamp(26px,4vw,52px)}
 @media(max-width:640px){.jump-board{grid-template-columns:1fr}.jump-stage:has(.jump-copy){min-height:0}.jump-stage:has(.jump-copy) .jump-overlay{align-items:center;background:#17142e65}.jump-copy{padding:8px 12px}.jump-copy p{font-size:12px;line-height:1.35}.jump-copy small{font-size:10px}.jump-copy h1{font-size:24px}.jump-actions{gap:4px}.jump-actions button{min-height:36px}}
+
+/* Use About's text scale in the arcade lobby, results and rules. */
+.jump-club {
+  :is(.jump-copy h1, .jump-dialog h2) { font-size: var(--crew-heading); font-weight: 700; line-height: 1.4; }
+  .jump-board strong { font-size: var(--crew-name); font-weight: 650; line-height: 1.45; }
+  :is(.jump-copy p, .jump-dialog p, .jump-board p) { font-size: var(--crew-body); font-weight: 400; line-height: 1.55; }
+  :is(.jump-copy small, .jump-board small) { font-size: var(--crew-meta); font-weight: 400; line-height: 1.5; }
+  :is(.jump-summary, .jump-board li, .jump-board li b) { font-size: var(--crew-body); font-weight: 600; line-height: 1.5; }
+  :is(header, .jump-actions, .jump-dialog) :is(button, a) { font-size: var(--crew-button); font-weight: 600; line-height: 1.4; }
+}
+
+/* A wrapped lobby/result panel can be taller than the small-screen canvas. */
+@media (max-width: 640px) {
+  .jump-stage:has(.jump-copy) { display: grid; align-items: center; }
+  .jump-stage:has(.jump-copy) > :is(canvas, .jump-overlay) { grid-area: 1 / 1; }
+  .jump-stage > .jump-overlay:has(.jump-copy) { position: relative; align-self: stretch; padding-block: 4px; }
+}

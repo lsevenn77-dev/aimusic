@@ -36,10 +36,6 @@ main .crew-people .artist-portrait>span{font-size:23px;line-height:1;white-space
 #main:is([data-route="community/crews"], [data-route^="community/crews?"]):has(.crew-discovery-layout) {
   --crew-control: 38px;
   --crew-title: 24px;
-  --crew-heading: 19px;
-  --crew-name: 16px;
-  --crew-body: 14px;
-  --crew-meta: 13px;
 
   :is(.crew-welcome, .community-crew-actions, .crew-discovery-layout, .music-community-tabs, .crew-room-tabs, .crew-detail-header) {
     --ui-type-scale: 1;
@@ -69,7 +65,7 @@ main .crew-people .artist-portrait>span{font-size:23px;line-height:1;white-space
   }
   .crew-discovery-main { min-width: 0; container: crew-results / inline-size; }
   .crew-discovery-side { min-width: 0; align-content: start; gap: 12px; }
-  .crew-discovery-layout h2 { font-size: var(--crew-heading); font-weight: 700; letter-spacing: -.025em; line-height: 1.35; }
+  .crew-discovery-layout h2 { font-size: var(--crew-heading); font-weight: 700; letter-spacing: -.025em; line-height: 1.4; }
   .crew-featured-section {
     padding: 16px; border: 1px solid #ffffff13; border-radius: 16px; background: linear-gradient(120deg,#202c3b,#242334);
   }
@@ -79,8 +75,8 @@ main .crew-people .artist-portrait>span{font-size:23px;line-height:1;white-space
   .crew-featured-section .section-heading { justify-content: flex-start; }
   .crew-featured-section .section-heading > span { display: block; }
   .crew-discovery-layout .section-heading h2 { margin: 0; }
-  .crew-featured-section .section-heading span, .crew-discovery-layout :is(.field-help, .social-empty, .crew-ranking-rule) {
-    font-size: 13px; color: var(--ds-muted); line-height: 1.5;
+  .crew-featured-section .section-heading span, .crew-discovery-layout :is(.field-help, .crew-ranking-rule) {
+    font-size: var(--crew-meta); font-weight: 400; color: var(--ds-muted); line-height: 1.5;
   }
   .crew-featured-grid, .crew-discovery-grid {
     display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 270px), 1fr)); gap: 12px;
@@ -101,27 +97,31 @@ main .crew-people .artist-portrait>span{font-size:23px;line-height:1;white-space
   .crew-discover-image img { display: block; width: 100%; height: 100%; object-fit: cover; }
   .crew-discover-image svg { width: 38%; height: 38%; color: var(--ds-body); }
   .crew-discover-copy { min-width: 0; }
-  .crew-discover-copy h3 { margin: 0; font-size: var(--crew-name); font-weight: 700; line-height: 1.4; letter-spacing: -.015em; overflow-wrap: anywhere; }
+  .crew-discover-copy h3 { margin: 0; font-size: var(--crew-name); font-weight: 650; line-height: 1.45; letter-spacing: -.015em; overflow-wrap: anywhere; }
   .crew-discover-copy h3 a { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .crew-discover-copy p {
     display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere;
-    margin: 4px 0 8px; color: var(--ds-muted); font-size: var(--crew-body); line-height: 1.5;
+    margin: 4px 0 8px; color: var(--ds-muted); font-size: var(--crew-body); font-weight: 400; line-height: 1.55;
   }
-  .crew-discover-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; color: var(--ds-body); font-size: var(--crew-meta); line-height: 1.5; }
+  .crew-discover-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; color: var(--ds-body); }
+  :is(.crew-discover-meta > span, .crew-discover-meta b, .crew-results-heading h2 span, .crew-rank-position, .crew-rank-stats b) {
+    font-size: var(--crew-body); font-weight: 600; line-height: 1.5;
+  }
   .crew-discover-meta > * { white-space: nowrap; }
   .crew-discover-meta span { display: inline-flex; align-items: center; gap: 4px; }
   .crew-discover-meta svg { width: 14px; height: 14px; }
-  .crew-discover-meta small { font-size: inherit; color: var(--ds-muted); }
+  .crew-discover-meta small { font-size: var(--crew-meta); font-weight: 400; line-height: 1.5; color: var(--ds-muted); }
   .crew-interest-tags { display: flex; flex-wrap: wrap; gap: 4px; }
   .crew-interest-tags:not(:empty) { margin-top: 6px; }
   .crew-interest-tags span, .crew-recruit-state, .crew-pick-label, .crew-recruit-list b {
-    display: inline-block; padding: 2px 7px; border-radius: 12px; font-size: 12px; line-height: 1.5;
+    display: inline-block; padding: 2px 7px; border-radius: 12px; font-size: var(--crew-meta); font-weight: 400; line-height: 1.5;
   }
   .crew-interest-tags span {
     max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
     color: var(--ds-body); background: #ffffff0b;
   }
-  .crew-pick-label { margin-bottom: 5px; background: #eda0c9; color: var(--ds-ink); font-weight: 700; }
+  .crew-pick-label { margin-bottom: 5px; background: #eda0c9; color: var(--ds-ink); }
+  .crew-recruit-state, .crew-recruit-list b { font-size: var(--crew-body); font-weight: 600; }
   .crew-discover-card footer { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; }
   .crew-recruit-state { border: 1px solid #727a914d; color: var(--ds-body); white-space: nowrap; }
   .crew-recruit-state.is-open, .crew-recruit-list b { color: var(--ds-progress); border: 1px solid #9bdacb70; }
@@ -139,11 +139,13 @@ main .crew-people .artist-portrait>span{font-size:23px;line-height:1;white-space
     flex: 1 1 280px; min-width: min(100%, 260px); height: var(--crew-control); min-height: var(--crew-control);
     gap: 8px; padding: 0 2px 0 12px; font-size: 14px;
   }
-  #crew-search input { font-size: 14px; min-height: 0; }
+  #crew-search input { font-size: var(--crew-body); font-weight: 400; line-height: 1.55; min-height: 0; }
   #crew-search > button { display: inline-grid; place-items: center; width: var(--crew-control); height: var(--crew-control); padding: 0; }
   #crew-discovery-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; max-width: 100%; }
   .aifect-dropdown { --dropdown-height: var(--crew-control); }
-  .aifect-dropdown-trigger, #crew-discovery-filters > button, .crew-results-heading select { font-size: 13px; }
+  :is(.aifect-dropdown-trigger, #crew-discovery-filters > button, #crew-search > button, .crew-results-heading select, .crew-discover-card footer a, .crew-discovery-invite a) {
+    font-size: var(--crew-button); font-weight: 600; line-height: 1.4;
+  }
   #crew-discovery-filters > button {
     min-height: var(--crew-control); padding: 0 8px; background: transparent; border: 0;
     color: var(--ds-body); cursor: pointer;
@@ -160,17 +162,17 @@ main .crew-people .artist-portrait>span{font-size:23px;line-height:1;white-space
   .crew-discovery-side .social-side-card { min-width: 0; padding: 14px; }
   .crew-discovery-side h2 { margin: 0 0 8px; }
   .crew-ranking-card .section-heading { align-items: center; margin: 0 0 6px; }
-  .crew-ranking-label, .crew-rank-copy small, .crew-rank-stats :is(b, small), .crew-recruit-list small { font-size: 12px; line-height: 1.4; }
+  .crew-ranking-label, .crew-rank-copy small, .crew-rank-stats small, .crew-recruit-list small { font-size: var(--crew-meta); font-weight: 400; line-height: 1.5; }
   .crew-ranking-rule { margin: 0 0 6px; }
   .community-crew-ranking a, .crew-recruit-list a { align-items: center; min-height: 52px; padding: 6px 0; gap: 8px; }
-  .crew-rank-copy strong, .crew-recruit-list strong { display: block; font-size: 15px; line-height: 1.4; }
+  .crew-rank-copy strong, .crew-recruit-list strong { display: block; font-size: var(--crew-name); font-weight: 650; line-height: 1.45; }
   .crew-recruit-list a { display: flex; }
   .crew-recruit-list a > span:not(.crew-rank-picture) { flex: 1; min-width: 0; overflow-wrap: anywhere; }
   .crew-recruit-list :is(.crew-rank-picture, b) { flex: none; }
   .crew-recruit-list small { color: var(--ds-muted); }
   .crew-discovery-invite { background: linear-gradient(130deg,#1c2c36,#332135); }
-  .crew-discovery-invite p { margin: 6px 0; color: var(--ds-muted); font-size: 13px; line-height: 1.5; }
-  .crew-discovery-invite a { font-size: 13px; }
+  .crew-discovery-invite p, .social-empty { font-size: var(--crew-body); font-weight: 400; line-height: 1.55; }
+  .crew-discovery-invite p { margin: 6px 0; color: var(--ds-muted); }
 
   @media (max-width: 1500px) { .crew-discovery-layout { grid-template-columns: minmax(0, 1fr) 270px; } }
   @media (max-width: 1100px) {
@@ -178,8 +180,7 @@ main .crew-people .artist-portrait>span{font-size:23px;line-height:1;white-space
     .crew-discovery-side { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 235px), 1fr)); align-items: start; }
   }
   @media (max-width: 800px) {
-    --crew-control: 44px; --crew-title: 22px; --crew-heading: 18px;
-    --crew-name: 15px; --crew-body: 13px; --crew-meta: 12px;
+    --crew-control: 44px; --crew-title: 22px;
   }
   @container crew-results (max-width: 560px) {
     .crew-discovery-tools { display: grid; grid-template-columns: minmax(0, 1fr); }
@@ -199,19 +200,19 @@ main .crew-people .artist-portrait>span{font-size:23px;line-height:1;white-space
 
 /* These overlays are mounted next to the app, outside the discovery root. */
 .page-wrap:has(> #main[data-route^="community/crews"] .crew-discovery-layout .aifect-dropdown-trigger[aria-expanded=true]) ~ .aifect-dropdown-menu > [role=option] {
-  zoom: 1; font-size: 13px;
+  zoom: 1; font-size: var(--crew-button); font-weight: 600; line-height: 1.4;
 }
 .page-wrap:has(> #main .crew-discovery-layout) ~ #dialog:has(#crew-form[data-crew=""]) {
   --ui-type-scale: 1; --ui-space-scale: 1;
   width: min(480px, calc(100% - 24px)); max-height: calc(100dvh - 32px); overflow: auto; padding: 20px;
   #dialog-content { zoom: 1; }
-  h2 { font-size: 19px; line-height: 1.35; margin: 0 32px 12px 0; }
+  h2 { font-size: var(--crew-heading); font-weight: 700; line-height: 1.4; margin: 0 32px 12px 0; }
   #crew-form { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
-  .form-field, .checkbox-line { margin: 0; font-size: 13px; line-height: 1.45; }
-  .field-help { margin: 0; font-size: 12px; line-height: 1.5; }
-  :is(input:not([type=checkbox],[type=range]), select, textarea) { box-sizing: border-box; width: 100%; min-width: 0; font-size: 14px; }
-  .primary-button { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; font-size: 14px; }
-  @media (max-width: 600px) { padding: 16px; h2 { font-size: 18px; } }
+  .form-field, .checkbox-line { margin: 0; font-size: var(--crew-body); font-weight: 400; line-height: 1.55; }
+  .field-help { margin: 0; font-size: var(--crew-meta); font-weight: 400; line-height: 1.5; }
+  :is(input:not([type=checkbox],[type=range]), select, textarea) { box-sizing: border-box; width: 100%; min-width: 0; font-size: var(--crew-body); font-weight: 400; line-height: 1.55; }
+  .primary-button { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; font-size: var(--crew-button); font-weight: 600; line-height: 1.4; }
+  @media (max-width: 600px) { padding: 16px; }
 }
 /* A single focus treatment, with an editable header search rather than a link. */
 #global-search{gap:10px;max-width:520px;width:clamp(240px,30vw,520px);border-radius:12px;background:linear-gradient(130deg,#1c2533,#1b202c);border:1px solid #ffffff1a}

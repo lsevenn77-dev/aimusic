@@ -139,16 +139,28 @@ dialog.crew-action-dialog[open] {display:flex;flex-direction:column}
  .crew-action-dialog>.form-error {padding-inline:14px}
 }
 
-/* The detail navigation is a sibling. Portalled editors opt in by their crew-only form. */
-.crew-page > #crew-tab-content,
-dialog.crew-action-dialog,
-#dialog:has(#crew-notice-form, #crew-role-form) {
- --ui-type-scale: 1;
+/* Type sizes sampled from the crew About panel. Menus and dialogs rendered
+   outside the panel opt in explicitly, without scaling their surroundings. */
+:where(#crew-tab-content, .crew-discovery-layout, .jump-club, .crew-action-dialog,
+       #dialog:has(#crew-form, #crew-notice-form, #crew-role-form),
+       .page-wrap:has(.crew-discovery-layout [aria-expanded="true"]) ~ .aifect-dropdown-menu) {
  --crew-heading: 19px;
  --crew-name: 15px;
  --crew-body: 14px;
  --crew-meta: 13px;
  --crew-button: 14px;
+ @media (max-width: 800px) {
+  --crew-heading: 17px;
+  --crew-name: 14px;
+  --crew-meta: 12px;
+  --crew-button: 13px;
+ }
+}
+
+.crew-page > #crew-tab-content,
+dialog.crew-action-dialog,
+#dialog:has(#crew-notice-form, #crew-role-form) {
+ --ui-type-scale: 1;
  --crew-control: 40px;
  --crew-pad: 16px;
  --ui-control-height: var(--crew-control);
@@ -157,10 +169,6 @@ dialog.crew-action-dialog,
  line-height: 1.55;
 
  @media (max-width: 800px) {
-  --crew-heading: 17px;
-  --crew-name: 14px;
-  --crew-meta: 12px;
-  --crew-button: 13px;
   --crew-control: 44px;
   --crew-pad: 12px;
  }
@@ -191,27 +199,25 @@ dialog.crew-action-dialog,
  :is(.work-browser h2, .crew-growth h2, .section-heading, .crew-discovery-layout) { margin: 0 0 12px; }
  .section-heading h2 { margin: 0; }
  :is(.work-browser h2, .section-heading h2) small {
-  font-size: var(--crew-meta); font-weight: 500; line-height: 1.5;
- }
- :is(.work-title strong, .crew-notice h3, .crew-growth h3, .crew-discover-copy h3) {
-  font-size: var(--crew-name); font-weight: 650; line-height: 1.45;
- }
- :is(.work-grid small, .work-child > a, .crew-member-profile strong, .crew-mission strong, .crew-rank-copy strong, .crew-recruit-list strong, .dm-author) {
   font-size: var(--crew-body); font-weight: 600; line-height: 1.5;
  }
- :is(.work-grid small, .work-child > a) { font-weight: 500; }
+ :is(.work-title strong, .crew-notice h3, .crew-growth h3, .crew-member-profile strong, .crew-discover-copy h3, .crew-rank-copy strong, .crew-recruit-list strong) {
+  font-size: var(--crew-name); font-weight: 650; line-height: 1.45;
+ }
+ :is(.crew-mission strong, .dm-author) {
+  font-size: var(--crew-body); font-weight: 600; line-height: 1.5;
+ }
  :is(.crew-growth > p, .crew-notice p, .crew-discover-copy p, .crew-discovery-invite p, .mp-empty, .chat-body, .chat-empty p) {
   font-size: var(--crew-body); font-weight: 400; line-height: 1.55;
  }
- :is(.field-help, .work-wide summary, .crew-notice small, .crew-growth-grid .surface > p, .crew-mission small, .crew-level-steps small,
+ :is(.field-help, .work-grid small, .work-child > a, .crew-member-profile > small, .crew-notice small, .crew-growth-grid .surface > p, .crew-mission small, .crew-level-steps small,
      .crew-rank-copy small, .crew-rank-stats small, .crew-ranking-rule, .crew-recruit-list small, .crew-discover-meta, .crew-featured-section .section-heading > span,
      .chat-day, .chat-system, .chat-message-meta, #chat-connection, #chat-error) {
   font-size: var(--crew-meta); font-weight: 400; line-height: 1.5;
  }
- :is(.work-legend span, .work-recruit, .crew-pin, .crew-member-profile small, .player-level-badge,
-     .crew-recruit-state, .crew-pick-label, .crew-interest-tags span, .crew-recruit-list b, .crew-ranking-label) {
-  font-size: 12px; font-weight: 600; line-height: 1.5;
- }
+ .work-legend span { font-size: var(--crew-meta); font-weight: 400; line-height: 1.5; }
+ .player-level-badge { font-size: 12px; font-weight: 600; line-height: 1.5; }
+ :is(.work-recruit, .crew-pin) { font-size: var(--crew-body); font-weight: 600; line-height: 1.5; }
  :is(.primary-button, .small-button, [data-notice-delete], [data-leave-crew], .work-join, [data-crew-hello],
      #crew-discovery-filters > button, .crew-discovery-invite a):not([hidden], [data-crew-layout]) {
   --ui-space-scale: 1;
@@ -219,7 +225,7 @@ dialog.crew-action-dialog,
   box-sizing: border-box; width: fit-content; max-width: 100%; min-height: var(--crew-control);
   padding: 4px 12px; font-size: var(--crew-button); font-weight: 600; line-height: 1.4; text-align: center;
  }
- :is([data-work-filter], .aifect-dropdown-trigger, #crew-search > button) { font-size: var(--crew-button); line-height: 1.4; }
+ :is([data-work-filter], .work-wide summary, .aifect-dropdown-trigger, #crew-search > button) { font-size: var(--crew-button); font-weight: 600; line-height: 1.4; }
  [data-work-filter] { min-height: var(--crew-control); padding-block: 4px; }
  .work-legend { flex-wrap: wrap; gap: 4px 10px; }
  .work-title { align-items: baseline; margin-top: 4px; }
@@ -250,10 +256,10 @@ dialog.crew-action-dialog,
  :is(.form-field, .checkbox-line, .crew-action-body > p, .crew-audit-event p) {
   font-size: var(--crew-body); font-weight: 400; line-height: 1.55;
  }
- :is(.field-help, .form-error, .crew-audit-event small) { font-size: var(--crew-meta); line-height: 1.5; }
- :is(.crew-manage-row > a, .crew-manage-row > strong, .crew-audit-event strong) { font-size: 14px; font-weight: 600; line-height: 1.5; }
+ :is(.field-help, .form-error, .crew-audit-event small, .crew-row-actions > span) { font-size: var(--crew-meta); font-weight: 400; line-height: 1.5; }
+ :is(.crew-manage-row > a, .crew-manage-row > strong, .crew-audit-event strong) { font-size: var(--crew-name); font-weight: 650; line-height: 1.45; }
  :is(.form-field, .crew-row-actions, footer, .crew-action-tools) :is(input:not([type=checkbox],[type=range]), textarea, select) {
-  box-sizing: border-box; min-width: 0; max-width: 100%; font-size: 14px; line-height: 1.5;
+  box-sizing: border-box; min-width: 0; max-width: 100%; font-size: var(--crew-body); font-weight: 400; line-height: 1.55;
  }
  :is(.small-button, .primary-button, .text-link, [data-tab]):not([hidden]) {
   --ui-space-scale: 1;
