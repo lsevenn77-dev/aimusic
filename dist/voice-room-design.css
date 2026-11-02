@@ -921,3 +921,45 @@
  .talking-room .talk-tools {flex:none;max-height:185px}
  .talking-room .voice-chat-panel {height:clamp(270px,65vh,400px)}
 }
+
+/* Talking-room gift receipts and their transient, non-interactive stage effect. */
+.talking-room .voice-chat article.talk-gift-notice {
+ display:flex; align-items:center; gap:6px; width:fit-content; max-width:100%; box-sizing:border-box;
+ margin:6px auto; padding:4px 8px; border:0; border-radius:8px; box-shadow:none;
+ background:color-mix(in srgb,var(--ds-secondary) 65%,transparent); color:var(--ds-text);
+ font-size:13px; line-height:1.5; overflow-wrap:anywhere;
+}
+.talk-gift-notice > [aria-hidden] {min-width:0}
+.talking-room .talk-gift-notice > .gift-art {display:block; width:22px; height:22px; flex:none; object-fit:contain}
+.talk-gift-from,.talk-gift-to {font-weight:600}
+.talk-gift-from {color:var(--ds-accent-pink)}
+.talk-gift-to {color:var(--talk-mint)}
+.talking-room .talk-gift-direction {width:13px; height:9px; margin-inline:5px; vertical-align:middle; flex:none; object-fit:contain}
+.talking-room .talk-gift-effect {
+ position:absolute; z-index:3; transform:translateX(-50%); pointer-events:none;
+ display:grid; justify-items:center; width:max-content; max-width:min(170px,40%); gap:1px;
+ font-size:13px; line-height:1.35;
+}
+.talking-room .talk-gift-effect[hidden] {display:none}
+.talk-gift-art {display:block; width:100px; height:100px; object-fit:contain; transform-origin:50% 75%; animation:talk-gift-shake 1.7s ease-in-out both}
+.talk-gift-caption {grid-row:1; display:flex; align-items:center; max-width:100%; min-width:0; animation:talk-gift-fade 1.7s ease-out both}
+.talk-gift-caption > span {min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+@keyframes talk-gift-shake {
+ 0% {opacity:0; transform:translateY(4px) scale(.86)}
+ 10% {opacity:1; transform:scale(1)}
+ 22% {transform:rotate(-7deg)}
+ 34% {transform:rotate(6deg)}
+ 46% {transform:rotate(-5deg)}
+ 58% {transform:rotate(4deg)}
+ 69% {opacity:1; transform:rotate(0)}
+ 100% {opacity:0; transform:translateY(-16px)}
+}
+@keyframes talk-gift-fade {0%,100% {opacity:0} 12%,72% {opacity:1}}
+@media(max-width:800px){
+ .talking-room .talk-gift-notice > .gift-art {width:20px; height:20px}
+ .talking-room .talk-gift-direction {width:12px; height:8px}
+ .talk-gift-art {width:78px; height:78px}
+}
+@media(prefers-reduced-motion:reduce){
+ .talk-gift-art,.talk-gift-caption {animation:none}
+}

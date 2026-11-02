@@ -247,6 +247,20 @@ test('gift chat notices are ordered, persisted once and restricted to members pr
  await h.call('close',actor('host'));assert.deepEqual(h.saved.get('room').chat,[]);
 });
 
+test('talk gift history uses the recorded names, quantity and catalogue art and preserves older messages',()=>{
+ const c=vm.createContext({AifectGifts,number:String,esc:s=>String(s).replaceAll('<','&lt;'),giftArt:g=>`<img src="${g.image}" alt="">`,icon:()=>''});
+ vm.runInContext(readFileSync(new URL('../dist/voice-rooms.js',import.meta.url),'utf8'),c);
+ const message={kind:'gift',name:'<from>',recipient_name:'<to>',gift:{type:'lollipop',name:'막대사탕',quantity:7},body:'원래 알림 문장',created:0};
+ const html=c.voiceChatMessageHTML(message);
+ assert.match(html,/\/assets\/gifts\/lollipop\.png/);
+ assert.match(html,/gift-direction-double-chevron\.svg/);
+ assert.match(html,/&lt;from>님이 &lt;to>님에게 막대사탕 7개를 보냈습니다/);
+ assert.match(html,/막대사탕 ×7/);
+ assert.doesNotMatch(html,/<header>|선물 알림|<from>|<to>/);
+ assert.match(c.voiceChatMessageHTML({...message,recipient_name:undefined}),/원래 알림 문장/);
+ assert.match(c.voiceChatMessageHTML(message,true),/선물 알림/);
+});
+
 test('gift websocket event refreshes chat immediately and coalesces updates arriving during a refresh',async()=>{
  class Socket{constructor(){Socket.current=this;}close(){}}
  const c=vm.createContext({performance,crypto,URL,WebSocket:Socket,location:{href:'https://aifect.test/#voice/test'},window:{addEventListener(){},removeEventListener(){}},document:{addEventListener(){},removeEventListener(){}},setTimeout,clearTimeout,setInterval,clearInterval});
@@ -353,6 +367,9 @@ test('voice gift retries debit once and invitations reuse the DM ledger',async t
  assert.equal(h.events.filter(e=>e?.type==='gift').length,1);
  assert.equal(h.room.data.chat.filter(m=>m.kind==='gift').length,1);
  assert.equal(h.room.data.chat.at(-1).body,'owner님이 Other님에게 막대사탕 ×3을 보냈습니다.');
+ assert.equal(h.events.find(e=>e?.type==='gift').gift.target_id,'other');
+ assert.equal('target_id' in h.room.data.chat.at(-1).gift,false);
+ assert.equal('target_id' in a.body.gift,false);
  assert.equal((await f.call('/api/voice/rooms/test-room/gifts','POST',{...b,quantity:4})).status,409);
  const invite={profile_id:'other-profile',request_id:crypto.randomUUID()};assert.equal((await f.call('/api/voice/rooms/test-room/invite','POST',invite)).status,201);assert.equal((await f.call('/api/voice/rooms/test-room/invite','POST',invite)).status,201);assert.equal(f.sql.prepare('SELECT count(*) n FROM direct_messages').get().n,1);assert.match(f.sql.prepare('SELECT body FROM direct_messages').get().body,/#voice\/test-room/);
  const list=()=>f.call('/api/notifications?filter=gifts','GET',null,'other');

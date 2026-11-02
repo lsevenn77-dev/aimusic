@@ -116,7 +116,9 @@ export async function voiceRoomsRoute(req,env,path,user,ctx) {
   const receipt=await response.json();if(receipt.gift.free)fail(400,'토킹룸에서는 골드 선물을 선택해주세요.');
   if(history?.length&&ctx?.waitUntil)ctx.waitUntil(rememberRoomReceipts(env,source,history));
   let animation_pending=false;
-  try{await result(await voiceCall(env,actor,room,'gift-receipt',{generation:b.generation,receipt:receipt.gift,target_name:target.name}));}catch{animation_pending=true;}
+  // Only the room broadcast needs the seat owner's ID. The client receipt and stored chat keep their existing shape.
+  const roomReceipt={...receipt.gift,target_id:target.user_id};
+  try{await result(await voiceCall(env,actor,room,'gift-receipt',{generation:b.generation,receipt:roomReceipt,target_name:target.name}));}catch{animation_pending=true;}
   if(ctx?.waitUntil)ctx.waitUntil(dispatchPush(env));
   return json({...receipt,animation_pending},response.status);
  }
