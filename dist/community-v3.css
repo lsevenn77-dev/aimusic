@@ -145,21 +145,12 @@ html:has(#main > .talk-directory, #main > .music-community-tabs[aria-label="儢月
 .talk-directory .v3-room-card:focus-visible {outline:2px solid var(--ds-mint);outline-offset:2px}
 .talk-directory .v3-room-art {width:100%;aspect-ratio:1;border-radius:0}
 .talk-directory .talk-cover {display:block;width:100%;height:100%;object-fit:cover}
-.talk-directory .v3-room-count,.talk-directory .talk-host,.talk-directory .talk-follows>span {
+.talk-directory .v3-room-count,.talk-directory .talk-host {
  color:var(--ds-text);background:var(--ds-bg);border-radius:999px;font-size:12px;font-weight:650;line-height:20px;white-space:nowrap;
 }
 .talk-directory .v3-room-count {top:7px;right:7px;bottom:auto;gap:4px;padding:2px 7px}
 .talk-directory .v3-room-count svg {width:13px;height:13px}
-.talk-directory .talk-meta {
- position:absolute;inset:auto 6px 6px;display:flex;align-items:center;gap:4px;min-width:0;
-}
-.talk-directory .talk-host {min-width:0;margin-left:auto;overflow:hidden;text-overflow:ellipsis;padding:1px 7px}
-.talk-directory .talk-follows {flex:none;display:flex;align-items:center}
-.talk-directory .talk-follows>img,.talk-directory .talk-follows>span {
- box-sizing:border-box;width:22px;height:22px;border:1px solid var(--ds-body);border-radius:50%;object-fit:cover;
-}
-.talk-directory .talk-follows>:not(:first-child) {margin-left:-5px}
-.talk-directory .talk-follows>span {width:auto;min-width:22px;padding-inline:2px;text-align:center;font-size:10px}
+.talk-directory .talk-host {min-width:0;overflow:hidden}
 .talk-directory .v3-room-copy {display:flex;align-items:center;height:49px;box-sizing:border-box;padding:4px 8px;border-top:1px solid var(--ds-line)}
 .talk-directory .v3-room-copy h3 {
  display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;
@@ -182,31 +173,33 @@ html:has(#main > .talk-directory, #main > .music-community-tabs[aria-label="儢月
  .talk-directory .v3-room-copy h3 {font-size:13.5px}
 }
 
-/* Desktop uses the existing shell height, including the active player's clearance. */
-@media(min-width:801px){
- .page-wrap:has(>#main>.talk-directory) {
-  display:flex;flex-direction:column;height:100dvh;min-height:0;overflow:clip;
-  padding-bottom:var(--player-space,0px);
- }
- .page-wrap:has(>#main>.talk-directory)>.topbar {flex:none}
- #main:has(>.talk-directory),#main>.talk-directory,.talk-directory>.community-v3 {
-  display:flex;flex-direction:column;flex:1 1 0;min-height:0;
- }
- #main:has(>.talk-directory) {margin-block:0;padding-bottom:0}
- .talk-directory>.music-community-tabs,.talk-directory .v3-toolbar {flex:none}
+/* Only the mounted live directory participates in the viewport layout. */
+.page-wrap:has(> #main > .talk-directory) {
+ display:flex;flex-direction:column;height:100dvh;min-height:0;overflow:clip;
+ padding-bottom:max(var(--player-space,0px),env(safe-area-inset-bottom,0px));
+}
+.page-wrap:has(> #main > .talk-directory) > .page-footer {display:none!important}
+#main:has(> .talk-directory),#main > .talk-directory,.talk-directory > .live-directory {
+ display:flex;flex-direction:column;flex:1 1 0;min-height:0;
+}
+#main:has(> .talk-directory) {margin-block:0;padding-bottom:0}
+.talk-directory > .music-community-tabs {flex:none}
+.talk-directory .talk-scroll {
+ --room-gap:14px;--room-pad:14px;--room-columns:6;
+ flex:1 1 0;min-height:0;min-width:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;
+ padding:var(--room-pad);border:1px solid var(--ds-line);border-radius:16px;background:rgb(11 18 33 / 50%);
+ scrollbar-width:thin;scrollbar-color:#50637e transparent;
+}
+.talk-directory .talk-scroll:focus-visible {outline:2px solid var(--ds-mint);outline-offset:-2px}
+@media(min-width:1100px){
  .talk-directory .talk-scroll {
-  flex:1 1 0;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior-y:contain;
-  margin-inline:-12px;padding-inline-start:12px;scrollbar-width:thin;
+  container-type:size;flex:0 1 auto;
+  height:calc(2 * (clamp(100px,12cqw,180px) + 80px + var(--room-pad)) + var(--room-gap) + 2px);
  }
- .talk-directory .talk-scroll>.v3-room-grid {width:100cqw;max-width:100%}
- .talk-directory .talk-scroll:focus-visible {outline:2px solid var(--ds-mint);outline-offset:-2px}
- .talk-directory .talk-scroll>.page-footer:has(.footer-top) {
-  width:100cqw;max-width:100%;margin:0;padding-inline:0!important;
- }
+ .talk-directory .v3-room-grid {grid-auto-rows:max(146px,calc((100cqh - var(--room-gap)) / 2))}
 }
 
-/* Opt in content roots, never their shared shell. On desktop .talk-scroll
-   also contains the real site footer, so only its list and status are scaled. */
+/* Other community tabs retain their content scaling. */
 #main:is([data-route="community"], [data-route^="community/"], [data-route^="community?"]) {
   > .community-v3,
   > .community-crew-actions,
@@ -255,15 +248,23 @@ html:has(#main > .talk-directory, #main > .music-community-tabs[aria-label="儢月
 .live-directory .directory-actions {flex:0 1 470px}
 .live-directory .live-filters button,.live-directory #v3-create-room {
  display:inline-flex;align-items:center;justify-content:center;gap:7px;
- padding:0 16px;height:42px;min-height:42px;border-radius:999px;white-space:nowrap;
- font-size:14px;font-weight:650;line-height:1.2;
+ padding:0 18px;height:44px;min-height:44px;border-radius:999px;white-space:nowrap;
+ font-size:16px;font-weight:650;line-height:1.2;
 }
 .live-directory .live-filters button {border:1px solid var(--ds-line-strong,var(--ds-muted));background:var(--ds-panel);color:var(--ds-text)}
 .live-directory .live-filters [aria-pressed=true],.live-directory #v3-create-room {
  background:var(--ds-gradient);border-color:transparent;color:var(--ds-ink);
 }
-.live-directory .live-filters [aria-pressed=true]:not([data-room-filter=all]) {background:var(--ds-soft);color:var(--ds-text);border-color:var(--ds-lavender)}
-.live-directory .directory-search {min-width:0;min-height:0;height:42px;padding-inline:12px 3px;gap:8px}
+.live-directory .live-filters [data-room-filter=karaoke] {--filter-color:#F471BE}
+.live-directory .live-filters [data-room-filter=talk] {--filter-color:#8EDDD2}
+.live-directory .live-filters button:not([data-room-filter=all]) {border:2px solid var(--filter-color)}
+.live-directory .live-filters button[aria-pressed=true]:not([data-room-filter=all]) {
+ background:color-mix(in srgb,var(--filter-color) 22%,var(--ds-panel));color:var(--ds-text);
+}
+.live-directory .live-filters .live-type-icon {--live-icon:20px}
+.live-directory #v3-create-room {--ui-control-height:44px}
+#main .live-directory #v3-create-room svg {width:22px;height:22px;flex:none}
+.live-directory .directory-search {min-width:0;min-height:0;height:44px;padding-inline:12px 3px;gap:8px}
 .live-directory .directory-search input {--ui-control-height:0px;font-size:14px;min-height:0}
 .live-directory .directory-search [data-live-reset] {color:var(--ds-text);width:40px;height:38px}
 .live-directory .live-home-icon,.live-directory .live-type-icon {
@@ -273,27 +274,61 @@ html:has(#main > .talk-directory, #main > .music-community-tabs[aria-label="儢月
 .live-directory .live-home-icon {--live-icon:20px;--live-mask:url('/assets/icons/aifect-home-reset.svg')}
 .live-directory .live-type-karaoke {--live-mask:url('/assets/icons/aifect-mic-mask.png');color:#F471BE}
 .live-directory .live-type-talk {--live-mask:url('/assets/icons/aifect-talk-bubble.svg');color:#8EDDD2}
-.live-directory .live-type-badge {
- position:absolute;top:8px;left:8px;display:grid;place-items:center;width:34px;height:34px;
- border-radius:50%;background:#0B1222;--live-icon:18px;
+/* Compensate the transparent padding in the existing icon assets. */
+.live-directory :is(.live-filters,.v3-room-copy) .live-type-karaoke {mask-size:132%}
+.live-directory :is(.live-filters,.v3-room-copy) .live-type-talk {mask-size:118%}
+.live-directory .v3-room-card {
+ display:grid;grid-template-rows:36px minmax(0,1fr) 42px;
+ background:#111b31;border-color:var(--ds-line);border-radius:15px;
 }
-.live-directory .v3-room-card {background:#111b31;border-color:var(--ds-line);border-radius:15px}
-.live-directory .v3-room-copy {height:42px;padding-inline:10px}
-.live-directory .v3-room-copy h3 {display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:15px;line-height:1.4}
-.live-directory .talk-host,.live-directory .v3-room-count {background:rgb(8 14 27 / 84%);font-size:12px}
-.live-directory .talk-follows {position:relative;padding-left:12px}
-.live-directory .talk-follows::before {content:'';position:absolute;left:0;width:7px;height:7px;background:#27dfa2;border-radius:50%}
-.live-directory .talk-follows>img,.live-directory .talk-follows>span {border:0;outline:0;box-shadow:none}
-.live-directory .talk-follows>:not(:first-child) {margin-left:-7px}
-#main .live-directory .v3-room-grid {width:100%;zoom:1;grid-template-columns:repeat(6,minmax(0,1fr));gap:16px}
-@container (max-width:1040px) {#main .live-directory .v3-room-grid {grid-template-columns:repeat(5,minmax(0,1fr))}}
-@container (max-width:850px) {#main .live-directory .v3-room-grid {grid-template-columns:repeat(4,minmax(0,1fr))}}
+.live-directory .live-card-head,.live-directory .v3-room-copy {
+ display:flex;align-items:center;justify-content:space-between;gap:6px;min-width:0;padding-inline:8px;
+}
+.live-directory .talk-host {
+ display:flex;align-items:center;gap:5px;margin:0;padding:0;background:none;color:var(--ds-text);font-size:13px;
+}
+.live-directory .talk-host img {width:24px;height:24px;flex:none;object-fit:cover;border-radius:50%}
+.live-directory .talk-host span,.live-directory .v3-room-copy h3 {min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.live-directory .v3-room-count {position:static;flex:none;background:rgb(8 14 27 / 84%);font-size:12px}
+.live-directory .v3-room-art {height:100%;min-height:0;aspect-ratio:auto}
+.live-directory .v3-room-copy {height:auto}
+.live-directory .v3-room-copy h3 {display:block;font-size:15px;line-height:1.4}
+.live-directory .v3-room-copy > span {display:flex;flex:none;--live-icon:20px}
+.live-directory .talk-follows {position:absolute;left:7px;bottom:3px;display:flex;pointer-events:none}
+.live-directory .talk-follows > img {width:29px;height:29px;border:1px solid var(--ds-panel);border-radius:50%;object-fit:cover}
+.live-directory .talk-follows > img + img {margin-left:-9px}
+#main .live-directory .v3-room-grid {
+ width:100%;zoom:1;grid-template-columns:repeat(var(--room-columns),minmax(0,1fr));gap:var(--room-gap);align-content:start;
+}
+@media(max-width:1099px){
+ .live-directory .talk-scroll {--room-columns:4}
+ .live-directory .v3-room-card {grid-template-rows:36px auto 40px}
+ .live-directory .v3-room-art {height:auto;aspect-ratio:3/2}
+}
 @container (max-width:700px) {
  .live-directory .live-tools {align-items:stretch;flex-direction:column;gap:10px}
  .live-directory .directory-actions {flex:0 0 auto}
- #main .live-directory .v3-room-grid {grid-template-columns:repeat(3,minmax(0,1fr))}
+ .live-directory .talk-scroll {--room-columns:3;--room-gap:10px;--room-pad:8px}
 }
-@container (max-width:520px) {#main .live-directory .v3-room-grid {grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}}
+@container (max-width:520px) {
+ .live-directory .talk-scroll {--room-columns:2}
+ .live-directory .live-card-head,.live-directory .v3-room-copy {padding-inline:6px;gap:4px}
+ .live-directory .v3-room-count {padding-inline:4px}
+}
+@media(max-height:540px) {
+ #main > .talk-directory > .music-community-tabs {zoom:1;margin-bottom:4px}
+ #main > .talk-directory > .music-community-tabs > .tab {min-height:36px;padding-block:4px}
+ #main .room-lobby.live-directory {padding-block-start:4px}
+ .talk-directory .live-tools {margin-bottom:6px}
+ @container (min-width:500px) and (max-width:700px) {
+  .live-directory .live-tools {flex-direction:row;align-items:center;gap:8px}
+  .live-directory .directory-actions {flex:1 1 0}
+  .live-directory .live-filters button,.live-directory #v3-create-room {font-size:14px;padding-inline:10px}
+ }
+}
+@media(max-width:1099px) and (max-height:540px) {
+ .live-directory .v3-room-art {height:clamp(48px,22dvh,100px);aspect-ratio:auto}
+}
 .live-directory :is(button,a,input):focus-visible,.live-directory .directory-search:focus-within {outline:2px solid var(--ds-mint);outline-offset:2px}
 .live-directory #v3-room-create {
  position:fixed;inset:var(--live-top,0px) 0 auto;top:calc(var(--live-top,0px) + var(--live-vh,100dvh) / 2);
@@ -339,10 +374,10 @@ html:has(#main > .talk-directory, #main > .music-community-tabs[aria-label="儢月
  .live-directory .directory-search {gap:4px;padding-inline:8px 0}
  .live-directory .directory-search [data-live-reset] {width:32px}
  .live-directory .live-type-icon {--live-icon:15px}
- .live-directory .live-type-badge {width:30px;height:30px;inset:6px auto auto 6px}
- .live-directory .live-type-badge .live-type-icon {--live-icon:16px}
+ .live-directory .live-filters .live-type-icon {--live-icon:17px}
+ #main .live-directory #v3-create-room svg {width:18px;height:18px}
  .live-directory .v3-room-count,.live-directory .talk-host {font-size:11px}
- .live-directory .v3-room-copy {height:37px}
+ .live-directory .talk-host img {width:22px;height:22px}
  .live-directory .v3-room-copy h3 {font-size:13.5px}
  .live-directory #v3-room-create {padding:12px 14px}
  .live-directory #v3-room-create h2 {font-size:18px}

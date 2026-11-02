@@ -14,6 +14,7 @@ test('one directory request also reports unavailable voice service without conta
 });
 test('talking directory returns only followed current members, public rooms and verified cover artwork',async t=>{
  const f=await liveFixture(t);
+ f.sql.exec("UPDATE producers SET image_version='host-photo' WHERE id='producer'; INSERT INTO follows(user_id,kind,target_id,created) VALUES('owner','producer','producer',0)");
  f.sql.exec("INSERT INTO player_inventory(id,user_id,item_key,source,source_ref,granted_at,expires_at) VALUES('theme','owner','theme_aurora_night','decoration','directory-test',0,unixepoch()+600)");
  const r=await f.create({mode:'talk',title:'Only here',background:'theme_aurora_night',max_members:12});
  await f.create({mode:'karaoke'});await f.create({mode:'talk',visibility:'private'});
@@ -29,6 +30,7 @@ test('talking directory returns only followed current members, public rooms and 
  const read=async(user='owner')=>(await f.call(path,'GET',undefined,user)).body;
  const result=await read();assert.equal(result.enabled,true);assert.equal(result.next_cursor,null);assert.equal(result.rooms.length,1);
  const card=result.rooms[0];assert.equal(card.member_count,7);assert.equal(card.max_members,12);
+ assert.deepEqual(card.host_profile,{name:card.host_name,profile_id:'producer',image_version:'host-photo'});
  assert.equal(card.followed_count,5);assert.equal(card.followed_profiles.length,3);
  assert.deepEqual(card.followed_profiles.map(p=>p.profile_id),['profile-0','profile-1','profile-2']);
  assert.equal(card.followed_profiles[0].image_version,'v0');assert.ok(!('member_ids' in card));
@@ -36,6 +38,8 @@ test('talking directory returns only followed current members, public rooms and 
  const guest=(await read(null)).rooms[0];assert.deepEqual(guest.followed_profiles,[]);assert.equal(guest.followed_count,0);
  await f.call(r.root+'leave','POST',{generation:r.room.data.members['guest-0'].generation},'guest-0');
  assert.equal((await read()).rooms[0].followed_count,4);
+ await f.call('/api/producers/profile-1/follow','DELETE');
+ assert.equal((await read()).rooms[0].followed_count,3);
  f.sql.exec("UPDATE player_inventory SET revoked=1 WHERE id='theme'");
  assert.equal((await read()).rooms[0].theme.sku,'navy');
  assert.equal(f.sql.prepare('SELECT sku FROM room_decorations WHERE room_id=?').get(card.id).sku,'navy');

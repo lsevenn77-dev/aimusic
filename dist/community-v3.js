@@ -8,17 +8,17 @@ function liveRoomTypeFields(){
 }
 function talkingRoomCard(room){
  const mode=room.mode==='karaoke'?'karaoke':'talk',host=room.host_name||'';
- const profiles=room.followed_profiles||[],extra=room.followed_count-profiles.length;
+ const profiles=me?.id?(room.followed_profiles||[]).slice(0,3):[];
+ const restricted=!!room.visibility&&room.visibility!=='public';
  const path=room.theme?.assets?.roomCard;
  const art=path&&/^\/assets\/[\w/-]+\.webp$/.test(path)&&(!room.themeUntil||room.themeUntil>Date.now())
   ?`<img class="talk-cover" src="${esc(path)}" alt="" loading="lazy" decoding="async">`:'';
  return `<a class="v3-room-card" data-talk-id="${esc(room.id)}" data-room-mode="${mode}" href="#${mode==='karaoke'?'live':'voice'}/${esc(room.id)}">
-  <div class="v3-room-art" data-theme="${esc(room.theme?.sku||room.background||'navy')}">${art}
-   <span class="live-type-badge" aria-label="${liveRoomLabels[mode]}" role="img">${liveTypeIcon(mode)}</span>
-   ${Number.isInteger(room.member_count)&&Number.isInteger(room.max_members)?`<span class="v3-room-count" aria-label="참여 ${room.member_count}명, 정원 ${room.max_members}명">${icon('users')}${room.member_count}/${room.max_members}</span>`:''}
-   <div class="talk-meta">${profiles.length?`<span class="talk-follows" aria-label="팔로우한 참여자 ${room.followed_count}명">${profiles.map(p=>avatarImage(p,'producer',false,false)).join('')}${extra>0?`<span>+${extra}</span>`:''}</span>`:''}
-    ${host?`<span class="talk-host" title="${esc(host)}">${esc(host)}</span>`:''}</div>
-  </div><div class="v3-room-copy"><h3 title="${esc(room.title)}">${esc(room.title)}</h3></div></a>`;
+  <div class="live-card-head"><span class="talk-host">${avatarImage(room.host_profile||{name:host},'producer',false,false)}<span title="${esc(host)}">${esc(host)}</span></span>
+   ${Number.isInteger(room.member_count)&&Number.isInteger(room.max_members)?`<span class="v3-room-count" aria-label="${restricted?'입장 제한, ':''}참여 ${room.member_count}명, 정원 ${room.max_members}명">${icon(restricted?'lock':'users')}${room.member_count}/${room.max_members}</span>`:''}
+  </div><div class="v3-room-art" data-theme="${esc(room.theme?.sku||room.background||'navy')}">${art}
+   ${profiles.length?`<span class="talk-follows" role="group" aria-label="팔로우한 참여자">${profiles.map(p=>avatarImage(p,'producer',false,false)).join('')}</span>`:''}
+  </div><div class="v3-room-copy"><h3 title="${esc(room.title)}">${esc(room.title)}</h3><span role="img" aria-label="${liveRoomLabels[mode]}">${liveTypeIcon(mode)}</span></div></a>`;
 }
 function liveDirectoryHTML(defaultMode){
  const filters=Object.entries({all:'전체',...liveRoomLabels}).map(([value,label])=>
@@ -29,7 +29,7 @@ function liveDirectoryHTML(defaultMode){
    <div class="directory-actions"><div class="brand-search directory-search">${icon('search')}<input id="v3-room-search" type="search" maxlength="100" placeholder="방 제목 또는 방장 검색" aria-label="방 제목 또는 방장 검색">
    <button type="button" data-live-reset aria-label="전체 방 보기" title="전체 방 보기"><span aria-hidden="true" class="live-home-icon"></span></button></div>
    <button type="button" class="primary-button" id="v3-create-room" disabled>${icon('plus')} 방 만들기</button></div></div>
-  <div class="talk-scroll" role="region" aria-label="라이브 방 목록"><div class="v3-room-grid"></div>
+  <div class="talk-scroll" role="region" aria-label="라이브 방 목록" tabindex="0"><div class="v3-room-grid"></div>
    <div class="talk-status" role="status" hidden><span></span> <button type="button" class="small-button" hidden>다시 시도</button></div>
    <div class="talk-sentinel" aria-hidden="true"></div></div>
   <dialog id="v3-room-create" class="voice-sheet" aria-labelledby="v3-create-title"><header class="voice-sheet-heading"><h2 id="v3-create-title">방 만들기</h2>
@@ -40,14 +40,13 @@ let talkingRoomReturn=null;
 function bindTalkingDirectory(root){
  const grid=root.querySelector('.v3-room-grid'),search=root.querySelector('#v3-room-search'),create=root.querySelector('#v3-create-room');
  const status=root.querySelector('.talk-status'),message=status.querySelector('span'),retry=status.querySelector('button'),sentinel=root.querySelector('.talk-sentinel');
- const pane=root.querySelector('.talk-scroll'),desktop=window.matchMedia('(min-width:801px)');
- const shell=root.closest('.page-wrap'),footer=shell.querySelector(':scope > .page-footer');
+ const pane=root.querySelector('.talk-scroll');
  const viewer=me?.id||'';
  const saved=talkingRoomReturn?.route===location.hash&&talkingRoomReturn.viewer===viewer&&talkingRoomReturn.until>Date.now()?talkingRoomReturn:null;
  talkingRoomReturn=null;
  let items=new Map(saved?.items),cursor=saved?.cursor||null,done=saved?.done||false;
  let controller=null,debounce,expiry,disposed=false;
- let observer,watching=false,mode=saved?.mode||'all',refreshController;
+ let mode=saved?.mode||'all',refreshController;
  const filterButtons=root.querySelectorAll('[data-room-filter]');
  function setFilter(value){
   mode=value;root.dataset.filter=value;
@@ -57,26 +56,12 @@ function bindTalkingDirectory(root){
  for(const btn of filterButtons)btn.onclick=()=>{if(mode!==btn.dataset.roomFilter){setFilter(btn.dataset.roomFilter);reset();}};
  root.querySelector('[data-live-reset]').onclick=()=>{search.value='';setFilter('all');reset();};
  grid.addEventListener('error',e=>{if(e.target.matches?.('.talk-cover'))e.target.remove();},true);
+ const observer=new IntersectionObserver(entries=>{
+  if(entries.some(e=>e.isIntersecting))void load();
+ },{root:pane,rootMargin:'0px 0px 160px'});
  function watchEnd(on){
-  watching=on;
   if(on)observer.observe(sentinel);else observer.unobserve(sentinel);
  }
- function syncScrollMode(){
-  observer?.disconnect();
-  if(desktop.matches){
-   pane.tabIndex=0;
-   if(footer)pane.append(footer);
-  }else{
-   pane.removeAttribute('tabindex');
-   if(footer&&footer.parentElement===pane)shell.append(footer);
-  }
-  observer=new IntersectionObserver((entries,source)=>{
-   if(source===observer&&watching&&entries.some(e=>e.isIntersecting))void load();
-  },{root:desktop.matches?pane:null,rootMargin:'0px 0px 160px'});
-  if(watching)observer.observe(sentinel);
- }
- syncScrollMode();
- desktop.addEventListener('change',syncScrollMode);
  function notice(text='',failed=false){
   message.textContent=text;retry.hidden=!failed;status.hidden=!text;
  }
@@ -92,6 +77,7 @@ function bindTalkingDirectory(root){
   if(Number.isFinite(next))expiry=setTimeout(expireCovers,Math.min(next-Date.now()+50,2147483647));
  }
  function ready(){
+  sentinel.hidden=done;
   if(!items.size&&done)notice(search.value.trim()?'검색 결과가 없어요.':'아직 열린 방이 없어요.');
   if(!done)watchEnd(true);
  }
@@ -124,17 +110,18 @@ function bindTalkingDirectory(root){
  }
  function reset(){
   clearTimeout(debounce);clearTimeout(expiry);refreshController?.abort();watchEnd(false);
-  if(desktop.matches)pane.scrollTop=0;
+  pane.scrollTop=0;
   controller?.abort();controller=null;items=new Map();cursor=null;done=false;
   grid.replaceChildren();notice();grid.setAttribute('aria-busy','true');
   debounce=setTimeout(load,220);
  }
  async function refresh(){
   if(document.hidden||disposed||controller||refreshController||!done&&!items.size||root.querySelector('dialog[open]'))return;
-  const atTop=()=>desktop.matches?pane.scrollTop<2:window.scrollY<2;
+  const atTop=()=>pane.scrollTop<2;
   const refreshTop=atTop()&&!grid.contains(document.activeElement);
+  const viewport=pane.getBoundingClientRect();
   const visible=refreshTop?[]:[...grid.children].filter(el=>{
-   const rect=el.getBoundingClientRect();return rect.bottom>0&&rect.top<innerHeight;
+   const rect=el.getBoundingClientRect();return rect.bottom>viewport.top&&rect.top<viewport.bottom;
   }).slice(0,24);
   if(!refreshTop&&!visible.length)return;
   const active=refreshController=new AbortController();
@@ -161,24 +148,31 @@ function bindTalkingDirectory(root){
    root.dataset.enabled=String(page.enabled!==false);if(!create.dataset.opening)create.disabled=page.enabled===false;
    notice();expireCovers();ready();
    if(page.enabled===false)notice('라이브 서비스 연결을 준비하고 있어요.');
-  }catch{/* Retain the last successful page during a background refresh. */}
+  }catch{
+   if(!active.signal.aborted&&!disposed){
+    for(const room of items.values())room.followed_profiles=[];
+    grid.querySelectorAll('.talk-follows').forEach(group=>group.remove());
+   }
+  }
   finally{if(refreshController===active)refreshController=null;}
  }
  const poll=setInterval(refresh,20000);
+ window.addEventListener('aifect:follow-saved',refresh);
  document.addEventListener('visibilitychange',refresh);
  search.oninput=reset;retry.onclick=()=>{done=false;void load();};
  grid.addEventListener('click',e=>{
   if(e.defaultPrevented||e.button!==0||e.ctrlKey||e.metaKey||e.shiftKey||e.altKey||!e.target.closest('[data-talk-id]'))return;
-  talkingRoomReturn={viewer,mode,route:location.hash,until:Date.now()+120000,query:search.value,items:[...items],cursor,done,scroll:desktop.matches?pane.scrollTop:window.scrollY};
+  talkingRoomReturn={viewer,mode,route:location.hash,until:Date.now()+120000,query:search.value,items:[...items],cursor,done,scroll:pane.scrollTop};
  });
  registerRouteCleanup(()=>{
   disposed=true;clearInterval(poll);refreshController?.abort();document.removeEventListener('visibilitychange',refresh);observer.disconnect();controller?.abort();clearTimeout(debounce);clearTimeout(expiry);
-  desktop.removeEventListener('change',syncScrollMode);
-  if(footer&&footer.parentElement===pane)shell.append(footer);
+  window.removeEventListener('aifect:follow-saved',refresh);
  });
  if(saved){
+  // The scroll snapshot may predate a leave or unfollow while inside a room.
+  for(const room of items.values())room.followed_profiles=[];
   search.value=saved.query;root.dataset.enabled='true';create.disabled=false;grid.innerHTML=[...items.values()].map(talkingRoomCard).join('');expireCovers();
-  requestAnimationFrame(()=>{if(!disposed){(desktop.matches?pane:window).scrollTo({top:saved.scroll,behavior:'instant'});ready();void refresh();}});
+  requestAnimationFrame(()=>{if(!disposed){pane.scrollTo({top:saved.scroll,behavior:'instant'});ready();void refresh();}});
  }else void load();
 }
 function bindVoiceLobby(){
