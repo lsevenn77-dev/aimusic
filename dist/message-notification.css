@@ -47,7 +47,6 @@
 .activity-page .activity-meta{line-height:20px}
 .activity-page .activity-copy{min-width:0}
 .activity-page .activity-copy>p{margin-top:calc(5px + 0px)}
-@media(max-width:1100px) and (min-width:801px){.message-workspace{grid-template-columns:minmax(0,44%) minmax(0,1fr)}}
 @media(max-width:800px){
  .message-workspace{grid-template-columns:minmax(0,1fr)}
  .topbar :is(.header-messages,.header-activity){display:none}
@@ -59,4 +58,155 @@
 @media(max-width:600px){
  .activity-page .activity-row{gap:calc(9px + 0px)}
  .activity-page .activity-avatar{width:36px;height:36px}
+}
+
+/* The DM header and composer stay in place while the two histories scroll. */
+.message-workspace .message-list-pane {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 12px 8px;
+}
+.message-list-pane .dm-section-heading {
+  gap: 6px;
+  margin: 0 6px 6px;
+}
+.message-list-pane .dm-section-heading h2 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  white-space: nowrap;
+}
+.message-list-pane #dm-inbox-count {
+  margin: 0;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: var(--ds-soft);
+  color: var(--ds-selected);
+}
+.message-workspace .dm-inbox-tabs {
+  gap: 4px;
+  padding: 0 2px 8px;
+}
+.message-workspace .dm-inbox-tabs button {
+  min-width: 0;
+  min-height: 44px;
+  padding: 4px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ds-body);
+}
+.message-workspace .dm-inbox-tabs button[aria-pressed=true] {
+  background: var(--ds-soft);
+  color: var(--ds-selected);
+}
+.message-workspace #dm-conversations {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+#dm-list-error:empty { margin: 0; }
+#dm-conversations .conversation-row {
+  min-height: 60px;
+  padding: 6px 8px;
+  gap: 10px;
+  border-bottom: 0;
+  border-radius: 10px;
+}
+#dm-conversations .conversation-open { min-height: 44px; }
+#dm-conversations .conversation-copy p { margin: 2px 0 0; }
+#dm-conversations .conversation-meta { gap: 2px; }
+.message-thread-pane .blocked-people { min-height: 0; overflow-y: auto; }
+.message-workspace .dm-thread-header { padding: 8px 12px!important; }
+.message-workspace .dm-thread-actions { gap: 2px; }
+.message-workspace .dm-thread-header :is(.dm-back,.icon-button,.dm-block-button) {
+  min-width: 44px;
+  min-height: 44px;
+}
+.message-workspace .dm-bubble { max-width: 100%; padding: 8px 12px; }
+.message-workspace .dm-message .chat-image { max-width: 100%; }
+.message-workspace .chat-day { justify-content: center; margin: 4px auto; padding: 4px 8px; }
+.message-workspace .chat-day::before,.message-workspace .chat-day::after { content: none; }
+
+.message-workspace .dm-chat-panel {
+  display: grid;
+  grid-template-columns: auto auto minmax(0,1fr);
+  grid-template-rows: auto minmax(0,1fr) repeat(5,auto);
+  grid-template-areas:
+    "earlier earlier earlier"
+    "log log log"
+    "connection connection connection"
+    "error error error"
+    "upload upload upload"
+    "photo gift compose"
+    "hint hint hint";
+  padding: 10px 14px!important;
+  border-radius: 0;
+}
+.message-workspace #chat-earlier { grid-area: earlier; justify-self: center; margin: 0 0 6px; }
+.message-workspace #chat-log { grid-area: log; min-width: 0; }
+.message-workspace #chat-connection { grid-area: connection; }
+.message-workspace #chat-error { grid-area: error; }
+.message-workspace #chat-upload-status { grid-area: upload; }
+/* Keep the original upload label, gift button, and form as the click targets. */
+#main .message-workspace .chat-attachment-tools { display: contents; }
+.message-workspace .chat-attachment-tools label { grid-area: photo; }
+.message-workspace .chat-attachment-tools [data-profile-gift] { grid-area: gift; }
+.message-workspace .chat-attachment-tools .icon-button {
+  align-self: end;
+  width: 44px;
+  height: 46px;
+  color: var(--ds-body);
+}
+.message-workspace .chat-attachment-tools small {
+  grid-area: hint;
+  margin: 4px 0 0;
+  color: var(--ds-muted);
+  font-size: 11px;
+}
+.message-workspace .dm-chat-panel #chat-compose {
+  grid-area: compose;
+  align-items: end;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.message-workspace #chat-compose [data-chat-send] { padding-inline: 12px; }
+.message-workspace #chat-compose textarea { max-height: 120px; overflow-y: auto; }
+
+@media (min-width:801px) {
+  #main:has(> .message-workspace) {
+    --main-frame-gutter: clamp(16px,calc((100vw - 1180px) / 2),130px);
+  }
+  #main > .message-workspace {
+    width: min(100%,1180px);
+    height: min(705px,calc(100dvh - var(--topbar-height,88px) - var(--main-frame-top) - var(--player-space,0px) - 24px));
+    min-height: 0;
+    margin-inline: auto;
+    border-radius: 18px;
+    grid-template-columns: min(35%,322px) minmax(0,1fr);
+  }
+}
+@media (max-width:800px) {
+  #main:has(> .message-workspace) { --main-frame-gutter: 0px; }
+  #main > .message-workspace { border-inline: 0; border-radius: 0; }
+  .message-workspace:not(.has-thread) {
+    height: calc(100dvh - var(--topbar-height,78px) - var(--main-frame-top) - var(--player-space,0px) - max(12px,env(safe-area-inset-bottom)));
+  }
+}
+@media (max-width:800px), (max-width:1100px) and (pointer:coarse) {
+  body.chat-active #main > .message-workspace.has-thread {
+    left: env(safe-area-inset-left,0px);
+    right: env(safe-area-inset-right,0px);
+    width: auto;
+    grid-template-columns: minmax(0,1fr);
+  }
+  .message-workspace .dm-chat-panel {
+    padding: 6px 8px max(8px,env(safe-area-inset-bottom,0px))!important;
+  }
 }
