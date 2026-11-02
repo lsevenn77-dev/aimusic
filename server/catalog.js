@@ -1,3 +1,4 @@
+import {songTextMatch,searchText} from './search-match.js';
 import {giftBlockReason} from './gift-eligibility.js';
 import {followCounts,assertArtistInteraction} from './follow-management.js';
 import {canManageArtist} from './artist-fan-access.js';
@@ -73,9 +74,9 @@ export async function catalogRoute(req,env,path,user){
    return json({artists,total:count.n,sort,offset,nextOffset:offset+artists.length<count.n?offset+size:null});
   }
 
-  const q=(url.searchParams.get('q')||'').slice(0,100),genre=url.searchParams.get('genre'),chart=url.searchParams.get('chart');
+  const q=searchText(url.searchParams.get('q')),genre=url.searchParams.get('genre'),chart=url.searchParams.get('chart');
   let where=VISIBLE()+" AND t.kind='original'",args=[];
-  if(q){where+=` AND (t.title LIKE ? OR a.name LIKE ? OR (${producerNameSQL()}) LIKE ? OR (t.genre||t.genres_json) LIKE ? OR t.tags LIKE ?)`;args=Array(5).fill('%'+q+'%');}
+  if(q){const match=songTextMatch(q);where+=' AND '+match.sql;args=match.args;}
   if(genre&&validGenre(genre)){where+=' AND '+genreFilterSQL();args.push(genre,genre);}
   let sort='t.created DESC';
 

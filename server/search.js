@@ -5,6 +5,7 @@ import {namedArtistSQL} from './artist-identity.js';
 import {publicNameSQL,producerNameSQL} from './identity.js';
 import {activePlaylistSQL} from './membership.js';
 import {one,rows,fail,json} from './db.js';
+import {songTextMatch} from './search-match.js';
 import {searchRank} from './search-rank.js';
 
 // Display labels never become text predicates for taxonomy searches.
@@ -23,8 +24,9 @@ export async function unifiedSearch(env,user,params){
  if(blocked.length){where+=' AND t.user_id NOT IN ('+blocked.map(()=>'?').join(',')+')';args.push(...blocked);}
  const from='FROM tracks t JOIN artists a ON a.id=t.artist_id JOIN producers p ON p.id=t.producer_id';
  if(q){
-  const strong=await one(env,`SELECT count(*) n ${from} WHERE ${where} AND ${rank.sql}<6`,...args,rank.plan);
-  where+=` AND ${rank.sql}<${strong.n<6?7:6}`;args.push(rank.plan);
+  const flexible=songTextMatch(q);
+  const strong=await one(env,`SELECT count(*) n ${from} WHERE ${where} AND (${flexible.sql} OR ${rank.sql}<6)`,...args,...flexible.args,rank.plan);
+  where+=` AND (${flexible.sql} OR ${rank.sql}<${strong.n<6?7:6})`;args.push(...flexible.args,rank.plan);
  }
  const matched=`SELECT t.id ${from} WHERE ${where}`;
  const artistRank=searchRank(q,['artist.name','artist.bio']),producerRank=searchRank(q,[publicNameSQL(),'m.code']),playlistRank=searchRank(q,['p.name','p.description',publicNameSQL()]);
