@@ -6,7 +6,7 @@ const base='https://billing.aifect.co.kr/aifect-origin/';
 export const release=typeof __CAFE24_BUILD__==='string'?__CAFE24_BUILD__:'';
 export async function originRequest(env, action, body, contentType, ms, fetcher=fetch, version=release){
  if(!env.CAFE24_ORIGIN_KEY||!version)return null;
- return fetcher(base+(action==='webp'?'v1':version)+'/'+action,{method:'POST',headers:{authorization:'Bearer '+env.CAFE24_ORIGIN_KEY,'content-type':contentType},body,redirect:'error',signal:AbortSignal.timeout(ms)});
+ return fetcher(base+(action==='webp'?'v1':version)+'/'+action,{method:'POST',headers:{authorization:'Bearer '+env.CAFE24_ORIGIN_KEY,'content-type':contentType},body,redirect:'manual',signal:AbortSignal.timeout(ms)});
 }
 export async function tryPublicOrigin(req,env,path,requestOrigin=originRequest){
  if(!env.CAFE24_ORIGIN_KEY||!publicPath(path)||!['GET','HEAD'].includes(req.method))return null;
@@ -23,5 +23,8 @@ export async function tryPublicOrigin(req,env,path,requestOrigin=originRequest){
    if(html.startsWith('<!doctype html>')||html.startsWith('<!DOCTYPE html>'))return new Response(req.method==='HEAD'?null:html,{status:r.status,headers:h});
   }
  }catch{/* Retry only the local renderer using the already authorized public rows. */}
- return await publicMusicRoute(req,env,path,data)||publicPageRoute(req,path);
+ const fallback=await publicMusicRoute(req,env,path,data)||await publicPageRoute(req,path);
+ if(!fallback)return null;
+ const h=new Headers(fallback.headers);h.set('x-aifect-web-origin','sites-fallback');
+ return new Response(fallback.body,{status:fallback.status,headers:h});
 }
