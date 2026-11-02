@@ -229,13 +229,18 @@ main .social-profile-identity h2>.mp-public-id{display:block;font-size:13px;font
  #main .mp-member-page :is(.mp-section-head,.work-browser,.mp-segment){--ui-type-scale:1}
  #main .mp-member-page :is(.mp-section-head h2,.work-browser>h2){font-size:18px;line-height:1.4}
  #main .mp-member-page :is(.mp-section-head h2>span,.work-browser [data-work-count],.mp-section-head .mp-all,.work-legend){font-size:13px}
- #main .mp-member-page .work-legend{flex-wrap:wrap;gap:4px 10px;overflow:visible}
+ #main .mp-member-page .work-toolbar{gap:8px}
+ #main .mp-member-page .work-toolbar select{width:84px;min-width:0}
+ #main .mp-member-page .work-legend{flex-wrap:wrap;gap:4px 8px;overflow:visible}
  #main .mp-member-page .work-title strong{font-size:14px;font-weight:600;line-height:1.45}
  #main .mp-member-page .work-grid small{font-size:12px;line-height:1.5;overflow-wrap:anywhere}
 }
 @media(max-width:480px){
  #main .mp-member-page .work-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 10px}
  #main .mp-member-page .work-card .work-title strong{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;white-space:normal;overflow-wrap:anywhere}
+}
+@media(max-width:359px){
+ #main .mp-member-page .work-legend{display:grid;grid-template-columns:repeat(2,max-content)}
 }
 
 @media(min-width:801px){
