@@ -112,6 +112,11 @@ async function finalGiftShopView(category,readApi=api){
  '<details class="shop-policy"><summary>선물 및 정산 안내</summary><p>'+esc(AifectGifts.GIFT_SETTLEMENT_NOTICE)+' 실버는 현금 정산·골드 전환 대상이 아니에요.</p><a class="text-link" href="#gold/history">보낸 선물 내역</a></details></div>';
 }
 let shopLayoutCleanup=()=>{};
+function shopExpandedColumns(count, shelfWidth, cardWidth, gap) {
+ const visibleColumns = Math.max(1, Math.floor((shelfWidth + gap) / (cardWidth + gap)));
+ const columnsForFourRows = Math.ceil(count / 4);
+ return Math.min(count, Math.max(visibleColumns, columnsForFourRows));
+}
 function bindShopShelves(){
  shopLayoutCleanup();const root=$('.shop-page');if(!root)return;
  const controller=new AbortController(),rows=[...root.querySelectorAll('.shop-track')];
@@ -126,7 +131,18 @@ function bindShopShelves(){
   shelf.querySelector('.shop-arrows').hidden=false;
   shelf.querySelectorAll('[data-shelf]').forEach(b=>{b.disabled=!enabled||(Number(b.dataset.direction)<0?row.scrollLeft<=1:row.scrollLeft+row.clientWidth>=row.scrollWidth-1);});
  };
- const observer=new ResizeObserver(()=>rows.forEach(update));
+ const layout = row => {
+  const card = row.firstElementChild;
+  if (card && row.closest('.shop-shelf').classList.contains('is-expanded')) {
+   const gap = parseFloat(getComputedStyle(row).columnGap) || 0;
+   const columns = shopExpandedColumns(row.childElementCount, row.getBoundingClientRect().width, card.getBoundingClientRect().width, gap);
+   if (row.style.getPropertyValue('--shop-expanded-columns') !== String(columns)) {
+    row.style.setProperty('--shop-expanded-columns', String(columns));
+   }
+  }
+  update(row);
+ };
+ const observer=new ResizeObserver(()=>rows.forEach(layout));
  rows.forEach(row=>{
   const bar=row.closest('.shop-shelf').querySelector('.shop-scrollbar'),thumb=bar.querySelector('.shop-scrollbar-thumb');
   let drag=null;
@@ -157,7 +173,7 @@ function bindShopShelves(){
  root.querySelectorAll('[data-shelf-expand]').forEach(button=>button.addEventListener('click',()=>{
   const row=$('#shelf-'+button.dataset.shelfExpand),shelf=row.closest('.shop-shelf'),expanded=shelf.classList.toggle('is-expanded');
   button.setAttribute('aria-expanded',String(expanded));button.textContent=expanded?'접기':'+더보기';button.setAttribute('aria-label',shelf.querySelector('h2').textContent+' '+button.textContent);
-  row.scrollLeft=0;update(row);
+  row.scrollLeft=0;layout(row);
  },{signal:controller.signal}));
  document.fonts?.ready.then(()=>{if(root.isConnected&&!controller.signal.aborted)rows.forEach(update);});
  shopLayoutCleanup=()=>{observer.disconnect();controller.abort();};
