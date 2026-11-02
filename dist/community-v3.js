@@ -110,8 +110,6 @@ function bindTalkingDirectory(root){
 }
 function voiceLobbyHTML(data,enabled,talking=true){
  const input='<input id="v3-room-search" type="search" maxlength="100" aria-label="방 제목 또는 방장 검색" placeholder="방 제목 또는 방장 검색">';
- const search=talking?`<label class="talk-search brand-search">${icon('search')}${input}</label>`:input;
- const create=talking?'<span>방 만들기</span>':'방 만들기';
  let list;
  if(talking){
   list=`<div class="talk-scroll" role="region" aria-label="토킹룸 목록"><div class="v3-room-grid">${data.rooms.map(talkingRoomCard).join('')}</div>
@@ -122,9 +120,9 @@ function voiceLobbyHTML(data,enabled,talking=true){
   const empty=enabled?'아직 열린 공개 토킹룸이 없어요.':'토킹룸 서비스 연결을 준비하고 있어요.';
   list=`<div class="v3-room-grid">${cards||'<p class="v3-empty">'+empty+'</p>'}</div><p id="v3-search-empty" hidden>검색 결과가 없어요.</p>`;
  }
- return `<section class="community-v3"><div class="v3-toolbar">
+ return `<section class="community-v3 room-lobby${talking?'':' live-lobby'}"><div class="v3-toolbar">
   <div><h2>지금 열려 있는 토킹룸</h2><p>${talking?'공개된 방만 보여줘 · 방장 승인 후 마이크 참여 가능':'공개된 방만 보여줘 · 방장 승인 후 마이크에 참여할 수 있어'}</p></div>
-  <div class="v3-tools">${search}<button class="primary-button" id="v3-create-room" ${enabled?'':'disabled'} ${talking?'aria-label="방 만들기"':''}>${icon('plus')} ${create}</button></div>
+  <div class="v3-tools">${input}<button class="primary-button" id="v3-create-room" ${enabled?'':'disabled'}>${icon('plus')} 방 만들기</button></div>
  </div>${list}<dialog id="v3-room-create" class="voice-sheet" aria-labelledby="v3-create-title"><button type="button" id="v3-close-create" aria-label="닫기">${voiceGlyph('close')}</button><header class="voice-sheet-heading"><h2 id="v3-create-title">방 만들기</h2></header>${voiceSettingsFormHTML('create',talking)}</dialog></section>`;
 }
 function bindVoiceLobby(){
