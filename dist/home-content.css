@@ -46,6 +46,8 @@
  display:block;width:calc(100% / var(--profile-frame-layout));height:auto;aspect-ratio:1;
  object-fit:cover;object-position:center;border-radius:50%;background:var(--ds-panel)
 }
+/* AI artists do not wear frames, so their portraits can use more of the slot. */
+.home-content-refresh #home-artists .profile-frame-canvas>.profile-avatar-image{width:80%}
 .home-profile-section .profile-frame-canvas>.profile-avatar-image[hidden]{display:none}
 .home-content-refresh .home-profile-name{display:flex;align-items:center;justify-content:center;gap:4px;margin-top:6px;font-size:14px;font-weight:650;line-height:1.5;min-width:0}
 .home-content-refresh .home-profile-name>span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
