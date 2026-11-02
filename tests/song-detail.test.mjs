@@ -29,8 +29,12 @@ test('creator text, paragraphs and amended descriptions stay intact and HTML-saf
  const c=header();
  for(const t of samples.creator_samples)assert.equal(c.songCreatorDescription(t),t.description);
  const text='첫 줄\n둘째 줄\n\n다음 문단 <script>alert(1)</script> & "인용"';
- const html=c.songDescriptionHTML({description:text});
+ const html=c.songDescriptionHTML({id:'song',description:text});
  assert.match(html,/첫 줄\n둘째 줄\n\n다음 문단/);assert.doesNotMatch(html,/<script>/);assert.match(html,/&lt;script&gt;/);
+ assert.match(html,/<section\b[^>]*data-song-description-track="song"/);
+ assert.match(html,/<p\b[^>]*id="song-description-text"[^>]*>/);
+ const toggle=html.match(/<button\b[^>]*class="text-link song-description-toggle"[^>]*>/)?.[0];
+ assert.ok(toggle);assert.match(toggle,/type="button"/);assert.match(toggle,/aria-controls="song-description-text"/);assert.match(toggle,/aria-expanded="false"/);assert.match(toggle,/\bhidden\b/);assert.match(html,/>펼쳐보기<\/button>/);
  const edited=samples.legacy_auto[0].description+'\n제작자가 새로 수정한 소개입니다.';
  assert.equal(c.songCreatorDescription({description:edited}),edited,'Similar prose is not guessed to be automatic');
 });
@@ -41,14 +45,15 @@ test('empty introductions do not reserve a card and saved text stays intact',()=
  assert.doesNotMatch(c.songDetailHeaderHTML(track),/song-description|음악을 듣고 감상을/);
 });
 
-test('one introduction follows the date and precedes actions; metrics and report share a row',()=>{
+test('the song title heads the page and metrics follow the date before introduction and actions',()=>{
  const c=header(),html=c.songDetailHeaderHTML({...track,description:'제작자 소개'});
- const order=['song-release-date','song-introduction','song-actions','song-engagement','song-metrics','data-report-track'];
+ const order=['song-release-date','song-metrics','song-introduction','song-actions','song-engagement','data-report-track'];
  let previous=-1;for(const key of order){const at=html.indexOf(key);assert.ok(at>previous,key);previous=at;}
  assert.equal(html.match(/class="song-introduction"/g).length,1);
+ assert.match(html,/<h1\b[^>]*class="song-title"[^>]*>곡 제목<\/h1>/);assert.equal((html.match(/<h1\b/g)||[]).length,1);
+ assert.match(c.songDetailHeaderHTML({...track,title:'곡 <제목> "1"'}),/<h1\b[^>]*class="song-title"[^>]*>곡 &lt;제목&gt; &quot;1&quot;<\/h1>/);
  assert.match(html,/<h3>곡 소개<\/h3>/);assert.match(html,/aria-label="재생 20회"/);assert.match(html,/aria-label="댓글 2개"/);assert.match(html,/aifect-icon-plays/);assert.match(html,/aifect-icon-comment/);
- assert.doesNotMatch(header(null).songDetailHeaderHTML(track),/data-report-track/);
- assert.doesNotMatch(header('other').songDetailHeaderHTML(track),/data-report-track/);
+ for(const c of [header(null),header('other')]){const plain=c.songDetailHeaderHTML(track);assert.doesNotMatch(plain,/song-engagement|data-report-track/);assert.match(plain,/song-metrics/);}
 });
 test('song actions retain delegates, links, active state and count with the lyrics entry last',()=>{
  const c=header('owner',true),html=c.songDetailActionsHTML(track);

@@ -66,8 +66,10 @@ test('song core is playable while comments, covers and gifts are still pending',
  Object.assign(c.context,{songDetailHeaderHTML:t=>'<article>'+t.title+'</article>',coversPanelHTML:()=>'',commentsHTML:()=>'',lyricsPanel:()=>'',giftsPanelHTML:()=>'',songCreditCardHTML:()=>'',bindSongCoverList(){}});
  const opening=c.navigate('song/song');await started.promise;await new Promise(resolve=>setImmediate(resolve));
  assert.match(c.main.innerHTML,/CORE SONG/);assert.match(c.main.innerHTML,/이야기와 참여 작품을 불러오는 중/);
+ assert.doesNotMatch(c.main.innerHTML,/<h1\b[^>]*>\s*곡 이야기\s*<\/h1>/);
  assert.equal(c.run('routeTracks[0].title'),'CORE SONG');held.resolve();await opening;
  assert.match(c.main.innerHTML,/comments-panel/);assert.doesNotMatch(c.main.innerHTML,/이야기와 참여 작품을 불러오는 중/);
+ for(const html of c.writes)assert.doesNotMatch(html,/<h1\b[^>]*>\s*곡 이야기\s*<\/h1>/,'The removed page heading must stay absent from loading, core and final renders');
 });
 
 test('late studio data cannot overwrite the active studio state after navigation',async()=>{
