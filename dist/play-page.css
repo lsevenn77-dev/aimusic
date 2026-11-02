@@ -469,23 +469,28 @@ img.play-dubbing-art{display:block;width:100%;height:auto;aspect-ratio:1;object-
 
   @media (max-width: 800px) {
     .home-feature { margin-block-end: 16px; }
-    .play-banner-art { --art: var(--mobile-art); }
+    .play-banner-art { --art: var(--mobile-art); background-position: center; }
+    .play-banner-art::after {
+      background: linear-gradient(90deg, #090d1a66 0%, #090d1a55 28%, #090d1a2b 42%, transparent 57%);
+    }
     .play-banner-link { padding: 10px 0 32px 5cqi; }
     .home-feature-pagination { --feature-step: 44px; }
-    .home-feature-dots button:first-child::after { transform: translateX(12px); }
-    .home-feature-dots button:last-child::after { transform: translateX(-12px); }
-    /* Keep the portrait and mic at their natural proportions on a wide tablet.
-       Only extend the first 300 source pixels of the empty studio background. */
-    @container play-frame (min-aspect-ratio: 2/1) {
+    .home-feature-dots button::after { transform: translateY(7px); }
+    .home-feature-dots button:first-child::after { justify-self: end; margin-right: 1px; }
+    .home-feature-dots button:last-child::after { justify-self: start; margin-left: 1px; }
+    .home-feature-dots button[aria-pressed="true"]::after { width: 15px; }
+    /* In wider home frames, extend only the empty left edge. The other 657
+       pixels of the 822 × 482 photograph scale uniformly with frame height. */
+    @container play-frame (min-aspect-ratio: 822/482) {
       .play-banner-art {
-        border-image: var(--art) 0 0 0 300 fill / 0 0 0 calc(100% - 129.4643cqh) stretch;
+        border-image: var(--art) 0 0 0 165 fill / 0 0 0 calc(100% - 136.3071cqh) stretch;
       }
     }
     @container play-frame (max-width: 540px) {
       .home-feature-copy {
-        --play-label-size: 12px;
-        --play-title-size: clamp(18px, 5.25cqi, 22px);
-        --play-body-size: 12px;
+        --play-label-size: clamp(12px, 3.25cqi, 13px);
+        --play-title-size: clamp(18px, 5.55cqi, 23px);
+        --play-body-size: clamp(12px, 3.24cqi, 13px);
         max-width: 50cqi;
       }
       .home-feature-copy h2 { margin-top: 5px; line-height: 1.26; }
@@ -493,11 +498,10 @@ img.play-dubbing-art{display:block;width:100%;height:auto;aspect-ratio:1;object-
       .home-feature-description span { display: block; }
     }
     @container play-frame (max-width: 350px) {
-      .play-banner-art { background-position-x: 32%; }
       .play-banner-link { padding-left: 4cqi; }
       .home-feature-copy { --play-title-size: 18px; max-width: 54cqi; }
       .home-feature-description span { display: inline; }
-      .home-feature-description { max-width: 11.75em; }
+      .home-feature-description { max-width: 10em; text-wrap: balance; }
     }
   }
 }
