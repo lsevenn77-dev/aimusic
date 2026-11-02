@@ -13,9 +13,9 @@ export function activePlaylistSQL(alias='p'){
  return `(${alias}.id IN (${choices(2)}) OR (EXISTS(SELECT 1 FROM users member WHERE member.id=${alias}.user_id AND MAX(member.premium_until,member.apple_premium_until)>unixepoch()) AND ${alias}.id IN (${choices(10)})))`;
 }
 export async function membership(env,user){
- if(!user)return {plan:'free',playlist_limit:2,owned_count:0,active_ids:[],locked_count:0,full_lyrics:false,premium_until:null,checkout_available:false};
+ if(!user)return {plan:'free',playlist_limit:2,owned_count:0,active_ids:[],locked_count:0,full_lyrics:true,premium_until:null,checkout_available:false};
  const owned=await rows(env,`SELECT p.id,${activePlaylistSQL()} active FROM playlists p WHERE p.user_id=? ORDER BY p.created,p.id`,user.id);
- return {upload_quota:await uploadQuota(env,user),plan:isPremium(user)?'premium':'free',playlist_limit:playlistLimit(user),owned_count:owned.length,active_ids:owned.filter(p=>p.active).map(p=>p.id),locked_count:owned.filter(p=>!p.active).length,full_lyrics:isPremium(user),premium_until:isPremium(user)?user.premium_until:null,checkout_available:false};
+ return {upload_quota:await uploadQuota(env,user),plan:isPremium(user)?'premium':'free',playlist_limit:playlistLimit(user),owned_count:owned.length,active_ids:owned.filter(p=>p.active).map(p=>p.id),locked_count:owned.filter(p=>!p.active).length,full_lyrics:true,premium_until:isPremium(user)?user.premium_until:null,checkout_available:false};
 }
 export async function requireActivePlaylist(env,p){
  if(!await one(env,`SELECT p.id FROM playlists p WHERE p.id=? AND ${activePlaylistSQL()}`,p.id))fail(403,'보관 중인 플레이리스트입니다. 내 보관함에서 사용할 목록을 선택해주세요.');

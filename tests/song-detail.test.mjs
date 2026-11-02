@@ -61,9 +61,9 @@ test('the song title heads the page and metrics follow the date before introduct
  assert.doesNotMatch(c.songDetailMetricsHTML({...track,ai_comments:12}),/공식|AI|응원/);
  for(const c of [header(null),header('other')]){const plain=c.songDetailHeaderHTML(track);assert.doesNotMatch(plain,/song-engagement|data-report-track/);assert.match(plain,/song-metrics/);}
 });
-test('song actions retain delegates and expose the compact labels, menu and separate lyrics entry',()=>{
+test('song actions retain delegates and expose the compact labels, menu and lyrics immediately after like',()=>{
  const c=header('owner',true),html=c.songDetailActionsHTML(track);
- const order=['data-play="song"','href="#sing/song"','data-like="song"','data-add="song"','data-gift="song"','data-track-menu="song"'];let previous=-1;
+ const order=['data-play="song"','href="#sing/song"','data-like="song"','id="lyrics-expand"','data-add="song"','data-gift="song"','data-track-menu="song"'];let previous=-1;
  for(const key of order){const i=html.indexOf(key);assert.ok(i>previous,key);previous=i;}
  assert.match(html,/aria-pressed="true"/);assert.match(html,/data-like-count>12</);
  for(const key of ['play','sing','heart','plus','gift','menu'])assert.ok(html.includes('song-action-icon-'+key));

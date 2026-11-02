@@ -6,7 +6,7 @@ import * as core from '../shared/lyrics.js';
 const source=readFileSync(new URL('../dist/lyrics.js',import.meta.url),'utf8');
 function fixture(){
  let inserted=0,card=null,paused=0,focused=0;
- const button={dataset:{track:'song'},setAttribute(k,v){this[k]=v;},focus(){focused++;}};
+ const button={dataset:{track:'song'},getAttribute(k){return this[k];},removeAttribute(k){delete this[k];},setAttribute(k,v){this[k]=v;},focus(){focused++;}};
  const follow={setAttribute(k,v){this[k]=v;}},events={};
  const owner={scrollTop:0,clientHeight:900,scrollHeight:5000,scrollTo(o){this.scrollTop=Math.max(0,o.top);this.lastScroll=o;}};
  const doc={body:{},scrollingElement:owner,addEventListener(k,fn){events[k]=fn;},removeEventListener(k){delete events[k];},querySelectorAll:()=>[{getBoundingClientRect:()=>({top:780,bottom:900,height:120})}]};
@@ -43,15 +43,22 @@ test('player lyric updates work without a sidebar and clear the highlight for an
  f.audio.currentTime=12;f.c.updateSyncedLyrics();assert.deepEqual(f.card.lines.map(x=>x.active),[false,true]);
  f.c.current={id:'other'};f.c.updateSyncedLyrics();assert.deepEqual(f.card.lines.map(x=>x.active),[false,false]);
 });
-test('the header button checks the latest permissions and removes an expired transcript',()=>{
- const f=fixture();f.c.bindLyricsPanel();f.c.me=null;f.button.onclick();
- assert.equal(f.inserted,0);assert.equal(f.c.location.hash,'membership');
- f.c.me={id:'premium'};
- f.c.trackMap.set(f.track.id,{...f.track,lyrics_access:'line',lyrics_access_until:null,lyrics:''});
- f.button.onclick();assert.equal(f.inserted,0,'A bound button must not retain an earlier full-access track');
- const renewed={...f.track};f.c.trackMap.set(renewed.id,renewed);f.button.onclick();assert.equal(f.inserted,1);
- renewed.lyrics_access_until=1;f.c.updateExpandedLyrics();assert.equal(f.card.isConnected,false);assert.equal(f.button['aria-expanded'],'false');
- assert.deepEqual(Object.keys(f.events),[]);
+test('guests and free listeners read every line on the song page without Premium controls',async()=>{
+ for(const user of [null,{id:'free'}]){
+  const f=fixture();f.c.me=user;
+  f.c.trackMap.set(f.track.id,{...f.track,lyrics_access:'line',lyrics_access_until:null,lyrics:''});
+  f.c.api=async path=>{assert.equal(path,'/api/tracks/song/lyrics/text');return {lines:['First','Last']};};
+  f.c.bindLyricsPanel();await f.button.onclick();f.c.clearFullLyrics();f.c.updateExpandedLyrics();
+  assert.equal(f.c.location.hash,'#song/song');assert.ok(f.card.isConnected);assert.match(f.card.html,/>Last<\/p>/);
+  assert.doesNotMatch(f.card.html,/data-seek|expanded-lyrics-follow/);assert.equal(f.button['aria-expanded'],'true');
+ }
+});
+test('a late text response cannot open lyrics on another song',async()=>{
+ const f=fixture();f.c.me=null;let finish;
+ f.c.api=()=>new Promise(resolve=>{finish=resolve;});
+ f.c.bindLyricsPanel();const opening=f.button.onclick();
+ const previous=f.c.$;f.c.$=s=>s==='#lyrics-expand'?null:previous(s);
+ finish({lines:['Previous song']});await opening;assert.equal(f.inserted,0);
 });
 test('expanded transcript retains every line and uses the existing Premium seek action',()=>{
  const f=fixture();f.track.lyrics=Array.from({length:80},(_,i)=>'['+String(Math.floor(i*5/60)).padStart(2,'0')+':'+String(i*5%60).padStart(2,'0')+']Line '+(i+1)).join('\n');

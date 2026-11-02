@@ -64,6 +64,12 @@ test('listeners get one timed line while premium gets full lyrics; studio access
  const {call,sql}=await fixture(t);const lyrics='[00:03.000]처음\n[00:12.250]다음\n[01:04.000]마지막';
  sql.prepare("UPDATE tracks SET lyrics=?,lyrics_mode='synced',duration=90 WHERE id IN ('one','hidden')").run(lyrics);
  for(const user of [null,'owner','other']){const tr=(await call('/api/tracks/one','GET',null,user)).body.track;assert.equal(tr.lyrics,'');assert.equal(tr.lyrics_access,'line');}
+ for(const user of [null,'other']){
+  const publicText=await call('/api/tracks/one/lyrics/text','GET',null,user);
+  assert.equal(publicText.status,200);assert.deepEqual(publicText.body.lines,['처음','다음','마지막']);
+ }
+ assert.equal((await call('/api/tracks/hidden/lyrics/text','GET',null,null)).status,404);
+ assert.deepEqual((await call('/api/tracks/two/lyrics/text','GET',null,null)).body.lines,[]);
  let line=(await call('/api/tracks/one/lyrics/line?at=0','GET',null,null)).body.line;assert.equal(line.text,'');assert.equal(line.intro,true);assert.equal(line.until,3);
  line=(await call('/api/tracks/one/lyrics/line?at=12.25','GET',null,null)).body.line;assert.equal(line.text,'다음');assert.equal(line.from,12.25);assert.equal(line.until,60);
  assert.equal((await call('/api/tracks/one/lyrics/line?at=60','GET',null,null)).status,401);

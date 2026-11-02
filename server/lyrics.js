@@ -1,4 +1,4 @@
-import {fail,one,json} from './db.js';
+import {fail,json} from './db.js';
 import {parseLrc,serializeLrc,MAX_LYRICS,activeCueIndex} from '../shared/lyrics.js';
 import {published} from './catalog.js';
 import {isPremium} from './membership.js';
@@ -8,13 +8,16 @@ export function listenerLyrics(track,user){
  return {lyrics_access:isPremium(user)?'full':'line',lyrics:isPremium(user)?track.lyrics:'',lyrics_access_until:isPremium(user)?user.premium_until:null};
 }
 export async function lyricsRoute(req,env,path,user){
- const match=path.match(/^\/api\/tracks\/([\w-]+)\/lyrics\/line$/);
+ const match=path.match(/^\/api\/tracks\/([\w-]+)\/lyrics\/(line|text)$/);
  if(!match||req.method!=='GET')return null;
- const at=new URL(req.url).searchParams.get('at'),seconds=Number(at);
  const detail=await published(env,match[1]);
- const source=detail.kind==='cover'?await one(env,'SELECT lyrics,lyrics_mode FROM tracks WHERE id=?',detail.original_id):detail;
+ const source=detail.kind==='cover'?await published(env,detail.original_id):detail;
+ if(match[2]==='text'){
+  const cues=source.lyrics_mode==='synced'&&source.lyrics?parseLrc(source.lyrics):[];
+  return json({lines:cues.map(c=>c.text)});
+ }
+ const at=new URL(req.url).searchParams.get('at'),seconds=Number(at);
  const track={...source,duration:detail.duration};
- if(!track)fail(404,'공개된 곡을 찾을 수 없습니다.');
  if(at===null||!at.trim()||!Number.isFinite(seconds)||seconds<0||seconds>track.duration)fail(400,'곡 안의 재생 시간을 지정해주세요.');
  if(!user&&seconds>=60)fail(401,'로그인하면 전체곡 가사를 볼 수 있습니다.');
  if(track.lyrics_mode!=='synced'||!track.lyrics)return json({line:null});
