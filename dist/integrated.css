@@ -45,6 +45,8 @@
 
 /* Crew detail: the discovery welcome surface keeps its own cover treatment. */
 .crew-page .crew-detail-header {padding-block:4px 0}
+.crew-page .crew-room-tabs .crew-game-entry {color:var(--ds-selected);font-weight:700;text-decoration:none}
+.crew-page .crew-game-entry:hover,.crew-page .crew-game-entry:focus-visible {text-decoration:underline;text-underline-offset:4px}
 .crew-page .crew-identity {display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:clamp(12px,2vw,24px)}
 .crew-page .crew-detail-picture {display:grid;place-items:center;width:128px;aspect-ratio:1;border-radius:var(--ds-radius-card,16px);overflow:hidden;background:var(--ds-panel);color:var(--ds-body)}
 .crew-page .crew-detail-picture img {display:block;width:100%;height:100%;object-fit:cover}
@@ -78,6 +80,8 @@
  .crew-page .crew-member-profile {--face:54px}
  .crew-page .crew-room-tabs {max-width:100%;gap:18px}
  .crew-page .crew-room-tabs .tab {flex:0 0 auto;min-height:44px;font-size:14px}
+ .crew-page .crew-room-tabs.has-game {flex-wrap:wrap;column-gap:clamp(8px,3vw,16px);row-gap:0}
+ .crew-page .crew-game-entry {font-size:14px}
 }
 /* Crew management shares the profile menu surface and confines scrolling to each dialog's body. */
 .crew-settings-anchor {position:relative;align-self:start}

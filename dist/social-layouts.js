@@ -13,7 +13,6 @@ function crewHeroHTML(c,m){
  return `<header class="crew-detail-header crew-frame-${frame}">
    <div class="crew-identity">${crewPicture(c,'crew-detail-picture')}<div class="crew-identity-copy"><h1 title="${esc(c.name)}">${crewNameHTML(c)}</h1><span>멤버 ${number(c.members)} / ${number(c.capacity)}명</span> ${levelTag}</div>${settings}</div>
    <div class="crew-detail-xp"><div><span><strong>Lv.${number(c.level)}</strong> ${number(c.xp)} / ${c.next_xp==null?'MAX':number(c.next_xp)} XP</span><small>${next}</small></div><progress max="1" value="${Number(c.progress||0)}" aria-label="크루 경험치"></progress></div>
-   ${m?'<a class="small-button" href="#crew-jump/'+encodeURIComponent(c.id)+'">✦ 크루 점프게임</a>':''}
  </header>`;
 }
 function crewMemberProfile(p){

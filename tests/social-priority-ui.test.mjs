@@ -30,7 +30,8 @@ test('crew settings follow live staff roles and legacy management links land on 
   assert.match(view.html,/class="work-browser"/);
   assert.doesNotMatch(view.html,/tab=manage|data-crew-member=|crew-cover-bg/);
   assert.deepEqual([...view.html.matchAll(/class="tab [^"]*" href="([^"]+)"/g)].map(m=>m[1]),[
-   '#crew/crew?tab=music','#crew/crew?tab=members','#crew/crew?tab=notice','#crew/crew?tab=about','#community/crews?browse=1'
+   '#crew/crew?tab=music','#crew/crew?tab=members','#crew/crew?tab=notice','#crew/crew?tab=about','#community/crews?browse=1',
+   ...(role?['#crew-jump/crew']:[])
   ]);
  }
 });

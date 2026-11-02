@@ -59,7 +59,8 @@ function crewDetailView(d,param,tab='music',community=false,discovery=''){
  const c=d.crew,m=d.membership,owner=m?.role==='owner';
  const tabs=[['music','작품'],['members','멤버'],['notice','공지'],['about','소개'],['find','크루 찾기']];
  if(!tabs.some(([key])=>key===tab)&&tab!=='chat')tab='music';
- const nav='<nav class="tabs crew-room-tabs" aria-label="크루 활동">'+tabs.map(([key,label])=>'<a class="tab '+(tab===key?'active':'')+'" href="'+(key==='find'?'#community/crews?browse=1':'#crew/'+esc(c.id)+'?tab='+key)+'" '+(tab===key?'aria-current="page"':'')+'>'+label+'</a>').join('')+'</nav>';
+ const game=m?'<a class="tab crew-game-entry" href="#crew-jump/'+encodeURIComponent(c.id)+'" aria-label="크루 점프게임"><span aria-hidden="true">✦</span> 점프게임</a>':'';
+ const nav='<nav class="tabs crew-room-tabs'+(m?' has-game':'')+'" aria-label="크루 활동">'+tabs.map(([key,label])=>'<a class="tab '+(tab===key?'active':'')+'" href="'+(key==='find'?'#community/crews?browse=1':'#crew/'+esc(c.id)+'?tab='+key)+'" '+(tab===key?'aria-current="page"':'')+'>'+label+'</a>').join('')+game+'</nav>';
  let html=communityNavigation('crews')+'<section class="crew-page" '+(m?'data-current-crew="'+esc(c.id)+'"':'')+'>'+crewHeroHTML(c,m)+nav;
  if(!m)html+='<button class="primary-button" data-join-crew="'+esc(c.id)+'" '+(d.other_crew||d.banned||!c.recruiting||c.members>=c.capacity?'disabled':'')+'>'+(d.other_crew?'다른 크루에 가입 중':c.join_policy==='approval'?'가입 신청':'크루 가입')+'</button>';
  if(tab==='music')html+=workBrowserHTML('크루 작품',d.tracks,d.dubbings);
