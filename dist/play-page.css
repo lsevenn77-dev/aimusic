@@ -155,17 +155,9 @@ img.play-dubbing-art{display:block;width:100%;height:auto;aspect-ratio:1;object-
 /* 20% smaller numbers; 32px visual pill with the existing 44px touch target. */
 #main .play-page .count-dropdown,#main .play-page .song-cover-row>.count-dropdown{min-width:60px;height:44px;min-height:44px;padding:0 10px;gap:6px;font-size:14.4px}
 #main .play-page .count-dropdown:before{inset-block:6px}
-/* Home owns dimensions, navigation controls and responsive breakpoints. */
-.play-page .play-banner .play-banner-link{color:var(--ds-text);text-decoration:none}
-.play-page .play-banner .home-feature-copy{grid-column:2/-1}
-.play-page .play-banner .home-feature-copy h2{overflow:visible;overflow-wrap:anywhere;word-break:keep-all}
-.play-page .play-banner .home-feature-description{display:block;max-height:none;overflow:visible;-webkit-line-clamp:unset;word-break:keep-all}
-.play-page .play-banner-photo{width:100%;height:100%;background-size:cover;background-position:center;filter:blur(14px) saturate(1.18);transform:scale(1.12);opacity:.6}
-.play-page .play-banner-art{display:block;object-fit:cover}
 @media(max-width:600px){#main .play-page .count-dropdown{font-size:13.6px}}
 
-/* Only the hub produced by playShell has data-play-mode. The banner keeps the
-   home carousel's container width, image dimensions and pagination geometry. */
+/* Only the hub produced by playShell has data-play-mode. */
 #main > .play-page[data-play-mode] {
   --ui-type-scale: 1;
   --play-heading-size: 24px;
@@ -179,15 +171,6 @@ img.play-dubbing-art{display:block;width:100%;height:auto;aspect-ratio:1;object-
     margin-inline: auto;
     min-width: 0;
   }
-  .play-banner { --feature-hangul-scale: 1; }
-  .home-feature-copy h2 {
-    font-size: var(--play-heading-size);
-    font-weight: 650;
-    letter-spacing: -.025em;
-    line-height: 1.2;
-  }
-  .home-feature-label { font-size: 12px; line-height: 1.3; }
-  .home-feature-description { font-size: 14px; line-height: 1.5; }
   .play-tabs {
     grid-auto-columns: minmax(max-content, 1fr);
     overflow-x: auto;
@@ -339,16 +322,6 @@ img.play-dubbing-art{display:block;width:100%;height:auto;aspect-ratio:1;object-
     .dc-script > button { min-height: 48px; }
     .dc-script > .small-button { padding-inline: 6px; white-space: nowrap; }
   }
-  @media (max-width: 380px) {
-    .home-feature-label { display: block; }
-    .home-feature-copy h2 { font-size: 20px; line-height: 1.16; word-break: normal; }
-    .home-feature-description {
-      font-size: 13px;
-      line-height: 1.5;
-      margin-top: 3px;
-      word-break: normal;
-    }
-  }
   /* Preserve the compact duet layout within the enlarged hub. */
   @media (max-width: 550px) {
     .play-song-row.play-duet-row {
@@ -363,6 +336,90 @@ img.play-dubbing-art{display:block;width:100%;height:auto;aspect-ratio:1;object-
     .play-duet-actions { gap: 6px; }
     .play-duet-actions > .play-row-sing { margin-inline-start: 6px; padding-inline: 8px; }
     .play-duet-expand { min-width: 48px; padding-inline: 6px; gap: 4px; }
+  }
+}
+
+/* Object-only artwork and live text share one type scale across all three
+   slides. Keep the shared carousel's controls, motion and gesture handling. */
+#main > .play-page[data-play-mode] > .play-banner {
+  --ui-type-scale: 1;
+  --ui-space-scale: 1;
+  --play-banner-label-size: 14px;
+  --play-banner-title-size: 24px;
+  --play-banner-description-size: 14px;
+  --play-banner-background: #050c17;
+
+  .home-feature { height: clamp(272px, 30cqi, 400px); background: var(--play-banner-background); }
+  .home-feature-background { background: var(--play-banner-background); }
+  .home-feature-background::after {
+    background: linear-gradient(0deg, #050c174d, transparent 35%);
+  }
+  .play-banner-photo {
+    display: block;
+    opacity: 1;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+  }
+  .play-banner-link {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+    padding: 24px 64px 48px 54%;
+    color: var(--ds-text);
+    text-decoration: none;
+  }
+  .play-banner-link[data-play-banner="song"] { --play-banner-accent: #f09ac7; }
+  .play-banner-link[data-play-banner="dubbing"] { --play-banner-accent: #bca2f4; }
+  .play-banner-link[data-play-banner="browse"] { --play-banner-accent: #8eddd2; }
+  .home-feature-copy { grid-column: 1; min-width: 0; }
+  .home-feature-label {
+    display: block;
+    color: var(--play-banner-accent);
+    font-size: var(--play-banner-label-size);
+    font-weight: 700;
+    letter-spacing: .02em;
+    line-height: 1.4;
+  }
+  .home-feature-title-row { display: block; margin: 8px 0 0; }
+  .home-feature-copy h2 {
+    margin: 0;
+    font-size: var(--play-banner-title-size);
+    font-weight: 700;
+    letter-spacing: -.025em;
+    line-height: 1.35;
+    overflow: visible;
+    overflow-wrap: anywhere;
+    word-break: keep-all;
+  }
+  .home-feature-description {
+    display: block;
+    margin: 12px 0 0;
+    max-height: none;
+    font-size: var(--play-banner-description-size);
+    font-weight: 400;
+    line-height: 1.6;
+    overflow: visible;
+    overflow-wrap: anywhere;
+    word-break: keep-all;
+    -webkit-line-clamp: unset;
+  }
+
+  @container (max-width: 640px) {
+    .home-feature {
+      --play-banner-label-size: 12px;
+      --play-banner-title-size: 22px;
+      --play-banner-description-size: 13px;
+      height: 344px;
+    }
+    .play-banner-photo { height: 190px; object-position: left center; }
+    .home-feature-background::after {
+      background: linear-gradient(180deg, transparent 90px, #050c1759 135px, var(--play-banner-background) 204px);
+    }
+    .play-banner-link { align-items: end; padding: 0 24px 40px; }
+    .home-feature-arrow { top: auto; bottom: 0; }
+    .home-feature-copy h2 { min-height: 2.7em; }
+    .home-feature-description { min-height: 4.8em; margin-top: 8px; }
   }
 }
 
