@@ -10,7 +10,9 @@ function songDescriptionHTML(t){
  return text?'<section class="song-introduction" aria-label="곡 소개"><h3>곡 소개</h3><p class="song-description">'+esc(text)+'</p></section>':'';
 }
 function songActionIcon(name){
- const key=name==='sing'?'waveform':name==='play'?'ui-play-action':name==='plus'?'ui-plus-action':name==='heart'?'ui-heart':name;
+ // Header actions share one button surface. Reuse the shared glyphs without
+ // the separate circular-action or metric wrappers used by music lists.
+ const key=name==='sing'?'waveform':name==='lyrics'?'list':name;
  const svg=icon(key),classes='song-action-icon song-action-icon-'+name;
  return svg.includes('class="')?svg.replace('class="','class="'+classes+' '):svg.replace('<svg ','<svg class="'+classes+'" ');
 }
@@ -22,13 +24,14 @@ function songDetailCreditsHTML(t){
 }
 function songDetailActionsHTML(t){
  const id=esc(t.id),join=t.cover_mode==='duet'&&t.duet_open&&t.user_id!==me?.id,gift=t.user_id!==me?.id;
- const primary='<button type="button" class="primary-button song-action-listen" data-play="'+id+'">'+songActionIcon('play')+'<span>'+(me?'노래 듣기':'60초 미리 듣기')+'</span></button>'+
- (join?'<a class="primary-button song-action-sing" href="#sing/'+esc(t.original_id)+'?duet='+id+'">'+songActionIcon('sing')+'<span>듀엣 참여</span></a>':'')+
- (t.karaoke_ready?'<a class="primary-button song-action-sing" href="#sing/'+id+'">'+songActionIcon('sing')+'<span>노래 부르기</span></a>':'');
+ const primary='<button type="button" class="small-button song-action-listen" data-play="'+id+'">'+songActionIcon('play')+'<span>'+(me?'노래 듣기':'60초 미리 듣기')+'</span></button>'+
+ (join?'<a class="small-button song-action-sing" href="#sing/'+esc(t.original_id)+'?duet='+id+'">'+songActionIcon('sing')+'<span>듀엣 참여</span></a>':'')+
+ (t.karaoke_ready?'<a class="small-button song-action-sing" href="#sing/'+id+'">'+songActionIcon('sing')+'<span>노래 부르기</span></a>':'');
  const secondary='<button type="button" class="small-button song-action-like '+(liked(t.id)?'is-active':'')+'" data-like="'+id+'" aria-label="좋아요 '+number(t.likes||0)+'개" aria-pressed="'+liked(t.id)+'">'+songActionIcon('heart')+'<span>좋아요</span><span class="song-like-count" data-like-count>'+number(t.likes||0)+'</span></button>'+
  '<button type="button" class="small-button song-action-save" data-add="'+id+'">'+songActionIcon('plus')+'<span>저장</span></button>'+
- (gift?'<button type="button" class="small-button gift-entry song-action-gift" data-gift="'+id+'">'+songActionIcon('gift')+'<span>선물</span></button>':'');
- return '<div class="inline-actions song-actions"><div class="song-primary-actions'+(join||t.karaoke_ready?' has-sing':'')+'">'+primary+'</div><div class="song-secondary-actions'+(gift?' has-gift':'')+'">'+secondary+'</div></div>';
+ (gift?'<button type="button" class="small-button gift-entry song-action-gift" data-gift="'+id+'">'+songActionIcon('gift')+'<span>선물</span></button>':'')+
+ '<button type="button" class="small-button song-action-lyrics" id="lyrics-expand" data-track="'+id+'" aria-controls="expanded-song-lyrics" aria-expanded="false"'+(t.lyrics_mode==='synced'?'':' disabled title="아직 등록된 가사가 없습니다."')+'>'+songActionIcon('lyrics')+'<span>가사</span></button>';
+ return '<div class="inline-actions song-actions" role="group" aria-label="곡 기능">'+primary+secondary+'</div>';
 }
 function songOwnerActionsHTML(t){
  if(t.kind!=='cover'||t.user_id!==me?.id)return '';

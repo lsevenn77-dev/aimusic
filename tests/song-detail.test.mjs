@@ -6,7 +6,7 @@ import {fixture} from './fixture.mjs';
 const read=name=>readFileSync(new URL('../'+name,import.meta.url),'utf8');
 const samples=JSON.parse(read('tests/fixtures/song-detail-descriptions.json'));
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const track={id:'song',title:'곡 제목',kind:'original',user_id:'other',producer_id:'person',producer:'제작자',artist_id:'artist',artist:'아티스트',has_ai_artist:true,karaoke_ready:true,genre:'Pop',duration:120,likes:12,plays:20,comments:2,description:''};
+const track={id:'song',title:'곡 제목',kind:'original',user_id:'other',producer_id:'person',producer:'제작자',artist_id:'artist',artist:'아티스트',has_ai_artist:true,karaoke_ready:true,lyrics_mode:'synced',genre:'Pop',duration:120,likes:12,plays:20,comments:2,description:''};
 function header(user='owner',active=false){
  const c=vm.createContext({me:user?{id:user}:null,esc,number:n=>Number(n).toLocaleString('en-US'),time:()=> '2:00',liked:()=>active,hasArtist:t=>t.kind!=='cover'&&!!t.has_ai_artist,credits:t=>'<a href="#artist/'+esc(t.artist_id)+'">'+esc(t.artist)+'</a>',cover:t=>'<div class="album-art">'+esc(t.title)+'</div>',songReleaseDateHTML:()=>''});
  vm.runInContext(read('dist/icons.js'),c);
@@ -50,13 +50,16 @@ test('one introduction follows the date and precedes actions; metrics and report
  assert.doesNotMatch(header(null).songDetailHeaderHTML(track),/data-report-track/);
  assert.doesNotMatch(header('other').songDetailHeaderHTML(track),/data-report-track/);
 });
-test('the five actions keep their delegates, links, order, active state and count',()=>{
+test('song actions retain delegates, links, active state and count with the lyrics entry last',()=>{
  const c=header('owner',true),html=c.songDetailActionsHTML(track);
- const order=['data-play="song"','href="#sing/song"','data-like="song"','data-add="song"','data-gift="song"'];let previous=-1;
+ const order=['data-play="song"','href="#sing/song"','data-like="song"','data-add="song"','data-gift="song"','id="lyrics-expand"'];let previous=-1;
  for(const key of order){const i=html.indexOf(key);assert.ok(i>previous,key);previous=i;}
  assert.match(html,/aria-pressed="true"/);assert.match(html,/data-like-count>12</);
- for(const key of ['play','sing','heart','plus','gift'])assert.ok(html.includes('song-action-icon-'+key));
+ for(const key of ['play','sing','heart','plus','gift','lyrics'])assert.ok(html.includes('song-action-icon-'+key));
  assert.match(html,/<span>선물<\/span>/);assert.doesNotMatch(html,/선물하기|audio-play-icon/);
+ const lyrics=html.match(/<button\b[^>]*\bid="lyrics-expand"[^>]*>/)?.[0];
+ assert.ok(lyrics);assert.match(lyrics,/data-track="song"/);assert.match(lyrics,/aria-controls="expanded-song-lyrics"/);assert.match(lyrics,/aria-expanded="false"/);assert.doesNotMatch(lyrics,/\bdisabled\b/);
+ assert.match(html,/<span>가사<\/span>/);assert.equal((html.match(/id="lyrics-expand"/g)||[]).length,1);
 });
 test('guest previews, unavailable karaoke, self-gifts and duet ownership remain gated',()=>{
  const guest=header(null),own=header('other'),other=header();
@@ -69,6 +72,8 @@ test('guest previews, unavailable karaoke, self-gifts and duet ownership remain 
  assert.match(own.songOwnerActionsHTML(invitation),/data-delete-track="invitation".*data-track-kind="cover"/);
  assert.match(own.songOwnerActionsHTML(invitation),/\/api\/covers\/invitation\/download/);
  assert.equal(other.songOwnerActionsHTML(invitation),'');assert.equal(own.songOwnerActionsHTML(track),'');
+ const unavailable=other.songDetailActionsHTML({...track,lyrics_mode:'none'}).match(/<button\b[^>]*\bid="lyrics-expand"[^>]*>/)?.[0];
+ assert.ok(unavailable);assert.match(unavailable,/\bdisabled\b/);
 });
 test('artist and producer profiles are each shown once without dropping cover credits',()=>{
  const c=header(),html=c.songDetailCreditsHTML(track);

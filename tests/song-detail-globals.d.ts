@@ -2,6 +2,7 @@ interface SongDetailTrack {
  id:string;title:string;kind:'original'|'cover';user_id:string;producer_id:string;producer:string;
  description?:string;genres?:string[];genre?:string;duration:number;likes:number;plays:number;comments:number;ai_comments?:number;
  karaoke_ready?:boolean;cover_mode?:'solo'|'duet';duet_open?:number;original_id?:string;has_ai_artist?:boolean;
+ lyrics_mode?:string;
 }
 declare const me:{id:string}|null;
 declare function esc(value:unknown):string;

@@ -64,8 +64,10 @@ function clearFullLyrics(){
 function refreshLyricsPanel(){const panel=$('#song-lyrics');if(panel&&current?.id===panel.dataset.track){panel.outerHTML=lyricsPanel(current);bindLyricsPanel();}}
 function setCurrentLyrics(t){resetLyricLines();try{currentCues=hasFullLyrics(t)&&t.lyrics_mode==='synced'?AifectLyrics.parseLrc(t.lyrics):[];}catch{currentCues=[];}updateSyncedLyrics(true);}
 function bindLyricsPanel(){
- const panel=$('#song-lyrics');if(!panel)return;const track=trackMap.get(panel.dataset.track);if(current?.id===track?.id){current=track;try{currentCues=hasFullLyrics(track)?AifectLyrics.parseLrc(track.lyrics):[];}catch{currentCues=[];}}
- const expand=$('#lyrics-expand');if(expand)expand.onclick=()=>openExpandedLyrics(track);
+ const expand=$('#lyrics-expand'),panel=$('#song-lyrics'),trackId=expand?.dataset.track||panel?.dataset.track;
+ if(expand)expand.onclick=()=>openExpandedLyrics(trackMap.get(trackId));
+ const track=trackMap.get(trackId);if(track&&current?.id===track.id){current=track;try{currentCues=hasFullLyrics(track)?AifectLyrics.parseLrc(track.lyrics):[];}catch{currentCues=[];}}
+ if(!panel){updateSyncedLyrics(true);return;}
  const state=lyricPanelState={panel,follow:!!panel.querySelector('.lyrics-scroll'),index:-2};const follow=$('#lyrics-follow'),scroller=panel.querySelector('.lyrics-scroll');
  if(follow&&scroller){const setFollow=value=>{setLyricsFollow(value);if(!value)scroller.scrollTo({top:scroller.scrollTop,behavior:'instant'});};follow.onclick=()=>{setFollow(!state.follow);updateSyncedLyrics(true);};setFollow(state.follow);for(const event of ['wheel','touchmove'])scroller.addEventListener(event,()=>setFollow(false),{passive:true});}
  updateSyncedLyrics(true);
@@ -87,6 +89,7 @@ function openExpandedLyrics(t){
  const column=$('.song-main-column');if(!column)return;
  if(expandedLyrics?.card.isConnected&&expandedLyrics.track.id===t.id){expandedLyrics.card.scrollIntoView({behavior:'smooth',block:'start'});return;}
  closeExpandedLyrics();let cues;try{cues=AifectLyrics.parseLrc(t.lyrics);}catch{return;}
+ lyricPanelState ||= {panel:null,follow:true,index:-2};
  column.insertAdjacentHTML('afterbegin',expandedLyricsHTML(t,cues));const card=$('#expanded-song-lyrics');if(!card)return;
  const scrollOwner=expandedLyricsScrollOwner(card),events=scrollOwner===document.scrollingElement?document:scrollOwner;
  const manual=()=>setLyricsFollow(false),key=e=>{if(['ArrowUp','ArrowDown','PageUp','PageDown','Home','End',' '].includes(e.key)&&!e.target.closest('button,input,textarea,select'))manual();};
@@ -139,7 +142,7 @@ function updateSyncedLyrics(force=false){
   // Two independent single-line rows keep long lyrics from hiding the next cue.
   hud.replaceChildren(...(hasLyrics?twoLines.split('\n').slice(0,2):current?['아직 등록된 가사가 없어요.']:[]).map(text=>{const row=document.createElement('span');row.textContent=text;row.title=text;return row;}));
  }
- const state=lyricPanelState;if(state?.panel.isConnected){const active=current?.id===state.panel.dataset.track,indexHere=active?index:-1;
+ const state=lyricPanelState;if(state?.panel?.isConnected){const active=current?.id===state.panel.dataset.track,indexHere=active?index:-1;
   if(state.panel.dataset.mode==='line'){const el=$('#current-lyric-line');if(el){el.classList.add('lyric-preview-lines');el.textContent=active?previewText:'♪ 음악을 재생해주세요';}const status=$('#lyrics-play-status');if(status)status.textContent=active?(lyricRetryAt>Date.now()&&!line?'가사를 불러오지 못했어요. 잠시 후 다시 시도합니다.':'음악에 맞춰 현재·다음 가사이 바뀝니다.'):'이 곡을 재생하면 현재 가사가 표시됩니다.';}
   else if(force||state.index!==indexHere){state.index=indexHere;state.panel.querySelectorAll('.lyric-line').forEach((line,i)=>{line.classList.toggle('is-current',i===indexHere);if(i===indexHere)line.setAttribute('aria-current','true');else line.removeAttribute('aria-current');});$('#lyrics-play-status').textContent=!active?'이 곡을 재생하면 현재 가사를 따라갑니다.':index<0?'♪ 첫 가사를 기다리고 있어요.':'가사를 누르면 해당 구간으로 이동해요.';
    if(state.follow&&indexHere>=0){const scroller=state.panel.querySelector('.lyrics-scroll'),el=scroller.children[indexHere];if(el){const top=el.getBoundingClientRect().top-scroller.getBoundingClientRect().top+scroller.scrollTop-scroller.clientHeight/2+el.clientHeight/2;scroller.scrollTo({top,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});}}
