@@ -221,6 +221,7 @@ img.play-dubbing-art{display:block;width:100%;height:auto;aspect-ratio:1;object-
     text-decoration: none;
   }
   :is(.play-row-sing, .play-duet-play) > svg,
+  .play-duet-play .song-cover-play-art svg,
   .play-duet-expand [data-cover-arrow] svg {
     flex: 0 0 20px;
     width: 20px !important;
@@ -238,6 +239,28 @@ img.play-dubbing-art{display:block;width:100%;height:auto;aspect-ratio:1;object-
   .play-duet-actions { gap: 8px; }
   .play-duet-actions > .play-row-sing { margin-inline-start: 8px; }
   .play-duet-play { width: 44px; min-width: 44px; padding: 0; }
+  .song-cover-play.play-duet-play {
+    border: 1px solid var(--ds-line) !important;
+    background: var(--ds-panel) !important;
+  }
+  .song-cover-play.play-duet-play:is(:hover, :active) {
+    border-color: var(--ds-accent-pink) !important;
+  }
+  .play-duet-play .song-cover-play-art { width: 20px; height: 20px; }
+  .play-duet-play .song-cover-pause {
+    inset: 0;
+    border-radius: 0;
+    background: none;
+    color: inherit;
+  }
+  .play-duet-children { margin: 0 0 12px 20px; padding-inline-start: 12px; }
+  .play-duet-child {
+    flex-wrap: nowrap;
+    min-height: 64px;
+    padding-block: 6px;
+  }
+  .play-duet-child .song-cover-detail { flex: 1 1 0; min-width: 0; }
+  .play-duet-child .list-actions { flex: none; margin: 0; }
   .play-duet-expand {
     min-width: 60px;
     padding-inline: 10px;
@@ -318,7 +341,19 @@ img.play-dubbing-art{display:block;width:100%;height:auto;aspect-ratio:1;object-
     .play-song-row .play-song-detail { flex: 1 1 0; min-width: 0; gap: 6px; }
     .play-song-row .list-actions { flex: none; margin: 0; }
     .play-song-count { min-width: 2ch; width: auto; flex: none; }
-    .play-song-copy { gap: 2px; }
+    .play-song-row .play-song-detail .play-song-copy {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 2px;
+    }
+    .play-song-row .list-actions > .play-row-sing {
+      width: 44px;
+      min-width: 44px;
+      padding: 0;
+    }
+    .play-song-row .play-row-sing > span { display: none; }
+    .play-duet-children { margin-inline-start: 8px; padding-inline-start: 6px; }
+    .play-duet-child { --list-row-inset: 2px; --list-text-gap: 6px; }
     .dc-script > button { min-height: 48px; }
     .dc-script > .small-button { padding-inline: 6px; white-space: nowrap; }
   }
@@ -334,7 +369,7 @@ img.play-dubbing-art{display:block;width:100%;height:auto;aspect-ratio:1;object-
   }
   @media (max-width: 400px) {
     .play-duet-actions { gap: 6px; }
-    .play-duet-actions > .play-row-sing { margin-inline-start: 6px; padding-inline: 8px; }
+    .play-duet-actions > .play-row-sing { margin-inline-start: 6px; }
     .play-duet-expand { min-width: 48px; padding-inline: 6px; gap: 4px; }
   }
 }

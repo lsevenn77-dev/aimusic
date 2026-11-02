@@ -75,7 +75,7 @@ function playSongRows(tracks,tab){
  }).join('')}</div>`;
 }
 function playDuetChildrenHTML(d,parent,original){
- return d.covers.map(t=>songCoverRowHTML(t,{child:true})).join('')+(d.next_offset==null?'':`<button type="button" class="small-button" data-play-duet-more="${esc(parent)}" data-original="${esc(original)}" data-offset="${d.next_offset}">참여작 더 보기</button>`);
+ return d.covers.map(t=>songCoverRowHTML(t,{child:true,playChild:true})).join('')+(d.next_offset==null?'':`<button type="button" class="small-button" data-play-duet-more="${esc(parent)}" data-original="${esc(original)}" data-offset="${d.next_offset}">참여작 더 보기</button>`);
 }
 function bindPlayDuetChildren(root){
  if(root.dataset.playDuetBound)return;
