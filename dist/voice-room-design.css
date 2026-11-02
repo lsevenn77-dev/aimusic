@@ -429,3 +429,232 @@
  #main[data-room-focus] .voice-columns{grid-template-rows:minmax(0,1fr);min-height:0}
  #main[data-room-focus] .voice-chat-panel{height:100%;max-height:100%;overflow:hidden}
 }
+
+/* Talking room only. The karaoke stage keeps its own focus layout. */
+.voice-room.talking-room {
+ --voice-avatar: 52px;
+ --ui-type-scale:1; --ui-space-scale:1;
+ --talk-line: var(--ds-line, #344256);
+ --talk-mint: #8eddd2;
+ --talk-panel: color-mix(in srgb,var(--ds-panel) 83%,transparent);
+ width:100%; max-width:944px; margin-inline:auto; border:0; border-radius:14px;
+ display:grid; grid-template-columns:minmax(0,552fr) minmax(0,376fr);
+ grid-template-rows:auto minmax(0,1fr); gap:0 16px;
+ height:clamp(380px,calc(100dvh - 165px),780px); min-height:0; padding:0;
+}
+.talking-room #voice-content:not([hidden]), .talking-room .voice-columns {display:contents}
+.talking-room .talk-header, .talking-room .voice-stage, .talking-room .voice-chat-panel {
+ min-width:0; background:var(--talk-panel); border:1px solid var(--talk-line);
+}
+.talking-room .talk-header {
+ grid-area:1 / 1; display:flex; align-items:center; justify-content:space-between; gap:8px;
+ padding:13px 14px 6px; border-bottom:0; border-radius:14px 14px 0 0;
+}
+.talk-header>div {min-width:0}
+.talking-room .talk-header h1 {margin:0; font-size:24px; line-height:1.25; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.talk-header p {margin:3px 0 0; font-size:12px; line-height:1.5; color:var(--ds-muted)}
+.talk-header #voice-status {color:var(--talk-mint)}
+.talk-header nav, .talk-tools nav, .talk-chat-head, .talk-central, .talk-central>div, .talking-room .voice-music-mini>div {display:flex; align-items:center}
+.talking-room .talk-header button,.talking-room .talk-leave,.talking-room .talk-central>button,.talking-room .voice-music-mini button {
+ display:inline-grid; place-items:center; flex:0 0 44px; width:44px; height:44px; min-width:44px; min-height:44px; margin:0; padding:8px;
+ border:0; border-radius:10px; background:transparent; color:var(--ds-body); box-shadow:none;
+}
+.talking-room .talk-header button:hover,.talking-room .voice-music-mini button:hover {background:var(--ds-surface)}
+.talking-room .talk-header .talk-leave {display:none}
+.talking-room .voice-stage {
+ grid-area:2 / 1; display:flex; flex-direction:column; gap:6px; padding:6px 14px 12px; min-height:0;
+ overflow:auto; max-height:none; border-top:0; border-radius:0 0 14px 14px;
+}
+.talking-room .voice-stage>.voice-music-mini {
+ order:0; display:flex; flex:0 0 auto; align-items:center; flex-wrap:nowrap; gap:8px;
+ width:100%; height:auto; min-height:50px; margin:0; padding:3px 6px;
+ background:var(--ds-bg); border:1px solid var(--talk-line); border-radius:12px;
+}
+.talking-room .voice-music-mini>.talk-cover,.talking-room .voice-music-mini>img {width:44px;height:44px; padding:3px; flex:none; border-radius:9px; display:block; object-fit:cover}
+.talking-room .talk-cover img {display:block; width:100%; height:100%; object-fit:cover; border-radius:6px}
+.talking-room .voice-music-mini .talk-track {display:flex; min-width:0; flex:1 1 0; flex-direction:column; gap:1px}
+.talking-room .talk-track strong,.talking-room .talk-track small {display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.35}
+.talking-room .talk-track strong {font-size:15px}
+.talking-room .talk-track small {font-size:12px; color:var(--ds-muted)}
+.talking-room .voice-music-mini>div {gap:0; flex:none; flex-wrap:nowrap; margin-left:auto}
+.talking-room .voice-music-mini [data-voice=music-play],.talking-room .voice-music-mini [data-voice=music-pause] {border:1px solid var(--talk-mint); border-radius:50%; color:var(--talk-mint)}
+.talking-room .voice-stage>.voice-seats {
+ order:1; display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); grid-template-rows:repeat(2,auto);
+ align-items:center; flex:none; gap:16px 8px; margin:14px 2px 4px; padding:0;
+}
+.talking-room .voice-seat {min-height:0; display:grid; place-items:center; overflow:visible}
+.talking-room .voice-seat .voice-person {gap:5px; padding:0; min-height:0}
+.talking-room .voice-seat .voice-person strong {font-size:14px; line-height:1.35}
+.talking-room .voice-seat-empty {width:auto; height:auto; min-width:44px; min-height:54px; padding:2px; margin:0; gap:2px; border:0; border-radius:0; box-shadow:none; background:none}
+.talking-room .voice-seat-empty svg {width:24px; height:24px; padding:0; border:0; background:none}
+.talking-room .voice-seat-empty small {font-size:12px; line-height:1.4; color:var(--ds-muted)}
+.talking-room .voice-crown {top:-14px; width:20px; height:18px; filter:none}
+.talking-room .voice-seat-mic {top:calc(var(--voice-avatar) - 16px); width:20px; height:20px; padding:2px; border-width:1px; color:var(--ds-selected)}
+.talking-room .voice-seat-mic.is-on {color:var(--talk-mint)}
+.talking-room .voice-seat-mic svg {width:13px; height:13px}
+.talking-room .voice-seat-exit {width:44px;height:44px;padding:12px;border:0;background:transparent;right:calc(50% - var(--voice-avatar)/2 - 16px);top:-16px}
+.talking-room .voice-stage>.voice-listeners {display:none!important}
+.talking-room .talk-central {
+ order:2; flex:none; min-width:0; min-height:48px; gap:6px; padding:1px 4px 1px 10px; margin:0;
+ border:1px solid var(--talk-line); border-radius:10px; background:var(--ds-bg);
+}
+.talking-room .talk-central>div {flex:1; min-width:0; gap:5px; font-size:14px; line-height:1.35}
+.talk-central>div>img,.talk-central>div>.avatar-fallback {width:26px;height:26px;border-radius:50%;object-fit:cover;flex:none}
+.talk-central>div>span:not(.avatar-fallback) {flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.talking-room .talk-central button:not([data-voice=toggle-mic]) {min-height:44px; min-width:44px; padding:4px; font-size:13px; background:transparent; color:var(--ds-body); border:0}
+.talking-room .talk-central [data-voice=approve-mic] {color:var(--talk-mint)!important}
+.talking-room .talk-central>[data-voice=toggle-mic] {margin-left:auto; border:1px solid var(--ds-selected); color:var(--ds-selected)}
+.talking-room .talk-central>button[aria-pressed=true] {border-color:var(--talk-mint); color:var(--talk-mint)}
+.talking-room .voice-stage>#voice-mic-note {order:3; margin:0; font-size:12px}
+.talking-room .voice-stage>#voice-mic-note:not([data-progress]) {display:none}
+.talking-room .talk-tools {order:5; flex:none; border-top:1px solid var(--talk-line); margin-top:4px; padding-top:4px}
+.talking-room .talk-tools nav {gap:4px; min-height:44px}
+.talking-room .talk-tools nav button {min-width:0; flex:1; min-height:44px; padding:4px; font-size:14px; border:0; border-radius:8px; background:none; color:var(--ds-body)}
+.talking-room .talk-tools nav button[aria-pressed=true] {background:var(--ds-bg); color:var(--talk-mint)}
+.talking-room .voice-chat-panel {grid-area:1 / 2 / 3; height:100%; min-height:0; max-height:100%; top:0; padding:10px 12px; border-radius:14px; overflow:hidden}
+.talk-chat-head {justify-content:space-between; flex:none; margin:0 0 6px; border-bottom:1px solid var(--talk-line)}
+.talking-room .talk-chat-head h2 {font-size:19px; margin:0}
+.talking-room .voice-chat {flex:1 1 0; min-height:0; height:auto; padding:4px 0; margin:0 0 4px; border:0; background:transparent}
+.talking-room .voice-chat .voice-chat-system p {border:0; padding:2px 0; background:none; font-size:12px}
+.talking-room .voice-chat .voice-chat-system p::before {content:none}
+.talking-room .voice-chat .voice-chat-message p {font-size:14px; line-height:1.5}
+.talking-room .voice-chat b {font-size:13px}
+.talking-room .voice-chat-panel #voice-chat-form {display:flex; align-items:center; gap:2px; flex:none; margin:0; padding:0}
+.talking-room .voice-chat-panel #voice-message {flex:1 1 0; min-width:0; height:44px; min-height:44px; padding:11px 8px; border:1px solid var(--talk-line); border-radius:10px; font-size:14px; line-height:20px}
+.talking-room .voice-chat-panel #voice-chat-form button {
+ position:static; display:grid; place-items:center; flex:0 0 44px; width:44px; height:44px; min-width:44px; min-height:44px;
+ padding:9px; margin:0; border:0; border-radius:10px; background:none; color:var(--talk-mint);
+}
+.talking-room .voice-chat-panel #voice-chat-form [data-voice=gift]{background:var(--ds-bg);border:1px solid var(--talk-line)}
+.talking-room .voice-chat-panel #voice-chat-form [data-voice=emoji]{color:var(--ds-muted)}
+.talking-room .voice-chat-panel #voice-chat-form button svg {width:22px;height:22px}
+.talking-room .voice-sheet h2 {font-size:19px;line-height:1.4}
+.talking-room .voice-sheet h3 {font-size:15px}
+.talking-room .voice-sheet label,.talking-room .voice-sheet p {font-size:14px}
+.talking-room .voice-sheet button {min-height:44px;font-size:14px}
+.talking-room .voice-dialog-close {width:44px;height:44px}
+.talking-room #talk-dock>.talk-docked[open] {
+ position:relative; inset:auto; width:100%; max-width:none; height:auto; max-height:none; min-height:0;
+ padding:12px 0 0; margin:0; border:0; background:transparent; box-shadow:none; overflow:visible; color:var(--ds-text);
+}
+.talking-room #talk-dock>.talk-docked>.voice-dialog-close,.talking-room #talk-dock #voice-room-settings>.voice-sheet-heading {display:none}
+.talking-room #voice-settings-form {gap:10px}
+.talking-room #voice-settings-form .talk-theme-select {width:100%; background:none; border:1px solid var(--talk-line); border-radius:10px}
+.talking-room #voice-settings-form .voice-settings-save {background:linear-gradient(100deg,var(--talk-mint),var(--ds-selected)); color:var(--ds-ink,#101722)}
+.talking-room #talk-dock #voice-room-settings.talk-docked>.voice-dialog-close {display:none}
+.talking-room .voice-sheet footer {display:flex; align-items:center; justify-content:center; gap:8px; margin-top:14px}
+.talking-room :is(#talk-theme-choices,#talk-leave) footer button {display:grid; place-items:center; min-width:70px; height:44px; margin:0; padding:0 14px}
+.talking-room #talk-volume input {width:100%; min-height:44px; background-size:100% 5px; background-repeat:no-repeat; background-position:center}
+.talking-room #talk-volume label {display:flex;justify-content:space-between}
+.talking-room #talk-theme-choices .voice-backgrounds {display:grid;grid-template-columns:repeat(auto-fit,minmax(95px,1fr));gap:8px}
+.talking-room #talk-theme-choices label {position:relative; min-height:54px; padding:8px; border:1px solid var(--talk-line); border-radius:10px}
+.talking-room #talk-theme-choices label:has(:checked) {border-color:var(--talk-mint)}
+.talking-room #talk-theme-choices img {width:100%;max-height:70px;object-fit:cover;border-radius:6px}
+.talking-room #talk-theme-choices small {display:block;font-size:12px}
+.talking-room .voice-queue-row {display:grid;grid-template-columns:auto 36px minmax(0,1fr) auto auto auto;gap:2px}
+.talking-room .voice-queue-row time {display:none}
+.talking-room .voice-queue-row button {width:44px;height:44px;min-width:44px}
+.talking-room .voice-queue-info strong {font-size:14px}
+.talking-room .voice-queue-info small {font-size:12px}
+@media(min-width:801px){
+ #main:has(.talking-room){container-type:inline-size}
+ @container(max-width:739px){
+  .voice-room.talking-room {display:flex;flex-direction:column;height:auto;gap:0}
+  .talking-room .voice-stage {overflow:visible}
+  .talking-room .voice-chat-panel {height:clamp(350px,52vh,620px);margin-top:12px}
+  .talking-room .talk-tools {display:none}
+ }
+}
+@media(max-width:800px){
+ #main[data-room-focus] .voice-room.talking-room,.voice-room.talking-room {
+  --voice-avatar:clamp(36px,11vw,50px); display:flex; flex-direction:column; gap:0; min-height:0;
+  height:var(--voice-viewport,100dvh); padding:0 max(8px,env(safe-area-inset-right)) max(4px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));
+ }
+ .talking-room .talk-header,.talking-room .voice-stage,.talking-room .voice-chat-panel {border:0; border-radius:0; background:transparent}
+ .talking-room .talk-header {flex:none; padding:4px 0 2px; gap:0; align-items:flex-start}
+ .talking-room .talk-header h1 {font-size:22px}
+ .talking-room .talk-header p {font-size:12px;line-height:1.35}
+ .talking-room .talk-header nav {gap:0}
+ .talking-room .talk-header nav button {padding:10px}
+ .talking-room .talk-header .talk-leave {display:inline-grid;color:var(--ds-selected)}
+ .talking-room .voice-stage {flex:0 0 auto; max-height:none; padding:0; gap:3px; overflow:visible}
+ .talking-room .voice-stage>.voice-seats {gap:8px; margin:10px 2px 3px}
+ .talking-room .voice-seat .voice-person {gap:2px}
+ .talking-room .voice-seat .voice-person strong {font-size:12px}
+ .talking-room .voice-seat-empty {min-height:44px}
+ .talking-room .voice-stage>.voice-music-mini {margin:3px 0; min-height:46px; padding:0 3px}
+ .talking-room .talk-central {min-height:46px}
+ .talking-room .talk-tools,.talking-room .talk-chat-head {display:none}
+ #main[data-room-focus] .talking-room .voice-chat-panel,.talking-room .voice-chat-panel {
+  position:relative; display:flex; flex:1 1 0; min-height:0; height:auto; padding:5px 0 0; margin:4px 0 0;
+  background:transparent; border:0; border-top:1px solid var(--talk-line); border-radius:0;
+ }
+ .talking-room .voice-chat-panel .voice-chat {margin:0 0 2px}
+ .talking-room .voice-sheet h2 {font-size:18px}
+ .talking-room .voice-sheet[open] {position:fixed; inset:auto 0 0; margin:0 auto; width:100%; max-width:560px; height:auto; max-height:min(86dvh,var(--voice-viewport,86dvh)); padding:18px 14px max(18px,env(safe-area-inset-bottom)); border-radius:18px 18px 0 0}
+ .talking-room .voice-queue-row {grid-template-columns:auto minmax(0,1fr) repeat(3,44px)}
+ .talking-room .voice-queue-row>img {display:none}
+ :root[data-mobile-keyboard] #main[data-room-focus] .talking-room .voice-stage {flex:0 1 auto;max-height:46%;overflow-y:auto}
+ :root[data-mobile-keyboard] #main[data-room-focus] .talking-room .voice-chat-panel {flex:1 0 66px}
+}
+@media(max-width:380px){
+ .talking-room .talk-host-player>.talk-track {display:none}
+ .talking-room .talk-host-player>div {flex:1;justify-content:space-evenly}
+}
+
+.talking-room .voice-seat-empty svg {color:var(--talk-mint)}
+.talking-room .talk-central {background:color-mix(in srgb,var(--ds-panel) 94%,var(--talk-mint)); border-color:color-mix(in srgb,var(--talk-mint) 40%,var(--talk-line))}
+.talking-room .talk-central :is([data-voice=approve-mic],[data-voice=reject-mic]) {border-radius:8px;padding:4px 7px;border:1px solid var(--talk-line)}
+.talking-room .talk-central [data-voice=approve-mic] {background:var(--talk-mint);color:var(--ds-ink,#101722)!important}
+.talking-room .talk-central>.voice-unlock-audio {
+ flex:0 1 auto;width:auto;min-width:44px;min-height:44px;height:auto;
+ margin:0;padding:2px 7px;font-size:13px;line-height:1.25;white-space:nowrap;color:var(--talk-mint);
+}
+.talking-room .voice-chat-panel #voice-chat-form .talk-send {border:1px solid var(--talk-line);background:var(--ds-panel)}
+.talking-room #voice-music-search .brand-search {flex:1;min-width:0;width:0;height:100%;padding:0;border:0;background:none;box-shadow:none}
+.talking-room #voice-music-search .brand-search::before,.talking-room #voice-music-search .brand-search::after,
+.talking-room #voice-music-search .brand-search>svg,.talking-room #voice-music-search .search-sparkle {display:none}
+.talking-room #voice-music-search #voice-music-query {width:100%;font-size:14px;padding:0;border:0;border-radius:0;box-shadow:none;background:none}
+.talking-room #voice-music-search button {min-width:44px;min-height:44px;font-size:13px}
+.talking-room .voice-music-transport {flex-wrap:wrap}
+.talking-room .voice-music-transport button {min-width:44px;min-height:44px}
+.talking-room .voice-popup-player #voice-playlist-personal {display:none}
+.talking-room .talk-header p {word-break:keep-all}
+.talking-room #voice-settings-form .voice-notice-input {border:0;padding:0}
+.talking-room #voice-settings-form .voice-settings-save {font-size:14px}
+.talking-room .voice-queue-row .voice-queue-info strong {font-size:14px}
+.talking-room .voice-queue-row .voice-queue-info small {font-size:12px}
+.talking-room .talk-tools nav button[aria-pressed=true] {border-radius:0;border-bottom:2px solid var(--talk-mint);background:transparent}
+.talking-room .talk-header nav button,.talking-room .talk-chat-head .talk-leave {color:var(--ds-body)}
+.talking-room .talk-chat-head .talk-leave,.talking-room .talk-header .talk-leave {border:1px solid var(--talk-line);color:var(--ds-selected)}
+@media(min-width:801px){
+ .talking-room #talk-dock #voice-settings-form {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 12px}
+ .talking-room #talk-dock #voice-settings-form>label,.talking-room #talk-dock #voice-settings-form>fieldset {padding:0;margin:0;border:0;gap:3px}
+ .talking-room #talk-dock #voice-settings-form legend {margin:0 0 3px;font-size:14px}
+ .talking-room #talk-dock #voice-settings-form>label:has([name=title]) {grid-area:1 / 1}
+ .talking-room #talk-dock #voice-settings-form>label:has([name=max_members]) {grid-area:1 / 2}
+ .talking-room #talk-dock #voice-settings-form>fieldset {grid-area:2 / 1}
+ .talking-room #talk-dock #voice-settings-form>.talk-theme-select {grid-area:2 / 2;align-self:end;min-height:44px}
+ .talking-room #talk-dock #voice-settings-form>:is(.voice-crew-setting,label:has(textarea),.voice-settings-save) {grid-column:1 / -1}
+ .talking-room #talk-dock #voice-settings-form .voice-visibility {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:2px}
+ .talking-room #talk-dock #voice-settings-form .voice-visibility label {display:grid;place-content:center;min-width:0;min-height:44px;grid-template-columns:1fr;padding:0;text-align:center}
+ .talking-room #talk-dock #voice-settings-form .voice-visibility :is(svg,small) {display:none}
+ .talking-room #talk-dock #voice-settings-form .voice-visibility input {opacity:0;position:absolute}
+ .talking-room #talk-dock #voice-settings-form .voice-visibility label:focus-within {outline:2px solid var(--talk-mint)}
+ .talking-room #talk-dock #voice-settings-form .voice-visibility strong {font-size:13px;word-break:keep-all}
+ .talking-room #talk-dock #voice-settings-form input,.talking-room #talk-dock #voice-settings-form select {font-size:14px}
+ .talking-room #talk-dock #voice-settings-form textarea {min-height:48px;height:48px}
+}
+@media(max-width:800px){
+ .talking-room .voice-music-mini:not(.talk-host-player) .talk-track {display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ .talking-room .voice-music-mini:not(.talk-host-player) .talk-track :is(strong,small) {display:inline}
+ .talking-room .voice-music-mini:not(.talk-host-player) .talk-track small:not(:empty)::before {content:' · '}
+ .talking-room .talk-header {display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center}
+ .talking-room .talk-header>div {display:contents}
+ .talking-room .talk-header nav {grid-area:1 / 2}
+ .talking-room .talk-header p {grid-column:1 / -1;margin:0}
+ .talking-room[data-paid-theme] {background-image:linear-gradient(#0c121b8f,#0c121baa),var(--decoration-mobile)}
+ .talking-room .talk-central:has(.voice-unlock-audio:not([hidden])) {gap:3px;padding-inline-start:5px}
+ .talking-room .talk-central:has(#talk-request button)>.voice-unlock-audio {font-size:0;padding:0;width:44px;flex:none}
+ .talking-room .talk-central:has(#talk-request button)>.voice-unlock-audio::before {content:'듣기';font-size:13px}
+}

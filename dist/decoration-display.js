@@ -88,6 +88,7 @@ const frameEffects=(()=>{
   for(const card of document.querySelectorAll('[data-decoration-room]'))paintTheme(card,themes.get(card.dataset.decorationRoom),true);
   const room=document.querySelector('[data-voice-room]');if(room)paintTheme(room,themes.get(room.dataset.voiceRoom));
  }
+ let roomThemeVersion=0;
  const remember=(id,theme)=>{if(theme)themes.set(id,{...theme,offset:theme.server_now-Date.now()/1000});};
  async function refresh(force=false){
   if(busy){queued=true;return;}busy=true;
@@ -97,10 +98,10 @@ const frameEffects=(()=>{
    for(let i=0;i<missing.length;i+=80){const d=await api('/api/decorations/avatars?profiles='+encodeURIComponent(missing.slice(i,i+80).join(',')),'GET',undefined,{fresh:true});for(const p of d.avatars)frames.set(p.profile_id,{...p,offset:d.server_now-Date.now()/1000});}
    const cards=document.querySelectorAll('[data-decoration-room]');
    if(cards.length&&(fresh||[...cards].some(c=>!themes.has(c.dataset.decorationRoom)))){
-    const d=await voiceRequest('public-rooms');for(const r of d.rooms)remember(r.id,r.theme);
+    const version=roomThemeVersion,d=await voiceRequest('public-rooms');if(version===roomThemeVersion)for(const r of d.rooms)remember(r.id,r.theme);
    }
    const room=document.querySelector('[data-voice-room]'),rid=room?.dataset.voiceRoom;
-   if(rid&&me&&(fresh||!themes.has(rid))){try{const d=await voiceRequest('rooms/'+encodeURIComponent(rid)+'/theme');remember(rid,d.theme);}catch{/* Joining/access errors remain owned by the existing room UI. */}}
+   if(rid&&me&&(fresh||!themes.has(rid))){try{const version=roomThemeVersion,d=await voiceRequest('rooms/'+encodeURIComponent(rid)+'/theme');if(version===roomThemeVersion)remember(rid,d.theme);}catch{/* Joining/access errors remain owned by the existing room UI. */}}
    if(fresh)lastRead=Date.now();
   }catch{/* Fail closed for new items; previously verified entries still expire locally. */}
   finally{busy=false;paintFrames();paintThemes();if(queued){queued=false;schedule();}}
@@ -125,7 +126,17 @@ const frameEffects=(()=>{
   }
   layoutProfileFrames();void refresh(true);
  });
- window.addEventListener('aifect:room-theme',()=>{themes.clear();void refresh(true);});
+ window.addEventListener('aifect:room-theme',e=>{
+  const room=e.detail?.room,version=++roomThemeVersion;
+  if(!room){themes.clear();void refresh(true);return;}
+  if(room.theme){remember(room.id,room.theme);paintThemes();return;}
+  // Socket snapshots carry the chosen SKU. Free themes need no asset lookup.
+  const sku=room.theme_sku||room.background||'navy';
+  remember(room.id,{sku:sku.startsWith('theme_')?'navy':sku,server_now:Date.now()/1000});paintThemes();
+  if(!room.theme_sku||sku.startsWith('theme_'))void voiceRequest('rooms/'+encodeURIComponent(room.id)+'/theme').then(d=>{
+   if(version===roomThemeVersion){remember(room.id,d.theme);paintThemes();}
+  }).catch(()=>{});
+ });
  setInterval(()=>{if(document.hidden)return;paintFrames();paintThemes();void refresh();},1000);
  schedule();
 })();

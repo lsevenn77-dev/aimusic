@@ -455,11 +455,72 @@ test('self mute preserves SFU session for quick resume; host mute retires it and
  assert.equal((await h.call('self-mute',actor('guest'),{muted:false})).status,409);
 });
 
-test('host departure pauses shared music and host reentry restores queue for explicit resume',async t=>{
- const h=harness(t);await h.create();await h.join(actor('guest'));
+test('oldest current listener succeeds immediately, retaining music, history and permissions across tabs',async t=>{
+ const h=harness(t);await h.create();const first=actor('z-first'),last=actor('a-later');
+ const firstJoin=await h.join(first);await h.join(last);
+ const newTab=await h.join(first);
+ assert.notEqual(firstJoin.body.generation,newTab.body.generation);
+ assert.equal((await h.call('leave',first,{generation:firstJoin.body.generation})).status,409);
+ await h.call('request-mic',last,{seat:4});
+ await h.call('approve-mic',actor('host'),{target_id:last.id});
+ await h.call('settings',actor('host'),{background:'night',announcement:'Keep this notice'});
  await h.call('music',actor('host'),{operation:'enqueue',track:{id:'song',title:'Song',artist:'Artist',duration:120,cover:'/cover'},request_id:crypto.randomUUID()});
- assert.equal(h.room.data.music.playing,false);await h.call('music',actor('host'),{operation:'play',request_id:crypto.randomUUID()});assert.equal(h.room.data.music.playing,true);await h.call('leave');assert.equal(h.room.data.music.playing,false);assert.equal(h.room.data.music.queue.length,1);
- await h.join(actor('host'));assert.equal(h.room.data.members.host.role,'host');await h.call('music',actor('host'),{operation:'play',request_id:crypto.randomUUID()});assert.equal(h.room.data.music.playing,true);
+ await h.call('music',actor('host'),{operation:'play',request_id:crypto.randomUUID()});
+ await h.call('chat',last,{body:'keep this chat',request_id:crypto.randomUUID()});
+ const music=structuredClone(h.room.data.music);
+ const before=await h.call('state',first);
+ const frames=[];h.ctx.getWebSockets=()=>[{deserializeAttachment:()=>({id:first.id,generation:newTab.body.generation}),send:m=>frames.push(JSON.parse(m))}];
+ h.room.notify=VoiceRoom.prototype.notify.bind(h.room);
+ assert.equal((await h.call('leave')).status,200);
+ assert.equal(frames.length,1);const snapshot=frames[0].state;
+ assert.deepEqual(snapshot.music,music);assert.deepEqual(snapshot.chat,before.body.chat);
+ assert.equal(snapshot.room.host_id,first.id);assert.equal(snapshot.room.background,'navy');assert.equal(snapshot.room.theme_sku,'navy');
+ assert.equal(snapshot.room.announcement,'Keep this notice');assert.equal(snapshot.members.length,2);
+ assert.equal(snapshot.members.find(m=>m.id===last.id).seat,4);
+ assert.equal(snapshot.members.find(m=>m.id===first.id).seat,0);
+ assert.equal(snapshot.members.filter(m=>m.role==='host').length,1);
+ assert.ok(snapshot.revision>before.body.revision);
+ assert.equal(h.sql.prepare('SELECT host_id FROM voice_rooms').get().host_id,first.id);
+ const restored=new VoiceRoom(h.ctx,h.env);await restored.load();assert.equal(restored.data.config.host_id,first.id);
+ await h.join(actor('host'));
+ for(const operation of ['play','pause','next','previous','move','remove','clear','volume'])
+  assert.equal((await h.call('music',actor('host'),{operation,request_id:crypto.randomUUID()})).status,403);
+ assert.equal((await h.call('music',first,{operation:'pause',request_id:crypto.randomUUID()})).status,200);
+ for(const operation of ['volume','balance'])
+  assert.equal((await h.call('music',first,{operation,value:0,request_id:crypto.randomUUID()})).status,400);
+ assert.equal(h.room.data.music.volume,music.volume);
+});
+
+test('simultaneous and duplicate exits converge, expired candidates are excluded and the last member closes the room',async t=>{
+ const h=harness(t);await h.create();for(const id of ['stale','first','remaining'])await h.join(actor(id));
+ h.room.data.members.stale.expires=Date.now()-1;
+ await Promise.all([h.call('leave'),h.call('leave',actor('first')),h.call('leave')]);
+ assert.equal(h.room.data.config.host_id,'remaining');
+ assert.deepEqual(Object.keys(h.room.data.members),['remaining']);
+ await h.call('leave',actor('first'));assert.equal(h.room.data.config.host_id,'remaining');
+ await h.call('leave',actor('remaining'));assert.equal(h.room.data.config.closed,true);
+});
+
+test('host grace survives a network interruption and elects once on expiry, including legacy memberships',async t=>{
+ let now=Date.now();t.mock.method(Date,'now',()=>now);
+ const h=harness(t);await h.create();await h.join(actor('beta'));await h.join(actor('alpha'));
+ const d=h.room.data;
+ // Legacy equal admission boundaries use the stable account ID as tie-breaker.
+ for(const id of ['beta','alpha']){delete d.members[id].joinOrder;d.members[id].chatAfter=0;}
+ d.members.host.expires=now-1;await h.room.alarm();
+ assert.equal(d.config.host_id,'host');assert.ok(d.hostReconnectUntil>now);
+ await h.join(actor('host'));assert.equal(d.members.host.role,'host');assert.equal(d.hostReconnectUntil,0);
+ d.members.host.expires=now-1;await h.room.alarm();
+ now=d.hostReconnectUntil+1;for(const id of ['alpha','beta'])d.members[id].expires=now+60000;
+ await h.room.alarm();assert.equal(d.config.host_id,'alpha');const rev=d.config.settings_revision;
+ await h.room.alarm();assert.equal(d.config.settings_revision,rev);
+});
+
+test('explicit leave during host recovery completes immediately for the disconnected generation',async t=>{
+ const h=harness(t);const host=await h.create();await h.join(actor('guest'));
+ h.room.data.members.host.expires=Date.now()-1;await h.room.alarm();
+ await h.call('leave',actor('host'),{generation:'stale'});assert.equal(h.room.data.config.host_id,'host');
+ await h.call('leave',actor('host'),{generation:host.body.generation});assert.equal(h.room.data.config.host_id,'guest');
 });
 
 test('seat request details are private in HTTP and push snapshots and expire on time or host disconnect',async t=>{

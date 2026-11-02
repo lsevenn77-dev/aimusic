@@ -2,6 +2,8 @@
 let voiceController=null;
 const voiceShellState=new Map();
 function setVoiceFocus(active){
+ const desktopTalk=active&&voiceController&&!voiceController.liveMode&&window.innerWidth>800;
+ if(desktopTalk)active=false;
  if(active){for(const el of (document.querySelectorAll?.('#sidebar,.topbar,.mobile-navigation,#player,.site-footer,.page-footer')||[])){if(!voiceShellState.has(el))voiceShellState.set(el,{hidden:el.hidden,display:el.style.display});el.hidden=true;el.style.display='none';}}
  else{for(const [el,old] of voiceShellState){el.hidden=old.hidden;el.style.display=old.display;}voiceShellState.clear();}
  const wrap=document.querySelector?.('.page-wrap');if(wrap)wrap.toggleAttribute('data-room-focus',active);
@@ -27,9 +29,9 @@ function prepareVoiceEntryClick(e){
  if(match&&url.origin===location.origin&&url.pathname===location.pathname&&url.search===location.search)prepareVoiceListening(match[1]);
 }
 if(typeof document!=='undefined')document.addEventListener('click',prepareVoiceEntryClick);
-function voiceChatMessageHTML(m){
- if(m.kind==='system')return `<article class="voice-chat-system"><p>${esc(m.body)}</p><time>${new Date(m.created).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})}</time></article>`;
- const time=`<time>${new Date(m.created).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})}</time>`;
+function voiceChatMessageHTML(m,showTime=false){
+ const time=showTime?`<time>${new Date(m.created).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})}</time>`:'';
+ if(m.kind==='system')return `<article class="voice-chat-system"><p>${esc(m.body)}</p>${time}</article>`;
  if(m.kind==='gift'){
   const gift=AifectGifts.giftById(m.gift?.type);
   return `<article class="voice-chat-gift"><header><b>${icon('gift')} 선물 알림</b>${time}</header><div class="voice-chat-gift-body">${gift?giftArt(gift):''}<p>${esc(m.body)}</p></div></article>`;
@@ -69,12 +71,12 @@ class VoiceRoomClient {
  }
  status(message){const el=$('#voice-status');if(el)el.textContent=message;}
  async safe(fn){try{await fn();}catch(e){this.status(e.message);toast(e.message);}}
- bind(host){this.host=host;this.resumeSound();$('#voice-join').onclick=()=>{if(this.closed){voiceController=new VoiceRoomClient(this.id);voiceController.bind(host);}else this.safe(()=>this.join());};host.onpointerdown=()=>this.resumeSound();host.onclick=e=>{this.resumeSound();const b=e.target.closest('[data-voice]');if(b)this.safe(()=>this.action(b.dataset.voice,b.dataset.target));};
+ bind(host){this.host=host;if(!this.liveMode){this.waitForMusicGesture??=!this.levelContext;try{const v=localStorage.getItem('aifect.talkingRoom.listenVolume');if(v!==null&&Number.isFinite(Number(v)))this.preferences.music=Math.max(0,Math.min(1,Number(v)));}catch{}}this.resumeSound();$('#voice-join').onclick=()=>{if(this.closed){voiceController=new VoiceRoomClient(this.id);voiceController.bind(host);}else this.safe(()=>this.join());};const unlock=()=>{this.waitForMusicGesture=false;this.resumeSound();};host.onpointerdown=unlock;host.onclick=e=>{unlock();const b=e.target.closest('[data-voice]');if(b)this.safe(()=>this.action(b.dataset.voice,b.dataset.target,b));};
   this.bindFinalControls();const chat=$('#voice-chat-form');chat.onsubmit=busyForm(chat,async()=>{const body=chat.elements.body.value;this.chatPending=this.chatPending?.body===body?this.chatPending:{body,request_id:crypto.randomUUID()};await this.command('chat',this.chatPending);chat.reset();this.chatPending=null;await this.refresh();});
   const gift=$('#voice-gift-form');gift.onchange=()=>{this.giftRequest=crypto.randomUUID();this.giftSummary();};gift.onsubmit=busyForm(gift,async()=>{const b=Object.fromEntries(new FormData(gift));const r=await this.command('gifts',{...b,quantity:Number(b.quantity),request_id:this.giftRequest});$('#voice-gift-result').textContent=`선물을 보냈어요. 남은 ${number(r.balance)} G${r.animation_pending?' · 애니메이션 전달 대기':''}`;this.giftRequest=crypto.randomUUID();});
   const invite=$('#voice-invite-form');invite.onchange=()=>this.inviteRequest=crypto.randomUUID();invite.onsubmit=busyForm(invite,async()=>{await this.command('invite',{profile_id:invite.elements.profile_id.value,request_id:this.inviteRequest});toast('토킹룸 초대 DM을 보냈어요.');this.inviteRequest=crypto.randomUUID();});
   $('#voice-monitor').onchange=()=>this.safe(()=>this.monitor());$('#voice-input').onchange=()=>this.safe(()=>this.changeMicrophone());$('#voice-output').onchange=()=>this.safe(()=>this.output());
-  this.bindAudioSettings();window.visualViewport?.removeEventListener('resize',this.onViewport);window.removeEventListener('resize',this.onViewport);this.onViewport=()=>{if(this.host?.isConnected){const height=window.visualViewport?.height||window.innerHeight,top=0;this.host.style?.setProperty('--voice-viewport',Math.max(window.innerWidth>800?470:0,height-top)+'px');}};window.visualViewport?.addEventListener('resize',this.onViewport);window.addEventListener('resize',this.onViewport);this.onViewport();this.giftSummary();if(this.state)this.paint();else if(!this.joinAttempted)this.safe(()=>this.join());
+  this.bindAudioSettings();window.visualViewport?.removeEventListener('resize',this.onViewport);window.removeEventListener('resize',this.onViewport);this.onViewport=()=>{if(this.host?.isConnected){if(this.joined){setVoiceFocus(true);this.updateTalkDock?.();}const height=window.visualViewport?.height||window.innerHeight,top=0;this.host.style?.setProperty('--voice-viewport',Math.max(window.innerWidth>800?470:0,height-top)+'px');}};window.visualViewport?.addEventListener('resize',this.onViewport);window.addEventListener('resize',this.onViewport);this.onViewport();this.giftSummary();if(this.state)this.paint();else if(!this.joinAttempted)this.safe(()=>this.join());
  }
  async join(){
   if(this.closed||this.joining)return;this.joining=true;this.joinAttempted=true;this.epoch=(this.epoch||0)+1;
@@ -96,27 +98,34 @@ class VoiceRoomClient {
  paint(){if(!this.host?.isConnected||!this.state)return;const s=this.state,self=s.members.find(p=>p.id===s.self);if(!self){this.leave(false);return;}$('#voice-entry').hidden=true;$('#voice-content').hidden=false;$('#voice-title').textContent=s.room.title;$('#voice-count').textContent=`전체 ${s.members.length}명 · 좌석 참여 ${s.members.filter(p=>p.seat!==null).length}명`;
   const person=p=>'<button class="voice-person" data-voice-person="'+esc(p.id)+'" data-level-user="'+esc(p.id)+'">'+avatarImage({name:p.name,profile_id:p.profile_id,image_version:p.image_version})+'<strong>'+esc(p.name)+'</strong><small>'+ (p.role==='host'?'방장':p.role==='admin'?'관리자':p.seat===null?'청취자':p.muted?'음소거':'마이크 켜짐')+'</small></button>';
   const micOn=!!this.micSender?.track?.enabled&&!self.muted;
-  const seatHTML=Array.from({length:8},(_,i)=>{const p=s.members.find(p=>p.seat===i);return '<div class="voice-seat">'+(p?'<div class="voice-seat-occupant">'+(p.role==='host'?'<span class="voice-crown" aria-label="방장">'+voiceGlyph('crown')+'</span>':'')+person(p)+(p.role==='host'?'<small class="voice-host-label">방장</small>':'')+(p.role!=='host'&&(self.role==='host'||p.id===self.id)?'<button class="voice-seat-exit" data-voice="exit-seat" data-target="'+esc(p.id)+'" aria-label="'+esc(p.name)+' 좌석에서 내리기">'+voiceGlyph('close')+'</button>':'')+(p.id===self.id?'<button class="voice-seat-mic '+(micOn?'is-on':'')+'" data-voice="'+'toggle-mic'+'" aria-label="'+((this.micDesired??micOn)?'내 마이크 끄기':'내 마이크 켜기')+'">'+(micOn?icon('mic'):voiceGlyph('muted'))+'</button>':'<span class="voice-seat-mic '+(p.muted?'':'is-on')+'" aria-label="'+(p.muted?'음소거':'마이크 켜짐')+'">'+(p.muted?voiceGlyph('muted'):icon('mic'))+'</span>')+'</div>':'<button type="button" class="voice-seat-empty" data-voice="request-mic" data-target="'+i+'" aria-label="'+(i+1)+'번 좌석 참여 신청">'+voiceGlyph('plus')+'</button>')+'</div>';}).join('');
+  const seatHTML=Array.from({length:8},(_,i)=>{const p=s.members.find(p=>p.seat===i);return '<div class="voice-seat">'+(p?'<div class="voice-seat-occupant">'+(p.role==='host'?'<span class="voice-crown" aria-label="방장">'+voiceGlyph('crown')+'</span>':'')+person(p)+(p.role==='host'?'<small class="voice-host-label">방장</small>':'')+(p.role!=='host'&&(self.role==='host'||p.id===self.id)?'<button class="voice-seat-exit" data-voice="exit-seat" data-target="'+esc(p.id)+'" aria-label="'+esc(p.name)+' 좌석에서 내리기">'+voiceGlyph('close')+'</button>':'')+(p.id===self.id&&this.liveMode?'<button class="voice-seat-mic '+(micOn?'is-on':'')+'" data-voice="'+'toggle-mic'+'" aria-label="'+((this.micDesired??micOn)?'내 마이크 끄기':'내 마이크 켜기')+'">'+(micOn?icon('mic'):voiceGlyph('muted'))+'</button>':'<span class="voice-seat-mic '+(p.muted?'':'is-on')+'" aria-label="'+(p.muted?'음소거':'마이크 켜짐')+'">'+(p.muted?voiceGlyph('muted'):icon('mic'))+'</span>')+'</div>':'<button type="button" class="voice-seat-empty" data-voice="request-mic" data-target="'+i+'" aria-label="'+(i+1)+'번 좌석 참여 신청">'+voiceGlyph('plus')+(this.liveMode?'':'<small>초대하기</small>')+'</button>')+'</div>';}).join('');
   if(this.seatHTML!==seatHTML){$('#voice-seats').innerHTML=seatHTML;this.seatHTML=seatHTML;}
   const listenerHTML=[...s.members].sort((a,b)=>(b.role==='host')-(a.role==='host')).map(p=>'<button class="voice-person" data-voice="participants" aria-label="'+esc(p.name)+' 참여자 목록">'+avatarImage({name:p.name,profile_id:p.profile_id,image_version:p.image_version})+'</button>').join('')+'<button class="voice-avatar-plus" data-voice="participants" aria-label="참여자 목록 열기">'+voiceGlyph('plus')+'</button>';
   if(this.listenerHTML!==listenerHTML){$('#voice-listeners').innerHTML=listenerHTML;this.listenerHTML=listenerHTML;}
   $('#voice-people-count').textContent=s.members.length;
   this.paintFinalControls();
+  if(!this.liveMode)this.paintTalkPanel(self,micOn);
   this.paintMusic();
   this.updateListening();
   const close=this.host.querySelector('[data-voice="close"]');if(close)close.hidden=self.role!=='host';
   const cancel=this.host.querySelector('[data-voice="cancel-mic"]');if(cancel)cancel.hidden=!self.requested;
   for(const button of this.host.querySelectorAll('.voice-seat-empty'))button.disabled=self.role!=='host'&&(self.requested||self.locked||self.seat!==null);
   for(const button of this.host.querySelectorAll('.voice-seat-mic[data-voice]')){button.disabled=self.locked;button.setAttribute('aria-busy',String(!!this.micBusy));}
+  $('#voice-mic-note').toggleAttribute('data-progress',['permission','capture','processing','ice','signaling','transport','failed'].includes(this.micState));
   $('#voice-mic-note').textContent=self.requested?'좌석 참여 신청 중 · 방장 승인 대기':self.locked?'관리자가 마이크를 음소거했어요.':({permission:'마이크 권한 확인 중…',capture:'마이크 장치 준비 중…',processing:'음향 처리 준비 중…',ice:'네트워크 경로 준비 중…',signaling:'음성 서버에 송출 등록 중…',transport:'음성 연결 확인 중…',failed:'마이크 연결 실패 · 다시 눌러 재시도',muted:'마이크 꺼짐',on:'마이크 켜짐'}[this.micState]||'');
   if(self.locked||self.seat===null){if(this.stream||this.pendingStream||this.preparingMic||this.micBusy){this.micDesired=false;this.micAttempt=(this.micAttempt||0)+1;this.micBusy=false;this.stopMicrophone();}this.warmSeat=null;}else this.warmMicrophone();
-  const messages=[...s.chat,...(s.notices||[])].sort((a,b)=>a.sequence-b.sequence),requests=self.role==='host'?s.members.filter(p=>p.requested):[];
+  const messages=[...s.chat,...(s.notices||[])].sort((a,b)=>a.sequence-b.sequence),requests=this.liveMode&&self.role==='host'?s.members.filter(p=>p.requested):[];
   const log=$('#voice-chat'),near=log.scrollHeight-log.scrollTop-log.clientHeight<60,last=(messages.at(-1)?.id||'')+JSON.stringify(requests.map(p=>[p.id,p.requestedSeat,p.requestExpires]));
-  if(log.dataset.last!==last){log.innerHTML=messages.map(m=>voiceChatMessageHTML(m).replace('class="voice-chat-message"','class="voice-chat-message'+(m.user_id===s.self?' is-self':'')+'"')).join('')+requests.map(p=>`<article class="voice-seat-request">${avatarImage({name:p.name,profile_id:p.profile_id,image_version:p.image_version})}<div><b>${esc(p.name)}</b><p>${Number(p.requestedSeat)+1}번 좌석 참여 신청</p><button class="small-button" data-voice="approve-mic" data-target="${esc(p.id)}">수락</button><button class="small-button" data-voice="reject-mic" data-target="${esc(p.id)}">거절</button></div></article>`).join('');log.dataset.last=last;if(near)log.scrollTop=log.scrollHeight;}
+  if(log.dataset.last!==last){log.innerHTML=messages.map(m=>voiceChatMessageHTML(m,this.liveMode).replace('class="voice-chat-message"','class="voice-chat-message'+(m.user_id===s.self?' is-self':'')+'"')).join('')+requests.map(p=>`<article class="voice-seat-request">${avatarImage({name:p.name,profile_id:p.profile_id,image_version:p.image_version})}<div><b>${esc(p.name)}</b><p>${Number(p.requestedSeat)+1}번 좌석 참여 신청</p><button class="small-button" data-voice="approve-mic" data-target="${esc(p.id)}">수락</button><button class="small-button" data-voice="reject-mic" data-target="${esc(p.id)}">거절</button></div></article>`).join('');log.dataset.last=last;if(near)log.scrollTop=log.scrollHeight;}
   const select=$('#voice-gift-target'),previous=select.value;select.innerHTML=s.members.filter(p=>p.id!==self.id&&p.profile_id).map(p=>`<option value="${esc(p.profile_id)}">${esc(p.name)}</option>`).join('');if([...select.options].some(o=>o.value===previous))select.value=previous;
  }
  showSheet(id){const sheet=$('#'+id);if(!sheet)return;const opening=!sheet.open;
-  if(['voice-music-sheet','voice-members'].includes(id)&&window.innerWidth>800){
+  if(!this.liveMode&&this.canDock()&&['voice-room-settings','voice-sound','voice-members','voice-music-sheet'].includes(id)){
+   for(const other of this.host.querySelectorAll('#talk-dock dialog[open]'))if(other!==sheet)other.close();
+   if(sheet.parentElement!==$('#talk-dock')){if(sheet.open)sheet.close();$('#talk-dock').append(sheet);}
+   sheet.classList.add('talk-docked');if(!sheet.open)sheet.show();
+   for(const b of this.host.querySelectorAll('.talk-tools nav button'))b.setAttribute('aria-pressed',String(({settings:'voice-room-settings',sound:'voice-sound',participants:'voice-members','music-picker':'voice-music-sheet'})[b.dataset.voice]===id));
+  }else if(this.liveMode&&['voice-music-sheet','voice-members'].includes(id)&&window.innerWidth>800){
    for(const other of this.host.querySelectorAll('.voice-panel-docked[open]'))if(other!==sheet)other.close();
    sheet.removeAttribute('style');sheet.classList.add('voice-panel-docked');this.host.querySelector('.voice-chat-panel').append(sheet);
    if(!sheet.open)sheet.show();
@@ -141,11 +150,11 @@ class VoiceRoomClient {
    const own=target===this.state.self;if(own){this.micDesired=false;this.micAttempt=(this.micAttempt||0)+1;this.micBusy=false;this.stopMicrophone();}
    const state=await this.command(own?'release-mic':'moderate',own?{}:{target_id:target,operation:'remove-seat'});this.acceptState(state);return true;
   }
-  if(action==='settings'){await this.openSettings();return true;}const sheets={sound:'voice-sound',participants:'voice-members',gift:'voice-gift-sheet',share:'voice-invite-sheet'};
+  if(action==='settings'){if(this.liveMode||this.state?.room.host_id===this.state?.self)await this.openSettings();return true;}const sheets={sound:'voice-sound',participants:'voice-members',gift:'voice-gift-sheet',share:'voice-invite-sheet'};
   if(sheets[action]){this.showSheet(sheets[action]);if(action==='sound'){this.resumeSound();void this.devices().catch(()=>{});}return true;}
   if(action==='dismiss'){for(const sheet of this.host.querySelectorAll('dialog[open]'))sheet.close();return true;}
   if(action==='copy-link'){await navigator.clipboard.writeText(location.origin+'/#voice/'+this.id);toast('초대 링크를 복사했어요.');return true;}
-  if(action==='music-picker'){this.showSheet('voice-music-sheet');return true;}
+  if(action==='music-picker'){if(!this.liveMode&&this.state?.room.host_id!==this.state?.self)return true;this.showSheet('voice-music-sheet');return true;}
   if(await this.finalAction(action,target))return true;
   if(action.startsWith('music-')){const operation=action.slice(6);await this.musicCommand(operation,operation==='remove'?{index:Number(target)}:operation==='up'?{index:Number(target),to:Number(target)-1}:{});return true;}
   return false;
@@ -195,7 +204,8 @@ class VoiceRoomClient {
   if(a.readyState>=1){const drift=seconds-a.currentTime;if(Math.abs(drift)>.75||(!m.playing&&Math.abs(drift)>.02))a.currentTime=seconds;a.playbackRate=1;}
   if(typeof $==='function'){const elapsed=$('#voice-music-time');if(elapsed)elapsed.textContent=this.musicNoticeText||((m.playing?'':'Ⅱ ')+time(seconds)+' / '+time(track.duration));const seek=$('#voice-music-seek');if(seek&&!seek.matches?.(':active'))seek.value=seconds;}
   if(m.playing&&typeof audio!=='undefined'&&!audio.paused)audio.pause();
-  if(!m.playing){a.pause();this.musicBlocked=false;}else if(a.paused&&!a.ended)a.play().then(()=>{this.musicBlocked=false;this.updateListening();}).catch(()=>{this.musicBlocked=true;this.musicNotice('대화 듣기를 눌러 소리를 켜주세요');this.updateListening();});
+  if(this.waitForMusicGesture&&m.playing){this.musicBlocked=true;this.updateListening();return;}
+  if(!m.playing){a.pause();this.musicBlocked=false;}else if(a.paused&&!a.ended)a.play().then(()=>{this.musicBlocked=false;this.updateListening();}).catch(error=>{if(!this.liveMode&&error?.name==='NotAllowedError')this.waitForMusicGesture=true;this.musicBlocked=true;this.musicNotice('대화 듣기를 눌러 소리를 켜주세요');this.updateListening();});
  }
  musicNotice(text){this.musicNoticeText=text;const el=typeof $==='function'?$('#voice-music-time'):null;if(el)el.textContent=text;}
  resumeSound(){
@@ -240,7 +250,7 @@ class VoiceRoomClient {
  clearRemoteMeters(){for(const m of this.meters.values())m.source.disconnect();this.meters.clear();}
  startLevels(){if(this.levelTimer)return;this.levelTimer=setInterval(()=>{if(this.closed)return;const levels=new Map();try{if(this.processing?.analyser&&!this.state.members.find(p=>p.id===this.state.self)?.muted)levels.set(this.state.self,VoiceAudio.rms(this.processing.analyser));if(this.testGraph?.analyser){const meter=$('#voice-input-meter');if(meter)meter.value=VoiceAudio.rms(this.testGraph.analyser);}for(const [id,m] of this.meters)levels.set(id,VoiceAudio.rms(m.analyser));}catch{}for(const el of this.host?.querySelectorAll('[data-level-user]')||[]){const member=this.state.members.find(p=>p.id===el.dataset.levelUser),level=member&&!member.muted?levels.get(el.dataset.levelUser)||0:0;el.style.setProperty('--voice-level',level.toFixed(3));el.classList.toggle('is-speaking',level>.04);}},100);}
  giftSummary(){const form=$('#voice-gift-form');if(!form)return;const g=AifectGifts.GIFT_CATALOG.find(g=>g.id===form.elements.gift_type.value);$('#voice-gift-summary').textContent=`총 ${number((g?.gold||0)*Number(form.elements.quantity.value))} G · 보낸 선물은 취소할 수 없어요.`;}
- async action(action,target){if(action==='resume-audio'){this.resumeSound();return;}if(await this.roomUIAction(action,target))return;if(action==='leave'){await this.leave();location.hash='#voice';return;}if(action==='close'){await this.command('close');this.leave(false);location.hash='#voice';return;}if(action==='enable-mic')return this.enableMic();if(action==='mute')return this.mute();if(action==='request-mic'&&this.state.members.find(p=>p.id===this.state.self)?.role==='host'){this.openSeatPicker(Number(target));return;}if(action==='release-mic')this.stopMicrophone();if(['mute-user','unlock','kick','ban','admin','revoke-admin'].includes(action))await this.command('moderate',{target_id:target,operation:action==='mute-user'?'mute':action});else {const self=this.state.members.find(p=>p.id===this.state.self);if(action==='request-mic'&&['host','admin'].includes(self.role))await this.command('approve-mic',{target_id:self.id,seat:Number(target)});else await this.command(action,{target_id:target,...(action==='request-mic'&&target!==undefined?{seat:Number(target)}:{})});}await this.refresh();}
+ async action(action,target,button){if(action==='dismiss'&&button&&!this.liveMode){button.closest('dialog')?.close();return;}if(action==='resume-audio'){this.resumeSound();return;}if(await this.roomUIAction(action,target))return;if(action==='leave'&&!this.liveMode){if(!this.joined){this.leave(false);location.hash='#voice';return;}this.showSheet('talk-leave');return;}if(action==='confirm-leave'){await this.command('leave');this.leave(false);location.hash='#voice';return;}if(action==='leave'){await this.leave();location.hash='#voice';return;}if(action==='close'){await this.command('close');this.leave(false);location.hash='#voice';return;}if(action==='enable-mic')return this.enableMic();if(action==='mute')return this.mute();if(action==='request-mic'&&this.state.members.find(p=>p.id===this.state.self)?.role==='host'){this.openSeatPicker(Number(target));return;}if(action==='release-mic')this.stopMicrophone();if(['mute-user','unlock','kick','ban','admin','revoke-admin'].includes(action))await this.command('moderate',{target_id:target,operation:action==='mute-user'?'mute':action});else {const self=this.state.members.find(p=>p.id===this.state.self);if(action==='request-mic'&&['host','admin'].includes(self.role))await this.command('approve-mic',{target_id:self.id,seat:Number(target)});else await this.command(action,{target_id:target,...(action==='request-mic'&&target!==undefined?{seat:Number(target)}:{})});}await this.refresh();}
  pc(){const p=new RTCPeerConnection({iceServers:[{urls:'stun:stun.cloudflare.com:3478'}],bundlePolicy:'max-bundle',iceCandidatePoolSize:1});p.onconnectionstatechange=()=>{
   if(p.connectionState!=='failed'||this.closed)return;
   if(this.publisher===p){this.reconnect();return;}

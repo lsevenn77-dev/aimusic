@@ -32,7 +32,7 @@ function liveKaraokeRoomHTML(id){
  </div>`;
  const search=`<dialog id="live-search-sheet" class="voice-sheet" aria-labelledby="live-search-title"><button type="button" class="voice-dialog-close" data-voice="dismiss" aria-label="닫기">×</button><h2 id="live-search-title">부를 노래 찾기</h2><form id="live-search" class="live-search" role="search"><label for="live-query">곡명 또는 아티스트</label><div><input id="live-query" type="search" maxlength="80" placeholder="곡명 또는 아티스트 검색" required><button type="submit" class="small-button">${icon('search')} 검색</button></div></form><div id="live-results" class="live-results" aria-live="polite"></div></dialog>`;
  const audio=`<div class="live-audio-settings"><label>내 반주 음량 <input id="live-mr-volume" type="range" min="0" max="100" value="75"></label><label>청취 싱크 보정 <input id="live-delay" type="range" min="0" max="500" step="50" value="200"><output id="live-delay-value">200ms</output></label></div>`;
- return voiceRoomHTML(id).replace('class="voice-room"','class="voice-room live-karaoke-room"')
+ return voiceRoomHTML(id,false).replace('class="voice-room"','class="voice-room live-karaoke-room"')
   .replace('href="#voice">← 토킹룸','href="#live">〈 라이브 노래방')
   .replace('좌석을 눌러 참여 신청해보세요.','신청 순서대로 한 명씩 노래해요.')
   .replace('id="voice-title">토킹룸','id="voice-title">라이브 노래방')
@@ -287,7 +287,7 @@ VoiceRoomClient.prototype.warmMicrophone=function(...a){
  return productionWarmMicrophone.apply(this,a);
 };
 const productionVoiceAction=VoiceRoomClient.prototype.action;
-VoiceRoomClient.prototype.action=async function(action,target){
+VoiceRoomClient.prototype.action=async function(action,target,button){
  if(this.liveMode){
   if(action==='copy-link'){await navigator.clipboard.writeText(location.origin+'/#live/'+this.id);toast('초대 링크를 복사했어요.');return;}
   if(action==='music-picker')return;
@@ -295,7 +295,7 @@ VoiceRoomClient.prototype.action=async function(action,target){
   if(action==='leave'){await this.leave();location.hash='#live';return;}
   if(action==='close'){await this.command('close');this.leave(false);location.hash='#live';return;}
  }
- return productionVoiceAction.call(this,action,target);
+ return productionVoiceAction.call(this,action,target,button);
 };
 const productionVoiceLeave=VoiceRoomClient.prototype.leave;
 VoiceRoomClient.prototype.leave=function(...a){

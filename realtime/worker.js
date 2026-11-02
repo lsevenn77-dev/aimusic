@@ -17,7 +17,7 @@ export default {async fetch(req, env) {
    const active=await Promise.all(result.results.map(async room=>{
     const response=await env.ROOMS.get(env.ROOMS.idFromName(room.id)).fetch(new Request('https://room/presence',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({actor:data.actor,input:{},stamp,roomId:room.id})}));
     if(!response.ok)fault(503,'토킹룸 목록을 새로 불러오지 못했어요. 다시 시도해주세요.');
-    const state=await response.json();return state.active&&state.visibility==='public'?{...room,member_count:state.member_count,host_name:state.host_name}:null;
+    const state=await response.json();return state.active&&state.visibility==='public'?{...room,host_id:state.host_id??room.host_id,background:state.background??room.background,theme_sku:state.theme_sku,settings_revision:state.settings_revision,member_count:state.member_count,host_name:state.host_name,mode:state.mode||'talk'}:null;
    }));
    return reply({rooms:active.filter(Boolean)});
   }

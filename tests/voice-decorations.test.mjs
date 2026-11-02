@@ -48,3 +48,33 @@ test('room entry and heartbeats attach current public frames in one lookup and u
  refreshed.body.members.forEach(member=>{assert.equal(member.profile_frame,null);assert.equal(member.profile_frame_artwork,null);});
  assert.equal(refreshed.body.room.theme.sku,'theme_aurora_night');
 });
+
+test('host handoff resets the room only; the successor can apply only their own active skins',async t=>{
+ const f=await decorationsFixture(t,{voice:true});
+ await f.buyUse('theme_aurora_night');await f.buyUse('theme_cherry_blossom','P7D',{profile_id:'friend'});
+ const create=await f.call('/api/voice/rooms','POST',{request_id:crypto.randomUUID(),title:'Handoff',visibility:'public'});
+ const roomId=create.body.room.id,root='/api/voice/rooms/'+roomId+'/',join=id=>f.call(root+'join','POST',{request_id:crypto.randomUUID()},id);
+ const guest=await join('other'),owner=await join('owner');
+ const inventory=()=>f.sql.prepare('SELECT * FROM player_inventory ORDER BY id').all();
+ const initialInventory=inventory();
+ await f.call(root+'leave','POST',{generation:owner.body.generation});
+ const state=(await f.call(root+'state','GET',null,'other')).body;
+ assert.equal(state.room.host_id,'other');assert.equal(state.room.theme.sku,'navy');
+ const settings=sku=>f.call(root+'settings','POST',{generation:guest.body.generation,revision:state.room.settings_revision,theme_sku:sku},'other');
+ assert.equal((await settings('theme_aurora_night')).status,403);
+ assert.equal((await settings('theme_cherry_blossom')).body.room.theme.sku,'theme_cherry_blossom');
+ assert.deepEqual(inventory(),initialInventory);
+ const back=await join('owner');assert.equal(back.body.room.theme.sku,'theme_cherry_blossom');
+ assert.equal((await f.call(root+'settings','POST',{generation:back.body.generation,theme_sku:'theme_aurora_night'})).status,403);
+ const row=f.sql.prepare('SELECT host_id,revision FROM room_decorations WHERE room_id=?').get(roomId);
+ assert.equal(row.host_id,'other');
+ const {saveRoomTheme}=await import('../server/room-decorations.js');
+ await saveRoomTheme({DB:f.DB},{id:'owner'},create.body.room,'theme_aurora_night');
+ assert.equal((await f.call(root+'theme','GET',null,'owner')).body.theme.sku,'theme_cherry_blossom');
+ f.sql.prepare("UPDATE player_inventory SET expires_at=unixepoch()-1 WHERE user_id='other' AND item_key='theme_cherry_blossom'").run();
+ assert.equal((await f.call(root+'theme','GET',null,'other')).body.theme.sku,'navy');
+ assert.equal((await settings('theme_cherry_blossom')).status,403);
+ await f.call(root+'leave','POST',{generation:guest.body.generation},'other');
+ const again=(await f.call(root+'state','GET',null,'owner')).body;
+ assert.equal(again.room.host_id,'owner');assert.equal(again.room.theme.sku,'navy');
+});

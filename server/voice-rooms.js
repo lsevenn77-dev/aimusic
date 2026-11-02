@@ -43,7 +43,7 @@ export async function voiceRoomsRoute(req,env,path,user,ctx) {
   if(!actor.profile_id)fail(409,'마이에서 프로필을 먼저 만들어주세요.');
   await rate(env,'voice-create:'+user.id,5,3600);const b=await req.json();
   const selected=await assertRoomTheme(env,user.id,b.theme_sku||b.background||(await roomThemeChoices(env,user.id)).find(t=>t.paid)?.sku||'navy');
-  const data=await result(await voiceCall(env,actor,requestId(b.request_id),'create',{title:str(b.title,60),visibility:b.visibility,crew_id:b.crew_id,max_members:b.max_members,background:selected.startsWith('theme_')?'navy':selected,announcement:b.announcement,seating_mode:b.seating_mode,mode:b.mode}));
+  const data=await result(await voiceCall(env,actor,requestId(b.request_id),'create',{title:str(b.title,60),visibility:b.visibility,crew_id:b.crew_id,max_members:b.max_members,theme_sku:selected,background:selected.startsWith('theme_')?'navy':selected,announcement:b.announcement,seating_mode:b.seating_mode,mode:b.mode}));
   await saveRoomTheme(env,actor,data.room,selected,{creating:true});return json(await decorateRoomResult(env,data),201);
  }
  const m=path.match(/^\/api\/voice\/rooms\/([\w-]+)\/([a-z-]+)$/);if(!m)fail(404,'토킹룸을 찾을 수 없어요.');
@@ -65,7 +65,7 @@ export async function voiceRoomsRoute(req,env,path,user,ctx) {
   const current=await result(await voiceCall(env,actor,room,'state'));
   if(current.room.host_id!==user.id)fail(403,'방장만 테마를 변경할 수 있어요.');
   const selected=await assertRoomTheme(env,user.id,b.theme_sku||b.background||(await resolveRoomDecoration(env,current.room)).sku);
-  const data=await result(await voiceCall(env,actor,room,'settings',{...b,background:selected.startsWith('theme_')?'navy':selected}));
+  const data=await result(await voiceCall(env,actor,room,'settings',{...b,theme_sku:selected,background:selected.startsWith('theme_')?'navy':selected}));
   await saveRoomTheme(env,actor,data.room,selected);return json(await decorateRoomResult(env,data));
  }
  if(action==='invite') {

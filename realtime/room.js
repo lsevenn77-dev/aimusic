@@ -22,7 +22,12 @@ export class VoiceRoom {
  async save() {await this.ctx.storage.put('room',this.data);if(Object.keys(this.data.members).length||this.data.cleanup.length||this.data.directoryDirty||this.data.hostReconnectUntil>Date.now())await this.ctx.storage.setAlarm(Date.now()+15000);}
  async syncDirectory() {
   if(!this.data.directoryDirty)return;
-  try{await this.env.ROOM_DB.prepare('UPDATE voice_rooms SET closed=1 WHERE id=?').bind(this.data.config.id).run();this.data.directoryDirty=false;}catch{/* Retry from the persisted alarm; the DO already refuses entry. */}
+  try {
+   const room=this.data.config;
+   if(room.closed)await this.env.ROOM_DB.prepare('UPDATE voice_rooms SET closed=1 WHERE id=?').bind(room.id).run();
+   else await this.env.ROOM_DB.prepare('UPDATE voice_rooms SET host_id=?,background=? WHERE id=?').bind(room.host_id,room.background,room.id).run();
+   this.data.directoryDirty=false;
+  }catch{/* An alarm retries the directory projection of the committed room. */}
  }
  async closeRoom() {
   if(!this.data.config||this.data.config.closed)return;
@@ -43,13 +48,13 @@ export class VoiceRoom {
   if(!existing&&c.visibility==='crew'&&!(actor.crews||[]).includes(c.crew_id))fault(403,'이 크루의 멤버만 입장할 수 있어요.');
   if(!existing&&c.visibility==='private'&&c.host_id!==actor.id&&!(this.data.invites[actor.id]>Date.now()))fault(403,'초대받은 회원만 입장할 수 있어요.');
  }
- moderator(actor) {const p=this.member(actor);if(p.role!=='host')fault(403,'방장만 할 수 있어요.');return p;}
+ moderator(actor) {const p=this.member(actor);if(this.data.config.host_id!==p.id)fault(403,'방장만 할 수 있어요.');return p;}
  target(actor,id) {const by=this.moderator(actor),p=this.data.members[identifier(id)];if(!p)fault(404,'이미 나간 회원이에요.');if(p.role==='host'||(p.role==='admin'&&by.role!=='host'))fault(403,'이 회원을 관리할 권한이 없어요.');return p;}
  limited(actor,action,max) {const k=actor.id+':'+action,now=Date.now();let v=this.data.rates[k];if(!v||v.until<=now)v=this.data.rates[k]={n:0,until:now+60000};if(++v.n>max)fault(429,'잠시 기다린 뒤 다시 시도해주세요.');}
  snapshot(actor) {
-  const p=this.data.members[actor.id],host=p?.role==='host';
+  const p=this.data.members[actor.id],host=p?.id===this.data.config?.host_id;
   return {room:this.data.config,revision:this.data.revision,self:p?.id||null,generation:p?.generation||null,seat_invites:Object.values(this.data.seatInvites).filter(i=>i.target===p?.id&&i.expires>Date.now()),cleanup_pending:this.data.cleanup.length>0,serverNow:Date.now(),music:this.data.music,notices:p?this.data.notices.filter(n=>n.sequence>(p.chatAfter??this.data.chatSequence)):[],members:Object.values(this.data.members).filter(m=>m.expires>Date.now()).map(m=>({
-   id:m.id,profile_id:m.profile_id,name:m.name,image_version:m.image_version,role:m.role,seat:m.seat,
+   id:m.id,profile_id:m.profile_id,name:m.name,image_version:m.image_version,role:m.id===this.data.config.host_id?'host':m.role==='host'?'listener':m.role,seat:m.seat,
    // Request metadata is private to the applicant and host, in HTTP AND WebSocket snapshots.
    ...(host||m.id===p?.id?{requested:!!m.requested,requestedSeat:m.requestedSeat??null,requestExpires:m.requestExpires??null}:{}),
    muted:m.muted,locked:m.locked,publishing:!!m.pub?.ready,mediaKey:m.pub?.ready?m.generation+':'+m.pub.trackName:null
@@ -75,15 +80,37 @@ export class VoiceRoom {
  }
  async retire(media) {if(!media?.sessionId)return;this.queueRetire(media);await this.save();this.startCleanup(this.data.cleanup.find(c=>c.sessionId===media.sessionId));}
  async stopPublish(p) {const old=p.pub;p.pub=null;p.muted=true;await this.retire(old);}
+ // The caller holds the DO's serial queue. Membership, permissions and theme
+ // are saved together before sockets see the new owner.
+ electHost(now) {
+  const d=this.data,room=d.config;
+  const active=Object.values(d.members).filter(m=>m.expires>now);
+  // Older persisted memberships already record the room sequence at admission.
+  const order=m=>m.joinOrder??m.chatAfter??0;
+  active.sort((a,b)=>order(a)-order(b)||(a.id<b.id?-1:a.id>b.id?1:0));
+  const next=active[0];
+  if(!next||room.closed)return;
+  next.role='host';next.seat=0;next.locked=false;this.clearRequest(next);delete d.seatInvites[next.id];
+  room.host_id=next.id;room.background='navy';room.theme_sku='navy';
+  room.settings_revision=(room.settings_revision||0)+1;
+  d.hostReconnectUntil=0;delete d.hostReconnectGeneration;d.directoryDirty=true;
+  // Admission to a followers room must survive a change of host.
+  if(room.visibility==='followers')for(const m of active)m.visibilityRetained=true;
+  this.notice(next,next.name+'님이 새 방장이 되었습니다.');
+ }
  async remove(p,temporary=false) {
-  if(p.role==='host')this.clearRequests();
+  const wasHost=p.id===this.data.config.host_id,talk=this.data.config.mode!=='karaoke';
+  if(wasHost&&(!talk||temporary))this.clearRequests();
   delete this.data.seatInvites[p.id];
-  if(temporary&&p.role==='host')this.data.hostReconnectUntil=Date.now()+300000;
-  if(p.role==='host'&&this.data.music?.playing)this.data.music=changeRoomMusic(this.data.music,{operation:'pause'});
+  if(temporary&&wasHost){this.data.hostReconnectUntil=Date.now()+300000;this.data.hostReconnectGeneration=p.generation;}
+  if(wasHost&&!talk&&this.data.music?.playing)this.data.music=changeRoomMusic(this.data.music,{operation:'pause'});
   this.notice(p,p.name+'님이 퇴장했어요.');delete this.data.members[p.id];this.queueRetire(p.pub);this.queueRetire(p.sub);
-  // Remove the directory entry before waiting for SFU cleanup.
+  if(wasHost&&talk&&!temporary&&!this.data.config.closed)this.electHost(Date.now());
+  this.data.revision++;
+  // Commit the removal and any succession before broadcasting or SFU cleanup.
   if(!Object.keys(this.data.members).length&&!(this.data.hostReconnectUntil>Date.now()))await this.closeRoom();
-  await this.retire(p.pub);await this.retire(p.sub);this.notify();
+  await this.save();await this.syncDirectory();this.notify();
+  await this.retire(p.pub);await this.retire(p.sub);
  }
  async expire() {
   const now=Date.now();for(const [k,t] of Object.entries(this.data.nonces))if(t<now-30000)delete this.data.nonces[k];
@@ -95,6 +122,9 @@ export class VoiceRoom {
    if(p.expires<=now)await this.remove(p,true);
    else if(p.pub&&!p.pub.ready&&p.pub.deadline<Date.now())await this.stopPublish(p);
    else if(p.sub?.deadline&&p.sub.deadline<now){const old=p.sub;p.sub=null;await this.retire(old);}
+  }
+  if(this.data.config&&!this.data.config.closed&&this.data.config.mode!=='karaoke'&&!this.data.members[this.data.config.host_id]&&!(this.data.hostReconnectUntil>now)&&Object.keys(this.data.members).length){
+   this.electHost(now);this.data.revision++;await this.save();this.notify();
   }
   if(!Object.keys(this.data.members).length&&!(this.data.hostReconnectUntil>Date.now()))await this.closeRoom();
   const music=this.data.music;let guard=0;
@@ -123,13 +153,22 @@ export class VoiceRoom {
   if(action==='create') {
    if(d.config){if(d.config.host_id===actor.id&&!d.config.closed)return {room:d.config};fault(409,'이미 사용 중인 방이에요.');}
    let settings;try{settings=roomSettings(b,actor);}catch(e){fault(400,e.message);}
-   const config={...settings,id:identifier(roomId),host_id:actor.id,created:Date.now(),closed:false,mic_seats:8};
+   const config={...settings,id:identifier(roomId),host_id:actor.id,...(b.theme_sku?{theme_sku:b.theme_sku}:{}),created:Date.now(),closed:false,mic_seats:8};
    await this.env.ROOM_DB.prepare('INSERT INTO voice_rooms(id,title,host_id,visibility,crew_id,created,max_members,background,announcement) VALUES(?,?,?,?,?,?,?,?,?)').bind(config.id,config.title,actor.id,config.visibility,config.crew_id,config.created,config.max_members,config.background,config.announcement).run();d.config=config;
    // Creation includes the host's listener membership; there is no empty room between create and navigation.
    await this.command('join',actor,{request_id:crypto.randomUUID()},roomId);return {room:config};
   }
   // Internal directory reconciliation also retires empty rooms left by an older release.
-  if(action==='presence')return {active:!!d.config&&!d.config.closed&&Object.keys(d.members).length>0,visibility:d.config?.visibility,member_count:Object.keys(d.members).length,host_name:d.members[d.config?.host_id]?.name||''};
+  if(action==='presence')return {active:!!d.config&&!d.config.closed&&Object.keys(d.members).length>0,host_id:d.config?.host_id,background:d.config?.background,theme_sku:d.config?.theme_sku,settings_revision:d.config?.settings_revision,mode:d.config?.mode,visibility:d.config?.visibility,member_count:Object.keys(d.members).length,host_name:d.members[d.config?.host_id]?.name||''};
+  if(action==='leave'&&!d.members[actor.id]){
+   // The last host tab can explicitly leave during the network recovery window.
+   if(d.config?.mode!=='karaoke'&&d.config?.host_id===actor.id&&d.hostReconnectUntil>Date.now()&&b.generation&&b.generation===d.hostReconnectGeneration){
+    d.hostReconnectUntil=0;delete d.hostReconnectGeneration;
+    if(Object.keys(d.members).length)this.electHost(Date.now());else await this.closeRoom();
+    d.revision++;await this.save();await this.syncDirectory();this.notify();
+   }
+   return {ok:true};
+  }
   // A deleted account or removed crew membership cannot keep a lease by sending heartbeats.
   try{this.access(actor,action!=='join'&&!!d.members[actor.id]);}catch(e){const old=d.members[actor.id];if(old)await this.remove(old);throw e;}
   if(action==='join') {
@@ -138,8 +177,8 @@ export class VoiceRoom {
    if(p&&p.joinRequest===b.request_id){p.expires=Date.now()+LEASE;return this.snapshot(actor);}
    if(!p&&actor.id!==d.config.host_id&&Object.keys(d.members).length>=(d.config.max_members||30))fault(409,'방이 가득 찼어요. 최대 30명까지 입장할 수 있어요.');
    const old=p; if(old){await this.stopPublish(old);await this.retire(old.sub);}
-   p={id:actor.id,profile_id:actor.profile_id,name:actor.name,image_version:actor.image_version||'',role:old?.role||(actor.id===d.config.host_id?'host':'listener'),seat:actor.id===d.config.host_id?0:old?.seat??null,requested:false,locked:old?.locked||false,muted:true,pub:null,sub:null,generation:crypto.randomUUID(),expires:Date.now()+LEASE,joinRequest:b.request_id,chatAfter:old?.chatAfter??d.chatSequence};
-   if(p.role==='host')d.hostReconnectUntil=0;d.members[actor.id]=p;if(!old)this.notice(p,p.name+'님이 입장했어요.');d.revision++;this.notify();return this.snapshot(actor);
+   p={id:actor.id,profile_id:actor.profile_id,name:actor.name,image_version:actor.image_version||'',joinOrder:old?.joinOrder??old?.chatAfter??d.chatSequence,visibilityRetained:!!old?.visibilityRetained,role:old?.role||(actor.id===d.config.host_id?'host':'listener'),seat:actor.id===d.config.host_id?0:old?.seat??null,requested:false,locked:old?.locked||false,muted:true,pub:null,sub:null,generation:crypto.randomUUID(),expires:Date.now()+LEASE,joinRequest:b.request_id,chatAfter:old?.chatAfter??d.chatSequence};
+   if(p.role==='host'){d.hostReconnectUntil=0;delete d.hostReconnectGeneration;}d.members[actor.id]=p;if(!old)this.notice(p,p.name+'님이 입장했어요.');d.revision++;this.notify();return this.snapshot(actor);
   }
   const p=this.member(actor,b.generation);
   this.limited(actor,'requests',180);
@@ -148,9 +187,9 @@ export class VoiceRoom {
    const pair=new WebSocketPair();for(const ws of this.ctx.getWebSockets?.()||[]){const a=ws.deserializeAttachment();if(a.id===actor.id)ws.close(4000,'Connection replaced');}
    this.ctx.acceptWebSocket(pair[1]);pair[1].serializeAttachment({id:actor.id,generation:p.generation});return new Response(null,{status:101,webSocket:pair[0]});
   }
-  if(action==='leave') {await this.remove(p);d.revision++;return {ok:true};}
+  if(action==='leave') {await this.remove(p);return {ok:true};}
   if(action==='close') {
-   if(p.role!=='host')fault(403,'방장만 방을 종료할 수 있어요.');
+   this.moderator(actor);
    await this.closeRoom();
    for(const member of Object.values(d.members))await this.remove(member);await this.audit(actor,'close');return {ok:true};
   }
@@ -159,7 +198,7 @@ export class VoiceRoom {
    await this.env.ROOM_DB.prepare('UPDATE voice_rooms SET title=?,visibility=?,crew_id=?,max_members=?,background=?,announcement=? WHERE id=?').bind(settings.title,settings.visibility,settings.crew_id,settings.max_members,settings.background,settings.announcement,d.config.id).run();
    if(settings.visibility!==d.config.visibility)for(const member of Object.values(d.members))member.visibilityRetained=true;
    if(settings.seating_mode==='free'&&d.config.seating_mode!=='free')for(const member of Object.values(d.members))this.clearRequest(member);
-   Object.assign(d.config,settings,{settings_revision:(d.config.settings_revision||0)+1});this.notice(p,'방 설정이 변경됐어요.');await this.audit(actor,'settings');
+   Object.assign(d.config,settings,b.theme_sku?{theme_sku:b.theme_sku}:{},{settings_revision:(d.config.settings_revision||0)+1});this.notice(p,'방 설정이 변경됐어요.');await this.audit(actor,'settings');
   }
   else if(action==='seat-invite'){
    this.moderator(actor);const t=d.members[identifier(b.target_id)];if(!t||t.seat!==null)fault(409,'현재 청취 중인 참여자를 선택해주세요.');
@@ -231,7 +270,7 @@ export class VoiceRoom {
    }return {ok:true};
   }
   else if(action==='music') {
-   if(p.role!=='host')fault(403,'방장만 공동 음악을 관리할 수 있어요.');this.limited(actor,'music',90);
+   this.moderator(actor);if(d.config.mode!=='karaoke'&&['volume','balance'].includes(b.operation))fault(400,'음악 볼륨은 내 기기에서 조절해주세요.');this.limited(actor,'music',90);
    const rid=requestId(b.request_id),fingerprint=JSON.stringify(b);const prior=d.musicRequests.find(r=>r.id===rid);if(prior){if(prior.fingerprint!==fingerprint)fault(409,'이미 사용한 음악 요청이에요.');return this.snapshot(actor);}
    const track=b.track;if(b.operation==='enqueue'&&(!track||typeof track.id!=='string'||!Number.isFinite(track.duration)||track.duration<=0||typeof track.title!=='string'))fault(400,'서버가 확인한 곡이 필요해요.');
    try{d.music=changeRoomMusic(d.music,b,track);}catch(e){fault(400,e.message);}d.musicRequests.push({id:rid,fingerprint});d.musicRequests=d.musicRequests.slice(-100);

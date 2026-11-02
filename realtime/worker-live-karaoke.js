@@ -293,7 +293,9 @@ var VoiceRoom = class {
   async syncDirectory() {
     if (!this.data.directoryDirty) return;
     try {
-      await this.env.ROOM_DB.prepare("UPDATE voice_rooms SET closed=1 WHERE id=?").bind(this.data.config.id).run();
+      const room = this.data.config;
+      if (room.closed) await this.env.ROOM_DB.prepare("UPDATE voice_rooms SET closed=1 WHERE id=?").bind(room.id).run();
+      else await this.env.ROOM_DB.prepare("UPDATE voice_rooms SET host_id=?,background=? WHERE id=?").bind(room.host_id, room.background, room.id).run();
       this.data.directoryDirty = false;
     } catch {
     }
@@ -328,7 +330,7 @@ var VoiceRoom = class {
   }
   moderator(actor) {
     const p = this.member(actor);
-    if (p.role !== "host") fault(403, "\uBC29\uC7A5\uB9CC \uD560 \uC218 \uC788\uC5B4\uC694.");
+    if (this.data.config.host_id !== p.id) fault(403, "\uBC29\uC7A5\uB9CC \uD560 \uC218 \uC788\uC5B4\uC694.");
     return p;
   }
   target(actor, id) {
@@ -344,13 +346,13 @@ var VoiceRoom = class {
     if (++v.n > max) fault(429, "\uC7A0\uC2DC \uAE30\uB2E4\uB9B0 \uB4A4 \uB2E4\uC2DC \uC2DC\uB3C4\uD574\uC8FC\uC138\uC694.");
   }
   snapshot(actor) {
-    const p = this.data.members[actor.id], host = p?.role === "host";
+    const p = this.data.members[actor.id], host = p?.id === this.data.config?.host_id;
     return { room: this.data.config, revision: this.data.revision, self: p?.id || null, generation: p?.generation || null, seat_invites: Object.values(this.data.seatInvites).filter((i) => i.target === p?.id && i.expires > Date.now()), cleanup_pending: this.data.cleanup.length > 0, serverNow: Date.now(), music: this.data.music, notices: p ? this.data.notices.filter((n) => n.sequence > (p.chatAfter ?? this.data.chatSequence)) : [], members: Object.values(this.data.members).filter((m) => m.expires > Date.now()).map((m) => ({
       id: m.id,
       profile_id: m.profile_id,
       name: m.name,
       image_version: m.image_version,
-      role: m.role,
+      role: m.id === this.data.config.host_id ? "host" : m.role === "host" ? "listener" : m.role,
       seat: m.seat,
       // Request metadata is private to the applicant and host, in HTTP AND WebSocket snapshots.
       ...host || m.id === p?.id ? { requested: !!m.requested, requestedSeat: m.requestedSeat ?? null, requestExpires: m.requestExpires ?? null } : {},
@@ -427,19 +429,51 @@ var VoiceRoom = class {
     p.muted = true;
     await this.retire(old);
   }
+  // The caller holds the DO's serial queue. Membership, permissions and theme
+  // are saved together before sockets see the new owner.
+  electHost(now) {
+    const d = this.data, room = d.config;
+    const active = Object.values(d.members).filter((m) => m.expires > now);
+    const order = /* @__PURE__ */ __name((m) => m.joinOrder ?? m.chatAfter ?? 0, "order");
+    active.sort((a, b) => order(a) - order(b) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    const next = active[0];
+    if (!next || room.closed) return;
+    next.role = "host";
+    next.seat = 0;
+    next.locked = false;
+    this.clearRequest(next);
+    delete d.seatInvites[next.id];
+    room.host_id = next.id;
+    room.background = "navy";
+    room.theme_sku = "navy";
+    room.settings_revision = (room.settings_revision || 0) + 1;
+    d.hostReconnectUntil = 0;
+    delete d.hostReconnectGeneration;
+    d.directoryDirty = true;
+    if (room.visibility === "followers") for (const m of active) m.visibilityRetained = true;
+    this.notice(next, next.name + "\uB2D8\uC774 \uC0C8 \uBC29\uC7A5\uC774 \uB418\uC5C8\uC2B5\uB2C8\uB2E4.");
+  }
   async remove(p, temporary = false) {
-    if (p.role === "host") this.clearRequests();
+    const wasHost = p.id === this.data.config.host_id, talk = this.data.config.mode !== "karaoke";
+    if (wasHost && (!talk || temporary)) this.clearRequests();
     delete this.data.seatInvites[p.id];
-    if (temporary && p.role === "host") this.data.hostReconnectUntil = Date.now() + 3e5;
-    if (p.role === "host" && this.data.music?.playing) this.data.music = changeRoomMusic(this.data.music, { operation: "pause" });
+    if (temporary && wasHost) {
+      this.data.hostReconnectUntil = Date.now() + 3e5;
+      this.data.hostReconnectGeneration = p.generation;
+    }
+    if (wasHost && !talk && this.data.music?.playing) this.data.music = changeRoomMusic(this.data.music, { operation: "pause" });
     this.notice(p, p.name + "\uB2D8\uC774 \uD1F4\uC7A5\uD588\uC5B4\uC694.");
     delete this.data.members[p.id];
     this.queueRetire(p.pub);
     this.queueRetire(p.sub);
+    if (wasHost && talk && !temporary && !this.data.config.closed) this.electHost(Date.now());
+    this.data.revision++;
     if (!Object.keys(this.data.members).length && !(this.data.hostReconnectUntil > Date.now())) await this.closeRoom();
+    await this.save();
+    await this.syncDirectory();
+    this.notify();
     await this.retire(p.pub);
     await this.retire(p.sub);
-    this.notify();
   }
   async expire() {
     const now = Date.now();
@@ -460,6 +494,12 @@ var VoiceRoom = class {
         p.sub = null;
         await this.retire(old);
       }
+    }
+    if (this.data.config && !this.data.config.closed && this.data.config.mode !== "karaoke" && !this.data.members[this.data.config.host_id] && !(this.data.hostReconnectUntil > now) && Object.keys(this.data.members).length) {
+      this.electHost(now);
+      this.data.revision++;
+      await this.save();
+      this.notify();
     }
     if (!Object.keys(this.data.members).length && !(this.data.hostReconnectUntil > Date.now())) await this.closeRoom();
     const music = this.data.music;
@@ -523,13 +563,26 @@ var VoiceRoom = class {
       } catch (e) {
         fault(400, e.message);
       }
-      const config = { ...settings, id: identifier(roomId), host_id: actor.id, created: Date.now(), closed: false, mic_seats: 8 };
+      const config = { ...settings, id: identifier(roomId), host_id: actor.id, ...b.theme_sku ? { theme_sku: b.theme_sku } : {}, created: Date.now(), closed: false, mic_seats: 8 };
       await this.env.ROOM_DB.prepare("INSERT INTO voice_rooms(id,title,host_id,visibility,crew_id,created,max_members,background,announcement) VALUES(?,?,?,?,?,?,?,?,?)").bind(config.id, config.title, actor.id, config.visibility, config.crew_id, config.created, config.max_members, config.background, config.announcement).run();
       d.config = config;
       await this.command("join", actor, { request_id: crypto.randomUUID() }, roomId);
       return { room: config };
     }
-    if (action === "presence") return { active: !!d.config && !d.config.closed && Object.keys(d.members).length > 0, visibility: d.config?.visibility, member_count: Object.keys(d.members).length, host_name: d.members[d.config?.host_id]?.name || "" };
+    if (action === "presence") return { active: !!d.config && !d.config.closed && Object.keys(d.members).length > 0, host_id: d.config?.host_id, background: d.config?.background, theme_sku: d.config?.theme_sku, settings_revision: d.config?.settings_revision, mode: d.config?.mode, visibility: d.config?.visibility, member_count: Object.keys(d.members).length, host_name: d.members[d.config?.host_id]?.name || "" };
+    if (action === "leave" && !d.members[actor.id]) {
+      if (d.config?.mode !== "karaoke" && d.config?.host_id === actor.id && d.hostReconnectUntil > Date.now() && b.generation && b.generation === d.hostReconnectGeneration) {
+        d.hostReconnectUntil = 0;
+        delete d.hostReconnectGeneration;
+        if (Object.keys(d.members).length) this.electHost(Date.now());
+        else await this.closeRoom();
+        d.revision++;
+        await this.save();
+        await this.syncDirectory();
+        this.notify();
+      }
+      return { ok: true };
+    }
     try {
       this.access(actor, action !== "join" && !!d.members[actor.id]);
     } catch (e) {
@@ -551,8 +604,11 @@ var VoiceRoom = class {
         await this.stopPublish(old);
         await this.retire(old.sub);
       }
-      p2 = { id: actor.id, profile_id: actor.profile_id, name: actor.name, image_version: actor.image_version || "", role: old?.role || (actor.id === d.config.host_id ? "host" : "listener"), seat: actor.id === d.config.host_id ? 0 : old?.seat ?? null, requested: false, locked: old?.locked || false, muted: true, pub: null, sub: null, generation: crypto.randomUUID(), expires: Date.now() + LEASE, joinRequest: b.request_id, chatAfter: old?.chatAfter ?? d.chatSequence };
-      if (p2.role === "host") d.hostReconnectUntil = 0;
+      p2 = { id: actor.id, profile_id: actor.profile_id, name: actor.name, image_version: actor.image_version || "", joinOrder: old?.joinOrder ?? old?.chatAfter ?? d.chatSequence, visibilityRetained: !!old?.visibilityRetained, role: old?.role || (actor.id === d.config.host_id ? "host" : "listener"), seat: actor.id === d.config.host_id ? 0 : old?.seat ?? null, requested: false, locked: old?.locked || false, muted: true, pub: null, sub: null, generation: crypto.randomUUID(), expires: Date.now() + LEASE, joinRequest: b.request_id, chatAfter: old?.chatAfter ?? d.chatSequence };
+      if (p2.role === "host") {
+        d.hostReconnectUntil = 0;
+        delete d.hostReconnectGeneration;
+      }
       d.members[actor.id] = p2;
       if (!old) this.notice(p2, p2.name + "\uB2D8\uC774 \uC785\uC7A5\uD588\uC5B4\uC694.");
       d.revision++;
@@ -577,11 +633,10 @@ var VoiceRoom = class {
     }
     if (action === "leave") {
       await this.remove(p);
-      d.revision++;
       return { ok: true };
     }
     if (action === "close") {
-      if (p.role !== "host") fault(403, "\uBC29\uC7A5\uB9CC \uBC29\uC744 \uC885\uB8CC\uD560 \uC218 \uC788\uC5B4\uC694.");
+      this.moderator(actor);
       await this.closeRoom();
       for (const member of Object.values(d.members)) await this.remove(member);
       await this.audit(actor, "close");
@@ -599,7 +654,7 @@ var VoiceRoom = class {
       await this.env.ROOM_DB.prepare("UPDATE voice_rooms SET title=?,visibility=?,crew_id=?,max_members=?,background=?,announcement=? WHERE id=?").bind(settings.title, settings.visibility, settings.crew_id, settings.max_members, settings.background, settings.announcement, d.config.id).run();
       if (settings.visibility !== d.config.visibility) for (const member of Object.values(d.members)) member.visibilityRetained = true;
       if (settings.seating_mode === "free" && d.config.seating_mode !== "free") for (const member of Object.values(d.members)) this.clearRequest(member);
-      Object.assign(d.config, settings, { settings_revision: (d.config.settings_revision || 0) + 1 });
+      Object.assign(d.config, settings, b.theme_sku ? { theme_sku: b.theme_sku } : {}, { settings_revision: (d.config.settings_revision || 0) + 1 });
       this.notice(p, "\uBC29 \uC124\uC815\uC774 \uBCC0\uACBD\uB410\uC5B4\uC694.");
       await this.audit(actor, "settings");
     } else if (action === "seat-invite") {
@@ -760,7 +815,8 @@ var VoiceRoom = class {
       }
       return { ok: true };
     } else if (action === "music") {
-      if (p.role !== "host") fault(403, "\uBC29\uC7A5\uB9CC \uACF5\uB3D9 \uC74C\uC545\uC744 \uAD00\uB9AC\uD560 \uC218 \uC788\uC5B4\uC694.");
+      this.moderator(actor);
+      if (d.config.mode !== "karaoke" && ["volume", "balance"].includes(b.operation)) fault(400, "\uC74C\uC545 \uBCFC\uB968\uC740 \uB0B4 \uAE30\uAE30\uC5D0\uC11C \uC870\uC808\uD574\uC8FC\uC138\uC694.");
       this.limited(actor, "music", 90);
       const rid = requestId(b.request_id), fingerprint = JSON.stringify(b);
       const prior = d.musicRequests.find((r) => r.id === rid);
@@ -928,7 +984,7 @@ var worker_default = { async fetch(req, env) {
         const response = await env.ROOMS.get(env.ROOMS.idFromName(room.id)).fetch(new Request("https://room/presence", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ actor: data.actor, input: {}, stamp, roomId: room.id }) }));
         if (!response.ok) fault(503, "\uD1A0\uD0B9\uB8F8 \uBAA9\uB85D\uC744 \uC0C8\uB85C \uBD88\uB7EC\uC624\uC9C0 \uBABB\uD588\uC5B4\uC694. \uB2E4\uC2DC \uC2DC\uB3C4\uD574\uC8FC\uC138\uC694.");
         const state = await response.json();
-        return state.active && state.visibility === "public" ? { ...room, member_count: state.member_count, host_name: state.host_name, mode: state.mode || "talk" } : null;
+        return state.active && state.visibility === "public" ? { ...room, host_id: state.host_id ?? room.host_id, background: state.background ?? room.background, theme_sku: state.theme_sku, settings_revision: state.settings_revision, member_count: state.member_count, host_name: state.host_name, mode: state.mode || "talk" } : null;
       }));
       return reply({ rooms: active.filter(Boolean) });
     }
