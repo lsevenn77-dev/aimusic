@@ -7,7 +7,7 @@ function session(mode){
  const records=new Map(),c=vm.createContext({
   document:{addEventListener(){},querySelectorAll:()=>[]},window:{addEventListener(){}},me:{id:'account'},Float32Array,
   setTimeout(){throw Error('Draft persistence must not be scheduled');}, clearTimeout(){},
-  singingKey:()=>0,records,
+  singingKey:()=>0,records,crypto,
  });
  for(const file of ['karaoke.js','sing-drafts.js'])vm.runInContext(readFileSync(new URL('../dist/'+file,import.meta.url),'utf8'),c);
  const run=js=>vm.runInContext(js,c);

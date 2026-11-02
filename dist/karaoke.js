@@ -365,7 +365,7 @@ function bindMixControls(){
  refreshEffectControls();
 }
 function bindReview(){
- const form=$('#sing-upload-form');form.addEventListener('invalid',()=>{const section=form.querySelector('.studio-publication');if(section)section.open=true;},true);form.elements.description.value=sing.description||'';form.elements.description.oninput=()=>{sing.description=form.elements.description.value;queueSingDraft(sing);};form.onsubmit=busyForm(form,uploadSung);
+ const form=$('#sing-upload-form');bindWorkPhoto(form,sing);form.addEventListener('invalid',()=>{const section=form.querySelector('.studio-publication');if(section)section.open=true;},true);form.elements.description.value=sing.description||'';form.elements.description.oninput=()=>{sing.description=form.elements.description.value;queueSingDraft(sing);};form.onsubmit=busyForm(form,uploadSung);
 }
 function voiceBuffer(s){
  const source=vocalPlaybackBuffer(s),key=vocalEffectKey(s.mix);if(s.processed?.key===key&&s.processed.source===source)return s.processed.buffer;
@@ -440,12 +440,23 @@ function coverPublication(s,fd){
  return {publish_as:kind,cover_mode:mode,duet_slot:kind==='solo'?'':s.parent?'second':'first',duet_parent_id:s.parent||null,duet_consent:kind==='duet_invitation',duet_guide:guide};
 }
 async function uploadSung(fd){
- const s=sing;if(!s?.voice||singBusy(s)||singLive(s))return;const publication=coverPublication(s,fd);stopPreview();s.state='exporting';updateTransport();
+ const s=sing;if(!s?.voice||singBusy(s)||singLive(s))return;const publication=coverPublication(s,fd),form=$('#sing-upload-form');if(form._photoError)throw Error(form._photoError);
+ s.publishRequest??=crypto.randomUUID();const photo=s.coverFile;
+ stopPreview();s.state='exporting';updateTransport();
  const progress=$('#sing-upload-form .upload-progress'),note=progress.querySelector('p');progress.hidden=false;note.textContent='부른 구간을 합치고 있어요…';
- try{refreshVocalGuide(s);const file=await renderSung(s,p=>{if(sing===s)note.textContent='고음질 MP3로 변환 중 '+Math.round(p*100)+'%';},publication.cover_mode);if(sing!==s)return;
-  const draft=await api('/api/covers','POST',{original_id:s.id,...publication,description:fd.get('description')||'',own_voice:fd.has('own_voice'),rights:fd.has('rights'),extension:'mp3',bytes:file.size});
+ try{
+  refreshVocalGuide(s);const file=await renderSung(s,p=>{if(sing===s)note.textContent='고음질 MP3로 변환 중 '+Math.round(p*100)+'%';},publication.cover_mode);if(sing!==s)return;
+  const draft=await api('/api/covers','POST',{request_id:s.publishRequest,original_id:s.id,...publication,description:fd.get('description')||'',own_voice:fd.has('own_voice'),rights:fd.has('rights'),extension:'mp3',bytes:file.size});
   if(draft.cover_mode!==publication.cover_mode||draft.publish_as!==publication.publish_as||(draft.duet_parent_id||null)!==publication.duet_parent_id)throw new Error('저장된 공개 종류가 선택과 달라 업로드를 중단했어요. 녹음은 그대로 보관돼요.');
-  await uploadFile(`/api/uploads/${draft.id}/audio`,file,value=>{progress.querySelector('progress').value=value;note.textContent=`올리는 중 ${Math.round(value)}%`;});if(publication.publish_as==='duet_invitation')await uploadDuetStems(s,draft.id,v=>{note.textContent='듀엣 트랙 저장 중 '+Math.round(v*100)+'%';});const completed=await api(`/api/uploads/${draft.id}/complete`,'POST');if(sing!==s)return;await removeSingDraft(s);s.dirty=false;cleanupSing();toast('커버곡을 올렸어요! 변환이 끝나면 공개돼요.');location.hash='studio';if(completed.show_upload_ad)window.AifectUploadAds?.afterCoverUpload(draft.id);
+  let completed={};
+  if(!['published','processing','queued'].includes(draft.status)){
+   await uploadFile(`/api/uploads/${draft.id}/audio`,file,value=>{progress.querySelector('progress').value=value;note.textContent=`올리는 중 ${Math.round(value)}%`;});
+   if(publication.publish_as==='duet_invitation')await uploadDuetStems(s,draft.id,v=>{note.textContent='듀엣 트랙 저장 중 '+Math.round(v*100)+'%';});
+   if(photo){note.textContent='커버사진을 저장하고 있어요.';await uploadFile(`/api/uploads/${draft.id}/cover`,photo,undefined,{allowFallback:true});}
+   else if(draft.has_cover)await api(`/api/studio/tracks/${draft.id}/image`,'DELETE');
+   completed=await api(`/api/uploads/${draft.id}/complete`,'POST');
+  }
+  if(sing!==s)return;await removeSingDraft(s);s.dirty=false;cleanupSing();toast('커버곡을 올렸어요! 변환이 끝나면 공개돼요.');location.hash='studio';if(completed.show_upload_ad)window.AifectUploadAds?.afterCoverUpload(draft.id);
  }finally{if(sing===s){s.state='review';updateTransport();}}
 }
 document.addEventListener('click',e=>{

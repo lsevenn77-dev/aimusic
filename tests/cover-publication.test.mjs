@@ -25,7 +25,7 @@ test('a joined performance cannot remove its partner or become a new invitation'
 });
 test('file uploads require explicit publication and stop before audio on inconsistent server metadata',async()=>{
  const form={dataset:{original:'one'}},sent=[],files=[];
- const c=vm.createContext({$:selector=>selector==='#cover-upload-form'?form:null,document:{addEventListener(){}},window:{},validateImage:async()=>{}});
+ const c=vm.createContext({crypto,$:selector=>selector==='#cover-upload-form'?form:null,document:{addEventListener(){}},window:{},validateImage:async()=>{}});
  vm.runInContext(readFileSync(new URL('../dist/actions.js',import.meta.url),'utf8').split('document.addEventListener')[0],c);
  c.uploadStage=()=>{};c.existingUploadSubmitted=async()=>false;c.sendUploadFiles=async(...args)=>files.push(args);
  c.uploadRequest=async(path,method,body)=>{sent.push(body);return {id:'draft',publish_as:body.publish_as,cover_mode:body.cover_mode,duet_parent_id:null};};

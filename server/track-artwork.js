@@ -1,4 +1,12 @@
-// Artwork is presentation metadata. Keep the original upload and stored track art intact.
-export const coverArtworkVersion=profile=>'profile-'+(profile?.image_version||'default-v1');
-export const trackArtworkSQL=(track='t',producer='p')=>`CASE WHEN ${track}.kind='cover' THEN 1 ELSE ${track}.has_cover END has_cover,CASE WHEN ${track}.kind='cover' THEN 'profile-'||COALESCE(NULLIF(${producer}.image_version,''),'default-v1') ELSE ${track}.cover_version END cover_version`;
-export const trackArtwork=(track,profile)=>track.kind==='cover'?{...track,has_cover:1,cover_version:coverArtworkVersion(profile),producer_image_version:profile?.image_version||''}:track;
+// Both public catalogues and the protected media route resolve the current track rows.
+export function trackArtworkSQL(){
+ const own="(t.has_cover=1 OR t.cover_version!='') AND t.cover_version NOT LIKE 'profile-%'";
+ const original="(o.has_cover=1 OR o.cover_version!='') AND o.cover_version NOT LIKE 'profile-%' AND o.status!='deleted' AND ((o.status='published' AND o.karaoke_at>0) OR o.user_id=t.user_id)";
+ return `CASE WHEN ${own} THEN t.id WHEN ${original} THEN o.id END artwork_id,
+  CASE WHEN ${own} OR (${original}) THEN 1 ELSE 0 END has_cover,
+  CASE WHEN ${own} THEN t.cover_version WHEN ${original} THEN o.cover_version ELSE '' END cover_version,
+  CASE WHEN ${own} THEN 1 ELSE 0 END work_has_cover,t.cover_version work_cover_version`;
+}
+export function artworkURL(track){
+ return track.artwork_id?`/media/${encodeURIComponent(track.artwork_id)}/cover?artwork=track&v=${encodeURIComponent(track.cover_version||'original')}`:'/assets/aifect-mark.svg';
+}

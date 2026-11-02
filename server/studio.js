@@ -1,4 +1,4 @@
-import {trackArtwork} from './track-artwork.js';
+import {trackArtworkSQL} from './track-artwork.js';
 import {classificationFields,coverClassificationWrites} from './music-classification.js';
 import {trackClassification} from '../shared/genres.js';
 import {nickname,nicknameBatch} from './nicknames.js';
@@ -28,6 +28,10 @@ export async function studioRoute(req,env,path,user){
  const entity=await one(env,table==='artists'?'SELECT a.* FROM artists a JOIN producers p ON p.id=a.producer_id WHERE a.id=? AND p.user_id=?':`SELECT * FROM ${table} WHERE id=? AND user_id=?`,entityId,user.id);
  if(!entity||(table==='tracks'&&entity.status==='deleted')||(table==='artists'&&!hasArtistName(entity.name)))fail(404,'내 스튜디오 항목을 찾을 수 없습니다.');
  if(m[3]){
+  if(req.method==='DELETE'&&m[3]==='/image'&&table==='tracks'&&entity.kind==='cover'){
+   await run(env,"UPDATE tracks SET has_cover=0,cover_version='',cover_type='' WHERE id=? AND user_id=? AND status!='deleted'",entityId,user.id);
+   return json({ok:true});
+  }
   if(req.method!=='PUT')fail(405,'지원하지 않는 요청입니다.');
   await rate(env,'image:'+user.id,60,3600);
   if(m[3]==='/banner'){
@@ -42,12 +46,12 @@ export async function studioRoute(req,env,path,user){
   else await run(env,`UPDATE ${table} SET image_version=?,image_type=? WHERE id=?`,image.version,image.type,entityId);
   return json({ok:true,version:image.version});
  }
- if(req.method==='GET')return json({profile:table==='tracks'?trackClassification(trackArtwork(entity,entity.kind==='cover'?await one(env,'SELECT image_version FROM producers WHERE id=?',entity.producer_id):null)):entity,...(table==='tracks'?{alignment:await alignmentStatus(env,entity.id),karaoke:await karaokeStatus(env,entity.id)}:{})});
+ if(req.method==='GET')return json({profile:table==='tracks'?trackClassification({...entity,...await one(env,`SELECT ${trackArtworkSQL()},o.has_cover original_has_cover,o.cover_version original_cover_version FROM tracks t LEFT JOIN tracks o ON o.id=t.original_id WHERE t.id=?`,entity.id)}):entity,...(table==='tracks'?{alignment:await alignmentStatus(env,entity.id),karaoke:await karaokeStatus(env,entity.id)}:{})});
  if(req.method!=='PUT')fail(405,'지원하지 않는 요청입니다.');
  const b=await req.json();
  const release=table==='tracks'?releaseDate(b.release_date,entity.release_date):'';
  if(table==='tracks'&&entity.kind==='cover'){
-  // A cover takes its title, genre and credits from the original; the singer edits the note; artwork follows their profile.
+  // A cover takes its title, genre and credits from the original; the singer edits the note independently of artwork.
   await run(env,'UPDATE tracks SET description=?,release_date=? WHERE id=?',str(b.description||'',1000,false),release,entityId);
   return json({ok:true,id:entityId});
  }

@@ -200,8 +200,8 @@
   }
 
   function cover(track){
-    if(track.has_cover)return '<img class="album-thumb" src="/media/'+encodeURIComponent(track.id)+'/cover" alt="">';
-    return '<span class="album-thumb"></span>';
+    const src=track.artwork_id?'/media/'+encodeURIComponent(track.artwork_id)+'/cover?artwork=track&v='+encodeURIComponent(track.cover_version||'original'):'/assets/aifect-mark.svg';
+    return '<img class="album-thumb" src="'+esc(src)+'" alt="">';
   }
 
   function renderLists(data){

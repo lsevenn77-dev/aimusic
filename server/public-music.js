@@ -1,3 +1,4 @@
+import {artworkURL} from './track-artwork.js';
 import {trackList,VISIBLE} from './catalog.js';
 import {publicPageRoute} from './public-pages.js';
 import {escapeHTML as esc,businessFooterHTML} from '../shared/site-info.js';
@@ -16,14 +17,13 @@ const description=t=>{
 const kind=t=>t.kind==='cover'?(t.cover_mode==='duet'?'듀엣 커버':'솔로 커버'):'제작곡';
 const length=t=>`${Math.floor((Number(t.duration)||0)/60)}:${String(Math.floor((Number(t.duration)||0)%60)).padStart(2,'0')}`;
 function artwork(t){
- const src=t.has_cover?`/media/${encodeURIComponent(t.id)}/cover?v=${encodeURIComponent(t.cover_version||'')}`:'/assets/aifect-mark.svg';
- return `<img class="public-artwork${t.kind==='cover'?' is-person':''}" src="${esc(src)}" alt="${esc(t.kind==='cover'?t.producer+'의 프로필':t.title+' 앨범 커버')}" width="192" height="192" loading="lazy">`;
+ return `<img class="public-artwork" src="${esc(artworkURL(t))}" alt="${esc(t.title+' 커버')}" width="192" height="192" loading="lazy">`;
 }
 function card(t){return `<article class="music-card"><a href="/music/${encodeURIComponent(t.id)}" tabindex="-1" aria-hidden="true">${artwork(t)}</a><div><span class="public-kicker">${kind(t)} · ${length(t)}</span><h2><a href="/music/${encodeURIComponent(t.id)}">${esc(t.title)}</a></h2><p>${esc(t.artist)}</p><p class="public-tags">${(t.genres||[t.genre]).filter(Boolean).map(g=>`<a href="/music?genre=${encodeURIComponent(g)}">${esc(g)}</a>`).join(' ')}</p>${description(t)?`<p class="public-description">${esc(description(t))}</p>`:''}<a class="public-listen" href="/#song/${encodeURIComponent(t.id)}">노래 듣기 <span aria-hidden="true">▷</span></a></div></article>`;}
 function nav(){return '<nav class="public-nav" aria-label="음악과 이용 안내"><a href="/music">공개 음악</a><a href="/about">AIFECT 소개</a><a href="/guide/listening">감상·플레이리스트</a><a href="/guide/recording">녹음 안내</a><a href="/guide/community">커뮤니티·크루</a></nav>';}
 function document(title,body,path,{summary="",noindex=false}={}){return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)} | AIFECT</title><meta name="description" content="${esc(summary||title+". AIFECT의 공개 음악과 참여형 음악 커뮤니티.")}">${noindex?'<meta name="robots" content="noindex,follow">':''}<link rel="canonical" href="https://aifect.co.kr${esc(path)}"><link rel="stylesheet" href="/policies.css"><link rel="stylesheet" href="/brand.css"><link rel="stylesheet" href="/public-music.css"><link rel="stylesheet" href="/mobile-input.css"></head><body class="legal-site"><header class="legal-header"><a class="legal-brand" href="/">AIFECT</a><a href="/#home">음악 앱 열기</a></header><main class="legal-content public-music">${nav()}<h1>${esc(title)}</h1>${body}</main><footer class="page-footer">${businessFooterHTML()}</footer></body></html>`;}
 function response(req,html,status=200){return new Response(req.method==='HEAD'?null:html,{status,headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'}});}
-const publicFields='id kind cover_mode duration has_cover cover_version producer title artist genres genre description has_ai_artist artist_id producer_id created ai_tool participation moods original_id original_title accepts_covers'.split(' ');
+const publicFields='id kind cover_mode duration artwork_id has_cover cover_version producer title artist genres genre description has_ai_artist artist_id producer_id created ai_tool participation moods original_id original_title accepts_covers'.split(' ');
 const viewRow=t=>Object.fromEntries(publicFields.filter(k=>Object.hasOwn(t,k)).map(k=>[k,t[k]]));
 export async function readPublicMusicData(req,env,path){
  const single=path.match(/^\/music\/([\w-]+)$/);

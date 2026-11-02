@@ -15,10 +15,11 @@
  window.addEventListener('aifect-ad-start',()=>{if(web){web.metadata=new MediaMetadata({title:'음성광고',artist:'AIFECT',album:'무료 음악 감상'});try{web.setPositionState();}catch{}web.playbackState='playing';}});
  window.addEventListener('aifect-ad-end',()=>{shownId=null;metadata();state('paused');});
  function metadata(){
-  if(!current||current.id===shownId)return;shownId=current.id;
+  if(!current)return;const key=current.id+'|'+trackArtworkPath(current);if(key===shownId)return;shownId=key;
   const data={title:current.title,artist:current.artist||'',album:'AIFECT',artwork:artwork(current)};
   if(native)call('setMetadata',data);else web.metadata=new MediaMetadata(data);
  }
+ window.addEventListener('aifect-artwork-change',metadata);
  function state(value){if(native)call('setPlaybackState',{playbackState:value});else web.playbackState=value;}
  function position(force=false){
   if(window.AifectAudioAds?.active)return;

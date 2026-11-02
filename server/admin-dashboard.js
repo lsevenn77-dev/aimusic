@@ -64,15 +64,15 @@ export async function adminDashboardRoute(req,env,path,user){
    COALESCE(sum(creator_mw+singer_mw),0) creator_mw,count(*) gifts
    FROM gifts WHERE created>=?`,cutoff),
   rows(env,`SELECT provider,count(*) n FROM users WHERE provider!='deleted' AND account_type='human' GROUP BY provider ORDER BY n DESC`),
-  rows(env,`SELECT t.id,t.title,COALESCE(NULLIF(a.name,''),p.name) artist,count(l.id) plays,
+  rows(env,`SELECT t.id,t.title,${trackArtworkSQL()},COALESCE(NULLIF(a.name,''),p.name) artist,count(l.id) plays,
    (SELECT count(*) FROM likes x WHERE x.track_id=t.id) likes
    FROM listens l JOIN tracks t ON t.id=l.track_id JOIN producers p ON p.id=t.producer_id
-   LEFT JOIN artists a ON a.id=t.artist_id
+   LEFT JOIN artists a ON a.id=t.artist_id LEFT JOIN tracks o ON o.id=t.original_id
    WHERE l.qualified=1 AND l.started>=? AND t.status='published'
    GROUP BY t.id,t.title,a.name,p.name ORDER BY plays DESC,t.created DESC LIMIT 5`,cutoff),
   rows(env,`SELECT t.id,t.title,t.genre,t.kind,t.created,${trackArtworkSQL()},
    COALESCE(NULLIF(a.name,''),p.name) artist
-   FROM tracks t JOIN producers p ON p.id=t.producer_id LEFT JOIN artists a ON a.id=t.artist_id
+   FROM tracks t JOIN producers p ON p.id=t.producer_id LEFT JOIN artists a ON a.id=t.artist_id LEFT JOIN tracks o ON o.id=t.original_id
    WHERE t.status='published' ORDER BY t.created DESC LIMIT 6`),
   rows(env,`SELECT id,name,email,provider,created,
    CASE WHEN premium_until>? OR apple_premium_until>? THEN 1 ELSE 0 END premium

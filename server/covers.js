@@ -1,7 +1,7 @@
 import {validateDuetGuide} from './duet-guide.js';
 import {coverClassificationWrites} from './music-classification.js';
 import {one,query,now,id,fail,str,json,rate} from './db.js';
-import {requireUser} from './auth.js';
+import {hash,requireUser} from './auth.js';
 import {VISIBLE} from './catalog.js';
 import {MAX_AUDIO} from './storage.js';
 import {duetSource,otherPart} from './duets.js';
@@ -42,9 +42,25 @@ export async function coverRoute(req,env,path,user){
  // Every person has one profile; a first cover creates it from the account name.
  let profile=await one(env,'SELECT id FROM producers WHERE user_id=?',user.id);
  if(!profile){profile={id:id()};writes.push(query(env,'INSERT INTO producers(id,user_id,name,bio,created) VALUES(?,?,?,?,?)',profile.id,user.id,(user.name||'AIFECT 이용자').trim().slice(0,60)||'AIFECT 이용자','',now()));}
- const tid=id();
+ let tid=id();
+ if(b.request_id!==undefined){
+  if(typeof b.request_id!=='string'||!/^(?:[0-9a-f-]{36}|draft:[\w:-]{1,240}:\d{1,16})$/i.test(b.request_id))fail(400,'게시 요청을 다시 시작해주세요.');
+  // Stable per owner and recording across a lost create or complete response.
+  const digest=await hash('recording:'+user.id+':'+b.request_id);
+  tid=[digest.slice(0,8),digest.slice(8,12),digest.slice(12,16),digest.slice(16,20),digest.slice(20,32)].join('-');
+ }
+ const result=async()=>{
+  const row=await one(env,'SELECT id,user_id,producer_id,original_id,cover_mode,duet_parent_id,status,has_cover FROM tracks WHERE id=?',tid);
+  if(!row||row.user_id!==user.id||row.original_id!==original.id||['deleted','hidden','failed'].includes(row.status))fail(409,'작품 상태가 변경됐어요. 스튜디오에서 확인해주세요.');
+  return json({id:tid,producer_id:row.producer_id,cover_mode:row.cover_mode,duet_parent_id:row.duet_parent_id,publish_as:row.cover_mode==='solo'?'solo':row.duet_parent_id?'duet_complete':'duet_invitation',status:row.status,has_cover:row.has_cover},201);
+ };
+ if(b.request_id&&await one(env,'SELECT id FROM tracks WHERE id=?',tid)){
+  await query(env,`UPDATE tracks SET original_bytes=?,original_ext=?,description=?,cover_mode=?,duet_parent_id=?,duet_part=?,duet_open=?,duet_guide=? WHERE id=? AND kind='cover' AND original_id=? AND user_id=? AND status='uploading'`,b.bytes,b.extension,description,mode,parent,part,mode==='duet'&&!first?1:0,guide,tid,original.id,user.id).run();
+  return result();
+ }
  writes.push(query(env,`INSERT INTO tracks(id,user_id,artist_id,producer_id,title,genre,description,ai_tool,is_ai,participation,rights_accepted,original_ext,original_bytes,created,kind,original_id,cover_mode,duet_parent_id,duet_part,duet_open,duet_guide)
   VALUES(?,?,?,?,?,?,?,'',0,'보컬',?,?,?,?,'cover',?,?,?,?,?,?)`,tid,user.id,original.artist_id,profile.id,original.title,original.genre,description,now(),b.extension,b.bytes,now(),original.id,mode,parent,part,mode==='duet'&&!first?1:0,guide));
- await env.DB.batch([...writes,...coverClassificationWrites(env,{trackId:tid})]);
- return json({id:tid,producer_id:profile.id,cover_mode:mode,duet_parent_id:parent,publish_as:publication},201);
+ try{await env.DB.batch([...writes,...coverClassificationWrites(env,{trackId:tid})]);}
+ catch(error){if(!b.request_id||!await one(env,'SELECT id FROM tracks WHERE id=? AND user_id=?',tid,user.id))throw error;}
+ return result();
 }

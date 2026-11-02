@@ -6,15 +6,9 @@ function cleanupHome(){
  homeRequestController?.abort();homeRequestController=null;
  for(const cleanup of homeRailCleanups.values())cleanup();homeRailCleanups.clear();
 }
-function homeArtworkPath(t){
- const has=t.work_has_cover??(t.cover_version?.startsWith('profile-')?false:t.has_cover);
- const version=t.work_cover_version??t.cover_version;
- const art=has?[t.id,version]:t.original_has_cover?[t.original_id,t.original_cover_version]:null;
- return art?'/media/'+encodeURIComponent(art[0])+'/cover?artwork=track&v='+encodeURIComponent(art[1]||'original'):'';
-}
+function homeArtworkPath(t){return trackArtworkPath(t);}
 function homeCover(t,cls='album-art',eager=false){
- const src=homeArtworkPath(t);
- return `<div class="${cls} cover ${src?'cover-custom':'cover-lime'} home-track-art"><span class="cover-word" ${src?'hidden':''}>${esc((t.title||'A').slice(0,2))}</span>${src?`<img src="${esc(src)}" alt="${esc(t.title)} 커버" loading="${eager?'eager':'lazy'}" decoding="async" ${eager?'fetchpriority="high"':''}>`:''}</div>`;
+ return `<div class="${cls} cover cover-custom home-track-art"><img src="${esc(trackArtworkPath(t))}" alt="${esc(t.title)} 커버" loading="${eager?'eager':'lazy'}" decoding="async" ${eager?'fetchpriority="high"':''}></div>`;
 }
 function homeReplaceArtwork(html,tracks,cls='album-art'){for(const t of tracks)html=html.replace(cover(t,cls),homeCover(t,cls));return html;}
 function homeCard(t){return homeReplaceArtwork(card(t),[t]).replace('class="album-title"','class="album-title" title="'+esc(t.title)+'"');}
@@ -80,7 +74,7 @@ function releaseHTML(t,next){
 function bindHomeImages(root){
  homeImagesCleanup?.();homeImagesCleanup=null;
  if(!root?.addEventListener)return;
- const fallback=event=>{const img=event.target;if(img.tagName!=='IMG'||!img.closest('.home-track-art,.home-feature-background'))return;img.hidden=true;if(img.closest('.home-feature-background'))img.parentElement.style.backgroundImage='none';const label=img.parentElement.querySelector('.cover-word');if(label)label.hidden=false;};
+ const fallback=event=>{const img=event.target;if(img.tagName!=='IMG'||!img.closest('.home-track-art,.home-feature-background'))return;if(img.getAttribute('src')!=='/assets/aifect-mark.svg')img.src='/assets/aifect-mark.svg';};
  root.addEventListener('error',fallback,true);
  homeImagesCleanup=()=>root.removeEventListener('error',fallback,true);
 }

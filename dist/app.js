@@ -53,11 +53,18 @@ function remember(tracks){tracks.forEach(t=>trackMap.set(t.id,t));return tracks;
 const liked=id=>library.likes.some(t=>t.id===id);
 const followed=(kind,id)=>library.follows.some(f=>f.kind===kind&&f.target_id===id);
 function trackArtworkPath(t){
- if(t.kind==='cover')return '/media/'+encodeURIComponent(t.id)+'/cover?v='+encodeURIComponent(t.cover_version?.startsWith('profile-')?t.cover_version:'profile-'+(t.producer_image_version||'default-v1'));
- const art=t.has_cover?[t.id,t.cover_version]:t.original_has_cover?[t.original_id,t.original_cover_version]:null;
- return art?'/media/'+encodeURIComponent(art[0])+'/cover?v='+encodeURIComponent(art[1]||'original'):'';
+ // Older cached payloads can still carry a synthetic performer version.
+ let source=t.artwork_id,version=t.cover_version;
+ if(source===undefined){
+  version=t.work_cover_version??version;
+  if((t.work_has_cover??t.has_cover)&&!version?.startsWith('profile-'))source=t.id;
+  else if(t.original_has_cover&&!t.original_cover_version?.startsWith('profile-')){source=t.original_id;version=t.original_cover_version;}
+ }
+ return source?`/media/${encodeURIComponent(source)}/cover?artwork=track&v=${encodeURIComponent(version||'original')}`:'/assets/aifect-mark.svg';
 }
-function cover(t,cls='album-art'){const src=trackArtworkPath(t),performer=t.kind==='cover';return `<div class="${cls} cover cover-${src?'custom':'lime'}${performer?' cover-performer':''}">${src?`<img ${performer?'class="profile-avatar-image" ':''}decoding="async" src="${esc(src)}" alt="${esc(performer?(t.producer||t.artist||'사용자')+' 프로필 사진':t.title+' 커버')}" loading="lazy">`:`<span class="cover-word">${esc((t.title||'A').slice(0,2))}</span>`}</div>`;}
+function cover(t,cls='album-art'){
+ return `<div class="${cls} cover cover-custom"><img decoding="async" src="${esc(trackArtworkPath(t))}" alt="${esc(t.title||'작품')} 커버" loading="lazy"></div>`;
+}
 // Covers credit the singer's profile and link back to the original song.
 const hasArtist=t=>t.kind!=='cover'&&(t.has_ai_artist!=null?!!t.has_ai_artist:!!t.artist_id&&!!t.artist&&!['없음','미등록','-','선택 안함','선택안함'].includes(t.artist.trim()));
 const credits=t=>t.kind==='cover'?`<a href="#producer/${esc(t.producer_id)}">${esc(t.producer)}</a>${t.duet_partner_id?` & <a href="#producer/${esc(t.duet_partner_id)}">${esc(t.duet_partner)}</a>`:''} ${t.cover_mode==='duet'?'듀엣':'솔로 커버'} · <a href="#song/${esc(t.original_id)}">원곡 듣기</a>`:hasArtist(t)?`<a href="#artist/${esc(t.artist_id)}">${esc(t.artist)}</a>`:`<a href="#producer/${esc(t.producer_id)}">${esc(t.producer||'창작자')}</a>`;
@@ -127,7 +134,9 @@ function avatarImage(p={},kind='producer',allowPreview=true,decorate=true){
 }
 // Keep every photo surface usable when an old or unavailable upload fails to load.
 document.addEventListener('error',event=>{
- const image=event.target;if(!image.matches?.('img.profile-avatar-image'))return;
+ const image=event.target;
+ if(image.matches?.('.cover img:not(.profile-avatar-image)')&&image.getAttribute('src')!=='/assets/aifect-mark.svg'){image.src='/assets/aifect-mark.svg';return;}
+ if(!image.matches?.('img.profile-avatar-image'))return;
  if(image.getAttribute('src')!==DEFAULT_AVATAR)image.src=DEFAULT_AVATAR;
  else image.hidden=true;
 },true);

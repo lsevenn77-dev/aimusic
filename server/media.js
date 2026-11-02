@@ -1,4 +1,4 @@
-import {trackArtworkSQL,coverArtworkVersion} from './track-artwork.js';
+import {trackArtworkSQL} from './track-artwork.js';
 import {queueClassification,classificationFields} from './music-classification.js';
 import {nickname,nicknameBatch} from './nicknames.js';
 import {chooseArtist,namedArtistSQL} from './artist-identity.js';
@@ -110,21 +110,23 @@ export async function mediaRoute(req,env,path,user){
  }
  m=path.match(/^\/media\/([\w-]+)\/(cover|preview|stream|premium)$/);
  if(m&&['GET','HEAD'].includes(method)){
-  const kind=m[2],t=kind==='cover'?await one(env,`SELECT t.*,${VISIBLE()} visible FROM tracks t WHERE t.id=? AND t.status!='deleted' AND (${VISIBLE()} OR t.user_id=?)`,m[1],user?.id||''):await published(env,m[1]);if(!t)fail(404,'커버를 찾을 수 없습니다.');if(kind==='stream')requireUser(user);
+  const kind=m[2],t=kind==='cover'?await one(env,`SELECT t.id,${VISIBLE()} visible,${trackArtworkSQL()},t.cover_type,o.cover_type original_cover_type FROM tracks t LEFT JOIN tracks o ON o.id=t.original_id WHERE t.id=? AND t.status!='deleted' AND (${VISIBLE()} OR t.user_id=?)`,m[1],user?.id||''):await published(env,m[1]);if(!t)fail(404,'커버를 찾을 수 없습니다.');if(kind==='stream')requireUser(user);
   if(kind==='premium'){
    requireUser(user);if(!isPremium(user))fail(403,'AAC 256 감상은 Premium 이용권이 필요해요.');
    const high=await premiumAudio(env,t,user);if(!high)fail(404,'고음질 파일을 준비하고 있습니다.');
    return objectResponse(req,env,high.output_key,'audio/mp4');
   }
-  if(kind==='cover'&&t.kind==='cover'&&new URL(req.url).searchParams.get('artwork')!=='track'){
-   const profile=await one(env,'SELECT id,image_version,image_type FROM producers WHERE id=?',t.producer_id),version=coverArtworkVersion(profile);
-   if(profile?.image_version)return objectResponse(req,env,`images/producer/${profile.id}/${profile.image_version}`,profile.image_type,!!t.visible,{imageVersion:version});
-   const fallback=await env.ASSETS.fetch(new Request(new URL('/assets/default-avatar.png',req.url),{method:req.method}));
-   const headers=new Headers(fallback.headers);headers.set('cache-control',imageCacheControl(req,!!t.visible,version));headers.set('x-content-type-options','nosniff');
+  if(kind==='cover'){
+   if(t.artwork_id){
+    const key=t.cover_version?`images/track/${t.artwork_id}/${t.cover_version}`:`cover/${t.artwork_id}.jpg`;
+    const type=t.cover_version?(t.artwork_id===t.id?t.cover_type:t.original_cover_type):'image/jpeg';
+    return objectResponse(req,env,key,type,!!t.visible,{imageVersion:t.cover_version||'original'});
+   }
+   const fallback=await env.ASSETS.fetch(new Request(new URL('/assets/aifect-mark.svg',req.url),{method:req.method}));
+   const headers=new Headers(fallback.headers);headers.set('cache-control',imageCacheControl(req,!!t.visible,'aifect-mark'));
    return new Response(fallback.body,{status:fallback.status,headers});
   }
-  if(kind==='cover'&&t.cover_version)return objectResponse(req,env,`images/track/${t.id}/${t.cover_version}`,t.cover_type,!!t.visible,{imageVersion:t.cover_version});
-  return objectResponse(req,env,`${kind}/${t.id}.${kind==='cover'?'jpg':'m4a'}`,kind==='cover'?'image/jpeg':'audio/mp4',kind==='cover'&&!!t.visible);
+  return objectResponse(req,env,`${kind}/${t.id}.m4a`,'audio/mp4');
  }
  m=path.match(/^\/media\/(artist|producer|banner)\/([\w-]+)$/);
  if(m&&['GET','HEAD'].includes(method)){

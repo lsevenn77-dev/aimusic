@@ -1,3 +1,4 @@
+import {artworkURL} from './track-artwork.js';
 import {one,rows,run,json,fail,now} from './db.js';
 import {VISIBLE,trackList,published} from './catalog.js';
 import {mediaRoute} from './media.js';
@@ -9,7 +10,7 @@ export async function roomTrack(env,id){
  if(t.kind!=='original'||!t.rights_accepted||!await one(env,'SELECT track_id FROM voice_music_permissions WHERE track_id=? AND owner_id=? AND terms=?',t.id,t.user_id,VOICE_MUSIC_TERMS))fail(403,'권리자가 토킹룸 공동 감상을 허용한 원곡만 선택할 수 있어요.');
  const detail=(await trackList(env,'t.id=?',[t.id]))[0];
  if(!detail||!Number.isFinite(detail.duration)||detail.duration<=0)fail(409,'재생 가능한 음원을 준비하고 있어요.');
- return {id:detail.id,title:detail.title,artist:detail.artist||detail.producer,duration:detail.duration,cover:detail.has_cover?'/media/'+detail.id+'/cover?v='+encodeURIComponent(detail.cover_version||''):'/assets/voice-music-cover.svg'};
+ return {id:detail.id,title:detail.title,artist:detail.artist||detail.producer,duration:detail.duration,cover:artworkURL(detail)};
 }
 export async function voiceMusicRoute(req,env,user,room,action,b,call){
  if(!['music-search','music-consent','music','music-stream'].includes(action))return null;
