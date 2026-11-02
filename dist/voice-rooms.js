@@ -67,7 +67,11 @@ class VoiceRoomClient {
   if((state.music?.revision??-1)<(this.state?.music?.revision??-1))state.music=this.state.music;
   this.state=state;this.paint();void this.receive();return true;
  }
- status(message){const el=$('#voice-status');if(el)el.textContent=message;}
+ status(message,connected=false){
+  const el=$('#voice-status');if(!el)return;
+  el.textContent=message;
+  if(!this.liveMode)el.toggleAttribute?.('data-connected',connected);
+ }
  async safe(fn){try{await fn();}catch(e){this.status(e.message);toast(e.message);}}
  bind(host){this.host=host;if(!this.liveMode){this.waitForMusicGesture??=!this.levelContext;try{const v=localStorage.getItem('aifect.talkingRoom.listenVolume');if(v!==null&&Number.isFinite(Number(v)))this.preferences.music=Math.max(0,Math.min(1,Number(v)));}catch{}}this.resumeSound();$('#voice-join').onclick=()=>{if(this.closed){voiceController=new VoiceRoomClient(this.id);voiceController.bind(host);}else this.safe(()=>this.join());};const unlock=()=>{const blocked=this.waitForMusicGesture||this.host.querySelector('[data-voice=resume-audio]')?.hidden===false;this.waitForMusicGesture=false;if(this.liveMode||blocked)this.resumeSound();};host.onpointerdown=unlock;host.onclick=e=>{unlock();const b=e.target.closest('[data-voice]');if(b)this.safe(()=>this.action(b.dataset.voice,b.dataset.target,b));};
   this.bindFinalControls();const chat=$('#voice-chat-form');chat.onsubmit=busyForm(chat,async()=>{const body=chat.elements.body.value;this.chatPending=this.chatPending?.body===body?this.chatPending:{body,request_id:crypto.randomUUID()};await this.command('chat',this.chatPending);this.toggleEmojiPicker(false);if(this.liveMode||chat.elements.body.value===body)chat.reset();this.chatPending=null;await this.refresh();});
@@ -86,12 +90,20 @@ class VoiceRoomClient {
    if(this.closed){void voiceRequest(this.path('leave'),{generation:s.generation}).catch(()=>{});return;}
    this.generation=s.generation;this.state=s;if(typeof VoiceDiagnostics!=='undefined'&&!this.diagnostics)this.diagnostics=new VoiceDiagnostics(this);this.joined=true;setVoiceFocus(true);this.onViewport?.();this.retries=0;this.paint();this.socket();
    clearInterval(this.heartbeat);this.heartbeat=setInterval(()=>this.refresh().catch(e=>this.connectionError(e)),20000);
-   this.status('실시간 연결됨 · 청취 중');await this.receive();
+   if(this.liveMode)this.status('실시간 연결됨 · 청취 중');await this.receive();
    void api('/api/dm').then(d=>{if(!this.closed&&$('#voice-contacts'))$('#voice-contacts').innerHTML='<option value="">친구 선택</option>'+d.conversations.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');}).catch(()=>{});
   }finally{this.joining=false;if(this.host?.isConnected&&!this.joined&&!this.closed)$('#voice-entry').hidden=false;}
  }
  connectionError(e){if([401,403,404,409].includes(e.status)){this.status(e.message);this.leave(false);return;}this.reconnect();}
- socket(){this.ws?.close();const u=new URL('/api/voice/'+this.path('socket'),location.href);u.searchParams.set('generation',this.generation);u.protocol=u.protocol==='https:'?'wss:':'ws:';const ws=this.ws=new WebSocket(u);ws.onmessage=e=>{try{const v=JSON.parse(e.data);if(v.type==='state'){this.acceptState(v.state);return;}if(v.type==='music'&&this.state){if(v.music?.revision>=(this.state.music?.revision??-1)){this.state.music=v.music;this.paintMusic();}return;}if(v.type==='gift')this.animateGift(v);this.refresh().catch(err=>this.connectionError(err));}catch{}};ws.onclose=e=>{if(!this.closed&&this.joined&&this.ws===ws){if([4000,4001].includes(e.code)){this.status('입장 정보가 바뀌었어요. 다시 입장해주세요.');this.leave(false);return;}clearTimeout(this.socketRetry);this.socketRetry=setTimeout(()=>{if(!this.closed)this.socket();},3000);}};}
+ socket(){this.ws?.close();const u=new URL('/api/voice/'+this.path('socket'),location.href);u.searchParams.set('generation',this.generation);u.protocol=u.protocol==='https:'?'wss:':'ws:';const ws=this.ws=new WebSocket(u);
+  if(!this.liveMode){
+   ws.onopen=()=>{
+    if(this.closed||this.ws!==ws)return;
+    const blocked=this.host.querySelector('[data-voice=resume-audio]')?.hidden===false;
+    this.status(blocked?'실시간 연결됨 · 청취 대기':'실시간 연결됨 · 청취 중',true);
+   };
+  }
+  ws.onmessage=e=>{try{const v=JSON.parse(e.data);if(v.type==='state'){this.acceptState(v.state);return;}if(v.type==='music'&&this.state){if(v.music?.revision>=(this.state.music?.revision??-1)){this.state.music=v.music;this.paintMusic();}return;}if(v.type==='gift')this.animateGift(v);this.refresh().catch(err=>this.connectionError(err));}catch{}};ws.onclose=e=>{if(!this.closed&&this.joined&&this.ws===ws){if([4000,4001].includes(e.code)){this.status('입장 정보가 바뀌었어요. 다시 입장해주세요.');this.leave(false);return;}if(!this.liveMode)this.status('실시간 연결 복구 중…');clearTimeout(this.socketRetry);this.socketRetry=setTimeout(()=>{if(!this.closed)this.socket();},3000);}};}
  async refresh(){if(this.closed||!this.joined)return;if(this.refreshing){this.refreshAgain=true;return;}this.refreshing=true;const epoch=this.epoch;try{const started=Date.now(),state=await this.command('heartbeat');if(state.serverNow)this.musicClock=state.serverNow-(started+Date.now())/2;if(this.closed||epoch!==this.epoch)return;if(state.revision<(this.state?.revision??-1))return;if((state.music?.revision??-1)<(this.state?.music?.revision??-1))state.music=this.state.music;this.state=state;this.paint();await this.receive();}catch(e){if(!this.closed&&epoch===this.epoch)throw e;}finally{this.refreshing=false;if(this.refreshAgain){this.refreshAgain=false;void this.refresh().catch(e=>this.connectionError(e));}}}
  paint(){if(!this.host?.isConnected||!this.state)return;const s=this.state,self=s.members.find(p=>p.id===s.self);if(!self){this.leave(false);return;}$('#voice-entry').hidden=true;$('#voice-content').hidden=false;$('#voice-title').textContent=s.room.title;$('#voice-title').title=s.room.title;$('#voice-count').textContent=`전체 ${s.members.length}명 · 좌석 참여 ${s.members.filter(p=>p.seat!==null).length}명`;
   const person=p=>'<button class="voice-person" data-voice-person="'+esc(p.id)+'" data-level-user="'+esc(p.id)+'">'+avatarImage({name:p.name,profile_id:p.profile_id,image_version:p.image_version})+'<strong>'+esc(p.name)+'</strong><small>'+ (p.role==='host'?'방장':p.role==='admin'?'관리자':p.seat===null?'청취자':p.muted?'음소거':'마이크 켜짐')+'</small></button>';
@@ -216,7 +228,11 @@ class VoiceRoomClient {
  updateListening(){
   const button=this.host?.querySelector('[data-voice="resume-audio"]');if(!button)return;
   const blocked=this.musicBlocked||this.levelContext&&this.levelContext.state!=='running'||[...(this.audios?.values()||[])].some(a=>a.voiceBlocked);
+  const changed=button.hidden===Boolean(blocked);
   button.hidden=!blocked;
+  if(changed&&!this.liveMode&&this.ws?.readyState===1&&$('#voice-status')?.hasAttribute('data-connected')){
+   this.status(blocked?'실시간 연결됨 · 청취 대기':'실시간 연결됨 · 청취 중',true);
+  }
  }
  playRemote(a){
   const active=()=>!this.closed&&[...this.audios.values()].includes(a);

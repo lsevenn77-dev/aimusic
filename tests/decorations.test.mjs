@@ -63,6 +63,9 @@ test('revocation and funding refund review disable equipped items; unknown SKU, 
  assert.equal((await f.call('/api/decorations/buy','POST',{sku:'frame_aurora_ring',period:'P7D',request_id:crypto.randomUUID()},null)).status,401);
 });
 test('all paid themes persist in create/settings; list/card/desktop/mobile resolve one SKU and fall back together',async t=>{
+ // Both responses include the current server second as well as the theme.
+ const snapshotTime=Date.now();
+ t.mock.method(Date,'now',()=>snapshotTime);
  const f=await decorationsFixture(t,{voice:true});for(const p of Object.values(DECORATIONS).filter(p=>p.kind==='TALKING_ROOM_THEME'))assert.equal((await f.buyUse(p.sku)).status,200);
  const request_id=crypto.randomUUID(),created=await f.call('/api/voice/rooms','POST',{request_id,title:'테마 테스트',visibility:'public',background:'theme_starlight_lounge'});
  assert.equal(created.status,201,JSON.stringify(created.body));const rid=created.body.room.id;

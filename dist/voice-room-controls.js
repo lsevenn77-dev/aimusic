@@ -204,6 +204,11 @@ Object.assign(VoiceRoomClient.prototype,{
   this.talkViewEvents?.abort();
   const events=this.talkViewEvents=new AbortController(),options={signal:events.signal};
   const dock=$('#talk-dock');
+  const popupIds={participants:'voice-members',settings:'voice-room-settings',sound:'voice-sound',share:'voice-invite-sheet'};
+  for(const button of this.host.querySelectorAll('.talk-header [data-voice]')){
+   const id=popupIds[button.dataset.voice];
+   if(id){button.setAttribute('aria-haspopup','dialog');button.setAttribute('aria-controls',id);button.setAttribute('aria-expanded','false');}
+  }
   this.talkTab='participants';
   this.host.querySelector('.talk-tools nav').onclick=e=>{
    const tab=e.target.closest('[data-talk-tab]');if(!tab)return;
@@ -222,6 +227,7 @@ Object.assign(VoiceRoomClient.prototype,{
   this.host.addEventListener('close',e=>{
    if(this.talkPopup!==e.target||e.target.open)return;
    this.talkPopup=null;
+   this.host.querySelector('.talk-header [aria-expanded=true]')?.setAttribute('aria-expanded','false');
    if(e.target.id==='talk-themes'&&this.themeFromPopup&&this.state.self===this.state.room.host_id){
     this.themeFromPopup=false;
     this.showTalkPopup('voice-room-settings',this.popupTrigger);
@@ -230,6 +236,8 @@ Object.assign(VoiceRoomClient.prototype,{
    }
    const trigger=this.popupTrigger;this.popupTrigger=null;
    if(trigger?.isConnected)trigger.focus({preventScroll:true});
+   this.restoreTalkViewport();
+   this.talkPopupViewport=null;
   },{...options,capture:true});
   this.host.addEventListener('click',e=>{
    const dialog=this.talkPopup;
@@ -249,16 +257,29 @@ Object.assign(VoiceRoomClient.prototype,{
   document.addEventListener('pointerdown',this.onTalkPointer,options);
   document.addEventListener('keydown',this.onTalkEscape,options);
  },
+ restoreTalkViewport(){
+  const view=this.talkPopupViewport;
+  if(view&&this.canDock()&&(window.scrollX!==view.x||window.scrollY!==view.y)){
+   window.scrollTo({left:view.x,top:view.y,behavior:'instant'});
+  }
+ },
  showTalkPopup(id,trigger){
   const sheet=document.getElementById(id);if(!sheet)return;
   if(sheet===this.talkPopup&&sheet.open){sheet.close();return;}
   const previous=this.talkPopup,origin=trigger||document.activeElement;
+  const docked=this.canDock();
+  if(docked)this.talkPopupViewport??={x:window.scrollX,y:window.scrollY};
+  else this.talkPopupViewport=null;
   if(previous?.open)previous.close();
   this.popupTrigger=origin?.closest('dialog')?this.popupTrigger:origin;
   this.talkPopup=sheet;
-  sheet.classList.toggle('talk-over-chat',this.canDock());
-  if(this.canDock())sheet.show();else sheet.showModal();
+  this.host.querySelector('.talk-header [aria-expanded=true]')?.setAttribute('aria-expanded','false');
+  this.host.querySelector('.talk-header [aria-controls="'+id+'"]')?.setAttribute('aria-expanded','true');
+  if(docked)this.host.style.setProperty('--talk-popup-top',this.host.querySelector('.voice-chat-panel').offsetTop+4+'px');
+  sheet.classList.toggle('talk-over-chat',docked);
+  if(docked)sheet.show();else sheet.showModal();
   sheet.scrollTop=0;sheet.querySelector('.voice-dialog-close')?.focus({preventScroll:true});
+  this.restoreTalkViewport();
  },
  syncTalkField(field){
   if(field.closest('#voice-sound'))this.syncTalkSound();
