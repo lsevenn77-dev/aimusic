@@ -106,18 +106,22 @@ function mountFeatureCarousel(root,tracks,{renderSlide=releaseHTML,label='추천
  // Minimal DOM renderers used by navigation tests do not implement browser events.
  if(!root.addEventListener)return;
  const feature=root.querySelector('.home-feature'),stage=root.querySelector('.home-feature-stage'),motion=window.matchMedia('(prefers-reduced-motion: reduce)');
- let index=0,timer=null,fadeTimer=null,manualPause=false,hover=false,focus=false,start=null,suppressClick=false;
+ let index=0,timer=null,transitionTimer=null,manualPause=false,hover=false,focus=false,start=null,suppressClick=false;
  const syncPlayback=()=>{if(!syncAudio)return;const b=stage.querySelector?.('.home-feature-slide .home-feature-play');if(!b||typeof audio==='undefined')return;const playing=current?.id===tracks[index].id&&!audio.paused&&!audio.ended&&!window.AifectAudioAds?.active;b.innerHTML=icon(playing?'ui-pause-action':'ui-play-action');b.setAttribute('aria-pressed',String(playing));b.setAttribute('aria-label',tracks[index].title+(playing?' 일시정지':' 재생'));};
  const clear=()=>{clearTimeout(timer);timer=null;};
+ const clearTransition=()=>{clearTimeout(transitionTimer);transitionTimer=null;stage.querySelectorAll('.home-feature-outgoing').forEach(el=>el.remove());stage.removeAttribute('data-home-direction');};
  const schedule=()=>{clear();if(multi&&!start&&!manualPause&&!hover&&!focus&&!motion.matches&&!document.hidden)timer=setTimeout(()=>{if(!root.isConnected)return cleanup();go(index+1);},5500);};
  const go=value=>{
-  const target=(value+tracks.length)%tracks.length;if(coverflow&&target===index)return;index=target;
-  clearTimeout(fadeTimer);fadeTimer=null;
-  stage.querySelectorAll('.home-feature-outgoing').forEach(el=>el.remove());
+  const target=(value+tracks.length)%tracks.length;if(target===index){schedule();return;}
+  // Use the requested direction before wrapping the first/last slide index.
+  const direction=value>index?'next':'previous';index=target;clearTransition();
   const old=document.createElement('div');old.className='home-feature-outgoing';old.setAttribute('aria-hidden','true');old.inert=true;
   old.innerHTML=coverflow?(stage.querySelector('.home-feature-background')?.outerHTML||''):stage.innerHTML;
+  if(!coverflow)stage.setAttribute('data-home-direction',direction);
   stage.innerHTML=renderSlide(tracks[index],multi?tracks[(index+1)%tracks.length]:null,tracks,index);stage.append(old);syncPlayback();
-  old.addEventListener('animationend',()=>old.remove(),{once:true});if(motion.matches)old.remove();else if(coverflow)fadeTimer=setTimeout(()=>{old.remove();fadeTimer=null;},850);
+  const finish=e=>{if(e&&e.target!==old)return;if(stage.contains(old))clearTransition();};
+  old.addEventListener('animationend',finish);
+  if(motion.matches)finish();else transitionTimer=setTimeout(finish,coverflow?850:500);
   if(focus)focus=feature.contains(document.activeElement);
   feature.querySelectorAll('.home-feature-dots [data-home-slide]').forEach((b,i)=>b.setAttribute('aria-pressed',String(i===index)));schedule();
  };
@@ -163,8 +167,9 @@ function mountFeatureCarousel(root,tracks,{renderSlide=releaseHTML,label='추천
  const playbackEvents=['play','pause','ended','emptied','loadedmetadata'];
  if(syncAudio&&typeof audio!=='undefined')for(const event of playbackEvents)audio.addEventListener(event,syncPlayback);
  // Only the displayed artwork is eager; preview/remaining slides load on demand.
- document.addEventListener('visibilitychange',schedule);window.addEventListener('hashchange',cleanup);motion.addEventListener('change',schedule);
- function cleanup(){clear();clearTimeout(fadeTimer);for(const [name,fn,options] of listeners)feature.removeEventListener(name,fn,options);if(syncAudio&&typeof audio!=='undefined')for(const event of playbackEvents)audio.removeEventListener(event,syncPlayback);document.removeEventListener('visibilitychange',schedule);window.removeEventListener('hashchange',cleanup);motion.removeEventListener('change',schedule);}
+ const motionChange=()=>{if(motion.matches)clearTransition();schedule();};
+ document.addEventListener('visibilitychange',schedule);window.addEventListener('hashchange',cleanup);motion.addEventListener('change',motionChange);
+ function cleanup(){clear();clearTransition();for(const [name,fn,options] of listeners)feature.removeEventListener(name,fn,options);if(syncAudio&&typeof audio!=='undefined')for(const event of playbackEvents)audio.removeEventListener(event,syncPlayback);document.removeEventListener('visibilitychange',schedule);window.removeEventListener('hashchange',cleanup);motion.removeEventListener('change',motionChange);}
  schedule();return cleanup;
 }
 function updateHomeAccount(){

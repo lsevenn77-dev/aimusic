@@ -8,13 +8,14 @@ function setup(reduced=false){
  const dots=Array.from({length:3},()=>({setAttribute(k,v){this[k]=v;}}));
  const playButton={setAttribute(k,v){this[k]=v;}};
  const outgoing=[];
- const stage={innerHTML:'one',querySelectorAll:()=>outgoing,querySelector:s=>s==='.home-feature-background'?{outerHTML:'<div class="home-feature-background">old-art</div>'}:playButton,append(el){outgoing.push(el);}};
+ const stageAttributes=new Map();
+ const stage={innerHTML:'one',querySelectorAll:()=>outgoing,querySelector:s=>s==='.home-feature-background'?{outerHTML:'<div class="home-feature-background">old-art</div>'}:playButton,append(el){outgoing.push(el);},contains:el=>outgoing.includes(el),setAttribute:(k,v)=>stageAttributes.set(k,v),getAttribute:k=>stageAttributes.get(k),removeAttribute:k=>stageAttributes.delete(k)};
  const feature={querySelectorAll:()=>dots,contains:target=>target===feature,addEventListener:(n,f)=>events.set(n,f),removeEventListener:n=>events.delete(n)};
  const root={isConnected:true,innerHTML:'',addEventListener(){},querySelector:s=>s==='.home-feature'?feature:stage};
  const motion={matches:reduced,addEventListener:(n,f)=>globalEvents.set('motion',f),removeEventListener:()=>globalEvents.delete('motion')};
- const document={hidden:false,addEventListener:(n,f)=>globalEvents.set(n,f),removeEventListener:n=>globalEvents.delete(n),createElement:()=>({setAttribute(){},addEventListener(){},remove(){const i=outgoing.indexOf(this);if(i>=0)outgoing.splice(i,1);}})};
+ const document={hidden:false,addEventListener:(n,f)=>globalEvents.set(n,f),removeEventListener:n=>globalEvents.delete(n),createElement:()=>({setAttribute(){},addEventListener(name,fn){this[name]=fn;},remove(){const i=outgoing.indexOf(this);if(i>=0)outgoing.splice(i,1);}})};
  const audioEvents=new Map(),audio={paused:true,ended:false,addEventListener:(n,f)=>audioEvents.set(n,f),removeEventListener:n=>audioEvents.delete(n)};
- const c=vm.createContext({document,audio,current:null,window:{matchMedia:()=>motion,addEventListener:(n,f)=>globalEvents.set(n,f),removeEventListener:n=>globalEvents.delete(n)},setTimeout:(f,delay)=>{assert.ok([5500,850].includes(delay));(delay===850?fades:timers).set(++serial,f);return serial;},clearTimeout:id=>{timers.delete(id);fades.delete(id);},esc:String,icon:n=>n});
+ const c=vm.createContext({document,audio,current:null,window:{matchMedia:()=>motion,addEventListener:(n,f)=>globalEvents.set(n,f),removeEventListener:n=>globalEvents.delete(n)},setTimeout:(f,delay)=>{assert.ok([5500,850,500].includes(delay));(delay===5500?timers:fades).set(++serial,f);return serial;},clearTimeout:id=>{timers.delete(id);fades.delete(id);},esc:String,icon:n=>n});
  vm.runInContext(readFileSync(new URL('../dist/home.js',import.meta.url),'utf8'),c);c.releaseHTML=t=>t.id;
  const tracks=['one','two','three'].map(id=>({id,title:id}));
  const mount=list=>c.mountFeatureCarousel(root,list||tracks,{coverflow:true});
@@ -130,4 +131,35 @@ test('cancelled swipes restart a full interval without overriding manual pause o
   assert.equal(f.stage.innerHTML,'two');assert.equal(f.timers.size,0);
   f.globalEvents.get('hashchange')();assert.equal(f.events.size,0);assert.equal(f.globalEvents.size,0);
  }
+});
+
+test('banner slide direction follows next/previous through wraparound and dots select the matching banner',()=>{
+ const f=setup(),tracks=['one','two','three'].map(id=>({id,title:id}));
+ f.c.mountFeatureCarousel(f.root,tracks);
+ const next={matches:s=>s==='.home-feature-next,[data-home-next]',hasAttribute:()=>false};
+ const previous={matches:s=>s==='.home-feature-prev',hasAttribute:()=>false};
+ const select=button=>f.fire('click',{target:{closest:()=>button}});
+ for(const id of ['two','three','one']){select(next);assert.equal(f.stage.innerHTML,id);assert.equal(f.stage.getAttribute('data-home-direction'),'next');assert.equal(f.outgoing.length,1);}
+ select(previous);assert.equal(f.stage.innerHTML,'three');assert.equal(f.stage.getAttribute('data-home-direction'),'previous');
+ const dot={matches:()=>false,hasAttribute:n=>n==='data-home-slide',dataset:{homeSlide:'1'}};
+ select(dot);assert.equal(f.stage.innerHTML,'two');assert.equal(f.dots[1]['aria-pressed'],'true');assert.equal(f.stage.getAttribute('data-home-direction'),'previous');
+ const outgoing=f.outgoing[0];select(dot);assert.equal(f.outgoing[0],outgoing);assert.equal(f.outgoing.length,1);
+});
+
+test('rapid banner transitions ignore stale and child animation completions and clear after the latest transition',()=>{
+ const f=setup();f.c.mountFeatureCarousel(f.root,['one','two','three'].map(id=>({id,title:id})),{syncAudio:false});
+ f.advance();const stale=f.outgoing[0],staleFallback=[...f.fades.values()][0];assert.equal(stale.innerHTML,'one');assert.equal(stale.inert,true);
+ f.advance();const latest=f.outgoing[0];assert.equal(latest.innerHTML,'two');assert.equal(f.stage.innerHTML,'three');assert.equal(f.outgoing.length,1);
+ stale.animationend({target:stale});staleFallback();latest.animationend({target:{}});
+ assert.equal(f.outgoing.length,1);assert.equal(f.stage.getAttribute('data-home-direction'),'next');assert.equal(f.fades.size,1);
+ latest.animationend({target:latest});assert.equal(f.outgoing.length,0);assert.equal(f.stage.getAttribute('data-home-direction'),undefined);assert.equal(f.fades.size,0);
+ f.advance();const fallback=[...f.fades.values()][0];fallback();assert.equal(f.outgoing.length,0);assert.equal(f.fades.size,0);
+});
+
+test('motion reduction and navigation dispose an active sliding banner without leaving an old scene',()=>{
+ const f=setup();f.c.mountFeatureCarousel(f.root,[{id:'one',title:'One'},{id:'two',title:'Two'}]);
+ f.advance();assert.equal(f.outgoing.length,1);
+ f.motion.matches=true;f.globalEvents.get('motion')();assert.equal(f.outgoing.length,0);assert.equal(f.fades.size,0);assert.equal(f.timers.size,0);assert.equal(f.stage.getAttribute('data-home-direction'),undefined);
+ f.motion.matches=false;f.globalEvents.get('motion')();f.advance();assert.equal(f.outgoing.length,1);
+ f.globalEvents.get('hashchange')();assert.equal(f.outgoing.length,0);assert.equal(f.fades.size,0);assert.equal(f.timers.size,0);assert.equal(f.events.size,0);
 });
