@@ -4,7 +4,10 @@ Object.assign(VoiceRoomClient.prototype,{
   const form=$('#voice-chat-form'),input=$('#voice-message');
   input.onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing&&e.keyCode!==229){e.preventDefault();if(input.value.trim())form.requestSubmit();}};
   this.host.querySelector('.voice-chat-panel').addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#voice-emoji-picker').hidden){e.preventDefault();e.stopPropagation();this.toggleEmojiPicker(false,true);}});
-  $('#voice-settings-form').onsubmit=busyForm($('#voice-settings-form'),async()=>{const values=Object.fromEntries(new FormData($('#voice-settings-form')));await this.command('settings',{...values,max_members:Number(values.max_members),revision:this.settingsRevision});await this.refresh();if(this.liveMode)window.dispatchEvent(new Event('aifect:room-theme'));if(!$('#voice-room-settings').classList.contains('talk-docked'))$('#voice-room-settings').close();else await this.openSettings();});
+  if(this.host.classList?.contains('talking-room')){
+   const settings=$('#voice-settings-form');settings.classList.add('talk-settings-form');
+   settings.onsubmit=busyForm(settings,()=>this.saveTalkSettings(settings));this.bindTalkViews();
+  }else $('#voice-settings-form').onsubmit=busyForm($('#voice-settings-form'),async()=>{const values=Object.fromEntries(new FormData($('#voice-settings-form')));await this.command('settings',{...values,max_members:Number(values.max_members),revision:this.settingsRevision});await this.refresh();if(this.liveMode)window.dispatchEvent(new Event('aifect:room-theme'));if(!$('#voice-room-settings').classList.contains('talk-docked'))$('#voice-room-settings').close();else await this.openSettings();});
   const supported=navigator.mediaDevices?.getSupportedConstraints?.()||{};
   for(const [id,key] of [['voice-echo','echoCancellation'],['voice-noise','noiseSuppression']])if(supported[key]===false){$('#'+id).disabled=true;$('#'+id).title='이 브라우저에서 지원하지 않는 설정이에요.';}
   $('#voice-echo').checked=this.preferences.echo;$('#voice-echo').onchange=()=>this.safe(async()=>{this.preferences.echo=$('#voice-echo').checked;await this.stream?.getAudioTracks()[0]?.applyConstraints({echoCancellation:this.preferences.echo});});
@@ -13,7 +16,7 @@ Object.assign(VoiceRoomClient.prototype,{
   this.host.addEventListener('cancel',e=>{if(e.target.id==='voice-sound')this.stopMicTest();},true);
   this.host.addEventListener('input',e=>{if(e.target.id==='voice-mini-volume'||e.target.id==='voice-personal-volume'){this.preferences.music=Number(e.target.value)/100;this.syncPersonalVolume();this.syncMusic();}});
   const picker=this.host.querySelector('#talk-theme-choices');
-  if(picker)picker.onsubmit=e=>{e.preventDefault();$('#voice-settings-form').elements.theme_sku.value=picker.elements.background.value;$('#talk-themes').close();};
+  if(picker)picker.onsubmit=e=>{e.preventDefault();if(!picker.elements.background?.value)return;const field=$('#voice-settings-form').elements.theme_sku;field.value=picker.elements.background.value;this.syncTalkField(field);$('#talk-themes').close();};
   // No room track list is queried until the host submits a search.
   $('#voice-music-results').innerHTML='';
   this.host.addEventListener('input',e=>this.updateDesignField(e.target));
@@ -26,8 +29,8 @@ Object.assign(VoiceRoomClient.prototype,{
  },
  updateDesignField(el){
   if(el?.type==='range'){const pct=(Number(el.value)-Number(el.min||0))/(Number(el.max||100)-Number(el.min||0))*100;el.style.setProperty('--range-fill',pct+'%');const output=this.host.querySelector(`[data-value-for="${el.id}"]`);if(output)output.textContent=Math.round(el.value)+'%';}
-  if(el?.name==='announcement')$('#voice-notice-length').textContent=el.value.length+'/200';
-  if(el?.name==='visibility'){const field=this.host.querySelector('.voice-crew-setting');if(field)field.hidden=$('#voice-settings-form').elements.visibility.value!=='crew';}
+  if(el?.name==='announcement')el.form.querySelector('output').textContent=el.value.length+'/200';
+  if(el?.name==='visibility'){const field=el.form?.querySelector('.voice-crew-setting');if(field)field.hidden=el.form.elements.visibility.value!=='crew';}
  },
  closeMemberTools(focus=false){const id=this.memberTarget,box=$('#voice-member-tools');if(box){box.hidden=true;box.innerHTML='';}this.memberTarget=null;for(const b of this.host.querySelectorAll('.voice-member-more')){b.setAttribute('aria-expanded','false');if(focus&&b.dataset.target===id)b.focus();}},
  paintFinalControls(){
@@ -54,7 +57,7 @@ Object.assign(VoiceRoomClient.prototype,{
   const own=id===self.id,locked=own?'disabled':'',box=$('#voice-member-tools');
   box.innerHTML=`<section class="voice-member-tools" aria-label="${esc(p.name)} 관리 메뉴">${p.profile_id?`<a href="#producer/${esc(p.profile_id)}">${voiceGlyph('person')}프로필 보기</a>`:''}<button type="button" data-voice="member-invite" ${own||p.seat!==null||!empty.length?'disabled':''}>${voiceGlyph('plus')}자리로 초대</button>${p.seat!==null&&!own?`<label>이동할 빈 좌석<select id="voice-move-seat" ${empty.length?'':'disabled'}>${empty.map(i=>`<option value="${i}">${i+1}번 자리</option>`).join('')}</select></label><button type="button" data-voice="member-move" ${empty.length?'':'disabled'}>${voiceGlyph('share')}자리 이동</button>`:''}<button type="button" data-voice="member-remove" ${own||p.seat===null?'disabled':''}>${voiceGlyph('leave')}자리에서 제거</button><button type="button" data-voice="${p.locked?'unlock':'mute-user'}" data-target="${esc(id)}" ${own||p.seat===null?'disabled':''}>${icon('mic')}${p.locked?'마이크 제한 해제':'마이크 끄기'}</button><button type="button" class="danger" data-voice="ask-kick" data-target="${esc(id)}" ${locked}>${voiceGlyph('ban')}강퇴</button></section>`;
   box.hidden=false;
-  const button=[...this.host.querySelectorAll('.voice-member-more')].find(b=>b.dataset.target===id),anchor=button.getBoundingClientRect(),dialog=$('#voice-members').getBoundingClientRect();
+  const button=[...$('#voice-members').querySelectorAll('.voice-member-more')].find(b=>b.dataset.target===id),anchor=button.getBoundingClientRect(),dialog=$('#voice-members').getBoundingClientRect();
   box.style.left=Math.max(dialog.left+10,Math.min(anchor.right-box.offsetWidth,dialog.right-box.offsetWidth-10))+'px';
   box.style.top=Math.max(dialog.top+65,Math.min(anchor.bottom+5,window.innerHeight-box.offsetHeight-12))+'px';
   button.setAttribute('aria-expanded','true');box.querySelector('a,button:not(:disabled)')?.focus();
@@ -64,34 +67,22 @@ Object.assign(VoiceRoomClient.prototype,{
   this.invitingSeat=seat;this.showSheet('voice-seat-picker');
   $('#voice-seat-candidates').innerHTML=this.state.members.filter(p=>p.seat===null).map(p=>`<button type="button" class="voice-member-row" data-voice="invite-seat-user" data-target="${esc(p.id)}">${avatarImage({name:p.name,profile_id:p.profile_id,image_version:p.image_version})}<span>${esc(p.name)}</span></button>`).join('')||'<p class="quiet">현재 청취 중인 참여자가 없어요.</p>';
  },
- canDock(){return !this.liveMode&&window.innerWidth>800&&this.host.clientWidth>=740;},
- updateTalkDock(){
-  if(this.liveMode||!this.state||!this.host.isConnected)return;
-  const desktop=this.canDock();
-  if(!desktop){
-   for(const sheet of this.host.querySelectorAll('#talk-dock dialog')){
-    if(sheet.open)sheet.close();sheet.classList.remove('talk-docked');$('#voice-content').append(sheet);
-   }
-  }
-  const owner=this.state.room.host_id===this.state.self;
-  const key=desktop+':'+owner;
-  if(this.dockKey===key)return;
-  this.dockKey=key;
-  if(desktop&&owner)this.safe(()=>this.openSettings(true));
- },
+ canDock(){return !this.liveMode&&window.innerWidth>800&&window.innerHeight>=600&&this.host.clientWidth>=740;},
  paintTalkPanel(self,micOn){
   const s=this.state,owner=self.id===s.room.host_id;
-  for(const b of this.host.querySelectorAll('.talk-header [data-voice=settings],.talk-tools [data-voice=settings],.talk-tools [data-voice=music-picker]'))b.hidden=!owner;
-  if(!owner)for(const id of ['voice-room-settings','voice-music-sheet','talk-themes']){const sheet=$('#'+id);if(sheet?.open)sheet.close();}
+  // Inheriting the host seat grants control, not permission to start capturing audio.
+  if(owner&&this.previousTalkHost&&this.previousTalkHost!==self.id)this.warmSeat=this.generation;
+  this.previousTalkHost=s.room.host_id;
+  if(!owner&&$('#talk-themes')?.open)$('#talk-themes').close();
   const applicant=owner?s.members.find(m=>m.requested):null;
-  const request=$('#talk-request'),key=JSON.stringify([applicant?.id,applicant?.name,applicant?.image_version,self.requested,self.locked,self.seat,micOn]);
+  const request=$('#talk-request'),key=JSON.stringify([applicant?.id,applicant?.name,this.micState,self.requested,self.locked,self.seat,micOn]);
   if(this.talkRequestKey!==key){
    this.talkRequestKey=key;
-   if(applicant)request.innerHTML=avatarImage({name:applicant.name,profile_id:applicant.profile_id,image_version:applicant.image_version})+`<span>${esc(applicant.name)}님의 좌석 신청</span><button type="button" data-voice="reject-mic" data-target="${esc(applicant.id)}">거절</button><button type="button" data-voice="approve-mic" data-target="${esc(applicant.id)}">수락</button>`;
-   else request.textContent=self.requested?'좌석 신청 중':self.locked?'마이크 사용 제한':self.seat===null?'좌석을 선택해 대화에 참여하세요.':micOn?'내 마이크 켜짐':'내 마이크 꺼짐';
+   if(applicant)request.innerHTML=`<span>${esc(applicant.name)}님의 좌석 신청</span><button type="button" data-voice="reject-mic" data-target="${esc(applicant.id)}">거절</button><button type="button" data-voice="approve-mic" data-target="${esc(applicant.id)}">수락</button>`;
+   else request.textContent=self.requested?'좌석 신청 중':self.locked?'마이크 사용 제한':self.seat===null?'좌석을 선택해 대화에 참여하세요.':this.micState==='failed'?'마이크 연결 실패 · 다시 시도해주세요.':this.micBusy?'마이크 연결 중…':micOn?'내 마이크 켜짐':'내 마이크 꺼짐';
   }
   const mic=this.host.querySelector('.talk-central [data-voice=toggle-mic]');
-  if(mic.dataset.on!==String(micOn)){mic.dataset.on=String(micOn);mic.innerHTML=micOn?icon('mic'):voiceGlyph('muted');}
+  if(mic.dataset.on!==String(micOn)){mic.dataset.on=String(micOn);mic.innerHTML=voiceGlyph(micOn?'talkMic':'talkMicOff')+'<span class="talk-switch" aria-hidden="true"></span><span class="talk-switch-label">'+(micOn?'ON':'OFF')+'</span>';}
   mic.disabled=self.locked||self.seat===null;
   mic.setAttribute('aria-pressed',String(micOn));mic.setAttribute('aria-label',micOn?'내 마이크 끄기':'내 마이크 켜기');
   mic.setAttribute('aria-busy',String(!!this.micBusy));
@@ -102,19 +93,19 @@ Object.assign(VoiceRoomClient.prototype,{
   }
   this.updateTalkDock();
  },
- async openSettings(automatic=false){
+ async openSettings(){
+  if(!this.liveMode){this.showSheet('voice-room-settings');this.updateTalkSettings();return;}
   const s=this.state.room,form=$('#voice-settings-form'),ticket=this.settingsTicket=(this.settingsTicket||0)+1;
   const options=await voiceRequest('options');
-  if(this.closed||ticket!==this.settingsTicket||(!this.liveMode&&this.state.self!==this.state.room.host_id)||automatic&&!this.canDock())return;
+  if(this.closed||ticket!==this.settingsTicket)return;
   this.settingsRevision=s.settings_revision||0;
   $('#voice-settings-crew').innerHTML='<option value="">크루 선택</option>'+options.crews.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
   for(const key of ['title','visibility','max_members','crew_id','background','announcement'])if(form.elements[key])form.elements[key].value=s[key]??({background:'navy',max_members:30,announcement:''}[key]||'');
   this.updateDesignField(form.elements.announcement);this.updateDesignField(form.elements.visibility[0]);
   const theme=await voiceRequest(this.path('theme'));
-  if(this.closed||ticket!==this.settingsTicket||automatic&&!this.canDock()||(!this.liveMode&&this.state.self!==this.state.room.host_id))return;
-  if(automatic&&$('#talk-dock dialog[open]'))return;
-  if(this.liveMode)fillRoomThemeChoices(form,options,theme.theme.sku);
-  else form.elements.theme_sku.value=theme.theme.sku;
+  if(this.closed||ticket!==this.settingsTicket)return;
+
+  fillRoomThemeChoices(form,options,theme.theme.sku);
   this.showSheet('voice-room-settings');
  },
  toggleEmojiPicker(open,focus=false){
@@ -124,16 +115,29 @@ Object.assign(VoiceRoomClient.prototype,{
   if(focus)button?.focus();
  },
  async finalAction(action,target){
+  if(action==='view-queue'){this.showSheet('voice-music-sheet');return true;}
+  if(action==='personal-mute'){const current=this.preferences.music;if(current)this.lastPersonalVolume=current;this.preferences.music=current?0:(this.lastPersonalVolume||1);this.syncPersonalVolume();this.syncMusic();return true;}
   if(action==='personal-volume'){this.syncPersonalVolume();this.showSheet('talk-volume');return true;}
   if(action==='theme-picker'){
    if(this.state.self!==this.state.room.host_id)return true;
-   const options=await voiceRequest('options');
-   if(this.closed||this.state.self!==this.state.room.host_id)return true;
-   fillRoomThemeChoices($('#talk-theme-choices'),options,$('#voice-settings-form').elements.theme_sku.value);
-   this.showSheet('talk-themes');return true;
+   const sheet=$('#talk-themes'),picker=$('#talk-theme-choices');
+   const ticket=this.themePickerTicket=(this.themePickerTicket||0)+1;
+   this.themeFromPopup=$('#voice-room-settings').open;
+   const choices=picker.querySelector('.voice-backgrounds'),submit=picker.querySelector('[type=submit]');
+   choices.textContent='사용 가능한 테마를 불러오는 중…';submit.disabled=true;
+   this.showSheet('talk-themes');
+   try{
+    const options=await voiceRequest('options');
+    if(!sheet.open||this.closed||ticket!==this.themePickerTicket||this.state.self!==this.state.room.host_id)return true;
+    fillRoomThemeChoices(picker,options,$('#voice-settings-form').elements.theme_sku.value);
+    submit.disabled=!picker.elements.background?.value;
+   }catch(error){
+    if(sheet.open&&ticket===this.themePickerTicket)choices.textContent=error.message;
+   }
+   return true;
   }
   if(action==='panel-chat'){for(const sheet of this.host.querySelectorAll('.voice-panel-docked[open]'))sheet.close();return true;}
-  if(action==='member-menu'){this.memberTools(target);return true;}
+  if(action==='member-menu'){if(!this.liveMode&&this.actionTrigger?.closest('#talk-dock')){this.showSheet('voice-members');}this.memberTools(target);return true;}
   if(action==='music-down'){await this.musicCommand('move',{index:Number(target),to:Number(target)+1});return true;}
   if(action==='settings'){await this.openSettings();return true;}
   if(action==='emoji'){this.toggleEmojiPicker($('#voice-emoji-picker').hidden);return true;}
@@ -155,7 +159,7 @@ Object.assign(VoiceRoomClient.prototype,{
   if(action==='diagnostics-export'){this.diagnostics?.download();return true;}
   return false;
  },
- syncPersonalVolume(){if(!this.liveMode){try{localStorage.setItem('aifect.talkingRoom.listenVolume',String(this.preferences.music));}catch{}}for(const id of ['voice-music-volume','voice-playlist-volume','voice-mini-volume','voice-personal-volume']){const el=$('#'+id);if(el){el.value=this.preferences.music*100;this.updateDesignField(el);}}},
+ syncPersonalVolume(){if(!this.liveMode){this.host?.querySelector?.('[data-voice=personal-mute]')?.setAttribute('aria-pressed',String(this.preferences.music===0));try{localStorage.setItem('aifect.talkingRoom.listenVolume',String(this.preferences.music));}catch{}}for(const id of ['voice-music-volume','voice-playlist-volume','voice-mini-volume','voice-personal-volume']){const el=$('#'+id);if(el){el.value=this.preferences.music*100;this.updateDesignField(el);}}if(!this.liveMode&&this.talkTab==='sound')this.syncTalkSound();},
  paintFinalMusic(){
   const m=this.state.music;if(!m)return;const host=this.state.members.find(p=>p.id===this.state.self)?.role==='host',track=m.queue[m.index],hasQueue=!!m.queue.length;
   $('#voice-host-audio').hidden=!host||!this.liveMode;$('#voice-room-volume').value=m.volume*100;$('#voice-balance').value=m.balance*100;
@@ -170,10 +174,10 @@ Object.assign(VoiceRoomClient.prototype,{
    if(!this.liveMode){
     const cover=`<img src="${esc(track?.cover||'/assets/voice-music-cover.svg')}" alt="">`;
     const mini=$('#voice-music-player');mini.classList.toggle('talk-host-player',host);
-    const art=host?`<button type="button" class="talk-cover" data-voice="music-picker" aria-label="플레이리스트 편집">${cover}</button>`:cover;
-    const info=`<span class="talk-track"><strong>${esc(track?.title||'선택된 곡이 없어요')}</strong><small>${esc(track?.artist||(host?'썸네일로 곡 추가':'방장의 선곡을 기다리는 중'))}</small></span>`;
+    const art=host?`<button type="button" class="talk-cover" data-voice="music-picker" aria-label="플레이리스트 편집">${cover}</button>`:`<button type="button" class="talk-cover" data-voice="view-queue" aria-label="플레이리스트 보기">${cover}</button>`;
+    const info=`<span class="talk-track" title="${esc([track?.title,track?.artist].filter(Boolean).join(' · '))}"><strong>${esc(track?.title||'선택된 곡이 없어요')}</strong><small>${esc(track?.artist||(host?'썸네일로 곡 추가':'방장의 선곡을 기다리는 중'))}</small></span>`;
     const transport=host?button('previous','이전 곡',voiceGlyph('previous'),!hasQueue)
-      +button(m.playing?'pause':'play',m.playing?'일시정지':'재생',icon(m.playing?'pause':'audio-play'),!hasQueue)
+      +button(m.playing?'pause':'play',m.playing?'일시정지':'재생',voiceGlyph(m.playing?'talkPause':'talkPlay'),!hasQueue)
       +button('next','다음 곡',voiceGlyph('next'),!hasQueue):'';
     mini.innerHTML=art+info+`<div>${transport}<button type="button" data-voice="personal-volume" aria-label="개인 듣기 볼륨">${icon('volume')}</button></div>`;
    }else $('#voice-music-player').innerHTML=(track?`<img src="${esc(track.cover)}" alt=""><span><strong>${esc(track.title)}</strong><small>${esc(track.artist)}</small></span>`:'<span><strong>함께 들을 음악을 선택해보세요</strong></span>')+`<div>${host?button('previous','이전 곡',voiceGlyph('previous'),!hasQueue)+button(m.playing?'pause':'play',m.playing?'일시정지':'재생',(m.playing?icon('pause'):icon('audio-play')),!hasQueue)+button('next','다음 곡',voiceGlyph('next'),!hasQueue)+button('repeat','반복',voiceGlyph('repeat'),!hasQueue):''}<label class="voice-mini-volume">${icon('volume')}<input id="voice-mini-volume" type="range" min="0" max="100" value="${this.preferences.music*100}" aria-label="개인 음악 볼륨"></label>${button('picker','플레이리스트',voiceGlyph('playlist'))}</div>`;
@@ -192,4 +196,173 @@ Object.assign(VoiceRoomClient.prototype,{
   clearTimeout(this.micTestTimer);this.micTestTimer=setTimeout(()=>this.stopMicTest(),30000);
  },
  stopMicTest(){this.testAttempt=(this.testAttempt||0)+1;clearTimeout(this.micTestTimer);if(this.testOwned){this.testGraph?.close();this.testRaw?.getTracks().forEach(t=>t.stop());}this.testRaw=null;this.testGraph=null;this.testOwned=false;const button=this.host?.querySelector('[data-voice="mic-test"]');if(button)button.textContent='테스트 시작';const meter=$('#voice-input-meter');if(meter)meter.value=0;}
+});
+// The dock and popup render separate views of one room session. Audio devices,
+// membership and music are still owned by VoiceRoomClient.
+Object.assign(VoiceRoomClient.prototype,{
+ bindTalkViews(){
+  this.talkViewEvents?.abort();
+  const events=this.talkViewEvents=new AbortController(),options={signal:events.signal};
+  const dock=$('#talk-dock');
+  this.talkTab='participants';
+  this.host.querySelector('.talk-tools nav').onclick=e=>{
+   const tab=e.target.closest('[data-talk-tab]');if(!tab)return;
+   this.talkTab=tab.dataset.talkTab;this.updateTalkDock();
+   if(this.talkTab==='sound')void this.devices().then(()=>this.syncTalkSound()).catch(()=>{});
+  };
+  dock.oninput=dock.onchange=e=>{
+   const source=e.target.dataset.soundControl;
+   if(!source)return;
+   const input=document.getElementById(source);
+   if(e.target.type==='checkbox')input.checked=e.target.checked;else input.value=e.target.value;
+   input.dispatchEvent(new Event(e.type,{bubbles:true}));
+  };
+  this.host.addEventListener('input',e=>this.syncTalkField(e.target),options);
+  this.host.addEventListener('change',e=>this.syncTalkField(e.target),options);
+  this.host.addEventListener('close',e=>{
+   if(this.talkPopup!==e.target||e.target.open)return;
+   this.talkPopup=null;
+   if(e.target.id==='talk-themes'&&this.themeFromPopup&&this.state.self===this.state.room.host_id){
+    this.themeFromPopup=false;
+    this.showTalkPopup('voice-room-settings',this.popupTrigger);
+    $('#voice-settings-form [data-voice=theme-picker]').focus({preventScroll:true});
+    return;
+   }
+   const trigger=this.popupTrigger;this.popupTrigger=null;
+   if(trigger?.isConnected)trigger.focus({preventScroll:true});
+  },{...options,capture:true});
+  this.host.addEventListener('click',e=>{
+   const dialog=this.talkPopup;
+   if(e.target!==dialog||!dialog?.open)return;
+   const r=dialog.getBoundingClientRect();
+   if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)dialog.close();
+  },options);
+  this.onTalkPointer=e=>{
+   const popup=this.talkPopup;
+   if(popup?.open&&!popup.matches(':modal')&&!popup.contains(e.target)&&!this.popupTrigger?.contains(e.target))popup.close();
+  };
+  this.onTalkEscape=e=>{
+   if(e.key==='Escape'&&this.talkPopup?.open&&!e.defaultPrevented){
+    e.preventDefault();this.talkPopup.close();
+   }
+  };
+  document.addEventListener('pointerdown',this.onTalkPointer,options);
+  document.addEventListener('keydown',this.onTalkEscape,options);
+ },
+ showTalkPopup(id,trigger){
+  const sheet=document.getElementById(id);if(!sheet)return;
+  if(sheet===this.talkPopup&&sheet.open){sheet.close();return;}
+  const previous=this.talkPopup,origin=trigger||document.activeElement;
+  if(previous?.open)previous.close();
+  this.popupTrigger=origin?.closest('dialog')?this.popupTrigger:origin;
+  this.talkPopup=sheet;
+  sheet.classList.toggle('talk-over-chat',this.canDock());
+  if(this.canDock())sheet.show();else sheet.showModal();
+  sheet.scrollTop=0;sheet.querySelector('.voice-dialog-close')?.focus({preventScroll:true});
+ },
+ syncTalkField(field){
+  if(field.closest('#voice-sound'))this.syncTalkSound();
+  if(!field.name||!field.closest('.talk-settings-form'))return;
+  const other=field.form.id==='voice-settings-form'?$('#dock-voice-settings-form'):$('#voice-settings-form');
+  if(other?.elements[field.name])other.elements[field.name].value=field.form.elements[field.name].value;
+  for(const form of this.host.querySelectorAll('.talk-settings-form'))this.talkFormDetails(form);
+ },
+ talkFormDetails(form){
+  form.querySelector('output').textContent=form.elements.announcement.value.length+'/200';
+  form.querySelector('.voice-crew-setting').hidden=form.elements.visibility.value!=='crew';
+ },
+ updateTalkSettings(force=false){
+  const room=this.state.room,owner=room.host_id===this.state.self;
+  const key=JSON.stringify([room.host_id,room.settings_revision||0]);
+  if(key!==this.talkSettingsKey||force){
+   this.talkSettingsKey=key;this.settingsRevision=room.settings_revision||0;
+   for(const form of this.host.querySelectorAll('.talk-settings-form')){
+    for(const key of ['title','visibility','max_members','crew_id','announcement'])form.elements[key].value=room[key]??'';
+    form.elements.theme_sku.value=room.theme?.sku||room.theme_sku||room.background||'navy';
+    for(const el of form.elements)el.disabled=!owner;
+    this.talkFormDetails(form);
+   }
+  }
+  if(!this.talkOptionsLoading&&!this.talkOptions&&owner&&
+    (this.talkPopup?.id==='voice-room-settings'||this.talkTab==='settings')){
+   this.talkOptionsLoading=true;
+   this.safe(async()=>{
+    try{this.talkOptions=await voiceRequest('options');if(!this.closed)this.fillTalkCrews();}
+    finally{this.talkOptionsLoading=false;}
+   });
+  }
+ },
+ fillTalkCrews(){
+  const room=this.state.room;
+  for(const form of this.host.querySelectorAll('.talk-settings-form')){
+   const select=form.elements.crew_id,selected=select.value||room.crew_id||'';
+   select.innerHTML='<option value="">크루 선택</option>'+(this.talkOptions?.crews||[]).map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
+   select.value=selected;
+  }
+ },
+ async saveTalkSettings(form){
+  if(this.savingTalkSettings||this.state.self!==this.state.room.host_id)return;
+  this.savingTalkSettings=true;
+  const values=Object.fromEntries(new FormData(form));
+  try{
+   const state=await this.command('settings',{...values,max_members:Number(values.max_members),revision:this.settingsRevision});
+   this.acceptState(state);await this.refresh();
+   if(form.id==='voice-settings-form')$('#voice-room-settings').close();
+   toast('방 설정을 저장했어요.');
+  }finally{this.savingTalkSettings=false;}
+ },
+ talkSoundHTML(){
+  const row=(id,label)=>{
+   const input=document.getElementById(id);
+   const control=input.tagName==='SELECT'?`<select data-sound-control="${id}"></select>`:
+    `<input type="${input.type}" data-sound-control="${id}" min="${input.min}" max="${input.max}" step="${input.step||1}">`;
+   return `<label class="talk-sound-row"><span>${label}</span>${control}${input.type==='range'?`<output data-sound-output="${id}"></output>`:''}</label>`;
+  };
+  return [['voice-input-gain','마이크 입력 볼륨'],['voice-monitor','내 목소리 모니터링'],['voice-noise','노이즈 제거'],['voice-echo','에코 제거'],['voice-preset','마이크 효과'],['voice-reverb','리버브 강도'],['voice-input','입력 장치'],['voice-output','출력 장치'],['voice-music-volume','개인 음악 볼륨'],['voice-listen-volume','참가자 목소리']].map(([id,label])=>row(id,label)).join('')+'<button type="button" data-voice="sound">마이크 테스트 · 연결 진단</button>';
+ },
+ syncTalkSound(){
+  for(const field of this.host.querySelectorAll('[data-sound-control]')){
+   const source=document.getElementById(field.dataset.soundControl);
+   if(field.tagName==='SELECT'&&field.innerHTML!==source.innerHTML)field.innerHTML=source.innerHTML;
+   if(field.type==='checkbox')field.checked=source.checked;else field.value=source.value;
+   field.disabled=source.disabled;
+   const output=field.parentElement.querySelector('output');if(output)output.value=field.value+'%';
+  }
+ },
+ updateTalkDock(){
+  if(this.liveMode||!this.state||!this.host.isConnected)return;
+  if(!this.canDock()){this.updateTalkSettings();return;}
+  const dock=$('#talk-dock'),tab=this.talkTab||'participants',owner=this.state.self===this.state.room.host_id;
+  for(const b of this.host.querySelectorAll('[data-talk-tab]'))b.setAttribute('aria-pressed',String(b.dataset.talkTab===tab));
+  const changed=dock.dataset.tab!==tab;
+  if(changed){dock.dataset.tab=tab;dock.scrollTop=0;this.dockMarkup=null;}
+  if(tab==='settings'){
+   if(changed){
+    dock.innerHTML=voiceSettingsFormHTML('edit',true).replace(/id="(voice-[\w-]+)"/g,'id="dock-$1"')+'<p class="quiet talk-readonly">방장이 설정을 변경할 수 있어요.</p>';
+    const form=dock.querySelector('form');form.classList.add('talk-settings-form');
+    form.onsubmit=busyForm(form,()=>this.saveTalkSettings(form));
+    this.fillTalkCrews();
+    const original=$('#voice-settings-form');
+    for(const name of ['title','visibility','max_members','crew_id','announcement','theme_sku'])form.elements[name].value=original.elements[name].value;
+    this.talkFormDetails(form);
+   }
+   for(const el of dock.querySelector('form').elements)el.disabled=!owner;
+   dock.querySelector('.talk-readonly').hidden=owner;
+  }else if(tab==='sound'){
+   if(changed)dock.innerHTML=this.talkSoundHTML();
+   this.syncTalkSound();
+  }else{
+   let html;
+   if(tab==='participants'){
+    html='<h3>참여자 <small>'+this.state.members.length+'명</small></h3>'+$('#voice-members-list').innerHTML;
+   }else{
+    const music=this.state.music,queue=$('#voice-music-queue').innerHTML;
+    html='<header class="talk-dock-heading"><h3>플레이리스트 <small>'+(music?.queue.length||0)+'곡</small></h3>'+
+     (owner?'<button type="button" data-voice="music-picker">곡 검색 · 추가</button>':'')+'</header>'+
+     (queue||'<p>아직 추가된 음악이 없어요.</p>');
+   }
+   if(html!==this.dockMarkup){dock.innerHTML=html;this.dockMarkup=html;}
+  }
+  this.updateTalkSettings();
+ }
 });
