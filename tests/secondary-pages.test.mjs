@@ -53,7 +53,7 @@ test('MR cards retain six actual song IDs and co-located play, sing and cover di
 });
 test('responsive cards and studio spacing are packaged after previous theme layers',()=>{
  const css=read('secondary-pages.css');assert.match(css,/home-sing-grid\{display:grid;grid-template-columns:repeat\(2/);assert.match(css,/@media\(max-width:650px\).*home-sing-grid\{grid-template-columns:1fr/s);
- assert.match(css,/studio-payout-callout\{[^}]*margin-top:28px/);assert.match(read('views.js'),/class="studio-payout-callout"/);
+ assert.match(read('studio-manager.css'),/\.studio-works-surface\{/);assert.match(read('studio-manager.js'),/href="#studio\/payouts"/);assert.doesNotMatch(read('views.js'),/class="studio-payout-callout"/);
  assert.ok(read('index.html').indexOf('secondary-pages.css')>read('index.html').indexOf('release-refinements.css'));
 });
 test('shuffle uses the reference horizontal crossing arrows in playback, queue and browse actions',()=>{

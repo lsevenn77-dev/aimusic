@@ -1,0 +1,17 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="../dist/style.css"><link rel="stylesheet" href="../dist/studio.css"><link rel="stylesheet" href="../dist/studio-manager.css">
+<style>html,body{margin:0;min-height:100%;background:#0c1123;color:#f4f5fa;font-family:Arial,"Malgun Gothic",sans-serif}main{width:calc(100% - 48px);max-width:1170px;margin:32px auto}.mini-cover{display:grid;place-items:center;color:white;background:linear-gradient(130deg,#52336f,#162949,#7dbcb3);font-weight:bold}.primary-button{background:#8eddd2;color:#112337;border:none;border-radius:8px;padding:9px 14px;text-decoration:none}.section-heading{margin:10px 0}.section-heading h2{font-size:18px}</style>
+</head><body><main id="fixture"></main>
+<script>
+var studioData={producer:{name:'AIFECT 제작자'},artists:[{name:'인아',id:'a1'}],upload_quota:{used:2,limit:10},tracks:[],track_total:14};
+var titles=['휴먼 에러','Aftershock','별일 아닌 것처럼','RION','불빛','우리의 페이지','이별은 어디쯤','Moon Rabbit','여름 밤','Open Sky','비밀의 노래','한순간'];
+studioData.tracks=Array.from({length:14},(_,i)=>({id:'track-'+i,title:titles[i%titles.length],kind:i%3===0?'cover':'original',status:['published','published','hidden','queued','published','failed'][i%6]}));
+function esc(x){return String(x??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;')}
+function number(x){return String(x)}function icon(){return '+'}
+function cover(t){return '<div class="mini-cover">'+esc(t.title.slice(0,1))+'</div>'}
+function section(label){return '<div class="section-heading"><h2>'+esc(label)+'</h2></div>'}
+function studioHTML(d){return '<div>이전 화면</div>'+section('내 프로필')+'<form id="producer-form" class="surface upload-form profile-editor"><label class="form-field">활동명<input value="AIFECT 제작자"></label><button class="primary-button">프로필 저장</button></form>'+section('AI 가수 · 아티스트 프로필')+'<div class="artist-editors"><details class="surface artist-editor"><summary>인아 · 사진과 소개 수정</summary></details></div>'}
+function bindStudioForms(){}function toast(x){console.log(x)}function dialog(x){console.log(x)}
+</script>
+<script src="../dist/studio-manager.js"></script>
+<script>document.getElementById('fixture').innerHTML=studioHTML(studioData);bindStudioForms();document.title='inner='+innerWidth+', scroll='+document.documentElement.scrollWidth+',main='+Math.round(document.querySelector('main').getBoundingClientRect().width)+',pane='+Math.round(document.querySelector('.studio-works-surface').getBoundingClientRect().width);</script></body></html>

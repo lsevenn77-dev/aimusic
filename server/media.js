@@ -39,7 +39,10 @@ export async function mediaRoute(req,env,path,user){
  }
  const studio=await studioRoute(req,env,path,user);if(studio)return studio;
  if(path==='/api/studio'&&method==='GET'){
-  requireUser(user);return json({producer:await one(env,'SELECT * FROM producers WHERE user_id=?',user.id),artists:await rows(env,`SELECT a.* FROM artists a JOIN producers p ON a.producer_id=p.id WHERE p.user_id=? AND ${namedArtistSQL()}`,user.id),upload_quota:await uploadQuota(env,user),tracks:await rows(env,`SELECT t.id,t.title,t.status,t.error,t.created,t.duration,t.genre,t.genres_json,t.moods_json,t.classification_source,(SELECT state FROM music_classification_jobs WHERE track_id=t.id) classification_state,${trackArtworkSQL()},t.producer_id,p.image_version producer_image_version,t.artist_id,t.kind,t.original_id,t.performance_mode,t.cover_mode,t.duet_parent_id,t.duet_part,t.duet_open,o.title original_title,o.has_cover original_has_cover,o.cover_version original_cover_version,j.state alignment_state FROM tracks t JOIN producers p ON p.id=t.producer_id LEFT JOIN tracks o ON o.id=t.original_id LEFT JOIN lyric_jobs j ON j.track_id=t.id WHERE t.user_id=? AND t.status!='deleted' ORDER BY t.created DESC LIMIT 100`,user.id)});
+  requireUser(user);
+  const offset=Number(new URL(req.url).searchParams.get('offset')||0);
+  if(!Number.isSafeInteger(offset)||offset<0)fail(400,'작품 목록 위치가 올바르지 않습니다.');
+  return json({producer:await one(env,'SELECT * FROM producers WHERE user_id=?',user.id),artists:await rows(env,`SELECT a.* FROM artists a JOIN producers p ON a.producer_id=p.id WHERE p.user_id=? AND ${namedArtistSQL()}`,user.id),upload_quota:await uploadQuota(env,user),track_total:Number((await one(env,"SELECT COUNT(*) AS total FROM tracks WHERE user_id=? AND status!='deleted'",user.id))?.total||0),tracks:await rows(env,`SELECT t.id,t.title,t.status,t.error,t.created,t.duration,t.genre,t.genres_json,t.moods_json,t.classification_source,(SELECT state FROM music_classification_jobs WHERE track_id=t.id) classification_state,${trackArtworkSQL()},t.producer_id,p.image_version producer_image_version,t.artist_id,t.kind,t.original_id,t.performance_mode,t.cover_mode,t.duet_parent_id,t.duet_part,t.duet_open,o.title original_title,o.has_cover original_has_cover,o.cover_version original_cover_version,j.state alignment_state FROM tracks t LEFT JOIN producers p ON p.id=t.producer_id LEFT JOIN tracks o ON o.id=t.original_id LEFT JOIN lyric_jobs j ON j.track_id=t.id WHERE t.user_id=? AND t.status!='deleted' ORDER BY t.created DESC,t.id DESC LIMIT 100 OFFSET ?`,user.id,offset)});
  }
  if(path==='/api/studio/profile'&&method==='PUT'){
   requireUser(user);const b=await req.json(),p=await one(env,'SELECT id FROM producers WHERE user_id=?',user.id),pid=p?.id||id();
@@ -88,8 +91,14 @@ export async function mediaRoute(req,env,path,user){
   }
   if(action==='unpublish'&&method==='POST'){if(!['published','hidden'].includes(t.status))fail(409,'공개한 곡만 비공개로 바꿀 수 있어요.');const changed=await query(env,"UPDATE tracks SET status='hidden' WHERE id=? AND status IN ('published','hidden') RETURNING id",t.id).first();if(!changed)fail(409,'곡의 상태가 변경되었어요. 목록을 새로 확인해주세요.');return json({ok:true});}
   if(action==='retry'&&method==='POST'){
-   if(!['failed','hidden'].includes(t.status)||!await env.BUCKET.head(originalKey(t)))fail(409,'다시 처리할 원본이 없습니다.');
-   await run(env,"UPDATE tracks SET status='queued',error=NULL,attempts=0,lease_until=0 WHERE id=?",t.id);return json({ok:true});
+   if(t.status==='hidden'){
+    // Hiding changes visibility only. Reuse the existing playable rendition, even if the source was archived.
+    const restored=await query(env,"UPDATE tracks SET status='published' WHERE id=? AND user_id=? AND status='hidden' RETURNING id",t.id,user.id).first();
+    if(!restored)fail(409,'곡의 상태가 변경되었어요.');return json({ok:true,status:'published'});
+   }
+   if(t.status!=='failed'||!await env.BUCKET.head(originalKey(t)))fail(409,'다시 처리할 원본이 없습니다.');
+   const retried=await query(env,"UPDATE tracks SET status='queued',error=NULL,attempts=0,lease_until=0 WHERE id=? AND user_id=? AND status='failed' RETURNING id",t.id,user.id).first();
+   if(!retried)fail(409,'곡의 상태가 변경되었어요.');return json({ok:true,status:'queued'});
   }
   if(t.status!=='uploading')fail(409,'이미 제출한 업로드입니다.');
   if(['duet-instrument','duet-partner'].includes(action)&&method==='PUT'){

@@ -110,6 +110,7 @@ async function renderRoute(showCachedRoute){
  if(typeof dubbingBeforeRoute==='function'&&!dubbingBeforeRoute(raw))return {retained:true};
  if(ticket!==renderId)return;
  const outgoing=$('#main');
+ const previousStudioRoute=outgoing.dataset.route,previousStudioAccount=outgoing.dataset.account;
  if(outgoing.dataset.route!==raw||outgoing.dataset.account!==(me?.id||'guest'))cleanupRouteOverlays();
  if(base!=='home'){
   if(typeof refreshMusicLibraryRoute==='function'&&await refreshMusicLibraryRoute(raw,ticket,false,readApi))return;
@@ -218,8 +219,11 @@ async function renderRoute(showCachedRoute){
   else if(base==='admin')html=adminHTML(await readApi('/api/admin/payouts'+(param?'?period='+encodeURIComponent(param):'')));
   else if(base==='manage'&&param){studioData=await readApi('/api/studio');const {profile,alignment,karaoke}=await readApi('/api/studio/tracks/'+param);html=profile.kind==='cover'?coverEditHTML(profile):trackEditHTML({...profile,alignment,karaoke},studioData);}
   else if(base==='studio'||base==='manage'){
-   const d=await readApi('/api/studio');
-   studioData=d;html=studioHTML(d)+`<section class="studio-payout-callout"><div><span class="eyebrow">FOR CREATORS</span><h2>음악으로 쌓은 응원</h2><p>정산 현황과 지급 내역을 한곳에서 확인하세요.</p></div><a class="primary-button" href="#studio/payouts">${icon('wallet')} 수익·정산 보기 ${icon('arrow')}</a></section>`;
+   const d=await readApi('/api/studio','GET',undefined,{fresh:true});
+   await studioLoadComplete(d,readApi);
+   if(ticket!==renderId||account!==(me?.id||'guest'))return;
+   if(previousStudioRoute!==raw||previousStudioAccount!==account)studioResetFilters();
+   studioData=d;html=studioHTML(d);
   }else html=heading('페이지를 찾을 수 없어요')+empty('잠시 길을 잃었네요','홈에서 새로운 음악을 발견해보세요.','#home','홈으로 이동');
   if(profileHeader){const header=await profileHeader;if(header.error)throw header.error;html=header+html;}
   if(ticket!==renderId||account!==(me?.id||'guest'))return;
