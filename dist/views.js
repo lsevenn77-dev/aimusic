@@ -81,7 +81,7 @@ async function render(){
   if(typeof cleanupHome==='function')cleanupHome();
  });
  try{
-  const outcome=await renderRoute();
+  const outcome=await renderRoute(()=>presentation?.ready(epoch));
   if(serial===presentationSerial){
    // A rejected recording/editor exit keeps the same live DOM but may restore
    // a canonical URL (for example, removing a draft query parameter).
@@ -94,7 +94,7 @@ async function render(){
   else throw error;
  }
 }
-async function renderRoute(){
+async function renderRoute(showCachedRoute){
  if(location.hash.startsWith('#/'))history.replaceState(history.state,'','#'+location.hash.slice(2));
  setMobileMenu(false);
  const menuRedirect=typeof menuAlias==='function'?menuAlias(location.hash):null;
@@ -156,6 +156,7 @@ async function renderRoute(){
   if(base==='home')return await renderHome(ticket);
   await accountReady;if(ticket!==renderId)return;
   if(account!==(me?.id||'guest'))return render();
+  if(restored)showCachedRoute?.();
   if(typeof rememberMenuLogin==='function')rememberMenuLogin(base,param);
   const readRevision=apiRevision;
   const profileHeader=base==='library'?libraryProfileHTML(readApi).catch(error=>({error})):null;

@@ -56,11 +56,6 @@ function bindTalkingDirectory(root){
   }
   if(Number.isFinite(next))expiry=setTimeout(expireCovers,Math.min(next-Date.now()+50,2147483647));
  }
- function skeletons(show){
-  grid.querySelectorAll('.talk-placeholder').forEach(el=>el.remove());
-  if(show)grid.insertAdjacentHTML('beforeend','<div class="talk-placeholder" aria-hidden="true"><i></i><b></b></div>'.repeat(6));
-  grid.setAttribute('aria-busy',String(show));
- }
  function ready(){
   if(!items.size&&done)notice(search.value.trim()?'검색 결과가 없어요.':'아직 열린 공개 토킹룸이 없어요.');
   if(!done)watchEnd(true);
@@ -68,7 +63,10 @@ function bindTalkingDirectory(root){
  async function load(){
   if(disposed||controller||done)return;
   watchEnd(false);const active=controller=new AbortController();
-  notice();skeletons(true);
+  notice();grid.setAttribute('aria-busy','true');
+  const pendingNotice=setTimeout(()=>{
+   if(controller===active&&!disposed)notice('토킹룸 목록을 불러오는 중이에요.');
+  },450);
   try{
    if(enabled===null){
     const service=await voiceRequest('status',undefined,'GET',active.signal);
@@ -88,15 +86,15 @@ function bindTalkingDirectory(root){
    }
    grid.insertAdjacentHTML('beforeend',added.join(''));
    done=!page.next_cursor||page.next_cursor===cursor;cursor=page.next_cursor;
-   expireCovers();ready();
+   notice();expireCovers();ready();
   }catch(e){if(!active.signal.aborted)notice('토킹룸 목록을 불러오지 못했어요.',true);}
-  finally{if(controller===active){controller=null;skeletons(false);}}
+  finally{clearTimeout(pendingNotice);if(controller===active){controller=null;grid.setAttribute('aria-busy','false');}}
  }
  function reset(){
   clearTimeout(debounce);clearTimeout(expiry);watchEnd(false);
   if(desktop.matches)pane.scrollTop=0;
   controller?.abort();controller=null;items=new Map();cursor=null;done=false;
-  grid.replaceChildren();notice();skeletons(true);
+  grid.replaceChildren();notice();grid.setAttribute('aria-busy','true');
   debounce=setTimeout(load,220);
  }
  search.oninput=reset;retry.onclick=load;

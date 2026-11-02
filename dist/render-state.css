@@ -6,18 +6,16 @@ html[data-render-state="loading"] .page-wrap>.page-footer,html[data-render-state
 html[data-render-state="loading"] #route-pending,html[data-render-state="error"] #route-pending{display:block}
 #route-pending{box-sizing:border-box;min-height:calc(100dvh - 180px);max-width:1512px;margin:0 auto;padding:25px 52px 40px;color:var(--ds-body,#BEC1C9);position:relative;isolation:isolate;font:inherit}
 #route-pending-message{font-size:14px;margin:8px 0 28px}
-.render-skeleton{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px}
-.render-skeleton>div{height:160px;border-radius:var(--ds-radius-card,16px);background:var(--ds-soft,rgba(183,182,255,.10))}
-.render-skeleton>div:first-child{grid-column:1/-1;height:clamp(180px,25vw,310px);background:var(--ds-surface,linear-gradient(130deg,#19222f,#111922 75%))}
+/* Short transitions do not need a separate loading announcement. */
+html:not([data-render-state="error"]) #route-pending-message{animation:pending-notice 450ms step-end both}
+@keyframes pending-notice{from{visibility:hidden}to{visibility:visible}}
 #route-pending-actions{display:flex;align-items:center;gap:20px;flex-wrap:wrap;margin-top:24px}
 #route-pending-actions[hidden]{display:none}
 #route-retry{min-height:44px;padding:10px 20px;border:1px solid var(--ds-line,#3a3a48);border-radius:12px;background:var(--ds-panel,#131b26);color:var(--ds-text,#F8FAFC);font:inherit;cursor:pointer}
 #route-pending-actions a{color:inherit;text-underline-offset:4px}
 @media(max-width:1150px){#route-pending{padding-inline:32px}}
 @media(max-width:800px){#route-pending{padding:22px 20px 32px}}
-@media(max-width:767px){#route-pending{padding-top:12px}.render-skeleton{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.render-skeleton>div{height:140px}.render-skeleton>div:last-child{display:none}}
-
-#route-pending::before{content:"";position:absolute;z-index:-1;pointer-events:none;top:0;left:0;right:0;aspect-ratio:340/65;background:url('/assets/atmosphere/06_approved_aurora_original.svg') left top/100% auto no-repeat;mask-image:linear-gradient(#000,transparent)}
+@media(max-width:767px){#route-pending{padding-top:12px}}
 
 /* The fragment target changes synchronously with the URL, before JS routing.
    A ready page is visible only while its completed route is still targeted. */

@@ -99,7 +99,7 @@ main[data-route^="community"]::before,main[data-route^="crew/"]::before{display:
 .talk-directory #v3-create-room {height:46px;min-width:146px;border-radius:var(--ds-radius-input);font-size:15px}
 .talk-directory #v3-create-room svg {width:22px;height:22px}
 .talk-directory .v3-room-grid {display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:18px 12px}
-.talk-directory .v3-room-card,.talk-directory .talk-placeholder {
+.talk-directory .v3-room-card {
  display:block;min-width:0;overflow:hidden;border:1px solid var(--ds-line);border-radius:var(--ds-radius-input);
  background:var(--ds-panel);color:var(--ds-text);text-decoration:none;
 }
@@ -130,10 +130,6 @@ main[data-route^="community"]::before,main[data-route^="crew/"]::before{display:
 .talk-directory .talk-status {margin:16px 0;text-align:center;color:var(--ds-muted)}
 .talk-directory .talk-status button {margin-left:8px}
 .talk-directory .talk-sentinel {height:1px}
-.talk-directory .talk-placeholder i {display:block;aspect-ratio:1;background:var(--ds-soft);animation:talk-loading 1.2s ease-in-out infinite alternate}
-.talk-directory .talk-placeholder b {display:block;width:62%;height:9px;margin:20px 8px;background:var(--ds-soft);border-radius:4px}
-@keyframes talk-loading {to{opacity:.4}}
-@media(prefers-reduced-motion:reduce){.talk-directory .talk-placeholder i{animation:none}}
 @container (max-width:859px) {
  .talk-directory .v3-room-grid {grid-template-columns:repeat(4,minmax(0,1fr))}
  .talk-directory .talk-search.brand-search {flex-basis:210px;width:210px}
