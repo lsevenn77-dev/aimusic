@@ -57,7 +57,7 @@ AIFECT's **currently deployed `https://aifect.co.kr/#home` and the existing repo
 3. Identify the exact UI region requested. Change **only that region**. Never redraw unrelated sidebar, top bar, mini-player, popups, cards or navigation.
 4. Never introduce new design systems, broad `body` / `*` CSS overrides, new fonts, fake data, bright neon/glow, large decorative banners, 3D boxes, or substitute stock thumbnails unless explicitly asked.
 5. Distinguish **verified CSS values**, **previously approved examples**, and **proposed fallbacks**. If the running site cannot be inspected, state the uncertainty. Never claim an assumed color or screenshot was verified.
-6. Use the user's agreed vocabulary: `홈`, `플레이` (triangle play icon), `스튜디오`. Keep the current PC sidebar **order, dimensions, locations, existing other icons and selected state** unchanged. On mobile retain the existing 5 bottom tabs `홈 · 커뮤니티 · 플레이 · 메시지 · 마이`.
+6. Use the user's agreed vocabulary: `홈`, `플레이` (triangle play icon), `스튜디오`. Keep the current PC sidebar **order, dimensions, locations, existing other icons and selected state** unchanged. Per the user's 2026-11-02 decision, mobile has no fixed bottom navigation; keep primary routes reachable through the existing top menu button and drawer.
 7. Brand mint `#8EDDD2` is locked. Reuse the existing site's pink, dark navy, border, text and gradient tokens after inspecting the actual source. Previous approved gradient and secondary-button examples are detailed in the design guide; don't apply them globally without verifying use.
 8. Preserve functionality, routes, server permissions and real data. No unrequested deployment, payment execution, gift transmission, data deletion, migration, or destructive refactor.
 

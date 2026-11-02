@@ -18,7 +18,7 @@
 @media(prefers-reduced-motion:reduce){.dubbing-card{transition:none}}
 body:not(.has-player) .dubbing-save-bar{bottom:16px}
 body.has-player .dubbing-save-bar{position:static}
-@media(max-width:800px){body:not(.has-player) .dubbing-save-bar{bottom:calc(80px + env(safe-area-inset-bottom,0px))}}
+@media(max-width:800px){body:not(.has-player) .dubbing-save-bar{bottom:calc(16px + env(safe-area-inset-bottom,0px))}}
 /* Background audio uses the same narrow card width on mobile. */
 #dubbing-sound-panel audio,#dubbing-sound-panel progress{width:100%;max-width:100%;margin:12px 0;accent-color:var(--db-mint)}
 #dubbing-sound-panel small{display:block;color:var(--ds-body)}

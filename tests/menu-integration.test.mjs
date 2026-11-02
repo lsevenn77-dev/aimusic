@@ -90,9 +90,9 @@ test('library and payout reads enforce the existing account boundary; silver gra
  assert.equal(f.sql.prepare('SELECT count(*) n FROM tracks').get().n,before);
 });
 
-test('sidebar removes only the four approved entries, with protected navigation and mobile order intact',()=>{
+test('sidebar retains primary routes after removing the mobile bottom navigation',()=>{
  const html=source('index.html'),sidebar=html.match(/<aside[^>]*class="sidebar"[\s\S]*?<\/aside>/)?.[0]||html.split('<header')[0];
  for(const route of ['library','following','rewards','payouts'])assert.doesNotMatch(sidebar,new RegExp('data-view="'+route+'"'));
  for(const route of ['home','karaoke','community','gifts','dm','notifications','profile','studio','discover','collections'])assert.match(sidebar,new RegExp('href="#'+route+'"'));
- const mobile=html.match(/<nav[^>]*class="mobile-navigation[^"\n]*"[\s\S]*?<\/nav>/)[0];assert.deepEqual([...mobile.matchAll(/data-primary-view="(.*?)"/g)].map(m=>m[1]),['home','community','karaoke','dm','profile']);
+ assert.doesNotMatch(html,/<nav[^>]*class="[^"]*mobile-navigation/);
 });

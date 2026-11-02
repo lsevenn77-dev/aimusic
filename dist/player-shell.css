@@ -78,7 +78,7 @@
 @keyframes player-expand{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
 @media(prefers-reduced-motion:reduce){.player .player-extension{animation:none}}
 @media(min-width:801px){.player [aria-label]:is(button,a):hover::after,.player [aria-label]:is(button,a):focus-visible::after{content:attr(aria-label);position:absolute;bottom:calc(100% + 5px);left:50%;transform:translateX(-50%);z-index:8;padding:5px 8px;background:var(--ds-panel);color:var(--ds-text);border:1px solid var(--ds-line);border-radius:5px;font-size:11px;line-height:1.4;white-space:nowrap;pointer-events:none}.player #player-close:is(:hover,:focus-visible)::after{left:auto;right:0;transform:none}}
-@media(max-width:800px){.player:not(.is-collapsed){bottom:calc(66px + env(safe-area-inset-bottom,0px))}.player #player-action-panel .player-action-label{display:none}}
+@media(max-width:800px){.player #player-action-panel .player-action-label{display:none}}
 .player[data-player-small=true]{grid-template-columns:minmax(0,1fr) 104px minmax(0,1fr);gap:4px;padding-left:8px;padding-right:8px}
 .player[data-player-small=true] .now-playing{gap:7px}.player[data-player-small=true] .now-playing .mini-cover{width:36px;height:36px}
 .player[data-player-small=true] .now-playing strong{font-size:12px;line-height:17px}.player[data-player-small=true] .now-playing .player-credit{font-size:10px;line-height:14px;max-width:none}
@@ -98,6 +98,10 @@
 
 @media(max-width:800px),(pointer:coarse){.player:not(.is-collapsed){height:58px;min-height:58px;padding-top:8px;padding-bottom:6px}.player #player-action-panel .player-action-label{display:none}}
 .player[data-player-small=true]{height:58px;min-height:58px;padding-top:8px;padding-bottom:6px}
+/* The mobile player meets the screen edge; its controls clear the home gesture. */
+@media(max-width:800px){
+ .player:not(.is-collapsed){bottom:0;height:calc(58px + env(safe-area-inset-bottom,0px));min-height:calc(58px + env(safe-area-inset-bottom,0px));padding-bottom:calc(6px + env(safe-area-inset-bottom,0px))}
+}
 
 /* One flat control family: shared hit area, inherited SVG colour and no shapes. */
 .player :is(button,a).icon-button,.player #queue-toggle{
