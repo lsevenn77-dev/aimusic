@@ -87,3 +87,47 @@ test('home touch swipe suppresses the trailing link click and touch entry allows
  let prevented=false,stopped=false;f.fire('click',{preventDefault(){prevented=true;},stopPropagation(){stopped=true;}});
  assert.equal(prevented,true);assert.equal(stopped,true);assert.equal(f.stage.innerHTML,'two');
 });
+
+test('home and Play banners pause while swiping and block the following link click without coverflow',()=>{
+ for(const syncAudio of [true,false]){
+  const f=setup();f.c.mountFeatureCarousel(f.root,[{id:'one',title:'One'},{id:'two',title:'Two'}],{syncAudio});
+  f.feature.setPointerCapture=pointerId=>f.fire('lostpointercapture',{pointerId,target:{tagName:'A'}});
+  f.fire('pointerdown',{pointerId:1,pointerType:'touch',clientX:180,clientY:20});assert.equal(f.timers.size,0);
+  f.globalEvents.get('visibilitychange')();assert.equal(f.timers.size,0);
+  f.fire('focusin');f.fire('pointermove',{pointerId:1,clientX:100,clientY:25});
+  f.fire('pointerup',{pointerId:1,clientX:100,clientY:25});assert.equal(f.stage.innerHTML,'two');assert.equal(f.timers.size,1);
+  let prevented=false,stopped=false;
+  f.fire('click',{detail:1,preventDefault(){prevented=true;},stopPropagation(){stopped=true;}});
+  assert.equal(prevented,true);assert.equal(stopped,true);
+  f.fire('pointerdown',{pointerId:2,clientX:100,clientY:20});f.fire('pointerup',{pointerId:2,clientX:180,clientY:20});assert.equal(f.stage.innerHTML,'one');
+  f.fire('pointerdown',{pointerId:3,clientX:180,clientY:20});f.fire('pointerup',{pointerId:3,clientX:182,clientY:21});
+  f.fire('click',{target:{closest:()=>null},preventDefault(){assert.fail('A normal tap must remain usable');}});
+ }
+});
+
+test('vertical movement, short gestures, secondary touches and another pointer cannot change a banner',()=>{
+ const f=setup();f.c.mountFeatureCarousel(f.root,[{id:'one',title:'One'},{id:'two',title:'Two'}]);
+ f.fire('pointerdown',{pointerId:1,clientX:180,clientY:20});
+ f.fire('pointermove',{pointerId:1,clientX:175,clientY:50});
+ f.fire('pointerup',{pointerId:1,clientX:100,clientY:55});assert.equal(f.stage.innerHTML,'one');
+ f.fire('pointerdown',{pointerId:1,clientX:180,clientY:20});f.fire('pointerup',{pointerId:1,clientX:150,clientY:22});assert.equal(f.stage.innerHTML,'one');
+ f.fire('pointerdown',{pointerId:1,clientX:180,clientY:20});
+ f.fire('pointerup',{pointerId:2,clientX:100,clientY:20});f.fire('pointercancel',{pointerId:2});assert.equal(f.timers.size,0);
+ f.fire('pointerdown',{pointerId:2,isPrimary:false,clientX:100,clientY:20});
+ f.fire('pointerup',{pointerId:1,clientX:100,clientY:20});assert.equal(f.stage.innerHTML,'one');assert.equal(f.timers.size,1);
+});
+
+test('cancelled swipes restart a full interval without overriding manual pause or reduced motion',()=>{
+ for(const reduced of [false,true]){
+  const f=setup(reduced);f.c.mountFeatureCarousel(f.root,[{id:'one',title:'One'},{id:'two',title:'Two'}]);
+  f.fire('pointerdown',{pointerId:1,clientX:180,clientY:20});assert.equal(f.timers.size,0);
+  f.fire('pointercancel',{pointerId:1});assert.equal(f.timers.size,reduced?0:1);assert.equal(f.stage.innerHTML,'one');
+  f.fire('pointerdown',{pointerId:1,clientX:180,clientY:20});
+  f.fire('lostpointercapture',{pointerId:1,target:f.feature});assert.equal(f.timers.size,reduced?0:1);
+  const toggle={matches:s=>s==='.home-feature-autoplay',hasAttribute:()=>false,setAttribute(){}};
+  f.fire('click',{target:{closest:()=>toggle}});
+  f.fire('pointerdown',{pointerId:1,clientX:180,clientY:20});f.fire('pointerup',{pointerId:1,clientX:100,clientY:20});
+  assert.equal(f.stage.innerHTML,'two');assert.equal(f.timers.size,0);
+  f.globalEvents.get('hashchange')();assert.equal(f.events.size,0);assert.equal(f.globalEvents.size,0);
+ }
+});

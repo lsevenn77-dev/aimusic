@@ -242,6 +242,17 @@
  .home-content-refresh .home-feature-slide{grid-template-columns:100px minmax(0,1fr);gap:10px;padding-inline:10px}
  .home-content-refresh .home-feature-copy h2{font-size:16px}
 }
+/* Mobile home/Play banners use swipes and center content without a control row. */
+@media(max-width:800px){
+ .home-content-refresh .home-feature-arrow,.home-content-refresh .home-feature-pagination{display:none}
+ .home-content-refresh .home-feature-slide{padding:26px 14px}
+ @container(max-width:540px){
+  .home-content-refresh .home-feature-slide{padding:6px 14px}
+ }
+ @container(max-width:320px){
+  .home-content-refresh .home-feature-slide{padding-inline:10px}
+ }
+}
 @media(prefers-reduced-motion:reduce){.home-content-refresh .home-feature-slide,.home-content-refresh .home-feature-outgoing,.home-content-refresh .home-feature-backdrop{animation:none}.home-content-refresh .home-feature-dots button::after,.home-content-refresh .home-music-grid :is(.card-play,.album-art-wrap>a){transition:none}}
 
 @media (max-width: 620px) {

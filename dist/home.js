@@ -109,7 +109,7 @@ function mountFeatureCarousel(root,tracks,{renderSlide=releaseHTML,label='추천
  let index=0,timer=null,fadeTimer=null,manualPause=false,hover=false,focus=false,start=null,suppressClick=false;
  const syncPlayback=()=>{if(!syncAudio)return;const b=stage.querySelector?.('.home-feature-slide .home-feature-play');if(!b||typeof audio==='undefined')return;const playing=current?.id===tracks[index].id&&!audio.paused&&!audio.ended&&!window.AifectAudioAds?.active;b.innerHTML=icon(playing?'ui-pause-action':'ui-play-action');b.setAttribute('aria-pressed',String(playing));b.setAttribute('aria-label',tracks[index].title+(playing?' 일시정지':' 재생'));};
  const clear=()=>{clearTimeout(timer);timer=null;};
- const schedule=()=>{clear();if(multi&&!manualPause&&!hover&&!focus&&!motion.matches&&!document.hidden)timer=setTimeout(()=>{if(!root.isConnected)return cleanup();go(index+1);},5500);};
+ const schedule=()=>{clear();if(multi&&!start&&!manualPause&&!hover&&!focus&&!motion.matches&&!document.hidden)timer=setTimeout(()=>{if(!root.isConnected)return cleanup();go(index+1);},5500);};
  const go=value=>{
   const target=(value+tracks.length)%tracks.length;if(coverflow&&target===index)return;index=target;
   clearTimeout(fadeTimer);fadeTimer=null;
@@ -118,11 +118,11 @@ function mountFeatureCarousel(root,tracks,{renderSlide=releaseHTML,label='추천
   old.innerHTML=coverflow?(stage.querySelector('.home-feature-background')?.outerHTML||''):stage.innerHTML;
   stage.innerHTML=renderSlide(tracks[index],multi?tracks[(index+1)%tracks.length]:null,tracks,index);stage.append(old);syncPlayback();
   old.addEventListener('animationend',()=>old.remove(),{once:true});if(motion.matches)old.remove();else if(coverflow)fadeTimer=setTimeout(()=>{old.remove();fadeTimer=null;},850);
-  if(coverflow&&focus)focus=feature.contains(document.activeElement);
+  if(focus)focus=feature.contains(document.activeElement);
   feature.querySelectorAll('.home-feature-dots [data-home-slide]').forEach((b,i)=>b.setAttribute('aria-pressed',String(i===index)));schedule();
  };
  const click=e=>{
-  if(coverflow&&suppressClick){suppressClick=false;e.preventDefault();e.stopPropagation();return;}
+  if(suppressClick){suppressClick=false;if(e.detail!==0){e.preventDefault();e.stopPropagation();return;}}
   const b=e.target.closest('button');if(!b)return;
   if(b.matches('.home-feature-prev'))go(index-1);
   else if(b.matches('.home-feature-next,[data-home-next]'))go(index+1);
@@ -135,17 +135,36 @@ function mountFeatureCarousel(root,tracks,{renderSlide=releaseHTML,label='추천
    b.innerHTML=icon(manualPause?'play':'pause');schedule();
   }else schedule();
  };
- const enter=e=>{if(e.pointerType==='touch')return;hover=true;clear();},leave=()=>{hover=false;schedule();},focusIn=()=>{focus=true;clear();},focusOut=e=>{focus=feature.contains(e.relatedTarget);schedule();};
+ const enter=e=>{if(e.pointerType==='touch')return;hover=true;clear();},leave=e=>{hover=false;if(e.pointerType!=='touch')start=null;schedule();},focusIn=()=>{focus=true;clear();},focusOut=e=>{focus=feature.contains(e.relatedTarget);schedule();};
  const key=e=>{if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();go(index+(e.key==='ArrowLeft'?-1:1));}};
- const down=e=>{suppressClick=false;start={x:e.clientX,y:e.clientY};},up=e=>{if(!start)return;const dx=e.clientX-start.x,dy=e.clientY-start.y;start=null;if(Math.abs(dx)>45&&Math.abs(dx)>Math.abs(dy)){suppressClick=coverflow;go(index+(dx<0?1:-1));}};
- const cancel=()=>{start=null;};
- const listeners=[['click',click],['pointerenter',enter],['pointerleave',leave],['focusin',focusIn],['focusout',focusOut],['keydown',key],['pointerdown',down],['pointerup',up],['pointercancel',cancel]];
- for(const [name,fn] of listeners)feature.addEventListener(name,fn);
+ const down=e=>{
+  if(e.isPrimary===false){if(start)start.cancelled=true;return;}
+  if(e.button!=null&&e.button!==0)return;
+  suppressClick=false;if(!multi)return;
+  start={x:e.clientX,y:e.clientY,id:e.pointerId,axis:null,cancelled:false};clear();
+ };
+ const move=e=>{
+  if(!start||e.pointerId!==start.id||start.cancelled)return;
+  const dx=Math.abs(e.clientX-start.x),dy=Math.abs(e.clientY-start.y);
+  if(!start.axis&&Math.max(dx,dy)>10){if(dx>dy*1.25)start.axis='x';else if(dy>=dx)start.axis='y';}
+  if(start.axis==='x'&&dx>45)feature.setPointerCapture?.(e.pointerId);
+ };
+ const up=e=>{
+  if(!start||e.pointerId!==start.id)return;
+  const gesture=start,dx=e.clientX-gesture.x,dy=e.clientY-gesture.y;start=null;
+  if(!gesture.cancelled&&gesture.axis!=='y'&&Math.abs(dx)>45&&Math.abs(dx)>Math.abs(dy)*1.25){suppressClick=true;go(index+(dx<0?1:-1));}
+  else schedule();
+ };
+ const cancel=e=>{if(!start||e.pointerId!==start.id)return;start=null;schedule();};
+ const lostCapture=e=>{if(e.target===feature)cancel(e);};
+ // Capture prevents a completed swipe from activating a nested song/play link.
+ const listeners=[['click',click,true],['pointerenter',enter],['pointerleave',leave],['focusin',focusIn],['focusout',focusOut],['keydown',key],['pointerdown',down],['pointermove',move],['pointerup',up],['pointercancel',cancel],['lostpointercapture',lostCapture]];
+ for(const [name,fn,options] of listeners)feature.addEventListener(name,fn,options);
  const playbackEvents=['play','pause','ended','emptied','loadedmetadata'];
  if(syncAudio&&typeof audio!=='undefined')for(const event of playbackEvents)audio.addEventListener(event,syncPlayback);
  // Only the displayed artwork is eager; preview/remaining slides load on demand.
  document.addEventListener('visibilitychange',schedule);window.addEventListener('hashchange',cleanup);motion.addEventListener('change',schedule);
- function cleanup(){clear();clearTimeout(fadeTimer);for(const [name,fn] of listeners)feature.removeEventListener(name,fn);if(syncAudio&&typeof audio!=='undefined')for(const event of playbackEvents)audio.removeEventListener(event,syncPlayback);document.removeEventListener('visibilitychange',schedule);window.removeEventListener('hashchange',cleanup);motion.removeEventListener('change',schedule);}
+ function cleanup(){clear();clearTimeout(fadeTimer);for(const [name,fn,options] of listeners)feature.removeEventListener(name,fn,options);if(syncAudio&&typeof audio!=='undefined')for(const event of playbackEvents)audio.removeEventListener(event,syncPlayback);document.removeEventListener('visibilitychange',schedule);window.removeEventListener('hashchange',cleanup);motion.removeEventListener('change',schedule);}
  schedule();return cleanup;
 }
 function updateHomeAccount(){
