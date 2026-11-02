@@ -213,33 +213,6 @@ dialog.duet-editor-dialog{width:min(860px,calc(100% - 24px));padding:24px;backgr
  .recording-settings .studio-key-actions{margin-left:84px}
 }
 
-/* Approved PC recording workspace. The existing shell remains 228px / 80px;
-   use its content origin rather than overlapping the sidebar or header. */
-@media(min-width:1024px){
- .page-wrap:has(#sing.web-studio:not(.is-reviewing):not(.is-punch-page)){height:auto;min-height:100dvh;overflow:visible}
- .page-wrap #main:has(#sing.web-studio:not(.is-reviewing):not(.is-punch-page)){height:auto;min-height:calc(100dvh - 80px);display:flex;align-items:flex-start;justify-content:flex-start;padding:16px 16px 80px!important;overflow:visible}
- #main #sing.web-studio:not(.is-reviewing):not(.is-punch-page){position:relative;isolation:isolate;box-sizing:border-box;flex:0 1 980px;width:100%;max-width:980px!important;height:750px;min-height:750px;max-height:none;margin:0!important;grid-template-columns:minmax(0,58fr) minmax(0,42fr);grid-template-rows:auto minmax(0,1fr) auto;column-gap:12px;overflow:visible}
- #sing.web-studio:not(.is-reviewing):not(.is-punch-page)::before{content:'';position:absolute;z-index:-1;inset:0 auto 0 0;width:calc((100% - 12px)*.58);box-sizing:border-box;background:var(--ds-panel);border:1px solid var(--ds-line);border-radius:var(--ds-radius-card)}
- #sing.web-studio:not(.is-reviewing):not(.is-punch-page) .sing-head{padding:16px 16px 8px!important;background:none!important}
- #sing.web-studio:not(.is-reviewing):not(.is-punch-page) .sing-recording{grid-template-rows:auto auto minmax(0,1fr) 20px 88px auto;padding:0 16px!important;background:none!important}
- #sing.web-studio:not(.is-reviewing):not(.is-punch-page) .sing-wheel{height:100%!important;max-height:none!important;align-self:center;overflow-y:auto!important;padding:0 8px!important;scrollbar-width:none}
- #sing.web-studio:not(.is-reviewing):not(.is-punch-page) .sing-wheel::-webkit-scrollbar{display:none}
- /* Preserve drawLyrics' 42% follow anchor and first/last line reachability. */
- #sing.web-studio:not(.is-reviewing):not(.is-punch-page) .sing-wheel::before{content:'';display:block;height:42%}
- #sing.web-studio:not(.is-reviewing):not(.is-punch-page) .sing-wheel::after{content:'';display:block;height:58%}
- #sing.web-studio:not(.is-reviewing):not(.is-punch-page) .studio-position-help{margin:10px 4px 0;line-height:1.6}
- #sing.web-studio:not(.is-reviewing):not(.is-punch-page)>.sing-status{margin:12px 16px 16px!important;white-space:normal}
- #sing.web-studio:not(.is-reviewing):not(.is-punch-page) #sing-live-settings{box-sizing:border-box;align-self:stretch;min-width:0;min-height:0;max-height:none;overflow:visible;padding:8px 16px;border-radius:var(--ds-radius-card)}
- #sing.web-studio:not(.is-reviewing):not(.is-punch-page) #sing-live-settings .studio-setting-card{padding:6px 0}
- #sing.web-studio:not(.is-reviewing):not(.is-punch-page) #sing-live-settings h2{margin-bottom:4px}
- #sing.web-studio:not(.is-reviewing):not(.is-punch-page) #sing-live-settings .studio-range{margin:0!important}
- #sing.web-studio:not(.is-reviewing):not(.is-punch-page) #sing-live-settings .microphone-check{column-gap:16px;row-gap:6px;padding:8px 0;align-items:center}
- #sing.web-studio:not(.is-reviewing):not(.is-punch-page) #sing-live-settings .microphone-check-info{min-width:0}
- #sing.web-studio:not(.is-reviewing):not(.is-punch-page) #sing-live-settings .studio-side-note{flex-shrink:0}
- /* Extra effect controls grow both panels and use the page's scrollbar. */
- #main #sing.web-studio:not(.is-reviewing):not(.is-punch-page):has(.sing-effect-details[open]){height:auto;grid-template-rows:auto minmax(480px,1fr) auto}
-}
-
 /* Compact recording entry; both layouts use the existing dark navy tokens. */
 #recording-mode-dialog{box-sizing:border-box;width:300px;max-width:calc(100vw - 32px);inset:0;height:fit-content;margin:auto;padding:24px;border:1px solid var(--ds-border);border-radius:var(--ds-radius-card,16px);background:var(--ds-panel);color:var(--ds-text);font:inherit;box-shadow:none}
 #recording-mode-dialog::backdrop{background:rgba(0,0,0,.48);backdrop-filter:none}
@@ -287,3 +260,135 @@ dialog.duet-editor-dialog{height:auto;max-height:80dvh;padding:20px;border-radiu
 #sing.web-studio #sing-live-settings .sing-monitor input,.recording-settings .sing-monitor input{appearance:none;box-sizing:border-box;display:block;position:relative;width:44px;height:24px;min-width:44px;min-height:24px;max-height:24px;margin:0;border:0;border-radius:12px;box-shadow:none;cursor:pointer;background:radial-gradient(circle at 12px 12px,var(--ds-text) 9px,transparent 9.5px),var(--ds-border)}
 #sing.web-studio #sing-live-settings .sing-monitor input:checked,.recording-settings .sing-monitor input:checked{background:radial-gradient(circle at 32px 12px,var(--ds-text) 9px,transparent 9.5px),var(--ds-gradient)}
 #sing.web-studio #sing-live-settings .sing-monitor input:focus-visible,.recording-settings .sing-monitor input:focus-visible{outline:2px solid var(--ds-lavender);outline-offset:4px}
+
+/* Recording surface. The result editor and the premium punch pages keep their own layout. */
+#sing .sing-artwork,#sing .record-credit,#sing.is-reviewing #duet-guide,#sing.is-punch-page #duet-guide{display:none}
+#main #sing.web-studio:not(.is-reviewing):not(.is-punch-page){
+ --record-bg:#0b131e;--record-panel:#101b29;--record-border:#2d4056;--record-active:#1d2a3c;
+ --record-muted:#a5b4c7;--record-ring:linear-gradient(110deg,#8eddd2,#c8b3e9);
+ --duet-partner:#8eddd2;--duet-both:#a6b5c9;--record-line:48px;
+ position:relative;isolation:isolate;background:none!important;box-sizing:border-box;
+ .sing-head{flex-wrap:nowrap;align-items:center;gap:12px;padding:20px 24px 8px 12px!important;background:none!important}
+ .sing-back{display:grid;place-items:center;flex:0 0 30px;width:30px;padding:0;background:none;border:0}
+ .sing-artwork{display:grid;place-items:center;flex:0 0 62px;width:62px;height:62px;border-radius:9px;overflow:hidden}
+ .sing-artwork img{width:100%;height:100%;object-fit:cover}
+ .studio-song-meta{align-self:center;text-align:left}
+ .studio-song-meta h1{font-size:15px;font-weight:650;line-height:1.5;letter-spacing:normal}
+ .record-credit{display:block;color:var(--record-muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:3px 0 0}
+ .review-credit,.studio-position-help{display:none}
+ .sing-header-mode{gap:clamp(8px,1.2vw,24px);align-items:center}
+ #duet-guide button{height:36px;min-height:36px;min-width:92px;padding:0 18px;display:inline-flex;align-items:center;justify-content:center;border-radius:24px;background:var(--record-panel);border:1px solid #88789c;color:var(--ds-text);font-size:13px;font-weight:400}
+ .record-settings-icon{display:grid;width:38px;height:38px;padding:8px;background:var(--record-panel);border:1px solid #65778d}
+ .record-settings-icon svg{width:18px;height:18px;transform:rotate(90deg)}
+ .sing-recording{display:grid;grid-template-rows:44px 12px 28px 32px minmax(0,1fr) 108px;grid-auto-flow:row;align-items:center;min-height:0;min-width:0;background:none!important;padding:0 24px 18px!important}
+ .sing-progress{grid-row:1;width:100%;gap:16px;min-height:32px;padding:0;margin:0;font-size:12px;color:var(--record-muted)}
+ [data-record-mic]{display:none}
+ .duet-color-key{grid-row:3;gap:clamp(20px,4vw,52px);margin:0;padding:0;border:0}
+ .duet-color-key span{font-size:12px;color:var(--record-muted);gap:7px}
+ .duet-color-key i{width:8px;height:8px;box-shadow:none}
+ .sing-recording .sing-countdown{grid-row:4;min-height:20px}
+ .sing-countdown strong{gap:8px}
+ .sing-countdown i{width:6px;height:6px;background:#3c495d;opacity:1}
+ .sing-countdown i.is-visible{background:var(--ds-lavender)}
+ .sing-wheel{display:flex;flex-direction:column;grid-row:5;align-self:start;box-sizing:border-box;width:100%;height:min(calc(100% - 12px),calc(var(--record-line)*8))!important;min-height:0;padding:0 10px!important;margin:8px 0 0;overflow-y:auto!important;scrollbar-width:none;mask-image:none;scroll-snap-type:none}
+ .sing-wheel::before,.sing-wheel::after{content:none}
+ .sing-wheel button,.sing-wheel button.current{flex:0 0 auto;box-sizing:border-box;min-height:calc(var(--record-line) - 8px)!important;margin:4px 0;padding:3px 8px!important;line-height:1.45!important;font-weight:400;border-radius:7px;box-shadow:none!important;border:1px solid transparent;background:none!important}
+ .sing-wheel button.is-distant:not(.current){opacity:.69}
+ .sing-wheel button.current{font-weight:650;border:1px solid #374b65!important;background:var(--record-active)!important;color:var(--line-color,var(--ds-text))!important}
+ .sing-wheel button.current[data-part-role=both],.sing-wheel button.current:not([data-part-role]),.sing-wheel button.current[data-part-role=unassigned]{color:var(--ds-text)!important}
+ .sing-wheel button::before,.sing-wheel button::after{content:none!important}
+ .sing-recording .studio-transport{grid-row:6;align-self:end;align-items:center!important;grid-template-columns:repeat(3,minmax(56px,80px))!important;gap:clamp(10px,2.4vw,32px)!important;min-height:96px;padding:0;margin:0 auto!important}
+ .studio-transport button{height:96px;display:grid;grid-template-rows:74px 18px;align-content:center;justify-items:center;align-items:center;justify-content:center;gap:0!important}
+ .studio-transport button svg{box-sizing:border-box;width:48px!important;height:48px!important;padding:13px!important;background:var(--record-panel)!important;border:1px solid #405571;color:var(--ds-text)}
+ .studio-transport .studio-record svg{width:72px!important;height:72px!important;padding:21px!important;border:3px solid transparent;background:linear-gradient(var(--record-panel),var(--record-panel)) padding-box,var(--record-ring) border-box!important}
+ .studio-transport button span{font-size:13px!important;line-height:18px;color:var(--record-muted)}
+ .studio-record span{color:var(--ds-text)!important}
+ .studio-transport button:disabled{opacity:.62}
+ .sing-status{position:absolute;overflow:hidden;clip-path:inset(50%);width:1px;height:1px;margin:0!important}
+ .sing-status.show-notice{clip-path:none;inset:auto auto 108px 20px;width:min(90%,440px);height:auto;background:var(--record-panel);border:1px solid var(--record-border);border-radius:8px;padding:8px;z-index:2;white-space:normal}
+}
+:is(#sing.web-studio #sing-live-settings,.recording-settings) .studio-setting-card{min-width:0}
+:is(#sing.web-studio #sing-live-settings,.recording-settings) h2{font-size:19px;line-height:1.35;font-weight:600;gap:10px;margin:0 0 10px}
+:is(#sing.web-studio #sing-live-settings,.recording-settings) .studio-range{grid-template-columns:minmax(84px,.57fr) minmax(0,1fr) 44px;gap:8px;margin:0!important;min-height:42px}
+:is(#sing.web-studio #sing-live-settings,.recording-settings) :is(.studio-control-name,.studio-key,.studio-size,.sing-monitor){font-size:14px;font-weight:400}
+:is(#sing.web-studio #sing-live-settings,.recording-settings) :is(.studio-range output,.sing-monitor small,.studio-preset-tile){font-size:12px}
+:is(#sing.web-studio #sing-live-settings,.recording-settings) :is(.studio-key,.studio-size){grid-template-columns:minmax(76px,.39fr) minmax(0,1fr);margin:8px 0 0}
+:is(#sing.web-studio #sing-live-settings,.recording-settings) :is(.studio-key button,.sing-lyric-sizes button,.studio-key-stepper output){font-size:13px}
+:is(#sing.web-studio #sing-live-settings,.recording-settings) .studio-space-presets{gap:6px}
+:is(#sing.web-studio #sing-live-settings,.recording-settings) .studio-extra-presets .studio-preset-tile:not([aria-pressed=true]){background:transparent;border-color:transparent}
+:is(#sing.web-studio #sing-live-settings,.recording-settings) [data-post-custom][hidden]{display:none!important}
+:is(#sing.web-studio #sing-live-settings,.recording-settings) .microphone-check{position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(64px,.9fr);align-items:center;gap:10px;min-height:37px;border-radius:0;margin:8px 0 0;padding:8px 0 0}
+:is(#sing.web-studio #sing-live-settings,.recording-settings) .microphone-check-info strong{font-size:12px;color:#deb2bb;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:400}
+:is(#sing.web-studio #sing-live-settings,.recording-settings) .microphone-check.is-connected strong{color:#8eddd2}
+:is(#sing.web-studio #sing-live-settings,.recording-settings) .microphone-check-info strong::before{content:'●';margin-right:5px;font-size:9px}
+:is(#sing.web-studio #sing-live-settings,.recording-settings) .microphone-check-input{grid-row:1;grid-column:2}
+:is(#sing.web-studio #sing-live-settings,.recording-settings) [data-mic-toggle]{position:absolute;left:0;inset-block:0;width:50%;min-width:0;min-height:36px;background:transparent;border:0;color:transparent}
+:is(#sing.web-studio #sing-live-settings,.recording-settings) [data-mic-hint]{display:none}
+:is(#sing.web-studio #sing-live-settings,.recording-settings) .microphone-check-bars i{height:4px;background:#384a60}
+:is(#sing.web-studio #sing-live-settings,.recording-settings) .microphone-check-bars i.is-active{height:9px;background:#8eddd2}
+:is(#main #sing .sing-progress,#sing.web-studio #sing-live-settings,.recording-settings) input[type=range]{appearance:none;display:block;border:0;padding:0;min-width:0;width:100%;height:28px;cursor:pointer;background:linear-gradient(90deg,#cbb4ea,#8eddd2) left center/var(--position,0%) 4px no-repeat,linear-gradient(#344459,#344459) center/100% 4px no-repeat!important}
+:is(#main #sing .sing-progress,#sing.web-studio #sing-live-settings,.recording-settings) input[type=range]::-webkit-slider-runnable-track{background:transparent;border:0;height:4px}
+:is(#main #sing .sing-progress,#sing.web-studio #sing-live-settings,.recording-settings) input[type=range]::-webkit-slider-thumb{appearance:none;border:0;border-radius:50%;background:#e6eef6;width:10px;height:10px;margin-top:-3px;box-shadow:none}
+:is(#main #sing .sing-progress,#sing.web-studio #sing-live-settings,.recording-settings) input[type=range]::-moz-range-thumb{border:0;border-radius:50%;background:#e6eef6;width:10px;height:10px}
+
+@media(min-width:1024px){
+ .page-wrap:has(#sing.web-studio:not(.is-reviewing):not(.is-punch-page)){height:auto;min-height:100dvh;overflow:visible}
+ .page-wrap #main:has(#sing.web-studio:not(.is-reviewing):not(.is-punch-page)){display:flex;justify-content:center;align-items:flex-start;height:auto;min-height:calc(100dvh - 80px);padding:clamp(16px,calc((100dvh - 800px)*.17),48px) 20px 48px!important;overflow:visible;background:#0b131e!important}
+ #main #sing.web-studio:not(.is-reviewing):not(.is-punch-page){width:100%;max-width:1096px!important;height:748px;min-height:0;margin:0!important;grid-template-columns:minmax(0,64fr) minmax(0,44fr);grid-template-rows:92px minmax(0,1fr);gap:0 18px;overflow:visible}
+ #main #sing.web-studio:not(.is-reviewing):not(.is-punch-page)::before{content:'';position:absolute;z-index:-1;inset:0 auto 0 0;width:calc((100% - 18px)*64/108);background:var(--record-panel);border:1px solid var(--record-border);border-radius:16px;box-sizing:border-box}
+ #main #sing.web-studio:not(.is-reviewing):not(.is-punch-page) #sing-live-settings{display:grid;grid-template-rows:auto auto minmax(max-content,1fr);gap:12px;padding:0;border:0;background:none;align-self:stretch;overflow:visible;margin:0}
+ #main #sing.web-studio:not(.is-reviewing):not(.is-punch-page) #sing-live-settings[hidden]{display:none!important}
+ #main #sing.web-studio #sing-live-settings .studio-setting-card{background:var(--record-panel);border:1px solid var(--record-border);border-radius:16px;padding:16px clamp(12px,1.1vw,20px)}
+ #main #sing.web-studio #sing-live-settings>.studio-setting-card:nth-child(1){min-height:258px}
+ #main #sing.web-studio #sing-live-settings>.studio-setting-card:nth-child(2){min-height:160px}
+ #main #sing.web-studio #sing-live-settings .sing-monitor{min-height:48px;margin:4px 0}
+ #main #sing.web-studio #sing-live-settings .studio-space h2{margin-bottom:14px}
+}
+@media(max-width:1023px){
+ body:has(#sing.web-studio:not(.is-reviewing):not(.is-punch-page)) :is(.mobile-navigation,.topbar,.mini-player){display:none!important}
+ .page-wrap #main:has(#sing.web-studio:not(.is-reviewing):not(.is-punch-page)){position:fixed;inset:0;z-index:30;box-sizing:border-box;width:100%;max-width:none;height:100dvh;margin:0;padding:0!important;background:#0b131e!important;overflow:hidden}
+ #main #sing.web-studio:not(.is-reviewing):not(.is-punch-page){--record-line:clamp(34px,5.46dvh,48px);display:grid!important;height:100%;width:100%;grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);gap:0;padding:max(env(safe-area-inset-top),clamp(8px,5.8dvh,50px)) max(env(safe-area-inset-right),16px) max(env(safe-area-inset-bottom),clamp(12px,7.35dvh,64px)) max(env(safe-area-inset-left),16px)!important;overflow:hidden}
+ #main #sing.web-studio:not(.is-reviewing):not(.is-punch-page) .sing-head{padding:0!important;gap:10px!important;min-height:50px}
+ #main #sing.web-studio:not(.is-reviewing):not(.is-punch-page) .sing-back{width:20px;flex-basis:20px}
+ #main #sing.web-studio:not(.is-reviewing):not(.is-punch-page) .sing-artwork{width:44px;height:44px;flex-basis:44px}
+ #main #sing.web-studio:not(.is-reviewing):not(.is-punch-page) .record-settings-icon{width:36px;height:36px}
+ #main #sing.web-studio:not(.is-reviewing):not(.is-punch-page) .sing-header-mode{gap:8px}
+ #main #sing.web-studio:not(.is-reviewing):not(.is-punch-page) #duet-guide button{padding:0 clamp(8px,4vw,18px);font-size:13px;min-width:0}
+ #main #sing.web-studio:not(.is-reviewing):not(.is-punch-page) .sing-recording{grid-template-rows:46px 24px 40px 22px minmax(0,1fr) 96px;padding:8px 0 0!important}
+ #main #sing.web-studio:not(.is-reviewing):not(.is-punch-page) .sing-progress{gap:12px}
+ #main #sing.web-studio:not(.is-reviewing):not(.is-punch-page) [data-record-mic]{display:block;grid-row:2;justify-self:end;font-size:12px;color:#deb2bb;padding-right:12px}
+ #main #sing.web-studio:not(.is-reviewing):not(.is-punch-page) [data-record-mic]::before{content:'●';font-size:9px;margin-right:6px}
+ #main #sing.web-studio:not(.is-reviewing):not(.is-punch-page) [data-record-mic].is-connected{color:#8eddd2}
+ #main #sing.web-studio:not(.is-reviewing):not(.is-punch-page) .duet-color-key{gap:clamp(20px,14vw,58px)}
+ #main #sing.web-studio:not(.is-reviewing):not(.is-punch-page) .sing-wheel{padding:0!important;margin-top:8px}
+ #main #sing.web-studio[data-lyric-size=normal] .sing-wheel button,#main #sing.web-studio[data-lyric-size=normal] .sing-wheel button.current{font-size:19px!important}
+ #main #sing.web-studio:not(.is-reviewing):not(.is-punch-page) .sing-recording .studio-transport{width:100%;grid-template-columns:repeat(3,minmax(56px,82px))!important;gap:clamp(8px,8vw,34px)!important}
+ .recording-settings h2{font-size:18px}
+}
+@media(max-height:580px) and (max-width:1023px){
+ #main #sing.web-studio:not(.is-reviewing):not(.is-punch-page){padding-block:max(env(safe-area-inset-top),4px) max(env(safe-area-inset-bottom),4px)!important}
+ #main #sing.web-studio:not(.is-reviewing):not(.is-punch-page) .sing-recording{grid-template-rows:30px 16px 22px 16px minmax(0,1fr) 68px;padding-top:0!important}
+ #main #sing.web-studio:not(.is-reviewing):not(.is-punch-page) .studio-transport button{height:66px;grid-template-rows:48px 16px}
+ #main #sing.web-studio:not(.is-reviewing):not(.is-punch-page) .studio-transport .studio-record svg{width:46px!important;height:46px!important;padding:10px!important}
+ #main #sing.web-studio:not(.is-reviewing):not(.is-punch-page) .studio-transport button svg{width:36px!important;height:36px!important;padding:8px!important}
+ #main #sing.web-studio:not(.is-reviewing):not(.is-punch-page) .sing-recording .studio-transport{min-height:66px}
+}
+
+:is(#sing.web-studio #sing-live-settings,.recording-settings) .studio-preset-tile{font-size:13px!important}
+:is(#sing.web-studio #sing-live-settings,.recording-settings) .studio-preset-icon{width:20px;background:none!important;color:inherit}
+:is(#sing.web-studio #sing-live-settings,.recording-settings) .studio-preset-tile[aria-pressed=true]{background:var(--ds-gradient)!important;color:var(--ds-ink)!important;box-shadow:none!important;border-color:transparent!important}
+#main #sing.web-studio.is-punch-recording:not(.is-reviewing):not(.is-punch-page) .sing-recording{
+ grid-template-rows:auto 36px auto auto 24px minmax(0,1fr) auto;
+ .sing-punch-record-header{grid-row:1;margin:0}
+ .sing-progress{grid-row:2}
+ [data-record-mic]{grid-row:3}
+ .duet-color-key{grid-row:4}
+ .sing-countdown{grid-row:5}
+ .sing-wheel{grid-row:6}
+ .studio-transport{grid-row:7}
+}
+
+:is(#main #sing.web-studio #sing-live-settings,.recording-settings) .sing-monitor input:checked{background:radial-gradient(circle at 32px 12px,var(--ds-text) 9px,transparent 9.5px),#8eddd2}
+@media(min-width:1024px) and (max-width:1190px){
+ #main #sing.web-studio #sing-live-settings .studio-space{padding-block:10px}
+}

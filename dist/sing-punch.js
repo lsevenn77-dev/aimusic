@@ -72,9 +72,9 @@ function paintPunchCountdown(s,run){
  const active=!!run?.punchRange;header.hidden=!active;
  if(active)header.querySelector('[data-punch-record-range]').textContent=preciseTime(run.punchRange.start)+' – '+preciseTime(run.punchRange.end);
  header.querySelector('[data-punch-cancel]').onclick=()=>finishSinging({discardPunch:true});
- const n=run?Math.max(0,Math.min(3,K().punchCountdown(run.recordClock,s.ctx.currentTime))):0;countdown.hidden=false;
- const number=countdown.querySelector('[data-punch-countdown]');number.setAttribute('aria-label',n?n+'박 뒤 녹음 시작':'');
- if(number.dataset.count!==String(n)){number.dataset.count=String(n);number.innerHTML=Array.from({length:3},(_,i)=>'<i aria-hidden="true" class="'+(i<n?'is-visible':'')+'"></i>').join('');}
+ const remaining=run?run.recordClock-s.ctx.currentTime:0;const n=remaining>0&&remaining<=3?Math.ceil(remaining):0;countdown.hidden=false;
+ const number=countdown.querySelector('[data-punch-countdown]');number.setAttribute('aria-label',n?n+'초 뒤 녹음 시작':'녹음 대기');
+ if(number.dataset.count!==String(n)){number.dataset.count=String(n);number.innerHTML=Array.from({length:3},(_,i)=>'<i aria-hidden="true" class="'+(n&&i===3-n?'is-visible':'')+'"></i>').join('');}
 }
 function paintPunchPlayback(s){
  if(sing!==s||s.punchPage!=='result'||!s.pendingPunch)return;const p=s.pendingPunch,elapsed=Math.max(0,Math.min(p.range.end-p.range.start,s.cursor-p.range.start));
@@ -85,7 +85,7 @@ function paintPunchPlayback(s){
 }
 async function previewPunchResult(s=sing,from=s.pendingPunch?.range.start){
  const p=s.pendingPunch;if(sing!==s||!p||singBusy(s)||singLive(s))return;
- try{stopPreview();s.state='rendering';updateTransport();paintPunchPlayback(s);await prepareVocalEffects(s,p.voice);if(sing!==s||s.pendingPunch!==p||s.punchPage!=='result')return;
+ try{stopPreview();s.state='rendering';updateTransport();paintPunchPlayback(s);await prepareKeyBacking(s);await prepareVocalEffects(s,p.voice);if(sing!==s||s.pendingPunch!==p||s.punchPage!=='result')return;
   s.state='review';await s.ctx.resume();const view={...s,voice:p.voice},at=s.ctx.currentTime+.05;from=from>=p.range.end-.02?p.range.start:Math.max(p.range.start,from);const mix=scheduleMix(s.ctx,from,at,view,p.range.end);runPreview(s,mix.sources,at,from,'playing',mix.nodes);paintPunchPlayback(s);
  }catch(e){if(sing===s&&s.pendingPunch===p){s.state='review';updateTransport();paintPunchPlayback(s);if(!e.cancelled)setSingStatus(e.message);}}
 }

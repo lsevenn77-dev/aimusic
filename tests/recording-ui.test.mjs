@@ -32,9 +32,9 @@ test('browser monitoring uses the selected voice gain without a hidden 25% reduc
   const input={readyState:'live',enabled:true,addEventListener(){},stop(){}},stream={getTracks:()=>[input],getAudioTracks:()=>[input]};
   const elements={'#sing-monitor':{checked:enabled},'#sing-panel':{innerHTML:''}};
   const c=sandbox({window:{AifectKaraoke:karaoke,AudioContext:function(){}},AudioWorkletNode:function(){return node();},navigator:{mediaDevices:{getUserMedia:async()=>stream}},document:{hidden:false},audio:{pause(){}},playSerial:0,requestAnimationFrame:()=>0,$:q=>elements[q]});c.context=ctx;
-  vm.runInContext("sing={id:'test',mode:'solo',state:'idle',cursor:0,ctx:context,mr:{duration:30},mix:K().defaultVocalMix()};stopPreview=()=>{};updateTransport=()=>{};setSingStatus=()=>{};prepareSing=async()=>context;backingBuffer=s=>s.mr;bindMixControls=()=>{};drawLyrics=()=>{}",c);
+  vm.runInContext("sing={id:'test',mode:'solo',state:'idle',cursor:0,ctx:context,mr:{duration:30},mix:K().defaultVocalMix()};stopPreview=()=>{};updateTransport=()=>{};setSingStatus=()=>{};prepareSing=async()=>context;singingKey=()=>0;connectLiveBacking=()=>({close(){}});bindMixControls=()=>{};drawLyrics=()=>{}",c);
   await vm.runInContext('startSinging()',c);
-  assert.equal(vm.runInContext('sing.state',c),'singing');
+  assert.equal(vm.runInContext('sing.state',c),'preroll');
   assert.equal(vm.runInContext('sing.run.monitor.gain.value',c),enabled?1:0);
   assert.equal(vm.runInContext('sing.run.voiceGain.gain.value',c),1);
   assert.equal(vm.runInContext('sing.run.mute.gain.value',c),0,'dry recorder output never feeds the speakers');
@@ -77,9 +77,9 @@ test('normal and premium prerecord counts share audio time; pause clears all dot
  const c=sandbox({$:q=>q==='.sing-punch-record-header'?header:countdown});
  vm.runInContext(readFileSync(new URL('../dist/sing-punch.js',import.meta.url),'utf8'),c);
  c.session={ctx:{currentTime:0}};c.run={recordClock:8};
- for(const [clock,count] of [[0,3],[5,3],[6.1,2],[7.1,1],[8,0]]){
+ for(const [clock,count] of [[0,0],[5,3],[6.1,2],[7.1,1],[8,0]]){
   c.session.ctx.currentTime=clock;vm.runInContext('paintPunchCountdown(session,run)',c);
-  assert.equal((number.innerHTML.match(/class="is-visible"/g)||[]).length,count);assert.equal(countdown.hidden,false);assert.equal(header.hidden,true);
+  assert.equal(number.dataset.count,String(count));assert.equal((number.innerHTML.match(/class="is-visible"/g)||[]).length,count?1:0);assert.equal(countdown.hidden,false);assert.equal(header.hidden,true);
  }
  vm.runInContext('paintPunchCountdown(session,null)',c);assert.equal(number.dataset.count,'0');assert.equal(countdown.hidden,false);
 });

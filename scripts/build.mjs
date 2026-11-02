@@ -78,6 +78,7 @@ await build({entryPoints:['shared/alignment.js'],outfile:'dist/client/alignment-
 await build({entryPoints:['shared/queue.js'],outfile:'dist/client/queue-core.js',bundle:true,format:'iife',globalName:'AifectQueue',target:'es2022',minify:true});
 await build({entryPoints:['shared/audio-ads.js'],outfile:'dist/client/audio-ads-core.js',bundle:true,format:'iife',globalName:'AifectAudioAdsCore',target:'es2022',minify:true});
 await build({entryPoints:['shared/pitch-worker.js'],outfile:'dist/client/pitch-worker.js',bundle:true,format:'esm',target:'es2022',minify:true,legalComments:'eof',banner:{js:'/*! Pitch engine: SoundTouchJS 2.1.1 (MPL-2.0). License and source: /third-party/SoundTouchJS-NOTICE.txt */'}});
+await build({entryPoints:['shared/backing-worklet.js'],outfile:'dist/client/backing-worklet.js',bundle:true,format:'esm',target:'es2022',minify:true,legalComments:'eof',banner:{js:'/*! Pitch engine: SoundTouchJS 2.1.1 (MPL-2.0). License and source: /third-party/SoundTouchJS-NOTICE.txt */'}});
 await cp('dist/third-party','dist/client/third-party',{recursive:true});
 await build({entryPoints:['shared/vocal-render-worker.js'],outfile:'dist/client/vocal-render-worker.js',bundle:true,format:'iife',target:'es2022',minify:true});
 await build({entryPoints:['shared/vocal-worklet.js'],outfile:'dist/client/vocal-worklet.js',bundle:true,format:'esm',target:'es2022',minify:true});
