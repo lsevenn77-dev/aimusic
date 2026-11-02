@@ -149,6 +149,12 @@ async function renderRoute(showCachedRoute){
   if(base==='home')return await renderHome(ticket);
   await accountReady;if(ticket!==renderId)return;
   if(account!==(me?.id||'guest'))return render();
+  if(base==='crew-jump'&&param){
+   const {mount}=await import('/crew-jump-view.js');
+   if(ticket!==renderId)return;
+   registerRouteCleanup(mount(main,{crew:param,api:readApi,esc}));
+   main.removeAttribute('aria-busy');window.scrollTo(0,0);return;
+  }
   if(restored)showCachedRoute?.();
   if(typeof rememberMenuLogin==='function')rememberMenuLogin(base,param);
   const readRevision=apiRevision;

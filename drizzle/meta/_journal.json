@@ -603,6 +603,13 @@
       "when": 1793467702059,
       "tag": "0085_follow_management",
       "breakpoints": true
+    },
+    {
+      "idx": 86,
+      "version": "6",
+      "when": 1793629401857,
+      "tag": "0086_crew_jump_runs",
+      "breakpoints": true
     }
   ]
 }
