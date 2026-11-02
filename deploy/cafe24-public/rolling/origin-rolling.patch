@@ -1,0 +1,102 @@
+diff --git a/ops/cafe24/service.mjs b/ops/cafe24/service.mjs
+index 4c7ef2b..7e14a67 100644
+--- a/ops/cafe24/service.mjs
++++ b/ops/cafe24/service.mjs
+@@ -1,10 +1,29 @@
+ import http from 'node:http';
+ import {readFile} from 'node:fs/promises';
+-import {timingSafeEqual} from 'node:crypto';
++import {timingSafeEqual,createHash} from 'node:crypto';
+ import sharp from 'sharp';
+ import {render} from './renderer.mjs';
+ const revision=(await readFile(new URL('./revision',import.meta.url),'utf8')).trim();
+ const shell=await readFile(new URL('./shell.html',import.meta.url),'utf8');
++const renderer=await readFile(new URL('./renderer.mjs',import.meta.url));
++const shells=new Map([[revision,shell]]);
++let check, checkedAt=0;
++async function shellFor(id){
++ if(shells.has(id))return shells.get(id);
++ if(!check && Date.now()-checkedAt>1500){
++  checkedAt=Date.now();
++  check=(async()=>{
++   const r=await fetch('https://aifect.co.kr/aifect-shell.txt',{headers:{'user-agent':'Mozilla/5.0 AIFECT-Origin/1.0'},redirect:'error',signal:AbortSignal.timeout(1100)});
++   if(!r.ok||!r.headers.get('content-type')?.startsWith('text/plain'))return;
++   const chunks=[];let n=0;for await(const c of r.body){if((n+=c.length)>256*1024)return;chunks.push(c);}
++   const b=Buffer.concat(chunks),key=createHash('sha256').update(renderer).update('\0').update(b).digest('hex');
++   if(!shells.has(key)&&shells.size>=5)shells.delete([...shells.keys()][1]);
++   shells.set(key,b.toString('utf8'));
++  })().catch(()=>{}).finally(()=>{check=null;});
++ }
++ if(check)await check;
++ return shells.get(id);
++}
+ const token=process.env.CAFE24_ORIGIN_KEY;
+ if(!/^[a-f0-9]{64}$/.test(revision)||!token||token.length<32)throw Error('Missing release identity');
+ const expected=Buffer.from('Bearer '+token);
+@@ -17,7 +36,6 @@ const server=http.createServer(async(req,res)=>{
+  try{
+   const sent=Buffer.from(req.headers.authorization||'');
+   if(req.method!=='POST'||sent.length!==expected.length||!timingSafeEqual(expected,sent))return end(404);
+-  const base='/aifect-origin/'+revision+'/';
+   if(req.url==='/aifect-origin/v1/webp'){
+    if(images>=2)return end(503);images++;
+    try{const b=await read(req,maxImage),img=sharp(b,{limitInputPixels:64_000_000,failOn:'error'});
+@@ -27,10 +45,13 @@ const server=http.createServer(async(req,res)=>{
+     res.writeHead(200,{'content-type':'image/webp','content-length':out.length,'cache-control':'no-store'});return res.end(out);
+    }finally{images--;}
+   }
+-  if(req.url!==base+'page')return end(404);
++  const id=/^\/aifect-origin\/([0-9a-f]{64})\/page$/.exec(req.url)?.[1];
++  if(!id)return end(404);
++  const matchedShell=await shellFor(id);
++  if(!matchedShell)return end(404);
+   const {target,data}=JSON.parse((await read(req,524288)).toString());
+   if(typeof target!=='string'||!target.startsWith('/')||target.startsWith('//')||target.includes('\\')||target.length>2048)return end(400);
+-  const r=await render(target,data,shell);if(!r)return end(404);
++  const r=await render(target,data,matchedShell);if(!r)return end(404);
+   // The TLS vhost is a transport endpoint, not the canonical browsing origin.
+   res.writeHead(r.status,{...Object.fromEntries(r.headers),'x-aifect-rendered':'1'});res.end(await r.text());
+  }catch(e){if(!res.headersSent)end(e.message==='size'?413:422);else res.destroy();}
+diff --git a/server/cafe24-origin.js b/server/cafe24-origin.js
+index d90a6f7..04af728 100644
+--- a/server/cafe24-origin.js
++++ b/server/cafe24-origin.js
+@@ -6,7 +6,7 @@ const base='https://billing.aifect.co.kr/aifect-origin/';
+ export const release=typeof __CAFE24_BUILD__==='string'?__CAFE24_BUILD__:'';
+ export async function originRequest(env, action, body, contentType, ms, fetcher=fetch, version=release){
+  if(!env.CAFE24_ORIGIN_KEY||!version)return null;
+- return fetcher(base+(action==='webp'?'v1':version)+'/'+action,{method:'POST',headers:{authorization:'Bearer '+env.CAFE24_ORIGIN_KEY,'content-type':contentType},body,redirect:'error',signal:AbortSignal.timeout(ms)});
++ return fetcher(base+(action==='webp'?'v1':version)+'/'+action,{method:'POST',headers:{authorization:'Bearer '+env.CAFE24_ORIGIN_KEY,'content-type':contentType},body,redirect:'manual',signal:AbortSignal.timeout(ms)});
+ }
+ export async function tryPublicOrigin(req,env,path,requestOrigin=originRequest){
+  if(!env.CAFE24_ORIGIN_KEY||!publicPath(path)||!['GET','HEAD'].includes(req.method))return null;
+@@ -23,5 +23,8 @@ export async function tryPublicOrigin(req,env,path,requestOrigin=originRequest){
+    if(html.startsWith('<!doctype html>')||html.startsWith('<!DOCTYPE html>'))return new Response(req.method==='HEAD'?null:html,{status:r.status,headers:h});
+   }
+  }catch{/* Retry only the local renderer using the already authorized public rows. */}
+- return await publicMusicRoute(req,env,path,data)||publicPageRoute(req,path);
++ const fallback=await publicMusicRoute(req,env,path,data)||await publicPageRoute(req,path);
++ if(!fallback)return null;
++ const h=new Headers(fallback.headers);h.set('x-aifect-web-origin','sites-fallback');
++ return new Response(fallback.body,{status:fallback.status,headers:h});
+ }
+diff --git a/tests/cafe24-origin.test.mjs b/tests/cafe24-origin.test.mjs
+index 39e401a..14707a2 100644
+--- a/tests/cafe24-origin.test.mjs
++++ b/tests/cafe24-origin.test.mjs
+@@ -15,13 +15,13 @@ test('Cafe24 receives only public display fields and render output matches Sites
+  assert.equal(remote.headers.get('x-aifect-web-origin'),'cafe24');
+  assert.equal(await remote.text(),await (await publicMusicRoute(req,env,path)).text());
+  const lost=await tryPublicOrigin(req,env,path,async()=>{throw Error('down')});
+- assert.equal(lost.status,200);assert.ok(!(await lost.text()).includes('secret='));
++ assert.equal(lost.status,200);assert.equal(lost.headers.get('x-aifect-web-origin'),'sites-fallback');assert.ok(!(await lost.text()).includes('secret='));
+  for(const p of ['/api/account','/admin/','/mcp','/checkout/toss','/media/one/stream','/music/one/../../internal'])
+   assert.equal(await tryPublicOrigin(req,env,p,()=>{throw Error('must not contact origin')}),null);
+ });
+ test('wire request uses fixed TLS origin, no redirects and a stable encoder endpoint',async()=>{
+  const mock=(url,init)=>({url,init}),env={CAFE24_ORIGIN_KEY:'k'};
+  const r=await originRequest(env,'webp',new Uint8Array([1]),'image/png',1000,mock,'release1');
+- assert.equal(r.url,'https://billing.aifect.co.kr/aifect-origin/v1/webp');assert.equal(r.init.redirect,'error');
++ assert.equal(r.url,'https://billing.aifect.co.kr/aifect-origin/v1/webp');assert.equal(r.init.redirect,'manual');
+  assert.deepEqual(Object.keys(r.init.headers).sort(),['authorization','content-type']);
+ });
