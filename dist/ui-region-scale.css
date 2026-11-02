@@ -6,6 +6,7 @@
  .sidebar{width:calc(var(--sidebar) * 1.1)}
  .page-wrap{margin-left:calc(var(--sidebar) * 1.1);width:calc(100% - var(--sidebar) * 1.1);max-width:none}
  .sidebar .aifect-wordmark-logo{width:162.8px;height:39.6px;max-width:100%}
+ .sidebar>.nav-primary{margin-top:16px}
  .sidebar .nav-link{min-height:49.5px;gap:15.4px}
  .sidebar .nav-link>i>svg{width:22px;height:22px}
  .sidebar nav[aria-label="음악 탐색"] .nav-link{padding-inline:8px;gap:11px;white-space:nowrap}
