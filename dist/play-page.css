@@ -218,6 +218,35 @@ img.play-dubbing-art{display:block;width:100%;height:auto;aspect-ratio:1;object-
     padding-block: 6px;
     align-items: center;
   }
+  .play-row-sing {
+    width: auto;
+    min-width: 96px;
+    height: 44px;
+    min-height: 44px;
+    padding: 0 12px;
+    gap: 7px;
+    border: 1px solid var(--ds-line);
+    border-radius: var(--ds-radius-input);
+    background: var(--ds-panel);
+    color: var(--ds-text);
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+  }
+  .play-row-sing > svg {
+    flex: 0 0 20px;
+    width: 20px !important;
+    height: 20px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0;
+    background: none;
+  }
+  .play-row-sing > span { white-space: nowrap; }
+  .play-row-sing:is(:hover, :active) {
+    border-color: var(--ds-accent-pink);
+    color: var(--ds-accent-pink);
+  }
   :is(.play-song-title, .album-title, .play-draft-copy h3, .play-project-row h2,
       .dc-script strong, .dc-work-header h2, .song-cover-copy strong) {
     font-size: 15px;
