@@ -1,0 +1,153 @@
+From 35119ffad98b462e7d33a7f8ed84f6ecdda5731e Mon Sep 17 00:00:00 2001
+From: JONG SEOK <lsevenn77@gmail.com>
+Date: Mon, 2 Nov 2026 20:12:33 +0900
+Subject: [PATCH] Update Site source
+
+---
+ dist/community-v3.css |  6 +-----
+ dist/community-v3.js  | 16 +++++++---------
+ dist/index.html       |  1 -
+ dist/render-state.css | 10 ++++------
+ dist/views.js         |  5 +++--
+ 5 files changed, 15 insertions(+), 23 deletions(-)
+
+diff --git a/dist/community-v3.css b/dist/community-v3.css
+index 1ba01d3..648873f 100644
+--- a/dist/community-v3.css
++++ b/dist/community-v3.css
+@@ -99,7 +99,7 @@ main[data-route^="community"]::before,main[data-route^="crew/"]::before{display:
+ .talk-directory #v3-create-room {height:46px;min-width:146px;border-radius:var(--ds-radius-input);font-size:15px}
+ .talk-directory #v3-create-room svg {width:22px;height:22px}
+ .talk-directory .v3-room-grid {display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:18px 12px}
+-.talk-directory .v3-room-card,.talk-directory .talk-placeholder {
++.talk-directory .v3-room-card {
+  display:block;min-width:0;overflow:hidden;border:1px solid var(--ds-line);border-radius:var(--ds-radius-input);
+  background:var(--ds-panel);color:var(--ds-text);text-decoration:none;
+ }
+@@ -130,10 +130,6 @@ main[data-route^="community"]::before,main[data-route^="crew/"]::before{display:
+ .talk-directory .talk-status {margin:16px 0;text-align:center;color:var(--ds-muted)}
+ .talk-directory .talk-status button {margin-left:8px}
+ .talk-directory .talk-sentinel {height:1px}
+-.talk-directory .talk-placeholder i {display:block;aspect-ratio:1;background:var(--ds-soft);animation:talk-loading 1.2s ease-in-out infinite alternate}
+-.talk-directory .talk-placeholder b {display:block;width:62%;height:9px;margin:20px 8px;background:var(--ds-soft);border-radius:4px}
+-@keyframes talk-loading {to{opacity:.4}}
+-@media(prefers-reduced-motion:reduce){.talk-directory .talk-placeholder i{animation:none}}
+ @container (max-width:859px) {
+  .talk-directory .v3-room-grid {grid-template-columns:repeat(4,minmax(0,1fr))}
+  .talk-directory .talk-search.brand-search {flex-basis:210px;width:210px}
+diff --git a/dist/community-v3.js b/dist/community-v3.js
+index 0ac41f9..adb2801 100644
+--- a/dist/community-v3.js
++++ b/dist/community-v3.js
+@@ -56,11 +56,6 @@ function bindTalkingDirectory(root){
+   }
+   if(Number.isFinite(next))expiry=setTimeout(expireCovers,Math.min(next-Date.now()+50,2147483647));
+  }
+- function skeletons(show){
+-  grid.querySelectorAll('.talk-placeholder').forEach(el=>el.remove());
+-  if(show)grid.insertAdjacentHTML('beforeend','<div class="talk-placeholder" aria-hidden="true"><i></i><b></b></div>'.repeat(6));
+-  grid.setAttribute('aria-busy',String(show));
+- }
+  function ready(){
+   if(!items.size&&done)notice(search.value.trim()?'검색 결과가 없어요.':'아직 열린 공개 토킹룸이 없어요.');
+   if(!done)watchEnd(true);
+@@ -68,7 +63,10 @@ function bindTalkingDirectory(root){
+  async function load(){
+   if(disposed||controller||done)return;
+   watchEnd(false);const active=controller=new AbortController();
+-  notice();skeletons(true);
++  notice();grid.setAttribute('aria-busy','true');
++  const pendingNotice=setTimeout(()=>{
++   if(controller===active&&!disposed)notice('토킹룸 목록을 불러오는 중이에요.');
++  },450);
+   try{
+    if(enabled===null){
+     const service=await voiceRequest('status',undefined,'GET',active.signal);
+@@ -88,15 +86,15 @@ function bindTalkingDirectory(root){
+    }
+    grid.insertAdjacentHTML('beforeend',added.join(''));
+    done=!page.next_cursor||page.next_cursor===cursor;cursor=page.next_cursor;
+-   expireCovers();ready();
++   notice();expireCovers();ready();
+   }catch(e){if(!active.signal.aborted)notice('토킹룸 목록을 불러오지 못했어요.',true);}
+-  finally{if(controller===active){controller=null;skeletons(false);}}
++  finally{clearTimeout(pendingNotice);if(controller===active){controller=null;grid.setAttribute('aria-busy','false');}}
+  }
+  function reset(){
+   clearTimeout(debounce);clearTimeout(expiry);watchEnd(false);
+   if(desktop.matches)pane.scrollTop=0;
+   controller?.abort();controller=null;items=new Map();cursor=null;done=false;
+-  grid.replaceChildren();notice();skeletons(true);
++  grid.replaceChildren();notice();grid.setAttribute('aria-busy','true');
+   debounce=setTimeout(load,220);
+  }
+  search.oninput=reset;retry.onclick=load;
+diff --git a/dist/index.html b/dist/index.html
+index b9d78b3..7a6a3eb 100644
+--- a/dist/index.html
++++ b/dist/index.html
+@@ -126,7 +126,6 @@
+ 
+     <section id="route-pending" aria-label="페이지 준비" role="status" aria-live="polite">
+       <p id="route-pending-message">AIFECT 화면을 준비하고 있어요.</p>
+-      <div class="render-skeleton" aria-hidden="true"><div></div><div></div><div></div><div></div></div>
+       <div id="route-pending-actions" hidden><button type="button" id="route-retry">다시 시도</button><a href="/music">공개 음악 보기</a></div>
+     </section>
+     <script>window.AifectRender?.mount();</script>
+diff --git a/dist/render-state.css b/dist/render-state.css
+index 6d203e3..1155bdf 100644
+--- a/dist/render-state.css
++++ b/dist/render-state.css
+@@ -6,18 +6,16 @@ html[data-render-state="loading"] .page-wrap>.page-footer,html[data-render-state
+ html[data-render-state="loading"] #route-pending,html[data-render-state="error"] #route-pending{display:block}
+ #route-pending{box-sizing:border-box;min-height:calc(100dvh - 180px);max-width:1512px;margin:0 auto;padding:25px 52px 40px;color:var(--ds-body,#BEC1C9);position:relative;isolation:isolate;font:inherit}
+ #route-pending-message{font-size:14px;margin:8px 0 28px}
+-.render-skeleton{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px}
+-.render-skeleton>div{height:160px;border-radius:var(--ds-radius-card,16px);background:var(--ds-soft,rgba(183,182,255,.10))}
+-.render-skeleton>div:first-child{grid-column:1/-1;height:clamp(180px,25vw,310px);background:var(--ds-surface,linear-gradient(130deg,#19222f,#111922 75%))}
++/* Short transitions do not need a separate loading announcement. */
++html:not([data-render-state="error"]) #route-pending-message{animation:pending-notice 450ms step-end both}
++@keyframes pending-notice{from{visibility:hidden}to{visibility:visible}}
+ #route-pending-actions{display:flex;align-items:center;gap:20px;flex-wrap:wrap;margin-top:24px}
+ #route-pending-actions[hidden]{display:none}
+ #route-retry{min-height:44px;padding:10px 20px;border:1px solid var(--ds-line,#3a3a48);border-radius:12px;background:var(--ds-panel,#131b26);color:var(--ds-text,#F8FAFC);font:inherit;cursor:pointer}
+ #route-pending-actions a{color:inherit;text-underline-offset:4px}
+ @media(max-width:1150px){#route-pending{padding-inline:32px}}
+ @media(max-width:800px){#route-pending{padding:22px 20px 32px}}
+-@media(max-width:767px){#route-pending{padding-top:12px}.render-skeleton{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.render-skeleton>div{height:140px}.render-skeleton>div:last-child{display:none}}
+-
+-#route-pending::before{content:"";position:absolute;z-index:-1;pointer-events:none;top:0;left:0;right:0;aspect-ratio:340/65;background:url('/assets/atmosphere/06_approved_aurora_original.svg') left top/100% auto no-repeat;mask-image:linear-gradient(#000,transparent)}
++@media(max-width:767px){#route-pending{padding-top:12px}}
+ 
+ /* The fragment target changes synchronously with the URL, before JS routing.
+    A ready page is visible only while its completed route is still targeted. */
+diff --git a/dist/views.js b/dist/views.js
+index 34cb8f6..d3aeef0 100644
+--- a/dist/views.js
++++ b/dist/views.js
+@@ -81,7 +81,7 @@ async function render(){
+   if(typeof cleanupHome==='function')cleanupHome();
+  });
+  try{
+-  const outcome=await renderRoute();
++  const outcome=await renderRoute(()=>presentation?.ready(epoch));
+   if(serial===presentationSerial){
+    // A rejected recording/editor exit keeps the same live DOM but may restore
+    // a canonical URL (for example, removing a draft query parameter).
+@@ -94,7 +94,7 @@ async function render(){
+   else throw error;
+  }
+ }
+-async function renderRoute(){
++async function renderRoute(showCachedRoute){
+  if(location.hash.startsWith('#/'))history.replaceState(history.state,'','#'+location.hash.slice(2));
+  setMobileMenu(false);
+  const menuRedirect=typeof menuAlias==='function'?menuAlias(location.hash):null;
+@@ -156,6 +156,7 @@ async function renderRoute(){
+   if(base==='home')return await renderHome(ticket);
+   await accountReady;if(ticket!==renderId)return;
+   if(account!==(me?.id||'guest'))return render();
++  if(restored)showCachedRoute?.();
+   if(typeof rememberMenuLogin==='function')rememberMenuLogin(base,param);
+   const readRevision=apiRevision;
+   const profileHeader=base==='library'?libraryProfileHTML(readApi).catch(error=>({error})):null;
