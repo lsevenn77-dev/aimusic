@@ -33,6 +33,54 @@ function context(overrides={}){
  return {c,calls,events,host,nodes};
 }
 
+function monitorFixture(){
+ const {c,host,nodes}=context();
+ const node=()=>({connections:new Set(),connect(to){this.connections.add(to);},disconnect(to){if(to)this.connections.delete(to);else this.connections.clear();}});
+ const contextForOutput=()=>({
+  state:'running',destination:node(),
+  createGain(){return Object.assign(node(),{gain:{value:1}});},
+  createMediaStreamSource(stream){return Object.assign(node(),{stream});},
+ });
+ const micContext=contextForOutput(),vocal=node(),broadcast=node();
+ vocal.connect(broadcast);
+ const client=c.client={host,liveMode:true,stream:{},micSender:{track:{enabled:true}},processing:{analyser:vocal,context:micContext,stream:{}},levelContext:contextForOutput(),
+  resumeSound(){},liveTrack:'one',state:{self:'self',room:{mode:'karaoke'},members:[{id:'self',name:'가창자',role:'host',publishing:true,muted:false}],
+   karaoke:{phase:'ready',readyExpiresAt:Date.now()+10000,active:{user_id:'self',track:{id:'one',artist:'가수',title:'곡',duration:90}},queue:[]}}};
+ return {c,client,nodes,vocal,broadcast};
+}
+
+test('stage monitoring taps only the singer vocal and leaves the outgoing connection intact on toggles',async()=>{
+ const {c,client,nodes,vocal,broadcast}=monitorFixture();
+ const sync=()=>vm.runInContext('syncLiveMonitor(client)',c);
+ const toggle=()=>vm.runInContext('liveKaraokeAction(client,"karaoke-monitor")',c);
+ sync();assert.equal(vocal.connections.size,1);
+ await toggle();
+ const gain=client.liveMonitorTap.gain;
+ assert.ok(vocal.connections.has(gain));assert.ok(gain.connections.has(client.processing.context.destination));
+ assert.equal(nodes.get('#voice-monitor').checked,true);
+ sync();assert.equal(client.liveMonitorTap.gain,gain);
+ await toggle();assert.deepEqual([...vocal.connections],[broadcast]);assert.equal(gain.connections.size,0);
+ assert.equal(nodes.get('#voice-monitor').checked,false);
+ client.state.karaoke.active.user_id='other';await toggle();assert.equal(client.liveMonitorTap,null);
+});
+
+test('mute, changed device, turn handoff and capture fallback cannot leave an old local monitor playing',()=>{
+ const {c,client,vocal,broadcast}=monitorFixture();
+ const sync=()=>vm.runInContext('syncLiveMonitor(client)',c);
+ client.liveMonitorEnabled=true;sync();
+ client.state.members[0].muted=true;sync();assert.deepEqual([...vocal.connections],[broadcast]);
+ client.state.members[0].muted=false;client.levelContext.sinkId='headset';sync();
+ assert.equal(client.liveMonitorTap.source.stream,client.processing.stream);
+ assert.ok(client.liveMonitorTap.gain.connections.has(client.levelContext.destination));
+ const old=client.liveMonitorTap;
+ client.processing={fallback:true};client.stream={id:'new capture'};sync();
+ assert.equal(old.gain.connections.size,0);assert.equal(old.source.connections.size,0);
+ assert.equal(client.liveMonitorTap.source.stream,client.stream);
+ client.micSender.track.enabled=false;sync();assert.equal(client.liveMonitorTap,null);
+ client.micSender.track.enabled=true;sync();assert.ok(client.liveMonitorTap);
+ client.state.karaoke.phase='idle';sync();assert.equal(client.liveMonitorTap,null);
+});
+
 test('live room wraps the current template while preserving chat, gifts, settings and participants',()=>{
  const {c}=context(),html=vm.runInContext('liveKaraokeRoomHTML("live-room")',c);
  for(const id of ['live-lyrics','live-search','voice-chat','voice-gift-form','voice-settings-form','voice-members'])assert.equal((html.match(new RegExp('id="'+id+'"','g'))||[]).length,1,id);

@@ -43,6 +43,7 @@
 .live-actions{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px;min-height:44px}
 .live-actions .primary-button,.live-actions .small-button,.live-result button{min-height:44px;font-size:13px}
 .live-actions button{max-width:100%;overflow-wrap:anywhere;white-space:normal}
+.live-actions [data-voice="karaoke-monitor"][aria-pressed="true"]{border-color:var(--ds-accent-mint);color:var(--ds-accent-mint)}
 .live-invite{margin:0;color:var(--ds-accent-mint);font-size:13px;line-height:1.5}
 .live-stage-note{font-size:12px;line-height:1.5;color:var(--ds-body);margin:auto 0 0;overflow-wrap:anywhere}
 .live-audio-unlock{min-height:44px}

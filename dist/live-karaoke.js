@@ -85,8 +85,63 @@ function livePrepareTrack(c,active){
   .catch(e=>{if(!controller.signal.aborted&&!c.closed&&c.liveToken===token){c.liveError=e.message;paintLiveKaraoke(c);}});
 }
 function liveTrackReady(c){return !!c.liveAudio&&c.liveAudio.readyState>=2&&!!c.liveWords?.length&&!c.liveError;}
+function isLiveSingerTurn(c){
+ const {karaoke,self}=c.state||{};
+ return !!self&&karaoke?.active?.user_id===self&&['ready','singing'].includes(karaoke.phase);
+}
+function disconnectLiveMonitor(c){
+ const tap=c.liveMonitorTap;
+ if(!tap)return;
+ tap.source.disconnect(tap.gain);
+ tap.gain.disconnect();
+ c.liveMonitorTap=null;
+}
+function syncLiveMonitor(c){
+ if(!c.liveMonitorEnabled||c.closed||!isLiveSingerTurn(c)||!c.micSender?.track?.enabled){
+  disconnectLiveMonitor(c);
+  return;
+ }
+ const member=c.state.members.find(person=>person.id===c.state.self);
+ if(!member?.publishing||member.locked||member.muted){
+  disconnectLiveMonitor(c);
+  return;
+ }
+ // Tap the vocal after its effects, before the outgoing MediaStream. A selected
+ // output device uses the room's already unlocked playback context instead.
+ const graph=c.processing;
+ const processed=graph?.analyser&&graph.context?.state==='running';
+ const direct=processed&&!c.levelContext?.sinkId;
+ const context=direct?graph.context:c.levelContext;
+ const input=direct?graph.analyser:(processed?graph.stream:c.stream);
+ if(context?.state!=='running'||!input){disconnectLiveMonitor(c);return;}
+ if(c.liveMonitorTap?.input===input&&c.liveMonitorTap.context===context)return;
+ disconnectLiveMonitor(c);
+ try{
+  const source=direct?graph.analyser:context.createMediaStreamSource(input);
+  const gain=context.createGain();
+  gain.gain.value=.75;
+  source.connect(gain);
+  gain.connect(context.destination);
+  c.liveMonitorTap={input,context,source,gain};
+ }catch{
+  c.liveMonitorEnabled=false;
+  c.host.querySelector('#voice-monitor').checked=false;
+  c.status('내 목소리 듣기를 연결하지 못했어요. 출력 장치를 확인하고 다시 켜주세요.');
+  paintLiveKaraoke(c);
+ }
+}
+function setLiveMonitor(c,enabled){
+ c.liveMonitorEnabled=enabled;
+ const checkbox=c.host.querySelector('#voice-monitor');
+ if(checkbox)checkbox.checked=enabled;
+ if(enabled)c.resumeSound();
+ paintLiveKaraoke(c);
+}
 function bindLiveKaraoke(c){
  clearInterval(c.liveTimer);c.liveVolume??=.75;c.liveDelayMs??=200;
+ const monitor=c.host.querySelector('#voice-monitor');
+ monitor.checked=!!c.liveMonitorEnabled;
+ monitor.onchange=()=>setLiveMonitor(c,monitor.checked);
  const form=c.host.querySelector('#live-search');
  form.onsubmit=e=>{e.preventDefault();c.safe(async()=>{
   const q=form.querySelector('#live-query').value.trim(),out=c.host.querySelector('#live-results');
@@ -102,6 +157,10 @@ function bindLiveKaraoke(c){
  c.liveTimer=setInterval(()=>liveSync(c),200);
 }
 async function liveKaraokeAction(c,action,target){
+ if(action==='karaoke-monitor'){
+  if(isLiveSingerTurn(c))setLiveMonitor(c,!c.liveMonitorEnabled);
+  return;
+ }
  if(action==='karaoke-search-open'){c.showSheet('live-search-sheet');c.host.querySelector('#live-query').focus();return;}
  if(action==='karaoke-resume'){
   c.resumeSound();c.livePlayBlocked=false;if(c.liveAudio&&c.state?.karaoke?.phase==='singing'){try{await c.liveAudio.play();c.host.querySelector('#live-audio-unlock').hidden=true;}catch(e){c.livePlayBlocked=true;throw e;}}return;
@@ -156,6 +215,7 @@ function paintLiveKaraoke(c){
  if(active&&host&&!isSinger&&k.phase==='ready')buttons.push('<span class="quiet">가창자가 준비를 마치면 시작해요.</span>');
  if(active&&c.liveError)buttons.push('<button class="small-button" data-voice="karaoke-retry">반주 다시 불러오기</button>');
  if(isSinger&&k.phase==='singing')buttons.push(`<button class="small-button" data-voice="${self.muted?'enable-mic':'mute'}">${self.muted?'마이크 켜기':'마이크 끄기'}</button>`);
+ if(isLiveSingerTurn(c))buttons.push(`<button type="button" class="small-button" data-voice="karaoke-monitor" aria-pressed="${!!c.liveMonitorEnabled}">${icon('headphones')} 내 목소리 듣기 ${c.liveMonitorEnabled?'켜짐':'꺼짐'}</button>`);
  if(active&&(host||isSinger))buttons.push(`<button class="small-button" data-voice="karaoke-abandon" data-target="${esc(active.invitation_id)}">노래 포기</button>`);
  if(active&&host&&next)buttons.push(`<button class="small-button" data-voice="karaoke-next">${esc(nextName)}님 부르기</button>`);
  if(hasQueued)buttons.push('<button class="small-button" data-voice="karaoke-cancel">내 신청 취소</button>');
@@ -166,7 +226,7 @@ function paintLiveKaraoke(c){
  c.host.querySelector('#live-queue-count').textContent=(k?.queue?.length||0)+'명 대기';
  c.host.querySelector('#live-queue').innerHTML=k?.queue?.length?k.queue.map((q,i)=>{const person=s.members.find(p=>p.id===q.user_id);return `<li${i===0?' class="is-next"':''}><span>${i+1}</span><span class="live-queue-avatar">${avatarImage({...person,name:person?.name||q.name})}</span><div><strong>${esc(person?.name||q.name)}</strong><small title="${esc(q.track.title)}">${esc(q.track.title)}</small><small>${esc(q.track.artist)}</small></div>${host?`<button type="button" class="small-button" data-voice="karaoke-cancel" data-target="${esc(q.user_id)}" aria-label="${esc(person?.name||q.name)}님 신청 제외">×</button>`:''}</li>`;}).join(''):'<li class="live-queue-empty">첫 번째 노래를 신청해보세요.</li>';
  if(active)livePrepareTrack(c,active);else {if(c.liveAudio||c.liveTrack||c.liveAbort)liveStopAudio(c);c.liveError='';}
- c.host.querySelector('#live-stage-note').textContent=c.liveError||'이어폰을 사용하면 반주가 마이크에 섞이지 않아요.';
+ c.host.querySelector('#live-stage-note').textContent=c.liveError||(isLiveSingerTurn(c)?'이어폰을 연결하고 ‘내 목소리 듣기’를 켜면 노래하면서 들을 수 있어요.':'이어폰을 사용하면 반주가 마이크에 섞이지 않아요.');
  liveSync(c);
 }
 function liveRenderLyrics(c,seconds){
@@ -179,6 +239,7 @@ function liveRenderLyrics(c,seconds){
 }
 function liveSync(c){
  const k=c.state?.karaoke,active=k?.active;if(c.closed||!c.host?.isConnected)return;
+ syncLiveMonitor(c);
  const phase=c.host.querySelector('#live-phase'),timer=c.host.querySelector('#live-timer'),progress=c.host.querySelector('#live-progress');
  const invite=c.host.querySelector('#live-invite');
  if(invite)invite.hidden=!active||!['invited','ready'].includes(k.phase);
@@ -298,6 +359,16 @@ VoiceRoomClient.prototype.action=async function(action,target,button){
  return productionVoiceAction.call(this,action,target,button);
 };
 const productionVoiceLeave=VoiceRoomClient.prototype.leave;
+const productionMonitor=VoiceRoomClient.prototype.monitor;
+VoiceRoomClient.prototype.monitor=async function(){
+ if(this.liveMode){syncLiveMonitor(this);return;}
+ return productionMonitor.call(this);
+};
+const productionStopMicrophone=VoiceRoomClient.prototype.stopMicrophone;
+VoiceRoomClient.prototype.stopMicrophone=function(){
+ if(this.liveMode)disconnectLiveMonitor(this);
+ return productionStopMicrophone.call(this);
+};
 VoiceRoomClient.prototype.leave=function(...a){
  if(this.liveMode){clearInterval(this.liveTimer);this.liveSearchAbort?.abort();window.removeEventListener('pagehide',this.livePageHide);liveStopAudio(this);}
  return productionVoiceLeave.apply(this,a);
