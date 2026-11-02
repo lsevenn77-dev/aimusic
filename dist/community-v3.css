@@ -77,21 +77,22 @@ main[data-route^="community"]::before,main[data-route^="crew/"]::before{display:
 #main > .talk-directory {
  width:100%;max-width:944px;min-width:0;margin-inline:auto;container-type:inline-size;
 }
-/* The directory and its sibling destinations render the same four top tabs. */
+/* Use Play's main-tab metrics, including its rendered scale, on all four destinations. */
 #main > .talk-directory > .music-community-tabs,
 #main:is([data-route="community"], [data-route^="community/"], [data-route^="community?"], [data-route="live"], [data-route^="live?"]) > .music-community-tabs {
  --ui-type-scale:1;
- --ui-space-scale:1;
+ zoom:1.25;
  margin-bottom:12px;
 
  > .tab {
-  font-size:16px;
+  min-height:44px;
+  font-size:14px;
   line-height:1.35;
   padding:6px 8px;
   text-align:center;
  }
  @media (max-width:600px) {
-  > .tab {font-size:14px;min-height:44px;padding:6px}
+  > .tab {padding-inline:6px}
  }
 }
 #main .talk-directory .v3-toolbar {margin:26px 0 20px;gap:14px;align-items:center;flex-wrap:nowrap}
