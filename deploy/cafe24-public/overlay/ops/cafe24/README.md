@@ -1,0 +1,11 @@
+# Cafe24 public web origin
+The existing Sites ingress owns aifect.co.kr, user sessions, authorization, the DB and BUCKET bindings. Public HTML rendering for the home, public music search, song pages and public guides/policies can run on the Cafe24 machine. It does **not** migrate the database, payment handlers, private APIs, MCP or the audio store.
+
+Build the current Sites source with npm run release:prepare. Bundle work/cafe24-public/{renderer.mjs,shell.html,revision} and ops/cafe24/{service.mjs,package.json,package-lock.json}. Install these in a non-writable release directory on the Cafe24 host. Install Linux production dependencies with npm ci --omit=dev --ignore-scripts. The release identifier covers the renderer and matching browser shell. New incompatible builds fall back to Sites automatically until installed on Cafe24. Keep the previous release. Never copy a developer .env, SQLite DB, member session or media bucket to Git.
+
+Run the provided systemd unit at loopback port 18421. Include origin-location.conf inside the existing TLS vhost for billing.aifect.co.kr and validate nginx before reloading. Provision a 32+ character secret in the mode-0600 /etc/aifect-public-origin.env and the existing Sites runtime as CAFE24_ORIGIN_KEY. Use the same secret on both sides. Do not include it in logs, shell arguments, Git or an issue. Release checks and verification of the real domain are required.
+
+Only signed-infrastructure bearer requests are accepted. No client cookies or headers are forwarded. The render service takes a bounded payload from a public-field allowlist. The origin has no production data credentials. Its WebP encoder validates the actual format, limits pixels and concurrency, strips metadata and keeps alpha. Only normal artist/producer portraits and track covers use this new fallback; existing media and specialized validated image pipelines are not rewritten.
+
+Rollback: remove CAFE24_ORIGIN_KEY from Sites to immediately return to the built-in renderer/upload behavior once the setting is active, or redeploy the previous Sites version. Render failures fall back locally; previously unconverted uploads fail before storage on encoder errors. Verify home HTML, /music and private-route authentication. No database changes are required.
+

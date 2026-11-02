@@ -1,0 +1,19 @@
+[Unit]
+Description=AIFECT public web renderer and upload image encoder
+After=network.target
+[Service]
+Type=simple
+DynamicUser=yes
+WorkingDirectory=/opt/aifect-public-origin/current
+EnvironmentFile=/etc/aifect-public-origin.env
+ExecStart=/usr/bin/node /opt/aifect-public-origin/current/service.mjs
+Restart=on-failure
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+MemoryMax=384M
+TasksMax=64
+[Install]
+WantedBy=multi-user.target
