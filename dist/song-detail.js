@@ -59,26 +59,31 @@ function songDetailCreditsHTML(t){
  '<div><span class="song-producer-label">PRODUCER</span>'+(href?'<a href="'+href+'">'+producer+'</a>':'<span class="song-producer-name">'+producer+'</span>')+'</div></div>';
 }
 function songDetailActionsHTML(t){
- const id=esc(t.id),join=t.cover_mode==='duet'&&t.duet_open&&t.user_id!==me?.id,gift=t.user_id!==me?.id;
- const primary='<button type="button" class="primary-button song-action-listen" data-play="'+id+'">'+songActionIcon('play')+'<span>노래 듣기</span></button>'+
- (join?'<a class="small-button song-action-sing" href="#sing/'+esc(t.original_id)+'?duet='+id+'">'+songActionIcon('sing')+'<span>듀엣 참여</span></a>':'')+
- (t.karaoke_ready?'<a class="primary-button song-action-sing" href="#sing/'+id+'">'+songActionIcon('sing')+'<span>노래 부르기</span></a>':'');
- const secondary='<button type="button" class="small-button song-action-like '+(liked(t.id)?'is-active':'')+'" data-like="'+id+'" aria-label="좋아요 '+number(t.likes||0)+'개" aria-pressed="'+liked(t.id)+'">'+songActionIcon('heart')+'<span>좋아요</span><span class="song-like-count" data-like-count>'+number(t.likes||0)+'</span></button>'+
- '<button type="button" class="small-button song-action-save" data-add="'+id+'">'+songActionIcon('plus')+'<span>저장</span></button>'+
- (gift?'<button type="button" class="small-button gift-entry song-action-gift" data-gift="'+id+'">'+songActionIcon('gift')+'<span>선물</span></button>':'')+
- '<button type="button" class="small-button song-action-lyrics" id="lyrics-expand" data-track="'+id+'" aria-controls="expanded-song-lyrics" aria-expanded="false"'+(t.lyrics_mode==='synced'?'':' disabled title="아직 등록된 가사가 없습니다."')+'>'+songActionIcon('lyrics')+'<span>가사</span></button>';
- return '<div class="inline-actions song-actions" role="group" aria-label="곡 기능">'+primary+secondary+'</div>';
-}
-function songOwnerActionsHTML(t){
- if(t.kind!=='cover'||t.user_id!==me?.id)return '';
- return '<div class="song-owner-actions"><button type="button" class="small-button danger-button" data-delete-track="'+esc(t.id)+'" data-track-title="'+esc(t.title)+'" data-track-kind="cover">내 커버 삭제</button><a class="small-button" href="/api/covers/'+esc(t.id)+'/download">내 녹음 파일 저장</a></div>';
+ const id=esc(t.id),mine=!!me&&t.user_id===me.id;
+ const listen='<button type="button" class="primary-button song-action-listen" data-play="'+id+'">'+songActionIcon('play')+'<span>노래 듣기</span></button>';
+ const like='<button type="button" class="small-button song-action-like '+(liked(t.id)?'is-active':'')+'" data-like="'+id+'" aria-label="좋아요 '+number(t.likes||0)+'개" aria-pressed="'+liked(t.id)+'">'+songActionIcon('heart')+'<span>좋아요</span><span class="song-like-count" data-like-count>'+number(t.likes||0)+'</span></button>';
+ const lyrics='<button type="button" class="small-button song-action-lyrics" id="lyrics-expand" data-track="'+id+'" aria-controls="expanded-song-lyrics" aria-expanded="false"'+(t.lyrics_mode==='synced'?'':' disabled title="아직 등록된 가사가 없습니다."')+'>'+songActionIcon('lyrics')+'<span>가사</span></button>';
+ if(t.kind==='cover'){
+  const remove=mine?'<button type="button" class="small-button danger-button" data-delete-track="'+id+'" data-track-title="'+esc(t.title)+'" data-track-kind="cover">커버 삭제</button>':'';
+  const join=t.cover_mode==='duet'&&t.duet_open&&!mine?'<a class="text-link detail-duet-entry" href="#sing/'+esc(t.original_id)+'?duet='+id+'">'+songActionIcon('sing')+'듀엣 참여</a>':'';
+  return '<div class="inline-actions song-actions cover-actions'+(mine?' cover-actions-owner':'')+'" role="group" aria-label="커버 작품 기능">'+listen+like+lyrics+remove+'</div>'+join;
+ }
+ const sing=t.karaoke_ready?'<a class="primary-button song-action-sing" href="#sing/'+id+'">'+songActionIcon('sing')+'<span>노래 부르기</span></a>':'';
+ const save='<button type="button" class="small-button song-action-save" data-add="'+id+'">'+songActionIcon('plus')+'<span>저장</span></button>';
+ const gift=mine?'':'<button type="button" class="small-button gift-entry song-action-gift" data-gift="'+id+'">'+songActionIcon('gift')+'<span>선물</span></button>';
+ return '<div class="inline-actions song-actions" role="group" aria-label="곡 기능">'+listen+sing+like+save+gift+lyrics+'</div>';
 }
 function songDetailHeaderHTML(t){
- const genres=(t.genres?.length?t.genres:[t.genre]).filter(Boolean).join(' · '),moderation=trackModerationToolsHTML(t);
- return '<section class="song-detail song-detail-refined'+(genres?'':' song-detail-no-meta')+'">'+
+ const isCover=t.kind==='cover',genres=isCover?'':(t.genres?.length?t.genres:[t.genre]).filter(Boolean).join(' · '),moderation=trackModerationToolsHTML(t);
+ let art=cover(t).replace('loading="lazy"','loading="eager" fetchpriority="high"');
+ if(isCover){
+  const change=me&&t.user_id===me.id?'<button type="button" class="small-button detail-photo-change">사진 변경</button><input type="file" hidden data-cover-photo="'+esc(t.id)+'" accept="image/jpeg,image/png,image/webp" aria-label="작품 커버사진 선택">':'';
+  art='<div class="detail-cover-art">'+art+change+'</div>';
+ }
+ return '<section class="song-detail song-detail-refined'+(isCover?' cover-detail':'')+(genres?'':' song-detail-no-meta')+'">'+
  (genres?'<span class="eyebrow song-track-meta">'+esc(genres)+'</span>':'')+
- cover(t).replace('loading="lazy"','loading="eager" fetchpriority="high"')+'<div class="song-detail-copy"><h1 class="song-title">'+esc(t.title)+'</h1>'+
+ art+'<div class="song-detail-copy"><h1 class="song-title">'+esc(t.title)+'</h1>'+
  songDetailCreditsHTML(t)+songReleaseDateHTML(t)+'<div class="song-meta-row">'+songDetailMetricsHTML(t)+
- (moderation?'<div class="song-engagement">'+moderation+'</div>':'')+'</div><div class="song-header-divider" aria-hidden="true"></div>'+
- songDescriptionHTML(t)+songDetailActionsHTML(t)+songOwnerActionsHTML(t)+'</div></section>';
+ (moderation?'<div class="song-engagement">'+moderation+'</div>':'')+'</div>'+(isCover?'':'<div class="song-header-divider" aria-hidden="true"></div>')+
+ (isCover&&songCreatorDescription(t)?'<details class="cover-introduction"><summary>커버 소개</summary><p>'+esc(t.description)+'</p></details>':songDescriptionHTML(t))+songDetailActionsHTML(t)+'</div></section>';
 }

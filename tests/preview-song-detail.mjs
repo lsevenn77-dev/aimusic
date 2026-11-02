@@ -21,7 +21,17 @@ for(let i=0;i<44100*45;i++)v.setInt16(44+i*2,Math.sin(i*2*Math.PI*220/44100)*400
 f.sql.exec("INSERT INTO users(id,email,name,created) VALUES('long-user','long@example.test','Long fixture',0); INSERT INTO producers(id,user_id,name,bio,created) VALUES('long-producer','long-user','매우긴제작자이름매우긴제작자이름매우긴제작자이름매우긴제작자이름','',0); INSERT INTO tracks(id,user_id,producer_id,artist_id,title,genre,ai_tool,rights_accepted,original_ext,original_bytes,created,status,description) SELECT 'long','other','long-producer','friend-artist',title,genre,ai_tool,rights_accepted,original_ext,original_bytes,created,status,description FROM tracks WHERE id='one'");
 f.sql.prepare("UPDATE tracks SET title=?,description=? WHERE id='long'").run('긴곡제목'.repeat(30),'첫 문단\n\n'+'긴소개글과공백없는문장'.repeat(180)+'\n마지막 줄');
 const root=resolve(baseline?'work/song-detail-ui/baseline-client':'dist/client');
-const env={DB:f.DB,BUCKET:{async head(key){return {size:key.startsWith('images/')?art.length:wav.length};},async get(key,options){const data=key.startsWith('images/')?art:wav,body=options?.range?data.subarray(options.range.offset,options.range.offset+options.range.length):data;return {body,size:data.length};}},ASSETS:{async fetch(req){const u=new URL(req.url),file=resolve(root,'.'+u.pathname);if(!file.startsWith(root+sep))return new Response('',{status:404});try{return new Response(await readFile(file),{headers:{'content-type':({'.txt':'text/html;charset=utf-8','.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.png':'image/png','.webp':'image/webp'})[extname(file)]||'application/octet-stream'}});}catch{return new Response('',{status:404});}}}};
+if(process.argv.includes('--cover-actions')){
+ f.sql.exec("UPDATE users SET premium_until=unixepoch()+3600 WHERE id='owner'");
+ f.sql.prepare("UPDATE tracks SET lyrics_mode='synced',lyrics=? WHERE id='one'").run('[00:00.000]첫 소절\n[00:05.000]두 번째 소절');
+}
+const photos=new Map(),object=key=>photos.get(key)||(key.startsWith('images/')?art:wav);
+const BUCKET={
+ async put(key,bytes){photos.set(key,Buffer.from(bytes));},
+ async head(key){return {size:object(key).length};},
+ async get(key,options){const data=object(key),body=options?.range?data.subarray(options.range.offset,options.range.offset+options.range.length):data;return {body,size:data.length};}
+};
+const env={DB:f.DB,BUCKET,ASSETS:{async fetch(req){const u=new URL(req.url),file=resolve(root,'.'+u.pathname);if(!file.startsWith(root+sep))return new Response('',{status:404});try{return new Response(await readFile(file),{headers:{'content-type':({'.txt':'text/html;charset=utf-8','.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.png':'image/png','.webp':'image/webp'})[extname(file)]||'application/octet-stream'}});}catch{return new Response('',{status:404});}}}};
 const widths=[320,360,375,390,430,768,1024,1440,1920],tracks=['one','long','two','three','invitation','own-cover','not-ready'];
 const server=createServer(async(req,res)=>{
  try{

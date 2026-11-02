@@ -5,7 +5,7 @@ import vm from 'node:vm';
 const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
 const item=Object.freeze({id:'work',title:'Title',genre:'Rock',genres:['Rock'],duration:187,created:1700000000,producer:'Singer',producer_id:'singer',artist:'AI',artist_id:'artist',kind:'cover',cover_mode:'duet',original_id:'original',can_join:true,duet_open:1,participants:2,completions:3,likes:4});
 function context(){return vm.createContext({esc:s=>String(s??''),time:()=> '3:07',number:String,icon:n=>'<svg data-icon="'+n+'"></svg>',cover:()=>'<img>',liked:()=>false,remember(){},hasArtist:()=>false,credits:()=> 'Singer',songCredits:()=> 'Singer',songReleaseDateHTML:()=>'<time>2023.11.14</time>',trackModerationToolsHTML:()=>'',me:null,AifectDubbing:{dubbingGenreArtwork:()=>'/art.webp'},document:{addEventListener(){}}});}
-test('compact cards and rows omit metadata while song detail retains it and data is immutable',()=>{
+test('compact rows omit metadata, cover detail keeps duration and date, and original detail keeps genre',()=>{
  const c=context(),app=read('dist/app.js');
  vm.runInContext(app.slice(app.indexOf('function card('),app.indexOf('function identityCards(')),c);
  vm.runInContext(read('dist/play-page.js'),c);
@@ -14,7 +14,8 @@ test('compact cards and rows omit metadata while song detail retains it and data
  for(const html of [c.card(item),c.songTable([item]),c.playProjectRows?.([item],'discover')||'']){
   assert.doesNotMatch(html,/3:07|Rock|song-table-duration|album-meta/);
  }
- const detail=c.songDetailHeaderHTML(item);assert.match(detail,/Rock/);assert.match(detail,/3:07/);assert.match(detail,/2023.11.14/);
+ const detail=c.songDetailHeaderHTML(item);assert.doesNotMatch(detail,/Rock/);assert.match(detail,/3:07/);assert.match(detail,/2023.11.14/);
+ assert.match(c.songDetailHeaderHTML({...item,kind:'original'}),/Rock/);
  assert.equal(JSON.stringify(item),before);
 });
 test('cover list preserves playback, like, menu, participation and child expansion delegates',()=>{

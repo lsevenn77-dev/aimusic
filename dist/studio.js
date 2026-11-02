@@ -66,6 +66,11 @@ function bindWorkPhoto(form,session){
 function workPhotoEditor(t){
  return `<form id="work-photo-editor" data-id="${esc(t.id)}" class="surface upload-form track-cover-editor">${workPhotoField(trackArtworkPath(t),!!t.work_has_cover)}<button type="submit" class="primary-button">커버사진 저장</button><p class="form-error" role="alert"></p></form>`;
 }
+function applyWorkPhoto(profile){
+ const update=t=>{if(t?.id===profile.id)Object.assign(t,{artwork_id:profile.artwork_id,cover_version:profile.cover_version,has_cover:profile.has_cover,work_cover_version:profile.work_cover_version,work_has_cover:profile.work_has_cover});};
+ update(trackMap.get(profile.id));update(current);library.likes.forEach(update);
+ if(current?.id===profile.id){const art=$('#now-playing .mini-cover');if(art)art.outerHTML=cover(current,'mini-cover');window.dispatchEvent(new Event('aifect-artwork-change'));}
+}
 function bindWorkPhotoEditor(form){
  bindWorkPhoto(form);
  const save=async reset=>{
@@ -77,9 +82,7 @@ function bindWorkPhotoEditor(form){
    await uploadFile(url,form._photo,undefined,{allowFallback:true});
   }
   const {profile}=await api('/api/studio/tracks/'+encodeURIComponent(form.dataset.id),'GET',undefined,{fresh:true});
-  const update=t=>{if(t?.id===profile.id)Object.assign(t,{artwork_id:profile.artwork_id,cover_version:profile.cover_version,has_cover:profile.has_cover,work_cover_version:profile.work_cover_version,work_has_cover:profile.work_has_cover});};
-  update(trackMap.get(profile.id));update(current);
-  if(current?.id===profile.id){const art=$('#now-playing .mini-cover');if(art)art.outerHTML=cover(current,'mini-cover');window.dispatchEvent(new Event('aifect-artwork-change'));}
+  applyWorkPhoto(profile);
   if(form.isConnected){const host=form.parentNode;form.outerHTML=workPhotoEditor(profile);bindWorkPhotoEditor(host.querySelector('#work-photo-editor'));}
   toast(reset?'원곡 커버로 되돌렸어요.':'커버사진을 저장했어요.');
  };

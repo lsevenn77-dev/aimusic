@@ -35,6 +35,7 @@ function bindForms(base,param){
  }
  if($('#logout'))$('#logout').onclick=logoutAccount;
  if($('#comment-form')){
+  syncCoverListen();
   const form=$('#comment-form');form.onsubmit=busyForm(form,async fd=>{if(!me){askLogin();return;}const ts=fd.has('with_time')&&current?.id===param?Math.floor(audio.currentTime):null;await api(`/api/tracks/${param}/comments`,'POST',{body:fd.get('body'),timestamp:ts});form.reset();await reloadComments(param);toast('댓글을 등록했습니다.');});
   $('#comment-sort').onchange=()=>reloadComments(param).catch(e=>toast(e.message));
  }
@@ -107,6 +108,10 @@ function deleteTrackDialog(id,title,kind){
  dialog(`<h2>이 곡을 삭제할까요?</h2><p class="delete-track-title">${esc(title)}</p><p>공개 목록과 내 스튜디오에서 삭제되며, 다시 공개할 수 없어요.${kind==='original'?' 이 곡의 노래방과 연결된 커버곡도 다른 이용자가 재생할 수 없게 됩니다.':''}</p><p class="field-help">이미 받은 선물과 정산 내역은 유지돼요.</p><form id="delete-track-form"><div class="inline-actions"><button type="button" class="small-button" data-close-dialog>취소</button><button type="submit" class="primary-button danger-button">곡 삭제</button></div><p class="form-error" role="alert"></p></form>`);
  const form=$('#delete-track-form');form.onsubmit=busyForm(form,async()=>{
   await uploadRequest('/api/uploads/'+id,'DELETE');
+  if(kind==='cover'&&location.hash.split('?')[0]==='#song/'+id){
+   const original=trackMap.get(id)?.original_id;
+   history.replaceState(history.state,'',original?'#song/'+encodeURIComponent(original):'#studio');
+  }
   clearDeletedStudioTracks(new Set([id]));$('#dialog').close();toast('곡이 삭제됐어요.');await refreshLibrary(true);await render();
  });
 }
@@ -140,11 +145,59 @@ async function playlistOrderDialog(pid){const ticket=renderId;
  rows.onclick=e=>{const button=e.target.closest('[data-order-index]');if(!button||button.disabled)return;const i=Number(button.dataset.orderIndex),j=i+Number(button.dataset.direction);if(j<0||j>=tracks.length)return;[tracks[i],tracks[j]]=[tracks[j],tracks[i]];paint();};
  const form=$('#playlist-order-form');form.onsubmit=busyForm(form,async()=>{await api(`/api/playlists/${pid}/order`,'PUT',{track_ids:tracks.map(t=>t.id)});$('#dialog').close();await render();toast('플레이리스트 재생 순서를 저장했습니다.');});
 }
+// Comment editors can appear in a route, a reply thread or a modal.
+function sizeCommentInput(box){
+ if(!box?.matches?.('textarea[data-comment-input]'))return;
+ const style=getComputedStyle(box),border=box.offsetHeight-box.clientHeight;
+ const max=parseFloat(style.maxHeight);
+ box.style.height='0px';
+ const needed=box.value?box.scrollHeight+border:parseFloat(style.minHeight);
+ box.style.height=Math.min(needed,max)+'px';
+ box.style.overflowY=needed>max?'auto':'hidden';
+}
+document.addEventListener('input',event=>sizeCommentInput(event.target));
+document.addEventListener('focusin',event=>sizeCommentInput(event.target));
+document.addEventListener('reset',event=>{
+ const box=event.target.querySelector('textarea[data-comment-input]');
+ if(box)requestAnimationFrame(()=>sizeCommentInput(box));
+});
+window.addEventListener('resize',()=>document.querySelectorAll('textarea[data-comment-input]').forEach(sizeCommentInput));
+
+const pendingCoverPhotos=new Set();
+document.addEventListener('change',async event=>{
+ const input=event.target;
+ if(!input.matches?.('input[data-cover-photo]'))return;
+ const id=input.dataset.coverPhoto,file=input.files[0],button=input.previousElementSibling;
+ if(!file||pendingCoverPhotos.has(id))return;
+ pendingCoverPhotos.add(id);button.disabled=true;button.textContent='변경 중…';
+ try{
+  if(!file.size)throw Error('빈 파일은 사용할 수 없어요.');
+  await validateImage(file);
+  const {version}=await uploadFile('/api/studio/tracks/'+encodeURIComponent(id)+'/image',file,undefined,{allowFallback:true});
+  const profile={id,artwork_id:id,cover_version:version,has_cover:1,work_cover_version:version,work_has_cover:1};
+  applyWorkPhoto(profile);
+  const active=document.querySelector('input[data-cover-photo]');
+  if(active?.dataset.coverPhoto===id)active.parentElement.querySelector('img').src=trackArtworkPath(profile);
+  toast('커버사진을 저장했어요.');
+ }catch(err){toast(err.message,'error');}
+ finally{pendingCoverPhotos.delete(id);input.value='';button.disabled=false;button.textContent='사진 변경';}
+});
+
+function syncCoverListen(){
+ const button=document.querySelector('.cover-actions [data-play]');
+ if(!button)return;
+ const playing=current?.id===button.dataset.play&&!audio.paused&&!audio.ended;
+ if(button.getAttribute('aria-pressed')===String(playing))return;
+ button.setAttribute('aria-pressed',String(playing));
+ button.innerHTML=songActionIcon(playing?'pause':'play')+'<span>'+(playing?'일시정지':'노래 듣기')+'</span>';
+}
+for(const event of ['play','pause','ended'])audio.addEventListener(event,syncCoverListen);
+
 document.addEventListener('click',async ev=>{
  const el=ev.target.closest('button,a');if(!el||el.disabled)return;
  try{
   if(el.matches('[data-play],[data-play-all],[data-like],[data-follow],[data-add],[data-seek]')){el.setAttribute('aria-busy','true');await accountReady;}
-  if(el.hasAttribute('data-play')){if($('#dialog').open)$('#dialog').close();if(el.hasAttribute('data-community-toggle'))await playCommunityTrack(el.dataset.play);else await play(el.dataset.play,routeTracks.some(t=>t.id===el.dataset.play)?routeTracks:null);}
+  if(el.hasAttribute('data-play')){if($('#dialog').open)$('#dialog').close();if(el.hasAttribute('data-community-toggle')||el.closest('.cover-actions'))await playCommunityTrack(el.dataset.play);else await play(el.dataset.play,routeTracks.some(t=>t.id===el.dataset.play)?routeTracks:null);}
   else if(el.hasAttribute('data-play-all')){if(el.closest('.charts-final')&&shuffle)$('#shuffle').click();if(routeTracks.length)await play(routeTracks[0].id,routeTracks);else toast('먼저 곡을 추가해주세요.');}
   else if(el.dataset.giftShop){await chooseGiftRecipient(el.dataset.giftShop);}
   else if(el.dataset.gift){await giftDialog(el.dataset.gift,el.dataset.giftType);}
@@ -164,8 +217,9 @@ document.addEventListener('click',async ev=>{
   else if(el.dataset.deletePlaylist){if(confirm('이 플레이리스트를 삭제할까요?')){await api('/api/playlists/'+el.dataset.deletePlaylist,'DELETE');location.hash='library/playlists';}}
   else if(el.dataset.commentLike){if(!me)return askLogin();await api(`/api/comments/${el.dataset.commentLike}/like`,el.dataset.liked==='true'?'DELETE':'PUT');await reloadComments(location.hash.split('/')[1]?.split('?')[0]);}
   else if(el.dataset.deleteComment){if(confirm('댓글을 삭제할까요?')){await api('/api/comments/'+el.dataset.deleteComment,'DELETE');await reloadComments(location.hash.split('/')[1]?.split('?')[0]);}}
-  else if(el.dataset.editComment||el.dataset.reply){if(!me)return askLogin();const edit=el.dataset.editComment;dialog(`<h2>${edit?'댓글 수정':'답글 남기기'}</h2><form id="reply-form"><textarea name="body" required maxlength="2000" aria-label="${edit?'댓글 수정':'답글'}">${esc(edit?el.dataset.body:'')}</textarea><button class="primary-button">등록</button><p class="form-error" role="alert"></p></form>`);const form=$('#reply-form');form.onsubmit=busyForm(form,async fd=>{await api(edit?`/api/comments/${edit}`:`/api/tracks/${el.dataset.track}/comments`,edit?'PATCH':'POST',{body:fd.get('body'),parent_id:el.dataset.reply||null});$('#dialog').close();await reloadComments(location.hash.split('/')[1]?.split('?')[0]);});}
+  else if(el.dataset.editComment||el.dataset.reply){if(!me)return askLogin();const edit=el.dataset.editComment;dialog(`<h2>${edit?'댓글 수정':'답글 남기기'}</h2><form id="reply-form"><textarea data-comment-input rows="1" name="body" required maxlength="2000" aria-label="${edit?'댓글 수정':'답글'}">${esc(edit?el.dataset.body:'')}</textarea><button class="primary-button">등록</button><p class="form-error" role="alert"></p></form>`);const form=$('#reply-form');sizeCommentInput(form.elements.body);form.onsubmit=busyForm(form,async fd=>{await api(edit?`/api/comments/${edit}`:`/api/tracks/${el.dataset.track}/comments`,edit?'PATCH':'POST',{body:fd.get('body'),parent_id:el.dataset.reply||null});$('#dialog').close();await reloadComments(location.hash.split('/')[1]?.split('?')[0]);});}
   else if(el.hasAttribute('data-seek')){if(window.AifectAudioAds?.active){toast('광고가 끝나면 곡의 재생 위치를 바꿀 수 있어요.');return;}if(current?.id!==el.dataset.track)await play(el.dataset.track);if(el.hasAttribute('data-lyric-index')&&!hasFullLyrics(current)){refreshLyricsPanel();toast('전체 싱크 가사는 Premium에서 이용할 수 있어요.');return;}const seconds=Number(el.dataset.seek);if(preview&&seconds>=60){askLogin();return;}audio.currentTime=seconds;await audio.play();}
+  else if(el.matches('.detail-photo-change')){const input=el.nextElementSibling;if(!pendingCoverPhotos.has(input.dataset.coverPhoto))input.click();}
   else if(el.dataset.deleteTrack)deleteTrackDialog(el.dataset.deleteTrack,el.dataset.trackTitle,el.dataset.trackKind);
   else if(el.dataset.hideTrack){if(confirm('이 곡을 비공개로 전환할까요?')){await api(`/api/uploads/${el.dataset.hideTrack}/unpublish`,'POST');await render();}}
   else if(el.dataset.karaokeTrack){if(!$('#karaoke-accept')?.checked){toast('동의 항목을 먼저 체크해주세요.');return;}await api(`/api/uploads/${el.dataset.karaokeTrack}/karaoke`,'POST',{accept:true});toast('노래방 MR 제공 · 커버 허락에 동의했습니다.');await render();}

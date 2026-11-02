@@ -161,7 +161,7 @@ function bindArtistFanpage(){
    if(!list){list=document.createElement('div');list.dataset.replyList='';list.innerHTML='<p role="status">답글을 불러오는 중…</p>';target.append(list);}
    if(me){
     const form=document.createElement('form');form.className='fan-reply-form';
-    form.innerHTML='<label class="form-field">답글<textarea name="body" rows="2" maxlength="2000" placeholder="응원의 답글을 남겨보세요." required></textarea></label><div class="fan-reply-controls"><button type="button" class="fan-text-button" data-reply-cancel>취소</button><button class="small-button" type="submit">등록</button></div><p class="form-error" role="alert"></p>';
+    form.innerHTML='<label class="form-field">답글<textarea data-comment-input name="body" rows="1" maxlength="2000" placeholder="응원의 답글을 남겨보세요." required></textarea></label><div class="fan-reply-controls"><button type="button" class="fan-text-button" data-reply-cancel>취소</button><button class="small-button" type="submit">등록</button></div><p class="form-error" role="alert"></p>';
     target.append(form);form.elements.body.focus({preventScroll:true});
     const requestId=globalThis.crypto?.randomUUID?.()||('reply-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2)),cancel=form.querySelector('[data-reply-cancel]');
     cancel.onclick=()=>{form.remove();el.focus({preventScroll:true});};
