@@ -8,11 +8,12 @@ export class BackingPitch {
   this.read=read;
   this.input=new Float32Array(1024*2);
   this.previousBlock=new Float32Array(256*2);
-  this.fadeFrames=Math.round(rate*.012);
+  this.fadeFrames=Math.round(rate*.024);
  }
  makeVoice(key,position){
   if(!key)return {key,position};
   const engine=new SoundTouch({sampleRate:this.rate,sampleBufferType:'circular'});
+  engine.setStretchParameters({overlapMs:12,quickSeek:false});
   engine.pitchSemitones=key;
   return {key,position,engine};
  }
@@ -44,7 +45,7 @@ export class BackingPitch {
   if(this.previousBlock.length<overlap*2)this.previousBlock=new Float32Array(overlap*2);
   this.pull(this.previous,this.previousBlock,overlap);
   for(let i=0;i<overlap;i++){
-   const mix=++this.fade/this.fadeFrames;
+   const t=++this.fade/this.fadeFrames,mix=t*t*(3-2*t);
    for(let c=0;c<2;c++)out[2*i+c]=this.previousBlock[2*i+c]*(1-mix)+out[2*i+c]*mix;
   }
   if(this.fade===this.fadeFrames)this.previous=null;

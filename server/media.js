@@ -72,7 +72,7 @@ export async function mediaRoute(req,env,path,user){
    query(env,'DELETE FROM karaoke_jobs WHERE track_id=?',track.id)
   ]);return json({ok:true});
  }
- let m=path.match(/^\/api\/uploads\/([\w-]+)\/(audio|cover|complete|retry|unpublish|karaoke)$/);
+ let m=path.match(/^\/api\/uploads\/([\w-]+)\/(audio|cover|duet-instrument|duet-partner|complete|retry|unpublish|karaoke)$/);
  if(m){
   requireUser(user);const t=await one(env,'SELECT * FROM tracks WHERE id=? AND user_id=?',m[1],user.id);if(!t)fail(404,'내 업로드를 찾을 수 없습니다.');
   if(t.status==='deleted')fail(404,'삭제된 곡입니다.');const action=m[2];
@@ -92,6 +92,10 @@ export async function mediaRoute(req,env,path,user){
    await run(env,"UPDATE tracks SET status='queued',error=NULL,attempts=0,lease_until=0 WHERE id=?",t.id);return json({ok:true});
   }
   if(t.status!=='uploading')fail(409,'이미 제출한 업로드입니다.');
+  if(['duet-instrument','duet-partner'].includes(action)&&method==='PUT'){
+   if(t.kind!=='cover'||t.cover_mode!=='duet'||!t.duet_open||t.duet_parent_id)fail(409,'듀엣 모집 녹음만 트랙을 저장할 수 있어요.');
+   await put(env,'karaoke/'+t.id+'/'+action+'.mp3',req,20*1024*1024,'audio/mpeg');return json({ok:true});
+  }
   if(action==='audio'&&method==='PUT'){
    if(Number(req.headers.get('content-length'))!==t.original_bytes)fail(400,'원본 파일 용량이 일치하지 않습니다.');
    await put(env,`original/${t.id}.${t.original_ext}`,req,MAX_AUDIO,'application/octet-stream');return json({ok:true});

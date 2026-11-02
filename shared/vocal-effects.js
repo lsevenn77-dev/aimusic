@@ -19,7 +19,7 @@ export function presetMix(mix,id,strength=.5){
  const a=clamp(strength,0,1),p={original:[0,0,.5,0],karaoke:[.24,.65,.55,.65],studio:[.025,.3,.15,1],hall:[.07,.9,.95,.7]}[id];
  return {...mix,preset:id,strength:a,echo:p[0]*a,room:p[1]*a,size:p[2],tone:p[3]*a,roomScaleVersion:2};
 }
-export const defaultVocalMix=()=>presetMix({offset:80,voice:1,mr:.8,noise:2,pitchCorrection:0},'studio',.5);
+export const defaultVocalMix=()=>presetMix({offset:80,voice:1,mr:1,partner:1,noise:2,pitchCorrection:0},'studio',.5);
 export function restoreVocalMix(mix={}){
  const m=restoreRoomMix(mix);if(m.custom)m.custom=customValues(m.custom);
  // Existing custom drafts keep their exact effect values, including noise off.

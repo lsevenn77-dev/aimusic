@@ -6,7 +6,7 @@ test('custom values survive preset excursions, persisted reloads and further edi
  const custom={...m.custom};m=presetMix(m,'hall');assert.equal(m.preset,'hall');assert.equal(m.room,.45);assert.deepEqual(m.custom,custom);
  m=restoreVocalMix(JSON.parse(JSON.stringify(m)));m=presetMix(m,'custom');for(const key of Object.keys(custom))assert.equal(m[key],custom[key]);
  m=editVocalMix(m,'tone',.31);assert.equal(presetMix(presetMix(m,'studio'),'custom').tone,.31);
- assert.equal(m.offset,80);assert.equal(m.voice,1);assert.equal(m.mr,.8);
+ assert.equal(m.offset,80);assert.equal(m.voice,1);assert.equal(m.mr,1);
 });
 test('editing a preset starts from that sound while custom button recalls previous custom sound',()=>{
  let m=editVocalMix(defaultVocalMix(),'echo',.45);const old=m.custom;m=presetMix(m,'hall');const room=m.room;

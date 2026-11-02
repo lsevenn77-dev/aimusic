@@ -47,7 +47,7 @@ test('review plays the exported PCM without a DSP worklet, and changing effects 
  const node=()=>({connect(){return this;},disconnect(){},start(...args){this.started=args;},stop(time){this.stopped=time;}});
  t.c.playContext={currentTime:1,destination:{},createGain(){const n={...node(),gain:param()};gains.push(n);return n;},createBufferSource(){const n=node();scheduled.push(n);return n;},createDynamicsCompressor(){const n={...node(),threshold:param(),knee:param(),ratio:param(),attack:param(),release:param()};compressors.push(n);return n;}};
  t.c.AudioWorkletNode=function(){throw new Error('review must not instantiate a real-time DSP worklet');};t.run('backingBuffer=s=>s.mr');
- const mix=t.run('scheduleMix(playContext,0,1.05,sing)');assert.equal(scheduled[1].buffer,rendered);assert.equal(scheduled[0].buffer,s.mr);assert.equal(compressors.length,1);assert.equal(compressors[0].threshold.value,-1);
+ const mix=t.run('scheduleMix(playContext,0,1.05,sing)');assert.equal(scheduled[1].buffer,rendered);assert.equal(scheduled[0].buffer,s.mr);assert.equal(compressors.length,1);assert.equal(compressors[0].threshold.value,-3);
  const backing=mix.sources[0],voice=mix.sources[1];t.c.playContext.currentTime=1.4;mix.replaceVoice(buffer(new Float32Array(32000).fill(.3)));assert.equal(mix.sources[0],backing);assert.notEqual(mix.sources[1],voice);assert.equal(scheduled.filter(n=>n.buffer===s.mr).length,1);assert.equal(voice.stopped,1.436);assert.ok(Math.abs(mix.sources[1].started[1]-.44)<1e-10);assert.ok(gains.at(-1).gain.events.some(e=>e[0]==='ramp'&&e[1]===1));
 });
 test('rapid effect edits discard cancelled work and never replace the current source with stale samples',async()=>{

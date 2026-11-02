@@ -237,3 +237,81 @@ dialog.punch-complete-dialog::backdrop{background:#070c14b3;backdrop-filter:blur
 #sing.web-studio .studio-editor-clean .primary-button,#sing.web-studio .studio-punch-page .primary-button{background:var(--ds-gradient);color:var(--ds-ink);border:0}#sing.web-studio .studio-editor-clean .studio-edit-tools [aria-selected=true]{background:var(--ds-gradient);color:var(--ds-ink);border-color:var(--ds-lilac)}#sing.web-studio .studio-editor-clean .studio-play{border-color:var(--ds-lilac);color:var(--ds-body)}#sing.web-studio .studio-editor-clean input[type=range]{accent-color:var(--ds-lilac)!important}
 #sing.web-studio .studio-punch-page{width:100%;box-sizing:border-box}
 @media(max-width:768px){#sing.web-studio .studio-editor-clean .studio-preview-row{display:grid!important;grid-template-columns:1fr 1fr!important}#sing.web-studio .studio-rerecord-entry{grid-column:1/-1;width:100%;text-align:left}#sing.web-studio .studio-rerecord-entry button{display:flex!important;align-items:center;justify-content:center;gap:8px;white-space:nowrap;width:100%;min-height:48px}#sing.web-studio .studio-rerecord-entry small{text-align:left}#sing.web-studio .studio-punch-page{padding:0 0 24px}}
+/* Post-recording steps; recording and punch-in retain their own layout. */
+#main #sing.web-studio.is-reviewing{display:block!important;max-width:1096px!important;margin:0 auto!important;min-width:0}
+#main #sing.is-reviewing .take-steps{list-style:none;display:flex;align-items:center;justify-content:center;gap:16px;margin:0 0 18px;padding:0;color:var(--ds-muted);font-size:14px}
+#main #sing .take-steps li{display:flex;align-items:center;gap:8px}
+#main #sing .take-steps li+li:before{content:'';width:32px;height:1px;background:var(--ds-border);margin-right:8px}
+#main #sing .take-steps b{display:grid;place-items:center;width:26px;height:26px;border:1px solid var(--ds-border);border-radius:50%;font-variant-numeric:tabular-nums}
+#main #sing .take-steps [aria-current]{color:var(--ds-text);font-weight:700}
+#main #sing .take-steps [aria-current] b{background:var(--ds-mint);border-color:transparent;color:var(--ds-ink)}
+#main #sing.is-reviewing .sing-head{max-width:none;min-width:0;flex-wrap:nowrap;border-radius:16px 16px 0 0}
+#main #sing.is-reviewing .sing-header-mode,#main #sing.is-reviewing .record-credit,#main #sing.is-reviewing>.sing-duet-context,#main #sing.is-reviewing>.sing-local-note{display:none}
+#main #sing.is-reviewing .review-credit{display:block;max-width:none}
+#main #sing.is-reviewing>.sing-status:not(.show-notice){position:absolute;clip-path:inset(50%);width:1px;height:1px;overflow:hidden;white-space:nowrap}
+#main #sing.is-reviewing .studio-edit-main{padding:0 clamp(12px,2vw,24px) 18px;min-width:0}
+#main #sing .take-wave-tools,#main #sing .take-tools,#main #sing .take-transport,#main #sing .take-navigation,#main #sing .take-view,#main #sing .take-view label,#main #sing .take-footer,#main #sing .take-footer>div{display:flex;align-items:center;gap:8px}
+#main #sing .take-wave-tools{justify-content:space-between;flex-wrap:wrap;padding:8px 0 12px}
+#main #sing .take-wave-tools .duet-color-key{display:flex;gap:14px;justify-content:flex-start;font-size:12px;margin:0}
+#main #sing .take-wave-tools .duet-color-key [data-role=both] i{background:#d4d8e1}
+#main #sing .take-tools{margin-left:auto;flex-wrap:wrap}
+#main #sing .take-tools button,#main #sing .take-footer button{min-height:44px}
+#main #sing .take-tools [aria-pressed=true]{border-color:var(--ds-mint);color:var(--ds-mint)}
+#main #sing .take-editor .take-paid{border:1px solid var(--ds-lilac)!important}
+#main #sing .take-editor .take-paid:disabled{background:var(--ds-bg)!important;color:var(--ds-muted)!important;border-color:color-mix(in srgb,var(--ds-lilac) 43%,var(--ds-bg))!important;cursor:not-allowed;opacity:.72}
+#main #sing .take-editor button:focus-visible,#main #sing .take-editor input:focus-visible,#main #sing canvas:focus-visible{outline:2px solid var(--ds-mint);outline-offset:2px}
+#main #sing .take-editor .studio-wave-surface,#main #sing .take-editor .studio-wave-surface canvas{height:108px;cursor:crosshair}
+#main #sing .take-editor .take-enlarged .studio-wave-surface,#main #sing .take-editor .take-enlarged canvas{height:clamp(200px,32vh,340px)}
+#main #sing .take-transport{display:grid!important;grid-template-columns:1fr auto 1fr;justify-content:space-between;background:none;border:0;padding:8px 0 12px;margin:0}
+#main #sing .take-time{font-size:12px;color:var(--ds-muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+#main #sing .take-time b{color:var(--ds-text)}
+#main #sing .take-navigation button,#main #sing .take-view button{display:grid;place-items:center;min-width:40px;height:44px;border:0;background:transparent;color:var(--ds-body)}
+#main #sing .take-navigation button.take-play{background:var(--ds-gradient);color:var(--ds-ink);border-radius:50%;width:44px}
+#main #sing .take-editor svg{width:18px;height:18px;flex:none}
+#main #sing .take-view{justify-self:end;gap:4px}
+#main #sing .take-view label{margin:0}
+#main #sing .take-view input{width:60px}
+#main #sing .take-editor .studio-edit-tools{display:flex!important;flex-wrap:nowrap;gap:6px;overflow-x:auto;scrollbar-width:thin;padding:2px 2px 5px;margin:0 0 8px}
+#main #sing .take-editor .studio-edit-tools button{flex:1 0 max-content;min-height:44px;display:flex;flex-direction:row;align-items:center;justify-content:center;gap:7px;border:1px solid var(--ds-border);padding:8px 12px;white-space:nowrap;font-size:14px}
+#main #sing .take-editor .studio-edit-detail{margin:0;padding:14px 18px;min-height:0}
+#main #sing .take-editor .studio-edit-detail h3{margin:0 0 10px}
+#main #sing .take-editor .studio-edit-detail>.studio-space{border:0;background:none;padding:0}
+#main #sing .take-editor .studio-sync-steps button,#main #sing .take-editor .studio-noise-levels button{min-height:42px}
+#main #sing .take-directions{display:flex;justify-content:space-between;gap:4px;font-size:12px;color:var(--ds-muted)}
+#main #sing .take-footer{justify-content:space-between;flex-wrap:wrap;margin-top:16px}
+#main #sing .take-footer [data-save-status]{font-size:12px;color:var(--ds-muted);text-align:center}
+#main #sing .take-editor #take-ab-range{display:flex;gap:14px}
+#main #sing #take-ab-range label{flex:1;min-width:0;color:var(--ds-body);font-size:12px}
+#main #sing #take-ab-range input{display:block;width:100%}
+@media(max-width:600px){
+ #main #sing.is-reviewing .sing-head{padding:14px 12px!important}
+ #main #sing .take-wave-tools{align-items:flex-start}
+ #main #sing .take-tools{width:100%;margin:0}
+ #main #sing .take-tools button{flex:1;padding:4px 6px;font-size:12px;white-space:nowrap;gap:5px}
+ #main #sing .take-transport{grid-template-columns:auto 1fr auto;gap:3px}
+ #main #sing .take-navigation{justify-content:center;gap:0}
+ #main #sing .take-time{font-size:11px}
+ #main #sing .take-view input{width:40px}
+ #main #sing .take-navigation button,#main #sing .take-view button{min-width:28px}
+ #main #sing .take-editor .studio-edit-tools button{padding:7px 9px;font-size:12px}
+ #main #sing .take-editor .studio-edit-tools button:not(.take-paid) svg{display:none}
+ #main #sing .take-editor .studio-edit-detail{padding:14px 10px}
+ #main #sing .take-footer>div{width:100%}
+ #main #sing .take-footer>div button{flex:1}
+ #main #sing .take-directions{font-size:11px}
+}
+#main #sing.web-studio [hidden]{display:none!important}
+
+
+#main #sing.is-reviewing .sing-artwork{display:grid;place-items:center;flex:0 0 56px;width:56px;height:56px;border-radius:10px;overflow:hidden}
+#main #sing.is-reviewing .sing-artwork img{width:100%;height:100%;object-fit:cover}
+#main #sing.is-reviewing .take-wave-tools .duet-color-key{border:0;padding:6px 0}
+#main #sing.is-reviewing .take-transport.studio-audio{background:transparent!important;padding:8px 0!important;border:0!important;margin:0 0 6px!important}
+#main #sing .take-editor .studio-sync-steps{display:flex;gap:8px;margin:0 0 8px}
+#main #sing .take-editor .studio-sync-steps button{min-width:64px;min-height:40px;padding:6px 12px;border:1px solid var(--ds-border);border-radius:8px;background:#172538;color:var(--ds-text);font:inherit;font-size:13px}
+#main #sing .take-editor .studio-sync-steps button:active{border-color:var(--ds-mint)}
+#main #sing .take-editor .studio-edit-detail .studio-range{display:block!important;margin:10px 0!important}
+#main #sing .take-editor .studio-range>span{display:flex!important;justify-content:space-between}
+#main #sing .take-editor .studio-range input{display:block;width:100%}
+#main #sing .take-editor [data-mix]:disabled{opacity:.4}
+@media(max-width:600px){#main #sing.is-reviewing .sing-artwork{width:44px;height:44px;flex-basis:44px}}
