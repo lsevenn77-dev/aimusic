@@ -77,16 +77,29 @@ main[data-route^="community"]::before,main[data-route^="crew/"]::before{display:
 #main > .talk-directory {
  width:100%;max-width:944px;min-width:0;margin-inline:auto;container-type:inline-size;
 }
-#main .talk-directory .music-community-tabs {
- grid-template-columns:repeat(4,minmax(0,1fr));grid-auto-columns:auto;overflow:visible;
+/* The directory and its sibling destinations render the same four top tabs. */
+#main > .talk-directory > .music-community-tabs,
+#main:is([data-route="community"], [data-route^="community/"], [data-route^="community?"], [data-route="live"], [data-route^="live?"]) > .music-community-tabs {
+ --ui-type-scale:1;
+ --ui-space-scale:1;
+ margin-bottom:12px;
+
+ > .tab {
+  font-size:16px;
+  line-height:1.35;
+  padding:6px 8px;
+  text-align:center;
+ }
+ @media (max-width:600px) {
+  > .tab {font-size:14px;min-height:44px;padding:6px}
+ }
 }
-#main .talk-directory .music-community-tabs .tab {font-size:19px}
 #main .talk-directory .v3-toolbar {margin:26px 0 20px;gap:14px;align-items:center;flex-wrap:nowrap}
 .talk-directory .v3-toolbar h2 {font-size:24px;line-height:1.3;margin:0 0 6px}
 .talk-directory .v3-toolbar p,.talk-directory .talk-status {font-size:14px}
 .talk-directory .v3-tools {gap:12px}
 
-.talk-directory :is(.music-community-tabs,.v3-toolbar,.v3-room-grid,.talk-status) {
+.talk-directory :is(.v3-toolbar,.v3-room-grid,.talk-status) {
  --ui-type-scale:1;--ui-space-scale:1;--ui-icon-scale:1;--ui-control-height:46px;
 }
 .talk-directory .talk-search.brand-search {
@@ -143,7 +156,6 @@ main[data-route^="community"]::before,main[data-route^="crew/"]::before{display:
 }
 @container (max-width:519px) {
  .talk-directory .v3-room-grid {grid-template-columns:repeat(2,minmax(0,1fr));row-gap:16px}
- #main .talk-directory .music-community-tabs .tab {font-size:13px;padding-inline:0;min-height:44px}
  #main .talk-directory .v3-toolbar {margin:22px 0 20px;gap:14px}
  .talk-directory .v3-toolbar h2 {font-size:22px;margin-bottom:4px}
  .talk-directory .v3-toolbar p,.talk-directory .talk-status {font-size:13px}
@@ -184,12 +196,10 @@ main[data-route^="community"]::before,main[data-route^="crew/"]::before{display:
 /* Opt in content roots, never their shared shell. On desktop .talk-scroll
    also contains the real site footer, so only its list and status are scaled. */
 #main:is([data-route="community"], [data-route^="community/"], [data-route^="community?"]) {
-  > .music-community-tabs,
   > .community-v3,
   > .community-crew-actions,
   > [role="status"],
   > [role="alert"],
-  .talk-directory > .music-community-tabs,
   .talk-directory > .community-v3 > .v3-toolbar,
   .talk-directory #v3-room-create > :is(header, form, button),
   .talk-scroll > :is(.v3-room-grid, .talk-status),
@@ -201,11 +211,6 @@ main[data-route^="community"]::before,main[data-route^="crew/"]::before{display:
   .crew-discovery-main,
   .crew-discovery-side > :not(.crew-discovery-invite) {
     zoom: 1.25;
-  }
-  .talk-directory > .music-community-tabs {
-    grid-template-columns: none;
-    grid-auto-columns: minmax(max-content, 1fr);
-    overflow-x: auto;
   }
   @container (min-width: 520px) {
     .talk-scroll > .v3-room-grid {
