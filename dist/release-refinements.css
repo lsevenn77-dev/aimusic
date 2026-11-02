@@ -213,14 +213,6 @@ main .crew-people .artist-portrait>span{font-size:23px;line-height:1;white-space
   .primary-button { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; font-size: 14px; }
   @media (max-width: 600px) { padding: 16px; h2 { font-size: 18px; } }
 }
-.page-wrap:has(> #main .crew-discovery-layout) ~ .crew-action-dialog {
-  > header h2 { font-size: 19px; }
-  > footer :is(.small-button, .primary-button) {
-    display: inline-flex; align-items: center; justify-content: center;
-    min-height: 44px; padding: 6px 12px; font-size: 14px; line-height: 1.4;
-  }
-  @media (max-width: 600px) { > header h2 { font-size: 18px; } }
-}
 /* A single focus treatment, with an editable header search rather than a link. */
 #global-search{gap:10px;max-width:520px;width:clamp(240px,30vw,520px);border-radius:12px;background:linear-gradient(130deg,#1c2533,#1b202c);border:1px solid #ffffff1a}
 #global-search input{flex:1;min-width:0;width:100%;color:var(--ds-text);background:transparent;border:0;padding:0;outline:0;box-shadow:none;font-size:13px}

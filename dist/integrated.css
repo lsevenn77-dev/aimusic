@@ -138,3 +138,136 @@ dialog.crew-action-dialog[open] {display:flex;flex-direction:column}
  .crew-manage-row,.crew-audit-event {display:grid;grid-template-columns:minmax(0,1fr)}
  .crew-action-dialog>.form-error {padding-inline:14px}
 }
+
+/* The detail navigation is a sibling. Portalled editors opt in by their crew-only form. */
+.crew-page > #crew-tab-content,
+dialog.crew-action-dialog,
+#dialog:has(#crew-notice-form, #crew-role-form) {
+ --ui-type-scale: 1;
+ --crew-heading: 19px;
+ --crew-name: 15px;
+ --crew-body: 14px;
+ --crew-meta: 13px;
+ --crew-button: 14px;
+ --crew-control: 40px;
+ --crew-pad: 16px;
+ --ui-control-height: var(--crew-control);
+ font-size: var(--crew-body);
+ font-weight: 400;
+ line-height: 1.55;
+
+ @media (max-width: 800px) {
+  --crew-heading: 17px;
+  --crew-name: 14px;
+  --crew-meta: 12px;
+  --crew-button: 13px;
+  --crew-control: 44px;
+  --crew-pad: 12px;
+ }
+}
+
+/* The member landing route formerly zoomed each direct child. Keep that
+   route's artwork geometry while rendering its text at the same CSS sizes. */
+#main[data-route^="community/crews"] .crew-page > #crew-tab-content {
+ zoom: 1;
+ .work-grid { column-gap: calc(14px * var(--ui-space-scale, 1) * 1.25); }
+ .work-art { width: 65px; height: 65px; }
+ @media (max-width: 767px) {
+  .work-grid { column-gap: calc(9px * var(--ui-space-scale, 1) * 1.25); }
+  .work-art { width: 60px; height: 60px; }
+ }
+}
+
+#main .crew-page > #crew-tab-content {
+ display: flow-root;
+ min-width: 0;
+ overflow-wrap: anywhere;
+
+ [data-join-crew] { margin: 0 0 12px; }
+ :is(.work-browser, .crew-growth, [data-crew-notices]) { min-width: 0; }
+ :is(.work-browser h2, .crew-growth h2, .section-heading h2, .crew-discovery-layout h2) {
+  font-size: var(--crew-heading); font-weight: 700; line-height: 1.4;
+ }
+ :is(.work-browser h2, .crew-growth h2, .section-heading, .crew-discovery-layout) { margin: 0 0 12px; }
+ .section-heading h2 { margin: 0; }
+ :is(.work-browser h2, .section-heading h2) small {
+  font-size: var(--crew-meta); font-weight: 500; line-height: 1.5;
+ }
+ :is(.work-title strong, .crew-notice h3, .crew-growth h3, .crew-discover-copy h3) {
+  font-size: var(--crew-name); font-weight: 650; line-height: 1.45;
+ }
+ :is(.work-grid small, .work-child > a, .crew-member-profile strong, .crew-mission strong, .crew-rank-copy strong, .crew-recruit-list strong, .dm-author) {
+  font-size: var(--crew-body); font-weight: 600; line-height: 1.5;
+ }
+ :is(.work-grid small, .work-child > a) { font-weight: 500; }
+ :is(.crew-growth > p, .crew-notice p, .crew-discover-copy p, .crew-discovery-invite p, .mp-empty, .chat-body, .chat-empty p) {
+  font-size: var(--crew-body); font-weight: 400; line-height: 1.55;
+ }
+ :is(.field-help, .work-wide summary, .crew-notice small, .crew-growth-grid .surface > p, .crew-mission small, .crew-level-steps small,
+     .crew-rank-copy small, .crew-rank-stats small, .crew-ranking-rule, .crew-recruit-list small, .crew-discover-meta, .crew-featured-section .section-heading > span,
+     .chat-day, .chat-system, .chat-message-meta, #chat-connection, #chat-error) {
+  font-size: var(--crew-meta); font-weight: 400; line-height: 1.5;
+ }
+ :is(.work-legend span, .work-recruit, .crew-pin, .crew-member-profile small, .player-level-badge,
+     .crew-recruit-state, .crew-pick-label, .crew-interest-tags span, .crew-recruit-list b, .crew-ranking-label) {
+  font-size: 12px; font-weight: 600; line-height: 1.5;
+ }
+ :is(.primary-button, .small-button, [data-notice-delete], [data-leave-crew], .work-join, [data-crew-hello],
+     #crew-discovery-filters > button, .crew-discovery-invite a):not([hidden], [data-crew-layout]) {
+  --ui-space-scale: 1;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  box-sizing: border-box; width: fit-content; max-width: 100%; min-height: var(--crew-control);
+  padding: 4px 12px; font-size: var(--crew-button); font-weight: 600; line-height: 1.4; text-align: center;
+ }
+ :is([data-work-filter], .aifect-dropdown-trigger, #crew-search > button) { font-size: var(--crew-button); line-height: 1.4; }
+ [data-work-filter] { min-height: var(--crew-control); padding-block: 4px; }
+ .work-legend { flex-wrap: wrap; gap: 4px 10px; }
+ .work-title { align-items: baseline; margin-top: 4px; }
+ .work-title svg { align-self: flex-start; margin-top: 2px; }
+ :is(.work-title strong, .crew-member-profile strong) { white-space: normal; overflow: visible; text-overflow: clip; }
+ .work-parent .work-title { margin-top: 0; }
+ .work-parent .work-copy { flex-basis: min(120px, 100%); }
+ .work-play { flex-shrink: 0; }
+ .crew-member-profile { align-self: start; }
+ [data-crew-notices] { display: grid; gap: 12px; }
+ [data-crew-notices] .section-heading, .crew-notice { margin: 0; }
+ :is(.crew-notice, .crew-growth .surface) { padding: var(--crew-pad); }
+ .crew-notice h3, .crew-growth h3 { margin: 0 0 4px; }
+ .crew-notice p, .crew-growth-grid p { margin: 6px 0; }
+ .crew-notice .inline-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+ .crew-notice-images:empty { display: none; }
+ .crew-growth > p { margin: 0 0 12px; }
+ .crew-growth-grid, .crew-level-steps { margin: 0 0 16px; }
+ :is(.crew-growth-grid .surface > strong, .crew-level-steps strong, .crew-level-steps span, .crew-mission > span:last-child) {
+  font-size: var(--crew-body); font-weight: 600; line-height: 1.5;
+ }
+ .crew-mission { padding-block: 10px; }
+}
+
+dialog.crew-action-dialog,
+#dialog:has(#crew-notice-form, #crew-role-form) {
+ h2 { font-size: var(--crew-heading); font-weight: 700; line-height: 1.4; overflow-wrap: anywhere; }
+ :is(.form-field, .checkbox-line, .crew-action-body > p, .crew-audit-event p) {
+  font-size: var(--crew-body); font-weight: 400; line-height: 1.55;
+ }
+ :is(.field-help, .form-error, .crew-audit-event small) { font-size: var(--crew-meta); line-height: 1.5; }
+ :is(.crew-manage-row > a, .crew-manage-row > strong, .crew-audit-event strong) { font-size: 14px; font-weight: 600; line-height: 1.5; }
+ :is(.form-field, .crew-row-actions, footer, .crew-action-tools) :is(input:not([type=checkbox],[type=range]), textarea, select) {
+  box-sizing: border-box; min-width: 0; max-width: 100%; font-size: 14px; line-height: 1.5;
+ }
+ :is(.small-button, .primary-button, .text-link, [data-tab]):not([hidden]) {
+  --ui-space-scale: 1;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  box-sizing: border-box; width: fit-content; max-width: 100%; min-height: var(--crew-control);
+  padding: 4px 12px; font-size: var(--crew-button); font-weight: 600; line-height: 1.4; text-align: center;
+ }
+ .form-field { min-width: 0; }
+ .form-field > :is(input, textarea, select) { width: 100%; }
+ .crew-row-actions { align-items: center; }
+ footer { flex-wrap: wrap; gap: 8px; }
+}
+#dialog:has(#crew-notice-form, #crew-role-form) {
+ h2 { margin: 0 32px 12px 0; }
+ form:not([hidden]) { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+ .form-field, .checkbox-line, .form-error { margin: 0; }
+}

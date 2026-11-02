@@ -61,7 +61,7 @@ function crewDetailView(d,param,tab='music',community=false,discovery=''){
  if(!tabs.some(([key])=>key===tab)&&tab!=='chat')tab='music';
  const game=m?'<a class="tab crew-game-entry" href="#crew-jump/'+encodeURIComponent(c.id)+'" aria-label="크루 점프게임"><span aria-hidden="true">✦</span> 점프게임</a>':'';
  const nav='<nav class="tabs crew-room-tabs'+(m?' has-game':'')+'" aria-label="크루 활동">'+tabs.map(([key,label])=>'<a class="tab '+(tab===key?'active':'')+'" href="'+(key==='find'?'#community/crews?browse=1':'#crew/'+esc(c.id)+'?tab='+key)+'" '+(tab===key?'aria-current="page"':'')+'>'+label+'</a>').join('')+game+'</nav>';
- let html=communityNavigation('crews')+'<section class="crew-page" '+(m?'data-current-crew="'+esc(c.id)+'"':'')+'>'+crewHeroHTML(c,m)+nav;
+ let html=communityNavigation('crews')+'<section class="crew-page" '+(m?'data-current-crew="'+esc(c.id)+'"':'')+'>'+crewHeroHTML(c,m)+nav+'<div id="crew-tab-content">';
  if(!m)html+='<button class="primary-button" data-join-crew="'+esc(c.id)+'" '+(d.other_crew||d.banned||!c.recruiting||c.members>=c.capacity?'disabled':'')+'>'+(d.other_crew?'다른 크루에 가입 중':c.join_policy==='approval'?'가입 신청':'크루 가입')+'</button>';
  if(tab==='music')html+=workBrowserHTML('크루 작품',d.tracks,d.dubbings);
  if(tab==='members')html+='<div class="section-heading"><h2>멤버 <small>'+c.members+' / '+c.capacity+'</small></h2></div><div class="crew-member-grid">'+d.members.map(crewMemberProfile).join('')+'</div>'+(m&&!owner?'<button class="text-link crew-leave" data-leave-crew="'+esc(c.id)+'">크루 탈퇴</button>':'');
@@ -69,7 +69,7 @@ function crewDetailView(d,param,tab='music',community=false,discovery=''){
  if(tab==='notice')html+='<section data-crew-notices="'+esc(c.id)+'">불러오는 중…</section>';
  if(tab==='find')html+=discovery;
  if(tab==='about')html+=crewGrowthHTML(d.growth,c,m);
- return {html:html+'</section>',tracks:d.tracks,crew:c,chat:m&&tab==='chat'?{path:'/api/crews/'+param+'/messages',crew:{id:c.id,owner}}:null};
+ return {html:html+'</div></section>',tracks:d.tracks,crew:c,chat:m&&tab==='chat'?{path:'/api/crews/'+param+'/messages',crew:{id:c.id,owner}}:null};
 }
 async function improvementsView(base,param,raw,readApi=api){
  if(base==='follower'&&param){
