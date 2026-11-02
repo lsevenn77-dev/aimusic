@@ -14,12 +14,34 @@ let talkingRoomReturn=null;
 function bindTalkingDirectory(root){
  const grid=root.querySelector('.v3-room-grid'),search=root.querySelector('#v3-room-search'),create=root.querySelector('#v3-create-room');
  const status=root.querySelector('.talk-status'),message=status.querySelector('span'),retry=status.querySelector('button'),sentinel=root.querySelector('.talk-sentinel');
+ const pane=root.querySelector('.talk-scroll'),desktop=window.matchMedia('(min-width:801px)');
+ const shell=root.closest('.page-wrap'),footer=shell.querySelector(':scope > .page-footer');
  const viewer=me?.id||'';
  const saved=talkingRoomReturn?.viewer===viewer&&talkingRoomReturn.until>Date.now()?talkingRoomReturn:null;
  talkingRoomReturn=null;
  let items=new Map(saved?.items),cursor=saved?.cursor||null,done=saved?.done||false,enabled=saved?true:null;
  let controller=null,debounce,expiry,disposed=false;
- const observer=new IntersectionObserver(entries=>{if(entries.some(e=>e.isIntersecting))void load();},{rootMargin:'0px 0px 160px'});
+ let observer,watching=false;
+ function watchEnd(on){
+  watching=on;
+  if(on)observer.observe(sentinel);else observer.unobserve(sentinel);
+ }
+ function syncScrollMode(){
+  observer?.disconnect();
+  if(desktop.matches){
+   pane.tabIndex=0;
+   if(footer)pane.append(footer);
+  }else{
+   pane.removeAttribute('tabindex');
+   if(footer&&footer.parentElement===pane)shell.append(footer);
+  }
+  observer=new IntersectionObserver((entries,source)=>{
+   if(source===observer&&watching&&entries.some(e=>e.isIntersecting))void load();
+  },{root:desktop.matches?pane:null,rootMargin:'0px 0px 160px'});
+  if(watching)observer.observe(sentinel);
+ }
+ syncScrollMode();
+ desktop.addEventListener('change',syncScrollMode);
  function notice(text='',failed=false){
   message.textContent=text;retry.hidden=!failed;status.hidden=!text;
  }
@@ -41,11 +63,11 @@ function bindTalkingDirectory(root){
  }
  function ready(){
   if(!items.size&&done)notice(search.value.trim()?'검색 결과가 없어요.':'아직 열린 공개 토킹룸이 없어요.');
-  if(!done)observer.observe(sentinel);
+  if(!done)watchEnd(true);
  }
  async function load(){
   if(disposed||controller||done)return;
-  observer.unobserve(sentinel);const active=controller=new AbortController();
+  watchEnd(false);const active=controller=new AbortController();
   notice();skeletons(true);
   try{
    if(enabled===null){
@@ -71,7 +93,8 @@ function bindTalkingDirectory(root){
   finally{if(controller===active){controller=null;skeletons(false);}}
  }
  function reset(){
-  clearTimeout(debounce);clearTimeout(expiry);observer.unobserve(sentinel);
+  clearTimeout(debounce);clearTimeout(expiry);watchEnd(false);
+  if(desktop.matches)pane.scrollTop=0;
   controller?.abort();controller=null;items=new Map();cursor=null;done=false;
   grid.replaceChildren();notice();skeletons(true);
   debounce=setTimeout(load,220);
@@ -79,14 +102,16 @@ function bindTalkingDirectory(root){
  search.oninput=reset;retry.onclick=load;
  grid.addEventListener('click',e=>{
   if(e.defaultPrevented||e.button!==0||e.ctrlKey||e.metaKey||e.shiftKey||e.altKey||!e.target.closest('[data-talk-id]'))return;
-  talkingRoomReturn={viewer,until:Date.now()+120000,query:search.value,items:[...items],cursor,done,scroll:window.scrollY};
+  talkingRoomReturn={viewer,until:Date.now()+120000,query:search.value,items:[...items],cursor,done,scroll:desktop.matches?pane.scrollTop:window.scrollY};
  });
  registerRouteCleanup(()=>{
   disposed=true;observer.disconnect();controller?.abort();clearTimeout(debounce);clearTimeout(expiry);
+  desktop.removeEventListener('change',syncScrollMode);
+  if(footer&&footer.parentElement===pane)shell.append(footer);
  });
  if(saved){
   search.value=saved.query;create.disabled=false;grid.innerHTML=[...items.values()].map(talkingRoomCard).join('');expireCovers();
-  requestAnimationFrame(()=>{if(!disposed){window.scrollTo({top:saved.scroll,behavior:'instant'});ready();}});
+  requestAnimationFrame(()=>{if(!disposed){(desktop.matches?pane:window).scrollTo({top:saved.scroll,behavior:'instant'});ready();}});
  }else void load();
 }
 function voiceLobbyHTML(data,enabled,talking=true){
@@ -95,9 +120,9 @@ function voiceLobbyHTML(data,enabled,talking=true){
  const create=talking?'<span>방 만들기</span>':'방 만들기';
  let list;
  if(talking){
-  list=`<div class="v3-room-grid" aria-label="토킹룸 목록">${data.rooms.map(talkingRoomCard).join('')}</div>
+  list=`<div class="talk-scroll" role="region" aria-label="토킹룸 목록"><div class="v3-room-grid">${data.rooms.map(talkingRoomCard).join('')}</div>
    <div class="talk-status" role="status" hidden><span></span> <button type="button" class="small-button" hidden>다시 시도</button></div>
-   <div class="talk-sentinel" aria-hidden="true"></div>`;
+   <div class="talk-sentinel" aria-hidden="true"></div></div>`;
  }else{
   const cards=data.rooms.map(r=>`<a class="v3-room-card" href="#voice/${esc(r.id)}" data-room-search="${esc((r.title+' '+r.host_name).toLowerCase())}"><div class="v3-room-art" data-decoration-room="${esc(r.id)}" data-theme="${esc(r.background||'navy')}"><span class="v3-live">LIVE</span><span class="v3-room-count">${icon('users')} ${number(r.member_count||0)}명</span></div><div class="v3-room-copy"><h3>${esc(r.title)}</h3><p>${esc(r.host_name||'방장')}<small>함께 듣는 중</small></p></div></a>`).join('');
   const empty=enabled?'아직 열린 공개 토킹룸이 없어요.':'토킹룸 서비스 연결을 준비하고 있어요.';

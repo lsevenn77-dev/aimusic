@@ -160,3 +160,27 @@ main[data-route^="community"]::before,main[data-route^="crew/"]::before{display:
  .talk-directory .v3-room-copy h3 {font-size:13.5px}
 }
 @media(max-width:600px){#main:has(>.talk-directory){--main-frame-gutter:16px}}
+
+/* Desktop uses the existing shell height, including the active player's clearance. */
+@media(min-width:801px){
+ .page-wrap:has(>#main>.talk-directory) {
+  display:flex;flex-direction:column;height:100dvh;min-height:0;overflow:clip;
+  padding-bottom:var(--player-space,0px);
+ }
+ .page-wrap:has(>#main>.talk-directory)>.topbar {flex:none}
+ #main:has(>.talk-directory),#main>.talk-directory,.talk-directory>.community-v3 {
+  display:flex;flex-direction:column;flex:1 1 0;min-height:0;
+ }
+ #main:has(>.talk-directory) {margin-block:0;padding-bottom:0}
+ .talk-directory>.music-community-tabs,.talk-directory .v3-toolbar {flex:none}
+ #main .talk-directory>.community-v3>.v3-toolbar {margin-top:0}
+ .talk-directory .talk-scroll {
+  flex:1 1 0;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior-y:contain;
+  margin-inline:-12px;padding-inline-start:12px;scrollbar-width:thin;
+ }
+ .talk-directory .talk-scroll>.v3-room-grid {width:100cqw;max-width:100%}
+ .talk-directory .talk-scroll:focus-visible {outline:2px solid var(--ds-mint);outline-offset:-2px}
+ .talk-directory .talk-scroll>.page-footer:has(.footer-top) {
+  width:100cqw;max-width:100%;margin:0;padding-inline:0!important;
+ }
+}
