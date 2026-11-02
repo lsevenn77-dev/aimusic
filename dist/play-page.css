@@ -51,7 +51,7 @@
 .play-page .play-create{display:flex;width:100%;min-height:50px;margin:0;justify-content:center;gap:8px;border-radius:var(--ds-radius-card);background:var(--ds-gradient);color:var(--ds-ink);font-size:16px}
 .play-page .play-search{max-width:none;width:100%;margin:0 0 24px;display:flex;align-items:center;gap:12px}
 .play-page .play-search input{width:100%;min-width:0}
-.play-page .play-search button{white-space:nowrap;min-height:44px}
+.play-page .play-search button{white-space:nowrap;min-height:0}
 .play-page .play-type-filter{display:flex;align-items:center;gap:8px;padding:0;margin:0;color:var(--ds-muted);font-size:13px;white-space:nowrap}
 .play-page .play-type-filter select{width:auto;min-width:104px;min-height:44px;padding:8px 12px;border:1px solid var(--ds-border);border-radius:var(--ds-radius-input);background:var(--ds-panel);color:var(--ds-text);font:inherit}
 .play-song-list{display:grid;min-width:0}
@@ -208,8 +208,9 @@ img.play-dubbing-art{display:block;width:100%;height:auto;aspect-ratio:1;object-
     font-weight: 600;
   }
   .play-category-tabs .tab svg { width: 18px; height: 18px; }
-  .play-search { gap: 8px; padding-block: 2px; margin-bottom: 12px; }
-  .play-search :is(input, button) { min-height: 44px; font-size: 14px; }
+  /* Reuse the topbar's brand-search shell without the legacy boxed-search skin. */
+  .play-search { gap: 10px; padding-block: 0; margin-bottom: 12px; }
+  .play-search :is(input, button) { min-height: 0; font-size: 14px; }
   .play-discovery-tools { margin-bottom: 12px; }
   .play-discovery-tools .play-search { margin: 0; }
   .play-song-row {
@@ -269,7 +270,8 @@ img.play-dubbing-art{display:block;width:100%;height:auto;aspect-ratio:1;object-
     .play-tabs .tab { padding-inline: 6px; }
     .play-category-tabs .tab { min-height: 48px; }
     .play-search input { font-size: 16px; }
-    .play-search button { min-width: 44px; }
+    .play-search { min-height: 48px; }
+    .play-search button { min-width: 44px; height: 44px; }
     .play-type-filter .aifect-dropdown { --dropdown-height: 44px; }
     .play-song-row {
       --list-row-inset: 2px;
