@@ -145,17 +145,33 @@
  #main[data-route^="notifications"] .activity-note{margin:8px 0}
 }
 /* Notification-only layout: shared shell and player remain unchanged. */
-#main[data-route^="notifications"] .activity-title{font-size:26px;font-weight:700;margin:0 0 12px;line-height:1.35}
-#main[data-route^="notifications"] .activity-toolbar{position:sticky;top:var(--activity-header,80px);z-index:25;display:block;background:var(--ds-bg);border-bottom:1px solid var(--ds-line)}
+#main[data-route^="notifications"]:has(> .activity-page .activity-toolbar){
+ --main-frame-top:0px;
+ --activity-text-size:16px;
+ --activity-meta-size:13px;
+}
+#main[data-route^="notifications"] .activity-toolbar{position:sticky;top:var(--activity-header,80px);z-index:25;display:block;background:transparent;border-bottom:1px solid var(--ds-line)}
+#main[data-route^="notifications"] .activity-page.tabs-stuck .activity-toolbar{backdrop-filter:blur(16px)}
 #main[data-route^="notifications"] .activity-toolbar .tabs{display:flex;flex-wrap:nowrap;justify-content:flex-start;gap:24px;width:100%;max-width:100%;overflow-x:auto;scrollbar-width:none;margin:0}
 #main[data-route^="notifications"] .activity-toolbar .tabs::-webkit-scrollbar{display:none}
-#main[data-route^="notifications"] .activity-toolbar .tab{flex:0 0 auto;min-height:44px;padding:12px 0;white-space:nowrap;color:var(--ds-muted)}
+#main[data-route^="notifications"] .activity-toolbar .tab{
+ display:inline-flex;align-items:center;justify-content:center;gap:6px;flex:none;
+ min-height:44px;min-width:44px;padding:8px 0;border-bottom:2px solid transparent;
+ white-space:nowrap;font-size:var(--activity-text-size);color:var(--ds-muted);
+}
+#main[data-route^="notifications"] .activity-toolbar .tab>svg{flex:none;width:1em;height:1em}
+#main[data-route^="notifications"] .activity-toolbar .tab:focus-visible{outline-offset:-2px}
 #main[data-route^="notifications"] .activity-toolbar .tab.active{color:var(--ds-text);border-bottom:2px solid var(--ds-lilac)}
-#main[data-route^="notifications"] .activity-day{font-size:12px;margin:14px 0 4px;color:var(--ds-muted)}
+#main[data-route^="notifications"] .activity-day{font-size:var(--activity-meta-size);margin:14px 0 4px;color:var(--ds-muted)}
 #main[data-route^="notifications"] .activity-row{display:flex;align-items:center;flex-wrap:nowrap;gap:14px;min-height:72px;padding:10px 4px;transition:background .15s}
 #main[data-route^="notifications"] .activity-row:hover{background:var(--ds-soft)}
 #main[data-route^="notifications"] .activity-avatar{width:40px;height:40px}
-#main[data-route^="notifications"] .activity-copy>p{margin:3px 0;line-height:1.5}
+#main[data-route^="notifications"] .activity-avatar>.activity-dot{
+ position:absolute;inset-inline-end:calc(100% + 4px);top:50%;transform:translateY(-50%);pointer-events:none;
+}
+#main[data-route^="notifications"] .activity-meta{flex-wrap:nowrap;gap:5px;font-size:var(--activity-meta-size);white-space:nowrap}
+#main[data-route^="notifications"] .activity-meta time{font-size:inherit;color:var(--activity-time-color);font-variant-numeric:tabular-nums}
+#main[data-route^="notifications"] .activity-copy>p{margin:3px 0;font-size:var(--activity-text-size);line-height:1.5;word-break:keep-all;overflow-wrap:anywhere}
 #main[data-route^="notifications"] .activity-detail{display:flex;flex-wrap:nowrap;gap:8px;font-size:12px;overflow:hidden}
 #main[data-route^="notifications"] .activity-detail>span{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 #main[data-route^="notifications"] .activity-arrow{flex:none;color:var(--ds-muted)}
@@ -163,7 +179,11 @@
 #main[data-route^="notifications"] .activity-settings{margin:4px 0}
 .activity-top{position:fixed;z-index:26;display:grid;place-items:center;width:44px;height:44px;border:1px solid var(--ds-line);border-radius:8px;background:var(--ds-panel);color:var(--ds-text);transition:opacity .15s,background .15s}
 .activity-top[hidden]{display:none}.activity-top:hover{color:#8EDDD2}.activity-top:disabled{opacity:.65}
-@media(max-width:600px){#main[data-route^="notifications"] .activity-toolbar .tabs{gap:20px}#main[data-route^="notifications"] .activity-row{gap:10px}#main[data-route^="notifications"] .activity-title{font-size:24px}.activity-top{margin-bottom:env(safe-area-inset-bottom,0px)}}
+@media(max-width:800px){
+ #main[data-route^="notifications"]:has(> .activity-page .activity-toolbar){--activity-text-size:14px;--activity-meta-size:12px;--main-frame-gutter:12px}
+ #main[data-route^="notifications"] .activity-toolbar .tabs{gap:10px}
+}
+@media(max-width:600px){#main[data-route^="notifications"] .activity-row{gap:10px}.activity-top{margin-bottom:env(safe-area-inset-bottom,0px)}}
 @media(prefers-reduced-motion:reduce){.activity-top,#main[data-route^="notifications"] .activity-row{transition:none}}
 /* Discrete display transitions progressively enhance show/hide on supported WebViews. */
 .activity-top{opacity:1;transition:opacity .15s,background .15s,display .15s;transition-behavior:allow-discrete}

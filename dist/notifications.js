@@ -14,12 +14,21 @@ function activityRowHTML(n){
  const destination=href||'#notifications?unavailable='+encodeURIComponent(n.unavailable_reason||'1');
  const purpose=gift?'선물 받은 곳 보기':['comment','fan_comment','fan_post'].includes(n.kind)?'댓글·응원 보기':n.kind==='artist_follower'?'아티스트 보기':n.kind==='work_status'?'작품 관리':n.kind.startsWith('crew_')?'크루·요청 보기':'작품 보기';
  const detail=gift?giftDetail:['artist_name','source_title','detail'].filter(k=>n[k]).map(k=>`<span title="${esc(n[k])}">${esc(n[k])}</span>`).join('');
- return `<a data-list-row class="activity-row${n.read_at?'':' is-unread'}" data-activity-id="${esc(n.id)}" data-activity-open="${esc(n.id)}" href="${esc(destination)}" aria-label="${esc(n.actor_name)} · ${label} · ${purpose}"><div class="activity-avatar"><img src="${esc(avatar)}" alt="" loading="lazy"><span>${icon(gift?'gift':n.kind.includes('crew')?'users':['follow','artist_follower'].includes(n.kind)?'user':['comment','fan_comment','fan_post'].includes(n.kind)?'message':n.kind==='work_status'?'bell':'mic')}</span></div><div class="activity-copy"><div class="activity-meta"><span>${label}</span></div><p><strong>${esc(n.actor_name)}</strong>${n.kind==='work_status'?' · ':'님이 '}${action}</p><div class="activity-detail">${detail}</div></div><span class="activity-time"><time datetime="${new Date(n.created*1000).toISOString()}">${esc(new Date(n.created*1000).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',hourCycle:'h23',timeZone:'Asia/Seoul'}))}</time>${n.read_at?'':'<i class="activity-dot" aria-label="읽지 않음"></i>'}</span></a>`;
+ const created=new Date(n.created*1000);
+ const time=created.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',hourCycle:'h23',timeZone:'Asia/Seoul'});
+ const unreadDot=n.read_at?'':'<i class="activity-dot" aria-label="읽지 않음"></i>';
+ return `<a data-list-row class="activity-row${n.read_at?'':' is-unread'}" data-activity-id="${esc(n.id)}" data-activity-open="${esc(n.id)}" href="${esc(destination)}" aria-label="${esc(n.actor_name)} · ${label} · ${purpose}">
+  <div class="activity-avatar">${unreadDot}<img src="${esc(avatar)}" alt="" loading="lazy"><span>${icon(gift?'gift':n.kind.includes('crew')?'users':['follow','artist_follower'].includes(n.kind)?'user':['comment','fan_comment','fan_post'].includes(n.kind)?'message':n.kind==='work_status'?'bell':'mic')}</span></div>
+  <div class="activity-copy">
+   <div class="activity-meta"><span>${label}</span><span aria-hidden="true">·</span><time datetime="${created.toISOString()}">${esc(time)}</time></div>
+   <p><strong>${esc(n.actor_name)}</strong>${n.kind==='work_status'?' · ':'님이 '}${action}</p><div class="activity-detail">${detail}</div>
+  </div>
+ </a>`;
 }
 function activityGroupsHTML(items){let day='';return items.map(n=>{const next=activityDate(n.created,true),header=day===next?'':`<h2 class="activity-day">${esc(next)}</h2>`;day=next;return header+activityRowHTML(n);}).join('');}
 async function notificationsView(base,raw,readApi=api){
  if(base!=='notifications')return null;
- if(!me)return {html:heading('알림')+empty('로그인하면 알림을 볼 수 있어요','내 음악에 도착한 참여와 선물을 모아드려요.','#account','로그인'),tracks:[]};
+ if(!me)return {html:empty('로그인하면 알림을 볼 수 있어요','내 음악에 도착한 참여와 선물을 모아드려요.','#account','로그인'),tracks:[]};
  const q=new URLSearchParams(raw.split('?')[1]||'');
  if(q.has('unavailable')){
   const message={room:'종료되었거나 삭제된 방이에요.',source:'이 선물의 발생 위치를 확인할 수 없어요.'}[q.get('unavailable')]||'삭제·비공개 또는 접근 권한이 변경된 콘텐츠예요.';
@@ -29,7 +38,7 @@ async function notificationsView(base,raw,readApi=api){
  const filter=['gifts','participation','comments','works','artists','crew'].includes(q.get('filter'))?q.get('filter'):'all',data=await readApi('/api/notifications?filter='+filter,'GET',undefined,{fresh:true});
  const resume=activityResume?.account===me.id&&activityResume.filter===filter?activityResume:null;
  activityResume=null;
- return {activity:{...data,filter,account:me.id,restoreCount:resume?.count,restoreScroll:resume?.scroll},tracks:[],html:`<section class="activity-page"><h1 class="activity-title">알림</h1><div class="activity-toolbar"><nav class="tabs" aria-label="알림 종류">${[['all','전체'],['comments','댓글·응원'],['works','작품·참여'],['artists','아티스트'],['crew','크루'],['gifts','선물']].map(([key,name])=>`<a href="#notifications?filter=${key}" class="tab ${filter===key?'active':''}" ${filter===key?'aria-current="page"':''}>${name}</a>`).join('')}</nav></div>${activitySettingsHTML()}<div id="activity-list">${data.items.length?activityGroupsHTML(data.items):`<div class="activity-empty">${icon('bell')}<h2>아직 도착한 알림이 없어요</h2><p>누군가 내 곡에 참여하거나 선물을 보내면<br>이곳에서 확인할 수 있어요.</p></div>`}</div><button class="small-button activity-more" data-activity-more ${data.next?'':'hidden'}>이전 알림 더 보기</button><p class="activity-error" role="status"></p><button type="button" class="activity-top" aria-label="알림 맨 위로" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 10 6-6 6 6M12 4v16"/></svg></button></section>`};
+ return {activity:{...data,filter,account:me.id,restoreCount:resume?.count,restoreScroll:resume?.scroll},tracks:[],html:`<section class="activity-page" aria-label="알림"><div class="activity-toolbar"><nav class="tabs" aria-label="알림 종류">${[['all','전체'],['comments','댓글·응원'],['works','작품·참여'],['artists','아티스트'],['crew','크루'],['gifts','선물']].map(([key,name])=>`<a href="#notifications?filter=${key}" class="tab ${filter===key?'active':''}" ${filter===key?'aria-current="page"':''}>${key==='all'?icon('bell'):''}${name}</a>`).join('')}</nav></div>${activitySettingsHTML()}<div id="activity-list">${data.items.length?activityGroupsHTML(data.items):`<div class="activity-empty">${icon('bell')}<h2>아직 도착한 알림이 없어요</h2><p>누군가 내 곡에 참여하거나 선물을 보내면<br>이곳에서 확인할 수 있어요.</p></div>`}</div><button class="small-button activity-more" data-activity-more ${data.next?'':'hidden'}>이전 알림 더 보기</button><p class="activity-error" role="status"></p><button type="button" class="activity-top" aria-label="알림 맨 위로" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 10 6-6 6 6M12 4v16"/></svg></button></section>`};
 }
 function bindNotifications(view){
  const state=view?.activity,root=$('.activity-page');if(!state||!root||me?.id!==state.account)return;
@@ -111,6 +120,7 @@ function bindActivityLayout(root,active){
   document.querySelectorAll('.player,.mobile-navigation,#player-extension,#player-action-panel,#player-lyric').forEach(el=>{const r=el.getBoundingClientRect();if(r.height&&r.width&&getComputedStyle(el).visibility!=='hidden'&&!el.hidden)bottom=Math.max(bottom,innerHeight-r.top+12);});
   top.style.bottom=bottom+'px';top.hidden=window.scrollY<500;
   const r=root.getBoundingClientRect();top.style.right=Math.max(16,innerWidth-r.right)+'px';
+  root.classList.toggle('tabs-stuck',r.top<Math.max(0,rect?.bottom||0)-1);
   if(window.scrollY<2){moving=false;top.disabled=false;}
  };
  top.onclick=()=>{if(moving)return;moving=true;top.disabled=true;window.scrollTo({top:0,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});clearTimeout(unlock);unlock=setTimeout(()=>{moving=false;top.disabled=false;},1500);};

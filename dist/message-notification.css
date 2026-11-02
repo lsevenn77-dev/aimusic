@@ -40,11 +40,9 @@
 .message-workspace .chat-day{display:flex;align-items:center;gap:calc(12px + 0px);color:var(--ds-muted)}
 .message-workspace .chat-day::before,.message-workspace .chat-day::after{content:"";flex:1;height:1px;background:#ffffff0b}
 #main[data-route^="dm"]::before{content:none}
-/* Time and unread dot form one intrinsic group to the right of the actual row. */
-.activity-page .activity-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:start;gap:calc(12px + 0px);padding:calc(18px + 0px) 0;margin:0;border:0;border-bottom:1px solid #ffffff0b;border-radius:0;background:none;box-shadow:none}
+.activity-page .activity-row{display:flex;align-items:center;gap:calc(12px + 0px);padding:calc(18px + 0px) 0;margin:0;border:0;border-bottom:1px solid #ffffff0b;border-radius:0;background:none;box-shadow:none}
 .activity-page .activity-row.is-unread{background:rgb(199 168 244 / 3%);border-color:#ffffff0b}
 .activity-page .activity-row:hover{background:#ffffff04}
-.activity-page .activity-time{display:inline-flex;align-items:center;justify-content:flex-end;gap:var(--activity-status-gap);white-space:nowrap;color:var(--activity-time-color);font-size:var(--activity-time-font);font-variant-numeric:tabular-nums;line-height:20px}
 .activity-page .activity-meta{line-height:20px}
 .activity-page .activity-copy{min-width:0}
 .activity-page .activity-copy>p{margin-top:calc(5px + 0px)}

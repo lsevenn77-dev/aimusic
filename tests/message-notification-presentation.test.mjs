@@ -17,8 +17,19 @@ test('successful mute state updates the cached inbox immediately without changin
  let data=c.lastEvent.detail;assert.equal(data.unread,105);assert.equal(data.conversations[0].unread,104);assert.equal(data.conversations[0].muted,true);assert.equal(data.conversations[1].muted,0);
  vm.runInContext("updateInboxMute('a',false);updateInboxMute('c',true,true)",c);data=c.lastEvent.detail;assert.equal(data.conversations[0].muted,false);assert.equal(data.crew.muted,true);
 });
-test('read/unread and muted/unmuted states render their real status, and notification dot is adjacent to its time',()=>{
+test('read/unread and muted/unmuted conversations render their real status',()=>{
  const c=client();let html=vm.runInContext('conversationMetaHTML({unread:104,muted:1,updated:1793451900})',c);assert.match(html,/>99\+</);assert.match(html,/bellOff/);assert.match(html,/<time>\d{2}:\d{2}<\/time>/);assert.doesNotMatch(html,/data-dm-mute/);
  html=vm.runInContext('conversationMetaHTML({unread:0,muted:0,updated:1793451900})',c);assert.doesNotMatch(html,/unread-badge|bellOff/);
- c.n={id:'n',kind:'follow',actor_name:'Name',target:'friend',available:true,created:1793451900,read_at:0};html=vm.runInContext('activityRowHTML(n)',c);assert.match(html,/class="activity-time"><time[^>]*>\d{2}:\d{2}<\/time><i class="activity-dot"/);c.n.read_at=1;assert.doesNotMatch(vm.runInContext('activityRowHTML(n)',c),/activity-dot/);
+});
+test('notifications show Seoul time beside the type and an unread dot beside the avatar',()=>{
+ const c=client();
+ c.n={id:'n',kind:'follow',actor_name:'Name',target:'friend',available:true,created:Date.parse('2026-11-02T15:20:00Z')/1000};
+ for(const read_at of [0,1]){
+  c.n.read_at=read_at;
+  const html=vm.runInContext('activityRowHTML(n)',c);
+  assert.match(html,/<div class="activity-meta"><span>팔로우<\/span><span aria-hidden="true">·<\/span><time datetime="2026-11-02T15:20:00.000Z">00:20<\/time><\/div>/);
+  assert.equal(html.match(/<time\b/g)?.length,1);
+  assert.equal(html.includes('activity-dot'),!read_at);
+  if(!read_at)assert.match(html,/<div class="activity-avatar"><i class="activity-dot"[^>]*><\/i><img /);
+ }
 });
