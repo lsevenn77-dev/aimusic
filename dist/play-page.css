@@ -467,6 +467,9 @@ img.play-dubbing-art{display:block;width:100%;height:auto;aspect-ratio:1;object-
     @media (min-width: 801px) {
       .play-banner-link { padding-left: 50%; }
     }
+    @media (max-width: 800px) {
+      .play-banner-picture { justify-content: flex-start; }
+    }
   }
   @container (max-width: 340px) {
     .home-feature { --play-banner-title-size: 18px; }
