@@ -157,3 +157,67 @@ main .social-profile-identity h2>.mp-public-id{display:block;font-size:13px;font
  .mp-header-background img{filter:blur(6px)}
  .mp-social-actions{gap:4px;padding-bottom:12px}
 }
+
+/* Public producer route. The header grid owns both the avatar and the actions. */
+#main .mp-member-page .mp-profile-area .mp-profile:has(.mp-social-actions){
+ row-gap:10px;
+}
+.mp-member-page .mp-profile:has(.mp-social-actions) .mp-header-background{grid-row:auto/2}
+.mp-member-page .mp-social-actions{
+ --ui-space-scale:1;
+ --ui-type-scale:1;
+ --ui-control-height:44px;
+ grid-column:1/-1;
+ justify-content:flex-start;
+ gap:10px;
+ padding:0;
+}
+#main .mp-member-page .mp-social-actions>:is(button,a){
+ box-sizing:border-box;
+ display:inline-flex;
+ align-items:center;
+ justify-content:center;
+ flex:none;
+ width:auto;
+ height:44px;
+ min-height:44px;
+ max-height:44px;
+ padding:0 16px;
+ border-radius:10px;
+ font-size:14px;
+ font-weight:600;
+ line-height:1.4;
+ white-space:nowrap;
+}
+.mp-member-page .mp-moment-placeholder{display:none}
+
+@media(min-width:801px){
+ #main .mp-member-page{--ui-type-scale:1;font-size:14px;line-height:1.45}
+ #main .mp-member-page .mp-profile-area .mp-profile:has(.mp-social-actions){padding-bottom:0}
+ #main .mp-member-page .mp-profile:has(.mp-social-actions) .mp-avatar-space{grid-row:1/span 2}
+ #main .mp-member-page .mp-social-actions{grid-column:2}
+ #main .mp-member-page .mp-profile .mp-identity h2{font-size:30px;font-weight:700}
+ #main .mp-member-page :is(.mp-profile-bio,.mp-studio p,.mp-empty,.mp-section-head>.mp-all,.work-legend,.work-toolbar select,.mp-studio .primary-button,.play-record-link){font-size:14px;line-height:1.45}
+ #main .mp-member-page :is(.mp-section-head h2,.mp-studio h2,.work-browser>h2){font-size:20px;font-weight:700;line-height:1.4}
+ #main .mp-member-page .mp-section-head{align-items:baseline}
+ #main .mp-member-page .mp-section-head>.mp-all{margin-inline-start:auto;white-space:nowrap}
+ #main .mp-member-page :is(.work-title strong,.mp-artist-card strong,.album-title){font-size:15px;font-weight:600;line-height:1.45}
+ #main .mp-member-page :is(.mp-public-id,.mp-crew-line,.mp-stats,.mp-stats b,.mp-section-head h2>span,.work-browser [data-work-count],.work-grid small,.mp-artist-entry>.mp-all,.mp-artist-card .artist-ui-affiliation,.album-artist,.play-song-producer){
+  font-size:13px;line-height:1.45
+ }
+ #main .mp-member-page .mp-moments{
+  --ui-space-scale:1;
+  grid-auto-flow:row;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:12px;
+  padding:0;
+ }
+ #main .mp-member-page .mp-moments>:is(button,.mp-moment-placeholder){
+  box-sizing:border-box;width:100%;min-width:0;min-height:0;aspect-ratio:1/1;border-radius:8px
+ }
+ #main .mp-member-page .mp-moment-placeholder{
+  display:block;pointer-events:none;border:1px solid var(--ds-line);background:var(--ds-bg)
+ }
+ #main .mp-member-page .mp-moments>:nth-child(n+5),
+ #main .mp-member-page .mp-moments+.mp-empty{display:none}
+}
