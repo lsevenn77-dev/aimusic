@@ -32,9 +32,10 @@ test('creator text, paragraphs and amended descriptions stay intact and HTML-saf
  const html=c.songDescriptionHTML({id:'song',description:text});
  assert.match(html,/첫 줄\n둘째 줄\n\n다음 문단/);assert.doesNotMatch(html,/<script>/);assert.match(html,/&lt;script&gt;/);
  assert.match(html,/<section\b[^>]*data-song-description-track="song"/);
- assert.match(html,/<p\b[^>]*id="song-description-text"[^>]*>/);
- const toggle=html.match(/<button\b[^>]*class="text-link song-description-toggle"[^>]*>/)?.[0];
- assert.ok(toggle);assert.match(toggle,/type="button"/);assert.match(toggle,/aria-controls="song-description-text"/);assert.match(toggle,/aria-expanded="false"/);assert.match(toggle,/\bhidden\b/);assert.match(html,/>펼쳐보기<\/button>/);
+ const description=html.match(/<p\b[^>]*id="song-description-text"[^>]*>([\s\S]*?)<\/p>/)?.[1];
+ assert.ok(description);assert.ok(description.includes('<span class="song-description-content">'+esc(text)+'</span>'));
+ const toggle=description.match(/<button\b[^>]*class="text-link song-description-toggle"[^>]*>/)?.[0];
+ assert.ok(toggle);assert.match(toggle,/type="button"/);assert.match(toggle,/aria-controls="song-description-text"/);assert.match(toggle,/aria-expanded="false"/);assert.match(toggle,/\bhidden\b/);assert.match(description,/>\+더보기<\/button>/);
  const edited=samples.legacy_auto[0].description+'\n제작자가 새로 수정한 소개입니다.';
  assert.equal(c.songCreatorDescription({description:edited}),edited,'Similar prose is not guessed to be automatic');
 });
@@ -53,6 +54,10 @@ test('the song title heads the page and metrics follow the date before introduct
  assert.match(html,/<h1\b[^>]*class="song-title"[^>]*>곡 제목<\/h1>/);assert.equal((html.match(/<h1\b/g)||[]).length,1);
  assert.match(c.songDetailHeaderHTML({...track,title:'곡 <제목> "1"'}),/<h1\b[^>]*class="song-title"[^>]*>곡 &lt;제목&gt; &quot;1&quot;<\/h1>/);
  assert.match(html,/<h3>곡 소개<\/h3>/);assert.match(html,/aria-label="재생 20회"/);assert.match(html,/aria-label="댓글 2개"/);assert.match(html,/aifect-icon-plays/);assert.match(html,/aifect-icon-comment/);
+ const meta=html.match(/<span\b[^>]*class="eyebrow song-track-meta"[^>]*>([\s\S]*?)<\/span>/)?.[1];assert.equal(meta,'Pop');
+ const metrics=html.match(/<p\b[^>]*class="song-metrics"[^>]*>([\s\S]*?)<\/p>/)?.[1];assert.ok(metrics);
+ const duration=metrics.match(/^\s*<span\b[^>]*class="metric-inline song-duration"[^>]*>[\s\S]*?<\/span>/)?.[0];
+ assert.ok(duration);assert.match(duration,/aria-label="곡 길이 2:00"/);assert.match(duration,/>2:00<\/span>/);
  for(const c of [header(null),header('other')]){const plain=c.songDetailHeaderHTML(track);assert.doesNotMatch(plain,/song-engagement|data-report-track/);assert.match(plain,/song-metrics/);}
 });
 test('song actions retain delegates, links, active state and count with the lyrics entry last',()=>{
@@ -83,7 +88,7 @@ test('guest listening, unavailable karaoke, self-gifts and duet ownership remain
 test('artist and producer profiles are each shown once without dropping cover credits',()=>{
  const c=header(),html=c.songDetailCreditsHTML(track);
  assert.equal(html.match(/href="#producer\/person"/g).length,1);assert.equal(html.match(/href="#artist\/artist"/g).length,1);
- assert.match(html,/song-producer-label">PRODUCER/);
+ assert.match(html,/song-artist-label">AI ARTIST/);assert.match(html,/song-producer-label">PRODUCER/);
  const plain=c.songDetailCreditsHTML({...track,has_ai_artist:false,artist_id:null});assert.doesNotMatch(plain,/AI ARTIST|#artist/);
  const cover=c.songDetailCreditsHTML({...track,kind:'cover',original_id:'parent',original_title:'원곡',original_artist:'원곡 아티스트',cover_mode:'duet',duet_open:1,duet_partner_id:'partner',duet_partner:'파트너'});
  for(const href of ['#producer/person','#producer/partner','#song/parent'])assert.ok(cover.includes(href));

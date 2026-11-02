@@ -19,7 +19,9 @@ test('shell search is bound before home renders, supports Enter submission and r
 });
 function ui(){const c=vm.createContext({me:null,queueMicrotask,document:{addEventListener(){}},window:{addEventListener(){}},setInterval(){},esc,empty:()=>'<p>EMPTY</p>',time:s=>'0:'+String(Number(s)||0).padStart(2,'0'),number:n=>Number(n||0).toLocaleString('ko-KR'),icon:()=>'',heading:s=>'<h1>'+s+'</h1>',communityNavigation:()=>'',portrait:()=>'',followed:()=>false,liked:()=>false,giftButton:()=>'',cover:()=>'',credits:()=>''});for(const f of ['music-ui.js','social-layouts.js','social-chat.js','release-refinements.js'])vm.runInContext(read(f),c);return c;}
 test('release date is the registered timestamp in Korea, without inventing missing dates',()=>{
- const c=ui();assert.match(c.songReleaseDateHTML({created:Date.parse('2026-10-12T16:00:00Z')/1000}),/datetime="2026-10-13">2026.10.13/);assert.equal(c.songReleaseDateHTML({}), '');
+ const c=ui(),created=Date.parse('2026-10-12T16:00:00Z')/1000,fallback=c.songReleaseDateHTML({created}),explicit=c.songReleaseDateHTML({created,release_date:'2026-10-01'});
+ assert.match(fallback,/datetime="2026-10-13">2026.10.13/);assert.match(explicit,/datetime="2026-10-01">2026.10.01/);assert.equal(c.songReleaseDateHTML({}), '');
+ for(const html of [fallback,explicit])assert.doesNotMatch(html,/곡 등록일 기준|<small\b/);
 });
 test('crew discovery uses real rows, functioning filters and independently ranked sidebar',()=>{
  const c=ui(),crews=[{id:'a',name:'<script>x</script>',description:'Real',level:1,xp:2,members:3,capacity:10,recruiting:1,interests:'Rock, Ballad',created:1},{id:'b',name:'Two',level:3,xp:100,members:10,capacity:10,recruiting:1,interests:'Pop',created:2}];

@@ -7,26 +7,43 @@ function songCreatorDescription(t){
 }
 function songDescriptionHTML(t){
  const text=songCreatorDescription(t);
- return text?'<section class="song-introduction" aria-label="곡 소개" data-song-description-track="'+esc(t.id)+'"><div class="song-introduction-heading"><h3>곡 소개</h3><button type="button" class="text-link song-description-toggle" aria-controls="song-description-text" aria-expanded="false" hidden>펼쳐보기</button></div><p class="song-description" id="song-description-text">'+esc(text)+'</p></section>':'';
+ return text?'<section class="song-introduction" aria-label="곡 소개" data-song-description-track="'+esc(t.id)+'"><div class="song-introduction-heading"><h3>곡 소개</h3></div><p class="song-description" id="song-description-text"><span class="song-description-content">'+esc(text)+'</span><button type="button" class="text-link song-description-toggle" aria-controls="song-description-text" aria-expanded="false" hidden>+더보기</button></p></section>':'';
 }
 let songDescriptionBinding=null;
 function bindSongDescription(){
- const root=document.querySelector('.song-introduction'),description=root?.querySelector('.song-description'),button=root?.querySelector('.song-description-toggle');
+ const root=document.querySelector('.song-introduction'),description=root?.querySelector('.song-description'),content=root?.querySelector('.song-description-content'),button=root?.querySelector('.song-description-toggle');
  const previous=songDescriptionBinding,expanded=previous?.track===root?.dataset.songDescriptionTrack&&previous?.expanded;
  previous?.release();
- if(!root||!description||!button)return;
- const state={track:root.dataset.songDescriptionTrack,expanded:!!expanded,active:true,release:null};
+ if(!root||!description||!content||!button)return;
+ const text=content.textContent||'',characters=typeof Intl.Segmenter==='function'?Array.from(new Intl.Segmenter('ko',{granularity:'grapheme'}).segment(text),part=>part.segment):Array.from(text);
+ const state={track:root.dataset.songDescriptionTrack,expanded:!!expanded,active:true,width:0,release:null};
  songDescriptionBinding=state;
- const measure=()=>{if(state.active&&root.isConnected)button.hidden=!state.expanded&&description.scrollHeight<=description.clientHeight+1;};
- const paint=()=>{root.classList.toggle('is-expanded',state.expanded);button.setAttribute('aria-expanded',String(state.expanded));button.textContent=state.expanded?'접기':'펼쳐보기';measure();};
- button.onclick=()=>{state.expanded=!state.expanded;paint();};
- const observer=typeof ResizeObserver==='function'?new ResizeObserver(measure):null;
- observer?.observe(description);if(!observer)window.addEventListener('resize',measure);
- state.release=registerRouteCleanup(()=>{state.active=false;observer?.disconnect();if(!observer)window.removeEventListener('resize',measure);button.onclick=null;if(songDescriptionBinding===state)songDescriptionBinding=null;});
- paint();document.fonts?.ready.then(measure);
+ const paint=(force=false)=>{
+  if(!state.active||!root.isConnected)return;
+  const width=description.getBoundingClientRect().width;
+  if(!width||(!force&&width===state.width))return;
+  const focused=document.activeElement===button;
+  state.width=width;root.classList.add('is-description-ready');content.textContent=text;button.hidden=true;
+  const limit=parseFloat(getComputedStyle(description).lineHeight)*2+1,overflow=description.getBoundingClientRect().height>limit;
+  if(!overflow)state.expanded=false;
+  root.classList.toggle('is-expanded',state.expanded);button.setAttribute('aria-expanded',String(state.expanded));button.textContent=state.expanded?'접기':'+더보기';button.hidden=!overflow;
+  if(overflow&&!state.expanded){
+   // Fit the actual inline button with the preview, preserving the saved text.
+   const preview=count=>characters.slice(0,count).join('').trimEnd()+'…';
+   let low=0,high=characters.length;
+   while(low<high){const middle=Math.ceil((low+high)/2);content.textContent=preview(middle);if(description.getBoundingClientRect().height<=limit)low=middle;else high=middle-1;}
+   content.textContent=preview(low);
+  }
+  if(focused&&!button.hidden)button.focus({preventScroll:true});
+ };
+ button.onclick=()=>{state.expanded=!state.expanded;paint(true);};
+ const resize=()=>paint(),observer=typeof ResizeObserver==='function'?new ResizeObserver(resize):null;
+ observer?.observe(description);if(!observer)window.addEventListener('resize',resize);
+ state.release=registerRouteCleanup(()=>{state.active=false;observer?.disconnect();if(!observer)window.removeEventListener('resize',resize);content.textContent=text;button.hidden=true;button.onclick=null;root.classList.remove('is-description-ready','is-expanded');if(songDescriptionBinding===state)songDescriptionBinding=null;});
+ paint(true);document.fonts?.ready.then(()=>paint(true));
 }
 function songDetailMetricsHTML(t){
- return '<p class="song-metrics"><span class="metric-inline" aria-label="재생 '+number(t.plays||0)+'회">'+icon('ui-plays')+number(t.plays||0)+'</span><span class="metric-inline" aria-label="댓글 '+number(t.comments||0)+'개">'+icon('ui-comment')+number(t.comments||0)+'</span>'+(t.ai_comments?' · 공식 AI 응원 '+number(t.ai_comments)+'개':'')+'</p>';
+ return '<p class="song-metrics"><span class="metric-inline song-duration" aria-label="곡 길이 '+time(t.duration)+'">'+time(t.duration)+'</span><span class="metric-inline" aria-label="재생 '+number(t.plays||0)+'회">'+icon('ui-plays')+number(t.plays||0)+'</span><span class="metric-inline" aria-label="댓글 '+number(t.comments||0)+'개">'+icon('ui-comment')+number(t.comments||0)+'</span>'+(t.ai_comments?' · 공식 AI 응원 '+number(t.ai_comments)+'개':'')+'</p>';
 }
 function songActionIcon(name){
  // Header actions share one button surface. Reuse the shared glyphs without
@@ -38,7 +55,7 @@ function songActionIcon(name){
 function songDetailCreditsHTML(t){
  if(t.kind==='cover')return songCredits(t);
  const producer=esc(t.producer||'창작자'),href=t.producer_id?'#producer/'+esc(t.producer_id):'';
- return '<div class="song-credits">'+(hasArtist(t)?'<div><span>AI ARTIST</span>'+credits(t)+'</div>':'')+
+ return '<div class="song-credits">'+(hasArtist(t)?'<div><span class="song-artist-label">AI ARTIST</span>'+credits(t)+'</div>':'')+
  '<div><span class="song-producer-label">PRODUCER</span>'+(href?'<a href="'+href+'">'+producer+'</a>':'<span class="song-producer-name">'+producer+'</span>')+'</div></div>';
 }
 function songDetailActionsHTML(t){
@@ -59,7 +76,7 @@ function songOwnerActionsHTML(t){
 function songDetailHeaderHTML(t){
  const genres=(t.genres?.length?t.genres:[t.genre]).filter(Boolean).join(' · '),moderation=trackModerationToolsHTML(t);
  return '<section class="song-detail song-detail-refined">'+cover(t).replace('loading="lazy"','loading="eager" fetchpriority="high"')+'<div class="song-detail-copy">'+
- '<span class="eyebrow song-track-meta">'+esc(genres)+(genres?' · ':'')+time(t.duration)+'</span><h1 class="song-title">'+esc(t.title)+'</h1>'+
+ (genres?'<span class="eyebrow song-track-meta">'+esc(genres)+'</span>':'')+'<h1 class="song-title">'+esc(t.title)+'</h1>'+
  songDetailCreditsHTML(t)+songReleaseDateHTML(t)+songDetailMetricsHTML(t)+songDescriptionHTML(t)+songDetailActionsHTML(t)+songOwnerActionsHTML(t)+
  (moderation?'<div class="song-engagement">'+moderation+'</div>':'')+'</div></section>';
 }

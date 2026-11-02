@@ -37,7 +37,7 @@ function songCoversMoreHTML(d,parent=''){
 function songCoversPanelHTML(t,d,tab){
  if(!d)return '';
  const tabs=[['all','전체'],['duet','듀엣'],['recent','최근']];
- return `<section class="surface covers-panel song-covers-panel" data-cover-original="${esc(t.id)}"><div class="section-heading"><h2>커버곡</h2>${d.accepts_covers?`<a class="small-button" href="#cover/${esc(t.id)}">${icon('ui-plus-action')} 이 곡 커버 올리기</a>`:''}</div><nav class="tabs covers-sort" aria-label="이 곡의 커버 종류">${tabs.map(([key,label])=>`<a class="tab ${tab===key?'active':''}" href="#song/${esc(t.id)}?covers=${key}" ${tab===key?'aria-current="page"':''}>${label}<span class="song-cover-tab-count">${number(d.counts[key]||0)}</span></a>`).join('')}</nav><div class="song-cover-list" aria-live="polite">${d.covers.length?d.covers.map(t=>songCoverItemHTML(t,tab)).join(''):`<p class="empty-note">${tab==='duet'?'현재 참여 가능한 듀엣 모집곡이 없어요.':'아직 공개된 완성 커버곡이 없어요.'}</p>`}${songCoversMoreHTML(d)}</div></section>`;
+ return `<section class="surface covers-panel song-covers-panel" data-cover-original="${esc(t.id)}"><div class="section-heading"><h2>커버곡</h2></div><nav class="tabs covers-sort" aria-label="이 곡의 커버 종류">${tabs.map(([key,label])=>`<a class="tab ${tab===key?'active':''}" href="#song/${esc(t.id)}?covers=${key}" ${tab===key?'aria-current="page"':''}>${label}<span class="song-cover-tab-count">${number(d.counts[key]||0)}</span></a>`).join('')}</nav><div class="song-cover-list" aria-live="polite">${d.covers.length?d.covers.map(t=>songCoverItemHTML(t,tab)).join(''):`<p class="empty-note">${tab==='duet'?'현재 참여 가능한 듀엣 모집곡이 없어요.':'아직 공개된 완성 커버곡이 없어요.'}</p>`}${songCoversMoreHTML(d)}</div></section>`;
 }
 let songCoverPlaybackBound=false;
 function syncSongCoverPlayback(){

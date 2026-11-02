@@ -98,7 +98,7 @@ test('row markup has separate native links and controls, exact tabs, escaped IDs
  const html=c.songCoversPanelHTML({id:'original'},{view:'all',covers:[track],counts:{all:1,recent:1,duet:1},accepts_covers:true},'all');
  assert.match(html,/covers=all/);assert.match(html,/covers=duet/);assert.match(html,/covers=recent/);assert.doesNotMatch(html,/covers=solo|covers=ranking/);
  assert.match(html,/&lt;Long title&gt;/);assert.match(html,/data-community-toggle/);assert.match(html,/data-icon="ui-play-action"/);
- assert.match(html,/<\/a>\s*<button/);assert.match(html,/#cover\/original/);assert.match(html,/#song\/cover/);
+ assert.match(html,/<\/a>\s*<button/);assert.doesNotMatch(html,/#cover\/original|이 곡 커버 올리기/);assert.match(html,/data-cover-original="original"/);assert.match(html,/#song\/cover/);
  const duet=c.songCoverItemHTML(track,'duet');assert.match(duet,/#sing\/original\?duet=cover/);assert.match(duet,/<span>1<\/span><span class="sr-only">명 참여<\/span>/);assert.match(duet,/완성작 2개/);assert.doesNotMatch(duet,/완성된 참여작|song-cover-counts/);
  assert.doesNotMatch(c.songCoverItemHTML({...track,participants:0,completions:0},'duet'),/data-cover-children/);
  assert.match(c.songCoverItemHTML({...track,participants:0,completions:0},'duet'),/disabled[^>]*><span>0<\/span><span class="sr-only">명 참여<\/span>/);
