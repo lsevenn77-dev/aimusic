@@ -61,6 +61,18 @@ test('editorial carousel reuses controls and timing without subscribing to or ch
  cleanup();assert.equal(f.timers.size,0);assert.equal(f.audioEvents.size,0);assert.equal(f.audio.paused,false);
 });
 
+test('explicit resume starts the timer with pointer and focus still on the rolling control',()=>{
+ const f=setup();
+ f.c.mountFeatureCarousel(f.root,[{id:'one',title:'One'},{id:'two',title:'Two'}]);
+ f.fire('pointerenter',{pointerType:'touch'});assert.equal(f.timers.size,1);
+ f.fire('pointerenter',{pointerType:'mouse'});f.fire('focusin');
+ const toggle={matches:s=>s==='.home-feature-autoplay',hasAttribute:()=>false,setAttribute(k,v){this[k]=v;}};
+ const click=()=>f.fire('click',{target:{closest:()=>toggle}});
+ click();assert.equal(f.timers.size,0);assert.equal(toggle['aria-label'],'자동 롤링 재개');
+ click();assert.equal(f.timers.size,1);assert.equal(toggle['aria-label'],'자동 롤링 일시정지');
+ f.advance();assert.equal(f.stage.innerHTML,'two');
+});
+
 test('rapid home changes retain only one inert background and dispose the fallback timer',()=>{
  const f=setup();f.mount();f.advance();assert.equal(f.outgoing.length,1);
  assert.equal(f.outgoing[0].inert,true);assert.equal(f.outgoing[0].innerHTML,'<div class="home-feature-background">old-art</div>');

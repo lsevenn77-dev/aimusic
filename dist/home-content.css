@@ -75,16 +75,12 @@
 }
 .home-content-refresh{container-type:inline-size;min-width:0}
 .home-content-refresh #home-release{min-width:0}
-.home-content-refresh .home-feature{position:relative;isolation:isolate;height:272px;overflow:hidden;border-radius:var(--ds-radius-feature,20px);background:var(--ds-panel);touch-action:pan-y}
+.home-content-refresh .home-feature{position:relative;isolation:isolate;height:272px;overflow:hidden;background:var(--ds-panel);touch-action:pan-y}
 .home-content-refresh .home-feature-stage{height:100%;position:relative;isolation:isolate}
 .home-content-refresh .home-feature-background{position:absolute;inset:0;overflow:hidden;z-index:0;background:linear-gradient(115deg,color-mix(in srgb,var(--ds-lilac) 10%,var(--ds-panel)),var(--ds-panel) 55%,color-mix(in srgb,var(--ds-mint) 8%,var(--ds-panel)))}
 .home-content-refresh .home-feature-backdrop{width:100%;height:100%;background-size:cover;background-position:center;filter:blur(14px) saturate(1.18);transform:scale(1.12);opacity:.6}
 .home-content-refresh .home-feature-background img{width:100%;height:100%;opacity:0}
 .home-content-refresh .home-feature-background img[hidden]{display:none}
-/* Shared home/play banners: let original artwork light overlap the page without masking controls.
-   The stage/outgoing layer stays unclipped so the existing crossfade includes the halo. */
-:is(.home-content-refresh #home-release,.home-content-refresh.play-banner) .home-feature{overflow:visible;background:transparent}
-:is(.home-content-refresh #home-release,.home-content-refresh.play-banner) .home-feature-background{inset:-20px -12px;pointer-events:none;background:transparent;mask-image:linear-gradient(90deg,transparent,#000 9%,#000 91%,transparent),linear-gradient(transparent,#000 23%,#000 65%,transparent);mask-composite:intersect}
 :is(.home-content-refresh #home-release,.home-content-refresh.play-banner){--feature-hangul-scale:.88}
 :is(.home-content-refresh #home-release,.home-content-refresh.play-banner) .home-feature-hangul{font-size:calc(1em * var(--feature-hangul-scale))}
 .home-content-refresh .home-feature-background::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,#0c121b00 0%,#0c121b0a 20%,#0c121b38 44%,#0c121b33 64%,#0c121b0a 86%,#0c121b00 100%),radial-gradient(ellipse at 50% 120%,#0c121b26 0%,#0c121b0f 40%,#0c121b00 72%)}
@@ -113,18 +109,18 @@
 .home-content-refresh .home-feature-preview{position:relative;width:170px;height:170px;padding:0;border:0;background:none;border-radius:12px;cursor:pointer}
 .home-content-refresh .home-preview-art{width:100%;height:100%;border-radius:12px}
 .home-content-refresh .home-feature-preview>span{position:absolute;bottom:10px;left:12px;font-size:9px;letter-spacing:.16em;color:var(--ds-text)}
-.home-content-refresh .home-feature-arrow{position:absolute;z-index:3;top:calc(50% - 22px);display:grid;place-items:center;width:44px;height:44px;background:transparent;border:0;border-radius:0;box-shadow:none;color:var(--ds-body);cursor:pointer}
-.home-content-refresh .home-feature-arrow svg{width:22px;height:22px;transition:color .15s ease}
-.home-content-refresh .home-feature-arrow:hover svg{color:var(--ds-accent-mint)}
+.home-content-refresh :is(.home-feature-arrow,.home-feature-autoplay,.home-feature-dots button){display:grid;place-items:center;height:44px;padding:0;background:none;border:0;border-radius:0;box-shadow:none;color:#fff;cursor:pointer}
+.home-content-refresh .home-feature-arrow{position:absolute;z-index:3;top:calc(50% - 22px);width:44px}
+.home-content-refresh .home-feature-arrow svg{width:25.3px;height:25.3px}
 .home-content-refresh .home-feature-prev{left:16px}.home-content-refresh .home-feature-prev svg{transform:rotate(180deg)}
 .home-content-refresh .home-feature-next{right:16px}
-.home-content-refresh .home-feature-pagination{position:absolute;bottom:0;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:2px;z-index:3;max-width:100%;flex-wrap:nowrap;white-space:nowrap}
-.home-content-refresh .home-feature-autoplay{background:none;border:0;color:var(--ds-muted);width:40px;height:40px;flex:none;cursor:pointer;display:grid;place-items:center}
-.home-content-refresh .home-feature-autoplay svg{width:12px;height:12px}
+.home-content-refresh .home-feature-pagination{--feature-step:28px;position:absolute;bottom:0;left:50%;transform:translateX(-50%);display:flex;align-items:center;z-index:3}
+.home-content-refresh .home-feature-pagination button{width:var(--feature-step);flex:none}
+.home-content-refresh .home-feature-autoplay svg{width:13.8px;height:13.8px;fill:currentColor;pointer-events:none}
 .home-content-refresh .home-feature-dots{display:flex;align-items:center;flex-wrap:nowrap}
-.home-content-refresh .home-feature-dots button{display:grid;place-items:center;width:26px;height:40px;flex:none;border:0;padding:0;background:none;cursor:pointer}
-.home-content-refresh .home-feature-dots button::after{content:"";width:5px;height:5px;border-radius:8px;background:var(--ds-muted);opacity:.45;transition:width .3s,opacity .3s}
-.home-content-refresh .home-feature-dots button[aria-pressed=true]::after{width:16px;background:var(--control-gradient);opacity:1}
+.home-content-refresh .home-feature-dots button::after{content:"";width:5.75px;height:5.75px;border-radius:8px;background:currentColor;opacity:.5;transition:width .3s,opacity .3s}
+.home-content-refresh .home-feature-dots button[aria-pressed=true]::after{width:18.4px;opacity:1}
+.home-content-refresh .home-feature :is(.home-feature-arrow,.home-feature-pagination button):focus-visible{outline-offset:-3px}
 /* Fade the old full background over the ready next background, without a dark dip. */
 .home-content-refresh .home-feature-outgoing{position:absolute;inset:0;z-index:2;pointer-events:none;animation:home-content-out .8s ease forwards}
 .home-content-refresh .home-feature-outgoing .home-feature-slide,.home-content-refresh .home-feature-outgoing .home-feature-backdrop{animation:none}
@@ -221,22 +217,24 @@
 }
 @container(max-width:540px){
  .home-content-refresh .home-feature-background::after{background:linear-gradient(90deg,#0c121b00 0%,#0c121b0a 24%,#0c121b38 54%,#0c121b33 82%,#0c121b0a 100%),radial-gradient(ellipse at 50% 120%,#0c121b26 0%,#0c121b0f 40%,#0c121b00 72%)}
- .home-content-refresh .home-feature{height:174px;border-radius:14px}
- .home-content-refresh .home-feature-slide{grid-template-columns:clamp(100px,28cqi,112px) minmax(0,1fr);gap:12px;padding:12px 14px 38px}
- .home-content-refresh .home-feature-label{font-size:8px;letter-spacing:.1em}
+ .home-content-refresh .home-feature{height:174px}
+ .home-content-refresh .home-feature-slide{grid-template-columns:clamp(100px,28cqi,112px) minmax(0,1fr);gap:12px;padding:6px 14px 44px}
+ .home-content-refresh .home-feature-label{display:block;font-size:8px;line-height:1.3;letter-spacing:.1em}
  .home-content-refresh .home-feature-copy h2{font-size:18px;margin:0;line-height:1.25}
  .home-content-refresh .home-feature-title-row{gap:7px;margin:0}
  .home-content-refresh .home-feature-divider{height:20px}
  #main .home-content-refresh .home-feature-play{--control-diameter:32px;--control-glyph-inset:4px}
  .home-content-refresh .home-feature-artist{font-size:11px}
- .home-content-refresh .home-feature-arrow{display:none}
+ /* The arrows share the bottom row on compact banners, clear of the artwork and copy. */
+ .home-content-refresh .home-feature-arrow{top:auto;bottom:0}
+ .home-content-refresh .home-feature-prev{left:2px}
+ .home-content-refresh .home-feature-next{right:2px}
  .home-content-refresh .home-feature-description{font-size:11px;line-height:1.4;margin-top:4px;-webkit-line-clamp:1;max-height:1.4em}
  .home-content-refresh .home-feature-actions{margin-top:0}
  .home-content-refresh .home-feature-actions .text-link{min-height:28px;font-size:11px}
  .home-content-refresh .home-feature-art{border-radius:10px}
- .home-content-refresh .home-feature-dots button{height:36px;width:26px}
- .home-content-refresh .home-feature-autoplay{height:36px;width:36px}
- .home-content-refresh .home-feature-pagination{bottom:0}
+ /* Leave two arrow targets around the centered group, even with all six home slides. */
+ .home-content-refresh .home-feature-pagination{--feature-step:min(44px,calc((100cqi - 96px) / 7))}
  .home-content-refresh .listening-section{margin-top:26px}
  .home-content-refresh .home-playlist-links{grid-template-columns:1fr}
 }

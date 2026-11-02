@@ -121,8 +121,21 @@ function mountFeatureCarousel(root,tracks,{renderSlide=releaseHTML,label='추천
   if(coverflow&&focus)focus=feature.contains(document.activeElement);
   feature.querySelectorAll('.home-feature-dots [data-home-slide]').forEach((b,i)=>b.setAttribute('aria-pressed',String(i===index)));schedule();
  };
- const click=e=>{if(coverflow&&suppressClick){suppressClick=false;e.preventDefault();e.stopPropagation();return;}const b=e.target.closest('button');if(!b)return;if(b.matches('.home-feature-prev'))go(index-1);else if(b.matches('.home-feature-next,[data-home-next]'))go(index+1);else if(b.hasAttribute('data-home-slide'))go(Number(b.dataset.homeSlide));else if(b.matches('.home-feature-autoplay')){manualPause=!manualPause;b.setAttribute('aria-label',manualPause?'자동 롤링 재개':'자동 롤링 일시정지');b.innerHTML=icon(manualPause?'play':'pause');schedule();}else schedule();};
- const enter=e=>{if(coverflow&&e.pointerType==='touch')return;hover=true;clear();},leave=()=>{hover=false;schedule();},focusIn=()=>{focus=true;clear();},focusOut=e=>{focus=feature.contains(e.relatedTarget);schedule();};
+ const click=e=>{
+  if(coverflow&&suppressClick){suppressClick=false;e.preventDefault();e.stopPropagation();return;}
+  const b=e.target.closest('button');if(!b)return;
+  if(b.matches('.home-feature-prev'))go(index-1);
+  else if(b.matches('.home-feature-next,[data-home-next]'))go(index+1);
+  else if(b.hasAttribute('data-home-slide'))go(Number(b.dataset.homeSlide));
+  else if(b.matches('.home-feature-autoplay')){
+   manualPause=!manualPause;
+   // Explicit resume takes effect while the pointer or focus is still on the toggle.
+   if(!manualPause){hover=false;focus=false;}
+   b.setAttribute('aria-label',manualPause?'자동 롤링 재개':'자동 롤링 일시정지');
+   b.innerHTML=icon(manualPause?'play':'pause');schedule();
+  }else schedule();
+ };
+ const enter=e=>{if(e.pointerType==='touch')return;hover=true;clear();},leave=()=>{hover=false;schedule();},focusIn=()=>{focus=true;clear();},focusOut=e=>{focus=feature.contains(e.relatedTarget);schedule();};
  const key=e=>{if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();go(index+(e.key==='ArrowLeft'?-1:1));}};
  const down=e=>{suppressClick=false;start={x:e.clientX,y:e.clientY};},up=e=>{if(!start)return;const dx=e.clientX-start.x,dy=e.clientY-start.y;start=null;if(Math.abs(dx)>45&&Math.abs(dx)>Math.abs(dy)){suppressClick=coverflow;go(index+(dx<0?1:-1));}};
  const cancel=()=>{start=null;};
