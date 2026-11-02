@@ -6,6 +6,7 @@
 #sidebar :is(.activity-badge,.nav-message-badge){position:static;inset:auto;margin:0 0 0 auto;align-self:center}
 .topbar :is(.header-messages,.header-activity){position:relative;display:inline-flex;align-items:center;justify-content:center;flex:none;width:44px;min-height:44px;padding:0}
 .topbar :is(.activity-badge,.nav-message-badge){position:absolute;top:6px;right:5px;left:auto;margin:0}
+.topbar .header-search{display:none}
 .social-mobile-navigation :is(.activity-badge,.nav-message-badge){position:absolute;top:5px;left:calc(50% + 12px);right:auto;margin:0}
 /* This file is loaded after legacy page styles; no forced pink card/badge rules remain. */
 .message-workspace{grid-template-columns:minmax(0,min(clamp(420px,32vw,520px),48%)) minmax(0,1fr)}
@@ -49,7 +50,14 @@
 .activity-page .activity-copy>p{margin-top:calc(5px + 0px)}
 @media(max-width:800px){
  .message-workspace{grid-template-columns:minmax(0,1fr)}
- .topbar :is(.header-messages,.header-activity){display:none}
+ .topbar{--header-inset:clamp(8px,3vw,20px);padding-inline:var(--header-inset);gap:4px}
+ .topbar .mobile-brand{display:block;width:86px;min-width:0;flex:0 1 86px}
+ .topbar .top-actions{display:flex;gap:0;flex:none;margin-inline-start:auto}
+ .topbar :is(.header-login,.design-badge,.upload-button>span){display:none}
+ .topbar .top-actions :is(.header-search,.header-messages,.header-activity,.upload-button){display:inline-flex;align-items:center;justify-content:center;flex:none;width:44px;height:44px;padding:0;border:0;background:transparent;color:var(--ds-text)}
+ .topbar .top-actions :is(.header-search,.header-messages,.header-activity,.upload-button) svg{display:block;width:22px;height:22px}
+ .topbar #global-search{display:none}
+ .topbar:has(.header-search[aria-expanded=true]) #global-search{display:flex;position:absolute;inset:100% var(--header-inset) auto;width:auto;max-width:none;margin:0}
  .message-thread-pane .dm-thread-header{padding-inline:8px!important}
  .message-thread-pane .dm-thread-person{gap:calc(6px + 0px)}
  .message-thread-pane .dm-thread-person>.artist-portrait{width:36px;height:36px;flex-basis:36px}

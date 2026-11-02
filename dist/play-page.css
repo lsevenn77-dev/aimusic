@@ -52,8 +52,8 @@
 .play-page .play-search{max-width:none;width:100%;margin:0 0 24px;display:flex;align-items:center;gap:12px}
 .play-page .play-search input{width:100%;min-width:0}
 .play-page .play-search button{white-space:nowrap;min-height:0}
-.play-page .play-type-filter{display:flex;align-items:center;gap:8px;padding:0;margin:0;color:var(--ds-muted);font-size:13px;white-space:nowrap}
-.play-page .play-type-filter select{width:auto;min-width:104px;min-height:44px;padding:8px 12px;border:1px solid var(--ds-border);border-radius:var(--ds-radius-input);background:var(--ds-panel);color:var(--ds-text);font:inherit}
+.play-page .play-type-filter{display:flex;align-items:center;white-space:nowrap}
+.play-page .play-type-filter select{height:var(--compact-search-height);padding:0 12px;border:1px solid var(--ds-border);border-radius:var(--ds-radius-input);background:var(--ds-panel);color:var(--ds-text);font:inherit}
 .play-song-list{display:grid;min-width:0}
 .play-page .play-song-row{display:grid;grid-template-columns:52px minmax(0,2fr) minmax(0,1fr) minmax(0,1fr) max-content;align-items:center;gap:16px;min-height:84px;padding:16px 0;border-bottom:1px solid var(--ds-line);color:var(--ds-text);text-decoration:none}
 .play-song-row:hover{background:var(--ds-soft)}
@@ -95,7 +95,6 @@ img.play-dubbing-art{display:block;width:100%;height:auto;aspect-ratio:1;object-
  .play-page .play-category-tabs .tab svg{width:22px;height:22px}
  .play-page .play-subbar{gap:16px;margin-bottom:20px}
  .play-page .play-search{gap:8px;margin-bottom:20px}.play-page .play-search button{padding-inline:12px}
- .play-page .play-type-filter{justify-self:start}
  .play-page .play-song-desktop{display:none}.play-page .play-song-mobile{display:grid}
  .play-page .play-song-row{grid-template-columns:36px minmax(0,1.6fr) minmax(0,1fr) minmax(0,1fr) max-content;gap:8px;min-height:68px;padding:12px 0;font-size:13px}
  .play-song-row .play-song-art{width:36px;height:36px;border-radius:var(--ds-radius-sm)}
@@ -129,7 +128,7 @@ img.play-dubbing-art{display:block;width:100%;height:auto;aspect-ratio:1;object-
 .play-draft-row .play-draft-resume{min-height:44px;white-space:nowrap}
 .play-draft-row .play-draft-delete{width:44px;height:44px;color:var(--ds-body)}
 @media(max-width:600px){
- .play-discovery-tools{grid-template-columns:minmax(0,1fr);gap:8px;margin-bottom:20px}
+ .play-discovery-tools{gap:8px;margin-bottom:20px}
  .play-page .play-draft-row{grid-template-columns:36px minmax(0,1fr) auto 44px;gap:8px;min-height:68px;padding:12px 0}
  .play-draft-art{width:36px;height:36px;border-radius:var(--ds-radius-sm)}
  .play-draft-art svg{width:18px;height:18px}
@@ -192,7 +191,9 @@ img.play-dubbing-art{display:block;width:100%;height:auto;aspect-ratio:1;object-
   }
   .play-category-tabs .tab svg { width: 18px; height: 18px; }
   /* Reuse the topbar's brand-search shell without the legacy boxed-search skin. */
-  .play-search { gap: 10px; padding-block: 0; margin-bottom: 12px; }
+  :is(.play-search,.play-type-filter) { zoom:calc(1 / var(--play-section-zoom)); --ui-control-height:0px; }
+  .play-search { height:var(--compact-search-height); min-height:0; gap:8px; padding-block:0; margin-bottom:12px; }
+  .play-type-filter .aifect-dropdown { --dropdown-height:var(--compact-search-height); min-height:0; }
   .play-search :is(input, button) { min-height: 0; font-size: 14px; }
   .play-discovery-tools { margin-bottom: 12px; }
   .play-discovery-tools .play-search { margin: 0; }
@@ -335,9 +336,7 @@ img.play-dubbing-art{display:block;width:100%;height:auto;aspect-ratio:1;object-
     .play-tabs .tab { padding-inline: 6px; }
     .play-category-tabs .tab { min-height: 48px; }
     .play-search input { font-size: 16px; }
-    .play-search { min-height: 48px; }
-    .play-search button { min-width: 44px; height: 44px; }
-    .play-type-filter .aifect-dropdown { --dropdown-height: 44px; }
+    .play-search button { min-width:36px; }
     .play-song-row {
       --list-row-inset: 2px;
       flex-wrap: nowrap;
@@ -534,7 +533,8 @@ img.play-dubbing-art{display:block;width:100%;height:auto;aspect-ratio:1;object-
 .page-wrap:has(> #main > .play-page[data-play-mode]) ~ #recording-mode-dialog > :is(h2, .recording-mode-choices),
 .page-wrap:has(> #main > .play-page[data-play-mode]) ~ #dialog .draft-delete-dialog,
 .page-wrap:has(> #main > .play-page[data-play-mode] .aifect-dropdown-trigger[aria-expanded=true]) ~ .aifect-dropdown-menu > [role=option] {
-  zoom: 1.25;
+  --play-section-zoom: 1.25;
+  zoom: var(--play-section-zoom);
 }
 @media (max-width: 375px) {
   #main > .play-page[data-play-mode] .dc-script { flex-wrap: wrap; }

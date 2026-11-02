@@ -1,4 +1,20 @@
 let searchPreviousRoute='',searchOrigin=null,searchResizeCleanup=null;
+// The mobile disclosure opens the same search form and submit handler used on PC.
+function bindHeaderSearch(){
+ const toggle=document.querySelector('.header-search'),form=document.querySelector('#global-search');
+ if(!toggle||!form)return;
+ const input=form.elements.q,open=()=>toggle.getAttribute('aria-expanded')==='true';
+ const close=(restore=false)=>{if(!open())return;toggle.setAttribute('aria-expanded','false');if(restore)toggle.focus();};
+ toggle.addEventListener('click',()=>{if(open())close(true);else{toggle.setAttribute('aria-expanded','true');input.focus();}});
+ const dismissOutside=e=>{if(open()&&!form.contains(e.target)&&!toggle.contains(e.target))close();};
+ document.addEventListener('pointerdown',dismissOutside);
+ document.addEventListener('focusin',dismissOutside);
+ document.addEventListener('keydown',e=>{if(open()&&e.key==='Escape'&&!e.isComposing){e.preventDefault();close(true);}});
+ form.addEventListener('submit',()=>{if(input.value.trim())close(true);});
+ window.addEventListener('hashchange',()=>close());
+ matchMedia('(max-width:800px)').addEventListener('change',()=>close());
+}
+bindHeaderSearch();
 function searchState(raw){
  const [path,query='']=raw.replace(/^#/,'').split('?'),params=new URLSearchParams(query);
  const genre=params.get('genre')||'',mood=params.get('mood')||'',q=decodeURIComponent(path.split('/')[1]||'');
