@@ -33,3 +33,81 @@
 }
 /* Payment totals are neutral white; product/period prices keep their gold. */
 #dialog:has(.shop-checkout) .shop-money .shop-value-payment{color:var(--ds-text)}
+
+/* Approved compact purchase layout. Scope by dialog contents so entry points
+   outside the shop share the same layout; the two-row gift picker is separate. */
+#dialog:has(.shop-checkout,.shop-theme-preview,.gift-recipient-dialog,.gift-success,#mp-inventory-buy,#mp-inventory-recipient,#stored-decoration-form){
+ box-sizing:border-box;width:min(460px,calc(100vw - 24px));max-width:calc(100vw - 24px);
+ height:fit-content;min-height:0;max-height:calc(100dvh - 24px);inset:0;margin:auto;
+ padding:16px;overflow:auto;overscroll-behavior:contain;border-radius:var(--ds-radius-card);
+}
+#dialog:has(.shop-checkout,.shop-theme-preview,.gift-recipient-dialog,.gift-success,#mp-inventory-buy,#mp-inventory-recipient,#stored-decoration-form) #dialog-content{
+ display:block;height:auto;min-height:0;max-height:none;overflow:visible;
+}
+#dialog:has(.shop-checkout,.shop-theme-preview,.gift-recipient-dialog,.gift-success,#mp-inventory-buy,#mp-inventory-recipient,#stored-decoration-form) #dialog-close{
+ top:4px;right:4px;width:44px;height:44px;min-height:44px;font-size:0;
+}
+#dialog .shop-checkout{font-size:15px;min-width:0}
+#dialog .shop-checkout h2{font-size:20px;line-height:1.3;margin:0 32px 6px 0;overflow-wrap:anywhere}
+#dialog .shop-checkout .shop-product-summary{gap:10px;margin:0 0 8px}
+#dialog .shop-checkout .shop-product-summary>img{width:108px;height:108px;object-fit:contain}
+#dialog .shop-checkout.is-duration .shop-product-summary{flex-direction:column;text-align:center;gap:4px}
+#dialog .shop-checkout.is-duration .shop-product-summary>:is(img,.frame-detail-layers){width:156px;height:150px;object-fit:contain;flex:none}
+#dialog .shop-checkout .shop-product-summary h3{font-size:18px;line-height:1.3;color:var(--ds-text)}
+#dialog .shop-checkout .shop-product-summary p{font-size:13px;line-height:1.4;margin:4px 0 0}
+#dialog .shop-checkout :is(.shop-field,.shop-periods legend){font-size:14px;line-height:1.4;margin:0 0 6px}
+#dialog .shop-checkout .shop-periods{gap:8px;margin:0 0 10px;min-width:0}
+#dialog .shop-checkout .shop-periods span{box-sizing:border-box;min-height:60px;gap:4px;padding:8px 4px;font-size:14px;line-height:1.2;color:var(--ds-text)}
+#dialog .shop-checkout .shop-periods small{font-size:13px;line-height:1.2;color:var(--ds-text);white-space:nowrap}
+#dialog .shop-checkout .shop-quantity{gap:8px;margin-bottom:10px}
+#dialog .shop-checkout .shop-quantity button{width:44px;height:44px;min-height:44px;font-size:22px}
+#dialog:has(.shop-checkout) .shop-checkout :is(input:not([type=radio],[type=checkbox]),textarea){min-height:44px;padding:8px 10px;font-size:16px}
+#dialog .shop-checkout .shop-money{padding-top:10px;margin-top:0}
+#dialog .shop-checkout .shop-money p{gap:8px;margin:0;line-height:1.4;font-size:15px;flex-wrap:wrap}
+#dialog .shop-checkout .shop-money p>span{color:var(--ds-text)}
+#dialog .shop-checkout .shop-money strong{font-size:20px;line-height:1.3;text-align:right;max-width:100%}
+#dialog .shop-checkout .shop-money .shop-insufficient{margin-top:6px;font-size:13px}
+#dialog .shop-checkout .shop-checkout-actions{gap:10px;margin-top:12px}
+#dialog .shop-checkout .shop-checkout-actions>*{height:48px;min-height:48px;padding:10px;font-size:15px;white-space:normal;overflow-wrap:anywhere}
+#dialog .shop-checkout :is(.form-error,.field-help){margin:8px 0 0;font-size:13px;line-height:1.4}
+#dialog .shop-checkout>p,
+#dialog .shop-checkout #shop-order>p[role=status]{font-size:14px;line-height:1.5;margin:8px 0;text-align:center;overflow-wrap:anywhere}
+
+/* Supporting gift dialogs use content height, compact spacing and full touch
+   targets without changing purchase/send logic or the common gift grid. */
+#dialog .gift-recipient-dialog{min-width:0}
+#dialog .gift-recipient-dialog h2,
+#dialog:has(#mp-inventory-buy,#mp-inventory-recipient) #dialog-content>h2,
+#dialog .decoration-dialog header h2{font-size:20px;line-height:1.3;margin:0 32px 12px 0;overflow-wrap:anywhere}
+#dialog .gift-recipient-dialog p{font-size:14px;line-height:1.5;margin:8px 0;overflow-wrap:anywhere}
+#dialog #gift-recipient-search{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:8px;margin:0}
+#dialog #gift-recipient-search label{display:grid;gap:6px;min-width:0;font-size:14px}
+#dialog #gift-recipient-search input{width:100%;min-width:0;min-height:44px;margin:0;font-size:16px}
+#dialog #gift-recipient-search button{min-width:64px;min-height:44px;margin:0;padding:10px}
+#dialog #gift-recipient-search .form-error{grid-column:1 / -1;margin:0}
+#dialog .gift-recipient-dialog .gift-target-list{gap:8px;margin:10px 0 0;max-height:min(360px,45dvh)}
+#dialog .gift-recipient-dialog .gift-target{min-height:56px;padding:8px 10px;gap:8px}
+#dialog .gift-recipient-dialog .gift-target strong{white-space:normal;overflow-wrap:anywhere}
+#dialog .gift-recipient-dialog .gift-target small{font-size:12px;line-height:1.3;margin-top:2px}
+#dialog .gift-success{padding:4px 0 0;line-height:1.5}
+#dialog .gift-success .gift-celebration{width:156px;height:150px;margin:0 auto 6px}
+#dialog .gift-success .gift-celebration .gift-art{width:150px;height:150px;max-width:100%}
+#dialog .gift-success h2{font-size:20px;line-height:1.3;margin:6px 0}
+#dialog .gift-success p{font-size:14px;line-height:1.5;margin:6px 0;overflow-wrap:anywhere}
+#dialog .gift-success .primary-button{width:100%;min-height:48px;margin:12px 0 0}
+#dialog .shop-theme-preview{display:flex;flex-direction:column;gap:10px;padding-top:24px}
+#dialog .shop-theme-preview img{width:auto;max-width:100%;max-height:min(560px,calc(100dvh - 132px));object-fit:contain}
+#dialog .shop-theme-preview .primary-button{width:100%;min-height:44px;margin:0}
+#dialog :is(#mp-inventory-buy,#mp-inventory-recipient,#mp-recipient-confirm,#stored-decoration-form){min-width:0;font-size:14px;line-height:1.5}
+#dialog :is(#mp-inventory-buy,#mp-inventory-recipient) .form-field{margin:0 0 10px;gap:6px}
+#dialog :is(#mp-inventory-buy,#mp-inventory-recipient) input{min-width:0;max-width:100%;min-height:44px;font-size:16px}
+#dialog :is(#mp-inventory-buy,#mp-inventory-recipient,#mp-recipient-confirm,#stored-decoration-form) p{font-size:14px;line-height:1.5;margin:8px 0;overflow-wrap:anywhere}
+#dialog :is(#mp-inventory-buy,#mp-inventory-recipient,#mp-recipient-confirm,#stored-decoration-form) :is(.primary-button,.small-button){width:100%;min-height:44px;margin:8px 0 0;white-space:normal;overflow-wrap:anywhere}
+#dialog .decoration-dialog header p{font-size:14px;line-height:1.5;margin:6px 0}
+#dialog #stored-decoration-form{display:block}
+#dialog #stored-decoration-form .gift-options{padding:0;max-height:none;overflow:visible}
+#dialog #stored-decoration-form .gift-checkout{padding:0;margin-top:8px;background:transparent;border:0;position:static}
+#dialog :is(.gift-recipient-dialog,.gift-success,#mp-inventory-buy,#mp-inventory-recipient,#mp-recipient-confirm,#stored-decoration-form) :is(.form-error:empty,[role=alert]:empty){display:none}
+@media(max-width:600px){
+ #dialog:has(.shop-checkout,.shop-theme-preview,.gift-recipient-dialog,.gift-success,#mp-inventory-buy,#mp-inventory-recipient,#stored-decoration-form){padding:14px 14px calc(14px + env(safe-area-inset-bottom))}
+}

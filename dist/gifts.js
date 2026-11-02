@@ -12,15 +12,15 @@ function giftShopHTML(d=null){
  ${d?.official_received?officialSupportHTML(d.official_received):''}<nav class="gift-dashboard-actions" aria-label="선물함 관리"><a class="small-button" href="#gifts/rewards">오늘의 실버받기</a><a class="primary-button" href="#gold">${icon('wallet')} 골드 충전 · 결제</a><a class="small-button" href="#gold/history">${icon('list')} 보낸 선물 내역</a></nav><footer class="gift-dashboard-footer"><span>${icon('gift')} 선물은 아티스트에게 큰 힘이 되는 소중한 마음입니다.</span><em>Music brings us closer.</em></footer></div>`;
 }
 async function chooseGiftRecipient(type){
- const serial=++giftDialogSerial,roomGift=type?.roomGift;dialog('<h2>선물 받을 사람</h2><p role="status">불러오는 중…</p>');
+ const serial=++giftDialogSerial,roomGift=type?.roomGift;dialog('<section class="gift-recipient-dialog"><h2>선물 받을 사람</h2><p role="status">불러오는 중…</p></section>');
  try{await accountReady;if(!me){$('#dialog').close();returnRoute='#gifts';return askLogin();}const account=me.id;
   const d=roomGift?{profiles:roomGift.recipients.filter(p=>p?.id&&p.id!==me.profile_id)}:await api('/api/decorations/recipients','GET',undefined,{fresh:true});if(serial!==giftDialogSerial||!$('#dialog').open||account!==me?.id)return;
-  dialog('<h2>선물 받을 사람</h2><form id="gift-recipient-search"><label>'+(roomGift?'토킹룸 참여자 검색':'닉네임 검색')+'<input name="q" maxlength="60" type="search" required></label><button class="small-button">검색</button><p class="form-error" role="alert"></p></form><div class="gift-target-list" id="gift-recipient-results"></div>');
+  dialog('<section class="gift-recipient-dialog"><h2>선물 받을 사람</h2><form id="gift-recipient-search"><label>'+(roomGift?'토킹룸 참여자 검색':'닉네임 검색')+'<input name="q" maxlength="60" type="search" required></label><button class="small-button">검색</button><p class="form-error" role="alert"></p></form><div class="gift-target-list" id="gift-recipient-results"></div></section>');
   const form=$('#gift-recipient-search'),list=$('#gift-recipient-results');
   let selecting=false;
   const paint=profiles=>{list.innerHTML=profiles.length?profiles.map(p=>'<button type="button" class="gift-target" data-gift-recipient="'+esc(p.id)+'"><span><strong>'+esc(p.name)+'</strong><small>이 회원에게 선물하기</small></span>'+icon('chevron')+'</button>').join(''):'<p>'+(roomGift?'선물할 참여자가 없어요.':'닉네임으로 회원을 검색해주세요.')+'</p>';list.querySelectorAll('[data-gift-recipient]').forEach(b=>b.onclick=async()=>{if(selecting||serial!==giftDialogSerial||account!==me?.id)return;selecting=true;try{if(roomGift)await roomGift.onRecipientChange?.(b.dataset.giftRecipient);if(serial===giftDialogSerial&&form.isConnected&&account===me?.id)await profileGiftDialog(b.dataset.giftRecipient,type);}catch(e){if(form.isConnected)formError(form).textContent=e.message;}finally{selecting=false;}});};paint(d.profiles);
   form.onsubmit=busyForm(form,async()=>{const query=form.elements.q.value.trim();const r=roomGift?{profiles:d.profiles.filter(p=>String(p.name||'').toLocaleLowerCase().includes(query.toLocaleLowerCase()))}:await api('/api/decorations/recipients?q='+encodeURIComponent(query),'GET',undefined,{fresh:true});if(serial===giftDialogSerial&&form.isConnected&&account===me?.id)paint(r.profiles);});
- }catch(e){if(serial===giftDialogSerial&&$('#dialog').open)dialog('<h2>선물할 회원을 불러오지 못했어요</h2><p role="alert">'+esc(e.message)+'</p>');}
+ }catch(e){if(serial===giftDialogSerial&&$('#dialog').open)dialog('<section class="gift-recipient-dialog"><h2>선물할 회원을 불러오지 못했어요</h2><p role="alert">'+esc(e.message)+'</p></section>');}
 }
 function ownedGiftGroups(items=[],selectedId=null){
  const groups=new Map();

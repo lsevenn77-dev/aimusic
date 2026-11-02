@@ -197,7 +197,7 @@ async function shopPurchaseDialog(initial){
   const product=()=>{
    const img='<img src="'+esc(image)+'" alt="'+esc(p.name)+'">';
    const preview=state.step==='purchase'&&p.assetPaths?.effect?'<span class="frame-detail-layers">'+img+'</span>':img;
-   return '<div class="shop-product-summary">'+preview+'<div><h3>'+esc(p.name)+'</h3><p>'+(state.step==='purchase'?'구매한 상품은 인벤토리에 보관돼요.':p.sku?decorations.periods[state.period]:state.quantity+'개')+'</p></div></div>';
+   return '<div class="shop-product-summary">'+preview+'<div><h3>'+esc(p.name)+'</h3>'+(state.step==='purchase'?'':'<p>'+esc(p.sku?decorations.periods[state.period]:state.quantity+'개')+'</p>')+'</div></div>';
   };
   const money=()=>'<div class="shop-money" aria-live="polite"><p><span>총 결제 금액</span><strong class="shop-value-payment '+(p.free?'is-silver':'is-gold')+'">'+number(price())+' '+unit+'</strong></p>'+(me&&balance()<price()?'<p class="shop-insufficient">잔액이 부족해요. <a href="'+(p.free?'#gifts/rewards':'#gold')+'" data-close-dialog>'+(p.free?'실버 받기':'골드 충전')+'</a></p>':'')+'</div>';
   const resetKey=()=>{state.key=crypto.randomUUID();};
