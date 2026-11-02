@@ -117,7 +117,7 @@ test('unified directory links each real type to its original room and exposes th
   assert.ok(html.includes(selector),selector);
  const tabs=vm.runInContext('communityNavigation("live")',c);
  assert.match(tabs,/href="#live" aria-current="page"/);
- assert.deepEqual([...tabs.matchAll(/href="([^"]+)"/g)].map(match=>match[1]),['#live','#community/crews','#community/rankings']);
+ assert.deepEqual([...tabs.matchAll(/href="([^"]+)"/g)].map(match=>match[1]),['#live','#crew','#community/rankings']);
 });
 
 test('live lobby mounts a paginated shell without eager legacy reads and retains anonymous room gates',async()=>{

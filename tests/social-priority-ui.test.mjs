@@ -20,6 +20,18 @@ test('joined crew landing shows music and discovery without a header chat shortc
  assert.deepEqual(calls,['/api/crews?q=&summary=1&home=1']);
 });
 
+test('the crew tab resolves current membership on direct entry and reentry',async()=>{
+ const home='/api/crews?q=&summary=1&home=1';
+ const responses={[home]:{mine:crew.id,detail}};
+ const {context:c,calls}=fixture(responses);
+ assert.match((await c.improvementsView('crew',undefined,'crew')).html,/data-current-crew="crew"/);
+ responses[home]={mine:null,crews:[crew]};
+ const browse=await c.improvementsView('crew',undefined,'crew');
+ assert.match(browse.html,/id="crew-search"/);
+ assert.doesNotMatch(browse.html,/data-current-crew=/);
+ assert.deepEqual(calls,[home,home]);
+});
+
 test('crew settings follow live staff roles and legacy management links land on works',()=>{
  const {context:c}=fixture();
  vm.runInContext(readFileSync(new URL('../dist/menu-integration.js',import.meta.url),'utf8'),c);

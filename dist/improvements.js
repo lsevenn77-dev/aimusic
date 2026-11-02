@@ -41,8 +41,11 @@ async function liveCrewDetail(id,tab='music',readApi=api,community=false){
 }
 function crewPendingView(base,param,raw=''){
  if(base!=='crew'&&!(base==='community'&&param==='crews'))return null;
- const hint=peekCrewNavigation('discovery'),q=new URLSearchParams(raw.split('?')[1]||''),id=base==='crew'?param:!q.has('q')&&q.get('browse')!=='1'?hint?.mine:null,c=id?peekCrewNavigation(id):null;
- let html=(base==='crew'?heading(c?esc(c.name):'크루','함께 듣고, 부르고, 이야기하는 음악 모임'):'')+communityNavigation('crews');
+ const detail=base==='crew'&&param;
+ const q=new URLSearchParams(raw.split('?')[1]||'');
+ const id=detail||(!q.has('q')&&q.get('browse')!=='1'?peekCrewNavigation('discovery')?.mine:null);
+ const c=id?peekCrewNavigation(id):null;
+ let html=(detail?heading(c?esc(c.name):'크루','함께 듣고, 부르고, 이야기하는 음악 모임'):'')+communityNavigation('crews');
  if(c)html+='<p class="crew-meta">LV '+number(c.level)+' · '+number(c.members)+'명이 함께해요</p>';
  html+='<div class="route-loading" role="status"><span>크루를 불러오는 중…</span><div></div><div></div></div>';
  return {html,tracks:[],cached:false};
@@ -78,8 +81,10 @@ async function improvementsView(base,param,raw,readApi=api){
   if(d.profile.id){const social=await readApi('/api/producers/'+encodeURIComponent(d.profile.id));return {html:heading('음악가의 페이지')+personProfileHTML(social,d.profile.id),tracks:musicProfileItems(social)};}
   return {html:heading('음악 친구')+'<a class="small-button" href="#library/followers">'+icon('back')+' 팔로워 목록</a>'+listenerProfileHTML(d.profile)};
  }
- if(base==='community'&&param==='crews'){
-  const params=new URLSearchParams(raw.split('?')[1]||''),q=params.get('q')||'',hint=peekCrewNavigation('discovery');
+ if((base==='crew'&&!param)||(base==='community'&&param==='crews')){
+  const params=new URLSearchParams(raw.split('?')[1]||''),q=params.get('q')||'';
+  // The crew tab resolves current membership from the home summary in one read.
+  const hint=base==='community'?peekCrewNavigation('discovery'):null;
   if(hint?.mine&&!params.has('q')&&params.get('browse')!=='1'){try{return await liveCrewDetail(hint.mine,'music',readApi,true);}catch(e){if(e.status!==404)throw e;clearCrewNavigation();}}
   const account=me?.id||'guest',revision=typeof apiRevision==='number'?apiRevision:0,d=await readApi('/api/crews?q='+encodeURIComponent(q)+'&summary=1'+(!params.has('q')&&params.get('browse')!=='1'?'&home=1':''));rememberCrewDiscovery(d,q,account,revision);
   if(d.detail){if(crewNavigationCurrent(account,revision))rememberCrewNavigation(d.mine,d.detail.crew);return crewDetailView(d.detail,d.mine,'music',true);}

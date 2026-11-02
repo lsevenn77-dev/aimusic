@@ -33,7 +33,7 @@ main .crew-people .artist-portrait>span{font-size:23px;line-height:1;white-space
 .crew-discovery-heading .page-heading{margin:0}.crew-discovery-heading .primary-button{white-space:nowrap}
 /* Only opt in when this route actually renders discovery. Members can land
    on their crew detail at the same URL. Leave that view and the shell alone. */
-#main:is([data-route="community/crews"], [data-route^="community/crews?"]):has(.crew-discovery-layout) {
+#main:is([data-route="crew"], [data-route^="crew?"], [data-route="community/crews"], [data-route^="community/crews?"]):has(.crew-discovery-layout) {
   --crew-control: 38px;
   --crew-title: 24px;
 
@@ -199,7 +199,7 @@ main .crew-people .artist-portrait>span{font-size:23px;line-height:1;white-space
 }
 
 /* These overlays are mounted next to the app, outside the discovery root. */
-.page-wrap:has(> #main[data-route^="community/crews"] .crew-discovery-layout .aifect-dropdown-trigger[aria-expanded=true]) ~ .aifect-dropdown-menu > [role=option] {
+.page-wrap:has(> #main:is([data-route="crew"], [data-route^="crew?"], [data-route^="community/crews"]) .crew-discovery-layout .aifect-dropdown-trigger[aria-expanded=true]) ~ .aifect-dropdown-menu > [role=option] {
   zoom: 1; font-size: var(--crew-button); font-weight: 600; line-height: 1.4;
 }
 .page-wrap:has(> #main .crew-discovery-layout) ~ #dialog:has(#crew-form[data-crew=""]) {
