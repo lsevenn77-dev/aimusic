@@ -11,7 +11,11 @@ function context(overrides={}){
   paint(){} warmMicrophone(){this.warmCount++;} action(action){calls.push(['base-action',action]);}
   leave(){this.closed=true;calls.push(['leave',this.id]);return Promise.resolve();}
  }
- const nodes=new Map(),node=()=>({textContent:'',innerHTML:'',hidden:false,value:0,readyState:0,isConnected:true});
+ const nodes=new Map(),node=()=>({textContent:'',innerHTML:'',hidden:false,value:0,readyState:0,isConnected:true,attributes:new Map(),children:new Map(),
+  setAttribute(name,value){this.attributes.set(name,value);},
+  getAttribute(name){return this.attributes.get(name);},
+  querySelector(selector){if(!this.children.has(selector))this.children.set(selector,node());return this.children.get(selector);}
+ });
  const host={isConnected:true,dataset:{},querySelector:sel=>{if(!nodes.has(sel))nodes.set(sel,node());return nodes.get(sel);},querySelectorAll:()=>[]};
  const c=vm.createContext({
   icon:()=>'<svg></svg>',esc:s=>String(s??'').replaceAll('<','&lt;').replaceAll('"','&quot;'),number:x=>String(x),time:x=>String(x),avatarImage:()=>'<img>',
@@ -58,10 +62,15 @@ test('stage monitoring taps only the singer vocal and leaves the outgoing connec
  const gain=client.liveMonitorTap.gain;
  assert.ok(vocal.connections.has(gain));assert.ok(gain.connections.has(client.processing.context.destination));
  assert.equal(nodes.get('#voice-monitor').checked,true);
+ assert.equal(nodes.get('#live-monitor-toggle').disabled,false);
+ assert.equal(nodes.get('#live-monitor-toggle').getAttribute('aria-pressed'),'true');
+ assert.equal(nodes.get('#live-monitor-toggle').querySelector('span').textContent,'내 목소리 듣기 켜짐');
  sync();assert.equal(client.liveMonitorTap.gain,gain);
  await toggle();assert.deepEqual([...vocal.connections],[broadcast]);assert.equal(gain.connections.size,0);
  assert.equal(nodes.get('#voice-monitor').checked,false);
  client.state.karaoke.active.user_id='other';await toggle();assert.equal(client.liveMonitorTap,null);
+ vm.runInContext('paintLiveKaraoke(client)',c);
+ assert.equal(nodes.get('#live-monitor-toggle').disabled,true);
 });
 
 test('mute, changed device, turn handoff and capture fallback cannot leave an old local monitor playing',()=>{
@@ -87,6 +96,10 @@ test('live room wraps the current template while preserving chat, gifts, setting
  assert.match(html,/class="voice-room live-karaoke-room"/);assert.match(html,/data-voice-room="live-room"/);
  assert.match(html,/href="#live"/);assert.match(html,/id="voice-title">라이브 노래방/);
  assert.match(html,/3|노래가 시작/);
+ assert.equal((html.match(/data-voice="sound"/g)||[]).length,1);
+ assert.match(html,/<div class="live-sound-toolbar"[\s\S]*?data-voice="sound"/);
+ assert.doesNotMatch(html.slice(0,html.indexOf('id="live-karaoke-stage"')),/data-voice="sound"/);
+ assert.equal((html.match(/id="live-monitor-toggle"/g)||[]).length,1);
 });
 
 test('existing talking room lobby excludes karaoke rooms while live reuses the current card/form design',()=>{

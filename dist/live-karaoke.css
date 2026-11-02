@@ -43,7 +43,22 @@
 .live-actions{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px;min-height:44px}
 .live-actions .primary-button,.live-actions .small-button,.live-result button{min-height:44px;font-size:13px}
 .live-actions button{max-width:100%;overflow-wrap:anywhere;white-space:normal}
-.live-actions [data-voice="karaoke-monitor"][aria-pressed="true"]{border-color:var(--ds-accent-mint);color:var(--ds-accent-mint)}
+.live-sound-toolbar{display:flex;align-items:center;justify-content:flex-end;align-self:flex-end;gap:8px;flex-wrap:wrap;max-width:100%}
+.live-sound-toolbar .small-button{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:8px 12px;font-size:13px}
+.live-sound-toolbar svg{width:18px;height:18px;flex:none}
+.live-sound-toolbar [aria-pressed="true"]{border-color:var(--ds-accent-mint);color:var(--ds-accent-mint)}
+.live-karaoke-room #voice-sound>.voice-audio-card,.live-karaoke-room #voice-sound>.live-audio-settings,.live-karaoke-room #voice-sound>#voice-sound-current{display:none}
+.live-vocal-settings{display:grid;gap:12px}
+.live-sound-card{padding:18px;border:1px solid var(--ds-line);border-radius:var(--ds-radius-card);background:var(--ds-panel)}
+.live-sound-card h3{margin:0 0 18px;font-size:16px}
+.live-karaoke-room #voice-sound .live-sound-card label{display:flex;flex-direction:row;justify-content:space-between;align-items:center;gap:12px;font-size:14px;margin:16px 0 10px}
+.live-sound-card output{color:var(--ds-accent-mint);font-variant-numeric:tabular-nums}
+.live-sound-card input[type=range]{display:block;width:100%;margin:0;min-height:26px}
+.live-sound-card input:disabled{opacity:.45}
+.live-sound-card #live-effect-status{color:var(--ds-muted);font-size:13px;line-height:1.6}
+.live-karaoke-room #voice-sound>.voice-audio-extra{margin-top:16px}
+.live-karaoke-room #voice-sound .voice-mic-test{margin-top:16px}
+@media(max-width:800px){.live-karaoke-room #voice-sound{box-sizing:border-box;max-height:calc(90dvh - 4px)}}
 .live-invite{margin:0;color:var(--ds-accent-mint);font-size:13px;line-height:1.5}
 .live-stage-note{font-size:12px;line-height:1.5;color:var(--ds-body);margin:auto 0 0;overflow-wrap:anywhere}
 .live-audio-unlock{min-height:44px}

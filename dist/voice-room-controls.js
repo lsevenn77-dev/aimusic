@@ -191,7 +191,7 @@ Object.assign(VoiceRoomClient.prototype,{
  },
  async startMicTest(){
   const attempt=this.testAttempt=(this.testAttempt||0)+1;if(this.processing){this.testGraph=this.processing;this.testOwned=false;}
-  else{const raw=await navigator.mediaDevices.getUserMedia({audio:this.microphoneConstraints(),video:false});if(this.closed||attempt!==this.testAttempt){raw.getTracks().forEach(t=>t.stop());return;}this.testRaw=raw;this.testOwned=true;const graph=await VoiceAudio.microphone(raw,this.preferences.preset,this.preferences.input);if(this.closed||attempt!==this.testAttempt){graph.close();raw.getTracks().forEach(t=>t.stop());return;}this.testGraph=graph;if(graph.fallback){this.stopMicTest();throw Error('이 브라우저에서는 입력 레벨 분석을 지원하지 않아요.');}}
+  else{const raw=await navigator.mediaDevices.getUserMedia({audio:this.microphoneConstraints(),video:false});if(this.closed||attempt!==this.testAttempt){raw.getTracks().forEach(t=>t.stop());return;}this.testRaw=raw;this.testOwned=true;const graph=await VoiceAudio.microphone(raw,this.preferences.preset,this.preferences.input,this.liveMode?liveVoiceMix(this):undefined);if(this.closed||attempt!==this.testAttempt){graph.close();raw.getTracks().forEach(t=>t.stop());return;}this.testGraph=graph;if(graph.fallback){this.stopMicTest();throw Error('이 브라우저에서는 입력 레벨 분석을 지원하지 않아요.');}}
   this.startLevels();this.host.querySelector('[data-voice="mic-test"]').textContent='테스트 중지';
   clearTimeout(this.micTestTimer);this.micTestTimer=setTimeout(()=>this.stopMicTest(),30000);
  },

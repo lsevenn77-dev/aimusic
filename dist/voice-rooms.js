@@ -70,7 +70,7 @@ class VoiceRoomClient {
  status(message){const el=$('#voice-status');if(el)el.textContent=message;}
  async safe(fn){try{await fn();}catch(e){this.status(e.message);toast(e.message);}}
  bind(host){this.host=host;if(!this.liveMode){this.waitForMusicGesture??=!this.levelContext;try{const v=localStorage.getItem('aifect.talkingRoom.listenVolume');if(v!==null&&Number.isFinite(Number(v)))this.preferences.music=Math.max(0,Math.min(1,Number(v)));}catch{}}this.resumeSound();$('#voice-join').onclick=()=>{if(this.closed){voiceController=new VoiceRoomClient(this.id);voiceController.bind(host);}else this.safe(()=>this.join());};const unlock=()=>{const blocked=this.waitForMusicGesture||this.host.querySelector('[data-voice=resume-audio]')?.hidden===false;this.waitForMusicGesture=false;if(this.liveMode||blocked)this.resumeSound();};host.onpointerdown=unlock;host.onclick=e=>{unlock();const b=e.target.closest('[data-voice]');if(b)this.safe(()=>this.action(b.dataset.voice,b.dataset.target,b));};
-  this.bindFinalControls();const chat=$('#voice-chat-form');chat.onsubmit=busyForm(chat,async()=>{const body=chat.elements.body.value;this.chatPending=this.chatPending?.body===body?this.chatPending:{body,request_id:crypto.randomUUID()};await this.command('chat',this.chatPending);if(this.liveMode||chat.elements.body.value===body)chat.reset();this.chatPending=null;await this.refresh();});
+  this.bindFinalControls();const chat=$('#voice-chat-form');chat.onsubmit=busyForm(chat,async()=>{const body=chat.elements.body.value;this.chatPending=this.chatPending?.body===body?this.chatPending:{body,request_id:crypto.randomUUID()};await this.command('chat',this.chatPending);this.toggleEmojiPicker(false);if(this.liveMode||chat.elements.body.value===body)chat.reset();this.chatPending=null;await this.refresh();});
   const gift=$('#voice-gift-form');gift.onchange=()=>{this.giftRequest=crypto.randomUUID();this.giftSummary();};gift.onsubmit=busyForm(gift,()=>this.openGiftDialog());
   const invite=$('#voice-invite-form');invite.onchange=()=>this.inviteRequest=crypto.randomUUID();invite.onsubmit=busyForm(invite,async()=>{await this.command('invite',{profile_id:invite.elements.profile_id.value,request_id:this.inviteRequest});toast('토킹룸 초대 DM을 보냈어요.');this.inviteRequest=crypto.randomUUID();});
   $('#voice-monitor').onchange=()=>this.safe(()=>this.monitor());$('#voice-input').onchange=()=>this.safe(()=>this.changeMicrophone());$('#voice-output').onchange=()=>this.safe(()=>this.output());
@@ -131,7 +131,7 @@ class VoiceRoomClient {
  async changeMicrophone(){
   if(!this.stream||!this.micSender)return;const epoch=this.epoch,attempt=this.micAttempt,sender=this.micSender;
   const raw=await navigator.mediaDevices.getUserMedia({audio:this.microphoneConstraints(),video:false});
-  const graph=await VoiceAudio.microphone(raw,this.preferences.preset,this.preferences.input);graph.setReverb(this.preferences.reverb);
+  const graph=await VoiceAudio.microphone(raw,this.preferences.preset,this.preferences.input,this.liveMode?liveVoiceMix(this):undefined);graph.setReverb(this.preferences.reverb);
   if(this.closed||epoch!==this.epoch||attempt!==this.micAttempt||sender!==this.micSender){graph.close();raw.getTracks().forEach(t=>t.stop());return;}
   try{graph.stream.getAudioTracks()[0].enabled=sender.track?.enabled!==false;await sender.replaceTrack(graph.stream.getAudioTracks()[0]);}catch(e){graph.close();raw.getTracks().forEach(t=>t.stop());throw e;}
   const old=this.stream,oldGraph=this.processing;for(const track of old.getTracks())track.onended=null;if(oldGraph?.stream!==old)for(const track of oldGraph?.stream.getTracks()||[])track.onended=null;
@@ -369,7 +369,7 @@ class VoiceRoomClient {
    if(stale()||!stream)return;
    this.microphoneSettings=stream.getAudioTracks()[0].getSettings?.()||{};
    stage=this.setMicPhase('processing',stage);this.pendingStream=stream;
-   const processing=await VoiceAudio.microphone(stream,this.preferences.preset,this.preferences.input);if(this.pendingStream===stream)this.pendingStream=null;
+   const processing=await VoiceAudio.microphone(stream,this.preferences.preset,this.preferences.input,this.liveMode?liveVoiceMix(this):undefined);if(this.pendingStream===stream)this.pendingStream=null;
    processing.setReverb(this.preferences.reverb);if(stale()){processing.close();stream.getTracks().forEach(t=>t.stop());return;}
    this.stream=stream;this.processing=processing;
    const pc=this.publisher=this.preparedPublisher||this.pc();this.preparedPublisher=null;const track=processing.stream.getAudioTracks()[0];track.enabled=false;

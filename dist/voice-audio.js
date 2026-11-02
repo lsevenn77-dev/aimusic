@@ -1,11 +1,46 @@
 // AIFECT voice presets. Values are intentionally modest; no pitch correction.
 const VoiceAudio=(()=>{
  const presets=Object.freeze({original:{name:'원음',highpass:0,mud:0,presence:0,compress:false,wet:0},radio:{name:'라디오 클린',highpass:85,mud:-2,presence:1.2,compress:true,wet:0},studio:{name:'스튜디오',highpass:75,mud:-2,presence:1,compress:true,wet:0.06}});
- async function microphone(raw,preset='radio',level=1){
-  const Context=window.AudioContext||window.webkitAudioContext;let ctx;
+ async function microphone(raw,preset='radio',level=1,mix){
+  const Context=window.AudioContext||window.webkitAudioContext;let ctx,outgoing;
   try{
    if(!Context)throw Error('unsupported');ctx=new Context({latencyHint:'interactive'});let timer;try{await Promise.race([ctx.resume(),new Promise((resolve,reject)=>{timer=setTimeout(()=>reject(Error('suspended')),500);})]);}finally{clearTimeout(timer);}if(ctx.state!=='running')throw Error('suspended');
-   const source=ctx.createMediaStreamSource(raw),input=ctx.createGain(),analyser=ctx.createAnalyser(),destination=ctx.createMediaStreamDestination();analyser.fftSize=256;
+   if(mix!==undefined){
+    if(!ctx.audioWorklet||typeof AudioWorkletNode!=='function')throw Error('worklet unsupported');
+    let timer;
+    try{
+     await Promise.race([
+      ctx.audioWorklet.addModule('/vocal-worklet.js?v=20261017-tone-range'),
+      new Promise((resolve,reject)=>{timer=setTimeout(()=>reject(Error('worklet timeout')),2000);})
+     ]);
+    }finally{clearTimeout(timer);}
+    if(ctx.state!=='running')throw Error('suspended');
+    const source=ctx.createMediaStreamSource(raw),input=ctx.createGain(),analyser=ctx.createAnalyser(),destination=ctx.createMediaStreamDestination();
+    outgoing=destination.stream;
+    const effects=new AudioWorkletNode(ctx,'aifect-vocal',{numberOfInputs:1,numberOfOutputs:1,outputChannelCount:[1],channelCount:1,channelCountMode:'explicit',processorOptions:{mix}});
+    analyser.fftSize=256;input.gain.value=level;
+    source.connect(input).connect(effects).connect(analyser).connect(destination);
+    let closed=false;
+    const graph={
+     stream:outgoing,analyser,context:ctx,supportsMix:true,
+     setLevel:value=>input.gain.setTargetAtTime(Math.max(0,Math.min(2,value)),ctx.currentTime,.015),
+     setMix(value){if(!closed&&graph.supportsMix)effects.port.postMessage(value);},
+     // Legacy talk-room presets must not override the supplied recording mix.
+     setPreset(){},setReverb(){},
+     close(){
+      if(closed)return;closed=true;
+      effects.onprocessorerror=null;source.disconnect();input.disconnect();effects.disconnect();analyser.disconnect();effects.port.close?.();
+      outgoing.getTracks().forEach(track=>track.stop());void ctx.close().catch(()=>{});
+     }
+    };
+    effects.onprocessorerror=()=>{
+     if(closed||!graph.supportsMix)return;
+     graph.supportsMix=false;input.disconnect();effects.disconnect();effects.port.close?.();input.connect(analyser);
+     graph.onMixError?.();
+    };
+    return graph;
+   }
+   const source=ctx.createMediaStreamSource(raw),input=ctx.createGain(),analyser=ctx.createAnalyser(),destination=ctx.createMediaStreamDestination();analyser.fftSize=256;outgoing=destination.stream;
    source.connect(input);input.gain.value=level;let nodes=[],effectSource,reverbGain;const setReverb=value=>{const wet=Math.max(0,Math.min(.07,value));if(wet&&!reverbGain){const delay=ctx.createDelay(.1);reverbGain=ctx.createGain();delay.delayTime.value=.045;effectSource.connect(delay);delay.connect(reverbGain);reverbGain.connect(analyser);nodes.push(delay,reverbGain);}if(reverbGain)reverbGain.gain.setTargetAtTime(wet,ctx.currentTime,.02);};
    const configure=key=>{const p=presets[key]||presets.radio;input.disconnect();for(const n of nodes)n.disconnect();nodes=[];reverbGain=null;let last=input;
     const append=n=>{last.connect(n);last=n;nodes.push(n);};
@@ -15,7 +50,7 @@ const VoiceAudio=(()=>{
     last.connect(analyser);analyser.connect(destination);
    };
    configure(preset);return {stream:destination.stream,analyser,context:ctx,setLevel:v=>input.gain.setTargetAtTime(Math.max(0,Math.min(1,v)),ctx.currentTime,0.015),setPreset:configure,setReverb,close(){source.disconnect();destination.stream.getTracks().forEach(t=>t.stop());void ctx.close().catch(()=>{});}};
-  }catch{if(ctx)void ctx.close().catch(()=>{});return {stream:raw,fallback:true,setLevel(){},setPreset(){},setReverb(){},close(){}};}
+  }catch{outgoing?.getTracks().forEach(track=>track.stop());if(ctx)void ctx.close().catch(()=>{});return {stream:raw,fallback:true,supportsMix:false,setLevel(){},setMix(){},setPreset(){},setReverb(){},close(){}};}
  }
  function rms(analyser){const data=new Uint8Array(analyser.fftSize);analyser.getByteTimeDomainData(data);let energy=0;for(const n of data)energy+=((n-128)/128)**2;return Math.min(1,Math.max(0,Math.sqrt(energy/data.length)-.012)*5);}
  return {presets,microphone,rms};

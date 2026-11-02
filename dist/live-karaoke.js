@@ -15,6 +15,39 @@ function liveKaraokeLobbyHTML(data,enabled=true){
   .replace('id="v3-create-title">방 만들기','id="v3-create-title">라이브 노래방 만들기')
   +(me?'':'<p class="quiet live-login"><a class="text-link" href="#account">로그인하면 노래방을 만들거나 참여할 수 있어요.</a></p>');
 }
+function liveVoiceMix(c){
+ if(!c.liveVocalMix)c.liveVocalMix=typeof AifectKaraoke!=='undefined'?AifectKaraoke.defaultVocalMix():{echo:0,room:0,size:.5,tone:0,noise:2};
+ return c.liveVocalMix;
+}
+function liveVocalSettingsHTML(){
+ const effects=[['room','리버브',0,100],['echo','에코',0,65],['size','룸 크기',0,100],['tone','음색',-100,200]];
+ return `<div class="live-vocal-settings"><section class="live-sound-card"><h3>음량</h3><label for="voice-input-gain">내 목소리 <output data-value-for="voice-input-gain">100%</output></label><div id="live-voice-volume-slot"></div><label for="live-mr-volume">음원 <output data-value-for="live-mr-volume">75%</output></label><div id="live-music-volume-slot"></div></section><section class="live-sound-card"><h3>공간 효과</h3>${effects.map(([key,label,min,max])=>`<label for="live-fx-${key}">${label}<output data-value-for="live-fx-${key}"></output></label><input id="live-fx-${key}" data-live-fx="${key}" aria-label="${label}" type="range" min="${min}" max="${max}" step="1" value="0">`).join('')}<p id="live-effect-status" role="status" hidden></p></section></div>`;
+}
+function bindLiveVocalSettings(c){
+ const sound=c.host.querySelector('#voice-sound'),mix=liveVoiceMix(c);
+ sound.querySelector('#live-voice-volume-slot').append(c.host.querySelector('#voice-input-gain'));
+ sound.querySelector('#live-music-volume-slot').append(c.host.querySelector('#live-mr-volume'));
+ const advanced=sound.querySelector('.voice-audio-extra');
+ advanced.querySelector('summary').textContent='장치 · 고급 설정';
+ advanced.append(c.host.querySelector('#live-delay').closest('label'));
+ advanced.append(sound.querySelector('.voice-mic-test'));
+ sound.querySelector('.voice-sheet-heading p').textContent='내 목소리와 음원, 공간 효과를 조절하세요.';
+ for(const input of sound.querySelectorAll('[data-live-fx]')){
+  input.value=Math.round(mix[input.dataset.liveFx]*100);c.updateDesignField(input);
+  input.oninput=()=>{
+   c.liveVocalMix={...liveVoiceMix(c),preset:'custom',[input.dataset.liveFx]:Number(input.value)/100};
+   c.processing?.setMix?.(c.liveVocalMix);
+   if(c.testGraph!==c.processing)c.testGraph?.setMix?.(c.liveVocalMix);
+   c.updateDesignField(input);
+  };
+ }
+}
+function liveEffectAvailability(c){
+ const supported=!c.processing||c.processing.supportsMix!==false;
+ for(const input of c.host.querySelectorAll('[data-live-fx]'))input.disabled=!supported;
+ const note=c.host.querySelector('#live-effect-status');
+ if(note){note.hidden=supported;note.textContent=supported?'':'이 브라우저에서 공간 효과를 연결하지 못했어요. 현재 원음으로 전달 중이에요.';}
+}
 function liveKaraokeRoomHTML(id){
  const stage=`<div id="live-karaoke-stage"><section class="live-stage-main">
   <div class="live-stage-top"><div class="live-room-caption"><span>LIVE KARAOKE</span><strong id="live-room-name"></strong></div><span id="live-phase" role="status">가창자 기다리는 중</span></div>
@@ -27,16 +60,22 @@ function liveKaraokeRoomHTML(id){
   <p id="live-invite" class="live-invite" role="status" hidden></p>
   <button class="small-button live-audio-unlock" id="live-audio-unlock" type="button" data-voice="karaoke-resume" hidden>소리 켜기</button>
   <p class="live-stage-note" id="live-stage-note">이어폰을 사용하면 반주가 마이크에 섞이지 않아요.</p>
+  <div class="live-sound-toolbar" role="group" aria-label="소리와 모니터링">
+   <button type="button" class="small-button" id="live-monitor-toggle" data-voice="karaoke-monitor" aria-pressed="false" disabled title="내 노래 차례에 모니터링을 켤 수 있어요.">${icon('headphones')}<span>내 목소리 듣기 꺼짐</span></button>
+   <button type="button" class="small-button" data-voice="sound" aria-label="소리 설정">${icon('sliders')}<span>소리 설정</span></button>
+  </div>
  </section>
  <section class="live-request-area" aria-label="노래 신청과 예약 순서"><button type="button" class="live-request-button" data-voice="karaoke-search-open">${icon('mic')}<span><strong>노래 신청하기</strong><small id="live-queue-count">0명 대기</small></span></button><ol id="live-queue" class="live-queue" tabindex="0" aria-label="예약 순서, 좌우로 스크롤"></ol></section>
  </div>`;
  const search=`<dialog id="live-search-sheet" class="voice-sheet" aria-labelledby="live-search-title"><button type="button" class="voice-dialog-close" data-voice="dismiss" aria-label="닫기">×</button><h2 id="live-search-title">부를 노래 찾기</h2><form id="live-search" class="live-search" role="search"><label for="live-query">곡명 또는 아티스트</label><div><input id="live-query" type="search" maxlength="80" placeholder="곡명 또는 아티스트 검색" required><button type="submit" class="small-button">${icon('search')} 검색</button></div></form><div id="live-results" class="live-results" aria-live="polite"></div></dialog>`;
  const audio=`<div class="live-audio-settings"><label>내 반주 음량 <input id="live-mr-volume" type="range" min="0" max="100" value="75"></label><label>청취 싱크 보정 <input id="live-delay" type="range" min="0" max="500" step="50" value="200"><output id="live-delay-value">200ms</output></label></div>`;
- return voiceRoomHTML(id,false).replace('class="voice-room"','class="voice-room live-karaoke-room"')
+ return voiceRoomHTML(id,false).replace(/<button\b[^>]*data-voice="sound"[^>]*>[\s\S]*?<\/button>/,'')
+  .replace('class="voice-room"','class="voice-room live-karaoke-room"')
   .replace('href="#voice">← 토킹룸','href="#live">〈 라이브 노래방')
   .replace('좌석을 눌러 참여 신청해보세요.','신청 순서대로 한 명씩 노래해요.')
   .replace('id="voice-title">토킹룸','id="voice-title">라이브 노래방')
   .replace('토킹룸 종료','노래방 종료')
+  .replace('<p id="voice-sound-current"',liveVocalSettingsHTML()+'<p id="voice-sound-current"')
   .replace('<div id="voice-seats" class="voice-seats"></div>',stage+'<div id="voice-seats" class="voice-seats"></div>')
   .replace('<dialog id="voice-members"',search+'<dialog id="voice-members"')
   .replace('<section id="voice-host-audio"',audio+'<section id="voice-host-audio"');
@@ -139,6 +178,7 @@ function setLiveMonitor(c,enabled){
 }
 function bindLiveKaraoke(c){
  clearInterval(c.liveTimer);c.liveVolume??=.75;c.liveDelayMs??=200;
+ bindLiveVocalSettings(c);liveEffectAvailability(c);
  const monitor=c.host.querySelector('#voice-monitor');
  monitor.checked=!!c.liveMonitorEnabled;
  monitor.onchange=()=>setLiveMonitor(c,monitor.checked);
@@ -215,12 +255,18 @@ function paintLiveKaraoke(c){
  if(active&&host&&!isSinger&&k.phase==='ready')buttons.push('<span class="quiet">가창자가 준비를 마치면 시작해요.</span>');
  if(active&&c.liveError)buttons.push('<button class="small-button" data-voice="karaoke-retry">반주 다시 불러오기</button>');
  if(isSinger&&k.phase==='singing')buttons.push(`<button class="small-button" data-voice="${self.muted?'enable-mic':'mute'}">${self.muted?'마이크 켜기':'마이크 끄기'}</button>`);
- if(isLiveSingerTurn(c))buttons.push(`<button type="button" class="small-button" data-voice="karaoke-monitor" aria-pressed="${!!c.liveMonitorEnabled}">${icon('headphones')} 내 목소리 듣기 ${c.liveMonitorEnabled?'켜짐':'꺼짐'}</button>`);
  if(active&&(host||isSinger))buttons.push(`<button class="small-button" data-voice="karaoke-abandon" data-target="${esc(active.invitation_id)}">노래 포기</button>`);
  if(active&&host&&next)buttons.push(`<button class="small-button" data-voice="karaoke-next">${esc(nextName)}님 부르기</button>`);
  if(hasQueued)buttons.push('<button class="small-button" data-voice="karaoke-cancel">내 신청 취소</button>');
  c.host.querySelector('#live-actions').innerHTML=buttons.join('');
  for(const button of c.host.querySelectorAll('[data-voice^="karaoke-"]'))if(c.liveCommandPending)button.disabled=true;
+ const monitorToggle=c.host.querySelector('#live-monitor-toggle');
+ if(monitorToggle){
+  monitorToggle.disabled=!isLiveSingerTurn(c)||!!c.liveCommandPending;
+  monitorToggle.setAttribute('aria-pressed',String(!!c.liveMonitorEnabled));
+  monitorToggle.title=isLiveSingerTurn(c)?'이어폰으로 내 목소리를 바로 들어요.':'내 노래 차례에 모니터링을 켤 수 있어요.';
+  monitorToggle.querySelector('span').textContent='내 목소리 듣기 '+(c.liveMonitorEnabled?'켜짐':'꺼짐');
+ }
  // Static picker/result buttons are not rebuilt with the stage controls.
  for(const button of c.host.querySelectorAll('[data-voice="karaoke-search-open"],#live-results [data-voice="karaoke-request"]'))button.disabled=!!c.liveCommandPending;
  c.host.querySelector('#live-queue-count').textContent=(k?.queue?.length||0)+'명 대기';
@@ -240,6 +286,7 @@ function liveRenderLyrics(c,seconds){
 function liveSync(c){
  const k=c.state?.karaoke,active=k?.active;if(c.closed||!c.host?.isConnected)return;
  syncLiveMonitor(c);
+ liveEffectAvailability(c);
  const phase=c.host.querySelector('#live-phase'),timer=c.host.querySelector('#live-timer'),progress=c.host.querySelector('#live-progress');
  const invite=c.host.querySelector('#live-invite');
  if(invite)invite.hidden=!active||!['invited','ready'].includes(k.phase);
@@ -323,6 +370,7 @@ bindVoice=function(base,id){
 };
 const productionVoiceBind=VoiceRoomClient.prototype.bind;
 VoiceRoomClient.prototype.bind=function(host){
+ if(this.liveMode)liveVoiceMix(this);
  const result=productionVoiceBind.call(this,host);
  if(this.liveMode){
   bindLiveKaraoke(this);
