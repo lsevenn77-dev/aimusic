@@ -254,7 +254,7 @@ main .social-profile-identity h2>.mp-public-id{display:block;font-size:13px;font
  #main .mp-member-page .mp-section-head{align-items:baseline}
  #main .mp-member-page .mp-section-head>.mp-all{margin-inline-start:auto;white-space:nowrap}
  #main .mp-member-page :is(.work-title strong,.mp-artist-card strong,.album-title){font-size:15px;font-weight:600;line-height:1.45}
- #main .mp-member-page :is(.mp-public-id,.mp-crew-line,.mp-stats,.mp-stats b,.mp-section-head h2>span,.work-browser [data-work-count],.work-grid small,.mp-artist-entry>.mp-all,.mp-artist-card .artist-ui-affiliation,.album-artist,.play-song-producer){
+ #main .mp-member-page :is(.mp-public-id,.mp-crew-line,.mp-stats,.mp-stats b,.mp-section-head h2>span,.work-browser [data-work-count],.work-grid small,.mp-artist-card .artist-ui-affiliation,.album-artist,.play-song-producer){
   font-size:13px;line-height:1.45
  }
  #main .mp-member-page :is(.mp-segment button,.ml-tabs button,.ml-toolbar input,.ml-toolbar select,
