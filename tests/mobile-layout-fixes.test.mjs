@@ -19,20 +19,23 @@ test('gift shop renders every approved silver and gold choice for guests and mem
 
 test('gift sheet keeps all choices and detailed policy inside one scroll region, with checkout outside',async()=>{
  let html='';
- const form={querySelectorAll:()=>[],querySelector:()=>null},nodes={'#dialog':{open:true,classList:{add(){}}},'#gift-form':form,'#gift-send-summary':{},'#gift-send':{},'#gift-quantity':{value:'1'}};
+ const form={isConnected:true,querySelectorAll:()=>[],querySelector:()=>null},send={attributes:{},setAttribute(key,value){this.attributes[key]=value;}},nodes={'#dialog':{open:true,classList:{add(){}}},'#gift-form':form,'#gift-send-summary':{},'#gift-send':send,'#gift-quantity':{value:'1'}};
  const context=vm.createContext({bindGiftCategoryTabs:async()=>{},AifectGifts,crypto,me:{id:'self'},accountReady:Promise.resolve(),esc:String,number:String,icon:()=>'',
   $:selector=>nodes[selector]||null,dialog:content=>{html=content;},remember(){},busyForm:()=>()=>{},
   api:async path=>path==='/api/me/gift-inventory'?{items:[]}:path==='/api/gold'?{balance:500,free:{balance:3},gifts:AifectGifts.GIFT_CATALOG}:{profile:{user_id:'other',name:'긴 이름의 친구'}}});
  vm.runInContext(read('gifts.js'),context);
  await context.giftDialog('other','star',true);
  assert.match(html,/role="region" aria-label="선물 선택"/);
- const options=html.slice(html.indexOf('class="gift-options"'),html.indexOf('class="gift-checkout"'));
- for(const gift of AifectGifts.GIFT_CATALOG)assert.ok(options.includes('data-gift-type="'+gift.id+'"'));
+ const options=html.slice(html.indexOf('class="gift-options gift-dialog-scroll"'),html.indexOf('class="gift-checkout gift-dialog-footer"'));
+ for(const gift of [...AifectGifts.SILVER_GIFT_CATALOG,...AifectGifts.GIFT_CATALOG])assert.ok(options.includes('data-gift-type="'+gift.id+'"'));
  assert.ok(options.includes(AifectGifts.GIFT_SETTLEMENT_NOTICE));
  assert.match(options,/<details class="gift-policy-details">/);
- const checkout=html.slice(html.indexOf('class="gift-checkout"'));
+ const checkout=html.slice(html.indexOf('class="gift-checkout gift-dialog-footer"'));
  assert.ok(checkout.indexOf('직접 취소할 수 없어요')<checkout.indexOf('id="gift-send"'));
- assert.equal(nodes['#gift-send'].textContent,'손편지 1개 · 2 S 선물하기');
+ assert.equal(nodes['#gift-send'].textContent,'선물하기');assert.equal(nodes['#gift-send'].attributes['aria-label'],'손편지 1개 · 2 S 선물하기');
+ assert.match(checkout,/<select id="gift-quantity"/);assert.equal((checkout.match(/<option value=/g)||[]).length,100);
+ const controls=['gift-balance-g','gift-charge-button','gift-quantity','gift-balance-s','gift-silver-button','gift-send-button'].map(name=>checkout.indexOf(name));
+ assert.ok(controls.every((position,index)=>position>=0&&(!index||position>controls[index-1])));
  assert.equal(nodes['#gift-send'].disabled,false);
  assert.match(css,/\.gift-sheet \.gift-options\{flex:1;/);
  assert.match(css,/\.gift-sheet \.gift-checkout\{flex-shrink:0;/);

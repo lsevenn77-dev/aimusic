@@ -6,7 +6,7 @@ import * as AifectGifts from '../shared/gifts.js';
 import {fixture} from './fixture.mjs';
 const source=readFileSync(new URL('../dist/gifts.js',import.meta.url),'utf8');
 const actions=readFileSync(new URL('../dist/actions.js',import.meta.url),'utf8');
-function node(dataset={}){return {dataset,hidden:false,disabled:false,isConnected:true,innerHTML:'',textContent:'',classList:{add(){},remove(){},toggle(){}},setAttribute(){},removeAttribute(){},scrollIntoView(){}};}
+function node(dataset={}){return {dataset,hidden:false,disabled:false,isConnected:true,innerHTML:'',textContent:'',attributes:{},classList:{add(){},remove(){},toggle(){}},setAttribute(key,value){this.attributes[key]=String(value);},removeAttribute(key){delete this.attributes[key];},scrollIntoView(){}};}
 function browser(api,user={id:'owner'}){
  let html='',form,buttons=[],renders=0;
  const nodes={'#dialog':{open:true,classList:{add(){}},close(){this.open=false;}}};
@@ -15,9 +15,9 @@ function browser(api,user={id:'owner'}){
   dialog(value){html=value;if(form)form.isConnected=false;if(!value.includes('id="gift-form"'))return;
    form=node();form.error=node();const qty=node();buttons=[];
    for(const match of value.matchAll(/<button\b([^>]*)>/g)){const attrs=match[1],dataset={};for(const a of attrs.matchAll(/data-([\w-]+)="([^"]*)"/g))dataset[a[1].replace(/-([a-z])/g,(_,a)=>a.toUpperCase())]=a[2];const b=node(dataset);b.disabled=/\bdisabled\b/.test(attrs);buttons.push(b);}
-   form.querySelectorAll=selector=>buttons.filter(b=>({ '[data-owned-gift]':'ownedGift','[data-gift-type]':'giftType','[data-gift-quantity]':'giftQuantity','[data-gift-step]':'giftStep'})[selector] in b.dataset);
+   form.querySelectorAll=selector=>buttons.filter(b=>({ '[data-owned-gift]':'ownedGift','[data-gift-type]':'giftType'})[selector] in b.dataset);
    form.querySelector=selector=>selector==='.gift-quantity'?qty:selector==='.form-error'?form.error:selector.startsWith('button[type=')?nodes['#gift-send']:null;
-   nodes['#gift-form']=form;for(const id of ['gift-send-summary','gift-send','gift-quantity','gift-send-notice','gift-owned-cancel'])nodes['#'+id]=node();
+   nodes['#gift-form']=form;for(const id of ['gift-send-summary','gift-send','gift-quantity','gift-send-notice','gift-owned-cancel','gift-detail','gift-decoration-detail','gift-recipient','gift-balance-g','gift-balance-s'])nodes['#'+id]=node();
   }});
  vm.runInContext(actions.slice(actions.indexOf('function busyForm('),actions.indexOf('function bindUploadForm(')),c);vm.runInContext(source,c);
  return {c,nodes,get html(){return html;},get renders(){return renders;},get form(){return form;},button:(key,value)=>buttons.find(b=>b.dataset[key]===value),submit:()=>form.onsubmit({preventDefault(){},submitter:nodes['#gift-send']})};
@@ -28,12 +28,16 @@ async function setup(t,{lost=false}={}){
  const calls=[];let lose=lost;
  const b=browser(async(path,method='GET',body,options)=>{calls.push({path,method,body,options});const r=await f.call(path,method,body);if(r.status>=400)throw Object.assign(new Error(r.body.error),{status:r.status});if(lose&&path.endsWith('/send')){lose=false;throw Error('응답 연결이 끊겼어요');}return r.body;});return {f,b,calls};
 }
-test('recipient sheet fetches owned gifts fresh, groups counts and puts them before purchases',async t=>{
+test('compact recipient sheet fetches owned gifts fresh and uses one quantity control and shared checkout',async t=>{
  const {b,calls}=await setup(t);await b.c.profileGiftDialog('friend');
- assert.ok(b.html.indexOf('보유 아이템')<b.html.indexOf('구매해서 보내기'));
+ assert.match(b.html,/gift-dialog--compact/);assert.match(b.html,/<h2>선물하기<\/h2>/);
+ assert.doesNotMatch(b.html,/구매해서 보내기|data-gift-quantity|data-gift-step/);
+ assert.equal((b.html.match(/class="gift-footer-grid"/g)||[]).length,1);
+ assert.equal((b.html.match(/<select id="gift-quantity"/g)||[]).length,1);
+ assert.match(b.html,/id="gift-balance-g">400 G/);assert.match(b.html,/id="gift-balance-s">100 S/);
  assert.equal((b.html.match(/data-owned-gift=/g)||[]).length,1);assert.match(b.html,/보유 2개/);
  assert.equal(calls.find(r=>r.path==='/api/me/gift-inventory').options.fresh,true);
- assert.equal(b.nodes['#gift-send'].textContent,'보유 선물 1개 보내기');assert.equal(b.nodes['#gift-quantity'].disabled,true);
+ assert.equal(b.nodes['#gift-send'].textContent,'선물하기');assert.match(b.nodes['#gift-send'].attributes['aria-label'],/보유 선물 1개 보내기/);assert.equal(b.nodes['#gift-quantity'].disabled,true);
  assert.equal(calls.filter(r=>r.method==='POST').length,0);
 });
 test('owned send confirms, retries the same request after a lost response, spends once and refreshes inventory',async t=>{
@@ -49,11 +53,59 @@ test('owned send confirms, retries the same request after a lost response, spend
 test('switching to purchase uses existing catalog and currency endpoint; invalid quantity cannot block owned send',async t=>{
  const {b,f,calls}=await setup(t);await b.c.profileGiftDialog('friend');
  b.button('giftType','silver-letter').onclick();assert.equal(b.nodes['#gift-quantity'].disabled,false);
- b.button('giftQuantity','5').onclick();await b.submit();
+ b.nodes['#gift-quantity'].value='5';b.nodes['#gift-quantity'].onchange();await b.submit();
  assert.equal(calls.filter(r=>r.method==='POST')[0].path,'/api/producers/friend/gifts');assert.equal((await f.call('/api/gold/balance')).body.silver_balance,90);
  assert.equal((await f.call('/api/me/gift-inventory')).body.items.length,2);
  await b.c.profileGiftDialog('friend','heart');b.nodes['#gift-quantity'].value='0';b.nodes['#gift-quantity'].oninput();assert.equal(b.nodes['#gift-send'].disabled,true);
  const item=(await f.call('/api/me/gift-inventory')).body.items[0];b.button('ownedGift',item.id).onclick();assert.equal(b.nodes['#gift-quantity'].disabled,true);assert.equal(b.nodes['#gift-send'].disabled,false);
+});
+test('purchase retries reuse their request after changing quantities and do not spend twice',async t=>{
+ const {b,f,calls}=await setup(t);const api=b.c.api;let lost=2;
+ b.c.api=async(path,method,...args)=>{const result=await api(path,method,...args);if(method==='POST'&&path.endsWith('/gifts')&&lost-->0)throw Error('응답 연결이 끊겼어요');return result;};
+ await b.c.profileGiftDialog('friend','silver-letter');await b.submit();assert.match(b.form.error.textContent,/연결/);
+ b.nodes['#gift-quantity'].value='5';b.nodes['#gift-quantity'].onchange();await b.submit();assert.match(b.form.error.textContent,/연결/);
+ b.nodes['#gift-quantity'].value='1';b.nodes['#gift-quantity'].onchange();await b.submit();
+ const sends=calls.filter(r=>r.method==='POST'&&r.path.endsWith('/gifts'));
+ assert.equal(sends.length,3);assert.equal(sends[0].body.request_id,sends[2].body.request_id);assert.notEqual(sends[0].body.request_id,sends[1].body.request_id);
+ assert.deepEqual(sends[0].body,sends[2].body);assert.equal((await f.call('/api/gold/balance')).body.silver_balance,88);
+ assert.equal(f.sql.prepare('SELECT count(*) n FROM free_gifts').get().n,2);assert.equal(b.renders,1);
+});
+test('recipient header passes the actual profile identity and image version to the shared avatar',async()=>{
+ const seen=[],b=browser(async path=>path==='/api/gold'?{balance:37,free:{balance:9}}:path==='/api/me/gift-inventory'?{items:[]}:{profile:{id:'friend',user_id:'other',name:'실제 친구',display_name:'보이는 이름',image_version:'live-v2'}});
+ b.c.avatarImage=(profile,kind,preview,equipment)=>{seen.push({profile,kind,preview,equipment});return '<img src="/actual-avatar">';};
+ await b.c.profileGiftDialog('friend','silver-letter');
+ assert.equal(seen[0].profile.id,'friend');assert.equal(seen[0].profile.name,'보이는 이름');assert.equal(seen[0].profile.image_version,'live-v2');
+ assert.match(b.html,/\/actual-avatar/);assert.match(b.html,/id="gift-balance-g">37 G/);assert.match(b.html,/id="gift-balance-s">9 S/);
+});
+test('an explicit stored gift ID remains selected inside a grouped card and after changing recipient',async t=>{
+ const {b,f,calls}=await setup(t),items=(await f.call('/api/me/gift-inventory')).body.items,id=items[1].id,opened=[];
+ await b.c.profileGiftDialog('friend',{giftInventoryId:id});assert.match(b.html,new RegExp('data-owned-gift="'+id+'"'));assert.match(b.html,/보유 2개/);
+ b.c.chooseGiftRecipient=selection=>opened.push(selection);await b.nodes['#gift-recipient'].onclick();assert.equal(opened[0].giftInventoryId,id);
+ await b.submit();await b.submit();assert.equal(calls.find(value=>value.path.endsWith('/send')).path,'/api/me/gift-inventory/'+id+'/send');
+});
+test('a missing requested inventory item never silently selects another gift or a purchase',async t=>{
+ const {b,calls}=await setup(t);await b.c.profileGiftDialog('friend',{giftInventoryId:'no-longer-owned'});
+ assert.equal(b.nodes['#gift-send'].disabled,true);await b.submit();assert.equal(calls.filter(value=>value.method==='POST').length,0);
+});
+test('changing recipient keeps purchased decoration inventory and the selected ordinary quantity',async t=>{
+ const {b}=await setup(t),opened=[];b.c.chooseGiftRecipient=selection=>opened.push(selection);
+ await b.c.profileGiftDialog('friend',{id:'heart',quantity:5});assert.equal(b.nodes['#gift-quantity'].value,'5');await b.nodes['#gift-recipient'].onclick();assert.equal(opened[0].id,'heart');assert.equal(opened[0].quantity,5);
+ b.form._giftUI.setDecoration({p:{sku:'frame_aurora_ring',name:'오로라 링',periodPrices:{P7D:50}},period:'P7D',periods:{P7D:'7일'},bought:'confirmed-stock',send(){},setPeriod(){}});
+ await b.nodes['#gift-recipient'].onclick();assert.equal(opened[1].inventoryId,'confirmed-stock');assert.equal(opened[1].sku,undefined);
+});
+test('room gifts stay on the supplied gold transport and finish without rerendering the room',async t=>{
+ const {b,calls}=await setup(t),sends=[],roomGift={recipients:[{id:'friend',name:'친구'}],async send(payload){sends.push(payload);return {gift:{type:payload.gift_type,quantity:payload.quantity},balance:300};}};
+ await b.c.profileGiftDialog('friend',{id:'heart',quantity:2,roomGift});
+ assert.ok(!calls.some(value=>value.path.includes('gift-inventory')));assert.ok(!b.html.includes('data-gift-type="silver-letter"'));
+ for(const key of ['frames','themes','inventory'])assert.match(b.html,new RegExp('data-gift-category="'+key+'" aria-pressed="false" disabled'));
+ assert.match(b.nodes['#gift-detail'].textContent,/토킹룸에서는 골드/);await b.submit();
+ assert.equal(sends.length,1);assert.equal(sends[0].profile_id,'friend');assert.equal(sends[0].gift_type,'heart');assert.equal(sends[0].quantity,2);assert.match(sends[0].request_id,/^[a-f0-9-]{36}$/);
+ assert.equal(calls.filter(value=>value.method==='POST').length,0);assert.equal(b.renders,0);assert.equal(b.nodes['#dialog'].open,false);
+});
+test('room failures reuse the same request and unavailable recipients never open a direct gift route',async t=>{
+ const {b,calls}=await setup(t),sends=[],roomGift={recipients:[{id:'friend',name:'친구'}],async send(payload){sends.push(payload);if(sends.length===1)throw Error('방 연결을 다시 확인해주세요.');return {balance:350,gift:{type:'heart'}};}};
+ await b.c.profileGiftDialog('friend',{id:'heart',roomGift});await b.submit();assert.match(b.form.error.textContent,/방 연결/);assert.equal(b.renders,0);await b.submit();assert.deepEqual(sends[0],sends[1]);
+ const before=calls.length;await b.c.profileGiftDialog('outside-room',{id:'heart',roomGift});assert.equal(calls.length,before);assert.equal(b.renders,0);
 });
 test('inventory read failure is explicit and purchases stay usable; guests never fetch private inventory',async()=>{
  const wallet={balance:500,free:{balance:5}},profile={profile:{id:'friend',user_id:'other',name:'친구'}};

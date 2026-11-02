@@ -11,6 +11,7 @@ import {hash} from '../server/auth.js';
 import {Sfu} from '../realtime/sfu.js';
 import vm from 'node:vm';
 import siteWorker from '../server/index.js';
+import * as AifectGifts from '../shared/gifts.js';
 const secret='test-only-bridge-secret-not-production-0001';
 const actor=(id,crews=[])=>({id,name:id,profile_id:id+'-profile',crews});
 const offer={type:'offer',sdp:'v=0\r\nm=audio 9 UDP/TLS/RTP/SAVPF 111\r\na=mid:0\r\na=sendonly\r\n'};
@@ -102,6 +103,34 @@ test('room screen joins once automatically, never opens microphone, and offers r
  assert.equal(client.joined,true);client.bindFinalControls=()=>{};client.bind(host);assert.equal(calls,1);assert.equal(mics,0);assert.equal(get('#voice-music-volume').attributes['aria-valuetext'],'100%');client.leave(false);
  const retry=setup();fail=true;retry.bind(host);reply();await assert.rejects(retry.pending);assert.equal(get('#voice-entry').hidden,false);assert.equal(retry.joined,false);
  fail=false;get('#voice-join').onclick();reply();await retry.pending;assert.equal(retry.joined,true);assert.equal(get('#voice-entry').hidden,true);assert.equal(mics,0);retry.leave(false);
+});
+test('room gift entry uses the shared dialog and keeps delivery bound to current room members and generation',async()=>{
+ const elements=new Map([
+  ['#voice-gift-form',{elements:{gift_type:{value:'balloon'},quantity:{value:'3'}}}],
+  ['#voice-gift-target',{value:'outside-profile'}],
+  ['#voice-gift-sheet',{close(){}}]
+ ]),requests=[],dialogs=[],sheets=[];
+ const receipt={gift:{id:'receipt-room',type:'balloon',name:'풍선',gold:15,quantity:3},balance:85,animation_pending:true};
+ let response=receipt,status=201;
+ const c=vm.createContext({crypto,AifectGifts,window:{addEventListener(){}},document:{addEventListener(){}},$:id=>elements.get(id),profileGiftDialog:(id,initial)=>dialogs.push({id,initial}),fetch:async(url,options)=>{requests.push({url,body:JSON.parse(options.body)});return Response.json(response,{status});}});
+ vm.runInContext(readFileSync(new URL('../dist/voice-rooms.js',import.meta.url),'utf8')+'\nthis.Client=VoiceRoomClient;',c);
+ const client=new c.Client('test-room'),self={id:'self',profile_id:'self-profile',name:'Self'},guest={id:'guest',profile_id:'guest-profile',name:'Guest'},other={id:'other',profile_id:'other-profile',name:'Other'};
+ Object.assign(client,{joined:true,generation:'generation-1',host:{isConnected:true},state:{self:'self',members:[self,guest,other,{id:'no-profile',name:'Unavailable'}]}});client.showSheet=id=>sheets.push(id);
+ assert.equal(await client.roomUIAction('gift'),true);
+ assert.equal(dialogs.length,1);assert.equal(dialogs[0].id,guest.profile_id);assert.equal(dialogs[0].initial.id,'balloon');assert.equal(dialogs[0].initial.quantity,3);
+ const roomGift=dialogs[0].initial.roomGift;
+ assert.deepEqual(JSON.parse(JSON.stringify(roomGift.recipients)),[{id:guest.profile_id,name:guest.name},{id:other.profile_id,name:other.name}]);
+ roomGift.onRecipientChange(other.profile_id);assert.equal(elements.get('#voice-gift-target').value,other.profile_id);
+ const payload={profile_id:guest.profile_id,gift_type:'balloon',quantity:3,request_id:crypto.randomUUID()};
+ assert.deepEqual(await roomGift.send(payload),receipt);
+ assert.deepEqual(requests,[{url:'/api/voice/rooms/test-room/gifts',body:{...payload,generation:'generation-1'}}]);
+ response={error:'잔액이 부족해요.'};status=409;await assert.rejects(()=>roomGift.send(payload),{message:response.error,status:409});
+ client.generation='generation-2';await assert.rejects(()=>roomGift.send(payload),/입장 정보/);client.generation='generation-1';
+ client.state.members=[self,other];await assert.rejects(()=>roomGift.send(payload),/나갔어요/);
+ await assert.rejects(()=>roomGift.send({...payload,profile_id:self.profile_id}),/나갔어요/);assert.equal(requests.length,2,'invalid room context must never reach the gift endpoint');
+ await client.roomUIAction('gift');assert.equal(dialogs[1].id,other.profile_id,'a selected current member remains selected on reopening');
+ client.state.members=[self];await client.roomUIAction('gift');assert.deepEqual(sheets,['voice-gift-sheet']);assert.equal(dialogs.length,2,'an empty room keeps the existing non-sendable state');
+ client.joined=false;await assert.rejects(()=>roomGift.send({...payload,profile_id:other.profile_id}),/입장 정보/);assert.equal(requests.length,2);
 });
 test('bridge signatures bind payload/path/time and reject tampering or expiry',async()=>{
  const body=JSON.stringify({actor:actor('host')}),path='/rooms/test/state',headers=await signedHeaders(secret,path,body,100000,'1234567890abcdef');

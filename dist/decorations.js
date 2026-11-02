@@ -1,44 +1,63 @@
 // Cosmetics use server inventory. No ownership or purchases are stored in the browser.
 async function bindGiftCategoryTabs(form,{recipientId,initial,serial,account,initialOwned}){
- const section=form.closest('.gift-dialog'),list=form.querySelector('.gift-options'),checkout=form.querySelector('.gift-checkout'),owned=list.querySelector('.gift-owned');
+ const section=form.closest('.gift-dialog'),list=form.querySelector('.gift-options'),owned=list.querySelector('.gift-owned'),ui=form._giftUI;
  const ordinary=document.createElement('div');ordinary.className='gift-ordinary-products';
  for(const el of [...list.children])if(el!==owned)ordinary.append(el);list.append(ordinary);
  const extra=document.createElement('div');extra.className='gift-decoration-products';extra.hidden=true;list.append(extra);
- const extraCheckout=document.createElement('div');extraCheckout.className='gift-checkout gift-decoration-checkout';extraCheckout.hidden=true;form.append(extraCheckout);
- let catalog,selected,period=initial?.period||'P7D',buyKey=crypto.randomUUID(),sendKey=crypto.randomUUID(),bought=null,busy=false;
-
- function choose(p,item=null){if(busy)return;selected={p,item};bought=null;buyKey=crypto.randomUUID();sendKey=crypto.randomUUID();paint();}
+ let catalog,selected,period=initial?.period||'P7D',busy=false,revision=0;
+ // Keep each unresolved purchase/send pair when a member changes tabs or periods.
+ const attempts=new Map(),active=()=>form.isConnected&&serial===giftDialogSerial&&account===me?.id;
+ const fingerprint=()=>selected?.item?'inventory:'+selected.item.id:'purchase:'+selected?.p.sku+':'+period;
+ function choose(p,item=null){
+  if(busy||form._busy)return;selected={p,item};
+  if(item)period=item.period_code;
+  else if(!Number.isFinite(p.periodPrices[period]))period=Object.keys(catalog.periods).find(key=>Number.isFinite(p.periodPrices[key]));
+  formError(form).textContent='';paint();
+ }
  function paint(){
-  const p=selected?.p;extraCheckout.innerHTML=p?`<strong>${esc(p.name)}</strong>${selected.item?'<p>보유 상품 · 추가 차감 없음</p>':`<label>이용 기간<select id="gift-decoration-period">${Object.entries(catalog.periods).map(([k,v])=>`<option value="${k}" ${k===period?'selected':''}>${v} · ${number(p.periodPrices[k])} G</option>`).join('')}</select></label>`}<p class="field-help">${bought?'구매 완료 · 인벤토리에 보관됨. 선물 전송을 다시 시도할 수 있어요.':'보내기를 누르면 선택한 상품을 전달합니다.'}</p><div class="compact-actions"><a class="small-button" href="#gold" data-close-dialog>충전하기</a><button type="button" class="primary-button" id="gift-decoration-send">${bought?'선물 전송 다시 시도':'선물하기'}</button></div><p class="form-error" role="alert"></p>`:'<p>선물할 상품을 선택해주세요.</p>';
-  const select=extraCheckout.querySelector('select');if(select)select.onchange=()=>{period=select.value;buyKey=crypto.randomUUID();};
-  const send=extraCheckout.querySelector('#gift-decoration-send');if(send)send.onclick=async()=>{
-   if(busy||form._busy)return;if(!me)return askLogin();busy=true;send.disabled=true;if(select)select.disabled=true;
-   try{if(me.id!==account)throw Error('계정이 변경됐어요. 다시 열어주세요.');
-    if(!bought)bought=selected.item?.id||(await api('/api/decorations/buy','POST',{sku:p.sku,period,request_id:buyKey})).order.inventory_id;
-    if(serial!==giftDialogSerial||!form.isConnected||me?.id!==account)return;
-    await api('/api/decorations/inventory/'+encodeURIComponent(bought)+'/send','POST',{profile_id:recipientId,request_id:sendKey});
-    if(serial!==giftDialogSerial||!form.isConnected||me?.id!==account)return;$('#dialog').close();toast(p.name+'을 선물했어요.');
-   }catch(e){if(form.isConnected){paint();extraCheckout.querySelector('.form-error').textContent=e.message;}}finally{busy=false;if(send.isConnected)send.disabled=false;}
-  };
+  const state=selected?attempts.get(fingerprint()):null;
+  extra.querySelectorAll('[data-gift-decoration-index]').forEach(button=>{const yes=selected&&button.dataset.giftDecorationKey===(selected.item?.id||selected.p.sku);button.classList.toggle('selected',!!yes);button.setAttribute('aria-pressed',String(!!yes));});
+  ui.setDecoration(selected?{...selected,period,periods:catalog.periods,bought:state?.bought||null,busy,setPeriod(value){if(busy||form._busy||state?.bought||selected.item||!Number.isFinite(selected.p.periodPrices[value]))return;period=value;formError(form).textContent='';paint();},send}:null);
+  form._giftMeasure?.();
+ }
+ async function send(){
+  if(busy||form._busy||!selected)return;if(!me)return askLogin();
+  if(me.id!==account){formError(form).textContent='계정이 변경됐어요. 다시 열어주세요.';return;}
+  const {p,item}=selected,key=fingerprint(),sentPeriod=period;
+  let attempt=attempts.get(key);if(!attempt){attempt={buyKey:crypto.randomUUID(),sendKey:crypto.randomUUID(),bought:item?.id||null};attempts.set(key,attempt);}
+  busy=true;form._busy=true;formError(form).textContent='';paint();
+  try{
+   if(!attempt.bought){
+    const result=await api('/api/decorations/buy','POST',{sku:p.sku,period:sentPeriod,request_id:attempt.buyKey});attempt.bought=result.order.inventory_id;
+    if(!active())return;
+    // Only a server wallet response can change the displayed balance.
+    await ui.refreshWallet().catch(()=>{});
+   }
+   if(!active())return;
+   await api('/api/decorations/inventory/'+encodeURIComponent(attempt.bought)+'/send','POST',{profile_id:recipientId,request_id:attempt.sendKey});
+   if(!active())return;attempts.delete(key);$('#dialog').close();toast(p.name+'을 선물했어요.');
+  }catch(e){if(active())formError(form).textContent=e.message;}
+  finally{busy=false;form._busy=false;if(active())paint();}
  }
  async function show(key){
-  if(form._busy||busy)return;
+  if(form._busy||busy||initial?.roomGift&&key!=='gifts')return;
+  const version=++revision;
   section.querySelectorAll('[data-gift-category]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.giftCategory===key)));
-  ordinary.hidden=key!=='gifts';owned.hidden=key!=='inventory';extra.hidden=key==='gifts';checkout.hidden=!['gifts','inventory'].includes(key);extraCheckout.hidden=['gifts','inventory'].includes(key);extra.innerHTML='';
-  selected=null;paint();if(key==='gifts')return;
-  try{catalog=await api('/api/decorations','GET',undefined,{fresh:true});if(!form.isConnected||serial!==giftDialogSerial)return;
-   const current=section.querySelector('[data-gift-category][aria-pressed=true]')?.dataset.giftCategory;if(current!==key)return;
-   const items=key==='inventory'?catalog.inventory.filter(i=>i.stored&&i.available).map(i=>({p:catalog.products.find(p=>p.sku===i.item_key),item:i})):catalog.products.filter(p=>p.kind===(key==='frames'?'PROFILE_FRAME':'TALKING_ROOM_THEME')).map(p=>({p}));
-   extra.innerHTML='<div class="gift-catalog">'+items.map(({p,item},i)=>`<button type="button" class="gift-choice" data-gift-decoration-index="${i}"><img class="gift-art" src="${esc(p.assetPaths.overlay||p.assetPaths.roomCard)}" alt=""><strong>${esc(p.name)}</strong><span>${item?catalog.periods[item.period_code]:number(p.periodPrices.P7D)+' G / 7일'}</span></button>`).join('')+'</div>';
-   extra.querySelectorAll('button').forEach(b=>b.onclick=()=>{const value=items[Number(b.dataset.giftDecorationIndex)];if(busy||form._busy)return;checkout.hidden=true;extraCheckout.hidden=false;choose(value.p,value.item);});
+  ordinary.hidden=key!=='gifts';owned.hidden=key!=='inventory';extra.hidden=key==='gifts';extra.innerHTML='';list.scrollTop=0;
+  selected=null;ui.setCategory(key);paint();if(key==='gifts')return;
+  extra.innerHTML='<p class="gift-owned-empty" role="status">불러오는 중…</p>';
+  try{const result=await api('/api/decorations','GET',undefined,{fresh:true});if(!active()||version!==revision)return;catalog=result;
+   const items=(key==='inventory'?catalog.inventory.filter(i=>i.stored&&i.available).map(i=>({p:catalog.products.find(p=>p.sku===i.item_key),item:i})):catalog.products.filter(p=>p.kind===(key==='frames'?'PROFILE_FRAME':'TALKING_ROOM_THEME')).map(p=>({p}))).filter(value=>value.p);
+   extra.innerHTML=items.length?'<div class="gift-catalog">'+items.map(({p,item},i)=>{const starting=Number.isFinite(p.periodPrices.P7D)?'P7D':Object.keys(catalog.periods).find(code=>Number.isFinite(p.periodPrices[code]));return `<button type="button" class="gift-choice" data-gift-decoration-index="${i}" data-gift-decoration-key="${esc(item?.id||p.sku)}" aria-pressed="false"><img class="gift-art" src="${esc(p.assetPaths.overlay||p.assetPaths.roomCard)}" alt=""><strong>${esc(p.name)}</strong><span>${item?esc(catalog.periods[item.period_code]||item.period_code):number(p.periodPrices[starting])+' G / '+esc(catalog.periods[starting]||'')}</span></button>`;}).join('')+'</div>':key==='inventory'?'':'<p class="gift-owned-empty">선물할 상품이 없어요.</p>';
+   extra.querySelectorAll('[data-gift-decoration-index]').forEach(b=>b.onclick=()=>{const value=items[Number(b.dataset.giftDecorationIndex)];if(busy||form._busy||!value)return;choose(value.p,value.item);});
    if(key!=='inventory'){const value=items.find(v=>v.p.sku===initial?.sku)||items[0];if(value)choose(value.p);else{selected=null;paint();}}
-  }catch(e){extra.textContent=e.message;}
+   else{const value=items.find(v=>v.item.id===initial?.inventoryId);if(value)choose(value.p,value.item);}
+   form._giftMeasure?.();
+  }catch(e){if(active()&&version===revision){extra.innerHTML='<p class="gift-owned-empty" role="alert">'+esc(e.message)+'</p>';form._giftMeasure?.();}}
  }
- section.querySelectorAll('[data-gift-category]').forEach(b=>b.onclick=()=>void show(b.dataset.giftCategory));
- // Keep existing ordinary-gift and owned-gift submission handlers intact.
- form.addEventListener('submit',e=>{if(checkout.hidden){e.preventDefault();e.stopImmediatePropagation();}},true);
- form.querySelectorAll('[data-owned-gift]').forEach(b=>b.addEventListener('click',()=>{extraCheckout.hidden=true;checkout.hidden=false;}));
- await show(initial?.sku?.startsWith('frame_')?'frames':initial?.sku?'themes':initialOwned?'inventory':'gifts');
+ section.querySelectorAll('[data-gift-category]').forEach(b=>b.onclick=()=>show(b.dataset.giftCategory));
+ form.querySelectorAll('[data-owned-gift]').forEach(b=>b.addEventListener('click',()=>{if(busy||form._busy||b.disabled)return;selected=null;ui.selectOrdinary();paint();}));
+ await show(initial?.roomGift?'gifts':initial?.inventoryId||initial?.giftInventoryId?'inventory':initial?.sku?.startsWith('frame_')?'frames':initial?.sku?'themes':initialOwned?'inventory':'gifts');
 }
 function decorationProductImage(p){return p.kind==='PROFILE_FRAME'?p.assetPaths.overlay:p.assetPaths.roomCard;}
 // One registered SKU already contains its duration variants; never group unrelated names.
@@ -203,7 +222,7 @@ async function shopPurchaseDialog(initial){
    dialog('<section class="shop-checkout '+(p.sku?'is-duration':'is-quantity')+'"><h2 tabindex="-1">'+top+'</h2><form id="shop-order">'+body+(step==='purchase'&&!within?'<p class="field-help">선물은 한 번에 최대 100,000 G까지 보낼 수 있어요.</p>':'')+'<div class="shop-checkout-actions">'+actions+'</div><p class="form-error" role="alert"></p></form></section>');
    const form=$('#shop-order');
    if(step==='purchase'&&p.assetPaths?.effect)frameEffects.set(form.querySelector('.frame-detail-layers>img'),p.assetPaths.effect);
-   for(const b of form.querySelectorAll('[data-step]'))b.onclick=()=>{if(state.busy)return;if(b.dataset.step==='recipient'&&!me){$('#dialog').close();return askLogin();}state.step=b.dataset.step;paint();};
+   for(const b of form.querySelectorAll('[data-step]'))b.onclick=()=>{if(state.busy)return;if(b.dataset.step==='recipient'&&!me){$('#dialog').close();return askLogin();}if(step==='purchase'&&b.dataset.step==='recipient'){if(!valid()){formError(form).textContent=p.sku?'이용 기간을 확인해주세요.':'수량을 확인해주세요.';return;}return chooseGiftRecipient(p.sku?{sku:p.sku,period:state.period}:{id:p.id,quantity:state.quantity});}state.step=b.dataset.step;paint();};
    form.querySelectorAll('[name=period]').forEach(r=>r.onchange=()=>{if(state.busy)return;state.period=r.value;resetKey();paint();});
    const qty=form.querySelector('[name=quantity]');
    const quantity=n=>{if(state.busy)return;state.quantity=n;resetKey();paint();};
@@ -287,6 +306,7 @@ async function storedDecorationDialog(itemId,mode){
  const account=me.id,serial=++giftDialogSerial;
  const d=await api('/api/decorations','GET',undefined,{fresh:true});if(serial!==giftDialogSerial||account!==me?.id)return;
  const item=d.inventory.find(i=>i.id===itemId&&i.stored&&i.available);if(!item)return toast('사용 가능한 보관 상품을 다시 확인해주세요.');
+ if(mode==='send')return chooseGiftRecipient({inventoryId:item.id});
  const sending=mode==='send';let recipient=null,search=0,key=crypto.randomUUID();
  dialog(`<section class="gift-dialog decoration-dialog"><header><h2>${esc(item.product.name)} ${sending?'선물하기':'사용 시작'}</h2><p>${esc(d.periods[item.period_code])} · 추가 골드 차감 없음</p></header><form id="stored-decoration-form"><div class="gift-options">${sending?'<label class="form-field">회원 이름<input name="member_name" type="search" maxlength="60" autocomplete="off" placeholder="닉네임으로 검색"></label><button class="small-button" type="button" id="stored-find">회원 검색</button><p class="field-help">팔로우하거나 대화한 회원을 선택하거나, 닉네임으로 검색하세요.</p><div class="gift-target-list decoration-recipient-list" id="stored-members" aria-label="선물 받을 회원"></div><p id="stored-recipient" role="status">선물 받을 회원을 선택해주세요.</p>':'<p>지금부터 이용 기간이 시작됩니다. 이미 사용 중인 같은 상품은 남은 기간에 연장됩니다.</p><p>사용을 시작한 상품은 선물할 수 없어요.</p>'}</div><div class="gift-checkout"><button type="submit" class="primary-button">${sending?'선택한 회원에게 선물하기':'확인하고 사용 시작'}</button><p class="form-error" role="alert"></p></div></form></section>`);
  const form=$('#stored-decoration-form'),button=form.querySelector('button[type="submit"]');button.disabled=sending;
