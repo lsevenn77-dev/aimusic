@@ -11,6 +11,7 @@ function menuAlias(hash){
   if(['covers','originals'].includes(section))return menuHref('profile',{view:'works',section},raw);
   return menuHref('profile',{view:'library',section:['likes','history','playlists'].includes(section)?section:'likes'},raw);
  }
+ if(base==='crew'&&section&&new URLSearchParams(raw.split('?')[1]).get('tab')==='manage')return menuHref(route,{tab:'music'},raw);
  if(route==='dm/blocked')return menuHref('follow',{tab:'blocks'},raw);
  if(route==='gift-inventory')return menuHref('inventory',{},raw);
  if(route==='profile'){const q=new URLSearchParams(raw.split('?')[1]||'');if(q.get('view')==='library'&&q.get('section')==='saved')return menuHref('profile',{section:'likes'},raw);}

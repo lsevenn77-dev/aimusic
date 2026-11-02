@@ -6,18 +6,33 @@ const escape=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>'
 const crew={id:'crew',name:'Music crew',members:2,capacity:10,level:1,xp:2,recruiting:1};
 const detail={growth:{level:1,xp:0,next_xp:300,next_capacity:15,progress:0,missions:[]},crew,membership:{role:'member'},members:[{id:'peer-profile',name:'Singer',role:'manager'}],tracks:[]};
 function fixture(responses={}){
- const calls=[],context=vm.createContext({me:{id:'self-user'},apiRevision:0,structuredClone,Date,URLSearchParams,esc:escape,number:n=>String(n||0),icon:()=>'',portrait:p=>'<img alt="'+escape(p.name)+'">',heading:t=>'<h1>'+escape(t)+'</h1>',section:t=>'<h2>'+escape(t)+'</h2>',communityFeed:()=>'<div>MUSIC</div>',communityNavigation:()=>'<nav>COMMUNITY</nav>',document:{addEventListener(){}},api:async p=>{calls.push(p);if(!(p in responses))throw Error('Unexpected '+p);return typeof responses[p]==='function'?responses[p]():responses[p];}});
+ const calls=[],context=vm.createContext({me:{id:'self-user'},apiRevision:0,structuredClone,Date,URLSearchParams,esc:escape,number:n=>String(n||0),icon:()=>'',avatarImage:()=>'<img>',playerBadgeHTML:()=>'',portrait:p=>'<img alt="'+escape(p.name)+'">',heading:t=>'<h1>'+escape(t)+'</h1>',section:t=>'<h2>'+escape(t)+'</h2>',communityFeed:()=>'<div>MUSIC</div>',communityNavigation:()=>'<nav>COMMUNITY</nav>',document:{addEventListener(){}},api:async p=>{calls.push(p);if(!(p in responses))throw Error('Unexpected '+p);return typeof responses[p]==='function'?responses[p]():responses[p];}});
  Object.assign(context,{followed:()=>false,window:{addEventListener(){}},setInterval(){},cover:()=>'',trackStats:()=>''});
  for(const file of ['artist-directory.js','chat-features.js','social-chat.js','social-layouts.js','improvements.js','release-refinements.js','community-v3.js','crew-integrated.js'])vm.runInContext(readFileSync(new URL('../dist/'+file,import.meta.url),'utf8'),context);
  return {context,calls};
 }
-test('joined crew landing shows music and a chat entry, with discovery secondary',async()=>{
+test('joined crew landing shows music and discovery without a header chat shortcut',async()=>{
  const {context:c,calls}=fixture({'/api/crews?q=&summary=1&home=1':{mine:'crew',detail},'/api/crews/crew':detail});
  const view=await c.improvementsView('community','crews','community/crews');
- assert.equal(view.chat,null);assert.match(view.html,/#dm\/crew\/crew/);
+ assert.equal(view.chat,null);assert.doesNotMatch(view.html,/#dm\/crew\/crew|tab=manage/);
  assert.doesNotMatch(view.html,/id="crew-search"|data-create-crew|id="chat-compose"/);
  assert.match(view.html,/#community\/crews\?browse=1/);assert.match(view.html,/#crew\/crew\?tab=members/);
  assert.deepEqual(calls,['/api/crews?q=&summary=1&home=1']);
+});
+
+test('crew settings follow live staff roles and legacy management links land on works',()=>{
+ const {context:c}=fixture();
+ vm.runInContext(readFileSync(new URL('../dist/menu-integration.js',import.meta.url),'utf8'),c);
+ assert.equal(c.menuAlias('#crew/crew?tab=manage'),'#crew/crew?tab=music');
+ for(const role of ['owner','deputy','manager','operator','member',null]){
+  const view=c.crewDetailView({...detail,membership:role?{role}:null},'crew','manage');
+  assert.equal(view.html.includes('aria-label="크루 설정"'),['owner','deputy','manager','operator'].includes(role));
+  assert.match(view.html,/class="work-browser"/);
+  assert.doesNotMatch(view.html,/tab=manage|data-crew-member=|crew-cover-bg/);
+  assert.deepEqual([...view.html.matchAll(/class="tab [^"]*" href="([^"]+)"/g)].map(m=>m[1]),[
+   '#crew/crew?tab=music','#crew/crew?tab=members','#crew/crew?tab=notice','#crew/crew?tab=about','#community/crews?browse=1'
+  ]);
+ }
 });
 
 test('a known crew skips discovery on reentry while membership is always rechecked',async()=>{

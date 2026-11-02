@@ -2,14 +2,25 @@
 function publicMusicDate(created){return created?new Date(Number(created)*1000).toLocaleDateString('ko-KR',{month:'long',day:'numeric',timeZone:'Asia/Seoul'}):'';}
 function crewPicture(c,cls='crew-hero-picture'){return '<span class="'+cls+'">'+(c.image_version?'<img src="/media/crew/'+esc(c.id)+'?v='+esc(c.image_version)+'" alt="'+esc(c.name)+'">':icon('users'))+'</span>';}
 function crewNameHTML(c){return '<span class="crew-name-color">'+esc(c.name)+'</span>';}
+function canManageCrew(membership){
+ return ['owner','deputy','manager','operator'].includes(membership?.role);
+}
 function crewHeroHTML(c,m){
- const editable=['owner','deputy','manager','operator'].includes(m?.role);
- const photo=c.image_version?'/media/crew/'+encodeURIComponent(c.id)+'?v='+encodeURIComponent(c.image_version):'';
- const portrait=editable?'<button type="button" class="crew-photo-edit" data-edit-crew="'+esc(c.id)+'" data-edit-crew-photo aria-label="크루 사진 수정">'+crewPicture(c)+'<span>사진 수정</span></button>':crewPicture(c);
  const frame=c.level>=10?4:c.level>=8?3:c.level>=5?2:c.level>=3?1:0;
  const levelTag=c.level>=7?'<span class="crew-max-badge">'+(c.level===10?'최고 레벨 크루':'함께 성장하는 크루')+'</span>':'';
- const chat=m?'<a class="text-link" href="#dm/crew/'+esc(c.id)+'">'+icon('message')+' 채팅방</a>':'';
- return '<header class="crew-cover crew-frame-'+frame+'">'+(photo?'<img class="crew-cover-bg" src="'+esc(photo)+'" alt="">':'')+'<div class="crew-cover-body">'+portrait+'<div><h1>'+crewNameHTML(c)+'</h1><span>'+number(c.members)+' / '+number(c.capacity)+'명</span> '+levelTag+' '+chat+'</div></div><div class="crew-cover-xp"><strong>Lv.'+number(c.level)+'</strong> '+number(c.xp)+' / '+(c.next_xp==null?'MAX':number(c.next_xp))+' XP<progress max="1" value="'+Number(c.progress||0)+'" aria-label="크루 경험치"></progress></div></header>';
+ const settings=canManageCrew(m)?`<button type="button" class="crew-settings-trigger" data-edit-crew="${esc(c.id)}" aria-label="크루 설정" aria-haspopup="dialog" title="크루 설정">${icon('settings',22)}</button>`:'';
+ const next=c.next_xp==null?'최고 레벨':'다음 레벨까지 '+number(Math.max(0,c.next_xp-c.xp))+' XP';
+ return `<header class="crew-detail-header crew-frame-${frame}">
+   <div class="crew-identity">${crewPicture(c,'crew-detail-picture')}<div class="crew-identity-copy"><h1 title="${esc(c.name)}">${crewNameHTML(c)}</h1><span>멤버 ${number(c.members)} / ${number(c.capacity)}명</span> ${levelTag}</div>${settings}</div>
+   <div class="crew-detail-xp"><div><span><strong>Lv.${number(c.level)}</strong> ${number(c.xp)} / ${c.next_xp==null?'MAX':number(c.next_xp)} XP</span><small>${next}</small></div><progress max="1" value="${Number(c.progress||0)}" aria-label="크루 경험치"></progress></div>
+ </header>`;
+}
+function crewMemberProfile(p){
+ const name=p.profile_name||p.name,role=crewRoleLabels[p.role==='operator'?'manager':p.role];
+ return `<a class="crew-member-profile" href="#producer/${esc(p.id)}" title="${esc(name)}">
+   <span class="crew-member-face player-avatar avatar-frame-host">${avatarImage(p,'producer',false)}${playerBadgeHTML(p)}</span>
+   <strong>${esc(name)}</strong>${p.role!=='member'&&role?`<small>${esc(role)}</small>`:''}
+ </a>`;
 }
 function crewMusicRows(tracks){return tracks.length?songTable(tracks):'<p class="social-empty">조건에 맞는 음악이 없어요. 검색어나 필터를 바꿔보세요.</p>';}
 function crewHomeLayout(d,intro){
