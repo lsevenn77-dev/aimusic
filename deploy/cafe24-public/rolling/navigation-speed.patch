@@ -1,0 +1,360 @@
+From cb41cca657bf43069886a6984f18de76b9c4d7c5 Mon Sep 17 00:00:00 2001
+From: JONG SEOK <lsevenn77@gmail.com>
+Date: Mon, 2 Nov 2026 20:36:13 +0900
+Subject: [PATCH] Update Site source
+
+---
+ dist/community-v3.js                    |  10 +--
+ dist/mypage.js                          |   7 +-
+ dist/notifications.js                   |  43 ++++++++--
+ dist/views.js                           |   2 +-
+ server/talking-directory.js             |   2 +-
+ server/voice-rooms.js                   |   1 +
+ tests/notification-restoration.test.mjs | 102 ++++++++++++++++++++++++
+ tests/route-ui-lifecycle.test.mjs       |  23 ++++++
+ tests/talking-directory.test.mjs        |  10 ++-
+ 9 files changed, 180 insertions(+), 20 deletions(-)
+ create mode 100644 tests/notification-restoration.test.mjs
+
+diff --git a/dist/community-v3.js b/dist/community-v3.js
+index adb2801..7ab49aa 100644
+--- a/dist/community-v3.js
++++ b/dist/community-v3.js
+@@ -19,7 +19,7 @@ function bindTalkingDirectory(root){
+  const viewer=me?.id||'';
+  const saved=talkingRoomReturn?.viewer===viewer&&talkingRoomReturn.until>Date.now()?talkingRoomReturn:null;
+  talkingRoomReturn=null;
+- let items=new Map(saved?.items),cursor=saved?.cursor||null,done=saved?.done||false,enabled=saved?true:null;
++ let items=new Map(saved?.items),cursor=saved?.cursor||null,done=saved?.done||false;
+  let controller=null,debounce,expiry,disposed=false;
+  let observer,watching=false;
+  function watchEnd(on){
+@@ -68,16 +68,12 @@ function bindTalkingDirectory(root){
+    if(controller===active&&!disposed)notice('토킹룸 목록을 불러오는 중이에요.');
+   },450);
+   try{
+-   if(enabled===null){
+-    const service=await voiceRequest('status',undefined,'GET',active.signal);
+-    if(active.signal.aborted)return;
+-    enabled=service.enabled;create.disabled=!enabled;
+-   }
+-   if(!enabled){done=true;notice('토킹룸 서비스 연결을 준비하고 있어요.');return;}
+    const params=new URLSearchParams({limit:'24'}),query=search.value.trim();
+    if(query)params.set('q',query);if(cursor)params.set('cursor',cursor);
+    const page=await voiceRequest('public-rooms?'+params,undefined,'GET',active.signal);
+    if(active.signal.aborted||disposed)return;
++   create.disabled=page.enabled===false;
++   if(page.enabled===false){done=true;notice('토킹룸 서비스 연결을 준비하고 있어요.');return;}
+    const added=[];
+    for(const room of page.rooms){
+     if(items.has(room.id))continue;
+diff --git a/dist/mypage.js b/dist/mypage.js
+index fa5e62b..f154e3f 100644
+--- a/dist/mypage.js
++++ b/dist/mypage.js
+@@ -253,14 +253,17 @@ async function mySelectTab(tab,updateURL=true,readApi=api){
+   content.removeAttribute('aria-busy');icons();paintInteractions();
+  }catch(e){if(myPageState===s&&s.request===request&&content.isConnected){content.removeAttribute('aria-busy');content.innerHTML=myEmpty(e.message);aside.innerHTML='';const retry=document.createElement('button');retry.className='small-button';retry.textContent='다시 시도';retry.onclick=()=>mySelectTab(tab,false);content.append(retry);}}
+ }
+-async function refreshMyPageRoute(raw,ticket,readApi=api){
++async function refreshMyPageRoute(raw,ticket,readApi=api,showCurrentTab){
+  const s=myPageState,main=$('#main');
+  if(!s?.own||s.account!==me?.id||!main?.querySelector('.mp-own')||!/^profile(?:\?|$)/.test(raw))return false;
+  const q=new URLSearchParams(raw.split('?')[1]||''),tab=['activity','library'].includes(q.get('view'))?q.get('view'):'works';
+  // Legacy works collections use their existing list view, not the dashboard fast path.
+  if(['covers','originals'].includes(q.get('section'))||['covers','originals'].includes(new URLSearchParams((main.dataset.route||'').split('?')[1]||'').get('section')))return false;
+  if(s.tab===tab)return false;
+- main.dataset.route=raw;await mySelectTab(tab,false,readApi);
++ main.dataset.route=raw;
++ const pending=mySelectTab(tab,false,readApi);
++ if(ticket===renderId)showCurrentTab?.();
++ await pending;
+  if(ticket===renderId&&myPendingTabFocus===tab)$('#mp-tab-'+tab)?.focus({preventScroll:true});myPendingTabFocus='';
+  return true;
+ }
+diff --git a/dist/notifications.js b/dist/notifications.js
+index 7bda01e..82cb817 100644
+--- a/dist/notifications.js
++++ b/dist/notifications.js
+@@ -26,19 +26,19 @@ async function notificationsView(base,raw,readApi=api){
+  if(q.has('request')){let r;try{r=await readApi('/api/notifications/crew-requests/'+encodeURIComponent(q.get('request')));}catch{return {html:heading('참여 요청 안내')+empty('요청을 열 수 없어요','크루 가입 상태 또는 작품의 공개 상태가 변경되었어요.','#notifications?filter=crew','알림함'),tracks:[]};}return {html:heading('작품 참여 요청')+`<section class="activity-page"><p>${esc(r.title)} 작품 참여 요청이 도착했어요.</p><a class="small-button" href="${esc(r.href)}">작품 확인</a><a class="small-button" href="#notifications?filter=crew">알림함</a></section>`,tracks:[]};}
+  const filter=['gifts','participation','comments','works','artists','crew'].includes(q.get('filter'))?q.get('filter'):'all',data=await readApi('/api/notifications?filter='+filter,'GET',undefined,{fresh:true});
+  const resume=activityResume?.account===me.id&&activityResume.filter===filter?activityResume:null;
+- if(resume){while(data.next&&data.items.length<resume.count){const page=await readApi('/api/notifications?filter='+filter+'&before='+encodeURIComponent(data.next),'GET',undefined,{fresh:true});data.items.push(...page.items);data.next=page.next;}}
+  activityResume=null;
+- return {activity:{...data,filter,account:me.id,restoreScroll:resume?.scroll},tracks:[],html:`<section class="activity-page"><h1 class="activity-title">알림</h1><div class="activity-toolbar"><nav class="tabs" aria-label="알림 종류">${[['all','전체'],['comments','댓글·응원'],['works','작품·참여'],['artists','아티스트'],['crew','크루'],['gifts','선물']].map(([key,name])=>`<a href="#notifications?filter=${key}" class="tab ${filter===key?'active':''}" ${filter===key?'aria-current="page"':''}>${name}</a>`).join('')}</nav></div>${activitySettingsHTML()}<div id="activity-list">${data.items.length?activityGroupsHTML(data.items):`<div class="activity-empty">${icon('bell')}<h2>아직 도착한 알림이 없어요</h2><p>누군가 내 곡에 참여하거나 선물을 보내면<br>이곳에서 확인할 수 있어요.</p></div>`}</div><button class="small-button activity-more" data-activity-more ${data.next?'':'hidden'}>이전 알림 더 보기</button><p class="activity-error" role="status"></p><button type="button" class="activity-top" aria-label="알림 맨 위로" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 10 6-6 6 6M12 4v16"/></svg></button></section>`};
++ return {activity:{...data,filter,account:me.id,restoreCount:resume?.count,restoreScroll:resume?.scroll},tracks:[],html:`<section class="activity-page"><h1 class="activity-title">알림</h1><div class="activity-toolbar"><nav class="tabs" aria-label="알림 종류">${[['all','전체'],['comments','댓글·응원'],['works','작품·참여'],['artists','아티스트'],['crew','크루'],['gifts','선물']].map(([key,name])=>`<a href="#notifications?filter=${key}" class="tab ${filter===key?'active':''}" ${filter===key?'aria-current="page"':''}>${name}</a>`).join('')}</nav></div>${activitySettingsHTML()}<div id="activity-list">${data.items.length?activityGroupsHTML(data.items):`<div class="activity-empty">${icon('bell')}<h2>아직 도착한 알림이 없어요</h2><p>누군가 내 곡에 참여하거나 선물을 보내면<br>이곳에서 확인할 수 있어요.</p></div>`}</div><button class="small-button activity-more" data-activity-more ${data.next?'':'hidden'}>이전 알림 더 보기</button><p class="activity-error" role="status"></p><button type="button" class="activity-top" aria-label="알림 맨 위로" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 10 6-6 6 6M12 4v16"/></svg></button></section>`};
+ }
+ function bindNotifications(view){
+  const state=view?.activity,root=$('.activity-page');if(!state||!root||me?.id!==state.account)return;
+- void bindActivitySettings(root,state.account);paintActivityBadge(state.unread);const active=()=>me?.id===state.account&&root.isConnected;
++ let disposed=false;
++ void bindActivitySettings(root,state.account);paintActivityBadge(state.unread);const active=()=>!disposed&&me?.id===state.account&&root.isConnected;
+  const mark=async ids=>{if(!ids.length)return;const result=await api('/api/notifications/read','POST',{ids});if(me?.id!==state.account)return;++activityReadRevision;activityAccount=state.account;activityCount=result.unread;paintActivityBadge(result.unread);if(!active())return;for(const n of state.items)if(ids.includes(n.id))n.read_at=Date.now()/1000;root.querySelectorAll('[data-activity-id]').forEach(row=>{if(ids.includes(row.dataset.activityId)){row.classList.remove('is-unread');row.querySelector('.activity-dot')?.remove();row.querySelector('[data-activity-read]')?.remove();}});};
+- let loading=false,refreshing=false;const emptyHTML=root.querySelector('#activity-list')?.innerHTML||'';
++ let loading=false,refreshing=false,restoring=false;const emptyHTML=root.querySelector('#activity-list')?.innerHTML||'';
+  const draw=()=>{root.querySelector('#activity-list').innerHTML=state.items.length?activityGroupsHTML(state.items):emptyHTML;root.querySelector('[data-activity-more]').hidden=!state.next;};
+  root.onclick=async e=>{
+   const b=e.target.closest('[data-activity-open],[data-activity-more],[data-activity-request]');if(!b||b.disabled||!active())return;e.preventDefault();
+-  if(loading)return;loading=true;b.setAttribute('aria-busy','true');
++  if(loading||restoring)return;loading=true;b.setAttribute('aria-busy','true');
+   try{
+    if(b.hasAttribute('data-activity-request')){await activityRequestComposer(state.account);}else if(b.hasAttribute('data-activity-more')){
+     if(!state.next)return;
+@@ -53,7 +53,7 @@ function bindNotifications(view){
+   }catch(err){if(active())root.querySelector('.activity-error').textContent=err.message;}finally{loading=false;b.removeAttribute('aria-busy');}
+  };
+  const refresh=async()=>{
+-  if(!active()||document.hidden||loading||refreshing)return;refreshing=true;
++  if(!active()||document.hidden||loading||refreshing||restoring)return;refreshing=true;
+   const revision=activityReadRevision;
+   try{const data=await api('/api/notifications?filter='+state.filter,'GET',undefined,{fresh:true});
+    if(!active()||loading||revision!==activityReadRevision)return;
+@@ -67,8 +67,35 @@ function bindNotifications(view){
+  const timer=setInterval(refresh,30000),visible=()=>{if(!document.hidden)void refresh();};
+  window.addEventListener('focus',refresh);document.addEventListener('visibilitychange',visible);
+  const cleanupLayout=bindActivityLayout(root,active);
+- if(state.restoreScroll&&typeof requestAnimationFrame==='function')requestAnimationFrame(()=>requestAnimationFrame(()=>{if(active())window.scrollTo({top:state.restoreScroll,behavior:'instant'});}));
+- if(typeof registerRouteCleanup==='function')registerRouteCleanup(()=>{if(me?.id===state.account&&!/^#notifications(?:\?filter=|$)/.test(location.hash))activityResume={account:state.account,filter:state.filter,count:state.items.length,scroll:window.scrollY};clearInterval(timer);window.removeEventListener('focus',refresh);document.removeEventListener('visibilitychange',visible);cleanupLayout();});
++ let cancelRestore=()=>{};
++ if(state.restoreCount&&typeof requestAnimationFrame==='function'){
++  const controller=new AbortController(),more=root.querySelector('[data-activity-more]');
++  const events=['wheel','touchstart','pointerdown','keydown','input'];
++  restoring=true;more.disabled=true;
++  cancelRestore=()=>{
++   controller.abort();restoring=false;more.disabled=false;
++   events.forEach(event=>window.removeEventListener(event,cancelRestore,true));
++  };
++  events.forEach(event=>window.addEventListener(event,cancelRestore,{capture:true,passive:true}));
++  // Show the fresh first page before restoring older, cursor-dependent pages.
++  requestAnimationFrame(async()=>{
++   const visited=new Set();
++   try{
++    while(active()&&!controller.signal.aborted&&state.next&&state.items.length<state.restoreCount){
++     const cursor=state.next;
++     if(visited.has(cursor))return;
++     visited.add(cursor);
++     const page=await api('/api/notifications?filter='+state.filter+'&before='+encodeURIComponent(cursor),'GET',undefined,{fresh:true,signal:controller.signal});
++     if(!active()||controller.signal.aborted)return;
++     const known=new Set(state.items.map(n=>n.id));
++     state.items.push(...page.items.filter(n=>!known.has(n.id)));state.next=page.next;draw();
++    }
++    if(active()&&!controller.signal.aborted&&state.restoreScroll)window.scrollTo({top:state.restoreScroll,behavior:'instant'});
++   }catch(error){if(active()&&!controller.signal.aborted)root.querySelector('.activity-error').textContent=error.message;}
++   finally{cancelRestore();}
++  });
++ }
++ if(typeof registerRouteCleanup==='function')registerRouteCleanup(()=>{if(me?.id===state.account&&!/^#notifications(?:\?filter=|$)/.test(location.hash))activityResume={account:state.account,filter:state.filter,count:state.items.length,scroll:window.scrollY};disposed=true;cancelRestore();clearInterval(timer);window.removeEventListener('focus',refresh);document.removeEventListener('visibilitychange',visible);cleanupLayout();});
+ }
+ function bindActivityLayout(root,active){
+  const top=root.querySelector('.activity-top'),tabs=root.querySelector('.tabs');
+diff --git a/dist/views.js b/dist/views.js
+index d3aeef0..7d0293c 100644
+--- a/dist/views.js
++++ b/dist/views.js
+@@ -122,7 +122,7 @@ async function renderRoute(showCachedRoute){
+  if(base!=='home'){
+   if(typeof refreshMusicLibraryRoute==='function'&&await refreshMusicLibraryRoute(raw,ticket,false,readApi))return;
+   if(ticket!==renderId)return;
+-  if(typeof refreshMyPageRoute==='function'&&await refreshMyPageRoute(raw,ticket,readApi))return;
++  if(typeof refreshMyPageRoute==='function'&&await refreshMyPageRoute(raw,ticket,readApi,showCachedRoute))return;
+   if(ticket!==renderId)return;
+  }
+  if(typeof refreshInventoryRoute==='function'&&refreshInventoryRoute(raw))return;
+diff --git a/server/talking-directory.js b/server/talking-directory.js
+index 6b6d781..8641389 100644
+--- a/server/talking-directory.js
++++ b/server/talking-directory.js
+@@ -26,7 +26,7 @@ export async function talkingRoomPage(env,user,params,readDirectory){
+    AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=? AND b.blocked_id=p.user_id) OR (b.blocked_id=? AND b.user_id=p.user_id))`,user.id,JSON.stringify(memberIds),user.id,user.id):[]
+  ]);
+  const followed=new Map(profiles.map(({user_id,...profile})=>[user_id,profile]));
+- return json({rooms:visible.map(({member_ids,host_id,...room})=>{
++ return json({enabled:true,rooms:visible.map(({member_ids,host_id,...room})=>{
+   const people=member_ids.map(id=>followed.get(id)).filter(Boolean);
+   return {...room,host_name:names.get(host_id)||'',theme:themes.get(room.id),followed_profiles:people.slice(0,3),followed_count:people.length};
+  }),next_cursor:next,crews:[]});
+diff --git a/server/voice-rooms.js b/server/voice-rooms.js
+index e05dc14..be1db97 100644
+--- a/server/voice-rooms.js
++++ b/server/voice-rooms.js
+@@ -26,6 +26,7 @@ export async function voiceRoomsRoute(req,env,path,user,ctx) {
+  if(!path.startsWith('/api/voice/'))return null;
+  if(path==='/api/voice/status'&&req.method==='GET')return json({enabled:voiceConfigured(env),max_members:30,mic_seats:8});
+  if(path==='/api/voice/public-rooms'&&req.method==='GET'&&new URL(req.url).searchParams.has('limit')){
++  if(!voiceConfigured(env))return json({enabled:false,rooms:[],next_cursor:null,crews:[]});
+   const read=(action,input)=>voiceCall(env,{id:'public-directory'},'directory',action,input).then(result);
+   return talkingRoomPage(env,user,new URL(req.url).searchParams,read);
+  }
+diff --git a/tests/notification-restoration.test.mjs b/tests/notification-restoration.test.mjs
+new file mode 100644
+index 0000000..a0bcfa8
+--- /dev/null
++++ b/tests/notification-restoration.test.mjs
+@@ -0,0 +1,102 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import vm from 'node:vm';
++import {readFileSync} from 'node:fs';
++
++const source=readFileSync(new URL('../dist/notifications.js',import.meta.url),'utf8');
++const tick=()=>new Promise(resolve=>setImmediate(resolve));
++function deferred(){let resolve;const promise=new Promise(done=>{resolve=done;});return {promise,resolve};}
++function items(start,count){return Array.from({length:count},(_,index)=>({id:String(start+index),created:100-start-index,read_at:0}));}
++function client(api){
++ const listeners=new Map(),frames=[],cleanups=[],scrolls=[],list={innerHTML:'first page'},more={disabled:false,hidden:false},error={};
++ const root={isConnected:true,querySelectorAll:()=>[],querySelector(selector){
++  if(selector==='#activity-list')return list;
++  if(selector==='[data-activity-more]')return more;
++  if(selector==='.activity-error')return error;
++  return null;
++ }};
++ const add=(event,fn)=>{const callbacks=listeners.get(event)||new Set();callbacks.add(fn);listeners.set(event,callbacks);};
++ const remove=(event,fn)=>listeners.get(event)?.delete(fn);
++ const context=vm.createContext({
++  me:{id:'owner'},api,AbortController,URLSearchParams,
++  document:{hidden:false,querySelectorAll:()=>[],addEventListener:add,removeEventListener:remove},
++  window:{scrollY:0,addEventListener:add,removeEventListener:remove,scrollTo(value){scrolls.push(value);}},
++  location:{hash:'#notifications'},setInterval(){return 1;},clearInterval(){},
++  requestAnimationFrame(fn){frames.push(fn);},registerRouteCleanup(fn){cleanups.push(fn);},
++  $:()=>root,icon:()=>'',esc:String,number:String,heading:()=>'',empty:()=>''
++ });
++ vm.runInContext(source,context);
++ vm.runInContext("activityGroupsHTML=items=>items.map(item=>item.id).join(',');",context);
++ return {context,root,list,more,error,frames,cleanups,scrolls,
++  run:code=>vm.runInContext(code,context),
++  fire(event){for(const fn of [...(listeners.get(event)||[])])fn();},
++  bind(state){context.view={activity:{account:'owner',filter:'all',unread:0,items:items(0,20),next:'older',...state}};vm.runInContext('bindNotifications(view)',context);return context.view.activity;}
++ };
++}
++
++test('returning to a deep notification list renders the fresh first page without waiting for older pages',async()=>{
++ const calls=[],older=deferred(),c=client(async(path,method,body,options)=>{
++  calls.push({path,options});return path.includes('before=')?older.promise:{items:items(0,20),next:'older',unread:1};
++ });
++ c.run("activityResume={account:'owner',filter:'all',count:60,scroll:1200};");
++ const view=await c.run("notificationsView('notifications','notifications')");
++ assert.equal(calls.length,1);assert.equal(view.activity.items.length,20);
++ assert.equal(view.activity.restoreCount,60);assert.equal(view.activity.restoreScroll,1200);
++ assert.equal(calls[0].options.fresh,true);assert.equal(c.run('activityResume'),null);
++});
++
++test('older notification pages restore after paint, deduplicate, and pause polling and load-more',async()=>{
++ const older=deferred(),calls=[],c=client(async(path,method,body,options)=>{
++  calls.push({path,method,options});return older.promise;
++ });
++ const state=c.bind({restoreCount:40,restoreScroll:1200});
++ assert.equal(calls.length,0);assert.equal(c.more.disabled,true);assert.equal(c.list.innerHTML,'first page');
++ const restoring=c.frames.shift()();await tick();assert.equal(calls.length,1);
++ c.fire('focus');c.fire('visibilitychange');
++ await c.root.onclick({target:{closest:()=>({disabled:true})},preventDefault(){}});
++ assert.equal(calls.filter(call=>call.path.startsWith('/api/notifications?')).length,1,'restoration must not race a fresh first page or manual pagination');
++ assert.equal(calls[0].options.fresh,true);assert.equal(calls[0].options.signal.aborted,false);
++ older.resolve({items:[...items(19,21)],next:null});await restoring;
++ assert.equal(state.items.length,40);assert.equal(new Set(state.items.map(item=>item.id)).size,40);
++ assert.equal(c.scrolls.length,1);assert.equal(c.scrolls[0].top,1200);assert.equal(c.more.disabled,false);
++ assert.equal(calls[0].options.signal.aborted,true);
++});
++
++test('user interaction abandons pending scroll restoration and permits manual pagination',async()=>{
++ const older=deferred(),calls=[],c=client(async(path,method,body,options)=>{calls.push({path,options});return older.promise;});
++ const state=c.bind({restoreCount:40,restoreScroll:1200});const restoring=c.frames.shift()();await tick();
++ c.fire('wheel');assert.equal(calls[0].options.signal.aborted,true);assert.equal(c.more.disabled,false);
++ older.resolve({items:items(20,20),next:null});await restoring;
++ assert.equal(state.items.length,20);assert.equal(c.scrolls.length,0);
++});
++
++test('route cleanup and account changes discard delayed older pages and never restore scroll',async()=>{
++ for(const reason of ['route','account']){
++  const older=deferred(),c=client(async()=>older.promise),state=c.bind({restoreCount:40,restoreScroll:1200});
++  const restoring=c.frames.shift()();await tick();
++  if(reason==='route'){c.context.location.hash='#profile';c.cleanups.forEach(fn=>fn());}
++  else c.context.me={id:'different'};
++  older.resolve({items:items(20,20),next:null});await restoring;
++  assert.equal(state.items.length,20);assert.equal(c.scrolls.length,0);assert.equal(c.more.disabled,false);
++ }
++});
++
++test('failed restoration keeps the first page usable and repeated cursors cannot loop',async()=>{
++ const c=client(async()=>{throw Error('offline');}),state=c.bind({restoreCount:40,restoreScroll:1200});
++ await c.frames.shift()();assert.equal(state.items.length,20);assert.equal(c.more.disabled,false);assert.equal(c.error.textContent,'offline');assert.equal(c.scrolls.length,0);
++ let calls=0;const repeated=client(async()=>{calls++;return {items:items(20,5),next:'older'};});
++ repeated.bind({restoreCount:60,restoreScroll:1200});await repeated.frames.shift()();
++ assert.equal(calls,1);assert.equal(repeated.more.disabled,false);assert.equal(repeated.scrolls.length,0);
++});
++
++test('restoration stops cyclic cursors when duplicate pages do not increase the restored count',async()=>{
++ const cursors=[],c=client(async path=>{
++  const cursor=new URL(path,'https://local.test').searchParams.get('before');
++  cursors.push(cursor);
++  assert.ok(cursors.length<=2,'cyclic cursors must not keep requesting pages');
++  return {items:items(0,20),next:cursor==='older'?'oldest':'older'};
++ });
++ const state=c.bind({restoreCount:60,restoreScroll:1200});await c.frames.shift()();
++ assert.deepEqual(cursors,['older','oldest']);assert.equal(state.items.length,20);
++ assert.equal(c.more.disabled,false);assert.equal(c.scrolls.length,0);
++});
+diff --git a/tests/route-ui-lifecycle.test.mjs b/tests/route-ui-lifecycle.test.mjs
+index 3579fb2..12c18d9 100644
+--- a/tests/route-ui-lifecycle.test.mjs
++++ b/tests/route-ui-lifecycle.test.mjs
+@@ -34,6 +34,29 @@ test('profile activity replaces outgoing tab data with a local loading state',as
+  read.resolve({});await opening;assert.match(content.innerHTML,/NEW ACTIVITY/);
+ });
+ 
++test('profile tab shows the account-validated header and local loader before its fresh data returns',async()=>{
++ const read=deferred(),content={innerHTML:'OLD WORKS',isConnected:true,setAttribute(){},removeAttribute(){}},aside={innerHTML:'OLD ASIDE'};
++ const main={dataset:{route:'profile'},querySelector:()=>true};
++ const nodes={'#main':main,'#mp-content':content,'#mp-aside-content':aside,'.mp-segment':{dataset:{},querySelectorAll:()=>[]}};
++ const c=vm.createContext({api:async()=>({}),renderId:1,URLSearchParams,me:{id:'owner'},window:{addEventListener(){}},document:{addEventListener(){}},$:selector=>nodes[selector],icons(){},paintInteractions(){},syncSongCoverPlayback(){}});
++ vm.runInContext(source('mypage.js'),c);
++ c.myActivityData=()=>read.promise;c.myActivityHTML=()=>'<p>NEW ACTIVITY</p>';c.myActivityAside=()=>'<p>NEW ASIDE</p>';
++ vm.runInContext("myPageState={own:true,account:'owner',tab:'works',d:{}}",c);
++ let visible=0;
++ const opening=c.refreshMyPageRoute('profile?view=activity',1,undefined,()=>{
++  visible++;
++  assert.equal(main.dataset.route,'profile?view=activity');
++  assert.match(content.innerHTML,/불러오는/);
++  assert.doesNotMatch(content.innerHTML,/OLD WORKS/);
++ });
++ assert.equal(visible,1);
++ read.resolve({});await opening;
++ assert.match(content.innerHTML,/NEW ACTIVITY/);
++ c.me={id:'other'};
++ assert.equal(await c.refreshMyPageRoute('profile',1,undefined,()=>visible++),false);
++ assert.equal(visible,1,'another account cannot reveal the old header');
++});
++
+ function skin(){
+  let observer,scans=0,styles=0;
+  const item={matches:()=>false,classList:{contains:()=>false,add(){}},scrollWidth:100,clientWidth:100};
+diff --git a/tests/talking-directory.test.mjs b/tests/talking-directory.test.mjs
+index 2e770ef..4dfe5c3 100644
+--- a/tests/talking-directory.test.mjs
++++ b/tests/talking-directory.test.mjs
+@@ -2,8 +2,16 @@ import test from 'node:test';
+ import assert from 'node:assert/strict';
+ import {liveFixture} from './live-karaoke-fixture.mjs';
+ import {hash} from '../server/auth.js';
++import {fixture} from './fixture.mjs';
+ 
+ const path='/api/voice/public-rooms?limit=24';
++
++test('one directory request also reports unavailable voice service without contacting it',async t=>{
++ const f=await fixture(t);
++ const result=await f.call(path,'GET',undefined,null);
++ assert.equal(result.status,200);
++ assert.deepEqual(result.body,{enabled:false,rooms:[],next_cursor:null,crews:[]});
++});
+ test('talking directory returns only followed current members, public rooms and verified cover artwork',async t=>{
+  const f=await liveFixture(t);
+  f.sql.exec("INSERT INTO player_inventory(id,user_id,item_key,source,source_ref,granted_at,expires_at) VALUES('theme','owner','theme_aurora_night','decoration','directory-test',0,unixepoch()+600)");
+@@ -19,7 +27,7 @@ test('talking directory returns only followed current members, public rooms and
+  }
+  await f.join(r,'other'); // A present non-followed listener also stays out of the badges.
+  const read=async(user='owner')=>(await f.call(path,'GET',undefined,user)).body;
+- const result=await read();assert.equal(result.next_cursor,null);assert.equal(result.rooms.length,1);
++ const result=await read();assert.equal(result.enabled,true);assert.equal(result.next_cursor,null);assert.equal(result.rooms.length,1);
+  const card=result.rooms[0];assert.equal(card.member_count,7);assert.equal(card.max_members,12);
+  assert.equal(card.followed_count,5);assert.equal(card.followed_profiles.length,3);
+  assert.deepEqual(card.followed_profiles.map(p=>p.profile_id),['profile-0','profile-1','profile-2']);
