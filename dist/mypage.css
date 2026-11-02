@@ -190,8 +190,52 @@ main .social-profile-identity h2>.mp-public-id{display:block;font-size:13px;font
  white-space:nowrap;
 }
 .mp-member-page .mp-moment-placeholder{display:none}
+.mp-member-page .mp-byline{display:contents}
+.mp-member-page .work-private-mark{display:inline-grid;place-items:center;color:var(--ds-text);pointer-events:none}
+.mp-member-page .work-private-mark svg{width:20px;height:20px}
+.mp-member-page :is(.work-card-art,.work-art) .work-private-mark{
+ position:absolute;inset:0;border-radius:10px;background:color-mix(in srgb,var(--ds-bg) 68%,transparent)
+}
+.mp-member-page .work-child .work-private-mark{vertical-align:middle;margin-inline-end:5px}
+.mp-member-page .work-child .work-private-mark svg{width:15px;height:15px}
 @media(max-width:800px){
  .mp-member-page .mp-moments:not(:has(button)){display:none}
+ #main .mp-member-page .mp-profile-area .mp-profile{
+  --mp-photo-size:clamp(64px,21vw,96px);--ui-type-scale:1;
+  gap:10px 12px
+ }
+ #main .mp-member-page .mp-profile .mp-identity{display:contents}
+ .mp-member-page .mp-identity::before{content:none}
+ .mp-member-page .mp-profile:has(.mp-header-actions) .mp-header-background{grid-area:auto}
+ .mp-member-page .mp-avatar-space,.mp-member-page .mp-byline{grid-row:1}
+ .mp-member-page .mp-byline{
+  grid-column:2;display:grid;grid-template-columns:minmax(0,1fr) auto;
+  align-items:center;align-content:start;min-width:0
+ }
+ .mp-member-page .mp-byline>*{grid-column:1/-1}
+ #main .mp-member-page .mp-byline h2{grid-area:1/1;font-size:22px;line-height:1.25}
+ .mp-member-page .mp-byline .mp-header-tools{
+  position:relative;inset:auto;grid-area:1/2;align-self:start;
+  display:flex;justify-content:flex-end;gap:0
+ }
+ #main .mp-member-page .mp-public-id{flex-wrap:nowrap;gap:0;font-size:13px;line-height:1.4}
+ #main .mp-member-page .mp-crew-line{font-size:13px;line-height:1.45}
+ #main .mp-member-page .mp-profile :is(.mp-profile-bio,.mp-stats){grid-column:1/-1;margin:0}
+ #main .mp-member-page .mp-profile .mp-profile-bio{font-size:14px;line-height:1.5}
+ #main .mp-member-page .mp-profile .mp-stats{gap:4px 14px;font-size:13px;line-height:1.5}
+ #main .mp-member-page .mp-profile .mp-stats b{font-size:inherit}
+ #main .mp-member-page .mp-owner-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+ #main .mp-member-page .mp-owner-actions>a{width:100%;min-width:0}
+ #main .mp-member-page :is(.mp-section-head,.work-browser,.mp-segment){--ui-type-scale:1}
+ #main .mp-member-page :is(.mp-section-head h2,.work-browser>h2){font-size:18px;line-height:1.4}
+ #main .mp-member-page :is(.mp-section-head h2>span,.work-browser [data-work-count],.mp-section-head .mp-all,.work-legend){font-size:13px}
+ #main .mp-member-page .work-legend{flex-wrap:wrap;gap:4px 10px;overflow:visible}
+ #main .mp-member-page .work-title strong{font-size:14px;font-weight:600;line-height:1.45}
+ #main .mp-member-page .work-grid small{font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+}
+@media(max-width:480px){
+ #main .mp-member-page .work-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 10px}
+ #main .mp-member-page .work-card .work-title strong{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;white-space:normal;overflow-wrap:anywhere}
 }
 
 @media(min-width:801px){
@@ -209,7 +253,7 @@ main .social-profile-identity h2>.mp-public-id{display:block;font-size:13px;font
   font-size:13px;line-height:1.45
  }
  #main .mp-member-page :is(.mp-segment button,.ml-tabs button,.ml-toolbar input,.ml-toolbar select,
-   .ml-playlist-actions>a,.ml-playlist-actions>button,.work-extra select,.work-manage,.dc-mine-tabs a,
+   .ml-playlist-actions>a,.ml-playlist-actions>button,.work-manage,.dc-mine-tabs a,
    .mp-account-links>a,.mp-muted,.ml-unavailable p,.mp-account-footer button){
   font-size:14px;line-height:1.45
  }

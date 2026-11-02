@@ -32,7 +32,8 @@ function workBrowserHTML(title,tracks=[],dubs=[],own=false){
  }
  const groupHTML=g=>{
   const t=g.items.find(v=>v.id===g.root)||g.items[0],children=g.items.filter(v=>v!==t),kind=g.kind;
-  const isDub=kind==='dubbing',recruit=g.items.some(v=>v.recruiting),isPrivate=isDub?t.visibility!=='public':t.status&&t.status!=='published';
+  const isDub=kind==='dubbing',recruit=g.items.some(v=>v.recruiting);
+  const privateMark=v=>own&&(isDub?v.visibility==='private':v.status==='hidden')?'<span class="work-private-mark" role="img" aria-label="비공개" title="비공개">'+icon('lock')+'</span>':'';
   const href=(v)=>isDub?'#dubbing/'+esc(v.id):v.status&&v.status!=='published'?'#manage/'+esc(v.id):'#song/'+esc(v.id);
   const art=v=>isDub?'<img class="work-cover" src="'+esc(AifectDubbing.dubbingGenreArtwork(v.genres||[]))+'" alt="">':cover(v,'work-cover');
   const play=v=>v.status&&v.status!=='published'||isDub&&(v.state!=='complete'||v.audio_ready===0)?'':'<button type="button" class="list-action work-play" '+(isDub?'data-mp-dubbing-play':'data-play')+'="'+esc(v.id)+'" aria-label="'+esc(v.title)+' 재생">'+icon('ui-play-action')+'</button>';
@@ -43,21 +44,19 @@ function workBrowserHTML(title,tracks=[],dubs=[],own=false){
   const meta='<small>'+esc(t.producer||t.owner_name||'')+'</small>';
   const manage=own&&me?.id===(t.user_id||t.owner_id)?'<a class="text-link work-manage" href="'+(isDub?href(t):'#manage/'+esc(t.id))+'">관리</a>':'';
   const wide=kind==='duet'||isDub;
-  const group=wide?'<div class="work-parent"><a class="work-art" href="'+href(t)+'">'+art(t)+badge+'</a><div class="work-copy">'+lead+meta+'</div>'+join+play(t)+'</div>'+((kind==='duet'||children.length)?'<details><summary>참여 버전 '+children.length+'개</summary>'+children.map(v=>'<div class="work-child"><a href="'+href(v)+'">'+esc(v.producer||v.owner_name||v.title)+'</a>'+(own&&me?.id===(v.user_id||v.owner_id)&&!isDub?'<a class="text-link" href="#manage/'+esc(v.id)+'">관리</a>':'')+play(v)+'</div>').join('')+'</details>':'')+manage:'<div class="work-card-art"><a href="'+href(t)+'">'+art(t)+badge+'</a>'+play(t)+'</div>'+lead+meta+manage;
-  return '<article class="'+(wide?'work-wide':'work-card')+'" data-kind="'+kind+'" data-private="'+Boolean(isPrivate)+'" data-recruit="'+!!recruit+'" data-date="'+Math.max(...g.items.map(v=>Number(v.created||0)))+'" data-plays="'+Number(t.plays||0)+'">'+group+'</article>';
+  const group=wide?'<div class="work-parent"><a class="work-art" href="'+href(t)+'">'+art(t)+privateMark(t)+badge+'</a><div class="work-copy">'+lead+meta+'</div>'+join+play(t)+'</div>'+((kind==='duet'||children.length)?'<details><summary>참여 버전 '+children.length+'개</summary>'+children.map(v=>'<div class="work-child"><a href="'+href(v)+'">'+privateMark(v)+esc(v.producer||v.owner_name||v.title)+'</a>'+(own&&me?.id===(v.user_id||v.owner_id)&&!isDub?'<a class="text-link" href="#manage/'+esc(v.id)+'">관리</a>':'')+play(v)+'</div>').join('')+'</details>':'')+manage:'<div class="work-card-art"><a href="'+href(t)+'">'+art(t)+privateMark(t)+badge+'</a>'+play(t)+'</div>'+lead+meta+manage;
+  return '<article class="'+(wide?'work-wide':'work-card')+'" data-kind="'+kind+'" data-recruit="'+!!recruit+'">'+group+'</article>';
  };
  const cards=[...groups.values()].sort((a,b)=>Math.max(...b.items.map(t=>t.created||0))-Math.max(...a.items.map(t=>t.created||0))).map(groupHTML).join('');
- return '<section class="work-browser"><h2>'+esc(title)+' <small data-work-count>'+groups.size+'개</small></h2><div class="work-toolbar"><div class="work-legend">'+workTypes.map(([k,n])=>'<span class="work-key-'+k+'">'+workIcon(k)+n+'</span>').join('')+'</div><select aria-label="작품 필터" data-work-filter>'+[['all','전체'],['recruit','모집중'],...workTypes].map(([k,n])=>'<option value="'+k+'">'+n+'</option>').join('')+'</select></div>'+(own?'<div class="work-extra"><select data-work-order aria-label="작품 정렬"><option value="date">최신순</option><option value="plays">재생순</option></select><select data-work-visibility aria-label="공개 범위"><option value="all">모든 공개 범위</option><option value="public">공개</option><option value="private">비공개</option></select></div>':'')+'<div class="work-grid">'+cards+'</div><p class="mp-empty" data-work-empty '+(cards?'hidden':'')+'>조건에 맞는 작품이 없어요.</p></section>';
+ return '<section class="work-browser"><h2>'+esc(title)+' <small data-work-count>'+groups.size+'개</small></h2><div class="work-toolbar"><div class="work-legend">'+workTypes.map(([k,n])=>'<span class="work-key-'+k+'">'+workIcon(k)+n+'</span>').join('')+'</div><select aria-label="작품 필터" data-work-filter>'+[['all','전체'],['recruit','모집중'],...workTypes].map(([k,n])=>'<option value="'+k+'">'+n+'</option>').join('')+'</select></div><div class="work-grid">'+cards+'</div><p class="mp-empty" data-work-empty '+(cards?'hidden':'')+'>조건에 맞는 작품이 없어요.</p></section>';
 }
 document.addEventListener('change',e=>{
+ if(!e.target.matches('[data-work-filter]'))return;
  const root=e.target.closest('.work-browser');if(!root)return;
- const filter=root.querySelector('[data-work-filter]').value,visibility=root.querySelector('[data-work-visibility]')?.value||'all';
- const grid=root.querySelector('.work-grid'),items=[...grid.children];let n=0;
- for(const el of items){
-  el.hidden=!(filter==='all'||filter===el.dataset.kind||filter==='recruit'&&el.dataset.recruit==='true')||visibility!=='all'&&(visibility==='private')!==(el.dataset.private==='true');
+ const filter=e.target.value;let n=0;
+ for(const el of root.querySelector('.work-grid').children){
+  el.hidden=!(filter==='all'||filter===el.dataset.kind||filter==='recruit'&&el.dataset.recruit==='true');
   if(!el.hidden)n++;
  }
- const order=root.querySelector('[data-work-order]')?.value||'date';
- for(const el of items.sort((a,b)=>Number(b.dataset[order])-Number(a.dataset[order])||Number(b.dataset.date)-Number(a.dataset.date)))grid.append(el);
  root.querySelector('[data-work-count]').textContent=n+'개';root.querySelector('[data-work-empty]').hidden=n>0;
 });

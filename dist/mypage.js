@@ -41,7 +41,7 @@ function myProfileHeader(d){
   ${own?`<details class="mp-settings"><summary class="fan-icon" aria-label="프로필 설정" title="프로필 설정">${icon('settings',20)}</summary>
    <nav class="fan-settings-menu" aria-label="프로필 관리"><a href="#profile/edit">프로필 수정</a><a href="#studio">스튜디오</a></nav></details>`:''}
  </div>`;
- const actions=own?`<div class="mp-header-actions">
+ const actions=own?`<div class="mp-header-actions mp-owner-actions">
   <a class="primary-button" href="#profile/edit">프로필 수정</a><a class="small-button" href="#studio">스튜디오</a>
  </div>`:d.followers!=null&&p.id?`<div class="mp-header-actions mp-social-actions">
   <button class="primary-button" data-follow="producer/${esc(p.id)}" aria-pressed="${followed('producer',p.id)}">${followed('producer',p.id)?'팔로잉':'팔로우'}</button>
@@ -49,11 +49,11 @@ function myProfileHeader(d){
  </div>`:'';
  return `<div class="mp-profile-area"><header class="mp-profile">${background}
   <div class="mp-avatar-space"><div class="mp-avatar${playerAvatarClass(frame)}">${avatarImage(p)}${playerBadgeHTML(frame)}</div></div>
-  <div class="mp-identity">${tools}<h2>${esc(p.name)}${p.account_type==='ai_bot'?'<span class="ai-account-badge" title="공식 AI 응원 계정">AI</span>':''}</h2>
+  <div class="mp-identity"><div class="mp-byline">${tools}<h2>${esc(p.name)}${p.account_type==='ai_bot'?'<span class="ai-account-badge" title="공식 AI 응원 계정">AI</span>':''}</h2>
    ${p.account_type==='ai_bot'?'<p class="field-help">공식 AI 응원 계정</p>':''}
    ${p.public_id?`<p class="mp-public-id">ID · ${esc(p.public_id)} <button type="button" class="text-link" data-copy-public-id="${esc(p.public_id)}" aria-label="고유 ID 복사"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg></button></p>`:''}
    ${c?`<div class="mp-crew-line"><a href="#crew/${esc(c.id)}">${c.image_version?`<img src="/media/crew/${esc(c.id)}?v=${esc(c.image_version)}" alt="">`:icon('users')}${esc(c.name)}</a></div>`:''}
-   ${bio&&bio!=='-'?`<p class="mp-profile-bio">${esc(bio)}</p>`:''}${myProfileStats(d,own)}
+   </div>${bio&&bio!=='-'?`<p class="mp-profile-bio">${esc(bio)}</p>`:''}${myProfileStats(d,own)}
   </div>${actions}</header></div>`;
 }
 
