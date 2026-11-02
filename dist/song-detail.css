@@ -29,6 +29,10 @@
  box-shadow:none;text-decoration:none;flex:0 0 auto;
 }
 #main .song-detail-refined .song-actions>:is(button,a):not(:disabled):hover{color:var(--ds-text);border-color:var(--ds-muted)!important;box-shadow:none}
+#main .song-detail-refined .song-actions>.primary-button{
+ background:var(--ds-gradient)!important;color:var(--ds-ink);border-color:transparent!important;font-weight:700;
+}
+#main .song-detail-refined .song-actions>.primary-button:not(:disabled):hover{color:var(--ds-ink);border-color:transparent!important}
 #main .song-detail-refined .song-actions>:is(button,a):focus-visible{outline:2px solid var(--ds-selected);outline-offset:2px}
 #main .song-detail-refined .song-actions>button:disabled{color:var(--ds-disabled);opacity:.5;cursor:default}
 .song-detail-refined .song-actions .song-action-icon{width:18px;height:18px;flex:0 0 18px;fill:none;stroke:currentColor;stroke-width:1.8;color:inherit}

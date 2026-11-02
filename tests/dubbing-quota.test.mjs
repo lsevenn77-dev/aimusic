@@ -19,10 +19,11 @@ test('daily reset uses Korea midnight, not UTC or a rolling 24-hour timer',()=>{
 });
 test('one free generation is reserved atomically and replay never consumes another turn',async t=>{
  let calls=0;t.mock.method(globalThis,'fetch',async()=>{calls++;return response();});
- const f=await fixture(t,settings),first={requestId:crypto.randomUUID(),options};
- const results=await Promise.all([f.call('/api/dubbing/generations','POST',first),f.call('/api/dubbing/generations','POST',{requestId:crypto.randomUUID(),options})]);
+ const f=await fixture(t,settings),requests=Array.from({length:2},()=>({requestId:crypto.randomUUID(),options}));
+ const results=await Promise.all(requests.map(body=>f.call('/api/dubbing/generations','POST',body)));
  assert.deepEqual(results.map(r=>r.status).sort(),[200,429]);assert.equal(calls,1);
- assert.equal((await f.call('/api/dubbing/generations','POST',first)).body.state,'ready');assert.equal(calls,1);
+ const accepted=requests[results.findIndex(r=>r.status===200)];
+ assert.equal((await f.call('/api/dubbing/generations','POST',accepted)).body.state,'ready');assert.equal(calls,1);
  const config=(await f.call('/api/dubbing/config')).body;
  assert.equal(config.quota.remaining,0);assert.equal(config.quota.adLimit,2);assert.equal(config.goldChargingEnabled,false);
  assert.equal(config.quota.rewardedAdAvailable,false);
