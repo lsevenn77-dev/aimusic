@@ -218,6 +218,10 @@ img.play-dubbing-art{display:block;width:100%;height:auto;aspect-ratio:1;object-
     padding-block: 6px;
     align-items: center;
   }
+  .play-song-row > .play-song-count {
+    margin-inline-end: 8px;
+    font-size: 14px;
+  }
   .play-row-sing {
     width: auto;
     min-width: 96px;
@@ -256,7 +260,7 @@ img.play-dubbing-art{display:block;width:100%;height:auto;aspect-ratio:1;object-
   :is(.play-song-uploader, .play-song-artist, .album-artist, .play-project-row p,
       .dc-script small, .dc-work-header p, .dc-role b, .dc-members b, .dc-line b,
       .dc-choice > strong, .song-cover-meta) { font-size: 13px; }
-  :is(.play-song-count, .play-draft-copy p, .play-project-row small, .dc-script-meta,
+  :is(.play-draft-copy p, .play-project-row small, .dc-script-meta,
       .dc-script-meta em, .dc-stage-tabs span, .dc-section-heading small,
       .dc-catalog h2 small, .dc-line-index, .dc-line small, .dc-members small,
       .dc-choice > small, .dc-role small, .dc-role-letter, .dc-footnote) { font-size: 12px; }
