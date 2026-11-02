@@ -97,7 +97,9 @@ test('existing talking room lobby excludes karaoke rooms while live reuses the c
  assert.match(live,/#live\/sing/);assert.doesNotMatch(live,/#live\/talk/);
  assert.match(live,/class="v3-room-card"/);assert.match(live,/id="voice-create-form"/);
  assert.match(live,/name="background"/);assert.match(live,/name="announcement"/);
- assert.match(vm.runInContext('communityNavigation("live")',c),/href="#live" aria-current="page"/);
+ const tabs=vm.runInContext('communityNavigation("live")',c);
+ assert.match(tabs,/href="#live" aria-current="page"/);
+ assert.deepEqual([...tabs.matchAll(/href="([^"]+)"/g)].map(match=>match[1]),['#live','#community','#community/crews','#community/rankings']);
 });
 
 test('live loader returns a real route with membership-filtered rooms/options and gates anonymous creation',async()=>{

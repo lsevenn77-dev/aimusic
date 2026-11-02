@@ -74,12 +74,16 @@ main[data-route^="community"]::before,main[data-route^="crew/"]::before{display:
 #main .community-crew-actions{display:flex;justify-content:flex-end;margin:0 0 20px}
 
 /* Talking room directory; the live karaoke lobby continues to use the shared rules above. */
-#main > .talk-directory {
+/* Keep the room list capped, but let its navigation use the site's content frame. */
+.talk-directory > .community-v3 {
  width:100%;max-width:944px;min-width:0;margin-inline:auto;container-type:inline-size;
+}
+html:has(#main > .talk-directory, #main > .music-community-tabs[aria-label="커뮤니티"]) {
+ scrollbar-gutter:stable;
 }
 /* Use Play's main-tab metrics, including its rendered scale, on all four destinations. */
 #main > .talk-directory > .music-community-tabs,
-#main:is([data-route="community"], [data-route^="community/"], [data-route^="community?"], [data-route="live"], [data-route^="live?"]) > .music-community-tabs {
+#main > .music-community-tabs[aria-label="커뮤니티"] {
  --ui-type-scale:1;
  zoom:1.25;
  margin-bottom:12px;
@@ -168,7 +172,9 @@ main[data-route^="community"]::before,main[data-route^="crew/"]::before{display:
  .talk-directory .v3-room-copy {height:45px}
  .talk-directory .v3-room-copy h3 {font-size:13.5px}
 }
-@media(max-width:600px){#main:has(>.talk-directory){--main-frame-gutter:16px}}
+@media(max-width:600px){
+ .talk-directory > .community-v3 {width:auto;margin-inline:calc(16px - var(--main-frame-gutter))}
+}
 
 /* Desktop uses the existing shell height, including the active player's clearance. */
 @media(min-width:801px){

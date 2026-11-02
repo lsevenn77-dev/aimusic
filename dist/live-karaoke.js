@@ -279,7 +279,8 @@ function liveSync(c){
 const productionCommunityNavigation=communityNavigation;
 communityNavigation=function(tab){
  const html=productionCommunityNavigation(tab);
- return html.includes('href="#live"')?html:html.replace('</nav>',`<a class="tab ${tab==='live'?'active':''}" href="#live" ${tab==='live'?'aria-current="page"':''}>라이브 노래방</a></nav>`);
+ const link=`<a class="tab ${tab==='live'?'active':''}" href="#live" ${tab==='live'?'aria-current="page"':''}>라이브 노래방</a>`;
+ return html.includes('href="#live"')?html:html.replace(/<nav\b[^>]*>/,opening=>opening+link);
 };
 const productionVoiceView=voiceView;
 voiceView=async function(base,id,signal){
