@@ -3,7 +3,7 @@
 const productionVoiceLobbyHTML=voiceLobbyHTML;
 voiceLobbyHTML=function(data,enabled){return productionVoiceLobbyHTML({...data,rooms:(data.rooms||[]).filter(r=>r.mode!=='karaoke')},enabled);};
 function liveKaraokeLobbyHTML(data,enabled=true){
- let html=productionVoiceLobbyHTML({...data,rooms:(data.rooms||[]).filter(r=>r.mode==='karaoke')},enabled);
+ let html=productionVoiceLobbyHTML({...data,rooms:(data.rooms||[]).filter(r=>r.mode==='karaoke')},enabled,false);
  if(!me&&enabled)html=html.replace('id="v3-create-room" ','id="v3-create-room" disabled ');
  return html.replace('class="community-v3"','class="community-v3 live-lobby"')
   .replace('지금 열려 있는 토킹룸','라이브 노래방')

@@ -1,3 +1,4 @@
+import {talkingDirectory,talkingDirectoryCard} from './talking-directory.js';
 var __defProp = Object.defineProperty;
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
 
@@ -569,6 +570,7 @@ var VoiceRoom = class {
       await this.command("join", actor, { request_id: crypto.randomUUID() }, roomId);
       return { room: config };
     }
+    if (action === 'directory-card') return talkingDirectoryCard(d,b.members);
     if (action === "presence") return { active: !!d.config && !d.config.closed && Object.keys(d.members).length > 0, host_id: d.config?.host_id, background: d.config?.background, theme_sku: d.config?.theme_sku, settings_revision: d.config?.settings_revision, mode: d.config?.mode, visibility: d.config?.visibility, member_count: Object.keys(d.members).length, host_name: d.members[d.config?.host_id]?.name || "" };
     if (action === "leave" && !d.members[actor.id]) {
       if (d.config?.mode !== "karaoke" && d.config?.host_id === actor.id && d.hostReconnectUntil > Date.now() && b.generation && b.generation === d.hostReconnectGeneration) {
@@ -977,6 +979,7 @@ var worker_default = { async fetch(req, env) {
     const match = new URL(req.url).pathname.match(/^\/rooms\/([\w-]+)\/([a-z-]+)$/);
     if (!match) fault(404, "\uD1A0\uD0B9\uB8F8\uC744 \uCC3E\uC744 \uC218 \uC5C6\uC5B4\uC694.");
     const [, id, action] = match;
+  if(id==='directory'&&['candidates','cards'].includes(action))return await talkingDirectory(env,action,data.input,data.actor,stamp);
     if (id === "directory" && action === "list") {
       const crews = (data.actor.crews || []).slice(0, 50), followed = data.actor.followedHosts || [];
       const result = await env.ROOM_DB.prepare(`SELECT id,title,host_id,visibility,crew_id,created,max_members,background FROM voice_rooms WHERE closed=0 AND visibility='public' ORDER BY created DESC LIMIT 100`).bind().all();

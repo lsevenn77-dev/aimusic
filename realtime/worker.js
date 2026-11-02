@@ -1,3 +1,4 @@
+import {talkingDirectory} from './talking-directory.js';
 import {reply, fault, identifier, verifyRequest} from './protocol.js';
 export {VoiceRoom} from './room.js';
 export default {async fetch(req, env) {
@@ -11,6 +12,7 @@ export default {async fetch(req, env) {
   const match=new URL(req.url).pathname.match(/^\/rooms\/([\w-]+)\/([a-z-]+)$/);
   if(!match)fault(404,'토킹룸을 찾을 수 없어요.');
   const [,id,action]=match;
+  if(id==='directory'&&['candidates','cards'].includes(action))return await talkingDirectory(env,action,data.input,data.actor,stamp);
   if(id==='directory'&&action==='list') {
    const crews=(data.actor.crews||[]).slice(0,50),followed=(data.actor.followedHosts||[]);
    const result=await env.ROOM_DB.prepare(`SELECT id,title,host_id,visibility,crew_id,created,max_members,background FROM voice_rooms WHERE closed=0 AND visibility='public' ORDER BY created DESC LIMIT 100`).bind().all();

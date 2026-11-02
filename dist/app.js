@@ -120,10 +120,10 @@ async function toggleFollow(button){
  finally{if(pendingFollows.get(key)===uid)pendingFollows.delete(key);if(me?.id===uid)paintFollowState(key,followed(kind,id),false);}
 }
 const DEFAULT_AVATAR='/assets/default-avatar.svg';
-function avatarImage(p={},kind='producer',allowPreview=true){
+function avatarImage(p={},kind='producer',allowPreview=true,decorate=true){
  const id=p.profile_id||p.id,src=id&&p.image_version?'/media/'+kind+'/'+encodeURIComponent(id)+'?v='+encodeURIComponent(p.image_version):DEFAULT_AVATAR;
  const preview=allowPreview&&kind==='producer'&&id?' data-profile-preview="'+esc(p.profile_id||(p===me?me.profile_id:p.id)||'self')+'" tabindex="0" role="button" aria-haspopup="dialog"':'';
- return '<img class="profile-avatar-image"'+(kind==='producer'&&id?' data-avatar-profile="'+esc(p.profile_id||(p===me?me.profile_id:p.id))+'"':'')+preview+' src="'+esc(src)+'" alt="'+esc(p.name||'사용자')+' 프로필 사진" loading="lazy" decoding="async">';
+ return '<img class="profile-avatar-image"'+(decorate&&kind==='producer'&&id?' data-avatar-profile="'+esc(p.profile_id||(p===me?me.profile_id:p.id))+'"':'')+preview+' src="'+esc(src)+'" alt="'+esc(p.name||'사용자')+' 프로필 사진" loading="lazy" decoding="async">';
 }
 // Keep every photo surface usable when an old or unavailable upload fails to load.
 document.addEventListener('error',event=>{

@@ -1,3 +1,4 @@
+import {talkingRoomPage} from './talking-directory.js';
 import {roomThemeChoices,assertRoomTheme,saveRoomTheme,resolveRoomDecoration,decorateRoomResult} from './room-decorations.js';
 import {voiceMusicRoute} from './voice-music.js';
 import {voiceKaraokeRoute} from './voice-karaoke.js';
@@ -24,6 +25,10 @@ async function result(response) {const r=await response.json();if(!response.ok)f
 export async function voiceRoomsRoute(req,env,path,user,ctx) {
  if(!path.startsWith('/api/voice/'))return null;
  if(path==='/api/voice/status'&&req.method==='GET')return json({enabled:voiceConfigured(env),max_members:30,mic_seats:8});
+ if(path==='/api/voice/public-rooms'&&req.method==='GET'&&new URL(req.url).searchParams.has('limit')){
+  const read=(action,input)=>voiceCall(env,{id:'public-directory'},'directory',action,input).then(result);
+  return talkingRoomPage(env,user,new URL(req.url).searchParams,read);
+ }
  if(path==='/api/voice/public-rooms'&&req.method==='GET')return json({...await decorateRoomResult(env,await result(await voiceCall(env,{id:'public-directory',crews:[],followedHosts:[],blocks:[]},'directory','list'))),crews:[]});
  requireUser(user);
  // A realtime page must not cache another user's room membership or permission.

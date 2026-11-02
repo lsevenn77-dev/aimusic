@@ -72,3 +72,91 @@ main[data-route^="community"]::before,main[data-route^="crew/"]::before{display:
 
 /* Keep crew actions after removing the title-only banner space. */
 #main .community-crew-actions{display:flex;justify-content:flex-end;margin:0 0 20px}
+
+/* Talking room directory; the live karaoke lobby continues to use the shared rules above. */
+#main > .talk-directory {
+ width:100%;max-width:944px;min-width:0;margin-inline:auto;container-type:inline-size;
+}
+#main .talk-directory .music-community-tabs {
+ grid-template-columns:repeat(4,minmax(0,1fr));grid-auto-columns:auto;overflow:visible;
+}
+#main .talk-directory .music-community-tabs .tab {font-size:19px}
+#main .talk-directory .v3-toolbar {margin:26px 0 20px;gap:14px;align-items:center;flex-wrap:nowrap}
+.talk-directory .v3-toolbar h2 {font-size:24px;line-height:1.3;margin:0 0 6px}
+.talk-directory .v3-toolbar p,.talk-directory .talk-status {font-size:14px}
+.talk-directory .v3-tools {gap:12px}
+
+.talk-directory :is(.music-community-tabs,.v3-toolbar,.v3-room-grid,.talk-status) {
+ --ui-type-scale:1;--ui-space-scale:1;--ui-icon-scale:1;--ui-control-height:46px;
+}
+.talk-directory .talk-search.brand-search {
+ box-sizing:border-box;flex:0 1 280px;width:280px;height:46px;min-height:0;gap:10px;padding:0 14px;border-width:1px;
+}
+.talk-directory .talk-search>svg {flex:none;width:16px;height:16px;color:var(--ds-mint)}
+#main .talk-directory .talk-search input {width:0;min-height:0;height:100%;padding:0;font-size:14px}
+#main .talk-directory #v3-create-room {flex:none;padding:0 16px;white-space:nowrap}
+.talk-directory #v3-create-room span {white-space:nowrap}
+.talk-directory #v3-create-room {height:46px;min-width:146px;border-radius:var(--ds-radius-input);font-size:15px}
+.talk-directory #v3-create-room svg {width:22px;height:22px}
+.talk-directory .v3-room-grid {display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:18px 12px}
+.talk-directory .v3-room-card,.talk-directory .talk-placeholder {
+ display:block;min-width:0;overflow:hidden;border:1px solid var(--ds-line);border-radius:var(--ds-radius-input);
+ background:var(--ds-panel);color:var(--ds-text);text-decoration:none;
+}
+.talk-directory .v3-room-card:focus-visible {outline:2px solid var(--ds-mint);outline-offset:2px}
+.talk-directory .v3-room-art {width:100%;aspect-ratio:1;border-radius:0}
+.talk-directory .talk-cover {display:block;width:100%;height:100%;object-fit:cover}
+.talk-directory .v3-room-count,.talk-directory .talk-host,.talk-directory .talk-follows>span {
+ color:var(--ds-text);background:var(--ds-bg);border-radius:999px;font-size:12px;font-weight:650;line-height:20px;white-space:nowrap;
+}
+.talk-directory .v3-room-count {top:7px;right:7px;bottom:auto;gap:4px;padding:2px 7px}
+.talk-directory .v3-room-count svg {width:13px;height:13px}
+.talk-directory .talk-meta {
+ position:absolute;inset:auto 6px 6px;display:flex;align-items:center;gap:4px;min-width:0;
+}
+.talk-directory .talk-host {min-width:0;margin-left:auto;overflow:hidden;text-overflow:ellipsis;padding:1px 7px}
+.talk-directory .talk-follows {flex:none;display:flex;align-items:center}
+.talk-directory .talk-follows>img,.talk-directory .talk-follows>span {
+ box-sizing:border-box;width:22px;height:22px;border:1px solid var(--ds-body);border-radius:50%;object-fit:cover;
+}
+.talk-directory .talk-follows>:not(:first-child) {margin-left:-5px}
+.talk-directory .talk-follows>span {width:auto;min-width:22px;padding-inline:2px;text-align:center;font-size:10px}
+.talk-directory .v3-room-copy {display:flex;align-items:center;height:49px;box-sizing:border-box;padding:4px 8px;border-top:1px solid var(--ds-line)}
+.talk-directory .v3-room-copy h3 {
+ display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;
+ margin:0;overflow:hidden;white-space:normal;overflow-wrap:anywhere;word-break:keep-all;
+ font-size:14px;font-weight:650;line-height:18px;color:var(--ds-text);
+}
+.talk-directory .talk-status {margin:16px 0;text-align:center;color:var(--ds-muted)}
+.talk-directory .talk-status button {margin-left:8px}
+.talk-directory .talk-sentinel {height:1px}
+.talk-directory .talk-placeholder i {display:block;aspect-ratio:1;background:var(--ds-soft);animation:talk-loading 1.2s ease-in-out infinite alternate}
+.talk-directory .talk-placeholder b {display:block;width:62%;height:9px;margin:20px 8px;background:var(--ds-soft);border-radius:4px}
+@keyframes talk-loading {to{opacity:.4}}
+@media(prefers-reduced-motion:reduce){.talk-directory .talk-placeholder i{animation:none}}
+@container (max-width:859px) {
+ .talk-directory .v3-room-grid {grid-template-columns:repeat(4,minmax(0,1fr))}
+ .talk-directory .talk-search.brand-search {flex-basis:210px;width:210px}
+ .talk-directory #v3-create-room {min-width:106px}
+}
+@container (max-width:649px) {
+ .talk-directory .v3-room-grid {grid-template-columns:repeat(3,minmax(0,1fr))}
+ #main .talk-directory .v3-toolbar {align-items:stretch;flex-direction:column}
+ .talk-directory .v3-tools {width:100%}
+ .talk-directory .talk-search.brand-search {flex:1;width:auto}
+}
+@container (max-width:519px) {
+ .talk-directory .v3-room-grid {grid-template-columns:repeat(2,minmax(0,1fr));row-gap:16px}
+ #main .talk-directory .music-community-tabs .tab {font-size:13px;padding-inline:0;min-height:44px}
+ #main .talk-directory .v3-toolbar {margin:22px 0 20px;gap:14px}
+ .talk-directory .v3-toolbar h2 {font-size:22px;margin-bottom:4px}
+ .talk-directory .v3-toolbar p,.talk-directory .talk-status {font-size:13px}
+ .talk-directory .v3-tools {gap:10px}
+ .talk-directory .talk-search.brand-search {height:42px}
+ .talk-directory .talk-search input::placeholder {font-size:13px}
+ #main .talk-directory #v3-create-room {width:42px;min-width:42px;height:42px;min-height:42px;padding:0}
+ .talk-directory #v3-create-room span {display:none}
+ .talk-directory .v3-room-copy {height:45px}
+ .talk-directory .v3-room-copy h3 {font-size:13.5px}
+}
+@media(max-width:600px){#main:has(>.talk-directory){--main-frame-gutter:16px}}

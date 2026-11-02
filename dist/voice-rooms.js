@@ -46,9 +46,7 @@ async function voiceView(base,id,signal) {
  if(base!=='voice')return null;
  if(id){if(!me)return {html:heading('토킹룸')+gate()};return {html:voiceRoomHTML(id)};}
  const top=communityNavigation('voice');
- let data={rooms:[],crews:[]},enabled=false;
- try{const status=await voiceRequest('status',undefined,'GET',signal);enabled=status.enabled;if(enabled)data=await voiceRequest('public-rooms',undefined,'GET',signal);}catch(e){return {html:top+'<p role="alert">'+esc(e.message)+'</p>'};}
- return {html:top+voiceLobbyHTML(data,enabled),voiceLobby:true};
+ return {html:'<div class="talk-directory">'+top+voiceLobbyHTML({rooms:[]},false)+'</div>',voiceLobby:true};
 }
 function cleanupVoiceRoute(base,id) {setVoiceFocus(!!me&&base==='voice'&&!!voiceController&&voiceController.id===id&&voiceController.joined&&!voiceController.closed);if(voiceController&&(!me||base!=='voice'||voiceController.id!==id)){const leaving=voiceController.leave();voiceController=null;return leaving;}}
 function bindVoice(base,id) {

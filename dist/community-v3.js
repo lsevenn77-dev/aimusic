@@ -1,6 +1,112 @@
-function voiceLobbyHTML(data,enabled){
- const cards=data.rooms.map(r=>`<a class="v3-room-card" href="#voice/${esc(r.id)}" data-room-search="${esc((r.title+' '+r.host_name).toLowerCase())}"><div class="v3-room-art" data-decoration-room="${esc(r.id)}" data-theme="${esc(r.background||'navy')}"><span class="v3-live">LIVE</span><span class="v3-room-count">${icon('users')} ${number(r.member_count||0)}명</span></div><div class="v3-room-copy"><h3>${esc(r.title)}</h3><p>${esc(r.host_name||'방장')}<small>함께 듣는 중</small></p></div></a>`).join('');
- return `<section class="community-v3"><div class="v3-toolbar"><div><h2>지금 열려 있는 토킹룸</h2><p>공개된 방만 보여줘 · 방장 승인 후 마이크에 참여할 수 있어</p></div><div class="v3-tools"><input id="v3-room-search" type="search" maxlength="100" aria-label="방 제목 또는 방장 검색" placeholder="방 제목 또는 방장 검색"><button class="primary-button" id="v3-create-room" ${enabled?'':'disabled'}>${icon('plus')} 방 만들기</button></div></div><div class="v3-room-grid">${cards||'<p class="v3-empty">'+(enabled?'아직 열린 공개 토킹룸이 없어요.':'토킹룸 서비스 연결을 준비하고 있어요.')+'</p>'}</div><p id="v3-search-empty" hidden>검색 결과가 없어요.</p><dialog id="v3-room-create" class="voice-sheet" aria-labelledby="v3-create-title"><button type="button" id="v3-close-create" aria-label="닫기">${voiceGlyph('close')}</button><header class="voice-sheet-heading"><h2 id="v3-create-title">방 만들기</h2></header>${voiceSettingsFormHTML('create')}</dialog></section>`;
+function talkingRoomCard(room){
+ const profiles=room.followed_profiles||[],extra=room.followed_count-profiles.length,theme=room.theme;
+ const path=theme?.assets?.roomCard,art=path&&/^\/assets\/[\w/-]+\.webp$/.test(path)&&(!room.themeUntil||room.themeUntil>Date.now())
+  ?`<img class="talk-cover" src="${esc(path)}" alt="" loading="lazy" decoding="async">`:'';
+ const host=room.host_name||'';
+ return `<a class="v3-room-card" data-talk-id="${esc(room.id)}" href="#voice/${esc(room.id)}">
+  <div class="v3-room-art" data-theme="${esc(theme?.sku||room.background||'navy')}">${art}
+   ${Number.isInteger(room.member_count)&&Number.isInteger(room.max_members)?`<span class="v3-room-count" aria-label="참여 ${room.member_count}명, 정원 ${room.max_members}명">${icon('users')}${room.member_count}/${room.max_members}</span>`:''}
+   <div class="talk-meta">${profiles.length?`<span class="talk-follows" aria-label="팔로우한 참여자 ${room.followed_count}명">${profiles.map(p=>avatarImage(p,'producer',false,false)).join('')}${extra>0?`<span>+${extra}</span>`:''}</span>`:''}
+    ${host?`<span class="talk-host" title="${esc(host)}">${esc(host)}</span>`:''}</div>
+  </div><div class="v3-room-copy"><h3>${esc(room.title)}</h3></div></a>`;
+}
+let talkingRoomReturn=null;
+function bindTalkingDirectory(root){
+ const grid=root.querySelector('.v3-room-grid'),search=root.querySelector('#v3-room-search'),create=root.querySelector('#v3-create-room');
+ const status=root.querySelector('.talk-status'),message=status.querySelector('span'),retry=status.querySelector('button'),sentinel=root.querySelector('.talk-sentinel');
+ const viewer=me?.id||'';
+ const saved=talkingRoomReturn?.viewer===viewer&&talkingRoomReturn.until>Date.now()?talkingRoomReturn:null;
+ talkingRoomReturn=null;
+ let items=new Map(saved?.items),cursor=saved?.cursor||null,done=saved?.done||false,enabled=saved?true:null;
+ let controller=null,debounce,expiry,disposed=false;
+ const observer=new IntersectionObserver(entries=>{if(entries.some(e=>e.isIntersecting))void load();},{rootMargin:'0px 0px 160px'});
+ function notice(text='',failed=false){
+  message.textContent=text;retry.hidden=!failed;status.hidden=!text;
+ }
+ function expireCovers(){
+  clearTimeout(expiry);let next=Infinity;
+  for(const room of items.values()){
+   if(!room.themeUntil)continue;
+   if(room.themeUntil<=Date.now()){
+    grid.querySelector('[data-talk-id="'+CSS.escape(room.id)+'"] .talk-cover')?.remove();
+    room.themeUntil=0;room.theme={sku:'navy'};room.background='navy';
+   }else next=Math.min(next,room.themeUntil);
+  }
+  if(Number.isFinite(next))expiry=setTimeout(expireCovers,Math.min(next-Date.now()+50,2147483647));
+ }
+ function skeletons(show){
+  grid.querySelectorAll('.talk-placeholder').forEach(el=>el.remove());
+  if(show)grid.insertAdjacentHTML('beforeend','<div class="talk-placeholder" aria-hidden="true"><i></i><b></b></div>'.repeat(6));
+  grid.setAttribute('aria-busy',String(show));
+ }
+ function ready(){
+  if(!items.size&&done)notice(search.value.trim()?'검색 결과가 없어요.':'아직 열린 공개 토킹룸이 없어요.');
+  if(!done)observer.observe(sentinel);
+ }
+ async function load(){
+  if(disposed||controller||done)return;
+  observer.unobserve(sentinel);const active=controller=new AbortController();
+  notice();skeletons(true);
+  try{
+   if(enabled===null){
+    const service=await voiceRequest('status',undefined,'GET',active.signal);
+    if(active.signal.aborted)return;
+    enabled=service.enabled;create.disabled=!enabled;
+   }
+   if(!enabled){done=true;notice('토킹룸 서비스 연결을 준비하고 있어요.');return;}
+   const params=new URLSearchParams({limit:'24'}),query=search.value.trim();
+   if(query)params.set('q',query);if(cursor)params.set('cursor',cursor);
+   const page=await voiceRequest('public-rooms?'+params,undefined,'GET',active.signal);
+   if(active.signal.aborted||disposed)return;
+   const added=[];
+   for(const room of page.rooms){
+    if(items.has(room.id))continue;
+    if(room.theme?.expires_at)room.themeUntil=Date.now()+(room.theme.expires_at-room.theme.server_now)*1000;
+    items.set(room.id,room);added.push(talkingRoomCard(room));
+   }
+   grid.insertAdjacentHTML('beforeend',added.join(''));
+   done=!page.next_cursor||page.next_cursor===cursor;cursor=page.next_cursor;
+   expireCovers();ready();
+  }catch(e){if(!active.signal.aborted)notice('토킹룸 목록을 불러오지 못했어요.',true);}
+  finally{if(controller===active){controller=null;skeletons(false);}}
+ }
+ function reset(){
+  clearTimeout(debounce);clearTimeout(expiry);observer.unobserve(sentinel);
+  controller?.abort();controller=null;items=new Map();cursor=null;done=false;
+  grid.replaceChildren();notice();skeletons(true);
+  debounce=setTimeout(load,220);
+ }
+ search.oninput=reset;retry.onclick=load;
+ grid.addEventListener('click',e=>{
+  if(e.defaultPrevented||e.button!==0||e.ctrlKey||e.metaKey||e.shiftKey||e.altKey||!e.target.closest('[data-talk-id]'))return;
+  talkingRoomReturn={viewer,until:Date.now()+120000,query:search.value,items:[...items],cursor,done,scroll:window.scrollY};
+ });
+ registerRouteCleanup(()=>{
+  disposed=true;observer.disconnect();controller?.abort();clearTimeout(debounce);clearTimeout(expiry);
+ });
+ if(saved){
+  search.value=saved.query;create.disabled=false;grid.innerHTML=[...items.values()].map(talkingRoomCard).join('');expireCovers();
+  requestAnimationFrame(()=>{if(!disposed){window.scrollTo({top:saved.scroll,behavior:'instant'});ready();}});
+ }else void load();
+}
+function voiceLobbyHTML(data,enabled,talking=true){
+ const input='<input id="v3-room-search" type="search" maxlength="100" aria-label="방 제목 또는 방장 검색" placeholder="방 제목 또는 방장 검색">';
+ const search=talking?`<label class="talk-search brand-search">${icon('search')}${input}</label>`:input;
+ const create=talking?'<span>방 만들기</span>':'방 만들기';
+ let list;
+ if(talking){
+  list=`<div class="v3-room-grid" aria-label="토킹룸 목록">${data.rooms.map(talkingRoomCard).join('')}</div>
+   <div class="talk-status" role="status" hidden><span></span> <button type="button" class="small-button" hidden>다시 시도</button></div>
+   <div class="talk-sentinel" aria-hidden="true"></div>`;
+ }else{
+  const cards=data.rooms.map(r=>`<a class="v3-room-card" href="#voice/${esc(r.id)}" data-room-search="${esc((r.title+' '+r.host_name).toLowerCase())}"><div class="v3-room-art" data-decoration-room="${esc(r.id)}" data-theme="${esc(r.background||'navy')}"><span class="v3-live">LIVE</span><span class="v3-room-count">${icon('users')} ${number(r.member_count||0)}명</span></div><div class="v3-room-copy"><h3>${esc(r.title)}</h3><p>${esc(r.host_name||'방장')}<small>함께 듣는 중</small></p></div></a>`).join('');
+  const empty=enabled?'아직 열린 공개 토킹룸이 없어요.':'토킹룸 서비스 연결을 준비하고 있어요.';
+  list=`<div class="v3-room-grid">${cards||'<p class="v3-empty">'+empty+'</p>'}</div><p id="v3-search-empty" hidden>검색 결과가 없어요.</p>`;
+ }
+ return `<section class="community-v3"><div class="v3-toolbar">
+  <div><h2>지금 열려 있는 토킹룸</h2><p>${talking?'공개된 방만 보여줘 · 방장 승인 후 마이크 참여 가능':'공개된 방만 보여줘 · 방장 승인 후 마이크에 참여할 수 있어'}</p></div>
+  <div class="v3-tools">${search}<button class="primary-button" id="v3-create-room" ${enabled?'':'disabled'} ${talking?'aria-label="방 만들기"':''}>${icon('plus')} ${create}</button></div>
+ </div>${list}<dialog id="v3-room-create" class="voice-sheet" aria-labelledby="v3-create-title"><button type="button" id="v3-close-create" aria-label="닫기">${voiceGlyph('close')}</button><header class="voice-sheet-heading"><h2 id="v3-create-title">방 만들기</h2></header>${voiceSettingsFormHTML('create')}</dialog></section>`;
 }
 function bindVoiceLobby(){
  const open=$('#v3-create-room'),modal=$('#v3-room-create');if(!open)return;
@@ -9,6 +115,8 @@ function bindVoiceLobby(){
  modal.addEventListener('click',e=>{if(e.target===modal){const r=modal.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)modal.close();}});
  const form=$('#voice-create-form');form.addEventListener('input',()=>{form.querySelector('#voice-notice-length').textContent=form.elements.announcement.value.length+'/200';});
  const visibility=()=>{form.querySelector('.voice-crew-setting').hidden=form.elements.visibility.value!=='crew';};form.addEventListener('change',visibility);visibility();
+ const directory=open.closest('.talk-directory');
+ if(directory){bindTalkingDirectory(directory);return;}
  $('#v3-room-search').oninput=e=>{const q=e.target.value.trim().toLowerCase();let count=0;document.querySelectorAll('[data-room-search]').forEach(c=>{c.hidden=!c.dataset.roomSearch.includes(q);if(!c.hidden)count++;});$('#v3-search-empty').hidden=!q||count>0;};
 }
 async function playBrowseV3(raw,readApi=api){

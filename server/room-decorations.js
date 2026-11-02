@@ -49,3 +49,29 @@ export async function decorateRoomResult(env,data){
  }
  return data;
 }
+export async function directoryRoomThemes(env,rooms){
+ if(!rooms.length)return new Map();
+ const scope=rooms.map(r=>[r.id,r.host_id,r.theme_sku||null,r.settings_revision||0,r.background||DEFAULT_ROOM_THEME]);
+ const settings=await rows(env,`WITH page AS (
+  SELECT json_extract(value,'$[0]') id,json_extract(value,'$[1]') host_id,json_extract(value,'$[2]') chosen,
+   json_extract(value,'$[3]') revision,json_extract(value,'$[4]') background FROM json_each(?)
+ ), themes AS (
+  SELECT page.id,page.host_id,rd.revision,COALESCE(rd.sku,page.chosen,page.background) sku
+  FROM page LEFT JOIN room_decorations rd ON rd.room_id=page.id AND rd.host_id=page.host_id
+  AND (page.chosen IS NULL OR rd.revision=page.revision)
+ ) SELECT themes.*,(SELECT MAX(pi.expires_at) FROM player_inventory pi WHERE pi.user_id=themes.host_id
+  AND pi.item_key=themes.sku AND ${activeDecorationSQL('pi')}) expires_at FROM themes`,JSON.stringify(scope));
+ const themes=new Map(),expired=[],server_now=now();
+ for(const {id,host_id,revision,sku,expires_at} of settings){
+  const paid=Object.hasOwn(DECORATIONS,sku)&&DECORATIONS[sku].kind==='TALKING_ROOM_THEME';
+  const active=paid&&expires_at>server_now;
+  themes.set(id,{sku:active||FREE_ROOM_THEMES.some(t=>t.sku===sku)?sku:DEFAULT_ROOM_THEME,
+   assets:active?DECORATIONS[sku].assetPaths:null,expires_at:active?expires_at:0,server_now});
+  if(paid&&revision!=null&&!active)expired.push([id,host_id,revision,sku]);
+ }
+ // Match the current host and settings revision, including concurrent handoffs.
+ if(expired.length)await run(env,`UPDATE room_decorations SET sku=?,updated=? WHERE (room_id,host_id,revision,sku) IN
+  (SELECT json_extract(value,'$[0]'),json_extract(value,'$[1]'),json_extract(value,'$[2]'),json_extract(value,'$[3]') FROM json_each(?))
+  AND NOT EXISTS(SELECT 1 FROM player_inventory pi WHERE pi.user_id=room_decorations.host_id AND pi.item_key=room_decorations.sku AND ${activeDecorationSQL('pi')})`,DEFAULT_ROOM_THEME,server_now,JSON.stringify(expired));
+ return themes;
+}

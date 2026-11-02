@@ -12,7 +12,7 @@ function qaSource(){
 document.addEventListener('click',e=>{if(e.target.closest('a[href="#voice/listener-fixture"]'))qaSource();},true);
 voiceRequest=async(path,b)=>{
  if(path==='status')return {enabled:true};
- if(path==='public-rooms')return {rooms:[{id:'listener-fixture',title:'청취자 자동 대화 검증',host_name:'로컬 합성 오디오 2명',member_count:2,background:'navy'}],crews:[]};
+ if(path.split('?')[0]==='public-rooms')return {next_cursor:null,rooms:[{id:'listener-fixture',title:'청취자 자동 대화 검증',host_name:'로컬 합성 오디오 2명',member_count:2,max_members:30,background:'navy'}],crews:[]};
  if(path.endsWith('/join')||path.endsWith('/heartbeat'))return qaState();
  if(path.endsWith('/subscribe')){
   qaSource();const pc=new RTCPeerConnection();listenerQa.peers.push(pc);
