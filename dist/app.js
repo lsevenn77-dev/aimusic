@@ -132,7 +132,7 @@ document.addEventListener('error',event=>{
  else image.hidden=true;
 },true);
 function updateAccount(){
- const accountTarget=me?'#profile':'#account';$('.profile').href=accountTarget;$('.header-login').href=accountTarget;
+ $('.header-login').href=me?'#profile':'#account';
  const identity=me?`<span class="sidebar-account-copy"><span class="sidebar-account-line"><strong>${esc(me.name)}</strong><span class="sidebar-account-plan${member.plan==='premium'?' is-premium':''}">${member.plan==='premium'?'PREMIUM':'FREE'}</span></span><small>${me.public_id?'ID #'+esc(me.public_id):'ID 발급 확인 중'}</small></span>`:`<span class="avatar profile-avatar ${playerAvatarClass(me)}">${avatarImage({})}${playerBadgeHTML(me)}</span><span><strong>무료로 시작하기</strong><small>로그인 · 회원가입</small></span>`;
  $('.profile').innerHTML=identity+icon('chevron');$('.header-login').textContent=me?'내 계정':'로그인';if(typeof refreshActivityBadge==='function')void refreshActivityBadge();
 }
