@@ -381,108 +381,124 @@ img.play-dubbing-art{display:block;width:100%;height:auto;aspect-ratio:1;object-
   }
 }
 
-/* Object-only artwork and live text share one type scale across all three
-   slides. Keep the shared carousel's controls, motion and gesture handling. */
+/* The shared home carousel owns the frame, controls and horizontal motion. */
 #main > .play-page[data-play-mode] > .play-banner {
   --ui-type-scale: 1;
-  --ui-space-scale: 1;
-  --play-banner-label-size: 14px;
-  --play-banner-title-size: 24px;
-  --play-banner-description-size: 14px;
-  --play-banner-background: #050c17;
+  --play-label-size: 16px;
+  --play-title-size: clamp(28px, 3.45cqi, 36px);
+  --play-body-size: 16px;
 
-  /* Let home-content.css own the frame height at every breakpoint. */
-  .home-feature { background: var(--play-banner-background); }
-  .home-feature-background { background: var(--play-banner-background); }
-  .home-feature-background::after {
-    background: linear-gradient(0deg, #050c174d, transparent 35%);
+  .home-feature {
+    container: play-frame / size;
+    margin-block-end: calc(30px * var(--ui-space-scale, 1));
   }
-  .play-banner-picture {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 100%;
+  /* The frame supplies the home section gap before the hub's scaled tab row. */
+  + .play-main-tabs { margin-block-start: 0; }
+  .play-banner-art {
+    --art: var(--desktop-art);
+    background: #101421 var(--art) 48% center / cover no-repeat;
   }
-  /* Each viewport has its own composition. Preserve the entire source image;
-     extra frame width uses the matching navy background instead of cropping. */
-  .play-banner-photo {
-    display: block;
-    opacity: 1;
-    flex: none;
-    width: auto;
-    max-width: 100%;
-    height: 100%;
-    object-fit: contain;
-    object-position: center;
-    mask-image: linear-gradient(90deg, transparent, #000 2%, #000 98%, transparent);
+  .play-banner-art::after {
+    background: linear-gradient(90deg, #080e1c55, #080e1c26 34%, transparent 56%);
   }
   .play-banner-link {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0;
-    padding: 24px 64px 48px 54%;
+    --ui-space-scale: 1;
+    display: flex;
+    align-items: center;
+    padding: 12px 0 32px max(68px, 7cqi);
     color: var(--ds-text);
     text-decoration: none;
   }
-  .play-banner-link[data-play-banner="song"] { --play-banner-accent: #f09ac7; }
-  .play-banner-link[data-play-banner="dubbing"] { --play-banner-accent: #bca2f4; }
-  .play-banner-link[data-play-banner="browse"] { --play-banner-accent: #8eddd2; }
-  .home-feature-copy { grid-column: 1; min-width: 0; }
+  .play-banner-link[data-play-banner="song"] { --play-accent: #f09ac7; }
+  .play-banner-link[data-play-banner="dubbing"] { --play-accent: #bca2f4; }
+  .play-banner-link[data-play-banner="browse"] { --play-accent: #8eddd2; }
+  .home-feature-copy { width: max-content; max-width: 46cqi; word-break: keep-all; overflow-wrap: anywhere; }
   .home-feature-label {
     display: block;
-    color: var(--play-banner-accent);
-    font-size: var(--play-banner-label-size);
+    color: var(--play-accent);
+    font-size: var(--play-label-size);
     font-weight: 700;
-    letter-spacing: .02em;
-    line-height: 1.4;
-  }
-  .home-feature-title-row { display: block; margin: 8px 0 0; }
-  .home-feature-copy h2 {
-    margin: 0;
-    font-size: var(--play-banner-title-size);
-    font-weight: 700;
-    letter-spacing: -.025em;
+    letter-spacing: 0;
     line-height: 1.35;
-    overflow: visible;
-    overflow-wrap: anywhere;
-    word-break: keep-all;
   }
+  .home-feature-copy h2 {
+    margin: 6px 0 0;
+    font-size: var(--play-title-size);
+    font-weight: 750;
+    letter-spacing: -.035em;
+    line-height: 1.22;
+    overflow: visible;
+  }
+  .home-feature-copy h2 span { display: block; }
   .home-feature-description {
     display: block;
-    margin: 12px 0 0;
+    margin: 9px 0 0;
     max-height: none;
-    font-size: var(--play-banner-description-size);
-    font-weight: 400;
-    line-height: 1.6;
+    max-width: 18em;
+    color: #e1e2e8;
+    font-size: var(--play-body-size);
+    line-height: 1.45;
     overflow: visible;
-    overflow-wrap: anywhere;
-    word-break: keep-all;
     -webkit-line-clamp: unset;
+    text-wrap: balance;
+  }
+  .home-feature-pagination { --feature-step: 32px; }
+  .home-feature-dots button::after { opacity: .9; }
+  .home-feature-dots button[aria-pressed="true"]::after { opacity: 1; }
+
+  @container play-frame (max-width: 790px) {
+    .play-banner-link { padding-left: 64px; }
+    .home-feature-copy { --play-label-size: 14px; --play-title-size: 26px; --play-body-size: 14px; }
   }
 
-  @container (max-width: 640px) {
-    .home-feature {
-      --play-banner-label-size: 12px;
-      --play-banner-title-size: clamp(20px, 5.5cqi, 22px);
-      --play-banner-description-size: 13px;
-    }
-    .play-banner-link { align-items: center; padding: 8px 16px 44px 38%; }
+  @container (max-width: 540px) {
+    .home-feature { margin-block-end: calc(26px * var(--ui-space-scale, 1)); }
+  }
+  @container play-frame (max-width: 690px) {
+    .play-banner-art { background-position-x: 62%; }
+    .play-banner-link { padding-left: 4.5cqi; }
+    .home-feature-copy { --play-title-size: 22px; max-width: 38cqi; }
     .home-feature-arrow { top: auto; bottom: 0; }
-    .home-feature-title-row { margin-top: 4px; }
-    .home-feature-copy h2 { line-height: 1.25; }
-    .home-feature-description { margin-top: 6px; line-height: 1.4; }
-    @media (min-width: 801px) {
-      .play-banner-link { padding-left: 50%; }
-    }
-    @media (max-width: 800px) {
-      .play-banner-picture { justify-content: flex-start; }
-    }
   }
-  @container (max-width: 340px) {
-    .home-feature { --play-banner-title-size: 18px; }
+  @container play-frame (max-height: 180px) {
+    .play-banner-link { padding: 5px 0 30px 5cqi; }
+    .home-feature-copy { --play-label-size: 12px; --play-title-size: 20px; --play-body-size: 12px; }
+    .home-feature-copy h2 { margin-top: 3px; }
+    .home-feature-description { margin-top: 5px; }
   }
+
   @media (max-width: 800px) {
-    .play-banner-photo { mask-image: none; }
+    .home-feature { margin-block-end: 16px; }
+    .play-banner-art { --art: var(--mobile-art); }
+    .play-banner-link { padding: 10px 0 32px 5cqi; }
+    .home-feature-pagination { --feature-step: 44px; }
+    .home-feature-dots button:first-child::after { transform: translateX(12px); }
+    .home-feature-dots button:last-child::after { transform: translateX(-12px); }
+    /* Keep the portrait and mic at their natural proportions on a wide tablet.
+       Only extend the first 300 source pixels of the empty studio background. */
+    @container play-frame (min-aspect-ratio: 2/1) {
+      .play-banner-art {
+        border-image: var(--art) 0 0 0 300 fill / 0 0 0 calc(100% - 129.4643cqh) stretch;
+      }
+    }
+    @container play-frame (max-width: 540px) {
+      .home-feature-copy {
+        --play-label-size: 12px;
+        --play-title-size: clamp(18px, 5.25cqi, 22px);
+        --play-body-size: 12px;
+        max-width: 50cqi;
+      }
+      .home-feature-copy h2 { margin-top: 5px; line-height: 1.26; }
+      .home-feature-description { margin-top: 7px; line-height: 1.42; text-wrap: wrap; }
+      .home-feature-description span { display: block; }
+    }
+    @container play-frame (max-width: 350px) {
+      .play-banner-art { background-position-x: 32%; }
+      .play-banner-link { padding-left: 4cqi; }
+      .home-feature-copy { --play-title-size: 18px; max-width: 54cqi; }
+      .home-feature-description span { display: inline; }
+      .home-feature-description { max-width: 11.75em; }
+    }
   }
 }
 

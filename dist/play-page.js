@@ -1,13 +1,20 @@
-// Editorial banners reuse the home carousel without player subscriptions.
+// The Play carousel reuses the home controls and doesn't subscribe to the player.
 let playBannerCleanup=null;
 const playBanners=[
- {id:'song',title:'오늘은 네 목소리가 주인공',description:'좋아하는 노래를 직접 부르고 솔로·듀엣 커버에 참여해 봐.',label:'노래'},
- {id:'dubbing',title:'목소리 하나로 달라지는 장면',description:'다양한 캐릭터와 장면에 나만의 목소리를 입혀봐.',label:'더빙'},
- {id:'browse',title:'다른 사람들은 어떻게 표현했을까?',description:'완성된 노래와 더빙 작품을 감상하고 새로운 목소리를 발견해 봐.',label:'둘러보기'}
-];
-function playBannerHTML(b){
- const image='/assets/play-banners/responsive-v2/'+b.id,href=playHref(b.id),mobileWidth=b.id==='dubbing'?1655:1656;
- return '<div class="home-feature-background" aria-hidden="true"><picture class="play-banner-picture"><source media="(max-width: 800px)" srcset="'+image+'-mobile.webp" width="'+mobileWidth+'" height="950"><img class="play-banner-photo" src="'+image+'-desktop.webp" width="1983" height="793" alt="" decoding="async"></picture></div><a class="home-feature-slide play-banner-link" data-play-banner="'+b.id+'" href="'+href+'" aria-label="'+esc(b.title)+' · '+b.label+' 탭으로 이동"><div class="home-feature-copy"><span class="home-feature-label">'+b.label+'</span><div class="home-feature-title-row"><h2>'+esc(b.title)+'</h2></div><p class="home-feature-description">'+esc(b.description)+'</p></div></a>';
+ {id:'song',label:'노래',heading:['오늘은 네 목소리가','주인공'],description:['좋아하는 노래를 직접 부르고','솔로·듀엣 커버에','참여해 봐.']},
+ {id:'dubbing',label:'더빙',heading:['목소리 하나로','달라지는 장면'],description:['다양한 캐릭터와 장면에','나만의 목소리를','입혀봐.']},
+ {id:'browse',label:'둘러보기',heading:['다른 사람들은','어떻게 표현했을까?'],description:['완성된 노래와 더빙 작품을','감상하고 새로운 목소리를','발견해 봐.']}
+].map(banner=>({...banner,title:banner.heading.join(' ')}));
+function playBannerHTML(banner){
+ const art='/assets/play-banners/model-v3/'+banner.id;
+ const lines=parts=>parts.map(part=>`<span>${esc(part)}</span>`).join(' ');
+ return `<div class="home-feature-background play-banner-art" aria-hidden="true" style="--desktop-art:url('${art}-desktop.webp');--mobile-art:url('${art}-mobile.webp')"></div>
+ <a class="home-feature-slide play-banner-link" data-play-banner="${banner.id}" href="${esc(playHref(banner.id))}" aria-label="${esc(banner.title)} · ${banner.label} 탭으로 이동">
+   <div class="home-feature-copy"><span class="home-feature-label">${banner.label}</span>
+     <h2>${lines(banner.heading)}</h2>
+     <p class="home-feature-description">${lines(banner.description)}</p>
+   </div>
+ </a>`;
 }
 // @ts-check
 // PLAY is a navigation/list layer. It never creates or modifies recording state.
