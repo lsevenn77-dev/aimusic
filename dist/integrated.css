@@ -67,16 +67,6 @@
 .crew-page .crew-member-profile strong {max-width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:14px;line-height:1.4}
 .crew-page .crew-member-profile:hover strong {text-decoration:underline}
 .crew-page :is(.crew-member-profile,.crew-settings-trigger):focus-visible {outline:2px solid var(--ds-mint);outline-offset:2px}
-#dialog:has(.crew-settings) {box-sizing:border-box;width:min(520px,calc(100% - 24px));max-height:calc(100dvh - 32px);overflow:hidden}
-#dialog:has(.crew-settings) #dialog-content {max-height:calc(100dvh - 104px);overflow-y:auto;overscroll-behavior:contain}
-.crew-settings {min-width:0}
-.crew-settings h2 {margin:0 44px 12px 0}
-.crew-settings details {border-top:1px solid var(--ds-border);padding-block:4px}
-.crew-settings summary {display:list-item;cursor:pointer;min-height:44px;align-content:center;color:var(--ds-text);font-weight:600}
-.crew-settings details[open]>summary {margin-bottom:8px}
-.crew-settings :is(input,textarea,select) {box-sizing:border-box;min-width:0;max-width:100%}
-.crew-settings .crew-settings-members {display:flex;flex-wrap:wrap;gap:8px}
-.crew-settings .crew-settings-members button {max-width:100%;overflow-wrap:anywhere}
 @media(max-width:1100px){
  .crew-page .crew-member-grid {grid-template-columns:repeat(auto-fill,minmax(min(86px,100%),1fr))}
  .crew-page .crew-member-profile {--face:60px}
@@ -88,4 +78,59 @@
  .crew-page .crew-member-profile {--face:54px}
  .crew-page .crew-room-tabs {max-width:100%;gap:18px}
  .crew-page .crew-room-tabs .tab {flex:0 0 auto;min-height:44px;font-size:14px}
+}
+/* Crew management shares the profile menu surface and confines scrolling to each dialog's body. */
+.crew-settings-anchor {position:relative;align-self:start}
+.crew-page .crew-settings-anchor .fan-settings-menu {width:240px;max-width:calc(100vw - 32px);padding:4px}
+.crew-settings-anchor .fan-settings-menu button[role=menuitem] {min-height:44px;padding:6px 10px;gap:10px;line-height:1.4}
+.crew-settings-anchor .fan-settings-menu svg {width:18px;height:18px;flex:none}
+.crew-settings-anchor [role=menuitem]:focus-visible {outline:2px solid var(--ds-mint);outline-offset:-2px;background:var(--ds-line)}
+html:has(.crew-action-dialog[open]),body:has(.crew-action-dialog[open]) {overflow:hidden}
+dialog.crew-action-dialog {
+ box-sizing:border-box;width:min(560px,calc(100% - 24px));max-width:none;
+ max-height:calc(100dvh - 24px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));
+ margin:auto;padding:0;overflow:hidden;border:1px solid var(--ds-border);border-radius:var(--ds-radius-card);
+ background:var(--ds-panel);color:var(--ds-text);overscroll-behavior:contain;
+}
+dialog.crew-action-dialog[open] {display:flex;flex-direction:column}
+.crew-action-dialog::backdrop {background:rgb(0 0 0 / .65)}
+.crew-action-dialog>header,.crew-action-dialog>footer,.crew-action-tools {flex:none;padding:12px 20px}
+.crew-action-dialog>header {display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid var(--ds-line)}
+.crew-action-dialog>header h2 {margin:0;font-size:20px;line-height:1.35}
+.crew-action-dialog>header .dialog-close {position:static}
+.crew-action-body {min-height:0;min-width:0;overflow-y:auto;overscroll-behavior:contain;padding:16px 20px;overflow-wrap:anywhere}
+.crew-action-body>p {margin:0;color:var(--ds-body)}
+.crew-action-dialog>footer {display:flex;align-items:center;justify-content:flex-end;gap:8px;border-top:1px solid var(--ds-line)}
+.crew-action-dialog>footer :is(.primary-button,.small-button) {margin:0;min-height:44px}
+.crew-action-dialog>footer:empty,.crew-action-tools:empty,.crew-action-dialog>.form-error:empty {display:none}
+.crew-action-dialog>.form-error {flex:none;margin:0;padding:8px 20px;font-size:14px;overflow-wrap:anywhere}
+.crew-action-dialog #crew-form {display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
+.crew-action-dialog :is(input,textarea,select) {box-sizing:border-box;min-width:0;max-width:100%}
+.crew-action-dialog .form-field,.crew-action-dialog .crew-image-editor {margin:0;min-width:0}
+.crew-action-dialog .form-field {display:grid;gap:6px}
+.crew-action-dialog :is(.form-field,.crew-action-tools)>:is(input,select,textarea) {width:100%;margin:0}
+.crew-action-dialog :is(button,select,input:not([type=checkbox])) {min-height:44px}
+.crew-action-dialog :is(.field-help,.checkbox-line) {margin:0}
+.crew-action-dialog .form-field+.field-help {margin-top:-10px}
+.crew-action-dialog .crew-image-editor {display:grid;gap:8px}
+.crew-action-dialog .crew-image-crop[hidden] {display:none}
+.crew-action-dialog .photo-crop-dialog {box-sizing:border-box;width:100%;max-height:none;overflow:visible;padding:12px}
+.crew-action-dialog .crew-image-saved :is(img,span) {width:80px;height:80px}
+.crew-action-dialog .crew-action-tools {padding-bottom:0}
+.crew-manage-row,.crew-audit-event {display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid var(--ds-line)}
+.crew-manage-row:last-child,.crew-audit-event:last-child {border-bottom:0}
+.crew-manage-row>a {color:var(--ds-text);text-decoration:underline;text-underline-offset:3px}
+.crew-row-actions,.crew-activity-tabs {display:flex;align-items:center;gap:8px}
+.crew-row-actions {flex-wrap:wrap}
+.crew-audit-event {display:grid;grid-template-columns:minmax(0,1fr) auto}
+.crew-audit-event small {color:var(--ds-muted)}
+.crew-audit-event p {grid-column:1/-1;margin:0;font-size:14px;color:var(--ds-body)}
+.crew-activity-tabs button {flex:1;padding:4px 8px;border:0;border-bottom:2px solid transparent;background:transparent;color:var(--ds-body)}
+.crew-activity-tabs button[aria-selected=true] {color:var(--ds-text);border-color:var(--ds-selected)}
+.crew-action-dialog :is(input,select,button,a,textarea):focus-visible {outline:2px solid var(--ds-mint);outline-offset:-2px}
+@media(max-width:600px){
+ .crew-action-dialog>header,.crew-action-dialog>footer,.crew-action-tools {padding:8px 14px}
+ .crew-action-dialog .crew-action-body {padding:12px 14px}
+ .crew-manage-row,.crew-audit-event {display:grid;grid-template-columns:minmax(0,1fr)}
+ .crew-action-dialog>.form-error {padding-inline:14px}
 }

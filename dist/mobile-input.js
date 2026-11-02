@@ -26,7 +26,7 @@
     if (!editable(active) || !active.isConnected || !surface) return;
     // Native page scrolling owns ordinary fields. Only correct an obscured field
     // inside a constrained popup, once after keyboard geometry has settled.
-    const owner = active.closest('#dialog-content') || surface;
+    const owner = active.closest('.crew-action-body') || active.closest('#dialog-content') || surface;
     if (owner.scrollHeight <= owner.clientHeight) return;
     const field = active.getBoundingClientRect(), box = owner.getBoundingClientRect();
     const top = box.top + 48, bottom = box.bottom - 12;

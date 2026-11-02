@@ -53,7 +53,7 @@ function chatComposer(){return `<form id="chat-compose"><label class="form-field
 function crewEditor(c=null){
  const available=Number(c?.name_change_available_at||0)*1000,locked=available>Date.now(),days=Math.max(1,Math.ceil((available-Date.now())/86400000));
  const help=locked?`${days}일 뒤에 수정 가능합니다. (${new Date(available).toLocaleString('ko-KR')}부터)`:'크루 이름은 변경 후 30일에 한 번 수정할 수 있어요.';
- return `${c?'':'<h2>새 크루 만들기</h2>'}<form id="crew-form" data-crew="${esc(c?.id||'')}" data-version="${c?.version||1}">${formField('크루 이름','name','text',c?.name||'','required maxlength="40" aria-describedby="crew-name-help" '+(locked?'readonly aria-readonly="true"':''))}<p id="crew-name-help" class="field-help" role="status">${esc(help)}</p><label class="form-field">소개<textarea name="description" maxlength="1000">${esc(c?.description||'')}</textarea></label>${formField('관심사 · 예: Ballad, K-POP','interests','text',c?.interests||'','maxlength="160"')}<label class="checkbox-line"><input name="recruiting" type="checkbox" ${c?.recruiting===0?'':'checked'}>새 멤버 모집</label>${crewV3SettingsHTML(c)}${crewImageEditorHTML(c)}<p class="field-help">완성 작품·협업·감상평 미션으로 성장해요. 하루 최대 100 XP, 주간 최대 270 XP.</p><button class="primary-button">저장</button><p class="form-error" role="alert"></p></form>`;
+ return `${c?'':'<h2>새 크루 만들기</h2>'}<form id="crew-form" data-crew="${esc(c?.id||'')}" data-version="${c?.version||1}">${formField('크루 이름','name','text',c?.name||'','required maxlength="40" aria-describedby="crew-name-help" '+(locked?'readonly aria-readonly="true"':''))}<p id="crew-name-help" class="field-help" role="status">${esc(help)}</p><label class="form-field">소개<textarea name="description" maxlength="1000">${esc(c?.description||'')}</textarea></label>${formField('관심사 · 예: Ballad, K-POP','interests','text',c?.interests||'','maxlength="160"')}<label class="checkbox-line"><input name="recruiting" type="checkbox" ${c?.recruiting===0?'':'checked'}>새 멤버 모집</label>${crewV3SettingsHTML(c)}${crewImageEditorHTML(c)}${c?'':'<p class="field-help">완성 작품·협업·감상평 미션으로 성장해요. 하루 최대 100 XP, 주간 최대 270 XP.</p><button class="primary-button">저장</button><p class="form-error" role="alert"></p>'}</form>`;
 }
 function crewDetailView(d,param,tab='music',community=false,discovery=''){
  const c=d.crew,m=d.membership,owner=m?.role==='owner';
@@ -115,33 +115,6 @@ async function libraryProfileHTML(readApi=api){
  return `<section class="surface library-profile"><a href="#profile" aria-label="내 프로필 수정">${portrait(p,'producer')}</a><div><h2>${esc(p.name)}</h2><div class="inline-actions"><a href="#profile">프로필 수정</a><a href="#library/followers">팔로워 ${d.follower_count}</a><a href="#library/following">팔로잉 ${d.following_count}</a></div></div><div class="inline-actions"><a href="#rewards" class="small-button">오늘의 실버</a><a href="#dm" class="small-button">DM</a><a href="#payouts" class="small-button">정산</a></div></section>`;
 }
 function bindCrewForm(){const form=$('#crew-form');const crop=bindCrewImageEditor(form);form.dataset.originalName=form.elements.name.value;form.onsubmit=busyForm(form,async fd=>{const cid=form.dataset.crew;const cropped=await crop.file();if(cid&&fd.get('name')!==form.dataset.originalName&&!confirm('크루 이름을 변경하면 30일(720시간) 동안 다시 변경할 수 없어요. 변경할까요?'))return;const d=await api('/api/crews'+(cid?'/'+cid:''),cid?'PATCH':'POST',{name:fd.get('name'),description:fd.get('description'),interests:fd.get('interests'),recruiting:fd.has('recruiting'),...(fd.has('join_policy')?{join_policy:fd.get('join_policy'),minimum_level:Number(fd.get('minimum_level')),member_limit:Number(fd.get('member_limit'))}:{}),notice:fd.get('notice'),...(cid?{version:Number(form.dataset.version)}:{})});form.dataset.crew=d.crew.id;clearCrewNavigation();try{me=(await api('/api/me')).user;updateAccount();}catch{}if(cropped)await uploadChatImage('/api/crews/'+d.crew.id+'/image',cropped);$('#dialog').close();location.hash='crew/'+d.crew.id;if(cid)await render();});}
-async function openCrewSettings(button){
- const cid=button.dataset.editCrew,account=me?.id;
- if(!account)return askLogin();
- button.disabled=true;
- try{
-  const d=await api('/api/crews/'+encodeURIComponent(cid),'GET',undefined,{fresh:true});
-  if(!button.isConnected||me?.id!==account)return;
-  if(!canManageCrew(d.membership)){toast('크루 운영진만 설정을 열 수 있어요.');await render();return;}
-  const owner=d.membership.role==='owner';
-  const memberButtons=d.members.filter(p=>p.role!=='owner').map(p=>
-   `<button type="button" class="small-button" data-crew-member="${esc(p.id)}" data-crew="${esc(cid)}">${esc(p.profile_name||p.name)}</button>`).join('');
-  const members=owner||d.membership.role==='deputy'?`<details><summary>멤버 관리</summary><div class="crew-settings-members">${memberButtons||'<p>관리할 멤버가 없어요.</p>'}</div></details>`:'';
-  dialog(`<section class="crew-settings"><h2>크루 설정</h2>
-   <details><summary>크루 정보 수정</summary>${crewEditor(d.crew)}</details>${members}
-   <details data-crew-v3-manage="${esc(cid)}"><summary>가입 신청 · 운영 기록</summary><div id="crew-applications">불러오는 중…</div><div id="crew-audit"></div></details>
-   ${owner?'<details><summary>크루장 위임</summary><div id="crew-leadership"></div></details>':''}</section>`);
-  const form=$('#crew-form');
-  if(!owner){
-   form.elements.name.readOnly=true;
-   for(const key of ['join_policy','minimum_level','member_limit'])form.elements[key].disabled=true;
-  }
-  bindCrewForm();
-  if(owner)addCrewLeadership(d);
-  void bindCrewV3();
- }catch(e){if(button.isConnected)toast(e.message);}
- finally{button.disabled=false;}
-}
 function bindImprovements(view){
  bindCrewHome(view);
  bindCrewDiscovery(view);
@@ -160,7 +133,7 @@ function bindImprovements(view){
  const browse=$('[data-browse-crews]');if(browse)browse.onclick=()=>{const input=$('#crew-search input');input.scrollIntoView({behavior:'smooth',block:'center'});input.focus({preventScroll:true});};
  const search=$('#crew-search');if(search)search.onsubmit=e=>{e.preventDefault();location.hash='community/crews?browse=1&q='+encodeURIComponent(new FormData(search).get('q'));};
  document.querySelectorAll('[data-create-crew]').forEach(b=>b.onclick=()=>{if(!me)return askLogin();dialog(crewEditor());bindCrewForm();});
- document.querySelectorAll('[data-edit-crew]').forEach(b=>b.onclick=()=>openCrewSettings(b));
+ document.querySelectorAll('[data-edit-crew]').forEach(bindCrewSettingsMenu);
  for(const action of ['join','leave'])document.querySelectorAll(`[data-${action}-crew]`).forEach(b=>b.onclick=async()=>{
   if(!me)return askLogin();if(action==='leave'&&!confirm('정말 탈퇴하시겠어요? 탈퇴하면 크루 채팅을 볼 수 없어요.'))return;
   b.disabled=true;try{const result=await api('/api/crews/'+b.dataset[action+'Crew']+'/'+action,'POST');if(result.pending)toast(result.message);clearCrewNavigation();if(action==='leave')location.hash='community/crews';else await render();}catch(e){toast(e.message);b.disabled=false;}

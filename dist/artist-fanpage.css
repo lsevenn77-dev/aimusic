@@ -139,11 +139,11 @@
 .artist-fanpage .fan-header-actions .fan-icon{width:44px;height:44px;min-width:44px;padding:0;border:0;box-shadow:none;background:transparent;color:var(--ds-text)}
 .artist-fanpage .fan-header-actions .fan-icon svg{width:20px;height:20px;stroke-width:1.8}
 .fan-settings-anchor{position:relative;flex:none}
-:is(.artist-fanpage,.mp-profile) .fan-settings-menu{position:absolute;top:calc(100% + 4px);right:0;width:224px;max-width:calc(100vw - 40px);padding:6px;background:var(--ds-panel);border:1px solid var(--ds-line);border-radius:var(--ds-radius-sm,8px);box-shadow:0 8px 24px #0004;z-index:10}
-:is(.artist-fanpage,.mp-profile) .fan-settings-menu[hidden]{display:none}
+:is(.artist-fanpage,.mp-profile,.crew-settings-anchor) .fan-settings-menu{position:absolute;top:calc(100% + 4px);right:0;width:224px;max-width:calc(100vw - 40px);padding:6px;background:var(--ds-panel);border:1px solid var(--ds-line);border-radius:var(--ds-radius-sm,8px);box-shadow:0 8px 24px #0004;z-index:10}
+:is(.artist-fanpage,.mp-profile,.crew-settings-anchor) .fan-settings-menu[hidden]{display:none}
 .artist-fanpage .fan-settings-menu .artist-image-editor{display:block;width:auto;margin:0}
-:is(.artist-fanpage,.mp-profile) .fan-settings-menu :is(button,a){display:flex;align-items:center;width:100%;min-height:48px;padding:10px 12px;text-align:left;border:0;border-radius:4px;background:transparent;color:var(--ds-text);font:inherit;font-size:14px;cursor:pointer;text-decoration:none;box-sizing:border-box}
-:is(.artist-fanpage,.mp-profile) .fan-settings-menu :is(button,a):hover{background:var(--ds-line)}
+:is(.artist-fanpage,.mp-profile,.crew-settings-anchor) .fan-settings-menu :is(button,a){display:flex;align-items:center;width:100%;min-height:48px;padding:10px 12px;text-align:left;border:0;border-radius:4px;background:transparent;color:var(--ds-text);font:inherit;font-size:14px;cursor:pointer;text-decoration:none;box-sizing:border-box}
+:is(.artist-fanpage,.mp-profile,.crew-settings-anchor) .fan-settings-menu :is(button,a):hover{background:var(--ds-line)}
 .artist-fanpage .fan-settings-menu button:disabled{opacity:.5;cursor:not-allowed}
 .artist-fanpage .fan-identity{padding: max(12px,var(--frame-headroom,0px)) 16px 24px;align-items:flex-start;gap:20px}
 @media(max-width:700px){
