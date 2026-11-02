@@ -21,4 +21,5 @@ export async function assertDubbingGiftContext(env,uid,targetProfile,projectId){
  if(p.owner_id===uid)fail(400,'내 작품에는 선물할 수 없어요.');
  if(await one(env,`SELECT 1 FROM (${performers}) actor WHERE actor.uid=? AND (actor.id IN (?,?) OR (? IS NULL AND actor.id IN (SELECT id FROM dubbing_projects WHERE root_id=?)))`,uid,p.id,root,p.root_id,root))fail(400,'참여한 작품에는 선물할 수 없어요.');
  if(!await one(env,`SELECT 1 FROM (${performers}) target JOIN producers p ON p.user_id=target.uid WHERE target.id IN (?,?) AND p.id=?`,p.id,root,targetProfile))fail(400,'이 더빙 작품의 수신자를 선택해주세요.');
+ return p;
 }

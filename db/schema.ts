@@ -30,6 +30,12 @@ export const giftInventory=sqliteTable('gift_inventory',{
 export const giftInventoryLots=sqliteTable('gift_inventory_lots',{
  inventoryId:text('inventory_id').notNull().references(()=>giftInventory.id),purchaseId:text('purchase_id').notNull().references(()=>goldPurchases.id),gold:integer('gold').notNull(),netMw:integer('net_mw').notNull()
 },t=>[primaryKey({columns:[t.inventoryId,t.purchaseId]}),check('gift_inventory_lot_positive',sql`${t.gold}>0 AND ${t.netMw}>=0`)]);
+// The receipt stays tied to its original source even if the room or work is deleted.
+export const giftSources=sqliteTable('gift_sources',{
+ currency:text('currency').notNull(),giftId:text('gift_id').notNull(),
+ sourceType:text('source_type').notNull(),sourceId:text('source_id').notNull(),
+ sourceTitle:text('source_title').notNull(),workKind:text('work_kind')
+},t=>[primaryKey({columns:[t.currency,t.giftId]})]);
 export const accountHandles=sqliteTable('account_handles',{userId:text('user_id').primaryKey().references(()=>users.id,{onDelete:'cascade'}),normalized:text('normalized').notNull()},t=>[uniqueIndex('account_handles_normalized').on(t.normalized)]);
 export const oauth=sqliteTable('oauth_states',{state:text('state').primaryKey(),provider:text('provider').notNull(),verifier:text('verifier').notNull(),nonce:text('nonce').notNull(),expires:integer('expires').notNull()});
 export const producers=sqliteTable('producers',{id:text('id').primaryKey(),nicknameConfirmed:integer('nickname_confirmed').notNull().default(0),userId:text('user_id').notNull().references(()=>users.id),name:text('name').notNull(),bio:text('bio').notNull().default(''),imageVersion:text('image_version').notNull().default(''),imageType:text('image_type').notNull().default(''),bannerVersion:text('banner_version').notNull().default(''),bannerType:text('banner_type').notNull().default(''),created:integer('created').notNull()},t=>[uniqueIndex('producers_owner').on(t.userId)]);

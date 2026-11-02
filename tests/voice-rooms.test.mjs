@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {readFileSync} from 'node:fs';
 import {VoiceRoom} from '../realtime/room.js';
+import {VoiceRoom as KaraokeRoom} from '../realtime/worker-live-karaoke.js';
 import {signedHeaders,verifyRequest,audioOffer,audioAnswer} from '../realtime/protocol.js';
 import voiceWorker from '../realtime/worker.js';
 import {fixture} from './fixture.mjs';
@@ -15,12 +16,12 @@ import * as AifectGifts from '../shared/gifts.js';
 const secret='test-only-bridge-secret-not-production-0001';
 const actor=(id,crews=[])=>({id,name:id,profile_id:id+'-profile',crews});
 const offer={type:'offer',sdp:'v=0\r\nm=audio 9 UDP/TLS/RTP/SAVPF 111\r\na=mid:0\r\na=sendonly\r\n'};
-function harness(t) {
+function harness(t,Room=VoiceRoom) {
  const sql=new DatabaseSync(':memory:');for(const migration of ['0001_rooms.sql','0002_room_settings.sql'])sql.exec(readFileSync(new URL('../realtime/migrations/'+migration,import.meta.url),'utf8'));t.after(()=>sql.close());
  const env={ROOM_DB:{prepare(q){return {bind(...args){const s=sql.prepare(q);return {async run(){s.run(...args);},async all(){return {results:s.all(...args)};}};}};}}};
  const saved=new Map(),events=[];
  const ctx={storage:{async get(k){return structuredClone(saved.get(k));},async put(k,v){saved.set(k,structuredClone(v));},async setAlarm(t){ctx.alarm=t;}},getWebSockets:()=>[]};
- const room=new VoiceRoom(ctx,env);let next=0,failClose=false,failTracks=false;const closes=[],calls=[];
+ const room=new Room(ctx,env);let next=0,failClose=false,failTracks=false;const closes=[],calls=[];
  room.sfu={async create(){return 'session-'+(++next);},async tracks(id,b){calls.push({id,b});if(failTracks)throw Error('timeout');return {sessionDescription:{type:b.sessionDescription?'answer':'offer',sdp:'test'},tracks:b.tracks.map((x,i)=>({...x,mid:String(i)})),requiresImmediateRenegotiation:!b.sessionDescription};},async answer(id,b){calls.push({id,answer:b});},async close(id,mids){closes.push(id);if(failClose)throw Error('upstream down');}};
  room.notify=e=>events.push(e);
  const call=async(action,a=actor('host'),input={},stamp={nonce:crypto.randomUUID(),timestamp:Date.now()})=>{const r=await room.fetch(new Request('https://room/'+action,{method:'POST',body:JSON.stringify({roomId:'test-room',actor:a,input,stamp})}));return {status:r.status,body:await r.json()};};
@@ -354,6 +355,33 @@ test('voice gift retries debit once and invitations reuse the DM ledger',async t
  assert.equal(h.room.data.chat.at(-1).body,'owner님이 Other님에게 막대사탕 ×3을 보냈습니다.');
  assert.equal((await f.call('/api/voice/rooms/test-room/gifts','POST',{...b,quantity:4})).status,409);
  const invite={profile_id:'other-profile',request_id:crypto.randomUUID()};assert.equal((await f.call('/api/voice/rooms/test-room/invite','POST',invite)).status,201);assert.equal((await f.call('/api/voice/rooms/test-room/invite','POST',invite)).status,201);assert.equal(f.sql.prepare('SELECT count(*) n FROM direct_messages').get().n,1);assert.match(f.sql.prepare('SELECT body FROM direct_messages').get().body,/#voice\/test-room/);
+ const list=()=>f.call('/api/notifications?filter=gifts','GET',null,'other');
+ let item=(await list()).body.items[0];
+ assert.deepEqual([item.source_type,item.source_id,item.gift_source_title,item.href],['talking_room','test-room','Gift room','#voice/test-room']);
+ const open=()=>f.call('/api/notifications/'+encodeURIComponent(item.id)+'/open','POST',{},'other');
+ assert.equal((await open()).body.href,'#voice/test-room');
+ // Simulate an old receipt whose original room event is still visible.
+ f.sql.prepare('DELETE FROM gift_sources WHERE gift_id=?').run(a.body.gift.id);
+ assert.equal((await list()).body.items[0].source_type,null);
+ assert.equal((await f.call('/api/voice/rooms/test-room/gifts','POST',{...b,request_id:crypto.randomUUID()})).status,201);
+ assert.equal(f.sql.prepare('SELECT source_type FROM gift_sources WHERE gift_id=?').get(a.body.gift.id).source_type,'talking_room');
+ await h.call('close',actor('owner'));
+ const closed=(await open()).body;assert.equal(closed.href,'');assert.equal(closed.unavailable_reason,'room');
+ const retried=await f.call('/api/voice/rooms/test-room/gifts','POST',b);assert.equal(retried.body.gift.id,a.body.gift.id);
+});
+
+test('karaoke gifts use the signed room mode and title and share the list and click destination',async t=>{
+ const h=harness(t,KaraokeRoom);await h.call('create',actor('owner'),{title:'라이브 무대',visibility:'public',mode:'karaoke'});await h.join(actor('other'));
+ const f=await fixture(t,{VOICE_SERVICE_URL:'https://voice.test',VOICE_BRIDGE_SECRET:secret});
+ f.sql.exec("INSERT INTO producers(id,user_id,name,created) VALUES('other-profile','other','Other',0); INSERT INTO gold_purchases(id,user_id,channel,gold,price_krw,fee_krw,status,created,paid_at) VALUES('karaoke-lot','owner','web',100,1000,30,'paid',1,1)");
+ const previous=globalThis.fetch;t.after(()=>globalThis.fetch=previous);
+ globalThis.fetch=(url,init)=>voiceWorker.fetch(new Request(url,init),{...h.env,VOICE_BRIDGE_SECRET:secret,ROOMS:{idFromName:id=>id,get:()=>({fetch:r=>h.room.fetch(r)})}});
+ const gift=await f.call('/api/voice/rooms/test-room/gifts','POST',{profile_id:'other-profile',gift_type:'lollipop',request_id:crypto.randomUUID(),source_type:'profile',source_id:'wrong',source_title:'wrong'});
+ assert.equal(gift.status,201);
+ const item=(await f.call('/api/notifications?filter=gifts','GET',null,'other')).body.items[0];
+ assert.deepEqual([item.source_type,item.source_id,item.gift_source_title,item.href],['karaoke','test-room','라이브 무대','#live/test-room']);
+ const open=await f.call('/api/notifications/'+encodeURIComponent(item.id)+'/open','POST',{},'other');
+ assert.equal(open.body.href,item.href);
 });
 
 test('retiring slow SFU sessions does not block chat, heartbeat or receiver-only republishing',async t=>{

@@ -6,23 +6,25 @@ function activityRowHTML(n){
  const product=gift?(n.currency==='silver'?AifectGifts.silverGiftById(n.gift_type):AifectGifts.giftById(n.gift_type)):null;
  const giftName=n.gift_name==='은화'?'실버':n.gift_name;
  const action=gift?`${product?`<img class="activity-gift-art" src="${esc(product.image)}" alt="${esc(giftName||product.name)}" title="${esc(giftName||product.name)}" width="28" height="28" loading="lazy" decoding="async">`:esc(giftName)} <b class="activity-gift-quantity">× ${number(n.quantity)}개</b>를 보냈어요.`:({fan_comment:'팬라운지에 댓글·답글을 남겼어요.',fan_post:'팬라운지에 응원글을 남겼어요.',artist_follower:'AI 아티스트를 팔로우했어요.',artist_release:'새 제작곡을 공개했어요.',crew_invite:'크루에 초대했어요.',crew_approved:'크루 가입을 승인했어요.',crew_request:'작품 참여를 요청했어요.',dubbing_complete:'함께 참여한 더빙이 완성됐어요.',dubbing_participation:'더빙 참여 작품을 공개했어요.',work_status:'작품 처리 결과가 도착했어요.',crew_notice:'크루 공지를 등록했어요.',duet:'내 듀엣에 참여했어요.',cover:'내 곡으로 커버를 공개했어요.',comment:'내 음악에 댓글을 남겼어요.',follow:'나를 팔로우했어요.'}[n.kind]||'새로운 활동을 남겼어요.');
- const href=n.href??(n.kind==='crew_notice'&&n.available?'#crew/'+encodeURIComponent(n.target)+'?tab=notice':n.available?(['person_gift','follow'].includes(n.kind)?'#producer/':'#song/')+encodeURIComponent(n.target):'');
- const giftSource=n.id?.startsWith('decoration:')?'인벤토리':n.gift_source_kind?`${n.gift_source_kind==='song'?'곡 이야기':'프로필'}${n.gift_source_title?' · '+n.gift_source_title:''}`:(n.source_title?'곡 이야기 · '+n.source_title:n.kind==='person_gift'?'프로필':'');
- const decoration=n.id?.startsWith('decoration:');
- const giftHref=decoration?'#inventory':n.available&&n.gift_source_kind&&n.gift_source_target?`#${n.gift_source_kind}/${encodeURIComponent(n.gift_source_target)}`:'';
- const giftDetail=`<div class="activity-detail activity-gift-detail"><b class="activity-value ${esc(n.currency)}">${number(n.amount)} ${n.currency==='gold'?'G':'S'}</b>${giftSource?`<span class="activity-gift-separator" aria-hidden="true">·</span><${giftHref?'a':'span'} class="activity-gift-source" title="${esc(giftSource)}" ${giftHref?`data-activity-open="${esc(n.id)}" href="${esc(giftHref)}"`:''}>${esc(giftSource)}</${giftHref?'a':'span'}>`:''}</div>`;
+ const href=n.href??(n.kind==='crew_notice'&&n.available?'#crew/'+encodeURIComponent(n.target)+'?tab=notice':!gift&&n.available?(n.kind==='follow'?'#producer/':'#song/')+encodeURIComponent(n.target):'');
+ const sourceLabel={profile:'프로필',talking_room:'토킹룸',karaoke:'노래방',work:'작품 상세',inventory:'인벤토리',shop:'선물 상점'}[n.source_type];
+ const giftSource=sourceLabel?[sourceLabel,n.gift_source_title].filter(Boolean).join(' · '):'출처 확인 불가';
+ const giftDetail=`<div class="activity-detail activity-gift-detail"><b class="activity-value ${esc(n.currency)}">${number(n.amount)} ${n.currency==='gold'?'G':'S'}</b><span class="activity-gift-separator" aria-hidden="true">·</span><span class="activity-gift-source" title="${esc(giftSource)}">${esc(giftSource)}</span></div>`;
  const avatar=n.actor_profile_id&&n.actor_image_version?'/media/producer/'+encodeURIComponent(n.actor_profile_id)+'?v='+encodeURIComponent(n.actor_image_version||'default'):'/assets/default-avatar.png';
- const destination=gift?(giftHref||href):href;
+ const destination=href||'#notifications?unavailable='+encodeURIComponent(n.unavailable_reason||'1');
  const purpose=gift?'선물 받은 곳 보기':['comment','fan_comment','fan_post'].includes(n.kind)?'댓글·응원 보기':n.kind==='artist_follower'?'아티스트 보기':n.kind==='work_status'?'작품 관리':n.kind.startsWith('crew_')?'크루·요청 보기':'작품 보기';
- const detail=gift?giftDetail.replace(/<a /g,'<span ').replace(/<\/a>/g,'</span>').replace(/ data-activity-open="[^"]*"/g,'').replace(/ href="[^"]*"/g,''):['artist_name','source_title','detail'].filter(k=>n[k]).map(k=>`<span title="${esc(n[k])}">${esc(n[k])}</span>`).join('');
- return `<a data-list-row class="activity-row${n.read_at?'':' is-unread'}" data-activity-id="${esc(n.id)}" data-activity-open="${esc(n.id)}" href="${esc(destination||'#notifications?unavailable=1')}" aria-label="${esc(n.actor_name)} · ${label} · ${purpose}"><div class="activity-avatar"><img src="${esc(avatar)}" alt="" loading="lazy"><span>${icon(gift?'gift':n.kind.includes('crew')?'users':['follow','artist_follower'].includes(n.kind)?'user':['comment','fan_comment','fan_post'].includes(n.kind)?'message':n.kind==='work_status'?'bell':'mic')}</span></div><div class="activity-copy"><div class="activity-meta"><span>${label}</span></div><p><strong>${esc(n.actor_name)}</strong>${n.kind==='work_status'?' · ':'님이 '}${action}</p><div class="activity-detail">${detail}</div></div><span class="activity-time"><time datetime="${new Date(n.created*1000).toISOString()}">${esc(new Date(n.created*1000).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',hourCycle:'h23',timeZone:'Asia/Seoul'}))}</time>${n.read_at?'':'<i class="activity-dot" aria-label="읽지 않음"></i>'}</span></a>`;
+ const detail=gift?giftDetail:['artist_name','source_title','detail'].filter(k=>n[k]).map(k=>`<span title="${esc(n[k])}">${esc(n[k])}</span>`).join('');
+ return `<a data-list-row class="activity-row${n.read_at?'':' is-unread'}" data-activity-id="${esc(n.id)}" data-activity-open="${esc(n.id)}" href="${esc(destination)}" aria-label="${esc(n.actor_name)} · ${label} · ${purpose}"><div class="activity-avatar"><img src="${esc(avatar)}" alt="" loading="lazy"><span>${icon(gift?'gift':n.kind.includes('crew')?'users':['follow','artist_follower'].includes(n.kind)?'user':['comment','fan_comment','fan_post'].includes(n.kind)?'message':n.kind==='work_status'?'bell':'mic')}</span></div><div class="activity-copy"><div class="activity-meta"><span>${label}</span></div><p><strong>${esc(n.actor_name)}</strong>${n.kind==='work_status'?' · ':'님이 '}${action}</p><div class="activity-detail">${detail}</div></div><span class="activity-time"><time datetime="${new Date(n.created*1000).toISOString()}">${esc(new Date(n.created*1000).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',hourCycle:'h23',timeZone:'Asia/Seoul'}))}</time>${n.read_at?'':'<i class="activity-dot" aria-label="읽지 않음"></i>'}</span></a>`;
 }
 function activityGroupsHTML(items){let day='';return items.map(n=>{const next=activityDate(n.created,true),header=day===next?'':`<h2 class="activity-day">${esc(next)}</h2>`;day=next;return header+activityRowHTML(n);}).join('');}
 async function notificationsView(base,raw,readApi=api){
  if(base!=='notifications')return null;
  if(!me)return {html:heading('알림')+empty('로그인하면 알림을 볼 수 있어요','내 음악에 도착한 참여와 선물을 모아드려요.','#account','로그인'),tracks:[]};
  const q=new URLSearchParams(raw.split('?')[1]||'');
- if(q.has('unavailable'))return {html:heading('알림 안내')+empty('콘텐츠를 열 수 없어요','삭제·비공개 또는 접근 권한이 변경된 콘텐츠예요. 뒤로 가면 이전 알림 목록으로 돌아갈 수 있어요.','#notifications','알림함'),tracks:[]};
+ if(q.has('unavailable')){
+  const message={room:'종료되었거나 삭제된 방이에요.',source:'이 선물의 발생 위치를 확인할 수 없어요.'}[q.get('unavailable')]||'삭제·비공개 또는 접근 권한이 변경된 콘텐츠예요.';
+  return {html:heading('알림 안내')+empty('콘텐츠를 열 수 없어요',message+' 뒤로 가면 이전 알림 목록으로 돌아갈 수 있어요.','#notifications','알림함'),tracks:[]};
+ }
  if(q.has('request')){let r;try{r=await readApi('/api/notifications/crew-requests/'+encodeURIComponent(q.get('request')));}catch{return {html:heading('참여 요청 안내')+empty('요청을 열 수 없어요','크루 가입 상태 또는 작품의 공개 상태가 변경되었어요.','#notifications?filter=crew','알림함'),tracks:[]};}return {html:heading('작품 참여 요청')+`<section class="activity-page"><p>${esc(r.title)} 작품 참여 요청이 도착했어요.</p><a class="small-button" href="${esc(r.href)}">작품 확인</a><a class="small-button" href="#notifications?filter=crew">알림함</a></section>`,tracks:[]};}
  const filter=['gifts','participation','comments','works','artists','crew'].includes(q.get('filter'))?q.get('filter'):'all',data=await readApi('/api/notifications?filter='+filter,'GET',undefined,{fresh:true});
  const resume=activityResume?.account===me.id&&activityResume.filter===filter?activityResume:null;
@@ -48,7 +50,7 @@ function bindNotifications(view){
     const id=b.dataset.activityOpen;await mark([id]);
     if(!active())return;
     const result=await api('/api/notifications/'+encodeURIComponent(id)+'/open','POST',{});
-    if(active())location.hash=result.available?result.href:'#notifications?unavailable=1';
+    if(active())location.hash=result.available?result.href:'#notifications?unavailable='+encodeURIComponent(result.unavailable_reason||'1');
    }
   }catch(err){if(active())root.querySelector('.activity-error').textContent=err.message;}finally{loading=false;b.removeAttribute('aria-busy');}
  };

@@ -1,4 +1,6 @@
 import {assertDubbingGiftContext,giftBlockReason} from './gift-eligibility.js';
+import {giftSourceEntry,giftTargetSource} from './gift-source.js';
+import {producerNameSQL} from './identity.js';
 import {assertArtistInteraction} from './follow-management.js';
 import {walletHistory} from './wallet-history.js';
 import {officialSupport} from './ai-bots.js';
@@ -82,7 +84,7 @@ export function settlementMonths(months,current){
  });
 }
 
-export async function giftRoute(req,env,path,user){
+export async function giftRoute(req,env,path,user,verifiedSource){
  if(path==='/api/gold/history')return walletHistory(req,env,user);
  const method=req.method;
  if(path==='/api/gifts/catalog'&&method==='GET')return json({gifts:GIFT_CATALOG,silver_gifts:SILVER_GIFT_CATALOG,free_gift:FREE_GIFT,gold_krw:GOLD_KRW,...goldCheckoutStatus(env,user)});
@@ -125,7 +127,7 @@ export async function giftRoute(req,env,path,user){
  const m=path.match(/^\/api\/(tracks|producers)\/([\w-]+)\/gifts$/);if(!m)return null;
  const personal=m[1]==='producers';
  let track;
- if(personal){const p=await one(env,"SELECT p.id,p.user_id FROM producers p JOIN users u ON u.id=p.user_id WHERE p.id=? AND u.provider!='deleted'",m[2]);if(!p)fail(404,'프로필을 찾을 수 없어요.');track={id:null,user_id:p.user_id,producer_id:p.id,kind:'original',personal:true};}
+ if(personal){const p=await one(env,`SELECT p.id,p.user_id,${producerNameSQL()} name FROM producers p JOIN users u ON u.id=p.user_id WHERE p.id=? AND u.provider!='deleted'`,m[2]);if(!p)fail(404,'프로필을 찾을 수 없어요.');track={id:null,user_id:p.user_id,producer_id:p.id,title:p.name,kind:'original',personal:true};}
  else track=await published(env,m[2]);
  if(method==='GET')return json(personal?await profileGifts(env,track.producer_id):await trackGifts(env,track.id));
  if((await one(env,'SELECT account_type FROM users WHERE id=?',track.user_id))?.account_type==='ai_bot')fail(400,'공식 AI 응원 계정에는 유료·실버 선물을 보낼 수 없어요.');
@@ -133,7 +135,9 @@ export async function giftRoute(req,env,path,user){
  requireUser(user);assertUnblocked(env,track.user_id);if(track.kind==='original')await assertArtistInteraction(env,track.artist_id,user.id);
  const reason=await giftBlockReason(env,user.id,track);if(reason)fail(400,reason);
  await rate(env,'gift:'+user.id,60,3600);
- const b=await req.json();await assertDubbingGiftContext(env,user.id,track.producer_id,b.dubbing_id);if(silverGiftById(b.gift_type))return sendFreeGift(env,user,track,b);
+ const b=await req.json(),dubbing=await assertDubbingGiftContext(env,user.id,track.producer_id,b.dubbing_id);
+ const source=verifiedSource||giftTargetSource(track,dubbing);
+ if(silverGiftById(b.gift_type))return sendFreeGift(env,user,track,b,source);
  const selected=b.gift_type===undefined?null:giftById(b.gift_type);
  if(b.gift_type!==undefined&&!selected)fail(400,'선물 종류를 다시 선택해주세요.');
  const quantity=b.quantity===undefined?1:b.quantity;if(!Number.isInteger(quantity)||quantity<1||quantity>100||(!selected&&quantity!==1))fail(400,'수량은 1개부터 100개까지 선택해주세요.');
@@ -155,6 +159,7 @@ export async function giftRoute(req,env,path,user){
    ...spent.map(l=>query(env,'UPDATE gold_purchases SET used=used+? WHERE id=?',l.gold,l.purchase_id)),
    query(env,'INSERT INTO gifts(id,sender_id,track_id,gold,net_mw,singer_profile_id,creator_profile_id,singer_mw,creator_mw,platform_mw,month,created,gift_type,gift_name,request_id,quantity) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
     gid,user.id,track.id,gold,net,track.kind==='cover'?track.producer_id:null,creator,share.singer,share.creator,share.platform,giftMonth(at),at,selected?.id??null,selected?.name??null,requestId,quantity),
+   giftSourceEntry(env,'gold',gid,source),
    ...spent.map(l=>query(env,'INSERT INTO gift_lots(gift_id,purchase_id,gold,net_mw) VALUES(?,?,?,?)',gid,l.purchase_id,l.gold,l.net_mw)),
   ]);
  }catch(e){if(/constraint/i.test(String(e?.message))){const duplicate=await replay();if(duplicate)return duplicate;}if(/CHECK constraint/i.test(String(e?.message)))fail(409,'골드 잔액이 바뀌었어요. 다시 시도해주세요.');throw e;}

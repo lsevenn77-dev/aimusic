@@ -1,10 +1,21 @@
 import {one,rows,run,now,fail,json,rate} from './db.js';
 import {requireUser} from './auth.js';
-import {publicNameSQL} from './identity.js';
+import {voiceCall} from './voice-bridge.js';
+import {publicNameSQL,producerNameSQL} from './identity.js';
 import {VISIBLE} from './catalog.js';
 import {dubbingVisibleSQL} from './dubbing-access.js';
 
 export const allowed=`(n.actor_id IS NULL OR EXISTS(SELECT 1 FROM users au WHERE au.id=n.actor_id AND au.provider!='deleted')) AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=n.recipient AND b.blocked_id=n.actor_id) OR (b.user_id=n.actor_id AND b.blocked_id=n.recipient))`;
+// Only the exact ledger receipt can establish a legacy work source. A recipient
+// profile identifies who was paid, even when the gift originated in a room.
+const giftJoins=` LEFT JOIN gifts g ON n.kind IN ('gift','person_gift') AND n.currency='gold' AND g.id=substr(n.id,6,length(n.id)-6-length(n.recipient)) AND n.id='gift:'||g.id||':'||n.recipient AND g.sender_id=n.actor_id
+ LEFT JOIN free_gifts f ON n.kind IN ('gift','person_gift') AND n.currency='silver' AND f.id=substr(n.id,6) AND n.id='star:'||f.id AND f.sender_id=n.actor_id
+ LEFT JOIN gift_sources gs ON gs.currency=n.currency AND gs.gift_id=COALESCE(g.id,f.id)`;
+const giftFields=`COALESCE(g.gift_type,f.gift_type) gift_type,
+ COALESCE(gs.source_type,CASE WHEN COALESCE(g.track_id,f.track_id) IS NOT NULL THEN 'work' END) source_type,
+ COALESCE(gs.source_id,g.track_id,f.track_id) source_id,
+ COALESCE(gs.work_kind,CASE WHEN COALESCE(g.track_id,f.track_id) IS NOT NULL THEN 'song' END) work_kind,
+ COALESCE(gs.source_title,CASE WHEN COALESCE(g.track_id,f.track_id) IS NOT NULL THEN n.source_title END,'') gift_source_title`;
 export async function notificationsRoute(req,env,path,user){
  if(!path.startsWith('/api/notifications'))return null;
  requireUser(user);
@@ -30,7 +41,7 @@ export async function notificationsRoute(req,env,path,user){
  if(open&&req.method==='POST'){
   const n=await one(env,`SELECT n.* FROM activity_notifications n WHERE n.id=? AND n.recipient=? AND ${allowed}`,decodeURIComponent(open[1]),user.id);
   if(!n)fail(404,'알림을 찾을 수 없어요.');
-  const resolved=await resolveNotification(env,n);await run(env,'UPDATE activity_notifications SET read_at=? WHERE id=? AND recipient=?',now(),n.id,user.id);
+  const resolved=await resolveNotification(env,n,{opening:true});await run(env,'UPDATE activity_notifications SET read_at=? WHERE id=? AND recipient=?',now(),n.id,user.id);
   return json(resolved);
  }
  if(path==='/api/notifications/read'&&req.method==='POST'){
@@ -49,24 +60,54 @@ export async function notificationsRoute(req,env,path,user){
  if(before&&!cursor)fail(400,'알림 목록을 새로 열어주세요.');
  const type=filter==='gifts'?"AND n.kind IN ('gift','person_gift')":filter==='participation'?"AND n.kind IN ('cover','duet','dubbing_participation','dubbing_complete','work_status')":filter==='comments'?"AND n.kind IN ('comment','fan_comment','fan_post')":filter==='works'?"AND n.kind IN ('cover','duet','dubbing_participation','dubbing_complete','work_status')":filter==='artists'?"AND n.kind IN ('follow','artist_follower','artist_release')":filter==='crew'?"AND n.kind IN ('crew_notice','crew_invite','crew_approved','crew_request')":'';
  const items=await rows(env,`SELECT n.*,CASE WHEN n.kind='work_status' AND n.actor_id IS NULL THEN 'AIFECT' ELSE COALESCE(${publicNameSQL('u')},'탈퇴한 회원') END actor_name,p.id actor_profile_id,p.image_version actor_image_version,
- COALESCE(g.gift_type,f.gift_type) gift_type,(SELECT name FROM artists WHERE id=n.artist_id) artist_name,
- CASE WHEN g.id IS NOT NULL OR f.id IS NOT NULL THEN CASE WHEN COALESCE(g.track_id,f.track_id) IS NOT NULL THEN 'song' ELSE 'producer' END END gift_source_kind,
- COALESCE(g.track_id,f.track_id,g.creator_profile_id,f.recipient_profile_id) gift_source_target,
- COALESCE(gt.title,pr.name,NULLIF(n.source_title,''),'') gift_source_title,
- CASE WHEN n.kind='crew_notice' THEN EXISTS(SELECT 1 FROM crew_members cm WHERE cm.crew_id=n.target AND cm.user_id=n.recipient) WHEN n.kind IN ('person_gift','follow') THEN EXISTS(SELECT 1 FROM producers pr WHERE pr.id=n.target) ELSE EXISTS(SELECT 1 FROM tracks t WHERE t.id=n.target AND ${VISIBLE()}) END available
+ ${giftFields},(SELECT name FROM artists WHERE id=n.artist_id) artist_name
  FROM activity_notifications n LEFT JOIN users u ON u.id=n.actor_id LEFT JOIN producers p ON p.user_id=n.actor_id
- LEFT JOIN gifts g ON n.kind IN ('gift','person_gift') AND n.currency='gold' AND g.id=substr(n.id,6,length(n.id)-6-length(n.recipient)) AND n.id='gift:'||g.id||':'||n.recipient AND g.sender_id=n.actor_id
- LEFT JOIN free_gifts f ON n.kind IN ('gift','person_gift') AND n.currency='silver' AND f.id=substr(n.id,6) AND n.id='star:'||f.id AND f.sender_id=n.actor_id
- LEFT JOIN tracks gt ON gt.id=COALESCE(g.track_id,f.track_id)
- LEFT JOIN producers pr ON pr.id=CASE WHEN COALESCE(g.track_id,f.track_id) IS NULL THEN COALESCE(g.creator_profile_id,f.recipient_profile_id) END
+ ${giftJoins}
  WHERE n.recipient=? AND ${allowed} ${type} ${cursor?'AND (n.created<? OR (n.created=? AND n.id<?))':''}
  ORDER BY n.created DESC,n.id DESC LIMIT 21`,user.id,...(cursor?[cursor.created,cursor.created,cursor.id]:[]));
  const more=items.length>20;items.length=Math.min(items.length,20);
  return json({items:await Promise.all(items.map(async n=>{const {recipient,actor_id,...item}=n;return {...item,...await resolveNotification(env,n)};})),unread,next:more?items.at(-1).id:null});
 }
 
+// Room access is enforced by the normal room entry flow. Check liveness only
+// on open: listing a page must neither wake 20 rooms nor create memberships.
+async function resolveGift(env,n,opening){
+ const receipt='source_type' in n?n:await one(env,`SELECT ${giftFields} FROM activity_notifications n ${giftJoins} WHERE n.id=? AND n.recipient=?`,n.id,n.recipient);
+ const decoration=n.id?.startsWith('decoration:');
+ const type=decoration?'inventory':receipt?.source_type;
+ const id=decoration?n.id.slice(11):receipt?.source_id;
+ const routes={profile:'producer',talking_room:'voice',karaoke:'live',work:receipt?.work_kind==='dubbing'?'dubbing':'song',inventory:'inventory',shop:'gifts'};
+ const route=routes[type];
+ let title=decoration?n.gift_name:receipt?.gift_source_title||'';
+ let href='',reason='source';
+ if(route&&id){
+  href='#'+route+(['inventory','gifts'].includes(route)?'':'/'+encodeURIComponent(id));
+  reason='content';
+  if(route==='voice'||route==='live'){
+   if(opening){
+    const response=await voiceCall(env,{id:n.recipient},id,'presence');
+    if(!response.ok&&response.status!==404&&response.status!==410)fail(503,'방 상태를 확인하지 못했어요. 잠시 후 다시 시도해주세요.');
+    const state=response.ok?await response.json():null;
+    if(!state?.active||(state.mode==='karaoke')!==(route==='live')){href='';reason='room';}
+   }
+  }else if(['producer','song','dubbing'].includes(route)){
+   const queries={
+    producer:`SELECT p.user_id owner,${producerNameSQL()} title FROM producers p JOIN users u ON u.id=p.user_id WHERE p.id=? AND u.provider!='deleted'`,
+    song:`SELECT t.user_id owner,t.title FROM tracks t JOIN users u ON u.id=t.user_id WHERE t.id=? AND u.provider!='deleted' AND ${VISIBLE()}`,
+    dubbing:`SELECT p.owner_id owner,p.title FROM dubbing_projects p JOIN users u ON u.id=p.owner_id WHERE p.id=? AND p.visibility='public' AND u.provider!='deleted' AND ${dubbingVisibleSQL()}`
+   };
+   const current=await one(env,`SELECT t.title FROM (${queries[route]}) t WHERE NOT EXISTS(SELECT 1 FROM user_blocks WHERE (user_id=? AND blocked_id=t.owner) OR (user_id=t.owner AND blocked_id=?))`,id,n.recipient,n.recipient);
+   if(current)title=current.title;
+   else href='';
+  }
+ }
+ return {source_type:type||null,source_id:id||null,gift_source_kind:route||null,gift_source_target:id||null,gift_source_title:title,
+  href,available:Number(!!href),unavailable_reason:href?'':reason,unavailable:href?'':reason==='source'?'이 선물의 발생 위치를 확인할 수 없어요.':reason==='room'?'종료되었거나 삭제된 방이에요.':'삭제·비공개 또는 접근 권한이 변경된 콘텐츠예요.'};
+}
+
 // Revalidate at click/dispatch time: stored history never grants access to content.
-export async function resolveNotification(env,n){
+export async function resolveNotification(env,n,{opening=false}={}){
+ if(n.kind==='gift'||n.kind==='person_gift')return resolveGift(env,n,opening);
  const enc=encodeURIComponent,blocked=async uid=>uid&&await one(env,'SELECT 1 FROM user_blocks WHERE (user_id=? AND blocked_id=?) OR (user_id=? AND blocked_id=?)',n.recipient,uid,uid,n.recipient);
  let href='',ok=false;
  if(n.target_kind==='fan'){
@@ -88,7 +129,7 @@ export async function resolveNotification(env,n){
   if(n.kind==='crew_invite')ok=ok&&!!await one(env,'SELECT 1 FROM direct_messages WHERE id=? AND recipient_id=? AND crew_invite_id=?',n.entity_id,n.recipient,n.target);
   if(n.kind==='crew_request')ok=ok&&!!await one(env,'SELECT 1 FROM crew_participation_requests WHERE id=? AND recipient=?',n.entity_id,n.recipient);
   href=n.kind==='crew_request'?'#notifications?request='+enc(n.entity_id):'#crew/'+enc(n.target)+(n.kind==='crew_notice'?'?tab=notice':'');
- }else if(['person_gift','follow'].includes(n.kind)){
+ }else if(n.kind==='follow'){
   const p=await one(env,"SELECT p.user_id FROM producers p JOIN users u ON u.id=p.user_id WHERE p.id=? AND u.provider!='deleted'",n.target);ok=!!p&&!await blocked(p.user_id);href='#producer/'+enc(n.target);
  }else{
   const t=await one(env,`SELECT t.user_id FROM tracks t JOIN users u ON u.id=t.user_id WHERE t.id=? AND u.provider!='deleted' AND ${VISIBLE()}`,n.target);ok=!!t&&!await blocked(t.user_id);href='#song/'+enc(n.target);

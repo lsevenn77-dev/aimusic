@@ -1,4 +1,5 @@
 import {one,query,now,id,fail,json,rate} from './db.js';
+import {giftSourceEntry} from './gift-source.js';
 import {FREE_GIFT,FREE_GIFT_REWARDS,giftDay,silverGiftById} from '../shared/gifts.js';
 
 export async function freeGiftBalance(env,userId){return (await one(env,'SELECT balance FROM free_gift_wallets WHERE user_id=?',userId))?.balance||0;}
@@ -27,7 +28,7 @@ export async function claimFreeGift(req,env,user){
  ]);}catch(e){if(!/UNIQUE constraint/i.test(String(e?.message)))throw e;}
  return json(await freeGiftState(env,user.id));
 }
-export async function sendFreeGift(env,user,track,b){
+export async function sendFreeGift(env,user,track,b,source){
  if(track.user_id===user.id)fail(400,'내 곡에는 선물할 수 없어요.');
  const selected=silverGiftById(b.gift_type),quantity=b.quantity===undefined?1:b.quantity;
  if(!selected)fail(400,'선물 종류를 다시 선택해주세요.');
@@ -42,6 +43,7 @@ export async function sendFreeGift(env,user,track,b){
  const gid=id();try{await env.DB.batch([
   query(env,'UPDATE free_gift_wallets SET balance=balance-? WHERE user_id=?',silver,user.id),
   query(env,'INSERT INTO free_gifts(id,sender_id,track_id,recipient_profile_id,request_id,created,gift_type,gift_name,silver,quantity) VALUES(?,?,?,?,?,?,?,?,?,?)',gid,user.id,track.id,track.personal?track.producer_id:null,b.request_id,now(),selected.id,selected.name,silver,quantity),
+  giftSourceEntry(env,'silver',gid,source),
  ]);}catch(e){if(/constraint/i.test(String(e?.message))){const duplicate=await replay();if(duplicate)return duplicate;}if(/CHECK constraint/i.test(String(e?.message)))fail(409,'실버 잔액이 바뀌었어요. 다시 확인해주세요.');throw e;}
  return json({gift:{id:gid,type:selected.id,name:selected.name,silver,quantity,free:true,gold:0},free_balance:await freeGiftBalance(env,user.id)},201);
 }

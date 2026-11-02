@@ -138,14 +138,15 @@ async function giftDialog(tid,initial=null,personal=false){
    if(owned){
     if(!owned.available||!recipientId)throw new Error('선물할 프로필을 확인해주세요.');if(!confirmOwned){confirmOwned=true;return;}
     const sent=owned;let key=ownedRequests.get(sent.id);if(!key){key=crypto.randomUUID();ownedRequests.set(sent.id,key);}setSend('보내는 중…',true);
-    await api('/api/me/gift-inventory/'+encodeURIComponent(sent.id)+'/send','POST',{profile_id:recipientId,request_id:key,...(!personal?{track_id:tid}:{})});
+    await api('/api/me/gift-inventory/'+encodeURIComponent(sent.id)+'/send','POST',{profile_id:recipientId,request_id:key,...(!personal?{track_id:tid}:/^#(?:inventory|gift-inventory|gifts)\b/.test(route)?{}:{from_profile:true})});
     if(serial!==giftDialogSerial||!form.isConnected||account!==me?.id)return;
     dialog(`<section class="gift-success"><div class="gift-celebration">${giftArt(sent)}</div><h2>${esc(sent.gift_name)} 1개를 보냈어요</h2><p>${esc(t.producer)}님의 프로필에 전달했어요.</p><p>보유 선물 사용 · 실버·골드 추가 차감 없음</p><button class="primary-button" data-close-dialog>확인</button></section>`);await render();return;
    }
    if(category!=='gifts')throw Error('선물할 상품을 선택해주세요.');
    if(!Number.isInteger(quantity)||quantity<1||quantity>100)throw new Error('수량을 확인해주세요.');
    const g=choices.find(g=>g.id===chosen),sentQuantity=quantity;if(!g)throw Error('선물을 선택해주세요.');const fingerprint=chosen+':'+sentQuantity;let key=purchaseRequests.get(fingerprint);if(!key){key=crypto.randomUUID();purchaseRequests.set(fingerprint,key);}setSend('보내는 중…',true);
-   const r=roomGift?await roomGift.send({profile_id:recipientId,gift_type:chosen,quantity:sentQuantity,request_id:key}):await api(`/api/${personal?'producers':'tracks'}/${tid}/gifts`,'POST',{gift_type:chosen,quantity:sentQuantity,request_id:key,...(g.free?{silver:g.silver*sentQuantity}:{gold:g.gold*sentQuantity})});
+   const shopCheckout=personal&&/^#gifts(?:[/?]|$)/.test(route);
+   const r=roomGift?await roomGift.send({profile_id:recipientId,gift_type:chosen,quantity:sentQuantity,request_id:key}):await api(shopCheckout?'/api/gifts/checkout':`/api/${personal?'producers':'tracks'}/${tid}/gifts`,'POST',{...(shopCheckout?{profile_id:recipientId}:{}),gift_type:chosen,quantity:sentQuantity,request_id:key,...(g.free?{silver:g.silver*sentQuantity}:{gold:g.gold*sentQuantity})});
    if(serial!==giftDialogSerial||!form.isConnected||account!==me?.id)return;
    if(roomGift){$('#dialog').close();toast(`${g.name} ${sentQuantity}개를 ${t.producer}님에게 선물했어요.`);return;}
    dialog(`<section class="gift-success"><div class="gift-celebration">${giftArt(g)}</div><span class="eyebrow">THANK YOU FOR YOUR ENCORE</span><h2>${esc(g.name)} ${sentQuantity}개를 보냈어요</h2><p>${esc(t.producer)}${personal?'님에게':'님의 「'+esc(t.title)+'」에'}<br>응원이 전해졌어요.</p><p>${r.gift.free?`남은 실버 ${number(r.free_balance)} S · 수익 정산 없음`:`남은 골드 ${number(r.balance)} G`}</p><button class="primary-button" data-close-dialog>계속 음악 듣기</button></section>`);await render();

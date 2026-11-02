@@ -2,13 +2,15 @@ import {talkingRoomPage} from './talking-directory.js';
 import {roomThemeChoices,assertRoomTheme,saveRoomTheme,resolveRoomDecoration,decorateRoomResult} from './room-decorations.js';
 import {voiceMusicRoute} from './voice-music.js';
 import {voiceKaraokeRoute} from './voice-karaoke.js';
-import {one,rows,rate,json,fail,str} from './db.js';
+import {one,rows,run,rate,json,fail,str} from './db.js';
 import {requireUser,hash,viewerBlockedIds} from './auth.js';
 import {assertUnblocked} from './account-safety.js';
 import {giftRoute} from './gifts.js';
 import {socialRoute} from './social.js';
 import {dispatchPush} from './push.js';
-import {signedHeaders,identifier,requestId} from '../realtime/protocol.js';
+import {voiceCall,voiceConfigured} from './voice-bridge.js';
+export {voiceCall,voiceConfigured} from './voice-bridge.js';
+import {identifier,requestId} from '../realtime/protocol.js';
 import {giftById} from '../shared/gifts.js';
 
 const talkTitles=['자유토크방','음악과 수다','편하게 이야기해요','잠깐 쉬어가는 방','오늘도 반가워요','함께 듣는 음악','소소한 이야기','지금은 수다 시간'];
@@ -17,17 +19,19 @@ function suggestedTalkTitle(key){
  for(const char of key)index=(index*31+char.charCodeAt(0))>>>0;
  return talkTitles[index%talkTitles.length];
 }
-export const voiceConfigured=env=>!!(env.VOICE_SERVICE_URL&&env.VOICE_BRIDGE_SECRET);
-export async function voiceCall(env,actor,room,action,input={},socket=false) {
- if(!voiceConfigured(env))fail(503,'토킹룸 서비스 연결을 준비하고 있어요.');
- const root=new URL(env.VOICE_SERVICE_URL);if(root.protocol!=='https:'&&!['127.0.0.1','localhost'].includes(root.hostname))fail(503,'토킹룸 서버 주소를 확인해주세요.');
- const path=`/rooms/${identifier(room)}/${action}`,body=JSON.stringify({actor,input}),headers=await signedHeaders(env.VOICE_BRIDGE_SECRET,path,body);
- if(socket){headers.upgrade='websocket';headers['x-voice-payload']=btoa(String.fromCharCode(...new TextEncoder().encode(body)));}
- const response=await fetch(new URL(path,root),{method:socket?'GET':'POST',headers,body:socket?undefined:body,redirect:'manual',...(!socket?{signal:AbortSignal.timeout(25000)}:{})});
- if(response.status>=300&&response.status<400)fail(502,'토킹룸 서버 주소가 변경되었어요. 연결 설정을 확인해주세요.');
- return response;
-}
 async function result(response) {const r=await response.json();if(!response.ok)fail(response.status,r.error||'토킹룸 연결에 실패했어요.');return r;}
+
+// Only server-issued receipt events survive this match. Ordinary chat text,
+// timestamps and the recipient's profile are never evidence of a room gift.
+async function rememberRoomReceipts(env,source,chat){
+ const receipts=chat.filter(m=>m.kind==='gift'&&m.gift?.id&&m.id==='gift-'+m.gift.id)
+  .map(m=>({id:m.gift.id,sender:m.user_id}));
+ if(!receipts.length)return;
+ await run(env,`INSERT INTO gift_sources(currency,gift_id,source_type,source_id,source_title)
+  SELECT 'gold',g.id,?,?,? FROM json_each(?) e JOIN gifts g ON g.id=json_extract(e.value,'$.id')
+  AND g.sender_id=json_extract(e.value,'$.sender') WHERE g.track_id IS NULL
+  ON CONFLICT(currency,gift_id) DO NOTHING`,source.type,source.id,source.title,JSON.stringify(receipts));
+}
 export async function voiceRoomsRoute(req,env,path,user,ctx) {
  if(!path.startsWith('/api/voice/'))return null;
  if(path==='/api/voice/status'&&req.method==='GET')return json({enabled:voiceConfigured(env),max_members:30,mic_seats:8});
@@ -97,12 +101,20 @@ export async function voiceRoomsRoute(req,env,path,user,ctx) {
   const target=await one(env,"SELECT id,user_id,name FROM producers WHERE id=? AND user_id IN (SELECT id FROM users WHERE provider!='deleted')",pid);if(!target)fail(404,'회원이 없어요.');
   await assertUnblocked(env,user,target.user_id);
   const prior=await one(env,'SELECT id FROM gifts WHERE sender_id=? AND request_id=?',user.id,rid);
-  if(!prior)await result(await voiceCall(env,actor,room,'gift-target',{generation:b.generation,target_id:target.user_id}));
+  let source,history;
+  if(!prior){
+   const state=await result(await voiceCall(env,actor,room,'state',{generation:b.generation}));
+   if(!state.members.some(member=>member.id===target.user_id&&member.profile_id===pid))fail(404,'선물 받을 회원이 방을 나갔어요.');
+   if(state.room?.id!==room||!state.room.title||state.room.closed)fail(409,'방 정보를 다시 확인해주세요.');
+   source={type:state.room.mode==='karaoke'?'karaoke':'talking_room',id:room,title:state.room.title};
+   history=state.chat;
+  }
   // Server catalogue and existing atomic FIFO ledger remain the sole authority for price and settlement.
   const giftPath='/api/producers/'+pid+'/gifts';
-  const response=await giftRoute(new Request(new URL(giftPath,req.url),{method:'POST',body:JSON.stringify({gift_type:b.gift_type,quantity:b.quantity,request_id:rid})}),env,giftPath,user);
+  const response=await giftRoute(new Request(new URL(giftPath,req.url),{method:'POST',body:JSON.stringify({gift_type:b.gift_type,quantity:b.quantity,request_id:rid})}),env,giftPath,user,source);
   if(!response.ok)return response;
   const receipt=await response.json();if(receipt.gift.free)fail(400,'토킹룸에서는 골드 선물을 선택해주세요.');
+  if(history?.length&&ctx?.waitUntil)ctx.waitUntil(rememberRoomReceipts(env,source,history));
   let animation_pending=false;
   try{await result(await voiceCall(env,actor,room,'gift-receipt',{generation:b.generation,receipt:receipt.gift,target_name:target.name}));}catch{animation_pending=true;}
   if(ctx?.waitUntil)ctx.waitUntil(dispatchPush(env));

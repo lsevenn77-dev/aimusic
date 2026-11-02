@@ -59,6 +59,12 @@ async function accessToken(env){
 }
 
 export function notificationData(event){
+ if(['gift','person_gift'].includes(event.kind)&&event.source){
+  const {source_type,source_id,gift_source_title,href}=event.source;
+  const direct=source_id===event.target&&(source_type==='profile'&&event.kind==='person_gift'||event.kind==='gift'&&event.source.gift_source_kind==='song');
+  return {kind:direct?event.kind:'notifications',activity:event.kind,notification_id:event.id,target:event.target,recipient:event.recipient,
+   source_type:source_type||'',source_id:source_id||'',route:href||'#notifications?filter=gifts',title:'선물이 도착했어요',body:gift_source_title?gift_source_title+'에서 받은 선물을 확인해보세요.':'알림함에서 받은 선물을 확인해보세요.'};
+ }
  // Existing native apps already open song targets for comment notifications.
  if(event.kind==='artist_digest')return {notification_id:'',kind:'notifications',activity:'artist_digest',target:event.target,recipient:event.recipient,route:'#notifications?filter=artists',title:'오늘의 아티스트 소식',body:event.body||'새 팔로워와 신곡 소식을 알림함에서 확인해보세요.'};
  if(['fan_comment','crew_invite','crew_approved','crew_request','dubbing_complete','dubbing_participation','work_status'].includes(event.kind)){const titles={fan_comment:'팬라운지에 댓글·답글이 달렸어요',crew_invite:'크루 초대를 받았어요',crew_approved:'크루 가입이 승인됐어요',crew_request:'작품 참여 요청이 도착했어요',dubbing_complete:'참여한 더빙이 완성됐어요',dubbing_participation:'내 작품에 더빙 참여가 공개됐어요',work_status:'작품 공개 상태를 확인해주세요'};return {notification_id:event.id||'',kind:'notifications',activity:event.kind,target:event.target,recipient:event.recipient,route:event.route||'#notifications',title:titles[event.kind],body:event.body||'알림함에서 자세한 내용을 확인해보세요.'};}
@@ -86,7 +92,13 @@ export async function dispatchPush(env){
   if(!activity&&event.kind==='comment'){const cid=event.id.slice(8).split(':')[0],c=await one(env,'SELECT user_id,deleted_at FROM comments WHERE id=?',cid);if(!c||c.deleted_at){await run(env,'UPDATE push_outbox SET delivered=1 WHERE id=?',event.id);return;}activity={kind:'comment',target:event.target,recipient:event.recipient,actor_id:c.user_id,entity_id:cid};}
   if(event.kind==='dm'){const m=await one(env,"SELECT m.sender_id FROM direct_messages m JOIN users u ON u.id=m.sender_id WHERE m.id=? AND m.recipient_id=? AND u.provider!='deleted' AND NOT EXISTS(SELECT 1 FROM user_blocks WHERE (user_id=m.sender_id AND blocked_id=m.recipient_id) OR (user_id=m.recipient_id AND blocked_id=m.sender_id))",event.id.slice(3),event.recipient);if(!m){await run(env,'UPDATE push_outbox SET delivered=1 WHERE id=?',event.id);return;}}
   if(!await one(env,"SELECT 1 FROM users WHERE id=? AND provider!='deleted'",event.recipient)){await run(env,'UPDATE push_outbox SET delivered=1 WHERE id=?',event.id);return;}
-  if(activity){const resolved=await resolveNotification(env,activity);if(!resolved.available||activity.actor_id&&!await one(env,"SELECT 1 FROM users WHERE id=? AND provider!='deleted'",activity.actor_id)){await run(env,'UPDATE push_outbox SET delivered=1 WHERE id=?',event.id);return;}event.route=resolved.href;event.body=[activity.source_title,activity.detail].filter(Boolean).join(' · ').slice(0,180);}
+  if(activity){
+   const resolved=await resolveNotification(env,activity);
+   const gift=['gift','person_gift'].includes(event.kind);
+   if((!resolved.available&&!(gift&&resolved.unavailable_reason==='source'))||activity.actor_id&&!await one(env,"SELECT 1 FROM users WHERE id=? AND provider!='deleted'",activity.actor_id)){await run(env,'UPDATE push_outbox SET delivered=1 WHERE id=?',event.id);return;}
+   if(gift)event.source=resolved;
+   event.route=resolved.href;event.body=[activity.source_title,activity.detail].filter(Boolean).join(' · ').slice(0,180);
+  }
   if(event.kind==='artist_digest'){event.body=await artistDigestBody(env,event.recipient,event.target);if(!event.body){await run(env,'UPDATE push_outbox SET delivered=1 WHERE id=?',event.id);return;}}
   if(activity?.actor_id&&await one(env,'SELECT 1 FROM user_blocks WHERE (user_id=? AND blocked_id=?) OR (user_id=? AND blocked_id=?)',event.recipient,activity.actor_id,activity.actor_id,event.recipient)){await run(env,'UPDATE push_outbox SET delivered=1 WHERE id=?',event.id);return;}
   const preference=event.kind==='crew'?'dm':event.kind==='person_gift'?'gift':event.kind.startsWith('crew_')?'crew_important':event.kind.startsWith('dubbing_')?'participation':event.kind==='artist_digest'?'dm':event.kind;

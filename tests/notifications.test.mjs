@@ -59,6 +59,26 @@ test('pagination has no gaps at identical timestamps and blocked activity is hid
  await f.call('/api/blocks/other','PUT',{});assert.equal((await f.call('/api/notifications')).body.items.length,0);assert.equal((await f.call('/api/notifications/summary')).body.unread,0);
 });
 
+test('legacy gifts require evidence and provenance failures roll the financial transaction back',async t=>{
+ const f=await fixture(t);
+ f.sql.exec("INSERT INTO free_gift_wallets(user_id,balance) VALUES('other',100)");
+ const send=(target,request_id)=>f.call('/api/'+target+'/gifts','POST',{request_id,gift_type:'silver-letter',quantity:1},'other');
+ const profile=await send('producers/producer',crypto.randomUUID()),work=await send('tracks/one',crypto.randomUUID());
+ assert.equal(profile.status,201);assert.equal(work.status,201);
+ f.sql.exec("DELETE FROM gift_sources;UPDATE activity_notifications SET source_title='추측하면 안 되는 이름' WHERE kind='person_gift'");
+ const items=(await f.call('/api/notifications')).body.items,unknown=items.find(n=>n.kind==='person_gift');
+ assert.deepEqual([unknown.source_type,unknown.source_id,unknown.gift_source_title,unknown.href],[null,null,'','']);
+ const open=await f.call('/api/notifications/'+encodeURIComponent(unknown.id)+'/open','POST',{});
+ assert.equal(open.body.unavailable_reason,'source');
+ assert.equal(items.find(n=>n.kind==='gift').href,'#song/one');
+ const key=crypto.randomUUID(),balance=()=>f.sql.prepare("SELECT balance FROM free_gift_wallets WHERE user_id='other'").get().balance,prior=balance();
+ f.sql.exec("CREATE TRIGGER reject_source BEFORE INSERT ON gift_sources BEGIN SELECT RAISE(ABORT,'source unavailable');END");
+ assert.ok((await send('producers/producer',key)).status>=400);assert.equal(balance(),prior);
+ assert.equal(f.sql.prepare('SELECT count(*) n FROM activity_notifications').get().n,2);
+ f.sql.exec('DROP TRIGGER reject_source');assert.equal((await send('producers/producer',key)).status,201);
+ assert.equal((await send('producers/producer',key)).status,200);assert.equal(balance(),prior-2);
+});
+
 test('published participation reaches existing native song navigation and respects preferences',async t=>{
  const f=await fixture(t);f.sql.exec("INSERT INTO producers(id,user_id,name,created) VALUES('friend','other','친구',0)");
  f.sql.exec("UPDATE tracks SET karaoke_at=1 WHERE id='one'");

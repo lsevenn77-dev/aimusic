@@ -45,7 +45,9 @@ test('owned send confirms, retries the same request after a lost response, spend
  await b.submit();assert.equal(b.nodes['#gift-send'].textContent,'확인하고 보내기');assert.equal(calls.filter(r=>r.method==='POST').length,0);
  await b.submit();assert.match(b.form.error.textContent,/연결/);await b.submit();
  const sent=calls.filter(r=>r.path.endsWith('/send'));assert.equal(sent.length,2);assert.deepEqual(sent[0].body,sent[1].body);
- assert.deepEqual(Object.keys(sent[0].body).sort(),['profile_id','request_id']);assert.equal(sent[0].body.profile_id,'friend');
+ assert.deepEqual(Object.keys(sent[0].body).sort(),['from_profile','profile_id','request_id']);assert.equal(sent[0].body.profile_id,'friend');
+ assert.equal(sent[0].body.from_profile,true);
+ assert.equal(f.sql.prepare('SELECT source_type FROM gift_sources').get().source_type,'profile');
  assert.equal((await f.call('/api/gold/balance')).body.balance,400);assert.equal(f.sql.prepare('SELECT count(*) n FROM gifts').get().n,1);
  assert.match(b.html,/추가 차감 없음/);assert.equal(b.renders,1);
  await b.c.profileGiftDialog('friend');assert.match(b.html,/보유 1개/);
@@ -121,6 +123,9 @@ test('unavailable inventory is disabled and a changed account cannot send anothe
 test('song entry makes the profile recipient explicit for stored gifts and preserves track purchases',async t=>{
  const {b,f,calls}=await setup(t);f.sql.exec("INSERT INTO artists(id,producer_id,name,created) VALUES('friend-artist','friend','Guest artist',0);UPDATE tracks SET user_id='other',producer_id='friend',artist_id='friend-artist' WHERE id='one'");await b.c.giftDialog('one');assert.match(b.nodes['#gift-send-summary'].innerHTML,/프로필에 보내요/);await b.submit();await b.submit();assert.equal(calls.find(r=>r.path.endsWith('/send')).body.profile_id,'friend');
  await b.c.giftDialog('one','silver-letter');await b.submit();assert.ok(calls.some(r=>r.path==='/api/tracks/one/gifts'&&r.method==='POST'));
+ const gifts=(await f.call('/api/notifications?filter=gifts','GET',null,'other')).body.items;
+ assert.equal(gifts.length,2);
+ for(const gift of gifts)assert.deepEqual([gift.source_type,gift.source_id,gift.href],['work','one','#song/one']);
 });
 test('rapid double submit keeps the send button disabled and issues one request',async t=>{
  const {b,calls}=await setup(t);const api=b.c.api;let release;const pending=new Promise(resolve=>release=resolve);
