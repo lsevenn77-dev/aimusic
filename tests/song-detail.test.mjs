@@ -48,7 +48,7 @@ test('empty introductions do not reserve a card and saved text stays intact',()=
 
 test('the song title heads the page and metrics follow the date before introduction and actions',()=>{
  const c=header(),html=c.songDetailHeaderHTML({...track,description:'제작자 소개'});
- const order=['song-release-date','song-metrics','song-introduction','song-actions','song-engagement','data-report-track'];
+ const order=['song-release-date','song-meta-row','song-metrics','song-engagement','data-report-track','song-header-divider','song-introduction','song-actions'];
  let previous=-1;for(const key of order){const at=html.indexOf(key);assert.ok(at>previous,key);previous=at;}
  assert.equal(html.match(/class="song-introduction"/g).length,1);
  assert.match(html,/<h1\b[^>]*class="song-title"[^>]*>곡 제목<\/h1>/);assert.equal((html.match(/<h1\b/g)||[]).length,1);
@@ -58,6 +58,7 @@ test('the song title heads the page and metrics follow the date before introduct
  const metrics=html.match(/<p\b[^>]*class="song-metrics"[^>]*>([\s\S]*?)<\/p>/)?.[1];assert.ok(metrics);
  const duration=metrics.match(/^\s*<span\b[^>]*class="metric-inline song-duration"[^>]*>[\s\S]*?<\/span>/)?.[0];
  assert.ok(duration);assert.match(duration,/aria-label="곡 길이 2:00"/);assert.match(duration,/>2:00<\/span>/);
+ assert.doesNotMatch(c.songDetailMetricsHTML({...track,ai_comments:12}),/공식|AI|응원/);
  for(const c of [header(null),header('other')]){const plain=c.songDetailHeaderHTML(track);assert.doesNotMatch(plain,/song-engagement|data-report-track/);assert.match(plain,/song-metrics/);}
 });
 test('song actions retain delegates, links, active state and count with the lyrics entry last',()=>{

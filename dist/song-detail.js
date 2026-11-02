@@ -43,7 +43,7 @@ function bindSongDescription(){
  paint(true);document.fonts?.ready.then(()=>paint(true));
 }
 function songDetailMetricsHTML(t){
- return '<p class="song-metrics"><span class="metric-inline song-duration" aria-label="곡 길이 '+time(t.duration)+'">'+time(t.duration)+'</span><span class="metric-inline" aria-label="재생 '+number(t.plays||0)+'회">'+icon('ui-plays')+number(t.plays||0)+'</span><span class="metric-inline" aria-label="댓글 '+number(t.comments||0)+'개">'+icon('ui-comment')+number(t.comments||0)+'</span>'+(t.ai_comments?' · 공식 AI 응원 '+number(t.ai_comments)+'개':'')+'</p>';
+ return '<p class="song-metrics"><span class="metric-inline song-duration" aria-label="곡 길이 '+time(t.duration)+'">'+time(t.duration)+'</span><span class="metric-inline" aria-label="재생 '+number(t.plays||0)+'회">'+icon('ui-plays')+number(t.plays||0)+'</span><span class="metric-inline" aria-label="댓글 '+number(t.comments||0)+'개">'+icon('ui-comment')+number(t.comments||0)+'</span></p>';
 }
 function songActionIcon(name){
  // Header actions share one button surface. Reuse the shared glyphs without
@@ -75,8 +75,10 @@ function songOwnerActionsHTML(t){
 }
 function songDetailHeaderHTML(t){
  const genres=(t.genres?.length?t.genres:[t.genre]).filter(Boolean).join(' · '),moderation=trackModerationToolsHTML(t);
- return '<section class="song-detail song-detail-refined">'+cover(t).replace('loading="lazy"','loading="eager" fetchpriority="high"')+'<div class="song-detail-copy">'+
- (genres?'<span class="eyebrow song-track-meta">'+esc(genres)+'</span>':'')+'<h1 class="song-title">'+esc(t.title)+'</h1>'+
- songDetailCreditsHTML(t)+songReleaseDateHTML(t)+songDetailMetricsHTML(t)+songDescriptionHTML(t)+songDetailActionsHTML(t)+songOwnerActionsHTML(t)+
- (moderation?'<div class="song-engagement">'+moderation+'</div>':'')+'</div></section>';
+ return '<section class="song-detail song-detail-refined'+(genres?'':' song-detail-no-meta')+'">'+
+ (genres?'<span class="eyebrow song-track-meta">'+esc(genres)+'</span>':'')+
+ cover(t).replace('loading="lazy"','loading="eager" fetchpriority="high"')+'<div class="song-detail-copy"><h1 class="song-title">'+esc(t.title)+'</h1>'+
+ songDetailCreditsHTML(t)+songReleaseDateHTML(t)+'<div class="song-meta-row">'+songDetailMetricsHTML(t)+
+ (moderation?'<div class="song-engagement">'+moderation+'</div>':'')+'</div><div class="song-header-divider" aria-hidden="true"></div>'+
+ songDescriptionHTML(t)+songDetailActionsHTML(t)+songOwnerActionsHTML(t)+'</div></section>';
 }

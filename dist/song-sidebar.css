@@ -3,15 +3,11 @@
 .song-sidebar .song-support-rank,.song-sidebar .song-credit-card{min-width:0;margin:0;padding:20px;border:1px solid #b8c6dc24;border-radius:16px;background:var(--ds-panel,#182230);box-shadow:none}
 .song-sidebar .song-support-rank h2,.song-sidebar .song-credit-card h3{margin:0 0 10px;color:var(--ds-text);font-size:1.06rem;line-height:1.5}
 .song-support-caption,.song-support-note{color:var(--ds-muted);font-size:.76rem;line-height:1.7;margin:0 0 16px}
-.song-support-ranking{display:grid;gap:8px;list-style:none;margin:0;padding:0}
-.song-support-ranking li{display:grid;grid-template-columns:18px 34px minmax(0,1fr) auto;align-items:center;gap:8px;min-width:0;padding:12px 9px;border:1px solid #b8c6dc1c;border-radius:12px;background:#151e2a}
-.song-support-ranking li.is-first{background:#382b435c;border-color:#c18ccc50}
-.song-support-position{font-size:.9rem;color:var(--ds-body)}.is-first .song-support-position{color:var(--ds-body)}
-.song-support-avatar{display:block;width:34px;height:34px;border-radius:50%;overflow:hidden;background:#30384a}
-.song-support-avatar img{width:100%;height:100%;display:block;object-fit:cover}
+.song-support-ranking{display:grid;list-style:none;margin:0;padding:0;border-bottom:1px solid var(--ds-line)}
+.song-support-ranking li{display:grid;grid-template-columns:18px minmax(0,1fr) auto;align-items:center;gap:12px;min-width:0;padding:12px 4px;border:0;border-top:1px solid var(--ds-line);border-radius:0;background:transparent}
+.song-support-position{font-size:.9rem;color:var(--ds-body)}
 .song-support-person{min-width:0}.song-support-person>a,.song-support-person>strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ds-text);font-size:.8rem;font-weight:600;line-height:1.5}
-.song-support-person small{display:block;margin-top:3px;color:var(--ds-body);font-size:.67rem;line-height:1.6;overflow-wrap:anywhere}
-.song-support-score{font-size:.9rem;color:var(--ds-body);white-space:nowrap;font-variant-numeric:tabular-nums}
+.song-support-gifts{max-width:132px;color:var(--ds-body);font-size:.76rem;line-height:1.6;text-align:right;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
 .song-support-gift{min-width:0}.song-sidebar .song-support-banner,.song-sidebar .song-support-banner:not(:disabled):hover{display:flex;align-items:center;gap:12px;width:100%;min-height:112px;padding:14px;text-align:left;background:#292536;border:1px solid #ba96c63b;border-radius:16px;box-shadow:none;color:#f3eef8}
 .song-support-art{flex:0 0 68px;width:68px;height:68px;object-fit:contain}
 .song-support-copy{display:block;min-width:0}.song-support-copy strong{display:block;color:var(--ds-text);font-size:.94rem;line-height:1.5;word-break:keep-all;overflow-wrap:anywhere}
@@ -22,7 +18,7 @@
 .song-sidebar .song-credit-card .production-info>dt,.song-sidebar .song-credit-card .production-info>dd{min-width:0;margin:0;padding:10px 0;border-top:1px solid #b8c6dc19;color:var(--ds-body);overflow-wrap:anywhere}
 .song-sidebar .song-credit-card .production-info>dt{padding-right:12px}
 .song-support-banner:focus-visible,.song-silver-button:focus-visible,.song-support-person>a:focus-visible{outline:2px solid #9ce7e1;outline-offset:3px}
-@media(max-width:420px){.song-sidebar .song-support-rank,.song-sidebar .song-credit-card{padding:16px}.song-support-ranking li{gap:7px;padding:11px 8px}.song-support-art{width:58px;height:58px;flex-basis:58px}.song-support-copy strong{font-size:.9rem}}
+@media(max-width:420px){.song-sidebar .song-support-rank,.song-sidebar .song-credit-card{padding:16px}.song-support-ranking li{gap:8px;padding:11px 4px}.song-support-art{width:58px;height:58px;flex-basis:58px}.song-support-copy strong{font-size:.9rem}}
 
 .song-sidebar .song-image-gift-banner{display:block;width:100%;min-width:0;margin:0;padding:0;overflow:hidden;border:1px solid #b8c6dc24;border-radius:16px;background:transparent;cursor:pointer;transition:filter .15s ease}.song-image-gift-banner img{display:block;width:100%;height:auto;object-fit:contain}.song-image-gift-banner:hover{filter:brightness(1.04)}.song-image-gift-banner:focus-visible{outline:2px solid #9ce7e1;outline-offset:3px}@media(prefers-reduced-motion:reduce){.song-image-gift-banner{transition:none}}
 /* The image supplies its own rounded border; do not crop or double-frame it. */

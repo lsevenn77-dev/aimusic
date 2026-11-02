@@ -51,7 +51,8 @@ test('personal support ranking sums every AI receipt with human gifts without ch
  assert.deepEqual(after.ranking,before.ranking,'ordinary fan ranking remains byte-for-byte compatible');
  assert.deepEqual([after.total_gold,after.free_count,after.gift_count],[before.total_gold,before.free_count,before.gift_count]);
  const track=(await f.call('/api/tracks/one/gifts')).body;
- assert.deepEqual(track.ranking,beforeTrack.ranking);assert.equal(track.total_gold,beforeTrack.total_gold);assert.equal(track.free_count,beforeTrack.free_count);assert.equal('support_ranking' in track,false);
+ assert.deepEqual(track.ranking,beforeTrack.ranking);assert.equal(track.total_gold,beforeTrack.total_gold);assert.equal(track.free_count,beforeTrack.free_count);
+ assert.deepEqual(track.support_ranking.map(r=>[r.profile_id,r.gold,r.stars,r.official_stars,r.score]),[['ai_000001',0,0,120,120],['ai_000002',0,0,3,3],['fan-profile',2,1,0,3]],'song support includes only this track, not dubbing or other tracks');
  const earnings=(await f.call('/api/studio/earnings')).body;
  for(const key of ['activity','breakdown','months'])assert.deepEqual(earnings[key],beforeEarnings[key],key);
  assert.deepEqual(await popularScores(env,period,'1=1',[],100),beforeChart);
@@ -75,7 +76,31 @@ test('support ranking orders ties by first support then stable account ID and li
  assert.deepEqual(result.support_ranking.slice(1,4).map(r=>r.profile_id),['ai_000001','ai_000002','ai_000003']);
  assert.deepEqual(result.support_ranking.map(r=>r.rank),Array.from({length:50},(_,i)=>i+1));
  assert.equal(result.total_gold,0);assert.equal(result.free_count,0);assert.deepEqual(result.ranking,[]);
+ let track=(await f.call('/api/tracks/one/gifts')).body;
+ assert.equal(track.support_ranking.length,10);
+ assert.deepEqual(track.support_ranking.map(r=>r.profile_id),result.support_ranking.slice(0,10).map(r=>r.profile_id));
+ assert.deepEqual(track.support_ranking.map(r=>r.rank),Array.from({length:10},(_,i)=>i+1));
  f.sql.exec("UPDATE ai_support_gifts SET created=90 WHERE id='tie-ai_000051'");
  result=(await f.call('/api/producers/producer/gifts')).body;
  assert.equal(result.support_ranking[1].profile_id,'ai_000051','first support breaks equal-score ties before account ID');
+ track=(await f.call('/api/tracks/one/gifts')).body;
+ assert.equal(track.support_ranking[1].profile_id,'ai_000051');
+});
+
+test('song support aggregates all receipts before the history cap and never duplicates a sender',async t=>{
+ const f=await fixture(t);
+ addBot(f,'ai_000001','응원하는 사람');
+ for(let n=0;n<120;n++)addSupport(f,'song-receipt-'+n,'ai_000001','owner',2,100+n);
+ addSupport(f,'other-track','ai_000001','owner',5,220,'track','another-song');
+ addSupport(f,'same-id-dubbing','ai_000001','owner',5,221,'dubbing','one');
+ const result=(await f.call('/api/tracks/one/gifts')).body;
+ assert.equal(result.official_ai.gifts.length,100);
+ assert.equal(result.support_ranking.length,1);
+ const [sender]=result.support_ranking;
+ assert.deepEqual([sender.rank,sender.profile_id,sender.official_stars,sender.score,sender.gifts],[1,'ai_000001',240,240,120]);
+ assert.deepEqual([sender.gold,sender.stars,result.total_gold,result.free_count,result.gift_count],[0,0,0,0,0]);
+ assert.deepEqual(result.ranking,[]);
+ f.sql.exec("UPDATE producers SET name='새 응원 이름',image_version='image-v2' WHERE id='ai_000001'");
+ const updated=(await f.call('/api/tracks/one/gifts')).body.support_ranking[0];
+ assert.equal(updated.name,'새 응원 이름');assert.equal(updated.image_version,'image-v2');
 });

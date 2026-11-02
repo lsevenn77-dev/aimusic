@@ -21,9 +21,22 @@ export async function goldBalance(env,userId){return (await one(env,"SELECT COAL
 
 const RANKING=`SELECT ${publicNameSQL()} name,(SELECT id FROM producers WHERE user_id=u.id) profile_id,(SELECT image_version FROM producers WHERE user_id=u.id) image_version,sum(g.gold) gold,sum(g.stars) stars,sum(g.gold+g.stars) score,count(*) gifts,min(g.created) first FROM (SELECT sender_id,track_id,COALESCE(singer_profile_id,creator_profile_id) recipient_profile_id,gold,0 stars,created FROM gifts UNION ALL SELECT f.sender_id,f.track_id,COALESCE(f.recipient_profile_id,t.producer_id),0 gold,f.silver stars,f.created FROM free_gifts f LEFT JOIN tracks t ON t.id=f.track_id) g JOIN users u ON u.id=g.sender_id`;
 const ranked=list=>list.map((r,i)=>({rank:i+1,name:r.name,profile_id:r.profile_id,image_version:r.image_version,gold:r.gold,stars:r.stars,score:r.score,gifts:r.gifts}));
+// Song support uses the same point units as personal support; paid/fan totals stay separate.
+// Aggregate every receipt before ranking, not the bounded official-support history preview.
+const TRACK_SUPPORT_RANKING=`SELECT ${publicNameSQL()} name,p.id profile_id,p.image_version,
+ sum(g.gold) gold,sum(g.stars) stars,sum(g.official_stars) official_stars,
+ sum(g.gold+g.stars+g.official_stars) score,count(*) gifts,min(g.created) first
+ FROM (
+  SELECT sender_id,gold,0 stars,0 official_stars,created FROM gifts WHERE track_id=?
+  UNION ALL SELECT sender_id,0 gold,silver stars,0 official_stars,created FROM free_gifts WHERE track_id=?
+  UNION ALL SELECT sender_id,0 gold,0 stars,quantity official_stars,created
+   FROM ai_support_gifts WHERE target_type='track' AND target_id=?
+ ) g JOIN users u ON u.id=g.sender_id LEFT JOIN producers p ON p.user_id=u.id
+ WHERE (u.account_type='human' AND g.official_stars=0) OR (u.account_type='ai_bot' AND g.official_stars>0)
+ GROUP BY g.sender_id ORDER BY score DESC,first ASC,g.sender_id ASC LIMIT 10`;
 export async function trackGifts(env,trackId){
- const [total,free,ranking]=await Promise.all([one(env,'SELECT COALESCE(sum(gold),0) gold,count(*) gifts FROM gifts WHERE track_id=?',trackId),one(env,'SELECT COALESCE(sum(silver),0) n FROM free_gifts WHERE track_id=?',trackId),rows(env,`${RANKING} WHERE g.track_id=? GROUP BY g.sender_id ORDER BY score DESC,first ASC,g.sender_id ASC LIMIT 10`,trackId)]);
- return {available:true,total_gold:total.gold,gift_count:total.gifts,free_count:free.n,official_ai:await officialSupport(env,'track',trackId),ranking:ranked(ranking)};
+ const [total,free,ranking,support]=await Promise.all([one(env,'SELECT COALESCE(sum(gold),0) gold,count(*) gifts FROM gifts WHERE track_id=?',trackId),one(env,'SELECT COALESCE(sum(silver),0) n FROM free_gifts WHERE track_id=?',trackId),rows(env,`${RANKING} WHERE g.track_id=? GROUP BY g.sender_id ORDER BY score DESC,first ASC,g.sender_id ASC LIMIT 10`,trackId),rows(env,TRACK_SUPPORT_RANKING,trackId,trackId,trackId)]);
+ return {available:true,total_gold:total.gold,gift_count:total.gifts,free_count:free.n,official_ai:await officialSupport(env,'track',trackId),ranking:ranked(ranking),support_ranking:support.map((r,i)=>({rank:i+1,name:r.name,profile_id:r.profile_id,image_version:r.image_version,gold:r.gold,stars:r.stars,official_stars:r.official_stars,score:r.score,gifts:r.gifts}))};
 }
 // A person's fans are the people who gifted what that person performs: their covers and their own originals.
 // Gifts to other people's covers of their songs still pay them the creator share, but belong to the singer's fans.
