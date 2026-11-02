@@ -12,7 +12,6 @@ function bindLiveVocalSettings(c){
  sound.querySelector('#live-voice-volume-slot').append(c.host.querySelector('#voice-input-gain'));
  sound.querySelector('#live-music-volume-slot').append(c.host.querySelector('#live-mr-volume'));
  const advanced=sound.querySelector('.voice-audio-extra');
- advanced.querySelector('summary').textContent='장치 · 고급 설정';
  advanced.append(c.host.querySelector('#live-delay').closest('label'));
  advanced.append(sound.querySelector('.voice-mic-test'));
  sound.querySelector('.voice-sheet-heading p').textContent='내 목소리와 음원, 공간 효과를 조절하세요.';

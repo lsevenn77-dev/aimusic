@@ -183,7 +183,6 @@ Object.assign(VoiceRoomClient.prototype,{
   if(['seat-accept','seat-reject'].includes(action)){await this.command('seat-answer',{invitation_id:target,accept:action==='seat-accept'});await this.refresh();return true;}
   if(action==='music-repeat'){const current=this.state.music.repeat||'off';await this.musicCommand('repeat',{mode:{off:'one',one:'all',all:'off'}[current]});return true;}
   if(action==='mic-test'){if(this.testGraph)this.stopMicTest();else await this.startMicTest();return true;}
-  if(action==='diagnostics-export'){this.diagnostics?.download();return true;}
   return false;
  },
  syncPersonalVolume(){if(!this.liveMode){
@@ -370,7 +369,7 @@ Object.assign(VoiceRoomClient.prototype,{
     `<input type="${input.type}" data-sound-control="${id}" min="${input.min}" max="${input.max}" step="${input.step||1}">`;
    return `<label class="talk-sound-row"><span>${label}</span>${control}${input.type==='range'?`<output data-sound-output="${id}"></output>`:''}</label>`;
   };
-  return [['voice-input-gain','마이크 입력 볼륨'],['voice-monitor','내 목소리 모니터링'],['voice-noise','노이즈 제거'],['voice-echo','에코 제거'],['voice-preset','마이크 효과'],['voice-reverb','리버브 강도'],['voice-input','입력 장치'],['voice-output','출력 장치'],['voice-music-volume','개인 음악 볼륨'],['voice-listen-volume','참가자 목소리']].map(([id,label])=>row(id,label)).join('')+'<button type="button" data-voice="sound">마이크 테스트 · 연결 진단</button>';
+  return [['voice-input-gain','마이크 입력 볼륨'],['voice-monitor','내 목소리 모니터링'],['voice-noise','노이즈 제거'],['voice-echo','에코 제거'],['voice-preset','마이크 효과'],['voice-reverb','리버브 강도'],['voice-input','입력 장치'],['voice-output','출력 장치'],['voice-music-volume','개인 음악 볼륨'],['voice-listen-volume','참가자 목소리']].map(([id,label])=>row(id,label)).join('')+'<button type="button" data-voice="sound">마이크 테스트</button>';
  },
  syncTalkSound(){
   for(const field of this.host.querySelectorAll('[data-sound-control]')){
