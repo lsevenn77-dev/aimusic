@@ -125,10 +125,11 @@ async function trackPicker(pid){const ticket=renderId;
 
 function updateQueueButton(){const button=$('#queue-toggle'),count=$('#queue-count');if(button)button.setAttribute('aria-label',`재생목록 열기 · ${queue.length}곡`);if(count){count.textContent=number(queue.length);count.hidden=!queue.length;}}
 function saveQueue(){updateQueueButton();try{const value=JSON.stringify({ids:queue,tracks:queue.map(id=>({id,title:trackMap.get(id)?.title,artist:trackMap.get(id)?.artist}))});sessionStorage.setItem('aifect-queue',value);localStorage.setItem('aifect-queue',value);}catch{}}
-function trackMenu(tid,anchor=null){
+function trackMenu(tid,anchor=null,duetJoin=null){
  const t=trackMap.get(tid);if(!t)return;const id=esc(tid);
  const row=(name,label,attrs,extra='')=>`<button type="button" class="track-option ${extra}" ${attrs}>${icon(name)}<span>${label}</span>${icon('chevron')}</button>`;
  const html=`<nav class="track-options" aria-label="곡 옵션">
+ ${duetJoin&&!duetJoin.getClientRects().length?`<a class="track-option" data-close-dialog href="${esc(duetJoin.getAttribute('href'))}">${icon('mic')}<span>듀엣 참여</span>${icon('chevron')}</a>`:''}
  ${row('play','지금 재생',`data-play="${id}"`,'track-option-now')}
  ${row('next','다음에 재생',`data-queue-insert="${id}" data-placement="next"`)}
  ${row('list','재생목록 맨 뒤에 추가',`data-queue-insert="${id}" data-placement="last"`)}
@@ -186,7 +187,7 @@ document.addEventListener('click',async e=>{const b=e.target.closest('button,a')
  else if(b.dataset.saveCollection){if(!me)return askLogin();const saved=b.dataset.saved==='true';b.disabled=true;await api(`/api/playlists/${b.dataset.saveCollection}/save`,saved?'DELETE':'PUT');await refreshLibrary();if(location.hash.startsWith('#playlist/'))await render();else{b.dataset.saved=String(!saved);if(b.closest('.recommended-playlist-card')){updateRecommendedPlaylistBookmark(b,!saved);const count=b.closest('.recommended-playlist-card').querySelector('[data-recommended-saves]');if(count){const p=await api('/api/playlists/'+encodeURIComponent(b.dataset.saveCollection));if(count.isConnected)count.textContent=number(p.playlist.saves||0);}}else b.textContent=saved?'보관함 저장':'보관함 저장됨';}toast(saved?'보관함에서 저장을 해제했습니다.':'추천 플레이리스트를 내 보관함에 저장했습니다.');}
  else if(b.dataset.pinCollection){b.disabled=true;await api('/api/library/playlists/'+b.dataset.pinCollection,'PATCH',{pinned:b.dataset.pinned!=='true'});await render();}
  else if(b.hasAttribute('data-order-collections'))await orderCollections();
- else if(b.dataset.trackMenu)trackMenu(b.dataset.trackMenu,b.closest('.charts-final')?b:null);
+ else if(b.dataset.trackMenu)trackMenu(b.dataset.trackMenu,b.closest('.charts-final')?b:null,b.closest('.song-covers-panel .song-cover-row')?.querySelector('.song-cover-join'));
  else if(b.dataset.queuePlay){$('#dialog').close();await play(b.dataset.queuePlay);}
  else if(b.dataset.queueInsert){if(b.dataset.queueInsert===current?.id)return toast('지금 재생 중인 곡입니다.');if(queue.length>=500)return toast('현재 재생목록에는 최대 500곡까지 담을 수 있어요.');queue=AifectQueue.insertTrack(queue,b.dataset.queueInsert,current?.id,b.dataset.placement);saveQueue();$('#dialog').close();toast(b.dataset.placement==='next'?'다음에 재생할 곡으로 담았습니다.':'재생목록 맨 뒤에 담았습니다.');}
  else if(b.hasAttribute('data-move-queue')){queue=AifectQueue.moveTrack(queue,Number(b.dataset.moveQueue),Number(b.dataset.dir));saveQueue();queueDialog();}

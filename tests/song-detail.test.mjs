@@ -61,20 +61,23 @@ test('the song title heads the page and metrics follow the date before introduct
  assert.doesNotMatch(c.songDetailMetricsHTML({...track,ai_comments:12}),/공식|AI|응원/);
  for(const c of [header(null),header('other')]){const plain=c.songDetailHeaderHTML(track);assert.doesNotMatch(plain,/song-engagement|data-report-track/);assert.match(plain,/song-metrics/);}
 });
-test('song actions retain delegates, links, active state and count with the lyrics entry last',()=>{
+test('song actions retain delegates and expose the compact labels, menu and separate lyrics entry',()=>{
  const c=header('owner',true),html=c.songDetailActionsHTML(track);
- const order=['data-play="song"','href="#sing/song"','data-like="song"','data-add="song"','data-gift="song"','id="lyrics-expand"'];let previous=-1;
+ const order=['data-play="song"','href="#sing/song"','data-like="song"','data-add="song"','data-gift="song"','data-track-menu="song"'];let previous=-1;
  for(const key of order){const i=html.indexOf(key);assert.ok(i>previous,key);previous=i;}
  assert.match(html,/aria-pressed="true"/);assert.match(html,/data-like-count>12</);
- for(const key of ['play','sing','heart','plus','gift','lyrics'])assert.ok(html.includes('song-action-icon-'+key));
+ for(const key of ['play','sing','heart','plus','gift','menu'])assert.ok(html.includes('song-action-icon-'+key));
+ assert.match(html,/aria-label="노래 듣기"/);assert.match(html,/<span>노래<\/span>/);
+ assert.match(html,/aria-label="노래 부르기"/);assert.match(html,/<span>부르기<\/span>/);
  assert.match(html,/<span>선물<\/span>/);assert.doesNotMatch(html,/선물하기|audio-play-icon/);
- const lyrics=html.match(/<button\b[^>]*\bid="lyrics-expand"[^>]*>/)?.[0];
+ const page=c.songDetailHeaderHTML(track);
+ const lyrics=page.match(/<button\b[^>]*\bid="lyrics-expand"[^>]*>/)?.[0];
  assert.ok(lyrics);assert.match(lyrics,/data-track="song"/);assert.match(lyrics,/aria-controls="expanded-song-lyrics"/);assert.match(lyrics,/aria-expanded="false"/);assert.doesNotMatch(lyrics,/\bdisabled\b/);
- assert.match(html,/<span>가사<\/span>/);assert.equal((html.match(/id="lyrics-expand"/g)||[]).length,1);
+ assert.match(page,/<span>가사<\/span>/);assert.equal((page.match(/id="lyrics-expand"/g)||[]).length,1);
 });
 test('guest listening, unavailable karaoke, self-gifts and duet ownership remain gated',()=>{
  const guest=header(null),own=header('other'),other=header();
- assert.match(guest.songDetailActionsHTML(track),/data-play="song"[^>]*>.*<span>노래 듣기<\/span>/);
+ assert.match(guest.songDetailActionsHTML(track),/data-play="song"[^>]*aria-label="노래 듣기"/);
  assert.doesNotMatch(other.songDetailActionsHTML({...track,karaoke_ready:false}),/노래 부르기|#sing/);
  assert.doesNotMatch(own.songDetailActionsHTML(track),/data-gift=/);
  const invitation={...track,kind:'cover',id:'invitation',original_id:'original',cover_mode:'duet',duet_open:1,karaoke_ready:false};
@@ -86,7 +89,7 @@ test('guest listening, unavailable karaoke, self-gifts and duet ownership remain
  assert.doesNotMatch(mine,/song-track-meta|내 녹음 파일 저장|내 커버 삭제|data-add=|data-gift=/);
  for(const viewer of [other,guest])assert.doesNotMatch(viewer.songDetailHeaderHTML(invitation),/data-cover-photo|data-delete-track/);
  assert.doesNotMatch(own.songDetailHeaderHTML(track),/data-cover-photo/);
- const unavailable=other.songDetailActionsHTML({...track,lyrics_mode:'none'}).match(/<button\b[^>]*\bid="lyrics-expand"[^>]*>/)?.[0];
+ const unavailable=other.songDetailHeaderHTML({...track,lyrics_mode:'none'}).match(/<button\b[^>]*\bid="lyrics-expand"[^>]*>/)?.[0];
  assert.ok(unavailable);assert.match(unavailable,/\bdisabled\b/);
 });
 test('artist and producer profiles are each shown once without dropping cover credits',()=>{

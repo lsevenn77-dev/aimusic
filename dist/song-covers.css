@@ -1,5 +1,5 @@
 /* Only the song-page cover section; shared shell and recorder styles stay intact. */
-.song-covers-panel{min-width:0}
+.song-covers-panel{min-width:0;container:song-covers / inline-size}
 .song-covers-panel .section-heading{gap:12px;flex-wrap:wrap}
 .song-covers-panel .section-heading>a{min-height:44px}
 .song-covers-panel .covers-sort{display:flex;gap:24px;overflow:visible;margin-bottom:8px}
@@ -64,13 +64,26 @@
 }
 @media(prefers-reduced-motion:reduce){.song-cover-row{transition:none}}
 
-/* Keep the participant toggle beside the two-line information on narrow phones.
-   Playback, join and the existing menu remain separate native controls below. */
-@media(max-width:600px){
- .song-cover-group>.song-cover-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:4px 6px}
- .song-cover-group>.song-cover-row .song-cover-detail{grid-column:1/3;grid-row:1}
- .song-cover-group>.song-cover-row>.song-cover-expand{grid-column:3;grid-row:1;font-size:11px;max-width:100px}
- .song-cover-group>.song-cover-row>.song-cover-play{grid-column:1;grid-row:2;justify-self:end}
- .song-cover-group>.song-cover-row>.song-cover-join{grid-column:2;grid-row:2}
- .song-cover-group>.song-cover-row>.song-cover-more{grid-column:3;grid-row:2;justify-self:end}
+/* Only this list contains works for a single original. Give controls their
+   intrinsic width and let the performer link take the remaining space. */
+#main .song-covers-panel .song-cover-row{display:flex;flex-wrap:nowrap}
+#main .song-covers-panel .song-cover-row>.song-cover-detail{flex:1 1 0;min-width:0}
+#main .song-covers-panel .song-cover-row>.list-actions{flex:0 0 auto;margin:0}
+#main[data-route^="song/"] .song-covers-panel .song-cover-row .song-cover-detail .song-cover-copy{flex-wrap:nowrap}
+#main .song-covers-panel .song-cover-row .song-cover-detail .song-cover-copy>.song-cover-meta{flex:none}
+#main .song-covers-panel .song-cover-copy strong{min-width:0}
+@container song-covers (max-width:600px){
+ #main .song-covers-panel .song-cover-row{
+  --list-row-inset:0px;--list-thumb-size:36px;--list-text-gap:6px;
+  min-height:56px;padding-block:6px;gap:2px
+ }
+ #main .song-covers-panel .song-cover-row>.list-actions{gap:2px}
+ #main .song-covers-panel .song-cover-row .song-cover-detail .song-cover-copy{display:block}
+ #main .song-covers-panel .song-cover-row .song-cover-detail .song-cover-copy>.song-cover-meta,
+ #main .song-covers-panel .song-cover-row>.song-cover-plays{display:none}
+ #main .song-covers-panel .song-cover-row>.count-dropdown{min-width:44px;max-width:none;padding:0 4px;gap:2px;font-size:13px;margin:0}
+}
+@container song-covers (max-width:360px){
+ /* The same permission-gated join link is offered in this row's track menu. */
+ #main .song-covers-panel .list-actions>.song-cover-join{display:none}
 }

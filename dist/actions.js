@@ -34,8 +34,8 @@ function bindForms(base,param){
   if(authConfig.googleClientId)prepareGoogle().catch(e=>toast(e.message));
  }
  if($('#logout'))$('#logout').onclick=logoutAccount;
+ if(base==='song')syncSongListen();
  if($('#comment-form')){
-  syncCoverListen();
   const form=$('#comment-form');form.onsubmit=busyForm(form,async fd=>{if(!me){askLogin();return;}const ts=fd.has('with_time')&&current?.id===param?Math.floor(audio.currentTime):null;await api(`/api/tracks/${param}/comments`,'POST',{body:fd.get('body'),timestamp:ts});form.reset();await reloadComments(param,true);toast('댓글을 등록했습니다.');});
   $('#comment-sort').onchange=()=>reloadComments(param).catch(e=>toast(e.message));
  }
@@ -203,15 +203,16 @@ document.addEventListener('change',async event=>{
  finally{pendingCoverPhotos.delete(id);input.value='';button.disabled=false;button.textContent='사진 변경';}
 });
 
-function syncCoverListen(){
- const button=document.querySelector('.cover-actions [data-play]');
+function syncSongListen(){
+ const button=document.querySelector('.song-detail-refined .song-action-listen');
  if(!button)return;
- const playing=current?.id===button.dataset.play&&!audio.paused&&!audio.ended;
+ const playing=current?.id===button.dataset.play&&!audio.paused&&!audio.ended&&!window.AifectAudioAds?.active;
  if(button.getAttribute('aria-pressed')===String(playing))return;
  button.setAttribute('aria-pressed',String(playing));
- button.innerHTML=songActionIcon(playing?'pause':'play')+'<span>'+(playing?'일시정지':'노래 듣기')+'</span>';
+ button.setAttribute('aria-label',playing?'일시정지':'노래 듣기');
+ button.querySelector('svg').outerHTML=songActionIcon(playing?'pause':'play');
 }
-for(const event of ['play','pause','ended'])audio.addEventListener(event,syncCoverListen);
+for(const event of ['play','pause','ended','emptied','loadedmetadata'])audio.addEventListener(event,syncSongListen);
 
 document.addEventListener('click',async ev=>{
  const el=ev.target.closest('button,a');if(!el||el.disabled)return;

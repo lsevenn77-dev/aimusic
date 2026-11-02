@@ -19,7 +19,7 @@
 .song-detail-refined .song-credits a:hover{color:var(--ds-text)}
 .song-detail-refined .song-release-date{margin:8px 0 0;font-size:12px;line-height:1.6;color:var(--ds-muted)}
 .song-detail-refined .song-introduction{margin:12px 0 0;padding:12px;border:1px solid var(--ds-line);border-radius:var(--ds-radius-input);background:var(--ds-panel);min-width:0}
-/* Share the actions' intrinsic column, so the divider ends at the lyrics edge. */
+/* Align the divider with the action group. */
 .song-detail-refined .song-detail-copy>.song-header-divider{grid-column:1;width:calc(100% - 2px);height:1px;margin-top:12px;background:var(--ds-line)}
 #main[data-route^="song/"] .song-detail-refined .song-introduction{border:0;border-radius:0;background:transparent;padding:0 0 12px;box-shadow:none}
 .song-detail-refined .song-introduction-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 4px}
@@ -30,8 +30,7 @@
 #main .song-detail-refined .song-description-toggle::after{content:'';position:absolute;inset-inline:0;top:50%;height:44px;transform:translateY(-50%)}
 #main .song-detail-refined .song-description-toggle:hover{color:var(--ds-selected)}
 #main .song-detail-refined .song-description-toggle:focus-visible{outline:2px solid var(--ds-selected);outline-offset:2px}
-.song-detail-refined .song-detail-copy>.song-actions{grid-column:1;display:flex;flex-wrap:nowrap;align-items:center;gap:8px;width:max-content;min-width:0;max-width:100%;margin:12px 0 0;padding:4px 2px;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none;scroll-padding-inline:2px}
-.song-detail-refined .song-actions::-webkit-scrollbar{display:none}
+.song-detail-refined .song-detail-copy>.song-actions{grid-column:1;display:flex;flex-wrap:wrap;align-items:center;gap:8px;width:max-content;min-width:0;max-width:100%;margin:12px 0 0;padding:4px 0}
 #main .song-detail-refined .song-actions>:is(button,a){
  display:inline-flex;align-items:center;justify-content:center;gap:6px;
  min-width:44px;max-width:none;width:auto;height:44px;min-height:44px;margin:0;padding:0 12px;
@@ -43,6 +42,8 @@
 #main .song-detail-refined .song-actions>.primary-button{
  background:var(--ds-gradient)!important;color:var(--ds-ink);border-color:transparent!important;font-weight:700;
 }
+#main .song-detail-refined .song-actions>:is(.song-action-listen,.song-action-sing){padding-inline:10px}
+#main .song-detail-refined .song-actions>.song-action-more{width:44px;padding:0}
 #main .song-detail-refined .song-actions>.primary-button:not(:disabled):hover{color:var(--ds-ink);border-color:transparent!important}
 #main .song-detail-refined .song-actions>:is(button,a):focus-visible{outline:2px solid var(--ds-selected);outline-offset:2px}
 #main .song-detail-refined .song-actions>button:disabled{color:var(--ds-disabled);opacity:.5;cursor:default}
@@ -81,19 +82,33 @@
 .song-detail-refined .song-engagement .text-link{position:relative;display:inline-flex;align-items:center;min-height:0;min-width:0;margin:0;padding:0;border:0;border-radius:var(--ds-radius-sm);background:none;box-shadow:none;color:var(--ds-muted);font-size:12px;line-height:1.6;white-space:nowrap}
 .song-detail-refined .song-engagement .text-link::after{content:'';position:absolute;inset-inline:0;top:50%;height:44px;transform:translateY(-50%)}
 .song-detail-refined .song-engagement .text-link:hover{color:var(--ds-selected)}
+.song-detail-refined .song-meta-row>.song-action-lyrics{position:relative;display:inline-flex;align-items:center;gap:4px;min-width:44px;min-height:0;margin:0;padding:0;border:0;background:none;color:var(--ds-muted);font-size:12px;line-height:1.6}
+.song-detail-refined .song-meta-row>.song-action-lyrics svg{width:14px;height:14px}
+.song-detail-refined .song-meta-row>.song-action-lyrics::after{content:'';position:absolute;inset-inline:0;top:50%;height:44px;transform:translateY(-50%)}
 @media(min-width:768px) and (max-width:1199px){
  .song-detail.song-detail-refined{grid-template-columns:minmax(180px,220px) minmax(0,1fr);column-gap:24px}
 }
 @media(max-width:767px){
  .song-detail.song-detail-refined{grid-template-columns:minmax(0,1fr);gap:0}
  .song-detail-refined>.album-art{grid-column:1;grid-row:1;width:min(100%,280px);margin:0 auto 20px}
- .song-detail-refined .song-track-meta{grid-column:1;grid-row:2;margin-bottom:8px}
- .song-detail-refined .song-detail-copy{grid-column:1;grid-row:3}
+ .song-detail-refined .song-track-meta{grid-column:1;grid-row:2;justify-content:center;text-align:center;overflow-wrap:anywhere;margin-bottom:6px}
+ .song-detail-refined .song-detail-copy{grid-column:1;grid-row:3;grid-template-columns:minmax(0,1fr);container:song-info / inline-size}
  .song-detail-refined.song-detail-no-meta>.song-detail-copy{grid-row:2}
- #main .song-detail-refined .song-title{font-size:28px;line-height:1.3}
- .song-detail-refined .song-detail-copy>.song-actions{gap:6px}
- #main .song-detail-refined .song-actions>:is(button,a){padding-inline:10px}
+ #main .song-detail-refined .song-title{font-size:28px;line-height:1.3;text-align:center}
+ .song-detail-refined .song-credits{display:flex;flex-wrap:nowrap;justify-content:center;align-items:flex-start;gap:16px;text-align:center}
+ .song-detail-refined .cover-performers,.song-detail-refined .song-release-date,.song-detail-refined .song-meta-row,#main .song-detail-refined .song-metrics{justify-content:center}
+ .song-detail-refined .song-engagement{border:0;padding:0}
+ .song-detail-refined .song-engagement>.inline-actions{flex-wrap:wrap;justify-content:center}
+ .song-detail-refined .song-detail-copy>.song-actions:not(.cover-actions){grid-column:1/-1;width:100%;max-width:390px;justify-self:center;justify-content:space-evenly;gap:6px 2px}
+ #main .song-detail-refined .song-actions:not(.cover-actions)>:is(button,a){padding-inline:6px}
+ #main .song-detail-refined .song-actions>:is(.song-action-listen,.song-action-sing,.song-action-more){width:44px;min-width:44px;height:44px;padding:0;gap:0}
+ #main .song-detail-refined .song-actions>:is(.song-action-listen,.song-action-sing)>span{display:none}
+ #main .song-detail-refined .song-actions>:is(.song-action-listen,.song-action-sing)>svg{width:18px;height:18px;flex-basis:18px}
  .song-detail-refined .song-engagement .text-link,.song-detail-refined .song-metrics{font-size:clamp(10px,2.8vw,12px)}
+}
+@container song-info (max-width:340px){
+ #main .song-detail-refined .song-actions:not(.cover-actions)>:is(button,a){padding-inline:0}
+ .song-detail-refined .song-actions>:is(.song-action-save,.song-action-gift)>span{display:none}
 }
 
 /* The song conversation keeps its composer and actions compact at every width. */
