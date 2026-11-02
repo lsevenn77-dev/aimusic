@@ -47,7 +47,7 @@ async function integratedMenuView(base,param,raw,readApi=api){
  }
  if(base==='gifts'&&param==='rewards'){
   const view=await improvementsView('rewards',null,raw,readApi);
-  return {...view,html:'<a class="text-link" href="#gifts">← 선물함</a>'+view.html};
+  return {...view,html:'<a class="text-link" href="#gifts">← 상점</a>'+view.html};
  }
  if(base==='follow')return followManagementView(raw,readApi);
  if(base!=='community'||param!=='following')return null;

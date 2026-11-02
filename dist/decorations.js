@@ -107,7 +107,7 @@ function shopBalancesHTML(wallet){
 }
 async function finalGiftShopView(category,readApi=api){
  const [wallet,d,c]=await Promise.all([me?readApi('/api/gold','GET',undefined,{fresh:true}):null,readApi('/api/decorations','GET',undefined,{fresh:true}),readApi('/api/gifts/catalog')]);
- return '<div class="gift-dashboard shop-page"><header class="shop-heading"><div class="shop-balances" role="status" aria-label="보유 자산" aria-live="polite">'+shopBalancesHTML(wallet)+'</div><nav class="shop-actions" aria-label="선물함 관리"><a class="small-button" href="#gold">골드 충전</a><a class="small-button" href="#gifts/rewards">실버 받기</a><a class="small-button" href="#inventory">인벤토리</a></nav></header>'+
+ return '<div class="gift-dashboard shop-page"><header class="shop-heading"><h1 class="shop-title">상점</h1><div class="shop-balances" role="status" aria-label="보유 자산" aria-live="polite">'+shopBalancesHTML(wallet)+'</div><nav class="shop-actions" aria-label="상점 관리"><a class="small-button" href="#gold">골드 충전</a><a class="small-button" href="#gifts/rewards">실버 받기</a><a class="small-button" href="#inventory">인벤토리</a></nav></header>'+
  shopShelf('gold','골드 상품',c.gifts)+shopShelf('silver','실버 상품',c.silver_gifts)+shopShelf('frames','테두리',d.products.filter(p=>p.kind==='PROFILE_FRAME'),d.periods)+shopShelf('themes','테마',shopThemeProducts(d.products),d.periods)+
  '<details class="shop-policy"><summary>선물 및 정산 안내</summary><p>'+esc(AifectGifts.GIFT_SETTLEMENT_NOTICE)+' 실버는 현금 정산·골드 전환 대상이 아니에요.</p><a class="text-link" href="#gold/history">보낸 선물 내역</a></details></div>';
 }
@@ -282,7 +282,7 @@ document.addEventListener('click',e=>{
  if(b.dataset.giftBuy)void giftPurchaseDialog(b.dataset.giftBuy);else void shopPurchaseDialog({sku:b.dataset.productGift});
 });
 function decorationNav(active='gifts'){
- return '<nav class="v3-segments decoration-nav" aria-label="선물함 카테고리">'+[['gifts','선물','#gifts'],['frames','테두리','#gifts/frames'],['themes','테마','#gifts/themes'],['inventory','인벤토리','#inventory']].map(([id,label,href])=>`<a href="${href}" ${id===active?'aria-current="page"':''}>${label}</a>`).join('')+'</nav>';
+ return '<nav class="v3-segments decoration-nav" aria-label="상점 카테고리">'+[['gifts','선물','#gifts'],['frames','테두리','#gifts/frames'],['themes','테마','#gifts/themes'],['inventory','인벤토리','#inventory']].map(([id,label,href])=>`<a href="${href}" ${id===active?'aria-current="page"':''}>${label}</a>`).join('')+'</nav>';
 }
 function decorationRemaining(expires,serverNow=Math.floor(Date.now()/1000)){
  if(!expires)return '기간 제한 없음';
@@ -292,7 +292,7 @@ function decorationRemaining(expires,serverNow=Math.floor(Date.now()/1000)){
 async function decorationShopView(category){
  const d=await api('/api/decorations','GET',undefined,{fresh:true});
  const kind=category==='frames'?'PROFILE_FRAME':'TALKING_ROOM_THEME';
- return heading('선물함','내 프로필과 토킹룸을 꾸며보세요.')+decorationNav(category)+`<section class="decoration-grid">${d.products.filter(p=>p.kind===kind).map(p=>{
+ return heading('상점','내 프로필과 토킹룸을 꾸며보세요.')+decorationNav(category)+`<section class="decoration-grid">${d.products.filter(p=>p.kind===kind).map(p=>{
   const item=d.inventory.find(i=>i.item_key===p.sku&&i.available)||d.inventory.find(i=>i.item_key===p.sku),image=decorationProductImage(p);
   return `<article class="decoration-card" data-decoration-card="${esc(p.sku)}"><img class="decoration-product-image ${kind==='PROFILE_FRAME'?'is-frame':''}" src="${esc(image)}" alt="${esc(p.name)}" loading="lazy"><h2>${esc(p.name)}</h2><p class="decoration-owned">${item?item.available?item.stored?'사용 전 보관 · '+d.periods[item.period_code]:decorationRemaining(item.expires_at,d.server_now):'기간 만료 · 다시 구매할 수 있어요.':'미보유'}</p><label>이용 기간<select data-decoration-period aria-label="${esc(p.name)} 이용 기간">${Object.entries(d.periods).map(([key,label])=>`<option value="${key}">${label} · ${number(p.periodPrices[key])} G</option>`).join('')}</select></label><div class="decoration-actions"><button class="small-button" data-decoration="${esc(p.sku)}">자세히 보기</button><button class="primary-button" data-decoration="${esc(p.sku)}">구매</button></div></article>`;
  }).join('')}</section>`;

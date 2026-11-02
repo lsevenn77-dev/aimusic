@@ -139,7 +139,7 @@ async function renderRoute(showCachedRoute){
  let refreshWatch=null;
  if(restored){routeTracks=remember(cached.tracks);main.innerHTML=cached.html;main.removeAttribute('aria-busy');bindRenderedRoute(base,param,cached.explorer,ticket);window.scrollTo({top:cached.scroll||0,behavior:'instant'});refreshWatch=watchCachedNavigation(main);}
  else main.setAttribute('aria-busy','true');
- if(!restored&&base!=='home'){const titles={notifications:'알림',inventory:'인벤토리',charts:'차트',karaoke:'플레이',community:'커뮤니티',library:'내 보관함',following:'팔로우',gifts:'선물함',gold:'골드',dm:'DM 메시지',crew:'크루',payouts:'정산',rewards:'오늘의 실버',producer:'프로필',artist:'AI 아티스트',profile:'내 프로필',account:'내 계정',upload:'음원 업로드',studio:'스튜디오',search:'음악 검색',discover:'음악 발견',history:'최근 들은 음악'};main.classList.remove('motion-enter');main.innerHTML=pendingView?.html||(['dm','song'].includes(base)?'':heading(titles[base]||'음악 둘러보기'))+'<div class="route-loading" role="status"><span>불러오는 중…</span><div></div><div></div><div></div></div>';window.scrollTo({top:0,behavior:'instant'});}
+ if(!restored&&base!=='home'){const titles={notifications:'알림',inventory:'인벤토리',charts:'차트',karaoke:'플레이',community:'커뮤니티',library:'내 보관함',following:'팔로우',gifts:'상점',gold:'골드',dm:'DM 메시지',crew:'크루',payouts:'정산',rewards:'오늘의 실버',producer:'프로필',artist:'AI 아티스트',profile:'내 프로필',account:'내 계정',upload:'음원 업로드',studio:'스튜디오',search:'음악 검색',discover:'음악 발견',history:'최근 들은 음악'};main.classList.remove('motion-enter');main.innerHTML=pendingView?.html||(['dm','song'].includes(base)?'':heading(titles[base]||'음악 둘러보기'))+'<div class="route-loading" role="status"><span>불러오는 중…</span><div></div><div></div><div></div></div>';window.scrollTo({top:0,behavior:'instant'});}
  main.dataset.account=account;
  main.classList.toggle('secondary-page',['charts','search','discover','collections','artists','producers','library','history','playlist','following','studio','manage','upload','cover','account','membership','rewards','payouts','inventory','gold'].includes(base)||base==='karaoke'&&param==='drafts');
  main.dataset.route=raw;
@@ -276,7 +276,7 @@ function songCreditCardHTML(t){
 function songSupportCardsHTML(){
  const silver='<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="11" cy="6" rx="9" ry="3.5"/><path d="M2 6v15c0 1.9 4 3.5 9 3.5M20 6v5M2 11c0 1.9 4 3.5 9 3.5M2 16c0 1.9 4 3.5 9 3.5"/><circle cx="22" cy="21" r="9" fill="var(--ds-panel)"/><path d="M24.7 17.8c-.6-.8-1.6-1.2-2.7-1.2-1.7 0-2.8.8-2.8 2.1 0 1.2 1.1 1.8 2.8 2.2s2.8 1 2.8 2.3c0 1.4-1.2 2.3-2.9 2.3-1.3 0-2.5-.5-3.1-1.4"/></svg>';
  const card=(kind,href,title,caption,art)=>'<a class="song-support-card song-support-card--'+kind+'" href="'+href+'"><span class="song-support-card-icon" aria-hidden="true">'+art+'</span><span class="song-support-card-copy"><strong>'+title+'</strong><span>'+caption+'</span></span><span class="song-support-card-arrow" aria-hidden="true">'+icon('chevron')+'</span></a>';
- return '<section class="song-support-gift">'+card('gift','#gifts','선물로 마음 전하기','선물함 둘러보기',icon('gift'))+card('silver','#rewards','무료 실버 받기','출석·활동으로 실버를 모아요.',silver)+'</section>';
+ return '<section class="song-support-gift">'+card('gift','#gifts','선물로 마음 전하기','상점 둘러보기',icon('gift'))+card('silver','#rewards','무료 실버 받기','출석·활동으로 실버를 모아요.',silver)+'</section>';
 }
 function songSupportHTML(g,t){
  const ranking=(g.support_ranking||g.ranking||[]).slice(0,5),empty='아직 받은 선물이 없어요.<br>첫 응원으로 이 무대를 빛내주세요.';
