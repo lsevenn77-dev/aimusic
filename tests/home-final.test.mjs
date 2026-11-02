@@ -5,36 +5,24 @@ import {readFileSync} from 'node:fs';
 
 function setup(){
  const c=vm.createContext({URL,URLSearchParams,Map,console,AifectGenres:{GENRES:[]},window:{},Audio:class{},sessionStorage:{getItem:()=>null},document:{querySelectorAll:()=>[],addEventListener(){}}});
- for(const file of ['icons.js','app.js','browse.js','home.js'])vm.runInContext(readFileSync(new URL('../dist/'+file,import.meta.url),'utf8'),c);
+ for(const file of ['icons.js','app.js','music-ui.js','browse.js','home.js'])vm.runInContext(readFileSync(new URL('../dist/'+file,import.meta.url),'utf8'),c);
  c.track={id:'real-song',title:'긴 제목 <곡> "원곡"',artist:'실제 가수',artist_id:'artist',producer_id:'producer',kind:'original',has_cover:1,cover_version:'real-art',description:'등록된 소개 <설명>',chart_rank:1,previous_rank:3,chart_movement:'up',rank_change:2,chart_likes:123,chart_comments:45,chart_plays:6789};
  return c;
 }
 
-test('featured title action preserves real artwork, detail URLs and the locked player control',()=>{
- const c=setup(),html=c.releaseHTML(c.track,{...c.track,id:'next-song'});
- assert.match(html,/home-feature-title-row/);assert.match(html,/home-feature-play[^>]+data-play="real-song"[^>]+data-community-toggle/);
- assert.match(html,/aifect-icon-play/);assert.match(html,/aria-pressed="false"/);
- assert.match(html,/background-image:url/);assert.match(html,/\/media\/real-song\/cover\?artwork=track/);
- assert.equal((html.match(/href="#song\/real-song"/g)||[]).length,3);
- assert.match(html,/다음 곡/);assert.doesNotMatch(html,/지금 듣기|primary-button/);
+test('the static new release has one linked cover and its listening and library actions',()=>{
+ const c=setup(),html=c.releaseHTML(c.track);
+ assert.match(html,/NEW RELEASE <span>새로 도착한 음악/);
+ assert.equal((html.match(/<img /g)||[]).length,1);
+ assert.match(html,/\/media\/real-song\/cover\?artwork=track/);
+ assert.equal((html.match(/href="#song\/real-song"/g)||[]).length,2);
+ for(const action of ['data-play="real-song"', 'data-like="real-song"', 'data-add="real-song"'])assert.ok(html.includes(action));
+ assert.doesNotMatch(html,/data-home-slide|home-feature-arrow|home-feature-dots|home-floating/);
+ const layout=c.homeHTML();
+ assert.match(layout,/home-feature-layout/);
+ assert.match(layout,/home-invitation[\s\S]*?href="#karaoke"[\s\S]*?href="#community\/covers"/);
 });
 
-test('home coverflow uses unique real neighbours for one through six tracks and one active cover',()=>{
- const c=setup();
- for(let count=1;count<=6;count++){
-  const tracks=Array.from({length:count},(_,i)=>({...c.track,id:'track-'+i,title:'곡 '+i}));
-  for(let index=0;index<count;index++){
-   const html=c.releaseHTML(tracks[index],tracks[(index+1)%count],tracks,index);
-   const neighbours=[...html.matchAll(/data-home-slide="(\d+)"/g)].map(m=>Number(m[1]));
-   assert.equal(new Set(neighbours).size,Math.min(count-1,4));assert.ok(!neighbours.includes(index));
-   assert.equal((html.match(/class="home-feature-cover"/g)||[]).length,1);
-   assert.match(html,/class="home-feature-cover" draggable="false"/);
-   assert.match(html,/img draggable="false"/);
-   assert.ok(html.indexOf('class="home-feature-info"')<html.indexOf('class="home-feature-play"'));
-   assert.doesNotMatch(html,/data-track-menu|home-feature-divider|UP NEXT/);
-  }
- }
-});
 test('home chart renders seven ranks while the full chart keeps all rows and actions',()=>{
  const c=setup();const tracks=Array.from({length:12},(_,i)=>({...c.track,id:'song-'+i,chart_rank:i+1}));
  const html=c.homeChartHTML(tracks);
