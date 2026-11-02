@@ -13,7 +13,8 @@ function sampleTracks(n=3){
 function sandbox(tracks){
  const section=s=>`<div class="section-heading">${s}</div>`;
  const ctx={
-  studioData:{tracks:[...tracks],track_total:tracks.length,artists:[],producer:null,upload_quota:{used:1,limit:3}},
+  studioData:{tracks:[...tracks],track_total:tracks.length,artists:[],producer:null,upload_quota:{used:1,limit:3,remaining:2}},
+  member:{plan:'free'},
   studioHTML:()=>`<div class="legacy">legacy</div>${section('내 프로필')}<form id="producer-form">프로필</form>${section('AI 가수 · 아티스트 프로필')}<div class="artist-editors">아티스트</div>`,
   bindStudioForms(){},section,icon:()=>'+',cover:t=>`<span class="mini-cover">${esc(t.title)}</span>`,
   number:n=>String(n),esc,Set,Object,Number,Array,document:{querySelector:()=>null},api:async()=>({tracks:[]}),
@@ -21,27 +22,35 @@ function sandbox(tracks){
  runInNewContext(script,ctx);
  return ctx;
 }
-test('creator tabs keep profile and artist editors while separating works',()=>{
- const ctx=sandbox(sampleTracks());
+test('studio tabs isolate inventory, quota, upgrade and status summaries',()=>{
+ const ctx=sandbox(sampleTracks(6));
  const html=ctx.studioHTML(ctx.studioData);
- assert.match(html,/data-studio-panel="works"/);
- assert.match(html,/data-studio-panel="profile"/);
- assert.match(html,/data-studio-panel="artists"/);
- assert.match(html,/data-studio-type="original"/);
- assert.match(html,/data-studio-type="cover"/);
- assert.match(html,/data-studio-bulk="all-delete"/);
- assert.match(html,/id="producer-form"/);
- assert.match(html,/class="artist-editors"/);
- assert.equal((html.match(/id="producer-form"/g)||[]).length,1);
+ assert.equal((html.match(/role="tab"/g)||[]).length,2);
+ assert.match(html,/전체 제작곡<\/span><strong>3/);
+ assert.match(html,/업로드·변환 중<\/span><strong>1/);
+ assert.match(html,/이번 달 제작곡 1 \/ 3곡/);
+ assert.match(html,/href="#membership"/);
+ assert.match(html,/href="#upload"/);
+ assert.doesNotMatch(html,/data-studio-select="work-1"|정산 내역|id="producer-form"|artist-editors/);
+ ctx.member.plan='premium';ctx.studioData.upload_quota={used:11,limit:10,remaining:0};
+ const paid=ctx.studioHTML(ctx.studioData);
+ assert.match(paid,/제작곡 11 \/ 10곡 <span>· 0곡 남음/);assert.doesNotMatch(paid,/href="#membership"/);
+ ctx.studioResetFilters('cover');ctx.member.plan='free';
+ const covers=ctx.studioHTML(ctx.studioData);
+ assert.match(covers,/전체 커버곡<\/span><strong>3/);
+ assert.doesNotMatch(covers,/업로드·변환 중|이번 달 제작곡|Premium|data-studio-select="work-0"/);
+ assert.match(covers,/data-studio-select="work-1"/);
 });
 test('kind, status and keyword filters restrict the visible works',()=>{
  const ctx=sandbox(sampleTracks(6));
  const state=runInNewContext('studioManage',ctx);
- state.type='cover';state.status='hidden';state.search='작품 1';
+ state.type='cover';state.status='hidden';state.search='작 품1';
  assert.deepEqual(ctx.studioFiltered().map(t=>t.id),['work-1']);
  state.search='없는 제목';assert.equal(ctx.studioFiltered().length,0);
- state.search='';state.status='processing';state.type='all';
- assert.deepEqual(ctx.studioFiltered().map(t=>t.id),['work-2','work-5']);
+ state.selected.add('work-1');ctx.studioResetFilters('original');
+ assert.equal(state.selected.size,0);assert.equal(state.search,'');assert.equal(state.status,'all');
+ state.status='processing';
+ assert.deepEqual(ctx.studioFiltered().map(t=>t.id),['work-2']);
 });
 test('track titles are escaped in work rows',()=>{
  const tracks=[{id:'x',title:'<img src=x onerror=alert(1)>',kind:'original',status:'published'}];

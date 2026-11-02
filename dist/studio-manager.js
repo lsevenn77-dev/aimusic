@@ -1,21 +1,25 @@
 /* AIFECT Studio: scoped management UI. Existing edit/upload flows are unchanged. */
-const studioLegacyHTML=studioHTML;
 const studioLegacyBindForms=bindStudioForms;
-const studioManage={panel:'works',type:'all',status:'all',search:'',selected:new Set(),loading:false};
+const studioManage={type:'original',status:'all',search:'',selected:new Set(),loading:false};
+const studioKinds={original:'제작곡',cover:'커버곡'};
+const studioProcessing=new Set(['uploading','queued','processing']);
 const studioStatusText={published:'공개',hidden:'비공개',uploading:'업로드 중',queued:'변환 대기',processing:'변환 중',failed:'변환 실패',removed:'운영자 비공개'};
-const studioStatusOptions=[['all','전체 상태'],['published','공개'],['hidden','비공개'],['processing','처리 중'],['failed','실패']];
-
-function studioResetFilters(){Object.assign(studioManage,{panel:'works',type:'all',status:'all',search:''});studioManage.selected.clear();}
+function studioResetFilters(type='original'){
+ Object.assign(studioManage,{type,status:'all',search:''});
+ studioManage.selected.clear();
+}
+// Match the compact Korean title search used by the service, preserving literal punctuation searches.
+function studioSearchKey(text){return text.normalize('NFKC').toLowerCase().replace(/[\s\u200b-\u200d\p{P}\p{S}]/gu,'');}
 function studioFiltered(data=studioData){
- const s=studioManage;
+ const {type,status,search}=studioManage,query=studioSearchKey(search);
  return (data.tracks||[]).filter(t=>
-  (s.type==='all'||t.kind===s.type)&&
-  (s.status==='all'||(s.status==='processing'?['uploading','queued','processing'].includes(t.status):t.status===s.status))&&
-  (!s.search||(t.title||'').toLocaleLowerCase().includes(s.search.toLocaleLowerCase()))
+  t.kind===type&&
+  (status==='all'||(status==='processing'?studioProcessing.has(t.status):t.status===status))&&
+  (!search||(query?studioSearchKey(t.title||'').includes(query):(t.title||'').includes(search)))
  );
 }
-function studioManagedRows(){
- const tracks=studioFiltered();
+function studioManagedRows(data){
+ const tracks=studioFiltered(data);
  const available=new Set(tracks.map(t=>t.id));
  for(const id of studioManage.selected)if(!available.has(id))studioManage.selected.delete(id);
  return tracks;
@@ -33,40 +37,48 @@ function studioRow(t){
   <div class="studio-work-actions">${actions}</div>
  </article>`;
 }
-function studioResultsHTML(){
- const list=studioManagedRows();
+function studioResultsHTML(data){
+ const list=studioManagedRows(data);
  return `<div class="studio-work-list">${list.length?list.map(studioRow).join(''):'<p class="studio-empty">해당하는 작품이 없습니다.</p>'}</div>
  <div class="studio-list-footer"><span>${list.length}개 표시</span></div>`;
 }
+function studioQuotaCard(q){
+ if(!q)return '';
+ return `<section class="studio-quota-card" aria-label="이번 달 제작곡 한도">
+  <span class="studio-quota-icon" aria-hidden="true">${icon('music')}</span>
+  <div class="studio-quota-copy"><h2>이번 달 제작곡 ${number(q.used)} / ${number(q.limit)}곡 <span>· ${number(q.remaining)}곡 남음</span></h2>
+   <p>일반회원 월 3곡 · <b>Premium</b> 월 10곡</p><p>매월 1일 한국시간에 새로 시작해요. 커버곡은 제한 없이 올릴 수 있어요.</p></div>
+  ${member.plan==='free'?`<a class="primary-button studio-upgrade" href="#membership">${icon('diamond')} Premium 업그레이드 ${icon('chevron')}</a>`:''}
+ </section>`;
+}
 function studioWorksHTML(d){
- const total=Number(d.track_total??d.tracks.length),published=d.tracks.filter(t=>t.status==='published').length,hidden=d.tracks.filter(t=>t.status==='hidden').length;
- const typeTabs=[['all','전체'],['original','제작곡'],['cover','커버곡']].map(([key,label])=>`<button type="button" role="tab" data-studio-type="${key}" aria-selected="${studioManage.type===key}" class="studio-type-tab ${studioManage.type===key?'active':''}">${label}</button>`).join('');
- return `<div class="studio-glance" aria-label="작품 현황"><div><span>전체 작품</span><strong>${number(total)}</strong></div><div><span>공개</span><strong>${number(published)}${total>d.tracks.length?'+':''}</strong></div><div><span>비공개</span><strong>${number(hidden)}${total>d.tracks.length?'+':''}</strong></div>
- ${d.upload_quota?`<div class="studio-quota-mini"><span>이번 달 제작곡</span><strong>${d.upload_quota.used} / ${d.upload_quota.limit}</strong></div>`:''}</div>
+ const {type,status}=studioManage,original=type==='original',kind=studioKinds[type];
+ const tracks=d.tracks.filter(t=>t.kind===type);
+ const stats=[['전체 '+kind,tracks.length],['공개곡',tracks.filter(t=>t.status==='published').length]];
+ if(original)stats.push(['업로드·변환 중',tracks.filter(t=>studioProcessing.has(t.status)).length]);
+ stats.push(['비공개곡',tracks.filter(t=>t.status==='hidden').length]);
+ const filters=[['all','전체'],['published','공개'],['hidden','비공개']];
+ if(original)filters.push(['processing','처리 중']);
+ const choices=[...filters,...['failed','removed'].filter(key=>tracks.some(t=>t.status===key)).map(key=>[key,studioStatusText[key]])];
+ return `${original?studioQuotaCard(d.upload_quota):''}<div class="studio-glance" aria-label="${kind} 현황">${stats.map(([label,value])=>`<div><span>${label}</span><strong>${number(value)}</strong></div>`).join('')}</div>
  <div class="studio-works-surface">
   <div class="studio-filters">
-   <div class="studio-type-tabs" role="tablist" aria-label="작품 종류">${typeTabs}</div>
+   <div class="studio-filter-buttons" role="group" aria-label="작품 상태">${filters.map(([key,label])=>`<button type="button" class="studio-filter-button" data-studio-filter="${key}" aria-pressed="${key===status}">${label}</button>`).join('')}</div>
    <div class="studio-filter-tools"><input type="search" data-studio-search value="${esc(studioManage.search)}" placeholder="작품 검색" aria-label="작품 검색" maxlength="120">
-    <select data-studio-status aria-label="공개 상태 필터">${studioStatusOptions.map(([key,label])=>`<option value="${key}" ${studioManage.status===key?'selected':''}>${label}</option>`).join('')}</select></div>
+    <select data-studio-status aria-label="공개 상태 필터">${choices.map(([key,label])=>`<option value="${key}" ${status===key?'selected':''}>${key==='all'?'전체 상태':label}</option>`).join('')}</select></div>
   </div>
   <div class="studio-bulk-bar"><label class="studio-select-all"><input type="checkbox" data-studio-select-all> <span>전체 선택</span></label><span class="studio-selected-count" aria-live="polite">0개 선택</span>
    <div class="studio-bulk-actions"><button type="button" class="studio-bulk-button" data-studio-bulk="hide" disabled>선택 비공개</button><button type="button" class="studio-bulk-button is-danger" data-studio-bulk="delete" disabled>선택 삭제</button><button type="button" class="studio-bulk-button is-danger studio-delete-all" data-studio-bulk="all-delete">전체 삭제</button></div>
   </div>
-  <div class="studio-list-area">${studioResultsHTML()}</div>
+  <div class="studio-list-area">${studioResultsHTML(d)}</div>
  </div>`;
 }
 function studioManagerHTML(d){
- const legacy=studioLegacyHTML({...d,tracks:[]}),profileAt=legacy.indexOf(section('내 프로필')),artistsAt=legacy.indexOf(section('AI 가수 · 아티스트 프로필'),profileAt);
- if(profileAt<0||artistsAt<0)return legacy;
- const panes=[['works','작품 관리'],['profile','내 프로필'],['artists','AI 아티스트']];
- studioManage.selected=new Set([...studioManage.selected].filter(id=>d.tracks.some(t=>t.id===id)));
  return `<section class="studio-manager" data-studio-root>
-  <header class="studio-topbar"><div><h1>스튜디오</h1><p class="studio-subtitle">내 작품과 프로필을 한곳에서 관리하세요.</p></div>
-   <div class="studio-top-actions"><a class="studio-top-link" href="#studio/payouts">정산 내역</a><a class="primary-button" href="#upload">음원 업로드 ${icon('plus')}</a></div></header>
-  <nav class="studio-main-tabs" role="tablist" aria-label="스튜디오 관리 메뉴">${panes.map(([id,label])=>`<button type="button" role="tab" data-studio-panel="${id}" aria-selected="${studioManage.panel===id}" class="studio-main-tab ${studioManage.panel===id?'active':''}">${label}</button>`).join('')}</nav>
-  <div data-studio-pane="works" ${studioManage.panel==='works'?'':'hidden'}>${studioWorksHTML(d)}</div>
-  <div data-studio-pane="profile" class="studio-editor-pane" ${studioManage.panel==='profile'?'':'hidden'}>${legacy.slice(profileAt,artistsAt)}</div>
-  <div data-studio-pane="artists" class="studio-editor-pane" ${studioManage.panel==='artists'?'':'hidden'}>${legacy.slice(artistsAt)}</div>
+  <header class="studio-topbar"><div><h1>스튜디오</h1><p class="studio-subtitle">내가 제작한 곡과 커버곡을 한곳에서 관리하세요.</p></div>
+   <a class="small-button studio-upload" href="#upload">${icon('plus')} 음원 업로드</a></header>
+  <nav class="studio-main-tabs" role="tablist" aria-label="작품 종류">${Object.entries(studioKinds).map(([id,label])=>`<button type="button" role="tab" id="studio-tab-${id}" aria-controls="studio-works" data-studio-type="${id}" aria-selected="${studioManage.type===id}" tabindex="${studioManage.type===id?'0':'-1'}" class="studio-main-tab">${label}</button>`).join('')}</nav>
+  <div id="studio-works" role="tabpanel" aria-labelledby="studio-tab-${studioManage.type}" data-studio-pane="works">${studioWorksHTML(d)}</div>
  </section>`;
 }
 studioHTML=studioManagerHTML;
@@ -79,7 +91,7 @@ function studioSyncBulk(){
  const count=root.querySelector('.studio-selected-count');if(count)count.textContent=`${checked.length}개 선택`;
  const hide=root.querySelector('[data-studio-bulk="hide"]');if(hide)hide.disabled=!checked.some(t=>t.status==='published')||studioManage.loading;
  const del=root.querySelector('[data-studio-bulk="delete"]');if(del)del.disabled=!checked.length||studioManage.loading;
- const allDel=root.querySelector('[data-studio-bulk="all-delete"]');if(allDel)allDel.disabled=studioManage.loading||!visible.length;
+ const allDel=root.querySelector('[data-studio-bulk="all-delete"]');if(allDel)allDel.disabled=studioManage.loading||!checked.length;
  root.querySelectorAll('[data-studio-select]').forEach(input=>input.closest('.studio-work-row')?.classList.toggle('is-selected',input.checked));
 }
 function studioPaintResults(){
@@ -88,6 +100,7 @@ function studioPaintResults(){
 }
 function studioPaintWorks(){
  const pane=document.querySelector('[data-studio-pane="works"]');if(!pane)return;
+ pane.setAttribute('aria-labelledby','studio-tab-'+studioManage.type);
  pane.innerHTML=studioWorksHTML(studioData);studioSyncBulk();
 }
 async function studioLoadComplete(data=studioData,read=api){
@@ -117,8 +130,8 @@ async function studioBulkDialog(kind,singleId=null){
   const originals=targets.filter(t=>t.kind==='original').length;
   const verb=deleting?'삭제':'비공개로 변경';
   const label=singleId?(deleting?'작품 삭제':'작품 비공개'):all?'전체 삭제':deleting?'선택 삭제':'선택 비공개';
-  dialog(`<h2>${label}</h2><p>${targets.length}개 작품을 ${verb}할까요?</p>${singleId?`<p>${esc(targets[0].title)}</p>`:''}
-   <p class="studio-confirm-detail">${all?'현재 선택한 작품 종류·상태·검색 필터에 해당하는 모든 작품이 대상입니다.':'선택한 작품만 처리합니다.'}${deleting?' 삭제하면 복구할 수 없습니다. 받은 선물과 정산 내역은 유지됩니다.':' 공개 목록과 검색 결과에서 숨겨집니다.'}</p>
+  dialog(`<h2>${label}</h2><p>${studioKinds[studioManage.type]} ${targets.length}곡을 ${verb}할까요?</p>${singleId?`<p>${esc(targets[0].title)}</p>`:''}
+   <p class="studio-confirm-detail">${all?'현재 탭의 상태 필터와 검색어에 맞는 모든 곡이 대상입니다.':'선택한 작품만 처리합니다.'}${deleting?' 삭제하면 복구할 수 없습니다. 받은 선물과 정산 내역은 유지됩니다.':' 공개 목록과 검색 결과에서 숨겨집니다.'}</p>
    ${deleting&&originals?`<p class="studio-confirm-warning">제작곡 ${originals}개가 포함돼 있습니다. 연결된 노래방·다른 회원의 커버곡도 재생할 수 없게 됩니다.</p>`:''}
    <form id="studio-bulk-confirm-form">${deleting?'<label class="form-field studio-confirm-input">확인하려면 <strong>삭제</strong>를 입력하세요.<input name="verify" autocomplete="off" placeholder="삭제" required></label>':''}
    <div class="inline-actions"><button type="button" class="small-button" data-close-dialog>취소</button><button type="submit" class="primary-button ${deleting?'danger-button':''}">${targets.length}개 ${verb}</button></div>
@@ -157,26 +170,42 @@ async function studioBulkDialog(kind,singleId=null){
 function bindStudioManager(){
  const root=document.querySelector('[data-studio-root]');if(!root||root.dataset.studioBound)return;
  root.dataset.studioBound='true';studioSyncBulk();
+ function changeFilter(value){
+  studioManage.status=value;studioManage.selected.clear();
+  root.querySelector('[data-studio-status]').value=value;
+  root.querySelectorAll('[data-studio-filter]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.studioFilter===value)));
+  studioPaintResults();
+ }
+ root.addEventListener('keydown',e=>{
+  const tab=e.target.closest('[data-studio-type]');
+  if(!tab||!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;
+  e.preventDefault();
+  const tabs=[...root.querySelectorAll('[data-studio-type]')];
+  const next=tabs[e.key==='Home'?0:e.key==='End'?1:1-tabs.indexOf(tab)];
+  next.focus();next.click();
+ });
  root.addEventListener('click',async e=>{
   const button=e.target.closest('button');if(!button)return;
-  const panel=button.dataset.studioPanel,type=button.dataset.studioType,bulk=button.dataset.studioBulk;
+  const {studioType:type,studioFilter:filter,studioBulk:bulk}=button.dataset;
   const {studioDelete,studioHide,studioRetry}=button.dataset;
-  if(panel===undefined&&type===undefined&&bulk===undefined&&!studioDelete&&!studioHide&&!studioRetry)return;
+  if(filter===undefined&&type===undefined&&bulk===undefined&&!studioDelete&&!studioHide&&!studioRetry)return;
   e.preventDefault();e.stopPropagation();
   if(studioManage.loading)return;
   if(studioDelete||studioHide){await studioBulkDialog(studioDelete?'delete':'hide',studioDelete||studioHide);return;}
   if(studioRetry){studioManage.loading=true;button.disabled=true;try{await api('/api/uploads/'+encodeURIComponent(studioRetry)+'/retry','POST');await render();}catch(err){toast(err.message);}finally{studioManage.loading=false;button.disabled=false;studioSyncBulk();}return;}
-  if(panel!==undefined){
-   studioManage.panel=panel;
-   root.querySelectorAll('[data-studio-panel]').forEach(btn=>{const active=btn.dataset.studioPanel===panel;btn.classList.toggle('active',active);btn.setAttribute('aria-selected',String(active));});
-   root.querySelectorAll('[data-studio-pane]').forEach(pane=>pane.hidden=pane.dataset.studioPane!==panel);
-  }else if(type!==undefined){
-   studioManage.type=type;studioManage.selected.clear();studioPaintWorks();
+  if(filter!==undefined){changeFilter(filter);}
+  else if(type!==undefined&&type!==studioManage.type){
+   studioResetFilters(type);
+   root.querySelectorAll('[data-studio-type]').forEach(tab=>{
+    const active=tab.dataset.studioType===type;
+    tab.setAttribute('aria-selected',String(active));tab.tabIndex=active?0:-1;
+   });
+   studioPaintWorks();
   }else if(bulk!==undefined)await studioBulkDialog(bulk);
  });
  root.addEventListener('change',e=>{
   const el=e.target;
-  if(el.matches('[data-studio-status]')){studioManage.status=el.value;studioManage.selected.clear();studioPaintResults();}
+  if(el.matches('[data-studio-status]'))changeFilter(el.value);
   else if(el.matches('[data-studio-select-all]')){
    const rows=studioFiltered();for(const t of rows){if(el.checked)studioManage.selected.add(t.id);else studioManage.selected.delete(t.id);}
    root.querySelectorAll('[data-studio-select]').forEach(input=>{input.checked=el.checked;});studioSyncBulk();

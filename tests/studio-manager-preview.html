@@ -3,7 +3,7 @@
 <style>html,body{margin:0;min-height:100%;background:#0c1123;color:#f4f5fa;font-family:Arial,"Malgun Gothic",sans-serif}main{width:calc(100% - 48px);max-width:1170px;margin:32px auto}.mini-cover{display:grid;place-items:center;color:white;background:linear-gradient(130deg,#52336f,#162949,#7dbcb3);font-weight:bold}.primary-button{background:#8eddd2;color:#112337;border:none;border-radius:8px;padding:9px 14px;text-decoration:none}.section-heading{margin:10px 0}.section-heading h2{font-size:18px}</style>
 </head><body><main id="fixture"></main>
 <script>
-var studioData={producer:{name:'AIFECT 제작자'},artists:[{name:'인아',id:'a1'}],upload_quota:{used:2,limit:10},tracks:[],track_total:14};
+var member={plan:'premium'}, studioData={producer:{name:'AIFECT 제작자'},artists:[{name:'인아',id:'a1'}],upload_quota:{used:2,limit:10,remaining:8},tracks:[],track_total:14};
 var titles=['휴먼 에러','Aftershock','별일 아닌 것처럼','RION','불빛','우리의 페이지','이별은 어디쯤','Moon Rabbit','여름 밤','Open Sky','비밀의 노래','한순간'];
 studioData.tracks=Array.from({length:14},(_,i)=>({id:'track-'+i,title:titles[i%titles.length],kind:i%3===0?'cover':'original',status:['published','published','hidden','queued','published','failed'][i%6]}));
 function esc(x){return String(x??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;')}

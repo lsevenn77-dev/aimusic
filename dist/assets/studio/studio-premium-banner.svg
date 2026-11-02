@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 180" preserveAspectRatio="none" role="img" aria-label="">
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="1" y2=".5"><stop offset="0" stop-color="#14313d" stop-opacity=".84"/><stop offset=".45" stop-color="#1c233f" stop-opacity=".94"/><stop offset="1" stop-color="#3f2658" stop-opacity=".93"/></linearGradient>
+  <linearGradient id="sweep" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#45d2ce" stop-opacity="0"/><stop offset=".54" stop-color="#59c4ce" stop-opacity=".06"/><stop offset=".78" stop-color="#a779e8" stop-opacity=".30"/><stop offset="1" stop-color="#ea8cda" stop-opacity=".25"/></linearGradient>
+  <linearGradient id="highlight" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#61e3d4" stop-opacity="0"/><stop offset=".52" stop-color="#61e3d4" stop-opacity=".07"/><stop offset=".83" stop-color="#be85fa" stop-opacity=".32"/><stop offset="1" stop-color="#d899e4" stop-opacity=".12"/></linearGradient>
+</defs>
+<rect width="1400" height="180" rx="18" fill="url(#bg)"/>
+<path d="M560 180 C770 164 842 85 985 59 S1230 80 1400 6 L1400 180 Z" fill="url(#sweep)"/>
+<path d="M820 180 C1020 146 1120 75 1400 24" stroke="url(#highlight)" stroke-width="3" fill="none"/>
+<path d="M0 0 H1400" stroke="#8eddd2" stroke-opacity=".12"/>
+</svg>
