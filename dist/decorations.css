@@ -93,7 +93,10 @@ main:has(>.shop-page){max-width:1800px;padding:22px 28px 48px}
 .shop-balances{width:max-content}.shop-balance{flex:0 1 auto}
 .shop-page .shop-expand{background:transparent;border:0;cursor:pointer}.shop-page .shop-expand:hover{color:var(--ds-text)}
 .shop-track{display:grid;grid-auto-flow:column;grid-template-rows:1fr;grid-auto-columns:var(--shop-card-width,84px);justify-content:start;gap:6px;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x proximity;scrollbar-width:thin;padding:2px 0 6px;min-width:0;max-width:100%}
-.shop-shelf.is-expanded .shop-track{grid-template-rows:repeat(2,auto)}
+.shop-shelf.is-expanded .shop-track{grid-template-rows:repeat(4,auto)}
+/* Short shelves use one column with a row only for each real product. */
+.shop-shelf.is-expanded .shop-track:not(:has(>:nth-child(4))){grid-template-rows:none;grid-auto-rows:1fr}
+.shop-shelf.is-expanded .shop-track:not(:has(>:nth-child(4)))>.shop-item{grid-column:1}
 .shop-item{min-width:0;scroll-snap-align:start;display:flex;flex-direction:column;gap:4px}
 .shop-page .shop-preview-button{align-self:center;min-height:28px;padding:4px 8px;font-size:11px;border-radius:var(--ds-radius-sm)}
 .shop-product{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:0;width:100%;height:106px;min-height:106px;padding:6px 4px;background:var(--ds-panel);border:1px solid var(--ds-line);border-radius:var(--ds-radius-input);color:var(--ds-text);font:inherit;cursor:pointer;scroll-snap-align:start}
