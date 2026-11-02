@@ -477,6 +477,21 @@ test('seat requests can be cancelled or rejected and an occupied requested seat 
  const notices=h.room.data.notices.length;await h.call('approve-mic',actor('host'),{target_id:'a'});assert.equal(h.room.data.notices.length,notices);
 });
 
+for(const Room of [VoiceRoom,KaraokeRoom])test(Room.name+' refuses actions on a superseded seat application',async t=>{
+ const h=harness(t,Room);await h.create();await h.join(actor('a'));
+ const before=(await h.call('request-mic',actor('a'),{seat:3})).body.members.find(m=>m.id==='a');
+ await h.call('cancel-mic',actor('a'),{expected_request_version:before.requestVersion});
+ const now=(await h.call('request-mic',actor('a'),{seat:2})).body.members.find(m=>m.id==='a');
+ assert.notEqual(now.requestVersion,before.requestVersion);
+ for(const action of ['reject-mic','approve-mic','cancel-mic']){
+  const by=action==='cancel-mic'?'a':'host';
+  assert.equal((await h.call(action,actor(by),{target_id:'a',expected_request_version:before.requestVersion})).status,409);
+  assert.equal(h.room.data.members.a.requestedSeat,2);
+ }
+ assert.equal((await h.call('approve-mic',actor('host'),{target_id:'a',expected_request_version:now.requestVersion})).status,200);
+ assert.equal(h.room.data.members.a.seat,2);
+});
+
 test('host seat stays reserved through disconnect; guests cannot take it or perform host management',async t=>{
  const h=harness(t);await h.create();assert.equal(h.room.data.members.host.seat,0);await h.join(actor('guest'));
  assert.equal((await h.call('release-mic',actor('host'))).status,403);

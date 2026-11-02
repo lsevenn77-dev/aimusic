@@ -356,7 +356,7 @@ var VoiceRoom = class {
       role: m.id === this.data.config.host_id ? "host" : m.role === "host" ? "listener" : m.role,
       seat: m.seat,
       // Request metadata is private to the applicant and host, in HTTP AND WebSocket snapshots.
-      ...host || m.id === p?.id ? { requested: !!m.requested, requestedSeat: m.requestedSeat ?? null, requestExpires: m.requestExpires ?? null } : {},
+      ...host || m.id === p?.id ? { requested: !!m.requested, requestedSeat: m.requestedSeat ?? null, requestExpires: m.requestExpires ?? null, requestVersion: m.requested ? m.requestVersion ?? m.requestExpires : null } : {},
       muted: m.muted,
       locked: m.locked,
       publishing: !!m.pub?.ready,
@@ -376,6 +376,9 @@ var VoiceRoom = class {
       } catch {
       }
     }
+  }
+  checkSeatRequest(member, body) {
+    if (body.expected_request_version !== undefined && (!member.requested || (member.requestVersion ?? member.requestExpires) !== body.expected_request_version)) fault(409, "좌석 신청 상태가 변경됐어요. 다시 확인해주세요.");
   }
   clearRequest(p) {
     p.requested = false;
@@ -706,21 +709,25 @@ var VoiceRoom = class {
       } else {
         p.requested = true;
         p.requestedSeat = seat;
+        p.requestVersion = d.revision + 1;
         p.requestExpires = Date.now() + SEAT_REQUEST_TTL;
       }
     } else if (action === "cancel-mic") {
+      this.checkSeatRequest(p, b);
       if (!p.requested) return this.snapshot(actor);
       this.clearRequest(p);
     } else if (action === "reject-mic") {
       this.moderator(actor);
       const t = d.members[identifier(b.target_id)];
       if (!t) fault(404, "\uD68C\uC6D0\uC774 \uB098\uAC14\uC5B4\uC694.");
+      this.checkSeatRequest(t, b);
       this.clearRequest(t);
       await this.audit(actor, "reject-mic", t.id);
     } else if (action === "approve-mic") {
       this.moderator(actor);
       const t = d.members[identifier(b.target_id)];
       if (!t) fault(404, "\uD68C\uC6D0\uC774 \uB098\uAC14\uC5B4\uC694.");
+      this.checkSeatRequest(t, b);
       if (t.seat !== null) return this.snapshot(actor);
       if (t.id === actor.id && Number.isInteger(b.seat) && b.seat >= 1 && b.seat < 8) t.requestedSeat = b.seat;
       if (!t.requested && t.id !== actor.id) fault(409, "\uB9C8\uC774\uD06C \uC2E0\uCCAD\uC744 \uBA3C\uC800 \uBC1B\uC544\uC8FC\uC138\uC694.");

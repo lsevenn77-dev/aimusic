@@ -57,7 +57,7 @@ export class VoiceRoom {
   return {room:this.data.config,revision:this.data.revision,self:p?.id||null,generation:p?.generation||null,seat_invites:Object.values(this.data.seatInvites).filter(i=>i.target===p?.id&&i.expires>Date.now()),cleanup_pending:this.data.cleanup.length>0,serverNow:Date.now(),music:this.data.music,notices:p?this.data.notices.filter(n=>n.sequence>(p.chatAfter??this.data.chatSequence)):[],members:Object.values(this.data.members).filter(m=>m.expires>Date.now()).map(m=>({
    id:m.id,profile_id:m.profile_id,name:m.name,image_version:m.image_version,role:m.id===this.data.config.host_id?'host':m.role==='host'?'listener':m.role,seat:m.seat,
    // Request metadata is private to the applicant and host, in HTTP AND WebSocket snapshots.
-   ...(host||m.id===p?.id?{requested:!!m.requested,requestedSeat:m.requestedSeat??null,requestExpires:m.requestExpires??null}:{}),
+   ...(host||m.id===p?.id?{requested:!!m.requested,requestedSeat:m.requestedSeat??null,requestExpires:m.requestExpires??null,requestVersion:m.requested?(m.requestVersion??m.requestExpires):null}:{}),
    muted:m.muted,locked:m.locked,publishing:!!m.pub?.ready,mediaKey:m.pub?.ready?m.generation+':'+m.pub.trackName:null
   })),chat:p?this.data.chat.filter(m=>m.sequence>(p.chatAfter??this.data.chatSequence)):[]};
  }
@@ -65,6 +65,9 @@ export class VoiceRoom {
   for(const ws of this.ctx.getWebSockets?.()||[]) {try {const a=ws.deserializeAttachment(),p=this.data.members[a.id];if(!p||p.generation!==a.generation||p.expires<=Date.now()){ws.close(4001,'Rejoin required');continue;}if(recipients&&!recipients.includes(p.id))continue;
    ws.send(JSON.stringify(event.type==='changed'?{type:'state',state:this.snapshot(p)}:event));
   }catch{}}
+ }
+ checkSeatRequest(member,body){
+  if(body.expected_request_version!==undefined&&(!member.requested||(member.requestVersion??member.requestExpires)!==body.expected_request_version))fault(409,'좌석 신청 상태가 변경됐어요. 다시 확인해주세요.');
  }
  clearRequest(p){p.requested=false;p.requestedSeat=null;p.requestExpires=null;}
  clearRequests(){const affected=Object.values(this.data.members).filter(p=>p.requested);for(const p of affected)this.clearRequest(p);if(affected.length){this.data.revision++;this.notify({type:'changed'},[this.data.config.host_id,...affected.map(p=>p.id)]);}}
@@ -225,13 +228,13 @@ export class VoiceRoom {
    const seat=b.seat??Array.from({length:7},(_,i)=>i+1).find(i=>!Object.values(d.members).some(m=>m.seat===i));
    if(!Number.isInteger(seat)||seat<1||seat>7||Object.values(d.members).some(m=>m.seat===seat))fault(409,'빈 좌석을 선택해주세요.');
    if(d.config.seating_mode==='free'){p.seat=seat;p.muted=true;this.clearRequest(p);delete d.seatInvites[p.id];this.notice(p,p.name+'님이 '+(seat+1)+'번 좌석에 올라왔어요.');await this.audit(actor,'free-seat',p.id);}
-   else {p.requested=true;p.requestedSeat=seat;p.requestExpires=Date.now()+SEAT_REQUEST_TTL;}
+   else {p.requested=true;p.requestedSeat=seat;p.requestVersion=d.revision+1;p.requestExpires=Date.now()+SEAT_REQUEST_TTL;}
   }
-  else if(action==='cancel-mic'){if(!p.requested)return this.snapshot(actor);this.clearRequest(p);}
-  else if(action==='reject-mic'){this.moderator(actor);const t=d.members[identifier(b.target_id)];if(!t)fault(404,'회원이 나갔어요.');this.clearRequest(t);await this.audit(actor,'reject-mic',t.id);}
+  else if(action==='cancel-mic'){this.checkSeatRequest(p,b);if(!p.requested)return this.snapshot(actor);this.clearRequest(p);}
+  else if(action==='reject-mic'){this.moderator(actor);const t=d.members[identifier(b.target_id)];if(!t)fault(404,'회원이 나갔어요.');this.checkSeatRequest(t,b);this.clearRequest(t);await this.audit(actor,'reject-mic',t.id);}
   else if(action==='approve-mic') {
    this.moderator(actor);const t=d.members[identifier(b.target_id)];if(!t)fault(404,'회원이 나갔어요.');
-   if(t.seat!==null)return this.snapshot(actor);
+   this.checkSeatRequest(t,b);if(t.seat!==null)return this.snapshot(actor);
    if(t.id===actor.id&&Number.isInteger(b.seat)&&b.seat>=1&&b.seat<8)t.requestedSeat=b.seat;
    if(!t.requested&&t.id!==actor.id)fault(409,'마이크 신청을 먼저 받아주세요.');
    if(t.seat===null){const used=new Set(Object.values(d.members).map(m=>m.seat));if(Number.isInteger(t.requestedSeat)&&used.has(t.requestedSeat))fault(409,'신청한 좌석이 이미 사용 중이에요. 신청을 취소하고 다른 좌석을 선택해주세요.');const seat=Number.isInteger(t.requestedSeat)?t.requestedSeat:Array.from({length:7},(_,i)=>i+1).find(i=>!used.has(i));if(seat===undefined)fault(409,'마이크 8석이 모두 사용 중이에요.');t.seat=seat;}

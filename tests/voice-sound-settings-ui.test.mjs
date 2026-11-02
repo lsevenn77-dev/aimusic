@@ -26,7 +26,12 @@ test('common room sound settings keep device and personal volume controls, but n
 test('removed diagnostics download action is not available, while internal transport diagnostics remain', () => {
   const controls = read('voice-room-controls.js');
   assert.doesNotMatch(controls, /diagnostics-export|연결 진단/);
-  assert.match(controls, /data-voice="sound">마이크 테스트<\/button>/);
+  const context = vm.createContext({VoiceRoomClient: class {}, document: {getElementById: () => ({type: 'range'})}});
+  vm.runInContext(controls + '\nthis.client = new VoiceRoomClient();', context);
+  const dock = context.client.talkSoundHTML();
+  assert.match(dock, /class="talk-test-meter"/);
+  assert.match(dock, /data-voice="mic-test">테스트 시작<\/button>/);
+  assert.doesNotMatch(dock, /data-voice="sound"/);
   assert.doesNotMatch(read('live-karaoke.js'), /장치 · 고급 설정|연결 진단|diagnostics-export/);
   const diagnostics = read('voice-diagnostics.js');
   assert.doesNotMatch(diagnostics, /voice-diagnostics-summary|aifect-voice-stats\.json|download\(\)/);
