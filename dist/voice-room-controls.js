@@ -22,7 +22,7 @@ Object.assign(VoiceRoomClient.prototype,{
   this.host.addEventListener('input',e=>this.updateDesignField(e.target));
   this.host.addEventListener('change',e=>this.updateDesignField(e.target));
   this.host.addEventListener('click',e=>{if(!e.target.closest('#voice-member-tools,.voice-member-more'))this.closeMemberTools();});
-  $('#voice-members').addEventListener?.('scroll',()=>this.closeMemberTools());
+  $('#voice-members').addEventListener?.('scroll',()=>{if(this.liveMode)this.closeMemberTools();});
   $('#voice-members').addEventListener?.('close',()=>this.closeMemberTools());
   $('#voice-members').addEventListener?.('keydown',e=>{if(e.key==='Escape'&&!$('#voice-member-tools').hidden){e.preventDefault();e.stopPropagation();this.closeMemberTools(true);}});
   $('#voice-music-sheet').addEventListener?.('keydown',e=>{if(e.key==='Escape'){e.preventDefault();$('#voice-music-sheet').close();}});
@@ -40,7 +40,19 @@ Object.assign(VoiceRoomClient.prototype,{
   $('#voice-members-count').innerHTML=`전체 인원수 <strong>${s.members.length}명</strong><i>·</i>좌석 참여 <strong>${count}명</strong>`;
   $('#voice-host-hint').hidden=!host;
   const members=[...s.members].sort((a,b)=>(b.role==='host')-(a.role==='host'));
-  const memberHTML=members.map(p=>`<div class="voice-member-row" data-level-user="${esc(p.id)}"><span class="voice-member-avatar">${p.role==='host'?'<span class="voice-member-crown">'+voiceGlyph('crown')+'</span>':''}${avatarImage({name:p.name,profile_id:p.profile_id,image_version:p.image_version})}</span><div class="voice-member-info"><strong>${esc(p.name)}${p.role==='host'?'<small>방장</small>':''}</strong><p>${voiceGlyph('wave')}<span data-member-status="${esc(p.id)}">${p.seat===null?'듣고 있는 중':'좌석 참여 중'}</span></p></div>${host?`<button type="button" class="voice-member-more" data-voice="member-menu" data-target="${esc(p.id)}" aria-label="${esc(p.name)} 관리" aria-expanded="false" aria-controls="voice-member-tools">${voiceGlyph('more')}</button>`:''}</div>`).join('');
+  const memberActions=p=>{
+   const own=p.id===self.id, name=esc(p.name), target=esc(p.id);
+   const mic=voiceGlyph(p.muted||p.seat===null?'talkMicOff':'talkMic');
+   const micAction=own?'toggle-mic':p.locked?'unlock':'mute-user';
+   const micLabel=own?(p.muted?'내 마이크 켜기':'내 마이크 끄기'):name+(p.locked?' 마이크 제한 해제':' 마이크 제한');
+   const micControl=own||host
+    ?`<button type="button" data-voice="${micAction}" data-target="${target}" title="${micLabel}" aria-label="${micLabel}" ${p.seat===null||own&&p.locked?'disabled':''}>${mic}</button>`
+    :`<span class="talk-mic-status" role="img" aria-label="${p.seat===null?'청취자':p.muted?'마이크 꺼짐':'마이크 켜짐'}">${mic}</span>`;
+   const listenLabel=own?'내 소리 설정':name+' 목소리 듣기';
+   const listenState=own?'':`aria-pressed="${(this.volumes.get(p.id)??1)>0}"`;
+   return `<div class="talk-member-actions">${micControl}<button type="button" data-voice="${own?'sound':'member-listen'}" data-target="${target}" aria-label="${listenLabel}" title="${listenLabel}" ${listenState}>${icon('headphones')}</button></div>`;
+  };
+  const memberHTML=members.map(p=>`<div class="voice-member-row" data-level-user="${esc(p.id)}"><span class="voice-member-avatar">${p.role==='host'?'<span class="voice-member-crown">'+voiceGlyph('crown')+'</span>':''}${avatarImage({name:p.name,profile_id:p.profile_id,image_version:p.image_version})}</span><div class="voice-member-info"><strong>${esc(p.name)}${p.role==='host'?'<small>방장</small>':''}</strong><p>${voiceGlyph('wave')}<span data-member-status="${esc(p.id)}">${p.seat===null?'듣고 있는 중':'좌석 참여 중'}</span></p></div>${this.liveMode?'':memberActions(p)}${host?`<button type="button" class="voice-member-more" data-voice="member-menu" data-target="${esc(p.id)}" aria-label="${esc(p.name)} 관리" aria-expanded="false" aria-controls="voice-member-tools">${voiceGlyph(this.liveMode?'more':'talkMore')}</button>`:''}</div>`).join('');
   const memberKey=memberHTML+JSON.stringify(members.map(p=>[p.id,p.muted,p.locked]));if(memberKey!==this.memberHTML){$('#voice-members-list').innerHTML=memberHTML;this.memberHTML=memberKey;this.closeMemberTools();}
   const invitation=s.seat_invites?.[0],el=$('#voice-seat-invitation');el.hidden=!invitation;
   el.innerHTML=invitation?`<p>방장이 좌석에 초대했어요. <button data-voice="seat-accept" data-target="${esc(invitation.id)}">수락</button><button data-voice="seat-reject" data-target="${esc(invitation.id)}">거절</button></p>`:'';
@@ -57,7 +69,13 @@ Object.assign(VoiceRoomClient.prototype,{
   const own=id===self.id,locked=own?'disabled':'',box=$('#voice-member-tools');
   box.innerHTML=`<section class="voice-member-tools" aria-label="${esc(p.name)} 관리 메뉴">${p.profile_id?`<a href="#producer/${esc(p.profile_id)}">${voiceGlyph('person')}프로필 보기</a>`:''}<button type="button" data-voice="member-invite" ${own||p.seat!==null||!empty.length?'disabled':''}>${voiceGlyph('plus')}자리로 초대</button>${p.seat!==null&&!own?`<label>이동할 빈 좌석<select id="voice-move-seat" ${empty.length?'':'disabled'}>${empty.map(i=>`<option value="${i}">${i+1}번 자리</option>`).join('')}</select></label><button type="button" data-voice="member-move" ${empty.length?'':'disabled'}>${voiceGlyph('share')}자리 이동</button>`:''}<button type="button" data-voice="member-remove" ${own||p.seat===null?'disabled':''}>${voiceGlyph('leave')}자리에서 제거</button><button type="button" data-voice="${p.locked?'unlock':'mute-user'}" data-target="${esc(id)}" ${own||p.seat===null?'disabled':''}>${icon('mic')}${p.locked?'마이크 제한 해제':'마이크 끄기'}</button><button type="button" class="danger" data-voice="ask-kick" data-target="${esc(id)}" ${locked}>${voiceGlyph('ban')}강퇴</button></section>`;
   box.hidden=false;
-  const button=[...$('#voice-members').querySelectorAll('.voice-member-more')].find(b=>b.dataset.target===id),anchor=button.getBoundingClientRect(),dialog=$('#voice-members').getBoundingClientRect();
+  const button=[...$('#voice-members').querySelectorAll('.voice-member-more')].find(b=>b.dataset.target===id);
+  if(!this.liveMode){
+   const heading=document.createElement('h3');heading.textContent=p.name+' 관리';
+   box.firstElementChild.prepend(heading);button.setAttribute('aria-expanded','true');
+   box.querySelector('a,button:not(:disabled)')?.focus();return;
+  }
+  const anchor=button.getBoundingClientRect(),dialog=$('#voice-members').getBoundingClientRect();
   box.style.left=Math.max(dialog.left+10,Math.min(anchor.right-box.offsetWidth,dialog.right-box.offsetWidth-10))+'px';
   box.style.top=Math.max(dialog.top+65,Math.min(anchor.bottom+5,window.innerHeight-box.offsetHeight-12))+'px';
   button.setAttribute('aria-expanded','true');box.querySelector('a,button:not(:disabled)')?.focus();
@@ -67,7 +85,7 @@ Object.assign(VoiceRoomClient.prototype,{
   this.invitingSeat=seat;this.showSheet('voice-seat-picker');
   $('#voice-seat-candidates').innerHTML=this.state.members.filter(p=>p.seat===null).map(p=>`<button type="button" class="voice-member-row" data-voice="invite-seat-user" data-target="${esc(p.id)}">${avatarImage({name:p.name,profile_id:p.profile_id,image_version:p.image_version})}<span>${esc(p.name)}</span></button>`).join('')||'<p class="quiet">현재 청취 중인 참여자가 없어요.</p>';
  },
- canDock(){return !this.liveMode&&window.innerWidth>800&&window.innerHeight>=600&&this.host.clientWidth>=740;},
+ canDock(){return !this.liveMode&&window.innerWidth>800&&window.innerHeight>=600&&this.host.clientWidth>=680;},
  paintTalkPanel(self,micOn){
   const s=this.state,owner=self.id===s.room.host_id;
   // Inheriting the host seat grants control, not permission to start capturing audio.
@@ -82,7 +100,7 @@ Object.assign(VoiceRoomClient.prototype,{
    else request.textContent=self.requested?'좌석 신청 중':self.locked?'마이크 사용 제한':self.seat===null?'좌석을 선택해 대화에 참여하세요.':this.micState==='failed'?'마이크 연결 실패 · 다시 시도해주세요.':this.micBusy?'마이크 연결 중…':micOn?'내 마이크 켜짐':'내 마이크 꺼짐';
   }
   const mic=this.host.querySelector('.talk-central [data-voice=toggle-mic]');
-  if(mic.dataset.on!==String(micOn)){mic.dataset.on=String(micOn);mic.innerHTML=voiceGlyph(micOn?'talkMic':'talkMicOff')+'<span class="talk-switch" aria-hidden="true"></span><span class="talk-switch-label">'+(micOn?'ON':'OFF')+'</span>';}
+  if(mic.dataset.on!==String(micOn)){mic.dataset.on=String(micOn);mic.innerHTML=voiceGlyph(micOn?'talkMic':'talkMicOff')+'<span class="talk-switch" aria-hidden="true"></span>';}
   mic.disabled=self.locked||self.seat===null;
   mic.setAttribute('aria-pressed',String(micOn));mic.setAttribute('aria-label',micOn?'내 마이크 끄기':'내 마이크 켜기');
   mic.setAttribute('aria-busy',String(!!this.micBusy));
@@ -117,6 +135,15 @@ Object.assign(VoiceRoomClient.prototype,{
  async finalAction(action,target){
   if(action==='view-queue'){this.showSheet('voice-music-sheet');return true;}
   if(action==='personal-mute'){const current=this.preferences.music;if(current)this.lastPersonalVolume=current;this.preferences.music=current?0:(this.lastPersonalVolume||1);this.syncPersonalVolume();this.syncMusic();return true;}
+  if(action==='member-listen'&&!this.liveMode){
+   if(target!==this.state.self&&this.state.members.some(p=>p.id===target)){
+    const panel=this.actionTrigger?.closest('#talk-dock')||$('#voice-members');
+    this.volumes.set(target,(this.volumes.get(target)??1)>0?0:1);
+    this.applyListenVolumes();this.paintFinalControls();this.updateTalkDock();
+    Array.from(panel.querySelectorAll('[data-voice=member-listen]')).find(b=>b.dataset.target===target)?.focus({preventScroll:true});
+   }
+   return true;
+  }
   if(action==='personal-volume'){this.syncPersonalVolume();this.showSheet('talk-volume');return true;}
   if(action==='theme-picker'){
    if(this.state.self!==this.state.room.host_id)return true;
@@ -159,7 +186,10 @@ Object.assign(VoiceRoomClient.prototype,{
   if(action==='diagnostics-export'){this.diagnostics?.download();return true;}
   return false;
  },
- syncPersonalVolume(){if(!this.liveMode){this.host?.querySelector?.('[data-voice=personal-mute]')?.setAttribute('aria-pressed',String(this.preferences.music===0));try{localStorage.setItem('aifect.talkingRoom.listenVolume',String(this.preferences.music));}catch{}}for(const id of ['voice-music-volume','voice-playlist-volume','voice-mini-volume','voice-personal-volume']){const el=$('#'+id);if(el){el.value=this.preferences.music*100;this.updateDesignField(el);}}if(!this.liveMode&&this.talkTab==='sound')this.syncTalkSound();},
+ syncPersonalVolume(){if(!this.liveMode){
+  const volumeButton=this.host?.querySelector?.('#voice-music-player [data-voice=personal-volume]');
+  if(volumeButton)volumeButton.innerHTML=voiceGlyph(this.preferences.music===0?'talkVolumeOff':'talkVolume');
+  this.host?.querySelector?.('[data-voice=personal-mute]')?.setAttribute('aria-pressed',String(this.preferences.music===0));try{localStorage.setItem('aifect.talkingRoom.listenVolume',String(this.preferences.music));}catch{}}for(const id of ['voice-music-volume','voice-playlist-volume','voice-mini-volume','voice-personal-volume']){const el=$('#'+id);if(el){el.value=this.preferences.music*100;this.updateDesignField(el);}}if(!this.liveMode&&this.talkTab==='sound')this.syncTalkSound();},
  paintFinalMusic(){
   const m=this.state.music;if(!m)return;const host=this.state.members.find(p=>p.id===this.state.self)?.role==='host',track=m.queue[m.index],hasQueue=!!m.queue.length;
   $('#voice-host-audio').hidden=!host||!this.liveMode;$('#voice-room-volume').value=m.volume*100;$('#voice-balance').value=m.balance*100;
@@ -179,7 +209,7 @@ Object.assign(VoiceRoomClient.prototype,{
     const transport=host?button('previous','이전 곡',voiceGlyph('previous'),!hasQueue)
       +button(m.playing?'pause':'play',m.playing?'일시정지':'재생',voiceGlyph(m.playing?'talkPause':'talkPlay'),!hasQueue)
       +button('next','다음 곡',voiceGlyph('next'),!hasQueue):'';
-    mini.innerHTML=art+info+`<div>${transport}<button type="button" data-voice="personal-volume" aria-label="개인 듣기 볼륨">${icon('volume')}</button></div>`;
+    mini.innerHTML=art+info+`<div>${transport}<button type="button" data-voice="personal-volume" aria-label="개인 듣기 볼륨">${voiceGlyph(this.preferences.music===0?'talkVolumeOff':'talkVolume')}</button></div>`;
    }else $('#voice-music-player').innerHTML=(track?`<img src="${esc(track.cover)}" alt=""><span><strong>${esc(track.title)}</strong><small>${esc(track.artist)}</small></span>`:'<span><strong>함께 들을 음악을 선택해보세요</strong></span>')+`<div>${host?button('previous','이전 곡',voiceGlyph('previous'),!hasQueue)+button(m.playing?'pause':'play',m.playing?'일시정지':'재생',(m.playing?icon('pause'):icon('audio-play')),!hasQueue)+button('next','다음 곡',voiceGlyph('next'),!hasQueue)+button('repeat','반복',voiceGlyph('repeat'),!hasQueue):''}<label class="voice-mini-volume">${icon('volume')}<input id="voice-mini-volume" type="range" min="0" max="100" value="${this.preferences.music*100}" aria-label="개인 음악 볼륨"></label>${button('picker','플레이리스트',voiceGlyph('playlist'))}</div>`;
    $('#voice-popup-current').innerHTML=track?`<img src="${esc(track.cover)}" alt=""><div><strong>${esc(track.title)}</strong><small>${esc(track.artist)}</small></div>`:'';
    $('#voice-music-queue').innerHTML=m.queue.map((t,i)=>`<article class="voice-queue-row ${i===m.index?'is-current':''}" ${i===m.index?'aria-current="true"':''}><span class="voice-queue-number">${i===m.index&&m.playing?voiceGlyph('wave'):i+1}</span><img src="${esc(t.cover)}" alt=""><span class="voice-queue-info"><strong>${esc(t.title)}</strong><small>${esc(t.artist)}</small></span><time>${time(t.duration)}</time>${host?`<button type="button" data-voice="music-up" data-target="${i}" aria-label="${esc(t.title)} 위로 이동" ${i===0?'disabled':''}>↑</button><button type="button" data-voice="music-down" data-target="${i}" aria-label="${esc(t.title)} 아래로 이동" ${i===m.queue.length-1?'disabled':''}>↓</button><button type="button" data-voice="music-remove" data-target="${i}" aria-label="${esc(t.title)} 삭제">${voiceGlyph('trash')}</button>`:''}</article>`).join('');
@@ -204,6 +234,7 @@ Object.assign(VoiceRoomClient.prototype,{
   this.talkViewEvents?.abort();
   const events=this.talkViewEvents=new AbortController(),options={signal:events.signal};
   const dock=$('#talk-dock');
+  $('#voice-members-list').before($('#voice-member-tools'));
   const popupIds={participants:'voice-members',settings:'voice-room-settings',sound:'voice-sound',share:'voice-invite-sheet'};
   for(const button of this.host.querySelectorAll('.talk-header [data-voice]')){
    const id=popupIds[button.dataset.voice];
@@ -352,7 +383,6 @@ Object.assign(VoiceRoomClient.prototype,{
  },
  updateTalkDock(){
   if(this.liveMode||!this.state||!this.host.isConnected)return;
-  if(!this.canDock()){this.updateTalkSettings();return;}
   const dock=$('#talk-dock'),tab=this.talkTab||'participants',owner=this.state.self===this.state.room.host_id;
   for(const b of this.host.querySelectorAll('[data-talk-tab]'))b.setAttribute('aria-pressed',String(b.dataset.talkTab===tab));
   const changed=dock.dataset.tab!==tab;
