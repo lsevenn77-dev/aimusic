@@ -222,7 +222,7 @@ img.play-dubbing-art{display:block;width:100%;height:auto;aspect-ratio:1;object-
     margin-inline-end: 8px;
     font-size: 14px;
   }
-  .play-row-sing {
+  :is(.play-row-sing, .play-duet-play, .play-duet-expand) {
     width: auto;
     min-width: 96px;
     height: 44px;
@@ -237,7 +237,8 @@ img.play-dubbing-art{display:block;width:100%;height:auto;aspect-ratio:1;object-
     font-weight: 500;
     text-decoration: none;
   }
-  .play-row-sing > svg {
+  :is(.play-row-sing, .play-duet-play) > svg,
+  .play-duet-expand [data-cover-arrow] svg {
     flex: 0 0 20px;
     width: 20px !important;
     height: 20px !important;
@@ -247,9 +248,28 @@ img.play-dubbing-art{display:block;width:100%;height:auto;aspect-ratio:1;object-
     background: none;
   }
   .play-row-sing > span { white-space: nowrap; }
-  .play-row-sing:is(:hover, :active) {
+  :is(.play-row-sing, .play-duet-play, .play-duet-expand):not(:disabled):is(:hover, :active) {
     border-color: var(--ds-accent-pink);
     color: var(--ds-accent-pink);
+  }
+  .play-duet-actions { gap: 8px; }
+  .play-duet-actions > .play-row-sing { margin-inline-start: 8px; }
+  .play-duet-play { width: 44px; min-width: 44px; padding: 0; }
+  .play-duet-expand {
+    min-width: 60px;
+    padding-inline: 10px;
+    gap: 6px;
+    border: 1px solid var(--ds-line) !important;
+    background: var(--ds-panel) !important;
+  }
+  .play-duet-expand::before { content: none; }
+  .play-duet-expand [data-cover-arrow] svg {
+    width: 16px !important;
+    height: 16px !important;
+    flex-basis: 16px;
+  }
+  .play-duet-expand:not(:disabled):is(:hover, :active) {
+    border-color: var(--ds-accent-pink) !important;
   }
   :is(.play-song-title, .album-title, .play-draft-copy h3, .play-project-row h2,
       .dc-script strong, .dc-work-header h2, .song-cover-copy strong) {
@@ -329,15 +349,20 @@ img.play-dubbing-art{display:block;width:100%;height:auto;aspect-ratio:1;object-
       word-break: normal;
     }
   }
-  /* The 125% hub reaches the original compact duet width at 425px. */
-  @media (max-width: 425px) {
-    .play-song-row:has(> .count-dropdown) {
+  /* Preserve the compact duet layout within the enlarged hub. */
+  @media (max-width: 550px) {
+    .play-song-row.play-duet-row {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      row-gap: 2px;
-      .play-song-detail { grid-column: 1 / -1; }
-      .count-dropdown { justify-self: end; }
+      grid-template-columns: minmax(0, 1fr);
+      row-gap: 6px;
+      .play-song-detail { width: 100%; }
+      .play-duet-actions { justify-self: end; max-width: 100%; flex-wrap: wrap; }
     }
+  }
+  @media (max-width: 400px) {
+    .play-duet-actions { gap: 6px; }
+    .play-duet-actions > .play-row-sing { margin-inline-start: 6px; padding-inline: 8px; }
+    .play-duet-expand { min-width: 48px; padding-inline: 6px; gap: 4px; }
   }
 }
 
