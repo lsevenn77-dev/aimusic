@@ -24,9 +24,9 @@ function songDetailCreditsHTML(t){
 }
 function songDetailActionsHTML(t){
  const id=esc(t.id),join=t.cover_mode==='duet'&&t.duet_open&&t.user_id!==me?.id,gift=t.user_id!==me?.id;
- const primary='<button type="button" class="small-button song-action-listen" data-play="'+id+'">'+songActionIcon('play')+'<span>'+(me?'노래 듣기':'60초 미리 듣기')+'</span></button>'+
+ const primary='<button type="button" class="primary-button song-action-listen" data-play="'+id+'">'+songActionIcon('play')+'<span>노래 듣기</span></button>'+
  (join?'<a class="small-button song-action-sing" href="#sing/'+esc(t.original_id)+'?duet='+id+'">'+songActionIcon('sing')+'<span>듀엣 참여</span></a>':'')+
- (t.karaoke_ready?'<a class="small-button song-action-sing" href="#sing/'+id+'">'+songActionIcon('sing')+'<span>노래 부르기</span></a>':'');
+ (t.karaoke_ready?'<a class="primary-button song-action-sing" href="#sing/'+id+'">'+songActionIcon('sing')+'<span>노래 부르기</span></a>':'');
  const secondary='<button type="button" class="small-button song-action-like '+(liked(t.id)?'is-active':'')+'" data-like="'+id+'" aria-label="좋아요 '+number(t.likes||0)+'개" aria-pressed="'+liked(t.id)+'">'+songActionIcon('heart')+'<span>좋아요</span><span class="song-like-count" data-like-count>'+number(t.likes||0)+'</span></button>'+
  '<button type="button" class="small-button song-action-save" data-add="'+id+'">'+songActionIcon('plus')+'<span>저장</span></button>'+
  (gift?'<button type="button" class="small-button gift-entry song-action-gift" data-gift="'+id+'">'+songActionIcon('gift')+'<span>선물</span></button>':'')+

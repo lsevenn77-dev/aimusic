@@ -248,22 +248,28 @@
  .home-content-refresh .home-feature-slide{grid-template-columns:100px minmax(0,1fr);gap:10px;padding-inline:10px}
  .home-content-refresh .home-feature-copy h2{font-size:16px}
 }
-/* Mobile home/Play banners keep centered dots below the swipeable content. */
+/* Only the mobile banners fill the frame; following content keeps its gutter. */
 @media(max-width:800px){
+ #main:has(>.listening-home.home-content-refresh,>.play-page[data-play-mode]){--main-frame-top:0px}
+ .listening-home.home-content-refresh>#home-release,.play-page[data-play-mode]>.play-banner{margin-inline:calc(-1 * var(--main-frame-gutter,20px))}
+ .listening-home.home-content-refresh>#home-release{container-type:inline-size}
+ .listening-home.home-content-refresh #home-release .release-placeholder{height:272px;border-radius:0}
+ .listening-home.home-content-refresh #home-recommended{margin-top:16px}
  .home-content-refresh .home-feature-arrow,.home-content-refresh .home-feature-autoplay{display:none}
- .home-content-refresh .home-feature-slide{padding:26px 14px 44px}
+ .home-content-refresh .home-feature-preview{display:none}
+ .home-content-refresh .home-feature-slide{grid-template-columns:174px minmax(0,1fr);padding:26px 14px 44px}
  @container(max-width:540px){
-  .home-content-refresh .home-feature-slide{padding:6px 14px 44px}
+  .home-content-refresh .home-feature,.listening-home.home-content-refresh #home-release .release-placeholder{height:224px}
+  .home-content-refresh .home-feature-slide{grid-template-columns:clamp(112px,32cqi,144px) minmax(0,1fr);padding:16px 20px 44px}
  }
  @container(max-width:320px){
-  .home-content-refresh .home-feature-slide{padding-inline:10px}
+  .home-content-refresh .home-feature-slide{padding-inline:16px}
  }
 }
 @media(prefers-reduced-motion:reduce){.home-content-refresh .home-feature-slide,.home-content-refresh .home-feature-outgoing,.home-content-refresh .home-feature-backdrop{animation:none}.home-content-refresh .home-feature-dots button::after,.home-content-refresh .home-music-grid :is(.card-play,.album-art-wrap>a){transition:none}}
 @media(prefers-reduced-motion:reduce){.home-content-refresh .home-feature-stage[data-home-direction]>:is(.home-feature-background,.home-feature-slide,.home-feature-outgoing){animation:none}}
 
 @media (max-width: 620px) {
-  .home-content-refresh #home-recommended { margin-top: 34px; }
   .home-content-refresh #home-recommended > .section-heading { align-items: center; margin-bottom: 18px; }
 }
 

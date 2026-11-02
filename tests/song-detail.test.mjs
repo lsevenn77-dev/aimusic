@@ -61,9 +61,9 @@ test('song actions retain delegates, links, active state and count with the lyri
  assert.ok(lyrics);assert.match(lyrics,/data-track="song"/);assert.match(lyrics,/aria-controls="expanded-song-lyrics"/);assert.match(lyrics,/aria-expanded="false"/);assert.doesNotMatch(lyrics,/\bdisabled\b/);
  assert.match(html,/<span>가사<\/span>/);assert.equal((html.match(/id="lyrics-expand"/g)||[]).length,1);
 });
-test('guest previews, unavailable karaoke, self-gifts and duet ownership remain gated',()=>{
+test('guest listening, unavailable karaoke, self-gifts and duet ownership remain gated',()=>{
  const guest=header(null),own=header('other'),other=header();
- assert.match(guest.songDetailActionsHTML(track),/60초 미리 듣기/);
+ assert.match(guest.songDetailActionsHTML(track),/data-play="song"[^>]*>.*<span>노래 듣기<\/span>/);
  assert.doesNotMatch(other.songDetailActionsHTML({...track,karaoke_ready:false}),/노래 부르기|#sing/);
  assert.doesNotMatch(own.songDetailActionsHTML(track),/data-gift=/);
  const invitation={...track,kind:'cover',id:'invitation',original_id:'original',cover_mode:'duet',duet_open:1,karaoke_ready:false};
