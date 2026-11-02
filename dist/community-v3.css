@@ -184,3 +184,56 @@ main[data-route^="community"]::before,main[data-route^="crew/"]::before{display:
   width:100cqw;max-width:100%;margin:0;padding-inline:0!important;
  }
 }
+
+/* Opt in content roots, never their shared shell. On desktop .talk-scroll
+   also contains the real site footer, so only its list and status are scaled. */
+#main:is([data-route="community"], [data-route^="community/"], [data-route^="community?"]) {
+  > .music-community-tabs,
+  > .community-v3,
+  > .community-crew-actions,
+  > [role="status"],
+  > [role="alert"],
+  .talk-directory > .music-community-tabs,
+  .talk-directory > .community-v3 > .v3-toolbar,
+  .talk-directory #v3-room-create > :is(header, form, button),
+  .talk-scroll > :is(.v3-room-grid, .talk-status),
+  .community-feed-column,
+  .community-side-column > .social-side-card,
+  .community-side-crews > .social-side-card:not(:has(.community-crew-invite)),
+  .community-side-crews > .social-side-card:has(.community-crew-invite) > :not(.community-crew-invite),
+  .crew-page > :not(.crew-cover, .crew-discovery-layout),
+  .crew-discovery-main,
+  .crew-discovery-side > :not(.crew-discovery-invite) {
+    zoom: 1.25;
+  }
+  .talk-directory > .music-community-tabs {
+    grid-template-columns: none;
+    grid-auto-columns: minmax(max-content, 1fr);
+    overflow-x: auto;
+  }
+  @container (min-width: 520px) {
+    .talk-scroll > .v3-room-grid {
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    }
+  }
+  @media (max-width: 600px) {
+    /* Four enlarged avatars occupy the old five-avatar promo card footprint. */
+    .community-side-crews .community-crew-circles {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      column-gap: calc(20px / 3 / 1.25);
+    }
+  }
+  @media (max-width: 375px) {
+    .crew-featured-grid > .crew-discover-card { flex-basis: 100%; }
+    .crew-discover-card footer { flex-wrap: wrap; }
+    .crew-discover-card footer .primary-button { flex: auto; white-space: nowrap; }
+    .community-song-panel { flex-wrap: wrap; }
+    .community-song-copy { flex-basis: 100%; }
+  }
+}
+.page-wrap:has(> #main[data-route^="community/"]) ~ #dialog:has(
+  #crew-form, #dialog-new-playlist, #playlist-form, .track-options, .gift-dialog
+) > #dialog-content,
+.page-wrap:has(> #main[data-route^="community/"] .aifect-dropdown-trigger[aria-expanded=true]) ~ .aifect-dropdown-menu > [role=option] {
+  zoom: 1.25;
+}
