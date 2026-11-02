@@ -25,10 +25,15 @@ function searchBack(){
  if(origin?.depth>0)history.go(-origin.depth);else location.hash=origin?.route||'home';
 }
 function searchQuery(state){const query=new URLSearchParams();if(state.q)query.set('q',state.q);if(state.genre)query.set('genre',state.genre);if(state.mood)query.set('mood',state.mood);return query;}
+function songCorrectionNotice(data){
+ return data.search_correction?.type==='typo'&&data.tracks.length
+  ? `<p class="field-help" role="status">검색어와 비슷한 곡을 찾았어요. 추천 곡: <strong>${esc(data.search_correction.suggestion)}</strong></p>` : '';
+}
 async function unifiedSearchView(param,raw,readApi=api){
  const state=searchState(raw),tab=['tracks','artists','producers','playlists'].includes(state.params.get('type'))?state.params.get('type'):'tracks';
  const d=await readApi('/api/search?'+searchQuery(state)),counts=d.counts||Object.fromEntries(['tracks','artists','producers','playlists'].map(k=>[k,d[k].length]));
  let html='<div class="unified-search-results"><button type="button" class="text-link search-back" data-search-back>'+icon('chevron-left')+' 돌아가기</button>';
+ if(tab==='tracks')html+=songCorrectionNotice(d);
  if(d.recommended?.length)html+='<section class="listening-home-v2 home-content-refresh search-recommendations" aria-label="추천 검색결과">'+section('추천 검색결과')+'<div class="home-music-grid search-recommendation-shelf" tabindex="0" aria-label="추천 검색결과 · 좌우로 이동">'+d.recommended.slice(0,6).map(homeCard).join('')+'</div></section>';
  html+='<div class="search-gradient-divider" aria-hidden="true"></div><section class="search-all-results" aria-label="전체 검색결과"><div class="section-heading search-results-heading"><h2>전체 검색결과</h2>'+`<span class="search-result-count" role="status">${number(counts[tab])}${tab==='tracks'?'곡':'개'}</span></div><nav class="tabs search-type-tabs" aria-label="검색 유형">`;
  html+=[['tracks','노래'],['artists','아티스트'],['producers','제작자'],['playlists','플레이리스트']].map(([key,label])=>{const params=new URLSearchParams(state.params);params.set('type',key);return `<a class="tab ${tab===key?'active':''}" ${tab===key?'aria-current="page"':''} href="#search${state.q?'/'+encodeURIComponent(state.q):''}?${esc(params)}">${label} <span>${number(counts[key])}</span></a>`;}).join('')+'</nav><div id="search-result-items">';

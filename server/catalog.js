@@ -1,3 +1,4 @@
+import {songSearchScope,songBlockScope} from './song-search.js';
 import {songTextMatch,searchText} from './search-match.js';
 import {giftBlockReason} from './gift-eligibility.js';
 import {followCounts,assertArtistInteraction} from './follow-management.js';
@@ -76,7 +77,7 @@ export async function catalogRoute(req,env,path,user){
 
   const q=searchText(url.searchParams.get('q')),genre=url.searchParams.get('genre'),chart=url.searchParams.get('chart');
   let where=VISIBLE()+" AND t.kind='original'",args=[];
-  if(q){const match=songTextMatch(q);where+=' AND '+match.sql;args=match.args;}
+  if(q&&chart){const match=songTextMatch(q);where+=' AND '+match.sql;args=match.args;}
   if(genre&&validGenre(genre)){where+=' AND '+genreFilterSQL();args.push(genre,genre);}
   let sort='t.created DESC';
 
@@ -86,9 +87,16 @@ export async function catalogRoute(req,env,path,user){
   if(!['all','tracks','artists','producers'].includes(section))fail(400,'목록 종류를 확인해주세요.');
   const requested=Number(url.searchParams.get('limit')||100),limit=Number.isFinite(requested)?Math.max(1,Math.min(100,Math.trunc(requested))):100;
   const period=ranked?rankingPeriod(url.searchParams.get('period')||(chart==='top'?'week':'all')):null;
-  let comparison=null;
+  let comparison=null,correction=null;
   const loaders={
    tracks:async()=>{
+    if(q&&!chart){
+     const block=songBlockScope(env.AIFECT_BLOCKED||[]);
+     const scope=where+block.sql,params=[...args,...block.args];
+     const song=await songSearchScope(env,q,scope,params);
+     correction=song.correction;
+     return trackList({...env,AIFECT_BLOCKED:[]},song.where,[...params,...song.args,...song.sortArgs],song.sort+',t.created DESC,t.id',limit);
+    }
     if(!period)return trackList(env,where,args,sort,limit);
     const daily=await dailyChart(env,period,chart);comparison=daily.comparison;
     if(!daily.tracks.length)return [];
@@ -103,6 +111,7 @@ export async function catalogRoute(req,env,path,user){
   };
   const sections=section==='all'?Object.keys(loaders):[section];
   const result=Object.fromEntries(await Promise.all(sections.map(async key=>[key,await loaders[key]()])));
+  if(correction)result.search_correction=correction;
   if(period)result.chart=pageCharts.includes(chart)?{...period,basis:chart==='covers'?'published_solo_covers':'qualified_listens',comparison}:{...period,weights:CHART_WEIGHTS,basis:'normalized_engagement',max_score:100,comparison};
   return json(result);
  }

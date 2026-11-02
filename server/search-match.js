@@ -31,21 +31,22 @@ export function flexibleSearchCondition(input, fields, flexibleFields = fields) 
  };
  addAny(fields, '%' + escapeLike(q) + '%');
  const compact = compactSearchText(q);
- if (compact.length >= 2 && flexibleFields.length) {
+ const aliases = aliasGroups.find(group => group.includes(compact));
+ if ((compact.length >= 2 || aliases) && flexibleFields.length) {
    const columns = flexibleFields.map(compactSearchSQL);
-   for (const term of aliasGroups.find(group => group.includes(compact)) || [compact]) {
+   for (const term of aliases || [compact]) {
      addAny(columns, '%' + escapeLike(term) + '%');
    }
  }
  // Match multiple meaningful words across title + artist + other searchable metadata.
  // Skip single-character word combinations to avoid overly broad result sets.
  const tokens = q.split(' ').map(compactSearchText).filter(Boolean);
- if (tokens.length > 1 && tokens.length <= 8 && compact.length >= 3 && tokens.some(t => compactSearchText(t).length >= 2)) {
+ if (tokens.length > 1 && tokens.length <= 8 && compact.length >= 3 && tokens.some(t => t.length >= 2)) {
    const perToken = [];
    const columns = (flexibleFields.length ? flexibleFields : fields).map(compactSearchSQL);
    for (const token of tokens) {
      perToken.push('(' + columns.map(likeSQL).join(' OR ') + ')');
-     args.push(...columns.map(() => '%' + escapeLike(compactSearchText(token)) + '%'));
+     args.push(...columns.map(() => '%' + escapeLike(token) + '%'));
    }
    conditions.push('(' + perToken.join(' AND ') + ')');
  }
@@ -53,6 +54,6 @@ export function flexibleSearchCondition(input, fields, flexibleFields = fields) 
 }
 
 export function songTextMatch(q) {
- const fields = ['t.title','a.name',producerNameSQL(),'t.genre','t.genres_json','t.tags'];
- return flexibleSearchCondition(q, fields);
+ const fields = ['t.title','a.name',producerNameSQL(),'t.genre','t.tags'];
+ return flexibleSearchCondition(q, fields, [...fields,'t.genres_json']);
 }

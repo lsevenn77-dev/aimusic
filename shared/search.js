@@ -18,7 +18,7 @@ function distance(a,b){
   if(i>1&&j>1&&a[i-1]===b[j-2]&&a[i-2]===b[j-1])d[i][j]=Math.min(d[i][j],d[i-2][j-2]+1);
  }return d[a.length][b.length];
 }
-export function searchPlan(raw){
+export function searchPlan(raw,allowFuzzy=true){
  raw=String(raw).trim().slice(0,100);const normalized=normalizeSearch(raw);
  const group=SEARCH_ALIASES.find(g=>g.some(v=>normalizeSearch(v)===normalized));
  const aliases=group?[...new Set(group.map(normalizeSearch))]:[];
@@ -26,7 +26,7 @@ export function searchPlan(raw){
  const initial=initialOnly?[...normalized].map(c=>{const start=0xac00+INITIALS.indexOf(c)*588;return '['+String.fromCharCode(start)+'-'+String.fromCharCode(start+587)+']';}).join(''):'';
  const fuzzy=new Set();
  // Whole-field edits only, at most one edit and never for short/initial queries.
- if(!initialOnly&&normalized.length>=4&&normalized.length<=40){
+ if(allowFuzzy&&!initialOnly&&normalized.length>=4&&normalized.length<=40){
   for(let i=0;i<normalized.length;i++){
    const a=globLiteral(normalized.slice(0,i)),b=globLiteral(normalized.slice(i+1));
    fuzzy.add(a+'?'+b);fuzzy.add(a+b);

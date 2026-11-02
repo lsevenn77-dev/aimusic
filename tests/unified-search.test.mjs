@@ -23,11 +23,11 @@ test('normalization, aliases, conservative typos and initials use real fixture r
  assert.deepEqual(searchPlan('IU').fuzzy,[]);
 });
 
-test('exact names outrank partial and typo matches, with stable paging and unchanged source names',async t=>{
+test('exact names outrank partial matches and suppress typo suggestions, with stable paging and unchanged source names',async t=>{
  const {sql,call}=await fixture(t);
  sql.exec("UPDATE tracks SET title='Ballad',genre='Rock' WHERE id='one'; UPDATE tracks SET title='Balllad',genre='Rock' WHERE id='two'; UPDATE tracks SET title='A Ballad song',genre='Rock' WHERE id='three'");
  const r=await call('/api/search?q=Ballad','GET',undefined,null);assert.equal(r.status,200,JSON.stringify(r.body));
- assert.deepEqual(r.body.tracks.map(v=>v.id),['one','three','two']);assert.equal(r.body.recommended[0].id,'one');
+ assert.deepEqual(r.body.tracks.map(v=>v.id),['one','three']);assert.equal(r.body.search_correction,undefined);assert.equal(r.body.recommended[0].id,'one');
  assert.equal(sql.prepare("SELECT title FROM tracks WHERE id='two'").get().title,'Balllad');
 });
 

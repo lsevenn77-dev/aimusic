@@ -2,10 +2,10 @@ import {validGenre,MOODS,genreFilterSQL} from '../shared/genres.js';
 import {VISIBLE,trackList} from './catalog.js';
 import {playlistSummaries} from './discovery.js';
 import {namedArtistSQL} from './artist-identity.js';
-import {publicNameSQL,producerNameSQL} from './identity.js';
+import {publicNameSQL} from './identity.js';
 import {activePlaylistSQL} from './membership.js';
 import {one,rows,fail,json} from './db.js';
-import {songTextMatch} from './search-match.js';
+import {songSearchScope,songBlockScope} from './song-search.js';
 import {searchRank} from './search-rank.js';
 
 // Display labels never become text predicates for taxonomy searches.
@@ -16,36 +16,36 @@ export async function unifiedSearch(env,user,params){
  if(!q&&!genre&&!mood)return json({tracks:[],artists:[],producers:[],playlists:[],recommended:[],counts:{tracks:0,artists:0,producers:0,playlists:0},has_more:false});
  const offset=Math.max(0,Math.min(100000,Math.trunc(Number(params.get('offset')))||0));
  const classified=!!(genre||mood),args=[];
- const rank=searchRank(q,['t.title','a.name',producerNameSQL(),'t.genre','t.tags'],'UNION ALL SELECT value FROM json_each(t.genres_json)');
  let where=VISIBLE()+" AND t.kind='original'";
  if(genre){where+=' AND '+genreFilterSQL();args.push(genre,genre);}
  if(mood){where+=' AND EXISTS(SELECT 1 FROM json_each(t.moods_json) jm WHERE jm.value=?)';args.push(mood);}
  const blocked=env.AIFECT_BLOCKED||[];
- if(blocked.length){where+=' AND t.user_id NOT IN ('+blocked.map(()=>'?').join(',')+')';args.push(...blocked);}
+ const block=songBlockScope(blocked);where+=block.sql;args.push(...block.args);
  const from='FROM tracks t JOIN artists a ON a.id=t.artist_id JOIN producers p ON p.id=t.producer_id';
- if(q){
-  const flexible=songTextMatch(q);
-  const strong=await one(env,`SELECT count(*) n ${from} WHERE ${where} AND (${flexible.sql} OR ${rank.sql}<6)`,...args,...flexible.args,rank.plan);
-  where+=` AND (${flexible.sql} OR ${rank.sql}<${strong.n<6?7:6})`;args.push(...flexible.args,rank.plan);
- }
+ const song=q?await songSearchScope(env,q,where,args):null;
+ if(song){where=song.where;args.push(...song.args);}
  const matched=`SELECT t.id ${from} WHERE ${where}`;
- const artistRank=searchRank(q,['artist.name','artist.bio']),producerRank=searchRank(q,[publicNameSQL(),'m.code']),playlistRank=searchRank(q,['p.name','p.description',publicNameSQL()]);
+ const artistFields=['artist.name','artist.bio'],producerFields=[publicNameSQL(),'m.code'],playlistFields=['p.name','p.description',publicNameSQL()];
+ let artistRank=searchRank(q,artistFields,'',false),producerRank=searchRank(q,producerFields,'',false),playlistRank=searchRank(q,playlistFields,'',false);
  const artistBase=`${namedArtistSQL('artist.name')} AND EXISTS(SELECT 1 FROM tracks t WHERE t.artist_id=artist.id AND ${VISIBLE()} AND t.kind='original'${blocked.length?' AND t.user_id NOT IN ('+blocked.map(()=>'?').join(',')+')':''})`;
  const producerFrom='FROM users u JOIN public_profile_ids m ON m.user_id=u.id LEFT JOIN producers p ON p.user_id=u.id';
  const producerBase=`u.provider!='deleted'${blocked.length?' AND u.id NOT IN ('+blocked.map(()=>'?').join(',')+')':''}`;
  const playlistBase=`p.is_public=1 AND ${activePlaylistSQL()}${blocked.length?' AND p.user_id NOT IN ('+blocked.map(()=>'?').join(',')+')':''}`;
- const [artistLimit,producerLimit,playlistLimit]=q&&!classified?await Promise.all([
+ const [artistLimit,producerLimit,playlistLimit]=q&&!classified&&!song?.exact?await Promise.all([
   one(env,`SELECT count(*) n FROM artists artist WHERE ${artistBase} AND ${artistRank.sql}<6`,...blocked,artistRank.plan),
   one(env,`SELECT count(*) n ${producerFrom} WHERE ${producerBase} AND ${producerRank.sql}<6`,...blocked,producerRank.plan),
   one(env,`SELECT count(*) n FROM playlists p JOIN users u ON u.id=p.user_id WHERE ${playlistBase} AND ${playlistRank.sql}<6`,...blocked,playlistRank.plan)
- ]):[{n:6},{n:6},{n:6}];
- const artistWhere=classified?`${namedArtistSQL('artist.name')} AND artist.id IN (SELECT t.artist_id ${from} WHERE ${where})`:`${artistBase} AND ${artistRank.sql}<${artistLimit.n<6?7:6}`;
+ ]):[{n:1},{n:1},{n:1}];
+ if(!artistLimit.n)artistRank=searchRank(q,artistFields);
+ if(!producerLimit.n)producerRank=searchRank(q,producerFields);
+ if(!playlistLimit.n)playlistRank=searchRank(q,playlistFields);
+ const artistWhere=classified?`${namedArtistSQL('artist.name')} AND artist.id IN (SELECT t.artist_id ${from} WHERE ${where})`:`${artistBase} AND ${artistRank.sql}<${artistLimit.n===0?7:6}`;
  const artistArgs=classified?args:[...blocked,artistRank.plan];
- const producerWhere=`${producerBase} AND `+(classified?`p.id IN (SELECT t.producer_id ${from} WHERE ${where})`:`${producerRank.sql}<${producerLimit.n<6?7:6}`);
+ const producerWhere=`${producerBase} AND `+(classified?`p.id IN (SELECT t.producer_id ${from} WHERE ${where})`:`${producerRank.sql}<${producerLimit.n===0?7:6}`);
  const producerArgs=classified?[...blocked,...args]:[...blocked,producerRank.plan];
- const playlistWhere=`${playlistBase} AND `+(classified?`EXISTS(SELECT 1 FROM playlist_tracks pt WHERE pt.playlist_id=p.id AND pt.track_id IN (${matched}))`:`${playlistRank.sql}<${playlistLimit.n<6?7:6}`);
+ const playlistWhere=`${playlistBase} AND `+(classified?`EXISTS(SELECT 1 FROM playlist_tracks pt WHERE pt.playlist_id=p.id AND pt.track_id IN (${matched}))`:`${playlistRank.sql}<${playlistLimit.n===0?7:6}`);
  const playlistArgs=classified?[...blocked,...args]:[...blocked,playlistRank.plan];
- const trackSort=q?rank.sql+',':'',trackArgs=q?[...args,rank.plan]:args;
+ const trackSort=song?song.sort+',':'',trackArgs=song?[...args,...song.sortArgs]:args;
  const identitySort=(r)=>q&&!classified?r.sql+',':'';
  const identityArgs=(a,r)=>q&&!classified?[...a,r.plan]:a;
  const [tracks,recommended,artists,producers,playlists,counts]=await Promise.all([
@@ -62,5 +62,5 @@ export async function unifiedSearch(env,user,params){
   ])
  ]);
  const totals=Object.fromEntries(['tracks','artists','producers','playlists'].map((key,i)=>[key,counts[i].n]));
- return json({tracks,artists,producers,playlists,recommended,counts:totals,offset,has_more:offset+tracks.length<totals.tracks});
+ return json({tracks,artists,producers,playlists,recommended,counts:totals,offset,...(song?.correction?{search_correction:song.correction}:{}),has_more:offset+tracks.length<totals.tracks});
 }
