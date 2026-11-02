@@ -31,7 +31,16 @@ function bindChatEnter(input,submit){
 }
 function chatNickname(p){return p.chat_nickname??p.name;}
 function inboxTime(at){return Number(at)>0?new Date(at*1000).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',hourCycle:'h23',timeZone:'Asia/Seoul'}):'';}
-function conversationMetaHTML(p){const count=Math.max(0,Number(p.unread)||0);return '<div class="conversation-meta"><div class="conversation-status">'+(count?'<span class="unread-badge" aria-label="안 읽은 메시지 '+count+'개">'+(count>99?'99+':count)+'</span>':'')+(p.muted?'<span class="conversation-muted" aria-label="알림금지">'+icon('bellOff')+'</span>':'')+'</div><time>'+inboxTime(p.updated)+'</time></div>';}
+function conversationCopyHTML(p,name,emptyPreview,pinned=false){
+ const pin=pinned?'<span class="dm-pin" role="img" aria-label="고정된 대화" title="고정된 대화">'+icon('dmPin')+'</span>':'';
+ const mute=p.muted?'<span class="conversation-muted" role="img" aria-label="알림 끔" title="알림 끔">'+icon('bellOff')+'</span>':'';
+ const dot=Number(p.unread)>0?'<i class="dm-unread-dot" aria-hidden="true"></i>':'';
+ return '<div class="conversation-copy"><div class="dm-name-line"><strong title="'+esc(name)+'">'+esc(name)+'</strong>'+pin+mute+dot+'</div><p>'+esc(p.last_message||emptyPreview)+'</p></div>';
+}
+function conversationMetaHTML(p){
+ const count=Number(p.unread)||0;
+ return '<div class="conversation-meta"><time>'+inboxTime(p.updated)+'</time>'+(count>0?'<span class="unread-badge" aria-label="안 읽은 메시지 '+count+'개">'+count+'</span>':'')+'</div>';
+}
 function dmProfileLink(p,content,cls='dm-profile-link'){return '<a class="'+cls+'" href="#producer/'+esc(p.id)+'" aria-label="'+esc(chatNickname(p))+' 프로필 보기">'+content+'</a>';}
 let dmInboxFilter='all';
 let dmInboxSnapshot=null;
@@ -40,7 +49,7 @@ function rememberDmInbox(data){dmInboxSnapshot={uid:me?.id,data};}
 const dmInboxTabs=[['all','전체'],['unread','안 읽음'],['crew','크루'],['notice','공지']];
 function dmInboxTabsHTML(){return '<div class="dm-inbox-tabs" role="group" aria-label="메시지 분류">'+dmInboxTabs.map(([key,label])=>'<button type="button" data-dm-filter="'+key+'" aria-pressed="'+(dmInboxFilter===key)+'">'+label+'</button>').join('')+'</div>';}
 function dmInboxSelection(conversations,crew,filter){return {conversations:conversations.filter(p=>filter==='all'||filter==='unread'&&Number(p.unread)>0||filter==='notice'&&p.is_notice===true),crew:filter==='all'||filter==='crew'||filter==='unread'&&Number(crew?.unread)>0?crew:null};}
-function conversationListHTML(conversations,crew=null,selected=''){const chosen=dmInboxSelection(conversations,crew,dmInboxFilter);conversations=chosen.conversations;crew=chosen.crew;return crewInboxHTML(crew,selected)+(conversations.length?'<div class="conversation-list">'+conversations.map(p=>'<article data-list-row class="surface conversation-row'+(selected===p.id?' is-selected':'')+'">'+dmProfileLink(p,portrait(p,'producer'))+'<a class="conversation-open" href="#dm/'+esc(p.id)+'"'+(selected===p.id?' aria-current="true"':'')+'><div class="conversation-copy"><strong>'+esc(chatNickname(p))+'</strong><p>'+esc(p.last_message||'대화를 시작해보세요.')+'</p></div>'+conversationMetaHTML(p)+'</a></article>').join('')+'</div>':crew?'':'<div class="dm-empty" role="status"><h2>'+({all:'아직 나눈 대화가 없어요',unread:'안 읽은 메시지가 없어요',crew:'가입한 크루가 없어요',notice:'받은 공지가 없어요'}[dmInboxFilter])+'</h2><p>'+({all:'프로필에서 DM을 보내 대화를 시작해보세요.',unread:'새 메시지가 오면 여기에 표시돼요.',crew:'크루에 가입하면 크루 채팅을 볼 수 있어요.',notice:'운영자 계정의 메시지를 이곳에 모아드려요.'}[dmInboxFilter])+'</p></div>');}
+function conversationListHTML(conversations,crew=null,selected=''){const chosen=dmInboxSelection(conversations,crew,dmInboxFilter);conversations=chosen.conversations;crew=chosen.crew;return crewInboxHTML(crew,selected)+(conversations.length?'<div class="conversation-list">'+conversations.map(p=>'<article data-list-row class="surface conversation-row'+(selected===p.id?' is-selected':'')+(Number(p.unread)>0?' is-unread':'')+'">'+dmProfileLink(p,portrait(p,'producer'))+'<a class="conversation-open" href="#dm/'+esc(p.id)+'"'+(selected===p.id?' aria-current="true"':'')+'>'+conversationCopyHTML(p,chatNickname(p),'대화를 시작해보세요.')+conversationMetaHTML(p)+'</a></article>').join('')+'</div>':crew?'':'<div class="dm-empty" role="status"><h2>'+({all:'아직 나눈 대화가 없어요',unread:'안 읽은 메시지가 없어요',crew:'가입한 크루가 없어요',notice:'받은 공지가 없어요'}[dmInboxFilter])+'</h2><p>'+({all:'프로필에서 DM을 보내 대화를 시작해보세요.',unread:'새 메시지가 오면 여기에 표시돼요.',crew:'크루에 가입하면 크루 채팅을 볼 수 있어요.',notice:'운영자 계정의 메시지를 이곳에 모아드려요.'}[dmInboxFilter])+'</p></div>');}
 function chatBodyHTML(body){return esc(body).replace(/(?:[ \t]*\r?\n[ \t]*)?https:\/\/aifect\.co\.kr\/#voice\/([a-zA-Z0-9_-]{16,64})(?![a-zA-Z0-9_-])/g,(_,id)=>'<a class="small-button dm-room-invite" href="#voice/'+id+'">토킹룸 입장하기</a>');}
 function chatHTML(messages,peer=null,crew=null){
  let day='';return messages.map(m=>{
@@ -58,7 +67,7 @@ function chatHTML(messages,peer=null,crew=null){
   return separator+'<article class="dm-message '+(mine?'mine':'')+'" data-message="'+esc(m.id)+'">'+avatar+'<div class="dm-message-content">'+author+'<div class="dm-message-line"><div class="dm-bubble"><span class="chat-body">'+(m.image_id?chatImageHTML(m,!!crew):chatBodyHTML(body))+'</span>'+invitation+'</div><div class="chat-message-meta"><time>'+stamp+'</time>'+delivery+'</div></div></div></article>';
  }).join('')||'<div class="chat-empty"><span>'+icon('message')+'</span><strong>음악에서 시작되는 대화</strong><p>반가운 인사나 좋았던 음악을 나눠보세요.</p></div>';
 }
-function chatPanelHTML(label,initial=null,peer=null){return '<section class="surface chat-panel dm-chat-panel '+(peer?'':'crew-chat-panel')+'"><button class="small-button chat-earlier" id="chat-earlier" '+(initial?.has_more?'':'hidden')+'>이전 대화 보기</button><div id="chat-log" role="log" aria-label="'+label+'">'+(initial?chatHTML(initial.messages,peer):'')+'</div><p id="chat-connection" class="quiet" role="status"></p><p id="chat-error" role="status"></p>'+chatAttachmentTools(peer)+chatComposer()+'</section>';}
+function chatPanelHTML(label,initial=null,peer=null,dm=!!peer){return '<section class="surface chat-panel dm-chat-panel '+(peer?'':'crew-chat-panel')+'"><button class="small-button chat-earlier" id="chat-earlier" '+(initial?.has_more?'':'hidden')+'>이전 대화 보기</button><div id="chat-log" role="log" aria-label="'+label+'">'+(initial?chatHTML(initial.messages,peer):'')+'</div><p id="chat-connection" class="quiet" role="status"></p><p id="chat-error" role="status"></p>'+chatAttachmentTools(peer)+(dm?dmEmojiPickerHTML():'')+chatComposer(dm)+'</section>';}
 let socialCleanup=null;
 // Only unsent work lives here; server history is always read from the API.
 let chatWorkAccount=null;
@@ -114,15 +123,24 @@ function bindSocialChat(view){
  if(!view?.inbox&&!view?.chat)return;
  const ticket=renderId,uid=me?.id,current=()=>ticket===renderId&&uid===me?.id;
  let inboxData=uid&&dmInboxSnapshot?.uid===uid?dmInboxSnapshot.data:null;
- const paintInbox=d=>{const root=$('#dm-conversations'),html=conversationListHTML(d.conversations,d.crew,view.selectedConversation||'');if(root&&root.innerHTML!==html)root.innerHTML=html;const count=$('#dm-inbox-count');if(count)count.textContent=number(d.conversations.length);};
+ let watchedCrew=null,stopCrewInbox=null;
+ // The personal inbox stream tracks direct messages. Crew changes have their own stream.
+ const syncCrewInbox=crew=>{
+  const id=crew?.id===view.chat?.crew?.id?null:crew?.id;
+  if(id===watchedCrew)return;
+  stopCrewInbox?.();watchedCrew=id;
+  stopCrewInbox=id?watchSocialChat('?crew='+encodeURIComponent(id),refreshInbox,()=>{},refreshInbox):null;
+ };
+ const paintInbox=d=>{const root=$('#dm-conversations'),html=conversationListHTML(d.conversations,d.crew,view.selectedConversation||'');if(root&&root.innerHTML!==html)root.innerHTML=html;};
  const tabs=document.querySelector('.dm-inbox-tabs');const filter=e=>{const b=e.target.closest('[data-dm-filter]');if(!b)return;dmInboxFilter=b.dataset.dmFilter;tabs.querySelectorAll('[data-dm-filter]').forEach(t=>t.setAttribute('aria-pressed',String(t.dataset.dmFilter===dmInboxFilter)));if(inboxData)paintInbox(inboxData);};tabs?.addEventListener('click',filter);
  let inboxFetching=false,inboxAgain=false,inboxVersion=0;
  const loadInbox=async()=>{if(!view?.inbox||!current())return;if(inboxFetching){inboxAgain=true;return;}inboxFetching=true;
-  try{do{inboxAgain=false;const version=inboxVersion,d=await api('/api/dm');if(!current())return;if(version!==inboxVersion)continue;inboxData=d;rememberDmInbox(d);paintInbox(d);$('#dm-list-error').textContent='';}while(inboxAgain&&current());}
+  try{do{inboxAgain=false;const version=inboxVersion,d=await api('/api/dm');if(!current())return;if(version!==inboxVersion)continue;inboxData=d;rememberDmInbox(d);paintInbox(d);syncCrewInbox(d.crew);$('#dm-list-error').textContent='';}while(inboxAgain&&current());}
   catch(e){if(current())$('#dm-list-error').textContent=e.message;}finally{inboxFetching=false;}
  };
  const localInbox=e=>{if(current()&&view?.inbox&&e.detail){inboxVersion++;inboxData=e.detail;paintInbox(inboxData);}};const refreshInbox=()=>{void loadInbox();};if(view?.inbox){window.addEventListener('aifect:inbox-local',localInbox);window.addEventListener('aifect:inbox-refresh',refreshInbox);}
- const clearInboxEvents=()=>{window.removeEventListener('aifect:inbox-local',localInbox);window.removeEventListener('aifect:inbox-refresh',refreshInbox);};
+ if(view.inbox)syncCrewInbox(inboxData?.crew);
+ const clearInboxEvents=()=>{stopCrewInbox?.();window.removeEventListener('aifect:inbox-local',localInbox);window.removeEventListener('aifect:inbox-refresh',refreshInbox);};
  if(view?.inbox&&!view.chat){if(view.refreshInbox)void loadInbox();const stop=watchSocialChat('',loadInbox,()=>{},()=>{$('#dm-list-error').textContent='로그인 상태를 다시 확인해주세요.';});socialCleanup=()=>{clearInboxEvents();stop();tabs?.removeEventListener('click',filter);};return;}
  if(!view?.chat)return;
  if(view.refreshInbox)void loadInbox();
@@ -170,6 +188,7 @@ function bindSocialChat(view){
   finally{fetching=false;earlier.disabled=false;if(again&&older&&current())void load();}
  };
  earlier.onclick=()=>{earlier.disabled=true;load(true);};
+ const closeEmoji=view.inbox?bindDmEmoji(form,input):null;
  const isComposing=bindChatEnter(input,()=>{if(input.isConnected&&current()&&input.value.trim()&&!sendButton.disabled)form.requestSubmit();});
 
  log.addEventListener('click',e=>{const b=e.target.closest('[data-crew-hello]');if(!b||denied||!crew)return;
@@ -235,7 +254,7 @@ function bindSocialChat(view){
  const layoutResize=new ResizeObserver(viewport);layoutResize.observe(target);
  const readyFrame=requestAnimationFrame(viewport);
  window.addEventListener('aifect:input-viewport',viewport);
- socialCleanup=()=>{unsent.draft=input.value;input.removeEventListener('input',resizeInput);clearInboxEvents();tabs?.removeEventListener('click',filter);document.body.classList.remove('chat-keyboard','chat-active');stopStream();stopInbox();resize.disconnect();layoutResize.disconnect();cancelAnimationFrame(frame);cancelAnimationFrame(readyFrame);log.removeEventListener('scroll',onScroll);log.removeEventListener('load',anchor,true);input.removeEventListener('focus',viewport);input.removeEventListener('blur',viewport);window.visualViewport?.removeEventListener('resize',viewport);window.visualViewport?.removeEventListener('scroll',viewport);window.removeEventListener('resize',viewport);window.removeEventListener('aifect:input-viewport',viewport);};
+ socialCleanup=()=>{closeEmoji?.();unsent.draft=input.value;input.removeEventListener('input',resizeInput);clearInboxEvents();tabs?.removeEventListener('click',filter);document.body.classList.remove('chat-keyboard','chat-active');stopStream();stopInbox();resize.disconnect();layoutResize.disconnect();cancelAnimationFrame(frame);cancelAnimationFrame(readyFrame);log.removeEventListener('scroll',onScroll);log.removeEventListener('load',anchor,true);input.removeEventListener('focus',viewport);input.removeEventListener('blur',viewport);window.visualViewport?.removeEventListener('resize',viewport);window.visualViewport?.removeEventListener('scroll',viewport);window.removeEventListener('resize',viewport);window.removeEventListener('aifect:input-viewport',viewport);};
 }
 
 document.addEventListener('click',async event=>{

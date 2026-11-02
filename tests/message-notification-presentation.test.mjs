@@ -17,9 +17,18 @@ test('successful mute state updates the cached inbox immediately without changin
  let data=c.lastEvent.detail;assert.equal(data.unread,105);assert.equal(data.conversations[0].unread,104);assert.equal(data.conversations[0].muted,true);assert.equal(data.conversations[1].muted,0);
  vm.runInContext("updateInboxMute('a',false);updateInboxMute('c',true,true)",c);data=c.lastEvent.detail;assert.equal(data.conversations[0].muted,false);assert.equal(data.crew.muted,true);
 });
-test('read/unread and muted/unmuted conversations render their real status',()=>{
- const c=client();let html=vm.runInContext('conversationMetaHTML({unread:104,muted:1,updated:1793451900})',c);assert.match(html,/>99\+</);assert.match(html,/bellOff/);assert.match(html,/<time>\d{2}:\d{2}<\/time>/);assert.doesNotMatch(html,/data-dm-mute/);
- html=vm.runInContext('conversationMetaHTML({unread:0,muted:0,updated:1793451900})',c);assert.doesNotMatch(html,/unread-badge|bellOff/);
+test('the row separates conversation settings, unread presentation and current selection',()=>{
+ const c=client(), peer={id:'peer',name:'대화 상대',last_message:'실제 미리보기',updated:1793451900,unread:104,muted:1};
+ let html=c.conversationListHTML([peer],null,'peer');
+ assert.match(html,/conversation-row is-selected is-unread/);
+ assert.match(html,/dm-name-line[^]*?<\/strong>[^]*?bellOff[^]*?dm-unread-dot[^]*?<\/div><p>실제 미리보기<\/p>/);
+ assert.match(html,/<time>\d{2}:\d{2}<\/time><span class="unread-badge"[^>]*>104<\/span>/);
+ assert.doesNotMatch(html,/dmPin|data-dm-mute/);
+ html=c.conversationListHTML([{...peer,muted:0,unread:0}],null,'peer');
+ assert.match(html,/is-selected/);assert.doesNotMatch(html,/is-unread|dm-unread-dot|unread-badge|bellOff|dmPin/);
+ html=c.conversationListHTML([],{...peer,id:'crew'});
+ assert.match(html,/dmPin[^]*?bellOff[^]*?dm-unread-dot/);
+ assert.doesNotMatch(html,/내 크루/);
 });
 test('notifications show Seoul time beside the type and an unread dot beside the avatar',()=>{
  const c=client();

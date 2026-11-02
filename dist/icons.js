@@ -21,6 +21,7 @@ paths.back='m15 6-6 6 6 6';
 // Compatibility alias: all existing overflow-menu callers share the hamburger glyph.
 paths.more=paths.menu;
 paths.image='M4 3h16v18H4zM4 16l5-6 4 4 3-3 4 5M15 7h.01';
+paths.dmPin='m15 3 6 6-2 2-2-1-4 4 1 3-2 2-7-7 2-2 3 1 4-4-1-2zM9 15l-6 6';
 paths.bellOff='m3 3 18 18M7 7c-1 3 0 7-3 10h13M10 4a6 6 0 0 1 8 5v3M10 21h4';
 paths.trash='M4 7h16M9 3h6l1 4M6 7l1 14h10l1-14M10 11v6m4-6v6';
 paths.info='M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM12 11v6m0-10v.01';
