@@ -163,3 +163,167 @@ img.play-dubbing-art{display:block;width:100%;height:auto;aspect-ratio:1;object-
 .play-page .play-banner-photo{width:100%;height:100%;background-size:cover;background-position:center;filter:blur(14px) saturate(1.18);transform:scale(1.12);opacity:.6}
 .play-page .play-banner-art{display:block;object-fit:cover}
 @media(max-width:600px){#main .play-page .count-dropdown{font-size:13.6px}}
+
+/* Only the hub produced by playShell has data-play-mode. The banner keeps the
+   home carousel's container width, image dimensions and pagination geometry. */
+#main > .play-page[data-play-mode] {
+  --ui-type-scale: 1;
+  --play-heading-size: 24px;
+  --play-section-size: 19px;
+  --ui-control-height: 44px;
+  font-size: 14px;
+  line-height: 1.55;
+
+  > :is(.play-main-tabs, .play-subbar, .play-content) {
+    max-width: 944px;
+    margin-inline: auto;
+    min-width: 0;
+  }
+  .play-banner { --feature-hangul-scale: 1; }
+  .home-feature-copy h2 {
+    font-size: var(--play-heading-size);
+    font-weight: 650;
+    letter-spacing: -.025em;
+    line-height: 1.2;
+  }
+  .home-feature-label { font-size: 12px; line-height: 1.3; }
+  .home-feature-description { font-size: 14px; line-height: 1.5; }
+  .play-tabs {
+    grid-auto-columns: minmax(max-content, 1fr);
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+  .play-tabs .tab {
+    padding: 6px 8px;
+    line-height: 1.35;
+    white-space: nowrap;
+  }
+  .play-main-tabs { margin-block: 8px 12px; }
+  .play-main-tabs .tab { min-height: 44px; font-size: 14px; }
+  .play-subbar { gap: 10px; margin-bottom: 12px; }
+  .play-category-tabs .tab {
+    min-height: 54px;
+    gap: 4px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .play-category-tabs .tab svg { width: 18px; height: 18px; }
+  .play-search { gap: 8px; padding-block: 2px; margin-bottom: 12px; }
+  .play-search :is(input, button) { min-height: 44px; font-size: 14px; }
+  .play-discovery-tools { margin-bottom: 12px; }
+  .play-discovery-tools .play-search { margin: 0; }
+  .play-song-row {
+    min-height: 64px;
+    padding-block: 6px;
+    align-items: center;
+  }
+  :is(.play-song-title, .album-title, .play-draft-copy h3, .play-project-row h2,
+      .dc-script strong, .dc-work-header h2, .song-cover-copy strong) {
+    font-size: 15px;
+    line-height: 1.4;
+    font-weight: 600;
+  }
+  :is(.play-song-uploader, .play-song-artist, .album-artist, .play-project-row p,
+      .dc-script small, .dc-work-header p, .dc-role b, .dc-members b, .dc-line b,
+      .dc-choice > strong, .song-cover-meta) { font-size: 13px; }
+  :is(.play-song-count, .play-draft-copy p, .play-project-row small, .dc-script-meta,
+      .dc-script-meta em, .dc-stage-tabs span, .dc-section-heading small,
+      .dc-catalog h2 small, .dc-line-index, .dc-line small, .dc-members small,
+      .dc-choice > small, .dc-role small, .dc-role-letter, .dc-footnote) { font-size: 12px; }
+  :is(.play-draft-toolbar h2, .dc-section-heading h3, .dc-catalog h2,
+      .play-empty h2, .play-empty h3, .dc-note h3) {
+    font-size: var(--play-section-size);
+    font-weight: 650;
+    line-height: 1.4;
+  }
+  :is(.play-empty p, .play-draft-note, .dc-note, .dc-help, .dc-line > span > span) {
+    font-size: 14px;
+    line-height: 1.55;
+  }
+  :is(.play-create, .play-content .small-button, .dc-record, #play-more) {
+    font-size: 13px;
+    line-height: 1.35;
+    padding-block: 5px;
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
+  }
+  .dc-script > button { min-height: 58px; }
+  .dc-script > button > span { overflow-wrap: anywhere; }
+  .dc-work-header h2, .dc-members b, .dc-role b { overflow-wrap: anywhere; }
+  .dc-section-heading, .play-draft-toolbar { flex-wrap: wrap; }
+  .dc-catalog > header { gap: 6px; }
+
+  @media (max-width: 800px) {
+    --play-heading-size: 22px;
+    --play-section-size: 18px;
+    :is(.dc-mine-tabs, .dc-stage-tabs) {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      scrollbar-width: thin;
+    }
+    .dc-mine-tabs a, .dc-stage-tabs button { flex-shrink: 0; white-space: nowrap; }
+  }
+  @media (max-width: 600px) {
+    --play-heading-size: 21px;
+    .play-tabs .tab { padding-inline: 6px; }
+    .play-category-tabs .tab { min-height: 48px; }
+    .play-search input { font-size: 16px; }
+    .play-search button { min-width: 44px; }
+    .play-type-filter .aifect-dropdown { --dropdown-height: 44px; }
+    .play-song-row {
+      --list-row-inset: 2px;
+      flex-wrap: nowrap;
+      min-height: 58px;
+      gap: 5px;
+    }
+    .play-song-row .play-song-detail { flex: 1 1 0; min-width: 0; gap: 6px; }
+    .play-song-row .list-actions { flex: none; margin: 0; }
+    .play-song-count { min-width: 2ch; width: auto; flex: none; }
+    .play-song-copy { gap: 2px; }
+    .dc-script > button { min-height: 48px; }
+    .dc-script > .small-button { padding-inline: 6px; white-space: nowrap; }
+  }
+  @media (max-width: 380px) {
+    .home-feature-label { display: block; }
+    .home-feature-copy h2 { font-size: 20px; line-height: 1.16; word-break: normal; }
+    .home-feature-description {
+      font-size: 13px;
+      line-height: 1.5;
+      margin-top: 3px;
+      word-break: normal;
+    }
+  }
+  @media (max-width: 340px) {
+    .play-song-row:has(> .count-dropdown) {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      row-gap: 2px;
+      .play-song-detail { grid-column: 1 / -1; }
+      .count-dropdown { justify-self: end; }
+    }
+  }
+}
+
+/* These two dialogs are mounted outside #main by the existing hub actions. */
+.page-wrap:has(> #main > .play-page[data-play-mode]) ~ :is(
+  #recording-mode-dialog, #dialog:has(.draft-delete-dialog)
+) {
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  h2 { font-size: 19px; line-height: 1.4; }
+  .draft-delete-dialog p { font-size: 14px; line-height: 1.55; }
+  .draft-delete-dialog .inline-actions { gap: 8px; flex-wrap: wrap; }
+  :is([data-sing-mode], .draft-delete-dialog .inline-actions button) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding-block: 6px;
+    font-size: 14px;
+    line-height: 1.4;
+  }
+  @media (max-width: 600px) {
+    h2 { font-size: 18px; }
+  }
+}
