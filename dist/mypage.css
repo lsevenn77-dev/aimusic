@@ -145,8 +145,8 @@ main .social-profile-identity h2>.mp-public-id{display:block;font-size:13px;font
 #main .mp-profile .mp-stats{display:flex;flex-wrap:wrap;gap:4px 16px;margin:8px 0 0;padding:0;font-size:13px;line-height:1.5}
 .mp-profile .mp-stats>*{white-space:nowrap}
 .mp-profile .mp-stats b{color:var(--ds-text);font-size:15px;font-weight:700}
-.mp-social-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
-#main .mp-social-actions>:is(.primary-button,.small-button){min-height:44px;width:auto}
+.mp-header-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+#main .mp-header-actions>:is(.primary-button,.small-button){min-height:44px;width:auto}
 @media(max-width:700px){
  #main .mypage-layout .mp-profile-area .mp-profile{--mp-photo-size:clamp(64px,22vw,96px);gap:14px;padding-bottom:16px}
  #main .mp-profile .mp-identity h2{font-size:24px}
@@ -155,15 +155,15 @@ main .social-profile-identity h2>.mp-public-id{display:block;font-size:13px;font
  .mp-profile .mp-identity::before{width:92px}
  .mp-header-tools{gap:0}
  .mp-header-background img{filter:blur(6px)}
- .mp-social-actions{gap:4px;padding-bottom:12px}
+ .mp-header-actions{gap:4px;padding-bottom:12px}
 }
 
-/* Public producer route. The header grid owns both the avatar and the actions. */
-#main .mp-member-page .mp-profile-area .mp-profile:has(.mp-social-actions){
+/* Shared member profile. Owners and visitors use the same header grid. */
+#main .mp-member-page .mp-profile-area .mp-profile:has(.mp-header-actions){
  row-gap:10px;
 }
-.mp-member-page .mp-profile:has(.mp-social-actions) .mp-header-background{grid-row:auto/2}
-.mp-member-page .mp-social-actions{
+.mp-member-page .mp-profile:has(.mp-header-actions) .mp-header-background{grid-row:auto/2}
+.mp-member-page .mp-header-actions{
  --ui-space-scale:1;
  --ui-type-scale:1;
  --ui-control-height:44px;
@@ -172,7 +172,7 @@ main .social-profile-identity h2>.mp-public-id{display:block;font-size:13px;font
  gap:10px;
  padding:0;
 }
-#main .mp-member-page .mp-social-actions>:is(button,a){
+#main .mp-member-page .mp-header-actions>:is(button,a){
  box-sizing:border-box;
  display:inline-flex;
  align-items:center;
@@ -190,12 +190,15 @@ main .social-profile-identity h2>.mp-public-id{display:block;font-size:13px;font
  white-space:nowrap;
 }
 .mp-member-page .mp-moment-placeholder{display:none}
+@media(max-width:800px){
+ .mp-member-page .mp-moments:not(:has(button)){display:none}
+}
 
 @media(min-width:801px){
  #main .mp-member-page{--ui-type-scale:1;font-size:14px;line-height:1.45}
- #main .mp-member-page .mp-profile-area .mp-profile:has(.mp-social-actions){padding-bottom:0}
- #main .mp-member-page .mp-profile:has(.mp-social-actions) .mp-avatar-space{grid-row:1/span 2}
- #main .mp-member-page .mp-social-actions{grid-column:2}
+ #main .mp-member-page .mp-profile-area .mp-profile:has(.mp-header-actions){padding-bottom:0}
+ #main .mp-member-page .mp-profile:has(.mp-header-actions) .mp-avatar-space{grid-row:1/span 2}
+ #main .mp-member-page .mp-header-actions{grid-column:2}
  #main .mp-member-page .mp-profile .mp-identity h2{font-size:30px;font-weight:700}
  #main .mp-member-page :is(.mp-profile-bio,.mp-studio p,.mp-empty,.mp-section-head>.mp-all,.work-legend,.work-toolbar select,.mp-studio .primary-button,.play-record-link){font-size:14px;line-height:1.45}
  #main .mp-member-page :is(.mp-section-head h2,.mp-studio h2,.work-browser>h2){font-size:20px;font-weight:700;line-height:1.4}
@@ -203,6 +206,20 @@ main .social-profile-identity h2>.mp-public-id{display:block;font-size:13px;font
  #main .mp-member-page .mp-section-head>.mp-all{margin-inline-start:auto;white-space:nowrap}
  #main .mp-member-page :is(.work-title strong,.mp-artist-card strong,.album-title){font-size:15px;font-weight:600;line-height:1.45}
  #main .mp-member-page :is(.mp-public-id,.mp-crew-line,.mp-stats,.mp-stats b,.mp-section-head h2>span,.work-browser [data-work-count],.work-grid small,.mp-artist-entry>.mp-all,.mp-artist-card .artist-ui-affiliation,.album-artist,.play-song-producer){
+  font-size:13px;line-height:1.45
+ }
+ #main .mp-member-page :is(.mp-segment button,.ml-tabs button,.ml-toolbar input,.ml-toolbar select,
+   .ml-playlist-actions>a,.ml-playlist-actions>button,.work-extra select,.work-manage,.dc-mine-tabs a,
+   .mp-account-links>a,.mp-muted,.ml-unavailable p,.mp-account-footer button){
+  font-size:14px;line-height:1.45
+ }
+ #main .mp-member-page :is(.ml-song-copy strong,.ml-recommendation strong,.ml-playlists .collection-card h2,
+   .mp-my-crew strong){
+  font-size:15px;font-weight:600;line-height:1.45
+ }
+ #main .mp-member-page :is(.ml-song-copy small,.ml-recommendation small,.ml-duration,.ml-date,.ml-result-count,
+   .ml-tabs button span,.mp-activity-rows strong,.mp-activity-rows small,.mp-activity-rows time,
+   .mp-asset small,.mp-level span,.mp-items small,.mp-my-crew small){
   font-size:13px;line-height:1.45
  }
  #main .mp-member-page .mp-moments{

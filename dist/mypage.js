@@ -41,7 +41,9 @@ function myProfileHeader(d){
   ${own?`<details class="mp-settings"><summary class="fan-icon" aria-label="프로필 설정" title="프로필 설정">${icon('settings',20)}</summary>
    <nav class="fan-settings-menu" aria-label="프로필 관리"><a href="#profile/edit">프로필 수정</a><a href="#studio">스튜디오</a></nav></details>`:''}
  </div>`;
- const social=!own&&d.followers!=null&&p.id?`<div class="mp-social-actions">
+ const actions=own?`<div class="mp-header-actions">
+  <a class="primary-button" href="#profile/edit">프로필 수정</a><a class="small-button" href="#studio">스튜디오</a>
+ </div>`:d.followers!=null&&p.id?`<div class="mp-header-actions mp-social-actions">
   <button class="primary-button" data-follow="producer/${esc(p.id)}" aria-pressed="${followed('producer',p.id)}">${followed('producer',p.id)?'팔로잉':'팔로우'}</button>
   <a class="small-button" href="#dm/${esc(p.id)}">메시지</a><button type="button" class="small-button" data-profile-gift="${esc(p.id)}">선물하기</button>
  </div>`:'';
@@ -52,7 +54,7 @@ function myProfileHeader(d){
    ${p.public_id?`<p class="mp-public-id">ID · ${esc(p.public_id)} <button type="button" class="text-link" data-copy-public-id="${esc(p.public_id)}" aria-label="고유 ID 복사"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg></button></p>`:''}
    ${c?`<div class="mp-crew-line"><a href="#crew/${esc(c.id)}">${c.image_version?`<img src="/media/crew/${esc(c.id)}?v=${esc(c.image_version)}" alt="">`:icon('users')}${esc(c.name)}</a></div>`:''}
    ${bio&&bio!=='-'?`<p class="mp-profile-bio">${esc(bio)}</p>`:''}${myProfileStats(d,own)}
-  </div>${social}</header></div>`;
+  </div>${actions}</header></div>`;
 }
 
 function bindMemberHeader(profile){
@@ -79,11 +81,11 @@ function bindMemberHeader(profile){
  registerRouteCleanup(()=>{events.abort();settings.remove();});
 }
 
-function myMoments(d,memberPage){
+function myMoments(d){
  const photos=d.gallery||[],pid=d.profile.id,own=isMyProfile(d.profile);
  const thumbnails=photos.slice(0,10).map((p,i)=>`<button type="button" data-gallery-photo="${esc(p.url)}" data-photo-label="${esc(d.profile.name)} 사진 ${i+1}" aria-label="사진 ${i+1} 크게 보기"><img src="${esc(p.url)}" alt="${esc(d.profile.name)}의 순간 ${i+1}" loading="${i<5?'eager':'lazy'}"></button>`).join('');
- const placeholders=memberPage?'<span class="mp-moment-placeholder" aria-hidden="true"></span>'.repeat(Math.max(0,4-photos.length)):'';
- const grid=thumbnails||placeholders?`<div class="mp-moments">${thumbnails}${placeholders}</div>`:'';
+ const placeholders='<span class="mp-moment-placeholder" aria-hidden="true"></span>'.repeat(Math.max(0,4-photos.length));
+ const grid=`<div class="mp-moments">${thumbnails}${placeholders}</div>`;
  const empty=photos.length?'':myEmpty(own?'아직 등록한 사진이 없어요. 전체보기에서 순간을 기록해보세요.':'공개된 사진이 없어요.');
  return mySection('갤러리',grid+empty,pid?myAll('#profile-gallery/'+encodeURIComponent(pid)):myAll('#profile/edit'),photos.length,'mp-moments-card');
 }
@@ -173,7 +175,7 @@ function mySegment(active){return `<div class="mp-segment" role="tablist" aria-l
 async function myPageView(base,param,raw,readApi=api){
  if(base==='member'){
   const {profile}=await readApi('/api/members/'+encodeURIComponent(param));
-  return {memberHeader:profile,html:`<div class="mypage-layout">${myProfileHeader({profile})}<p class="field-help">아직 공개한 음악이 없어요.</p></div>`};
+  return {memberHeader:profile,html:`<div class="mypage-layout mp-member-page">${myProfileHeader({profile})}<p class="field-help">아직 공개한 음악이 없어요.</p></div>`};
  }
  if(base==='profile-gallery')return myGalleryView(param,readApi);
  if(base==='relations')return myRelationsView(readApi);
@@ -189,8 +191,7 @@ async function myPageView(base,param,raw,readApi=api){
  const own=isMyProfile(d.profile),q=new URLSearchParams(raw.split('?')[1]||''),tab=own&&['activity','library'].includes(q.get('view'))?q.get('view'):'works';
  const collection=own&&tab==='library'?await myLibraryView(raw,readApi):own&&tab==='works'&&['covers','originals'].includes(q.get('section'))?await browseView('library',q.get('section'),raw,true,readApi):null;
  const state={d,own,tab,account:me?.id||'',activity:null};
- const memberPage=base==='producer';
- return {mypage:state,musicLibrary:collection?.musicLibrary,tracks:collection?.tracks||[...(d.tracks||[]),...(d.covers||[])],html:`<div class="mypage-layout ${memberPage?'mp-member-page ':''}${own?'mp-own':''}">${myProfileHeader(d)}<div class="mp-main">${myMoments(d,memberPage)}${own?mySegment(tab):''}<div id="mp-content" ${own?'role="tabpanel" aria-labelledby="mp-tab-'+tab+'"':''}>${collection?collection.html:tab==='works'?myWorksHTML(d):myLoading()}</div></div><aside class="mp-aside" id="mp-aside">${own?'<div id="mp-aside-content">'+(collection?.libraryAside??(tab==='activity'?myLoading():myWorksAside(d,true)))+'</div>':myWorksAside(d,false)}</aside>${own?'<div class="mp-account-footer"><button type="button" class="small-button" id="logout">로그아웃</button></div>':''}</div>`};
+ return {mypage:state,musicLibrary:collection?.musicLibrary,tracks:collection?.tracks||[...(d.tracks||[]),...(d.covers||[])],html:`<div class="mypage-layout mp-member-page ${own?'mp-own':''}">${myProfileHeader(d)}<div class="mp-main">${myMoments(d)}${own?mySegment(tab):''}<div id="mp-content" ${own?'role="tabpanel" aria-labelledby="mp-tab-'+tab+'"':''}>${collection?collection.html:tab==='works'?myWorksHTML(d):myLoading()}</div></div><aside class="mp-aside" id="mp-aside">${own?'<div id="mp-aside-content">'+(collection?.libraryAside??(tab==='activity'?myLoading():myWorksAside(d,true)))+'</div>':myWorksAside(d,false)}</aside>${own?'<div class="mp-account-footer"><button type="button" class="small-button" id="logout">로그아웃</button></div>':''}</div>`};
 }
 async function myActivityData(readApi=api){
  const paths={wallet:'/api/gold/balance',player:'/api/me/player',activity:'/api/me/profile?section=activity',notifications:'/api/notifications',inventory:'/api/me/gift-inventory'};
