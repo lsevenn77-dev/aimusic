@@ -3,11 +3,11 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 
-function display({legacy=true,preview=false,paid=true}={}){
+function display({legacy=true,preview=false,paid=true,canvas=false}={}){
  let timeout,interval,resize,overlay=null,stamp=100000;
- const properties=new Map(),classes=new Set(),events={};
+ const properties=new Map(),classes=new Set(canvas?['profile-frame-canvas']:[]),events={};
  const legacyImage={style:{},src:'/assets/crew-basic-v2.webp'};
- const host={classList:{add:c=>classes.add(c)},style:{setProperty:(k,v)=>properties.set(k,v)},
+ const host={classList:{add:c=>classes.add(c),contains:c=>classes.has(c)},style:{setProperty:(k,v)=>properties.set(k,v)},
   querySelector:s=>s.includes('player-frame-artwork')?(legacy?legacyImage:null):overlay,
   querySelectorAll:s=>s.includes('aurora_ring_frame')&&legacyImage.src.includes('aurora_ring_frame')?[legacyImage]:[],append(el){overlay=el;}};
  const img={isConnected:true,parentElement:host,dataset:{avatarProfile:'person'},offsetLeft:7,offsetTop:9,offsetWidth:88,offsetHeight:88,closest:()=>preview?{}:null,getBoundingClientRect(){throw Error('visual transforms must not enter local frame geometry');}};
@@ -23,6 +23,13 @@ test('basic and paid art share the photo local center, independent of transforme
  assert.equal(f.properties.get('--avatar-frame-x'),'51px');assert.equal(f.properties.get('--avatar-frame-y'),'53px');
  assert.equal(f.properties.get('--avatar-frame-width'),'110.88px');assert.equal(f.properties.get('--avatar-frame-height'),'110.88px');
  f.img.offsetWidth=104;f.img.offsetHeight=104;f.img.offsetLeft=4;f.resize();assert.equal(f.properties.get('--avatar-frame-x'),'56px');assert.equal(f.properties.get('--avatar-frame-width'),'131.04px');
+});
+
+test('normalized home art uses its reserved canvas without legacy image measurements',async()=>{
+ const f=display({canvas:true,legacy:false});
+ Object.defineProperty(f.img,'offsetWidth',{get(){throw Error('canvas sizing is CSS-owned');}});
+ await f.start();assert.equal(f.overlay.src,'/assets/profile-frames-v1/aurora_ring_frame.png');
+ assert.equal(f.properties.size,0);f.expire();assert.equal(f.overlay,null);
 });
 
 test('paid expiry removes only its overlay while basic and preview frames keep their existing ownership behavior',async()=>{

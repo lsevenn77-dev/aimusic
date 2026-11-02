@@ -35,9 +35,22 @@ const frameEffects=(()=>{
   return assetHealth.get(path)!=='failed';
  }
  const validAsset=p=>typeof p==='string'&&/^\/assets\/[a-zA-Z0-9_./-]+\.(png|webp)$/.test(p)&&!p.includes('..');
+ // The catalog keeps its original URLs. Only these legacy canvases need an
+ // offline-normalized rendition in the new layout; future art is authored at 1.50D.
+ const legacyFramePaths=new Set([
+  '/assets/products/aurora_ring_frame.png',
+  ...['moonlight_bunny.png','mecha_bunny.png','space_bunny_base.png','space_bunny_fx.webp'].map(file=>'/assets/products/bunnies-v1/'+file),
+  ...['crew-basic-v2','player-level-10-forest-v1','crew-level-3-v2','crew-level-4-v2','crew-level-5-v2'].map(file=>'/assets/'+file+'.webp')
+ ]);
+ function canvasSource(host,path){
+  if(!path||!host.classList.contains('profile-frame-canvas'))return path;
+  const file=path.split('?')[0];
+  return legacyFramePaths.has(file)?'/assets/profile-frames-v1/'+file.slice(file.lastIndexOf('/')+1):path;
+ }
  const expired=(entry,at)=>entry?.expires_at&&entry.expires_at<=at;
  const observed=new Set(),sizeObserver=typeof ResizeObserver==='function'?new ResizeObserver(()=>paintFrames()):null;
  function alignFrame(img,host){
+  if(host.classList.contains('profile-frame-canvas'))return;
   host.classList.add('avatar-frame-host');
   // Local layout coordinates share the positioned parent's padding box. Unlike
   // client rects, they are not scaled by page/dialog entrance animations.
@@ -55,8 +68,9 @@ const frameEffects=(()=>{
    let overlay=host.querySelector(':scope > .decoration-avatar-overlay');
    if(!entry?.artwork||expired(entry,at)||!validAsset(entry.artwork)){frameEffects.set(overlay,null);overlay?.remove();continue;}
    if(!overlay){overlay=document.createElement('img');overlay.className='decoration-avatar-overlay';overlay.alt='';overlay.setAttribute('aria-hidden','true');host.append(overlay);host.classList.add('decoration-avatar-host');}
-   if(overlay.getAttribute('src')!==entry.artwork)overlay.src=entry.artwork;
-   frameEffects.set(overlay,entry.effect);
+   const artwork=canvasSource(host,entry.artwork);
+   if(overlay.getAttribute('src')!==artwork)overlay.src=artwork;
+   frameEffects.set(overlay,canvasSource(host,entry.effect));
    alignFrame(img,host);
   }
   layoutProfileFrames();
@@ -102,9 +116,12 @@ const frameEffects=(()=>{
   // Existing equipment action updates me before emitting this event. Refresh
   // already-open profile/edit surfaces too, without waiting for a route render.
   for(const img of document.querySelectorAll('img[data-avatar-profile]'))if(img.dataset.avatarProfile===me?.profile_id){
-   const host=img.parentElement;host.querySelectorAll(':scope > .player-frame-artwork,:scope > .decoration-avatar-overlay').forEach(el=>el.remove());
+   const host=img.parentElement;host.querySelectorAll(':scope > .player-frame-artwork,:scope > .decoration-avatar-overlay').forEach(el=>{frameEffects.set(el,null);el.remove();});
    const path=playerFrameURL(me);host.classList.toggle('player-has-frame',!!path);
-   if(path){const art=document.createElement('img');art.className='player-frame-artwork';art.src=path;art.alt='';art.setAttribute('aria-hidden','true');host.append(art);alignFrame(img,host);}
+   // On canvas layouts the equipment refresh owns the paid base and effect together.
+   if(path&&!(host.classList.contains('profile-frame-canvas')&&AifectPlayer.PLAYER_ITEMS[me.profile_frame]?.paid)){
+    const art=document.createElement('img');art.className='player-frame-artwork';art.src=canvasSource(host,path);art.alt='';art.setAttribute('aria-hidden','true');host.append(art);alignFrame(img,host);
+   }
   }
   layoutProfileFrames();void refresh(true);
  });

@@ -41,20 +41,24 @@
 .home-content-refresh .home-profile-section .home-rail-shell{padding-top:0}
 .home-content-refresh .home-profile-card{flex:0 0 128px;min-width:0;text-align:center;scroll-snap-align:start}
 .home-content-refresh .home-profile-card>a{display:block;padding:2px}
-.home-content-refresh .home-profile-card .artist-portrait{width:120px;height:120px;aspect-ratio:1;border-radius:50%;overflow:hidden;margin:0 auto;background:var(--ds-panel)}
-.home-content-refresh .home-profile-card .profile-avatar-image{width:100%;height:100%;object-fit:cover;border-radius:50%}
-.home-content-refresh .home-profile-name{display:flex;align-items:center;justify-content:center;gap:4px;margin-top:12px;font-size:14px;font-weight:650;line-height:1.5;min-width:0}
+.home-profile-section .profile-frame-canvas{display:grid;place-items:center;width:100%;aspect-ratio:1}
+.home-profile-section .profile-frame-canvas>.profile-avatar-image{
+ display:block;width:calc(100% / var(--profile-frame-layout));height:auto;aspect-ratio:1;
+ object-fit:cover;object-position:center;border-radius:50%;background:var(--ds-panel)
+}
+.home-profile-section .profile-frame-canvas>.profile-avatar-image[hidden]{display:none}
+.home-content-refresh .home-profile-name{display:flex;align-items:center;justify-content:center;gap:4px;margin-top:6px;font-size:14px;font-weight:650;line-height:1.5;min-width:0}
 .home-content-refresh .home-profile-name>span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .home-content-refresh .home-profile-name .partner-badge{flex:none;font-size:10px;max-width:65px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
-/* Measured desktop title-to-portrait gap: 28.59375 CSS px (18px heading
-   margin + rail/card padding + the 44px link's line-height allowance).
-   One local token now owns that visible gap, with a compact mobile equivalent. */
+/* Preserve the existing section rhythm and 44px heading links. Profile
+   headings reserve less space because the canvas carries its own headroom. */
 .listening-home.home-content-refresh{--home-section-space:28.59375px;--home-profile-inset:calc(2px * var(--ui-space-scale,1));--home-heading-slack:max(0px,calc((44px - 32.66625px * var(--ui-type-scale,1)) / 2))}
 .listening-home.home-content-refresh :is(#home-artists,#home-producers){margin-top:var(--home-section-space)}
 .listening-home.home-content-refresh #home-library{margin-top:calc(var(--home-section-space) - var(--home-profile-inset))}
 .listening-home.home-content-refresh #home-discovery{margin-top:calc(var(--home-section-space) - var(--home-profile-inset) - var(--home-heading-slack))}
 .listening-home.home-content-refresh :is(#home-artists,#home-producers,#home-library)>.section-heading{position:relative;margin-bottom:var(--home-section-space)}
-.listening-home.home-content-refresh :is(#home-artists,#home-producers)>.section-heading{margin-bottom:calc(var(--home-section-space) - var(--home-profile-inset))}
+/* The canvas already includes space above the photo and below the ornaments. */
+.listening-home.home-content-refresh :is(#home-artists,#home-producers)>.section-heading{margin-bottom:12px}
 /* Keep the existing 44px links, but let the title determine the heading row's
    height so removing a link cannot change the title-to-image spacing. */
 .listening-home.home-content-refresh :is(#home-artists,#home-library)>.section-heading{padding-inline-end:80px}
@@ -66,8 +70,8 @@
 @media(max-width:800px){.listening-home.home-content-refresh{--home-section-space:24px;--home-heading-slack:calc((44px - 31.2662px) / 2)}}
 @media(max-width:600px){
  .home-content-refresh .home-rail{gap:16px}
- .home-content-refresh .home-profile-card{flex-basis:104px}
- .home-content-refresh .home-profile-card .artist-portrait{width:96px;height:96px}
+ .home-profile-section .home-profile-rail{--profile-column-gap:calc(16px * var(--ui-space-scale,1));gap:var(--profile-column-gap)}
+ .home-profile-section .home-profile-card{flex-basis:calc((100% - 2 * var(--profile-column-gap)) / 3)}
 }
 .home-content-refresh{container-type:inline-size;min-width:0}
 .home-content-refresh #home-release{min-width:0}

@@ -6,6 +6,14 @@
 @media(max-width:1000px){.decoration-inventory-sections{grid-template-columns:1fr}.decoration-inventory-section>.field-help{min-height:0}}
 @media(max-width:480px){.decoration-inventory-item img{width:68px}.decoration-inventory-item h3{overflow-wrap:anywhere}.decoration-inventory-item .decoration-actions{gap:6px}.decoration-inventory-item .decoration-actions button{padding:8px}.decoration-inventory-sections{gap:12px}}
 
+/* All ratios use the photo diameter. Opt in only with a normalized canvas. */
+.profile-frame-canvas{
+ --profile-frame-base-limit:1.35;--profile-frame-effect-limit:1.45;--profile-frame-layout:1.50;
+ --profile-frame-safe-inset:calc((var(--profile-frame-layout) - var(--profile-frame-effect-limit)) / 2);
+ --profile-frame-center:50%;
+ --avatar-frame-x:var(--profile-frame-center);--avatar-frame-y:var(--profile-frame-center);
+ --avatar-frame-width:100%;--avatar-frame-height:100%
+}
 /* Photo and equipped art share one positioned host, including popup photos.
    Frame geometry must not inherit generic portrait img max-width/crop rules. */
 .player-avatar,.avatar-frame-host{position:relative;isolation:isolate}
