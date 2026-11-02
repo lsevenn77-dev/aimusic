@@ -37,21 +37,30 @@ function bindGiftCompactLayout(form){
  if(typeof document==='undefined'||typeof ResizeObserver!=='function'||!form?.closest)return;
  const section=form.closest('.gift-dialog--compact'),modal=$('#dialog'),list=form.querySelector('.gift-options'),footer=form.querySelector('.gift-checkout');
  if(!section||!modal||!list||!footer)return;
- let frame=0,stopped=false;
+ let frame=0,stopped=false,revealSelection=true;
  const clean=()=>{if(stopped)return;stopped=true;if(frame)cancelAnimationFrame(frame);resize.disconnect();changes?.disconnect();hostChanges?.disconnect();window.removeEventListener('resize',schedule);modal.removeEventListener('close',clean);};
  const measure=()=>{
   frame=0;if(!form.isConnected||!modal.open){clean();return;}
   const cards=[...list.querySelectorAll('.gift-choice')].filter(el=>el.getClientRects().length),rows=[];
   for(const card of cards){const r=card.getBoundingClientRect();if(!rows.some(top=>Math.abs(top-r.top)<2))rows.push(r.top);}
   rows.sort((a,b)=>a-b);
-  if(rows.length){const bottom=Math.max(...cards.map(el=>el.getBoundingClientRect()).filter(r=>r.top<(rows[2]??Infinity)-2).map(r=>r.bottom)),style=getComputedStyle(list),height=Math.ceil(bottom-rows[0]+(parseFloat(style.paddingTop)||0)+(parseFloat(style.paddingBottom)||0));if(height>0&&list.style.getPropertyValue('--gift-dialog-rows-height')!==height+'px')list.style.setProperty('--gift-dialog-rows-height',height+'px');}
+  if(rows.length){const bottom=Math.max(...cards.map(el=>el.getBoundingClientRect()).filter(r=>r.top<(rows[2]??Infinity)-2).map(r=>r.bottom)),style=getComputedStyle(list),height=Math.ceil(bottom-list.getBoundingClientRect().top+list.scrollTop+(parseFloat(style.paddingBottom)||0));if(height>0&&list.style.getPropertyValue('--gift-dialog-rows-height')!==height+'px')list.style.setProperty('--gift-dialog-rows-height',height+'px');}
+  if(revealSelection){
+   const selected=cards.find(el=>el.classList.contains('selected')||el.getAttribute('aria-pressed')==='true');
+   if(selected){
+    const card=selected.getBoundingClientRect(),viewport=list.getBoundingClientRect();
+    if(card.top<viewport.top||card.bottom>viewport.bottom){const previous=Math.max(...cards.map(el=>el.getBoundingClientRect().top).filter(top=>top<card.top-2)),top=Number.isFinite(previous)?previous:card.top;list.scrollTop=Math.max(0,list.scrollTop+top-viewport.top-(parseFloat(getComputedStyle(list).paddingTop)||0));}
+    revealSelection=false;
+   }
+  }
   const outerHeight=el=>{if(!el)return 0;const style=getComputedStyle(el);return el.getBoundingClientRect().height+(parseFloat(style.marginTop)||0)+(parseFloat(style.marginBottom)||0);};
   const fixed=[section.querySelector('header'),section.querySelector('.gift-category-tabs'),footer].reduce((n,el)=>n+outerHeight(el),0),rowHeight=Math.min(list.scrollHeight,parseFloat(list.style.getPropertyValue('--gift-dialog-rows-height'))||214),maximum=parseFloat(getComputedStyle(modal).maxHeight),available=(Number.isFinite(maximum)?maximum:Math.min(720,(window.visualViewport?.height||window.innerHeight)-24))-2;
   const current=section.classList.contains('gift-dialog--scroll-all');section.classList.toggle('gift-dialog--scroll-all',fixed+rowHeight+(current?12:0)>available);
  };
  const schedule=()=>{if(!frame&&!stopped)frame=requestAnimationFrame(measure);};
  const resize=new ResizeObserver(schedule);resize.observe(section);resize.observe(footer);
- const changes=typeof MutationObserver==='function'?new MutationObserver(schedule):null;changes?.observe(list,{childList:true,subtree:true,attributes:true,attributeFilter:['hidden','class']});
+ let grids=new Set();const observeGrids=()=>{const next=new Set(list.querySelectorAll('.gift-catalog'));for(const grid of grids)if(!next.has(grid))resize.unobserve(grid);for(const grid of next)if(!grids.has(grid))resize.observe(grid);grids=next;};observeGrids();
+ const changes=typeof MutationObserver==='function'?new MutationObserver(()=>{observeGrids();schedule();}):null;changes?.observe(list,{childList:true,subtree:true,attributes:true,attributeFilter:['hidden','class']});
  const hostChanges=typeof MutationObserver==='function'?new MutationObserver(()=>{if(!form.isConnected)clean();}):null;const host=$('#dialog-content');if(host)hostChanges?.observe(host,{childList:true});
  window.addEventListener('resize',schedule,{passive:true});modal.addEventListener('close',clean);form._giftMeasure=schedule;form._giftCleanup=clean;schedule();
 }
