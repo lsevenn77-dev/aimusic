@@ -374,20 +374,20 @@ test('voice gift retries debit once and invitations reuse the DM ledger',async t
  const invite={profile_id:'other-profile',request_id:crypto.randomUUID()};assert.equal((await f.call('/api/voice/rooms/test-room/invite','POST',invite)).status,201);assert.equal((await f.call('/api/voice/rooms/test-room/invite','POST',invite)).status,201);assert.equal(f.sql.prepare('SELECT count(*) n FROM direct_messages').get().n,1);assert.match(f.sql.prepare('SELECT body FROM direct_messages').get().body,/#voice\/test-room/);
  const list=()=>f.call('/api/notifications?filter=gifts','GET',null,'other');
  let item=(await list()).body.items[0];
- assert.deepEqual([item.source_type,item.source_id,item.gift_source_title,item.href],['talking_room','test-room','Gift room','#voice/test-room']);
+ assert.deepEqual([item.source_type,item.source_id,item.gift_source_title,item.href],['talking_room','test-room','Gift room','']);
  const open=()=>f.call('/api/notifications/'+encodeURIComponent(item.id)+'/open','POST',{},'other');
- assert.equal((await open()).body.href,'#voice/test-room');
+ assert.equal((await open()).body.href,'');assert.equal((await open()).body.clickable,false);
  // Simulate an old receipt whose original room event is still visible.
  f.sql.prepare('DELETE FROM gift_sources WHERE gift_id=?').run(a.body.gift.id);
  assert.equal((await list()).body.items[0].source_type,null);
  assert.equal((await f.call('/api/voice/rooms/test-room/gifts','POST',{...b,request_id:crypto.randomUUID()})).status,201);
  assert.equal(f.sql.prepare('SELECT source_type FROM gift_sources WHERE gift_id=?').get(a.body.gift.id).source_type,'talking_room');
  await h.call('close',actor('owner'));
- const closed=(await open()).body;assert.equal(closed.href,'');assert.equal(closed.unavailable_reason,'room');
+ const closed=(await open()).body;assert.equal(closed.href,'');assert.equal(closed.clickable,false);
  const retried=await f.call('/api/voice/rooms/test-room/gifts','POST',b);assert.equal(retried.body.gift.id,a.body.gift.id);
 });
 
-test('karaoke gifts use the signed room mode and title and share the list and click destination',async t=>{
+test('karaoke gifts preserve the signed room mode and title without a click destination',async t=>{
  const h=harness(t,KaraokeRoom);await h.call('create',actor('owner'),{title:'라이브 무대',visibility:'public',mode:'karaoke'});await h.join(actor('other'));
  const f=await fixture(t,{VOICE_SERVICE_URL:'https://voice.test',VOICE_BRIDGE_SECRET:secret});
  f.sql.exec("INSERT INTO producers(id,user_id,name,created) VALUES('other-profile','other','Other',0); INSERT INTO gold_purchases(id,user_id,channel,gold,price_krw,fee_krw,status,created,paid_at) VALUES('karaoke-lot','owner','web',100,1000,30,'paid',1,1)");
@@ -396,7 +396,7 @@ test('karaoke gifts use the signed room mode and title and share the list and cl
  const gift=await f.call('/api/voice/rooms/test-room/gifts','POST',{profile_id:'other-profile',gift_type:'lollipop',request_id:crypto.randomUUID(),source_type:'profile',source_id:'wrong',source_title:'wrong'});
  assert.equal(gift.status,201);
  const item=(await f.call('/api/notifications?filter=gifts','GET',null,'other')).body.items[0];
- assert.deepEqual([item.source_type,item.source_id,item.gift_source_title,item.href],['karaoke','test-room','라이브 무대','#live/test-room']);
+ assert.deepEqual([item.source_type,item.source_id,item.gift_source_title,item.href],['karaoke','test-room','라이브 무대','']);
  const open=await f.call('/api/notifications/'+encodeURIComponent(item.id)+'/open','POST',{},'other');
  assert.equal(open.body.href,item.href);
 });

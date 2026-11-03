@@ -46,8 +46,13 @@ export async function notificationsRoute(req,env,path,user){
  }
  if(path==='/api/notifications/read'&&req.method==='POST'){
   const b=await req.json();
+  if(b.through!==undefined){
+   if(!Number.isSafeInteger(b.through)||b.through<0)fail(400,'읽음 처리 범위를 확인해주세요.');
+   await run(env,'UPDATE activity_notifications SET read_at=? WHERE recipient=? AND read_at=0 AND rowid<=?',now(),user.id,b.through);
+  }else{
   if(!Array.isArray(b.ids)||b.ids.length>50||b.ids.some(x=>typeof x!=='string'||x.length>200))fail(400,'읽음 처리할 알림을 확인해주세요.');
   if(b.ids.length)await run(env,`UPDATE activity_notifications SET read_at=? WHERE recipient=? AND read_at=0 AND id IN (${b.ids.map(()=>'?').join(',')})`,now(),user.id,...b.ids);
+  }
   const {unread}=await one(env,`SELECT count(*) unread FROM activity_notifications n WHERE recipient=? AND read_at=0 AND ${allowed}`,user.id);
   return json({ok:true,unread});
  }
@@ -59,6 +64,7 @@ export async function notificationsRoute(req,env,path,user){
  const before=q.get('before'),cursor=before?await one(env,'SELECT created,id FROM activity_notifications WHERE id=? AND recipient=?',before,user.id):null;
  if(before&&!cursor)fail(400,'알림 목록을 새로 열어주세요.');
  const type=filter==='gifts'?"AND n.kind IN ('gift','person_gift')":filter==='participation'?"AND n.kind IN ('cover','duet','dubbing_participation','dubbing_complete','work_status')":filter==='comments'?"AND n.kind IN ('comment','fan_comment','fan_post')":filter==='works'?"AND n.kind IN ('cover','duet','dubbing_participation','dubbing_complete','work_status')":filter==='artists'?"AND n.kind IN ('follow','artist_follower','artist_release')":filter==='crew'?"AND n.kind IN ('crew_notice','crew_invite','crew_approved','crew_request')":'';
+ const {read_through}=await one(env,'SELECT COALESCE(MAX(rowid),0) read_through FROM activity_notifications WHERE recipient=?',user.id);
  const items=await rows(env,`SELECT n.*,CASE WHEN n.kind='work_status' AND n.actor_id IS NULL THEN 'AIFECT' ELSE COALESCE(${publicNameSQL('u')},'탈퇴한 회원') END actor_name,p.id actor_profile_id,p.image_version actor_image_version,
  ${giftFields},(SELECT name FROM artists WHERE id=n.artist_id) artist_name
  FROM activity_notifications n LEFT JOIN users u ON u.id=n.actor_id LEFT JOIN producers p ON p.user_id=n.actor_id
@@ -66,7 +72,7 @@ export async function notificationsRoute(req,env,path,user){
  WHERE n.recipient=? AND ${allowed} ${type} ${cursor?'AND (n.created<? OR (n.created=? AND n.id<?))':''}
  ORDER BY n.created DESC,n.id DESC LIMIT 21`,user.id,...(cursor?[cursor.created,cursor.created,cursor.id]:[]));
  const more=items.length>20;items.length=Math.min(items.length,20);
- return json({items:await Promise.all(items.map(async n=>{const {recipient,actor_id,...item}=n;return {...item,...await resolveNotification(env,n)};})),unread,next:more?items.at(-1).id:null});
+ return json({items:await Promise.all(items.map(async n=>{const {recipient,actor_id,...item}=n;return {...item,...await resolveNotification(env,n)};})),unread,read_through,next:more?items.at(-1).id:null});
 }
 
 // Room access is enforced by the normal room entry flow. Check liveness only
@@ -78,9 +84,10 @@ async function resolveGift(env,n,opening){
  const id=decoration?n.id.slice(11):receipt?.source_id;
  const routes={profile:'producer',talking_room:'voice',karaoke:'live',work:receipt?.work_kind==='dubbing'?'dubbing':'song',inventory:'inventory',shop:'gifts'};
  const route=routes[type];
+ const passive=['talking_room','karaoke','message'].includes(type);
  let title=decoration?n.gift_name:receipt?.gift_source_title||'';
  let href='',reason='source';
- if(route&&id){
+ if(route&&id&&!passive){
   href='#'+route+(['inventory','gifts'].includes(route)?'':'/'+encodeURIComponent(id));
   reason='content';
   if(route==='voice'||route==='live'){
@@ -102,7 +109,7 @@ async function resolveGift(env,n,opening){
   }
  }
  return {source_type:type||null,source_id:id||null,gift_source_kind:route||null,gift_source_target:id||null,gift_source_title:title,
-  href,available:Number(!!href),unavailable_reason:href?'':reason,unavailable:href?'':reason==='source'?'이 선물의 발생 위치를 확인할 수 없어요.':reason==='room'?'종료되었거나 삭제된 방이에요.':'삭제·비공개 또는 접근 권한이 변경된 콘텐츠예요.'};
+  clickable:!passive,href,available:Number(passive||!!href),unavailable_reason:passive||href?'':reason,unavailable:passive||href?'':reason==='source'?'이 선물의 발생 위치를 확인할 수 없어요.':reason==='room'?'종료되었거나 삭제된 방이에요.':'삭제·비공개 또는 접근 권한이 변경된 콘텐츠예요.'};
 }
 
 // Revalidate at click/dispatch time: stored history never grants access to content.

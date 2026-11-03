@@ -173,8 +173,8 @@
 #main[data-route^="notifications"] .activity-toolbar .tab.active{color:var(--ds-text);border-bottom:2px solid var(--ds-lilac)}
 #main[data-route^="notifications"] .activity-day{font-size:var(--activity-meta-size);margin:14px 0 0;padding:0 0 6px var(--activity-dot-inset);border-bottom:1px solid var(--ds-line);color:var(--ds-muted)}
 #main[data-route^="notifications"] .activity-row{--list-row-inset:var(--activity-dot-inset);display:flex;align-items:center;flex-wrap:nowrap;gap:14px;min-height:72px;padding-block:10px;transition:background .15s}
-#main[data-route^="notifications"] .activity-row:hover{background:var(--ds-soft)}
-#main[data-route^="notifications"] .activity-avatar{width:40px;height:40px;margin-inline-start:calc(var(--activity-dot-size) + 9px)}
+#main[data-route^="notifications"] a.activity-row:hover{background:var(--ds-soft)}
+#main[data-route^="notifications"] .activity-avatar{width:50px;height:50px;margin-inline-start:calc(var(--activity-dot-size) + 9px)}
 #main[data-route^="notifications"] .activity-avatar>.activity-dot{
  position:absolute;inset-inline-end:calc(100% + 9px);top:50%;transform:translateY(-50%);pointer-events:none;
 }

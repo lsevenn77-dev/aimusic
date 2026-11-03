@@ -54,7 +54,7 @@ export async function sendInventoryGift(env,user,itemId,b){
  const dubbing=await assertDubbingGiftContext(env,user.id,p.id,b.dubbing_id);
  const track=b.track_id?await published(env,b.track_id):null;
  if(track){if(track.producer_id!==p.id)fail(400,'작품의 수신자를 확인해주세요.');const reason=await giftBlockReason(env,user.id,track);if(reason)fail(400,reason);}
- const source=track||dubbing||b.from_profile===true?giftTargetSource(track||{producer_id:p.id,title:p.name},dubbing):{type:'inventory',id:i.id,title:i.gift_name};
+ const source=!track&&!dubbing&&b.from_message===true?{type:'message',id:p.id,title:p.name}:track||dubbing||b.from_profile===true?giftTargetSource(track||{producer_id:p.id,title:p.name},dubbing):{type:'inventory',id:i.id,title:i.gift_name};
  const at=now(),statements=[query(env,'UPDATE gift_inventory SET used_at=?,send_request_id=?,recipient_id=? WHERE id=? AND user_id=?',at,key,p.id,i.id,user.id)];
  if(i.currency==='gold'){
   const lots=await rows(env,'SELECT purchase_id,gold,net_mw FROM gift_inventory_lots WHERE inventory_id=?',i.id),net=lots.reduce((n,l)=>n+l.net_mw,0),share=splitGift('original',net,(await partnerState(env,p.user_id)).tier==='partner');

@@ -92,3 +92,21 @@ test('published participation reaches existing native song navigation and respec
  await f.call('/api/push/preferences','PUT',{comment:true});seedCover(f,'withdrawn');f.sql.exec("UPDATE tracks SET status='published' WHERE id='withdrawn'; UPDATE tracks SET status='hidden' WHERE id='one'");await dispatchPush(env);assert.equal(delivered.length,1,'do not send participation for a withdrawn original');
  assert.equal(notificationData({kind:'gift',target:'one',recipient:'owner'}).kind,'gift');
 });
+
+test('inbox acknowledgement covers every filter and page, isolates accounts and preserves later arrivals',async t=>{
+ const f=await fixture(t);
+ for(let i=0;i<55;i++)f.sql.prepare("INSERT INTO activity_notifications(id,recipient,actor_id,kind,target,created) VALUES(?,'owner','other',?,'one',1)").run('batch-'+i,i%2?'comment':'follow');
+ f.sql.exec("INSERT INTO activity_notifications(id,recipient,actor_id,kind,target,created) VALUES('peer-only','other','owner','follow','producer',1)");
+ const snapshot=(await f.call('/api/notifications?filter=comments')).body;
+ f.sql.exec("INSERT INTO activity_notifications(id,recipient,actor_id,kind,target,created) VALUES('later','owner','other','follow','one',1)");
+ assert.equal((await f.call('/api/notifications/read','POST',{through:snapshot.read_through})).body.unread,1);
+ assert.equal(f.sql.prepare("SELECT count(*) n FROM activity_notifications WHERE recipient='owner' AND read_at>0").get().n,55);
+ assert.equal((await f.call('/api/notifications/summary','GET',null,'other')).body.unread,1);
+ assert.equal((await f.call('/api/notifications/read','POST',{through:-1})).status,400);
+});
+test('new message gifts keep their source and do not resolve to a profile link',async t=>{
+ const f=await fixture(t);f.sql.exec("INSERT INTO free_gift_wallets(user_id,balance) VALUES('other',100)");
+ assert.equal((await f.call('/api/producers/producer/gifts','POST',{gift_type:'silver-letter',quantity:1,from_message:true,request_id:crypto.randomUUID()},'other')).status,201);
+ const item=(await f.call('/api/notifications')).body.items[0];
+ assert.equal(item.source_type,'message');assert.equal(item.clickable,false);assert.equal(item.href,'');
+});

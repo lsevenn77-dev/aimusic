@@ -136,7 +136,7 @@ export async function giftRoute(req,env,path,user,verifiedSource){
  const reason=await giftBlockReason(env,user.id,track);if(reason)fail(400,reason);
  await rate(env,'gift:'+user.id,60,3600);
  const b=await req.json(),dubbing=await assertDubbingGiftContext(env,user.id,track.producer_id,b.dubbing_id);
- const source=verifiedSource||giftTargetSource(track,dubbing);
+ const source=verifiedSource||(personal&&!dubbing&&b.from_message===true?{type:'message',id:track.producer_id,title:track.title}:giftTargetSource(track,dubbing));
  if(silverGiftById(b.gift_type))return sendFreeGift(env,user,track,b,source);
  const selected=b.gift_type===undefined?null:giftById(b.gift_type);
  if(b.gift_type!==undefined&&!selected)fail(400,'선물 종류를 다시 선택해주세요.');

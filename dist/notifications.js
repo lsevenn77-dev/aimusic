@@ -7,7 +7,9 @@ function activityRowHTML(n){
  const giftName=n.gift_name==='은화'?'실버':n.gift_name;
  const action=gift?`${product?`<img class="activity-gift-art" src="${esc(product.image)}" alt="${esc(giftName||product.name)}" title="${esc(giftName||product.name)}" width="28" height="28" loading="lazy" decoding="async">`:esc(giftName)} <b class="activity-gift-quantity">× ${number(n.quantity)}개</b>를 보냈어요.`:({fan_comment:'팬라운지에 댓글·답글을 남겼어요.',fan_post:'팬라운지에 응원글을 남겼어요.',artist_follower:'AI 아티스트를 팔로우했어요.',artist_release:'새 제작곡을 공개했어요.',crew_invite:'크루에 초대했어요.',crew_approved:'크루 가입을 승인했어요.',crew_request:'작품 참여를 요청했어요.',dubbing_complete:'함께 참여한 더빙이 완성됐어요.',dubbing_participation:'더빙 참여 작품을 공개했어요.',work_status:'작품 처리 결과가 도착했어요.',crew_notice:'크루 공지를 등록했어요.',duet:'내 듀엣에 참여했어요.',cover:'내 곡으로 커버를 공개했어요.',comment:'내 음악에 댓글을 남겼어요.',follow:'나를 팔로우했어요.'}[n.kind]||'새로운 활동을 남겼어요.');
  const href=n.href??(n.kind==='crew_notice'&&n.available?'#crew/'+encodeURIComponent(n.target)+'?tab=notice':!gift&&n.available?(n.kind==='follow'?'#producer/':'#song/')+encodeURIComponent(n.target):'');
- const sourceLabel={profile:'프로필',talking_room:'토킹룸',karaoke:'노래방',work:'작품 상세',inventory:'인벤토리',shop:'선물 상점'}[n.source_type];
+ const passive=gift&&(['talking_room','karaoke','message'].includes(n.source_type)||n.clickable===false);
+ const rowTag=passive?'div':'a';
+ const sourceLabel={message:'메시지',profile:'프로필',talking_room:'토킹룸',karaoke:'노래방',work:'작품 상세',inventory:'인벤토리',shop:'선물 상점'}[n.source_type];
  const giftSource=sourceLabel?[sourceLabel,n.gift_source_title].filter(Boolean).join(' · '):'출처 확인 불가';
  const giftDetail=`<div class="activity-detail activity-gift-detail"><b class="activity-value ${esc(n.currency)}">${number(n.amount)} ${n.currency==='gold'?'G':'S'}</b><span class="activity-gift-separator" aria-hidden="true">·</span><span class="activity-gift-source" title="${esc(giftSource)}">${esc(giftSource)}</span></div>`;
  const avatar=n.actor_profile_id&&n.actor_image_version?'/media/producer/'+encodeURIComponent(n.actor_profile_id)+'?v='+encodeURIComponent(n.actor_image_version||'default'):'/assets/default-avatar.png';
@@ -17,13 +19,13 @@ function activityRowHTML(n){
  const created=new Date(n.created*1000);
  const time=created.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',hourCycle:'h23',timeZone:'Asia/Seoul'});
  const unreadDot=n.read_at?'':'<i class="activity-dot" aria-label="읽지 않음"></i>';
- return `<a data-list-row class="activity-row${n.read_at?'':' is-unread'}" data-activity-id="${esc(n.id)}" data-activity-open="${esc(n.id)}" href="${esc(destination)}" aria-label="${esc(n.actor_name)} · ${label} · ${purpose}">
-  <div class="activity-avatar">${unreadDot}<img src="${esc(avatar)}" alt="" loading="lazy"><span>${icon(gift?'gift':n.kind.includes('crew')?'users':['follow','artist_follower'].includes(n.kind)?'user':['comment','fan_comment','fan_post'].includes(n.kind)?'message':n.kind==='work_status'?'bell':'mic')}</span></div>
+ return `<${rowTag} data-list-row class="activity-row${n.read_at?'':' is-unread'}" data-activity-id="${esc(n.id)}" ${passive?'':`data-activity-open="${esc(n.id)}" href="${esc(destination)}"`} aria-label="${esc(n.actor_name)} · ${label}${passive?'':' · '+purpose}">
+  <div class="activity-avatar">${unreadDot}<img src="${esc(avatar)}" alt="" loading="lazy"></div>
   <div class="activity-copy">
    <div class="activity-meta"><span>${label}</span><span aria-hidden="true">·</span><time datetime="${created.toISOString()}">${esc(time)}</time></div>
    <p><strong>${esc(n.actor_name)}</strong>${n.kind==='work_status'?' · ':'님이 '}${action}</p><div class="activity-detail">${detail}</div>
   </div>
- </a>`;
+ </${rowTag}>`;
 }
 function activityGroupsHTML(items){let day='';return items.map(n=>{const next=activityDate(n.created,true),header=day===next?'':`<h2 class="activity-day">${esc(next)}</h2>`;day=next;return header+activityRowHTML(n);}).join('');}
 async function notificationsView(base,raw,readApi=api){
@@ -52,6 +54,19 @@ function bindNotifications(view){
  let disposed=false;
  bindActivitySettings(root,state.account);paintActivityBadge(state.unread);const active=()=>!disposed&&me?.id===state.account&&root.isConnected;
  const mark=async ids=>{if(!ids.length)return;const result=await api('/api/notifications/read','POST',{ids});if(me?.id!==state.account)return;++activityReadRevision;activityAccount=state.account;activityCount=result.unread;paintActivityBadge(result.unread);if(!active())return;for(const n of state.items)if(ids.includes(n.id))n.read_at=Date.now()/1000;root.querySelectorAll('[data-activity-id]').forEach(row=>{if(ids.includes(row.dataset.activityId)){row.classList.remove('is-unread');row.querySelector('.activity-dot')?.remove();row.querySelector('[data-activity-read]')?.remove();}});};
+ const acknowledge=async through=>{
+  if(!active()||!Number.isSafeInteger(through))return;
+  try{
+   const ids=state.items.filter(n=>!n.read_at).map(n=>n.id);
+   const result=await api('/api/notifications/read','POST',{through});
+   if(me?.id!==state.account)return;
+   ++activityReadRevision;activityAccount=state.account;activityCount=result.unread;paintActivityBadge(result.unread);
+   if(!active())return;
+   for(const n of state.items)if(ids.includes(n.id))n.read_at=Date.now()/1000;
+   root.querySelectorAll('[data-activity-id]').forEach(row=>{if(ids.includes(row.dataset.activityId)){row.classList.remove('is-unread');row.querySelector('.activity-dot')?.remove();}});
+  }catch(error){if(active())root.querySelector('.activity-error').textContent=error.message;}
+ };
+ void acknowledge(state.read_through);
  let loading=false,refreshing=false,restoring=false;const emptyHTML=root.querySelector('#activity-list')?.innerHTML||'';
  const draw=()=>{root.querySelector('#activity-list').innerHTML=state.items.length?activityGroupsHTML(state.items):emptyHTML;root.querySelector('[data-activity-more]').hidden=!state.next;};
  root.onclick=async e=>{
@@ -79,7 +94,7 @@ function bindNotifications(view){
    // Retain loaded older pages and their cursor; only the newest page is polled.
    state.items=[...old.values()].sort((a,b)=>b.created-a.created||(a.id<b.id?1:-1));
    if(!state.next&&state.items.length<=20)state.next=data.next;
-   paintActivityBadge(data.unread);if(JSON.stringify(state.items)!==previous)draw();
+   paintActivityBadge(data.unread);if(JSON.stringify(state.items)!==previous)draw();await acknowledge(data.read_through);
   }catch{}finally{refreshing=false;}
  };
  const timer=setInterval(refresh,30000),visible=()=>{if(!document.hidden)void refresh();};
