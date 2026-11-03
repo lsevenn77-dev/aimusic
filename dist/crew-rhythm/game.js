@@ -104,9 +104,10 @@
       c.beginPath(); c.moveTo(projX(v, l, top), projY(v, top)); c.lineTo(projX(v, r, top), projY(v, top)); c.lineTo(projX(v, r, bot), projY(v, bot)); c.lineTo(projX(v, l, bot), projY(v, bot)); c.closePath(); c.fill();
       c.save(); c.strokeStyle = hexA(LANE_COLORS[i], .9 * a); c.lineWidth = 2; c.shadowColor = LANE_COLORS[i]; c.shadowBlur = 14 * a; c.stroke(); c.restore();
     }
-    // 판정선
-    c.save(); c.shadowColor = '#d9c9ff'; c.shadowBlur = 16; c.strokeStyle = 'rgba(235,228,255,.85)'; c.lineWidth = 2;
-    c.beginPath(); c.moveTo(projX(v, -.02, 0), v.judgeY); c.lineTo(projX(v, 1.02, 0), v.judgeY); c.stroke(); c.restore();
+    for (let i = 0; i < 4; i++) drawPad(c, v, i, pressed && pressed[i], fx, now, opts.labels);
+    // A note's center crosses this line on its beat (depth zero).
+    c.save(); c.shadowColor = '#cdeaff'; c.shadowBlur = 5; c.strokeStyle = '#fff'; c.lineWidth = 2;
+    c.beginPath(); c.moveTo(projX(v, 0, 0), v.judgeY); c.lineTo(projX(v, 1, 0), v.judgeY); c.stroke(); c.restore();
 
     // 노트 (먼 것부터)
     const vis = [];
@@ -123,16 +124,15 @@
       else drawNote(c, v, n.lane, d0, 1);
     }
 
-    // 입력 링 + 타격광
-    for (let i = 0; i < 4; i++) drawRing(c, v, i, pressed && pressed[i], fx, now, opts.labels);
   }
 
   function hexA(hex, a) { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`; }
   function rr(c, x, y, w, h, r) { r = Math.min(r, h / 2, w / 2); c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
 
+  const NOTE_INSET = .09;
   // 입체 캡슐 노트: 아래 두께 → 몸통 → 위 반사광
   function drawNote(c, v, lane, d, sizeMul) {
-    const s = sc(d), inset = .09 / 4;   // 레인 폭의 9%씩 안쪽
+    const s = sc(d), inset = NOTE_INSET / 4;
     const xl = projX(v, lane / 4 + inset, d), xr = projX(v, (lane + 1) / 4 - inset, d);
     const y = projY(v, d), hgt = Math.max(4, v.span * .034 * s * sizeMul), w = xr - xl;
     const col = LANE_COLORS[lane];
@@ -163,13 +163,14 @@
     drawNote(c, v, n.lane, n.holding ? 0 : d0, 1.05);   // 머리
   }
 
-  // 입력 링: 어두운 중심 + 이중 발광 테두리, 성공한 레인만 타격광
-  function drawRing(c, v, i, isDown, fx, now, labels) {
-    const x = projX(v, (i + .5) / 4, 0), y = v.judgeY, rx = v.span / 4 * .36, ry = rx * .45;
+  function drawPad(c, v, i, isDown, fx, now, labels) {
+    const x = projX(v, (i + .5) / 4, 0);
+    const rx = v.span / 8 * (1 - 2 * NOTE_INSET);
+    const ry = Math.max(4, Math.min(10, rx * .09));
+    const y = v.judgeY + 5 + ry;
     const col = LANE_COLORS[i];
     const hit = fx && fx[i] && now - fx[i].t < .22 ? fx[i] : null;
     const k = hit ? 1 - (now - hit.t) / .22 : 0;
-    const pulse = 1 + (isDown ? .06 : 0) + k * .12;
     c.save();
     if (hit) {   // 타격광: 짧은 방사형 + 빛줄기
       const R = rx * (1.6 + (1 - k) * .6);
@@ -179,17 +180,14 @@
       c.strokeStyle = hexA(col, .9 * k); c.lineWidth = 2;
       for (let a = 0; a < 9; a++) { const ang = Math.PI + (a / 8) * Math.PI, L = rx * (1.2 + (a % 3) * .35) * (1.2 - k * .4); c.beginPath(); c.moveTo(x + Math.cos(ang) * rx * .5, y + Math.sin(ang) * ry); c.lineTo(x + Math.cos(ang) * L, y + Math.sin(ang) * L * .9); c.stroke(); }
     }
-    c.fillStyle = isDown ? hexA(col, .22) : 'rgba(4,6,18,.9)';
-    c.beginPath(); c.ellipse(x, y, rx * pulse, ry * pulse, 0, 0, 7); c.fill();
-    c.shadowColor = col; c.shadowBlur = 20 + k * 20;
-    c.strokeStyle = col; c.lineWidth = Math.max(3, rx * .1);
-    c.beginPath(); c.ellipse(x, y, rx * pulse, ry * pulse, 0, 0, 7); c.stroke();
-    c.shadowBlur = 6; c.strokeStyle = hexA('#ffffff', .7); c.lineWidth = 1.5;
-    c.beginPath(); c.ellipse(x, y, rx * pulse * .8, ry * pulse * .8, 0, 0, 7); c.stroke();
+    c.fillStyle = isDown || hit ? hexA(col, .35 + k * .4) : 'rgba(4,6,18,.9)';
+    rr(c, x - rx, y - ry, rx * 2, ry * 2, 3); c.fill();
+    c.shadowColor = col; c.shadowBlur = 5 + k * 8;
+    c.strokeStyle = col; c.lineWidth = 2; c.stroke();
     c.restore();
     if (labels) {
       c.save(); c.font = `italic 800 ${Math.round(rx * .42)}px "Exo 2", sans-serif`; c.textAlign = 'center'; c.fillStyle = 'rgba(238,241,255,.9)';
-      c.fillText(labels[i], x, y + ry + rx * .55); c.restore();
+      c.fillText(labels[i], x, y + ry + Math.min(rx * .55, v.h * .1)); c.restore();
     }
   }
 
