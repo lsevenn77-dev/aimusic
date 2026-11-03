@@ -377,3 +377,9 @@ export const crewJumpRuns=sqliteTable('crew_jump_runs',{
  id:text('id').primaryKey(),userId:text('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),crewId:text('crew_id').references(()=>crews.id,{onDelete:'set null'}),
  week:text('week').notNull(),day:text('day').notNull(),requestId:text('request_id').notNull(),seed:text('seed').notNull(),version:text('version').notNull(),starts:integer('starts').notNull(),score:integer('score'),inputs:text('inputs')
 },t=>[uniqueIndex('crew_jump_request').on(t.userId,t.requestId),index('crew_jump_daily').on(t.userId,t.day),index('crew_jump_week').on(t.week,t.crewId,t.userId,t.score)]);
+
+export const crewRacingRuns=sqliteTable('crew_racing_runs',{
+ id:text('id').primaryKey(), userId:text('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),
+ crewId:text('crew_id').references(()=>crews.id,{onDelete:'set null'}), week:text('week').notNull(),
+ course:text('course').notNull(), starts:integer('starts').notNull(), score:integer('score')
+},t=>[index('crew_racing_week').on(t.week,t.crewId,t.userId,t.score)]);

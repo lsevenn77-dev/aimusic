@@ -11,6 +11,7 @@ import {crewNoticeRoute} from './crew-notices.js';
 import {relationRoute} from './relations.js';
 import {decorationRoute} from './decorations.js';
 import {giftInventoryRoute} from './gift-inventory.js';
+import {racingRoute} from './crew-racing.js';
 import {jumpRoute} from './crew-jump.js';
 import {crewV3Route} from './crew-v3.js';
 import {communityRankingRoute} from './community-rankings.js';
@@ -132,6 +133,7 @@ export default {async fetch(req,env,ctx){
   const coverCompression=await coverCompressionAdmin(req,env,path,user);if(coverCompression)return coverCompression;
   env=await blockedContext(env,user);
   const followPage=await followManagement(req,env,path,user);if(followPage)return followPage;
+  if(path.startsWith('/api/crew-racing/'))return await racingRoute(req,env,path,user);
   if(path.includes('/jump')&&path.startsWith('/api/crews/')){const jump=await jumpRoute(req,env,path,user);if(jump)return jump;}
   const play=await playRoute(req,env,path,user);if(play)return play;
   const voiceResponse=await voiceRoomsRoute(req,env,path,user,ctx);if(voiceResponse)return voiceResponse;

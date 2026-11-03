@@ -329,27 +329,21 @@ function fitCar(root, id) {
   root.position.set(-c.x, -box.min.y, -c.z); g.scale.setScalar(4.55 / (box.max.x - box.min.x));
   return g;
 }
-function setCar(id) { const m = carModels[id]; stockCar.visible = !m; for (const k in carModels) carModels[k].visible = carModels[k] === m; }
-window.__world3d.setCar = setCar;
-// 상점 썸네일: 같은 렌더러로 한 장씩 그려 이미지로
-function thumbs() {
-  const ts = new THREE.Scene(); ts.background = new THREE.Color(0x1b1745); ts.environment = scene.environment;
-  ts.add(new THREE.HemisphereLight(0xd8ccff, 0x2a1d55, 1.2));
-  const key = new THREE.DirectionalLight(0xffe2f2, 2.4); key.position.set(4, 6, 6); ts.add(key);
-  const rim = new THREE.DirectionalLight(0x3ef2c2, 2.2); rim.position.set(-6, 2, -5); ts.add(rim);
-  const cam = new THREE.PerspectiveCamera(28, 1.6, .1, 60); cam.position.set(4.6, 1.9, 5.3); cam.lookAt(0, .45, 0);
-  const pr = renderer.getPixelRatio(); renderer.setPixelRatio(1); renderer.setSize(400, 250, false);
-  const out = {};
-  for (const [id, obj] of [['pearl', stockCar], ...Object.entries(carModels)]) {
-    const o = obj.clone(); o.visible = true; ts.add(o); renderer.render(ts, cam); out[id] = renderer.domElement.toDataURL('image/jpeg', .86); ts.remove(o);
-  }
-  renderer.setPixelRatio(pr); lastSize = '';
-  return out;
+function setCar(id) {
+  stockCar.visible = id === 'pearl';
+  for (const key in carModels) carModels[key].visible = key === id;
+  window.__world3d.carReady = stockCar.visible || !!carModels[id];
+  canvas.hidden = !window.__world3d.carReady;
 }
+window.__world3d.setCar = setCar;
+setCar(R.getCar());
 (async () => {
-  try {
-    for (const id in CAR_GLB) { const m = fitCar(await loadGlb(CAR_GLB[id]), id); m.visible = false; car.add(m); carModels[id] = m; }
-    setCar(R.getCar());
-  } catch (e) { console.warn('상점 차량 모델을 불러오지 못해 기본 차를 씁니다', e); }
-  try { R.setThumbs(thumbs()); } catch (e) { console.warn('썸네일 생성 실패', e); }
+  for (const id in CAR_GLB) {
+    try {
+      const model = fitCar(await loadGlb(CAR_GLB[id]), id);
+      car.add(model);
+      carModels[id] = model;
+      setCar(R.getCar());
+    } catch (err) { console.warn('차량 3D 모델 로드 실패', id, err); }
+  }
 })();

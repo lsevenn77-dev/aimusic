@@ -45,14 +45,19 @@
       </div>
       <div class="glass card">
         <div class="shophead">
-          <h2>🚗 연습 차고</h2>
+          <h2>차량 상점</h2>
 
         </div>
-        <div class="garage" id="garage"></div>
-        <div class="sample">여섯 대 모두 자유롭게 시승할 수 있어요. 차량마다 외형이 다르고 성능은 같아요.</div>
+        <p class="muted" role="status" id="garageStatus"></p><div class="garage" id="garage"></div>
+        <div class="sample">기본 차량은 선셋쿠페예요. 구입한 차량은 차고에서 언제든 장착할 수 있어요.</div>
       </div>
     </div>
     <div class="col">
+      <section class="glass card leaderboards">
+        <span class="chip mint">CREW ARCADE</span><h2>주간 연습 랭킹</h2>
+        <h3>크루 랭킹</h3><p class="muted">크루원 상위 10명의 개인 최고점 합계</p><ol id="teams"></ol>
+        <h3>개인 랭킹</h3><p class="muted">이번 주 개인 최고점</p><ol id="drivers"></ol>
+      </section>
       <div class="glass card">
         <h2>점수 계산</h2>
         <table class="rule">
@@ -155,4 +160,4 @@
   </div>
 </div>
 
-<script src="./race.js"></script><script type="module" src="./world.js"></script></body></html>
+<script type="module" src="./race.js"></script><script type="module" src="./world.js"></script></body></html>
