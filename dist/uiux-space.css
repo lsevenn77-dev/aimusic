@@ -203,3 +203,17 @@
 .activity-top[hidden]{opacity:0}
 @starting-style{.activity-top{opacity:0}}
 @media(prefers-reduced-motion:reduce){.activity-top{transition:none}}
+/* Desktop inbox reading scale; preserve the compact mobile layout. */
+@media(min-width:801px){
+ #main[data-route^="notifications"]:has(> .activity-inbox .activity-toolbar){
+  --activity-text-size:17px;--activity-meta-size:14px;--activity-tab-gap:22px;
+ }
+ #main[data-route^="notifications"] .activity-inbox .activity-toolbar .tab{min-height:52px;padding-block:12px;line-height:1.5}
+ #main[data-route^="notifications"] .activity-inbox .activity-settings-trigger{min-height:52px;font-size:14px}
+ #main[data-route^="notifications"] .activity-inbox .activity-day{margin-top:24px;padding-bottom:10px;line-height:1.6}
+ #main[data-route^="notifications"] .activity-inbox .activity-row{min-height:92px;padding-block:16px;gap:18px}
+ #main[data-route^="notifications"] .activity-inbox .activity-copy>p{margin-block:5px;line-height:1.65}
+ #main[data-route^="notifications"] .activity-inbox .activity-meta{gap:7px;line-height:1.5}
+ #main[data-route^="notifications"] .activity-inbox .activity-detail{font-size:14px;line-height:1.6;gap:10px}
+ #main[data-route^="notifications"] .activity-inbox .activity-more{font-size:15px;min-height:44px}
+}
