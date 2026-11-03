@@ -206,7 +206,9 @@
 
   const crew = new URLSearchParams(location.search).get('crew');
   if (crew && /^(preview|[a-zA-Z0-9_-]{1,80})$/.test(crew)) {
-    $('backLink').href = '/#crew-jump/' + encodeURIComponent(crew);
+    const fromCrew = new URLSearchParams(location.search).get('from') === 'crew';
+    $('backLink').href = (fromCrew ? '/#crew/' : '/#crew-jump/') + encodeURIComponent(crew);
+    if (fromCrew) $('backLink').textContent = '‹ 크루로';
   }
   function notesFor(d) {
     // 롱노트 구간과 겹치는 같은 레인 노트는 제거 (채보 버전 고정 후 서버도 같은 규칙)

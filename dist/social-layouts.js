@@ -9,7 +9,12 @@ function crewHeroHTML(c,m){
  const frame=c.level>=10?4:c.level>=8?3:c.level>=5?2:c.level>=3?1:0;
  const levelTag=c.level>=7?'<span class="crew-max-badge">'+(c.level===10?'최고 레벨 크루':'함께 성장하는 크루')+'</span>':'';
  const settings=canManageCrew(m)?`<div class="crew-settings-anchor"><button type="button" class="crew-settings-trigger" data-edit-crew="${esc(c.id)}" aria-label="크루 설정" aria-haspopup="menu" aria-expanded="false" aria-controls="crew-settings-menu" title="크루 설정">${icon('settings',22)}</button><div id="crew-settings-menu" class="fan-settings-menu" role="menu" aria-label="크루 관리" hidden></div></div>`:'';
- const game=m?`<a class="crew-game-entry" href="#crew-jump/${encodeURIComponent(c.id)}"><img src="/crew-jump-art/arcade-cheer.webp" width="48" height="48" alt=""><span><small>별빛 점프</small><strong>크루게임</strong></span><i aria-hidden="true">›</i></a>`:'';
+ const crewId=encodeURIComponent(c.id);
+ const games=[
+   {title:'리듬게임',subtitle:'Double Tap',art:'/crew-rhythm/cover.webp',href:'/crew-rhythm/?from=crew&crew='+crewId},
+   {title:'점프게임',subtitle:'별빛 점프',art:'/crew-jump-art/arcade-cheer.webp',href:'#crew-jump/'+crewId}
+ ];
+ const game=m?`<nav class="crew-game-entries" aria-label="크루게임">${games.map(g=>`<a class="crew-game-entry" href="${esc(g.href)}"><img src="${g.art}" width="48" height="48" alt=""><span><small>${g.subtitle}</small><strong>${g.title}</strong></span><i aria-hidden="true">›</i></a>`).join('')}</nav>`:'';
  const next=c.next_xp==null?'최고 레벨':'다음 레벨까지 '+number(Math.max(0,c.next_xp-c.xp))+' XP';
  return `<header class="crew-detail-header crew-frame-${frame}">
    <div class="crew-identity">${crewPicture(c,'crew-detail-picture')}<div class="crew-identity-copy"><h1 title="${esc(c.name)}">${crewNameHTML(c)}</h1><span>멤버 ${number(c.members)} / ${number(c.capacity)}명</span> ${levelTag}</div>${game}${settings}</div>
