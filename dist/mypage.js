@@ -307,11 +307,26 @@ async function refreshMyPageRoute(raw,ticket,readApi=api,showCurrentTab){
  if(ticket===renderId&&myPendingTabFocus===tab)$('#mp-tab-'+tab)?.focus({preventScroll:true});myPendingTabFocus='';
  return true;
 }
+const visitorMobileLayout=window.matchMedia?.('(max-width: 800px)');
+function placeVisitorArtists(){
+ const page=document.querySelector('.mp-dashboard:not(.mp-own)');
+ if(!page)return;
+ const artists=page.querySelector('.mp-artists-card'),studio=page.querySelector('.mp-studio');
+ if(!artists||!studio)return;
+ if(visitorMobileLayout.matches){
+  if(artists.nextElementSibling!==studio)studio.before(artists);
+ }else{
+  const collections=page.querySelector('.mp-profile-collections');
+  if(artists.parentElement!==collections)collections.append(artists);
+ }
+}
+visitorMobileLayout?.addEventListener('change',placeVisitorArtists);
 function bindMyPage(view){
  const s=myPageState=view?.mypage||null,profile=s?.d.profile||view?.memberHeader;
  if(profile)bindMemberHeader(profile);
  if(view?.profileWorks)bindProfileWorks(view.profileWorks);
  if(!s){myPendingTabFocus='';return;}
+ if(!s.own&&visitorMobileLayout)placeVisitorArtists();
  if(s.tab==='activity')void mySelectTab('activity',false);
  if(view.musicLibrary)bindMusicLibrary(view.musicLibrary);
  if(myPendingTabFocus===s.tab)$('#mp-tab-'+s.tab)?.focus({preventScroll:true});
