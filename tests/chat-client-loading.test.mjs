@@ -82,11 +82,11 @@ test('a mobile workspace uses the removed navigation space and clears a visible 
  f.panel.closest=()=>workspace;f.context.innerHeight=420;
  f.nodes['.topbar']={getBoundingClientRect:()=>({bottom:78})};
  f.context.bindSocialChat({chat:{path:'/crew',crew:{id:'crew'}}});
- assert.equal(workspace.style.height,'318px');assert.equal(attrs.get('data-chat-compact'),true);
+ assert.equal(workspace.style.height,'342px');assert.equal(attrs.get('data-chat-compact'),false);
  f.nodes['.player:not([hidden])']={getBoundingClientRect:()=>({height:58,top:f.context.innerHeight-58})};
- f.resize();assert.equal(workspace.style.height,'260px');
- f.context.innerHeight=844;f.resize();assert.equal(workspace.style.height,'684px');assert.equal(attrs.get('data-chat-compact'),false);
- delete f.nodes['.player:not([hidden])'];f.resize();assert.equal(workspace.style.height,'742px');
+ f.resize();assert.equal(workspace.style.height,'284px');assert.equal(attrs.get('data-chat-compact'),true);
+ f.context.innerHeight=844;f.resize();assert.equal(workspace.style.height,'708px');assert.equal(attrs.get('data-chat-compact'),false);
+ delete f.nodes['.player:not([hidden])'];f.resize();assert.equal(workspace.style.height,'766px');
 });
 
 test('room drafts survive navigation and remain isolated by account and room',()=>{

@@ -9,8 +9,7 @@ function libraryOverviewHTML(){
 }
 function dmInboxHTML(d,thread='',selected=''){
  rememberDmInbox(d);
- const start='<a class="primary-button dm-start" href="#following">'+icon('users')+' 새로운 대화 시작</a>';
- return '<section class="message-workspace'+(thread?' has-thread':'')+'"><aside class="message-list-pane" aria-label="대화 상대 목록"><div class="dm-section-heading"><h2>메시지</h2>'+inboxControlsHTML()+'</div>'+dmInboxTabsHTML()+'<div id="dm-conversations">'+conversationListHTML(d.conversations,d.crew,selected)+'</div><p id="dm-list-error" role="status">'+esc(d.error||'')+'</p><div class="dm-list-start">'+start+'</div></aside>'+(thread?'<div class="message-thread-pane" aria-label="선택한 대화">'+thread+'</div>':'<div class="message-welcome"><div class="dm-welcome-copy"><span class="message-welcome-icon">'+icon('message')+'</span><h2>누구와 이야기할까요?</h2><p>왼쪽에서 대화상대를 선택하면<br>이곳에서 바로 대화할 수 있어요.</p>'+start+'</div><div class="dm-compose-preview" aria-hidden="true" inert><span class="dm-emoji-toggle">'+voiceGlyph('smile')+'</span><span>메시지를 입력하세요…</span><span class="dm-send">'+voiceGlyph('send')+'</span></div></div>')+'</section>';
+ return '<section class="message-workspace'+(thread?' has-thread':'')+'"><aside class="message-list-pane" aria-label="대화 상대 목록"><div class="dm-section-heading"><h2>메시지</h2>'+inboxControlsHTML()+'</div>'+dmInboxTabsHTML()+'<div id="dm-conversations">'+conversationListHTML(d.conversations,d.crew,selected)+'</div><p id="dm-list-error" role="status">'+esc(d.error||'')+'</p></aside>'+(thread?'<div class="message-thread-pane" aria-label="선택한 대화">'+thread+'</div>':'<div class="message-welcome"><div class="dm-welcome-copy"><span class="message-welcome-icon">'+icon('message')+'</span><h2>누구와 이야기할까요?</h2><p>왼쪽에서 대화상대를 선택하면<br>이곳에서 바로 대화할 수 있어요.</p></div><div class="dm-compose-preview" aria-hidden="true" inert><span class="dm-emoji-toggle">'+voiceGlyph('smile')+'</span><span>메시지를 입력하세요…</span><span class="dm-send">'+voiceGlyph('send')+'</span></div></div>')+'</section>';
 }
 async function dmWorkspaceView(view){
  // The thread must not wait for a second inbox request. Refresh the sidebar after paint.
@@ -66,3 +65,29 @@ document.addEventListener('click',async e=>{
  }
 });
 
+
+// Size both inbox and thread to the same available viewport. Observe only the
+// route outlet so message stream updates do not repeatedly rebind geometry.
+(() => {
+ const main=document.querySelector?.('#main');if(!main||typeof ResizeObserver==='undefined')return;
+ let workspace=null,frame=0;
+ const fit=()=>{frame=0;if(!workspace?.isConnected||!workspace.getClientRects().length||document.body.classList.contains('chat-keyboard'))return;
+  const mobile=window.AifectMobileInput?.isMobile()??innerWidth<=800;
+  const header=document.querySelector('.topbar')?.getBoundingClientRect();
+  const top=mobile?(header?.bottom||0):workspace.getBoundingClientRect().top;
+  if(mobile)workspace.style.setProperty('--chat-workspace-top',top+'px');
+  const vv=window.visualViewport;
+  let bottom=(vv?.height||innerHeight)+(vv?.offsetTop||0);
+  for(const selector of ['.player:not([hidden])','.mobile-navigation']){
+   const rect=document.querySelector(selector)?.getBoundingClientRect();
+   if(rect?.height&&rect.top>top)bottom=Math.min(bottom,rect.top);
+  }
+  workspace.style.height=Math.max(0,bottom-top-(mobile?0:16))+'px';
+ };
+ const schedule=()=>{if(!frame)frame=requestAnimationFrame(fit);};
+ const resize=new ResizeObserver(schedule);
+ for(const el of document.querySelectorAll('.topbar,.player,.mobile-navigation'))resize.observe(el);
+ new MutationObserver(()=>{workspace=main.querySelector(':scope > .message-workspace');schedule();}).observe(main,{childList:true,attributes:true,attributeFilter:['style','class']});
+ window.addEventListener('resize',schedule);window.visualViewport?.addEventListener('resize',schedule);
+ window.addEventListener('aifect:input-viewport',schedule);
+})();

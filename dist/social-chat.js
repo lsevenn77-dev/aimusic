@@ -236,12 +236,12 @@ function bindSocialChat(view){
   if(workspace&&!mobileChat()){workspace.style.height='';panel.style.height='';anchor();return;}
   const bottom=geometry?.bottom??((vv?.height||innerHeight)+(vv?.offsetTop||0));
   const header=document.querySelector('.topbar')?.getBoundingClientRect();
-  const top=workspace&&mobileChat()?(keyboard?(geometry?.top||0):(header?.bottom??90)+12):target.getBoundingClientRect().top;
+  const top=workspace&&mobileChat()?(keyboard?(geometry?.top||0):(header?.bottom??90)):target.getBoundingClientRect().top;
   if(workspace&&mobileChat())workspace.style.setProperty('--chat-workspace-top',top+'px');
   const nav=document.querySelector('.mobile-navigation')?.getBoundingClientRect();
   const player=document.querySelector('.player:not([hidden])')?.getBoundingClientRect();
   const boundary=keyboard?bottom:Math.min(bottom,nav?.height?nav.top:bottom,player?.height?player.top:bottom);
-  const available=dmWorkspaceHeight(boundary,top,keyboard?0:12,keyboard?undefined:dmPayoutLine(),true);
+  const available=dmWorkspaceHeight(boundary,top,workspace?0:(keyboard?0:12),undefined,true);
   workspace?.toggleAttribute('data-chat-compact',available<340);
   target.style.height=available+'px';
   if(workspace)panel.style.height='';anchor();
