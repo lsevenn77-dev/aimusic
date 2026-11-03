@@ -61,7 +61,7 @@ test('unavailable, wrong-flow or invalid product configuration cannot open a Gol
  for(const config of configs){const f=await fixture({config});await f.consent();await f.submit();assert.equal(f.element('checkout-submit').disabled,true);assert.deepEqual(f.calls.map(call=>call.url),[API+'/config']);assert.equal(f.sdkCalls.length,0);}
 });
 
-test('all four choices update totals from the server catalog and query values do not select a price',async()=>{
+test('all available choices update totals from the server catalog and query values do not select a price',async()=>{
  const f=await fixture({path:'/checkout/toss/gold?gold=10000&amount=1'});
  assert.equal(f.radios.find(radio=>radio.checked).value,'500');
  for(const pack of WEB_GOLD_PACKS){await f.select(pack.gold);for(const [id,expected] of [['checkout-total-gold',pack.total_gold+'G'],['checkout-base-gold',pack.gold+'G'],['checkout-bonus-gold',pack.bonus_gold+'G'],['checkout-amount',pack.price+'원']])assert.equal(f.element(id).textContent.replaceAll(',','').replace(/\s/g,''),expected);}
@@ -97,7 +97,7 @@ test('a delayed order locks product choices to its displayed amount until cancel
  }});
  await f.select(5000);await f.consent();const submitting=f.submit();await drain();
  assert.ok(f.radios.every(radio=>radio.disabled));assert.equal(f.element('checkout-submit').disabled,true);
- assert.equal(await f.select(10000),false,'disabled native radios cannot change the pending selection');
+ assert.equal(await f.select(500),false,'disabled native radios cannot change the pending selection');
  assert.equal(f.radios.find(radio=>radio.checked).value,'5000');assert.equal(f.element('checkout-amount').textContent,'55,000원');
  assert.equal(f.sdkCalls.length,0);assert.deepEqual(f.calls.at(-1).body,{gold:5000,consent:true});
  releaseOrder();await submitting;

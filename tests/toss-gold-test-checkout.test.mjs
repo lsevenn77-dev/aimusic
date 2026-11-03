@@ -34,11 +34,12 @@ function signedToken(order,changes){
  return encoded+'.'+signature;
 }
 
-test('public Gold config exposes the unchanged four packs and dedicated TEST readiness',async()=>{
+test('public Gold config exposes the three eligible web packs and dedicated TEST readiness',async()=>{
  const f=setup(),r=await f.call(ROOT+'/config');
  assert.equal(r.status,200);assert.equal(r.body.available,true);assert.equal(r.body.test_only,true);assert.equal(r.body.flow,FLOW);assert.equal(r.body.currency,'KRW');assert.equal(r.body.client_key,CLIENT);
  assert.deepEqual(r.body.products,WEB_GOLD_PACKS.map(({gold,bonus_gold,total_gold,price})=>({gold,bonus_gold,total_gold,price})));
- assert.deepEqual(r.body.products.map(p=>[p.gold,p.bonus_gold,p.total_gold,p.price]),[[500,25,525,5500],[1000,50,1050,11000],[5000,250,5250,55000],[10000,500,10500,110000]]);
+ assert.deepEqual(r.body.products.map(p=>[p.gold,p.bonus_gold,p.total_gold,p.price]),[[500,25,525,5500],[1000,50,1050,11000],[5000,250,5250,55000]]);
+ assert.equal((await f.create(10000)).status,400);
  const output=JSON.stringify(r.body);for(const hidden of [MID,PEPPER,'TOSS_','secret'])assert.equal(output.includes(hidden),false);
  assert.match(r.response.headers.get('cache-control'),/no-store/);assert.equal(r.response.headers.get('set-cookie'),null);
  assert.equal((await f.call('/api/gold/checkout')).response,null);assert.equal((await f.call('/api/payments/toss-test/config')).response,null);
@@ -128,6 +129,7 @@ test('existing Gold state cannot bypass disablement, live keys, signing rotation
 test('a forged opaque payment key can never produce a provider-verified or paid Gold result',async()=>{
  const f=setup(),o=await f.create(),r=await f.authReturn(o,{paymentKey:'forged-not-from-toss'});assert.equal(r.status,200);
  assert.deepEqual(r.body,{test_only:true,flow:FLOW,status:'AUTH_RETURNED',provider_verified:false,entitlements_granted:false,order:o.body.order});
+ assert.equal((await f.create(10000)).status,400);
  const output=JSON.stringify(r.body);for(const hidden of ['forged-not-from-toss','billingKey','cardNo',PEPPER,MID])assert.equal(output.includes(hidden),false);
  assert.notEqual(r.body.status,'DONE');assert.notEqual(r.body.status,'PAID');assert.match(r.response.headers.get('cache-control'),/no-store/);f.untouched();
 });

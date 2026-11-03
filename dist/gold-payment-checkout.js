@@ -15,9 +15,9 @@ const number=value=>value.toLocaleString('ko-KR');
 const safePositive=value=>Number.isSafeInteger(value)&&value>0;
 function samePack(a,b){return !!a&&!!b&&['gold','price','bonus_gold','total_gold'].every(key=>a[key]===b[key]);}
 function validProducts(list){
- if(!Array.isArray(list)||list.length!==4||initialProducts.size!==4)return false;
+ if(!Array.isArray(list)||!initialProducts.size||list.length!==initialProducts.size)return false;
  const seen=new Set();
- return list.every(pack=>pack&&[500,1000,5000,10000].includes(pack.gold)&&!seen.has(pack.gold)&&seen.add(pack.gold)&&safePositive(pack.price)&&Number.isSafeInteger(pack.bonus_gold)&&pack.bonus_gold===Math.floor(pack.gold*5/100)&&pack.total_gold===pack.gold+pack.bonus_gold&&samePack(pack,initialProducts.get(pack.gold)));
+ return list.every(pack=>pack&&initialProducts.has(pack.gold)&&!seen.has(pack.gold)&&seen.add(pack.gold)&&safePositive(pack.price)&&pack.price<=100000&&Number.isSafeInteger(pack.bonus_gold)&&pack.bonus_gold===Math.floor(pack.gold*5/100)&&pack.total_gold===pack.gold+pack.bonus_gold&&samePack(pack,initialProducts.get(pack.gold)));
 }
 function chosenPack(){const radio=radios.find(r=>r.checked);return radio&&/^[1-9]\d*$/.test(radio.value)?products.get(Number(radio.value)):null;}
 function renderPack(pack){

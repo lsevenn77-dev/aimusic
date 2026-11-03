@@ -23,7 +23,8 @@ export const APP_GOLD_KRW=13,WEB_GOLD_KRW=11;
 export const GOLD_PACKS=Object.freeze([500,1000,5000,10000].map(gold=>Object.freeze({gold,price:gold*APP_GOLD_KRW})));
 // The web promotion increases delivered quantity; store SKUs retain the base quantity.
 export const WEB_GOLD_BONUS_PERCENT=5;
-export const WEB_GOLD_PACKS=Object.freeze(GOLD_PACKS.map(p=>{
+export const WEB_GOLD_MAX_KRW=100000;
+export const WEB_GOLD_PACKS=Object.freeze(GOLD_PACKS.filter(p=>p.gold*WEB_GOLD_KRW<=WEB_GOLD_MAX_KRW).map(p=>{
  const bonus_gold=Math.floor(p.gold*WEB_GOLD_BONUS_PERCENT/100);
  return Object.freeze({...p,price:p.gold*WEB_GOLD_KRW,bonus_gold,total_gold:p.gold+bonus_gold});
 }));

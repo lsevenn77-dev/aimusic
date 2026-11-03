@@ -47,9 +47,9 @@ test('gold checkout hides diamond balances while settlement retains the blue dia
  const {c}=ui();Object.assign(c,{inApp:false,AifectGifts:{GIFT_SETTLEMENT_NOTICE:'선물 안내'},section:title=>'<h2>'+title+'</h2>'});
  vm.runInContext(read('dist/gold-checkout.js'),c);
  const diamonds={available:12.34567,balance:12.34567,cash_value_krw:1234,min_payout_diamonds:100,partner:{eligible_krw:0}};
- const gold=c.goldHTML({balance:1234,diamonds,packs:[{gold:100,price:1100}],checkout_available:true});
+ const gold=c.goldHTML({balance:1234,diamonds,web_packs:[{gold:500,price:5500}],checkout_available:true});
  assert.doesNotMatch(gold,/diamond-wallet|💎|12\.34567/);
- assert.match(gold,/1,234/);assert.match(gold,/data-buy-gold="100"/);
+ assert.match(gold,/1,234/);assert.match(gold,/data-buy-gold="500"/);
  const settlement=c.diamondWalletHTML(diamonds);assert.match(settlement,/💎/);assert.match(settlement,/12\.34567/);
 });
 

@@ -7,9 +7,11 @@ import {businessDetailsHTML,businessFooterHTML,policyLinks} from '../shared/site
 const req=(path='/checkout/toss/gold',method='GET')=>new Request('https://aifect.test'+path,{method});
 const html=()=>goldPaymentPageRoute(req(),'/checkout/toss/gold').text();
 
-test('Gold SSR uses all four authoritative web packs and clearly distinguishes TEST amounts from charge',async()=>{
+test('Gold SSR uses all eligible web packs and clearly distinguishes TEST amounts from charge',async()=>{
  const page=await html();
- assert.equal((page.match(/type="radio"/g)||[]).length,4);
+ assert.equal((page.match(/type="radio"/g)||[]).length,WEB_GOLD_PACKS.length);
+ assert.doesNotMatch(page,/110,000원/);
+ assert.match(page,/원결제수단|결제에 사용한 카드로만/);
  for(const pack of WEB_GOLD_PACKS){
   assert.ok(page.includes(`value="${pack.gold}" data-price="${pack.price}" data-bonus-gold="${pack.bonus_gold}" data-total-gold="${pack.total_gold}"`));
   assert.ok(page.includes(`${pack.total_gold.toLocaleString('ko-KR')} <small>G</small>`));
