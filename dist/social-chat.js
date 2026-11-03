@@ -233,7 +233,7 @@ function bindSocialChat(view){
   const vv=window.visualViewport,geometry=window.AifectMobileInput?.measure();if(geometry?.scaled)return;
   const keyboard=mobileChat()&&!!geometry?.keyboard&&document.documentElement.hasAttribute('data-mobile-keyboard');
   document.body.classList.toggle('chat-keyboard',keyboard);
-  if(workspace&&!mobileChat()){workspace.style.height='';panel.style.height='';anchor();return;}
+  if(workspace&&!mobileChat()){panel.style.height='';anchor();return;}
   const bottom=geometry?.bottom??((vv?.height||innerHeight)+(vv?.offsetTop||0));
   const header=document.querySelector('.topbar')?.getBoundingClientRect();
   const top=workspace&&mobileChat()?(keyboard?(geometry?.top||0):(header?.bottom??90)):target.getBoundingClientRect().top;
