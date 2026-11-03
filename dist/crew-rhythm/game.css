@@ -134,10 +134,37 @@ button:focus-visible { outline: 3px solid var(--cyan); outline-offset: 2px; }
 @media (max-width: 520px) { .res-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } .startrow { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 
-.lobby { grid-template-columns: minmax(0, 1fr); max-width: 850px; margin-inline: auto; }
 .startrow { grid-template-columns: 1fr; }
 a.iconbtn { text-decoration: none; color: var(--ink); }
 .overlay { overflow-y: auto; }
 @media (max-height: 530px) { .overlay { align-items: start; } }
 [hidden] { display: none !important; }
-.lobby { width: min(100%, 850px); }
+.lobby { grid-template-columns: minmax(180px,.8fr) minmax(0,2.1fr) minmax(215px,.95fr); }
+.lobby h2, .lobby h3, .result-song h2 { margin: .35em 0; }
+.lobby p { line-height: 1.55; margin: .6em 0; }
+.lobby small,.result-song small { color: #a4f2e6; letter-spacing: .09em; }
+.stat { display: block; font: italic 800 clamp(20px,2.4vw,36px) var(--num); color: #90ffeb; }
+.info hr { border: 0; border-top: 1px solid var(--edge); margin: 16px 0; }
+.info .howto { grid-template-columns: 1fr; }
+.preview { aspect-ratio: 4 / 3; border: 1px solid #45427a; }
+.result-song { display: flex; align-items: center; gap: 14px; text-align: left; padding: 12px; border: 1px solid var(--edge); border-radius: 15px; background: #171c35; }
+.result-song img { width: 62px; height: 62px; border-radius: 10px; }
+.result .panel { border-color: #7770ac; }
+.res-score { text-shadow: 0 0 20px #c366cc80; }
+.result .notice { text-align: center; color: #acffeb; border-color: #426b72; }
+@media(max-width: 950px) {
+  .lobby { grid-template-columns: minmax(0,1fr) minmax(0,1fr); }
+  .center { grid-column: 1 / -1; grid-row: 1; }
+}
+@media(max-width: 620px) {
+  .lobby { grid-template-columns: minmax(0,1fr); }
+  .stats { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .stats .card:first-child { grid-column: 1 / -1; }
+  .preview { aspect-ratio: 1.45; }
+  .info .howto { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+
+
+.mobile-song { grid-column: 1 / -1; display:flex; align-items:center; gap:9px; }
+.mobile-song img { width:34px; height:34px; border-radius:7px; }
+.mobile-song small { margin-left:auto; color:var(--pink); }

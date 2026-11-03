@@ -16,7 +16,12 @@
     <button class="iconbtn" id="rulesBtn" type="button">? 게임 규칙</button>
   </div>
 
-  <div class="lobby">
+  <main class="lobby">
+    <aside class="col stats" aria-label="내 연습 기록">
+      <div class="glass card"><small>CREW ARCADE</small><h2>리듬게임 대기실</h2><p class="muted">네 개의 레인에서 비트에 맞춰 연습해 보세요.</p></div>
+      <div class="glass card"><small id="bestDiff">HARD</small><h3>내 연습 최고 점수</h3><strong class="stat" id="practiceBest">기록 없음</strong><p class="muted">이번 접속 · 선택 난이도</p></div>
+      <div class="glass card"><h3>최대 콤보</h3><strong class="stat" id="practiceCombo">—</strong></div>
+    </aside>
     <div class="col center">
       <div class="glass card">
         <div class="song">
@@ -41,13 +46,17 @@
           <span>연습은 횟수 제한 없이 즐길 수 있어요</span>
           <span id="noteCount"></span>
         </div>
-        <div class="howto">
+      </div>
+    </div>
+    <aside class="col info" aria-label="랭킹과 조작 안내">
+      <div class="glass card"><small>RANKINGS</small><h3>크루 랭킹</h3><p class="muted">공식 집계 전</p><hr><h3>개인 랭킹</h3><p class="muted">연습 기록은 순위에 반영되지 않아요.</p></div>
+      <div class="glass card"><h3>조작 안내</h3><div class="howto">
           <div><b>일반 노트</b>판정선에 닿을 때 한 번 누르기</div>
           <div><b>롱노트</b>머리에서 누르고 끝까지 유지</div>
           <div><b>PC</b><span class="keys"><kbd>F</kbd><kbd>G</kbd><kbd>H</kbd><kbd>J</kbd></span> · Esc 일시정지</div>
           <div><b>모바일</b>4개 레인 터치 · 여러 손가락 동시 입력</div>
-          <div><b>체력</b>BAD·MISS·헛누름마다 줄고, 0이 되면 바로 게임 오버</div>
-          <div><b>연타 금지</b>노트 없는 레인과 같이 누르면 BAD</div>
+          <div><b>체력</b>BAD·MISS 판정에서 줄고, 0이 되면 바로 게임 오버</div>
+          <div><b>빈 레인</b>다른 키를 함께 눌러도 점수와 콤보가 유지돼요</div>
         </div>
         <div class="sync" style="margin-top:12px">
           <span>싱크 조절</span>
@@ -57,9 +66,8 @@
           <span style="font-size:12px">블루투스 이어폰이면 + 쪽으로</span>
         </div>
       </div>
-    </div>
-
-  </div>
+    </aside>
+  </main>
 </div>
 
 <!-- 플레이 전용 레이어 -->
@@ -77,7 +85,7 @@
       <div class="lifewrap">LIFE<div class="life"><i id="lifePc"></i></div></div>
       <button class="pausebtn" id="pauseBtnPc" type="button" aria-label="일시정지">❚❚</button>
     </div>
-    <div class="glass mobilehud">
+    <div class="glass mobilehud"><div class="mobile-song"><img src="/crew-rhythm/cover.webp" alt=""><b>Double Tap[♥]</b><small id="diffM"></small></div>
       <div class="big score" id="scoreM">0</div>
       <div class="big combo" id="comboM">0<small>COMBO</small></div>
       <button class="pausebtn" id="pauseBtnM" type="button" aria-label="일시정지">❚❚</button>
@@ -111,7 +119,7 @@
 
   <div class="overlay result" id="resultOv" hidden>
     <div class="glass panel">
-      <div class="res-top"><span class="chip" id="resKind">연습</span><span class="chip pink" id="resDiff">HARD</span><span class="chip pink" id="resEnd" hidden></span></div>
+      <div class="result-song"><img src="/crew-rhythm/cover.webp" alt=""><div><small>플레이 결과</small><h2>Double Tap[♥]</h2><span>RIRI</span></div></div><div class="res-top"><span class="chip" id="resKind">연습</span><span class="chip pink" id="resDiff">HARD</span><span class="chip pink" id="resEnd" hidden></span></div>
       <div class="muted">최종 점수</div>
       <div class="big res-score" id="resScore">0</div>
       <div class="res-meta">
@@ -129,7 +137,7 @@
       <div class="notice" id="resNotice"></div>
       <div class="btnrow">
         <button class="cta alt" id="lobbyBtn" type="button">⌂ 대기실로</button>
-        <button class="cta alt" id="practiceAgainBtn" type="button">◎ 연습 다시하기</button>
+        <button class="cta" id="practiceAgainBtn" type="button">◎ 연습 다시하기</button>
       </div>
     </div>
   </div>

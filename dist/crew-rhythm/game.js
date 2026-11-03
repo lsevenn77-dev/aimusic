@@ -5,9 +5,7 @@
     weight: { perfect: 1, great: .8, good: .5, bad: 0, miss: 0 },
     window: { perfect: .045, great: .090, good: .135, bad: .180 },   // ±초. bad 범위 밖으로 지나가면 MISS
     // 체력: 0이 되면 즉시 게임 오버. BAD·MISS는 콤보도 끊김
-    life: { start: 100, perfect: 1, great: .5, good: 0, bad: -6, miss: -10, ghost: -2 },
-    // 노트 없는 레인을 누른 "헛누름"과 이 시간 안에 맞춘 노트는 BAD (4키 연타 방지)
-    mashWindow: .08,
+    life: { start: 100, perfect: 1, great: .5, good: 0, bad: -6, miss: -10 },
     comboBonus: .10,            // 기본점 × 10% × (최대 콤보 / 전체 노트)
     longReleaseGrace: .12,      // 롱노트 끝 이 시간 전부터 떼도 성공
     leadIn: 2.2,                // 시작 전 노트가 내려오는 준비 시간
@@ -37,16 +35,19 @@
   let actx = null, decoded = null;
 
   // ───────── 공통 렌더러: 레인·노트·링이 같은 좌표계를 씀 ─────────
-  // d = (노트 시간 - 현재) / lookahead. d=0 판정선, d=1 먼 곳. scale = 1 / (1 + K·d)
-  const K = 4.2;
+  // A shared projection keeps note travel, lane edges and touch targets aligned.
   function makeView(w, h, mobile) {
-    const judgeY = h * (mobile ? .80 : .80);
-    const horizon = h * (mobile ? .17 : .16);
-    const span = mobile ? w * .96 : Math.min(w * .62, h * 1.02);
+    const judgeY = h * .84;
+    const horizon = h * .08;
+    const span = mobile ? w * .96 : Math.min(w * .82, h * 1.65);
     return { w, h, cx: w / 2, judgeY, horizon, span };
   }
-  const sc = d => 1 / (1 + K * Math.max(-.2, d));
-  const projY = (v, d) => v.horizon + (v.judgeY - v.horizon) * sc(d);
+  function depth(d) {
+    const z = Math.max(-.2, d);
+    return z / (.78 + .32 * z);
+  }
+  const sc = d => 1 - .64 * depth(d);
+  const projY = (v, d) => v.judgeY - (v.judgeY - v.horizon) * depth(d);
   const projX = (v, frac, d) => v.cx + (frac - .5) * v.span * sc(d);
 
   function drawStage(c, v, now, notes, look, fx, pressed, opts = {}) {
@@ -59,7 +60,7 @@
     c.fillStyle = 'rgba(200,210,255,.5)';
     for (let i = 0; i < 70; i++) { const x = (i * 137.5) % w, y = ((i * 71.3) % (v.horizon + 120)); c.fillRect(x, y, 1.4, 1.4); }
     // 이퀄라이저 (양쪽)
-    if (opts.eq) drawEq(c, v, opts.eq);
+    drawEq(c, v, opts.eq, now);
 
     // 레인 바닥 (판정선 아래 조금 + 먼 곳)
     const dFar = 1.15, dNear = -.16;
@@ -151,7 +152,7 @@
 
   // 입력 링: 어두운 중심 + 이중 발광 테두리, 성공한 레인만 타격광
   function drawRing(c, v, i, isDown, fx, now, labels) {
-    const x = projX(v, (i + .5) / 4, 0), y = v.judgeY, rx = v.span / 4 * .36, ry = rx * .36;
+    const x = projX(v, (i + .5) / 4, 0), y = v.judgeY, rx = v.span / 4 * .36, ry = rx * .45;
     const col = LANE_COLORS[i];
     const hit = fx && fx[i] && now - fx[i].t < .22 ? fx[i] : null;
     const k = hit ? 1 - (now - hit.t) / .22 : 0;
@@ -179,17 +180,22 @@
     }
   }
 
-  function drawEq(c, v, data) {
-    const n = 14, bw = Math.max(6, v.w * .008), gap = bw * .6;
+  function drawEq(c, v, data, now) {
+    const n = 12, margin = v.w * .022;
+    const bottom = projY(v, .32);
+    const available = projX(v, 0, .32) - margin * 2;
+    const step = Math.min(v.w * .011, available / n);
+    const bw = step * .7;
+    if (bw < 1) return;
     for (const side of [-1, 1]) {
-      const x0 = side < 0 ? v.cx - v.span * .62 - n * (bw + gap) : v.cx + v.span * .62;
-      if (x0 < 0 || x0 + n * (bw + gap) > v.w + 1) continue;
+      const x0 = side < 0 ? margin : v.w - margin - n * step;
       for (let i = 0; i < n; i++) {
-        const val = data[(i * 3 + (side > 0 ? 7 : 2)) % data.length] / 255;
+        const val = data ? data[(i * 3 + (side > 0 ? 7 : 2)) % data.length] / 255
+          : .45 + .32 * Math.sin(now * 3 + i * .8 + side);
         const bars = Math.round(val * 14);
         for (let b = 0; b < bars; b++) {
           c.fillStyle = hexA(b > 10 ? '#ff5fae' : b > 6 ? '#b46bff' : '#6a5cff', .55);
-          c.fillRect(x0 + i * (bw + gap), v.judgeY - 40 - b * (bw * .75 + 2), bw, bw * .75);
+          c.fillRect(x0 + i * step, bottom - b * (bw * .75 + 2), bw, bw * .75);
         }
       }
     }
@@ -211,7 +217,12 @@
   }
 
   // ───────── 대기실 ─────────
+  const practiceBests = new Map();
   function updateLobby() {
+    const best = practiceBests.get(diff);
+    $('practiceBest').textContent = best ? fmt(best.score) : '기록 없음';
+    $('practiceCombo').textContent = best ? fmt(best.combo) : '—';
+    $('bestDiff').textContent = diff.toUpperCase();
     if (CHART) $('noteCount').textContent = `${diff.toUpperCase()} 노트 ${notesFor(diff).length}개`;
     document.querySelectorAll('.diff').forEach(b => b.setAttribute('aria-pressed', b.dataset.d === diff));
     $('syncVal').textContent = $('syncVal2').textContent = `${syncMs > 0 ? '+' : ''}${syncMs} ms`;
@@ -236,7 +247,7 @@
     if (!previewNotes) previewNotes = notesFor(diff);
     const now = 14 + (ts / 1000) % 16;
     pctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const v = makeView(r.width, r.height, false); v.span = Math.min(r.width * .7, r.height * 1.25); v.horizon = r.height * .05; v.judgeY = r.height * .82;
+    const v = makeView(r.width, r.height, r.width <= 720);
     const fx = [];
     for (const n of previewNotes) if (!n.len && n.t <= now && n.t > now - .2) fx[n.lane] = { t: n.t };
     drawStage(pctx, v, now, previewNotes.filter(n => n.t + (n.len || 0) > now - .1), RULES.lookahead[diff], fx, null, {});
@@ -282,7 +293,7 @@
     G = {
       gain, diff, notes, total: notes.length, look: RULES.lookahead[diff],
       counts: { perfect: 0, great: 0, good: 0, bad: 0, miss: 0 }, combo: 0, maxCombo: 0,
-      life: RULES.life.start, beam: [-9, -9, -9, -9], recent: [], lastGhost: -9, endReason: '',
+      life: RULES.life.start, beam: [-9, -9, -9, -9], endReason: '',
       fx: [], judgeText: null, analyser, eq: new Uint8Array(analyser.frequencyBinCount),
       startAt: actx.currentTime + RULES.leadIn, src: null, paused: false, ended: false,
       lastT: notes.reduce((m, n) => Math.max(m, n.t + n.len), 0),
@@ -292,7 +303,7 @@
     document.body.classList.add('playing');
     $('lobbyView').hidden = true; $('play').hidden = false;
     $('resultOv').hidden = true; $('pauseOv').hidden = true;
-    $('hudDiff').textContent = diff.toUpperCase();
+    $('hudDiff').textContent = $('diffM').textContent = diff.toUpperCase();
     $('readyMeta').textContent = `RIRI · ${diff.toUpperCase()} · 연습 모드`;
     $('readyHint').textContent = matchMedia('(pointer: coarse)').matches ? '레인을 터치해서 입력해요' : 'F G H J 로 입력해요';
     $('readyOv').hidden = false;
@@ -333,29 +344,16 @@
       if (dt < -RULES.window.bad) break;   // 노트는 시간순, 아직 먼 노트
       if (Math.abs(dt) <= RULES.window.bad) { best = n; break; }
     }
-    G.recent = G.recent.filter(h => t - h.t <= RULES.mashWindow);
-    if (!best) { ghostPress(t); return; }
-    let j = judgeOf(t - best.t);
-    if (t - G.lastGhost <= RULES.mashWindow) j = 'bad';   // 직전에 헛누름이 있었으면 BAD
-    if (best.len && j !== 'bad') { best.holding = true; best.judge = j; G.fx[lane] = { t, j }; G.recent.push({ t, note: best }); }
-    else { best.done = true; register(j, lane); G.recent.push({ t, note: best, j }); }
-  }
-  // 노트가 없는 레인을 누름: 체력 감소 + 바로 앞뒤로 같이 맞춘 노트를 BAD로 낮춤
-  function ghostPress(t) {
-    G.lastGhost = t;
-    for (const h of G.recent) downgrade(h, t);
-    G.recent = [];
-    G.judgeText = G.judgeText && t - G.judgeText.t < .05 ? G.judgeText : { j: 'bad', t, ghost: true };
-    addLife(RULES.life.ghost);
-    hud();
-  }
-  function downgrade(h, t) {
-    const n = h.note;
-    if (n.holding) { n.holding = false; n.done = true; register('bad', n.lane); return; }
-    if (!h.j || h.j === 'bad' || h.j === 'miss') return;
-    G.counts[h.j]--; G.counts.bad++; G.combo = 0;
-    addLife(RULES.life.bad - RULES.life[h.j]);
-    h.j = 'bad'; G.judgeText = { j: 'bad', t };
+    if (!best) return;
+    const j = judgeOf(t - best.t);
+    if (best.len && j !== 'bad') {
+      best.holding = true;
+      best.judge = j;
+      G.fx[lane] = { t, j };
+    } else {
+      best.done = true;
+      register(j, lane);
+    }
   }
   function release(lane, t = songTime()) {
     if (!G) return;
@@ -399,7 +397,6 @@
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const mobile = r.width <= 720;
     const v = makeView(r.width, r.height, mobile);
-    if (!mobile) v.horizon = r.height * .13 + 60;
     const t = songTime();
     if (!G.paused && !G.ended) update();
     // 준비 카운트다운
@@ -468,7 +465,16 @@
     $('resBonus').textContent = '+' + fmt(res.bonus);
     $('rP').textContent = G.counts.perfect; $('rG').textContent = G.counts.great; $('rO').textContent = G.counts.good; $('rM').textContent = G.counts.miss;
 
-    $('resNotice').textContent = '연습 결과는 공식 순위에 반영되지 않아요.';
+    const previous = practiceBests.get(G.diff);
+    const improved = !previous || res.total > previous.score;
+    practiceBests.set(G.diff, {
+      score: Math.max(res.total, previous?.score ?? 0),
+      combo: Math.max(G.maxCombo, previous?.combo ?? 0)
+    });
+    $('resNotice').textContent = previous
+      ? (improved ? '연습 최고 기록 갱신 · +' + fmt(res.total - previous.score) + '점' : '이번 접속 최고 기록 · ' + fmt(previous.score) + '점')
+      : '이번 접속의 첫 연습 기록';
+
     $('pauseOv').hidden = true; $('readyOv').hidden = true; $('resultOv').hidden = false;
   }
   function toLobby() {
