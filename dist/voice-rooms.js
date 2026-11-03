@@ -94,7 +94,7 @@ class VoiceRoomClient {
    this.joinRequest=this.joinRequest||crypto.randomUUID();
    const started=Date.now(),s=await voiceRequest(this.path('join'),{request_id:this.joinRequest});this.joinRequest=null;if(s.serverNow)this.musicClock=s.serverNow-(started+Date.now())/2;
    if(this.closed){void voiceRequest(this.path('leave'),{generation:s.generation}).catch(()=>{});return;}
-   this.generation=s.generation;this.state=s;if(typeof VoiceDiagnostics!=='undefined'&&!this.diagnostics)this.diagnostics=new VoiceDiagnostics(this);this.joined=true;setVoiceFocus(true);this.onViewport?.();this.retries=0;this.paint();this.socket();
+   this.generation=s.generation;this.state=s;if(typeof VoiceDiagnostics!=='undefined'&&!this.diagnostics)this.diagnostics=new VoiceDiagnostics(this);this.joined=true;setVoiceFocus(true);this.onViewport?.();this.retries=0;this.paint();if(this.closed)return;this.socket();
    clearInterval(this.heartbeat);this.heartbeat=setInterval(()=>this.refresh().catch(e=>this.connectionError(e)),20000);
    if(this.liveMode)this.status('실시간 연결됨 · 청취 중');await this.receive();
    void api('/api/dm').then(d=>{if(!this.closed&&$('#voice-contacts'))$('#voice-contacts').innerHTML='<option value="">친구 선택</option>'+d.conversations.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');}).catch(()=>{});

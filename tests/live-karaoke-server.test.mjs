@@ -15,7 +15,7 @@ test('live Site bridge creates karaoke rooms, lists only available consented ori
  assert.deepEqual((await f.search(r,state,'')).body.tracks,[]);
  const queued=await f.command(r,state,'request',{track_id:'one',track:{id:'no-rights',title:'Forged title',duration:9999}});
  assert.equal(queued.status,200,JSON.stringify(queued.body));
- const selected=queued.body.karaoke.queue[0].track;
+ const selected=queued.body.karaoke.active.track;
  assert.deepEqual([selected.id,selected.title,selected.duration],['one','Live one',120]);
  const bridge=f.calls.findLast(x=>x.path.endsWith('/karaoke')).body;
  assert.equal(bridge.input.track.id,'one');assert.equal(bridge.actor.id,'owner');
@@ -41,7 +41,7 @@ test('live APIs reject anonymous requests, missing and stale generations, non-me
  assert.equal(bad.status,401);
  const joined=await f.join(r),before=r.room.data.karaoke.queue.length;
  const after=await f.command(r,joined,'request',{track_id:'one',actor:{id:'owner'}},'other');
- assert.equal(after.status,200,JSON.stringify(after.body));assert.equal(after.body.karaoke.queue[before].user_id,'other');
+ assert.equal(after.status,200,JSON.stringify(after.body));assert.equal(after.body.karaoke.active.user_id,'other');
 });
 
 test('live queue ownership and one-singer permissions are enforced through the Site endpoints',async t=>{

@@ -178,7 +178,7 @@ test('nickname call, next card and horizontal reservation controls preserve esca
  const {c,host,nodes}=context();
  c.client={closed:false,host,state:{self:'self',room:{mode:'karaoke'},members:[{id:'self',role:'host'},{id:'next',name:'<코코>',profile_id:'p'}],karaoke:{active:null,queue:[{user_id:'next',name:'stale',track:{id:'song',title:'예약곡',artist:'가수'}}],phase:'idle'}}};
  vm.runInContext('paintLiveKaraoke(client)',c);
- assert.match(nodes.get('#live-actions').innerHTML,/&lt;코코>님 부르기/);
+ assert.doesNotMatch(nodes.get('#live-actions').innerHTML,/karaoke-call/);
  assert.doesNotMatch(nodes.get('#live-actions').innerHTML,/<코코>|다음 가창자/);
  assert.match(nodes.get('#live-next-card').innerHTML,/예약곡/);assert.equal(nodes.get('#live-next-card').hidden,false);
  assert.match(nodes.get('#live-queue').innerHTML,/&lt;코코>/);
@@ -189,13 +189,13 @@ test('nickname call, next card and horizontal reservation controls preserve esca
 
 test('invitation countdown follows server time and accept completes before microphone setup without extra refresh',async()=>{
  const now=100000,clock={now:()=>now};const {c,host,nodes}=context({Date:clock});let mic=0,refresh=0,seen;
- const state={self:'self',room:{mode:'karaoke'},members:[{id:'self',name:'코코',role:'host'}],karaoke:{phase:'invited',inviteExpiresAt:now+10500,active:{user_id:'self',invitation_id:'nonce',track:{id:'song',title:'곡',artist:'가수',duration:90}},queue:[]}};
+ const state={self:'self',room:{mode:'karaoke'},members:[{id:'self',name:'코코',role:'host'}],karaoke:{phase:'invited',inviteExpiresAt:now+15500,active:{user_id:'self',invitation_id:'nonce',track:{id:'song',title:'곡',artist:'가수',duration:90}},queue:[]}};
  c.client={closed:false,host,state,musicClock:500,liveTrack:'song',command:async(_path,b)=>{seen=b;assert.equal(mic,0);return {...state,karaoke:{...state.karaoke,phase:'ready',inviteExpiresAt:0}};},acceptState(s){this.state=s;return true;},refresh:async()=>{refresh++;},enableMic:async()=>{mic++;}};
- vm.runInContext('paintLiveKaraoke(client)',c);assert.equal(nodes.get('#live-phase').textContent,'응답 대기 · 10초');assert.equal(nodes.get('#live-invite').hidden,false);
+ vm.runInContext('paintLiveKaraoke(client)',c);assert.equal(nodes.get('#live-phase').textContent,'응답 대기 · 15초');assert.equal(nodes.get('#live-invite').hidden,false);
  await vm.runInContext('liveKaraokeAction(client,"karaoke-accept","nonce")',c);
  assert.equal(seen.invitation_id,'nonce');assert.equal(mic,1);assert.equal(refresh,0);assert.equal(nodes.get('#live-invite').hidden,false);
  state.karaoke.inviteExpiresAt=now; c.client.state=state;
- vm.runInContext('liveSync(client)',c);assert.equal(nodes.get('[data-voice="karaoke-accept"]').disabled,true);assert.equal(nodes.get('#live-phase').textContent,'다음 예약자로 이동 중');
+ vm.runInContext('liveSync(client)',c);assert.equal(nodes.get('[data-voice="karaoke-begin"]').disabled,true);assert.equal(nodes.get('#live-phase').textContent,'다음 예약자로 이동 중');
 });
 
 test('song picker opens through the existing dialog manager without issuing a search or microphone request',async()=>{
@@ -215,10 +215,10 @@ test('static search button is re-enabled after a request finishes',()=>{
 
 test('microphone preparation shows its own clock and disables expired start while retaining give up',()=>{
  let now=100000;const {c,host,nodes}=context({Date:{now:()=>now}});
- c.client={closed:false,host,musicClock:500,liveTrack:'song',liveAudio:{readyState:2,paused:true},liveWords:[{e:1,w:[]}],state:{self:'self',room:{mode:'karaoke'},members:[{id:'self',role:'host',publishing:true,muted:false}],karaoke:{phase:'ready',readyExpiresAt:now+10500,active:{user_id:'self',invitation_id:'nonce',track:{id:'song',title:'곡',artist:'가수',duration:90}},queue:[]}}};
- vm.runInContext('paintLiveKaraoke(client)',c);assert.equal(nodes.get('#live-phase').textContent,'마이크 준비 · 10초');assert.equal(nodes.get('[data-voice="karaoke-start"]').disabled,false);
+ c.client={closed:false,host,musicClock:500,liveTrack:'song',liveAudio:{readyState:2,paused:true},liveWords:[{e:1,w:[]}],state:{self:'self',room:{mode:'karaoke'},members:[{id:'self',role:'host',publishing:true,muted:false}],karaoke:{phase:'ready',readyExpiresAt:now+15500,active:{user_id:'self',invitation_id:'nonce',track:{id:'song',title:'곡',artist:'가수',duration:90}},queue:[]}}};
+ vm.runInContext('paintLiveKaraoke(client)',c);assert.equal(nodes.get('#live-phase').textContent,'마이크 준비 · 15초');assert.equal(nodes.get('[data-voice="karaoke-begin"]').disabled,false);
  assert.match(nodes.get('#live-actions').innerHTML,/노래 포기/);assert.doesNotMatch(nodes.get('#live-actions').innerHTML,/노래 종료/);
- now+=10000;vm.runInContext('liveSync(client)',c);assert.equal(nodes.get('[data-voice="karaoke-start"]').disabled,true);assert.equal(nodes.get('#live-phase').textContent,'다음 예약자로 이동 중');
+ now+=15000;vm.runInContext('liveSync(client)',c);assert.equal(nodes.get('[data-voice="karaoke-begin"]').disabled,true);assert.equal(nodes.get('#live-phase').textContent,'다음 예약자로 이동 중');
 });
 
 test('an unanswered microphone permission prompt does not block abandoning the turn',async()=>{
@@ -227,4 +227,16 @@ test('an unanswered microphone permission prompt does not block abandoning the t
  c.client={closed:false,host,state,liveTrack:'song',command:async(_path,b)=>{operations.push(b.operation);return {...state,karaoke:{...state.karaoke,phase:b.operation==='accept'?'ready':'idle',active:b.operation==='accept'?state.karaoke.active:null,readyExpiresAt:Date.now()+10000}};},acceptState(s){this.state=s;return true;},enableMic:()=>new Promise(resolve=>{releaseMic=resolve;})};
  const accept=vm.runInContext('liveKaraokeAction(client,"karaoke-accept","nonce")',c);await new Promise(resolve=>setImmediate(resolve));assert.equal(c.client.liveCommandPending,false);
  await vm.runInContext('liveKaraokeAction(client,"karaoke-abandon","nonce")',c);assert.deepEqual(operations,['accept','abandon']);releaseMic();await accept;
+});
+
+test('one singer gesture accepts, connects microphone and starts once; listeners cannot begin',async()=>{
+ const {c,host,nodes}=context();const operations=[];
+ const member={id:'self',name:'나',role:'participant',publishing:false,muted:true};
+ const k={phase:'invited',inviteExpiresAt:Date.now()+15000,active:{user_id:'self',invitation_id:'id',track:{id:'song',title:'곡',artist:'A',duration:120}},queue:[]};
+ c.client={host,liveTrack:'song',state:{self:'self',room:{mode:'karaoke'},members:[member],karaoke:k},liveAudio:{play:async()=>{},pause(){},paused:true,readyState:2},liveWords:[{e:1,w:[]}],
+  async command(path,b){operations.push(b.operation);k.phase=b.operation==='accept'?'ready':'singing';k.readyExpiresAt=Date.now()+15000;k.startsAt=Date.now()+3000;return this.state;},
+  acceptState(){return true;},async enableMic(){operations.push('mic');member.publishing=true;member.muted=false;}};
+ vm.runInContext('paintLiveKaraoke(client)',c);assert.match(nodes.get('#live-actions').innerHTML,/>시작</);
+ const begin=()=>vm.runInContext('liveKaraokeAction(client,"karaoke-begin","id")',c);
+ await Promise.all([begin(),begin()]);assert.deepEqual(operations,['accept','mic','start']);assert.equal(k.phase,'singing');
 });

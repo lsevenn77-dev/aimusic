@@ -7,7 +7,7 @@ Object.assign(VoiceRoomClient.prototype,{
   if(this.host.classList?.contains('talking-room')){
    const settings=$('#voice-settings-form');settings.classList.add('talk-settings-form');
    settings.onsubmit=busyForm(settings,()=>this.saveTalkSettings(settings));this.bindTalkViews();
-  }else $('#voice-settings-form').onsubmit=busyForm($('#voice-settings-form'),async()=>{const values=Object.fromEntries(new FormData($('#voice-settings-form')));await this.command('settings',{...values,max_members:Number(values.max_members),revision:this.settingsRevision});await this.refresh();if(this.liveMode)window.dispatchEvent(new Event('aifect:room-theme'));if(!$('#voice-room-settings').classList.contains('talk-docked'))$('#voice-room-settings').close();else await this.openSettings();});
+  }else $('#voice-settings-form').onsubmit=busyForm($('#voice-settings-form'),async()=>{const values=Object.fromEntries(new FormData($('#voice-settings-form')));const saved=await this.command('settings',{...values,max_members:Number(values.max_members),revision:this.settingsRevision});this.acceptState(saved);if(this.closed)return;await this.refresh();if(this.closed)return;if(this.liveMode)window.dispatchEvent(new Event('aifect:room-theme'));if(!$('#voice-room-settings').classList.contains('talk-docked'))$('#voice-room-settings').close();else await this.openSettings();});
   const supported=navigator.mediaDevices?.getSupportedConstraints?.()||{};
   for(const [id,key] of [['voice-echo','echoCancellation'],['voice-noise','noiseSuppression']])if(supported[key]===false){$('#'+id).disabled=true;$('#'+id).title='이 브라우저에서 지원하지 않는 설정이에요.';}
   $('#voice-echo').checked=this.preferences.echo;$('#voice-echo').onchange=()=>this.safe(async()=>{this.preferences.echo=$('#voice-echo').checked;await this.stream?.getAudioTracks()[0]?.applyConstraints({echoCancellation:this.preferences.echo});});
@@ -151,7 +151,7 @@ Object.assign(VoiceRoomClient.prototype,{
   if(this.closed||ticket!==this.settingsTicket)return;
   this.settingsRevision=s.settings_revision||0;
   $('#voice-settings-crew').innerHTML='<option value="">크루 선택</option>'+options.crews.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
-  for(const key of ['title','visibility','max_members','crew_id','background','announcement'])if(form.elements[key])form.elements[key].value=s[key]??({background:'navy',max_members:30,announcement:''}[key]||'');
+  for(const key of ['mode','title','visibility','max_members','crew_id','background','announcement'])if(form.elements[key])form.elements[key].value=s[key]??({mode:'karaoke',background:'navy',max_members:30,announcement:''}[key]||'');
   this.updateDesignField(form.elements.announcement);this.updateDesignField(form.elements.visibility[0]);
   const theme=await voiceRequest(this.path('theme'));
   if(this.closed||ticket!==this.settingsTicket)return;
@@ -369,6 +369,7 @@ Object.assign(VoiceRoomClient.prototype,{
    this.talkSettingsKey=key;this.settingsRevision=room.settings_revision||0;
    for(const form of this.host.querySelectorAll('.talk-settings-form')){
     for(const key of ['title','visibility','max_members','crew_id','announcement'])form.elements[key].value=room[key]??'';
+    if(form.elements.mode)form.elements.mode.value=room.mode||'talk';
     form.elements.theme_sku.value=room.theme?.sku||room.theme_sku||room.background||'navy';
     for(const el of form.elements)el.disabled=!owner;
     this.talkFormDetails(form);
@@ -397,7 +398,7 @@ Object.assign(VoiceRoomClient.prototype,{
   const values=Object.fromEntries(new FormData(form));
   try{
    const state=await this.command('settings',{...values,max_members:Number(values.max_members),revision:this.settingsRevision});
-   this.acceptState(state);await this.refresh();
+   this.acceptState(state);if(this.closed)return;await this.refresh();if(this.closed)return;
    if(form.id==='voice-settings-form')$('#voice-room-settings').close();
    toast('방 설정을 저장했어요.');
   }finally{this.savingTalkSettings=false;}
@@ -434,6 +435,7 @@ Object.assign(VoiceRoomClient.prototype,{
     this.fillTalkCrews();
     const original=$('#voice-settings-form');
     for(const name of ['title','visibility','max_members','crew_id','announcement','theme_sku'])form.elements[name].value=original.elements[name].value;
+    if(form.elements.mode)form.elements.mode.value=original.elements.mode.value;
     this.talkFormDetails(form);
    }
    for(const el of dock.querySelector('form').elements)el.disabled=!owner;

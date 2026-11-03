@@ -6,8 +6,8 @@ This candidate preserves the existing Sites identity, storage bindings, room the
 
 - Song search returns up to 40 eligible public songs with lean title/artist metadata. It retains rights, MR/lyrics, visibility and blocked-creator checks, without querying listening/comment/gift aggregates or decorating room inventory for the search permission check.
 - The stage uses the selected room background. Chat/participants remain on the right on desktop; the song-request entry and horizontally scrolling queue sit below the stage. Mobile stacks these regions. The supplied starry background was a layout example, not an asset request.
-- The host calls the named next singer. Only that singer may accept the matching invitation within 10 seconds. The persisted absolute deadline and Durable Object alarm advance past absent/locked users and cannot advance the same invitation twice.
-- Accepting starts a separate 10-second microphone/MR preparation window. Failure to start in time retires pending microphone media and advances to the next reservation. The deadline survives reloads and retries; older ready rooms get one new 10-second window on upgrade. Singing still begins after the existing 3-second countdown. Listeners do not request microphone access.
+- Reservations advance automatically in FIFO order. The current singer has 15 seconds to press Start. The same click opens microphone setup and starts the three-second countdown once the microphone publishes and MR is ready. A separate 15-second setup deadline allows the queue to advance if permission or audio never becomes ready.
+- The host may switch between talking and karaoke in room settings. Saving a different type immediately stops playback and clears queued songs, seat requests and live media. The room ID, host, membership and chat are retained.
 
 ## Matched rollout and rollback
 
