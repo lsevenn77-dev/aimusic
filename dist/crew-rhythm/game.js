@@ -130,11 +130,12 @@
   function rr(c, x, y, w, h, r) { r = Math.min(r, h / 2, w / 2); c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
 
   const NOTE_INSET = .09;
+  const noteHeight = (v, scale, size) => Math.max(4, v.span * .034 * scale * size);
   // 입체 캡슐 노트: 아래 두께 → 몸통 → 위 반사광
   function drawNote(c, v, lane, d, sizeMul) {
     const s = sc(d), inset = NOTE_INSET / 4;
     const xl = projX(v, lane / 4 + inset, d), xr = projX(v, (lane + 1) / 4 - inset, d);
-    const y = projY(v, d), hgt = Math.max(4, v.span * .034 * s * sizeMul), w = xr - xl;
+    const y = projY(v, d), hgt = noteHeight(v, s, sizeMul), w = xr - xl;
     const col = LANE_COLORS[lane];
     c.save();
     c.fillStyle = hexA(col, .55); rr(c, xl, y - hgt / 2 + hgt * .32, w, hgt, hgt / 2); c.fill();          // 두께
@@ -166,7 +167,7 @@
   function drawPad(c, v, i, isDown, fx, now, labels) {
     const x = projX(v, (i + .5) / 4, 0);
     const rx = v.span / 8 * (1 - 2 * NOTE_INSET);
-    const ry = Math.max(4, Math.min(10, rx * .09));
+    const ry = noteHeight(v, sc(0), 1) / 2;
     const y = v.judgeY + 5 + ry;
     const col = LANE_COLORS[i];
     const hit = fx && fx[i] && now - fx[i].t < .22 ? fx[i] : null;
@@ -180,14 +181,13 @@
       c.strokeStyle = hexA(col, .9 * k); c.lineWidth = 2;
       for (let a = 0; a < 9; a++) { const ang = Math.PI + (a / 8) * Math.PI, L = rx * (1.2 + (a % 3) * .35) * (1.2 - k * .4); c.beginPath(); c.moveTo(x + Math.cos(ang) * rx * .5, y + Math.sin(ang) * ry); c.lineTo(x + Math.cos(ang) * L, y + Math.sin(ang) * L * .9); c.stroke(); }
     }
-    c.fillStyle = isDown || hit ? hexA(col, .35 + k * .4) : 'rgba(4,6,18,.9)';
-    rr(c, x - rx, y - ry, rx * 2, ry * 2, 3); c.fill();
-    c.shadowColor = col; c.shadowBlur = 5 + k * 8;
-    c.strokeStyle = col; c.lineWidth = 2; c.stroke();
+    c.translate(0, y - v.judgeY);
+    c.globalAlpha = isDown ? 1 : .48 + k * .52;
+    drawNote(c, v, i, 0, 1);
     c.restore();
     if (labels) {
       c.save(); c.font = `italic 800 ${Math.round(rx * .42)}px "Exo 2", sans-serif`; c.textAlign = 'center'; c.fillStyle = 'rgba(238,241,255,.9)';
-      c.fillText(labels[i], x, y + ry + Math.min(rx * .55, v.h * .1)); c.restore();
+      c.fillText(labels[i], x, Math.min(v.h - 3, y + ry * 1.64 + Math.min(rx * .55, v.h * .1))); c.restore();
     }
   }
 
