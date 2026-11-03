@@ -40,10 +40,11 @@ test('crew settings follow live staff roles and legacy management links land on 
   const view=c.crewDetailView({...detail,membership:role?{role}:null},'crew','manage');
   assert.equal(view.html.includes('aria-label="크루 설정"'),['owner','deputy','manager','operator'].includes(role));
   assert.match(view.html,/class="work-browser"/);
+  const header=view.html.match(/<header class="crew-detail-header[\s\S]*?<\/header>/)[0];
+  assert.equal(header.includes('href="#crew-jump/crew"'),!!role);
   assert.doesNotMatch(view.html,/tab=manage|data-crew-member=|crew-cover-bg/);
   assert.deepEqual([...view.html.matchAll(/class="tab [^"]*" href="([^"]+)"/g)].map(m=>m[1]),[
    '#crew/crew?tab=music','#crew/crew?tab=members','#crew/crew?tab=notice','#crew/crew?tab=about','#community/crews?browse=1',
-   ...(role?['#crew-jump/crew']:[])
   ]);
  }
 });

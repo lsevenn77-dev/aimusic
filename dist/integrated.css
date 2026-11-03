@@ -45,9 +45,6 @@
 
 /* Crew detail: the discovery welcome surface keeps its own cover treatment. */
 .crew-page .crew-detail-header {padding-block:4px 0}
-.crew-page .crew-room-tabs.has-game {width:100%}
-.crew-page .crew-room-tabs .crew-game-entry {margin-inline-start:auto;color:var(--ds-selected);font-weight:700;text-decoration:none}
-.crew-page .crew-game-entry:hover,.crew-page .crew-game-entry:focus-visible {text-decoration:underline;text-underline-offset:4px}
 .crew-page .crew-identity {display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:clamp(12px,2vw,24px)}
 .crew-page .crew-detail-picture {display:grid;place-items:center;width:128px;aspect-ratio:1;border-radius:var(--ds-radius-card,16px);overflow:hidden;background:var(--ds-panel);color:var(--ds-body)}
 .crew-page .crew-detail-picture img {display:block;width:100%;height:100%;object-fit:cover}
@@ -81,8 +78,6 @@
  .crew-page .crew-member-profile {--face:54px}
  .crew-page .crew-room-tabs {max-width:100%;gap:18px}
  .crew-page .crew-room-tabs .tab {flex:0 0 auto;min-height:44px;font-size:14px}
- .crew-page .crew-room-tabs.has-game {flex-wrap:wrap;column-gap:clamp(8px,3vw,16px);row-gap:0}
- .crew-page .crew-game-entry {font-size:14px}
 }
 /* Crew management shares the profile menu surface and confines scrolling to each dialog's body. */
 .crew-settings-anchor {position:relative;align-self:start}
@@ -277,4 +272,19 @@ dialog.crew-action-dialog,
  h2 { margin: 0 32px 12px 0; }
  form:not([hidden]) { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
  .form-field, .checkbox-line, .form-error { margin: 0; }
+}
+
+.crew-identity:has(.crew-game-entry) {grid-template-columns:auto minmax(0,1fr) auto auto}
+.crew-identity .crew-game-entry {display:inline-flex;align-items:center;gap:10px;min-height:54px;padding:4px 14px 4px 7px;border:1px solid var(--ds-selected);border-radius:14px;text-decoration:none;color:var(--ds-text);background:linear-gradient(115deg,#3a2e55,#192c38);box-shadow:0 2px 12px #aa86ff22}
+.crew-game-entry img {object-fit:contain}
+.crew-game-entry span {display:grid;gap:2px}
+.crew-game-entry small {color:var(--ds-mint);font-size:11px}
+.crew-game-entry strong {font-size:16px}
+.crew-game-entry i {font-style:normal;color:var(--ds-selected)}
+.crew-game-entry:hover,.crew-game-entry:focus-visible {outline:2px solid var(--ds-mint);outline-offset:2px}
+@media(max-width:600px){
+ .crew-identity:has(.crew-game-entry) {grid-template-columns:auto minmax(0,1fr) auto}
+ .crew-identity .crew-game-entry {grid-column:2;grid-row:2;justify-self:start;min-height:44px}
+ .crew-identity .crew-game-entry img {width:36px;height:36px}
+ .crew-identity:has(.crew-game-entry) .crew-settings-anchor {grid-column:3;grid-row:1}
 }
