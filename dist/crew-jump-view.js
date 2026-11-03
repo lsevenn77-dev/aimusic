@@ -2,6 +2,18 @@ import {stageRenderer} from './crew-jump-art/stage.js';
 import {gameSounds} from './crew-jump-art/sounds.js';
 import {start,step,VERSION,LIMIT,HZ,multiplier,FLOOR,WIDTH,HEIGHT,RUNNER_X} from './crew-jump-core.js';
 
+const looks=[
+ {id:'runner',name:'육상선수룩',price:500,unit:'S'},
+ {id:'street',name:'스트릿룩',price:500,unit:'S'},
+ {id:'idol',name:'아이돌룩',price:50,unit:'G'},
+ {id:'suit',name:'정장룩',price:100,unit:'G'},
+ {id:'princess',name:'공주룩',price:200,unit:'G'}
+];
+function shelf(unit){
+ const group=looks.filter(look=>look.unit===unit);
+ return '<section class="arc-outfit-group"><h3>'+(unit==='S'?'실버 의상':'골드 의상')+'</h3><div>'+group.map(look=>
+  '<button type="button" class="arc-look" data-look="'+look.id+'" aria-pressed="false"><img src="/crew-jump-art/outfits/'+look.id+'.webp" width="160" height="205" alt=""><b>'+look.name+'</b><span>'+look.price+' '+unit+'</span></button>').join('')+'</div></section>';
+}
 export function mount(root,{crew,viewer,api,esc}){
  const url='/api/crews/'+encodeURIComponent(crew)+'/jump';
  root.innerHTML=`<link rel="stylesheet" href="/crew-jump.css"><section class="jump-club"><header><a class="text-link" href="#crew/${encodeURIComponent(crew)}">‹ 크루로</a><div><button class="small-button" data-pause hidden>일시정지</button> <button class="small-button" data-rules>게임 규칙</button></div></header>
@@ -16,20 +28,16 @@ export function mount(root,{crew,viewer,api,esc}){
     </section>
     <section class="jump-shop arc-tile" aria-labelledby="jump-shop-title">
      <h2 id="jump-shop-title">의상 상점</h2>
-     <svg class="arc-hanger" viewBox="0 0 120 74" aria-hidden="true"><path d="M49 19a11 11 0 1 1 18 8l-7 5v4l41 22q10 7-2 9H21q-13-2-2-9l36-20" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><path d="m16 6 2 5 5 2-5 2-2 5-2-5-5-2 5-2zm86 20 1.5 4 4 1.5-4 1.5-1.5 4-1.5-4-4-1.5 4-1.5z" fill="currentColor"/></svg>
+     <div class="arc-look-window" aria-hidden="true"><img src="/crew-jump-art/outfits/street.webp" alt=""><img src="/crew-jump-art/outfits/idol.webp" alt=""><img src="/crew-jump-art/outfits/princess.webp" alt=""></div>
      <small>실버 의상 · 골드 의상</small><button class="small-button arc-pill" data-shop>둘러보기 <span aria-hidden="true">›</span></button>
     </section>
     <section class="arc-result arc-tile" aria-label="내 게임 결과"><h2>✧ 게임 결과 ✧</h2><div data-result-card></div></section>
    </div>
    <div class="jump-brief" aria-live="polite">내 도전 정보를 불러오는 중…</div>
   </section>
-  <dialog class="surface jump-dialog arc-store-dialog" aria-labelledby="arc-store-title"><h2 id="arc-store-title">의상 상점</h2><p>캐릭터 의상 미리보기</p>
-    <div class="jump-shop-shelves">
-     <div class="jump-outfit silver"><span class="jump-currency" aria-hidden="true">S</span><div><b>실버 의상</b><small>의상 준비 중</small></div></div>
-     <div class="jump-outfit gold"><span class="jump-currency" aria-hidden="true">G</span><div><b>골드 의상</b><small>의상 준비 중</small></div></div>
-    </div>
-
-   <button class="small-button" data-shop-close>닫기</button></dialog>
+  <dialog class="surface jump-dialog arc-store-dialog" aria-labelledby="arc-store-title"><header><h2 id="arc-store-title">의상 상점</h2><button type="button" class="small-button" data-shop-close>닫기</button></header>
+   <div class="arc-fitting"><div class="arc-run-model" aria-hidden="true"></div><div aria-live="polite"><small>달리기 미리보기</small><h3 data-look-name></h3><b data-look-price></b></div></div>
+   <div class="arc-look-shelves"></div><p class="arc-look-note">지금은 의상 미리보기만 가능해요. 실버와 골드는 차감되지 않아요.</p></dialog>
  <div class="jump-stage" hidden aria-label="점프게임"><canvas width="960" height="540" tabindex="0" aria-label="스페이스 또는 화면을 눌러 점프"></canvas><div class="jump-hud" hidden><span>점수 <b>0</b></span><span>남은 시간 <b>60초</b></span><span>콤보 <b>0</b></span><small class="jump-speed"></small></div><div class="jump-overlay"></div></div>
  <div class="jump-summary" aria-live="polite"></div><dialog class="surface jump-dialog"><h2>주간 게임 규칙</h2><p>화면을 누르거나 스페이스바로 점프하세요. 공중에서 한 번 더 점프할 수 있어요. 장애물에 닿으면 도전이 끝나요.</p><p>별 젤리를 연속으로 모으면 콤보 보너스! 10초마다 속도가 1.2배가 되고 60초에 완주합니다.</p><p>공식 도전은 하루 3회. 한국시간 월요일 0시부터 금요일 22시까지, 크루원별 주간 최고점 상위 10개를 합산해요. 참여 미션 보상은 크루 경험치이며, 현재 지급은 꺼져 있어요. 리듬게임 교대는 준비 중이에요.</p><button class="primary-button" data-close>확인</button></dialog></section>`;
  const $=s=>root.querySelector(s),canvas=$('canvas'),ctx=canvas.getContext('2d'),layer=$('.jump-overlay'),hud=$('.jump-hud'),summary=$('.jump-summary'),dialog=$('.jump-dialog:not(.arc-store-dialog)'),shop=$('.arc-store-dialog');
@@ -150,8 +158,22 @@ export function mount(root,{crew,viewer,api,esc}){
    layer.classList.add('counting');layer.textContent='3';canvas.focus({preventScroll:true});draw();summary.textContent=official?'공식 도전':'연습 모드';frame=requestAnimationFrame(advance);
   }catch(e){if(!dead){if(e.status===409)requestId=null;await refresh();if(!dead){summary.hidden=false;summary.textContent=e.message}}}
  }
+ function previewLook(look){
+  $('.arc-run-model').style.backgroundImage='url("/crew-jump-art/outfits/'+look.id+'-run.webp")';
+  $('[data-look-name]').textContent=look.name;
+  $('[data-look-price]').textContent=look.price+' '+look.unit;
+  shop.querySelectorAll('[data-look]').forEach(el=>el.setAttribute('aria-pressed',String(el.dataset.look===look.id)));
+ }
  listen(root,'click',e=>{
-  if(e.target.closest('[data-shop]')&&!shop.open)shop.showModal();
+  if(e.target.closest('[data-shop]')&&!shop.open){
+   if(!shop.querySelector('[data-look]')){
+    $('.arc-look-shelves').innerHTML=shelf('S')+shelf('G');
+    previewLook(looks[0]);
+   }
+   shop.showModal();
+  }
+  const selected=e.target.closest('[data-look]');
+  if(selected&&shop.contains(selected))previewLook(looks.find(look=>look.id===selected.dataset.look));
   if(e.target.closest('[data-shop-close]'))shop.close();
   if(e.target.closest('[data-close]'))dialog.close();
   if(e.target.closest('[data-rules]')&&!['starting','countdown','play'].includes(phase))dialog.showModal();
