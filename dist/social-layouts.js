@@ -15,6 +15,7 @@ function crewHeroHTML(c,m){
    {title:'점프게임',subtitle:'별빛 점프',art:'/crew-jump-art/arcade-cheer.webp',href:'#crew-jump/'+crewId},
    {title:'레이싱게임',subtitle:'크루 레이싱',art:'/crew-racing/cover.svg',href:'/crew-racing/?from=crew&crew='+crewId}
  ];
+ if(m?.fishing_preview)games.push({title:'낚시게임',subtitle:'별물결 낚시터',art:'/crew-fishing/art/shore.svg',href:'/crew-fishing/?crew='+crewId});
  const game=m?`<nav class="crew-game-entries" aria-label="크루게임">${games.map(g=>`<a class="crew-game-entry" href="${esc(g.href)}"><img src="${g.art}" width="48" height="48" alt=""><span><small>${g.subtitle}</small><strong>${g.title}</strong></span><i aria-hidden="true">›</i></a>`).join('')}</nav>`:'';
  const next=c.next_xp==null?'최고 레벨':'다음 레벨까지 '+number(Math.max(0,c.next_xp-c.xp))+' XP';
  return `<header class="crew-detail-header crew-frame-${frame}">

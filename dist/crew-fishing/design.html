@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>크루 낚시 어종 도감 시안 · AIFECT</title>
+<style>
+:root{color-scheme:dark;--bg:#0c121b;--panel:#131b26;--text:#f8fafc;--body:#bec1c9;--muted:#a5aeba;--line:#2d3846;--mint:#8eddd2;--sans:"DM Sans","Noto Sans KR","Malgun Gothic",sans-serif;--mono:"SFMono-Regular",Consolas,monospace}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);word-break:keep-all}
+.board,.board *{box-sizing:border-box}
+.board{max-width:1240px;margin:auto;padding:0 clamp(16px,4vw,52px) 64px}
+.board a{color:inherit;text-decoration:none}
+.board a:focus-visible{outline:2px solid var(--mint);outline-offset:4px}
+.mast{min-height:61px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);gap:12px}
+.mark{display:inline-flex;align-items:center;gap:10px;font:600 11px/1 var(--mono);letter-spacing:.11em;color:var(--mint)}
+.mark svg{width:23px;height:23px}.back{display:inline-flex;min-height:44px;align-items:center;gap:7px;font-size:13px;color:var(--body)!important}
+.intro{position:relative;padding:clamp(32px,5vw,56px) 0 27px;overflow:hidden}
+.intro:after{position:absolute;content:"";right:0;top:1%;height:98%;width:min(35%,360px);background:url("./art/galaxy-leviathan.webp") center/contain no-repeat;pointer-events:none}
+.kicker,.field,.serial,.chapter-no,.endnote{font-family:var(--mono);font-size:11px;letter-spacing:.09em;font-variant-numeric:tabular-nums}
+.kicker{color:var(--mint);margin:0 0 10px}
+.intro h1{font-size:clamp(29px,3.5vw,47px);font-weight:750;letter-spacing:-.07em;margin:0 0 13px;line-height:1.16}
+.intro p:last-child{margin:0 0 4px;font-size:14px;line-height:1.7;color:var(--body);max-width:61%}
+.jump{display:flex;align-items:center;gap:4px 8px;flex-wrap:wrap;padding:0 0 17px;border-bottom:1px solid var(--line)}
+.jump a{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:0 12px;min-height:44px;background:var(--panel);border:1px solid var(--line);border-radius:10px;font-size:13px;font-weight:650}
+.jump a:hover{border-color:var(--mint)}.jump b{font:11px var(--mono);color:var(--muted)}
+.common{--tone:#c6cece;--wash:#253333}.rare{--tone:#94c7eb;--wash:#223244}.unique{--tone:#d1b5f3;--wash:#352e44}.legend{--tone:#edc985;--wash:#3a3433}.mythic{--tone:#f4b3d6;--wash:#382e42}
+.chapter{margin:38px 0 52px;scroll-margin-top:14px}
+.chap-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.chapter-no{font-size:12px;color:var(--tone);letter-spacing:.04em}
+.chap-head h2{font-size:23px;line-height:1.25;margin:0;letter-spacing:-.045em}.chap-head h2 span{font-size:13px;font-weight:500;color:var(--muted);margin-left:5px}
+.chap-head>p{font-size:13px;color:var(--body);margin:0 0 0 auto}
+.specimens{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:28px 16px}
+.specimen{min-width:0}
+.plate{position:relative;border-radius:11px;overflow:hidden;isolation:isolate;background:radial-gradient(ellipse at 52% 56%,var(--wash),#18222e 75%);aspect-ratio:1.75}
+.plate:before{content:"";position:absolute;inset:0;z-index:-1;background:repeating-linear-gradient(0deg,transparent 0 22px,#d2e9ee06 22px 23px),repeating-linear-gradient(90deg,transparent 0 22px,#d2e9ee06 22px 23px)}
+.plate img{width:100%;height:100%;display:block;object-fit:contain;position:relative;padding:9px 11px 5px}
+.serial{position:absolute;left:11px;top:10px;font-size:10px;color:var(--tone);letter-spacing:.05em}
+.ticks{position:absolute;bottom:9px;left:11px;width:33px;height:4px;border-bottom:1px solid #a9bbca88;background:repeating-linear-gradient(to right,#a9bbca88 0 1px, transparent 1px 8px)}
+.caption{margin:10px 0 4px;display:flex;align-items:baseline;flex-wrap:wrap;gap:2px 8px}
+.caption h3{font-size:16px;line-height:1.4;letter-spacing:-.04em;margin:0}
+.size{margin-left:auto;white-space:nowrap;color:var(--tone);font:600 14px var(--mono);letter-spacing:-.05em}.size small{font-size:10px;letter-spacing:0}
+.specimen>p{margin:0;color:var(--body);font-size:13px;line-height:1.6}
+.foot{border-top:1px solid var(--line);padding:16px 0;display:flex;align-items:center;justify-content:space-between;color:var(--muted);font-size:12px;gap:12px}
+.foot a{display:inline-flex;align-items:center;min-height:44px}
+.sr{position:absolute;width:1px;height:1px;clip-path:inset(50%);overflow:hidden;white-space:nowrap}
+@media(max-width:900px){.specimens{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:640px){.board{padding-bottom:24px}.mast{min-height:52px}.specimens{grid-template-columns:repeat(2,minmax(0,1fr));gap:23px 10px}.intro{padding:26px 0 17px}.intro:after{display:none}.intro p:last-child{max-width:none;font-size:13px}.jump{gap:5px}.jump a{padding:0 8px;gap:4px;min-height:44px;font-size:12px}.chapter{margin:25px 0 38px}.chap-head{gap:8px;margin-bottom:11px}.chap-head h2{font-size:21px}.chap-head>p{flex-basis:100%;margin:0}.plate{aspect-ratio:1.52}.plate img{padding:8px 3px 2px}.serial{top:7px;left:8px;font-size:9px}.ticks{bottom:6px;left:8px}.caption{margin-top:8px}.caption h3{font-size:15px}.size{font-size:13px}.specimen>p{font-size:12px}.foot{align-items:baseline}.endnote{font-size:9px}}
+@media(max-width:350px){.specimens{grid-template-columns:minmax(0,1fr)}.plate{aspect-ratio:2}.jump{row-gap:4px}.jump a{min-width:48px}}
+@media print{body{background:#fff;color:#141c23}.board{max-width:none;padding:0}.mast,.jump,.intro:after,.foot,.ticks{display:none}.intro{padding:0}.intro p:last-child,.chap-head>p,.specimen>p,.size,.kicker,.chapter-no,.chap-head h2 span{color:#384454}.chapter{margin:20px 0}.specimens{grid-template-columns:repeat(3,minmax(0,1fr))}.specimen{break-inside:avoid}.plate{print-color-adjust:exact}.chapter h2{break-after:avoid}}
+</style>
+</head>
+<body>
+<main class="board" id="top">
+<header class="mast"><div class="mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M2.5 12q5-7.6 12-3l4.8-3-1.2 6 1.2 5.8-4.8-2.8q-7.2 4.6-12-3Z"/><circle cx="7.2" cy="11.3" r=".8" fill="currentColor" stroke="none"/></svg>AIFECT / FIELD NOTES</div><a class="back" href="./index.html"><span aria-hidden="true">←</span> 낚시터</a></header>
+<div class="intro">
+<p class="kicker">FIELD GUIDE &nbsp; / &nbsp; VOL. 01</p><h1>크루 낚시 어종 도감</h1>
+<p>등급별 어종 후보 27종. 이름과 외형은 검토 중이며, 기준 길이는 게임에서 개체 크기를 정할 때 사용할 제안값입니다.</p>
+</div>
+<nav class="jump" aria-label="등급별 어종으로 이동">
+<a href="#common">일반 <b>10</b></a>
+<a href="#rare">레어 <b>8</b></a>
+<a href="#unique">유니크 <b>5</b></a>
+<a href="#legend">전설 <b>3</b></a>
+<a href="#mythic">신화 <b>1</b></a>
+</nav>
+<section class="chapter common" id="common" aria-labelledby="common-title">
+  <header class="chap-head"><span class="chapter-no" aria-hidden="true">01 /</span><h2 id="common-title">일반 <span>10종</span></h2><p>연안에서 만나는 열 가지 표정</p></header>
+  <div class="specimens">
+        <article class="specimen">
+          <div class="plate"><span class="serial">NO. 01</span><img src="./art/tidal-anchovy.webp" width="240" height="144" alt="은줄멸치 일러스트" decoding="async"><span class="ticks" aria-hidden="true"></span></div>
+          <div class="caption"><h3>은줄멸치</h3><span class="size"><span class="sr">게임 기준 길이 </span>12 <small>cm</small></span></div>
+          <p>은색 몸통 한가운데 바늘처럼 가는 청록색 줄이 뻗는다.</p>
+        </article>
+        <article class="specimen">
+          <div class="plate"><span class="serial">NO. 02</span><img src="./art/pebble-goby.webp" width="240" height="144" alt="자갈망둑 일러스트" decoding="async"><span class="ticks" aria-hidden="true"></span></div>
+          <div class="caption"><h3>자갈망둑</h3><span class="size"><span class="sr">게임 기준 길이 </span>16 <small>cm</small></span></div>
+          <p>넓적한 머리와 두툼한 가슴지느러미 위로 자갈색 반점이 흩어져 있다.</p>
+        </article>
+        <article class="specimen">
+          <div class="plate"><span class="serial">NO. 03</span><img src="./art/kelp-wrasse.webp" width="240" height="144" alt="다시마놀래기 일러스트" decoding="async"><span class="ticks" aria-hidden="true"></span></div>
+          <div class="caption"><h3>다시마놀래기</h3><span class="size"><span class="sr">게임 기준 길이 </span>22 <small>cm</small></span></div>
+          <p>긴 등지느러미 아래로 짙은 해초색 띠가 비스듬히 흐른다.</p>
+        </article>
+        <article class="specimen">
+          <div class="plate"><span class="serial">NO. 04</span><img src="./art/ring-bream.webp" width="240" height="144" alt="고리도미 일러스트" decoding="async"><span class="ticks" aria-hidden="true"></span></div>
+          <div class="caption"><h3>고리도미</h3><span class="size"><span class="sr">게임 기준 길이 </span>27 <small>cm</small></span></div>
+          <p>납작하고 둥근 은빛 옆구리에 검은 고리 하나가 찍혀 있다.</p>
+        </article>
+        <article class="specimen">
+          <div class="plate"><span class="serial">NO. 05</span><img src="./art/ribbon-halfbeak.webp" width="240" height="144" alt="바늘학공치 일러스트" decoding="async"><span class="ticks" aria-hidden="true"></span></div>
+          <div class="caption"><h3>바늘학공치</h3><span class="size"><span class="sr">게임 기준 길이 </span>34 <small>cm</small></span></div>
+          <p>길게 튀어나온 아래턱 끝이 주홍빛이고 몸은 은빛 바늘처럼 가늘다.</p>
+        </article>
+        <article class="specimen">
+          <div class="plate"><span class="serial">NO. 06</span><img src="./art/sand-flounder.webp" width="240" height="144" alt="모래가자미 일러스트" decoding="async"><span class="ticks" aria-hidden="true"></span></div>
+          <div class="caption"><h3>모래가자미</h3><span class="size"><span class="sr">게임 기준 길이 </span>31 <small>cm</small></span></div>
+          <p>마름모꼴 몸 한쪽에 두 눈이 모여 있고 잔점이 모래알처럼 박혀 있다.</p>
+        </article>
+        <article class="specimen">
+          <div class="plate"><span class="serial">NO. 07</span><img src="./art/copper-mullet.webp" width="240" height="144" alt="구리숭어 일러스트" decoding="async"><span class="ticks" aria-hidden="true"></span></div>
+          <div class="caption"><h3>구리숭어</h3><span class="size"><span class="sr">게임 기준 길이 </span>37 <small>cm</small></span></div>
+          <p>납작한 이마 뒤로 구리빛 가로줄 세 개가 꼬리까지 이어진다.</p>
+        </article>
+        <article class="specimen">
+          <div class="plate"><span class="serial">NO. 08</span><img src="./art/stripe-perch.webp" width="240" height="144" alt="줄무늬농어 일러스트" decoding="async"><span class="ticks" aria-hidden="true"></span></div>
+          <div class="caption"><h3>줄무늬농어</h3><span class="size"><span class="sr">게임 기준 길이 </span>45 <small>cm</small></span></div>
+          <p>솟은 등가시 아래 연둣빛 옆구리를 어두운 세로줄이 가른다.</p>
+        </article>
+        <article class="specimen">
+          <div class="plate"><span class="serial">NO. 09</span><img src="./art/ember-clown.webp" width="240" height="144" alt="노을흰동가리 일러스트" decoding="async"><span class="ticks" aria-hidden="true"></span></div>
+          <div class="caption"><h3>노을흰동가리</h3><span class="size"><span class="sr">게임 기준 길이 </span>11 <small>cm</small></span></div>
+          <p>귤빛 몸을 흰 띠 세 개가 감싸고 둥근 지느러미 끝은 먹빛이다.</p>
+        </article>
+        <article class="specimen">
+          <div class="plate"><span class="serial">NO. 10</span><img src="./art/ink-catfish.webp" width="240" height="144" alt="먹물메기 일러스트" decoding="async"><span class="ticks" aria-hidden="true"></span></div>
+          <div class="caption"><h3>먹물메기</h3><span class="size"><span class="sr">게임 기준 길이 </span>48 <small>cm</small></span></div>
+          <p>납작한 머리에서 긴 수염이 뻗고 매끈한 남빛 등이 꼬리로 굽는다.</p>
+        </article>
+  </div>
+</section>
+<section class="chapter rare" id="rare" aria-labelledby="rare-title">
+  <header class="chap-head"><span class="chapter-no" aria-hidden="true">02 /</span><h2 id="rare-title">레어 <span>8종</span></h2><p>지느러미와 몸의 형태가 독특한 여덟 종</p></header>
+  <div class="specimens">
+        <article class="specimen">
+          <div class="plate"><span class="serial">NO. 11</span><img src="./art/sky-flyer.webp" width="240" height="144" alt="유리날치 일러스트" decoding="async"><span class="ticks" aria-hidden="true"></span></div>
+          <div class="caption"><h3>유리날치</h3><span class="size"><span class="sr">게임 기준 길이 </span>33 <small>cm</small></span></div>
+          <p>반투명한 하늘빛 가슴지느러미가 두 겹 날개처럼 펼쳐진다.</p>
+        </article>
+        <article class="specimen">
+          <div class="plate"><span class="serial">NO. 12</span><img src="./art/moon-puffer.webp" width="240" height="144" alt="달점복어 일러스트" decoding="async"><span class="ticks" aria-hidden="true"></span></div>
+          <div class="caption"><h3>달점복어</h3><span class="size"><span class="sr">게임 기준 길이 </span>24 <small>cm</small></span></div>
+          <p>둥글게 부푼 배의 작은 가시 사이로 노란 달점이 떠 있다.</p>
+        </article>
+        <article class="specimen">
+          <div class="plate"><span class="serial">NO. 13</span><img src="./art/coral-horse.webp" width="240" height="144" alt="산호해마 일러스트" decoding="async"><span class="ticks" aria-hidden="true"></span></div>
+          <div class="caption"><h3>산호해마</h3><span class="size"><span class="sr">게임 기준 길이 </span>19 <small>cm</small></span></div>
+          <p>복숭앗빛 왕관돌기와 말린 꼬리 사이로 가는 마디가 이어진다.</p>
+        </article>
+        <article class="specimen">
+          <div class="plate"><span class="serial">NO. 14</span><img src="./art/lantern-angler.webp" width="240" height="144" alt="반딧불아귀 일러스트" decoding="async"><span class="ticks" aria-hidden="true"></span></div>
+          <div class="caption"><h3>반딧불아귀</h3><span class="size"><span class="sr">게임 기준 길이 </span>54 <small>cm</small></span></div>
+          <p>먹자색 머리 앞에 연두색 발광구가 매달리고 아랫턱에서 흰 이빨이 솟는다.</p>
+        </article>
+        <article class="specimen">
+          <div class="plate"><span class="serial">NO. 15</span><img src="./art/rose-scorpion.webp" width="240" height="144" alt="장밋빛쏠배감펭 일러스트" decoding="async"><span class="ticks" aria-hidden="true"></span></div>
+          <div class="caption"><h3>장밋빛쏠배감펭</h3><span class="size"><span class="sr">게임 기준 길이 </span>39 <small>cm</small></span></div>
+          <p>부채처럼 벌어진 가시와 긴 가슴지느러미에 적갈색 줄무늬가 번진다.</p>
+        </article>
+        <article class="specimen">
+          <div class="plate"><span class="serial">NO. 16</span><img src="./art/sail-marlin.webp" width="240" height="144" alt="쪽빛돛새치 일러스트" decoding="async"><span class="ticks" aria-hidden="true"></span></div>
+          <div class="caption"><h3>쪽빛돛새치</h3><span class="size"><span class="sr">게임 기준 길이 </span>145 <small>cm</small></span></div>
+          <p>긴 창 모양 주둥이 뒤에 점박이 남청색 돛지느러미가 솟는다.</p>
+        </article>
+        <article class="specimen">
+          <div class="plate"><span class="serial">NO. 17</span><img src="./art/lemon-box.webp" width="240" height="144" alt="레몬상자복 일러스트" decoding="async"><span class="ticks" aria-hidden="true"></span></div>
+          <div class="caption"><h3>레몬상자복</h3><span class="size"><span class="sr">게임 기준 길이 </span>21 <small>cm</small></span></div>
+          <p>각진 레몬빛 몸통에 검은 점이 박혀 있고 뒤에는 작은 꼬리가 달린다.</p>
+        </article>
+        <article class="specimen">
+          <div class="plate"><span class="serial">NO. 18</span><img src="./art/velvet-ray.webp" width="240" height="144" alt="자개가오리 일러스트" decoding="async"><span class="ticks" aria-hidden="true"></span></div>
+          <div class="caption"><h3>자개가오리</h3><span class="size"><span class="sr">게임 기준 길이 </span>78 <small>cm</small></span></div>
+          <p>넓적한 날개에 자개색 테두리가 돌고 가는 꼬리가 채찍처럼 휜다.</p>
+        </article>
+  </div>
+</section>
+<section class="chapter unique" id="unique" aria-labelledby="unique-title">
+  <header class="chap-head"><span class="chapter-no" aria-hidden="true">03 /</span><h2 id="unique-title">유니크 <span>5종</span></h2><p>빛과 광물의 질감을 지닌 다섯 종</p></header>
+  <div class="specimens">
+        <article class="specimen">
+          <div class="plate"><span class="serial">NO. 19</span><img src="./art/prism-butterfly.webp" width="240" height="144" alt="프리즘나비어 일러스트" decoding="async"><span class="ticks" aria-hidden="true"></span></div>
+          <div class="caption"><h3>프리즘나비어</h3><span class="size"><span class="sr">게임 기준 길이 </span>29 <small>cm</small></span></div>
+          <p>삼각형 옆구리를 사선으로 지나는 분홍·보라·민트빛 면이 프리즘을 이룬다.</p>
+        </article>
+        <article class="specimen">
+          <div class="plate"><span class="serial">NO. 20</span><img src="./art/comet-ribbon.webp" width="240" height="144" alt="혜성리본장어 일러스트" decoding="async"><span class="ticks" aria-hidden="true"></span></div>
+          <div class="caption"><h3>혜성리본장어</h3><span class="size"><span class="sr">게임 기준 길이 </span>115 <small>cm</small></span></div>
+          <p>가늘게 굽이치는 남보라색 몸 위에 혜성 같은 주황색 등 리본이 흐른다.</p>
+        </article>
+        <article class="specimen">
+          <div class="plate"><span class="serial">NO. 21</span><img src="./art/bell-barreleye.webp" width="240" height="144" alt="수정눈통안어 일러스트" decoding="async"><span class="ticks" aria-hidden="true"></span></div>
+          <div class="caption"><h3>수정눈통안어</h3><span class="size"><span class="sr">게임 기준 길이 </span>42 <small>cm</small></span></div>
+          <p>투명한 머리 속에 위를 향한 두 초록색 관 모양 눈이 비친다.</p>
+        </article>
+        <article class="specimen">
+          <div class="plate"><span class="serial">NO. 22</span><img src="./art/aurora-sunfish.webp" width="240" height="144" alt="오로라개복치 일러스트" decoding="async"><span class="ticks" aria-hidden="true"></span></div>
+          <div class="caption"><h3>오로라개복치</h3><span class="size"><span class="sr">게임 기준 길이 </span>163 <small>cm</small></span></div>
+          <p>보름달 같은 몸 위아래에 긴 지느러미가 나 있고 옆면에 세 줄 오로라가 번진다.</p>
+        </article>
+        <article class="specimen">
+          <div class="plate"><span class="serial">NO. 23</span><img src="./art/clock-coelacanth.webp" width="240" height="144" alt="태엽실러캔스 일러스트" decoding="async"><span class="ticks" aria-hidden="true"></span></div>
+          <div class="caption"><h3>태엽실러캔스</h3><span class="size"><span class="sr">게임 기준 길이 </span>136 <small>cm</small></span></div>
+          <p>둥근 살지느러미마다 청동빛 고리가 돌고 세 갈래 꼬리 가운데에 작은 돌기가 있다.</p>
+        </article>
+  </div>
+</section>
+<section class="chapter legend" id="legend" aria-labelledby="legend-title">
+  <header class="chap-head"><span class="chapter-no" aria-hidden="true">04 /</span><h2 id="legend-title">전설 <span>3종</span></h2><p>금속과 얼음의 색을 두른 세 종</p></header>
+  <div class="specimens">
+        <article class="specimen">
+          <div class="plate"><span class="serial">NO. 24</span><img src="./art/crown-sturgeon.webp" width="240" height="144" alt="황관철갑상어 일러스트" decoding="async"><span class="ticks" aria-hidden="true"></span></div>
+          <div class="caption"><h3>황관철갑상어</h3><span class="size"><span class="sr">게임 기준 길이 </span>198 <small>cm</small></span></div>
+          <p>금빛 골판이 왕관처럼 이어지고 긴 주둥이 아래에 수염이 달린다.</p>
+        </article>
+        <article class="specimen">
+          <div class="plate"><span class="serial">NO. 25</span><img src="./art/eclipse-manta.webp" width="240" height="144" alt="일식쥐가오리 일러스트" decoding="async"><span class="ticks" aria-hidden="true"></span></div>
+          <div class="caption"><h3>일식쥐가오리</h3><span class="size"><span class="sr">게임 기준 길이 </span>340 <small>cm</small></span></div>
+          <p>활처럼 벌어진 검은 날개에 금환 무늬가 있고 머리 양옆에 뿔지느러미가 말려 있다.</p>
+        </article>
+        <article class="specimen">
+          <div class="plate"><span class="serial">NO. 26</span><img src="./art/frost-drake.webp" width="240" height="144" alt="빙정해룡 일러스트" decoding="async"><span class="ticks" aria-hidden="true"></span></div>
+          <div class="caption"><h3>빙정해룡</h3><span class="size"><span class="sr">게임 기준 길이 </span>220 <small>cm</small></span></div>
+          <p>얼음 결정 같은 뿔과 투명한 잎지느러미가 청백색 몸을 따라 자란다.</p>
+        </article>
+  </div>
+</section>
+<section class="chapter mythic" id="mythic" aria-labelledby="mythic-title">
+  <header class="chap-head"><span class="chapter-no" aria-hidden="true">05 /</span><h2 id="mythic-title">신화 <span>1종</span></h2><p>별무리가 흐르는 바다의 거인</p></header>
+  <div class="specimens">
+        <article class="specimen">
+          <div class="plate"><span class="serial">NO. 27</span><img src="./art/galaxy-leviathan.webp" width="240" height="144" alt="은하고래상어 일러스트" decoding="async"><span class="ticks" aria-hidden="true"></span></div>
+          <div class="caption"><h3>은하고래상어</h3><span class="size"><span class="sr">게임 기준 길이 </span>820 <small>cm</small></span></div>
+          <p>넓적한 머리와 초승달 꼬리 사이로 은하수 같은 별무늬가 흐르고 긴 가슴지느러미가 극광처럼 빛난다.</p>
+        </article>
+  </div>
+</section>
+<footer class="foot"><span class="endnote">AIFECT &nbsp; / &nbsp; CREW FISHING</span><a href="#top">맨 위로 ↑</a></footer>
+</main>
+</body></html>
