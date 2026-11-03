@@ -16,7 +16,7 @@ function paint(name,html){
 }
 async function fetchAPI(action,data){
   const before=performance.now();
-  const response=await fetch('/api/crew-fishing/'+action,data?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}:{cache:'no-store'});
+  const response=await fetch('/api/crew-fishing/'+action+(action==='lobby' && new URLSearchParams(location.search).get('mode')==='practice'?'?mode=practice':''),data?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}:{cache:'no-store'});
   const result=await response.json();
   if(!response.ok)throw Error(result.error||'낚시 정보를 불러오지 못했어요.');
   if(result.serverTime)clockOffset=result.serverTime-(before+performance.now())/2;
@@ -42,7 +42,7 @@ async function openLobby(){
   lobby=await api('lobby');cast=lobby.cast;
   document.querySelector('#back').href='/#crew/'+encodeURIComponent(lobby.crew);
  document.body.classList.toggle('practice',Boolean(lobby.practice));
- if(lobby.practice){paint('lobby',`<div class="intro"><section class="hero"><div><small>CREW FISHING CLUB</small><h1>별물결 낚시터</h1><p>${esc(lobby.name)} 크루의 낚시터에서 별빛 아래 첫 입질을 기다려 보세요.</p><div class="actions"><button class="primary" data-act="start">${cast?'낚시 이어하기':'낚시 시작'}</button><span class="pill">연습 · 횟수 제한 없음</span></div></div></section><aside class="panel stats"><div><span>내 연습 어획액</span><strong>${fmt(lobby.mine)}점</strong></div><div><span>이번에 발견한 어종</span><strong>${fmt(lobby.discovered)} / 27</strong></div></aside></div><section class="panel"><h2>나의 연습 수집 기록</h2><p>이번에 낚은 물고기를 감상하세요. 새로고침하면 연습 기록이 초기화돼요.</p><div class="actions"><button data-act="aquarium">연습 수족관</button><button data-act="book">물고기 도감</button><a href="./design.html">27종 원화 보기</a></div></section>`);return;}
+ if(lobby.practice){paint('lobby',`<div class="intro"><section class="hero"><div><small>CREW FISHING CLUB</small><h1>별물결 낚시터</h1><p>${esc(lobby.name)} 크루의 낚시터에서 별빛 아래 첫 입질을 기다려 보세요.</p><div class="actions"><button class="primary" data-act="start">${cast?'낚시 이어하기':'낚시 시작'}</button><span class="pill">연습 · 횟수 제한 없음</span></div></div></section><aside class="panel stats"><div><span>내 연습 어획액</span><strong>${fmt(lobby.mine)}점</strong></div><div><span>이번에 발견한 어종</span><strong>${fmt(lobby.discovered)} / 27</strong></div></aside></div><section class="panel"><h2>나의 연습 수집 기록</h2><p>이번에 낚은 물고기를 감상하세요. 새로고침하면 연습 기록이 초기화돼요.</p><div class="actions"><button data-act="aquarium">연습 수족관</button><button data-act="book">물고기 도감</button><a href="./design.html">27종 원화 보기</a><a href="./">공식 낚시터</a></div></section>`);return;}
 
   paint('lobby',`<div class="intro"><section class="hero"><div><small>CREW FISHING CLUB</small><h1>별물결 낚시터</h1>
   <p>${esc(lobby.name)}의 공동 낚시터 · 오늘은 어떤 물고기가 찾아올까요?</p>
@@ -50,7 +50,7 @@ async function openLobby(){
   <aside class="panel stats"><div><span>내 주간 어획액</span><strong>${fmt(lobby.mine)}점</strong></div><div><span>크루 주간 어획액</span><strong>${fmt(lobby.ours)}점</strong></div><div><span>주간 남은 기회</span><strong>${lobby.weeklyRemaining} / 50</strong></div></aside></div>
   <div class="twocol">${rank('크루 랭킹',lobby.crews)}${rank('개인 랭킹',lobby.individual)}</div>
   <section class="panel"><div class="titlebar"><div><small>CREW COLLECTION</small><h2>우리 크루의 바다</h2></div></div>
-  <div class="links"><button data-act="aquarium">크루 수족관</button><button data-act="book">물고기 도감</button><a href="./design.html">27종 디자인 시안 ↗</a></div></section>
+  <div class="links"><button data-act="aquarium">크루 수족관</button><button data-act="book">물고기 도감</button><a href="./design.html">공식 어종 27종 보기 ↗</a><a href="?mode=practice">연습하기</a></div></section>
   <p class="caption">한국시간 월요일 0시 개장 · 금요일 22시 마감 · 평가액은 게임 랭킹 점수예요.</p>`);
 }
 function loop(){

@@ -43,11 +43,10 @@ export async function fishingRoute(req,env,path,user,ms=Date.now()){
     WHERE cm.user_id=?`,uid);
   if(!m)fail(403,'크루에 가입한 뒤 이용해주세요.');
   const crew=m.crew_id;
-  if(env.CREW_FISHING_PREVIEW!=='1'){
-    if(req.method==='GET' && action==='lobby')return json({practice:true,scope:uid+'|'+crew,crew,name:m.name,nickname:m.nickname,day,serverTime:ms});
-    if(req.method==='POST' && action==='practice-cast')return json({draw:encounter(),serverTime:ms});
-    fail(404,'공식 낚시는 아직 열리지 않았어요.');
+  if(req.method==='GET' && action==='lobby' && new URL(req.url).searchParams.get('mode')==='practice'){
+    return json({practice:true,scope:uid+'|'+crew,crew,name:m.name,nickname:m.nickname,day,serverTime:ms});
   }
+  if(req.method==='POST' && action==='practice-cast')return json({draw:encounter(),serverTime:ms});
   const active=()=>one(env,"SELECT * FROM crew_fishing_casts WHERE user_id=? AND crew_id=? AND day=? AND status='active'",uid,crew,day);
   const response=cast=>json({cast:view(cast),serverTime:ms});
   if(req.method==='GET' && action==='lobby'){

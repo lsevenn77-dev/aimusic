@@ -1,4 +1,4 @@
-// 검토용 어종 후보. 기준 길이는 게임 밸런스용 가안(cm)이다.
+// 공식 어종 도감. 표준 길이 단위는 cm.
 export const FISH = [
   {"id": "tidal-anchovy", "name": "은줄멸치", "tier": "common", "standardCm": 12, "appearance": "은색 몸통 한가운데 바늘처럼 가는 청록색 줄이 뻗는다."},
   {"id": "pebble-goby", "name": "자갈망둑", "tier": "common", "standardCm": 16, "appearance": "넓적한 머리와 두툼한 가슴지느러미 위로 자갈색 반점이 흩어져 있다."},

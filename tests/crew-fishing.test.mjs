@@ -1,5 +1,4 @@
 import test from 'node:test';
-import {readFileSync} from 'node:fs';
 import {practiceSession} from '../dist/crew-fishing/practice.js';
 import assert from 'node:assert/strict';
 import {fixture} from './fixture.mjs';
@@ -9,12 +8,11 @@ import {TIERS,SIZES,weighted,season,progressAfter} from '../dist/crew-fishing/ru
 
 const monday=Date.parse('2026-11-02T08:00:00+09:00');
 async function setup(t){
-  const f=await fixture(t,{CREW_FISHING_PREVIEW:'1'});
-  f.sql.exec(readFileSync(new URL('./fixtures/crew-fishing.sql',import.meta.url),'utf8'));
+  const f=await fixture(t);
   f.sql.exec("INSERT INTO crews(id,owner_id,name,created) VALUES('crew','owner','테스트 크루',0); INSERT INTO crew_members(crew_id,user_id,role,joined) VALUES('crew','owner','leader',0)");
   async function api(action,body,ms=monday,uid='owner'){
     const path='/api/crew-fishing/'+action;
-    return (await fishingRoute(new Request('https://aifect.test'+path,{method:body?'POST':'GET',body:body?JSON.stringify(body):undefined}),{DB:f.DB,CREW_FISHING_PREVIEW:'1'},path,{id:uid},ms)).json();
+    return (await fishingRoute(new Request('https://aifect.test'+path,{method:body?'POST':'GET',body:body?JSON.stringify(body):undefined}),{DB:f.DB},path.split('?')[0],{id:uid},ms)).json();
   }
   return {...f,api};
 }
@@ -122,4 +120,13 @@ test('practice replays keep only one fish and one award', async () => {
   await session.request('pull',{id:cast.id,seq:1});
   assert.equal(session.lobby().mine,100);
   assert.equal((await session.request('book')).records[0].count,1);
+});
+
+test('official lobby is the default and practice leaves the official quota intact', async t => {
+  const {api,sql} = await setup(t);
+  assert.equal((await api('lobby')).remaining, 10);
+  assert.equal((await api('lobby?mode=practice')).practice, true);
+  assert.ok((await api('practice-cast', {})).draw.fish);
+  assert.equal((await api('lobby')).remaining, 10);
+  assert.equal(sql.prepare('SELECT count(*) AS n FROM crew_fishing_casts').get().n, 0);
 });

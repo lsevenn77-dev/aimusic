@@ -383,3 +383,36 @@ export const crewRacingRuns=sqliteTable('crew_racing_runs',{
  crewId:text('crew_id').references(()=>crews.id,{onDelete:'set null'}), week:text('week').notNull(),
  course:text('course').notNull(), starts:integer('starts').notNull(), score:integer('score')
 },t=>[index('crew_racing_week').on(t.week,t.crewId,t.userId,t.score)]);
+
+export const crewFishingCasts = sqliteTable('crew_fishing_casts', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),
+  crewId: text('crew_id').notNull().references(()=>crews.id,{onDelete:'cascade'}),
+  nickname: text('nickname').notNull(),
+  requestId: text('request_id').notNull(),
+  day: text('day').notNull(),
+  week: text('week').notNull(),
+  fish: text('fish').notNull(),
+  grade: text('grade').notNull(),
+  length: integer('length').notNull(), // units of 0.0001 cm
+  amount: integer('amount').notNull(),
+  startMs: integer('start_ms').notNull(),
+  endMs: integer('end_ms'),
+  cycleMs: integer('cycle_ms').notNull(),
+  goal: integer('goal').notNull(),
+  target: integer('target').notNull(), // start of success zone in percent
+  width: integer('width').notNull(),
+  progress: integer('progress').notNull().default(0),
+  warnings: integer('warnings').notNull().default(0),
+  seq: integer('seq').notNull().default(0),
+  lastPass: integer('last_pass').notNull().default(-1),
+  status: text('status').notNull().default('active'),
+  notice: text('notice')
+}, t=>[
+  uniqueIndex('fishing_request').on(t.userId,t.requestId),
+  uniqueIndex('fishing_active').on(t.userId,t.crewId,t.day).where(sql`status='active'`),
+  index('fishing_quota').on(t.userId,t.week,t.day),
+  index('fishing_weekly').on(t.week,t.status,t.crewId,t.userId),
+  index('fishing_collection').on(t.crewId,t.status,t.fish,t.length),
+  check('fishing_status',sql`status IN ('active','caught','escaped')`)
+]);

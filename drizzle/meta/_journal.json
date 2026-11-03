@@ -624,6 +624,13 @@
       "when": 1793719821712,
       "tag": "0088_colossal_la_nuit",
       "breakpoints": true
+    },
+    {
+      "idx": 89,
+      "version": "6",
+      "when": 1793747627820,
+      "tag": "0089_crew_fishing",
+      "breakpoints": true
     }
   ]
 }
