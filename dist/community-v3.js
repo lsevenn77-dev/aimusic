@@ -179,12 +179,23 @@ function bindVoiceLobby(){
  const root=document.querySelector('.talk-directory');if(!root)return;
  const open=root.querySelector('#v3-create-room'),modal=root.querySelector('#v3-room-create'),form=modal.querySelector('form');
  const fields=form.elements,generate=form.querySelector('[data-auto-title]'),error=form.querySelector('.form-error');
- let requestId,suggestion='',generation=0,titleEdited=false,closing=false;
+ const crewChoice=form.querySelector('[name="visibility"][value="crew"]'),crewInfo=form.querySelector('.voice-crew-setting');
+ const capacityButtons=form.querySelectorAll('[data-capacity]');
+ let requestId,generation=0,closing=false,currentMode=null,titleDrafts={},currentCrew=null,crewIssue='';
  function updateMode(){
-  fields.title.required=fields.mode.value==='karaoke';
-  if(!titleEdited)fields.title.value=fields.title.required?'':suggestion;
+  if(currentMode)titleDrafts[currentMode]=fields.title.value;
+  currentMode=fields.mode.value==='karaoke'?'karaoke':'talk';
+  fields.mode.value=currentMode;fields.title.required=currentMode==='karaoke';
+  fields.title.value=titleDrafts[currentMode]||'';
  }
- function updateCrew(){form.querySelector('.voice-crew-setting').hidden=fields.visibility.value!=='crew';}
+ function updateCrew(){
+  crewInfo.hidden=!!currentCrew&&fields.visibility.value!=='crew';
+  crewInfo.textContent=currentCrew?'소속 크루 · '+currentCrew.name:crewIssue;
+ }
+ function updateCapacity(){
+  const value=fields.max_members.valueAsNumber;
+  for(const button of capacityButtons)button.setAttribute('aria-pressed',String(Number.isInteger(value)&&value===Number(button.dataset.capacity)));
+ }
  const viewport=window.visualViewport;
  function fitViewport(){
   if(!viewport||!modal.open)return;
@@ -206,27 +217,33 @@ function bindVoiceLobby(){
   open.dataset.opening='true';open.disabled=true;
   try{
    const options=await voiceRequest('options');if(!root.isConnected)return;
-   requestId=crypto.randomUUID();generation++;titleEdited=false;suggestion=options.suggested_title||'';
+   requestId=crypto.randomUUID();generation++;currentMode=null;
+   titleDrafts={talk:options.suggested_titles?.talk||options.suggested_title||'',karaoke:options.suggested_titles?.karaoke||''};
    form.reset();generate.disabled=false;error.textContent='';
    fields.mode.value=root.dataset.filter==='all'?root.dataset.defaultMode:root.dataset.filter;
    fields.visibility.value='public';fields.max_members.value='30';
    fillRoomThemeChoices(form,options,'navy');fields.background.value='navy';
-   fields.crew_id.innerHTML='<option value="">크루 선택</option>'+options.crews.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
-   form.querySelector('#voice-notice-length').textContent='0/200';updateMode();updateCrew();
+   const crews=options.crews||[];currentCrew=crews.length===1?crews[0]:null;
+   crewIssue=crews.length?'크루 소속 정보를 확인해주세요. 새로고침 후 다시 시도할 수 있어요.':'소속 크루가 있어야 크루 방을 만들 수 있어요.';
+   crewChoice.disabled=!currentCrew;crewChoice.closest('label').title=currentCrew?'':crewIssue;
+   fields.crew_id.value=currentCrew?.id||'';
+   form.querySelector('#voice-notice-length').textContent='0/200';updateMode();updateCrew();updateCapacity();
    history.pushState({...history.state,liveCreate:requestId},'');modal.showModal();fitViewport();
   }catch(e){if(root.isConnected)toast(e.message);}
   finally{delete open.dataset.opening;open.disabled=root.dataset.enabled==='false';}
  };
- fields.title.oninput=()=>{titleEdited=true;generation++;};
- form.onchange=e=>{if(e.target.name==='mode'){generation++;updateMode();}if(e.target.name==='visibility')updateCrew();};
+ fields.title.oninput=()=>{titleDrafts[currentMode]=fields.title.value;generation++;generate.disabled=false;};
+ fields.max_members.oninput=updateCapacity;
+ for(const button of capacityButtons)button.onclick=()=>{fields.max_members.value=button.dataset.capacity;updateCapacity();};
+ form.onchange=e=>{if(e.target.name==='mode'){generation++;generate.disabled=false;updateMode();}if(e.target.name==='visibility')updateCrew();if(e.target.name==='max_members')updateCapacity();};
  fields.announcement.oninput=()=>{form.querySelector('#voice-notice-length').textContent=fields.announcement.value.length+'/200';};
  generate.onclick=async()=>{
-  const token=++generation;generate.disabled=true;error.textContent='';
+  const token=++generation,mode=currentMode;generate.disabled=true;error.textContent='';
   try{
-   const options=await voiceRequest('options');
-   if(token===generation&&modal.open){suggestion=options.suggested_title;fields.title.value=suggestion;titleEdited=true;}
+   const options=await voiceRequest('options?'+new URLSearchParams({mode,exclude:fields.title.value}));
+   if(token===generation&&modal.open){titleDrafts[mode]=options.suggested_title||options.suggested_titles?.[mode];fields.title.value=titleDrafts[mode];}
   }catch(e){if(token===generation&&modal.open)error.textContent=e.message;}
-  finally{if(form.isConnected)generate.disabled=false;}
+  finally{if(token===generation&&form.isConnected)generate.disabled=false;}
  };
  modal.querySelector('#v3-close-create').onclick=dismiss;
  modal.oncancel=e=>{e.preventDefault();dismiss();};
@@ -240,9 +257,12 @@ function bindVoiceLobby(){
   if(modal.open)modal.close();
  });
  form.onsubmit=busyForm(form,async data=>{
-  const b=Object.fromEntries(data);prepareVoiceListening();
+  const b=Object.fromEntries(data),capacity=Number(b.max_members);
+  if(!String(b.max_members??'').trim()||!Number.isInteger(capacity)||capacity<2||capacity>30)throw Error('참여 인원은 2~30명 사이의 정수로 입력해주세요.');
+  if(b.visibility==='crew'&&!currentCrew)throw Error(crewIssue);
+  b.crew_id=b.visibility==='crew'?currentCrew.id:'';prepareVoiceListening();
   const creating=requestId;
-  const result=await voiceRequest('rooms',{...b,max_members:Number(b.max_members),request_id:creating});
+  const result=await voiceRequest('rooms',{...b,max_members:capacity,request_id:creating});
   if(root.isConnected&&modal.open&&creating===requestId){
    modal.close();
    location.replace('#'+(result.room.mode==='karaoke'?'live':'voice')+'/'+encodeURIComponent(result.room.id));

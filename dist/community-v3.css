@@ -378,6 +378,16 @@ html:has(#main > .talk-directory, #main > .music-community-tabs[aria-label="ь╗ды
 .live-directory #v3-room-create .form-error {max-height:3em;overflow:auto;margin:0}
 .live-directory #v3-room-create .form-error:empty {display:none}
 .live-directory #v3-room-create .voice-settings-save {flex:none;min-height:42px;margin:0}
+.live-directory #v3-room-create .voice-visibility label:has(:disabled) {color:var(--ds-muted);cursor:not-allowed;opacity:.6}
+.live-directory #v3-room-create .voice-crew-setting {overflow-wrap:anywhere}
+.live-directory #v3-room-create .live-capacity-controls {display:grid;grid-template-columns:minmax(0,3fr) minmax(84px,1.3fr);gap:8px;min-width:0}
+.live-directory #v3-room-create .live-capacity-presets {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;min-width:0}
+.live-directory #v3-room-create .live-capacity-presets button {min-width:0;min-height:44px;margin:0;padding:7px 4px;font-size:14px;border-color:var(--ds-line);background:var(--ds-panel);color:var(--ds-text);white-space:nowrap;box-shadow:none}
+.live-directory #v3-room-create .live-capacity-presets button[aria-pressed=true] {background:var(--ds-soft);border-color:var(--ds-lavender);color:var(--ds-selected)}
+.live-directory #v3-room-create .live-capacity-input {position:relative;display:block;min-width:0;margin:0}
+.live-directory #v3-room-create .live-capacity-input input {min-width:0;min-height:44px;padding-right:28px;text-align:center;appearance:textfield}
+.live-directory #v3-room-create .live-capacity-input input::-webkit-inner-spin-button,.live-directory #v3-room-create .live-capacity-input input::-webkit-outer-spin-button {margin:0;appearance:none}
+.live-directory #v3-room-create .live-capacity-input>span:last-child {position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--ds-muted);pointer-events:none}
 @media(max-width:600px){
  .live-directory .directory-search input,.live-directory .live-filters button,.live-directory #v3-create-room {font-size:13px}
  .live-directory .live-filters button,.live-directory #v3-create-room {padding-inline:12px}

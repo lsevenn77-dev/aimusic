@@ -13,11 +13,15 @@ export {voiceCall,voiceConfigured} from './voice-bridge.js';
 import {identifier,requestId} from '../realtime/protocol.js';
 import {giftById} from '../shared/gifts.js';
 
-const talkTitles=['자유토크방','음악과 수다','편하게 이야기해요','잠깐 쉬어가는 방','오늘도 반가워요','함께 듣는 음악','소소한 이야기','지금은 수다 시간'];
-function suggestedTalkTitle(key){
+const roomTitles={
+ talk:['자유토크방','음악과 수다','편하게 이야기해요','잠깐 쉬어가는 수다방','오늘 하루 어땠어요?','음악 들으며 이야기해요','소소한 이야기','지금은 수다 시간','반가워요, 같이 얘기해요','우리 잠깐 수다 떨어요'],
+ karaoke:['같이 한 곡 불러요','오늘의 노래 한 곡','마이크 켜고 노래해요','편하게 부르는 노래방','내 애창곡을 들려줄게요','한 곡씩 돌아가며 불러요','발라드 한 곡 어때요?','노래로 채우는 시간','오늘도 신나게 노래해요','노래하고 함께 응원해요']
+};
+function suggestedRoomTitle(mode,key,exclude=''){
+ const titles=roomTitles[mode==='karaoke'?'karaoke':'talk'].filter(title=>title!==exclude);
  let index=0;
  for(const char of key)index=(index*31+char.charCodeAt(0))>>>0;
- return talkTitles[index%talkTitles.length];
+ return titles[index%titles.length];
 }
 async function result(response) {const r=await response.json();if(!response.ok)fail(response.status,r.error||'토킹룸 연결에 실패했어요.');return r;}
 
@@ -52,16 +56,26 @@ export async function voiceRoomsRoute(req,env,path,user,ctx) {
  const actor={id:user.id,profile_id:user.profile_id||null,name:user.name,image_version:user.image_version||'',crews:crews.map(c=>c.id),followedHosts:followed.map(p=>p.user_id),blocks:viewerBlockedIds(user)||[]};
  if(path==='/api/voice/options'&&req.method==='GET'){
   const themes=await roomThemeChoices(env,user.id);
-  return json({crews,themes,suggested_title:suggestedTalkTitle(crypto.randomUUID()),preferred_theme:themes.find(t=>t.paid)?.sku||'navy'});
+  const params=new URL(req.url).searchParams,mode=params.get('mode')==='karaoke'?'karaoke':'talk';
+  const exclude=str(params.get('exclude')??'',60,false);
+  const suggested_titles=Object.fromEntries(Object.keys(roomTitles).map(type=>[type,suggestedRoomTitle(type,crypto.randomUUID(),type===mode?exclude:'')]));
+  return json({crews,themes,suggested_titles,suggested_title:suggested_titles[mode],preferred_theme:themes.find(t=>t.paid)?.sku||'navy'});
  }
  if(path==='/api/voice/rooms'&&req.method==='GET')return json({...await decorateRoomResult(env,await result(await voiceCall(env,actor,'directory','list'))),crews});
  if(path==='/api/voice/rooms'&&req.method==='POST') {
   if(!actor.profile_id)fail(409,'마이에서 프로필을 먼저 만들어주세요.');
   await rate(env,'voice-create:'+user.id,5,3600);const b=await req.json();
+  let crew_id=null;
+  if(b.visibility==='crew'){
+   if(!crews.length)fail(403,'소속 크루가 있어야 크루 방을 만들 수 있어요.');
+   if(crews.length!==1)fail(409,'크루 소속 정보를 확인해주세요.');
+   crew_id=crews[0].id;
+   if(b.crew_id&&b.crew_id!==crew_id)fail(409,'소속 크루가 변경됐어요. 방 만들기를 다시 열어주세요.');
+  }
   const selected=await assertRoomTheme(env,user.id,b.theme_sku||b.background||(await roomThemeChoices(env,user.id)).find(t=>t.paid)?.sku||'navy');
   const roomId=requestId(b.request_id);
-  const title=b.mode==='karaoke'?str(b.title,60):str(b.title??'',60,false)||suggestedTalkTitle(roomId);
-  const data=await result(await voiceCall(env,actor,roomId,'create',{title,visibility:b.visibility,crew_id:b.crew_id,max_members:b.max_members,theme_sku:selected,background:selected.startsWith('theme_')?'navy':selected,announcement:b.announcement,seating_mode:b.seating_mode,mode:b.mode}));
+  const title=str(b.title??'',60,false)||suggestedRoomTitle(b.mode,roomId);
+  const data=await result(await voiceCall(env,actor,roomId,'create',{title,visibility:b.visibility,crew_id,max_members:b.max_members,theme_sku:selected,background:selected.startsWith('theme_')?'navy':selected,announcement:b.announcement,seating_mode:b.seating_mode,mode:b.mode}));
   await saveRoomTheme(env,actor,data.room,selected,{creating:true});return json(await decorateRoomResult(env,data),201);
  }
  const m=path.match(/^\/api\/voice\/rooms\/([\w-]+)\/([a-z-]+)$/);if(!m)fail(404,'토킹룸을 찾을 수 없어요.');
