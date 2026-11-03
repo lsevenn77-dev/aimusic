@@ -4,7 +4,23 @@ import {start,step,VERSION,LIMIT,HZ,multiplier,FLOOR,WIDTH,HEIGHT,RUNNER_X} from
 export function mount(root,{crew,api,esc}){
  const url='/api/crews/'+encodeURIComponent(crew)+'/jump';
  root.innerHTML=`<link rel="stylesheet" href="/crew-jump.css"><section class="jump-club"><header><a class="text-link" href="#crew/${encodeURIComponent(crew)}">‹ 크루로</a><div><button class="small-button" data-pause hidden>일시정지</button> <button class="small-button" data-rules>게임 규칙</button></div></header>
- <section class="jump-lobby" aria-label="크루게임 대기실"><small>CREW ARCADE</small><h1>크루게임 대기실</h1><div class="jump-brief" aria-live="polite">이번 주 기록을 불러오는 중…</div></section>
+ <section class="jump-lobby" aria-label="크루게임 대기실">
+   <div class="jump-cover">
+    <img class="jump-cover-art" src="/crew-jump-art/starlight-lobby.webp" width="1672" height="941" alt="" fetchpriority="high">
+    <div class="jump-cover-copy">
+     <span class="jump-cover-kicker">AIFECT 크루</span><h1>점프게임</h1>
+     <div class="jump-start-actions" aria-live="polite"></div>
+    </div>
+   </div>
+   <section class="jump-shop" aria-labelledby="jump-shop-title">
+    <div class="jump-shop-head"><h2 id="jump-shop-title">캐릭터 의상 상점</h2><small>미리보기</small></div>
+    <div class="jump-shop-shelves">
+     <figure class="jump-outfit silver"><div><b>실버 의상</b><span>SILVER</span></div><img src="/crew-jump-art/silver-varsity.webp" alt="별 패치와 민트색 스카프가 달린 재킷"><figcaption>민트 스타 재킷</figcaption></figure>
+     <figure class="jump-outfit gold"><div><b>골드 의상</b><span>GOLD</span></div><img src="/crew-jump-art/gold-cape.webp" alt="금빛 별 브로치가 달린 보라색 망토"><figcaption>별빛 무대 망토</figcaption></figure>
+    </div>
+   </section>
+   <div class="jump-brief" aria-live="polite">이번 주 기록을 불러오는 중…</div>
+  </section>
  <div class="jump-stage" hidden aria-label="점프게임"><canvas width="960" height="540" tabindex="0" aria-label="스페이스 또는 화면을 눌러 점프"></canvas><div class="jump-hud" hidden><span>점수 <b>0</b></span><span>남은 시간 <b>60초</b></span><span>콤보 <b>0</b></span><small class="jump-speed"></small></div><div class="jump-overlay"></div></div>
  <div class="jump-summary" aria-live="polite"></div><section class="jump-board" aria-label="크루 주간 순위와 참여 미션"></section><dialog class="surface jump-dialog"><h2>주간 게임 규칙</h2><p>화면을 누르거나 스페이스바로 점프하세요. 공중에서 한 번 더 점프할 수 있어요. 장애물에 닿으면 도전이 끝나요.</p><p>별 젤리를 연속으로 모으면 콤보 보너스! 10초마다 속도가 1.2배가 되고 60초에 완주합니다.</p><p>공식 도전은 하루 3회. 한국시간 월요일 0시부터 금요일 22시까지, 크루원별 주간 최고점 상위 10개를 합산해요. 참여 미션 보상은 크루 경험치이며, 현재 지급은 꺼져 있어요. 리듬게임 교대는 준비 중이에요.</p><button class="primary-button" data-close>확인</button></dialog></section>`;
  const $=s=>root.querySelector(s),canvas=$('canvas'),ctx=canvas.getContext('2d'),layer=$('.jump-overlay'),hud=$('.jump-hud'),summary=$('.jump-summary'),dialog=$('dialog');
@@ -35,17 +51,20 @@ export function mount(root,{crew,api,esc}){
  function lobby(){board();waiting.hidden=false;stage.hidden=true;summary.hidden=true;$('.jump-board').hidden=false;
   phase='lobby';$('[data-pause]').hidden=true;$('[data-rules]').disabled=false;hud.hidden=true;
   const official=info.open&&info.remaining>0;
-  $('.jump-brief').innerHTML='<p class="jump-mode">'+(official?'공식 도전': '연습 모드')+'</p>'+
-   '<h2>별빛 점프</h2><p>60초 동안 장애물을 넘고 별 젤리를 모으세요. 터치나 스페이스바로 두 번까지 점프할 수 있어요.</p>'+
-   '<dl><div><dt>오늘 남은 공식 도전</dt><dd>'+info.remaining+' / 3회</dd></div>'+
-   '<div><dt>내 주간 최고점</dt><dd>'+(info.best==null?'기록 없음':Number(info.best).toLocaleString()+'점')+'</dd></div>'+
-   '<div><dt>오늘의 참여 미션</dt><dd>'+(info.participated?'공식 도전 완료':'공식 도전 1회')+'</dd></div></dl>'+
-   '<div class="jump-start-actions">'+btn(official?'official':'practice','게임 시작',true)+(official?btn('practice','연습하기'):'')+'</div>'+
-   '<p class="jump-mode-note">'+(official?'게임 시작 시 공식 도전 1회를 사용해요.':'연습은 횟수 제한 없이 즐길 수 있고 공식 랭킹에는 반영되지 않아요.')+'</p>';
+  const action = official ? 'official' : 'practice';
+  $('.jump-start-actions').innerHTML = btn(action,'게임 시작',true) + (official ? btn('practice','연습하기') : '');
+  $('.jump-brief').innerHTML = `<div class="jump-session">
+    <strong>${official ? '공식 도전' : '연습 모드'}</strong>
+    <span>${official ? '시작하면 공식 도전 1회를 사용해요.' : '연습은 횟수 제한 없이 즐길 수 있어요.'}</span>
+   </div><dl>
+    <div><dt>오늘 남은 공식 도전</dt><dd>${info.remaining} / 3회</dd></div>
+    <div><dt>내 주간 최고점</dt><dd>${info.best == null ? '기록 없음' : Number(info.best).toLocaleString()+'점'}</dd></div>
+    <div><dt>오늘의 참여 미션</dt><dd>${info.participated ? '공식 도전 완료' : '공식 도전 1회'}</dd></div>
+   </dl>`;
  }
  async function refresh(show=true){
   try{const res=await api(url,'GET',undefined,{fresh:true});if(dead)return;info=res;if(show)lobby();}
-  catch(e){if(!dead){phase='error';waiting.hidden=false;stage.hidden=true;$('.jump-board').hidden=true;$('.jump-brief').innerHTML='<p>'+esc(e.message)+'</p>'+btn('refresh','다시 확인');}}
+  catch(e){if(!dead){phase='error';$('.jump-start-actions').replaceChildren();waiting.hidden=false;stage.hidden=true;$('.jump-board').hidden=true;$('.jump-brief').innerHTML='<p>'+esc(e.message)+'</p>'+btn('refresh','다시 확인');}}
  }
  function draw(){scene.draw(game);
   const speed=hud.querySelector('small'),stage=Math.min(5,Math.floor(game.tick/600));if(speed.dataset.stage!==String(stage)){speed.dataset.stage=stage;speed.textContent=Number(multiplier(game.tick).toFixed(5))+'×';if(stage&&!matchMedia('(prefers-reduced-motion: reduce)').matches)speed.animate([{opacity:.3},{opacity:1}],{duration:400})}
