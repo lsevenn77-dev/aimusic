@@ -1,4 +1,5 @@
 import {stageRenderer} from './crew-jump-art/stage.js';
+import {gameSounds} from './crew-jump-art/sounds.js';
 import {start,step,VERSION,LIMIT,HZ,multiplier,FLOOR,WIDTH,HEIGHT,RUNNER_X} from './crew-jump-core.js';
 
 export function mount(root,{crew,viewer,api,esc}){
@@ -36,6 +37,7 @@ export function mount(root,{crew,viewer,api,esc}){
  let scene;
  let frame=0,dead=false,phase='loading',wasOfficial=false,info,game,round=null,origin=0,queued=0,taps=[],requestId=null,pressed=null;
  const abort=new AbortController(),events={signal:abort.signal};
+ const sounds=gameSounds(abort.signal);
  function listen(el,name,fn){el.addEventListener(name,fn,events)}
  function panel(eyebrow,title,body,buttons){
   layer.classList.remove('counting');
@@ -111,11 +113,29 @@ export function mount(root,{crew,viewer,api,esc}){
   if(t<origin){layer.textContent=String(Math.ceil((origin-t)/1000));frame=requestAnimationFrame(advance);return}
   phase='play';$('[data-pause]').hidden=!!round;layer.hidden=true;hud.hidden=false;
   const target=Math.min(LIMIT,Math.floor((t-origin)*HZ/1000));
-  while(game.tick<target&&!game.finished){const jump=queued>0;if(jump)queued--;if(jump&&game.tick+1<LIMIT)taps.push(game.tick+1);step(game,jump)}
+  let jumpSound, rewardSound;
+  while(game.tick<target&&!game.finished){
+   const jump=queued>0;
+   if(jump)queued--;
+   if(jump&&game.tick+1<LIMIT)taps.push(game.tick+1);
+   const previousJellies=game.jellies;
+   step(game,jump);
+   if(game.jumped===game.tick)jumpSound=game.jumps===2?'double':'jump';
+   if(game.jellies>previousJellies){
+    if(game.combo>0&&game.combo%5===0)rewardSound='combo';
+    else rewardSound??='star';
+   }
+  }
+  if(game.finished)sounds.play(game.finished==='survived'?'finish':'collision');
+  else {
+   if(jumpSound)sounds.play(jumpSound);
+   if(rewardSound)sounds.play(rewardSound);
+  }
   draw();if(game.finished){void finish();return}frame=requestAnimationFrame(advance);
  }
  async function begin(official){
   if(phase!=='lobby')return;phase='starting';$('[data-rules]').disabled=true;
+  sounds.unlock();
   waiting.querySelectorAll('button').forEach(b=>b.disabled=true);
   try{
    scene??=stageRenderer(ctx);
@@ -156,6 +176,7 @@ export function mount(root,{crew,viewer,api,esc}){
   round=null;cancelAnimationFrame(frame);phase='abandoned';
  }
  listen(document,'visibilitychange',()=>{
+  if(document.hidden)sounds.quiet();
   if(document.hidden&&round){abandon();if(phase==='abandoned'){hud.hidden=true;panel('OFFICIAL RUN','도전을 종료했어요','공식 도전 중 화면을 떠나 이번 기록은 집계되지 않아요.',btn('lobby','대기실로'));summary.textContent='';}}
   else if(!round&&['countdown','play'].includes(phase)){if(document.hidden){pausedAt=performance.now();cancelAnimationFrame(frame)}else if(pausedAt){origin+=performance.now()-pausedAt;pausedAt=0;frame=requestAnimationFrame(advance)}}
  });
