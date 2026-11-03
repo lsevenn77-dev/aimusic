@@ -1,3 +1,4 @@
+import {HZ,NIGHT_START} from '../crew-jump-core.js';
 export function stageRenderer(ctx){
 const W=960,H=540,GROUND=452,PX=190,scale=1,JUMP2_V=820;
 let bgT=0,G=null;
@@ -87,6 +88,61 @@ let bgT=0,G=null;
     ctx.fillRect(0, GROUND + 40, W, 2);
   }
 
+  function drawNightRoad(scroll) {
+    const sky=ctx.createLinearGradient(0,0,0,GROUND);
+    sky.addColorStop(0,'#111632'); sky.addColorStop(.66,'#35305b'); sky.addColorStop(1,'#91648a');
+    ctx.fillStyle=sky; ctx.fillRect(0,0,W,H);
+    ctx.fillStyle='#fff4dd'; ctx.beginPath(); ctx.arc(735,93,33,0,Math.PI*2); ctx.fill();
+    for(const b of city){
+      const x=wrap(b.x-scroll*.08,1400)-120, top=GROUND-32-b.h;
+      ctx.fillStyle='#20223c'; ctx.fillRect(x,top,b.w,GROUND-top);
+      ctx.fillStyle='#b89792';
+      for(let y=top+10;y<GROUND-68;y+=28)for(let dx=7;dx<b.w-8;dx+=21)ctx.fillRect(x+dx,y,5,7);
+    }
+    for(let x=-wrap(scroll*.32,250);x<W+50;x+=250){
+      ctx.fillStyle='#30334b';ctx.fillRect(x,GROUND-187,5,187);ctx.fillRect(x-29,GROUND-187,34,5);
+      const light=ctx.createRadialGradient(x-21,GROUND-180,2,x-21,GROUND-180,63);
+      light.addColorStop(0,'rgba(255,209,143,.5)');light.addColorStop(1,'rgba(255,209,143,0)');
+      ctx.fillStyle=light;ctx.fillRect(x-84,GROUND-245,126,126);
+      ctx.fillStyle='#ffe7ac';ctx.fillRect(x-32,GROUND-184,22,4);
+    }
+    ctx.fillStyle='#343851';ctx.fillRect(0,GROUND-28,W,28);
+    ctx.fillStyle='#8b92aa';ctx.fillRect(0,GROUND-29,W,3);
+    ctx.fillStyle='#202538';ctx.fillRect(0,GROUND,W,H-GROUND);
+    ctx.fillStyle='#91e3dc';ctx.fillRect(0,GROUND,W,3);
+    ctx.fillStyle='#e6bd75';
+    for(let x=-wrap(scroll,160);x<W;x+=160)ctx.fillRect(x,GROUND+47,68,4);
+  }
+  function drawRoadObstacle(e){
+    const top=GROUND-e.h;
+    if(e.k==='spike'){
+      for(let i=0;i<e.n;i++){
+        const x=e.x+i*34;
+        ctx.fillStyle='#ff8051';ctx.beginPath();ctx.moveTo(x+2,GROUND-4);ctx.lineTo(x+17,top);ctx.lineTo(x+32,GROUND-4);ctx.fill();
+        ctx.fillStyle='#fff0d7';ctx.fillRect(x+10,top+21,14,5);
+        ctx.fillStyle='#bc4f37';ctx.fillRect(x,GROUND-5,34,5);
+      }
+    }else if(e.k==='block'){
+      ctx.fillStyle='#302b41';ctx.strokeStyle='#ffce73';ctx.lineWidth=3;
+      roundRect(e.x,top,e.w,e.h,5);ctx.fill();ctx.stroke();
+      for(let y=top+10;y<GROUND-8;y+=25){
+        ctx.fillStyle='#ffc369';ctx.fillRect(e.x+4,y,e.w-8,9);
+        ctx.fillStyle='#553b47';for(let x=e.x+10;x<e.x+e.w-5;x+=21)ctx.fillRect(x,y,9,9);
+      }
+    }else{
+      ctx.save();ctx.translate(e.x,e.y);
+      ctx.fillStyle='#263041';ctx.strokeStyle='#91fff2';ctx.lineWidth=3;
+      roundRect(-20,-10,40,20,8);ctx.fill();ctx.stroke();
+      ctx.fillStyle='#ffd67d';ctx.fillRect(-11,-3,22,5);
+      for(const x of [-18,18]){ctx.fillStyle='#ceccff';ctx.fillRect(x-9,-13,18,3)}
+      ctx.restore();
+    }
+  }
+  function drawRing(e){
+    ctx.save();ctx.strokeStyle='#55f0e1';ctx.lineWidth=5;ctx.shadowColor='#34e2d0';ctx.shadowBlur=7;
+    ctx.beginPath();ctx.ellipse(e.x,e.y,12,15,.12,0,7);ctx.stroke();
+    ctx.shadowBlur=0;ctx.lineWidth=2;ctx.strokeStyle='#ddfff8';ctx.stroke();ctx.restore();
+  }
   function drawSpike(e) {
     for (let i = 0; i < e.n; i++) {
       const x = e.x + i * 34;
@@ -110,11 +166,11 @@ let bgT=0,G=null;
     const y = e.by ?? e.y, flap = Math.sin(bgT * 16 + e.ph);
     ctx.save(); ctx.translate(e.x, y);
     ctx.shadowColor = 'rgba(255,255,255,.7)'; ctx.shadowBlur = 8;
-    ctx.fillStyle = '#3b2a86';
-    ctx.beginPath(); ctx.ellipse(0, 0, 22, 12, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#ea667e';ctx.strokeStyle='#372944';ctx.lineWidth=3;
+    ctx.beginPath(); ctx.ellipse(0, 0, 22, 12, 0, 0, 7); ctx.fill(); ctx.stroke();
     ctx.shadowBlur = 0;
-    ctx.fillStyle = '#5a43c4';                                                                        // 날개
-    ctx.beginPath(); ctx.moveTo(-6, -4); ctx.lineTo(10, -4); ctx.lineTo(2, -4 - 20 * flap); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#ffdc8d';                                                                        // 날개
+    ctx.beginPath(); ctx.moveTo(-6, -4); ctx.lineTo(10, -4); ctx.quadraticCurveTo(20,-10-22*flap,24,-7-22*flap);ctx.quadraticCurveTo(6,8,-6,-4);ctx.closePath();ctx.fill();ctx.stroke();
     ctx.beginPath(); ctx.moveTo(20, 2); ctx.lineTo(32, -2); ctx.lineTo(30, 8); ctx.fill();          // 꼬리
     ctx.fillStyle = '#ff8fb8'; ctx.beginPath(); ctx.moveTo(-22, -2); ctx.lineTo(-32, 2); ctx.lineTo(-21, 5); ctx.fill(); // 부리 (플레이어 쪽)
     ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(-13, -3, 3.4, 0, 7); ctx.fill();
@@ -208,11 +264,21 @@ let bgT=0,G=null;
     const shake = G && G.shake ? (Math.random() - .5) * 10 * G.shake / .35 : 0;
     ctx.translate(shake, 0);
     const scroll = G ? G.dist : bgT * 120;
-    drawBg(scroll);
-    if (G) {
-      for (const e of G.ents) { if (e.k === 'spike') drawSpike(e); else if (e.k === 'block') drawBlock(e); }
-      for (const e of G.ents) if (e.k === 'bird') drawBird(e);
-      for (const e of G.ents) if (e.k === 'jelly' && !e.got) drawJelly(e);
+    const night=G && G.night;
+    if(night)drawNightRoad(scroll);else drawBg(scroll);
+    if(G){
+      for(const e of G.ents){
+        if(e.k==='jelly'){if(night)drawRing(e);else drawJelly(e)}
+        else if(night)drawRoadObstacle(e);
+        else if(e.k==='bird')drawBird(e);
+        else if(e.k==='block')drawBlock(e);
+        else drawSpike(e);
+      }
+      if(night && G.ahead){
+        ctx.save();ctx.font='bold 19px sans-serif';ctx.textAlign='right';
+        ctx.fillStyle='#191d34';roundRect(W-202,92,188,37,9);ctx.fill();
+        ctx.fillStyle='#ffdc91';ctx.fillText(G.ahead,W-26,117);ctx.restore();
+      }
       // 그림자
       const sh = Math.max(.3, 1 - (GROUND - G.y) / 260);
       ctx.fillStyle = `rgba(40,30,110,${.35 * sh})`; ctx.beginPath(); ctx.ellipse(PX, GROUND + 3, 20 * sh, 5 * sh, 0, 0, 7); ctx.fill();
@@ -251,7 +317,12 @@ return {ready:()=>SHEET.decode(),draw(s){
  ents.push({k:o.type,x:o.type==='bird'?x+o.width/2:x,y:GROUND-o.bottom-o.height/2,w:o.width,h:o.height,n:o.width/34,ph:i});
  }
  for(let i=s.nextJelly;i<s.pattern.jellies.length;i++){const j=s.pattern.jellies[i],x=j.x-s.distance;if(x>W+20)break;if(x>-20)ents.push({k:'jelly',x,y:GROUND-j.height,r:15})}
- G={t:bgT,dist:s.distance,ents,parts,y:GROUND-s.y,vy:-s.vy*60,onGround:s.jumps===0,jumps:s.jumps,landT:.09-(s.tick-s.landed)/60,jumpT:(s.tick-s.jumped)/60,djT:(s.tick-s.jumped)/60,runPhase:s.distance/38,dead:s.finished==='collision'?.62:0,shake:0};
+ const upcoming=s.pattern.obstacles[s.nextObstacle];
+ const night=s.tick>=NIGHT_START;
+ // At highway speed, identify the next obstacle before it enters the viewport.
+ const ahead=night&&upcoming&&upcoming.tick-s.tick<=HZ&&upcoming.tick>s.tick
+   ? '전방 · '+(upcoming.type==='bird'?(upcoming.bottom>80?'높은 드론':'낮은 드론'):upcoming.type==='spike'?'도로 콘':upcoming.height>145?'높은 차단벽':'차단벽'):'';
+ G={night,ahead,t:bgT,dist:s.distance,ents,parts,y:GROUND-s.y,vy:-s.vy*60,onGround:s.jumps===0,jumps:s.jumps,landT:.09-(s.tick-s.landed)/60,jumpT:(s.tick-s.jumped)/60,djT:(s.tick-s.jumped)/60,runPhase:s.distance/38,dead:s.finished==='collision'?.62:0,shake:0};
  draw();prev={tick:s.tick,jumps:s.jumps,jellies:s.jellies,jellyPoints:s.jellyPoints};
 }};
 }

@@ -1,10 +1,10 @@
 import {query,one,rows,json,fail,id,rate} from './db.js';
 import {requireUser} from './auth.js';
 import {publicNameSQL} from './identity.js';
-import {VERSION,HZ,replay} from '../shared/crew-jump.js';
+import {VERSION,HZ,LIMIT,replay} from '../shared/crew-jump.js';
 
 // Add 'rhythm' to this rotation only when a playable rhythm route is implemented.
-const COUNTDOWN_MS=3000, SUBMIT_GRACE_MS=30000, RUN_TTL_MS=60000+SUBMIT_GRACE_MS;
+const COUNTDOWN_MS=3000, SUBMIT_GRACE_MS=30000, RUN_TTL_MS=LIMIT/HZ*1000+SUBMIT_GRACE_MS;
 const playableRotation=['jump'];
 const DAY=86400000, WEEK=7*DAY, KST=9*3600000;
 export function seasonTime(ms,env){

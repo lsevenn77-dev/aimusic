@@ -1,6 +1,6 @@
 import {stageRenderer} from './crew-jump-art/stage.js';
 import {gameSounds} from './crew-jump-art/sounds.js';
-import {start,step,VERSION,LIMIT,HZ,multiplier,FLOOR,WIDTH,HEIGHT,RUNNER_X} from './crew-jump-core.js';
+import {start,step,VERSION,LIMIT,HZ,speedBand,multiplier,FLOOR,WIDTH,HEIGHT,RUNNER_X} from './crew-jump-core.js';
 
 const looks=[
  {id:'runner',name:'육상선수룩',price:500,unit:'S'},
@@ -38,8 +38,8 @@ export function mount(root,{crew,viewer,api,esc}){
   <dialog class="surface jump-dialog arc-store-dialog" aria-labelledby="arc-store-title"><header><h2 id="arc-store-title">의상 상점</h2><button type="button" class="small-button" data-shop-close>닫기</button></header>
    <div class="arc-fitting"><div class="arc-run-model" aria-hidden="true"></div><div aria-live="polite"><small>달리기 미리보기</small><h3 data-look-name></h3><b data-look-price></b></div></div>
    <div class="arc-look-shelves"></div><p class="arc-look-note">지금은 의상 미리보기만 가능해요. 실버와 골드는 차감되지 않아요.</p></dialog>
- <div class="jump-stage" hidden aria-label="점프게임"><canvas width="960" height="540" tabindex="0" aria-label="스페이스 또는 화면을 눌러 점프"></canvas><div class="jump-hud" hidden><span>점수 <b>0</b></span><span>남은 시간 <b>60초</b></span><span>콤보 <b>0</b></span><small class="jump-speed"></small></div><div class="jump-overlay"></div></div>
- <dialog class="jump-wide-dialog" aria-label="가로 게임 화면"><div class="jump-wide-layout"><div class="jump-wide-controls"><button class="small-button" type="button" data-wide-pause hidden>일시정지</button><button class="small-button" type="button" data-wide-exit>축소</button></div></div></dialog><div class="jump-summary" aria-live="polite"></div><dialog class="surface jump-dialog"><h2>주간 게임 규칙</h2><p>화면을 누르거나 스페이스바로 점프하세요. 공중에서 한 번 더 점프할 수 있어요. 장애물에 닿으면 도전이 끝나요.</p><p>별 젤리를 연속으로 모으면 콤보 보너스! 10초마다 속도가 1.2배가 되고 60초에 완주합니다.</p><p>공식 도전은 하루 3회. 한국시간 월요일 0시부터 금요일 22시까지, 크루원별 주간 최고점 상위 10개를 합산해요. 참여 미션 보상은 크루 경험치이며, 현재 지급은 꺼져 있어요. 리듬게임 교대는 준비 중이에요.</p><button class="primary-button" data-close>확인</button></dialog></section>`;
+ <div class="jump-stage" hidden aria-label="점프게임"><canvas width="960" height="540" tabindex="0" aria-label="스페이스 또는 화면을 눌러 점프"></canvas><div class="jump-hud" hidden><span>점수 <b>0</b></span><span>남은 시간 <b>${LIMIT/HZ}초</b></span><span>콤보 <b>0</b></span><small class="jump-speed"></small></div><div class="jump-overlay"></div></div>
+ <dialog class="jump-wide-dialog" aria-label="가로 게임 화면"><div class="jump-wide-layout"><div class="jump-wide-controls"><button class="small-button" type="button" data-wide-pause hidden>일시정지</button><button class="small-button" type="button" data-wide-exit>축소</button></div></div></dialog><div class="jump-summary" aria-live="polite"></div><dialog class="surface jump-dialog"><h2>주간 게임 규칙</h2><p>화면을 누르거나 스페이스바로 점프하세요. 공중에서 한 번 더 점프할 수 있어요. 장애물에 닿으면 도전이 끝나요.</p><p>별 젤리를 연속으로 모으면 콤보 보너스! 낮에는 10초마다 1.2배로 가속해요. 70초부터 야간 도로에서 네온 링을 모으세요. 밤에는 5초마다 1.1배로 가속하고 ${LIMIT/HZ}초에 완주해요.</p><p>공식 도전은 하루 3회. 한국시간 월요일 0시부터 금요일 22시까지, 크루원별 주간 최고점 상위 10개를 합산해요. 참여 미션 보상은 크루 경험치이며, 현재 지급은 꺼져 있어요. 리듬게임 교대는 준비 중이에요.</p><button class="primary-button" data-close>확인</button></dialog></section>`;
  const $=s=>root.querySelector(s),canvas=$('canvas'),ctx=canvas.getContext('2d'),layer=$('.jump-overlay'),hud=$('.jump-hud'),summary=$('.jump-summary'),dialog=$('.jump-dialog:not(.arc-store-dialog)'),shop=$('.arc-store-dialog');
  const waiting=$('.jump-lobby'),stage=$('.jump-stage');
  let scene;
@@ -94,7 +94,7 @@ export function mount(root,{crew,viewer,api,esc}){
  function resultCard(){
   const f=n=>Number(n).toLocaleString('ko-KR');
   $('[data-result-card]').innerHTML='<img class="arc-cheer" src="/crew-jump-art/arcade-cheer.webp" alt="" width="152" height="144"><span class="arc-result-label">'+(last?(last.official?'최근 공식 도전':'최근 연습'):'최근 도전')+'</span><strong class="arc-score">'+(last?f(last.score)+'<small>점</small>':'첫 도전 전')+'</strong><dl>'+
-    [['주행 거리',Number.isFinite(last?.meters)?f(last.meters)+' m':'—'],['수집한 별 젤리',last?f(last.jellies)+'개':'—'],['최대 콤보',last?'×'+last.maxCombo:'—']].map(([k,v])=>'<div><dt>'+k+'</dt><dd>'+v+'</dd></div>').join('')+'</dl><div class="arc-result-actions">'+(last?btn(last.official&&info.open&&info.remaining?'official':'practice',last.official&&info.open&&info.remaining?'다시 도전':'다시 연습'):'')+'<a class="small-button" href="#crew/'+encodeURIComponent(crew)+'">크루로 돌아가기</a></div>';
+    [['주행 거리',Number.isFinite(last?.meters)?f(last.meters)+' m':'—'],['수집한 아이템',last?f(last.jellies)+'개':'—'],['최대 콤보',last?'×'+last.maxCombo:'—']].map(([k,v])=>'<div><dt>'+k+'</dt><dd>'+v+'</dd></div>').join('')+'</dl><div class="arc-result-actions">'+(last?btn(last.official&&info.open&&info.remaining?'official':'practice',last.official&&info.open&&info.remaining?'다시 도전':'다시 연습'):'')+'<a class="small-button" href="#crew/'+encodeURIComponent(crew)+'">크루로 돌아가기</a></div>';
  }
  function standings(title,description,records,own,kind){
   const list=records.filter(row=>row.place<=100).map(row=>{
@@ -131,14 +131,14 @@ export function mount(root,{crew,viewer,api,esc}){
   catch(e){if(!dead){leaveWide();phase='error';$('.jump-start-actions').replaceChildren();waiting.hidden=false;stage.hidden=true;$('.jump-board').hidden=true;$('.jump-brief').innerHTML='<p>'+esc(e.message)+'</p>'+btn('refresh','다시 확인');}}
  }
  function draw(){scene.draw(game);
-  const speed=hud.querySelector('small'),stage=Math.min(5,Math.floor(game.tick/600));if(speed.dataset.stage!==String(stage)){speed.dataset.stage=stage;speed.textContent=Number(multiplier(game.tick).toFixed(5))+'×';if(stage&&!matchMedia('(prefers-reduced-motion: reduce)').matches)speed.animate([{opacity:.3},{opacity:1}],{duration:400})}
+  const speed=hud.querySelector('small'),stage=speedBand(game.tick);if(speed.dataset.stage!==String(stage)){speed.dataset.stage=stage;speed.textContent=(stage>=7?'야간 도로 · ':'')+Number(multiplier(game.tick).toFixed(2))+'×';if(stage&&!matchMedia('(prefers-reduced-motion: reduce)').matches)speed.animate([{opacity:.3},{opacity:1}],{duration:400})}
   const nums=hud.querySelectorAll('b');nums[0].textContent=game.score.toLocaleString();nums[1].textContent=Math.ceil((LIMIT-game.tick)/HZ)+'초';nums[2].textContent='×'+game.combo;
  }
  async function finish(){
   leaveWide();phase='result';$('[data-pause]').hidden=true;$('[data-rules]').disabled=false;queued=0;hud.hidden=true;const saved=round;
   const before=info.best;if(!saved)rememberRun(false,game.score);
   const buttons=()=>btn('again','다시 도전',true)+btn('lobby','대기실로')+'<a class="small-button" href="#crew/'+encodeURIComponent(crew)+'">크루로 돌아가기</a>';
-  const stats=()=>game.score.toLocaleString()+'점 · 생존 '+(game.tick/HZ).toFixed(1)+'초<br>별 젤리 '+game.jellies+'개 · 최대 콤보 '+game.maxCombo;
+  const stats=()=>game.score.toLocaleString()+'점 · 생존 '+(game.tick/HZ).toFixed(1)+'초<br>수집 아이템 '+game.jellies+'개 · 최대 콤보 '+game.maxCombo;
   panel('RUN RESULT',game.finished==='survived'?'별빛 도시 완주!':'도전 결과',stats(),saved?'':buttons());
   summary.textContent='연습 기록 · 주간 최고 '+(info.best??'—')+'점 · 공식 도전 '+info.remaining+'회 남음';
   if(saved){

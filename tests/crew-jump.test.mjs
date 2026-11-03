@@ -6,25 +6,46 @@ import {jumpRoute,seasonTime} from '../server/crew-jump.js';
 const env={CREW_JUMP_START_MONDAY:'2026-11-02'},monday=Date.parse('2026-11-02T00:00:00+09:00');
 test('fixed time and cumulative speed boundaries, no score or acceleration on terminal tick',()=>{
  const s=start('clock');s.pattern={obstacles:[],jellies:[]};
- for(let i=0;i<6;i++)assert.ok(Math.abs(multiplier(i*600)-[1,1.2,1.44,1.728,2.0736,2.48832][i])<1e-9);
- while(s.tick<3599)step(s);assert.equal(s.finished,null);const points=s.score,dist=s.distance;
- step(s,true);step(s,true);assert.deepEqual([s.tick,s.finished,s.score,s.distance],[3600,'survived',points,dist]);
+ for(let i=0;i<7;i++)assert.ok(Math.abs(multiplier(i*600)-[1,1.2,1.44,1.728,2.0736,2.48832,2.985984][i])<1e-9);
+ assert.equal(multiplier(4200),multiplier(4199));
+ for(let stage=0;stage<14;stage++)assert.equal(multiplier(4200+stage*300),1.2**6*1.1**stage);
+ assert.equal(multiplier(8400),multiplier(8399));
+ while(s.tick<8399)step(s);assert.equal(s.finished,null);const points=s.score,dist=s.distance;
+ step(s,true);step(s,true);assert.deepEqual([s.tick,s.finished,s.score,s.distance],[8400,'survived',points,dist]);
 });
 test('double jump requires new input and resets on landing',()=>{
  const s=start('jump');step(s,true);assert.equal(s.jumps,1);step(s,true);const v=s.vy;step(s,true);assert.ok(s.vy<v);assert.equal(s.jumps,2);
  while(s.y>0)step(s);assert.equal(s.jumps,0);step(s,true);assert.equal(s.jumps,1);
 });
-test('a constructive jump path clears every speed band for 100 weekly seeds, with scoring and repeatable replay',()=>{
+function clearPath(seed){
+ const inputs=[];
+ for(const o of start(seed).pattern.obstacles){
+  let lo=0,hi=LIMIT;while(lo<hi){const mid=(lo+hi)>>1;if(distanceAt(mid)+RUNNER_X<o.x)lo=mid+1;else hi=mid}
+  if(o.type==='bird'&&o.bottom>80)continue;
+  if(o.height>=145)inputs.push(lo-25,lo-10);else inputs.push(lo-19);
+ }
+ return inputs;
+}
+test('later bands require double jumps and have closer encounters; 100 weekly routes remain clearable',()=>{
  for(let n=0;n<100;n++){
-  const seed='test'+n,s=start(seed),inputs=[];
-  for(const o of s.pattern.obstacles){
-   let lo=0,hi=LIMIT;while(lo<hi){const mid=(lo+hi)>>1;if(distanceAt(mid)+RUNNER_X<o.x)lo=mid+1;else hi=mid}
-   if(o.type==='bird'&&o.bottom>80)continue;
-   inputs.push(lo-19);if(o.height>=145)inputs.push(lo-9);
-  }
+  const seed='test'+n,inputs=clearPath(seed);
+  const within=(a,b)=>start(seed).pattern.obstacles.filter(o=>o.x>=distanceAt(a*60)+RUNNER_X&&o.x<distanceAt(b*60)+RUNNER_X);
+  assert.ok(within(60,70).length>within(0,10).length);
+  assert.ok(within(20,35).some(o=>o.height>150));
+  const pattern=start(seed).pattern;
+  for(const bird of pattern.obstacles.filter(o=>o.type==='bird'))assert.ok(!pattern.jellies.some(j=>j.x>=bird.x-20&&j.x<=bird.x+bird.width+20));
   const r=replay(seed,inputs);assert.equal(r.finished,'survived');assert.ok(r.jellies>0&&r.maxCombo>0);assert.equal(replay(seed,inputs).score,r.score);
  }
- assert.equal(replay('collision',[]).finished,'collision');for(const bad of [[-1],[3,2],[4,4],[3599]])assert.throws(()=>replay('collision',bad));
+ assert.equal(replay('collision',[]).finished,'collision');for(const bad of [[-1],[3,2],[4,4],[LIMIT-1]])assert.throws(()=>replay('collision',bad));
+});
+test('server accepts a full 140 second replay only after the new finish time',async t=>{
+ const f=await fixture(t);seedCrew(f);
+ const call=(action,body,ms)=>jumpRoute(new Request('https://aifect.test/',{method:'POST',body:JSON.stringify(body)}),{DB:f.DB,...env},'/api/crews/preview/jump/'+action,{id:'owner'},ms).then(r=>r.json());
+ const run=await call('start',{requestId:'full-seventy-seconds'},monday);
+ const inputs=clearPath(run.seed);
+ await assert.rejects(call('finish',{id:run.id,inputs},run.starts+70000),{status:409});
+ const record=await call('finish',{id:run.id,inputs},run.starts+140000);
+ assert.equal(record.score,replay(run.seed,inputs).score);
 });
 test('KST weekly window, midnight, and inactive season',()=>{
  const at=ms=>seasonTime(ms,env);assert.equal(at(monday-1).open,false);assert.equal(at(monday).open,true);assert.equal(at(monday+86400000).day,'2026-11-03');
