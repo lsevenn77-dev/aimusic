@@ -82,7 +82,7 @@ document.addEventListener('click',async e=>{
    const rect=document.querySelector(selector)?.getBoundingClientRect();
    if(rect?.height&&rect.top>top)bottom=Math.min(bottom,rect.top);
   }
-  workspace.style.height=Math.max(0,bottom-top-(mobile?0:16))+'px';
+  workspace.style.height=(Math.max(0,bottom-top-(mobile?0:16))*(mobile?1:0.9))+'px';
  };
  const schedule=()=>{if(!frame)frame=requestAnimationFrame(fit);};
  const resize=new ResizeObserver(schedule);

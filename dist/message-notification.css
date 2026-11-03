@@ -369,3 +369,44 @@
  .message-workspace:not(.has-thread) .message-welcome,.message-workspace.has-thread > .message-list-pane{display:none}
  body.chat-keyboard #main > .message-workspace.has-thread{top:var(--mobile-input-top,0px);height:var(--mobile-input-height,100dvh)}
 }
+
+/* Explicit DM sizes avoid inheriting the main content's desktop 125% scale. */
+#main > .message-workspace{
+ --ui-type-scale:1;--ui-space-scale:1;--ui-icon-scale:1;
+ --dm-title:22px;--dm-name:16px;--dm-preview:14px;--dm-time:12px;
+ --dm-body:16px;--dm-input:16px;--dm-control:14px;--dm-thread-title:18px;
+ --dm-action-size:36px;--dm-compose-size:40px;
+ font-size:var(--dm-body);line-height:1.55;
+}
+#main .message-workspace .dm-section-heading h2{font-size:var(--dm-title);line-height:1.4;margin:0}
+#main .message-workspace .dm-name-line strong{font-size:var(--dm-name);line-height:1.45}
+#main .message-workspace .conversation-copy p{font-size:var(--dm-preview);line-height:1.5}
+#main .message-workspace .conversation-meta time,#main .message-workspace .unread-badge{font-size:var(--dm-time)}
+#main .message-workspace :is(.dm-inbox-tabs button,.inbox-tools .text-link,.chat-earlier,.dm-block-button){font-size:var(--dm-control);min-height:var(--dm-action-size);line-height:1.4}
+#main .message-workspace .dm-thread-person h1{font-size:var(--dm-thread-title);line-height:1.4}
+#main .message-workspace .dm-thread-header :is(.dm-back,.icon-button){width:var(--dm-action-size);height:var(--dm-action-size);min-width:var(--dm-action-size);min-height:var(--dm-action-size);padding:0;flex-shrink:0}
+#main .message-workspace .dm-thread-header :is(.dm-back,.icon-button) svg{width:20px;height:20px}
+#main .message-workspace .dm-bubble{font-size:var(--dm-body);line-height:1.6}
+#main .message-workspace :is(.dm-message time,.dm-time){font-size:var(--dm-time);line-height:1.4}
+#main .message-workspace .dm-chat-panel #chat-compose textarea{font-size:var(--dm-input);line-height:1.5;min-height:44px}
+#main .message-workspace :is(.dm-emoji-toggle,.dm-send),#main .message-workspace #chat-compose :is([data-dm-emoji],[data-chat-send]),#main .message-workspace .chat-attachment-tools .icon-button{
+ width:var(--dm-compose-size);height:var(--dm-compose-size);min-width:var(--dm-compose-size);min-height:var(--dm-compose-size);padding:0;
+}
+#main .message-workspace .message-welcome h2{font-size:var(--dm-title);line-height:1.45}
+#main .message-workspace .message-welcome p{font-size:var(--dm-preview);line-height:1.7}
+#main .message-workspace .dm-compose-preview{font-size:var(--dm-input)}
+@media(min-width:801px) and (pointer:fine), (min-width:1101px){
+ #main > .message-workspace{height:calc((100dvh - 128px)*0.9)}
+ #main .message-workspace .dm-section-heading{flex-wrap:nowrap;gap:8px}
+ #main .message-workspace .inbox-tools{flex-wrap:nowrap;gap:4px}
+}
+@media(max-width:800px), (max-width:1100px) and (pointer:coarse){
+ #main > .message-workspace{
+  --dm-title:20px;--dm-name:15px;--dm-preview:13px;--dm-time:11px;
+  --dm-body:15px;--dm-control:13px;--dm-thread-title:16px;
+  --dm-action-size:44px;--dm-compose-size:44px;
+ }
+ #main .message-workspace .dm-section-heading{flex-wrap:nowrap;gap:4px}
+ #main .message-workspace .inbox-tools{flex-wrap:nowrap;gap:0}
+ #main .message-workspace .inbox-tools .text-link{padding-inline:4px}
+}
