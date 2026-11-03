@@ -189,7 +189,11 @@ function myWorksHTML(d){
   const works=catalog.filter(w=>w.section===tab);
   return mySection(profileWorkTabs[tab].label,works.length?`<div class="mp-catalog-grid">${works.slice(0,limit).map(profileWorkCard).join('')}</div>`:myEmpty('아직 작품이 없어요.'),myAll(profileWorksHref(d,tab)),works.length,'mp-catalog-section mp-catalog-'+tab);
  };
- return `<div class="mp-work-shelves"><div>${section('original',4)}${section('complete',3)}</div>${section('recruit',4)}</div>${isMyProfile(d.profile)?castingMineTabs(''):''}`;
+ const own=isMyProfile(d.profile);
+ return `<div class="mp-work-shelves">
+  <div>${section('original',4)}${section('complete',3)}</div>
+  <div>${section('recruit',4)}${own?'':myStudioBanner()}</div>
+ </div>${own?castingMineTabs(''):''}`;
 }
 function profileWorksPage(d,q){
  const catalog=profileWorkCatalog(d),tab=Object.hasOwn(profileWorkTabs,q.get('tab'))?q.get('tab'):'all';
@@ -244,7 +248,7 @@ async function myPageView(base,param,raw,readApi=api){
   html:`<div class="mypage-layout mp-member-page mp-dashboard ${own?'mp-own':''}">${myProfileHeader(d)}
    <div class="mp-profile-collections">${myMoments(d)}${myArtists(d)}</div>
    <div class="mp-main">${own?mySegment(tab):''}<div id="mp-content" ${own?'role="tabpanel" aria-labelledby="mp-tab-'+tab+'"':''}>${collection?collection.html:tab==='works'?myWorksHTML(d):myLoading()}</div></div>
-   <aside class="mp-aside" id="mp-aside"><div id="mp-aside-content">${collection?.libraryAside??(tab==='activity'?myLoading():own?'':myStudioBanner())}</div></aside>
+   ${own?`<aside class="mp-aside" id="mp-aside"><div id="mp-aside-content">${collection?.libraryAside??(tab==='activity'?myLoading():'')}</div></aside>`:''}
    ${own?'<div class="mp-account-footer"><button type="button" class="small-button" id="logout">로그아웃</button></div>':''}</div>`};
 }
 async function myActivityData(readApi=api){

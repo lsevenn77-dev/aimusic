@@ -86,6 +86,16 @@ test('cover and dubbing classification uses readiness, preserves private work, a
  assert.equal(c.profileWorkIcon('duet'),c.profileWorkIcon(type('c').type));assert.match(c.profileWorkIcon(type('p').type),/#F3A6CF/);
 });
 
+test('visitor studio follows recruitment in the same column and appears only once',async()=>{
+ const d={profile:{id:'p',user_id:'owner'}},visitor=profileClient({id:'visitor'});
+ Object.assign(visitor,{myProfileHeader:()=>'',myMoments:()=>'',myArtists:()=>''});
+ const {html}=await visitor.myPageView('producer','p','producer/p',async()=>d);
+ assert.match(html,/mp-catalog-recruit[^]*?<\/section><section class="mp-card mp-studio">/);
+ assert.equal(html.split('href="#studio"').length-1,1);
+ assert.doesNotMatch(html,/id="mp-aside"/);
+ assert.doesNotMatch(profileClient().myWorksHTML(d),/mp-studio/);
+});
+
 test('four gallery slots count actual photos and open the existing owner-only upload form directly',()=>{
  const d={profile:{id:'p',name:'회원',user_id:'owner'},gallery:[{url:'/image'}]},own=profileClient(),other=profileClient({id:'visitor'});
  const html=own.myMoments(d);
