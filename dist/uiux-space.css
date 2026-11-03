@@ -205,6 +205,7 @@
 @media(prefers-reduced-motion:reduce){.activity-top{transition:none}}
 /* Desktop inbox reading scale; preserve the compact mobile layout. */
 @media(min-width:801px){
+ #main[data-route^="notifications"]>.activity-inbox{width:100%;max-width:1120px;min-width:0}
  #main[data-route^="notifications"]:has(> .activity-inbox .activity-toolbar){
   --activity-text-size:17px;--activity-meta-size:14px;--activity-tab-gap:22px;
  }
