@@ -152,7 +152,7 @@ async function renderRoute(showCachedRoute){
   if(base==='crew-jump'&&param){
    const {mount}=await import('/crew-jump-view.js');
    if(ticket!==renderId)return;
-   registerRouteCleanup(mount(main,{crew:param,api:readApi,esc}));
+   registerRouteCleanup(mount(main,{crew:param,viewer:me?.id,api:readApi,esc}));
    main.removeAttribute('aria-busy');window.scrollTo(0,0);return;
   }
   if(restored)showCachedRoute?.();

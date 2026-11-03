@@ -30,9 +30,9 @@ export async function jumpRoute(req,env,path,user,ms=Date.now()){
     WHERE week=? AND score IS NOT NULL AND crew_id IS NOT NULL GROUP BY user_id
   ), ranked AS (
     SELECT user_id,points,RANK() OVER (ORDER BY points DESC) AS place FROM best
-  ) SELECT ${publicNameSQL()} AS name,r.points,r.place,(r.user_id=?) AS mine
-    FROM ranked r JOIN users u ON u.id=r.user_id
-    WHERE r.place<=10 OR r.user_id=? ORDER BY r.place,name,r.user_id`,week,uid,uid);
+  ) SELECT ${publicNameSQL()} AS name,p.id AS profile_id,p.image_version,r.points,r.place,(r.user_id=?) AS mine
+    FROM ranked r JOIN users u ON u.id=r.user_id LEFT JOIN producers p ON p.user_id=r.user_id
+    WHERE r.place<=100 OR r.user_id=? ORDER BY r.place,name,r.user_id`,week,uid,uid);
   const myRecord=individualRanking.find(row=>row.mine);
   const ranking=await rows(env,`WITH best AS (
     SELECT crew_id,user_id,MAX(score) points FROM crew_jump_runs WHERE week=? AND score IS NOT NULL AND crew_id IS NOT NULL GROUP BY crew_id,user_id
@@ -42,7 +42,7 @@ export async function jumpRoute(req,env,path,user,ms=Date.now()){
     SELECT crew_id,SUM(points) points,COUNT(*) members FROM members WHERE place<=10 GROUP BY crew_id
   ), ranked AS (
     SELECT *,RANK() OVER(ORDER BY points DESC) place FROM totals
-  ) SELECT c.name,r.* FROM ranked r JOIN crews c ON c.id=r.crew_id WHERE place<=10 OR crew_id=? ORDER BY place,c.name,r.crew_id`,week,crew);
+  ) SELECT c.name,c.image_version,r.* FROM ranked r JOIN crews c ON c.id=r.crew_id WHERE place<=100 OR crew_id=? ORDER BY place,c.name,r.crew_id`,week,crew);
   const own=ranking.find(r=>r.crew_id===crew);
   const mission=await one(env,'SELECT COUNT(score) completed FROM crew_jump_runs WHERE day=? AND user_id=? AND crew_id=?',day,uid,crew);
   return json({week,open:open&&ms+COUNTDOWN_MS+RUN_TTL_MS<closes,seed,version:VERSION,remaining:3-used.n,best:myRecord?.points??null,personalRank:myRecord?.place??null,individualRanking,team:own?.points??0,teamRank:own?.place??null,ranking,participated:mission.completed>0});

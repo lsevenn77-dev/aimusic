@@ -89,3 +89,15 @@ test('weekly standings rank competing crews, share ties, and ignore practice / a
  assert.equal(data.personalRank,3);assert.equal(data.best,750);
  assert.equal(data.individualRanking.filter(row=>row.mine).length,1);
 });
+
+test('both weekly boards include place 100 and retain the viewer outside the displayed ranks',async t=>{
+ const f=await fixture(t);seedCrew(f);
+ const person=f.sql.prepare('INSERT INTO users(id,email,name,created) VALUES(?,?,?,0)');
+ const team=f.sql.prepare("INSERT INTO crews(id,owner_id,name,created) VALUES(?,'owner',?,0)");
+ const run=f.sql.prepare("INSERT INTO crew_jump_runs(id,user_id,crew_id,week,day,request_id,seed,version,starts,score) VALUES(?,?,?,'2026-11-02','2026-11-02','r','s','v',0,?)");
+ for(let n=1;n<=102;n++){const id='rank'+n;person.run(id,id+'@test.invalid',id);team.run(id,id);run.run(id,id,id,1000-n)}
+ run.run('my-rank','owner','preview',1);
+ const data=await (await jumpRoute(new Request('https://aifect.test/'),{...env,DB:f.DB},'/api/crews/preview/jump',{id:'owner'},monday)).json();
+ for(const list of [data.ranking,data.individualRanking]){assert.deepEqual(list.map(r=>r.place),[...Array.from({length:100},(_,i)=>i+1),103])}
+ assert.equal(data.personalRank,103);assert.equal(data.teamRank,103);
+});
