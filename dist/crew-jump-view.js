@@ -18,6 +18,7 @@ export function mount(root,{crew,viewer,api,esc}){
  const url='/api/crews/'+encodeURIComponent(crew)+'/jump';
  root.innerHTML=`<link rel="stylesheet" href="/crew-jump.css"><section class="jump-club"><header><a class="text-link" href="#crew/${encodeURIComponent(crew)}">‹ 크루로</a><div><button class="small-button" data-pause hidden>일시정지</button> <button class="small-button" data-rules>게임 규칙</button></div></header>
  <section class="jump-lobby" aria-label="크루게임 대기실">
+   <nav class="arc-game-choice" aria-label="크루게임 선택"><b>별빛 점프</b><a class="small-button" href="/crew-rhythm/?crew=${encodeURIComponent(crew)}">♫ 리듬게임 · Double Tap 연습하기 ›</a></nav>
    <div class="arc-top">
     <h1 class="arc-intro"><img src="/crew-jump-art/arcade-intro.webp" width="315" height="546" alt="AIFECT 크루 점프게임. 장애물을 넘고 별 젤리를 모으며 달려요."></h1>
     <section class="jump-board" aria-label="주간 순위판"><p>순위를 불러오는 중…</p></section>

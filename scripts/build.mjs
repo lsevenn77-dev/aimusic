@@ -11,7 +11,7 @@ import {readdir} from 'node:fs/promises';
 await mkdir('dist/server',{recursive:true});
 await mkdir('dist/client',{recursive:true});
 await cp('shared/crew-jump.js','dist/client/crew-jump-core.js');
-for(const name of ['crew-jump-view.js','crew-jump.css','crew-jump-art'])await cp('dist/'+name,'dist/client/'+name,{recursive:true});
+for(const name of ['crew-jump-view.js','crew-jump.css','crew-jump-art','crew-rhythm'])await cp('dist/'+name,'dist/client/'+name,{recursive:true});
 for(const file of ['artist-fanpage.js','artist-fanpage.css'])await cp('dist/'+file,'dist/client/'+file);
 for(const file of ['mobile-input.js','mobile-input.css'])await cp('dist/'+file,'dist/client/'+file);
 for(const file of ['decorations.js','decoration-display.js','decorations.css','microphone-check.js','microphone-check.css','play-page.js','play-page.css'])await cp('dist/'+file,'dist/client/'+file);

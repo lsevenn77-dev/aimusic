@@ -150,3 +150,4 @@
  .jump-wide-layout{inset:auto;top:0;left:100%;width:100dvh;height:100dvw;transform:rotate(90deg);transform-origin:0 0}
  .jump-wide-layout .jump-stage{width:min(100dvh,177.7778dvw)}
 }
+.arc-game-choice{display:flex;align-items:center;justify-content:space-between;gap:.6rem;flex-wrap:wrap;margin-bottom:.75rem}.arc-game-choice a{color:var(--text,#fff);text-decoration:none}
