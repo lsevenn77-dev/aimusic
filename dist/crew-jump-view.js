@@ -15,8 +15,8 @@ export function mount(root,{crew,api,esc}){
    <section class="jump-shop" aria-labelledby="jump-shop-title">
     <div class="jump-shop-head"><h2 id="jump-shop-title">캐릭터 의상 상점</h2><small>미리보기</small></div>
     <div class="jump-shop-shelves">
-     <figure class="jump-outfit silver"><div><b>실버 의상</b><span>SILVER</span></div><img src="/crew-jump-art/silver-varsity.webp" alt="별 패치와 민트색 스카프가 달린 재킷"><figcaption>민트 스타 재킷</figcaption></figure>
-     <figure class="jump-outfit gold"><div><b>골드 의상</b><span>GOLD</span></div><img src="/crew-jump-art/gold-cape.webp" alt="금빛 별 브로치가 달린 보라색 망토"><figcaption>별빛 무대 망토</figcaption></figure>
+     <div class="jump-outfit silver"><span class="jump-currency" aria-hidden="true">S</span><div><b>실버 의상</b><small>의상 준비 중</small></div></div>
+     <div class="jump-outfit gold"><span class="jump-currency" aria-hidden="true">G</span><div><b>골드 의상</b><small>의상 준비 중</small></div></div>
     </div>
    </section>
    <div class="jump-brief" aria-live="polite">이번 주 기록을 불러오는 중…</div>
