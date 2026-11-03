@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AIFECT 크루 레이싱</title>
+<link rel="stylesheet" href="./race.css">
+</head>
+<body>
+
+
+<div class="wrap" id="lobbyView">
+  <div class="glass top">
+    <a id="crewBack" class="cta alt" href="/#community/crews">← 크루로</a>
+    <h1>크루 레이싱</h1>
+    <span class="chip mint">연습 모드</span>
+  </div>
+  <div class="lobby">
+    <div class="col">
+      <div class="glass card">
+        <div class="course">
+          <div>
+            <span class="chip mint" id="weekTxt">이번 주 연습 코스</span>
+            <div class="name" id="courseName"></div>
+            <div class="muted"><span id="courseDesc"></span> · 제한 60초 · 단일 난이도</div>
+            <div class="stats">
+              <div class="stat"><span>내 고스트 · 최고 점수</span><b class="num" id="ghostTxt">-</b></div>
+              <div class="stat"><span>내 최고 기록</span><b class="num" id="bestTxt">-</b></div>
+              <div class="stat"><span>연습 주행</span><b class="mint">무제한</b></div>
+            </div>
+          </div>
+          <div class="mapbox"><canvas id="mapCv" aria-label="코스 지도"></canvas></div>
+        </div>
+        <div class="startrow">
+          <button class="cta" id="practiceBtn" type="button">▶ 주행 시작</button>
+
+        </div>
+
+        <div class="howto">
+          <div><b>방향</b><kbd>A</kbd> <kbd>D</kbd> 또는 ← → · 모바일 좌우 버튼</div>
+          <div><b>부스터</b><kbd>SPACE</kbd> · 게이지 절반을 써서 1.6초 가속</div>
+          <div><b>드리프트</b>코너 안쪽으로 방향을 계속 누르면 시작, <span class="mint">코너가 끝날 때 떼면</span> 부스터 충전</div>
+          <div><b>벽 충돌</b>속도가 크게 줄어요. 코너 안쪽으로 붙을수록 거리가 짧아져요</div>
+        </div>
+      </div>
+      <div class="glass card">
+        <div class="shophead">
+          <h2>🚗 연습 차고</h2>
+
+        </div>
+        <div class="garage" id="garage"></div>
+        <div class="sample">여섯 대 모두 자유롭게 시승할 수 있어요. 차량마다 외형이 다르고 성능은 같아요.</div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="glass card">
+        <h2>점수 계산</h2>
+        <table class="rule">
+          <tr><td>완주 기본 점수</td><td>400,000</td></tr>
+          <tr><td>60초에서 단축한 1초당</td><td>+10,000</td></tr>
+          <tr><td>예) 49.90초 완주</td><td>501,000</td></tr>
+          <tr><td>미완주 (진행도 비례)</td><td>최대 390,000</td></tr>
+        </table>
+        <div class="sample">차량 성능·부스터 효과는 모두 같아요. 고스트와는 부딪히지 않고, 추월해도 추가 점수는 없어요.</div>
+      </div>
+      <div class="glass card"><h2>내 연습 기록</h2><p class="muted">코스마다 이 브라우저의 최고 점수와 완주 시간을 보관해요. 다음 주행에서는 내 최고 점수 때의 차량이 고스트로 달려요.</p></div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    </div>
+  </div>
+
+
+
+
+
+
+
+
+
+
+
+
+</div>
+
+<div class="race" id="race" hidden>
+  <canvas id="cv"></canvas>
+  <div class="hud">
+    <div class="h-title"><b>크루 레이싱</b><span id="hudCourse">이번 주 코스</span></div>
+    <div class="h-center">
+      <div class="num h-time" id="timeTxt">00:00.00</div>
+      <span class="num gap" id="gapTxt">0.00초 뒤</span>
+      <div class="h-target" id="targetTxt">첫 기록 도전</div>
+      <div class="prog"><i id="progFill"></i><em class="ghostdot" id="ghostDot"></em><em id="progDot"></em><span class="flag"></span></div>
+    </div>
+    <button class="pausebtn" id="pauseBtn" type="button" aria-label="일시정지">❚❚</button>
+    <div class="num msg" id="msg"></div>
+    <div class="glass keys"><kbd>A</kbd> ← <span class="sep"></span> <kbd>D</kbd> → <span style="margin-left:4px">방향</span></div>
+    <div class="num speed" id="speedTxt">0<small>km/h</small></div>
+    <button class="boost" id="boostBtn" type="button"><div class="row"><b>부스터</b><kbd>SPACE</kbd></div><div class="gauge"><i id="gaugeFill"></i></div></button>
+    <div class="mpad">
+      <button type="button" id="mLeft" aria-label="왼쪽">←</button>
+      <button type="button" class="mb" id="mBoost">부스터<i id="mGauge"></i></button>
+      <button type="button" id="mRight" aria-label="오른쪽">→</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="readyOv" hidden><div class="num count" id="countTxt">3</div></div>
+
+  <div class="overlay" id="pauseOv" hidden>
+    <div class="glass panel">
+      <h2>일시정지</h2>
+      <div class="muted"><span id="pauseCourse"></span> · <span id="pauseKind"></span></div>
+      <div class="muted" id="pauseNote" style="font-size:13px"></div>
+      <div class="btnrow">
+        <button class="cta alt" id="quitBtn" type="button">그만하기</button>
+        <button class="cta" id="resumeBtn" type="button">▶ 계속하기</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="resultOv" hidden>
+    <div class="glass panel">
+      <div class="chips"><span class="chip" id="resKind">연습 주행</span><span class="chip mint" id="resState">완주</span></div>
+      <div class="num restime" id="resTime">00:00.00</div>
+      <div class="num resscore" id="resScore">0점</div>
+      <table class="rule breakdown" id="resBreak"></table>
+      <div class="res3">
+        <div><span>드리프트 성공</span><b class="num" id="rDrift">0</b></div>
+        <div><span>벽 충돌</span><b class="num" id="rWall">0</b></div>
+        <div><span>부스터 사용</span><b class="num" id="rBoost">0</b></div>
+      </div>
+      <div class="notice" id="resNotice"></div>
+      <div class="btnrow">
+
+        <button class="cta alt" id="lobbyBtn" type="button">⌂ 대기실로</button>
+        <button class="cta" id="practiceAgainBtn" type="button">◎ 연습 다시하기</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="./race.js"></script><script type="module" src="./world.js"></script></body></html>

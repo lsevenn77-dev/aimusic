@@ -291,3 +291,10 @@ dialog.crew-action-dialog,
  .crew-identity .crew-game-entry img {width:36px;height:36px}
  .crew-identity:has(.crew-game-entry) .crew-settings-anchor {grid-column:3;grid-row:1}
 }
+
+@media(max-width:600px){
+ .crew-identity .crew-game-entry {min-width:0;gap:4px;padding-inline:3px;justify-content:center}
+ .crew-identity .crew-game-entry img {width:24px;height:24px}
+ .crew-game-entry small,.crew-game-entry i {display:none}
+ .crew-game-entry strong {font-size:13px;white-space:nowrap}
+}
