@@ -39,8 +39,21 @@
   function makeView(w, h, mobile) {
     const judgeY = h * .84;
     const horizon = h * .08;
-    const span = mobile ? w * .96 : Math.min(w * .82, h * 1.65);
+    const span = mobile ? w * .96 : Math.min(w * .82, h * 1.32, 1120);
     return { w, h, cx: w / 2, judgeY, horizon, span };
+  }
+  function sizeCanvas(canvas, context) {
+    const rect = canvas.getBoundingClientRect();
+    const area = Math.max(1, rect.width * rect.height);
+    const scale = Math.min(window.devicePixelRatio || 1, Math.sqrt(8294400 / area));
+    const width = Math.max(1, Math.round(rect.width * scale));
+    const height = Math.max(1, Math.round(rect.height * scale));
+    if (canvas.width !== width || canvas.height !== height) {
+      canvas.width = width;
+      canvas.height = height;
+    }
+    context.setTransform(width / (rect.width || 1), 0, 0, height / (rect.height || 1), 0, 0);
+    return rect;
   }
   function depth(d) {
     const z = Math.max(-.2, d);
@@ -244,11 +257,9 @@
   let previewNotes = null;
   function drawPreview(ts) {
     if (!CHART || !$('play').hidden) return;
-    const r = pcv.getBoundingClientRect(), dpr = Math.min(2, devicePixelRatio || 1);
-    if (pcv.width !== Math.round(r.width * dpr)) { pcv.width = Math.round(r.width * dpr); pcv.height = Math.round(r.height * dpr); }
+    const r = sizeCanvas(pcv, pctx);
     if (!previewNotes) previewNotes = notesFor(diff);
     const now = 14 + (ts / 1000) % 16;
-    pctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const v = makeView(r.width, r.height, r.width <= 720);
     const fx = [];
     for (const n of previewNotes) if (!n.len && n.t <= now && n.t > now - .2) fx[n.lane] = { t: n.t };
@@ -394,9 +405,7 @@
   function frame(ts) {
     raf = requestAnimationFrame(frame);
     if (!G) return;
-    const r = cv.getBoundingClientRect(), dpr = Math.min(2, devicePixelRatio || 1);
-    if (cv.width !== Math.round(r.width * dpr) || cv.height !== Math.round(r.height * dpr)) { cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr); }
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const r = sizeCanvas(cv, ctx);
     const mobile = r.width <= 720;
     const v = makeView(r.width, r.height, mobile);
     const t = songTime();
