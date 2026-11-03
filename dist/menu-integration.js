@@ -23,7 +23,7 @@ function menuAlias(hash){
 }
 function myTabHref(tab,raw=location.hash){return menuHref('profile',{view:tab,section:tab==='library'?'likes':null},raw);}
 function rememberMenuLogin(base,param){
- const key='aifect-menu-return',isTarget=hash=>/^#(?:profile(?:\?|$)|follow(?:\?|$)|community\/following(?:\?|$)|studio\/payouts(?:\?|$)|gifts\/rewards(?:\?|$))/.test(hash||'');
+ const key='aifect-menu-return',isTarget=hash=>/^#(?:profile(?:\/works)?(?:\?|$)|follow(?:\?|$)|community\/following(?:\?|$)|studio\/payouts(?:\?|$)|gifts\/rewards(?:\?|$))/.test(hash||'');
  try{
   if(!me&&isTarget(location.hash))sessionStorage.setItem(key,location.hash);
   else if(base==='account'){const saved=sessionStorage.getItem(key);if(isTarget(saved))returnRoute=saved;}

@@ -20,6 +20,10 @@
    options=getOptions()||[];
    const text=options.find(o=>o.value===getValue())?.label||'';
    if(label.textContent!==text)label.textContent=text;
+   if(config.renderIcon&&button.dataset.iconValue!==getValue()){
+    if(label.previousElementSibling)label.previousElementSibling.remove();
+    label.insertAdjacentHTML('beforebegin',config.renderIcon(getValue()));button.dataset.iconValue=getValue();
+   }
    if(button.title!==text)button.title=text;const disabled=native?native.disabled:!!config.disabled;if(button.disabled!==disabled)button.disabled=disabled;
    const accessible=config['aria-label']||host.getAttribute('aria-label')||(native?labelSources.map(l=>{const copy=l.cloneNode(true);copy.querySelectorAll('select,.aifect-dropdown').forEach(el=>el.remove());return copy.textContent;}).join(' ').trim():'')||'목록 선택';
    if(button.getAttribute('aria-label')!==accessible)button.setAttribute('aria-label',accessible);if(menu.getAttribute('aria-label')!==accessible)menu.setAttribute('aria-label',accessible);
@@ -63,7 +67,7 @@
   }
   function open(){
    sync();if(button.disabled)return;opened?.close();opened=api;
-   menu.replaceChildren(...options.map((o,i)=>{const el=document.createElement('div');el.id=menu.id+'-'+i;el.setAttribute('role','option');el.setAttribute('aria-selected',String(o.value===getValue()));el.setAttribute('aria-disabled',String(!!o.disabled));el.textContent=o.label;el.addEventListener('pointermove',()=>{if(!o.disabled)highlight(i);});el.addEventListener('click',()=>choose(i));return el;}));
+   menu.replaceChildren(...options.map((o,i)=>{const el=document.createElement('div');el.id=menu.id+'-'+i;el.setAttribute('role','option');el.setAttribute('aria-selected',String(o.value===getValue()));el.setAttribute('aria-disabled',String(!!o.disabled));el.textContent=o.label;if(config.renderIcon)el.insertAdjacentHTML('afterbegin',config.renderIcon(o.value));el.addEventListener('pointermove',()=>{if(!o.disabled)highlight(i);});el.addEventListener('click',()=>choose(i));return el;}));
    (button.closest('dialog[open]')||document.body).append(menu);menu.hidden=false;menu.showPopover?.();button.setAttribute('aria-expanded','true');position();highlight(options.findIndex(o=>o.value===getValue()&&!o.disabled));
    window.addEventListener('scroll',schedule,true);window.addEventListener('resize',schedule);window.visualViewport?.addEventListener('resize',schedule);window.visualViewport?.addEventListener('scroll',schedule);resize.observe(button);resize.observe(document.body);
   }

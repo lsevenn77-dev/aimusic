@@ -24,7 +24,7 @@ import {listenerLyrics} from './lyrics.js';
 import {profileGifts} from './gifts.js';
 import {GENRES,validGenre,trackClassification,genreFilterSQL} from '../shared/genres.js';
 import {rankingPeriod} from './ranking-period.js';
-import {CHART_WEIGHTS,CHART_ORIGINAL,pageCharts} from './popular-chart.js';
+import {CHART_WEIGHTS,CHART_ORIGINAL,pageCharts,chartPublication} from './popular-chart.js';
 import {dailyChart} from './chart-movement.js';
 import {supportFollowCount} from './ai-support-follows.js';
 import {profileDiscovery} from './profile-discovery.js';
@@ -44,9 +44,11 @@ const SELECT=`SELECT t.id,t.title,t.genre,t.genres_json,t.moods_json,t.classific
  (SELECT COALESCE(sum(g.gold),0) FROM gifts g WHERE g.track_id=t.id) gift_gold,
  (SELECT COALESCE(sum(g.silver),0) FROM free_gifts g WHERE g.track_id=t.id) gift_stars
  FROM tracks t JOIN artists a ON a.id=t.artist_id JOIN producers p ON p.id=t.producer_id LEFT JOIN tracks o ON o.id=t.original_id LEFT JOIN producers op ON op.id=o.producer_id LEFT JOIN tracks dt ON dt.id=t.duet_parent_id LEFT JOIN producers fp ON fp.id=dt.producer_id`;
-export const trackListQuery=(env,where=VISIBLE(),args=[],sort='t.created DESC',limit=100,includeStatus=false)=>{
+export const trackListQuery=(env,where=VISIBLE(),args=[],sort='t.created DESC',limit=100,includeStatus=false,profileWorks=false)=>{
  const blocked=env.AIFECT_BLOCKED||[];
- return query(env,`${includeStatus?SELECT.replace('SELECT t.id,','SELECT t.id,t.status,'):SELECT} WHERE ${where}${blocked.length?' AND t.user_id NOT IN ('+blocked.map(()=>'?').join(',')+')':''} ORDER BY ${sort} LIMIT ${limit}`,...args,...blocked);
+ const fields=[includeStatus?'t.status':'',profileWorks?`${producerNameSQL()} work_nickname,${chartPublication()} published_at,${VISIBLE()} work_public`:''].filter(Boolean);
+ const select=fields.length?SELECT.replace('SELECT t.id,','SELECT t.id,'+fields.join(',')+','):SELECT;
+ return query(env,`${select} WHERE ${where}${blocked.length?' AND t.user_id NOT IN ('+blocked.map(()=>'?').join(',')+')':''} ORDER BY ${sort} LIMIT ${limit}`,...args,...blocked);
 };
 export const trackList=async(...args)=>(await trackListQuery(...args).all()).results.map(trackClassification);
 export async function published(env,tid){const t=await one(env,`SELECT t.* FROM tracks t WHERE t.id=? AND ${VISIBLE()}`,tid);if(!t)fail(404,'공개된 곡을 찾을 수 없습니다.');assertUnblocked(env,t.user_id);return t;}
@@ -182,17 +184,18 @@ export async function catalogRoute(req,env,path,user){
   if(kind==='artist')await assertArtistInteraction(env,entity.id,user?.id);
   if(!m[3]&&method==='GET'){
    const own=kind==='producer'&&user?.id===entity.user_id,dashboardRequested=kind==='producer'&&url.searchParams.get('dashboard')==='1',manage=own&&dashboardRequested;
-   const workLimit=manage&&url.searchParams.get('work_list')==='1'?-1:500;
+   const profileWorks=kind==='producer'&&dashboardRequested&&url.searchParams.get('work_list')==='1';
+   const workLimit=profileWorks?-1:500;
    const [count,tracks,covers,gifts,partner,identity,gallery,inviteCrew,dashboard]=await Promise.all([
     followCounts(env,owner.user_id,user?.id,kind==='artist'?entity.id:''),
-    trackList(env,`${manage?"((t.user_id=? AND t.status!='deleted') OR "+VISIBLE()+')':VISIBLE()} AND t.kind='original' AND t.${kind}_id=?`,[...(manage?[user.id]:[]),entity.id], 't.created DESC',workLimit,manage),
-    kind==='producer'?trackList(env,`${manage?"((t.user_id=? AND t.status!='deleted') OR "+VISIBLE()+')':VISIBLE()} AND t.kind='cover' AND (t.producer_id=? OR dt.producer_id=? OR EXISTS(SELECT 1 FROM tracks child WHERE child.duet_parent_id=t.id AND child.producer_id=? AND ${VISIBLE('child')}))`,[...(manage?[user.id]:[]),entity.id,entity.id,entity.id], 't.created DESC',workLimit,manage):null,
+    trackList(env,`${manage?"((t.user_id=? AND t.status!='deleted') OR "+VISIBLE()+')':VISIBLE()} AND t.kind='original' AND t.${kind}_id=?`,[...(manage?[user.id]:[]),entity.id], 't.created DESC',workLimit,manage,profileWorks),
+    kind==='producer'?trackList(env,`${manage?"((t.user_id=? AND t.status!='deleted') OR "+VISIBLE()+')':VISIBLE()} AND t.kind='cover' AND (t.producer_id=? OR dt.producer_id=? OR EXISTS(SELECT 1 FROM tracks child WHERE child.duet_parent_id=t.id AND child.producer_id=? AND ${VISIBLE('child')}))`,[...(manage?[user.id]:[]),entity.id,entity.id,entity.id], 't.created DESC',workLimit,manage,profileWorks):null,
     kind==='producer'?profileGifts(env,entity.id):null,
     kind==='producer'?partnerState(env,entity.user_id):null,
     own||dashboardRequested?playerIdentity(env,entity.user_id):null,
     kind==='producer'?profileGallery(env,entity.id,own):artistGallery(env,entity.id,user),
     kind==='producer'&&user&&entity.user_id!==user.id?one(env,'SELECT c.id,c.name FROM crew_members cm JOIN crews c ON c.id=cm.crew_id WHERE cm.user_id=? AND NOT EXISTS(SELECT 1 FROM crew_members target WHERE target.crew_id=c.id AND target.user_id=?) AND NOT EXISTS(SELECT 1 FROM crew_bans WHERE crew_id=c.id AND user_id=?)',user.id,entity.user_id,entity.user_id):null,
-    kind==='producer'?profileDashboard(env,entity,user):null
+    kind==='producer'?profileDashboard(env,entity,user,profileWorks):null
    ]);
    if(dashboardRequested)await profileCoverParticipation(env,covers,user);
    const profileIdentity=identity&&!own?{profile_frame:identity.profile_frame,profile_frame_artwork:identity.profile_frame_artwork}:identity;

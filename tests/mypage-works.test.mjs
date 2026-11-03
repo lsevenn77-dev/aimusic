@@ -44,12 +44,78 @@ test('dubbing children exclude drafts, unavailable mixes, private, unrelated and
  assert.equal((await f.call('/api/dubbing/projects/'+root+'/completed','GET',undefined,'other')).status,404);
 });
 
-test('profile uses song rows, separates actions, hides unavailable joins and shares the six-option work filter',()=>{
- const c=vm.createContext({esc:String,number:String,time:()=> '0:45',cover:()=>'<img>',liked:()=>false,icon:n=>`<svg data-icon="${n}"></svg>`,me:{id:'viewer'},document:{addEventListener(){}},window:{addEventListener(){}},AifectDubbing:{dubbingGenreArtwork:()=>'/art'},opportunityHref:()=> '#karaoke'});
- for(const file of ['song-covers.js','mypage.js','crew-integrated.js'])vm.runInContext(readFileSync(new URL('../dist/'+file,import.meta.url),'utf8'),c);
- const t={id:'parent',title:'제목',kind:'cover',producer:'가수',cover_mode:'duet',duet_open:1,original_id:'original',participants:2,completions:3,can_join:true};
- const html=c.myWorkItemHTML(t);assert.match(html,/song-cover-row/);assert.match(html,/data-mp-children="parent"/);assert.match(html,/#sing\/original\?duet=parent/);assert.match(html,/data-icon="ui-play-action"/);assert.match(html,/data-play="parent"/);assert.doesNotMatch(c.myWorkItemHTML({...t,can_join:false}),/참여하기/);
- assert.doesNotMatch(c.myWorkItemHTML({...t,completions:0,participants:0}),/id="mp-children|data-mp-children/);
- const works=c.myWorksHTML({profile:{id:'p'},covers:[t],tracks:[],dubbings:[]});assert.match(works,/data-work-filter/);assert.match(works,/<option value="recruit">모집중/);assert.match(works,/work-wide/);
- assert.match(c.myWorkItemHTML({...t,status:'hidden'}),/#manage\/parent/);assert.doesNotMatch(c.myWorkItemHTML({...t,status:'hidden'}),/data-play=/);
+
+function profileClient(me={id:'owner'}){
+ const context=vm.createContext({me,URLSearchParams,esc:String,number:String,icon:n=>`<svg data-icon="${n}"></svg>`,cover:()=>'<img>',castingMineTabs:()=>'<nav>내 원작</nav>',AifectDubbing:{dubbingGenreArtwork:()=>'/art'},document:{addEventListener(){}},window:{addEventListener(){}}});
+ vm.runInContext(readFileSync(new URL('../dist/mypage.js',import.meta.url),'utf8'),context);
+ return context;
+}
+
+test('full profile list exposes first publication, plain nickname, complete entities and matching section links',async t=>{
+ const f=await fixture(t),c=profileClient();
+ f.sql.exec("INSERT INTO crews(id,owner_id,name,created) VALUES('testcrew','owner','별',0); INSERT INTO crew_members(crew_id,user_id,role,joined) VALUES('testcrew','owner','owner',0); UPDATE tracks SET first_published_at=5 WHERE id='one'; UPDATE producers SET name='별 (내 이름)' WHERE id='producer'");
+ const get=async user=>(await f.call('/api/producers/producer?dashboard=1&work_list=1','GET',undefined,user)).body;
+ const d=await get('owner'),catalog=c.profileWorkCatalog(d);
+ assert.equal(catalog[0].t.id,'one');assert.equal(catalog[0].nickname,'별 (내 이름)');
+ assert.deepEqual(Array.from(catalog,w=>w.t.id),['one','hidden','three','two']);
+ assert.ok(catalog.some(w=>w.t.id==='hidden'));assert.ok(!(await get('other')).tracks.some(w=>w.id==='hidden'));
+ for(const key of ['original','complete','recruit'])assert.ok(c.myWorksHTML(d).includes('#profile/works?tab='+key));
+ const page=c.profileWorksPage(d,new URLSearchParams('tab=complete&type=script'));
+ assert.equal(page.profileWorks.type,'all');assert.match(page.html,/내 작품 검색/);assert.doesNotMatch(page.html,/최신순/);
+});
+
+test('cover and dubbing classification uses readiness, preserves private work, and keeps same IDs in separate namespaces',()=>{
+ const c=profileClient(),base={producer_id:'p',user_id:'owner',work_nickname:'가수',created:2,work_public:1};
+ const d={profile:{id:'p',user_id:'owner'},covers:[
+  {...base,id:'x',kind:'cover',cover_mode:'solo',title:'내 제목 (Cover)'},
+  {...base,id:'c',kind:'cover',cover_mode:'duet',duet_open:0,duet_parent_id:'parent'},
+  {...base,id:'p',kind:'cover',cover_mode:'duet',duet_open:1,recruiting:true},
+  {...base,id:'closed',kind:'cover',cover_mode:'duet',duet_open:0},
+  {...base,id:'draft',kind:'cover',status:'hidden',work_public:0}],
+  dubbings:[{id:'x',kind:'dubbing',owner_id:'owner',root_id:'z',audio_ready:1,work_finished:1},
+  {id:'z',kind:'dubbing',owner_id:'other',work_open:1},{id:'k',root_id:'z',kind:'dubbing',work_open:1,casting_combo:1}]};
+ const works=c.profileWorkCatalog(d);assert.equal(works.length,8);
+ const type=(id,entity='track')=>works.find(w=>w.key===entity+':'+id);
+ assert.equal(type('closed').section,null);assert.equal(type('draft').section,null);
+ assert.equal(type('p').section,'recruit');assert.equal(type('c').section,'complete');
+ assert.equal(type('x','dubbing').section,'complete');assert.equal(type('z','dubbing').type,'script');
+ assert.equal(type('k','dubbing').type,'dubbing');
+ assert.match(c.profileWorkCard(type('x')),/내 제목 \(Cover\)/);assert.match(c.profileWorkCard(type('x')),/#C4B5FD/);
+ const script=c.profileWorkCard(type('z','dubbing'));assert.match(script,/#F2D477/);assert.match(script,/project=z/);assert.doesNotMatch(script,/data-mp-dubbing-play/);
+ assert.doesNotMatch(c.profileWorkCard(type('draft')),/data-play=/);
+ assert.equal(c.profileWorkIcon('duet'),c.profileWorkIcon(type('c').type));assert.match(c.profileWorkIcon(type('p').type),/#F3A6CF/);
+});
+
+test('four gallery slots count actual photos and open the existing owner-only upload form directly',()=>{
+ const d={profile:{id:'p',name:'회원',user_id:'owner'},gallery:[{url:'/image'}]},own=profileClient(),other=profileClient({id:'visitor'});
+ const html=own.myMoments(d);
+ assert.equal((html.match(/data-profile-photo-add="p"/g)||[]).length,3);
+ assert.equal((html.match(/data-gallery-photo=/g)||[]).length,1);
+ assert.match(html,/갤러리 <span>1<\/span>/);assert.doesNotMatch(other.myMoments(d),/data-profile-photo-add/);
+ assert.doesNotMatch(own.myMoments({...d,gallery:Array(10).fill({url:'/image'})}),/data-profile-photo-add/);
+});
+
+
+test('eligible casting scripts and live combinations stay distinct and drafts never become finished',async t=>{
+ const {castingFixture}=await import('./dubbing-casting-fixtures.mjs'),f=await castingFixture(t,3);
+ const list=async viewer=>{
+  const r=await f.call('/api/producers/producer?dashboard=1&work_list=1','GET',undefined,viewer);
+  assert.equal(r.status,200,JSON.stringify(r.body));return r.body.dubbings;
+ };
+ assert.equal((await list('actor3')).length,0);
+ await f.base();
+ assert.equal((await list('actor3')).find(p=>p.id===f.root).work_open,1);
+ const d=await f.draft('role_2','actor2');assert.ok(!(await list('actor3')).some(p=>p.id===d.pid));
+ const r=await f.submit(d.pid,'role_2','actor2',d.rev),id=r.body.casting.combinationId;
+ const combo=(await list('actor3')).find(p=>p.id===id);
+ assert.ok(combo.casting_combo);assert.ok(combo.work_open);assert.equal(combo.work_finished,0);
+ assert.equal((await list('actor2')).find(p=>p.id===id).viewer_claimed,1);
+ f.sql.prepare('UPDATE dubbing_combinations SET last_participation=0 WHERE project_id=?').run(id);
+ assert.ok(!(await list('actor3')).some(p=>p.id===id));
+});
+test('work list counts beyond the dashboard preview cap without exposing private originals to visitors',async t=>{
+ const f=await fixture(t);
+ f.sql.exec("WITH RECURSIVE n(i) AS (VALUES(1) UNION ALL SELECT i+1 FROM n WHERE i<501) INSERT INTO tracks(id,user_id,artist_id,producer_id,title,genre,ai_tool,rights_accepted,original_ext,original_bytes,created,status) SELECT 'extra-'||i,'owner','artist','producer','등록곡','Rock','QA',1,'wav',128,i,'published' FROM n");
+ const r=await f.call('/api/producers/producer?dashboard=1&work_list=1','GET',undefined,'other');
+ assert.equal(r.status,200);assert.equal(r.body.tracks.length,504);assert.ok(!r.body.tracks.some(t=>t.id==='hidden'));
 });

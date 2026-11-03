@@ -38,10 +38,12 @@ document.addEventListener('click',async e=>{
  const button=e.target.closest('[data-profile-photo-add],[data-profile-photo-delete]');if(!button)return;e.preventDefault();
  if(button.dataset.profilePhotoAdd){
   const pid=button.dataset.profilePhotoAdd;
-  dialog('<h2>마이 갤러리 사진 추가</h2><p>프로필 사진·아이디 아래에 표시되며, 다른 사람에게도 공개됩니다.</p><form id="profile-gallery-upload"><label class="form-field">사진 선택<input name="photos" type="file" multiple accept="image/jpeg,image/png,image/webp" required></label><p class="field-help">JPG · PNG · WebP / 장당 5MB 이하 / 최대 30장<br>WebP로 변환해 서버에 저장해요. 개인정보가 담긴 사진은 올리지 마세요.</p><button class="primary-button" type="submit">공개 사진 올리기</button><p class="gallery-upload-status" role="status"></p><p class="form-error" role="alert"></p></form>');
+  dialog('<h2>갤러리 사진 등록</h2><p>프로필 사진·아이디 아래에 표시되며, 다른 사람에게도 공개됩니다.</p><form id="profile-gallery-upload">'+(pid?'':'<label class="form-field">프로필에 사용할 닉네임<input name="nickname" required maxlength="60"></label>')+'<label class="form-field">사진 선택<input name="photos" type="file" multiple accept="image/jpeg,image/png,image/webp" required></label><p class="field-help">JPG · PNG · WebP / 장당 5MB 이하 / 최대 30장<br>WebP로 변환해 서버에 저장해요. 개인정보가 담긴 사진은 올리지 마세요.</p><button class="primary-button" type="submit">공개 사진 올리기</button><p class="gallery-upload-status" role="status"></p><p class="form-error" role="alert"></p></form>');
   const form=$('#profile-gallery-upload');
   form.onsubmit=busyForm(form,async()=>{
-   const files=[...form.elements.photos.files],current=await api('/api/producers/'+encodeURIComponent(pid)+'/gallery'),available=current.limit-current.photos.length;
+   const files=[...form.elements.photos.files];
+   if(!pid){const self=await api('/api/me/profile','GET',undefined,{fresh:true});pid=self.profile.id||(await api('/api/me/profile','PUT',{name:form.elements.nickname.value,bio:''})).profile.id;}
+   const current=await api('/api/producers/'+encodeURIComponent(pid)+'/gallery'),available=current.limit-current.photos.length;
    if(!files.length)throw Error('사진을 선택해주세요.');
    if(files.length>available)throw Error('사진을 '+available+'장 더 올릴 수 있어요.');
    let done=0;
