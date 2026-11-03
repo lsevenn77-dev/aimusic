@@ -28,6 +28,28 @@
 }
 
 /* A wrapped lobby/result panel can be taller than the small-screen canvas. */
+.jump-club > [hidden] { display:none !important }
+.jump-lobby { position:relative; overflow:hidden; padding:clamp(20px,4vw,42px); border:1px solid var(--ds-border,#3c405f); border-radius:20px; background:radial-gradient(ellipse at 100% 0%,#44427766,transparent 60%),var(--ds-panel,#151c2b) }
+.jump-lobby > small { color:var(--ds-mint,#9adfd7); font-weight:700; letter-spacing:.14em }
+.jump-lobby h1 { margin:6px 0 20px; font-size:clamp(26px,3.5vw,40px) }
+.jump-brief h2 { margin:6px 0; font-size:clamp(19px,2.2vw,25px) }
+.jump-brief p,.jump-leaders p { color:var(--ds-muted,#b4bbce); line-height:1.5 }
+.jump-brief .jump-mode { display:inline-block; margin:0; padding:3px 10px; border-radius:14px; color:var(--ds-mint,#9adfd7); background:#263942; font-size:.84rem }
+.jump-brief dl { display:flex; flex-wrap:wrap; gap:16px 36px; padding:16px 0; border-block:1px solid var(--ds-border,#393e52) }
+.jump-brief dt { font-size:.86rem; color:var(--ds-muted,#b4bbce) }
+.jump-brief dd { margin:4px 0 0; font-weight:700 }
+.jump-start-actions { display:flex; gap:10px; flex-wrap:wrap }
+.jump-start-actions .primary-button { min-width:132px }
+.jump-mode-note { margin-bottom:0; font-size:.9rem }
+.jump-club .jump-board { margin-top:16px; grid-template-columns:repeat(2,minmax(0,1fr)) }
+.jump-leaders { padding:clamp(16px,2vw,24px); background:var(--ds-panel,#131b26); border:1px solid var(--ds-border,#353c51); border-radius:16px }
+.jump-leaders h2 { margin:0; font-size:1.14rem }
+.jump-leaders p { margin:5px 0 16px; font-size:.9rem }
+.jump-leaders li { align-items:baseline }
+.jump-leaders li span { overflow-wrap:anywhere }
+.jump-leaders li strong { white-space:nowrap }
+.jump-leaders footer { margin-top:16px; border-top:1px solid var(--ds-border,#353c51); padding-top:12px; color:var(--ds-mint,#9adfd7) }
+@media(max-width:640px){ .jump-club .jump-board {grid-template-columns:1fr} }
 @media (max-width: 640px) {
   .jump-stage:has(.jump-copy) { display: grid; align-items: center; }
   .jump-stage:has(.jump-copy) > :is(canvas, .jump-overlay) { grid-area: 1 / 1; }

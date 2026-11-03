@@ -85,4 +85,7 @@ test('weekly standings rank competing crews, share ties, and ignore practice / a
  }
  const res=await jumpRoute(new Request('https://aifect.test/'),{...env,DB:f.DB},'/api/crews/preview/jump',{id:'owner'},monday);
  const data=await res.json();assert.deepEqual(data.ranking.map(x=>x.place),[1,1,3]);assert.equal(data.teamRank,3);assert.equal(data.participated,true);
+ assert.deepEqual(data.individualRanking.map(row=>[row.place,row.points]),[[1,901],[1,901],[3,750]]);
+ assert.equal(data.personalRank,3);assert.equal(data.best,750);
+ assert.equal(data.individualRanking.filter(row=>row.mine).length,1);
 });

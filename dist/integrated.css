@@ -45,7 +45,8 @@
 
 /* Crew detail: the discovery welcome surface keeps its own cover treatment. */
 .crew-page .crew-detail-header {padding-block:4px 0}
-.crew-page .crew-room-tabs .crew-game-entry {color:var(--ds-selected);font-weight:700;text-decoration:none}
+.crew-page .crew-room-tabs.has-game {width:100%}
+.crew-page .crew-room-tabs .crew-game-entry {margin-inline-start:auto;color:var(--ds-selected);font-weight:700;text-decoration:none}
 .crew-page .crew-game-entry:hover,.crew-page .crew-game-entry:focus-visible {text-decoration:underline;text-underline-offset:4px}
 .crew-page .crew-identity {display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:clamp(12px,2vw,24px)}
 .crew-page .crew-detail-picture {display:grid;place-items:center;width:128px;aspect-ratio:1;border-radius:var(--ds-radius-card,16px);overflow:hidden;background:var(--ds-panel);color:var(--ds-body)}
