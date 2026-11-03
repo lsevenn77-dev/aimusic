@@ -47,8 +47,8 @@ function studioQuotaCard(q){
  return `<section class="studio-quota-card" aria-label="이번 달 제작곡 한도">
   <span class="studio-quota-icon" aria-hidden="true">${icon('music')}</span>
   <div class="studio-quota-copy"><h2>이번 달 제작곡 ${number(q.used)} / ${number(q.limit)}곡 <span>· ${number(q.remaining)}곡 남음</span></h2>
-   <p>일반회원 월 3곡 · <b>Premium</b> 월 10곡</p><p>매월 1일 한국시간에 새로 시작해요. 커버곡은 제한 없이 올릴 수 있어요.</p></div>
-  ${member.plan==='free'?`<a class="primary-button studio-upgrade" href="#membership">${icon('diamond')} Premium 업그레이드 ${icon('chevron')}</a>`:''}
+   <p>일반회원 월 3곡 · <b>PREMIUM</b> 월 10곡</p><p>매월 1일 한국시간에 새로 시작해요. 커버곡은 제한 없이 올릴 수 있어요.</p></div>
+  ${member.plan==='free'?`<a class="primary-button studio-upgrade" href="#membership">${icon('diamond')} PREMIUM 업그레이드 ${icon('chevron')}</a>`:''}
  </section>`;
 }
 function studioWorksHTML(d){

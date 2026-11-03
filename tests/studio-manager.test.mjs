@@ -29,6 +29,8 @@ test('studio tabs isolate inventory, quota, upgrade and status summaries',()=>{
  assert.match(html,/전체 제작곡<\/span><strong>3/);
  assert.match(html,/업로드·변환 중<\/span><strong>1/);
  assert.match(html,/이번 달 제작곡 1 \/ 3곡/);
+ assert.match(html,/<b>PREMIUM<\/b> 월 10곡/);
+ assert.match(html,/PREMIUM 업그레이드/);
  assert.match(html,/href="#membership"/);
  assert.match(html,/href="#upload"/);
  assert.doesNotMatch(html,/data-studio-select="work-1"|정산 내역|id="producer-form"|artist-editors/);
@@ -38,7 +40,7 @@ test('studio tabs isolate inventory, quota, upgrade and status summaries',()=>{
  ctx.studioResetFilters('cover');ctx.member.plan='free';
  const covers=ctx.studioHTML(ctx.studioData);
  assert.match(covers,/전체 커버곡<\/span><strong>3/);
- assert.doesNotMatch(covers,/업로드·변환 중|이번 달 제작곡|Premium|data-studio-select="work-0"/);
+ assert.doesNotMatch(covers,/업로드·변환 중|이번 달 제작곡|PREMIUM|data-studio-select="work-0"/);
  assert.match(covers,/data-studio-select="work-1"/);
 });
 test('kind, status and keyword filters restrict the visible works',()=>{

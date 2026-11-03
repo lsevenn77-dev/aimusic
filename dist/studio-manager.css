@@ -2,9 +2,9 @@
    and content cap continue to position the editable controls. */
 .page-wrap:has(> #main > .studio-manager) {
   --studio-room-image: image-set(url('/assets/studio/studio-room-desktop.webp') type('image/webp'), url('/assets/studio/studio-room-desktop.png') type('image/png'));
-  --studio-room-opacity: .42;
+  --studio-room-opacity: .54;
   --studio-room-height: clamp(232px, 20vw, 390px);
-  --studio-room-fade: 60%;
+  --studio-room-fade: 86%;
   --studio-accent: #8eddd2;
   --studio-panel-bg: rgba(15, 22, 43, .87);
   position: relative;
@@ -24,7 +24,7 @@
   height: var(--studio-room-height);
   background-image: var(--studio-room-image);
   opacity: var(--studio-room-opacity);
-  mask-image: linear-gradient(#000 34%, transparent var(--studio-room-fade)),
+  mask-image: linear-gradient(#000 44%, transparent var(--studio-room-fade)),
               linear-gradient(to right, transparent, #000 6% 94%, transparent);
   mask-composite: intersect;
 }
@@ -42,7 +42,7 @@
   color: var(--studio-ink);
   min-width: 0;
 }
-.studio-manager .studio-topbar { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: start; gap: 12px; padding-bottom: 12px; min-height: clamp(82px, 7.4vw, 116px); }
+.studio-manager .studio-topbar { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: start; gap: 12px; padding-bottom: 28px; min-height: clamp(100px, 9.4vw, 144px); }
 .studio-manager .studio-topbar > div { grid-column: 2; min-width: 0; text-align: center; }
 .studio-manager .studio-topbar > .studio-upload { justify-self: end; }
 .studio-manager h1 { margin: 0; font-size: 24px; line-height: 1.3; }
@@ -83,7 +83,7 @@
 .studio-manager .studio-work-actions { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .studio-manager .studio-filter-tools,
 .studio-manager .studio-bulk-actions { margin-left: auto; }
-.studio-manager .studio-filter-tools .brand-search { --ui-control-height: 0px; min-height: 0; height: var(--compact-search-height); min-width: 0; width: 252px; padding: 0 12px; gap: 8px; }
+.studio-manager .studio-filter-tools .brand-search { --ui-control-height: 0px; min-height: 0; height: var(--topbar-height); min-width: 0; width: 252px; padding: 0 12px; gap: 8px; }
 .studio-manager .studio-filter-tools input { width: 100%; min-width: 0; line-height: 1.15; }
 .studio-manager .brand-search > svg, .studio-manager .brand-search .search-sparkle svg { width: 25px; height: 25px; }
 .studio-manager .brand-search .search-sparkle { width: 25px; height: 25px; padding: 0; }
@@ -123,9 +123,9 @@
 @media (max-width: 767px) {
   .page-wrap:has(> #main > .studio-manager) {
     --studio-room-image: url('/assets/studio/studio-room-mobile.webp');
-    --studio-room-opacity: .32;
+    --studio-room-opacity: .44;
     --studio-room-height: clamp(218px, 58vw, 285px);
-    --studio-room-fade: 47%;
+    --studio-room-fade: 84%;
   }
   .studio-manager h1 { font-size: 22px; }
   .studio-manager .studio-subtitle { font-size: 12px; line-height: 1.5; }
