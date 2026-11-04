@@ -35,7 +35,7 @@ test('cover deep links validate values and preserve Unicode query, genre and ori
 test('community defaults to talking rooms and ranking exposes four categories with one request',async()=>{
  const {c,calls}=context(async()=>({rows:[],from:0,until:1,updated_at:1}));
  const home=await c.communityView('community',undefined,'community');assert.match(home.html,/토킹룸/);assert.match(home.html,/href="#crew"/);assert.deepEqual(calls,[]);
- const rank=await c.communityView('community','rankings','community/rankings');for(const name of ['작품 랭킹','AI 아티스트','관계 랭킹','크루 랭킹'])assert.ok(rank.html.includes(name));assert.equal(calls.length,1);assert.match(calls[0],/period=week/);
+ const rank=await c.communityView('community','rankings','community/rankings');for(const name of ['AI 아티스트','크루 랭킹','작품 랭킹','더빙 랭킹'])assert.ok(rank.html.includes(name));assert.doesNotMatch(rank.html,/관계 랭킹|월간/);assert.equal(calls.length,1);assert.match(calls[0],/category=aiArtist&period=week/);
 });
 test('ranking requests use the shared API filters and playback uses ranked songs only',async()=>{
  const items=[track('two'),track('one')],{c,calls,played}=context(async()=>({tracks:items}));
