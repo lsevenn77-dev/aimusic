@@ -2,17 +2,17 @@ import test from 'node:test';
 import {practiceSession} from '../dist/crew-fishing/practice.js';
 import assert from 'node:assert/strict';
 import {fixture} from './fixture.mjs';
-import {encounter,fishingRoute} from '../server/crew-fishing.js';
+import {encounter,fishingRoute,fishingLimits} from '../server/crew-fishing.js';
 import {FISH} from '../dist/crew-fishing/catalog.js';
 import {TIERS,SIZES,weighted,season,progressAfter} from '../dist/crew-fishing/rules.js';
 
 const monday=Date.parse('2026-11-02T08:00:00+09:00');
-async function setup(t){
+async function setup(t,extraEnv={}){
   const f=await fixture(t);
   f.sql.exec("INSERT INTO crews(id,owner_id,name,created) VALUES('crew','owner','테스트 크루',0); INSERT INTO crew_members(crew_id,user_id,role,joined) VALUES('crew','owner','leader',0)");
   async function api(action,body,ms=monday,uid='owner'){
     const path='/api/crew-fishing/'+action;
-    return (await fishingRoute(new Request('https://aifect.test'+path,{method:body?'POST':'GET',body:body?JSON.stringify(body):undefined}),{DB:f.DB},path.split('?')[0],{id:uid},ms)).json();
+    return (await fishingRoute(new Request('https://aifect.test'+path,{method:body?'POST':'GET',body:body?JSON.stringify(body):undefined}),{...extraEnv,DB:f.DB},path.split('?')[0],{id:uid},ms)).json();
   }
   return {...f,api};
 }
@@ -120,6 +120,42 @@ test('practice replays keep only one fish and one award', async () => {
   await session.request('pull',{id:cast.id,seq:1});
   assert.equal(session.lobby().mine,100);
   assert.equal((await session.request('book')).records[0].count,1);
+});
+
+test('account allowance grants 30 remaining after 10 casts, enforces the last cast and expires next day',async t=>{
+  const env={CREW_FISHING_QUOTA_OVERRIDES:JSON.stringify({owner:{day:'2026-11-02',dayLimit:40,weekLimit:50}})};
+  const {api,sql}=await setup(t,env);
+  sql.exec("INSERT INTO crew_members(crew_id,user_id,role,joined) VALUES('crew','other','member',0)");
+  for(let i=0;i<10;i++){
+    const {cast}=await api('cast',{requestId:crypto.randomUUID()});
+    sql.prepare("UPDATE crew_fishing_casts SET status='escaped' WHERE id=?").run(cast.id);
+  }
+  assert.equal((await api('lobby')).remaining,30);
+  assert.equal((await api('lobby')).dailyLimit,40);
+  assert.equal((await api('lobby')).weeklyLimit,50);
+  assert.equal((await api('lobby',null,monday,'other')).remaining,10);
+  assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM crew_fishing_casts').get().n,10);
+  for(let i=0;i<30;i++){
+    const attempts=await Promise.all([api('cast',{requestId:crypto.randomUUID()}),api('cast',{requestId:crypto.randomUUID()})]);
+    assert.equal(attempts[0].cast.id,attempts[1].cast.id);
+    sql.prepare("UPDATE crew_fishing_casts SET status='escaped' WHERE id=?").run(attempts[0].cast.id);
+  }
+  assert.equal((await api('lobby')).remaining,0);
+  await assert.rejects(api('cast',{requestId:crypto.randomUUID()}));
+  assert.equal((await api('lobby',null,monday+86400000)).remaining,10);
+  assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM crew_fishing_casts').get().n,40);
+});
+
+test('allowances reject malformed, lowering, mismatched and excessive settings',()=>{
+  const day='2026-11-02',entry={day,dayLimit:40,weekLimit:50};
+  for(const raw of [undefined,'{','null','[]','"text"',JSON.stringify({other:entry}),
+    ...[{day:'2026-11-03'},{dayLimit:9},{dayLimit:40.5},{weekLimit:49},{dayLimit:1001},{weekLimit:5001},{dayLimit:60}]
+      .map(patch=>JSON.stringify({owner:{...entry,...patch}}))]){
+    const limit=fishingLimits({CREW_FISHING_QUOTA_OVERRIDES:raw},'owner',day);
+    assert.equal(limit.day,10);assert.equal(limit.week,50);
+  }
+  const limit=fishingLimits({CREW_FISHING_QUOTA_OVERRIDES:JSON.stringify({owner:entry})},'owner',day);
+  assert.equal(limit.day,40);assert.equal(limit.week,50);
 });
 
 test('official lobby is the default and practice leaves the official quota intact', async t => {

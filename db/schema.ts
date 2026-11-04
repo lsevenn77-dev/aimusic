@@ -384,6 +384,17 @@ export const crewRacingRuns=sqliteTable('crew_racing_runs',{
  course:text('course').notNull(), starts:integer('starts').notNull(), score:integer('score')
 },t=>[index('crew_racing_week').on(t.week,t.crewId,t.userId,t.score)]);
 
+export const crewRhythmRuns=sqliteTable('crew_rhythm_runs',{
+ id:text('id').primaryKey(),userId:text('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),
+ crewId:text('crew_id').references(()=>crews.id,{onDelete:'set null'}),week:text('week').notNull(),day:text('day').notNull(),
+ requestId:text('request_id').notNull(),difficulty:text('difficulty').notNull(),version:text('version').notNull(),
+ starts:integer('starts').notNull(),finished:integer('finished'),status:text('status').notNull().default('active'),
+ score:integer('score'),maxCombo:integer('max_combo'),inputs:text('inputs')
+},t=>[uniqueIndex('crew_rhythm_request').on(t.userId,t.requestId),index('crew_rhythm_daily').on(t.userId,t.day),
+ index('crew_rhythm_week').on(t.week,t.crewId,t.userId,t.score),
+ check('crew_rhythm_status',sql`${t.status} IN ('active','finished','abandoned')`),
+ check('crew_rhythm_difficulty',sql`${t.difficulty} IN ('normal','hard','hell')`)]);
+
 export const crewFishingCasts = sqliteTable('crew_fishing_casts', {
   id: text('id').primaryKey(),
   userId: text('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),

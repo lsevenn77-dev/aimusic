@@ -52,8 +52,8 @@ async function openLobby(){
 
   paint('lobby',`<div class="intro"><section class="hero"><div><small>CREW FISHING CLUB</small><h1>별물결 낚시터</h1>
   <p>${esc(lobby.name)}의 공동 낚시터 · 오늘은 어떤 물고기가 찾아올까요?</p>
-  <div class="actions"><button class="primary" data-act="start" ${!lobby.open||(!cast&&!lobby.remaining)?'disabled':''}>${cast?'낚시 이어하기':lobby.open?'낚시 시작':'이번 주 낚시 마감'}</button><span class="pill">오늘 남은 낚시 ${lobby.remaining} / 10</span></div></div></section>
-  <aside class="panel stats"><div><span>내 주간 어획액</span><strong>${fmt(lobby.mine)}점</strong></div><div><span>크루 주간 어획액</span><strong>${fmt(lobby.ours)}점</strong></div><div><span>주간 남은 기회</span><strong>${lobby.weeklyRemaining} / 50</strong></div></aside></div>
+  <div class="actions"><button class="primary" data-act="start" ${!lobby.open||(!cast&&!lobby.remaining)?'disabled':''}>${cast?'낚시 이어하기':lobby.open?'낚시 시작':'이번 주 낚시 마감'}</button><span class="pill">오늘 남은 낚시 ${lobby.remaining} / ${lobby.dailyLimit??10}</span></div></div></section>
+  <aside class="panel stats"><div><span>내 주간 어획액</span><strong>${fmt(lobby.mine)}점</strong></div><div><span>크루 주간 어획액</span><strong>${fmt(lobby.ours)}점</strong></div><div><span>주간 남은 기회</span><strong>${lobby.weeklyRemaining} / ${lobby.weeklyLimit??50}</strong></div></aside></div>
   <div class="twocol">${rank('크루 랭킹',lobby.crews)}${rank('개인 랭킹',lobby.individual)}</div>
   <section class="panel"><div class="titlebar"><div><small>CREW COLLECTION</small><h2>우리 크루의 바다</h2></div></div>
   <div class="links"><button data-act="aquarium">크루 수족관</button><button data-act="book">물고기 도감</button><a href="./design.html">공식 어종 27종 보기 ↗</a><a href="?mode=practice">연습하기</a></div></section>
@@ -89,8 +89,8 @@ function play(intro){
 async function start(){
   const fresh=!cast||cast.status!=='active';
   if(fresh){
-    // Tabs showing the same available cast share its idempotency key.
-    requestId??='crew-fishing-'+lobby.day+'-'+lobby.remaining;
+    // Keep one key across retries; quota changes must not reuse an older cast's key.
+    requestId??=crypto.randomUUID();
     const result=await api('cast',{requestId});cast=result.cast;requestId=null;
   }
   if(cast.status==='active')play(fresh);else finish();

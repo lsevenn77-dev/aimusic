@@ -17,17 +17,17 @@
   </div>
 
   <main class="lobby">
-    <aside class="col stats" aria-label="내 연습 기록">
-      <div class="glass card"><small>CREW ARCADE</small><h2>리듬게임 대기실</h2><p class="muted">네 개의 레인에서 비트에 맞춰 연습해 보세요.</p></div>
-      <div class="glass card"><small id="bestDiff">HARD</small><h3>내 연습 최고 점수</h3><strong class="stat" id="practiceBest">기록 없음</strong><p class="muted">이번 접속 · 선택 난이도</p></div>
-      <div class="glass card"><h3>최대 콤보</h3><strong class="stat" id="practiceCombo">—</strong></div>
+    <aside class="col stats" aria-label="내 공식 기록">
+      <div class="glass card"><small>CREW ARCADE</small><h2>리듬게임 대기실</h2><p class="muted">네 개의 레인에서 비트에 맞춰 공식 기록에 도전해 보세요.</p></div>
+      <div class="glass card"><small id="bestDiff">HARD</small><h3>내 주간 최고 점수</h3><strong class="stat" id="practiceBest">기록 없음</strong><p class="muted">이번 주 · 선택 난이도</p></div>
+      <div class="glass card"><h3>최대 콤보</h3><strong class="stat" id="practiceCombo">—</strong></div><div class="glass card"><h3>우리 크루 점수</h3><strong class="stat" id="teamScore">—</strong></div>
     </aside>
     <div class="col center">
       <div class="glass card">
         <div class="song">
           <img src="/crew-rhythm/cover.webp" alt="Double Tap 앨범 커버">
           <div class="meta">
-            <span class="chip pink">연습 곡</span>
+            <span class="chip pink">이번 주 공식 곡</span>
             <div class="title">Double Tap[♥]</div>
             <div class="muted">RIRI · prod. Veil(Zero) · 136.7 BPM · 1:00 하이라이트</div>
           </div>
@@ -39,17 +39,17 @@
         </div>
         <div class="preview" id="previewBox"><canvas id="previewCv"></canvas></div>
         <div class="startrow">
-          <button class="cta" id="practiceBtn" type="button">▶ 연습 시작</button>
+          <button class="cta" id="officialBtn" type="button" disabled>▶ 공식 도전</button><button class="iconbtn" id="practiceBtn" type="button">▶ 연습 시작</button>
         </div>
         <div class="reason" id="startReason" role="status" hidden></div>
         <div class="status">
-          <span>연습은 횟수 제한 없이 즐길 수 있어요</span>
+          <span id="officialStatus" role="status">공식 도전 정보를 확인하고 있어요…</span><button class="iconbtn" id="retryLobbyReportBtn" type="button" hidden>대기 중인 기록 전송</button>
           <span id="noteCount"></span>
         </div>
       </div>
     </div>
     <aside class="col info" aria-label="랭킹과 조작 안내">
-      <div class="glass card"><small>RANKINGS</small><h3>크루 랭킹</h3><p class="muted">공식 집계 전</p><hr><h3>개인 랭킹</h3><p class="muted">연습 기록은 순위에 반영되지 않아요.</p></div>
+      <div class="glass card"><small>RANKINGS · 크루 상위 10명 합산</small><h3>크루 랭킹</h3><ol id="rhythmTeams"></ol><hr><h3>개인 랭킹</h3><ol id="rhythmPlayers"></ol><p class="muted">연습은 횟수 제한 없이 이용하며 공식 순위에는 반영되지 않아요.</p></div>
       <div class="glass card"><h3>조작 안내</h3><div class="howto">
           <div><b>일반 노트</b>판정선에 닿을 때 한 번 누르기</div>
           <div><b>롱노트</b>머리에서 누르고 끝까지 유지</div>
@@ -137,12 +137,12 @@
       <div class="notice" id="resNotice"></div>
       <div class="btnrow">
         <button class="cta alt" id="lobbyBtn" type="button">⌂ 대기실로</button>
-        <button class="cta" id="practiceAgainBtn" type="button">◎ 연습 다시하기</button>
+        <button class="cta" id="officialAgainBtn" type="button" hidden>다시 공식 도전</button><button class="iconbtn" id="retryReportBtn" type="button" hidden>기록 다시 전송</button><button class="cta" id="practiceAgainBtn" type="button">◎ 연습 다시하기</button>
       </div>
     </div>
   </div>
 </div>
 
-<script src="/crew-rhythm/game.js" defer></script>
+<script type="module" src="/crew-rhythm/game.js"></script>
 </body>
 </html>

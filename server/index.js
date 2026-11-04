@@ -12,6 +12,7 @@ import {relationRoute} from './relations.js';
 import {decorationRoute} from './decorations.js';
 import {giftInventoryRoute} from './gift-inventory.js';
 import {fishingRoute} from './crew-fishing.js';
+import {rhythmRoute} from './crew-rhythm.js';
 import {racingRoute} from './crew-racing.js';
 import {jumpRoute} from './crew-jump.js';
 import {crewV3Route} from './crew-v3.js';
@@ -135,6 +136,7 @@ export default {async fetch(req,env,ctx){
   env=await blockedContext(env,user);
   const followPage=await followManagement(req,env,path,user);if(followPage)return followPage;
   if(path.startsWith('/api/crew-fishing/'))return await fishingRoute(req,env,path,user);
+  if(path.startsWith('/api/crew-rhythm/'))return await rhythmRoute(req,env,path,user);
   if(path.startsWith('/api/crew-racing/'))return await racingRoute(req,env,path,user);
   if(path.includes('/jump')&&path.startsWith('/api/crews/')){const jump=await jumpRoute(req,env,path,user);if(jump)return jump;}
   const play=await playRoute(req,env,path,user);if(play)return play;

@@ -1,16 +1,7 @@
+import {VERSION,RULES,CHART,notesFor,computeScore,createRhythmRun,advanceRhythm,inputRhythm,completeRhythm} from "./core.js";
 (() => {
   // ───────── 설정: 점수 규칙·판정 (서버도 같은 값으로 검증) ─────────
-  const RULES = {
-    base: { normal: 500000, hard: 1000000, hell: 2000000 },
-    weight: { perfect: 1, great: .8, good: .5, bad: 0, miss: 0 },
-    window: { perfect: .045, great: .090, good: .135, bad: .180 },   // ±초. bad 범위 밖으로 지나가면 MISS
-    // 체력: 0이 되면 즉시 게임 오버. BAD·MISS는 콤보도 끊김
-    life: { start: 100, perfect: 1, great: .5, good: 0, bad: -6, miss: -10 },
-    comboBonus: .10,            // 기본점 × 10% × (최대 콤보 / 전체 노트)
-    longReleaseGrace: .12,      // 롱노트 끝 이 시간 전부터 떼도 성공
-    leadIn: 2.2,                // 시작 전 노트가 내려오는 준비 시간
-    lookahead: { normal: 1.55, hard: 1.2, hell: .95 },  // 노트가 화면에 보이는 시간
-  };
+
   const LANE_COLORS = ['#3ef2c2', '#ff5fae', '#b46bff', '#3cd8ff'];   // 민트 / 핑크 / 퍼플 / 시안
   const KEYS = { KeyF: 0, KeyG: 1, KeyH: 2, KeyJ: 3 };
   const KEY_LABEL = ['F', 'G', 'H', 'J'];
@@ -19,13 +10,6 @@
   const mmss = s => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.floor(Math.max(0, s) % 60)).padStart(2, '0')}`;
 
   // 점수 계산: 판정 가중치 합 기준 기본 점수 + 최대 콤보 비례 보너스
-  function computeScore(counts, maxCombo, total, diff) {
-    const base = RULES.base[diff], w = RULES.weight;
-    const acc = (counts.perfect * w.perfect + counts.great * w.great + counts.good * w.good + (counts.bad || 0) * w.bad + counts.miss * w.miss) / total;
-    const main = Math.round(base * acc);
-    const bonus = Math.round(base * RULES.comboBonus * maxCombo / total);
-    return { main, bonus, total: main + bonus, acc };
-  }
   const store = {
     get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
     set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
@@ -213,7 +197,6 @@
   }
 
   // ───────── 로딩 ─────────
-  const CHART = {"bpm":136.69,"firstBeat":0.4357,"duration":60.0,"version":"double-tap-preview-v1","charts":{"normal":[[0.4357,3,0.0],[0.8747,3,0.0],[1.3136,1,0.0],[2.1915,0,0.659],[3.0695,0,0.0],[3.5084,1,0.0],[4.8253,0,0.0],[5.2643,0,0.0],[5.7033,1,0.0],[6.5812,0,0.0],[7.0202,0,0.0],[7.8981,3,0.0],[8.3371,2,0.0],[14.4826,3,0.0],[14.9215,1,0.0],[15.3605,1,0.0],[16.2384,2,0.0],[16.6774,0,0.0],[17.1163,2,0.0],[17.9943,2,0.0],[18.4332,0,0.0],[18.8722,2,0.0],[19.3112,1,0.0],[19.7501,3,0.0],[20.1891,0,0.0],[20.6281,3,0.0],[21.067,1,0.0],[21.506,2,0.0],[21.945,0,0.0],[22.3839,2,0.0],[23.2619,2,0.0],[23.7008,0,0.0],[24.1398,3,0.0],[24.5787,0,0.0],[25.0177,2,0.0],[25.4567,0,0.0],[25.8956,1,0.0],[26.3346,0,0.0],[26.7736,2,0.0],[27.2125,0,0.0],[27.6515,2,0.0],[28.0905,0,0.0],[28.5294,2,0.0],[28.9684,1,0.0],[29.4074,2,0.0],[30.2853,2,0.0],[30.7243,3,0.0],[31.6022,1,0.0],[32.0411,2,0.0],[32.4801,1,0.0],[32.9191,2,0.0],[33.358,0,0.0],[34.236,0,0.658],[35.1139,1,0.0],[35.5529,3,0.658],[36.4308,2,0.0],[37.3087,2,0.0],[37.7477,0,0.0],[38.1867,2,0.0],[38.6256,1,0.0],[39.0646,0,0.0],[39.5035,1,0.0],[39.9425,2,0.0],[40.3815,0,0.658],[41.2594,0,0.0],[41.6984,3,0.0],[42.1373,0,0.0],[42.5763,3,0.0],[43.0153,0,1.756],[45.2101,3,0.0],[45.6491,0,0.0],[46.088,2,0.0],[46.9659,2,0.0],[47.8439,3,0.658],[48.7218,2,0.0],[50.4777,2,1.756],[54.8673,3,0.0],[55.3063,0,0.0],[55.7452,3,1.097],[57.0621,0,0.0],[57.5011,2,0.658],[58.379,3,0.0],[58.818,0,0.0],[59.257,2,0.524]],"hard":[[0.4357,1,0.0],[0.4357,3,0.0],[0.8747,3,0.0],[1.3136,1,0.0],[1.7526,0,0.0],[1.9721,0,0.0],[2.1915,1,0.0],[2.1915,3,0.0],[2.411,0,0.0],[2.6305,0,0.0],[2.85,1,0.0],[3.0695,0,0.0],[3.289,0,0.0],[3.5084,1,0.0],[3.9474,1,0.0],[4.8253,0,0.0],[5.0448,0,0.0],[5.2643,1,0.0],[5.4838,0,0.0],[5.7033,0,0.0],[5.7033,2,0.0],[5.9227,1,0.0],[6.1422,0,0.0],[6.3617,0,0.0],[6.5812,1,0.0],[6.8007,0,0.0],[7.0202,0,0.0],[7.8981,3,0.0],[8.3371,2,0.0],[8.9955,2,0.0],[9.215,1,0.0],[9.4345,2,0.0],[9.6539,2,0.0],[9.8734,3,0.0],[10.0929,1,0.0],[11.8488,2,0.0],[14.4826,1,0.0],[14.4826,3,0.0],[14.9215,1,0.0],[15.141,1,0.0],[15.3605,2,0.0],[16.0189,3,0.0],[16.2384,2,0.0],[16.4579,1,0.0],[16.6774,0,0.0],[16.8969,3,0.0],[17.1163,2,0.0],[17.3358,2,0.0],[17.5553,0,0.0],[17.7748,1,0.0],[17.9943,0,0.0],[17.9943,2,0.0],[18.2138,3,0.0],[18.4332,0,0.0],[18.8722,2,0.0],[19.3112,1,0.0],[19.5307,2,0.0],[19.7501,3,0.0],[19.9696,1,0.0],[20.1891,0,0.0],[20.4086,3,0.0],[20.6281,3,0.0],[20.8475,2,0.0],[21.067,1,0.0],[21.2865,2,0.0],[21.506,2,0.0],[21.7255,1,0.0],[21.945,0,0.0],[22.1644,1,0.0],[22.3839,0,0.0],[22.3839,2,0.0],[22.8229,0,0.0],[23.2619,2,0.0],[23.7008,0,0.0],[23.9203,2,0.0],[24.1398,3,0.0],[24.3593,3,0.0],[24.5787,0,0.0],[24.7982,3,0.0],[25.0177,2,0.0],[25.2372,2,0.0],[25.4567,0,0.0],[25.6762,2,0.0],[25.8956,1,0.0],[26.1151,2,0.0],[26.3346,0,0.0],[26.7736,2,0.0],[27.2125,0,0.0],[27.432,3,0.0],[27.6515,2,0.0],[27.871,2,0.0],[28.0905,0,0.0],[28.3099,1,0.0],[28.5294,2,0.0],[28.7489,1,0.0],[28.9684,1,0.0],[29.4074,2,0.0],[29.6268,3,0.0],[30.2853,2,0.0],[30.7243,2,0.0],[30.9437,3,0.0],[31.1632,2,0.0],[31.3827,3,0.0],[31.6022,1,0.0],[32.0411,2,0.0],[32.2606,3,0.0],[32.4801,1,0.0],[32.9191,2,0.0],[33.358,0,0.0],[33.797,2,0.0],[34.236,0,0.0],[34.6749,2,0.0],[35.1139,0,0.0],[35.5529,3,0.0],[35.7723,1,0.0],[35.9918,0,0.0],[36.4308,2,0.0],[36.6503,3,0.0],[37.3087,0,0.0],[37.3087,2,0.0],[37.7477,0,0.0],[38.1867,0,0.0],[38.1867,2,0.0],[38.6256,1,0.0],[39.0646,0,0.0],[39.0646,2,0.0],[39.5035,1,0.0],[39.9425,2,0.0],[40.162,1,0.0],[40.3815,0,0.0],[40.8204,3,0.0],[41.0399,2,0.0],[41.2594,0,0.0],[41.6984,3,0.0],[42.1373,0,0.0],[42.3568,3,0.0],[42.5763,3,0.0],[42.7958,2,0.0],[43.0153,0,0.0],[43.2347,1,0.0],[43.4542,2,0.878],[44.5516,3,0.0],[44.9906,3,0.0],[45.2101,2,0.0],[45.6491,0,0.0],[45.8685,2,0.0],[46.088,2,0.0],[46.3075,3,0.0],[46.527,0,0.0],[46.7465,2,0.0],[46.9659,2,0.0],[47.8439,3,0.0],[48.0634,3,0.0],[48.2828,0,0.0],[48.5023,3,0.0],[48.7218,2,0.0],[49.1608,0,0.0],[49.3803,2,0.0],[49.5997,3,0.0],[49.8192,3,0.0],[50.0387,1,0.0],[50.2582,3,0.0],[50.4777,2,0.0],[50.9166,0,0.0],[51.1361,3,0.0],[51.3556,3,0.0],[51.7946,1,0.0],[52.2335,3,1.756],[54.4284,1,0.0],[54.8673,3,0.0],[55.0868,2,0.0],[55.3063,0,0.0],[55.7452,3,0.0],[55.9647,2,0.0],[56.4037,0,0.0],[56.6232,3,0.0],[56.8427,1,0.0],[57.0621,0,0.0],[57.2816,1,0.0],[57.5011,2,0.0],[57.7206,1,0.0],[57.9401,1,0.0],[58.379,3,0.0],[58.5985,3,0.0],[58.818,0,0.0],[59.257,2,0.0],[59.4764,3,0.0]],"hell":[[0.4357,1,0.0],[0.4357,3,0.0],[0.8747,3,0.0],[1.3136,1,0.0],[1.3136,3,0.0],[1.7526,0,0.0],[1.8623,0,0.0],[1.9721,1,0.0],[2.1915,0,0.0],[2.1915,2,0.0],[2.411,0,0.0],[2.5208,1,0.0],[2.6305,0,0.0],[2.85,0,0.0],[3.0695,1,0.0],[3.0695,3,0.0],[3.1792,0,0.0],[3.289,0,0.0],[3.5084,1,0.0],[3.6182,0,0.0],[3.9474,1,0.0],[4.4961,3,0.0],[4.8253,0,0.0],[5.0448,0,0.0],[5.2643,1,0.0],[5.4838,0,0.0],[5.5935,0,0.0],[5.7033,1,0.0],[5.7033,3,0.0],[5.9227,0,0.0],[6.0325,0,0.0],[6.1422,1,0.0],[6.3617,0,0.0],[6.5812,0,0.0],[6.5812,2,0.0],[6.6909,1,0.0],[6.8007,0,0.0],[7.0202,0,0.0],[7.8981,3,0.0],[8.2273,3,0.0],[8.3371,2,0.0],[8.5565,2,0.0],[8.776,3,0.0],[8.8858,1,0.0],[8.9955,2,0.0],[9.215,1,0.0],[9.4345,2,0.0],[9.6539,2,0.0],[9.8734,3,0.0],[10.0929,1,0.0],[10.2027,1,0.0],[10.3124,2,0.0],[10.5319,1,0.0],[11.4098,2,0.0],[11.8488,2,0.0],[12.2877,3,0.0],[12.3975,2,0.0],[12.5072,3,0.0],[12.7267,3,0.0],[12.8364,2,0.0],[12.9462,3,0.0],[13.0559,3,0.0],[13.2754,2,0.0],[13.3851,3,0.0],[13.6046,3,0.0],[13.7144,2,0.0],[14.1533,2,0.0],[14.4826,1,0.0],[14.4826,3,0.0],[14.9215,1,0.0],[15.0313,1,0.0],[15.141,2,0.0],[15.3605,1,0.0],[15.3605,3,0.0],[15.7995,0,0.0],[16.0189,3,0.0],[16.2384,0,0.0],[16.2384,2,0.0],[16.4579,1,0.0],[16.6774,0,0.0],[16.7871,2,0.0],[16.8969,3,0.0],[17.1163,2,0.0],[17.3358,2,0.0],[17.5553,0,0.0],[17.6651,0,0.0],[17.7748,1,0.0],[17.8845,1,0.0],[17.9943,0,0.0],[17.9943,2,0.0],[18.104,2,0.0],[18.2138,3,0.0],[18.4332,0,0.0],[18.543,1,0.0],[18.6527,2,0.0],[18.7625,2,0.0],[18.8722,3,0.0],[19.0917,2,0.0],[19.3112,1,0.0],[19.5307,2,0.0],[19.7501,1,0.0],[19.7501,3,0.0],[19.8599,0,0.0],[19.9696,1,0.0],[20.0794,0,0.0],[20.1891,0,0.0],[20.4086,3,0.0],[20.5183,3,0.0],[20.6281,2,0.0],[20.7378,3,0.0],[20.8475,3,0.0],[21.067,1,0.0],[21.1768,3,0.0],[21.2865,2,0.0],[21.506,0,0.0],[21.506,2,0.0],[21.6157,3,0.0],[21.7255,1,0.0],[21.945,0,0.0],[22.0547,0,0.0],[22.1644,1,0.0],[22.3839,0,0.0],[22.3839,2,0.0],[22.6034,1,0.0],[22.8229,0,0.0],[23.0424,1,0.0],[23.1521,0,0.0],[23.2619,2,0.0],[23.4813,1,0.0],[23.5911,3,0.0],[23.7008,0,0.0],[23.9203,2,0.0],[24.1398,1,0.0],[24.1398,3,0.0],[24.2495,2,0.0],[24.3593,3,0.0],[24.5787,0,0.0],[24.6885,0,0.0],[24.7982,3,0.0],[24.908,1,0.0],[25.0177,0,0.0],[25.0177,2,0.0],[25.1275,3,0.0],[25.2372,2,0.0],[25.3469,1,0.0],[25.4567,0,0.0],[25.6762,2,0.0],[25.8956,1,0.0],[25.8956,3,0.0],[26.0054,1,0.0],[26.1151,2,0.0],[26.3346,0,0.0],[26.4443,0,0.0],[26.5541,1,0.0],[26.6638,0,0.0],[26.7736,2,0.0],[26.9931,1,0.0],[27.2125,0,0.0],[27.432,3,0.0],[27.6515,0,0.0],[27.6515,2,0.0],[27.871,2,0.0],[28.0905,0,0.0],[28.2002,0,0.0],[28.3099,1,0.0],[28.4197,1,0.0],[28.5294,0,0.0],[28.5294,2,0.0],[28.7489,1,0.0],[28.8587,1,0.0],[28.9684,2,0.0],[29.0781,0,0.0],[29.1879,3,0.0],[29.2976,3,0.0],[29.4074,2,0.0],[29.6268,3,0.0],[29.9561,2,0.0],[30.1755,0,0.0],[30.2853,2,0.0],[30.395,2,0.0],[30.7243,3,0.0],[30.834,0,0.0],[30.9437,3,0.0],[31.1632,2,0.0],[31.3827,3,0.0],[31.6022,1,0.0],[31.9314,1,0.0],[32.0411,0,0.0],[32.0411,2,0.0],[32.2606,3,0.0],[32.4801,1,0.0],[32.5899,3,0.0],[32.6996,3,0.0],[32.9191,2,0.0],[33.1386,3,0.0],[33.358,0,0.0],[33.4678,1,0.0],[33.6873,3,0.0],[33.797,2,0.0],[33.9067,3,0.0],[34.0165,3,0.0],[34.236,0,0.0],[34.3457,1,0.0],[34.6749,2,0.0],[34.7847,3,0.0],[34.8944,3,0.0],[35.1139,0,0.0],[35.4431,1,0.0],[35.5529,3,0.0],[35.7723,1,0.0],[35.9918,0,0.0],[36.2113,3,0.0],[36.4308,2,0.0],[36.5405,3,0.0],[36.6503,3,0.0],[36.76,2,0.0],[36.8698,0,0.0],[36.9795,1,0.0],[37.3087,0,0.0],[37.3087,2,0.0],[37.4185,0,0.0],[37.6379,3,0.0],[37.7477,0,0.0],[37.8574,1,0.0],[38.1867,0,0.0],[38.1867,2,0.0],[38.2964,1,0.0],[38.6256,1,0.0],[38.7354,2,0.0],[39.0646,0,0.0],[39.0646,2,0.0],[39.1743,1,0.0],[39.5035,1,0.0],[39.723,0,0.0],[39.9425,2,0.0],[40.0523,1,0.0],[40.162,1,0.0],[40.2717,2,0.0],[40.3815,0,0.0],[40.601,2,0.0],[40.8204,3,0.0],[41.0399,2,0.0],[41.2594,0,0.0],[41.6984,3,0.0],[41.9179,1,0.0],[42.1373,0,0.0],[42.2471,1,0.0],[42.3568,3,0.0],[42.5763,3,0.0],[42.686,1,0.0],[42.7958,3,0.0],[43.0153,0,0.0],[43.2347,1,0.0],[43.4542,2,0.0],[43.6737,1,0.0],[43.8932,1,0.0],[44.0029,2,0.0],[44.1127,1,0.0],[44.3322,2,0.0],[44.5516,3,0.0],[44.8809,1,0.0],[44.9906,3,0.0],[45.2101,3,0.0],[45.3198,2,0.0],[45.4296,3,0.0],[45.6491,0,0.0],[45.7588,0,0.0],[45.8685,2,0.0],[46.088,2,0.0],[46.1978,3,0.0],[46.3075,2,0.0],[46.527,0,0.0],[46.6367,2,0.0],[46.7465,2,0.0],[46.9659,1,0.0],[46.9659,3,0.0],[47.0757,1,0.0],[47.1854,2,0.0],[47.4049,0,0.0],[47.6244,2,0.0],[47.8439,3,0.0],[48.0634,3,0.0],[48.2828,0,0.0],[48.5023,3,0.0],[48.7218,0,0.0],[48.7218,2,0.0],[48.9413,3,0.0],[49.1608,0,0.0],[49.3803,2,0.0],[49.5997,3,0.0],[49.8192,3,0.0],[50.0387,1,0.0],[50.1484,2,0.0],[50.2582,3,0.0],[50.4777,2,0.0],[50.6971,3,0.0],[50.9166,0,0.0],[51.1361,3,0.0],[51.3556,3,0.0],[51.5751,2,0.0],[51.7946,1,0.0],[52.2335,3,0.439],[52.892,2,0.0],[53.0017,2,0.0],[53.1115,3,0.0],[53.5504,1,0.0],[54.4284,1,0.0],[54.6478,2,0.0],[54.7576,0,0.0],[54.8673,3,0.0],[55.0868,2,0.0],[55.3063,0,0.0],[55.416,0,0.0],[55.5258,2,0.0],[55.7452,3,0.0],[55.9647,2,0.0],[56.1842,0,0.0],[56.4037,0,0.0],[56.5134,3,0.0],[56.6232,3,0.0],[56.8427,1,0.0],[56.9524,1,0.0],[57.0621,0,0.0],[57.1719,0,0.0],[57.2816,1,0.0],[57.5011,2,0.0],[57.7206,1,0.0],[57.9401,1,0.0],[58.1596,3,0.0],[58.2693,0,0.0],[58.379,3,0.0],[58.5985,3,0.0],[58.818,0,0.0],[58.9277,1,0.0],[59.0375,3,0.0],[59.257,2,0.0],[59.4764,3,0.0]]}};
 
   const crew = new URLSearchParams(location.search).get('crew');
   if (crew && /^(preview|[a-zA-Z0-9_-]{1,80})$/.test(crew)) {
@@ -221,18 +204,11 @@
     $('backLink').href = (fromCrew ? '/#crew/' : '/#crew-jump/') + encodeURIComponent(crew);
     if (fromCrew) $('backLink').textContent = '‹ 크루로';
   }
-  function notesFor(d) {
-    // 롱노트 구간과 겹치는 같은 레인 노트는 제거 (채보 버전 고정 후 서버도 같은 규칙)
-    const raw = CHART.charts[d].map(([t, lane, len]) => ({ t, lane, len }));
-    const longs = raw.filter(n => n.len > 0);
-    return raw.filter(n => !longs.some(L => L !== n && L.lane === n.lane && n.t > L.t - .001 && n.t <= L.t + L.len + .06))
-      .map((n, i) => ({ ...n, id: i, done: false, holding: false, judge: null }));
-  }
 
   // ───────── 대기실 ─────────
   const practiceBests = new Map();
   function updateLobby() {
-    const best = practiceBests.get(diff);
+    const best = lobbyInfo ? lobbyInfo.bests.find(row=>row.difficulty===diff) : practiceBests.get(diff);
     $('practiceBest').textContent = best ? fmt(best.score) : '기록 없음';
     $('practiceCombo').textContent = best ? fmt(best.combo) : '—';
     $('bestDiff').textContent = diff.toUpperCase();
@@ -270,8 +246,8 @@
   const pointerLane = new Map();
 
 
-  let starting = false;
-  async function startGame() {
+  let starting = false, lobbyInfo=null, pendingSession=null, startKey=null, pendingReport=null;
+  async function startGame(official=false) {
     if (starting || (G && !G.ended)) return;
     starting = true;
     $('practiceBtn').disabled = $('practiceAgainBtn').disabled = true;
@@ -285,11 +261,18 @@
         if (!response.ok) throw new Error('audio ' + response.status);
         decoded = await actx.decodeAudioData(await response.arrayBuffer());
       }
-      beginRun();
+      let session=null;
+      if(official){
+        await lobbyReady;
+        session=await api('start',{difficulty:diff,requestId:startKey??=crypto.randomUUID()});
+        if(session.version!==VERSION)throw new Error('게임 규칙이 바뀌었어요. 새로고침해주세요.');
+        startKey=null;
+      }
+      pendingSession=session;beginRun();
       $('startReason').hidden = true;
     } catch (error) {
       toLobby();
-      $('startReason').textContent = '음원을 열지 못했어요. 연결을 확인한 뒤 다시 시작해 주세요.';
+      $('startReason').hidden=false;$('startReason').textContent = error.message || '게임을 준비하지 못했어요. 다시 시도해주세요.';
       console.error(error);
     } finally {
       starting = false;
@@ -302,7 +285,7 @@
     const gain = actx.createGain(); gain.gain.value = .9;
     analyser.connect(gain).connect(actx.destination);
     G = {
-      gain, diff, notes, total: notes.length, look: RULES.lookahead[diff],
+      ...createRhythmRun(diff),session:pendingSession,events:[],gain, diff, notes, total: notes.length, look: RULES.lookahead[diff],
       counts: { perfect: 0, great: 0, good: 0, bad: 0, miss: 0 }, combo: 0, maxCombo: 0,
       life: RULES.life.start, beam: [-9, -9, -9, -9], endReason: '',
       fx: [], judgeText: null, analyser, eq: new Uint8Array(analyser.frequencyBinCount),
@@ -315,7 +298,7 @@
     $('lobbyView').hidden = true; $('play').hidden = false;
     $('resultOv').hidden = true; $('pauseOv').hidden = true;
     $('hudDiff').textContent = $('diffM').textContent = diff.toUpperCase();
-    $('readyMeta').textContent = `RIRI · ${diff.toUpperCase()} · 연습 모드`;
+    $('readyMeta').textContent = `RIRI · ${diff.toUpperCase()} · ${G.session?'공식 도전':'연습 모드'}`;
     $('readyHint').textContent = matchMedia('(pointer: coarse)').matches ? '레인을 터치해서 입력해요' : 'F G H J 로 입력해요';
     $('readyOv').hidden = false;
     hud();
@@ -328,64 +311,28 @@
     return actx.currentTime - G.startAt - lat - syncMs / 1000;
   }
 
-  function judgeOf(dt) {
-    const a = Math.abs(dt), W = RULES.window;
-    return a <= W.perfect ? 'perfect' : a <= W.great ? 'great' : a <= W.good ? 'good' : a <= W.bad ? 'bad' : null;
-  }
-  function addLife(dv) {
-    G.life = Math.max(0, Math.min(RULES.life.start, G.life + dv));
-    if (G.life <= 0 && !G.ended) finish('gameover');
-  }
-  function register(j, lane) {
-    G.counts[j]++;
-    if (j === 'miss' || j === 'bad') G.combo = 0;
-    else { G.combo++; G.maxCombo = Math.max(G.maxCombo, G.combo); G.fx[lane] = { t: songTime(), j }; }   // 타격광은 성공한 레인만
-    G.judgeText = { j, t: songTime() };
-    addLife(RULES.life[j]);
+  function feedback() {
+    for(const e of G.judgements.splice(0)){
+      if(e.j!=='miss'&&e.j!=='bad')G.fx[e.lane]={t:e.t,j:e.j};
+      G.judgeText={j:e.j,t:e.t};
+    }
     hud();
+    if(G.over&&!G.ended)finish('gameover');
   }
-  function press(lane) {
-    if (!G || G.paused || G.ended || songTime() < 0) return;
-    const t = songTime();
-    G.beam[lane] = t;
-    let best = null;
-    for (const n of G.notes) {
-      if (n.done || n.holding || n.lane !== lane) continue;
-      const dt = t - n.t;
-      if (dt < -RULES.window.bad) break;   // 노트는 시간순, 아직 먼 노트
-      if (Math.abs(dt) <= RULES.window.bad) { best = n; break; }
-    }
-    if (!best) return;
-    const j = judgeOf(t - best.t);
-    if (best.len && j !== 'bad') {
-      best.holding = true;
-      best.judge = j;
-      G.fx[lane] = { t, j };
-    } else {
-      best.done = true;
-      register(j, lane);
-    }
+  function timedInput(lane,down,t=songTime()) {
+    if(!G||G.paused||G.ended||t<0)return;
+    const ms=Math.max(Math.round(t*1000),Math.round(G.clock*1000));
+    G.events.push([ms,lane,Number(down)]);
+    inputRhythm(G,lane,down,ms/1000);
+    if(down){G.beam[lane]=ms/1000;const held=G.notes.find(n=>n.holding&&n.lane===lane);if(held)G.fx[lane]={t:ms/1000,j:held.judge};}
+    feedback();
   }
-  function release(lane, t = songTime()) {
-    if (!G) return;
-    for (const n of G.notes) {
-      if (n.holding && n.lane === lane) {
-        n.holding = false; n.done = true;
-        // 롱노트는 한 번만 집계: 끝까지 유지하면 머리 판정, 일찍 떼면 MISS
-        register(t >= n.t + n.len - RULES.longReleaseGrace ? n.judge : 'miss', lane);
-      }
-    }
-  }
-
+  function press(lane){timedInput(lane,true);}
+  function release(lane,t=songTime()){timedInput(lane,false,t);}
   function update() {
-    const t = songTime();
-    for (const n of G.notes) {
-      if (n.done) continue;
-      if (n.holding) { if (t >= n.t + n.len) { n.holding = false; n.done = true; register(n.judge, n.lane); } continue; }
-      if (t - n.t > RULES.window.bad) { n.done = true; register('miss', n.lane); if (G.ended) return; }
-      else if (n.t - t > 2) break;
-    }
-    if (!G.ended && t > G.lastT + 1.2 && G.notes.every(n => n.done)) finish();
+    const t=songTime();if(t<0)return;
+    advanceRhythm(G,Math.max(G.clock,Math.round(t*1000)/1000));feedback();
+    if(!G.ended&&t>G.lastT+1.2&&G.notes.every(n=>n.done))finish();
   }
 
   function hud() {
@@ -440,7 +387,7 @@
     if (!G || G.paused || G.ended) return;
     G.paused = true; pressed.fill(false); pointerLane.clear(); actx.suspend();
 
-    $('pauseMeta').textContent = 'RIRI · ' + G.diff.toUpperCase() + ' · 연습 모드';
+    $('pauseMeta').textContent = 'RIRI · ' + G.diff.toUpperCase() + (G.session?' · 공식 도전':' · 연습 모드');
     $('pauseNote').textContent = '계속하기를 누르면 같은 지점에서 이어져요.';
     $('pauseOv').hidden = false;
   }
@@ -453,9 +400,10 @@
   }
   function finish(reason) {
     if (!G || G.ended) return;
+    const finishAt=Math.max(0,Math.round(Math.max(songTime(),G.clock)*1000));
     G.ended = true; G.endReason = reason || 'clear';
     // 그만하기·게임 오버: 남은 노트는 MISS
-    if (reason) { for (const n of G.notes) if (!n.done) { n.done = true; n.holding = false; G.counts.miss++; } G.combo = 0; }
+    if (reason) completeRhythm(G);
     try { G.src.stop(); } catch {}
     if (actx.state === 'suspended') actx.resume();
     const res = computeScore(G.counts, G.maxCombo, G.total, G.diff);
@@ -467,6 +415,7 @@
     $('resEnd').hidden = G.endReason === 'clear';
     $('resEnd').textContent = G.endReason === 'gameover' ? '게임 오버 · 체력 소진' : '도중에 그만둠';
     $('rB').textContent = G.counts.bad;
+    $('resKind').textContent=G.session?'공식 도전':'연습 · 주간 랭킹 미반영';
     $('resDiff').textContent = G.diff.toUpperCase();
     $('resScore').textContent = fmt(res.total);
     $('resCombo').textContent = G.maxCombo;
@@ -485,14 +434,17 @@
       : '이번 접속의 첫 연습 기록';
 
     $('pauseOv').hidden = true; $('readyOv').hidden = true; $('resultOv').hidden = false;
+    $('officialAgainBtn').hidden=!G.session;$('officialAgainBtn').disabled=Boolean(G.session);
+    $('retryReportBtn').hidden=true;
+    if(G.session){pendingReport={id:G.session.id,events:G.events,finishAt,reason:G.endReason};savePending();void submitReport();}
   }
   function toLobby() {
     const wasPlaying = !$('play').hidden;
     cancelAnimationFrame(raf);
-    if (G && !G.ended) { try { G.src.stop(); } catch {} }
+    if (G && !G.ended) { try { G.src.stop(); } catch {} if(G.session)void api('abandon',{id:G.session.id}).catch(()=>{}); }
     G = null;
     $('play').hidden = true; $('lobbyView').hidden = false; document.body.classList.remove('playing');
-    updateLobby();
+    updateLobby();void loadLobby();
     if (wasPlaying) requestAnimationFrame(previewLoop);
   }
 
@@ -529,8 +481,49 @@
   $('resumeBtn').onclick = resume;
   $('quitBtn').onclick = () => { G.paused = false; finish('quit'); };
 
-  $('practiceBtn').onclick = $('practiceAgainBtn').onclick = startGame;
+  $('practiceBtn').onclick = $('practiceAgainBtn').onclick = ()=>startGame(false);
+  $('officialBtn').onclick=$('officialAgainBtn').onclick=()=>{if(pendingReport)return;toLobby();void startGame(true);};
+  $('retryReportBtn').onclick=()=>void submitReport();
+  $('retryLobbyReportBtn').onclick=()=>void submitReport();
   $('lobbyBtn').onclick = toLobby;
   function previewLoop(ts) { if ($('play').hidden) { drawPreview(ts); requestAnimationFrame(previewLoop); } }
+  async function api(action,body){
+    const response=await fetch('/api/crew-rhythm/'+action,body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{cache:'no-store'});
+    const data=await response.json();if(!response.ok)throw Object.assign(new Error(data.error||'기록을 확인하지 못했어요.'),{status:response.status});return data;
+  }
+  function renderRanking(id,records){
+    const list=$(id);list.replaceChildren();
+    if(!records.length){list.textContent='아직 공식 기록이 없어요.';return;}
+    for(const row of records.slice(0,100)){const item=document.createElement('li');item.textContent=`${row.place}위 · ${row.name}${row.difficulty?' · '+row.difficulty.toUpperCase():''} · ${fmt(row.points)}점`;list.append(item);}
+  }
+  async function loadLobby(){
+    try{
+      lobbyInfo=await api('lobby');
+      if(!pendingReport){try{pendingReport=JSON.parse(sessionStorage.getItem('aifect.rhythm.pending:'+lobbyInfo.userId));if(pendingReport)void submitReport();}catch{}}
+      $('officialBtn').disabled=Boolean(pendingReport)||!lobbyInfo.open||!lobbyInfo.remaining;
+      $('retryLobbyReportBtn').hidden=!pendingReport;
+      $('officialStatus').textContent=lobbyInfo.open?`오늘 남은 공식 도전 ${lobbyInfo.remaining} / 3회 · 금요일 22시 마감`:'이번 주 공식 도전이 마감됐어요.';
+      $('teamScore').textContent=fmt(lobbyInfo.team)+'점';
+      renderRanking('rhythmTeams',lobbyInfo.ranking);renderRanking('rhythmPlayers',lobbyInfo.individualRanking);
+      updateLobby();
+    }catch(e){$('officialBtn').disabled=true;$('officialStatus').textContent=e.message;}
+  }
+  async function submitReport(){
+    if(!pendingReport)return;
+    const report=pendingReport;$('resNotice').textContent='서버에서 기록을 확인하고 있어요…';$('retryReportBtn').hidden=true;
+    try{
+      const result=await api('finish',report);
+      if(pendingReport!==report)return;
+      pendingReport=null;savePending();
+      if(G?.session?.id===report.id){$('resScore').textContent=fmt(result.score);$('resNotice').textContent='공식 '+fmt(result.score)+'점 · 서버 랭킹에 저장했어요.';}
+      await loadLobby();$('officialAgainBtn').disabled=!lobbyInfo?.open||!lobbyInfo.remaining;
+    }catch(e){
+      $('resNotice').textContent='기록 전송 대기 · '+e.message;$('retryReportBtn').hidden=false;$('retryLobbyReportBtn').hidden=false;
+      if([400,404,409].includes(e.status)){pendingReport=null;savePending();$('resNotice').textContent='기록이 승인되지 않았어요 · '+e.message;void loadLobby();}
+    }
+  }
+  function savePending(){try{const key='aifect.rhythm.pending:'+lobbyInfo.userId;if(pendingReport)sessionStorage.setItem(key,JSON.stringify(pendingReport));else sessionStorage.removeItem(key);}catch{}}
+  addEventListener('pagehide',()=>{if(G?.session&&!G.ended)void fetch('/api/crew-rhythm/abandon',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:G.session.id}),keepalive:true}).catch(()=>{});});
+  const lobbyReady=loadLobby();
   updateLobby(); requestAnimationFrame(previewLoop);
 })();

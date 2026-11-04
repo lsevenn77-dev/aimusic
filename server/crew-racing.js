@@ -96,7 +96,7 @@ export async function racingRoute(req,env,path,user,ms=Date.now()){
     }
     return json(await garage(env,uid));
   }
-  if(!crew)fail(403,'크루에 가입하면 연습 순위에 참여할 수 있어요.');
+  if(!crew)fail(403,'크루에 가입하면 공식 순위에 참여할 수 있어요.');
   if(action==='start'){
     if(body.course!==course)fail(409,'이번 주 코스가 바뀌었어요. 대기실을 새로고침해주세요.');
     const key=id();

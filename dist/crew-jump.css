@@ -139,13 +139,16 @@
 
 .jump-wide-dialog[open] {
  position:fixed;inset:0;box-sizing:border-box;width:100vw;height:100vh;width:100dvw;height:100dvh;
- max-width:none;max-height:none;margin:0;padding:0;border:0;background:#101425;color:#fff;overflow:hidden;
+ max-width:none;max-height:none;margin:0;padding:0;border:0;border-radius:0;background:#101425;color:#fff;overflow:hidden;
+ transform:none;translate:none;animation:none;opacity:1;
 }
+body.crew-jump-playing{overflow:hidden;overscroll-behavior:none}
 .jump-wide-dialog::backdrop{background:#101425}
 .jump-wide-layout{position:absolute;inset:0;display:grid;place-items:center;background:#101425}
-.jump-wide-layout .jump-stage{width:min(100dvw,177.7778dvh);border:0;border-radius:0}
+.jump-wide-layout .jump-stage{width:min(100dvw,177.7778dvh);min-height:0;max-height:100%;padding:0;border:0;border-radius:0;aspect-ratio:16/9}
+.jump-wide-layout .jump-stage canvas{width:100%;height:100%;object-fit:contain}
 .jump-wide-controls{position:absolute;bottom:max(8px,env(safe-area-inset-bottom));right:max(8px,env(safe-area-inset-right));display:flex;gap:6px;z-index:2}
-.jump-wide-controls button{background:#15192cd9;color:white}
+.jump-wide-controls button{min-height:44px;background:#15192cd9;color:white}
 @media (orientation:portrait){
  .jump-wide-layout{inset:auto;top:0;left:100%;width:100dvh;height:100dvw;transform:rotate(90deg);transform-origin:0 0}
  .jump-wide-layout .jump-stage{width:min(100dvh,177.7778dvw)}

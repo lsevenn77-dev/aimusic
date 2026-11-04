@@ -342,7 +342,7 @@ import {CARS,raceCalendar} from "./catalog.js";
     if (S.resultShown) return; S.resultShown = true; S.ended = true;
     if (quit) S.dnf = true;
     const progress = Math.min(1, S.z / TRACK_LEN), score = computeScore(S.finished, S.t, progress);
-    $('resKind').textContent = '연습 주행';
+    $('resKind').textContent = S.session?'공식 주행':'연습 주행';
     $('resState').textContent = S.finished ? '완주' : quit ? '도중에 그만둠' : '시간 초과 · 미완주';
     $('resTime').textContent = S.finished ? clock(S.t) : `${Math.round(progress * 100)}% 주행`;
     $('resScore').textContent = fmt(score) + '점';
@@ -361,7 +361,7 @@ import {CARS,raceCalendar} from "./catalog.js";
     if(!quit&&S.session){
       const run=S;
       api('finish',{id:run.session,events:run.events}).then(result=>{
-        if(S===run)$('resNotice').textContent='주간 연습 기록에 '+fmt(result.score)+'점을 저장했어요.';
+        if(S===run)$('resNotice').textContent='공식 '+fmt(result.score)+'점 · 서버 랭킹에 저장했어요.';
         return loadLobby();
       }).catch(e=>{if(S===run)$('resNotice').textContent=e.message;});
     }
@@ -369,7 +369,7 @@ import {CARS,raceCalendar} from "./catalog.js";
   function toLobby() { cancelAnimationFrame(raf); S = null; $('race').hidden = true; $('lobbyView').hidden = false; document.body.classList.remove('racing'); updateLobby(); }
   function updateLobby() {
 
-    $('weekTxt').textContent = `WEEK ${WEEK} · 이번 주 연습 코스`; $('courseName').textContent = COURSE.name; $('courseDesc').textContent = COURSE.desc;
+    $('weekTxt').textContent = `WEEK ${WEEK} · 이번 주 ${crewMember&&!forced?'공식':'연습'} 코스`; $('courseName').textContent = COURSE.name; $('courseDesc').textContent = COURSE.desc;
     $('pauseCourse').textContent = COURSE.name; $('hudCourse').textContent = COURSE.name;
     const best = store.get('rc-best-' + COURSE_ID, null); $('bestTxt').textContent = best ? clock(best) : '-';
     const g = store.get('rc-ghost-' + COURSE_ID, null); $('ghostTxt').textContent = g ? fmt(g.score) : '-';
@@ -486,7 +486,8 @@ import {CARS,raceCalendar} from "./catalog.js";
   async function loadLobby(){
     try{
       const data=await api('lobby');
-      signedIn=data.signedIn;crewMember=data.crewMember;garageState(data);
+      signedIn=data.signedIn;crewMember=data.crewMember;garageState(data);document.querySelector('[data-race-mode]').textContent=crewMember&&!forced?'공식 랭킹 도전':'연습 모드';
+      updateLobby();
       showRanking('teams',data.ranking);showRanking('drivers',data.individualRanking);
       $('garageStatus').textContent=signedIn?'':'로그인하면 차량을 구매하고 장착할 수 있어요.';
     }catch{

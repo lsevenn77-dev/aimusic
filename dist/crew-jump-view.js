@@ -18,7 +18,7 @@ export function mount(root,{crew,viewer,api,esc}){
  const url='/api/crews/'+encodeURIComponent(crew)+'/jump';
  root.innerHTML=`<link rel="stylesheet" href="/crew-jump.css"><section class="jump-club"><header><a class="text-link" href="#crew/${encodeURIComponent(crew)}">‹ 크루로</a><div><button class="small-button" data-pause hidden>일시정지</button> <button class="small-button" data-rules>게임 규칙</button></div></header>
  <section class="jump-lobby" aria-label="크루게임 대기실">
-   <nav class="arc-game-choice" aria-label="크루게임 선택"><b>별빛 점프</b><a class="small-button" href="/crew-rhythm/?crew=${encodeURIComponent(crew)}">♫ 리듬게임 · Double Tap 연습하기 ›</a></nav>
+   <nav class="arc-game-choice" aria-label="크루게임 선택"><b>별빛 점프</b><a class="small-button" href="/crew-rhythm/?crew=${encodeURIComponent(crew)}">♫ 리듬게임 · Double Tap ›</a></nav>
    <div class="arc-top">
     <h1 class="arc-intro"><img src="/crew-jump-art/arcade-intro.webp" width="315" height="546" alt="AIFECT 크루 점프게임. 장애물을 넘고 별 젤리를 모으며 달려요."></h1>
     <section class="jump-board" aria-label="주간 순위판"><p>순위를 불러오는 중…</p></section>
@@ -40,7 +40,7 @@ export function mount(root,{crew,viewer,api,esc}){
    <div class="arc-fitting"><div class="arc-run-model" aria-hidden="true"></div><div aria-live="polite"><small>달리기 미리보기</small><h3 data-look-name></h3><b data-look-price></b></div></div>
    <div class="arc-look-shelves"></div><p class="arc-look-note">지금은 의상 미리보기만 가능해요. 실버와 골드는 차감되지 않아요.</p></dialog>
  <div class="jump-stage" hidden aria-label="점프게임"><canvas width="960" height="540" tabindex="0" aria-label="스페이스 또는 화면을 눌러 점프"></canvas><div class="jump-hud" hidden><span>점수 <b>0</b></span><span>남은 시간 <b>${LIMIT/HZ}초</b></span><span>콤보 <b>0</b></span><small class="jump-speed"></small></div><div class="jump-overlay"></div></div>
- <dialog class="jump-wide-dialog" aria-label="가로 게임 화면"><div class="jump-wide-layout"><div class="jump-wide-controls"><button class="small-button" type="button" data-wide-pause hidden>일시정지</button><button class="small-button" type="button" data-wide-exit>축소</button></div></div></dialog><div class="jump-summary" aria-live="polite"></div><dialog class="surface jump-dialog"><h2>주간 게임 규칙</h2><p>화면을 누르거나 스페이스바로 점프하세요. 공중에서 한 번 더 점프할 수 있어요. 장애물에 닿으면 도전이 끝나요.</p><p>별 젤리를 연속으로 모으면 콤보 보너스! 낮에는 10초마다 1.2배로 가속해요. 70초부터 야간 도로에서 네온 링을 모으세요. 밤에는 5초마다 1.1배로 가속하고 ${LIMIT/HZ}초에 완주해요.</p><p>공식 도전은 하루 3회. 한국시간 월요일 0시부터 금요일 22시까지, 크루원별 주간 최고점 상위 10개를 합산해요. 참여 미션 보상은 크루 경험치이며, 현재 지급은 꺼져 있어요. 리듬게임 교대는 준비 중이에요.</p><button class="primary-button" data-close>확인</button></dialog></section>`;
+ <dialog class="jump-wide-dialog" aria-label="가로 게임 화면"><div class="jump-wide-layout"><div class="jump-wide-controls"><button class="small-button" type="button" data-wide-pause hidden>일시정지</button><button class="small-button" type="button" data-wide-exit>축소</button></div></div></dialog><div class="jump-summary" aria-live="polite"></div><dialog class="surface jump-dialog"><h2>주간 게임 규칙</h2><p>화면을 누르거나 스페이스바로 점프하세요. 공중에서 한 번 더 점프할 수 있어요. 장애물에 닿으면 도전이 끝나요.</p><p>별 젤리를 연속으로 모으면 콤보 보너스! 낮에는 10초마다 1.2배로 가속해요. 70초부터 야간 도로에서 네온 링을 모으세요. 밤에는 5초마다 1.1배로 가속하고 ${LIMIT/HZ}초에 완주해요.</p><p>공식 도전은 하루 3회. 한국시간 월요일 0시부터 금요일 22시까지, 크루원별 주간 최고점 상위 10개를 합산해요. 참여 미션 보상은 크루 경험치이며, 현재 지급은 꺼져 있어요. 리듬게임에서도 별도의 공식 도전에 참여할 수 있어요.</p><button class="primary-button" data-close>확인</button></dialog></section>`;
  const $=s=>root.querySelector(s),canvas=$('canvas'),ctx=canvas.getContext('2d'),layer=$('.jump-overlay'),hud=$('.jump-hud'),summary=$('.jump-summary'),dialog=$('.jump-dialog:not(.arc-store-dialog)'),shop=$('.arc-store-dialog');
  const waiting=$('.jump-lobby'),stage=$('.jump-stage');
  let scene;
@@ -49,38 +49,24 @@ export function mount(root,{crew,viewer,api,esc}){
  const sounds=gameSounds(abort.signal);
  function listen(el,name,fn){el.addEventListener(name,fn,events)}
  const wideDialog=$('.jump-wide-dialog'),wideLayout=$('.jump-wide-layout'),widePause=$('[data-wide-pause]');
- let wideSession=0,ownedFullscreen=false;
+ const stageAnchor=document.createComment('jump-stage-home');stage.before(stageAnchor);
  function leaveWide(){
-  if(!wideDialog.open)return;
-  wideSession++;
-  wideDialog.close();
-  wideDialog.before(stage);
-  if(ownedFullscreen && document.fullscreenElement===document.documentElement){
-   try{screen.orientation?.unlock?.()}catch{}
-   document.exitFullscreen().catch(()=>{});
-  }
-  ownedFullscreen=false;
+  if(wideDialog.open)wideDialog.close();
+  stageAnchor.after(stage);
+  document.body.classList.remove('crew-jump-playing');
  }
  function enterWide(){
-  if(!matchMedia('(pointer: coarse) and (max-width: 1100px), (pointer: coarse) and (max-height: 600px)').matches)return;
-  const session=++wideSession;
+  if(!matchMedia('(max-width: 1100px), (pointer: coarse) and (max-height: 600px)').matches)return;
   widePause.hidden=true;
   widePause.textContent='일시정지';
+  // A body-level modal stays above the app shell and does not depend on native fullscreen.
+  document.body.append(wideDialog);
   wideLayout.prepend(stage);
+  stage.hidden=false;layer.hidden=false;layer.textContent='게임 준비 중…';
+  document.body.classList.add('crew-jump-playing');
   wideDialog.showModal();
-  const page=document.documentElement;
-  if(document.fullscreenElement||!page.requestFullscreen)return;
-  page.requestFullscreen().then(async()=>{
-   if(session!==wideSession){
-    if(!wideDialog.open&&document.fullscreenElement===page)await document.exitFullscreen();
-    return;
-   }
-   ownedFullscreen=true;
-   await screen.orientation?.lock?.('landscape');
-  }).catch(()=>{}); // The rotated viewport also works without native fullscreen or rotation.
  }
  listen(wideDialog,'cancel',e=>{e.preventDefault();leaveWide()});
- listen(document,'fullscreenchange',()=>{if(ownedFullscreen&&!document.fullscreenElement)leaveWide()});
  listen($('[data-wide-exit]'),'click',leaveWide);
  listen(widePause,'click',()=>{$('[data-pause]').click();widePause.textContent=$('[data-pause]').textContent});
  function panel(eyebrow,title,body,buttons){
@@ -239,6 +225,6 @@ export function mount(root,{crew,viewer,api,esc}){
   else if(!round&&['countdown','play'].includes(phase)){if(document.hidden){pausedAt=performance.now();cancelAnimationFrame(frame)}else if(pausedAt){origin+=performance.now()-pausedAt;pausedAt=0;frame=requestAnimationFrame(advance)}}
  });
  listen(window,'pagehide',abandon);
- const clear=()=>{leaveWide();abandon();dead=true;abort.abort();cancelAnimationFrame(frame);if(dialog.open)dialog.close();if(shop.open)shop.close()};
+ const clear=()=>{leaveWide();wideDialog.remove();stageAnchor.remove();abandon();dead=true;abort.abort();cancelAnimationFrame(frame);if(dialog.open)dialog.close();if(shop.open)shop.close()};
  void refresh();return clear;
 }
