@@ -67,7 +67,7 @@
 .studio-manager .studio-quota-copy { min-width: 0; }
 .studio-manager .studio-quota-copy h2 { margin: 0 0 8px; font-size: 19px; line-height: 1.4; word-break: keep-all; overflow-wrap: anywhere; }
 .studio-manager .studio-quota-copy p { margin: 0; color: var(--studio-ink); font-size: var(--pc-font-body, calc(13px * var(--ui-type-scale, 1))); line-height: 1.6; word-break: keep-all; overflow-wrap: anywhere; }
-.studio-manager .studio-quota-copy .studio-quota-note { margin-top: 6px; color: var(--studio-muted); font-size: 12px; }
+.studio-manager .studio-quota-copy .studio-quota-note { margin-top: 6px; color: var(--studio-muted); font-size: var(--pc-font-meta, 12px); line-height: 1.5; white-space: nowrap; }
 .studio-manager .studio-quota-membership { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; min-width: 0; }
 .studio-manager :is(.studio-upgrade,.studio-premium-state) { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; max-width: 100%; padding: 8px 14px; border: 0; border-radius: 10px; font-size: 13px; line-height: 1.5; font-weight: 700; white-space: nowrap; color: var(--ds-ink, #14192a); }
 .studio-manager .studio-upgrade { margin: 0; background: linear-gradient(105deg, #a1e7df, #c8c0f7 52%, #e7b8e4); }
@@ -83,8 +83,10 @@
   .studio-manager { --ui-icon-scale: 1.5625; }
 }
 .studio-manager .studio-glance { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); padding: 12px 0; margin-bottom: 12px; background: none; border: 0; border-radius: 0; box-shadow: none; cursor: default; }
-.studio-manager .studio-glance > div { display: flex; align-items: center; justify-content: center; gap: 9px; font-size: 13px; line-height: 1.5; }
+.studio-manager .studio-glance > div { display: flex; align-items: center; justify-content: center; gap: 9px; min-width: 0; font-size: 13px; line-height: 1.5; }
 .studio-manager .studio-glance > div + div { border-left: 1px solid var(--studio-line); }
+.studio-manager .studio-glance span { white-space: nowrap; }
+.studio-manager .studio-glance .studio-stat-label-compact { display: none; }
 .studio-manager .studio-glance strong { font-size: 17px; font-variant-numeric: tabular-nums; }
 .studio-manager .studio-filters,
 .studio-manager .studio-bulk-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 14px; }
@@ -157,10 +159,9 @@
   .studio-manager .studio-quota-benefits { text-align: left; }
   .studio-manager .studio-upgrade { width: 100%; }
   .studio-manager .studio-glance { padding: 8px 0; }
-  .studio-manager .studio-glance:has(> div:nth-child(4)) { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-flow: row; }
-  .studio-manager .studio-glance:has(> div:nth-child(4)) > div { padding: 6px; }
-  .studio-manager .studio-glance:has(> div:nth-child(4)) > div:nth-child(3) { border-left: 0; }
-  .studio-manager .studio-glance > div { flex-direction: column; gap: 0; font-size: 12px; text-align: center; word-break: keep-all; }
+  .studio-manager .studio-glance > div { flex-direction: column; gap: 2px; padding: 6px 2px; font-size: var(--pc-font-meta, 12px); text-align: center; word-break: keep-all; }
+  .studio-manager .studio-glance .studio-stat-label-full { display: none; }
+  .studio-manager .studio-glance .studio-stat-label-compact { display: inline; }
   .studio-manager .studio-glance strong { font-size: 15px; }
   .studio-manager .studio-filters, .studio-manager .studio-bulk-bar { gap: 4px 8px; padding: 6px 10px; }
   .studio-manager .studio-filter-buttons { flex-wrap: wrap; gap: 2px; }

@@ -67,7 +67,7 @@ function studioQuotaCard(value=studioQuota.membership,status=studioQuota.status)
   </div>
   <div class="studio-quota-copy"><h2>${premium?`프리미엄 회원은 월 ${number(q.limit)}곡까지 제작할 수 있어요.`:'더 자유롭게, 더 많이 제작하세요!'}</h2>
    ${premium?'':`<p>일반회원은 월 ${number(q.limit)}곡까지, PREMIUM은 월 10곡까지 제작할 수 있어요.</p>`}
-   <p class="studio-quota-note">매월 1일 한국시간에 새로 시작해요. 커버곡은 제한 없이 올릴 수 있어요.</p></div>
+   <p class="studio-quota-note">매월 1일 초기화(한국시간) · 커버곡 무제한</p></div>
   <div class="studio-quota-membership">${premium?`<span class="studio-premium-state">${studioQuotaCrown()} PREMIUM 이용 중</span><ul class="studio-quota-benefits"><li>${icon('check')}<span>월 ${number(q.limit)}곡 제작 가능</span></li><li>${icon('check')}<span>커버곡 제한 없이 업로드</span></li></ul>`:`<a class="primary-button studio-upgrade" href="#membership">${studioQuotaCrown()} PREMIUM 업그레이드</a>`}</div>
  </section>`;
 }
@@ -129,12 +129,12 @@ function studioWorksHTML(d){
  const {type,status}=studioManage,original=type==='original',kind=studioKinds[type];
  const tracks=d.tracks.filter(t=>t.kind===type);
  const stats=[['전체 '+kind,tracks.length],['공개곡',tracks.filter(t=>t.status==='published').length]];
- if(original)stats.push(['업로드·변환 중',tracks.filter(t=>studioProcessing.has(t.status)).length]);
+ if(original)stats.push(['업로드·변환 중',tracks.filter(t=>studioProcessing.has(t.status)).length,'처리 중']);
  stats.push(['비공개곡',tracks.filter(t=>t.status==='hidden').length]);
  const filters=[['all','전체'],['published','공개'],['hidden','비공개']];
  if(original)filters.push(['processing','처리 중']);
  const choices=[...filters,...['failed','removed'].filter(key=>status===key||tracks.some(t=>t.status===key)).map(key=>[key,studioStatusText[key]])];
- return `${original?studioQuotaCard():''}<div class="studio-glance" aria-label="${kind} 현황">${stats.map(([label,value])=>`<div><span>${label}</span><strong>${number(value)}</strong></div>`).join('')}</div>
+ return `${original?studioQuotaCard():''}<div class="studio-glance" aria-label="${kind} 현황">${stats.map(([label,value,compact])=>`<div><span${compact?' class="studio-stat-label-full"':''}>${label}</span>${compact?`<span class="studio-stat-label-compact">${compact}</span>`:''}<strong>${number(value)}</strong></div>`).join('')}</div>
  <div class="studio-works-surface">
   <div class="studio-filters${studioManage.searchOpen?' is-search-open':''}">
    <div class="studio-filter-buttons" role="group" aria-label="작품 상태">${choices.map(([key,label])=>`<button type="button" class="studio-filter-button" data-studio-filter="${key}" aria-pressed="${key===status}">${label}</button>`).join('')}</div>
