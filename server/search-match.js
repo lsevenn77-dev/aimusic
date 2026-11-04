@@ -6,8 +6,9 @@ const SQL_SEPARATORS = [' ', '\t', '\n', '\r', '　', '-', '_', '.', '·', 'ㆍ'
 const FLEX_SEPARATORS = /[\s\u200b-\u200d\p{P}\p{S}]/gu;
 const aliasGroups = SEARCH_ALIASES.map(group => [...new Set(group.map(compactSearchText))]);
 const quoteSQL = s => "'" + s.replace(/'/g, "''") + "'";
-const escapeLike = s => s.replace(/[\\%_]/g, '\\$&');
-const likeSQL = field => `${field} LIKE ? ESCAPE '\\'`;
+// Literal substring matching avoids D1's 50-byte LIKE/GLOB pattern limit.
+// LOWER retains LIKE's ASCII case folding; %, _ and backslashes remain literal.
+const likeSQL = field => `instr(lower(COALESCE(${field},'')),lower(?))>0`;
 
 export function searchText(value) {
  return String(value ?? '').normalize('NFKC').trim().slice(0, 100).replace(/\s+/gu, ' ');
@@ -29,13 +30,13 @@ export function flexibleSearchCondition(input, fields, flexibleFields = fields) 
    conditions.push('(' + columns.map(likeSQL).join(' OR ') + ')');
    args.push(...columns.map(() => pattern));
  };
- addAny(fields, '%' + escapeLike(q) + '%');
+ addAny(fields, q);
  const compact = compactSearchText(q);
  const aliases = aliasGroups.find(group => group.includes(compact));
  if ((compact.length >= 2 || aliases) && flexibleFields.length) {
    const columns = flexibleFields.map(compactSearchSQL);
    for (const term of aliases || [compact]) {
-     addAny(columns, '%' + escapeLike(term) + '%');
+     addAny(columns, term);
    }
  }
  // Match multiple meaningful words across title + artist + other searchable metadata.
@@ -46,7 +47,7 @@ export function flexibleSearchCondition(input, fields, flexibleFields = fields) 
    const columns = (flexibleFields.length ? flexibleFields : fields).map(compactSearchSQL);
    for (const token of tokens) {
      perToken.push('(' + columns.map(likeSQL).join(' OR ') + ')');
-     args.push(...columns.map(() => '%' + escapeLike(token) + '%'));
+     args.push(...columns.map(() => token));
    }
    conditions.push('(' + perToken.join(' AND ') + ')');
  }

@@ -90,11 +90,12 @@ const RULES=[
 const DENIALS={love:/(?:사랑.{0,5}(?:않|아니|못해)|안사랑|사랑은없|dontloveyou|donotloveyou)/,happy:/행복.{0,8}(?:않|아니)|행복한척|행복하겠니|happy.{0,5}not/,joy:/기쁘.{0,5}않|즐겁.{0,5}않/,hope:/희망.{0,5}없/,peace:/평온.{0,5}않|편안.{0,5}않/,longing:/보고싶지않|그립지않/,sad:/슬프지않|눈물(?:이|은)?아니|울지않/,lonely:/외롭지않|외로움.{0,5}아니/,thanks:/고맙지않/,comfort:/괜찮지않|괜찮은척/};
 const IRONY=/참(?:으로)?(?:행복|좋|즐거).{0,30}(?:눈물|거짓|지옥|척)|(?:행복|좋|즐거).{0,15}(?:반어|거짓말)/;
 const STOP=new Set('나는 나를 내가 너는 너를 네가 우리 그대 당신 오늘 정말 너무 그냥 이제 아직 다시 모든 있는 없는 것처럼 그리고 하지만 사랑 노래 음악 마음 lyrics chorus verse intro outro the and you your are was were with that this for not dont cant'.split(' '));
+const keywordStem=word=>word.replace(/(?:에서는|에게는|으로는|이라고|이라고는|처럼|에서|에게|으로|까지|부터|하고|했던|하는|하게|하며|들을|들이|은|는|이|가|을|를|에|의|도|와|과)$/u,'');
 export function lyricKeywords(value){
  const words=lyricPlainText(value).toLowerCase().match(/[\p{L}\p{N}]+/gu)||[],freq=new Map();
  for(const word of words){
   if(/^\d+$/.test(word))continue;
-  const stem=word.replace(/(?:에서는|에게는|으로는|이라고|이라고는|처럼|에서|에게|으로|까지|부터|하고|했던|하는|하게|하며|들을|들이|은|는|이|가|을|를|에|의|도|와|과)$/u,'');
+  const stem=keywordStem(word);
   for(const term of new Set([word,stem]))if(term.length>=2&&term.length<=24&&!STOP.has(term))freq.set(term,(freq.get(term)||0)+1);
  }
  return [...freq].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).slice(0,160).map(([term,count])=>({term,weight:Math.min(4,count)}));
@@ -136,5 +137,7 @@ export function lyricSearchIntent(value){
  // A situation's component tags improve recall; no recursive synonym expansion.
  const components={after_breakup:['breakup'],in_love:['love','flutter'],alone:['lonely'],need_comfort:['comfort'],good_day:['happy'],cry:['sad'],reminisce:['memory','longing']};
  for(const t of [...found])for(const id of components[t.id]||[])if(!found.some(t=>t.id===id))found.push({id,direct:false});
- return {tags:found.slice(0,12),keywords:found.length?[]:lyricKeywords(value).slice(0,6).map(k=>k.term)};
+ const words=lyricPlainText(value).toLowerCase().match(/[\p{L}\p{N}]+/gu)||[];
+ const keywords=[...new Set(words.filter(w=>!STOP.has(w)).map(w=>keywordStem(w).length>=2?keywordStem(w):w).filter(w=>w.length>=2&&w.length<=24&&!STOP.has(w)&&!/^\d+$/.test(w)))].slice(0,6);
+ return {tags:found.slice(0,12),keywords:found.length?[]:keywords};
 }

@@ -72,6 +72,8 @@ test('covers use the same original lyrics as playback and requeue when their sou
 test('keyword search, duplicate-free paging and bulk counts cover all stored records',async t=>{
  const {DB,sql,call}=await fixture(t);fill(sql,'one','은하수를 건너 너를 보고 싶어');await drain(DB);
  const result=await search(call,'은하수');assert.deepEqual(result.tracks.map(t=>t.id),['one']);assert.equal(result.tracks[0].lyrics,undefined);
+ assert.equal((await search(call,'은하수 사과나무')).tracks.length,0,'Unrelated common words must not broaden a multiword lyric query');
+ assert.equal((await search(call,'헤어진 여자친구 생각날 때 듣는 노래')).tracks.length,1);
  const insert=sql.prepare("INSERT INTO tracks(id,user_id,artist_id,producer_id,title,genre,ai_tool,rights_accepted,original_ext,original_bytes,created,status,lyrics) VALUES(?,'owner','artist','producer',?,'Rock','QA',1,'wav',128,0,'published','너를 보고 싶어')");
  for(let n=0;n<105;n++)insert.run('lyric-page-'+n,'작품 '+n);await drain(DB);
  const first=await search(call,'그리운 사람');assert.equal(first.counts.tracks,106);assert.equal(first.tracks.length,100);assert.equal(first.has_more,true);
