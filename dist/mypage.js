@@ -133,7 +133,7 @@ const profileWorkTypes={
 };
 const profileWorkTabs={
  all:{label:'전체',types:Object.keys(profileWorkTypes)},original:{label:'제작곡',types:['original']},
- complete:{label:'완성',types:['all','solo','duet','dubbing']},recruit:{label:'모집중',types:['all','duet','dubbing','script']}
+ complete:{label:'완성곡',types:['all','solo','duet','dubbing']},recruit:{label:'모집중',types:['all','duet','dubbing','script']}
 };
 function profileWorkIcon(type,tooltip=false){
  const {label,color,path}=profileWorkTypes[type];
@@ -167,7 +167,7 @@ function profileWorksHref(d,tab='all',type='',query=''){
  if(query)params.set('q',query);
  return base+'?'+params;
 }
-function profileWorkCard({t,type,section,mine,nickname}){
+function profileWorkCard({t,type,section,mine,nickname},{showManagement=false}={}){
  const id=encodeURIComponent(t.id),title=esc(t.title),dub=t.kind==='dubbing';
  const canPlay=dub?!!(t.work_finished&&t.audio_ready):!!t.work_public;
  const detail=dub?'#dubbing/'+id:canPlay?'#song/'+id:'#manage/'+id;
@@ -179,15 +179,15 @@ function profileWorkCard({t,type,section,mine,nickname}){
  return `<article class="mp-catalog-card" data-work-kind="${type}"><div class="album-art-wrap mp-card-art"><a href="${detail}" aria-label="${title} 상세보기">${art}${mark}</a>
   ${canPlay?`<button type="button" class="card-play" ${dub?'data-mp-dubbing-play':'data-play'}="${esc(t.id)}" aria-label="${title} 재생">${icon('ui-play-action',36)}</button>`:''}</div>
   <div class="mp-card-title">${profileWorkIcon(type,true)}<a href="${detail}" title="${title}">${title}</a>
-  ${!dub&&canPlay?`<button type="button" class="card-more" data-track-menu="${esc(t.id)}" aria-label="${title} 더보기">${icon('ui-menu-action')}</button>`:''}</div>
+  ${!dub&&canPlay&&(!mine||showManagement)?`<button type="button" class="card-more" data-track-menu="${esc(t.id)}" aria-label="${title} 더보기">${icon('ui-menu-action')}</button>`:''}</div>
   <small class="mp-card-nick" title="${esc(nickname||'')}">${esc(nickname||'')}</small>
-  ${mine?`<a class="mp-card-action" href="${dub?detail:'#manage/'+id}">관리</a>`:joinable?`<a class="mp-card-action" href="${esc(join)}">참여하기</a>`:''}</article>`;
+  ${mine&&showManagement?`<a class="mp-card-action" href="${dub?detail:'#manage/'+id}">관리</a>`:joinable?`<a class="mp-card-action" href="${esc(join)}">참여하기</a>`:''}</article>`;
 }
 function myWorksHTML(d,column='all'){
  const catalog=profileWorkCatalog(d);
  const section=(tab,limit)=>{
   const works=catalog.filter(w=>w.section===tab);
-  return mySection(profileWorkTabs[tab].label,works.length?`<div class="mp-catalog-grid">${works.slice(0,limit).map(profileWorkCard).join('')}</div>`:myEmpty('아직 작품이 없어요.'),myAll(profileWorksHref(d,tab)),works.length,'mp-catalog-section mp-catalog-'+tab);
+  return mySection(profileWorkTabs[tab].label,works.length?`<div class="mp-catalog-grid">${works.slice(0,limit).map(w=>profileWorkCard(w)).join('')}</div>`:myEmpty('아직 작품이 없어요.'),myAll(profileWorksHref(d,tab)),works.length,'mp-catalog-section mp-catalog-'+tab);
  };
  const own=isMyProfile(d.profile);
  if(column==='main')return `<div class="mp-work-main">${section('original',4)}${section('complete',3)}</div>`;
@@ -212,7 +212,7 @@ function bindProfileWorks(s){
  const paint=(updateURL=true)=>{
   const scoped=s.catalog.filter(w=>s.tab==='all'||w.section===s.tab),query=search.value.trim().toLocaleLowerCase();
   const items=scoped.filter(w=>(s.type==='all'||s.type===w.type)&&(!query||[w.t.title,w.nickname,w.t.original_title].some(v=>v?.toLocaleLowerCase().includes(query))));
-  root.querySelector('.mp-catalog-results').innerHTML=items.length?`<div class="mp-catalog-grid">${items.map(profileWorkCard).join('')}</div>`:myEmpty(scoped.length?'검색 조건에 맞는 작품이 없어요.':'아직 작품이 없어요.');
+  root.querySelector('.mp-catalog-results').innerHTML=items.length?`<div class="mp-catalog-grid">${items.map(w=>profileWorkCard(w,{showManagement:true})).join('')}</div>`:myEmpty(scoped.length?'검색 조건에 맞는 작품이 없어요.':'아직 작품이 없어요.');
   for(const link of root.querySelectorAll('[data-work-tab]'))link.href=profileWorksHref(s.d,link.dataset.workTab,s.type,search.value);
   if(updateURL){
    const href=profileWorksHref(s.d,s.tab,s.type,search.value);
@@ -226,6 +226,7 @@ function bindProfileWorks(s){
 }
 
 function mySegment(active){return `<div class="mp-segment" role="tablist" aria-label="마이페이지" data-active="${active}"><span class="mp-segment-slide" aria-hidden="true"></span>${[['works','내 작품'],['library','내 보관함'],['activity','내 활동']].map(([key,label])=>`<button type="button" role="tab" id="mp-tab-${key}" aria-controls="mp-content" aria-selected="${active===key}" tabindex="${active===key?0:-1}" data-mp-tab="${key}">${label}</button>`).join('')}</div>`;}
+function myWorksBanner(){return `<div class="mp-works-banner">${icon('sparkles',16)}<span>음악의 시작부터 완성까지, <span class="mp-works-banner-accent">나의 모든 작품을 한눈에.</span></span></div>`;}
 async function myPageView(base,param,raw,readApi=api){
  if(base==='member'){
   const {profile}=await readApi('/api/members/'+encodeURIComponent(param));
@@ -249,7 +250,7 @@ async function myPageView(base,param,raw,readApi=api){
  return {mypage:state,musicLibrary:collection?.musicLibrary,tracks:collection?.tracks||[...(d.tracks||[]),...(d.covers||[])],
   html:`<div class="mypage-layout mp-member-page mp-dashboard ${own?'mp-own':''}">${myProfileHeader(d)}
    <div class="mp-profile-collections">${myMoments(d)}${myArtists(d)}</div>
-   ${own?mySegment(tab):''}<div class="mp-main"><div id="mp-content" ${own?'role="tabpanel" aria-labelledby="mp-tab-'+tab+'"':''}>${collection?collection.html:tab==='works'?myWorksHTML(d,own?'main':'all'):myLoading()}</div></div>
+   ${own?mySegment(tab)+myWorksBanner():''}<div class="mp-main"><div id="mp-content" ${own?'role="tabpanel" aria-labelledby="mp-tab-'+tab+'"':''}>${collection?collection.html:tab==='works'?myWorksHTML(d,own?'main':'all'):myLoading()}</div></div>
    ${own?`<aside class="mp-aside" id="mp-aside"><div id="mp-aside-content">${collection?.libraryAside??(tab==='activity'?myLoading():myWorksHTML(d,'aside'))}</div>${myStudioBanner()}</aside>`:''}
    </div>`};
 }
