@@ -145,18 +145,20 @@
 }
 
 /* CHART_PC_TYPE_20261104_START
-   Popular / cover / new-release charts only, at the home pilot's PC breakpoint.
+   Popular / cover / new-release charts only, from the 768px PC breakpoint.
    Keep every legacy declaration above unchanged. Remove this entire marked
    block to restore chart typography without reverting home or shared styles.
    Custom properties preserve exact px values through regionTokenCSS builds.
    Geometry, icons, weights, colors and mobile typography remain unchanged.
 */
-@media (min-width: 801px) {
+@media (min-width: 768px) {
   #main > .charts-final {
-    --chart-page-size: 25px;
+    --chart-page-size: 27px;
     --chart-section-size: 21px;
-    --chart-card-size: 16px;
-    --chart-body-size: 15px;
+    --chart-card-size: 17px;
+    --chart-body-size: 14px;
+    --chart-tab-size: 17px;
+    --chart-position-size: 19px;
     --chart-control-size: 14px;
     --chart-meta-size: 13px;
   }
@@ -168,7 +170,7 @@
   }
   #main > .charts-final .song-table.song-table-chart.chart-ui .song-table-row {
     --chart-title-size: var(--chart-card-size);
-    --chart-rank-size: var(--chart-meta-size);
+    --chart-rank-size: var(--chart-position-size);
     --chart-stat-size: var(--chart-meta-size);
     --music-stat-number: var(--chart-meta-size);
   }
@@ -181,7 +183,7 @@
     font-size: var(--chart-card-size);
   }
   #main > .charts-final .song-table.song-table-chart.chart-ui .song-table-row .song-table-position {
-    font-size: var(--chart-meta-size);
+    font-size: var(--chart-position-size);
   }
   #main > .charts-final .song-table.song-table-chart.chart-ui .song-table-row .chart-movement strong {
     font-size: var(--chart-meta-size) !important;
@@ -192,7 +194,10 @@
   #main > .charts-final .empty-design p {
     font-size: var(--chart-body-size);
   }
-  #main > .charts-final :is(.chart-tabs .tab, .chart-period-menu a,
+  #main > .charts-final .chart-tabs .tab {
+    font-size: var(--chart-tab-size);
+  }
+  #main > .charts-final :is(.chart-period-menu a,
     .aifect-dropdown-trigger, .empty-design .primary-button) {
     font-size: var(--chart-control-size);
   }
