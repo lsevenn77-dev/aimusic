@@ -48,3 +48,9 @@ main{padding:24px 0 52px}button,.button{font:inherit;font-weight:650;color:inher
 @media(max-width:480px){.console .titlebar{gap:5px}.capture{gap:5px}.console .meter{margin:12px 0}.console [data-act="pull"]{min-width:82px}}
 
 .practice-rules,.practice .official-rules{display:none}.practice .practice-rules{display:block}
+
+/* Touch phones/tablets (including landscape) reel from the entire game page. */
+.mobile-hint{display:none}
+.mobile-controls .desktop-hint,.mobile-controls .console [data-act="pull"]{display:none}
+.mobile-controls .mobile-hint{display:inline}
+.mobile-controls .stage{touch-action:none;-webkit-user-select:none}

@@ -1,9 +1,15 @@
 import {FISH} from './catalog.js';
 import {TIERS,position,cm} from './rules.js';
 import {createScene} from './scene.js';
+import {bindMobileReelInput} from './mobile-input.js';
 
 const app=document.querySelector('#app'), errorBox=document.querySelector('#error');
 const dialog=document.querySelector('#rules');
+const mobileControls=matchMedia('(max-width:650px), (hover:none) and (pointer:coarse)');
+const syncControls=()=>document.body.classList.toggle('mobile-controls',mobileControls.matches);
+syncControls();
+if(mobileControls.addEventListener)mobileControls.addEventListener('change',syncControls);
+else mobileControls.addListener(syncControls);
 document.querySelector('#rulesOpen').onclick=()=>dialog.showModal();
 const esc=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt=n=>Number(n).toLocaleString('ko-KR');
@@ -70,7 +76,7 @@ function updateMeter(message){
 function play(intro){
   paint('play',`<section class="stage${intro?' casting':''}"><div class="stagehead"><div><small>ON THE WATER</small><h2>${intro?'찌를 던지는 중…':'물고기가 걸렸어요'}</h2></div><div class="actions"><span id="warnings"></span><button data-act="lobby">대기실</button></div></div>
   <p class="callout" aria-hidden="true"></p>
-  <div class="console"><div class="titlebar"><div class="gauge-title"><small>REEL TIMING</small><h3>릴 타이밍</h3></div><div class="capture"><span>포획 진행도</span><b class="dots"></b></div></div><div class="meter" aria-label="민트색 성공 구역에 맞춰 당기기"><i class="target" style="left:${cast.target}%;width:${cast.width}%"></i><i class="needle"></i></div><div class="stagefoot"><div><p id="pullfeedback" role="status"></p><small>스페이스바 또는 터치</small></div><button class="primary" data-act="pull">당기기</button></div></div></section>`);
+  <div class="console"><div class="titlebar"><div class="gauge-title"><small>REEL TIMING</small><h3>릴 타이밍</h3></div><div class="capture"><span>포획 진행도</span><b class="dots"></b></div></div><div class="meter" aria-label="민트색 성공 구역에 맞춰 당기기"><i class="target" style="left:${cast.target}%;width:${cast.width}%"></i><i class="needle"></i></div><div class="stagefoot"><div><p id="pullfeedback" role="status"></p><small><span class="desktop-hint">스페이스바 또는 터치</span><span class="mobile-hint">화면 어디든 터치해서 당기기</span></small></div><button class="primary" data-act="pull">당기기</button></div></div></section>`);
   updateMeter('찌가 민트색 구간에 닿으면 당기세요.');
   const stage=app.querySelector('.stage');
   scene=createScene(stage,{goal:cast.goal,progress:cast.progress});
@@ -138,8 +144,10 @@ app.addEventListener('click',e=>{
   const button=e.target.closest('button');
   if(button?.dataset.fish){action(()=>collection('book',button.dataset.fish));return}
   if(button){if(actions[button.dataset.act])action(actions[button.dataset.act]);return}
-  if(screen==='play'&&e.target.closest('.stage'))action(pull);
+  if(!mobileControls.matches&&screen==='play'&&e.target.closest('.stage'))action(pull);
 });
+bindMobileReelInput({root:document,mobile:()=>mobileControls.matches,
+  playing:()=>screen==='play'&&!dialog.open,pull:()=>action(pull),pointerEvents:'PointerEvent' in window});
 window.addEventListener('keydown',e=>{
   if(e.code!=='Space'||screen!=='play'||dialog.open||e.target.closest?.('button:not([data-act="pull"]),a,input'))return;
   e.preventDefault();if(!e.repeat)action(pull);
