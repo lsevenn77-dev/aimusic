@@ -81,8 +81,14 @@ function paintPunchCountdown(s,run){
  if(active)header.querySelector('[data-punch-record-range]').textContent=preciseTime(run.punchRange.start)+' – '+preciseTime(run.punchRange.end);
  header.querySelector('[data-punch-cancel]').onclick=()=>finishSinging({discardPunch:true});
  const remaining=run?run.recordClock-s.ctx.currentTime:0;const n=remaining>0&&remaining<=3?Math.ceil(remaining):0;countdown.hidden=false;
- const number=countdown.querySelector('[data-punch-countdown]');number.setAttribute('aria-label',n?n+'초 뒤 녹음 시작':'녹음 대기');
- if(number.dataset.count!==String(n)){number.dataset.count=String(n);number.innerHTML=Array.from({length:3},(_,i)=>'<i aria-hidden="true" class="'+(n&&i===3-n?'is-visible':'')+'"></i>').join('');}
+ const number=countdown.querySelector('[data-punch-countdown]');
+ if(number.dataset.count!==String(n)){
+  number.dataset.count=String(n);number.setAttribute('aria-label',n?n+'초 뒤 녹음 시작':'녹음 대기');
+  countdown.dataset.active=String(n>0);countdown.setAttribute('aria-hidden',String(n===0));
+  // Reuse the three nodes so opacity can fade. The existing audio clock owns
+  // all timing: 111 -> 110 -> 100 -> 000, with no extra timer or audio delay.
+  number.querySelectorAll('i').forEach((dot,i)=>dot.classList.toggle('is-visible',i<n));
+ }
 }
 function paintPunchPlayback(s){
  if(sing!==s||s.punchPage!=='result'||!s.pendingPunch)return;const p=s.pendingPunch,elapsed=Math.max(0,Math.min(p.range.end-p.range.start,s.cursor-p.range.start));

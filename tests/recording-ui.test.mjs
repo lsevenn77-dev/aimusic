@@ -72,16 +72,32 @@ test('rerecord starts at the preceding lyric rather than a fixed three-second of
  assert.equal(vm.runInContext('recordingPrerollStart([],20)',c),17);
 });
 
-test('normal and premium prerecord counts share audio time; pause clears all dots without removing their slot',()=>{
- const number={dataset:{},setAttribute(){},innerHTML:''},header={querySelector:()=>({})},countdown={querySelector:()=>number};
+test('audio-clock countdown lights all dots, extinguishes right to left, clears on cancel and restarts without another timer',()=>{
+ const dots=Array.from({length:3},()=>({on:false,classList:{toggle(_name,on){dots.find(dot=>dot.classList===this).on=on;}}}));
+ const number={dataset:{},setAttribute(){},querySelectorAll:()=>dots},header={querySelector:()=>({})},countdown={dataset:{},attrs:{},setAttribute(k,v){this.attrs[k]=v;},querySelector:()=>number};
  const c=sandbox({$:q=>q==='.sing-punch-record-header'?header:countdown});
  vm.runInContext(readFileSync(new URL('../dist/sing-punch.js',import.meta.url),'utf8'),c);
  c.session={ctx:{currentTime:0}};c.run={recordClock:8};
- for(const [clock,count] of [[0,0],[5,3],[6.1,2],[7.1,1],[8,0]]){
+ for(const [clock,count] of [[0,0],[5,3],[5.99,3],[6,2],[6.99,2],[7,1],[7.99,1],[8,0]]){
   c.session.ctx.currentTime=clock;vm.runInContext('paintPunchCountdown(session,run)',c);
-  assert.equal(number.dataset.count,String(count));assert.equal((number.innerHTML.match(/class="is-visible"/g)||[]).length,count?1:0);assert.equal(countdown.hidden,false);assert.equal(header.hidden,true);
+  assert.equal(number.dataset.count,String(count));assert.deepEqual(dots.map(dot=>dot.on),[0,1,2].map(i=>i<count));assert.equal(countdown.hidden,false);assert.equal(countdown.dataset.active,String(count>0));assert.equal(countdown.attrs['aria-hidden'],String(count===0));assert.equal(header.hidden,true);
  }
  vm.runInContext('paintPunchCountdown(session,null)',c);assert.equal(number.dataset.count,'0');assert.equal(countdown.hidden,false);
+ c.session.ctx.currentTime=5;vm.runInContext('paintPunchCountdown(session,run);paintPunchCountdown(session,run)',c);assert.deepEqual(dots.map(dot=>dot.on),[true,true,true]);
+ vm.runInContext('paintPunchCountdown(session,null)',c);assert.deepEqual(dots.map(dot=>dot.on),[false,false,false]);assert.equal(countdown.dataset.active,'false');
+ c.run.punchRange={start:12,end:18};c.preciseTime=String;
+ vm.runInContext('paintPunchCountdown(session,run)',c);assert.equal(header.hidden,false);assert.deepEqual(dots.map(dot=>dot.on),[true,true,true]);
+});
+
+test('mobile lyric window measures two previous, current and three following rows without removing data',()=>{
+ const rows=Array.from({length:10},(_,i)=>({offsetHeight:50,offsetTop:120+i*60+5})),styles=new Map();
+ const wheel={clientHeight:360,querySelectorAll:()=>rows,style:{setProperty(k,v){styles.set(k,v);},removeProperty(k){styles.delete(k);}}};
+ const c=sandbox({window:{AifectKaraoke:karaoke,matchMedia:()=>({matches:true})},getComputedStyle:()=>({marginTop:'5',marginBottom:'5'}),$:()=>({classList:{contains:()=>false}})});c.wheel=wheel;c.rows=rows;
+ vm.runInContext('sing={}',c);
+ assert.equal(vm.runInContext('recordingLyricWindow(wheel,rows[4])',c),240);assert.equal(styles.get('--record-window-height'),'360px');assert.equal(rows.length,10);
+ assert.equal(vm.runInContext('recordingLyricWindow(wheel,rows[0])',c),0);assert.equal(vm.runInContext('recordingLyricWindow(wheel,rows[9])',c),540);
+ wheel.clientHeight=180;assert.equal(vm.runInContext('recordingLyricWindow(wheel,rows[4])',c),300);
+ vm.runInContext('sing.punchPage="record"',c);assert.equal(vm.runInContext('recordingLyricWindow(wheel,rows[4])',c),null);assert.equal(styles.size,0);
 });
 
 test('part brush persists across consecutive lines and applies only after explicit save',()=>{
