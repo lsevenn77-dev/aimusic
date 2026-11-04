@@ -1,4 +1,4 @@
-// Run against tests/preview-public-music.mjs or an isolated authenticated fixture.
+// After npm run build, run node tests/preview-mobile-topbar.mjs in another terminal.
 // AIFECT_PLAYWRIGHT_MODULE may point to the host's bundled playwright/index.mjs.
 import assert from 'node:assert/strict';
 import {mkdir,writeFile} from 'node:fs/promises';
@@ -32,7 +32,7 @@ try {
    if(await toggle().getAttribute('aria-expanded')==='false'){await toggle().click();await settle();}
    const expanded=await measure();assert.equal(expanded.h.h,56,`${width} ${route} expanded height`);
    assert.equal(expanded.t.w,44);assert.equal(expanded.t.h,44);
-   if(expanded.overflow) console.log('OVERFLOW',expanded,await page.evaluate(()=>({w:innerWidth,sw:document.documentElement.scrollWidth,nodes:[...document.querySelectorAll('body *')].filter(e=>e.getBoundingClientRect().right>innerWidth+1).slice(0,15).map(e=>[e.tagName,e.id,e.className,e.getBoundingClientRect().right])})));assert.equal(expanded.overflow,false,`${width} ${route} horizontal overflow`);
+   assert.equal(expanded.overflow,false,`${width} ${route} horizontal overflow`);
    for(let i=1;i<expanded.controls.length;i++)assert.ok(expanded.controls[i].x>=expanded.controls[i-1].r-.5,`${width} ${route} overlapping controls ${i}`);
    const compact=await page.locator('.topbar').evaluate(e=>{const c=getComputedStyle(e);return e.clientWidth-parseFloat(c.paddingLeft)-parseFloat(c.paddingRight)<350;});
    assert.equal(expanded.compact,compact,`${width} official brand switch uses available space`);
@@ -77,7 +77,7 @@ try {
  await toggle().click();await settle();await toggle().click();await settle();assert.equal(await page.locator('#global-search input').inputValue(),'미완성 검색');
  await page.locator('#menu-toggle').click();await settle();
  assert.equal(await page.locator('#sidebar').evaluate(e=>e.getBoundingClientRect().top),56);
- await toggle().click();await settle();assert.equal(await page.locator('#sidebar').getAttribute('class'),'sidebar');
+ await toggle().focus();await page.keyboard.press('Space');await settle();assert.equal(await page.locator('#sidebar').getAttribute('class'),'sidebar');
  await toggle().click();await settle();
  // Actual chat history: pin at bottom, preserve older reading position and draft.
  await goto('dm/friend');await page.locator('#chat-log .dm-message').first().waitFor();
@@ -112,4 +112,3 @@ try {
  releaseBundle();await early.waitForFunction(()=>document.documentElement.dataset.renderState==='ready');await early.close();
  assert.deepEqual(errors,[]);console.log(`PASS: ${results.length} route/viewport pairs; persistence, desktop, keyboard, focus, unread, search, chat, fullscreen, reduced motion and storage denial.`);
 } finally {await writeFile(out+'/report.json',JSON.stringify({results,errors},null,2));await browser.close();}
-

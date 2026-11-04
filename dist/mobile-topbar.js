@@ -50,6 +50,8 @@
     }
     root.setAttribute('data-topbar-animate', '');
     collapsed = !collapsed;
+    // Keyboard activation has no pointerdown to dismiss the existing drawer.
+    if (collapsed && document.getElementById('menu-toggle')?.getAttribute('aria-expanded') === 'true') document.getElementById('menu-backdrop')?.click();
     try { localStorage.setItem(key, collapsed ? '1' : '0'); } catch { /* In-memory choice still works. */ }
     paint();
     clearTimeout(animationTimer);
