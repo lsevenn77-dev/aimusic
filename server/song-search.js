@@ -3,6 +3,7 @@ import {producerNameSQL} from './identity.js';
 import {searchRank} from './search-rank.js';
 import {songTextMatch,compactSearchSQL,compactSearchText} from './search-match.js';
 import {alternativeTrackMatches,initialQuery,koreanInitials} from './search-fallback.js';
+import {lyricSearchScope} from './lyric-search.js';
 
 const from = 'FROM tracks t JOIN artists a ON a.id=t.artist_id JOIN producers p ON p.id=t.producer_id';
 
@@ -23,9 +24,12 @@ export function exactSongScope(q,where) {
   ['t.title','a.name',producerNameSQL(),'t.genre','t.tags'],
   'UNION ALL SELECT value FROM json_each(t.genres_json)',false);
  const match = initials ? {sql:rank.sql+'<6',args:[rank.plan]} : songTextMatch(q);
- const exactWhere = where+' AND '+match.sql;
+ const semantic=initials?null:lyricSearchScope(q);
+ const exactWhere = where+' AND '+(semantic?'('+match.sql+' OR '+semantic.sql+')':match.sql);
  const titlePriority = 'CASE WHEN t.title=? THEN 0 WHEN '+compactSearchSQL('t.title')+'=NULLIF(?,\'\') THEN 1 ELSE 2 END';
- return {where:exactWhere,args:match.args,exact:true,sort:titlePriority+','+rank.sql,sortArgs:[q,compactSearchText(q),rank.plan]};
+ return {where:exactWhere,args:[...match.args,...(semantic?.args||[])],exact:true,
+  sort:semantic?semantic.sort+','+rank.sql:titlePriority+','+rank.sql,
+  sortArgs:semantic?[...semantic.sortArgs,rank.plan]:[q,compactSearchText(q),rank.plan]};
 }
 
 export async function fallbackSongScope(env,q,where,params) {

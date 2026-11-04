@@ -1,4 +1,5 @@
 import {tryPublicOrigin} from './cafe24-origin.js';
+import {queueLyricAnalysis,runLyricBatch,lyricAnalysisAdmin} from './lyric-analysis.js';
 import {followManagement} from './follow-management.js';
 import {expireDubbingCombinations} from './dubbing-casting.js';
 import {artistFanpageRoute} from './artist-fanpage.js';
@@ -72,7 +73,7 @@ export default {async fetch(req,env,ctx){
  const url=new URL(req.url),path=url.pathname;
  const fishingClock=path.startsWith('/api/crew-fishing/')?{receivedTime:Date.now(),started:performance.now()}:undefined;
  try{
-  if(path==='/mcp')return await adminMcpRoute(req,env);
+  if(path==='/mcp'){const response=await adminMcpRoute(req,env);if(response.ok)queueLyricAnalysis(env,ctx);return response;}
   const tossTestResponse=await tossTestCheckoutRoute(req,env,path);if(tossTestResponse)return tossTestResponse;
   const tossGoldTestResponse=await tossGoldTestCheckoutRoute(req,env,path);if(tossGoldTestResponse)return tossGoldTestResponse;
   // Google sign-in is registered for the public domain, not the legacy Sites
@@ -149,6 +150,7 @@ export default {async fetch(req,env,ctx){
   const safety=await accountSafetyRoute(req,env,path,user);if(safety)return safety;
   const playlistImage=await playlistImageRoute(req,env,path,user);if(playlistImage)return playlistImage;
   if(path==='/api/studio'&&ctx?.waitUntil&&env.GEMINI_API_KEY)ctx.waitUntil(classifyNext(env).catch(()=>console.error('Music classification pending')));
+  const lyricAdmin=await lyricAnalysisAdmin(req,env,path,user);if(lyricAdmin)return lyricAdmin;
   const classificationResponse=await musicClassificationRoute(req,env,path,user);if(classificationResponse)return classificationResponse;
   const profileGalleryResponse=await profileGalleryRoute(req,env,path,user);if(profileGalleryResponse)return profileGalleryResponse;
   const fanpageResponse=await artistFanpageRoute(req,env,path,user);if(fanpageResponse){if(fanpageResponse.ok&&req.method==='POST')ctx.waitUntil(dispatchPush(env));return fanpageResponse;}
@@ -181,7 +183,10 @@ export default {async fetch(req,env,ctx){
   const status=e.status||500,message=e.status?e.message:'잠시 연결이 원활하지 않습니다. 입력 내용은 유지되니 다시 시도해주세요.';
   if(path.includes('/auth/')&&path.endsWith('/callback'))return new Response(null,{status:303,headers:{location:'/#account?error='+encodeURIComponent(message),'cache-control':'no-store'}});
   return json({error:message},status);
+ }finally{
+  // Start only after the foreground operation, and only on music-related traffic.
+  if(/^\/api\/(catalog|search|discover|studio|uploads|tracks)(\/|$)/.test(path)||path==='/internal/jobs/claim'||/^\/internal\/lyrics\//.test(path))queueLyricAnalysis(env,ctx);
  }
-},async scheduled(event,env,ctx){ctx.waitUntil(dispatchPush(env));ctx.waitUntil(runBotEngine(env));ctx.waitUntil(cleanupChatImages(env));ctx.waitUntil(expireDubbingCombinations(env));ctx.waitUntil(classifyNext(env));ctx.waitUntil(syncRecentCrewGrowth(env));}};
+},async scheduled(event,env,ctx){ctx.waitUntil(runLyricBatch(env));ctx.waitUntil(dispatchPush(env));ctx.waitUntil(runBotEngine(env));ctx.waitUntil(cleanupChatImages(env));ctx.waitUntil(expireDubbingCombinations(env));ctx.waitUntil(classifyNext(env));ctx.waitUntil(syncRecentCrewGrowth(env));}};
 
 async function syncActorCrew(env,uid){const membership=await one(env,'SELECT crew_id FROM crew_members WHERE user_id=?',uid);if(membership)await syncCrewGrowth(env,membership.crew_id);}

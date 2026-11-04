@@ -52,6 +52,13 @@ for(const q of ['Rock','rock','록','Rokc','ㄹㅋㄱㅈㅇㅌㅅㅌ']){
  assert.equal(response.status,200,JSON.stringify(result));assert.equal(result.counts.tracks,3,q);
 }
 await db.prepare("UPDATE tracks SET status='hidden' WHERE id='two'").run();
+// Real D1 caps LIKE/GLOB patterns at 50 bytes, including UTF-8 Korean natural language.
+for(const q of ['헤어진 여자친구 생각날 때 듣는 노래','요즘 너무 힘들어서 위로받고 싶어','사랑하는 사람에게 들려주고 싶은 노래','슬픈 이별 노래 '.repeat(10)]){
+ for(const route of ['/api/search','/api/catalog']){
+  const response=await mf.dispatchFetch('http://localhost'+route+'?'+new URLSearchParams({q}));
+  assert.equal(response.status,200,await response.text());
+ }
+}
 const refreshed=await (await mf.dispatchFetch('http://localhost/')).text();assert.doesNotMatch(refreshed,/href="\/music\/two"/);
 const ads=await mf.dispatchFetch('http://localhost/ads.txt');assert.equal(ads.status,200);assert.match(await ads.text(),/pub-5910265378731607/);
 const head=await mf.dispatchFetch('http://localhost/media/one/preview',{method:'HEAD',headers:{'content-length':'0'}});assert.equal(head.status,200);

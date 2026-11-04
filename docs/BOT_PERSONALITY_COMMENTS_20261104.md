@@ -20,7 +20,7 @@ Covers currently inherit their original's classification. Therefore they get gen
 
 ## Persistence and compatibility
 
-Migration `0091_bot_personality_comments` changes existing positive comment settings to 3 (meaning two or three), preserving disabled comments, global enabled/disabled state, gift settings and limits. Four publication triggers gain a third slot. Target-ID parity chooses a stable two-or-three count so republishing cannot add a random extra slot. The unique job key and engine lease preserve idempotency. Existing comments, gifts, users, balances and completed jobs remain intact; there is no historical bulk backfill. Existing caps, blocks, visibility checks and real-member support thresholds still apply.
+Migration `0092_bot_personality_comments` changes existing positive comment settings to 3 (meaning two or three), preserving disabled comments, global enabled/disabled state, gift settings and limits. Four publication triggers gain a third slot. Target-ID parity chooses a stable two-or-three count so republishing cannot add a random extra slot. The unique job key and engine lease preserve idempotency. Existing comments, gifts, users, balances and completed jobs remain intact; there is no historical bulk backfill. Existing caps, blocks, visibility checks and real-member support thresholds still apply.
 
 Templates remain as historical admin data but are never read by the generation path. Legacy style/emoji values are retained for compatibility and no longer override the imported personality. Dubbing comments also use Luna and personality, based only on their available text metadata, with no invented audio analysis.
 
