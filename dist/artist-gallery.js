@@ -30,7 +30,7 @@ document.addEventListener('click',async e=>{
    const status=form.querySelector('.gallery-upload-status');
    for(let i=0;i<files.length;i++){
     status.textContent=(i+1)+' / '+files.length+' 사진 업로드 중';
-    try{await uploadFile('/api/artists/'+encodeURIComponent(aid)+'/gallery',files[i],undefined,{preserveAspectRatio:true});}
+    try{await uploadFile('/api/artists/'+encodeURIComponent(aid)+'/gallery',files[i],undefined,{preserveAspectRatio:true,allowFallback:true});}
     catch(error){
      // Successful earlier uploads must not be sent twice when the user retries.
      const remaining=new DataTransfer();files.slice(i).forEach(f=>remaining.items.add(f));form.elements.photos.files=remaining.files;
