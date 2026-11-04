@@ -2,7 +2,7 @@ import test from 'node:test';
 import {practiceSession} from '../dist/crew-fishing/practice.js';
 import assert from 'node:assert/strict';
 import {fixture} from './fixture.mjs';
-import {encounter,fishingRoute,fishingLimits} from '../server/crew-fishing.js';
+import {encounter,fishingRoute,fishingLimits,biteDelay} from '../server/crew-fishing.js';
 import {FISH} from '../dist/crew-fishing/catalog.js';
 import {fishValue,BASE_PRICES} from '../dist/crew-fishing/pricing.js';
 import {TIERS,SIZES,weighted,season,progressAfter,formatLength} from '../dist/crew-fishing/rules.js';
@@ -70,10 +70,10 @@ test('crew auth, private roll, idempotent casts and pulls, same-pass mash and es
   let c=draws[0].cast;assert.ok(draws.every(r=>r.cast.id===c.id));assert.equal(c.fish,undefined);
   assert.equal((await api('lobby')).remaining,9);
   const first={id:c.id,seq:1,hit:true,value:999999};
-  const pulls=await Promise.all([api('pull',first),api('pull',first)]);
+  const pulls=await Promise.all([api('pull',first,c.start),api('pull',first,c.start)]);
   assert.ok(pulls.every(r=>r.cast.warnings===1));
-  c=(await api('pull',{id:c.id,seq:2},monday+50)).cast;assert.equal(c.seq,1);
-  c=(await api('pull',{id:c.id,seq:2},monday+c.cycle)).cast;assert.equal(c.status,'escaped');assert.equal(c.value,0);
+  c=(await api('pull',{id:c.id,seq:2},c.start+50)).cast;assert.equal(c.seq,2);assert.equal(c.warnings,1);
+  c=(await api('pull',{id:c.id,seq:3},c.start+c.cycle)).cast;assert.equal(c.status,'escaped');assert.equal(c.value,0);
   assert.equal((await api('cast',{requestId:key})).cast.status,'escaped');
   assert.deepEqual((await api('book')).records,[]);assert.equal((await api('lobby')).ours,0);
 });
@@ -181,19 +181,92 @@ test('official lobby is the default and practice leaves the official quota intac
 test('official pulls judge the touched frame despite server delay, reject stale input, and never double count',async t=>{
   const {api,sql}=await setup(t);
   let c=(await api('cast',{requestId:crypto.randomUUID()})).cast;
-  sql.prepare('UPDATE crew_fishing_casts SET target=40,width=30,cycle_ms=3200,goal=3 WHERE id=?').run(c.id);
-  const first={id:c.id,seq:1,elapsed:800};
-  const result=await api('pull',first,monday+1800);
+  const start=c.start;
+  sql.prepare('UPDATE crew_fishing_casts SET target=40,width=30,cycle_ms=1600,goal=3 WHERE id=?').run(c.id);
+  const first={id:c.id,seq:1,elapsed:400};
+  const result=await api('pull',first,start+1400);
   assert.equal(result.cast.progress,1);assert.equal(result.cast.warnings,0);
   assert.ok(result.serverTime>=result.receivedTime);
-  assert.equal((await api('pull',first,monday+2200)).cast.progress,1);
-  c=(await api('pull',{id:c.id,seq:2,elapsed:900},monday+1900)).cast;
-  assert.equal(c.seq,1); // Same pass cannot be mashed.
-  for(const elapsed of [-1,800,10000,'4000'])
-    await assert.rejects(api('pull',{id:c.id,seq:2,elapsed},monday+5000));
-  c=(await api('pull',{id:c.id,seq:2,elapsed:4000},monday+5000)).cast;
+  assert.equal((await api('pull',first,start+1600)).cast.progress,1);
+  c=(await api('pull',{id:c.id,seq:2,elapsed:450},start+1450)).cast;
+  assert.equal(c.seq,2);assert.equal(c.progress,1); // Same pass only resets inactivity.
+  for(const elapsed of [-1,400,10000,'2000'])
+    await assert.rejects(api('pull',{id:c.id,seq:3,elapsed},start+3000));
+  c=(await api('pull',{id:c.id,seq:3,elapsed:2000},start+3000)).cast;
   assert.equal(c.progress,2);
-  c=(await api('pull',{id:c.id,seq:3,elapsed:7200},monday+8200)).cast;
+  c=(await api('pull',{id:c.id,seq:4,elapsed:3600},start+4600)).cast;
   assert.equal(c.status,'caught');
   assert.equal((await api('lobby')).remaining,9);
+});
+
+test('bite waits cover 1–15 seconds and every tier moves exactly twice as fast',()=>{
+  assert.deepEqual(Array.from({length:15},(_,i)=>biteDelay(limit=>{assert.equal(limit,15);return i})),Array.from({length:15},(_,i)=>(i+1)*1000));
+  assert.deepEqual(Object.values(TIERS).map(t=>t.cycle),[1600,1400,1250,1100,1000]);
+});
+
+test('official wait persists across resume, blocks early input and expires at the exact 3-second boundary',async t=>{
+  const {api,sql}=await setup(t),requestId=crypto.randomUUID();
+  const {cast:c}=await api('cast',{requestId});
+  assert.ok(c.start-monday>=1000&&c.start-monday<=15000);
+  assert.equal((await api('cast',{requestId},monday+500)).cast.start,c.start);
+  assert.equal((await api('lobby',null,c.start-1)).cast.start,c.start);
+  assert.equal((await api('pull',{id:c.id,seq:1},c.start-1)).cast.seq,0);
+  assert.equal((await api('pull',{id:c.id,seq:1,timeout:true},c.start+2999)).cast.status,'active');
+  const expired=(await api('pull',{id:c.id,seq:1,timeout:true},c.start+3000)).cast;
+  assert.equal(expired.status,'escaped');assert.equal(expired.value,0);assert.equal(expired.notice,'idle');
+  assert.equal((await api('cast',{requestId},c.start+4000)).cast.status,'escaped');
+  assert.equal((await api('lobby',null,c.start+4000)).remaining,9);
+  assert.equal(sql.prepare('SELECT count(*) AS n FROM crew_fishing_casts').get().n,1);
+});
+
+test('touches reset idle time without repeated scoring; duplicates cannot extend it and late input cannot revive a fish',async t=>{
+  const {api,sql}=await setup(t);
+  let c=(await api('cast',{requestId:crypto.randomUUID()})).cast;
+  sql.prepare('UPDATE crew_fishing_casts SET target=0,width=100,cycle_ms=1600,goal=7 WHERE id=?').run(c.id);
+  const touch={id:c.id,seq:1,elapsed:400};
+  c=(await api('pull',touch,c.start+1400)).cast;
+  assert.equal(c.expiresAt,c.start+3400);assert.equal(c.progress,1);
+  c=(await api('pull',{id:c.id,seq:2,elapsed:600},c.start+1600)).cast;
+  assert.equal(c.expiresAt,c.start+3600);assert.equal(c.progress,1);
+  c=(await api('pull',{id:c.id,seq:2,elapsed:2000},c.start+2000)).cast;
+  assert.equal(c.expiresAt,c.start+3600);
+  // A touch at 3599 ms remains valid even when its request arrives after the old deadline.
+  c=(await api('pull',{id:c.id,seq:3,elapsed:3599},c.start+4599)).cast;
+  assert.equal(c.status,'active');assert.equal(c.progress,2);assert.equal(c.expiresAt,c.start+6599);
+  c=(await api('pull',{id:c.id,seq:4,elapsed:6599},c.start+6599)).cast;
+  assert.equal(c.status,'escaped');assert.equal(c.value,0);
+});
+
+test('leaving and reopening the official lobby does not pause inactivity',async t=>{
+  const {api}=await setup(t),requestId=crypto.randomUUID();
+  const {cast:c}=await api('cast',{requestId});
+  assert.equal((await api('lobby',null,c.start+2999)).cast.id,c.id);
+  assert.equal((await api('lobby',null,c.start+3000)).cast,null);
+  assert.equal((await api('cast',{requestId},c.start+3000)).cast.status,'escaped');
+});
+
+test('practice honors the same waiting, same-pass activity and idle boundary without rewards',async()=>{
+  let ms=0;
+  const session=practiceSession({scope:'qa'},async()=>({fish:FISH[0].id,waitMs:15000,cycle:1600,goal:3,target:0,width:100}),()=>ms);
+  let c=(await session.request('cast',{})).cast;
+  ms=14000;assert.equal(session.lobby().cast.id,c.id);
+  assert.equal((await session.request('pull',{id:c.id,seq:1})).cast.seq,0);
+  ms=15400;c=(await session.request('pull',{id:c.id,seq:1})).cast;
+  ms=15600;c=(await session.request('pull',{id:c.id,seq:2})).cast;
+  assert.equal(c.progress,1);assert.equal(c.expiresAt,18600);
+  ms=18599;assert.equal(session.lobby().cast.status,'active');
+  ms=18600;c=(await session.request('pull',{id:c.id,seq:3,timeout:true})).cast;
+  assert.equal(c.status,'escaped');assert.equal(session.lobby().mine,0);
+  assert.deepEqual((await session.request('book')).records,[]);
+});
+
+test('collection attributes each species to its largest catcher, with earliest catch winning equal-length ties',async t=>{
+  const {api,sql}=await setup(t);
+  sql.exec("INSERT INTO crew_members(crew_id,user_id,role,joined) VALUES('crew','other','member',0)");
+  const insert=sql.prepare("INSERT INTO crew_fishing_casts(id,user_id,crew_id,nickname,request_id,day,week,fish,grade,length,amount,start_ms,end_ms,cycle_ms,goal,target,width,status) VALUES(?,?,'crew',?,?,'2026-11-02','2026-11-02','stripe-perch','B',?,100,0,?,1600,3,20,30,'caught')");
+  insert.run('small','owner','작은 물고기','small-request',220000,1);
+  insert.run('big','other','최고 기록자','big-request',240000,2);
+  insert.run('tie','owner','동률 기록자','tie-request',240000,3);
+  const records=(await api('book')).records;
+  assert.equal(records.length,1);assert.equal(records[0].nickname,'최고 기록자');assert.equal(records[0].length,240000);
 });

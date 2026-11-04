@@ -124,21 +124,21 @@ export function createScene(stage,{goal=3,progress=0}={}){
     const ia=idleA(),L=landing();
     S.jerk*=Math.exp(-dt*6);S.slack=Math.max(0,S.slack-dt);S.shake=Math.max(0,S.shake-dt);S.glow=Math.max(0,S.glow-dt*.35);
     if(S.phase==='cast'){
-      const t=S.pt;
-      if(t<.45){S.a=lerp(ia,ia+.72,easeInOut(t/.45));S.bend=.08;S.lure={...tipAt(S.a)};S.lure.y+=16}
-      else if(t<.78){const k=(t-.45)/.33;S.a=lerp(ia+.72,ia-.42,easeOut(k));S.bend=-.38*(1-k)}
+      const t=S.pt,throwTime=S.pt/S.throwScale;
+      if(!S.resume&&throwTime<.45){S.a=lerp(ia,ia+.72,easeInOut(throwTime/.45));S.bend=.08;S.lure={...tipAt(S.a)};S.lure.y+=16}
+      else if(!S.resume&&throwTime<.78){const k=(throwTime-.45)/.33;S.a=lerp(ia+.72,ia-.42,easeOut(k));S.bend=-.38*(1-k)}
       else S.a+= (ia-S.a)*Math.min(1,dt*5);
-      if(t>=.6&&!S.flight){S.flight={from:tipAt(S.a),t:0}}
+      if(!S.resume&&throwTime>=.6&&!S.flight){S.flight={from:tipAt(S.a),t:0}}
       if(S.flight&&!S.bobber){
-        S.flight.t=Math.max(0,t-.6);const k=clamp(S.flight.t/.88,0,1),f=S.flight.from;
+        S.flight.t=Math.max(0,throwTime-.6);const k=clamp(S.flight.t/.88,0,1),f=S.flight.from;
         S.lure={x:lerp(f.x,L.x,k),y:lerp(f.y,L.y,easeInOut(k))-Math.sin(k*Math.PI)*Hh*.22};
         if(k>=1){S.bobber={x:L.x,y:L.y};S.lure=null;splash(L.x,L.y,16,150);ring(L.x,L.y,40)}
       }
       if(S.bobber&&!S.bitten){
         S.bend+=(.12-S.bend)*Math.min(1,dt*4);
-        if(t>2.75&&S.nibbles<1||t>3.0&&S.nibbles<2){S.nibbles++;S.bobber.dip=.18;ring(S.bobber.x,S.bobber.y,14)}
+        if(t>S.biteAfter-.55&&S.nibbles<1||t>S.biteAfter-.3&&S.nibbles<2){S.nibbles++;S.bobber.dip=.18;ring(S.bobber.x,S.bobber.y,14)}
         if(time%0.95<dt)ring(S.bobber.x,S.bobber.y,10);
-        if(t>=3.3){S.bitten=true;S.bobber=null;S.hook={...L};S.hookTo=hookFor(S.progress);splash(L.x,L.y,26,230);ring(L.x,L.y,60);S.bend=.85;S.jerk=-.15;S.shadow={on:true,x:L.x,y:L.y+16,vx:0,fade:1,thrash:.6};say('입질!','bite');S.phase='fight';S.pt=0;S.done?.();S.done=null}
+        if(t>=S.biteAfter){S.bitten=true;S.bobber=null;S.hook={...L};S.hookTo=hookFor(S.progress);splash(L.x,L.y,26,230);ring(L.x,L.y,60);S.bend=.85;S.jerk=-.15;S.shadow={on:true,x:L.x,y:L.y+16,vx:0,fade:1,thrash:.6};say('입질!','bite');S.phase='fight';S.pt=0;S.done?.();S.done=null}
       }
       if(S.bobber)S.bobber.dip=Math.max(0,(S.bobber.dip||0)-dt);
     }else if(S.phase==='fight'){
@@ -269,17 +269,16 @@ export function createScene(stage,{goal=3,progress=0}={}){
   const wait=fn=>new Promise(res=>{S.done=res;fn()});
   return {
     // 던지기 → 착수 → 입질까지. 끝나면 파이팅 화면으로 넘어간다.
-    cast(){
-      if(reduced){this.hooked();return Promise.resolve()}
-      return wait(()=>{S.phase='cast';S.pt=0;S.flight=null;S.bobber=null;S.bitten=false;S.nibbles=0});
+    cast({duration=3300,resume=false}={}){
+      return wait(()=>{S.phase='cast';S.pt=0;S.biteAfter=Math.max(0,duration)/1000;S.throwScale=Math.min(1,Math.max(.01,S.biteAfter*.6/1.48));S.resume=resume||reduced;S.flight=null;S.bobber=S.resume?{...landing()}:null;S.lure=null;S.bitten=false;S.nibbles=0});
     },
     // 이어하기: 이미 물고기가 걸린 상태로 시작
-    hooked(){const L=landing();S.phase='fight';S.pt=0;S.hook={...L};S.hookTo=hookFor(S.progress);S.shadow={on:true,x:L.x,y:L.y+16,vx:0,fade:1,thrash:0};S.bend=.56},
+    hooked(){if(S.phase==='cast'){S.done?.();S.done=null;say('입질!','bite')}const L=landing();S.phase='fight';S.pt=0;S.hook={...L};S.hookTo=hookFor(S.progress);S.shadow={on:true,x:L.x,y:L.y+16,vx:0,fade:1,thrash:0};S.bend=.56},
     pull(kind,progress){
       if(S.phase!=='fight')return;
       S.progress=progress;S.hookTo=hookFor(progress);
       if(kind==='success'){S.jerk=.32;splash(S.hook.x,S.hook.y,14,170);say('당겼어요!','good')}
-      else if(kind==='warning'){S.jerk=-.12;S.shadow.thrash=1;S.shake=.45;splash(S.hook.x,S.hook.y,30,260);say('도주 경고!','warn')}
+      else if(kind==='warning'){S.jerk=-.12;S.shadow.thrash=1;S.shake=.45;splash(S.hook.x,S.hook.y,30,260);say('줄이 느슨해졌어요','miss')}
       else if(kind==='miss'){S.slack=.6;ring(S.hook.x,S.hook.y,20);say('줄이 느슨해졌어요','miss')}
       else S.jerk=.08;
     },

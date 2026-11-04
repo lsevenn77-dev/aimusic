@@ -20,10 +20,11 @@ const esc=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'
 const fmt=n=>Number(n).toLocaleString('ko-KR');
 const fishById=new Map(FISH.map(f=>[f.id,f]));
 const art=f=>`./art/${f.id}.webp`;
-let lobby,cast,screen='',pending=false,requestId=null,clockOffset=0,clockDelay=Infinity,frame=0,frameElapsed=null,book,scene=null,reel=null;
+let lobby,cast,screen='',pending=false,requestId=null,clockOffset=0,clockDelay=Infinity,frame=0,frameElapsed=null,book,scene=null,reel=null,biteTimer=0,idleTimer=0;
+const now=()=>performance.now()+clockOffset;
 function showError(message){errorBox.textContent=message;errorBox.hidden=!message}
 function paint(name,html){
-  reel?.dispose();reel=null;cancelAnimationFrame(frame);scene?.destroy();scene=null;screen=name;app.toggleAttribute('data-game-lobby',name==='lobby');app.classList.toggle('arcade-lobby',name==='lobby');app.classList.toggle('fishing-lobby',name==='lobby');app.innerHTML=html;window.scrollTo(0,0);
+  clearTimeout(biteTimer);clearTimeout(idleTimer);reel?.dispose();reel=null;cancelAnimationFrame(frame);scene?.destroy();scene=null;screen=name;app.toggleAttribute('data-game-lobby',name==='lobby');app.classList.toggle('arcade-lobby',name==='lobby');app.classList.toggle('fishing-lobby',name==='lobby');app.innerHTML=html;window.scrollTo(0,0);
 }
 async function fetchAPI(action,data){
   const before=performance.now();
@@ -74,7 +75,7 @@ async function openLobby(refresh=true){
     <div class="links"><button class="cgl-pill" data-act="aquarium">${lobby.practice?'연습 수족관':'크루 수족관'}</button><button data-act="book">물고기 도감</button></div>
     <div class="links cgl-text-links"><a href="./design.html">공식 어종 27종 보기 ↗</a>${lobby.practice?'':'<a href="?mode=practice">연습하기</a>'}</div>
   </section>
-  <section class="cgl-tile cgl-help"><h2>조작 안내</h2><p>찌가 민트색 성공 구간에 들어오면 낚시 화면을 터치하세요.</p><p>PC는 화면 클릭 또는 스페이스바로 당길 수 있어요.</p><p>0칸에서 두 번 실패하면 물고기가 도망가요.</p></section>
+  <section class="cgl-tile cgl-help"><h2>조작 안내</h2><p>찌가 민트색 성공 구간에 들어오면 낚시 화면을 터치하세요.</p><p>PC는 화면 클릭 또는 스페이스바로 당길 수 있어요.</p><p>입질까지 1~15초가 걸려요. 입질 후 3초 동안 터치하지 않으면 물고기가 도망가요.</p></section>
   </div><p class="cgl-footnote">${lobby.practice?'연습은 공식 순위에 반영되지 않아요.':'한국시간 월요일 0시 개장 · 금요일 22시 마감 · 주간 어획 금액으로 순위를 매겨요.'}</p>`);
   if(!lobby.practice)renderGameRankings(document.querySelector('#fishingRankings'),{crews:lobby.crews,players:lobby.individual,crewId:lobby.crew,crewDescription:'잡은 모든 물고기의 주간 평가액 합계',playerDescription:'개인별 주간 어획액 합계',unit:'원'});
 }
@@ -86,17 +87,15 @@ function loop(){
   animate();
 }
 function updateMeter(message){
-  document.querySelector('.dots').textContent=cast.progress+' / '+cast.goal;
-  document.querySelector('#warnings').dataset.alert=String(cast.warnings>0);
-  document.querySelector('#warnings').textContent=`도주 경고 ${cast.warnings} / 2`;
   document.querySelector('#pullfeedback').textContent=message;
 }
 // intro: 새로 던진 낚시면 던지기·입질 연출 뒤에 당기기 막대를 보여준다
 function play(intro){
   frameElapsed=null;
-  paint('play',`<section class="stage${intro?' casting':''}"><button type="button" class="reel-surface" data-reel-surface aria-label="낚시 화면 · 터치해서 당기기"></button><div class="stagehead"><div><small>ON THE WATER</small><h2>${intro?'찌를 던지는 중…':'물고기가 걸렸어요'}</h2></div><div class="actions"><span id="warnings"></span><button data-act="lobby">대기실</button></div></div>
+  const waiting=now()<cast.start;
+  paint('play',`<section class="stage${waiting?' casting':''}"><button type="button" class="reel-surface" data-reel-surface aria-label="낚시 화면 · 터치해서 당기기"></button><div class="stagehead"><div><small>ON THE WATER</small><h2>${waiting?'입질을 기다리는 중…':'물고기가 걸렸어요'}</h2></div><div class="actions"><button data-act="lobby">대기실</button></div></div>
   <p class="callout" aria-hidden="true"></p>
-  <div class="console"><div class="titlebar"><div class="gauge-title"><small>REEL TIMING</small><h3>릴 타이밍</h3></div><div class="capture"><span>포획 진행도</span><b class="dots"></b></div></div><div class="meter" aria-label="민트색 성공 구역에 맞춰 당기기"><i class="target" style="left:${cast.target}%;width:${cast.width}%"></i><i class="needle"></i></div><div class="stagefoot"><div><p id="pullfeedback" role="status"></p><small><span class="desktop-hint">스페이스바 또는 화면 클릭</span><span class="mobile-hint">낚시 화면을 터치해서 당기기</span></small></div></div></div></section>`);
+  <div class="console"><div class="titlebar"><div class="gauge-title"><small>REEL TIMING</small><h3>릴 타이밍</h3></div></div><div class="meter" aria-label="민트색 성공 구역에 맞춰 당기기"><i class="target" style="left:${cast.target}%;width:${cast.width}%"></i><i class="needle"></i></div><div class="stagefoot"><div><p id="pullfeedback" role="status"></p><small><span class="desktop-hint">스페이스바 또는 화면 클릭</span><span class="mobile-hint">낚시 화면을 터치해서 당기기</span></small></div></div></div></section>`);
   updateMeter('찌가 민트색 구간에 닿으면 당기세요.');
   const stage=app.querySelector('.stage');
   bindMobileReelInput({root:stage.querySelector('[data-reel-surface]'),mobile:()=>true,
@@ -105,9 +104,13 @@ function play(intro){
     pointerEvents:'PointerEvent' in window});
   try{scene=createScene(stage,{goal:cast.goal,progress:cast.progress});}catch{scene=null;}
   let ending=null;
+  const scheduleIdle=()=>{
+    clearTimeout(idleTimer);
+    if(cast.status==='active'&&stage.isConnected)idleTimer=setTimeout(()=>reel?.expire(now()-cast.start),Math.max(100,cast.expiresAt-now()));
+  };
   const endVisual=()=>{
     if(ending)return;
-    cancelAnimationFrame(frame);stage.classList.add('ending');
+    clearTimeout(idleTimer);cancelAnimationFrame(frame);stage.classList.add('ending');
     ending=animationDeadline(()=>cast.status==='caught'?scene?.land():scene?.escape(),3000);
   };
   reel=createReel({initial:cast,request:input=>api('pull',input),
@@ -117,25 +120,30 @@ function play(intro){
         ending=null;stage.classList.remove('ending');
         try{scene?.hooked();}catch{}
       }
-      updateMeter(kind==='success'?'성공! 한 칸 가까워졌어요.':kind==='warning'?'도주 경고! 다음 기회를 노려보세요.':kind==='miss'?'줄이 느슨해졌어요. 다시 당겨보세요.':'기록을 확인했어요. 막대에 맞춰 다시 당기세요.');
+      if(kind!=='touch')updateMeter(kind==='success'?'성공! 당겼어요.':kind==='idle'?'물고기가 도망갔어요.':kind==='warning'||kind==='miss'?'줄이 느슨해졌어요. 다시 당겨보세요.':'막대에 맞춰 다시 당기세요.');
       try{scene?.pull(kind,cast.progress);}catch{}
-      if(cast.status!=='active')endVisual();else if(kind==='reset')loop();
+      if(cast.status!=='active')endVisual();else{scheduleIdle();if(kind==='reset')loop();}
     },
-    onConfirmed:(next,settled)=>{if(settled)cast=next;},
+    onConfirmed:(next,settled)=>{if(settled){cast=next;scheduleIdle();}},
     onFinish:async next=>{
       cast=next;endVisual();await ending;
       if(screen==='play'&&stage.isConnected)finish();
     },
     onError:error=>{showError(error.message);updateMeter(error.message||'연결을 확인한 뒤 다시 당겨주세요.');}
   });
-  if(!scene){stage.classList.remove('casting');stage.querySelector('h2').textContent='물고기가 걸렸어요';loop();return;}
-  if(!intro){scene.hooked();loop();return}
-  const currentScene=scene;
-  animationDeadline(()=>currentScene.cast(),4000).then(()=>{
-    if(screen!=='play'||!stage.isConnected||scene!==currentScene)return;
-    try{currentScene.hooked();}catch{}
-    stage.classList.remove('casting');stage.querySelector('h2').textContent='물고기가 걸렸어요';loop();
-  });
+  // The persisted bite time, not the renderer, controls when fishing becomes playable.
+  // Reduced motion, missing canvas and resuming a tab must all honor the same wait.
+  const begin=()=>{
+    if(screen!=='play'||!stage.isConnected)return;
+    if(now()<cast.start){biteTimer=setTimeout(begin,cast.start-now());return;}
+    try{scene?.hooked();}catch{}
+    stage.classList.remove('casting');stage.querySelector('h2').textContent='물고기가 걸렸어요';
+    loop();scheduleIdle();
+  };
+  if(waiting){
+    try{Promise.resolve(scene?.cast({duration:cast.start-now(),resume:!intro})).catch(()=>{});}catch{}
+    biteTimer=setTimeout(begin,Math.max(0,cast.start-now()));
+  }else begin();
 }
 async function start(){
   const fresh=!cast||cast.status!=='active';
@@ -160,7 +168,7 @@ function finish(){
   <div class="actions"><button class="primary" data-act="retry">다시 낚시</button><button data-act="lobby">대기실</button><button data-act="aquarium">수족관</button></div></section>`);
 }
 function specimen(f,r){
-  const record=r?`최고 ${formatLength(r.length)} · ${r.grade}등급<br>${esc(r.nickname)} · ${new Date(r.end_ms).toLocaleDateString('ko-KR',{timeZone:'Asia/Seoul'})}<br>누적 ${fmt(r.count)}마리`:'미발견';
+  const record=r?`최고 ${formatLength(r.length)} · ${r.grade}등급<br>${esc(r.nickname)}`:'미발견';
   return `<article id="fish-${f.id}" class="specimen ${r?'':'undiscovered'}"><img loading="lazy" src="${art(f)}" alt=""><small>${TIERS[f.tier].name}</small><h3>${esc(f.name)}</h3><p>표준 ${formatLength(f.standardCm*10000)}<br>${record}</p></article>`;
 }
 async function collection(mode,focus=''){

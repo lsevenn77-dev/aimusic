@@ -1,10 +1,10 @@
 // Balance values are independent of fish illustrations and collection records.
 export const TIERS = {
-  common: {name:'일반', weight:5500, goal:3, cycle:3200},
-  rare:   {name:'레어', weight:4000, goal:4, cycle:2800},
-  unique: {name:'유니크', weight:440, goal:5, cycle:2500},
-  legend: {name:'전설', weight:59, goal:6, cycle:2200},
-  mythic: {name:'신화', weight:1, goal:7, cycle:2000}
+  common: {name:'일반', weight:5500, goal:3, cycle:1600},
+  rare:   {name:'레어', weight:4000, goal:4, cycle:1400},
+  unique: {name:'유니크', weight:440, goal:5, cycle:1250},
+  legend: {name:'전설', weight:59, goal:6, cycle:1100},
+  mythic: {name:'신화', weight:1, goal:7, cycle:1000}
 };
 export const SIZES = {
   S: {weight:5, min:1500, max:2500, percent:120},
@@ -14,6 +14,7 @@ export const SIZES = {
   D: {weight:10, min:-2500, max:-1501, percent:80}
 };
 export const LIMITS = {day:10, week:50, width:30, warnings:2};
+export const IDLE_MS = 3000;
 // Stored lengths use 1/10,000 cm units. Truncate at 0.1 cm before splitting;
 // displaying metres never changes the stored length or size-grade calculation.
 export function formatLength(units){

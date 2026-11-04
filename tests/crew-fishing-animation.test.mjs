@@ -47,3 +47,16 @@ test('stalled, rejected or unavailable decorative animations cannot keep control
   await animationDeadline(()=>Promise.reject(Error('context lost')),3000,timers);
   assert.equal(cleared,3);
 });
+
+for(const duration of [1000,15000])test(`cast animation waits for the selected ${duration} ms bite time`,async t=>{
+  const {scene,frame}=sceneFixture(t);let ready=false;
+  const start=performance.now(),result=scene.cast({duration}).then(()=>ready=true);
+  frame(start+duration-100);await Promise.resolve();assert.equal(ready,false);
+  frame(start+duration+50);await result;assert.equal(ready,true);
+});
+test('resuming during the wait keeps the bobber on the water until the remaining delay ends',async t=>{
+  const {scene,frame}=sceneFixture(t);let ready=false;
+  const start=performance.now(),result=scene.cast({duration:5000,resume:true}).then(()=>ready=true);
+  frame(start+4000);await Promise.resolve();assert.equal(ready,false);
+  frame(start+5100);await result;assert.equal(ready,true);
+});
