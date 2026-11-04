@@ -1,6 +1,8 @@
 // Inlined in <head>: independent of the app bundle and all network requests.
 (()=>{
  const root=document.documentElement;
+ // Restore the shell before the first paint, independently of network/bundle timing.
+ try{root.toggleAttribute('data-mobile-topbar-collapsed',localStorage.getItem('aifect-mobile-topbar-collapsed')==='1');}catch{}
  root.dataset.renderState='loading';
  let epoch=0,timer,expired=false,assetsFailed=false,retry=null,cancel=null,initialized=false;
  const state=()=>root.dataset.renderState;

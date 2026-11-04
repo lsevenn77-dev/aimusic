@@ -1,0 +1,84 @@
+/* The existing 800px shell breakpoint also owns this preference. */
+#common-topbar-content { display: contents; }
+#mobile-topbar-toggle, .mobile-brand-symbol { display: none; }
+@media (max-width:800px) {
+  :root { --mobile-topbar-row:56px; --mobile-topbar-overhang:0px; }
+  :root[data-mobile-topbar-collapsed] { --mobile-topbar-row:18px; --mobile-topbar-overhang:6px; }
+  .page-wrap { --topbar-height:calc(var(--mobile-topbar-row) + env(safe-area-inset-top,0px)); }
+  .menu-backdrop, .sidebar.open { top:var(--common-topbar-height,calc(var(--mobile-topbar-row) + env(safe-area-inset-top,0px))); }
+  .page-wrap > .topbar {
+    --header-inset:clamp(4px,calc((100vw - 350px) / 4),12px);
+    --topbar-logo-width:86px;
+    display:grid;
+    grid-template-columns:44px var(--topbar-logo-width) 44px minmax(176px,1fr);
+    grid-template-rows:minmax(0,1fr);
+    column-gap:0;
+    align-items:center;
+    position:relative;
+    z-index:40;
+    box-sizing:border-box;
+    height:calc(var(--mobile-topbar-row) + env(safe-area-inset-top,0px));
+    min-height:0;
+    padding:env(safe-area-inset-top,0px) max(var(--header-inset),env(safe-area-inset-right,0px)) 0 max(var(--header-inset),env(safe-area-inset-left,0px));
+    border:0;
+  }
+  .topbar[data-compact-brand] { --topbar-logo-width:44px; }
+  .topbar #menu-toggle { grid-area:1 / 1; width:44px!important; height:44px; }
+  .topbar .mobile-brand { grid-area:1 / 2; display:flex; align-items:center; justify-content:center; width:var(--topbar-logo-width); height:44px; }
+  .topbar .mobile-brand .aifect-wordmark-logo { width:86px; height:auto; }
+  .topbar[data-compact-brand] .mobile-brand .aifect-lockup { display:none; }
+  .topbar[data-compact-brand] .mobile-brand-symbol { display:block; width:28px; height:28px; }
+  .topbar .top-actions { grid-area:1 / 4; justify-self:end; margin:0; }
+  .topbar .crumb { display:none; }
+  #mobile-topbar-toggle {
+    grid-area:1 / 3;
+    align-self:start;
+    justify-self:center;
+    display:grid;
+    place-items:center;
+    position:relative;
+    z-index:1;
+    box-sizing:border-box;
+    width:44px;
+    height:44px;
+    min-height:0;
+    margin:6px 0 0;
+    padding:0;
+    border:0;
+    border-radius:8px;
+    background:transparent;
+    color:var(--ds-accent-lavender);
+    cursor:pointer;
+    touch-action:manipulation;
+  }
+  .mobile-topbar-grip { display:grid; place-items:center; position:relative; width:28px; height:18px; border-radius:6px; background:var(--ds-panel); }
+  .mobile-topbar-grip svg { width:14px; height:14px; fill:none; stroke:currentColor; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; }
+  #mobile-topbar-toggle:focus-visible { outline:2px solid var(--ds-accent-lavender); outline-offset:-2px; }
+  .mobile-topbar-dot { display:none; position:absolute; right:5px; top:3px; width:4px; height:4px; border-radius:50%; background:var(--activity-accent); }
+  :root[data-mobile-topbar-collapsed] #common-topbar-content > * { visibility:hidden; pointer-events:none; opacity:0; transform:translateY(-56px); }
+  :root[data-mobile-topbar-collapsed] .page-wrap > .topbar { background:transparent; }
+  :root[data-mobile-topbar-collapsed] #mobile-topbar-toggle { width:72px; height:24px; margin-top:0; place-items:start center; }
+  :root[data-mobile-topbar-collapsed] .mobile-topbar-grip { width:48px; height:16px; }
+  :root[data-mobile-topbar-collapsed] .mobile-topbar-grip svg { transform:rotate(180deg); }
+  :root[data-mobile-topbar-collapsed] #mobile-topbar-toggle[data-unread] .mobile-topbar-dot { display:block; }
+  /* Fixed chat starts at the shell edge; its existing 8px header inset protects
+     the grip's 6px overhang without adding a spacer or changing pane height. */
+  :root[data-mobile-topbar-collapsed] .message-workspace .dm-thread-header { padding-top:max(8px,var(--mobile-topbar-overhang))!important; }
+  /* Play's edge-to-edge banner is itself a link and has no existing top inset. */
+  :root[data-mobile-topbar-collapsed] #main > .play-page:has(> #play-banner) { padding-top:6px; }
+  :root[data-mobile-topbar-collapsed] #main[data-route^="notifications"] .activity-toolbar { padding-top:6px; }
+  :root[data-topbar-animate] .page-wrap > .topbar { transition:height 200ms ease; }
+  :root[data-topbar-animate] #common-topbar-content > * { transition:transform 200ms ease,opacity 200ms ease; }
+  :root[data-topbar-animate] .mobile-topbar-grip svg { transition:transform 200ms ease; }
+}
+/* Before JS measures the safe-area-adjusted available width. */
+@media (max-width:357px) {
+  .page-wrap > .topbar { --topbar-logo-width:44px; }
+  .topbar .mobile-brand .aifect-lockup { display:none; }
+  .topbar .mobile-brand-symbol { display:block; width:28px; height:28px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  :root[data-topbar-animate] .page-wrap > .topbar,
+  :root[data-topbar-animate] #common-topbar-content > *,
+  :root[data-topbar-animate] .mobile-topbar-grip svg { transition:none; }
+}

@@ -95,7 +95,7 @@ function markHorizontalScrollers(){
  }
 }
 let searchSkinFrame=0;
-function refreshSearchSkin(){if(searchSkinFrame)return;searchSkinFrame=requestAnimationFrame(()=>{searchSkinFrame=0;normalizeSearchInputs();markHorizontalScrollers();const topbar=document.querySelector('.topbar'),wrap=document.querySelector('.page-wrap');if(topbar&&wrap)wrap.style.setProperty('--topbar-height',topbar.offsetHeight+'px');});}
+function refreshSearchSkin(){if(searchSkinFrame)return;searchSkinFrame=requestAnimationFrame(()=>{searchSkinFrame=0;normalizeSearchInputs();markHorizontalScrollers();});}
 // Playback clocks and counters update text frequently; only structure changes
 // require searching for new inputs and horizontal scrollers across the page.
 new MutationObserver(changes=>{if(changes.some(c=>[...c.addedNodes,...c.removedNodes].some(n=>n.nodeType===1)))refreshSearchSkin();}).observe(document.body,{childList:true,subtree:true});
