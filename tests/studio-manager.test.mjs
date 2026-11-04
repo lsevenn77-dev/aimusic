@@ -54,6 +54,87 @@ test('kind, status and keyword filters restrict the visible works',()=>{
  state.status='processing';
  assert.deepEqual(ctx.studioFiltered().map(t=>t.id),['work-2']);
 });
+
+test('status tabs preserve failed and moderator-hidden searches without a duplicate dropdown',()=>{
+ const tracks=['published','hidden','queued','failed','removed'].map((status,i)=>({id:'state-'+i,title:'같은 제목',kind:'original',status}));
+ const ctx=sandbox(tracks),state=runInNewContext('studioManage',ctx);
+ const html=ctx.studioHTML(ctx.studioData);
+ assert.doesNotMatch(html,/<select|data-studio-status|전체 상태/);
+ for(const status of ['all','published','hidden','processing','failed','removed'])assert.match(html,new RegExp('data-studio-filter="'+status+'"'));
+ state.search='같 은제목';
+ for(const status of ['failed','removed']){
+  state.status=status;
+  assert.equal(ctx.studioFiltered().length,1);
+  assert.equal(ctx.studioFiltered()[0].status,status);
+  assert.match(ctx.studioHTML(ctx.studioData),new RegExp('data-studio-filter="'+status+'" aria-pressed="true"'));
+ }
+ state.search='다른 제목';assert.equal(ctx.studioFiltered().length,0);
+ ctx.studioData.tracks=[];
+ assert.match(ctx.studioHTML(ctx.studioData),/data-studio-filter="removed" aria-pressed="true"/);
+});
+
+function controls(ctx){
+ const nodes=Object.fromEntries(['[data-studio-select-all]','.studio-selected-count','.studio-bulk-actions',...['hide','delete','all-delete'].map(k=>'[data-studio-bulk="'+k+'"]')].map(k=>[k,{}]));
+ const inputs=ctx.studioData.tracks.map(t=>({dataset:{studioSelect:t.id},checked:false,closest(){return {classList:{toggle(){}}};}}));
+ const events={},root={dataset:{},isConnected:true,querySelector:s=>nodes[s]||null,querySelectorAll:s=>s==='[data-studio-select]'?inputs:[],addEventListener:(name,fn)=>events[name]=fn};
+ const area={innerHTML:''};
+ ctx.document={querySelector:s=>s==='[data-studio-root]'?root:s.endsWith('.studio-list-area')?area:null};
+ ctx.bindStudioManager();
+ return {nodes,inputs,root,events,area};
+}
+
+test('bulk actions follow individual/select-all checkboxes, zero selection and refreshed inventory',()=>{
+ const ctx=sandbox(sampleTracks(5)),state=runInNewContext('studioManage',ctx),ui=controls(ctx);
+ assert.match(ctx.studioHTML(ctx.studioData),/class="studio-bulk-actions" hidden/);
+ assert.equal(ui.nodes['.studio-bulk-actions'].hidden,true);
+ const change=(selector,checked,id)=>ui.events.change({target:{matches:s=>s===selector,checked,dataset:{studioSelect:id}}});
+ change('[data-studio-select]',true,'work-0');
+ assert.equal(ui.nodes['.studio-bulk-actions'].hidden,false);
+ assert.equal(ui.nodes['.studio-selected-count'].textContent,'1개 선택');
+ assert.equal(ui.nodes['[data-studio-select-all]'].indeterminate,true);
+ assert.equal(ui.nodes['[data-studio-bulk="hide"]'].disabled,false);
+ change('[data-studio-select]',false,'work-0');
+ assert.equal(ui.nodes['.studio-bulk-actions'].hidden,true);
+ change('[data-studio-select-all]',true);
+ assert.equal(state.selected.size,3);assert.equal(ui.nodes['[data-studio-select-all]'].checked,true);
+ change('[data-studio-select-all]',false);
+ assert.equal(state.selected.size,0);assert.equal(ui.nodes['.studio-bulk-actions'].hidden,true);
+ change('[data-studio-select]',true,'work-4');
+ assert.equal(ui.nodes['[data-studio-bulk="hide"]'].disabled,true);
+ assert.equal(ui.nodes['[data-studio-bulk="delete"]'].disabled,false);
+ assert.equal(ui.nodes['[data-studio-bulk="all-delete"]'].disabled,false);
+ state.loading=true;ctx.studioSyncBulk();
+ assert.equal(ui.nodes['[data-studio-bulk="delete"]'].disabled,true);
+ state.loading=false;ctx.studioData.tracks=ctx.studioData.tracks.filter(t=>t.id!=='work-4');ctx.studioSyncBulk();
+ assert.equal(state.selected.size,0);assert.equal(ui.inputs[4].checked,false);
+ assert.equal(ui.nodes['.studio-bulk-actions'].hidden,true);
+});
+
+test('filter clicks and search input immediately clear selection and preserve the other filter',async()=>{
+ const ctx=sandbox(sampleTracks(5)),state=runInNewContext('studioManage',ctx),ui=controls(ctx);
+ state.selected.add('work-0');state.search='작품';
+ const button={dataset:{studioFilter:'hidden'}};
+ await ui.events.click({target:{closest:()=>button},preventDefault(){},stopPropagation(){}});
+ assert.equal(state.status,'hidden');assert.equal(state.search,'작품');assert.equal(state.selected.size,0);
+ assert.match(ui.area.innerHTML,/data-studio-select="work-4"/);assert.doesNotMatch(ui.area.innerHTML,/data-studio-select="work-0"/);
+ assert.equal(ui.nodes['.studio-bulk-actions'].hidden,true);
+ state.selected.add('work-4');
+ ui.events.input({target:{matches:()=>true,value:'없는 곡'}});
+ assert.equal(state.status,'hidden');assert.equal(state.selected.size,0);assert.match(ui.area.innerHTML,/해당하는 작품이 없습니다/);
+});
+
+test('all-delete still loads the full filtered inventory and requires typed confirmation',async()=>{
+ const tracks=[{id:'a',title:'대상 A',kind:'original',status:'published'},{id:'b',title:'대상 B',kind:'original',status:'published'},{id:'c',title:'대상 C',kind:'original',status:'hidden'},{id:'d',title:'대상 D',kind:'cover',status:'published'}];
+ const ctx=sandbox(tracks.slice(0,1)),state=runInNewContext('studioManage',ctx);controls(ctx);
+ state.status='published';state.search='대상';state.selected.add('a');ctx.me={id:'owner'};
+ const calls=[];ctx.api=async url=>{calls.push(url);return {tracks:url==='/api/studio'?tracks.slice(0,1):tracks.slice(1),track_total:4};};
+ let html='',submit;ctx.dialog=value=>html=value;ctx.busyForm=(_form,fn)=>(submit=fn);ctx.document.getElementById=()=>({});
+ await ctx.studioBulkDialog('all-delete');
+ assert.deepEqual(calls,['/api/studio','/api/studio?offset=1']);
+ assert.match(html,/제작곡 2곡을 삭제/);assert.match(html,/현재 탭의 상태 필터와 검색어에 맞는 모든 곡/);
+ assert.match(html,/연결된 노래방·다른 회원의 커버곡/);assert.match(html,/name="verify"/);
+ await assert.rejects(submit({get:()=>''}),/삭제를 정확히 입력/);
+});
 test('track titles are escaped in work rows',()=>{
  const tracks=[{id:'x',title:'<img src=x onerror=alert(1)>',kind:'original',status:'published'}];
  const ctx=sandbox(tracks),html=ctx.studioHTML(ctx.studioData);

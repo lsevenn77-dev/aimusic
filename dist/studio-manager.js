@@ -59,16 +59,15 @@ function studioWorksHTML(d){
  stats.push(['비공개곡',tracks.filter(t=>t.status==='hidden').length]);
  const filters=[['all','전체'],['published','공개'],['hidden','비공개']];
  if(original)filters.push(['processing','처리 중']);
- const choices=[...filters,...['failed','removed'].filter(key=>tracks.some(t=>t.status===key)).map(key=>[key,studioStatusText[key]])];
+ const choices=[...filters,...['failed','removed'].filter(key=>status===key||tracks.some(t=>t.status===key)).map(key=>[key,studioStatusText[key]])];
  return `${original?studioQuotaCard(d.upload_quota):''}<div class="studio-glance" aria-label="${kind} 현황">${stats.map(([label,value])=>`<div><span>${label}</span><strong>${number(value)}</strong></div>`).join('')}</div>
  <div class="studio-works-surface">
   <div class="studio-filters">
-   <div class="studio-filter-buttons" role="group" aria-label="작품 상태">${filters.map(([key,label])=>`<button type="button" class="studio-filter-button" data-studio-filter="${key}" aria-pressed="${key===status}">${label}</button>`).join('')}</div>
-   <div class="studio-filter-tools"><input type="search" data-studio-search value="${esc(studioManage.search)}" placeholder="작품 검색" aria-label="작품 검색" maxlength="120">
-    <select data-studio-status aria-label="공개 상태 필터">${choices.map(([key,label])=>`<option value="${key}" ${status===key?'selected':''}>${key==='all'?'전체 상태':label}</option>`).join('')}</select></div>
+   <div class="studio-filter-buttons" role="group" aria-label="작품 상태">${choices.map(([key,label])=>`<button type="button" class="studio-filter-button" data-studio-filter="${key}" aria-pressed="${key===status}">${label}</button>`).join('')}</div>
+   <div class="studio-filter-tools"><input type="search" data-studio-search value="${esc(studioManage.search)}" placeholder="작품 검색" aria-label="작품 검색" maxlength="120"></div>
   </div>
   <div class="studio-bulk-bar"><label class="studio-select-all"><input type="checkbox" data-studio-select-all> <span>전체 선택</span></label><span class="studio-selected-count" aria-live="polite">0개 선택</span>
-   <div class="studio-bulk-actions"><button type="button" class="studio-bulk-button" data-studio-bulk="hide" disabled>선택 비공개</button><button type="button" class="studio-bulk-button is-danger" data-studio-bulk="delete" disabled>선택 삭제</button><button type="button" class="studio-bulk-button is-danger studio-delete-all" data-studio-bulk="all-delete">전체 삭제</button></div>
+   <div class="studio-bulk-actions" hidden><button type="button" class="studio-bulk-button" data-studio-bulk="hide" disabled>선택 비공개</button><button type="button" class="studio-bulk-button is-danger" data-studio-bulk="delete" disabled>선택 삭제</button><button type="button" class="studio-bulk-button is-danger studio-delete-all" data-studio-bulk="all-delete">전체 삭제</button></div>
   </div>
   <div class="studio-list-area">${studioResultsHTML(d)}</div>
  </div>`;
@@ -89,10 +88,11 @@ function studioSyncBulk(){
  const visible=studioManagedRows(),checked=visible.filter(t=>studioManage.selected.has(t.id));
  const all=root.querySelector('[data-studio-select-all]');if(all){all.checked=visible.length>0&&checked.length===visible.length;all.indeterminate=checked.length>0&&checked.length<visible.length;all.disabled=!visible.length;}
  const count=root.querySelector('.studio-selected-count');if(count)count.textContent=`${checked.length}개 선택`;
+ const actions=root.querySelector('.studio-bulk-actions');if(actions)actions.hidden=checked.length===0;
  const hide=root.querySelector('[data-studio-bulk="hide"]');if(hide)hide.disabled=!checked.some(t=>t.status==='published')||studioManage.loading;
  const del=root.querySelector('[data-studio-bulk="delete"]');if(del)del.disabled=!checked.length||studioManage.loading;
  const allDel=root.querySelector('[data-studio-bulk="all-delete"]');if(allDel)allDel.disabled=studioManage.loading||!checked.length;
- root.querySelectorAll('[data-studio-select]').forEach(input=>input.closest('.studio-work-row')?.classList.toggle('is-selected',input.checked));
+ root.querySelectorAll('[data-studio-select]').forEach(input=>{input.checked=studioManage.selected.has(input.dataset.studioSelect);input.closest('.studio-work-row')?.classList.toggle('is-selected',input.checked);});
 }
 function studioPaintResults(){
  const area=document.querySelector('[data-studio-root] .studio-list-area');if(!area)return;
@@ -172,7 +172,6 @@ function bindStudioManager(){
  root.dataset.studioBound='true';studioSyncBulk();
  function changeFilter(value){
   studioManage.status=value;studioManage.selected.clear();
-  root.querySelector('[data-studio-status]').value=value;
   root.querySelectorAll('[data-studio-filter]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.studioFilter===value)));
   studioPaintResults();
  }
@@ -205,8 +204,7 @@ function bindStudioManager(){
  });
  root.addEventListener('change',e=>{
   const el=e.target;
-  if(el.matches('[data-studio-status]'))changeFilter(el.value);
-  else if(el.matches('[data-studio-select-all]')){
+  if(el.matches('[data-studio-select-all]')){
    const rows=studioFiltered();for(const t of rows){if(el.checked)studioManage.selected.add(t.id);else studioManage.selected.delete(t.id);}
    root.querySelectorAll('[data-studio-select]').forEach(input=>{input.checked=el.checked;});studioSyncBulk();
   }else if(el.matches('[data-studio-select]')){
