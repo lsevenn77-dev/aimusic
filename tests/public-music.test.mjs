@@ -3,6 +3,31 @@ import assert from 'node:assert/strict';
 import {fixture} from './fixture.mjs';
 import {publicMusicRoute} from '../server/public-music.js';
 import worker from '../server/index.js';
+test('public trailing slash aliases redirect without querying storage and retain search filters',async()=>{
+ for(const method of ['GET','HEAD'])for(const path of ['/music/','/music/one/','/about/','/guide/recording/']){
+  const r=await worker.fetch(new Request('https://aifect.test'+path+'?genre=Rock',{method}),{},{});
+  assert.equal(r.status,308);assert.equal(r.headers.get('location'),path.slice(0,-1)+'?genre=Rock');assert.equal(await r.text(),'');
+ }
+});
+
+test('public documents load the existing design tokens and remain discoverable after app hydration',async t=>{
+ const f=await fixture(t),env={DB:f.DB};
+ for(const path of ['/music','/music/one','/music/absent','/about','/guide/listening','/guide/recording','/guide/community']){
+  const html=await (await publicMusicRoute(new Request('https://aifect.test'+path),env,path)).text();
+  assert.match(html,/<link rel="stylesheet" href="\/design-system\.css">/);
+  const footer=html.split('<footer')[1];
+  assert.match(footer,/href="\/music"/);assert.match(footer,/href="\/about"/);
+ }
+});
+
+test('out-of-range catalog pages are 404, while a real empty search remains 200 noindex',async t=>{
+ const f=await fixture(t),env={DB:f.DB};
+ const missing=await publicMusicRoute(new Request('https://aifect.test/music?page=500'),env,'/music');
+ assert.equal(missing.status,404);
+ const html=await missing.text();assert.match(html,/noindex,follow/);assert.match(html,/<title>공개 음악 · 500 페이지/);
+ const search=await publicMusicRoute(new Request('https://aifect.test/music?q=missing'),env,'/music');
+ assert.equal(search.status,200);assert.match(await search.text(),/noindex,follow/);
+});
 test('homepage and index use the separate shell and current public rows for GET and HEAD',async t=>{
  const f=await fixture(t),requests=[],env={DB:f.DB,ASSETS:{async fetch(req){
   requests.push(req);assert.equal(new URL(req.url).pathname,'/aifect-shell.txt');

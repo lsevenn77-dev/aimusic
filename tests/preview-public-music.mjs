@@ -13,7 +13,7 @@ assert.ok(existsSync('dist/client/aifect-shell.txt'));
 const cleanups=[],f=await fixture({after(fn){cleanups.push(fn);}});
 f.sql.exec("UPDATE artists SET name='로컬 검증 아티스트',bio='운영 데이터와 분리된 화면 검증용 소개입니다. 실제 서비스에는 등록되지 않습니다.'; UPDATE tracks SET duration=60,description='로컬 화면 검증용 샘플입니다. 창작자가 등록한 곡 소개와 미리듣기가 함께 표시되는지 확인합니다.',has_cover=0 WHERE status='published';");
 f.sql.prepare('UPDATE tracks SET title=? WHERE id=?').run('공개 음악 미리듣기 · 로컬 검증','one');
-const mf=new Miniflare({...convertV4MiniflareOptions({modules:true,scriptPath:resolve('dist/server/index.js'),compatibilityDate:config.compatibility_date,compatibilityFlags:['nodejs_compat'],port:process.argv.includes('--check')?0:Number(process.env.PREVIEW_PORT||4196),host:'127.0.0.1',d1Databases:['DB'],r2Buckets:['BUCKET'],assets:{...config.assets,directory:resolve('dist/client'),routerConfig:{has_user_worker:true}}}),handleStructuredLogs:entry=>console.log(JSON.stringify(entry))});
+const mf=new Miniflare({...convertV4MiniflareOptions({modules:true,scriptPath:resolve('dist/server/index.js'),compatibilityDate:config.compatibility_date,compatibilityFlags:['nodejs_compat'],port:process.argv.includes('--check')?0:Number((process.argv.includes('--port')?process.argv[process.argv.indexOf('--port')+1]:null)||process.env.PREVIEW_PORT||4196),host:process.argv.includes('--host')?process.argv[process.argv.indexOf('--host')+1]:'127.0.0.1',d1Databases:['DB'],r2Buckets:['BUCKET'],assets:{...config.assets,directory:resolve('dist/client'),routerConfig:{has_user_worker:true}}}),handleStructuredLogs:entry=>console.log(JSON.stringify(entry))});
 const stop=async()=>{cleanups.forEach(fn=>fn());await mf.dispose();};
 try{
 await mf.ready;
@@ -56,6 +56,15 @@ const refreshed=await (await mf.dispatchFetch('http://localhost/')).text();asser
 const ads=await mf.dispatchFetch('http://localhost/ads.txt');assert.equal(ads.status,200);assert.match(await ads.text(),/pub-5910265378731607/);
 const head=await mf.dispatchFetch('http://localhost/media/one/preview',{method:'HEAD',headers:{'content-length':'0'}});assert.equal(head.status,200);
 const hidden=await mf.dispatchFetch('http://localhost/music/hidden');assert.equal(hidden.status,404);
+for(const path of ['/music/','/music/one/','/about/','/guide/recording/']){
+ const redirect=await mf.dispatchFetch('http://localhost'+path,{redirect:'manual'});
+ assert.equal(redirect.status,308);assert.equal(redirect.headers.get('location'),path.slice(0,-1));
+}
+const detail=await mf.dispatchFetch('http://localhost/music/one');const detailHTML=await detail.text();
+assert.equal(detail.status,200);assert.match(detailHTML,/href="\/design-system\.css"/);
+const tokens=await mf.dispatchFetch('http://localhost/design-system.css');assert.equal(tokens.status,200);
+assert.match(await tokens.text(),/--ds-text:#F8FAFC/);
+assert.equal((await mf.dispatchFetch('http://localhost/music?page=500')).status,404);
 console.log('Verified asset-first homepage GET/HEAD/navigation, index alias, fresh visibility, client bundle, ads.txt, media HEAD and hidden-track denial.');
 if(process.argv.includes('--check'))await stop();
 else{
