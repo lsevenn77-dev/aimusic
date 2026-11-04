@@ -9,64 +9,33 @@
 <body>
 
 
-<div class="wrap" id="lobbyView" data-game-lobby>
-  <div class="glass topbar">
+<div class="wrap arcade-lobby rhythm-lobby" id="lobbyView" data-game-lobby>
+  <div class="cgl-nav">
     <a class="iconbtn" id="backLink" href="/#community/crews">‹ 크루게임</a>
     <h1>크루 리듬게임</h1>
-    <button class="iconbtn" id="rulesBtn" type="button">? 게임 규칙</button>
+    <button class="iconbtn" id="rulesBtn" type="button">게임 규칙</button>
   </div>
 
-  <main class="lobby">
-    <aside class="col stats" aria-label="내 공식 기록">
-      <div class="glass card"><small>CREW ARCADE</small><h2>리듬게임 대기실</h2><p class="muted">네 개의 레인에서 비트에 맞춰 공식 기록에 도전해 보세요.</p></div>
-      <div class="glass card"><small id="bestDiff">HARD</small><h3>내 주간 최고 점수</h3><strong class="stat" id="practiceBest">기록 없음</strong><p class="muted">이번 주 · 선택 난이도</p></div>
-      <div class="glass card"><h3>최대 콤보</h3><strong class="stat" id="practiceCombo">—</strong></div><div class="glass card"><h3>우리 크루 점수</h3><strong class="stat" id="teamScore">—</strong></div>
-    </aside>
-    <div class="col center">
-      <div class="glass card">
-        <div class="song">
-          <img src="/crew-rhythm/cover.webp" alt="Double Tap 앨범 커버">
-          <div class="meta">
-            <span class="chip pink">이번 주 공식 곡</span>
-            <div class="title">Double Tap[♥]</div>
-            <div class="muted">RIRI · prod. Veil(Zero) · 136.7 BPM · 1:00 하이라이트</div>
-          </div>
-          <div class="diffs" role="group" aria-label="난이도">
-            <button class="diff" data-d="normal" type="button">NORMAL</button>
-            <button class="diff" data-d="hard" type="button" aria-pressed="true">HARD</button>
-            <button class="diff" data-d="hell" type="button">HELL</button>
-          </div>
-        </div>
-        <div class="preview" id="previewBox"><canvas id="previewCv"></canvas></div>
-        <div class="startrow">
-          <button class="cta" id="officialBtn" type="button" disabled>▶ 공식 도전</button><button class="iconbtn" id="practiceBtn" type="button">▶ 연습 시작</button>
-        </div>
-        <div class="reason" id="startReason" role="status" hidden></div>
-        <div class="status">
-          <span id="officialStatus" role="status">공식 도전 정보를 확인하고 있어요…</span><button class="iconbtn" id="retryLobbyReportBtn" type="button" hidden>대기 중인 기록 전송</button>
-          <span id="noteCount"></span>
-        </div>
-      </div>
-    </div>
-    <aside class="col info" aria-label="랭킹과 조작 안내">
-      <section class="crew-game-board" id="rhythmRankings" aria-label="주간 게임 순위"><p>순위를 불러오는 중…</p></section><p class="muted">연습은 횟수 제한 없이 이용하며 공식 순위에는 반영되지 않아요.</p>
-      <div class="glass card"><h3>조작 안내</h3><div class="howto">
-          <div><b>일반 노트</b>판정선에 닿을 때 한 번 누르기</div>
-          <div><b>롱노트</b>머리에서 누르고 끝까지 유지</div>
-          <div><b>PC</b><span class="keys"><kbd>F</kbd><kbd>G</kbd><kbd>H</kbd><kbd>J</kbd></span> · Esc 일시정지</div>
-          <div><b>모바일</b>4개 레인 터치 · 여러 손가락 동시 입력</div>
-          <div><b>체력</b>BAD·MISS 판정에서 줄고, 0이 되면 바로 게임 오버</div>
-          <div><b>빈 레인</b>다른 키를 함께 눌러도 점수와 콤보가 유지돼요</div>
-        </div>
-        <div class="sync" style="margin-top:12px">
-          <span>싱크 조절</span>
-          <button type="button" id="syncMinus" aria-label="노트를 더 일찍">−</button>
-          <output id="syncVal">0 ms</output>
-          <button type="button" id="syncPlus" aria-label="노트를 더 늦게">+</button>
-          <span style="font-size:12px">블루투스 이어폰이면 + 쪽으로</span>
-        </div>
-      </div>
-    </aside>
+  <main class="cgl-layout">
+    <section class="cgl-tile cgl-hero">
+      <small class="cgl-eyebrow">AIFECT CREW GAMES</small><h2>크루 리듬게임</h2><p class="muted">네 개의 레인에서 비트에 맞춰 도전해요.</p>
+      <div class="song"><img src="/crew-rhythm/cover.webp" alt="Double Tap 앨범 커버"><div class="meta"><span class="chip">이번 주 공식 곡</span><div class="title">Double Tap[♥]</div><p class="muted">RIRI · prod. Veil(Zero)</p></div></div>
+      <div class="preview" id="previewBox"><canvas id="previewCv"></canvas></div>
+      <div class="diffs" role="group" aria-label="난이도"><button class="diff" data-d="normal" type="button">NORMAL</button><button class="diff" data-d="hard" type="button" aria-pressed="true">HARD</button><button class="diff" data-d="hell" type="button">HELL</button></div>
+      <div class="startrow"><button class="cta cgl-start" id="officialBtn" type="button" disabled>▶ 공식 도전</button><button class="iconbtn" id="practiceBtn" type="button">연습 시작</button></div>
+      <div class="reason" id="startReason" role="status" hidden></div>
+      <div class="status"><span id="officialStatus" role="status">공식 도전 정보를 확인하고 있어요…</span><button class="iconbtn" id="retryLobbyReportBtn" type="button" hidden>대기 중인 기록 전송</button><span id="noteCount"></span></div>
+    </section>
+    <section class="crew-game-board" id="rhythmRankings" aria-label="주간 게임 순위"><p>순위를 불러오는 중…</p></section>
+    <section class="cgl-tile cgl-records"><h2>내 공식 기록 <small id="bestDiff">HARD</small></h2><dl>
+      <div><dt>내 주간 최고 점수</dt><dd id="practiceBest">기록 없음</dd></div><div><dt>최대 콤보</dt><dd id="practiceCombo">—</dd></div><div><dt>우리 크루 점수</dt><dd id="teamScore">—</dd></div>
+    </dl><p class="muted">이번 주 · 선택한 난이도 기준</p></section>
+    <section class="cgl-tile cgl-help"><h2>조작 안내</h2><div class="howto">
+      <div><b>일반 노트</b>판정선에 닿을 때 한 번 누르기</div><div><b>롱노트</b>머리에서 누르고 끝까지 유지</div>
+      <div><b>PC</b><span class="keys"><kbd>F</kbd><kbd>G</kbd><kbd>H</kbd><kbd>J</kbd></span> · Esc 일시정지</div><div><b>모바일</b>4개 레인 터치 · 여러 손가락 동시 입력</div>
+      <div><b>체력</b>BAD·MISS에서 줄고 0이 되면 게임 오버</div><div><b>빈 레인</b>다른 키를 함께 눌러도 점수와 콤보 유지</div>
+    </div></section>
+    <section class="cgl-tile"><h2>플레이 설정</h2><div class="sync"><span>싱크 조절</span><button type="button" id="syncMinus" aria-label="노트를 더 일찍">−</button><output id="syncVal">0 ms</output><button type="button" id="syncPlus" aria-label="노트를 더 늦게">+</button></div><p class="muted">블루투스 이어폰이면 + 쪽으로 조절해요.</p><p class="muted">136.7 BPM · 1분 하이라이트<br>연습은 무제한이며 공식 순위에 반영되지 않아요.</p></section>
   </main>
 </div>
 

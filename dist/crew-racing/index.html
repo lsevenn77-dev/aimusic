@@ -10,94 +10,47 @@
 <body>
 
 
-<div class="wrap" id="lobbyView" data-game-lobby>
-  <div class="glass top">
-    <a id="crewBack" class="cta alt" href="/#community/crews">← 크루로</a>
-    <h1>크루 레이싱</h1>
-    <span class="chip mint" data-race-mode>참여 자격 확인 중</span>
-  </div>
-  <div class="lobby">
-    <div class="col">
-      <div class="glass card">
-        <div class="course">
-          <div>
-            <span class="chip mint" id="weekTxt">이번 주 연습 코스</span>
-            <div class="name" id="courseName"></div>
-            <div class="muted"><span id="courseDesc"></span> · 제한 60초 · 단일 난이도</div>
-            <div class="stats">
-              <div class="stat"><span>내 고스트 · 최고 점수</span><b class="num" id="ghostTxt">-</b></div>
-              <div class="stat"><span>내 최고 기록</span><b class="num" id="bestTxt">-</b></div>
-              <div class="stat"><span>연습 주행</span><b class="mint">무제한</b></div>
-            </div>
-          </div>
-          <div class="mapbox"><canvas id="mapCv" aria-label="코스 지도"></canvas></div>
-        </div>
-        <div class="startrow">
-          <button class="cta" id="practiceBtn" type="button">▶ 주행 시작</button>
-
-        </div>
-
-        <div class="howto">
-          <div><b>방향</b><kbd>A</kbd> <kbd>D</kbd> 또는 ← → · 모바일 좌우 버튼</div>
-          <div><b>부스터</b><kbd>SPACE</kbd> · 게이지 절반을 써서 1.6초 가속</div>
-          <div><b>드리프트</b>코너 안쪽으로 방향을 계속 누르면 시작, <span class="mint">코너가 끝날 때 떼면</span> 부스터 충전</div>
-          <div><b>벽 충돌</b>속도가 크게 줄어요. 코너 안쪽으로 붙을수록 거리가 짧아져요</div>
-        </div>
-      </div>
-      <div class="glass card">
-        <div class="shophead">
-          <h2>차량 상점</h2>
-
-        </div>
-        <p class="muted" role="status" id="garageStatus"></p><div class="garage" id="garage"></div>
-        <div class="sample">기본 차량은 선셋쿠페예요. 구입한 차량은 차고에서 언제든 장착할 수 있어요.</div>
-      </div>
-    </div>
-    <div class="col">
-      <section class="crew-game-board" id="racingRankings" aria-label="주간 게임 순위"><p>순위를 불러오는 중…</p></section>
-      <div class="glass card">
-        <h2>점수 계산</h2>
-        <table class="rule">
-          <tr><td>완주 기본 점수</td><td>400,000</td></tr>
-          <tr><td>60초에서 단축한 1초당</td><td>+10,000</td></tr>
-          <tr><td>예) 49.90초 완주</td><td>501,000</td></tr>
-          <tr><td>미완주 (진행도 비례)</td><td>최대 390,000</td></tr>
-        </table>
-        <div class="sample">차량 성능·부스터 효과는 모두 같아요. 고스트와는 부딪히지 않고, 추월해도 추가 점수는 없어요.</div>
-      </div>
-      <div class="glass card"><h2>내 연습 기록</h2><p class="muted">코스마다 이 브라우저의 최고 점수와 완주 시간을 보관해요. 다음 주행에서는 내 최고 점수 때의 차량이 고스트로 달려요.</p></div>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    </div>
-  </div>
-
-
-
-
-
-
-
-
-
-
-
-
+<div class="wrap arcade-lobby racing-lobby" id="lobbyView" data-game-lobby>
+  <header class="cgl-nav"><a id="crewBack" href="/#community/crews">‹ 크루로</a><h1>크루 레이싱</h1><span class="chip" data-race-mode>참여 자격 확인 중</span></header>
+  <main class="cgl-layout">
+    <section class="cgl-hero cgl-tile">
+      <small class="cgl-eyebrow">AIFECT CREW GAMES</small><h2>크루 레이싱</h2>
+      <p class="muted">코너를 공략하고 나의 최고 기록에 도전해요.</p>
+      <div class="mapbox"><canvas id="mapCv" aria-label="코스 지도"></canvas></div>
+      <span class="chip" id="weekTxt">이번 주 코스</span><h3 id="courseName"></h3>
+      <p class="muted"><span id="courseDesc"></span> · 제한 60초</p>
+      <button class="cta cgl-start" id="practiceBtn" type="button">▶ 주행 시작</button>
+    </section>
+    <section class="crew-game-board" id="racingRankings" aria-label="주간 게임 순위"><p>순위를 불러오는 중…</p></section>
+    <section class="cgl-tile cgl-shop-entry">
+      <img id="equippedCarImage" src="./showroom/c2.webp" alt="" width="160" height="90">
+      <div><h2>차량 상점</h2><p class="muted">현재 차량 · <b id="equippedCarName">선셋쿠페</b></p></div>
+      <button class="cgl-pill" id="garageOpen" type="button" aria-haspopup="dialog">차량 변경 · 구매</button>
+    </section>
+    <section class="cgl-tile cgl-records"><h2>내 주행 기록</h2><dl>
+      <div><dt>내 고스트 · 최고 점수</dt><dd id="ghostTxt">-</dd></div>
+      <div><dt>내 최고 기록</dt><dd id="bestTxt">-</dd></div>
+      <div><dt>연습 주행</dt><dd>무제한</dd></div></dl>
+      <p class="muted">코스별 최고 점수와 완주 시간을 이 브라우저에 보관해요.</p>
+    </section>
+    <section class="cgl-tile cgl-help"><h2>조작 안내</h2><div class="howto">
+      <div><b>방향</b><kbd>A</kbd> <kbd>D</kbd> 또는 ← → · 모바일 좌우 버튼</div>
+      <div><b>부스터</b><kbd>SPACE</kbd> · 게이지 절반으로 1.6초 가속</div>
+      <div><b>드리프트</b>코너 안쪽으로 방향을 유지하고 끝에서 떼면 부스터 충전</div>
+      <div><b>벽 충돌</b>속도가 크게 줄어요. 코너 안쪽으로 붙을수록 거리가 짧아져요.</div>
+    </div></section>
+    <section class="cgl-tile cgl-scoring"><h2>점수 계산</h2><table class="rule">
+      <tr><td>완주 기본 점수</td><td>400,000</td></tr><tr><td>60초에서 단축한 1초당</td><td>+10,000</td></tr>
+      <tr><td>예) 49.90초 완주</td><td>501,000</td></tr><tr><td>미완주 (진행도 비례)</td><td>최대 390,000</td></tr>
+    </table><p class="muted">차량 성능은 모두 같아요. 고스트와는 부딪히지 않고 추월해도 추가 점수는 없어요.</p></section>
+  </main>
 </div>
+<dialog id="garageDialog" class="cgl-store-dialog" aria-labelledby="garageTitle">
+  <header><div><small class="cgl-eyebrow">AIFECT GARAGE</small><h2 id="garageTitle">차량 상점</h2></div><button id="garageClose" class="cgl-close" type="button" aria-label="차량 상점 닫기">×</button></header>
+  <p class="muted" role="status" id="garageStatus"></p>
+  <div class="cgl-store-scroll"><div class="garage" id="garage"></div></div>
+  <p class="muted cgl-store-note">구입한 차량은 언제든 장착할 수 있어요. 모든 차량의 성능은 같아요.</p>
+</dialog>
 
 <div class="race" id="race" hidden>
   <canvas id="cv"></canvas>

@@ -445,7 +445,19 @@ import {CARS,raceCalendar} from "./catalog.js";
     image.src = './rear/' + carId + '.webp';
   }
   prepareRearSprite();
+  const garageDialog=$('garageDialog');
+  $('garageOpen').onclick=()=>garageDialog.showModal();
+  $('garageClose').onclick=()=>garageDialog.close();
+  garageDialog.addEventListener('click',event=>{
+    if(event.target!==garageDialog)return;
+    const box=garageDialog.getBoundingClientRect();
+    if(event.clientX<box.left||event.clientX>box.right||event.clientY<box.top||event.clientY>box.bottom)garageDialog.close();
+  });
+  garageDialog.addEventListener('close',()=>$('garageOpen').focus());
   function renderShop() {
+    const equipped=CARS.find(c=>c.id===carId);
+    $('equippedCarName').textContent=equipped.name;
+    $('equippedCarImage').src='./showroom/'+carId+'.webp';
 
     const g = $('garage'); g.textContent = '';
     for (const c of CARS) {
@@ -486,11 +498,14 @@ import {CARS,raceCalendar} from "./catalog.js";
       $('racingRankings').textContent='순위를 불러오지 못했어요.';
     }
   }
+  let garagePending=false;
   async function changeCar(action,c,button){
+    if(garagePending)return;
     if(action==='buy'&&!confirm(c.name+'를 '+c.price+c.currency+'에 구매할까요?'))return;
-    button.disabled=true;
+    garagePending=true;button.disabled=true;
     try{garageState(await api(action,{car:c.id}));$('garageStatus').textContent=action==='buy'?'구매했어요. 장착하기를 눌러주세요.':c.name+' 장착 완료';}
     catch(e){button.disabled=false;$('garageStatus').textContent=e.message;}
+    finally{garagePending=false;garageDialog.querySelector('.act:not(:disabled)')?.focus();}
   }
 
   // 자동 검사용 (게임 동작에는 영향 없음)
