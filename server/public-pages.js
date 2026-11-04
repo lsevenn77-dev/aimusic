@@ -99,6 +99,7 @@ const robotsText=[
  'Allow: /api/catalog$','Allow: /api/catalog?',
  'Allow: /api/discovery$','Allow: /api/discovery?',
  'Allow: /api/discovery/profiles$','Allow: /api/discovery/profiles?',
+ 'Allow: /api/decorations/avatars?',
  'Allow: /api/playlists$','Allow: /api/playlists?',
  'Allow: /api/playlists/','Disallow: /api/playlists/*/',
  'Sitemap: https://aifect.co.kr/sitemap.xml',''

@@ -26,6 +26,7 @@ test('served robots allows home rendering resources but not account or playlist 
   '/api/discovery','/api/discovery?',
   '/api/discovery/profiles?kind=artist&sort=popular',
   '/api/discovery/profiles?kind=producer&sort=popular',
+  '/api/decorations/avatars?profiles=producer%2Cfriend',
   '/api/playlists','/api/playlists?sort=popular','/api/playlists/public-list',
   '/api/playlists/public-list?v=1'
  ])assert.equal(crawlAllowed(text,path),true,path);
@@ -34,6 +35,8 @@ test('served robots allows home rendering resources but not account or playlist 
   '/api/library','/api/library/playlists/order','/api/follows','/api/gold',
   '/api/catalog-private','/api/catalog/export','/api/discovery/private',
   '/api/discovery/profiles-private','/api/discovery/profiles/manage',
+  '/api/decorations','/api/decorations/recipients?q=friend',
+  '/api/decorations/avatars/export','/api/decorations/buy',
   '/api/playlists/public-list/tracks/one','/api/playlists/public-list/order',
   '/api/playlists/public-list/save','/api/playlists/public-list/image',
   '/internal/jobs/claim'
@@ -62,4 +65,9 @@ test('crawlable public APIs still hide unpublished songs and private playlists f
  assert.equal((await f.call('/api/playlists','POST',{name:'Unauthorized'},null)).status,401);
  assert.equal((await f.call('/api/playlists/public-list','PATCH',{name:'Unauthorized'},null)).status,401);
  assert.equal(f.sql.prepare("SELECT name FROM playlists WHERE id='public-list'").get().name,'Public');
+ const avatar=await f.call('/api/decorations/avatars?profiles=producer','GET',undefined,null);
+ assert.equal(avatar.status,200);assert.deepEqual(Object.keys(avatar.body.avatars[0]).sort(),['artwork','expires_at','item_key','profile_id']);
+ assert.equal((await f.call('/api/decorations/recipients?q=owner','GET',undefined,null)).status,401);
+ f.sql.exec("UPDATE users SET provider='deleted' WHERE id='owner'");
+ assert.deepEqual((await f.call('/api/decorations/avatars?profiles=producer','GET',undefined,null)).body.avatars,[]);
 });
