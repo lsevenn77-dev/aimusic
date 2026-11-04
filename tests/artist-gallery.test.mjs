@@ -79,6 +79,25 @@ test('artist gallery persists photos, permits only owner edits, and serves versi
  assert.equal((await f.send(path+'/'+saved.body.id,'DELETE')).status,200);
  assert.equal(f.objects.size,0);assert.equal((await f.send(photo.url,'GET',null)).status,404);
 });
+test('gallery PNG and JPEG fallbacks retain their stored MIME and publicly served bytes without a server encoder',async t=>{
+ const f=await setup(t),path='/api/artists/artist/gallery';
+ const images=[
+  ['image/png','iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR42mNocFAAAAIkAOGVpLGLAAAAAElFTkSuQmCC'],
+  ['image/jpeg','/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAb/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFAEBAAAAAAAAAAAAAAAAAAAABf/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAMAwEAAhEDEQA/AI4AOff/2Q==']
+ ];
+ for(const [type,base64] of images){
+  const bytes=Buffer.from(base64,'base64'),saved=await f.send(path,'PUT','owner',bytes,type);
+  assert.equal(saved.status,201);
+  const photo=f.sql.prepare('SELECT * FROM artist_photos WHERE id=?').get(saved.body.id);
+  assert.equal(photo.image_type,type);
+  const key=`images/artist/artist/gallery/${photo.image_version}`;
+  assert.deepEqual(Buffer.from(f.objects.get(key)),bytes);
+  const media=await f.send(`/media/artist-gallery/${photo.id}?v=${photo.image_version}`,'GET',null);
+  assert.equal(media.status,200);assert.equal(media.headers.get('content-type'),type);
+  assert.match(media.headers.get('cache-control'),/immutable/);assert.deepEqual(Buffer.from(media.body),bytes);
+ }
+ assert.equal(f.objects.size,2);
+});
 test('invalid, oversized and over-limit uploads leave no stored photos',async t=>{
  const f=await setup(t),path='/api/artists/artist/gallery';
  assert.equal((await f.send(path,'PUT','owner',new TextEncoder().encode('<svg/>'),'image/svg+xml')).status,400);

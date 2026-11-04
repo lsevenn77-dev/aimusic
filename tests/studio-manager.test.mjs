@@ -43,7 +43,7 @@ test('studio tabs isolate inventory, quota, upgrade and status summaries',()=>{
  const html=ctx.studioHTML(ctx.studioData);
  assert.equal((html.match(/role="tab"/g)||[]).length,2);
  assert.match(html,/전체 제작곡<\/span><strong>3/);
- assert.match(html,/업로드·변환 중<\/span><strong>1/);
+ assert.match(html,/업로드·변환 중<\/span><span class="studio-stat-label-compact">처리 중<\/span><strong>1/);
  assert.match(html,/이번 달 제작곡 정보를 확인하고 있어요/);
  assert.doesNotMatch(html,/PREMIUM 업그레이드|href="#membership"/,'the cached global plan is not an entitlement response');
  assert.match(html,/href="#upload"/);

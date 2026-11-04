@@ -21,13 +21,13 @@ function artistFanpageHTML(d,aid,tab='home'){
  if(tab==='profile')content='<section class="fan-profile">'+[['상세 소개',s.introduction||p.bio],['음악 스타일과 콘셉트',s.concept],['세계관',s.world]].map(([title,text])=>'<section><h2>'+title+'</h2><p>'+esc(text||'아직 등록된 소개가 없어요.')+'</p></section>').join('')+(producer?'<section><h2>소속 제작자</h2><a href="#producer/'+esc(producer.id)+'">'+esc(producer.name)+'</a></section>':'')+(d.fanpage?.operators?.length?'<section><h2>공식 운영자</h2>'+d.fanpage.operators.map(o=>'<p><a href="#producer/'+esc(o.id)+'">'+esc(o.name)+'</a></p>').join('')+'</section>':'')+(d.can_manage?'<button class="small-button" data-fan-settings>프로필 편집</button>':'')+(portraitOwner?'<button class="small-button" data-fan-operators>공식 운영자 관리</button>':'')+'</section>';
  if(tab==='home')content='<div class="fan-home-columns"><div class="fan-home-music">'+more('최신 음악','music',artistMusicList(d.tracks.slice(0,3)))+'</div><div class="fan-home-updates">'+more('최근 공식 소식','news',stream('news'))+more('최신 팬 응원글','lounge',stream('lounge'))+'</div></div>';
  const headerActions='<div class="fan-header-actions"><button class="fan-icon" data-share aria-label="팬페이지 공유">'+icon('share',20)+'</button>'+(d.can_manage?'<div class="fan-settings-anchor"><button class="fan-icon" data-fan-menu-toggle aria-label="아티스트 설정" aria-expanded="false" aria-controls="fan-header-menu">'+icon('settings',20)+'</button><div class="fan-settings-menu" id="fan-header-menu" aria-label="아티스트 관리" hidden><div class="artist-image-editor"><button type="button" data-artist-image-pick '+(!portraitOwner?'disabled title="대표 이미지는 제작자만 변경할 수 있습니다"':'')+'>대표 이미지 변경</button>'+(portraitOwner?'<input type="file" accept="image/jpeg,image/png,image/webp" data-artist-image="'+esc(aid)+'" aria-label="대표 이미지 사진 선택" hidden>':'')+'</div><button type="button" data-fan-banner>배경 이미지 변경</button><a href="'+href('gallery')+'">갤러리 관리</a></div></div>':'')+'</div>';
- const intro=(p.bio||'새로운 음악으로 만나요.').split('\n')[0];
+ const intro=(p.bio||'').trim()||'새로운 음악으로 만나요.';
  const stats='<div class="fan-stats"><span class="fan-stats-group">'+
   '<span>공개곡 '+number(d.tracks.length)+'</span><span aria-hidden="true">·</span>'+
   '<a href="#follow?tab=artists&amp;artist='+encodeURIComponent(aid)+'" data-followers="artist/'+esc(aid)+'" data-count="'+Number(d.followers||0)+'">팔로워 <span data-follow-count>'+number(d.followers||0)+'</span></a></span>'+
   '<span class="fan-stats-divider" aria-hidden="true">·</span>'+
   '<button type="button" class="fan-follow-button" data-follow="artist/'+esc(aid)+'" aria-pressed="'+followed('artist',aid)+'"><span data-follow-label="팔로우">팔로우</span></button></div>';
- return '<article class="artist-fanpage" data-fanpage="'+esc(JSON.stringify({aid,tab,photos,settings:s,can_manage:!!d.can_manage,is_owner:!!portraitOwner,operators:d.fanpage?.operators||[],tracks:d.tracks}))+'"><div class="fan-hero-shell" style="--fan-focus:'+Number(s.focus_x??50)+'% '+Number(s.focus_y??50)+'%;--fan-mobile-focus:'+Number(s.mobile_x??50)+'% '+Number(s.mobile_y??50)+'%">'+fanHeaderBackground(p,s,aid)+'<header class="fan-header">'+headerActions+'<div class="fan-identity"><div class="fan-photo-follow">'+portrait(p,'artist')+'</div><div class="fan-identity-text"><h1>'+esc(p.name)+'</h1><p class="fan-bio" title="'+esc(p.bio||'')+'">'+esc(intro)+'</p>'+(producer?'<a class="fan-affiliation" href="#producer/'+esc(producer.id)+'">소속 '+esc(producer.name)+'</a>':'')+stats+'</div></div></header>'+carousel+'</div><nav class="profile-content-tabs fan-tabs" aria-label="아티스트 카테고리">'+tabs.map(([key,title])=>'<a href="'+href(key)+'" '+(tab===key?'class="active" aria-current="page"':'')+'>'+title+'</a>').join('')+'</nav><div class="fan-content">'+content+'</div></article>';
+ return '<article class="artist-fanpage" data-fanpage="'+esc(JSON.stringify({aid,tab,photos,settings:s,can_manage:!!d.can_manage,is_owner:!!portraitOwner,operators:d.fanpage?.operators||[],tracks:d.tracks}))+'"><div class="fan-hero-shell" style="--fan-focus:'+Number(s.focus_x??50)+'% '+Number(s.focus_y??50)+'%;--fan-mobile-focus:'+Number(s.mobile_x??50)+'% '+Number(s.mobile_y??50)+'%">'+fanHeaderBackground(p,s,aid)+'<header class="fan-header">'+headerActions+'<div class="fan-identity"><div class="fan-photo-follow">'+portrait(p,'artist')+'</div><div class="fan-identity-text"><h1>'+esc(p.name)+'</h1><div class="fan-bio-summary"><p class="fan-bio" id="fan-artist-bio" data-fan-bio data-expanded="false">'+esc(intro)+'</p><button type="button" class="fan-bio-toggle" data-fan-bio-toggle aria-controls="fan-artist-bio" aria-expanded="false" hidden>+더보기</button></div>'+(producer?'<a class="fan-affiliation" href="#producer/'+esc(producer.id)+'">소속 '+esc(producer.name)+'</a>':'')+stats+'</div></div></header>'+carousel+'</div><nav class="profile-content-tabs fan-tabs" aria-label="아티스트 카테고리">'+tabs.map(([key,title])=>'<a href="'+href(key)+'" '+(tab===key?'class="active" aria-current="page"':'')+'>'+title+'</a>').join('')+'</nav><div class="fan-content">'+content+'</div></article>';
 }
 
 let artistFanpageCleanup=null;
@@ -37,6 +37,36 @@ function bindArtistFanpage(){
  const d=JSON.parse(root.dataset.fanpage),base='/api/artists/'+encodeURIComponent(d.aid)+'/fanpage',controller=new AbortController(),signal=controller.signal;
  artistFanpageCleanup=registerRouteCleanup(()=>controller.abort());
  const on=(el,event,fn,options={})=>el?.addEventListener(event,fn,{...options,signal});
+ const bio=root.querySelector('[data-fan-bio]'),bioToggle=root.querySelector('[data-fan-bio-toggle]');
+ if(bio&&bioToggle){
+  let expanded=false,lastWidth=-1;
+  const paintBio=()=>{
+   bio.dataset.expanded=String(expanded);
+   bioToggle.setAttribute('aria-expanded',String(expanded));
+   bioToggle.textContent=expanded?'접기':'+더보기';
+  };
+  const measureBio=()=>{
+   if(signal.aborted||!root.isConnected)return;
+   // Measure the actual two-line layout, including explicit line breaks.
+   bio.dataset.expanded='false';
+   const overflow=bio.scrollHeight>bio.clientHeight+1;
+   if(!overflow)expanded=false;
+   bioToggle.hidden=!overflow;
+   paintBio();
+  };
+  on(bioToggle,'click',()=>{expanded=!expanded;paintBio();});
+  measureBio();
+  if(typeof ResizeObserver!=='undefined'){
+   const observer=new ResizeObserver(()=>{
+    if(bio.clientWidth===lastWidth)return;
+    lastWidth=bio.clientWidth;measureBio();
+   });
+   observer.observe(bio);
+   signal.addEventListener('abort',()=>observer.disconnect(),{once:true});
+  }else on(document.defaultView,'resize',measureBio);
+  document.fonts?.ready.then(measureBio);
+  on(document.fonts,'loadingdone',measureBio);
+ }
  const menu=root.querySelector('[id="fan-header-menu"]'),menuToggle=root.querySelector('[data-fan-menu-toggle]');
  const closeMenu=(restore=false)=>{if(!menu)return;menu.hidden=true;menuToggle.setAttribute('aria-expanded','false');if(restore)menuToggle.focus();};
  on(menuToggle,'click',()=>{menu.hidden=!menu.hidden;menuToggle.setAttribute('aria-expanded',String(!menu.hidden));});
@@ -76,31 +106,102 @@ function bindArtistFanpage(){
  const refresh=async()=>{if(root.isConnected)await render();};
  const settings=()=>({...d.settings,focus_x:d.settings.focus_x??50,focus_y:d.settings.focus_y??50,mobile_x:d.settings.mobile_x??50,mobile_y:d.settings.mobile_y??50});
  root.querySelector('.fan-header-background img')?.addEventListener('error',e=>e.target.closest('.fan-header-background').remove(),{once:true,signal});
- const carousel=root.querySelector('[data-fan-carousel]'),cards=[...root.querySelectorAll('[data-card-index]')],reduced=matchMedia('(prefers-reduced-motion: reduce)');
- let currentIndex=0,paused=false,hover=false,touch=false,focus=false,timer,movingUntil=0;
+ const carousel=root.querySelector('[data-fan-carousel]'),stage=root.querySelector('.fan-card-stage'),cards=[...root.querySelectorAll('[data-card-index]')],reduced=matchMedia('(prefers-reduced-motion: reduce)');
+ let currentIndex=0,paused=false,hover=false,touch=false,focus=false,timer,movingUntil=0,gesture=null,suppressClickUntil=0;
  const transitions=new Set();
- const paint=()=>{const width=carousel?.clientWidth||600,g=typeof homeFloatGeometry==='function'?homeFloatGeometry(width,cards.length,Math.min(width<540?156:300,width*(width<540?.46:.28))):null;if(g)carousel.style.setProperty('--fan-card-size',g.size+'px');cards.forEach((card,i)=>{
-  let offset=(i-currentIndex+cards.length)%cards.length;if(offset>cards.length/2)offset-=cards.length;
-  const previous=Number(card.dataset.offset),wrap=card.hasAttribute('data-offset')&&Math.abs(previous-offset)>cards.length/2;
-  const from=getComputedStyle(card),previousPose={transform:from.transform,opacity:from.opacity,filter:from.filter};
-  card.dataset.offset=offset;if(g){card.style.transform=homeFloatPose(offset,g);card.style.opacity=String(Math.abs(offset)>g.radius?0:[1,.88,.60,.30,0][Math.min(4,Math.abs(offset))]);card.style.filter='brightness('+[1,.78,.60,.44,.25][Math.min(4,Math.abs(offset))]+') blur('+[0,.2,.7,1.3,2][Math.min(4,Math.abs(offset))]+'px)';card.setAttribute('aria-hidden',String(Math.abs(offset)>g.radius));card.style.pointerEvents=Math.abs(offset)>g.radius?'none':'';card.tabIndex=Math.abs(offset)>g.radius?-1:0;}card.style.zIndex=String(20-Math.abs(offset));card.setAttribute('aria-current',String(offset===0));
-  if(card.hasAttribute('data-motion-ready')&&!reduced.matches){
-   const computed=getComputedStyle(card),to={transform:computed.transform,opacity:computed.opacity,filter:computed.filter};
-   const direction=previous<offset?1:-1;
-   // Fade out at the edge, recycle invisibly, then enter from the other edge.
-   const frames=wrap?[previousPose,{transform:previousPose.transform+` translateX(${-direction*40}px)`,opacity:0,offset:.45},{transform:to.transform+` translateX(${direction*40}px)`,opacity:0,offset:.55},to]:[previousPose,to];
-   const animation=card.animate(frames,{duration:750,easing:'cubic-bezier(0.22, 1, 0.36, 1)'});
-   transitions.add(animation);animation.onfinish=()=>transitions.delete(animation);
+ const cancelTransitions=()=>{for(const animation of transitions)animation.cancel();transitions.clear();movingUntil=0;};
+ const paint=(dragX=0)=>{
+  const width=carousel?.clientWidth||600,g=typeof homeFloatGeometry==='function'?homeFloatGeometry(width,cards.length,Math.min(width<540?156:300,width*(width<540?.46:.28))):null;
+  if(g)carousel.style.setProperty('--fan-card-size',g.size+'px');
+  cards.forEach((card,i)=>{
+   let offset=(i-currentIndex+cards.length)%cards.length;if(offset>cards.length/2)offset-=cards.length;
+   const previous=Number(card.dataset.offset),wrap=card.hasAttribute('data-offset')&&Math.abs(previous-offset)>cards.length/2;
+   const from=getComputedStyle(card),previousPose={transform:dragX?'translateX('+dragX+'px) '+(from.transform==='none'?'':from.transform):from.transform,opacity:from.opacity,filter:from.filter};
+   card.dataset.offset=offset;
+   if(g){
+    card.style.transform=homeFloatPose(offset,g);card.style.opacity=String(Math.abs(offset)>g.radius?0:[1,.88,.60,.30,0][Math.min(4,Math.abs(offset))]);
+    card.style.filter='brightness('+[1,.78,.60,.44,.25][Math.min(4,Math.abs(offset))]+') blur('+[0,.2,.7,1.3,2][Math.min(4,Math.abs(offset))]+'px)';
+    card.setAttribute('aria-hidden',String(Math.abs(offset)>g.radius));card.style.pointerEvents=Math.abs(offset)>g.radius?'none':'';card.tabIndex=Math.abs(offset)>g.radius?-1:0;
+   }
+   card.style.zIndex=String(20-Math.abs(offset));card.setAttribute('aria-current',String(offset===0));
+   if(card.hasAttribute('data-motion-ready')&&!reduced.matches){
+    const computed=getComputedStyle(card),to={transform:computed.transform,opacity:computed.opacity,filter:computed.filter};
+    const direction=previous<offset?1:-1;
+    // Fade out at the edge, recycle invisibly, then enter from the other edge.
+    const frames=wrap?[previousPose,{transform:previousPose.transform+` translateX(${-direction*40}px)`,opacity:0,offset:.45},{transform:to.transform+` translateX(${direction*40}px)`,opacity:0,offset:.55},to]:[previousPose,to];
+    const animation=card.animate(frames,{duration:750,easing:'cubic-bezier(0.22, 1, 0.36, 1)'});
+    transitions.add(animation);animation.onfinish=animation.oncancel=()=>transitions.delete(animation);
+   }
+   card.setAttribute('data-motion-ready','true');
+  });
+  root.querySelectorAll('[data-fan-dot]').forEach(dot=>dot.setAttribute('aria-pressed',String(Number(dot.dataset.fanDot)===currentIndex)));
+  const count=root.querySelector('[data-fan-counter]');if(count)count.textContent=String(currentIndex+1).padStart(2,'0')+' / '+String(cards.length).padStart(2,'0');
+ };
+ const move=(delta,dragX=0)=>{if(cards.length<2||transitions.size||performance.now()<movingUntil)return;movingUntil=performance.now()+(reduced.matches?0:750);currentIndex=(currentIndex+delta+cards.length)%cards.length;paint(dragX);};
+ const schedule=()=>{
+  clearTimeout(timer);const stopped=signal.aborted||paused||hover||touch||focus||document.hidden;
+  if(carousel)carousel.dataset.motionPaused=String(stopped);
+  for(const animation of transitions){if(reduced.matches)animation.finish();else if(document.hidden)animation.pause();else animation.play();}
+  if(!stopped&&cards.length>1&&!reduced.matches)timer=setTimeout(()=>{timer=null;if(!root.isConnected)return controller.abort();move(1);schedule();},7000);
+ };
+ if(carousel){
+  const finishDrag=(event,cancelled=false)=>{
+   if(!gesture||(event&&event.pointerId!==gesture.pointerId))return;
+   const drag=gesture;gesture=null;touch=false;
+   const dx=event&&Number.isFinite(event.clientX)?event.clientX-drag.x:drag.dx,dy=event&&Number.isFinite(event.clientY)?event.clientY-drag.y:drag.dy;
+   const horizontal=drag.axis==='x'||(!drag.axis&&Math.abs(dx)>8&&Math.abs(dx)>Math.abs(dy));
+   carousel.classList.remove('is-dragging');
+   if(stage)stage.style.transform='';
+   if(carousel.hasPointerCapture?.(drag.pointerId))carousel.releasePointerCapture(drag.pointerId);
+   if(horizontal){
+    suppressClickUntil=Date.now()+500;
+    cancelTransitions();
+    if(!cancelled&&Math.abs(dx)>40)move(dx<0?1:-1,drag.visualX);
+    else{movingUntil=performance.now()+(reduced.matches?0:750);paint(drag.visualX);}
+   }
+   schedule();
+  };
+  paint();schedule();
+  if(typeof ResizeObserver!=='undefined'){
+   const sizeObserver=new ResizeObserver(()=>{finishDrag(null,true);cancelTransitions();cards.forEach(c=>c.removeAttribute('data-motion-ready'));paint();});
+   sizeObserver.observe(carousel);signal.addEventListener('abort',()=>sizeObserver.disconnect(),{once:true});
   }
-  card.setAttribute('data-motion-ready','true');
- });root.querySelectorAll('[data-fan-dot]').forEach(dot=>dot.setAttribute('aria-pressed',String(Number(dot.dataset.fanDot)===currentIndex)));const count=root.querySelector('[data-fan-counter]');if(count)count.textContent=String(currentIndex+1).padStart(2,'0')+' / '+String(cards.length).padStart(2,'0');};
- const move=delta=>{if(cards.length<2||transitions.size||performance.now()<movingUntil)return;movingUntil=performance.now()+(reduced.matches?0:750);currentIndex=(currentIndex+delta+cards.length)%cards.length;paint();};
- const schedule=()=>{clearTimeout(timer);const stopped=signal.aborted||paused||hover||touch||focus||document.hidden;if(carousel)carousel.dataset.motionPaused=String(stopped);for(const animation of transitions){if(reduced.matches)animation.finish();else if(document.hidden)animation.pause();else animation.play();}if(!stopped&&cards.length>1&&!reduced.matches)timer=setTimeout(()=>{timer=null;if(!root.isConnected)return controller.abort();move(1);schedule();},7000);};
- if(carousel){paint();schedule();if(typeof ResizeObserver!=='undefined'){const sizeObserver=new ResizeObserver(()=>{for(const a of transitions)a.cancel();transitions.clear();cards.forEach(c=>c.removeAttribute('data-motion-ready'));paint();});sizeObserver.observe(carousel);signal.addEventListener('abort',()=>sizeObserver.disconnect(),{once:true});}root.querySelectorAll('[data-fan-dot]').forEach(dot=>on(dot,'click',()=>{move(Number(dot.dataset.fanDot)-currentIndex);schedule();}));on(carousel,'pointerenter',e=>{if(e.pointerType==='mouse'){hover=true;schedule();}});on(carousel,'pointerleave',()=>{hover=false;schedule();});on(carousel,'focusin',e=>{focus=true;schedule();});on(carousel,'focusout',()=>{queueMicrotask(()=>{focus=carousel.contains(document.activeElement);schedule();});});on(document,'visibilitychange',schedule);on(reduced,'change',schedule);signal.addEventListener('abort',()=>{clearTimeout(timer);for(const animation of transitions)animation.cancel();transitions.clear();},{once:true});
+  root.querySelectorAll('[data-fan-dot]').forEach(dot=>on(dot,'click',()=>{move(Number(dot.dataset.fanDot)-currentIndex);schedule();}));
+  on(carousel,'pointerenter',e=>{if(e.pointerType==='mouse'){hover=true;schedule();}});
+  on(carousel,'pointerleave',()=>{hover=false;schedule();});
+  on(carousel,'focusin',()=>{focus=true;schedule();});
+  on(carousel,'focusout',()=>{queueMicrotask(()=>{focus=carousel.contains(document.activeElement);schedule();});});
+  on(document,'visibilitychange',()=>{if(document.hidden)finishDrag(null,true);schedule();});
+  on(reduced,'change',schedule);
+  signal.addEventListener('abort',()=>{gesture=null;touch=false;clearTimeout(timer);cancelTransitions();if(stage)stage.style.transform='';carousel.classList.remove('is-dragging');},{once:true});
   on(root.querySelector('[data-fan-prev]'),'click',()=>{move(-1);schedule();});on(root.querySelector('[data-fan-next]'),'click',()=>{move(1);schedule();});
   on(root.querySelector('[data-fan-pause]'),'click',e=>{paused=!paused;e.currentTarget.setAttribute('aria-pressed',String(paused));e.currentTarget.innerHTML=icon(paused?'play':'pause',16);e.currentTarget.setAttribute('aria-label',paused?'포토카드 자동 넘김 시작':'포토카드 자동 넘김 일시정지');schedule();});
   on(carousel,'keydown',e=>{if(['ArrowLeft','ArrowRight'].includes(e.key)){e.preventDefault();move(e.key==='ArrowLeft'?-1:1);schedule();}});
-  let startX=0,startY=0,suppressClickUntil=0;on(carousel,'pointerdown',e=>{if(e.isPrimary===false||e.button>0)return;startX=e.clientX;startY=e.clientY;e.target.closest?.('button')?.setPointerCapture?.(e.pointerId);touch=true;schedule();});on(carousel,'pointerup',e=>{if(!touch)return;touch=false;if(Math.abs(e.clientX-startX)>40&&Math.abs(e.clientX-startX)>Math.abs(e.clientY-startY)){move(e.clientX<startX?1:-1);suppressClickUntil=Date.now()+500;}schedule();});on(carousel,'pointercancel',()=>{touch=false;schedule();});on(carousel,'lostpointercapture',()=>{if(touch){touch=false;schedule();}});on(carousel,'click',e=>{if(Date.now()<suppressClickUntil){e.preventDefault();e.stopPropagation();}},{capture:true});
+  on(carousel,'pointerdown',e=>{
+   if(cards.length<2||gesture||e.isPrimary===false||e.button>0||!stage?.contains(e.target))return;
+   gesture={pointerId:e.pointerId,x:e.clientX,y:e.clientY,dx:0,dy:0,visualX:0,axis:''};touch=true;schedule();
+  });
+  on(carousel,'pointermove',e=>{
+   if(!gesture||e.pointerId!==gesture.pointerId)return;
+   const drag=gesture;drag.dx=e.clientX-drag.x;drag.dy=e.clientY-drag.y;
+   if(!drag.axis){
+    if(Math.max(Math.abs(drag.dx),Math.abs(drag.dy))<=8)return;
+    if(Math.abs(drag.dy)>=Math.abs(drag.dx)){drag.axis='y';finishDrag(e,true);return;}
+    drag.axis='x';cancelTransitions();carousel.classList.add('is-dragging');
+    // Capture only after a horizontal gesture so ordinary taps and page scrolling remain native.
+    try{carousel.setPointerCapture?.(e.pointerId);}catch{/* The pointer may already have been cancelled by the browser. */}
+   }
+   if(e.cancelable)e.preventDefault();
+   const limit=(carousel.clientWidth||600)*.5;
+   drag.visualX=Math.max(-limit,Math.min(limit,drag.dx));
+   stage.style.transform='translateX('+drag.visualX+'px)';
+  });
+  on(document,'pointerup',e=>finishDrag(e));
+  on(document,'pointercancel',e=>finishDrag(e,true));
+  on(carousel,'lostpointercapture',e=>{if(e.target===carousel)finishDrag(e,true);});
+  on(document.defaultView,'blur',()=>{hover=false;finishDrag(null,true);});
+  on(carousel,'dragstart',e=>{if(stage?.contains(e.target))e.preventDefault();});
+  on(carousel,'click',e=>{if(e.detail!==0&&Date.now()<suppressClickUntil){e.preventDefault();e.stopPropagation();}},{capture:true});
  }
  let lightboxOpen=false,previousPaused=false;
  const openPhoto=index=>{
