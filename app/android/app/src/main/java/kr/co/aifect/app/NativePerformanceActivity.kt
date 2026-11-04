@@ -3,6 +3,7 @@ package kr.co.aifect.app
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import org.json.JSONObject
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -18,7 +19,7 @@ import androidx.core.content.ContextCompat
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
-internal fun validNativePerformanceRoute(route:String)=route in setOf("voice","dubbing","dubbing/new","dubbing?tab=mine","profile")||Regex("^(voice|dubbing)/[A-Za-z0-9_-]{1,64}$").matches(route)
+internal fun validNativePerformanceRoute(route:String)=route in setOf("live/create","voice","dubbing","dubbing/new","dubbing?tab=mine","profile")||Regex("^(voice|dubbing)/[A-Za-z0-9_-]{1,64}$").matches(route)
 internal fun openNativePerformance(context:Context,m:MusicModel,route:String){
  if(!validNativePerformanceRoute(route)||!m.authenticated())return
  if(route=="profile"){m.user?.optString("profile_id")?.takeIf{it.isNotBlank()}?.let{m.openProfile(it)};return}
@@ -45,9 +46,9 @@ class NativePerformanceActivity:ComponentActivity(){
    fun leave(){stopService(Intent(this,NativeVoiceService::class.java));finish()}
    Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.systemBars).imePadding()){
     when {
-     route=="voice"->{
+     route=="voice"||route=="live/create"->{
       NativeAudioHeader("방 만들기",{finish()})
-      NativeRoomForm(api,fullScreen=true,busy=busy,submissionError=error){body->if(!busy){busy=true;error=null;scope.launch{try{val result=api.call("/api/voice/rooms","POST",body.put("request_id",createId));route="voice/"+result.getJSONObject("room").getString("id")}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}finally{busy=false}}}}
+      NativeRoomForm(api,initial=if(route=="live/create")payload("mode" to "karaoke")else JSONObject(),fullScreen=true,busy=busy,submissionError=error){body->if(!busy){busy=true;error=null;scope.launch{try{val result=api.call("/api/voice/rooms","POST",body.put("request_id",createId));val created=result.getJSONObject("room");if(body.optString("mode")=="karaoke"){openMobileExperience(this@NativePerformanceActivity,"live/"+created.getString("id"));finish()}else route="voice/"+created.getString("id")}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}finally{busy=false}}}}
 
      }
      route.startsWith("voice/")->{

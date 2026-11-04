@@ -47,7 +47,7 @@ internal fun referenceWorks(songs:List<Song>,dubbings:List<JSONObject>)=(songs.m
 
 @Composable internal fun ReferenceWorkShelf(works:List<ReferenceWork>,m:MusicModel){
  BoxWithConstraints(Modifier.fillMaxWidth()){
-  val width=((maxWidth-20.dp)/2.35f).coerceAtMost(150.dp)
+  val width=((maxWidth-24.dp)/3f).coerceAtMost(150.dp)
   LazyRow(horizontalArrangement=Arrangement.spacedBy(12.dp)){
    items(works.take(4),key={it.id}){work->Box(Modifier.width(width)){ReferenceWorkCard(work,m,works.mapNotNull{it.song})}}
   }

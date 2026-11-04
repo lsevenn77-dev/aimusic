@@ -12,6 +12,7 @@
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <queries><package android:name="com.kakao.talk" /></queries>
     <application
+        android:name=".AifectApplication"
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:label="${appLabel}"
@@ -30,6 +31,7 @@
                 <data android:scheme="${kakaoScheme}" android:host="oauth" />
             </intent-filter>
         </activity>
+        <activity android:name=".MobileExperienceActivity" android:exported="false" android:configChanges="orientation|screenSize|keyboardHidden|uiMode|screenLayout|smallestScreenSize" android:windowSoftInputMode="adjustResize" android:hardwareAccelerated="true" android:theme="@style/AppTheme.NoActionBar" />
         <activity android:name=".NativePerformanceActivity" android:exported="false" android:configChanges="orientation|screenSize|keyboardHidden|uiMode" android:windowSoftInputMode="adjustResize" android:theme="@style/AppTheme.NoActionBar" />
         <service android:name=".NativeVoiceService" android:exported="false" android:foregroundServiceType="mediaPlayback|microphone" />
         <activity android:name=".karaoke.KaraokeActivity" android:exported="false" android:windowSoftInputMode="adjustResize"

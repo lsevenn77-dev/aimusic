@@ -182,23 +182,33 @@ private val NoneDescription:String?=null
  val rooms=read.data?.optJSONArray("rooms").objects().filter{query.isBlank()||(it.optString("title")+" "+it.optString("host_name")).contains(query.trim(),true)}
  Column(Modifier.fillMaxSize().testTag("current-community")){
   CurrentHeader("커뮤니티",menu)
-  CurrentTabs(listOf("voice" to "토킹룸","crews" to "크루","rankings" to "랭킹"),m.communityMode,"community-main"){m.communityMode=it}
+  CurrentTabs(listOf("voice" to "라이브","crews" to "크루","rankings" to "랭킹"),m.communityMode,"community-main"){m.communityMode=it}
   when(m.communityMode){
-   "crews"->CurrentCrewDirectory(m)
+   "crews"->NativeCrewHome(m)
    "rankings"->CurrentRankings(m)
    else->LazyColumn(Modifier.fillMaxSize().testTag("voice-lobby"),contentPadding=PaddingValues(20.dp),verticalArrangement=Arrangement.spacedBy(16.dp)){
-    item{Text("지금 열려 있는 토킹룸",fontSize=18.sp,fontWeight=FontWeight.SemiBold);Text("공개된 방만 보여줘요",fontSize=12.sp,color=Muted,modifier=Modifier.padding(top=6.dp))}
+    item{Text("지금 열려 있는 노래방 · 토킹룸",fontSize=18.sp,fontWeight=FontWeight.SemiBold);Text("공개된 방만 보여줘요",fontSize=12.sp,color=Muted,modifier=Modifier.padding(top=6.dp))}
     item{Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=Alignment.CenterVertically){
      CurrentSearch(query,{query=it},"방 제목·방장 검색","voice-search",Modifier.weight(1f))
-     BrandButton(onClick={m.openCurrentWorkspace("voice/create","방 만들기")},enabled=status.data?.optBoolean("enabled")==true,modifier=Modifier.width(108.dp).heightIn(min=48.dp).testTag("voice-create"),contentPadding=PaddingValues(horizontal=10.dp)){Icon(Icons.Rounded.Add,null,Modifier.size(18.dp));Text("방 만들기",fontSize=13.sp,maxLines=2)}
+     BrandButton(onClick={m.openCurrentWorkspace("live/create","방 만들기")},enabled=status.data?.optBoolean("enabled")==true,modifier=Modifier.width(108.dp).heightIn(min=48.dp).testTag("voice-create"),contentPadding=PaddingValues(horizontal=10.dp)){Icon(Icons.Rounded.Add,null,Modifier.size(18.dp));Text("방 만들기",fontSize=13.sp,maxLines=2)}
     }}
     if(status.loading||status.error!=null||read.loading||read.error!=null)item{ReadStatus(status);ReadStatus(read)}
     items(rooms.chunked(2)){row->Row(horizontalArrangement=Arrangement.spacedBy(12.dp)){
      row.forEach{r->Box(Modifier.weight(1f)){CurrentRoomCard(r,m)}};if(row.size==1)Spacer(Modifier.weight(1f))
     }}
-    if(rooms.isEmpty()&&!read.loading&&read.error==null)item{CurrentEmpty(if(status.data?.optBoolean("enabled")==false)"토킹룸 연결을 준비하고 있어요" else if(query.isBlank())"아직 열린 공개 토킹룸이 없어요." else "검색 결과가 없어요")}
+    if(rooms.isEmpty()&&!status.loading&&status.error==null&&!read.loading&&read.error==null)item{CurrentRoomEmpty(if(status.data?.optBoolean("enabled")==false)"라이브 연결을 준비하고 있어요" else if(query.isBlank())"아직 열린 공개 노래방·토킹룸이 없어요." else "검색 결과가 없어요")}
    }
   }
+ }
+}
+@Composable private fun CurrentRoomEmpty(message:String){
+ Column(Modifier.fillMaxWidth().padding(top=56.dp,bottom=48.dp),horizontalAlignment=Alignment.CenterHorizontally){
+  Box(Modifier.size(132.dp,104.dp)){
+   Box(Modifier.align(Alignment.BottomEnd).size(76.dp,60.dp).clip(RoundedCornerShape(22.dp,22.dp,6.dp,22.dp)).background(Brush.linearGradient(listOf(Color(0xFF346981),Color(0xFF99F0DC)))).border(1.dp,Color(0xFFA5F4E7),RoundedCornerShape(22.dp,22.dp,6.dp,22.dp)))
+   Box(Modifier.align(Alignment.TopStart).size(98.dp,76.dp).clip(RoundedCornerShape(25.dp,25.dp,25.dp,7.dp)).background(Brush.linearGradient(listOf(Color(0xFFAD79DC),Color(0xFF3B3B70)))).border(1.dp,Color(0xFFE3BDFF),RoundedCornerShape(25.dp,25.dp,25.dp,7.dp)),contentAlignment=Alignment.Center){Text("•••",fontSize=32.sp,color=Color(0xFFE9CEFF),letterSpacing=5.sp)}
+   Icon(Icons.Rounded.AutoAwesome,null,Modifier.align(Alignment.TopEnd).size(26.dp),tint=Color(0xFFDEB5FF))
+  }
+  Text(message,Modifier.padding(top=28.dp),fontSize=15.sp,lineHeight=23.sp,color=SoftText,textAlign=androidx.compose.ui.text.style.TextAlign.Center)
  }
 }
 @Composable internal fun CurrentMyScreen(m:MusicModel){
@@ -220,9 +230,9 @@ private val NoneDescription:String?=null
     if(loading)LinearProgressIndicator(Modifier.fillMaxWidth(),color=Pink,trackColor=Stroke)
     m.ownDashboardError?.let{Text(it,fontSize=12.sp,color=Muted);TextButton({m.refreshMyDashboard(fresh=true)}){Text("다시 불러오기")}}
     Row(verticalAlignment=Alignment.CenterVertically){
-     Box(Modifier.testTag("my-avatar-open").clickable{m.viewProfilePhoto(p)}){Avatar(p.optString("name",m.user?.optString("name").orEmpty()),p,64)}
+     Box(Modifier.testTag("my-avatar-open").clickable{m.viewProfilePhoto(p)}){Avatar(p.optString("name",m.user?.optString("name").orEmpty()),p,96)}
      Column(Modifier.weight(1f).padding(start=12.dp)){
-      Text(p.optString("name",m.user?.optString("name").orEmpty()),fontSize=18.sp,lineHeight=24.sp,fontWeight=FontWeight.Bold)
+      Text(p.optString("name",m.user?.optString("name").orEmpty()),fontSize=23.sp,lineHeight=30.sp,fontWeight=FontWeight.Bold)
       val code=sequenceOf(data?.optString("public_id").orEmpty(),p.optString("public_id"),m.user?.optString("public_id").orEmpty()).firstOrNull{it.matches(Regex("[A-Z]{3}[0-9]{4}"))}.orEmpty()
       if(code.isBlank())Text("ID 발급 확인 중",fontSize=11.sp,lineHeight=15.sp,color=Muted)
       else Text("ID $code  ⧉",fontSize=11.sp,lineHeight=15.sp,color=Muted,modifier=Modifier.heightIn(min=26.dp).wrapContentHeight().clickable{clipboard.setText(androidx.compose.ui.text.AnnotatedString(code));m.notice="ID를 복사했어요."})
@@ -230,22 +240,34 @@ private val NoneDescription:String?=null
       Text(crew?.optString("name")?:"소속 크루 없음",fontSize=11.sp,lineHeight=16.sp,color=Muted,modifier=Modifier.padding(top=2.dp).clickable{if(crew!=null)m.openCurrentWorkspace("crew/${crew.optString("id")}",crew.optString("name"))else{m.selectTab(3);m.communityMode="crews"}})
      }
      Column(horizontalAlignment=Alignment.End,verticalArrangement=Arrangement.spacedBy(2.dp)){
-      OutlinedButton(onClick=m::editProfile,contentPadding=PaddingValues(horizontal=9.dp,vertical=4.dp),shape=RoundedCornerShape(8.dp),modifier=Modifier.heightIn(min=32.dp)){Text("프로필 수정",fontSize=10.sp,lineHeight=14.sp)}
-      TextButton(onClick={rankingOpen=true},enabled=p.optString("id").isNotBlank(),contentPadding=PaddingValues(horizontal=5.dp,vertical=0.dp),modifier=Modifier.heightIn(min=36.dp).testTag("my-gift-ranking")){Icon(Icons.Rounded.StarBorder,null,Modifier.size(15.dp));Text("선물 랭킹",fontSize=10.sp,lineHeight=14.sp,modifier=Modifier.padding(start=3.dp))}
+      IconButton(onClick={toolsOpen=true},modifier=Modifier.size(44.dp)){Icon(Icons.Rounded.Settings,"계정 관리",Modifier.size(24.dp))}
+      TextButton(onClick={rankingOpen=true},enabled=p.optString("id").isNotBlank(),contentPadding=PaddingValues(horizontal=5.dp,vertical=0.dp),modifier=Modifier.heightIn(min=44.dp).testTag("my-gift-ranking")){Icon(Icons.Rounded.StarBorder,null,Modifier.size(15.dp));Text("선물 랭킹",fontSize=10.sp,lineHeight=14.sp,modifier=Modifier.padding(start=3.dp))}
      }
     }
     Row(Modifier.fillMaxWidth().padding(top=12.dp,bottom=12.dp),horizontalArrangement=Arrangement.SpaceEvenly,verticalAlignment=Alignment.CenterVertically){
      listOf(Triple("팔로워",data?.optInt("followers",self.optInt("follower_count"))?:0,{m.library("팔로워")}),Triple("팔로잉",data?.optInt("following_count",self.optInt("following_count"))?:0,{m.library("팔로잉")}),Triple("공개곡",data?.optInt("public_track_count",tracks.size+covers.size)?:tracks.size+covers.size,{allWorks="all"})).forEachIndexed{index,(label,count,action)->
       if(index>0)Box(Modifier.width(1.dp).height(28.dp).background(Stroke))
-      Column(Modifier.weight(1f).clickable(onClick=action).padding(vertical=4.dp),horizontalAlignment=Alignment.CenterHorizontally){Text("$count",fontSize=16.sp,lineHeight=21.sp,fontWeight=FontWeight.SemiBold);Text(label,fontSize=11.sp,lineHeight=16.sp,color=Muted,modifier=Modifier.padding(top=3.dp))}
+      Column(Modifier.weight(1f).clickable(onClick=action).padding(vertical=4.dp),horizontalAlignment=Alignment.CenterHorizontally){Text("$count",fontSize=21.sp,lineHeight=28.sp,fontWeight=FontWeight.SemiBold);Text(label,fontSize=11.sp,lineHeight=16.sp,color=Muted,modifier=Modifier.padding(top=3.dp))}
      }
     }
-    BrandButton(onClick=m::openStudio,modifier=Modifier.fillMaxWidth().heightIn(min=48.dp),shape=RoundedCornerShape(11.dp)){
-     Spacer(Modifier.weight(1f));Icon(Icons.Rounded.Hub,null,Modifier.size(19.dp));Text("스튜디오 바로가기",Modifier.padding(start=9.dp),fontSize=14.sp,lineHeight=20.sp,fontWeight=FontWeight.SemiBold);Spacer(Modifier.weight(1f));Icon(Icons.Rounded.ChevronRight,null,Modifier.size(20.dp))
+    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)){
+     BrandButton(onClick=m::editProfile,modifier=Modifier.weight(.42f).heightIn(min=48.dp),shape=RoundedCornerShape(12.dp),contentPadding=PaddingValues(horizontal=8.dp)){Text("프로필 수정",fontSize=13.sp,fontWeight=FontWeight.SemiBold)}
+     OutlinedButton(onClick=m::openStudio,modifier=Modifier.weight(.58f).heightIn(min=48.dp),shape=RoundedCornerShape(12.dp),border=BorderStroke(1.dp,Pink.copy(alpha=.7f)),contentPadding=PaddingValues(horizontal=8.dp)){
+      Icon(Icons.Rounded.Hub,null,Modifier.size(17.dp));Text("스튜디오 바로가기",Modifier.padding(start=6.dp),fontSize=12.sp,lineHeight=18.sp);Icon(Icons.Rounded.ChevronRight,null,Modifier.size(17.dp))
+     }
     }
    }
    item{CurrentMySwitch(area){area=it}}
    if(area=="works"){
+    item{CurrentPanel("갤러리",gallery.size,"전체보기",{m.galleryPreview=ProfileGalleryPreview(p.optString("name"),gallery,pid.takeIf{it.isNotBlank()})}){
+     Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
+      repeat(4){index->val photo=gallery.getOrNull(index)
+       Box(Modifier.weight(1f).aspectRatio(1f).clip(RoundedCornerShape(12.dp)).border(1.dp,Stroke,RoundedCornerShape(12.dp)).clickable{if(photo==null)m.galleryPreview=ProfileGalleryPreview(p.optString("name"),gallery,pid.takeIf{it.isNotBlank()})else m.photoPreview=ProfilePhotoPreview(p.optString("name")+" 갤러리",profileMediaUrl(photo.optString("url")))},contentAlignment=Alignment.Center){
+        if(photo!=null)ProfileImage(m,profileMediaUrl(photo.optString("url")),"갤러리 사진",Modifier.fillMaxSize())else Icon(Icons.Rounded.Add,"갤러리 관리",Modifier.size(26.dp),tint=SoftText)
+       }
+      }
+     }
+    }}
     item{CurrentPanel("제작곡",tracks.size,"전체보기",{allWorks="original"}){
      ReferenceWorkShelf(referenceWorks(tracks,emptyList()),m)
      if(tracks.isEmpty()&&!loading)Text("등록된 제작곡이 없어요.",color=Muted,fontSize=13.sp)
@@ -272,10 +294,6 @@ private val NoneDescription:String?=null
      if(artists.isEmpty())Text("등록된 아티스트가 없어요.",fontSize=13.sp,color=Muted)
     }}
 
-    item{CurrentPanel("갤러리",gallery.size,"전체보기",{m.galleryPreview=ProfileGalleryPreview(p.optString("name"),gallery,pid.takeIf{it.isNotBlank()})}){
-     LazyRow(horizontalArrangement=Arrangement.spacedBy(10.dp)){items(gallery.take(4)){photo->val url=profileMediaUrl(photo.optString("url"));ProfileImage(m,url,"갤러리 사진",Modifier.size(88.dp).clip(RoundedCornerShape(10.dp)).clickable{m.photoPreview=ProfilePhotoPreview(p.optString("name")+" 갤러리",url)})}}
-     if(gallery.isEmpty())Text("등록된 사진이 없어요.",fontSize=13.sp,color=Muted)
-    }}
    }else if(area=="library"){
     item{ReferenceLibrary(m)}
     item{TextButton(onClick={toolsOpen=true},modifier=Modifier.fillMaxWidth()){Text("레벨 · 계정 관리");Icon(Icons.Rounded.ChevronRight,null)}}

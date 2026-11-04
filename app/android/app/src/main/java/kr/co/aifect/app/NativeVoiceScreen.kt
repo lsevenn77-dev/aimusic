@@ -77,7 +77,7 @@ import java.net.URLEncoder
    Text(room.optString("title","토킹룸"),fontSize=21.sp,lineHeight=28.sp,fontWeight=FontWeight.SemiBold,maxLines=2,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)
    if(!keyboard)Text("${members.size}명 · $status",color=Muted,fontSize=12.sp,lineHeight=17.sp,modifier=Modifier.padding(top=5.dp,bottom=12.dp))
    if(!keyboard){VoiceMusicBar(engine,state,{panel="music"}){playlistSong=it;panel="playlist"};Spacer(Modifier.height(16.dp))}
-   BoxWithConstraints(Modifier.fillMaxWidth()){
+   BoxWithConstraints(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Panel.copy(alpha=.65f)).border(1.dp,Stroke,RoundedCornerShape(20.dp)).padding(12.dp)){
     val diameter=((maxWidth-36.dp)/4).coerceIn(40.dp,if(keyboard)44.dp else 64.dp)
     Column(verticalArrangement=Arrangement.spacedBy(if(keyboard)10.dp else 20.dp)){
      (0..7).toList().chunked(4).forEach{seats->
@@ -112,7 +112,7 @@ import java.net.URLEncoder
   HorizontalDivider(Modifier.padding(horizontal=20.dp),color=Stroke)
   room.optString("announcement").takeIf{it.isNotBlank()&&!keyboard}?.let{Text(it,Modifier.padding(horizontal=16.dp,vertical=6.dp),color=Muted,fontSize=12.sp,maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)}
   if(error!=null)TextButton({engine.error.value=null;engine.retry()},modifier=Modifier.fillMaxWidth()){Text(error.orEmpty()+" · 다시 확인",fontSize=12.sp,maxLines=2,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)}
-  Box(Modifier.weight(1f).fillMaxWidth()){
+  Box(Modifier.weight(1f).fillMaxWidth().padding(horizontal=10.dp,vertical=8.dp).clip(RoundedCornerShape(20.dp)).background(Panel.copy(alpha=.55f)).border(1.dp,Stroke,RoundedCornerShape(20.dp))){
   LazyColumn(Modifier.fillMaxSize().testTag("native-voice-conversation"),state=chatList,contentPadding=PaddingValues(horizontal=22.dp,vertical=16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
    itemsIndexed(chats,key={index,chat->chat.optString("id").ifBlank{"notice-${chat.optLong("sequence")}-${index}"}}){_,chat->
     if(chat.optString("kind")=="system")Text(chat.optString("body"),color=Muted,fontSize=12.sp)
@@ -169,10 +169,10 @@ import java.net.URLEncoder
  val id=p.optString("profile_id",p.optString("id"));val version=p.optString("image_version")
  val frame=p.optString("profile_frame")
  val artwork=p.optString("profile_frame_artwork")
- val decorated=frame=="crew-outline"||frame.isNotBlank()&&Regex("/assets/[A-Za-z0-9_./-]+\\.(png|webp)(\\?v=[A-Za-z0-9_-]+)?").matches(artwork)&&!artwork.contains("..")
- // Frames overhang the photograph by 26%. Reserve that space in every seat
- // and member-list row instead of clipping the decoration to the circle.
- val photoSize=if(decorated)size/1.26f else size.toFloat()
+ val display=frameDisplay(p)
+ val decorated=frame=="crew-outline"||profileMediaUrl(display?.optString("overlay").orEmpty().ifBlank{artwork})!=null
+ val scale=display?.optDouble("scale",1.26)?.toFloat()?.coerceIn(1f,1.6f)?:1.26f
+ val photoSize=if(decorated)size/scale else size.toFloat()
  Box(Modifier.size(size.dp).testTag("voice-member-avatar-$id"),contentAlignment=Alignment.Center){
   Box(Modifier.size(photoSize.dp).then(if(decorated)Modifier.testTag("voice-member-frame-$id")else Modifier)){
    Box(Modifier.fillMaxSize().clip(CircleShape)){

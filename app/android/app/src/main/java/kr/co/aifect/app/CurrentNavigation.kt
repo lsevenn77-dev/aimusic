@@ -15,7 +15,7 @@ internal object CurrentNavigation {
   return when(parts.firstOrNull()){
    "community"->path=="community/crews"
    "dubbing"->parts.size==2&&(parts[1]=="new"||safeID(parts[1]))
-   "voice"->parts.size==2&&safeID(parts[1])
+   "voice","live"->parts.size==2&&safeID(parts[1])
    "crew"->parts.size==2&&safeID(parts[1])
    "profile-gallery","profile-artists","producer-songs"->parts.size==2&&safeID(parts[1])
    "relations","gift-inventory"->parts.size==1

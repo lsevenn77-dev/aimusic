@@ -37,12 +37,15 @@ import kotlin.math.sqrt
 internal fun playerLevel(xp:Int)=((1+sqrt(1+xp.coerceAtLeast(0)/12.5))/2).toInt().coerceIn(1,100)
 @Composable internal fun BoxScope.PlayerAvatarDecoration(p:JSONObject?,size:Int){
  if(p==null||p.optString("profile_kind","producer")=="artist")return
- val frameKey=p.optString("profile_frame")
- val framePath=p.optString("profile_frame_artwork")
- val remoteFrame=frameKey.isNotBlank()&&Regex("/assets/[A-Za-z0-9_./-]+\\.(png|webp)(\\?v=[A-Za-z0-9_-]+)?").matches(framePath)&&!framePath.contains("..")
- val frameModifier=Modifier.matchParentSize().graphicsLayer(scaleX=1.26f,scaleY=1.26f)
- if(remoteFrame)AsyncImage(Endpoint.url(framePath),contentDescription=null,modifier=frameModifier,contentScale=ContentScale.Fit)
- else if(frameKey=="crew-outline")Image(painterResource(R.drawable.player_frame_clan_aether),contentDescription=null,modifier=frameModifier,contentScale=ContentScale.Fit)
+ val display=frameDisplay(p)
+ val framePath=display?.optString("overlay").orEmpty().ifBlank{p.optString("profile_frame_artwork")}
+ val scale=display?.optDouble("scale",1.26)?.toFloat()?.coerceIn(1f,1.6f)?:1.26f
+ val frameModifier=Modifier.matchParentSize().graphicsLayer(scaleX=scale,scaleY=scale)
+ val image=profileMediaUrl(framePath)
+ if(image!=null)AsyncImage(image,contentDescription=null,modifier=frameModifier,contentScale=ContentScale.Fit)
+ else if(p.optString("profile_frame")=="crew-outline")Image(painterResource(R.drawable.player_frame_clan_aether),contentDescription=null,modifier=frameModifier,contentScale=ContentScale.Fit)
+ val effect=profileMediaUrl(display?.optString("effect").orEmpty())
+ if(image!=null&&effect!=null)AsyncImage(effect,null,frameModifier,contentScale=ContentScale.Fit)
  if(size>=80&&(!p.isNull("player_xp")||p.has("player_level"))){
   val level=p.optInt("player_level",playerLevel(p.optInt("player_xp"))).coerceIn(1,100).toString()
   val height=(size*.28f).coerceIn(11f,20f)
@@ -101,7 +104,7 @@ internal fun playerLevel(xp:Int)=((1+sqrt(1+xp.coerceAtLeast(0)/12.5))/2).toInt(
     items(inventory.chunked(3)){row->Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)){
      row.forEach{i->
       val equipped=i.optBoolean("equipped")
-      val p=JSONObject((m.ownProfile.optJSONObject("profile")?:JSONObject()).toString()).put("profile_frame",i.optString("item_key")).put("profile_frame_artwork",i.optString("artwork")).put("player_xp",d.optJSONObject("player")?.optInt("xp")?:0)
+      val p=JSONObject((m.ownProfile.optJSONObject("profile")?:JSONObject()).toString()).put("profile_frame",i.optString("item_key")).put("profile_frame_artwork",i.optString("artwork")).put("profile_frame_display",i.optJSONObject("display")).put("player_xp",d.optJSONObject("player")?.optInt("xp")?:0)
       Surface(onClick={busy=true;scope.launch{try{
        val result=m.api.call("/api/me/player/equipment","PUT",payload("frame_inventory_id" to if(equipped)JSONObject.NULL else i.optString("id")))
        if(m.user?.optString("id")==account){data=result;updated(result);error=null;m.loadOwnProfile(fresh=true)}
@@ -170,3 +173,5 @@ internal fun playerLevel(xp:Int)=((1+sqrt(1+xp.coerceAtLeast(0)/12.5))/2).toInt(
   }
  }
 }
+
+internal fun frameDisplay(p:JSONObject?):JSONObject?=p?.optJSONObject("profile_frame_display")?:runCatching{JSONObject(p?.optString("profile_frame_display").orEmpty())}.getOrNull()

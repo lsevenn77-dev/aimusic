@@ -71,6 +71,7 @@ import org.json.JSONObject
      view=this
      setBackgroundColor(android.graphics.Color.rgb(12,18,27))
      settings.javaScriptEnabled=true;settings.domStorageEnabled=true
+     settings.useWideViewPort=true;settings.loadWithOverviewMode=true;settings.textZoom=100;settings.setSupportZoom(false)
      settings.allowFileAccess=false;settings.allowContentAccess=false
      settings.mixedContentMode=WebSettings.MIXED_CONTENT_NEVER_ALLOW
      settings.mediaPlaybackRequiresUserGesture=true
@@ -97,6 +98,7 @@ import org.json.JSONObject
       override fun shouldOverrideUrlLoading(v:WebView,r:WebResourceRequest):Boolean{
        if(!r.isForMainFrame)return false
        val url=r.url.toString()
+       MobileExperienceRoute.fromUrl(url,Endpoint.origin)?.let{m.controller?.pause();openMobileExperience(context,it);return true}
        if(!CurrentNavigation.sameOrigin(url,Endpoint.origin)){failure="앱 작업 화면에서 외부 페이지를 열 수 없어요.";return true}
        return false
       }
@@ -107,6 +109,7 @@ import org.json.JSONObject
       override fun doUpdateVisitedHistory(v:WebView,url:String,isReload:Boolean){
        if(!CurrentNavigation.sameOrigin(url,Endpoint.origin))return
        val hash=runCatching{URI(url).fragment}.getOrNull()?:return
+       MobileExperienceRoute.fromUrl(url,Endpoint.origin)?.let{v.post{openMobileExperience(context,it);v.goBack()};return}
        currentRoute=hash
        if(hash==destination.route)return
        v.post{nativeDestination(hash)}

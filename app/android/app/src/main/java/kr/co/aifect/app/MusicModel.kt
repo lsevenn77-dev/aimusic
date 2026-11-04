@@ -28,8 +28,10 @@ class MusicModel(app:Application):AndroidViewModel(app) {
  internal var communityMode by mutableStateOf("voice")
  internal fun openCurrentWorkspace(route:String,title:String){
   if(!CurrentNavigation.workspaceRoute(route)){notice="연결할 화면을 확인하지 못했어요.";return}
-  if((route.startsWith("voice/")||route=="dubbing/new"||route in setOf("relations","gift-inventory"))&&!authenticated())return
+  if((route.startsWith("live/")||route.startsWith("voice/")||route=="dubbing/new"||route in setOf("relations","gift-inventory"))&&!authenticated())return
   controller?.pause();fullPlayer=false
+  if(MobileExperienceRoute.valid(route)){openMobileExperience(getApplication(),route);return}
+  if(route=="live/create"){openNativePerformance(getApplication(),this,"live/create");return}
   if(route=="voice/create"||route.startsWith("voice/")||route=="dubbing/new"||route.startsWith("dubbing/")){
    openNativePerformance(getApplication(),this,if(route=="voice/create")"voice" else route);return
   }

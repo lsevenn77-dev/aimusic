@@ -15,6 +15,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import org.json.JSONObject
@@ -30,7 +31,8 @@ internal fun decorationImage(product:JSONObject):String?{
  var retry by remember{mutableIntStateOf(0)};var message by remember{mutableStateOf<String?>(null)}
  var selected by rememberSaveable{mutableStateOf<String?>(null)};var period by rememberSaveable{mutableStateOf("P7D")}
  var request by rememberSaveable{mutableStateOf(UUID.randomUUID().toString())}
- LaunchedEffect(account,retry){try{val result=m.api.call("/api/decorations",fresh=true);if(account==m.user?.optString("id")){data=result;error=null}}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}}
+ val lifecycle=androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
+ LaunchedEffect(account,retry){lifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.RESUMED){try{val result=m.api.call("/api/decorations",fresh=true);if(account==m.user?.optString("id")){data=result;error=null}}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}}}
  val products=data?.optJSONArray("products").objects().filter{it.optString("kind")==if(category=="frames")"PROFILE_FRAME" else "TALKING_ROOM_THEME"}
  val choice=data?.optJSONArray("products").objects().find{it.optString("sku")==selected}
  val periods=data?.optJSONObject("periods")?:JSONObject()

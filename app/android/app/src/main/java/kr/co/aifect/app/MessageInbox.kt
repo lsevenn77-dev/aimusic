@@ -87,7 +87,7 @@ import java.net.URLEncoder
 
 /** Material Surface clips its children: reserve the decorative frame's 13% overhang. */
 @Composable internal fun MessageInboxRow(modifier:Modifier=Modifier,content:@Composable RowScope.()->Unit){
- Row(modifier.padding(horizontal=8.dp,vertical=17.dp),verticalAlignment=Alignment.CenterVertically,content=content)
+ Row(modifier.fillMaxWidth().padding(vertical=5.dp).clip(RoundedCornerShape(18.dp)).background(Panel.copy(alpha=.80f)).border(1.dp,Stroke,RoundedCornerShape(18.dp)).padding(horizontal=14.dp,vertical=17.dp),verticalAlignment=Alignment.CenterVertically,content=content)
 }
 
 @Composable private fun UnreadCount(count:Int){if(count>0)Box(Modifier.padding(top=6.dp).sizeIn(minWidth=21.dp,minHeight=21.dp).clip(CircleShape).background(StreamPurple).padding(horizontal=5.dp,vertical=2.dp),contentAlignment=Alignment.Center){Text(if(count>99)"99+" else "$count",fontSize=11.sp,fontWeight=FontWeight.Bold,color=Ink)}}

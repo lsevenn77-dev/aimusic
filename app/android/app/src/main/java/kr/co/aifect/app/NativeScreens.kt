@@ -48,11 +48,11 @@ import org.json.JSONObject
 
 internal val Pink=Color(0xFFD6BAFF)
 internal val Aqua=Color(0xFFAEEBDF)
-internal val Ink=Color(0xFF0C121B)
-internal val Panel=Color(0xFF131B26)
+internal val Ink=Color(0xFF0B1024)
+internal val Panel=Color(0xFF1B2136)
 internal val Muted=Color(0xFFA9B0C1)
 internal val Violet=Color(0xFFB7B6FF)
-internal val Stroke=Color(0xFFB7B6FF).copy(alpha=.16f)
+internal val Stroke=Color(0xFFB7B6FF).copy(alpha=.32f)
 internal val Raised=Color(0xFF1F1F26)
 internal val SoftText=Color(0xFFCDD2DC)
 // Relative leading follows each Text's explicit size instead of retaining the
@@ -97,7 +97,7 @@ internal val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=
    if(!keyboardVisible&&!m.studioEditing)Column {
     AnimatedVisibility(m.current!=null&&m.visibleChatCount==0&&!m.fullPlayer&&m.detail==null){m.current?.let {MiniPlayer(m,it)}}
     HorizontalDivider(color=Stroke,thickness=.5.dp)
-    Row(Modifier.fillMaxWidth().background(Ink).navigationBarsPadding().heightIn(min=60.dp),verticalAlignment=Alignment.CenterVertically){
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(topStart=24.dp,topEnd=24.dp)).background(Brush.horizontalGradient(listOf(Color(0xFF181B34),Ink,Color(0xFF20213B)))).navigationBarsPadding().heightIn(min=66.dp),verticalAlignment=Alignment.CenterVertically){
      listOf(Triple(0,"홈",Icons.Outlined.Home),Triple(3,"커뮤니티",Icons.Outlined.PeopleOutline),Triple(2,"플레이",Icons.Outlined.PlayArrow),Triple(5,"메시지",Icons.Outlined.ChatBubbleOutline),Triple(6,"마이",Icons.Outlined.PersonOutline)).forEach{(i,name,icon)->
       val selected=m.tab==i||(m.tab==4&&i==m.libraryReturnTab)
       Column(Modifier.weight(1f).selectable(selected=selected,role=Role.Tab,onClick={pageStack.closeAll();m.selectTab(i)}).testTag("main-tab-$i").heightIn(min=60.dp).padding(vertical=5.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){
@@ -233,12 +233,18 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)P
  }
 }
 @Composable internal fun Avatar(name:String,p:JSONObject?=null,size:Int=38){
+ val display=frameDisplay(p)
+ val decorated=p?.optString("profile_kind")!="artist"&&(profileMediaUrl(display?.optString("overlay").orEmpty().ifBlank{p?.optString("profile_frame_artwork").orEmpty()})!=null||p?.optString("profile_frame")=="crew-outline")
+ val scale=if(decorated)display?.optDouble("scale",1.26)?.toFloat()?.coerceIn(1f,1.6f)?:1.26f else 1f
+ val photoSize=size/scale
  Box(Modifier.size(size.dp),contentAlignment=Alignment.Center){
+ Box(Modifier.size(photoSize.dp)){
  Box(Modifier.fillMaxSize().clip(CircleShape).background(Raised),contentAlignment=Alignment.Center){
   DefaultProfileArtwork(name,Modifier.fillMaxSize())
   if(p?.optString("image_version")?.let{it.isNotBlank()&&it!="null"&&it!="0"}==true)AsyncImage(Endpoint.url("/media/${p.optString("profile_kind","producer")}/${p.optString("id")}?v=${p.optString("image_version")}"),"$name 프로필",Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
  }
- PlayerAvatarDecoration(p,size)
+ PlayerAvatarDecoration(p,photoSize.toInt())
+ }
  }
 }
 @Composable private fun CommunityScreen(m:MusicModel,sing:(Song)->Unit){

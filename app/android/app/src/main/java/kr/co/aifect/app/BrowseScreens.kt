@@ -136,7 +136,7 @@ private val PagePadding=PaddingValues(start=14.dp,end=14.dp,bottom=24.dp)
  val titleHeight=textMeasurer.measure("가",style=LocalTextStyle.current.copy(fontSize=16.sp,lineHeight=22.sp,fontWeight=FontWeight.SemiBold),maxLines=1).size.height
  val artistHeight=textMeasurer.measure("가",style=LocalTextStyle.current.copy(fontSize=13.sp,lineHeight=18.sp),maxLines=1).size.height
  val artSize=with(LocalDensity.current){(titleHeight.toDp().coerceAtLeast(24.dp)+artistHeight.toDp()+6.dp).coerceAtLeast(52.dp)}
- Column(Modifier.fillMaxWidth().testTag("stream-song-${song.id}")){
+ Column(Modifier.fillMaxWidth().padding(vertical=3.dp).clip(RoundedCornerShape(15.dp)).background(Panel.copy(alpha=.72f)).border(1.dp,Stroke,RoundedCornerShape(15.dp)).padding(horizontal=9.dp).testTag("stream-song-${song.id}")){
   Row(Modifier.fillMaxWidth().clickable{m.openSong(song)}.padding(vertical=10.dp),verticalAlignment=Alignment.CenterVertically){
    Artwork(song,Modifier.size(artSize).clickable{m.play(song,queue)}.testTag("stream-play-${song.id}").semantics{contentDescription="${song.title} 재생"},corner=10.dp)
    Column(Modifier.weight(1f).padding(start=12.dp).testTag("home-song-copy-${song.id}"),verticalArrangement=Arrangement.spacedBy(6.dp)){
@@ -166,7 +166,7 @@ private val PagePadding=PaddingValues(start=14.dp,end=14.dp,bottom=24.dp)
  val textStyle=LocalTextStyle.current
  val copyPixels=listOf(15 to 20,12 to 17,10 to 14).sumOf{(font,line)->measurer.measure("가",style=textStyle.copy(fontSize=font.sp,lineHeight=line.sp),maxLines=1).size.height}
  val artSize=with(LocalDensity.current){copyPixels.toDp()+6.dp}.coerceAtLeast(62.dp)
- Column(Modifier.fillMaxWidth().testTag("stream-song-${song.id}")){
+ Column(Modifier.fillMaxWidth().padding(vertical=3.dp).clip(RoundedCornerShape(15.dp)).background(Panel.copy(alpha=.72f)).border(1.dp,Stroke,RoundedCornerShape(15.dp)).padding(horizontal=9.dp).testTag("stream-song-${song.id}")){
   Row(Modifier.fillMaxWidth().padding(vertical=7.dp),verticalAlignment=Alignment.CenterVertically){
    Artwork(song,Modifier.size(artSize).testTag("home-song-art-${song.id}").clickable{m.play(song,queue)}.semantics{contentDescription="${song.title} 앨범 표지 재생"},corner=10.dp)
    Column(Modifier.weight(1f).padding(start=12.dp,end=2.dp).clickable{m.openSong(song)}.testTag("home-song-copy-${song.id}")){
@@ -183,7 +183,7 @@ private val PagePadding=PaddingValues(start=14.dp,end=14.dp,bottom=24.dp)
     }
    }
    HomePlaybackButton(song,m,queue)
-   TrackActionsMenu(song,m,Modifier.width(26.dp).height(48.dp))
+   TrackActionsMenu(song,m,Modifier.width(44.dp).height(48.dp))
   }
   HorizontalDivider(color=Stroke)
  }
@@ -208,7 +208,7 @@ private val PagePadding=PaddingValues(start=14.dp,end=14.dp,bottom=24.dp)
     }
    }
    HomePlaybackButton(song,m,queue)
-   TrackActionsMenu(song,m,Modifier.width(26.dp).height(48.dp))
+   TrackActionsMenu(song,m,Modifier.width(44.dp).height(48.dp))
   }
   HorizontalDivider(color=Stroke)
  }
@@ -261,12 +261,12 @@ private fun homeCount(value:Int):String {
   val index=pageIndex%featured.size
   val song=featured[index]
   val coverText=LocalTextStyle.current.copy(shadow=Shadow(Color.Black.copy(alpha=.7f),Offset(0f,1f),4f))
-  Box(Modifier.fillMaxWidth().heightIn(min=200.dp).aspectRatio(1.66f).clip(RoundedCornerShape(18.dp)).background(Panel)){
+  Box(Modifier.fillMaxWidth().heightIn(min=142.dp).aspectRatio(2.45f).clip(RoundedCornerShape(18.dp)).background(Panel)){
    song.art?.let{AsyncImage(it,null,Modifier.matchParentSize(),contentScale=ContentScale.Crop,alignment=Alignment.CenterEnd)}
    Box(Modifier.matchParentSize().background(Brush.horizontalGradient(listOf(Color.Black.copy(alpha=.5f),Color.Transparent))))
-   Column(Modifier.fillMaxWidth().align(Alignment.CenterStart).padding(start=20.dp,end=64.dp,top=24.dp,bottom=28.dp)){
+   Column(Modifier.fillMaxWidth().align(Alignment.CenterStart).padding(start=20.dp,end=64.dp,top=12.dp,bottom=20.dp)){
     Text("새로 도착한 음악",style=coverText,color=SoftText,fontSize=12.sp,lineHeight=17.sp)
-    Text(song.title,style=coverText,color=Color.White,fontSize=23.sp,lineHeight=30.sp,fontWeight=FontWeight.Bold,maxLines=2,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=15.dp).clickable{m.openSong(song)})
+    Text(song.title,style=coverText,color=Color.White,fontSize=23.sp,lineHeight=30.sp,fontWeight=FontWeight.Bold,maxLines=2,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=8.dp).clickable{m.openSong(song)})
     Text(song.credit,style=coverText,color=SoftText,fontSize=14.sp,lineHeight=19.sp,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=8.dp))
    }
    BrandPlayButton("${song.title} 지금 듣기",{m.play(song,tracks)},Modifier.align(Alignment.BottomEnd).padding(end=12.dp,bottom=18.dp).then(if(pageIndex==pager.currentPage)Modifier.testTag("home-featured-play")else Modifier),diameter=38.dp)

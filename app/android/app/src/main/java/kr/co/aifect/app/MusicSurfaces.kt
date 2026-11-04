@@ -42,9 +42,9 @@ internal fun Modifier.musicIllustration():Modifier=this
 
 /** Shared soft aurora: low-contrast violet and mint light over the navy canvas. */
 internal fun Modifier.referenceBackdrop():Modifier=drawWithCache {
- val violet=Brush.radialGradient(listOf(Color(0xFF7460C2).copy(alpha=.17f),Color.Transparent),center=Offset(size.width*.16f,size.height*.09f),radius=size.width*.6f)
- val mint=Brush.radialGradient(listOf(Color(0xFF44CED8).copy(alpha=.14f),Color.Transparent),center=Offset(size.width*.68f,size.height*.13f),radius=size.width*.47f)
- val lower=Brush.radialGradient(listOf(Color(0xFF69529F).copy(alpha=.09f),Color.Transparent),center=Offset(size.width*.87f,size.height*.87f),radius=size.width*.75f)
+ val violet=Brush.radialGradient(listOf(Color(0xFF7460C2).copy(alpha=.29f),Color.Transparent),center=Offset(size.width*.16f,size.height*.09f),radius=size.width*.6f)
+ val mint=Brush.radialGradient(listOf(Color(0xFF44CED8).copy(alpha=.20f),Color.Transparent),center=Offset(size.width*.68f,size.height*.13f),radius=size.width*.47f)
+ val lower=Brush.radialGradient(listOf(Color(0xFF69529F).copy(alpha=.23f),Color.Transparent),center=Offset(size.width*.87f,size.height*.75f),radius=size.width*.75f)
  val center=Offset(size.width*.47f,size.height*.15f)
  val ribbon=Brush.radialGradient(0f to Color(0xFF62C9D8).copy(alpha=.12f),.45f to Color(0xFF8370C4).copy(alpha=.05f),1f to Color.Transparent,center=center,radius=size.width*.6f)
  onDrawBehind{

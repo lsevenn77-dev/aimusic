@@ -76,6 +76,8 @@ private val FreeRoomBackgrounds=listOf("navy" to "네이비","sunset" to "노을
  submissionError:String?=null,submit:(JSONObject)->Unit
 ){
  val identity=initial.optString("id","new")
+ var mode by rememberSaveable(identity){mutableStateOf(initial.optString("mode","karaoke"))}
+ var suggestions by remember{mutableStateOf(JSONObject())}
  var title by rememberSaveable(identity){mutableStateOf(initial.optString("title"))}
  var visibility by rememberSaveable(identity){mutableStateOf(initial.optString("visibility","public"))}
  var seating by rememberSaveable(identity){mutableStateOf(initial.optString("seating_mode","approval"))}
@@ -94,19 +96,21 @@ private val FreeRoomBackgrounds=listOf("navy" to "네이비","sunset" to "노을
  LaunchedEffect(retry){
   optionsLoading=true;optionsError=null
   try{
-   val options=api.call("/api/voice/options",fresh=true)
+   val options=api.call("/api/voice/options?mode=$mode&exclude="+java.net.URLEncoder.encode(title,"UTF-8"),fresh=true)
    crews=options.optJSONArray("crews").objects()
-   themes=options.optJSONArray("themes").objects().filter{it.optBoolean("paid")&&it.optBoolean("selectable")}
+   suggestions=options.optJSONObject("suggested_titles")?:JSONObject()
+   if((title.isBlank()||retry>0)&&identity=="new")title=suggestions.optString(mode,title)
+   themes=options.optJSONArray("themes").objects().filter{it.optBoolean("selectable")}
    if(!initialThemeChosen){
     val preferred=options.optString("preferred_theme").takeIf{key->themes.any{it.optString("sku")==key}}
     selectedTheme=preferred?:themes.firstOrNull()?.optString("sku")?:"navy"
     initialThemeChosen=true
    }
-   if(FreeRoomBackgrounds.none{it.first==selectedTheme}&&themes.none{it.optString("sku")==selectedTheme})selectedTheme="navy"
+   if(themes.none{it.optString("sku")==selectedTheme})selectedTheme=themes.firstOrNull()?.optString("sku").orEmpty()
   }catch(e:Exception){if(e is CancellationException)throw e;optionsError=e.message?:"설정을 불러오지 못했어요."}
   finally{optionsLoading=false}
  }
- val allThemes=themes+FreeRoomBackgrounds.map{(id,label)->payload("sku" to id,"name" to label)}
+ val allThemes=themes
  val selected=allThemes.find{it.optString("sku")==selectedTheme}
  val previewThemes=allThemes.take(3).let{first->if(selected==null||first.any{it.optString("sku")==selectedTheme})first else first.take(2)+selected}
  val valid=title.isNotBlank()&&(visibility!="crew"||crews.any{it.optString("id")==crew})&&selected!=null&&!optionsLoading&&!busy
@@ -114,8 +118,9 @@ private val FreeRoomBackgrounds=listOf("navy" to "네이비","sunset" to "노을
  val content:@Composable ()->Unit={
   Column(Modifier.fillMaxWidth().testTag("voice-room-form"),verticalArrangement=Arrangement.spacedBy(16.dp)){
    if(!fullScreen)Text("방 설정",fontSize=22.sp,fontWeight=FontWeight.SemiBold)
+   Column{RoomFormLabel("방 유형");RoomSegment(listOf("karaoke" to "노래방","talk" to "토킹룸"),mode,!busy){mode=it;if(identity=="new")title=suggestions.optString(it,title)}}
    Column{
-    RoomFormLabel("방 이름")
+    Row(verticalAlignment=Alignment.CenterVertically){Text("방 제목",Modifier.weight(1f),fontSize=15.sp,fontWeight=FontWeight.SemiBold);TextButton({title=suggestions.optString(mode,title);retry++},enabled=!busy){Text("자동 제목 생성",fontSize=12.sp)}}
     OutlinedTextField(title,{if(it.length<=60)title=it},Modifier.fillMaxWidth().padding(top=8.dp).testTag("room-title"),
      enabled=!busy,singleLine=true,placeholder={Text("어떤 이야기를 나눌까요?",color=Muted,fontSize=15.sp)},
      shape=RoundedCornerShape(14.dp),colors=OutlinedTextFieldDefaults.colors(unfocusedContainerColor=Panel,focusedContainerColor=Panel,unfocusedBorderColor=Stroke),
@@ -162,8 +167,8 @@ private val FreeRoomBackgrounds=listOf("navy" to "네이비","sunset" to "노을
    submissionError?.let{Text(it,Modifier.padding(bottom=8.dp),color=Pink,fontSize=12.sp)}
    BrandButton(onClick={
     focus.clearFocus()
-    submit(payload("title" to title.trim(),"visibility" to visibility,"seating_mode" to seating,"max_members" to capacity,
-     "announcement" to announcement.trim(),"background" to if(FreeRoomBackgrounds.any{it.first==selectedTheme})selectedTheme else "navy",
+    submit(payload("mode" to mode,"title" to title.trim(),"visibility" to visibility,"seating_mode" to seating,"max_members" to capacity,
+     "announcement" to announcement.trim(),"background" to if(selected?.optBoolean("paid")==false)selectedTheme else "navy",
      "theme_sku" to selectedTheme,"crew_id" to crew.takeIf{visibility=="crew"}))
    },enabled=valid,modifier=Modifier.fillMaxWidth().heightIn(min=52.dp).testTag("room-submit"),shape=RoundedCornerShape(14.dp)){
     if(busy)CircularProgressIndicator(Modifier.size(18.dp),strokeWidth=2.dp,color=Muted)
@@ -181,7 +186,7 @@ private val FreeRoomBackgrounds=listOf("navy" to "네이비","sunset" to "노을
    LazyVerticalGrid(columns=GridCells.Fixed(2),modifier=Modifier.fillMaxWidth().heightIn(max=440.dp).testTag("room-theme-picker"),horizontalArrangement=Arrangement.spacedBy(12.dp),verticalArrangement=Arrangement.spacedBy(16.dp)){
     items(allThemes,key={it.optString("sku")}){theme->RoomThemeTile(theme,selectedTheme==theme.optString("sku"),Modifier.fillMaxWidth()){selectedTheme=theme.optString("sku");initialThemeChosen=true;panel=""}}
    }
-   if(themes.isEmpty())Text("기본 배경 3종 · 보유한 테마도 여기서 선택할 수 있어요.",Modifier.padding(top=12.dp),color=Muted,fontSize=12.sp)
+   if(themes.isEmpty())Text("사용 가능한 배경을 불러와 주세요.",Modifier.padding(top=12.dp),color=Muted,fontSize=12.sp)
   }
   "capacity"->RoomChoiceDialog("최대 인원",{panel=""}){
    LazyColumn(Modifier.fillMaxWidth().heightIn(max=360.dp).testTag("room-capacity-picker")){
