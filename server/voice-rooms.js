@@ -96,17 +96,22 @@ export async function voiceRoomsRoute(req,env,path,user,ctx) {
  if(action==='settings'){
   const current=await result(await voiceCall(env,actor,room,'state'));
   if(current.room.host_id!==user.id)fail(403,'방장만 테마를 변경할 수 있어요.');
+  if(Number(b.max_members??current.room.max_members)<current.members.length)fail(409,'현재 참여 인원보다 작게 저장할 수 없어요.');
+  if(b.visibility==='crew'){
+   if(crews.length!==1)fail(403,'소속 크루가 하나인 회원만 크루 공개를 선택할 수 있어요.');
+   b.crew_id=crews[0].id;
+  }
   const selected=await assertRoomTheme(env,user.id,b.theme_sku||b.background||(await resolveRoomDecoration(env,current.room)).sku);
   const data=await result(await voiceCall(env,actor,room,'settings',{...b,theme_sku:selected,background:selected.startsWith('theme_')?'navy':selected}));
   await saveRoomTheme(env,actor,data.room,selected);return json(await decorateRoomResult(env,data));
  }
  if(action==='invite') {
   const target=await one(env,"SELECT id,user_id,name FROM producers WHERE id=? AND user_id IN (SELECT id FROM users WHERE provider!='deleted')",identifier(b.profile_id));if(!target)fail(404,'회원이 없어요.');
-  await assertUnblocked(env,user,target.user_id);const rid=requestId(b.request_id);
+  await assertUnblocked(env,user,target.user_id);const rid=requestId(b.request_id),message=str(b.message??'',500,false);
   const targetCrews=await rows(env,'SELECT crew_id FROM crew_members WHERE user_id=?',target.user_id);
   const {room:info}=await result(await voiceCall(env,actor,room,'invite',{generation:b.generation,target_id:target.user_id,target_crews:targetCrews.map(c=>c.crew_id)}));
   const dmPath='/api/dm/'+target.id;
-  const response=await socialRoute(new Request(new URL(dmPath,req.url),{method:'POST',body:JSON.stringify({request_id:await hash('voice-invite:'+room+':'+rid),body:`「${info.title}」 ${info.mode==='karaoke'?'라이브 노래방':'토킹룸'}에 초대해요.\nhttps://aifect.co.kr/#${info.mode==='karaoke'?'live':'voice'}/${room}`})}),env,dmPath,user);
+  const response=await socialRoute(new Request(new URL(dmPath,req.url),{method:'POST',body:JSON.stringify({request_id:await hash('voice-invite:'+room+':'+rid),body:`「${info.title}」 ${info.mode==='karaoke'?'라이브 노래방':'토킹룸'}에 초대해요.\nhttps://aifect.co.kr/#${info.mode==='karaoke'?'live':'voice'}/${room}${message?'\n\n'+message:''}`})}),env,dmPath,user);
   if(response.ok&&ctx?.waitUntil)ctx.waitUntil(dispatchPush(env));return response;
  }
  if(action==='gifts') {

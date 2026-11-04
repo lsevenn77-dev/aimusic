@@ -48,7 +48,7 @@ async function openProfilePreview(id,origin){
   if(!d.artist&&d.following!==undefined&&d.profile.id&&!pendingFollows.has('producer/'+d.profile.id))updateFollowLocal('producer',d.profile.id,d.following,d.profile);
   const panel=document.createElement('dialog');panel.className='profile-preview compact-popup';panel.setAttribute('aria-labelledby','profile-preview-title');panel.setAttribute('aria-modal','true');panel.innerHTML=profilePreviewHTML(d);
   panel.querySelectorAll('[data-profile-preview]').forEach(image=>{image.removeAttribute('data-profile-preview');image.removeAttribute('tabindex');image.removeAttribute('role');image.removeAttribute('aria-haspopup');});
-  profilePreviewOrigin=origin;profilePreviewOverflow=document.body.style.overflow;document.body.style.overflow='hidden';profilePreviewDialog=panel;document.body.append(panel);panel.showModal();panel.querySelector('[data-preview-close]').focus();
+  profilePreviewOrigin=origin;profilePreviewOverflow=document.body.style.overflow;document.body.style.overflow='hidden';profilePreviewDialog=panel;document.body.append(panel);if(typeof voiceController!=='undefined'&&voiceController?.joined&&!voiceController.closed&&voiceController.host?.isConnected){voiceController.adoptRoomPopup(panel,origin);panel.querySelector('[data-preview-close]').hidden=true;}else{panel.showModal();panel.querySelector('[data-preview-close]').focus();}
   panel.addEventListener('cancel',event=>{event.preventDefault();closeProfilePreview();});
   panel.addEventListener('keydown',event=>{
    if(event.key!=='Tab')return;

@@ -95,12 +95,12 @@ test('live room wraps the current template while preserving chat, gifts, setting
  const {c}=context(),html=vm.runInContext('liveKaraokeRoomHTML("live-room")',c);
  for(const id of ['live-lyrics','live-search','voice-chat','voice-gift-form','voice-settings-form','voice-members'])assert.equal((html.match(new RegExp('id="'+id+'"','g'))||[]).length,1,id);
  assert.match(html,/class="voice-room live-karaoke-room"/);assert.match(html,/data-voice-room="live-room"/);
- assert.match(html,/href="#live"/);assert.match(html,/id="voice-title">라이브 노래방/);
+ assert.doesNotMatch(html,/class="voice-back"/);assert.match(html,/id="voice-title">라이브 노래방/);
  assert.match(html,/3|노래가 시작/);
  assert.equal((html.match(/data-voice="sound"/g)||[]).length,1);
- assert.match(html,/<div class="live-sound-toolbar"[\s\S]*?data-voice="sound"/);
- assert.doesNotMatch(html.slice(0,html.indexOf('id="live-karaoke-stage"')),/data-voice="sound"/);
- assert.equal((html.match(/id="live-monitor-toggle"/g)||[]).length,1);
+ assert.match(html.slice(0,html.indexOf('id="live-karaoke-stage"')),/data-voice="sound"/);
+ assert.doesNotMatch(html,/live-sound-toolbar|id="live-monitor-toggle"/);
+ assert.match(html,/id="voice-monitor"/);
 });
 
 test('unified directory links each real type to its original room and exposes the same settings',()=>{
@@ -239,4 +239,14 @@ test('one singer gesture accepts, connects microphone and starts once; listeners
  vm.runInContext('paintLiveKaraoke(client)',c);assert.match(nodes.get('#live-actions').innerHTML,/>시작</);
  const begin=()=>vm.runInContext('liveKaraokeAction(client,"karaoke-begin","id")',c);
  await Promise.all([begin(),begin()]);assert.deepEqual(operations,['accept','mic','start']);assert.equal(k.phase,'singing');
+});
+
+test('each new own singing turn enables monitoring once and respects a manual off',()=>{
+ const {c,client}=monitorFixture(),sync=()=>vm.runInContext('syncRoomSingerMonitor(client)',c);
+ client.state.karaoke.active.invitation_id='turn-1';sync();assert.equal(client.liveMonitorEnabled,undefined);
+ client.state.karaoke.phase='singing';sync();assert.equal(client.liveMonitorEnabled,true);
+ client.liveMonitorEnabled=false;sync();sync();assert.equal(client.liveMonitorEnabled,false);
+ client.state.karaoke.active.user_id='other';sync();assert.equal(client.liveMonitorEnabled,false);
+ client.state.karaoke.active.user_id='self';client.state.karaoke.active.invitation_id='turn-2';sync();assert.equal(client.liveMonitorEnabled,true);
+ client.state.karaoke.phase='idle';sync();assert.equal(client.liveMonitorEnabled,false);
 });

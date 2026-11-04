@@ -88,3 +88,10 @@ test('a runtime worklet failure keeps the same outgoing track and analyser with 
  assert.equal(f.outputTrack.stopped,undefined);assert.equal(f.track.stopped,undefined);
  graph.close();assert.equal(f.outputTrack.stopped,true);assert.equal(f.contexts[0].closed,true);
 });
+
+test('studio, hall and karaoke change delay/feedback while retaining one outgoing analyser connection',async()=>{
+ const f=fixture(),graph=await f.audio.microphone(f.raw,'studio'),delays=[];
+ for(const style of ['studio','hall','karaoke','studio']){graph.setPreset(style);graph.setReverb(.3);delays.push(f.nodes.filter(n=>n.kind==='delay').at(-1).delayTime.value);assert.equal(graph.analyser.connections.length,1);}
+ assert.equal(new Set(delays).size,3);assert.equal(delays[0],delays[3]);
+ const mixes=['studio','hall','karaoke'].map(s=>JSON.stringify(f.audio.echoMix(s,.5)));assert.equal(new Set(mixes).size,3);graph.close();
+});
