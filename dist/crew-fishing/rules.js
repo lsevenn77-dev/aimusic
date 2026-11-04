@@ -14,7 +14,15 @@ export const SIZES = {
   D: {weight:10, min:-2500, max:-1501, percent:80}
 };
 export const LIMITS = {day:10, week:50, width:30, warnings:2};
-export const cm = units => (Math.trunc(units/1000)/10).toLocaleString('ko-KR',{minimumFractionDigits:1,maximumFractionDigits:1});
+// Stored lengths use 1/10,000 cm units. Truncate at 0.1 cm before splitting;
+// displaying metres never changes the stored length or size-grade calculation.
+export function formatLength(units){
+  const tenths=Math.trunc(units/1000);
+  const metres=Math.trunc(tenths/1000);
+  const centimetres=(tenths%1000)/10;
+  const remainder=centimetres.toLocaleString('ko-KR',{maximumFractionDigits:1})+'cm';
+  return metres?metres.toLocaleString('ko-KR')+'m'+(centimetres?' '+remainder:''):remainder;
+}
 export function season(ms){
   const kst = new Date(ms + 9*3600000);
   const day = kst.toISOString().slice(0,10);

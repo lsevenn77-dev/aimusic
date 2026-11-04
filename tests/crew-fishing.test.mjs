@@ -5,9 +5,16 @@ import {fixture} from './fixture.mjs';
 import {encounter,fishingRoute,fishingLimits} from '../server/crew-fishing.js';
 import {FISH} from '../dist/crew-fishing/catalog.js';
 import {fishValue,BASE_PRICES} from '../dist/crew-fishing/pricing.js';
-import {TIERS,SIZES,weighted,season,progressAfter} from '../dist/crew-fishing/rules.js';
+import {TIERS,SIZES,weighted,season,progressAfter,formatLength} from '../dist/crew-fishing/rules.js';
 
 const monday=Date.parse('2026-11-02T08:00:00+09:00');
+test('length display splits metres at 100 cm and truncates residual centimetres to one decimal',()=>{
+  for(const [units,expected] of [
+    [0,'0cm'],[120000,'12cm'],[456789,'45.6cm'],[999999,'99.9cm'],
+    [1000000,'1m'],[1000999,'1m'],[1001000,'1m 0.1cm'],[14309999,'14m 30.9cm'],
+    [10000000,'10m'],[140300000,'140m 30cm'],[14300000,'14m 30cm']
+  ])assert.equal(formatLength(units),expected);
+});
 async function setup(t,extraEnv={}){
   const f=await fixture(t);
   f.sql.exec("INSERT INTO crews(id,owner_id,name,created) VALUES('crew','owner','테스트 크루',0); INSERT INTO crew_members(crew_id,user_id,role,joined) VALUES('crew','owner','leader',0)");

@@ -1,6 +1,6 @@
 import {renderGameRankings} from '/crew-game-lobby.js';
 import {FISH} from './catalog.js';
-import {TIERS,position,cm} from './rules.js';
+import {TIERS,position,formatLength} from './rules.js';
 import {createScene} from './scene.js';
 import {bindMobileReelInput} from './mobile-input.js';
 import {createRequestId} from './request-id.js';
@@ -156,12 +156,12 @@ const SPARK_SPOTS=[[8,30,0],[18,78,.5],[30,10,1.1],[50,92,.3],[66,6,.8],[82,24,1
 function finish(){
   const f=fishById.get(cast.fish),caught=cast.status==='caught';
   paint('result',`<section class="result" data-tier="${caught?f.tier:''}"><small>CATCH REPORT</small><h1>${caught?'포획 성공!':'물고기가 도망갔어요'}</h1>
-  <div class="trophy${caught?' caught':''}" style="--art:url(${art(f)})">${caught?'<i class="rays"></i>'+SPARK_SPOTS.map(([x,y,d])=>`<i class="spark" style="--x:${x}%;--y:${y}%;--d:${d}s"></i>`).join(''):''}<img src="${art(f)}" alt="${esc(f.name)}"></div><h2>${TIERS[f.tier].name} · ${esc(f.name)}</h2><p>${cm(cast.length)} cm · ${cast.grade}등급</p><strong>${fmt(cast.value)}원</strong><p class="badge">${lobby.practice?(caught?'이번 연습 도감에 기록했어요.':'이번 낚시의 평가액은 0원이에요.'):cast.notice==='new'?'우리 크루 도감에 처음 등록됐어요!':cast.notice==='best'?'우리 크루의 최고 길이를 경신했어요!':caught?'크루 주간 어획액에 반영됐어요.':'이번 낚시의 평가액은 0원이에요.'}</p>
+  <div class="trophy${caught?' caught':''}" style="--art:url(${art(f)})">${caught?'<i class="rays"></i>'+SPARK_SPOTS.map(([x,y,d])=>`<i class="spark" style="--x:${x}%;--y:${y}%;--d:${d}s"></i>`).join(''):''}<img src="${art(f)}" alt="${esc(f.name)}"></div><h2>${TIERS[f.tier].name} · ${esc(f.name)}</h2><p>${formatLength(cast.length)} · ${cast.grade}등급</p><strong>${fmt(cast.value)}원</strong><p class="badge">${lobby.practice?(caught?'이번 연습 도감에 기록했어요.':'이번 낚시의 평가액은 0원이에요.'):cast.notice==='new'?'우리 크루 도감에 처음 등록됐어요!':cast.notice==='best'?'우리 크루의 최고 길이를 경신했어요!':caught?'크루 주간 어획액에 반영됐어요.':'이번 낚시의 평가액은 0원이에요.'}</p>
   <div class="actions"><button class="primary" data-act="retry">다시 낚시</button><button data-act="lobby">대기실</button><button data-act="aquarium">수족관</button></div></section>`);
 }
 function specimen(f,r){
-  const record=r?`최고 ${cm(r.length)} cm · ${r.grade}등급<br>${esc(r.nickname)} · ${new Date(r.end_ms).toLocaleDateString('ko-KR',{timeZone:'Asia/Seoul'})}<br>누적 ${fmt(r.count)}마리`:'미발견';
-  return `<article id="fish-${f.id}" class="specimen ${r?'':'undiscovered'}"><img loading="lazy" src="${art(f)}" alt=""><small>${TIERS[f.tier].name}</small><h3>${esc(f.name)}</h3><p>표준 ${f.standardCm} cm<br>${record}</p></article>`;
+  const record=r?`최고 ${formatLength(r.length)} · ${r.grade}등급<br>${esc(r.nickname)} · ${new Date(r.end_ms).toLocaleDateString('ko-KR',{timeZone:'Asia/Seoul'})}<br>누적 ${fmt(r.count)}마리`:'미발견';
+  return `<article id="fish-${f.id}" class="specimen ${r?'':'undiscovered'}"><img loading="lazy" src="${art(f)}" alt=""><small>${TIERS[f.tier].name}</small><h3>${esc(f.name)}</h3><p>표준 ${formatLength(f.standardCm*10000)}<br>${record}</p></article>`;
 }
 async function collection(mode,focus=''){
   book=await api('book');
