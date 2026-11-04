@@ -16,10 +16,10 @@ function singExitKind(s){
 }
 function askSingExit(s,kind){
  const edit=kind==='edit',dlg=document.createElement('dialog');
- dlg.id='sing-exit-dialog';
+ dlg.id='sing-exit-dialog';dlg.className='compact-popup';
  dlg.setAttribute('aria-labelledby','sing-exit-title');
  dlg.setAttribute('aria-describedby','sing-exit-note');
- dlg.innerHTML=`<h2 id="sing-exit-title">${edit?'편집한 녹음을 초안으로 저장할까요?':'녹음을 중단하고 나갈까요?'}</h2>
+ dlg.innerHTML=`<p class="popup-prompt" id="sing-exit-title">${edit?'편집한 녹음을 초안으로 저장할까요?':'녹음을 중단하고 나갈까요?'}</p>
  <p id="sing-exit-note">${edit?'초안으로 저장하면 나중에 이어서 편집할 수 있어요. 저장하지 않으면 이번 편집 내용은 사라집니다.':'지금 나가면 진행 중인 녹음은 저장되지 않고 내 초안에도 추가되지 않아요.'}</p>
  <p class="form-error" role="alert" hidden></p>
  <div class="sing-exit-actions"><button type="button" class="small-button" data-choice="stay" autofocus>${edit?'편집 계속':'계속 녹음'}</button>

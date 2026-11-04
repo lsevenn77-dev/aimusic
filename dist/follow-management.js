@@ -76,7 +76,7 @@ function bindFollowManagement({params,d,tab,aid}){
  function confirmAction(op,targets){
   const scope=tab==='artists'?d.name+'의 팬 관계':tab==='blocks'?'선택한 각 계정·아티스트의 차단 범위':tab==='following'?'내가 팔로우한 계정·아티스트':'내 개인 계정';
   const detail=op==='unblock'?'차단을 풀어도 이전 팔로우는 복구되지 않아요.':op==='block'?'해당 범위에서 팔로우와 새 상호작용을 제한해요. 기존 기록은 유지돼요.':op==='remove'?'상대가 나를 팔로우한 관계만 해제해요.':'내가 보낸 팔로우만 해제해요.';
-  dialog('<h2>'+number(targets.size)+'명 '+followOps[op]+'</h2><p>'+esc(scope)+' · '+esc([...targets.values()].slice(0,3).join(', '))+(targets.size>3?' 외 '+number(targets.size-3)+'명':'')+'</p><p>'+esc(tab==='artists'&&op==='remove'?'이 아티스트를 향한 팔로우만 해제해요.':detail)+'</p><div class="fm-confirm">'+btn('dismiss','취소')+btn('confirm',followOps[op])+'</div>');
+  dialog('<p class="popup-prompt">선택한 '+number(targets.size)+'명을 '+followOps[op]+'하시겠습니까?</p><p>'+esc(scope)+' · '+esc([...targets.values()].slice(0,3).join(', '))+(targets.size>3?' 외 '+number(targets.size-3)+'명':'')+'</p><p>'+esc(tab==='artists'&&op==='remove'?'이 아티스트를 향한 팔로우만 해제해요.':detail)+'</p><div class="fm-confirm">'+btn('dismiss','취소')+btn('confirm',followOps[op])+'</div>');
   const modal=document.querySelector('#dialog');modal.querySelector('[data-fm=dismiss]').onclick=()=>modal.close();
   modal.querySelector('[data-fm=confirm]').onclick=()=>{modal.close();if(alive())void apply(op,targets);};
  }

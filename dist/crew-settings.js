@@ -76,7 +76,7 @@ function bindCrewSettingsMenu(trigger) {
 
 function openCrewDialog(trigger,path,detail,action) {
  const modal=document.createElement('dialog'),route=location.hash;
- modal.className='crew-action-dialog';
+ modal.className='crew-action-dialog compact-popup';
  modal.setAttribute('role','dialog');
  modal.setAttribute('aria-modal','true');
  modal.setAttribute('aria-labelledby','crew-action-title');

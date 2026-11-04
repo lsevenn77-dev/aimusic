@@ -22,6 +22,22 @@ function sandbox(tracks){
  runInNewContext(script,ctx);
  return ctx;
 }
+
+test('single and bulk confirmations preserve target scope and deletion safeguards without duplicate titles',async()=>{
+ const tracks=[{id:'one',title:'Do not repeat this title',kind:'original',status:'published'},{id:'two',title:'Other title',kind:'original',status:'published'}];
+ const ctx=sandbox(tracks),form={};let html='';
+ ctx.me={id:'owner'};ctx.studioSyncBulk=()=>{};ctx.dialog=value=>{html=value;};ctx.busyForm=(_form,handler)=>handler;ctx.toast=message=>{throw Error(message);};
+ ctx.document={querySelector:()=>({isConnected:true}),getElementById:()=>form};
+ const state=runInNewContext('studioManage',ctx);state.type='original';
+ await ctx.studioBulkDialog('hide','one');
+ assert.match(html,/이 작품을 비공개하시겠습니까\?/);assert.match(html,/>비공개 처리<\/button>/);
+ assert.doesNotMatch(html,/<h2>|Do not repeat|선택한 작품만|공개 목록과 검색/);
+ state.selected=new Set(['one','two']);await ctx.studioBulkDialog('hide');
+ assert.match(html,/선택한 작품 2개를 비공개하시겠습니까/);
+ await ctx.studioBulkDialog('delete','one');
+ assert.match(html,/삭제하면 복구할 수 없습니다/);assert.match(html,/연결된 노래방·다른 회원의 커버곡/);assert.match(html,/name="verify"/);
+ await assert.rejects(form.onsubmit(new Map([['verify','wrong']])),/삭제를 정확히/);
+});
 test('studio tabs isolate inventory, quota, upgrade and status summaries',()=>{
  const ctx=sandbox(sampleTracks(6));
  const html=ctx.studioHTML(ctx.studioData);
@@ -131,7 +147,7 @@ test('all-delete still loads the full filtered inventory and requires typed conf
  let html='',submit;ctx.dialog=value=>html=value;ctx.busyForm=(_form,fn)=>(submit=fn);ctx.document.getElementById=()=>({});
  await ctx.studioBulkDialog('all-delete');
  assert.deepEqual(calls,['/api/studio','/api/studio?offset=1']);
- assert.match(html,/제작곡 2곡을 삭제/);assert.match(html,/현재 탭의 상태 필터와 검색어에 맞는 모든 곡/);
+ assert.match(html,/현재 목록의 작품 2개를 삭제하시겠습니까/);assert.match(html,/현재 필터와 검색 결과의 모든 작품/);
  assert.match(html,/연결된 노래방·다른 회원의 커버곡/);assert.match(html,/name="verify"/);
  await assert.rejects(submit({get:()=>''}),/삭제를 정확히 입력/);
 });

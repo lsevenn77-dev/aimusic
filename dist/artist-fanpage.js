@@ -187,7 +187,7 @@ function bindArtistFanpage(){
   }
   if(!me){toast('로그인 후 이용해주세요.');return;}
   if(action==='delete'||action==='report'){
-   dialog('<h2>'+(action==='delete'?'이 글을 삭제할까요?':'응원글 신고')+'</h2><form id="fan-action-form" class="upload-form">'+(action==='report'?'<label class="form-field">신고 사유<textarea name="reason" maxlength="500" required></textarea></label>':'')+'<button class="primary-button">'+(action==='delete'?'삭제':'신고 접수')+'</button><p class="form-error" role="alert"></p></form>');const form=$('#fan-action-form');form.onsubmit=busyForm(form,async fd=>{await read('/posts/'+p.id+(action==='report'?'/report':''),action==='report'?'POST':'DELETE',action==='report'?{reason:fd.get('reason')}:undefined);$('#dialog').close();
+   dialog((action==='delete'?'<p class="popup-prompt">이 글을 삭제하시겠습니까?</p><p>삭제하면 복구할 수 없습니다.</p>':'<h2>응원글 신고</h2>')+'<form id="fan-action-form" class="upload-form">'+(action==='report'?'<label class="form-field">신고 사유<textarea name="reason" maxlength="500" required></textarea></label>':'')+'<button class="primary-button">'+(action==='delete'?'삭제':'신고 접수')+'</button><p class="form-error" role="alert"></p></form>');const form=$('#fan-action-form');form.onsubmit=busyForm(form,async fd=>{await read('/posts/'+p.id+(action==='report'?'/report':''),action==='report'?'POST':'DELETE',action==='report'?{reason:fd.get('reason')}:undefined);$('#dialog').close();
     const list=el.closest('[data-reply-list]');
     if(action==='delete'&&p.parent_id&&list){
      const result=await loadFeed(list,p.kind,0,p.parent_id);

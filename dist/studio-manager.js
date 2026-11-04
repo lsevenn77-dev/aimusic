@@ -128,13 +128,12 @@ async function studioBulkDialog(kind,singleId=null){
   if(!targets.length){toast(kind==='hide'?'비공개로 변경할 공개 작품이 없습니다.':'처리할 작품이 없습니다.');return;}
   const deleting=kind!=='hide',all=kind==='all-delete';
   const originals=targets.filter(t=>t.kind==='original').length;
-  const verb=deleting?'삭제':'비공개로 변경';
-  const label=singleId?(deleting?'작품 삭제':'작품 비공개'):all?'전체 삭제':deleting?'선택 삭제':'선택 비공개';
-  dialog(`<h2>${label}</h2><p>${studioKinds[studioManage.type]} ${targets.length}곡을 ${verb}할까요?</p>${singleId?`<p>${esc(targets[0].title)}</p>`:''}
-   <p class="studio-confirm-detail">${all?'현재 탭의 상태 필터와 검색어에 맞는 모든 곡이 대상입니다.':'선택한 작품만 처리합니다.'}${deleting?' 삭제하면 복구할 수 없습니다. 받은 선물과 정산 내역은 유지됩니다.':' 공개 목록과 검색 결과에서 숨겨집니다.'}</p>
+  const targetLabel=targets.length===1?'이 작품을':`${all?'현재 목록의':'선택한'} 작품 ${targets.length}개를`;
+  dialog(`<p class="popup-prompt">${targetLabel} ${deleting?'삭제':'비공개'}하시겠습니까?</p>
+   ${deleting?`<p class="studio-confirm-detail">삭제하면 복구할 수 없습니다. 받은 선물과 정산 내역은 유지됩니다.${all?' 현재 필터와 검색 결과의 모든 작품이 대상입니다.':''}</p>`:''}
    ${deleting&&originals?`<p class="studio-confirm-warning">제작곡 ${originals}개가 포함돼 있습니다. 연결된 노래방·다른 회원의 커버곡도 재생할 수 없게 됩니다.</p>`:''}
    <form id="studio-bulk-confirm-form">${deleting?'<label class="form-field studio-confirm-input">확인하려면 <strong>삭제</strong>를 입력하세요.<input name="verify" autocomplete="off" placeholder="삭제" required></label>':''}
-   <div class="inline-actions"><button type="button" class="small-button" data-close-dialog>취소</button><button type="submit" class="primary-button ${deleting?'danger-button':''}">${targets.length}개 ${verb}</button></div>
+   <div class="inline-actions"><button type="button" class="small-button" data-close-dialog>취소</button><button type="submit" class="primary-button ${deleting?'danger-button':''}">${deleting?'삭제':'비공개 처리'}</button></div>
    <p class="studio-progress" role="status" aria-live="polite"></p><p class="form-error" role="alert"></p></form>`);
   const form=document.getElementById('studio-bulk-confirm-form');
   form.onsubmit=busyForm(form,async fd=>{
@@ -161,7 +160,7 @@ async function studioBulkDialog(kind,singleId=null){
     let refreshFailed=false;
     if(succeeded.length){try{await refreshLibrary(true);await render();}catch{refreshFailed=true;}}
     if(failed.length||refreshFailed){
-     dialog("<h2>작품 처리 결과</h2><p>성공 "+succeeded.length+"개 · 실패 "+failed.length+"개</p>"+(refreshFailed?"<p>처리 결과를 목록에 반영하지 못했습니다. 새로고침해 주세요.</p>":"")+"<ul>"+failed.map(f=>"<li>"+esc(f.t.title)+" · "+esc(f.error.message)+"</li>").join("")+"</ul><button type=\"button\" class=\"small-button\" data-close-dialog>닫기</button>");
+     dialog("<p class=\"popup-prompt\">작품 처리 결과: 성공 "+succeeded.length+"개 · 실패 "+failed.length+"개</p>"+(refreshFailed?"<p>처리 결과를 목록에 반영하지 못했습니다. 새로고침해 주세요.</p>":"")+"<ul>"+failed.map(f=>"<li>"+esc(f.t.title)+" · "+esc(f.error.message)+"</li>").join("")+"</ul><button type=\"button\" class=\"small-button\" data-close-dialog>닫기</button>");
     }else toast(succeeded.length+"개 작품을 "+(deleting?"삭제했습니다.":"비공개로 변경했습니다."));
    }finally{modal.removeEventListener("cancel",preventClose);closeButtons.forEach(b=>b.disabled=false);studioManage.loading=false;studioSyncBulk();}
   });

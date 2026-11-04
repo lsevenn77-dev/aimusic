@@ -148,7 +148,15 @@ function updateAccount(){
 function askLogin(){returnRoute=location.hash;saveResume();location.hash='account';toast('무료로 가입하고 음악을 이어 들어보세요.');return false;}
 function saveResume(){saveQueue();try{localStorage.setItem('aifect-player-modes',JSON.stringify({shuffle,repeatMode}));if(current){pendingResume={id:current.id,time:playSession?(preview?Math.min(audio.currentTime,60):audio.currentTime):restoredPosition};const value=JSON.stringify(pendingResume);sessionStorage.setItem('aifect-player-resume',value);localStorage.setItem('aifect-player-resume',value);}}catch{}}
 
-function dialog(html){const modal=$('#dialog'),content=$('#dialog-content');if(!modal._giftSurfaceCleanup){modal.addEventListener('close',function(){if(!this.open)this.classList.remove('gift-sheet');});modal._giftSurfaceCleanup=true;}content.innerHTML=html;modal.classList.toggle('gift-sheet',!!content.querySelector('.gift-dialog,.gift-success'));if(!modal.open)modal.showModal();decorateNativeAudioPlay();}
+// Presentation only: preserve gift surfaces, dialog events and form handlers.
+function prepareCompactPopup(modal,content){
+ const excluded=content.querySelector('.gift-dialog,.gift-success,.gift-recipient-dialog,.shop-checkout,.shop-theme-preview,#gift-dialog-retry,#mp-inventory-buy,#mp-inventory-recipient');
+ modal.classList.toggle('compact-popup',!excluded);
+ if(excluded){modal.setAttribute('aria-label','AIFECT');return;}
+ const label=content.querySelector('.popup-prompt,h2');
+ modal.setAttribute('aria-label',label?.textContent?.trim()||'AIFECT');
+}
+function dialog(html){const modal=$('#dialog'),content=$('#dialog-content');if(!modal._giftSurfaceCleanup){modal.addEventListener('close',function(){if(!this.open)this.classList.remove('gift-sheet');});modal._giftSurfaceCleanup=true;}content.innerHTML=html;modal.classList.toggle('gift-sheet',!!content.querySelector('.gift-dialog,.gift-success'));if(typeof prepareCompactPopup==='function')prepareCompactPopup(modal,content);if(!modal.open)modal.showModal();decorateNativeAudioPlay();}
 // Match content padding to the actual player height, including wrapped controls and safe areas.
 if(typeof ResizeObserver==='function')new ResizeObserver(entries=>{const h=entries[0].target.getBoundingClientRect().height;if(h)document.body.style.setProperty('--player-height',Math.ceil(h)+'px');}).observe($('.player'));
 function setPlayerVisible(visible){$('.player').hidden=!visible;document.body.classList.toggle('has-player',visible);}

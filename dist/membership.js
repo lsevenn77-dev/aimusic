@@ -12,7 +12,7 @@ function membershipHTML(billing){const premium=inApp?AifectSite.APP_PREMIUM:Aife
 function playlistQuotaHTML(){return `<div class="playlist-quota"><div><strong>${member.plan==='premium'?'Premium':'무료'} · 내 플레이리스트 ${member.owned_count} / ${member.playlist_limit}개</strong><p>다른 사람이 만든 공개 목록은 개수 제한 없이 저장할 수 있어요.${member.locked_count?` 현재 ${member.locked_count}개는 보관 중입니다.`:''}</p></div><div class="inline-actions">${member.locked_count?'<button class="small-button" data-select-active>사용할 목록 선택</button>':''}<a class="text-link" href="#membership">이용 혜택 보기</a></div></div>`;}
 function canCreatePlaylist(){
  if(member.owned_count<member.playlist_limit)return true;
- dialog(`<h2>플레이리스트 ${member.playlist_limit}개를 모두 만들었어요.</h2><p>${member.plan==='premium'?'Premium은 최대 10개':'무료 회원은 최대 2개'}까지 만들 수 있습니다. 기존 목록에 곡을 더 담거나, 필요 없는 목록을 삭제한 뒤 만들어주세요.</p>${member.locked_count?'<button class="small-button" data-select-active>사용할 목록 선택</button>':''}<a class="text-link" href="#membership" data-close-dialog>이용 혜택 보기</a>`);return false;
+ dialog(`<p class="popup-prompt">플레이리스트 ${member.playlist_limit}개를 모두 만들었어요.</p><p>${member.plan==='premium'?'Premium은 최대 10개':'무료 회원은 최대 2개'}까지 만들 수 있습니다. 기존 목록에 곡을 더 담거나, 필요 없는 목록을 삭제한 뒤 만들어주세요.</p>${member.locked_count?'<button class="small-button" data-select-active>사용할 목록 선택</button>':''}<a class="text-link" href="#membership" data-close-dialog>이용 혜택 보기</a>`);return false;
 }
 async function selectActivePlaylists(){const ticket=renderId;
  if(!me)return askLogin();await refreshLibrary();const count=Math.min(member.playlist_limit,library.playlists.length);

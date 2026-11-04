@@ -17,7 +17,7 @@ document.addEventListener('click',async e=>{
  const el=e.target.closest('[data-gallery-photo],[data-gallery-add],[data-gallery-delete],[data-quick-logout]');if(!el)return;
  e.preventDefault();
  if(el.hasAttribute('data-quick-logout')){
-  dialog('<h2>로그아웃할까요?</h2><p>이 기기에서 계정 연결이 해제돼요.</p><div class="inline-actions"><button class="small-button" data-close-dialog>취소</button><button class="primary-button" id="confirm-logout">로그아웃</button></div>');
+  dialog('<p class="popup-prompt">로그아웃하시겠습니까?</p><div class="inline-actions"><button class="small-button" data-close-dialog>취소</button><button class="primary-button" id="confirm-logout">로그아웃</button></div>');
   $('#confirm-logout').onclick=async()=>{$('#dialog').close();await logoutAccount();};return;
  }
  if(el.dataset.galleryPhoto){if(el.closest('.artist-fanpage'))return;dialog('<h2>'+esc(el.dataset.photoLabel)+'</h2><img class="gallery-lightbox" src="'+esc(el.dataset.galleryPhoto)+'" alt="'+esc(el.dataset.photoLabel)+'">');return;}
@@ -42,7 +42,7 @@ document.addEventListener('click',async e=>{
  }
  if(el.dataset.galleryDelete){
   const aid=el.dataset.galleryArtist,pid=el.dataset.galleryDelete;
-  dialog('<h2 class="popup-title-clearance">이 사진을 삭제할까요?</h2><p>AI 가수 갤러리에서 제거됩니다.</p><form id="gallery-delete-form"><div class="inline-actions"><button type="button" class="small-button" data-close-dialog>취소</button><button type="submit" class="primary-button">사진 삭제</button></div><p class="form-error" role="alert"></p></form>');
+  dialog('<p class="popup-prompt">이 사진을 삭제하시겠습니까?</p><p>AI 가수 갤러리에서 삭제되며 복구할 수 없습니다.</p><form id="gallery-delete-form"><div class="inline-actions"><button type="button" class="small-button" data-close-dialog>취소</button><button type="submit" class="primary-button">사진 삭제</button></div><p class="form-error" role="alert"></p></form>');
   const form=$('#gallery-delete-form');form.onsubmit=busyForm(form,async()=>{await api('/api/artists/'+aid+'/gallery/'+pid,'DELETE');$('#dialog').close();if(location.hash.startsWith('#artist/'+aid))await render();toast('사진을 삭제했어요.');});
  }
 });

@@ -1,0 +1,70 @@
+/* Ordinary dialogs only. Gift/shop flows and recording-mode selection never opt in. */
+:is(#dialog, dialog).compact-popup {
+  --ui-type-scale: 1; --ui-space-scale: 1; --ui-icon-scale: 1;
+  --popup-button-height: 38px; --popup-body-size: 15px;
+  box-sizing: border-box; width: fit-content; min-width: 0;
+  max-width: min(560px, calc(100% - 32px)); height: fit-content; min-height: 0;
+  max-height: calc(100dvh - 32px); margin: auto; padding: 20px;
+  font-size: var(--popup-body-size); line-height: 1.6; overflow: auto;
+}
+:is(#dialog, dialog).compact-popup:has(.popup-prompt) { max-width: min(460px, calc(100% - 32px)); }
+#sing-exit-dialog.compact-popup:has(.popup-prompt) { max-width: min(560px, calc(100% - 32px)); }
+:is(#dialog, dialog).compact-popup :is(#dialog-content, .mypage-dialog, .draft-delete-dialog, .dubbing-page) {
+  min-width: 0; min-height: 0; width: auto; max-width: 100%; padding: 0; margin: 0;
+}
+:is(#dialog, dialog).compact-popup :is(p, label, input, select, textarea) { font-size: var(--popup-body-size); line-height: 1.6; }
+:is(#dialog, dialog).compact-popup p { margin: 0 0 12px; color: var(--ds-body); font-weight: 400; overflow-wrap: anywhere; }
+:is(#dialog, dialog).compact-popup :is(.field-help, .quiet, small, .studio-confirm-detail) { font-size: 13px; line-height: 1.6; }
+:is(#dialog, dialog).compact-popup h2 { font-size: 19px; font-weight: 600; line-height: 1.5; margin: 0 0 12px; padding: 0; }
+:is(#dialog, dialog).compact-popup .popup-prompt { color: var(--ds-text); font-size: var(--popup-body-size); font-weight: 500; line-height: 1.6; margin: 0 0 16px; text-align: start; }
+/* Reserve horizontal space for the existing close target, not a blank title row. */
+:is(#dialog, dialog).compact-popup :is(#dialog-content > :first-child, #dialog-content > :first-child > h2:first-child, #dialog-content > :first-child > .popup-prompt:first-child) { padding-inline-end: 44px; }
+:is(#dialog, dialog).compact-popup #dialog-content > :is(form, section, div):first-child { padding-inline-end: 0; }
+:is(#dialog, dialog).compact-popup:has(> .voice-dialog-close) > :is(h2, .popup-prompt):first-of-type { padding-inline-end: 32px; }
+:is(#dialog, dialog).compact-popup :is(.dialog-close, .voice-dialog-close, .activity-settings-close) { top: 8px; right: 8px; }
+:is(#dialog, dialog).compact-popup :is(button, a.primary-button, a.small-button, label.small-button):not(:where(.dialog-close, .voice-dialog-close, .activity-settings-close, .profile-preview-close, .profile-preview-photo, .cgl-close, [data-directory-close], #v3-close-create)) {
+  box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center;
+  flex: 0 0 auto; width: fit-content; min-width: 0; max-width: 100%;
+  height: var(--popup-button-height); min-height: var(--popup-button-height);
+  padding: 0 13px; margin-block: 0; font-size: 14px; line-height: 1.4;
+  border-radius: var(--ds-radius-sm, 8px); vertical-align: middle; white-space: normal; overflow-wrap: anywhere; transform: none;
+}
+:is(#dialog, dialog).compact-popup :is(.inline-actions, .sing-exit-actions, .fm-confirm, .dubbing-form-actions, .profile-preview-actions, footer, .directory-discard > div) {
+  display: flex; flex-flow: row wrap; justify-content: flex-end; align-items: center;
+  gap: 8px; padding: 0; margin: 16px 0 0; border: 0;
+}
+:is(#dialog, dialog).compact-popup .popup-prompt + :is(.inline-actions, .sing-exit-actions, footer) { margin-top: 0; }
+:is(#dialog, dialog).compact-popup :is(form, #dialog-content, .studio-settings, .recording-settings, .mypage-dialog, .dubbing-page) > :is(button.primary-button, button.small-button, a.primary-button, a.small-button):not(.dialog-close) {
+  display: flex; margin: 16px 0 0 auto;
+}
+:is(#dialog, dialog).compact-popup :is(.form-error, .studio-progress, [role="status"]):empty { display: none; }
+:is(#dialog, dialog).compact-popup :is(.form-error, .studio-progress):not(:empty) { margin: 12px 0 0; }
+:is(#dialog, dialog).compact-popup :is(#dialog-content, form) > p:last-child { margin-bottom: 0; }
+:is(#dialog, dialog).compact-popup input:not([type="checkbox"], [type="radio"], [type="range"]),
+:is(#dialog, dialog).compact-popup :is(select, textarea) { min-width: 0; max-width: 100%; box-sizing: border-box; }
+:is(#dialog, dialog).compact-popup .form-field { margin-bottom: 12px; }
+:is(#dialog, dialog).compact-popup .draft-delete-dialog { text-align: start; }
+:is(#dialog, dialog).compact-popup [hidden] { display: none !important; }
+#activity-preferences.compact-popup { --pref-gutter: 0px; }
+:is(#dialog, dialog).compact-popup > header { padding: 0; margin: 0 0 12px; }
+:is(#dialog, dialog).compact-popup > header h2 { margin-bottom: 0; padding-inline-end: 44px; }
+.profile-preview.compact-popup .profile-preview-card { padding: 0; }
+.profile-preview.compact-popup .profile-preview-actions { grid-template-columns: none; }
+.profile-preview.compact-popup { inset: 0; border-radius: var(--ds-radius-card, 16px); }
+.profile-preview.compact-popup .profile-preview-header { position: relative; display: block; padding-inline-end: 38px; }
+.profile-preview.compact-popup .profile-preview-header h2 { margin: 0; white-space: normal; overflow-wrap: anywhere; }
+.profile-preview.compact-popup .mp-public-id { margin: 4px 0; font-size: 13px; }
+.profile-preview.compact-popup .profile-preview-tools { flex-wrap: wrap; gap: 8px; }
+.profile-preview.compact-popup .profile-preview-close { position: absolute; top: -8px; right: -8px; }
+/* Rich editors retain their usable workspace; only their controls use this scale. */
+:is(#dialog, dialog).compact-popup.photo-crop-dialog { max-width: min(480px, calc(100% - 32px)); }
+:is(#dialog, dialog).compact-popup .carcard button { display: flex; margin-inline-start: auto; }
+:is(#dialog, dialog).compact-popup .photo-crop-tools { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+:is(#dialog, dialog).compact-popup form[method="dialog"] > button:last-child { display: flex; margin: 16px 0 0 auto; }
+:is(#dialog, dialog).compact-popup.duet-editor-dialog { max-width: min(1000px, calc(100% - 32px)); }
+:is(#dialog, dialog).compact-popup.voice-panel-docked { margin: 0; max-height: 100%; }
+@media (max-width: 800px) {
+  :is(#dialog, dialog).compact-popup { --popup-button-height: 44px; --popup-body-size: 14px; padding: 18px; }
+  :is(#dialog, dialog).compact-popup h2 { font-size: 18px; }
+  :is(#dialog, dialog).compact-popup :is(.field-help, small, .studio-confirm-detail) { font-size: 13px; }
+}

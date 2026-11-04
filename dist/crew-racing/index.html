@@ -6,6 +6,7 @@
 <title>AIFECT 크루 레이싱</title>
 <link rel="stylesheet" href="./race.css">
 <link rel="stylesheet" href="/crew-game-lobby.css">
+<link rel="stylesheet" href="/popup-layout.css">
 </head>
 <body>
 
@@ -45,7 +46,7 @@
     </table><p class="muted">차량 성능은 모두 같아요. 고스트와는 부딪히지 않고 추월해도 추가 점수는 없어요.</p></section>
   </main>
 </div>
-<dialog id="garageDialog" class="cgl-store-dialog" aria-labelledby="garageTitle">
+<dialog id="garageDialog" class="cgl-store-dialog compact-popup" aria-labelledby="garageTitle">
   <header><div><small class="cgl-eyebrow">AIFECT GARAGE</small><h2 id="garageTitle">차량 상점</h2></div><button id="garageClose" class="cgl-close" type="button" aria-label="차량 상점 닫기">×</button></header>
   <p class="muted" role="status" id="garageStatus"></p>
   <div class="cgl-store-scroll"><div class="garage" id="garage"></div></div>

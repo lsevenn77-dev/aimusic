@@ -125,7 +125,7 @@ async function sendUploadFiles(form,id,file,image){
  toast('전송 완료! 음원 변환은 화면을 닫아도 계속됩니다. 스튜디오에서 상태를 확인해주세요.');location.hash='studio';if(completed.show_upload_ad)window.AifectUploadAds?.afterCoverUpload(id);
 }
 function deleteTrackDialog(id,title,kind){
- dialog(`<h2>이 곡을 삭제할까요?</h2><p class="delete-track-title">${esc(title)}</p><p>공개 목록과 내 스튜디오에서 삭제되며, 다시 공개할 수 없어요.${kind==='original'?' 이 곡의 노래방과 연결된 커버곡도 다른 이용자가 재생할 수 없게 됩니다.':''}</p><p class="field-help">이미 받은 선물과 정산 내역은 유지돼요.</p><form id="delete-track-form"><div class="inline-actions"><button type="button" class="small-button" data-close-dialog>취소</button><button type="submit" class="primary-button danger-button">곡 삭제</button></div><p class="form-error" role="alert"></p></form>`);
+ dialog(`<p class="popup-prompt">이 곡을 삭제하시겠습니까?</p><p>공개 목록과 내 스튜디오에서 삭제되며, 다시 공개할 수 없어요.${kind==='original'?' 이 곡의 노래방과 연결된 커버곡도 다른 이용자가 재생할 수 없게 됩니다.':''}</p><p class="field-help">이미 받은 선물과 정산 내역은 유지돼요.</p><form id="delete-track-form"><div class="inline-actions"><button type="button" class="small-button" data-close-dialog>취소</button><button type="submit" class="primary-button danger-button">곡 삭제</button></div><p class="form-error" role="alert"></p></form>`);
  const form=$('#delete-track-form');form.onsubmit=busyForm(form,async()=>{
   await uploadRequest('/api/uploads/'+id,'DELETE');
   if(kind==='cover'&&location.hash.split('?')[0]==='#song/'+id){
@@ -259,7 +259,7 @@ document.addEventListener('click',async ev=>{
 audio.ontimeupdate=()=>{if(window.AifectAudioAds?.active)return;$('#elapsed').textContent=time(audio.currentTime);if(!window.AifectPlayerShell?.scrubbing)$('#seek').value=audio.currentTime;};
 audio.onplay=()=>{if(window.AifectAudioAds?.active)return;if(!current||!playSession){audio.pause();return;}setPlayerVisible(true);lastTick=performance.now();$('#play-toggle').innerHTML=icon('player-pause');$('#play-toggle').setAttribute('aria-label','일시정지');};
 audio.onpause=()=>{if(window.AifectAudioAds?.active)return;countAdListening();$('#play-toggle').innerHTML=icon('player-play');$('#play-toggle').setAttribute('aria-label','재생');report();};
-audio.onended=()=>{if(window.AifectAudioAds?.active||!current||!playSession)return;report();countAdListening();if(preview&&current.duration>=60){setPlayerVisible(false);saveResume();dialog('<h2>좋은 음악은 끝까지.</h2><p>무료 회원가입 후 60초 지점부터 이어 들으세요.</p><a class="primary-button" href="#account" id="preview-login">무료 회원가입 후 전체곡 듣기</a>');$('#preview-login').onclick=()=>{$('#dialog').close();returnRoute='#song/'+current.id;};return;}if(repeatMode===2)play(current.id).catch(e=>toast(e.message));else nextTrack(1,true).catch(e=>toast(e.message));};
+audio.onended=()=>{if(window.AifectAudioAds?.active||!current||!playSession)return;report();countAdListening();if(preview&&current.duration>=60){setPlayerVisible(false);saveResume();dialog('<p class="popup-prompt">무료 회원가입 후 60초 지점부터 이어 들으세요.</p><a class="primary-button" href="#account" id="preview-login">무료 회원가입 후 전체곡 듣기</a>');$('#preview-login').onclick=()=>{$('#dialog').close();returnRoute='#song/'+current.id;};return;}if(repeatMode===2)play(current.id).catch(e=>toast(e.message));else nextTrack(1,true).catch(e=>toast(e.message));};
 audio.onerror=()=>{if(window.AifectAudioAds?.active)return;if(audio.src)toast('음원을 불러오지 못했습니다. 재생을 다시 눌러주세요.');};
 setInterval(()=>{if(!window.AifectAudioAds?.active&&!audio.paused&&!audio.seeking&&audio.readyState>=3){const n=performance.now();if(lastTick)heard+=Math.min((n-lastTick)/1000,1.1);lastTick=n;}else lastTick=0;},1000);
 setInterval(report,10000);
@@ -318,7 +318,7 @@ async function logoutAccount(){try{await api('/api/auth/logout','POST');++playSe
 
 async function deleteAllCoversDialog(){const ticket=renderId;
  const d=await api('/api/admin/track-review/covers/purge');
- if(ticket!==renderId)return;dialog('<h2>사이트 전체 커버곡 삭제</h2><p>다른 회원의 곡을 포함한 커버곡 '+d.count+'곡이 대상입니다. 원곡과 더빙 대본, 정산 기록은 유지됩니다.</p><div class="dialog-list">'+d.tracks.map(t=>'<p>'+esc(t.title)+' · '+esc(t.status)+'</p>').join('')+'</div><form id="purge-covers-form"><button class="primary-button danger-button" '+(!d.count?'disabled':'')+'>확인한 커버곡 '+d.count+'곡 삭제</button><p class="form-error" role="alert"></p></form>');
+ if(ticket!==renderId)return;dialog('<p class="popup-prompt">사이트 전체 커버곡을 삭제하시겠습니까?</p><p>삭제하면 복구할 수 없습니다. 다른 회원의 곡을 포함한 커버곡 '+d.count+'곡이 대상입니다. 원곡과 더빙 대본, 정산 기록은 유지됩니다.</p><div class="dialog-list">'+d.tracks.map(t=>'<p>'+esc(t.title)+' · '+esc(t.status)+'</p>').join('')+'</div><form id="purge-covers-form"><button class="primary-button danger-button" '+(!d.count?'disabled':'')+'>확인한 커버곡 '+d.count+'곡 삭제</button><p class="form-error" role="alert"></p></form>');
  const form=$('#purge-covers-form');form.onsubmit=busyForm(form,async()=>{
   const result=await api('/api/admin/track-review/covers/purge','POST',{snapshot:d.snapshot,count:d.count,confirm:'DELETE_ALL_COVERS'});
   if(current?.kind==='cover')closePlayer();queue=queue.filter(tid=>trackMap.get(tid)?.kind!=='cover');saveQueue();clearNavigationSnapshots();$('#dialog').close();toast(result.deleted+'곡을 삭제했어요.');await render();
@@ -338,7 +338,7 @@ document.addEventListener('click',e=>{if(e.target.closest('[data-purge-all-cover
    button.closest('[data-comment-card]')===card&&!button.disabled&&(me||button.dataset.postAction==='reply'));
   if(!sources.length)return;
   const sheet=document.createElement('dialog');
-  sheet.className='comment-context-dialog';
+  sheet.className='comment-context-dialog compact-popup';
   sheet.setAttribute('aria-label','댓글 메뉴');
   sheet.innerHTML='<div class="comment-context-sheet"><header><strong>댓글 메뉴</strong><button type="button" aria-label="닫기">×</button></header><div class="comment-context-options"></div></div>';
   const labels={like:'좋아요',reply:'답글',report:'신고',edit:'수정',delete:'삭제'};

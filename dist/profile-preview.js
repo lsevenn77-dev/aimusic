@@ -46,7 +46,7 @@ async function openProfilePreview(id,origin){
   if(!d)d=await api('/api/producers/'+encodeURIComponent(id)+'/preview');
   if(serial!==profilePreviewSerial||route!==location.hash||uid!==me?.id)return;
   if(!d.artist&&d.following!==undefined&&d.profile.id&&!pendingFollows.has('producer/'+d.profile.id))updateFollowLocal('producer',d.profile.id,d.following,d.profile);
-  const panel=document.createElement('dialog');panel.className='profile-preview';panel.setAttribute('aria-labelledby','profile-preview-title');panel.setAttribute('aria-modal','true');panel.innerHTML=profilePreviewHTML(d);
+  const panel=document.createElement('dialog');panel.className='profile-preview compact-popup';panel.setAttribute('aria-labelledby','profile-preview-title');panel.setAttribute('aria-modal','true');panel.innerHTML=profilePreviewHTML(d);
   panel.querySelectorAll('[data-profile-preview]').forEach(image=>{image.removeAttribute('data-profile-preview');image.removeAttribute('tabindex');image.removeAttribute('role');image.removeAttribute('aria-haspopup');});
   profilePreviewOrigin=origin;profilePreviewOverflow=document.body.style.overflow;document.body.style.overflow='hidden';profilePreviewDialog=panel;document.body.append(panel);panel.showModal();panel.querySelector('[data-preview-close]').focus();
   panel.addEventListener('cancel',event=>{event.preventDefault();closeProfilePreview();});

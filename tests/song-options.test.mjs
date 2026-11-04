@@ -43,7 +43,7 @@ function deletion(fail=false){
  const text=source('actions.js');vm.runInContext(text.slice(text.indexOf('function deleteTrackDialog('),text.indexOf('async function uploadFile(')),c);c.deleteTrackDialog('one','<Song>','original');return {c,calls,form,removed};
 }
 test('deletion waits for confirmation, invalidates dependent reads and removes unavailable queue entries',async()=>{
- const {c,calls,form,removed}=deletion();assert.equal(calls.length,0);assert.match(c.html,/&lt;Song&gt;/);assert.match(c.html,/정산 내역은 유지/);assert.match(c.html,/data-close-dialog>취소/);
+ const {c,calls,form,removed}=deletion();assert.equal(calls.length,0);assert.match(c.html,/이 곡을 삭제하시겠습니까/);assert.doesNotMatch(c.html,/<h2>|delete-track-title/);assert.match(c.html,/정산 내역은 유지/);assert.match(c.html,/data-close-dialog>취소/);
  await form.onsubmit();assert.deepEqual([...c.queue],['safe']);assert.deepEqual([...c.trackMap.keys()],['safe']);assert.equal(c.routeTracks.length,1);assert.equal(c.library.likes.length,1);assert.equal(c.pendingResume,null);assert.equal(removed.length,1);assert.ok(calls.indexOf('invalidate')>calls.indexOf('delete'));assert.ok(calls.includes('stop'));assert.ok(calls.includes('library:true'));assert.ok(calls.includes('render'));
 });
 test('failed deletion leaves player, queue and caches untouched for existing form error handling',async()=>{

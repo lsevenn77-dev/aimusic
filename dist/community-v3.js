@@ -35,7 +35,7 @@ function liveDirectoryHTML(defaultMode){
   <div class="live-list-space"><div class="talk-scroll" role="region" aria-label="라이브 방 목록" tabindex="0"><div class="v3-room-grid"></div>
    <div class="talk-status" role="status" hidden><span></span> <button type="button" class="small-button" hidden>다시 시도</button></div>
    <div class="talk-sentinel" aria-hidden="true"></div></div></div>
-  <dialog id="v3-room-create" class="voice-sheet" aria-labelledby="v3-create-title"><header class="voice-sheet-heading"><h2 id="v3-create-title">방 만들기</h2>
+  <dialog id="v3-room-create" class="voice-sheet compact-popup" aria-labelledby="v3-create-title"><header class="voice-sheet-heading"><h2 id="v3-create-title">방 만들기</h2>
    <button type="button" id="v3-close-create" aria-label="닫기">${voiceGlyph('close')}</button></header>${voiceSettingsFormHTML('create',true)}</dialog></section></div>`;
 }
 let talkingRoomReturn=null;

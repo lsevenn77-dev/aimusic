@@ -52,7 +52,7 @@ document.addEventListener('click',e=>{
  const owner=me.id,route=location.hash,keys=one?[one.dataset.deleteDraft]:Array.from(document.querySelectorAll('[data-draft-key]'),el=>el.dataset.draftKey);
  if(!keys.length)return;
  const title=one?'“'+one.dataset.draftTitle+'” 초안을 삭제할까요?':keys.length+'개의 초안을 모두 삭제할까요?';
- dialog(`<div class="draft-delete-dialog"><span class="draft-mic">${icon('trash')}</span><h2>${esc(title)}</h2><p>현재 계정의 이 기기 녹음만 삭제합니다.<br><strong>삭제한 초안은 복구할 수 없어요.</strong><br>이미 공개한 커버곡은 삭제하지 않아요.</p><div class="inline-actions"><button class="small-button" id="cancel-draft-delete">취소</button><button class="primary-button" id="confirm-draft-delete">${one?'초안 삭제':'전체 삭제'}</button></div><p id="draft-delete-error" class="form-error" role="alert"></p></div>`);
+ dialog(`<div class="draft-delete-dialog"><p class="popup-prompt">${esc(title)}</p><p>현재 계정의 이 기기 녹음만 삭제합니다.<br><strong>삭제한 초안은 복구할 수 없어요.</strong><br>이미 공개한 커버곡은 삭제하지 않아요.</p><div class="inline-actions"><button class="small-button" id="cancel-draft-delete">취소</button><button class="primary-button" id="confirm-draft-delete">${one?'초안 삭제':'전체 삭제'}</button></div><p id="draft-delete-error" class="form-error" role="alert"></p></div>`);
  $('#cancel-draft-delete').onclick=()=>$('#dialog').close();
  $('#confirm-draft-delete').onclick=async()=>{const button=$('#confirm-draft-delete');button.disabled=true;try{const count=await deleteLocalDrafts(keys,owner);$('#dialog').close();if(me?.id===owner){toast(count+'개의 초안을 삭제했어요.');if(location.hash===route)await render();}}catch(error){const note=$('#draft-delete-error');if(note)note.textContent=error.message;button.disabled=false;}};
  $('#cancel-draft-delete').focus();

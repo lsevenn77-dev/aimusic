@@ -33,7 +33,7 @@ async function openDirectoryEditor(a,d,trigger){
  const savedPins=await api(pinURL,'GET',undefined,{fresh:true});
  if(!savedPins.can_manage)throw new Error('편집 권한을 확인해주세요.');
  let ids=[...savedPins.ids],baselinePins=JSON.stringify(ids);
- const modal=document.createElement('dialog');modal.id='directory-editor';modal.setAttribute('aria-labelledby','directory-editor-title');
+ const modal=document.createElement('dialog');modal.id='directory-editor';modal.className='compact-popup';modal.setAttribute('aria-labelledby','directory-editor-title');
  modal.innerHTML=`<header><h2 id="directory-editor-title">아티스트 수정</h2><button type="button" class="dialog-close" data-directory-close aria-label="닫기">×</button></header><form id="directory-edit-form" class="upload-form">${imageField('프로필 사진','image',profileImageURL(a,'artist'),true)}${formField('아티스트 이름','name','text',a.name,'required maxlength="60"')}${bioField('소개','bio',a.bio)}${genreField(a.genre)}<section class="directory-editor-pins"><label class="checkbox-line"><input type="checkbox" data-directory-pin>프로필 상단 고정</label><p class="field-help">최대 3명 · 아래 순서대로 표시해요. 변경 후 프로필을 저장해주세요.</p><div data-directory-pin-list></div></section><p class="form-error" role="alert"></p><footer><button type="submit" class="primary-button">프로필 저장</button></footer></form>`;
  document.body.append(modal);
  const form=modal.querySelector('form'),pin=form.querySelector('[data-directory-pin]'),list=form.querySelector('[data-directory-pin-list]');

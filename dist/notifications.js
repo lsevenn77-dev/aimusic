@@ -180,7 +180,7 @@ const activityPreferenceGroups=[['메시지',[['dm','DM 및 기존 크루 메시
 function activitySettingsHTML(){
  const groups=activityPreferenceGroups.map(([group,items])=>`<fieldset><legend>${group}</legend>
   ${items.map(([key,label])=>`<label><input type="checkbox" name="${key}" disabled>${label}</label>`).join('')}</fieldset>`).join('');
- return `<dialog id="activity-preferences" aria-labelledby="activity-preferences-title">
+ return `<dialog class="compact-popup" id="activity-preferences" aria-labelledby="activity-preferences-title">
   <header><h2 id="activity-preferences-title" tabindex="-1" autofocus>알림 설정</h2><button type="button" class="activity-settings-close" aria-label="알림 설정 닫기">×</button></header>
   <form data-activity-settings>
    <div class="activity-preferences-scroll">
