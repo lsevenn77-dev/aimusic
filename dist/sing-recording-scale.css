@@ -80,6 +80,35 @@
   :is(.sing-progress,#sing-live-settings) input[type=range]::-moz-range-thumb { width: 12.5px; height: 12.5px; }
 }
 
+/* Recording-only lyric contrast and clock-driven countdown. Keep the existing
+   panel, border, word timing and desktop grid geometry. */
+#sing.web-studio .sing-recording-info { display: contents; }
+#main #sing.web-studio:not(.is-reviewing):not(.is-punch-page) {
+  .sing-wheel button { color: #737D8C !important; opacity: 1 !important; }
+  .sing-wheel button.current { color: #FFFFFF !important; }
+  .sing-wheel button [data-word] {
+    color: inherit !important;
+    -webkit-text-fill-color: currentColor !important;
+    background: none !important;
+  }
+}
+#sing.web-studio .sing-countdown {
+  visibility: hidden;
+  transition: visibility 0s .18s;
+}
+#sing.web-studio .sing-countdown[data-active="true"] {
+  visibility: visible;
+  transition-delay: 0s;
+}
+#main #sing.web-studio .sing-countdown i {
+  flex: 0 0 auto;
+  background: #8EDDD2 !important;
+  box-shadow: 0 0 8px #8eddd266;
+  opacity: 0 !important;
+  transition: opacity .18s ease;
+}
+#main #sing.web-studio .sing-countdown i.is-visible { opacity: 1 !important; }
+
 @media(min-width:1024px) {
   /* Preserve the shell width when this route no longer needs page scrolling. */
   html:has(#main #sing.web-studio:not(.is-reviewing):not(.is-punch-page):not(.is-punch-recording)) {
@@ -170,16 +199,54 @@
       .sing-header-mode { grid-column: 2 / -1; justify-content: flex-end; }
     }
     #duet-guide button { min-width: 0; padding-inline: clamp(10px,5vw,22.5px); }
-    .sing-recording { min-height: 0; grid-template-rows: 57.5px 30px auto 27.5px minmax(0,1fr) 120px; }
-    .duet-color-key { gap: clamp(12px,10vw,42px); }
-    .sing-wheel { height: 100% !important; min-height: 0; margin-block: 0 !important; }
+    .sing-recording { min-height: 0; grid-template-rows: 57.5px 24px 0px 55.5px minmax(0,1fr) 120px; }
+    .sing-recording-info {
+      display: flex; grid-row: 2; align-items: center; justify-content: space-between;
+      min-width: 0; width: 100%; gap: clamp(4px,1.5vw,12px);
+      /* These are final mobile sizes, independent of the existing 125% scale. */
+      --ui-type-scale: 1; --ui-space-scale: 1;
+    }
+    .sing-recording-info .duet-color-key { display: contents; }
+    .sing-recording-info :is(.duet-color-key span,[data-record-mic]) {
+      display: inline-flex; align-items: center; flex: 0 0 auto;
+      gap: clamp(4px,1.2vw,6px); padding: 0; margin: 0;
+      font-size: clamp(11px,3vw,12px); line-height: 1.5; white-space: nowrap;
+      color: var(--record-muted);
+    }
+    .sing-recording-info [data-record-mic] { order: 4; }
+    .sing-recording-info .duet-color-key i,
+    .sing-recording-info [data-record-mic]::before {
+      display: block; flex: 0 0 7px; width: 7px; height: 7px;
+      border-radius: 50%; margin: 0;
+    }
+    .sing-recording-info [data-record-mic]::before { content: ''; background: #deb2bb; }
+    .sing-recording-info [data-record-mic].is-connected::before { background: #8EDDD2; }
+    > .sing-status:not(.show-notice) {
+      grid-row: 1; grid-column: 1; inset: 0 auto auto 0;
+      width: 1px; height: 1px; min-height: 0; padding: 0 !important;
+    }
+    .sing-wheel {
+      height: min(calc(100% - 12px),var(--record-window-height,calc(var(--record-line) * 6))) !important;
+      min-height: 0; margin-block: 0 !important;
+      padding-block: 0 !important;
+      overflow-x: hidden;
+      /* Scrollable spacers do not impose padding's minimum box height on
+         short viewports. Missing previous/next lines keep the active slot. */
+      &::before, &::after {
+        content: '' !important; display: block !important; position: static;
+        width: 100%; min-height: 0; margin: 0; padding: 0; background: none;
+        pointer-events: none;
+      }
+      &::before { flex: 0 0 var(--record-window-before,calc(var(--record-line) * 2)); }
+      &::after { flex: 0 0 var(--record-window-after,calc(var(--record-line) * 3)); }
+    }
     .sing-recording .studio-transport {
       grid-template-columns: repeat(3,minmax(0,102.5px)) !important;
       gap: clamp(10px,5vw,42.5px) !important;
     }
     @media(max-height:580px) {
       padding-block: max(env(safe-area-inset-top),4px) max(env(safe-area-inset-bottom),4px) !important;
-      .sing-recording { grid-template-rows: 44px 22px auto 20px minmax(0,1fr) 88px; }
+      .sing-recording { grid-template-rows: 44px 22px 0px 48px minmax(0,1fr) 88px; }
       .sing-recording .studio-transport { min-height: 88px; }
       .studio-transport button { height: 88px; min-height: 88px; grid-template-rows: 64px 20px; }
       .studio-transport button svg { width: 44px !important; height: 44px !important; }
