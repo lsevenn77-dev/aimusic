@@ -42,14 +42,88 @@ function studioResultsHTML(data){
  return `<div class="studio-work-list">${list.length?list.map(studioRow).join(''):'<p class="studio-empty">해당하는 작품이 없습니다.</p>'}</div>
  <div class="studio-list-footer"><span>${list.length}개 표시</span></div>`;
 }
-function studioQuotaCard(q){
- if(!q)return '';
- return `<section class="studio-quota-card" aria-label="이번 달 제작곡 한도">
-  <span class="studio-quota-icon" aria-hidden="true">${icon('music')}</span>
-  <div class="studio-quota-copy"><h2>이번 달 제작곡 ${number(q.used)} / ${number(q.limit)}곡 <span>· ${number(q.remaining)}곡 남음</span></h2>
-   <p>일반회원 월 3곡 · <b>PREMIUM</b> 월 10곡</p><p>매월 1일 한국시간에 새로 시작해요. 커버곡은 제한 없이 올릴 수 있어요.</p></div>
-  ${member.plan==='free'?`<a class="primary-button studio-upgrade" href="#membership">${icon('diamond')} PREMIUM 업그레이드 ${icon('chevron')}</a>`:''}
+// One fresh /api/me response supplies both the server-resolved entitlement and
+// its upload_quota. Never infer a plan from the default/cached global member.
+const studioQuota={status:'loading',membership:null};
+let studioQuotaCleanup;
+function studioQuotaValid(value){
+ const q=value?.upload_quota;
+ return ['free','premium'].includes(value?.plan)&&Number.isSafeInteger(q?.used)&&q.used>=0&&Number.isSafeInteger(q?.limit)&&q.limit>0&&q.covers_unlimited===true;
+}
+function studioQuotaCrown(){
+ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 6 5 4 4-7 4 7 5-4-2 13H5L3 6Zm2 10h14"/></svg>';
+}
+function studioQuotaCard(value=studioQuota.membership,status=studioQuota.status){
+ const ready=status==='ready'&&studioQuotaValid(value),loading=status==='loading';
+ if(!ready)return `<section class="studio-quota-card studio-quota-pending" data-quota-state="${loading?'loading':'error'}" aria-label="이번 달 제작곡 한도" aria-busy="${loading}">
+  <div class="studio-quota-copy" role="status"><h2>${loading?'이번 달 제작곡 정보를 확인하고 있어요.':'이용권과 제작곡 사용량을 확인하지 못했어요.'}</h2><p>회원등급과 남은 제작곡 수는 조회가 완료되면 표시돼요.</p></div>
+  ${loading?'':'<button type="button" class="small-button studio-quota-retry" data-studio-quota-refresh>다시 확인</button>'}</section>`;
+ const q=value.upload_quota,premium=value.plan==='premium',progress=Math.min(100,q.used/q.limit*100);
+ const usage=`${number(q.used)} / ${number(q.limit)}`;
+ return `<section class="studio-quota-card" data-quota-state="${value.plan}" aria-label="이번 달 제작곡 한도">
+  <div class="studio-quota-gauge" role="progressbar" aria-label="이번 달 제작곡" aria-valuemin="0" aria-valuemax="${q.limit}" aria-valuenow="${Math.min(q.used,q.limit)}" aria-valuetext="${q.used} / ${q.limit}곡">
+   <svg viewBox="0 0 120 120" aria-hidden="true" focusable="false"><circle class="studio-quota-track" cx="60" cy="60" r="54"/><circle class="studio-quota-progress" cx="60" cy="60" r="54" pathLength="100" stroke-dasharray="${progress} 100"${progress===0?' visibility="hidden"':''}/></svg>
+   <div class="studio-quota-gauge-copy" aria-hidden="true"><span>이번 달 제작곡</span><strong>${usage}</strong></div>
+  </div>
+  <div class="studio-quota-copy"><h2>${premium?`프리미엄 회원은 월 ${number(q.limit)}곡까지 제작할 수 있어요.`:'더 자유롭게, 더 많이 제작하세요!'}</h2>
+   ${premium?'':`<p>일반회원은 월 ${number(q.limit)}곡까지, PREMIUM은 월 10곡까지 제작할 수 있어요.</p>`}
+   <p class="studio-quota-note">매월 1일 한국시간에 새로 시작해요. 커버곡은 제한 없이 올릴 수 있어요.</p></div>
+  <div class="studio-quota-membership">${premium?`<span class="studio-premium-state">${studioQuotaCrown()} PREMIUM 이용 중</span><ul class="studio-quota-benefits"><li>${icon('check')}<span>월 ${number(q.limit)}곡 제작 가능</span></li><li>${icon('check')}<span>커버곡 제한 없이 업로드</span></li></ul>`:`<a class="primary-button studio-upgrade" href="#membership">${studioQuotaCrown()} PREMIUM 업그레이드</a>`}</div>
  </section>`;
+}
+function bindStudioQuota(root){
+ studioQuotaCleanup?.();
+ const owner=typeof me==='undefined'?null:me?.id;if(!owner)return;
+ let disposed=false,pending=null,controller,timer;
+ const current=()=>!disposed&&root.isConnected&&me?.id===owner;
+ function paint(){
+  if(!current())return;
+  const card=root.querySelector('.studio-quota-card');
+  const html=studioQuotaCard();
+  // Do not replace focused links on unchanged background reads.
+  if(card&&html!==lastHTML){card.outerHTML=html;lastHTML=html;}
+ }
+ let lastHTML='';
+ function schedule(){
+  clearTimeout(timer);if(!current())return;
+  const value=studioQuota.membership;
+  const boundaries=[value?.premium_until,value?.upload_quota?.resets_at].filter(at=>Number.isFinite(at)&&at*1000>Date.now()).map(at=>at*1000-Date.now()+150);
+  timer=setTimeout(()=>{if(!current())cleanup();else if(!document.hidden)void refresh();else schedule();},Math.min(30000,...boundaries));
+ }
+ function refresh(){
+  if(!current()){cleanup();return Promise.resolve();}
+  if(pending)return pending;
+  controller=new AbortController();
+  const timeout=setTimeout(()=>controller.abort(),15000);
+  pending=(async()=>{
+   try{
+    const result=await api('/api/me','GET',undefined,{fresh:true,signal:controller.signal});
+    if(!current())return;
+    if(result.user?.id!==owner||!studioQuotaValid(result.membership))throw new Error('Unverified studio quota');
+    studioQuota.membership=result.membership;studioQuota.status='ready';
+   }catch{
+    if(!current())return;
+    studioQuota.membership=null;studioQuota.status='error';
+   }finally{
+    clearTimeout(timeout);pending=null;
+    if(current()){paint();schedule();}
+   }
+  })();
+  return pending;
+ }
+ const resume=()=>{if(!document.hidden)void refresh();};
+ const retry=e=>{if(e.target.closest('[data-studio-quota-refresh]')){studioQuota.status='loading';paint();void refresh();}};
+ const routeChanged=()=>{if(!/^#(?:studio|manage)(?:\?|$)/.test(location.hash))cleanup();};
+ function cleanup(){
+  if(disposed)return;disposed=true;clearTimeout(timer);controller?.abort();observer.disconnect();
+  window.removeEventListener('focus',resume);window.removeEventListener('pageshow',resume);window.removeEventListener('hashchange',routeChanged);
+  document.removeEventListener('visibilitychange',resume);root.removeEventListener('click',retry);
+ }
+ const observer=new MutationObserver(()=>{if(!current())cleanup();});
+ observer.observe(root.parentNode,{childList:true});
+ window.addEventListener('focus',resume);window.addEventListener('pageshow',resume);window.addEventListener('hashchange',routeChanged);
+ document.addEventListener('visibilitychange',resume);root.addEventListener('click',retry);
+ studioQuotaCleanup=cleanup;void refresh();
 }
 function studioWorksHTML(d){
  const {type,status}=studioManage,original=type==='original',kind=studioKinds[type];
@@ -60,7 +134,7 @@ function studioWorksHTML(d){
  const filters=[['all','전체'],['published','공개'],['hidden','비공개']];
  if(original)filters.push(['processing','처리 중']);
  const choices=[...filters,...['failed','removed'].filter(key=>status===key||tracks.some(t=>t.status===key)).map(key=>[key,studioStatusText[key]])];
- return `${original?studioQuotaCard(d.upload_quota):''}<div class="studio-glance" aria-label="${kind} 현황">${stats.map(([label,value])=>`<div><span>${label}</span><strong>${number(value)}</strong></div>`).join('')}</div>
+ return `${original?studioQuotaCard():''}<div class="studio-glance" aria-label="${kind} 현황">${stats.map(([label,value])=>`<div><span>${label}</span><strong>${number(value)}</strong></div>`).join('')}</div>
  <div class="studio-works-surface">
   <div class="studio-filters${studioManage.searchOpen?' is-search-open':''}">
    <div class="studio-filter-buttons" role="group" aria-label="작품 상태">${choices.map(([key,label])=>`<button type="button" class="studio-filter-button" data-studio-filter="${key}" aria-pressed="${key===status}">${label}</button>`).join('')}</div>
@@ -77,6 +151,7 @@ function studioWorksHTML(d){
  </div>`;
 }
 function studioManagerHTML(d){
+ studioQuota.status='loading';studioQuota.membership=null;
  return `<section class="studio-manager" data-studio-root>
   <header class="studio-topbar"><div><h1>스튜디오</h1><p class="studio-subtitle">내가 제작한 곡과 커버곡을 한곳에서 관리하세요.</p></div>
    <a class="small-button studio-upload" href="#upload">${icon('plus')} 음원 업로드</a></header>
@@ -242,4 +317,4 @@ function bindStudioManager(){
   studioManage.selected.clear();studioPaintResults();
  });
 }
-bindStudioForms=function(){studioLegacyBindForms();bindStudioManager();};
+bindStudioForms=function(){studioLegacyBindForms();bindStudioManager();const root=document.querySelector('[data-studio-root]');if(root)bindStudioQuota(root);};
