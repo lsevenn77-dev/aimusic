@@ -55,7 +55,6 @@
 .studio-manager .studio-main-tab[aria-selected="true"]::after { content: ""; position: absolute; inset: auto 0 -1px; height: 3px; border-radius: 4px; background: linear-gradient(95deg, var(--studio-accent), #b4a0ef, #e5a0dd); }
 
 .studio-manager .studio-quota-card,
-.studio-manager .studio-glance,
 .studio-manager .studio-works-surface{ border: 1px solid var(--studio-line); border-radius: 12px; background-color: var(--studio-panel-bg); }
 .studio-manager .studio-quota-card { display: flex; align-items: center; gap: 18px; margin-bottom: 12px; min-height: 120px; padding: 22px 20px; background-image: url('/assets/studio/studio-premium-banner.svg'); background-size: 100% 100%; border-color: #9885b74d; }
 .studio-manager .studio-quota-icon { display: grid; place-items: center; flex: none; width: 55px; height: 55px; border-radius: 11px; color: #f5f6ff; background: linear-gradient(135deg, #467d87, #454364 50%, #9a6cc1); }
@@ -71,7 +70,7 @@
   /* Shared button icons are 16px × 1.25 on desktop before the Studio enlargement. */
   .studio-manager { --ui-icon-scale: 1.5625; }
 }
-.studio-manager .studio-glance { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); padding: 12px 0; margin-bottom: 12px; }
+.studio-manager .studio-glance { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); padding: 12px 0; margin-bottom: 12px; background: none; border: 0; border-radius: 0; box-shadow: none; cursor: default; }
 .studio-manager .studio-glance > div { display: flex; align-items: center; justify-content: center; gap: 9px; font-size: 13px; line-height: 1.5; }
 .studio-manager .studio-glance > div + div { border-left: 1px solid var(--studio-line); }
 .studio-manager .studio-glance strong { font-size: 17px; font-variant-numeric: tabular-nums; }
@@ -83,11 +82,12 @@
 .studio-manager .studio-work-actions { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .studio-manager .studio-filter-tools,
 .studio-manager .studio-bulk-actions { margin-left: auto; }
-.studio-manager .studio-filter-tools .brand-search { --ui-control-height: 0px; min-height: 0; height: var(--topbar-height); min-width: 0; width: 252px; padding: 0 12px; gap: 8px; }
+.studio-manager .studio-filter-buttons { flex-wrap: wrap; }
+.studio-manager .studio-bulk-actions[hidden] { display: none; }
+.studio-manager .studio-filter-tools .brand-search { --ui-control-height: 0px; min-height: 0; height: var(--compact-search-height); min-width: 0; width: 252px; padding: 0 12px; gap: 8px; align-items: center; }
 .studio-manager .studio-filter-tools input { width: 100%; min-width: 0; line-height: 1.15; }
 .studio-manager .brand-search > svg, .studio-manager .brand-search .search-sparkle svg { width: 25px; height: 25px; }
 .studio-manager .brand-search .search-sparkle { width: 25px; height: 25px; padding: 0; }
-.studio-manager .studio-filter-tools select { --ui-control-height: var(--compact-search-height); width: auto; margin: 0; padding: 6px 9px; border: 1px solid var(--studio-line); border-radius: 8px; background: #151e33; color: var(--studio-ink); font: inherit; font-size: 13px; }
 .studio-manager .studio-filter-button,
 .studio-manager .studio-bulk-button,
 .studio-manager .studio-action { display: inline-flex; align-items: center; justify-content: center; min-height: 36px; padding: 0 10px; border: 1px solid var(--studio-line); border-radius: 7px; color: var(--studio-ink); background: #ffffff06; font: inherit; font-size: 13px; line-height: 1.4; text-decoration: none; cursor: pointer; white-space: nowrap; }
@@ -139,6 +139,9 @@
   .studio-manager .studio-quota-copy p { font-size: 12px; line-height: 1.5; }
   .studio-manager .studio-upgrade { grid-column: 1 / -1; justify-content: center; margin: 0; min-height: 44px; }
   .studio-manager .studio-glance { padding: 8px 0; }
+  .studio-manager .studio-glance:has(> div:nth-child(4)) { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-flow: row; }
+  .studio-manager .studio-glance:has(> div:nth-child(4)) > div { padding: 6px; }
+  .studio-manager .studio-glance:has(> div:nth-child(4)) > div:nth-child(3) { border-left: 0; }
   .studio-manager .studio-glance > div { flex-direction: column; gap: 0; font-size: 12px; text-align: center; word-break: keep-all; }
   .studio-manager .studio-glance strong { font-size: 15px; }
   .studio-manager .studio-filters, .studio-manager .studio-bulk-bar { gap: 4px 8px; padding: 6px 10px; }
@@ -146,7 +149,6 @@
   .studio-manager .studio-filter-tools, .studio-manager .studio-bulk-actions { width: 100%; }
   .studio-manager .studio-filter-tools { display: grid; grid-template-columns: minmax(0, 1fr); }
   .studio-manager .studio-filter-tools .brand-search { width: 100%; }
-  .studio-manager .studio-filter-tools select { flex: none; min-height: 44px; }
   .studio-manager .studio-work-row { grid-template-columns: 24px minmax(0, 1fr); gap: 5px 7px; padding: 8px 10px; }
   .studio-manager .studio-work-details strong { font-size: 14px; }
   .studio-manager .studio-work-actions { grid-column: 1 / -1; }
@@ -162,12 +164,6 @@
 @media (min-width: 768px) and (max-width: 1150px) {
   .studio-manager .studio-quota-card { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px 16px; }
   .studio-manager .studio-upgrade { grid-column: 2; justify-self: start; margin: 0; }
-}
-@media (max-width: 480px) {
-  .studio-manager .studio-glance:has(> div:nth-child(4)) { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-flow: row; padding: 0; }
-  .studio-manager .studio-glance:has(> div:nth-child(4)) > div { padding: 6px; }
-  .studio-manager .studio-glance:has(> div:nth-child(4)) > div:nth-child(3) { border-left: 0; }
-  .studio-manager .studio-glance:has(> div:nth-child(4)) > div:nth-child(n+3) { border-top: 1px solid var(--studio-line); }
 }
 @media (max-width: 360px) {
   .studio-manager .studio-filter-button { padding-inline: 7px; }
