@@ -1,3 +1,4 @@
+import {gameLimits} from './crew-game-limits.js';
 import {query,one,rows,json,fail,id,rate} from './db.js';
 import {requireUser} from './auth.js';
 import {publicNameSQL} from './identity.js';
@@ -26,6 +27,7 @@ export async function jumpRoute(req,env,path,user,ms=Date.now()){
  if(match[2]?.startsWith('outfits'))return jumpOutfitsRoute(req,env,match[2],uid);
  const calendar=seasonTime(ms,env),{day,week,seed,open,closes}=calendar;
  if(!match[2]&&req.method==='GET'){
+  const limits=await gameLimits(env,uid,ms);
   const used=await one(env,'SELECT COUNT(*) n FROM crew_jump_runs WHERE day=? AND user_id=?',day,uid);
   const individualRanking=await rows(env,`WITH best AS (
     SELECT user_id,MAX(score) AS points FROM crew_jump_runs
@@ -47,25 +49,26 @@ export async function jumpRoute(req,env,path,user,ms=Date.now()){
   ) SELECT c.name,c.image_version,r.* FROM ranked r JOIN crews c ON c.id=r.crew_id WHERE place<=100 OR crew_id=? ORDER BY place,c.name,r.crew_id`,week,crew);
   const own=ranking.find(r=>r.crew_id===crew);
   const mission=await one(env,'SELECT COUNT(score) completed FROM crew_jump_runs WHERE day=? AND user_id=? AND crew_id=?',day,uid,crew);
-  return json({week,open:open&&ms+COUNTDOWN_MS+RUN_TTL_MS<closes,seed,version:VERSION,remaining:Math.max(0,3-used.n),best:myRecord?.points??null,personalRank:myRecord?.place??null,individualRanking,team:own?.points??0,teamRank:own?.place??null,ranking,participated:mission.completed>0});
+  return json({week,open:open&&ms+COUNTDOWN_MS+RUN_TTL_MS<closes,seed,version:VERSION,...limits,remaining:Math.max(0,limits.dailyLimit-used.n),best:myRecord?.points??null,personalRank:myRecord?.place??null,individualRanking,team:own?.points??0,teamRank:own?.place??null,ranking,participated:mission.completed>0});
 
  }
  if(req.method!=='POST')fail(405,'지원하지 않는 요청입니다.');
  await rate(env,'crew-jump-write:'+uid,45,60);
  const body=await req.json();
  if(match[2]==='start'){
+  const limits=await gameLimits(env,uid,ms);
   if(!open||ms+COUNTDOWN_MS+RUN_TTL_MS>=closes)fail(409,'공식 도전 기간이 아니에요.');
   if(typeof body.requestId!=='string'||!/^[\w-]{12,64}$/.test(body.requestId))fail(400,'다시 시도해주세요.');
   // One SQLite statement serializes quota, active-round and crew checks across tabs.
   await query(env,`INSERT OR IGNORE INTO crew_jump_runs(id,user_id,crew_id,week,day,request_id,seed,version,starts)
-    SELECT ?,?,?,?,?,?,?,?,? WHERE (SELECT COUNT(*) FROM crew_jump_runs WHERE user_id=? AND day=?)<3
+    SELECT ?,?,?,?,?,?,?,?,? WHERE (SELECT COUNT(*) FROM crew_jump_runs WHERE user_id=? AND day=?)<?
     AND NOT EXISTS(SELECT 1 FROM crew_jump_runs WHERE user_id=? AND score IS NULL AND inputs IS NULL AND starts>?)
     AND NOT EXISTS(SELECT 1 FROM crew_jump_runs WHERE user_id=? AND week=? AND crew_id IS NOT ?)`,
-   id(),uid,crew,week,day,body.requestId,seed,VERSION,ms+COUNTDOWN_MS,uid,day,uid,ms-RUN_TTL_MS,uid,week,crew).run();
+   id(),uid,crew,week,day,body.requestId,seed,VERSION,ms+COUNTDOWN_MS,uid,day,limits.dailyLimit,uid,ms-RUN_TTL_MS,uid,week,crew).run();
   const run=await one(env,'SELECT id,seed,version,starts,score,inputs FROM crew_jump_runs WHERE user_id=? AND request_id=? AND crew_id=? AND day=?',uid,body.requestId,crew,day);
   if(!run||run.inputs!==null||run.score!==null||ms>run.starts+RUN_TTL_MS){
    const used=await one(env,'SELECT COUNT(*) n FROM crew_jump_runs WHERE user_id=? AND day=?',uid,day);
-   if(used.n>=3)fail(409,'오늘 공식 도전 3회를 모두 사용했어요. 한국시간 자정에 초기화돼요.');
+   if(used.n>=limits.dailyLimit)fail(409,`오늘 공식 도전 ${limits.dailyLimit}회를 모두 사용했어요. 한국시간 자정에 초기화돼요.`);
    fail(409,'진행 중인 도전을 확인해주세요.');
   }
   return json({...run,serverNow:ms});

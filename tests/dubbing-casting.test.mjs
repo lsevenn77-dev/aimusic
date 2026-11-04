@@ -2,6 +2,51 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {castingFixture} from './dubbing-casting-fixtures.mjs';
 import {CASTING_TTL,expireDubbingCombinations} from '../server/dubbing-casting.js';
+for(const n of [2,3,6])test(`${n} roles: published scripts can start and finish entirely without an original-owner recording`,async t=>{
+ const f=await castingFixture(t,n),empty=(await f.call('/api/dubbing/casting/'+f.root,'GET',null,'actor2')).body;
+ assert.equal(empty.canStart,true);assert.equal(empty.baseReady,false);assert.equal(empty.combinations[0].count,0);assert.deepEqual(empty.combinations[0].members,[]);
+ let target;
+ for(let i=1;i<=n;i++){
+  const user='actor'+(i+1),d=await f.draft('role_'+i,user,target),r=await f.submit(d.pid,'role_'+i,user,d.rev);assert.equal(r.status,200,JSON.stringify(r.body));target??=r.body.casting.combinationId;
+  const p=f.sql.prepare('SELECT state FROM dubbing_projects WHERE id=?').get(target);assert.equal(p.state,i===n?'complete':'recording');
+  assert.equal(f.sql.prepare('SELECT COUNT(*) n FROM dubbing_recordings WHERE project_id=?').get(target).n,i);
+ }
+ assert.equal(f.sql.prepare('SELECT COUNT(*) n FROM dubbing_recordings WHERE user_id=\'owner\'').get().n,0);
+ const view=(await f.call('/api/dubbing/casting/'+f.root)).body;assert.deepEqual(view.combinations.map(c=>c.count),[n,0]);
+ assert.equal((await f.call('/api/dubbing/casting/'+target+'/render','POST',{rightsAccepted:true},'actor2')).status,200);
+ assert.deepEqual(f.sql.prepare('PRAGMA foreign_key_check').all(),[]);
+});
+test('first participant prepares free basic background without requiring or modifying owner audio',async t=>{
+ const f=await castingFixture(t,2);f.sql.prepare('DELETE FROM dubbing_sound_jobs WHERE project_id=?').run(f.root);
+ const r=await f.call('/api/dubbing/casting/'+f.root+'/start','POST',{id:crypto.randomUUID(),roleId:'role_1'},'actor2');assert.equal(r.status,201,JSON.stringify(r.body));
+ const pid=r.body.projectId,prepared=await f.call('/api/dubbing/projects/'+pid+'/recording/prepare','POST',{},'actor2');assert.equal(prepared.status,202);assert.equal(prepared.body.sound.mode,'basic');
+ assert.equal(f.sql.prepare('SELECT COUNT(*) n FROM dubbing_sound_jobs WHERE project_id=?').get(f.root).n,0);
+ assert.equal(f.sql.prepare('SELECT COUNT(*) n FROM dubbing_gold_orders').get().n,0);
+ f.sql.prepare("UPDATE dubbing_sound_jobs SET state='ready',output_key='background' WHERE project_id=?").run(pid);
+ const rev=await f.take(pid,'role_1','actor2'),submitted=await f.submit(pid,'role_1','actor2',rev);assert.equal(submitted.status,200,JSON.stringify(submitted.body));
+ const combo=submitted.body.casting.combinationId,d=await f.draft('role_2','actor3',combo);assert.equal((await f.submit(d.pid,'role_2','actor3',d.rev)).status,200);
+});
+test('a later original take never changes a previously empty draft or reserves its selected role',async t=>{
+ const f=await castingFixture(t,3),a=await f.draft('role_1','actor2'),b=await f.draft('role_2','actor3');await f.base();
+ const guide=(await f.call('/api/dubbing/projects/'+b.pid+'/recording','GET',null,'actor3')).body;
+ assert.ok(guide.lines.filter(l=>l.roleId==='role_1').every(l=>!l.audioUrl));
+ for(const [d,role,user]of [[a,'role_1','actor2'],[b,'role_2','actor3']]){const r=await f.submit(d.pid,role,user,d.rev);assert.equal(r.status,200,JSON.stringify(r.body));assert.equal(f.sql.prepare('SELECT COUNT(*) n FROM dubbing_recordings WHERE project_id=?').get(r.body.casting.combinationId).n,1);}
+});
+test('original owner can join a participant-started combination without overwriting its first voice',async t=>{
+ const f=await castingFixture(t,2),a=await f.draft('role_1','actor2'),pid=(await f.submit(a.pid,'role_1','actor2',a.rev)).body.casting.combinationId;
+ const b=await f.draft('role_2','owner',pid);assert.equal((await f.submit(b.pid,'role_2','owner',b.rev)).status,200);
+ assert.deepEqual(f.sql.prepare('SELECT role_id,user_id FROM dubbing_recordings WHERE project_id=? ORDER BY role_id').all(pid).map(r=>({...r})),[{role_id:'role_1',user_id:'actor2'},{role_id:'role_2',user_id:'owner'}]);
+});
+test('empty-script participation preserves private and blocked access and expires incomplete one-person combinations',async t=>{
+ const f=await castingFixture(t,2),start=()=>f.call('/api/dubbing/casting/'+f.root+'/start','POST',{id:crypto.randomUUID(),roleId:'role_1'},'actor2');
+ f.sql.prepare("UPDATE dubbing_projects SET visibility='private' WHERE id=?").run(f.root);assert.equal((await start()).status,404);
+ f.sql.prepare("UPDATE dubbing_projects SET visibility='public' WHERE id=?").run(f.root);f.sql.exec("INSERT INTO user_blocks VALUES('owner','actor2',0)");assert.equal((await start()).status,404);f.sql.exec('DELETE FROM user_blocks');
+ const a=await f.draft('role_1','actor2'),pid=(await f.submit(a.pid,'role_1','actor2',a.rev)).body.casting.combinationId;
+ const keys=f.sql.prepare('SELECT audio_key FROM dubbing_recording_lines WHERE recording_id IN (SELECT id FROM dubbing_recordings WHERE project_id=?)').all(pid);
+ f.sql.prepare('UPDATE dubbing_combinations SET last_participation=0 WHERE project_id=?').run(pid);await expireDubbingCombinations(f.env);
+ assert.equal((await f.call('/api/dubbing/casting/'+pid+'/lines')).status,404);for(const row of keys)assert.equal(f.env.BUCKET.objects.has(row.audio_key),false);
+ assert.equal((await f.call('/api/dubbing/casting/'+f.root)).body.combinations[0].count,0);
+});
 for(const n of [2,3,6])test(`${n} roles: real owner base, in-place participation, completion without render, explicit save`,async t=>{
  const f=await castingFixture(t,n);
  assert.equal((await f.call('/api/dubbing/casting/'+f.root)).body.baseReady,false);

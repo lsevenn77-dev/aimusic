@@ -289,7 +289,7 @@ import {CARS,raceCalendar} from "./catalog.js";
     let session=null;
     try{
       await lobbyReady;
-      if(crewMember&&!forced)session=(await api('start',{course:COURSE_ID})).id;
+      if(crewMember&&!forced){const data=await api('start',{course:COURSE_ID});session=data.id;renderQuota(data);}
     }catch(e){alert(e.message);return;}
     finally{starting=false;}
 
@@ -367,7 +367,7 @@ import {CARS,raceCalendar} from "./catalog.js";
       }).catch(e=>{if(S===run)$('resNotice').textContent=e.message;});
     }
   }
-  function toLobby() { cancelAnimationFrame(raf); S = null; $('race').hidden = true; $('lobbyView').hidden = false; document.body.classList.remove('racing'); updateLobby(); }
+  function toLobby() { cancelAnimationFrame(raf); S = null; $('race').hidden = true; $('lobbyView').hidden = false; document.body.classList.remove('racing'); updateLobby(); loadLobby(); }
   function updateLobby() {
 
     $('weekTxt').textContent = `WEEK ${WEEK} · 이번 주 ${crewMember&&!forced?'공식':'연습'} 코스`; $('courseName').textContent = COURSE.name; $('courseDesc').textContent = COURSE.desc;
@@ -486,10 +486,13 @@ import {CARS,raceCalendar} from "./catalog.js";
     prepareRearSprite();
     window.__world3d?.setCar?.(carId);renderShop();
   }
+  function renderQuota(data){
+    $('raceQuota').textContent=crewMember&&!forced?`오늘 남은 공식 도전 ${data.remaining} / ${data.dailyLimit??3}회 · 한국시간 자정 초기화`:'연습 · 횟수 제한 없음';
+  }
   async function loadLobby(){
     try{
       const data=await api('lobby');
-      signedIn=data.signedIn;crewMember=data.crewMember;garageState(data);document.querySelector('[data-race-mode]').textContent=crewMember&&!forced?'공식 랭킹 도전':'연습 모드';
+      signedIn=data.signedIn;crewMember=data.crewMember;renderQuota(data);garageState(data);document.querySelector('[data-race-mode]').textContent=crewMember&&!forced?'공식 랭킹 도전':'연습 모드';
       updateLobby();
       renderGameRankings($('racingRankings'),{crews:data.ranking,players:data.individualRanking,crewId:data.crew});
       $('garageStatus').textContent=signedIn?'':'로그인하면 차량을 구매하고 장착할 수 있어요.';

@@ -1,3 +1,4 @@
+import {gameLimits} from './crew-game-limits.js';
 import {one, rows, run, json, fail, id} from './db.js';
 import {requireUser} from './auth.js';
 import {publicNameSQL} from './identity.js';
@@ -62,7 +63,9 @@ export async function fishingRoute(req,env,path,user,ms=Date.now(),clock={receiv
   const respond=data=>json({...data,receivedTime:clock.receivedTime,serverTime:clock.receivedTime+performance.now()-clock.started});
   requireUser(user);
   const uid=user.id, action=path.slice('/api/crew-fishing/'.length), {day,week,open}=season(ms);
-  const limits=fishingLimits(env,uid,day);
+  const baseLimits=fishingLimits(env,uid,day);
+  const quotaLimits=['lobby','cast'].includes(action)?await gameLimits(env,uid,ms,baseLimits.day):{premiumBonus:0,dailyLimit:baseLimits.day};
+  const limits={...baseLimits,day:quotaLimits.dailyLimit,week:baseLimits.week+quotaLimits.premiumBonus*5};
   const m=await one(env,`SELECT cm.crew_id,c.name,${publicNameSQL()} AS nickname FROM crew_members cm
     JOIN crews c ON c.id=cm.crew_id JOIN users u ON u.id=cm.user_id
     WHERE cm.user_id=?`,uid);
@@ -91,7 +94,7 @@ export async function fishingRoute(req,env,path,user,ms=Date.now(),clock={receiv
       one(env,`SELECT COALESCE(SUM(${FISH_VALUE_SQL}),0) AS score FROM crew_fishing_casts WHERE week=? AND user_id=? AND status='caught'`,week,uid),
       one(env,`SELECT COALESCE(SUM(${FISH_VALUE_SQL}),0) AS score FROM crew_fishing_casts WHERE week=? AND crew_id=? AND status='caught'`,week,crew),
       ranking(env,week,true,uid),ranking(env,week,false,crew),open?active():null]);
-    return respond({crew,name:m.name,week,day,open,dailyLimit:limits.day,weeklyLimit:limits.week,remaining:Math.max(0,Math.min(limits.day-quota.today,limits.week-quota.total)),
+    return respond({crew,name:m.name,week,day,open,...quotaLimits,dailyLimit:limits.day,weeklyLimit:limits.week,remaining:Math.max(0,Math.min(limits.day-quota.today,limits.week-quota.total)),
       weeklyRemaining:Math.max(0,limits.week-quota.total),mine:mine.score,ours:ours.score,individual,crews,cast:view(current)});
   }
   if(req.method==='GET'&&action==='book'){
