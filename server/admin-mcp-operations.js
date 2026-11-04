@@ -5,6 +5,7 @@ import {goldBalance} from './gifts.js';
 import {isMcpAdmin} from './admin-mcp-auth.js';
 import {dubbingReportsAdminRoute} from './dubbing-reports.js';
 import {BUSINESS} from '../shared/site-info.js';
+import {rankingAudit} from './ranking-audit.js';
 
 const spendable = `p.status='paid' AND NOT EXISTS(SELECT 1 FROM gold_orders o WHERE o.id=p.id AND o.state!='paid')
  AND NOT EXISTS(SELECT 1 FROM play_purchases pp WHERE 'play_'||pp.token_hash=p.id AND pp.state='refunded')`;
@@ -76,7 +77,7 @@ async function stats(env,a) {
  (SELECT COUNT(*) FROM track_reports WHERE status IN ('pending','appealed')) pending_content_reports,
  (SELECT COUNT(*) FROM admin_email_bugs) registered_email_bugs,
  (SELECT COALESCE(SUM(gold),0) FROM admin_test_gold_grants WHERE created>=?) test_gold_granted`,cutoff,now(),cutoff,cutoff);
- return {days,from:cutoff,as_of:now(),...counts};
+ return {days,from:cutoff,as_of:now(),...counts,ranking_audit:await rankingAudit(env)};
 }
 async function reports(env,a) {
  const status=a.status??'pending',filter=status==='all'?'1=1':'r.status=?',args=status==='all'?[]:[status];

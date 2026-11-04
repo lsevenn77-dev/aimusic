@@ -101,6 +101,10 @@ async function renderRoute(showCachedRoute){
  if(menuRedirect)history.replaceState(history.state,'',menuRedirect);
  const playRedirect=typeof playAlias==='function'?playAlias(location.hash):null;
  if(playRedirect)history.replaceState(null,'',playRedirect);
+ if(/^#community\/rankings(?:\?|$)/.test(location.hash)&&typeof communityRankingOptions==='function'){
+  const canonical=communityRankingHref(communityRankingOptions(location.hash.slice(1)));
+  if(location.hash!==canonical)history.replaceState(history.state,'',canonical);
+ }
 
  const ticket=++renderId,raw=location.hash.slice(1)||'home',[baseQuery,paramQuery]=raw.split('/'),[base]=baseQuery.split('?'),param=paramQuery?.split('?')[0];
  navigationController?.abort();

@@ -5,6 +5,11 @@
   if (!main || !footer) return;
   const overlays = [...document.querySelectorAll('.player, .mobile-navigation, .social-mobile-navigation')];
   let frame;
+  function routeVisibility() {
+    footer.hidden = /^#community\/rankings(?:\?|$)/.test(location.hash);
+  }
+  window.addEventListener('hashchange', routeVisibility);
+  routeVisibility();
   function align() {
     cancelAnimationFrame(frame);
     frame = requestAnimationFrame(() => {

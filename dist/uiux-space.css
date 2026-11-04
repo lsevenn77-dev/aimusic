@@ -156,21 +156,23 @@
 /* Only the tabs determine the desktop column width, regardless of a row's text. */
 #main>.activity-inbox{width:max-content;max-width:100%}
 .activity-inbox #activity-list,.activity-inbox .activity-error{contain:inline-size}
-#main[data-route^="notifications"] .activity-toolbar{position:sticky;top:var(--activity-header,80px);z-index:25;display:block;background:transparent;border-bottom:1px solid var(--ds-line)}
+#main[data-route^="notifications"] .activity-toolbar{position:sticky;top:var(--activity-header,80px);z-index:25;display:flex;flex-wrap:nowrap;align-items:center;justify-content:space-between;min-width:0;background:transparent;border-bottom:1px solid var(--ds-line)}
 #main[data-route^="notifications"] .activity-page.tabs-stuck .activity-toolbar{backdrop-filter:blur(16px)}
-#main[data-route^="notifications"] .activity-toolbar .tabs{display:flex;align-items:center;flex-wrap:nowrap;justify-content:flex-start;gap:var(--activity-tab-gap);width:auto;max-width:100%;overflow-x:auto;scrollbar-width:none;margin:0;padding:0;background:none;box-shadow:none;border:0}
+#main[data-route^="notifications"] .activity-toolbar .tabs{display:flex;align-items:center;flex:1;min-width:0;flex-wrap:nowrap;justify-content:flex-start;gap:var(--activity-tab-gap);width:auto;max-width:100%;overflow-x:auto;scrollbar-width:none;margin:0;padding:0;background:none;box-shadow:none;border:0}
 #main[data-route^="notifications"] .activity-toolbar .tabs::-webkit-scrollbar{display:none}
 #main[data-route^="notifications"] .activity-toolbar .tab{
  display:inline-flex;align-items:center;justify-content:center;gap:6px;flex:none;
  min-height:44px;min-width:0;padding:8px 0;border-bottom:2px solid transparent;
  white-space:nowrap;font-size:var(--activity-text-size);color:var(--ds-muted);
 }
-.activity-toolbar .activity-settings-trigger{display:inline-flex;align-items:center;flex:none;min-height:44px;margin:0;padding:0;border:0;background:none;color:var(--ds-body);font:inherit;font-size:var(--activity-meta-size);cursor:pointer}
-.activity-settings-trigger>span{padding:3px 8px;border:1px solid var(--ds-border);border-radius:var(--ds-radius-sm);line-height:1.5;white-space:nowrap}
-.activity-settings-trigger:hover>span{border-color:var(--ds-lilac);color:var(--ds-text)}
+#main[data-route^="notifications"] .activity-toolbar .activity-tab-all{position:relative;font-weight:700;overflow:visible}
+#main[data-route^="notifications"] .activity-toolbar .activity-tab-all::after{content:"";position:absolute;right:calc(var(--activity-tab-gap) / -2 - .5px);top:50%;transform:translateY(-50%);width:1px;height:16px;background:var(--ds-lilac);opacity:.22;pointer-events:none}
+.activity-toolbar .activity-settings-trigger{display:inline-flex;align-items:center;justify-content:center;gap:6px;flex:none;height:36px;min-height:36px;margin:0 0 0 auto;padding:0 10px;border:1px solid var(--ds-border);border-radius:var(--ds-radius-sm);background:var(--ds-panel);color:var(--ds-body);font:inherit;font-size:var(--activity-meta-size);line-height:1.5;white-space:nowrap;cursor:pointer;transition:background .15s,border-color .15s,color .15s}
+.activity-settings-trigger>svg{display:block;flex:none;width:18px;height:18px}
+.activity-settings-trigger:hover{border-color:var(--ds-lilac);background:var(--ds-soft);color:var(--ds-text)}
 .activity-page .activity-settings-trigger:focus-visible{outline-offset:-2px}
 #main[data-route^="notifications"] .activity-toolbar .tab:focus-visible{outline-offset:-2px}
-#main[data-route^="notifications"] .activity-toolbar .tab.active{color:var(--ds-text);border-bottom:2px solid var(--ds-lilac)}
+#main[data-route^="notifications"] .activity-toolbar .tab.active{color:var(--ds-text);border-bottom:2px solid var(--ds-selected)}
 #main[data-route^="notifications"] .activity-day{font-size:var(--activity-meta-size);margin:14px 0 0;padding:0 0 6px var(--activity-dot-inset);border-bottom:1px solid var(--ds-line);color:var(--ds-muted)}
 #main[data-route^="notifications"] .activity-row{--list-row-inset:var(--activity-dot-inset);display:flex;align-items:center;flex-wrap:nowrap;gap:14px;min-height:72px;padding-block:10px;transition:background .15s}
 #main[data-route^="notifications"] a.activity-row:hover{background:var(--ds-soft)}
@@ -189,11 +191,14 @@
 .activity-top[hidden]{display:none}.activity-top:hover{color:#8EDDD2}.activity-top:disabled{opacity:.65}
 @media(max-width:800px){
  #main[data-route^="notifications"]:has(> .activity-page .activity-toolbar){--activity-text-size:14px;--activity-meta-size:12px;--main-frame-gutter:12px}
+ #main[data-route^="notifications"] .activity-toolbar{gap:8px}
+ #main[data-route^="notifications"] .activity-settings-trigger{width:38px;height:38px;min-height:38px;padding:0}
+ #main[data-route^="notifications"] .activity-settings-trigger>span{display:none}
 }
 @media(max-width:600px){
- #main[data-route^="notifications"]:has(> .activity-inbox .activity-toolbar){--activity-dot-inset:calc(16px - var(--main-frame-gutter));--activity-tab-gap:4px}
+ #main[data-route^="notifications"]:has(> .activity-inbox .activity-toolbar){--activity-dot-inset:calc(16px - var(--main-frame-gutter))}
  #main>.activity-inbox{width:100%}
- #main[data-route^="notifications"] .activity-toolbar .tabs{justify-content:space-between}
+ #main[data-route^="notifications"] .activity-toolbar .tabs{justify-content:flex-start}
  #main[data-route^="notifications"] .activity-toolbar .tab{font-size:clamp(12px,3.3vw,14px)}
 }
 @media(max-width:600px){#main[data-route^="notifications"] .activity-row{gap:10px}.activity-top{margin-bottom:env(safe-area-inset-bottom,0px)}}
@@ -210,7 +215,7 @@
   --activity-text-size:17px;--activity-meta-size:14px;--activity-tab-gap:22px;
  }
  #main[data-route^="notifications"] .activity-inbox .activity-toolbar .tab{min-height:52px;padding-block:12px;line-height:1.5}
- #main[data-route^="notifications"] .activity-inbox .activity-settings-trigger{min-height:52px;font-size:14px}
+ #main[data-route^="notifications"] .activity-inbox .activity-settings-trigger{font-size:14px}
  #main[data-route^="notifications"] .activity-inbox .activity-day{margin-top:24px;padding-bottom:10px;line-height:1.6}
  #main[data-route^="notifications"] .activity-inbox .activity-row{min-height:92px;padding-block:16px;gap:18px}
  #main[data-route^="notifications"] .activity-inbox .activity-copy>p{margin-block:5px;line-height:1.65}

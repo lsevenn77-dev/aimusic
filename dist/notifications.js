@@ -28,6 +28,20 @@ function activityRowHTML(n){
  </${rowTag}>`;
 }
 function activityGroupsHTML(items){let day='';return items.map(n=>{const next=activityDate(n.created,true),header=day===next?'':`<h2 class="activity-day">${esc(next)}</h2>`;day=next;return header+activityRowHTML(n);}).join('');}
+/*! Lucide settings icon (ISC), https://lucide.dev/icons/settings
+ * Copyright (c) 2026 Lucide Icons and Contributors
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+const activitySettingsIcon='<svg class="lucide lucide-settings" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg>';
 async function notificationsView(base,raw,readApi=api){
  if(base!=='notifications')return null;
  if(!me)return {html:empty('로그인하면 알림을 볼 수 있어요','내 음악에 도착한 참여와 선물을 모아드려요.','#account','로그인'),tracks:[]};
@@ -43,9 +57,8 @@ async function notificationsView(base,raw,readApi=api){
  const tabs=[['all','전체'],['comments','댓글·응원'],['works','작품·참여'],['artists','아티스트'],['crew','크루'],['gifts','선물']];
  return {activity:{...data,filter,account:me.id,restoreCount:resume?.count,restoreScroll:resume?.scroll},tracks:[],html:`<section class="activity-page activity-inbox" aria-label="알림">
   <div class="activity-toolbar"><nav class="tabs" aria-label="알림 종류">
-   ${tabs.map(([key,name])=>`<a href="#notifications?filter=${key}" class="tab ${filter===key?'active':''}" ${filter===key?'aria-current="page"':''}>${name}</a>`).join('')}
-   <button type="button" class="activity-settings-trigger" aria-haspopup="dialog" aria-controls="activity-preferences"><span>알림 설정</span></button>
-  </nav></div>
+   ${tabs.map(([key,name])=>`<a href="#notifications?filter=${key}" class="tab ${key==='all'?'activity-tab-all ':''}${filter===key?'active':''}" ${filter===key?'aria-current="page"':''}>${name}</a>`).join('')}
+  </nav><button type="button" class="activity-settings-trigger" aria-label="알림 설정" title="알림 설정" aria-haspopup="dialog" aria-controls="activity-preferences">${activitySettingsIcon}<span>알림 설정</span></button></div>
   ${activitySettingsHTML()}<div id="activity-list">${data.items.length?activityGroupsHTML(data.items):`<div class="activity-empty">${icon('bell')}<h2>아직 도착한 알림이 없어요</h2><p>누군가 내 곡에 참여하거나 선물을 보내면<br>이곳에서 확인할 수 있어요.</p></div>`}</div>
   <button class="small-button activity-more" data-activity-more ${data.next?'':'hidden'}>이전 알림 더 보기</button><p class="activity-error" role="status"></p><button type="button" class="activity-top" aria-label="알림 맨 위로" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 10 6-6 6 6M12 4v16"/></svg></button></section>`};
 }

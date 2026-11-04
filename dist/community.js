@@ -56,6 +56,7 @@ async function loadCoverRanking(host,options,ticket){
  finally{if(isCurrent())host.setAttribute('aria-busy','false');}
 }
 function bindCommunity(view){
+ bindCommunityRanking(view);
  bindCommunityPlayback();
  if(!view?.coverRanking)return;
  const options=view.coverRanking,form=$('#cover-rank-filter'),host=$('#cover-ranking-results');
