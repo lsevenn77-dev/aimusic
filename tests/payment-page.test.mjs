@@ -8,6 +8,19 @@ import {PREMIUM,businessDetailsHTML,businessFooterHTML,policyLinks} from '../sha
 const request=(path='/checkout/toss',method='GET')=>new Request('https://aifect.test'+path,{method});
 const html=()=>paymentPageRoute(request(),'/checkout/toss').text();
 
+test('web pricing separates app-only packs above the Toss single-payment limit',()=>{
+ const web=publicPage('/pricing'),app=publicPage('/pricing/app');
+ assert.ok(web.includes('href="/pricing/app"'));
+ for(const price of ['5,500원','11,000원','55,000원'])assert.ok(web.includes(price),price);
+ assert.ok(web.includes('100,000원'));
+ assert.ok(!web.includes('130,000원'));
+ assert.ok(!web.includes('110,000원'));
+ assert.ok(!web.includes('5,900원'));
+ for(const price of ['6,500원','13,000원','65,000원','130,000원','5,900원'])assert.ok(app.includes(price),price);
+ assert.ok(app.includes('토스 웹 결제창에서 구매할 수 없습니다')||app.includes('토스 웹 결제창으로 결제할 수 없습니다'));
+ assert.ok(app.includes('href="/pricing"'));
+});
+
 test('Premium product image uses a real same-origin asset with an accessible product description',async()=>{
  const page=await html(),image=page.match(/<img\b[^>]*class="checkout-product-image"[^>]*>/)?.[0];
  assert.ok(image,'Premium product image is rendered');
