@@ -3,6 +3,7 @@ import {requireUser} from './auth.js';
 import {publicNameSQL} from './identity.js';
 import {FISH} from '../dist/crew-fishing/catalog.js';
 import {TIERS,SIZES,LIMITS,weighted,position,progressAfter,season} from '../dist/crew-fishing/rules.js';
+import {inputElapsed} from '../dist/crew-fishing/timing.js';
 
 function randomBelow(limit){
   const n=new Uint32Array(1), bound=2**32-(2**32%limit);
@@ -50,7 +51,8 @@ async function ranking(env,week,personal,viewer){
     SELECT r.participant AS id,${name} AS name,r.score,r.place,${profile},(r.participant=?) AS mine FROM ranked r
     ${join} WHERE r.place<=100 OR r.participant=? ORDER BY r.place,name,r.participant`,week,viewer,viewer);
 }
-export async function fishingRoute(req,env,path,user,ms=Date.now()){
+export async function fishingRoute(req,env,path,user,ms=Date.now(),clock={receivedTime:ms,started:performance.now()}){
+  const respond=data=>json({...data,receivedTime:clock.receivedTime,serverTime:clock.receivedTime+performance.now()-clock.started});
   requireUser(user);
   const uid=user.id, action=path.slice('/api/crew-fishing/'.length), {day,week,open}=season(ms);
   const limits=fishingLimits(env,uid,day);
@@ -60,19 +62,19 @@ export async function fishingRoute(req,env,path,user,ms=Date.now()){
   if(!m)fail(403,'크루에 가입한 뒤 이용해주세요.');
   const crew=m.crew_id;
   if(req.method==='GET' && action==='lobby' && new URL(req.url).searchParams.get('mode')==='practice'){
-    return json({practice:true,scope:uid+'|'+crew,crew,name:m.name,nickname:m.nickname,day,serverTime:ms});
+    return respond({practice:true,scope:uid+'|'+crew,crew,name:m.name,nickname:m.nickname,day});
   }
-  if(req.method==='POST' && action==='practice-cast')return json({draw:encounter(),serverTime:ms});
+  if(req.method==='POST' && action==='practice-cast')return respond({draw:encounter()});
   const active=()=>one(env,"SELECT * FROM crew_fishing_casts WHERE user_id=? AND crew_id=? AND day=? AND status='active'",uid,crew,day);
-  const response=cast=>json({cast:view(cast),serverTime:ms});
+  const response=cast=>respond({cast:view(cast)});
   if(req.method==='GET' && action==='lobby'){
     const [quota,mine,ours,individual,crews,current]=await Promise.all([
       one(env,'SELECT COUNT(*) AS total,COUNT(CASE WHEN day=? THEN 1 END) AS today FROM crew_fishing_casts WHERE user_id=? AND week=?',day,uid,week),
       one(env,"SELECT COALESCE(SUM(amount),0) AS score FROM crew_fishing_casts WHERE week=? AND user_id=? AND status='caught'",week,uid),
       one(env,"SELECT COALESCE(SUM(amount),0) AS score FROM crew_fishing_casts WHERE week=? AND crew_id=? AND status='caught'",week,crew),
       ranking(env,week,true,uid),ranking(env,week,false,crew),open?active():null]);
-    return json({crew,name:m.name,week,day,open,dailyLimit:limits.day,weeklyLimit:limits.week,remaining:Math.max(0,Math.min(limits.day-quota.today,limits.week-quota.total)),
-      weeklyRemaining:Math.max(0,limits.week-quota.total),mine:mine.score,ours:ours.score,individual,crews,cast:view(current),serverTime:ms});
+    return respond({crew,name:m.name,week,day,open,dailyLimit:limits.day,weeklyLimit:limits.week,remaining:Math.max(0,Math.min(limits.day-quota.today,limits.week-quota.total)),
+      weeklyRemaining:Math.max(0,limits.week-quota.total),mine:mine.score,ours:ours.score,individual,crews,cast:view(current)});
   }
   if(req.method==='GET'&&action==='book'){
     const records=await rows(env,`WITH best AS (SELECT fish,length,grade,nickname,end_ms,COUNT(*) OVER(PARTITION BY fish) AS count,
@@ -110,7 +112,9 @@ export async function fishingRoute(req,env,path,user,ms=Date.now()){
   if(cast.day!==day||!open)fail(409,'도전 시간이 지났어요. 대기실에서 다시 확인해주세요.');
   if(body.seq<=cast.seq)return response(cast);
   if(body.seq!==cast.seq+1)fail(409,'도전 상태를 다시 확인해주세요.');
-  const elapsed=ms-cast.start_ms, pass=Math.floor(2*elapsed/cast.cycle_ms);
+  let elapsed;
+  try{elapsed=inputElapsed({start:cast.start_ms},body.elapsed,clock.receivedTime);}catch(error){fail(409,error.message);}
+  const pass=Math.floor(2*elapsed/cast.cycle_ms);
   if(pass<=cast.last_pass)return response(cast);
   const p=position(elapsed,cast.cycle_ms), hit=p>=cast.target&&p<=cast.target+cast.width;
   const next=progressAfter(cast,hit);

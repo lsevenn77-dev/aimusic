@@ -5,6 +5,7 @@ import {createScene} from './scene.js';
 import {bindMobileReelInput} from './mobile-input.js';
 import {createRequestId} from './request-id.js';
 import {animationDeadline} from './animation.js';
+import {clockSample} from './timing.js';
 
 const app=document.querySelector('#app'), errorBox=document.querySelector('#error');
 const dialog=document.querySelector('#rules');
@@ -18,7 +19,7 @@ const esc=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'
 const fmt=n=>Number(n).toLocaleString('ko-KR');
 const fishById=new Map(FISH.map(f=>[f.id,f]));
 const art=f=>`./art/${f.id}.webp`;
-let lobby,cast,screen='',pending=false,requestId=null,clockOffset=0,frame=0,book,scene=null;
+let lobby,cast,screen='',pending=false,judging=false,requestId=null,clockOffset=0,clockDelay=Infinity,frame=0,frameElapsed=null,book,scene=null;
 function showError(message){errorBox.textContent=message;errorBox.hidden=!message}
 function paint(name,html){
   cancelAnimationFrame(frame);scene?.destroy();scene=null;screen=name;app.toggleAttribute('data-game-lobby',name==='lobby');app.innerHTML=html;window.scrollTo(0,0);
@@ -30,7 +31,8 @@ async function fetchAPI(action,data){
     const response=await fetch('/api/crew-fishing/'+action+(action==='lobby' && new URLSearchParams(location.search).get('mode')==='practice'?'?mode=practice':''),{...(data?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}:{cache:'no-store'}),signal:controller.signal});
     const result=await response.json();
     if(!response.ok)throw Error(result.error||'낚시 정보를 불러오지 못했어요.');
-    if(result.serverTime)clockOffset=result.serverTime-(before+performance.now())/2;
+    const sample=clockSample(before,performance.now(),result);
+    if(sample&&sample.delay<=clockDelay){clockOffset=sample.offset;clockDelay=sample.delay;}
     return result;
   }catch(error){
     if(controller.signal.aborted)throw Error('연결이 지연됐어요. 다시 눌러주세요. 낚시 기록은 중복으로 소모되지 않아요.');
@@ -67,8 +69,8 @@ async function openLobby(){
 function loop(){
   cancelAnimationFrame(frame);
   const needle=document.querySelector('.needle');
-  if(!needle||screen!=='play'||document.hidden||app.querySelector('.stage.casting'))return;
-  const animate=()=>{needle.style.left=position(performance.now()+clockOffset-cast.start,cast.cycle)+'%';frame=requestAnimationFrame(animate)};
+  if(!needle||screen!=='play'||judging||document.hidden||app.querySelector('.stage.casting'))return;
+  const animate=()=>{frameElapsed=Math.max(0,performance.now()+clockOffset-cast.start);needle.style.left=position(frameElapsed,cast.cycle)+'%';frame=requestAnimationFrame(animate)};
   animate();
 }
 function updateMeter(message){
@@ -79,6 +81,7 @@ function updateMeter(message){
 }
 // intro: 새로 던진 낚시면 던지기·입질 연출 뒤에 당기기 막대를 보여준다
 function play(intro){
+  frameElapsed=null;
   paint('play',`<section class="stage${intro?' casting':''}"><button type="button" class="reel-surface" data-reel-surface aria-label="낚시 화면 · 터치해서 당기기"></button><div class="stagehead"><div><small>ON THE WATER</small><h2>${intro?'찌를 던지는 중…':'물고기가 걸렸어요'}</h2></div><div class="actions"><span id="warnings"></span><button data-act="lobby">대기실</button></div></div>
   <p class="callout" aria-hidden="true"></p>
   <div class="console"><div class="titlebar"><div class="gauge-title"><small>REEL TIMING</small><h3>릴 타이밍</h3></div><div class="capture"><span>포획 진행도</span><b class="dots"></b></div></div><div class="meter" aria-label="민트색 성공 구역에 맞춰 당기기"><i class="target" style="left:${cast.target}%;width:${cast.width}%"></i><i class="needle"></i></div><div class="stagefoot"><div><p id="pullfeedback" role="status"></p><small><span class="desktop-hint">스페이스바 또는 화면 클릭</span><span class="mobile-hint">낚시 화면을 터치해서 당기기</span></small></div></div></div></section>`);
@@ -109,10 +112,13 @@ async function start(){
 }
 async function pull(){
   if(screen!=='play'||dialog.open||app.querySelector('.stage.casting'))return;
-  document.querySelector('#pullfeedback').textContent='당기는 중…';
+  const prev=cast,elapsed=frameElapsed??Math.max(0,performance.now()+clockOffset-prev.start);
+  judging=true;
+  cancelAnimationFrame(frame);
+  document.querySelector('#pullfeedback').textContent='당긴 위치를 판정하는 중…';
   try{scene?.pull('wait',cast.progress);}catch{}
-  const prev=cast;
-  const result=await api('pull',{id:prev.id,seq:prev.seq+1});cast=result.cast;
+  try{
+  const result=await api('pull',{id:prev.id,seq:prev.seq+1,elapsed});cast=result.cast;
   if(cast.status!=='active'){
     // 결과는 이미 서버에 기록됐다. 낚아 올리기·놓치기 연출이 끝나면 결과 카드를 보여준다.
     cancelAnimationFrame(frame);app.querySelector('.stage')?.classList.add('ending');
@@ -121,9 +127,14 @@ async function pull(){
     finish();return;
   }
   const kind=prev.seq===cast.seq?'wait':cast.progress>prev.progress?'success':cast.warnings>prev.warnings?'warning':'miss';
-  scene?.pull(kind,cast.progress);
   updateMeter(kind==='wait'?'막대가 돌아오면 다시 당기세요.':kind==='success'?'성공! 한 칸 가까워졌어요.':
     kind==='warning'?'도주 경고! 다음 기회를 노려보세요.':'줄이 느슨해졌어요. 다시 당겨보세요.');
+  // A visual effect must never prevent the authoritative counter from updating.
+  try{scene?.pull(kind,cast.progress);}catch{}
+  }catch(error){
+    if(screen==='play')updateMeter(error.message||'판정을 확인하지 못했어요. 다시 눌러주세요.');
+    throw error;
+  }finally{judging=false;if(screen==='play'&&cast.status==='active')loop();}
 }
 // 결과 카드에서 물고기 둘레로 반짝이는 위치 [x%, y%, 지연초]
 const SPARK_SPOTS=[[8,30,0],[18,78,.5],[30,10,1.1],[50,92,.3],[66,6,.8],[82,24,1.4],[92,66,.2],[74,88,1],[40,50,1.7],[12,52,1.3]];

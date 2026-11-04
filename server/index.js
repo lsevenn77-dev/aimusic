@@ -70,6 +70,7 @@ import {goldCallback,goldOrderRoute} from './gold-checkout.js';
 import {billingRoute,billingWebhook,billingTick} from './billing.js';
 export default {async fetch(req,env,ctx){
  const url=new URL(req.url),path=url.pathname;
+ const fishingClock=path.startsWith('/api/crew-fishing/')?{receivedTime:Date.now(),started:performance.now()}:undefined;
  try{
   if(path==='/mcp')return await adminMcpRoute(req,env);
   const tossTestResponse=await tossTestCheckoutRoute(req,env,path);if(tossTestResponse)return tossTestResponse;
@@ -135,7 +136,7 @@ export default {async fetch(req,env,ctx){
   const coverCompression=await coverCompressionAdmin(req,env,path,user);if(coverCompression)return coverCompression;
   env=await blockedContext(env,user);
   const followPage=await followManagement(req,env,path,user);if(followPage)return followPage;
-  if(path.startsWith('/api/crew-fishing/'))return await fishingRoute(req,env,path,user);
+  if(path.startsWith('/api/crew-fishing/'))return await fishingRoute(req,env,path,user,Date.now(),fishingClock);
   if(path.startsWith('/api/crew-rhythm/'))return await rhythmRoute(req,env,path,user);
   if(path.startsWith('/api/crew-racing/'))return await racingRoute(req,env,path,user);
   if(path.includes('/jump')&&path.startsWith('/api/crews/')){const jump=await jumpRoute(req,env,path,user);if(jump)return jump;}

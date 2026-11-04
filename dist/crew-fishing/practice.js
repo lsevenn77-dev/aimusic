@@ -23,7 +23,7 @@ export function practiceSession(info, draw, now = Date.now) {
         return snapshot();
       }
       if (action !== 'pull' || !current || current.id !== body.id) throw Error('연습 낚시를 다시 시작해주세요.');
-      const elapsed = now() - current.start;
+      const elapsed = body.elapsed ?? now() - current.start;
       const pass = Math.floor(2 * elapsed / current.cycle);
       if (current.status !== 'active' || body.seq !== current.seq + 1 || pass <= current.lastPass) return snapshot();
       const spot = position(elapsed, current.cycle);

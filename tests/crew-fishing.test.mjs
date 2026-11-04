@@ -166,3 +166,23 @@ test('official lobby is the default and practice leaves the official quota intac
   assert.equal((await api('lobby')).remaining, 10);
   assert.equal(sql.prepare('SELECT count(*) AS n FROM crew_fishing_casts').get().n, 0);
 });
+
+test('official pulls judge the touched frame despite server delay, reject stale input, and never double count',async t=>{
+  const {api,sql}=await setup(t);
+  let c=(await api('cast',{requestId:crypto.randomUUID()})).cast;
+  sql.prepare('UPDATE crew_fishing_casts SET target=40,width=30,cycle_ms=3200,goal=3 WHERE id=?').run(c.id);
+  const first={id:c.id,seq:1,elapsed:800};
+  const result=await api('pull',first,monday+1800);
+  assert.equal(result.cast.progress,1);assert.equal(result.cast.warnings,0);
+  assert.ok(result.serverTime>=result.receivedTime);
+  assert.equal((await api('pull',first,monday+2200)).cast.progress,1);
+  c=(await api('pull',{id:c.id,seq:2,elapsed:900},monday+1900)).cast;
+  assert.equal(c.seq,1); // Same pass cannot be mashed.
+  for(const elapsed of [-1,800,10000,'4000'])
+    await assert.rejects(api('pull',{id:c.id,seq:2,elapsed},monday+5000));
+  c=(await api('pull',{id:c.id,seq:2,elapsed:4000},monday+5000)).cast;
+  assert.equal(c.progress,2);
+  c=(await api('pull',{id:c.id,seq:3,elapsed:7200},monday+8200)).cast;
+  assert.equal(c.status,'caught');
+  assert.equal((await api('lobby')).remaining,9);
+});
