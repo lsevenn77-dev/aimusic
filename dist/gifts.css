@@ -141,6 +141,11 @@ body.chat-active .player{display:none!important}
   outline-offset: 2px;
 }
 
+/* Touch/click and dialog autofocus do not need a second selection outline. */
+:root[data-aifect-input="pointer"] #dialog .gift-dialog.gift-dialog--compact :is(button, a):focus {
+  outline: none;
+}
+
 #dialog .gift-dialog.gift-dialog--compact .gift-dialog-header {
   flex: 0 0 auto;
   min-width: 0;

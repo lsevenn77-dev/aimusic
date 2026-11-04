@@ -1,3 +1,14 @@
+// Native dialogs may show :focus-visible after touch-triggered autofocus.
+// Track input without moving focus; only the gift/profile popup CSS consumes it.
+(()=>{
+  const root=document.documentElement;
+  window.addEventListener('pointerdown',()=>{root.dataset.aifectInput='pointer';},{capture:true,passive:true});
+  window.addEventListener('keydown',event=>{
+    if(event.altKey||event.ctrlKey||event.metaKey||['Alt','Control','Meta','Shift'].includes(event.key))return;
+    root.dataset.aifectInput='keyboard';
+  },true);
+})();
+
 /* Paint the actual mixer/volume value. Playback progress remains owned by its player. */
 (()=>{
   const selector='input[type="range"][data-mix],input#volume[type="range"]';

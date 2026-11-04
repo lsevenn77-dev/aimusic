@@ -12,6 +12,8 @@
 }
 :is(#dialog .dialog-close#dialog-close, dialog .dialog-close, dialog .voice-dialog-close, dialog .profile-preview-close, #v3-room-create #v3-close-create, dialog.photo-lightbox > .small-button):hover { color: #8EDDD2; }
 :is(#dialog .dialog-close#dialog-close, dialog .dialog-close, dialog .voice-dialog-close, dialog .profile-preview-close, #v3-room-create #v3-close-create, dialog.photo-lightbox > .small-button):focus-visible { outline: 2px solid #8EDDD2; outline-offset: 2px; }
+/* Preserve modal focus and keyboard indication; suppress only pointer outlines. */
+:root[data-aifect-input="pointer"] :is(#dialog.gift-sheet .dialog-close#dialog-close, dialog.profile-preview .profile-preview-close):focus { outline: none; }
 :is(#dialog .dialog-close#dialog-close, dialog .dialog-close, dialog .voice-dialog-close, dialog .profile-preview-close, #v3-room-create #v3-close-create, dialog.photo-lightbox > .small-button) > svg { display: none; }
 :is(#dialog .dialog-close#dialog-close, dialog .dialog-close, dialog .voice-dialog-close, dialog .profile-preview-close, #v3-room-create #v3-close-create, dialog.photo-lightbox > .small-button)::before {
   content: ''; display: block; width: 20px; height: 20px;
