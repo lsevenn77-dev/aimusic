@@ -22,14 +22,14 @@ test('leaderboards escape public names, use public profile media and keep own ra
   assert.ok(!fishing.includes('1,234점'));
 });
 
-test('all three game lobbies return actual avatar metadata without changing their scoring',async t=>{
+test('all three game lobbies return actual avatars and their current scores or fishing appraisals',async t=>{
   const f=await fixture(t),ms=Date.parse('2026-11-04T10:00:00+09:00'),{day,week}=season(ms);
   f.sql.exec("UPDATE producers SET image_version=7 WHERE id='producer'; INSERT INTO crews(id,owner_id,name,created,image_version) VALUES('crew','owner','게임 크루',0,9); INSERT INTO crew_members(crew_id,user_id,role,joined) VALUES('crew','owner','leader',0)");
   f.sql.prepare("INSERT INTO crew_fishing_casts(id,user_id,crew_id,nickname,request_id,day,week,fish,grade,length,amount,start_ms,cycle_ms,goal,target,width,status) VALUES('fish-run','owner','crew','QA','fish-request-key',?,?,'stripe-perch','B',207984,300,0,3200,3,20,30,'caught')").run(day,week);
   f.sql.prepare("INSERT INTO crew_rhythm_runs(id,user_id,crew_id,week,day,request_id,difficulty,version,starts,finished,status,score,max_combo) VALUES('rhythm-run','owner','crew',?,?,'rhythm-request-key','hard','test',0,1,'finished',821925,44)").run(week,day);
   const race=raceCalendar(ms);
   f.sql.prepare("INSERT INTO crew_racing_runs(id,user_id,crew_id,week,course,starts,score) VALUES('race-run','owner','crew',?,?,0,543200)").run(race.week,race.course);
-  for(const [route,path,points] of [[fishingRoute,'/api/crew-fishing/lobby',300],[rhythmRoute,'/api/crew-rhythm/lobby',821925],[racingRoute,'/api/crew-racing/lobby',543200]]){
+  for(const [route,path,points] of [[fishingRoute,'/api/crew-fishing/lobby',20000],[rhythmRoute,'/api/crew-rhythm/lobby',821925],[racingRoute,'/api/crew-racing/lobby',543200]]){
     const data=await (await route(new Request('https://aifect.test'+path),{DB:f.DB},path,{id:'owner'},ms)).json();
     const person=(data.individualRanking||data.individual)[0],team=(data.ranking||data.crews)[0];
     assert.equal(person.profile_id,'producer');assert.equal(Number(person.image_version),7);assert.equal(person.mine,1);
@@ -37,4 +37,5 @@ test('all three game lobbies return actual avatar metadata without changing thei
     assert.equal(person.points??person.score,points);assert.equal(team.points??team.score,points);
     assert.equal(data.crew,'crew');
   }
+  assert.equal(f.sql.prepare("SELECT amount FROM crew_fishing_casts WHERE id='fish-run'").get().amount,300);
 });

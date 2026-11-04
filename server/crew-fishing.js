@@ -4,6 +4,8 @@ import {publicNameSQL} from './identity.js';
 import {FISH} from '../dist/crew-fishing/catalog.js';
 import {TIERS,SIZES,LIMITS,weighted,position,progressAfter,season} from '../dist/crew-fishing/rules.js';
 import {inputElapsed} from '../dist/crew-fishing/timing.js';
+import {fishValue} from '../dist/crew-fishing/pricing.js';
+import {FISH_VALUE_SQL} from './crew-fishing-pricing.js';
 
 function randomBelow(limit){
   const n=new Uint32Array(1), bound=2**32-(2**32%limit);
@@ -15,7 +17,7 @@ export function encounter(random=randomBelow){
   const fish=pool[random(pool.length)], grade=weighted(SIZES,random(100)), size=SIZES[grade];
   const deviation=size.min+random(size.max-size.min+1);
   return {fish:fish.id, grade, length:fish.standardCm*(10000+deviation),
-    amount:TIERS[tier].base*size.percent/100, cycle:TIERS[tier].cycle, goal:TIERS[tier].goal,
+    amount:fishValue(fish.id,grade), cycle:TIERS[tier].cycle, goal:TIERS[tier].goal,
     target:10+random(81-LIMITS.width), width:LIMITS.width};
 }
 function view(r){
@@ -23,7 +25,7 @@ function view(r){
   const state={id:r.id,status:r.status,progress:r.progress,warnings:r.warnings,seq:r.seq,
     lastPass:r.last_pass,goal:r.goal,cycle:r.cycle_ms,start:r.start_ms,target:r.target,width:r.width};
   if(r.status!=='active')Object.assign(state,{fish:r.fish,length:r.length,grade:r.grade,
-    value:r.status==='caught'?r.amount:0,notice:r.notice});
+    value:r.status==='caught'?fishValue(r.fish,r.grade,r.amount):0,notice:r.notice});
   return state;
 }
 const memberGuard='EXISTS(SELECT 1 FROM crew_members WHERE user_id=? AND crew_id=?)';
@@ -46,7 +48,7 @@ async function ranking(env,week,personal,viewer){
   const join=personal?'JOIN users u ON u.id=r.participant LEFT JOIN producers p ON p.user_id=u.id':'JOIN crews c ON c.id=r.participant';
   const profile=personal?'p.id AS profile_id,p.image_version':'r.participant AS crew_id,c.image_version';
   const key=personal?'f.user_id':'f.crew_id';
-  return rows(env,`WITH scores AS (SELECT ${key} AS participant,SUM(amount) AS score FROM crew_fishing_casts f
+  return rows(env,`WITH scores AS (SELECT ${key} AS participant,SUM(${FISH_VALUE_SQL}) AS score FROM crew_fishing_casts f
     WHERE week=? AND status='caught' GROUP BY ${key}), ranked AS (SELECT *,RANK() OVER(ORDER BY score DESC) AS place FROM scores)
     SELECT r.participant AS id,${name} AS name,r.score,r.place,${profile},(r.participant=?) AS mine FROM ranked r
     ${join} WHERE r.place<=100 OR r.participant=? ORDER BY r.place,name,r.participant`,week,viewer,viewer);
@@ -70,8 +72,8 @@ export async function fishingRoute(req,env,path,user,ms=Date.now(),clock={receiv
   if(req.method==='GET' && action==='lobby'){
     const [quota,mine,ours,individual,crews,current]=await Promise.all([
       one(env,'SELECT COUNT(*) AS total,COUNT(CASE WHEN day=? THEN 1 END) AS today FROM crew_fishing_casts WHERE user_id=? AND week=?',day,uid,week),
-      one(env,"SELECT COALESCE(SUM(amount),0) AS score FROM crew_fishing_casts WHERE week=? AND user_id=? AND status='caught'",week,uid),
-      one(env,"SELECT COALESCE(SUM(amount),0) AS score FROM crew_fishing_casts WHERE week=? AND crew_id=? AND status='caught'",week,crew),
+      one(env,`SELECT COALESCE(SUM(${FISH_VALUE_SQL}),0) AS score FROM crew_fishing_casts WHERE week=? AND user_id=? AND status='caught'`,week,uid),
+      one(env,`SELECT COALESCE(SUM(${FISH_VALUE_SQL}),0) AS score FROM crew_fishing_casts WHERE week=? AND crew_id=? AND status='caught'`,week,crew),
       ranking(env,week,true,uid),ranking(env,week,false,crew),open?active():null]);
     return respond({crew,name:m.name,week,day,open,dailyLimit:limits.day,weeklyLimit:limits.week,remaining:Math.max(0,Math.min(limits.day-quota.today,limits.week-quota.total)),
       weeklyRemaining:Math.max(0,limits.week-quota.total),mine:mine.score,ours:ours.score,individual,crews,cast:view(current)});

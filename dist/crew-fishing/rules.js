@@ -1,10 +1,10 @@
 // Balance values are independent of fish illustrations and collection records.
 export const TIERS = {
-  common: {name:'일반', weight:5500, goal:3, cycle:3200, base:100},
-  rare:   {name:'레어', weight:4000, goal:4, cycle:2800, base:500},
-  unique: {name:'유니크', weight:440, goal:5, cycle:2500, base:2500},
-  legend: {name:'전설', weight:59, goal:6, cycle:2200, base:25000},
-  mythic: {name:'신화', weight:1, goal:7, cycle:2000, base:250000}
+  common: {name:'일반', weight:5500, goal:3, cycle:3200, multiplier:1},
+  rare:   {name:'레어', weight:4000, goal:4, cycle:2800, multiplier:5},
+  unique: {name:'유니크', weight:440, goal:5, cycle:2500, multiplier:25},
+  legend: {name:'전설', weight:59, goal:6, cycle:2200, multiplier:250},
+  mythic: {name:'신화', weight:1, goal:7, cycle:2000, multiplier:2500}
 };
 export const SIZES = {
   S: {weight:5, min:1500, max:2500, percent:120},

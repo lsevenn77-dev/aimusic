@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {fixture} from './fixture.mjs';
 import {encounter,fishingRoute,fishingLimits} from '../server/crew-fishing.js';
 import {FISH} from '../dist/crew-fishing/catalog.js';
+import {fishValue,BASE_PRICES} from '../dist/crew-fishing/pricing.js';
 import {TIERS,SIZES,weighted,season,progressAfter} from '../dist/crew-fishing/rules.js';
 
 const monday=Date.parse('2026-11-02T08:00:00+09:00');
@@ -16,7 +17,7 @@ async function setup(t,extraEnv={}){
   }
   return {...f,api};
 }
-test('27 species and exact probability intervals, all grade endpoints, tier payout ratios',()=>{
+test('27 species and exact probability intervals, all grade endpoints and species appraisals',()=>{
   const counts=Object.keys(TIERS).map(k=>FISH.filter(f=>f.tier===k).length);
   assert.deepEqual(counts,[10,8,5,3,1]);assert.equal(new Set(FISH.map(f=>f.id)).size,27);
   for(const [table,total] of [[TIERS,10000],[SIZES,100]]){
@@ -34,7 +35,7 @@ test('27 species and exact probability intervals, all grade endpoints, tier payo
         const species=FISH.find(x=>x.id===f.fish);
         assert.equal(species.tier,tier);assert.equal(f.grade,grade);
         assert.equal(f.length,species.standardCm*(10000+delta));
-        assert.equal(f.amount,cfg.base*size.percent/100);
+        assert.equal(f.amount,fishValue(f.fish,grade));
       }
       gradeRoll+=size.weight;
     }
@@ -69,7 +70,7 @@ test('crew auth, private roll, idempotent casts and pulls, same-pass mash and es
   assert.equal((await api('cast',{requestId:key})).cast.status,'escaped');
   assert.deepEqual((await api('book')).records,[]);assert.equal((await api('lobby')).ours,0);
 });
-test('all catches count, identical grade length record changes only on a larger fish, collection survives rollover',async t=>{
+test('all catches are reappraised without rewriting snapshots, length records and collection survive rollover',async t=>{
   const {api,sql}=await setup(t);
   const fish=FISH.find(f=>f.tier==='legend'), gradeCases=[['B',10000,25000,'new'],['D',8100,20000,null],['S',11500,30000,'best'],['S',11900,30000,'best'],['S',11700,30000,null]];
   for(const [grade,factor,amount,notice] of gradeCases){
@@ -81,13 +82,16 @@ test('all catches count, identical grade length record changes only on a larger 
       c=(await api('pull',{id:c.id,seq},ms)).cast;
     }
     assert.equal(c.status,'caught');assert.equal(c.notice,notice);
-    assert.equal((await api('pull',{id:c.id,seq:c.seq})).cast.value,amount);
-    if(gradeCases[2][3]===notice&&factor===11500)assert.equal((await api('lobby')).ours,75000);
+    assert.equal((await api('pull',{id:c.id,seq:c.seq,value:999999999})).cast.value,fishValue(fish.id,grade));
+    assert.equal(sql.prepare('SELECT amount FROM crew_fishing_casts WHERE id=?').get(c.id).amount,amount);
+    if(gradeCases[2][3]===notice&&factor===11500)assert.equal((await api('lobby')).ours,BASE_PRICES[fish.id]*3);
   }
   const next=monday+7*86400000;
   const record=(await api('book',null,next)).records[0];
   assert.equal(record.length,fish.standardCm*11900);assert.equal(record.count,5);
-  const lobby=await api('lobby');assert.equal(lobby.mine,135000);assert.equal(lobby.crews[0].score,135000);
+  const total=gradeCases.reduce((sum,[grade])=>sum+fishValue(fish.id,grade),0);
+  const lobby=await api('lobby');assert.equal(lobby.mine,total);assert.equal(lobby.crews[0].score,total);
+  assert.equal(lobby.individual[0].score,total);
   assert.equal(lobby.individual[0].place,1);assert.equal((await api('lobby',null,next)).ours,0);
 });
 test('daily and weekly quotas, active casts cannot cross cutoff or be scored by another member',async t=>{
