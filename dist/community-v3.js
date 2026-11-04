@@ -22,13 +22,16 @@ function talkingRoomCard(room){
 }
 function liveDirectoryHTML(defaultMode){
  const filters=Object.entries({all:'전체',...liveRoomLabels}).map(([value,label])=>
-  `<button type="button" data-room-filter="${value}" aria-pressed="${value==='all'}">${value==='all'?'':liveTypeIcon(value)}${label}</button>`).join('');
+  `<button type="button" data-room-filter="${value}" aria-pressed="${value==='all'}">${value==='all'?'':liveTypeIcon(value)+`<span class="live-filter-vector" aria-hidden="true">${icon(value==='karaoke'?'mic-handheld':'message')}</span>`}${label}</button>`).join('');
  return `<div class="talk-directory" data-default-mode="${defaultMode}">${communityNavigation('live')}
  <section class="community-v3 room-lobby live-directory" aria-label="라이브 방">
   <div class="live-tools"><div class="live-filters" role="group" aria-label="방 유형 필터">${filters}</div>
-   <div class="directory-actions"><div class="brand-search directory-search">${icon('search')}<input id="v3-room-search" type="search" maxlength="100" placeholder="방 제목 또는 방장 검색" aria-label="방 제목 또는 방장 검색">
+   <button type="button" class="live-search-toggle" data-live-search-open aria-label="방 검색" aria-controls="v3-room-search" aria-expanded="false">${icon('search')}</button>
+   <button type="button" class="live-search-toggle" data-live-search-close aria-label="검색 닫기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5m7-7-7 7 7 7"/></svg></button>
+   <div class="directory-actions"><div class="brand-search directory-search">${icon('search')}<input id="v3-room-search" type="search" enterkeyhint="search" maxlength="100" placeholder="방 제목 또는 방장 검색" aria-label="방 제목 또는 방장 검색">
+   <button type="button" data-live-search-clear aria-label="검색어 지우기" hidden>${voiceGlyph('close')}</button>
    <button type="button" data-live-reset aria-label="전체 방 보기" title="전체 방 보기"><span aria-hidden="true" class="live-home-icon"></span></button></div>
-   <button type="button" class="primary-button" id="v3-create-room" disabled>${icon('plus')} 방 만들기</button></div></div>
+   <button type="button" class="primary-button" id="v3-create-room" aria-label="방 만들기" disabled>${icon('plus')}<span class="live-create-label">방 만들기</span></button></div></div>
   <div class="live-list-space"><div class="talk-scroll" role="region" aria-label="라이브 방 목록" tabindex="0"><div class="v3-room-grid"></div>
    <div class="talk-status" role="status" hidden><span></span> <button type="button" class="small-button" hidden>다시 시도</button></div>
    <div class="talk-sentinel" aria-hidden="true"></div></div></div>
@@ -41,20 +44,39 @@ function bindTalkingDirectory(root){
  const grid=root.querySelector('.v3-room-grid'),search=root.querySelector('#v3-room-search'),create=root.querySelector('#v3-create-room');
  const status=root.querySelector('.talk-status'),message=status.querySelector('span'),retry=status.querySelector('button'),sentinel=root.querySelector('.talk-sentinel');
  const pane=root.querySelector('.talk-scroll');
+ const tools=root.querySelector('.live-tools'),openSearch=root.querySelector('[data-live-search-open]'),closeSearch=root.querySelector('[data-live-search-close]'),clearSearch=root.querySelector('[data-live-search-clear]');
  const viewer=me?.id||'';
  const saved=talkingRoomReturn?.route===location.hash&&talkingRoomReturn.viewer===viewer&&talkingRoomReturn.until>Date.now()?talkingRoomReturn:null;
  talkingRoomReturn=null;
  let items=new Map(saved?.items),cursor=saved?.cursor||null,done=saved?.done||false;
  let controller=null,debounce,expiry,disposed=false;
- let mode=saved?.mode||'all',refreshController;
+ let mode=saved?.mode||'all',refreshController,composing=false;
+ function syncSearch(){
+  clearSearch.hidden=!search.value;
+  // A desktop query must stay visible when the directory becomes narrow.
+  if(search.value)setSearchOpen(true);
+ }
+ function setSearchOpen(open){
+  tools.dataset.searchOpen=String(open);openSearch.setAttribute('aria-expanded',String(open));
+ }
+ setSearchOpen(!!(saved?.searchOpen||saved?.query));
+ openSearch.onclick=()=>{setSearchOpen(true);search.focus({preventScroll:true});};
+ closeSearch.onclick=()=>{
+  composing=false;search.value='';search.blur();syncSearch();setSearchOpen(false);reset();
+  openSearch.focus({preventScroll:true});
+ };
+ clearSearch.onpointerdown=e=>{e.preventDefault();};
+ clearSearch.onclick=()=>{composing=false;search.value='';syncSearch();reset();search.focus({preventScroll:true});};
  const filterButtons=root.querySelectorAll('[data-room-filter]');
  function setFilter(value){
   mode=value;root.dataset.filter=value;
   for(const btn of filterButtons)btn.setAttribute('aria-pressed',String(btn.dataset.roomFilter===value));
+  const label=value==='all'?'방 제목 또는 방장 검색':liveRoomLabels[value]+' 제목·방장 검색';
+  search.placeholder=label;search.setAttribute('aria-label',label);
  }
  setFilter(mode);
  for(const btn of filterButtons)btn.onclick=()=>{if(mode!==btn.dataset.roomFilter){setFilter(btn.dataset.roomFilter);reset();}};
- root.querySelector('[data-live-reset]').onclick=()=>{search.value='';setFilter('all');reset();};
+ root.querySelector('[data-live-reset]').onclick=()=>{search.value='';syncSearch();setFilter('all');reset();};
  grid.addEventListener('error',e=>{if(e.target.matches?.('.talk-cover'))e.target.remove();},true);
  const observer=new IntersectionObserver(entries=>{
   if(entries.some(e=>e.isIntersecting))void load();
@@ -82,7 +104,7 @@ function bindTalkingDirectory(root){
   if(!done)watchEnd(true);
  }
  async function load(){
-  if(disposed||controller||done)return;
+  if(disposed||controller||done||composing)return;
   refreshController?.abort();
   watchEnd(false);const active=controller=new AbortController();
   notice();grid.setAttribute('aria-busy','true');
@@ -116,7 +138,7 @@ function bindTalkingDirectory(root){
   debounce=setTimeout(load,220);
  }
  async function refresh(){
-  if(document.hidden||disposed||controller||refreshController||!done&&!items.size||root.querySelector('dialog[open]'))return;
+  if(document.hidden||disposed||composing||controller||refreshController||!done&&!items.size||root.querySelector('dialog[open]'))return;
   const atTop=()=>pane.scrollTop<2;
   const refreshTop=atTop()&&!grid.contains(document.activeElement);
   const viewport=pane.getBoundingClientRect();
@@ -159,10 +181,18 @@ function bindTalkingDirectory(root){
  const poll=setInterval(refresh,20000);
  window.addEventListener('aifect:follow-saved',refresh);
  document.addEventListener('visibilitychange',refresh);
- search.oninput=reset;retry.onclick=()=>{done=false;void load();};
+ // Keep the same native input mounted while results change, including Korean IME composition.
+ search.addEventListener('compositionstart',()=>{composing=true;clearTimeout(debounce);});
+ search.addEventListener('compositionend',()=>{composing=false;syncSearch();reset();});
+ search.oninput=e=>{syncSearch();if(!composing&&!e.isComposing)reset();};
+ search.onkeydown=e=>{
+  if(e.key!=='Enter'||composing||e.isComposing||e.keyCode===229)return;
+  e.preventDefault();clearTimeout(debounce);void load();search.blur();
+ };
+ retry.onclick=()=>{done=false;void load();};
  grid.addEventListener('click',e=>{
   if(e.defaultPrevented||e.button!==0||e.ctrlKey||e.metaKey||e.shiftKey||e.altKey||!e.target.closest('[data-talk-id]'))return;
-  talkingRoomReturn={viewer,mode,route:location.hash,until:Date.now()+120000,query:search.value,items:[...items],cursor,done,scroll:pane.scrollTop};
+  talkingRoomReturn={viewer,mode,searchOpen:tools.dataset.searchOpen==='true',route:location.hash,until:Date.now()+120000,query:search.value,items:[...items],cursor,done,scroll:pane.scrollTop};
  });
  registerRouteCleanup(()=>{
   disposed=true;clearInterval(poll);refreshController?.abort();document.removeEventListener('visibilitychange',refresh);observer.disconnect();controller?.abort();clearTimeout(debounce);clearTimeout(expiry);
@@ -171,7 +201,7 @@ function bindTalkingDirectory(root){
  if(saved){
   // The scroll snapshot may predate a leave or unfollow while inside a room.
   for(const room of items.values())room.followed_profiles=[];
-  search.value=saved.query;root.dataset.enabled='true';create.disabled=false;grid.innerHTML=[...items.values()].map(talkingRoomCard).join('');expireCovers();
+  search.value=saved.query;syncSearch();root.dataset.enabled='true';create.disabled=false;grid.innerHTML=[...items.values()].map(talkingRoomCard).join('');expireCovers();
   requestAnimationFrame(()=>{if(!disposed){pane.scrollTo({top:saved.scroll,behavior:'instant'});ready();void refresh();}});
  }else void load();
 }
