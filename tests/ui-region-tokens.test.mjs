@@ -8,11 +8,20 @@ const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
 test('region compilation preserves cascade, fluid/user typography and large artwork',()=>{
  const css='@media(min-width:801px){.sample{font-size:16px!important;padding:8px 12px;gap:1rem;margin:0 auto;width:100px;color:red}.large{font-size:40px}.fluid{font-size:clamp(12px,2vw,24px)}.setting{font-size:var(--lyric-size)}}';
  const result=regionTokenCSS(css);
- assert.match(result,/font-size:calc\(16px \* var\(--ui-type-scale, 1\)\)!important/);
+ assert.match(result,/font-size:var\(--pc-font-card, calc\(16px \* var\(--ui-type-scale, 1\)\)\)!important/);
  assert.match(result,/padding:calc\(8px \* var\(--ui-space-scale, 1\)\) calc\(12px \* var\(--ui-space-scale, 1\)\)/);
  assert.match(result,/margin:0 auto;width:100px;color:red/);
  for(const declaration of ['font-size:40px','font-size:clamp(12px,2vw,24px)','font-size:var(--lyric-size)'])assert.ok(result.includes(declaration));
  assert.equal(regionTokenCSS(result),result,'repeat compilation must not compound');
+});
+
+test('desktop roles keep the exact original expressions as mobile fallbacks',()=>{
+ for(const [size,role] of [[11,'caption'],[12,'meta'],[14,'body'],[16,'card'],[19,'section'],[21,'section'],[25,'page'],[30,'page']]){
+  assert.equal(regionTokenCSS('.x{font-size:'+size+'px}'),'.x{font-size:var(--pc-font-'+role+', calc('+size+'px * var(--ui-type-scale, 1)))}');
+ }
+ const css=read('dist/ui-region-scale.css');
+ assert.ok(css.indexOf('@media(min-width:801px)')<css.indexOf('--pc-font-page:25px'));
+ assert.doesNotMatch(css.slice(css.indexOf('@media(max-width:800px)')),/--pc-font-/);
 });
 
 test('regional opt-in never changes root/player tokens and mobile stays at baseline',()=>{

@@ -15,7 +15,7 @@ export async function trackModerationRoute(req,env,path,user){
  if(m){
   requireUser(user);if(req.method!=='POST')fail(405,'지원하지 않는 요청입니다.');
   const t=await published(env,m[1]);if(t.user_id===user.id)fail(400,'내 곡은 신고할 수 없습니다.');
-  const b=await req.json();if(b.reason!=='low_quality')fail(400,'음질 문제 신고를 선택해주세요.');
+  const b=await req.json();if(b.reason!=='low_quality')fail(400,'음원 문제 신고를 선택해주세요.');
   const details=str(b.details||'',500,false);
   if(await one(env,'SELECT id FROM track_reports WHERE track_id=? AND user_id=?',t.id,user.id))return json({ok:true,reported:true});
   await rate(env,'track-report:'+user.id,20,3600);

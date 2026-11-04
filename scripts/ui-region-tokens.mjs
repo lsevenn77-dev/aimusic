@@ -12,7 +12,13 @@ export function regionTokenCSS(css) {
       const next = value.replace(/(-?(?:\d*\.)?\d+)(px|rem)\b/g, (literal, n, unit) => {
         const px = Number(n) * (unit === 'rem' ? 16 : 1);
         if (px === 0 || (font && (px < 9 || px >= 32))) return literal;
-        return `calc(${literal} * var(${token}, 1))`;
+        const baseline=`calc(${literal} * var(${token}, 1))`;
+        if(!font)return baseline;
+        // Desktop roles are absolute pixels; the original regional expression
+        // remains the mobile fallback. Large display titles and lyric settings
+        // are intentionally excluded by the guards above.
+        const role=px<12?'caption':px<14?'meta':px<15.5?'body':px<18?'card':px<24?'section':'page';
+        return `var(--pc-font-${role}, ${baseline})`;
       });
       return `${prefix}${property}:${next}`;
     });

@@ -5,7 +5,7 @@ import {assertArtistInteraction} from './follow-management.js';
 import {walletHistory} from './wallet-history.js';
 import {officialSupport} from './ai-bots.js';
 import {assertUnblocked} from './account-safety.js';
-import {publicCrewNameSQL as publicNameSQL} from './identity.js';
+import {publicCrewNameSQL as publicNameSQL,publicNameSQL as nicknameSQL} from './identity.js';
 import {one,rows,query,now,id,fail,json,rate} from './db.js';
 import {requireUser} from './auth.js';
 import {published} from './catalog.js';
@@ -25,7 +25,7 @@ const RANKING=`SELECT ${publicNameSQL()} name,(SELECT id FROM producers WHERE us
 const ranked=list=>list.map((r,i)=>({rank:i+1,name:r.name,profile_id:r.profile_id,image_version:r.image_version,gold:r.gold,stars:r.stars,score:r.score,gifts:r.gifts}));
 // Song support uses the same point units as personal support; paid/fan totals stay separate.
 // Aggregate every receipt before ranking, not the bounded official-support history preview.
-const TRACK_SUPPORT_RANKING=`SELECT ${publicNameSQL()} name,p.id profile_id,p.image_version,
+const TRACK_SUPPORT_RANKING=`SELECT ${nicknameSQL()} name,p.id profile_id,p.image_version,
  sum(g.gold) gold,sum(g.stars) stars,sum(g.official_stars) official_stars,
  sum(g.gold+g.stars+g.official_stars) score,count(*) gifts,min(g.created) first
  FROM (
