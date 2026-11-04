@@ -144,6 +144,11 @@
 .home-content-refresh .home-music-grid .album-title{display:block;line-height:1.5;min-height:0;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .home-content-refresh .home-music-grid .album-title-row{align-items:center;gap:4px;margin-top:6px}
 .home-content-refresh .home-music-grid .album-artist{display:block;white-space:nowrap;text-overflow:ellipsis;overflow:hidden;max-width:100%;margin-top:0}
+/* Only the home discovery shelf uses seven equal desktop tracks. Zero minimums
+   let covers and truncated captions shrink within the existing content width. */
+@media(min-width:801px){
+ #main .home-content-refresh #home-discovery>.home-music-grid{grid-template-columns:repeat(7,minmax(0,1fr));min-width:0}
+}
 #main .home-content-refresh .home-music-grid .card-more{flex:0 0 44px;background:none!important;border:0!important;border-radius:0;box-shadow:none!important}
 #main .home-content-refresh .home-music-grid .card-more svg{padding:0!important;border:0!important;background:none!important;border-radius:0!important;width:20px!important;height:20px!important;flex-basis:20px!important}
 .home-content-refresh .home-music-grid .album-art-wrap>a{display:block;transition:filter .18s ease}
