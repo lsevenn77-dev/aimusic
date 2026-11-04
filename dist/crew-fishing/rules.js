@@ -14,7 +14,7 @@ export const SIZES = {
   D: {weight:10, min:-2500, max:-1501, percent:80}
 };
 export const LIMITS = {day:10, week:50, width:30, warnings:2};
-export const cm = units => (units/10000).toLocaleString('ko-KR',{maximumFractionDigits:4});
+export const cm = units => (Math.trunc(units/1000)/10).toLocaleString('ko-KR',{minimumFractionDigits:1,maximumFractionDigits:1});
 export function season(ms){
   const kst = new Date(ms + 9*3600000);
   const day = kst.toISOString().slice(0,10);

@@ -40,14 +40,15 @@ export function fishingLimits(env,uid,day){
     return {...LIMITS,day:entry.dayLimit,week:entry.weekLimit};
   }catch{return LIMITS;}
 }
-async function ranking(env,week,personal){
+async function ranking(env,week,personal,viewer){
   const name=personal?publicNameSQL():'c.name';
-  const join=personal?'JOIN users u ON u.id=r.participant':'JOIN crews c ON c.id=r.participant';
+  const join=personal?'JOIN users u ON u.id=r.participant LEFT JOIN producers p ON p.user_id=u.id':'JOIN crews c ON c.id=r.participant';
+  const profile=personal?'p.id AS profile_id,p.image_version':'r.participant AS crew_id,c.image_version';
   const key=personal?'f.user_id':'f.crew_id';
   return rows(env,`WITH scores AS (SELECT ${key} AS participant,SUM(amount) AS score FROM crew_fishing_casts f
     WHERE week=? AND status='caught' GROUP BY ${key}), ranked AS (SELECT *,RANK() OVER(ORDER BY score DESC) AS place FROM scores)
-    SELECT r.participant AS id,${name} AS name,r.score,r.place FROM ranked r
-    ${join} ORDER BY r.place,name,id LIMIT 100`,week);
+    SELECT r.participant AS id,${name} AS name,r.score,r.place,${profile},(r.participant=?) AS mine FROM ranked r
+    ${join} WHERE r.place<=100 OR r.participant=? ORDER BY r.place,name,r.participant`,week,viewer,viewer);
 }
 export async function fishingRoute(req,env,path,user,ms=Date.now()){
   requireUser(user);
@@ -69,7 +70,7 @@ export async function fishingRoute(req,env,path,user,ms=Date.now()){
       one(env,'SELECT COUNT(*) AS total,COUNT(CASE WHEN day=? THEN 1 END) AS today FROM crew_fishing_casts WHERE user_id=? AND week=?',day,uid,week),
       one(env,"SELECT COALESCE(SUM(amount),0) AS score FROM crew_fishing_casts WHERE week=? AND user_id=? AND status='caught'",week,uid),
       one(env,"SELECT COALESCE(SUM(amount),0) AS score FROM crew_fishing_casts WHERE week=? AND crew_id=? AND status='caught'",week,crew),
-      ranking(env,week,true),ranking(env,week,false),open?active():null]);
+      ranking(env,week,true,uid),ranking(env,week,false,crew),open?active():null]);
     return json({crew,name:m.name,week,day,open,dailyLimit:limits.day,weeklyLimit:limits.week,remaining:Math.max(0,Math.min(limits.day-quota.today,limits.week-quota.total)),
       weeklyRemaining:Math.max(0,limits.week-quota.total),mine:mine.score,ours:ours.score,individual,crews,cast:view(current),serverTime:ms});
   }
