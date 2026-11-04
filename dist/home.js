@@ -37,6 +37,8 @@ function homePlaylistCard(p,tracks=null,{compact=false,footer=''}={}){
 }
 
 function homeProfileCard(p,kind){return `<article class="home-profile-card"><a href="#${kind}/${esc(p.id)}" title="${esc(p.name)}"><div class="profile-frame-canvas avatar-frame-host">${avatarImage(p,kind,false)}</div><div class="home-profile-name"><span>${esc(p.name)}</span>${p.partner_badge?`<span class="partner-badge" aria-label="${esc(p.partner_badge)}">✓ ${esc(p.partner_badge)}</span>`:''}</div></a></article>`;}
+// Home curation only: keep Ina's data, directory entry and profile route intact.
+const homeExcludedArtistIds=new Set(['0c2ecb21-3deb-4828-a48f-9ccf810eadff']);
 function homeProfileSection(kind,title,href){return `<section id="home-${kind}s" class="listening-section home-profile-section" data-home-kind="${kind}"><div class="section-heading"><h2 id="home-${kind}-heading">${esc(title)}</h2>${kind==='producer'?'':`<a class="home-more-link" href="${href}" aria-label="${esc(title)} 전체보기">전체보기</a>`}</div><div id="home-${kind}-panel" role="group" aria-labelledby="home-${kind}-heading" aria-busy="true"><p class="home-load-message" role="status">프로필을 불러오고 있어요.</p></div></section>`;}
 function mountHomeRail(target){
  homeRailCleanups.get(target.id)?.();homeRailCleanups.delete(target.id);
@@ -213,7 +215,7 @@ function renderHome(ticket){
   homeRailCleanups.get(target.id)?.();homeRailCleanups.delete(target.id);
   target.innerHTML='<p class="home-load-message" role="status">프로필을 불러오고 있어요.</p>';
   const path='/api/discovery/profiles?'+new URLSearchParams({kind,sort:'popular'});
-  const show=d=>{if(!active(target)||sequence!==profileRequests[kind])return;const items=(d.profiles||[]).slice(0,10),label=kind==='artist'?'지금 뜨는 AI 아티스트':'주목할 작곡가';paint(target,items.length?homeRailHTML('home-'+kind+'-rail',label,items.map(p=>homeProfileCard(p,kind)).join(''),'profile'):'<p class="home-empty-inline" role="status">아직 공개곡이 있는 프로필이 없어요.</p>');mountHomeRail(target);};
+  const show=d=>{if(!active(target)||sequence!==profileRequests[kind])return;const items=(d.profiles||[]).filter(p=>kind!=='artist'||!homeExcludedArtistIds.has(p.id)).slice(0,10);paint(target,items.length?'<div class="home-profile-grid">'+items.map(p=>homeProfileCard(p,kind)).join('')+'</div>':'<p class="home-empty-inline" role="status">아직 공개곡이 있는 프로필이 없어요.</p>');};
   const cached=peekApiRead(path,{display:true});if(cached)show(cached);
   try{show(await api(path,'GET',undefined,{signal:controller.signal}));}catch{if(active(target)&&sequence===profileRequests[kind]&&!cached){paint(target,'<div class="home-load-error" role="alert"><p>프로필을 불러오지 못했어요.</p><button type="button" class="small-button" data-home-profile-retry="'+kind+'">다시 시도</button></div>');}}
  };

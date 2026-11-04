@@ -38,20 +38,29 @@
 }
 @media(hover:none),(pointer:coarse){.home-content-refresh .home-playlist-art .list-action{opacity:1;--control-diameter:30px}}
 @media(prefers-reduced-motion:reduce){.home-content-refresh .home-playlist-art::after,.home-content-refresh .home-playlist-art .list-action{transition:none}}
-.home-content-refresh .home-profile-section .home-rail-shell{padding-top:0}
-.home-content-refresh .home-profile-card{flex:0 0 140px;min-width:0;text-align:center;scroll-snap-align:start}
+.listening-home .home-profile-section{container-type:inline-size;min-width:0}
+.listening-home .home-profile-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:24px 16px;min-width:0}
+.home-content-refresh .home-profile-card{min-width:0;text-align:center}
 .home-content-refresh .home-profile-card>a{display:block;padding:2px}
-.home-profile-section .profile-frame-canvas{display:grid;place-items:center;width:100%;aspect-ratio:1}
+.home-profile-section .profile-frame-canvas{display:grid;place-items:center;width:100%;max-width:240px;margin-inline:auto;aspect-ratio:1}
 .home-profile-section .profile-frame-canvas>.profile-avatar-image{
  display:block;width:calc(100% / var(--profile-frame-layout));height:auto;aspect-ratio:1;
  object-fit:cover;object-position:center;border-radius:50%;background:var(--ds-panel)
 }
 /* AI artists do not wear frames, so their portraits can use more of the slot. */
-.home-content-refresh #home-artists .profile-frame-canvas>.profile-avatar-image{width:80%}
+.home-content-refresh #home-artists .profile-frame-canvas>.profile-avatar-image{width:90%}
 .home-profile-section .profile-frame-canvas>.profile-avatar-image[hidden]{display:none}
 .home-content-refresh .home-profile-name{display:flex;align-items:center;justify-content:center;gap:4px;margin-top:6px;font-size:14px;font-weight:650;line-height:1.5;min-width:0}
 .home-content-refresh .home-profile-name>span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .home-content-refresh .home-profile-name .partner-badge{flex:none;font-size:10px;max-width:65px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+/* Complete columns follow the content width, including a narrowed desktop
+   panel. No horizontal rail or partially visible profile is needed. */
+@container(max-width:599px){
+ .listening-home .home-profile-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 12px}
+}
+@container(min-width:1280px){
+ .listening-home #home-artists .home-profile-grid{grid-template-columns:repeat(8,minmax(0,1fr))}
+}
 /* Preserve the existing section rhythm and 44px heading links. Profile
    headings reserve less space because the canvas carries its own headroom. */
 .listening-home.home-content-refresh{--home-section-space:28.59375px;--home-profile-inset:calc(2px * var(--ui-space-scale,1));--home-heading-slack:max(0px,calc((44px - 32.66625px * var(--ui-type-scale,1)) / 2))}
@@ -67,13 +76,9 @@
 .listening-home.home-content-refresh :is(#home-artists,#home-library)>.section-heading>.home-more-link{position:absolute;inset-inline-end:0;inset-block:0;height:44px;margin-block:auto}
 .listening-home.home-content-refresh :is(#home-artists,#home-producers,#home-library) .home-rail-shell{padding-block:0}
 .listening-home.home-content-refresh :is(#home-artists,#home-producers,#home-library) .home-rail{padding-block:0}
-.listening-home.home-content-refresh :is(#home-artists,#home-producers) .home-rail{scrollbar-width:none}
-.listening-home.home-content-refresh :is(#home-artists,#home-producers) .home-rail::-webkit-scrollbar{display:none}
 @media(max-width:800px){.listening-home.home-content-refresh{--home-section-space:24px;--home-heading-slack:calc((44px - 31.2662px) / 2)}}
 @media(max-width:600px){
  .home-content-refresh .home-rail{gap:16px}
- .home-profile-section .home-profile-rail{--profile-column-gap:calc(8px * var(--ui-space-scale,1));gap:var(--profile-column-gap)}
- .home-profile-section .home-profile-card{flex-basis:calc((100% - 2 * var(--profile-column-gap)) / 3)}
  .home-profile-section .home-profile-card>a{padding-inline:0}
 }
 .home-content-refresh{container-type:inline-size;min-width:0}
