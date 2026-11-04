@@ -1,3 +1,4 @@
+import {renderGameRankings} from '/crew-game-lobby.js';
 import { RULES,CAR,SEG,ROAD_W,RUMBLE,DRAW,FOV,CAM_H,CAM_DEPTH,PLAYER_Z,COURSES,STEP,newRun,computeScore,createRace } from "./physics.js";
 import {CARS,raceCalendar} from "./catalog.js";
 (() => {
@@ -473,26 +474,16 @@ import {CARS,raceCalendar} from "./catalog.js";
     prepareRearSprite();
     window.__world3d?.setCar?.(carId);renderShop();
   }
-  function showRanking(id,entries){
-    const list=$(id);list.replaceChildren();
-    if(!entries.length){list.textContent='이번 주 첫 주행을 기다리고 있어요.';return;}
-    for(const row of entries){
-      const li=document.createElement('li');
-      const name=document.createElement('span'),points=document.createElement('strong');
-      name.textContent=row.place+'위  '+row.name;points.textContent=fmt(row.points)+'점';
-      li.append(name,points);list.append(li);
-    }
-  }
   async function loadLobby(){
     try{
       const data=await api('lobby');
       signedIn=data.signedIn;crewMember=data.crewMember;garageState(data);document.querySelector('[data-race-mode]').textContent=crewMember&&!forced?'공식 랭킹 도전':'연습 모드';
       updateLobby();
-      showRanking('teams',data.ranking);showRanking('drivers',data.individualRanking);
+      renderGameRankings($('racingRankings'),{crews:data.ranking,players:data.individualRanking,crewId:data.crew});
       $('garageStatus').textContent=signedIn?'':'로그인하면 차량을 구매하고 장착할 수 있어요.';
     }catch{
       $('garageStatus').textContent='차고 정보를 불러오지 못했어요. 새로고침해서 다시 시도해주세요.';
-      for(const id of ['teams','drivers'])$(id).textContent='랭킹을 불러오지 못했어요.';
+      $('racingRankings').textContent='순위를 불러오지 못했어요.';
     }
   }
   async function changeCar(action,c,button){

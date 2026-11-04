@@ -1,3 +1,4 @@
+import {renderGameRankings} from '/crew-game-lobby.js';
 import {VERSION,RULES,CHART,notesFor,computeScore,createRhythmRun,advanceRhythm,inputRhythm,completeRhythm} from "./core.js";
 (() => {
   // ───────── 설정: 점수 규칙·판정 (서버도 같은 값으로 검증) ─────────
@@ -491,11 +492,6 @@ import {VERSION,RULES,CHART,notesFor,computeScore,createRhythmRun,advanceRhythm,
     const response=await fetch('/api/crew-rhythm/'+action,body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{cache:'no-store'});
     const data=await response.json();if(!response.ok)throw Object.assign(new Error(data.error||'기록을 확인하지 못했어요.'),{status:response.status});return data;
   }
-  function renderRanking(id,records){
-    const list=$(id);list.replaceChildren();
-    if(!records.length){list.textContent='아직 공식 기록이 없어요.';return;}
-    for(const row of records.slice(0,100)){const item=document.createElement('li');item.textContent=`${row.place}위 · ${row.name}${row.difficulty?' · '+row.difficulty.toUpperCase():''} · ${fmt(row.points)}점`;list.append(item);}
-  }
   async function loadLobby(){
     try{
       lobbyInfo=await api('lobby');
@@ -504,7 +500,7 @@ import {VERSION,RULES,CHART,notesFor,computeScore,createRhythmRun,advanceRhythm,
       $('retryLobbyReportBtn').hidden=!pendingReport;
       $('officialStatus').textContent=lobbyInfo.open?`오늘 남은 공식 도전 ${lobbyInfo.remaining} / 3회 · 금요일 22시 마감`:'이번 주 공식 도전이 마감됐어요.';
       $('teamScore').textContent=fmt(lobbyInfo.team)+'점';
-      renderRanking('rhythmTeams',lobbyInfo.ranking);renderRanking('rhythmPlayers',lobbyInfo.individualRanking);
+      renderGameRankings($('rhythmRankings'),{crews:lobbyInfo.ranking,players:lobbyInfo.individualRanking,crewId:lobbyInfo.crew});
       updateLobby();
     }catch(e){$('officialBtn').disabled=true;$('officialStatus').textContent=e.message;}
   }

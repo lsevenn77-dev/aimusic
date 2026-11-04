@@ -1,0 +1,33 @@
+/* The existing jump lobby is the visual source for all game waiting rooms. */
+.crew-game-board{box-sizing:border-box;container-type:inline-size;min-width:0;width:100%;padding:16px;border:2px solid #abb7ff;border-radius:22px;background:radial-gradient(ellipse at 50% 0%,#3a365e 0%,transparent 67%),linear-gradient(145deg,#232644,#191c34);box-shadow:inset 0 0 0 2px #4f5195;color:#f6f4ff}
+.crew-game-board .cgl-pair{display:grid;grid-template-columns:minmax(0,1fr);gap:0}
+.crew-game-board .cgl-ranking{min-width:0;display:grid;grid-template-rows:auto auto minmax(160px,1fr) auto;padding:0 6px}
+.crew-game-board .cgl-ranking+.cgl-ranking{border-top:1px solid #66618b;margin-top:16px;padding-top:16px}
+.crew-game-board .cgl-title{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0;padding:0;border:0;background:none}
+.crew-game-board .cgl-title h2{margin:0;color:#fcfaff;font-size:clamp(18px,3cqw,26px);font-weight:800;line-height:1.4;letter-spacing:-.035em}
+.crew-game-board .cgl-title small{color:#d3ceff;font-size:12px;font-weight:750;letter-spacing:.08em;white-space:nowrap}
+.crew-game-board .cgl-description{margin:6px 0 10px;color:#c7c8df;font-size:14px;line-height:1.5}
+.crew-game-board .cgl-scroll{min-height:160px;height:190px;position:relative;overflow-y:auto;overscroll-behavior:contain;border-block:1px solid #514e72;scrollbar-color:#746f9d transparent;scrollbar-width:thin}
+.crew-game-board .cgl-scroll:focus-visible{outline:3px solid var(--ds-mint,#aeebdf);outline-offset:-3px}
+.crew-game-board .cgl-scroll ol{padding:0;margin:0;list-style:none}
+.crew-game-board .cgl-row{box-sizing:border-box;display:grid;grid-template-columns:2ch 32px minmax(0,1fr) auto;align-items:center;gap:9px;min-height:48px;padding:7px 0;margin:0;border:0;border-bottom:1px solid #454665;font-size:16px;line-height:1.35}
+.crew-game-board .cgl-row>b{color:#c6b6fa;text-align:center;font-variant-numeric:tabular-nums}
+.crew-game-board .cgl-avatar{position:relative;display:grid;place-items:center;overflow:hidden;width:30px;height:30px;border-radius:50%;background:#494467;color:#e7ddff;font-style:normal}
+.crew-game-board .cgl-avatar img{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover;border:0;border-radius:50%;margin:0}
+.crew-game-board .cgl-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700;color:#f6f4ff}
+.crew-game-board .cgl-name small{display:block;margin-top:2px;font-size:11px;font-weight:500;color:#c7c8df}
+.crew-game-board .cgl-row strong{margin:0;color:#f6f4ff;font-size:15px;font-style:normal;font-weight:750;font-variant-numeric:tabular-nums;white-space:nowrap}
+.crew-game-board .cgl-empty{position:absolute;inset:0;display:grid;align-content:center;justify-items:center;gap:8px;color:#cac8df;font-size:14px;background:radial-gradient(ellipse at 50% 55%,#60538b22,transparent 65%)}
+.crew-game-board .cgl-empty span{font-size:34px;line-height:1;color:#bdafed}
+.crew-game-board .cgl-own{padding-top:10px;color:var(--ds-mint,#aeebdf);font-size:15px;font-weight:650;line-height:1.5}
+@container (min-width:650px){.crew-game-board .cgl-pair{grid-template-columns:repeat(2,minmax(0,1fr))}.crew-game-board .cgl-ranking{padding-inline:14px}.crew-game-board .cgl-ranking+.cgl-ranking{margin:0;padding-top:0;border-top:0;border-left:1px solid #66618b}}
+@container (max-width:340px){.crew-game-board .cgl-row{grid-template-columns:2ch 28px minmax(0,1fr) auto;gap:6px;font-size:14px}.crew-game-board .cgl-avatar{width:27px;height:27px}.crew-game-board .cgl-row strong{font-size:13px}.crew-game-board .cgl-description{font-size:13px}}
+[data-game-lobby] .glass.card,[data-game-lobby] .panel.stats{border-color:#9383d5;border-width:1px;border-radius:20px;background:radial-gradient(at 0% 0%,#4c427b,transparent 65%),linear-gradient(145deg,#292649,#322d5d)}
+[data-game-lobby] .card h3{font-size:18px;line-height:1.4}
+[data-game-lobby] .card .muted{font-size:14px;line-height:1.55}
+[data-game-lobby] .startrow{flex-wrap:wrap;gap:10px}
+[data-game-lobby] .startrow button{min-height:46px}
+[data-game-lobby] .topbar{gap:8px;padding:12px}
+[data-game-lobby] .topbar h1{min-width:0;margin:0;font-size:clamp(18px,1.7vw,24px);line-height:1.4;white-space:nowrap}
+[data-game-lobby] .topbar .iconbtn{font-size:13px;padding:8px;white-space:nowrap}
+#fishingRankings{margin-block:14px}

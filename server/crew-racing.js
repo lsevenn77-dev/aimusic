@@ -79,7 +79,7 @@ export async function racingRoute(req,env,path,user,ms=Date.now()){
   ), ranked AS (
     SELECT *,RANK() OVER(ORDER BY points DESC) place FROM totals
   ) SELECT c.name,c.image_version,r.* FROM ranked r JOIN crews c ON c.id=r.crew_id WHERE place<=100 OR crew_id=? ORDER BY place,c.name,r.crew_id`,week,crew);
-    return json({week,course,ranking,individualRanking,signedIn:!!uid,crewMember:!!crew,...(uid?await garage(env,uid):{owned:['c2'],equipped:'c2'})});
+    return json({week,course,crew:crew||null,ranking,individualRanking,signedIn:!!uid,crewMember:!!crew,...(uid?await garage(env,uid):{owned:['c2'],equipped:'c2'})});
   }
   if(req.method!=='POST')fail(405,'지원하지 않는 요청입니다.');
   requireUser(user);

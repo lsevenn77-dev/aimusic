@@ -20,14 +20,14 @@ export async function rhythmRoute(req,env,path,user,ms=Date.now()){
       rows(env,`WITH best AS (SELECT *,ROW_NUMBER() OVER(PARTITION BY user_id ORDER BY score DESC,finished,id) AS choice
         FROM crew_rhythm_runs WHERE week=? AND status='finished' AND crew_id IS NOT NULL),
         ranked AS (SELECT *,RANK() OVER(ORDER BY score DESC) AS place FROM best WHERE choice=1)
-        SELECT r.user_id AS id,${publicNameSQL()} AS name,r.score AS points,r.difficulty,r.place,(r.user_id=?) AS mine
-        FROM ranked r JOIN users u ON u.id=r.user_id WHERE r.place<=100 OR r.user_id=? ORDER BY r.place,r.finished,r.id`,week,uid,uid),
+        SELECT r.user_id AS id,${publicNameSQL()} AS name,r.score AS points,r.difficulty,r.place,(r.user_id=?) AS mine,p.id AS profile_id,p.image_version
+        FROM ranked r JOIN users u ON u.id=r.user_id LEFT JOIN producers p ON p.user_id=u.id WHERE r.place<=100 OR r.user_id=? ORDER BY r.place,r.finished,r.id`,week,uid,uid),
       rows(env,`WITH best AS (SELECT crew_id,user_id,MAX(score) AS points FROM crew_rhythm_runs
         WHERE week=? AND status='finished' AND crew_id IS NOT NULL GROUP BY crew_id,user_id),
         members AS (SELECT *,ROW_NUMBER() OVER(PARTITION BY crew_id ORDER BY points DESC,user_id) AS member_place FROM best),
         totals AS (SELECT crew_id,SUM(points) AS points FROM members WHERE member_place<=10 GROUP BY crew_id),
         ranked AS (SELECT *,RANK() OVER(ORDER BY points DESC) AS place FROM totals)
-        SELECT r.*,c.name FROM ranked r JOIN crews c ON c.id=r.crew_id WHERE place<=100 OR crew_id=? ORDER BY place,c.name,r.crew_id`,week,crew)
+        SELECT r.*,c.name,c.image_version FROM ranked r JOIN crews c ON c.id=r.crew_id WHERE place<=100 OR crew_id=? ORDER BY place,c.name,r.crew_id`,week,crew)
     ]);
     return json({userId:uid,crew,day,week,open:canStart,remaining:Math.max(0,3-used.n),version:VERSION,song:CHART.title||'Double Tap',bests,
       individualRanking,ranking,team:ranking.find(r=>r.crew_id===crew)?.points||0});

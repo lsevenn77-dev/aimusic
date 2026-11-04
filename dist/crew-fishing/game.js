@@ -1,3 +1,4 @@
+import {renderGameRankings} from '/crew-game-lobby.js';
 import {FISH} from './catalog.js';
 import {TIERS,position,cm} from './rules.js';
 import {createScene} from './scene.js';
@@ -20,7 +21,7 @@ const art=f=>`./art/${f.id}.webp`;
 let lobby,cast,screen='',pending=false,requestId=null,clockOffset=0,frame=0,book,scene=null;
 function showError(message){errorBox.textContent=message;errorBox.hidden=!message}
 function paint(name,html){
-  cancelAnimationFrame(frame);scene?.destroy();scene=null;screen=name;app.innerHTML=html;window.scrollTo(0,0);
+  cancelAnimationFrame(frame);scene?.destroy();scene=null;screen=name;app.toggleAttribute('data-game-lobby',name==='lobby');app.innerHTML=html;window.scrollTo(0,0);
 }
 async function fetchAPI(action,data){
   const before=performance.now();
@@ -47,11 +48,6 @@ async function api(action,data){
   }
   return practice.lobby();
 }
-function rank(title,list){
-  return `<section class="panel"><div class="titlebar"><h2>${title}</h2><small>WEEKLY</small></div>${list.length?
-    '<ol class="ranklist">'+list.map(r=>`<li><em>${r.place}위</em> ${esc(r.name)} <strong>${fmt(r.score)}점</strong></li>`).join('')+'</ol>':
-    '<p>이번 주 첫 어획을 기다리고 있어요.</p>'}</section>`;
-}
 async function openLobby(){
   lobby=await api('lobby');cast=lobby.cast;
   document.querySelector('#back').href='/#crew/'+encodeURIComponent(lobby.crew);
@@ -62,10 +58,11 @@ async function openLobby(){
   <p>${esc(lobby.name)}의 공동 낚시터 · 오늘은 어떤 물고기가 찾아올까요?</p>
   <div class="actions"><button class="primary" data-act="start" ${!lobby.open||(!cast&&!lobby.remaining)?'disabled':''}>${cast?'낚시 이어하기':lobby.open?'낚시 시작':'이번 주 낚시 마감'}</button><span class="pill">오늘 남은 낚시 ${lobby.remaining} / ${lobby.dailyLimit??10}</span></div></div></section>
   <aside class="panel stats"><div><span>내 주간 어획액</span><strong>${fmt(lobby.mine)}점</strong></div><div><span>크루 주간 어획액</span><strong>${fmt(lobby.ours)}점</strong></div><div><span>주간 남은 기회</span><strong>${lobby.weeklyRemaining} / ${lobby.weeklyLimit??50}</strong></div></aside></div>
-  <div class="twocol">${rank('크루 랭킹',lobby.crews)}${rank('개인 랭킹',lobby.individual)}</div>
+  <section id="fishingRankings" aria-label="주간 게임 순위"></section>
   <section class="panel"><div class="titlebar"><div><small>CREW COLLECTION</small><h2>우리 크루의 바다</h2></div></div>
   <div class="links"><button data-act="aquarium">크루 수족관</button><button data-act="book">물고기 도감</button><a href="./design.html">공식 어종 27종 보기 ↗</a><a href="?mode=practice">연습하기</a></div></section>
   <p class="caption">한국시간 월요일 0시 개장 · 금요일 22시 마감 · 평가액은 게임 랭킹 점수예요.</p>`);
+  renderGameRankings(document.querySelector('#fishingRankings'),{crews:lobby.crews,players:lobby.individual,crewId:lobby.crew,crewDescription:'잡은 모든 물고기의 주간 평가액 합계',playerDescription:'개인별 주간 어획액 합계'});
 }
 function loop(){
   cancelAnimationFrame(frame);
