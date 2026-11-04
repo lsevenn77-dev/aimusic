@@ -398,6 +398,9 @@ main .social-profile-identity h2>.mp-public-id{display:block;font-size:13px;font
 }
 @media(max-width:800px){
  #main .mp-dashboard .mp-profile-collections{grid-template-columns:minmax(0,1fr);gap:10px}
+ /* Keep the relocated section's original surface and card width on mobile. */
+ #main .mp-dashboard.mp-own>.mp-aside>.mp-artists-card{padding:8px 0 0;margin:24px 0 0;background:none;border:0;box-shadow:none}
+ #main .mp-dashboard.mp-own>.mp-aside>.mp-artists-card+.mp-studio{margin-top:16px}
  #main .mp-dashboard .mp-profile-collections>.mp-moments-card{order:0}
  #main .mp-dashboard .mp-profile-collections>.mp-artists-card{order:1}
  #main .mp-dashboard .mp-artists-card .mp-artists{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}

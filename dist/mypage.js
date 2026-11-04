@@ -365,20 +365,21 @@ async function refreshMyPageRoute(raw,ticket,readApi=api,showCurrentTab){
  if(ticket===renderId&&myPendingTabFocus===tab)$('#mp-tab-'+tab)?.focus({preventScroll:true});myPendingTabFocus='';
  return true;
 }
-const visitorMobileLayout=window.matchMedia?.('(max-width: 800px)');
-function placeVisitorArtists(){
- const page=document.querySelector('.mp-dashboard:not(.mp-own)');
+const profileMobileLayout=window.matchMedia?.('(max-width: 800px)');
+function placeProfileArtists(){
+ const page=document.querySelector('.mp-dashboard');
  if(!page)return;
  const artists=page.querySelector('.mp-artists-card'),studio=page.querySelector('.mp-studio');
  if(!artists||!studio)return;
- if(visitorMobileLayout.matches){
+ // Move the existing section so cards and delegated actions keep their identity.
+ if(profileMobileLayout.matches){
   if(artists.nextElementSibling!==studio)studio.before(artists);
  }else{
   const collections=page.querySelector('.mp-profile-collections');
   if(artists.parentElement!==collections)collections.append(artists);
  }
 }
-visitorMobileLayout?.addEventListener('change',placeVisitorArtists);
+profileMobileLayout?.addEventListener('change',placeProfileArtists);
 function bindMyPage(view){
  myWorkSearchObserver?.disconnect();myWorkSearchObserver=null;
  const s=myPageState=view?.mypage||null,profile=s?.d.profile||view?.memberHeader;
@@ -386,7 +387,7 @@ function bindMyPage(view){
  if(view?.profileWorks)bindProfileWorks(view.profileWorks);
  if(!s){myPendingTabFocus='';return;}
  bindProfileWorkJoins(document.querySelector('.mp-dashboard'),s.d);
- if(!s.own&&visitorMobileLayout)placeVisitorArtists();
+ if(profileMobileLayout)placeProfileArtists();
  if(s.tab==='activity')void mySelectTab('activity',false);
  if(view.musicLibrary)bindMusicLibrary(view.musicLibrary);
  if(myPendingTabFocus===s.tab)$('#mp-tab-'+s.tab)?.focus({preventScroll:true});
