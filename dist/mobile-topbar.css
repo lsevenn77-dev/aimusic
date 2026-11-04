@@ -74,7 +74,10 @@
 }
 /* Before JS measures the safe-area-adjusted available width. */
 @media (max-width:357px) {
-  .page-wrap > .topbar { --topbar-logo-width:44px; }
+  /* Also fit a 320px desktop viewport with a native scrollbar. Text sizes and
+     the four action targets stay unchanged; only the logo/grip tracks shrink. */
+  .page-wrap > .topbar { --topbar-logo-width:44px; grid-template-columns:44px minmax(28px,44px) minmax(32px,44px) minmax(176px,1fr); }
+  .topbar .mobile-brand, #mobile-topbar-toggle { width:100%; max-width:44px; }
   .topbar .mobile-brand .aifect-lockup { display:none; }
   .topbar .mobile-brand-symbol { display:block; width:28px; height:28px; }
 }

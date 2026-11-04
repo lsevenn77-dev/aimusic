@@ -63,7 +63,7 @@ function songLyricsButtonHTML(t){
 }
 function songDetailActionsHTML(t){
  const id=esc(t.id),mine=!!me&&t.user_id===me.id;
- const listen='<button type="button" class="primary-button song-action-listen" data-play="'+id+'" data-community-toggle aria-label="노래 듣기" aria-pressed="false">'+songActionIcon('play')+'<span>노래</span></button>';
+ const listen='<button type="button" class="primary-button song-action-listen" data-play="'+id+'" data-community-toggle aria-label="노래 듣기" aria-pressed="false">'+songActionIcon('play')+'<span>듣기</span></button>';
  const like='<button type="button" class="small-button song-action-like '+(liked(t.id)?'is-active':'')+'" data-like="'+id+'" aria-label="좋아요 '+number(t.likes||0)+'개" aria-pressed="'+liked(t.id)+'">'+songActionIcon('heart')+'<span>좋아요</span><span class="song-like-count" data-like-count>'+number(t.likes||0)+'</span></button>';
  const lyrics=songLyricsButtonHTML(t);
  if(t.kind==='cover'){
@@ -75,7 +75,7 @@ function songDetailActionsHTML(t){
  const save='<button type="button" class="small-button song-action-save" data-add="'+id+'" aria-label="저장">'+songActionIcon('plus')+'<span>저장</span></button>';
  const gift=mine?'':'<button type="button" class="small-button gift-entry song-action-gift" data-gift="'+id+'" aria-label="선물">'+songActionIcon('gift')+'<span>선물</span></button>';
  const more='<button type="button" class="small-button song-action-more" data-track-menu="'+id+'" aria-label="더보기" aria-haspopup="dialog">'+songActionIcon('menu')+'</button>';
- return '<div class="inline-actions song-actions" role="group" aria-label="곡 기능">'+listen+sing+like+lyrics+save+gift+more+'</div>';
+ return '<div class="song-action-groups" role="group" aria-label="곡 기능"><div class="inline-actions song-actions song-actions-primary">'+listen+sing+'</div><div class="inline-actions song-actions song-actions-secondary">'+like+lyrics+save+gift+more+'</div></div>';
 }
 function songDetailHeaderHTML(t){
  const isCover=t.kind==='cover',genres=isCover?'':(t.genres?.length?t.genres:[t.genre]).filter(Boolean).join(' · '),moderation=trackModerationToolsHTML(t);

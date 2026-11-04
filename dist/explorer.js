@@ -197,7 +197,7 @@ function trackMenu(tid,anchor=null,duetJoin=null){
  ${row('plus','플레이리스트에 저장',`data-add="${id}"`)}
  ${row('heart',`<span data-track-like-label>${liked(tid)?'좋아요 해제':'좋아요'}</span>`,`data-like="${id}" aria-pressed="${liked(tid)}"`)}
  ${anchor?row('share','공유하기',`data-share="${id}"`):''}
- ${anchor&&me?.id!==t.user_id?row('info','음질 문제 신고',`data-report-track="${id}"`):''}
+ ${anchor&&me?.id!==t.user_id?row('info','음원 문제 신고',`data-report-track="${id}"`):''}
  ${giftButton(t,'track-option').replace('</button>',icon('chevron')+'</button>')}
  <a class="track-option" href="#song/${id}" data-close-dialog>${icon('info')}<span>곡 정보 · 가사 · 댓글</span>${icon('chevron')}</a>
  ${me?.id&&me.id===t.user_id?row('trash','곡 삭제',`data-delete-track="${id}" data-track-title="${esc(t.title)}" data-track-kind="${esc(t.kind)}"`,'track-option-delete'):''}

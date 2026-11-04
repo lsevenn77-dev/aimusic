@@ -9,7 +9,7 @@
   --ui-space-scale:var(--gift-ui-scale);
   --ui-icon-scale:var(--gift-ui-scale);
   --ui-control-height:44px;
-  font-size:calc(1.0833125rem * var(--gift-ui-scale));
+  font-size:var(--pc-font-body);
  }
  #main:is([data-route="gifts"],[data-route^="gifts/"]) .shop-track{--shop-card-width:calc(144.43px * var(--gift-ui-scale))}
  #main:is([data-route="gifts"],[data-route^="gifts/"]) .shop-product img{width:calc(65.78px * var(--gift-ui-scale));height:calc(65.78px * var(--gift-ui-scale))}
