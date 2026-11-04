@@ -47,6 +47,29 @@ export async function studioRoute(req,env,path,user){
   return json({ok:true,version:image.version});
  }
  if(req.method==='GET')return json({profile:table==='tracks'?trackClassification({...entity,...await one(env,`SELECT ${trackArtworkSQL()},o.has_cover original_has_cover,o.cover_version original_cover_version FROM tracks t LEFT JOIN tracks o ON o.id=t.original_id WHERE t.id=?`,entity.id)}):entity,...(table==='tracks'?{alignment:await alignmentStatus(env,entity.id),karaoke:await karaokeStatus(env,entity.id)}:{})});
+ if(req.method==='DELETE'&&table==='artists'){
+  const b=await req.json();
+  if(b.confirmation!==entityId||b.name!==entity.name)fail(409,'아티스트 정보를 다시 확인한 뒤 삭제해주세요.');
+  await rate(env,'artist-delete:'+user.id,20,3600);
+  // A single guarded write prevents cascading deletion of existing creative or social data.
+  // Profile image objects are retained; this action never deletes stored media.
+  const result=await env.DB.batch([
+   query(env,`DELETE FROM artists WHERE id=? AND producer_id=? AND name=?
+    AND NOT EXISTS(SELECT 1 FROM tracks WHERE artist_id=artists.id)
+    AND NOT EXISTS(SELECT 1 FROM artist_photos WHERE artist_id=artists.id)
+    AND NOT EXISTS(SELECT 1 FROM artist_fan_posts WHERE artist_id=artists.id)
+    AND NOT EXISTS(SELECT 1 FROM artist_fan_settings WHERE artist_id=artists.id)
+    AND NOT EXISTS(SELECT 1 FROM artist_fan_operators WHERE artist_id=artists.id)
+    AND NOT EXISTS(SELECT 1 FROM artist_follow_blocks WHERE artist_id=artists.id)
+    AND NOT EXISTS(SELECT 1 FROM follows WHERE kind='artist' AND target_id=artists.id)
+    AND NOT EXISTS(SELECT 1 FROM activity_notifications WHERE artist_id=artists.id)
+    RETURNING id`,entityId,entity.producer_id,entity.name),
+   query(env,`UPDATE profile_artist_pins SET ids_json=(SELECT json_group_array(value) FROM json_each(profile_artist_pins.ids_json) WHERE value!=?)
+    WHERE producer_id=? AND NOT EXISTS(SELECT 1 FROM artists WHERE id=?)`,entityId,entity.producer_id,entityId)
+  ]);
+  if(!result[0].results?.length)fail(409,'음원·팬페이지·팔로우 등 연결된 데이터가 있어 삭제할 수 없어요. 기존 데이터는 유지됩니다.');
+  return json({ok:true,id:entityId});
+ }
  if(req.method!=='PUT')fail(405,'지원하지 않는 요청입니다.');
  const b=await req.json();
  const release=table==='tracks'?releaseDate(b.release_date,entity.release_date):'';

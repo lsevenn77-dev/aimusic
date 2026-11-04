@@ -7,9 +7,12 @@ function directoryArtistCard(a,{owner=false,producerName='',member=false,showFol
  const kind=member?'producer':'artist',key=kind+'/'+a.id,following=followed(kind,a.id);
  return `<article class="directory-artist artist-ui-card"><a class="directory-photo" href="#${kind}/${esc(a.id)}" aria-label="${esc(a.name)} 상세">${portrait(a,kind)}</a><div class="directory-name"><a href="#${kind}/${esc(a.id)}" title="${esc(a.name)}">${esc(a.name)}</a>${owner?`<button type="button" data-directory-edit="${esc(a.id)}" aria-label="${esc(a.name)} 수정">${icon('edit',16)}</button>`:''}</div>${member?(a.role==='owner'?'<small class="crew-owner-tag">크루장</small>':''):artistAffiliation(a,producerName)}<div class="directory-social">${showFollowerCount?`<a href="#follow?${member?'tab=followers&amp;user='+encodeURIComponent(a.user_id):'tab=artists&amp;artist='+encodeURIComponent(a.id)}" class="directory-followers" data-followers="${esc(key)}" data-count="${Number(a.followers)||0}">팔로워 <span data-follow-count>${number(a.followers)}</span></a>`:''}<button type="button" class="directory-follow" ${member&&me?.id===a.user_id?'hidden':''} data-follow="${esc(key)}" aria-pressed="${following}">${icon('user',14)}<span data-follow-label>${following?'팔로잉':'팔로우'}</span></button></div></article>`;
 }
+function profileArtistCard(a,owner){
+ return `<article class="directory-artist artist-ui-card directory-profile-card"><a class="directory-photo" href="#artist/${esc(a.id)}" aria-label="${esc(a.name)} 상세">${portrait(a,'artist')}</a>${owner?`<div class="directory-card-actions"><button type="button" class="directory-card-action" data-directory-edit="${esc(a.id)}" aria-label="${esc(a.name)} 편집">편집</button><button type="button" class="directory-card-action" data-directory-delete="${esc(a.id)}" aria-label="${esc(a.name)} 삭제">삭제</button></div>`:''}</article>`;
+}
 function ownedArtistDirectory(d,pins,pid){
  const owner=!!pins.can_manage&&me?.id===d.profile.user_id;
- return `<section class="artist-directory artist-directory-owned" data-can-manage="${owner}"><header class="directory-heading"><div><h1>소속 아티스트</h1><p>${owner?'내가 제작하고 관리하는 AI 아티스트입니다.':esc(d.profile.name)+'의 AI 아티스트입니다.'}</p></div><div class="directory-controls"><span>총 ${number(d.artists.length)}명</span>${owner?`<button type="button" class="primary-button directory-add" data-mp-artist-add>${icon('plus',18)} 아티스트 추가</button>`:''}</div></header><div class="directory-grid">${d.artists.map(a=>directoryArtistCard(a,{owner,producerName:d.profile.name,showFollowerCount:false})).join('')}${owner?`<button type="button" class="directory-artist artist-ui-card directory-add-card" data-mp-artist-add><span class="directory-add-symbol">${icon('plus',56)}</span><strong>아티스트 추가</strong><span>새로운 AI 아티스트를 생성하고<br>나만의 음악 세계를 확장해보세요.</span></button>`:''}</div>${!d.artists.length&&!owner?'<p class="directory-empty">등록된 아티스트가 없어요.</p>':''}</section>`;
+ return `<section class="artist-directory artist-directory-owned" data-can-manage="${owner}"><header class="directory-heading"><div><h1>소속 아티스트</h1><p>${owner?'내가 제작하고 관리하는 AI 아티스트입니다.':esc(d.profile.name)+'의 AI 아티스트입니다.'}</p></div><div class="directory-controls"><span>총 ${number(d.artists.length)}명</span>${owner?`<button type="button" class="primary-button directory-add" data-mp-artist-add>${icon('plus',18)} 아티스트 추가</button>`:''}</div></header><div class="directory-grid">${d.artists.map(a=>profileArtistCard(a,owner)).join('')}${owner?`<button type="button" class="directory-artist artist-ui-card directory-add-card" data-mp-artist-add><span class="directory-add-symbol">${icon('plus',56)}</span><strong>아티스트 추가</strong><span>새로운 AI 아티스트를 생성하고<br>나만의 음악 세계를 확장해보세요.</span></button>`:''}</div>${!d.artists.length&&!owner?'<p class="directory-empty">등록된 아티스트가 없어요.</p>':''}</section>`;
 }
 function publicArtistDirectory(d){
  const sort=d.sort||'popular';
@@ -74,10 +77,16 @@ document.addEventListener('change',e=>{
  if(!e.target.matches('[data-directory-sort]'))return;
  const q=new URLSearchParams(location.hash.split('?')[1]||'');q.delete('view');q.set('sort',e.target.value);q.set('offset','0');location.hash='artists?'+q;
 });
+async function deleteDirectoryArtist(a){
+ if(!confirm(`“${a.name}” 아티스트를 삭제할까요?\n삭제한 아티스트는 복구할 수 없으며 프로필 상단 고정도 해제됩니다.\n음원·게시글·팔로우 등 연결 데이터가 있으면 삭제되지 않습니다.`))return;
+ await api('/api/studio/artists/'+encodeURIComponent(a.id),'DELETE',{confirmation:a.id,name:a.name});
+ await render();toast('아티스트를 삭제했어요.');
+}
 document.addEventListener('click',async e=>{
- const button=e.target.closest('[data-directory-edit]');if(!button)return;e.preventDefault();button.disabled=true;
+ const button=e.target.closest('[data-directory-edit],[data-directory-delete]');if(!button||button.disabled)return;e.preventDefault();button.disabled=true;
  try{
-  const d=await api('/api/studio'),a=d.artists.find(a=>a.id===button.dataset.directoryEdit);if(!a)throw new Error('편집 권한을 확인해주세요.');
-  await openDirectoryEditor(a,d,button);
+  const d=await api('/api/studio','GET',undefined,{fresh:true}),a=d.artists.find(a=>a.id===(button.dataset.directoryEdit||button.dataset.directoryDelete));if(!a)throw new Error('편집 권한을 확인해주세요.');
+  if(button.hasAttribute('data-directory-delete'))await deleteDirectoryArtist(a);
+  else await openDirectoryEditor(a,d,button);
  }catch(err){toast(err.message);}finally{button.disabled=false;}
 });
