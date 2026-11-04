@@ -153,14 +153,14 @@
 */
 @media (min-width: 768px) {
   #main > .charts-final {
-    --chart-page-size: 27px;
-    --chart-section-size: 21px;
-    --chart-card-size: 17px;
-    --chart-body-size: 14px;
-    --chart-tab-size: 17px;
+    --chart-page-size: var(--pc-font-page,27px);
+    --chart-section-size: var(--pc-font-section,21px);
+    --chart-card-size: var(--pc-font-card,17px);
+    --chart-body-size: var(--pc-font-body,14px);
+    --chart-tab-size: var(--pc-font-control,17px);
     --chart-position-size: 19px;
-    --chart-control-size: 14px;
-    --chart-meta-size: 13px;
+    --chart-control-size: var(--pc-font-control,14px);
+    --chart-meta-size: var(--pc-font-caption,13px);
   }
   #main > .charts-final :is(h1, .page-heading h1) {
     font-size: var(--chart-page-size);
