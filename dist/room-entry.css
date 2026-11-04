@@ -80,6 +80,10 @@
 #main .voice-room .room-popup::before,#main .voice-room .room-popup::after{display:none}
 #main .voice-room .room-popup:not([open]){display:none}
 #main .voice-room #voice-members.room-popup{height:100%;max-height:100%}
+@media(min-width:801px){
+ #main .voice-room .room-popup,#main .voice-room :is(#voice-sound,#voice-music-sheet,#dialog).room-popup{inset:0 0 auto!important;max-height:min(500px,100%)!important;border-radius:0 0 12px 12px}
+ #main .voice-room #voice-members.room-popup{height:min(500px,100%)}
+}
 #main .voice-room .room-popup :is(.voice-dialog-close,.dialog-close,.profile-preview-close,.voice-sheet-heading,#voice-sound-current,.voice-host-hint){display:none!important}
 #main .voice-room .room-popup :is(h2,.popup-prompt){padding:0!important;margin:0 0 12px;font-size:17px;line-height:1.5}
 #main .voice-room .room-popup :is(p,label,input,select,textarea){font-size:15px;line-height:1.5;min-width:0}
@@ -102,11 +106,14 @@
 #main .voice-room .voice-switch span{background:var(--room-control-line);box-shadow:none}
 #main .voice-room .voice-switch input:checked+span{background:var(--room-active);box-shadow:none}
 #main .voice-room .voice-member-row{display:flex;align-items:center;gap:6px;min-height:76px;padding:8px 0;border:0;border-bottom:1px solid var(--room-line);border-radius:0;background:transparent;box-shadow:none}
-#main .voice-room .room-member-profile{display:flex;align-items:center;gap:10px;flex:1;min-width:0;border:0;padding:0;background:none;text-align:left}
+#main .voice-room #voice-members-list{gap:0}
+#main .voice-room #voice-members-list .voice-member-row{background:none;border:0;border-bottom:1px solid var(--room-line);border-radius:0}
+#main .voice-room #voice-members-list .voice-member-row:last-child{border-bottom:0}
+#main .voice-room #voice-members-list .room-member-profile{display:flex;align-items:center;gap:10px;flex:1;min-width:0;border:0;padding:0;background:none;box-shadow:none;border-radius:0;text-align:left}
 #main .voice-room .voice-member-row .room-member-photo{--voice-avatar:46px}
 #main .voice-room .voice-member-info{min-width:0;flex:1}
 #main .voice-room .voice-member-info strong{display:flex;align-items:center;gap:4px;min-width:0;font-size:15px;font-weight:500}
-#main .voice-room .voice-member-info small{display:block}
+#main .voice-room #voice-members-list .voice-member-info small{display:block;border:0;background:none;padding:0;margin:4px 0 0;color:var(--room-muted)}
 #main .voice-room .talk-member-actions{display:flex;gap:2px;flex:none}
 #main .voice-room :is(.talk-member-actions button,.voice-member-more){display:grid;place-items:center;min-width:36px;width:36px;min-height:44px;padding:6px;flex:none}
 #main .voice-room #voice-member-tools{position:static!important;inset:auto!important;width:100%;max-width:100%;padding:8px;background:var(--room-input);border:1px solid var(--room-line);border-radius:8px;box-shadow:none}
@@ -115,9 +122,15 @@
 #main .voice-room #voice-room-settings:not([open]){display:none}
 #main .voice-room #voice-settings-form{display:flex;flex:1;flex-direction:column;gap:0;min-height:0;overflow:hidden}
 #main .voice-room #voice-settings-form .live-form-fields{display:grid;gap:16px;overflow:auto;min-height:0;padding:0 2px 12px}
+#main .voice-room #voice-settings-form .live-mode>div{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+#main .voice-room #voice-settings-form .live-mode label{position:relative;display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:8px;border:1px solid var(--room-control-line);border-radius:8px;background:var(--room-button);cursor:pointer}
+#main .voice-room #voice-settings-form .live-mode input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:inherit}
+#main .voice-room #voice-settings-form .live-mode label:has(:checked){border-color:var(--room-active);background:var(--room-input)}
+#main .voice-room #voice-settings-form .live-mode label:has(:focus-visible){outline:2px solid var(--room-active);outline-offset:-2px}
+#main .voice-room #voice-settings-form .live-mode label:has(:disabled){cursor:default}
 #main .voice-room #voice-settings-form fieldset{min-width:0;margin:0;padding:0;border:0}
 #main .voice-room #voice-settings-form legend{font-size:15px;padding:0;margin:0 0 8px}
-#main .voice-room .room-settings-footer{display:flex;flex:none;justify-content:flex-end;gap:8px;margin:0!important;padding:12px 0 0!important;background:var(--room-popup);border:0}
+#main .voice-room .room-settings-footer{display:flex;flex:none;align-self:stretch;width:100%;justify-content:flex-end;gap:8px;margin:0!important;padding:12px 0 0!important;background:var(--room-popup);border:0}
 #main .voice-room .live-title-row{display:flex;flex-wrap:wrap;gap:6px}
 #main .voice-room .live-title-row input{flex:1 1 140px}
 #main .voice-room .live-capacity-controls{display:flex;flex-wrap:wrap;gap:8px}

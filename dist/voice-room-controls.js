@@ -29,35 +29,22 @@ Object.assign(VoiceRoomClient.prototype,{
  },
  closeMemberTools(focus=false){const id=this.memberTarget;for(const box of this.host.querySelectorAll('#voice-member-tools,#talk-dock-member-tools')){box.hidden=true;box.innerHTML='';}this.memberTarget=null;for(const b of this.host.querySelectorAll('.voice-member-more,.talk-strip-person[data-voice="member-menu"]')){b.setAttribute('aria-expanded','false');if(focus&&b.dataset.target===id)b.focus();}},
  paintFinalControls(){
-  const s=this.state,self=s.members.find(m=>m.id===s.self),host=self.role==='host',count=s.members.filter(m=>m.seat!==null).length;
+  const s=this.state,self=s.members.find(m=>m.id===s.self),host=s.room.host_id===self.id;
   if(this.liveMode)this.host.dataset.background=s.room.background||'navy';
   const announcement=$('#voice-announcement');$('#voice-announcement-text').textContent=s.room.announcement||'';announcement.hidden=!s.room.announcement;
-  $('#voice-members-count').innerHTML=`전체 인원수 <strong>${s.members.length}명</strong><i>·</i>좌석 참여 <strong>${count}명</strong>`;
-  $('#voice-host-hint').hidden=!host;
   const members=[...s.members].sort((a,b)=>(b.role==='host')-(a.role==='host'));
-  const memberActions=p=>{
-   const own=p.id===self.id, name=esc(p.name), target=esc(p.id);
-   const mic=voiceGlyph(p.muted||p.seat===null?'talkMicOff':'talkMic');
-   const micAction=own?'toggle-mic':p.locked?'unlock':'mute-user';
-   const micLabel=own?(p.muted?'내 마이크 켜기':'내 마이크 끄기'):name+(p.locked?' 마이크 제한 해제':' 마이크 제한');
-   const micControl=own||host
-    ?`<button type="button" data-voice="${micAction}" data-target="${target}" title="${micLabel}" aria-label="${micLabel}" ${own&&(p.seat===null||p.locked)?'disabled':''}>${mic}</button>`
-    :`<span class="talk-mic-status" role="img" aria-label="${p.seat===null?'청취자':p.muted?'마이크 꺼짐':'마이크 켜짐'}">${mic}</span>`;
-   const listenLabel=own?'내 소리 설정':name+' 목소리 듣기';
-   const listenState=own?'':`aria-pressed="${(this.volumes.get(p.id)??1)>0}"`;
-   return `<div class="talk-member-actions">${micControl}<button type="button" ${own&&!Number.isInteger(p.seat)?'hidden':''} data-voice="${own?'sound':'member-listen'}" data-target="${target}" aria-label="${listenLabel}" title="${listenLabel}" ${listenState}>${icon('headphones')}</button></div>`;
-  };
-  const memberHTML=members.map(p=>`<div class="voice-member-row" data-level-user="${esc(p.id)}"><button type="button" class="room-member-profile" data-voice="talk-profile" data-target="${esc(p.id)}" aria-label="${esc(p.name)} 프로필">${roomMemberAvatar(p)}<span class="voice-member-info"><strong>${p.role==='host'?'<span class="room-host-crown" aria-label="방장">'+voiceGlyph('crown')+'</span>':''}<span title="${esc(p.name)}">${esc(p.name)}</span></strong><small>${p.seat===null?'청취 중':p.muted?'마이크 꺼짐':'마이크 켜짐'}</small></span></button>${memberActions(p)}${host&&p.id!==self.id?`<button type="button" class="voice-member-more" data-voice="member-menu" data-target="${esc(p.id)}" aria-label="${esc(p.name)} 관리" aria-expanded="false" aria-controls="voice-member-tools">${voiceGlyph('talkMore')}</button>`:''}</div>`).join('');
+  const memberHTML=members.map(p=>`<div class="voice-member-row" data-level-user="${esc(p.id)}"><button type="button" class="room-member-profile" data-voice="talk-profile" data-target="${esc(p.id)}" aria-label="${esc(p.name)} 프로필">${roomMemberAvatar(p)}<span class="voice-member-info"><strong>${p.role==='host'?'<span class="room-host-crown" aria-label="방장">'+voiceGlyph('crown')+'</span>':''}<span title="${esc(p.name)}">${esc(p.name)}</span></strong><small>${p.seat===null?'청취 중':p.muted?'마이크 꺼짐':'마이크 켜짐'}</small></span></button>${this.canManageMember(p.id)?`<button type="button" class="voice-member-more" data-voice="member-menu" data-target="${esc(p.id)}" aria-label="${esc(p.name)} 관리" aria-expanded="false" aria-controls="voice-member-tools">${voiceGlyph('talkMore')}</button>`:''}</div>`).join('');
   const memberKey=memberHTML+JSON.stringify(members.map(p=>[p.id,p.muted,p.locked]));if(memberKey!==this.memberHTML){$('#voice-members-list').before($('#voice-member-tools'));$('#voice-members-list').innerHTML=memberHTML;this.memberHTML=memberKey;this.closeMemberTools();}
   const invitation=s.seat_invites?.[0],el=$('#voice-seat-invitation');el.hidden=!invitation;
   el.innerHTML=invitation?`<p>방장이 좌석에 초대했어요. <button data-voice="seat-accept" data-target="${esc(invitation.id)}">수락</button><button data-voice="seat-reject" data-target="${esc(invitation.id)}">거절</button></p>`:'';
   clearTimeout(this.seatInviteTimer);if(invitation)this.seatInviteTimer=setTimeout(()=>{el.hidden=true;},Math.max(0,invitation.expires-Date.now()-(this.musicClock||0)));
   $('#voice-settings-readonly').hidden=host;if(!host){for(const el of $('#voice-settings-form').elements)el.disabled=el.dataset.voice!=='dismiss';}
-  if(this.memberTarget&&(!host||!s.members.some(p=>p.id===this.memberTarget)))this.closeMemberTools();
+  if(this.memberTarget&&!this.canManageMember(this.memberTarget))this.closeMemberTools();
  },
+ canManageMember(id){const s=this.state,p=s?.members.find(member=>member.id===id);return !!p&&s.self===s.room.host_id&&p.id!==s.self&&p.id!==s.room.host_id&&p.role!=='host';},
  memberTools(id,trigger){
   const s=this.state,self=s.members.find(p=>p.id===s.self),p=s.members.find(p=>p.id===id);
-  if(!p||self.role!=='host'||p.id===self.id)return;
+  if(!this.canManageMember(id))return;
   if(this.memberTarget===id){this.closeMemberTools(true);return;}
   this.closeMemberTools();
   this.memberTarget=id;const empty=Array.from({length:7},(_,i)=>i+1).filter(i=>!s.members.some(m=>m.seat===i));
@@ -166,8 +153,8 @@ Object.assign(VoiceRoomClient.prototype,{
    input.focus({preventScroll:true});return true;
   }
   if(action==='send-chat'){if($('#voice-message').value.trim())$('#voice-chat-form').requestSubmit();return true;}
-  if(action==='ask-kick'){this.kickTarget=target;this.showSheet('voice-kick-confirm');return true;}
-  if(action==='confirm-kick'){await this.command('moderate',{target_id:this.kickTarget,operation:'kick'});$('#voice-kick-confirm').close();this.closeMemberTools();await this.refresh();return true;}
+  if(action==='ask-kick'){if(!this.canManageMember(target))return true;this.kickTarget=target;this.showSheet('voice-kick-confirm');return true;}
+  if(action==='confirm-kick'){if(!this.canManageMember(this.kickTarget)){this.closeRoomPopup();return true;}await this.command('moderate',{target_id:this.kickTarget,operation:'kick'});$('#voice-kick-confirm').close();this.closeMemberTools();await this.refresh();return true;}
   if(action==='invite-seat-user'){await this.command('seat-invite',{target_id:target,seat:this.invitingSeat});$('#voice-seat-picker').close();await this.refresh();return true;}
   if(action==='member-invite'){const empty=Array.from({length:7},(_,i)=>i+1).find(i=>!this.state.members.some(m=>m.seat===i));if(empty===undefined)throw Error('빈 좌석이 없어요.');await this.command('seat-invite',{target_id:this.memberTarget,seat:empty});toast('좌석 초대를 보냈어요.');await this.refresh();return true;}
   if(['member-move','member-remove'].includes(action)){await this.command('moderate',{target_id:this.memberTarget,operation:action==='member-move'?'move-seat':'remove-seat',seat:Number($('#voice-move-seat')?.value)});this.closeMemberTools();await this.refresh();return true;}
@@ -250,6 +237,8 @@ Object.assign(VoiceRoomClient.prototype,{
   if(this.liveMode)advanced.append($('#live-delay').closest('label'));
   $('#voice-listen-volume').closest('label').hidden=true;
   this.bindRoomSettings();this.bindRoomShare();
+  // Keep destructive room controls in the scrolling body, above the fixed footer.
+  $('#voice-settings-form .live-form-fields').append(this.host.querySelector('#voice-room-settings [data-voice=close]'));
  },
  closeRoomPopup(){const p=this.talkPopup;if(p?.classList.contains('profile-preview')){closeProfilePreview();if(this.talkPopup===p){this.talkPopup=null;this.popupTrigger?.focus({preventScroll:true});}}else p?.close();},
  showTalkPopup(id,trigger){const sheet=document.getElementById(id);if(sheet)this.adoptRoomPopup(sheet,trigger);},
@@ -271,16 +260,17 @@ Object.assign(VoiceRoomClient.prototype,{
   form.onsubmit=busyForm(form,()=>this.saveTalkSettings(form));
   form.addEventListener('click',e=>{
    const capacity=e.target.closest('[data-capacity]');if(capacity){form.elements.max_members.value=capacity.dataset.capacity;form.elements.max_members.dispatchEvent(new Event('input',{bubbles:true}));}
-   const generate=e.target.closest('[data-auto-title]');if(generate)this.safe(async()=>{generate.disabled=true;const ticket=this.settingsTicket;try{const d=await voiceRequest('options?mode='+(this.liveMode?'karaoke':'talk')+'&exclude='+encodeURIComponent(form.elements.title.value));if($('#voice-room-settings').open&&ticket===this.settingsTicket){form.elements.title.value=d.suggested_title;}}finally{generate.disabled=false;}});
+   const generate=e.target.closest('[data-auto-title]');if(generate)this.safe(async()=>{generate.disabled=true;const ticket=this.settingsTicket;try{const d=await voiceRequest('options?mode='+form.elements.mode.value+'&exclude='+encodeURIComponent(form.elements.title.value));if($('#voice-room-settings').open&&ticket===this.settingsTicket){form.elements.title.value=d.suggested_title;}}finally{generate.disabled=false;}});
   });
   form.addEventListener('input',()=>{form.querySelector('.voice-crew-setting').hidden=form.elements.visibility.value!=='crew';form.querySelector('output').textContent=form.elements.announcement.value.length+'/200';for(const b of form.querySelectorAll('[data-capacity]'))b.setAttribute('aria-pressed',String(Number(b.dataset.capacity)===Number(form.elements.max_members.value)));});
  },
  async openSettings(){
   const sheet=$('#voice-room-settings');if(sheet===this.talkPopup&&sheet.open){this.closeRoomPopup();return;}
   this.showSheet('voice-room-settings');
-  const ticket=this.settingsTicket,form=$('#voice-settings-form'),room=this.state.room,owner=room.host_id===this.state.self;
+  const ticket=this.settingsTicket,form=$('#voice-settings-form'),room=this.state.room;
   this.settingsRevision=room.settings_revision||0;this.settingsLoading=true;
   for(const key of ['title','visibility','max_members','announcement'])form.elements[key].value=room[key]??'';
+  form.elements.mode.value=room.mode||'talk';
   form.elements.crew_id.value=room.crew_id||'';
   for(const el of form.elements)el.disabled=true;
   form.querySelector('[data-voice=dismiss]').disabled=false;
@@ -293,7 +283,8 @@ Object.assign(VoiceRoomClient.prototype,{
    form.elements.crew_id.value=options.crews.length===1?options.crews[0].id:'';
    const crew=form.querySelector('.voice-crew-setting');crew.textContent=options.crews.length===1?options.crews[0].name:'소속 크루가 있어야 선택할 수 있어요.';crew.hidden=form.elements.visibility.value!=='crew';
    form.querySelector('[name=visibility][value=crew]').disabled=options.crews.length!==1;
-   for(const el of form.elements)if(el.name!=='visibility'||el.value!=='crew')el.disabled=!owner;
+   const stillOwner=this.state.self===this.state.room.host_id;
+   for(const el of form.elements)el.disabled=!stillOwner||(el.name==='visibility'&&el.value==='crew'&&options.crews.length!==1);
    form.querySelector('[data-voice=dismiss]').disabled=false;
   }catch(e){if(ticket===this.settingsTicket)form.querySelector('.form-error').textContent=e.message;throw e;}
   finally{if(ticket===this.settingsTicket)this.settingsLoading=false;}
@@ -303,7 +294,7 @@ Object.assign(VoiceRoomClient.prototype,{
   const values=Object.fromEntries(new FormData(form)),capacity=Number(values.max_members);
   if(!Number.isInteger(capacity)||capacity<2||capacity>30||capacity<this.state.members.length)throw Error('최대 참여 인원은 현재 참여 인원 이상, 2~30명으로 입력해주세요.');
   this.savingTalkSettings=true;
-  try{const state=await this.command('settings',{...values,mode:this.state.room.mode,max_members:capacity,revision:this.settingsRevision});this.acceptState(state);if(this.closed)return;window.dispatchEvent(new CustomEvent('aifect:room-theme',{detail:{room:this.state.room}}));$('#voice-room-settings').close();toast('방 설정을 저장했어요.');}
+  try{const state=await this.command('settings',{...values,max_members:capacity,revision:this.settingsRevision});this.acceptState(state);if(this.closed)return;window.dispatchEvent(new CustomEvent('aifect:room-theme',{detail:{room:this.state.room}}));$('#voice-room-settings').close();toast('방 설정을 저장했어요.');}
   finally{this.savingTalkSettings=false;}
  },
  bindRoomEcho(){

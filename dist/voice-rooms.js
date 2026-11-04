@@ -147,6 +147,7 @@ class VoiceRoomClient {
   oldGraph?.close();old.getTracks().forEach(t=>t.stop());await this.monitor().catch(()=>{});
  }
  async roomUIAction(action,target){
+  if(['mute-user','unlock'].includes(action)&&!this.canManageMember(target))return true;
   if(action==='toggle-mic'){this.toggleMic();return true;}
   if(action==='exit-seat'){
    const own=target===this.state.self;if(own){this.micDesired=false;this.micAttempt=(this.micAttempt||0)+1;this.micBusy=false;this.stopMicrophone();}
