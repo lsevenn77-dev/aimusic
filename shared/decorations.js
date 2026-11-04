@@ -39,3 +39,9 @@ export function decorationExpiry(start,period){
  const day=Math.min(local.getUTCDate(),new Date(Date.UTC(y,m+months+1,0)).getUTCDate());
  return Date.UTC(y,m+months,day,local.getUTCHours(),local.getUTCMinutes(),local.getUTCSeconds())/1000-9*3600;
 }
+
+const legacyFrameFiles=new Set(['aurora_ring_frame.png','moonlight_bunny.png','mecha_bunny.png','space_bunny_base.png','space_bunny_fx.webp','crew-basic-v2.webp','player-level-10-forest-v1.webp','crew-level-3-v2.webp','crew-level-4-v2.webp','crew-level-5-v2.webp']);
+export function frameDisplayAssets(overlay,effect=null){
+ const normalized=path=>{if(!path)return null;const file=path.split('?')[0].split('/').pop();return legacyFrameFiles.has(file)?'/assets/profile-frames-v1/'+file:path;};
+ return {overlay:normalized(overlay),effect:normalized(effect),scale:1.5};
+}

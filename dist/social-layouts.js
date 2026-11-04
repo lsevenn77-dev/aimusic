@@ -9,14 +9,7 @@ function crewHeroHTML(c,m){
  const frame=c.level>=10?4:c.level>=8?3:c.level>=5?2:c.level>=3?1:0;
  const levelTag=c.level>=7?'<span class="crew-max-badge">'+(c.level===10?'최고 레벨 크루':'함께 성장하는 크루')+'</span>':'';
  const settings=canManageCrew(m)?`<div class="crew-settings-anchor"><button type="button" class="crew-settings-trigger" data-edit-crew="${esc(c.id)}" aria-label="크루 설정" aria-haspopup="menu" aria-expanded="false" aria-controls="crew-settings-menu" title="크루 설정">${icon('settings',22)}</button><div id="crew-settings-menu" class="fan-settings-menu" role="menu" aria-label="크루 관리" hidden></div></div>`:'';
- const crewId=encodeURIComponent(c.id);
- const games=[
-   {title:'리듬게임',subtitle:'Double Tap',art:'/crew-rhythm/cover.webp',href:'/crew-rhythm/?from=crew&crew='+crewId},
-   {title:'점프게임',subtitle:'별빛 점프',art:'/crew-jump-art/arcade-cheer.webp',href:'#crew-jump/'+crewId},
-   {title:'레이싱게임',subtitle:'크루 레이싱',art:'/crew-racing/cover.svg',href:'/crew-racing/?from=crew&crew='+crewId}
- ];
- if(m?.fishing_preview)games.push({title:'낚시게임',subtitle:'별물결 낚시터',art:'/crew-fishing/art/shore.svg',href:'/crew-fishing/?crew='+crewId});
- const game=m?`<nav class="crew-game-entries" aria-label="크루게임">${games.map(g=>`<a class="crew-game-entry" href="${esc(g.href)}"><img src="${g.art}" width="48" height="48" alt=""><span><small>${g.subtitle}</small><strong>${g.title}</strong></span><i aria-hidden="true">›</i></a>`).join('')}</nav>`:'';
+ const game=m?`<div class="crew-weekly-games" data-crew-games="${esc(c.id)}">${crewGameMenuHTML(m.game_catalog)}</div>`:'';
  const next=c.next_xp==null?'최고 레벨':'다음 레벨까지 '+number(Math.max(0,c.next_xp-c.xp))+' XP';
  return `<header class="crew-detail-header crew-frame-${frame}">
    <div class="crew-identity">${crewPicture(c,'crew-detail-picture')}<div class="crew-identity-copy"><h1 title="${esc(c.name)}">${crewNameHTML(c)}</h1><span>멤버 ${number(c.members)} / ${number(c.capacity)}명</span> ${levelTag}</div>${game}${settings}</div>
@@ -61,4 +54,20 @@ function communityCrewSidebarHTML(d){
 function crewRankingSidebarHTML(rankings){
  const items=[...(rankings||[])].sort((a,b)=>Number(b.level||1)-Number(a.level||1)||Number(b.xp||0)-Number(a.xp||0)).slice(0,5);
  return '<section class="social-side-card crew-ranking-card"><div class="section-heading"><h2>크루 랭킹</h2><span class="crew-ranking-label">TOP 5</span></div><p class="crew-ranking-rule">레벨순 · 같은 레벨은 누적 XP순</p>'+(items.length?'<ol class="community-crew-ranking">'+items.map((c,i)=>'<li><a href="#crew/'+esc(c.id)+'"><span class="crew-rank-position">'+(i+1)+'<span class="sr-only">위</span></span>'+crewPicture(c,'crew-rank-picture')+'<span class="crew-rank-copy"><strong>'+crewNameHTML(c)+'</strong><small>'+number(c.members)+'명</small></span><span class="crew-rank-stats"><b>LV '+number(c.level)+'</b><small>'+number(c.xp)+' XP</small></span></a></li>').join('')+'</ol>':'<p class="field-help">'+(rankings?'아직 등록된 크루가 없어요.':'크루 랭킹을 불러오는 중…')+'</p>')+'</section>';
+}
+
+function crewGameMenuHTML(catalog){
+ const games=Array.isArray(catalog?.games)?catalog.games:[];
+ return `<div class="crew-game-heading"><strong>이번 주 클랜게임</strong>${catalog?.mode==='test'?'<small>테스트 중</small>':''}</div><nav class="crew-game-entries" aria-label="이번 주 클랜게임">${games.map(g=>`<a class="crew-game-entry" href="${esc(g.href)}"><img src="${esc(g.art)}" width="48" height="48" alt=""><span><small>${esc(g.subtitle)}</small><strong>${esc(g.title)}</strong></span><i aria-hidden="true">›</i></a>`).join('')}</nav>`;
+}
+function bindCrewGameMenu(){
+ const root=document.querySelector('[data-crew-games]');if(!root||root.dataset.bound)return;
+ root.dataset.bound='1';let alive=true,busy=false;const account=me?.id;
+ const refresh=async()=>{if(!alive||busy||document.hidden)return;busy=true;
+  try{const data=await api('/api/crews/'+encodeURIComponent(root.dataset.crewGames)+'/games','GET',undefined,{fresh:true});if(alive&&root.isConnected&&account===me?.id)root.innerHTML=crewGameMenuHTML(data);}
+  catch(e){if(alive&&[401,403].includes(e.status))root.replaceChildren();}finally{busy=false;}
+ };
+ const timer=setInterval(refresh,30000);document.addEventListener('visibilitychange',refresh);
+ registerRouteCleanup(()=>{alive=false;clearInterval(timer);document.removeEventListener('visibilitychange',refresh);});
+ void refresh();
 }

@@ -1,3 +1,4 @@
+import {crewGameCatalog} from './crew-game-catalog.js';
 import {profileCoverParticipation,dubRecruitingSQL,finished as dubFinishedSQL,dubAudioReadySQL} from './profile-works.js';
 import {syncCrewGrowth,crewGrowthView,crewCapacitySQL} from './crew-growth.js';
 import {CREW_ROLE_LIMITS,CREW_ROLE_ALIAS,crewSettings,assertCrewLevel,auditCrew} from './crew-v3.js';
@@ -54,12 +55,14 @@ async function crewDetail(env,cid,user){
  if(!c)fail(404,'크루를 찾을 수 없어요.');if(c.join_policy==='invite_only'&&!membership)fail(403,'크루 회원만 볼 수 있어요.');const banned=!!ban;
  const dubbings=result[7].results.map(p=>({...p,can_join:!!user&&!!p.recruiting&&!p.viewer_claimed}));await profileCoverParticipation(env,tracks,user);
  const otherCrew=!membership&&user?await one(env,'SELECT 1 FROM crew_members WHERE user_id=?',user.id):null;
- return {other_crew:!!otherCrew,growth:await crewGrowthView(env,cid),dubbings,crew:present(c),membership:membership?{...membership,fishing_preview:true,canonical_role:CREW_ROLE_ALIAS[membership.role]}:null,members:members.map(m=>({...m,canonical_role:CREW_ROLE_ALIAS[m.role]})),tracks,banned,rules:{levels:CREW_LEVELS,...CREW_REWARDS},roles:CREW_ROLES};
+ return {other_crew:!!otherCrew,growth:await crewGrowthView(env,cid),dubbings,crew:present(c),membership:membership?{...membership,fishing_preview:true,game_catalog:crewGameCatalog(env,cid),canonical_role:CREW_ROLE_ALIAS[membership.role]}:null,members:members.map(m=>({...m,canonical_role:CREW_ROLE_ALIAS[m.role]})),tracks,banned,rules:{levels:CREW_LEVELS,...CREW_REWARDS},roles:CREW_ROLES};
 }
 async function peer(env,pid,user,withSettings=false){requireUser(user);const p=await one(env,`SELECT p.id,p.user_id,${playerColumnsSQL('p.user_id')},${producerNameSQL()} name,${chatProducerNameSQL()} chat_nickname,p.image_version${withSettings?',COALESCE((SELECT muted FROM dm_settings WHERE user_id=? AND peer_id=p.user_id),0) muted,COALESCE((SELECT cleared_sequence FROM dm_settings WHERE user_id=? AND peer_id=p.user_id),0) cleared_sequence':''} FROM producers p WHERE p.id=?`,...(withSettings?[user.id,user.id,pid]:[pid]));if(!p)fail(404,'프로필을 찾을 수 없어요.');assertUnblocked(env,p.user_id);if(p.user_id===user.id)fail(400,'다른 이용자에게 메시지를 보내주세요.');return p;}
 export async function socialRoute(req,env,path,user){
  if(!path.startsWith('/api/crews')&&!path.startsWith('/api/dm'))return null;
  const method=req.method,url=new URL(req.url);
+ const gameMenu=path.match(/^\/api\/crews\/([\w-]+)\/games$/);
+ if(gameMenu){if(method!=='GET')fail(405,'지원하지 않는 요청입니다.');await member(env,gameMenu[1],user);return json(crewGameCatalog(env,gameMenu[1]));}
  if(path==='/api/crews'){
   if(method==='GET'){
    const mine=user?await one(env,'SELECT crew_id FROM crew_members WHERE user_id=?',user.id):null;

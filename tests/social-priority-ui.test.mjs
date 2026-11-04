@@ -1,4 +1,5 @@
 import test from 'node:test';
+import {crewGameCatalog} from '../server/crew-game-catalog.js';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
@@ -37,7 +38,7 @@ test('crew settings follow live staff roles and legacy management links land on 
  vm.runInContext(readFileSync(new URL('../dist/menu-integration.js',import.meta.url),'utf8'),c);
  assert.equal(c.menuAlias('#crew/crew?tab=manage'),'#crew/crew?tab=music');
  for(const role of ['owner','deputy','manager','operator','member',null]){
-  const view=c.crewDetailView({...detail,membership:role?{role}:null},'crew','manage');
+  const view=c.crewDetailView({...detail,membership:role?{role,game_catalog:crewGameCatalog({},'crew')}:null},'crew','manage');
   assert.equal(view.html.includes('aria-label="크루 설정"'),['owner','deputy','manager','operator'].includes(role));
   assert.match(view.html,/class="work-browser"/);
   const header=view.html.match(/<header class="crew-detail-header[\s\S]*?<\/header>/)[0];

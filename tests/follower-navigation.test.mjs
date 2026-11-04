@@ -10,7 +10,7 @@ test('a follower without a producer profile has a read-only identity without pri
  const before=f.sql.prepare('SELECT count(*) n FROM producers').get().n;
  const r=await f.call('/api/followers/other');assert.equal(r.status,200);
  assert.equal(r.body.profile.name,'other');assert.equal(r.body.profile.id,null);
- assert.deepEqual(Object.keys(r.body.profile).sort(),['bio','id','image_version','name','profile_frame','profile_frame_artwork','public_id','public_number','user_id']);
+ assert.deepEqual(Object.keys(r.body.profile).sort(),['bio','id','image_version','name','profile_frame','profile_frame_artwork','profile_frame_display','public_id','public_number','user_id']);
  assert.equal(r.body.profile.public_number,f.sql.prepare("SELECT number FROM public_member_ids WHERE user_id='other'").get().number);
  assert.equal(r.body.profile.player_xp,undefined);
  assert.equal(f.sql.prepare('SELECT count(*) n FROM producers').get().n,before,'visiting never creates or changes the follower account');

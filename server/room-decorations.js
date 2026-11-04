@@ -27,7 +27,7 @@ export async function resolveRoomDecoration(env,room){
  const current=setting&&(!room.theme_sku||setting.revision===(room.settings_revision||0));
  const sku=(current&&setting.sku)||room.theme_sku||room.background||DEFAULT_ROOM_THEME;
  const free=FREE_ROOM_THEMES.find(t=>t.sku===sku);
- if(free)return {sku,assets:null,expires_at:0,server_now:now()};
+ if(free)return {sku,assets:free.assetPaths||null,expires_at:0,server_now:now()};
  const product=Object.hasOwn(DECORATIONS,sku)?DECORATIONS[sku]:null;
  const entitlement=product?.kind==='TALKING_ROOM_THEME'?await one(env,`SELECT expires_at FROM player_inventory pi WHERE pi.user_id=? AND pi.item_key=? AND ${activeDecorationSQL('pi')}`,room.host_id,sku):null;
  if(entitlement)return {sku,assets:product.assetPaths,expires_at:entitlement.expires_at,server_now:now()};
@@ -44,8 +44,8 @@ export async function decorateRoomResult(env,data){
   // ownership, funding, expiry and crew requirements. No private inventory or
   // XP history is sent to a room, and nulls explicitly clear stale decoration.
   const identities=await rows(env,`SELECT u.id,${playerColumnsSQL('u.id')} FROM users u WHERE u.id IN (${ids.map(()=>'?').join(',')}) AND u.provider!='deleted'`,...ids);
-  const frames=new Map(identities.map(p=>[p.id,{profile_frame:p.profile_frame,profile_frame_artwork:p.profile_frame_artwork}]));
-  data={...data,members:data.members.map(member=>({...member,...(frames.get(member.id)||{profile_frame:null,profile_frame_artwork:null})}))};
+  const frames=new Map(identities.map(p=>[p.id,{profile_frame:p.profile_frame,profile_frame_artwork:p.profile_frame_artwork,profile_frame_display:p.profile_frame_display}]));
+  data={...data,members:data.members.map(member=>({...member,...(frames.get(member.id)||{profile_frame:null,profile_frame_artwork:null,profile_frame_display:null})}))};
  }
  return data;
 }
@@ -66,7 +66,7 @@ export async function directoryRoomThemes(env,rooms){
   const paid=Object.hasOwn(DECORATIONS,sku)&&DECORATIONS[sku].kind==='TALKING_ROOM_THEME';
   const active=paid&&expires_at>server_now;
   themes.set(id,{sku:active||FREE_ROOM_THEMES.some(t=>t.sku===sku)?sku:DEFAULT_ROOM_THEME,
-   assets:active?DECORATIONS[sku].assetPaths:null,expires_at:active?expires_at:0,server_now});
+   assets:active?DECORATIONS[sku].assetPaths:(FREE_ROOM_THEMES.find(t=>t.sku===sku)?.assetPaths||null),expires_at:active?expires_at:0,server_now});
   if(paid&&revision!=null&&!active)expired.push([id,host_id,revision,sku]);
  }
  // Match the current host and settings revision, including concurrent handoffs.
