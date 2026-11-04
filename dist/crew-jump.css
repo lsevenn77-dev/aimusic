@@ -154,3 +154,10 @@ body.crew-jump-playing{overflow:hidden;overscroll-behavior:none}
  .jump-wide-layout .jump-stage{width:min(100dvh,177.7778dvw)}
 }
 .arc-game-choice{display:flex;align-items:center;justify-content:space-between;gap:.6rem;flex-wrap:wrap;margin-bottom:.75rem}.arc-game-choice a{color:var(--text,#fff);text-decoration:none}
+
+/* Keep the existing shop layout; add real ownership, balance and purchase controls. */
+.arc-store-dialog .arc-look-balance{margin:0 0 12px;color:var(--ds-text);font-variant-numeric:tabular-nums}
+.arc-look-actions{display:flex;justify-content:center;flex-wrap:wrap;gap:8px;margin-top:16px}
+.arc-look-actions button{min-height:44px;max-width:100%;white-space:normal}
+.arc-store-dialog .arc-look:disabled{cursor:wait;opacity:.65}
+.arc-store-dialog .arc-run-model[data-outfit="default"]{background-size:contain;background-position:center;animation:none}

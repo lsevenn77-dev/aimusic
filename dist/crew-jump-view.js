@@ -2,18 +2,8 @@ import {stageRenderer} from './crew-jump-art/stage.js';
 import {gameSounds} from './crew-jump-art/sounds.js';
 import {start,step,VERSION,LIMIT,HZ,speedBand,multiplier,FLOOR,WIDTH,HEIGHT,RUNNER_X} from './crew-jump-core.js';
 
-const looks=[
- {id:'runner',name:'육상선수룩',price:500,unit:'S'},
- {id:'street',name:'스트릿룩',price:500,unit:'S'},
- {id:'idol',name:'아이돌룩',price:50,unit:'G'},
- {id:'suit',name:'정장룩',price:100,unit:'G'},
- {id:'princess',name:'공주룩',price:200,unit:'G'}
-];
-function shelf(unit){
- const group=looks.filter(look=>look.unit===unit);
- return '<section class="arc-outfit-group"><h3>'+(unit==='S'?'실버 의상':'골드 의상')+'</h3><div>'+group.map(look=>
-  '<button type="button" class="arc-look" data-look="'+look.id+'" aria-pressed="false"><img src="/crew-jump-art/outfits/'+look.id+'.webp" width="160" height="205" alt=""><b>'+look.name+'</b><span>'+look.price+' '+unit+'</span></button>').join('')+'</div></section>';
-}
+import {mountOutfitShop} from './crew-jump-art/outfit-shop.js';
+
 export function mount(root,{crew,viewer,api,esc}){
  const url='/api/crews/'+encodeURIComponent(crew)+'/jump';
  root.innerHTML=`<link rel="stylesheet" href="/crew-jump.css"><section class="jump-club"><header><a class="text-link" href="#crew/${encodeURIComponent(crew)}">‹ 크루로</a><div><button class="small-button" data-pause hidden>일시정지</button> <button class="small-button" data-rules>게임 규칙</button></div></header>
@@ -30,19 +20,22 @@ export function mount(root,{crew,viewer,api,esc}){
     <section class="jump-shop arc-tile" aria-labelledby="jump-shop-title">
      <h2 id="jump-shop-title">의상 상점</h2>
      <div class="arc-look-window" aria-hidden="true"><img src="/crew-jump-art/outfits/street.webp" alt=""><img src="/crew-jump-art/outfits/idol.webp" alt=""><img src="/crew-jump-art/outfits/princess.webp" alt=""></div>
-     <small>실버 의상 · 골드 의상</small><button class="small-button arc-pill" data-shop>둘러보기 <span aria-hidden="true">›</span></button>
+     <small data-equipped-look>실버 의상 · 골드 의상</small><button class="small-button arc-pill" data-shop>둘러보기 <span aria-hidden="true">›</span></button>
     </section>
     <section class="arc-result arc-tile" aria-label="내 게임 결과"><h2>✧ 게임 결과 ✧</h2><div data-result-card></div></section>
    </div>
    <div class="jump-brief" aria-live="polite">내 도전 정보를 불러오는 중…</div>
   </section>
   <dialog class="surface jump-dialog arc-store-dialog" aria-labelledby="arc-store-title"><header><h2 id="arc-store-title">의상 상점</h2><button type="button" class="small-button" data-shop-close>닫기</button></header>
-   <div class="arc-fitting"><div class="arc-run-model" aria-hidden="true"></div><div aria-live="polite"><small>달리기 미리보기</small><h3 data-look-name></h3><b data-look-price></b></div></div>
-   <div class="arc-look-shelves"></div><p class="arc-look-note">지금은 의상 미리보기만 가능해요. 실버와 골드는 차감되지 않아요.</p></dialog>
+   <p class="arc-look-balance" data-shop-balance></p><div class="arc-fitting"><div class="arc-run-model" aria-hidden="true"></div><div aria-live="polite"><small>달리기 미리보기</small><h3 data-look-name></h3><b data-look-price></b></div></div>
+   <div class="arc-look-shelves"></div><div class="arc-look-actions"><button type="button" class="primary-button" data-look-action disabled>의상 선택</button><button type="button" class="small-button" data-shop-retry hidden>다시 확인</button></div><p class="arc-look-note" data-shop-status role="status"></p></dialog>
  <div class="jump-stage" hidden aria-label="점프게임"><canvas width="960" height="540" tabindex="0" aria-label="스페이스 또는 화면을 눌러 점프"></canvas><div class="jump-hud" hidden><span>점수 <b>0</b></span><span>남은 시간 <b>${LIMIT/HZ}초</b></span><span>콤보 <b>0</b></span><small class="jump-speed"></small></div><div class="jump-overlay"></div></div>
  <dialog class="jump-wide-dialog" aria-label="가로 게임 화면"><div class="jump-wide-layout"><div class="jump-wide-controls"><button class="small-button" type="button" data-wide-pause hidden>일시정지</button><button class="small-button" type="button" data-wide-exit>축소</button></div></div></dialog><div class="jump-summary" aria-live="polite"></div><dialog class="surface jump-dialog"><h2>주간 게임 규칙</h2><p>화면을 누르거나 스페이스바로 점프하세요. 공중에서 한 번 더 점프할 수 있어요. 장애물에 닿으면 도전이 끝나요.</p><p>별 젤리를 연속으로 모으면 콤보 보너스! 낮에는 10초마다 1.2배로 가속해요. 70초부터 야간 도로에서 네온 링을 모으세요. 밤에는 5초마다 1.1배로 가속하고 ${LIMIT/HZ}초에 완주해요.</p><p>공식 도전은 하루 3회. 한국시간 월요일 0시부터 금요일 22시까지, 크루원별 주간 최고점 상위 10개를 합산해요. 참여 미션 보상은 크루 경험치이며, 현재 지급은 꺼져 있어요. 리듬게임에서도 별도의 공식 도전에 참여할 수 있어요.</p><button class="primary-button" data-close>확인</button></dialog></section>`;
  const $=s=>root.querySelector(s),canvas=$('canvas'),ctx=canvas.getContext('2d'),layer=$('.jump-overlay'),hud=$('.jump-hud'),summary=$('.jump-summary'),dialog=$('.jump-dialog:not(.arc-store-dialog)'),shop=$('.arc-store-dialog');
  const waiting=$('.jump-lobby'),stage=$('.jump-stage');
+ const outfitShop=mountOutfitShop(shop,{api,url,esc,onChange:wardrobe=>{
+  $('[data-equipped-look]').textContent='착용 중 · '+wardrobe.outfits.find(item=>item.id===wardrobe.equipped).name;
+ }});
  let scene;
  let frame=0,dead=false,phase='loading',wasOfficial=false,info,game,round=null,origin=0,queued=0,taps=[],requestId=null,pressed=null;
  const abort=new AbortController(),events={signal:abort.signal};
@@ -164,12 +157,16 @@ export function mount(root,{crew,viewer,api,esc}){
   draw();if(game.finished){void finish();return}frame=requestAnimationFrame(advance);
  }
  async function begin(official){
-  if(phase!=='lobby')return;phase='starting';$('[data-rules]').disabled=true;
+  if(phase!=='lobby')return;
+  if(outfitShop.busy){summary.hidden=false;summary.textContent='의상 처리가 끝난 뒤 시작해주세요.';return;}
+  phase='starting';$('[data-rules]').disabled=true;
   sounds.unlock();enterWide();
   waiting.querySelectorAll('button').forEach(b=>b.disabled=true);
   try{
    scene??=stageRenderer(ctx);
-   await scene.ready();
+   const wardrobe=await outfitShop.refresh();
+   if(dead)return;
+   await scene.ready(wardrobe.equipped);
    if(dead||document.hidden){if(!dead)await refresh();return}
    round=official?await api(url+'/start','POST',{requestId:requestId??=crypto.randomUUID()}):null;
    if(dead||document.hidden){if(round)abandon();if(!dead)await refresh();return}
@@ -180,23 +177,8 @@ export function mount(root,{crew,viewer,api,esc}){
    layer.classList.add('counting');layer.textContent='3';canvas.focus({preventScroll:true});draw();summary.textContent=official?'공식 도전':'연습 모드';frame=requestAnimationFrame(advance);
   }catch(e){if(!dead){if(e.status===409)requestId=null;await refresh();if(!dead){summary.hidden=false;summary.textContent=e.message}}}
  }
- function previewLook(look){
-  $('.arc-run-model').style.backgroundImage='url("/crew-jump-art/outfits/'+look.id+'-run.webp")';
-  $('[data-look-name]').textContent=look.name;
-  $('[data-look-price]').textContent=look.price+' '+look.unit;
-  shop.querySelectorAll('[data-look]').forEach(el=>el.setAttribute('aria-pressed',String(el.dataset.look===look.id)));
- }
  listen(root,'click',e=>{
-  if(e.target.closest('[data-shop]')&&!shop.open){
-   if(!shop.querySelector('[data-look]')){
-    $('.arc-look-shelves').innerHTML=shelf('S')+shelf('G');
-    previewLook(looks[0]);
-   }
-   shop.showModal();
-  }
-  const selected=e.target.closest('[data-look]');
-  if(selected&&shop.contains(selected))previewLook(looks.find(look=>look.id===selected.dataset.look));
-  if(e.target.closest('[data-shop-close]'))shop.close();
+  if(e.target.closest('[data-shop]')&&phase==='lobby')outfitShop.open();
   if(e.target.closest('[data-close]'))dialog.close();
   if(e.target.closest('[data-rules]')&&!['starting','countdown','play'].includes(phase))dialog.showModal();
   if(e.target.closest('[data-pause]')&&!round){
@@ -225,6 +207,6 @@ export function mount(root,{crew,viewer,api,esc}){
   else if(!round&&['countdown','play'].includes(phase)){if(document.hidden){pausedAt=performance.now();cancelAnimationFrame(frame)}else if(pausedAt){origin+=performance.now()-pausedAt;pausedAt=0;frame=requestAnimationFrame(advance)}}
  });
  listen(window,'pagehide',abandon);
- const clear=()=>{leaveWide();wideDialog.remove();stageAnchor.remove();abandon();dead=true;abort.abort();cancelAnimationFrame(frame);if(dialog.open)dialog.close();if(shop.open)shop.close()};
+ const clear=()=>{leaveWide();wideDialog.remove();stageAnchor.remove();abandon();dead=true;outfitShop.destroy();abort.abort();cancelAnimationFrame(frame);if(dialog.open)dialog.close();if(shop.open)shop.close()};
  void refresh();return clear;
 }

@@ -2,6 +2,7 @@ import {query,one,rows,json,fail,id,rate} from './db.js';
 import {requireUser} from './auth.js';
 import {publicNameSQL} from './identity.js';
 import {VERSION,HZ,LIMIT,replay} from '../shared/crew-jump.js';
+import {jumpOutfitsRoute} from './crew-jump-outfits.js';
 
 // Add 'rhythm' to this rotation only when a playable rhythm route is implemented.
 const COUNTDOWN_MS=3000, SUBMIT_GRACE_MS=30000, RUN_TTL_MS=LIMIT/HZ*1000+SUBMIT_GRACE_MS;
@@ -17,11 +18,12 @@ export function seasonTime(ms,env){
  return {day,week,closes,open:configured&&monday>=anchor&&ms<closes&&game==='jump',seed:'aifect/'+VERSION+'/'+week};
 }
 export async function jumpRoute(req,env,path,user,ms=Date.now()){
- const match=/^\/api\/crews\/([\w-]+)\/jump(?:\/(start|finish|abandon))?$/.exec(path);
+ const match=/^\/api\/crews\/([\w-]+)\/jump(?:\/(start|finish|abandon|outfits(?:\/(?:buy|equip))?))?$/.exec(path);
  if(!match)return null;
  requireUser(user);
  const crew=match[1],uid=user.id;
  if(!await one(env,'SELECT 1 FROM crew_members WHERE crew_id=? AND user_id=?',crew,uid))fail(403,'소속 크루에서 참여해주세요.');
+ if(match[2]?.startsWith('outfits'))return jumpOutfitsRoute(req,env,match[2],uid);
  const calendar=seasonTime(ms,env),{day,week,seed,open,closes}=calendar;
  if(!match[2]&&req.method==='GET'){
   const used=await one(env,'SELECT COUNT(*) n FROM crew_jump_runs WHERE day=? AND user_id=?',day,uid);

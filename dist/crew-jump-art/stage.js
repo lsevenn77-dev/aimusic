@@ -1,4 +1,5 @@
 import {HZ,NIGHT_START} from '../crew-jump-core.js';
+import {JUMP_OUTFITS,DEFAULT_OUTFIT} from './outfits.js';
 export function stageRenderer(ctx){
 const W=960,H=540,GROUND=452,PX=190,scale=1,JUMP2_V=820;
 let bgT=0,G=null;
@@ -187,7 +188,8 @@ let bgT=0,G=null;
     ctx.restore();
   }
 
-  const SHEET = new Image(); let sheetOk = false;
+  const SHEET = new Image(); let sheetOk = false, outfitSheet=null, outfit=null;
+  const outfitImages=new Map();
   SHEET.onload = () => { sheetOk = true; };
   SHEET.src = '/crew-jump-art/crew-runner.webp';
   const FR = {"run":[[0,0,152,168,88.0],[154,0,157,168,90.0],[313,0,154,164,90.0],[469,0,151,168,83.0],[622,0,147,161,84.0],[771,0,151,167,85.0]],"jump":[[924,0,146,148,81.0],[0,170,148,152,83.0],[150,170,141,145,84.0],[293,170,145,136,84.0],[440,170,144,152,81.0],[586,170,158,146,83.0]],"djump":[[746,170,138,140,78.0],[886,170,129,146,72.0],[0,324,132,150,71.0],[134,324,128,133,70.0]],"fall":[[264,324,131,147,72.0]],"land":[[397,324,147,138,70.0]],"idle":[[546,324,133,139,74.0]],"hit":[[681,324,141,153,70.0],[824,324,128,130,63.0],[954,324,144,139,78.0]]};
@@ -204,6 +206,16 @@ let bgT=0,G=null;
     return g.jumps === 2 ? FR.fall[0] : FR.jump[4];
   }
   function drawCrew(x, feet, g) {
+    if(outfitSheet){
+      let frame=g?.onGround===false?(g.jumps===2?0:1):Math.floor((g?.runPhase??bgT*14)*.8)%6;
+      if(outfit.reverse)frame=5-frame;
+      ctx.save();ctx.translate(x,feet);
+      if(g?.dead)ctx.rotate(-.25);else if(g?.onGround===false)ctx.rotate(-.08);
+      // All existing outfit strips have six 192×184 frames with a shared foot baseline.
+      const size=112/174;
+      ctx.drawImage(outfitSheet,frame*192,0,192,184,-112*size,-179*size,192*size,184*size);
+      ctx.restore();return;
+    }
     if (!sheetOk) return drawCrewVector(x, feet, g);
     const f = crewFrame(g);
     ctx.drawImage(SHEET, f[0], f[1], f[2], f[3], x - f[4] * SPR, feet - f[3] * SPR + 2, f[2] * SPR, f[3] * SPR);
@@ -302,7 +314,16 @@ function sparks(x,y,c,text){
  for(let n=0;n<7;n++)parts.push({x,y,vx:(Math.random()-.5)*160,vy:-30-Math.random()*95,r:2+Math.random()*2,life:.32,max:.32,c});
  if(text)parts.push({x,y:y-18,vx:0,vy:-70,life:.52,max:.52,txt:text});
 }
-return {ready:()=>SHEET.decode(),draw(s){
+return {async ready(outfitId=DEFAULT_OUTFIT){
+ await SHEET.decode();
+ const selected=JUMP_OUTFITS.find(item=>item.id===outfitId);
+ if(!selected)throw Error('의상 정보를 다시 확인해주세요.');
+ if(!selected.sprite){outfitSheet=null;outfit=selected;return;}
+ let image=outfitImages.get(selected.id);
+ if(!image){image=new Image();image.src=selected.sprite;outfitImages.set(selected.id,image);}
+ try{await image.decode();}catch{outfitImages.delete(selected.id);throw Error('의상 이미지를 불러오지 못했어요. 다시 시작해주세요.');}
+ outfit=selected;outfitSheet=image;
+},draw(s){
  if(!s){G=null;bgT=0;prev=null;parts=[];draw();return}
  bgT=s.tick/60;const dt=prev?Math.max(0,Math.min(.16,(s.tick-prev.tick)/60)):0;
  if(!prev||prev.tick>s.tick){prev=null;parts=[]}

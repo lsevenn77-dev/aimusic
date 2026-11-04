@@ -1,6 +1,7 @@
 import {rows,fail,json} from './db.js';
 import {requireUser} from './auth.js';
 import {DECORATIONS,PERIOD_LABELS} from '../shared/decorations.js';
+import {JUMP_OUTFITS} from '../dist/crew-jump-art/outfits.js';
 
 // Account-scoped read only view of existing receipts. Never recompute balances.
 export async function walletHistory(req,env,user){
@@ -16,7 +17,8 @@ export async function walletHistory(req,env,user){
    rows(env,`SELECT * FROM (
     SELECT f.id,'gift' kind,f.silver amount,f.created,f.gift_name title FROM free_gifts f WHERE f.sender_id=? AND f.silver>0 AND NOT EXISTS(SELECT 1 FROM gift_inventory i WHERE i.id=f.id)
     UNION ALL SELECT 'inventory:'||request_id,'inventory',SUM(value),created,gift_name||' 구매' FROM gift_inventory WHERE user_id=? AND currency='silver' AND source='purchase' GROUP BY request_id
-   ) ORDER BY created DESC,id LIMIT 20`,uid,uid)
+    UNION ALL SELECT 'jump-outfit:'||id,'jump_outfit',json_extract(item_key,'$.amount'),granted_at,source_ref FROM player_inventory WHERE user_id=? AND source='jump_outfit' AND json_extract(item_key,'$.currency')='S'
+   ) ORDER BY created DESC,id LIMIT 20`,uid,uid,uid)
   ]);
  }else{
   [earned,spent]=await Promise.all([
@@ -29,10 +31,12 @@ export async function walletHistory(req,env,user){
     UNION ALL SELECT 'inventory:'||request_id,'inventory',SUM(value),created,gift_name||' 구매' FROM gift_inventory WHERE user_id=? AND currency='gold' AND source='purchase' GROUP BY request_id
     UNION ALL SELECT 'decoration:'||id,'decoration',gold,created,sku||' · '||period_code FROM decoration_orders WHERE payer_id=?
     UNION ALL SELECT 'dubbing:'||job_id,'dubbing',gold,created,'' FROM dubbing_gold_orders WHERE user_id=?
-   ) ORDER BY created DESC,id LIMIT 20`,uid,uid,uid,uid)
+    UNION ALL SELECT 'jump-outfit:'||id,'jump_outfit',json_extract(item_key,'$.amount'),granted_at,source_ref FROM player_inventory WHERE user_id=? AND source='jump_outfit' AND json_extract(item_key,'$.currency')='G'
+   ) ORDER BY created DESC,id LIMIT 20`,uid,uid,uid,uid,uid)
   ]);
  }
  return json({currency,earned,spent:spent.map(row=>{
+  if(row.kind==='jump_outfit')return {...row,title:(JUMP_OUTFITS.find(item=>item.id===row.title)?.name||'점프게임 의상')+' 구매'};
   if(row.kind!=='decoration')return row;
   const [sku,period]=row.title.split(' · ');
   return {...row,title:(DECORATIONS[sku]?.name||'꾸미기 상품')+' · '+(PERIOD_LABELS[period]||'')+' 구매'};
