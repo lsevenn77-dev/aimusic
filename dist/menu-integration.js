@@ -6,6 +6,7 @@ function menuHref(route,params={},raw=''){
 }
 function menuAlias(hash){
  const raw=hash.replace(/^#/,''),route=raw.split('?')[0],parts=route.split('/'),base=parts[0],section=parts[1]||'';
+ if(route==='mypage')return menuHref('profile',{},raw);
  if(base==='library'&&parts.length<=2){
   if(['following','followers','artists','producers'].includes(section))return menuHref('follow',{tab:section==='followers'?'followers':'following',...(['artists','producers'].includes(section)?{kind:section}:{} )},raw);
   if(['covers','originals'].includes(section))return menuHref('profile',{view:'works',section},raw);

@@ -8,6 +8,7 @@ function context(extra={}){const c=vm.createContext({URLSearchParams,location:{h
 
 test('legacy menu routes preserve identifiers, repeated query parameters and canonical stability',()=>{
  const c=context(),cases={
+  '#mypage':'#profile',
   '#library':'#profile?view=library&section=likes',
   '#library/saved':'#profile?view=library&section=likes',
   '#gift-inventory':'#inventory',
