@@ -35,11 +35,12 @@ export async function castingRootView(env,pid,user){
  AND (p.state='complete' OR c.last_participation>?) AND ${blockSQL} ORDER BY count DESC,c.last_participation DESC LIMIT 100`,pid,now()-CASTING_TTL,uid,uid);
  const combinations=[];for(const c of combos)combinations.push({...c,members:await members(env,c.id),expiresAt:c.state==='complete'?null:c.last_participation+CASTING_TTL});
  if(base)combinations.push({id:root.id,base:true,count:1,state:'base',members:await members(env,root.id,base.id),expiresAt:null});
- return {root:{id:root.id,title:root.title,ownerName:root.owner_name,roleCount:root.role_count,genres:JSON.parse(root.options_json).genres,roles:script.roles,isOwner:uid===root.owner_id},combinations,baseReady:!!base};
+ else if(root.visibility==='public')combinations.push({id:root.id,base:true,count:0,state:'open',members:[],expiresAt:null});
+ return {root:{id:root.id,title:root.title,ownerName:root.owner_name,roleCount:root.role_count,genres:JSON.parse(root.options_json).genres,roles:script.roles,isOwner:uid===root.owner_id},combinations,baseReady:!!base,canStart:root.visibility==='public'};
 }
-async function readyBackground(env,p){
+async function readyBackground(env,p,required=true){
  const bg=await one(env,"SELECT * FROM dubbing_sound_jobs WHERE project_id=? AND script_key=? AND state='ready' AND output_key IS NOT NULL",p.id,p.script_key);
- if(!bg||!await env.BUCKET.head(bg.output_key))fail(409,'원작의 배경 오디오 준비가 끝나면 녹음할 수 있어요.');return bg;
+ if(!bg||!await env.BUCKET.head(bg.output_key)){if(required)fail(409,'선택한 조합의 배경 오디오 준비가 끝나면 녹음할 수 있어요.');return null;}return bg;
 }
 function cloneProject(env,root,pid,owner,visibility,token,guard='1=1',args=[]){
  return query(env,`INSERT INTO dubbing_projects(id,owner_id,title,options_json,script_json,script_key,creation_hash,source,state,visibility,root_id,role_count,duration,write_token,rights_at,created,updated)
@@ -55,16 +56,18 @@ async function startDraft(env,root,user,body){
  const old=await one(env,'SELECT p.owner_id,d.* FROM dubbing_casting_drafts d JOIN dubbing_projects p ON p.id=d.project_id WHERE d.project_id=?',body.id);
  if(old){if(old.owner_id!==user.id||old.root_id!==root.id||old.role_id!==body.roleId)fail(409,'다른 녹음 요청입니다.');return {projectId:old.project_id};}
  const base=await baseRecording(env,root),script=JSON.parse(root.script_json);
- if(!base)fail(409,'원작자의 공개 녹음이 먼저 필요해요.');
- if(root.owner_id===user.id)fail(409,'원작자 녹음은 기본 조합에서 유지됩니다. 다른 참여자의 목소리를 기다려주세요.');
- if(!script.roles.some(r=>r.id===body.roleId)||base.role_id===body.roleId)fail(409,'비어 있는 배역을 선택해주세요.');
+ if(!script.roles.some(r=>r.id===body.roleId))fail(409,'비어 있는 배역을 선택해주세요.');
  let target=null;if(body.targetId&&body.targetId!==root.id){target=await accessible(env,body.targetId,user);const c=await one(env,'SELECT * FROM dubbing_combinations WHERE project_id=? AND root_id=? AND expired_at=0 AND last_participation>?',target.id,root.id,now()-CASTING_TTL);if(!c||target.state==='complete')fail(409,'이 조합은 참여가 마감되었어요.');}
+ if(!target&&root.owner_id===user.id)fail(409,'원작자의 기본 녹음은 작품 상세보기에서 배역을 선택해주세요.');
+ if(!target&&base?.role_id===body.roleId)fail(409,'비어 있는 배역을 선택해주세요.');
  if(target&&await one(env,'SELECT id FROM dubbing_recordings WHERE project_id=? AND (role_id=? OR user_id=?)',target.id,body.roleId,user.id))fail(409,'이미 참여 중이거나 채워진 배역입니다.');
  await rate(env,'casting-draft:'+user.id,30,3600);
- const bg=await readyBackground(env,root),token=id();
- await env.DB.batch([cloneProject(env,root,body.id,user.id,'private',token),cloneBackground(env,bg,body.id,token),
+ // An empty published script needs no owner take or owner-prepared background.
+ // If necessary, the existing recording prepare route builds free basic audio in this private draft.
+ const bg=await readyBackground(env,target||root,!!target||!!base),token=id();
+ await env.DB.batch([cloneProject(env,root,body.id,user.id,'private',token),...(bg?[cloneBackground(env,bg,body.id,token)]:[]),
  query(env,'INSERT INTO dubbing_role_claims(project_id,role_id,user_id,created) VALUES(?,?,?,?)',body.id,body.roleId,user.id,now()),
- query(env,'INSERT INTO dubbing_casting_drafts(project_id,root_id,target_id,destination_id,role_id,created) VALUES(?,?,?,?,?,?)',body.id,root.id,target?.id||null,target?.id||id(),body.roleId,now())]);
+ query(env,'INSERT INTO dubbing_casting_drafts(project_id,root_id,target_id,destination_id,role_id,created,base_recording_id) VALUES(?,?,?,?,?,?,?)',body.id,root.id,target?.id||null,target?.id||id(),body.roleId,now(),target?null:base?.id||null)]);
  return {projectId:body.id};
 }
 function copyTake(env,recordId,pid,token){
@@ -100,8 +103,10 @@ export async function submitCastingRecording(env,p,user,record,body){
   const saved=await env.DB.batch([query(env,`UPDATE dubbing_recordings SET state='submitted',rights_at=?,revision=revision+1,write_token=? WHERE id=? AND revision=? AND NOT EXISTS(SELECT 1 FROM dubbing_recordings r JOIN dubbing_recording_permissions v ON v.recording_id=r.id WHERE r.project_id=? AND r.id!=? AND r.user_id=? AND v.visibility='public') RETURNING id`,stamp,token,record.id,body.revision,p.id,record.id,user.id),permission]);
   if(!saved[0].results.length)fail(409,'기본 녹음은 한 배역만 공개할 수 있어요.');return {base:true,submitted:true};
  }
- const root=await accessible(env,draft.root_id,user),base=await baseRecording(env,root);
- if(!base||root.visibility!=='public')fail(409,'원작 모집이 중지됐어요. 내 녹음은 임시 저장되어 있어요.');
+ const root=await accessible(env,draft.root_id,user);
+ if(root.visibility!=='public')fail(409,'원작 모집이 중지됐어요. 내 녹음은 임시 저장되어 있어요.');
+ const base=!draft.target_id&&draft.base_recording_id?await baseRecording(env,root):null;
+ if(!draft.target_id&&draft.base_recording_id&&base?.id!==draft.base_recording_id)fail(409,'선택한 기본 녹음의 공개가 중지됐어요. 내 녹음은 임시 저장되어 있어요.');
  const pid=draft.destination_id,statements=[];
  // The destination is locked only if the submitting draft still has the exact
  // revision and complete line set checked by the caller. All following writes
@@ -116,7 +121,7 @@ export async function submitCastingRecording(env,p,user,record,body){
  }else{
   statements.push(cloneProject(env,root,pid,user.id,'public',token,`p.visibility='public' AND ${sourceGuard}`,sourceArgs));
   statements.push(query(env,`INSERT INTO dubbing_combinations(project_id,root_id,last_participation) SELECT ?,?,? WHERE EXISTS(SELECT 1 FROM dubbing_projects WHERE id=? AND write_token=?) ON CONFLICT(project_id) DO NOTHING`,pid,root.id,stamp,pid,token));
-  statements.push(cloneBackground(env,await readyBackground(env,root),pid,token),...copyTake(env,base.id,pid,token));
+  statements.push(cloneBackground(env,await readyBackground(env,p),pid,token),...(base?copyTake(env,base.id,pid,token):[]));
  }
  statements.push(query(env,`UPDATE dubbing_recordings SET state='submitted',revision=revision+1,rights_at=?,write_token=? WHERE id=? AND revision=? AND state='draft' AND EXISTS(SELECT 1 FROM dubbing_projects WHERE id=? AND write_token=?)`,stamp,token,record.id,body.revision,pid,token),permission,...copyTake(env,record.id,pid,token));
  statements.push(query(env,`UPDATE dubbing_combinations SET last_participation=? WHERE project_id=? AND EXISTS(SELECT 1 FROM dubbing_projects WHERE id=? AND write_token=?)`,stamp,pid,pid,token));
@@ -159,13 +164,16 @@ export async function dubbingCastingRoute(req,env,path,user){
  if(action==='retarget'){
   const p=await accessible(env,pid,user),draft=await one(env,'SELECT * FROM dubbing_casting_drafts WHERE project_id=? AND committed_id IS NULL',pid);
   if(!draft||p.owner_id!==user.id)fail(404,'내 녹음 초안을 찾을 수 없습니다.');
+  const root=await accessible(env,draft.root_id,user);if(root.visibility!=='public')fail(409,'원작 모집이 중지됐어요.');
+  const base=body.targetId?null:await baseRecording(env,root);
+  if(base&&(base.role_id===draft.role_id||base.user_id===user.id))fail(409,'이 배역이 비어 있는 다른 진행 조합을 선택해주세요.');
   if(body.targetId){
    const target=await accessible(env,body.targetId,user);
    const active=await one(env,'SELECT 1 FROM dubbing_combinations WHERE project_id=? AND root_id=? AND expired_at=0 AND last_participation>?',target.id,draft.root_id,now()-CASTING_TTL);
    const occupied=await one(env,'SELECT 1 FROM dubbing_recordings WHERE project_id=? AND (role_id=? OR user_id=?)',target.id,draft.role_id,user.id);
    if(!active||target.state==='complete'||occupied)fail(409,'이 배역이 비어 있는 다른 진행 조합을 선택해주세요.');
   }
-  await run(env,'UPDATE dubbing_casting_drafts SET target_id=?,destination_id=? WHERE project_id=? AND committed_id IS NULL',body.targetId||null,body.targetId||id(),pid);return json({ok:true});
+  await run(env,'UPDATE dubbing_casting_drafts SET target_id=?,destination_id=?,base_recording_id=? WHERE project_id=? AND committed_id IS NULL',body.targetId||null,body.targetId||id(),base?.id||null,pid);return json({ok:true});
  }
  if(['render','timing'].includes(action)){
   const p=await accessible(env,pid,user),combo=await one(env,'SELECT * FROM dubbing_combinations WHERE project_id=? AND expired_at=0',pid);

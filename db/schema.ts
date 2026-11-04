@@ -335,7 +335,9 @@ export const dubbingFinalJobs=sqliteTable('dubbing_final_jobs',{
 // Variant A: private takes are staged independently; only an accepted submission occupies a cast slot.
 export const dubbingCastingDrafts=sqliteTable('dubbing_casting_drafts',{
  projectId:text('project_id').primaryKey().references(()=>dubbingProjects.id,{onDelete:'cascade'}),rootId:text('root_id').notNull().references(()=>dubbingProjects.id),
- targetId:text('target_id'),destinationId:text('destination_id').notNull(),committedId:text('committed_id'),roleId:text('role_id').notNull(),created:integer('created').notNull()
+ targetId:text('target_id'),destinationId:text('destination_id').notNull(),committedId:text('committed_id'),roleId:text('role_id').notNull(),created:integer('created').notNull(),
+ // Snapshot the optional original take. A later original recording must not alter a draft's cast.
+ baseRecordingId:text('base_recording_id')
 },t=>[index('dubbing_casting_drafts_root').on(t.rootId),index('dubbing_casting_drafts_committed').on(t.committedId)]);
 export const dubbingCombinations=sqliteTable('dubbing_combinations',{
  projectId:text('project_id').primaryKey().references(()=>dubbingProjects.id,{onDelete:'cascade'}),rootId:text('root_id').notNull().references(()=>dubbingProjects.id),

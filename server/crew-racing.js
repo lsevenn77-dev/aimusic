@@ -1,3 +1,4 @@
+import {gameLimits,gameDayWindow} from './crew-game-limits.js';
 import {query,one,rows,run,json,fail,id,now,rate} from './db.js';
 import {requireUser} from './auth.js';
 import {publicNameSQL} from './identity.js';
@@ -62,6 +63,8 @@ export async function racingRoute(req,env,path,user,ms=Date.now()){
   const membership=uid&&await one(env,'SELECT crew_id FROM crew_members WHERE user_id=?',uid);
   const crew=membership?.crew_id||'';
   if(action==='lobby'&&req.method==='GET'){
+  const limits=await gameLimits(env,uid,ms),day=gameDayWindow(ms);
+  const used=await one(env,'SELECT COUNT(*) n FROM crew_racing_runs WHERE user_id=? AND starts>=? AND starts<?',uid,day.start,day.end);
   const individualRanking=await rows(env,`WITH best AS (
     SELECT user_id,MAX(score) AS points FROM crew_racing_runs
     WHERE week=? AND score IS NOT NULL AND crew_id IS NOT NULL GROUP BY user_id
@@ -79,7 +82,7 @@ export async function racingRoute(req,env,path,user,ms=Date.now()){
   ), ranked AS (
     SELECT *,RANK() OVER(ORDER BY points DESC) place FROM totals
   ) SELECT c.name,c.image_version,r.* FROM ranked r JOIN crews c ON c.id=r.crew_id WHERE place<=100 OR crew_id=? ORDER BY place,c.name,r.crew_id`,week,crew);
-    return json({week,course,crew:crew||null,ranking,individualRanking,signedIn:!!uid,crewMember:!!crew,...(uid?await garage(env,uid):{owned:['c2'],equipped:'c2'})});
+    return json({week,course,...limits,remaining:Math.max(0,limits.dailyLimit-used.n),crew:crew||null,ranking,individualRanking,signedIn:!!uid,crewMember:!!crew,...(uid?await garage(env,uid):{owned:['c2'],equipped:'c2'})});
   }
   if(req.method!=='POST')fail(405,'지원하지 않는 요청입니다.');
   requireUser(user);
@@ -100,8 +103,13 @@ export async function racingRoute(req,env,path,user,ms=Date.now()){
   if(action==='start'){
     if(body.course!==course)fail(409,'이번 주 코스가 바뀌었어요. 대기실을 새로고침해주세요.');
     const key=id();
-    await run(env,'INSERT INTO crew_racing_runs(id,user_id,crew_id,week,course,starts) VALUES(?,?,?,?,?,?)',key,uid,crew,week,course,ms);
-    return json({id:key});
+    const limits=await gameLimits(env,uid,ms),day=gameDayWindow(ms);
+    await run(env,`INSERT INTO crew_racing_runs(id,user_id,crew_id,week,course,starts)
+      SELECT ?,?,?,?,?,? WHERE (SELECT COUNT(*) FROM crew_racing_runs WHERE user_id=? AND starts>=? AND starts<?)<?`,
+      key,uid,crew,week,course,ms,uid,day.start,day.end,limits.dailyLimit);
+    if(!await one(env,'SELECT id FROM crew_racing_runs WHERE id=?',key))fail(409,`오늘 공식 도전 ${limits.dailyLimit}회를 모두 사용했어요. 한국시간 자정에 초기화돼요.`);
+    const used=await one(env,'SELECT COUNT(*) n FROM crew_racing_runs WHERE user_id=? AND starts>=? AND starts<?',uid,day.start,day.end);
+    return json({id:key,...limits,remaining:Math.max(0,limits.dailyLimit-used.n)});
   }
   if(action==='finish'){
     const record=await one(env,'SELECT * FROM crew_racing_runs WHERE id=? AND user_id=?',String(body.id),uid);

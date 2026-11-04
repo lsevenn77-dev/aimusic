@@ -666,6 +666,13 @@
       "when": 1793786186125,
       "tag": "0094_bot_display_nicknames",
       "breakpoints": true
+    },
+    {
+      "idx": 95,
+      "version": "6",
+      "when": 1793790238897,
+      "tag": "0095_optional_original_recording",
+      "breakpoints": true
     }
   ]
 }

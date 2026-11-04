@@ -30,7 +30,7 @@ export function mount(root,{crew,viewer,api,esc}){
    <p class="arc-look-balance" data-shop-balance></p><div class="arc-fitting"><div class="arc-run-model" aria-hidden="true"></div><div aria-live="polite"><small>달리기 미리보기</small><h3 data-look-name></h3><b data-look-price></b></div></div>
    <div class="arc-look-shelves"></div><div class="arc-look-actions"><button type="button" class="primary-button" data-look-action disabled>의상 선택</button><button type="button" class="small-button" data-shop-retry hidden>다시 확인</button></div><p class="arc-look-note" data-shop-status role="status"></p></dialog>
  <div class="jump-stage" hidden aria-label="점프게임"><canvas width="960" height="540" tabindex="0" aria-label="스페이스 또는 화면을 눌러 점프"></canvas><div class="jump-hud" hidden><span>점수 <b>0</b></span><span>남은 시간 <b>${LIMIT/HZ}초</b></span><span>콤보 <b>0</b></span><small class="jump-speed"></small><span class="jump-mode" data-game-mode></span></div><div class="jump-overlay"></div></div>
- <dialog class="jump-wide-dialog" aria-label="가로 게임 화면"><div class="jump-wide-layout"><div class="jump-wide-controls"><button class="small-button" type="button" data-wide-pause hidden>일시정지</button><button class="small-button" type="button" data-wide-exit>축소</button></div></div></dialog><div class="jump-summary" aria-live="polite"></div><dialog class="surface jump-dialog compact-popup"><h2>주간 게임 규칙</h2><p>화면을 누르거나 스페이스바로 점프하세요. 공중에서 한 번 더 점프할 수 있어요. 장애물에 닿으면 도전이 끝나요.</p><p>별 젤리를 연속으로 모으면 콤보 보너스! 낮에는 10초마다 1.2배로 가속해요. 70초부터 야간 도로에서 네온 링을 모으세요. 밤에는 5초마다 1.1배로 가속하고 ${LIMIT/HZ}초에 완주해요.</p><p>공식 도전은 하루 3회. 한국시간 월요일 0시부터 금요일 22시까지, 크루원별 주간 최고점 상위 10개를 합산해요. 참여 미션 보상은 크루 경험치이며, 현재 지급은 꺼져 있어요. 리듬게임에서도 별도의 공식 도전에 참여할 수 있어요.</p><button class="primary-button" data-close>확인</button></dialog></section>`;
+ <dialog class="jump-wide-dialog" aria-label="가로 게임 화면"><div class="jump-wide-layout"><div class="jump-wide-controls"><button class="small-button" type="button" data-wide-pause hidden>일시정지</button><button class="small-button" type="button" data-wide-exit>축소</button></div></div></dialog><div class="jump-summary" aria-live="polite"></div><dialog class="surface jump-dialog compact-popup"><h2>주간 게임 규칙</h2><p>화면을 누르거나 스페이스바로 점프하세요. 공중에서 한 번 더 점프할 수 있어요. 장애물에 닿으면 도전이 끝나요.</p><p>별 젤리를 연속으로 모으면 콤보 보너스! 낮에는 10초마다 1.2배로 가속해요. 70초부터 야간 도로에서 네온 링을 모으세요. 밤에는 5초마다 1.1배로 가속하고 ${LIMIT/HZ}초에 완주해요.</p><p>공식 도전은 하루 3회, 프리미엄은 4회. 한국시간 월요일 0시부터 금요일 22시까지, 크루원별 주간 최고점 상위 10개를 합산해요. 참여 미션 보상은 크루 경험치이며, 현재 지급은 꺼져 있어요. 리듬게임에서도 별도의 공식 도전에 참여할 수 있어요.</p><button class="primary-button" data-close>확인</button></dialog></section>`;
  const $=s=>root.querySelector(s),canvas=$('canvas'),ctx=canvas.getContext('2d'),layer=$('.jump-overlay'),hud=$('.jump-hud'),summary=$('.jump-summary'),dialog=$('.jump-dialog:not(.arc-store-dialog)'),shop=$('.arc-store-dialog');
  const waiting=$('.jump-lobby'),stage=$('.jump-stage');
  const outfitShop=mountOutfitShop(shop,{api,url,esc,onChange:wardrobe=>{
@@ -96,12 +96,12 @@ export function mount(root,{crew,viewer,api,esc}){
   phase='lobby';$('[data-shop]').disabled=false;$('[data-pause]').hidden=true;$('[data-rules]').disabled=false;hud.hidden=true;
   const official=info.open&&info.remaining>0;
   const label=official?'공식 도전 시작':info.remaining<=0?'오늘 공식 도전 완료':'공식 도전 마감';
-  $('.jump-start-actions').innerHTML = '<button type="button" class="arc-start" data-do="official"'+(official?'':' disabled')+' aria-label="'+label+'"><img class="arc-start-art" src="/crew-jump-art/arcade-start.webp" width="556" height="352" alt=""><span class="arc-start-status">'+label+'<small>'+(info.remaining<=0?'한국시간 자정에 3회 초기화':'오늘 남은 횟수 '+info.remaining+' / 3회')+'</small></span></button>';
+  $('.jump-start-actions').innerHTML = '<button type="button" class="arc-start" data-do="official"'+(official?'':' disabled')+' aria-label="'+label+'"><img class="arc-start-art" src="/crew-jump-art/arcade-start.webp" width="556" height="352" alt=""><span class="arc-start-status">'+label+'<small>'+(info.remaining<=0?'한국시간 자정에 '+(info.dailyLimit??3)+'회 초기화':'오늘 남은 횟수 '+info.remaining+' / '+(info.dailyLimit??3)+'회')+'</small></span></button>';
   $('.jump-brief').innerHTML = `<div class="jump-session">
     <strong>${label}</strong>${btn('practice','연습하기 · 랭킹 미반영')}
     <span>공식 도전은 시작할 때 1회 차감돼요. 연습은 횟수 제한이 없어요.</span>
    </div><dl>
-    <div><dt>오늘 남은 공식 도전</dt><dd>${info.remaining} / 3회</dd></div>
+    <div><dt>오늘 남은 공식 도전</dt><dd>${info.remaining} / ${info.dailyLimit??3}회</dd></div>
     <div><dt>내 주간 최고점</dt><dd>${info.best == null ? '기록 없음' : Number(info.best).toLocaleString()+'점'}</dd></div>
     <div><dt>오늘의 참여 미션</dt><dd>${info.participated ? '공식 도전 완료' : '공식 도전 1회'}</dd></div>
    </dl>`;
@@ -125,7 +125,7 @@ export function mount(root,{crew,viewer,api,esc}){
    phase='saving';summary.textContent='서버 검증 중 · 아직 확정되지 않은 기록이에요.';
    try{const result=await api(url+'/finish','POST',{id:saved.id,inputs:taps});if(dead)return;
     rememberRun(true,result.score);info=await api(url,'GET',undefined,{fresh:true});if(dead)return;
-    board();summary.textContent=(before===null||result.score>before?'주간 최고점 갱신! · ':'')+'공식 '+result.score+'점 · 주간 최고 '+info.best+'점 · '+(info.remaining?'공식 도전 '+info.remaining+'회 남음':'오늘 공식 도전 3회를 모두 사용했어요.');
+    board();summary.textContent=(before===null||result.score>before?'주간 최고점 갱신! · ':'')+'공식 '+result.score+'점 · 주간 최고 '+info.best+'점 · '+(info.remaining?'공식 도전 '+info.remaining+'회 남음':'오늘 공식 도전을 모두 사용했어요.');
     layer.querySelector('.jump-actions').innerHTML=buttons();round=null;
    }catch(e){if(dead)return;summary.textContent=e.message;layer.querySelector('.jump-actions').innerHTML=btn('retry','기록 다시 제출')+btn('lobby','대기실로')}
    phase='result';
@@ -158,7 +158,7 @@ export function mount(root,{crew,viewer,api,esc}){
  }
  async function begin(official){
   if(phase!=='lobby')return;
-  if(official&&(!info.open||info.remaining<=0)){summary.hidden=false;summary.textContent=info.remaining<=0?'오늘 공식 도전 3회를 모두 사용했어요. 한국시간 자정에 초기화돼요.':'공식 도전 기간이 아니에요.';return;}
+  if(official&&(!info.open||info.remaining<=0)){summary.hidden=false;summary.textContent=info.remaining<=0?'오늘 공식 도전을 모두 사용했어요. 한국시간 자정에 초기화돼요.':'공식 도전 기간이 아니에요.';return;}
   if(outfitShop.busy){summary.hidden=false;summary.textContent='의상 처리가 끝난 뒤 시작해주세요.';return;}
   phase='starting';$('[data-rules]').disabled=true;
   sounds.unlock();enterWide();

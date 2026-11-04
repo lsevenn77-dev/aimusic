@@ -1,3 +1,4 @@
+import {gameLimits} from './crew-game-limits.js';
 import {one,rows,run,json,fail,id,rate} from './db.js';
 import {requireUser} from './auth.js';
 import {publicNameSQL} from './identity.js';
@@ -14,6 +15,7 @@ export async function rhythmRoute(req,env,path,user,ms=Date.now()){
   if(!member)fail(403,'크루에 가입하면 공식 랭킹에 참여할 수 있어요.');
   const crew=member.crew_id;
   if(action==='lobby'&&req.method==='GET'){
+    const limits=await gameLimits(env,uid,ms);
     const [used,bests,individualRanking,ranking]=await Promise.all([
       one(env,'SELECT COUNT(*) AS n FROM crew_rhythm_runs WHERE user_id=? AND day=?',uid,day),
       rows(env,"SELECT difficulty,MAX(score) AS score,MAX(max_combo) AS combo FROM crew_rhythm_runs WHERE user_id=? AND week=? AND status='finished' GROUP BY difficulty",uid,week),
@@ -29,26 +31,27 @@ export async function rhythmRoute(req,env,path,user,ms=Date.now()){
         ranked AS (SELECT *,RANK() OVER(ORDER BY points DESC) AS place FROM totals)
         SELECT r.*,c.name,c.image_version FROM ranked r JOIN crews c ON c.id=r.crew_id WHERE place<=100 OR crew_id=? ORDER BY place,c.name,r.crew_id`,week,crew)
     ]);
-    return json({userId:uid,crew,day,week,open:canStart,remaining:Math.max(0,3-used.n),version:VERSION,song:CHART.title||'Double Tap',bests,
+    return json({userId:uid,crew,day,week,open:canStart,...limits,remaining:Math.max(0,limits.dailyLimit-used.n),version:VERSION,song:CHART.title||'Double Tap',bests,
       individualRanking,ranking,team:ranking.find(r=>r.crew_id===crew)?.points||0});
   }
   if(req.method!=='POST')fail(405,'지원하지 않는 요청이에요.');
   await rate(env,'crew-rhythm:'+uid,45,60);
   const body=await req.json();
   if(action==='start'){
+    const limits=await gameLimits(env,uid,ms);
     if(!canStart)fail(409,'이번 주 공식 도전이 마감됐거나 남은 시간이 부족해요.');
     if(!Object.hasOwn(RULES.base,body.difficulty)||!/^[-\w]{12,64}$/.test(String(body.requestId||'')))fail(400,'도전 정보를 확인해주세요.');
     const previous=()=>one(env,'SELECT * FROM crew_rhythm_runs WHERE user_id=? AND request_id=?',uid,body.requestId);
     let record=await previous();
     if(!record){
       await run(env,`INSERT OR IGNORE INTO crew_rhythm_runs(id,user_id,crew_id,week,day,request_id,difficulty,version,starts)
-        SELECT ?,?,?,?,?,?,?,?,? WHERE (SELECT COUNT(*) FROM crew_rhythm_runs WHERE user_id=? AND day=?)<3
+        SELECT ?,?,?,?,?,?,?,?,? WHERE (SELECT COUNT(*) FROM crew_rhythm_runs WHERE user_id=? AND day=?)<?
         AND NOT EXISTS(SELECT 1 FROM crew_rhythm_runs WHERE user_id=? AND status='active' AND starts>?)
         AND NOT EXISTS(SELECT 1 FROM crew_rhythm_runs WHERE user_id=? AND week=? AND crew_id IS NOT ?)`,
-        id(),uid,crew,week,day,body.requestId,body.difficulty,VERSION,ms,uid,day,uid,ms-TTL,uid,week,crew);
+        id(),uid,crew,week,day,body.requestId,body.difficulty,VERSION,ms,uid,day,limits.dailyLimit,uid,ms-TTL,uid,week,crew);
       record=await previous();
     }
-    if(!record||record.crew_id!==crew||record.day!==day||record.difficulty!==body.difficulty||record.status!=='active'||ms>record.starts+TTL)fail(409,'진행 중인 도전 또는 오늘 남은 3회를 확인해주세요.');
+    if(!record||record.crew_id!==crew||record.day!==day||record.difficulty!==body.difficulty||record.status!=='active'||ms>record.starts+TTL)fail(409,`진행 중인 도전 또는 오늘 공식 도전 ${limits.dailyLimit}회 한도를 확인해주세요.`);
     return json({id:record.id,difficulty:record.difficulty,version:record.version,serverTime:ms});
   }
   const record=await one(env,'SELECT * FROM crew_rhythm_runs WHERE id=? AND user_id=? AND crew_id=?',String(body.id||''),uid,crew);
