@@ -157,6 +157,7 @@ body:has(#directory-editor[open]){overflow:hidden}
 #main .artist-directory.artist-directory-owned .directory-grid{grid-auto-rows:auto;align-items:start}
 #main .artist-directory-owned .directory-profile-card{padding-bottom:8px}
 #main .artist-directory-owned .directory-profile-card .directory-photo{margin-bottom:8px}
+#main .artist-directory-owned .directory-profile-card .directory-name{flex:none;margin-bottom:8px;font-size:var(--pc-font-card,16px)}
 #main .artist-directory-owned .directory-card-actions{box-sizing:border-box;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;width:100%;padding:0 var(--artist-avatar-inset)}
 #main .artist-directory-owned .directory-card-action{box-sizing:border-box;display:flex;align-items:center;justify-content:center;min-width:44px;width:100%;height:44px;min-height:44px;margin:0;padding:8px 4px;border:1px solid var(--ds-line);border-radius:var(--ds-radius-sm);background:var(--ds-bg);color:var(--ds-body);font:inherit;font-size:13px;font-weight:600;line-height:20px;white-space:nowrap;cursor:pointer;touch-action:manipulation}
 #main .artist-directory-owned .directory-card-action[data-directory-edit]{background:var(--ds-soft);color:var(--ds-selected)}
