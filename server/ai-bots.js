@@ -3,6 +3,8 @@ import {isAdmin,requireUser,hash} from './auth.js';
 import {readImage} from './images.js';
 import {BOT_DEFAULTS,BOT_CATEGORIES,BOT_STYLES,botConfig} from '../shared/ai-bots.js';
 import {giftDay} from '../shared/gifts.js';
+import {botPersonality,musicGenres,preferenceScore} from './bot-personalities.js';
+import {generateBotComment} from './bot-comment-ai.js';
 
 const base='/api/admin/ai-bots';
 const audit=(env,user,action,data)=>query(env,'INSERT INTO ai_bot_audit VALUES(?,?,?,?,?)',id(),user.id,action,JSON.stringify(data),now());
@@ -43,7 +45,7 @@ export async function aiBotsRoute(req,env,path,user){
  }
  if(tail==='/accounts'&&method==='GET'){
   const q='%'+str(url.searchParams.get('q')||'',80,false)+'%',page=paging(url);
-  return json({accounts:await rows(env,`SELECT b.*,p.id profile_id,p.name,p.image_version FROM ai_bots b JOIN producers p ON p.user_id=b.user_id WHERE (p.name LIKE ? OR b.user_id LIKE ?) ORDER BY b.number LIMIT ? OFFSET ?`,q,q,...page),total:(await one(env,'SELECT count(*) n FROM ai_bots')).n});
+  return json({accounts:(await rows(env,`SELECT b.*,p.id profile_id,p.name,p.image_version FROM ai_bots b JOIN producers p ON p.user_id=b.user_id WHERE (p.name LIKE ? OR b.user_id LIKE ?) ORDER BY b.number LIMIT ? OFFSET ?`,q,q,...page)).map(b=>({...b,personality:botPersonality(b)})),total:(await one(env,'SELECT count(*) n FROM ai_bots')).n});
  }
  if(tail==='/accounts/bulk'&&method==='PATCH'){
   const b=await req.json();if(!Array.isArray(b.ids)||!b.ids.length||b.ids.length>90||b.ids.some(v=>typeof v!=='string')||typeof b.active!=='boolean')fail(400,'최대 90개 계정을 선택해주세요.');
@@ -182,11 +184,12 @@ export function queueBotHeartbeat(env,ctx,at=now()){
 export async function runBotEngine(env,at=now()){
  const s=await botSettings(env),c=s.config;if(!c.enabled)return {stopped:true,processed:0};
  const token=id(),lease=await one(env,"UPDATE ai_bot_settings SET lease_token=?,lease_until=? WHERE id=1 AND lease_until<=? AND revision=? RETURNING id",token,at+120,at,s.revision);if(!lease)return {busy:true,processed:0};
- let processed=0,failed=0;
+ let processed=0,failed=0;const started=Date.now();
  try{
   const batch=Math.max(1,Math.min(15,Math.floor(Number(env.AI_BOTS_BATCH_SIZE)||3)));
   const jobs=await rows(env,`SELECT * FROM ai_bot_jobs WHERE state='pending' AND due<=? ORDER BY ${c.newPriority?`EXISTS(SELECT 1 FROM users newbie WHERE newbie.id=ai_bot_jobs.owner_id AND newbie.created>=${at-604800}) DESC,`:''}due,id LIMIT ?`,at,batch);
   for(const job of jobs){
+   if(Date.now()-started>8000)break;
    try{await processBotJob(env,job,s,token,at);processed++;}
    catch(e){failed++;await run(env,"UPDATE ai_bot_jobs SET attempts=attempts+1,state=CASE WHEN attempts>=4 THEN 'failed' ELSE 'pending' END,due=?,updated=?,error=? WHERE id=? AND state='pending'",at+Math.min(3600,60*2**job.attempts),at,String(e.message).slice(0,300),job.id);}
   }
@@ -197,7 +200,7 @@ async function processBotJob(env,j,s,token,at){
  const c=s.config,day=giftDay(at),target=j.target_type==='track'?await one(env,"SELECT t.*,t.user_id owner_id,u.account_type FROM tracks t JOIN users u ON u.id=t.user_id WHERE t.id=? AND t.status='published' AND (t.kind='original' OR t.duet_open=0)",j.target_id):await one(env,"SELECT p.*,u.account_type FROM dubbing_projects p JOIN users u ON u.id=p.owner_id WHERE p.id=? AND p.state='complete' AND p.visibility='public' AND p.deleted_at=0 AND NOT EXISTS(SELECT 1 FROM track_reports r WHERE r.dubbing_id=p.id AND r.status IN ('removed','appealed','upheld'))",j.target_id);
  const skip=reason=>run(env,"UPDATE ai_bot_jobs SET state='skipped',error=?,updated=? WHERE id=? AND state='pending'",reason,at,j.id);
  if(!target||target.account_type!=='human'||target.owner_id!==j.owner_id)return skip('대상이 비공개·삭제되었거나 지원 대상이 아닙니다.');
- const kind=j.category.replace(/^first:/,''),first=j.category.startsWith('first:'),category=first?'first':kind;
+ const kind=j.category.replace(/^first:/,''),first=j.category.startsWith('first:');
  if(!c.kinds.includes(kind)||c.newOnly&&!first||j.action==='comment'&&j.slot>=c.comments||j.action==='gift'&&!c.gifts)return skip('현재 지원 설정에서 제외되었습니다.');
  const column=j.target_type==='track'?'track_id':'dubbing_id';
  const real=(await one(env,`SELECT count(DISTINCT member_id) n FROM (SELECT c.user_id member_id FROM comments c JOIN users u ON u.id=c.user_id WHERE c.${column}=? AND c.deleted_at=0 AND u.account_type='human' AND c.user_id!=? UNION SELECT l.user_id FROM likes l JOIN users u ON u.id=l.user_id WHERE l.${column}=? AND u.account_type='human' AND l.user_id!=?)`,j.target_id,j.owner_id,j.target_id,j.owner_id)).n;
@@ -206,18 +209,19 @@ async function processBotJob(env,j,s,token,at){
  const ownerCount=(await one(env,'SELECT count(DISTINCT target_type||target_id) n FROM ai_bot_activities WHERE owner_id=? AND day=?',j.owner_id,day)).n;
  const already=await one(env,'SELECT 1 FROM ai_bot_activities WHERE target_type=? AND target_id=?',j.target_type,j.target_id);
  if(c.creatorDaily===0||ownerCount>=c.creatorDaily&&!already)return skip('창작자 일일 지원 한도입니다.');
- const bot=await selectSupportBot(env,j,day);
- if(!bot)throw new Error('활성 계정 또는 계정별 일일 여유가 없습니다.');
+ const bot=await selectSupportBot(env,j,day,Math.random,target);
+ if(!bot)throw new Error(j.action==='comment'?'성격·선호 장르가 맞는 활성 계정 또는 계정별 일일 여유가 없습니다.':'활성 계정 또는 계정별 일일 여유가 없습니다.');
  let body='',quantity=0;
  if(j.action==='comment'){
-  const template=await one(env,`SELECT * FROM ai_bot_templates t WHERE active=1 AND category IN (?,?,'general') AND NOT EXISTS(SELECT 1 FROM ai_bot_activities a WHERE a.target_type=? AND a.target_id=? AND a.action='comment' AND substr(a.body,1,length(t.body))=t.body) ORDER BY (category=?) DESC,(style=?) DESC,random() LIMIT 1`,category,kind,j.target_type,j.target_id,category,bot.style);
-  if(!template)return skip('사용 가능한 미중복 템플릿이 없습니다.');body=template.body+(bot.emoji?' '+bot.emoji:'');
+  const count=await one(env,"SELECT count(*) n FROM ai_bot_activities WHERE day=? AND action='comment'",day);
+  if(count.n>=c.dailyComments){await run(env,"UPDATE ai_bot_jobs SET due=?,updated=? WHERE id=? AND state='pending'",Math.floor(Date.parse(giftDay(at+86400)+'T00:00:00+09:00')/1000),at,j.id);return;}
+  body=await generateBotComment(env,{job:j,target,bot,personality:botPersonality(bot)});
  }else quantity=c.giftMin+Math.floor(Math.random()*(c.giftMax-c.giftMin+1));
  const aid='activity:'+j.id,comments=j.action==='comment',limit=comments?c.dailyComments:c.dailyGifts;
  const liveTarget=j.target_type==='track'?"EXISTS(SELECT 1 FROM tracks WHERE id=? AND user_id=? AND status='published' AND (kind='original' OR duet_open=0))":"EXISTS(SELECT 1 FROM dubbing_projects WHERE id=? AND owner_id=? AND state='complete' AND visibility='public' AND deleted_at=0)";
- const guard=`EXISTS(SELECT 1 FROM ai_bot_settings WHERE id=1 AND revision=? AND lease_token=? AND lease_until>? AND json_extract(json,'$.enabled')=1) AND EXISTS(SELECT 1 FROM ai_bots b WHERE b.user_id=? AND b.active=1 AND b.daily_limit>(SELECT count(*) FROM ai_bot_activities a WHERE a.bot_id=b.user_id AND a.day='${day}')) AND (SELECT COALESCE(${comments?'count(*)':'sum(quantity)'},0) FROM ai_bot_activities WHERE day=? AND action=?) + ?<=? AND ${liveTarget}`;
+ const guard=`EXISTS(SELECT 1 FROM ai_bot_settings WHERE id=1 AND revision=? AND lease_token=? AND lease_until>? AND json_extract(json,'$.enabled')=1) AND EXISTS(SELECT 1 FROM ai_bots b WHERE b.user_id=? AND b.active=1 AND b.daily_limit>(SELECT count(*) FROM ai_bot_activities a WHERE a.bot_id=b.user_id AND a.day='${day}')) AND (SELECT COALESCE(${comments?'count(*)':'sum(quantity)'},0) FROM ai_bot_activities WHERE day=? AND action=?) + ?<=? AND NOT EXISTS(SELECT 1 FROM user_blocks WHERE (user_id=? AND blocked_id=?) OR (user_id=? AND blocked_id=?)) AND ${liveTarget}`;
  await env.DB.batch([
-  query(env,`INSERT OR IGNORE INTO ai_bot_activities(id,job_id,bot_id,owner_id,target_type,target_id,action,body,quantity,created,day) SELECT ?,?,?,?,?,?,?,?,?,?,? WHERE ${guard}`,aid,j.id,bot.user_id,j.owner_id,j.target_type,j.target_id,j.action,body,quantity,at,day,s.revision,token,at,bot.user_id,day,j.action,comments?1:quantity,limit,j.target_id,j.owner_id),
+  query(env,`INSERT OR IGNORE INTO ai_bot_activities(id,job_id,bot_id,owner_id,target_type,target_id,action,body,quantity,created,day) SELECT ?,?,?,?,?,?,?,?,?,?,? WHERE ${guard}`,aid,j.id,bot.user_id,j.owner_id,j.target_type,j.target_id,j.action,body,quantity,at,day,s.revision,token,Math.max(at,now()),bot.user_id,day,j.action,comments?1:quantity,limit,j.owner_id,bot.user_id,bot.user_id,j.owner_id,j.target_id,j.owner_id),
   comments?query(env,`INSERT OR IGNORE INTO comments(id,track_id,dubbing_id,user_id,body,created) SELECT ?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM ai_bot_activities WHERE id=?)`,'ai-comment-'+j.target_type+'-'+j.target_id+'-'+j.slot,j.target_type==='track'?j.target_id:null,j.target_type==='dubbing'?j.target_id:null,bot.user_id,body,at,aid):query(env,`INSERT OR IGNORE INTO ai_support_gifts(id,job_id,sender_id,owner_id,target_type,target_id,quantity,created) SELECT ?,?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM ai_bot_activities WHERE id=?)`,'gift:'+j.id,j.id,bot.user_id,j.owner_id,j.target_type,j.target_id,quantity,at,aid),
   query(env,"UPDATE ai_bot_jobs SET state='done',updated=?,error='' WHERE id=? AND EXISTS(SELECT 1 FROM ai_bot_activities WHERE id=?)",at,j.id,aid),
   query(env,`INSERT OR IGNORE INTO ai_support_follows(bot_id,owner_id,activity_id,created) SELECT a.bot_id,a.owner_id,a.id,a.created FROM ai_bot_activities a JOIN ai_bot_jobs j ON j.id=a.job_id JOIN users u ON u.id=a.owner_id WHERE a.id=? AND j.state='done' AND u.account_type='human' AND u.provider!='deleted' AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=a.bot_id AND b.blocked_id=a.owner_id) OR (b.user_id=a.owner_id AND b.blocked_id=a.bot_id))`,aid)
@@ -229,7 +233,18 @@ async function processBotJob(env,j,s,token,at){
  }
 }
 
-export async function selectSupportBot(env,j,day,random=Math.random){
+export async function selectSupportBot(env,j,day,random=Math.random,target=null){
+ if(j.action==='comment'){
+  const music=target||(j.target_type==='track'?await one(env,'SELECT * FROM tracks WHERE id=?',j.target_id):null);
+  const genres=music?musicGenres(music):[];
+  if(j.target_type==='track'&&!genres.length)return null;
+  const eligible=await rows(env,`SELECT b.* FROM ai_bots b WHERE b.active=1 AND b.daily_limit>(SELECT count(*) FROM ai_bot_activities a WHERE a.bot_id=b.user_id AND a.day=?) AND NOT EXISTS(SELECT 1 FROM ai_bot_activities a WHERE a.bot_id=b.user_id AND a.target_type=? AND a.target_id=? AND a.action=?) AND NOT EXISTS(SELECT 1 FROM user_blocks WHERE (user_id=? AND blocked_id=b.user_id) OR (blocked_id=? AND user_id=b.user_id)) ORDER BY b.number LIMIT 2000`,day,j.target_type,j.target_id,j.action,j.owner_id,j.owner_id);
+  const ranked=eligible.map(bot=>({bot,weight:genres.length?preferenceScore(botPersonality(bot),genres):botPersonality(bot)?1:0})).filter(v=>v.weight>0);
+  let n=random()*ranked.reduce((sum,v)=>sum+v.weight,0);
+  for(const v of ranked){n-=v.weight;if(n<0)return v.bot;}
+  return ranked.at(-1)?.bot||null;
+ }
+
  const last=(await one(env,'SELECT max(number) n FROM ai_bots WHERE active=1'))?.n;if(!last)return null;
  const pivot=1+Math.floor(random()*last);
  // Random start + indexed seek/wrap avoids sorting thousands of eligible profiles

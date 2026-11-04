@@ -4,6 +4,7 @@ import {createHash} from 'node:crypto';
 import {fixture} from './fixture.mjs';
 import worker from '../server/index.js';
 import {runBotEngine,queueBotHeartbeat,selectSupportBot} from '../server/ai-bots.js';
+import {BOT_PERSONALITIES} from '../server/bot-personalities.js';
 import {BOT_DEFAULTS,BOT_SEED_TEMPLATES} from '../shared/ai-bots.js';
 import {sampleScript,options} from './dubbing-fixtures.mjs';
 import {readFileSync} from 'node:fs';
@@ -11,11 +12,17 @@ import {popularScores} from '../server/popular-chart.js';
 import {payoutRoute} from '../server/payouts.js';
 const root='/api/admin/ai-bots',at=()=>Math.floor(Date.now()/1000);
 async function setup(t){
- const objects=new Map(),env={DUBBING_ENABLED:'true',ADMIN_USER_IDS:'owner',BUCKET:{async put(k,v){objects.set(k,v);},async get(k){return objects.has(k)?{body:objects.get(k)}:null;},async delete(k){objects.delete(k);}}},f=await fixture(t,env);env.DB=f.DB;
+ const sourceKeys=[...BOT_PERSONALITIES].filter(([key,p])=>p.preferredGenres.some(g=>g.genre==='Rock')).map(([key])=>key);
+ t.mock.method(globalThis,'fetch',async(url,options)=>{
+  assert.equal(url,'https://api.openai.com/v1/responses');
+  const r=JSON.parse(options.body);assert.equal(r.model,'gpt-6-luna');
+  return Response.json({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({body:crypto.randomUUID().replaceAll('-','')+' 반갑네요.'})}]}]});
+ });
+ const objects=new Map(),env={OPENAI_API_KEY:'fixture-key',DUBBING_ENABLED:'true',ADMIN_USER_IDS:'owner',BUCKET:{async put(k,v){objects.set(k,v);},async get(k){return objects.has(k)?{body:objects.get(k)}:null;},async delete(k){objects.delete(k);}}},f=await fixture(t,env);env.DB=f.DB;
  const asset=n=>{const data=new Uint8Array(24);data.set([82,73,70,70]);new DataView(data.buffer).setUint32(4,16,true);data.set([87,69,66,80],8);data[20]=n%256;data[21]=Math.floor(n/256);const sha=createHash('sha256').update(data).digest('hex');f.sql.prepare('INSERT INTO ai_bot_assets VALUES(?,?,?,?)').run(sha,24,'owner',at());objects.set('images/ai-bot-staging/'+sha,data);return {sha,source_key:'fixture:'+n,name:'응원계정 '+n};};
  const importItems=async items=>{const results=[];for(let start=0;start<items.length;start+=5){const chunk=items.slice(start,start+5),preview=await f.call(root+'/import/preview','POST',{items:chunk,owned_ai:true});assert.equal(preview.status,200);const r=await f.call(root+'/import/execute','POST',{items:chunk,owned_ai:true,preview_token:preview.body.preview_token});assert.equal(r.status,200);results.push(...r.body.results);}return {status:200,body:{results}};};
- const enabled=async changes=>{const s=await f.call(root+'/settings');return f.call(root+'/settings','PUT',{revision:s.body.revision,config:{...s.body.config,enabled:true,...changes}});};
- const seed=async(n=2)=>{const items=Array.from({length:n},(_,i)=>asset(i+1));const r=await importItems(items);assert.ok(r.body.results.every(i=>i.status==='created'),JSON.stringify(r));f.sql.exec('UPDATE ai_bots SET active=1');return items;};
+ const enabled=async changes=>{const s=await f.call(root+'/settings');return f.call(root+'/settings','PUT',{revision:s.body.revision,config:{...s.body.config,enabled:true,comments:1,...changes}});};
+ const seed=async(n=2)=>{const items=Array.from({length:n},(_,i)=>asset(i+1));const r=await importItems(items);assert.ok(r.body.results.every(i=>i.status==='created'),JSON.stringify(r));f.sql.exec('UPDATE ai_bots SET active=1');for(let i=0;i<n;i++)f.sql.prepare('UPDATE ai_bots SET source_key=? WHERE number=?').run(sourceKeys[i],i+1);return items;};
  const publish=()=>f.sql.exec("UPDATE tracks SET status='published' WHERE id='hidden'");
  const due=()=>f.sql.exec('UPDATE ai_bot_jobs SET due=0');
  return {...f,env,objects,asset,importItems,enabled,seed,publish,due};
@@ -108,7 +115,7 @@ test('500 distinct profiles import in bounded batches and indexed queue remains 
  assert.equal(f.sql.prepare('SELECT max(user_id) id FROM ai_bots').get().id,'ai_000500');
  const plan=f.sql.prepare("EXPLAIN QUERY PLAN SELECT * FROM ai_bot_jobs WHERE state='pending' AND due<=? ORDER BY due,id LIMIT 15").all(at());assert.ok(plan.some(r=>r.detail.includes('ai_jobs_due')));
  t.diagnostic('500-account fixture import milliseconds: '+Math.round(performance.now()-start));
- await f.enabled();f.sql.exec('UPDATE ai_bots SET active=1');f.publish();f.due();let queries=0;
+ await f.enabled();f.sql.exec('UPDATE ai_bots SET active=1');const known=[...BOT_PERSONALITIES].find(([key,p])=>p.preferredGenres.some(g=>g.genre==='Rock'))[0];f.sql.prepare('UPDATE ai_bots SET source_key=? WHERE number=1').run(known);f.publish();f.due();let queries=0;
  const DB={prepare(sql){const p=f.DB.prepare(sql);return {bind(...args){const statement=p.bind(...args);return Object.fromEntries(['first','all','run'].map(method=>[method,async()=>{queries++;return statement[method]();}]));}};},batch:statements=>f.DB.batch(statements)};
  const tickStart=performance.now();const tick=await runBotEngine({...f.env,DB});assert.equal(tick.failed,0);assert.ok(queries<50);
  t.diagnostic('500-profile engine tick: '+queries+' SQL statements, '+Math.round(performance.now()-tickStart)+' ms (local fixture, not production latency)');
@@ -145,9 +152,9 @@ test('retired, blocked and quota-limited targets skip, and bot profiles cannot e
  await assert.rejects(payoutRoute(new Request('https://aifect.test/api/studio/payout-account'),f.env,'/api/studio/payout-account',{id:'ai_000001'}),e=>e.status===403);
  assert.throws(()=>f.sql.exec("INSERT INTO likes(user_id,track_id,created) VALUES('ai_000001','one',0)"),/service account/);
 });
-test('bot selection starts at a random index, wraps, and skips inactive/capped/blocked profiles',async t=>{
+test('gift bot selection starts at a random index, wraps, and skips inactive/capped/blocked profiles',async t=>{
  const f=await setup(t);await f.seed(5);
- const job={target_type:'track',target_id:'one',action:'comment',owner_id:'owner'},day='2026-10-24';
+ const job={target_type:'track',target_id:'one',action:'gift',owner_id:'owner'},day='2026-10-24';
  assert.equal((await selectSupportBot(f.env,job,day,()=>.5)).user_id,'ai_000003');
  assert.equal((await selectSupportBot(f.env,job,day,()=>.99)).user_id,'ai_000005');
  f.sql.exec("UPDATE ai_bots SET daily_limit=0 WHERE number=5; UPDATE ai_bots SET active=0 WHERE number=1; INSERT INTO user_blocks(user_id,blocked_id,created) VALUES('owner','ai_000002',0)");
