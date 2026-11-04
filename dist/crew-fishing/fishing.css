@@ -53,4 +53,4 @@ main{padding:24px 0 52px}button,.button{font:inherit;font-weight:650;color:inher
 .mobile-hint{display:none}
 .mobile-controls .desktop-hint{display:none}
 .mobile-controls .mobile-hint{display:inline}
-.mobile-controls .stage{touch-action:none;-webkit-user-select:none}
+.stage{touch-action:none;-webkit-user-select:none}

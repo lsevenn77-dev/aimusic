@@ -69,18 +69,40 @@ test('older touch browsers use one touchstart, and cancellation does not swallow
   assert.equal(clicks(),1);
 });
 
-test('the visible reel button reacts on press once, with its compatibility click consumed',()=>{
+test('TouchEvent-only input works even when PointerEvent exists and the media query says desktop',()=>{
   const {state,send,clicks}=setup();
-  assert.equal(send('pointerdown',{reelButton:true,isPrimary:true,button:0}).defaultPrevented,true);
+  state.mobile=false;
+  assert.equal(send('touchstart',{touches:[{identifier:1}]}).defaultPrevented,true);
   assert.equal(state.pulls,1);
-  assert.equal(send('click',{reelButton:true}).defaultPrevented,true);
+  send('touchend',{touches:[]});
+  assert.equal(send('click').defaultPrevented,true);
   assert.equal(state.pulls,1);assert.equal(clicks(),0);
-  // Keyboard-generated button click still reaches the normal delegated action.
-  send('click',{reelButton:true});assert.equal(clicks(),1);
+  send('touchstart',{touches:[{identifier:2}]});assert.equal(state.pulls,2);
 });
 
 test('click-only mobile activation still reels when no pointer event arrived',()=>{
   const {state,send,clicks}=setup();
   assert.equal(send('click').defaultPrevented,true);
   assert.equal(state.pulls,1);assert.equal(clicks(),0);
+});
+
+test('a native pointer/touch pair reels once per gesture and does not drop the next press',()=>{
+  const {state,send,clicks}=setup();state.mobile=false;
+  for(let id=1;id<=3;id++){
+    send('pointerdown',{pointerType:'touch',pointerId:id,isPrimary:true,button:0});
+    send('touchstart',{touches:[{identifier:id}]});
+    send('pointerup',{pointerId:id});send('touchend',{touches:[]});send('click');
+    assert.equal(state.pulls,id);
+  }
+  assert.equal(clicks(),0);
+});
+
+test('touch-first event ordering and pen input also work without a mobile media match',()=>{
+  const {state,send}=setup();state.mobile=false;
+  send('touchstart',{touches:[{identifier:1}]});
+  send('pointerdown',{pointerType:'touch',pointerId:1,isPrimary:true,button:0});
+  assert.equal(state.pulls,1);
+  send('pointerup',{pointerId:1});send('touchend',{touches:[]});send('click');
+  send('pointerdown',{pointerType:'pen',pointerId:2,isPrimary:true,button:0});
+  assert.equal(state.pulls,2);
 });
