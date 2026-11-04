@@ -54,7 +54,7 @@ async function notificationsView(base,raw,readApi=api){
  const filter=['gifts','participation','comments','works','artists','crew'].includes(q.get('filter'))?q.get('filter'):'all',data=await readApi('/api/notifications?filter='+filter,'GET',undefined,{fresh:true});
  const resume=activityResume?.account===me.id&&activityResume.filter===filter?activityResume:null;
  activityResume=null;
- const tabs=[['all','전체'],['comments','댓글·응원'],['works','작품·참여'],['artists','아티스트'],['crew','크루'],['gifts','선물']];
+ const tabs=[['all','전체'],['comments','댓글·응원'],['works','작품참여'],['artists','아티스트'],['crew','크루'],['gifts','선물']];
  return {activity:{...data,filter,account:me.id,restoreCount:resume?.count,restoreScroll:resume?.scroll},tracks:[],html:`<section class="activity-page activity-inbox" aria-label="알림">
   <div class="activity-toolbar"><nav class="tabs" aria-label="알림 종류">
    ${tabs.map(([key,name])=>`<a href="#notifications?filter=${key}" class="tab ${key==='all'?'activity-tab-all ':''}${filter===key?'active':''}" ${filter===key?'aria-current="page"':''}>${name}</a>`).join('')}
