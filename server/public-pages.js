@@ -91,9 +91,21 @@ export function publicPage(path){
  const {title,lead,body}=route();
  return `<!doctype html><html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)} | AIFECT</title><meta name="description" content="${esc(lead)}"><link rel="canonical" href="https://aifect.co.kr${path.replace(/\/$/,'')}"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200&family=Noto+Sans+KR:wght@400&display=swap" rel="stylesheet"><link rel="stylesheet" href="/design-system.css"><link rel="stylesheet" href="/policies.css"><link rel="stylesheet" href="/brand.css?v=20261007-reference"><meta name="theme-color" content="#101415"></head><body class="legal-site"><header class="legal-header"><a class="legal-brand" href="/#home" aria-label="AIFECT 홈"><span class="aifect-lockup"><img class="aifect-wordmark-logo" src="/assets/aifect-wordmark.svg?v=20261007-reference" width="148" height="36" alt="AIFECT"></span></a><a href="/#home">음악으로 돌아가기</a></header><main class="legal-content"><p class="legal-kicker">AIFECT · AI + EFFECT</p><h1>${esc(title)}</h1><p class="legal-lead">${esc(lead)}</p><nav class="legal-toc" aria-label="정책 페이지">${policyLinks.map(([url,label])=>`<a href="${url}"${url===path?' aria-current="page"':''}>${label}</a>`).join('')}</nav>${body}</main><footer class="page-footer">${businessFooterHTML()}</footer></body></html>`;
 }
+// Hydration reads these public routes to render the same music for visitors and
+// crawlers. Keep account/admin/internal APIs blocked; playlist subroutes are
+// actions, while the single-ID GET is guarded by public visibility in catalog.
+const robotsText=[
+ 'User-agent: *','Allow: /','Disallow: /api/','Disallow: /internal/',
+ 'Allow: /api/catalog$','Allow: /api/catalog?',
+ 'Allow: /api/discovery$','Allow: /api/discovery?',
+ 'Allow: /api/discovery/profiles$','Allow: /api/discovery/profiles?',
+ 'Allow: /api/playlists$','Allow: /api/playlists?',
+ 'Allow: /api/playlists/','Disallow: /api/playlists/*/',
+ 'Sitemap: https://aifect.co.kr/sitemap.xml',''
+].join('\n');
 export function publicPageRoute(req,path){
  if(!['GET','HEAD'].includes(req.method))return null;
- if(path==='/robots.txt')return new Response(req.method==='HEAD'?null:'User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /internal/\nSitemap: https://aifect.co.kr/sitemap.xml\n',{headers:{'content-type':'text/plain; charset=utf-8'}});
+ if(path==='/robots.txt')return new Response(req.method==='HEAD'?null:robotsText,{headers:{'content-type':'text/plain; charset=utf-8'}});
  if(path==='/sitemap.xml')return new Response(req.method==='HEAD'?null:`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${['/',...Object.keys(routes).filter(p=>p!=='/business')].map(p=>`<url><loc>https://aifect.co.kr${p}</loc></url>`).join('')}</urlset>`,{headers:{'content-type':'application/xml; charset=utf-8'}});
  const html=publicPage(path);if(!html)return null;
  return new Response(req.method==='HEAD'?null:html,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'public, max-age=60','x-content-type-options':'nosniff','content-security-policy':"default-src 'none'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",'referrer-policy':'strict-origin-when-cross-origin'}});
