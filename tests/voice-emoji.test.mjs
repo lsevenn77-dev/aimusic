@@ -3,10 +3,10 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 function fixture(){
- let sent=0;const attrs={},picker={hidden:true},button={setAttribute(k,v){attrs[k]=v;},focus(){}},input={value:'',selectionStart:0,selectionEnd:0,maxLength:500,focus(){},dispatchEvent(){},setRangeText(text,start,end){this.value=this.value.slice(0,start)+text+this.value.slice(end);this.selectionStart=this.selectionEnd=start+text.length;}};
+ let sent=0;const attrs={},picker={hidden:true,open:false,close(){this.open=false;}},button={setAttribute(k,v){attrs[k]=v;},focus(){}},input={value:'',selectionStart:0,selectionEnd:0,maxLength:500,focus(){},dispatchEvent(){},setRangeText(text,start,end){this.value=this.value.slice(0,start)+text+this.value.slice(end);this.selectionStart=this.selectionEnd=start+text.length;}};
  const nodes={'#voice-emoji-picker':picker,'#voice-message':input,'#voice-chat-form':{requestSubmit(){sent++;input.value='';input.selectionStart=input.selectionEnd=0;}}};
  const c=vm.createContext({VoiceRoomClient:class{},Event,$:s=>nodes[s]});vm.runInContext(readFileSync(new URL('../dist/voice-room-controls.js',import.meta.url),'utf8')+';this.client=new VoiceRoomClient();',c);
- c.client.host={querySelector:()=>button};return {client:c.client,input,picker,attrs,sent:()=>sent};
+ c.client.adoptRoomPopup=sheet=>{sheet.open=true;};c.client.host={querySelector:()=>button};return {client:c.client,input,picker,attrs,sent:()=>sent};
 }
 test('chat emoji picker stays open while composing repeated choices and supports explicit close',async()=>{
  const f=fixture();await f.client.finalAction('emoji');assert.equal(f.picker.hidden,false);assert.equal(f.attrs['aria-expanded'],'true');
@@ -22,7 +22,7 @@ test('emoji insertion replaces the selection and cannot exceed the chat length l
 });
 
 function boundChat(liveMode,command,refresh=async()=>{}){
- const nodes=new Map(),attrs={},picker={hidden:true},button={setAttribute(key,value){attrs[key]=value;},focus(){}};
+ const nodes=new Map(),attrs={},picker={hidden:true,open:false,close(){this.open=false;}},button={setAttribute(key,value){attrs[key]=value;},focus(){}};
  const input={value:'😀💜👏',selectionStart:6,selectionEnd:6,maxLength:500,focus(){},dispatchEvent(){}};
  const form={elements:{body:input},reset(){input.value='';},requestSubmit(){this.pending=this.onsubmit();}};
  nodes.set('#voice-chat-form',form);nodes.set('#voice-message',input);nodes.set('#voice-emoji-picker',picker);
@@ -36,7 +36,7 @@ function boundChat(liveMode,command,refresh=async()=>{}){
   document:{addEventListener(){}},$:get,busyForm:(element,callback)=>callback});
  vm.runInContext(readFileSync(new URL('../dist/voice-rooms.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../dist/voice-room-controls.js',import.meta.url),'utf8')+'\nthis.client=new VoiceRoomClient("test-room");',context);
  const client=context.client;
- Object.assign(client,{liveMode,command,refresh,joinAttempted:true,resumeSound(){},bindAudioSettings(){},giftSummary(){}});
+ Object.assign(client,{liveMode,command,refresh,bindTalkViews(){},adoptRoomPopup(sheet){sheet.open=true;},joinAttempted:true,resumeSound(){},bindAudioSettings(){},giftSummary(){}});
  client.bind({isConnected:false,querySelector:get,addEventListener(){}});
  return {client,input,form,picker,attrs};
 }
