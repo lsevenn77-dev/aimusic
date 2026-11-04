@@ -224,3 +224,5 @@
 #main .voice-room .voice-seat-empty{margin:0 auto}
 
 #main .voice-room #voice-message{padding-block:calc((46px - 24px - 2px)/2)}
+#main .voice-room .voice-backgrounds label input[type=radio]{position:static;inset:auto;flex:0 0 18px;width:18px;height:18px;min-height:18px;margin:0;padding:0;transform:none}
+#main .voice-room .voice-backgrounds label span{position:static;inset:auto;flex:1;width:auto;max-width:100%;margin:0;padding:0;background:transparent;border-radius:0}
