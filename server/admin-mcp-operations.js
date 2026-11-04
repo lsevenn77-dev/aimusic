@@ -8,6 +8,7 @@ import {BUSINESS} from '../shared/site-info.js';
 import {rankingAudit} from './ranking-audit.js';
 import {lyricAnalysisStatus} from './lyric-analysis.js';
 import {commentRefreshStatus} from './bot-comment-refresh.js';
+import {botNicknameStatus} from './nicknames.js';
 
 const spendable = `p.status='paid' AND NOT EXISTS(SELECT 1 FROM gold_orders o WHERE o.id=p.id AND o.state!='paid')
  AND NOT EXISTS(SELECT 1 FROM play_purchases pp WHERE 'play_'||pp.token_hash=p.id AND pp.state='refunded')`;
@@ -79,7 +80,7 @@ async function stats(env,a) {
  (SELECT COUNT(*) FROM track_reports WHERE status IN ('pending','appealed')) pending_content_reports,
  (SELECT COUNT(*) FROM admin_email_bugs) registered_email_bugs,
  (SELECT COALESCE(SUM(gold),0) FROM admin_test_gold_grants WHERE created>=?) test_gold_granted`,cutoff,now(),cutoff,cutoff);
- return {days,from:cutoff,as_of:now(),...counts,ranking_audit:await rankingAudit(env),lyric_analysis:await lyricAnalysisStatus(env),bot_comment_refresh:await commentRefreshStatus(env)};
+ return {days,from:cutoff,as_of:now(),...counts,ranking_audit:await rankingAudit(env),lyric_analysis:await lyricAnalysisStatus(env),bot_comment_refresh:await commentRefreshStatus(env),bot_nicknames:await botNicknameStatus(env)};
 }
 async function reports(env,a) {
  const status=a.status??'pending',filter=status==='all'?'1=1':'r.status=?',args=status==='all'?[]:[status];

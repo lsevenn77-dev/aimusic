@@ -4,7 +4,7 @@ import {fixture} from './fixture.mjs';
 
 const month=30*86400;
 const makeCrew=async f=>(await f.call('/api/crews','POST',{name:'First crew'})).body.crew.id;
-const otherProfile=async f=>(await f.call('/api/me/profile','PUT',{name:'Guest_singer',bio:''},'other')).body.profile.id;
+const otherProfile=async f=>(await f.call('/api/me/profile','PUT',{name:'GuestOne',bio:''},'other')).body.profile.id;
 
 test('crew name can change once, then only after 30 days; other edits do not restart the clock',async t=>{
  const f=await fixture(t),cid=await makeCrew(f),path='/api/crews/'+cid;

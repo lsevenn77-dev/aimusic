@@ -23,7 +23,7 @@ test('a follower without a producer profile has a read-only identity without pri
 
 test('a follower who adds a public profile retains their identity and resolves to that real profile',async t=>{
  const f=await fixture(t);await f.call('/api/producers/producer/follow','PUT',{},'other');
- const p=(await f.call('/api/me/profile','PUT',{name:'Next_voice'},'other')).body.profile;
+ const p=(await f.call('/api/me/profile','PUT',{name:'NextSong'},'other')).body.profile;
  const r=await f.call('/api/followers/other');assert.equal(r.status,200);assert.equal(r.body.profile.id,p.id);
  assert.equal((await f.call('/api/producers/'+p.id)).status,200);
 });

@@ -79,6 +79,6 @@ test('editor uses shared policy, accepts unchanged legacy names and exposes only
  assert.equal(c.profileIdentityName(' 기존회원(ZERO) ','기존회원','새회원'),' 새회원(ZERO) ');
  assert.equal(c.profileIdentityName('기존회원(ZERO) 프로필 사진','기존회원','새회원'),'새회원(ZERO) 프로필 사진');
  assert.equal(c.profileIdentityName('기존회원의 음악','기존회원','새회원'),'기존회원의 음악');
- assert.equal(c.profileEditorNameError('기존 이름','기존 이름',999,1),'');assert.match(c.profileEditorNameError('새이름','기존 이름',999,1),/30일/);assert.match(c.profileEditorNameError('a','기존 이름',0,1),/2~12/);assert.equal(c.profileEditorNameError('새이름','기존 이름',0,1),'');
+ assert.equal(c.profileEditorNameError('기존 이름','기존 이름',999,1),'');assert.match(c.profileEditorNameError('새이름','기존 이름',999,1),/30일/);assert.match(c.profileEditorNameError('a','기존 이름',0,1),/2~8/);assert.equal(c.profileEditorNameError('새이름','기존 이름',0,1),'');
  const html=c.profileEditorHTML({name:'기존회원',bio:'소개',image_version:''});assert.doesNotMatch(html,/프로필 수정|내 페이지|로그아웃|이용권|<h[1-6]/);assert.match(html,/type="file"[^>]* hidden/);assert.match(html,/data-profile-photo-remove hidden/);assert.match(html,/rows="3"/);
 });

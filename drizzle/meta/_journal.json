@@ -659,6 +659,13 @@
       "when": 1793781484187,
       "tag": "0093_refresh_bot_comments_20261104",
       "breakpoints": true
+    },
+    {
+      "idx": 94,
+      "version": "6",
+      "when": 1793786186125,
+      "tag": "0094_bot_display_nicknames",
+      "breakpoints": true
     }
   ]
 }

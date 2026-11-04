@@ -6,6 +6,7 @@ import {giftDay} from '../shared/gifts.js';
 import {botPersonality,musicGenres,preferenceScore} from './bot-personalities.js';
 import {generateBotComment} from './bot-comment-ai.js';
 import {isRequestedCommentRefresh,replacePreviousBotComments} from './bot-comment-refresh.js';
+import {nickname,requireAvailableBotNickname,botNicknameWrite} from './nicknames.js';
 
 const base='/api/admin/ai-bots';
 const audit=(env,user,action,data)=>query(env,'INSERT INTO ai_bot_audit VALUES(?,?,?,?,?)',id(),user.id,action,JSON.stringify(data),now());
@@ -15,7 +16,7 @@ export async function botSettings(env){const r=await one(env,'SELECT * FROM ai_b
 const paging=url=>[Math.max(1,Math.min(100,Number(url.searchParams.get('limit'))||50)),Math.max(0,Math.min(100000,Number(url.searchParams.get('offset'))||0))];
 const assetKey=sha=>'images/ai-bot-staging/'+sha;
 const sourceKey=value=>str(value,160);
-const validName=value=>{const name=str(value,40);if(name.length<2)fail(400,'닉네임은 두 글자 이상 입력해주세요.');return name;};
+const validName=value=>nickname(value).name;
 
 export async function aiBotsRoute(req,env,path,user){
  if(!path.startsWith(base))return null;
@@ -57,7 +58,8 @@ export async function aiBotsRoute(req,env,path,user){
   const b=await req.json(),bot=await one(env,'SELECT * FROM ai_bots WHERE user_id=?',account[1]);if(!bot)fail(404,'계정을 찾을 수 없어요.');
   const name=validName(b.name),style=b.style,emoji=str(b.emoji??'',12,false),limit=b.daily_limit;
   if(!BOT_STYLES.includes(style)||!Number.isInteger(limit)||limit<0||limit>100||typeof b.active!=='boolean')fail(400,'계정 설정을 확인해주세요.');
-  await env.DB.batch([query(env,'UPDATE ai_bots SET style=?,emoji=?,daily_limit=?,active=?,updated=? WHERE user_id=?',style,emoji,limit,b.active?1:0,now(),account[1]),query(env,'UPDATE users SET name=? WHERE id=?',name,account[1]),query(env,'UPDATE producers SET name=? WHERE user_id=?',name,account[1]),audit(env,user,'account_edit',{id:account[1],...b})]);return json({ok:true});
+  const chosen=await requireAvailableBotNickname(env,account[1],name);
+  await botNicknameWrite(env,[query(env,'UPDATE ai_bots SET style=?,emoji=?,daily_limit=?,active=?,updated=? WHERE user_id=?',style,emoji,limit,b.active?1:0,now(),account[1]),query(env,'UPDATE users SET name=? WHERE id=?',name,account[1]),query(env,'UPDATE producers SET name=? WHERE user_id=?',name,account[1]),query(env,'INSERT INTO account_handles(user_id,normalized) VALUES(?,?) ON CONFLICT(user_id) DO UPDATE SET normalized=excluded.normalized',account[1],chosen.key),audit(env,user,'account_edit',{id:account[1],...b})]);return json({ok:true});
  }
  if(tail==='/assets'&&method==='POST'){
   if(!env.BUCKET)fail(503,'이미지 저장소가 연결되지 않았어요.');
@@ -82,7 +84,7 @@ export async function aiBotsRoute(req,env,path,user){
   const b=await req.json();if(!Array.isArray(b.items)||b.items.length>100||b.items.some(i=>!i||typeof i!=='object')||b.owned_ai!==true)fail(400,'사용 권한이 있는 AI 이미지인지 확인해주세요. 최대 100개씩 검토할 수 있어요.');
   const seen=new Set(),items=[],hashes=b.items.map(i=>String(i.sha||'')),sources=b.items.map(i=>String(i.source_key||''));
   const assets=new Set((hashes.length?await rows(env,`SELECT sha FROM ai_bot_assets WHERE sha IN (${hashes.map(()=>'?')})`,...hashes):[]).map(a=>a.sha));
-  const existing=new Set();
+  const existing=new Set(),names=new Set((await rows(env,"SELECT lower(trim(p.name)) name FROM ai_bots b JOIN producers p ON p.user_id=b.user_id")).map(r=>r.name));
   // Stay below D1's statement binding limit; the two columns are fetched separately.
   for(const [col,values] of [['image_sha',hashes],['source_key',sources]])if(values.length)for(const row of await rows(env,`SELECT image_sha,source_key FROM ai_bots WHERE ${col} IN (${values.map(()=>'?')})`,...values)){existing.add(row.image_sha);existing.add(row.source_key);}
   for(const raw of b.items){try{
@@ -91,6 +93,7 @@ export async function aiBotsRoute(req,env,path,user){
    const duplicate=seen.has(item.sha)||seen.has(item.source_key)||existing.has(item.sha)||existing.has(item.source_key);
    seen.add(item.sha);seen.add(item.source_key);
    if(!assets.has(item.sha))throw new Error('이미지를 먼저 업로드해주세요.');
+   if(!duplicate){const key=item.name.toLowerCase();if(names.has(key))throw new Error('다른 봇이 사용 중인 닉네임입니다.');names.add(key);}
    items.push({...item,status:duplicate?'duplicate':'ready'});
   }catch(e){items.push({name:String(raw.name||''),status:'failed',error:e.message});}}
   return json({items,preview_token:await importToken(env,user,b.items)});
@@ -150,13 +153,15 @@ async function provisionBot(env,user,item){
   if(duplicate.source_key===source&&duplicate.image_sha===sha){const staged=await env.BUCKET.get(assetKey(sha));if(staged)await env.BUCKET.put(`images/producer/${duplicate.user_id}/${sha}`,staged.body,{httpMetadata:{contentType:'image/webp'}});}
   return {source_key:source,status:'duplicate',user_id:duplicate.user_id};
  }
+ const chosen=await requireAvailableBotNickname(env,'',name);
  const object=await env.BUCKET.get(assetKey(sha));if(!object)fail(409,'이미지 파일을 다시 등록해주세요.');
  // Sequence allocation, credentials-free identity, profile, metadata and audit are one D1 transaction.
  // The immutable content-addressed object is copied to the final producer path after allocation.
- const token=id();await env.DB.batch([
+ const token=id();await botNicknameWrite(env,[
   query(env,`INSERT INTO users(id,email,name,provider,account_type,created) VALUES(${uidSQL},'bot-'||?||'@service.invalid',?,'ai_service','ai_bot',?)`,token,name,now()),
   query(env,`INSERT INTO ai_bots(user_id,source_key,image_sha,style,emoji,created,updated) SELECT id,?,?,CASE CAST(substr(id,4) AS INTEGER)%3 WHEN 0 THEN 'warm' WHEN 1 THEN 'polite' ELSE 'cheerful' END,CASE CAST(substr(id,4) AS INTEGER)%3 WHEN 0 THEN '✨' WHEN 1 THEN '🌱' ELSE '🎶' END,?,? FROM users WHERE email=?`,source,sha,now(),now(),'bot-'+token+'@service.invalid'),
   query(env,`INSERT INTO producers(id,user_id,name,bio,image_version,image_type,created,nickname_confirmed) SELECT user_id,user_id,?,'공식 AI 응원 계정',?,'image/webp',?,1 FROM ai_bots WHERE source_key=?`,name,sha,now(),source),
+  query(env,'INSERT INTO account_handles(user_id,normalized) SELECT id,? FROM users WHERE email=?',chosen.key,'bot-'+token+'@service.invalid'),
   audit(env,user,'account_import',{source_key:source,sha,name,owned_ai:true})
  ]);
  const bot=await one(env,'SELECT user_id FROM ai_bots WHERE source_key=?',source);

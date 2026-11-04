@@ -19,20 +19,20 @@ test('legacy auto-copied OAuth names stay stored but are absent from public prof
  for(const path of ['/api/me','/api/me/profile','/api/catalog?section=producers','/api/producers/legacy','/api/tracks/legacy-cover','/api/community?kind=cover','/api/cover-rankings?kind=singers&period=all'])assert.ok(!JSON.stringify((await f.call(path,'GET',null,'other')).body).includes('Private legal name'),path);
  assert.equal((await f.call('/api/search?q=Private%20legal%20name')).body.producers.length,0);
  assert.equal(f.sql.prepare("SELECT name FROM producers WHERE id='legacy'").get().name,'Private legal name');
- await f.call('/api/me/profile','PUT',{name:'PrivateName'},'other');
- assert.equal((await f.call('/api/producers/legacy')).body.profile.name,'PrivateName','an explicit personal nickname choice is respected');
+ await f.call('/api/me/profile','PUT',{name:'PrivName'},'other');
+ assert.equal((await f.call('/api/producers/legacy')).body.profile.name,'PrivName','an explicit personal nickname choice is respected');
 });
 
 test('public identity follows chosen nickname without changing private OAuth identity',async t=>{
  const f=await fixture(t);f.sql.exec("UPDATE users SET provider='google',name='Private legal name' WHERE id='other'");
  const anon=(await f.call('/api/me','GET',null,'other')).body.user;assert.equal(anon.name,'리스너 other');
- const profile=(await f.call('/api/me/profile','PUT',{name:'Moon_singer',bio:'Hello'},'other')).body.profile;
- assert.equal((await f.call('/api/me','GET',null,'other')).body.user.name,'Moon_singer');
+ const profile=(await f.call('/api/me/profile','PUT',{name:'MoonSing',bio:'Hello'},'other')).body.profile;
+ assert.equal((await f.call('/api/me','GET',null,'other')).body.user.name,'MoonSing');
  assert.equal(f.sql.prepare("SELECT name FROM users WHERE id='other'").get().name,'Private legal name');
  await f.call('/api/tracks/one/comments','POST',{body:'Listen together'},'other');
- assert.equal((await f.call('/api/tracks/one/comments')).body.comments[0].name,'Moon_singer');
+ assert.equal((await f.call('/api/tracks/one/comments')).body.comments[0].name,'MoonSing');
  const list=(await f.call('/api/playlists','POST',{name:'Night songs',is_public:true},'other')).body;assert.equal((await f.call('/api/playlists/'+list.id+'/tracks/one','PUT',{},'other')).status,200);
- assert.equal((await f.call('/api/playlists?scope=public')).body.playlists.find(p=>p.user_id==='other').owner_name,'Moon_singer');
+ assert.equal((await f.call('/api/playlists?scope=public')).body.playlists.find(p=>p.user_id==='other').owner_name,'MoonSing');
  f.sql.prepare("INSERT INTO follows VALUES('other','producer','producer',0)").run();
  assert.equal((await f.call('/api/me/profile')).body.followers[0].id,profile.id);
  f.sql.exec("DELETE FROM producers WHERE user_id='other'");

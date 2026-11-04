@@ -20,7 +20,7 @@ function musicMyShortcuts(){return `<nav class="music-my-links" aria-label="내 
 function peopleListHTML(items,kind='producer'){
  return '<div class="people-list">'+items.map(p=>{
   const pid=p.target_id||p.id,href=pid?'#'+kind+'/'+encodeURIComponent(pid):'#follower/'+encodeURIComponent(p.user_id);
-  return '<a data-list-row class="surface people-list-row" href="'+esc(href)+'" aria-label="'+esc(p.name)+' 페이지 보기">'+portrait(p,kind)+'<span class="people-list-copy"><strong>'+esc(p.name)+(p.account_type==='ai_bot'?'<span class="ai-account-badge" title="공식 AI 응원 계정">AI</span>':'')+'</strong><small>'+esc(p.bio||'음악으로 만나요.')+'</small></span>'+icon('chevron')+'</a>';
+  return '<a data-list-row class="surface people-list-row" href="'+esc(href)+'" aria-label="'+esc(p.name)+' 페이지 보기">'+portrait(p,kind)+'<span class="people-list-copy"><strong>'+esc(p.name)+'</strong><small>'+esc(p.bio||'음악으로 만나요.')+'</small></span>'+icon('chevron')+'</a>';
  }).join('')+'</div>';
 }
 function listenerProfileHTML(p,counts){const stats=counts?'<div class="mp-stats"><a href="#follow?tab=followers&amp;user='+encodeURIComponent(p.user_id)+'">팔로워 '+number(counts.followers)+'</a><a href="#follow?tab=following&amp;user='+encodeURIComponent(p.user_id)+'">팔로잉 '+number(counts.following)+'</a></div>':'';return '<section class="surface listener-profile">'+portrait(p,'producer')+'<h2>'+esc(p.name)+'</h2><p class="mp-public-id">ID · '+esc(p.public_id||'발급 확인 중')+'</p><p>'+esc(p.bio||'좋아하는 음악을 함께 듣고 있어요.')+'</p><p class="field-help">아직 공개한 음악이 없어요.</p>'+stats+'</section>';}

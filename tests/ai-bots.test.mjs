@@ -19,7 +19,7 @@ async function setup(t){
   return Response.json({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({body:crypto.randomUUID().replaceAll('-','')+' 반갑네요.'})}]}]});
  });
  const objects=new Map(),env={OPENAI_API_KEY:'fixture-key',DUBBING_ENABLED:'true',ADMIN_USER_IDS:'owner',BUCKET:{async put(k,v){objects.set(k,v);},async get(k){return objects.has(k)?{body:objects.get(k)}:null;},async delete(k){objects.delete(k);}}},f=await fixture(t,env);env.DB=f.DB;
- const asset=n=>{const data=new Uint8Array(24);data.set([82,73,70,70]);new DataView(data.buffer).setUint32(4,16,true);data.set([87,69,66,80],8);data[20]=n%256;data[21]=Math.floor(n/256);const sha=createHash('sha256').update(data).digest('hex');f.sql.prepare('INSERT INTO ai_bot_assets VALUES(?,?,?,?)').run(sha,24,'owner',at());objects.set('images/ai-bot-staging/'+sha,data);return {sha,source_key:'fixture:'+n,name:'응원계정 '+n};};
+ const asset=n=>{const data=new Uint8Array(24);data.set([82,73,70,70]);new DataView(data.buffer).setUint32(4,16,true);data.set([87,69,66,80],8);data[20]=n%256;data[21]=Math.floor(n/256);const sha=createHash('sha256').update(data).digest('hex');f.sql.prepare('INSERT INTO ai_bot_assets VALUES(?,?,?,?)').run(sha,24,'owner',at());objects.set('images/ai-bot-staging/'+sha,data);return {sha,source_key:'fixture:'+n,name:'응원계정'+n};};
  const importItems=async items=>{const results=[];for(let start=0;start<items.length;start+=5){const chunk=items.slice(start,start+5),preview=await f.call(root+'/import/preview','POST',{items:chunk,owned_ai:true});assert.equal(preview.status,200);const r=await f.call(root+'/import/execute','POST',{items:chunk,owned_ai:true,preview_token:preview.body.preview_token});assert.equal(r.status,200);results.push(...r.body.results);}return {status:200,body:{results}};};
  const enabled=async changes=>{const s=await f.call(root+'/settings');return f.call(root+'/settings','PUT',{revision:s.body.revision,config:{...s.body.config,enabled:true,comments:1,...changes}});};
  const seed=async(n=2)=>{const items=Array.from({length:n},(_,i)=>asset(i+1));const r=await importItems(items);assert.ok(r.body.results.every(i=>i.status==='created'),JSON.stringify(r));f.sql.exec('UPDATE ai_bots SET active=1');for(let i=0;i<n;i++)f.sql.prepare('UPDATE ai_bots SET source_key=? WHERE number=?').run(sourceKeys[i],i+1);return items;};
@@ -34,6 +34,20 @@ test('defaults remain OFF, 120 templates are categorized, no public admin access
  assert.equal((await f.call(root+'/dashboard','GET',null,'other')).status,403);
  f.publish();assert.equal(f.sql.prepare('SELECT count(*) n FROM ai_bot_jobs').get().n,0);
  assert.equal((await runBotEngine(f.env)).stopped,true);
+});
+test('import validates length and duplicate nicknames including pending items and concurrent imports',async t=>{
+ const f=await setup(t),items=[f.asset(701),f.asset(702),f.asset(703),f.asset(704)];
+ items[0].name='Eight888';items[1].name='eight888';items[2].name='ninechars';items[3].name='유효한이름';
+ const preview=await f.call(root+'/import/preview','POST',{items,owned_ai:true});
+ assert.deepEqual(preview.body.items.map(i=>i.status),['ready','failed','failed','ready']);
+ const [a,b]=await Promise.all([f.importItems([items[0]]),f.importItems([items[1]])]);
+ assert.deepEqual([a,b].map(r=>r.body.results[0].status).sort(),['created','failed']);
+ assert.equal(f.sql.prepare('SELECT count(*) n FROM ai_bots').get().n,1);
+ assert.equal(f.sql.prepare('SELECT normalized FROM account_handles').get().normalized,'ai:eight888');
+ assert.equal((await f.importItems([items[2]])).body.results[0].status,'failed');
+ // Members' namespace remains available when the matching bot is imported later.
+ assert.equal((await f.call('/api/account/nickname','PUT',{name:'유효한이름'})).status,200);
+ assert.equal((await f.importItems([items[3]])).body.results[0].status,'created');
 });
 
 test('successful support follows its creator once with an AI label and never changes human follows/rank metrics',async t=>{

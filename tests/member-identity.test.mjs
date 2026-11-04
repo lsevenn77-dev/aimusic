@@ -6,9 +6,9 @@ import {fixture} from './fixture.mjs';
 import {nicknamePolicy} from '../shared/nickname-policy.js';
 const migration=readFileSync(new URL('../drizzle/0079_rare_leader.sql',import.meta.url),'utf8');
 test('policy trims edges, rejects prohibited input, and browser uses the same policy',()=>{
- for(const value of ['가나','AB','Ab_123','abcdefghijkl','ㄱㅏ'])assert.equal(nicknamePolicy(value).error,undefined,value);
+ for(const value of ['가나','AB','Ab_123','abcdefgh','ㄱㅏ'])assert.equal(nicknamePolicy(value).error,undefined,value);
  assert.equal(nicknamePolicy('  Veil  ').name,'Veil');
- for(const value of ['a','abcdefghijklm','두 글자','two words','😀a','a-b','a.b','ＡＢ','a\nB','a\u200bB','관리자2','AIFECT_공식','Ad_min','씨발12'])assert.ok(nicknamePolicy(value).error,value);
+ for(const value of ['a','abcdefghi','두 글자','two words','😀a','a-b','a.b','ＡＢ','a\nB','a\u200bB','관리자2','AIFECT_공식','Ad_min','씨발12'])assert.ok(nicknamePolicy(value).error,value);
  const shared=readFileSync(new URL('../shared/nickname-policy.js',import.meta.url),'utf8').replaceAll('export ','');
  assert.ok(readFileSync(new URL('../dist/account-settings.js',import.meta.url),'utf8').startsWith(shared));
 });
@@ -29,6 +29,8 @@ test('migration backfills with collision retries, preserves valid codes and all 
 });
 test('signup availability is anonymous, duplicate signup is atomic, native-compatible payload remains additive',async t=>{
  const f=await fixture(t,{AUTH_PEPPER:'local-only'});
+ const tooLong=await f.call('/api/auth/register','POST',{email:'too-long@example.test',password:'test-password-long',name:'Fresh_001'},null);assert.equal(tooLong.status,400);
+ assert.equal(f.sql.prepare("SELECT count(*) n FROM users WHERE email='too-long@example.test'").get().n,0);
  const available=await f.call('/api/account/nickname?name=Fresh_01','GET',undefined,null);assert.equal(available.status,200);assert.equal(available.body.message,'사용 가능한 닉네임입니다');
  const signup=await f.call('/api/auth/register','POST',{email:'new@example.test',password:'test-password-long',name:'  Fresh_01  ',public_id:'AAA0000'},null);assert.equal(signup.status,200,JSON.stringify(signup));
  const uid=signup.body.user.id;const code=f.sql.prepare('SELECT code FROM public_profile_ids WHERE user_id=?').get(uid).code;assert.match(code,/^[A-Z]{3}\d{4}$/);assert.notEqual(code,'AAA0000');
@@ -63,11 +65,11 @@ test('duplicates remain untouched; concurrent claims, stable ID search and profi
  const tables=['tracks','users','crews','gifts','payout_statements','follows','public_member_ids'];
  const before=Object.fromEntries(tables.map(n=>[n,f.sql.prepare('SELECT * FROM '+n+' ORDER BY rowid').all()]));
  const code=f.sql.prepare("SELECT code FROM public_profile_ids WHERE user_id='owner'").get().code;
- const results=await Promise.all(['owner','other'].map(uid=>f.call('/api/account/nickname','PUT',{name:'Same_Name'},uid)));assert.deepEqual(results.map(r=>r.status).sort(),[200,409]);
+ const results=await Promise.all(['owner','other'].map(uid=>f.call('/api/account/nickname','PUT',{name:'SameName'},uid)));assert.deepEqual(results.map(r=>r.status).sort(),[200,409]);
  const changed=results[0].status===200?'owner':'other';
  const winnerCode=f.sql.prepare('SELECT code FROM public_profile_ids WHERE user_id=?').get(changed).code;
  const search=await f.call('/api/search?q='+winnerCode.toLowerCase());assert.equal(search.status,200,JSON.stringify(search));assert.equal(search.body.producers[0].user_id,changed);
- assert.equal((await f.call('/api/search?q=same_name')).body.producers.length,1);
+ assert.equal((await f.call('/api/search?q=samename')).body.producers.length,1);
  assert.equal((await f.call('/api/members/'+code)).body.profile.user_id,'owner');
  assert.equal((await f.call('/api/producers/producer')).body.profile.public_id,code);
  for(const n of tables.filter(n=>n!=='users'))assert.deepEqual(f.sql.prepare('SELECT * FROM '+n+' ORDER BY rowid').all(),before[n],n);

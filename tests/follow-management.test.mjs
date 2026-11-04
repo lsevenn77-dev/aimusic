@@ -45,7 +45,7 @@ test('personal block from either API removes both directions; unblock never rest
  const f=await fixture(t);await f.call('/api/producers/producer/follow','PUT',{},'other');
  assert.deepEqual((await write(f,'followers','follow',['m:other'])).body.ok,['m:other']);
  assert.equal((await f.call(endpoint+'user=other&tab=followers')).body.items[0].name,'QA');
- const friend=(await f.call('/api/me/profile','PUT',{name:'Listener_2'},'other')).body.profile;assert.equal(f.sql.prepare("SELECT target_id FROM follows WHERE user_id='owner'").get().target_id,friend.id);
+ const friend=(await f.call('/api/me/profile','PUT',{name:'Listen_2'},'other')).body.profile;assert.equal(f.sql.prepare("SELECT target_id FROM follows WHERE user_id='owner'").get().target_id,friend.id);
  await f.call('/api/blocks/other','PUT');assert.equal((await f.call(endpoint+'tab=blocks')).body.total,1);
  assert.equal((await f.call(endpoint+'user=owner&tab=followers','GET',null,'other')).status,403);
  await write(f,'blocks','unblock',['m:other']);assert.equal(f.sql.prepare('SELECT count(*) n FROM follows').get().n,0);

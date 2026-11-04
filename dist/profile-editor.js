@@ -13,7 +13,7 @@ function profileEditorHTML(p){
    <div class="profile-edit-fields">
     <div class="profile-edit-photo-actions"><button type="button" class="small-button" data-profile-photo-change>사진 변경</button><button type="button" class="small-button" data-profile-photo-remove ${p.image_version?'':'hidden'}>사진 삭제</button></div>
     <input type="file" name="image" accept="image/jpeg,image/png,image/webp" aria-label="프로필 사진 선택" hidden>
-    <label class="form-field">닉네임<input name="name" value="${esc(p.name)}" autocomplete="nickname" aria-describedby="profile-edit-name-status"></label>
+    <label class="form-field">닉네임<input name="name" value="${esc(p.name)}" autocomplete="nickname" maxlength="8" aria-describedby="profile-edit-name-status"></label>
     <p id="profile-edit-name-status" class="field-help" role="status"></p>
    </div>
   </div>
