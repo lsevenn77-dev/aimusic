@@ -124,7 +124,7 @@ import java.util.UUID
   Text("커버곡 선물은 가창자 70% · AIFECT 30%예요. 원곡자는 커버의 재생 수익만 받아요.")
   Text("1 S와 1 G는 각각 응원 순위 1점이에요.")
  }},confirmButton={TextButton(onClick={giftInfo=false}){Text("확인")}})
- if(history)GiftHistorySheet(wallet,{history=false})
+ if(history)GiftHistorySheet(wallet,m,{history=false})
  if(confirm&&choice!=null&&giftPath!=null)AlertDialog(onDismissRequest={if(!working)confirm=false},title={Text("${choice.optString("name")} 선물하기")},text={Text("${recipient}님에게 ${choice.optString("name")} ${quantity}개 · 총 $cost $suffix 선물을 보낼까요?\n보낸 뒤 직접 취소할 수 없어요.")},dismissButton={TextButton(onClick={confirm=false},enabled=!working){Text("취소")}},confirmButton={TextButton(enabled=!working,onClick={scope.launch{
   working=true;error=null
   try{val result=m.api.call(giftPath,"POST",payload("gift_type" to selected,"quantity" to quantity,"request_id" to requestId, (if(isFree)"silver" else "gold") to cost));success="${choice.optString("name")} ${quantity}개를 보냈어요";confirm=false

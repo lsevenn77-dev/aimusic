@@ -138,6 +138,15 @@ internal class NativeVoiceEngine(private val context:Context,val roomId:String,p
   // Socket snapshots contain voice state only; keep the HTTP-validated room artwork.
   val nextRoom=next.optJSONObject("room");val previousRoom=state.value.optJSONObject("room")
   if(nextRoom!=null&&!nextRoom.has("theme")&&nextRoom.optString("host_id")==previousRoom?.optString("host_id"))previousRoom.optJSONObject("theme")?.let{nextRoom.put("theme",it)}
+  // Realtime snapshots carry transport/presence data only. Keep decoration
+  // fields validated by the Site until the next HTTP heartbeat replaces them
+  // (including explicit nulls when equipment expires or is removed).
+  val previousMembers=state.value.optJSONArray("members").objects().associateBy{it.optString("id")}
+  next.optJSONArray("members").objects().forEach{member->
+   previousMembers[member.optString("id")]?.let{previous->
+    listOf("profile_frame","profile_frame_artwork","player_xp","player_level").forEach{key->if(!member.has(key)&&previous.has(key))member.put(key,previous.opt(key))}
+   }
+  }
   state.value=next
   val me=self()
   if((me==null||me.isNull("seat")||me.optBoolean("locked"))&&publisher!=null){

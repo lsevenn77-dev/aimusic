@@ -87,9 +87,8 @@ struct OriginalUploadView: View {
     @State private var artists: [[String: Any]] = []
     @State private var description = ""
     @State private var lyrics = ""
-    @State private var isAI = false
-    @State private var rights = false
-    @State private var karaoke = false
+    @State private var lyricsMode = "auto"
+    @State private var uploadConsent = false
     @State private var confirm = false
     var body: some View {
         Form {
@@ -110,16 +109,23 @@ struct OriginalUploadView: View {
                         ForEach(artists.indices, id: \.self) { index in Text(artists[index].string("name")).tag(artists[index].string("id")) }
                     }
                     TextField("소개 (선택)", text: $description, axis: .vertical)
-                    TextField("가사 (선택 · 자동 싱크)", text: $lyrics, axis: .vertical).lineLimit(4...10)
+                    Picker("가사 등록 방식", selection: $lyricsMode) {
+                        Text("자동 싱크").tag("auto")
+                        Text("가사 없음").tag("none")
+                    }
+                    if lyricsMode == "auto" {
+                        TextField("가사를 한 줄씩 입력하세요", text: $lyrics, axis: .vertical).lineLimit(4...10)
+                    }
                 }
-                Section("공개 동의") {
-                    Toggle("AI를 사용해 제작한 음원입니다", isOn: $isAI)
-                    Toggle("공개할 음원 권리를 보유하고 있습니다", isOn: $rights)
-                    Toggle("노래방 MR 제공과 커버 제작을 허용합니다", isOn: $karaoke)
-                    Link("노래방 이용약관", destination: Endpoint.origin.appendingPathComponent("terms"))
+                if !upload.hasPending {
+                    Section("음원 권리 및 이용허락") {
+                        Text("Suno 무료 플랜으로 만든 곡은 기본적으로 비상업적 용도로만 이용할 수 있어요. 다른 AI로 만든 곡도 제작 당시 요금제와 약관에서 상업적 이용과 위 이용허락이 가능한지 확인해주세요.").font(.footnote).foregroundStyle(.secondary)
+                        Toggle("AI로 제작한 이 음원과 가사·이미지를 업로드하고 공개할 권리가 있으며, 무단 복제물이나 허락 없이 복제한 타인의 음성을 사용하지 않았습니다. AIFECT에서 반주(MR)를 만들고 다른 이용자가 커버를 제작·공개하는 데 동의합니다. 또한 아이팩트가 직접 운영하는 게임과 웹사이트에서 이 음원을 사용할 수 있도록 비독점적으로 허락합니다.", isOn: $uploadConsent)
+                        if let termsURL = URL(string: "/terms#original-upload", relativeTo: Endpoint.origin) { Link("음원 이용허락 약관 보기", destination: termsURL) }
+                    }
                 }
                 Button(upload.busy ? "업로드 중…" : "음원 업로드 후 공개") { confirm = true }
-                    .disabled(upload.busy || file == nil || (!upload.hasPending && (title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || producer.isEmpty || tool.isEmpty || genre.isEmpty || !isAI || !rights || !karaoke)))
+                    .disabled(upload.busy || file == nil || (!upload.hasPending && (title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || producer.isEmpty || tool.isEmpty || genre.isEmpty || !uploadConsent || (lyricsMode == "auto" && lyrics.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty))))
                 if let message = upload.message { Text(message).foregroundStyle(.secondary) }
             }
             Link("창작자 스튜디오에서 처리 상태 확인", destination: Endpoint.origin.appendingPathComponent("studio"))
@@ -135,7 +141,7 @@ struct OriginalUploadView: View {
             .confirmationDialog("이 음원을 업로드하고 공개할까요?", isPresented: $confirm, titleVisibility: .visible) {
                 Button("업로드 후 공개") { Task {
                     guard let file, let owner = model.userID else { return }
-                    let metadata: [String: Any] = ["title": title, "producer": producer, "ai_tool": tool, "genre": genre, "artist_id": artist, "description": description, "lyrics_mode": lyrics.isEmpty ? "none" : "auto", "lyrics_source": lyrics, "lyrics_language": "ko", "rights": rights, "is_ai": isAI, "karaoke": karaoke]
+                    let metadata: [String: Any] = ["title": title, "producer": producer, "ai_tool": tool, "genre": genre, "artist_id": artist, "description": description, "lyrics_mode": lyricsMode, "lyrics_source": lyricsMode == "auto" ? lyrics : "", "lyrics_language": "ko", "rights": uploadConsent, "is_ai": uploadConsent, "karaoke": uploadConsent, "upload_consent_version": "2026-11-02.1"]
                     if let id = await upload.submit(file: file, metadata: metadata, account: owner) {
                         model.player.pause(); await ListeningAds.shared.uploadCompleted(id: id)
                     }

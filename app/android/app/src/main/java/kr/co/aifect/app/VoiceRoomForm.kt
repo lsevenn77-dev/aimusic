@@ -22,6 +22,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -64,7 +65,7 @@ private val FreeRoomBackgrounds=listOf("navy" to "네이비","sunset" to "노을
    }
   }
   if(image!=null){
-   AsyncImage(image,null,Modifier.matchParentSize().testTag("voice-background-image"),contentScale=ContentScale.Crop)
+   AsyncImage(image,null,Modifier.matchParentSize().alpha(.68f).testTag("voice-background-image"),contentScale=ContentScale.Crop)
    Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Ink.copy(alpha=.40f),Ink.copy(alpha=.72f)))))
   }
  }
@@ -82,6 +83,7 @@ private val FreeRoomBackgrounds=listOf("navy" to "네이비","sunset" to "노을
  var announcement by rememberSaveable(identity){mutableStateOf(initial.optString("announcement"))}
  var crew by rememberSaveable(identity){mutableStateOf(initial.optString("crew_id"))}
  var selectedTheme by rememberSaveable(identity){mutableStateOf(initial.optJSONObject("theme")?.optString("sku").orEmpty().ifBlank{initial.optString("background","navy")})}
+ var initialThemeChosen by rememberSaveable(identity){mutableStateOf(identity!="new")}
  var themes by remember{mutableStateOf<List<JSONObject>>(emptyList())}
  var crews by remember{mutableStateOf<List<JSONObject>>(emptyList())}
  var optionsLoading by remember{mutableStateOf(true)}
@@ -95,14 +97,19 @@ private val FreeRoomBackgrounds=listOf("navy" to "네이비","sunset" to "노을
    val options=api.call("/api/voice/options",fresh=true)
    crews=options.optJSONArray("crews").objects()
    themes=options.optJSONArray("themes").objects().filter{it.optBoolean("paid")&&it.optBoolean("selectable")}
+   if(!initialThemeChosen){
+    val preferred=options.optString("preferred_theme").takeIf{key->themes.any{it.optString("sku")==key}}
+    selectedTheme=preferred?:themes.firstOrNull()?.optString("sku")?:"navy"
+    initialThemeChosen=true
+   }
    if(FreeRoomBackgrounds.none{it.first==selectedTheme}&&themes.none{it.optString("sku")==selectedTheme})selectedTheme="navy"
   }catch(e:Exception){if(e is CancellationException)throw e;optionsError=e.message?:"설정을 불러오지 못했어요."}
   finally{optionsLoading=false}
  }
- val allThemes=FreeRoomBackgrounds.map{(id,label)->payload("sku" to id,"name" to label)}+themes
+ val allThemes=themes+FreeRoomBackgrounds.map{(id,label)->payload("sku" to id,"name" to label)}
  val selected=allThemes.find{it.optString("sku")==selectedTheme}
- val previewThemes=if(FreeRoomBackgrounds.any{it.first==selectedTheme})allThemes.take(3)else allThemes.take(2)+listOfNotNull(selected)
- val valid=title.isNotBlank()&&(visibility!="crew"||crews.any{it.optString("id")==crew})&&selected!=null&&!busy
+ val previewThemes=allThemes.take(3).let{first->if(selected==null||first.any{it.optString("sku")==selectedTheme})first else first.take(2)+selected}
+ val valid=title.isNotBlank()&&(visibility!="crew"||crews.any{it.optString("id")==crew})&&selected!=null&&!optionsLoading&&!busy
  fun open(value:String){focus.clearFocus();panel=value}
  val content:@Composable ()->Unit={
   Column(Modifier.fillMaxWidth().testTag("voice-room-form"),verticalArrangement=Arrangement.spacedBy(16.dp)){
@@ -136,7 +143,7 @@ private val FreeRoomBackgrounds=listOf("navy" to "네이비","sunset" to "노을
      }
     }
     Row(Modifier.fillMaxWidth().selectableGroup(),horizontalArrangement=Arrangement.spacedBy(8.dp)){
-     previewThemes.forEach{theme->RoomThemeTile(theme,selectedTheme==theme.optString("sku"),Modifier.weight(1f),!busy){focus.clearFocus();selectedTheme=theme.optString("sku")}}
+     previewThemes.forEach{theme->RoomThemeTile(theme,selectedTheme==theme.optString("sku"),Modifier.weight(1f),!busy){focus.clearFocus();selectedTheme=theme.optString("sku");initialThemeChosen=true}}
     }
    }
    Column{
@@ -172,7 +179,7 @@ private val FreeRoomBackgrounds=listOf("navy" to "네이비","sunset" to "노을
  when(panel){
   "themes"->RoomChoiceDialog("방 배경",{panel=""}){
    LazyVerticalGrid(columns=GridCells.Fixed(2),modifier=Modifier.fillMaxWidth().heightIn(max=440.dp).testTag("room-theme-picker"),horizontalArrangement=Arrangement.spacedBy(12.dp),verticalArrangement=Arrangement.spacedBy(16.dp)){
-    items(allThemes,key={it.optString("sku")}){theme->RoomThemeTile(theme,selectedTheme==theme.optString("sku"),Modifier.fillMaxWidth()){selectedTheme=theme.optString("sku");panel=""}}
+    items(allThemes,key={it.optString("sku")}){theme->RoomThemeTile(theme,selectedTheme==theme.optString("sku"),Modifier.fillMaxWidth()){selectedTheme=theme.optString("sku");initialThemeChosen=true;panel=""}}
    }
    if(themes.isEmpty())Text("기본 배경 3종 · 보유한 테마도 여기서 선택할 수 있어요.",Modifier.padding(top=12.dp),color=Muted,fontSize=12.sp)
   }

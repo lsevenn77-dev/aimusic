@@ -120,11 +120,11 @@ internal fun playerLevel(xp:Int)=((1+sqrt(1+xp.coerceAtLeast(0)/12.5))/2).toInt(
    if(decorations.isNotEmpty())item{Text("액자 · 토크룸 배경",fontSize=16.sp,fontWeight=FontWeight.SemiBold)}
    items(decorations.chunked(3)){row->Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)){
     row.forEach{i->val product=i.optJSONObject("product")?:i;val stored=i.optBoolean("stored")||i.optString("source")=="decoration_stock"
-     Surface(onClick={decoration=i},enabled=stored&&i.optBoolean("available")&&!busy,color=Panel,shape=RoundedCornerShape(12.dp),modifier=Modifier.weight(1f).testTag("inventory-decoration-${i.optString("id")}")){
+     Surface(onClick={error=null;decoration=i},enabled=stored&&i.optBoolean("available")&&!busy,color=Panel,shape=RoundedCornerShape(12.dp),modifier=Modifier.weight(1f).testTag("inventory-decoration-${i.optString("id")}")){
       Column(Modifier.height(156.dp).padding(8.dp),horizontalAlignment=Alignment.CenterHorizontally){
        AsyncImage(decorationImage(product),product.optString("name"),Modifier.fillMaxWidth().weight(1f),contentScale=ContentScale.Fit)
        Text(product.optString("name"),fontSize=12.sp,maxLines=2,modifier=Modifier.height(44.dp).wrapContentHeight())
-       Text(if(stored)"보관 중" else if(i.optBoolean("available"))"사용 가능" else "기간 만료",fontSize=11.sp,color=Muted)
+       Text(inventoryDecorationStatus(i),fontSize=11.sp,lineHeight=16.sp,color=if(inventoryDecorationStatus(i)=="적용 중")Aqua else Muted,modifier=Modifier.testTag("inventory-decoration-status-${i.optString("id")}"))
       }
      }
     };repeat(3-row.size){Spacer(Modifier.weight(1f))}
@@ -148,7 +148,16 @@ internal fun playerLevel(xp:Int)=((1+sqrt(1+xp.coerceAtLeast(0)/12.5))/2).toInt(
   }
  }
  gift?.let{selected->OwnedGiftSendPage(m,selected,{gift=null}){result->gifts=result.optJSONArray("items").objects();gift=null;m.notice="선물을 보냈어요."}}
- decoration?.let{i->val request=remember(i.optString("id")){requestIdentity()};AlertDialog(onDismissRequest={if(!busy)decoration=null},title={Text("아이템을 사용할까요?")},text={Text("사용을 시작하면 이용 기간이 적용돼요. 액자는 장착하고, 배경은 토크룸 설정에서 선택할 수 있어요.")},dismissButton={TextButton({decoration=null},enabled=!busy){Text("취소")}},confirmButton={TextButton(enabled=!busy,onClick={busy=true;scope.launch{try{m.api.call("/api/decorations/inventory/${i.optString("id")}/use","POST",payload("request_id" to request));val result=m.api.call("/api/me/player",fresh=true);if(account==m.user?.optString("id")){data=result;decoration=null;error=null}}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}finally{busy=false}}}){Text("사용 시작")}})}
+ decoration?.let{i->
+  val request=remember(i.optString("id")){requestIdentity()}
+  InventoryDecorationConfirm(i,busy,error,dismiss={decoration=null},use={
+   busy=true;scope.launch{try{
+    m.api.call("/api/decorations/inventory/${i.optString("id")}/use","POST",payload("request_id" to request))
+    val result=m.api.call("/api/me/player",fresh=true)
+    if(account==m.user?.optString("id")){data=result;updated(result);m.loadOwnProfile(fresh=true);decoration=null;error=null}
+   }catch(e:Exception){if(e is CancellationException)throw e;error=e.message}finally{busy=false}}
+  })
+ }
 }
 
 @Composable private fun PlayerLevelStrip(p:JSONObject,open:()->Unit){

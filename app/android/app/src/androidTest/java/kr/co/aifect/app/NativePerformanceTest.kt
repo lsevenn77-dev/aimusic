@@ -57,6 +57,11 @@ class NativePerformanceTest{
   state=payload("generation" to "native-generation","self" to me,"revision" to 1,"serverNow" to System.currentTimeMillis(),"room" to payload("id" to "native-room","title" to "밤하늘 음악 이야기","host_id" to "host","max_members" to 30,"visibility" to "public"),"members" to arr(payload("id" to "host","profile_id" to "host-profile","name" to "지유","role" to "host","seat" to 0,"muted" to true,"publishing" to false),payload("id" to me,"profile_id" to "mine","name" to "하린","role" to "listener","seat" to null,"muted" to true,"publishing" to false)),"chat" to JSONArray(),"seat_invites" to JSONArray(),"music" to payload("queue" to JSONArray(),"index" to -1))
   val genreImage=ins.context.assets.open("design/dubbing-daily.webp").use{it.readBytes()}
   val giftImage=ins.context.assets.open("design/gifts/lollipop.png").use{it.readBytes()}
+  val frameImage=ByteArrayOutputStream().use{out->
+   val bitmap=android.graphics.Bitmap.createBitmap(128,128,android.graphics.Bitmap.Config.ARGB_8888)
+   android.graphics.Canvas(bitmap).drawCircle(64f,64f,58f,android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply{color=android.graphics.Color.rgb(214,186,255);style=android.graphics.Paint.Style.STROKE;strokeWidth=10f})
+   bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG,100,out);bitmap.recycle();out.toByteArray()
+  }
   val audio=wave
   server=ServerSocket(0,50,InetAddress.getByName("127.0.0.1"));Endpoint.configureTest("http://127.0.0.1:${server.localPort}")
   workers.execute{while(!server.isClosed)try{val socket=server.accept();workers.execute{try{socket.use{client->
@@ -88,7 +93,7 @@ class NativePerformanceTest{
     }
     key.endsWith("/submit")->{recording.getJSONObject("recording").getJSONArray("roles").getJSONObject(0).put("state","submitted");data=recording}
    }
-   val isAudio=key.endsWith("/background")||key.contains("/lines/")&&method=="GET";val isImage=key.startsWith("/assets/dubbing-genres/")||key.startsWith("/assets/gifts/")||key.startsWith("/media/producer/");val body=if(isAudio)audio else if(key.startsWith("/assets/gifts/"))giftImage else if(isImage)genreImage else data.toString().toByteArray();val type=if(isAudio)"audio/wav" else if(isImage)"image/webp" else "application/json";client.getOutputStream().write("HTTP/1.1 $code Response\r\nContent-Type: $type\r\nContent-Length: ${body.size}\r\nConnection: close\r\n\r\n".toByteArray()+body)
+   val isAudio=key.endsWith("/background")||key.contains("/lines/")&&method=="GET";val isFrame=key=="/assets/products/qa-voice-frame.png";val isImage=isFrame||key.startsWith("/assets/dubbing-genres/")||key.startsWith("/assets/gifts/")||key.startsWith("/media/producer/");val body=if(isAudio)audio else if(isFrame)frameImage else if(key.startsWith("/assets/gifts/"))giftImage else if(isImage)genreImage else data.toString().toByteArray();val type=if(isAudio)"audio/wav" else if(isFrame)"image/png" else if(isImage)"image/webp" else "application/json";client.getOutputStream().write("HTTP/1.1 $code Response\r\nContent-Type: $type\r\nContent-Length: ${body.size}\r\nConnection: close\r\n\r\n".toByteArray()+body)
   }}catch(_:Exception){}}}catch(_:SocketException){}}
  }
  @After fun teardown(){activity?.close();context.stopService(Intent(context,NativeVoiceService::class.java));if(::server.isInitialized)server.close();workers.shutdownNow()}
@@ -143,6 +148,64 @@ class NativePerformanceTest{
   ui.onNodeWithTag("voice-background-theme-owned",useUnmergedTree=true).assertIsDisplayed()
   ui.onNodeWithTag("voice-background-image",useUnmergedTree=true).assertIsDisplayed();capture("room-269-owned-applied")
  }
+ @Test fun roomCreationPrefersActivePaidThemesAndKeepsExplicitFreeChoiceOnRefresh(){
+  val paid=payload("sku" to "theme-aurora","name" to "활성 오로라 라운지","paid" to true,"selectable" to true,"assetPaths" to payload("roomMobile" to "/assets/dubbing-genres/daily.webp"))
+  val second=payload("sku" to "theme-starlight","name" to "활성 별빛 라운지","paid" to true,"selectable" to true)
+  val locked=payload("sku" to "theme-stock-only","name" to "미사용 보관 테마","paid" to true,"selectable" to false)
+  responses["/api/voice/options"]=payload("crews" to JSONArray(),"themes" to arr(paid,second,locked),"preferred_theme" to "theme-aurora")
+  launch("voice");visible("room-theme-theme-aurora")
+  ui.onNodeWithTag("room-theme-theme-aurora").performScrollTo().assertIsSelected()
+  ui.onNodeWithTag("room-title").performScrollTo().performTextInput("선택을 유지하는 방")
+  androidx.test.espresso.Espresso.closeSoftKeyboard()
+  ui.onNodeWithText("전체 보기").performScrollTo().performClick();visible("room-theme-picker")
+  fun option(sku:String)=ui.onNode(hasTestTag("room-theme-$sku") and hasAnyAncestor(hasTestTag("room-theme-picker")))
+  option("theme-aurora").assertIsSelected();option("theme-stock-only").assertDoesNotExist()
+  val paidBounds=option("theme-aurora").fetchSemanticsNode().boundsInRoot
+  val freeBounds=option("navy").fetchSemanticsNode().boundsInRoot
+  assertTrue("Active paid choices precede free backgrounds",paidBounds.top<freeBounds.top)
+  capture("room-paid-default")
+  option("night").performScrollTo().performClick()
+  ui.onNodeWithTag("room-theme-night").performScrollTo().assertIsSelected()
+  val before=requests.count{it.first=="GET /api/voice/options"}
+  responses["/api/voice/options"]=payload("crews" to JSONArray(),"themes" to arr(second,paid),"preferred_theme" to "theme-starlight")
+  activity!!.recreate();visible("voice-room-form")
+  ui.waitUntil(10000){requests.count{it.first=="GET /api/voice/options"}>before}
+  ui.onNodeWithTag("room-title").assertTextContains("선택을 유지하는 방")
+  ui.onNodeWithTag("room-theme-night").performScrollTo().assertIsSelected()
+  ui.onNodeWithTag("room-submit").performClick();visible("native-voice-room")
+  val submitted=JSONObject(requests.single{it.first=="POST /api/voice/rooms"}.second.toString(Charsets.UTF_8))
+  assertEquals("night",submitted.getString("theme_sku"));assertEquals("night",submitted.getString("background"))
+ }
+ @Test fun roomFramesSurviveTransportOnlySnapshotsAndClearAfterValidation(){
+  val frame="/assets/products/qa-voice-frame.png"
+  state.getJSONObject("room").put("theme",payload("sku" to "theme-aurora","assets" to payload("roomMobile" to "/assets/dubbing-genres/daily.webp")))
+  state.getJSONArray("members").objects().forEach{it.put("profile_frame","frame_aurora_ring").put("profile_frame_artwork",frame)}
+  state.getJSONArray("members").getJSONObject(1).put("seat",1)
+  val permissionBefore=ContextCompat.checkSelfPermission(context,Manifest.permission.RECORD_AUDIO)
+  launch("voice/native-room");visible("native-voice-room")
+  ui.onNodeWithTag("voice-background-theme-aurora",useUnmergedTree=true).assertIsDisplayed()
+  ui.onNodeWithTag("voice-member-frame-host-profile",useUnmergedTree=true).assertIsDisplayed()
+  ui.onNodeWithTag("voice-member-frame-mine",useUnmergedTree=true).assertIsDisplayed()
+  ui.waitUntil(10000){requests.any{it.first=="GET $frame"}}
+  val photo=ui.onNodeWithTag("voice-member-frame-host-profile",useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
+  val slot=ui.onNodeWithTag("voice-member-avatar-host-profile",useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
+  assertTrue("Decorative overhang stays within the reserved avatar slot",photo.width*1.26f<=slot.width+1f)
+  capture("voice-framed-members")
+  val engine=NativeVoiceService.current.value!!
+  // Transport-only snapshots omit Site-owned entitlement fields; keep the last
+  // validated frame until an HTTP response explicitly clears expired equipment.
+  state.getJSONArray("members").objects().forEach{it.remove("profile_frame");it.remove("profile_frame_artwork")}
+  state.getJSONObject("room").remove("theme")
+  runBlocking(kotlinx.coroutines.Dispatchers.IO){engine.command("heartbeat")}
+  ui.onNodeWithTag("voice-member-frame-host-profile",useUnmergedTree=true).assertIsDisplayed()
+  ui.onNodeWithTag("voice-background-theme-aurora",useUnmergedTree=true).assertIsDisplayed()
+  state.getJSONArray("members").objects().forEach{it.put("profile_frame",JSONObject.NULL).put("profile_frame_artwork",JSONObject.NULL)}
+  runBlocking(kotlinx.coroutines.Dispatchers.IO){engine.command("heartbeat")}
+  ui.onNodeWithTag("voice-member-frame-host-profile",useUnmergedTree=true).assertDoesNotExist()
+  ui.onNodeWithTag("voice-member-frame-mine",useUnmergedTree=true).assertDoesNotExist()
+  assertEquals(permissionBefore,ContextCompat.checkSelfPermission(context,Manifest.permission.RECORD_AUDIO));assertFalse(engine.micOn.value)
+  assertTrue(requests.none{it.first.endsWith("/publish")});assertTrue(requests.none{it.first.endsWith("/leave")})
+ }
  @Test fun listenerJoinsAndChatsWithoutRequestingMicrophone(){
   val permissionBefore=ContextCompat.checkSelfPermission(context,Manifest.permission.RECORD_AUDIO)
   launch("voice/native-room");visible("native-voice-room");text("청취 중")
@@ -172,7 +235,7 @@ class NativePerformanceTest{
   ui.waitUntil(10000){requests.any{it.first=="PUT /api/tracks/voice-song/like"}}
   ui.onNodeWithContentDescription("내 플레이리스트에 담기").performClick();text("함께 들은 음악");ui.onNodeWithText("함께 들은 음악").performClick()
   ui.waitUntil(10000){requests.any{it.first=="PUT /api/playlists/voice-list/tracks/voice-song"}}
-  ui.onNodeWithTag("voice-seat-0").performClick();ui.onNodeWithText("프로필 보기").performClick();visible("voice-profile-popup");text("밤산책");capture("voice-267-profile")
+  ui.onNodeWithTag("voice-seat-0").performClick();ui.onNodeWithText("프로필 보기").performClick();visible("voice-profile-popup");ui.onNodeWithText("밤산책").assertDoesNotExist();capture("voice-267-profile")
   ui.onNodeWithContentDescription("팝업 닫기").performClick();assertSame(engine,NativeVoiceService.current.value);assertFalse(requests.any{it.first.endsWith("/leave")});assertEquals(1,requests.count{it.first.endsWith("/join")})
   capture("voice-267-listener")
  }

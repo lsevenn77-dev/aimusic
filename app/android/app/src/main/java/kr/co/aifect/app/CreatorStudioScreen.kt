@@ -7,6 +7,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.lazy.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -142,12 +144,10 @@ internal fun studioStatus(status:String)=when(status){"published"->"공개됨";"
  var artistId by rememberSaveable{mutableStateOf(initial.optString("artist_id","none"))}
  var newArtist by rememberSaveable{mutableStateOf("")}
  var mode by rememberSaveable{mutableStateOf(initial.optString("performance_mode","solo"))}
- var lyricsMode by rememberSaveable{mutableStateOf(initial.optString("lyrics_mode","none"))}
+ var lyricsMode by rememberSaveable{mutableStateOf(initial.optString("lyrics_mode",if(trackId==null)"auto" else "none"))}
  var lyrics by rememberSaveable{mutableStateOf(initial.optString("lyrics"))}
  var autoSource by rememberSaveable{mutableStateOf(data.optJSONObject("alignment")?.optString("source_text").orEmpty())}
- var rights by rememberSaveable{mutableStateOf(false)}
- var karaoke by rememberSaveable{mutableStateOf(false)}
- var ai by rememberSaveable{mutableStateOf(false)}
+ var uploadConsent by rememberSaveable(account,trackId){mutableStateOf(false)}
  var audio by remember{mutableStateOf<StudioAudio?>(null)}
  var image by remember{mutableStateOf<Uri?>(null)}
  var draftId by remember{mutableStateOf<String?>(null)}
@@ -177,7 +177,8 @@ internal fun studioStatus(status:String)=when(status){"published"->"공개됨";"
    }
    if(trackId==null){
     val file=audio?:throw IllegalArgumentException("음원 파일을 선택해주세요.")
-    body.put("producer",m.studioData.optJSONObject("producer")?.optString("name")?:m.user?.optString("name"));body.put("extension",file.extension);body.put("bytes",file.file.length());body.put("rights",rights);body.put("is_ai",ai);body.put("karaoke",karaoke)
+    body.put("producer",m.studioData.optJSONObject("producer")?.optString("name")?:m.user?.optString("name"));body.put("extension",file.extension);body.put("bytes",file.file.length());body.put("rights",uploadConsent);body.put("is_ai",uploadConsent);body.put("karaoke",uploadConsent)
+    body.put("upload_consent_version","2026-11-02.1")
     stage="1 / 3 · 업로드 준비 중…"
     val id=draftId?:m.api.call("/api/uploads","POST",body).getString("id").also{draftId=it}
     // Reuse the same draft after a network failure. A completed draft is never submitted twice.
@@ -216,7 +217,7 @@ internal fun studioStatus(status:String)=when(status){"published"->"공개됨";"
     StudioChoiceField("기분",moods,MoodTiles.map{it.id to it.name},4,0,!working&&draftId==null){moods=it}
     Text("새 제작곡은 업로드 후 AI가 음원을 분석해 장르와 기분을 분류해요.",fontSize=12.sp,color=Muted)
     Text("가사",fontSize=18.sp,fontWeight=FontWeight.Bold)
-    if(draftId==null)Chips(listOf("가사 없음","자동 싱크","LRC 직접 입력"),when(lyricsMode){"auto"->"자동 싱크";"synced"->"LRC 직접 입력";else->"가사 없음"}){if(!working)lyricsMode=when(it){"자동 싱크"->"auto";"LRC 직접 입력"->"synced";else->"none"}}
+    if(draftId==null)Chips(listOf("자동 싱크","가사 없음","LRC 직접 입력"),when(lyricsMode){"auto"->"자동 싱크";"synced"->"LRC 직접 입력";else->"가사 없음"}){if(!working)lyricsMode=when(it){"자동 싱크"->"auto";"LRC 직접 입력"->"synced";else->"none"}}
     if(lyricsMode!="none")OutlinedTextField(if(lyricsMode=="auto")autoSource else lyrics,{if(lyricsMode=="auto")autoSource=it.take(6000)else lyrics=it.take(12000)},label={Text(if(lyricsMode=="auto")"가사를 줄마다 입력하세요"else"[00:12.500] 가사")},minLines=5,modifier=Modifier.fillMaxWidth().testTag("studio-lyrics"),enabled=!working&&draftId==null)
     if(lyricsMode=="auto")Text("입력한 가사로 자동 싱크를 요청해요. 완료 상태는 스튜디오에서 확인할 수 있어요.",color=Muted,fontSize=12.sp)
     data.optJSONObject("alignment")?.let{Text("가사 싱크 · ${it.optString("state")}",fontSize=12.sp,color=Aqua)}
@@ -224,13 +225,12 @@ internal fun studioStatus(status:String)=when(status){"published"->"공개됨";"
    }else Text("커버곡의 사진은 내 프로필 사진을 사용해요. 제목과 장르는 원곡을 따릅니다.",color=Muted,fontSize=13.sp)
    OutlinedTextField(description,{description=it.take(if(cover)1000 else 4000)},label={Text("곡 소개")},minLines=3,enabled=!working&&draftId==null,modifier=Modifier.fillMaxWidth().testTag("studio-description"))
    if(trackId==null){
-    StudioConsent("AI로 제작한 음원입니다.",ai,!working&&draftId==null){ai=it}
-    StudioConsent("음원과 이미지의 권리를 보유하고 있습니다.",rights,!working&&draftId==null){rights=it}
-    StudioConsent("노래방 MR 제공 및 다른 이용자의 커버를 허락합니다.",karaoke,!working&&draftId==null){karaoke=it}
+    Text("Suno 무료 플랜으로 만든 곡은 기본적으로 비상업적 용도로만 이용할 수 있어요. 다른 AI로 만든 곡도 제작 당시 요금제와 약관에서 상업적 이용과 위 이용허락이 가능한지 확인해주세요.",color=Muted,fontSize=13.sp)
+    StudioConsent("AI로 제작한 이 음원과 가사·이미지를 업로드하고 공개할 권리가 있으며, 무단 복제물이나 허락 없이 복제한 타인의 음성을 사용하지 않았습니다. AIFECT에서 반주(MR)를 만들고 다른 이용자가 커버를 제작·공개하는 데 동의합니다. 또한 아이팩트가 직접 운영하는 게임과 웹사이트에서 이 음원을 사용할 수 있도록 비독점적으로 허락합니다.",uploadConsent,!working&&draftId==null){uploadConsent=it}
    }
    if(working){LinearProgressIndicator(Modifier.fillMaxWidth());Text(stage,color=Aqua)}
    error?.let{Text(it,color=MaterialTheme.colorScheme.error,modifier=Modifier.testTag("studio-save-error"))}
-   BrandButton(onClick=::save,enabled=!working&&(cover||title.isNotBlank()&&tool.isNotBlank())&&(trackId!=null||audio!=null&&rights&&ai&&karaoke),modifier=Modifier.fillMaxWidth().testTag("studio-save")){Text(if(working)"저장 중…"else if(draftId!=null)"업로드 다시 시도"else if(trackId==null)"음원 올리기"else"변경사항 저장")}
+   BrandButton(onClick=::save,enabled=!working&&(cover||title.isNotBlank()&&tool.isNotBlank())&&(trackId!=null||audio!=null&&uploadConsent&&(lyricsMode!="auto"||autoSource.isNotBlank())),modifier=Modifier.fillMaxWidth().testTag("studio-save")){Text(if(working)"저장 중…"else if(draftId!=null)"업로드 다시 시도"else if(trackId==null)"음원 올리기"else"변경사항 저장")}
   }
  }
  if(confirmLeave)AlertDialog(onDismissRequest={confirmLeave=false},title={Text("스튜디오로 돌아갈까요?")},text={Text("저장하지 않은 변경사항은 사라져요.")},confirmButton={TextButton(onClick=close){Text("돌아가기")}},dismissButton={TextButton(onClick={confirmLeave=false}){Text("계속 수정")}})
@@ -239,7 +239,12 @@ internal fun studioStatus(status:String)=when(status){"published"->"공개됨";"
  }},confirmButton={TextButton(onClick={artistPicker=false}){Text("닫기")}})
 }
 
-@Composable private fun StudioConsent(label:String,checked:Boolean,enabled:Boolean,onChange:(Boolean)->Unit){Row(verticalAlignment=Alignment.CenterVertically){Checkbox(checked,onChange,enabled=enabled,modifier=Modifier.testTag("studio-consent-$label"));Text(label,fontSize=13.sp)}}
+@Composable private fun StudioConsent(label:String,checked:Boolean,enabled:Boolean,onChange:(Boolean)->Unit){
+ Row(Modifier.fillMaxWidth().testTag("studio-upload-consent").toggleable(value=checked,enabled=enabled,role=Role.Checkbox,onValueChange=onChange).padding(vertical=8.dp),horizontalArrangement=Arrangement.spacedBy(10.dp)){
+  Checkbox(checked,onCheckedChange=null,enabled=enabled)
+  Text(label,fontSize=14.sp)
+ }
+}
 @Composable private fun StudioField(label:String,value:String,onChange:(String)->Unit,enabled:Boolean=true,tag:String="studio-field-$label"){
  OutlinedTextField(value,onChange,label={Text(label)},enabled=enabled,modifier=Modifier.fillMaxWidth().testTag(tag),singleLine=true,shape=RoundedCornerShape(12.dp))
 }

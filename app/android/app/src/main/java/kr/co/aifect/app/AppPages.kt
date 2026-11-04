@@ -19,6 +19,8 @@ import androidx.compose.ui.unit.sp
 
 internal class PageContent(
  val title:String,val back:()->Unit,val color:Color,
+ val actions:@Composable RowScope.()->Unit,
+ val backdrop:@Composable BoxScope.()->Unit,
  val content:@Composable ColumnScope.()->Unit
 )
 internal class AppPageEntry internal constructor(internal val state:State<PageContent>)
@@ -49,12 +51,17 @@ private val LocalPageStack=staticCompositionLocalOf<AppPageStack>{error("AppPage
     val active=entry===top
     BackHandler(active){page.back()}
     Surface(color=page.color,modifier=Modifier.fillMaxSize().then(if(active)Modifier.testTag("app-page") else Modifier.clearAndSetSemantics{})){
-     Column(Modifier.fillMaxSize()){
+     Box(Modifier.fillMaxSize().referenceBackdrop()){
+      page.backdrop(this)
+      Column(Modifier.fillMaxSize()){
       Row(Modifier.fillMaxWidth().heightIn(min=48.dp).padding(horizontal=6.dp),verticalAlignment=Alignment.CenterVertically){
        IconButton(onClick=page.back,modifier=Modifier.testTag("page-back")){Icon(Icons.AutoMirrored.Rounded.ArrowBack,"뒤로")}
-       Text(page.title,fontSize=14.sp,color=Muted,modifier=Modifier.clearAndSetSemantics{})
+       if(page.title=="AIFECT")Box(Modifier.weight(1f),contentAlignment=Alignment.Center){Image(androidx.compose.ui.res.painterResource(R.drawable.aifect_wordmark_vector),"AIFECT",Modifier.width(82.dp).height(22.dp))}
+       else Text(page.title,fontSize=17.sp,color=SoftText,maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis,modifier=Modifier.weight(1f).clearAndSetSemantics{})
+       page.actions(this)
       }
       Column(Modifier.weight(1f).fillMaxWidth().imePadding(),content=page.content)
+      }
      }
     }
    }}
@@ -65,9 +72,9 @@ private val LocalPageStack=staticCompositionLocalOf<AppPageStack>{error("AppPage
  }
 }
 
-@Composable internal fun AppPage(title:String,onDismissRequest:()->Unit,containerColor:Color=Ink,content:@Composable ColumnScope.()->Unit){
+@Composable internal fun AppPage(title:String,onDismissRequest:()->Unit,containerColor:Color=Ink,actions:@Composable RowScope.()->Unit={},backdrop:@Composable BoxScope.()->Unit={},content:@Composable ColumnScope.()->Unit){
  val stack=LocalPageStack.current
- val state=rememberUpdatedState(PageContent(title,onDismissRequest,containerColor,content))
+ val state=rememberUpdatedState(PageContent(title,onDismissRequest,containerColor,actions,backdrop,content))
  val entry=remember(stack){AppPageEntry(state)}
  DisposableEffect(stack,entry){stack.entries.add(entry);onDispose{stack.entries.remove(entry)}}
 }

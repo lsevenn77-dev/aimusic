@@ -87,21 +87,24 @@ internal fun Song.openDuetFor(userId:String?):Boolean=cover&&raw.optString("cove
  val participants=matches.mapNotNull{it.optString("user_id").takeIf{v->v.isNotBlank()&&v!="null"}}.distinct().size
  val complete=read.data?.optJSONObject("counts")?.optInt("duet",Int.MAX_VALUE)?.let{it<=read.data?.optJSONArray("covers").objects().size}==true
  val count=when{read.data==null->if(read.loading)"참여 집계 중" else "참여 집계 확인 중";complete->"${participants}명 참여";else->"${participants}명 이상 참여"}
- Row(Modifier.fillMaxWidth().testTag("current-track-${song.id}").padding(vertical=10.dp),horizontalArrangement=Arrangement.spacedBy(10.dp),verticalAlignment=Alignment.CenterVertically){
-  Box(Modifier.size(56.dp)){
-   Artwork(song,Modifier.fillMaxSize().clickable{m.openSong(song)},10.dp)
-   BrandPlayButton("${song.title} 먼저 듣기",{m.play(song,queue)},Modifier.align(Alignment.Center),diameter=26.dp)
+ Column(Modifier.fillMaxWidth().testTag("current-track-${song.id}")){
+  Box(Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(12.dp)).testTag("duet-card-art-${song.id}")){
+   Artwork(song,Modifier.fillMaxSize().clickable{m.openSong(song)},12.dp)
+   BrandPlayButton("${song.title} 먼저 듣기",{m.play(song,queue)},Modifier.align(Alignment.BottomEnd).padding(5.dp),diameter=34.dp)
   }
-  Column(Modifier.weight(1f).clickable{m.openSong(song)}){
-   Text(song.title,fontSize=15.sp,lineHeight=21.sp,maxLines=1,overflow=TextOverflow.Ellipsis,fontWeight=FontWeight.SemiBold)
-   Text(song.credit,fontSize=12.sp,lineHeight=18.sp,maxLines=1,overflow=TextOverflow.Ellipsis,color=Muted)
+  Row(Modifier.fillMaxWidth().heightIn(min=44.dp),verticalAlignment=Alignment.CenterVertically){
+   Row(Modifier.weight(1f).clickable{m.openSong(song)},verticalAlignment=Alignment.CenterVertically){
+    Icon(Icons.Rounded.PeopleOutline,null,Modifier.size(15.dp),tint=Muted);Spacer(Modifier.width(4.dp))
+    Text(song.title,fontSize=15.sp,lineHeight=21.sp,maxLines=1,overflow=TextOverflow.Ellipsis,fontWeight=FontWeight.SemiBold)
+   }
+   TrackActionsMenu(song,m,Modifier.size(36.dp))
   }
-  Column(horizontalAlignment=Alignment.End,verticalArrangement=Arrangement.spacedBy(2.dp)){
-   Text(count,fontSize=10.sp,lineHeight=14.sp,maxLines=1,color=Muted,modifier=Modifier.testTag("duet-participation-${song.id}"))
-   BrandButton({m.singTarget(song,sing)},Modifier.heightIn(min=44.dp).testTag("current-sing-${song.id}"),contentPadding=PaddingValues(horizontal=12.dp,vertical=8.dp)){Text("참여",fontSize=12.sp,lineHeight=18.sp)}
+  Text(song.credit,fontSize=13.sp,lineHeight=19.sp,maxLines=1,overflow=TextOverflow.Ellipsis,color=Muted)
+  Text(count,fontSize=12.sp,lineHeight=18.sp,maxLines=1,color=Muted,modifier=Modifier.padding(top=3.dp).testTag("duet-participation-${song.id}"))
+  OutlinedButton(onClick={m.singTarget(song,sing)},modifier=Modifier.fillMaxWidth().padding(top=10.dp).heightIn(min=44.dp).testTag("current-sing-${song.id}"),shape=RoundedCornerShape(12.dp),border=BorderStroke(1.dp,SoftText.copy(alpha=.3f)),colors=ButtonDefaults.outlinedButtonColors(contentColor=SoftText),contentPadding=PaddingValues(horizontal=8.dp,vertical=8.dp)){
+   Icon(Icons.Rounded.Mic,null,Modifier.size(16.dp));Text("듀엣 참여",fontSize=13.sp,lineHeight=18.sp,modifier=Modifier.padding(start=5.dp))
   }
  }
- HorizontalDivider(color=Stroke)
 }
 
 @Composable internal fun DubbingCover(project:JSONObject,modifier:Modifier=Modifier){

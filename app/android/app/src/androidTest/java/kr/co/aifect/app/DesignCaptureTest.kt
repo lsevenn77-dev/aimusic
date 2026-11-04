@@ -29,6 +29,200 @@ import java.util.concurrent.TimeUnit
 
 /** Reproducible UI handoff: real product composables, loopback sample data, no live account. */
 class DesignCaptureTest {
+ @Test fun miniPlayerClosesFromUpperRightAndKeepsTransportLower(){
+  act{it.play(Song(song),listOf(Song(song),Song(second)))};ui.waitUntil(15000){model.playing};ready("mini-player-close")
+  val close=ui.onNodeWithTag("mini-player-close").fetchSemanticsNode().boundsInRoot
+  val controls=ui.onNodeWithTag("mini-player-controls",useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
+  assertTrue(close.top<controls.top);assertTrue(close.right>controls.right);capture("277-mini-close")
+  val controller=model.controller
+  ui.onNodeWithTag("mini-player-close").performClick();ui.waitUntil(10000){model.current==null}
+  ui.runOnIdle{assertFalse(controller!!.isPlaying);assertEquals(0,controller.mediaItemCount)}
+  ui.onNodeWithTag("mini-player").assertDoesNotExist();assertFalse(model.fullPlayer)
+ }
+
+ @Test fun participationAndDubbingListsUseTwoColumnCards(){
+  val duets=(1..3).map{JSONObject(duet.toString()).put("id","grid-duet-$it").put("title","함께 부를 곡 $it")}
+  responses["/api/duets"]=payload("tracks" to arr(*duets.toTypedArray()))
+  val dubbings=(1..3).map{payload("id" to "grid-dubbing-$it","title" to "함께 읽는 이야기 $it","ownerName" to "소리","roleCount" to 2,"participants" to 1,"genres" to arr("일상"),"state" to "recruiting")}
+  responses["/api/dubbing/projects"]=payload("projects" to arr(*dubbings.toTypedArray()),"nextOffset" to JSONObject.NULL)
+  responses["/api/play/participate"]=responses.getValue("/api/dubbing/projects")
+  fun pair(a:String,b:String){val x=ui.onNodeWithTag(a).fetchSemanticsNode().boundsInRoot;val y=ui.onNodeWithTag(b).fetchSemanticsNode().boundsInRoot;assertEquals(x.top,y.top,2f);assertTrue(x.right<y.left);assertEquals(x.width,y.width,2f)}
+  act{it.selectTab(2);it.playMode="song";it.playSection="duets"};ready("play-grid-card-grid-duet-1");pair("play-grid-card-grid-duet-1","play-grid-card-grid-duet-2")
+  val art=ui.onNodeWithTag("duet-card-art-grid-duet-1").fetchSemanticsNode().boundsInRoot;assertEquals(art.width,art.height,2f);capture("277-duet-grid")
+  for(section in listOf("discover","join","mine")){
+   act{it.playMode="dubbing";it.playSection=section};ready("dubbing-card-art-grid-dubbing-1");pair("play-grid-card-grid-dubbing-1","play-grid-card-grid-dubbing-2");capture("277-dubbing-$section-grid")
+   ui.onNodeWithTag("dubbing-card-open-grid-dubbing-1").assertExists()
+  }
+  assertFalse(requestBodies.keys.any{it.startsWith("/api/dubbing/")})
+ }
+
+ @Test fun myArtistsScrollAndMyPlaylistsKeepTwoColumnLayout(){
+  val artists=(1..5).map{payload("id" to "shelf-artist-$it","name" to "아티스트 $it","image_version" to "sample")}
+  responses.getValue("/api/producers/design-own?dashboard=1").put("artists",arr(*artists.toTypedArray()))
+  val lists=(1..3).map{JSONObject(playlist.toString()).put("id","grid-list-$it").put("name","내 음악 목록 $it")}
+  responses.getValue("/api/library").put("collections",arr(*lists.toTypedArray()))
+  responses["/api/playlists"]=payload("playlists" to arr(*lists.toTypedArray()))
+  responses["/api/playlists/grid-list-1"]=payload("playlist" to lists[0],"tracks" to arr(song,second))
+  act{it.refreshMyDashboard(true);it.refreshLibrary(fresh=true);it.selectTab(6)}
+  ui.waitUntil(15000){!model.ownDashboardLoading&&model.ownDashboard?.optJSONArray("artists")?.length()==5&&model.playlists.size==3}
+  ui.onNodeWithTag("current-my").performScrollToNode(hasTestTag("my-artist-shelf"));ui.onNodeWithTag("my-artist-shelf").performScrollToNode(hasTestTag("my-artist-shelf-artist-5"));ui.onNodeWithTag("my-artist-shelf-artist-5").assertIsDisplayed();capture("277-artist-shelf-last")
+  ui.onNodeWithTag("current-my").performScrollToNode(hasTestTag("my-section-library"));ui.onNodeWithTag("my-section-library").performClick();ui.onNodeWithTag("my-playlists-open").performClick();ready("my-playlist-grid")
+  val a=ui.onNodeWithTag("my-playlist-tile-grid-list-1").fetchSemanticsNode().boundsInRoot;val b=ui.onNodeWithTag("my-playlist-tile-grid-list-2").fetchSemanticsNode().boundsInRoot
+  assertEquals(a.top,b.top,2f);assertTrue(a.right<b.left);capture("277-playlist-grid")
+  ui.onNodeWithTag("my-playlist-search").performTextInput("목록 1");Espresso.closeSoftKeyboard();ui.onNodeWithTag("my-playlist-tile-grid-list-2").assertDoesNotExist()
+  ui.onNodeWithTag("my-playlist-manage-grid-list-1").performClick();ready("playlist-cover-edit");Espresso.pressBack();ready("my-playlist-grid")
+  assertFalse(requestBodies.keys.any{it.startsWith("/api/playlists")})
+ }
+
+ @Test fun musicFriendSearchStartsEmptyAndFindsNicknameOrPublicId(){
+  responses["/api/search?q=JUV1024"]=payload("producers" to arr(JSONObject(peer.toString()).put("public_id","JUV1024")))
+  val before=requestUrls.size
+  act{it.selectTab(5)};ready("inbox-compose");ui.onNodeWithTag("inbox-compose").performClick();ready("new-conversation-search")
+  ui.onNodeWithTag("new-conversation-design-peer").assertDoesNotExist();ui.onNodeWithTag("new-conversation-empty").assertIsDisplayed();capture("277-friend-empty")
+  assertFalse(requestUrls.drop(before).any{it=="/api/catalog?section=producers"||it=="/api/search?q="})
+  ui.onNodeWithTag("new-conversation-search").performTextInput("하루");ready("new-conversation-design-peer");ui.onNodeWithTag("new-conversation-design-own").assertDoesNotExist()
+  ui.onNodeWithTag("new-conversation-search").performTextReplacement("JUV1024");text("ID JUV1024");Espresso.closeSoftKeyboard();capture("277-friend-id")
+  ui.onNodeWithTag("new-conversation-search").performTextClearance();ui.onNodeWithTag("new-conversation-design-peer").assertDoesNotExist();ui.onNodeWithTag("new-conversation-empty").assertIsDisplayed();Espresso.closeSoftKeyboard()
+ }
+
+ @Test fun sentGiftsShowCatalogArtworkQuantityAndRecordedTotals(){
+  val wallet=responses.getValue("/api/gold")
+  wallet.put("sent",arr(payload("id" to "receipt-gold","created" to now,"gift_type" to "heart","gift_name" to "하트","quantity" to 3,"gold" to 150,"title" to "밤의 산책","track_id" to "design-song")))
+  wallet.put("free_sent",arr(payload("id" to "receipt-silver","created" to now-10,"gift_type" to "silver-letter","gift_name" to "손편지","quantity" to 2,"silver" to 4,"title" to "하루","recipient_profile_id" to "design-peer")))
+  act{it.selectTab(6)};ready("current-my");ui.onNodeWithTag("current-my").performScrollToNode(hasTestTag("my-section-inventory"));ui.onNodeWithTag("my-section-inventory").performClick();ready("my-inventory");ui.waitUntil(10000){ui.onAllNodesWithTag("my-inventory-loading").fetchSemanticsNodes().isEmpty()}
+  val scroll=ui.onNodeWithTag("current-my");scroll.performScrollToNode(hasTestTag("inventory-sent-gifts"))
+  repeat(6){if(runCatching{ui.onNodeWithTag("inventory-sent-gifts").assertIsDisplayed();true}.getOrDefault(false).not())scroll.performTouchInput{swipeUp()}}
+  ui.onNodeWithTag("inventory-sent-gifts").assertIsDisplayed().assertIsEnabled().performClick();ready("sent-gift-history")
+  ui.onNodeWithTag("sent-gift-G-receipt-gold-image",useUnmergedTree=true).assertIsDisplayed();ui.onNodeWithTag("sent-gift-G-receipt-gold-quantity",useUnmergedTree=true).assertTextEquals("×3");ui.onNodeWithTag("sent-gift-G-receipt-gold-amount",useUnmergedTree=true).assertTextEquals("150 G");capture("277-sent-gifts")
+  ui.onNodeWithTag("sent-gift-filter-silver").performClick();ui.onNodeWithTag("sent-gift-G-receipt-gold").assertDoesNotExist();ui.onNodeWithTag("sent-gift-S-receipt-silver-amount",useUnmergedTree=true).assertTextEquals("4 S");capture("277-sent-silver")
+  assertFalse(requestBodies.keys.any{it.contains("/gifts")})
+ }
+
+ @Test fun combinedSupportRankingIncludesAiWithoutSeparateInventoryEntry(){
+  val ai=payload("rank" to 1,"profile_id" to "design-ai","name" to "응원 친구","account_type" to "ai_bot","official_stars" to 2400,"gold" to 0,"stars" to 0,"score" to 2400)
+  responses.getValue("/api/producers/design-own/gifts").put("support_ranking",arr(ai,JSONObject(rank.getJSONObject(0).toString()).put("rank",2).put("account_type","human")))
+  act{it.selectTab(6)};ready("current-my");ui.onNodeWithTag("my-section-inventory").performClick();ready("my-inventory")
+  ui.onNodeWithTag("inventory-official-support").assertDoesNotExist()
+  ui.onNodeWithTag("current-my").performScrollToNode(hasTestTag("inventory-gift-ranking"));ui.onNodeWithTag("inventory-gift-ranking").performClick();ready("my-gift-ranking-page")
+  text("★x2,400");text("★x1,320");text("응원별 2,400개");ui.onNodeWithContentDescription("공식 AI 응원 계정",useUnmergedTree=true).assertIsDisplayed()
+  assertTrue(ui.onNodeWithTag("my-gift-rank-1").fetchSemanticsNode().boundsInRoot.top<ui.onNodeWithTag("my-gift-rank-2").fetchSemanticsNode().boundsInRoot.top)
+  capture("276-combined-ranking");assertFalse(requestBodies.containsKey("/api/diamonds/exchange"))
+ }
+
+ @Test fun diamondWalletPrioritizesBalancePreviewAndExpandablePolicy(){
+  responses["/api/diamonds"]=payload("available" to 150.5,"partner" to payload("tier" to "general","eligible_krw" to 20000),"history" to JSONArray())
+  responses["/api/studio/payout-account"]=payload("can_register" to true,"account" to JSONObject.NULL,"statements" to JSONArray(),"banks" to arr("테스트은행"))
+  act{it.showDiamonds=true};ready("diamond-balance-card");text("◇ 150.5");text("500 G");capture("276-diamonds-top")
+  val scroll=ui.onNodeWithTag("diamond-screen")
+  scroll.performScrollToNode(hasTestTag("diamond-policy-card"));ui.onNodeWithTag("diamond-policy-details").assertDoesNotExist()
+  ui.onNodeWithTag("diamond-policy-toggle").performClick();ui.onNodeWithTag("diamond-policy-details").assertExists();capture("276-diamonds-policy");ui.onNodeWithTag("diamond-policy-toggle").performClick()
+  scroll.performScrollToNode(hasTestTag("diamond-amount"));ui.onNodeWithTag("diamond-amount").performTextReplacement("200");Espresso.closeSoftKeyboard();scroll.performScrollToNode(hasTestTag("diamond-submit"));ui.onNodeWithTag("diamond-submit").assertIsNotEnabled()
+  scroll.performScrollToNode(hasTestTag("diamond-mode-cash"));ui.onNodeWithTag("diamond-mode-cash").performClick();ui.onNodeWithTag("diamond-amount").performTextReplacement("50");Espresso.closeSoftKeyboard();scroll.performScrollToNode(hasTestTag("diamond-submit"));ui.onNodeWithTag("diamond-submit").assertIsNotEnabled();text("100다이아부터 현금 정산할 수 있어요.")
+  scroll.performScrollToNode(hasTestTag("diamond-amount"));ui.onNodeWithTag("diamond-amount").performTextReplacement("100");Espresso.closeSoftKeyboard();scroll.performScrollToNode(hasTestTag("diamond-preview"));text("10,000원");capture("276-diamonds-cash")
+  assertFalse(requestBodies.containsKey("/api/diamonds/exchange"));assertFalse(requestBodies.containsKey("/api/diamonds/payout"));assertFalse(requestBodies.containsKey("/api/studio/payout-account"))
+ }
+
+ @Test fun summaryPlayerUsesCurrentAlbumBackdropWithoutRestartingPlayback(){
+  act{it.play(Song(song),listOf(Song(song),Song(second)))};ui.waitUntil(15000){model.playing};ready("mini-player-open")
+  val controller=model.controller
+  ui.onNodeWithTag("mini-player-open").performClick();ready("player-art-backdrop");assertSame(controller,model.controller);assertTrue(model.playing);capture("276-summary-blur")
+  ui.onNodeWithContentDescription("다음 곡").performScrollTo().performClick();ui.waitUntil(10000){model.current?.id=="design-ocean"};ready("player-art-backdrop");assertSame(controller,model.controller);assertTrue(model.playing);capture("276-summary-next-blur")
+  Espresso.pressBack();ui.waitUntil(5000){!model.fullPlayer};ready("mini-player-current-lyric");assertEquals("design-ocean",model.current?.id)
+ }
+
+ @Test fun referenceWorksOpensConsistentFilteredPagesAndReturns(){
+  act{it.selectTab(6)};ready("current-my");ui.waitUntil(15000){!model.ownDashboardLoading}
+  capture("271-my");ui.onNodeWithText("ID QXF7082  ⧉").assertIsDisplayed()
+  ui.onNodeWithTag("current-my").performScrollToNode(hasTestTag("my-creations-preview"))
+  ui.onNode(hasText("전체보기") and hasAnyAncestor(hasTestTag("my-creations-preview"))).performClick()
+  ready("my-all-grid");capture("271-works-all")
+  ui.onNodeWithTag("my-all-kind-duet").performClick();ui.onNodeWithTag("my-all-kind-duet").assertIsSelected()
+  ui.onNodeWithTag("work-card-song-design-duet").assertIsDisplayed()
+  ui.onNodeWithTag("work-card-song-design-cover").assertDoesNotExist();capture("271-works-duet")
+  ui.onNodeWithTag("my-all-kind-dubbing").performClick();ui.onNodeWithTag("work-card-dubbing-design-dubbing").assertIsDisplayed();capture("271-works-dubbing")
+  ui.onNodeWithTag("my-all-search").performTextInput("없는 제목");text("표시할 작품이 없어요");Espresso.closeSoftKeyboard()
+  Espresso.pressBack();ready("my-creations-preview")
+  ui.onNodeWithTag("current-my").performScrollToNode(hasTestTag("my-section-library"));ui.onNodeWithTag("my-section-library").performClick();capture("271-library")
+  ui.onNodeWithTag("my-section-inventory").performClick();ready("my-inventory");capture("275-inventory")
+  act{it.selectTab(5)};ready("inbox-filter-전체");capture("271-messages")
+  act{it.selectTab(0)};ready("home-carousel");capture("271-home")
+ }
+
+ @Test fun myInventoryShowsWalletGiftsRankingAndStoredPublicId(){
+  responses.getValue("/api/gold").put("balance",1250000).put("diamonds",payload("balance" to 2.5)).put("official_received",payload("quantity" to 9,"gifts" to JSONArray()))
+  val stock=payload("id" to "stock-one","gift_type" to "heart","gift_name" to "하트","currency" to "gold","value" to 50,"available" to true,"image" to "/assets/gifts/heart.webp")
+  responses["/api/me/gift-inventory"]=payload("items" to arr(stock,JSONObject(stock.toString()).put("id","stock-two")))
+  responses.getValue("/api/producers/design-own/gifts").put("total_gold",2100).put("free_count",60)
+  act{it.selectTab(6)};ready("current-my");ui.waitUntil(15000){!model.ownDashboardLoading}
+  ui.onNodeWithTag("my-section-activity").assertDoesNotExist();ui.onNodeWithText("ID QXF7082  ⧉").performClick()
+  val clipboard=context.getSystemService(android.content.ClipboardManager::class.java)
+  ui.runOnIdle{assertEquals("QXF7082",clipboard.primaryClip?.getItemAt(0)?.text?.toString())};capture("275-my")
+  ui.onNodeWithTag("my-gift-ranking").performClick();ready("my-gift-ranking-page");text("★x1,320");text("★x840");capture("275-ranking")
+  assertTrue(ui.onNodeWithTag("my-gift-rank-1").fetchSemanticsNode().boundsInRoot.top<ui.onNodeWithTag("my-gift-rank-2").fetchSemanticsNode().boundsInRoot.top)
+  Espresso.pressBack();ui.onNodeWithTag("my-section-inventory").performClick();ready("my-inventory")
+  val scroll=ui.onNodeWithTag("current-my")
+  scroll.performScrollToNode(hasTestTag("inventory-gold"));ui.onNodeWithTag("inventory-balance-골드",useUnmergedTree=true).assertTextEquals("1,250,000 G")
+  scroll.performScrollToNode(hasTestTag("inventory-silver"));ui.onNodeWithTag("inventory-balance-실버",useUnmergedTree=true).assertTextEquals("80 S")
+  scroll.performScrollToNode(hasTestTag("inventory-diamonds"));ui.onNodeWithTag("inventory-balance-다이아",useUnmergedTree=true).assertTextEquals("2.5 ◇");capture("275-inventory-wallet")
+  scroll.performScrollToNode(hasTestTag("my-owned-gift-heart-available"));text("2개 보유");capture("275-inventory-gifts")
+  scroll.performScrollToNode(hasTestTag("inventory-equipment"));ui.onNodeWithTag("inventory-equipment").performClick();ready("owned-inventory");Espresso.pressBack()
+  scroll.performScrollToNode(hasTestTag("my-section-library"));ui.onNodeWithTag("my-section-library").performClick();ready("my-library-cards")
+  assertFalse(requestBodies.containsKey("/api/me/gift-inventory/buy"));assertFalse(requestBodies.containsKey("/api/diamonds/exchange"))
+ }
+
+ @Test fun myInventoryUsesOneLoaderAcrossWalletAndStock(){
+  val wallet=CountDownLatch(1);val stock=CountDownLatch(1)
+  heldResponses["/api/gold"]=wallet;heldRequests["/api/gold"]=CountDownLatch(1)
+  heldResponses["/api/me/gift-inventory"]=stock;heldRequests["/api/me/gift-inventory"]=CountDownLatch(1)
+  try{
+   act{it.selectTab(6)};ready("current-my");ui.onNodeWithTag("my-section-inventory").performClick()
+   ui.waitUntil(10000){heldRequests.getValue("/api/gold").count==0L&&heldRequests.getValue("/api/me/gift-inventory").count==0L}
+   ui.onAllNodesWithTag("my-inventory-loading").assertCountEquals(1)
+   wallet.countDown();heldResponses.remove("/api/gold");ui.onAllNodesWithTag("my-inventory-loading").assertCountEquals(1)
+   stock.countDown();heldResponses.remove("/api/me/gift-inventory")
+   ui.waitUntil(10000){ui.onAllNodesWithTag("my-inventory-loading").fetchSemanticsNodes().isEmpty()}
+  }finally{wallet.countDown();stock.countDown();heldResponses.clear();heldRequests.clear()}
+ }
+
+ @Test fun referenceSongFitsActionsAndScrollControlsPlayer(){
+  val longSong=JSONObject(song.toString()).put("description","늦은 밤의 골목을 지나며 오늘의 마음을 되돌아봅니다. 평소에는 지나쳤던 풍경과 마음속에 남아 있던 말을 차분히 꺼내는 곡입니다. 조금 느리게 걸어도 괜찮다는 이야기를 음악으로 남겼어요. 마지막까지 함께 들어주세요.")
+  responses["/api/tracks/design-song"]=payload("track" to longSong,"comments" to JSONArray())
+  act{it.openSong(Song(longSong))};ready("song-detail-listen")
+  ui.onNodeWithTag("song-action-좋아요").assertIsDisplayed();ui.onNodeWithTag("song-action-선물").assertIsDisplayed();ui.onNodeWithTag("song-details-jump").assertIsDisplayed()
+  ui.onNodeWithTag("mini-player").assertDoesNotExist()
+  val jumpBounds=ui.onNodeWithTag("song-details-jump-label",useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
+  val viewportBounds=ui.onNodeWithTag("song-detail-scroll").fetchSemanticsNode().boundsInRoot
+  assertTrue("The complete details label stays inside the viewport",jumpBounds.bottom<=viewportBounds.bottom&&jumpBounds.top>=viewportBounds.top)
+  val jumpLayouts=mutableListOf<TextLayoutResult>();ui.onNodeWithTag("song-details-jump-label",useUnmergedTree=true).performSemanticsAction(SemanticsActions.GetTextLayoutResult){it(jumpLayouts)}
+  capture("274-jump-before-assert");assertFalse("Details label overflow: size=${jumpLayouts.single().size}, width=${jumpLayouts.single().didOverflowWidth}, height=${jumpLayouts.single().didOverflowHeight}, bounds=$jumpBounds, viewport=$viewportBounds",jumpLayouts.single().hasVisualOverflow);assertTrue("Full text height is visible",jumpBounds.height>=jumpLayouts.single().size.height-1);capture("271-song-hero")
+  ui.onNodeWithTag("song-detail-listen").performClick();ui.waitUntil(15000){model.playing}
+  ui.onNodeWithTag("mini-player").assertDoesNotExist()
+  ui.onNodeWithTag("song-details-jump").performScrollTo().performClick();ready("mini-player");ui.onNodeWithTag("mini-player").assertIsDisplayed()
+  ui.onNodeWithTag("song-description-toggle").assertIsDisplayed();capture("271-song-details")
+  ui.onNodeWithTag("song-description-toggle").performClick();ui.onNodeWithText("접기").assertIsDisplayed()
+  ui.onNodeWithTag("song-description-toggle").performClick();ui.onNodeWithText("더보기").assertIsDisplayed()
+  ui.onNodeWithTag("song-detail-scroll").performScrollToIndex(0);ui.onNodeWithTag("song-detail-listen").assertIsDisplayed();ui.onNodeWithTag("mini-player").assertDoesNotExist()
+  assertTrue(model.playing)
+  Espresso.pressBack();ready("mini-player");assertTrue(model.playing)
+ }
+ @Test fun referenceRedesignKeepsRealRoutesAndSeparateMySections(){
+  capture("reference-home")
+  act{it.selectTab(2)};ready("current-play");capture("reference-play")
+  act{it.selectTab(3)};ready("community-main");capture("reference-community")
+  act{it.selectTab(5)};ready("inbox-filter-전체");capture("reference-messages")
+  ui.onNodeWithTag("inbox-filter-안 읽음").performClick();ui.onNodeWithTag("inbox-filter-안 읽음").assertIsSelected()
+  act{it.selectTab(6)};ready("current-my")
+  ui.onNodeWithTag("current-my").performScrollToNode(hasTestTag("my-section-library"))
+  capture("reference-my-works")
+  ui.onNodeWithTag("my-section-library").performClick()
+  ui.onNodeWithTag("current-my").performScrollToNode(hasTestTag("my-library-cards"));capture("reference-my-library")
+  ui.onNodeWithTag("current-my").performScrollToNode(hasTestTag("my-section-inventory"))
+  ui.onNodeWithTag("my-section-inventory").performClick()
+  ui.onNodeWithTag("current-my").performScrollToNode(hasTestTag("my-inventory"));capture("reference-my-inventory")
+  act{it.openSong(Song(song))};ready("song-detail-listen");capture("reference-song")
+  ui.onNodeWithTag("song-detail-listen").performClick();ui.waitUntil(15000){model.current?.id=="design-song"}
+  assertEquals("design-song",model.detail?.id)
+ }
  @get:Rule val ui=createEmptyComposeRule()
  private val instrumentation=InstrumentationRegistry.getInstrumentation()
  private val context=instrumentation.targetContext
@@ -47,7 +241,7 @@ class DesignCaptureTest {
  private val me=payload("id" to "design-user","profile_id" to "design-own","name" to "소리","display_name" to "소리(밤산책)","email" to "design@example.test","provider" to "email","image_version" to "sample-ocean")
  private fun arr(vararg values:Any)=JSONArray().apply{values.forEach{put(it)}}
  private fun person(id:String,name:String,user:String)=payload("id" to id,"name" to name,"display_name" to "$name(밤산책)","user_id" to user,"image_version" to "sample","bio" to "좋아하는 음악을 듣고, 나만의 목소리로 남겨요.","crew_name" to "밤산책")
- private val own=person("design-own","소리","design-user")
+ private val own=person("design-own","소리","design-user").put("public_number",5049).put("public_id","QXF7082")
  private val peer=person("design-peer","하루","design-other")
  private val crew=payload("id" to "design-crew","name" to "밤산책","description" to "하루 끝, 음악으로 만나는 우리. 서로의 노래를 듣고 함께 불러요.","interests" to "City Pop · Ballad · R&B","image_version" to "sample","level" to 3,"xp" to 1280,"next_xp" to 2000,"capacity" to 50,"members" to 12,"recruiting" to 1)
  private val member=payload("crew_id" to "design-crew","user_id" to "design-user","role" to "member","joined_sequence" to 1,"joined" to now-86400,"muted" to 0)
@@ -65,6 +259,7 @@ class DesignCaptureTest {
   NativeSession.put(context,"cookie","");NativeSession.put(context,"ticket","")
   responses["/api/me"]=payload("user" to me,"membership" to payload("plan" to "free"),"providers" to JSONArray(),"emailEnabled" to true)
   responses["/api/me/profile"]=payload("profile" to own,"followers" to arr(peer),"follower_count" to 24,"following_count" to 18)
+  responses["/api/me/profile?section=activity"]=payload("recent" to arr(payload("kind" to "like","created" to now,"title" to "푸른 순간","target" to "design-ocean","route" to "song")),"received" to JSONArray())
   responses["/api/me/player"]=payload("player" to payload("level" to 3,"xp" to 180,"remaining" to 120,"progress" to 0.2),"inventory" to JSONArray(),"rewards" to JSONArray(),"rules" to JSONArray())
   responses["/api/me/gift-inventory"]=payload("items" to JSONArray())
   responses["/api/library"]=payload("likes" to arr(song,cover),"collections" to arr(playlist),"follows" to arr(payload("target_id" to "design-peer","kind" to "producer","name" to "하루")))
@@ -156,7 +351,7 @@ class DesignCaptureTest {
   ui.waitUntil(30000){!model.loading&&model.user!=null&&model.home.isNotEmpty()}
  }
  @After fun close(){if(::screen.isInitialized)screen.close();context.stopService(Intent(context,PlaybackService::class.java));if(::server.isInitialized)server.close();workers.shutdownNow()}
- private fun ready(tag:String){ui.waitUntil(15000){ui.onAllNodesWithTag(tag,useUnmergedTree=true).fetchSemanticsNodes().isNotEmpty()}}
+ private fun ready(tag:String){try{ui.waitUntil(15000){ui.onAllNodesWithTag(tag,useUnmergedTree=true).fetchSemanticsNodes().isNotEmpty()}}catch(e:Throwable){capture("failure-$tag");throw AssertionError("Timed out waiting for $tag",e)}}
  private fun text(value:String){ui.waitUntil(15000){ui.onAllNodesWithText(value).fetchSemanticsNodes().isNotEmpty()}}
  private fun act(block:(MusicModel)->Unit){screen.onActivity{block(model)};ui.waitForIdle()}
  private fun capture(name:String){ui.waitForIdle();instrumentation.waitForIdleSync();Thread.sleep(850);val image=instrumentation.uiAutomation.takeScreenshot();val dir=File(context.getExternalFilesDir(null),"design-2549");dir.mkdirs();FileOutputStream(File(dir,name+".png")).use{image.compress(Bitmap.CompressFormat.PNG,100,it)};image.recycle()}
@@ -224,12 +419,11 @@ class DesignCaptureTest {
   }
   val artist=bounds("home-song-artist-design-song");val stats=bounds("home-song-stats-design-song")
   val copy=bounds("home-song-copy-design-song")
-  val art=ui.onNode(hasTestTag("stream-play-design-song") and hasAnyAncestor(hasTestTag("stream-song-design-song")),useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
+  val art=ui.onNodeWithTag("home-song-art-design-song",useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
   capture("home-257-04-long-row")
-  assertTrue("Artist remains readable beside counts",artist.width>24*context.resources.displayMetrics.density)
-  assertTrue("Counts cannot overlap the artist",stats.left>=artist.right)
-  assertTrue("Counts stay on the artist line",kotlin.math.abs(artist.center.y-stats.center.y)<3*context.resources.displayMetrics.density)
-  assertTrue("Two-line block fits the artwork: text=$copy art=$art",copy.height<=art.height+6*context.resources.displayMetrics.density)
+  assertTrue("Artist remains readable",artist.width>24*context.resources.displayMetrics.density)
+  assertTrue("Counts stay below artist without overlap",stats.top>=artist.bottom)
+  assertTrue("Three-line block fits the artwork: text=$copy art=$art",copy.height<=art.height+6*context.resources.displayMetrics.density)
   assertTrue("Metadata stays within the row",stats.right<=copy.right+1)
   ui.onNodeWithContentDescription("재생 12840",useUnmergedTree=true).assertExists()
   act{it.home=original};scroll.performScrollToIndex(0)
@@ -338,7 +532,7 @@ class DesignCaptureTest {
   ui.onNodeWithTag("play-section-duets").performClick();ready("current-sing-design-duet");text("2명 참여")
   for(id in listOf("design-cover","completed-duet","closed-duet","own-duet"))ui.onNodeWithTag("current-track-$id").assertDoesNotExist()
   val row=ui.onNodeWithTag("current-track-design-duet").fetchSemanticsNode().boundsInRoot
-  assertTrue("Duet rows stay compact",row.height/context.resources.displayMetrics.density<=96f)
+  assertTrue("Duet participation uses a half-width card",row.width<ui.onNodeWithTag("play-results").fetchSemanticsNode().boundsInRoot.width*.52f)
   capture("play-263-duets")
   val monitor=instrumentation.addMonitor("kr.co.aifect.app.karaoke.KaraokeActivity",null,false)
   try{ui.onNodeWithTag("current-sing-design-duet").performClick();val room=instrumentation.waitForMonitorWithTimeout(monitor,15000);assertNotNull(room)
@@ -389,7 +583,7 @@ class DesignCaptureTest {
  @Test fun polish266HomeAndCrewCarouselsAdvanceAndPause(){
   fun state(tag:String)=ui.onNodeWithTag(tag).fetchSemanticsNode().config[SemanticsProperties.StateDescription]
   ready("home-carousel");val first=state("home-carousel");val started=android.os.SystemClock.uptimeMillis()
-  ui.waitUntil(4700){state("home-carousel")!=first};assertTrue(android.os.SystemClock.uptimeMillis()-started>=2100)
+  ui.waitUntil(6200){state("home-carousel")!=first};assertTrue(android.os.SystemClock.uptimeMillis()-started>=3600)
   ui.onNodeWithTag("home-carousel").performTouchInput{swipeLeft(durationMillis=350)};ui.waitForIdle();val manual=state("home-carousel")
   Thread.sleep(1000);assertEquals(manual,state("home-carousel"))
   act{it.showInventory=true};ready("owned-inventory");Thread.sleep(3400);Espresso.pressBack();ready("home-carousel");assertEquals(manual,state("home-carousel"));capture("polish-266-home-carousel")
@@ -401,6 +595,7 @@ class DesignCaptureTest {
  }
 
  @Test fun polish265LevelInventoryNavigationAndStudio(){
+  responses["/api/me/profile?section=activity"]=payload("recent" to arr(payload("kind" to "like","created" to now,"title" to "푸른 순간","target" to "design-ocean","route" to "song")),"received" to JSONArray())
   responses["/api/me/player"]=payload("player" to payload("level" to 3,"xp" to 420,"level_xp" to 120,"next_xp" to 600,"remaining" to 180,"progress" to .4),"inventory" to JSONArray(),"rules" to arr(payload("kind" to "listen","label" to "음악 감상","xp" to 10,"limit" to "하루 한 번")),"recent" to arr(payload("kind" to "listen","amount" to 10,"created" to now)))
   act{it.selectTab(6)};ready("current-my");ui.onNodeWithTag("my-shop").assertIsDisplayed()
   val scroll=ui.onNodeWithTag("current-my")
@@ -467,6 +662,7 @@ class DesignCaptureTest {
   dashboard.getJSONObject("profile").put("public_number",1)
   dashboard.put("artists",arr(payload("id" to "design-artist","name" to "NOVA","image_version" to "sample"),payload("id" to "design-artist-2","name" to "ARIA","image_version" to "sample-ocean")))
   val inventory=JSONArray();repeat(5){inventory.put(payload("id" to "frame-$it","item_key" to "crew-outline","name" to "프레임 ${it+1}","owned" to true,"available" to true,"equipped" to (it==0),"description" to "숨길 설명"))}
+  responses["/api/me/profile?section=activity"]=payload("recent" to arr(payload("kind" to "like","created" to now,"title" to "푸른 순간","target" to "design-ocean","route" to "song")),"received" to JSONArray())
   responses["/api/me/player"]=payload("inventory" to inventory,"rewards" to arr(payload("id" to "locked","name" to "미보유 보상","owned" to false)),"player" to payload("level" to 3))
   for(currency in listOf("silver","gold"))responses["/api/gold/history?currency=$currency"]=payload("currency" to currency,"earned" to arr(payload("kind" to if(currency=="silver")"checkin" else "purchase","amount" to 100,"created" to now)),"spent" to arr(payload("kind" to "gift","title" to "하트 선물","amount" to 20,"created" to now-10)))
   act{it.refreshMyDashboard(true)};ui.waitUntil(15000){!model.ownDashboardLoading&&model.ownDashboard?.optJSONArray("artists")?.length()==2}
@@ -684,9 +880,14 @@ class DesignCaptureTest {
    ui.onNodeWithTag("creator-studio").performScrollToNode(hasTestTag("studio-upload"));ui.onNodeWithTag("studio-upload").performClick();ready("studio-title")
    ui.onNodeWithText("WAV · FLAC · MP3 선택 (80MB 이하)").performClick();text("original-test.wav")
    ui.onNodeWithTag("studio-field-AI 제작 도구").performScrollTo().performTextReplacement("Suno");Espresso.closeSoftKeyboard()
-   for(label in listOf("AI로 제작한 음원입니다.","음원과 이미지의 권리를 보유하고 있습니다.","노래방 MR 제공 및 다른 이용자의 커버를 허락합니다."))ui.onNodeWithTag("studio-consent-$label").performScrollTo().performClick()
+   ui.onNodeWithTag("studio-lyrics").performScrollTo().performTextReplacement("별빛 아래 걷는다")
+   Espresso.closeSoftKeyboard()
+   ui.onNodeWithTag("studio-save").assertIsNotEnabled()
+   ui.onNodeWithTag("studio-upload-consent").performScrollTo().performClick()
    ui.onNodeWithTag("studio-save").performScrollTo().performClick();ready("creator-studio")
    val body=JSONObject(requestBodies.getValue("/api/uploads"));assertEquals("wav",body.getString("extension"));assertEquals(1024,body.getInt("bytes"))
+   assertEquals("auto",body.getString("lyrics_mode"));assertEquals("2026-11-02.1",body.getString("upload_consent_version"))
+   for(flag in listOf("rights","is_ai","karaoke"))assertEquals(true,body.getBoolean(flag))
    assertEquals(1024,uploadBytes.getValue("/api/uploads/new-original/audio"));assertEquals(1,requestUrls.count{it=="/api/uploads"})
    assertEquals(1,requestUrls.count{it=="/api/uploads/new-original/complete"})
   }finally{instrumentation.removeMonitor(monitor);file.delete()}
@@ -1065,6 +1266,20 @@ class DesignCaptureTest {
   Espresso.pressBack();ui.onNodeWithText("내 활동").performClick();phaseCapture("09-my-activity")
   ui.onNodeWithTag("account-menu").performClick();ready("account-actions");Espresso.pressBack()
   ui.onNodeWithText("내 음악").performClick();ui.onNodeWithTag("my-music-page").performScrollToNode(hasText("창작자 스튜디오"));ui.onNodeWithText("창작자 스튜디오").performClick();ready("creator-studio");Espresso.pressBack();assertEquals(6,model.tab)
+ }
+ @Test fun miniPlayerLyricsAreCenteredAcrossEntireBar(){
+  act{it.play(Song(song),listOf(Song(song),Song(second)))};ui.waitUntil(15000){model.playing};ready("mini-player-current-lyric")
+  val layouts=mutableListOf<TextLayoutResult>()
+  ui.onNodeWithTag("mini-player-current-lyric",useUnmergedTree=true).performSemanticsAction(SemanticsActions.GetTextLayoutResult){it(layouts)}
+  val layout=layouts.single()
+  assertEquals(androidx.compose.ui.text.style.TextAlign.Center,layout.layoutInput.style.textAlign)
+  assertEquals(layout.size.width/2f,(layout.getLineLeft(0)+layout.getLineRight(0))/2f,2f)
+  val bar=ui.onNodeWithTag("mini-player").fetchSemanticsNode().boundsInRoot
+  val lyrics=ui.onNodeWithTag("mini-player-current-lyric",useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
+  assertEquals(bar.center.x,lyrics.center.x,2f);assertTrue(lyrics.width>bar.width*.85f)
+  capture("275-mini-lyrics-centered")
+  val controller=model.controller
+  act{it.selectTab(6)};assertSame(controller,model.controller);assertEquals("design-song",model.current?.id);assertTrue(model.playing)
  }
  @Test fun streamingMiniPlayerKeepsSessionAndExpandedControls(){
   act{it.play(Song(song),listOf(Song(song),Song(second)))};ui.waitUntil(15000){model.playing};ready("mini-player-open");text("오늘의 마음을 이 노래에 담아요")

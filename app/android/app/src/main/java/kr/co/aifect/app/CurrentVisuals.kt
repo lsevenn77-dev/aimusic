@@ -94,8 +94,8 @@ internal fun currentDubbingImage(p:JSONObject):String {
 
 /** The deployed My page's section surface, rather than a standalone oversized heading. */
 @Composable internal fun CurrentPanel(title:String,count:Int?=null,action:String?=null,onAction:()->Unit={},content:@Composable ColumnScope.()->Unit){
- Surface(color=Panel,shape=RoundedCornerShape(16.dp),border=BorderStroke(1.dp,Stroke),modifier=Modifier.fillMaxWidth()){
-  Column(Modifier.padding(14.dp)){
+ Surface(color=Color.Transparent,modifier=Modifier.fillMaxWidth()){
+  Column(Modifier.padding(vertical=5.dp)){
    Row(Modifier.fillMaxWidth().heightIn(min=44.dp),verticalAlignment=Alignment.CenterVertically){
     Text(title,fontSize=16.sp,lineHeight=22.sp,fontWeight=FontWeight.SemiBold)
     count?.let{Text(" $it",color=Aqua,fontSize=15.sp,fontWeight=FontWeight.SemiBold)}
@@ -104,20 +104,13 @@ internal fun currentDubbingImage(p:JSONObject):String {
      Text(action,fontSize=12.sp);Icon(Icons.Rounded.ChevronRight,null,Modifier.size(16.dp))
     }
    }
-   Spacer(Modifier.height(10.dp));content()
+   Spacer(Modifier.height(5.dp));content()
   }
  }
 }
 
 @Composable internal fun CurrentMySwitch(selected:String,onSelect:(String)->Unit){
- Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).border(1.dp,Stroke,RoundedCornerShape(24.dp)).padding(3.dp).testTag("my-section")){
-  listOf("works" to "내 작품","activity" to "내 활동").forEach{(key,label)->
-   val active=key==selected
-   Box(Modifier.weight(1f).clip(RoundedCornerShape(22.dp)).then(if(active)Modifier.background(BrandGradient)else Modifier).selectable(active,role=Role.Tab,onClick={onSelect(key)}).heightIn(min=42.dp).testTag("my-section-$key"),contentAlignment=Alignment.Center){
-    Text(label,color=if(active)Ink else Muted,fontSize=14.sp,fontWeight=FontWeight.SemiBold,modifier=Modifier.padding(vertical=10.dp))
-   }
-  }
- }
+ CurrentTabs(listOf("works" to "내 작품","library" to "내 보관함","inventory" to "인벤토리"),selected,"my-section",onSelect)
 }
 
 @Composable internal fun CurrentRoomCard(room:JSONObject,m:MusicModel){

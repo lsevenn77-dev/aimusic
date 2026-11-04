@@ -12,16 +12,16 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 
 /** The large logical range lets the last card advance to the first in the same direction. */
-@Composable internal fun rememberAutoCarousel(count:Int,visible:Boolean=true):PagerState {
+@Composable internal fun rememberAutoCarousel(count:Int,visible:Boolean=true,intervalMillis:Long=3000):PagerState {
  val pager=key(count){rememberPagerState(initialPage=if(count>1)(Int.MAX_VALUE/2/count)*count else 0,pageCount={if(count>1)Int.MAX_VALUE else count})}
  val dragged by pager.interactionSource.collectIsDraggedAsState()
  val covered=appPageIsOpen()
  val lifecycle=LocalLifecycleOwner.current.lifecycle
- LaunchedEffect(pager,count,visible,dragged,covered,lifecycle){
+ LaunchedEffect(pager,count,visible,dragged,covered,lifecycle,intervalMillis){
   if(count<2||!visible||dragged||covered)return@LaunchedEffect
   lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED){
    while(isActive){
-    delay(3000)
+    delay(intervalMillis)
     if(!pager.isScrollInProgress)pager.animateScrollToPage(pager.currentPage+1,animationSpec=tween(350))
    }
   }

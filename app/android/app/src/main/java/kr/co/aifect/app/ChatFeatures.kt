@@ -3,6 +3,7 @@ package kr.co.aifect.app
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -15,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.ImageLoader
@@ -29,9 +31,13 @@ import org.json.JSONObject
  val owner=m.user?.optString("id")?:return
  val loader=remember(owner){ImageLoader.Builder(context).okHttpClient(m.api.client).diskCache(null).build()}
  DisposableEffect(loader){onDispose{loader.shutdown()}}
- var failed by remember(message.optString("image_id")){mutableStateOf(false)}
+ val imageId=message.optString("image_id")
+ val imageUrl=Endpoint.url((if(crew)"/media/crew-chat/" else "/media/dm/")+imageId)
+ var failed by remember(imageId){mutableStateOf(false)}
  if(failed||message.optLong("image_expires")<=System.currentTimeMillis()/1000)Text("보관 기간이 지난 사진",color=Muted,modifier=Modifier.padding(14.dp))
- else AsyncImage(ImageRequest.Builder(context).data(Endpoint.url((if(crew)"/media/crew-chat/" else "/media/dm/")+message.optString("image_id"))).memoryCacheKey(owner+":"+message.optString("image_id")).build(),"대화 사진",imageLoader=loader,contentScale=ContentScale.Fit,modifier=Modifier.width(240.dp).heightIn(min=120.dp,max=280.dp),onError={failed=true})
+ else AsyncImage(ImageRequest.Builder(context).data(imageUrl).memoryCacheKey(owner+":"+imageId).build(),"대화 사진",imageLoader=loader,contentScale=ContentScale.Fit,modifier=Modifier.width(240.dp).heightIn(min=120.dp,max=280.dp).testTag((if(crew)"crew-image-open-"else "dm-image-open-")+message.optString("id")).clickable(onClickLabel="사진 크게 보기"){
+  m.photoPreview=ProfilePhotoPreview("대화 사진",imageUrl)
+ },onError={failed=true})
 }
 
 @Composable internal fun DmActions(m:MusicModel,peer:String?,muted:Boolean,change:(Boolean)->Unit,clear:()->Unit,withDelete:Boolean=true){
