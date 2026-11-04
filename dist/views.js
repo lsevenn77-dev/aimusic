@@ -73,6 +73,7 @@ function watchCachedNavigation(main){
 }
 let presentationSerial=0;
 async function render(){
+ if(typeof handleProfileEditRoute==='function'&&await handleProfileEditRoute())return;
  if(typeof sing!=='undefined'&&sing&&await retainSingRoute(sing))return;
  const serial=++presentationSerial,main=typeof $==='function'?$('#main'):null,raw=location.hash.slice(1)||'home';
  const presentation=window.AifectRender;

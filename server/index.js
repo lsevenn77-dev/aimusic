@@ -117,7 +117,8 @@ export default {async fetch(req,env,ctx){
   const binary=/^\/api\/artists\/[\w-]+\/fanpage\/banner$/.test(path)||path==='/api/admin/ai-bots/assets'||/^\/api\/crews\/[\w-]+\/notice-images$/.test(path)||/^\/api\/dubbing\/projects\/[^/]+\/recording\/[\w-]+\/lines\/[\w-]+$/.test(path)||/^\/api\/playlists\/[\w-]+\/image$/.test(path)||/^\/api\/producers\/[\w-]+\/gallery$/.test(path)||/^\/api\/artists\/[\w-]+\/gallery$/.test(path)||/^\/api\/(dm\/[\w-]+\/images|crews\/[\w-]+\/images?)$/.test(path)||path==='/api/me/profile/image'||/^\/api\/uploads\/[^/]+\/(audio|cover|duet-instrument|duet-partner)$/.test(path)||/^\/api\/studio\/(artists|producers|tracks)\/[^/]+\/image$/.test(path)||/^\/api\/studio\/tracks\/[^/]+\/karaoke\/mr$/.test(path);
   // Some ingress requests expose an empty stream for HEAD/GET (Content-Length: 0).
   // Rebuilding those with a body throws before the public media handler runs.
-  if(!['GET','HEAD'].includes(req.method)&&!binary&&req.body){
+  const profileMultipart=path==='/api/me/profile'&&req.method==='PUT'&&req.headers.get('content-type')?.startsWith('multipart/form-data');
+  if(!['GET','HEAD'].includes(req.method)&&!binary&&!profileMultipart&&req.body){
    if(Number(req.headers.get('content-length')||0)>maxJson)fail(413,'요청이 너무 큽니다.');
    const reader=req.body.getReader(),chunks=[];let size=0;
    try{while(true){const {value,done}=await reader.read();if(done)break;size+=value.byteLength;if(size>maxJson){await reader.cancel().catch(()=>{});fail(413,'요청이 너무 큽니다.');}chunks.push(value);}}finally{reader.releaseLock();}

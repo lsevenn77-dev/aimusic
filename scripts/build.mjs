@@ -33,6 +33,7 @@ await cp('dist/list-actions.css','dist/client/list-actions.css');
 await cp('dist/icon-style-lock.css','dist/client/icon-style-lock.css');
 await cp('dist/popup-close.css','dist/client/popup-close.css');
 await cp('dist/popup-layout.css','dist/client/popup-layout.css');
+for(const file of ['profile-editor.js','profile-editor.css'])await cp('dist/'+file,'dist/client/'+file);
 await cp('dist/uiux-space.css','dist/client/uiux-space.css');
 await cp('dist/main-layout.css','dist/client/main-layout.css');
 await cp('dist/message-notification.css','dist/client/message-notification.css');

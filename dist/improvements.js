@@ -105,7 +105,7 @@ async function improvementsView(base,param,raw,readApi=api){
     if(p.id){const social=p.id===knownProfile&&knownSocial?knownSocial:await readApi('/api/producers/'+encodeURIComponent(p.id));social.following_count=d.following_count;return {html:myPageHeading('나의 순간과 음악이 만나는 공간')+personProfileHTML(social,p.id,new URLSearchParams(raw.split('?')[1]||'').get('tab')||'all',balances),tracks:musicProfileItems(social,new URLSearchParams(raw.split('?')[1]||'').get('tab')||'all')};}
     return {html:myPageHeading('음악을 듣기만 해도 좋아요.')+balances+'<section class="music-self-head"><div><h2>'+esc(p.name||me.name||'내 음악')+'</h2><p class="mp-public-id">ID · '+esc(p.public_id||'발급 확인 중')+'</p><p>아직 공개한 프로필이나 음악이 없어요.</p></div><div class="inline-actions"><a class="small-button" href="#profile/edit">프로필 만들기</a><a class="small-button" href="#studio">스튜디오</a></div></section>'+playerProgressHTML(p)+musicMyShortcuts()};
    }
-   return {html:heading('프로필 수정')+`<div class="inline-actions account-menu" style="margin-bottom:24px"><a class="small-button" href="#profile">내 페이지</a><a class="small-button" href="#account">계정·이용권</a><button type="button" class="small-button" id="logout">로그아웃</button></div><form id="public-profile-form" class="surface upload-form profile-form">${p.id?portrait(p,'producer'):''}<label class="form-field">프로필 사진<input name="image" type="file" accept="image/png,image/jpeg,image/webp"><small>JPG·PNG·WebP · 5MB 이하</small></label>${formField('공개 닉네임','name','text',p.name,'required maxlength="12"')}<p class="field-help">2~12자 · 한글, 영문, 숫자, 밑줄(_) · 변경은 30일에 1회. 댓글·선물·크루·DM에 표시돼요.</p><label class="form-field">소개<textarea name="bio" maxlength="1000">${esc(p.bio)}</textarea></label><button class="primary-button">프로필 저장</button><p class="form-error" role="alert"></p></form>`};
+   return {html:'<button type="button" class="small-button" data-profile-edit>프로필 수정</button>'};
   }
   if(base==='payouts')return {html:heading('정산')+earningsHTML(await readApi('/api/studio/earnings'))};
   if(base==='rewards'){const d=await readApi('/api/gold');return {html:`<div class="rewards-page">${heading('오늘의 실버','작은 활동을 모아 좋아하는 음악에 응원해보세요.')}<div id="gift-shop-rewards">${freeRewardsHTML(d.free)}</div></div>`};}
@@ -117,7 +117,7 @@ async function improvementsView(base,param,raw,readApi=api){
 }
 async function libraryProfileHTML(readApi=api){
  if(!me)return '';const d=await readApi('/api/me/profile'),p=d.profile;
- return `<section class="surface library-profile"><a href="#profile" aria-label="내 프로필 수정">${portrait(p,'producer')}</a><div><h2>${esc(p.name)}</h2><div class="inline-actions"><a href="#profile">프로필 수정</a><a href="#library/followers">팔로워 ${d.follower_count}</a><a href="#library/following">팔로잉 ${d.following_count}</a></div></div><div class="inline-actions"><a href="#rewards" class="small-button">오늘의 실버</a><a href="#dm" class="small-button">DM</a><a href="#payouts" class="small-button">정산</a></div></section>`;
+ return `<section class="surface library-profile"><a href="#profile/edit" aria-label="내 프로필 수정">${portrait(p,'producer')}</a><div><h2>${esc(p.name)}</h2><div class="inline-actions"><a href="#profile/edit">프로필 수정</a><a href="#library/followers">팔로워 ${d.follower_count}</a><a href="#library/following">팔로잉 ${d.following_count}</a></div></div><div class="inline-actions"><a href="#rewards" class="small-button">오늘의 실버</a><a href="#dm" class="small-button">DM</a><a href="#payouts" class="small-button">정산</a></div></section>`;
 }
 function bindCrewForm(){const form=$('#crew-form');const crop=bindCrewImageEditor(form);form.dataset.originalName=form.elements.name.value;form.onsubmit=busyForm(form,async fd=>{const cid=form.dataset.crew;const cropped=await crop.file();if(cid&&fd.get('name')!==form.dataset.originalName&&!confirm('크루 이름을 변경하면 30일(720시간) 동안 다시 변경할 수 없어요. 변경할까요?'))return;const d=await api('/api/crews'+(cid?'/'+cid:''),cid?'PATCH':'POST',{name:fd.get('name'),description:fd.get('description'),interests:fd.get('interests'),recruiting:fd.has('recruiting'),...(fd.has('join_policy')?{join_policy:fd.get('join_policy'),minimum_level:Number(fd.get('minimum_level')),member_limit:Number(fd.get('member_limit'))}:{}),notice:fd.get('notice'),...(cid?{version:Number(form.dataset.version)}:{})});form.dataset.crew=d.crew.id;clearCrewNavigation();try{me=(await api('/api/me')).user;updateAccount();}catch{}if(cropped)await uploadChatImage('/api/crews/'+d.crew.id+'/image',cropped);$('#dialog').close();location.hash='crew/'+d.crew.id;if(cid)await render();});}
 function bindImprovements(view){
@@ -130,11 +130,6 @@ function bindImprovements(view){
   catch(error){toast(error.message);button.disabled=false;}
  });
  const walletRetry=$('[data-my-wallet-retry]');if(walletRetry)walletRetry.onclick=async()=>{walletRetry.disabled=true;try{await render();}finally{walletRetry.disabled=false;}};
- const profile=$('#public-profile-form');if(profile)profile.onsubmit=busyForm(profile,async fd=>{
-  await api('/api/me/profile','PUT',{name:fd.get('name'),bio:fd.get('bio')});let image=fd.get('image');if(image?.size)image=await cropPhoto(image,{shape:'circle'});
-  if(image?.size){if(image.size>5*1024*1024)throw new Error('사진은 5MB 이하로 선택해주세요.');const r=await fetch('/api/me/profile/image',{method:'PUT',headers:{'content-type':image.type},body:image});if(!r.ok)throw new Error((await r.json()).error);}
-  me=(await api('/api/me')).user;updateAccount();toast('프로필을 저장했어요.');location.hash='library';
- });
  const browse=$('[data-browse-crews]');if(browse)browse.onclick=()=>{const input=$('#crew-search input');input.scrollIntoView({behavior:'smooth',block:'center'});input.focus({preventScroll:true});};
  const search=$('#crew-search');if(search)search.onsubmit=e=>{e.preventDefault();location.hash='community/crews?browse=1&q='+encodeURIComponent(new FormData(search).get('q'));};
  document.querySelectorAll('[data-create-crew]').forEach(b=>b.onclick=()=>{if(!me)return askLogin();dialog(crewEditor());bindCrewForm();});

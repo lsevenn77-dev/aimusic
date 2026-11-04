@@ -26,6 +26,15 @@ const frameEffects=(()=>{
   effects.set(base,{src,visible:false,layer:null,dialog:base.closest('dialog')});observer.observe(base);
  },sweep};
 })();
+// Shared normalized canvas artwork for existing equipped profile frames.
+function profileFrameCanvasArtwork(path){
+ const paths=new Set([
+  '/assets/products/aurora_ring_frame.png',
+  ...['moonlight_bunny.png','mecha_bunny.png','space_bunny_base.png','space_bunny_fx.webp'].map(file=>'/assets/products/bunnies-v1/'+file),
+  ...['crew-basic-v2','player-level-10-forest-v1','crew-level-3-v2','crew-level-4-v2','crew-level-5-v2'].map(file=>'/assets/'+file+'.webp')
+ ]),file=(path||'').split('?')[0];
+ return paths.has(file)?'/assets/profile-frames-v1/'+file.slice(file.lastIndexOf('/')+1):path;
+}
 // Display-only refresh. This never enters the audio/WebRTC graph or room socket.
 (()=>{
  const frames=new Map(),themes=new Map(),assetHealth=new Map();let busy=false,queued=false,lastRead=0;
@@ -37,15 +46,9 @@ const frameEffects=(()=>{
  const validAsset=p=>typeof p==='string'&&/^\/assets\/[a-zA-Z0-9_./-]+\.(png|webp)$/.test(p)&&!p.includes('..');
  // The catalog keeps its original URLs. Only these legacy canvases need an
  // offline-normalized rendition in the new layout; future art is authored at 1.50D.
- const legacyFramePaths=new Set([
-  '/assets/products/aurora_ring_frame.png',
-  ...['moonlight_bunny.png','mecha_bunny.png','space_bunny_base.png','space_bunny_fx.webp'].map(file=>'/assets/products/bunnies-v1/'+file),
-  ...['crew-basic-v2','player-level-10-forest-v1','crew-level-3-v2','crew-level-4-v2','crew-level-5-v2'].map(file=>'/assets/'+file+'.webp')
- ]);
  function canvasSource(host,path){
   if(!path||!host.classList.contains('profile-frame-canvas'))return path;
-  const file=path.split('?')[0];
-  return legacyFramePaths.has(file)?'/assets/profile-frames-v1/'+file.slice(file.lastIndexOf('/')+1):path;
+  return profileFrameCanvasArtwork(path);
  }
  const expired=(entry,at)=>entry?.expires_at&&entry.expires_at<=at;
  const observed=new Set(),sizeObserver=typeof ResizeObserver==='function'?new ResizeObserver(()=>paintFrames()):null;

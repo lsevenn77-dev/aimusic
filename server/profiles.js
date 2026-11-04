@@ -9,6 +9,21 @@ import {storeImage} from './images.js';
 import {nickname,nicknameBatch,requireAvailableNickname} from './nicknames.js';
 import {assertUnblocked} from './account-safety.js';
 import {supportFollowCount,supportFollowers} from './ai-support-follows.js';
+import {NICKNAME_DAYS} from '../shared/nickname-policy.js';
+
+// The existing endpoint accepts JSON as before, or one bounded multipart draft.
+// Upload bytes are staged under a new immutable key; only the DB batch publishes it.
+async function profileDraft(req){
+ if(!req.headers.get('content-type')?.startsWith('multipart/form-data'))return {body:await req.json()};
+ const limit=5*1024*1024+65536;
+ if(Number(req.headers.get('content-length'))>limit)fail(413,'이미지는 5MB 이하로 업로드해주세요.');
+ const reader=req.body?.getReader(),chunks=[];let size=0;
+ if(!reader)fail(400,'프로필 정보를 확인해주세요.');
+ while(true){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>limit){await reader.cancel();fail(413,'이미지는 5MB 이하로 업로드해주세요.');}chunks.push(value);}
+ const form=await new Response(new Blob(chunks),{headers:{'content-type':req.headers.get('content-type')}}).formData();
+ const image=form.get('image');
+ return {body:{name:form.get('name'),bio:form.get('bio'),remove_image:form.get('remove_image')==='true'},image:image?.size?image:null};
+}
 
 export async function profileRoute(req,env,path,user){
  const fan=path.match(/^\/api\/artist-preview\/([\w-]+)$/);
@@ -65,14 +80,27 @@ export async function profileRoute(req,env,path,user){
   return json({ok:true,image_version:img.version});
  }
  if(req.method==='PUT'){
-  const b=await req.json(),name=typeof b.name==='string'?b.name.trim():b.name,previous=path==='/api/account/nickname'?await one(env,'SELECT bio FROM producers WHERE user_id=?',user.id):null,bio=str(previous?.bio??b.bio??'',1000,false);
+  const {body:b,image}=path==='/api/me/profile'?await profileDraft(req):{body:await req.json()};
+  const name=typeof b.name==='string'?b.name.trim():b.name,previous=await one(env,'SELECT id,bio FROM producers WHERE user_id=?',user.id),bio=str((path==='/api/account/nickname'?previous?.bio:undefined)??b.bio??'',1000,false);
+  if(image&&b.remove_image)fail(400,'변경할 사진을 다시 선택해주세요.');
   await rate(env,'nickname-change:'+user.id,20,3600);
-  await nicknameBatch(env,user.id,name,[query(env,'INSERT INTO producers(id,user_id,name,bio,created,nickname_confirmed) VALUES(?,?,?,?,?,1) ON CONFLICT(user_id) DO UPDATE SET name=excluded.name,bio=excluded.bio,nickname_confirmed=1',id(),user.id,name,bio,now())]);
+  const pid=previous?.id||id(),writes=[query(env,'INSERT INTO producers(id,user_id,name,bio,created,nickname_confirmed) VALUES(?,?,?,?,?,1) ON CONFLICT(user_id) DO UPDATE SET name=excluded.name,bio=excluded.bio,nickname_confirmed=1',pid,user.id,name,bio,now())];
+  let staged;
+  if(image){
+   await rate(env,'profile-image:'+user.id,20,3600);
+   staged=await storeImage(new Request(req.url,{method:'PUT',headers:{'content-type':image.type},body:image}),env,'producer',pid);
+   writes.push(query(env,'UPDATE producers SET image_version=?,image_type=? WHERE user_id=?',staged.version,staged.type,user.id));
+  }else if(path==='/api/me/profile'&&b.remove_image===true){
+   // Unlink the user photo only. Equipment, decorations and original objects stay intact.
+   writes.push(query(env,"UPDATE producers SET image_version='',image_type='' WHERE user_id=?",user.id));
+  }
+  try{await nicknameBatch(env,user.id,name,writes);}
+  catch(error){if(staged)await env.BUCKET.delete(`images/producer/${pid}/${staged.version}`).catch(()=>{});throw error;}
  }else if(req.method!=='GET')fail(405,'지원하지 않는 요청입니다.');
  const profile=await one(env,`SELECT p.id,${producerNameSQL()} name,p.bio,p.image_version FROM producers p WHERE p.user_id=?`,user.id);
  const [followers,counts,identity,number]=await Promise.all([
  profile?rows(env,`SELECT p.id,u.id user_id,${playerColumnsSQL('u.id')},${publicNameSQL()} name,p.image_version,'producer' profile_kind FROM follows f JOIN users u ON u.id=f.user_id LEFT JOIN producers p ON p.user_id=f.user_id WHERE f.kind='producer' AND f.target_id=? ORDER BY f.created DESC LIMIT 200`,profile.id):[],
  followCounts(env,user.id,user.id),playerIdentity(env,user.id),one(env,'SELECT number public_number,(SELECT code FROM public_profile_ids WHERE user_id=public_member_ids.user_id) public_id FROM public_member_ids WHERE user_id=?',user.id)]);
- const [ai,official]=await Promise.all([supportFollowCount(env,user.id),supportFollowers(env,user.id)]);
- return json({profile:{...(profile||{name:user.name,bio:'',image_version:''}),user_id:user.id,...identity,...number},user:profile?{...user,name:profile.name,profile_id:profile.id,image_version:profile.image_version||''}:user,followers:[...followers,...official],follower_count:counts.followers,human_followers:Math.max(0,counts.followers-ai),ai_followers:ai,following_count:counts.following});
+ const [ai,official,changed]=await Promise.all([supportFollowCount(env,user.id),supportFollowers(env,user.id),one(env,'SELECT changed_at FROM nickname_changes WHERE user_id=?',user.id)]);
+ return json({nickname_change_available_at:changed?changed.changed_at+NICKNAME_DAYS*86400:0,profile:{...(profile||{name:user.name,bio:'',image_version:''}),user_id:user.id,...identity,...number},user:profile?{...user,name:profile.name,profile_id:profile.id,image_version:profile.image_version||''}:user,followers:[...followers,...official],follower_count:counts.followers,human_followers:Math.max(0,counts.followers-ai),ai_followers:ai,following_count:counts.following});
 }
