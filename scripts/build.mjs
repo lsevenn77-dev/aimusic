@@ -26,6 +26,7 @@ for(const file of ['song-detail.js','song-detail.css'])await cp('dist/'+file,'di
 for(const file of ['dubbing-casting.js','dubbing-casting.css','dubbing-community.js','dubbing.js','dubbing.css','dubbing-rewarded.js','dubbing-recording.js'])await cp(`dist/${file}`,`dist/client/${file}`);
 for(const file of ['mobile-ux.js','mobile-ux.css','player-shell.js','player-shell.css','public-music.css','design-system.css','design-system.js'])await cp(`dist/${file}`,`dist/client/${file}`);
 await cp('dist/footer-layout.js','dist/client/footer-layout.js');
+for(const file of ['mobile-topbar.js','mobile-topbar.css'])await cp('dist/'+file,'dist/client/'+file);
 await cp('dist/unified-ui.css','dist/client/unified-ui.css');
 for(const file of ['unified-search.js','unified-search.css'])await cp('dist/'+file,'dist/client/'+file);
 await cp('dist/list-actions.css','dist/client/list-actions.css');
