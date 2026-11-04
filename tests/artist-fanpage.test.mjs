@@ -119,30 +119,115 @@ test('creator approves operators, badges and delegated rights; operators cannot 
  assert.equal((await f.call(base+'/posts','POST',{kind:'news',body:'권한 만료',request_id:'revoked'},'other')).status,403);
  assert.equal((await f.call('/api/artists/artist','GET',null,'other')).body.can_manage,false);
 });
-test('carousel timer pauses for hover, focus, touch and reduced motion; loops once and cleans up',()=>{
- const animations=[];const finishAnimations=()=>{for(const animation of animations.splice(0))if(!animation.paused)animation.finish();else animations.push(animation);};
+function fanCarouselFixture({reduced=false,count=3}={}){
+ const animations=[];const finishAnimations=()=>{for(const animation of animations.splice(0)){if(animation.cancelled||animation.finished)continue;if(animation.paused)animations.push(animation);else animation.finish();}};
  class Element extends EventTarget{
-  constructor(){super();this.dataset={};this.style={};this.attrs={};}
-  setAttribute(k,v){this.attrs[k]=v;}
-  contains(){return false;}
+  constructor(tag='div',parent=null){
+   super();this.tagName=tag.toUpperCase();this.parentElement=parent;this.dataset={};this.attrs={};this.captured=new Set();this.clientWidth=600;
+   this.style={transform:'',transition:'',setProperty(k,v){this[k]=String(v);},removeProperty(k){const previous=this[k]||'';delete this[k];return previous;}};
+   const classes=new Set();this.classList={add:(...names)=>names.forEach(name=>classes.add(name)),remove:(...names)=>names.forEach(name=>classes.delete(name)),contains:name=>classes.has(name),toggle(name,force){const add=force??!classes.has(name);if(add)classes.add(name);else classes.delete(name);return add;}};
+  }
+  setAttribute(k,v){this.attrs[k]=String(v);if(k.startsWith('data-'))this.dataset[k.slice(5).replace(/-([a-z])/g,(_,letter)=>letter.toUpperCase())]=String(v);}
+  getAttribute(k){return this.attrs[k]??null;}
+  removeAttribute(k){delete this.attrs[k];if(k.startsWith('data-'))delete this.dataset[k.slice(5).replace(/-([a-z])/g,(_,letter)=>letter.toUpperCase())];}
+  contains(el){return !!el&&(el===this||this.contains(el.parentElement));}
   hasAttribute(k){return k==='data-offset'?this.dataset.offset!==undefined:k in this.attrs;}
-  animate(frames,options){assert.equal(options.duration,750);assert.equal(options.easing,'cubic-bezier(0.22, 1, 0.36, 1)');assert.ok(frames.every(f=>!f.transform.includes('rotate')&&!f.transform.includes('translateZ')));const animation={paused:false,pause(){this.paused=true;},play(){this.paused=false;},cancel(){},finish(){this.onfinish?.();}};animations.push(animation);return animation;}
+  matches(selector){return selector.split(',').some(part=>{const s=part.trim();if(s.startsWith('.'))return this.classList.contains(s.slice(1));if(s.startsWith('['))return this.hasAttribute(s.slice(1,-1));return this.tagName===s.toUpperCase();});}
+  closest(selector){return this.matches(selector)?this:this.parentElement?.closest(selector)||null;}
+  setPointerCapture(id){this.captured.add(id);}
+  hasPointerCapture(id){return this.captured.has(id);}
+  releasePointerCapture(id){if(this.captured.delete(id)){const event=new Event('lostpointercapture');Object.defineProperty(event,'pointerId',{value:id});this.dispatchEvent(event);}}
+  querySelector(){return null;}
+  querySelectorAll(){return [];}
+  animate(frames,options){assert.equal(options.duration,750);assert.equal(options.easing,'cubic-bezier(0.22, 1, 0.36, 1)');assert.ok(frames.every(f=>!f.transform.includes('rotate')&&!f.transform.includes('translateZ')));const animation={paused:false,cancelled:false,finished:false,pause(){this.paused=true;},play(){this.paused=false;},cancel(){this.cancelled=true;},finish(){if(this.finished||this.cancelled)return;this.finished=true;this.onfinish?.();}};animations.push(animation);return animation;}
  }
- const root=new Element(),carousel=new Element(),prev=new Element(),next=new Element(),pause=new Element(),counter=new Element(),doc=new Element(),media=new Element(),cards=Array.from({length:3},()=>new Element()),timers=new Map(),cleanups=[];
- root.dataset.fanpage=JSON.stringify({aid:'artist',tab:'gallery',photos:[],settings:{},tracks:[]});root.isConnected=true;root.contains=()=>false;
- root.querySelector=selector=>({'[data-fan-carousel]':carousel,'[data-fan-prev]':prev,'[data-fan-next]':next,'[data-fan-pause]':pause,'[data-fan-counter]':counter})[selector]||null;
- root.querySelectorAll=selector=>selector==='[data-card-index]'?cards:[];doc.querySelector=()=>root;doc.hidden=false;media.matches=false;
- let serial=0,clock=0;const context={URLSearchParams,location:{hash:'#artist/artist?tab=gallery'},document:doc,performance:{now:()=>clock},getComputedStyle:()=>({transform:'none',opacity:'1'}),icon:()=>'',AbortController,matchMedia:()=>media,registerRouteCleanup:fn=>{cleanups.push(fn);return fn;},setTimeout(fn,ms){assert.equal(ms,7000);const key=++serial;timers.set(key,fn);return key;},clearTimeout:key=>timers.delete(key),requestAnimationFrame:fn=>fn(),queueMicrotask:fn=>fn()};vm.createContext(context);vm.runInContext(readFileSync(new URL('../dist/artist-fanpage.js',import.meta.url),'utf8'),context);context.bindArtistFanpage();
- const fire=(element,type,props={})=>{clock+=1000;finishAnimations();return element.dispatchEvent(Object.assign(new Event(type),props));},tick=()=>{clock+=7000;finishAnimations();const callbacks=[...timers.values()];timers.clear();callbacks.forEach(fn=>fn());};
+ const root=new Element(),carousel=new Element('section',root),stage=new Element('div',carousel),prev=new Element('button',carousel),next=new Element('button',carousel),pause=new Element('button',carousel),counter=new Element(),doc=new Element(),win=new Element(),media=new Element(),cards=Array.from({length:count},()=>new Element('button',stage)),dots=Array.from({length:count},()=>new Element('button',carousel)),timers=new Map(),cleanups=[];
+ stage.classList.add('fan-card-stage');carousel.classList.add('fan-carousel');cards.forEach((card,i)=>{card.classList.add('fan-photocard');card.setAttribute('data-card-index',i);});dots.forEach((dot,i)=>dot.setAttribute('data-fan-dot',i));
+ for(const [el,name] of [[carousel,'data-fan-carousel'],[prev,'data-fan-prev'],[next,'data-fan-next'],[pause,'data-fan-pause']])el.setAttribute(name,'');
+ root.dataset.fanpage=JSON.stringify({aid:'artist',tab:'gallery',photos:[],settings:{},tracks:[]});root.isConnected=true;
+ const elements={'[data-fan-carousel]':carousel,'.fan-card-stage':stage,'[data-fan-prev]':prev,'[data-fan-next]':next,'[data-fan-pause]':pause,'[data-fan-counter]':counter};
+ root.querySelector=selector=>elements[selector]||null;carousel.querySelector=selector=>elements[selector]||null;
+ root.querySelectorAll=selector=>selector==='[data-card-index]'?cards:selector==='[data-fan-dot]'?dots:[];doc.querySelector=()=>root;doc.hidden=false;doc.defaultView=win;media.matches=reduced;
+ let serial=0,clock=0;class ClockDate extends Date{static now(){return clock;}}
+ const context={URLSearchParams,location:{hash:'#artist/artist?tab=gallery'},document:doc,window:win,Date:ClockDate,performance:{now:()=>clock},getComputedStyle:el=>({transform:el.style.transform||'none',opacity:el.style.opacity||'1',filter:el.style.filter||'none',lineHeight:'20px'}),icon:()=>'',AbortController,matchMedia:()=>media,registerRouteCleanup:fn=>{cleanups.push(fn);return fn;},setTimeout(fn,ms){assert.equal(ms,7000);const key=++serial;timers.set(key,fn);return key;},clearTimeout:key=>timers.delete(key),requestAnimationFrame:fn=>{fn();return ++serial;},cancelAnimationFrame(){},queueMicrotask:fn=>fn()};vm.createContext(context);vm.runInContext(readFileSync(new URL('../dist/artist-fanpage.js',import.meta.url),'utf8'),context);context.bindArtistFanpage();
+ const fire=(element,type,props={},elapsed=1000)=>{
+  clock+=elapsed;if(elapsed>=750)finishAnimations();const event=new Event(type,{cancelable:true});
+  const defaults=type.startsWith('pointer')?{pointerId:1,pointerType:'touch',button:0,isPrimary:true}:type==='click'?{detail:1}:{};
+  for(const [key,value] of Object.entries({...defaults,target:element,...props}))Object.defineProperty(event,key,{value});
+  element.dispatchEvent(event);
+  // Pointer completion bubbles to the document even after capture leaves a card.
+  if(element!==doc&&['pointerup','pointercancel'].includes(type))doc.dispatchEvent(event);
+  return event;
+ };
+ const tick=()=>{clock+=7000;finishAnimations();const callbacks=[...timers.values()];timers.clear();callbacks.forEach(fn=>fn());};
+ const shift=()=>Number(/translateX\((-?[\d.]+)px\)/.exec(stage.style.transform||'')?.[1]||0);
+ const cleanup=()=>cleanups.forEach(fn=>fn());
+ return {context,root,carousel,stage,prev,next,pause,counter,doc,win,media,cards,dots,timers,cleanups,fire,tick,shift,finishAnimations,cleanup};
+}
+test('carousel timer pauses for hover, focus, touch and reduced motion; loops once and cleans up',()=>{
+ const {context,carousel,stage,prev,next,pause,counter,doc,media,timers,cleanups,fire,tick,finishAnimations}=fanCarouselFixture();
  assert.equal(timers.size,1);assert.equal(counter.textContent,'01 / 03');tick();assert.equal(counter.textContent,'02 / 03');tick();tick();assert.equal(counter.textContent,'01 / 03');
  fire(carousel,'pointerenter',{pointerType:'mouse'});assert.equal(timers.size,0);fire(carousel,'pointerleave');assert.equal(timers.size,1);
- carousel.matches=()=>true;fire(carousel,'focusin');assert.equal(timers.size,0);fire(carousel,'focusout');assert.equal(timers.size,1);
- fire(carousel,'pointerdown',{clientX:150,clientY:100});assert.equal(timers.size,0);fire(carousel,'pointerup',{clientX:40,clientY:110});assert.equal(counter.textContent,'02 / 03');
+ fire(carousel,'focusin');assert.equal(timers.size,0);fire(carousel,'focusout');assert.equal(timers.size,1);
+ fire(carousel,'pointerdown',{target:stage,clientX:150,clientY:100});assert.equal(timers.size,0);fire(carousel,'pointermove',{clientX:40,clientY:110});fire(carousel,'pointerup',{clientX:40,clientY:110});assert.equal(counter.textContent,'02 / 03');
  fire(prev,'click');assert.equal(counter.textContent,'01 / 03');next.dispatchEvent(new Event('click'));assert.equal(counter.textContent,'01 / 03','ignore competing input during the transition');fire(next,'click');assert.equal(counter.textContent,'02 / 03');
- doc.hidden=true;doc.dispatchEvent(new Event('visibilitychange'));clock+=10000;doc.hidden=false;doc.dispatchEvent(new Event('visibilitychange'));const held=counter.textContent;next.dispatchEvent(new Event('click'));assert.equal(counter.textContent,held,'a paused rear transition still owns its slot after tab restoration');finishAnimations();
+ doc.hidden=true;doc.dispatchEvent(new Event('visibilitychange'));fire(doc,'visibilitychange',{},10000);doc.hidden=false;doc.dispatchEvent(new Event('visibilitychange'));const held=counter.textContent;next.dispatchEvent(new Event('click'));assert.equal(counter.textContent,held,'a paused rear transition still owns its slot after tab restoration');finishAnimations();
  fire(pause,'click');assert.equal(timers.size,0);fire(pause,'click');assert.equal(timers.size,1);
  media.matches=true;fire(media,'change');assert.equal(timers.size,0);media.matches=false;fire(media,'change');assert.equal(timers.size,1);
  context.bindArtistFanpage();assert.equal(timers.size,1,'cached root replacement must dispose its previous timer');cleanups.forEach(fn=>fn());assert.equal(timers.size,0);context.bindArtistFanpage();assert.equal(timers.size,1);cleanups.at(-1)();assert.equal(timers.size,0);
+});
+test('mouse and touch drags follow the pointer, change one photo and suppress only the drag click',t=>{
+ for(const pointerType of ['mouse','touch']){
+  const f=fanCarouselFixture();t.after(f.cleanup);const {carousel,stage,cards,counter,fire}=f;
+  fire(carousel,'pointerdown',{target:cards[0],pointerType,clientX:180,clientY:40});assert.equal(f.timers.size,0);assert.equal(carousel.hasPointerCapture(1),false);
+  fire(carousel,'pointermove',{pointerType,clientX:100,clientY:43},16);assert.ok(f.shift()<0,'photos should follow a left drag before release');assert.equal(counter.textContent,'01 / 03');assert.equal(carousel.hasPointerCapture(1),true);
+  fire(carousel,'pointerup',{pointerType,clientX:100,clientY:43},16);assert.equal(counter.textContent,'02 / 03');assert.equal(f.shift(),0);assert.equal(carousel.hasPointerCapture(1),false);
+  assert.equal(fire(carousel,'click',{target:cards[0]},0).defaultPrevented,true,'release must not open the photo lightbox');
+  fire(carousel,'pointerdown',{target:stage,pointerType,clientX:100,clientY:40});fire(carousel,'pointerup',{pointerType,clientX:102,clientY:41},20);
+  assert.equal(fire(carousel,'click',{target:cards[1]},0).defaultPrevented,false,'a normal tap must remain usable');
+ }
+});
+test('carousel controls do not start a drag and remain clickable',t=>{
+ const f=fanCarouselFixture();t.after(f.cleanup);const {carousel,prev,next,pause,dots,counter,fire}=f;
+ for(const target of [prev,next,pause,dots[1]]){
+  fire(carousel,'pointerdown',{target,clientX:180,clientY:40});assert.equal(f.timers.size,1);
+  fire(carousel,'pointermove',{clientX:90,clientY:40},16);fire(carousel,'pointerup',{clientX:90,clientY:40},16);
+  assert.equal(counter.textContent,'01 / 03');assert.equal(f.shift(),0);assert.equal(carousel.hasPointerCapture(1),false);
+ }
+ fire(prev,'click');assert.equal(counter.textContent,'03 / 03');fire(next,'click');assert.equal(counter.textContent,'01 / 03');fire(dots[1],'click');assert.equal(counter.textContent,'02 / 03');fire(pause,'click');assert.equal(f.timers.size,0);
+});
+test('short horizontal drags return without opening a photo while vertical gestures allow scrolling',t=>{
+ const f=fanCarouselFixture();t.after(f.cleanup);const {carousel,stage,counter,fire}=f;
+ fire(carousel,'pointerdown',{target:stage,clientX:180,clientY:40});fire(carousel,'pointermove',{clientX:156,clientY:41},16);assert.ok(f.shift()<0);
+ fire(carousel,'pointerup',{clientX:156,clientY:41},16);assert.equal(counter.textContent,'01 / 03');assert.equal(f.shift(),0);assert.equal(fire(carousel,'click',{},0).defaultPrevented,true);
+ fire(carousel,'pointerdown',{target:stage,clientX:180,clientY:40});const vertical=fire(carousel,'pointermove',{clientX:175,clientY:110},16);
+ assert.equal(vertical.defaultPrevented,false);assert.equal(f.shift(),0);assert.equal(carousel.hasPointerCapture(1),false);
+ fire(carousel,'pointerup',{clientX:90,clientY:115},16);assert.equal(counter.textContent,'01 / 03','an established vertical gesture must not become a photo swipe');
+});
+test('another pointer and descendant capture loss cannot finish the active photo drag',t=>{
+ const f=fanCarouselFixture();t.after(f.cleanup);const {carousel,stage,cards,counter,fire}=f;
+ fire(carousel,'pointerdown',{target:stage,clientX:180,clientY:40});
+ fire(carousel,'pointermove',{pointerId:2,clientX:90,clientY:40},16);fire(carousel,'pointerup',{pointerId:2,clientX:90,clientY:40},16);fire(carousel,'pointercancel',{pointerId:2},16);
+ assert.equal(f.shift(),0);assert.equal(f.timers.size,0);assert.equal(counter.textContent,'01 / 03');
+ fire(carousel,'pointermove',{clientX:90,clientY:40},16);assert.ok(f.shift()<0);
+ fire(carousel,'lostpointercapture',{target:cards[0],pointerId:1},0);assert.ok(f.shift()<0,'implicit capture lost by a child must not cancel carousel capture');
+ fire(carousel,'pointerup',{clientX:90,clientY:40},16);assert.equal(counter.textContent,'02 / 03');assert.equal(f.shift(),0);
+});
+test('cancelled photo drags recover without overriding manual pause or reduced motion',t=>{
+ for(const reduced of [false,true])for(const paused of [false,true])for(const ending of ['pointercancel','lostpointercapture','blur']){
+  const f=fanCarouselFixture({reduced});t.after(f.cleanup);const {carousel,stage,pause,counter,fire}=f;if(paused)fire(pause,'click');
+  fire(carousel,'pointerdown',{target:stage,clientX:180,clientY:40});fire(carousel,'pointermove',{clientX:90,clientY:40},16);assert.ok(f.shift()<0);assert.equal(f.timers.size,0);
+  if(ending==='blur')fire(f.win,'blur',{},16);else fire(carousel,ending,{pointerId:1},16);
+  assert.equal(counter.textContent,'01 / 03');assert.equal(f.shift(),0);assert.equal(carousel.hasPointerCapture(1),false);assert.equal(f.timers.size,paused||reduced?0:1);
+ }
+});
+test('artist introduction keeps escaped paragraphs and exposes its collapsed toggle',()=>{
+ const escape=v=>String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
+ const context={esc:escape,number:String,portrait:()=>'',followed:()=>false,icon:()=>'',artistMusicList:()=>''};vm.createContext(context);vm.runInContext(readFileSync(new URL('../dist/artist-fanpage.js',import.meta.url),'utf8'),context);
+ const bio='첫 번째 소개입니다.\n두 번째 줄 & 새로운 이야기.\n<script>소개 원문</script>';
+ const html=context.artistFanpageHTML({profile:{name:'Artist',bio},tracks:[],gallery:[]},'artist');
+ assert.ok(html.includes(escape(bio)),'expanding must be able to reveal every original paragraph');assert.doesNotMatch(html,/<script>소개 원문/);assert.match(html,/data-fan-bio(?:\s|>)/);
+ const toggle=html.match(/<button\b[^>]*data-fan-bio-toggle[^>]*>/)?.[0];assert.ok(toggle);assert.match(toggle,/aria-expanded="false"/);assert.match(toggle,/aria-controls="[^"]+"/);assert.match(html,/\+더보기/);
 });
 test('photo counts, six tabs, XSS escaping and page-only compact music renderer',()=>{
  const escape=v=>String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
