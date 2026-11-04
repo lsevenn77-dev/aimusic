@@ -87,3 +87,34 @@ test('every equipped sprite renders during running/jumping without changing scor
  await assert.rejects(renderer.ready('not-an-outfit'));
  rejectSprite=JUMP_OUTFITS.find(i=>i.id==='idol').sprite;await assert.rejects(renderer.ready('idol'),/의상 이미지/);
 });
+
+test('all six running frames and landings place the measured soles on the same day/night ground',async()=>{
+ // Shoe-edge measurements from the source art, excluding shadows and lower padding.
+ const soles={runner:[171,171,171,171,169,167],street:[173,174,167,174,173,174],idol:[174,174,174,174,171,168],suit:[170,172,156,170,157,172],princess:[166,162,161,166,168,165]};
+ let position=[0,0],stack=[];const draws=[];
+ class Image{set src(value){this.url=value;this.onload?.()}decode(){return Promise.resolve()}}
+ const gradient={addColorStop(){}};
+ const ctx=new Proxy({
+  setTransform(){position=[0,0]},save(){stack.push([...position])},restore(){position=stack.pop()},
+  translate(x,y){position[0]+=x;position[1]+=y},
+  drawImage(...args){draws.push({args,position:[...position]})},
+  createLinearGradient:()=>gradient,createRadialGradient:()=>gradient
+ },{get:(object,key)=>key in object?object[key]:(()=>{})});
+ const context=vm.createContext({Image,HZ,NIGHT_START,JUMP_OUTFITS,DEFAULT_OUTFIT});
+ const source=readFileSync(new URL('../dist/crew-jump-art/stage.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'').replace('export function stageRenderer','function stageRenderer');
+ vm.runInContext(source+'\nthis.renderer=stageRenderer;',context);
+ const renderer=context.renderer(ctx),game=start('ground-contact');game.pattern={obstacles:[],jellies:[]};
+ for(const outfit of JUMP_OUTFITS){
+  await renderer.ready(outfit.id);
+  for(const tick of [100,NIGHT_START+100])for(const landing of [false,true])for(let frame=0;frame<6;frame++){
+   Object.assign(game,{tick,landed:landing?tick:tick-60,distance:(frame+.1)*38/.8,jumps:0,y:0});
+   const before=JSON.stringify(game);draws.length=0;renderer.draw(game);
+   assert.equal(JSON.stringify(game),before);assert.equal(draws.length,1);
+   const {args,position}=draws[0],sourceFrame=args[1]/192;
+   const sole=outfit.sprite?soles[outfit.id][sourceFrame]:args[4];
+   if(outfit.sprite)assert.equal(sourceFrame,outfit.reverse?5-frame:frame);
+   const worldSole=position[1]+args[6]+sole*args[8]/args[4];
+   assert.ok(Math.abs(worldSole-454)<1e-8,`${outfit.id} frame ${frame}, landing ${landing}, tick ${tick}: ${worldSole}`);
+  }
+ }
+});

@@ -194,6 +194,13 @@ let bgT=0,G=null;
   SHEET.src = '/crew-jump-art/crew-runner.webp';
   const FR = {"run":[[0,0,152,168,88.0],[154,0,157,168,90.0],[313,0,154,164,90.0],[469,0,151,168,83.0],[622,0,147,161,84.0],[771,0,151,167,85.0]],"jump":[[924,0,146,148,81.0],[0,170,148,152,83.0],[150,170,141,145,84.0],[293,170,145,136,84.0],[440,170,144,152,81.0],[586,170,158,146,83.0]],"djump":[[746,170,138,140,78.0],[886,170,129,146,72.0],[0,324,132,150,71.0],[134,324,128,133,70.0]],"fall":[[264,324,131,147,72.0]],"land":[[397,324,147,138,70.0]],"idle":[[546,324,133,139,74.0]],"hit":[[681,324,141,153,70.0],[824,324,128,130,63.0],[954,324,144,139,78.0]]};
   const SPR = 0.68;   // 시트 프레임 높이 약 165px → 화면 약 112px
+  // Measured shoe soles in each source frame, excluding the transparent margin
+  // and baked-in shadow. The strips share a canvas size, not a foot baseline.
+  const OUTFIT_FOOT_Y = {
+    runner:[171,171,171,171,169,167], street:[173,174,167,174,173,174],
+    idol:[174,174,174,174,171,168], suit:[170,172,156,170,157,172],
+    princess:[166,162,161,166,168,165]
+  };
 
   function crewFrame(g) {
     if (!g) return FR.run[Math.floor(bgT * 11) % 6];
@@ -211,9 +218,10 @@ let bgT=0,G=null;
       if(outfit.reverse)frame=5-frame;
       ctx.save();ctx.translate(x,feet);
       if(g?.dead)ctx.rotate(-.25);else if(g?.onGround===false)ctx.rotate(-.08);
-      // All existing outfit strips have six 192×184 frames with a shared foot baseline.
       const size=112/174;
-      ctx.drawImage(outfitSheet,frame*192,0,192,184,-112*size,-179*size,192*size,184*size);
+      // Match the default runner's two-pixel ground overlap, including on landing.
+      const footY=OUTFIT_FOOT_Y[outfit.id][frame];
+      ctx.drawImage(outfitSheet,frame*192,0,192,184,-112*size,2-footY*size,192*size,184*size);
       ctx.restore();return;
     }
     if (!sheetOk) return drawCrewVector(x, feet, g);
