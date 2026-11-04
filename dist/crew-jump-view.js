@@ -29,7 +29,7 @@ export function mount(root,{crew,viewer,api,esc}){
   <dialog class="surface jump-dialog arc-store-dialog" aria-labelledby="arc-store-title"><header><h2 id="arc-store-title">의상 상점</h2><button type="button" class="small-button" data-shop-close>닫기</button></header>
    <p class="arc-look-balance" data-shop-balance></p><div class="arc-fitting"><div class="arc-run-model" aria-hidden="true"></div><div aria-live="polite"><small>달리기 미리보기</small><h3 data-look-name></h3><b data-look-price></b></div></div>
    <div class="arc-look-shelves"></div><div class="arc-look-actions"><button type="button" class="primary-button" data-look-action disabled>의상 선택</button><button type="button" class="small-button" data-shop-retry hidden>다시 확인</button></div><p class="arc-look-note" data-shop-status role="status"></p></dialog>
- <div class="jump-stage" hidden aria-label="점프게임"><canvas width="960" height="540" tabindex="0" aria-label="스페이스 또는 화면을 눌러 점프"></canvas><div class="jump-hud" hidden><span>점수 <b>0</b></span><span>남은 시간 <b>${LIMIT/HZ}초</b></span><span>콤보 <b>0</b></span><small class="jump-speed"></small></div><div class="jump-overlay"></div></div>
+ <div class="jump-stage" hidden aria-label="점프게임"><canvas width="960" height="540" tabindex="0" aria-label="스페이스 또는 화면을 눌러 점프"></canvas><div class="jump-hud" hidden><span>점수 <b>0</b></span><span>남은 시간 <b>${LIMIT/HZ}초</b></span><span>콤보 <b>0</b></span><small class="jump-speed"></small><span class="jump-mode" data-game-mode></span></div><div class="jump-overlay"></div></div>
  <dialog class="jump-wide-dialog" aria-label="가로 게임 화면"><div class="jump-wide-layout"><div class="jump-wide-controls"><button class="small-button" type="button" data-wide-pause hidden>일시정지</button><button class="small-button" type="button" data-wide-exit>축소</button></div></div></dialog><div class="jump-summary" aria-live="polite"></div><dialog class="surface jump-dialog"><h2>주간 게임 규칙</h2><p>화면을 누르거나 스페이스바로 점프하세요. 공중에서 한 번 더 점프할 수 있어요. 장애물에 닿으면 도전이 끝나요.</p><p>별 젤리를 연속으로 모으면 콤보 보너스! 낮에는 10초마다 1.2배로 가속해요. 70초부터 야간 도로에서 네온 링을 모으세요. 밤에는 5초마다 1.1배로 가속하고 ${LIMIT/HZ}초에 완주해요.</p><p>공식 도전은 하루 3회. 한국시간 월요일 0시부터 금요일 22시까지, 크루원별 주간 최고점 상위 10개를 합산해요. 참여 미션 보상은 크루 경험치이며, 현재 지급은 꺼져 있어요. 리듬게임에서도 별도의 공식 도전에 참여할 수 있어요.</p><button class="primary-button" data-close>확인</button></dialog></section>`;
  const $=s=>root.querySelector(s),canvas=$('canvas'),ctx=canvas.getContext('2d'),layer=$('.jump-overlay'),hud=$('.jump-hud'),summary=$('.jump-summary'),dialog=$('.jump-dialog:not(.arc-store-dialog)'),shop=$('.arc-store-dialog');
  const waiting=$('.jump-lobby'),stage=$('.jump-stage');
@@ -95,11 +95,11 @@ export function mount(root,{crew,viewer,api,esc}){
  function lobby(){leaveWide();board();resultCard();waiting.hidden=false;stage.hidden=true;summary.hidden=true;$('.jump-board').hidden=false;
   phase='lobby';$('[data-shop]').disabled=false;$('[data-pause]').hidden=true;$('[data-rules]').disabled=false;hud.hidden=true;
   const official=info.open&&info.remaining>0;
-  const action = official ? 'official' : 'practice';
-  $('.jump-start-actions').innerHTML = '<button type="button" class="arc-start" data-do="'+action+'" aria-label="게임 시작"><img class="arc-start-art" src="/crew-jump-art/arcade-start.webp" width="556" height="352" alt=""></button>';
+  const label=official?'공식 도전 시작':info.remaining<=0?'오늘 공식 도전 완료':'공식 도전 마감';
+  $('.jump-start-actions').innerHTML = '<button type="button" class="arc-start" data-do="official"'+(official?'':' disabled')+' aria-label="'+label+'"><img class="arc-start-art" src="/crew-jump-art/arcade-start.webp" width="556" height="352" alt=""><span class="arc-start-status">'+label+'<small>'+(info.remaining<=0?'한국시간 자정에 3회 초기화':'오늘 남은 횟수 '+info.remaining+' / 3회')+'</small></span></button>';
   $('.jump-brief').innerHTML = `<div class="jump-session">
-    <strong>${official ? '공식 도전' : '연습 모드'}</strong>${official ? btn('practice','연습하기') : ''}
-    <span>${official ? '시작하면 공식 도전 1회를 사용해요.' : '연습은 횟수 제한 없이 즐길 수 있어요.'}</span>
+    <strong>${label}</strong>${btn('practice','연습하기 · 랭킹 미반영')}
+    <span>공식 도전은 시작할 때 1회 차감돼요. 연습은 횟수 제한이 없어요.</span>
    </div><dl>
     <div><dt>오늘 남은 공식 도전</dt><dd>${info.remaining} / 3회</dd></div>
     <div><dt>내 주간 최고점</dt><dd>${info.best == null ? '기록 없음' : Number(info.best).toLocaleString()+'점'}</dd></div>
@@ -117,7 +117,7 @@ export function mount(root,{crew,viewer,api,esc}){
  async function finish(){
   leaveWide();phase='result';$('[data-pause]').hidden=true;$('[data-rules]').disabled=false;queued=0;hud.hidden=true;const saved=round;
   const before=info.best;if(!saved)rememberRun(false,game.score);
-  const buttons=()=>btn('again','다시 도전',true)+btn('lobby','대기실로')+'<a class="small-button" href="#crew/'+encodeURIComponent(crew)+'">크루로 돌아가기</a>';
+  const buttons=()=>(!wasOfficial||info.open&&info.remaining>0?btn('again',wasOfficial?'다시 공식 도전':'다시 연습',true):'')+btn('lobby','대기실로')+'<a class="small-button" href="#crew/'+encodeURIComponent(crew)+'">크루로 돌아가기</a>';
   const stats=()=>game.score.toLocaleString()+'점 · 생존 '+(game.tick/HZ).toFixed(1)+'초<br>수집 아이템 '+game.jellies+'개 · 최대 콤보 '+game.maxCombo;
   panel('RUN RESULT',game.finished==='survived'?'별빛 도시 완주!':'도전 결과',stats(),saved?'':buttons());
   summary.textContent='연습 기록 · 주간 최고 '+(info.best??'—')+'점 · 공식 도전 '+info.remaining+'회 남음';
@@ -158,6 +158,7 @@ export function mount(root,{crew,viewer,api,esc}){
  }
  async function begin(official){
   if(phase!=='lobby')return;
+  if(official&&(!info.open||info.remaining<=0)){summary.hidden=false;summary.textContent=info.remaining<=0?'오늘 공식 도전 3회를 모두 사용했어요. 한국시간 자정에 초기화돼요.':'공식 도전 기간이 아니에요.';return;}
   if(outfitShop.busy){summary.hidden=false;summary.textContent='의상 처리가 끝난 뒤 시작해주세요.';return;}
   phase='starting';$('[data-rules]').disabled=true;
   sounds.unlock();enterWide();
@@ -174,7 +175,8 @@ export function mount(root,{crew,viewer,api,esc}){
    wasOfficial=official;requestId=null;game=start(round?.seed??info.seed);taps=[];queued=0;pressed=null;
    origin=performance.now()+(round?round.starts-round.serverNow:3000);phase='countdown';$('.jump-board').hidden=true;
    waiting.hidden=true;stage.hidden=false;summary.hidden=false;layer.hidden=false;
-   layer.classList.add('counting');layer.textContent='3';canvas.focus({preventScroll:true});draw();summary.textContent=official?'공식 도전':'연습 모드';frame=requestAnimationFrame(advance);
+   $('[data-game-mode]').textContent=official?'공식 도전 · 랭킹 반영':'연습 · 랭킹 미반영';
+   layer.classList.add('counting');layer.textContent='3';canvas.focus({preventScroll:true});draw();summary.textContent=official?'공식 도전':'연습 모드 · 랭킹 미반영';frame=requestAnimationFrame(advance);
   }catch(e){if(!dead){if(e.status===409)requestId=null;await refresh();if(!dead){summary.hidden=false;summary.textContent=e.message}}}
  }
  listen(root,'click',e=>{

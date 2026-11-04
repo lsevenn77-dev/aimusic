@@ -98,6 +98,31 @@ test('abandoned runs never score, do not restore attempts, and cutoff allows tim
  assert.equal(f.sql.prepare('SELECT COUNT(score) n FROM crew_jump_runs').get().n,0);
 });
 
+test('three abandoned attempts exhaust the account quota across crews until KST midnight',async t=>{
+ const f=await fixture(t);seedCrew(f);
+ f.sql.exec("INSERT INTO crews(id,owner_id,name,created) VALUES('second','owner','두 번째',0)");
+ const midnight=monday+86400000;let ms=midnight-600000;
+ const call=(action,body,crew='preview')=>jumpRoute(new Request('https://aifect.test/',{method:body?'POST':'GET',body:body&&JSON.stringify(body)}),{DB:f.DB,...env},'/api/crews/'+crew+'/jump'+action,{id:'owner'},ms).then(r=>r.json());
+ for(let i=0;i<3;i++){
+  const key={requestId:'abandoned-quota-round-'+i};
+  const run=await call('/start',key);
+  assert.equal((await call('/start',key)).id,run.id); // Retry the last slot without consuming another one.
+  await call('/abandon',{id:run.id});ms+=10000;
+ }
+ assert.equal((await call('')).remaining,0);
+ const attempts=await Promise.allSettled([call('/start',{requestId:'fourth-tab-one'}),call('/start',{requestId:'fourth-tab-two'})]);
+ for(const result of attempts){assert.equal(result.status,'rejected');assert.equal(result.reason.status,409);assert.match(result.reason.message,/3회를 모두 사용/)}
+ f.sql.exec("UPDATE crew_members SET crew_id='second' WHERE user_id='owner'");
+ assert.equal((await call('',undefined,'second')).remaining,0);
+ await assert.rejects(call('/start',{requestId:'other-crew-attempt'},'second'),{status:409,message:/3회를 모두 사용/});
+ f.sql.exec("UPDATE crew_members SET crew_id='preview' WHERE user_id='owner'");
+ assert.equal(f.sql.prepare('SELECT COUNT(*) n FROM crew_jump_runs').get().n,3);
+ ms=midnight-1;assert.equal((await call('')).remaining,0);
+ ms=midnight;assert.equal((await call('')).remaining,3);
+ await call('/start',{requestId:'first-after-midnight'});
+ assert.equal((await call('')).remaining,2);
+});
+
 test('weekly standings rank competing crews, share ties, and ignore practice / abandoned attempts',async t=>{
  const f=await fixture(t);seedCrew(f);
  for(const [c,u,score] of [['a','p1',901],['b','p2',901],['preview','owner',750],['preview','other',null]]){

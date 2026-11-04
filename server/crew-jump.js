@@ -47,7 +47,7 @@ export async function jumpRoute(req,env,path,user,ms=Date.now()){
   ) SELECT c.name,c.image_version,r.* FROM ranked r JOIN crews c ON c.id=r.crew_id WHERE place<=100 OR crew_id=? ORDER BY place,c.name,r.crew_id`,week,crew);
   const own=ranking.find(r=>r.crew_id===crew);
   const mission=await one(env,'SELECT COUNT(score) completed FROM crew_jump_runs WHERE day=? AND user_id=? AND crew_id=?',day,uid,crew);
-  return json({week,open:open&&ms+COUNTDOWN_MS+RUN_TTL_MS<closes,seed,version:VERSION,remaining:3-used.n,best:myRecord?.points??null,personalRank:myRecord?.place??null,individualRanking,team:own?.points??0,teamRank:own?.place??null,ranking,participated:mission.completed>0});
+  return json({week,open:open&&ms+COUNTDOWN_MS+RUN_TTL_MS<closes,seed,version:VERSION,remaining:Math.max(0,3-used.n),best:myRecord?.points??null,personalRank:myRecord?.place??null,individualRanking,team:own?.points??0,teamRank:own?.place??null,ranking,participated:mission.completed>0});
 
  }
  if(req.method!=='POST')fail(405,'지원하지 않는 요청입니다.');
@@ -63,7 +63,11 @@ export async function jumpRoute(req,env,path,user,ms=Date.now()){
     AND NOT EXISTS(SELECT 1 FROM crew_jump_runs WHERE user_id=? AND week=? AND crew_id IS NOT ?)`,
    id(),uid,crew,week,day,body.requestId,seed,VERSION,ms+COUNTDOWN_MS,uid,day,uid,ms-RUN_TTL_MS,uid,week,crew).run();
   const run=await one(env,'SELECT id,seed,version,starts,score,inputs FROM crew_jump_runs WHERE user_id=? AND request_id=? AND crew_id=? AND day=?',uid,body.requestId,crew,day);
-  if(!run||run.inputs!==null||run.score!==null||ms>run.starts+RUN_TTL_MS)fail(409,'진행 중인 도전이나 오늘의 남은 횟수를 확인해주세요.');
+  if(!run||run.inputs!==null||run.score!==null||ms>run.starts+RUN_TTL_MS){
+   const used=await one(env,'SELECT COUNT(*) n FROM crew_jump_runs WHERE user_id=? AND day=?',uid,day);
+   if(used.n>=3)fail(409,'오늘 공식 도전 3회를 모두 사용했어요. 한국시간 자정에 초기화돼요.');
+   fail(409,'진행 중인 도전을 확인해주세요.');
+  }
   return json({...run,serverNow:ms});
  }
 
