@@ -222,3 +222,5 @@
 }
 #main .voice-room .voice-seat{height:calc(var(--voice-avatar) + 28px);align-items:start}
 #main .voice-room .voice-seat-empty{margin:0 auto}
+
+#main .voice-room #voice-message{padding-block:calc((46px - 24px - 2px)/2)}

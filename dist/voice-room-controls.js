@@ -158,7 +158,7 @@ Object.assign(VoiceRoomClient.prototype,{
   if(action==='member-menu'){this.memberTools(target,this.actionTrigger);return true;}
   if(action==='music-down'){await this.musicCommand('move',{index:Number(target),to:Number(target)+1});return true;}
   if(action==='settings'){await this.openSettings();return true;}
-  if(action==='emoji'){this.toggleEmojiPicker($('#voice-emoji-picker').hidden);return true;}
+  if(action==='emoji'){this.toggleEmojiPicker(!$('#voice-emoji-picker').open);return true;}
   if(action==='emoji-close'){this.toggleEmojiPicker(false,true);return true;}
   if(action==='insert-emoji'){
    const input=$('#voice-message'),start=input.selectionStart,end=input.selectionEnd;
@@ -256,7 +256,7 @@ Object.assign(VoiceRoomClient.prototype,{
  adoptRoomPopup(sheet,trigger=this.actionTrigger){
   if(sheet===this.talkPopup&&sheet.open){this.closeRoomPopup();return;}
   const origin=trigger||document.activeElement,previous=this.talkPopup;
-  this.talkPopup=null;if(previous?.open){if(previous.classList.contains('profile-preview'))closeProfilePreview();else previous.close();}
+  this.talkPopup=null;if(previous?.open){if(previous.classList.contains('profile-preview'))closeProfilePreview();else if(previous.id==='voice-emoji-picker')this.toggleEmojiPicker(false);else previous.close();}
   this.settingsTicket=(this.settingsTicket||0)+1;
   if(origin?.isConnected&&!origin.closest('dialog'))this.popupTrigger=origin;
   this.talkPopup=sheet;sheet.classList.add('room-popup');sheet.removeAttribute('aria-modal');sheet.tabIndex=-1;

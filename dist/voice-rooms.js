@@ -152,7 +152,7 @@ class VoiceRoomClient {
    const own=target===this.state.self;if(own){this.micDesired=false;this.micAttempt=(this.micAttempt||0)+1;this.micBusy=false;this.stopMicrophone();}
    const state=await this.command(own?'release-mic':'moderate',own?{}:{target_id:target,operation:'remove-seat'});this.acceptState(state);return true;
   }
-  if(action==='gift'){await this.openGiftDialog();return true;}
+  if(action==='gift'){if(this.talkPopup?.open&&['dialog','voice-gift-sheet'].includes(this.talkPopup.id)){this.closeRoomPopup();return true;}await this.openGiftDialog();return true;}
 
   if(action==='settings'){await this.openSettings();return true;}if(action==='share'){await this.openRoomShare();return true;}const sheets={sound:'voice-sound',participants:'voice-members',share:'voice-invite-sheet'};
   if(sheets[action]){this.showSheet(sheets[action]);if(action==='sound'){if(this.liveMode)this.resumeSound();void this.devices().catch(()=>{});}return true;}

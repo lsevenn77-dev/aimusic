@@ -71,3 +71,8 @@ for(const liveMode of [false,true]){
   assert.equal(f.picker.hidden,true);assert.equal(f.attrs['aria-expanded'],'false');assert.equal(f.input.value,'');assert.equal(f.client.chatPending,null);
  });
 }
+
+test('emoji can reopen after a different popup closed its dialog',async()=>{
+ const f=fixture();f.picker.hidden=false;f.picker.open=false;
+ await f.client.finalAction('emoji');assert.equal(f.picker.open,true);assert.equal(f.attrs['aria-expanded'],'true');
+});
