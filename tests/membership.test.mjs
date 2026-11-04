@@ -25,12 +25,12 @@ test('server enforces free 2 / premium 10 and ignores forged entitlement fields'
  assert.equal((await make()).status,409);
 });
 
-test('bookmarks do not consume owned limits; downgrade preserves music and hides locked public lists',async t=>{
+test('legacy bookmarks remain inert; downgrade preserves music and hides locked public lists',async t=>{
  const {call,sql}=await fixture(t);sql.exec("UPDATE users SET premium_until=unixepoch()+3600 WHERE id='owner'");
  const ids=[];for(let i=0;i<4;i++)ids.push((await call('/api/playlists','POST',{name:'취향 '+i,is_public:true,track_ids:['one','two']})).body.id);
- for(const id of ids)assert.equal((await call('/api/playlists/'+id+'/save','PUT',null,'other')).status,200);
+ for(const id of ids)sql.prepare("INSERT INTO playlist_saves VALUES('other',?,0)").run(id);
  for(let i=0;i<2;i++)assert.equal((await call('/api/playlists','POST',{name:'다른 회원 '+i},'other')).status,201);
- let lib=(await call('/api/library','GET',null,'other')).body;assert.equal(lib.saved.length,4);assert.equal(lib.membership.owned_count,2);
+ let lib=(await call('/api/library','GET',null,'other')).body;assert.equal(lib.collections.length,2);assert.equal(lib.membership.owned_count,2);
  sql.exec("UPDATE users SET premium_until=0 WHERE id='owner'");
  lib=(await call('/api/library')).body;assert.equal(lib.playlists.length,4);const locked=lib.playlists.filter(p=>p.locked),active=lib.membership.active_ids;
  assert.equal(locked.length,2);assert.equal(locked[0].tracks,2);assert.equal(sql.prepare('SELECT count(*) n FROM playlist_tracks').get().n,8);
@@ -45,7 +45,7 @@ test('bookmarks do not consume owned limits; downgrade preserves music and hides
  }
  assert.equal((await call('/api/playlists')).body.playlists.length,2);
  assert.equal((await call('/api/search?q='+encodeURIComponent('취향'),'GET',null,null)).body.playlists.length,2);
- assert.equal((await call('/api/library','GET',null,'other')).body.saved.length,2);
+ assert.equal((await call('/api/library','GET',null,'other')).body.collections.length,2);
  for(const playlist_ids of [[ids[0]],[ids[0],ids[0]],['missing',ids[0]],ids])assert.equal((await call('/api/library/playlists/active','PUT',{playlist_ids})).status,400);
  assert.equal((await call('/api/library/playlists/active','PUT',{playlist_ids:ids.slice(0,2)},'other')).status,400);
  const selected=locked.map(p=>p.id);assert.equal((await call('/api/library/playlists/active','PUT',{playlist_ids:selected})).status,200);
@@ -53,7 +53,7 @@ test('bookmarks do not consume owned limits; downgrade preserves music and hides
  for(const id of selected)assert.equal((await call('/api/playlists/'+id,'GET',null,'other')).body.tracks.length,2);
  for(const id of active)assert.equal((await call('/api/playlists/'+id,'GET',null,'other')).status,404);
  sql.exec("UPDATE users SET premium_until=unixepoch()+3600 WHERE id='owner'");
- assert.equal((await call('/api/library','GET',null,'other')).body.saved.length,4);
+ assert.equal((await call('/api/library','GET',null,'other')).body.collections.length,2);
  assert.equal((await call('/api/membership')).body.membership.locked_count,0);
  sql.exec("UPDATE users SET premium_until=0 WHERE id='owner'");
  const toDelete=(await call('/api/library')).body.playlists.find(p=>p.locked).id;

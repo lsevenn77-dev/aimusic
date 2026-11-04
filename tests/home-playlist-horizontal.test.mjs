@@ -5,7 +5,7 @@ import {readFileSync} from 'node:fs';
 const home=readFileSync('dist/home.js','utf8');
 function context(){
  const c=vm.createContext({Map,console,window:{addEventListener(){}},me:null,esc:String,number:String,playlistArt:()=>'<div class="collection-art"></div>',icon:n=>`<svg data-icon="${n}"></svg>`});
- const explorer=readFileSync('dist/explorer.js','utf8');vm.runInContext(explorer.slice(explorer.indexOf('function recommendedPlaylistBookmark'),explorer.indexOf('function discoveryTabs')),c);vm.runInContext(home,c);return c;
+ const explorer=readFileSync('dist/explorer.js','utf8');vm.runInContext(explorer.slice(explorer.indexOf('function recommendedPlaylistCard'),explorer.indexOf('function discoveryTabs')),c);vm.runInContext(home,c);return c;
 }
 test('home and recommendations share the same card while the library retains its compact variant',()=>{
  const c=context(),p={id:'p',name:'목록',owner_name:'소유자',tracks:5,covers:[],description:'소개'};

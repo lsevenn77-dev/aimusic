@@ -2,7 +2,6 @@ import {rows,one,json,fail} from './db.js';
 import {requireUser} from './auth.js';
 import {trackList,VISIBLE} from './catalog.js';
 import {playlistSummaries} from './discovery.js';
-import {activePlaylistSQL} from './membership.js';
 import {publicNameSQL,producerNameSQL} from './identity.js';
 
 // Independent music-library reads; existing playlist, like and playback writes stay unchanged.
@@ -17,16 +16,16 @@ export async function musicLibraryRoute(req,env,path,user){
  const sources={likes:{condition:'EXISTS(SELECT 1 FROM likes l WHERE l.track_id=t.id AND l.user_id=?)',date:'(SELECT created FROM likes l WHERE l.track_id=t.id AND l.user_id=?)'},history:{condition:'EXISTS(SELECT 1 FROM listens l WHERE l.track_id=t.id AND l.user_id=?)',date:'(SELECT MAX(started) FROM listens l WHERE l.track_id=t.id AND l.user_id=?)'}};
  const counts={saved:null};
  for(const [key,s] of Object.entries(sources))counts[key]=(await one(env,`SELECT count(*) n FROM tracks t WHERE ${scope} AND ${s.condition}`,...blocked,uid)).n;
- const collectionWhere='(p.user_id=? OR (p.is_public=1 AND EXISTS(SELECT 1 FROM playlist_saves ps WHERE ps.playlist_id=p.id AND ps.user_id=?))) AND (p.user_id=? OR '+activePlaylistSQL()+')';
- const collectionCount=async(extra='',args=[])=> (await one(env,`SELECT count(*) n FROM playlists p JOIN users u ON u.id=p.user_id WHERE ${collectionWhere}${extra}`,uid,uid,uid,...args)).n;
+ const collectionWhere='p.user_id=?';
+ const collectionCount=async(extra='',args=[])=> (await one(env,`SELECT count(*) n FROM playlists p JOIN users u ON u.id=p.user_id WHERE ${collectionWhere}${extra}`,uid,...args)).n;
  counts.playlists=await collectionCount();
  const response={section,counts,items:[],total:0,nextOffset:null,capabilities:{saved:false,downloads:false}};
  if(section==='saved')return json(response);
  if(section==='playlists'){
-  const filter=['mine','saved'].includes(p.get('filter'))?p.get('filter'):'all',extra=(filter==='mine'?' AND p.user_id=?':filter==='saved'?' AND p.user_id!=?':'')+(q?' AND (p.name LIKE ? OR p.description LIKE ? OR '+publicNameSQL()+' LIKE ?)':''),args=[...(filter==='all'?[]:[uid]),...(q?Array(3).fill('%'+q+'%'):[])];
+  const extra=q?' AND (p.name LIKE ? OR p.description LIKE ? OR '+publicNameSQL()+' LIKE ?)':'',args=q?Array(3).fill('%'+q+'%'):[];
   response.total=await collectionCount(extra,args);
-  const order=sort==='title'?'p.name COLLATE NOCASE,p.id':sort==='oldest'?'COALESCE(ps.created,p.created),p.id':sort==='custom'?'pinned DESC,position,p.created DESC,p.id':'COALESCE(ps.created,p.created) DESC,p.id';
-  response.items=await playlistSummaries(env,uid,collectionWhere+extra,[uid,uid,uid,...args],order,`${limit+1} OFFSET ${offset}`);
+  const order=sort==='title'?'p.name COLLATE NOCASE,p.id':sort==='oldest'?'p.created,p.id':sort==='custom'?'position,p.created DESC,p.id':'p.created DESC,p.id';
+  response.items=await playlistSummaries(env,uid,collectionWhere+extra,[uid,...args],order,`${limit+1} OFFSET ${offset}`);
  }else{
   const s=sources[section],search=q?' AND (t.title LIKE ? OR a.name LIKE ? OR ('+producerNameSQL()+') LIKE ?)':'',searchArgs=q?Array(3).fill('%'+q+'%'):[];
   response.total=(await one(env,`SELECT count(*) n FROM tracks t JOIN artists a ON a.id=t.artist_id JOIN producers p ON p.id=t.producer_id WHERE ${scope} AND ${s.condition}${search}`,...blocked,uid,...searchArgs)).n;

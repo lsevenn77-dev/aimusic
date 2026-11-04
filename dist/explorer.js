@@ -45,29 +45,21 @@ function bindDiscover(){
  discoverCleanup=()=>{observer.disconnect();window.removeEventListener('hashchange',release);};
  window.addEventListener('hashchange',release,{once:true});
 }
-let collectionSearch='',collectionSort='custom',collectionFilter='all';
-const isSavedPlaylist=id=>(library.saved||[]).some(p=>p.id===id);
+let collectionSearch='',collectionSort='recent',collectionFilter='all';
 function playlistImageURL(p){return p.image_version?'/media/playlist/'+encodeURIComponent(p.id)+'/image?v='+encodeURIComponent(p.image_version):'';}
 function playlistArt(p,cls='collection-art'){if(p.image_version)return '<div class="'+cls+' collage collage-1 playlist-custom-art"><img src="'+esc(playlistImageURL(p))+'" alt="'+esc(p.name)+' 플레이리스트 이미지" loading="lazy" decoding="async"></div>';const covers=p.covers||[];return `<div class="${cls} collage collage-${Math.min(covers.length,4)}">${covers.length?covers.map(t=>cover(t,'collection-tile')).join(''):`<span>${icon('list')}</span>`}</div>`;}
 function collectionCard(p,layout='grid'){
- const owned=me?.id===p.user_id,inLibrary=owned||p.saved;
- const actions=`<div class="collection-card-actions">${inLibrary?`<button class="text-link ${p.pinned?'is-active':''}" data-pin-collection="${p.id}" data-pinned="${!!p.pinned}" aria-pressed="${!!p.pinned}">${p.pinned?'고정 해제':'상단 고정'}</button>`:`<button class="text-link" data-save-collection="${p.id}" data-saved="false">${icon('plus')} 보관함 저장</button>`}<a href="#playlist/${p.id}" aria-label="${esc(p.name)} 열기">열기</a></div>`;
+ const owned=me?.id===p.user_id;
+ const actions=`<div class="collection-card-actions"><a href="#playlist/${p.id}" aria-label="${esc(p.name)} 열기">열기</a></div>`;
  if(layout==='horizontal')return homePlaylistCard(p,null,{compact:true,footer:actions});
- return `<article class="collection-card ${p.locked?'collection-locked':''}"><a href="#playlist/${p.id}" class="collection-main">${playlistArt(p)}<span class="collection-kind">${p.pinned?'고정 · ':''}${owned?'내 플레이리스트':esc(p.owner_name||'리스너')+'의 선곡'}</span><h2>${p.locked?'<small class="locked-badge">보관 중</small>':''}${esc(p.name)}</h2><p>${esc(p.description||'좋아하는 음악을 모은 플레이리스트')}</p><small>${p.tracks}곡 · ${p.is_public?'공개':'비공개'}</small></a>${actions}</article>`;
+ return `<article class="collection-card ${p.locked?'collection-locked':''}"><a href="#playlist/${p.id}" class="collection-main">${playlistArt(p)}<span class="collection-kind">${owned?'내 플레이리스트':esc(p.owner_name||'리스너')+'의 선곡'}</span><h2>${p.locked?'<small class="locked-badge">보관 중</small>':''}${esc(p.name)}</h2><p>${esc(p.description||'좋아하는 음악을 모은 플레이리스트')}</p><small>${p.tracks}곡 · ${p.is_public?'공개':'비공개'}</small></a>${actions}</article>`;
 }
 function collectionGrid(items,message='아직 플레이리스트가 없어요'){return items.length?`<div class="collection-grid">${items.map(collectionCard).join('')}</div>`:empty(message,'좋아하는 음악을 모아 나만의 플레이리스트를 만들어보세요.','#library/playlists','내 보관함');}
 // Shared only by home and public recommendations. Library cards keep their compact layout.
-function recommendedPlaylistBookmark(){return '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v17l-6-4-6 4Z"/></svg>';}
-function updateRecommendedPlaylistBookmark(button,saved){
- const label=saved?'보관함 저장 해제':'보관함 저장';
- button.dataset.saved=String(saved);button.setAttribute('aria-pressed',String(saved));
- button.setAttribute('aria-label',label);button.setAttribute('title',label);
- // Keep the SVG node intact when the request completes.
-}
 function recommendedPlaylistCard(p){
- const id=esc(p.id),name=esc(p.name),owner=esc(p.owner_name||''),owned=me?.id===p.user_id;
+ const id=esc(p.id),name=esc(p.name),owner=esc(p.owner_name||'');
  const preview=(p.covers||[]).slice(0,3),total=Number(p.tracks)||0,extra=Math.max(0,total-preview.length);
- const label=owned?'내 플레이리스트 · 이미 보관함에 있음':p.saved?'보관함 저장 해제':'보관함 저장';
+
  return `<article class="public-playlist-card" data-public-playlist="${id}">
   <a class="public-playlist-main" href="#playlist/${id}" aria-label="${name} 상세">
    ${playlistArt(p,'public-playlist-cover')}
@@ -78,40 +70,11 @@ function recommendedPlaylistCard(p){
    </div>
   </a>
   <div class="public-playlist-footer"><span class="public-playlist-owner" title="${owner}">${icon('user')}<span>${owner}</span></span>
-   <div class="public-playlist-stats"><span>${number(total)}곡 수록</span><span><span data-playlist-saves>${number(p.saves||0)}</span>명 저장</span>
-    <button type="button" class="public-playlist-bookmark" ${owned?'disabled':`data-save-collection="${id}"`} data-saved="${owned||!!p.saved}" aria-pressed="${owned||!!p.saved}" aria-label="${label}" title="${label}">${recommendedPlaylistBookmark()}</button>
-   </div>
+   <span class="public-playlist-stats">${number(total)}곡 수록</span>
   </div>
  </article>`;
 }
 function recommendedPlaylistGrid(items,message){return items.length?`<div class="public-playlist-grid">${items.map(recommendedPlaylistCard).join('')}</div>`:empty(message,'좋아하는 음악을 모아 나만의 플레이리스트를 만들어보세요.','#library/playlists','내 보관함');}
-const pendingPlaylistSaves=new Set();
-function syncPlaylistSaveState(id,state){
- for(const button of document.querySelectorAll('[data-save-collection]')){
-  if(button.dataset.saveCollection!==id)continue;
-  if(button.classList.contains('public-playlist-bookmark'))updateRecommendedPlaylistBookmark(button,!!state.saved);
-  else{button.dataset.saved=String(!!state.saved);button.textContent=state.saved?'보관함 저장됨':'보관함 저장';}
- }
- for(const card of document.querySelectorAll('[data-public-playlist]')){
-  if(card.dataset.publicPlaylist===id)card.querySelector('[data-playlist-saves]').textContent=number(state.saves);
- }
-}
-async function savePlaylistFromButton(button){
- if(!me)return askLogin();
- const id=button.dataset.saveCollection,account=me.id,key=account+':'+id,saved=button.dataset.saved==='true';
- if(pendingPlaylistSaves.has(key))return;
- pendingPlaylistSaves.add(key);button.disabled=true;
- try{
-  const state=await api('/api/playlists/'+encodeURIComponent(id)+'/save',saved?'DELETE':'PUT');
-  if(me?.id!==account)return;
-  syncPlaylistSaveState(id,state);
-  // A failed library refresh must not undo a successful, persisted bookmark.
-  await refreshLibrary(true).catch(()=>{});
-  if(me?.id!==account)return;
-  if(location.hash.startsWith('#playlist/'))await render();
-  toast(saved?'보관함에서 저장을 해제했습니다.':'추천 플레이리스트를 내 보관함에 저장했습니다.');
- }finally{pendingPlaylistSaves.delete(key);button.disabled=false;}
-}
 let collectionSearchResize=null;
 function alignCollectionSearchHeight(form){
  collectionSearchResize?.disconnect();
@@ -146,33 +109,33 @@ async function explorerView(base,param,raw,embedded=false,readApi=api){
   return {html:shell+section('팔로우한 창작자의 새 음악')+grid(d.tracks),tracks:d.tracks,discoverPage:true};
  }
  if(base==='collections'){
-  const q=params.get('q')||'',sort=params.get('sort')==='recent'?'recent':'popular',d=await readApi('/api/playlists?'+new URLSearchParams({q,sort}));
-  return {html:`<section class="recommended-playlists listening-home-v2 home-content-refresh" aria-labelledby="recommended-playlists-title"><h1 id="recommended-playlists-title">추천 플레이리스트</h1><form id="collection-search" class="explorer-toolbar" role="search"><input name="q" aria-label="추천 플레이리스트 검색" placeholder="제목, 소개, 만든 사람 검색" value="${esc(q)}" maxlength="100"><select data-dropdown="md" name="sort" aria-label="추천 플레이리스트 정렬"><option value="popular" ${sort==='popular'?'selected':''}>많이 저장한 순</option><option value="recent" ${sort==='recent'?'selected':''}>최신순</option></select><button class="primary-button">검색</button></form>`+recommendedPlaylistGrid(d.playlists,q?'검색 결과가 없어요.':'아직 공개된 플레이리스트가 없어요.')+'</section>'};
+  const q=params.get('q')||'',sort='recent',d=await readApi('/api/playlists?'+new URLSearchParams({q,sort}));
+  return {html:`<section class="recommended-playlists listening-home-v2 home-content-refresh" aria-labelledby="recommended-playlists-title"><h1 id="recommended-playlists-title">추천 플레이리스트</h1><form id="collection-search" class="explorer-toolbar" role="search"><input name="q" aria-label="추천 플레이리스트 검색" placeholder="제목, 소개, 만든 사람 검색" value="${esc(q)}" maxlength="100"><select data-dropdown="md" name="sort" aria-label="추천 플레이리스트 정렬"><option value="recent" ${sort==='recent'?'selected':''}>최신순</option></select><button class="primary-button">검색</button></form>`+recommendedPlaylistGrid(d.playlists,q?'검색 결과가 없어요.':'아직 공개된 플레이리스트가 없어요.')+'</section>'};
  }
  if(base==='search')return unifiedSearchView(param,raw,readApi);
  if(base==='library'){
   if(!me){returnRoute=location.hash;return {html:gate()};}await refreshLibrary(false,readApi);const tab=param||'likes';
   let html=(embedded?'':heading('내 보관함','좋아하는 음악을 모으고, 오늘의 기분대로 들어보세요.'))+libraryTabs(tab);
-  if(tab==='playlists')html+=playlistQuotaHTML()+`<div class="inline-actions playlist-actions"><button class="primary-button" id="new-playlist">${icon('plus')} 플레이리스트 만들기</button><button class="small-button" data-order-collections>목록 순서 편집</button><a class="text-link" href="#collections">다른 사람의 플레이리스트 찾기</a></div><div class="explorer-toolbar"><input id="library-search" aria-label="내 플레이리스트 검색" placeholder="내 보관함에서 검색" value="${esc(collectionSearch)}"><select data-dropdown="md" id="library-filter" aria-label="플레이리스트 종류">${[['all','전체 목록'],['mine','내가 만든 목록'],['saved','저장한 공개 목록']].map(([k,v])=>`<option value="${k}" ${collectionFilter===k?'selected':''}>${v}</option>`).join('')}</select><select data-dropdown="md" id="library-sort" aria-label="내 플레이리스트 정렬">${[['custom','내 순서'],['name','이름순'],['recent','최신순']].map(([k,v])=>`<option value="${k}" ${collectionSort===k?'selected':''}>${v}</option>`).join('')}</select></div><div id="library-collections">${filteredCollections()}</div>`;
+  if(tab==='playlists')html+=playlistQuotaHTML()+`<div class="inline-actions playlist-actions"><button class="primary-button" id="new-playlist">${icon('plus')} 플레이리스트 만들기</button><button class="small-button" data-order-collections>목록 순서 편집</button><a class="text-link" href="#collections">다른 사람의 플레이리스트 찾기</a></div><div class="explorer-toolbar"><input id="library-search" aria-label="내 플레이리스트 검색" placeholder="내 보관함에서 검색" value="${esc(collectionSearch)}"><select data-dropdown="md" id="library-sort" aria-label="내 플레이리스트 정렬">${[['custom','내 순서'],['name','이름순'],['recent','최신순']].map(([k,v])=>`<option value="${k}" ${collectionSort===k?'selected':''}>${v}</option>`).join('')}</select></div><div id="library-collections">${filteredCollections()}</div>`;
   else if(tab==='artists'||tab==='producers')html+=identityCards(library.follows.filter(f=>f.kind===(tab==='artists'?'artist':'producer')).map(f=>({...f,id:f.target_id})),tab==='artists'?'artist':'producer');
   else html+=libraryOverviewHTML();
   return {html,tracks:tab==='likes'?library.likes:[]};
  }
  if(base==='playlist'){
-  const d=await readApi('/api/playlists/'+param),p=d.playlist,owned=me?.id===p.user_id;
+ const d=await readApi('/api/playlists/'+param),p=d.playlist,owned=me?.id===p.user_id;
   if(p.locked&&owned)return {html:lockedPlaylistHTML(p),tracks:[],playlist:p};
-  return {html:`<a class="text-link" href="#${owned||p.saved?'library/playlists':'collections'}">← ${owned||p.saved?'내 보관함':'추천 플레이리스트'}</a><section class="collection-hero">${playlistArt(p)}<div><span class="eyebrow">${p.is_public?'PUBLIC PLAYLIST':'PRIVATE PLAYLIST'}</span><h1>${esc(p.name)}</h1><p class="collection-description">${esc(p.description||'좋아하는 음악을 모아 나누는 나만의 선곡')}</p><p class="field-help">${esc(p.owner_name)} · ${d.tracks.length}곡 · ${time(p.duration)}${p.is_public?' · '+number(p.saves)+'명 저장':''}</p><div class="inline-actions playlist-actions"><button class="primary-button" data-play-all ${d.tracks.length?'':'disabled'}>전체 재생 ${icon('ui-play-action')}</button>${owned?`<button class="small-button" data-pick-playlist="${p.id}">곡 추가</button><button class="small-button" data-order-playlist="${p.id}">곡 순서 편집</button><button class="small-button" data-edit-playlist="${p.id}">이미지 · 목록 설정</button><button class="text-link" data-delete-playlist="${p.id}">삭제</button>`:`<button class="small-button ${p.saved?'is-active':''}" data-save-collection="${p.id}" data-saved="${!!p.saved}">${p.saved?'보관함 저장됨 · 해제':'내 보관함에 저장'}</button>`}${p.is_public?'<button class="small-button" data-share>링크 복사</button>':''}</div></div></section><div class="explorer-toolbar"><input id="playlist-filter" aria-label="플레이리스트 안에서 곡 검색" placeholder="이 플레이리스트에서 곡 검색"></div><div id="playlist-song-list">${list(d.tracks,owned?p.id:null)}</div>`,tracks:d.tracks,playlist:p};
+  return {html:`<a class="text-link" href="#${owned?'library/playlists':'collections'}">← ${owned?'내 보관함':'추천 플레이리스트'}</a><section class="collection-hero">${playlistArt(p)}<div><span class="eyebrow">${p.is_public?'PUBLIC PLAYLIST':'PRIVATE PLAYLIST'}</span><h1>${esc(p.name)}</h1><p class="collection-description">${esc(p.description||'좋아하는 음악을 모아 나누는 나만의 선곡')}</p><p class="field-help">${esc(p.owner_name)} · ${d.tracks.length}곡 · ${time(p.duration)}</p><div class="inline-actions playlist-actions"><button class="primary-button" data-play-all ${d.tracks.length?'':'disabled'}>전체 재생 ${icon('ui-play-action')}</button>${owned?`<button class="small-button" data-pick-playlist="${p.id}">곡 추가</button><button class="small-button" data-order-playlist="${p.id}">곡 순서 편집</button><button class="small-button" data-edit-playlist="${p.id}">이미지 · 목록 설정</button><button class="text-link" data-delete-playlist="${p.id}">삭제</button>`:''}${p.is_public?'<button class="small-button" data-share>링크 복사</button>':''}</div></div></section><div class="explorer-toolbar"><input id="playlist-filter" aria-label="플레이리스트 안에서 곡 검색" placeholder="이 플레이리스트에서 곡 검색"></div><div id="playlist-song-list">${list(d.tracks,owned?p.id:null)}</div>`,tracks:d.tracks,playlist:p};
  }
  return null;
 }
-function filteredCollections(){const items=(library.collections||library.playlists).filter(p=>(collectionFilter==='all'||(collectionFilter==='mine')===(p.user_id===me.id))&&(p.name+' '+p.description+' '+p.owner_name).toLowerCase().includes(collectionSearch.toLowerCase()));if(collectionSort==='name')items.sort((a,b)=>b.pinned-a.pinned||a.name.localeCompare(b.name,'ko'));if(collectionSort==='recent')items.sort((a,b)=>b.pinned-a.pinned||b.created-a.created);return collectionGrid(items,'조건에 맞는 플레이리스트가 없어요.');}
+function filteredCollections(){const items=(library.collections||library.playlists).filter(p=>(collectionFilter==='all'||(collectionFilter==='mine')===(p.user_id===me.id))&&(p.name+' '+p.description+' '+p.owner_name).toLowerCase().includes(collectionSearch.toLowerCase()));if(collectionSort==='name')items.sort((a,b)=>a.name.localeCompare(b.name,'ko'));if(collectionSort==='recent')items.sort((a,b)=>b.created-a.created);return collectionGrid(items,'조건에 맞는 플레이리스트가 없어요.');}
 function bindExplorer(view){
  if(view?.discoverPage)bindDiscover();else{discoverCleanup?.();discoverCleanup=null;}
  if($('#collection-search')){const form=$('#collection-search');alignCollectionSearchHeight(form);form.onsubmit=e=>{e.preventDefault();location.hash='collections?'+new URLSearchParams(new FormData(form));};form.elements.sort.onchange=()=>form.requestSubmit();}
  for(const [id,key] of [['library-search','search'],['library-filter','filter'],['library-sort','sort']]){const el=$('#'+id);if(el)el.oninput=()=>{if(key==='search')collectionSearch=el.value;else if(key==='filter')collectionFilter=el.value;else collectionSort=el.value;$('#library-collections').innerHTML=filteredCollections();if(typeof rememberLibraryFilters==='function')rememberLibraryFilters();};}
  if($('#playlist-filter'))$('#playlist-filter').oninput=e=>{const q=e.target.value.toLowerCase(),items=routeTracks.filter(t=>(t.title+' '+t.artist+' '+t.producer).toLowerCase().includes(q));$('#playlist-song-list').innerHTML=items.length?list(items,view?.playlist?.user_id===me?.id?view.playlist.id:null):'<p class="empty-inline">이 목록에 일치하는 곡이 없어요.</p>';};
 }
-async function orderCollections(){const ticket=renderId;if(!me)return askLogin();await refreshLibrary();let items=[...library.collections];if(items.length<2)return toast('두 개 이상의 목록을 모으면 순서를 편집할 수 있어요.');if(ticket!==renderId)return;dialog(`<h2>플레이리스트 목록 순서</h2><p>고정한 목록이 먼저 표시되고, 그 안에서는 저장한 순서를 따릅니다.</p><form id="collections-order"><div class="playlist-order-rows" id="collections-order-rows"></div><button class="primary-button">목록 순서 저장</button><p class="form-error" role="alert"></p></form>`);const root=$('#collections-order-rows'),paint=()=>root.innerHTML=items.map((p,i)=>`<div data-list-row class="playlist-order-row"><span>${i+1}</span><div><strong>${esc(p.name)}</strong><small>${p.pinned?'고정한 목록':'일반 목록'}</small></div><button type="button" class="list-action small-button" data-collection-move="${i}" data-dir="-1" title="${esc(p.name)} 위로" aria-label="${esc(p.name)} 위로" ${i===0?'disabled':''}>↑</button><button type="button" class="list-action small-button" data-collection-move="${i}" data-dir="1" title="${esc(p.name)} 아래로" aria-label="${esc(p.name)} 아래로" ${i===items.length-1?'disabled':''}>↓</button></div>`).join('');paint();root.onclick=e=>{const b=e.target.closest('[data-collection-move]');if(!b||b.disabled)return;items=AifectQueue.moveTrack(items,Number(b.dataset.collectionMove),Number(b.dataset.dir));paint();};const form=$('#collections-order');form.onsubmit=busyForm(form,async()=>{await api('/api/library/playlists/order','PUT',{playlist_ids:items.map(p=>p.id)});$('#dialog').close();collectionSort='custom';await render();toast('보관함의 목록 순서를 저장했습니다.');});}
+async function orderCollections(){const ticket=renderId;if(!me)return askLogin();await refreshLibrary();let items=[...library.collections];if(items.length<2)return toast('두 개 이상의 목록을 모으면 순서를 편집할 수 있어요.');if(ticket!==renderId)return;dialog(`<h2>플레이리스트 목록 순서</h2><p>직접 정한 순서는 내 순서 정렬에서 표시됩니다.</p><form id="collections-order"><div class="playlist-order-rows" id="collections-order-rows"></div><button class="primary-button">목록 순서 저장</button><p class="form-error" role="alert"></p></form>`);const root=$('#collections-order-rows'),paint=()=>root.innerHTML=items.map((p,i)=>`<div data-list-row class="playlist-order-row"><span>${i+1}</span><div><strong>${esc(p.name)}</strong></div><button type="button" class="list-action small-button" data-collection-move="${i}" data-dir="-1" title="${esc(p.name)} 위로" aria-label="${esc(p.name)} 위로" ${i===0?'disabled':''}>↑</button><button type="button" class="list-action small-button" data-collection-move="${i}" data-dir="1" title="${esc(p.name)} 아래로" aria-label="${esc(p.name)} 아래로" ${i===items.length-1?'disabled':''}>↓</button></div>`).join('');paint();root.onclick=e=>{const b=e.target.closest('[data-collection-move]');if(!b||b.disabled)return;items=AifectQueue.moveTrack(items,Number(b.dataset.collectionMove),Number(b.dataset.dir));paint();};const form=$('#collections-order');form.onsubmit=busyForm(form,async()=>{await api('/api/library/playlists/order','PUT',{playlist_ids:items.map(p=>p.id)});$('#dialog').close();collectionSort='custom';await render();toast('보관함의 목록 순서를 저장했습니다.');});}
 
 async function trackPicker(pid){const ticket=renderId;
  if(!me)return askLogin();const d=await api('/api/playlists/'+pid);await refreshLibrary();const members=new Set(d.tracks.map(t=>t.id)),chosen=new Map();let items=library.likes,token=0;
@@ -245,8 +208,6 @@ function moodFieldHTML(tags=''){return `<fieldset class="mood-fields"><legend>�
 function bindMoodFields(){if(document.querySelector('.music-classification'))return;const input=document.querySelector('input[name="tags"]');if(!input)return;const field=document.createElement('div');field.innerHTML=moodFieldHTML(input.value);input.closest('label').after(field);field.onchange=()=>{const labels=moodOptions.map(x=>x[1]),other=input.value.split(',').map(t=>t.trim()).filter(t=>t&&!labels.includes(t)),chosen=[...field.querySelectorAll('input:checked')].map(x=>x.dataset.moodTag);input.value=[...other,...chosen].join(', ');};input.addEventListener('input',()=>field.querySelectorAll('input').forEach(c=>c.checked=input.value.split(',').map(t=>t.trim()).includes(c.dataset.moodTag)));}
 document.addEventListener('click',async e=>{const b=e.target.closest('button,a');if(!b||b.disabled)return;try{
  if(b.dataset.recommendedPlaylist){const ticket=renderId,account=me?.id;b.disabled=true;const d=await api('/api/playlists/'+encodeURIComponent(b.dataset.recommendedPlaylist));if(ticket!==renderId||account!==me?.id||!b.isConnected)return;if(d.tracks?.length){remember(d.tracks);await play(d.tracks[0].id,d.tracks);}else toast('재생할 수 있는 공개곡이 없어요.');}
- else if(b.dataset.saveCollection){e.preventDefault();e.stopPropagation();await savePlaylistFromButton(b);}
- else if(b.dataset.pinCollection){b.disabled=true;await api('/api/library/playlists/'+b.dataset.pinCollection,'PATCH',{pinned:b.dataset.pinned!=='true'});await render();}
  else if(b.hasAttribute('data-order-collections'))await orderCollections();
  else if(b.dataset.trackMenu)trackMenu(b.dataset.trackMenu,b.closest('.charts-final')?b:null,b.closest('.song-covers-panel .song-cover-row')?.querySelector('.song-cover-join'));
  else if(b.dataset.queuePlay){$('#dialog').close();await play(b.dataset.queuePlay);}

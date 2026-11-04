@@ -36,22 +36,22 @@ test('history is unique per visible song and sorted by actual last listen, with 
  const r=(await f.call('/api/me/music-library?section=history')).body;assert.equal(r.counts.history,2);assert.deepEqual(r.items.map(t=>[t.id,t.library_at]),[['one',50],['two',20]]);assert.equal(r.items[0].liked,false);
  assert.equal(f.sql.prepare('SELECT count(*) n FROM listens').get().n,5);
 });
-test('owned and saved playlists retain existing editing, visibility, tracks and save permissions',async t=>{
+test('owned playlists retain editing and visibility; historical saved lists are excluded',async t=>{
  const f=await fixture(t);
  const mine=(await f.call('/api/playlists','POST',{name:'내 목록',is_public:false,track_ids:['one','two']})).body;
  const publicList=(await f.call('/api/playlists','POST',{name:'친구 공개',is_public:true,track_ids:['three']},'other')).body;
  const privateList=(await f.call('/api/playlists','POST',{name:'친구 비공개',is_public:false},'other')).body;
  const id=mine.id,publicId=publicList.id;
  assert.ok(id&&publicId,JSON.stringify([mine,publicList]));
- assert.equal((await f.call('/api/playlists/'+publicId+'/save','PUT')).status,200);
+ f.sql.prepare("INSERT INTO playlist_saves VALUES('owner',?,0)").run(publicId);
  assert.equal((await f.call('/api/playlists/'+privateList.id+'/save','PUT')).status,404);
- const all=(await f.call('/api/me/music-library?section=playlists')).body;assert.equal(all.counts.playlists,2);assert.equal(all.items.length,2);
+ const all=(await f.call('/api/me/music-library?section=playlists')).body;assert.equal(all.counts.playlists,1);assert.equal(all.items.length,1);
  assert.equal((await f.call('/api/me/music-library?section=playlists&filter=mine')).body.total,1);
- assert.equal((await f.call('/api/me/music-library?section=playlists&filter=saved&q=친구')).body.total,1);
+ assert.equal((await f.call('/api/me/music-library?section=playlists&filter=saved&q=친구')).body.total,0);
  assert.equal((await f.call('/api/playlists/'+id)).body.tracks.length,2);
  assert.equal((await f.call('/api/playlists/'+id,'PATCH',{name:'수정한 목록',is_public:true})).status,200);
  assert.equal((await f.call('/api/me/music-library?section=playlists&q=수정한&sort=title')).body.items[0].is_public,1);
- assert.equal((await f.call('/api/playlists/'+publicId+'/save','DELETE')).status,200);
+ assert.equal((await f.call('/api/playlists/'+publicId+'/save','DELETE')).status,404);
  assert.equal((await f.call('/api/playlists/'+id,'DELETE')).status,200);
  assert.equal((await f.call('/api/me/music-library?section=playlists')).body.total,0);
  assert.equal((await f.call('/api/playlists/'+publicId,'GET',null,'other')).status,200);
