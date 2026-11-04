@@ -81,7 +81,7 @@ test('cover and dubbing classification uses readiness, preserves private work, a
  assert.equal(type('x','dubbing').section,'complete');assert.equal(type('z','dubbing').type,'script');
  assert.equal(type('k','dubbing').type,'dubbing');
  assert.match(c.profileWorkCard(type('x')),/내 제목 \(Cover\)/);assert.match(c.profileWorkCard(type('x')),/#C4B5FD/);
- const script=c.profileWorkCard(type('z','dubbing'));assert.match(script,/#F2D477/);assert.match(script,/project=z/);assert.doesNotMatch(script,/data-mp-dubbing-play/);
+ const script=c.profileWorkCard(type('z','dubbing'));assert.match(script,/#F2D477/);assert.match(script,/data-mp-work-join="dubbing:z" disabled/);assert.doesNotMatch(script,/data-mp-dubbing-play/);
  assert.doesNotMatch(c.profileWorkCard(type('draft')),/data-play=/);
  assert.equal(c.profileWorkIcon('duet'),c.profileWorkIcon(type('c').type));assert.match(c.profileWorkIcon(type('p').type),/#F3A6CF/);
 });
@@ -122,9 +122,8 @@ test('full work list opts into existing management and uses the completed-song l
  const c=profileClient(),d={profile:{id:'p',user_id:'owner'},tracks:[{id:'song',kind:'original',producer_id:'p',user_id:'owner',work_public:1,title:'제작곡'}]};
  const view=c.profileWorksPage(d,new URLSearchParams('tab=all')),results={},search={value:''},select={value:'all'};
  assert.match(view.html,/>완성곡 <span>/);
- Object.assign(c,{icons(){},paintInteractions(){},window:{AifectDropdown:{mount(){}}},document:{querySelector(){return {
-  querySelector:s=>s==='input'?search:s==='[data-mp-types]'?select:results,querySelectorAll:()=>[]
- };}}});
+ const root={style:{setProperty(){}},querySelector:s=>s==='input'?search:s==='[data-mp-types]'?select:results,querySelectorAll:()=>[]};
+ Object.assign(c,{icons(){},paintInteractions(){},ResizeObserver:class{observe(){}},window:{AifectDropdown:{mount(){}}},document:{querySelector:s=>s==='.mp-catalog-page'?root:null}});
  c.bindProfileWorks(view.profileWorks);
  assert.match(results.innerHTML,/data-track-menu="song"/);
  assert.match(results.innerHTML,/href="#manage\/song">관리/);
@@ -149,11 +148,16 @@ test('eligible casting scripts and live combinations stay distinct and drafts ne
  assert.equal((await list('actor3')).length,0);
  await f.base();
  assert.equal((await list('actor3')).find(p=>p.id===f.root).work_open,1);
+ assert.equal((await list('owner')).find(p=>p.id===f.root).can_join,false);
+ assert.equal((await list('actor3')).find(p=>p.id===f.root).can_join,true);
+ assert.equal((await list(null)).find(p=>p.id===f.root).can_join,false);
  const d=await f.draft('role_2','actor2');assert.ok(!(await list('actor3')).some(p=>p.id===d.pid));
  const r=await f.submit(d.pid,'role_2','actor2',d.rev),id=r.body.casting.combinationId;
  const combo=(await list('actor3')).find(p=>p.id===id);
  assert.ok(combo.casting_combo);assert.ok(combo.work_open);assert.equal(combo.work_finished,0);
  assert.equal((await list('actor2')).find(p=>p.id===id).viewer_claimed,1);
+ assert.equal((await list('actor2')).find(p=>p.id===id).can_join,false);
+ assert.equal((await list('actor3')).find(p=>p.id===id).can_join,true);
  f.sql.prepare('UPDATE dubbing_combinations SET last_participation=0 WHERE project_id=?').run(id);
  assert.ok(!(await list('actor3')).some(p=>p.id===id));
 });
@@ -162,4 +166,42 @@ test('work list counts beyond the dashboard preview cap without exposing private
  f.sql.exec("WITH RECURSIVE n(i) AS (VALUES(1) UNION ALL SELECT i+1 FROM n WHERE i<501) INSERT INTO tracks(id,user_id,artist_id,producer_id,title,genre,ai_tool,rights_accepted,original_ext,original_bytes,created,status) SELECT 'extra-'||i,'owner','artist','producer','등록곡','Rock','QA',1,'wav',128,i,'published' FROM n");
  const r=await f.call('/api/producers/producer?dashboard=1&work_list=1','GET',undefined,'other');
  assert.equal(r.status,200);assert.equal(r.body.tracks.length,504);assert.ok(!r.body.tracks.some(t=>t.id==='hidden'));
+});
+
+test('works header and URLs use the viewed profile and retain valid tab, type and query state',()=>{
+ const c=profileClient(),d={profile:{id:'p',user_id:'owner',name:'실제 닉네임'}};
+ const own=c.profileWorksPage(d,new URLSearchParams('tab=complete&type=duet&q=노래'));
+ assert.match(own.html,/실제 닉네임의 작품/);assert.match(own.html,/완성곡/);
+ assert.match(own.html,/class="mp-back" href="#profile"/);
+ assert.match(own.html,/aria-controls="mp-work-search"/);
+ const visitor=profileClient({id:'visitor'}).profileWorksPage(d,new URLSearchParams('tab=recruit&type=script&q=대사'));
+ assert.match(visitor.html,/href="#producer\/p"/);
+ assert.match(visitor.html,/#profile-works\/p\?tab=recruit&type=script&q=/);
+ assert.doesNotMatch(visitor.html,/<h1>내 작품<\/h1>/);
+});
+
+test('every recruiting card has a CTA, denies unavailable roles, and preserves management',()=>{
+ const c=profileClient({id:'visitor'}),base={key:'track:d',type:'duet',section:'recruit',mine:false,t:{id:'d',title:'듀엣',kind:'cover',original_id:'o',recruiting:true,can_join:true}};
+ assert.equal(c.profileWorkJoin(base).href,'#sing/o?duet=d');
+ assert.match(c.profileWorkCard(base),/data-mp-work-join="track:d" >참여하기/);
+ for(const item of [{...base,mine:true},{...base,t:{...base.t,can_join:false}},{...base,t:{...base.t,recruiting:false}}]){
+  assert.ok(c.profileWorkJoin(item).reason);assert.match(c.profileWorkCard(item),/disabled aria-describedby=/);
+ }
+ assert.match(c.profileWorkCard({...base,mine:true},{showManagement:true}),/>관리<\/a>/);
+ assert.match(profileClient(null).profileWorkJoin(base).reason,/로그인/);
+ const dub={...base,type:'script',t:{id:'s',kind:'dubbing',work_open:1,can_join:true}};
+ assert.equal(c.profileWorkJoin(dub).href,'#karaoke/dubbing?tab=discover&project=s&target=s');
+ assert.equal(c.profileWorkJoin({...dub,t:{...dub.t,id:'combo',root_id:'s',casting_combo:1}}).href,'#karaoke/dubbing?tab=discover&project=s&target=combo');
+ assert.equal(c.profileWorkJoin({...dub,t:{...dub.t,root_id:'s'}}).href,null,'legacy participation opens a role picker, not a detail link');
+ assert.match(c.profileWorkJoin({...dub,t:{...dub.t,viewer_claimed:1}}).reason,/이미 참여/);
+});
+
+test('participation rechecks fresh server state and never navigates a stale or denied card',async()=>{
+ const c=profileClient({id:'visitor'}),status={textContent:''},button={dataset:{mpWorkJoin:'track:d'},isConnected:true,parentElement:{querySelector:()=>status}},root={querySelectorAll:()=>[button]};
+ c.location={hash:'#profile-works/p?tab=recruit'};
+ const d={profile:{id:'p',user_id:'owner'},covers:[{id:'d',producer_id:'p',user_id:'owner',kind:'cover',cover_mode:'duet',work_public:1,recruiting:true,can_join:false,original_id:'o'}]};
+ c.api=async(path,method,body,opts)=>{assert.equal(path,'/api/producers/p?dashboard=1&work_list=1');assert.equal(method,'GET');assert.equal(opts.fresh,true);return d;};
+ c.bindProfileWorkJoins(root,d);await button.onclick();assert.equal(button.disabled,true);assert.match(status.textContent,/권한/);assert.match(c.location.hash,/profile-works/);
+ d.covers[0].can_join=true;c.bindProfileWorkJoins(root,d);await button.onclick();assert.equal(c.location.hash,'#sing/o?duet=d');
+ c.location.hash='#profile-works/p?tab=recruit';d.covers[0].recruiting=false;c.bindProfileWorkJoins(root,d);await button.onclick();assert.match(status.textContent,/마감/);assert.match(c.location.hash,/profile-works/);
 });

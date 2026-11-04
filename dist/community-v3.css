@@ -45,7 +45,6 @@
 .weekly-rankings .ranking-info dl{margin:0;padding:4px 4px 16px;line-height:1.8}
 .weekly-rankings .ranking-info dl div{display:grid;grid-template-columns:86px minmax(0,1fr);gap:8px;margin:4px 0}
 .weekly-rankings .ranking-info dd{margin:0;overflow-wrap:anywhere}
-.page-wrap > .page-footer[hidden]{display:none!important}
 @media(max-width:600px){
  .weekly-rankings .ranking-categories{gap:2px;margin-bottom:16px}
  .weekly-rankings .ranking-categories a{font-size:12px;min-height:44px;padding:10px 2px}
@@ -241,12 +240,8 @@ html:has(#main > .talk-directory, #main > .music-community-tabs[aria-label="ь╗ды
  .talk-directory .v3-room-copy h3 {font-size:13.5px}
 }
 
-/* Only the mounted live directory participates in the viewport layout. */
-.page-wrap:has(> #main > .talk-directory) {
- display:flex;flex-direction:column;height:100dvh;min-height:0;overflow:clip;
- padding-bottom:max(var(--player-space,0px),env(safe-area-inset-bottom,0px));
-}
-.page-wrap:has(> #main > .talk-directory) > .page-footer {display:none!important}
+/* The list keeps its internal viewport; its footer stays in document flow. */
+#main:has(> .talk-directory){height:calc(100dvh - var(--footer-main-top,88px) - var(--player-space,0px))}
 #main:has(> .talk-directory),#main > .talk-directory,.talk-directory > .live-directory {
  display:flex;flex-direction:column;flex:1 1 0;min-height:0;
 }

@@ -2,7 +2,7 @@ import {one,rows,now} from './db.js';
 import {publicNameSQL} from './identity.js';
 import {VISIBLE} from './catalog.js';
 import {namedArtistSQL} from './artist-identity.js';
-import {dubbingVisibleSQL} from './dubbing-access.js';
+import {dubbingVisibleSQL,assertDubbingCreator} from './dubbing-access.js';
 import {relationList} from './relations.js';
 import {CASTING_LICENSE,CASTING_TTL} from './dubbing-casting.js';
 import {dubAudioReadySQL,dubRecruitingSQL,finished,profileDubbingParticipation} from './profile-works.js';
@@ -49,7 +49,11 @@ export async function profileDashboard(env,profile,user,profileWorks=false){
   own?[]:relationList(env,uid,user?.id||'')
  ]);
  await profileDubbingParticipation(env,dubbings,user);
- for(const p of dubbings)p.can_join=!!user&&!!p.can_join;
+ let canParticipate=!!user;
+ if(profileWorks&&user&&dubbings.length){
+  try{await assertDubbingCreator(env,user.id);}catch(error){if(error.status!==403)throw error;canParticipate=false;}
+ }
+ for(const p of dubbings)p.can_join=!!user&&!!p.can_join&&(!profileWorks||(canParticipate&&!!p.work_open&&p.owner_id!==user.id&&!p.viewer_claimed));
  const pin=await one(env,'SELECT ids_json FROM profile_artist_pins WHERE producer_id=?',profile.id),pinned=JSON.parse(pin?.ids_json||'[]');artists.sort((a,b)=>(pinned.includes(a.id)?pinned.indexOf(a.id):99)-(pinned.includes(b.id)?pinned.indexOf(b.id):99));
  return {...identity,profile_work_count:(identity.public_track_count||0)+dubbings.filter(p=>p.state==='complete'&&p.visibility==='public').length,crew,artists,pinned,relations,dubbings:dubbings.map(({options_json,...p})=>({...p,kind:'dubbing',genres:JSON.parse(options_json).genres||[]}))};
 }

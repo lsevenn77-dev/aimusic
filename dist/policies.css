@@ -38,8 +38,11 @@
 /* Hide the entire recording/review workspace, including punch editing. */
 .page-wrap:has(#main[data-route^="sing/"])>.page-footer,
 .page-wrap:has(#main .dubbing-record-layout)>.page-footer,
-.page-wrap:has(#main #dubbing-editor-root)>.page-footer,
+.page-wrap:has(#main .voice-room.talking-room)>.page-footer,
 .page-wrap[data-room-focus]>.page-footer{display:none!important}
+/* Only the missing part of the first viewport is added. Dynamic browser chrome
+   uses 100dvh; the fixed player clearance is reserved separately, once. */
+.page-wrap>.page-footer:has(.footer-top),.legal-site>.page-footer:has(.footer-top){margin-top:max(0px,calc(100dvh - var(--footer-content-end,100dvh)));margin-bottom:var(--footer-clearance,0px)}
 @media(max-width:1150px){.page-footer:has(.footer-top){padding-left:var(--footer-left,28px)!important;padding-right:var(--footer-right,28px)!important}}
 @media(max-width:800px){
   /* Approved with the footer: use one 20px mobile content baseline. */

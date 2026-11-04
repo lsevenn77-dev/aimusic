@@ -1,5 +1,5 @@
 // Desktop composition reuses existing routes, media, playback and social actions.
-let myPageState=null,myPendingTabFocus='';
+let myPageState=null,myPendingTabFocus='',myWorkSearchObserver=null;
 const myDate=n=>n?new Date(n*1000).toLocaleDateString('ko-KR',{timeZone:'Asia/Seoul'}):'';
 const myEmpty=text=>`<p class="mp-empty">${esc(text)}</p>`;
 const myLoading=()=>'<p class="mp-empty" role="status">불러오는 중…</p>';
@@ -167,21 +167,63 @@ function profileWorksHref(d,tab='all',type='',query=''){
  if(query)params.set('q',query);
  return base+'?'+params;
 }
-function profileWorkCard({t,type,section,mine,nickname},{showManagement=false}={}){
+// These flags come from the authenticated profile projection, never from card type alone.
+function profileWorkJoin({t,section,mine}){
+ if(section!=='recruit')return null;
+ const dub=t.kind==='dubbing';
+ if(!(dub?t.work_open:t.recruiting))return {reason:'모집이 마감되었어요.'};
+ if(mine)return {reason:'본인 작품에는 참여할 수 없어요.'};
+ if(!me)return {reason:'로그인 후 참여할 수 있어요.'};
+ if(dub&&t.viewer_claimed)return {reason:'이미 참여 중인 작품이에요.'};
+ if(!t.can_join)return {reason:'현재 이 작품에 참여할 권한이 없어요.'};
+ if(!dub&&!t.original_id)return {reason:'원곡을 확인할 수 없어요.'};
+ return {href:dub?(t.casting_combo||!t.root_id
+  ?'#karaoke/dubbing?tab=discover&project='+encodeURIComponent(t.root_id||t.id)+'&target='+encodeURIComponent(t.id)
+  :null):'#sing/'+encodeURIComponent(t.original_id)+'?duet='+encodeURIComponent(t.id)};
+}
+function profileWorkCard({t,type,section,mine,nickname,key},{showManagement=false}={}){
  const id=encodeURIComponent(t.id),title=esc(t.title),dub=t.kind==='dubbing';
  const canPlay=dub?!!(t.work_finished&&t.audio_ready):!!t.work_public;
  const detail=dub?'#dubbing/'+id:canPlay?'#song/'+id:'#manage/'+id;
  const art=dub?`<img class="mp-dub-cover" loading="lazy" src="${esc(AifectDubbing.dubbingGenreArtwork(t.genres||[]))}" alt="">`:cover(t,'mp-track-cover');
  const privateWork=dub?t.visibility==='private':!!t.status&&t.status!=='published';
  const mark=privateWork?`<span class="mp-private-state" aria-label="비공개" title="비공개">${icon('lock',14)}</span>`:'';
- const joinable=section==='recruit'&&!mine&&(dub?!t.viewer_claimed:(t.can_join||!me));
- const join=dub?(type==='script'||t.casting_combo?'#karaoke/dubbing?tab=discover&project='+encodeURIComponent(t.root_id||t.id)+'&target='+id:detail):'#sing/'+encodeURIComponent(t.original_id)+'?duet='+id;
+ const join=profileWorkJoin({t,section,mine}),reasonId='mp-join-'+(dub?'dubbing-':'track-')+id;
  return `<article class="mp-catalog-card" data-work-kind="${type}"><div class="album-art-wrap mp-card-art"><a href="${detail}" aria-label="${title} 상세보기">${art}${mark}</a>
   ${canPlay?`<button type="button" class="card-play" ${dub?'data-mp-dubbing-play':'data-play'}="${esc(t.id)}" aria-label="${title} 재생">${icon('ui-play-action',36)}</button>`:''}</div>
   <div class="mp-card-title">${profileWorkIcon(type,true)}<a href="${detail}" title="${title}">${title}</a>
   ${!dub&&canPlay&&(!mine||showManagement)?`<button type="button" class="card-more" data-track-menu="${esc(t.id)}" aria-label="${title} 더보기">${icon('ui-menu-action')}</button>`:''}</div>
   <small class="mp-card-nick" title="${esc(nickname||'')}">${esc(nickname||'')}</small>
-  ${mine&&showManagement?`<a class="mp-card-action" href="${dub?detail:'#manage/'+id}">관리</a>`:joinable?`<a class="mp-card-action" href="${esc(join)}">참여하기</a>`:''}</article>`;
+  <div class="mp-card-actions">${mine&&showManagement?`<a class="mp-card-action" href="${dub?detail:'#manage/'+id}">관리</a>`:''}
+  ${join?`<button type="button" class="mp-card-action mp-card-join" data-mp-work-join="${esc(key||(dub?'dubbing:':'track:')+t.id)}" ${join.reason?`disabled aria-describedby="${reasonId}"`:''}>참여하기</button><small id="${reasonId}" class="mp-join-reason" role="status">${esc(join.reason||'')}</small>`:''}</div></article>`;
+}
+function bindProfileWorkJoins(root,d){
+ root.querySelectorAll('[data-mp-work-join]:not(:disabled)').forEach(button=>button.onclick=async()=>{
+  const route=location.hash,status=button.parentElement.querySelector('.mp-join-reason');
+  button.disabled=true;status.textContent='참여 가능 여부를 확인하고 있어요.';
+  try{
+   const current=await api('/api/producers/'+encodeURIComponent(d.profile.id)+'?dashboard=1&work_list=1','GET',undefined,{fresh:true});
+   if(!button.isConnected||location.hash!==route)return;
+   const work=profileWorkCatalog(current).find(w=>w.key===button.dataset.mpWorkJoin);
+   const join=work&&profileWorkJoin(work);
+   if(!join||join.reason){status.textContent=join?.reason||'모집이 마감되었거나 작품을 이용할 수 없어요.';return;}
+   if(join.href){location.hash=join.href;return;}
+   // Legacy dubbings claim an empty role through their existing API, then record.
+   const {project:p}=await api('/api/dubbing/projects/'+encodeURIComponent(work.t.id),'GET',undefined,{fresh:true});
+   if(!button.isConnected||location.hash!==route)return;
+   if(p.removed||p.isOwner||!p.recordingAvailable||p.visibility!=='public'||!['recruiting','recording'].includes(p.state)||p.roles.some(r=>r.mine)||!p.roles.some(r=>!r.claimed)){
+    status.textContent='현재 참여할 수 있는 배역이 없어요.';return;
+   }
+   dialog(`<div class="mypage-dialog"><h2>참여할 배역 선택</h2><p>${esc(p.title)}</p><div class="mp-join-roles">${p.roles.filter(r=>!r.claimed).map(r=>`<button type="button" class="small-button" data-mp-join-role="${esc(r.id)}">${esc(r.name)}</button>`).join('')}</div><p class="mp-join-feedback" role="status"></p></div>`);
+   $('#dialog').querySelectorAll('[data-mp-join-role]').forEach(choice=>choice.onclick=async()=>{
+    const choices=$('#dialog').querySelectorAll('[data-mp-join-role]'),feedback=$('#dialog .mp-join-feedback');
+    choices.forEach(b=>b.disabled=true);
+    try{await api('/api/dubbing/projects/'+encodeURIComponent(p.id)+'/claims/'+encodeURIComponent(choice.dataset.mpJoinRole),'POST',{revision:p.revision});$('#dialog').close();location.hash='dubbing/'+encodeURIComponent(p.id)+'?record=1';}
+    catch(error){feedback.textContent=error.message;status.textContent=error.message;}
+   });
+   status.textContent='';button.disabled=false;
+  }catch(error){if(button.isConnected){status.textContent=error.message||'참여 권한을 확인하지 못했어요.';button.disabled=true;}}
+ });
 }
 function myWorksHTML(d,column='all'){
  const catalog=profileWorkCatalog(d);
@@ -202,13 +244,26 @@ function profileWorksPage(d,q){
  const types=profileWorkTabs[tab].types,type=types.includes(q.get('type'))?q.get('type'):types[0];
  const own=isMyProfile(d.profile),back=own?'#profile':'#producer/'+encodeURIComponent(d.profile.id);
  return {profileWorks:{d,catalog,tab,type,query:q.get('q')||''},tracks:[...(d.tracks||[]),...(d.covers||[])],
-  html:`<section class="mp-catalog-page"><a class="mp-back" href="${back}">← ${own?'마이페이지':'프로필'}로 돌아가기</a><h1>${own?'내 작품':'작품'}</h1>
+  html:`<section class="mp-catalog-page"><header class="mp-catalog-heading"><a class="mp-back" href="${back}" aria-label="${esc(d.profile.name||'회원')} 프로필로 돌아가기">${icon('arrow',18)}</a><h1>${esc(d.profile.name||'회원')}의 작품</h1></header>
+  <div class="mp-catalog-tools">
   <nav class="mp-catalog-tabs" aria-label="작품 상태">${Object.entries(profileWorkTabs).map(([key,{label}])=>`<a data-work-tab="${key}" href="${esc(profileWorksHref(d,key,type,q.get('q')))}" ${key===tab?'aria-current="page"':''}>${label} <span>${number(key==='all'?catalog.length:catalog.filter(w=>w.section===key).length)}</span></a>`).join('')}</nav>
-  <div class="mp-catalog-tools"><label class="brand-search mp-work-search">${icon('search',18)}<input type="search" aria-label="내 작품 검색" placeholder="내 작품 검색" value="${esc(q.get('q')||'')}"></label>
+  <button type="button" class="mp-search-toggle icon-button" aria-label="작품 검색 열기" aria-expanded="false" aria-controls="mp-work-search">${icon('search',18)}</button>
+  <div class="mp-search-panel" id="mp-work-search"><label class="brand-search mp-work-search">${icon('search',18)}<input type="search" aria-label="${own?'내 작품':'작품'} 검색" placeholder="작품 검색" value="${esc(q.get('q')||'')}"></label><button type="button" class="mp-search-close icon-button" aria-label="작품 검색 닫기">${icon('plus',18)}</button></div>
   <select data-mp-types aria-label="작품 유형">${types.map(k=>`<option value="${k}" ${k===type?'selected':''}>${profileWorkTypes[k].label}</option>`).join('')}</select></div><div class="mp-catalog-results" aria-live="polite"></div></section>`};
 }
 function bindProfileWorks(s){
  const root=document.querySelector('.mp-catalog-page'),search=root.querySelector('input'),select=root.querySelector('[data-mp-types]');
+ const toggle=root.querySelector('.mp-search-toggle');
+ const expand=open=>{root.classList.toggle('mp-search-open',open);toggle.setAttribute('aria-expanded',String(open));toggle.setAttribute('aria-label',open?'작품 검색 닫기':'작품 검색 열기');if(open)search.focus();else toggle.focus();};
+ toggle.onclick=()=>expand(toggle.getAttribute('aria-expanded')!=='true');
+ root.querySelector('.mp-search-close').onclick=()=>expand(false);
+ search.onkeydown=e=>{if(e.key==='Escape'){e.preventDefault();expand(false);}};
+ // Read the shared search control; do not change the top bar or its responsive rules.
+ const globalSearch=document.querySelector('#global-search');
+ const sizeSearch=()=>{const height=globalSearch?.getBoundingClientRect().height;root.style.setProperty('--mp-control-height',(height||42)+'px');};
+ sizeSearch();
+ const searchSize=myWorkSearchObserver=new ResizeObserver(()=>{if(!root.isConnected){searchSize.disconnect();return;}sizeSearch();});
+ if(globalSearch)searchSize.observe(globalSearch);
  const paint=(updateURL=true)=>{
   const scoped=s.catalog.filter(w=>s.tab==='all'||w.section===s.tab),query=search.value.trim().toLocaleLowerCase();
   const items=scoped.filter(w=>(s.type==='all'||s.type===w.type)&&(!query||[w.t.title,w.nickname,w.t.original_title].some(v=>v?.toLocaleLowerCase().includes(query))));
@@ -218,7 +273,7 @@ function bindProfileWorks(s){
    const href=profileWorksHref(s.d,s.tab,s.type,search.value);
    history.replaceState(history.state,'',href);$('#main').dataset.route=href.slice(1);window.AifectRender?.syncTarget();
   }
-  icons();paintInteractions();
+  icons();paintInteractions();bindProfileWorkJoins(root,s.d);
  };
  window.AifectDropdown.mount(select,{renderIcon:profileWorkIcon});
  select.onchange=()=>{s.type=select.value;paint();};
@@ -285,7 +340,7 @@ async function mySelectTab(tab,updateURL=true,readApi=api){
  s.tab=tab;const request=s.request=(s.request||0)+1;
  const segment=$('.mp-segment');segment.dataset.active=tab;segment.querySelectorAll('[role="tab"]').forEach(b=>{const active=b.dataset.mpTab===tab;b.setAttribute('aria-selected',active);b.tabIndex=active?0:-1;});
  const content=$('#mp-content'),aside=$('#mp-aside-content');content.setAttribute('aria-labelledby','mp-tab-'+tab);content.removeAttribute('aria-busy');
- if(tab==='works'){content.innerHTML=myWorksHTML(s.d,'main');aside.innerHTML=myWorksHTML(s.d,'aside');routeTracks=remember([...(s.d.tracks||[]),...(s.d.covers||[])]);icons();paintInteractions();syncSongCoverPlayback();return;}
+ if(tab==='works'){content.innerHTML=myWorksHTML(s.d,'main');aside.innerHTML=myWorksHTML(s.d,'aside');routeTracks=remember([...(s.d.tracks||[]),...(s.d.covers||[])]);icons();paintInteractions();bindProfileWorkJoins(document.querySelector('.mp-dashboard'),s.d);syncSongCoverPlayback();return;}
  content.setAttribute('aria-busy','true');
  content.innerHTML=myLoading();aside.innerHTML=myLoading();
  try{
@@ -325,10 +380,12 @@ function placeVisitorArtists(){
 }
 visitorMobileLayout?.addEventListener('change',placeVisitorArtists);
 function bindMyPage(view){
+ myWorkSearchObserver?.disconnect();myWorkSearchObserver=null;
  const s=myPageState=view?.mypage||null,profile=s?.d.profile||view?.memberHeader;
  if(profile)bindMemberHeader(profile);
  if(view?.profileWorks)bindProfileWorks(view.profileWorks);
  if(!s){myPendingTabFocus='';return;}
+ bindProfileWorkJoins(document.querySelector('.mp-dashboard'),s.d);
  if(!s.own&&visitorMobileLayout)placeVisitorArtists();
  if(s.tab==='activity')void mySelectTab('activity',false);
  if(view.musicLibrary)bindMusicLibrary(view.musicLibrary);

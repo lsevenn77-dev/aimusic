@@ -346,20 +346,48 @@ main .social-profile-identity h2>.mp-public-id{display:block;font-size:13px;font
 .mp-card-nick{display:block;font-size:13px;line-height:1.5;color:var(--ds-muted)}
 .mp-card-action,.mp-back{display:inline-flex;align-items:center;min-height:32px;font-size:13px;color:var(--ds-body)}
 .mp-card-action:hover,.mp-back:hover{text-decoration:underline}
-.mp-catalog-page{color:var(--ds-text)}
-.mp-catalog-page h1{margin:6px 0 14px;font-size:clamp(24px,3vw,30px)}
-.mp-catalog-tabs{display:flex;gap:clamp(4px,2vw,22px);border-bottom:1px solid var(--ds-line)}
-.mp-catalog-tabs a{display:inline-flex;align-items:center;gap:5px;padding:0 4px;min-height:44px;border-bottom:2px solid transparent;color:var(--ds-body);white-space:nowrap}
+.mp-card-actions{display:flex;flex-wrap:wrap;align-items:center;gap:0 10px}
+.mp-card-join{border:0;background:none;padding:0;color:var(--ds-progress);cursor:pointer;min-height:44px}
+.mp-card-join:disabled{color:var(--ds-muted);cursor:default;text-decoration:none;opacity:.7}
+.mp-join-reason{flex-basis:100%;font-size:12px;line-height:1.5;color:var(--ds-muted);overflow-wrap:anywhere}
+.mp-join-reason:empty{display:none}
+.mp-join-roles{display:flex;flex-wrap:wrap;gap:8px}
+/* Same 180px track floor and gaps as the home grid. auto-fill keeps empty slots;
+   the upper bound is five columns. Dashboard shelves above keep their rules. */
+.mp-catalog-page .mp-catalog-grid{grid-template-columns:repeat(auto-fill,minmax(max(180px,calc((100% - 80px)/5)),1fr));gap:calc(25px + 0px) calc(20px + 0px)}
+@media(max-width:1150px){.mp-catalog-page .mp-catalog-grid{grid-template-columns:repeat(auto-fill,minmax(max(180px,calc((100% - 64px)/5)),1fr));gap:calc(22px + 0px) calc(16px + 0px)}}
+@media(max-width:600px){.mp-catalog-page .mp-catalog-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:calc(18px + 0px) calc(8px + 0px)}}
+.mp-catalog-page{color:var(--ds-text);--mp-control-height:42px}
+.mp-catalog-heading{display:flex;align-items:center;gap:8px;margin:0 0 16px;min-width:0}
+.mp-catalog-heading h1{margin:0;font-size:clamp(22px,3vw,30px);min-width:0;overflow-wrap:anywhere}
+.mp-catalog-heading .mp-back{display:grid;place-items:center;flex:0 0 44px;width:44px;min-height:44px;border-radius:var(--ds-radius-sm)}
+.mp-catalog-heading .mp-back svg{width:18px;height:18px;transform:rotate(180deg)}
+.mp-catalog-tabs{display:flex;flex:none;gap:12px;min-width:0}
+.mp-catalog-tabs a{display:inline-flex;align-items:center;gap:5px;padding:0 4px;height:var(--mp-control-height);min-height:0;border-bottom:2px solid transparent;color:var(--ds-body);white-space:nowrap;font-size:15px}
 .mp-catalog-tabs a[aria-current]{border-color:var(--ds-accent-pink);color:var(--ds-text);font-weight:700}
 .mp-catalog-tabs span{font-size:12px;color:var(--ds-muted)}
-.mp-catalog-tools{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin:16px 0 20px}
+.mp-catalog-tools{display:flex;align-items:center;gap:12px;margin:0 0 20px;min-width:0}
 .mp-catalog-tools .aifect-dropdown{flex:none}
-#main .mp-catalog-tools .aifect-dropdown-trigger{min-height:44px;height:44px;gap:6px}
+#main .mp-catalog-tools .aifect-dropdown-trigger{min-height:var(--mp-control-height);height:var(--mp-control-height);gap:6px}
 .aifect-dropdown-menu [role="option"]:has(.mp-type-svg){display:flex;align-items:center;gap:7px}
-.mp-work-search{display:flex;align-items:center;gap:8px;flex:1 1 110px;min-width:0;height:44px;border-radius:var(--ds-radius-input);padding:0 12px;border:1px solid var(--ds-line);background:var(--ds-panel);color:var(--ds-muted)}
+.mp-search-panel{flex:1;min-width:0;display:flex;align-items:center;gap:6px}
+.mp-search-toggle,.mp-search-close{display:none}
+.mp-work-search{display:flex;align-items:center;gap:8px;flex:1;min-width:0;height:var(--mp-control-height);border-radius:var(--ds-radius-input);padding:0 12px;border:1px solid var(--ds-line);background:var(--ds-panel);color:var(--ds-muted)}
 .mp-work-search>svg{flex:none;width:18px;height:18px}
-#main .mp-work-search input{display:block;width:100%;min-width:0;height:100%;margin:0;border:0;outline:0;background:transparent;padding:0;color:var(--ds-text);font:inherit}
+#main .mp-catalog-page .mp-work-search{min-height:var(--mp-control-height)}
+#main .mp-catalog-page .mp-work-search input{display:block;width:100%;min-width:0;min-height:0;height:100%;margin:0;border:0;outline:0;background:transparent;padding:0;color:var(--ds-text);font:inherit}
 .mp-work-search:focus-within,.mp-catalog-page :is(a,button,[tabindex]):focus-visible,.mp-type-tip:focus-visible{outline:2px solid #8EDDD2;outline-offset:2px}
+@media(max-width:800px){
+ .mp-catalog-page .mp-catalog-tools{--mp-control-height:44px;flex-wrap:wrap;gap:6px}
+ .mp-catalog-page .mp-catalog-tabs{flex:1;overflow-x:auto;overscroll-behavior-inline:contain;scrollbar-width:thin;justify-content:flex-start;gap:8px}
+ .mp-catalog-page .mp-catalog-tabs a{flex:none;min-height:44px}
+ .mp-catalog-page .mp-search-toggle,.mp-catalog-page .mp-search-close{display:grid;place-items:center;flex:0 0 44px;width:44px;height:44px;min-height:44px;padding:0}
+ .mp-catalog-page .mp-search-close svg{transform:rotate(45deg)}
+ .mp-catalog-page .mp-search-panel{display:none;order:4;flex:1 0 100%}
+ .mp-catalog-page.mp-search-open .mp-search-panel{display:flex}
+ #main .mp-catalog-page .aifect-dropdown-trigger{min-width:44px;padding-inline:8px;gap:4px}
+ .mp-catalog-page .aifect-dropdown-label{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+}
 @media(max-width:1100px){
  #main .mp-dashboard{display:flex;flex-direction:column}
  #main .mp-dashboard.mp-own>.mp-segment{margin-bottom:16px}

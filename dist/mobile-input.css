@@ -9,10 +9,9 @@
 /* Input-only floor. Leave root typography, browser zoom and PC UI untouched.
    Also cover landscape phones whose CSS width exceeds the usual breakpoint. */
 @media (max-width:800px), (max-width:1100px) and (pointer:coarse) {
-  html:has(body.chat-active .message-workspace.has-thread) {overflow:hidden}
-  body.chat-active:has(.message-workspace.has-thread) .page-wrap>.page-footer {display:none!important}
+  html:has(body.chat-keyboard .message-workspace.has-thread) {overflow:hidden}
   body.chat-active .message-workspace.has-thread {
-    position:fixed;left:20px;right:20px;top:var(--chat-workspace-top,90px);
+    position:relative;left:auto;right:auto;top:auto;
     width:auto;grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr);
   }
   body.chat-active .message-workspace.has-thread>.message-list-pane {display:none}
