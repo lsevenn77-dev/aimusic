@@ -17,6 +17,9 @@ test('leaderboards escape public names, use public profile media and keep own ra
   assert.ok(html.includes('/media/crew/crew?v=9'));assert.ok(html.includes('/media/producer/profile%2Fid?v=7'));
   assert.ok(html.includes('우리 크루 1위 · 1,234점'));assert.ok(html.includes('내 순위 101위 · 0점'));
   assert.ok(!html.includes('>outside<'));assert.ok(html.includes('TOP 100'));
+  const fishing=rankingsMarkup({unit:'원',crewId:'crew',crews:[{id:'crew',place:1,score:1234}],players:[{mine:1,place:1,score:1234}]});
+  assert.ok(fishing.includes('우리 크루 1위 · 1,234원'));assert.ok(fishing.includes('내 순위 1위 · 1,234원'));
+  assert.ok(!fishing.includes('1,234점'));
 });
 
 test('all three game lobbies return actual avatar metadata without changing their scoring',async t=>{

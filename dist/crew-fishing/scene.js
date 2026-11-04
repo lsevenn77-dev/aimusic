@@ -1,5 +1,5 @@
 // 낚시 화면 연출: 흐르는 밤바다(WebGL)와 낚싯대·줄·찌·물보라·반짝임(2D 캔버스).
-// 판정과 결과는 서버가 정한다. 이 파일은 받은 결과를 보여주기만 하고 게임 상태를 바꾸지 않는다.
+// 입력 피드백과 서버 확인 결과를 연출한다. 이 파일은 게임 기록을 변경하지 않는다.
 
 const VERT='attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}';
 // 하늘·바다 색은 art/shore.svg 팔레트를 그대로 쓴다.
@@ -157,7 +157,7 @@ export function createScene(stage,{goal=3,progress=0}={}){
         lp.x=lerp(lp.from.x,to.x,easeOut(k));lp.y=lerp(lp.from.y,to.y,easeOut(k))-Math.sin(k*Math.PI)*Hh*.12;
         lp.scale=lerp(.32,1,easeOut(k));lp.rot=lerp(-.7,0,easeOut(k));
         if(k<.6&&Math.random()<dt*40)drops.push({x:lp.x,y:lp.y+10,vx:(Math.random()-.5)*60,vy:20,life:1,r:1.5+Math.random()*2});
-        if(k>=.85&&!lp.burst){lp.burst=true;burst(lp.x,lp.y,S.tier);S.glow=1;say(S.tierName?S.tierName+' 포획!':'포획!','catch')}
+        if(k>=.85&&!lp.burst){lp.burst=true;burst(lp.x,lp.y,'common');S.glow=1;say('낚아 올렸어요!','catch')}
       }
       if(t>=2.25&&S.done){S.done();S.done=null}
     }else if(S.phase==='escape'){
@@ -228,14 +228,16 @@ export function createScene(stage,{goal=3,progress=0}={}){
     return t;
   }
   function drawLeap(){
-    const lp=S.leap;if(!lp||!S.img?.complete||!S.img.naturalWidth)return;
-    const w=Math.min(W*.42,300)*lp.scale,h=w*.6;
+    const lp=S.leap;if(!lp)return;
+    const w=Math.min(W*.42,300)*lp.scale,h=w*.42;
     if(S.glow>0){const g=ctx.createRadialGradient(lp.x,lp.y,0,lp.x,lp.y,w*.9);g.addColorStop(0,`rgba(255,246,220,${.32*S.glow})`);g.addColorStop(1,'rgba(255,246,220,0)');ctx.fillStyle=g;ctx.fillRect(lp.x-w,lp.y-w,w*2,w*2)}
-    // 젖은 비늘 위를 지나가는 빛: 물고기 모양 안에만 칠하려고 작은 캔버스에 먼저 그린다
-    const off=S.off||(S.off=document.createElement('canvas')),oc=off.getContext('2d');off.width=Math.ceil(w);off.height=Math.ceil(h);
-    oc.drawImage(S.img,0,0,w,h);
-    if(lp.burst){const k=(time*1.4)%1.6-.3;oc.globalCompositeOperation='source-atop';const sg=oc.createLinearGradient(w*k-30,0,w*k+30,0);sg.addColorStop(0,'rgba(255,255,255,0)');sg.addColorStop(.5,'rgba(255,255,255,.35)');sg.addColorStop(1,'rgba(255,255,255,0)');oc.fillStyle=sg;oc.fillRect(0,0,w,h);oc.globalCompositeOperation='source-over'}
-    ctx.save();ctx.translate(lp.x,lp.y);ctx.rotate(lp.rot);ctx.drawImage(off,-w/2,-h/2,w,h);ctx.restore();
+    // Every species uses the same vector silhouette; reveal its unmodified art on the result card.
+    ctx.save();ctx.translate(lp.x,lp.y);ctx.rotate(lp.rot);ctx.fillStyle='#03070b';
+    ctx.beginPath();ctx.ellipse(-w*.04,0,w*.36,h*.46,0,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.moveTo(w*.2,0);ctx.lineTo(w*.5,-h*.48);ctx.quadraticCurveTo(w*.42,0,w*.5,h*.48);ctx.closePath();ctx.fill();
+    ctx.beginPath();ctx.moveTo(-w*.13,-h*.28);ctx.lineTo(w*.05,-h*.72);ctx.lineTo(w*.18,-h*.25);ctx.closePath();ctx.fill();
+    ctx.beginPath();ctx.moveTo(-w*.05,h*.23);ctx.lineTo(w*.1,h*.66);ctx.lineTo(w*.21,h*.2);ctx.closePath();ctx.fill();
+    ctx.restore();
   }
   function star(x,y,r,rot){ctx.save();ctx.translate(x,y);ctx.rotate(rot);ctx.beginPath();for(let i=0;i<8;i++){const rr=i%2?r*.22:r;const a=i*Math.PI/4;i?ctx.lineTo(Math.cos(a)*rr,Math.sin(a)*rr):ctx.moveTo(rr,0)}ctx.closePath();ctx.fill();ctx.restore()}
   function draw(){
@@ -281,8 +283,7 @@ export function createScene(stage,{goal=3,progress=0}={}){
       else if(kind==='miss'){S.slack=.6;ring(S.hook.x,S.hook.y,20);say('줄이 느슨해졌어요','miss')}
       else S.jerk=.08;
     },
-    land(img,tier,tierName){
-      S.img=new Image();S.img.src=img;S.tier=tier;S.tierName=tierName;
+    land(){
       if(reduced)return Promise.resolve();
       return wait(()=>{S.phase='land';S.pt=0;S.leap=null});
     },
