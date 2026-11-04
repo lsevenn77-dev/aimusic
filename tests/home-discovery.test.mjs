@@ -38,7 +38,7 @@ test('home cards expose only profile identity and playlist metadata, preserving 
  const c=vm.createContext({URL,URLSearchParams,Map,console,AifectGenres:{GENRES:[],MOODS:[]},window:{addEventListener(){}},Audio:class{},sessionStorage:{getItem:()=>null},document:{querySelectorAll:()=>[],addEventListener(){}}});
  for(const file of ['icons.js','app.js','home.js'])vm.runInContext(readFileSync(new URL('../dist/'+file,import.meta.url),'utf8'),c);
  const explorer=readFileSync(new URL('../dist/explorer.js',import.meta.url),'utf8');
- vm.runInContext(explorer.slice(explorer.indexOf('function recommendedPlaylistBookmark'),explorer.indexOf('function discoveryTabs')),c);
+ vm.runInContext(explorer.slice(explorer.indexOf('function recommendedPlaylistCard'),explorer.indexOf('function discoveryTabs')),c);
  c.playlistArt=()=>'<div class="collection-art"></div>';
  const p={id:'real-id',name:'긴 이름 <실제>',image_version:'v1',partner_badge:'공식 파트너',followers:999,plays:888,genre:'Rock'};
  const html=c.homeProfileCard(p,'producer');

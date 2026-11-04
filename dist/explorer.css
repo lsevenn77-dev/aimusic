@@ -7,36 +7,30 @@
 /* Public playlist cards: shared by home and #collections, never library/popups. */
 .recommended-playlists{min-width:0}
 .recommended-playlists #recommended-playlists-title{margin:0 0 24px;padding:0;border:0;background:none;color:var(--ds-text);font-size:calc(24px);font-weight:500;line-height:1.4;text-align:left}
-.public-playlist-grid{--playlist-title-size:15px;--playlist-body-size:14px;--playlist-meta-size:13px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:stretch;min-width:0}
-.public-playlist-card{display:flex;flex-direction:column;min-width:0;padding:12px;border:1px solid var(--ds-line);border-radius:var(--ds-radius-card);background:var(--ds-panel);box-shadow:none}
-.public-playlist-main{display:grid;grid-template-columns:minmax(0,32%) minmax(0,1fr);gap:12px;align-items:start;min-width:0;color:var(--ds-text)}
+.public-playlist-grid{--playlist-title-size:var(--pc-font-card,15px);--playlist-body-size:var(--pc-font-body,14px);--playlist-meta-size:var(--pc-font-meta,13px);display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:stretch;min-width:0}
+.public-playlist-card{display:flex;flex-direction:column;min-width:0;padding:calc(12px) calc(12px) calc(11px);border:1px solid var(--ds-line);border-radius:var(--ds-radius-card);background:var(--ds-panel);box-shadow:none}
+.public-playlist-main{display:grid;grid-template-columns:minmax(0,min(144px,46%)) minmax(0,1fr);gap:calc(11px);align-items:start;min-width:0;color:var(--ds-text)}
 .public-playlist-cover{width:100%;aspect-ratio:1;min-width:0;overflow:hidden;border-radius:var(--ds-radius-input);align-self:start}
 .public-playlist-cover img{display:block;width:100%;height:100%;object-fit:cover}
 .public-playlist-info{min-width:0}
 .public-playlist-card .public-playlist-name{display:block;margin:0;font-size:var(--playlist-title-size);font-weight:650;line-height:1.5;color:var(--ds-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .public-playlist-description{margin:4px 0 0;font-size:var(--playlist-body-size);line-height:1.6;color:var(--ds-body);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.public-playlist-preview{list-style:none;margin:8px 0 0;padding:8px 0 0;border-top:1px solid var(--ds-line)}
+.public-playlist-preview{list-style:none;margin:calc(6px) 0 0;padding:0;border:0}
 .public-playlist-preview li{display:grid;grid-template-columns:2ch minmax(0,1fr) minmax(0,35%);align-items:center;gap:6px;min-width:0;font-size:var(--playlist-meta-size);line-height:1.7;white-space:nowrap}
 .public-playlist-index{font-variant-numeric:tabular-nums;color:var(--ds-muted)}
 .public-playlist-song,.public-playlist-artist{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .public-playlist-song{font-size:var(--playlist-title-size);color:var(--ds-text)}
 .public-playlist-artist{color:var(--ds-muted)}
 .public-playlist-extra{margin:4px 0 0;font-size:var(--playlist-meta-size);line-height:1.6;color:var(--ds-muted)}
-.public-playlist-footer{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0;margin-top:auto;padding-top:8px;font-size:var(--playlist-meta-size);line-height:1.5;color:var(--ds-body)}
+.public-playlist-footer{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0;margin-top:calc(7px);padding-top:0;font-size:var(--playlist-meta-size);line-height:1.5;color:var(--ds-body)}
 .public-playlist-owner{display:flex;align-items:center;gap:4px;flex:1;min-width:0}
 .public-playlist-owner>svg{width:16px;height:16px;flex:none}
 .public-playlist-owner>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .public-playlist-stats{display:flex;align-items:center;gap:8px;flex:none;max-width:calc(100% - 24px);min-width:0;white-space:nowrap}
-.public-playlist-stats>span{min-width:0;overflow:hidden;text-overflow:ellipsis}
-.public-playlist-card .public-playlist-bookmark{display:inline-flex;align-items:center;justify-content:center;flex:none;width:44px;height:44px;min-width:44px;min-height:44px;padding:0;border:0;border-radius:var(--ds-radius-sm);background:none;box-shadow:none;color:var(--ds-body)}
-.public-playlist-bookmark>svg{width:18px;height:18px;stroke-width:1.7;fill:none}
-.public-playlist-card .public-playlist-bookmark[aria-pressed=true]{color:var(--ds-accent-mint)}
-.public-playlist-bookmark[aria-pressed=true]>svg{fill:currentColor}
-.public-playlist-bookmark:disabled{cursor:default}
 .public-playlist-card :is(a,button):focus-visible{outline:2px solid var(--ds-selected);outline-offset:3px}
 /* Match the existing md dropdown's border-box height; do not enlarge its trigger.
    bindExplorer measures that trigger, with 38px as the pre-mount CSS fallback. */
-#main #collection-search{--collection-control-height:38px;display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:12px;margin:0 0 20px;min-width:0}
+#main #collection-search{--collection-control-height:38px;--ui-control-height:var(--collection-control-height);display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:12px;margin:0 0 20px;min-width:0}
 #main #collection-search :is(.brand-search,input[name=q],select[name=sort],.aifect-dropdown,.primary-button){box-sizing:border-box;height:var(--collection-control-height);min-height:var(--collection-control-height);margin:0;line-height:1.4}
 #main #collection-search>.brand-search{width:100%;min-width:0;padding:0 calc(12px)}
 #main #collection-search input[name=q]{width:100%;min-width:0;padding:0 calc(12px);font-size:13px}
@@ -46,12 +40,14 @@
 #main #collection-search .aifect-dropdown{align-items:center}
 @media(max-width:800px){
  .public-playlist-grid{grid-template-columns:minmax(0,1fr);gap:12px}
+ .public-playlist-main{grid-template-columns:minmax(0,min(144px,42%)) minmax(0,1fr)}
  .recommended-playlists #recommended-playlists-title{font-size:calc(20px)}
  #main #collection-search{grid-template-columns:minmax(0,1fr) auto;gap:8px}
  #main #collection-search>.brand-search,#main #collection-search>input[name=q]{grid-column:1/-1}
  #main #collection-search :is(input[name=q],.brand-search input[name=q]){font-size:16px}
 }
 
+@media(min-width:801px){.public-playlist-preview li{line-height:1.5}}
 @media(max-width:700px){.public-playlist-grid{--playlist-title-size:14px;--playlist-meta-size:12px}}
 /* Discover-only photo layout. Shared shell, music cards and player remain unchanged. */
 .discover-photo-layout{min-width:0;color:var(--ds-text)}

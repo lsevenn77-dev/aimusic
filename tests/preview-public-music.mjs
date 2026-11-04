@@ -51,7 +51,7 @@ for(const q of ['Rock','rock','록','Rokc','ㄹㅋㄱㅈㅇㅌㅅㅌ']){
  const response=await mf.dispatchFetch('http://localhost/api/search?'+new URLSearchParams({q})),result=await response.json();
  assert.equal(response.status,200,JSON.stringify(result));assert.equal(result.counts.tracks,3,q);
 }
-// Public playlist summaries and bookmark persistence on the actual local D1 engine.
+// Public playlist summaries and retirement of save/pin endpoints on the actual local D1 engine.
 const playlistRequest=async(path,method='GET',body,user='other')=>{
  const response=await mf.dispatchFetch('http://localhost'+path,{method,headers:{Origin:'http://localhost',Cookie:'aifect_session='+user,'Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{})});
  const result=await response.json();assert.ok(response.ok,JSON.stringify(result));return result;
@@ -62,9 +62,13 @@ const playlistList=await playlistRequest('/api/playlists?sort=popular');
 assert.deepEqual(playlistList.playlists[0].covers.map(t=>t.id),['three','one','two']);
 assert.equal(playlistList.playlists[0].covers[0].artist,'로컬 검증 아티스트');
 for(const method of ['PUT','DELETE']){
- const state=await playlistRequest(playlistPath+'/save',method);assert.equal(state.saved,method==='PUT'?1:0);assert.equal(state.saves,state.saved);
- const fresh=await playlistRequest('/api/playlists?sort=popular');assert.equal(fresh.playlists[0].saved,state.saved);assert.equal(fresh.playlists[0].saves,state.saves);
+ const response=await mf.dispatchFetch('http://localhost'+playlistPath+'/save',{method,headers:{Origin:'http://localhost',Cookie:'aifect_session=other'}});
+ assert.equal(response.status,404);
 }
+const retiredPin=await mf.dispatchFetch('http://localhost/api/library/playlists/'+createdPlaylist.id,{method:'PATCH',headers:{Origin:'http://localhost',Cookie:'aifect_session=owner','Content-Type':'application/json'},body:JSON.stringify({pinned:true})});
+assert.equal(retiredPin.status,404);
+const fresh=await playlistRequest('/api/playlists?sort=popular');
+for(const field of ['saved','saves','pinned'])assert.equal(fresh.playlists[0][field],undefined);
 await db.prepare("UPDATE tracks SET status='hidden' WHERE id='two'").run();
 // Real D1 caps LIKE/GLOB patterns at 50 bytes, including UTF-8 Korean natural language.
 for(const q of ['헤어진 여자친구 생각날 때 듣는 노래','요즘 너무 힘들어서 위로받고 싶어','사랑하는 사람에게 들려주고 싶은 노래','슬픈 이별 노래 '.repeat(10)]){
