@@ -5,17 +5,19 @@ import {readFileSync} from 'node:fs';
 import * as core from '../shared/crew-jump.js';
 const flush=async()=>{for(let i=0;i<30;i++)await Promise.resolve()};
 const lobby=remaining=>({remaining,open:true,seed:'entry-test',version:core.VERSION,ranking:[],individualRanking:[],best:null,team:0,participated:false});
-function setup(handler){
+function setup(handler,{wide=false}={}){
+ let detached=false;
  class Node extends EventTarget{
   constructor(){super();this.nodes=new Map();this.dataset={};this.classList={add(){},remove(){}};this.innerHTML='';this.textContent='';this.hidden=false;}
-  querySelector(key){if(!this.nodes.has(key))this.nodes.set(key,new Node());return this.nodes.get(key)}
+  querySelector(key){if(this===root&&detached&&key==='[data-game-mode]')return null;if(!this.nodes.has(key))this.nodes.set(key,new Node());return this.nodes.get(key)}
   querySelectorAll(key){return key==='b'?[0,1,2].map(i=>this.querySelector('b'+i)):[]}
-  getContext(){return {clearRect(){}}}before(){}after(){}append(){}prepend(){}remove(){}focus(){}close(){this.open=false}
+  getContext(){return {clearRect(){}}}before(){}after(){}append(){}prepend(){}remove(){}focus(){}showModal(){this.open=true}close(){this.open=false}
  }
  const root=new Node(),document=new Node(),calls=[];document.body=new Node();document.createComment=()=>new Node();
+ document.body.append=()=>{detached=true};
  let scheduled=0,rendered=0;
  const context=vm.createContext({...core,document,window:new Node(),AbortController,performance,crypto,
-  sessionStorage:{getItem(){return null}},matchMedia:()=>({matches:false}),
+  sessionStorage:{getItem(){return null}},matchMedia:query=>({matches:wide&&query.startsWith('(max-width: 1100px)')}),
   requestAnimationFrame(){return ++scheduled},cancelAnimationFrame(){},fetch:async()=>({ok:true}),
   gameSounds:()=>({unlock(){},quiet(){}}),stageRenderer:()=>({async ready(){},draw(){rendered++}}),
   mountOutfitShop:()=>({busy:false,async refresh(){return {equipped:'default'}},destroy(){}})
@@ -57,4 +59,10 @@ test('available official entry calls the server and visibly identifies ranked pl
  assert.equal(f.calls.filter(c=>c.path.endsWith('/start')).length,1);assert.equal(f.scheduled(),1);
  assert.equal(f.node('[data-game-mode]').textContent,'공식 도전 · 랭킹 반영');
  f.clear();
+});
+
+test('mobile wide stage begins after moving outside the route root',async()=>{
+ const f=setup(async()=>lobby(3),{wide:true});await flush();const label=f.node('[data-game-mode]');
+ f.click('practice');await flush();assert.equal(f.node('[data-game-mode]'),null);
+ assert.equal(label.textContent,'연습 · 랭킹 미반영');assert.equal(f.scheduled(),1);assert.equal(f.rendered(),1);f.clear();
 });

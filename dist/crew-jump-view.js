@@ -32,7 +32,7 @@ export function mount(root,{crew,viewer,api,esc}){
  <div class="jump-stage" hidden aria-label="점프게임"><canvas width="960" height="540" tabindex="0" aria-label="스페이스 또는 화면을 눌러 점프"></canvas><div class="jump-hud" hidden><span>점수 <b>0</b></span><span>남은 시간 <b>${LIMIT/HZ}초</b></span><span>콤보 <b>0</b></span><small class="jump-speed"></small><span class="jump-mode" data-game-mode></span></div><div class="jump-overlay"></div></div>
  <dialog class="jump-wide-dialog" aria-label="가로 게임 화면"><div class="jump-wide-layout"><div class="jump-wide-controls"><button class="small-button" type="button" data-wide-pause hidden>일시정지</button><button class="small-button" type="button" data-wide-exit>축소</button></div></div></dialog><div class="jump-summary" aria-live="polite"></div><dialog class="surface jump-dialog compact-popup"><h2>주간 게임 규칙</h2><p>화면을 누르거나 스페이스바로 점프하세요. 공중에서 한 번 더 점프할 수 있어요. 장애물에 닿으면 도전이 끝나요.</p><p>별 젤리를 연속으로 모으면 콤보 보너스! 낮에는 10초마다 1.2배로 가속해요. 70초부터 야간 도로에서 네온 링을 모으세요. 밤에는 5초마다 1.1배로 가속하고 ${LIMIT/HZ}초에 완주해요.</p><p>공식 도전은 하루 3회, 프리미엄은 4회. 한국시간 월요일 0시부터 금요일 22시까지, 크루원별 주간 최고점 상위 10개를 합산해요. 참여 미션 보상은 크루 경험치이며, 현재 지급은 꺼져 있어요. 리듬게임에서도 별도의 공식 도전에 참여할 수 있어요.</p><button class="primary-button" data-close>확인</button></dialog></section>`;
  const $=s=>root.querySelector(s),canvas=$('canvas'),ctx=canvas.getContext('2d'),layer=$('.jump-overlay'),hud=$('.jump-hud'),summary=$('.jump-summary'),dialog=$('.jump-dialog:not(.arc-store-dialog)'),shop=$('.arc-store-dialog');
- const waiting=$('.jump-lobby'),stage=$('.jump-stage');
+ const waiting=$('.jump-lobby'),stage=$('.jump-stage'),modeLabel=$('[data-game-mode]');
  const outfitShop=mountOutfitShop(shop,{api,url,esc,onChange:wardrobe=>{
   $('[data-equipped-look]').textContent='착용 중 · '+wardrobe.outfits.find(item=>item.id===wardrobe.equipped).name;
  }});
@@ -175,7 +175,7 @@ export function mount(root,{crew,viewer,api,esc}){
    wasOfficial=official;requestId=null;game=start(round?.seed??info.seed);taps=[];queued=0;pressed=null;
    origin=performance.now()+(round?round.starts-round.serverNow:3000);phase='countdown';$('.jump-board').hidden=true;
    waiting.hidden=true;stage.hidden=false;summary.hidden=false;layer.hidden=false;
-   $('[data-game-mode]').textContent=official?'공식 도전 · 랭킹 반영':'연습 · 랭킹 미반영';
+   modeLabel.textContent=official?'공식 도전 · 랭킹 반영':'연습 · 랭킹 미반영';
    layer.classList.add('counting');layer.textContent='3';canvas.focus({preventScroll:true});draw();summary.textContent=official?'공식 도전':'연습 모드 · 랭킹 미반영';frame=requestAnimationFrame(advance);
   }catch(e){if(!dead){if(e.status===409)requestId=null;await refresh();if(!dead){summary.hidden=false;summary.textContent=e.message}}}
  }
