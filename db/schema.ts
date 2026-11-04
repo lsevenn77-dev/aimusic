@@ -1,5 +1,21 @@
 import { sqliteTable, text, integer, real, primaryKey, index, uniqueIndex, check } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
+// Local lyric semantics are independent of uploader metadata and audio classification.
+export const lyricAnalysisJobs=sqliteTable('lyric_analysis_jobs',{
+ trackId:text('track_id').primaryKey().references(()=>tracks.id,{onDelete:'cascade'}),state:text('state').notNull().default('queued'),version:text('version').notNull().default(''),lyricsHash:text('lyrics_hash').notNull().default(''),analyzedAt:integer('analyzed_at').notNull().default(0),updated:integer('updated').notNull().default(0),attempts:integer('attempts').notNull().default(0),leaseToken:text('lease_token').notNull().default(''),leaseUntil:integer('lease_until').notNull().default(0),error:text('error').notNull().default(''),resultJson:text('result_json').notNull().default(''),durationMs:real('duration_ms').notNull().default(0)
+},t=>[index('lyric_jobs_pending').on(t.state,t.leaseUntil,t.updated)]);
+export const lyricSearchTags=sqliteTable('lyric_search_tags',{
+ trackId:text('track_id').notNull().references(()=>tracks.id,{onDelete:'cascade'}),tagId:text('tag_id').notNull(),confidence:real('confidence').notNull(),role:text('role').notNull(),source:text('source').notNull().default('auto'),evidenceJson:text('evidence_json').notNull().default('[]')
+},t=>[primaryKey({columns:[t.trackId,t.tagId]}),index('lyric_tags_lookup').on(t.tagId,t.trackId),check('lyric_confidence_range',sql`${t.confidence}>=0 AND ${t.confidence}<=1`)]);
+export const lyricSearchTerms=sqliteTable('lyric_search_terms',{
+ trackId:text('track_id').notNull().references(()=>tracks.id,{onDelete:'cascade'}),term:text('term').notNull(),weight:integer('weight').notNull().default(1)
+},t=>[primaryKey({columns:[t.trackId,t.term]}),index('lyric_terms_lookup').on(t.term,t.trackId)]);
+export const lyricTagOverrides=sqliteTable('lyric_tag_overrides',{
+ trackId:text('track_id').notNull().references(()=>tracks.id,{onDelete:'cascade'}),tagId:text('tag_id').notNull(),mode:text('mode').notNull(),operatorId:text('operator_id').notNull(),updated:integer('updated').notNull()
+},t=>[primaryKey({columns:[t.trackId,t.tagId]}),check('lyric_override_mode',sql`${t.mode} IN ('include','exclude')`)]);
+export const lyricAnalysisControl=sqliteTable('lyric_analysis_control',{
+ id:text('id').primaryKey(),version:text('version').notNull(),cursor:text('cursor').notNull().default(''),scanDone:integer('scan_done').notNull().default(0),leaseToken:text('lease_token').notNull().default(''),leaseUntil:integer('lease_until').notNull().default(0),updated:integer('updated').notNull().default(0),lastBatchMs:integer('last_batch_ms').notNull().default(0),lastBatchCount:integer('last_batch_count').notNull().default(0)
+});
 export const adminSessions=sqliteTable('admin_sessions',{tokenHash:text('token_hash').primaryKey(),credentialVersion:text('credential_version').notNull(),created:integer('created').notNull(),expires:integer('expires').notNull()},t=>[index('admin_sessions_expiry').on(t.expires)]);
 export const playPurchases=sqliteTable('play_purchases',{tokenHash:text('token_hash').primaryKey(),purchaseToken:text('purchase_token').notNull(),userId:text('user_id').notNull().references(()=>users.id),productId:text('product_id').notNull(),kind:text('kind').notNull(),state:text('state').notNull(),expiry:integer('expiry').notNull().default(0),baselineUntil:integer('baseline_until').notNull().default(0),lastGranted:integer('last_granted').notNull().default(0),created:integer('created').notNull(),updated:integer('updated').notNull()},t=>[index('play_purchases_user').on(t.userId,t.kind)]);
 export const pushDevices=sqliteTable('push_devices',{token:text('token').primaryKey(),userId:text('user_id').notNull().references(()=>users.id),sessionToken:text('session_token').notNull(),updated:integer('updated').notNull()},t=>[index('push_devices_user').on(t.userId)]);
