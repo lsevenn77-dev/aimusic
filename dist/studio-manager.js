@@ -1,11 +1,11 @@
 /* AIFECT Studio: scoped management UI. Existing edit/upload flows are unchanged. */
 const studioLegacyBindForms=bindStudioForms;
-const studioManage={type:'original',status:'all',search:'',selected:new Set(),loading:false};
+const studioManage={type:'original',status:'all',search:'',searchOpen:false,selected:new Set(),loading:false};
 const studioKinds={original:'제작곡',cover:'커버곡'};
 const studioProcessing=new Set(['uploading','queued','processing']);
 const studioStatusText={published:'공개',hidden:'비공개',uploading:'업로드 중',queued:'변환 대기',processing:'변환 중',failed:'변환 실패',removed:'운영자 비공개'};
 function studioResetFilters(type='original'){
- Object.assign(studioManage,{type,status:'all',search:''});
+ Object.assign(studioManage,{type,status:'all',search:'',searchOpen:false});
  studioManage.selected.clear();
 }
 // Match the compact Korean title search used by the service, preserving literal punctuation searches.
@@ -62,9 +62,13 @@ function studioWorksHTML(d){
  const choices=[...filters,...['failed','removed'].filter(key=>status===key||tracks.some(t=>t.status===key)).map(key=>[key,studioStatusText[key]])];
  return `${original?studioQuotaCard(d.upload_quota):''}<div class="studio-glance" aria-label="${kind} 현황">${stats.map(([label,value])=>`<div><span>${label}</span><strong>${number(value)}</strong></div>`).join('')}</div>
  <div class="studio-works-surface">
-  <div class="studio-filters">
+  <div class="studio-filters${studioManage.searchOpen?' is-search-open':''}">
    <div class="studio-filter-buttons" role="group" aria-label="작품 상태">${choices.map(([key,label])=>`<button type="button" class="studio-filter-button" data-studio-filter="${key}" aria-pressed="${key===status}">${label}</button>`).join('')}</div>
-   <div class="studio-filter-tools"><input type="search" data-studio-search value="${esc(studioManage.search)}" placeholder="작품 검색" aria-label="작품 검색" maxlength="120"></div>
+   <div class="studio-filter-tools">
+    <button type="button" class="studio-search-toggle" data-studio-search-action="open" aria-label="작품 검색 열기" aria-controls="studio-search-field" aria-expanded="${studioManage.searchOpen}">${icon('search')}</button>
+    <button type="button" class="studio-search-back" data-studio-search-action="close" aria-label="검색 닫기">${icon('chevron-left')}</button>
+    <span class="brand-search" id="studio-search-field">${icon('search')}<input type="search" data-studio-search value="${esc(studioManage.search)}" placeholder="작품 제목 검색" aria-label="작품 검색" maxlength="120"><span class="search-sparkle" aria-hidden="true">${icon('search-star')}</span></span>
+   </div>
   </div>
   <div class="studio-bulk-bar"><label class="studio-select-all"><input type="checkbox" data-studio-select-all> <span>전체 선택</span></label><span class="studio-selected-count" aria-live="polite">0개 선택</span>
    <div class="studio-bulk-actions" hidden><button type="button" class="studio-bulk-button" data-studio-bulk="hide" disabled>선택 비공개</button><button type="button" class="studio-bulk-button is-danger" data-studio-bulk="delete" disabled>선택 삭제</button><button type="button" class="studio-bulk-button is-danger studio-delete-all" data-studio-bulk="all-delete">전체 삭제</button></div>
@@ -102,6 +106,20 @@ function studioPaintWorks(){
  const pane=document.querySelector('[data-studio-pane="works"]');if(!pane)return;
  pane.setAttribute('aria-labelledby','studio-tab-'+studioManage.type);
  pane.innerHTML=studioWorksHTML(studioData);studioSyncBulk();
+}
+function studioSetSearchOpen(open){
+ studioManage.searchOpen=open;
+ const root=document.querySelector('[data-studio-root]');if(!root)return;
+ root.querySelector('.studio-filters')?.classList.toggle('is-search-open',open);
+ root.querySelector('[data-studio-search-action="open"]')?.setAttribute('aria-expanded',String(open));
+}
+function studioCloseSearch(){
+ const root=document.querySelector('[data-studio-root]');if(!root)return;
+ const input=root.querySelector('[data-studio-search]');
+ if(input)input.value='';
+ if(studioManage.search){studioManage.search='';studioManage.selected.clear();studioPaintResults();}
+ studioSetSearchOpen(false);
+ root.querySelector('[data-studio-search-action="open"]')?.focus();
 }
 async function studioLoadComplete(data=studioData,read=api){
  const total=Number(data.track_total??data.tracks.length),seen=new Set(data.tracks.map(t=>t.id));
@@ -175,6 +193,9 @@ function bindStudioManager(){
   studioPaintResults();
  }
  root.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&!e.isComposing&&studioManage.searchOpen&&e.target.matches('[data-studio-search]')&&matchMedia('(max-width:767px)').matches){
+   e.preventDefault();studioCloseSearch();return;
+  }
   const tab=e.target.closest('[data-studio-type]');
   if(!tab||!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;
   e.preventDefault();
@@ -184,11 +205,13 @@ function bindStudioManager(){
  });
  root.addEventListener('click',async e=>{
   const button=e.target.closest('button');if(!button)return;
-  const {studioType:type,studioFilter:filter,studioBulk:bulk}=button.dataset;
+  const {studioType:type,studioFilter:filter,studioBulk:bulk,studioSearchAction:searchAction}=button.dataset;
   const {studioDelete,studioHide,studioRetry}=button.dataset;
-  if(filter===undefined&&type===undefined&&bulk===undefined&&!studioDelete&&!studioHide&&!studioRetry)return;
+  if(filter===undefined&&type===undefined&&bulk===undefined&&searchAction===undefined&&!studioDelete&&!studioHide&&!studioRetry)return;
   e.preventDefault();e.stopPropagation();
   if(studioManage.loading)return;
+  if(searchAction==='open'){studioSetSearchOpen(true);root.querySelector('[data-studio-search]')?.focus();return;}
+  if(searchAction==='close'){studioCloseSearch();return;}
   if(studioDelete||studioHide){await studioBulkDialog(studioDelete?'delete':'hide',studioDelete||studioHide);return;}
   if(studioRetry){studioManage.loading=true;button.disabled=true;try{await api('/api/uploads/'+encodeURIComponent(studioRetry)+'/retry','POST');await render();}catch(err){toast(err.message);}finally{studioManage.loading=false;button.disabled=false;studioSyncBulk();}return;}
   if(filter!==undefined){changeFilter(filter);}
@@ -213,7 +236,10 @@ function bindStudioManager(){
  });
  root.addEventListener('input',e=>{
   if(!e.target.matches('[data-studio-search]'))return;
-  studioManage.search=e.target.value.trim();studioManage.selected.clear();studioPaintResults();
+  studioManage.search=e.target.value.trim();
+  // Keep an active desktop query visible if the viewport narrows to mobile.
+  if(studioManage.search)studioSetSearchOpen(true);
+  studioManage.selected.clear();studioPaintResults();
  });
 }
 bindStudioForms=function(){studioLegacyBindForms();bindStudioManager();};

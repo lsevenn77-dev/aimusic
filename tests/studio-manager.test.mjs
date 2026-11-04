@@ -91,6 +91,9 @@ test('status tabs preserve failed and moderator-hidden searches without a duplic
 
 function controls(ctx){
  const nodes=Object.fromEntries(['[data-studio-select-all]','.studio-selected-count','.studio-bulk-actions',...['hide','delete','all-delete'].map(k=>'[data-studio-bulk="'+k+'"]')].map(k=>[k,{}]));
+ nodes['.studio-filters']={classList:{toggle(name,value){this[name]=value;}}};
+ nodes['[data-studio-search]']={value:'',focus(){this.focused=true;}};
+ nodes['[data-studio-search-action="open"]']={setAttribute(name,value){this[name]=value;},focus(){this.focused=true;}};
  const inputs=ctx.studioData.tracks.map(t=>({dataset:{studioSelect:t.id},checked:false,closest(){return {classList:{toggle(){}}};}}));
  const events={},root={dataset:{},isConnected:true,querySelector:s=>nodes[s]||null,querySelectorAll:s=>s==='[data-studio-select]'?inputs:[],addEventListener:(name,fn)=>events[name]=fn};
  const area={innerHTML:''};
@@ -98,6 +101,39 @@ function controls(ctx){
  ctx.bindStudioManager();
  return {nodes,inputs,root,events,area};
 }
+
+test('mobile search opens with focus, keeps filters and selection, and closing clears only the keyword filter',async()=>{
+ const ctx=sandbox(sampleTracks(5)),state=runInNewContext('studioManage',ctx),ui=controls(ctx);
+ const click=action=>ui.events.click({target:{closest:()=>({dataset:{studioSearchAction:action}})},preventDefault(){},stopPropagation(){}});
+ const input=ui.nodes['[data-studio-search]'],toggle=ui.nodes['[data-studio-search-action="open"]'];
+ state.status='hidden';state.selected.add('work-4');ctx.studioSyncBulk();
+ assert.equal(state.searchOpen,false);
+ await click('open');
+ assert.equal(state.searchOpen,true);assert.equal(input.focused,true);assert.equal(toggle['aria-expanded'],'true');
+ assert.equal(state.status,'hidden');assert.equal(state.selected.size,1);assert.equal(ui.nodes['.studio-bulk-actions'].hidden,false);
+ await click('close');
+ assert.equal(state.selected.size,1,'closing an empty search should not lose selection');
+ await click('open');
+ input.value='없는 곡';ui.events.input({target:{matches:()=>true,value:input.value}});
+ assert.match(ui.area.innerHTML,/해당하는 작품이 없습니다/);assert.equal(state.selected.size,0);
+ await click('close');
+ assert.equal(input.value,'');assert.equal(state.search,'');assert.equal(state.status,'hidden');
+ assert.equal(state.searchOpen,false);assert.equal(toggle['aria-expanded'],'false');assert.equal(toggle.focused,true);
+ assert.match(ui.area.innerHTML,/data-studio-select="work-4"/);assert.equal(ui.nodes['.studio-bulk-actions'].hidden,true);
+});
+
+test('desktop keywords stay exposed on narrowing; Escape ignores composition and only closes mobile search',()=>{
+ const ctx=sandbox(sampleTracks(5)),state=runInNewContext('studioManage',ctx),ui=controls(ctx);
+ ui.events.input({target:{matches:()=>true,value:'작품'}});
+ assert.equal(state.searchOpen,true);
+ assert.match(ctx.studioHTML(ctx.studioData),/studio-filters is-search-open/);
+ let mobile=false;ctx.matchMedia=()=>({matches:mobile});
+ const key={key:'Escape',isComposing:false,target:{matches:()=>true,closest:()=>null},preventDefault(){}};
+ ui.events.keydown(key);assert.equal(state.search,'작품');
+ mobile=true;ui.events.keydown({...key,isComposing:true});assert.equal(state.search,'작품');
+ ui.events.keydown(key);assert.equal(state.search,'');assert.equal(state.searchOpen,false);
+ state.searchOpen=true;ctx.studioResetFilters('cover');assert.equal(state.searchOpen,false);
+});
 
 test('bulk actions follow individual/select-all checkboxes, zero selection and refreshed inventory',()=>{
  const ctx=sandbox(sampleTracks(5)),state=runInNewContext('studioManage',ctx),ui=controls(ctx);
