@@ -1,4 +1,5 @@
 import {position, progressAfter} from './rules.js';
+import {createRequestId} from './request-id.js';
 
 // Practice catches live for the lifetime of this page and never enter official rankings.
 export function practiceSession(info, draw, now = Date.now) {
@@ -17,7 +18,7 @@ export function practiceSession(info, draw, now = Date.now) {
       if (action === 'cast') {
         if (current?.status !== 'active') {
           const fish = await draw();
-          current = {...fish, id:crypto.randomUUID(), start:now(), status:'active', progress:0, warnings:0, seq:0, lastPass:-1};
+          current = {...fish, id:createRequestId(), start:now(), status:'active', progress:0, warnings:0, seq:0, lastPass:-1};
         }
         return snapshot();
       }

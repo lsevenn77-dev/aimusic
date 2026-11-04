@@ -119,8 +119,8 @@ export function createScene(stage,{goal=3,progress=0}={}){
   }
 
   // ───── 단계별 움직임 ─────
-  function update(dt){
-    time+=dt;S.pt+=dt;
+  function update(dt,elapsed=dt){
+    time+=elapsed;S.pt+=elapsed;
     const ia=idleA(),L=landing();
     S.jerk*=Math.exp(-dt*6);S.slack=Math.max(0,S.slack-dt);S.shake=Math.max(0,S.shake-dt);S.glow=Math.max(0,S.glow-dt*.35);
     if(S.phase==='cast'){
@@ -130,7 +130,7 @@ export function createScene(stage,{goal=3,progress=0}={}){
       else S.a+= (ia-S.a)*Math.min(1,dt*5);
       if(t>=.6&&!S.flight){S.flight={from:tipAt(S.a),t:0}}
       if(S.flight&&!S.bobber){
-        S.flight.t+=dt;const k=clamp(S.flight.t/.88,0,1),f=S.flight.from;
+        S.flight.t=Math.max(0,t-.6);const k=clamp(S.flight.t/.88,0,1),f=S.flight.from;
         S.lure={x:lerp(f.x,L.x,k),y:lerp(f.y,L.y,easeInOut(k))-Math.sin(k*Math.PI)*Hh*.22};
         if(k>=1){S.bobber={x:L.x,y:L.y};S.lure=null;splash(L.x,L.y,16,150);ring(L.x,L.y,40)}
       }
@@ -153,7 +153,7 @@ export function createScene(stage,{goal=3,progress=0}={}){
       S.a+=(ia+(portrait()?.18:.36)-S.a)*Math.min(1,dt*6);S.bend+=(.95-S.bend)*Math.min(1,dt*6);
       if(t>=.32&&!S.leap){S.leap={from:{...S.hook},t:0};splash(S.hook.x,S.hook.y,40,320);ring(S.hook.x,S.hook.y,80);S.shadow.on=false}
       if(S.leap){
-        const lp=S.leap;lp.t+=dt;const k=clamp(lp.t/1.05,0,1),to={x:W*.5,y:Hh*(portrait()?.3:.34)};
+        const lp=S.leap;lp.t=Math.max(0,t-.32);const k=clamp(lp.t/1.05,0,1),to={x:W*.5,y:Hh*(portrait()?.3:.34)};
         lp.x=lerp(lp.from.x,to.x,easeOut(k));lp.y=lerp(lp.from.y,to.y,easeOut(k))-Math.sin(k*Math.PI)*Hh*.12;
         lp.scale=lerp(.32,1,easeOut(k));lp.rot=lerp(-.7,0,easeOut(k));
         if(k<.6&&Math.random()<dt*40)drops.push({x:lp.x,y:lp.y+10,vx:(Math.random()-.5)*60,vy:20,life:1,r:1.5+Math.random()*2});
@@ -258,8 +258,8 @@ export function createScene(stage,{goal=3,progress=0}={}){
     if(!alive)return;
     raf=requestAnimationFrame(frame);
     if(document.hidden){last=now;return}
-    const dt=Math.min(.05,(now-last)/1000);last=now;
-    update(dt);draw();
+    const elapsed=Math.max(0,(now-last)/1000),dt=Math.min(.05,elapsed);last=now;
+    update(dt,elapsed);draw();
     if(drawSea){const k=portrait()?.55:.7;drawSea(Math.round(W*k),Math.round(Hh*k),reduced?12:time,HORIZON,MOON)}
   }
   raf=requestAnimationFrame(frame);

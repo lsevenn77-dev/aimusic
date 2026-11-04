@@ -2,6 +2,8 @@ import {FISH} from './catalog.js';
 import {TIERS,position,cm} from './rules.js';
 import {createScene} from './scene.js';
 import {bindMobileReelInput} from './mobile-input.js';
+import {createRequestId} from './request-id.js';
+import {animationDeadline} from './animation.js';
 
 const app=document.querySelector('#app'), errorBox=document.querySelector('#error');
 const dialog=document.querySelector('#rules');
@@ -22,11 +24,17 @@ function paint(name,html){
 }
 async function fetchAPI(action,data){
   const before=performance.now();
-  const response=await fetch('/api/crew-fishing/'+action+(action==='lobby' && new URLSearchParams(location.search).get('mode')==='practice'?'?mode=practice':''),data?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}:{cache:'no-store'});
-  const result=await response.json();
-  if(!response.ok)throw Error(result.error||'낚시 정보를 불러오지 못했어요.');
-  if(result.serverTime)clockOffset=result.serverTime-(before+performance.now())/2;
-  return result;
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
+  try{
+    const response=await fetch('/api/crew-fishing/'+action+(action==='lobby' && new URLSearchParams(location.search).get('mode')==='practice'?'?mode=practice':''),{...(data?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}:{cache:'no-store'}),signal:controller.signal});
+    const result=await response.json();
+    if(!response.ok)throw Error(result.error||'낚시 정보를 불러오지 못했어요.');
+    if(result.serverTime)clockOffset=result.serverTime-(before+performance.now())/2;
+    return result;
+  }catch(error){
+    if(controller.signal.aborted)throw Error('연결이 지연됐어요. 다시 눌러주세요. 낚시 기록은 중복으로 소모되지 않아요.');
+    throw error;
+  }finally{clearTimeout(timer);}
 }
 let practice=null;
 async function api(action,data){
@@ -79,10 +87,13 @@ function play(intro){
   <div class="console"><div class="titlebar"><div class="gauge-title"><small>REEL TIMING</small><h3>릴 타이밍</h3></div><div class="capture"><span>포획 진행도</span><b class="dots"></b></div></div><div class="meter" aria-label="민트색 성공 구역에 맞춰 당기기"><i class="target" style="left:${cast.target}%;width:${cast.width}%"></i><i class="needle"></i></div><div class="stagefoot"><div><p id="pullfeedback" role="status"></p><small><span class="desktop-hint">스페이스바 또는 터치</span><span class="mobile-hint">화면 어디든 터치해서 당기기</span></small></div><button class="primary" data-act="pull">당기기</button></div></div></section>`);
   updateMeter('찌가 민트색 구간에 닿으면 당기세요.');
   const stage=app.querySelector('.stage');
-  scene=createScene(stage,{goal:cast.goal,progress:cast.progress});
+  try{scene=createScene(stage,{goal:cast.goal,progress:cast.progress});}catch{scene=null;}
+  if(!scene){stage.classList.remove('casting');stage.querySelector('h2').textContent='물고기가 걸렸어요';loop();return;}
   if(!intro){scene.hooked();loop();return}
-  scene.cast().then(()=>{
-    if(screen!=='play'||!stage.isConnected)return;
+  const currentScene=scene;
+  animationDeadline(()=>currentScene.cast(),4000).then(()=>{
+    if(screen!=='play'||!stage.isConnected||scene!==currentScene)return;
+    try{currentScene.hooked();}catch{}
     stage.classList.remove('casting');stage.querySelector('h2').textContent='물고기가 걸렸어요';loop();
   });
 }
@@ -90,7 +101,7 @@ async function start(){
   const fresh=!cast||cast.status!=='active';
   if(fresh){
     // Keep one key across retries; quota changes must not reuse an older cast's key.
-    requestId??=crypto.randomUUID();
+    requestId??=createRequestId();
     const result=await api('cast',{requestId});cast=result.cast;requestId=null;
   }
   if(cast.status==='active')play(fresh);else finish();
@@ -103,7 +114,7 @@ async function pull(){
     // 결과는 이미 서버에 기록됐다. 낚아 올리기·놓치기 연출이 끝나면 결과 카드를 보여준다.
     cancelAnimationFrame(frame);app.querySelector('.stage')?.classList.add('ending');
     const f=fishById.get(cast.fish);
-    if(cast.status==='caught')await scene?.land(art(f),f.tier,TIERS[f.tier].name);else await scene?.escape();
+    await animationDeadline(()=>cast.status==='caught'?scene?.land(art(f),f.tier,TIERS[f.tier].name):scene?.escape(),3000);
     finish();return;
   }
   const kind=prev.seq===cast.seq?'wait':cast.progress>prev.progress?'success':cast.warnings>prev.warnings?'warning':'miss';

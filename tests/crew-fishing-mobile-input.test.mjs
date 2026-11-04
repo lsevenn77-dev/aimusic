@@ -9,9 +9,9 @@ function setup(pointerEvents=true){
     pull:()=>state.pulls++,pointerEvents});
   let clicks=0;
   root.addEventListener('click',()=>clicks++);
-  function send(type,{control=false,...props}={}){
+  function send(type,{control=false,reelButton=false,...props}={}){
     const e=new Event(type,{cancelable:true});
-    Object.defineProperty(e,'target',{value:{closest:()=>control?{}:null}});
+    Object.defineProperty(e,'target',{value:{closest:selector=>selector==='[data-act="pull"]'?(reelButton?{}:null):(control||reelButton?{}:null)}});
     Object.assign(e,props);root.dispatchEvent(e);return e;
   }
   return {state,send,clicks:()=>clicks};
@@ -67,4 +67,20 @@ test('older touch browsers use one touchstart, and cancellation does not swallow
   send('touchstart',{touches:[{}]});send('touchcancel');
   assert.equal(send('click',{control:true}).defaultPrevented,false);
   assert.equal(clicks(),1);
+});
+
+test('the visible reel button reacts on press once, with its compatibility click consumed',()=>{
+  const {state,send,clicks}=setup();
+  assert.equal(send('pointerdown',{reelButton:true,isPrimary:true,button:0}).defaultPrevented,true);
+  assert.equal(state.pulls,1);
+  assert.equal(send('click',{reelButton:true}).defaultPrevented,true);
+  assert.equal(state.pulls,1);assert.equal(clicks(),0);
+  // Keyboard-generated button click still reaches the normal delegated action.
+  send('click',{reelButton:true});assert.equal(clicks(),1);
+});
+
+test('click-only mobile activation still reels when no pointer event arrived',()=>{
+  const {state,send,clicks}=setup();
+  assert.equal(send('click').defaultPrevented,true);
+  assert.equal(state.pulls,1);assert.equal(clicks(),0);
 });

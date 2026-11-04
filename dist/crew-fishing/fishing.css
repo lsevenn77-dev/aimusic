@@ -51,6 +51,6 @@ main{padding:24px 0 52px}button,.button{font:inherit;font-weight:650;color:inher
 
 /* Touch phones/tablets (including landscape) reel from the entire game page. */
 .mobile-hint{display:none}
-.mobile-controls .desktop-hint,.mobile-controls .console [data-act="pull"]{display:none}
+.mobile-controls .desktop-hint{display:none}
 .mobile-controls .mobile-hint{display:inline}
 .mobile-controls .stage{touch-action:none;-webkit-user-select:none}
