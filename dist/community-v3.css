@@ -189,14 +189,13 @@ html:has(#main > .talk-directory, #main > .music-community-tabs[aria-label="儢月
  flex:1 1 0;min-height:0;container-type:size;display:flex;flex-direction:column;
 }
 .live-directory .talk-scroll {
- --room-gap:14px;--room-columns:6;--grid-inset:15px;
- --grid-width:calc(100cqw - 2 * var(--grid-inset));
- --room-height:calc(80px + clamp(100px,12cqw,180px));
- --row-gap:clamp(6px,calc((100cqh - 3 * var(--room-height)) / 3),var(--room-gap));
+ --room-gap:14px;--room-columns:5;--grid-width:100cqw;
+ --card-width:calc((var(--grid-width) - (var(--room-columns) - 1) * var(--room-gap)) / var(--room-columns));
+ --room-height:calc(var(--card-width) * 1.28);
+ --row-gap:var(--room-gap);
  --three-rows:calc(3 * var(--room-height) + 2 * var(--row-gap));
  flex:0 1 auto;min-height:0;min-width:0;max-height:var(--three-rows);
- margin-block-start:clamp(6px,calc(100cqh - var(--three-rows)),var(--list-spacing));
- margin-inline-start:var(--grid-inset);
+ margin:var(--list-spacing) 0 0;
  overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;
  scrollbar-width:thin;scrollbar-color:#50637e transparent;
 }
@@ -247,23 +246,41 @@ html:has(#main > .talk-directory, #main > .music-community-tabs[aria-label="儢月
 .live-directory .live-tools,.live-directory .directory-actions,.live-directory .live-filters {
  display:flex;align-items:center;gap:10px;min-width:0;
 }
-.live-directory .live-tools {flex:none;justify-content:space-between}
-.live-directory .directory-actions {flex:0 1 470px}
+.live-directory .live-tools {display:grid;grid-template-columns:max-content minmax(0,470px);flex:none;justify-content:space-between;gap:16px}
+.live-directory .directory-actions {width:100%}
+.live-directory .live-filters {flex-wrap:wrap;gap:10px}
+.live-directory .live-filters button {flex:none}
 .live-directory .live-filters button,.live-directory #v3-create-room {
  display:inline-flex;align-items:center;justify-content:center;gap:7px;
  padding:0 18px;height:44px;min-height:44px;border-radius:999px;white-space:nowrap;
  font-size:16px;font-weight:650;line-height:1.2;
 }
-.live-directory .live-filters button {border:1px solid var(--ds-line-strong,var(--ds-muted));background:var(--ds-panel);color:var(--ds-text)}
-.live-directory .live-filters [aria-pressed=true],.live-directory #v3-create-room {
+.live-directory #v3-create-room {
  background:var(--ds-gradient);border-color:transparent;color:var(--ds-ink);
 }
-.live-directory .live-filters [data-room-filter=karaoke] {--filter-color:#F471BE}
-.live-directory .live-filters [data-room-filter=talk] {--filter-color:#8EDDD2}
-.live-directory .live-filters button:not([data-room-filter=all]) {border:2px solid var(--filter-color)}
-.live-directory .live-filters button[aria-pressed=true]:not([data-room-filter=all]) {
- background:color-mix(in srgb,var(--filter-color) 22%,var(--ds-panel));color:var(--ds-text);
+.live-directory .live-filters button {
+ --filter-color:var(--ds-lilac);--filter-end:var(--ds-mint);--filter-opacity:58%;
+ --filter-surface:var(--ds-panel);
+ border:1px solid transparent;color:var(--ds-text);box-shadow:none;
+ background:linear-gradient(var(--filter-surface),var(--filter-surface)) padding-box,
+  linear-gradient(110deg,color-mix(in srgb,var(--filter-color) var(--filter-opacity),transparent),color-mix(in srgb,var(--filter-end) var(--filter-opacity),transparent)) border-box;
+ transition:background-color .16s,border-color .16s,filter .16s;
 }
+.live-directory .live-filters [data-room-filter=karaoke] {--filter-color:var(--ds-accent-pink);--filter-end:var(--ds-lilac)}
+.live-directory .live-filters [data-room-filter=talk] {--filter-color:var(--ds-mint);--filter-end:var(--ds-lilac)}
+.live-directory .live-filters button[aria-pressed=true] {
+ --filter-opacity:88%;--filter-surface:color-mix(in srgb,var(--filter-color) 16%,var(--ds-panel));
+}
+.live-directory .live-filters [data-room-filter=all] {
+ background:linear-gradient(110deg,color-mix(in srgb,var(--ds-lilac) 24%,var(--ds-panel)),color-mix(in srgb,var(--ds-mint) 24%,var(--ds-panel))) padding-box,
+  linear-gradient(110deg,color-mix(in srgb,var(--ds-lilac) var(--filter-opacity),transparent),color-mix(in srgb,var(--ds-mint) var(--filter-opacity),transparent)) border-box;
+}
+.live-directory .live-filters [data-room-filter=all][aria-pressed=true] {background:var(--ds-gradient) padding-box,var(--ds-gradient) border-box;color:var(--ds-ink)}
+@media(hover:hover) {
+ .live-directory .live-filters button:hover {--filter-opacity:76%;--filter-surface:color-mix(in srgb,var(--filter-color) 10%,var(--ds-panel));filter:brightness(1.06)}
+ .live-directory .live-filters button[aria-pressed=true]:hover {--filter-surface:color-mix(in srgb,var(--filter-color) 20%,var(--ds-panel))}
+}
+.live-directory .live-filters button:active {--filter-opacity:96%;filter:brightness(.94)}
 .live-directory .live-filters .live-type-icon {--live-icon:20px}
 .live-directory #v3-create-room {--ui-control-height:44px}
 #main .live-directory #v3-create-room svg {width:22px;height:22px;flex:none}
@@ -285,7 +302,7 @@ html:has(#main > .talk-directory, #main > .music-community-tabs[aria-label="儢月
  background:#111b31;border-color:var(--ds-line);border-radius:15px;
 }
 .live-directory .live-card-head,.live-directory .v3-room-copy {
- display:flex;align-items:center;justify-content:space-between;gap:6px;min-width:0;padding-inline:8px;
+ display:flex;align-items:center;justify-content:space-between;gap:6px;min-width:0;padding-inline:10px;
 }
 .live-directory .talk-host {
  display:flex;align-items:center;gap:5px;margin:0;padding:0;background:none;color:var(--ds-text);font-size:13px;
@@ -301,44 +318,32 @@ html:has(#main > .talk-directory, #main > .music-community-tabs[aria-label="儢月
 .live-directory .talk-follows > img {width:29px;height:29px;border:1px solid var(--ds-panel);border-radius:50%;object-fit:cover}
 .live-directory .talk-follows > img + img {margin-left:-9px}
 #main .live-directory .v3-room-grid {
- /* Keep the original card widths, with room for a scrollbar beyond the last column. */
- width:min(100%,var(--grid-width));zoom:1;grid-template-columns:repeat(var(--room-columns),minmax(0,1fr));
+ /* Fill the scrollport; a scrollbar consumes space only when the list overflows. */
+ width:100%;zoom:1;grid-template-columns:repeat(var(--room-columns),minmax(0,1fr));
  grid-auto-rows:var(--room-height);gap:var(--row-gap) var(--room-gap);align-content:start;
 }
-@media(max-width:1099px){
- .live-directory .talk-scroll {
-  --room-columns:4;
-  --card-width:calc((var(--grid-width) - (var(--room-columns) - 1) * var(--room-gap)) / var(--room-columns));
-  /* The 3:2 cover sits between two 1px borders and 36px / 40px text rows. */
-  --room-height:calc(78px + (var(--card-width) - 2px) * 2 / 3);
- }
- .live-directory .v3-room-card {grid-template-rows:36px auto 40px}
- .live-directory .v3-room-art {height:auto;aspect-ratio:3/2}
+@container (max-width:980px) {
+ .live-directory .talk-scroll {--room-columns:4}
 }
-@container (max-width:700px) {
- .live-directory .live-tools {align-items:stretch;flex-direction:column;gap:10px}
- .live-directory .directory-actions {flex:0 0 auto}
- .live-directory .talk-scroll {--room-columns:3;--room-gap:10px;--grid-inset:9px}
+@container (max-width:760px) {
+ .live-directory .live-tools {grid-template-columns:minmax(0,1fr);align-items:stretch;gap:10px}
+}
+@container (max-width:720px) {
+ .live-directory .talk-scroll {--room-columns:3}
 }
 @container (max-width:520px) {
  .live-directory .talk-scroll {--room-columns:2}
  .live-directory .live-card-head,.live-directory .v3-room-copy {padding-inline:6px;gap:4px}
  .live-directory .v3-room-count {padding-inline:4px}
 }
+@container (max-width:300px) {
+ .live-directory .talk-scroll {--room-columns:1}
+}
 @media(max-height:540px) {
  #main > .talk-directory > .music-community-tabs {zoom:1;margin-bottom:4px}
  #main > .talk-directory > .music-community-tabs > .tab {min-height:36px;padding-block:4px}
  #main .room-lobby.live-directory {padding-block-start:4px}
  #main .room-lobby.live-directory {--list-spacing:6px}
- @container (min-width:500px) and (max-width:700px) {
-  .live-directory .live-tools {flex-direction:row;align-items:center;gap:8px}
-  .live-directory .directory-actions {flex:1 1 0}
-  .live-directory .live-filters button,.live-directory #v3-create-room {font-size:14px;padding-inline:10px}
- }
-}
-@media(max-width:1099px) and (max-height:540px) {
- .live-directory .talk-scroll {--room-height:calc(78px + clamp(48px,22dvh,100px))}
- .live-directory .v3-room-art {height:clamp(48px,22dvh,100px);aspect-ratio:auto}
 }
 .live-directory :is(button,a,input):focus-visible,.live-directory .directory-search:focus-within {outline:2px solid var(--ds-mint);outline-offset:2px}
 .live-directory .v3-room-card:focus-visible {outline-offset:-2px}
@@ -392,7 +397,7 @@ html:has(#main > .talk-directory, #main > .music-community-tabs[aria-label="儢月
  .live-directory .directory-search input,.live-directory .live-filters button,.live-directory #v3-create-room {font-size:13px}
  .live-directory .live-filters button,.live-directory #v3-create-room {padding-inline:12px}
  #main .room-lobby.live-directory {--list-spacing:14px}
- .live-directory .directory-actions,.live-directory .live-filters {gap:6px}
+ .live-directory .directory-actions {gap:6px}
  .live-directory .directory-search {gap:4px;padding-inline:8px 0}
  .live-directory .directory-search [data-live-reset] {width:32px}
  .live-directory .live-type-icon {--live-icon:15px}
