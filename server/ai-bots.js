@@ -5,6 +5,7 @@ import {BOT_DEFAULTS,BOT_CATEGORIES,BOT_STYLES,botConfig} from '../shared/ai-bot
 import {giftDay} from '../shared/gifts.js';
 import {botPersonality,musicGenres,preferenceScore} from './bot-personalities.js';
 import {generateBotComment} from './bot-comment-ai.js';
+import {isRequestedCommentRefresh,replacePreviousBotComments} from './bot-comment-refresh.js';
 
 const base='/api/admin/ai-bots';
 const audit=(env,user,action,data)=>query(env,'INSERT INTO ai_bot_audit VALUES(?,?,?,?,?)',id(),user.id,action,JSON.stringify(data),now());
@@ -178,7 +179,10 @@ const heartbeatDue=new WeakMap();
 export function queueBotHeartbeat(env,ctx,at=now()){
  if(!env.DB||!ctx?.waitUntil||at<(heartbeatDue.get(env.DB)||0))return;
  heartbeatDue.set(env.DB,at+60);
- ctx.waitUntil(runBotEngine(env,at).catch(()=>{console.error('AI support processing pending');}));
+ ctx.waitUntil(runBotEngine(env,at).then(async()=>{
+  const pending=await one(env,"SELECT min(due) due FROM ai_bot_jobs WHERE id LIKE 'refresh:20261104:%' AND state='pending'");
+  if(pending?.due!=null)heartbeatDue.set(env.DB,Math.min(at+60,Math.max(now()+10,pending.due)));
+ }).catch(()=>{console.error('AI support processing pending');}));
 }
 
 export async function runBotEngine(env,at=now()){
@@ -186,7 +190,11 @@ export async function runBotEngine(env,at=now()){
  const token=id(),lease=await one(env,"UPDATE ai_bot_settings SET lease_token=?,lease_until=? WHERE id=1 AND lease_until<=? AND revision=? RETURNING id",token,at+120,at,s.revision);if(!lease)return {busy:true,processed:0};
  let processed=0,failed=0;const started=Date.now();
  try{
-  const batch=Math.max(1,Math.min(15,Math.floor(Number(env.AI_BOTS_BATCH_SIZE)||3)));
+  // Migrations precede Worker replacement. Older Workers must not consume this
+  // refresh until code supporting its guarded replacement has been deployed.
+  await run(env,"UPDATE ai_bot_jobs SET state='pending' WHERE state='refresh_waiting' AND id LIKE 'refresh:20261104:%' AND EXISTS(SELECT 1 FROM ai_bot_audit WHERE id='comment-refresh:20261104' AND action='comment_refresh_requested')");
+  const refreshing=await one(env,"SELECT 1 FROM ai_bot_jobs WHERE id LIKE 'refresh:20261104:%' AND state='pending' AND due<=? LIMIT 1",at);
+  const batch=Math.max(1,Math.min(15,Math.floor(Number(env.AI_BOTS_BATCH_SIZE)||(refreshing?15:3))));
   const jobs=await rows(env,`SELECT * FROM ai_bot_jobs WHERE state='pending' AND due<=? ORDER BY ${c.newPriority?`EXISTS(SELECT 1 FROM users newbie WHERE newbie.id=ai_bot_jobs.owner_id AND newbie.created>=${at-604800}) DESC,`:''}due,id LIMIT ?`,at,batch);
   for(const job of jobs){
    if(Date.now()-started>8000)break;
@@ -197,18 +205,19 @@ export async function runBotEngine(env,at=now()){
  return {processed,failed};
 }
 async function processBotJob(env,j,s,token,at){
+ const refresh=await isRequestedCommentRefresh(env,j);
  const c=s.config,day=giftDay(at),target=j.target_type==='track'?await one(env,"SELECT t.*,t.user_id owner_id,u.account_type FROM tracks t JOIN users u ON u.id=t.user_id WHERE t.id=? AND t.status='published' AND (t.kind='original' OR t.duet_open=0)",j.target_id):await one(env,"SELECT p.*,u.account_type FROM dubbing_projects p JOIN users u ON u.id=p.owner_id WHERE p.id=? AND p.state='complete' AND p.visibility='public' AND p.deleted_at=0 AND NOT EXISTS(SELECT 1 FROM track_reports r WHERE r.dubbing_id=p.id AND r.status IN ('removed','appealed','upheld'))",j.target_id);
  const skip=reason=>run(env,"UPDATE ai_bot_jobs SET state='skipped',error=?,updated=? WHERE id=? AND state='pending'",reason,at,j.id);
  if(!target||target.account_type!=='human'||target.owner_id!==j.owner_id)return skip('대상이 비공개·삭제되었거나 지원 대상이 아닙니다.');
  const kind=j.category.replace(/^first:/,''),first=j.category.startsWith('first:');
- if(!c.kinds.includes(kind)||c.newOnly&&!first||j.action==='comment'&&j.slot>=c.comments||j.action==='gift'&&!c.gifts)return skip('현재 지원 설정에서 제외되었습니다.');
+ if(!['comment','gift'].includes(j.action)||!c.kinds.includes(kind)||!refresh&&c.newOnly&&!first||j.action==='comment'&&j.slot>=c.comments||j.action==='gift'&&!c.gifts)return skip('현재 지원 설정에서 제외되었습니다.');
  const column=j.target_type==='track'?'track_id':'dubbing_id';
  const real=(await one(env,`SELECT count(DISTINCT member_id) n FROM (SELECT c.user_id member_id FROM comments c JOIN users u ON u.id=c.user_id WHERE c.${column}=? AND c.deleted_at=0 AND u.account_type='human' AND c.user_id!=? UNION SELECT l.user_id FROM likes l JOIN users u ON u.id=l.user_id WHERE l.${column}=? AND u.account_type='human' AND l.user_id!=?)`,j.target_id,j.owner_id,j.target_id,j.owner_id)).n;
- if(real>=c.humanThreshold)return skip('실제 회원 응원이 충분합니다.');
- if(j.action==='comment'&&Math.random()*100>=c.probability)return skip('작성 확률에 따라 생략되었습니다.');
+ if(!refresh&&real>=c.humanThreshold)return skip('실제 회원 응원이 충분합니다.');
+ if(!refresh&&j.action==='comment'&&Math.random()*100>=c.probability)return skip('작성 확률에 따라 생략되었습니다.');
  const ownerCount=(await one(env,'SELECT count(DISTINCT target_type||target_id) n FROM ai_bot_activities WHERE owner_id=? AND day=?',j.owner_id,day)).n;
  const already=await one(env,'SELECT 1 FROM ai_bot_activities WHERE target_type=? AND target_id=?',j.target_type,j.target_id);
- if(c.creatorDaily===0||ownerCount>=c.creatorDaily&&!already)return skip('창작자 일일 지원 한도입니다.');
+ if(!refresh&&(c.creatorDaily===0||ownerCount>=c.creatorDaily&&!already))return skip('창작자 일일 지원 한도입니다.');
  const bot=await selectSupportBot(env,j,day,Math.random,target);
  if(!bot)throw new Error(j.action==='comment'?'성격·선호 장르가 맞는 활성 계정 또는 계정별 일일 여유가 없습니다.':'활성 계정 또는 계정별 일일 여유가 없습니다.');
  let body='',quantity=0;
@@ -222,9 +231,9 @@ async function processBotJob(env,j,s,token,at){
  const guard=`EXISTS(SELECT 1 FROM ai_bot_settings WHERE id=1 AND revision=? AND lease_token=? AND lease_until>? AND json_extract(json,'$.enabled')=1) AND EXISTS(SELECT 1 FROM ai_bots b WHERE b.user_id=? AND b.active=1 AND b.daily_limit>(SELECT count(*) FROM ai_bot_activities a WHERE a.bot_id=b.user_id AND a.day='${day}')) AND (SELECT COALESCE(${comments?'count(*)':'sum(quantity)'},0) FROM ai_bot_activities WHERE day=? AND action=?) + ?<=? AND NOT EXISTS(SELECT 1 FROM user_blocks WHERE (user_id=? AND blocked_id=?) OR (user_id=? AND blocked_id=?)) AND ${liveTarget}`;
  await env.DB.batch([
   query(env,`INSERT OR IGNORE INTO ai_bot_activities(id,job_id,bot_id,owner_id,target_type,target_id,action,body,quantity,created,day) SELECT ?,?,?,?,?,?,?,?,?,?,? WHERE ${guard}`,aid,j.id,bot.user_id,j.owner_id,j.target_type,j.target_id,j.action,body,quantity,at,day,s.revision,token,Math.max(at,now()),bot.user_id,day,j.action,comments?1:quantity,limit,j.owner_id,bot.user_id,bot.user_id,j.owner_id,j.target_id,j.owner_id),
-  comments?query(env,`INSERT OR IGNORE INTO comments(id,track_id,dubbing_id,user_id,body,created) SELECT ?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM ai_bot_activities WHERE id=?)`,'ai-comment-'+j.target_type+'-'+j.target_id+'-'+j.slot,j.target_type==='track'?j.target_id:null,j.target_type==='dubbing'?j.target_id:null,bot.user_id,body,at,aid):query(env,`INSERT OR IGNORE INTO ai_support_gifts(id,job_id,sender_id,owner_id,target_type,target_id,quantity,created) SELECT ?,?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM ai_bot_activities WHERE id=?)`,'gift:'+j.id,j.id,bot.user_id,j.owner_id,j.target_type,j.target_id,quantity,at,aid),
+  comments?query(env,`INSERT OR IGNORE INTO comments(id,track_id,dubbing_id,user_id,body,created) SELECT ?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM ai_bot_activities WHERE id=?)`,refresh?'ai-comment-'+j.id:'ai-comment-'+j.target_type+'-'+j.target_id+'-'+j.slot,j.target_type==='track'?j.target_id:null,j.target_type==='dubbing'?j.target_id:null,bot.user_id,body,at,aid):query(env,`INSERT OR IGNORE INTO ai_support_gifts(id,job_id,sender_id,owner_id,target_type,target_id,quantity,created) SELECT ?,?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM ai_bot_activities WHERE id=?)`,'gift:'+j.id,j.id,bot.user_id,j.owner_id,j.target_type,j.target_id,quantity,at,aid),
   query(env,"UPDATE ai_bot_jobs SET state='done',updated=?,error='' WHERE id=? AND EXISTS(SELECT 1 FROM ai_bot_activities WHERE id=?)",at,j.id,aid),
-  query(env,`INSERT OR IGNORE INTO ai_support_follows(bot_id,owner_id,activity_id,created) SELECT a.bot_id,a.owner_id,a.id,a.created FROM ai_bot_activities a JOIN ai_bot_jobs j ON j.id=a.job_id JOIN users u ON u.id=a.owner_id WHERE a.id=? AND j.state='done' AND u.account_type='human' AND u.provider!='deleted' AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=a.bot_id AND b.blocked_id=a.owner_id) OR (b.user_id=a.owner_id AND b.blocked_id=a.bot_id))`,aid)
+  ...(refresh?replacePreviousBotComments(env,aid,at):[query(env,`INSERT OR IGNORE INTO ai_support_follows(bot_id,owner_id,activity_id,created) SELECT a.bot_id,a.owner_id,a.id,a.created FROM ai_bot_activities a JOIN ai_bot_jobs j ON j.id=a.job_id JOIN users u ON u.id=a.owner_id WHERE a.id=? AND j.state='done' AND u.account_type='human' AND u.provider!='deleted' AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=a.bot_id AND b.blocked_id=a.owner_id) OR (b.user_id=a.owner_id AND b.blocked_id=a.bot_id))`,aid)])
  ]);
  // Daily caps pause work until the next KST day; stopping leaves jobs untouched.
  if(!await one(env,'SELECT 1 FROM ai_bot_activities WHERE id=?',aid)){
