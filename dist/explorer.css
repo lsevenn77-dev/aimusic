@@ -4,50 +4,55 @@
 .home-explorer-links{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:26px 0 38px}.home-explorer-links>a{display:block;padding:23px;border:1px solid #36402e;border-radius:10px;background:linear-gradient(140deg,#273221,#1b221b)}.home-explorer-links span{display:block;font-size:0.8333125rem;color:var(--ds-body);letter-spacing:1.6px;margin-bottom:13px}.home-explorer-links strong{display:block;font-size:1.1458125rem;line-height:1.6}.home-explorer-links small{display:block;color:var(--ds-muted);font-size:0.8333125rem;margin-top:8px}.home-explorer-links a:hover{border-color:var(--lime)}@media(max-width:700px){.home-explorer-links{grid-template-columns:1fr;gap:10px}.home-explorer-links>a{padding:20px}.home-explorer-links span{margin-bottom:6px}}
 
 .playlist-custom-art>img{width:100%;height:100%;object-fit:cover;display:block;min-width:0;min-height:0}
-/* Recommendation-only layout; home owns artwork sizing, columns and grid gaps. */
-.recommended-playlists{--home-grid-fill:auto-fill;min-width:0}
+/* Public playlist cards: shared by home and #collections, never library/popups. */
+.recommended-playlists{min-width:0}
 .recommended-playlists #recommended-playlists-title{margin:0 0 24px;padding:0;border:0;background:none;color:var(--ds-text);font-size:calc(24px);font-weight:500;line-height:1.4;text-align:left}
-.recommended-playlists #collection-search{margin:0 0 12px;min-width:0}
-.recommended-playlists #collection-search input{min-width:0;width:0}
-.recommended-playlists>.field-help{margin:0 0 20px;line-height:1.6}
-.recommended-playlist-card{min-width:0;background:none;border:0;padding:0;box-shadow:none}
-.recommended-playlist-art{position:relative}
-.recommended-playlist-art>a{display:block}
-.recommended-playlist-cover{position:relative;overflow:hidden;margin:0;border:0;box-shadow:none}
-.recommended-playlist-cover::after{content:"";position:absolute;inset:1px;border-radius:inherit;pointer-events:none;background:linear-gradient(90deg,rgba(255,255,255,.08),transparent 85%) top left / 100% 1px no-repeat,linear-gradient(180deg,rgba(255,255,255,.08),transparent 85%) top left / 1px 100% no-repeat}
-.recommended-playlists .recommended-playlist-play{position:absolute;right:8px;bottom:8px;display:grid;place-items:center;width:44px;height:44px;padding:0;border:0;background:none;box-shadow:none;opacity:1;transition:opacity 200ms ease}
-.recommended-playlists .recommended-playlist-play:disabled{opacity:.35;cursor:default}
-.recommended-playlist-card h2{margin:10px 0 4px;font-size:15px;font-weight:650;color:var(--ds-text)}
-.recommended-playlists .recommended-playlist-card h2.album-title{margin:6px 0 4px}
-.recommended-playlist-card h2 a{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.recommended-playlist-meta{display:flex;align-items:center;gap:8px;min-width:0;color:var(--ds-body);font-size:12px;line-height:1.6}
-.recommended-playlist-owner{display:flex;align-items:center;gap:4px;min-width:0}
-.recommended-playlist-owner>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.recommended-playlist-owner>svg{flex:none;width:16px;height:16px}
-.recommended-playlist-meta>span:last-child{flex:none;white-space:nowrap}
-.recommended-playlist-save{display:flex;align-items:center;justify-content:flex-start;flex-wrap:nowrap;column-gap:8px;color:var(--ds-muted);font-size:12px;line-height:1.5}
-.recommended-playlist-save small{font:inherit;white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis}
-.recommended-playlists .recommended-playlist-bookmark{display:inline-flex;align-items:center;justify-content:center;flex:none;width:44px;height:44px;min-width:44px;min-height:44px;padding:0;border:0;border-radius:0;background:none;box-shadow:none;color:var(--ds-body)}
-.recommended-playlists .recommended-playlist-bookmark>svg{width:18px;height:18px;stroke-width:1.7;fill:none}
-.recommended-playlists .recommended-playlist-bookmark[aria-pressed=true]{color:#8EDDD2}
-.recommended-playlists .recommended-playlist-bookmark[aria-pressed=true]>svg{fill:currentColor}
-.recommended-playlists :is(a,button,input,select):focus-visible{outline:2px solid var(--ds-accent-pink);outline-offset:2px}
-@media(hover:hover) and (pointer:fine){
- .recommended-playlists .recommended-playlist-play:not(:disabled){opacity:0;pointer-events:none}
- .recommended-playlist-card:is(:hover,:focus-within) .recommended-playlist-play:not(:disabled){opacity:1;pointer-events:auto}
-}
-@media(max-width:600px){
+.public-playlist-grid{--playlist-title-size:15px;--playlist-body-size:14px;--playlist-meta-size:13px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:stretch;min-width:0}
+.public-playlist-card{display:flex;flex-direction:column;min-width:0;padding:12px;border:1px solid var(--ds-line);border-radius:var(--ds-radius-card);background:var(--ds-panel);box-shadow:none}
+.public-playlist-main{display:grid;grid-template-columns:minmax(0,32%) minmax(0,1fr);gap:12px;align-items:start;min-width:0;color:var(--ds-text)}
+.public-playlist-cover{width:100%;aspect-ratio:1;min-width:0;overflow:hidden;border-radius:var(--ds-radius-input);align-self:start}
+.public-playlist-cover img{display:block;width:100%;height:100%;object-fit:cover}
+.public-playlist-info{min-width:0}
+.public-playlist-card .public-playlist-name{display:block;margin:0;font-size:var(--playlist-title-size);font-weight:650;line-height:1.5;color:var(--ds-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.public-playlist-description{margin:4px 0 0;font-size:var(--playlist-body-size);line-height:1.6;color:var(--ds-body);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.public-playlist-preview{list-style:none;margin:8px 0 0;padding:8px 0 0;border-top:1px solid var(--ds-line)}
+.public-playlist-preview li{display:grid;grid-template-columns:2ch minmax(0,1fr) minmax(0,35%);align-items:center;gap:6px;min-width:0;font-size:var(--playlist-meta-size);line-height:1.7;white-space:nowrap}
+.public-playlist-index{font-variant-numeric:tabular-nums;color:var(--ds-muted)}
+.public-playlist-song,.public-playlist-artist{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.public-playlist-song{font-size:var(--playlist-title-size);color:var(--ds-text)}
+.public-playlist-artist{color:var(--ds-muted)}
+.public-playlist-extra{margin:4px 0 0;font-size:var(--playlist-meta-size);line-height:1.6;color:var(--ds-muted)}
+.public-playlist-footer{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0;margin-top:auto;padding-top:8px;font-size:var(--playlist-meta-size);line-height:1.5;color:var(--ds-body)}
+.public-playlist-owner{display:flex;align-items:center;gap:4px;flex:1;min-width:0}
+.public-playlist-owner>svg{width:16px;height:16px;flex:none}
+.public-playlist-owner>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.public-playlist-stats{display:flex;align-items:center;gap:8px;flex:none;max-width:calc(100% - 24px);min-width:0;white-space:nowrap}
+.public-playlist-stats>span{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.public-playlist-card .public-playlist-bookmark{display:inline-flex;align-items:center;justify-content:center;flex:none;width:44px;height:44px;min-width:44px;min-height:44px;padding:0;border:0;border-radius:var(--ds-radius-sm);background:none;box-shadow:none;color:var(--ds-body)}
+.public-playlist-bookmark>svg{width:18px;height:18px;stroke-width:1.7;fill:none}
+.public-playlist-card .public-playlist-bookmark[aria-pressed=true]{color:var(--ds-accent-mint)}
+.public-playlist-bookmark[aria-pressed=true]>svg{fill:currentColor}
+.public-playlist-bookmark:disabled{cursor:default}
+.public-playlist-card :is(a,button):focus-visible{outline:2px solid var(--ds-selected);outline-offset:3px}
+/* Match the existing md dropdown's border-box height; do not enlarge its trigger.
+   bindExplorer measures that trigger, with 38px as the pre-mount CSS fallback. */
+#main #collection-search{--collection-control-height:38px;display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:12px;margin:0 0 20px;min-width:0}
+#main #collection-search :is(.brand-search,input[name=q],select[name=sort],.aifect-dropdown,.primary-button){box-sizing:border-box;height:var(--collection-control-height);min-height:var(--collection-control-height);margin:0;line-height:1.4}
+#main #collection-search>.brand-search{width:100%;min-width:0;padding:0 calc(12px)}
+#main #collection-search input[name=q]{width:100%;min-width:0;padding:0 calc(12px);font-size:13px}
+#main #collection-search .brand-search input[name=q]{height:100%;min-height:0;padding:0;font-size:13px}
+#main #collection-search .brand-search>.search-sparkle{height:30px;width:30px;padding:calc(4px)}
+#main #collection-search .primary-button{display:flex;align-items:center;justify-content:center;padding:0 calc(16px);font-size:13px;white-space:nowrap}
+#main #collection-search .aifect-dropdown{align-items:center}
+@media(max-width:800px){
+ .public-playlist-grid{grid-template-columns:minmax(0,1fr);gap:12px}
  .recommended-playlists #recommended-playlists-title{font-size:calc(20px)}
- .recommended-playlists #collection-search{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
- .recommended-playlists #collection-search>.brand-search,.recommended-playlists #collection-search>input{grid-column:1/-1;width:100%;min-width:0}
- .recommended-playlists #collection-search select{width:100%;min-width:0}
- .recommended-playlists>.field-help{font-size:12px}
- .recommended-playlist-meta{flex-wrap:wrap;gap:2px 6px}
+ #main #collection-search{grid-template-columns:minmax(0,1fr) auto;gap:8px}
+ #main #collection-search>.brand-search,#main #collection-search>input[name=q]{grid-column:1/-1}
+ #main #collection-search :is(input[name=q],.brand-search input[name=q]){font-size:16px}
 }
-@media(prefers-reduced-motion:reduce){.recommended-playlists .recommended-playlist-play{transition:none}}
-@media(max-width:360px){
- #main .recommended-playlists .home-music-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
-}
+
+@media(max-width:700px){.public-playlist-grid{--playlist-title-size:14px;--playlist-meta-size:12px}}
 /* Discover-only photo layout. Shared shell, music cards and player remain unchanged. */
 .discover-photo-layout{min-width:0;color:var(--ds-text)}
 .discover-photo-layout .discover-search{display:flex;align-items:center;gap:18px;height:66px;margin:0 0 22px;padding:0 22px;border:2px solid transparent;border-radius:40px;background:linear-gradient(110deg,var(--ds-panel),var(--ds-bg)) padding-box,linear-gradient(105deg,#8EDDD2,var(--ds-lavender),var(--ds-accent-pink)) border-box}

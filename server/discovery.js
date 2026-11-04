@@ -20,8 +20,15 @@ export async function playlistSummaries(env,userId='',where='p.is_public=1',args
  (SELECT COALESCE(sum(t.duration),0) FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id WHERE pt.playlist_id=p.id AND ${VISIBLE()}) duration,
  (SELECT count(*) FROM playlist_saves s WHERE s.playlist_id=p.id) saves,
  (ps.user_id IS NOT NULL) saved,COALESCE(pref.pinned,0) pinned,COALESCE(pref.position,0) position,
- (SELECT json_group_array(json_object('id',c.id,'title',c.title,'kind',c.kind,'artwork_id',c.artwork_id,'work_has_cover',c.work_has_cover,'work_cover_version',c.work_cover_version,'original_id',c.original_id,'original_has_cover',c.original_has_cover,'original_cover_version',c.original_cover_version,'has_cover',c.has_cover,'cover_version',c.cover_version)) FROM
-  (SELECT t.id,t.title,t.kind,t.original_id,o.has_cover original_has_cover,o.cover_version original_cover_version,${trackArtworkSQL()} FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id LEFT JOIN tracks o ON o.id=t.original_id WHERE pt.playlist_id=p.id AND ${VISIBLE()} ORDER BY pt.position,pt.created,pt.track_id LIMIT 4) c) covers_json
+ (SELECT json_group_array(json_object('id',c.id,'title',c.title,'artist',c.artist,'kind',c.kind,'artwork_id',c.artwork_id,'work_has_cover',c.work_has_cover,'work_cover_version',c.work_cover_version,'original_id',c.original_id,'original_has_cover',c.original_has_cover,'original_cover_version',c.original_cover_version,'has_cover',c.has_cover,'cover_version',c.cover_version)) FROM
+  (SELECT t.id,t.title,t.kind,t.original_id,o.has_cover original_has_cover,o.cover_version original_cover_version,${trackArtworkSQL()},
+   CASE WHEN t.cover_mode='duet' AND t.duet_parent_id IS NOT NULL THEN (${producerNameSQL('first_producer')})||' & '||(${producerNameSQL('preview_producer')})||' · 듀엣'
+    WHEN t.kind='cover' THEN (${producerNameSQL('preview_producer')})||CASE WHEN t.cover_mode='duet' THEN ' · 듀엣' ELSE ' · 커버' END
+    WHEN ${namedArtistSQL()} THEN a.name ELSE ${producerNameSQL('preview_producer')} END artist
+   FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id LEFT JOIN tracks o ON o.id=t.original_id
+   LEFT JOIN artists a ON a.id=t.artist_id LEFT JOIN producers preview_producer ON preview_producer.id=t.producer_id
+   LEFT JOIN tracks dt ON dt.id=t.duet_parent_id LEFT JOIN producers first_producer ON first_producer.id=dt.producer_id
+   WHERE pt.playlist_id=p.id AND ${VISIBLE()} ORDER BY pt.position,pt.created,pt.track_id LIMIT 4) c) covers_json
  FROM playlists p JOIN users u ON u.id=p.user_id
  LEFT JOIN playlist_saves ps ON ps.playlist_id=p.id AND ps.user_id=?
  LEFT JOIN playlist_preferences pref ON pref.playlist_id=p.id AND pref.user_id=?
@@ -71,10 +78,11 @@ export async function discoveryRoute(req,env,path,user){
  let m=path.match(/^\/api\/playlists\/([\w-]+)\/save$/);
  if(m){
   requireUser(user);
-  if(method==='DELETE'){await run(env,'DELETE FROM playlist_saves WHERE user_id=? AND playlist_id=?',user.id,m[1]);await run(env,'DELETE FROM playlist_preferences WHERE user_id=? AND playlist_id=? AND NOT EXISTS(SELECT 1 FROM playlists WHERE id=? AND user_id=?)',user.id,m[1],m[1],user.id);return json({ok:true});}
+  const savedState=async()=>json({ok:true,saved:0,saves:0,...await one(env,`SELECT EXISTS(SELECT 1 FROM playlist_saves WHERE playlist_id=p.id AND user_id=?) saved,(SELECT count(*) FROM playlist_saves WHERE playlist_id=p.id) saves FROM playlists p WHERE p.id=? AND (p.user_id=? OR (p.is_public=1 AND ${activePlaylistSQL()}))`,user.id,m[1],user.id)});
+  if(method==='DELETE'){await run(env,'DELETE FROM playlist_saves WHERE user_id=? AND playlist_id=?',user.id,m[1]);await run(env,'DELETE FROM playlist_preferences WHERE user_id=? AND playlist_id=? AND NOT EXISTS(SELECT 1 FROM playlists WHERE id=? AND user_id=?)',user.id,m[1],m[1],user.id);return savedState();}
   if(method!=='PUT')fail(405,'지원하지 않는 요청입니다.');
   const p=await one(env,`SELECT p.* FROM playlists p WHERE id=? AND is_public=1 AND ${activePlaylistSQL()}`,m[1]);if(!p)fail(404,'추천 플레이리스트를 찾을 수 없습니다.');if(p.user_id===user.id)fail(400,'내 플레이리스트는 이미 보관함에 있습니다.');
-  await run(env,'INSERT OR IGNORE INTO playlist_saves(user_id,playlist_id,created) VALUES(?,?,?)',user.id,p.id,now());return json({ok:true});
+  await run(env,'INSERT OR IGNORE INTO playlist_saves(user_id,playlist_id,created) VALUES(?,?,?)',user.id,p.id,now());return savedState();
  }
  if(path==='/api/library/playlists/order'&&method==='PUT'){
   requireUser(user);const b=await req.json(),ids=b.playlist_ids;if(!Array.isArray(ids)||ids.length>500||ids.some(x=>typeof x!=='string')||new Set(ids).size!==ids.length)fail(400,'목록 순서를 다시 확인해주세요.');

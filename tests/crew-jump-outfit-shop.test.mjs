@@ -71,7 +71,7 @@ test('every equipped sprite renders during running/jumping without changing scor
  const gradient={addColorStop(){}};
  const ctx=new Proxy({drawImage:(...args)=>draws.push(args),createLinearGradient:()=>gradient,createRadialGradient:()=>gradient},{get:(object,key)=>key in object?object[key]:(()=>{})});
  const context=vm.createContext({Image,HZ,NIGHT_START,JUMP_OUTFITS,DEFAULT_OUTFIT});
- const source=readFileSync(new URL('../dist/crew-jump-art/stage.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'').replace('export function stageRenderer','function stageRenderer');
+ const source=readFileSync(new URL('../dist/crew-jump-art/stage.js',import.meta.url),'utf8').replace(/^import .*;\r?\n/gm,'').replace('export function stageRenderer','function stageRenderer');
  vm.runInContext(source+'\nthis.renderer=stageRenderer;',context);
  const renderer=context.renderer(ctx),game=start('outfit-qa');
  for(const outfit of JUMP_OUTFITS){
@@ -101,7 +101,7 @@ test('all six running frames and landings place the measured soles on the same d
   createLinearGradient:()=>gradient,createRadialGradient:()=>gradient
  },{get:(object,key)=>key in object?object[key]:(()=>{})});
  const context=vm.createContext({Image,HZ,NIGHT_START,JUMP_OUTFITS,DEFAULT_OUTFIT});
- const source=readFileSync(new URL('../dist/crew-jump-art/stage.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'').replace('export function stageRenderer','function stageRenderer');
+ const source=readFileSync(new URL('../dist/crew-jump-art/stage.js',import.meta.url),'utf8').replace(/^import .*;\r?\n/gm,'').replace('export function stageRenderer','function stageRenderer');
  vm.runInContext(source+'\nthis.renderer=stageRenderer;',context);
  const renderer=context.renderer(ctx),game=start('ground-contact');game.pattern={obstacles:[],jellies:[]};
  for(const outfit of JUMP_OUTFITS){

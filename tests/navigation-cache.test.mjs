@@ -42,6 +42,7 @@ function homeRenderer(fetch){
  }});
  c.document.querySelector=selector=>sections.get(selector.slice(1))||select(selector);
  Object.assign(c.context,{AbortController,homeBrowseObserver:null,musicListeningShortcuts:()=>'',playlistSaveButton:()=>'',musicTrackCard:t=>'<article>'+t.title+'</article>',collectionGrid:items=>items.map(item=>item.name).join(','),playlistArt:()=>''});
+ const explorer=source('explorer.js');vm.runInContext(explorer.slice(explorer.indexOf('function recommendedPlaylistBookmark'),explorer.indexOf('function discoveryTabs')),c.context);
  vm.runInContext(source('home.js'),c.context);
  c.run("audio.addEventListener=()=>{};icons=()=>{};updateAccount=()=>{};setMembership=()=>{};refreshLibrary=async()=>{};");
  const boot=source('actions.js').match(/async function boot\(\)\{[\s\S]*?\r?\n\}\r?\n/);

@@ -37,6 +37,8 @@ test('profile discovery excludes blocked creators, hidden originals and cover-on
 test('home cards expose only profile identity and playlist metadata, preserving shared avatar behavior elsewhere',()=>{
  const c=vm.createContext({URL,URLSearchParams,Map,console,AifectGenres:{GENRES:[],MOODS:[]},window:{addEventListener(){}},Audio:class{},sessionStorage:{getItem:()=>null},document:{querySelectorAll:()=>[],addEventListener(){}}});
  for(const file of ['icons.js','app.js','home.js'])vm.runInContext(readFileSync(new URL('../dist/'+file,import.meta.url),'utf8'),c);
+ const explorer=readFileSync(new URL('../dist/explorer.js',import.meta.url),'utf8');
+ vm.runInContext(explorer.slice(explorer.indexOf('function recommendedPlaylistBookmark'),explorer.indexOf('function discoveryTabs')),c);
  c.playlistArt=()=>'<div class="collection-art"></div>';
  const p={id:'real-id',name:'긴 이름 <실제>',image_version:'v1',partner_badge:'공식 파트너',followers:999,plays:888,genre:'Rock'};
  const html=c.homeProfileCard(p,'producer');
@@ -49,5 +51,5 @@ test('home cards expose only profile identity and playlist metadata, preserving 
  assert.match(artist,/profile-frame-canvas/);assert.match(html,/profile-frame-canvas/);
  const home=c.homeHTML(),order=['home-recommended','home-popular','home-more','home-artists','home-discovery','home-producers','home-bridge','home-library'];for(let i=1;i<order.length;i++)assert.ok(home.indexOf('id="'+order[i-1]+'"')<home.indexOf('id="'+order[i]+'"'));assert.match(home,/주목할 작곡가/);assert.doesNotMatch(home,/내 플레이리스트|home-own-playlists|주목할만한 작곡가/);
  const playlist=c.homePlaylistCard({id:'real-playlist',name:'선곡',description:'기존 소개',tracks:2,is_public:1,covers:[]});
- for(const text of ['#playlist/real-playlist','data-home-playlist="real-playlist"','기존 소개','2곡 수록'])assert.ok(playlist.includes(text));
+ for(const text of ['#playlist/real-playlist','data-public-playlist="real-playlist"','기존 소개','2곡 수록'])assert.ok(playlist.includes(text));
 });

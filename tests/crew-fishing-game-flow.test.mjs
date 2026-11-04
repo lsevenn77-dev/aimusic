@@ -48,7 +48,7 @@ function page({delay=15000,renderer='missing'}={}){
       }else if(action==='book')result={name:'QA',records:[{fish:FISH[0].id,length:125000,grade:'B',nickname:'최대어 기록자',end_ms:1,count:99}]};
       return {ok:true,json:async()=>({...result,receivedTime:ms,serverTime:ms})};
     }});
-  vm.runInContext(readFileSync(new URL('../dist/crew-fishing/game.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,''),context);
+  vm.runInContext(readFileSync(new URL('../dist/crew-fishing/game.js',import.meta.url),'utf8').replace(/^import .*;\r?\n/gm,''),context);
   const flush=async()=>{for(let i=0;i<30;i++)await Promise.resolve()};
   return {requests,paints,get stage(){return stage},get html(){return html},feedback,
     async ready(){await flush()},

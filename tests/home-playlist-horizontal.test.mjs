@@ -2,19 +2,20 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
-function context(){const c=vm.createContext({Map,console,window:{},esc:s=>String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;'),number:String,playlistArt:()=>'<div class="collection-art"></div>',icon:n=>`<svg data-icon="${n}"></svg>`});vm.runInContext(readFileSync('dist/home.js','utf8'),c);return c;}
-test('home preview preserves ordered real titles/artists, caps three, escapes text and calculates remainder',()=>{
- const c=context();for(const n of [0,1,2,3,4,6]){
-  const tracks=Array.from({length:n},(_,i)=>({id:'track-'+i,title:'곡 <'+i+'>',artist:'가수 '+i}));
-  const html=c.homePlaylistCard({id:'p',name:'선곡',description:'실제 소개',tracks:999,is_public:1},tracks);
-  assert.equal((html.match(/class="home-playlist-index"/g)||[]).length,Math.min(n,3));
-  assert.ok(html.includes(n+'곡 수록'));assert.doesNotMatch(html,/공개|999곡|외 0곡|<button[^>]*href/);
-  if(n>3)assert.ok(html.includes('외 '+(n-3)+'곡'));else assert.doesNotMatch(html,/외 \d+곡/);
-  for(let i=0;i<Math.min(n,3);i++){assert.ok(html.includes('곡 &lt;'+i+'>'));assert.ok(html.includes('가수 '+i));assert.ok(html.includes('>0'+(i+1)+'</span>'));}
- }
+const home=readFileSync('dist/home.js','utf8');
+function context(){
+ const c=vm.createContext({Map,console,window:{addEventListener(){}},me:null,esc:String,number:String,playlistArt:()=>'<div class="collection-art"></div>',icon:n=>`<svg data-icon="${n}"></svg>`});
+ const explorer=readFileSync('dist/explorer.js','utf8');vm.runInContext(explorer.slice(explorer.indexOf('function recommendedPlaylistBookmark'),explorer.indexOf('function discoveryTabs')),c);vm.runInContext(home,c);return c;
+}
+test('home and recommendations share the same card while the library retains its compact variant',()=>{
+ const c=context(),p={id:'p',name:'목록',owner_name:'소유자',tracks:5,covers:[],description:'소개'};
+ assert.equal(c.homePlaylistCard(p),c.recommendedPlaylistCard(p));
+ const library=c.homePlaylistCard(p,null,{compact:true,footer:'<footer>library actions</footer>'});assert.match(library,/home-playlist-compact/);assert.match(library,/library actions/);assert.doesNotMatch(library,/public-playlist-|보관함 저장|수록곡 미리보기/);
 });
-test('playlist pause/resume identity follows exact queue order and current song, not overlapping tracks',()=>{
- const c=context(),tracks=[{id:'a'},{id:'b'}];c.current={id:'b'};c.queue=['a','b'];assert.equal(c.homePlaylistQueueMatches(tracks),true);
- c.queue=['b','a'];assert.equal(c.homePlaylistQueueMatches(tracks),false);c.queue=['a'];assert.equal(c.homePlaylistQueueMatches(tracks),false);
- c.queue=['a','b'];c.current={id:'c'};assert.equal(c.homePlaylistQueueMatches(tracks),false);
+test('home keeps recommendation order, selection and limit without fetching each full playlist',()=>{
+ const c=context(),a=home.indexOf(' const paintCurations='),b=home.indexOf(' const profileRequests=',a);let result;const target={};
+ c.$=()=>target;c.paint=(t,html)=>{assert.equal(t,target);result=html;};c.api=()=>{throw Error('Unexpected detail read');};vm.runInContext(home.slice(a,b)+';globalThis.paintCurations=paintCurations;',c);
+ const playlists=[{id:'empty',tracks:0,is_public:1},{id:'private',tracks:2,is_public:0},{id:'locked',tracks:2,is_public:1,locked:true},...Array.from({length:8},(_,i)=>({id:'actual-'+i,name:'목록 '+i,tracks:2,is_public:1,covers:[]}))];
+ c.paintCurations({playlists});assert.equal((result.match(/<article /g)||[]).length,6);for(let i=0;i<6;i++)assert.ok(result.includes('data-public-playlist="actual-'+i+'"'));
+ assert.doesNotMatch(result,/data-public-playlist="(?:empty|private|locked|actual-6)|캐러셀|home-rail/);
 });

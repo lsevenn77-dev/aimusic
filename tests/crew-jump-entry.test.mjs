@@ -20,7 +20,7 @@ function setup(handler){
   gameSounds:()=>({unlock(){},quiet(){}}),stageRenderer:()=>({async ready(){},draw(){rendered++}}),
   mountOutfitShop:()=>({busy:false,async refresh(){return {equipped:'default'}},destroy(){}})
  });
- const source=readFileSync(new URL('../dist/crew-jump-view.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'').replace('export function mount','function mount');
+ const source=readFileSync(new URL('../dist/crew-jump-view.js',import.meta.url),'utf8').replace(/^import .*;\r?\n/gm,'').replace('export function mount','function mount');
  vm.runInContext(source+'\nthis.mount=mount;',context);
  const clear=context.mount(root,{crew:'preview',viewer:'owner',esc:s=>s,api:async(path,method,body,options)=>{calls.push({path,method,body,options});return handler(path,method,body)}});
  const click=action=>{const event=new Event('click');Object.defineProperty(event,'target',{value:{closest:selector=>selector==='[data-do]'?{dataset:{do:action}}:null}});root.dispatchEvent(event)};

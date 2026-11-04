@@ -56,7 +56,7 @@ function collectionCard(p,layout='grid'){
  return `<article class="collection-card ${p.locked?'collection-locked':''}"><a href="#playlist/${p.id}" class="collection-main">${playlistArt(p)}<span class="collection-kind">${p.pinned?'고정 · ':''}${owned?'내 플레이리스트':esc(p.owner_name||'리스너')+'의 선곡'}</span><h2>${p.locked?'<small class="locked-badge">보관 중</small>':''}${esc(p.name)}</h2><p>${esc(p.description||'좋아하는 음악을 모은 플레이리스트')}</p><small>${p.tracks}곡 · ${p.is_public?'공개':'비공개'}</small></a>${actions}</article>`;
 }
 function collectionGrid(items,message='아직 플레이리스트가 없어요'){return items.length?`<div class="collection-grid">${items.map(collectionCard).join('')}</div>`:empty(message,'좋아하는 음악을 모아 나만의 플레이리스트를 만들어보세요.','#library/playlists','내 보관함');}
-// The recommendation route shares the home latest-release grid, without changing library cards.
+// Shared only by home and public recommendations. Library cards keep their compact layout.
 function recommendedPlaylistBookmark(){return '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v17l-6-4-6 4Z"/></svg>';}
 function updateRecommendedPlaylistBookmark(button,saved){
  const label=saved?'보관함 저장 해제':'보관함 저장';
@@ -65,10 +65,66 @@ function updateRecommendedPlaylistBookmark(button,saved){
  // Keep the SVG node intact when the request completes.
 }
 function recommendedPlaylistCard(p){
- const id=esc(p.id),name=esc(p.name),owned=me?.id===p.user_id;
- return `<article class="recommended-playlist-card"><div class="recommended-playlist-art"><a href="#playlist/${id}" aria-label="${name} 상세">${playlistArt(p,'album-art recommended-playlist-cover')}</a><button type="button" class="list-action icon-button recommended-playlist-play" data-recommended-playlist="${id}" aria-label="${name} 재생" ${!p.tracks||p.locked?'disabled':''}>${icon('ui-play-action')}</button></div><h2 class="album-title"><a href="#playlist/${id}" title="${name}">${name}</a></h2><div class="recommended-playlist-meta"><span class="recommended-playlist-owner" title="${esc(p.owner_name||'리스너')}">${icon('user')}<span>${esc(p.owner_name||'리스너')}</span></span><span>${number(p.tracks)}곡</span></div><div class="recommended-playlist-save"><small><span data-recommended-saves>${number(p.saves||0)}</span>명 저장</small>${owned?'':`<button type="button" class="recommended-playlist-bookmark" data-save-collection="${id}" data-saved="${!!p.saved}" aria-pressed="${!!p.saved}" aria-label="${p.saved?'보관함 저장 해제':'보관함 저장'}" title="${p.saved?'보관함 저장 해제':'보관함 저장'}">${recommendedPlaylistBookmark()}</button>`}</div></article>`;
+ const id=esc(p.id),name=esc(p.name),owner=esc(p.owner_name||''),owned=me?.id===p.user_id;
+ const preview=(p.covers||[]).slice(0,3),total=Number(p.tracks)||0,extra=Math.max(0,total-preview.length);
+ const label=owned?'내 플레이리스트 · 이미 보관함에 있음':p.saved?'보관함 저장 해제':'보관함 저장';
+ return `<article class="public-playlist-card" data-public-playlist="${id}">
+  <a class="public-playlist-main" href="#playlist/${id}" aria-label="${name} 상세">
+   ${playlistArt(p,'public-playlist-cover')}
+   <div class="public-playlist-info"><h2 class="public-playlist-name" title="${name}">${name}</h2>
+    ${p.description?`<p class="public-playlist-description" title="${esc(p.description)}">${esc(p.description)}</p>`:''}
+    <ol class="public-playlist-preview" aria-label="수록곡 미리보기">${preview.map((t,i)=>`<li title="${esc(t.title)}${t.artist?' · '+esc(t.artist):''}"><span class="public-playlist-index">${String(i+1).padStart(2,'0')}</span><span class="public-playlist-song">${esc(t.title)}</span><span class="public-playlist-artist">${esc(t.artist||'')}</span></li>`).join('')}</ol>
+    ${extra?`<p class="public-playlist-extra">외 ${number(extra)}곡</p>`:''}
+   </div>
+  </a>
+  <div class="public-playlist-footer"><span class="public-playlist-owner" title="${owner}">${icon('user')}<span>${owner}</span></span>
+   <div class="public-playlist-stats"><span>${number(total)}곡 수록</span><span><span data-playlist-saves>${number(p.saves||0)}</span>명 저장</span>
+    <button type="button" class="public-playlist-bookmark" ${owned?'disabled':`data-save-collection="${id}"`} data-saved="${owned||!!p.saved}" aria-pressed="${owned||!!p.saved}" aria-label="${label}" title="${label}">${recommendedPlaylistBookmark()}</button>
+   </div>
+  </div>
+ </article>`;
 }
-function recommendedPlaylistGrid(items,message){return items.length?`<div class="home-music-grid">${items.map(recommendedPlaylistCard).join('')}</div>`:empty(message,'좋아하는 음악을 모아 나만의 플레이리스트를 만들어보세요.','#library/playlists','내 보관함');}
+function recommendedPlaylistGrid(items,message){return items.length?`<div class="public-playlist-grid">${items.map(recommendedPlaylistCard).join('')}</div>`:empty(message,'좋아하는 음악을 모아 나만의 플레이리스트를 만들어보세요.','#library/playlists','내 보관함');}
+const pendingPlaylistSaves=new Set();
+function syncPlaylistSaveState(id,state){
+ for(const button of document.querySelectorAll('[data-save-collection]')){
+  if(button.dataset.saveCollection!==id)continue;
+  if(button.classList.contains('public-playlist-bookmark'))updateRecommendedPlaylistBookmark(button,!!state.saved);
+  else{button.dataset.saved=String(!!state.saved);button.textContent=state.saved?'보관함 저장됨':'보관함 저장';}
+ }
+ for(const card of document.querySelectorAll('[data-public-playlist]')){
+  if(card.dataset.publicPlaylist===id)card.querySelector('[data-playlist-saves]').textContent=number(state.saves);
+ }
+}
+async function savePlaylistFromButton(button){
+ if(!me)return askLogin();
+ const id=button.dataset.saveCollection,account=me.id,key=account+':'+id,saved=button.dataset.saved==='true';
+ if(pendingPlaylistSaves.has(key))return;
+ pendingPlaylistSaves.add(key);button.disabled=true;
+ try{
+  const state=await api('/api/playlists/'+encodeURIComponent(id)+'/save',saved?'DELETE':'PUT');
+  if(me?.id!==account)return;
+  syncPlaylistSaveState(id,state);
+  // A failed library refresh must not undo a successful, persisted bookmark.
+  await refreshLibrary(true).catch(()=>{});
+  if(me?.id!==account)return;
+  if(location.hash.startsWith('#playlist/'))await render();
+  toast(saved?'보관함에서 저장을 해제했습니다.':'추천 플레이리스트를 내 보관함에 저장했습니다.');
+ }finally{pendingPlaylistSaves.delete(key);button.disabled=false;}
+}
+let collectionSearchResize=null;
+function alignCollectionSearchHeight(form){
+ collectionSearchResize?.disconnect();
+ const trigger=window.AifectDropdown?.mount(form.elements.sort)?.button;
+ if(!trigger)return;
+ const sync=()=>{
+  if(!form.isConnected){collectionSearchResize?.disconnect();return;}
+  const height=trigger.getBoundingClientRect().height;
+  if(height>0)form.style.setProperty('--collection-control-height',height+'px');
+ };
+ collectionSearchResize=new ResizeObserver(sync);collectionSearchResize.observe(trigger);sync();
+}
+if(typeof window!=='undefined')window.addEventListener('hashchange',()=>collectionSearchResize?.disconnect());
 function discoveryTabs(active){return `<div class="tabs explorer-tabs">${[['','추천'],['themes','기분·활동'],['genres','장르'],['following','팔로잉 신곡']].map(([id,label])=>`<a class="tab ${active===id?'active':''}" href="#discover${id?'/'+id:''}">${label}</a>`).join('')}<a class="tab" href="#collections">추천 플레이리스트</a></div>`;}
 function moodCards(moods,selected=''){return `<div class="mood-grid">${moods.map((m,i)=>`<a class="mood-card mood-${i} ${selected===m.id?'selected':''}" href="#discover/mood?m=${m.id}" ${selected===m.id?'aria-current="page"':''}><span aria-hidden="true">${icon(m.symbol||'music')}</span><strong>${esc(m.name)}</strong><small>${esc(m.caption)}</small><em>${m.count}곡</em></a>`).join('')}</div>`;}
 async function explorerView(base,param,raw,embedded=false,readApi=api){
@@ -91,7 +147,7 @@ async function explorerView(base,param,raw,embedded=false,readApi=api){
  }
  if(base==='collections'){
   const q=params.get('q')||'',sort=params.get('sort')==='recent'?'recent':'popular',d=await readApi('/api/playlists?'+new URLSearchParams({q,sort}));
-  return {html:`<section class="recommended-playlists listening-home-v2 home-content-refresh" aria-labelledby="recommended-playlists-title"><h1 id="recommended-playlists-title">추천 플레이리스트</h1><form id="collection-search" class="explorer-toolbar" role="search"><input name="q" aria-label="추천 플레이리스트 검색" placeholder="제목, 소개, 만든 사람 검색" value="${esc(q)}" maxlength="100"><select data-dropdown="md" name="sort" aria-label="추천 플레이리스트 정렬"><option value="popular" ${sort==='popular'?'selected':''}>많이 저장한 순</option><option value="recent" ${sort==='recent'?'selected':''}>최신순</option></select><button class="primary-button">검색</button></form><p class="field-help">공개 목록을 저장하면 만든 사람이 추가한 곡도 함께 반영됩니다.</p>`+recommendedPlaylistGrid(d.playlists,q?'검색 결과가 없어요.':'아직 공개된 플레이리스트가 없어요.')+'</section>'};
+  return {html:`<section class="recommended-playlists listening-home-v2 home-content-refresh" aria-labelledby="recommended-playlists-title"><h1 id="recommended-playlists-title">추천 플레이리스트</h1><form id="collection-search" class="explorer-toolbar" role="search"><input name="q" aria-label="추천 플레이리스트 검색" placeholder="제목, 소개, 만든 사람 검색" value="${esc(q)}" maxlength="100"><select data-dropdown="md" name="sort" aria-label="추천 플레이리스트 정렬"><option value="popular" ${sort==='popular'?'selected':''}>많이 저장한 순</option><option value="recent" ${sort==='recent'?'selected':''}>최신순</option></select><button class="primary-button">검색</button></form>`+recommendedPlaylistGrid(d.playlists,q?'검색 결과가 없어요.':'아직 공개된 플레이리스트가 없어요.')+'</section>'};
  }
  if(base==='search')return unifiedSearchView(param,raw,readApi);
  if(base==='library'){
@@ -112,7 +168,7 @@ async function explorerView(base,param,raw,embedded=false,readApi=api){
 function filteredCollections(){const items=(library.collections||library.playlists).filter(p=>(collectionFilter==='all'||(collectionFilter==='mine')===(p.user_id===me.id))&&(p.name+' '+p.description+' '+p.owner_name).toLowerCase().includes(collectionSearch.toLowerCase()));if(collectionSort==='name')items.sort((a,b)=>b.pinned-a.pinned||a.name.localeCompare(b.name,'ko'));if(collectionSort==='recent')items.sort((a,b)=>b.pinned-a.pinned||b.created-a.created);return collectionGrid(items,'조건에 맞는 플레이리스트가 없어요.');}
 function bindExplorer(view){
  if(view?.discoverPage)bindDiscover();else{discoverCleanup?.();discoverCleanup=null;}
- if($('#collection-search')){const form=$('#collection-search');form.onsubmit=e=>{e.preventDefault();location.hash='collections?'+new URLSearchParams(new FormData(form));};form.elements.sort.onchange=()=>form.requestSubmit();}
+ if($('#collection-search')){const form=$('#collection-search');alignCollectionSearchHeight(form);form.onsubmit=e=>{e.preventDefault();location.hash='collections?'+new URLSearchParams(new FormData(form));};form.elements.sort.onchange=()=>form.requestSubmit();}
  for(const [id,key] of [['library-search','search'],['library-filter','filter'],['library-sort','sort']]){const el=$('#'+id);if(el)el.oninput=()=>{if(key==='search')collectionSearch=el.value;else if(key==='filter')collectionFilter=el.value;else collectionSort=el.value;$('#library-collections').innerHTML=filteredCollections();if(typeof rememberLibraryFilters==='function')rememberLibraryFilters();};}
  if($('#playlist-filter'))$('#playlist-filter').oninput=e=>{const q=e.target.value.toLowerCase(),items=routeTracks.filter(t=>(t.title+' '+t.artist+' '+t.producer).toLowerCase().includes(q));$('#playlist-song-list').innerHTML=items.length?list(items,view?.playlist?.user_id===me?.id?view.playlist.id:null):'<p class="empty-inline">이 목록에 일치하는 곡이 없어요.</p>';};
 }
@@ -189,7 +245,7 @@ function moodFieldHTML(tags=''){return `<fieldset class="mood-fields"><legend>�
 function bindMoodFields(){if(document.querySelector('.music-classification'))return;const input=document.querySelector('input[name="tags"]');if(!input)return;const field=document.createElement('div');field.innerHTML=moodFieldHTML(input.value);input.closest('label').after(field);field.onchange=()=>{const labels=moodOptions.map(x=>x[1]),other=input.value.split(',').map(t=>t.trim()).filter(t=>t&&!labels.includes(t)),chosen=[...field.querySelectorAll('input:checked')].map(x=>x.dataset.moodTag);input.value=[...other,...chosen].join(', ');};input.addEventListener('input',()=>field.querySelectorAll('input').forEach(c=>c.checked=input.value.split(',').map(t=>t.trim()).includes(c.dataset.moodTag)));}
 document.addEventListener('click',async e=>{const b=e.target.closest('button,a');if(!b||b.disabled)return;try{
  if(b.dataset.recommendedPlaylist){const ticket=renderId,account=me?.id;b.disabled=true;const d=await api('/api/playlists/'+encodeURIComponent(b.dataset.recommendedPlaylist));if(ticket!==renderId||account!==me?.id||!b.isConnected)return;if(d.tracks?.length){remember(d.tracks);await play(d.tracks[0].id,d.tracks);}else toast('재생할 수 있는 공개곡이 없어요.');}
- else if(b.dataset.saveCollection){if(!me)return askLogin();const saved=b.dataset.saved==='true';b.disabled=true;await api(`/api/playlists/${b.dataset.saveCollection}/save`,saved?'DELETE':'PUT');await refreshLibrary();if(location.hash.startsWith('#playlist/'))await render();else{b.dataset.saved=String(!saved);if(b.closest('.recommended-playlist-card')){updateRecommendedPlaylistBookmark(b,!saved);const count=b.closest('.recommended-playlist-card').querySelector('[data-recommended-saves]');if(count){const p=await api('/api/playlists/'+encodeURIComponent(b.dataset.saveCollection));if(count.isConnected)count.textContent=number(p.playlist.saves||0);}}else b.textContent=saved?'보관함 저장':'보관함 저장됨';}toast(saved?'보관함에서 저장을 해제했습니다.':'추천 플레이리스트를 내 보관함에 저장했습니다.');}
+ else if(b.dataset.saveCollection){e.preventDefault();e.stopPropagation();await savePlaylistFromButton(b);}
  else if(b.dataset.pinCollection){b.disabled=true;await api('/api/library/playlists/'+b.dataset.pinCollection,'PATCH',{pinned:b.dataset.pinned!=='true'});await render();}
  else if(b.hasAttribute('data-order-collections'))await orderCollections();
  else if(b.dataset.trackMenu)trackMenu(b.dataset.trackMenu,b.closest('.charts-final')?b:null,b.closest('.song-covers-panel .song-cover-row')?.querySelector('.song-cover-join'));
