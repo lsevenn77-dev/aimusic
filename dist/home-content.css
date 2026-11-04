@@ -374,3 +374,56 @@
   text-align: center;
 }
 .listening-home .section-heading > .home-more-link { max-width: min(50%, 80px); white-space: normal; overflow-wrap: anywhere; }
+
+/* HOME_PC_TYPE_PILOT_20261104_START
+   Home-only desktop pilot. The legacy declarations above remain the rollback
+   source: remove this entire marked block to restore the previous home sizes.
+   Match the existing desktop breakpoint; mobile and shared component defaults
+   stay untouched. Custom properties keep these final px values independent of
+   build-time region scaling. Do not override the main banner title or geometry.
+*/
+@media (min-width: 801px) {
+  #main > .listening-home.home-content-refresh {
+    --home-heading-size: 21px;
+    --home-card-size: 16px;
+    --home-body-size: 15px;
+    --home-artist-size: 15px;
+    --home-control-size: 14px;
+    --home-meta-size: 13px;
+  }
+  #main > .listening-home.home-content-refresh :is(
+    .sing-discovery-heading h2, .sing-discovery-subheading h3
+  ) { font-size: var(--home-heading-size); }
+  #main > .listening-home.home-content-refresh :is(
+    .home-music-grid .album-artist, .home-chart-artist, .home-profile-name,
+    .home-playlist-artist, .home-feature-artist, .sing-discovery-credits
+  ) { font-size: var(--home-artist-size); }
+  #main > .listening-home.home-content-refresh :is(
+    .home-feature-description, .home-playlist-status,
+    .sing-discovery-heading p, .sing-discovery-copy p, .sing-discovery-label
+  ) { font-size: var(--home-body-size); }
+  #main > .listening-home.home-content-refresh .sing-discovery-copy h3 {
+    font-size: var(--home-card-size);
+  }
+  #main > .listening-home.home-content-refresh :is(
+    .home-feature-actions .text-link, .home-feature-preview > span,
+    .small-button, .primary-button, .text-link, .tab,
+    .sing-discovery-covers, [role="tab"]
+  ) { font-size: var(--home-control-size); }
+  #main > .listening-home.home-content-refresh :is(
+    .home-feature-label, .sing-discovery-copy small
+  ) { font-size: var(--home-meta-size); }
+  /* The shared chart sets sizes on individual rows. Override only its home
+     instance, including narrow-table container-query variants on desktop. */
+  #main > .listening-home.home-content-refresh #home-popular
+    .song-table.song-table-chart.chart-ui--compact .song-table-row {
+    --chart-title-size: var(--home-card-size);
+    --chart-rank-size: var(--home-meta-size);
+    --chart-stat-size: var(--home-meta-size);
+  }
+  #main > .listening-home.home-content-refresh #home-popular
+    .song-table.song-table-chart.chart-ui--compact .song-table-info > div > span {
+    font-size: var(--home-artist-size);
+  }
+}
+/* HOME_PC_TYPE_PILOT_20261104_END */
