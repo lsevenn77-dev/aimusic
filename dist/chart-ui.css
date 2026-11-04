@@ -143,3 +143,76 @@
 @container(max-width:700px){
  #main .charts-final .chart-ui .song-table-row .chart-song-copy>*{flex:0 1 auto;min-width:0;max-width:65%}
 }
+
+/* CHART_PC_TYPE_20261104_START
+   Popular / cover / new-release charts only, at the home pilot's PC breakpoint.
+   Keep every legacy declaration above unchanged. Remove this entire marked
+   block to restore chart typography without reverting home or shared styles.
+   Custom properties preserve exact px values through regionTokenCSS builds.
+   Geometry, icons, weights, colors and mobile typography remain unchanged.
+*/
+@media (min-width: 801px) {
+  #main > .charts-final {
+    --chart-page-size: 25px;
+    --chart-section-size: 21px;
+    --chart-card-size: 16px;
+    --chart-body-size: 15px;
+    --chart-control-size: 14px;
+    --chart-meta-size: 13px;
+  }
+  #main > .charts-final :is(h1, .page-heading h1) {
+    font-size: var(--chart-page-size);
+  }
+  #main > .charts-final :is(.section-heading h2, .chart-list-heading h2) {
+    font-size: var(--chart-section-size);
+  }
+  #main > .charts-final .song-table.song-table-chart.chart-ui .song-table-row {
+    --chart-title-size: var(--chart-card-size);
+    --chart-rank-size: var(--chart-meta-size);
+    --chart-stat-size: var(--chart-meta-size);
+    --music-stat-number: var(--chart-meta-size);
+  }
+  #main > .charts-final .song-table.song-table-chart.chart-ui .chart-song-credit {
+    font-size: var(--chart-body-size);
+  }
+  /* The legacy <=1100px chart rules also set sizes directly on row children. */
+  #main > .charts-final .song-table.song-table-chart.chart-ui .song-table-row
+    :is(.chart-song-title, .chart-song-title strong) {
+    font-size: var(--chart-card-size);
+  }
+  #main > .charts-final .song-table.song-table-chart.chart-ui .song-table-row .song-table-position {
+    font-size: var(--chart-meta-size);
+  }
+  #main > .charts-final .song-table.song-table-chart.chart-ui .song-table-row .chart-movement strong {
+    font-size: var(--chart-meta-size) !important;
+  }
+  #main > .charts-final .empty-design h2 {
+    font-size: var(--chart-card-size);
+  }
+  #main > .charts-final .empty-design p {
+    font-size: var(--chart-body-size);
+  }
+  #main > .charts-final :is(.chart-tabs .tab, .chart-period-menu a,
+    .aifect-dropdown-trigger, .empty-design .primary-button) {
+    font-size: var(--chart-control-size);
+  }
+  /* Existing chart-action and play-label rules both declare their own sizes. */
+  #main > .charts-final .chart-toolbar .chart-action {
+    --music-stat-number: var(--chart-control-size);
+  }
+  #main > .charts-final .chart-toolbar .chart-action,
+  #main > .charts-final .chart-toolbar .chart-action > span {
+    font-size: var(--chart-control-size) !important;
+  }
+  #main > .charts-final :is(.chart-meta .chart-period-note, [data-browse-count],
+    .chart-date, .chart-comparison-note, .chart-cover-count) {
+    font-size: var(--chart-meta-size);
+  }
+  /* The period listbox is portaled to body; opt in only while this chart's
+     period control is open. Other pages and shell dropdowns keep their sizes. */
+  .page-wrap:has(> #main > .charts-final .chart-toolbar .aifect-dropdown-trigger[aria-expanded=true])
+    ~ .aifect-dropdown-menu:not([hidden]) > [role=option] {
+    font-size: calc(14px);
+  }
+}
+/* CHART_PC_TYPE_20261104_END */
