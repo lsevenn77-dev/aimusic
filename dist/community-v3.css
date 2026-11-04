@@ -316,8 +316,22 @@ html:has(#main > .talk-directory, #main > .music-community-tabs[aria-label="ь╗ды
 }
 .live-directory .live-tools {display:grid;grid-template-columns:max-content minmax(0,470px);flex:none;justify-content:space-between;gap:16px}
 .live-directory .directory-actions {width:100%}
-.live-directory .live-filters {flex-wrap:wrap;gap:10px}
-.live-directory .live-filters button {flex:none}
+.live-directory .live-filters {
+ --filter-inset:3px;--filter-index:0;
+ position:relative;isolation:isolate;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+ width:max-content;max-width:100%;gap:0;padding:var(--filter-inset);border:1px solid transparent;border-radius:999px;
+ background:linear-gradient(var(--ds-panel),var(--ds-panel)) padding-box,var(--ds-gradient) border-box;
+ box-shadow:none;
+}
+/* One highlight follows the existing ARIA state, including search reset and return navigation. */
+.live-directory .live-filters::before {
+ content:"";position:absolute;z-index:0;pointer-events:none;
+ inset:var(--filter-inset) auto var(--filter-inset) var(--filter-inset);
+ width:calc((100% - 2 * var(--filter-inset)) / 3);border-radius:999px;background:var(--ds-gradient);
+ transform:translateX(calc(var(--filter-index) * 100%));transition:transform .24s cubic-bezier(.2,.8,.2,1);
+}
+.live-directory .live-filters:has([data-room-filter=karaoke][aria-pressed=true]) {--filter-index:1}
+.live-directory .live-filters:has([data-room-filter=talk][aria-pressed=true]) {--filter-index:2}
 .live-directory .live-filters button,.live-directory #v3-create-room {
  display:inline-flex;align-items:center;justify-content:center;gap:7px;
  padding:0 18px;height:44px;min-height:44px;border-radius:999px;white-space:nowrap;
@@ -327,28 +341,19 @@ html:has(#main > .talk-directory, #main > .music-community-tabs[aria-label="ь╗ды
  background:var(--ds-gradient);border-color:transparent;color:var(--ds-ink);
 }
 .live-directory .live-filters button {
- --filter-color:var(--ds-lilac);--filter-end:var(--ds-mint);--filter-opacity:58%;
- --filter-surface:var(--ds-panel);
- border:1px solid transparent;color:var(--ds-text);box-shadow:none;
- background:linear-gradient(var(--filter-surface),var(--filter-surface)) padding-box,
-  linear-gradient(110deg,color-mix(in srgb,var(--filter-color) var(--filter-opacity),transparent),color-mix(in srgb,var(--filter-end) var(--filter-opacity),transparent)) border-box;
- transition:background-color .16s,border-color .16s,filter .16s;
+ position:relative;z-index:1;min-width:0;margin:0;border:0;
+ color:var(--ds-text);background:transparent;box-shadow:none;text-shadow:none;
 }
-.live-directory .live-filters [data-room-filter=karaoke] {--filter-color:var(--ds-accent-pink);--filter-end:var(--ds-lilac)}
-.live-directory .live-filters [data-room-filter=talk] {--filter-color:var(--ds-mint);--filter-end:var(--ds-lilac)}
-.live-directory .live-filters button[aria-pressed=true] {
- --filter-opacity:88%;--filter-surface:color-mix(in srgb,var(--filter-color) 16%,var(--ds-panel));
-}
-.live-directory .live-filters [data-room-filter=all] {
- background:linear-gradient(110deg,color-mix(in srgb,var(--ds-lilac) 24%,var(--ds-panel)),color-mix(in srgb,var(--ds-mint) 24%,var(--ds-panel))) padding-box,
-  linear-gradient(110deg,color-mix(in srgb,var(--ds-lilac) var(--filter-opacity),transparent),color-mix(in srgb,var(--ds-mint) var(--filter-opacity),transparent)) border-box;
-}
-.live-directory .live-filters [data-room-filter=all][aria-pressed=true] {background:var(--ds-gradient) padding-box,var(--ds-gradient) border-box;color:var(--ds-ink)}
+.live-directory .live-filters button[aria-pressed=true],
+.live-directory .live-filters button[aria-pressed=true] .live-type-icon {color:#101827}
 @media(hover:hover) {
- .live-directory .live-filters button:hover {--filter-opacity:76%;--filter-surface:color-mix(in srgb,var(--filter-color) 10%,var(--ds-panel));filter:brightness(1.06)}
- .live-directory .live-filters button[aria-pressed=true]:hover {--filter-surface:color-mix(in srgb,var(--filter-color) 20%,var(--ds-panel))}
+ .live-directory .live-filters button:not([aria-pressed=true]):hover {background:var(--ds-soft)}
 }
-.live-directory .live-filters button:active {--filter-opacity:96%;filter:brightness(.94)}
+.live-directory .live-filters button:focus-visible {outline:2px solid var(--ds-mint);outline-offset:-3px}
+.live-directory .live-filters button[aria-pressed=true]:focus-visible {outline-color:#101827}
+@media(prefers-reduced-motion:reduce) {
+ .live-directory .live-filters::before {transition:none}
+}
 .live-directory .live-filters .live-type-icon {--live-icon:20px}
 .live-directory #v3-create-room {--ui-control-height:44px}
 #main .live-directory #v3-create-room svg {width:22px;height:22px;flex:none}
@@ -464,6 +469,8 @@ html:has(#main > .talk-directory, #main > .music-community-tabs[aria-label="ь╗ды
 @media(max-width:600px){
  .live-directory .directory-search input,.live-directory .live-filters button,.live-directory #v3-create-room {font-size:13px}
  .live-directory .live-filters button,.live-directory #v3-create-room {padding-inline:12px}
+ .live-directory .live-filters {width:100%;justify-self:stretch}
+ .live-directory .live-filters button {padding-inline:clamp(6px,2vw,12px);gap:6px;font-size:clamp(13px,3.6vw,14px)}
  #main .room-lobby.live-directory {--list-spacing:14px}
  .live-directory .directory-actions {gap:6px}
  .live-directory .directory-search {gap:4px;padding-inline:8px 0}
