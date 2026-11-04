@@ -106,3 +106,16 @@ test('touch-first event ordering and pen input also work without a mobile media 
   send('pointerdown',{pointerType:'pen',pointerId:2,isPrimary:true,button:0});
   assert.equal(state.pulls,2);
 });
+
+
+test('the native play-field button receives direct input while other controls remain excluded',()=>{
+  const root=new EventTarget();let pulls=0;
+  bindMobileReelInput({root,mobile:()=>true,playing:()=>true,pull:()=>pulls++});
+  function send(type,target,props={}){const event=new Event(type,{cancelable:true});Object.defineProperty(event,'target',{value:target});Object.assign(event,props);root.dispatchEvent(event);return event;}
+  const surface={closest:()=>root},navigation={closest:()=>({})};
+  send('pointerdown',surface,{pointerType:'touch',pointerId:1});
+  send('touchstart',surface,{touches:[{}]});send('pointerup',surface,{pointerId:1});send('touchend',surface,{touches:[]});send('click',surface);
+  assert.equal(pulls,1);
+  send('click',surface);assert.equal(pulls,2);
+  send('pointerdown',navigation);send('click',navigation);assert.equal(pulls,2);
+});

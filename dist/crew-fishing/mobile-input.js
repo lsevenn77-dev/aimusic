@@ -1,7 +1,7 @@
 // TouchEvent must work independently of PointerEvent support and media queries.
 export function bindMobileReelInput({root,mobile,playing,pull,pointerEvents=true,now=Date.now}){
   const controls='button,a,input,select,textarea,summary,dialog,[role="button"],[contenteditable]';
-  const control=e=>e.target.closest?.(controls);
+  const control=e=>{const element=e.target.closest?.(controls);return element&&element!==root;};
   let contact=null,consumed=false;
   const accept=(e,touch)=>playing()&&(touch||mobile())&&!control(e)&&!(e.button>0);
   const consume=e=>{consumed=true;if(e.cancelable)e.preventDefault();};

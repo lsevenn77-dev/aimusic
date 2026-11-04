@@ -54,3 +54,11 @@ main{padding:24px 0 52px}button,.button{font:inherit;font-weight:650;color:inher
 .mobile-controls .desktop-hint{display:none}
 .mobile-controls .mobile-hint{display:inline}
 .stage{touch-action:none;-webkit-user-select:none}
+
+/* The play field itself is a native touch target, without a visible pull button. */
+.stage .reel-surface{position:absolute;inset:0;z-index:2;display:block;width:100%;height:100%;margin:0;padding:0;border:0;border-radius:inherit;background:transparent;box-shadow:none;touch-action:none;-webkit-tap-highlight-color:transparent}
+.stage .reel-surface:hover{border:0;background:transparent}
+.stage .reel-surface:focus-visible{outline:3px solid var(--mint);outline-offset:-4px}
+.stage .stagehead{position:relative;z-index:3;pointer-events:none}
+.stage .stagehead button{pointer-events:auto}
+.stage .console,.stage .sea,.stage .fx{pointer-events:none}
