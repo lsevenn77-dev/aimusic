@@ -13,7 +13,7 @@ export function removeComment(env,cid,actor){
  ]);
 }
 export async function commentModerationRoute(req,env,path,user){
- let m=path.match(/^\/api\/comments\/([\w-]+)\/report$/);
+ let m=path.match(/^\/api\/comments\/([\w:-]+)\/report$/);
  if(m){
   requireUser(user);if(req.method!=='POST')fail(405,'지원하지 않는 요청입니다.');
   const c=await one(env,'SELECT * FROM comments WHERE id=?',m[1]);if(!c)fail(404,'댓글을 찾을 수 없습니다.');

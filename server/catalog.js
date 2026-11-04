@@ -162,7 +162,7 @@ export async function catalogRoute(req,env,path,user){
    }
   }
  }
- m=path.match(/^\/api\/comments\/([\w-]+)(\/like)?$/);
+ m=path.match(/^\/api\/comments\/([\w:-]+)(\/like)?$/);
  if(m){
   requireUser(user);const c=await one(env,'SELECT * FROM comments WHERE id=?',m[1]);if(!c)fail(404,'댓글을 찾을 수 없습니다.');const track=await published(env,c.track_id);if(track.kind==='original')await assertArtistInteraction(env,track.artist_id,user?.id);if(c.deleted_at)fail(409,'이미 삭제된 댓글입니다.');
   if(m[2]){

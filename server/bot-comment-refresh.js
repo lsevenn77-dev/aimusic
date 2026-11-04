@@ -7,11 +7,15 @@ export async function isRequestedCommentRefresh(env,job){
 }
 
 // Part of the same D1 transaction as the successful new comment. Never touch a
-// human author or a comment created after the migration snapshot. Keep IDs for
-// human replies/reports and retain the original text in the audited backup.
+// human author or a comment created after the migration snapshot. Promote replies
+// to root comments so they stay visible, as ordinary comment deletion does.
 export function replacePreviousBotComments(env,activityId,at){
  const guard="EXISTS(SELECT 1 FROM ai_bot_activities WHERE id=?)";
  return [
+  query(env,`UPDATE comments SET parent_id=NULL WHERE parent_id IN (
+   SELECT c.id FROM comments c JOIN ai_bots b ON b.user_id=c.user_id JOIN users u ON u.id=c.user_id
+   WHERE c.deleted_at=0 AND u.account_type='ai_bot' AND u.provider='ai_service'
+   AND c.id IN (SELECT json_extract(details,'$.id') FROM ai_bot_audit WHERE action='comment_refresh_backup' AND id LIKE 'comment-refresh:20261104:backup:%')) AND ${guard}`,activityId),
   query(env,`UPDATE comments SET body='',edited=?,deleted_at=?,deleted_by=? WHERE deleted_at=0
    AND user_id IN (SELECT b.user_id FROM ai_bots b JOIN users u ON u.id=b.user_id WHERE u.account_type='ai_bot' AND u.provider='ai_service')
    AND id IN (SELECT json_extract(details,'$.id') FROM ai_bot_audit WHERE action='comment_refresh_backup' AND id LIKE 'comment-refresh:20261104:backup:%') AND ${guard}`,at,at,COMMENT_REFRESH_ID,activityId),

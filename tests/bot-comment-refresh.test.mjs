@@ -49,13 +49,18 @@ test('failed generation preserves old comments; successful refresh preserves hum
  await runBotEngine(f.env);
  const status=await commentRefreshStatus(f.env);assert.equal(status.done,9);assert.equal(status.old_comments_remaining,0);
  assert.equal(f.sql.prepare("SELECT body FROM comments WHERE id='member'").get().body,'회원 댓글 유지');
- assert.equal(f.sql.prepare("SELECT parent_id FROM comments WHERE id='reply'").get().parent_id,'old-bot');
+ assert.equal(f.sql.prepare("SELECT parent_id FROM comments WHERE id='reply'").get().parent_id,null);
+ assert.equal(f.sql.prepare("SELECT body FROM comments WHERE id='reply'").get().body,'회원 답글 유지');
  assert.equal(f.sql.prepare('SELECT count(*) n FROM ai_support_follows').get().n,1);
  assert.equal(f.sql.prepare("SELECT state FROM ai_bot_jobs WHERE id='old-job'").get().state,'done');
  assert.equal(f.sql.prepare("SELECT count(*) n FROM ai_bot_activities WHERE id='old-activity'").get().n,1);
  assert.equal(f.sql.prepare("SELECT json_extract(details,'$.deleted_comments') n FROM ai_bot_audit WHERE action='comment_refresh_replaced'").get().n,1);
  for(const tid of ['one','two','three'])assert.equal(f.sql.prepare("SELECT count(DISTINCT user_id) n FROM comments WHERE track_id=? AND id LIKE 'ai-comment-refresh:%' AND deleted_at=0").get(tid).n,3);
  await runBotEngine(f.env);assert.equal(calls,9);
+ const cid=f.sql.prepare("SELECT id FROM comments WHERE id LIKE 'ai-comment-refresh:%' LIMIT 1").get().id;
+ assert.equal((await f.call('/api/comments/'+cid+'/like','PUT',{},'other')).status,200);
+ assert.equal((await f.call('/api/comments/'+cid+'/report','POST',{reason:'other',details:'fixture only'},'other')).status,201);
+ assert.equal((await f.call('/api/comments/'+cid,'DELETE',null,'owner')).status,200);
 });
 
 test('stop during refresh generation prevents both deletion and insertion',async t=>{
