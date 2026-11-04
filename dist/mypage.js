@@ -183,13 +183,15 @@ function profileWorkCard({t,type,section,mine,nickname}){
   <small class="mp-card-nick" title="${esc(nickname||'')}">${esc(nickname||'')}</small>
   ${mine?`<a class="mp-card-action" href="${dub?detail:'#manage/'+id}">관리</a>`:joinable?`<a class="mp-card-action" href="${esc(join)}">참여하기</a>`:''}</article>`;
 }
-function myWorksHTML(d){
+function myWorksHTML(d,column='all'){
  const catalog=profileWorkCatalog(d);
  const section=(tab,limit)=>{
   const works=catalog.filter(w=>w.section===tab);
   return mySection(profileWorkTabs[tab].label,works.length?`<div class="mp-catalog-grid">${works.slice(0,limit).map(profileWorkCard).join('')}</div>`:myEmpty('아직 작품이 없어요.'),myAll(profileWorksHref(d,tab)),works.length,'mp-catalog-section mp-catalog-'+tab);
  };
  const own=isMyProfile(d.profile);
+ if(column==='main')return `<div class="mp-work-main">${section('original',4)}${section('complete',3)}</div>${own?castingMineTabs(''):''}`;
+ if(column==='aside')return section('recruit',4);
  return `<div class="mp-work-shelves">
   <div>${section('original',4)}${section('complete',3)}</div>
   <div>${section('recruit',4)}${own?'':myStudioBanner()}</div>
@@ -247,8 +249,8 @@ async function myPageView(base,param,raw,readApi=api){
  return {mypage:state,musicLibrary:collection?.musicLibrary,tracks:collection?.tracks||[...(d.tracks||[]),...(d.covers||[])],
   html:`<div class="mypage-layout mp-member-page mp-dashboard ${own?'mp-own':''}">${myProfileHeader(d)}
    <div class="mp-profile-collections">${myMoments(d)}${myArtists(d)}</div>
-   <div class="mp-main">${own?mySegment(tab):''}<div id="mp-content" ${own?'role="tabpanel" aria-labelledby="mp-tab-'+tab+'"':''}>${collection?collection.html:tab==='works'?myWorksHTML(d):myLoading()}</div></div>
-   ${own?`<aside class="mp-aside" id="mp-aside"><div id="mp-aside-content">${collection?.libraryAside??(tab==='activity'?myLoading():'')}</div></aside>`:''}
+   ${own?mySegment(tab):''}<div class="mp-main"><div id="mp-content" ${own?'role="tabpanel" aria-labelledby="mp-tab-'+tab+'"':''}>${collection?collection.html:tab==='works'?myWorksHTML(d,own?'main':'all'):myLoading()}</div></div>
+   ${own?`<aside class="mp-aside" id="mp-aside"><div id="mp-aside-content">${collection?.libraryAside??(tab==='activity'?myLoading():myWorksHTML(d,'aside'))}</div>${myStudioBanner()}</aside>`:''}
    ${own?'<div class="mp-account-footer"><button type="button" class="small-button" id="logout">로그아웃</button></div>':''}</div>`};
 }
 async function myActivityData(readApi=api){
@@ -282,7 +284,7 @@ async function mySelectTab(tab,updateURL=true,readApi=api){
  s.tab=tab;const request=s.request=(s.request||0)+1;
  const segment=$('.mp-segment');segment.dataset.active=tab;segment.querySelectorAll('[role="tab"]').forEach(b=>{const active=b.dataset.mpTab===tab;b.setAttribute('aria-selected',active);b.tabIndex=active?0:-1;});
  const content=$('#mp-content'),aside=$('#mp-aside-content');content.setAttribute('aria-labelledby','mp-tab-'+tab);content.removeAttribute('aria-busy');
- if(tab==='works'){content.innerHTML=myWorksHTML(s.d);aside.innerHTML='';routeTracks=remember([...(s.d.tracks||[]),...(s.d.covers||[])]);icons();paintInteractions();syncSongCoverPlayback();return;}
+ if(tab==='works'){content.innerHTML=myWorksHTML(s.d,'main');aside.innerHTML=myWorksHTML(s.d,'aside');routeTracks=remember([...(s.d.tracks||[]),...(s.d.covers||[])]);icons();paintInteractions();syncSongCoverPlayback();return;}
  content.setAttribute('aria-busy','true');
  content.innerHTML=myLoading();aside.innerHTML=myLoading();
  try{

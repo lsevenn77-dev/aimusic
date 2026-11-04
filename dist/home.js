@@ -25,8 +25,14 @@ function homeMore(title,href){return href?`<a class="home-more-link" href="${hre
 function homeSection(title,href){return `<div class="section-heading"><h2>${esc(title)}</h2>${homeMore(title,href)}</div>`;}
 function homePlaceholder(){return '<div class="release-placeholder" role="status" aria-label="음악을 불러오는 중"><div></div><span>음악을 불러오고 있어요.</span></div>';}
 function homeRailHTML(id,label,content,kind){return `<div class="home-rail-shell">${kind==='profile'||id==='home-playlist-rail'?'':`<div class="home-rail-controls"><button type="button" data-home-scroll="-1" aria-controls="${id}" aria-label="${esc(label)} 이전 보기">${icon('chevron')}</button><button type="button" data-home-scroll="1" aria-controls="${id}" aria-label="${esc(label)} 다음 보기">${icon('chevron')}</button></div>`}<div id="${id}" class="home-rail home-${kind}-rail" role="region" aria-roledescription="캐러셀" aria-label="${esc(label)}" tabindex="0">${content}</div></div>`;}
-function homePlaylistCard(p,tracks=null){
+function homePlaylistCard(p,tracks=null,{compact=false,footer=''}={}){
  let art=playlistArt(p);for(const t of p.covers||[])art=homeReplaceArtwork(art,[t],'collection-tile');
+ if(compact)return `<article class="home-playlist-card home-playlist-compact ${p.locked?'collection-locked':''}">
+  <div class="home-playlist-art"><a href="#playlist/${esc(p.id)}" aria-label="${esc(p.name)} 상세">${art}</a></div>
+  <a class="home-playlist-info" href="#playlist/${esc(p.id)}">
+   <h3 class="home-playlist-name" title="${esc(p.name)}">${esc(p.name)}</h3>
+   <div class="home-playlist-count"><span>${number(Number(p.tracks)||0)}곡${p.locked?' · 보관 중':''}</span></div>
+  </a>${footer}</article>`;
  const preview=tracks?.slice(0,3)||[],total=tracks?tracks.length:Number(p.tracks)||0,extra=Math.max(0,total-preview.length);
  return `<article class="home-playlist-card"><div class="home-playlist-art"><a href="#playlist/${esc(p.id)}" aria-label="${esc(p.name)} 상세">${art}</a><button type="button" class="list-action" data-home-playlist="${esc(p.id)}" data-playlist-name="${esc(p.name)}" aria-pressed="false" aria-label="${esc(p.name)} 재생">${icon('ui-play-action')}</button></div><a class="home-playlist-info" href="#playlist/${esc(p.id)}"><h3 class="home-playlist-name" title="${esc(p.name)}">${esc(p.name)}</h3><p class="home-playlist-description" title="${esc(p.description||'')}">${esc(p.description||'')}</p><ol class="home-playlist-preview" aria-label="수록곡 미리보기">${preview.map((t,i)=>`<li title="${esc(t.title)} · ${esc(t.artist||'')}"><span class="home-playlist-index">${String(i+1).padStart(2,'0')}</span><span class="home-playlist-song">${esc(t.title)}</span><span class="home-playlist-artist">${esc(t.artist||'')}</span></li>`).join('')}${tracks===null?'<li class="home-playlist-status">수록곡을 불러오는 중</li>':''}</ol><div class="home-playlist-count"><span>${tracks&&extra?'외 '+number(extra)+'곡':''}</span><span>${number(total)}곡 수록</span></div></a></article>`;
 }
