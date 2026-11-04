@@ -46,7 +46,7 @@ test('login return survives an account-page reload and rejects unrelated or exte
 
 test('only owners can render the private library; all three tabs share the profile and retain one studio banner after the dynamic aside',async()=>{
  const esc=s=>String(s??''),d={profile:{id:'p',user_id:'owner'},tracks:[],covers:[]};
- const c=context({me:{id:'owner'},document:{addEventListener(){}},window:{addEventListener(){}},api:async()=>({...d}),esc,heading:()=>'',gate:()=>'<p>LOGIN</p>'});
+ const c=context({me:{id:'owner'},document:{addEventListener(){}},window:{addEventListener(){}},api:async()=>({...d}),esc,icon:()=>'<svg aria-hidden="true"></svg>',heading:()=>'',gate:()=>'<p>LOGIN</p>'});
  vm.runInContext(source('mypage.js'),c);
  Object.assign(c,{myStudioBanner:()=>'<section>STUDIO</section>',myProfileHeader:()=>'<header>PROFILE</header>',myMoments:()=>'<div>GALLERY</div>',myArtists:()=>'<section>ARTISTS</section>',myWorksHTML:()=>'<p>WORKS</p>',myLibraryView:async()=>({html:'<p>PRIVATE MUSIC</p>',libraryAside:'<aside>LIBRARY ONLY</aside>',tracks:[{id:'liked'}]})});
  for(const tab of ['works','activity','library']){const v=await c.myPageView('profile',null,'profile?view='+tab);assert.match(v.html,/<header>PROFILE<\/header>/);assert.match(v.html,/<div>GALLERY<\/div>/);assert.match(v.html,/<section>ARTISTS<\/section>/);assert.match(v.html,tab==='library'?/<aside>LIBRARY ONLY<\/aside>/:tab==='activity'?/불러오는 중/:/<p>WORKS<\/p>/);assert.match(v.html,/mp-tab-library/);assert.equal((v.html.match(/<section>STUDIO<\/section>/g)||[]).length,1);assert.match(v.html,/<\/div><section>STUDIO<\/section><\/aside>/);if(tab==='library')assert.equal(v.tracks[0].id,'liked');}

@@ -96,6 +96,40 @@ test('visitor studio follows recruitment in the same column and appears only onc
  assert.doesNotMatch(profileClient().myWorksHTML(d),/mp-studio/);
 });
 
+test('dashboard removes owner management controls while retaining the same work identities, counts and playback',()=>{
+ const c=profileClient(),base={producer_id:'p',user_id:'owner',work_public:1,work_nickname:'음악가',created:1};
+ const d={profile:{id:'p',user_id:'owner'},tracks:[{...base,id:'song',kind:'original',title:'제작곡'}],
+  covers:Array.from({length:5},(_,i)=>({...base,id:'cover-'+i,kind:'cover',cover_mode:'solo',title:'솔로 '+i,created:10-i})),
+  dubbings:[{id:'dub',kind:'dubbing',owner_id:'owner',root_id:'root',work_finished:1,audio_ready:1,owner_name:'음악가',title:'더빙',created:20}]};
+ const catalog=c.profileWorkCatalog(d),before=JSON.stringify(catalog),html=c.myWorksHTML(d);
+ assert.match(html,/완성곡 <span>6<\/span>/);
+ assert.equal((html.match(/class="mp-catalog-card"/g)||[]).length,4,'one original and the existing three completed preview slots');
+ assert.doesNotMatch(html,/data-track-menu=|>관리<|class="card-more"/);
+ assert.match(html,/data-play="song"/);assert.match(html,/data-mp-dubbing-play="dub"/);
+ assert.match(html,/#song\/cover-0/);assert.match(html,/#profile\/works\?tab=complete/);
+ assert.equal(JSON.stringify(c.profileWorkCatalog(d)),before);
+ for(const work of catalog){
+  const preview=c.profileWorkCard(work),managed=c.profileWorkCard(work,{showManagement:true});
+  assert.match(managed,/>관리<\/a>/);
+  assert.deepEqual(preview.match(/(?:data-play|data-mp-dubbing-play)="[^"]*"/g),managed.match(/(?:data-play|data-mp-dubbing-play)="[^"]*"/g));
+  if(work.t.kind!=='dubbing')assert.match(managed,/data-track-menu=/);
+ }
+ const visitor=profileClient({id:'visitor'}),foreign=visitor.profileWorkCatalog(d)[0];
+ assert.doesNotMatch(visitor.profileWorkCard(foreign,{showManagement:true}),/>관리<\/a>/);
+});
+
+test('full work list opts into existing management and uses the completed-song label',()=>{
+ const c=profileClient(),d={profile:{id:'p',user_id:'owner'},tracks:[{id:'song',kind:'original',producer_id:'p',user_id:'owner',work_public:1,title:'제작곡'}]};
+ const view=c.profileWorksPage(d,new URLSearchParams('tab=all')),results={},search={value:''},select={value:'all'};
+ assert.match(view.html,/>완성곡 <span>/);
+ Object.assign(c,{icons(){},paintInteractions(){},window:{AifectDropdown:{mount(){}}},document:{querySelector(){return {
+  querySelector:s=>s==='input'?search:s==='[data-mp-types]'?select:results,querySelectorAll:()=>[]
+ };}}});
+ c.bindProfileWorks(view.profileWorks);
+ assert.match(results.innerHTML,/data-track-menu="song"/);
+ assert.match(results.innerHTML,/href="#manage\/song">관리/);
+});
+
 test('four gallery slots count actual photos and open the existing owner-only upload form directly',()=>{
  const d={profile:{id:'p',name:'회원',user_id:'owner'},gallery:[{url:'/image'}]},own=profileClient(),other=profileClient({id:'visitor'});
  const html=own.myMoments(d);
