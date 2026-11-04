@@ -1,0 +1,142 @@
+/* 125% of the current recording surface, once only. The existing CSS compiler
+   scales fixed type/spacing through these local tokens; geometry is explicit.
+   Review, publication and punch recording retain their original dimensions. */
+#main #sing.web-studio:not(.is-reviewing):not(.is-punch-page):not(.is-punch-recording) {
+  --sing-scale: 1.25;
+  --ui-type-scale: 1.25;
+  --ui-space-scale: 1.25;
+  --ui-icon-scale: 1.25;
+  --record-line: 60px;
+  min-width: 0;
+  max-width: 100%;
+
+  .sing-back { min-width: 44px; min-height: 44px; flex-basis: 44px; }
+  .sing-back svg { width: 25px; height: 25px; }
+  .sing-artwork { width: 77.5px; height: 77.5px; flex-basis: 77.5px; border-radius: 11.25px; }
+  .sing-header-mode { gap: clamp(10px,1.5vw,30px); }
+  #duet-guide button { height: 45px; min-height: 45px; min-width: 115px; }
+  .record-settings-icon { width: 47.5px; height: 47.5px; flex-shrink: 0; }
+  .record-settings-icon svg { width: 22.5px; height: 22.5px; }
+  .sing-progress { min-height: 40px; }
+  .duet-color-key { gap: clamp(25px,5vw,65px); flex-wrap: wrap; }
+  .duet-color-key i { width: 10px; height: 10px; }
+  .sing-countdown { min-height: 25px; }
+  .sing-countdown i { width: 7.5px; height: 7.5px; }
+  .sing-wheel {
+    height: min(calc(100% - 15px),calc(var(--record-line) * 8)) !important;
+    max-width: 100%;
+  }
+  .sing-wheel button, .sing-wheel button.current {
+    min-height: calc(var(--record-line) - 10px) !important;
+    border-radius: 8.75px;
+  }
+  .sing-recording .studio-transport {
+    grid-template-columns: repeat(3,minmax(70px,100px)) !important;
+    gap: clamp(12.5px,3vw,40px) !important;
+    min-height: 120px;
+    max-width: 100%;
+  }
+  .studio-transport button { height: 120px; grid-template-rows: 92.5px 22.5px; min-width: 0; }
+  .studio-transport button svg { width: 60px !important; height: 60px !important; }
+  .studio-transport .studio-record svg { width: 90px !important; height: 90px !important; }
+  .studio-transport button span { line-height: 22.5px; }
+  .sing-status.show-notice {
+    inset: auto auto 135px 25px;
+    width: min(calc(100% - 50px),550px);
+    max-height: 150px;
+    overflow-y: auto;
+  }
+
+  #sing-live-settings {
+    h2 svg { width: 23.75px; height: 23.75px; }
+    .studio-setting-card { border-radius: 20px; }
+    .studio-range { grid-template-columns: minmax(105px,.57fr) minmax(0,1fr) 55px; min-height: 55px; }
+    :is(.studio-key,.studio-size) { grid-template-columns: minmax(95px,.39fr) minmax(0,1fr); }
+    .studio-key-stepper { grid-template-columns: 45px minmax(0,1fr) 45px; }
+    :is(.studio-key button,.sing-lyric-sizes button) { height: 45px; min-height: 45px; }
+    .studio-preset-tile { min-height: 75px; white-space: normal; overflow-wrap: anywhere; }
+    .studio-preset-icon { width: 25px; height: 25px; }
+    .studio-preset-icon svg { width: 26.25px; height: 26.25px; }
+    .studio-extra-presets .studio-preset-tile { min-height: 44px; }
+    .sing-monitor { min-height: 60px; }
+    .sing-monitor input {
+      flex-basis: 55px; width: 55px; min-width: 55px;
+      height: 30px; min-height: 30px; max-height: 30px; border-radius: 15px;
+      background: radial-gradient(circle at 15px 15px,var(--ds-text) 11.25px,transparent 11.875px),var(--ds-border);
+    }
+    .sing-monitor input:checked { background: radial-gradient(circle at 40px 15px,var(--ds-text) 11.25px,transparent 11.875px),#8eddd2; }
+    .microphone-check { min-height: 46.25px; }
+    [data-mic-toggle] { min-height: 45px; }
+    .microphone-check-bars { height: 10px; min-height: 10px; }
+    .microphone-check-bars i { height: 5px; max-width: 12.5px; }
+    .microphone-check-bars i.is-active { height: 11.25px; }
+  }
+  :is(.sing-progress,#sing-live-settings) input[type=range] {
+    height: 55px; min-height: 55px;
+    background-size: var(--position,0%) 5px,100% 5px !important;
+  }
+  :is(.sing-progress,#sing-live-settings) input[type=range]::-webkit-slider-runnable-track { height: 5px; }
+  :is(.sing-progress,#sing-live-settings) input[type=range]::-webkit-slider-thumb { width: 12.5px; height: 12.5px; margin-top: -3.75px; }
+  :is(.sing-progress,#sing-live-settings) input[type=range]::-moz-range-thumb { width: 12.5px; height: 12.5px; }
+}
+
+@media(min-width:1024px) {
+  #main #sing.web-studio:not(.is-reviewing):not(.is-punch-page):not(.is-punch-recording) {
+    width: 100%; max-width: 1370px !important;
+    height: auto; min-height: 935px;
+    grid-template-rows: minmax(115px,max-content) minmax(820px,1fr);
+    column-gap: calc(18px * var(--sing-scale));
+    &::before { width: calc((100% - 22.5px) * 64 / 108); border-radius: 20px; }
+    .sing-head { min-width: 0; flex-wrap: wrap; }
+    .studio-song-meta { flex: 1 1 140px; }
+    .sing-header-mode { margin-left: auto; }
+    .sing-recording { grid-template-rows: 55px 15px 35px 40px minmax(480px,1fr) 135px; }
+    #sing-live-settings {
+      .studio-setting-card { padding: calc(16px * var(--sing-scale)) clamp(15px,1.375vw,25px); }
+      > .studio-setting-card:nth-child(1) { min-height: 322.5px; }
+      > .studio-setting-card:nth-child(2) { min-height: 200px; }
+    }
+    /* At narrow desktop widths, controls retain their size and reflow. */
+    @media(max-width:1279px) {
+      #sing-live-settings .studio-range { grid-template-columns: minmax(0,1fr) 55px; }
+      #sing-live-settings .studio-range .studio-control-name { grid-column: 1; grid-row: 1; white-space: normal; }
+      #sing-live-settings .studio-range output { grid-column: 2; grid-row: 1; }
+      #sing-live-settings .studio-range input { grid-column: 1 / -1; grid-row: 2; }
+      #sing-live-settings :is(.studio-key,.studio-size) { grid-template-columns: minmax(0,1fr); }
+      #sing-live-settings .studio-space-presets { grid-template-columns: repeat(2,minmax(0,1fr)); }
+      #sing-live-settings .sing-monitor { flex-wrap: wrap; }
+    }
+  }
+}
+
+@media(max-width:1023px) {
+  /* Preserve the existing mobile shell and content origin. Only the recording
+     viewport scrolls when enlarged lyrics and transport exceed its height. */
+  .page-wrap #main:has(#sing.web-studio:not(.is-reviewing):not(.is-punch-page):not(.is-punch-recording)) {
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+  }
+  #main #sing.web-studio:not(.is-reviewing):not(.is-punch-page):not(.is-punch-recording) {
+    --record-line: clamp(42.5px,6.825dvh,60px);
+    height: auto; min-height: 100%; overflow: visible;
+    grid-template-rows: auto minmax(0,1fr);
+    .sing-head { display: grid !important; grid-template-columns: 44px 55px minmax(0,1fr) 45px; min-height: 62.5px; }
+    .sing-back { width: 44px; }
+    .sing-artwork { width: 55px; height: 55px; }
+    .studio-song-meta { min-width: 0; }
+    .sing-header-mode { margin: 0; gap: calc(8px * var(--sing-scale)); }
+    .record-settings-icon { width: 45px; height: 45px; }
+    .sing-head:has(#duet-guide button) {
+      grid-template-columns: 44px 55px minmax(0,1fr);
+      .sing-header-mode { grid-column: 2 / -1; justify-content: flex-end; }
+    }
+    #duet-guide button { min-width: 0; padding-inline: clamp(10px,5vw,22.5px); }
+    .sing-recording { grid-template-rows: 57.5px 30px minmax(50px,max-content) 27.5px minmax(240px,1fr) 120px; }
+    .duet-color-key { gap: clamp(12px,10vw,42px); }
+    .sing-wheel { height: min(480px,max(240px,43.68dvh)) !important; margin-bottom: calc(12px * var(--sing-scale)); }
+    .sing-recording .studio-transport {
+      grid-template-columns: repeat(3,minmax(0,102.5px)) !important;
+      gap: clamp(10px,5vw,42.5px) !important;
+    }
+  }
+}

@@ -65,6 +65,7 @@ for (const file of ['inventory.js','inventory.css','music-library.js','music-lib
 const indexHTML=(await readFile('dist/index.html','utf8')).replace('<!--INITIAL_RENDER_HEAD-->', '<style>'+await readFile('dist/render-state.css','utf8')+'</style><script>'+await readFile('dist/render-state.js','utf8')+'</script>');
 await cp('dist/ui-region-scale.css','dist/client/ui-region-scale.css');
 await cp('dist/gift-scale.css','dist/client/gift-scale.css');
+await cp('dist/sing-recording-scale.css','dist/client/sing-recording-scale.css');
 for(const name of await readdir('dist/client')){
  if(!name.endsWith('.css')||name.startsWith('aifect-app-')||name==='ui-region-scale.css')continue;
  const file='dist/client/'+name;
