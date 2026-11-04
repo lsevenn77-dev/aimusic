@@ -316,6 +316,7 @@ html:has(#main > .talk-directory, #main > .music-community-tabs[aria-label="ь╗ды
 }
 .live-directory .live-tools {display:grid;grid-template-columns:max-content minmax(0,470px);flex:none;justify-content:space-between;gap:16px}
 .live-directory .directory-actions {width:100%}
+.live-directory .live-search-toggle,.live-directory [data-live-search-clear],.live-directory .live-filter-vector {display:none}
 .live-directory .live-filters {
  --filter-inset:3px;--filter-index:0;
  position:relative;isolation:isolate;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
@@ -484,4 +485,77 @@ html:has(#main > .talk-directory, #main > .music-community-tabs[aria-label="ь╗ды
  .live-directory #v3-room-create {padding:12px 14px}
  .live-directory #v3-room-create h2 {font-size:18px}
  .live-directory #v3-room-create :is(label,legend,input:not([type=radio]),select,textarea,[data-auto-title]) {font-size:13px}
+}
+
+/* Reuse the existing narrow-directory breakpoint; desktop controls stay in place. */
+@container (max-width:760px) {
+ .live-directory .live-tools {
+  display:flex;flex-wrap:nowrap;align-items:center;gap:8px;height:44px;min-height:44px;
+ }
+ .live-directory .directory-actions {display:contents}
+ .live-directory .live-filters {
+  flex:1 1 0;width:auto;min-width:0;height:44px;box-sizing:border-box;
+  border:1px solid color-mix(in srgb,var(--ds-lilac) 60%,transparent);background:var(--ds-panel);
+ }
+ .live-directory .live-filters button {
+  height:36px;min-height:36px;padding:0 4px;gap:4px;font-size:14px;
+ }
+ .live-directory .live-filters button[aria-pressed=true] {color:var(--ds-ink)}
+ .live-directory .live-filters .live-type-icon {display:none}
+ .live-directory .live-filter-vector {display:inline-flex;flex:none;width:16px;height:16px}
+ .live-directory [data-room-filter=karaoke] .live-filter-vector {color:#F471BE}
+ .live-directory [data-room-filter=talk] .live-filter-vector {color:#8EDDD2}
+ .live-directory [data-room-filter][aria-pressed=true] .live-filter-vector {color:inherit}
+ #main .live-directory .live-filter-vector svg {width:100%;height:100%;stroke-width:1.8}
+ .live-directory .live-search-toggle,.live-directory #v3-create-room {
+  display:inline-flex;align-items:center;justify-content:center;flex:0 0 44px;
+  box-sizing:border-box;width:44px;height:44px;min-height:44px;margin:0;padding:0;border-radius:50%;
+  box-shadow:none;
+ }
+ .live-directory .live-search-toggle {
+  background:linear-gradient(var(--ds-soft),var(--ds-soft)),var(--ds-panel);
+  border:1px solid color-mix(in srgb,var(--ds-lilac) 40%,transparent);color:var(--ds-text);
+ }
+ #main .live-directory :is(.live-search-toggle,#v3-create-room) svg {width:20px;height:20px;stroke-width:1.8;flex:none}
+ .live-directory .live-create-label,
+ .live-directory .directory-search,
+ .live-directory [data-live-search-close] {display:none}
+ .live-directory .live-tools[data-search-open=true] .live-filters,
+ .live-directory .live-tools[data-search-open=true] [data-live-search-open] {display:none}
+ .live-directory .live-tools[data-search-open=true] [data-live-search-close] {display:inline-flex}
+ .live-directory .live-tools[data-search-open=true] .directory-search {
+  display:flex;flex:1 1 0;min-width:0;width:auto;height:44px;min-height:44px;box-sizing:border-box;
+  gap:0;margin:0;padding:0 0 0 12px;border-radius:999px;
+  border:1px solid color-mix(in srgb,var(--ds-lilac) 60%,transparent);
+  background:linear-gradient(var(--ds-soft),var(--ds-soft)),var(--ds-panel);box-shadow:none;
+ }
+ .live-directory .directory-search::before,.live-directory .directory-search::after,
+ .live-directory .directory-search > svg,.live-directory .directory-search [data-live-reset] {display:none}
+ #main .live-directory .directory-search input {
+  flex:1 1 0;width:100%;min-width:0;height:42px;min-height:0;padding:0 8px 0 0;
+  border:0;background:transparent;box-shadow:none;border-radius:0;font-size:16px!important;color:var(--ds-text);
+ }
+ .live-directory .directory-search input::placeholder {color:var(--ds-muted);opacity:1}
+ .live-directory .directory-search input::-webkit-search-cancel-button,
+ .live-directory .directory-search input::-webkit-search-decoration {appearance:none;display:none}
+ .live-directory .directory-search [data-live-search-clear]:not([hidden]) {
+  display:inline-flex;align-items:center;justify-content:center;flex:0 0 44px;width:44px;height:42px;
+  padding:0;border:0;border-radius:999px;background:transparent;color:var(--ds-muted);
+ }
+ #main .live-directory [data-live-search-clear] svg {width:18px;height:18px;stroke-width:1.8}
+ #main .live-directory .directory-search:focus-within {outline:none;border-color:var(--ds-lilac)!important;filter:none}
+ .live-directory .directory-search input:focus-visible {outline:none}
+ .live-directory .live-tools button:focus-visible {outline:2px solid var(--ds-lilac);outline-offset:2px}
+ .live-directory .live-filters button:focus-visible {outline-offset:-3px}
+ .live-directory .live-filters button[aria-pressed=true]:focus-visible {outline-color:var(--ds-ink)}
+ .live-directory .live-list-space {--list-spacing:14px}
+}
+@container (max-width:320px) {
+ .live-directory .live-tools {gap:4px}
+ .live-directory .live-filters {grid-template-columns:minmax(0,.7fr) repeat(2,minmax(0,1fr))}
+ /* Weighted segments preserve all three full labels on the 320px viewport. */
+ .live-directory .live-filters::before {display:none}
+ .live-directory .live-filters button {padding-inline:0;gap:2px;font-size:13px}
+ .live-directory .live-filters button[aria-pressed=true] {background:var(--ds-gradient)}
+ .live-directory .live-filter-vector {width:15px;height:15px}
 }
