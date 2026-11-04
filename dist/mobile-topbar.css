@@ -68,7 +68,8 @@
   :root[data-mobile-topbar-collapsed] #main > .play-page:has(> #play-banner) { padding-top:6px; }
   :root[data-mobile-topbar-collapsed] #main[data-route^="notifications"] .activity-toolbar { padding-top:6px; }
   :root[data-topbar-animate] .page-wrap > .topbar { transition:height 200ms ease; }
-  :root[data-topbar-animate] #common-topbar-content > * { transition:transform 200ms ease,opacity 200ms ease; }
+  :root[data-topbar-animate] #common-topbar-content > * { transition:transform 200ms ease,opacity 200ms ease,visibility 0s; }
+  :root[data-topbar-animate][data-mobile-topbar-collapsed] #common-topbar-content > * { transition:transform 200ms ease,opacity 200ms ease,visibility 0s linear 200ms; }
   :root[data-topbar-animate] .mobile-topbar-grip svg { transition:transform 200ms ease; }
 }
 /* Before JS measures the safe-area-adjusted available width. */
@@ -80,5 +81,6 @@
 @media (prefers-reduced-motion:reduce) {
   :root[data-topbar-animate] .page-wrap > .topbar,
   :root[data-topbar-animate] #common-topbar-content > *,
+  :root[data-topbar-animate][data-mobile-topbar-collapsed] #common-topbar-content > *,
   :root[data-topbar-animate] .mobile-topbar-grip svg { transition:none; }
 }
