@@ -37,3 +37,18 @@ test('natural-language, spacing, colloquial and compound search intent',()=>{
  assert.deepEqual(lyricSearchIntent('%').tags,[]);
  assert.equal(new Set(LYRIC_TAGS.map(t=>t.id)).size,LYRIC_TAGS.length);
 });
+test('relationship endings and resilience use contextual evidence without requiring category names',()=>{
+ has('우리 사이가 차가워져\n멀어지고 있었어\n내 마음은 아픈데','breakup','sad');
+ has('끝났다고 말했어\n우리 채팅방을 못 지웠어','breakup','lingering');
+ has('아무도 없는 방\n숨겨 둔 마음이 보여','lonely');
+ has('긴 밤을 지나\n언젠가는 아침이 올 거야\n나를 놓지 않을게','hope','esteem','courage');
+ has('조금 늦어도 괜찮다고\n네게 말해 주고 싶어','comfort');
+ assert.ok(!ids('도시가 멀어지고\n열차는 끝나고 있어').includes('breakup'));
+});
+test('wished-for or observed happiness and pretending to be okay are not positive feelings',()=>{
+ const song='난 안 괜찮아\n네가 행복하길 바랐어\n행복해 보이는 네 모습\n왜 마음이 아픈 걸까\n우리는 괜찮은 척했어';
+ has(song,'sad');for(const id of ['happy','joy','comfort','bright','good_day'])assert.ok(!ids(song).includes(id),id);
+ const other='네가 행복해\n난 마음이 아픈데';assert.ok(!ids(other).includes('happy'));
+ has('너와 함께 행복해\n기쁨이 가득해','happy','joy');
+ assert.ok(!ids('엄마를 사랑해').includes('thanks'),'Family affection is not automatically gratitude');
+});

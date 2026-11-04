@@ -1,5 +1,5 @@
 // Deliberately local and deterministic. Confidence is rule support, not a probability.
-export const LYRIC_ANALYSIS_VERSION='ko-lyrics-1';
+export const LYRIC_ANALYSIS_VERSION='ko-lyrics-2';
 export const normalizeLyricTerm=value=>String(value??'').normalize('NFKC').toLowerCase().replace(/[\s\p{P}\p{S}\u200b-\u200d]/gu,'');
 const tag=(id,category,label,aliases,query)=>({id,category,label,aliases:[label,...aliases.split('|').filter(Boolean)],query});
 export const LYRIC_TAGS=[
@@ -48,31 +48,41 @@ const RULES=[
  rule('love-address','love',/(?:널|너를|당신을|그대를|너만|그대만)?사랑(?:해|한다|할게|하고|하는|했던|했지만|했어)|iloveyou/),
  rule('falling-in-love','love,in_love',/사랑에빠(?:져|졌|진)|너와연인이|fallinginlove/),
  rule('love-past','love,breakup,longing',/사랑했지만.{0,24}(?:헤어|이별|떠났)|(?:헤어졌|이별했).{0,24}사랑/),
+ rule('past-affection','love,memory',/좋아했던사람|사랑했던날|좋았던우리/, .78),
  rule('parting','breakup',/헤어(?:졌|져|지자|진|질)|이별(?:했|하|한|을|이)|끝난우리|끝나버린사랑|we(?:brokeup|aresovertoday)/),
+ rule('relationship-distance','breakup',/멀어지고|멀어져|끝나고있|끝났다고|끝날만해서끝|끝난(?:건|것|사람)|끝나는건|식어갔/, .82, /우린|우리|서로|네가|너를|사랑|마음|채팅방/),
  rule('cannot-forget','lingering,longing',/(?:널|너를|그댈|그대를)?잊지못|못잊(?:어|겠)|아직도너를|cantforgetyou|cannotforgetyou/),
  rule('missing','longing',/보고싶(?:어|다|은|었)|그리(?:워|운|웠)|imissyou/),
+ rule('remember-person','longing',/네가생각나|네생각이나|네가생각날|너를생각해|네가있던자리/, .8),
+ rule('kept-contact','lingering',/채팅방.{0,12}못지|연락기다렸|번호는그대로|버리지못한마음/, .78, /끝났|끝낸|네가|너를|그리|마음|전화|잊은/),
  rule('unrequited','crush, love',/혼자만(?:의|하는)사랑|짝사랑|말못한내마음|너는내마음을몰라|나만너를사랑/),
  rule('confess','confession,love',/고백(?:할|하|해|했)|내마음을(?:전할|받아)|좋아한다고말/),
  rule('reunite','reunion,love',/다시만난우리|다시너를만나|우리다시만나|내게돌아(?:와|온)/),
  rule('regret','regret',/후회(?:해|하|가|돼|했)|돌이킬수없|내가잘못했|너에게미안해/),
  rule('friend','friendship',/친구(?:야|들과함께|와함께)|우리(?:의)?우정|곁을지켜준친구/),
- rule('family','family,thanks',/(?:엄마|아빠|어머니|아버지|가족).{0,18}(?:고마|사랑|품|손|기다)|(?:고마|사랑).{0,18}(?:엄마|아빠|어머니|아버지)/),
+ rule('family','family',/(?:엄마|아빠|어머니|아버지|가족).{0,18}(?:고마|사랑|품|손|기다)|(?:고마|사랑).{0,18}(?:엄마|아빠|어머니|아버지)/),
  rule('cheer','encouragement,courage',/힘(?:을)?내|넌할수있|너는할수있|포기하지마|youcandoit|dontgiveup/),
  rule('growth','growth',/어른이되|조금씩자라|성장(?:해|하)|어제보다나은/),
+ rule('own-progress','growth,encouragement',/내걸음으로여기까지|여기까지.{0,8}걸어왔|분명히걸어왔잖아/, .8),
  rule('dream','dream,hope',/꿈을(?:향해|꾸|이루|찾)|나의꿈|목표를향해|chase(?:my|your)dream/),
+ rule('keep-dream','dream,hope',/작은꿈|꿈의조각/, .78, /꺼지지않|밝혀|버리지못|기다려|놓지않/),
  rule('restart','retry,hope,courage',/다시시작(?:할|해|하|하고|해볼)|다시일어(?:나|설)|새로운시작|startagain/),
  rule('memory','memory',/추억(?:이|을|은|속)|그때그시절|어린시절|함께했던날|지난날(?:을|이|의)|오래된사진/),
  rule('daily','daily',/퇴근길|출근길|평범한하루|오늘도같은길/),
  rule('life','life',/인생(?:은|의|을)|살아가는이유|삶(?:의|을|이란)|살아온날/),
  rule('freedom','freedom',/자유롭게|자유를찾|날개를펼쳐|누구도날가둘수없/),
  rule('esteem','esteem,courage',/나를사랑(?:해|할)|나답게살|나는소중|있는그대로의나/),
+ rule('keep-self','esteem,courage',/나를놓지않|나만의걸음|내걸음으로/, .82),
  rule('happy','happy,joy',/행복(?:해|하|한|했)|기분이좋|너와웃(?:어|는)|imhappy/),
  rule('joy','joy',/기쁨(?:이|을|에)|기뻐|즐거(?:워|운)|웃음이피어/),
  rule('flutter','flutter',/두근(?:두근|거려|대)|설레(?:어|는|고)|설렌다|너만보면떨려/),
  rule('sad','sad',/슬(?:퍼|프다|픈|픔이)|눈물(?:이|을|만|나)|울고싶|우울(?:해|한)|imsad/),
+ rule('hurt-feelings','sad',/마음.{0,8}아프|마음.{0,8}아픈|서로더아프|안괜찮(?:아|았)|눈물까지/, .8),
  rule('lonely','lonely',/외로(?:워|운|움)|외롭(?:다|고)|쓸쓸(?:해|한)|혼자남(?:아|은)|imalone|imlonely/),
+ rule('empty-room','lonely',/아무도없는방|혼자먹는저녁/, .78, /네가없|숨겨둔|내가보여|그리|혼자|익숙/),
  rule('anger','anger',/분노(?:가|에|로)|화가나|너를원망|용서못해/),
  rule('anxiety','anxiety',/불안(?:해|한|하)|두려(?:워|운)|걱정(?:이|에|돼)|잠못이루/, .82),
+ rule('afraid-feeling','anxiety',/무서웠어|무서운마음|마음이흔들/, .76),
  rule('peace','peace',/마음이편안|평온(?:한|해)|평화로운|고요한마음/),
  rule('empty','empty',/공허(?:해|한|함)|허전(?:해|한)|텅빈(?:내)?마음|아무것도남지않/),
  rule('tender','tender',/애틋(?:한|해)|소중한너|소중한그대|꼭안아줄/),
@@ -80,14 +90,16 @@ const RULES=[
  rule('thanks','thanks',/고마(?:워|운|웠)|감사(?:해|한|하)|thankyou/),
  rule('comfort','comfort,empathy',/괜찮아.{0,20}(?:울어도돼|쉬어도돼|네곁|내가)|울어도돼|내가안아줄|네잘못이아니야|youarenotalone|itsokaytocry/),
  rule('comfort-context','comfort,empathy',/괜찮아|쉬어도돼/, .8,/(?:힘들|지친|아파|눈물|울어|곁에|안아)/),
+ rule('gentle-permission','comfort,empathy',/늦어도괜찮|쉬어가도돼|잠시쉬어도|잘하고있어|수고했어|애썼어|버텨줘서고마/, .8),
  rule('hope','hope',/희망(?:을|이|의)|내일은(?:괜찮|나아|빛)|빛나는내일|끝나지않은꿈/),
+ rule('resilient-light','hope',/내안에불빛이남|언젠가는아침이올|다시빛을켜|나만의아침을맞/, .82, /어둠|밤|마음|놓지않|꺼지지않|비추|걸음|건너/),
  rule('despair','despair',/희망(?:이|은)?없|절망(?:속|에|이)|끝이없는어둠|살아갈이유가없/),
  rule('rain-context','rain',/비(?:가)?오는|빗소리|빗방울/, .82,/(?:그리|눈물|마음|창가|기억|혼자|너를)/),
  rule('dawn-context','dawn',/새벽|밤을새/, .82,/(?:그리|혼자|생각|눈물|마음|기억|별빛)/),
  rule('bedtime-context','bedtime',/잘자|잠들(?:어|기전)|눈을감아/, .82,/(?:편안|포근|꿈|쉬어|자장|안아)/)
 ];
 // Negative statements and explicit irony suppress claims within the same clause.
-const DENIALS={love:/(?:사랑.{0,5}(?:않|아니|못해)|안사랑|사랑은없|dontloveyou|donotloveyou)/,happy:/행복.{0,8}(?:않|아니)|행복한척|행복하겠니|happy.{0,5}not/,joy:/기쁘.{0,5}않|즐겁.{0,5}않/,hope:/희망.{0,5}없/,peace:/평온.{0,5}않|편안.{0,5}않/,longing:/보고싶지않|그립지않/,sad:/슬프지않|눈물(?:이|은)?아니|울지않/,lonely:/외롭지않|외로움.{0,5}아니/,thanks:/고맙지않/,comfort:/괜찮지않|괜찮은척/};
+const DENIALS={love:/(?:사랑.{0,5}(?:않|아니|못해)|안사랑|사랑은없|dontloveyou|donotloveyou)/,happy:/행복.{0,8}(?:않|아니)|행복한척|행복하겠니|행복하길|행복했으면|행복해보|happy.{0,5}not/,joy:/기쁘.{0,5}않|즐겁.{0,5}않|행복하길|행복했으면|행복해보/,hope:/희망.{0,5}없/,peace:/평온.{0,5}않|편안.{0,5}않/,longing:/보고싶지않|그립지않/,sad:/슬프지않|눈물(?:이|은)?아니|울지않/,lonely:/외롭지않|외로움.{0,5}아니/,thanks:/고맙지않/,comfort:/괜찮지않|안괜찮|괜찮은척|괜찮아보|괜찮은줄|괜찮아진건아니/};
 const IRONY=/참(?:으로)?(?:행복|좋|즐거).{0,30}(?:눈물|거짓|지옥|척)|(?:행복|좋|즐거).{0,15}(?:반어|거짓말)/;
 const STOP=new Set('나는 나를 내가 너는 너를 네가 우리 그대 당신 오늘 정말 너무 그냥 이제 아직 다시 모든 있는 없는 것처럼 그리고 하지만 사랑 노래 음악 마음 lyrics chorus verse intro outro the and you your are was were with that this for not dont cant'.split(' '));
 const keywordStem=word=>word.replace(/(?:에서는|에게는|으로는|이라고|이라고는|처럼|에서|에게|으로|까지|부터|하고|했던|하는|하게|하며|들을|들이|은|는|이|가|을|를|에|의|도|와|과)$/u,'');
@@ -105,11 +117,13 @@ export function analyzeLyrics(value){
  const add=(id,weight,evidence)=>{id=id.trim();const old=support.get(id)||{id,weight:0,evidence:[]};old.weight=Math.max(old.weight,weight);if(old.evidence.length<8)old.evidence.push(evidence);support.set(id,old);};
  sentences.forEach((sentence,i)=>{
   // Split contrastive clauses; adjacent context is evidence only for context rules.
-  const context=normalizeLyricTerm(sentences.slice(Math.max(0,i-1),i+2).join(' '));
+  const context=normalizeLyricTerm(sentences.slice(Math.max(0,i-2),i+3).join(' '));
   for(const clause of sentence.split(/[,;]|(?<=지만)|(?<=는데)/u)){
    const s=normalizeLyricTerm(clause);if(!s)continue;
    for(const r of RULES)if(r.re.test(s)&&(!r.context||r.context.test(context))){
     for(const raw of r.tags){const id=raw.trim();if(DENIALS[id]?.test(s)||(['happy','joy','love','comfort'].includes(id)&&IRONY.test(context)))continue;
+     // Someone else's apparent happiness in a painful memory is not the singer's joy.
+     if(['happy','joy'].includes(id)&&/(?:네가|너는|넌|너만).{0,8}(?:행복|웃)/.test(s)&&/아프|아픈|미워|밉|안괜찮/.test(context))continue;
      add(id,r.weight,{rule:r.id,line:i});}
    }
   }
