@@ -40,7 +40,8 @@ function homeRenderer(fetch){
   oldHTML.set.call(c.main,html);for(const node of sections.values())node.isConnected=false;sections.clear();
   for(const match of html.matchAll(/id="(home-[^"]+)"/g)){const node={innerHTML:'HOME_LOADING',hidden:false,isConnected:true,attributes:new Map(),setAttribute(name,value){this.attributes.set(name,value);},removeAttribute(name){this.attributes.delete(name);},querySelectorAll:()=>[],querySelector:()=>({onclick:null})};sections.set(match[1],node);}
  }});
- c.document.querySelector=selector=>sections.get(selector.slice(1))||select(selector);
+ c.context.getComputedStyle=e=>({gridTemplateColumns:Array(e.section==='home-curations'?3:6).fill('100px').join(' ')});
+ c.document.querySelector=selector=>selector.includes('>.')?{section:selector.split('>')[0].slice(1)}:sections.get(selector.slice(1))||select(selector);
  Object.assign(c.context,{AbortController,homeBrowseObserver:null,musicListeningShortcuts:()=>'',playlistSaveButton:()=>'',musicTrackCard:t=>'<article>'+t.title+'</article>',collectionGrid:items=>items.map(item=>item.name).join(','),playlistArt:()=>''});
  const explorer=source('explorer.js');vm.runInContext(explorer.slice(explorer.indexOf('function recommendedPlaylistCard'),explorer.indexOf('function discoveryTabs')),c.context);
  vm.runInContext(source('home.js'),c.context);
@@ -187,7 +188,7 @@ test('hidden optional home bridge does not issue singing or community requests',
  Object.defineProperty(c.main,'innerHTML',{get:original.get,set(html){original.set.call(c.main,html);if(c.section('home-bridge'))c.section('home-bridge').hidden=true;}});
  await c.navigate('home');await new Promise(resolve=>setImmediate(resolve));
  assert.equal(calls.length,6);assert.ok(calls.includes('/api/discovery/profiles?kind=artist&sort=popular'));assert.ok(calls.includes('/api/discovery/profiles?kind=producer&sort=popular'));assert.ok(!calls.includes('/api/karaoke'));assert.ok(!calls.includes('/api/community?kind=cover'));
- assert.ok(calls.includes('/api/playlists?sort=recent'),'the visible playlist section must remain available');
+ assert.ok(calls.includes('/api/playlists?sort=recent&home=1'),'the visible playlist section must remain available');
 });
 
 test('readonly history, followers and public detail reads expose isolated cache snapshots',async()=>{
@@ -420,7 +421,7 @@ test('home hydrates playable shelves from display snapshots while expired reads 
   ['/api/catalog?section=tracks&limit=12',{tracks:[track('Cached release')]}],
   ['/api/karaoke',{tracks:[track('Cached sing')]}],
   ['/api/community?kind=cover',{tracks:[track('Cached cover')]}],
-  ['/api/playlists?sort=recent',{playlists:[{id:'selection',name:'Cached selection',tracks:1,is_public:1}]}]
+  ['/api/playlists?sort=recent&home=1',{playlists:[{id:'selection',name:'Cached selection',tracks:1,is_public:1}]}]
  ]),held=new Map([...paths.keys()].map(path=>[path,deferred()]));let refreshing=false;
  const calls=[];const c=homeRenderer(async path=>{if(!paths.has(path))return response({tracks:[]});calls.push(path);return refreshing?held.get(path).promise:response(paths.get(path));});
  for(const path of paths.keys())await c.run(`api(${JSON.stringify(path)})`);
@@ -432,7 +433,7 @@ test('home hydrates playable shelves from display snapshots while expired reads 
   held.get('/api/catalog?section=tracks&limit=12').resolve(response({error:'offline'},503));
   held.get('/api/karaoke').resolve(response({tracks:[track('Fresh sing')]}));
   held.get('/api/community?kind=cover').resolve(response({tracks:[track('Fresh cover')]}));
-  held.get('/api/playlists?sort=recent').resolve(response({error:'offline'},503));
+  held.get('/api/playlists?sort=recent&home=1').resolve(response({error:'offline'},503));
   await opening;await new Promise(resolve=>setImmediate(resolve));
   assert.match(c.section('home-release').innerHTML,/Cached release/);assert.match(c.section('home-curations').innerHTML,/Cached selection/);
   assert.match(c.section('home-sing').innerHTML,/Fresh sing/);assert.match(c.section('home-conversations').innerHTML,/Fresh cover/);
@@ -447,7 +448,7 @@ test('home startup remains playable when the account resolves before the guest c
    if(!c.run('me'))return guestCatalog.promise;
    ownerCatalogCalls++;return response({tracks:[track('Owner playable song')]});
   }
-  if(path==='/api/playlists?sort=recent')return response({playlists:[]});
+  if(path==='/api/playlists?sort=recent&home=1')return response({playlists:[]});
   return response({tracks:[]});
  });
  c.run('me=null;');c.context.location.hash='#home';const startup=c.run('boot()');
@@ -463,7 +464,7 @@ test('home startup remains playable when the account resolves before the guest c
 
 test('home continues down through full music grids and optional discovery sections',async()=>{
  const tracks=Array.from({length:12},(_,i)=>({...track('Song '+i),id:'song-'+i}));
- const c=homeRenderer(async path=>response(path.includes('playlists')?{playlists:[]}:{tracks}));
+ const c=homeRenderer(async path=>response(path.includes('playlists')?{playlists:[]}:{tracks,releases:tracks.map(t=>t.id)}));
  c.context.card=t=>'<article>'+t.title+'</article>';c.context.chartMovementHTML=()=>'';
  await c.navigate('home');await new Promise(resolve=>setImmediate(resolve));
  assert.match(c.section('home-more').innerHTML,/home-music-grid/);assert.match(c.section('home-more').innerHTML,/Song 11/);

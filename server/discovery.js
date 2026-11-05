@@ -1,3 +1,4 @@
+import {homeTracks,homePlaylists} from './home-shelves.js';
 import {followCounts} from './follow-management.js';
 import {unifiedSearch} from './search.js';
 import {assertUnblocked} from './account-safety.js';
@@ -14,10 +15,11 @@ import {profileDiscovery} from './profile-discovery.js';
 export {MOODS};
 function moodFilter(mood){return {sql:'EXISTS(SELECT 1 FROM json_each(t.moods_json) jm WHERE jm.value=?)',args:[mood.id]};}
 
-export async function playlistSummaries(env,userId='',where='p.is_public=1',args=[],sort='p.created DESC,p.id',limit=100,sortArgs=[]){
- const data=await rows(env,`SELECT p.id,p.user_id,p.name,p.description,p.is_public,p.created,p.image_version,${publicNameSQL()} owner_name,${activePlaylistSQL()} active,
- (SELECT count(*) FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id WHERE pt.playlist_id=p.id AND ${VISIBLE()}) tracks,
- (SELECT COALESCE(sum(t.duration),0) FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id WHERE pt.playlist_id=p.id AND ${VISIBLE()}) duration,
+export async function playlistSummaries(env,userId='',where='p.is_public=1',args=[],sort='p.created DESC,p.id',limit=100,sortArgs=[],scope={}){
+ const visible=scope.visible||VISIBLE();
+ const data=await rows(env,(scope.cte||'')+`SELECT p.id,p.user_id,p.name,p.description,p.is_public,p.created,p.image_version,${publicNameSQL()} owner_name,${activePlaylistSQL()} active,
+ (SELECT count(*) FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id WHERE pt.playlist_id=p.id AND ${visible}) tracks,
+ (SELECT COALESCE(sum(t.duration),0) FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id WHERE pt.playlist_id=p.id AND ${visible}) duration,
  COALESCE(pref.position,0) position,
  (SELECT json_group_array(json_object('id',c.id,'title',c.title,'artist',c.artist,'kind',c.kind,'artwork_id',c.artwork_id,'work_has_cover',c.work_has_cover,'work_cover_version',c.work_cover_version,'original_id',c.original_id,'original_has_cover',c.original_has_cover,'original_cover_version',c.original_cover_version,'has_cover',c.has_cover,'cover_version',c.cover_version)) FROM
   (SELECT t.id,t.title,t.kind,t.original_id,o.has_cover original_has_cover,o.cover_version original_cover_version,${trackArtworkSQL()},
@@ -27,16 +29,20 @@ export async function playlistSummaries(env,userId='',where='p.is_public=1',args
    FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id LEFT JOIN tracks o ON o.id=t.original_id
    LEFT JOIN artists a ON a.id=t.artist_id LEFT JOIN producers preview_producer ON preview_producer.id=t.producer_id
    LEFT JOIN tracks dt ON dt.id=t.duet_parent_id LEFT JOIN producers first_producer ON first_producer.id=dt.producer_id
-   WHERE pt.playlist_id=p.id AND ${VISIBLE()} ORDER BY pt.position,pt.created,pt.track_id LIMIT 4) c) covers_json
+   WHERE pt.playlist_id=p.id AND ${visible} ORDER BY pt.position,pt.created,pt.track_id LIMIT 4) c) covers_json
  FROM playlists p JOIN users u ON u.id=p.user_id
  LEFT JOIN playlist_preferences pref ON pref.playlist_id=p.id AND pref.user_id=?
- WHERE (${where}) AND (p.user_id=? OR ${activePlaylistSQL()}) ORDER BY ${sort} LIMIT ${limit}`,userId,...args,userId,...sortArgs);
+ WHERE (${where}) AND (p.user_id=? OR ${activePlaylistSQL()}) ORDER BY ${sort} LIMIT ${limit}`,...(scope.args||[]),userId,...args,userId,...sortArgs);
  return data.map(({covers_json,...p})=>({...p,locked:!p.active,covers:JSON.parse(covers_json||'[]')}));
 }
 async function accessibleLibrary(env,uid){return playlistSummaries(env,uid,'p.user_id=?',[uid],'position ASC,p.created DESC,p.id',500);}
 
 export async function discoveryRoute(req,env,path,user){
  const url=new URL(req.url),method=req.method;
+ if(method==='GET'&&url.searchParams.get('home')==='1'){
+  if(path==='/api/discovery')return json(await homeTracks(env,url.searchParams.get('slots')));
+  if(path==='/api/playlists')return json({playlists:await homePlaylists(env,user?.id||'')});
+ }
  if(path==='/api/discovery/profiles'&&method==='GET'){
   const kind=url.searchParams.get('kind'),sort=url.searchParams.get('sort')||'popular';
   if(!['artist','producer'].includes(kind)||!['popular','latest'].includes(sort))fail(400,'프로필 탐색 조건을 확인해주세요.');
