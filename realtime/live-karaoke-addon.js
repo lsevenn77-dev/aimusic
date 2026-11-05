@@ -37,6 +37,25 @@ async function liveCommand(room,actor,b){
  const p=room.member(actor,b.generation),isHost=p.role==='host';
  room.limited(actor,'live-karaoke',75);
  switch(b.operation){
+  case 'key': {
+   if(!k.active||k.active.invitation_id!==b.invitation_id)fault(409,'현재 곡이 변경됐어요.');
+   if(!isHost&&p.id!==k.active.user_id)fault(403,'가창자와 방장만 반주 키를 바꿀 수 있어요.');
+   if(!Number.isInteger(b.key)||Math.abs(b.key)>6)fault(400,'반주 키 범위를 확인해주세요.');
+   k.active.key=b.key;k.revision++;break;
+  }
+  case 'invite': {
+   const target=d.members[identifier(b.target_id)];
+   if(!isHost)fault(403,'방장만 예약에 초대할 수 있어요.');
+   if(!target||target.locked||target.id===p.id||k.active?.user_id===target.id||k.queue.some(q=>q.user_id===target.id))fault(409,'초대할 수 없는 참여자예요.');
+   const previous=d.seatInvites[target.id];
+   if(previous&&previous.expires>Date.now())return room.snapshot(actor);
+   d.seatInvites[target.id]={id:crypto.randomUUID(),target:target.id,kind:'reservation',expires:Date.now()+10000};break;
+  }
+  case 'answer-invite': {
+   const invitation=d.seatInvites[p.id];
+   if(!invitation||invitation.kind!=='reservation'||invitation.id!==b.invitation_id||invitation.expires<=Date.now())fault(409,'예약 초대가 만료됐어요.');
+   delete d.seatInvites[p.id];break;
+  }
   case 'request': {
    const rid=requestId(b.request_id),t=b.track;
    if(!t||typeof t.id!=='string'||!/^[a-zA-Z0-9_-]{1,80}$/.test(t.id)||typeof t.title!=='string'||!t.title.trim()||t.title.length>150||typeof t.artist!=='string'||t.artist.length>150||!Number.isFinite(t.duration)||t.duration<=0||t.duration>600)fault(400,'사용할 수 있는 노래방 곡인지 확인해주세요.');
@@ -119,10 +138,13 @@ VoiceRoom.prototype.load=async function(...a){
 const originalLiveSave=VoiceRoom.prototype.save;
 VoiceRoom.prototype.save=async function(...a){
  await originalLiveSave.apply(this,a);
- const k=this.data?.karaoke;
- if(this.data?.config?.mode==='karaoke'&&!this.data.config.closed&&k?.active&&['invited','ready'].includes(k.phase)){
-  await this.ctx.storage.setAlarm(Math.max(Date.now()+1,k.phase==='invited'?k.inviteExpiresAt:k.readyExpiresAt));
- }
+ const d=this.data;
+ if(!d?.config||d.config.closed)return;
+ const due=[...Object.values(d.seatInvites||{}).map(i=>i.expires),...Object.values(d.members).filter(m=>m.requested).map(m=>m.requestExpires)];
+ const k=d.karaoke;
+ if(k?.phase==='invited')due.push(k.inviteExpiresAt);
+ if(k?.phase==='ready')due.push(k.readyExpiresAt);
+ if(due.length)await this.ctx.storage.setAlarm(Math.max(Date.now()+1,Math.min(Date.now()+15000,...due.filter(Number.isFinite))));
 };
 const originalSnapshot=VoiceRoom.prototype.snapshot;
 VoiceRoom.prototype.snapshot=function(actor){

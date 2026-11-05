@@ -370,6 +370,7 @@ test('voice gift retries debit once and invitations reuse the DM ledger',async t
  assert.equal(h.events.find(e=>e?.type==='gift').gift.target_id,'other');
  assert.equal('target_id' in h.room.data.chat.at(-1).gift,false);
  assert.equal('target_id' in a.body.gift,false);
+ f.sql.exec("INSERT INTO follows VALUES('owner','producer','other-profile',0)");
  assert.equal((await f.call('/api/voice/rooms/test-room/gifts','POST',{...b,quantity:4})).status,409);
  const invite={profile_id:'other-profile',request_id:crypto.randomUUID()};assert.equal((await f.call('/api/voice/rooms/test-room/invite','POST',invite)).status,201);assert.equal((await f.call('/api/voice/rooms/test-room/invite','POST',invite)).status,201);assert.equal(f.sql.prepare('SELECT count(*) n FROM direct_messages').get().n,1);assert.match(f.sql.prepare('SELECT body FROM direct_messages').get().body,/#voice\/test-room/);
  const list=()=>f.call('/api/notifications?filter=gifts','GET',null,'other');

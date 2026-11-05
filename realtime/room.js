@@ -4,7 +4,7 @@ import {emptyRoomMusic,changeRoomMusic} from '../shared/voice-music.js';
 import {fault,reply,identifier,requestId,text,audioOffer,audioAnswer} from './protocol.js';
 import {Sfu} from './sfu.js';
 const LEASE=75000;
-const SEAT_REQUEST_TTL=60000;
+const SEAT_REQUEST_TTL=10000;
 export class VoiceRoom {
  constructor(ctx,env) {this.ctx=ctx;this.env=env;this.sfu=new Sfu(env);this.queue=Promise.resolve();this.data=null;this.cleaning=new Set();}
  serial(work) {const next=this.queue.then(work);this.queue=next.catch(()=>{});return next;}
@@ -13,7 +13,6 @@ export class VoiceRoom {
   this.data=await this.ctx.storage.get('room')||{config:null,members:{},bans:{},invites:{},chat:[],gifts:[],cleanup:[],nonces:{},rates:{},revision:0,chatSequence:0};
   this.data.seatInvites ||= {};this.data.music ||= emptyRoomMusic();this.data.musicRequests ||= [];this.data.notices ||= [];
   if(this.data.config)this.data.config.seating_mode??='approval';
-  const host=this.data.members[this.data.config?.host_id];const occupant=Object.values(this.data.members).find(p=>p.seat===0&&p.id!==this.data.config?.host_id);if(occupant){const used=new Set(Object.values(this.data.members).map(p=>p.seat));occupant.seat=Array.from({length:7},(_,i)=>i+1).find(i=>!used.has(i))??null;if(occupant.seat===null)await this.stopPublish(occupant);}if(host)host.seat=0;
   // Older rooms have no reliable per-member history boundary. Start a fresh boundary on upgrade.
   if(!Number.isSafeInteger(this.data.chatSequence)) {
    this.data.chatSequence=0;for(const message of this.data.chat)message.sequence=++this.data.chatSequence;
@@ -86,15 +85,19 @@ export class VoiceRoom {
  async stopPublish(p) {const old=p.pub;p.pub=null;p.muted=true;await this.retire(old);}
  // The caller holds the DO's serial queue. Membership, permissions and theme
  // are saved together before sockets see the new owner.
- electHost(now) {
+ electHost(now,recipient) {
   const d=this.data,room=d.config;
   const active=Object.values(d.members).filter(m=>m.expires>now);
   // Older persisted memberships already record the room sequence at admission.
   const order=m=>m.joinOrder??m.chatAfter??0;
   active.sort((a,b)=>order(a)-order(b)||(a.id<b.id?-1:a.id>b.id?1:0));
-  const next=active[0];
+  const next=recipient||active[0];
   if(!next||room.closed)return;
-  next.role='host';next.seat=0;next.locked=false;this.clearRequest(next);delete d.seatInvites[next.id];
+  const previous=d.members[room.host_id];
+  if(previous&&previous!==next)previous.role='listener';
+  d.seatInvites={};this.clearRequests();
+  if(!Object.values(d.members).some(m=>m!==next&&m.seat===0))next.seat=0;
+  next.role='host';next.locked=false;this.clearRequest(next);delete d.seatInvites[next.id];
   room.host_id=next.id;room.background='navy';room.theme_sku='navy';
   room.settings_revision=(room.settings_revision||0)+1;
   d.hostReconnectUntil=0;delete d.hostReconnectGeneration;d.directoryDirty=true;
@@ -104,12 +107,12 @@ export class VoiceRoom {
  }
  async remove(p,temporary=false) {
   const wasHost=p.id===this.data.config.host_id,talk=this.data.config.mode!=='karaoke';
-  if(wasHost&&(!talk||temporary))this.clearRequests();
+  if(wasHost){this.clearRequests();this.data.seatInvites={};}
   delete this.data.seatInvites[p.id];
   if(temporary&&wasHost){this.data.hostReconnectUntil=Date.now()+300000;this.data.hostReconnectGeneration=p.generation;}
   if(wasHost&&!talk&&this.data.music?.playing)this.data.music=changeRoomMusic(this.data.music,{operation:'pause'});
   this.notice(p,p.name+'님이 퇴장했어요.');delete this.data.members[p.id];this.queueRetire(p.pub);this.queueRetire(p.sub);
-  if(wasHost&&talk&&!temporary&&!this.data.config.closed)this.electHost(Date.now());
+  if(wasHost&&!temporary&&!this.data.config.closed)this.electHost(Date.now());
   this.data.revision++;
   // Commit the removal and any succession before broadcasting or SFU cleanup.
   if(!Object.keys(this.data.members).length&&!(this.data.hostReconnectUntil>Date.now()))await this.closeRoom();
@@ -127,7 +130,7 @@ export class VoiceRoom {
    else if(p.pub&&!p.pub.ready&&p.pub.deadline<Date.now())await this.stopPublish(p);
    else if(p.sub?.deadline&&p.sub.deadline<now){const old=p.sub;p.sub=null;await this.retire(old);}
   }
-  if(this.data.config&&!this.data.config.closed&&this.data.config.mode!=='karaoke'&&!this.data.members[this.data.config.host_id]&&!(this.data.hostReconnectUntil>now)&&Object.keys(this.data.members).length){
+  if(this.data.config&&!this.data.config.closed&&!this.data.members[this.data.config.host_id]&&!(this.data.hostReconnectUntil>now)&&Object.keys(this.data.members).length){
    this.electHost(now);this.data.revision++;await this.save();this.notify();
   }
   if(!Object.keys(this.data.members).length&&!(this.data.hostReconnectUntil>Date.now()))await this.closeRoom();
@@ -167,7 +170,7 @@ export class VoiceRoom {
   if(action==='presence')return {active:!!d.config&&!d.config.closed&&Object.keys(d.members).length>0,host_id:d.config?.host_id,background:d.config?.background,theme_sku:d.config?.theme_sku,settings_revision:d.config?.settings_revision,mode:d.config?.mode,visibility:d.config?.visibility,member_count:Object.keys(d.members).length,host_name:d.members[d.config?.host_id]?.name||''};
   if(action==='leave'&&!d.members[actor.id]){
    // The last host tab can explicitly leave during the network recovery window.
-   if(d.config?.mode!=='karaoke'&&d.config?.host_id===actor.id&&d.hostReconnectUntil>Date.now()&&b.generation&&b.generation===d.hostReconnectGeneration){
+   if(d.config?.host_id===actor.id&&d.hostReconnectUntil>Date.now()&&b.generation&&b.generation===d.hostReconnectGeneration){
     d.hostReconnectUntil=0;delete d.hostReconnectGeneration;
     if(Object.keys(d.members).length)this.electHost(Date.now());else await this.closeRoom();
     d.revision++;await this.save();await this.syncDirectory();this.notify();
@@ -182,7 +185,7 @@ export class VoiceRoom {
    if(p&&p.joinRequest===b.request_id){p.expires=Date.now()+LEASE;return this.snapshot(actor);}
    if(!p&&actor.id!==d.config.host_id&&Object.keys(d.members).length>=(d.config.max_members||30))fault(409,'방이 가득 찼어요. 최대 30명까지 입장할 수 있어요.');
    const old=p; if(old){await this.stopPublish(old);await this.retire(old.sub);}
-   p={id:actor.id,profile_id:actor.profile_id,name:actor.name,image_version:actor.image_version||'',joinOrder:old?.joinOrder??old?.chatAfter??d.chatSequence,visibilityRetained:!!old?.visibilityRetained,role:old?.role||(actor.id===d.config.host_id?'host':'listener'),seat:actor.id===d.config.host_id?0:old?.seat??null,requested:false,locked:old?.locked||false,muted:true,pub:null,sub:null,generation:crypto.randomUUID(),expires:Date.now()+LEASE,joinRequest:b.request_id,chatAfter:old?.chatAfter??d.chatSequence};
+   p={id:actor.id,profile_id:actor.profile_id,name:actor.name,image_version:actor.image_version||'',joinOrder:old?.joinOrder??old?.chatAfter??d.chatSequence,visibilityRetained:!!old?.visibilityRetained,role:old?.role||(actor.id===d.config.host_id?'host':'listener'),seat:old?.seat??(actor.id===d.config.host_id?Array.from({length:8},(_,i)=>i).find(i=>!Object.values(d.members).some(m=>m.seat===i))??null:null),requested:false,locked:old?.locked||false,muted:true,pub:null,sub:null,generation:crypto.randomUUID(),expires:Date.now()+LEASE,joinRequest:b.request_id,chatAfter:old?.chatAfter??d.chatSequence};
    if(p.role==='host'){d.hostReconnectUntil=0;delete d.hostReconnectGeneration;}d.members[actor.id]=p;if(!old)this.notice(p,p.name+'님이 입장했어요.');d.revision++;this.notify();return this.snapshot(actor);
   }
   const p=this.member(actor,b.generation);
@@ -207,11 +210,11 @@ export class VoiceRoom {
   }
   else if(action==='seat-invite'){
    this.moderator(actor);const t=d.members[identifier(b.target_id)];if(!t||t.seat!==null)fault(409,'현재 청취 중인 참여자를 선택해주세요.');
-   const seat=Number(b.seat);if(!Number.isInteger(seat)||seat<1||seat>7||Object.values(d.members).some(m=>m.seat===seat))fault(409,'빈 좌석을 다시 선택해주세요.');
-   d.seatInvites[t.id]={id:crypto.randomUUID(),target:t.id,seat,expires:Date.now()+30000};this.notice(p,t.name+'님에게 좌석 초대를 보냈어요.');
+   const seat=Number(b.seat);if(!Number.isInteger(seat)||seat<0||seat>7||Object.values(d.members).some(m=>m.seat===seat))fault(409,'빈 좌석을 다시 선택해주세요.');
+   d.seatInvites[t.id]={id:crypto.randomUUID(),target:t.id,seat,expires:Date.now()+SEAT_REQUEST_TTL};this.notice(p,t.name+'님에게 좌석 초대를 보냈어요.');
   }
   else if(action==='seat-answer'){
-   const invitation=d.seatInvites[p.id];if(!invitation||invitation.id!==b.invitation_id||invitation.expires<=Date.now())fault(409,'좌석 초대가 만료됐어요.');
+   const invitation=d.seatInvites[p.id];if(p.locked||!invitation||invitation.id!==b.invitation_id||invitation.expires<=Date.now())fault(409,'좌석 초대가 만료됐어요.');
    delete d.seatInvites[p.id];
    if(b.accept===true){if(p.seat!==null||Object.values(d.members).some(m=>m.seat===invitation.seat))fault(409,'이미 사용 중인 좌석이에요.');p.seat=invitation.seat;p.muted=true;p.requested=false;p.locked=false;this.notice(p,p.name+'님이 좌석 초대를 수락했어요.');}
    else this.notice(p,p.name+'님이 좌석 초대를 거절했어요.');
@@ -223,11 +226,11 @@ export class VoiceRoom {
   }
   else if(action==='request-mic') {
    this.limited(actor,'mic',10);if(p.requested)return this.snapshot(actor);if(p.locked)fault(403,'관리자가 마이크 사용을 제한했어요.');
-   if(p.seat!==null)fault(409,'이미 좌석에 참여 중이에요.');
+
    if(!d.members[d.config.host_id]||d.members[d.config.host_id].expires<=Date.now())fault(409,'방장이 다시 연결된 뒤 신청해주세요.');
-   const seat=b.seat??Array.from({length:7},(_,i)=>i+1).find(i=>!Object.values(d.members).some(m=>m.seat===i));
-   if(!Number.isInteger(seat)||seat<1||seat>7||Object.values(d.members).some(m=>m.seat===seat))fault(409,'빈 좌석을 선택해주세요.');
-   if(d.config.seating_mode==='free'){p.seat=seat;p.muted=true;this.clearRequest(p);delete d.seatInvites[p.id];this.notice(p,p.name+'님이 '+(seat+1)+'번 좌석에 올라왔어요.');await this.audit(actor,'free-seat',p.id);}
+   const seat=b.seat??Array.from({length:8},(_,i)=>i).find(i=>!Object.values(d.members).some(m=>m.seat===i));
+   if(!Number.isInteger(seat)||seat<0||seat>7||Object.values(d.members).some(m=>m.seat===seat))fault(409,'빈 좌석을 선택해주세요.');
+   if(d.config.seating_mode==='free'||p.seat!==null||p.role==='host'){if(p.seat===null)p.muted=true;p.seat=seat;this.clearRequest(p);delete d.seatInvites[p.id];this.notice(p,p.name+'님이 '+(seat+1)+'번 좌석에 올라왔어요.');await this.audit(actor,'free-seat',p.id);}
    else {p.requested=true;p.requestedSeat=seat;p.requestVersion=d.revision+1;p.requestExpires=Date.now()+SEAT_REQUEST_TTL;}
   }
   else if(action==='cancel-mic'){this.checkSeatRequest(p,b);if(!p.requested)return this.snapshot(actor);this.clearRequest(p);}
@@ -235,22 +238,23 @@ export class VoiceRoom {
   else if(action==='approve-mic') {
    this.moderator(actor);const t=d.members[identifier(b.target_id)];if(!t)fault(404,'회원이 나갔어요.');
    this.checkSeatRequest(t,b);if(t.seat!==null)return this.snapshot(actor);
-   if(t.id===actor.id&&Number.isInteger(b.seat)&&b.seat>=1&&b.seat<8)t.requestedSeat=b.seat;
+   if(t.id===actor.id&&Number.isInteger(b.seat)&&b.seat>=0&&b.seat<8)t.requestedSeat=b.seat;
    if(!t.requested&&t.id!==actor.id)fault(409,'마이크 신청을 먼저 받아주세요.');
-   if(t.seat===null){const used=new Set(Object.values(d.members).map(m=>m.seat));if(Number.isInteger(t.requestedSeat)&&used.has(t.requestedSeat))fault(409,'신청한 좌석이 이미 사용 중이에요. 신청을 취소하고 다른 좌석을 선택해주세요.');const seat=Number.isInteger(t.requestedSeat)?t.requestedSeat:Array.from({length:7},(_,i)=>i+1).find(i=>!used.has(i));if(seat===undefined)fault(409,'마이크 8석이 모두 사용 중이에요.');t.seat=seat;}
+   if(t.seat===null){const used=new Set(Object.values(d.members).map(m=>m.seat));if(Number.isInteger(t.requestedSeat)&&used.has(t.requestedSeat))fault(409,'신청한 좌석이 이미 사용 중이에요. 신청을 취소하고 다른 좌석을 선택해주세요.');const seat=Number.isInteger(t.requestedSeat)?t.requestedSeat:Array.from({length:8},(_,i)=>i).find(i=>!used.has(i));if(seat===undefined)fault(409,'마이크 8석이 모두 사용 중이에요.');t.seat=seat;}
    this.notice(t,t.name+'님이 '+(t.seat+1)+'번 좌석에 올라왔어요.');t.locked=false;this.clearRequest(t);t.muted=true;await this.audit(actor,'approve-mic',t.id);
   }
   else if(action==='release-mic') {if(p.role==='host')fault(403,'방장 좌석은 고정되어 있어요.');if(p.seat===null)return this.snapshot(actor);this.notice(p,p.name+'님이 '+(p.seat+1)+'번 좌석에서 내려왔어요.');await this.stopPublish(p);p.seat=null;this.clearRequest(p);}
   else if(action==='mute') {await this.stopPublish(p);}
   else if(action==='moderate') {
-   const t=this.target(actor,b.target_id);if(!['mute','unlock','kick','remove-seat','move-seat'].includes(b.operation))fault(400,'관리 작업을 확인해주세요.');
+   const t=this.target(actor,b.target_id);if(!['mute','unlock','kick','ban-day','transfer-host','remove-seat','move-seat'].includes(b.operation))fault(400,'관리 작업을 확인해주세요.');
 
-   if(['remove-seat','move-seat'].includes(b.operation)){if(t.seat===null){if(b.operation==='remove-seat')return this.snapshot(actor);fault(409,'이미 청취 중이에요.');}if(b.operation==='remove-seat'){await this.stopPublish(t);t.seat=null;this.clearRequest(t);}else{const seat=Number(b.seat);if(!Number.isInteger(seat)||seat<1||seat>7||Object.values(d.members).some(m=>m.seat===seat))fault(409,'빈 좌석을 선택해주세요.');t.seat=seat;}this.notice(t,t.name+'님의 좌석이 변경됐어요.');}
-   if(b.operation==='mute'){t.locked=true;t.requested=false;await this.stopPublish(t);}
+   if(['remove-seat','move-seat'].includes(b.operation)){if(t.seat===null){if(b.operation==='remove-seat')return this.snapshot(actor);fault(409,'이미 청취 중이에요.');}if(b.operation==='remove-seat'){await this.stopPublish(t);t.seat=null;this.clearRequest(t);}else{const seat=Number(b.seat);if(!Number.isInteger(seat)||seat<0||seat>7||Object.values(d.members).some(m=>m.seat===seat))fault(409,'빈 좌석을 선택해주세요.');t.seat=seat;}this.notice(t,t.name+'님의 좌석이 변경됐어요.');}
+   if(b.operation==='mute'){t.locked=true;this.clearRequest(t);delete d.seatInvites[t.id];await this.stopPublish(t);}
    if(b.operation==='unlock')t.locked=false;
-   if(b.operation==='kick'){d.bans[t.id]=Date.now()+60000;await this.remove(t);}
+   if(b.operation==='transfer-host'){this.electHost(Date.now(),t);await this.syncDirectory();}
+   if(['kick','ban-day'].includes(b.operation)){d.bans[t.id]=Date.now()+(b.operation==='kick'?60000:86400000);await this.remove(t);}
 
-   if(!['remove-seat','move-seat'].includes(b.operation))this.notice(t,t.name+'님: '+({mute:'마이크 사용 제한',unlock:'마이크 제한 해제',kick:'강퇴'}[b.operation]));await this.audit(actor,b.operation,t.id);
+   if(!['remove-seat','move-seat','transfer-host'].includes(b.operation))this.notice(t,t.name+'님: '+({mute:'마이크 사용 제한',unlock:'마이크 제한 해제',kick:'강퇴','ban-day':'1일 추방'}[b.operation]));await this.audit(actor,b.operation,t.id);
   }
   else if(action==='chat') {
    this.limited(actor,'chat',20);const rid=requestId(b.request_id),body=text(b.body,500),old=d.chat.find(m=>m.request_id===rid&&m.user_id===actor.id);
@@ -259,7 +263,10 @@ export class VoiceRoom {
   }
   else if(action==='invite') {
    this.limited(actor,'invite',10);if(d.config.visibility==='private')this.moderator(actor);
-   const id=identifier(b.target_id);if(d.config.visibility==='crew'&&!(b.target_crews||[]).includes(d.config.crew_id))fault(403,'같은 크루 멤버만 초대할 수 있어요.');
+   const id=identifier(b.target_id);if((b.target_blocks||[]).some(uid=>d.members[uid])||
+      (d.config.visibility==='followers'&&id!==d.config.host_id&&!(b.target_followed_hosts||[]).includes(d.config.host_id)))fault(403,'이 방에 입장할 수 없는 참여자예요.');
+   if(!d.members[id]&&Object.keys(d.members).length>=(d.config.max_members||30))fault(409,'방이 가득 찼어요.');
+   if(d.config.visibility==='crew'&&!(b.target_crews||[]).includes(d.config.crew_id))fault(403,'같은 크루 멤버만 초대할 수 있어요.');
    if(d.bans[id]>Date.now())fault(403,'차단된 회원은 초대할 수 없어요.');d.invites[id]=Date.now()+86400000;return {room:d.config};
   }
   else if(action==='gift-target') {const t=d.members[identifier(b.target_id)];if(!t||t.expires<=Date.now())fault(404,'선물 받을 회원이 방을 나갔어요.');return {target:{id:t.id,profile_id:t.profile_id}};}

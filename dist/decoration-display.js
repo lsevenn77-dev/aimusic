@@ -73,7 +73,11 @@ function profileFrameCanvasArtwork(path){
    if(!overlay){overlay=document.createElement('img');overlay.className='decoration-avatar-overlay';overlay.alt='';overlay.setAttribute('aria-hidden','true');host.append(overlay);host.classList.add('decoration-avatar-host');}
    const artwork=canvasSource(host,entry.artwork);
    if(overlay.getAttribute('src')!==artwork)overlay.src=artwork;
-   frameEffects.set(overlay,canvasSource(host,entry.effect));
+   const room=host.closest?.('[data-voice-room]');
+   const animated=!room||(room.classList.contains('live-karaoke-room')
+    ? room.dataset.singerProfile===img.dataset.avatarProfile
+    : Array.from(room.querySelectorAll('#voice-seats [data-avatar-profile]')).some(face=>face.dataset.avatarProfile===img.dataset.avatarProfile));
+   frameEffects.set(overlay,animated?canvasSource(host,entry.effect):null);
    alignFrame(img,host);
   }
   layoutProfileFrames();

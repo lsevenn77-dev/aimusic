@@ -246,7 +246,7 @@ var Sfu = class {
 
 // room.js
 var LEASE = 75e3;
-var SEAT_REQUEST_TTL = 6e4;
+var SEAT_REQUEST_TTL = 1e4;
 var VoiceRoom = class {
   static {
     __name(this, "VoiceRoom");
@@ -273,14 +273,6 @@ var VoiceRoom = class {
     this.data.musicRequests ||= [];
     this.data.notices ||= [];
     if (this.data.config) this.data.config.seating_mode ??= "approval";
-    const host = this.data.members[this.data.config?.host_id];
-    const occupant = Object.values(this.data.members).find((p) => p.seat === 0 && p.id !== this.data.config?.host_id);
-    if (occupant) {
-      const used = new Set(Object.values(this.data.members).map((p) => p.seat));
-      occupant.seat = Array.from({ length: 7 }, (_, i) => i + 1).find((i) => !used.has(i)) ?? null;
-      if (occupant.seat === null) await this.stopPublish(occupant);
-    }
-    if (host) host.seat = 0;
     if (!Number.isSafeInteger(this.data.chatSequence)) {
       this.data.chatSequence = 0;
       for (const message of this.data.chat) message.sequence = ++this.data.chatSequence;
@@ -435,15 +427,18 @@ var VoiceRoom = class {
   }
   // The caller holds the DO's serial queue. Membership, permissions and theme
   // are saved together before sockets see the new owner.
-  electHost(now) {
+  electHost(now, recipient) {
     const d = this.data, room = d.config;
     const active = Object.values(d.members).filter((m) => m.expires > now);
     const order = /* @__PURE__ */ __name((m) => m.joinOrder ?? m.chatAfter ?? 0, "order");
     active.sort((a, b) => order(a) - order(b) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-    const next = active[0];
+    const next = recipient || active[0];
     if (!next || room.closed) return;
     next.role = "host";
-    next.seat = 0;
+    const previous = d.members[room.host_id];
+    if (previous && previous !== next) previous.role = "listener";
+    d.seatInvites = {}; this.clearRequests();
+    if (!Object.values(d.members).some(m=>m!==next && m.seat===0)) next.seat = 0;
     next.locked = false;
     this.clearRequest(next);
     delete d.seatInvites[next.id];
@@ -459,7 +454,7 @@ var VoiceRoom = class {
   }
   async remove(p, temporary = false) {
     const wasHost = p.id === this.data.config.host_id, talk = this.data.config.mode !== "karaoke";
-    if (wasHost && (!talk || temporary)) this.clearRequests();
+    if (wasHost) { this.clearRequests(); this.data.seatInvites = {}; }
     delete this.data.seatInvites[p.id];
     if (temporary && wasHost) {
       this.data.hostReconnectUntil = Date.now() + 3e5;
@@ -470,7 +465,7 @@ var VoiceRoom = class {
     delete this.data.members[p.id];
     this.queueRetire(p.pub);
     this.queueRetire(p.sub);
-    if (wasHost && talk && !temporary && !this.data.config.closed) this.electHost(Date.now());
+    if (wasHost && !temporary && !this.data.config.closed) this.electHost(Date.now());
     this.data.revision++;
     if (!Object.keys(this.data.members).length && !(this.data.hostReconnectUntil > Date.now())) await this.closeRoom();
     await this.save();
@@ -499,7 +494,7 @@ var VoiceRoom = class {
         await this.retire(old);
       }
     }
-    if (this.data.config && !this.data.config.closed && this.data.config.mode !== "karaoke" && !this.data.members[this.data.config.host_id] && !(this.data.hostReconnectUntil > now) && Object.keys(this.data.members).length) {
+    if (this.data.config && !this.data.config.closed && !this.data.members[this.data.config.host_id] && !(this.data.hostReconnectUntil > now) && Object.keys(this.data.members).length) {
       this.electHost(now);
       this.data.revision++;
       await this.save();
@@ -576,7 +571,7 @@ var VoiceRoom = class {
     if (action === 'directory-card') return talkingDirectoryCard(d,b.members,b.mode);
     if (action === "presence") return { active: !!d.config && !d.config.closed && Object.keys(d.members).length > 0, host_id: d.config?.host_id, background: d.config?.background, theme_sku: d.config?.theme_sku, settings_revision: d.config?.settings_revision, mode: d.config?.mode, visibility: d.config?.visibility, member_count: Object.keys(d.members).length, host_name: d.members[d.config?.host_id]?.name || "" };
     if (action === "leave" && !d.members[actor.id]) {
-      if (d.config?.mode !== "karaoke" && d.config?.host_id === actor.id && d.hostReconnectUntil > Date.now() && b.generation && b.generation === d.hostReconnectGeneration) {
+      if (d.config?.host_id === actor.id && d.hostReconnectUntil > Date.now() && b.generation && b.generation === d.hostReconnectGeneration) {
         d.hostReconnectUntil = 0;
         delete d.hostReconnectGeneration;
         if (Object.keys(d.members).length) this.electHost(Date.now());
@@ -609,7 +604,7 @@ var VoiceRoom = class {
         await this.stopPublish(old);
         await this.retire(old.sub);
       }
-      p2 = { id: actor.id, profile_id: actor.profile_id, name: actor.name, image_version: actor.image_version || "", joinOrder: old?.joinOrder ?? old?.chatAfter ?? d.chatSequence, visibilityRetained: !!old?.visibilityRetained, role: old?.role || (actor.id === d.config.host_id ? "host" : "listener"), seat: actor.id === d.config.host_id ? 0 : old?.seat ?? null, requested: false, locked: old?.locked || false, muted: true, pub: null, sub: null, generation: crypto.randomUUID(), expires: Date.now() + LEASE, joinRequest: b.request_id, chatAfter: old?.chatAfter ?? d.chatSequence };
+      p2 = { id: actor.id, profile_id: actor.profile_id, name: actor.name, image_version: actor.image_version || "", joinOrder: old?.joinOrder ?? old?.chatAfter ?? d.chatSequence, visibilityRetained: !!old?.visibilityRetained, role: old?.role || (actor.id === d.config.host_id ? "host" : "listener"), seat: old?.seat ?? (actor.id === d.config.host_id ? Array.from({length:8},(_,i)=>i).find(i=>!Object.values(d.members).some(m=>m.seat===i)) ?? null : null), requested: false, locked: old?.locked || false, muted: true, pub: null, sub: null, generation: crypto.randomUUID(), expires: Date.now() + LEASE, joinRequest: b.request_id, chatAfter: old?.chatAfter ?? d.chatSequence };
       if (p2.role === "host") {
         d.hostReconnectUntil = 0;
         delete d.hostReconnectGeneration;
@@ -668,12 +663,12 @@ var VoiceRoom = class {
       const t = d.members[identifier(b.target_id)];
       if (!t || t.seat !== null) fault(409, "\uD604\uC7AC \uCCAD\uCDE8 \uC911\uC778 \uCC38\uC5EC\uC790\uB97C \uC120\uD0DD\uD574\uC8FC\uC138\uC694.");
       const seat = Number(b.seat);
-      if (!Number.isInteger(seat) || seat < 1 || seat > 7 || Object.values(d.members).some((m) => m.seat === seat)) fault(409, "\uBE48 \uC88C\uC11D\uC744 \uB2E4\uC2DC \uC120\uD0DD\uD574\uC8FC\uC138\uC694.");
-      d.seatInvites[t.id] = { id: crypto.randomUUID(), target: t.id, seat, expires: Date.now() + 3e4 };
+      if (!Number.isInteger(seat) || seat < 0 || seat > 7 || Object.values(d.members).some((m) => m.seat === seat)) fault(409, "\uBE48 \uC88C\uC11D\uC744 \uB2E4\uC2DC \uC120\uD0DD\uD574\uC8FC\uC138\uC694.");
+      d.seatInvites[t.id] = { id: crypto.randomUUID(), target: t.id, seat, expires: Date.now() + SEAT_REQUEST_TTL };
       this.notice(p, t.name + "\uB2D8\uC5D0\uAC8C \uC88C\uC11D \uCD08\uB300\uB97C \uBCF4\uB0C8\uC5B4\uC694.");
     } else if (action === "seat-answer") {
       const invitation = d.seatInvites[p.id];
-      if (!invitation || invitation.id !== b.invitation_id || invitation.expires <= Date.now()) fault(409, "\uC88C\uC11D \uCD08\uB300\uAC00 \uB9CC\uB8CC\uB410\uC5B4\uC694.");
+      if (p.locked || !invitation || invitation.id !== b.invitation_id || invitation.expires <= Date.now()) fault(409, "\uC88C\uC11D \uCD08\uB300\uAC00 \uB9CC\uB8CC\uB410\uC5B4\uC694.");
       delete d.seatInvites[p.id];
       if (b.accept === true) {
         if (p.seat !== null || Object.values(d.members).some((m) => m.seat === invitation.seat)) fault(409, "\uC774\uBBF8 \uC0AC\uC6A9 \uC911\uC778 \uC88C\uC11D\uC774\uC5D0\uC694.");
@@ -696,13 +691,12 @@ var VoiceRoom = class {
       this.limited(actor, "mic", 10);
       if (p.requested) return this.snapshot(actor);
       if (p.locked) fault(403, "\uAD00\uB9AC\uC790\uAC00 \uB9C8\uC774\uD06C \uC0AC\uC6A9\uC744 \uC81C\uD55C\uD588\uC5B4\uC694.");
-      if (p.seat !== null) fault(409, "\uC774\uBBF8 \uC88C\uC11D\uC5D0 \uCC38\uC5EC \uC911\uC774\uC5D0\uC694.");
       if (!d.members[d.config.host_id] || d.members[d.config.host_id].expires <= Date.now()) fault(409, "\uBC29\uC7A5\uC774 \uB2E4\uC2DC \uC5F0\uACB0\uB41C \uB4A4 \uC2E0\uCCAD\uD574\uC8FC\uC138\uC694.");
-      const seat = b.seat ?? Array.from({ length: 7 }, (_, i) => i + 1).find((i) => !Object.values(d.members).some((m) => m.seat === i));
-      if (!Number.isInteger(seat) || seat < 1 || seat > 7 || Object.values(d.members).some((m) => m.seat === seat)) fault(409, "\uBE48 \uC88C\uC11D\uC744 \uC120\uD0DD\uD574\uC8FC\uC138\uC694.");
-      if (d.config.seating_mode === "free") {
+      const seat = b.seat ?? Array.from({ length: 8 }, (_, i) => i).find((i) => !Object.values(d.members).some((m) => m.seat === i));
+      if (!Number.isInteger(seat) || seat < 0 || seat > 7 || Object.values(d.members).some((m) => m.seat === seat)) fault(409, "\uBE48 \uC88C\uC11D\uC744 \uC120\uD0DD\uD574\uC8FC\uC138\uC694.");
+      if (d.config.seating_mode === "free" || p.seat !== null || p.role === "host") {
+        if (p.seat === null) p.muted = true;
         p.seat = seat;
-        p.muted = true;
         this.clearRequest(p);
         delete d.seatInvites[p.id];
         this.notice(p, p.name + "\uB2D8\uC774 " + (seat + 1) + "\uBC88 \uC88C\uC11D\uC5D0 \uC62C\uB77C\uC654\uC5B4\uC694.");
@@ -730,12 +724,12 @@ var VoiceRoom = class {
       if (!t) fault(404, "\uD68C\uC6D0\uC774 \uB098\uAC14\uC5B4\uC694.");
       this.checkSeatRequest(t, b);
       if (t.seat !== null) return this.snapshot(actor);
-      if (t.id === actor.id && Number.isInteger(b.seat) && b.seat >= 1 && b.seat < 8) t.requestedSeat = b.seat;
+      if (t.id === actor.id && Number.isInteger(b.seat) && b.seat >= 0 && b.seat < 8) t.requestedSeat = b.seat;
       if (!t.requested && t.id !== actor.id) fault(409, "\uB9C8\uC774\uD06C \uC2E0\uCCAD\uC744 \uBA3C\uC800 \uBC1B\uC544\uC8FC\uC138\uC694.");
       if (t.seat === null) {
         const used = new Set(Object.values(d.members).map((m) => m.seat));
         if (Number.isInteger(t.requestedSeat) && used.has(t.requestedSeat)) fault(409, "\uC2E0\uCCAD\uD55C \uC88C\uC11D\uC774 \uC774\uBBF8 \uC0AC\uC6A9 \uC911\uC774\uC5D0\uC694. \uC2E0\uCCAD\uC744 \uCDE8\uC18C\uD558\uACE0 \uB2E4\uB978 \uC88C\uC11D\uC744 \uC120\uD0DD\uD574\uC8FC\uC138\uC694.");
-        const seat = Number.isInteger(t.requestedSeat) ? t.requestedSeat : Array.from({ length: 7 }, (_, i) => i + 1).find((i) => !used.has(i));
+        const seat = Number.isInteger(t.requestedSeat) ? t.requestedSeat : Array.from({ length: 8 }, (_, i) => i).find((i) => !used.has(i));
         if (seat === void 0) fault(409, "\uB9C8\uC774\uD06C 8\uC11D\uC774 \uBAA8\uB450 \uC0AC\uC6A9 \uC911\uC774\uC5D0\uC694.");
         t.seat = seat;
       }
@@ -755,7 +749,7 @@ var VoiceRoom = class {
       await this.stopPublish(p);
     } else if (action === "moderate") {
       const t = this.target(actor, b.target_id);
-      if (!["mute", "unlock", "kick", "remove-seat", "move-seat"].includes(b.operation)) fault(400, "\uAD00\uB9AC \uC791\uC5C5\uC744 \uD655\uC778\uD574\uC8FC\uC138\uC694.");
+      if (!["mute", "unlock", "kick", "ban-day", "transfer-host", "remove-seat", "move-seat"].includes(b.operation)) fault(400, "\uAD00\uB9AC \uC791\uC5C5\uC744 \uD655\uC778\uD574\uC8FC\uC138\uC694.");
       if (["remove-seat", "move-seat"].includes(b.operation)) {
         if (t.seat === null) {
           if (b.operation === "remove-seat") return this.snapshot(actor);
@@ -767,22 +761,23 @@ var VoiceRoom = class {
           this.clearRequest(t);
         } else {
           const seat = Number(b.seat);
-          if (!Number.isInteger(seat) || seat < 1 || seat > 7 || Object.values(d.members).some((m) => m.seat === seat)) fault(409, "\uBE48 \uC88C\uC11D\uC744 \uC120\uD0DD\uD574\uC8FC\uC138\uC694.");
+          if (!Number.isInteger(seat) || seat < 0 || seat > 7 || Object.values(d.members).some((m) => m.seat === seat)) fault(409, "\uBE48 \uC88C\uC11D\uC744 \uC120\uD0DD\uD574\uC8FC\uC138\uC694.");
           t.seat = seat;
         }
         this.notice(t, t.name + "\uB2D8\uC758 \uC88C\uC11D\uC774 \uBCC0\uACBD\uB410\uC5B4\uC694.");
       }
       if (b.operation === "mute") {
         t.locked = true;
-        t.requested = false;
+        this.clearRequest(t);delete d.seatInvites[t.id];
         await this.stopPublish(t);
       }
       if (b.operation === "unlock") t.locked = false;
-      if (b.operation === "kick") {
-        d.bans[t.id] = Date.now() + 6e4;
+      if (b.operation === "transfer-host") { this.electHost(Date.now(), t); await this.syncDirectory(); }
+      if (["kick","ban-day"].includes(b.operation)) {
+        d.bans[t.id] = Date.now() + (b.operation==="kick"?60000:86400000);
         await this.remove(t);
       }
-      if (!["remove-seat", "move-seat"].includes(b.operation)) this.notice(t, t.name + "\uB2D8: " + { mute: "\uB9C8\uC774\uD06C \uC0AC\uC6A9 \uC81C\uD55C", unlock: "\uB9C8\uC774\uD06C \uC81C\uD55C \uD574\uC81C", kick: "\uAC15\uD1F4" }[b.operation]);
+      if (!["remove-seat", "move-seat","transfer-host"].includes(b.operation)) this.notice(t, t.name + "\uB2D8: " + { mute: "\uB9C8\uC774\uD06C \uC0AC\uC6A9 \uC81C\uD55C", unlock: "\uB9C8\uC774\uD06C \uC81C\uD55C \uD574\uC81C", kick: "\uAC15\uD1F4","ban-day":"1일 추방" }[b.operation]);
       await this.audit(actor, b.operation, t.id);
     } else if (action === "chat") {
       this.limited(actor, "chat", 20);
@@ -801,7 +796,10 @@ var VoiceRoom = class {
       this.limited(actor, "invite", 10);
       if (d.config.visibility === "private") this.moderator(actor);
       const id = identifier(b.target_id);
-      if (d.config.visibility === "crew" && !(b.target_crews || []).includes(d.config.crew_id)) fault(403, "\uAC19\uC740 \uD06C\uB8E8 \uBA64\uBC84\uB9CC \uCD08\uB300\uD560 \uC218 \uC788\uC5B4\uC694.");
+      if((b.target_blocks||[]).some(uid=>d.members[uid])||
+      (d.config.visibility==='followers'&&id!==d.config.host_id&&!(b.target_followed_hosts||[]).includes(d.config.host_id)))fault(403,'이 방에 입장할 수 없는 참여자예요.');
+   if(!d.members[id]&&Object.keys(d.members).length>=(d.config.max_members||30))fault(409,'방이 가득 찼어요.');
+   if (d.config.visibility === "crew" && !(b.target_crews || []).includes(d.config.crew_id)) fault(403, "\uAC19\uC740 \uD06C\uB8E8 \uBA64\uBC84\uB9CC \uCD08\uB300\uD560 \uC218 \uC788\uC5B4\uC694.");
       if (d.bans[id] > Date.now()) fault(403, "\uCC28\uB2E8\uB41C \uD68C\uC6D0\uC740 \uCD08\uB300\uD560 \uC218 \uC5C6\uC5B4\uC694.");
       d.invites[id] = Date.now() + 864e5;
       return { room: d.config };
@@ -1051,6 +1049,25 @@ async function liveCommand(room,actor,b){
  const p=room.member(actor,b.generation),isHost=p.role==='host';
  room.limited(actor,'live-karaoke',75);
  switch(b.operation){
+  case 'key': {
+   if(!k.active||k.active.invitation_id!==b.invitation_id)fault(409,'현재 곡이 변경됐어요.');
+   if(!isHost&&p.id!==k.active.user_id)fault(403,'가창자와 방장만 반주 키를 바꿀 수 있어요.');
+   if(!Number.isInteger(b.key)||Math.abs(b.key)>6)fault(400,'반주 키 범위를 확인해주세요.');
+   k.active.key=b.key;k.revision++;break;
+  }
+  case 'invite': {
+   const target=d.members[identifier(b.target_id)];
+   if(!isHost)fault(403,'방장만 예약에 초대할 수 있어요.');
+   if(!target||target.locked||target.id===p.id||k.active?.user_id===target.id||k.queue.some(q=>q.user_id===target.id))fault(409,'초대할 수 없는 참여자예요.');
+   const previous=d.seatInvites[target.id];
+   if(previous&&previous.expires>Date.now())return room.snapshot(actor);
+   d.seatInvites[target.id]={id:crypto.randomUUID(),target:target.id,kind:'reservation',expires:Date.now()+10000};break;
+  }
+  case 'answer-invite': {
+   const invitation=d.seatInvites[p.id];
+   if(!invitation||invitation.kind!=='reservation'||invitation.id!==b.invitation_id||invitation.expires<=Date.now())fault(409,'예약 초대가 만료됐어요.');
+   delete d.seatInvites[p.id];break;
+  }
   case 'request': {
    const rid=requestId(b.request_id),t=b.track;
    if(!t||typeof t.id!=='string'||!/^[a-zA-Z0-9_-]{1,80}$/.test(t.id)||typeof t.title!=='string'||!t.title.trim()||t.title.length>150||typeof t.artist!=='string'||t.artist.length>150||!Number.isFinite(t.duration)||t.duration<=0||t.duration>600)fault(400,'사용할 수 있는 노래방 곡인지 확인해주세요.');
@@ -1133,10 +1150,13 @@ VoiceRoom.prototype.load=async function(...a){
 const originalLiveSave=VoiceRoom.prototype.save;
 VoiceRoom.prototype.save=async function(...a){
  await originalLiveSave.apply(this,a);
- const k=this.data?.karaoke;
- if(this.data?.config?.mode==='karaoke'&&!this.data.config.closed&&k?.active&&['invited','ready'].includes(k.phase)){
-  await this.ctx.storage.setAlarm(Math.max(Date.now()+1,k.phase==='invited'?k.inviteExpiresAt:k.readyExpiresAt));
- }
+ const d=this.data;
+ if(!d?.config||d.config.closed)return;
+ const due=[...Object.values(d.seatInvites||{}).map(i=>i.expires),...Object.values(d.members).filter(m=>m.requested).map(m=>m.requestExpires)];
+ const k=d.karaoke;
+ if(k?.phase==='invited')due.push(k.inviteExpiresAt);
+ if(k?.phase==='ready')due.push(k.readyExpiresAt);
+ if(due.length)await this.ctx.storage.setAlarm(Math.max(Date.now()+1,Math.min(Date.now()+15000,...due.filter(Number.isFinite))));
 };
 const originalSnapshot=VoiceRoom.prototype.snapshot;
 VoiceRoom.prototype.snapshot=function(actor){

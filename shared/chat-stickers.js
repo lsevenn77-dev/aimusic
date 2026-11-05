@@ -82,9 +82,7 @@ function choices(group, inline) {
 export function bind({picker, form, input, toggle, selected = [], close, glyph, inline = null}) {
   const limit = input.maxLength, required = input.required;
   const events = new AbortController(), options = {signal: events.signal};
-  picker.innerHTML = `<header class="cat-head"><strong>고양이 미니이모티콘</strong>
-      <button type="button" class="cat-close" data-cat-close aria-label="이모티콘 닫기">${glyph('close')}</button></header>
-    <nav class="cat-tabs" aria-label="이모티콘 카테고리">${Object.entries(tabs).map(([key,label]) =>
+  picker.innerHTML = `<nav class="cat-tabs" aria-label="이모티콘 카테고리">${Object.entries(tabs).map(([key,label]) =>
       '<button type="button" data-cat-tab="' + key + '" aria-pressed="' + (key === 'basic') + '">' + label + '</button>').join('')}</nav>
     <div class="cat-picker-scroll" tabindex="0" aria-label="이모티콘 목록"></div>
     ${inline ? '<span class="cat-status" role="status"></span>' : `<footer class="cat-footer"><div class="cat-tray" aria-label="선택한 이모티콘"></div>

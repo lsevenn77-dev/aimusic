@@ -129,6 +129,7 @@ test('live private, follower and crew restrictions use the existing admission ru
  const f=await liveFixture(t),privateRoom=await f.create({visibility:'private'});
  const enter=(room)=>f.call(room.root+'join','POST',{request_id:crypto.randomUUID()},'other');
  assert.equal((await enter(privateRoom)).status,403);
+ f.sql.exec("INSERT INTO follows VALUES('owner','producer','friend',0)");
  const invite=await f.call(privateRoom.root+'invite','POST',{generation:privateRoom.state.generation,profile_id:'friend',request_id:crypto.randomUUID()});
  assert.equal(invite.status,201,JSON.stringify(invite.body));
  const dm=f.sql.prepare("SELECT body FROM direct_messages WHERE sender_id='owner' AND recipient_id='other'").get();

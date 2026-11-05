@@ -70,7 +70,7 @@ function giftCompactRecipient(profile,canChange){
 }
 async function giftDialog(tid,initial=null,personal=false){
  const serial=++giftDialogSerial,route=globalThis.location?.hash,roomGift=initial?.roomGift;
- const fromMessage=personal&&route?.split('?')[0]==='#dm/'+tid;
+ const fromMessage=personal&&(initial?.fromMessage===true||route?.split('?')[0]==='#dm/'+tid);
  if(roomGift&&(!personal||typeof roomGift.send!=='function'||!roomGift.recipients?.some(p=>p.id===tid))){toast('선물할 토킹룸 참여자를 다시 선택해주세요.');return;}
  if(personal&&me?.profile_id===tid){toast('본인에게는 선물할 수 없어요.');return;}
  try{
@@ -128,6 +128,7 @@ async function giftDialog(tid,initial=null,personal=false){
    update,
   };
   update();
+  if(typeof bindRoomGiftWallet==='function'&&typeof voiceController!=='undefined'&&voiceController?.joined)bindRoomGiftWallet(form);
   const retry=form.querySelector('[data-gift-inventory-retry]');if(retry)retry.onclick=()=>{if(!form._busy)void giftDialog(tid,initial,personal);};
   if(cancel)cancel.onclick=()=>{if(form._busy)return;confirmOwned=false;update();};
   const recipientButton=$('#gift-recipient');if(personal&&recipientButton)recipientButton.onclick=()=>{if(form._busy)return;const selection=roomGift?{id:chosen,quantity,roomGift}:decoration?.p?decoration.item||decoration.bought?{inventoryId:decoration.item?.id||decoration.bought}:{sku:decoration.p.sku,period:decoration.period}:owned?{giftInventoryId:owned.id}:{id:chosen,quantity};return chooseGiftRecipient(selection);};

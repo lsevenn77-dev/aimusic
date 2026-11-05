@@ -11,6 +11,8 @@ import {regionTokenCSS} from './ui-region-tokens.mjs';
 import {readdir} from 'node:fs/promises';
 await mkdir('dist/server',{recursive:true});
 await mkdir('dist/client',{recursive:true});
+await build({entryPoints:['shared/room-backing-worklet.js'],outfile:'dist/client/room-backing-worklet.js',bundle:true,format:'esm',target:'es2022'});
+for(const file of ['room-release.css','room-release.js'])await cp('dist/'+file,'dist/client/'+file);
 await build({entryPoints:['shared/chat-stickers.js'],outfile:'dist/client/chat-stickers.js',bundle:true,format:'iife',globalName:'AifectStickers',target:'es2022',minify:true});
 await cp('dist/chat-stickers.css','dist/client/chat-stickers.css');
 await cp('shared/public-image-client.js', 'dist/client/public-image-client.js');
@@ -76,7 +78,7 @@ await cp('dist/ui-region-scale.css','dist/client/ui-region-scale.css');
 await cp('dist/gift-scale.css','dist/client/gift-scale.css');
 await cp('dist/sing-recording-scale.css','dist/client/sing-recording-scale.css');
 for(const name of await readdir('dist/client')){
- if(!name.endsWith('.css')||name.startsWith('aifect-app-')||name==='ui-region-scale.css')continue;
+ if(!name.endsWith('.css')||name.startsWith('aifect-app-')||name==='ui-region-scale.css'||name==='room-release.css')continue;
  const file='dist/client/'+name;
  await writeFile(file,regionTokenCSS(await readFile(file,'utf8')));
 }
