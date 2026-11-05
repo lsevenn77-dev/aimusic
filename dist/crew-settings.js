@@ -131,7 +131,7 @@ function openCrewDialog(trigger,path,detail,action) {
 
 function crewInfoValues(form) {
  const values={};
- for(const key of ['name','description','interests','recruiting','join_policy','minimum_level','member_limit','notice']){
+ for(const key of ['name','description','interests','recruiting','join_policy','minimum_level','notice']){
   const field=form.elements[key];
   if(field.disabled||field.readOnly) continue;
   values[key]=field.type==='checkbox'?field.checked:field.type==='number'?field.valueAsNumber:field.value;
@@ -148,10 +148,10 @@ function bindCrewInfo(ui,detail) {
  const form=body.querySelector('form'), file=form.elements.crew_image;
  if(!owner){
   form.elements.name.readOnly=true;
-  for(const key of ['join_policy','minimum_level','member_limit']) form.elements[key].disabled=true;
+  for(const key of ['join_policy','minimum_level']) form.elements[key].disabled=true;
   form.querySelector('#crew-name-help').textContent='크루 이름은 크루장만 변경할 수 있어요.';
  }
- for(const key of ['minimum_level','member_limit'])form.elements[key].required=true;
+ form.elements.minimum_level.required=true;
  const saved=crewInfoValues(form);
  let version=detail.crew.version,photo=null,editingPhoto=false,previewURL='';
  const changes=()=>changedCrewFields(saved,crewInfoValues(form));

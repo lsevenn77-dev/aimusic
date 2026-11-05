@@ -17,7 +17,7 @@ test('crew settings expose only actions allowed by the current role',()=>{
  for(const role of ['member',undefined])assert.deepEqual(actions(role),[]);
 });
 
-test('info changes exclude locked or absent fields and retain false and zero',()=>{
+test('info changes exclude locked or absent fields and ignore legacy capacity fields',()=>{
  const form={elements:{}};
  for(const name of ['name','description','interests','join_policy','notice'])form.elements[name]={value:''};
  form.elements.name.readOnly=true;
@@ -29,7 +29,7 @@ test('info changes exclude locked or absent fields and retain false and zero',()
  form.elements.name.value='locked';
  form.elements.member_limit.valueAsNumber=0;
  form.elements.recruiting.checked=false;
- assert.deepEqual({...client.changedCrewFields(before,client.crewInfoValues(form))},{recruiting:false,member_limit:0});
+ assert.deepEqual({...client.changedCrewFields(before,client.crewInfoValues(form))},{recruiting:false});
  assert.equal('name' in before,false);
  assert.equal('join_policy' in before,false);
 });

@@ -41,5 +41,5 @@ test('crew XP cannot bypass 184-day maturity in growth view, capacity or retaine
  f.sql.prepare("INSERT INTO crew_xp VALUES('test','c','owner',999999,?)").run(at);
  const capacity=()=>f.sql.prepare('SELECT '+crewCapacitySQL()+' capacity FROM crews c').get().capacity;
  assert.equal(capacity(),10);
- f.sql.prepare("UPDATE crews SET growth_started=?").run(at-184*86400);assert.equal(capacity(),150);
+ f.sql.prepare("UPDATE crews SET growth_started=?").run(at-184*86400);assert.equal(capacity(),50);
 });

@@ -18,7 +18,8 @@ test('live ranking API separates original artists from completed covers and acce
  const dub=await f.call('/api/community/rankings?category=work&workKind=dubbing');assert.equal(dub.status,200,JSON.stringify(dub.body));
 });
 test('crew settings enforce approval, minimum level, one membership, permissions and version conflicts',async t=>{
- const f=await fixture(t);const made=await f.call('/api/crews','POST',{name:'Approval',join_policy:'approval',member_limit:2});assert.equal(made.status,201,JSON.stringify(made.body));const path='/api/crews/'+made.body.crew.id;
+ const f=await fixture(t);const made=await f.call('/api/crews','POST',{name:'Approval',join_policy:'approval',member_limit:2});assert.equal(made.status,201,JSON.stringify(made.body));assert.equal(made.body.crew.capacity,10);
+ const path='/api/crews/'+made.body.crew.id;
  assert.equal((await f.call(path+'/join','POST',{},'other')).status,202);assert.equal((await f.call(path+'/applications','GET',null,'other')).status,403);
  assert.equal((await f.call(path+'/applications/other','POST',{decision:'approve'})).status,200);
  assert.equal((await f.call(path+'/applications/other','POST',{decision:'approve'})).status,200);

@@ -7,9 +7,9 @@ export const CREW_ROLE_LIMITS=Object.freeze({deputy:2,manager:3});
 export const CREW_ROLE_ALIAS=Object.freeze({owner:'leader',deputy:'deputy',operator:'manager',manager:'manager',member:'member'});
 export const auditCrew=(env,cid,uid,action,detail='')=>query(env,'INSERT INTO crew_audit(id,crew_id,actor_id,action,detail,created) VALUES(?,?,?,?,?,?)',id(),cid,uid,action,detail,now());
 export function crewSettings(b,c={}){
- const policy=b.join_policy??c.join_policy??'open',minimum=Number(b.minimum_level??c.minimum_level??1),limit=Number(b.member_limit??c.member_limit??0),notice=str(b.notice??c.notice??'',1000,false);
- if(!['open','approval','invite_only'].includes(policy)||!Number.isInteger(minimum)||minimum<1||minimum>100||!Number.isInteger(limit)||limit<0||limit>150)fail(400,'가입 방식, 레벨, 정원을 확인해주세요.');
- return {join_policy:policy,minimum_level:minimum,member_limit:limit,notice};
+ const policy=b.join_policy??c.join_policy??'open',minimum=Number(b.minimum_level??c.minimum_level??1),notice=str(b.notice??c.notice??'',1000,false);
+ if(!['open','approval','invite_only'].includes(policy)||!Number.isInteger(minimum)||minimum<1||minimum>100)fail(400,'가입 방식과 최소 레벨을 확인해주세요.');
+ return {join_policy:policy,minimum_level:minimum,notice};
 }
 export async function assertCrewLevel(env,c,uid){const xp=await one(env,'SELECT COALESCE(sum(amount),0) xp FROM player_xp WHERE user_id=?',uid);if(playerProgress(xp.xp).level<c.minimum_level)fail(403,'크루 가입 최소 레벨에 도달하지 않았어요.');}
 export async function crewV3Route(req,env,path,user){
@@ -30,7 +30,7 @@ export async function crewV3Route(req,env,path,user){
  if(b.decision==='reject'){await env.DB.batch([query(env,"UPDATE crew_applications SET state='rejected' WHERE crew_id=? AND user_id=? AND state='pending'",cid,target),auditCrew(env,cid,user.id,'application_rejected',target)]);return json({ok:true});}
  await assertCrewLevel(env,c,target);
  try{await env.DB.batch([
- query(env,`INSERT INTO crew_members(crew_id,user_id,role,joined,joined_sequence) SELECT c.id,?,'member',?,COALESCE((SELECT max(rowid) FROM crew_messages WHERE crew_id=c.id),0)+1 FROM crews c WHERE c.id=? AND c.recruiting=1 AND NOT EXISTS(SELECT 1 FROM crew_bans WHERE crew_id=c.id AND user_id=?) AND (SELECT count(*) FROM crew_members WHERE crew_id=c.id)<min(CASE WHEN c.member_limit>0 THEN c.member_limit ELSE 150 END,${crewCapacitySQL()}) AND EXISTS(SELECT 1 FROM crew_applications WHERE crew_id=c.id AND user_id=? AND state='pending')`,target,now(),cid,target,target),
+ query(env,`INSERT INTO crew_members(crew_id,user_id,role,joined,joined_sequence) SELECT c.id,?,'member',?,COALESCE((SELECT max(rowid) FROM crew_messages WHERE crew_id=c.id),0)+1 FROM crews c WHERE c.id=? AND c.recruiting=1 AND NOT EXISTS(SELECT 1 FROM crew_bans WHERE crew_id=c.id AND user_id=?) AND (SELECT count(*) FROM crew_members WHERE crew_id=c.id)<(${crewCapacitySQL()}) AND EXISTS(SELECT 1 FROM crew_applications WHERE crew_id=c.id AND user_id=? AND state='pending')`,target,now(),cid,target,target),
  query(env,`INSERT INTO crew_messages(id,crew_id,user_id,body,request_id,created,kind) SELECT ?,?,?,COALESCE((SELECT ${producerNameSQL()} FROM producers p WHERE p.user_id=?),'크루원')||'님이 크루에 참여했습니다. 인사를 나눠보세요.',?,?,'system' WHERE changes()=1`,id(),cid,target,target,'join:'+id(),now()),
  query(env,"UPDATE crew_applications SET state='approved' WHERE crew_id=? AND user_id=? AND EXISTS(SELECT 1 FROM crew_members WHERE crew_id=? AND user_id=?)",cid,target,cid,target),
  query(env,"INSERT INTO crew_audit(id,crew_id,actor_id,action,detail,created) SELECT ?,?,?,'application_approved',?,? WHERE EXISTS(SELECT 1 FROM crew_members WHERE crew_id=? AND user_id=?)",id(),cid,user.id,target,now(),cid,target)

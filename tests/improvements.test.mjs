@@ -69,7 +69,7 @@ test('crew membership enforces capacity, single membership, recruitment and chat
 });
 
 test('crew chat and unverifiable uploads cannot grant mission XP',async t=>{
- assert.deepEqual([0,300,800,1600,18500].map(x=>crewLevel(x).capacity),[10,15,20,30,150]);
+ assert.deepEqual([0,300,800,1600,18500].map(x=>crewLevel(x).capacity),[10,10,20,20,50]);
  const f=await fixture(t),cid=await crew(f),path=`/api/crews/${cid}/messages`,request_id=rid();
  await f.call(path,'POST',{body:'Hello',request_id});await f.call(path,'POST',{body:'Hello',request_id});await f.call(path,'POST',{body:'Again',request_id:rid()});
  assert.equal((await f.call(path)).body.messages.filter(m=>m.kind!=='system').length,2);
