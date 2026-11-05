@@ -118,12 +118,15 @@ async function fetchRequest(req,env,ctx){
   const goldPaymentResponse=goldPaymentPageRoute(req,path);if(goldPaymentResponse)return goldPaymentResponse;
   if(!path.startsWith('/api/')&&!path.startsWith('/media/')){
    if(!['GET','HEAD'].includes(req.method))return json({error:'허용되지 않는 요청입니다.'},405);
-   const asset=await env.ASSETS.fetch(req);
-   if(asset.ok&&/^\/aifect-app-[a-f0-9]{16}\.(js|css)$/.test(path)){
+   const bundle=path.match(/^\/bundles\/(aifect-app-[a-f0-9]{16}\.(?:js|css))$/);
+   if(bundle){
+    const resource=new URL('/'+bundle[1],url);
+    const asset=await env.ASSETS.fetch(new Request(resource,req));
+    if(!asset.ok&&asset.status!==304)return asset;
     const headers=new Headers(asset.headers);headers.set('cache-control','public, max-age=31536000, immutable');
     return new Response(asset.body,{status:asset.status,headers});
    }
-   return asset;
+   return env.ASSETS.fetch(req);
   }
   // Provider form POSTs have their own browser binding and token checks.
   const oauthCallback=/^\/api\/auth\/(google|apple)\/callback$/.test(path);

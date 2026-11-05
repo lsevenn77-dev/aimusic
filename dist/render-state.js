@@ -57,7 +57,7 @@
  window.addEventListener('error',event=>{
   const target=event.target;
   const asset=target?.getAttribute?.('src')||target?.getAttribute?.('href')||'';
-  const critical=target?.matches?.('link[rel="stylesheet"],script[src]')&&(/^\/?aifect-app-[a-f0-9]{16}\.(js|css)(?:\?|$)/.test(asset)||asset==='/canonical-origin.js');
+  const critical=target?.matches?.('link[rel="stylesheet"],script[src]')&&(/^\/?(?:bundles\/)?aifect-app-[a-f0-9]{16}\.(js|css)(?:\?|$)/.test(asset)||asset==='/canonical-origin.js');
   if(critical){assetsFailed=true;fail();}
   // ResizeObserver defers further layout notifications to the next frame. This
   // browser advisory has no script exception and is not a failed app startup.

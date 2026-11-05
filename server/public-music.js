@@ -87,5 +87,7 @@ export async function publicMusicRoute(req,env,path,provided){
  // Fetch the template with GET even for HEAD, without visitor cookies or range
  // headers. Only the final response uses the visitor's method and live catalog.
  const asset=await env.ASSETS.fetch(new Request(new URL('/aifect-shell.txt',req.url))),html=await asset.text();
- return response(req,html.replace(/<main id="main"[^>]*>[\s\S]*?<\/main>/,`<main id="main" tabindex="-1">${content}</main>`),asset.status);
+ // A virtual URL lets the Worker set immutable caching even on an asset-first host.
+ const appShell=html.replace(/(src|href)="\/(aifect-app-[a-f0-9]{16}\.(?:js|css))"/g,'$1="/bundles/$2"');
+ return response(req,appShell.replace(/<main id="main"[^>]*>[\s\S]*?<\/main>/,`<main id="main" tabindex="-1">${content}</main>`),asset.status);
 }

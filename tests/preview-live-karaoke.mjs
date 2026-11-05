@@ -48,7 +48,7 @@ const server=createServer(async(req,res)=>{
   const chunks=[];for await(const b of req)chunks.push(b);
   const start=performance.now();
   const response=await worker.fetch(new Request(u,{method:req.method,headers:{...req.headers,cookie:'aifect_session=owner'},body:chunks.length?Buffer.concat(chunks):undefined}),env,{waitUntil(p){p.catch(()=>{});}});
-  res.writeHead(response.status,Object.fromEntries(response.headers));let bytes=Buffer.from(await response.arrayBuffer());if(u.searchParams.get('qaBefore')==='1'&&response.headers.get('content-type')?.includes('text/html'))bytes=Buffer.from(bytes.toString().replace(/\/aifect-app-[a-f0-9]+\.(js|css)/g,'/qa-before-app.$1'));res.end(bytes);
+  res.writeHead(response.status,Object.fromEntries(response.headers));let bytes=Buffer.from(await response.arrayBuffer());if(u.searchParams.get('qaBefore')==='1'&&response.headers.get('content-type')?.includes('text/html'))bytes=Buffer.from(bytes.toString().replace(/\/(?:bundles\/)?aifect-app-[a-f0-9]+\.(js|css)/g,'/qa-before-app.$1'));res.end(bytes);
   if(u.pathname.endsWith('karaoke-search'))console.log('local search: '+Math.round(performance.now()-start)+'ms, status '+response.status);
  }catch(e){res.writeHead(500);res.end('Local preview error');console.error(e.message);}
 });

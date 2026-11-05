@@ -23,7 +23,12 @@ const preview=await fetch(new URL(previewPath,policy.production_url),{method:'HE
 if(!preview.ok||!preview.headers.get('content-type')?.startsWith('audio/'))throw new Error('Public audio HEAD probe failed');
 const ads=await fetch(policy.production_url+'/ads.txt',{signal:AbortSignal.timeout(15000)});
 if(!ads.ok||!(await ads.text()).includes('google.com, pub-5910265378731607, DIRECT, f08c47fec0942fa0'))throw new Error('Verified publisher ads.txt line is missing');
-const asset=await fetch(policy.production_url+'/'+expected,{signal:AbortSignal.timeout(15000)});if(!asset.ok)throw new Error('Published client asset failed');
+const bundles=[...homeHTML.matchAll(/(?:src|href)="(\/bundles\/aifect-app-[a-f0-9]{16}\.(?:js|css))"/g)].map(m=>m[1]);
+if(bundles.length!==2||!bundles.includes('/bundles/'+expected))throw new Error('Published bundle URLs differ from the prepared shell');
+for(const path of bundles){
+ const asset=await fetch(policy.production_url+path,{method:'HEAD',signal:AbortSignal.timeout(15000)});
+ if(!asset.ok||!asset.headers.get('cache-control')?.includes('immutable'))throw new Error('Published bundle or immutable cache policy failed for '+path);
+}
 // Sites serves authenticated MCP on the connection URL returned by get_site.
 // Its ingress may reject anonymous requests with plain text before the Worker runs.
 const mcpUrl=new URL(policy.mcp_url||'/mcp',policy.production_url);
