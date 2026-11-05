@@ -64,7 +64,8 @@ export async function voiceRoomsRoute(req,env,path,user,ctx) {
  if(path==='/api/voice/rooms'&&req.method==='GET')return json({...await decorateRoomResult(env,await result(await voiceCall(env,actor,'directory','list'))),crews});
  if(path==='/api/voice/rooms'&&req.method==='POST') {
   if(!actor.profile_id)fail(409,'마이에서 프로필을 먼저 만들어주세요.');
-  await rate(env,'voice-create:'+user.id,5,3600);const b=await req.json();
+  const b=await req.json();
+  await rate(env,'voice-create:'+user.id,20,3600);
   let crew_id=null;
   if(b.visibility==='crew'){
    if(!crews.length)fail(403,'소속 크루가 있어야 크루 방을 만들 수 있어요.');
