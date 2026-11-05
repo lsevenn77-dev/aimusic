@@ -12,7 +12,7 @@
   dialog :is(.dialog-close, .profile-preview-close, .voice-dialog-close),
   #v3-close-create, dialog.photo-lightbox > .small-button,
   .voice-room .room-header button, #voice-music-player > div > button,
-  #voice-chat-form [data-voice=emoji], .voice-emojis [data-voice=insert-emoji],
+  #voice-chat-form [data-voice=emoji],
   .live-queue [data-voice=karaoke-cancel], .take-navigation [data-skip],
   .studio-key-stepper [data-key-step]
 ):not(:where([aria-pressed], [aria-selected], [role=switch], [role=tab], [aria-checked])) {
@@ -30,7 +30,7 @@
 }
 
 /* Color emoji use their own palette rather than currentColor. */
-:is(.voice-emojis [data-voice=insert-emoji], #dm-emoji-picker button):not(:disabled):is(:hover, :active) {
+#dm-emoji-picker button:not(:disabled):is(:hover, :active) {
   filter: brightness(.84);
 }
 
