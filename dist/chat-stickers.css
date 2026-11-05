@@ -98,16 +98,21 @@
 }
 #main img.cat-compact-hand {--cat-inline-size:calc(38px * .9)}
 #main img.cat-word {--cat-word-width:62.7px;width:var(--cat-word-width)}
-/* Use the contained artwork's height for line layout. Align its lettering
-   to the Korean text, retaining space for crowns and sparkles above it. */
-#main img.cat-word-ink {
-  --cat-art-height:min(var(--cat-inline-size),calc(var(--cat-word-width) * var(--cat-art-aspect)));
-  height:var(--cat-art-height);
-  vertical-align:calc(.38em - var(--cat-art-height) * var(--cat-below-ink));
+/* The inline-block's baseline is its bottom edge. Place the measured glyph
+   centre on the Korean text axis, leaving room for each crown or sparkle. */
+#main .cat-word-slot {
+  display:inline-block;box-sizing:border-box;overflow:hidden;line-height:0;
+  width:var(--cat-slot-width);max-width:100%;height:var(--cat-slot-height);
+  vertical-align:calc(.38em - var(--cat-below-ink));padding-block-start:var(--cat-art-inset);
 }
-#main img.cat-after-text {margin-inline-start:5px}
-#main img.cat-before-text {margin-inline-end:5px}
-#main img.cat-after-sticker {margin-inline-start:3px}
+#main .cat-word-slot img.cat-word-ink {display:block;width:100%;height:var(--cat-art-height)}
+#main :is(img,.cat-word-slot).cat-after-text {margin-inline-start:5px}
+#main :is(img,.cat-word-slot).cat-before-text {margin-inline-end:5px}
+#main :is(img,.cat-word-slot).cat-after-sticker {margin-inline-start:3px}
+/* Retain the original lettering scale on the two unchanged composer boxes
+   when fitting the more tightly cropped '최고' artwork. */
+#main .cat-tile[data-cat-key="cat_text_best"] img {box-sizing:border-box;padding-inline:calc(12px * (1 - 184 / 186))}
+#main img[data-cat-sticker="cat_text_best"] {box-sizing:border-box;padding-block:calc(19px * (1 - 132 / 152))}
 #main .voice-chat-message p:has(.cat-chat-sticker) {display:block;width:fit-content}
 #main .message-workspace #chat-compose [data-dm-editor] {
   box-sizing:border-box;display:block;width:100%;min-width:0;min-height:44px;max-height:120px;

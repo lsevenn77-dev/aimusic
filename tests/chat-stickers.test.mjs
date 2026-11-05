@@ -12,8 +12,8 @@ test('every stable mini-sticker key resolves to its separate WebP', () => {
   for (const [group, count] of Object.entries({basic:33,hand:9,text:8,prop:15})) {
     assert.equal(catalog.filter(item => item.group === group).length, count);
   }
-  for (const {key, label, group} of catalog) {
-    const file = 'assets/chat-stickers/' + (group === 'text' ? 'v2/' : 'v1/') + group + '/' + key + '.webp';
+  for (const {key, label, group, assetVersion} of catalog) {
+    const file = 'assets/chat-stickers/' + (assetVersion ?? (group === 'text' ? 'v2' : 'v1')) + '/' + group + '/' + key + '.webp';
     const bytes = readFileSync(new URL('../dist/' + file, import.meta.url));
     assert.equal(bytes.toString('ascii',8,12), 'WEBP');
     const html = render(message('', [key]), escapeText);
@@ -39,6 +39,25 @@ test('message display variants select only the three compact hands and word artw
     assert.equal(html.includes('cat-word-ink'), group === 'text', key);
     assert.equal(html.includes('--cat-below-ink'), group === 'text', key);
   }
+});
+
+test('only the requested word stickers shrink, and each run shares its own line metrics', () => {
+  const words = catalog.filter(item => item.group === 'text');
+  const compact = new Set(['cat_text_gamdong','cat_text_onepick','cat_text_wa']);
+  for (const {key} of words) {
+    const slot = render(message('', [key]), escapeText);
+    const width = Number(slot.match(/--cat-slot-width:([\d.]+)px/)[1]);
+    assert.equal(width, 62.7 * (compact.has(key) ? 0.9 : 1));
+  }
+  const run = message('',words.map(item => item.key));
+  const html = render(run + '\n' + message('', ['cat_text_wow']), escapeText);
+  const heights = [...html.matchAll(/--cat-slot-height:([\d.]+)px/g)].map(match => Number(match[1]));
+  assert.equal(heights.length,9);
+  assert.equal(new Set(heights.slice(0,8)).size,1);
+  assert.ok(heights[8] < heights[0]);
+  const best = render(message('', ['cat_text_best']), escapeText);
+  assert.match(best,/--cat-art-height:33px/);
+  assert.ok(readFileSync(new URL('../dist/assets/chat-stickers/v2/text/cat_text_best.webp',import.meta.url)).length);
 });
 
 test('unknown or malformed keys stay safe text, including alongside valid stickers', () => {

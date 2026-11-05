@@ -213,6 +213,7 @@
     "key": "cat_text_gamdong",
     "label": "감동",
     "group": "text",
+    "messageScale": 0.9,
     "lettering": {"width": 220, "height": 111, "top": 18, "bottom": 109}
   },
   {
@@ -225,13 +226,16 @@
     "key": "cat_text_onepick",
     "label": "원픽",
     "group": "text",
+    "messageScale": 0.9,
     "lettering": {"width": 220, "height": 137, "top": 34, "bottom": 135}
   },
   {
     "key": "cat_text_best",
     "label": "최고",
     "group": "text",
-    "lettering": {"width": 186, "height": 152, "top": 58, "bottom": 150}
+    "assetVersion": "v3",
+    "fitReference": {"width": 186, "height": 152},
+    "lettering": {"width": 184, "height": 132, "top": 39, "bottom": 131}
   },
   {
     "key": "cat_text_gutsong",
@@ -255,6 +259,7 @@
     "key": "cat_text_wa",
     "label": "와~!",
     "group": "text",
+    "messageScale": 0.9,
     "lettering": {"width": 220, "height": 97, "top": 2, "bottom": 95}
   },
   {

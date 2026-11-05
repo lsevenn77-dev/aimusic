@@ -7,18 +7,23 @@ const tabs = {basic: '기본', text: '텍스트', prop: '소품·효과'};
 const token = key => '[aifect:' + key + ']';
 const compactHands = new Set(['cat_hand_thumbsup','cat_hand_ok','cat_hand_peace']);
 
+// Fit to the established message box. A recropped asset keeps the source
+// pixel scale of its original canvas so that its lettering does not grow.
+const wordMetrics = new Map();
+for (const {key, lettering, fitReference, messageScale = 1} of catalog) {
+  if (!lettering) continue;
+  const reference = fitReference ?? lettering;
+  const scale = Math.min(62.7 / reference.width, 38 / reference.height) * messageScale;
+  const height = lettering.height * scale;
+  const above = (lettering.top + lettering.bottom) * scale / 2;
+  wordMetrics.set(key, {width:62.7 * messageScale, height, above, below:height - above});
+}
+
 function image(key, className = '', surface = 'picker') {
-  const {group, label, lettering} = stickers.get(key);
-  let metrics = '';
+  const {group, label, assetVersion} = stickers.get(key);
+  const version = assetVersion ?? (group === 'text' ? 'v2' : 'v1');
   if (surface === 'message' && compactHands.has(key)) className += ' cat-compact-hand';
-  if (surface === 'message' && lettering) {
-    // Top and bottom bound the glyphs within the source image, excluding decorations.
-    const {width, height, top, bottom} = lettering;
-    const belowCentre = (height - (top + bottom) / 2) / height;
-    className += ' cat-word-ink';
-    metrics = ` style="--cat-art-aspect:${height / width};--cat-below-ink:${belowCentre}"`;
-  }
-  return `<img class="${className}"${metrics} src="/assets/chat-stickers/${group === 'text' ? 'v2' : 'v1'}/${group}/${key}.webp" alt="${surface === 'picker' ? '' : label}" draggable="false">`;
+  return `<img class="${className}" src="/assets/chat-stickers/${version}/${group}/${key}.webp" alt="${surface === 'picker' ? '' : label}" draggable="false">`;
 }
 
 // A known token is one atom in both history and the editor. Unknown tokens
@@ -46,9 +51,32 @@ function spacing(key, before, after) {
 }
 
 export function render(body, renderText) {
-  return parts(body).map((part, i, all) => part.key
-    ? image(part.key, spacing(part.key, all[i-1], all[i+1]), 'message')
-    : renderText(part.text)).join('');
+  const all = parts(body);
+  const html = [];
+  const classes = i => spacing(all[i].key, all[i-1], all[i+1]);
+  for (let i = 0; i < all.length;) {
+    const {key, text} = all[i];
+    if (!wordMetrics.has(key)) {
+      html.push(key ? image(key, classes(i), 'message') : renderText(text));
+      i++;
+      continue;
+    }
+    // Adjacent words share just enough ascent and descent for their artwork.
+    // Each stays an independent inline box, including at a soft wrap.
+    const start = i;
+    let above = 0, below = 0;
+    while (i < all.length && wordMetrics.has(all[i].key)) {
+      const metric = wordMetrics.get(all[i++].key);
+      above = Math.max(above, metric.above);
+      below = Math.max(below, metric.below);
+    }
+    for (let j = start; j < i; j++) {
+      const word = wordMetrics.get(all[j].key);
+      const style = `--cat-slot-width:${word.width}px;--cat-slot-height:${above + below}px;--cat-below-ink:${below}px;--cat-art-inset:${above - word.above}px;--cat-art-height:${word.height}px`;
+      html.push(`<span class="cat-word-slot ${classes(j)}" style="${style}">${image(all[j].key, 'cat-chat-sticker cat-word-ink', 'message')}</span>`);
+    }
+  }
+  return html.join('');
 }
 
 export function editor(element) {
