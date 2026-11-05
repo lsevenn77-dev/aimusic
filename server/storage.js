@@ -1,3 +1,4 @@
+import {imageGrant,wantsImageGrant} from './image-mirror.js';
 import {fail} from './db.js';
 export const MAX_AUDIO=80*1024*1024;
 export const originalKey=track=>track.original_key||`original/${track.id}.${track.original_ext}`;
@@ -28,6 +29,10 @@ function matchesEtag(value,etag){
 export async function objectResponse(req,env,key,type,isPublic=false,{imageVersion}={}){
  const head=await env.BUCKET.head(key);if(!head)fail(404,'파일을 찾을 수 없습니다.');
  const image=type.startsWith('image/'),headers={'content-type':type,'accept-ranges':'bytes','cache-control':image?imageCacheControl(req,isPublic,imageVersion):isPublic?'public, max-age=3600':'private, no-store','x-content-type-options':'nosniff'};
+ if(image){
+  headers.vary='X-Aifect-Image-Mirror';
+  if(wantsImageGrant(req,env)){const grant=await imageGrant(req,env,head,type);if(grant)return grant;}
+ }
  if(image&&isPublic){
   const etag=head.httpEtag||(head.etag?`"${head.etag}"`:null);
   if(etag){

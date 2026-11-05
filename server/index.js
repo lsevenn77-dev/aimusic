@@ -1,3 +1,4 @@
+import {imageOriginRequest,imageExportRequest} from './image-mirror.js';
 import {tryPublicOrigin} from './cafe24-origin.js';
 import {queueLyricAnalysis,runLyricBatch,lyricAnalysisAdmin} from './lyric-analysis.js';
 import {followManagement} from './follow-management.js';
@@ -75,6 +76,8 @@ async function fetchRequest(req,env,ctx){
  const url=new URL(req.url),path=url.pathname;
  const fishingClock=path.startsWith('/api/crew-fishing/')?{receivedTime:Date.now(),started:performance.now()}:undefined;
  try{
+  if(url.hostname==='image-origin.aifect.co.kr')return await imageOriginRequest(req,env);
+  if(path.startsWith('/internal/image-mirror/'))return await imageExportRequest(req,env);
   if(path==='/mcp')return await adminMcpRoute(req,env);
   const tossTestResponse=await tossTestCheckoutRoute(req,env,path);if(tossTestResponse)return tossTestResponse;
   const tossGoldTestResponse=await tossGoldTestCheckoutRoute(req,env,path);if(tossGoldTestResponse)return tossGoldTestResponse;

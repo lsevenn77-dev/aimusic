@@ -1,3 +1,4 @@
+import {imageGrant,wantsImageGrant} from './image-mirror.js';
 import {one,rows,run,query,now,id,fail,json,rate} from './db.js';
 import {requireUser} from './auth.js';
 import {readImage,storeImage} from './images.js';
@@ -41,6 +42,7 @@ export async function chatFeaturesRoute(req,env,path,user){
   const item=await one(env,`SELECT i.* FROM crew_chat_images i JOIN crew_members v ON v.crew_id=i.crew_id AND v.user_id=? WHERE i.id=? AND EXISTS(SELECT 1 FROM crew_messages m WHERE m.image_id=i.id AND m.crew_id=i.crew_id AND m.rowid>=v.joined_sequence) AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=v.user_id AND b.blocked_id=i.sender_id) OR (b.blocked_id=v.user_id AND b.user_id=i.sender_id))`,user.id,crewMedia[1]);
   if(!item)fail(404,'이미지를 찾을 수 없어요.');
   if(item.deleted||item.expires<=now())fail(410,'보관 기간 14일이 지난 이미지입니다.');
+  if(wantsImageGrant(req,env)){const grant=await imageGrant(req,env,await env.BUCKET.head(item.object_key),'image/webp');if(grant)return grant;}
   const object=await env.BUCKET.get(item.object_key);if(!object)fail(410,'이미지 보관 기간이 만료되었어요.');
   return new Response(method==='HEAD'?null:object.body,{headers:{'content-type':'image/webp','cache-control':'private, no-store','x-content-type-options':'nosniff'}});
  }
@@ -51,6 +53,7 @@ export async function chatFeaturesRoute(req,env,path,user){
   if(!item)fail(404,'이미지를 찾을 수 없어요.');
   if(item.recipient_id===user.id&&!await one(env,'SELECT 1 FROM direct_messages WHERE image_id=? AND recipient_id=?',item.id,user.id))fail(404,'이미지를 찾을 수 없어요.');assertUnblocked(env,item.sender_id===user.id?item.recipient_id:item.sender_id);
   if(item.deleted||item.expires<=now())fail(410,'보관 기간 14일이 지난 이미지입니다.');
+  if(wantsImageGrant(req,env)){const grant=await imageGrant(req,env,await env.BUCKET.head(item.object_key),'image/webp');if(grant)return grant;}
   const object=await env.BUCKET.get(item.object_key);if(!object)fail(410,'이미지 보관 기간이 만료되었어요.');
   return new Response(method==='HEAD'?null:object.body,{headers:{'content-type':'image/webp','cache-control':'private, no-store','x-content-type-options':'nosniff'}});
  }
@@ -115,9 +118,13 @@ export async function chatFeaturesRoute(req,env,path,user){
  m=path.match(/^\/media\/crew\/([\w-]+)$/);
  if(m&&['GET','HEAD'].includes(method)){
   const crew=await one(env,'SELECT image_version FROM crews WHERE id=?',m[1]);if(!crew?.image_version)fail(404,'대표 이미지가 없습니다.');
-  const object=await env.BUCKET.get(`images/crew/${m[1]}/${crew.image_version}`);if(!object)fail(404,'이미지를 찾을 수 없어요.');
+  const key=`images/crew/${m[1]}/${crew.image_version}`;
+  if(wantsImageGrant(req,env)){
+   const head=await env.BUCKET.head(key),grant=await imageGrant(req,env,head,head?.httpMetadata?.contentType||'image/webp');if(grant)return grant;
+  }
+  const object=await env.BUCKET.get(key);if(!object)fail(404,'이미지를 찾을 수 없어요.');
   const current=new URL(req.url).searchParams.get('v')===crew.image_version;
-  return new Response(method==='HEAD'?null:object.body,{headers:{'x-crew-image-version':crew.image_version,'content-type':object.httpMetadata?.contentType||'image/webp','cache-control':current?'public, max-age=2592000, immutable':'no-cache','x-content-type-options':'nosniff'}});
+  return new Response(method==='HEAD'?null:object.body,{headers:{'vary':'X-Aifect-Image-Mirror','x-crew-image-version':crew.image_version,'content-type':object.httpMetadata?.contentType||'image/webp','cache-control':current?'public, max-age=2592000, immutable':'no-cache','x-content-type-options':'nosniff'}});
  }
  return null;
 }

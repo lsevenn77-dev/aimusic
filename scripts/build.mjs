@@ -1,3 +1,4 @@
+import {buildPublicImageAssets} from './public-image-assets.mjs';
 import {buildOrigin} from '../ops/cafe24/build-origin.mjs';
 import {builtinModules} from 'node:module';
 import { build } from 'esbuild';
@@ -10,6 +11,7 @@ import {regionTokenCSS} from './ui-region-tokens.mjs';
 import {readdir} from 'node:fs/promises';
 await mkdir('dist/server',{recursive:true});
 await mkdir('dist/client',{recursive:true});
+await cp('shared/public-image-client.js', 'dist/client/public-image-client.js');
 await cp('shared/crew-jump.js','dist/client/crew-jump-core.js');
 for(const name of ['crew-game-lobby.js','crew-game-lobby.css','crew-jump-view.js','crew-jump.css','crew-jump-art','crew-rhythm','crew-racing','crew-fishing'])await cp('dist/'+name,'dist/client/'+name,{recursive:true});
 for(const file of ['artist-fanpage.js','artist-fanpage.css'])await cp('dist/'+file,'dist/client/'+file);
@@ -105,13 +107,12 @@ await cp('dist/cover-export.js','dist/client/cover-export.js');
 // These immutable filenames live in a versioned folder on the static asset host.
 // Keep the source copies outside dist, since Sites packages the entire dist tree.
 await cp('assets/products/bunnies-v1','dist/client/assets/products/bunnies-v1',{recursive:true});
-await writeFile('dist/client/_headers','/assets/products/bunnies-v1/*\n  Cache-Control: public, max-age=31536000, immutable\n');
 await build({entryPoints:['shared/cover-mp3-worker.js'],outfile:'dist/client/cover-mp3-worker.js',bundle:true,format:'esm',target:'es2022',external:['./third-party/lamejs-1.2.7/lamejs.js']});
 await build({entryPoints:['shared/lyrics.js'],outfile:'dist/client/lyrics-core.js',bundle:true,format:'iife',globalName:'AifectLyrics',target:'es2022',minify:true});
 // Sites serves matching static assets before the Worker. Keep the app shell at
 // a non-index path so / and /index.html always reach the live catalog renderer.
 // A .txt asset avoids HTML canonical redirects when fetched through ASSETS.
-await writeFile('dist/client/aifect-shell.txt',await bundleClient(indexHTML.replace('<!--BUSINESS_FOOTER-->',businessFooterHTML()),pathToFileURL(resolve('dist/client')+sep)));
+await writeFile('dist/client/aifect-shell.txt',await bundleClient((await buildPublicImageAssets(indexHTML)).replace('<!--BUSINESS_FOOTER-->',businessFooterHTML()),pathToFileURL(resolve('dist/client')+sep)));
 await rm('dist/client/index.html',{force:true});
 const originRevision=await buildOrigin();
 await build({define:{__CAFE24_BUILD__:JSON.stringify(originRevision)},entryPoints:['server/index.js'], outfile:'dist/server/index.js', bundle:true, format:'esm', platform:'neutral', mainFields:['module','main'], alias:{'node-fetch':resolve('server/apple-fetch.js')}, banner:{js:"import {createRequire as appleCreateRequire} from 'node:module'; const require=appleCreateRequire('/aifect-worker.js');"}, target:'es2022', external:['cloudflare:workers',...builtinModules,...builtinModules.map(x=>'node:'+x)], minify:false});
