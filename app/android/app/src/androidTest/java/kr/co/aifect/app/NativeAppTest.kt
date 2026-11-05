@@ -158,6 +158,7 @@ class NativeAppTest {
       path=="/api/uploads/cover-fixture"&&method=="DELETE"->{coverDeleted.set(true);payload("ok" to true)}
       path=="/api/me"->payload("user" to if(logged.get())user else null,"membership" to if(qualityTest&&logged.get())payload("plan" to "premium","premium_until" to user.optLong("premium_until"))else JSONObject(),"providers" to JSONArray(),"emailEnabled" to true)
       path=="/api/auth/login"->{logged.set(true);cookie="Set-Cookie: aifect_session=fixture; Path=/; HttpOnly\r\n";payload("user" to user)}
+      path=="/api/tracks/fixture/report"->{check(method=="POST"&&body.optString("reason")=="low_quality");reported.set(true);payload("reported" to true)}
       path=="/api/blocks/other"->{check(method=="PUT"||method=="DELETE");followed.set(method=="PUT");payload("ok" to true)}
       path=="/api/blocks"->payload("blocks" to if(followed.get())JSONArray().put(payload("id" to "other","name" to "차단 테스트"))else JSONArray())
       path=="/api/account/delete"->{check(method=="POST"&&body.optString("confirmation")=="DELETE"&&body.optString("account_id")=="test-user");logged.set(false);payload("deleted" to true)}
@@ -923,6 +924,14 @@ class NativeAppTest {
  @Test fun safetyFlowConfirmsIdentityAndPurgesAccount(){
   val model=AtomicReference<MusicModel>();screen.onActivity{model.set(androidx.lifecycle.ViewModelProvider(it)[MusicModel::class.java])}
   ui.waitUntil(16000){model.get().user!=null&&!model.get().refreshing}
+  ui.runOnIdle{model.get().openSong(Song(song))}
+  ui.onNodeWithTag("song-menu").performClick();ui.onNodeWithText("음원 문제 신고").performClick()
+  ui.onNodeWithText("신고 접수").performClick();ui.waitUntil(10000){reported.get()&&!model.get().busy}
+  ui.runOnIdle{model.get().detail=null;model.get().showDiamonds=true}
+  val secure=AtomicBoolean(false)
+  fun readSecure(){screen.onActivity{secure.set(it.window.attributes.flags and android.view.WindowManager.LayoutParams.FLAG_SECURE!=0)}}
+  ui.waitUntil(10000){readSecure();secure.get()};ui.runOnIdle{model.get().showDiamonds=false}
+  ui.waitUntil(10000){readSecure();!secure.get()}
   ui.runOnIdle{model.get().openProfile("person")}
   ui.waitUntil(10000){ui.onAllNodesWithText("차단 · 신고").fetchSemanticsNodes().isNotEmpty()}
   ui.onNodeWithText("차단 · 신고").performScrollTo().performClick();ui.onNodeWithText("이용자 차단").performClick()
