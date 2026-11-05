@@ -46,7 +46,7 @@ class MobileExperienceDeviceTest {
   Endpoint.configureTest(origin);check(Endpoint.origin==origin&&CurrentNavigation.safeID(id!!))
   ActivityScenario.launch<MobileExperienceActivity>(Intent(context,MobileExperienceActivity::class.java).putExtra("route","live/"+id)).use{scene->
    lateinit var w:WebView;scene.onActivity{w=web(it.window.decorView)!!}
-   val open="[data-voice=karaoke-search-open]";waitJs(w,"!!document.querySelector("+JSONObject.quote(open)+")",45000);tap(w,open)
+   val open="[data-voice=karaoke-search-open]";waitJs(w,"!!document.querySelector("+JSONObject.quote(open)+")",45000);waitJs(w,"!!document.getElementById('aifect-mobile-experience') && document.documentElement.scrollWidth<=innerWidth+2");capture("karaoke-reference-room");tap(w,open)
    waitJs(w,"!!document.querySelector('#live-query')");tap(w,"#live-query")
    val deadline=SystemClock.elapsedRealtime()+10000;var ime=false
    while(!ime&&SystemClock.elapsedRealtime()<deadline){scene.onActivity{ime=androidx.core.view.ViewCompat.getRootWindowInsets(w)?.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime())==true};SystemClock.sleep(100)}

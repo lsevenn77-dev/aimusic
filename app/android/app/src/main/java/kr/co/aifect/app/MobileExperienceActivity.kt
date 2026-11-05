@@ -58,6 +58,7 @@ class MobileExperienceActivity:ComponentActivity(){
   button("‹","크루로 돌아가기"){requestLeave()}
   headerLabel=TextView(this).apply{text=MobileExperienceRoute.title(route);textSize=17f;setTextColor(Color.WHITE);maxLines=1;ellipsize=android.text.TextUtils.TruncateAt.END};bar.addView(headerLabel,LinearLayout.LayoutParams(0,dp(48),1f));headerLabel.gravity=Gravity.CENTER_VERTICAL
   button("⛶","전체 화면"){if(bar.visibility==View.VISIBLE){bar.visibility=View.GONE;Toast.makeText(this,"뒤로가기를 누르면 메뉴가 다시 보여요",Toast.LENGTH_SHORT).show()}}
+  if(route.startsWith("live/"))bar.visibility=View.GONE
   content.addView(bar)
   loadingBar=ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);content.addView(loadingBar,LinearLayout.LayoutParams(-1,dp(2)))
   web=WebView(this).apply{
@@ -104,7 +105,7 @@ class MobileExperienceActivity:ComponentActivity(){
   }
   content.addView(web,LinearLayout.LayoutParams(-1,0,1f));setContentView(root)
   ViewCompat.setOnApplyWindowInsetsListener(root){v,insets->val b=insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.ime());v.setPadding(b.left,b.top,b.right,b.bottom);insets}
-  onBackPressedDispatcher.addCallback(this,object:OnBackPressedCallback(true){override fun handleOnBackPressed(){when{custom!=null->hideCustom();bar.visibility==View.GONE->bar.visibility=View.VISIBLE;else->requestLeave()}}})
+  onBackPressedDispatcher.addCallback(this,object:OnBackPressedCallback(true){override fun handleOnBackPressed(){when{custom!=null->hideCustom();!route.startsWith("live/")&&bar.visibility==View.GONE->bar.visibility=View.VISIBLE;else->requestLeave()}}})
   val cookies=CookieManager.getInstance()
   cookies.removeAllCookies{
    if(isFinishing)return@removeAllCookies
@@ -143,31 +144,15 @@ internal fun mobileExperienceScript(route:String):String {
  .wrap{width:100%;max-width:100%;box-sizing:border-box}
  .cgl-nav{flex-wrap:wrap}.arcade-lobby{padding:12px!important}
  @media(max-width:600px){.cgl-layout{grid-template-columns:minmax(0,1fr)!important}.cgl-start{min-height:48px}}
- """.trimIndent()+if(live)"""
- body.voice-room-open .page-wrap{margin:0!important;width:100%!important}
- body.voice-room-open #main{padding:8px!important}
- #main:has(>.voice-room){background:transparent!important}
- .voice-room{min-height:0!important;height:calc(100dvh - 16px)!important;max-height:none!important;border:0!important;border-radius:20px!important;background:transparent!important}
- #main .voice-room .room-header{background:transparent;border:0;padding:4px}
- #main .voice-room .room-header h1{font-size:16px}
- #main .voice-room .room-header nav{margin-left:auto}
- #main .voice-room .voice-columns{grid-template-rows:minmax(280px,67%) minmax(0,1fr);gap:8px}
- #main .voice-room .voice-stage{padding:0 4px 4px}
- #main .live-karaoke-room #live-karaoke-stage{grid-template-rows:minmax(0,1fr) auto;gap:8px}
- .live-stage-main{border:1px solid #b7a4e199!important;border-radius:22px!important;background:radial-gradient(ellipse at 20% 35%,#5743a34d,transparent 70%),linear-gradient(135deg,#171d34d9,#28264ad9)!important;padding:18px 12px!important}
- .live-lyrics{min-height:90px!important;font-size:22px!important;line-height:1.8!important}
- #main .live-karaoke-room .live-stage-main{padding:10px!important;gap:6px;flex-shrink:1}
- #main .live-karaoke-room .live-song{font-size:17px;white-space:normal;flex-shrink:0}
- #main .live-karaoke-room .live-request-area{margin:0;padding:6px!important;gap:6px}
- #main .live-karaoke-room .live-queue{max-height:none;height:62px;min-height:62px;padding:0!important}
- #main .live-karaoke-room .live-queue:has(.live-queue-empty){height:32px;min-height:32px}
- #main .live-karaoke-room .live-queue li:not(.live-queue-empty){min-width:155px;padding:4px 6px}
- .live-request-area,.voice-chat{border:1px solid #b7a4e170!important;border-radius:20px!important;background:#1b2136b0!important}
- .live-request-button{background:linear-gradient(110deg,#acf5de,#56e5d9)!important;color:#081625!important;border-radius:28px!important;min-height:52px!important}
- #main .live-karaoke-room .live-request-button :is(small,svg){color:#173d48!important}
- #main .voice-room .voice-chat-panel{padding:8px;border:1px solid #b7a4e170;border-radius:20px;background:#1b2136b0}
- #main .voice-room .voice-chat{padding:8px;border:0!important;background:transparent!important}
- .live-queue{padding:12px!important}.voice-chat-form input{font-size:16px!important}
- """.trimIndent() else ""
- return "(()=>{let s=document.getElementById('aifect-mobile-experience');if(!s){s=document.createElement('style');s.id='aifect-mobile-experience';document.head.append(s)}s.textContent="+JSONObject.quote(css)+";let v=document.querySelector('meta[name=viewport]');if(v)v.content='width=device-width, initial-scale=1, viewport-fit=cover';window.dispatchEvent(new Event('resize'));})()"
+ """.trimIndent()
+ // For rooms the server supplies the reviewed stage, empty queue, themes, sheets and
+ // chat composer. Only remove the outer website navigation inside this Activity.
+ val roomCss="""
+ :root{color-scheme:dark;--sidebar:0px}
+ html,body{margin:0;max-width:100%;overscroll-behavior:none;background-color:#0c121b}
+ .sidebar,.topbar,html body .page-footer,.mobile-navigation,#menu-backdrop,body>.player{display:none!important}
+ body.voice-room-open .page-wrap,.page-wrap:has(.voice-room){width:100%!important;margin:0!important;min-height:0!important}
+ #main:has(>.voice-room){width:100%!important;max-width:none!important;margin:0!important;padding:0!important}
+ """.trimIndent()
+ return "(()=>{let s=document.getElementById('aifect-mobile-experience');if(!s){s=document.createElement('style');s.id='aifect-mobile-experience';document.head.append(s)}s.textContent="+JSONObject.quote(if(live)roomCss else css)+";let v=document.querySelector('meta[name=viewport]');if(v)v.content='width=device-width, initial-scale=1, viewport-fit=cover';window.dispatchEvent(new Event('resize'));})()"
 }

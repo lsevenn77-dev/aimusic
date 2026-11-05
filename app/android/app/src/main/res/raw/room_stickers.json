@@ -1,0 +1,340 @@
+[
+  {
+    "key": "cat_basic_laugh",
+    "label": "웃음",
+    "group": "basic"
+  },
+  {
+    "key": "cat_basic_excited",
+    "label": "신남",
+    "group": "basic"
+  },
+  {
+    "key": "cat_basic_love",
+    "label": "사랑",
+    "group": "basic"
+  },
+  {
+    "key": "cat_basic_lol",
+    "label": "폭소",
+    "group": "basic"
+  },
+  {
+    "key": "cat_basic_heart",
+    "label": "하트",
+    "group": "basic"
+  },
+  {
+    "key": "cat_basic_smile",
+    "label": "방긋",
+    "group": "basic"
+  },
+  {
+    "key": "cat_basic_surprised",
+    "label": "놀람",
+    "group": "basic"
+  },
+  {
+    "key": "cat_basic_cool",
+    "label": "멋짐",
+    "group": "basic"
+  },
+  {
+    "key": "cat_basic_sleep",
+    "label": "잠자기",
+    "group": "basic"
+  },
+  {
+    "key": "cat_basic_teary",
+    "label": "울먹",
+    "group": "basic"
+  },
+  {
+    "key": "cat_basic_curious",
+    "label": "궁금",
+    "group": "basic"
+  },
+  {
+    "key": "cat_basic_touched",
+    "label": "감동",
+    "group": "basic"
+  },
+  {
+    "key": "cat_basic_cry",
+    "label": "눈물",
+    "group": "basic"
+  },
+  {
+    "key": "cat_basic_angry",
+    "label": "화남",
+    "group": "basic"
+  },
+  {
+    "key": "cat_basic_furious",
+    "label": "분노",
+    "group": "basic"
+  },
+  {
+    "key": "cat_basic_amazed",
+    "label": "감탄",
+    "group": "basic"
+  },
+  {
+    "key": "cat_basic_dizzy",
+    "label": "어지러움",
+    "group": "basic"
+  },
+  {
+    "key": "cat_basic_gloomy",
+    "label": "시무룩",
+    "group": "basic"
+  },
+  {
+    "key": "cat_basic_playful",
+    "label": "장난",
+    "group": "basic"
+  },
+  {
+    "key": "cat_basic_grin",
+    "label": "활짝",
+    "group": "basic"
+  },
+  {
+    "key": "cat_basic_wink",
+    "label": "윙크",
+    "group": "basic"
+  },
+  {
+    "key": "cat_basic_joy",
+    "label": "기쁨",
+    "group": "basic"
+  },
+  {
+    "key": "cat_basic_cheer",
+    "label": "응원",
+    "group": "basic"
+  },
+  {
+    "key": "cat_basic_party",
+    "label": "축하",
+    "group": "basic"
+  },
+  {
+    "key": "cat_basic_happy",
+    "label": "행복",
+    "group": "basic"
+  },
+  {
+    "key": "cat_basic_hehe",
+    "label": "헤헷",
+    "group": "basic"
+  },
+  {
+    "key": "cat_basic_shy",
+    "label": "부끄",
+    "group": "basic"
+  },
+  {
+    "key": "cat_basic_clap",
+    "label": "박수",
+    "group": "basic"
+  },
+  {
+    "key": "cat_basic_sing",
+    "label": "노래",
+    "group": "basic"
+  },
+  {
+    "key": "cat_basic_hello",
+    "label": "안녕",
+    "group": "basic"
+  },
+  {
+    "key": "cat_basic_thumbsup",
+    "label": "따봉",
+    "group": "basic"
+  },
+  {
+    "key": "cat_basic_like",
+    "label": "좋아",
+    "group": "basic"
+  },
+  {
+    "key": "cat_basic_thanks",
+    "label": "고마워",
+    "group": "basic"
+  },
+  {
+    "key": "cat_hand_thumbsup",
+    "label": "따봉",
+    "group": "hand"
+  },
+  {
+    "key": "cat_hand_ok",
+    "label": "오케이",
+    "group": "hand"
+  },
+  {
+    "key": "cat_hand_clap",
+    "label": "박수",
+    "group": "hand"
+  },
+  {
+    "key": "cat_hand_wave",
+    "label": "손인사",
+    "group": "hand"
+  },
+  {
+    "key": "cat_hand_finger_heart",
+    "label": "하트",
+    "group": "hand"
+  },
+  {
+    "key": "cat_hand_heart",
+    "label": "하트손",
+    "group": "hand"
+  },
+  {
+    "key": "cat_hand_peace",
+    "label": "브이",
+    "group": "hand"
+  },
+  {
+    "key": "cat_hand_fighting",
+    "label": "파이팅",
+    "group": "hand"
+  },
+  {
+    "key": "cat_hand_thanks",
+    "label": "감사",
+    "group": "hand"
+  },
+  {
+    "key": "cat_text_gamdong",
+    "label": "감동",
+    "group": "text",
+    "messageScale": 0.9,
+    "lettering": {"width": 220, "height": 111, "top": 18, "bottom": 109}
+  },
+  {
+    "key": "cat_text_meotjyeo",
+    "label": "멋져~",
+    "group": "text",
+    "lettering": {"width": 220, "height": 106, "top": 21, "bottom": 104}
+  },
+  {
+    "key": "cat_text_onepick",
+    "label": "원픽",
+    "group": "text",
+    "messageScale": 0.9,
+    "lettering": {"width": 220, "height": 137, "top": 34, "bottom": 135}
+  },
+  {
+    "key": "cat_text_best",
+    "label": "최고",
+    "group": "text",
+    "assetVersion": "v3",
+    "fitReference": {"width": 186, "height": 152},
+    "lettering": {"width": 184, "height": 132, "top": 39, "bottom": 131}
+  },
+  {
+    "key": "cat_text_gutsong",
+    "label": "굿송!",
+    "group": "text",
+    "lettering": {"width": 220, "height": 84, "top": 2, "bottom": 82}
+  },
+  {
+    "key": "cat_text_nice",
+    "label": "Nice",
+    "group": "text",
+    "lettering": {"width": 220, "height": 97, "top": 21, "bottom": 95}
+  },
+  {
+    "key": "cat_text_wow",
+    "label": "Wow!",
+    "group": "text",
+    "lettering": {"width": 220, "height": 73, "top": 2, "bottom": 71}
+  },
+  {
+    "key": "cat_text_wa",
+    "label": "와~!",
+    "group": "text",
+    "messageScale": 0.9,
+    "lettering": {"width": 220, "height": 97, "top": 2, "bottom": 95}
+  },
+  {
+    "key": "cat_prop_heart",
+    "label": "하트",
+    "group": "prop"
+  },
+  {
+    "key": "cat_prop_blue_heart",
+    "label": "하트(블루)",
+    "group": "prop"
+  },
+  {
+    "key": "cat_prop_star",
+    "label": "별",
+    "group": "prop"
+  },
+  {
+    "key": "cat_prop_shooting_star",
+    "label": "유성",
+    "group": "prop"
+  },
+  {
+    "key": "cat_prop_moon",
+    "label": "달",
+    "group": "prop"
+  },
+  {
+    "key": "cat_prop_sun",
+    "label": "해",
+    "group": "prop"
+  },
+  {
+    "key": "cat_prop_cloud",
+    "label": "구름",
+    "group": "prop"
+  },
+  {
+    "key": "cat_prop_snowflake",
+    "label": "눈꽃",
+    "group": "prop"
+  },
+  {
+    "key": "cat_prop_note",
+    "label": "음표",
+    "group": "prop"
+  },
+  {
+    "key": "cat_prop_sparkle",
+    "label": "반짝",
+    "group": "prop"
+  },
+  {
+    "key": "cat_prop_exclaim",
+    "label": "느낌표",
+    "group": "prop"
+  },
+  {
+    "key": "cat_prop_confetti",
+    "label": "폭죽",
+    "group": "prop"
+  },
+  {
+    "key": "cat_prop_cake",
+    "label": "케이크",
+    "group": "prop"
+  },
+  {
+    "key": "cat_prop_gift",
+    "label": "선물",
+    "group": "prop"
+  },
+  {
+    "key": "cat_prop_crown",
+    "label": "왕관",
+    "group": "prop"
+  }
+]
