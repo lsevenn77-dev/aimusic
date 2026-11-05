@@ -182,16 +182,19 @@ export function createStickerEditor(element, {fragment, token, spacing, limit, o
     element.dispatchEvent(new Event('input', {bubbles:true}));
     // The picker holds focus. Reveal the inserted image inside the scrollable
     // editor without moving the page, changing the selection or reopening IME.
-    if (dm && fromPicker && last instanceof HTMLImageElement && element.scrollHeight > element.clientHeight) {
+    if (fromPicker) revealSticker(last);
+    return true;
+  }
+  function revealSticker(img) {
+    if (dm && img instanceof HTMLImageElement && element.contains(img) && element.scrollHeight > element.clientHeight) {
       const viewportTop = element.getBoundingClientRect().top + element.clientTop;
       const padding = getComputedStyle(element);
       const top = viewportTop + parseFloat(padding.paddingTop);
       const bottom = viewportTop + element.clientHeight - parseFloat(padding.paddingBottom);
-      const art = last.getBoundingClientRect();
+      const art = img.getBoundingClientRect();
       if (art.top < top) element.scrollTop -= Math.ceil(top - art.top);
       else if (art.bottom > bottom) element.scrollTop += Math.ceil(art.bottom - bottom);
     }
-    return true;
   }
   function removeSticker(event, backwards) {
     const range = currentRange();
@@ -264,7 +267,18 @@ export function createStickerEditor(element, {fragment, token, spacing, limit, o
   return {get:() => composing && dm ? accepted : read(element), set, insertSticker:key => insert(token(key),false,true), remember,
     insertionWarning:()=>notice || lengthWarning,
     canSend() {if (!dm) return true; if (composing) return false; const {warning}=dmBodyStats(read(element)); if (warning) onWarning(warning); return !warning;},
-    focus() {element.focus({preventScroll:true}); if (caret) restore(caret);},
+    focus() {
+      element.focus({preventScroll:true});
+      if (!caret) return;
+      restore(caret);
+      // Mobile WebKit scrolls to the caret when focus returns from the picker.
+      // Keep the whole image preceding that caret visible after native layout.
+      if (dm) requestAnimationFrame(() => {
+        const range = currentRange();
+        if (document.activeElement === element && range?.collapsed)
+          revealSticker(range.startContainer.childNodes[range.startOffset-1]);
+      });
+    },
     disable() {element.contentEditable = 'false'; element.setAttribute('aria-disabled','true');},
     destroy() {events.abort();counter?.remove();}
   };

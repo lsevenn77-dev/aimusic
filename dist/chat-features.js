@@ -15,7 +15,7 @@ function bindDmEmoji(form,input,editor){
  };
  const close=()=>{show(false);editor.focus();};
  const stickers=AifectStickers.bind({picker,form,input,toggle,inline:editor,close,glyph:voiceGlyph});
- toggle.addEventListener('pointerdown',editor.remember,options);
+ toggle.addEventListener('pointerdown',()=>{if(picker.hidden)editor.remember();},options);
  toggle.addEventListener('click',()=>{if(input.contentEditable!=='false'){if(picker.hidden)show(true);else close();}},options);
  const outside=event=>{if(!picker.hidden&&!picker.contains(event.target)&&!toggle.contains(event.target))show(false);};
  document.addEventListener('pointerdown',outside,options);
