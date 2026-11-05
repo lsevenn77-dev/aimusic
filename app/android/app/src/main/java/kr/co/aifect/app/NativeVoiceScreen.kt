@@ -71,7 +71,7 @@ import java.net.URLEncoder
    val narrow=maxWidth<350.dp
    Row(verticalAlignment=Alignment.CenterVertically,modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)){
     RoomTitle(room,members.size,Modifier.weight(1f))
-    val tools=if(narrow)listOf("members","sound","more","leave")else listOf("inbox","members","sound","share","room","leave")
+    val tools=if(narrow)listOf("members","sound","more","leave")else listOfNotNull("inbox","members","sound","share","room".takeIf{host},"leave")
     tools.forEach{key->val (icon,label)=when(key){"inbox"->Icons.Outlined.MailOutline to "메시지";"members"->Icons.Outlined.Group to "참여자";"sound"->Icons.Outlined.Tune to "소리 설정";"share"->Icons.Outlined.Share to "공유";"room"->Icons.Outlined.Settings to "방 설정";"more"->Icons.Outlined.MoreHoriz to "더보기";else->Icons.Outlined.Logout to "방 나가기"}
      IconButton({when(key){"leave"->panel="leave";"share"->context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT,room.optString("title")+"\nhttps://aifect.co.kr/#voice/"+engine.roomId),"토킹룸 공유"));else->panel=key}},Modifier.size(44.dp)){Icon(icon,label,Modifier.size(18.dp),tint=SoftText)}
     }
@@ -105,6 +105,10 @@ import java.net.URLEncoder
    Row(Modifier.fillMaxWidth().padding(top=7.dp,bottom=4.dp).roomGlass(18).heightIn(min=44.dp).padding(horizontal=10.dp),verticalAlignment=Alignment.CenterVertically){
     Text(if(self?.optBoolean("requested")==true)"좌석 신청 · 승인 대기" else if(self?.isNull("seat")!=false)"대화 청취 중" else if(mic)"내 마이크 켜짐" else "내 마이크 꺼짐",fontSize=12.sp,lineHeight=17.sp,color=if(self?.optBoolean("requested")==true)SeatRequestGreen else Muted,modifier=Modifier.weight(1f))
     if(self?.optBoolean("requested")==true)TextButton({action("cancel-mic")}){Text("신청 취소")}
+    if(self!=null&&self.isNull("seat")&&!self.optBoolean("requested")){
+     val vacancy=(1..7).firstOrNull{seat->members.none{p->!p.isNull("seat")&&p.optInt("seat")==seat}}
+     TextButton({vacancy?.let{action("request-mic",payload("seat" to it))}},enabled=vacancy!=null){Text(if(vacancy==null)"빈 좌석 없음" else "말하기 참여",fontSize=13.sp,color=Aqua)}
+    }
     if(self?.isNull("seat")==false){
      Switch(checked=mic,onCheckedChange={if(mic)engine.launch{engine.microphone(false)}else enableMicrophone()},enabled=!self.optBoolean("locked"),modifier=Modifier.testTag("voice-microphone").semantics{contentDescription=if(mic)"내 마이크 끄기" else "내 마이크 켜기"})
      if(!host)IconButton({action("release-mic")}){Icon(Icons.Outlined.Logout,"좌석 내려가기",tint=Muted)}
@@ -148,7 +152,7 @@ import java.net.URLEncoder
    "emoji"->RoomStickerPicker{token->if(message.length+token.length<=500){message+=token;messageId=requestIdentity();panel=""}}
    "gift-target"->{Text("선물 받을 사람",style=MaterialTheme.typography.titleMedium);val recipients=members.filter{it.optString("id")!=state.optString("self")};if(recipients.isEmpty())Text("다른 참여자가 들어오면 선물할 수 있어요.",color=Muted);recipients.forEach{p->TextButton({target=p;panel="gift"}){NativeMemberAvatar(p,28);Text(p.optString("name"),Modifier.padding(start=8.dp))}}}
    "leave"->{Text("토킹룸에서 나갈까요?");Button(leave){Text("나가기")}}
-   "more"->{TextButton({panel="inbox"}){Text("메시지")};TextButton({panel="room"}){Text("방 설정")};TextButton({context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT,"https://aifect.co.kr/#voice/"+engine.roomId),"토킹룸 공유"));panel=""}){Text("공유")}}
+   "more"->{TextButton({panel="inbox"}){Text("메시지")};if(host)TextButton({panel="room"}){Text("방 설정")};TextButton({context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT,"https://aifect.co.kr/#voice/"+engine.roomId),"토킹룸 공유"));panel=""}){Text("공유")}}
    "inbox"->{val model:MusicModel=androidx.lifecycle.viewmodel.compose.viewModel();val stack=remember{AppPageStack()};Box(Modifier.fillMaxWidth().heightIn(min=230.dp,max=440.dp).height(380.dp)){AppPageHost(stack){if(model.loading)CircularProgressIndicator() else MessagesSheet(model,embedded=true)}}}
    "sound"->NativeVoiceSoundSettings(engine)
    "playlist"->playlistSong?.let{VoicePlaylistPicker(engine.api,it,state.optString("self")){panel=""}}

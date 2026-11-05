@@ -77,7 +77,7 @@ internal fun voiceGiftImage(type:String):String? {
   IconButton(openMusic){Icon(Icons.Outlined.QueueMusic,"함께 듣는 음악",tint=Aqua)}
   Column(Modifier.weight(1f).heightIn(min=48.dp).clickable(onClick=openMusic),verticalArrangement=Arrangement.Center){
    Text(song?.optString("title")?:"함께 들을 음악",fontSize=14.sp,lineHeight=20.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis)
-
+   song?.optString("artist")?.takeIf{it.isNotBlank()}?.let{Text(it,fontSize=12.sp,lineHeight=15.sp,color=Muted,maxLines=1,overflow=TextOverflow.Ellipsis)}
   }
   if(song!=null){
    IconButton(enabled=!busy,onClick={if(loading){retry++;return@IconButton};busy=true;scope.launch{try{e.api.call("/api/tracks/$id/like",if(liked)"DELETE" else "PUT");liked=!liked}catch(x:Exception){if(x is kotlinx.coroutines.CancellationException)throw x;e.error.value=x.message}finally{busy=false}}}){Icon(if(liked)Icons.Outlined.Favorite else Icons.Outlined.FavoriteBorder,if(loading)"좋아요 상태 다시 확인" else if(liked)"좋아요 취소" else "좋아요",tint=if(liked)Pink else Muted)}

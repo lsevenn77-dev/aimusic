@@ -53,7 +53,7 @@ class NativePerformanceTest{
   responses["/api/dubbing/config"]=payload("aiAvailable" to true,"quota" to payload("remaining" to 3))
   responses[path]=payload("project" to project)
   responses["$path/comments"]=payload("comments" to JSONArray())
-  responses["/api/voice/options"]=payload("crews" to JSONArray())
+  responses["/api/voice/options"]=payload("crews" to JSONArray(),"themes" to arr(payload("sku" to "navy","name" to "차분한 다크","paid" to false,"selectable" to true)))
   state=payload("generation" to "native-generation","self" to me,"revision" to 1,"serverNow" to System.currentTimeMillis(),"room" to payload("id" to "native-room","title" to "밤하늘 음악 이야기","host_id" to "host","max_members" to 30,"visibility" to "public"),"members" to arr(payload("id" to "host","profile_id" to "host-profile","name" to "지유","role" to "host","seat" to 0,"muted" to true,"publishing" to false),payload("id" to me,"profile_id" to "mine","name" to "하린","role" to "listener","seat" to null,"muted" to true,"publishing" to false)),"chat" to JSONArray(),"seat_invites" to JSONArray(),"music" to payload("queue" to JSONArray(),"index" to -1))
   val genreImage=ins.context.assets.open("design/dubbing-daily.webp").use{it.readBytes()}
   val giftImage=ins.context.assets.open("design/gifts/lollipop.png").use{it.readBytes()}
@@ -247,7 +247,7 @@ class NativePerformanceTest{
   ui.waitUntil(10000){state.getJSONArray("members").getJSONObject(1).optInt("seat")==1};ui.onNodeWithContentDescription("팝업 닫기").performClick()
   ui.onNodeWithTag("voice-seat-alert").assertDoesNotExist();ui.onNodeWithContentDescription("방 설정").performClick()
   ui.onNodeWithText("자유 착석").performScrollTo().performClick();capture("voice-267-room-settings")
-  ui.onNodeWithText("설정 저장").performScrollTo().performClick()
+  ui.onNodeWithTag("room-submit").performScrollTo().assertIsEnabled().performClick()
   ui.waitUntil(10000){requests.any{it.first.endsWith("/settings")}};assertEquals("free",JSONObject(requests.last{it.first.endsWith("/settings")}.second.toString(Charsets.UTF_8)).getString("seating_mode"))
  }
  @Test fun voiceGiftImagesAnimateOnceAndCallsMuteWithoutLeaving(){
