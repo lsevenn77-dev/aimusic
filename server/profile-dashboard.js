@@ -1,4 +1,4 @@
-import {one,rows,now} from './db.js';
+import {one,rows,query,now} from './db.js';
 import {publicNameSQL} from './identity.js';
 import {VISIBLE} from './catalog.js';
 import {namedArtistSQL} from './artist-identity.js';
@@ -29,14 +29,14 @@ export async function profileDashboard(env,profile,user,profileWorks=false){
  const workBlocks=profileWorks?`AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE
    (b.user_id=?1 AND b.blocked_id IN (SELECT user_id FROM dubbing_recordings WHERE project_id=p.id UNION SELECT owner_id FROM dubbing_projects WHERE id=p.root_id))
    OR (b.blocked_id=?1 AND b.user_id IN (SELECT user_id FROM dubbing_recordings WHERE project_id=p.id UNION SELECT owner_id FROM dubbing_projects WHERE id=p.root_id)))`:'';
- const [identity,crew,artists,dubbings,relations]=await Promise.all([
-  one(env,`SELECT ${publicNumberSQL('u.id')} public_number,(SELECT code FROM public_profile_ids WHERE user_id=u.id) public_id,(SELECT count(*) FROM follows WHERE user_id=u.id) following_count,
+ const [[identityResult,crewResult,artistsResult,dubbingsResult,pinResult],relations]=await Promise.all([env.DB.batch([
+  query(env,`SELECT ${publicNumberSQL('u.id')} public_number,(SELECT code FROM public_profile_ids WHERE user_id=u.id) public_id,(SELECT count(*) FROM follows WHERE user_id=u.id) following_count,
    (SELECT count(*) FROM follows WHERE user_id=u.id AND kind='producer') profile_following_count,
    (SELECT count(*) FROM tracks t WHERE t.user_id=u.id AND t.kind='original' AND ${own?"t.status!='deleted'":VISIBLE()}) produced_track_count,
    (SELECT count(*) FROM tracks t LEFT JOIN tracks dt ON dt.id=t.duet_parent_id WHERE (t.user_id=u.id OR dt.user_id=u.id) AND ${VISIBLE()}) public_track_count FROM users u WHERE u.id=?`,uid),
-  one(env,'SELECT c.id,c.name,c.description,c.image_version,(SELECT count(*) FROM crew_members WHERE crew_id=c.id) members FROM crews c JOIN crew_members cm ON cm.crew_id=c.id WHERE cm.user_id=?',uid),
-  rows(env,`SELECT a.id,a.name,a.image_version,(SELECT count(*) FROM follows f WHERE f.kind='artist' AND f.target_id=a.id AND EXISTS(SELECT 1 FROM users fan WHERE fan.id=f.user_id AND fan.provider!='deleted') AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=f.user_id AND b.blocked_id IN (?,?)) OR (b.blocked_id=f.user_id AND b.user_id IN (?,?))) AND NOT EXISTS(SELECT 1 FROM artist_follow_blocks ab WHERE ab.artist_id=a.id AND ab.user_id=f.user_id)) followers FROM artists a WHERE a.producer_id=? AND ${namedArtistSQL()} ORDER BY a.created DESC,a.id`,user?.id||'',uid,user?.id||'',uid,profile.id),
-  env.DUBBING_ENABLED==='true'?rows(env,`SELECT p.id,p.owner_id,p.title,p.duration,p.state,p.visibility,p.created,p.role_count,p.root_id,p.options_json,${workProjection}${dubAudioReadySQL} audio_ready,(${dubRecruitingSQL()}) recruiting,${publicNameSQL('u')} owner_name,
+  query(env,'SELECT c.id,c.name,c.description,c.image_version,(SELECT count(*) FROM crew_members WHERE crew_id=c.id) members FROM crews c JOIN crew_members cm ON cm.crew_id=c.id WHERE cm.user_id=?',uid),
+  query(env,`SELECT a.id,a.name,a.image_version,(SELECT count(*) FROM follows f WHERE f.kind='artist' AND f.target_id=a.id AND EXISTS(SELECT 1 FROM users fan WHERE fan.id=f.user_id AND fan.provider!='deleted') AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=f.user_id AND b.blocked_id IN (?,?)) OR (b.blocked_id=f.user_id AND b.user_id IN (?,?))) AND NOT EXISTS(SELECT 1 FROM artist_follow_blocks ab WHERE ab.artist_id=a.id AND ab.user_id=f.user_id)) followers FROM artists a WHERE a.producer_id=? AND ${namedArtistSQL()} ORDER BY a.created DESC,a.id`,user?.id||'',uid,user?.id||'',uid,profile.id),
+  env.DUBBING_ENABLED==='true'?query(env,`SELECT p.id,p.owner_id,p.title,p.duration,p.state,p.visibility,p.created,p.role_count,p.root_id,p.options_json,${workProjection}${dubAudioReadySQL} audio_ready,(${dubRecruitingSQL()}) recruiting,${publicNameSQL('u')} owner_name,
    (p.visibility='public' AND EXISTS(SELECT 1 FROM dubbing_projects source JOIN dubbing_sound_jobs j ON j.project_id=source.id AND j.script_key=source.script_key WHERE source.id=COALESCE(p.root_id,p.id) AND source.visibility='public' AND ${dubbingVisibleSQL('source')} AND j.state='ready' AND j.output_key!='')) can_join,
    (SELECT count(*) FROM dubbing_role_claims c WHERE c.project_id=p.id) participants
    FROM dubbing_projects p JOIN users u ON u.id=p.owner_id WHERE u.provider!='deleted' AND p.deleted_at=0
@@ -45,16 +45,19 @@ export async function profileDashboard(env,profile,user,profileWorks=false){
    AND ${own?"(p.owner_id=? OR p.visibility='public')":profileWorks?`p.visibility='public' AND ((${finished}) OR ${openWork})`:"p.visibility='public' AND p.state='complete'"}
    AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=? AND b.blocked_id=p.owner_id) OR (b.blocked_id=? AND b.user_id=p.owner_id))
    ${workBlocks}
-   ORDER BY p.created DESC,p.id`,...(profileWorks?[user?.id||'']:[]),uid,uid,...(profileWorks?[uid]:[]),...(own?[uid]:[]),user?.id||'',user?.id||''):[],
+   ORDER BY p.created DESC,p.id`,...(profileWorks?[user?.id||'']:[]),uid,uid,...(profileWorks?[uid]:[]),...(own?[uid]:[]),user?.id||'',user?.id||''):query(env,'SELECT 1 WHERE 0'),
+  query(env,'SELECT ids_json FROM profile_artist_pins WHERE producer_id=?',profile.id)
+ ]),
   own?[]:relationList(env,uid,user?.id||'')
  ]);
+ const identity=identityResult.results[0],crew=crewResult.results[0]||null,artists=artistsResult.results,dubbings=dubbingsResult.results;
  await profileDubbingParticipation(env,dubbings,user);
  let canParticipate=!!user;
  if(profileWorks&&user&&dubbings.length){
   try{await assertDubbingCreator(env,user.id);}catch(error){if(error.status!==403)throw error;canParticipate=false;}
  }
  for(const p of dubbings)p.can_join=!!user&&!!p.can_join&&(!profileWorks||(canParticipate&&!!p.work_open&&p.owner_id!==user.id&&!p.viewer_claimed));
- const pin=await one(env,'SELECT ids_json FROM profile_artist_pins WHERE producer_id=?',profile.id),pinned=JSON.parse(pin?.ids_json||'[]');artists.sort((a,b)=>(pinned.includes(a.id)?pinned.indexOf(a.id):99)-(pinned.includes(b.id)?pinned.indexOf(b.id):99));
+ const pin=pinResult.results[0],pinned=JSON.parse(pin?.ids_json||'[]');artists.sort((a,b)=>(pinned.includes(a.id)?pinned.indexOf(a.id):99)-(pinned.includes(b.id)?pinned.indexOf(b.id):99));
  return {...identity,profile_work_count:(identity.public_track_count||0)+dubbings.filter(p=>p.state==='complete'&&p.visibility==='public').length,crew,artists,pinned,relations,dubbings:dubbings.map(({options_json,...p})=>({...p,kind:'dubbing',genres:JSON.parse(options_json).genres||[]}))};
 }
 

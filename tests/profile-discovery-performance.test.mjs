@@ -6,7 +6,7 @@ import {partnerState} from '../server/diamonds.js';
 import {partnerBadgeUsers} from '../server/partner-badges.js';
 import {PARTNER_MIN_KRW} from '../shared/gifts.js';
 
-test('ten public creators use two queries while preserving every partner eligibility boundary',async t=>{
+test('ten public creators use one query while preserving every partner eligibility boundary',async t=>{
  const f=await fixture(t),threshold=PARTNER_MIN_KRW*1000;
  const cases=[
   {id:'special',basis:'special',active:1,badge:true},
@@ -33,14 +33,14 @@ test('ten public creators use two queries while preserving every partner eligibi
  let queries=0;
  const env={DB:{prepare(sql){queries++;return f.DB.prepare(sql);}}};
  const profiles=await profileDiscovery(env,'producer');
- assert.equal(profiles.length,10);assert.equal(queries,2,'query count must not grow with the number of cards');
+ assert.equal(profiles.length,10);assert.equal(queries,1,'query count must not grow with the number of cards');
  for(const c of cases){
   const profile=profiles.find(p=>p.id==='p-'+c.id),expected=c.badge?'공식 파트너':null;
   assert.equal(profile.partner_badge,expected,c.id);
   assert.equal(profile.partner_badge,(await partnerState({DB:f.DB},c.id)).badge,c.id+' must agree with the unchanged wallet policy');
   assert.deepEqual(Object.keys(profile).sort(),['id','image_version','name','partner_badge']);
  }
- queries=0;assert.equal((await profileDiscovery(env,'producer','popular',1)).length,1);assert.equal(queries,2);
+ queries=0;assert.equal((await profileDiscovery(env,'producer','popular',1)).length,1);assert.equal(queries,1);
  queries=0;assert.equal((await profileDiscovery(env,'artist')).length,1);assert.equal(queries,1);
  f.sql.exec("UPDATE tracks SET status='hidden'");queries=0;
  assert.deepEqual(await profileDiscovery(env,'producer'),[]);assert.equal(queries,1,'empty lists must not issue a badge query');

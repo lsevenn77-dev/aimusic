@@ -3,7 +3,7 @@ import {queueClassification,classificationFields} from './music-classification.j
 import {nickname,nicknameBatch} from './nicknames.js';
 import {chooseArtist,namedArtistSQL} from './artist-identity.js';
 import {isPremium} from './membership.js';
-import {uploadQuota,requireUploadQuota,completeUpload} from './upload-limits.js';
+import {uploadQuotaQuery,uploadQuotaResult,requireUploadQuota,completeUpload} from './upload-limits.js';
 import {validGenre} from '../shared/genres.js';
 import {one,rows,run,query,now,id,fail,str,json,rate} from './db.js';
 import {requireUser,hash} from './auth.js';
@@ -42,7 +42,14 @@ export async function mediaRoute(req,env,path,user){
   requireUser(user);
   const offset=Number(new URL(req.url).searchParams.get('offset')||0);
   if(!Number.isSafeInteger(offset)||offset<0)fail(400,'작품 목록 위치가 올바르지 않습니다.');
-  return json({producer:await one(env,'SELECT * FROM producers WHERE user_id=?',user.id),artists:await rows(env,`SELECT a.* FROM artists a JOIN producers p ON a.producer_id=p.id WHERE p.user_id=? AND ${namedArtistSQL()}`,user.id),upload_quota:await uploadQuota(env,user),track_total:Number((await one(env,"SELECT COUNT(*) AS total FROM tracks WHERE user_id=? AND status!='deleted'",user.id))?.total||0),tracks:await rows(env,`SELECT t.id,t.title,t.status,t.error,t.created,t.duration,t.genre,t.genres_json,t.moods_json,t.classification_source,(SELECT state FROM music_classification_jobs WHERE track_id=t.id) classification_state,${trackArtworkSQL()},t.producer_id,p.image_version producer_image_version,t.artist_id,t.kind,t.original_id,t.performance_mode,t.cover_mode,t.duet_parent_id,t.duet_part,t.duet_open,o.title original_title,o.has_cover original_has_cover,o.cover_version original_cover_version,j.state alignment_state FROM tracks t LEFT JOIN producers p ON p.id=t.producer_id LEFT JOIN tracks o ON o.id=t.original_id LEFT JOIN lyric_jobs j ON j.track_id=t.id WHERE t.user_id=? AND t.status!='deleted' ORDER BY t.created DESC,t.id DESC LIMIT 100 OFFSET ?`,user.id,offset)});
+  const at=now(),[producer,artists,quota,count,tracks]=await env.DB.batch([
+   query(env,'SELECT * FROM producers WHERE user_id=?',user.id),
+   query(env,`SELECT a.* FROM artists a JOIN producers p ON a.producer_id=p.id WHERE p.user_id=? AND ${namedArtistSQL()}`,user.id),
+   uploadQuotaQuery(env,user,at),
+   query(env,"SELECT COUNT(*) AS total FROM tracks WHERE user_id=? AND status!='deleted'",user.id),
+   query(env,`SELECT t.id,t.title,t.status,t.error,t.created,t.duration,t.genre,t.genres_json,t.moods_json,t.classification_source,(SELECT state FROM music_classification_jobs WHERE track_id=t.id) classification_state,${trackArtworkSQL()},t.producer_id,p.image_version producer_image_version,t.artist_id,t.kind,t.original_id,t.performance_mode,t.cover_mode,t.duet_parent_id,t.duet_part,t.duet_open,o.title original_title,o.has_cover original_has_cover,o.cover_version original_cover_version,j.state alignment_state FROM tracks t LEFT JOIN producers p ON p.id=t.producer_id LEFT JOIN tracks o ON o.id=t.original_id LEFT JOIN lyric_jobs j ON j.track_id=t.id WHERE t.user_id=? AND t.status!='deleted' ORDER BY t.created DESC,t.id DESC LIMIT 100 OFFSET ?`,user.id,offset)
+  ]);
+  return json({producer:producer.results[0]||null,artists:artists.results,upload_quota:uploadQuotaResult(user,quota.results[0].used,at),track_total:Number(count.results[0]?.total||0),tracks:tracks.results});
  }
  if(path==='/api/studio/profile'&&method==='PUT'){
   requireUser(user);const b=await req.json(),p=await one(env,'SELECT id FROM producers WHERE user_id=?',user.id),pid=p?.id||id();
