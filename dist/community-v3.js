@@ -84,8 +84,9 @@ function bindTalkingDirectory(root){
  function watchEnd(on){
   if(on)observer.observe(sentinel);else observer.unobserve(sentinel);
  }
- function notice(text='',failed=false){
-  message.textContent=text;retry.hidden=!failed;status.hidden=!text;
+ function notice(text='',state=''){
+  status.dataset.state=state;
+  message.textContent=text;retry.hidden=state!=='error';status.hidden=!text;
  }
  function expireCovers(){
   clearTimeout(expiry);let next=Infinity;
@@ -100,7 +101,10 @@ function bindTalkingDirectory(root){
  }
  function ready(){
   sentinel.hidden=done;
-  if(!items.size&&done)notice(search.value.trim()?'검색 결과가 없어요.':'아직 열린 방이 없어요.');
+  if(!items.size&&done&&!composing){
+   if(search.value.trim())notice('검색 결과가 없어요.');
+   else notice('아직 열린 공개방이 없어요.','empty');
+  }
   if(!done)watchEnd(true);
  }
  async function load(){
@@ -127,7 +131,7 @@ function bindTalkingDirectory(root){
    grid.insertAdjacentHTML('beforeend',added.join(''));
    done=!page.next_cursor||page.next_cursor===cursor;cursor=page.next_cursor;
    notice();expireCovers();ready();
-  }catch(e){if(!active.signal.aborted)notice('라이브 목록을 불러오지 못했어요.',true);}
+  }catch(e){if(!active.signal.aborted)notice('라이브 목록을 불러오지 못했어요.','error');}
   finally{clearTimeout(pendingNotice);if(controller===active){controller=null;grid.setAttribute('aria-busy','false');}}
  }
  function reset(){
@@ -147,6 +151,7 @@ function bindTalkingDirectory(root){
   }).slice(0,24);
   if(!refreshTop&&!visible.length)return;
   const active=refreshController=new AbortController();
+  if(status.dataset.state==='empty')notice();
   const params=new URLSearchParams({limit:'24',mode,q:search.value.trim()});
   if(!refreshTop)params.set('ids',visible.map(el=>el.dataset.talkId).join(','));
   try{
@@ -168,10 +173,13 @@ function bindTalkingDirectory(root){
     el.replaceChildren(...next.content.firstElementChild.childNodes);
    }
    root.dataset.enabled=String(page.enabled!==false);if(!create.dataset.opening)create.disabled=page.enabled===false;
+   if(page.enabled===false){notice('라이브 서비스 연결을 준비하고 있어요.');return;}
+   // An ID-only refresh can remove the last visible card without checking new rooms.
+   if(!refreshTop&&!items.size){reset();return;}
    notice();expireCovers();ready();
-   if(page.enabled===false)notice('라이브 서비스 연결을 준비하고 있어요.');
   }catch{
    if(!active.signal.aborted&&!disposed){
+    if(!items.size)notice('라이브 목록을 불러오지 못했어요.','error');
     for(const room of items.values())room.followed_profiles=[];
     grid.querySelectorAll('.talk-follows').forEach(group=>group.remove());
    }
@@ -182,7 +190,7 @@ function bindTalkingDirectory(root){
  window.addEventListener('aifect:follow-saved',refresh);
  document.addEventListener('visibilitychange',refresh);
  // Keep the same native input mounted while results change, including Korean IME composition.
- search.addEventListener('compositionstart',()=>{composing=true;clearTimeout(debounce);});
+ search.addEventListener('compositionstart',()=>{composing=true;clearTimeout(debounce);if(status.dataset.state==='empty')notice();});
  search.addEventListener('compositionend',()=>{composing=false;syncSearch();reset();});
  search.oninput=e=>{syncSearch();if(!composing&&!e.isComposing)reset();};
  search.onkeydown=e=>{
