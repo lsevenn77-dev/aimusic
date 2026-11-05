@@ -1,4 +1,3 @@
-import {homeTracks,homePlaylists} from './home-shelves.js';
 import {followCounts} from './follow-management.js';
 import {unifiedSearch} from './search.js';
 import {assertUnblocked} from './account-safety.js';
@@ -39,10 +38,6 @@ async function accessibleLibrary(env,uid){return playlistSummaries(env,uid,'p.us
 
 export async function discoveryRoute(req,env,path,user){
  const url=new URL(req.url),method=req.method;
- if(method==='GET'&&url.searchParams.get('home')==='1'){
-  if(path==='/api/discovery')return json(await homeTracks(env,url.searchParams.get('slots')));
-  if(path==='/api/playlists')return json({playlists:await homePlaylists(env,user?.id||'')});
- }
  if(path==='/api/discovery/profiles'&&method==='GET'){
   const kind=url.searchParams.get('kind'),sort=url.searchParams.get('sort')||'popular';
   if(!['artist','producer'].includes(kind)||!['popular','latest'].includes(sort))fail(400,'프로필 탐색 조건을 확인해주세요.');

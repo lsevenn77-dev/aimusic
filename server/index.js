@@ -46,6 +46,7 @@ import {trackModerationRoute} from './track-moderation.js';
 import {json,fail,rate,query,now,one,rows} from './db.js';
 import {viewer,authRoute,hash} from './auth.js';
 import {catalogRoute} from './catalog.js';
+import {homeTracks,homePlaylists} from './home-shelves.js';
 import {musicLibraryRoute} from './music-library.js';
 import {mediaRoute,internalRoute} from './media.js';
 import {membershipRoute} from './membership.js';
@@ -138,6 +139,12 @@ async function fetchRequest(req,env,ctx){
   const bots=await aiBotsRoute(req,env,path,user);if(bots)return bots;
   const coverCompression=await coverCompressionAdmin(req,env,path,user);if(coverCompression)return coverCompression;
   env=await blockedContext(env,user);
+  // Keep the home feed in the API Worker. The public HTML renderer shares
+  // catalog helpers with discovery, but must not import home candidate queries.
+  if(req.method==='GET'&&url.searchParams.get('home')==='1'&&(path==='/api/discovery'||path==='/api/playlists')){
+   const data=path==='/api/discovery'?await homeTracks(env,url.searchParams.get('slots')):{playlists:await homePlaylists(env,user?.id||'')};
+   return await filterBlockedResponse(env,json(data));
+  }
   const followPage=await followManagement(req,env,path,user);if(followPage)return followPage;
   if(path.startsWith('/api/crew-fishing/'))return await fishingRoute(req,env,path,user,Date.now(),fishingClock);
   if(path.startsWith('/api/crew-rhythm/'))return await rhythmRoute(req,env,path,user);
