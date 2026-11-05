@@ -32,7 +32,7 @@ test('ordinary already-authorized image is returned directly with zero duplicate
     assert.equal(target,r);
     assert.equal(options.mode,'same-origin');
     assert.equal(options.redirect,'error');
-    assert.equal(options.cache,'no-store');
+    assert.equal(options.cache,'default');
     assert.equal(options.headers.has('if-none-match'),false);
     assert.equal(options.headers.get('authorization'),'Bearer app');
     assert.equal(options.headers.get('X-Aifect-Image-Mirror'),'1');

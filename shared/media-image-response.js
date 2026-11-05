@@ -43,7 +43,7 @@ export async function mediaImageResponse(request, pullOrigin, fetcher = fetch) {
   headers.delete('if-modified-since');
   let timeout;
   try {
-    const authorized = await fetcher(request, {mode: 'same-origin', cache: 'no-store', redirect: 'error', headers});
+    const authorized = await fetcher(request, {mode: 'same-origin', cache: 'default', redirect: 'error', headers});
     // In particular, never try a previous grant or the CDN after an authorization error.
     if (authorized.status < 500 && (authorized.status !== 200 ||
         authorized.headers.get('content-type')?.split(';', 1)[0].trim().toLowerCase() !== 'application/json')) return authorized;

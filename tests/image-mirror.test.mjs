@@ -88,6 +88,16 @@ test('hidden image grants preserve ACLs, stable pull paths, immutable versions a
  bucket.files.delete(key);assert.equal((await call(env,path,owner)).status,404);
 });
 
+test('only current-version public images can reuse a session-specific browser grant',async t=>{
+ const bucket=setupBucket(),f=await fixture(t),env={...environment(bucket),DB:f.DB};
+ bucket.add('images/track/one/v1');
+ f.sql.exec("UPDATE tracks SET has_cover=1,cover_version='v1',cover_type='image/webp' WHERE id='one'");
+ const response=await call(env,'/media/one/cover?v=v1',grantHeader);
+ assert.equal(response.headers.get('cache-control'),'private, max-age=60');
+ assert.match(response.headers.get('vary'),/Cookie, Authorization/);
+ for(const suffix of ['', '?v=old'])assert.equal((await call(env,'/media/one/cover'+suffix,grantHeader)).headers.get('cache-control'),'private, no-store');
+});
+
 test('DM mirror key is withheld from anonymous, unshared, blocked and expired requests',async t=>{
  const f=await fixture(t),bucket=setupBucket(),env={...environment(bucket),DB:f.DB};
  const id='photo',key='chat-images/photo.webp',path='/media/dm/'+id;

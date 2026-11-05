@@ -31,7 +31,15 @@ export async function objectResponse(req,env,key,type,isPublic=false,{imageVersi
  const image=type.startsWith('image/'),headers={'content-type':type,'accept-ranges':'bytes','cache-control':image?imageCacheControl(req,isPublic,imageVersion):isPublic?'public, max-age=3600':'private, no-store','x-content-type-options':'nosniff'};
  if(image){
   headers.vary='X-Aifect-Image-Mirror';
-  if(wantsImageGrant(req,env)){const grant=await imageGrant(req,env,head,type);if(grant)return grant;}
+  if(wantsImageGrant(req,env)){
+   const grant=await imageGrant(req,env,head,type);
+   if(grant){
+    // Only a public, exact-version image already eligible for immutable HTTP caching
+    // may reuse its grant. The browser varies it by session and authorization.
+    if(isPublic && headers['cache-control'].includes('immutable'))grant.headers.set('cache-control','private, max-age=60');
+    return grant;
+   }
+  }
  }
  if(image&&isPublic){
   const etag=head.httpEtag||(head.etag?`"${head.etag}"`:null);
