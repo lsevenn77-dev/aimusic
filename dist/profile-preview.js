@@ -41,7 +41,7 @@ function profilePreviewHTML(d){
  const followers=artist?'tab=artists&amp;artist='+encodeURIComponent(p.id):'tab=followers&amp;user='+encodeURIComponent(p.user_id);
  const affiliation=artist&&p.producer_name?`<span class="preview-affiliation"><span title="${esc(p.producer_name)}">${esc(p.producer_name)}</span> 소속</span>`:'';
  const crew=!artist&&d.crew?`<a class="profile-preview-crew" href="#crew/${encodeURIComponent(d.crew.id)}" title="${esc(d.crew.name)}">${d.crew.badge_url?`<img src="${esc(d.crew.badge_url)}" alt="크루 레벨 ${Number(d.crew.level)}" width="14" height="14">`:''}<span>${esc(d.crew.name)}</span></a>`:'';
- return `<section class="profile-preview-card">
+ return `<section class="profile-preview-card" data-profile-kind="${artist?'artist':'user'}">
  <div class="profile-preview-image-slot"><button type="button" class="profile-preview-photo${playerAvatarClass(p)}" aria-label="프로필 사진 크게 보기">${avatarImage(p,kind,false)}${playerBadgeHTML(p)}</button></div>
  <div class="profile-preview-info"><header class="profile-preview-header">
  <h2 id="profile-preview-title" title="${esc(p.name)}">${esc(p.name)}</h2>

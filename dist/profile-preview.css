@@ -50,25 +50,52 @@ dialog.profile-preview .profile-preview-card {
 .profile-preview-actions :is(a,button)>span {font-size:inherit;font-weight:inherit}
 .profile-preview-actions svg {width:17px;height:17px;flex:none}
 [data-profile-preview] {cursor:pointer}
-@media(max-width:800px) {
- dialog.profile-preview {--preview-photo:57.6px;--preview-photo-slot:76px;--preview-action-size:13px;padding:12px;max-width:calc(100% - 24px)}
- .profile-preview-info {min-height:122px}
- .profile-preview-header h2 {font-size:18px}
- .profile-preview .mp-public-id,.profile-preview-stats {font-size:12px}
- .profile-preview .profile-preview-bio {font-size:13px}
- .profile-preview .profile-preview-actions>:is(button,a) {height:44px;min-height:44px}
-}
-@media(max-width:480px) {
- dialog.profile-preview .profile-preview-card {column-gap:8px}
- .profile-preview-actions {grid-auto-flow:row;grid-template-columns:repeat(2,minmax(0,1fr))}
- .profile-preview-header {min-height:38px}
- .profile-preview-tools {gap:4px}
- .profile-preview-tools .profile-preview-close {margin-inline:0 -8px}
- .profile-preview-tools button:not(.profile-preview-close) {padding-block:10px}
- .profile-preview-stats>*+* {padding-inline-start:5px;margin-inline-start:5px}
-}
-@media(max-width:360px) {
- dialog.profile-preview {--preview-photo:50px;--preview-photo-slot:62px}
- .profile-preview-header {gap:3px}
- .profile-preview-stats :is(.profile-preview-crew,.preview-affiliation) {flex:1 1 0}
+@media (max-width:800px) {
+ dialog.profile-preview {
+  --preview-photo:76px; --preview-action-size:13px;
+  width:calc(100vw - 24px); max-width:440px; padding:14px 15px;
+  max-height:calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  overscroll-behavior:contain;
+ }
+ /* Keep the same accessible controls and data. Only the mobile grid changes their placement. */
+ dialog.profile-preview .profile-preview-card {
+  grid-template-columns:max-content minmax(0,1fr);
+  grid-template-areas:"tools tools" "photo name" "photo id" "bio bio" "stats stats" "actions actions";
+  gap:8px 12px;
+ }
+ dialog.profile-preview .profile-preview-card[data-profile-kind="artist"] {
+  grid-template-areas:"tools tools" "photo name" "bio bio" "stats stats" "actions actions";
+ }
+ .profile-preview-info,.profile-preview-header {display:contents}
+ .profile-preview-image-slot {grid-area:photo;height:auto}
+ .profile-preview-header h2 {grid-area:name;align-self:end;font-size:18px;font-weight:600}
+ [data-profile-kind="artist"] .profile-preview-header h2 {align-self:center}
+ .profile-preview .mp-public-id {grid-area:id;align-self:start;font-size:12px}
+ .profile-preview-tools {grid-area:tools;justify-self:end;gap:2px}
+ .profile-preview-tools :is(button:not(.profile-preview-close),span) {
+  font-size:12px;font-weight:400;color:color-mix(in srgb,var(--ds-muted) 76%,var(--ds-surface));
+ }
+ .profile-preview-tools button:not(.profile-preview-close) {
+  display:inline-grid;place-items:center;min-width:36px;min-height:36px;padding:0;
+ }
+ .profile-preview-tools .profile-preview-close {margin:0}
+ .profile-preview .profile-preview-bio {
+  grid-area:bio;height:auto;font-size:13px;line-height:1.45;
+ }
+ [data-profile-kind="user"] .profile-preview-bio:empty {display:none}
+ .profile-preview [data-profile-kind="artist"] .profile-preview-bio {height:2lh}
+ .profile-preview-stats {
+  grid-area:stats;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);
+  margin:0;min-height:32px;align-items:center;font-size:12px;
+ }
+ .profile-preview-stats:has(.profile-preview-crew) {
+  grid-template-columns:minmax(max-content,1fr) minmax(max-content,1fr) minmax(0,1.2fr);
+ }
+ .profile-preview-stats > * {min-width:0;padding-inline:4px;text-align:center;justify-content:center}
+ .profile-preview-stats > *+* {margin-inline-start:0;padding-inline-start:4px}
+ .profile-preview-stats strong {font-size:14px;font-weight:600}
+ .profile-preview-crew img {width:19px;height:19px}
+ .profile-preview-actions {grid-area:actions;grid-auto-flow:row;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+ .profile-preview .profile-preview-actions>:is(button,a) {height:44px;min-height:44px;padding-inline:8px;font-weight:500}
+ .profile-preview-actions svg {width:18px;height:18px}
 }
