@@ -257,11 +257,13 @@ function bindArtistFanpage(){
   const form=$('#fan-post-form'),requestId=crypto.randomUUID();form.onsubmit=busyForm(form,async fd=>{await read('/posts'+(p?'/'+p.id:''),p?'PUT':'POST',{kind,title:fd.get('title')||'',body:fd.get('body'),parent_id:parent,request_id:requestId});$('#dialog').close();await refresh();});
  }
  root.querySelectorAll('[data-fan-compose]').forEach(el=>on(el,'click',()=>compose(el.dataset.fanCompose)));
- if(d.tab==='lounge'&&new URLSearchParams(location.hash.split('?')[1]).get('compose')==='1'){
-  const url=new URL(location.href);url.hash='artist/'+encodeURIComponent(d.aid)+'?tab=lounge';
-  history.replaceState(history.state,'',url);
-  if(me){compose('lounge');document.querySelector('#fan-post-form textarea')?.focus();}
-  else root.querySelector('[data-fan-compose="lounge"]')?.focus();
+ if(d.tab==='lounge'&&new URLSearchParams(location.hash.split('?')[1]).get('compose')==='1'&&!history.state?.fanComposeHandled){
+  history.replaceState({...history.state,fanComposeHandled:true},'');
+  requestAnimationFrame(()=>{
+   if(signal.aborted||!root.isConnected)return;
+   if(me){compose('lounge');document.querySelector('#fan-post-form textarea')?.focus();}
+   else root.querySelector('[data-fan-compose="lounge"]')?.focus();
+  });
  }
  on(root,'click',async e=>{
   const el=e.target.closest('[data-post-action]');if(!el||el.disabled)return;const p=postMap.get(el.dataset.postId),action=el.dataset.postAction;if(!p)return;
