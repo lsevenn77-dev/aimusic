@@ -85,7 +85,15 @@ function renderPlayerActions(track){
   paintView();
  }
  window.AifectPlayerShell={close:()=>setView('none'),refresh:()=>{measureLayout();paintModes();},paintModes,get scrubbing(){return scrubbing;}};
- lyrics.addEventListener('click',()=>{if(current)setView(view==='lyrics'?'none':'lyrics');});
+ lyrics.addEventListener('click',()=>{
+  if(!current)return;
+  setView(view==='lyrics'?'none':'lyrics');
+  openPlayerLyrics();
+ });
+ document.querySelector('#player-lyric')?.addEventListener('click',event=>{
+  if(event.ctrlKey||event.metaKey||event.shiftKey||event.altKey)return;
+  event.preventDefault();openPlayerLyrics();
+ });
  more.addEventListener('click',()=>{if(current)setView(view==='actions'?'none':'actions');});
  player.addEventListener('keydown',event=>{if(event.key==='Escape'){if(view!=='none'){const trigger=view==='lyrics'?lyrics:more;setView('none');trigger.focus();}event.stopPropagation();}});
  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!document.querySelector('dialog[open]'))setView('none');});

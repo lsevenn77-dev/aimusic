@@ -109,6 +109,8 @@ async function fetchRequest(req,env,ctx){
    const account=await viewer(req,env);if(account)return accountPageRoute(req,path,account);
   }
   if(path==='/favicon.ico'&&['GET','HEAD'].includes(req.method))return Response.redirect(new URL('/assets/aifect-symbol.svg',url),301);
+  const songPath=path.match(/^\/song\/([\w-]+)\/?$/);
+  if(songPath&&['GET','HEAD'].includes(req.method))return Response.redirect(new URL('/#song/'+songPath[1]+url.search,url),302);
   const originPage=await tryPublicOrigin(req,env,path);if(originPage)return originPage;
   const accountPage=accountPageRoute(req,path);if(accountPage)return accountPage;
   const musicResponse=await publicMusicRoute(req,env,path);if(musicResponse)return musicResponse;
@@ -192,7 +194,7 @@ async function fetchRequest(req,env,ctx){
   const adminDashboard=await adminDashboardRoute(req,env,path,user);if(adminDashboard)return adminDashboard;
   const audioAdsResponse=audioAdsRoute(req,env,path,user);if(audioAdsResponse)return audioAdsResponse;
   const uploadAdsResponse=uploadAdsRoute(req,env,path,user);if(uploadAdsResponse)return uploadAdsResponse;
-  if(Math.random()<.005)ctx.waitUntil(env.DB.batch([
+  if(ctx?.waitUntil&&Math.random()<.005)ctx.waitUntil(env.DB.batch([
    query(env,'DELETE FROM sessions WHERE expires<?',now()),
    query(env,'DELETE FROM oauth_states WHERE expires<?',now()),
    query(env,'DELETE FROM rate_limits WHERE expires<?',now())

@@ -28,7 +28,7 @@ test('the header lyrics button opens one full transcript without a sidebar panel
  f.c.bindLyricsPanel();assert.equal(typeof f.button.onclick,'function');
  f.button.onclick();assert.equal(f.inserted,1);assert.equal(f.button['aria-expanded'],'true');
  assert.match(f.card.html,/>First</);assert.doesNotMatch(f.card.html,/00:00|00:10|lyric-line-time/);
- f.button.onclick();assert.equal(f.inserted,1);assert.equal(f.card.scrolls,2);
+ f.button.onclick();assert.equal(f.inserted,1);assert.equal(f.card.scrolls,0);assert.doesNotMatch(f.card.html,/expanded-lyrics-track|expanded-lyrics-follow|album-art|K-POP|One little touch/);
 });
 test('closing restores header focus and route cleanup removes listeners without pausing playback',()=>{
  const f=fixture();f.audio.currentTime=12;f.c.bindLyricsPanel();f.button.onclick();
@@ -64,10 +64,21 @@ test('expanded transcript retains every line and uses the existing Premium seek 
  const f=fixture();f.track.lyrics=Array.from({length:80},(_,i)=>'['+String(Math.floor(i*5/60)).padStart(2,'0')+':'+String(i*5%60).padStart(2,'0')+']Line '+(i+1)).join('\n');
  f.c.openExpandedLyrics(f.track);assert.equal(f.card.lines.length,80);assert.match(f.card.html,/data-expanded-lyric="79" data-lyric-index="79" data-seek="395" data-track="song"/);assert.match(f.card.html,/Line 80/);
 });
-test('follow starts without a sidebar, pauses on manual scroll and resumes from its own control',()=>{
- const f=fixture();f.track.lyrics=Array.from({length:30},(_,i)=>'['+String(Math.floor(i*5/60)).padStart(2,'0')+':'+String(i*5%60).padStart(2,'0')+']Line '+(i+1)).join('\n');f.audio.currentTime=100;
- f.c.bindLyricsPanel();f.button.onclick();assert.ok(f.owner.scrollTop>0);assert.equal(f.owner.lastScroll.behavior,'smooth');
- const position=f.owner.scrollTop;f.events.wheel();f.audio.currentTime=105;f.c.updateExpandedLyrics();assert.equal(f.owner.scrollTop,position);assert.equal(f.follow['aria-pressed'],'false');
- f.follow.onclick();assert.equal(f.follow['aria-pressed'],'true');assert.ok(f.owner.scrollTop>position);
- f.c.closeExpandedLyrics();assert.deepEqual(Object.keys(f.events),[]);assert.equal(f.paused,0);
+test('seeks and repeated opens keep the manual reading position',()=>{
+ const f=fixture();f.c.bindLyricsPanel();f.button.onclick();f.owner.scrollTop=275;
+ f.audio.currentTime=12;f.c.updateExpandedLyrics();f.button.onclick();
+ assert.equal(f.owner.scrollTop,275);assert.equal(f.card.scrolls,0);assert.equal(f.card.lines[1].active,true);
+});
+test('free playback uses the server cue index for repeated text, never guessed timing',async()=>{
+ const f=fixture();f.c.me={id:'free'};f.track.lyrics_access='line';f.track.duration=100;
+ f.c.api=async()=>({lines:['Again','Again'],synced:true});
+ await f.c.openExpandedLyrics(f.track);assert.deepEqual(f.card.lines.map(x=>x.active),[false,false]);
+ vm.runInContext("lyricLines=[{id:'song',index:1,from:10,until:30}]",f.c);
+ f.audio.currentTime=20;f.c.updateExpandedLyrics();assert.deepEqual(f.card.lines.map(x=>x.active),[false,true]);
+ f.audio.currentTime=8;f.c.updateExpandedLyrics();assert.deepEqual(f.card.lines.map(x=>x.active),[false,false]);
+});
+test('player uses the current track and repeated requests on the same page do not navigate',()=>{
+ const f=fixture();f.c.location.hash='#song/other';f.c.openPlayerLyrics();assert.equal(f.c.location.hash,'#song/song');f.c.bindLyricsPanel();assert.equal(f.inserted,1);
+ f.c.location.hash='#song/song?covers=all';f.c.openPlayerLyrics();f.c.openPlayerLyrics();
+ assert.equal(f.c.location.hash,'#song/song?covers=all');assert.equal(f.inserted,1);assert.equal(f.card.scrolls,0);assert.equal(f.paused,0);
 });

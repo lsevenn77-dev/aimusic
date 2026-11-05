@@ -6,8 +6,8 @@ function songCreatorDescription(t){
  return t.description.trim()?t.description:'';
 }
 function songDescriptionHTML(t){
- const text=songCreatorDescription(t);
- return text?'<section class="song-introduction" aria-label="곡 소개" data-song-description-track="'+esc(t.id)+'"><div class="song-introduction-heading"><h3>곡 소개</h3></div><p class="song-description" id="song-description-text"><span class="song-description-content">'+esc(text)+'</span><button type="button" class="text-link song-description-toggle" aria-controls="song-description-text" aria-expanded="false" hidden>+더보기</button></p></section>':'';
+ const text=songCreatorDescription(t),label=t.kind==='cover'?'커버 소개':'곡 소개';
+ return text?'<section class="song-introduction" aria-label="'+label+'" data-song-description-track="'+esc(t.id)+'"><div class="song-introduction-heading"><h3>'+label+'</h3></div><p class="song-description" id="song-description-text"><span class="song-description-content">'+esc(text)+'</span><button type="button" class="text-link song-description-toggle" aria-controls="song-description-text" aria-expanded="false" hidden>+더보기</button></p></section>':'';
 }
 let songDescriptionBinding=null;
 function bindSongDescription(){
@@ -16,6 +16,9 @@ function bindSongDescription(){
  previous?.release();
  if(!root||!description||!content||!button)return;
  const text=content.textContent||'',characters=typeof Intl.Segmenter==='function'?Array.from(new Intl.Segmenter('ko',{granularity:'grapheme'}).segment(text),part=>part.segment):Array.from(text);
+ const remainder=document.createElement('p');
+ remainder.className='song-introduction-rest';remainder.id='song-introduction-rest';remainder.hidden=true;
+ root.parentElement.append(remainder);button.setAttribute('aria-controls',remainder.id);
  const state={track:root.dataset.songDescriptionTrack,expanded:!!expanded,active:true,width:0,release:null};
  songDescriptionBinding=state;
  const paint=(force=false)=>{
@@ -23,23 +26,33 @@ function bindSongDescription(){
   const width=description.getBoundingClientRect().width;
   if(!width||(!force&&width===state.width))return;
   const focused=document.activeElement===button;
-  state.width=width;root.classList.add('is-description-ready');content.textContent=text;button.hidden=true;
+  state.width=width;description.style.minHeight='';root.classList.add('is-description-ready');content.textContent=text;button.hidden=true;
   const limit=parseFloat(getComputedStyle(description).lineHeight)*2+1,overflow=description.getBoundingClientRect().height>limit;
   if(!overflow)state.expanded=false;
-  root.classList.toggle('is-expanded',state.expanded);button.setAttribute('aria-expanded',String(state.expanded));button.textContent=state.expanded?'접기':'+더보기';button.hidden=!overflow;
-  if(overflow&&!state.expanded){
-   // Fit the actual inline button with the preview, preserving the saved text.
-   const preview=count=>characters.slice(0,count).join('').trimEnd()+'…';
+  root.classList.toggle('is-expanded',state.expanded);
+  button.setAttribute('aria-expanded',String(state.expanded));button.textContent='+더보기';button.hidden=!overflow;
+  remainder.hidden=!state.expanded;
+  if(overflow){
+   const prefix=count=>characters.slice(0,count).join('').trimEnd();
    let low=0,high=characters.length;
-   while(low<high){const middle=Math.ceil((low+high)/2);content.textContent=preview(middle);if(description.getBoundingClientRect().height<=limit)low=middle;else high=middle-1;}
-   content.textContent=preview(low);
+   while(low<high){
+    const middle=Math.ceil((low+high)/2);content.textContent=prefix(middle)+'…';
+    if(description.getBoundingClientRect().height<=limit)low=middle;else high=middle-1;
+   }
+   const start=prefix(low);
+   content.textContent=start+'…';
+   if(state.expanded){
+    // The continuation opens below both action rows, keeping the controls in place.
+    description.style.minHeight=description.getBoundingClientRect().height+'px';
+    content.textContent=start;button.textContent='+접기';remainder.textContent=text.slice(start.length);
+   }
   }
   if(focused&&!button.hidden)button.focus({preventScroll:true});
  };
  button.onclick=()=>{state.expanded=!state.expanded;paint(true);};
  const resize=()=>paint(),observer=typeof ResizeObserver==='function'?new ResizeObserver(resize):null;
  observer?.observe(description);if(!observer)window.addEventListener('resize',resize);
- state.release=registerRouteCleanup(()=>{state.active=false;observer?.disconnect();if(!observer)window.removeEventListener('resize',resize);content.textContent=text;button.hidden=true;button.onclick=null;root.classList.remove('is-description-ready','is-expanded');if(songDescriptionBinding===state)songDescriptionBinding=null;});
+ state.release=registerRouteCleanup(()=>{state.active=false;observer?.disconnect();if(!observer)window.removeEventListener('resize',resize);remainder.remove();description.style.minHeight='';content.textContent=text;button.hidden=true;button.onclick=null;root.classList.remove('is-description-ready','is-expanded');if(songDescriptionBinding===state)songDescriptionBinding=null;});
  paint(true);document.fonts?.ready.then(()=>paint(true));
 }
 function songDetailMetricsHTML(t){
@@ -59,7 +72,7 @@ function songDetailCreditsHTML(t){
  '<div><span class="song-producer-label">PRODUCER</span>'+(href?'<a href="'+href+'">'+producer+'</a>':'<span class="song-producer-name">'+producer+'</span>')+'</div></div>';
 }
 function songLyricsButtonHTML(t){
- return '<button type="button" class="small-button song-action-lyrics" id="lyrics-expand" data-track="'+esc(t.id)+'" aria-controls="expanded-song-lyrics" aria-expanded="false"'+(t.lyrics_mode==='synced'?'':' disabled title="아직 등록된 가사가 없습니다."')+'>'+songActionIcon('lyrics')+'<span>가사</span></button>';
+ return '<button type="button" class="small-button song-action-lyrics" id="lyrics-expand" data-track="'+esc(t.id)+'" aria-controls="expanded-song-lyrics" aria-expanded="false"'+(t.lyrics_mode==='synced'||t.has_lyrics_text?'':' disabled title="아직 등록된 가사가 없습니다."')+'>'+songActionIcon('lyrics')+'<span>가사</span></button>';
 }
 function songDetailActionsHTML(t){
  const id=esc(t.id),mine=!!me&&t.user_id===me.id;
@@ -89,5 +102,5 @@ function songDetailHeaderHTML(t){
  art+'<div class="song-detail-copy"><h1 class="song-title">'+esc(t.title)+'</h1>'+
  songDetailCreditsHTML(t)+songReleaseDateHTML(t)+'<div class="song-meta-row">'+songDetailMetricsHTML(t)+
  (moderation?'<div class="song-engagement">'+moderation+'</div>':'')+'</div>'+(isCover?'':'<div class="song-header-divider" aria-hidden="true"></div>')+
- (isCover&&songCreatorDescription(t)?'<details class="cover-introduction"><summary>커버 소개</summary><p>'+esc(t.description)+'</p></details>':songDescriptionHTML(t))+songDetailActionsHTML(t)+'</div></section>';
+ songDescriptionHTML(t)+songDetailActionsHTML(t)+'</div></section>';
 }

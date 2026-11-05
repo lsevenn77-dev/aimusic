@@ -26,6 +26,12 @@ if(process.argv.includes('--cover-actions')){
  f.sql.exec("UPDATE users SET premium_until=unixepoch()+3600 WHERE id='owner'");
  f.sql.prepare("UPDATE tracks SET lyrics_mode='synced',lyrics=? WHERE id='one'").run('[00:00.000]첫 소절\n[00:05.000]두 번째 소절');
 }
+if(process.argv.includes('--song-lyrics')){
+ f.sql.exec("UPDATE users SET premium_until=unixepoch()+3600 WHERE id='owner'");
+ const timed=Array.from({length:40},(_,i)=>'[00:'+String(i).padStart(2,'0')+']'+(i%3===0?'반복되는 소절':(i+1)+'번째 소절')).join('\n');
+ f.sql.prepare("UPDATE tracks SET lyrics_mode='synced',lyrics=? WHERE id='one'").run(timed);
+ f.sql.prepare("UPDATE tracks SET lyrics=? WHERE id='two'").run('시간표가 없는 첫 줄\n\n마지막 줄');
+}
 const photos=new Map(),object=key=>photos.get(key)||(key.startsWith('images/')?art:wav);
 const BUCKET={
  async put(key,bytes){photos.set(key,Buffer.from(bytes));},
