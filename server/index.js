@@ -108,6 +108,10 @@ async function fetchRequest(req,env,ctx){
   if(path==='/account/delete'&&req.method==='GET'){
    const account=await viewer(req,env);if(account)return accountPageRoute(req,path,account);
   }
+  if(['GET','HEAD'].includes(req.method)&&['/.well-known/assetlinks.json','/api/android/release-policy'].includes(path)){
+   const data=path.startsWith('/.well-known/')?[{relation:['delegate_permission/common.handle_all_urls'],target:{namespace:'android_app',package_name:'kr.co.aifect.app',sha256_cert_fingerprints:['06:35:DF:33:94:55:E1:E8:E4:B3:6A:B0:23:BD:ED:41:9F:37:F1:DB:0B:C2:6E:9D:1B:BA:83:F7:0D:1A:8C:BF']}}]:{minimum_version_code:Math.max(1,Number.parseInt(env.ANDROID_MIN_VERSION_CODE,10)||1)};
+   return new Response(req.method==='HEAD'?null:JSON.stringify(data),{headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'public, max-age=300','X-Content-Type-Options':'nosniff'}});
+  }
   if(path==='/favicon.ico'&&['GET','HEAD'].includes(req.method))return Response.redirect(new URL('/assets/aifect-symbol.svg',url),301);
   const songPath=path.match(/^\/song\/([\w-]+)\/?$/);
   if(songPath&&['GET','HEAD'].includes(req.method))return Response.redirect(new URL('/#song/'+songPath[1]+url.search,url),302);
