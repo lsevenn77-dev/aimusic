@@ -541,3 +541,74 @@ img.play-dubbing-art{display:block;width:100%;height:auto;aspect-ratio:1;object-
   #main > .play-page[data-play-mode] .dc-script > button { flex-basis: 100%; }
   #main > .play-page[data-play-mode] .dc-script > .small-button { margin-left: auto; }
 }
+
+/* PLAY_PC_TYPE_START
+   Remove this block to restore the hub's original desktop typography.
+   Its content is zoomed for layout. Divide the target size by the existing
+   section zoom so thumbnails, controls and hit targets retain their scale. */
+@media (min-width: 801px) {
+  #main > .play-page[data-play-mode] {
+    > :is(.play-main-tabs, .play-subbar, .play-content) {
+      --play-pc-page: calc(var(--pc-font-page) / var(--play-section-zoom));
+      --play-pc-section: calc(21px / var(--play-section-zoom));
+      --play-pc-title: calc(var(--pc-font-card) / var(--play-section-zoom));
+      --play-pc-body: calc(var(--pc-font-body) / var(--play-section-zoom));
+      --play-pc-control: calc(var(--pc-font-control) / var(--play-section-zoom));
+      --play-pc-meta: calc(var(--pc-font-caption) / var(--play-section-zoom));
+    }
+
+    /* The carousel has its own responsive display headline and no section zoom. */
+    > .play-banner .home-feature-label { font-size: var(--pc-font-caption); }
+    > .play-banner .home-feature-description { font-size: var(--pc-font-body); }
+
+    .page-heading h1 { font-size: var(--play-pc-page) !important; }
+    :is(.dc-catalog h2, .dc-section-heading h3, .play-draft-toolbar h2,
+        .play-empty h2, .play-empty h3, .empty-design h2, .dc-note h3) {
+      font-size: var(--play-pc-section) !important;
+    }
+    :is(.play-song-title, .album-title, .play-draft-copy h3, .play-project-row h2,
+        .dc-script strong, .dc-work-header h2, .dc-choice > strong) {
+      font-size: var(--play-pc-title) !important;
+    }
+    :is(.play-song-uploader, .play-song-producer, .play-song-artist, .album-artist,
+        .play-project-row p, .play-draft-copy p > :first-child, .play-duet-child .song-cover-copy strong,
+        .dc-script small, .dc-work-header p, .dc-role b, .dc-role small, .dc-members b,
+        .dc-line b, .dc-line > span > span, .dc-note, .dc-help, .dc-feedback,
+        .play-empty p, .empty-design p, .empty-note, .field-help, .play-load-error, .play-draft-note) {
+      font-size: var(--play-pc-body) !important;
+    }
+    :is(.play-tabs .tab, .small-button, .primary-button, .play-row-sing,
+        .dc-stage-tabs button, .dc-script-meta em, .dc-footnote a,
+        .dc-catalog select, .dc-catalog .aifect-dropdown-trigger) {
+      font-size: var(--play-pc-control) !important;
+    }
+    :is(.play-song-count, .play-duet-expand > span, .play-project-row small, .cover-mini,
+        .play-draft-copy p, .play-draft-toolbar h2 span, .dc-catalog h2 small, .dc-script-meta,
+        .dc-work-header p > span, .dc-stage-tabs b, .dc-stage-tabs span, .dc-section-heading small,
+        .dc-choice > small, .dc-members small, .dc-line-index, .dc-line small, .dc-role-letter,
+        .dc-footnote, .page-heading .eyebrow, .page-heading .free-badge) {
+      font-size: var(--play-pc-meta) !important;
+    }
+    /* Search and the browse filter already cancel their parent's zoom. */
+    :is(.play-search input, .play-search button, .play-type-filter .aifect-dropdown-trigger) {
+      font-size: var(--pc-font-control) !important;
+    }
+    :is(.play-song-copy .play-song-title, .play-work-title > span:last-child,
+        .play-project-row h2 > span:last-child, .dc-script strong, .play-draft-copy h3) {
+      white-space: normal !important;
+      overflow-wrap: anywhere;
+    }
+  }
+
+  /* Only the open hub filter owns these portaled options. */
+  .page-wrap:has(> #main > .play-page[data-play-mode] .aifect-dropdown-trigger[aria-expanded=true])
+    ~ .aifect-dropdown-menu:not([hidden]) > [role=option] {
+    font-size: calc(var(--pc-font-control) / var(--play-section-zoom));
+  }
+
+  .page-wrap:has(> #main > .play-page[data-play-mode]) ~ #dialog .draft-delete-dialog {
+    p { font-size: calc(var(--pc-font-body) / var(--play-section-zoom)) !important; }
+    .inline-actions button { font-size: calc(var(--pc-font-control) / var(--play-section-zoom)) !important; }
+  }
+}
+/* PLAY_PC_TYPE_END */
