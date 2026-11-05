@@ -146,7 +146,6 @@ function roomMessages(client,sheet){
    if(!current(t))return;if(reading){again=true;return;}reading=true;
    try{do{again=false;const more=await api(path+'?after='+cursor,'GET',undefined,{fresh:true});if(!current(t))return;await merge(more.messages);if(more.has_more&&more.messages.length)again=true;}while(again&&current(t));}finally{reading=false;}
   };
-  await merge(d.messages);if(!current(t))return;
   sheet.querySelector('[data-room-back]').onclick=()=>inbox().catch(report);
   editor=AifectStickers.editor(input);stickers=bindDmEmoji(form,input,editor);
   file.onchange=()=>{status.textContent=file.files[0]?.name||'';pending=null;};
@@ -175,6 +174,8 @@ function roomMessages(client,sheet){
     else paused=false;
    }catch(e){paused=false;report(e);}
   };
+  // A read receipt can take a network round trip. Bind the visible form first.
+  void merge(d.messages).catch(report);
   stream=watchSocialChat('?peer='+encodeURIComponent(id),()=>reload().catch(report),()=>{},()=>{if(current(t))inbox().catch(report);});
  }
  return {inbox,destroy};
