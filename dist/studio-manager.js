@@ -53,11 +53,14 @@ function studioQuotaValid(value){
 function studioQuotaCrown(){
  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 6 5 4 4-7 4 7 5-4-2 13H5L3 6Zm2 10h14"/></svg>';
 }
+function studioUploadLink(){
+ return `<a class="small-button studio-upload" href="#upload">${icon('plus')} 음원 업로드</a>`;
+}
 function studioQuotaCard(value=studioQuota.membership,status=studioQuota.status){
  const ready=status==='ready'&&studioQuotaValid(value),loading=status==='loading';
  if(!ready)return `<section class="studio-quota-card studio-quota-pending" data-quota-state="${loading?'loading':'error'}" aria-label="이번 달 제작곡 한도" aria-busy="${loading}">
   <div class="studio-quota-copy" role="status"><h2>${loading?'이번 달 제작곡 정보를 확인하고 있어요.':'이용권과 제작곡 사용량을 확인하지 못했어요.'}</h2><p>회원등급과 남은 제작곡 수는 조회가 완료되면 표시돼요.</p></div>
-  ${loading?'':'<button type="button" class="small-button studio-quota-retry" data-studio-quota-refresh>다시 확인</button>'}</section>`;
+  <div class="studio-quota-pending-actions">${loading?'':'<button type="button" class="small-button studio-quota-retry" data-studio-quota-refresh>다시 확인</button>'}${studioUploadLink()}</div></section>`;
  const q=value.upload_quota,premium=value.plan==='premium',progress=Math.min(100,q.used/q.limit*100);
  const usage=`${number(q.used)} / ${number(q.limit)}`;
  return `<section class="studio-quota-card" data-quota-state="${value.plan}" aria-label="이번 달 제작곡 한도">
@@ -69,6 +72,7 @@ function studioQuotaCard(value=studioQuota.membership,status=studioQuota.status)
    ${premium?'':`<p>일반회원은 월 ${number(q.limit)}곡까지, PREMIUM은 월 10곡까지 제작할 수 있어요.</p>`}
    <p class="studio-quota-note">매월 1일 초기화(한국시간) · 커버곡 무제한</p></div>
   <div class="studio-quota-membership">${premium?`<span class="studio-premium-state">${studioQuotaCrown()} PREMIUM 이용 중</span><ul class="studio-quota-benefits"><li>${icon('check')}<span>월 ${number(q.limit)}곡 제작 가능</span></li><li>${icon('check')}<span>커버곡 제한 없이 업로드</span></li></ul>`:`<a class="primary-button studio-upgrade" href="#membership">${studioQuotaCrown()} PREMIUM 업그레이드</a>`}</div>
+  ${studioUploadLink()}
  </section>`;
 }
 function bindStudioQuota(root){
@@ -154,7 +158,7 @@ function studioManagerHTML(d){
  studioQuota.status='loading';studioQuota.membership=null;
  return `<section class="studio-manager" data-studio-root>
   <header class="studio-topbar"><div><h1>스튜디오</h1><p class="studio-subtitle">내가 제작한 곡과 커버곡을 한곳에서 관리하세요.</p></div>
-   <a class="small-button studio-upload" href="#upload">${icon('plus')} 음원 업로드</a></header>
+   ${studioManage.type==='cover'?studioUploadLink():''}</header>
   <nav class="studio-main-tabs" role="tablist" aria-label="작품 종류">${Object.entries(studioKinds).map(([id,label])=>`<button type="button" role="tab" id="studio-tab-${id}" aria-controls="studio-works" data-studio-type="${id}" aria-selected="${studioManage.type===id}" tabindex="${studioManage.type===id?'0':'-1'}" class="studio-main-tab">${label}</button>`).join('')}</nav>
   <div id="studio-works" role="tabpanel" aria-labelledby="studio-tab-${studioManage.type}" data-studio-pane="works">${studioWorksHTML(d)}</div>
  </section>`;
@@ -292,6 +296,10 @@ function bindStudioManager(){
   if(filter!==undefined){changeFilter(filter);}
   else if(type!==undefined&&type!==studioManage.type){
    studioResetFilters(type);
+   // The cover tab has no quota banner. Keep its existing header action.
+   const header=root.querySelector('.studio-topbar');
+   if(type==='cover')header.insertAdjacentHTML('beforeend',studioUploadLink());
+   else header.querySelector('.studio-upload')?.remove();
    root.querySelectorAll('[data-studio-type]').forEach(tab=>{
     const active=tab.dataset.studioType===type;
     tab.setAttribute('aria-selected',String(active));tab.tabIndex=active?0:-1;

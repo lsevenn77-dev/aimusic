@@ -24,9 +24,12 @@ function chartMovementHTML(t){
 // Shared navigation for listening, singing and the community on desktop and mobile.
 function updateBrowseNavigation(base,param){
  const primary=['karaoke','sing','cover','dubbing'].includes(base)?'karaoke':['community','voice','live','covers','crew','producer','artist','following'].includes(base)?'community':base==='dm'?'dm':base==='notifications'?'notifications':['inventory','follow','profile','account','studio','manage','upload','payouts','rewards'].includes(base)?'profile':['library','history'].includes(base)?'home':'home';
- const routeHref='#'+base+(param?'/'+param:''),hasSidebarPage=[...document.querySelectorAll('.sidebar .nav-link[data-view]:not([data-primary-view])')].some(a=>(a.getAttribute('href')===routeHref||['studio','gifts'].includes(base)&&a.getAttribute('href')==='#'+base));
+ const routeHref='#'+base+(param?'/'+param:'');
+ const sidebarHref=['upload','manage','studio'].includes(base)?'#studio':base==='gifts'?'#gifts':routeHref;
+ const matchesPage=a=>a.getAttribute('href')===routeHref||a.getAttribute('href')===sidebarHref;
+ const hasSidebarPage=[...document.querySelectorAll('.sidebar .nav-link[data-view]:not([data-primary-view])')].some(matchesPage);
  document.querySelectorAll('[data-primary-view]').forEach(a=>{const inSidebar=!!a.closest('.sidebar'),active=!(inSidebar&&hasSidebarPage)&&a.dataset.primaryView===(inSidebar&&['library','history'].includes(base)?'library':primary);a.classList.toggle('active',active);if(active)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});
- document.querySelectorAll('.nav-link[data-view]:not([data-primary-view])').forEach(a=>{const active=a.getAttribute('href')==='#'+base+(param?'/'+param:'')||['studio','gifts'].includes(base)&&a.getAttribute('href')==='#'+base;a.classList.toggle('active',active);if(active)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});
+ document.querySelectorAll('.nav-link[data-view]:not([data-primary-view])').forEach(a=>{const active=matchesPage(a);a.classList.toggle('active',active);if(active)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});
 }
 function chartTabs(active='',period='week'){return `<nav class="tabs music-community-tabs chart-tabs" aria-label="차트 종류">${[['','인기차트'],['covers','커버차트'],['releases','신곡차트']].map(([key,label])=>`<a class="tab ${active===key?'active':''}" href="#charts${key?'/'+key:''}?period=${period}" ${active===key?'aria-current="page"':''}>${label}</a>`).join('')}</nav>`;}
 function libraryTabs(active='likes'){if(['artists','producers'].includes(active))active='following';return `<nav class="tabs" aria-label="보관함 종류">${[['likes','좋아요'],['playlists','플레이리스트'],['history','최근 들은 곡']].map(([key,label])=>`<a class="tab ${active===key?'active':''}" href="#profile?view=library&section=${key}" ${active===key?'aria-current="page"':''}>${label}</a>`).join('')}</nav>`;}

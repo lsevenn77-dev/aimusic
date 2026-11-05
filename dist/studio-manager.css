@@ -57,6 +57,13 @@
 .studio-manager .studio-quota-card,
 .studio-manager .studio-works-surface{ border: 1px solid var(--studio-line); border-radius: 12px; background-color: var(--studio-panel-bg); }
 .studio-manager .studio-quota-card { display: grid; grid-template-columns: 132px minmax(0, 1fr) auto; align-items: center; gap: 24px; margin-bottom: 12px; min-height: 172px; padding: 20px 24px; background-image: url('/assets/studio/studio-premium-banner.svg'); background-size: 100% 100%; border-color: #9885b74d; }
+.studio-manager .studio-quota-card:not(.studio-quota-pending) { grid-template-areas: "gauge copy membership" "gauge copy upload"; row-gap: 8px; }
+.studio-manager .studio-quota-card[data-quota-state="premium"] { grid-template-columns: 132px minmax(0, 1fr) auto auto; grid-template-areas: "gauge copy membership upload"; }
+.studio-quota-card > .studio-quota-gauge { grid-area: gauge; }
+.studio-quota-card:not(.studio-quota-pending) > .studio-quota-copy { grid-area: copy; }
+.studio-quota-card > .studio-quota-membership { grid-area: membership; }
+.studio-quota-card > .studio-upload { grid-area: upload; justify-self: center; white-space: nowrap; }
+.studio-manager .studio-quota-pending-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
 .studio-manager .studio-quota-gauge { position: relative; width: 132px; height: 132px; aspect-ratio: 1; flex: none; }
 .studio-manager .studio-quota-gauge > svg { display: block; width: 100%; height: 100%; fill: none; stroke-width: 7; transform: rotate(-90deg); }
 .studio-manager .studio-quota-track { stroke: #454364; }
@@ -152,6 +159,9 @@
   .studio-manager .studio-upload { font-size: 12px; padding: 0 10px; min-height: 44px; }
   .studio-manager .studio-main-tab { font-size: 15px; }
   .studio-manager .studio-quota-card { grid-template-columns: minmax(0, 1fr); justify-items: center; gap: 16px; min-height: 0; padding: 20px 14px; text-align: center; }
+  .studio-manager .studio-quota-card:not(.studio-quota-pending) { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-areas: "gauge upload" "copy copy" "membership membership"; gap: 16px 8px; }
+  .studio-quota-card > .studio-quota-gauge { justify-self: end; }
+  .studio-quota-card > .studio-upload { justify-self: start; }
   .studio-manager .studio-quota-gauge { width: 120px; height: 120px; }
   .studio-manager .studio-quota-copy h2 { font-size: 16px; }
   .studio-manager .studio-quota-copy p { font-size: 12px; line-height: 1.5; }
@@ -188,10 +198,13 @@
   .studio-manager .studio-topbar > div { grid-column: 1; }
 }
 @media (min-width: 768px) and (max-width: 1150px) {
-  .studio-manager .studio-quota-card { grid-template-columns: 132px minmax(0, 1fr); gap: 16px 20px; }
-  .studio-manager .studio-quota-gauge { grid-row: 1 / 3; }
-  .studio-manager .studio-quota-membership { grid-column: 2; align-items: flex-start; }
-  .studio-manager .studio-quota-pending { grid-template-columns: minmax(0, 1fr) auto; }
+  .studio-manager .studio-quota-card:not(.studio-quota-pending) { grid-template-columns: 132px minmax(0, 1fr) auto; grid-template-areas: "gauge copy copy" "gauge membership upload"; gap: 16px 8px; }
+  .studio-manager .studio-quota-membership { align-items: flex-start; }
+  .studio-quota-card > .studio-upload { min-height: 44px; padding-inline: 10px; }
+}
+@media (min-width: 1151px) and (max-width: 1310px) {
+  .studio-manager .studio-quota-card[data-quota-state="premium"] { grid-template-columns: 132px minmax(0, 1fr) auto; grid-template-areas: "gauge copy membership" "gauge upload membership"; }
+  .studio-quota-card[data-quota-state="premium"] > .studio-upload { justify-self: start; }
 }
 @media (max-width: 360px) {
   .studio-manager .studio-filter-button { padding-inline: 7px; }

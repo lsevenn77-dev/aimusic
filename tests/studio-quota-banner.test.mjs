@@ -32,10 +32,11 @@ for(const [plan,used,limit,percent] of [['free',0,3,0],['free',1,3,100/3],['free
   assert.match(html,new RegExp(`aria-valuemax="${limit}" aria-valuenow="${used}"`));
   assert.doesNotMatch(html,/data-icon="music"|data-icon="diamond"|PREMIUM으로 더 많이/);
   assert.equal((html.match(/매월 1일 초기화\(한국시간\) · 커버곡 무제한/g)||[]).length,1);
+  assert.equal((html.match(/href="#upload"/g)||[]).length,1);
   if(plan==='premium'){
    assert.match(html,/<span class="studio-premium-state">/);assert.match(html,/PREMIUM 이용 중/);
    assert.match(html,/월 10곡 제작 가능/);assert.match(html,/커버곡 제한 없이 업로드/);
-   assert.doesNotMatch(html,/<a |<button|업그레이드|더 자유롭게/);
+   assert.doesNotMatch(html,/href="#membership"|<button|업그레이드|더 자유롭게/);
   }else{
    assert.match(html,/더 자유롭게, 더 많이 제작하세요!/);assert.match(html,/href="#membership"/);
    assert.doesNotMatch(html,/studio-premium-state|studio-quota-benefits/);
