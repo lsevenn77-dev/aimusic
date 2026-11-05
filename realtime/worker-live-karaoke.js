@@ -319,7 +319,7 @@ var VoiceRoom = class {
     if ((actor.blocks || []).some((id) => this.data.members[id])) fault(403, "\uCC28\uB2E8\uD55C \uAD00\uACC4\uC758 \uD68C\uC6D0\uC774 \uC788\uB294 \uBC29\uC5D0\uB294 \uC785\uC7A5\uD560 \uC218 \uC5C6\uC5B4\uC694.");
     if (!existing && c.visibility === "followers" && actor.id !== c.host_id && !(actor.followedHosts || []).includes(c.host_id)) fault(403, "\uBC29\uC7A5\uC758 \uD314\uB85C\uC6CC\uB9CC \uC785\uC7A5\uD560 \uC218 \uC788\uC5B4\uC694.");
     if (!existing && c.visibility === "crew" && !(actor.crews || []).includes(c.crew_id)) fault(403, "\uC774 \uD06C\uB8E8\uC758 \uBA64\uBC84\uB9CC \uC785\uC7A5\uD560 \uC218 \uC788\uC5B4\uC694.");
-    if (!existing && c.visibility === "private" && c.host_id !== actor.id && !(this.data.invites[actor.id] > Date.now())) fault(403, "\uCD08\uB300\uBC1B\uC740 \uD68C\uC6D0\uB9CC \uC785\uC7A5\uD560 \uC218 \uC788\uC5B4\uC694.");
+    if (c.visibility === "private" && c.host_id !== actor.id && !(this.data.members[actor.id]?.expires > Date.now()) && !(this.data.invites[actor.id] > Date.now())) fault(403, "\uCD08\uB300\uBC1B\uC740 \uD68C\uC6D0\uB9CC \uC785\uC7A5\uD560 \uC218 \uC788\uC5B4\uC694.");
   }
   moderator(actor) {
     const p = this.member(actor);

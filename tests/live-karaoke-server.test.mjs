@@ -160,3 +160,24 @@ test('search uses a bounded metadata query without engagement aggregation or the
  for(let i=0;i<50;i++)f.addSong('bulk-'+i);
  assert.equal((await f.search(r,r.state)).body.tracks.length,40);
 });
+
+test('private room host handoff keeps admitted members, and leaving ends their admission',async t=>{
+ const f=await liveFixture(t);
+ f.sql.exec("INSERT INTO follows VALUES('owner','producer','friend',0)");
+ for(const mode of ['talk','karaoke']){
+  const r=await f.create({mode,visibility:'private'}),initial=r.state.generation;
+  const command=(user,generation,operation,target_id)=>f.call(r.root+'moderate','POST',{generation,operation,target_id},user);
+  const invite=await f.call(r.root+'invite','POST',{generation:initial,profile_id:'friend',request_id:crypto.randomUUID()});
+  assert.equal(invite.status,201);
+  const guest=await f.join(r);
+  assert.equal((await command('owner',initial,'transfer-host','other')).status,200);
+  assert.equal((await command('owner',initial,'transfer-host','other')).status,403);
+  const reconnect=await f.join(r,'owner');
+  assert.equal(reconnect.members.length,2);
+  const returned=await command('other',guest.generation,'transfer-host','owner');
+  assert.equal(returned.body.room.host_id,'owner');
+  assert.equal((await command('owner',reconnect.generation,'transfer-host','other')).status,200);
+  assert.equal((await f.call(r.root+'leave','POST',{generation:reconnect.generation},'owner')).status,200);
+  assert.equal((await f.call(r.root+'join','POST',{request_id:crypto.randomUUID()},'owner')).status,403);
+ }
+});

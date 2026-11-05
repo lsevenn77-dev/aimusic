@@ -46,7 +46,9 @@ export class VoiceRoom {
   if((actor.blocks||[]).some(id=>this.data.members[id]))fault(403,'차단한 관계의 회원이 있는 방에는 입장할 수 없어요.');
   if(!existing&&c.visibility==='followers'&&actor.id!==c.host_id&&!(actor.followedHosts||[]).includes(c.host_id))fault(403,'방장의 팔로워만 입장할 수 있어요.');
   if(!existing&&c.visibility==='crew'&&!(actor.crews||[]).includes(c.crew_id))fault(403,'이 크루의 멤버만 입장할 수 있어요.');
-  if(!existing&&c.visibility==='private'&&c.host_id!==actor.id&&!(this.data.invites[actor.id]>Date.now()))fault(403,'초대받은 회원만 입장할 수 있어요.');
+  // An invitation admits a member. Keeping their current seat in the room
+  // does not require a second invitation after a host handoff or reconnect.
+  if(c.visibility==='private'&&c.host_id!==actor.id&&!(this.data.members[actor.id]?.expires>Date.now())&&!(this.data.invites[actor.id]>Date.now()))fault(403,'초대받은 회원만 입장할 수 있어요.');
  }
  moderator(actor) {const p=this.member(actor);if(this.data.config.host_id!==p.id)fault(403,'방장만 할 수 있어요.');return p;}
  target(actor,id) {const by=this.moderator(actor),p=this.data.members[identifier(id)];if(!p)fault(404,'이미 나간 회원이에요.');if(p.role==='host'||(p.role==='admin'&&by.role!=='host'))fault(403,'이 회원을 관리할 권한이 없어요.');return p;}
