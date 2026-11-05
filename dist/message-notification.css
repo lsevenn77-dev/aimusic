@@ -322,7 +322,7 @@
 #dm-emoji-picker header {display:flex;align-items:center;justify-content:space-between;padding-left:10px;font-size:14px}
 #dm-emoji-picker > div {display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}
 #dm-emoji-picker button {display:grid;place-items:center;min-width:44px;min-height:44px;background:transparent;border:0;border-radius:12px;color:inherit;font-size:22px}
-#dm-emoji-picker button:hover {background:#ffffff12}
+
 #dm-emoji-picker button svg {width:18px;height:18px}
 @media(min-width:801px) {
   #main > .message-workspace {grid-template-columns:clamp(320px,31%,360px) minmax(0,1fr);border-radius:22px}

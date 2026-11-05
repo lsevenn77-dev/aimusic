@@ -7,10 +7,6 @@
   color: #E7ECF5; font-size: 0; line-height: 1; text-shadow: none;
   cursor: pointer; -webkit-tap-highlight-color: transparent;
 }
-:is(#dialog .dialog-close#dialog-close, dialog .dialog-close, dialog .voice-dialog-close, dialog .profile-preview-close, #v3-room-create #v3-close-create, dialog.photo-lightbox > .small-button):is(:hover, :active, :focus) {
-  background: transparent; border: 0; box-shadow: none; filter: none;
-}
-:is(#dialog .dialog-close#dialog-close, dialog .dialog-close, dialog .voice-dialog-close, dialog .profile-preview-close, #v3-room-create #v3-close-create, dialog.photo-lightbox > .small-button):hover { color: #8EDDD2; }
 :is(#dialog .dialog-close#dialog-close, dialog .dialog-close, dialog .voice-dialog-close, dialog .profile-preview-close, #v3-room-create #v3-close-create, dialog.photo-lightbox > .small-button):focus-visible { outline: 2px solid #8EDDD2; outline-offset: 2px; }
 /* Preserve modal focus and keyboard indication; suppress only pointer outlines. */
 :root[data-aifect-input="pointer"] :is(#dialog.gift-sheet .dialog-close#dialog-close, dialog.profile-preview .profile-preview-close):focus { outline: none; }

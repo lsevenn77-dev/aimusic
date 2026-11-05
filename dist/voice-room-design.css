@@ -105,7 +105,7 @@
 .voice-emoji-picker [data-voice=emoji-close] svg{width:20px;height:20px}
 .voice-room .voice-emoji-picker .voice-emojis{display:grid;grid-template-columns:repeat(auto-fit,minmax(44px,1fr));gap:4px;margin:0 0 8px;max-height:144px;overflow-y:auto}
 .voice-room .voice-emoji-picker .voice-emojis button{min-width:44px;min-height:44px;padding:4px;border-radius:10px;font-size:26px;line-height:1}
-.voice-room .voice-emoji-picker .voice-emojis button:hover,.voice-room .voice-emoji-picker [data-voice=emoji-close]:hover{background:#37304e}
+
 .voice-room .voice-emoji-picker button:focus-visible{outline:2px solid var(--ds-mint);outline-offset:-2px}
 .voice-room .voice-emoji-picker [data-voice=send-chat]{min-height:44px;font-size:13px}
 .voice-chat-panel #voice-message{display:block;flex:1;min-width:0;width:0;height:64px;min-height:64px;max-height:96px;resize:none;padding:20px 49px 18px 18px;border:1px solid #315075;border-radius:20px;background:#091626;color:var(--ds-text);font:inherit;font-size:15px;line-height:1.5}

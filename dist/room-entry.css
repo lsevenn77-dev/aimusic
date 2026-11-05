@@ -244,9 +244,7 @@
 
 /* Shared room controls: presentation only; keep the live layout and hit areas. */
 #main .voice-room :is(.room-header button,#voice-chat-form button,#voice-music-player>div>button,.talk-central button,.live-request-button,.live-actions button)>svg{stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-#main .voice-room .room-header button:enabled:hover,
-#main .voice-room #voice-chat-form button:enabled:hover,
-#main .voice-room #voice-music-player>div>button:enabled:hover,
+#main .voice-room #voice-chat-form button:not([data-voice=emoji]):enabled:hover,
 #main .voice-room .voice-seat-empty:enabled:hover,
 #main .live-karaoke-room .live-actions button:enabled:hover{background-color:var(--room-control-hover)}
 #main .voice-room .room-header button[aria-expanded=true],#main .voice-room #voice-chat-form [data-voice=emoji][aria-expanded=true]{border-color:transparent;background:var(--room-control-selected);color:var(--room-text)}

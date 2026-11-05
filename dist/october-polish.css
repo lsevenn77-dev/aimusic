@@ -5,7 +5,7 @@
 
 #sidebar a[href="#dm"]{position:relative}
 .gift-entry,.music-social-actions .gift-entry,.track-row .gift-entry{background:transparent!important;border-color:transparent!important;box-shadow:none!important}
-#menu-toggle,#menu-toggle:hover,#menu-toggle:focus{background:transparent!important;color:var(--ds-muted)!important;box-shadow:none!important}
+#menu-toggle{background:transparent;color:var(--ds-muted);box-shadow:none}
 #menu-toggle[aria-expanded="true"]{color:var(--ds-body)!important}
 @media(max-width:800px){#sidebar>.brand{display:none}#sidebar{padding-top:22px}.karaoke-list .track-row,.karaoke-song{padding-top:8px!important;padding-bottom:8px!important;min-height:72px}.karaoke-list .mini-cover{width:48px;height:48px}}
 .music-profile-stats{display:flex;align-items:center;gap:20px}.music-profile-stats>a,.music-profile-stats>span{display:inline-flex;align-items:baseline;gap:4px;line-height:1.5;margin:0}
