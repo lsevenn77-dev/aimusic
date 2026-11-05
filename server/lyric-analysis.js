@@ -56,6 +56,15 @@ export async function analyzeLyricJob(env,{analyzer=analyzeLyrics}={}){
 export async function runLyricBatch(env,{limit=4,budgetMs=1800}={}){
  if(!env.DB)return {disabled:true};
  const at=now(),token=id(),start=performance.now();
+ // An empty queue must not acquire/release a write lease on every heartbeat.
+ // Missing/outdated scans and expired processing leases still need the full path.
+ const pending=await one(env,`SELECT c.version,c.scan_done,c.lease_until,
+  EXISTS(SELECT 1 FROM lyric_analysis_jobs WHERE lease_until<=? AND
+   ((state='queued' AND attempts<?) OR state='processing')) pending
+  FROM (SELECT 1) LEFT JOIN lyric_analysis_control c ON c.id=?`,at,MAX_ATTEMPTS,ENGINE);
+ if(pending.lease_until>at)return {busy:true};
+ if(pending.version===LYRIC_ANALYSIS_VERSION&&pending.scan_done&&!pending.pending)
+  return {idle:true,seeded:0,processed:0,failed:0,duration_ms:Math.round(performance.now()-start)};
  await run(env,"INSERT OR IGNORE INTO lyric_analysis_control(id,version) VALUES(?,?)",ENGINE,LYRIC_ANALYSIS_VERSION);
  const lock=await query(env,'UPDATE lyric_analysis_control SET lease_token=?,lease_until=? WHERE id=? AND lease_until<=? RETURNING id',token,at+LEASE,ENGINE,at).first();
  if(!lock)return {busy:true};
@@ -72,8 +81,12 @@ export async function runLyricBatch(env,{limit=4,budgetMs=1800}={}){
 const heartbeat=new WeakMap();
 export function queueLyricAnalysis(env,ctx){
  if(!env.DB||!env.BUCKET||!ctx?.waitUntil||env.LYRIC_ANALYSIS_DISABLED==='true')return;
- const at=Date.now();if(at<(heartbeat.get(env.DB)||0))return;heartbeat.set(env.DB,at+3000);
- ctx.waitUntil(runLyricBatch(env,{limit:clamp(env.LYRIC_ANALYSIS_BATCH_SIZE,4,8)}).catch(()=>console.error('Local lyric analysis pending')));
+ const at=Date.now(),state=heartbeat.get(env.DB);
+ if(state&&(state.running||at<state.next))return;
+ const current={running:true,next:at+30000};heartbeat.set(env.DB,current);
+ ctx.waitUntil(runLyricBatch(env,{limit:clamp(env.LYRIC_ANALYSIS_BATCH_SIZE,4,8)})
+  .catch(()=>console.error('Local lyric analysis pending'))
+  .finally(()=>{current.running=false;current.next=Date.now()+30000;}));
 }
 export async function lyricAnalysisStatus(env){
  const [states,coverage,control,resource]=await Promise.all([

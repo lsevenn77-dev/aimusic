@@ -15,7 +15,9 @@
 
 `0091_naive_starfox.sql`은 테이블·인덱스·등록/가사변경 트리거만 추가한다. 기존 레코드 일괄 변경은 migration에서 실행하지 않는다. 트리거는 작업 등록만 수행하며 실제 분석은 `waitUntil`에서 실행한다. 원곡 수정은 커버도 재등록한다.
 
-초기 목록은 ID 커서로 32곡씩 등록하며 중단 후 이어진다. 버전 변경은 커서를 다시 순회한다. 기본 4곡, 설정 최대 8곡, 배치 시간 예산 1.8초, DB lease 45초, 요청 사이 2초 간격으로 제한한다. `LYRIC_ANALYSIS_BATCH_SIZE`로 축소 가능하고 `LYRIC_ANALYSIS_DISABLED=true`는 요청 기반 실행을 중지한다. 기존 API/내부 worker heartbeat 및 scheduled handler가 큐를 처리한다. 별도 cron 등록은 하지 않으므로 트래픽과 기존 worker가 모두 멈춘 동안에는 다음 실행까지 대기한다.
+초기 목록은 ID 커서로 32곡씩 등록하며 중단 후 이어진다. 버전 변경은 커서를 다시 순회한다. 기본 4곡, 설정 최대 8곡, 배치 시간 예산 1.8초, DB lease 45초, 배치 사이 DB lease 최소 2초 간격을 유지한다. `LYRIC_ANALYSIS_BATCH_SIZE`로 축소 가능하고 `LYRIC_ANALYSIS_DISABLED=true`는 요청 기반 실행을 중지한다.
+
+자동 분석은 인증에 성공한 내부 worker의 `POST /internal/jobs/claim` heartbeat와 기존 scheduled handler가 담당한다. 홈·검색·스튜디오 등의 방문자 요청과 관리자 MCP 조회는 분석을 실행하지 않는다. 같은 Worker 실행 환경에서는 진행 중 배치를 중복 실행하지 않고, 완료 후 30초 동안 heartbeat를 건너뛴다. DB lease는 서로 다른 실행 환경 사이의 동시 처리를 계속 제한한다. 초기 스캔이 완료되고 실행할 작업이 없으면 읽기 1회만 수행하며 DB lease·작업 상태·통계에 쓰지 않는다. 새 곡과 가사 변경은 기존 DB 트리거로 등록되어 다음 내부 heartbeat에서 처리된다. 별도 cron 등록은 하지 않으므로 내부 worker와 scheduled 실행이 모두 멈춘 동안에는 관리자 수동 실행 또는 다음 heartbeat까지 대기한다.
 
 가사 SHA-256과 버전이 같으면 재분석하지 않는다. 동시 수정은 lease를 취소해 오래된 결과 저장을 막는다. 실패는 30/60초 후 재시도하고 3회 실패 또는 세 번째 처리 중 중단된 작업은 failed로 남긴다. 분석 실패는 업로드 응답을 기다리게 하지 않는다.
 

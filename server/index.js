@@ -73,7 +73,7 @@ export default {async fetch(req,env,ctx){
  const url=new URL(req.url),path=url.pathname;
  const fishingClock=path.startsWith('/api/crew-fishing/')?{receivedTime:Date.now(),started:performance.now()}:undefined;
  try{
-  if(path==='/mcp'){const response=await adminMcpRoute(req,env);if(response.ok)queueLyricAnalysis(env,ctx);return response;}
+  if(path==='/mcp')return await adminMcpRoute(req,env);
   const tossTestResponse=await tossTestCheckoutRoute(req,env,path);if(tossTestResponse)return tossTestResponse;
   const tossGoldTestResponse=await tossGoldTestCheckoutRoute(req,env,path);if(tossGoldTestResponse)return tossGoldTestResponse;
   // Google sign-in is registered for the public domain, not the legacy Sites
@@ -90,7 +90,7 @@ export default {async fetch(req,env,ctx){
   if(path==='/internal/billing/tick')return await billingTick(req,env);
   if(path==='/internal/player/backfill')return await playerBackfillRoute(req,env);
   if(path.startsWith('/internal/music-classification/'))return await musicClassificationInternal(req,env,path);
-  if(path.startsWith('/internal/')){const result=await internalRoute(req,env,path);if(result?.ok&&ctx?.waitUntil){if(path==='/internal/jobs/claim'&&req.method==='POST'){queueBotHeartbeat(env,ctx);retryPush(env,ctx);}if(env.GEMINI_API_KEY&&(path==='/internal/jobs/claim'||path.endsWith('/finish')))ctx.waitUntil(classifyNext(env).catch(()=>console.error('Music classification pending')));if(path.endsWith('/finish')){ctx.waitUntil(dispatchPush(env).catch(()=>console.error('Participation push pending')));ctx.waitUntil(syncRecentCrewGrowth(env).catch(()=>console.error('Crew growth pending')));}}return result;}
+  if(path.startsWith('/internal/')){const result=await internalRoute(req,env,path);if(result?.ok&&ctx?.waitUntil){if(path==='/internal/jobs/claim'&&req.method==='POST'){queueBotHeartbeat(env,ctx);retryPush(env,ctx);queueLyricAnalysis(env,ctx);}if(env.GEMINI_API_KEY&&(path==='/internal/jobs/claim'||path.endsWith('/finish')))ctx.waitUntil(classifyNext(env).catch(()=>console.error('Music classification pending')));if(path.endsWith('/finish')){ctx.waitUntil(dispatchPush(env).catch(()=>console.error('Participation push pending')));ctx.waitUntil(syncRecentCrewGrowth(env).catch(()=>console.error('Crew growth pending')));}}return result;}
   const originPage=await tryPublicOrigin(req,env,path);if(originPage)return originPage;
   const musicResponse=await publicMusicRoute(req,env,path);if(musicResponse)return musicResponse;
   if(['/admin','/admin/','/admin.html'].includes(path))return new Response('페이지를 찾을 수 없습니다.',{status:404,headers:{'content-type':'text/plain; charset=utf-8','cache-control':'no-store'}});
@@ -184,9 +184,6 @@ export default {async fetch(req,env,ctx){
   const status=e.status||500,message=e.status?e.message:'잠시 연결이 원활하지 않습니다. 입력 내용은 유지되니 다시 시도해주세요.';
   if(path.includes('/auth/')&&path.endsWith('/callback'))return new Response(null,{status:303,headers:{location:'/#account?error='+encodeURIComponent(message),'cache-control':'no-store'}});
   return json({error:message},status);
- }finally{
-  // Start only after the foreground operation, and only on music-related traffic.
-  if(/^\/api\/(catalog|search|discover|studio|uploads|tracks)(\/|$)/.test(path)||path==='/internal/jobs/claim'||/^\/internal\/lyrics\//.test(path))queueLyricAnalysis(env,ctx);
  }
 },async scheduled(event,env,ctx){ctx.waitUntil(runLyricBatch(env));ctx.waitUntil(dispatchPush(env));ctx.waitUntil(runBotEngine(env));ctx.waitUntil(cleanupChatImages(env));ctx.waitUntil(expireDubbingCombinations(env));ctx.waitUntil(classifyNext(env));ctx.waitUntil(syncRecentCrewGrowth(env));}};
 
