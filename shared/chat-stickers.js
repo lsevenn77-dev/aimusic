@@ -22,7 +22,10 @@ for (const {key, lettering, fitReference, messageScale = 1} of catalog) {
 function image(key, className = '', surface = 'picker') {
   const {group, label, assetVersion} = stickers.get(key);
   const version = assetVersion ?? (group === 'text' ? 'v2' : 'v1');
-  if (surface === 'message' && compactHands.has(key)) className += ' cat-compact-hand';
+  if (surface === 'message' && (group === 'hand' || group === 'prop')) {
+    className += ' cat-message-' + group;
+    if (compactHands.has(key)) className += ' cat-compact-hand';
+  }
   return `<img class="${className}" src="/assets/chat-stickers/${version}/${group}/${key}.webp" alt="${surface === 'picker' ? '' : label}" draggable="false">`;
 }
 

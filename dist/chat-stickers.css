@@ -91,12 +91,16 @@
 }
 /* Align the image centre to the font's cap-height centre on every line. */
 #main img.cat-chat-sticker {
-  --cat-inline-size:38px;
+  --cat-base-size:38px;--cat-inline-size:var(--cat-base-size);
   display:inline-block;vertical-align:middle;vertical-align:calc(.5cap - var(--cat-inline-size) * .5);
   width:var(--cat-inline-size);height:var(--cat-inline-size);max-width:100%;
   margin:0;padding:0;border:0;border-radius:0;object-fit:contain;background:none;
 }
-#main img.cat-compact-hand {--cat-inline-size:calc(38px * .9)}
+/* Scale each group once from its previous message size. The three compact
+   hands already used a 34.2px box. The picker and editor use their own sizes. */
+#main img.cat-compact-hand {--cat-base-size:34.2px}
+#main img.cat-message-hand {--cat-inline-size:calc(var(--cat-base-size) * .85)}
+#main img.cat-message-prop {--cat-inline-size:calc(var(--cat-base-size) * .6)}
 #main img.cat-word {--cat-word-width:62.7px;width:var(--cat-word-width)}
 /* The inline-block's baseline is its bottom edge. Place the measured glyph
    centre on the Korean text axis, leaving room for each crown or sparkle. */
