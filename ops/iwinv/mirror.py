@@ -23,7 +23,11 @@ class NoRedirect(HTTPRedirectHandler):
 
 def get(url, headers, limit):
     # Only call fixed service hosts. Never forward an export token on a redirect.
-    request = Request(url, headers={**headers, "Accept-Encoding": "identity"})
+    request = Request(url, headers={
+        **headers,
+        "Accept-Encoding": "identity",
+        "User-Agent": "Mozilla/5.0 AIFECT-Image-Mirror/1.0",
+    })
     with build_opener(NoRedirect()).open(request, timeout=30) as response:
         data = response.read(limit + 1)
         if len(data) > limit:
