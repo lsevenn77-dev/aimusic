@@ -105,7 +105,7 @@ try {
  const early=await browser.newPage({viewport:{width:390,height:844}});
  await early.addInitScript(()=>localStorage.setItem('aifect-mobile-topbar-collapsed','1'));
  let releaseBundle;const gate=new Promise(r=>releaseBundle=r);
- await early.route(/\/aifect-app-[a-f0-9]+\.js$/,async route=>{await gate;await route.continue();});
+ await early.route(/\/(?:cached-)?aifect-app-[a-f0-9]+\.js$/,async route=>{await gate;await route.continue();});
  await early.goto(base+'/#home',{waitUntil:'commit'});
  await early.waitForFunction(()=>document.querySelector('.topbar')?.getBoundingClientRect().height===18);
  assert.equal(await early.locator('#menu-toggle').evaluate(e=>getComputedStyle(e).visibility),'hidden');

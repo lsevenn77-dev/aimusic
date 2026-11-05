@@ -41,7 +41,7 @@ for(const path of ['/','/index.html','/?source=share']){
   const root=await mf.dispatchFetch('http://localhost'+path,{headers});const rootHTML=await root.text();
   assert.equal(root.status,200,rootHTML);assert.match(rootHTML,/href="\/music\/one"/);assert.doesNotMatch(rootHTML,/href="\/music\/hidden"/);
   assert.equal(root.headers.get('cache-control'),'no-store');
-  const clientPath=rootHTML.match(/src="(\/bundles\/aifect-app-[a-f0-9]+\.js)"/)?.[1];assert.ok(clientPath);
+  const clientPath=rootHTML.match(/src="(\/cached-aifect-app-[a-f0-9]+\.js)"/)?.[1];assert.ok(clientPath);
   const client=await mf.dispatchFetch('http://localhost'+clientPath);assert.equal(client.status,200);assert.match(client.headers.get('cache-control'),/max-age=31536000, immutable/);assert.ok((await client.text()).length>1000);
  }
  const head=await mf.dispatchFetch('http://localhost'+path,{method:'HEAD'});assert.equal(head.status,200);assert.equal(await head.text(),'');
