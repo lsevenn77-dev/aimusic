@@ -50,7 +50,14 @@ function crewPendingView(base,param,raw=''){
 }
 function listenNav(active){return `<nav class="tabs listen-tabs" aria-label="홈 메뉴">${[['home','추천'],['charts','차트'],['charts/releases','최신곡'],['search','발견'],['library/playlists','내 플레이리스트']].map(([href,label])=>`<a class="tab ${active===href?'active':''}" href="#${href}">${label}</a>`).join('')}</nav>`;}
 function crewCard(c,mine){return `<a href="#crew/${esc(c.id)}" class="surface crew-card"><h2>${esc(c.name)}${mine===c.id?' · 내 크루':''}</h2><p class="crew-meta">LV${c.level} · ${c.members}/${c.capacity}명 · ${c.recruiting?'모집 중':'모집 마감'}</p><p>${esc(c.description)}</p><small>${esc(c.interests)}</small>${c.match?'<span>내가 좋아하는 장르와 맞아요</span>':''}</a>`;}
-function chatComposer(dm=false){return `<form id="chat-compose">${dm?'<button type="button" class="dm-emoji-toggle" data-dm-emoji aria-label="이모티콘" aria-haspopup="dialog" aria-expanded="false" aria-controls="dm-emoji-picker">'+voiceGlyph('smile')+'</button>':''}${dm?'<div class="form-field"><div contenteditable="true" role="textbox" aria-multiline="true" aria-label="메시지" aria-placeholder="메시지 입력" aria-description="Enter로 보내기, Shift+Enter로 줄바꿈" data-dm-editor data-limit="2000"></div></div>':'<label class="form-field">메시지<textarea name="body" maxlength="2000" rows="1" placeholder="메시지 입력" aria-description="Enter로 보내기, Shift+Enter로 줄바꿈"></textarea></label>'}<button type="submit" class="primary-button" data-chat-send aria-label="보내기">${dm?voiceGlyph('send'):'보내기'}</button><p class="form-error" role="alert"></p></form>`;}
+function chatComposer(dm=false,direct=false){
+ const emoji=dm?'<button type="button" class="dm-emoji-toggle" data-dm-emoji aria-label="이모티콘" aria-haspopup="dialog" aria-expanded="false" aria-controls="dm-emoji-picker">'+voiceGlyph('smile')+'</button>':'';
+ const placeholder=direct?'메시지를 입력하세요':'메시지 입력';
+ const editor='<div contenteditable="true" role="textbox" aria-multiline="true" aria-label="메시지" aria-placeholder="'+placeholder+'" aria-description="Enter로 보내기, Shift+Enter로 줄바꿈" data-dm-editor data-limit="2000"></div>';
+ let field='<label class="form-field">메시지<textarea name="body" maxlength="2000" rows="1" placeholder="메시지 입력" aria-description="Enter로 보내기, Shift+Enter로 줄바꿈"></textarea></label>';
+ if(dm)field=direct?'<div class="dm-inline-field">'+editor+emoji+'</div>':emoji+'<div class="form-field">'+editor+'</div>';
+ return '<form id="chat-compose">'+field+'<button type="submit" class="primary-button" data-chat-send aria-label="보내기">'+(dm?voiceGlyph('send'):'보내기')+'</button><p class="form-error" role="alert"></p></form>';
+}
 function crewEditor(c=null){
  const available=Number(c?.name_change_available_at||0)*1000,locked=available>Date.now(),days=Math.max(1,Math.ceil((available-Date.now())/86400000));
  const help=locked?`${days}일 뒤에 수정 가능합니다. (${new Date(available).toLocaleString('ko-KR')}부터)`:'크루 이름은 변경 후 30일에 한 번 수정할 수 있어요.';

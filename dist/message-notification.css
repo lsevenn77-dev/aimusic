@@ -409,3 +409,90 @@
  #main .message-workspace .inbox-tools{flex-wrap:nowrap;gap:0}
  #main .message-workspace .inbox-tools .text-link{padding-inline:4px}
 }
+
+/* The peer-backed DM route alone places the rich editor between photo and gift. */
+#main .message-workspace .dm-direct-thread {
+  grid-template-columns: var(--dm-compose-size) minmax(0, 1fr) var(--dm-compose-size);
+  grid-template-areas:
+    "earlier earlier earlier"
+    "log log log"
+    "connection connection connection"
+    "error error error"
+    "upload upload upload"
+    "photo compose gift"
+    "hint hint hint";
+  column-gap: 4px;
+}
+#main .message-workspace .dm-direct-thread #chat-compose {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+#main .dm-direct-thread .chat-attachment-tools > .icon-button {
+  align-self: center;
+}
+#main .dm-direct-thread .chat-attachment-tools > label.icon-button,
+#main .dm-direct-thread #chat-compose [data-dm-emoji] {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--ds-body);
+  cursor: pointer;
+}
+#main .message-workspace .dm-direct-thread .dm-inline-field {
+  flex: 1 1 0;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  border: 1px solid var(--ds-dim);
+  border-radius: calc(var(--dm-compose-size) / 2);
+  background: var(--ds-panel);
+}
+#main .dm-direct-thread .dm-inline-field:focus-within { border-color: var(--ds-body); }
+#main .message-workspace .dm-direct-thread #chat-compose [data-dm-editor] {
+  flex: 1 1 0;
+  width: auto;
+  min-width: 0;
+  min-height: calc(var(--dm-compose-size) - 2px);
+  padding: calc((var(--dm-compose-size) - 2px - 1.5em) / 2) 0
+           calc((var(--dm-compose-size) - 2px - 1.5em) / 2) 12px;
+  border-radius: inherit;
+}
+#main .dm-direct-thread #chat-compose [data-dm-emoji] {
+  flex: 0 0 var(--dm-compose-size);
+  border-radius: 50%;
+}
+#main .message-workspace .dm-direct-thread #chat-compose [data-chat-send],
+#main .message-workspace .dm-direct-thread .chat-attachment-tools > [data-profile-gift] {
+  display: grid;
+  place-items: center;
+  flex: 0 0 var(--dm-compose-size);
+  padding: 0;
+  border: 1px solid var(--ds-dim);
+  border-radius: var(--ds-radius-input);
+  color: var(--ds-text);
+  background: var(--ds-surface);
+  box-shadow: var(--dm-rim);
+}
+#main .dm-direct-thread .chat-attachment-tools > .icon-button svg,
+#main .dm-direct-thread #chat-compose button svg { width: 20px; height: 20px; }
+#main .dm-direct-thread #chat-compose [data-chat-send]:disabled { opacity: .5; cursor: not-allowed; }
+
+@media (max-width: 350px) {
+  #main .message-workspace .dm-direct-thread { column-gap: 2px; }
+  #main .message-workspace .dm-direct-thread #chat-compose { gap: 2px; }
+  #main .message-workspace .dm-direct-thread #chat-compose [data-dm-editor] { padding-inline-start: 6px; }
+  #main .dm-direct-thread [data-dm-editor]:empty::before {
+    font-size: 12px;
+    letter-spacing: -.025em;
+    white-space: nowrap;
+  }
+}

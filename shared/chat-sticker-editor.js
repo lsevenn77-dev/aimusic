@@ -5,6 +5,18 @@ export function createStickerEditor(element, {fragment, token, spacing, limit}) 
   const options = {signal: events.signal};
   let caret = null, accepted = '', composing = false;
   const keyOf = node => node.nodeType === Node.ELEMENT_NODE && node.dataset?.catSticker;
+  // A trailing LF needs a caret box for the next typed character. The direct composer keeps one
+  // presentational break after it, outside the serialized draft and selection.
+  const direct = !!element.closest('.dm-inline-field');
+  function syncCaretBreak(value) {
+    if (!direct) return;
+    const marker = element.querySelector('br[data-dm-caret]');
+    if (!value.endsWith('\n')) { marker?.remove(); return; }
+    if (marker && marker === element.lastChild) return;
+    const br = marker || document.createElement('br');
+    br.setAttribute('data-dm-caret', '');
+    element.append(br);
+  }
   function read(root) {
     if (root.childNodes.length === 1 && root.firstChild.nodeName === 'BR') return '';
     let value = '', previousBlock = false;
@@ -13,7 +25,7 @@ export function createStickerEditor(element, {fragment, token, spacing, limit}) 
       if (node.previousSibling && (block || previousBlock)) value += '\n';
       if (node.nodeType === Node.TEXT_NODE) value += node.textContent;
       else if (keyOf(node)) value += token(keyOf(node));
-      else if (node.nodeName === 'BR') value += '\n';
+      else if (node.nodeName === 'BR') value += node.hasAttribute('data-dm-caret') ? '' : '\n';
       else value += read(node);
       previousBlock = block;
     }
@@ -39,6 +51,7 @@ export function createStickerEditor(element, {fragment, token, spacing, limit}) 
   function endRange() {
     const range = document.createRange();
     range.selectNodeContents(element);
+    if (direct && element.lastElementChild?.matches('br[data-dm-caret]')) range.setEndBefore(element.lastElementChild);
     range.collapse(false);
     return range;
   }
@@ -53,6 +66,7 @@ export function createStickerEditor(element, {fragment, token, spacing, limit}) 
   }
   function set(value) {
     element.replaceChildren(fragment(value));
+    syncCaretBreak(value);
     accepted = value;
     caret = endRange();
   }
@@ -66,6 +80,7 @@ export function createStickerEditor(element, {fragment, token, spacing, limit}) 
     }
     accepted = value;
     if (!value && element.childNodes.length) element.replaceChildren();
+    syncCaretBreak(value);
     layout();
     if (document.activeElement === element) remember();
   }
@@ -76,7 +91,10 @@ export function createStickerEditor(element, {fragment, token, spacing, limit}) 
     const part = fragment(value), last = part.lastChild;
     range.deleteContents();
     range.insertNode(part);
-    if (last) range.setStartAfter(last);
+    if (direct && last?.nodeType === Node.TEXT_NODE) {
+      syncCaretBreak(read(element));
+      range.setStart(last, last.length);
+    } else if (last) range.setStartAfter(last);
     range.collapse(true);
     caret = range.cloneRange();
     if (focus || document.activeElement === element) restore(range);

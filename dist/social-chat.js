@@ -68,7 +68,13 @@ function chatHTML(messages,peer=null,crew=null){
   return separator+'<article class="dm-message '+(mine?'mine':'')+'" data-message="'+esc(m.id)+'">'+avatar+'<div class="dm-message-content">'+author+'<div class="dm-message-line"><div class="dm-bubble"><span class="chat-body">'+(m.image_id?chatImageHTML(m,!!crew):chatBodyHTML(body))+'</span>'+invitation+'</div><div class="chat-message-meta"><time>'+stamp+'</time>'+delivery+'</div></div></div></article>';
  }).join('')||'<div class="chat-empty"><span>'+icon('message')+'</span><strong>음악에서 시작되는 대화</strong><p>반가운 인사나 좋았던 음악을 나눠보세요.</p></div>';
 }
-function chatPanelHTML(label,initial=null,peer=null,dm=!!peer){return '<section class="surface chat-panel dm-chat-panel '+(peer?'':'crew-chat-panel')+'"><button class="small-button chat-earlier" id="chat-earlier" '+(initial?.has_more?'':'hidden')+'>이전 대화 보기</button><div id="chat-log" role="log" aria-label="'+label+'">'+(initial?chatHTML(initial.messages,peer):'')+'</div><p id="chat-connection" class="quiet" role="status"></p><p id="chat-error" role="status"></p>'+chatAttachmentTools(peer)+(dm?dmEmojiPickerHTML():'')+chatComposer(dm)+'</section>';}
+function chatPanelHTML(label,initial=null,peer=null,dm=!!peer){
+ // The message workspace also enables the rich editor for crew channels.
+ const direct=!!peer?.id;
+ const composer=(dm?dmEmojiPickerHTML():'')+chatComposer(dm,direct);
+ const controls=direct?chatAttachmentTools(peer,composer):chatAttachmentTools(peer)+composer;
+ return '<section class="surface chat-panel dm-chat-panel '+(direct?'dm-direct-thread':peer?'':'crew-chat-panel')+'"><button class="small-button chat-earlier" id="chat-earlier" '+(initial?.has_more?'':'hidden')+'>이전 대화 보기</button><div id="chat-log" role="log" aria-label="'+label+'">'+(initial?chatHTML(initial.messages,peer):'')+'</div><p id="chat-connection" class="quiet" role="status"></p><p id="chat-error" role="status"></p>'+controls+'</section>';
+}
 let socialCleanup=null;
 // Only unsent work lives here; server history is always read from the API.
 let chatWorkAccount=null;
@@ -157,7 +163,8 @@ function bindSocialChat(view){
  };
  setDraft(unsent.draft);unsent.pending.forEach((m,id)=>messages.set(id,m));
  let fetching=false,again=false,initialized=!!initial,lastHTML=null,sending=false,denied=false,chatGeneration=0;
- const resizeInput=()=>{saveDraft();input.style.height='auto';input.style.height=Math.min(120,Math.max(46,(input.scrollHeight||44)+2))+'px';};
+ // The direct rich editor grows intrinsically up to its CSS max-height.
+ const resizeInput=()=>{saveDraft();if(peer?.id&&editor)return;input.style.height='auto';input.style.height=Math.min(120,Math.max(46,(input.scrollHeight||44)+2))+'px';};
  input.addEventListener('input',resizeInput);resizeInput();
  // Only a history read advances the cursor. A POST can return a newer message
  // before intervening messages from another member have arrived.

@@ -45,3 +45,20 @@ test('guest login and unrelated routes never initialize chat or dereference an e
 test('guest account renders email and social login before unrelated chat binding',()=>{
  const c=make();c.me=null;c.inApp=false;c.location={hash:'#account'};c.authConfig={providers:['google','kakao','apple']};c.icon=()=>'';c.formField=(label,name)=>'<input name="'+name+'">';vm.runInContext(readFileSync(new URL('../dist/views.js',import.meta.url),'utf8'),c);const html=c.accountHTML();assert.match(html,/id="auth-form"/);assert.match(html,/name="email"/);assert.match(html,/name="password"/);assert.match(html,/\/api\/auth\/google/);assert.doesNotThrow(()=>c.bindSocialChat(null));
 });
+
+test('only a peer-backed DM has the inline editor, including when the inbox crew route enables stickers', () => {
+ const context=vm.createContext({document:{addEventListener(){}},window:{addEventListener(){}},setInterval(){},icon:()=>'',voiceGlyph:()=>'',esc:String});
+ for(const name of ['improvements','chat-features','social-chat']){
+  vm.runInContext(readFileSync(new URL('../dist/'+name+'.js',import.meta.url),'utf8'),context);
+ }
+ const dm=context.chatPanelHTML('개인 메시지',null,{id:'peer'});
+ assert.match(dm,/class="[^"]*dm-direct-thread"/);
+ assert.match(dm,/id="chat-image-file"[\s\S]+class="dm-inline-field"><div contenteditable="true"[^>]+aria-placeholder="메시지를 입력하세요"[^>]+data-dm-editor[^>]*><\/div><button[^>]+data-dm-emoji[\s\S]+data-chat-send[\s\S]+data-profile-gift="peer"/);
+ for(const [peer,rich] of [[null,true],[null,false],[{},true]]){
+  const crew=context.chatPanelHTML('채팅',null,peer,rich);
+  assert.doesNotMatch(crew,/dm-direct-thread|dm-inline-field|메시지를 입력하세요/);
+  assert.equal(crew.includes('data-dm-editor'),rich);
+  assert.equal(crew.includes('data-dm-emoji'),rich);
+  assert.equal(crew.includes('<textarea'),!rich);
+ }
+});
