@@ -226,13 +226,14 @@
     "key": "cat_text_onepick",
     "label": "원픽",
     "group": "text",
-    "messageScale": 0.9,
+    "messageScale": 0.81,
     "lettering": {"width": 220, "height": 137, "top": 34, "bottom": 135}
   },
   {
     "key": "cat_text_best",
     "label": "최고",
     "group": "text",
+    "messageScale": 0.9,
     "assetVersion": "v3",
     "fitReference": {"width": 186, "height": 152},
     "lettering": {"width": 184, "height": 132, "top": 39, "bottom": 131}

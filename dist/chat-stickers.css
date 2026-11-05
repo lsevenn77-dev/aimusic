@@ -59,7 +59,7 @@
   position:relative;display:grid;place-items:center;width:var(--cat-size);height:var(--cat-size);
   min-height:0;padding:3px;border-radius:12px;
 }
-#main .cat-tile img,#main .cat-tray img {display:block;width:95%;height:95%;margin:auto;min-height:0;object-fit:contain}
+#main .cat-tray img {display:block;width:95%;height:95%;margin:auto;min-height:0;object-fit:contain}
 #main .cat-grid:has([data-cat-key^="cat_text_"]) {grid-template-columns:repeat(auto-fill,minmax(calc(var(--cat-size) * 1.55),1fr))}
 #main :is(#dm-emoji-picker,#voice-emoji-picker) button[data-cat-key^="cat_text_"] {width:calc(var(--cat-size) * 1.55)}
 @media (hover:hover) {
@@ -109,9 +109,7 @@
 #main :is(img,.cat-word-slot).cat-after-text {margin-inline-start:5px}
 #main :is(img,.cat-word-slot).cat-before-text {margin-inline-end:5px}
 #main :is(img,.cat-word-slot).cat-after-sticker {margin-inline-start:3px}
-/* Retain the original lettering scale on the two unchanged composer boxes
-   when fitting the more tightly cropped '최고' artwork. */
-#main .cat-tile[data-cat-key="cat_text_best"] img {box-sizing:border-box;padding-inline:calc(12px * (1 - 184 / 186))}
+/* Keep the recropped crown artwork at its established composer scale. */
 #main img[data-cat-sticker="cat_text_best"] {box-sizing:border-box;padding-block:calc(19px * (1 - 132 / 152))}
 #main .voice-chat-message p:has(.cat-chat-sticker) {display:block;width:fit-content}
 #main .message-workspace #chat-compose [data-dm-editor] {
@@ -128,7 +126,7 @@
 
 /* Picker artwork and interactive size are independent of sent chat items. */
 #main :is(#dm-emoji-picker,#voice-emoji-picker,.room-dm-emoji).cat-picker {
-  --tile-hit:40px; padding:8px!important; container-type:inline-size;
+  --tile-hit:40px;--cat-preview-size:36px;padding:8px!important;container-type:inline-size;
 }
 #main .cat-picker .cat-grid {
   display:grid!important;grid-template-columns:repeat(6,minmax(var(--tile-hit),1fr))!important;gap:4px!important;
@@ -138,7 +136,10 @@
   margin:0!important;padding:0!important;display:grid!important;place-items:center;font-size:20px!important;
 }
 #main .cat-picker .cat-tile :is(img,svg,video,canvas) {
-  width:24px!important;height:24px!important;min-width:0!important;max-width:24px!important;max-height:24px!important;object-fit:contain;transform:none!important;
+  display:block;width:var(--cat-preview-size)!important;height:var(--cat-preview-size)!important;
+  min-width:0!important;min-height:0;max-width:100%!important;max-height:100%!important;
+  object-fit:contain;object-position:center;transform:none!important;
 }
-@media(pointer:coarse),(max-width:767px){#main :is(#dm-emoji-picker,#voice-emoji-picker,.room-dm-emoji).cat-picker{--tile-hit:44px}}
+#main .cat-tile[data-cat-key="cat_text_best"] img {box-sizing:border-box;padding-inline:calc(var(--cat-preview-size) * (1 - 184 / 186) / 2)}
+@media(pointer:coarse),(max-width:767px){#main :is(#dm-emoji-picker,#voice-emoji-picker,.room-dm-emoji).cat-picker{--tile-hit:44px;--cat-preview-size:34px}}
 @container(max-width:290px){#main .cat-picker .cat-grid{grid-template-columns:repeat(auto-fit,minmax(var(--tile-hit),1fr))!important}}
