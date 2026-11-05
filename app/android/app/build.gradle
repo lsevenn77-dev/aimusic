@@ -22,8 +22,8 @@ android {
   minSdk 26
   targetSdk 36
   ndk { abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86_64' }
-  versionCode 91
-  versionName '2.5.78'
+  versionCode 92
+  versionName '2.5.79'
   testApplicationId 'kr.co.aifect.app.devicecheck'
   testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
  }
@@ -32,7 +32,9 @@ android {
  kotlinOptions { jvmTarget = '17' }
  buildTypes {
   release {
-   minifyEnabled false
+   minifyEnabled true
+   shrinkResources true
+   proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
    manifestPlaceholders.admobAppId = 'ca-app-pub-5910265378731607~4925860289'
    buildConfigField 'String', 'ADMOB_INTERSTITIAL_ID', '"ca-app-pub-5910265378731607/4219283278"'
   }
@@ -48,6 +50,7 @@ dependencies {
  implementation 'com.google.firebase:firebase-messaging'
  implementation 'com.google.android.gms:play-services-ads:25.5.0'
  implementation 'com.google.android.ump:user-messaging-platform:4.0.0'
+ implementation 'com.google.android.play:app-update:2.1.0'
  implementation 'androidx.credentials:credentials:1.6.0'
  implementation 'androidx.credentials:credentials-play-services-auth:1.6.0'
  implementation 'com.google.android.libraries.identity.googleid:googleid:1.1.1'

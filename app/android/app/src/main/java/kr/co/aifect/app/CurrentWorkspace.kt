@@ -34,13 +34,13 @@ import org.json.JSONObject
  val owner=androidx.lifecycle.compose.LocalLifecycleOwner.current
  val account=m.user?.optString("id")
  var view by remember{mutableStateOf<WebView?>(null)}
+ var rendererAlive by remember{mutableStateOf(true)}
  var progress by remember{mutableIntStateOf(0)}
  var failure by remember{mutableStateOf<String?>(null)}
  var closing by remember{mutableStateOf(false)}
  var currentRoute by remember{mutableStateOf(destination.route)}
  var fileReply by remember{mutableStateOf<ValueCallback<Array<Uri>>?>(null)}
  val picker=rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()){r->fileReply?.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(r.resultCode,r.data));fileReply=null}
- val route=destination.route
  fun close(){m.api.invalidateReads();m.workspace=null;if(destination.route.startsWith("profile-gallery/"))m.refreshMyDashboard(fresh=true)}
  fun requestClose(){close()}
  fun nativeDestination(raw:String):Boolean{
@@ -66,12 +66,12 @@ import org.json.JSONObject
    Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding().testTag("current-workspace")){
     TopAppBar(title={Text(destination.title,maxLines=1)},navigationIcon={IconButton(onClick={if(view?.canGoBack()==true&&!destination.route.startsWith("voice/"))view?.goBack()else requestClose()}){Icon(Icons.AutoMirrored.Rounded.ArrowBack,"이전 화면")}},actions={IconButton(onClick=::requestClose){Icon(Icons.Rounded.Close,"작업 화면 닫기")}},colors=TopAppBarDefaults.topAppBarColors(containerColor=Ink))
     if(progress in 0..99)LinearProgressIndicator(progress={progress/100f},modifier=Modifier.fillMaxWidth(),color=Pink,trackColor=Stroke)
-    failure?.let{error->Column(Modifier.padding(20.dp)){Text(error,color=Muted);TextButton(onClick={failure=null;view?.reload()}){Text("다시 연결")}}}
-    AndroidView(modifier=Modifier.fillMaxWidth().weight(1f),factory={ctx->WebView(ctx).apply{
+    failure?.let{error->Column(Modifier.padding(20.dp)){Text(error,color=Muted);TextButton(onClick={failure=null;progress=0;if(rendererAlive)view?.reload() else rendererAlive=true}){Text("다시 연결")}}}
+    if(rendererAlive)AndroidView(modifier=Modifier.fillMaxWidth().weight(1f),factory={ctx->WebView(ctx).apply{
      view=this
      setBackgroundColor(android.graphics.Color.rgb(12,18,27))
      settings.javaScriptEnabled=true;settings.domStorageEnabled=true
-     settings.useWideViewPort=true;settings.loadWithOverviewMode=true;settings.textZoom=100;settings.setSupportZoom(false)
+     settings.useWideViewPort=true;settings.loadWithOverviewMode=true;settings.setSupportZoom(false)
      settings.allowFileAccess=false;settings.allowContentAccess=false
      settings.mixedContentMode=WebSettings.MIXED_CONTENT_NEVER_ALLOW
      settings.mediaPlaybackRequiresUserGesture=true
@@ -116,16 +116,16 @@ import org.json.JSONObject
       }
       override fun onReceivedError(v:WebView,r:WebResourceRequest,e:WebResourceError){if(r.isForMainFrame)failure="연결하지 못했어요. 네트워크를 확인하고 다시 시도해주세요."}
       override fun onReceivedHttpError(v:WebView,r:WebResourceRequest,e:WebResourceResponse){if(r.isForMainFrame)failure="작업 화면을 불러오지 못했어요. (${e.statusCode})"}
-      override fun onRenderProcessGone(v:WebView,detail:RenderProcessGoneDetail):Boolean{failure="작업 화면이 종료됐어요. 저장된 작업은 다시 열 수 있어요.";v.destroy();return true}
+      override fun onRenderProcessGone(v:WebView,detail:RenderProcessGoneDetail):Boolean{failure="작업 화면이 종료됐어요. 저장된 작업은 다시 열 수 있어요.";if(view===v){view=null;rendererAlive=false;fileReply?.onReceiveValue(null);fileReply=null};return true}
      }
      // One origin, one account. Cookies are never printed or shared with external pages.
      CookieManager.getInstance().removeAllCookies{
-      if(account!=m.user?.optString("id"))return@removeAllCookies
+      if(view!==this||account!=m.user?.optString("id"))return@removeAllCookies
       val cookie=NativeSession.cookie(ctx)
-      val url=Endpoint.origin+"/#"+route
-      if(cookie.isBlank())loadUrl(url)else CookieManager.getInstance().setCookie(Endpoint.origin,cookie+"; Path=/; HttpOnly; SameSite=Lax"+(if(Endpoint.origin.startsWith("https:"))"; Secure" else "")){loadUrl(url)}
+      val url=Endpoint.origin+"/#"+currentRoute
+      if(cookie.isBlank())loadUrl(url)else CookieManager.getInstance().setCookie(Endpoint.origin,cookie+"; Path=/; HttpOnly; SameSite=Lax"+(if(Endpoint.origin.startsWith("https:"))"; Secure" else "")){if(view===this&&account==m.user?.optString("id"))loadUrl(url)}
      }
-    }})
+    }},onRelease={released->if(view===released)view=null;released.destroy()})
    }
   }
  }
@@ -138,7 +138,7 @@ import org.json.JSONObject
   owner.lifecycle.addObserver(observer)
   onDispose{
    owner.lifecycle.removeObserver(observer);fileReply?.onReceiveValue(null)
-   view?.let{web->web.stopLoading();web.loadUrl("about:blank");web.removeAllViews();web.destroy()};view=null
+   view=null
   }
  }
  if(closing)AlertDialog(onDismissRequest={closing=false},title={Text(if(destination.route.startsWith("voice/"))"토킹룸에서 나갈까요?" else "작업 화면을 닫을까요?")},text={Text(if(destination.route.startsWith("voice/"))"음성 연결과 마이크가 종료돼요." else "저장하지 않은 변경과 녹음은 사라질 수 있어요. 임시 저장 후 닫아주세요.")},confirmButton={TextButton(onClick={closing=false;close()}){Text("닫기")}},dismissButton={TextButton(onClick={closing=false}){Text("계속하기")}})

@@ -559,6 +559,10 @@ public class KaraokeActivity extends AppCompatActivity {
         }).setNegativeButton("취소",null).show();
     }
     private void uploadConfirmed(String kind){
+        android.net.ConnectivityManager connectivity=(android.net.ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE);
+        if(connectivity!=null&&connectivity.isActiveNetworkMetered()){new AlertDialog.Builder(this).setTitle("데이터로 업로드할까요?").setMessage("커버 음원을 올리면 모바일 데이터가 사용될 수 있어요. 녹음은 초안으로 보관할 수 있어요.").setNegativeButton("나중에",null).setPositiveButton("업로드",(d,w)->submitOverNetwork(kind)).show();return;}submitOverNetwork(kind);
+    }
+    private void submitOverNetwork(String kind){
         if(state!=State.REVIEW&&state!=State.PAUSED)return;
         if(!ownVoice.isChecked()||!rights.isChecked()){message("직접 부른 목소리와 공개 권한에 동의해주세요.");return;}
         final CoverPublication publication=new CoverPublication(kind,duetParent);try{publication.requireRecordingMode(coverMode);}catch(IllegalArgumentException e){message(e.getMessage());return;}publicationKind=kind;

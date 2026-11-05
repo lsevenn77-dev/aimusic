@@ -443,6 +443,7 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
     if(m.messagePeer!=null)IconButton(onClick={if(!embedded&&m.messagesReturnToProfile)m.dismissMessages() else m.messagePeer=null},modifier=Modifier.testTag("dm-back")){Icon(Icons.AutoMirrored.Rounded.ArrowBack,if(!embedded&&m.messagesReturnToProfile)"이전 페이지로" else "대화 목록으로")}
     if(m.messagePeer!=null&&peer!=null)MessageProfileAvatar(peer,"dm-peer-profile-"+peer.optString("id"),44){openMessageProfile(peer)}
     if(!embedded||peerId!=null)Text(peer?.optString("name")?:"대화",fontSize=21.sp,fontWeight=FontWeight.SemiBold,modifier=Modifier.weight(1f),maxLines=2,overflow=TextOverflow.Ellipsis)
+    if(peer!=null)UserSafety(m,peer.optString("user_id"),peer.optString("id"),peer.optString("name"),compact=true)
     DmActions(m,peerId,data?.optJSONObject("settings")?.optInt("muted")==1,{value->data=JSONObject((data?:JSONObject()).toString()).put("settings",payload("muted" to if(value)1 else 0))},{body="";messages=emptyList();conversations=emptyList();m.messagePeer=null;sheetScope.launch{try{load()}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}}})
     if(m.messagePeer!=null&&peer!=null){
      val id=peer.optString("id");val followed=m.follows.any{it.optString("kind")=="producer"&&it.optString("target_id")==id}

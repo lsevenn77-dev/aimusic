@@ -39,6 +39,22 @@ class MobileExperienceDeviceTest {
   }
  }
  private fun capture(name:String){val f=File(context.getExternalFilesDir("mobile-qa"),"$name.png");f.parentFile?.mkdirs();ins.uiAutomation.takeScreenshot().let{bmp->f.outputStream().use{bmp.compress(Bitmap.CompressFormat.PNG,100,it)};bmp.recycle()}}
+ /** Start tests/preview-live-karaoke.mjs locally, reverse its port, and pass its generated room id. */
+ @Test fun karaokeReservationInputStaysAboveSystemKeyboard(){
+  val args=InstrumentationRegistry.getArguments();val origin=args.getString("karaokeFixtureOrigin");val id=args.getString("karaokeFixtureRoom")
+  org.junit.Assume.assumeTrue(context.packageName.endsWith(".test")&&origin!=null&&id!=null)
+  Endpoint.configureTest(origin);check(Endpoint.origin==origin&&CurrentNavigation.safeID(id!!))
+  ActivityScenario.launch<MobileExperienceActivity>(Intent(context,MobileExperienceActivity::class.java).putExtra("route","live/"+id)).use{scene->
+   lateinit var w:WebView;scene.onActivity{w=web(it.window.decorView)!!}
+   val open="[data-voice=karaoke-search-open]";waitJs(w,"!!document.querySelector("+JSONObject.quote(open)+")",45000);tap(w,open)
+   waitJs(w,"!!document.querySelector('#live-query')");tap(w,"#live-query")
+   val deadline=SystemClock.elapsedRealtime()+10000;var ime=false
+   while(!ime&&SystemClock.elapsedRealtime()<deadline){scene.onActivity{ime=androidx.core.view.ViewCompat.getRootWindowInsets(w)?.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime())==true};SystemClock.sleep(100)}
+   assertTrue("Android IME appeared",ime)
+   waitJs(w,"(()=>{const e=document.querySelector('#live-query'),r=e.getBoundingClientRect(),v=window.visualViewport;return document.activeElement===e && r.height>0 && r.top>=v.offsetTop-1 && r.bottom<=v.offsetTop+v.height+1})()")
+   capture("karaoke-keyboard-visible")
+  }
+ }
  @Test fun allFourGamesFitPhoneAndReceiveTouches(){
   val crew=runBlocking{NativeApi(context).call("/api/crews?summary=1",fresh=true).optString("mine")}
   assertTrue("Existing signed-in crew required for device comparison",CurrentNavigation.safeID(crew)&&crew!="null")

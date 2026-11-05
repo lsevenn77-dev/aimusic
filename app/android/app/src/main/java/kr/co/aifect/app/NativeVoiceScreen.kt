@@ -37,7 +37,6 @@ import java.net.URLEncoder
  val context=LocalContext.current;val scope=rememberCoroutineScope();val members=state.optJSONArray("members").objects();val room=state.optJSONObject("room")?:JSONObject();val self=members.find{it.optString("id")==state.optString("self")};val host=self?.optString("role")=="host"
  var panel by remember{mutableStateOf("")};var target by remember{mutableStateOf<JSONObject?>(null)};var message by remember{mutableStateOf("")};var messageId by remember{mutableStateOf(requestIdentity())};var sending by remember{mutableStateOf(false)}
  var roomSaving by remember{mutableStateOf(false)};var roomSaveError by remember{mutableStateOf<String?>(null)}
- var phonePermissionAsked by remember{mutableStateOf(false)}
  var playlistSong by remember{mutableStateOf<JSONObject?>(null)}
  val micPermission=rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()){result->
   if(result[Manifest.permission.RECORD_AUDIO]==true||androidx.core.content.ContextCompat.checkSelfPermission(context,Manifest.permission.RECORD_AUDIO)==android.content.pm.PackageManager.PERMISSION_GRANTED)engine.launch{engine.microphone(true)}else engine.error.value="마이크 권한이 필요해요. 대화 청취는 계속할 수 있어요."
@@ -45,7 +44,6 @@ import java.net.URLEncoder
  fun enableMicrophone(){
   val permissions=mutableListOf<String>()
   if(androidx.core.content.ContextCompat.checkSelfPermission(context,Manifest.permission.RECORD_AUDIO)!=android.content.pm.PackageManager.PERMISSION_GRANTED)permissions+=Manifest.permission.RECORD_AUDIO
-  if(!phonePermissionAsked&&androidx.core.content.ContextCompat.checkSelfPermission(context,Manifest.permission.READ_PHONE_STATE)!=android.content.pm.PackageManager.PERMISSION_GRANTED){phonePermissionAsked=true;permissions+=Manifest.permission.READ_PHONE_STATE}
   if(permissions.isEmpty())engine.launch{engine.microphone(true)}else micPermission.launch(permissions.toTypedArray())
  }
  fun action(name:String,data:JSONObject=JSONObject()){engine.launch{engine.command(name,data)}}

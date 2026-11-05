@@ -27,8 +27,9 @@ public final class NativeSession {
    String[] parts=raw.split(":");Cipher cipher=Cipher.getInstance("AES/GCM/NoPadding");
    cipher.init(Cipher.DECRYPT_MODE,key(),new GCMParameterSpec(128,Base64.decode(parts[0],Base64.NO_WRAP)));
    return new JSONObject(new String(cipher.doFinal(Base64.decode(parts[1],Base64.NO_WRAP)),java.nio.charset.StandardCharsets.UTF_8));
-  }catch(Exception e){return new JSONObject();}
+  }catch(Exception e){android.util.Log.w("AifectSession","Session vault unreadable: "+e.getClass().getSimpleName());return new JSONObject();}
  }
+ public static synchronized void clear(Context c){if(!c.getSharedPreferences("native_session",0).edit().remove("vault").commit())throw new IllegalStateException("로그인 정보를 지우지 못했어요.");}
  public static synchronized String get(Context c,String name){return read(c).optString(name,"");}
  public static synchronized String cookie(Context c){return get(c,"cookie");}
  public static synchronized void put(Context c,String name,String value){

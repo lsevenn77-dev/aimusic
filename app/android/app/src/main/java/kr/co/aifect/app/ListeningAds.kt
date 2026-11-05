@@ -22,7 +22,7 @@ class ListeningAds(private val activity:ComponentActivity):SongAdBreaks.Host {
  private var lastRequest=0L
  val privacyRequired get()=consent.privacyOptionsRequirementStatus==ConsentInformation.PrivacyOptionsRequirementStatus.REQUIRED
  fun prepare() {
-  if(!BuildConfig.AD_NETWORK_ENABLED||activity.isDestroyed)return
+  if(!BuildConfig.AD_NETWORK_ENABLED||activity.isDestroyed||!SongAdBreaks.eligible)return
   if(!started){
    started=true
    consent.requestConsentInfoUpdate(activity,ConsentRequestParameters.Builder().build(),{

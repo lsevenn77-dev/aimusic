@@ -63,7 +63,7 @@ class MobileExperienceActivity:ComponentActivity(){
   web=WebView(this).apply{
    setBackgroundColor(Color.rgb(11,16,36));isFocusableInTouchMode=true;overScrollMode=View.OVER_SCROLL_NEVER
    settings.javaScriptEnabled=true;settings.domStorageEnabled=true;settings.useWideViewPort=true;settings.loadWithOverviewMode=true
-   settings.setSupportZoom(false);settings.builtInZoomControls=false;settings.displayZoomControls=false;settings.textZoom=100
+   settings.setSupportZoom(false);settings.builtInZoomControls=false;settings.displayZoomControls=false
    settings.allowFileAccess=false;settings.allowContentAccess=false;settings.mixedContentMode=WebSettings.MIXED_CONTENT_NEVER_ALLOW
    settings.mediaPlaybackRequiresUserGesture=true;settings.javaScriptCanOpenWindowsAutomatically=false;settings.setSupportMultipleWindows(false)
    settings.userAgentString+=" AIFECT-Mobile/"+BuildConfig.VERSION_NAME

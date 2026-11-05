@@ -41,7 +41,7 @@ class MainActivity:ComponentActivity(){
  override fun onCreate(savedInstanceState:Bundle?){
   installSplashScreen();super.onCreate(savedInstanceState)
   Endpoint.configureTest(intent.getStringExtra("testOrigin"))
-  signIn=NativeSignIn(this)
+  updates=ReleaseUpdates(this,model);signIn=NativeSignIn(this)
   model.playBilling=PlayBilling(this,model)
   ads=ListeningAds(this)
   enableEdgeToEdge(statusBarStyle=SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),navigationBarStyle=SystemBarStyle.dark(android.graphics.Color.TRANSPARENT))
@@ -50,17 +50,21 @@ class MainActivity:ComponentActivity(){
     if(android.os.Build.VERSION.SDK_INT>=33&&com.google.firebase.FirebaseApp.getApps(this@MainActivity).isNotEmpty()&&
      checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)!=android.content.pm.PackageManager.PERMISSION_GRANTED){
      val prefs=getSharedPreferences("native_push",0)
-     if(!prefs.getBoolean("permission_asked",false)){prefs.edit().putBoolean("permission_asked",true).apply();notificationPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)}
+     if(!prefs.getBoolean("permission_asked",false)&&!isFinishing){prefs.edit().putBoolean("permission_asked",true).apply();android.app.AlertDialog.Builder(this@MainActivity).setTitle("메시지 알림").setMessage("앱을 닫아도 새 메시지와 활동 소식을 받으려면 알림을 허용해주세요.").setNegativeButton("나중에",null).setPositiveButton("계속"){_,_->notificationPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)}.show()}
     }
    }}
    AifectApp(model,::sing,::openBrowser,::login,{ads.privacy{model.notice=it}},::resumeDraft)
   }
-  if(intent.data!=null)model.finishLogin(intent.data)
+  if(savedInstanceState==null)handleLink(intent)
  }
- override fun onNewIntent(intent:Intent){super.onNewIntent(intent);setIntent(intent);model.finishLogin(intent.data);if(model.user!=null)push(intent)}
- override fun onResume(){super.onResume();model.finishLogin();PushNotifications.refresh(this);model.playBilling?.resume();if(::ads.isInitialized){SongAdBreaks.host=ads;if(model.user!=null)ads.prepare()}}
+ private fun handleLink(intent:Intent){val uri=intent.data?:return;if(uri.scheme=="https"&&uri.encodedAuthority=="aifect.co.kr"){val match=Regex("^/music/([A-Za-z0-9_-]{1,80})$").matchEntire(uri.encodedPath.orEmpty());if(match!=null)model.openCurrentSong(match.groupValues[1])}else model.finishLogin(uri)}
+ override fun onNewIntent(intent:Intent){super.onNewIntent(intent);setIntent(intent);handleLink(intent);if(model.user!=null)push(intent)}
+ private lateinit var updates:ReleaseUpdates
+ override fun onStart(){super.onStart();model.playbackVisible(true)}
+ override fun onStop(){model.playbackVisible(false);super.onStop()}
+ override fun onResume(){super.onResume();updates.resume();model.finishLogin();PushNotifications.refresh(this);model.playBilling?.resume();if(::ads.isInitialized){SongAdBreaks.host=ads;if(model.user!=null)ads.prepare()}}
  override fun onPause(){if(::ads.isInitialized&&SongAdBreaks.host===ads)SongAdBreaks.host=null;super.onPause()}
- override fun onDestroy(){model.playBilling?.close();model.playBilling=null;if(::ads.isInitialized)ads.dispose();super.onDestroy()}
+ override fun onDestroy(){updates.close();model.playBilling?.close();model.playBilling=null;if(::ads.isInitialized)ads.dispose();super.onDestroy()}
  private fun openBrowser(url:String){try{startActivity(Intent(Intent.ACTION_VIEW,Uri.parse(url)))}catch(_:android.content.ActivityNotFoundException){model.notice="브라우저를 설치하거나 활성화한 뒤 다시 열어주세요."}}
  private fun login(provider:String){
   when(provider){

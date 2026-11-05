@@ -37,7 +37,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   }
   workspace=CurrentWorkspace(route,title)
  }
- internal fun openCurrentSong(id:String)=action{openSong(Song(api.call("/api/tracks/$id",fresh=true).getJSONObject("track")))}
+ internal fun openCurrentSong(id:String){if(!CurrentNavigation.safeID(id))return;viewModelScope.launch{while(refreshing)delay(40);val scope=readScope();try{val data=api.call("/api/tracks/$id",fresh=true);ensureRead(scope);openSong(Song(data.getJSONObject("track")))}catch(e:Exception){if(e is CancellationException)throw e;if(sameAccount(scope))failure(e)}}}
  var showBilling by mutableStateOf(false)
  var showDiamonds by mutableStateOf(false)
  var billingInitialTab by mutableStateOf("premium")
@@ -143,6 +143,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
     accountGeneration++;api.invalidateReads();clearPrivateState(stopPlayback)
     PushNotifications.bind(getApplication(),value?.optString("id"))
    }
+   value?.optString("id")?.let{NativeChatCache.allow(getApplication(),it)}
    activeUser=value
   }
  var membership by mutableStateOf(JSONObject())
@@ -367,16 +368,19 @@ class MusicModel(app:Application):AndroidViewModel(app) {
  var feedFilter by mutableStateOf("전체")
     private set
  @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
- private val future=MediaController.Builder(app,SessionToken(app,ComponentName(app,PlaybackService::class.java))).buildAsync()
+ private val future=MediaController.Builder(app,SessionToken(app,ComponentName(app,PlaybackService::class.java))).setListener(object:MediaController.Listener{override fun onExtrasChanged(controller:MediaController,extras:android.os.Bundle){syncPlayer()}}).buildAsync()
 
+ private var visible=false
+ private var progressJob:Job?=null
+ fun playbackVisible(value:Boolean){visible=value;updateProgress()}
+ private fun updateProgress(){syncPlayer();if(visible&&controller?.isPlaying==true){if(progressJob?.isActive!=true)progressJob=viewModelScope.launch{while(isActive){delay(350);syncPlayer()}}}else{progressJob?.cancel();progressJob=null}}
  init {
   future.addListener({
    runCatching { controller=future.get();controller?.addListener(object:Player.Listener {
-    override fun onEvents(player:Player,events:Player.Events) { syncPlayer() }
+    override fun onEvents(player:Player,events:Player.Events) { updateProgress() }
     override fun onPlayerError(e:PlaybackException) { playerError="재생을 시작하지 못했어요. 네트워크를 확인하고 다시 시도해주세요.";notice=playerError }
-   });syncPlayer() }.onFailure { notice="플레이어를 준비하지 못했어요. 앱을 다시 열어주세요." }
+   });updateProgress() }.onFailure { notice="플레이어를 준비하지 못했어요. 앱을 다시 열어주세요." }
   },ContextCompat.getMainExecutor(app))
-  viewModelScope.launch { while(isActive){syncPlayer();delay(350)} }
   refresh()
  }
  private fun syncPlayer() {
@@ -687,17 +691,24 @@ class MusicModel(app:Application):AndroidViewModel(app) {
  fun checkNickname(name:String)=action {try{val result=api.call("/api/account/nickname?name="+java.net.URLEncoder.encode(name,"UTF-8"));nicknameCheck=if(result.optBoolean("available"))"사용할 수 있는 아이디입니다." else result.optString("message")}catch(e:Exception){if(e is CancellationException)throw e;accountError=e.message}}
  fun saveNickname(name:String)=action {accountError=null;try{api.call("/api/account/nickname","PUT",payload("name" to name));loadMe();loadOwnProfile(fresh=true);nicknameCheck="아이디를 변경했습니다.";notice="아이디를 변경했어요."}catch(e:Exception){if(e is CancellationException)throw e;accountError=e.message}}
  fun changePassword(current:String,next:String,done:()->Unit)=action {accountError=null;try{api.call("/api/account/password","PUT",payload("current_password" to current,"new_password" to next));done();notice="비밀번호를 변경했어요. 다른 기기는 다시 로그인해주세요."}catch(e:Exception){if(e is CancellationException)throw e;accountError=e.message}}
+ suspend fun onBlocked(account:String){accountGeneration++;api.invalidateReads();clearPrivateState(true);home=emptyList();latest=emptyList();singable=emptyList();recentCovers=emptyList();people=emptyList();publicLists=emptyList();duetInvitations=emptyList();NativeChatCache.clear(getApplication(),account);refresh()}
+ @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+ suspend fun clearLocalAccount(account:String?,oldCookie:String=NativeSession.cookie(getApplication())){
+   NativeSession.clear(getApplication());api.clearGoogleBinding();api.invalidateReads();browserLoginPending=false;user=null;membership=JSONObject();closePlayer();showLogin=false;showAccount=false
+   getApplication<android.app.Application>().stopService(android.content.Intent(getApplication(),NativeVoiceService::class.java))
+   android.webkit.WebStorage.getInstance().deleteAllData();kotlinx.coroutines.suspendCancellableCoroutine<Unit>{done->android.webkit.CookieManager.getInstance().removeAllCookies{android.webkit.CookieManager.getInstance().flush();if(done.isActive)done.resumeWith(Result.success(Unit))}}
+   withContext(Dispatchers.IO){runCatching{PlaybackDisk.forget(getApplication(),oldCookie)}}
+   if(account!=null)NativeChatCache.purge(getApplication(),account)
+   runCatching{androidx.credentials.CredentialManager.create(getApplication()).clearCredentialState(androidx.credentials.ClearCredentialStateRequest())};if(BuildConfig.KAKAO_NATIVE_KEY.isNotBlank())runCatching{com.kakao.sdk.user.UserApiClient.instance.logout{}}
+ }
  fun logout()=action {
+  val account=user?.optString("id");val oldCookie=NativeSession.cookie(getApplication())
   var remoteFailure:Exception?=null
   try{api.call("/api/auth/logout","POST")}
   catch(e:Exception){if(e is CancellationException)throw e;remoteFailure=e}
   finally{
    // Local logout must finish even when the server cannot revoke this session.
-   NativeSession.put(getApplication(),"cookie","");NativeSession.put(getApplication(),"ticket","");NativeSession.put(getApplication(),"verifier","")
-   api.clearGoogleBinding();api.invalidateReads()
-   browserLoginPending=false;user=null;membership=JSONObject();closePlayer();showLogin=false;showAccount=false
-   runCatching{androidx.credentials.CredentialManager.create(getApplication()).clearCredentialState(androidx.credentials.ClearCredentialStateRequest())}
-   if(BuildConfig.KAKAO_NATIVE_KEY.isNotBlank())runCatching{com.kakao.sdk.user.UserApiClient.instance.logout{}}
+   withContext(NonCancellable){clearLocalAccount(account,oldCookie)}
   }
   notice=if(remoteFailure==null)"로그아웃했어요." else "이 기기에서 로그아웃했어요. 연결 문제로 서버 로그아웃은 확인하지 못했어요."
  }

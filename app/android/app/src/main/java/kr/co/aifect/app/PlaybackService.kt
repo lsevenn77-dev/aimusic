@@ -38,33 +38,37 @@ class PlaybackService : MediaSessionService() {
  private var destroyed=false
  override fun onCreate() {
   super.onCreate();api=NativeApi(this)
-  val data=ResolvingDataSource.Factory(OkHttpDataSource.Factory(api.client)) { spec ->
+  val http=OkHttpDataSource.Factory(api.client)
+  val cached=androidx.media3.datasource.cache.CacheDataSource.Factory().setCache(PlaybackDisk.cache(this)).setUpstreamDataSourceFactory(http).setFlags(androidx.media3.datasource.cache.CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+  val data=ResolvingDataSource.Factory(cached) { spec ->
    val uri=spec.uri
    if(uri.host!="play.aifect.invalid")throw IOException("재생 주소를 확인해주세요.")
    val id=uri.pathSegments.firstOrNull()?:""
    if(!Regex("[\\w-]{1,80}").matches(id))throw IOException("곡을 찾을 수 없어요.")
    val key=uri.toString()
+   val requestingSession=NativeSession.cookie(this)
    val saved=resolved[key]?.takeIf { it.cookie==NativeSession.cookie(this) }
    val entry=saved?:run {
     val response=api.blocking("/api/playback/$id","POST")
-    Listening(response.getString("id"),Endpoint.url(response.getString("src")),NativeSession.cookie(this),
+    if(requestingSession!=NativeSession.cookie(this))throw IOException("계정이 변경됐어요. 곡을 다시 열어주세요.")
+    Listening(response.getString("id"),Endpoint.url(response.getString("src")),requestingSession,
      if(response.optBoolean("preview")) minOf(60.0,response.optDouble("duration",60.0)) else response.optDouble("duration",7200.0),response.optBoolean("preview"),
      response.optInt("bitrate_kbps"),response.optBoolean("high_quality_pending"))
      .also { resolved[key]=it }
    }
    handler.post{if(!destroyed&&player.currentMediaItem?.localConfiguration?.uri?.toString()==key)publishQuality(key)}
-   spec.withUri(android.net.Uri.parse(entry.uri))
+   spec.buildUpon().setUri(entry.uri).setKey(PlaybackDisk.key(entry.cookie,entry.uri,entry.bitrate,entry.limit)).build()
   }
   player=ExoPlayer.Builder(this).setMediaSourceFactory(DefaultMediaSourceFactory(data)).build().apply {
-   setWakeMode(C.WAKE_MODE_LOCAL)
+   setWakeMode(C.WAKE_MODE_NETWORK)
    setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MUSIC).build(),true)
    setHandleAudioBecomingNoisy(true)
    addListener(object:Player.Listener {
-    override fun onIsPlayingChanged(isPlaying:Boolean) { accrueAdListening();adWasPlaying=isPlaying;if(!isPlaying) report() }
+    override fun onIsPlayingChanged(isPlaying:Boolean) { if(!isPlaying&&adWasPlaying)accrueListen(reportingKey);accrueAdListening();adWasPlaying=isPlaying;handler.removeCallbacks(tick);lastTick=android.os.SystemClock.elapsedRealtime();ticks=0;if(isPlaying)handler.postDelayed(tick,1000) else report() }
     override fun onMediaItemTransition(item:MediaItem?,reason:Int) {
      // Manual next/previous and playlist selections also finish the old listen.
      // Evaluate it before replacing the old key, duration and listened time.
-     countCompletion()
+     if(adWasPlaying)accrueListen(reportingKey);countCompletion()
      report(reportingKey)
      reportingKey=item?.localConfiguration?.uri?.toString()
      publishQuality(reportingKey)
@@ -92,7 +96,7 @@ class PlaybackService : MediaSessionService() {
     }
    }).build()
   SongAdBreaks.finishCurrentListen={countCompletion()}
-  lastTick=android.os.SystemClock.elapsedRealtime();handler.post(tick)
+  lastTick=android.os.SystemClock.elapsedRealtime()
  }
  private fun publishQuality(key:String?){
   if(!::session.isInitialized)return
@@ -106,14 +110,16 @@ class PlaybackService : MediaSessionService() {
  }
  private val tick=object:Runnable {
   override fun run() {
+   if(destroyed||!player.isPlaying)return
    val now=android.os.SystemClock.elapsedRealtime()
    val key=player.currentMediaItem?.localConfiguration?.uri?.toString()
    if(player.duration>0)adDurationMs=player.duration
    accrueAdListening()
-   if(player.isPlaying && key!=null)resolved[key]?.let { it.seconds=minOf(it.limit,it.seconds+(now-lastTick).coerceIn(0,1500)/1000.0) }
-   lastTick=now;if(++ticks%15==0)report();handler.postDelayed(this,1000)
+   accrueListen(key,now)
+   if(++ticks%15==0)report();handler.postDelayed(this,1000)
   }
  }
+ private fun accrueListen(key:String?,now:Long=android.os.SystemClock.elapsedRealtime()){key?.let{resolved[it]}?.let{it.seconds=minOf(it.limit,it.seconds+(now-lastTick).coerceIn(0,1500)/1000.0)};lastTick=now}
  private fun countCompletion(){
   if(completionCounted)return
   accrueAdListening()

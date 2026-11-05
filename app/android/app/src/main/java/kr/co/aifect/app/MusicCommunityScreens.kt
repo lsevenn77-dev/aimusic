@@ -86,19 +86,20 @@ import org.json.JSONObject
  Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).musicSurface().border(1.dp,Stroke,RoundedCornerShape(20.dp)).padding(16.dp).testTag("$context-header")){
   Row(verticalAlignment=Alignment.CenterVertically){
    // The outer padding reserves room for the frame's 1.26x decoration.
-   Box(Modifier.padding(8.dp).size(60.dp).testTag("$context-photo-frame").clickable{m.viewProfilePhoto(p)},contentAlignment=Alignment.Center){
+   Box(Modifier.padding(8.dp).size(60.dp).testTag("$context-photo-frame").clickable(role=androidx.compose.ui.semantics.Role.Button,onClickLabel="프로필 사진 확대"){m.viewProfilePhoto(p)},contentAlignment=Alignment.Center){
     if(p.optString("image_version").let{it.isBlank()||it=="null"||it=="0"})DefaultProfileArtwork(name,Modifier.fillMaxSize().clip(androidx.compose.foundation.shape.CircleShape))
     else AsyncImage(Endpoint.url("/media/${p.optString("profile_kind","producer")}/${p.optString("id")}?v=${p.optString("image_version")}"),"$name 프로필 사진",Modifier.fillMaxSize().clip(androidx.compose.foundation.shape.CircleShape).testTag("$context-cover-image"),contentScale=ContentScale.Crop)
     if(person)PlayerAvatarDecoration(p,60)
    }
    Column(Modifier.weight(1f).padding(start=8.dp)){
     Text(name,fontSize=19.sp,fontWeight=FontWeight.Bold,maxLines=2,overflow=TextOverflow.Ellipsis,modifier=Modifier.testTag("$context-name"))
-    if(person&&p.optString("partner_badge").let{it.isNotBlank()&&it!="null"})Text(p.optString("partner_badge"),fontSize=11.sp,color=Aqua,modifier=Modifier.padding(top=4.dp))
+    if(person&&p.optString("partner_badge").let{it.isNotBlank()&&it!="null"})Text(p.optString("partner_badge"),fontSize=12.sp,color=Aqua,modifier=Modifier.padding(top=4.dp))
     if(person&&p.optString("bio").isNotBlank())ProfileBiography(p.optString("bio"))
    }
    if(myPage)IconButton(onClick={m.showAccount=true},modifier=Modifier.testTag("my-profile-settings")){Icon(Icons.Rounded.Settings,"계정 설정",tint=Aqua,modifier=Modifier.size(21.dp))}
    else close?.let{dismiss->IconButton(onClick=dismiss,modifier=Modifier.testTag("profile-close")){Icon(Icons.Rounded.Close,"프로필 닫기",tint=SoftText)}}
   }
+  if(person&&!own&&!myPage) UserSafety(m,p.optString("user_id"),p.optString("id"),name)
   if(!person&&p.optString("bio").isNotBlank())ProfileBiography(p.optString("bio"))
   HorizontalDivider(Modifier.padding(top=12.dp,bottom=4.dp),color=Stroke.copy(alpha=.6f))
   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(4.dp)){

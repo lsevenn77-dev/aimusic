@@ -35,6 +35,9 @@ internal object NativeChatCache {
  private const val MAX_MESSAGES=150
  private val memory=ConcurrentHashMap<String,NativeDmSnapshot>()
  private val io=Mutex()
+ private val signedOut=ConcurrentHashMap.newKeySet<String>()
+ fun allow(context:Context,id:String){signedOut.remove(key(context,id))}
+ suspend fun purge(context:Context,id:String)=withContext(Dispatchers.IO){io.withLock{val k=key(context,id);signedOut.add(k);memory.remove(k);file(context,id).delete()}}
 
  private fun key(context:Context,accountId:String)=context.packageName+"\n"+Endpoint.origin+"\n"+accountId
  private fun file(context:Context,accountId:String):AtomicFile {
@@ -106,6 +109,7 @@ internal object NativeChatCache {
    snapshot.threads.forEach{(id,thread)->put(JSONObject().put("id",id).put("peer",thread.peer?:JSONObject.NULL).put("messages",JSONArray(thread.messages)).put("earlier",thread.earlier).put("draft",thread.draft).put("updated",thread.updated).put("read_sequence",thread.readSequence))}
   }).toString().toByteArray(Charsets.UTF_8)
  private fun writeLocked(context:Context,accountId:String,snapshot:NativeDmSnapshot){
+  if(key(context,accountId) in signedOut)return
   var bounded=snapshot.copy(threads=snapshot.threads.entries.sortedByDescending{it.value.updated}.take(MAX_THREADS).associate{it.key to it.value})
   var bytes=encode(accountId,bounded)
   // Drop least recently visited cached threads if long messages reach the byte cap.

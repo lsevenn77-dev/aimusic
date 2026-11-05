@@ -158,7 +158,11 @@ class NativeApi(private val context: Context) {
   val revision=reads.generation
   try{
    if(method=="GET"&&NativeReadPolicy.ttlMillis(path)!=null){
-    val serialized=reads.read(scope,path,fresh,current={readScope()==scope}){network(path,method,data).toString()}
+    val serialized=reads.read(scope,path,fresh,current={readScope()==scope}){
+     val guest=CatalogSnapshot.accepts(path)&&NativeSession.cookie(context).isEmpty()&&Endpoint.origin=="https://aifect.co.kr"
+     try{network(path,method,data).toString().also{if(guest&&readScope()==scope)CatalogSnapshot.save(context,path,it)}}
+     catch(e:IOException){if(!guest||e is ApiException||readScope()!=scope)throw e;CatalogSnapshot.read(context,path)?:throw e}
+    }
     return JSONObject(serialized)
    }
    return network(path,method,data)

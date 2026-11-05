@@ -81,6 +81,8 @@ private fun diamondFormat(n:Double)=DecimalFormat("#,##0.#####").format(n)
  val minimum=if(cash)100 else 1
  val canSubmit=!working&&n>=minimum&&n<=available&&n<=1000000
 
+ val window=androidx.activity.compose.LocalActivity.current?.window
+ DisposableEffect(window){val flag=android.view.WindowManager.LayoutParams.FLAG_SECURE;val inherited=window?.attributes?.flags?.and(flag)==flag;window?.addFlags(flag);onDispose{if(!inherited)window?.clearFlags(flag)}}
  AppPage(title="다이아 · 내 정산",onDismissRequest={if(!working)m.showDiamonds=false},containerColor=Ink){
   LazyColumn(Modifier.fillMaxSize().imePadding().testTag("diamond-screen"),contentPadding=PaddingValues(20.dp,8.dp,20.dp,28.dp),verticalArrangement=Arrangement.spacedBy(18.dp)){
    if(loading)item{LinearProgressIndicator(Modifier.fillMaxWidth().testTag("diamond-loading"),color=Aqua,trackColor=Stroke)}
@@ -171,7 +173,7 @@ private fun diamondFormat(n:Double)=DecimalFormat("#,##0.#####").format(n)
      if(policyExpanded)Column(Modifier.testTag("diamond-policy-details"),verticalArrangement=Arrangement.spacedBy(12.dp)){
       HorizontalDivider(color=Stroke)
       Text("다이아와 전환",fontSize=15.sp,lineHeight=22.sp,fontWeight=FontWeight.SemiBold)
-      Text("월 마감 후 확정한 수익이에요. 소수점 수익도 누적돼요. 1다이아는 세전 100원 또는 10골드예요. 추가 차감과 웹 구매 보너스는 없어요. 전환한 골드로 다른 사람에게 선물할 수 있어요. 전환은 되돌릴 수 없고, 골드는 현금 정산할 수 없어요.",fontSize=14.sp,lineHeight=22.sp,color=SoftText)
+      Text("월 마감 후 확정한 수익이에요. 소수점 수익도 누적돼요. 1다이아는 세전 100원 또는 10골드예요. 전환한 골드로 다른 사람에게 선물할 수 있어요. 전환은 되돌릴 수 없고, 골드는 현금 정산할 수 없어요.",fontSize=14.sp,lineHeight=22.sp,color=SoftText)
       Text("현금 정산",fontSize=15.sp,lineHeight=22.sp,fontWeight=FontWeight.SemiBold)
       Text("100다이아부터 월 1회 신청할 수 있어요. 계좌 등록이 필요하며, 25일까지 신청하면 같은 달 25일에, 25일 이후 신청하면 다음 달 25일에 지급 예정이에요. 별도 환전 수수료는 없어요. 지급액에는 해당 원천징수가 반영돼요.",fontSize=14.sp,lineHeight=22.sp,color=SoftText)
       Text("선물 · 스트리밍 배분",fontSize=15.sp,lineHeight=22.sp,fontWeight=FontWeight.SemiBold)

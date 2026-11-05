@@ -123,7 +123,7 @@ internal val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=
     if(!keyboardVisible&&!m.studioEditing&&m.tab!=2&&m.tab!=3&&m.tab!=5)Row(Modifier.fillMaxWidth().heightIn(min=50.dp).padding(horizontal=14.dp),verticalAlignment=Alignment.CenterVertically){
      if(m.tab==6){BrandLockup();Spacer(Modifier.weight(1f));IconButton(onClick={if(m.authenticated())m.showNotifications=true}){Icon(Icons.Rounded.NotificationsNone,"알림 기록",tint=SoftText)}}
      else {
-      Box(Modifier.heightIn(min=48.dp).clickable{navigationOpen=true}.testTag("navigation-menu"),contentAlignment=Alignment.CenterStart){BrandLockup(m.tab==0)}
+      Box(Modifier.heightIn(min=48.dp).clickable(role=androidx.compose.ui.semantics.Role.Button,onClickLabel="메뉴 열기"){navigationOpen=true}.testTag("navigation-menu"),contentAlignment=Alignment.CenterStart){BrandLockup(m.tab==0)}
       Spacer(Modifier.weight(1f))
       IconButton(onClick={if(m.authenticated())m.showNotifications=true}){BadgedBox(badge={if(m.unreadActivities>0)Badge(containerColor=StreamPurple,contentColor=Ink){Text(if(m.unreadActivities>99)"99+" else "${m.unreadActivities}",fontSize=9.sp)}}){Icon(Icons.Rounded.NotificationsNone,"알림 기록",Modifier.size(22.dp),tint=SoftText)}}
       IconButton(onClick={m.selectTab(1)}){Icon(Icons.Rounded.Search,"검색",Modifier.size(22.dp),tint=SoftText)}
@@ -296,7 +296,7 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)P
  AppPage(title="재생 중",onDismissRequest={m.fullPlayer=false},containerColor=Ink,backdrop={AlbumListeningBackdrop(song.art,"player-art-backdrop")}){
   LazyColumn(Modifier.fillMaxWidth(),contentPadding=PaddingValues(24.dp,0.dp,24.dp,30.dp)){
    item{
-    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Text("NOW PLAYING",color=Muted,fontSize=12.sp,letterSpacing=2.sp,modifier=Modifier.weight(1f));IconButton(onClick={queueOpen=true},modifier=Modifier.testTag("player-queue")){Icon(Icons.AutoMirrored.Rounded.QueueMusic,"재생목록",tint=Aqua)};IconButton(onClick=m::closePlayer){Icon(Icons.Rounded.Close,"재생 종료",tint=Muted)}}
+    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Text("NOW PLAYING",color=Muted,fontSize=12.sp,letterSpacing=2.sp,modifier=Modifier.weight(1f));SongShareButton(song);IconButton(onClick={queueOpen=true},modifier=Modifier.testTag("player-queue")){Icon(Icons.AutoMirrored.Rounded.QueueMusic,"재생목록",tint=Aqua)};IconButton(onClick=m::closePlayer){Icon(Icons.Rounded.Close,"재생 종료",tint=Muted)}}
     Box(Modifier.fillMaxWidth(),contentAlignment=Alignment.Center){Artwork(song,Modifier.widthIn(max=380.dp).fillMaxWidth().aspectRatio(1f))}
     Row(Modifier.fillMaxWidth().padding(top=22.dp),verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){Text(song.title,fontSize=25.sp,fontWeight=FontWeight.Bold,maxLines=2);Text(song.credit,color=Muted,modifier=Modifier.padding(top=7.dp))};IconButton(onClick={m.like(song)},enabled=!m.busy){Icon(if(m.likes.any{it.id==song.id})Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,"좋아요",tint=Pink)}}
     m.playbackQualityLabel?.let{Text(it,fontSize=12.sp,color=Aqua,modifier=Modifier.padding(top=8.dp).testTag("player-quality"))}
@@ -352,6 +352,7 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)P
  }
 }
 @Composable private fun AccountSheet(m:MusicModel,browser:(String)->Unit,adPrivacy:()->Unit){
+ var safety by remember{mutableStateOf(false)}
  var information by remember{mutableStateOf(false)}
  fun open(path:String){m.showAccount=false;browser(Endpoint.url(path))}
  AppPage(title="계정",onDismissRequest={m.showAccount=false},containerColor=Panel){
@@ -373,18 +374,20 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)P
    AccountMenuRow("스튜디오",Icons.Rounded.Tune){m.openStudio()}
    AccountMenuRow("선물함",Icons.Rounded.CardGiftcard,tint=Pink){m.openGifts()}
    HorizontalDivider(Modifier.padding(vertical=12.dp),color=Stroke)
+   AccountMenuRow("차단 관리 · 계정 삭제",Icons.Rounded.ManageAccounts){safety=true}
    AccountMenuRow("로그아웃",Icons.AutoMirrored.Rounded.Logout,tint=Color(0xFFFFB4A5),enabled=!m.busy){m.logout()}
    TextButton(onClick={information=!information},modifier=Modifier.fillMaxWidth()){
     Text("이용 안내",color=Muted);Spacer(Modifier.weight(1f));Icon(if(information)Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,null,tint=Muted)
    }
    if(information){
     Text("제작곡은 무료 월 3곡 · Premium 월 10곡, 커버곡은 업로드 제한이 없어요. 무료회원은 제작곡 업로드 중 또는 커버 업로드 완료 후 화면 광고가 한 번 표시될 수 있어요. 감상 중 음성광고는 준비 중이며, Premium은 광고가 없어요.",fontSize=13.sp,color=Muted)
-    listOf("이용약관" to "/terms","개인정보처리방침" to "/privacy","고객센터 · 탈퇴" to "/contact").forEach{(label,path)->TextButton(onClick={open(path)}){Text(label)}}
+    listOf("이용약관" to "/terms","개인정보처리방침" to "/privacy","고객센터" to "/contact","계정 삭제 안내" to "/account/delete").forEach{(label,path)->TextButton(onClick={open(path)}){Text(label)}}
     TextButton(onClick={m.showAccount=false;adPrivacy()}){Text("광고 개인정보 설정")}
    }
    Text("AIFECT ${BuildConfig.VERSION_NAME}",color=Muted,fontSize=12.sp,modifier=Modifier.padding(top=12.dp))
   }
  }
+ if(safety) SafetySettings(m,{safety=false},{browser(Endpoint.url(it))})
 }
 
 @Composable private fun AccountSettingsSheet(m:MusicModel){
@@ -447,7 +450,7 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)P
  var controlsEnd by remember{mutableFloatStateOf(Float.MAX_VALUE)}
  val miniVisible by remember{derivedStateOf{list.firstVisibleItemIndex>0||list.firstVisibleItemScrollOffset>=controlsEnd}}
  var management by remember{mutableStateOf(false)}
- AppPage(title=if(detailsVisible)song.title else "AIFECT",onDismissRequest={m.detail=null},containerColor=Ink,actions={IconButton({management=true},modifier=Modifier.testTag("song-menu")){Icon(Icons.Rounded.Menu,"곡 메뉴")}},backdrop={
+ AppPage(title=if(detailsVisible)song.title else "AIFECT",onDismissRequest={m.detail=null},containerColor=Ink,actions={SongShareButton(song);IconButton({management=true},modifier=Modifier.testTag("song-menu")){Icon(Icons.Rounded.Menu,"곡 메뉴")}},backdrop={
   if(!detailsVisible)AlbumListeningBackdrop(song.art,"song-art-backdrop")
  }){
   BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()){
@@ -500,6 +503,7 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)P
   Text(song.title,fontSize=20.sp,fontWeight=FontWeight.Bold)
   TextButton({save(song)}){Icon(Icons.Rounded.Add,null);Text("플레이리스트에 저장")}
   TextButton({m.openProfile(song.producerId)}){Text("제작자 페이지")}
+  if(!m.ownsTrack(song)) TrackSafety(m,song)
   AlbumImageEditor(m,song)
   if(m.ownsTrack(song))TextButton({m.requestTrackDelete(song)},modifier=Modifier.testTag("song-detail-delete")){Icon(Icons.Rounded.DeleteOutline,null);Text("${if(song.cover)"커버곡"else "음원"} 삭제")}
  }}

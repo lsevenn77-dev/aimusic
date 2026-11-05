@@ -70,6 +70,7 @@ class NativeAppTest {
   assertTrue("Only the isolated test package is allowed",context.packageName.endsWith(".test"))
   NativeSession.put(context,"cookie","");NativeSession.put(context,"ticket","")
   server=ServerSocket(0,10,InetAddress.getByName("127.0.0.1"))
+  if(testName.methodName=="safetyFlowConfirmsIdentityAndPurgesAccount"){logged.set(true);NativeSession.put(context,"cookie","aifect_session=safety-fixture")}
   if(testName.methodName=="giftsUseNativeWalletAndConfirmedServerPrice")logged.set(true)
   if(testName.methodName=="createCrewOpensEditorWithoutProfileSetup")logged.set(true)
   val duetTest=testName.methodName=="duetInvitationsAndMiniPlayerLyrics"
@@ -157,6 +158,9 @@ class NativeAppTest {
       path=="/api/uploads/cover-fixture"&&method=="DELETE"->{coverDeleted.set(true);payload("ok" to true)}
       path=="/api/me"->payload("user" to if(logged.get())user else null,"membership" to if(qualityTest&&logged.get())payload("plan" to "premium","premium_until" to user.optLong("premium_until"))else JSONObject(),"providers" to JSONArray(),"emailEnabled" to true)
       path=="/api/auth/login"->{logged.set(true);cookie="Set-Cookie: aifect_session=fixture; Path=/; HttpOnly\r\n";payload("user" to user)}
+      path=="/api/blocks/other"->{check(method=="PUT"||method=="DELETE");followed.set(method=="PUT");payload("ok" to true)}
+      path=="/api/blocks"->payload("blocks" to if(followed.get())JSONArray().put(payload("id" to "other","name" to "차단 테스트"))else JSONArray())
+      path=="/api/account/delete"->{check(method=="POST"&&body.optString("confirmation")=="DELETE"&&body.optString("account_id")=="test-user");logged.set(false);payload("deleted" to true)}
       path=="/api/auth/logout"->{logged.set(false);cookie="Set-Cookie: aifect_session=; Path=/; Max-Age=0\r\n";payload("ok" to true)}
       path=="/api/auth/google/nonce"->{cookie="Set-Cookie: aifect_google_oauth=nonce-fixture; Path=/; HttpOnly\r\n";payload("nonce" to "fixture-nonce")}
       path=="/api/auth/google/token"->{cookie="Set-Cookie: aifect_google_oauth=; Path=/; Max-Age=0\r\nSet-Cookie: aifect_session=google-fixture; Path=/; HttpOnly\r\n";payload("user" to user)}
@@ -890,7 +894,7 @@ class NativeAppTest {
   ui.runOnIdle{model.get().history=listOf(Song(song));model.get().messagePeer="person";model.get().play(Song(song))}
   val playbackReady=AtomicBoolean(false)
   ui.waitUntil(10000){screen.onActivity{playbackReady.set(model.get().controller?.currentMediaItem!=null)};playbackReady.get()}
-  ui.onNodeWithTag("account-menu").performClick();waitText("로그아웃")
+  ui.runOnIdle{model.get().selectTab(6)};ui.onNodeWithTag("account-menu").performClick();waitText("로그아웃")
   val meReads=requests.count{it.substringBefore("?")=="/api/me"}
   ui.onNodeWithText("로그아웃").performScrollTo().performClick()
   ui.waitUntil(10000){!model.get().busy&&model.get().user==null&&NativeSession.cookie(context).isEmpty()}
@@ -915,6 +919,21 @@ class NativeAppTest {
   disconnectedResponses.add("/api/auth/logout")
   logoutAndAssertLocalAccountCleared()
   assertTrue(requests.contains("/api/auth/logout"));assertTrue(logged.get())
+ }
+ @Test fun safetyFlowConfirmsIdentityAndPurgesAccount(){
+  val model=AtomicReference<MusicModel>();screen.onActivity{model.set(androidx.lifecycle.ViewModelProvider(it)[MusicModel::class.java])}
+  ui.waitUntil(16000){model.get().user!=null&&!model.get().refreshing}
+  ui.runOnIdle{model.get().openProfile("person")}
+  ui.waitUntil(10000){ui.onAllNodesWithText("차단 · 신고").fetchSemanticsNodes().isNotEmpty()}
+  ui.onNodeWithText("차단 · 신고").performScrollTo().performClick();ui.onNodeWithText("이용자 차단").performClick()
+  ui.waitUntil(12000){followed.get()&&model.get().profile==null&&!model.get().busy&&!model.get().refreshing}
+  ui.runOnIdle{model.get().showAccount=true}
+  ui.onNodeWithText("차단 관리 · 계정 삭제").performScrollTo().performClick()
+  ui.waitUntil(10000){ui.onAllNodesWithText("차단 해제").fetchSemanticsNodes().isNotEmpty()}
+  ui.onNodeWithText("차단 해제").performClick();ui.waitUntil(10000){!followed.get()&&!model.get().busy}
+  ui.onNodeWithTag("request-account-delete").performScrollTo().performClick();ui.onNodeWithText("영구 삭제").assertIsNotEnabled()
+  assertTrue(logged.get());ui.onNode(hasSetTextAction()).performTextInput("DELETE");ui.onNodeWithText("영구 삭제").performClick()
+  ui.waitUntil(10000){!logged.get()&&model.get().user==null&&NativeSession.cookie(context).isEmpty()};assertTrue(requests.contains("/api/account/delete"))
  }
  @Test fun logoutSuccessClearsLocalAccountWithoutAnotherMeRequest(){
   logoutAndAssertLocalAccountCleared()

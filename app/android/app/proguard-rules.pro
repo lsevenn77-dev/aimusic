@@ -1,3 +1,15 @@
+# Kakao's Retrofit 2.9 APIs and DTOs use runtime reflection. Preserve both ends
+# of method signatures in R8 full mode (including Call<Void>).
+-keepattributes Signature,InnerClasses,EnclosingMethod,RuntimeVisibleAnnotations,RuntimeVisibleParameterAnnotations,AnnotationDefault
+-keep class com.kakao.sdk.** { *; }
+-keep interface com.kakao.sdk.** { *; }
+-keep interface retrofit2.Call { *; }
+-keep class retrofit2.Response { *; }
+# This WebRTC AAR has no consumer rules. Its native library looks up Java
+# classes, methods, fields, enums, and callback implementations by name.
+-keep class org.webrtc.** { *; }
+-keep interface org.webrtc.** { *; }
+
 # Add project specific ProGuard rules here.
 # You can control the set of applied configuration files using the
 # proguardFiles setting in build.gradle.
