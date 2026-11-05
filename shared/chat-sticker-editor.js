@@ -180,6 +180,17 @@ export function createStickerEditor(element, {fragment, token, spacing, limit, o
     caret = range.cloneRange();
     if (focus || document.activeElement === element) restore(range);
     element.dispatchEvent(new Event('input', {bubbles:true}));
+    // The picker holds focus. Reveal the inserted image inside the scrollable
+    // editor without moving the page, changing the selection or reopening IME.
+    if (dm && fromPicker && last instanceof HTMLImageElement && element.scrollHeight > element.clientHeight) {
+      const viewportTop = element.getBoundingClientRect().top + element.clientTop;
+      const padding = getComputedStyle(element);
+      const top = viewportTop + parseFloat(padding.paddingTop);
+      const bottom = viewportTop + element.clientHeight - parseFloat(padding.paddingBottom);
+      const art = last.getBoundingClientRect();
+      if (art.top < top) element.scrollTop -= Math.ceil(top - art.top);
+      else if (art.bottom > bottom) element.scrollTop += Math.ceil(art.bottom - bottom);
+    }
     return true;
   }
   function removeSticker(event, backwards) {
