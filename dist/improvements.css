@@ -152,4 +152,4 @@ button[aria-busy="true"]{cursor:progress;opacity:.7}
 .dm-bubble .dm-crew-invite{display:flex;justify-content:center;gap:8px;margin-top:12px;white-space:normal;text-decoration:none}
 .dm-bubble .chat-body:has(>.dm-room-invite){display:block}
 .dm-bubble .chat-body>.dm-room-invite{display:flex;align-items:center;justify-content:center;width:fit-content;max-width:100%;margin:10px 0 0;padding:10px 14px;line-height:1.4;white-space:normal;text-decoration:none}
-#crew-form input[readonly]{color:var(--ds-muted);cursor:not-allowed;background:#ffffff05}
+#crew-settings-form input[readonly]{color:var(--ds-muted);cursor:not-allowed;background:#ffffff05}

@@ -22,10 +22,8 @@ async function loadMyCrewSummary(readApi=api){
 }
 function crewImageEditorHTML(c){
  const src=c?.image_version?'/media/crew/'+esc(c.id)+'?v='+esc(c.image_version):'';
- return '<section class="crew-image-editor"><label class="form-field">크루 대표 사진<input name="crew_image" type="file" accept="image/jpeg,image/png,image/webp"></label><div class="crew-image-saved">'+(src?'<img src="'+src+'" alt="현재 크루 사진">':'<span>'+icon('users')+'</span>')+'</div><div class="crew-image-crop" hidden><canvas width="640" height="640" aria-label="저장할 크루 사진 미리보기"></canvas><p class="field-help">사진을 밀어 위치를 조정하세요. 아래 조절 막대로도 움직일 수 있어요.</p><label>확대<input data-crop="zoom" type="range" min="1" max="3" step=".01" value="1"></label><label>가로 위치<input data-crop="x" type="range" min="0" max="1" step=".001" value=".5"></label><label>세로 위치<input data-crop="y" type="range" min="0" max="1" step=".001" value=".5"></label><button type="button" class="text-link" data-crop-reset>위치 · 크기 초기화</button></div><p class="field-help" data-crop-status role="status">JPG · PNG · WebP / 최대 5MB. 저장 전에는 사진이 바뀌지 않아요.</p></section>';
+ return '<section class="crew-image-editor"><label class="form-field">크루 대표 사진<input name="crew_image" type="file" accept="'+crewPhotoAccept+'"></label><div class="crew-image-saved">'+(src?'<img src="'+src+'" alt="현재 크루 사진">':'<span>'+icon('users')+'</span>')+'</div><p class="field-help" data-crop-status role="status">'+crewPhotoHelp+'</p><button type="button" class="small-button" hidden data-photo-discard>사진 선택 취소</button></section>';
 }
-function crewCropRect(width,height,zoom,x,y){const size=Math.min(width,height)/Math.max(1,Math.min(3,zoom));return {x:(width-size)*Math.max(0,Math.min(1,x)),y:(height-size)*Math.max(0,Math.min(1,y)),size};}
-function bindCrewImageEditor(form){const input=form.querySelector('[name=crew_image]');let pending=null,value=null;input.onchange=()=>{const f=input.files[0];if(!f)return;pending=cropPhoto(f).then(photo=>{value=photo;form.querySelector('.crew-image-saved').innerHTML='<img alt="저장할 크루 사진" src="'+URL.createObjectURL(photo)+'">';}).catch(e=>{value=null;input.value='';toast(e.message);});};return {async file(){await pending;return value;}};}
 // Public crew chrome and a navigation hint only. Membership and roles stay live.
 const crewNavigation=new Map();
 function clearCrewNavigation(){crewNavigation.clear();}
@@ -119,7 +117,29 @@ async function libraryProfileHTML(readApi=api){
  if(!me)return '';const d=await readApi('/api/me/profile'),p=d.profile;
  return `<section class="surface library-profile"><a href="#profile/edit" aria-label="내 프로필 수정">${portrait(p,'producer')}</a><div><h2>${esc(p.name)}</h2><div class="inline-actions"><a href="#profile/edit">프로필 수정</a><a href="#library/followers">팔로워 ${d.follower_count}</a><a href="#library/following">팔로잉 ${d.following_count}</a></div></div><div class="inline-actions"><a href="#rewards" class="small-button">오늘의 실버</a><a href="#dm" class="small-button">DM</a><a href="#payouts" class="small-button">정산</a></div></section>`;
 }
-function bindCrewForm(){const form=$('#crew-form');const crop=bindCrewImageEditor(form);form.dataset.originalName=form.elements.name.value;form.onsubmit=busyForm(form,async fd=>{const cid=form.dataset.crew;const cropped=await crop.file();if(cid&&fd.get('name')!==form.dataset.originalName&&!confirm('크루 이름을 변경하면 30일(720시간) 동안 다시 변경할 수 없어요. 변경할까요?'))return;const d=await api('/api/crews'+(cid?'/'+cid:''),cid?'PATCH':'POST',{name:fd.get('name'),description:fd.get('description'),interests:fd.get('interests'),recruiting:fd.has('recruiting'),...(fd.has('join_policy')?{join_policy:fd.get('join_policy'),minimum_level:Number(fd.get('minimum_level'))}:{}),notice:fd.get('notice'),...(cid?{version:Number(form.dataset.version)}:{})});form.dataset.crew=d.crew.id;clearCrewNavigation();try{me=(await api('/api/me')).user;updateAccount();}catch{}if(cropped)await uploadChatImage('/api/crews/'+d.crew.id+'/image',cropped);$('#dialog').close();location.hash='crew/'+d.crew.id;if(cid)await render();});}
+function bindCrewForm(){
+ const form=$('#crew-form'),modal=$('#dialog'),controller=new AbortController();
+ modal.addEventListener('close',()=>{controller.abort();form.remove();},{once:true});
+ const save=form.querySelector('button.primary-button'),error=formError(form);
+ const photo=bindCrewPhoto(form,{save,error,signal:controller.signal});
+ let created=null;
+ form.onsubmit=busyForm(form,async fd=>{
+  photo.check();
+  if(!created){
+   const d=await api('/api/crews','POST',{name:fd.get('name'),description:fd.get('description'),interests:fd.get('interests'),recruiting:fd.has('recruiting'),...(fd.has('join_policy')?{join_policy:fd.get('join_policy'),minimum_level:Number(fd.get('minimum_level'))}:{}),notice:fd.get('notice')});
+   created=d.crew;form.dataset.crew=created.id;
+   // The crew exists even if the independent photo PUT fails. Retry only the photo.
+   for(const field of form.elements)if(field.name&&field.name!=='crew_image')field.disabled=true;
+   clearCrewNavigation();try{me=(await api('/api/me')).user;updateAccount();}catch{}
+  }
+  let uploaded;
+  try{uploaded=await photo.persist('/api/crews/'+encodeURIComponent(created.id));}
+  catch(e){throw Error('크루는 생성됐어요. '+e.message);}
+  if(controller.signal.aborted)return;
+  toast(uploaded?'크루를 만들고 대표 사진 저장을 확인했어요.':'크루를 만들었어요.');
+  modal.close();location.hash='crew/'+created.id;
+ });
+}
 function bindImprovements(view){
  bindCrewHome(view);
  bindCrewDiscovery(view);

@@ -15,7 +15,7 @@ for(const name of ['crew-game-lobby.js','crew-game-lobby.css','crew-jump-view.js
 for(const file of ['artist-fanpage.js','artist-fanpage.css'])await cp('dist/'+file,'dist/client/'+file);
 for(const file of ['mobile-input.js','mobile-input.css'])await cp('dist/'+file,'dist/client/'+file);
 for(const file of ['decorations.js','decoration-display.js','decorations.css','microphone-check.js','microphone-check.css','play-page.js','play-page.css'])await cp('dist/'+file,'dist/client/'+file);
-for(const file of ['image-crop.js','profile-collections.js','crew-integrated.js','crew-settings.js','integrated.css','profile-preview.js','profile-preview.css','mypage.js','mypage.css','profile-management.js'])await cp('dist/'+file,'dist/client/'+file);
+for(const file of ['image-crop.js','crew-photo.js','crew-heif.js','crew-heif-worker.js','profile-collections.js','crew-integrated.js','crew-settings.js','integrated.css','profile-preview.js','profile-preview.css','mypage.js','mypage.css','profile-management.js'])await cp('dist/'+file,'dist/client/'+file);
 await cp('dist/voice-room-template.js','dist/client/voice-room-template.js');
 await cp('dist/room-entry.css','dist/client/room-entry.css');
 await cp('dist/voice-audio.js','dist/client/voice-audio.js');
@@ -89,6 +89,14 @@ await build({entryPoints:['shared/audio-ads.js'],outfile:'dist/client/audio-ads-
 await build({entryPoints:['shared/pitch-worker.js'],outfile:'dist/client/pitch-worker.js',bundle:true,format:'esm',target:'es2022',minify:true,legalComments:'eof',banner:{js:'/*! Pitch engine: SoundTouchJS 2.1.1 (MPL-2.0). License and source: /third-party/SoundTouchJS-NOTICE.txt */'}});
 await build({entryPoints:['shared/backing-worklet.js'],outfile:'dist/client/backing-worklet.js',bundle:true,format:'esm',target:'es2022',minify:true,legalComments:'eof',banner:{js:'/*! Pitch engine: SoundTouchJS 2.1.1 (MPL-2.0). License and source: /third-party/SoundTouchJS-NOTICE.txt */'}});
 await cp('dist/third-party','dist/client/third-party',{recursive:true});
+await cp('dist/vendor/heif','dist/client/vendor/heif',{recursive:true});
+await cp('dist/crew-webp.js','dist/client/crew-webp.js');
+const crewEncoderPackage='node_modules/@jsquash/webp/';
+const crewEncoderOutput='dist/client/vendor/crew-webp/';
+await mkdir(crewEncoderOutput,{recursive:true});
+for(const file of ['codec/enc/webp_enc.js','codec/enc/webp_enc.wasm','meta.js','LICENSE','codec/LICENSE.codec.md']){
+ await cp(crewEncoderPackage+file,crewEncoderOutput+file.split('/').pop());
+}
 await build({entryPoints:['shared/vocal-render-worker.js'],outfile:'dist/client/vocal-render-worker.js',bundle:true,format:'iife',target:'es2022',minify:true});
 await build({entryPoints:['shared/vocal-worklet.js'],outfile:'dist/client/vocal-worklet.js',bundle:true,format:'esm',target:'es2022',minify:true});
 await build({entryPoints:['shared/duet-guide.js'],outfile:'dist/client/duet-guide-core.js',bundle:true,format:'iife',globalName:'AifectDuetGuide',target:'es2022',minify:true});

@@ -104,7 +104,7 @@ dialog.crew-action-dialog[open] {display:flex;flex-direction:column}
 .crew-action-dialog>footer :is(.primary-button,.small-button) {margin:0;min-height:44px}
 .crew-action-dialog>footer:empty,.crew-action-tools:empty,.crew-action-dialog>.form-error:empty {display:none}
 .crew-action-dialog>.form-error {flex:none;margin:0;padding:8px 20px;font-size:14px;overflow-wrap:anywhere}
-.crew-action-dialog #crew-form {display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
+.crew-action-dialog #crew-settings-form {display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
 .crew-action-dialog :is(input,textarea,select) {box-sizing:border-box;min-width:0;max-width:100%}
 .crew-action-dialog .form-field,.crew-action-dialog .crew-image-editor {margin:0;min-width:0}
 .crew-action-dialog .form-field {display:grid;gap:6px}
@@ -114,7 +114,7 @@ dialog.crew-action-dialog[open] {display:flex;flex-direction:column}
 .crew-action-dialog .form-field+.field-help {margin-top:-10px}
 .crew-action-dialog .crew-image-editor {display:grid;gap:8px}
 .crew-action-dialog .crew-image-crop[hidden] {display:none}
-.crew-action-dialog .photo-crop-dialog {box-sizing:border-box;width:100%;max-height:none;overflow:visible;padding:12px}
+.crew-image-editor > .photo-crop-dialog {box-sizing:border-box;width:100%;max-height:none;overflow:visible;padding:12px}
 .crew-action-dialog .crew-image-saved :is(img,span) {width:80px;height:80px}
 .crew-action-dialog .crew-action-tools {padding-bottom:0}
 .crew-manage-row,.crew-audit-event {display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid var(--ds-line)}

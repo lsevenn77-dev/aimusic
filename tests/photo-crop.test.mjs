@@ -13,6 +13,15 @@ function editor(width=1600,height=900){
  return {sandbox,dialogs,draws,closed,file:new File(['fixture'],'photo.png',{type:'image/png'})};
 }
 const flush=()=>new Promise(r=>setImmediate(r));
+test('a failed crop export stays editable, then preserves the actual fallback MIME and filename',async()=>{
+ const h=editor(),pending=h.sandbox.cropPhoto(h.file);await flush();
+ const d=h.dialogs[0],save=d.querySelector('[data-crop-save]'),canvas=d.querySelector('canvas');
+ canvas.toBlob=cb=>cb(null);save.onclick();
+ assert.match(d.querySelector('[role=alert]').textContent,/파일로 만들지 못/);
+ assert.equal(save.disabled,false);assert.equal(h.closed.length,0);
+ canvas.toBlob=cb=>cb(new Blob(['png output'],{type:'image/png'}));save.onclick();
+ const result=await pending;assert.equal(result.name,'photo.png');assert.equal(result.type,'image/png');assert.equal(h.closed.length,1);
+});
 test('round preview fits the entire rectangular photo inside the guide, supports further shrink and exports only the image',async()=>{
  const h=editor(),pending=h.sandbox.cropPhoto(h.file,{shape:'circle'});await flush();const dialog=h.dialogs[0];
  assert.match(dialog.innerHTML,/photo-crop-circle/);dialog.querySelector('[data-crop-fit]').onclick();

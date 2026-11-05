@@ -106,8 +106,9 @@ export async function chatFeaturesRoute(req,env,path,user){
   }
   if(m[2]==='image'&&method==='PUT'){
    if(!['owner','deputy','manager','operator'].includes(member.role))fail(403,'크루 운영진만 사진을 변경할 수 있어요.');
-   const old=await one(env,'SELECT image_version FROM crews WHERE id=?',m[1]);const {version}=await storeImage(req,env,'crew',m[1]);await run(env,'UPDATE crews SET image_version=? WHERE id=?',version,m[1]);
-   if(old?.image_version)await env.BUCKET.delete(`images/crew/${m[1]}/${old.image_version}`);return json({image_version:version});
+   const {version}=await storeImage(req,env,'crew',m[1]);await run(env,'UPDATE crews SET image_version=? WHERE id=?',version,m[1]);
+   // Publish the new pointer only after the object write. Earlier crew portraits remain untouched.
+   return json({image_version:version});
   }
   fail(405,'지원하지 않는 요청입니다.');
  }
@@ -115,7 +116,8 @@ export async function chatFeaturesRoute(req,env,path,user){
  if(m&&['GET','HEAD'].includes(method)){
   const crew=await one(env,'SELECT image_version FROM crews WHERE id=?',m[1]);if(!crew?.image_version)fail(404,'대표 이미지가 없습니다.');
   const object=await env.BUCKET.get(`images/crew/${m[1]}/${crew.image_version}`);if(!object)fail(404,'이미지를 찾을 수 없어요.');
-  return new Response(method==='HEAD'?null:object.body,{headers:{'content-type':object.httpMetadata?.contentType||'image/webp','cache-control':'public, max-age=300','x-content-type-options':'nosniff'}});
+  const current=new URL(req.url).searchParams.get('v')===crew.image_version;
+  return new Response(method==='HEAD'?null:object.body,{headers:{'x-crew-image-version':crew.image_version,'content-type':object.httpMetadata?.contentType||'image/webp','cache-control':current?'public, max-age=2592000, immutable':'no-cache','x-content-type-options':'nosniff'}});
  }
  return null;
 }

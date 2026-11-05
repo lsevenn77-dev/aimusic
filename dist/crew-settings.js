@@ -145,7 +145,8 @@ function changedCrewFields(before,after) {
 function bindCrewInfo(ui,detail) {
  const {body,footer,modal,error}=ui, owner=detail.membership.role==='owner';
  body.innerHTML=crewEditor(detail.crew);
- const form=body.querySelector('form'), file=form.elements.crew_image;
+ const form=body.querySelector('form');
+ form.id='crew-settings-form';
  if(!owner){
   form.elements.name.readOnly=true;
   for(const key of ['join_policy','minimum_level']) form.elements[key].disabled=true;
@@ -153,48 +154,29 @@ function bindCrewInfo(ui,detail) {
  }
  form.elements.minimum_level.required=true;
  const saved=crewInfoValues(form);
- let version=detail.crew.version,photo=null,editingPhoto=false,previewURL='';
+ let version=detail.crew.version,infoSaved=false;
  const changes=()=>changedCrewFields(saved,crewInfoValues(form));
- ui.dirty=()=>editingPhoto||!!photo||Object.keys(changes()).length>0;
- footer.innerHTML='<button type="button" class="small-button" data-cancel>취소</button><button type="submit" form="crew-form" class="primary-button">저장</button>';
- const save=footer.querySelector('[type=submit]'),preview=form.querySelector('.crew-image-saved');
- file.onchange=async()=>{
-  const selected=file.files[0];
-  if(!selected||editingPhoto)return;
-  editingPhoto=true;save.disabled=file.disabled=true;
-  error.textContent='';
-  const host=form.querySelector('.crew-image-editor');
-  try{
-   const cropped=await cropPhotoEditor(selected,{host,signal:ui.signal});
-   if(!modal.open)return;
-   photo=cropped;
-   URL.revokeObjectURL(previewURL);
-   previewURL=URL.createObjectURL(photo);
-   preview.innerHTML=`<img src="${previewURL}" alt="저장할 크루 사진">`;
-  }catch(e){if(e.status===403)ui.refresh=true;if(modal.open)error.textContent=e.message;}
-  finally{editingPhoto=false;save.disabled=file.disabled=false;file.value='';}
- };
- ui.signal.addEventListener('abort',()=>URL.revokeObjectURL(previewURL),{once:true});
+ footer.innerHTML='<button type="button" class="small-button" data-cancel>취소</button><button type="submit" form="crew-settings-form" class="primary-button">저장</button>';
+ const photo=bindCrewPhoto(form,{save:footer.querySelector('[type=submit]'),error,signal:ui.signal,onStored:()=>{ui.refresh=true;}});
+ ui.dirty=()=>photo.dirty||Object.keys(changes()).length>0;
  form.addEventListener('invalid',e=>{error.textContent=e.target.validationMessage;},true);
  form.onsubmit=e=>{
   e.preventDefault();
-  if(editingPhoto)return;
   void ui.run(async()=>{
+   photo.check();
    const patch=changes();
    if(patch.name!==undefined&&!confirm('크루 이름을 변경하면 30일(720시간) 동안 다시 변경할 수 없어요. 변경할까요?'))return;
    if(Object.keys(patch).length){
     const updated=await api(ui.path,'PATCH',{...patch,version});
     version=updated.crew.version;
     Object.assign(saved,patch);
-    ui.refresh=true;
+    infoSaved=ui.refresh=true;
    }
-   if(photo){
-    try{await uploadChatImage(ui.path+'/image',photo);}
-    catch(e){throw new Error((ui.refresh?'입력한 정보는 저장됐어요. 사진 저장을 다시 시도해주세요. ':'')+e.message);}
-    invalidateReads();
-    photo=null;ui.refresh=true;
-   }
-   if(modal.open){if(ui.refresh)toast('크루 정보를 저장했어요.');modal.close();}
+   let uploaded;
+   try{uploaded=await photo.persist(ui.path);}
+   catch(e){e.message=(infoSaved?'크루 정보는 저장됐어요. ':'')+e.message;throw e;}
+   if(uploaded)ui.refresh=true;
+   if(modal.open){if(ui.refresh)toast(uploaded?'크루 대표 사진 저장을 확인했어요.':'크루 정보를 저장했어요.');modal.close();}
   });
  };
 }
