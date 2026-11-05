@@ -9,6 +9,7 @@ import {one,rows,run,query,now,id,fail,str,json,rate} from './db.js';
 import {requireUser,hash} from './auth.js';
 import {published,GENRES,VISIBLE} from './catalog.js';
 import {storeImage} from './images.js';
+import {replaceStoredPNG} from './image-maintenance.js';
 import {studioRoute} from './studio.js';
 import {lyricsFields} from './lyrics.js';
 import {alignmentInternalRoute,alignmentWrite} from './alignment.js';
@@ -174,6 +175,7 @@ export async function mediaRoute(req,env,path,user){
 }
 export async function internalRoute(req,env,path){
  if(!env.TRANSCODER_TOKEN||req.headers.get('authorization')!==`Bearer ${env.TRANSCODER_TOKEN}`)fail(401,'인증이 필요합니다.');
+ if(path==='/internal/images/replace-png'&&req.method==='POST')return replaceStoredPNG(req,env);
  const compression=await coverCompressionInternal(req,env,path);if(compression)return compression;
  const generation=await dubbingGenerationInternalRoute(req,env,path);if(generation)return generation;
  const final=await dubbingFinalInternalRoute(req,env,path);if(final)return final;

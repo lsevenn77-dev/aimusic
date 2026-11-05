@@ -5,7 +5,7 @@ export const publicPath = path => /^(?:\/|\/index\.html|\/music(?:\/[\w-]+)?|\/a
 const base='https://billing.aifect.co.kr/aifect-origin/';
 export const release=typeof __CAFE24_BUILD__==='string'?__CAFE24_BUILD__:'';
 export async function originRequest(env, action, body, contentType, ms, fetcher=fetch, version=release){
- if(!env.CAFE24_ORIGIN_KEY||!version)return null;
+ if(!env.CAFE24_ORIGIN_KEY||(action!=='webp'&&!version))return null;
  return fetcher(base+(action==='webp'?'v1':version)+'/'+action,{method:'POST',headers:{authorization:'Bearer '+env.CAFE24_ORIGIN_KEY,'content-type':contentType},body,redirect:'manual',signal:AbortSignal.timeout(ms)});
 }
 export async function tryPublicOrigin(req,env,path,requestOrigin=originRequest){
