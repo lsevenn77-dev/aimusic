@@ -10,7 +10,7 @@ const form=byId('checkout-form'),submit=byId('checkout-submit'),consent=byId('ch
 const status=byId('checkout-status'),error=byId('checkout-error'),retry=byId('result-retry');
 const radios=Array.from(document.querySelectorAll('input[name="gold"]'));
 const initialProducts=new Map(radios.map(r=>[Number(r.value),{gold:Number(r.value),price:Number(r.dataset.price),bonus_gold:Number(r.dataset.bonusGold),total_gold:Number(r.dataset.totalGold)}]));
-let products=new Map(),ready=false,busy=false,currentOrder=null,sdkPromise=null,clientKey=null;
+let products=new Map(),ready=false,busy=false,redirecting=false,currentOrder=null,sdkPromise=null,clientKey=null;
 const number=value=>value.toLocaleString('ko-KR');
 const safePositive=value=>Number.isSafeInteger(value)&&value>0;
 function samePack(a,b){return !!a&&!!b&&['gold','price','bonus_gold','total_gold'].every(key=>a[key]===b[key]);}
@@ -85,6 +85,11 @@ async function checkReturn(){
 consent.addEventListener('change',updateButton);
 for(const radio of radios)radio.addEventListener('change',()=>{const pack=chosenPack();if(pack)renderPack(pack);updateButton();});
 retry.addEventListener('click',()=>{void checkReturn();});
+window.addEventListener('pageshow',event=>{
+ if(!event.persisted||!redirecting)return;
+ redirecting=false;busy=false;clearOrder();
+ status.textContent='테스트 주문서로 돌아왔어요. 실제 청구와 골드 지급은 없습니다.';updateButton();
+});
 form.addEventListener('submit',async event=>{
  event.preventDefault();const pack=chosenPack();if(!ready||busy||!consent.checked||!pack)return;
  busy=true;message('');updateButton();
@@ -94,10 +99,13 @@ form.addEventListener('submit',async event=>{
   saveOrder(order);currentOrder=order;renderPack({...order.order,price:order.order.amount});
   const TossPayments=await loadSDK(),toss=TossPayments(payment.clientKey).payment({customerKey:payment.customerKey});
   status.textContent='토스 테스트 카드 결제창을 열고 있어요. 실제 청구·골드 지급은 하지 않습니다.';
-  await toss.requestPayment({method:'CARD',amount:payment.amount,orderId:payment.orderId,orderName:payment.orderName,successUrl:payment.successUrl,failUrl:payment.failUrl,card:{flowMode:'DEFAULT',useEscrow:false,useCardPoint:false,useAppCardOnly:false}});
-  clearOrder();status.textContent='테스트 결제창이 닫혔어요. 실제 청구와 골드 지급은 없습니다.';
+  // Use Toss's supported full-page flow: an embedded PC gateway can remain blank.
+  // A resolved redirect request is not a cancellation. Keep the signed state for
+  // the same-tab return, which still never approves a payment or grants Gold.
+  await toss.requestPayment({method:'CARD',windowTarget:'self',amount:payment.amount,orderId:payment.orderId,orderName:payment.orderName,successUrl:payment.successUrl,failUrl:payment.failUrl,card:{flowMode:'DEFAULT',useEscrow:false,useCardPoint:false,useAppCardOnly:false}});
+  redirecting=true;status.textContent='토스 테스트 카드 결제창으로 이동하고 있어요. 실제 청구와 골드 지급은 없습니다.';
  }catch(e){clearOrder();status.textContent='실제 청구·골드 지급·자동충전은 발생하지 않았어요.';message(e.code==='USER_CANCEL'?'골드 결제 테스트를 취소했어요.':e.message||'토스 테스트 결제창을 열지 못했어요.');}
- finally{busy=false;updateButton();}
+ finally{busy=redirecting;updateButton();}
 });
 async function init(){
  if(resultPath.endsWith('/success')){currentOrder=loadOrder();status.textContent='테스트 인증 복귀 확인';await checkReturn();return;}
