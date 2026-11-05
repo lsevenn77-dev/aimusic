@@ -2,7 +2,13 @@
 Object.assign(VoiceRoomClient.prototype,{
  bindFinalControls(){
   const form=$('#voice-chat-form'),input=$('#voice-message');
-  input.onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing&&e.keyCode!==229){e.preventDefault();if(input.value.trim())form.requestSubmit();}};
+  const picker=$('#voice-emoji-picker');
+  this.stickers?.destroy();
+  if(picker?.classList?.contains('cat-picker'))this.stickers=AifectStickers.bind({
+   picker,form,input,toggle:this.host.querySelector('[data-voice="emoji"]'),glyph:voiceGlyph,
+   close:()=>this.toggleEmojiPicker(false,true)
+  });
+  input.onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing&&e.keyCode!==229){e.preventDefault();if((this.stickers?.body()??input.value).trim())form.requestSubmit();}};
   this.host.querySelector('.voice-chat-panel').addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#voice-emoji-picker').hidden){e.preventDefault();e.stopPropagation();this.toggleEmojiPicker(false,true);}});
   this.bindTalkViews();
   const supported=navigator.mediaDevices?.getSupportedConstraints?.()||{};
@@ -152,7 +158,7 @@ Object.assign(VoiceRoomClient.prototype,{
    if(typeof target==='string'&&input.value.length-(end-start)+target.length<=input.maxLength){input.setRangeText(target,start,end,'end');input.dispatchEvent(new Event('input',{bubbles:true}));}
    input.focus({preventScroll:true});return true;
   }
-  if(action==='send-chat'){if($('#voice-message').value.trim())$('#voice-chat-form').requestSubmit();return true;}
+  if(action==='send-chat'){if((this.stickers?.body()??$('#voice-message').value).trim())$('#voice-chat-form').requestSubmit();return true;}
   if(action==='ask-kick'){if(!this.canManageMember(target))return true;this.kickTarget=target;this.showSheet('voice-kick-confirm');return true;}
   if(action==='confirm-kick'){if(!this.canManageMember(this.kickTarget)){this.closeRoomPopup();return true;}await this.command('moderate',{target_id:this.kickTarget,operation:'kick'});$('#voice-kick-confirm').close();this.closeMemberTools();await this.refresh();return true;}
   if(action==='invite-seat-user'){await this.command('seat-invite',{target_id:target,seat:this.invitingSeat});$('#voice-seat-picker').close();await this.refresh();return true;}

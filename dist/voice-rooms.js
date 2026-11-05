@@ -44,7 +44,7 @@ function voiceChatMessageHTML(m,liveMode=false){
   }
   return `<article class="voice-chat-gift"><header><b>${icon('gift')} 선물 알림</b>${time}</header><div class="voice-chat-gift-body">${gift?giftArt(gift):''}<p>${esc(m.body)}</p></div></article>`;
  }
- return `<article class="voice-chat-message"><span class="voice-chat-avatar">${avatarImage({name:m.name,profile_id:m.profile_id,image_version:m.image_version})}</span><div><header><b>${esc(m.name)}</b>${time}</header><p>${esc(m.body)}</p></div></article>`;
+ return `<article class="voice-chat-message"><span class="voice-chat-avatar">${avatarImage({name:m.name,profile_id:m.profile_id,image_version:m.image_version})}</span><div><header><b>${esc(m.name)}</b>${time}</header><p>${m.body?.includes('[aifect:')?AifectStickers.render(m.body,esc):esc(m.body)}</p></div></article>`;
 }
 async function voiceRequest(path,body,method=body===undefined?'GET':'POST',signal) {
  const r=await fetch('/api/voice/'+path,{method,signal,credentials:'same-origin',headers:body===undefined?{}:{'content-type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)});
@@ -80,7 +80,19 @@ class VoiceRoomClient {
  }
  async safe(fn){try{await fn();}catch(e){this.status(e.message);toast(e.message);}}
  bind(host){this.host=host;if(!this.liveMode){this.waitForMusicGesture??=!this.levelContext;try{const v=localStorage.getItem('aifect.talkingRoom.listenVolume');if(v!==null&&Number.isFinite(Number(v)))this.preferences.music=Math.max(0,Math.min(1,Number(v)));}catch{}}this.resumeSound();$('#voice-join').onclick=()=>{if(this.closed){voiceController=new VoiceRoomClient(this.id);voiceController.bind(host);}else this.safe(()=>this.join());};const unlock=()=>{const blocked=this.waitForMusicGesture||this.host.querySelector('[data-voice=resume-audio]')?.hidden===false;this.waitForMusicGesture=false;if(this.liveMode||blocked)this.resumeSound();};host.onpointerdown=unlock;host.onclick=e=>{unlock();const b=e.target.closest('[data-voice]');if(b)this.safe(()=>this.action(b.dataset.voice,b.dataset.target,b));};
-  this.bindFinalControls();const chat=$('#voice-chat-form');chat.onsubmit=busyForm(chat,async()=>{const body=chat.elements.body.value;if(!body.trim())return;this.chatPending=this.chatPending?.body===body?this.chatPending:{body,request_id:crypto.randomUUID()};await this.command('chat',this.chatPending);this.toggleEmojiPicker(false);if(this.liveMode||chat.elements.body.value===body)chat.reset();this.chatPending=null;await this.refresh();});
+  this.bindFinalControls();
+  const chat=$('#voice-chat-form'),stickers=this.stickers;
+  chat.onsubmit=busyForm(chat,async()=>{
+   const text=chat.elements.body.value,body=stickers?.body()??text;
+   if(!body.trim())return;
+   this.chatPending=this.chatPending?.body===body?this.chatPending:{body,request_id:crypto.randomUUID()};
+   await this.command('chat',this.chatPending);
+   if(this.closed||chat!==$('#voice-chat-form'))return;
+   this.toggleEmojiPicker(false);
+   if(chat.elements.body.value===text)chat.reset();
+   stickers?.clear();this.chatPending=null;
+   await this.refresh();
+  });
   const gift=$('#voice-gift-form');gift.onchange=()=>{this.giftRequest=crypto.randomUUID();this.giftSummary();};gift.onsubmit=busyForm(gift,()=>this.openGiftDialog());
   $('#voice-monitor').onchange=()=>this.safe(()=>this.monitor());$('#voice-input').onchange=()=>this.safe(()=>this.changeMicrophone());$('#voice-output').onchange=()=>this.safe(()=>this.output());
   this.bindAudioSettings();window.visualViewport?.removeEventListener('resize',this.onViewport);window.removeEventListener('resize',this.onViewport);this.onViewport=()=>{if(this.host?.isConnected){if(this.joined){setVoiceFocus(true);}const height=window.visualViewport?.height||window.innerHeight,top=Math.max(0,this.host.getBoundingClientRect().top);this.host.style?.setProperty('--voice-viewport',Math.max(0,height-top-(window.innerWidth>800?16:0))+'px');}};window.visualViewport?.addEventListener('resize',this.onViewport);window.addEventListener('resize',this.onViewport);this.onViewport();this.giftSummary();if(this.state)this.paint();else if(!this.joinAttempted)this.safe(()=>this.join());

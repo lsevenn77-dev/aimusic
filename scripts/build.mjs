@@ -11,6 +11,8 @@ import {regionTokenCSS} from './ui-region-tokens.mjs';
 import {readdir} from 'node:fs/promises';
 await mkdir('dist/server',{recursive:true});
 await mkdir('dist/client',{recursive:true});
+await build({entryPoints:['shared/chat-stickers.js'],outfile:'dist/client/chat-stickers.js',bundle:true,format:'iife',globalName:'AifectStickers',target:'es2022',minify:true});
+await cp('dist/chat-stickers.css','dist/client/chat-stickers.css');
 await cp('shared/public-image-client.js', 'dist/client/public-image-client.js');
 await cp('shared/crew-jump.js','dist/client/crew-jump-core.js');
 for(const name of ['crew-game-lobby.js','crew-game-lobby.css','crew-jump-view.js','crew-jump.css','crew-jump-art','crew-rhythm','crew-racing','crew-fishing'])await cp('dist/'+name,'dist/client/'+name,{recursive:true});

@@ -2,42 +2,28 @@ function dmMuteButton(p){return '<button type="button" class="icon-button dm-mut
 function inboxControlsHTML(){return '<div class="inbox-tools"><button type="button" class="text-link" data-dm-read-all>모두 읽음</button><a href="#dm/blocked" class="text-link">차단 관리</a></div>';}
 function crewInboxHTML(c,selected=''){return c?'<a data-list-row class="surface conversation-row pinned-crew'+(selected==='crew/'+c.id?' is-selected':'')+(Number(c.unread)>0?' is-unread':'')+'" href="#dm/crew/'+esc(c.id)+'"'+(selected==='crew/'+c.id?' aria-current="true"':'')+'><span class="crew-inbox-art">'+(c.image_version?'<img src="/media/crew/'+esc(c.id)+'?v='+esc(c.image_version)+'" alt="">':icon('users'))+'</span>'+conversationCopyHTML(c,c.name,'크루 채팅',true)+conversationMetaHTML(c)+'</a>':'';}
 function dmThreadActions(p,settings={}){return '<div class="dm-thread-actions">'+dmMuteButton({...p,muted:settings?.muted})+'<button type="button" class="icon-button" data-dm-clear="'+esc(p.id)+'" aria-label="이 대화방 내용 전체 삭제" title="이 대화방 내용 전체 삭제">'+icon('trash')+'</button>'+(p.user_id?'<button type="button" class="text-link dm-block-button" data-person-block="'+esc(p.user_id)+'" data-block-name="'+esc(p.name)+'">차단</button>':'')+'</div>';}
-// Match the existing talking-room Unicode palette and insert into this thread's draft.
 function dmEmojiPickerHTML(){
- const choices=['😀','😊','💜','👏','🎵','✨','👍','🥰','😂','🎉','🌙','🙌'];
- return '<section id="dm-emoji-picker" role="dialog" aria-label="이모티콘 선택" hidden><header><strong>이모티콘</strong><button type="button" data-emoji-close aria-label="이모티콘 닫기">'+voiceGlyph('close')+'</button></header><div>'+choices.map(emoji=>'<button type="button" data-emoji="'+emoji+'">'+emoji+'</button>').join('')+'</div></section>';
+ return '<section id="dm-emoji-picker" class="cat-picker" role="dialog" aria-label="고양이 미니이모티콘" hidden></section>';
 }
-function bindDmEmoji(form,input){
+function bindDmEmoji(form,input,selected){
  const toggle=form.querySelector('[data-dm-emoji]'),picker=form.parentElement.querySelector('#dm-emoji-picker');
  if(!toggle||!picker)return;
  const listeners=new AbortController(),options={signal:listeners.signal};
- const show=(open,focusChoice=false)=>{
+ const show=open=>{
   picker.hidden=!open;toggle.setAttribute('aria-expanded',String(open));
-  if(open&&focusChoice)picker.querySelector('[data-emoji]').focus({preventScroll:true});
+  if(open)picker.querySelector('[data-cat-tab][aria-pressed=true]').focus({preventScroll:true});
  };
- // Preserve the caret and mobile keyboard on a tap. Keyboard users enter the palette.
- const keepCaret=event=>{if(document.activeElement===input)event.preventDefault();};
- toggle.addEventListener('pointerdown',keepCaret,options);
- picker.addEventListener('pointerdown',keepCaret,options);
- toggle.addEventListener('click',event=>{if(!input.disabled)show(picker.hidden,event.detail===0);},options);
- picker.addEventListener('click',event=>{
-  const choice=event.target.closest('[data-emoji]');
-  if(choice&&!input.disabled){
-   const emoji=choice.dataset.emoji,start=input.selectionStart,end=input.selectionEnd;
-   if(input.value.length-(end-start)+emoji.length<=input.maxLength){
-    input.setRangeText(emoji,start,end,'end');
-    input.dispatchEvent(new Event('input',{bubbles:true}));
-   }
-   show(false);input.focus({preventScroll:true});
-  }else if(event.target.closest('[data-emoji-close]')){show(false);toggle.focus({preventScroll:true});}
- },options);
+ const close=()=>{show(false);toggle.focus({preventScroll:true});};
+ const stickers=AifectStickers.bind({picker,form,input,toggle,selected,close,glyph:voiceGlyph});
+ toggle.addEventListener('click',()=>{if(!input.disabled)show(picker.hidden);},options);
  const outside=event=>{if(!picker.hidden&&!picker.contains(event.target)&&!toggle.contains(event.target))show(false);};
  document.addEventListener('pointerdown',outside,options);
  document.addEventListener('focusin',outside,options);
  document.addEventListener('keydown',event=>{
   if(event.key==='Escape'&&!picker.hidden){event.preventDefault();show(false);toggle.focus({preventScroll:true});}
  },options);
- return ()=>{listeners.abort();show(false);toggle.disabled=true;};
+ return {...stickers, sent(){stickers.clear();if(!picker.hidden)close();},
+  destroy(){listeners.abort();stickers.destroy();show(false);toggle.disabled=true;}};
 }
 function chatAttachmentTools(p){return '<div class="chat-attachment-tools"><label class="icon-button" role="button" tabindex="0" aria-label="사진 보내기">'+icon('image')+'<input id="chat-image-file" type="file" accept="image/jpeg,image/png,image/webp" hidden></label>'+(p?'<button type="button" class="icon-button" data-profile-gift="'+esc(p.id)+'" aria-label="선물 보내기">'+icon('gift')+'</button>':'')+'<small>사진은 서버에 14일 동안 보관돼요.</small></div><p id="chat-upload-status" class="field-help" role="status"></p>';}
 function chatImageHTML(m,crew=false){const media=crew?'/media/crew-chat/':'/media/dm/';return m.image_expires&&m.image_expires*1000<=Date.now()?'<span class="expired-chat-image">보관 기간이 지난 사진</span>':'<a class="chat-image" href="'+media+esc(m.image_id)+'" target="_blank" rel="noopener"><img src="'+media+esc(m.image_id)+'" alt="받은 사진" loading="lazy"></a>';}
