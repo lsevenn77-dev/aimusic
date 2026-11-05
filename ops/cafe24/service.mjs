@@ -53,7 +53,7 @@ const server=http.createServer(async(req,res)=>{
   if(typeof target!=='string'||!target.startsWith('/')||target.startsWith('//')||target.includes('\\')||target.length>2048)return end(400);
   const r=await render(target,data,matchedShell);if(!r)return end(404);
   // The TLS vhost is a transport endpoint, not the canonical browsing origin.
-  res.writeHead(r.status,{...Object.fromEntries(r.headers),'x-aifect-rendered':'1'});res.end(await r.text());
+  res.writeHead(r.status,{...Object.fromEntries(r.headers),'x-aifect-rendered':'1','x-aifect-origin-revision':id});res.end(await r.text());
  }catch(e){if(!res.headersSent)end(e.message==='size'?413:422);else res.destroy();}
 });
 server.headersTimeout=10000;server.requestTimeout=15000;

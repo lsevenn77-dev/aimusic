@@ -2,7 +2,7 @@ import {rows} from './db.js';
 import {VISIBLE} from './catalog.js';
 import {namedArtistSQL} from './artist-identity.js';
 import {producerNameSQL} from './identity.js';
-import {partnerState} from './diamonds.js';
+import {partnerBadgeUsers} from './partner-badges.js';
 
 // Reuse the artist directory's real-follow popularity basis. Producers have no
 // separate composer identity/ranking model; only published original creators qualify.
@@ -17,5 +17,6 @@ export async function profileDiscovery(env,kind,sort='popular',limit=10){
  JOIN users u ON u.id=p.user_id WHERE u.provider!='deleted'${artist?' AND '+namedArtistSQL():''}
  AND EXISTS(SELECT 1 FROM tracks t WHERE ${visible})${blockedSQL}
  ORDER BY ${sort==='latest'?'latest_track DESC,followers DESC':'followers DESC,'+alias+'.created DESC'},${alias}.id LIMIT ?`,kind,...blocked,limit);
- return Promise.all(profiles.map(async({user_id,followers,latest_track,...p})=>({...p,...(!artist?{partner_badge:(await partnerState(env,user_id)).badge}:{})})));
+ const partners=artist?null:await partnerBadgeUsers(env,profiles.map(p=>p.user_id));
+ return profiles.map(({user_id,followers,latest_track,...p})=>({...p,...(!artist?{partner_badge:partners.has(user_id)?'공식 파트너':null}:{})}));
 }

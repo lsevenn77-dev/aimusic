@@ -13,7 +13,7 @@ export const changedFiles=()=>[...new Set([...git('diff','HEAD','--name-only','-
 export function buildFiles(){
  const all=[];
  function walk(dir){for(const name of readdirSync(dir)){const full=resolve(dir,name);if(statSync(full).isDirectory())walk(full);else all.push(relative(process.cwd(),full).replaceAll('\\','/'));}}
- for(const dir of ['dist/client','dist/server','dist/.openai'])walk(dir);
+ for(const dir of ['dist/client','dist/server','dist/.openai','work/cafe24-public'])walk(dir);
  return all;
 }
 export function checkProject(){

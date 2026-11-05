@@ -18,7 +18,7 @@ export async function tryPublicOrigin(req,env,path,requestOrigin=originRequest){
   const r=await requestOrigin(env,'page',JSON.stringify({target,data}),'application/json',1800);
   if(r&&[200,404].includes(r.status)&&r.headers.get('x-aifect-rendered')==='1'){
    const h=new Headers({'x-aifect-web-origin':'cafe24','x-content-type-options':'nosniff'});
-   for(const name of ['content-type','cache-control','content-security-policy'])if(r.headers.has(name))h.set(name,r.headers.get(name));
+   for(const name of ['content-type','cache-control','content-security-policy','x-aifect-origin-revision'])if(r.headers.has(name))h.set(name,r.headers.get(name));
    const html=await r.text();
    if(html.startsWith('<!doctype html>')||html.startsWith('<!DOCTYPE html>'))return new Response(req.method==='HEAD'?null:html,{status:r.status,headers:h});
   }

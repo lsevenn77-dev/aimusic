@@ -11,8 +11,9 @@ test('Cafe24 receives only public display fields and render output matches Sites
  const remote=await tryPublicOrigin(req,env,path,async(e,action,body)=>{
   const {target,data}=JSON.parse(body);assert.equal(target,path);assert.equal(action,'page');
   assert.ok(data.tracks.length);assert.ok(!/user_id|original_key|email|should-never-forward|secret=/.test(body));
-  const r=await render(target,data,shell);r.headers.set('x-aifect-rendered','1');return r;});
+  const r=await render(target,data,shell);r.headers.set('x-aifect-rendered','1');r.headers.set('x-aifect-origin-revision','verified-release');return r;});
  assert.equal(remote.headers.get('x-aifect-web-origin'),'cafe24');
+ assert.equal(remote.headers.get('x-aifect-origin-revision'),'verified-release');
  assert.equal(await remote.text(),await (await publicMusicRoute(req,env,path)).text());
  const lost=await tryPublicOrigin(req,env,path,async()=>{throw Error('down')});
  assert.equal(lost.status,200);assert.equal(lost.headers.get('x-aifect-web-origin'),'sites-fallback');assert.ok(!(await lost.text()).includes('secret='));
