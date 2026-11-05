@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
-import {mkdir, mkdtemp, rm, writeFile} from 'node:fs/promises';
+import {mkdir, mkdtemp, readFile, rm, writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import vm from 'node:vm';
@@ -76,6 +76,18 @@ test('the release list must match current source assets and the exact built byte
   assert.deepEqual(await generate({directory:'Image', objects:[]}), {});
   assert.deepEqual(await generate({directory:'Image', objects:[object]}), routes);
   await assert.rejects(generate({directory:'Image/../private', objects:[object]}));
+
+  const svg = '<svg>\n</svg>\n';
+  const windowsSvg = svg.replaceAll('\n', '\r\n');
+  const svgName = createHash('sha256').update(svg).digest('hex') + '.svg';
+  for (const [name, content] of [['icon.svg', windowsSvg], ['new.svg', windowsSvg.replace('<svg>', '<svg id="new">')]]) {
+    await writeFile(join(root,'source/assets',name), content);
+    await writeFile(join(root,'client/assets',name), content);
+  }
+  assert.deepEqual(await generate({directory:'Image', objects:[svgName]}), {'/assets/icon.svg':svgName});
+  assert.equal(await readFile(join(root,'client/assets/icon.svg'), 'utf8'), svg);
+  assert.equal(await readFile(join(root,'source/assets/icon.svg'), 'utf8'), windowsSvg);
+  assert.match(await readFile(join(root,'client/assets/new.svg'), 'utf8'), /\r\n/);
 });
 
 test('restarted workers re-check the document release; stale or unknown clients use the origin', async () => {

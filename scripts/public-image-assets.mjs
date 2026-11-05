@@ -30,9 +30,22 @@ export async function publicImageRoutes(verified, source = 'dist', client = 'dis
     for await (const [url] of walk(directory, prefix)) {
       const suffix = url.match(imageSuffix);
       if (!suffix) continue;
-      const bytes = await readFile(join(client, decodeURIComponent(url)));
-      const name = createHash('sha256').update(bytes).digest('hex') + suffix[0].toLowerCase();
-      if (objects.has(name)) matches.set(url, name);
+      const output = join(client, decodeURIComponent(url));
+      const bytes = await readFile(output);
+      const extension = suffix[0].toLowerCase();
+      const name = createHash('sha256').update(bytes).digest('hex') + extension;
+      if (objects.has(name)) {
+        matches.set(url, name);
+      } else if (extension === '.svg' && bytes.includes('\r\n')) {
+        // A Windows checkout can expand LF to CRLF. Publish the LF variant only
+        // when those exact bytes already have a verified copy on the CDN.
+        const canonical = Buffer.from(bytes.toString('utf8').replaceAll('\r\n', '\n'));
+        const canonicalName = createHash('sha256').update(canonical).digest('hex') + extension;
+        if (objects.has(canonicalName)) {
+          await writeFile(output, canonical);
+          matches.set(url, canonicalName);
+        }
+      }
     }
   }
   return Object.fromEntries([...matches].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0));
