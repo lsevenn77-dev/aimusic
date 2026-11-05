@@ -49,6 +49,8 @@
  #main :is(.album-title,.song-table-title,.song-cover-copy strong,.play-song-copy strong,.card-title,.playlist-card h3,.artist-card h3,.song-credits a,.song-producer-name){font-size:var(--pc-font-card)!important}
  :is(#main,#dialog) :is(.song-description,.cover-introduction,.page-heading p,.field-help,.form-error,.song-comment-body,.mp-profile-bio){font-size:var(--pc-font-body)!important}
  :is(#main,#dialog,.sidebar,.topbar) :is(button,.primary-button,.small-button,.text-link,.tab,.nav-link,.aifect-dropdown-trigger,input:not([type=range],[type=checkbox],[type=radio],[type=color]),select,textarea){font-size:var(--pc-font-control)!important}
+ /* Only the eight upper sidebar labels grow; retain the existing row and icon geometry. */
+ #sidebar>.nav-primary>.nav-link,#sidebar>.nav-link[data-view="studio"]{font-size:calc(var(--pc-font-control) + 2px)!important;line-height:22px}
  :is(#main,#dialog) :is(.song-release-date,.song-track-meta,.song-metrics,.song-like-count,.comment-age,.song-support-caption,.song-cover-meta,.song-support-gifts,.production-info){font-size:var(--pc-font-meta)!important}
  :is(#main,#dialog) :is(.song-credits>div>span,.song-description-toggle){font-size:var(--pc-font-caption)!important}
 }
