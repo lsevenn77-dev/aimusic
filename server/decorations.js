@@ -1,3 +1,4 @@
+import {artistGiftSource,checkArtistGiftReplay,giftSourceEntry} from './gift-source.js';
 import {one,rows,query,now,id,fail,json,rate,str} from './db.js';
 import {requireUser,viewerBlockedIds} from './auth.js';
 import {assertUnblocked} from './account-safety.js';
@@ -61,11 +62,14 @@ async function useDecoration(env,user,inventoryId,b){
  }
 }
 async function sendDecoration(env,user,inventoryId,b){
- const key=requestId(b),recipient=await recipientUser(env,user,b.profile_id),replay=async()=>{const old=await one(env,'SELECT * FROM decoration_transfers WHERE sender_id=? AND request_id=?',user.id,key);if(old&&(old.inventory_id!==inventoryId||old.recipient_id!==recipient))fail(409,'이미 사용한 요청 번호예요.');return old;};
+ const key=requestId(b),recipient=await recipientUser(env,user,b.profile_id);
+ const source=await artistGiftSource(env,b.artist_id,b.profile_id,user.id);
+ const replay=async()=>{const old=await one(env,'SELECT * FROM decoration_transfers WHERE sender_id=? AND request_id=?',user.id,key);if(old)await checkArtistGiftReplay(env,'decoration',old.id,source);if(old&&(old.inventory_id!==inventoryId||old.recipient_id!==recipient))fail(409,'이미 사용한 요청 번호예요.');return old;};
  const prior=await replay();if(prior)return prior;
  if(!await one(env,`SELECT id FROM player_inventory pi WHERE pi.id=? AND pi.user_id=? AND pi.source='decoration_stock' AND pi.revoked=0 AND ${decorationFundingSQL('pi')}`,inventoryId,user.id))fail(409,'사용 전 보관 아이템만 선물할 수 있어요.');
  await rate(env,'decoration-send:'+user.id,60,3600);
- try{await env.DB.batch([query(env,'INSERT INTO decoration_transfers(id,inventory_id,sender_id,recipient_id,request_id,created) VALUES(?,?,?,?,?,?)',id(),inventoryId,user.id,recipient,key,now()),query(env,'UPDATE player_inventory SET user_id=? WHERE id=?',recipient,inventoryId)]);return await replay();}catch(e){const old=await replay();if(old)return old;if(/constraint|decoration_/i.test(e.message))fail(409,'이미 사용했거나 선물한 아이템이에요.');throw e;}
+ const transferId=id();
+ try{await env.DB.batch([query(env,'INSERT INTO decoration_transfers(id,inventory_id,sender_id,recipient_id,request_id,created) VALUES(?,?,?,?,?,?)',transferId,inventoryId,user.id,recipient,key,now()),query(env,'UPDATE player_inventory SET user_id=? WHERE id=?',recipient,inventoryId),...(source?[giftSourceEntry(env,'decoration',transferId,source)]:[])]);return await replay();}catch(e){const old=await replay();if(old)return old;if(/constraint|decoration_/i.test(e.message))fail(409,'이미 사용했거나 선물한 아이템이에요.');throw e;}
 }
 export async function decorationRoute(req,env,path,user){
  if(!path.startsWith('/api/decorations'))return null;

@@ -1,3 +1,4 @@
+import {crewLevel} from '../shared/crews.js';
 import {namedArtistSQL} from './artist-identity.js';
 import {followCounts,assertArtistInteraction} from './follow-management.js';
 import {publicNumberSQL,profileActivity} from './profile-dashboard.js';
@@ -25,19 +26,33 @@ async function profileDraft(req){
  return {body:{name:form.get('name'),bio:form.get('bio'),remove_image:form.get('remove_image')==='true'},image:image?.size?image:null};
 }
 
+async function previewCrew(env,userId){
+ const c=await one(env,`SELECT c.id,c.name,c.image_version,c.highest_level,c.growth_started,
+  COALESCE((SELECT SUM(x.amount) FROM crew_xp x WHERE x.crew_id=c.id),0) xp
+  FROM crew_members cm JOIN crews c ON c.id=cm.crew_id WHERE cm.user_id=? ORDER BY cm.joined,c.id LIMIT 1`,userId);
+ if(!c)return null;
+ const {level}=crewLevel(c.xp,c.highest_level,c.growth_started);
+ const badgeLevel=[10,9,8,6,4,2,1].find(min=>level>=min);
+ return {id:c.id,name:c.name,image_version:c.image_version,level,badge_url:'/assets/crew-badges/lv'+badgeLevel+'.webp'};
+}
+
 export async function profileRoute(req,env,path,user){
  const fan=path.match(/^\/api\/artist-preview\/([\w-]+)$/);
  if(fan){
   if(req.method!=='GET')fail(405,'지원하지 않는 요청입니다.');
-  const profile=await one(env,`SELECT a.id,a.name,a.bio,a.image_version,p.user_id FROM artists a JOIN producers p ON p.id=a.producer_id WHERE a.id=? AND ${namedArtistSQL()}`,fan[1]);
+  const profile=await one(env,`SELECT a.id,a.name,a.bio,a.image_version,p.user_id,p.id producer_id,${producerNameSQL()} producer_name FROM artists a JOIN producers p ON p.id=a.producer_id JOIN users u ON u.id=p.user_id WHERE u.provider!='deleted' AND a.id=? AND ${namedArtistSQL()}`,fan[1]);
   if(!profile)fail(404,'아티스트를 찾을 수 없어요.');assertUnblocked(env,profile.user_id);await assertArtistInteraction(env,profile.id,user?.id);
-  return json({profile,artist:true,...await followCounts(env,profile.user_id,user?.id,profile.id)});
+  const [counts,following]=await Promise.all([followCounts(env,profile.user_id,user?.id,profile.id),user?one(env,"SELECT 1 FROM follows WHERE user_id=? AND kind='artist' AND target_id=?",user.id,profile.id):null]);
+  return json({profile,artist:true,...counts,following:!!following});
  }
  const listener=path.match(/^\/api\/member-preview\/([\w-]+)$/);
  if(listener){
   if(req.method!=='GET')fail(405,'지원하지 않는 요청입니다.');
   assertUnblocked(env,listener[1]);const profile=await one(env,`SELECT u.id user_id,p.id,${publicNameSQL()} name,p.bio,p.image_version,(SELECT code FROM public_profile_ids WHERE user_id=u.id) public_id FROM users u LEFT JOIN producers p ON p.user_id=u.id WHERE u.id=? AND u.provider!='deleted'`,listener[1]);
-  if(!profile)fail(404,'회원을 찾을 수 없어요.');const c=await followCounts(env,profile.user_id,user?.id);return json({profile,followers:c.followers,following_count:c.following});
+  if(!profile)fail(404,'회원을 찾을 수 없어요.');
+  if(profile.id)return profileRoute(req,env,'/api/producers/'+profile.id+'/preview',user);
+  const crew=await previewCrew(env,profile.user_id);
+  const c=await followCounts(env,profile.user_id,user?.id);return json({profile,followers:c.followers,following_count:c.following,crew});
  }
  const preview=path.match(/^\/api\/producers\/([\w-]+)\/preview$/);
  if(preview){
@@ -48,7 +63,7 @@ export async function profileRoute(req,env,path,user){
   assertUnblocked(env,profile.user_id);
   const [counts,crew,following]=await Promise.all([
    followCounts(env,profile.user_id,user?.id),
-   one(env,'SELECT c.id,c.name,c.image_version FROM crew_members cm JOIN crews c ON c.id=cm.crew_id WHERE cm.user_id=? ORDER BY cm.joined,c.id LIMIT 1',profile.user_id),
+   previewCrew(env,profile.user_id),
    user?one(env,"SELECT 1 found FROM follows WHERE user_id=? AND kind='producer' AND target_id=?",user.id,profile.id):null
   ]);
   const ai=await supportFollowCount(env,profile.user_id,user?.id||null);

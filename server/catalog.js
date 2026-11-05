@@ -192,7 +192,7 @@ export async function catalogRoute(req,env,path,user){
     followCounts(env,owner.user_id,user?.id,kind==='artist'?entity.id:''),
     trackList(env,`${manage?"((t.user_id=? AND t.status!='deleted') OR "+VISIBLE()+')':VISIBLE()} AND t.kind='original' AND t.${kind}_id=?`,[...(manage?[user.id]:[]),entity.id], 't.created DESC',workLimit,manage,profileWorks),
     kind==='producer'?trackList(env,`${manage?"((t.user_id=? AND t.status!='deleted') OR "+VISIBLE()+')':VISIBLE()} AND t.kind='cover' AND (t.producer_id=? OR dt.producer_id=? OR EXISTS(SELECT 1 FROM tracks child WHERE child.duet_parent_id=t.id AND child.producer_id=? AND ${VISIBLE('child')}))`,[...(manage?[user.id]:[]),entity.id,entity.id,entity.id], 't.created DESC',workLimit,manage,profileWorks):null,
-    kind==='producer'?profileGifts(env,entity.id):null,
+    kind==='producer'&&!dashboardRequested&&url.searchParams.get('gift_summary')!=='0'?profileGifts(env,entity.id):null,
     own||dashboardRequested?playerIdentity(env,entity.user_id):null,
     kind==='producer'?profileGallery(env,entity.id,own):artistGallery(env,entity.id,user),
     kind==='producer'&&user&&entity.user_id!==user.id?one(env,'SELECT c.id,c.name FROM crew_members cm JOIN crews c ON c.id=cm.crew_id WHERE cm.user_id=? AND NOT EXISTS(SELECT 1 FROM crew_members target WHERE target.crew_id=c.id AND target.user_id=?) AND NOT EXISTS(SELECT 1 FROM crew_bans WHERE crew_id=c.id AND user_id=?)',user.id,entity.user_id,entity.user_id):null,

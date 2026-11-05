@@ -9,7 +9,7 @@ function activityRowHTML(n){
  const href=n.href??(n.kind==='crew_notice'&&n.available?'#crew/'+encodeURIComponent(n.target)+'?tab=notice':!gift&&n.available?(n.kind==='follow'?'#producer/':'#song/')+encodeURIComponent(n.target):'');
  const passive=gift&&(['talking_room','karaoke','message'].includes(n.source_type)||n.clickable===false);
  const rowTag=passive?'div':'a';
- const sourceLabel={message:'메시지',profile:'프로필',talking_room:'토킹룸',karaoke:'노래방',work:'작품 상세',inventory:'인벤토리',shop:'선물 상점'}[n.source_type];
+ const sourceLabel={artist:'아티스트 프로필',message:'메시지',profile:'프로필',talking_room:'토킹룸',karaoke:'노래방',work:'작품 상세',inventory:'인벤토리',shop:'선물 상점'}[n.source_type];
  const giftSource=sourceLabel?[sourceLabel,n.gift_source_title].filter(Boolean).join(' · '):'출처 확인 불가';
  const giftDetail=`<div class="activity-detail activity-gift-detail"><b class="activity-value ${esc(n.currency)}">${number(n.amount)} ${n.currency==='gold'?'G':'S'}</b><span class="activity-gift-separator" aria-hidden="true">·</span><span class="activity-gift-source" title="${esc(giftSource)}">${esc(giftSource)}</span></div>`;
  const avatar=n.actor_profile_id&&n.actor_image_version?'/media/producer/'+encodeURIComponent(n.actor_profile_id)+'?v='+encodeURIComponent(n.actor_image_version||'default'):'/assets/default-avatar.png';

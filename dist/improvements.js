@@ -82,7 +82,7 @@ async function improvementsView(base,param,raw,readApi=api){
  if(base==='follower'&&param){
   if(!me){returnRoute=location.hash;return {html:gate()};}
   const d=await readApi('/api/followers/'+encodeURIComponent(param));
-  if(d.profile.id){const social=await readApi('/api/producers/'+encodeURIComponent(d.profile.id));return {html:heading('음악가의 페이지')+personProfileHTML(social,d.profile.id),tracks:musicProfileItems(social)};}
+  if(d.profile.id){const social=await readApi('/api/producers/'+encodeURIComponent(d.profile.id)+'?gift_summary=0');return {html:heading('음악가의 페이지')+personProfileHTML(social,d.profile.id),tracks:musicProfileItems(social)};}
   return {html:heading('음악 친구')+'<a class="small-button" href="#library/followers">'+icon('back')+' 팔로워 목록</a>'+listenerProfileHTML(d.profile)};
  }
  if((base==='crew'&&!param)||(base==='community'&&param==='crews')){
@@ -104,10 +104,10 @@ async function improvementsView(base,param,raw,readApi=api){
    const knownProfile=me.profile_id;
    const [d,balances,knownSocial]=await Promise.all([
     readApi('/api/me/profile'),param!=='edit'?Promise.all([loadMyBalanceSummary(readApi),loadMyCrewSummary(readApi)]).then(parts=>parts.join('')):null,
-    param!=='edit'&&knownProfile?readApi('/api/producers/'+encodeURIComponent(knownProfile)):null
+    param!=='edit'&&knownProfile?readApi('/api/producers/'+encodeURIComponent(knownProfile)+'?gift_summary=0'):null
    ]),p=d.profile;
    if(param!=='edit'){
-    if(p.id){const social=p.id===knownProfile&&knownSocial?knownSocial:await readApi('/api/producers/'+encodeURIComponent(p.id));social.following_count=d.following_count;return {html:myPageHeading('나의 순간과 음악이 만나는 공간')+personProfileHTML(social,p.id,new URLSearchParams(raw.split('?')[1]||'').get('tab')||'all',balances),tracks:musicProfileItems(social,new URLSearchParams(raw.split('?')[1]||'').get('tab')||'all')};}
+    if(p.id){const social=p.id===knownProfile&&knownSocial?knownSocial:await readApi('/api/producers/'+encodeURIComponent(p.id)+'?gift_summary=0');social.following_count=d.following_count;return {html:myPageHeading('나의 순간과 음악이 만나는 공간')+personProfileHTML(social,p.id,new URLSearchParams(raw.split('?')[1]||'').get('tab')||'all',balances),tracks:musicProfileItems(social,new URLSearchParams(raw.split('?')[1]||'').get('tab')||'all')};}
     return {html:myPageHeading('음악을 듣기만 해도 좋아요.')+balances+'<section class="music-self-head"><div><h2>'+esc(p.name||me.name||'내 음악')+'</h2><p class="mp-public-id">ID · '+esc(p.public_id||'발급 확인 중')+'</p><p>아직 공개한 프로필이나 음악이 없어요.</p></div><div class="inline-actions"><a class="small-button" href="#profile/edit">프로필 만들기</a><a class="small-button" href="#studio">스튜디오</a></div></section>'+playerProgressHTML(p)+musicMyShortcuts()};
    }
    return {html:'<button type="button" class="small-button" data-profile-edit>프로필 수정</button>'};

@@ -34,7 +34,7 @@ async function bindGiftCategoryTabs(form,{recipientId,initial,serial,account,ini
     await ui.refreshWallet().catch(()=>{});
    }
    if(!active())return;
-   await api('/api/decorations/inventory/'+encodeURIComponent(attempt.bought)+'/send','POST',{profile_id:recipientId,request_id:attempt.sendKey});
+   await api('/api/decorations/inventory/'+encodeURIComponent(attempt.bought)+'/send','POST',{profile_id:recipientId,request_id:attempt.sendKey,...(initial?.artistId?{artist_id:initial.artistId}:{})});
    if(!active())return;attempts.delete(key);$('#dialog').close();toast(p.name+'을 선물했어요.');
   }catch(e){if(active())formError(form).textContent=e.message;}
   finally{busy=false;form._busy=false;if(active())paint();}

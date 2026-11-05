@@ -1,4 +1,4 @@
-// One delegated trigger survives route renders without replacing nickname links.
+// Identity links keep their destination for modified clicks and opening a new tab.
 let profilePreviewSerial=0,profilePreviewDialog=null,profilePreviewOrigin=null,profilePreviewOverflow='';
 const profilePreviewSVG=path=>'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="'+path+'"/></svg>';
 const profilePreviewIcons={
@@ -25,11 +25,32 @@ function closeProfilePreview(){
  if(profilePreviewOrigin?.isConnected)profilePreviewOrigin.focus({preventScroll:true});
  profilePreviewOrigin=null;
 }
+function profilePreviewActions(d, own) {
+ const p=d.profile, id=encodeURIComponent(p.id||''), artist=!!d.artist;
+ if(own&&!artist)return `<a class="primary-button" href="#profile/edit">${profilePreviewIcons.edit}<span>프로필 수정</span></a><button type="button" class="small-button" data-preview-share="${esc(p.id||'')}">${profilePreviewIcons.share}<span>공유</span></button><a class="small-button" href="#profile">${icon('chevron')}<span>내 페이지</span></a>`;
+ if(!p.id)return p.public_id?`<a class="small-button" href="#member/${esc(p.public_id)}">프로필 보기</a>`:'';
+ const fan='#artist/'+id, following=!!d.following;
+ return `<button type="button" class="primary-button" data-follow="${artist?'artist':'producer'}/${esc(p.id)}" aria-pressed="${following}">${profilePreviewIcons.follow}<span data-follow-label>${following?'팔로잉':'팔로우'}</span></button>
+ <a class="small-button" href="${artist?fan+'?tab=lounge&amp;compose=1':'#dm/'+id}" ${artist?'data-preview-lounge':'data-preview-message'}>${icon('message')}<span>${artist?'응원글':'메시지'}</span></a>
+ <a class="small-button" href="${artist?fan:'#producer/'+id}">${icon('chevron')}<span>${artist?'팬페이지':'더보기'}</span></a>
+ <button type="button" class="small-button" data-preview-gift="${esc(p.id)}">${icon('gift')}<span>선물 보내기</span></button>`;
+}
 function profilePreviewHTML(d){
- const p=d.profile,own=!!me&&p.user_id===me.id,kind=d.artist?'artist':'producer',key=kind+'/'+p.id,c=d.crew;
- const header=d.artist?'<span class="profile-preview-own">AI 아티스트</span>':own?'<span class="profile-preview-own">내 프로필</span>':'<button type="button" data-preview-report>신고</button><span aria-hidden="true">|</span><button type="button" data-person-block="'+esc(p.user_id)+'" data-block-name="'+esc(p.name)+'">차단</button>';
- const buttons=d.artist?'<a class="small-button" href="#artist/'+encodeURIComponent(p.id)+'">팬페이지 보기</a>':own?'<a class="primary-button" href="#profile/edit">'+profilePreviewIcons.edit+'<span>프로필 수정</span></a><button type="button" class="small-button" data-preview-share="'+esc(p.id||'')+'">'+profilePreviewIcons.share+'<span>공유</span></button><a class="small-button" href="#profile">'+icon('chevron')+'<span>내 페이지</span></a>':!p.id?(p.public_id?'<a class="small-button" href="#member/'+esc(p.public_id)+'">프로필 보기</a>':''):'<button type="button" class="primary-button" data-follow="'+esc(key)+'" aria-pressed="'+!!d.following+'">'+profilePreviewIcons.follow+'<span data-follow-label>'+(d.following?'팔로잉':'팔로우')+'</span></button><a class="small-button" href="#dm/'+esc(p.id)+'" data-preview-message>'+icon('message')+'<span>메시지</span></a><a class="small-button" href="#producer/'+esc(p.id)+'">'+icon('chevron')+'<span>더보기</span></a><button type="button" class="small-button profile-preview-gift" data-preview-gift="'+esc(p.id)+'">'+icon('gift')+'<span>선물 보내기</span></button>';
- return '<section class="profile-preview-card"><button type="button" class="profile-preview-photo'+playerAvatarClass(p)+'" aria-label="프로필 사진 크게 보기">'+avatarImage(p,kind,false)+playerBadgeHTML(p)+'</button><header class="profile-preview-header"><h2 id="profile-preview-title" title="'+esc(p.name)+'">'+esc(p.name)+'</h2>'+(d.artist?'':'<p class="mp-public-id">ID · '+esc(p.public_id||'발급 확인 중')+'</p>')+'<div class="profile-preview-tools">'+header+'<button type="button" class="profile-preview-close" data-preview-close aria-label="프로필 미리보기 닫기">'+profilePreviewIcons.close+'</button></div></header><p class="profile-preview-bio">'+esc(p.bio||'')+'</p><div class="profile-preview-stats"><a class="preview-count" href="#follow?'+(d.artist?'tab=artists&amp;artist='+encodeURIComponent(p.id):'tab=followers&amp;user='+encodeURIComponent(p.user_id))+'" data-followers="'+esc(key)+'" data-count="'+Number(d.followers||0)+'"><strong data-follow-count>'+number(d.followers)+'</strong><span>팔로워'+(d.ai_followers?' · AI '+number(d.ai_followers)+' 포함':'')+'</span></a>'+(d.artist?'':'<a class="preview-count" href="#follow?tab=following&amp;user='+encodeURIComponent(p.user_id)+'"><strong>'+number(d.following_count)+'</strong><span>팔로잉</span></a>')+(c?'<a class="small-button profile-preview-crew" href="#crew/'+esc(c.id)+'" title="'+esc(c.name)+'">'+(c.image_version?'<img src="/media/crew/'+encodeURIComponent(c.id)+'?v='+encodeURIComponent(c.image_version)+'" alt="">':'')+'<span>'+esc(c.name)+'</span>'+icon('chevron')+'</a>':'')+'</div><nav class="profile-preview-actions" aria-label="프로필 작업">'+buttons+'</nav></section>';
+ const p=d.profile, artist=!!d.artist, own=!!me&&p.user_id===me.id, kind=artist?'artist':'producer';
+ const tools=artist?'':own?'<span class="profile-preview-own">내 프로필</span>':`<button type="button" data-preview-report>신고</button><span aria-hidden="true">|</span><button type="button" data-person-block="${esc(p.user_id)}" data-block-name="${esc(p.name)}">차단</button>`;
+ const followers=artist?'tab=artists&amp;artist='+encodeURIComponent(p.id):'tab=followers&amp;user='+encodeURIComponent(p.user_id);
+ const affiliation=artist&&p.producer_name?`<span class="preview-affiliation"><span title="${esc(p.producer_name)}">${esc(p.producer_name)}</span> 소속</span>`:'';
+ const crew=!artist&&d.crew?`<a class="profile-preview-crew" href="#crew/${encodeURIComponent(d.crew.id)}" title="${esc(d.crew.name)}">${d.crew.badge_url?`<img src="${esc(d.crew.badge_url)}" alt="크루 레벨 ${Number(d.crew.level)}" width="14" height="14">`:''}<span>${esc(d.crew.name)}</span></a>`:'';
+ return `<section class="profile-preview-card">
+ <div class="profile-preview-image-slot"><button type="button" class="profile-preview-photo${playerAvatarClass(p)}" aria-label="프로필 사진 크게 보기">${avatarImage(p,kind,false)}${playerBadgeHTML(p)}</button></div>
+ <div class="profile-preview-info"><header class="profile-preview-header">
+ <h2 id="profile-preview-title" title="${esc(p.name)}">${esc(p.name)}</h2>
+ <div class="profile-preview-tools">${tools}<button type="button" class="profile-preview-close" data-preview-close aria-label="프로필 미리보기 닫기">${profilePreviewIcons.close}</button></div></header>
+ ${artist?'':`<p class="mp-public-id">ID · ${esc(p.public_id||'발급 확인 중')}</p>`}
+ <p class="profile-preview-bio" title="${esc(p.bio||'')}">${esc(p.bio||'')}</p>
+ <div class="profile-preview-stats"><a class="preview-count" href="#follow?${followers}" data-followers="${kind}/${esc(p.id||'')}" data-count="${Number(d.followers||0)}" ${d.ai_followers?'title="AI 팔로워 '+number(d.ai_followers)+'명 포함"':''}><strong data-follow-count>${number(d.followers||0)}</strong> 팔로워</a>
+ ${artist?affiliation:`<a class="preview-count" href="#follow?tab=following&amp;user=${encodeURIComponent(p.user_id)}"><strong>${number(d.following_count||0)}</strong> 팔로잉</a>${crew}`}</div></div>
+ <nav class="profile-preview-actions" aria-label="프로필 작업">${profilePreviewActions(d,own)}</nav></section>`;
 }
 async function openProfilePreview(id,origin){
  closeProfilePreview();const serial=profilePreviewSerial,route=location.hash;
@@ -45,10 +66,15 @@ async function openProfilePreview(id,origin){
   if(!d&&id.startsWith('member:'))d=await api('/api/member-preview/'+encodeURIComponent(id.slice(7)));
   if(!d)d=await api('/api/producers/'+encodeURIComponent(id)+'/preview');
   if(serial!==profilePreviewSerial||route!==location.hash||uid!==me?.id)return;
-  if(!d.artist&&d.following!==undefined&&d.profile.id&&!pendingFollows.has('producer/'+d.profile.id))updateFollowLocal('producer',d.profile.id,d.following,d.profile);
-  const panel=document.createElement('dialog');panel.className='profile-preview compact-popup';panel.setAttribute('aria-labelledby','profile-preview-title');panel.setAttribute('aria-modal','true');panel.innerHTML=profilePreviewHTML(d);
+  const kind=d.artist?'artist':'producer';
+  if(d.following!==undefined&&d.profile.id&&!pendingFollows.has(kind+'/'+d.profile.id))updateFollowLocal(kind,d.profile.id,d.following,d.profile);
+  const panel=document.createElement('dialog');panel.className='profile-preview';panel.setAttribute('aria-labelledby','profile-preview-title');panel.setAttribute('aria-modal','true');panel.innerHTML=profilePreviewHTML(d);
   panel.querySelectorAll('[data-profile-preview]').forEach(image=>{image.removeAttribute('data-profile-preview');image.removeAttribute('tabindex');image.removeAttribute('role');image.removeAttribute('aria-haspopup');});
-  profilePreviewOrigin=origin;profilePreviewOverflow=document.body.style.overflow;document.body.style.overflow='hidden';profilePreviewDialog=panel;document.body.append(panel);if(typeof voiceController!=='undefined'&&voiceController?.joined&&!voiceController.closed&&voiceController.host?.isConnected){voiceController.adoptRoomPopup(panel,origin);panel.querySelector('[data-preview-close]').hidden=true;}else{panel.showModal();panel.querySelector('[data-preview-close]').focus();}
+  // Close only the participant menu; the shared profile dialog sits above the active room.
+  if(typeof voiceController!=='undefined'&&voiceController?.talkPopup?.open)voiceController.closeRoomPopup();
+  profilePreviewOrigin=origin;profilePreviewOverflow=document.body.style.overflow;
+  document.body.style.overflow='hidden';profilePreviewDialog=panel;document.body.append(panel);
+  panel.showModal();panel.querySelector('[data-preview-close]').focus();
   panel.addEventListener('cancel',event=>{event.preventDefault();closeProfilePreview();});
   panel.addEventListener('keydown',event=>{
    if(event.key!=='Tab')return;
@@ -60,23 +86,47 @@ async function openProfilePreview(id,origin){
    const target=event.target;
    if(target===panel){const r=panel.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)closeProfilePreview();return;}
    if(target.closest('[data-preview-close]'))return closeProfilePreview();
-   const gift=target.closest('[data-preview-gift]');if(gift){closeProfilePreview();await profileGiftDialog(gift.dataset.previewGift);return;}
+   const gift=target.closest('[data-preview-gift]');if(gift){closeProfilePreview();await (d.artist?profileGiftDialog(d.profile.producer_id,{artistId:d.profile.id}):profileGiftDialog(gift.dataset.previewGift));return;}
    if(target.closest('[data-preview-report]')){closeProfilePreview();if(!me)return askLogin();toast('사용자 프로필 신고는 아직 연결되지 않았어요. 신고가 접수되지 않았습니다.');return;}
    const share=target.closest('[data-preview-share]');
    if(share)return shareMemberProfile(d.profile);
    if(target.closest('[data-person-block]')&&!me){event.stopPropagation();closeProfilePreview();return askLogin();}
+   if(target.closest('[data-preview-lounge]')&&location.hash===target.closest('a').hash){event.preventDefault();closeProfilePreview();document.querySelector('[data-fan-compose="lounge"]')?.click();return;}
    if(target.closest('a')){const needsLogin=target.closest('[data-preview-message]')&&!me;closeProfilePreview();if(needsLogin){event.preventDefault();askLogin();}}
   });
  }catch(error){if(serial===profilePreviewSerial)toast(error.message);}
 }
+// Only profile credits and identity cards opt in. Playback, room controls, management
+// buttons, and links to a specific tab retain their own actions.
+const profilePreviewLinks=[
+ '.home-profile-card>a','.album-artist','.home-feature-artist a','.song-table-info a',
+ '.song-credits a','.directory-photo','.directory-name a','.artist-card>a','.mp-artist-card',
+ '.music-author','.crew-member-profile','.community-people-row a','.crew-person',
+ '.dm-profile-link','.song-detail-producer a','.sing-card-person','.sing-cover-person',
+ '.fan-affiliation','.sing-duet-context a','.fan-post-author a','.cover-collection-item .music-author'
+].join(',');
+function previewTarget(target){
+ const marked=target.closest('[data-profile-preview]');
+ const link=target.closest('a[href]');
+ if(link){
+  const route=/^#(producer|artist)\/([\w-]+)$/.exec(link.getAttribute('href'));
+  if(route&&(link.matches(profilePreviewLinks)||marked))
+   return {key:(route[1]==='artist'?'artist:':'')+route[2],origin:link};
+  return null;
+ }
+ return marked?{key:marked.dataset.profilePreview,origin:marked}:null;
+}
 document.addEventListener('click',event=>{
- const image=event.target.closest('[data-profile-preview]');
- if(!image||image.closest('dialog,label,[contenteditable="true"]')||(image.closest('button')&&image.closest('button')!==image)||event.button!==0||event.ctrlKey||event.metaKey||event.shiftKey||event.altKey)return;
- event.preventDefault();event.stopImmediatePropagation();void openProfilePreview(image.dataset.profilePreview,image);
+ const hit=previewTarget(event.target);
+ if(!hit||event.button!==0||event.ctrlKey||event.metaKey||event.shiftKey||event.altKey)return;
+ const origin=hit.origin,button=event.target.closest('button');
+ if(origin.closest('dialog,label,[contenteditable="true"]')||(button&&button!==origin))return;
+ event.preventDefault();event.stopImmediatePropagation();void openProfilePreview(hit.key,origin);
 },true);
 document.addEventListener('keydown',event=>{
- if(!['Enter',' '].includes(event.key)||!event.target.matches('[data-profile-preview]')||event.target.closest('dialog,label')||event.target.closest('button'))return;
- event.preventDefault();event.stopImmediatePropagation();void openProfilePreview(event.target.dataset.profilePreview,event.target);
+ if(event.ctrlKey||event.metaKey||event.shiftKey||event.altKey||!['Enter',' '].includes(event.key)||!event.target.matches('[data-profile-preview]')||event.target.closest('dialog,label')||event.target.closest('button'))return;
+ const hit=previewTarget(event.target);if(!hit)return;
+ event.preventDefault();event.stopImmediatePropagation();void openProfilePreview(hit.key,hit.origin);
 },true);
 window.addEventListener('hashchange',closeProfilePreview);
 window.addEventListener('popstate',event=>{if(!event.photoOverlayHandled&&!document.querySelector('.photo-lightbox[open]'))closeProfilePreview();});

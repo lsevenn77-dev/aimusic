@@ -1,5 +1,5 @@
 import {assertDubbingGiftContext,giftBlockReason} from './gift-eligibility.js';
-import {giftSourceEntry,giftTargetSource} from './gift-source.js';
+import {artistGiftSource,checkArtistGiftReplay,giftSourceEntry,giftTargetSource} from './gift-source.js';
 import {producerNameSQL} from './identity.js';
 import {assertArtistInteraction} from './follow-management.js';
 import {walletHistory} from './wallet-history.js';
@@ -136,7 +136,9 @@ export async function giftRoute(req,env,path,user,verifiedSource){
  const reason=await giftBlockReason(env,user.id,track);if(reason)fail(400,reason);
  await rate(env,'gift:'+user.id,60,3600);
  const b=await req.json(),dubbing=await assertDubbingGiftContext(env,user.id,track.producer_id,b.dubbing_id);
- const source=verifiedSource||(personal&&!dubbing&&b.from_message===true?{type:'message',id:track.producer_id,title:track.title}:giftTargetSource(track,dubbing));
+ if(b.artist_id!=null&&(!personal||dubbing||verifiedSource))fail(400,'아티스트 프로필에서 다시 선택해주세요.');
+ const artistSource=await artistGiftSource(env,b.artist_id,track.producer_id,user.id);
+ const source=artistSource||verifiedSource||(personal&&!dubbing&&b.from_message===true?{type:'message',id:track.producer_id,title:track.title}:giftTargetSource(track,dubbing));
  if(silverGiftById(b.gift_type))return sendFreeGift(env,user,track,b,source);
  const selected=b.gift_type===undefined?null:giftById(b.gift_type);
  if(b.gift_type!==undefined&&!selected)fail(400,'선물 종류를 다시 선택해주세요.');
@@ -147,7 +149,7 @@ export async function giftRoute(req,env,path,user,verifiedSource){
  // Catalog gifts use their server-owned price; legacy amount-only clients retain their minimum.
  if(!Number.isInteger(gold)||gold<(selected?1:GIFT_MIN_GOLD)||gold>GIFT_MAX_GOLD)fail(400,`선물은 ${GIFT_MIN_GOLD}골드부터 ${GIFT_MAX_GOLD.toLocaleString('ko-KR')}골드까지 보낼 수 있어요.`);
 
- const replay=async()=>{if(!requestId)return null;const old=await one(env,'SELECT id,track_id,creator_profile_id,gold,gift_type,gift_name,quantity FROM gifts WHERE sender_id=? AND request_id=?',user.id,requestId);if(!old)return null;if(old.track_id!==track.id||(personal&&old.creator_profile_id!==track.producer_id)||old.gold!==gold||old.quantity!==quantity||old.gift_type!==(selected?.id??null))fail(409,'이미 사용된 선물 요청이에요. 새로 선택해주세요.');return json({gift:{id:old.id,gold:old.gold,type:old.gift_type,name:old.gift_name,quantity:old.quantity},balance:await goldBalance(env,user.id)});};
+ const replay=async()=>{if(!requestId)return null;const old=await one(env,'SELECT id,track_id,creator_profile_id,gold,gift_type,gift_name,quantity FROM gifts WHERE sender_id=? AND request_id=?',user.id,requestId);if(!old)return null;await checkArtistGiftReplay(env,'gold',old.id,source);if(old.track_id!==track.id||(personal&&old.creator_profile_id!==track.producer_id)||old.gold!==gold||old.quantity!==quantity||old.gift_type!==(selected?.id??null))fail(409,'이미 사용된 선물 요청이에요. 새로 선택해주세요.');return json({gift:{id:old.id,gold:old.gold,type:old.gift_type,name:old.gift_name,quantity:old.quantity},balance:await goldBalance(env,user.id)});};
  const previous=await replay();if(previous)return previous;
  const creator=track.kind==='cover'?(await one(env,'SELECT producer_id FROM tracks WHERE id=?',track.original_id)).producer_id:track.producer_id;
  const lots=await rows(env,"SELECT id,gold,used,price_krw,fee_krw,tax_krw FROM gold_purchases WHERE user_id=? AND status='paid' AND used<gold AND NOT EXISTS(SELECT 1 FROM gold_orders o WHERE o.id=gold_purchases.id AND o.state!='paid') AND NOT EXISTS(SELECT 1 FROM play_purchases pp WHERE 'play_'||pp.token_hash=gold_purchases.id AND pp.state='refunded') ORDER BY paid_at,id",user.id);
@@ -162,6 +164,6 @@ export async function giftRoute(req,env,path,user,verifiedSource){
    giftSourceEntry(env,'gold',gid,source),
    ...spent.map(l=>query(env,'INSERT INTO gift_lots(gift_id,purchase_id,gold,net_mw) VALUES(?,?,?,?)',gid,l.purchase_id,l.gold,l.net_mw)),
   ]);
- }catch(e){if(/constraint/i.test(String(e?.message))){const duplicate=await replay();if(duplicate)return duplicate;}if(/CHECK constraint/i.test(String(e?.message)))fail(409,'골드 잔액이 바뀌었어요. 다시 시도해주세요.');throw e;}
+ }catch(e){if(/constraint/i.test(String(e?.message))){const duplicate=await replay();if(duplicate)return duplicate;}if(source.type==='artist'&&/gift_sources\.source_id/i.test(String(e?.message)))fail(409,'이미 다른 선물에 사용한 요청이에요.');if(/CHECK constraint/i.test(String(e?.message)))fail(409,'골드 잔액이 바뀌었어요. 다시 시도해주세요.');throw e;}
  return json({gift:{id:gid,gold,type:selected?.id??null,name:selected?.name??null,quantity},balance:await goldBalance(env,user.id)},201);
 }

@@ -1,5 +1,5 @@
 import {assertDubbingGiftContext,giftBlockReason} from './gift-eligibility.js';
-import {giftSourceEntry,giftTargetSource} from './gift-source.js';
+import {artistGiftSource,checkArtistGiftReplay,giftSourceEntry,giftTargetSource} from './gift-source.js';
 import {published} from './catalog.js';
 import {one,rows,query,now,id,fail,json,rate} from './db.js';
 import {requireUser,isAdmin} from './auth.js';
@@ -48,13 +48,15 @@ async function acquire(env,uid,b,operator=null){
 export async function sendInventoryGift(env,user,itemId,b){
  const key=requestId(b),i=await one(env,'SELECT * FROM gift_inventory WHERE id=? AND user_id=?',itemId,user.id);
  if(!i)fail(404,'보관 선물을 찾을 수 없어요.');
- if(i.used_at){if(i.send_request_id===key&&i.recipient_id===b.profile_id)return;fail(409,'이미 사용한 선물이에요.');}
+ const artistSource=await artistGiftSource(env,b.artist_id,b.profile_id,user.id),currency=i.currency==='gold'?'gold':'silver';
+ if(artistSource&&(b.track_id||b.dubbing_id))fail(400,'선물 대상을 다시 확인해주세요.');
+ if(i.used_at){await checkArtistGiftReplay(env,currency,i.id,artistSource);if(i.send_request_id===key&&i.recipient_id===b.profile_id)return;fail(409,'이미 사용한 선물이에요.');}
  const p=await one(env,`SELECT p.id,p.user_id,${producerNameSQL()} name FROM producers p JOIN users u ON u.id=p.user_id WHERE p.id=? AND u.provider!='deleted'`,b.profile_id||'');
  if(p?.user_id===user.id)fail(400,'본인에게는 선물할 수 없어요.');if(!p)fail(400,'선물할 다른 회원을 선택해주세요.');assertUnblocked(env,p.user_id);
  const dubbing=await assertDubbingGiftContext(env,user.id,p.id,b.dubbing_id);
  const track=b.track_id?await published(env,b.track_id):null;
  if(track){if(track.producer_id!==p.id)fail(400,'작품의 수신자를 확인해주세요.');const reason=await giftBlockReason(env,user.id,track);if(reason)fail(400,reason);}
- const source=!track&&!dubbing&&b.from_message===true?{type:'message',id:p.id,title:p.name}:track||dubbing||b.from_profile===true?giftTargetSource(track||{producer_id:p.id,title:p.name},dubbing):{type:'inventory',id:i.id,title:i.gift_name};
+ const source=artistSource||(!track&&!dubbing&&b.from_message===true?{type:'message',id:p.id,title:p.name}:track||dubbing||b.from_profile===true?giftTargetSource(track||{producer_id:p.id,title:p.name},dubbing):{type:'inventory',id:i.id,title:i.gift_name});
  const at=now(),statements=[query(env,'UPDATE gift_inventory SET used_at=?,send_request_id=?,recipient_id=? WHERE id=? AND user_id=?',at,key,p.id,i.id,user.id)];
  if(i.currency==='gold'){
   const lots=await rows(env,'SELECT purchase_id,gold,net_mw FROM gift_inventory_lots WHERE inventory_id=?',i.id),net=lots.reduce((n,l)=>n+l.net_mw,0),share=splitGift('original',net,(await partnerState(env,p.user_id)).tier==='partner');
@@ -62,7 +64,7 @@ export async function sendInventoryGift(env,user,itemId,b){
   statements.push(...lots.map(l=>query(env,'INSERT INTO gift_lots(gift_id,purchase_id,gold,net_mw) VALUES(?,?,?,?)',i.id,l.purchase_id,l.gold,l.net_mw)));
  }else statements.push(query(env,'INSERT INTO free_gifts(id,sender_id,recipient_profile_id,request_id,created,gift_type,gift_name,silver,quantity) VALUES(?,?,?,?,?,?,?,?,1)',i.id,user.id,p.id,key,at,i.gift_type,i.gift_name,i.value));
  statements.push(giftSourceEntry(env,i.currency==='gold'?'gold':'silver',i.id,source));
- try{await env.DB.batch(statements);}catch(e){const old=await one(env,'SELECT used_at,send_request_id,recipient_id FROM gift_inventory WHERE id=?',i.id);if(old?.used_at&&old.send_request_id===key&&old.recipient_id===p.id)return;if(/constraint|inventory/i.test(e.message))fail(409,'선물이나 결제 상태가 바뀌었어요. 다시 확인해주세요.');throw e;}
+ try{await env.DB.batch(statements);}catch(e){const old=await one(env,'SELECT used_at,send_request_id,recipient_id FROM gift_inventory WHERE id=?',i.id);if(old?.used_at&&old.send_request_id===key&&old.recipient_id===p.id){await checkArtistGiftReplay(env,currency,i.id,artistSource);return;}if(/constraint|inventory/i.test(e.message))fail(409,'선물이나 결제 상태가 바뀌었어요. 다시 확인해주세요.');throw e;}
 }
 export async function giftInventoryRoute(req,env,path,user){
  if(path==='/api/admin/gift-inventory/grant'){

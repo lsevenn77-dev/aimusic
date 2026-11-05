@@ -1,3 +1,4 @@
+import {namedArtistSQL} from './artist-identity.js';
 import {one,rows,run,now,fail,json,rate} from './db.js';
 import {requireUser} from './auth.js';
 import {voiceCall} from './voice-bridge.js';
@@ -82,7 +83,7 @@ async function resolveGift(env,n,opening){
  const decoration=n.id?.startsWith('decoration:');
  const type=decoration?'inventory':receipt?.source_type;
  const id=decoration?n.id.slice(11):receipt?.source_id;
- const routes={profile:'producer',talking_room:'voice',karaoke:'live',work:receipt?.work_kind==='dubbing'?'dubbing':'song',inventory:'inventory',shop:'gifts'};
+ const routes={artist:'artist',profile:'producer',talking_room:'voice',karaoke:'live',work:receipt?.work_kind==='dubbing'?'dubbing':'song',inventory:'inventory',shop:'gifts'};
  const route=routes[type];
  const passive=['talking_room','karaoke','message'].includes(type);
  let title=decoration?n.gift_name:receipt?.gift_source_title||'';
@@ -97,8 +98,9 @@ async function resolveGift(env,n,opening){
     const state=response.ok?await response.json():null;
     if(!state?.active||(state.mode==='karaoke')!==(route==='live')){href='';reason='room';}
    }
-  }else if(['producer','song','dubbing'].includes(route)){
+  }else if(['producer','artist','song','dubbing'].includes(route)){
    const queries={
+    artist:`SELECT p.user_id owner,a.name title FROM artists a JOIN producers p ON p.id=a.producer_id JOIN users u ON u.id=p.user_id WHERE a.id=? AND u.provider!='deleted' AND ${namedArtistSQL()}`,
     producer:`SELECT p.user_id owner,${producerNameSQL()} title FROM producers p JOIN users u ON u.id=p.user_id WHERE p.id=? AND u.provider!='deleted'`,
     song:`SELECT t.user_id owner,t.title FROM tracks t JOIN users u ON u.id=t.user_id WHERE t.id=? AND u.provider!='deleted' AND ${VISIBLE()}`,
     dubbing:`SELECT p.owner_id owner,p.title FROM dubbing_projects p JOIN users u ON u.id=p.owner_id WHERE p.id=? AND p.visibility='public' AND u.provider!='deleted' AND ${dubbingVisibleSQL()}`

@@ -48,14 +48,6 @@
 #activity-preferences.compact-popup { --pref-gutter: 0px; }
 :is(#dialog, dialog).compact-popup > header { padding: 0; margin: 0 0 12px; }
 :is(#dialog, dialog).compact-popup > header h2 { margin-bottom: 0; padding-inline-end: 44px; }
-.profile-preview.compact-popup .profile-preview-card { padding: 0; }
-.profile-preview.compact-popup .profile-preview-actions { grid-template-columns: none; }
-.profile-preview.compact-popup { inset: 0; border-radius: var(--ds-radius-card, 16px); }
-.profile-preview.compact-popup .profile-preview-header { position: relative; display: block; padding-inline-end: 38px; }
-.profile-preview.compact-popup .profile-preview-header h2 { margin: 0; white-space: normal; overflow-wrap: anywhere; }
-.profile-preview.compact-popup .mp-public-id { margin: 4px 0; font-size: 13px; }
-.profile-preview.compact-popup .profile-preview-tools { flex-wrap: wrap; gap: 8px; }
-.profile-preview.compact-popup .profile-preview-close { position: absolute; top: -8px; right: -8px; }
 /* Rich editors retain their usable workspace; only their controls use this scale. */
 :is(#dialog, dialog).compact-popup.photo-crop-dialog { max-width: min(480px, calc(100% - 32px)); }
 :is(#dialog, dialog).compact-popup .carcard button { display: flex; margin-inline-start: auto; }
