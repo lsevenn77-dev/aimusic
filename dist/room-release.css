@@ -552,16 +552,16 @@
 }
 
 @media(min-width:801px) {
-  #main .voice-room[data-voice-room] #voice-seats {
+  #main[data-room-focus] .voice-room[data-voice-room] #voice-seats {
     --room-seat:60px;
     padding:34px 14px;
     gap:16px 4px;
   }
-  #main .voice-room[data-voice-room] #voice-seats .room-member-photo { margin:12px 0 16px; }
-  #main .voice-room[data-voice-room] #voice-seats .room-muted-mark svg { width:28px; height:28px; }
-  #main .voice-room[data-voice-room] #voice-seats .room-host-crown svg { width:14px; height:14px; }
-  #main .voice-room[data-voice-room] #voice-seats .room-follow-add { width:19px; height:19px; top:56px; left:calc(50% + 19px); }
+  #main[data-room-focus] .voice-room[data-voice-room] #voice-seats .room-member-photo { margin:12px 0 16px; }
+  #main[data-room-focus] .voice-room[data-voice-room] #voice-seats .room-muted-mark svg { width:28px; height:28px; }
+  #main[data-room-focus] .voice-room[data-voice-room] #voice-seats .room-host-crown svg { width:14px; height:14px; }
+  #main[data-room-focus] .voice-room[data-voice-room] #voice-seats .room-follow-add { width:19px; height:19px; top:56px; left:calc(50% + 19px); }
 }
 @media(min-width:801px) and (max-height:699px) {
-  #main .voice-room[data-voice-room] #voice-seats { padding-block:18px; row-gap:8px; }
+  #main[data-room-focus] .voice-room[data-voice-room] #voice-seats { padding-block:18px; row-gap:8px; }
 }
