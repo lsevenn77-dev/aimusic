@@ -3,6 +3,8 @@
  --room-page:#0C1018;--room-shell:#101620;--room-surface:#141923;--room-popup:#191F2B;
  --room-input:#0E141E;--room-button:#1D2632;--room-line:#2A3040;--room-control-line:#3B4658;
  --room-text:#F2F1F8;--room-muted:#A7B0C0;--room-mint:#8EDDD2;--room-active:#BA9BF3;
+ --room-control-fill:color-mix(in srgb,var(--room-text) 7%,transparent);--room-control-hover:color-mix(in srgb,var(--room-text) 12%,transparent);
+ --room-control-selected:color-mix(in srgb,var(--room-active) 18%,var(--room-surface));
  --ds-text:var(--room-text);--ds-body:var(--room-muted);--ds-muted:var(--room-muted);--ds-ink:var(--room-text);
  --talk-bg:var(--room-surface);--talk-dialog:var(--room-popup);--talk-control:var(--room-button);--talk-line:var(--room-line);--talk-mint:var(--room-mint);--talk-sheen:none;--talk-target:44px;
  --voice-avatar:clamp(64px,7vw,98px);--room-font:calc(14px * var(--ui-type-scale,1));
@@ -16,7 +18,7 @@
 #main .voice-room .room-header{display:flex;flex:0 0 auto;align-items:center;gap:12px;width:100%;min-width:0;margin:0;padding:12px 16px;border-bottom:1px solid var(--room-line);background:var(--room-surface);z-index:2}
 #main .voice-room .room-header h1{flex:1;min-width:0;max-width:none;font-size:calc(18px * var(--ui-type-scale,1));font-weight:600;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0;padding:0}
 #main .voice-room .room-header nav{display:flex;flex:none;flex-wrap:nowrap;gap:4px;margin:0;padding:0}
-#main .voice-room .room-header button{display:grid;place-items:center;width:44px;height:44px;min-width:44px;min-height:44px;margin:0;padding:0;border:1px solid var(--room-control-line);border-radius:10px;background:var(--room-button);color:var(--room-text);box-shadow:none}
+#main .voice-room .room-header button{display:grid;place-items:center;width:44px;height:44px;min-width:44px;min-height:44px;margin:0;padding:0;border:1px solid transparent;border-radius:50%;background:transparent;color:var(--room-text);box-shadow:none}
 #main .voice-room .room-header button svg{width:20px;height:20px}
 #main .voice-room button:enabled:hover{filter:none;transform:none;background-color:var(--room-button)}
 #main .voice-room button[aria-expanded=true],#main .voice-room button[aria-pressed=true]{border-color:var(--room-active);color:var(--room-text);box-shadow:none}
@@ -37,7 +39,7 @@
 #main .voice-room .talk-track :is(strong,small){display:block;max-width:100%;font-size:14px;line-height:1.5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #main .voice-room .talk-track small{font-size:13px;color:var(--room-muted)}
 #main .voice-room #voice-music-player>div{display:flex;flex:none;align-items:center;gap:0;width:auto;min-width:0;margin:0}
-#main .voice-room #voice-music-player>div>button{width:44px;height:44px;min-width:44px;min-height:44px;padding:10px;border:0;border-radius:8px;background:transparent;box-shadow:none;color:var(--room-text)}
+#main .voice-room #voice-music-player>div>button{width:44px;height:44px;min-width:44px;min-height:44px;padding:10px;border:0;border-radius:50%;background:transparent;box-shadow:none;color:var(--room-text)}
 #main .voice-room #voice-music-player>div>button svg{width:20px;height:20px}
 #main .voice-room #voice-mini-volume{width:70px;max-width:70px}
 #main .voice-room .voice-seats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));flex:1;min-height:0;align-items:center;gap:16px 8px;margin:0;padding:12px 0}
@@ -53,14 +55,14 @@
 #main .voice-room .room-muted-mark svg{width:22px;height:22px}
 #main .voice-room .room-host-crown{display:inline-flex;flex:none;color:var(--room-active);filter:none;opacity:1}
 #main .voice-room .room-host-crown svg{width:17px;height:17px}
-#main .voice-room .voice-seat-empty{display:grid;place-items:center;min-height:44px;width:var(--voice-avatar);height:var(--voice-avatar);padding:0;margin:auto;border:1px dashed var(--room-control-line);border-radius:50%;background:none;color:var(--room-muted);box-shadow:none}
+#main .voice-room .voice-seat-empty{display:grid;place-items:center;min-height:44px;width:var(--voice-avatar);height:var(--voice-avatar);padding:0;margin:auto;border:1px solid transparent;border-radius:50%;background:var(--room-control-fill);color:var(--room-muted);box-shadow:none}
 #main .voice-room .voice-seat-empty svg{width:24px;height:24px;border:0;padding:0;background:none}
 #main .voice-room .voice-seat-exit{top:0;right:0;background:var(--room-button);border-color:var(--room-control-line)}
 #main .voice-room .talk-central{display:flex;align-items:center;flex:none;gap:8px;min-height:48px;height:auto;margin:0;padding:4px 0;border:0;border-top:1px solid var(--room-line);border-radius:0;background:transparent;box-shadow:none}
 #main .voice-room .talk-central #talk-request{min-width:0;flex:1;font-size:var(--room-font)}
-#main .voice-room .talk-central [data-voice=toggle-mic]{display:flex;align-items:center;gap:8px;min-height:44px;background:var(--room-button);border:1px solid var(--room-control-line);box-shadow:none;color:var(--room-text)}
+#main .voice-room .talk-central [data-voice=toggle-mic]{display:flex;align-items:center;gap:8px;min-height:44px;background:var(--room-control-fill);border:1px solid transparent;border-radius:999px;box-shadow:none;color:var(--room-text)}
 #main .voice-room .talk-switch{background:var(--room-control-line);box-shadow:none}
-#main .voice-room [aria-pressed=true] .talk-switch{background:var(--room-active)}
+#main .voice-room [aria-pressed=true] .talk-switch{background:var(--room-mint)}
 #main .voice-room .voice-chat{flex:1;height:0;min-height:0;overflow-y:auto;overscroll-behavior:contain;min-width:0;margin:0 0 10px;padding:0;border:0;border-radius:0;background:none;box-shadow:none;scrollbar-color:var(--room-control-line) transparent}
 #main .voice-room .voice-chat :is(p,b){font-size:var(--room-font)}
 #main .voice-room .voice-chat time{font-size:13px}
@@ -69,11 +71,11 @@
 #main .voice-room .voice-announcement{max-height:66px;min-height:0;margin:0 0 8px;padding:8px;background:var(--room-input);border:0;border-radius:6px;overflow:auto}
 #main .voice-room #voice-chat-form{display:flex;align-items:center;flex:none;gap:6px;position:relative;width:100%;min-width:0;padding:0;margin:0;border:0;background:transparent;box-shadow:none;z-index:1}
 #main .voice-room .talk-message-field{position:relative;flex:1;min-width:0}
-#main .voice-room #voice-message{width:100%;height:46px;min-height:46px;max-height:90px;margin:0;padding:10px 46px 10px 12px;border:1px solid var(--room-control-line);border-radius:12px;background:var(--room-input);color:var(--room-text);font-size:16px!important;line-height:24px}
-#main .voice-room #voice-chat-form button{display:grid;place-items:center;flex:0 0 44px;width:44px;height:44px;min-width:44px;min-height:44px;padding:0;border:1px solid var(--room-control-line);border-radius:10px;background:var(--room-button);color:var(--room-text);box-shadow:none}
+#main .voice-room #voice-message{width:100%;height:46px;min-height:46px;max-height:90px;margin:0;padding:10px 46px 10px 12px;border:1px solid transparent;border-radius:23px;background:var(--room-input);color:var(--room-text);font-size:16px!important;line-height:24px}
+#main .voice-room #voice-chat-form button{display:grid;place-items:center;flex:0 0 44px;width:44px;height:44px;min-width:44px;min-height:44px;padding:0;border:1px solid transparent;border-radius:50%;background:var(--room-control-fill);color:var(--room-text);box-shadow:none}
 #main .voice-room #voice-chat-form button svg{width:20px;height:20px}
 #main .voice-room #voice-chat-form [data-voice=emoji]{position:absolute;inset:1px 1px auto auto;border:0;background:transparent}
-#main .voice-room #voice-chat-form .talk-send{border-color:var(--room-active)}
+#main .voice-room #voice-chat-form .talk-send{border-color:transparent}
 /* Nonmodal chat overlays: no backdrop, fixed positioning or transparent surface. */
 #main .voice-room .room-popup,#main .voice-room :is(#voice-sound,#voice-music-sheet,#dialog).room-popup{position:absolute!important;inset:auto 0 0!important;transform:none!important;translate:none!important;width:100%!important;min-width:0!important;max-width:100%!important;height:fit-content;min-height:0;max-height:100%!important;margin:0!important;padding:16px!important;border:1px solid var(--room-control-line);border-radius:12px 12px 0 0;background:var(--room-popup)!important;background-image:none!important;color:var(--room-text);box-shadow:none!important;backdrop-filter:none!important;overflow:auto;overscroll-behavior:contain;z-index:30;isolation:isolate;font-size:15px;scrollbar-width:thin;scrollbar-color:var(--room-control-line) transparent}
 #main .voice-room .room-popup::backdrop{background:transparent;backdrop-filter:none}
@@ -172,14 +174,14 @@
 #main .live-karaoke-room .live-song-progress progress{flex:1;min-width:0}
 #main .live-karaoke-room .live-stage-note{font-size:13px;margin:0;padding:0;color:var(--room-muted)}
 #main .live-karaoke-room .live-request-area{display:flex;flex-direction:column;flex:none;gap:8px;min-height:0;margin:12px 0 0;padding:12px 0 0;border:0;border-top:1px solid var(--room-line);border-radius:0;background:none;box-shadow:none}
-#main .live-karaoke-room .live-request-button{display:flex;flex:none;min-height:44px;width:100%;padding:8px 10px;border:1px solid var(--room-control-line);border-radius:8px;background:var(--room-button);color:var(--room-text)}
+#main .live-karaoke-room .live-request-button{display:flex;flex:none;min-height:44px;width:100%;padding:8px 10px;border:1px solid transparent;border-radius:999px;background:var(--room-mint);color:var(--room-input)}
 #main .live-karaoke-room .live-request-button>span{display:flex;flex:1;align-items:center;justify-content:space-between;gap:6px}
 #main .live-karaoke-room .live-request-button :is(strong,small){font-size:var(--room-font)}
 #main .live-karaoke-room .live-queue{display:flex;flex:0 0 auto;min-height:0;height:auto;max-height:85px;margin:0;padding:0;gap:8px;overflow:auto}
 #main .live-karaoke-room .live-queue-empty{padding:0;min-height:22px;font-size:13px}
 #main .live-karaoke-room .live-queue li:not(.live-queue-empty){min-width:180px;max-width:230px;padding:6px 8px;background:var(--room-input);border:0;border-radius:6px}
 #main .live-karaoke-room .live-actions{display:flex;flex-wrap:wrap;gap:6px;flex:none;margin:0}
-#main .live-karaoke-room .live-actions button{min-height:44px;background:var(--room-button);color:var(--room-text);border:1px solid var(--room-active);box-shadow:none;font-size:15px}
+#main .live-karaoke-room .live-actions button{min-height:44px;background:var(--room-control-fill);color:var(--room-text);border:1px solid transparent;border-radius:999px;box-shadow:none;font-size:15px}
 #main .live-karaoke-room .live-actions:empty{display:none}
 #main .live-karaoke-room .live-current{min-height:32px}
 #main .live-karaoke-room .live-lyrics{flex:1 1 0}
@@ -188,7 +190,7 @@
  #main .voice-room .room-header{gap:4px;padding:4px 6px;min-height:52px}
  #main .voice-room .room-header h1{font-size:17px}
  #main .voice-room .room-header nav{gap:0}
- #main .voice-room .room-header button{border-radius:8px}
+ #main .voice-room .room-header button{border-radius:50%}
  #main .voice-room .voice-columns{display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:var(--room-stage-height) minmax(0,1fr);gap:0;height:100%}
  #main .voice-room .voice-stage{height:100%;padding:4px 10px 8px;overflow:auto;min-height:0}
  #main .voice-room .voice-chat-panel{height:100%;min-height:0;flex:auto;padding:10px 10px max(8px,env(safe-area-inset-bottom));border:0;border-top:1px solid var(--room-line)}
@@ -224,7 +226,7 @@
 #main .voice-room .voice-seat .voice-person{width:100%;max-width:100%;min-width:0}
 #main .voice-room .voice-person strong{overflow:hidden}
 #main .voice-room #voice-message{resize:none;overflow:auto}
-#main .voice-room .talk-central [data-voice=approve-mic]{color:var(--room-text)!important}
+#main .voice-room .talk-central [data-voice=approve-mic]{color:var(--room-input)!important}
 @media(max-width:767px){
  #main[data-room-focus] .voice-room.talking-room{padding:0}
 }
@@ -239,3 +241,23 @@
 #main .voice-room #voice-message{padding-block:calc((46px - 24px - 2px)/2)}
 #main .voice-room .voice-backgrounds label input[type=radio]{position:static;inset:auto;flex:0 0 18px;width:18px;height:18px;min-height:18px;margin:0;padding:0;transform:none}
 #main .voice-room .voice-backgrounds label span{position:static;inset:auto;flex:1;width:auto;max-width:100%;margin:0;padding:0;background:transparent;border-radius:0}
+
+/* Shared room controls: presentation only; keep the live layout and hit areas. */
+#main .voice-room :is(.room-header button,#voice-chat-form button,#voice-music-player>div>button,.talk-central button,.live-request-button,.live-actions button)>svg{stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#main .voice-room .room-header button:enabled:hover,
+#main .voice-room #voice-chat-form button:enabled:hover,
+#main .voice-room #voice-music-player>div>button:enabled:hover,
+#main .voice-room .voice-seat-empty:enabled:hover,
+#main .live-karaoke-room .live-actions button:enabled:hover{background-color:var(--room-control-hover)}
+#main .voice-room .room-header button[aria-expanded=true],#main .voice-room #voice-chat-form [data-voice=emoji][aria-expanded=true]{border-color:transparent;background:var(--room-control-selected);color:var(--room-text)}
+#main .voice-room .room-header button[aria-expanded=true]:enabled:hover,#main .voice-room #voice-chat-form [data-voice=emoji][aria-expanded=true]:enabled:hover{background:var(--room-control-selected)}
+#main .voice-room #voice-chat-form [data-voice=gift]{color:var(--ds-accent-pink)}
+#main .voice-room .talk-central #talk-request button{border-color:transparent;border-radius:999px;background:var(--room-control-fill);color:var(--room-text)}
+#main .voice-room .talk-central #talk-request button:enabled:hover,#main .voice-room .talk-central [data-voice=toggle-mic]:enabled:hover{background-color:var(--room-control-hover)}
+#main .voice-room .talk-central #talk-request [data-voice=approve-mic]{background:var(--room-mint);color:var(--room-input)!important}
+#main .voice-room .talk-central [data-voice=toggle-mic][aria-pressed=true]{border-color:transparent;background:color-mix(in srgb,var(--room-mint) 12%,var(--room-surface));color:var(--room-mint)}
+#main .voice-room .talk-central [data-voice=toggle-mic][aria-pressed=true]:enabled:hover{background:color-mix(in srgb,var(--room-mint) 18%,var(--room-surface))}
+#main .live-karaoke-room .live-request-button :is(strong,small,svg){color:inherit}
+#main .live-karaoke-room .live-actions button.primary-button{background:var(--room-mint);color:var(--room-input)}
+#main .live-karaoke-room .live-request-button:enabled:hover,#main .live-karaoke-room .live-actions button.primary-button:enabled:hover,#main .voice-room .talk-central #talk-request [data-voice=approve-mic]:enabled:hover{background:color-mix(in srgb,var(--room-mint) 88%,var(--room-text))}
+#main .voice-room :is(.live-request-button,.live-actions button.primary-button,.talk-central [data-voice=approve-mic]):focus-visible{outline-color:var(--room-input)}
