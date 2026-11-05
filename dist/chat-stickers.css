@@ -1,6 +1,5 @@
 /* Both composers use their existing popup anchor and the same picker interior. */
 #main :is(#dm-emoji-picker,#voice-emoji-picker).cat-picker {
-  --cat-size:62px;
   --cat-edge:color-mix(in srgb,var(--ds-lilac) 58%,var(--ds-panel));
   display:flex;
   flex-direction:column;
@@ -52,16 +51,13 @@
 #main .cat-picker-scroll section+section {margin-top:12px}
 #main .cat-picker-scroll h3 {margin:0 0 6px 3px;color:var(--ds-body);font-size:12px;line-height:1.5}
 #main .cat-picker .cat-grid {
-  display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--cat-size),1fr));
-  justify-items:center;gap:4px 2px;
+  justify-items:center;
 }
 #main :is(#dm-emoji-picker,#voice-emoji-picker) button.cat-tile {
-  position:relative;display:grid;place-items:center;width:var(--cat-size);height:var(--cat-size);
-  min-height:0;padding:3px;border-radius:12px;
+  position:relative;border-radius:12px;
 }
-#main .cat-tray img {display:block;width:95%;height:95%;margin:auto;min-height:0;object-fit:contain}
-#main .cat-grid:has([data-cat-key^="cat_text_"]) {grid-template-columns:repeat(auto-fill,minmax(calc(var(--cat-size) * 1.55),1fr))}
-#main :is(#dm-emoji-picker,#voice-emoji-picker) button[data-cat-key^="cat_text_"] {width:calc(var(--cat-size) * 1.55)}
+#main .cat-tray img {display:block;margin:auto;min-height:0;object-fit:contain}
+#main .cat-tray [data-cat-group="text"] img {width:95%;height:95%}
 @media (hover:hover) {
   #main :is(#dm-emoji-picker,#voice-emoji-picker) button:enabled:hover {background:var(--ds-soft);color:var(--ds-text)}
 }
@@ -75,7 +71,8 @@
 }
 #main .cat-picker .cat-footer {display:block;padding:5px 10px;border-top:1px solid var(--ds-line)}
 #main .cat-picker .cat-tray {display:flex;gap:2px;overflow-x:auto;scrollbar-width:thin}
-#main :is(#dm-emoji-picker,#voice-emoji-picker) .cat-tray button {flex:none;width:44px;height:44px;padding:5px}
+#main :is(#dm-emoji-picker,#voice-emoji-picker) .cat-tray button {flex:none;display:grid;place-items:center;width:44px;height:44px;padding:0}
+#main :is(#dm-emoji-picker,#voice-emoji-picker) .cat-tray [data-cat-group="text"] {padding:5px}
 #main .cat-picker .cat-actions {display:flex;align-items:center;justify-content:space-between;gap:6px}
 #main .cat-picker .cat-status {font-size:13px;line-height:1.3;color:var(--ds-body)}
 #main :is(#dm-emoji-picker,#voice-emoji-picker) .cat-send {
@@ -90,18 +87,13 @@
   background:var(--ds-lilac);color:var(--room-input,var(--ds-ink));border-radius:8px;font-size:10px;line-height:15px;
 }
 /* Align the image centre to the font's cap-height centre on every line. */
-#main img.cat-chat-sticker {
-  --cat-base-size:38px;--cat-inline-size:var(--cat-base-size);
-  display:inline-block;vertical-align:middle;vertical-align:calc(.5cap - var(--cat-inline-size) * .5);
-  width:var(--cat-inline-size);height:var(--cat-inline-size);max-width:100%;
-  margin:0;padding:0;border:0;border-radius:0;object-fit:contain;background:none;
+#main img.cat-chat-sticker,#main .cat-picker img {
+  width:var(--cat-art-size);height:var(--cat-art-size);max-width:100%;object-fit:contain;
 }
-/* Scale each group once from its previous message size. The three compact
-   hands already used a 34.2px box. The picker and editor use their own sizes. */
-#main img.cat-compact-hand {--cat-base-size:34.2px}
-#main img.cat-message-hand {--cat-inline-size:calc(var(--cat-base-size) * .85)}
-#main img.cat-message-prop {--cat-inline-size:calc(var(--cat-base-size) * .6)}
-#main img.cat-word {--cat-word-width:62.7px;width:var(--cat-word-width)}
+#main img.cat-chat-sticker {
+  display:inline-block;vertical-align:middle;vertical-align:calc(.5cap - var(--cat-art-size) * .5);
+  margin:0;padding:0;border:0;border-radius:0;background:none;
+}
 /* The inline-block's baseline is its bottom edge. Place the measured glyph
    centre on the Korean text axis, leaving room for each crown or sparkle. */
 #main .cat-word-slot {
@@ -109,12 +101,16 @@
   width:var(--cat-slot-width);max-width:100%;height:var(--cat-slot-height);
   vertical-align:calc(.38em - var(--cat-below-ink));padding-block-start:var(--cat-art-inset);
 }
-#main .cat-word-slot img.cat-word-ink {display:block;width:100%;height:var(--cat-art-height)}
+#main img.cat-word,#main .cat-word-slot img.cat-word-ink {
+  width:var(--cat-slot-width);height:var(--cat-art-height);vertical-align:calc(.38em - var(--cat-below-ink));
+}
+#main .cat-word-slot img.cat-word-ink {display:block}
+/* An editor wraps the entire image as one character. Its intrinsic minimum
+   must include the real box even when the character counter needs to wrap. */
+#main [data-dm-editor] img.cat-chat-sticker {max-width:none}
 #main :is(img,.cat-word-slot).cat-after-text {margin-inline-start:5px}
 #main :is(img,.cat-word-slot).cat-before-text {margin-inline-end:5px}
 #main :is(img,.cat-word-slot).cat-after-sticker {margin-inline-start:3px}
-/* Keep the recropped crown artwork at its established composer scale. */
-#main img[data-cat-sticker="cat_text_best"] {box-sizing:border-box;padding-block:calc(19px * (1 - 132 / 152))}
 #main .voice-chat-message p:has(.cat-chat-sticker) {display:block;width:fit-content}
 #main .message-workspace #chat-compose [data-dm-editor] {
   box-sizing:border-box;display:block;width:100%;min-width:0;min-height:44px;max-height:120px;
@@ -124,21 +120,20 @@
 }
 #main [data-dm-editor]:empty::before {content:attr(aria-placeholder);color:var(--ds-muted);pointer-events:none}
 #main .dm-length {flex:none;align-self:center;margin-inline-start:4px;white-space:nowrap;color:var(--ds-muted);font-size:11px;line-height:1.25;font-variant-numeric:tabular-nums}
+#main [data-dm-editor]:has(img) + .dm-length {flex-shrink:1;white-space:normal;text-align:end}
 #main .dm-length[data-state="near"] {color:#fb923c}
 #main .dm-length[data-state="full"] {color:var(--ds-error)}
 #main .room-dm-composer .dm-length {margin-inline-end:34px}
 #main #dm-emoji-picker .cat-status:empty {display:none}
 @media (max-width:800px) {
-  #main :is(#dm-emoji-picker,#voice-emoji-picker).cat-picker {--cat-size:52px;max-height:min(400px,100%)!important}
+  #main :is(#dm-emoji-picker,#voice-emoji-picker).cat-picker {max-height:min(400px,100%)!important}
 }
 
-/* Picker artwork and interactive size are independent of sent chat items. */
+/* The hit area stays independent of the art; only words have a preview size. */
 #main :is(#dm-emoji-picker,#voice-emoji-picker,.room-dm-emoji).cat-picker {
-  --tile-hit:40px;--cat-preview-size:36px;padding:8px!important;container-type:inline-size;
-  --cat-basic-preview:var(--cat-preview-size);--cat-hand-preview:var(--cat-preview-size);
-  --cat-prop-preview:calc(var(--cat-preview-size) * .7);
+  --tile-hit:40px;--cat-word-preview:36px;padding:8px!important;container-type:inline-size;
   /* The original '최고' fit paints 92 source pixels of lettering across a 186px reference width. */
-  --cat-preview-ink-height:calc(var(--cat-preview-size) * 92 / 186);
+  --cat-preview-ink-height:calc(var(--cat-word-preview) * 92 / 186);
 }
 #main .cat-picker .cat-grid {
   --cat-grid-gap:calc(4px * var(--ui-space-scale,1));
@@ -150,15 +145,10 @@
   width:100%!important;min-width:var(--tile-hit)!important;height:var(--tile-hit)!important;min-height:var(--tile-hit)!important;
   margin:0!important;padding:0!important;display:grid!important;grid-template-columns:minmax(0,1fr);place-items:center;font-size:20px!important;
 }
-#main .cat-tile[data-cat-group="basic"] {--cat-tile-art:var(--cat-basic-preview)}
-#main .cat-tile[data-cat-group="hand"] {--cat-tile-art:var(--cat-hand-preview)}
-#main .cat-tile[data-cat-group="prop"] {--cat-tile-art:var(--cat-prop-preview)}
-#main .cat-picker .cat-tile :is(img,svg,video,canvas) {
-  display:block;width:var(--cat-tile-art,var(--cat-preview-size))!important;height:var(--cat-tile-art,var(--cat-preview-size))!important;
-  min-width:0!important;min-height:0;max-width:100%!important;max-height:100%!important;
-  object-fit:contain;object-position:center;transform:none!important;
+#main .cat-picker .cat-tile img {
+  display:block;min-width:0;min-height:0;max-height:100%;object-position:center;
 }
 #main .cat-picker .cat-tile[data-cat-group="text"] img {
   width:min(100%,calc(var(--cat-preview-ink-height) * var(--cat-width-per-ink-height)))!important;height:auto!important;
 }
-@media(pointer:coarse),(max-width:767px){#main :is(#dm-emoji-picker,#voice-emoji-picker,.room-dm-emoji).cat-picker{--tile-hit:44px;--cat-preview-size:34px}}
+@media(pointer:coarse),(max-width:767px){#main :is(#dm-emoji-picker,#voice-emoji-picker,.room-dm-emoji).cat-picker{--tile-hit:44px;--cat-word-preview:34px}}

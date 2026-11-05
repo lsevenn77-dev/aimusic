@@ -416,7 +416,7 @@
   & #room-inbox[open]:has(.room-dm-composer) {
     display:grid!important;
     grid-template-columns:minmax(0,1fr);
-    grid-template-rows:auto minmax(0,1fr) var(--room-composer) auto;
+    grid-template-rows:auto minmax(0,1fr) auto auto;
     align-content:stretch;
     gap:4px;
   }
@@ -431,6 +431,10 @@
     max-height:min(240px,100%)!important;
   }
   & #room-inbox .room-dm-composer { grid-area:3 / 1; }
+  & #room-inbox .room-dm-composer:has([data-cat-sticker]) {
+    height:auto; min-height:var(--room-composer); align-items:center;
+    & .talk-message-field {height:auto;min-height:var(--room-composer)}
+  }
   & #room-inbox .room-dm-composer + [data-room-dm-status] { grid-area:4 / 1; }
 }
 @media(max-width:800px) {
@@ -548,6 +552,7 @@
 #main .voice-room #voice-settings-form .voice-visibility{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px}
 #main .voice-room #voice-settings-form .room-settings-footer{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
 #main .voice-room #room-inbox [data-dm-editor]{min-width:0;flex:1 1 auto;max-height:56px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;outline:0;color:inherit;font-size:13px}
+#main .voice-room #room-inbox [data-dm-editor]:has(img) {min-width:min-content;flex-basis:0}
 #main .voice-room .room-live-guide:empty,#main .voice-room .room-live-guide:not(:has(button:not([hidden]),p:not([hidden]):not(:empty))){display:none}
 #main .voice-room .room-live-guide{display:flex;align-items:center;gap:5px;font-size:11px;order:3}
 #main .voice-room .room-live-guide button{min-height:28px;padding:2px 8px}

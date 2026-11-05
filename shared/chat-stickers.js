@@ -4,7 +4,12 @@ import {parts,stickers,token} from './chat-sticker-body.js';
 
 const groups = {basic: '고양이 표정', hand: '손 제스처', text: '텍스트', prop: '소품·효과'};
 const tabs = {basic: '기본', text: '텍스트', prop: '소품·효과'};
-const compactHands = new Set(['cat_hand_thumbsup','cat_hand_ok','cat_hand_peace']);
+// Final CSS pixels, shared by the picker, editable images and sent messages.
+const sizes = {
+  basic:38, hand:32.3, prop:22.8,
+  cat_hand_thumbsup:26.16, cat_hand_ok:26.16, cat_hand_wave:29.07, cat_hand_peace:29.07,
+  text:{width:62.7,height:38}
+};
 
 // Fit to the established message box. A recropped asset keeps the source
 // pixel scale of its original canvas so that its lettering does not grow.
@@ -12,20 +17,25 @@ const wordMetrics = new Map();
 for (const {key, lettering, fitReference, messageScale = 1} of catalog) {
   if (!lettering) continue;
   const reference = fitReference ?? lettering;
-  const scale = Math.min(62.7 / reference.width, 38 / reference.height) * messageScale;
+  const scale = Math.min(sizes.text.width / reference.width, sizes.text.height / reference.height) * messageScale;
   const height = lettering.height * scale;
   const above = (lettering.top + lettering.bottom) * scale / 2;
-  wordMetrics.set(key, {width:62.7 * messageScale, height, above, below:height - above});
+  wordMetrics.set(key, {width:sizes.text.width * messageScale, height, above, below:height - above});
 }
 
 function image(key, className = '', surface = 'picker') {
   const {group, label, assetVersion} = stickers.get(key);
   const version = assetVersion ?? (group === 'text' ? 'v2' : 'v1');
-  if (surface === 'message' && (group === 'hand' || group === 'prop')) {
-    className += ' cat-message-' + group;
-    if (compactHands.has(key)) className += ' cat-compact-hand';
+  let style = '';
+  if (group !== 'text') {
+    style = `--cat-art-size:${sizes[key] ?? sizes[group]}px`;
+  } else if (surface === 'editor') {
+    // Keep an editable word as one atomic image, with the same artwork box
+    // and lettering baseline that its wrapper provides in a sent message.
+    const word = wordMetrics.get(key);
+    style = `--cat-slot-width:${word.width}px;--cat-art-height:${word.height}px;--cat-below-ink:${word.below}px`;
   }
-  return `<img class="${className}" src="/assets/chat-stickers/${version}/${group}/${key}.webp" alt="${surface === 'picker' ? '' : label}" draggable="false">`;
+  return `<img class="${className}"${style ? ' style="'+style+'"' : ''} src="/assets/chat-stickers/${version}/${group}/${key}.webp" alt="${surface === 'picker' ? '' : label}" draggable="false">`;
 }
 
 function spacing(key, before, after) {
@@ -134,7 +144,7 @@ export function bind({picker, form, input, toggle, selected = [], close, glyph, 
     const length = selected.length;
     tray.hidden = !length;
     tray.innerHTML = selected.map((key, index) =>
-      `<button type="button" data-cat-remove="${index}" aria-label="${index + 1}번째 ${stickers.get(key).label} 선택 취소" title="선택 취소">${image(key)}</button>`).join('');
+      `<button type="button" data-cat-remove="${index}" data-cat-group="${stickers.get(key).group}" aria-label="${index + 1}번째 ${stickers.get(key).label} 선택 취소" title="선택 취소">${image(key)}</button>`).join('');
     toggle.dataset.catCount = length || '';
     toggle.setAttribute('aria-label', length ? '이모티콘 · ' + length + '개 선택' : '이모티콘');
     input.required = required && !length;

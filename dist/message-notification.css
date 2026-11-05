@@ -447,6 +447,8 @@
   color: var(--ds-body);
   cursor: pointer;
 }
+/* Reserve the image's intrinsic width and spacing before sizing the counter. */
+#main .message-workspace .dm-direct-thread #chat-compose [data-dm-editor]:has(img) { min-width: min-content; }
 #main .message-workspace .dm-direct-thread .dm-inline-field {
   flex: 1 1 0;
   display: flex;

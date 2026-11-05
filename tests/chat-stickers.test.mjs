@@ -31,13 +31,12 @@ test('stored message bodies keep text, sticker order and repetitions on replay',
   assert.equal(preview(body), '응원해요 🎶\n[웃음][Nice][웃음]');
 });
 
-test('message size classes follow the catalog groups and preserve the three compact hands', () => {
-  const compact = new Set(['cat_hand_thumbsup','cat_hand_ok','cat_hand_peace']);
+test('sent sizes preserve each group and V, and reduce only the three requested hand gestures', () => {
+  const overrides = {cat_hand_thumbsup:26.16,cat_hand_ok:26.16,cat_hand_wave:29.07,cat_hand_peace:29.07};
+  const byGroup = {basic:38,hand:32.3,prop:22.8};
   for (const {key, group} of catalog) {
     const html = render(message('가', [key]) + '나', escapeText);
-    assert.equal(html.includes('cat-message-hand'), group === 'hand', key);
-    assert.equal(html.includes('cat-message-prop'), group === 'prop', key);
-    assert.equal(html.includes('cat-compact-hand'), compact.has(key), key);
+    if (group !== 'text') assert.ok(html.includes('--cat-art-size:' + (overrides[key] ?? byGroup[group]) + 'px'), key);
     assert.equal(html.includes('cat-word-ink'), group === 'text', key);
     assert.equal(html.includes('--cat-below-ink'), group === 'text', key);
   }
