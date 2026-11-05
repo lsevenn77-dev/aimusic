@@ -10,30 +10,31 @@
     --header-inset:clamp(4px,calc((100vw - 350px) / 4),12px);
     --topbar-logo-width:86px;
     display:grid;
-    grid-template-columns:44px var(--topbar-logo-width) 44px minmax(176px,1fr);
+    grid-template-columns:44px minmax(28px,var(--topbar-logo-width)) minmax(176px,1fr) 44px;
     grid-template-rows:minmax(0,1fr);
     column-gap:0;
     align-items:center;
-    position:relative;
+    position:sticky;
+    top:0;
     z-index:40;
     box-sizing:border-box;
     height:calc(var(--mobile-topbar-row) + env(safe-area-inset-top,0px));
     min-height:0;
-    padding:env(safe-area-inset-top,0px) max(var(--header-inset),env(safe-area-inset-right,0px)) 0 max(var(--header-inset),env(safe-area-inset-left,0px));
+    padding:env(safe-area-inset-top,0px) calc(4px + env(safe-area-inset-right,0px)) 0 max(var(--header-inset),env(safe-area-inset-left,0px));
     border:0;
   }
   .topbar[data-compact-brand] { --topbar-logo-width:44px; }
   .topbar #menu-toggle { grid-area:1 / 1; width:44px!important; height:44px; }
-  .topbar .mobile-brand { grid-area:1 / 2; display:flex; align-items:center; justify-content:center; width:var(--topbar-logo-width); height:44px; }
+  .topbar .mobile-brand { grid-area:1 / 2; display:flex; align-items:center; justify-content:center; width:100%; height:44px; }
   .topbar .mobile-brand .aifect-wordmark-logo { width:86px; height:auto; }
   .topbar[data-compact-brand] .mobile-brand .aifect-lockup { display:none; }
   .topbar[data-compact-brand] .mobile-brand-symbol { display:block; width:28px; height:28px; }
-  .topbar .top-actions { grid-area:1 / 4; justify-self:end; margin:0; }
+  .topbar .top-actions { grid-area:1 / 3; justify-self:end; margin:0; }
   .topbar .crumb { display:none; }
   #mobile-topbar-toggle {
-    grid-area:1 / 3;
+    grid-area:1 / 4;
     align-self:start;
-    justify-self:center;
+    justify-self:end;
     display:grid;
     place-items:center;
     position:relative;
@@ -56,28 +57,22 @@
   #mobile-topbar-toggle:focus-visible { outline:2px solid var(--ds-accent-lavender); outline-offset:-2px; }
   .mobile-topbar-dot { display:none; position:absolute; right:5px; top:3px; width:4px; height:4px; border-radius:50%; background:var(--activity-accent); }
   :root[data-mobile-topbar-collapsed] #common-topbar-content > * { visibility:hidden; pointer-events:none; opacity:0; transform:translateY(-56px); }
-  :root[data-mobile-topbar-collapsed] .page-wrap > .topbar { background:transparent; }
-  :root[data-mobile-topbar-collapsed] #mobile-topbar-toggle { width:72px; height:24px; margin-top:0; place-items:start center; }
+  :root[data-mobile-topbar-collapsed] .page-wrap > .topbar { background:transparent; pointer-events:none; }
+  :root[data-mobile-topbar-collapsed] #mobile-topbar-toggle { width:72px; height:24px; margin-top:0; place-items:start end; pointer-events:auto; }
   :root[data-mobile-topbar-collapsed] .mobile-topbar-grip { width:48px; height:16px; }
   :root[data-mobile-topbar-collapsed] .mobile-topbar-grip svg { transform:rotate(180deg); }
   :root[data-mobile-topbar-collapsed] #mobile-topbar-toggle[data-unread] .mobile-topbar-dot { display:block; }
-  /* Fixed chat starts at the shell edge; its existing 8px header inset protects
-     the grip's 6px overhang without adding a spacer or changing pane height. */
-  :root[data-mobile-topbar-collapsed] .message-workspace .dm-thread-header { padding-top:max(8px,var(--mobile-topbar-overhang))!important; }
-  /* Play's edge-to-edge banner is itself a link and has no existing top inset. */
-  :root[data-mobile-topbar-collapsed] #main > .play-page:has(> #play-banner) { padding-top:6px; }
-  :root[data-mobile-topbar-collapsed] #main[data-route^="notifications"] .activity-toolbar { padding-top:6px; }
-  :root[data-topbar-animate] .page-wrap > .topbar { transition:height 200ms ease; }
-  :root[data-topbar-animate] #common-topbar-content > * { transition:transform 200ms ease,opacity 200ms ease,visibility 0s; }
-  :root[data-topbar-animate][data-mobile-topbar-collapsed] #common-topbar-content > * { transition:transform 200ms ease,opacity 200ms ease,visibility 0s linear 200ms; }
-  :root[data-topbar-animate] .mobile-topbar-grip svg { transition:transform 200ms ease; }
+  /* Only edge-to-edge controls need clearance. The chat header has its own 8px inset. */
+  :root[data-mobile-topbar-collapsed] #main > .play-page:has(> #play-banner),
+  :root[data-mobile-topbar-collapsed] #main[data-route^="notifications"] .activity-toolbar { padding-top:var(--mobile-topbar-overhang); }
+  :root[data-topbar-animate] .page-wrap > .topbar { transition:height 220ms ease; }
+  :root[data-topbar-animate] #common-topbar-content > * { transition:transform 220ms ease,opacity 220ms ease,visibility 0s; }
+  :root[data-topbar-animate][data-mobile-topbar-collapsed] #common-topbar-content > * { transition:transform 220ms ease,opacity 220ms ease,visibility 0s linear 220ms; }
+  :root[data-topbar-animate] .mobile-topbar-grip svg { transition:transform 220ms ease; }
 }
 /* Before JS measures the safe-area-adjusted available width. */
 @media (max-width:357px) {
-  /* Also fit a 320px desktop viewport with a native scrollbar. Text sizes and
-     the four action targets stay unchanged; only the logo/grip tracks shrink. */
-  .page-wrap > .topbar { --topbar-logo-width:44px; grid-template-columns:44px minmax(28px,44px) minmax(32px,44px) minmax(176px,1fr); }
-  .topbar .mobile-brand, #mobile-topbar-toggle { width:100%; max-width:44px; }
+  .page-wrap > .topbar { --topbar-logo-width:44px; }
   .topbar .mobile-brand .aifect-lockup { display:none; }
   .topbar .mobile-brand-symbol { display:block; width:28px; height:28px; }
 }

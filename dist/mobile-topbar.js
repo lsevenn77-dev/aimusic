@@ -15,8 +15,8 @@
     content.inert = mobile.matches && collapsed;
     if (content.inert) content.setAttribute('aria-hidden', 'true');
     else content.removeAttribute('aria-hidden');
-    toggle.setAttribute('aria-expanded', String(!collapsed));
-    toggle.setAttribute('aria-label', collapsed ? '상단바 펼치기' : '상단바 접기');
+    toggle.setAttribute('aria-expanded', String(!content.inert));
+    toggle.setAttribute('aria-label', content.inert ? '상단바 펼치기' : '상단바 접기');
     toggle.title = toggle.getAttribute('aria-label');
   }
   function measure() {

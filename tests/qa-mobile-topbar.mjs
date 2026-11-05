@@ -15,12 +15,12 @@ const settle=()=>page.waitForTimeout(270);
 const goto=async route=>{await page.goto(base+'/#'+route,{waitUntil:'domcontentloaded'});await ready();await page.waitForTimeout(100);};
 const measure=()=>page.evaluate(()=>{
  const rect=s=>{const r=document.querySelector(s).getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height,b:r.bottom,r:r.right};};
- const h=rect('.page-wrap > .topbar'),t=rect('#mobile-topbar-toggle'),main=rect('#main');
- const controls=['#menu-toggle','.mobile-brand','#mobile-topbar-toggle','.header-search','.header-messages','.header-activity','.upload-button'].map(rect);
+ const h=rect('.page-wrap > .topbar'),t=rect('#mobile-topbar-toggle'),grip=rect('.mobile-topbar-grip'),main=rect('#main');
+ const controls=['#menu-toggle','.mobile-brand','.header-search','.header-messages','.header-activity','.upload-button','#mobile-topbar-toggle'].map(rect);
  const collisions=[...document.querySelectorAll('#main :is(button,a,input,textarea,select)')].filter(e=>{
   const r=e.getBoundingClientRect(),s=getComputedStyle(e);return r.width&&r.height&&s.visibility!=='hidden'&&r.left<t.r&&r.right>t.x&&r.top<t.b&&r.bottom>h.b;
  }).map(e=>e.id||e.className);
- return {h,t,main,controls,collisions,compact:document.querySelector('.topbar').hasAttribute('data-compact-brand'),overflow:document.documentElement.scrollWidth>innerWidth,inert:document.getElementById('common-topbar-content').inert,expanded:document.getElementById('mobile-topbar-toggle').getAttribute('aria-expanded'),sharedHeight:parseFloat(getComputedStyle(document.querySelector('.page-wrap')).getPropertyValue('--topbar-height'))};
+ return {h,t,grip,main,controls,collisions,compact:document.querySelector('.topbar').hasAttribute('data-compact-brand'),overflow:document.documentElement.scrollWidth>innerWidth,inert:document.getElementById('common-topbar-content').inert,expanded:document.getElementById('mobile-topbar-toggle').getAttribute('aria-expanded'),sharedHeight:parseFloat(getComputedStyle(document.querySelector('.page-wrap')).getPropertyValue('--topbar-height'))};
 });
 try {
  await goto('home');
@@ -32,6 +32,10 @@ try {
    if(await toggle().getAttribute('aria-expanded')==='false'){await toggle().click();await settle();}
    const expanded=await measure();assert.equal(expanded.h.h,56,`${width} ${route} expanded height`);
    assert.equal(expanded.t.w,44);assert.equal(expanded.t.h,44);
+   assert.equal(expanded.grip.w,28);assert.equal(expanded.grip.h,18);
+   assert.equal(expanded.h.r-expanded.t.r,4,'trailing inset');
+   assert.equal(expanded.controls.at(-2).r,expanded.t.x,'upload directly precedes toggle');
+   assert.ok(expanded.controls.every(r=>r.y===expanded.t.y&&r.h===44),'single row');
    assert.equal(expanded.overflow,false,`${width} ${route} horizontal overflow`);
    for(let i=1;i<expanded.controls.length;i++)assert.ok(expanded.controls[i].x>=expanded.controls[i-1].r-.5,`${width} ${route} overlapping controls ${i}`);
    const compact=await page.locator('.topbar').evaluate(e=>{const c=getComputedStyle(e);return e.clientWidth-parseFloat(c.paddingLeft)-parseFloat(c.paddingRight)<350;});
@@ -40,7 +44,10 @@ try {
    await toggle().click();await settle();
    const collapsed=await measure();assert.equal(collapsed.h.h,18);assert.equal(collapsed.sharedHeight,18);
    assert.equal(collapsed.t.w,72);assert.equal(collapsed.t.h,24);assert.equal(collapsed.inert,true);
-   assert.equal(collapsed.t.x+36,expanded.t.x+22,'stable horizontal center');
+   assert.equal(collapsed.t.r,expanded.t.r,'touch area grows left');
+   assert.equal(collapsed.grip.r,collapsed.t.r,'right-aligned grip');
+   assert.equal(collapsed.grip.w,48);assert.equal(collapsed.grip.h,16);
+   assert.equal(collapsed.t.b-collapsed.h.b,6,'overhang is outside reserved height');
    assert.ok(Math.abs(expanded.main.y-collapsed.main.y-38)<.5,'real content height gain');
    assert.equal(collapsed.overflow,false);assert.deepEqual(collapsed.collisions,[],`${width} ${route} grip overlaps first controls`);
    results.push({width,route,expanded:expanded.h.h,collapsed:collapsed.h.h,compact:expanded.compact});
@@ -59,6 +66,16 @@ try {
  await toggle().click();await settle();
  await page.reload();await ready();assert.equal((await measure()).h.h,18);
  await page.locator('#main a[href="#charts"]').first().click();await ready();await page.goBack();await ready();assert.equal((await measure()).h.h,18);
+ // The large invisible part of the grip remains usable after scrolling.
+ await page.evaluate(()=>scrollTo({top:350,behavior:'instant'}));
+ const scrolled=await measure();assert.equal(scrolled.h.y,0);assert.equal(scrolled.t.y,0);
+ const anchor=await page.evaluateHandle(()=>document.elementFromPoint(innerWidth/2,150));
+ const anchorY=await anchor.evaluate(e=>e.getBoundingClientRect().top);
+ await page.mouse.click(scrolled.t.x+2,scrolled.t.b-2);await settle();
+ assert.equal((await measure()).expanded,'true');
+ assert.ok(Math.abs(await anchor.evaluate(e=>e.getBoundingClientRect().top)-anchorY)<3,'same reading position after expanding');
+ await page.locator('.upload-button').click();await ready();assert.ok(page.url().endsWith('#upload'));
+ await goto('home');assert.equal((await measure()).expanded,'true');await toggle().click();await settle();
  for(const width of [801,1440,390,844,320]){
   await page.setViewportSize({width,height:width===1440?900:844});await settle();const m=await measure();
   assert.equal(m.inert,width<=800);assert.equal(m.h.h,width<=800?18:88);assert.equal(m.t.w,width<=800?72:0);
