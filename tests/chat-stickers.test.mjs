@@ -31,6 +31,16 @@ test('stored message bodies keep text, sticker order and repetitions on replay',
   assert.equal(preview(body), '응원해요 🎶\n[웃음][Nice][웃음]');
 });
 
+test('message display variants select only the three compact hands and word artwork', () => {
+  const compact = new Set(['cat_hand_thumbsup','cat_hand_ok','cat_hand_peace']);
+  for (const {key, group} of catalog) {
+    const html = render(message('가', [key]) + '나', escapeText);
+    assert.equal(html.includes('cat-compact-hand'), compact.has(key), key);
+    assert.equal(html.includes('cat-word-ink'), group === 'text', key);
+    assert.equal(html.includes('--cat-below-ink'), group === 'text', key);
+  }
+});
+
 test('unknown or malformed keys stay safe text, including alongside valid stickers', () => {
   const text = '💜 [aifect:cat_unknown] [aifect:../../x] <img onerror=oops>';
   assert.equal(render(text, escapeText), escapeText(text));

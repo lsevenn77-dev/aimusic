@@ -96,7 +96,15 @@
   width:var(--cat-inline-size);height:var(--cat-inline-size);max-width:100%;
   margin:0;padding:0;border:0;border-radius:0;object-fit:contain;background:none;
 }
-#main img.cat-word {width:62.7px}
+#main img.cat-compact-hand {--cat-inline-size:calc(38px * .9)}
+#main img.cat-word {--cat-word-width:62.7px;width:var(--cat-word-width)}
+/* Use the contained artwork's height for line layout. Align its lettering
+   to the Korean text, retaining space for crowns and sparkles above it. */
+#main img.cat-word-ink {
+  --cat-art-height:min(var(--cat-inline-size),calc(var(--cat-word-width) * var(--cat-art-aspect)));
+  height:var(--cat-art-height);
+  vertical-align:calc(.38em - var(--cat-art-height) * var(--cat-below-ink));
+}
 #main img.cat-after-text {margin-inline-start:5px}
 #main img.cat-before-text {margin-inline-end:5px}
 #main img.cat-after-sticker {margin-inline-start:3px}

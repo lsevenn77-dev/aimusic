@@ -5,10 +5,20 @@ const stickers = new Map(catalog.map(item => [item.key, item]));
 const groups = {basic: '고양이 표정', hand: '손 제스처', text: '텍스트', prop: '소품·효과'};
 const tabs = {basic: '기본', text: '텍스트', prop: '소품·효과'};
 const token = key => '[aifect:' + key + ']';
+const compactHands = new Set(['cat_hand_thumbsup','cat_hand_ok','cat_hand_peace']);
 
-function image(key, className = '', decorative = false) {
-  const {group, label} = stickers.get(key);
-  return `<img class="${className}" src="/assets/chat-stickers/${group === 'text' ? 'v2' : 'v1'}/${group}/${key}.webp" alt="${decorative ? '' : label}" draggable="false">`;
+function image(key, className = '', surface = 'picker') {
+  const {group, label, lettering} = stickers.get(key);
+  let metrics = '';
+  if (surface === 'message' && compactHands.has(key)) className += ' cat-compact-hand';
+  if (surface === 'message' && lettering) {
+    // Top and bottom bound the glyphs within the source image, excluding decorations.
+    const {width, height, top, bottom} = lettering;
+    const belowCentre = (height - (top + bottom) / 2) / height;
+    className += ' cat-word-ink';
+    metrics = ` style="--cat-art-aspect:${height / width};--cat-below-ink:${belowCentre}"`;
+  }
+  return `<img class="${className}"${metrics} src="/assets/chat-stickers/${group === 'text' ? 'v2' : 'v1'}/${group}/${key}.webp" alt="${surface === 'picker' ? '' : label}" draggable="false">`;
 }
 
 // A known token is one atom in both history and the editor. Unknown tokens
@@ -37,7 +47,7 @@ function spacing(key, before, after) {
 
 export function render(body, renderText) {
   return parts(body).map((part, i, all) => part.key
-    ? image(part.key, spacing(part.key, all[i-1], all[i+1]))
+    ? image(part.key, spacing(part.key, all[i-1], all[i+1]), 'message')
     : renderText(part.text)).join('');
 }
 
@@ -48,7 +58,7 @@ export function editor(element) {
     all.forEach((part, i) => {
       if (!part.key) { dom.append(part.text); return; }
       const template = document.createElement('template');
-      template.innerHTML = image(part.key, spacing(part.key, all[i-1], all[i+1]));
+      template.innerHTML = image(part.key, spacing(part.key, all[i-1], all[i+1]), 'editor');
       const img = template.content.querySelector('img');
       img.dataset.catSticker = part.key;
       dom.append(img);
@@ -72,7 +82,7 @@ export function message(text, selected) {
 function choices(group, inline) {
   const items = catalog.filter(item => item.group === group).map(({key, label}) =>
     `<button type="button" class="cat-tile" data-cat-key="${key}" aria-label="${groups[group]} · ${label}" title="${label}" ${inline ? '' : 'aria-pressed="false"'}>
-       ${image(key, '', true)}<span class="cat-quantity" hidden></span>
+       ${image(key)}<span class="cat-quantity" hidden></span>
      </button>`).join('');
   return `<section aria-label="${groups[group]}">${['basic','hand'].includes(group) ? '<h3>' + groups[group] + '</h3>' : ''}
     <div class="cat-grid">${items}</div></section>`;
@@ -107,7 +117,7 @@ export function bind({picker, form, input, toggle, selected = [], close, glyph, 
     const length = selected.length;
     tray.hidden = !length;
     tray.innerHTML = selected.map((key, index) =>
-      `<button type="button" data-cat-remove="${index}" aria-label="${index + 1}번째 ${stickers.get(key).label} 선택 취소" title="선택 취소">${image(key, '', true)}</button>`).join('');
+      `<button type="button" data-cat-remove="${index}" aria-label="${index + 1}번째 ${stickers.get(key).label} 선택 취소" title="선택 취소">${image(key)}</button>`).join('');
     toggle.dataset.catCount = length || '';
     toggle.setAttribute('aria-label', length ? '이모티콘 · ' + length + '개 선택' : '이모티콘');
     input.required = required && !length;
