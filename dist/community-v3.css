@@ -268,13 +268,15 @@ html:has(#main > .talk-directory, #main > .music-community-tabs[aria-label="ь╗ды
  flex:1;max-height:none;margin-block:0;display:grid;grid-template-rows:0 minmax(0,1fr) 0;
 }
 .live-directory .talk-status[data-state="empty"] {
+ --empty-bottom-space:min(40px,8cqh);
  display:flex;flex-direction:column;align-items:center;justify-content:center;
- min-width:0;margin:0;gap:4px;padding-inline:12px;text-align:center;
+ min-width:0;margin:0;gap:4px;padding-inline:12px;padding-block-end:var(--empty-bottom-space);text-align:center;
  color:var(--ds-text);font-size:clamp(15px,2vw,var(--pc-font-section,20px));font-weight:500;line-height:1.5;
 }
 .live-directory .talk-status[data-state="empty"]::before {
- content:"";width:min(100%,clamp(150px,44vw,220px),max(0px,calc(100cqh - 40px)));
+ content:"";width:min(100%,clamp(165px,48.4vw,242px),max(0px,calc(100cqh - 40px - var(--empty-bottom-space))));
  aspect-ratio:1;flex:none;background:var(--live-empty-art) center / contain no-repeat;
+ filter:brightness(.9);
 }
 .talk-directory[data-filter="all"] {--live-empty-art:url("/assets/aifect-empty-all.webp")}
 .talk-directory[data-filter="karaoke"] {--live-empty-art:url("/assets/aifect-empty-karaoke.webp")}
