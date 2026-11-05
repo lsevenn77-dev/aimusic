@@ -554,3 +554,51 @@ html:has(#main > .talk-directory, #main > .music-community-tabs[aria-label="커�
  .live-directory .live-filters button[aria-pressed=true] {background:var(--ds-gradient)}
  .live-directory .live-filter-vector {width:15px;height:15px}
 }
+
+/* RANKINGS_PC_TYPE_START — remove this block to restore the previous PC sizes. */
+@media (min-width: 801px) {
+ #main:is([data-route="community/rankings"], [data-route^="community/rankings?"]) {
+  --ranking-section-size: 21px;
+
+  /* The community navigation and weekly results both render at 125%. */
+  > :is(.music-community-tabs, .weekly-rankings) {
+   --ranking-zoom: 1.25;
+   --ranking-control-size: calc(var(--pc-font-control) / var(--ranking-zoom));
+  }
+
+  > .music-community-tabs > .tab {font-size:var(--ranking-control-size)!important}
+  > .weekly-rankings {
+   :is(.ranking-categories a, .ranking-kinds a, .ranking-info summary, .ranking-more) {
+    font-size:var(--ranking-control-size)!important;
+   }
+   :is(.ranking-place, .ranking-row) strong {
+    font-size:calc(var(--pc-font-card) / var(--ranking-zoom));
+   }
+   /* Keep the original name line boxes so the three podium cards retain their heights. */
+   .ranking-place strong {line-height:calc(1.5 * var(--pc-font-card))}
+   .ranking-place-1 strong {line-height:calc(1.5 * var(--pc-font-section))}
+   .ranking-empty h2 {font-size:calc(var(--ranking-section-size) / var(--ranking-zoom))!important}
+   :is(.ranking-empty p, .ranking-number) {font-size:calc(var(--pc-font-body) / var(--ranking-zoom))}
+   :is(.ranking-info dl, .ranking-status) {font-size:calc(var(--pc-font-caption) / var(--ranking-zoom))}
+  }
+
+  /* The cover discovery view used while resolving the route has no layout zoom. */
+  > .cover-discovery {
+   .cover-discovery-title h2 {font-size:var(--pc-font-page)!important}
+   .cover-period strong {font-size:var(--pc-font-card)}
+   :is(.cover-discovery-title p, .cover-period small) {font-size:var(--pc-font-body)}
+   .text-link {font-size:var(--pc-font-control)!important}
+   :is(.eyebrow, .cover-period-top) {font-size:var(--pc-font-caption)}
+  }
+  > .cover-ranking {
+   :is(.cover-ranking-heading h2, .cover-rank-empty h3) {font-size:var(--ranking-section-size)!important}
+   :is(.cover-ranked-info strong, .cover-singer-info strong, .cover-ranked-info a:nth-child(2)) {font-size:var(--pc-font-card)}
+   :is(.cover-singer-info p, .cover-rank-empty p, .cover-ranking-status, .cover-rank-votes) {font-size:var(--pc-font-body)}
+   :is(.cover-kind-tabs a, .text-link, .small-button, input, select, .aifect-dropdown-trigger) {font-size:var(--pc-font-control)!important}
+   :is(.cover-ranking-heading p, .cover-ranking-note, .cover-rank-play > span,
+       .cover-ranked-info small, .cover-singer-info small, .cover-rank-votes small) {font-size:var(--pc-font-caption)}
+   li:nth-child(n+4) > .cover-position {font-size:var(--pc-font-body)}
+  }
+ }
+}
+/* RANKINGS_PC_TYPE_END */
