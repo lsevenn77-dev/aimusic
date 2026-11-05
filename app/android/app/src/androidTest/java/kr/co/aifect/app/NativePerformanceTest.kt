@@ -134,10 +134,10 @@ class NativePerformanceTest{
   responses["/api/voice/options"]=payload("crews" to JSONArray(),"themes" to arr(
    payload("sku" to "theme-owned","name" to "보유한 라운지","paid" to true,"selectable" to true,"assetPaths" to payload("roomMobile" to image)),
    payload("sku" to "theme-locked","name" to "미보유 테마","paid" to true,"selectable" to false)))
-  launch("voice");visible("voice-room-form");ui.onNodeWithTag("room-title").performTextInput("함께 듣는 밤")
+  launch("voice");visible("voice-room-form");ui.onNodeWithText("토킹룸").performScrollTo().performClick();ui.onNodeWithTag("room-title").performTextInput("함께 듣는 밤")
   androidx.test.espresso.Espresso.closeSoftKeyboard();ui.onNodeWithText("전체 보기").performScrollTo().performClick()
   visible("room-theme-picker");ui.onNodeWithText("미보유 테마").assertDoesNotExist();capture("room-269-themes")
-  ui.onNodeWithTag("room-theme-theme-owned").performScrollTo().performClick()
+  ui.onNode(hasTestTag("room-theme-theme-owned") and hasAnyAncestor(hasTestTag("room-theme-picker"))).performScrollTo().performClick()
   ui.onNodeWithTag("room-theme-theme-owned").assertIsSelected()
   activity!!.recreate();visible("voice-room-form");text("보유한 라운지")
   ui.onNodeWithTag("room-title").assertTextContains("함께 듣는 밤")
@@ -151,9 +151,11 @@ class NativePerformanceTest{
  @Test fun roomCreationPrefersActivePaidThemesAndKeepsExplicitFreeChoiceOnRefresh(){
   val paid=payload("sku" to "theme-aurora","name" to "활성 오로라 라운지","paid" to true,"selectable" to true,"assetPaths" to payload("roomMobile" to "/assets/dubbing-genres/daily.webp"))
   val second=payload("sku" to "theme-starlight","name" to "활성 별빛 라운지","paid" to true,"selectable" to true)
+  val navy=payload("sku" to "navy","name" to "차분한 다크","paid" to false,"selectable" to true)
+  val night=payload("sku" to "night","name" to "밤하늘","paid" to false,"selectable" to true)
   val locked=payload("sku" to "theme-stock-only","name" to "미사용 보관 테마","paid" to true,"selectable" to false)
-  responses["/api/voice/options"]=payload("crews" to JSONArray(),"themes" to arr(paid,second,locked),"preferred_theme" to "theme-aurora")
-  launch("voice");visible("room-theme-theme-aurora")
+  responses["/api/voice/options"]=payload("crews" to JSONArray(),"themes" to arr(paid,second,navy,night,locked),"preferred_theme" to "theme-aurora")
+  launch("voice");visible("room-theme-theme-aurora");ui.onNodeWithText("토킹룸").performScrollTo().performClick()
   ui.onNodeWithTag("room-theme-theme-aurora").performScrollTo().assertIsSelected()
   ui.onNodeWithTag("room-title").performScrollTo().performTextInput("선택을 유지하는 방")
   androidx.test.espresso.Espresso.closeSoftKeyboard()
@@ -166,10 +168,10 @@ class NativePerformanceTest{
   capture("room-paid-default")
   option("night").performScrollTo().performClick()
   ui.onNodeWithTag("room-theme-night").performScrollTo().assertIsSelected()
-  val before=requests.count{it.first=="GET /api/voice/options"}
-  responses["/api/voice/options"]=payload("crews" to JSONArray(),"themes" to arr(second,paid),"preferred_theme" to "theme-starlight")
+  val before=requests.count{it.first.substringBefore('?')=="GET /api/voice/options"}
+  responses["/api/voice/options"]=payload("crews" to JSONArray(),"themes" to arr(second,paid,navy,night),"preferred_theme" to "theme-starlight")
   activity!!.recreate();visible("voice-room-form")
-  ui.waitUntil(10000){requests.count{it.first=="GET /api/voice/options"}>before}
+  ui.waitUntil(10000){requests.count{it.first.substringBefore('?')=="GET /api/voice/options"}>before}
   ui.onNodeWithTag("room-title").assertTextContains("선택을 유지하는 방")
   ui.onNodeWithTag("room-theme-night").performScrollTo().assertIsSelected()
   ui.onNodeWithTag("room-submit").performClick();visible("native-voice-room")
