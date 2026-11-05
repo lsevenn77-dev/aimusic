@@ -14,7 +14,7 @@ import {playerIdentity,playerColumnsSQL} from './player.js';
 import {artistGallery,GALLERY_LIMIT} from './artist-gallery.js';
 import {assertUnblocked} from './account-safety.js';
 import {namedArtistSQL} from './artist-identity.js';
-import {publicCrewNameSQL as publicNameSQL,producerNameSQL,memberNameSQL} from './identity.js';
+import {publicNameSQL,producerNameSQL} from './identity.js';
 import {removeComment} from './comment-moderation.js';
 import {rows,one,run,query,now,id,fail,str,json,rate} from './db.js';
 import {requireUser,hash} from './auth.js';
@@ -35,7 +35,7 @@ export const VISIBLE=(t='t')=>`(${t}.status='published' AND (${t}.original_id IS
 export const SINGABLE=(t='t')=>`(${t}.kind='original' AND ${t}.karaoke_at>0 AND EXISTS(SELECT 1 FROM karaoke_jobs k WHERE k.track_id=${t}.id AND k.state='ready' AND k.mr_ready=1 AND k.words_state IN ('ready','attention')))`;
 // Covers keep the original's AI artist in artist_id; their performer is the uploader's profile.
 const SELECT=`SELECT t.id,t.title,t.genre,t.genres_json,t.moods_json,t.classification_source,t.classification_updated,t.tags,t.description,CASE WHEN t.kind='cover' THEN o.lyrics_mode ELSE t.lyrics_mode END lyrics_mode,t.ai_tool,t.participation,t.duration,t.created,t.release_date,${trackArtworkSQL()},CASE WHEN ${namedArtistSQL()} THEN t.artist_id ELSE NULL END artist_id,(t.kind='original' AND ${namedArtistSQL()}) has_ai_artist,t.producer_id,p.image_version producer_image_version,${playerColumnsSQL('p.user_id')},(SELECT state FROM lyric_jobs WHERE track_id=t.id AND state!='cancelled') alignment_state,
- CASE WHEN t.cover_mode='duet' AND t.duet_parent_id IS NOT NULL THEN (${producerNameSQL('fp')})||' & '||(${producerNameSQL()})||' · 듀엣' WHEN t.kind='cover' THEN (${producerNameSQL()})||CASE WHEN t.cover_mode='duet' THEN ' · 듀엣' ELSE ' · 커버' END WHEN ${namedArtistSQL()} THEN a.name ELSE ${producerNameSQL()} END artist,${memberNameSQL()} producer,t.user_id,t.kind,t.original_id,CASE WHEN t.kind='cover' THEN o.performance_mode ELSE t.performance_mode END performance_mode,t.cover_mode,t.duet_parent_id,t.duet_part,t.duet_open,dt.producer_id duet_partner_id,${producerNameSQL("fp")} duet_partner,(t.kind='original' AND t.karaoke_at>0) accepts_covers,
+ CASE WHEN t.cover_mode='duet' AND t.duet_parent_id IS NOT NULL THEN (${producerNameSQL('fp')})||' & '||(${producerNameSQL()})||' · 듀엣' WHEN t.kind='cover' THEN (${producerNameSQL()})||CASE WHEN t.cover_mode='duet' THEN ' · 듀엣' ELSE ' · 커버' END WHEN ${namedArtistSQL()} THEN a.name ELSE ${producerNameSQL()} END artist,${producerNameSQL()} producer,t.user_id,t.kind,t.original_id,CASE WHEN t.kind='cover' THEN o.performance_mode ELSE t.performance_mode END performance_mode,t.cover_mode,t.duet_parent_id,t.duet_part,t.duet_open,dt.producer_id duet_partner_id,${producerNameSQL("fp")} duet_partner,(t.kind='original' AND t.karaoke_at>0) accepts_covers,
  o.title original_title,o.has_cover original_has_cover,o.cover_version original_cover_version,CASE WHEN ${namedArtistSQL()} THEN a.name ELSE ${producerNameSQL('op')} END original_artist,o.producer_id original_producer_id,${producerNameSQL('op')} original_producer,
  (SELECT count(*) FROM likes l WHERE l.track_id=t.id) likes,
  (SELECT count(*) FROM comments c JOIN users cu ON cu.id=c.user_id WHERE c.track_id=t.id AND c.deleted_at=0 AND cu.account_type='human') comments,
@@ -44,12 +44,10 @@ const SELECT=`SELECT t.id,t.title,t.genre,t.genres_json,t.moods_json,t.classific
  (SELECT COALESCE(sum(g.gold),0) FROM gifts g WHERE g.track_id=t.id) gift_gold,
  (SELECT COALESCE(sum(g.silver),0) FROM free_gifts g WHERE g.track_id=t.id) gift_stars
  FROM tracks t JOIN artists a ON a.id=t.artist_id JOIN producers p ON p.id=t.producer_id LEFT JOIN tracks o ON o.id=t.original_id LEFT JOIN producers op ON op.id=o.producer_id LEFT JOIN tracks dt ON dt.id=t.duet_parent_id LEFT JOIN producers fp ON fp.id=dt.producer_id`;
-export const trackListQuery=(env,where=VISIBLE(),args=[],sort='t.created DESC',limit=100,includeStatus=false,profileWorks=false,nicknameOnly=false)=>{
+export const trackListQuery=(env,where=VISIBLE(),args=[],sort='t.created DESC',limit=100,includeStatus=false,profileWorks=false)=>{
  const blocked=env.AIFECT_BLOCKED||[];
  const fields=[includeStatus?'t.status':'',profileWorks?`${producerNameSQL()} work_nickname,${chartPublication()} published_at,${VISIBLE()} work_public`:''].filter(Boolean);
- // Only detail presentation omits the separately stored crew suffix. Never parse parentheses in a nickname.
- const base=nicknameOnly?SELECT.replace(`${memberNameSQL()} producer`,`${producerNameSQL()} producer`):SELECT;
- const select=fields.length?base.replace('SELECT t.id,','SELECT t.id,'+fields.join(',')+','):base;
+ const select=fields.length?SELECT.replace('SELECT t.id,','SELECT t.id,'+fields.join(',')+','):SELECT;
  return query(env,`${select} WHERE ${where}${blocked.length?' AND t.user_id NOT IN ('+blocked.map(()=>'?').join(',')+')':''} ORDER BY ${sort} LIMIT ${limit}`,...args,...blocked);
 };
 export const trackList=async(...args)=>(await trackListQuery(...args).all()).results.map(trackClassification);
@@ -127,7 +125,7 @@ export async function catalogRoute(req,env,path,user){
  if(m){
   const tid=m[1],detail=await published(env,tid);if(method!=='GET'&&detail.kind==='original')await assertArtistInteraction(env,detail.artist_id,user?.id);
   if(!m[2]&&method==='GET'){
-   const [tracks,karaoke,ai]=await Promise.all([trackList(env,`t.id=? AND ${VISIBLE()}`,[tid],'t.created DESC',1,false,false,true),one(env,`SELECT 1 FROM tracks t WHERE t.id=? AND ${SINGABLE()}`,tid),one(env,"SELECT count(*) n FROM comments c JOIN users u ON u.id=c.user_id WHERE c.track_id=? AND c.deleted_at=0 AND u.account_type='ai_bot'",tid)]);
+   const [tracks,karaoke,ai]=await Promise.all([trackList(env,`t.id=? AND ${VISIBLE()}`,[tid],'t.created DESC',1),one(env,`SELECT 1 FROM tracks t WHERE t.id=? AND ${SINGABLE()}`,tid),one(env,"SELECT count(*) n FROM comments c JOIN users u ON u.id=c.user_id WHERE c.track_id=? AND c.deleted_at=0 AND u.account_type='ai_bot'",tid)]);
    return json({track:{...tracks[0],gift_block_reason:await giftBlockReason(env,user?.id,detail),ai_comments:ai.n,...listenerLyrics(detail.kind==='cover'?await one(env,'SELECT lyrics FROM tracks WHERE id=?',detail.original_id):detail,user),karaoke_ready:!!karaoke}});
   }
   if(m[2]==='covers'){
@@ -180,7 +178,7 @@ export async function catalogRoute(req,env,path,user){
  m=path.match(/^\/api\/(artists|producers)\/([\w-]+)(\/follow)?$/);
  if(m){
   const kind=m[1]==='artists'?'artist':'producer';
-  const entity=await one(env,`SELECT id,${kind==='producer'?producerNameSQL('producers'):'name'} name,bio,created,image_version${kind==='producer'?',banner_version,user_id,(SELECT account_type FROM users WHERE id=producers.user_id) account_type,'+partnerBadgeSQL('producers.user_id')+' partner_eligible,'+memberNameSQL('producers')+' display_name':''} FROM ${m[1]} WHERE id=?${kind==='artist'?' AND '+namedArtistSQL('name'):''}`,m[2]);if(!entity)fail(404,'프로필을 찾을 수 없습니다.');
+  const entity=await one(env,`SELECT id,${kind==='producer'?producerNameSQL('producers'):'name'} name,bio,created,image_version${kind==='producer'?',banner_version,user_id,(SELECT account_type FROM users WHERE id=producers.user_id) account_type,'+partnerBadgeSQL('producers.user_id')+' partner_eligible,'+producerNameSQL('producers')+' display_name':''} FROM ${m[1]} WHERE id=?${kind==='artist'?' AND '+namedArtistSQL('name'):''}`,m[2]);if(!entity)fail(404,'프로필을 찾을 수 없습니다.');
   const partnerBadge=entity.partner_eligible?'공식 파트너':null;delete entity.partner_eligible;
   const owner=kind==='producer'?entity:await one(env,'SELECT p.user_id FROM artists a JOIN producers p ON p.id=a.producer_id WHERE a.id=?',entity.id);assertUnblocked(env,owner?.user_id);
   if(kind==='artist')await assertArtistInteraction(env,entity.id,user?.id);

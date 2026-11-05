@@ -32,10 +32,11 @@ function bindChatEnter(input,submit){
 function chatNickname(p){return p.chat_nickname??p.name;}
 function inboxTime(at){return Number(at)>0?new Date(at*1000).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',hourCycle:'h23',timeZone:'Asia/Seoul'}):'';}
 function conversationCopyHTML(p,name,emptyPreview,pinned=false){
+ const preview=p.last_message_display??p.last_message;
  const pin=pinned?'<span class="dm-pin" role="img" aria-label="고정된 대화" title="고정된 대화">'+icon('dmPin')+'</span>':'';
  const mute=p.muted?'<span class="conversation-muted" role="img" aria-label="알림 끔" title="알림 끔">'+icon('bellOff')+'</span>':'';
  const dot=Number(p.unread)>0?'<i class="dm-unread-dot" aria-hidden="true"></i>':'';
- return '<div class="conversation-copy"><div class="dm-name-line"><strong title="'+esc(name)+'">'+esc(name)+'</strong>'+pin+mute+dot+'</div><p>'+esc(p.last_message?.includes('[aifect:')?AifectStickers.preview(p.last_message):p.last_message||emptyPreview)+'</p></div>';
+ return '<div class="conversation-copy"><div class="dm-name-line"><strong title="'+esc(name)+'">'+esc(name)+'</strong>'+pin+mute+dot+'</div><p>'+esc(preview?.includes('[aifect:')?AifectStickers.preview(preview):preview||emptyPreview)+'</p></div>';
 }
 function conversationMetaHTML(p){
  const count=Number(p.unread)||0;
@@ -55,7 +56,7 @@ function chatBodyHTML(body){return body?.includes('[aifect:')?AifectStickers.ren
 function chatHTML(messages,peer=null,crew=null){
  let day='';return messages.map(m=>{
   const currentDay=new Date(m.created*1000).toLocaleDateString('ko-KR',{timeZone:'Asia/Seoul'}),separator=currentDay!==day?'<div class="chat-day">'+currentDay+'</div>':'';day=currentDay;
-  if(m.kind==='system')return separator+'<div class="chat-system">'+esc(m.body)+(crew&&m.body.endsWith('님이 크루에 참여했습니다. 인사를 나눠보세요.')?' <button type="button" class="text-link" data-crew-hello="'+esc(m.id)+'" data-intro="'+(m.user_id===me?.id)+'">인사하기</button>':'')+'</div>';
+  if(m.kind==='system')return separator+'<div class="chat-system">'+esc(m.display_body??m.body)+(crew&&m.body.endsWith('님이 크루에 참여했습니다. 인사를 나눠보세요.')?' <button type="button" class="text-link" data-crew-hello="'+esc(m.id)+'" data-intro="'+(m.user_id===me?.id)+'">인사하기</button>':'')+'</div>';
   const mine=m.sender_id===me?.id||m.user_id===me?.id,name=m.chat_nickname||m.name||(mine?'나':chatNickname(peer||{}))||'리스너',label=crew?crewDisplayName({...m,name}):name;
   const delivery=m.delivery==='sending'?'<small class="chat-delivery">전송 중…</small>':m.delivery==='failed'?'<button class="chat-retry" data-chat-retry="'+esc(m.id)+'">다시 보내기</button>':'';
   const person=peer||{id:m.profile_id,name:label,image_version:m.image_version,player_xp:m.player_xp,profile_frame:m.profile_frame,profile_frame_artwork:m.profile_frame_artwork};

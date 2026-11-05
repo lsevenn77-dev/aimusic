@@ -112,7 +112,7 @@ test('the existing track API returns saved introductions unchanged and performs 
  }
 });
 
-test('detail credits and support ranking omit only crew data, preserving literal parentheses and existing API shape',async t=>{
+test('catalog, detail credits and gift rankings omit only crew data, preserving literal parentheses and existing API shape',async t=>{
  const f=await fixture(t);
  f.sql.exec("UPDATE producers SET name='코코(별)',nickname_confirmed=1 WHERE id='producer'; INSERT INTO producers(id,user_id,name,created,nickname_confirmed) VALUES('fan','other','Veil(밤)',0,1); INSERT INTO crews(id,owner_id,name,created) VALUES('crew','owner','크루',0); INSERT INTO crew_members(crew_id,user_id,role,joined) VALUES('crew','owner','owner',0),('crew','other','member',0); INSERT INTO free_gifts(id,sender_id,track_id,request_id,created,silver) VALUES('gift','other','one','request',0,3)");
  const before=f.sql.prepare('SELECT * FROM crew_members ORDER BY user_id').all();
@@ -120,11 +120,11 @@ test('detail credits and support ranking omit only crew data, preserving literal
  assert.equal(detail.producer,'코코(별)');
  assert.match(header().songDetailCreditsHTML(detail),/>코코\(별\)<\/a>/);
  const catalog=(await f.call('/api/catalog?section=tracks')).body.tracks;
- assert.equal(catalog.find(x=>x.id==='one').producer,'코코(별)(크루)','other catalog display stays unchanged');
+ assert.equal(catalog.find(x=>x.id==='one').producer,'코코(별)');
  const gifts=(await f.call('/api/tracks/one/gifts')).body;
  assert.equal(gifts.support_ranking[0].name,'Veil(밤)');
  assert.equal(gifts.support_ranking[0].score,3);
- assert.equal(gifts.ranking[0].name,'Veil(밤)(크루)','legacy fan ranking contract stays unchanged');
+ assert.equal(gifts.ranking[0].name,'Veil(밤)');
  assert.deepEqual(f.sql.prepare('SELECT * FROM crew_members ORDER BY user_id').all(),before);
  assert.equal(f.sql.prepare("SELECT name FROM producers WHERE id='producer'").get().name,'코코(별)');
 });
