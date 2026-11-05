@@ -53,7 +53,7 @@ function mountHomeRail(target){
  const observer=typeof ResizeObserver==='function'?new ResizeObserver(update):null;observer?.observe(rail);update();
  homeRailCleanups.set(target.id,()=>{target.removeEventListener('click',click);target.removeEventListener('keydown',key);rail.removeEventListener('scroll',update);window.removeEventListener('resize',update);observer?.disconnect();});
 }
-function homeHTML(){return `<div class="listening-home listening-home-v2 home-content-refresh">
+function homeHTML(){return `<div class="listening-home listening-home-v2 home-content-refresh"><h1 class="sr-only">홈</h1>
  <section id="home-release" aria-label="추천 음악 배너" aria-busy="true">${homePlaceholder()}</section>
  <section id="home-recommended" class="listening-section" aria-busy="true">${homeSection('추천 음악','#discover')}<div class="home-music-grid"></div><p class="home-load-message">음악을 불러오고 있어요.</p></section>
  <section id="home-popular" class="listening-section" aria-busy="true">${homeSection('인기 차트','#charts')}</section>

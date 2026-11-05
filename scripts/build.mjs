@@ -23,6 +23,7 @@ for(const file of ['mobile-input.js','mobile-input.css'])await cp('dist/'+file,'
 for(const file of ['decorations.js','decoration-display.js','decorations.css','microphone-check.js','microphone-check.css','play-page.js','play-page.css'])await cp('dist/'+file,'dist/client/'+file);
 for(const file of ['image-crop.js','crew-photo.js','crew-heif.js','crew-heif-worker.js','profile-collections.js','crew-integrated.js','crew-settings.js','integrated.css','profile-preview.js','profile-preview.css','mypage.js','mypage.css','profile-management.js'])await cp('dist/'+file,'dist/client/'+file);
 await cp('dist/voice-room-template.js','dist/client/voice-room-template.js');
+await cp('dist/account-deletion.js','dist/client/account-deletion.js');
 await cp('dist/room-entry.css','dist/client/room-entry.css');
 await cp('dist/voice-audio.js','dist/client/voice-audio.js');
 for(const file of ['voice-rooms.js','voice-rooms.css','voice-room-design.css','voice-room-controls.js','voice-diagnostics.js','live-karaoke.js','live-karaoke.css'])await cp('dist/'+file,'dist/client/'+file);
@@ -117,6 +118,8 @@ await build({entryPoints:['shared/lyrics.js'],outfile:'dist/client/lyrics-core.j
 // a non-index path so / and /index.html always reach the live catalog renderer.
 // A .txt asset avoids HTML canonical redirects when fetched through ASSETS.
 await writeFile('dist/client/aifect-shell.txt',await bundleClient((await buildPublicImageAssets(indexHTML)).replace('<!--BUSINESS_FOOTER-->',businessFooterHTML()),pathToFileURL(resolve('dist/client')+sep)));
+const bundleNames=(await readFile('dist/client/aifect-shell.txt','utf8')).match(/aifect-app-[a-f0-9]{16}\.(?:js|css)/g);
+await writeFile('dist/client/_headers',[...new Set(bundleNames)].map(name=>'/'+name+'\n  Cache-Control: public, max-age=31536000, immutable').join('\n')+'\n');
 await rm('dist/client/index.html',{force:true});
 const originRevision=await buildOrigin();
 await build({define:{__CAFE24_BUILD__:JSON.stringify(originRevision)},entryPoints:['server/index.js'], outfile:'dist/server/index.js', bundle:true, format:'esm', platform:'neutral', mainFields:['module','main'], alias:{'node-fetch':resolve('server/apple-fetch.js')}, banner:{js:"import {createRequire as appleCreateRequire} from 'node:module'; const require=appleCreateRequire('/aifect-worker.js');"}, target:'es2022', external:['cloudflare:workers',...builtinModules,...builtinModules.map(x=>'node:'+x)], minify:false});

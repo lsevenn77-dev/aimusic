@@ -132,7 +132,9 @@ export async function deleteAccount(env,user){
 export async function accountSafetyRoute(req,env,path,user){
  if(path==='/api/account/delete'&&req.method==='POST'){
   requireUser(user);await rate(env,'account-delete:'+user.id,5,900);
-  if((await req.json()).confirmation!=='DELETE')fail(400,'계정 영구 삭제를 확인해주세요.');
+  const {confirmation,account_id}=await req.json();
+  if(account_id!==undefined&&account_id!==user.id)fail(409,'로그인 계정이 변경됐습니다. 화면을 새로고침해 삭제할 계정을 확인해 주세요.');
+  if(confirmation!=='DELETE')fail(400,'계정 영구 삭제를 확인해주세요.');
   await deleteAccount(env,user);
   return json({ok:true,deleted:true},200,{'set-cookie':'aifect_session=; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=0'});
  }

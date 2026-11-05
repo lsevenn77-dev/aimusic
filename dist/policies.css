@@ -61,3 +61,14 @@
   .page-footer .footer-contact{gap:3px 16px;margin-top:5px}
   .page-footer .footer-copyright{flex-basis:100%;margin-top:8px;font-size:10.5px}
 }
+.account-help{max-width:780px}
+.account-help section,.account-help form{margin-block:24px}
+.account-help a{display:inline-block;padding-block:5px;text-underline-offset:.2em}
+.account-help form{padding:clamp(16px,4vw,28px);border:1px solid var(--ds-line,#394255);background:var(--ds-panel);border-radius:16px}
+.account-help label{display:block}
+.account-help input{display:block;box-sizing:border-box;width:min(100%,20rem);margin:10px 0 18px;padding:10px 14px;min-height:44px;border:1px solid var(--ds-line,#485367);border-radius:10px;background:var(--ds-bg);color:var(--ds-text);font:inherit}
+.account-help button{min-height:44px;margin-right:16px;padding:8px 16px;border-radius:10px;border:1px solid #a86578;background:var(--ds-panel);color:#ffc3d1;font:inherit;cursor:pointer}
+.account-help button:disabled{opacity:.55;cursor:default}
+.account-help #delete-status{margin-bottom:0}
+.account-help #delete-status:empty{display:none}
+@media(pointer:coarse){.account-help a{min-height:44px;box-sizing:border-box;align-content:center}}

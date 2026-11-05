@@ -1,3 +1,4 @@
+import {cspReport} from './csp-report.js';
 import {imageOriginRequest,imageExportRequest} from './image-mirror.js';
 import {tryPublicOrigin} from './cafe24-origin.js';
 import {queueLyricAnalysis,runLyricBatch,lyricAnalysisAdmin} from './lyric-analysis.js';
@@ -63,6 +64,8 @@ import {payoutRoute} from './payouts.js';
 import {adminDashboardRoute} from './admin-dashboard.js';
 import {adminSessionRoute,consoleViewer,isConsoleAdmin} from './admin-session.js';
 import {diamondRoute} from './diamonds.js';
+import {accountPageRoute} from './account-pages.js';
+import {checkoutEnabled} from './nicepay.js';
 import {publicPageRoute} from './public-pages.js';
 import {paymentPageRoute} from './payment-page.js';
 import {tossTestCheckoutRoute} from './toss-test-checkout.js';
@@ -76,7 +79,12 @@ async function fetchRequest(req,env,ctx){
  const url=new URL(req.url),path=url.pathname;
  const fishingClock=path.startsWith('/api/crew-fishing/')?{receivedTime:Date.now(),started:performance.now()}:undefined;
  try{
+  if(url.hostname==='www.aifect.co.kr'){
+   url.protocol='https:';url.host='aifect.co.kr';
+   return Response.redirect(url.href,['GET','HEAD'].includes(req.method)?301:308);
+  }
   if(url.hostname==='image-origin.aifect.co.kr')return await imageOriginRequest(req,env);
+  if(path==='/security/csp-report')return cspReport(req);
   if(path.startsWith('/internal/image-mirror/'))return await imageExportRequest(req,env);
   if(path==='/mcp')return await adminMcpRoute(req,env);
   const tossTestResponse=await tossTestCheckoutRoute(req,env,path);if(tossTestResponse)return tossTestResponse;
@@ -96,10 +104,16 @@ async function fetchRequest(req,env,ctx){
   if(path==='/internal/player/backfill')return await playerBackfillRoute(req,env);
   if(path.startsWith('/internal/music-classification/'))return await musicClassificationInternal(req,env,path);
   if(path.startsWith('/internal/')){const result=await internalRoute(req,env,path);if(result?.ok&&ctx?.waitUntil){if(path==='/internal/jobs/claim'&&req.method==='POST'){queueBotHeartbeat(env,ctx);retryPush(env,ctx);queueLyricAnalysis(env,ctx);}if(env.GEMINI_API_KEY&&(path==='/internal/jobs/claim'||path.endsWith('/finish')))ctx.waitUntil(classifyNext(env).catch(()=>console.error('Music classification pending')));if(path.endsWith('/finish')){ctx.waitUntil(dispatchPush(env).catch(()=>console.error('Participation push pending')));ctx.waitUntil(syncRecentCrewGrowth(env).catch(()=>console.error('Crew growth pending')));}}return result;}
+  // Render signed-in deletion locally. The public renderer never receives a user's identity.
+  if(path==='/account/delete'&&req.method==='GET'){
+   const account=await viewer(req,env);if(account)return accountPageRoute(req,path,account);
+  }
+  if(path==='/favicon.ico'&&['GET','HEAD'].includes(req.method))return Response.redirect(new URL('/assets/aifect-symbol.svg',url),301);
   const originPage=await tryPublicOrigin(req,env,path);if(originPage)return originPage;
+  const accountPage=accountPageRoute(req,path);if(accountPage)return accountPage;
   const musicResponse=await publicMusicRoute(req,env,path);if(musicResponse)return musicResponse;
   if(['/admin','/admin/','/admin.html'].includes(path))return new Response('페이지를 찾을 수 없습니다.',{status:404,headers:{'content-type':'text/plain; charset=utf-8','cache-control':'no-store'}});
-  const publicResponse=publicPageRoute(req,path);if(publicResponse)return publicResponse;
+  const publicResponse=publicPageRoute(req,path,{checkoutOpen:checkoutEnabled(env)});if(publicResponse)return publicResponse;
   const paymentResponse=paymentPageRoute(req,path);if(paymentResponse)return paymentResponse;
   const goldPaymentResponse=goldPaymentPageRoute(req,path);if(goldPaymentResponse)return goldPaymentResponse;
   if(!path.startsWith('/api/')&&!path.startsWith('/media/')){
@@ -197,6 +211,18 @@ async function fetchRequest(req,env,ctx){
   return json({error:message},status);
  }
 }
-export default {fetch:(req,env,ctx)=>observeReadRequest(req,env,ctx,fetchRequest),async scheduled(event,env,ctx){ctx.waitUntil(runLyricBatch(env));ctx.waitUntil(dispatchPush(env));ctx.waitUntil(runBotEngine(env));ctx.waitUntil(cleanupChatImages(env));ctx.waitUntil(expireDubbingCombinations(env));ctx.waitUntil(classifyNext(env));ctx.waitUntil(syncRecentCrewGrowth(env));}};
+async function serve(req,env,ctx){
+ const response=await observeReadRequest(req,env,ctx,fetchRequest);
+ if(!response.headers.get('content-type')?.startsWith('text/html'))return response;
+ const headers=new Headers(response.headers);
+ if(new URL(req.url).protocol==='https:')headers.set('strict-transport-security','max-age=31536000');
+ // Payment documents keep their own embedding policy.
+ if(!headers.has('content-security-policy')){
+  headers.set('content-security-policy',"frame-ancestors 'none'");
+  headers.set('content-security-policy-report-only',"default-src 'self'; script-src 'self' https://accounts.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' https: data: blob:; media-src 'self' https: blob:; connect-src 'self' https: wss:; worker-src 'self' blob:; frame-src 'self' https:; object-src 'none'; base-uri 'self'; report-uri /security/csp-report");
+ }
+ return new Response(response.body,{status:response.status,statusText:response.statusText,headers});
+}
+export default {fetch:serve,async scheduled(event,env,ctx){ctx.waitUntil(runLyricBatch(env));ctx.waitUntil(dispatchPush(env));ctx.waitUntil(runBotEngine(env));ctx.waitUntil(cleanupChatImages(env));ctx.waitUntil(expireDubbingCombinations(env));ctx.waitUntil(classifyNext(env));ctx.waitUntil(syncRecentCrewGrowth(env));}};
 
 async function syncActorCrew(env,uid){const membership=await one(env,'SELECT crew_id FROM crew_members WHERE user_id=?',uid);if(membership)await syncCrewGrowth(env,membership.crew_id);}

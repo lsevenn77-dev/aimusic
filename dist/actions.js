@@ -246,14 +246,17 @@ document.addEventListener('click',async ev=>{
   else if(el.dataset.karaokeTrack){if(!$('#karaoke-accept')?.checked){toast('동의 항목을 먼저 체크해주세요.');return;}await api(`/api/uploads/${el.dataset.karaokeTrack}/karaoke`,'POST',{accept:true});toast('노래방 MR 제공 · 커버 허락에 동의했습니다.');await render();}
   else if(el.dataset.karaokeRegenerate){if(confirm('지금 노래방 MR을 지우고 원곡에서 보컬을 다시 분리할까요?')){await api(`/api/studio/tracks/${el.dataset.karaokeRegenerate}/karaoke`,'POST',{});toast('노래방 MR을 다시 만들기 시작했어요.');await render();}}
   else if(el.dataset.retryTrack){await api(`/api/uploads/${el.dataset.retryTrack}/retry`,'POST');await render();}
-  else if(el.hasAttribute('data-share')){await navigator.clipboard.writeText(el.dataset.share?new URL('/#song/'+encodeURIComponent(el.dataset.share),location.origin).href:location.href);toast('공개 링크를 복사했습니다.');}
+  else if(el.hasAttribute('data-share')){await navigator.clipboard.writeText(el.dataset.share?new URL('/music/'+encodeURIComponent(el.dataset.share),location.origin).href:location.href);toast('공개 링크를 복사했습니다.');}
   else if(el.dataset.playerAction&&['shuffle','repeat','previous'].includes(el.dataset.playerAction)){
    $('#'+el.dataset.playerAction).click();
    if(el.dataset.playerAction==='shuffle')el.textContent=shuffle?'셔플 켜짐':'셔플 끔';
    if(el.dataset.playerAction==='repeat')el.textContent=['반복 끔','전체 반복','한 곡 반복'][repeatMode];
    if(el.closest('.queue-panel'))queueDialog();
   }
-  else if(el.hasAttribute('data-oauth'))saveResume();
+  else if(el.hasAttribute('data-oauth')){
+   try{if(location.hash==='#account/delete')sessionStorage.setItem('aifect-delete-return','1');else sessionStorage.removeItem('aifect-delete-return');}catch{}
+   saveResume();
+  }
  }catch(e){toast(e.message);}finally{el.disabled=false;el.removeAttribute('aria-busy');}
 });
 audio.ontimeupdate=()=>{if(window.AifectAudioAds?.active)return;$('#elapsed').textContent=time(audio.currentTime);if(!window.AifectPlayerShell?.scrubbing)$('#seek').value=audio.currentTime;};
@@ -280,6 +283,7 @@ function setMobileMenu(open){
 }
 $('#menu-toggle').onclick=()=>setMobileMenu(!$('#sidebar').classList.contains('open'));
 $('#menu-backdrop').onclick=()=>setMobileMenu(false);
+document.getElementById?.('skip-content')?.addEventListener('click',event=>{event.preventDefault();document.getElementById('main')?.focus();});
 $('#sidebar').addEventListener('click',e=>{if(e.target.closest('a'))setMobileMenu(false);});
 document.addEventListener('pointerdown',e=>{if($('#sidebar').classList.contains('open')&&!e.target.closest('#sidebar,#menu-toggle'))setMobileMenu(false);});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#sidebar').classList.contains('open')){setMobileMenu(false);$('#menu-toggle').focus();}});

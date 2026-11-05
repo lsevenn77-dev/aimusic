@@ -1,7 +1,9 @@
 // Only public presentation data leaves Sites. No Cookie, Host, auth/user headers or arbitrary query parameters.
 import { publicMusicRoute, readPublicMusicData } from './public-music.js';
+import { accountPageRoute } from './account-pages.js';
+import { checkoutEnabled } from './nicepay.js';
 import { publicPageRoute } from './public-pages.js';
-export const publicPath = path => /^(?:\/|\/index\.html|\/music(?:\/[\w-]+)?|\/about|\/guide\/(?:listening|community|recording)|\/(?:pricing|terms|privacy|refund|contact|business)\/?)$/.test(path);
+export const publicPath = path => /^(?:\/|\/index\.html|\/music(?:\/[\w-]+)?|\/account\/(?:delete|recovery)|\/about|\/guide\/(?:listening|community|recording)|\/(?:pricing|terms|privacy|refund|contact|business)\/?)$/.test(path);
 const base='https://billing.aifect.co.kr/aifect-origin/';
 export const release=typeof __CAFE24_BUILD__==='string'?__CAFE24_BUILD__:'';
 export async function originRequest(env, action, body, contentType, ms, fetcher=fetch, version=release){
@@ -14,6 +16,7 @@ export async function tryPublicOrigin(req,env,path,requestOrigin=originRequest){
  if(path==='/music')for(const key of ['q','genre','kind','page'])if(url.searchParams.has(key))q.set(key,url.searchParams.get(key).slice(0,100));
  const target=path+(q.size?'?'+q:'');
  const data=await readPublicMusicData(req,env,path);
+ if(path.replace(/\/$/,'')==='/pricing')data.checkoutOpen=checkoutEnabled(env);
  try{
   const r=await requestOrigin(env,'page',JSON.stringify({target,data}),'application/json',1800);
   if(r&&[200,404].includes(r.status)&&r.headers.get('x-aifect-rendered')==='1'){
@@ -23,7 +26,7 @@ export async function tryPublicOrigin(req,env,path,requestOrigin=originRequest){
    if(html.startsWith('<!doctype html>')||html.startsWith('<!DOCTYPE html>'))return new Response(req.method==='HEAD'?null:html,{status:r.status,headers:h});
   }
  }catch{/* Retry only the local renderer using the already authorized public rows. */}
- const fallback=await publicMusicRoute(req,env,path,data)||await publicPageRoute(req,path);
+ const fallback=accountPageRoute(req,path)||await publicMusicRoute(req,env,path,data)||await publicPageRoute(req,path,data);
  if(!fallback)return null;
  const h=new Headers(fallback.headers);h.set('x-aifect-web-origin','sites-fallback');
  return new Response(fallback.body,{status:fallback.status,headers:h});
