@@ -153,7 +153,7 @@ function bindSocialChat(view){
  if(view.refreshInbox)void loadInbox();
  const {path,peer,crew,initial}=view.chat,form=$('#chat-compose'),log=$('#chat-log'),earlier=$('#chat-earlier'),input=form.querySelector('textarea')||form.querySelector('[data-dm-editor]'),sendButton=form.querySelector('[data-chat-send]');
  const unsent=chatUnsent(uid,path),messages=new Map((initial?.messages||[]).map(m=>[m.id,m]));
- const editor=input.dataset?.dmEditor!==undefined?AifectStickers.editor(input):null;
+ const editor=input.dataset?.dmEditor!==undefined?AifectStickers.editor(input,toast):null;
  const draft=()=>editor?editor.get():input.value;
  const setDraft=value=>{if(editor)editor.set(value);else input.value=value;};
  const draftKey=editor&&uid?'aifect:dm-draft:'+JSON.stringify([uid,path]):null;
@@ -222,7 +222,7 @@ function bindSocialChat(view){
    if([401,403].includes(e.status))deny();
   }}finally{sending=false;unsent.sending=false;if(current())sendButton.disabled=denied;}
  };
- form.onsubmit=event=>{event.preventDefault();if(isComposing()||sending||unsent.sending||denied||form.dataset.uploading||!draft().trim())return;const rid=crypto.randomUUID(),body=draft().trim();setDraft('');stickers?.sent();resizeInput();
+ form.onsubmit=event=>{event.preventDefault();if(isComposing()||sending||unsent.sending||denied||form.dataset.uploading||!draft().trim()||(editor&&!editor.canSend()))return;const rid=crypto.randomUUID(),body=draft().trim();setDraft('');stickers?.sent();resizeInput();
   void send({id:'pending:'+rid,request_id:rid,body,created:Math.floor(Date.now()/1000),user_id:uid,sender_id:uid,name:me.name,profile_id:me.profile_id,role:crew?.owner?'owner':'member'});
  };
  log.addEventListener('click',event=>{const retry=event.target.closest('[data-chat-retry]');if(retry&&messages.has(retry.dataset.chatRetry))void send(messages.get(retry.dataset.chatRetry));});

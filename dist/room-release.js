@@ -147,11 +147,11 @@ function roomMessages(client,sheet){
    try{do{again=false;const more=await api(path+'?after='+cursor,'GET',undefined,{fresh:true});if(!current(t))return;await merge(more.messages);if(more.has_more&&more.messages.length)again=true;}while(again&&current(t));}finally{reading=false;}
   };
   sheet.querySelector('[data-room-back]').onclick=()=>inbox().catch(report);
-  editor=AifectStickers.editor(input);stickers=bindDmEmoji(form,input,editor);
+  editor=AifectStickers.editor(input,toast);stickers=bindDmEmoji(form,input,editor);
   file.onchange=()=>{status.textContent=file.files[0]?.name||'';pending=null;};
   form.querySelector('label').onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();file.click();}};
   form.onsubmit=async e=>{
-   e.preventDefault();if(form._busy||(!editor.get().trim()&&!file.files.length))return;
+   e.preventDefault();if(form._busy||(!editor.get().trim()&&!file.files.length)||!editor.canSend())return;
    const body=editor.get().trim(),image=file.files[0];
    if(!pending||pending.body!==body||pending.file!==image)pending={key:crypto.randomUUID(),body,file:image};
    form._busy=true;input.contentEditable="false";file.disabled=true;

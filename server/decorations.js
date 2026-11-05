@@ -2,6 +2,7 @@ import {artistGiftSource,checkArtistGiftReplay,giftSourceEntry} from './gift-sou
 import {one,rows,query,now,id,fail,json,rate,str} from './db.js';
 import {requireUser,viewerBlockedIds} from './auth.js';
 import {assertUnblocked} from './account-safety.js';
+import {assertDmBody} from './dm-body.js';
 import {producerNameSQL} from './identity.js';
 import {allocateLots} from '../shared/gifts.js';
 import {DECORATIONS,PERIOD_LABELS,quoteDecoration,decorationExpiry} from '../shared/decorations.js';
@@ -26,7 +27,7 @@ async function buyDecoration(env,user,b,gifting=false){
  const message=gifting&&b.message!==undefined?str(b.message,2000,false):'';
  if(message){if(!await one(env,'SELECT id FROM producers WHERE user_id=?',user.id))fail(409,'닉네임을 먼저 저장해주세요.');await rate(env,'dm:'+user.id,30,60);}
  const replay=async()=>{const old=await one(env,'SELECT * FROM decoration_orders WHERE payer_id=? AND request_id=?',user.id,key);if(old&&(old.sku!==quote.sku||old.period_code!==quote.period||old.recipient_id!==recipient))fail(409,'이미 다른 구매에 사용한 요청 번호예요.');if(old&&gifting){const sent=await one(env,'SELECT recipient_id FROM decoration_transfers WHERE sender_id=? AND request_id=?',user.id,key);if(sent?.recipient_id!==receiver)fail(409,'이미 다른 선물에 사용한 요청 번호예요.');const savedNote=await one(env,'SELECT body FROM direct_messages WHERE sender_id=? AND request_id=?',user.id,'decoration:'+key);if((savedNote?.body||'')!==message)fail(409,'이미 다른 메시지에 사용한 선물 요청이에요.');}return old;};
- const previous=await replay();if(previous)return previous;await rate(env,'decoration-buy:'+user.id,30,3600);
+ const previous=await replay();if(previous)return previous;if(message)assertDmBody(message);await rate(env,'decoration-buy:'+user.id,30,3600);
  const at=now(),inventoryId=id(),orderId=id(),lots=await rows(env,`SELECT * FROM gold_purchases WHERE user_id=? AND used<gold AND ${decorationSpendableSQL} ORDER BY paid_at,id`,user.id);
  let spent;try{spent=allocateLots(lots,quote.gold);}catch{const saved=await replay();if(saved)return saved;fail(409,'골드가 부족해요.');}
  // Stock grant, immutable receipt and FIFO debits commit in one D1 transaction.

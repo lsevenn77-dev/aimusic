@@ -1,10 +1,9 @@
 import {createStickerEditor} from './chat-sticker-editor.js';
 import catalog from './chat-sticker-catalog.json' with {type: 'json'};
+import {parts,stickers,token} from './chat-sticker-body.js';
 
-const stickers = new Map(catalog.map(item => [item.key, item]));
 const groups = {basic: '고양이 표정', hand: '손 제스처', text: '텍스트', prop: '소품·효과'};
 const tabs = {basic: '기본', text: '텍스트', prop: '소품·효과'};
-const token = key => '[aifect:' + key + ']';
 const compactHands = new Set(['cat_hand_thumbsup','cat_hand_ok','cat_hand_peace']);
 
 // Fit to the established message box. A recropped asset keeps the source
@@ -27,21 +26,6 @@ function image(key, className = '', surface = 'picker') {
     if (compactHands.has(key)) className += ' cat-compact-hand';
   }
   return `<img class="${className}" src="/assets/chat-stickers/${version}/${group}/${key}.webp" alt="${surface === 'picker' ? '' : label}" draggable="false">`;
-}
-
-// A known token is one atom in both history and the editor. Unknown tokens
-// remain ordinary text, including messages written before this catalog existed.
-function parts(body) {
-  const result = [];
-  let end = 0;
-  for (const match of body.matchAll(/\[aifect:(cat_[a-z_]+)\]/g)) {
-    if (!stickers.has(match[1])) continue;
-    if (match.index > end) result.push({text:body.slice(end,match.index)});
-    result.push({key:match[1]});
-    end = match.index + match[0].length;
-  }
-  if (end < body.length) result.push({text:body.slice(end)});
-  return result;
 }
 
 function spacing(key, before, after) {
@@ -82,7 +66,7 @@ export function render(body, renderText) {
   return html.join('');
 }
 
-export function editor(element) {
+export function editor(element,onWarning = (_message) => {}) {
   function fragment(body) {
     const dom = document.createDocumentFragment();
     const all = parts(body);
@@ -96,7 +80,7 @@ export function editor(element) {
     });
     return dom;
   }
-  return createStickerEditor(element,{fragment,token,spacing,limit:Number(element.dataset.limit)});
+  return createStickerEditor(element,{fragment,token,spacing,limit:Number(element.dataset.limit),onWarning});
 }
 
 export function preview(body) {
@@ -111,10 +95,12 @@ export function message(text, selected) {
 }
 
 function choices(group, inline) {
-  const items = catalog.filter(item => item.group === group).map(({key, label}) =>
-    `<button type="button" class="cat-tile" data-cat-key="${key}" aria-label="${groups[group]} · ${label}" title="${label}" ${inline ? '' : 'aria-pressed="false"'}>
+  const items = catalog.filter(item => item.group === group).map(({key, label, lettering}) => {
+    const ink = lettering ? ` style="--cat-width-per-ink-height:${lettering.width / (lettering.bottom - lettering.top)}"` : '';
+    return `<button type="button" class="cat-tile" data-cat-key="${key}" data-cat-group="${group}"${ink} aria-label="${groups[group]} · ${label}" title="${label}" ${inline ? '' : 'aria-pressed="false"'}>
        ${image(key)}<span class="cat-quantity" hidden></span>
-     </button>`).join('');
+     </button>`;
+  }).join('');
   return `<section aria-label="${groups[group]}">${['basic','hand'].includes(group) ? '<h3>' + groups[group] + '</h3>' : ''}
     <div class="cat-grid">${items}</div></section>`;
 }
@@ -173,7 +159,7 @@ export function bind({picker, form, input, toggle, selected = [], close, glyph, 
     if (button.hasAttribute('data-cat-send')) return form.requestSubmit();
     if (button.dataset.catKey) {
       if (inline) {
-        status.textContent = inline.insertSticker(button.dataset.catKey) ? '' : '메시지 길이 제한에 도달했어요.';
+        status.textContent = inline.insertSticker(button.dataset.catKey) ? '' : (inline.insertionWarning?.() || '메시지 길이 제한에 도달했어요.');
         return;
       }
       if (input.value.length + token(button.dataset.catKey).length > input.maxLength) {

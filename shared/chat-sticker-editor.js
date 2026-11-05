@@ -1,6 +1,8 @@
+import {dmBodyStats,fitDmInsertion,DM_BODY_LIMIT,lengthWarning,parts,stickers} from './chat-sticker-body.js';
+
 // The live DOM contains editable text and atomic images. Only the chat's existing
 // plain-string body crosses the draft, clipboard and transport boundaries.
-export function createStickerEditor(element, {fragment, token, spacing, limit}) {
+export function createStickerEditor(element, {fragment, token, spacing, limit, onWarning}) {
   const events = new AbortController();
   const options = {signal: events.signal};
   let caret = null, accepted = '', composing = false;
@@ -8,6 +10,20 @@ export function createStickerEditor(element, {fragment, token, spacing, limit}) 
   // A trailing LF needs a caret box for the next typed character. The direct composer keeps one
   // presentational break after it, outside the serialized draft and selection.
   const direct = !!element.closest('.dm-inline-field');
+  const dm = direct || !!element.closest('.room-dm-composer');
+  const counter = dm ? document.createElement('span') : null;
+  let notice = '', editStart = 0, editEnd = 0;
+  if (counter) {
+    counter.className = 'dm-length';
+    element.after(counter);
+    updateCounter(0);
+  }
+  function updateCounter(length) {
+    if (!counter) return;
+    counter.textContent = length.toLocaleString('ko-KR') + ' / 2,000';
+    counter.dataset.state = length >= DM_BODY_LIMIT ? 'full' : length >= 1800 ? 'near' : 'normal';
+    counter.setAttribute('aria-label','메시지 글자 수 ' + counter.textContent);
+  }
   function syncCaretBreak(value) {
     if (!direct) return;
     const marker = element.querySelector('br[data-dm-caret]');
@@ -64,30 +80,95 @@ export function createStickerEditor(element, {fragment, token, spacing, limit}) 
     selection.removeAllRanges();
     selection.addRange(range);
   }
+  function surrounding(range) {
+    const left = document.createRange(), right = document.createRange();
+    left.selectNodeContents(element); right.selectNodeContents(element);
+    left.setEnd(range.startContainer,range.startOffset);
+    right.setStart(range.endContainer,range.endOffset);
+    return {before:read(left.cloneContents()),after:read(right.cloneContents())};
+  }
+  function saveEditRange() {
+    const {before,after} = surrounding(currentRange() || endRange());
+    editStart = before.length;
+    editEnd = accepted.length - after.length;
+  }
+  // After rebuilding canonical text/image nodes, restore the caret in stored
+  // body offsets. A sticker is a single selectable atom.
+  function position(offset) {
+    const range = endRange();
+    for (const node of element.childNodes) {
+      const key = keyOf(node);
+      const size = key ? token(key).length : node.textContent.length;
+      if (offset <= size) {
+        if (node.nodeType === Node.TEXT_NODE) range.setStart(node,offset);
+        else if (offset) range.setStartAfter(node);
+        else range.setStartBefore(node);
+        range.collapse(true); break;
+      }
+      offset -= size;
+    }
+    return range;
+  }
+  function restoreEdit(start,end=start) {
+    caret = position(start);
+    const tail = position(Math.max(start,end));
+    caret.setEnd(tail.startContainer,tail.startOffset);
+    restore(caret);
+  }
   function set(value) {
     element.replaceChildren(fragment(value));
     syncCaretBreak(value);
     accepted = value;
     caret = endRange();
+    if (dm) updateCounter(dmBodyStats(value).length);
   }
   function changed() {
     if (composing) return;
     const value = read(element);
-    if (value.length > limit) {
-      set(accepted);
-      restore(caret);
+    const stats = dm ? dmBodyStats(value) : null;
+    // Existing drafts may precede the sticker limit. Let the user remove
+    // content from them, while validating any new send independently.
+    if (stats?.warning) {
+      const prior = dmBodyStats(accepted);
+      const reducing = prior.warning && stats.count <= prior.count && stats.length <= prior.length && value.length < accepted.length;
+      if (!reducing) {
+        const before = accepted.slice(0,editStart), after = accepted.slice(editEnd);
+        const incoming = value.startsWith(before) && value.endsWith(after)
+          ? value.slice(before.length,value.length-after.length) : '';
+        const fit = fitDmInsertion(before,incoming,after);
+        if (fit.value) {set(before + fit.value + after);restoreEdit(before.length + fit.value.length);}
+        else {set(accepted);restoreEdit(editStart,editEnd);}
+        onWarning(stats.warning);
+        return;
+      }
+    } else if (!dm && value.length > limit) {
+      set(accepted);restore(caret);
       return;
+    }
+    if (dm && stats.count !== element.querySelectorAll('img[data-cat-sticker]').length) {
+      const offset = surrounding(currentRange() || endRange()).before.length;
+      set(value);
+      restoreEdit(offset);
     }
     accepted = value;
     if (!value && element.childNodes.length) element.replaceChildren();
     syncCaretBreak(value);
     layout();
+    if (dm) updateCounter(stats.length);
     if (document.activeElement === element) remember();
   }
-  function insert(value, focus = false) {
+  function insert(value, focus = false, fromPicker = false) {
     if (element.contentEditable === 'false' || composing) return false;
     const range = (document.activeElement === element && currentRange()) || (caret && element.contains(caret.commonAncestorContainer) ? caret : endRange());
-    if (read(element).length - read(range.cloneContents()).length + value.length > limit) return false;
+    notice = '';
+    if (dm && value) {
+      const {before,after} = surrounding(range);
+      const fit = fitDmInsertion(before,value,after);
+      notice = fit.warning;
+      if (notice && !fromPicker) onWarning(notice);
+      if (!fit.value) return false;
+      value = fit.value;
+    } else if (read(element).length - read(range.cloneContents()).length + value.length > limit && value) return false;
     const part = fragment(value), last = part.lastChild;
     range.deleteContents();
     range.insertNode(part);
@@ -122,27 +203,38 @@ export function createStickerEditor(element, {fragment, token, spacing, limit}) 
     element.dispatchEvent(new Event('input', {bubbles:true}));
   }
   element.addEventListener('input', changed, options);
-  element.addEventListener('compositionstart', () => {composing = true;}, options);
-  element.addEventListener('compositionend', () => {composing = false; changed();}, options);
+  element.addEventListener('compositionstart', () => {if (dm) saveEditRange(); composing = true;}, options);
+  element.addEventListener('compositionend', () => {
+    composing = false;
+    if (dm) element.dispatchEvent(new Event('input',{bubbles:true}));
+    else changed();
+  }, options);
   document.addEventListener('selectionchange', () => {
     if (document.activeElement === element) remember();
   }, options);
   element.addEventListener('blur', remember, options);
   element.addEventListener('beforeinput', event => {
     if (composing || event.isComposing) return;
+    if (dm) saveEditRange();
     if (['insertParagraph','insertLineBreak'].includes(event.inputType)) {
       event.preventDefault(); insert('\n', true);
     } else if (['deleteContentBackward','deleteContentForward'].includes(event.inputType)) {
       removeSticker(event, event.inputType === 'deleteContentBackward');
     } else if (event.inputType.startsWith('format') || event.inputType === 'insertFromDrop') {
       event.preventDefault();
-    } else if (event.data && read(element).length - read((currentRange() || endRange()).cloneContents()).length + event.data.length > limit) {
+    } else if (dm && event.data && event.cancelable) {
+      const {before,after} = surrounding(currentRange() || endRange());
+      if (dmBodyStats(before + event.data + after).warning) {
+        event.preventDefault(); insert(event.data,true);
+      }
+    } else if (!dm && event.data && read(element).length - read((currentRange() || endRange()).cloneContents()).length + event.data.length > limit) {
       event.preventDefault();
     }
   }, options);
   element.addEventListener('paste', event => {
     event.preventDefault();
-    insert(event.clipboardData.getData('text/plain').replace(/\r\n?/g,'\n'), true);
+    const text = (dm && event.clipboardData.getData('application/x-aifect-dm')) || event.clipboardData.getData('text/plain');
+    if (text) insert(text.replace(/\r\n?/g,'\n'), true);
   }, options);
   element.addEventListener('drop', event => event.preventDefault(), options);
   for (const type of ['copy','cut']) {
@@ -150,13 +242,19 @@ export function createStickerEditor(element, {fragment, token, spacing, limit}) 
       const range = currentRange();
       if (!range || range.collapsed) return;
       event.preventDefault();
-      event.clipboardData.setData('text/plain', read(range.cloneContents()));
+      const body = read(range.cloneContents());
+      if (dm) {
+        event.clipboardData.setData('text/plain',parts(body).map(p=>p.key?'['+stickers.get(p.key).label+']':p.text).join(''));
+        event.clipboardData.setData('application/x-aifect-dm',body);
+      } else event.clipboardData.setData('text/plain',body);
       if (type === 'cut') insert('', true);
     }, options);
   }
-  return {get:() => read(element), set, insertSticker:key => insert(token(key)), remember,
+  return {get:() => composing && dm ? accepted : read(element), set, insertSticker:key => insert(token(key),false,true), remember,
+    insertionWarning:()=>notice || lengthWarning,
+    canSend() {if (!dm) return true; if (composing) return false; const {warning}=dmBodyStats(read(element)); if (warning) onWarning(warning); return !warning;},
     focus() {element.focus({preventScroll:true}); if (caret) restore(caret);},
     disable() {element.contentEditable = 'false'; element.setAttribute('aria-disabled','true');},
-    destroy() {events.abort();}
+    destroy() {events.abort();counter?.remove();}
   };
 }

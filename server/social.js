@@ -11,8 +11,10 @@ import {publicNameSQL as chatPublicNameSQL,producerNameSQL as chatProducerNameSQ
 import {nicknameBatch} from './nicknames.js';
 import {trackList,trackListQuery,VISIBLE} from './catalog.js';
 import {trackClassification} from '../shared/genres.js';
+import {DM_BODY_LIMIT} from '../shared/chat-sticker-body.js';
 import {CREW_LEVELS,CREW_REWARDS,CREW_ROLES,crewLevel} from '../shared/crews.js';
 import {chatSummary} from './chat-features.js';
+import {assertDmBody} from './dm-body.js';
 import {giftDay} from '../shared/gifts.js';
 
 const xpSQL="COALESCE((SELECT sum(x.amount) FROM crew_xp x WHERE x.crew_id=c.id),0)";
@@ -238,13 +240,14 @@ export async function socialRoute(req,env,path,user){
    await run(env,'UPDATE direct_messages SET read_at=? WHERE sender_id=? AND recipient_id=? AND read_at=0'+(sequence===undefined?'':' AND rowid<=?'),now(),p.user_id,user.id,...(sequence===undefined?[]:[sequence]));return json({ok:true});
   }
   if(method==='POST'){
-   const b=await req.json(),rid=requestId(b),imageId=b.image_id||null,body=imageId?'사진':str(b.body,2000);
+   const b=await req.json(),rid=requestId(b),imageId=b.image_id||null,body=imageId?'사진':str(b.body,DM_BODY_LIMIT);
    if(imageId&&(typeof imageId!=='string'||!/^[-\w]{1,80}$/.test(imageId)))fail(400,'이미지 정보를 확인해주세요.');
    if(imageId&&!await one(env,'SELECT id FROM chat_images WHERE id=? AND sender_id=? AND recipient_id=? AND expires>? AND deleted=0',imageId,user.id,p.user_id,now()))fail(400,'다시 이미지를 선택해주세요.');
    const [profile,limit,prior]=await env.DB.batch([query(env,'SELECT id FROM producers WHERE user_id=?',user.id),rateQuery(env,'dm:'+user.id,60),query(env,'SELECT recipient_id,body,image_id FROM direct_messages WHERE sender_id=? AND request_id=?',user.id,rid)]);
    if(!profile.results.length)fail(409,'보관함에서 닉네임을 먼저 저장해주세요.');if(limit.results[0].count>30)fail(429,'요청이 많습니다. 잠시 후 다시 시도해주세요.');
    const previous=prior.results[0];
    if(previous&&(previous.recipient_id!==p.user_id||previous.body!==body||previous.image_id!==imageId))fail(409,'이미 다른 메시지에 사용된 전송 요청입니다.');
+   if(!previous)assertDmBody(body);
    const result=await env.DB.batch([query(env,'INSERT OR IGNORE INTO direct_messages(id,sender_id,recipient_id,body,request_id,created,image_id) VALUES(?,?,?,?,?,?,?)',id(),user.id,p.user_id,body,rid,now(),imageId),query(env,'SELECT rowid sequence,id,request_id,sender_id,recipient_id,body,created,read_at,crew_invite_id,image_id,(SELECT expires FROM chat_images WHERE id=direct_messages.image_id) image_expires FROM direct_messages WHERE sender_id=? AND request_id=?',user.id,rid)]);
    return json({ok:true,message:result[1].results[0]},201);
   }

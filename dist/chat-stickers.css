@@ -123,6 +123,10 @@
   border:0;border-radius:8px;background:transparent;padding:10px 2px;cursor:text;
 }
 #main [data-dm-editor]:empty::before {content:attr(aria-placeholder);color:var(--ds-muted);pointer-events:none}
+#main .dm-length {flex:none;align-self:center;margin-inline-start:4px;white-space:nowrap;color:var(--ds-muted);font-size:11px;line-height:1.25;font-variant-numeric:tabular-nums}
+#main .dm-length[data-state="near"] {color:#fb923c}
+#main .dm-length[data-state="full"] {color:var(--ds-error)}
+#main .room-dm-composer .dm-length {margin-inline-end:34px}
 #main #dm-emoji-picker .cat-status:empty {display:none}
 @media (max-width:800px) {
   #main :is(#dm-emoji-picker,#voice-emoji-picker).cat-picker {--cat-size:52px;max-height:min(400px,100%)!important}
@@ -131,6 +135,10 @@
 /* Picker artwork and interactive size are independent of sent chat items. */
 #main :is(#dm-emoji-picker,#voice-emoji-picker,.room-dm-emoji).cat-picker {
   --tile-hit:40px;--cat-preview-size:36px;padding:8px!important;container-type:inline-size;
+  --cat-basic-preview:var(--cat-preview-size);--cat-hand-preview:var(--cat-preview-size);
+  --cat-prop-preview:calc(var(--cat-preview-size) * .7);
+  /* The original '최고' fit paints 92 source pixels of lettering across a 186px reference width. */
+  --cat-preview-ink-height:calc(var(--cat-preview-size) * 92 / 186);
 }
 #main .cat-picker .cat-grid {
   --cat-grid-gap:calc(4px * var(--ui-space-scale,1));
@@ -140,12 +148,17 @@
 }
 #main .cat-picker .cat-tile {
   width:100%!important;min-width:var(--tile-hit)!important;height:var(--tile-hit)!important;min-height:var(--tile-hit)!important;
-  margin:0!important;padding:0!important;display:grid!important;place-items:center;font-size:20px!important;
+  margin:0!important;padding:0!important;display:grid!important;grid-template-columns:minmax(0,1fr);place-items:center;font-size:20px!important;
 }
+#main .cat-tile[data-cat-group="basic"] {--cat-tile-art:var(--cat-basic-preview)}
+#main .cat-tile[data-cat-group="hand"] {--cat-tile-art:var(--cat-hand-preview)}
+#main .cat-tile[data-cat-group="prop"] {--cat-tile-art:var(--cat-prop-preview)}
 #main .cat-picker .cat-tile :is(img,svg,video,canvas) {
-  display:block;width:var(--cat-preview-size)!important;height:var(--cat-preview-size)!important;
+  display:block;width:var(--cat-tile-art,var(--cat-preview-size))!important;height:var(--cat-tile-art,var(--cat-preview-size))!important;
   min-width:0!important;min-height:0;max-width:100%!important;max-height:100%!important;
   object-fit:contain;object-position:center;transform:none!important;
 }
-#main .cat-tile[data-cat-key="cat_text_best"] img {box-sizing:border-box;padding-inline:calc(var(--cat-preview-size) * (1 - 184 / 186) / 2)}
+#main .cat-picker .cat-tile[data-cat-group="text"] img {
+  width:min(100%,calc(var(--cat-preview-ink-height) * var(--cat-width-per-ink-height)))!important;height:auto!important;
+}
 @media(pointer:coarse),(max-width:767px){#main :is(#dm-emoji-picker,#voice-emoji-picker,.room-dm-emoji).cat-picker{--tile-hit:44px;--cat-preview-size:34px}}

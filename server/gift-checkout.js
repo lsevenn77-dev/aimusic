@@ -3,6 +3,7 @@
 import {one,query,id,now,str,fail,json,rate} from './db.js';
 import {requireUser} from './auth.js';
 import {assertUnblocked} from './account-safety.js';
+import {assertDmBody} from './dm-body.js';
 import {giftRoute} from './gifts.js';
 import {giftById,silverGiftById} from '../shared/gifts.js';
 
@@ -17,7 +18,7 @@ export async function giftCheckoutRoute(req,env,path,user){
  const previous=await one(env,"SELECT id FROM gifts WHERE sender_id=? AND request_id=? UNION ALL SELECT id FROM free_gifts WHERE sender_id=? AND request_id=?",user.id,b.request_id||'',user.id,b.request_id||'');
  const savedNote=await one(env,'SELECT body,recipient_id FROM direct_messages WHERE sender_id=? AND request_id=?',user.id,'gift:'+b.request_id);
  if(previous&&((savedNote?.body||'')!==note||(savedNote&&savedNote.recipient_id!==p.user_id)))fail(409,'이미 다른 메시지에 사용한 선물 요청이에요.');
- if(note){if(!await one(env,'SELECT id FROM producers WHERE user_id=?',user.id))fail(409,'닉네임을 먼저 저장해주세요.');await rate(env,'dm:'+user.id,30,60);}
+ if(note){if(!previous)assertDmBody(note);if(!await one(env,'SELECT id FROM producers WHERE user_id=?',user.id))fail(409,'닉네임을 먼저 저장해주세요.');await rate(env,'dm:'+user.id,30,60);}
  // Append the note to the existing debit+gift batch: a note or gift failure
  // rolls back everything, and existing ledger request IDs govern retries.
  const scoped={...env,DB:{prepare:sql=>env.DB.prepare(sql),batch:statements=>env.DB.batch([...statements,...(note?[query(env,'INSERT INTO direct_messages(id,sender_id,recipient_id,body,request_id,created) VALUES(?,?,?,?,?,?)',id(),user.id,p.user_id,note,'gift:'+b.request_id,now())]:[])])}};
