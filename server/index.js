@@ -69,7 +69,8 @@ import {goldPaymentPageRoute} from './gold-payment-page.js';
 import {publicMusicRoute} from './public-music.js';
 import {goldCallback,goldOrderRoute} from './gold-checkout.js';
 import {billingRoute,billingWebhook,billingTick} from './billing.js';
-export default {async fetch(req,env,ctx){
+import {observeReadRequest} from './request-timing.js';
+async function fetchRequest(req,env,ctx){
  const url=new URL(req.url),path=url.pathname;
  const fishingClock=path.startsWith('/api/crew-fishing/')?{receivedTime:Date.now(),started:performance.now()}:undefined;
  try{
@@ -185,6 +186,7 @@ export default {async fetch(req,env,ctx){
   if(path.includes('/auth/')&&path.endsWith('/callback'))return new Response(null,{status:303,headers:{location:'/#account?error='+encodeURIComponent(message),'cache-control':'no-store'}});
   return json({error:message},status);
  }
-},async scheduled(event,env,ctx){ctx.waitUntil(runLyricBatch(env));ctx.waitUntil(dispatchPush(env));ctx.waitUntil(runBotEngine(env));ctx.waitUntil(cleanupChatImages(env));ctx.waitUntil(expireDubbingCombinations(env));ctx.waitUntil(classifyNext(env));ctx.waitUntil(syncRecentCrewGrowth(env));}};
+}
+export default {fetch:(req,env,ctx)=>observeReadRequest(req,env,ctx,fetchRequest),async scheduled(event,env,ctx){ctx.waitUntil(runLyricBatch(env));ctx.waitUntil(dispatchPush(env));ctx.waitUntil(runBotEngine(env));ctx.waitUntil(cleanupChatImages(env));ctx.waitUntil(expireDubbingCombinations(env));ctx.waitUntil(classifyNext(env));ctx.waitUntil(syncRecentCrewGrowth(env));}};
 
 async function syncActorCrew(env,uid){const membership=await one(env,'SELECT crew_id FROM crew_members WHERE user_id=?',uid);if(membership)await syncCrewGrowth(env,membership.crew_id);}
