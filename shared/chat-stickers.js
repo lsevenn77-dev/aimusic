@@ -1,3 +1,4 @@
+import {createStickerEditor} from './chat-sticker-editor.js';
 import catalog from './chat-sticker-catalog.json' with {type: 'json'};
 
 const stickers = new Map(catalog.map(item => [item.key, item]));
@@ -7,29 +8,54 @@ const token = key => '[aifect:' + key + ']';
 
 function image(key, className = '', decorative = false) {
   const {group, label} = stickers.get(key);
-  return `<img class="${className}" src="/assets/chat-stickers/v1/${group}/${key}.webp" alt="${decorative ? '' : label}" draggable="false">`;
+  return `<img class="${className}" src="/assets/chat-stickers/${group === 'text' ? 'v2' : 'v1'}/${group}/${key}.webp" alt="${decorative ? '' : label}" draggable="false">`;
 }
 
-// Only catalog keys resolve to images. Every other part goes through the chat's
-// existing text renderer, including old messages, unknown keys and invitations.
-export function render(body, renderText) {
-  const matches = body.matchAll(/\[aifect:(cat_[a-z_]+)\]/g);
-  let html = '', end = 0, run = '';
-  const flush = () => {
-    if (run) html += '<span class="cat-chat-run">' + run + '</span>';
-    run = '';
-  };
-  for (const match of matches) {
+// A known token is one atom in both history and the editor. Unknown tokens
+// remain ordinary text, including messages written before this catalog existed.
+function parts(body) {
+  const result = [];
+  let end = 0;
+  for (const match of body.matchAll(/\[aifect:(cat_[a-z_]+)\]/g)) {
     if (!stickers.has(match[1])) continue;
-    if (match.index > end) {
-      flush();
-      html += renderText(body.slice(end, match.index));
-    }
-    run += image(match[1], stickers.get(match[1]).group === 'text' ? 'cat-chat-sticker cat-word' : 'cat-chat-sticker');
+    if (match.index > end) result.push({text:body.slice(end,match.index)});
+    result.push({key:match[1]});
     end = match.index + match[0].length;
   }
-  flush();
-  return html + renderText(body.slice(end));
+  if (end < body.length) result.push({text:body.slice(end)});
+  return result;
+}
+
+function spacing(key, before, after) {
+  const classes = ['cat-chat-sticker'];
+  if (stickers.get(key).group === 'text') classes.push('cat-word');
+  if (before?.key) classes.push('cat-after-sticker');
+  else if (before?.text && !before.text.endsWith('\n')) classes.push('cat-after-text');
+  if (after?.text && !after.text.startsWith('\n')) classes.push('cat-before-text');
+  return classes.join(' ');
+}
+
+export function render(body, renderText) {
+  return parts(body).map((part, i, all) => part.key
+    ? image(part.key, spacing(part.key, all[i-1], all[i+1]))
+    : renderText(part.text)).join('');
+}
+
+export function editor(element) {
+  function fragment(body) {
+    const dom = document.createDocumentFragment();
+    const all = parts(body);
+    all.forEach((part, i) => {
+      if (!part.key) { dom.append(part.text); return; }
+      const template = document.createElement('template');
+      template.innerHTML = image(part.key, spacing(part.key, all[i-1], all[i+1]));
+      const img = template.content.querySelector('img');
+      img.dataset.catSticker = part.key;
+      dom.append(img);
+    });
+    return dom;
+  }
+  return createStickerEditor(element,{fragment,token,spacing,limit:Number(element.dataset.limit)});
 }
 
 export function preview(body) {
@@ -43,9 +69,9 @@ export function message(text, selected) {
   return text + selected.map(token).join('');
 }
 
-function choices(group) {
+function choices(group, inline) {
   const items = catalog.filter(item => item.group === group).map(({key, label}) =>
-    `<button type="button" class="cat-tile" data-cat-key="${key}" aria-label="${groups[group]} · ${label}" title="${label}" aria-pressed="false">
+    `<button type="button" class="cat-tile" data-cat-key="${key}" aria-label="${groups[group]} · ${label}" title="${label}" ${inline ? '' : 'aria-pressed="false"'}>
        ${image(key, '', true)}<span class="cat-quantity" hidden></span>
      </button>`).join('');
   return `<section aria-label="${groups[group]}">${['basic','hand'].includes(group) ? '<h3>' + groups[group] + '</h3>' : ''}
@@ -53,7 +79,7 @@ function choices(group) {
 }
 
 // Selection lives with the composer. Closing the dialog keeps the draft.
-export function bind({picker, form, input, toggle, selected = [], close, glyph}) {
+export function bind({picker, form, input, toggle, selected = [], close, glyph, inline = null}) {
   const limit = input.maxLength, required = input.required;
   const events = new AbortController(), options = {signal: events.signal};
   picker.innerHTML = `<header class="cat-head"><strong>고양이 미니이모티콘</strong>
@@ -61,15 +87,16 @@ export function bind({picker, form, input, toggle, selected = [], close, glyph})
     <nav class="cat-tabs" aria-label="이모티콘 카테고리">${Object.entries(tabs).map(([key,label]) =>
       '<button type="button" data-cat-tab="' + key + '" aria-pressed="' + (key === 'basic') + '">' + label + '</button>').join('')}</nav>
     <div class="cat-picker-scroll" tabindex="0" aria-label="이모티콘 목록"></div>
-    <footer class="cat-footer"><div class="cat-tray" aria-label="선택한 이모티콘"></div>
+    ${inline ? '<span class="cat-status" role="status"></span>' : `<footer class="cat-footer"><div class="cat-tray" aria-label="선택한 이모티콘"></div>
       <div class="cat-actions"><span class="cat-status" role="status" aria-live="polite"></span>
-      <button type="button" class="primary-button cat-send" data-cat-send>보내기</button></div></footer>`;
+      <button type="button" class="primary-button cat-send" data-cat-send>보내기</button></div></footer>`}`;
   const scroll = picker.querySelector('.cat-picker-scroll');
   const tray = picker.querySelector('.cat-tray');
   const status = picker.querySelector('.cat-status');
   const send = picker.querySelector('[data-cat-send]');
 
   function sync() {
+    if (inline) return;
     const counts = new Map();
     for (const key of selected) counts.set(key, (counts.get(key) || 0) + 1);
     for (const tile of scroll.querySelectorAll('[data-cat-key]')) {
@@ -94,18 +121,22 @@ export function bind({picker, form, input, toggle, selected = [], close, glyph})
     for (const button of picker.querySelectorAll('[data-cat-tab]')) {
       button.setAttribute('aria-pressed', String(button.dataset.catTab === key));
     }
-    scroll.innerHTML = choices(key) + (key === 'basic' ? choices('hand') : '');
+    scroll.innerHTML = choices(key, inline) + (key === 'basic' ? choices('hand', inline) : '');
     scroll.scrollTop = 0;
     sync();
   }
   picker.addEventListener('click', event => {
     const button = event.target.closest('button');
-    if (!button || input.disabled) return;
+    if (!button || input.disabled || input.contentEditable === 'false') return;
     if (button.hasAttribute('data-cat-close')) return close();
     if (button.dataset.catTab) return showTab(button.dataset.catTab);
     if (form._busy || form.dataset.uploading) return;
     if (button.hasAttribute('data-cat-send')) return form.requestSubmit();
     if (button.dataset.catKey) {
+      if (inline) {
+        status.textContent = inline.insertSticker(button.dataset.catKey) ? '' : '메시지 길이 제한에 도달했어요.';
+        return;
+      }
       if (input.value.length + token(button.dataset.catKey).length > input.maxLength) {
         status.textContent = '메시지 길이 제한에 도달했어요.';
         return;
@@ -121,11 +152,11 @@ export function bind({picker, form, input, toggle, selected = [], close, glyph})
       focus.focus({preventScroll:true});
     }
   }, options);
-  input.addEventListener('input', () => {send.disabled = !selected.length && !input.value.trim();}, options);
+  if (!inline) input.addEventListener('input', () => {send.disabled = !selected.length && !input.value.trim();}, options);
   showTab('basic');
   return {
-    body: () => message(input.value, selected),
+    body: () => inline ? inline.get() : message(input.value, selected),
     clear() {selected.length = 0; sync();},
-    destroy() {events.abort(); input.maxLength = limit; input.required = required;}
+    destroy() {events.abort(); if (!inline) {input.maxLength = limit; input.required = required;}}
   };
 }

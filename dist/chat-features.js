@@ -5,7 +5,7 @@ function dmThreadActions(p,settings={}){return '<div class="dm-thread-actions">'
 function dmEmojiPickerHTML(){
  return '<section id="dm-emoji-picker" class="cat-picker" role="dialog" aria-label="고양이 미니이모티콘" hidden></section>';
 }
-function bindDmEmoji(form,input,selected){
+function bindDmEmoji(form,input,editor){
  const toggle=form.querySelector('[data-dm-emoji]'),picker=form.parentElement.querySelector('#dm-emoji-picker');
  if(!toggle||!picker)return;
  const listeners=new AbortController(),options={signal:listeners.signal};
@@ -13,16 +13,19 @@ function bindDmEmoji(form,input,selected){
   picker.hidden=!open;toggle.setAttribute('aria-expanded',String(open));
   if(open)picker.querySelector('[data-cat-tab][aria-pressed=true]').focus({preventScroll:true});
  };
- const close=()=>{show(false);toggle.focus({preventScroll:true});};
- const stickers=AifectStickers.bind({picker,form,input,toggle,selected,close,glyph:voiceGlyph});
- toggle.addEventListener('click',()=>{if(!input.disabled)show(picker.hidden);},options);
+ const close=()=>{show(false);editor.focus();};
+ const stickers=AifectStickers.bind({picker,form,input,toggle,inline:editor,close,glyph:voiceGlyph});
+ toggle.addEventListener('pointerdown',editor.remember,options);
+ toggle.addEventListener('click',()=>{if(input.contentEditable!=='false'){if(picker.hidden)show(true);else close();}},options);
  const outside=event=>{if(!picker.hidden&&!picker.contains(event.target)&&!toggle.contains(event.target))show(false);};
  document.addEventListener('pointerdown',outside,options);
- document.addEventListener('focusin',outside,options);
+ // WebKit can focus the main landmark between touchend and the button click.
+ // Dismiss on the actual pointer target, or the destination of a keyboard Tab.
+ document.addEventListener('keyup',event=>{if(event.key==='Tab')outside(event);},options);
  document.addEventListener('keydown',event=>{
-  if(event.key==='Escape'&&!picker.hidden){event.preventDefault();show(false);toggle.focus({preventScroll:true});}
+  if(event.key==='Escape'&&!picker.hidden){event.preventDefault();close();}
  },options);
- return {...stickers, sent(){stickers.clear();if(!picker.hidden)close();},
+ return {...stickers, sent(){stickers.clear();if(!picker.hidden)show(false);},
   destroy(){listeners.abort();stickers.destroy();show(false);toggle.disabled=true;}};
 }
 function chatAttachmentTools(p){return '<div class="chat-attachment-tools"><label class="icon-button" role="button" tabindex="0" aria-label="사진 보내기">'+icon('image')+'<input id="chat-image-file" type="file" accept="image/jpeg,image/png,image/webp" hidden></label>'+(p?'<button type="button" class="icon-button" data-profile-gift="'+esc(p.id)+'" aria-label="선물 보내기">'+icon('gift')+'</button>':'')+'<small>사진은 서버에 14일 동안 보관돼요.</small></div><p id="chat-upload-status" class="field-help" role="status"></p>';}

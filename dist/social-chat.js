@@ -75,7 +75,7 @@ let chatWorkAccount=null;
 const chatWork=new Map();
 function chatUnsent(uid,path){
  if(chatWorkAccount!==uid){chatWork.clear();chatWorkAccount=uid;}
- if(!chatWork.has(path))chatWork.set(path,{draft:'',stickers:[],pending:new Map(),sending:false});
+ if(!chatWork.has(path))chatWork.set(path,{draft:'',pending:new Map(),sending:false});
  return chatWork.get(path);
 }
 function patchChatLog(log,html){
@@ -145,11 +145,19 @@ function bindSocialChat(view){
  if(view?.inbox&&!view.chat){if(view.refreshInbox)void loadInbox();const stop=watchSocialChat('',loadInbox,()=>{},()=>{$('#dm-list-error').textContent='로그인 상태를 다시 확인해주세요.';});socialCleanup=()=>{clearInboxEvents();stop();tabs?.removeEventListener('click',filter);};return;}
  if(!view?.chat)return;
  if(view.refreshInbox)void loadInbox();
- const {path,peer,crew,initial}=view.chat,form=$('#chat-compose'),log=$('#chat-log'),earlier=$('#chat-earlier'),input=form.querySelector('textarea'),sendButton=form.querySelector('[data-chat-send]');
+ const {path,peer,crew,initial}=view.chat,form=$('#chat-compose'),log=$('#chat-log'),earlier=$('#chat-earlier'),input=form.querySelector('textarea')||form.querySelector('[data-dm-editor]'),sendButton=form.querySelector('[data-chat-send]');
  const unsent=chatUnsent(uid,path),messages=new Map((initial?.messages||[]).map(m=>[m.id,m]));
- input.value=unsent.draft;unsent.pending.forEach((m,id)=>messages.set(id,m));
+ const editor=input.dataset?.dmEditor!==undefined?AifectStickers.editor(input):null;
+ const draft=()=>editor?editor.get():input.value;
+ const setDraft=value=>{if(editor)editor.set(value);else input.value=value;};
+ const draftKey=editor&&uid?'aifect:dm-draft:'+JSON.stringify([uid,path]):null;
+ if(draftKey){try{unsent.draft=sessionStorage.getItem(draftKey)??unsent.draft;}catch{}}
+ const saveDraft=()=>{const value=draft();if(value===unsent.draft)return;unsent.draft=value;
+  if(draftKey){try{if(value)sessionStorage.setItem(draftKey,value);else sessionStorage.removeItem(draftKey);}catch{}}
+ };
+ setDraft(unsent.draft);unsent.pending.forEach((m,id)=>messages.set(id,m));
  let fetching=false,again=false,initialized=!!initial,lastHTML=null,sending=false,denied=false,chatGeneration=0;
- const resizeInput=()=>{unsent.draft=input.value;input.style.height='auto';input.style.height=Math.min(120,Math.max(46,(input.scrollHeight||44)+2))+'px';};
+ const resizeInput=()=>{saveDraft();input.style.height='auto';input.style.height=Math.min(120,Math.max(46,(input.scrollHeight||44)+2))+'px';};
  input.addEventListener('input',resizeInput);resizeInput();
  // Only a history read advances the cursor. A POST can return a newer message
  // before intervening messages from another member have arrived.
@@ -166,7 +174,7 @@ function bindSocialChat(view){
  merge(initial?.messages||[]);
  const mobileChat=()=>window.AifectMobileInput?.isMobile()??innerWidth<=800;
  const paint=(older=false,forceBottom=false)=>{const nearBottom=forceBottom||(!mobileChat()&&document.activeElement===input)||log.scrollHeight-log.scrollTop-log.clientHeight<90,top=log.scrollTop,height=log.scrollHeight;const html=chatHTML(sorted(),peer,crew);if(html===lastHTML){if(forceBottom)log.scrollTop=log.scrollHeight;return;}lastHTML=html;patchChatLog(log,html);if(older)log.scrollTop=top+log.scrollHeight-height;else if(nearBottom)log.scrollTop=log.scrollHeight;};
- const deny=()=>{denied=true;socialCleanup?.();if(crew){chatGeneration++;unsent.pending.clear();unsent.stickers.length=0;unsent.draft='';input.value='';messages.clear();latestSequence=0;lastHTML=null;paint(false,true);}input.disabled=true;sendButton.disabled=true;$('#chat-connection').textContent='연결 종료';$('#chat-error').textContent='로그인 또는 크루 가입 상태를 다시 확인해주세요.';};
+ const deny=()=>{denied=true;socialCleanup?.();if(crew){chatGeneration++;unsent.pending.clear();setDraft('');saveDraft();messages.clear();latestSequence=0;lastHTML=null;paint(false,true);}if(editor)editor.disable();else input.disabled=true;sendButton.disabled=true;$('#chat-connection').textContent='연결 종료';$('#chat-error').textContent='로그인 또는 크루 가입 상태를 다시 확인해주세요.';};
  if(initial)paint(false,true);else log.innerHTML='<p class="quiet" role="status">대화를 불러오는 중…</p>';
  const load=async(older=false)=>{
   if(!current()||denied)return;if(fetching){if(!older)again=true;else earlier.disabled=false;return;}fetching=true;
@@ -189,12 +197,11 @@ function bindSocialChat(view){
   finally{fetching=false;earlier.disabled=false;if(again&&older&&current())void load();}
  };
  earlier.onclick=()=>{earlier.disabled=true;load(true);};
- const stickers=view.inbox?bindDmEmoji(form,input,unsent.stickers):null;
- const draft=()=>stickers?.body()??input.value;
+ const stickers=editor?bindDmEmoji(form,input,editor):null;
  const isComposing=bindChatEnter(input,()=>{if(input.isConnected&&current()&&draft().trim()&&!sendButton.disabled)form.requestSubmit();});
 
  log.addEventListener('click',e=>{const b=e.target.closest('[data-crew-hello]');if(!b||denied||!crew)return;
-  input.value=suggestCrewHello(crew.id,b.dataset.intro==='true');
+  setDraft(suggestCrewHello(crew.id,b.dataset.intro==='true'));
   b.textContent='다른 인사';input.dispatchEvent(new Event('input',{bubbles:true}));input.focus();
  });
  const send=async pending=>{
@@ -208,7 +215,7 @@ function bindSocialChat(view){
    if([401,403].includes(e.status))deny();
   }}finally{sending=false;unsent.sending=false;if(current())sendButton.disabled=denied;}
  };
- form.onsubmit=event=>{event.preventDefault();if(isComposing()||sending||unsent.sending||denied||form.dataset.uploading||!draft().trim())return;const rid=crypto.randomUUID(),body=draft().trim();input.value='';stickers?.sent();resizeInput();
+ form.onsubmit=event=>{event.preventDefault();if(isComposing()||sending||unsent.sending||denied||form.dataset.uploading||!draft().trim())return;const rid=crypto.randomUUID(),body=draft().trim();setDraft('');stickers?.sent();resizeInput();
   void send({id:'pending:'+rid,request_id:rid,body,created:Math.floor(Date.now()/1000),user_id:uid,sender_id:uid,name:me.name,profile_id:me.profile_id,role:crew?.owner?'owner':'member'});
  };
  log.addEventListener('click',event=>{const retry=event.target.closest('[data-chat-retry]');if(retry&&messages.has(retry.dataset.chatRetry))void send(messages.get(retry.dataset.chatRetry));});
@@ -257,7 +264,7 @@ function bindSocialChat(view){
  const readyFrame=requestAnimationFrame(viewport);
  window.addEventListener('aifect:input-viewport',viewport);
  window.addEventListener('aifect:topbar-layout',viewport);
- socialCleanup=()=>{stickers?.destroy();unsent.draft=input.value;input.removeEventListener('input',resizeInput);clearInboxEvents();tabs?.removeEventListener('click',filter);document.body.classList.remove('chat-keyboard','chat-active');stopStream();stopInbox();resize.disconnect();layoutResize.disconnect();cancelAnimationFrame(frame);cancelAnimationFrame(readyFrame);log.removeEventListener('scroll',onScroll);log.removeEventListener('load',anchor,true);input.removeEventListener('focus',viewport);input.removeEventListener('blur',viewport);window.visualViewport?.removeEventListener('resize',viewport);window.visualViewport?.removeEventListener('scroll',viewport);window.removeEventListener('resize',viewport);window.removeEventListener('aifect:input-viewport',viewport);window.removeEventListener('aifect:topbar-layout',viewport);};
+ socialCleanup=()=>{saveDraft();stickers?.destroy();editor?.destroy();input.removeEventListener('input',resizeInput);clearInboxEvents();tabs?.removeEventListener('click',filter);document.body.classList.remove('chat-keyboard','chat-active');stopStream();stopInbox();resize.disconnect();layoutResize.disconnect();cancelAnimationFrame(frame);cancelAnimationFrame(readyFrame);log.removeEventListener('scroll',onScroll);log.removeEventListener('load',anchor,true);input.removeEventListener('focus',viewport);input.removeEventListener('blur',viewport);window.visualViewport?.removeEventListener('resize',viewport);window.visualViewport?.removeEventListener('scroll',viewport);window.removeEventListener('resize',viewport);window.removeEventListener('aifect:input-viewport',viewport);window.removeEventListener('aifect:topbar-layout',viewport);};
 }
 
 document.addEventListener('click',async event=>{

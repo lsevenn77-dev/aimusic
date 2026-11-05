@@ -81,15 +81,15 @@ try {
  await toggle().click();await settle();
  // Actual chat history: pin at bottom, preserve older reading position and draft.
  await goto('dm/friend');await page.locator('#chat-log .dm-message').first().waitFor();
- await page.locator('#chat-compose textarea').fill('전송하지 않은 메시지');
- await page.evaluate(()=>{window.__input=document.querySelector('#chat-compose textarea');window.__log=document.querySelector('#chat-log');window.__log.scrollTop=window.__log.scrollHeight;});
+ await page.locator('#chat-compose [role=textbox]').fill('전송하지 않은 메시지');
+ await page.evaluate(()=>{window.__input=document.querySelector('#chat-compose [role=textbox]');window.__log=document.querySelector('#chat-log');window.__log.scrollTop=window.__log.scrollHeight;});
  await toggle().click();await settle();
  assert.ok(await page.locator('#chat-log').evaluate(e=>e.scrollHeight-e.scrollTop-e.clientHeight<3),'chat stays at bottom');
  await page.locator('#chat-log').evaluate(e=>e.scrollTop=150);await page.waitForTimeout(70);
  const old=await page.locator('#chat-log').evaluate(e=>e.scrollTop);
  await toggle().click();await settle();assert.ok(Math.abs(await page.locator('#chat-log').evaluate(e=>e.scrollTop)-old)<3,'reading position');
- assert.equal(await page.locator('#chat-compose textarea').inputValue(),'전송하지 않은 메시지');
- assert.equal(await page.evaluate(()=>window.__input===document.querySelector('#chat-compose textarea')&&window.__log===document.querySelector('#chat-log')),true);
+ assert.equal(await page.locator('#chat-compose [role=textbox]').textContent(),'전송하지 않은 메시지');
+ assert.equal(await page.evaluate(()=>window.__input===document.querySelector('#chat-compose [role=textbox]')&&window.__log===document.querySelector('#chat-log')),true);
  // Existing fullscreen policy hides the complete shell and restores preference.
  await page.evaluate(()=>setVoiceFocus(true));assert.equal((await measure()).h.h,0);
  await page.evaluate(()=>setVoiceFocus(false));await settle();assert.equal((await measure()).h.h,56);
