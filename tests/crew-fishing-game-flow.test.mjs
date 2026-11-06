@@ -1,4 +1,5 @@
 import test from 'node:test';
+import {profileNickname} from '../dist/nickname-profile-host.js';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
@@ -28,7 +29,7 @@ function page({delay=15000,renderer='missing'}={}){
   const timer=(fn,wait=0)=>{const id=++nextTimer;timers.set(id,{at:ms+Math.max(0,wait),fn});return id};
   let state={id:'qa',start:delay,expiresAt:delay+3000,cycle:1600,target:0,width:100,goal:3,progress:0,warnings:0,seq:0,lastPass:-1,status:'active'};
   const context=vm.createContext({FISH,TIERS,position,formatLength,createReel,clockSample,bindMobileReelInput,
-    renderGameRankings(){},createRequestId:()=> 'qa-request-id-0001',
+    profileNickname,renderGameRankings(){},createRequestId:()=> 'qa-request-id-0001',
     createScene(){if(renderer==='missing')throw Error('canvas unavailable');return {cast:async()=>{},hooked(){},destroy(){},pull(){},escape:async()=>{}}},
     animationDeadline:async play=>play(),
     document:{body:node(),querySelector:s=>elements[s],hidden:false,addEventListener(){}},

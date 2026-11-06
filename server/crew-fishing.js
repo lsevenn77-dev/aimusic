@@ -52,7 +52,7 @@ export function fishingLimits(env,uid,day){
 async function ranking(env,week,personal,viewer){
   const name=personal?publicNameSQL():'c.name';
   const join=personal?'JOIN users u ON u.id=r.participant LEFT JOIN producers p ON p.user_id=u.id':'JOIN crews c ON c.id=r.participant';
-  const profile=personal?'p.id AS profile_id,p.image_version':'r.participant AS crew_id,c.image_version';
+  const profile=personal?'u.id user_id,p.id AS profile_id,p.image_version':'r.participant AS crew_id,c.image_version';
   const key=personal?'f.user_id':'f.crew_id';
   return rows(env,`WITH scores AS (SELECT ${key} AS participant,SUM(${FISH_VALUE_SQL}) AS score FROM crew_fishing_casts f
     WHERE week=? AND status='caught' GROUP BY ${key}), ranked AS (SELECT *,RANK() OVER(ORDER BY score DESC) AS place FROM scores)
@@ -98,9 +98,9 @@ export async function fishingRoute(req,env,path,user,ms=Date.now(),clock={receiv
       weeklyRemaining:Math.max(0,limits.week-quota.total),mine:mine.score,ours:ours.score,individual,crews,cast:view(current)});
   }
   if(req.method==='GET'&&action==='book'){
-    const records=await rows(env,`WITH best AS (SELECT fish,length,grade,nickname,end_ms,COUNT(*) OVER(PARTITION BY fish) AS count,
+    const records=await rows(env,`WITH best AS (SELECT user_id,fish,length,grade,nickname,end_ms,COUNT(*) OVER(PARTITION BY fish) AS count,
       ROW_NUMBER() OVER(PARTITION BY fish ORDER BY length DESC,end_ms,rowid) AS place FROM crew_fishing_casts
-      WHERE crew_id=? AND status='caught') SELECT fish,length,grade,nickname,end_ms,count FROM best WHERE place=1`,crew);
+      WHERE crew_id=? AND status='caught') SELECT user_id,fish,length,grade,nickname,end_ms,count FROM best WHERE place=1`,crew);
     return json({name:m.name,records});
   }
   if(req.method!=='POST'||!['cast','pull'].includes(action))fail(404,'경로를 찾지 못했어요.');

@@ -4,6 +4,7 @@ import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 import {nicknameContext} from './nickname-context.mjs';
 import {fixture} from './fixture.mjs';
+import worker from '../server/index.js';
 const esc=v=>String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;');
 test('explicit entity IDs keep artists, humans and official AI accounts separate; absent IDs remain plain text',()=>{
  const c=nicknameContext({esc});
@@ -11,7 +12,7 @@ test('explicit entity IDs keep artists, humans and official AI accounts separate
  assert.equal(c.nicknameProfileKey({profileId:'human',artistId:'artist',entityType:'artist'}),'artist:artist');
  assert.equal(c.nicknameProfileKey({profileId:'bot',accountType:'ai_bot'}),'bot');
  assert.equal(c.nicknameProfileKey({profileId:'human',entityType:'artist'}),'');
- for(const userId of [null,undefined,'','undefined','null','<x>','a/b'])assert.equal(c.userNickname('<name>',{userId}),'&lt;name>');
+ for(const userId of [null,undefined,'','undefined','null','<x>','a/b'])assert.equal(c.userNickname('<name>',{userId}),'&lt;name&gt;');
  assert.match(c.userNickname('<name>',{userId:'listener'}),/data-profile-preview="member:listener"/);
  assert.match(c.userNickname('name',{profileId:'person'},{stopPropagation:false}),/data-profile-stop="false"/);
  assert.doesNotMatch(c.userNickname('<img>',{profileId:'person'}),/<img>/);
@@ -40,4 +41,14 @@ test('playlist preview exposes separate real artist and duet identities without 
  assert.equal(playlist.user_id,'owner');assert.deepEqual(playlist.covers.map(x=>x.id),['one','two']);
  assert.equal(playlist.covers[0].artist_id,'artist');assert.equal(playlist.covers[0].producer_id,'producer');
  const c=nicknameContext({esc});assert.match(c.trackNickname(playlist.covers[0]),/data-profile-preview="artist:artist"/);
+});
+test('standalone profile host serves the existing shell only to same-origin frames without cache or index exposure',async()=>{
+ const seen=[],env={ASSETS:{async fetch(req){seen.push(new URL(req.url).pathname);return new Response('<html>shared profile shell</html>');}}};
+ for(const method of ['GET','HEAD']){
+  const r=await worker.fetch(new Request('https://aifect.test/profile-popup?profile=member:other',{method}),env,{});
+  assert.equal(r.status,200);assert.equal(r.headers.get('content-security-policy'),"frame-ancestors 'self'");
+  assert.equal(r.headers.get('cache-control'),'private, no-store');assert.equal(r.headers.get('x-robots-tag'),'noindex, nofollow');
+  assert.equal(await r.text(),method==='HEAD'?'':'<html>shared profile shell</html>');
+ }
+ assert.deepEqual(seen,['/aifect-profile-shell.txt','/aifect-profile-shell.txt']);
 });

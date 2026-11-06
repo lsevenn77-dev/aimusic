@@ -102,3 +102,6 @@ dialog.profile-preview .profile-preview-card {
  .profile-preview .profile-preview-actions>:is(button,a) {height:44px;min-height:44px;padding-inline:8px;font-weight:500}
  .profile-preview-actions svg {width:18px;height:18px}
 }
+
+html.profile-embed,html.profile-embed body {background:transparent;min-width:0}
+.profile-embed body> :not(dialog):not(#toast) {display:none!important}

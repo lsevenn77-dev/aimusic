@@ -1,3 +1,4 @@
+import {profileNickname} from '/nickname-profile-host.js';
 import {renderGameRankings} from '/crew-game-lobby.js';
 import {FISH} from './catalog.js';
 import {TIERS,position,formatLength} from './rules.js';
@@ -168,7 +169,7 @@ function finish(){
   <div class="actions"><button class="primary" data-act="retry">다시 낚시</button><button data-act="lobby">대기실</button><button data-act="aquarium">수족관</button></div></section>`);
 }
 function specimen(f,r){
-  const record=r?`최고 ${formatLength(r.length)} · ${r.grade}등급<br>${esc(r.nickname)}`:'미발견';
+  const record=r?`최고 ${formatLength(r.length)} · ${r.grade}등급<br>${profileNickname(r.nickname,{userId:r.user_id})}`:'미발견';
   return `<article id="fish-${f.id}" class="specimen ${r?'':'undiscovered'}"><img loading="lazy" src="${art(f)}" alt=""><small>${TIERS[f.tier].name}</small><h3>${esc(f.name)}</h3><p>표준 ${formatLength(f.standardCm*10000)}<br>${record}</p></article>`;
 }
 async function collection(mode,focus=''){
