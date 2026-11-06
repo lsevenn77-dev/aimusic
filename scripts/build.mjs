@@ -11,6 +11,8 @@ import {regionTokenCSS} from './ui-region-tokens.mjs';
 import {readdir} from 'node:fs/promises';
 await mkdir('dist/server',{recursive:true});
 await mkdir('dist/client',{recursive:true});
+// Shop banners supplied by the owner; public/ maps to the static URL root.
+await cp('public/images/shop','dist/client/images/shop',{recursive:true});
 await build({entryPoints:['shared/room-backing-worklet.js'],outfile:'dist/client/room-backing-worklet.js',bundle:true,format:'esm',target:'es2022'});
 for(const file of ['room-release.css','room-release.js'])await cp('dist/'+file,'dist/client/'+file);
 await build({entryPoints:['shared/chat-stickers.js'],outfile:'dist/client/chat-stickers.js',bundle:true,format:'iife',globalName:'AifectStickers',target:'es2022',minify:true});
@@ -21,7 +23,7 @@ await cp('shared/crew-jump.js','dist/client/crew-jump-core.js');
 for(const name of ['crew-game-lobby.js','crew-game-lobby.css','crew-jump-view.js','crew-jump.css','crew-jump-art','crew-rhythm','crew-racing','crew-fishing'])await cp('dist/'+name,'dist/client/'+name,{recursive:true});
 for(const file of ['artist-fanpage.js','artist-fanpage.css'])await cp('dist/'+file,'dist/client/'+file);
 for(const file of ['mobile-input.js','mobile-input.css'])await cp('dist/'+file,'dist/client/'+file);
-for(const file of ['decorations.js','decoration-display.js','decorations.css','microphone-check.js','microphone-check.css','play-page.js','play-page.css'])await cp('dist/'+file,'dist/client/'+file);
+for(const file of ['decorations.js','decoration-display.js','decorations.css','shop.css','microphone-check.js','microphone-check.css','play-page.js','play-page.css'])await cp('dist/'+file,'dist/client/'+file);
 for(const file of ['image-crop.js','crew-photo.js','crew-heif.js','crew-heif-worker.js','profile-collections.js','crew-integrated.js','crew-settings.js','integrated.css','profile-preview.js','profile-preview.css','mypage.js','mypage.css','profile-management.js'])await cp('dist/'+file,'dist/client/'+file);
 await cp('dist/voice-room-template.js','dist/client/voice-room-template.js');
 await cp('dist/account-deletion.js','dist/client/account-deletion.js');

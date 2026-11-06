@@ -14,19 +14,18 @@ test('gift-shop navigation and page labels use Shop without changing #gifts rout
  }
  assert.ok(read('dist/index.html').includes('data-view="gifts"'));
  assert.match(read('dist/index.html'),new RegExp('data-view="gifts"[\\s\\S]*?'+name+'<\\/a>'));
- assert.ok(read('dist/decorations.js').includes('<h1 class="shop-title">'+name+'</h1>'));
+ assert.ok(read('dist/decorations.js').includes('<span>'+name+'</span></h1>'));
  assert.ok(read('dist/menu-integration.js').includes('href="#gifts"'));
  assert.ok(read('dist/views.js').includes('gifts:'+String.fromCharCode(39)+name+String.fromCharCode(39)));
 });
 
-test('mobile shop title and right-aligned wallet share the first row; actions stay on row two',()=>{
- const css=read('dist/decorations.css');
- const layout=css.split('/* Gift shop header/title layout: 2026-11-02')[1];
- assert.ok(layout,'shop mobile header CSS exists');
- assert.match(layout,/grid-template-columns:max-content minmax\(0,1fr\)/);
- assert.ok(layout.includes('shop-heading>.shop-title'));
- assert.ok(layout.includes('shop-heading>.shop-balances'));
- assert.match(layout,/grid-column:2;grid-row:1;justify-self:end/);
- assert.match(layout,/grid-column:1\/-1;grid-row:2/);
- assert.ok(!read('dist/uiux-space.css').includes('#main[data-route="gifts"] .shop-heading>h1,'),'mobile title should be visible');
+test('storefront scopes its design and preserves management routes',()=>{
+ const js=read('dist/decorations.js'),css=read('dist/shop.css');
+ const view=js.slice(js.indexOf('async function finalGiftShopView('),js.indexOf('let shopLayoutCleanup'));
+ assert.ok(view.indexOf('href="#gold"')<view.indexOf('href="#gifts/rewards"'));
+ assert.ok(view.indexOf('href="#gifts/rewards"')<view.indexOf('href="#inventory"'));
+ assert.ok(view.indexOf('class="shop-actions"')<view.indexOf('class="shop-balances"'));
+ assert.match(css,/font-size:var\(--pc-font-page,25px\)/);
+ assert.ok(!/\.sidebar|\.topbar|:root/.test(css));
+ assert.ok(!read('dist/uiux-space.css').includes('#main[data-route="gifts"] .shop-heading>h1,'));
 });

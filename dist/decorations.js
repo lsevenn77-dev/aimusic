@@ -63,21 +63,34 @@ function decorationProductImage(p){return p.kind==='PROFILE_FRAME'?p.assetPaths.
 // One registered SKU already contains its duration variants; never group unrelated names.
 function shopThemeProducts(products){return [...new Map(products.filter(p=>p.kind==='TALKING_ROOM_THEME').map(p=>[p.sku,p])).values()];}
 function shopProductPeriods(p,periods){return Object.entries(periods).filter(([key])=>Number.isFinite(p.periodPrices[key])&&p.periodPrices[key]>=0);}
+// Shared by the wallet and every product price; artwork never comes from a sample list.
+function shopCoin(currency){
+ const code=currency==='S'?'S':'G';
+ return '<img class="shop-coin" src="/assets/shop/coin-'+code.toLowerCase()+'.svg" alt="'+code+'" width="24" height="24">';
+}
+function shopIcon(name){
+ if(name==='gift'||name==='image'||name==='search')return icon(name);
+ const path=name==='frame'?'M8 3H5a2 2 0 0 0-2 2v3m13-5h3a2 2 0 0 1 2 2v3M3 16v3a2 2 0 0 0 2 2h3m13-5v3a2 2 0 0 1-2 2h-3':'M2 3h3l3 12h11l3-9H6M8 15l-1 3h12M9 21h.01M18 21h.01';
+ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="'+path+'"/></svg>';
+}
 function shopStartingPrice(p,periods){
  const days=code=>{const m=/^P(\d+)([DMY])$/.exec(code);return m?Number(m[1])*({D:1,M:30,Y:365})[m[2]]:Infinity;};
  const options=shopProductPeriods(p,periods).sort(([a],[b])=>p.periodPrices[a]-p.periodPrices[b]||days(a)-days(b));
  const first=options[0];if(!first)return '';
- return '<span class="shop-price-value">'+number(p.periodPrices[first[0]])+' '+esc(p.currency||'G')+'</span><span class="shop-price-period"> / '+esc(first[1])+'~</span>';
+ return shopCoin(p.currency||'G')+'<span class="shop-price-value">'+number(p.periodPrices[first[0]])+'</span><span class="shop-price-period"> / '+esc(first[1])+'~</span>';
 }
-function shopShelf(id,title,items,periods={}){
- const cards=items.map(p=>{
-  const theme=p.kind==='TALKING_ROOM_THEME';
-  const currency=p.free?'S':p.currency||'G',priceClass=currency==='S'?'is-silver':'is-gold';
-  if(theme)return '<article class="shop-item shop-theme-card"><button type="button" class="shop-product shop-theme-product" data-decoration="'+esc(p.sku)+'" aria-label="'+esc(p.name)+' 상품 선택"><img src="'+esc(decorationProductImage(p))+'" alt="" loading="lazy"><strong title="'+esc(p.name)+'">'+esc(p.name)+'</strong><span class="shop-price '+priceClass+'">'+shopStartingPrice(p,periods)+'</span></button><div class="shop-theme-actions"><button type="button" class="small-button shop-preview-button" data-theme-preview="'+esc(p.assetPaths.roomMobile||'')+'" data-theme-sku="'+esc(p.sku)+'" data-theme-name="'+esc(p.name)+'" aria-label="'+esc(p.name)+' 미리보기" '+(p.assetPaths.roomMobile?'':'disabled')+'>미리보기</button></div></article>';
-  return '<div class="shop-item"><button type="button" class="shop-product '+(p.kind==='PROFILE_FRAME'?'shop-frame-product':'')+'" '+(p.sku?'data-decoration="'+esc(p.sku)+'"':'data-gift-buy="'+esc(p.id)+'"')+'><img src="'+esc(p.sku?decorationProductImage(p):p.image)+'" alt="" loading="lazy"><strong title="'+esc(p.name)+'">'+esc(p.name)+'</strong><span class="shop-price '+priceClass+'">'+(p.sku?shopStartingPrice(p,periods):'<span class="shop-price-value">'+number(p.free?p.silver:p.gold)+' '+currency+'</span>')+'</span></button></div>';
-
+function shopNormalizeSearch(value){return String(value??'').normalize('NFKC').toLocaleLowerCase().replace(/\s+/gu,'');}
+function shopCards(items,periods={}){
+ return items.map(p=>{
+  const theme=p.kind==='TALKING_ROOM_THEME',currency=p.free?'S':p.currency||'G';
+  const category=p.sku?(theme?'themes':'frames'):'gifts';
+  const action=p.sku?'data-decoration="'+esc(p.sku)+'"':'data-gift-buy="'+esc(p.id)+'"';
+  const price=p.sku?shopStartingPrice(p,periods):shopCoin(currency)+'<span class="shop-price-value">'+number(p.free?p.silver:p.gold)+'</span>';
+  return '<article class="shop-card '+(currency==='S'?'is-silver':'is-gold')+'" data-shop-category="'+category+'" data-shop-name="'+esc(p.name)+'">'+
+   '<button type="button" class="shop-card-select" '+action+' aria-label="'+esc(p.name)+' 상품 선택"><img class="shop-card-art" src="'+esc(p.sku?decorationProductImage(p):p.image)+'" alt="" loading="lazy"><strong class="shop-card-name" title="'+esc(p.name)+'">'+esc(p.name)+'</strong></button>'+
+   '<div class="shop-card-price">'+price+'</div><button type="button" class="shop-card-buy" '+action+' aria-label="'+esc(p.name)+' 구매하기">'+shopIcon('cart')+'<span>구매하기</span></button>'+
+   (theme?'<button type="button" class="shop-card-preview" data-theme-preview="'+esc(p.assetPaths.roomMobile||'')+'" data-theme-sku="'+esc(p.sku)+'" data-theme-name="'+esc(p.name)+'" aria-label="'+esc(p.name)+' 미리보기" '+(p.assetPaths.roomMobile?'':'disabled')+'>미리보기</button>':'')+'</article>';
  }).join('');
- return '<section class="shop-shelf" aria-labelledby="shop-'+id+'"><header><h2 id="shop-'+id+'">'+title+'</h2><div class="shop-arrows"><button class="small-button" type="button" data-shelf="'+id+'" data-direction="-1" aria-controls="shelf-'+id+'" aria-label="'+title+' 이전" disabled><span class="shop-arrow-glyph" aria-hidden="true">'+icon('chevron')+'</span></button><button class="small-button" type="button" data-shelf="'+id+'" data-direction="1" aria-controls="shelf-'+id+'" aria-label="'+title+' 다음"><span class="shop-arrow-glyph" aria-hidden="true">'+icon('chevron')+'</span></button></div><button type="button" class="text-link shop-expand" data-shelf-expand="'+id+'" aria-controls="shelf-'+id+'" aria-expanded="false" aria-label="'+title+' +더보기">+더보기</button></header><div class="shop-track" id="shelf-'+id+'" tabindex="0" role="region" aria-label="'+title+' 상품 목록">'+cards+'</div><div class="shop-scrollbar" role="scrollbar" aria-label="'+esc(title)+' 가로 스크롤" aria-controls="shelf-'+id+'" aria-orientation="horizontal" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0" aria-disabled="true" tabindex="-1"><span class="shop-scrollbar-thumb" hidden></span></div></section>';
 }
 // The registered portrait room background only; never substitute the card/desktop art.
 let shopPreviewCleanup=()=>{};
@@ -103,80 +116,42 @@ async function shopThemePreview(button){
  finally{button.disabled=false;button.removeAttribute('aria-busy');}
 }
 function shopBalancesHTML(wallet){
- return '<span class="shop-balance shop-balance-gold"><i class="gold-coin" aria-hidden="true">G</i><span>보유 골드</span><b data-shop-gold>'+number(wallet?.balance||0)+' G</b></span><span class="shop-balance shop-balance-silver"><img src="'+esc(AifectGifts.FREE_GIFT.image)+'" alt="" width="20" height="20"><span>보유 실버</span><b data-shop-silver>'+number(wallet?.free?.balance||0)+' S</b></span>';
+ return '<span class="shop-balance shop-balance-gold">'+shopCoin('G')+'<span>보유 골드</span><b data-shop-gold>'+number(wallet?.balance||0)+' G</b></span><span class="shop-balance shop-balance-silver">'+shopCoin('S')+'<span>보유 실버</span><b data-shop-silver>'+number(wallet?.free?.balance||0)+' S</b></span>';
 }
 async function finalGiftShopView(category,readApi=api){
  const [wallet,d,c]=await Promise.all([me?readApi('/api/gold','GET',undefined,{fresh:true}):null,readApi('/api/decorations','GET',undefined,{fresh:true}),readApi('/api/gifts/catalog')]);
- return '<div class="gift-dashboard shop-page"><header class="shop-heading"><h1 class="shop-title">상점</h1><div class="shop-balances" role="status" aria-label="보유 자산" aria-live="polite">'+shopBalancesHTML(wallet)+'</div><nav class="shop-actions" aria-label="상점 관리"><a class="small-button" href="#gold">골드 충전</a><a class="small-button" href="#gifts/rewards">실버 받기</a><a class="small-button" href="#inventory">인벤토리</a></nav></header>'+
- shopShelf('gold','골드 상품',c.gifts)+shopShelf('silver','실버 상품',c.silver_gifts)+shopShelf('frames','테두리',d.products.filter(p=>p.kind==='PROFILE_FRAME'),d.periods)+shopShelf('themes','테마',shopThemeProducts(d.products),d.periods)+
+ const active=['frames','themes'].includes(category)?category:'gifts';
+ const tabs=[['gifts','선물','gift'],['frames','테두리','frame'],['themes','테마','image']];
+ // The API catalog defines what is on sale. Retired legacy choices stay excluded.
+ const products=[...c.gifts,...c.silver_gifts,...d.products.filter(p=>p.kind==='PROFILE_FRAME'),...shopThemeProducts(d.products)];
+ return '<div class="shop-page" data-shop-active="'+active+'"><section class="shop-banner" aria-label="AIFECT 상점 배너"><picture><source media="(max-width:768px)" srcset="/images/shop/aifect-store-banner-mobile.webp" width="1080" height="512"><img src="/images/shop/aifect-store-banner-pc.webp" width="2400" height="413" alt="라벤더 헤어 캐릭터와 헤드폰을 쓴 흰 고양이" loading="eager" fetchpriority="high" decoding="async"></picture><div class="shop-banner-copy"><p class="shop-banner-label">AIFECT 상점</p><p class="shop-banner-title">나만의 스타일을 <strong>완성해봐!</strong></p><p class="shop-banner-description">프레임 · 배지 · 효과 · 이모티콘 · 테마 등</p><p class="shop-banner-body">다양한 아이템으로 더 특별한 AIFECT를 즐겨보세요!</p></div></section>'+
+ '<header class="shop-heading"><h1 class="shop-title">'+shopIcon('cart')+'<span>상점</span></h1><nav class="shop-actions" aria-label="상점 관리"><a href="#gold">골드 충전</a><a href="#gifts/rewards">실버 받기</a><a href="#inventory">인벤토리</a></nav><div class="shop-balances" role="status" aria-label="보유 자산" aria-live="polite">'+shopBalancesHTML(wallet)+'</div></header>'+
+ '<div class="shop-toolbar"><div class="shop-tabs" role="tablist" aria-label="상점 카테고리">'+tabs.map(([id,label,glyph])=>'<button type="button" role="tab" id="shop-tab-'+id+'" data-shop-tab="'+id+'" aria-controls="shop-products" aria-selected="'+(id===active)+'" tabindex="'+(id===active?'0':'-1')+'">'+shopIcon(glyph)+'<span>'+label+'</span></button>').join('')+'</div><label class="shop-item-search">'+shopIcon('search')+'<input type="search" placeholder="아이템 검색" aria-label="아이템 검색" autocomplete="off"></label></div>'+
+ '<div id="shop-products" class="shop-products" role="tabpanel" aria-labelledby="shop-tab-'+active+'" tabindex="0">'+shopCards(products,d.periods)+'</div><p class="shop-empty" role="status" hidden>검색 결과가 없어요.</p>'+
  '<details class="shop-policy"><summary>선물 및 정산 안내</summary><p>'+esc(AifectGifts.GIFT_SETTLEMENT_NOTICE)+' 실버는 현금 정산·골드 전환 대상이 아니에요.</p><a class="text-link" href="#gold/history">보낸 선물 내역</a></details></div>';
 }
 let shopLayoutCleanup=()=>{};
-function shopExpandedColumns(count, shelfWidth, cardWidth, gap) {
- const visibleColumns = Math.max(1, Math.floor((shelfWidth + gap) / (cardWidth + gap)));
- const columnsForFourRows = Math.ceil(count / 4);
- return Math.min(count, Math.max(visibleColumns, columnsForFourRows));
-}
 function bindShopShelves(){
  shopLayoutCleanup();const root=$('.shop-page');if(!root)return;
- const controller=new AbortController(),rows=[...root.querySelectorAll('.shop-track')];
- const update=row=>{
-  const shelf=row.closest('.shop-shelf'),bar=shelf.querySelector('.shop-scrollbar'),thumb=bar.querySelector('.shop-scrollbar-thumb');
-  const maximum=Math.max(0,row.scrollWidth-row.clientWidth),enabled=maximum>1,trackWidth=bar.clientWidth;
-  const thumbWidth=enabled?Math.min(trackWidth,Math.max(24,trackWidth*row.clientWidth/row.scrollWidth)):0;
-  const left=enabled?Math.max(0,Math.min(maximum,row.scrollLeft))/maximum*(trackWidth-thumbWidth):0;
-  thumb.style.width=thumbWidth+'px';thumb.style.left=left+'px';thumb.hidden=!enabled;
-  bar.setAttribute('aria-valuemax',String(maximum));bar.setAttribute('aria-valuenow',String(Math.round(Math.max(0,Math.min(maximum,row.scrollLeft)))));
-  bar.setAttribute('aria-disabled',String(!enabled));bar.tabIndex=enabled?0:-1;
-  shelf.querySelector('.shop-arrows').hidden=false;
-  shelf.querySelectorAll('[data-shelf]').forEach(b=>{b.disabled=!enabled||(Number(b.dataset.direction)<0?row.scrollLeft<=1:row.scrollLeft+row.clientWidth>=row.scrollWidth-1);});
+ const controller=new AbortController(),tabs=[...root.querySelectorAll('[data-shop-tab]')],input=root.querySelector('.shop-item-search input');
+ const cards=[...root.querySelectorAll('.shop-card')].map(card=>({card,name:shopNormalizeSearch(card.dataset.shopName)}));
+ const update=()=>{
+  const active=root.dataset.shopActive,query=shopNormalizeSearch(input.value);let count=0;
+  for(const {card,name} of cards){card.hidden=card.dataset.shopCategory!==active||!name.includes(query);if(!card.hidden)count++;}
+  for(const tab of tabs){const selected=tab.dataset.shopTab===active;tab.setAttribute('aria-selected',String(selected));tab.tabIndex=selected?0:-1;}
+  root.querySelector('#shop-products').setAttribute('aria-labelledby','shop-tab-'+active);
+  root.querySelector('.shop-empty').hidden=count>0;
  };
- const layout = row => {
-  const card = row.firstElementChild;
-  if (card && row.closest('.shop-shelf').classList.contains('is-expanded')) {
-   const gap = parseFloat(getComputedStyle(row).columnGap) || 0;
-   const columns = shopExpandedColumns(row.childElementCount, row.getBoundingClientRect().width, card.getBoundingClientRect().width, gap);
-   if (row.style.getPropertyValue('--shop-expanded-columns') !== String(columns)) {
-    row.style.setProperty('--shop-expanded-columns', String(columns));
-   }
-  }
-  update(row);
- };
- const observer=new ResizeObserver(()=>rows.forEach(layout));
- rows.forEach(row=>{
-  const bar=row.closest('.shop-shelf').querySelector('.shop-scrollbar'),thumb=bar.querySelector('.shop-scrollbar-thumb');
-  let drag=null;
-  const move=e=>{
-   if(!drag||e.pointerId!==drag.id)return;
-   const bounds=bar.getBoundingClientRect(),travel=bar.clientWidth-thumb.getBoundingClientRect().width,maximum=Math.max(0,row.scrollWidth-row.clientWidth);
-   if(travel>0)row.scrollLeft=Math.max(0,Math.min(travel,e.clientX-bounds.left-drag.offset))/travel*maximum;
-   update(row);
-  };
-  bar.addEventListener('pointerdown',e=>{
-   if(e.button!==0||bar.getAttribute('aria-disabled')==='true')return;
-   e.preventDefault();update(row);row.classList.add('is-scroll-dragging');
-   const bounds=thumb.getBoundingClientRect();drag={id:e.pointerId,offset:e.target===thumb?e.clientX-bounds.left:bounds.width/2};
-   bar.setPointerCapture(e.pointerId);move(e);
+ for(const tab of tabs){
+  tab.addEventListener('click',()=>{root.dataset.shopActive=tab.dataset.shopTab;update();},{signal:controller.signal});
+  tab.addEventListener('keydown',event=>{
+   const index=tabs.indexOf(tab),next=event.key==='ArrowRight'?(index+1)%tabs.length:event.key==='ArrowLeft'?(index+tabs.length-1)%tabs.length:event.key==='Home'?0:event.key==='End'?tabs.length-1:null;
+   if(next===null)return;event.preventDefault();root.dataset.shopActive=tabs[next].dataset.shopTab;update();tabs[next].focus();
   },{signal:controller.signal});
-  bar.addEventListener('pointermove',move,{signal:controller.signal});
-  const end=e=>{if(drag?.id!==e.pointerId)return;drag=null;row.classList.remove('is-scroll-dragging');update(row);};
-  for(const type of ['pointerup','pointercancel','lostpointercapture'])bar.addEventListener(type,end,{signal:controller.signal});
-  bar.addEventListener('keydown',e=>{
-   if(bar.getAttribute('aria-disabled')==='true')return;
-   const stride=(row.firstElementChild?.getBoundingClientRect().width||40)+(parseFloat(getComputedStyle(row).columnGap)||0);
-   const targets={ArrowLeft:row.scrollLeft-stride,ArrowRight:row.scrollLeft+stride,PageUp:row.scrollLeft-row.clientWidth,PageDown:row.scrollLeft+row.clientWidth,Home:0,End:row.scrollWidth-row.clientWidth};
-   if(!(e.key in targets))return;e.preventDefault();row.scrollTo({left:targets[e.key],behavior:'instant'});update(row);
-  },{signal:controller.signal});
-  observer.observe(row);observer.observe(bar);if(row.firstElementChild)observer.observe(row.firstElementChild);
-  row.addEventListener('scroll',()=>update(row),{passive:true,signal:controller.signal});update(row);
- });
- root.querySelectorAll('[data-shelf-expand]').forEach(button=>button.addEventListener('click',()=>{
-  const row=$('#shelf-'+button.dataset.shelfExpand),shelf=row.closest('.shop-shelf'),expanded=shelf.classList.toggle('is-expanded');
-  button.setAttribute('aria-expanded',String(expanded));button.textContent=expanded?'접기':'+더보기';button.setAttribute('aria-label',shelf.querySelector('h2').textContent+' '+button.textContent);
-  row.scrollLeft=0;layout(row);
- },{signal:controller.signal}));
- document.fonts?.ready.then(()=>{if(root.isConnected&&!controller.signal.aborted)rows.forEach(update);});
- shopLayoutCleanup=()=>{observer.disconnect();controller.abort();};
+ }
+ input.addEventListener('input',update,{signal:controller.signal});
+ input.addEventListener('search',update,{signal:controller.signal});
+ update();shopLayoutCleanup=()=>controller.abort();
  if(typeof registerRouteCleanup==='function')shopLayoutCleanup=registerRouteCleanup(shopLayoutCleanup);
 }
 
@@ -277,8 +252,7 @@ async function shopPurchaseDialog(initial){
 }
 document.addEventListener('click',e=>{
  const preview=e.target.closest('[data-theme-preview]');if(preview){e.preventDefault();e.stopPropagation();void shopThemePreview(preview);return;}
- const b=e.target.closest('[data-gift-buy],[data-product-gift],[data-shelf]');if(!b)return;e.preventDefault();
- if(b.dataset.shelf){const row=$('#shelf-'+b.dataset.shelf),stride=row.firstElementChild.getBoundingClientRect().width+(parseFloat(getComputedStyle(row).columnGap)||0),step=Math.max(1,Math.floor((row.clientWidth+(parseFloat(getComputedStyle(row).columnGap)||0))/stride))*stride;row.scrollBy({left:Number(b.dataset.direction)*step,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});return;}
+ const b=e.target.closest('[data-gift-buy],[data-product-gift]');if(!b)return;e.preventDefault();
  if(b.dataset.giftBuy)void giftPurchaseDialog(b.dataset.giftBuy);else void shopPurchaseDialog({sku:b.dataset.productGift});
 });
 function decorationNav(active='gifts'){
