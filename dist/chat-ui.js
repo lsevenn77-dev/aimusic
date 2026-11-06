@@ -4,7 +4,7 @@ function chatIconButton(glyph,label,attributes='',kind='plain'){
  return '<button class="chat-ui-icon chat-ui-'+kind+'" aria-label="'+esc(label)+'" '+attributes+'>'+voiceGlyph(glyph)+'</button>';
 }
 function messageInputHTML({rich=false,id='',limit=2000,placeholder='메시지를 입력하세요…',emoji='' }={}){
- const input=rich?'<div contenteditable="true" role="textbox" aria-multiline="true" aria-label="메시지" aria-placeholder="'+esc(placeholder)+'" aria-description="Enter로 보내기, Shift+Enter로 줄바꿈" data-dm-editor data-limit="'+limit+'"></div>':'<textarea id="'+id+'" name="body" aria-label="메시지" aria-description="Enter로 보내기, Shift+Enter로 줄바꿈" placeholder="'+esc(placeholder)+'" maxlength="'+limit+'" rows="1" enterkeyhint="send" required></textarea>';
+ const input=rich?'<div id="'+esc(id)+'" contenteditable="true" enterkeyhint="send" role="textbox" aria-multiline="true" aria-label="메시지" aria-placeholder="'+esc(placeholder)+'" aria-description="Enter로 보내기, Shift+Enter로 줄바꿈" data-dm-editor data-limit="'+limit+'"></div>':'<textarea id="'+id+'" name="body" aria-label="메시지" aria-description="Enter로 보내기, Shift+Enter로 줄바꿈" placeholder="'+esc(placeholder)+'" maxlength="'+limit+'" rows="1" enterkeyhint="send" required></textarea>';
  return '<div class="chat-ui-field talk-message-field">'+input+emoji+'</div>';
 }
 function chatComposerHTML({id,rich=false,inputId='',limit=2000,emojiAttributes='',sendAttributes='',giftAttributes='',placeholder,className='',leadingHTML=''}={}){

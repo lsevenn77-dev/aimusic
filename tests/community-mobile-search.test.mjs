@@ -8,10 +8,10 @@ import {readFileSync} from 'node:fs';
 function directory(){
  let focused=null;
  class Element extends EventTarget {
-  constructor(){super();this.dataset={};this.attributes=new Map();this.value='';this.hidden=false;this.style={};this.scrollTop=0;this.children=[];}
+  constructor(){super();this.dataset={};this.attributes=new Map();this.value='';this.hidden=false;this.style={};this.scrollTop=0;this.children=[];this.style={removeProperty(){}};}
   setAttribute(k,v){this.attributes.set(k,String(v));}
   focus(){focused=this;} blur(){if(focused===this)focused=null;}
-  replaceChildren(){} insertAdjacentHTML(){} contains(){return false;}
+  replaceChildren(){} insertAdjacentHTML(){} contains(){return false;} closest(){return null;}
  }
  const nodes=new Map(),get=key=>{if(!nodes.has(key))nodes.set(key,new Element());return nodes.get(key);};
  const filters=['all','karaoke','talk'].map(value=>{const el=new Element();el.dataset.roomFilter=value;return el;});
@@ -20,9 +20,9 @@ function directory(){
  const timers=new Map(),requests=[],cleanups=[];let seq=0;
  const c=nicknameContext({
   me:{id:'viewer'},location:{hash:'#community'},talkingRoomReturn:null,liveRoomLabels:{karaoke:'노래방',talk:'토킹룸'},
-  URLSearchParams,AbortController,Date,Map,IntersectionObserver:class{observe(){}unobserve(){}disconnect(){}},
+  URLSearchParams,AbortController,Date,Map,requestAnimationFrame:()=>1,cancelAnimationFrame(){},ResizeObserver:class{observe(){}disconnect(){}},IntersectionObserver:class{observe(){}unobserve(){}disconnect(){}},
   document:{hidden:false,addEventListener(){},removeEventListener(){},get activeElement(){return focused;}},
-  window:{addEventListener(){},removeEventListener(){}},
+  window:{scrollTo(){},addEventListener(){},removeEventListener(){}},
   setTimeout:(fn,ms)=>{const id=++seq;timers.set(id,{fn,ms});return id;},clearTimeout:id=>timers.delete(id),setInterval:()=>1,clearInterval(){},
   registerRouteCleanup:fn=>cleanups.push(fn),voiceRequest:async path=>{requests.push(new URLSearchParams(path.split('?')[1]));return {enabled:true,rooms:[],next_cursor:null};}
  });

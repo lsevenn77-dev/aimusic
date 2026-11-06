@@ -2,6 +2,9 @@
 function bindRoomViewport(client){
  client.roomLayoutEvents?.abort();client.roomResizeObserver?.disconnect();
  const events=client.roomLayoutEvents=new AbortController(),options={signal:events.signal};
+ const back=()=>{if(client.closed)return false;if(client.talkPopup?.open)client.closeRoomPopup();else client.safe(()=>client.action('leave'));return true;};
+ window.aifectRoomBack=back;
+ events.signal.addEventListener('abort',()=>{if(window.aifectRoomBack===back)delete window.aifectRoomBack;},{once:true});
  const room=client.host,main=document.querySelector('#main'),composer=room.querySelector('#voice-chat-form');
  for(const button of room.querySelectorAll('#voice-chat-form > button,.room-dm-composer > button')){
   const gift=button.matches('[data-voice=gift],[data-room-dm-gift]');
@@ -26,6 +29,9 @@ function bindRoomViewport(client){
   write(main,'--voice-top',start+'px');
   write(room,'--voice-viewport',Math.max(0,end-start)+'px');
   if(composerHeight)write(room,'--room-composer',composerHeight+'px');
+  const composerTop=composer?.getBoundingClientRect().top??end;
+  write(room,'--room-popup-available',Math.max(0,composerTop-start-16)+'px');
+  write(document.documentElement,'--room-toast-bottom',Math.max(0,innerHeight-composerTop+10)+'px');
   write(room,'--room-visual-top',top+'px');write(room,'--room-visual-height',(bottom-top)+'px');
   // Expose measured geometry for diagnostics and keep reads before writes next frame.
   client.roomBounds={top:start,bottom:end,width:box.width,visualHeight:bottom-top};
@@ -80,13 +86,25 @@ function patchRoomChildren(container,entries){
  for(const node of old.values())node.remove();
 }
 function roomRouteMatches(url,client){
- return url.origin===location.origin&&url.pathname===location.pathname&&url.search===location.search&&url.hash==='#'+(client.liveMode?'live':'voice')+'/'+client.id;
+ return url.origin===location.origin&&url.pathname===location.pathname&&url.search===location.search&&['#live/'+client.id,'#voice/'+client.id].includes(url.hash.split('?')[0]);
 }
 function leaveRoomForNavigation(url){
  const client=voiceController;
- if(!client||client.closed||roomRouteMatches(url,client))return;
- // leave() releases local tracks synchronously and sends a bounded keepalive POST.
- void client.leave();voiceController=null;
+ if(!client||client.closed||roomRouteMatches(url,client))return false;
+ if(!client.joined){void client.leave();voiceController=null;return false;}
+ client.pendingRoomNavigation=url.href;
+ if(client.talkPopup?.id!=='talk-leave'||!client.talkPopup.open)client.safe(()=>client.action('leave'));
+ return true;
+}
+function retainRoomRoute(raw){
+ const client=voiceController;
+ if(!me||!client?.joined||client.closed||!client.host?.isConnected)return false;
+ const target=new URL('#'+raw,location.href);
+ if(!roomRouteMatches(target,client)&&!leaveRoomForNavigation(target))return false;
+ const route=(client.liveMode?'live/':'voice/')+client.id;
+ history.replaceState(history.state,'','#'+route);
+ document.querySelector('#main').dataset.route=route;
+ return true;
 }
 document.addEventListener('click',event=>{
  if(event.defaultPrevented||event.button!==0||event.ctrlKey||event.metaKey||event.shiftKey||event.altKey)return;
@@ -94,6 +112,9 @@ document.addEventListener('click',event=>{
  if(!link||link.hasAttribute('download')||(link.target&&link.target!=='_self'))return;
  const url=new URL(link.href,location.href);
  if(url.origin!==location.origin||url.hash==='#main')return;
- leaveRoomForNavigation(url);
+ if(leaveRoomForNavigation(url)){event.preventDefault();event.stopImmediatePropagation();}
 },{capture:true});
-for(const type of ['popstate','hashchange'])window.addEventListener(type,()=>leaveRoomForNavigation(new URL(location.href)));
+for(const type of ['popstate','hashchange'])window.addEventListener(type,()=>{
+ const client=voiceController,url=new URL(location.href);
+ if(leaveRoomForNavigation(url)&&client)history.replaceState(history.state,'','#'+(client.liveMode?'live/':'voice/')+client.id);
+});

@@ -44,16 +44,17 @@ test('measured room bounds coalesce resize events and follow actual bars and vis
  shell[1].hidden=true;vv.height=844;events.resize();frames.shift()();assert.equal(room.style.get('--voice-viewport'),'826px');
 });
 
-test('same room and popup clicks keep membership; internal links, back and hash navigation leave',()=>{
- const handlers={},location=new URL('https://aifect.co.kr/#voice/room');let leaves=0;
- const client=()=>({id:'room',joined:true,leave(){leaves++;this.closed=true;}});
- const c=vm.createContext({URL,location,voiceController:client(),document:{addEventListener:(k,fn)=>handlers[k]=fn},window:{addEventListener:(k,fn)=>handlers[k]=fn}});
+test('same room aliases keep membership; outside navigation asks before leaving and restores the room route',()=>{
+ const handlers={},location=new URL('https://aifect.co.kr/#voice/room');let leaves=0,confirms=0,prevented=0;
+ const client={id:'room',joined:true,host:{isConnected:true},safe:fn=>fn(),action:()=>confirms++,leave(){leaves++;this.closed=true;}};
+ const c=vm.createContext({URL,location,me:{id:'me'},voiceController:client,history:{state:null,replaceState(_a,_b,url){location.hash=url;}},document:{querySelector:()=>({dataset:{}}),addEventListener:(k,fn)=>handlers[k]=fn},window:{addEventListener:(k,fn)=>handlers[k]=fn}});
  vm.runInContext(readFileSync(new URL('../dist/room-layout.js',import.meta.url),'utf8'),c);
- const click=href=>handlers.click({button:0,target:{closest:()=>href?{href,target:'',hasAttribute:()=>false}:null}});
- click(null);click(location.href);assert.equal(leaves,0);
- click('https://aifect.co.kr/#home');assert.equal(leaves,1);
- c.voiceController=client();location.hash='#community';handlers.hashchange();assert.equal(leaves,2);
- c.voiceController=client();location.hash='#profile';handlers.popstate();assert.equal(leaves,3);
+ const click=href=>handlers.click({button:0,preventDefault(){prevented++;},stopImmediatePropagation(){},target:{closest:()=>href?{href,target:'',hasAttribute:()=>false}:null}});
+ click(null);click(location.href);click('https://aifect.co.kr/#live/room');assert.equal(confirms,0);assert.equal(leaves,0);
+ click('https://aifect.co.kr/#home');assert.equal(confirms,1);assert.equal(leaves,0);assert.equal(prevented,1);assert.match(client.pendingRoomNavigation,/#home$/);
+ location.hash='#community';handlers.hashchange();assert.equal(location.hash,'#voice/room');assert.equal(leaves,0);
+ location.hash='#profile';assert.equal(c.retainRoomRoute('profile'),true);assert.equal(location.hash,'#voice/room');assert.equal(leaves,0);
+ assert.equal(c.retainRoomRoute('live/room'),true);assert.equal(leaves,0);
 });
 
 test('reclicking the room gift icon closes its shared dialog without starting another request',async()=>{

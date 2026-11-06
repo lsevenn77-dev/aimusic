@@ -20,7 +20,10 @@ async function shareMemberProfile(p){
 function closeProfilePreview(reason){
  ++profilePreviewSerial;
  if(!profilePreviewDialog)return;
- const panel=profilePreviewDialog;profilePreviewDialog=null;panel.close();panel.remove();
+ const panel=profilePreviewDialog;profilePreviewDialog=null;
+ const room=typeof voiceController!=='undefined'?voiceController:null;
+ if(room?.talkPopup===panel){room.talkPopup=null;room.popupTrigger=null;document.documentElement.removeAttribute('data-room-popup');}
+ panel.close();panel.remove();
  document.body.style.overflow=profilePreviewOverflow;
  if(profilePreviewOrigin?.isConnected)profilePreviewOrigin.focus({preventScroll:true});
  profilePreviewOrigin=null;
@@ -76,7 +79,9 @@ async function openProfilePreview(id,origin){
   if(typeof voiceController!=='undefined'&&voiceController?.talkPopup?.open)voiceController.closeRoomPopup();
   profilePreviewOrigin=origin;profilePreviewOverflow=document.body.style.overflow;
   document.body.style.overflow='hidden';profilePreviewDialog=panel;document.body.append(panel);
-  panel.showModal();panel.querySelector('[data-preview-close]').focus();
+  const room=typeof voiceController!=='undefined'?voiceController:null;
+  if(room?.joined&&!room.closed&&room.host?.isConnected)room.adoptRoomPopup(panel,origin);
+  else{panel.showModal();panel.querySelector('[data-preview-close]').focus();}
   panel.addEventListener('cancel',event=>{event.preventDefault();closeProfilePreview('dismiss');});
   panel.addEventListener('keydown',event=>{
    if(event.key!=='Tab')return;

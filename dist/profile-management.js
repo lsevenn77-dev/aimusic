@@ -24,8 +24,8 @@ document.addEventListener('click',async e=>{
  }
  if(b.dataset.inventoryBuy){
   const gift=b.dataset.inventoryBuy,key=crypto.randomUUID(),price=Number(b.dataset.giftPrice),currency=b.dataset.giftCurrency;
-  dialog(`<h2>${esc(b.dataset.giftName)} 보관 구매</h2><form id="mp-inventory-buy"><label class="form-field">수량<input name="quantity" type="number" min="1" max="100" value="1" required></label><p id="mp-buy-total">총 ${number(price)} ${currency}</p><p class="field-help">구매를 누르면 잔액이 차감되고 인벤토리에 보관됩니다. 보관 구매 후에는 개별 취소할 수 없어요.</p><button class="primary-button">구매하고 보관하기</button><p class="form-error" role="alert"></p></form>`);
-  const f=$('#mp-inventory-buy');f.elements.quantity.oninput=()=>{$('#mp-buy-total').textContent='총 '+number(price*Number(f.elements.quantity.value))+' '+currency;};
+  dialog(`<h2>${esc(b.dataset.giftName)} 보관 구매</h2><form id="mp-inventory-buy"><label class="form-field">수량<input name="quantity" type="number" min="1" max="100" value="1" required></label><p id="mp-buy-total">총 ${shopPrice(price,currency)}</p><p class="field-help">구매를 누르면 잔액이 차감되고 인벤토리에 보관됩니다. 보관 구매 후에는 개별 취소할 수 없어요.</p><button class="primary-button">구매하고 보관하기</button><p class="form-error" role="alert"></p></form>`);
+  const f=$('#mp-inventory-buy');f.elements.quantity.oninput=()=>{$('#mp-buy-total').innerHTML='총 '+shopPrice(price*Number(f.elements.quantity.value),currency);};
   f.onsubmit=busyForm(f,async fd=>{await api('/api/me/gift-inventory/buy','POST',{gift_type:gift,quantity:Number(fd.get('quantity')),request_id:key});$('#dialog').close();toast('선물을 보관했어요.');await render();});return;
  }
  if(b.dataset.inventorySend){

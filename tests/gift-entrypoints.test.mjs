@@ -27,6 +27,7 @@ function shopBrowser(){
   api:async(path,method='GET',body)=>{calls.push({path,method,body});return method==='POST'?{}:path==='/api/gifts/catalog'?{gifts:AifectGifts.GIFT_CATALOG,silver_gifts:AifectGifts.SILVER_GIFT_CATALOG}:path==='/api/decorations'?catalog:{balance:10000,silver_balance:100};},
   chooseGiftRecipient:selection=>opened.push(selection),askLogin(){},toast(){},refreshShopBalances(){},render(){},
  });
+ vm.runInContext(decorations.slice(decorations.indexOf('function shopCoin('),decorations.indexOf('function shopIcon(')),context);
  vm.runInContext(extract('shopPurchaseDialog',"\ndocument.addEventListener('click',e=>{"),context);
  vm.runInContext(extract('storedDecorationDialog',"\ndocument.addEventListener('click',e=>{"),context);
  return {context,calls,opened,get form(){return form;},get html(){return html;}};

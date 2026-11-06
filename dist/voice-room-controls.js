@@ -5,20 +5,14 @@ Object.assign(VoiceRoomClient.prototype,{
   const form=$('#voice-chat-form'),input=$('#voice-message');
   const picker=$('#voice-emoji-picker');
   input.addEventListener('input',()=>resizeChatInput(input),options);form.addEventListener('reset',()=>queueMicrotask(()=>resizeChatInput(input)),options);resizeChatInput(input);
-  this.stickers?.destroy();
+  this.stickers?.destroy();this.chatEditor?.destroy();
+  this.chatEditor=AifectStickers.editor(input,toast);
   if(picker?.classList?.contains('cat-picker'))this.stickers=AifectStickers.bind({
    picker,form,input,toggle:this.host.querySelector('[data-voice="emoji"]'),glyph:voiceGlyph,
-   inline:{
-    get:()=>input.value,
-    insertSticker:key=>{
-     const text='[aifect:'+key+']',start=input.selectionStart,end=input.selectionEnd;
-     if(input.value.length-end+start+text.length>input.maxLength)return false;
-     input.setRangeText(text,start,end,'end');input.dispatchEvent(new Event('input',{bubbles:true}));return true;
-    }
-   },
+   inline:this.chatEditor,
    close:()=>this.toggleEmojiPicker(false,true)
   });
-  input.onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing&&e.keyCode!==229){e.preventDefault();if((this.stickers?.body()??input.value).trim())form.requestSubmit();}};
+  input.onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing&&e.keyCode!==229){e.preventDefault();if((this.stickers?.body()??this.chatEditor.get()).trim())form.requestSubmit();}};
   this.host.querySelector('.voice-chat-panel').addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#voice-emoji-picker').hidden){e.preventDefault();e.stopPropagation();this.toggleEmojiPicker(false,true);}},options);
   this.bindTalkViews();
   const supported=navigator.mediaDevices?.getSupportedConstraints?.()||{};
@@ -213,7 +207,7 @@ Object.assign(VoiceRoomClient.prototype,{
   const m=this.state.music;if(!m)return;const host=this.state.members.find(p=>p.id===this.state.self)?.role==='host',track=m.queue[m.index],hasQueue=!!m.queue.length;
   $('#voice-host-audio').hidden=!host||!this.liveMode;$('#voice-room-volume').value=m.volume*100;$('#voice-balance').value=m.balance*100;
   $('#voice-sound-current').innerHTML=track?'현재 곡: '+esc(track.title)+' · '+trackNickname(track):'선택된 음악이 없어요.';
-  $('#voice-music-search').hidden=!host;$('#voice-music-results').hidden=!host;$('#voice-queue-area').hidden=!hasQueue;$('#voice-playlist-empty').hidden=hasQueue;
+  $('#voice-music-search').hidden=!host;$('#voice-music-results').hidden=!host;$('#voice-queue-area').hidden=!hasQueue;$('#voice-playlist-empty').hidden=hasQueue||!!$('#voice-music-query').value.trim();
   $('#voice-playlist-empty').querySelector('p').textContent=host?'위 검색창에서 노래를 찾아 + 버튼으로 추가해 주세요.':'방장이 추가한 음악을 이곳에서 함께 들을 수 있어요.';
   this.host.querySelector('.voice-music-transport').hidden=!host||!hasQueue;$('#voice-queue-heading').hidden=true;$('#voice-music-seek').max=track?.duration||0;
   $('#voice-queue-count').textContent=m.queue.length+'곡';this.host.querySelector('[data-voice="music-clear"]').hidden=!host;
@@ -270,6 +264,7 @@ Object.assign(VoiceRoomClient.prototype,{
    this.roomResizeObserver?.unobserve?.(e.target);e.target.removeAttribute('data-room-anchored');
    this.talkPopup=null;document.documentElement?.removeAttribute('data-room-popup');this.settingsTicket=(this.settingsTicket||0)+1;
    this.host.querySelectorAll('.room-header [aria-expanded=true]').forEach(b=>b.setAttribute('aria-expanded','false'));
+   if(e.target.id==='talk-leave')this.pendingRoomNavigation=null;
    if(e.target.id==='voice-sound')this.stopMicTest();
    if(e.target.id==='voice-emoji-picker'){e.target.hidden=true;this.host.querySelector('[data-voice="emoji"]')?.setAttribute('aria-expanded','false');}
    const trigger=this.popupTrigger;this.popupTrigger=null;

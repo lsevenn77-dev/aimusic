@@ -12,7 +12,7 @@ function context(overrides={}){
   paint(){} warmMicrophone(){this.warmCount++;} action(action){calls.push(['base-action',action]);}
   leave(){this.closed=true;calls.push(['leave',this.id]);return Promise.resolve();}
  }
- const nodes=new Map(),node=()=>({textContent:'',innerHTML:'',hidden:false,value:0,readyState:0,isConnected:true,style:{},attributes:new Map(),children:new Map(),
+ const nodes=new Map(),node=()=>({dataset:{},textContent:'',innerHTML:'',hidden:false,value:0,readyState:0,isConnected:true,style:{},attributes:new Map(),children:new Map(),
   setAttribute(name,value){this.attributes.set(name,value);},
   getAttribute(name){return this.attributes.get(name);},
   querySelector(selector){if(!this.children.has(selector))this.children.set(selector,node());return this.children.get(selector);}
@@ -38,6 +38,30 @@ function context(overrides={}){
  vm.runInContext(source('live-karaoke.js'),c);
  return {c,calls,events,host,nodes};
 }
+
+test('a mode snapshot changes the view once without leaving, rejoining or enabling capture',()=>{
+ const {c,calls,host}=context();let captures=0,stops=0,replaced=0;
+ const nextHost={...host};host.replaceWith=()=>replaced++;
+ c.document.createElement=()=>({content:{firstElementChild:nextHost}});
+ c.document.querySelector=()=>({dataset:{}});
+ c.history={state:null,replaceState(_a,_b,url){c.location.hash=url;}};
+ c.location.hash='#live/one';
+ const editor={get:()=> '안녕 [aifect:cat_basic_laugh]',set:v=>{editor.saved=v;}};
+ const client=new c.VoiceRoomClient('one');
+ Object.assign(client,{host,liveMode:true,joined:true,generation:'stable-generation',epoch:7,state:{room:{mode:'talk'}},
+  ws:{id:'socket'},receiver:{id:'receiver'},heartbeat:42,levelContext:{id:'audio'},chatEditor:editor,
+  stopMicrophone(){stops++;},stopMicTest(){},closeRoomPopup(){},releaseRoomExternal(){},onViewport(){},
+  enableMic(){captures++;},micAttempt:0});
+ c.voiceController=client;c.client=client;
+ const refs=[client.ws,client.receiver,client.levelContext];
+ vm.runInContext('client.paint();client.paint()',c);
+ assert.equal(replaced,1);assert.equal(client.bindCount,1);assert.equal(client.liveMode,false);
+ assert.equal(client.id,'one');assert.equal(client.generation,'stable-generation');assert.equal(client.epoch,7);assert.equal(client.heartbeat,42);
+ assert.deepEqual([client.ws,client.receiver,client.levelContext],refs);
+ assert.equal(stops,1);assert.equal(captures,0);assert.equal(client.micDesired,false);
+ assert.equal(editor.saved,'안녕 [aifect:cat_basic_laugh]');assert.equal(c.location.hash,'#voice/one');
+ assert.equal(calls.filter(x=>x[0]==='leave'||x[0]==='request').length,0);
+});
 
 function monitorFixture(){
  const {c,host,nodes}=context();

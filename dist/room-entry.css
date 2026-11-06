@@ -132,7 +132,7 @@
 #main .voice-room #voice-settings-form .live-mode label:has(:disabled){cursor:default}
 #main .voice-room #voice-settings-form fieldset{min-width:0;margin:0;padding:0;border:0}
 #main .voice-room #voice-settings-form legend{font-size:15px;padding:0;margin:0 0 8px}
-#main .voice-room .room-settings-footer{display:flex;flex:none;align-self:stretch;width:100%;justify-content:flex-end;gap:8px;margin:0!important;padding:12px 0 0!important;background:var(--room-popup);border:0}
+#main .voice-room .room-settings-footer{display:flex;flex:none;align-self:stretch;width:100%;justify-content:flex-end;gap:8px;margin:0!important;padding:12px 0 0!important;background:transparent;border:0}
 #main .voice-room .live-title-row{display:flex;flex-wrap:wrap;gap:6px}
 #main .voice-room .live-title-row input{flex:1 1 140px}
 #main .voice-room .live-capacity-controls{display:flex;flex-wrap:wrap;gap:8px}

@@ -240,12 +240,14 @@ html:has(#main > .talk-directory, #main > .music-community-tabs[aria-label="ь╗ды
  .talk-directory .v3-room-copy h3 {font-size:13.5px}
 }
 
-/* The list keeps its internal viewport; its footer stays in document flow. */
-#main:has(> .talk-directory){height:calc(100dvh - var(--footer-main-top,88px) - var(--player-space,0px))}
+/* The live directory owns a bounded viewport, independent of footer measurements. */
+.page-wrap:has(> #main > .talk-directory)>.page-footer {display:none!important}
+#main:has(> .talk-directory){height:var(--live-directory-height,calc(100dvh - 88px - var(--player-space,0px)));min-height:0;flex:none;overflow:hidden}
 #main:has(> .talk-directory),#main > .talk-directory,.talk-directory > .live-directory {
- display:flex;flex-direction:column;flex:1 1 0;min-height:0;
+ display:flex;flex-direction:column;min-height:0;
 }
 #main:has(> .talk-directory) {margin-block:0;padding-bottom:0}
+#main > .talk-directory,.talk-directory > .live-directory {flex:1 1 auto}
 .talk-directory > .music-community-tabs {flex:none}
 /* Measure the space below the controls independently of the number of rooms. */
 .live-directory .live-list-space {

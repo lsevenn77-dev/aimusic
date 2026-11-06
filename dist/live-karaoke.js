@@ -44,7 +44,7 @@ function liveKaraokeRoomHTML(id){
  <section class="live-request-area" aria-label="노래 신청과 예약 순서"><button type="button" class="live-request-button" data-voice="karaoke-search-open">${icon('mic')}<span><strong>예약</strong><small id="live-queue-count">0명 대기</small></span></button><ol id="live-queue" class="live-queue" aria-label="예약 순서"></ol></section>
  </div><div class="room-live-guide"><p id="live-stage-note" class="live-stage-note"></p>
   <button class="small-button live-audio-unlock" id="live-audio-unlock" type="button" data-voice="karaoke-resume" hidden>소리 켜기</button></div>`;
- const search=`<dialog id="live-search-sheet" class="voice-sheet compact-popup" aria-label="노래 예약"><header class="live-search-heading"><h2>예약하기</h2><button type="button" data-voice="dismiss" aria-label="예약창 닫기">${voiceGlyph('close')}</button></header><form id="live-search" class="live-search" role="search"><label for="live-query">곡명 또는 아티스트</label><div><input id="live-query" type="search" maxlength="80" placeholder="곡명 또는 아티스트 검색"><button type="submit" class="small-button">${icon('search')} 검색</button></div></form><nav class="live-search-tabs" role="tablist" aria-label="예약할 곡"><button type="button" role="tab" data-live-library="mine" aria-selected="true">나의 곡</button><button type="button" role="tab" data-live-library="popular" aria-selected="false">인기곡</button></nav><div id="live-results" class="live-results" aria-live="polite"></div></dialog>`;
+ const search=`<dialog id="live-search-sheet" class="voice-sheet compact-popup" aria-label="노래 예약"><header class="live-search-heading"><h2>노래 예약</h2></header>${roomSongSearchHTML('karaoke')}<nav class="live-search-tabs" role="tablist" aria-label="예약할 곡"><button type="button" role="tab" data-live-library="mine" aria-selected="true">나의 곡</button><button type="button" role="tab" data-live-library="popular" aria-selected="false">인기곡</button></nav><div id="live-results" class="live-results" aria-live="polite"></div></dialog>`;
  const audio=`<div class="live-audio-settings"><label>내 반주 음량 <input id="live-mr-volume" type="range" min="0" max="100" value="75"></label><label>청취 싱크 보정 <input id="live-delay" type="range" min="0" max="500" step="50" value="200"><output id="live-delay-value">200ms</output></label></div>`;
  return voiceRoomHTML(id,false)
   .replace('class="voice-room"','class="voice-room live-karaoke-room"')
@@ -189,12 +189,13 @@ async function liveSearchSongs(c){
  const q=c.host.querySelector('#live-query').value.trim(),out=c.host.querySelector('#live-results'),collection=c.liveLibrary||'mine';
  for(const tab of c.host.querySelectorAll('[data-live-library]'))tab.setAttribute('aria-selected',String(tab.dataset.liveLibrary===collection&&!q));
  c.liveSearchAbort?.abort();const controller=c.liveSearchAbort=new AbortController(),serial=c.liveSearchSerial=(c.liveSearchSerial||0)+1;
- out.textContent='노래를 불러오는 중…';
+ out.dataset.state='loading';out.setAttribute('aria-busy','true');out.textContent='노래를 불러오는 중…';
  try{
   const data=await voiceRequest(c.path('karaoke-search')+'?generation='+encodeURIComponent(c.generation)+'&q='+encodeURIComponent(q)+'&collection='+collection,undefined,'GET',controller.signal);
   if(c.closed||serial!==c.liveSearchSerial||!out.isConnected)return;
+  out.dataset.state=data.tracks.length?'results':q?'no-results':'empty';out.setAttribute('aria-busy','false');
   out.innerHTML=data.tracks.slice(0,30).map(t=>`<div class="live-result"><img src="${esc(t.cover||trackArtworkPath(t))}" width="38" height="38" alt=""><div><strong title="${esc(t.title)}">${esc(t.title)}</strong><small>${trackNickname(t)}</small></div><button class="small-button" type="button" data-voice="karaoke-request" data-target="${esc(t.id)}">예약</button></div>`).join('')||`<p class="quiet">${q?'부를 수 있는 곡을 찾지 못했어요.':collection==='mine'?'아직 부른 곡이 없어요.':'최근 예약 기록이 없어요.'}</p>`;
- }catch(error){if(controller.signal.aborted||c.closed)return;out.textContent='곡을 불러오지 못했어요. 다시 시도해주세요.';throw error;}
+ }catch(error){if(controller.signal.aborted||c.closed)return;out.dataset.state='error';out.setAttribute('aria-busy','false');out.textContent='곡을 불러오지 못했어요. 검색을 눌러 다시 시도해주세요.';throw error;}
 }
 async function liveKaraokeAction(c,action,target){
  if(action==='karaoke-begin'){
@@ -285,7 +286,7 @@ async function liveKaraokeAction(c,action,target){
 }
 function paintLiveKaraoke(c){
  const s=c.state,k=s?.karaoke;if(!s||!c.host?.isConnected)return;
- if(s.room.mode!=='karaoke'){location.hash='#voice/'+c.id;return;}
+ if(s.room.mode!=='karaoke')return;
  const self=s.members.find(p=>p.id===s.self),host=self?.role==='host',active=k?.active,singer=s.members.find(p=>p.id===active?.user_id);
 
 
@@ -403,7 +404,7 @@ voiceView=async function(base,id,signal){
 const productionCleanupVoiceRoute=cleanupVoiceRoute;
 cleanupVoiceRoute=function(base,id){
  if(base!=='live')return productionCleanupVoiceRoute(base,id);
- const valid=!!me&&voiceController?.liveMode&&voiceController.id===id&&!voiceController.closed;
+ const valid=!!me&&voiceController&&voiceController.id===id&&!voiceController.closed;
  setVoiceFocus(!!valid&&!!voiceController.joined);
  if(voiceController&&!valid){
   const work=voiceController.leave();voiceController=null;return work;
@@ -428,7 +429,6 @@ const productionVoiceBind=VoiceRoomClient.prototype.bind;
 VoiceRoomClient.prototype.bind=function(host){
  if(this.liveMode)liveVoiceMix(this);
  const result=productionVoiceBind.call(this,host);
- if(this.resumeModeSession&&!this.closed){this.resumeModeSession=false;this.socket();this.heartbeat=setInterval(()=>this.refresh().catch(e=>this.connectionError(e)),20000);this.safe(()=>this.refresh());}
  if(this.liveMode){
   bindLiveKaraoke(this);
   this.livePageHide ||= ()=>{this.liveAudio?.pause();this.liveNeedsResync=true;};window.addEventListener('pagehide',this.livePageHide);
@@ -443,12 +443,28 @@ VoiceRoomClient.prototype.paint=function(){
   const nextRoute=(mode==='karaoke'?'live/':'voice/')+this.id;
   const oldRoute=(this.liveMode?'live/':'voice/')+this.id;
   if(location.hash.split('?')[0]!=='#'+oldRoute)return;
-  const state=this.state,clock=this.musicClock,ctx=this.levelContext;
-  this.levelContext=null;this.leave(false);
-  const next=voiceController=new VoiceRoomClient(this.id);
-  next.liveMode=mode==='karaoke';next.state=state;next.generation=state.generation;next.joined=true;
-  next.levelContext=ctx;next.musicClock=clock;next.resumeModeSession=true;
-  location.replace('#'+nextRoute);
+  // A mode is a view of the same membership, not a new room session.
+  // The server clears its queue/seat publishers; retain the listener, socket,
+  // heartbeat, generation and audio context and retire only local mode resources.
+  const template=document.createElement('template');
+  template.innerHTML=mode==='karaoke'?liveKaraokeRoomHTML(this.id):voiceRoomHTML(this.id);
+  const host=template.content.firstElementChild;
+  if(!host)throw Error('방 화면을 전환하지 못했어요. 다시 시도해주세요.');
+  const draft=this.chatEditor?.get()||'';
+  this.micDesired=false;this.micAttempt++;this.micBusy=false;
+  this.stopMicrophone();this.stopMicTest();this.micState='muted';this.warmSeat=this.generation;
+  disconnectLiveMonitor(this);liveStopAudio(this);clearInterval(this.liveTimer);
+  window.removeEventListener('pagehide',this.livePageHide);
+  this.musicAudio?.pause();this.searchAbort?.abort();this.liveSearchAbort?.abort();
+  clearTimeout(this.searchTimer);this.searchSerial=(this.searchSerial||0)+1;
+  this.liveSearchSerial=(this.liveSearchSerial||0)+1;
+  this.roomDM?.destroy();this.roomDM=null;this.closeRoomPopup();this.releaseRoomExternal();
+  this.host.replaceWith(host);this.liveMode=mode==='karaoke';
+  for(const key of ['seatHTML','listenerHTML','talkRequestKey','talkThemeKey','memberHTML','musicHTML','liveCurrentHTML','liveQueueHTML','liveLyricHTML'])this[key]=null;
+  history.replaceState(history.state,'','#'+nextRoute);
+  document.querySelector('#main').dataset.route=nextRoute;
+  this.bind(host);this.chatEditor.set(draft);
+  this.onViewport?.();
   return;
  }
  const result=productionVoicePaint.call(this);

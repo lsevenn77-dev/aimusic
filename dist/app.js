@@ -15,9 +15,11 @@ try{pendingResume=JSON.parse(sessionStorage.getItem('aifect-player-resume')||loc
 function icons(){document.querySelectorAll('[data-icon]').forEach(el=>{el.innerHTML=icon(el.dataset.icon);el.removeAttribute('data-icon');});decorateNativeAudioPlay();}
 function toast(message,kind=''){
  const el=$('#toast');if(!el)return;
+ if(el.dataset.message===message&&el.classList.contains('show'))return;
+ el.dataset.message=message;
  const tone=['success','error','info'].includes(kind)?kind:/실패|못했|없습니다|없어요|오류/.test(message)?'error':/저장했|저장됐|완료|보냈|추가했|삭제했|전송했/.test(message)?'success':'info';
  el.dataset.tone=tone;el.innerHTML='<span class="toast-symbol" aria-hidden="true">'+(tone==='success'?'✓':tone==='error'?'!':'♪')+'</span><span class="toast-copy">'+esc(message)+'</span>';
- el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),4500);
+ el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),document.querySelector('[data-voice-room]')?2400:4500);
 }
 function invalidateReads(){apiRevision++;apiReads.clear();if(typeof clearNavigationSnapshots==='function')clearNavigationSnapshots();if(typeof clearCrewNavigation==='function')clearCrewNavigation();}
 function invalidatesBrowseReads(path,method){
@@ -156,7 +158,7 @@ function prepareCompactPopup(modal,content){
  const label=content.querySelector('.popup-prompt,h2');
  modal.setAttribute('aria-label',label?.textContent?.trim()||'AIFECT');
 }
-function dialog(html){const modal=$('#dialog'),content=$('#dialog-content');if(!modal._giftSurfaceCleanup){modal.addEventListener('close',function(){if(!this.open)this.classList.remove('gift-sheet');});modal._giftSurfaceCleanup=true;}content.innerHTML=html;modal.classList.toggle('gift-sheet',!!content.querySelector('.gift-dialog,.gift-success'));if(typeof prepareCompactPopup==='function')prepareCompactPopup(modal,content);if(!modal.open){if(typeof voiceController!=='undefined'&&voiceController?.joined&&!voiceController.closed&&voiceController.host?.isConnected)voiceController.adoptRoomPopup(modal);else modal.showModal();}decorateNativeAudioPlay();}
+function dialog(html){const modal=$('#dialog'),content=$('#dialog-content');if(!modal._giftSurfaceCleanup){modal.addEventListener('close',function(){if(!this.open)this.classList.remove('gift-sheet');});modal._giftSurfaceCleanup=true;}content.innerHTML=html;modal.classList.toggle('gift-sheet',!!content.querySelector('.gift-dialog,.gift-success'));if(typeof prepareCompactPopup==='function')prepareCompactPopup(modal,content);if(typeof prepareShopPopup==='function')prepareShopPopup(modal,content);if(!modal.open){if(typeof voiceController!=='undefined'&&voiceController?.joined&&!voiceController.closed&&voiceController.host?.isConnected)voiceController.adoptRoomPopup(modal);else modal.showModal();}decorateNativeAudioPlay();}
 // Match content padding to the actual player height, including wrapped controls and safe areas.
 if(typeof ResizeObserver==='function')new ResizeObserver(entries=>{const h=entries[0].target.getBoundingClientRect().height;if(h)document.body.style.setProperty('--player-height',Math.ceil(h)+'px');}).observe($('.player'));
 function setPlayerVisible(visible){$('.player').hidden=!visible;document.body.classList.toggle('has-player',visible);}
