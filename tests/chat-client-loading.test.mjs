@@ -5,7 +5,7 @@ import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 
 function fixture(api){
- const inputEvents={},input={value:'',style:{},disabled:false,addEventListener(name,fn){inputEvents[name]=fn;},removeEventListener(){}},button={disabled:false},earlier={hidden:true,disabled:false};
+ const inputEvents={},input={tagName:'TEXTAREA',value:'',style:{},disabled:false,addEventListener(name,fn){inputEvents[name]=fn;},removeEventListener(){}},button={disabled:false},earlier={hidden:true,disabled:false};
  const panel={style:{},getBoundingClientRect:()=>({top:100})},events={},observers=[];
  const log={innerHTML:'',scrollTop:0,scrollHeight:100,clientHeight:100,closest:()=>panel,addEventListener:(name,fn)=>events[name]=fn,removeEventListener(){}};
  const form={dataset:{},querySelector:selector=>selector==='textarea'?input:button};
@@ -44,11 +44,11 @@ test('incoming history preserves a user scroll even while the composer retains f
  await new Promise(resolve=>setImmediate(resolve));
  assert.equal(f.log.scrollTop,200);assert.match(f.log.innerHTML,/History/);
 });
-test('desktop chat keeps its existing focus-follow behavior',()=>{
+test('desktop focus also preserves history browsing',()=>{
  const f=fixture(()=>new Promise(()=>{}));f.context.innerWidth=1440;
  f.context.bindSocialChat({chat:{path:'/api/crews/crew/messages',crew:{id:'crew'}}});
  f.log.scrollHeight=1000;f.log.clientHeight=300;f.log.scrollTop=200;f.events.scroll();
- f.context.document.activeElement=f.input;f.resize();assert.equal(f.log.scrollTop,1000);
+ f.context.document.activeElement=f.input;f.resize();assert.equal(f.log.scrollTop,200);
 });
 
 test('a revoked initial crew read disables the composer without retaining chat content',async()=>{
@@ -75,19 +75,21 @@ test('a hidden router mount is measured again after it becomes visible',()=>{
  f.panel.getClientRects=()=>visible?[{}]:[];
  f.context.bindSocialChat({chat:{path:'/api/crews/crew/messages',crew:{id:'crew'}}});
  assert.equal(f.panel.style.height,undefined);
- visible=true;f.input.scrollHeight=75;f.resize();assert.equal(f.panel.style.height,'688px');assert.equal(f.input.style.height,'77px');
+ visible=true;f.input.scrollHeight=75;f.resize();assert.equal(f.panel.style.height,'688px');assert.equal(f.input.style.height,'75px');
 });
 
-test('a mobile workspace uses the removed navigation space and clears a visible player',()=>{
- const f=fixture(()=>new Promise(()=>{})),attrs=new Map(),workspace={style:{setProperty(){}},getClientRects:()=>[{}],toggleAttribute:(key,on)=>attrs.set(key,on)};
- f.panel.closest=()=>workspace;f.context.innerHeight=420;
- f.nodes['.topbar']={getBoundingClientRect:()=>({bottom:78})};
- f.context.bindSocialChat({chat:{path:'/crew',crew:{id:'crew'}}});
- assert.equal(workspace.style.height,'342px');assert.equal(attrs.get('data-chat-compact'),false);
- f.nodes['.player:not([hidden])']={getBoundingClientRect:()=>({height:58,top:f.context.innerHeight-58})};
- f.resize();assert.equal(workspace.style.height,'284px');assert.equal(attrs.get('data-chat-compact'),true);
- f.context.innerHeight=844;f.resize();assert.equal(workspace.style.height,'708px');assert.equal(attrs.get('data-chat-compact'),false);
- delete f.nodes['.player:not([hidden])'];f.resize();assert.equal(workspace.style.height,'766px');
+test('consecutive senders share a profile until a time gap, day boundary or system event',()=>{
+ const c=fixture(()=>new Promise(()=>{})).context;
+ const make=(id,created,extra={})=>({id,user_id:'other',profile_id:'friend',name:'Friend',body:'hello',created,...extra});
+ const html=c.chatHTML([make('a',100),make('b',110),make('c',500),make('s',501,{kind:'system'}),make('d',502),make('e',90000)],null,{id:'crew'});
+ assert.equal((html.match(/is-grouped/g)||[]).length,1);assert.equal((html.match(/class="dm-profile-link"/g)||[]).length,4);
+});
+
+test('the shared geometry uses the complete mobile visual viewport and reserves a desktop player',()=>{
+ const c=fixture(()=>new Promise(()=>{})).context;
+ assert.equal(c.messageWorkspaceGeometry({mobile:true,height:844,top:78,playerTop:786}).height,844);
+ const keyboard=c.messageWorkspaceGeometry({mobile:true,height:320,offset:12,top:78,playerTop:262});assert.equal(keyboard.top,12);assert.equal(keyboard.height,320);
+ assert.equal(c.messageWorkspaceGeometry({mobile:false,height:900,top:112,playerTop:820}).height,692);
 });
 
 test('room drafts survive navigation and remain isolated by account and room',()=>{

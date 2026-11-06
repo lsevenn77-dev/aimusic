@@ -42,13 +42,13 @@ test('the row separates conversation settings, unread presentation and current s
  const c=client(), peer={id:'peer',name:'대화 상대',last_message:'실제 미리보기',updated:1793451900,unread:104,muted:1};
  let html=c.conversationListHTML([peer],null,'peer');
  assert.match(html,/conversation-row is-selected is-unread/);
- assert.match(html,/dm-name-line[^]*?<\/strong>[^]*?bellOff[^]*?dm-unread-dot[^]*?<\/div><p>실제 미리보기<\/p>/);
+ assert.match(html,/dm-name-line[^]*?<\/strong>[^]*?bellOff[^]*?<\/div><p>실제 미리보기<\/p>/);
  assert.match(html,/<time>\d{2}:\d{2}<\/time><span class="unread-badge"[^>]*>104<\/span>/);
  assert.doesNotMatch(html,/dmPin|data-dm-mute/);
  html=c.conversationListHTML([{...peer,muted:0,unread:0}],null,'peer');
  assert.match(html,/is-selected/);assert.doesNotMatch(html,/is-unread|dm-unread-dot|unread-badge|bellOff|dmPin/);
  html=c.conversationListHTML([],{...peer,id:'crew'});
- assert.match(html,/dmPin[^]*?bellOff[^]*?dm-unread-dot/);
+ assert.match(html,/bellOff/);assert.doesNotMatch(html,/dmPin|dm-unread-dot/);
  assert.doesNotMatch(html,/내 크루/);
 });
 test('notifications show Seoul time beside the type and an unread dot beside the avatar',()=>{

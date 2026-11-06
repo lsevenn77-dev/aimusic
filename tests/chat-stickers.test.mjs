@@ -7,6 +7,24 @@ import {fixture} from './fixture.mjs';
 
 const escapeText = text => text.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
 
+test('all 65 stickers survive DM and crew storage and replay for both participants', async t => {
+  const f = await fixture(t);
+  f.sql.exec("INSERT INTO producers(id,user_id,name,created) VALUES('friend','other','Friend',0); INSERT INTO crews(id,owner_id,name,created) VALUES('crew','owner','QA',0); INSERT INTO crew_members(crew_id,user_id,role,joined) VALUES('crew','owner','owner',0),('crew','other','member',0)");
+  const bodies = [];
+  for(let i=0;i<catalog.length;i+=20)bodies.push(message('한글 🎵\n',catalog.slice(i,i+20).map(s=>s.key))+' 끝');
+  for(const body of bodies)for(const path of ['/api/dm/friend','/api/crews/crew/messages']){
+    const sent=await f.call(path,'POST',{body,request_id:crypto.randomUUID()});
+    assert.ok([200,201].includes(sent.status),JSON.stringify(sent.body));
+  }
+  for(const [user,peer] of [['owner','friend'],['other','producer']])for(const path of ['/api/dm/'+peer,'/api/crews/crew/messages']){
+    const history=await f.call(path,'GET',undefined,user);
+    assert.deepEqual(new Set(history.body.messages.map(m=>m.body)),new Set(bodies));
+    const html=history.body.messages.map(m=>render(m.body,escapeText)).join('');
+    assert.equal((html.match(/<img /g)||[]).length,65);
+    for(const {key} of catalog)assert.ok(html.includes(key+'.webp'),key);
+  }
+});
+
 test('every stable mini-sticker key resolves to its separate WebP', () => {
   assert.equal(new Set(catalog.map(item => item.key)).size, 65);
   for (const [group, count] of Object.entries({basic:33,hand:9,text:8,prop:15})) {

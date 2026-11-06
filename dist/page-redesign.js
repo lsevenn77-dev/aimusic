@@ -9,7 +9,7 @@ function libraryOverviewHTML(){
 }
 function dmInboxHTML(d,thread='',selected=''){
  rememberDmInbox(d);
- return '<section class="message-workspace'+(thread?' has-thread':'')+'"><aside class="message-list-pane" aria-label="대화 상대 목록"><div class="dm-section-heading"><h2>메시지</h2>'+inboxControlsHTML()+'</div>'+dmInboxTabsHTML()+'<div id="dm-conversations">'+conversationListHTML(d.conversations,d.crew,selected)+'</div><p id="dm-list-error" role="status">'+esc(d.error||'')+'</p></aside>'+(thread?'<div class="message-thread-pane" aria-label="선택한 대화">'+thread+'</div>':'<div class="message-welcome"><div class="dm-welcome-copy"><span class="message-welcome-icon">'+icon('message')+'</span><h2>누구와 이야기할까요?</h2><p>왼쪽에서 대화상대를 선택하면<br>이곳에서 바로 대화할 수 있어요.</p></div><div class="dm-compose-preview" aria-hidden="true" inert><span class="dm-emoji-toggle">'+voiceGlyph('smile')+'</span><span>메시지를 입력하세요…</span><span class="dm-send">'+voiceGlyph('send')+'</span></div></div>')+'</section>';
+ return '<section class="message-workspace'+(thread?' has-thread':'')+'"><aside class="message-list-pane" aria-label="대화 상대 목록"><div class="dm-section-heading"><a class="chat-ui-icon dm-mobile-exit" href="#home" aria-label="메시지 나가기">'+icon('back')+'</a><h2>메시지</h2>'+inboxControlsHTML()+'</div>'+'<label class="dm-search brand-search">'+icon('search')+'<input id="dm-inbox-search" type="search" aria-label="대화 검색" placeholder="이름 또는 최근 메시지 검색" value="'+esc(dmInboxQuery)+'"></label>'+'<div id="dm-conversations">'+conversationListHTML(d.conversations,d.crew,selected)+'</div><p id="dm-list-error" role="status">'+esc(d.error||'')+'</p></aside>'+(thread?'<div class="message-thread-pane" aria-label="선택한 대화">'+thread+'</div>':'<div class="message-welcome"><div class="dm-welcome-copy"><span class="message-welcome-icon">'+icon('message')+'</span><h2>누구와 이야기할까요?</h2><p>왼쪽에서 대화상대를 선택하면<br>이곳에서 바로 대화할 수 있어요.</p></div><div class="dm-compose-preview" aria-hidden="true" inert><span class="dm-emoji-toggle">'+voiceGlyph('smile')+'</span><span>메시지를 입력하세요…</span><span class="dm-send">'+voiceGlyph('send')+'</span></div></div>')+'</section>';
 }
 async function dmWorkspaceView(view){
  // The thread must not wait for a second inbox request. Refresh the sidebar after paint.
@@ -66,28 +66,25 @@ document.addEventListener('click',async e=>{
 });
 
 
-// Size both inbox and thread to the same available viewport. Observe only the
-// route outlet so message stream updates do not repeatedly rebind geometry.
+// One owner for both inbox and thread viewport geometry, including pending routes.
 (() => {
  const main=document.querySelector?.('#main');if(!main||typeof ResizeObserver==='undefined')return;
- let workspace=null,frame=0;
- const fit=()=>{frame=0;if(!workspace?.isConnected||!workspace.getClientRects().length||document.body.classList.contains('chat-keyboard'))return;
+ let frame=0;
+ const fit=()=>{
+  frame=0;const workspace=main.querySelector(':scope > .message-workspace');if(!workspace?.getClientRects().length)return;
   const mobile=window.AifectMobileInput?.isMobile()??innerWidth<=800;
-  const header=document.querySelector('.topbar')?.getBoundingClientRect();
-  const top=mobile?(header?.bottom||0):workspace.getBoundingClientRect().top;
-  if(mobile)workspace.style.setProperty('--chat-workspace-top',top+'px');
-  const vv=window.visualViewport;
-  let bottom=(vv?.height||innerHeight)+(vv?.offsetTop||0);
-  for(const selector of ['.player:not([hidden])','.mobile-navigation']){
-   const rect=document.querySelector(selector)?.getBoundingClientRect();
-   if(rect?.height&&rect.top>top)bottom=Math.min(bottom,rect.top);
-  }
-  workspace.style.height=(Math.max(0,bottom-top-(mobile?0:16))*(mobile?1:0.9))+'px';
+  const vv=window.visualViewport;if(Math.abs((vv?.scale||1)-1)>.05)return;
+  const player=document.querySelector('.player:not([hidden])')?.getBoundingClientRect();
+  const geometry=messageWorkspaceGeometry({mobile,height:vv?.height||innerHeight,offset:vv?.offsetTop||0,top:workspace.getBoundingClientRect().top,playerTop:player?.height?player.top:Infinity});
+  workspace.style.setProperty('--chat-workspace-top',geometry.top+'px');
+  workspace.style.height=geometry.height+'px';
+  workspace.toggleAttribute('data-chat-compact',geometry.height<400);
  };
  const schedule=()=>{if(!frame)frame=requestAnimationFrame(fit);};
- const resize=new ResizeObserver(schedule);
- for(const el of document.querySelectorAll('.topbar,.player,.mobile-navigation'))resize.observe(el);
- new MutationObserver(()=>{workspace=main.querySelector(':scope > .message-workspace');schedule();}).observe(main,{childList:true,attributes:true,attributeFilter:['style','class']});
- window.addEventListener('resize',schedule);window.visualViewport?.addEventListener('resize',schedule);
- window.addEventListener('aifect:input-viewport',schedule);
+ const resize=new ResizeObserver(schedule);resize.observe(main);
+ for(const el of document.querySelectorAll('.topbar,.player'))resize.observe(el);
+ new MutationObserver(schedule).observe(main,{childList:true,attributes:true,attributeFilter:['style','class']});
+ window.addEventListener('resize',schedule);window.visualViewport?.addEventListener('resize',schedule);window.visualViewport?.addEventListener('scroll',schedule);
+ window.addEventListener('aifect:input-viewport',schedule);window.addEventListener('aifect:topbar-layout',schedule);
+ window.AifectMessageLayout={fit:schedule};
 })();

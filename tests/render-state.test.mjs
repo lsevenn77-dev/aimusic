@@ -5,7 +5,7 @@ import {readFileSync} from 'node:fs';
 const source=readFileSync('dist/render-state.js','utf8');
 function boot({marker=null,hash='#home',route='home'}={}){
  const handlers=new Map(),timers=new Map(),nodes=new Map();let sequence=0,reloads=0,replacements=0;
- const root={dataset:{}},main={dataset:{route},inert:false,setAttribute(){},removeAttribute(){}};
+ const root={dataset:{},toggleAttribute(name,on){this[name]=on;}},main={dataset:{route},inert:false,setAttribute(){},removeAttribute(){}};
  for(const id of ['route-pending-message','route-pending-actions','route-retry'])nodes.set(id,{});nodes.set('main',main);
  const location={hash,pathname:'/',search:'',href:'https://aifect.test/'+hash,reload(){reloads++;},replace(){replacements++;if(marker)marker.targeted=true;}};
  const history={state:{retained:true},replaceState(state,title,url){this.state=state;location.href='https://aifect.test'+url;location.hash=url.slice(url.indexOf('#'));}};

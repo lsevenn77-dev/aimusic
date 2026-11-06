@@ -4,6 +4,7 @@ Object.assign(VoiceRoomClient.prototype,{
   this.controlEvents?.abort();this.controlEvents=new AbortController();const options={signal:this.controlEvents.signal};
   const form=$('#voice-chat-form'),input=$('#voice-message');
   const picker=$('#voice-emoji-picker');
+  input.addEventListener('input',()=>resizeChatInput(input),options);form.addEventListener('reset',()=>queueMicrotask(()=>resizeChatInput(input)),options);resizeChatInput(input);
   this.stickers?.destroy();
   if(picker?.classList?.contains('cat-picker'))this.stickers=AifectStickers.bind({
    picker,form,input,toggle:this.host.querySelector('[data-voice="emoji"]'),glyph:voiceGlyph,
