@@ -26,8 +26,7 @@ async function setup(t){
   (await f.call('/api/tracks/one/covers')).body.covers[0],
   (await f.call('/api/community?kind=cover')).body.tracks[0],
   (await f.call('/api/studio','GET',null,'other')).body.tracks[0],
-  (await f.call('/api/studio/tracks/work','GET',null,'other')).body.profile,
-  (await f.call('/api/playlists?sort=popular')).body.playlists[0].covers[0]
+  (await f.call('/api/studio/tracks/work','GET',null,'other')).body.profile
  ];
  return {...f,files,BUCKET,request,representations};
 }

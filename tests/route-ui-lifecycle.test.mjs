@@ -18,7 +18,7 @@ test('all direct fragments hide public HTML until the current app render is read
 
 test('a pending playlist dialog cannot reopen over a different route',async()=>{
  const read=deferred();let opened=0;
- const c=nicknameContext({renderId:1,me:{id:'owner'},library:{playlists:[]},refreshLibrary:()=>read.promise,dialog:()=>opened++,$:()=>({}),esc:String});
+ const c=nicknameContext({renderId:1,me:{id:'owner'},trackMap:new Map([['song',{id:'song',kind:'original'}]]),library:{playlists:[]},refreshLibrary:()=>read.promise,dialog:()=>opened++,$:()=>({}),esc:String});
  const action=source('actions.js').match(/async function addToPlaylist[^\r\n]*/)[0];vm.runInContext(action,c);
  const opening=c.addToPlaylist('song');c.renderId++;read.resolve();await opening;
  assert.equal(opened,0);

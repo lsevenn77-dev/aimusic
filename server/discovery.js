@@ -1,3 +1,4 @@
+import {playlistEligibleSQL} from '../shared/playlist-policy.js';
 import {followCounts} from './follow-management.js';
 import {unifiedSearch} from './search.js';
 import {assertUnblocked} from './account-safety.js';
@@ -15,7 +16,7 @@ export {MOODS};
 function moodFilter(mood){return {sql:'EXISTS(SELECT 1 FROM json_each(t.moods_json) jm WHERE jm.value=?)',args:[mood.id]};}
 
 export async function playlistSummaries(env,userId='',where='p.is_public=1',args=[],sort='p.created DESC,p.id',limit=100,sortArgs=[],scope={}){
- const visible=scope.visible||VISIBLE();
+ const visible="("+ (scope.visible||VISIBLE()) +") AND "+playlistEligibleSQL();
  const data=await rows(env,(scope.cte||'')+`SELECT p.id,p.user_id,p.name,p.description,p.is_public,p.created,p.image_version,${publicNameSQL()} owner_name,${activePlaylistSQL()} active,
  (SELECT count(*) FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id WHERE pt.playlist_id=p.id AND ${visible}) tracks,
  (SELECT COALESCE(sum(t.duration),0) FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id WHERE pt.playlist_id=p.id AND ${visible}) duration,
@@ -62,7 +63,7 @@ export async function discoveryRoute(req,env,path,user){
  if(path==='/api/search'&&method==='GET')return unifiedSearch(env,user,url.searchParams);
  if(path==='/api/playlists'&&method==='GET'){
   const q=(url.searchParams.get('q')||'').slice(0,100),sort='p.created DESC,p.id';
-  return json({playlists:await playlistSummaries(env,user?.id||'',`p.is_public=1 AND ${activePlaylistSQL()} AND EXISTS(SELECT 1 FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id WHERE pt.playlist_id=p.id AND ${VISIBLE()}) AND (p.name LIKE ? OR p.description LIKE ? OR ${publicNameSQL()} LIKE ?)`,Array(3).fill('%'+q+'%'),sort)});
+  return json({playlists:await playlistSummaries(env,user?.id||'',`p.is_public=1 AND ${activePlaylistSQL()} AND EXISTS(SELECT 1 FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id WHERE pt.playlist_id=p.id AND ${VISIBLE()} AND ${playlistEligibleSQL()}) AND (p.name LIKE ? OR p.description LIKE ? OR ${publicNameSQL()} LIKE ?)`,Array(3).fill('%'+q+'%'),sort)});
  }
  if(path==='/api/follows'&&method==='GET'){
   requireUser(user);

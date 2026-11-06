@@ -32,7 +32,8 @@ test('crew discovery uses real rows, functioning filters and independently ranke
 });
 test('community concept preserves real post actions and escapes supplied strings; slogan removed',()=>{
  const c=ui(),card=c.communityConceptCard({id:'song',producer_id:'p',producer:'Singer',title:'<img>',description:'<script>',kind:'cover',likes:7,comments:2,plays:11});
- for(const re of [/community-post-description/,/community-song-panel/,/data-add="song"/,/data-play="song"/,/data-like="song"/,/#song\/song\?comments=1/])assert.match(card,re);
+ for(const re of [/community-post-description/,/community-song-panel/,/data-play="song"/,/data-like="song"/,/#song\/song\?comments=1/])assert.match(card,re);
+ assert.doesNotMatch(card,/data-add=/);
  assert.doesNotMatch(card,/<script>|<img>/);assert.doesNotMatch(c.communityLandingHTML([],{}),/더 가까워지는 우리/);
 });
 test('Enter sends consonants once across both Korean IME orderings; Shift+Enter and repeats do not submit',async()=>{

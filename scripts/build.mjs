@@ -84,6 +84,7 @@ for(const name of await readdir('dist/client')){
  await writeFile(file,regionTokenCSS(await readFile(file,'utf8')));
 }
 if(!indexHTML.includes('<!--BUSINESS_FOOTER-->'))throw new Error('Business footer placeholder is missing');
+await build({entryPoints:['shared/playlist-policy.js'],outfile:'dist/client/playlist-policy.js',bundle:true,format:'iife',globalName:'AifectPlaylist',target:'es2022',minify:true});
 await build({entryPoints:['shared/player.js'],outfile:'dist/client/player-core.js',bundle:true,format:'iife',globalName:'AifectPlayer',target:'es2022',minify:true});
 await build({entryPoints:['shared/dubbing.js'],outfile:'dist/client/dubbing-core.js',bundle:true,format:'iife',globalName:'AifectDubbing',target:'es2022',minify:true});
 await build({entryPoints:['shared/dubbing-reward-player.js'],outfile:'dist/client/dubbing-reward-core.js',bundle:true,format:'iife',globalName:'AifectDubbingRewards',target:'es2022',minify:true});

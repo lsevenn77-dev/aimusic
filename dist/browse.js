@@ -60,17 +60,17 @@ function chartDate(date,short=false){
 function chartDefaultName(view){return `${chartKindLabels[view.chartKind||'']}차트 · ${chartPeriodLabels[view.chartPeriod]} · ${chartDate(new Date(),true)}`;}
 function chartPlaybackActions(tracks,kind='',period='week'){
  const playable=tracks.filter(t=>t.playable!==false&&Number(t.duration)>0);
- return `${chartTabs(kind,period)}<div class="chart-toolbar"><button class="chart-action chart-listen" data-play-all ${playable.length?'':'disabled'}>${icon('ui-plays')}<span>전체 듣기</span></button><button class="chart-action chart-shuffle" data-browse-shuffle ${playable.length?'':'disabled'}>${icon('shuffle')}<span>섞어 듣기</span></button><button class="chart-action chart-create" data-chart-playlist ${tracks.length?'':'disabled'}>${icon('list-plus')}<span>플리 만들기</span></button><details class="chart-period"><summary class="chart-action" aria-label="차트 기간: ${chartPeriodLabels[period]}"><span>${chartPeriodLabels[period]}</span>${icon('ui-chevron')}</summary><nav class="chart-period-menu" aria-label="차트 기간 선택">${Object.entries(chartPeriodLabels).map(([key,label])=>`<a href="#charts${kind?'/'+kind:''}?period=${key}" ${key===period?'aria-current="true"':''}>${label}</a>`).join('')}</nav></details></div>`;
+ return `${chartTabs(kind,period)}<div class="chart-toolbar"><button class="chart-action chart-listen" data-play-all ${playable.length?'':'disabled'}>${icon('ui-plays')}<span>전체 듣기</span></button><button class="chart-action chart-shuffle" data-browse-shuffle ${playable.length?'':'disabled'}>${icon('shuffle')}<span>섞어 듣기</span></button>${tracks.some(t=>AifectPlaylist.isPlaylistEligibleTrack(t))?`<button class="chart-action chart-create" data-chart-playlist ${tracks.length?'':'disabled'}>${icon('list-plus')}<span>플리 만들기</span></button>`:''}<details class="chart-period"><summary class="chart-action" aria-label="차트 기간: ${chartPeriodLabels[period]}"><span>${chartPeriodLabels[period]}</span>${icon('ui-chevron')}</summary><nav class="chart-period-menu" aria-label="차트 기간 선택">${Object.entries(chartPeriodLabels).map(([key,label])=>`<a href="#charts${kind?'/'+kind:''}?period=${key}" ${key===period?'aria-current="true"':''}>${label}</a>`).join('')}</nav></details></div>`;
 }
 let chartPlaylistOpening=false,chartPlaylistSaving=false;
-function chartPlaylistIds(tracks,range,selected=[]){const picked=new Set(selected);return [...new Set(tracks.filter(t=>range==='all'||picked.has(t.id)).map(t=>t.id))];}
+function chartPlaylistIds(tracks,range,selected=[]){const picked=new Set(selected);return [...new Set(tracks.filter(t=>AifectPlaylist.isPlaylistEligibleTrack(t)&&(range==='all'||picked.has(t.id))).map(t=>t.id))];}
 async function chartPlaylistDialog(view){const ticket=renderId;
  if(chartPlaylistOpening||chartPlaylistSaving||($('#dialog')?.open&&$('#chart-playlist-form')))return;
  if(!me){returnRoute=location.hash;return askLogin();}
  chartPlaylistOpening=true;
  // Use the full ranked API result held by the view, never DOM rows. Keep the
  // first occurrence so the picker, displayed total and saved count agree.
- const seen=new Set(),uid=me.id,tracks=view.tracks.filter(t=>t.id&&!seen.has(t.id)&&seen.add(t.id)).map(t=>({...t})),name=chartDefaultName(view);
+ const seen=new Set(),uid=me.id,tracks=view.tracks.filter(t=>AifectPlaylist.isPlaylistEligibleTrack(t)&&t.id&&!seen.has(t.id)&&seen.add(t.id)).map(t=>({...t})),name=chartDefaultName(view);
  try{
   await refreshLibrary(true);if(me?.id!==uid)return;
   if(!canCreatePlaylist())return;
@@ -123,7 +123,7 @@ async function browseView(base,param,raw,embedded=false,readApi=api){
  if(base==='charts'&&param==='karaoke'||base==='karaoke'&&param==='chart'){
   const requested=new URLSearchParams(raw.includes('?')?raw.split('?')[1]:'').get('period'),period=['week','month','all'].includes(requested)?requested:'week';
   const d=await readApi('/api/cover-rankings?kind=tracks&period='+period+'&include_unranked=1&full=1'),tracks=d.tracks.filter(t=>t.kind==='cover');
-  return {html:heading('노래방 차트','공개된 커버곡만 모았어요. 선택한 기간에 받은 좋아요 순으로 만나요.')+chartTabs('karaoke',period)+chartLayoutHTML(`<div class="chart-toolbar"><details class="chart-period"><summary class="chart-action">${chartPeriodLabels[period]}</summary><nav class="chart-period-menu">${Object.entries(chartPeriodLabels).map(([key,label])=>`<a href="#charts/karaoke?period=${key}">${label}</a>`).join('')}</nav></details><button class="chart-action chart-create" data-chart-playlist ${tracks.length?'':'disabled'}>${icon('list-plus')}<span>플리 만들기</span></button></div>`+browsePlaybackActions(tracks)+(tracks.length?coverRankTracksHTML(tracks):empty('아직 등록된 커버곡이 없어요','첫 커버곡이 공개되면 이곳에서 만날 수 있어요.','#karaoke','플레이')),tracks,'karaoke'),tracks,chartPage:true,chartKind:'karaoke',chartPeriod:period};
+  return {html:heading('노래방 차트','공개된 커버곡만 모았어요. 선택한 기간에 받은 좋아요 순으로 만나요.')+chartTabs('karaoke',period)+chartLayoutHTML(`<div class="chart-toolbar"><details class="chart-period"><summary class="chart-action">${chartPeriodLabels[period]}</summary><nav class="chart-period-menu">${Object.entries(chartPeriodLabels).map(([key,label])=>`<a href="#charts/karaoke?period=${key}">${label}</a>`).join('')}</nav></details></div>`+browsePlaybackActions(tracks)+(tracks.length?coverRankTracksHTML(tracks):empty('아직 등록된 커버곡이 없어요','첫 커버곡이 공개되면 이곳에서 만날 수 있어요.','#karaoke','플레이')),tracks,'karaoke'),tracks,chartPage:true,chartKind:'karaoke',chartPeriod:period};
  }
  if(base==='karaoke'&&param==='drafts'){if(!me){returnRoute=location.hash;return {html:gate()};}return {html:karaokeDraftsHTML(await listSingDrafts())};}
  if(base==='karaoke'&&['songs','duets'].includes(param)){

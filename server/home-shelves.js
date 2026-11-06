@@ -1,5 +1,6 @@
 // Home-only candidate reads. Cold selection sorts narrow public IDs once; no
 // chart recalculation, mood histogram, per-card SQL or object-storage probes.
+import {playlistEligibleSQL} from '../shared/playlist-policy.js';
 import {query,rows} from './db.js';
 import {CHART_ORIGINAL,chartPublication} from './popular-chart.js';
 import {VISIBLE,trackList} from './catalog.js';
@@ -72,7 +73,7 @@ export async function homeTracks(env,requested,at=Math.floor(Date.now()/1000)){
 }
 
 export async function homePlaylists(env,uid){
- const {cte,args}=blockContext(env),visible=playable(env),size=48;
+ const {cte,args}=blockContext(env),visible=playable(env)+' AND '+playlistEligibleSQL(),size=48;
  // Sort only a capped window of IDs once. Run lock, member and artwork checks
  // on bounded pages, and fetch full summaries only for the final six.
  const index=await seeds('playlists',()=>rows(env,`SELECT p.id FROM playlists p WHERE p.is_public=1

@@ -55,7 +55,10 @@ test('deleting a song retains other users participation, social references and a
  f.sql.exec("UPDATE tracks SET karaoke_at=1 WHERE id='one'; UPDATE tracks SET kind='cover',original_id='one',user_id='other',cover_mode='duet' WHERE id='two'");
  await f.call('/api/tracks/one/like','PUT',undefined,'other');
  await f.call('/api/tracks/one/comments','POST',{body:'Keep this history'},'other');
- const playlist=await f.call('/api/playlists','POST',{name:'Keep playlist',track_ids:['one','two']},'other');assert.equal(playlist.status,201);
+ const playlist=await f.call('/api/playlists','POST',{name:'Keep playlist',track_ids:['one']},'other');assert.equal(playlist.status,201);
+ // A legacy cover membership is retained by song deletion until the explicitly
+ // authorized playlist cleanup runs; the current add API rejects it.
+ f.sql.prepare('INSERT INTO playlist_tracks VALUES(?,?,0,1)').run(playlist.body.id,'two');
  f.sql.exec("INSERT INTO gifts(id,sender_id,track_id,gold,net_mw,creator_profile_id,creator_mw,platform_mw,month,created) VALUES('retained','other','one',10,100000,'producer',80000,20000,'2026-09',0)");
  const tables=['tracks','comments','likes','playlist_tracks','gifts','dubbing_projects','dubbing_recordings'];
  const counts=()=>tables.map(name=>f.sql.prepare('SELECT count(*) n FROM '+name).get().n),before=counts();

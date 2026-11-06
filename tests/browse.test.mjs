@@ -26,10 +26,10 @@ function viewContext(responses={},user=null){
  vm.runInContext(readFileSync(new URL('../dist/release-refinements.js',import.meta.url),'utf8'),context);
  return {context,calls,view:(base,param,raw='')=>context.browseView(base,param,raw)};
 }
-test('cover chart uses its full results and retains playlist and period controls',async()=>{
+test('cover chart retains playback and period controls without playlist creation',async()=>{
  const path='/api/cover-rankings?kind=tracks&period=week&include_unranked=1&full=1';
  const {view,calls}=viewContext({[path]:{tracks:[]}});
- const d=await view('charts','karaoke');assert.deepEqual(calls,[path]);assert.match(d.html,/노래방 차트/);assert.equal(d.chartKind,'karaoke');assert.match(d.html,/data-chart-playlist/);assert.match(d.html,/period=month/);assert.match(d.html,/disabled/);
+ const d=await view('charts','karaoke');assert.deepEqual(calls,[path]);assert.match(d.html,/노래방 차트/);assert.equal(d.chartKind,'karaoke');assert.doesNotMatch(d.html,/data-chart-playlist/);assert.match(d.html,/period=month/);assert.match(d.html,/disabled/);
  const sing=await viewContext({'/api/karaoke':{tracks:[{id:'ready',title:'Ready',created:0}]},'/api/duets':{tracks:[]}}).view('karaoke');assert.match(sing.html,/#sing\/ready/);assert.match(sing.html,/바로 부르기/);assert.match(sing.html,/참여 대기 듀엣/);
 });
 test('community filters covers and originals through the public API',async()=>{

@@ -16,7 +16,7 @@ function client({user={id:'owner'},range='all',post,quota=true}={}){
  });
  const b=source('browse.js');vm.runInContext(b.slice(b.indexOf('const chartPeriodLabels='),b.indexOf('async function popularChartView(')),c);
  const a=source('actions.js');vm.runInContext(a.slice(a.indexOf('function busyForm('),a.indexOf('function bindUploadForm(')),c);
- return {c,calls,messages,form,modal,button,picker,counter,event:()=>({preventDefault(){},submitter:button}),tracks:Array.from({length:113},(_,i)=>({id:'track-'+i})),values};
+ return {c,calls,messages,form,modal,button,picker,counter,event:()=>({preventDefault(){},submitter:button}),tracks:Array.from({length:113},(_,i)=>({id:'track-'+i,kind:'original'})),values};
 }
 test('an old chart dialog is discarded when its library read finishes after navigation',async()=>{
  const h=client();let finish;h.c.refreshLibrary=()=>new Promise(resolve=>finish=resolve);
@@ -40,7 +40,7 @@ test('all selected chart songs keep order; cancellation and unauthenticated acce
 });
 test('quota, empty charts and existing 500-song limit fail without creating or silently truncating',async()=>{
  const limited=client({quota:false});await limited.c.chartPlaylistDialog({tracks:limited.tracks,chartPeriod:'week'});assert.equal(limited.calls.length,0);
- for(const count of [0,501]){const h=client({range:'all'});await h.c.chartPlaylistDialog({tracks:Array.from({length:count},(_,i)=>({id:String(i)})),chartPeriod:'week'});await h.form.onsubmit(h.event());assert.equal(h.calls.length,0);assert.ok(h.messages.length||h.form.querySelector('.form-error').textContent);}
+ for(const count of [0,501]){const h=client({range:'all'});await h.c.chartPlaylistDialog({tracks:Array.from({length:count},(_,i)=>({id:String(i),kind:'original'})),chartPeriod:'week'});await h.form.onsubmit(h.event());assert.equal(h.calls.length,0);assert.ok(h.messages.length||h.form.querySelector('.form-error').textContent);}
 });
 
 test('selection count, zero-song disabling, rank order and reopening reset',async()=>{
@@ -65,7 +65,7 @@ test('changing chart or period cannot submit the previous dialog snapshot',async
  assert.match(h.form.querySelector('.form-error').textContent,/차트가 변경/);
 });
 
-for(const kind of ['listens','covers','new','top','rising','releases','karaoke'])for(const period of ['week','month','all'])test(`${kind}/${period}: full results and selected songs persist in rank order`,async t=>{
+for(const kind of ['listens','covers','new','top','rising','releases'])for(const period of ['week','month','all'])test(`${kind}/${period}: full results and selected songs persist in rank order`,async t=>{
  const f=await fixture(t),at=Math.floor(Date.now()/1000);
  for(let i=0;i<115;i++)f.sql.prepare("INSERT INTO tracks(id,user_id,artist_id,producer_id,title,genre,ai_tool,rights_accepted,original_ext,original_bytes,created,first_published_at,status,kind) VALUES(?,'owner','artist','producer',?,'Rock','QA',1,'wav',128,?,?,'published',?)").run('rank-'+i,'rank-'+i,at-i,at-i,kind==='karaoke'?'cover':'original');
  if(kind==='rising')for(let i=0;i<115;i++)f.sql.prepare("INSERT INTO listens(id,track_id,listener,user_id,started,day,qualified) VALUES(?,?,'other','other',?,?,1)").run('listen-'+i,'rank-'+i,at-5,new Date(at*1000).toISOString().slice(0,10));
