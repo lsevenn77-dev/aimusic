@@ -51,6 +51,13 @@ function bindTalkingDirectory(root){
  let items=new Map(saved?.items),cursor=saved?.cursor||null,done=saved?.done||false;
  let controller=null,debounce,expiry,disposed=false;
  let mode=saved?.mode||'all',refreshController,composing=false;
+ const layoutEvents=new AbortController();let layoutFrame=0;
+ const measure=()=>{layoutFrame=0;if(disposed||!root.isConnected)return;const main=root.closest('#main'),vv=window.visualViewport,top=Math.max(main.getBoundingClientRect().top,vv?.offsetTop||0),bottom=(vv?.offsetTop||0)+(vv?.height||innerHeight);const player=document.querySelector('#player');const p=player?.getBoundingClientRect();const end=p?.height&&p.top>top&&getComputedStyle(player).display!=='none'?Math.min(bottom,p.top):bottom;main.style.setProperty('--live-directory-height',Math.max(0,end-top)+'px');};
+ const layout=()=>{if(!layoutFrame)layoutFrame=requestAnimationFrame(measure);};
+ for(const name of ['resize','aifect:topbar-layout','aifect:input-viewport'])window.addEventListener(name,layout,{signal:layoutEvents.signal});
+ window.visualViewport?.addEventListener('resize',layout,{signal:layoutEvents.signal});
+ const layoutResize=new ResizeObserver(layout);layoutResize.observe(root.querySelector('.music-community-tabs'));layoutResize.observe(tools);
+ window.scrollTo({top:0,behavior:'instant'});layout();
  function syncSearch(){
   clearSearch.hidden=!search.value;
   // A desktop query must stay visible when the directory becomes narrow.
@@ -113,7 +120,7 @@ function bindTalkingDirectory(root){
   watchEnd(false);const active=controller=new AbortController();
   notice();grid.setAttribute('aria-busy','true');
   const pendingNotice=setTimeout(()=>{
-   if(controller===active&&!disposed)notice('라이브 목록을 불러오는 중이에요.');
+   if(controller===active&&!disposed)notice('라이브 목록을 불러오는 중이에요.','loading');
   },450);
   try{
    const params=new URLSearchParams({limit:'24',mode}),query=search.value.trim();
@@ -203,7 +210,7 @@ function bindTalkingDirectory(root){
   talkingRoomReturn={viewer,mode,searchOpen:tools.dataset.searchOpen==='true',route:location.hash,until:Date.now()+120000,query:search.value,items:[...items],cursor,done,scroll:pane.scrollTop};
  });
  registerRouteCleanup(()=>{
-  disposed=true;clearInterval(poll);refreshController?.abort();document.removeEventListener('visibilitychange',refresh);observer.disconnect();controller?.abort();clearTimeout(debounce);clearTimeout(expiry);
+  disposed=true;layoutEvents.abort();layoutResize.disconnect();cancelAnimationFrame(layoutFrame);root.closest('#main')?.style.removeProperty('--live-directory-height');clearInterval(poll);refreshController?.abort();document.removeEventListener('visibilitychange',refresh);observer.disconnect();controller?.abort();clearTimeout(debounce);clearTimeout(expiry);
   window.removeEventListener('aifect:follow-saved',refresh);
  });
  if(saved){

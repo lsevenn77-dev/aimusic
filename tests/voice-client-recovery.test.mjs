@@ -117,7 +117,7 @@ test('permission prompt is never opened by prewarming',async()=>{
  client.warmMicrophone();await Promise.resolve();await Promise.resolve();assert.equal(captures,0);
 });
 test('music searches deduplicate, cache and ignore an older query even when abort is not honored',async()=>{
- const elements=new Map(),get=id=>{if(!elements.has(id))elements.set(id,{value:'one',setAttribute(){}});return elements.get(id);};
+ const elements=new Map(),get=id=>{if(!elements.has(id))elements.set(id,{dataset:{},value:'one',setAttribute(){}});return elements.get(id);};
  const requests=[];
  const {client}=clientHarness({AbortController,performance,Date,$:get,fetch:(_url,opts)=>new Promise(resolve=>requests.push({resolve,signal:opts.signal}))});
  Object.assign(client,{id:'room',generation:'g',epoch:1});
