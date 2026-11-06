@@ -102,9 +102,13 @@ class NativePerformanceTest{
  private fun text(value:String){ui.waitUntil(20000){ui.onAllNodesWithText(value,substring=true).fetchSemanticsNodes().isNotEmpty()}}
  private fun capture(name:String){val dir=File(context.getExternalFilesDir(null),"native-audio").apply{mkdirs()};ins.waitForIdleSync();Thread.sleep(200);ins.uiAutomation.takeScreenshot().let{bitmap->FileOutputStream(File(dir,"$name.png")).use{bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG,100,it)};bitmap.recycle()}}
  @Test fun roomCreationUsesSelectedBackgroundAndKeepsPrimaryActionVisible(){
-  responses["/api/voice/options"]=payload("crews" to arr(payload("id" to "crew-one","name" to "밤산책")))
+  responses["/api/voice/options"]=payload(
+   "crews" to arr(payload("id" to "crew-one","name" to "밤산책")),
+   "themes" to JSONArray(listOf("navy","sunset","night").map{sku->payload("sku" to sku,"name" to sku,"paid" to false,"selectable" to true)})
+  )
   launch("voice");visible("voice-room-form")
   ui.onNodeWithTag("room-submit").assertIsDisplayed().assertIsNotEnabled()
+  ui.onNodeWithText("토킹룸").performClick()
   ui.onNodeWithTag("room-title").performTextInput("오늘의 음악 이야기")
   androidx.test.espresso.Espresso.closeSoftKeyboard()
   ui.onNodeWithText("허락 후 착석").assertIsSelected()
@@ -123,6 +127,7 @@ class NativePerformanceTest{
   ui.onNodeWithText("자유 착석").performScrollTo().performClick()
   ui.onNodeWithTag("room-submit").performClick();visible("native-voice-room")
   val submitted=JSONObject(requests.single{it.first=="POST /api/voice/rooms"}.second.toString(Charsets.UTF_8))
+  assertEquals("talk",submitted.getString("mode"))
   assertEquals("오늘의 음악 이야기",submitted.getString("title"));assertEquals(12,submitted.getInt("max_members"))
   assertEquals("night",submitted.getString("background"));assertEquals("night",submitted.getString("theme_sku"))
   assertEquals("free",submitted.getString("seating_mode"));assertEquals("crew-one",submitted.getString("crew_id"))
@@ -239,6 +244,7 @@ class NativePerformanceTest{
   ui.waitUntil(10000){requests.any{it.first=="PUT /api/playlists/voice-list/tracks/voice-song"}}
   ui.onNodeWithTag("voice-seat-0").performClick();ui.onNodeWithText("프로필 보기").performClick();visible("voice-profile-popup");ui.onNodeWithText("밤산책").assertDoesNotExist();capture("voice-267-profile")
   ui.onNodeWithContentDescription("팝업 닫기").performClick();assertSame(engine,NativeVoiceService.current.value);assertFalse(requests.any{it.first.endsWith("/leave")});assertEquals(1,requests.count{it.first.endsWith("/join")})
+  ui.waitUntil(10000){ui.onAllNodesWithTag("voice-profile-popup").fetchSemanticsNodes().isEmpty()}
   capture("voice-267-listener")
  }
  @Test fun voiceHostRequestsStayAtTopAndSeatingPolicySaves(){

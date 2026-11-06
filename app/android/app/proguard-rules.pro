@@ -9,6 +9,14 @@
 # classes, methods, fields, enums, and callback implementations by name.
 -keep class org.webrtc.** { *; }
 -keep interface org.webrtc.** { *; }
+# WebRTC 150 initializes JNI Zero from native JNI_OnLoad. These bridge classes
+# have no reachable Java call sites; removing them aborts the process on room entry.
+-keepclasseswithmembers,includedescriptorclasses class org.jni_zero.** {
+    @org.jni_zero.CalledByNative <methods>;
+}
+-keepclasseswithmembers,includedescriptorclasses class org.jni_zero.** {
+    @org.jni_zero.CalledByNativeUnchecked <methods>;
+}
 
 # Add project specific ProGuard rules here.
 # You can control the set of applied configuration files using the

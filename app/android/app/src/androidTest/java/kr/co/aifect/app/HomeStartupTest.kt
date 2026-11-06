@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
 import org.json.JSONArray
+import kotlinx.coroutines.runBlocking
 import org.junit.*
 import org.junit.Assert.*
 import java.io.*
@@ -19,6 +20,7 @@ class HomeStartupTest {
  private val context=InstrumentationRegistry.getInstrumentation().targetContext
  private val workers=Executors.newCachedThreadPool()
  private val requested=CopyOnWriteArrayList<String>()
+ private val authentication=CountDownLatch(1)
  private val firstScreen=CountDownLatch(1)
  private val optional=CountDownLatch(1)
  private lateinit var server:ServerSocket
@@ -26,8 +28,10 @@ class HomeStartupTest {
  private lateinit var model:MusicModel
  private val chart="/api/catalog?section=tracks&chart=top"
  private val latest="/api/catalog?section=tracks&limit=40"
- private fun launch(chartStatus:Int=200) {
-  NativeSession.clear(context)
+ private fun launch(chartStatus:Int=200,cached:Boolean=false,holdAuthentication:Boolean=false) {
+  NativeSession.clear(context);CatalogSnapshot.clear(context)
+  if(cached)NativeSession.put(context,"cookie","aifect_session=local-startup-test")
+  if(!holdAuthentication)authentication.countDown()
   context.getSharedPreferences("native_push",0).edit().putBoolean("permission_asked",true).commit()
   server=ServerSocket(0,32,InetAddress.getByName("127.0.0.1"))
   workers.execute { while(!server.isClosed)try {
@@ -40,7 +44,7 @@ class HomeStartupTest {
     var length=0;while(true){val h=line();if(h.isEmpty())break;if(h.startsWith("Content-Length:",true))length=h.substringAfter(':').trim().toInt()}
     repeat(length){input.read()}
     val path=request[1];requested.add(path)
-    when(path){chart,latest->firstScreen.await(20,TimeUnit.SECONDS);"/api/me"->{};else->optional.await(20,TimeUnit.SECONDS)}
+    when(path){chart,latest->firstScreen.await(20,TimeUnit.SECONDS);"/api/me"->authentication.await(20,TimeUnit.SECONDS);else->optional.await(20,TimeUnit.SECONDS)}
     val song=payload("id" to "startup-song","title" to "시작 화면 테스트곡","artist" to "테스트 아티스트","kind" to "original","status" to "published")
     val status=if(path==chart)chartStatus else 200
     val response=when {
@@ -52,16 +56,55 @@ class HomeStartupTest {
     c.getOutputStream().apply { write("HTTP/1.1 $status Response\r\nContent-Type: application/json\r\nContent-Length: ${response.size}\r\nConnection: close\r\n\r\n".toByteArray());write(response);flush() }
    }}catch(_:IOException){}catch(_:InterruptedException){Thread.currentThread().interrupt()} }
   }catch(_:IOException){} }
+  Endpoint.configureTest("http://127.0.0.1:${server.localPort}")
+  if(cached)runBlocking{
+   val scope=NativeApi(context).catalogScope
+   val saved=payload("tracks" to JSONArray().put(payload("id" to "cached-song","title" to "저장된 홈 테스트곡","artist" to "저장된 아티스트","status" to "published"))).toString()
+   listOf(chart,latest).forEach{CatalogSnapshot.save(context,scope,it,saved,CatalogSnapshot.revision){true}}
+  }
   screen=ActivityScenario.launch(Intent(context,MainActivity::class.java).putExtra("testOrigin","http://127.0.0.1:${server.localPort}"))
   screen.onActivity { model=ViewModelProvider(it)[MusicModel::class.java] }
-  ui.waitUntil(8000){requested.contains(chart)&&requested.contains(latest)}
+  ui.waitUntil(8000){if(holdAuthentication)requested.contains("/api/me")else requested.contains(chart)&&requested.contains(latest)}
  }
  @After fun close(){
-  firstScreen.countDown();optional.countDown()
+  authentication.countDown();firstScreen.countDown();optional.countDown()
   if(::screen.isInitialized)screen.close()
   context.stopService(Intent(context,PlaybackService::class.java))
   if(::server.isInitialized)server.close()
-  workers.shutdownNow();NativeSession.clear(context)
+  workers.shutdownNow();NativeSession.clear(context);CatalogSnapshot.clear(context)
+ }
+ @Test fun savedHomeIsVisibleBeforeAnyServerReplyAndThenReplaced(){
+  launch(cached=true,holdAuthentication=true)
+  assertEquals(listOf("/api/me"),requested.toList())
+  assertNull("Cached lists never authenticate the account",model.user)
+  assertEquals("cached-song",model.home.single().id)
+  ui.onNodeWithTag("home-featured-play").assertIsDisplayed()
+  authentication.countDown()
+  ui.waitUntil(8000){requested.contains(chart)&&requested.contains(latest)}
+  assertEquals("cached-song",model.home.single().id)
+  firstScreen.countDown()
+  ui.waitUntil(8000){model.home.firstOrNull()?.id=="startup-song"&&!model.loading}
+  val stored=runBlocking{NativeApi(context).homeSnapshot(chart)}
+  assertEquals("startup-song",stored!!.tracks().single().id)
+ }
+ @Test fun changedSessionCannotKeepOrRestorePreviousHome(){
+  launch(cached=true,holdAuthentication=true)
+  screen.onActivity{
+   NativeSession.put(context,"cookie","aifect_session=another-local-test")
+   model.user=payload("id" to "different-user")
+  }
+  assertTrue(model.home.isEmpty());assertTrue(model.latest.isEmpty())
+  assertNull(runBlocking{NativeApi(context).homeSnapshot(chart)})
+  authentication.countDown();firstScreen.countDown()
+  ui.waitUntil(8000){!model.refreshing}
+  assertTrue(model.home.isEmpty())
+ }
+ @Test fun revokedCatalogDoesNotLeaveSavedTracksVisible(){
+  launch(chartStatus=403,cached=true)
+  firstScreen.countDown()
+  ui.waitUntil(8000){!model.refreshing}
+  assertFalse(model.home.any{it.id=="cached-song"})
+  assertFalse(model.latest.any{it.id=="cached-song"})
  }
  @Test fun homeGetsConnectionsBeforeOptionalPrefetchAndRemainsTouchable(){
   launch()

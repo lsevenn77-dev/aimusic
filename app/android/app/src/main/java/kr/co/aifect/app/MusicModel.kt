@@ -76,6 +76,8 @@ class MusicModel(app:Application):AndroidViewModel(app) {
  var refreshing by mutableStateOf(false)
  var error by mutableStateOf<String?>(null)
  var notice by mutableStateOf<String?>(null)
+ private var restoredHomeScope:NativeReadScope?=null
+ private var homeRestoreAttempted=false
  var home by mutableStateOf<List<Song>>(emptyList())
  var latest by mutableStateOf<List<Song>>(emptyList())
  var recentCovers by mutableStateOf<List<Song>>(emptyList())
@@ -140,7 +142,9 @@ class MusicModel(app:Application):AndroidViewModel(app) {
    if(activeUser?.optString("id")!=value?.optString("id")){
     workspace=null;playMode="song";playSection="recommended";communityMode="voice"
     val stopPlayback=activeUser!=null
-    accountGeneration++;api.invalidateReads();clearPrivateState(stopPlayback)
+    val keepStartupHome=activeUser==null&&value!=null&&restoredHomeScope==api.catalogScope
+    if(restoredHomeScope!=null&&!keepStartupHome)clearRestoredHome()
+    accountGeneration++;api.invalidateReads(homeSnapshot=!keepStartupHome);clearPrivateState(stopPlayback)
     PushNotifications.bind(getApplication(),value?.optString("id"))
    }
    value?.optString("id")?.let{NativeChatCache.allow(getApplication(),it)}
@@ -414,7 +418,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   viewModelScope.launch { try{block()}catch(e:Exception){if(e is CancellationException)throw e;failure(e)}finally{busy=false} }
  }
  private fun failure(e:Exception) {
-  if(e is ApiException && e.status==401){user=null;showLogin=true}
+  if(e is ApiException && e.status==401){clearRestoredHome();user=null;showLogin=true}
   notice=e.message?: "연결을 확인하고 다시 시도해주세요."
  }
  fun refresh() {
@@ -422,11 +426,12 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   viewModelScope.launch {
    refreshing=true;error=null
    try{
-    hydratePublic()
+    restoreHome();hydratePublic()
     try{loadMe(loadPrivate=false,loadGallery=false)}catch(e:Exception){if(e is CancellationException)throw e;failure(e);error="계정 상태를 불러오지 못했어요."}
+    if(restoredHomeScope!=null&&restoredHomeScope!=api.catalogScope)clearRestoredHome()
     val scope=readScope();hydratePublic()
     suspend fun update(path:String,apply:(JSONObject)->Unit){
-     try{val data=api.call(path,fresh=true);ensureRead(scope);apply(data)}catch(e:Exception){if(e is CancellationException)throw e;if(sameAccount(scope)){if(e is ApiException&&e.status==401)failure(e);error=e.message}}
+     try{val data=api.call(path,fresh=true);ensureRead(scope);apply(data)}catch(e:Exception){if(e is CancellationException)throw e;if(sameAccount(scope)){if(e is ApiException&&e.status in listOf(401,403,404)&&CatalogSnapshot.accepts(path))clearRestoredHome();if(e is ApiException&&e.status==401)failure(e);error=e.message}}
     }
     supervisorScope {
      listOf(
@@ -451,6 +456,20 @@ class MusicModel(app:Application):AndroidViewModel(app) {
    }finally{loading=false;refreshing=false}
   }
  }
+ private fun clearRestoredHome(){if(restoredHomeScope!=null){home=emptyList();latest=emptyList();restoredHomeScope=null}}
+ private suspend fun restoreHome(){
+  if(homeRestoreAttempted)return
+  homeRestoreAttempted=true
+  val scope=readScope();val diskScope=api.catalogScope
+  suspend fun restore(path:String,apply:(JSONObject)->Unit){
+   val saved=api.homeSnapshot(path)
+   ensureRead(scope)
+   if(diskScope!=api.catalogScope)return
+   if(saved!=null){restoredHomeScope=diskScope;apply(saved)}
+  }
+  restore("/api/catalog?section=tracks&chart=top"){home=it.tracks()}
+  restore("/api/catalog?section=tracks&limit=40"){latest=it.tracks()}
+ }
  private fun hydratePublic(){
   api.peek("/api/catalog?section=tracks&chart=top")?.let{home=it.tracks()}
   api.peek("/api/catalog?section=tracks&limit=40")?.let{latest=it.tracks()}
@@ -464,6 +483,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   val me=api.call("/api/me",fresh=true);currentCoroutineContext().ensureActive();if(generation!=accountGeneration)throw CancellationException("Account changed while loading its state")
   val nextMembership=me.optJSONObject("membership")?:JSONObject()
   if(user?.optString("id")==me.optJSONObject("user")?.optString("id")&&membership.optLong("premium_until")!=nextMembership.optLong("premium_until")){api.invalidateReads();profileCache.clear();resetLyrics()}
+  if(me.optJSONObject("user")==null&&NativeSession.cookie(getApplication()).isNotBlank())clearRestoredHome()
   user=me.optJSONObject("user");membership=nextMembership
   if(user!=null&&loadGallery)refreshMyGallery()
   SongAdBreaks.configure(getApplication(),user?.optString("id"),membership.optLong("premium_until",0))

@@ -69,17 +69,24 @@ class NativeApi(private val context: Context) {
  private fun synchronizeScope():NativeReadScope {
   val current=readScope()
   val changed=synchronized(scopeLock){if(current!=observedScope){observedScope=current;true}else false}
-  if(changed)reads.invalidate()
+  if(changed){reads.invalidate();CatalogSnapshot.clear(context)}
   return current
  }
  val readRevision:Long get(){synchronizeScope();return reads.generation}
- fun invalidateReads(){synchronized(reads){reads.invalidate()}}
+ fun invalidateReads(homeSnapshot:Boolean=true){synchronized(reads){reads.invalidate();if(homeSnapshot)CatalogSnapshot.clear(context)}}
+ internal val catalogScope:NativeReadScope get()=synchronizeScope()
+ internal suspend fun homeSnapshot(path:String):JSONObject? {
+  val scope=synchronizeScope();val revision=reads.generation;val diskRevision=CatalogSnapshot.revision
+  val saved=CatalogSnapshot.readObject(context,scope,path,diskRevision){readScope()==scope&&reads.generation==revision}?:return null
+  if(readScope()!=scope||reads.generation!=revision)return null
+  return saved
+ }
  private fun readFailure(path:String,scope:NativeReadScope,revision:Long,error:ApiException){
   // Compare and invalidate under the same monitor as mutations. A late permission
   // error from a superseded read must not cancel the next account's active reads.
   synchronized(reads){
    if(readScope()!=scope||reads.generation!=revision)throw CancellationException("A newer account or action replaced this read")
-   if(error.status in listOf(401,403))reads.invalidate()else if(error.status==404)reads.evict(scope,path)
+   if(error.status in listOf(401,403))invalidateReads()else if(error.status==404){reads.evict(scope,path);if(CatalogSnapshot.accepts(path))CatalogSnapshot.clear(context)}
   }
  }
  fun peek(path:String):JSONObject?=reads.peek(synchronizeScope(),path)?.let{runCatching{JSONObject(it)}.getOrNull()}
@@ -101,11 +108,11 @@ class NativeApi(private val context: Context) {
   val mutation=method !in listOf("GET","HEAD")
   val invalidate=NativeReadPolicy.invalidatesOnMutation(path,method)
   val scope=synchronizeScope()
-  if(invalidate)invalidateReads()
+  if(invalidate)invalidateReads(CatalogSnapshot.invalidatesOnMutation(path,method))
   val revision=reads.generation
   try{return client.newCall(request(path,method,data)).execute().use{decode(path,it)}}
   catch(e:ApiException){if(!mutation)readFailure(path,scope,revision,e)else if(e.status in listOf(401,403))invalidateReads();throw e}
-  finally{if(invalidate)invalidateReads()}
+  finally{if(invalidate)invalidateReads(CatalogSnapshot.invalidatesOnMutation(path,method))}
  }
  private fun decode(path:String,r:Response):JSONObject {
    val source=r.body?.source();source?.request(2_000_001L)
@@ -154,14 +161,14 @@ class NativeApi(private val context: Context) {
   val mutation=method !in listOf("GET","HEAD")
   val invalidate=NativeReadPolicy.invalidatesOnMutation(path,method)
   val scope=synchronizeScope()
-  if(invalidate)invalidateReads()
-  val revision=reads.generation
+  if(invalidate)invalidateReads(CatalogSnapshot.invalidatesOnMutation(path,method))
+  val revision=reads.generation;val diskRevision=CatalogSnapshot.revision
   try{
    if(method=="GET"&&NativeReadPolicy.ttlMillis(path)!=null){
     val serialized=reads.read(scope,path,fresh,current={readScope()==scope}){
      val guest=CatalogSnapshot.accepts(path)&&NativeSession.cookie(context).isEmpty()&&Endpoint.origin=="https://aifect.co.kr"
-     try{network(path,method,data).toString().also{if(guest&&readScope()==scope)CatalogSnapshot.save(context,path,it)}}
-     catch(e:IOException){if(!guest||e is ApiException||readScope()!=scope)throw e;CatalogSnapshot.read(context,path)?:throw e}
+     try{network(path,method,data).toString().also{if(CatalogSnapshot.accepts(path))CatalogSnapshot.save(context,scope,path,it,diskRevision){readScope()==scope&&reads.generation==revision}}}
+     catch(e:IOException){if(!guest||e is ApiException||readScope()!=scope)throw e;CatalogSnapshot.read(context,scope,path,diskRevision){readScope()==scope&&reads.generation==revision}?:throw e}
     }
     return JSONObject(serialized)
    }
@@ -169,7 +176,7 @@ class NativeApi(private val context: Context) {
   }catch(e:ApiException){
    if(!mutation)readFailure(path,scope,revision,e)else if(e.status in listOf(401,403))invalidateReads()
    throw e
-  }finally{if(invalidate)invalidateReads()}
+  }finally{if(invalidate)invalidateReads(CatalogSnapshot.invalidatesOnMutation(path,method))}
  }
  private suspend fun network(path:String,method:String,data:JSONObject?):JSONObject=suspendCancellableCoroutine{continuation->
   val call=client.newCall(request(path,method,data))

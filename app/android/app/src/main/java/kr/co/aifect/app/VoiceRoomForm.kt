@@ -61,7 +61,12 @@ private val FreeRoomBackgrounds=listOf("navy" to "네이비","sunset" to "노을
    when(sku){
     "sunset"->{wash(Color(0x7770435A),.35f,.15f,.65f);wash(Color(0x66242954),.5f,1f,.65f)}
     "night"->{wash(Color(0x77233D74),.70f,.10f,.48f);wash(Color(0x5539295B),.20f,.80f,.45f)}
-    else->drawRect(Color(0xFF0C121B))
+    else->{
+     drawRect(Color(0xFF0C1025))
+     wash(Color(0x884C317B),.88f,.03f,.48f)
+     wash(Color(0x663D316C),.18f,.68f,.52f)
+     wash(Color(0x55347F91),.98f,.88f,.40f)
+    }
    }
   }
   if(image!=null){
