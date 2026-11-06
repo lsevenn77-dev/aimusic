@@ -204,6 +204,7 @@
  & .room-popup::backdrop {background:transparent;backdrop-filter:none;}
  & .room-live-guide {height:auto;flex:none;}
  & .room-live-guide #live-stage-note {font-size:inherit;line-height:inherit;margin:0;}
+ & .talk-central .voice-unlock-audio {min-height:44px;font-size:13px;padding:4px 6px;}
 }
 @media(min-width:801px){
  #main[data-room-entered] .voice-room[data-voice-room] {
