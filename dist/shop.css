@@ -5,6 +5,7 @@
 .shop-page{--ui-space-scale:1;--ui-type-scale:1;--ui-icon-scale:1;--ui-control-height:44px;--shop-outline:#8f7da888;--shop-purple:linear-gradient(180deg,#b45ce8,#8434c7);width:100%;min-width:0;container-type:inline-size;color:var(--ds-text);font-size:var(--pc-font-body,15px)}
 .shop-page .shop-banner{width:100%;min-width:0;border:0;border-radius:0;margin:0;background:#17132b}
 .shop-page .shop-banner img{display:block;width:100%;height:auto;aspect-ratio:2172/469;object-fit:contain;border:0;border-radius:0;margin:0}
+.shop-page .shop-banner-caption{display:none}
 .shop-page .shop-heading{display:flex;align-items:center;gap:12px;min-width:0;margin:16px 0 20px}
 .shop-page .shop-title{display:flex;align-items:center;gap:12px;flex:none;margin:0;font-size:var(--pc-font-page,25px);line-height:1.3;font-weight:700;white-space:nowrap}
 .shop-page .shop-title svg{width:32px;height:32px;flex:none}
@@ -54,6 +55,9 @@
 @media(min-width:768px) and (max-width:1279px){.shop-page .shop-heading{flex-wrap:wrap}.shop-page .shop-balances{margin-left:auto}.shop-page .shop-actions a{padding-inline:9px}.shop-page .shop-toolbar{gap:14px}}
 @media(max-width:800px){#main:has(>.shop-page){--main-frame-gutter:12px;--main-frame-top:10px;padding-bottom:calc(24px + env(safe-area-inset-bottom))}}
 @media(max-width:767px){
+ /* Keep the supplied artwork intact; readable copy sits below it, never over it. */
+ .shop-page .shop-banner-caption{display:grid;gap:4px;padding:10px 12px 12px;text-align:left;color:var(--ds-text)}
+ .shop-page .shop-banner-caption p{margin:0;font:inherit;font-size:14px;line-height:1.5;word-break:keep-all;overflow-wrap:anywhere}
  .shop-page .shop-heading{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px;margin:10px 0}
  .shop-page .shop-title{grid-area:1/1;gap:5px;font-size:19px}
  .shop-page .shop-title svg{width:23px;height:23px}
