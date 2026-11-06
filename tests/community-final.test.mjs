@@ -13,7 +13,7 @@ test('theme options exclude expired, stored and other-owner grants; active owner
  assert.deepEqual(a.map(t=>t.sku),['theme_starlight_lounge','navy','sunset','night']);
  assert.deepEqual((await f.call('/api/voice/options','GET',null,'other')).body.themes.map(t=>t.sku),['navy','sunset','night']);
 });
-test('focus restores original shell state and never activates for a room URL without membership',()=>{
+test('room membership preserves the shell on mobile and desktop and route-only entry does not focus',()=>{
  const elements=[{hidden:false,style:{display:'flex'}},{hidden:true,style:{display:''}}],attrs=new Map();
  const wrapper={toggleAttribute:(k,v)=>attrs.set(k,v)};
  const c=nicknameContext({window:{innerWidth:390},document:{querySelectorAll:()=>elements,querySelector:()=>wrapper},me:{id:'owner'}});
@@ -21,7 +21,8 @@ test('focus restores original shell state and never activates for a room URL wit
  vm.runInContext(source.slice(0,source.indexOf('let voiceEntryAudio')),c);
  vm.runInContext(source.slice(source.indexOf('function cleanupVoiceRoute'),source.indexOf('function bindVoice(')),c);
  c.cleanupVoiceRoute('voice','room');assert.equal(attrs.get('data-room-focus'),false);
- c.setVoiceFocus(true);assert.ok(elements.every(e=>e.hidden&&e.style.display==='none'));
+ c.setVoiceFocus(true);assert.equal(attrs.get('data-room-focus'),true);
+ assert.deepEqual(elements,[{hidden:false,style:{display:'flex'}},{hidden:true,style:{display:''}}]);
  c.setVoiceFocus(true);c.setVoiceFocus(false);assert.deepEqual(elements,[{hidden:false,style:{display:'flex'}},{hidden:true,style:{display:''}}]);
  c.window.innerWidth=1440;c.setVoiceFocus(true);
  assert.equal(attrs.get('data-room-focus'),false);assert.equal(attrs.get('data-room-entered'),true);

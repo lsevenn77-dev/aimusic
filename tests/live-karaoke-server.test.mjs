@@ -158,7 +158,7 @@ test('search uses a bounded metadata query without engagement aggregation or the
  assert.ok(!queries.some(q=>q.includes('FROM player_inventory')),'search must not fetch room cosmetics');
  assert.deepEqual(Object.keys(result.body.tracks[0]).sort(),['artist','artist_id','cover','duration','has_ai_artist','id','producer','producer_id','title','user_id']);
  for(let i=0;i<50;i++)f.addSong('bulk-'+i);
- assert.equal((await f.search(r,r.state)).body.tracks.length,40);
+ assert.equal((await f.search(r,r.state)).body.tracks.length,30);
 });
 
 test('private room host handoff keeps admitted members, and leaving ends their admission',async t=>{

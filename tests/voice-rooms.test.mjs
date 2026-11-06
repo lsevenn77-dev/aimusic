@@ -98,7 +98,7 @@ test('chat ordering handles identical timestamps, retention rollover and old per
 test('room screen joins once automatically, never opens microphone, and offers retry only on failure',async()=>{
  const elements=new Map(),get=id=>{if(!elements.has(id))elements.set(id,{hidden:true,value:'',elements:{},attributes:{},setAttribute(k,v){this.attributes[k]=v;},querySelector:()=>({})});return elements.get(id);};
  let calls=0,reply,fail=false,mics=0;
- const c=nicknameContext({performance,crypto,AbortSignal,window:{addEventListener(){},removeEventListener(){}},document:{addEventListener(){},removeEventListener(){}},navigator:{mediaDevices:{getUserMedia(){mics++;throw Error('must stay muted');}}},fetch:async()=>{calls++;return new Promise(resolve=>{reply=()=>resolve(Response.json(fail?{error:'full'}:{generation:'g',members:[],room:{}},{status:fail?409:200}));});},audio:{pause(){}},api:()=>Promise.resolve({conversations:[]}),toast(){},busyForm:()=>()=>{},setInterval:()=>0,clearInterval(){},setTimeout,clearTimeout,$:get});
+ const c=nicknameContext({bindRoomViewport(){},performance,crypto,AbortSignal,window:{addEventListener(){},removeEventListener(){}},document:{addEventListener(){},removeEventListener(){}},navigator:{mediaDevices:{getUserMedia(){mics++;throw Error('must stay muted');}}},fetch:async()=>{calls++;return new Promise(resolve=>{reply=()=>resolve(Response.json(fail?{error:'full'}:{generation:'g',members:[],room:{}},{status:fail?409:200}));});},audio:{pause(){}},api:()=>Promise.resolve({conversations:[]}),toast(){},busyForm:()=>()=>{},setInterval:()=>0,clearInterval(){},setTimeout,clearTimeout,$:get});
  vm.runInContext(readFileSync(new URL('../dist/voice-rooms.js',import.meta.url),'utf8')+'\nthis.Client=VoiceRoomClient;',c);
  const setup=()=>{const client=new c.Client('test');client.bindRoomEcho=()=>{};client.bindFinalControls=()=>{};client.giftSummary=()=>{};client.paint=()=>{};client.socket=()=>{};client.receive=async()=>{};const original=client.join.bind(client);client.join=()=>client.pending=original();return client;};
  const host={isConnected:true,getBoundingClientRect:()=>({top:0}),querySelector:()=>({})},client=setup();client.bindFinalControls=()=>{};client.bind(host);client.bindFinalControls=()=>{};client.bind(host);assert.equal(calls,1);assert.equal(get('#voice-entry').hidden,true);reply();await client.pending;
@@ -266,7 +266,7 @@ test('gift websocket event refreshes chat immediately and coalesces updates arri
  class Socket{constructor(){Socket.current=this;}close(){}}
  const c=nicknameContext({performance,crypto,URL,WebSocket:Socket,location:{href:'https://aifect.test/#voice/test'},window:{addEventListener(){},removeEventListener(){}},document:{addEventListener(){},removeEventListener(){}},setTimeout,clearTimeout,setInterval,clearInterval});
  vm.runInContext(readFileSync(new URL('../dist/voice-rooms.js',import.meta.url),'utf8')+'\nthis.Client=VoiceRoomClient;',c);
- const client=new c.Client('test');client.joined=true;client.epoch=1;
+ const client=new c.Client('test');client.joined=true;client.epoch=1;client.generation="g";
  const pending=[],painted=[];let animated=0;
  client.command=()=>new Promise(resolve=>pending.push(resolve));client.paint=()=>painted.push(client.state.revision);client.receive=async()=>{};client.animateGift=()=>animated++;client.connectionError=assert.fail;
  client.socket();const socket=Socket.current;
@@ -274,8 +274,8 @@ test('gift websocket event refreshes chat immediately and coalesces updates arri
  socket.onmessage({data:JSON.stringify({type:'gift',gift:{id:'receipt'}})});
  socket.onmessage({data:JSON.stringify({type:'changed'})});
  assert.equal(animated,1);assert.equal(pending.length,1);
- pending[0]({revision:1});await new Promise(resolve=>setImmediate(resolve));assert.equal(pending.length,2,'one follow-up replaces the skipped events');
- pending[1]({revision:2});await first;
+ pending[0]({revision:1,generation:"g"});await new Promise(resolve=>setImmediate(resolve));assert.equal(pending.length,2,'one follow-up replaces the skipped events');
+ pending[1]({revision:2,generation:"g"});await first;
  assert.deepEqual(painted,[1,2]);assert.equal(client.refreshAgain,false);
  client.closed=true;
 });
@@ -312,7 +312,7 @@ test('lost SFU responses keep cleanup pending until late allocations are closed'
 test('frontend ignores old heartbeat after rejoin and stops a late microphone grant after leaving',async()=>{
  const c=nicknameContext({performance,crypto,window:{addEventListener(){},removeEventListener(){}},document:{addEventListener(){},removeEventListener(){}},navigator:{mediaDevices:{}},fetch:async()=>Response.json({}),setInterval,clearInterval,setTimeout,clearTimeout,$:()=>({value:''})});
  vm.runInContext(readFileSync(new URL('../dist/voice-rooms.js',import.meta.url),'utf8')+'\nthis.Client=VoiceRoomClient;',c);
- const client=new c.Client('test');client.joined=true;client.epoch=1;client.state={revision:2};let reply;client.command=()=>new Promise(r=>reply=r);client.paint=()=>assert.fail('stale response painted');
+ const client=new c.Client('test');client.joined=true;client.epoch=1;client.generation="g";client.state={revision:2};let reply;client.command=()=>new Promise(r=>reply=r);client.paint=()=>assert.fail('stale response painted');
  const pending=client.refresh();client.epoch=2;reply({revision:1});await pending;assert.equal(client.state.revision,2);
  let grant,stops=0;c.navigator.mediaDevices.getUserMedia=()=>new Promise(r=>grant=r);client.paint=()=>{};
  const opening=client.enableMic();client.leave(false);grant({getTracks:()=>[{stop:()=>stops++}]});await opening;assert.equal(stops,1);assert.equal(client.stream,undefined);

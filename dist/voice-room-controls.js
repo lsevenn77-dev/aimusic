@@ -51,7 +51,7 @@ Object.assign(VoiceRoomClient.prototype,{
   const order=[s.karaoke?.active?.user_id,...(s.karaoke?.queue||[]).map(q=>q.user_id)].filter(Boolean);
   const rank=p=>order.includes(p.id)?order.indexOf(p.id):order.length;
   const members=[...s.members].sort((a,b)=>rank(a)-rank(b)||(b.role==='host')-(a.role==='host'));
-  const memberHTML='<header class="room-member-summary"><strong>'+(this.liveMode?'노래 순서':'참여자')+'</strong><small>총 '+members.length+'명</small></header>'+members.map(p=>`<div class="voice-member-row" data-level-user="${esc(p.id)}"><button type="button" class="room-member-profile" data-voice="talk-profile" data-target="${esc(p.id)}" aria-label="${esc(p.name)} 프로필">${roomMemberAvatar(p,this.liveMode)}<span class="voice-member-info"><strong>${p.role==='host'?'<span class="room-host-crown" aria-label="방장">'+voiceGlyph('crown')+'</span>':''}<span title="${esc(p.name)}">${userNickname(p.name,{profileId:p.profile_id,userId:p.id})}</span></strong><small>${this.liveMode&&order.includes(p.id)?(s.karaoke.active?.user_id===p.id?'NOW':(s.karaoke.queue.findIndex(q=>q.user_id===p.id)+1)+'번째 예약'):p.seat===null?'청취 중':p.muted?'마이크 꺼짐':'마이크 켜짐'}</small></span></button>${roomRelationButton(p,s.self)}${this.canManageMember(p.id)?`<button type="button" class="voice-member-more" data-voice="member-menu" data-target="${esc(p.id)}" aria-label="${esc(p.name)} 관리" aria-expanded="false" aria-controls="voice-member-tools">${voiceGlyph('talkMore')}</button>`:''}</div>`).join('');
+  const memberHTML='<header class="room-member-summary"><strong>'+(this.liveMode?'노래 순서':'참여자')+'</strong><small>총 '+members.length+'명</small></header>'+members.map(p=>`<div class="voice-member-row" data-level-user="${esc(p.id)}"><button type="button" class="room-member-profile" data-voice="talk-profile" data-target="${esc(p.id)}" aria-label="${esc(p.name)} 프로필">${roomMemberAvatar(p,this.liveMode)}<span class="voice-member-info"><strong>${p.role==='host'?'<span class="room-host-crown" aria-label="방장">'+voiceGlyph('crown')+'</span>':''}<span title="${esc(p.name)}">${userNickname(p.name,{profileId:p.profile_id,userId:p.id})}</span></strong><small>${this.liveMode&&order.includes(p.id)?(s.karaoke.active?.user_id===p.id?'가창 중':(s.karaoke.queue.findIndex(q=>q.user_id===p.id)+1)+'번째 예약'):p.seat===null?'청취 중':p.muted?'마이크 꺼짐':'마이크 켜짐'}</small></span></button>${roomRelationButton(p,s.self)}${this.liveMode&&p.id===s.self&&s.karaoke?.queue?.some(q=>q.user_id===p.id)?'<button type="button" data-voice="karaoke-cancel">예약 취소</button>':''}${this.canManageMember(p.id)?`<button type="button" class="voice-member-more" data-voice="member-menu" data-target="${esc(p.id)}" aria-label="${esc(p.name)} 관리" aria-expanded="false" aria-controls="voice-member-tools">${voiceGlyph('talkMore')}</button>`:''}</div>`).join('');
   const memberKey=memberHTML+JSON.stringify(members.map(p=>[p.id,p.muted,p.locked]));if(memberKey!==this.memberHTML){$('#voice-members-list').before($('#voice-member-tools'));$('#voice-members-list').innerHTML=memberHTML;this.memberHTML=memberKey;this.closeMemberTools();}
   const invitation=s.seat_invites?.[0],el=$('#voice-seat-invitation');el.hidden=!invitation||!this.liveMode;
   el.innerHTML=invitation&&this.liveMode?roomInviteButtons(invitation):'';
@@ -70,11 +70,12 @@ Object.assign(VoiceRoomClient.prototype,{
   const inDock=trigger?.closest('#talk-dock'),box=$(inDock?'#talk-dock-member-tools':'#voice-member-tools');
   const item=(action,label,glyph,disabled=false)=>`<button type="button" data-voice="${action}" data-target="${esc(id)}" ${disabled?'disabled':''}>${voiceGlyph(glyph)}${label}</button>`;
   const queued=s.karaoke?.queue?.some(q=>q.user_id===id);
+  const currentSinger=this.liveMode&&s.karaoke?.active?.user_id===id;
   box.innerHTML=`<section class="voice-member-tools"><header>${item('member-back','뒤로','previous')}${roomMemberAvatar(p,true)}<strong>${userNickname(p.name,{profileId:p.profile_id,userId:p.id})}</strong></header>
     ${item(this.liveMode?'reservation-invite':'member-invite',this.liveMode?'예약 초대':'자리로 초대','plus',this.liveMode?queued||s.karaoke?.active?.user_id===id:p.seat!==null||!empty.length)}
     ${item(p.locked?'unlock':'mute-user',p.locked?'마이크 허용':'마이크 내리기','muted')}
     ${item(this.liveMode?'reservation-remove':'member-remove',this.liveMode?'예약에서 제거':'자리에서 제거','leave',this.liveMode?!queued:p.seat===null)}
-    ${item('ask-kick','강퇴','ban')}${item('ask-ban-day','1일 추방','ban')}${item('ask-transfer','방장 넘기기','crown')}</section>`;
+    ${currentSinger?`<button type="button" data-voice="karaoke-next" data-target="${esc(s.karaoke.active.invitation_id)}">현재 순서 건너뛰기</button>`:''}${item('ask-kick','강퇴','ban')}${item('ask-ban-day','1일 추방','ban')}${item('ask-transfer','방장 넘기기','crown')}</section>`;
   box.hidden=false;
   const button=trigger||[...$('#voice-members').querySelectorAll('.voice-member-more')].find(b=>b.dataset.target===id);
   const row=button.closest('.voice-member-row');if(row)row.after(box);
@@ -95,14 +96,14 @@ Object.assign(VoiceRoomClient.prototype,{
   const seated=Number.isInteger(self.seat);
   if(!owner)for(const id of ['voice-seat-picker','voice-kick-confirm'])if($('#'+id)?.open)$('#'+id).close();
   const applicant=owner?s.members.find(m=>m.requested):null;
-  const request=$('#talk-request'),key=JSON.stringify([s.seat_invites?.[0]?.id,applicant?.id,applicant?.name,applicant?.requestVersion??applicant?.requestExpires,this.seatCommandPending,this.micState,self.requested,self.requestVersion??self.requestExpires,self.locked,self.seat,micOn]);
+  const request=$('#talk-request'),key=JSON.stringify([s.seat_invites?.[0]?.id,applicant?.id,applicant?.name,applicant?.requestVersion??applicant?.requestExpires,this.seatCommandPending,this.micNoticeUntil>Date.now(),this.micState,self.requested,self.requestVersion??self.requestExpires,self.locked,self.seat,micOn]);
   if(this.talkRequestKey!==key){
    this.talkRequestKey=key;
    const busy=this.seatCommandPending?'disabled aria-busy="true"':'';
    if(applicant)request.innerHTML=`<span class="talk-applicant"><strong title="${esc(applicant.name)}">${userNickname(applicant.name,{profileId:applicant.profile_id,userId:applicant.id})}</strong><small>좌석 신청 <time data-room-deadline="${Number(applicant.requestExpires)}"></time></small></span><button type="button" data-voice="approve-mic" data-target="${esc(applicant.id)}" data-request="${applicant.requestVersion??applicant.requestExpires}" ${busy}>수락</button><button type="button" data-voice="reject-mic" data-target="${esc(applicant.id)}" data-request="${applicant.requestVersion??applicant.requestExpires}" ${busy}>거절</button>`;
    else if(self.requested)request.innerHTML=`<span>좌석 신청 중 <time data-room-deadline="${Number(self.requestExpires)}"></time></span><button type="button" data-voice="cancel-mic" data-request="${self.requestVersion??self.requestExpires}" ${busy}>신청 취소</button>`;
    else if(s.seat_invites?.length){const i=s.seat_invites[0];request.innerHTML=roomInviteButtons(i);}
-   else request.textContent=self.locked?'마이크 사용 제한':this.micState==='failed'?'마이크 연결 실패 · 다시 시도해주세요.':'좌석을 눌러 참여해보세요.';
+   else request.textContent=this.micNoticeUntil>Date.now()?'마이크가 켜졌어요.':self.locked?'마이크 사용 제한':this.micState==='failed'?'마이크 연결 실패 · 다시 시도해주세요.':'좌석을 눌러 참여해보세요.';
   }
   const mic=this.host.querySelector('.talk-central [data-voice=toggle-mic]');
   if(mic.dataset.on!==String(micOn)){mic.dataset.on=String(micOn);mic.innerHTML=voiceGlyph(micOn?'talkMic':'talkMicOff')+'<span class="talk-switch" aria-hidden="true"></span>';}
@@ -116,6 +117,10 @@ Object.assign(VoiceRoomClient.prototype,{
    window.dispatchEvent(new CustomEvent('aifect:room-theme',{detail:{room:s.room,key:themeKey}}));
   }
 
+ },
+ showMicEnabledNotice(){
+  this.micNoticeUntil=Date.now()+2500;this.talkRequestKey=null;this.paint();clearTimeout(this.micNoticeTimer);
+  this.micNoticeTimer=setTimeout(()=>{this.micNoticeUntil=0;this.talkRequestKey=null;if(!this.closed)this.paint();},2500);
  },
  async talkSeatAction(action,target,button){
   if(this.seatCommandPending||!this.joined||this.closed)return;
@@ -133,11 +138,23 @@ Object.assign(VoiceRoomClient.prototype,{
    if(!applicant?.requested||String(version)!==button?.dataset.request)return;
    payload.expected_request_version=version;
   }
-  this.seatCommandPending=true;
-  this.host.querySelectorAll('.voice-seat-empty,#talk-request button').forEach(b=>{b.disabled=true;});
-  try{this.acceptState(await this.command(action,payload));}
+  const started=performance.now(),mayMove=action==='request-mic'&&(self.seat!==null||owner||this.state.room.seating_mode==='free');
+  payload.request_id=crypto.randomUUID();this.seatCommandPending=true;
+  if(mayMove)this.optimisticSeat={seat:payload.seat,request:payload.request_id};
+  this.paint();
+  const measurement={requestId:payload.request_id,localMs:performance.now()-started};
+  try{
+   const state=await this.command(action,payload);measurement.responseMs=performance.now()-started;
+   this.optimisticSeat=null;this.acceptState(state);
+   measurement.server=state.commandTiming||null;
+   if(!state?.members)await this.refresh();
+  }catch(error){this.optimisticSeat=null;this.seatHTML=null;throw error;}
   finally{
-   try{await this.refresh();}finally{this.seatCommandPending=false;this.talkRequestKey=null;if(!this.closed)this.paint();}
+   this.seatCommandPending=false;this.talkRequestKey=null;
+   if(!this.closed)this.paint();measurement.totalMs=performance.now()-started;
+   this.seatMeasurements||=[];this.seatMeasurements.push(measurement);if(this.seatMeasurements.length>30)this.seatMeasurements.shift();
+   this.diagnostics?.record('seatLocalMs',measurement.localMs);this.diagnostics?.record('seatResponseMs',measurement.responseMs);
+   this.host?.dispatchEvent(new CustomEvent('aifect:seat-measured',{detail:measurement}));
   }
  },
  toggleEmojiPicker(open,focus=false){
@@ -240,6 +257,7 @@ Object.assign(VoiceRoomClient.prototype,{
   for(const button of this.host.querySelectorAll('.room-header button')){button.setAttribute('aria-haspopup','dialog');button.setAttribute('aria-controls',ids[button.dataset.voice]);button.setAttribute('aria-expanded','false');}
   const outside=e=>{
    const popup=this.talkPopup;if(!popup?.open||popup.contains(e.target))return;
+   const link=e.target.closest?.('a[href]');if(link&&!roomRouteMatches(new URL(link.href,location.href),this)){this.closeRoomPopup();return;}
    if(popup.id==='voice-emoji-picker'&&e.target.closest('#voice-chat-form'))return;
    const entry=e.target.closest('[data-voice]');if(entry&&this.host.contains(entry)&&ids[entry.dataset.voice])return;
    if(e.type==='pointerdown'){e.preventDefault();return;}
