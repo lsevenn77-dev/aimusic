@@ -15,6 +15,7 @@ await build({entryPoints:['shared/room-backing-worklet.js'],outfile:'dist/client
 for(const file of ['room-release.css','room-release.js'])await cp('dist/'+file,'dist/client/'+file);
 await build({entryPoints:['shared/chat-stickers.js'],outfile:'dist/client/chat-stickers.js',bundle:true,format:'iife',globalName:'AifectStickers',target:'es2022',minify:true});
 await cp('dist/chat-stickers.css','dist/client/chat-stickers.css');
+for(const file of ['chat-ui.js','chat-ui.css','messages-ui.js','messages-ui.css'])await cp('dist/'+file,'dist/client/'+file);
 await cp('shared/public-image-client.js', 'dist/client/public-image-client.js');
 await cp('shared/crew-jump.js','dist/client/crew-jump-core.js');
 for(const name of ['crew-game-lobby.js','crew-game-lobby.css','crew-jump-view.js','crew-jump.css','crew-jump-art','crew-rhythm','crew-racing','crew-fishing'])await cp('dist/'+name,'dist/client/'+name,{recursive:true});
@@ -79,7 +80,8 @@ await cp('dist/ui-region-scale.css','dist/client/ui-region-scale.css');
 await cp('dist/gift-scale.css','dist/client/gift-scale.css');
 await cp('dist/sing-recording-scale.css','dist/client/sing-recording-scale.css');
 for(const name of await readdir('dist/client')){
- if(!name.endsWith('.css')||name.startsWith('aifect-app-')||name==='ui-region-scale.css'||name==='room-release.css')continue;
+ // These shared chat controls use final CSS pixels, matching their JS viewport/line metrics.
+ if(!name.endsWith('.css')||name.startsWith('aifect-app-')||['ui-region-scale.css','room-release.css','chat-ui.css','messages-ui.css'].includes(name))continue;
  const file='dist/client/'+name;
  await writeFile(file,regionTokenCSS(await readFile(file,'utf8')));
 }

@@ -5,18 +5,36 @@ import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 const source=readFileSync(new URL('../dist/social-chat.js',import.meta.url),'utf8');
 const make=()=>{const c=nicknameContext({document:{addEventListener(){}},esc:String,crewInboxHTML:()=>'',number:String});vm.runInContext(source,c);return c;};
-test('filters include unread crew, exclude read conversations, and require verified notices',()=>{const c=make();c.items=[{id:'friend',unread:0},{id:'new',unread:2},{id:'operator',unread:1,is_notice:true},{id:'fake',name:'AIFECT 운영팀',unread:0}];c.crew={id:'crew',unread:3};const select=f=>JSON.parse(vm.runInContext(`JSON.stringify(dmInboxSelection(items,crew,'${f}'))`,c));assert.equal(select('all').conversations.length,4);assert.deepEqual(select('unread').conversations.map(p=>p.id),['new','operator']);assert.equal(select('unread').crew.id,'crew');assert.deepEqual(select('crew').conversations,[]);assert.equal(select('crew').crew.id,'crew');assert.deepEqual(select('notice').conversations.map(p=>p.id),['operator']);assert.equal(select('notice').crew,null);c.crew.unread=0;assert.equal(select('unread').crew,null);});
-test('empty states and selected tab remain accurate on refresh',()=>{const c=make();vm.runInContext("dmInboxFilter='unread'",c);assert.match(vm.runInContext('conversationListHTML([])',c),/안 읽은 메시지가 없어요/);assert.match(vm.runInContext('dmInboxTabsHTML()',c),/data-dm-filter="unread" aria-pressed="true"/);vm.runInContext("dmInboxFilter='notice'",c);assert.match(vm.runInContext('conversationListHTML([])',c),/받은 공지가 없어요/);});
-test('tabs render synchronously from the account inbox without another API call',()=>{
- const root={innerHTML:''},count={textContent:''},error={textContent:''};let click,requests=0;
- const buttons=['all','unread','crew','notice'].map(key=>({dataset:{dmFilter:key},setAttribute(){}}));
- const tabs={addEventListener:(name,handler)=>{click=handler;},removeEventListener(){},querySelectorAll:()=>buttons};
- const c=nicknameContext({document:{addEventListener(){},querySelector:s=>s==='.dm-inbox-tabs'?tabs:null},window:{addEventListener(){},removeEventListener(){}},innerWidth:375,renderId:1,me:{id:'me'},$:s=>({'#dm-conversations':root,'#dm-inbox-count':count,'#dm-list-error':error}[s]),esc:String,number:String,portrait:()=>'',dmMuteButton:()=>'',crewInboxHTML:crew=>crew?'CREW':'',api:()=>{requests++;return new Promise(()=>{});}});
- vm.runInContext(source,c);vm.runInContext("watchSocialChat=()=>()=>{};rememberDmInbox({conversations:[{id:'read',name:'READ',unread:0,updated:1},{id:'new',name:'NEW',unread:2,updated:1},{id:'team',name:'NOTICE',unread:0,is_notice:true,updated:1}],crew:{id:'crew',unread:1}});bindSocialChat({inbox:true})",c);
- const select=key=>click({target:{closest:()=>buttons.find(b=>b.dataset.dmFilter===key)}});
- select('unread');assert.match(root.innerHTML,/NEW/);assert.doesNotMatch(root.innerHTML,/READ|NOTICE/);assert.match(root.innerHTML,/CREW/);
- select('notice');assert.match(root.innerHTML,/NOTICE/);assert.doesNotMatch(root.innerHTML,/NEW|CREW/);
- select('crew');assert.equal(root.innerHTML,'CREW');select('all');assert.match(root.innerHTML,/READ/);assert.equal(requests,0);
+test('notice and crew stay first while only ordinary DMs follow message timestamps',()=>{
+ const c=make();c.icon=()=>'';
+ const items=[{id:'old',name:'old',updated:2},{id:'fake',name:'AIFECT 운영팀',updated:5},{id:'official',name:'official',is_notice:true,updated:1},{id:'new',name:'new',updated:9}];
+ c.items=items;const ordered=JSON.parse(vm.runInContext('JSON.stringify(dmOrderedConversations(items))',c));
+ assert.deepEqual(ordered.notices.map(p=>p.id),['official']);assert.deepEqual(ordered.direct.map(p=>p.id),['new','fake','old']);assert.equal(items[0].id,'old');
+ c.portrait=()=>'';c.crewInboxHTML=()=>'<a>CREW</a>';
+ const html=c.conversationListHTML(items);assert.ok(html.indexOf('공지채팅')<html.indexOf('CREW'));assert.ok(html.indexOf('CREW')<html.indexOf('#dm/new'));assert.ok(html.indexOf('#dm/new')<html.indexOf('#dm/old'));assert.doesNotMatch(html,/dm-pin|data-dm-filter/);
+});
+
+test('empty channels stay visible and search covers channel names and previews',()=>{
+ const c=make();c.icon=()=>'';assert.match(c.conversationListHTML([]),/공지채팅/);assert.match(c.conversationListHTML([]),/크루채팅/);
+ assert.equal(c.dmSearchMatch({name:'별빛',last_message:'내일 합주'},'합주'),true);
+ assert.equal(c.dmSearchMatch({name:'별빛'},'공지','공지채팅'),true);
+ vm.runInContext("dmInboxQuery='없는말'",c);assert.match(c.conversationListHTML([]),/검색 결과가 없어요/);
+});
+
+test('notice routing only opens server-verified channels and retains all official conversations',async()=>{
+ const c=make();Object.assign(c,{me:{id:'me'},location:{hash:'#dm',pathname:'/',search:''},window:{addEventListener(){}},URLSearchParams,icon:()=>'',dmInboxHTML:(data,body)=>body,dmProfileLink:()=>'',dmThreadActions:()=>'',chatPanelHTML:()=>'<form>composer</form>'});
+ vm.runInContext(readFileSync(new URL('../dist/messages-ui.js',import.meta.url),'utf8'),c);
+ const paths=[];const read=async path=>{paths.push(path);return path==='/api/dm'?{conversations:[{id:'fake',name:'AIFECT',updated:9},{id:'a',name:'Admin A',updated:1,is_notice:true},{id:'b',name:'Admin B',updated:2,is_notice:true}]}:{peer:{id:path.split('/').at(-1),name:'Admin'},messages:[]};};
+ const view=await c.dmNoticeView('dm/notice?peer=fake',read);assert.deepEqual(paths,['/api/dm','/api/dm/b']);assert.equal(view.selectedConversation,'notice');assert.match(view.html,/value="a"/);assert.match(view.html,/value="b"/);assert.match(view.html,/composer/);
+ const empty=await c.dmNoticeView('dm/notice',async()=>({conversations:[]}));assert.match(empty.html,/아직 받은 공지/);assert.equal(empty.chat,undefined);
+});
+
+test('search filters the existing inbox synchronously without fetching or changing drafts',()=>{
+ const root={innerHTML:''},error={textContent:''};let input,requests=0;
+ const search={value:'',addEventListener:(name,handler)=>input=handler,removeEventListener(){}};
+ const c=nicknameContext({document:{addEventListener(){},querySelector:s=>s==='#dm-inbox-search'?search:null},window:{addEventListener(){},removeEventListener(){}},renderId:1,me:{id:'me'},$:s=>({'#dm-conversations':root,'#dm-list-error':error}[s]),esc:String,icon:()=>'',portrait:()=>'',crewInboxHTML:()=>'',api:()=>{requests++;return new Promise(()=>{});}});
+ vm.runInContext(source,c);vm.runInContext("watchSocialChat=()=>()=>{};rememberDmInbox({conversations:[{id:'a',name:'READ',last_message:'hello'},{id:'b',name:'NEW'}]});bindSocialChat({inbox:true})",c);
+ search.value='hello';input();assert.match(root.innerHTML,/READ/);assert.doesNotMatch(root.innerHTML,/NEW/);assert.equal(requests,0);
 });
 
 test('desktop panel ends twelve pixels above payouts and respects available viewport',()=>{const c=make();assert.equal(vm.runInContext('dmWorkspaceHeight(1092,188,16,826)',c),626);assert.equal(vm.runInContext('dmWorkspaceHeight(700,188,110,826)',c),402);assert.equal(vm.runInContext('dmWorkspaceHeight(700,188,78,undefined)',c),434);assert.equal(vm.runInContext('dmWorkspaceHeight(300,188,78,undefined)',c),180);});
@@ -47,19 +65,14 @@ test('guest account renders email and social login before unrelated chat binding
  const c=make();c.me=null;c.inApp=false;c.location={hash:'#account'};c.authConfig={providers:['google','kakao','apple']};c.icon=()=>'';c.formField=(label,name)=>'<input name="'+name+'">';vm.runInContext(readFileSync(new URL('../dist/views.js',import.meta.url),'utf8'),c);const html=c.accountHTML();assert.match(html,/id="auth-form"/);assert.match(html,/name="email"/);assert.match(html,/name="password"/);assert.match(html,/\/api\/auth\/google/);assert.doesNotThrow(()=>c.bindSocialChat(null));
 });
 
-test('only a peer-backed DM has the inline editor, including when the inbox crew route enables stickers', () => {
- const context=nicknameContext({document:{addEventListener(){}},window:{addEventListener(){}},setInterval(){},icon:()=>'',voiceGlyph:()=>'',esc:String});
- for(const name of ['improvements','chat-features','social-chat']){
-  vm.runInContext(readFileSync(new URL('../dist/'+name+'.js',import.meta.url),'utf8'),context);
+test('DM and crew share the talking-room field and keep transport hooks',()=>{
+ const c=nicknameContext({document:{addEventListener(){}},window:{addEventListener(){}},setInterval(){},icon:()=>'',esc:String});
+ for(const name of ['improvements','chat-features','social-chat'])vm.runInContext(readFileSync(new URL('../dist/'+name+'.js',import.meta.url),'utf8'),c);
+ for(const peer of [{id:'peer'},null]){
+  const html=c.chatPanelHTML('채팅',null,peer,true);
+  for(const hook of ['chat-ui-composer','chat-ui-field','data-dm-editor','data-dm-emoji','data-chat-send','chat-image-file'])assert.ok(html.includes(hook),hook);
+  assert.equal(html.includes('data-profile-gift="peer"'),!!peer);
  }
- const dm=context.chatPanelHTML('개인 메시지',null,{id:'peer'});
- assert.match(dm,/class="[^"]*dm-direct-thread"/);
- assert.match(dm,/id="chat-image-file"[\s\S]+class="dm-inline-field"><div contenteditable="true"[^>]+aria-placeholder="메시지를 입력하세요"[^>]+data-dm-editor[^>]*><\/div><button[^>]+data-dm-emoji[\s\S]+data-chat-send[\s\S]+data-profile-gift="peer"/);
- for(const [peer,rich] of [[null,true],[null,false],[{},true]]){
-  const crew=context.chatPanelHTML('채팅',null,peer,rich);
-  assert.doesNotMatch(crew,/dm-direct-thread|dm-inline-field|메시지를 입력하세요/);
-  assert.equal(crew.includes('data-dm-editor'),rich);
-  assert.equal(crew.includes('data-dm-emoji'),rich);
-  assert.equal(crew.includes('<textarea'),!rich);
- }
+ const room=c.chatComposerHTML({id:'voice-chat-form',inputId:'voice-message',limit:500,emojiAttributes:'data-voice="emoji"'});
+ assert.match(room,/chat-ui-composer/);assert.match(room,/maxlength="500"/);assert.match(room,/id="voice-message"/);
 });

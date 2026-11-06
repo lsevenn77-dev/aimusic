@@ -8,7 +8,7 @@ const deferred=()=>{let resolve;const promise=new Promise(done=>resolve=done);re
 
 test('all direct fragments hide public HTML until the current app render is ready',()=>{
  for(const hash of ['', '#home','#song/one','#profile','#community','#search/%3Cscript%3E']){
-  const root={dataset:{}},main={innerHTML:'PUBLIC MUSIC',setAttribute(){},removeAttribute(){}};
+  const root={dataset:{},toggleAttribute(name,on){this[name]=on;}},main={innerHTML:'PUBLIC MUSIC',setAttribute(){},removeAttribute(){}};
   const c={location:{hash},document:{documentElement:root,getElementById:id=>id==='main'?main:null},window:{addEventListener(){}},setTimeout(){},clearTimeout(){}};
   vm.runInNewContext(source('render-state.js'),c);c.window.AifectRender.mount();
   assert.equal(root.dataset.renderState,'loading');assert.equal(main.inert,true);assert.equal(main.innerHTML,'PUBLIC MUSIC','SEO/no-JS content is retained behind the head gate');

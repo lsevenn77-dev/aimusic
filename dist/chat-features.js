@@ -1,6 +1,6 @@
 function dmMuteButton(p){return '<button type="button" class="icon-button dm-mute" data-dm-mute="'+esc(p.id)+'" data-muted="'+(p.muted?'1':'0')+'" aria-label="'+esc(chatNickname(p))+' 알림 '+(p.muted?'켜기':'끄기')+'" aria-pressed="'+Boolean(p.muted)+'">'+icon(p.muted?'bellOff':'bell')+'</button>';}
-function inboxControlsHTML(){return '<div class="inbox-tools"><button type="button" class="text-link" data-dm-read-all>모두 읽음</button><a href="#dm/blocked" class="text-link">차단 관리</a></div>';}
-function crewInboxHTML(c,selected=''){return c?'<a data-list-row class="surface conversation-row pinned-crew'+(selected==='crew/'+c.id?' is-selected':'')+(Number(c.unread)>0?' is-unread':'')+'" href="#dm/crew/'+esc(c.id)+'"'+(selected==='crew/'+c.id?' aria-current="true"':'')+'><span class="crew-inbox-art">'+(c.image_version?'<img src="/media/crew/'+esc(c.id)+'?v='+esc(c.image_version)+'" alt="">':icon('users'))+'</span>'+conversationCopyHTML(c,c.name,'크루 채팅',true)+conversationMetaHTML(c)+'</a>':'';}
+function inboxControlsHTML(){return '<div class="inbox-tools"><button type="button" class="chat-ui-icon chat-ui-plain" data-dm-new aria-label="새 메시지">'+icon('plus')+'</button><button type="button" class="text-link" data-dm-read-all>모두 읽음</button><a href="#dm/blocked" class="text-link">차단 관리</a></div>';}
+function crewInboxHTML(c,selected=''){return c?'<a data-list-row class="surface conversation-row pinned-crew'+(selected==='crew/'+c.id?' is-selected':'')+(Number(c.unread)>0?' is-unread':'')+'" href="#dm/crew/'+esc(c.id)+'"'+(selected==='crew/'+c.id?' aria-current="true"':'')+'><span class="crew-inbox-art">'+(c.image_version?'<img src="/media/crew/'+esc(c.id)+'?v='+esc(c.image_version)+'" alt="">':icon('users'))+'</span>'+conversationCopyHTML(c,'크루채팅 · '+c.name,'크루원들과 대화해보세요.',true)+conversationMetaHTML(c)+'</a>':'';}
 function dmThreadActions(p,settings={}){return '<div class="dm-thread-actions">'+dmMuteButton({...p,muted:settings?.muted})+'<button type="button" class="icon-button" data-dm-clear="'+esc(p.id)+'" aria-label="이 대화방 내용 전체 삭제" title="이 대화방 내용 전체 삭제">'+icon('trash')+'</button>'+(p.user_id?'<button type="button" class="text-link dm-block-button" data-person-block="'+esc(p.user_id)+'" data-block-name="'+esc(p.name)+'">차단</button>':'')+'</div>';}
 function dmEmojiPickerHTML(){
  return '<section id="dm-emoji-picker" class="cat-picker" role="dialog" aria-label="고양이 미니이모티콘" hidden></section>';
@@ -11,7 +11,7 @@ function bindDmEmoji(form,input,editor){
  const listeners=new AbortController(),options={signal:listeners.signal};
  const show=open=>{
   picker.hidden=!open;toggle.setAttribute('aria-expanded',String(open));
-  if(open)picker.querySelector('[data-cat-tab][aria-pressed=true]').focus({preventScroll:true});
+  if(open){input.blur();picker.querySelector('[data-cat-tab][aria-pressed=true]')?.focus({preventScroll:true});}
  };
  const close=()=>{show(false);editor.focus();};
  const stickers=AifectStickers.bind({picker,form,input,toggle,inline:editor,close,glyph:voiceGlyph});
@@ -29,8 +29,8 @@ function bindDmEmoji(form,input,editor){
   destroy(){listeners.abort();stickers.destroy();show(false);toggle.disabled=true;}};
 }
 function chatAttachmentTools(p,inlineComposer=''){
- const photo='<label class="icon-button" role="button" tabindex="0" aria-label="사진 보내기">'+icon('image')+'<input id="chat-image-file" type="file" accept="image/jpeg,image/png,image/webp" hidden></label>';
- const gift=p?'<button type="button" class="icon-button" data-profile-gift="'+esc(p.id)+'" aria-label="선물 보내기">'+icon('gift')+'</button>':'';
+ const photo='<label class="chat-ui-icon chat-ui-plain" role="button" tabindex="0" aria-label="사진 보내기">'+icon('image')+'<input id="chat-image-file" type="file" accept="image/jpeg,image/png,image/webp" hidden></label>';
+ const gift=p?chatIconButton('present','선물 보내기','type="button" data-profile-gift="'+esc(p.id)+'"','surface'):'';
  return '<div class="chat-attachment-tools">'+photo+inlineComposer+gift+'<small>사진은 서버에 14일 동안 보관돼요.</small></div><p id="chat-upload-status" class="field-help" role="status"></p>';
 }
 function chatImageHTML(m,crew=false){const media=crew?'/media/crew-chat/':'/media/dm/';return m.image_expires&&m.image_expires*1000<=Date.now()?'<span class="expired-chat-image">보관 기간이 지난 사진</span>':'<a class="chat-image" href="'+media+esc(m.image_id)+'" target="_blank" rel="noopener"><img src="'+media+esc(m.image_id)+'" alt="받은 사진" loading="lazy"></a>';}

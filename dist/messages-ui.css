@@ -1,0 +1,111 @@
+/* Message-only final layout. Existing shell, transport and notifications are unchanged. */
+#main > .message-workspace{
+ --dm-title:25px;--dm-thread-title:20px;--dm-name:16px;--dm-body:15px;--dm-time:13px;--dm-preview:14px;
+ display:grid;grid-template-columns:minmax(0,47fr) minmax(0,53fr);grid-template-rows:minmax(0,1fr);
+ width:min(1180px,100%);max-width:100%;height:calc(100dvh - 120px);min-height:0;overflow:hidden;
+ border:1px solid var(--ds-line);border-radius:18px;background:var(--ds-bg);box-shadow:none;
+}
+#main .message-workspace .message-list-pane{display:flex;flex-direction:column;min-width:0;min-height:0;padding:18px 12px;background:var(--ds-panel);border-right:1px solid var(--ds-line);overflow:hidden}
+#main .message-workspace .dm-section-heading{flex:none;display:flex;flex-wrap:nowrap;align-items:center;justify-content:space-between;gap:8px;margin:0 8px 12px}
+#main .message-workspace .dm-section-heading h2{font-size:var(--dm-title);font-weight:700}
+#main .message-workspace .inbox-tools{gap:2px}
+#main .message-workspace .inbox-tools .text-link{border:0;background:none;box-shadow:none;min-height:44px;padding:0 6px;color:var(--ds-body);font-size:14px}
+#main .message-workspace .inbox-tools .text-link:hover{color:var(--ds-accent-mint);background:none}
+#main .message-workspace .dm-mobile-exit{display:none}
+#main .message-workspace .dm-search{display:flex;align-items:center;flex:none;gap:10px;margin:0 8px 14px;padding:0 12px;border:1px solid var(--ds-line);border-radius:12px;background:var(--ds-bg);color:var(--ds-muted)}
+.dm-search svg{width:18px;height:18px;flex:none}
+#main .dm-search input{width:100%;min-width:0;height:44px;padding:0;border:0;background:none;box-shadow:none;color:var(--ds-text);font:inherit;font-size:16px!important;outline:0}
+#main .dm-search:focus-within{border-color:#8eddd2}
+#main .message-workspace #dm-conversations{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-width:thin}
+#main #dm-conversations .conversation-list{display:flex;flex-direction:column;gap:0}
+#main #dm-conversations .conversation-row{position:relative;display:flex;align-items:center;gap:12px;flex:none;min-width:0;min-height:84px;margin:0;padding:16px 12px;border:0;border-radius:0;background:transparent;box-shadow:none}
+#main #dm-conversations :is(.pinned-notice,.pinned-crew){background:color-mix(in srgb,var(--ds-accent-lavender) 3%,transparent)}
+#main #dm-conversations .pinned-crew{margin-bottom:10px}
+#main #dm-conversations .conversation-row:hover{background:color-mix(in srgb,#8eddd2 5%,transparent)}
+#main #dm-conversations .conversation-row.is-selected{background:color-mix(in srgb,#8eddd2 10%,transparent);box-shadow:inset 2px 0 #8eddd2}
+#main #dm-conversations .conversation-row::before,#main #dm-conversations .conversation-row::after{content:none}
+#main #dm-conversations .conversation-open{display:flex;align-items:center;flex:1;min-width:0;gap:12px;min-height:44px}
+#main #dm-conversations .conversation-copy{flex:1;min-width:0}
+#main #dm-conversations .dm-name-line{display:flex;align-items:center;gap:5px;min-width:0}
+#main #dm-conversations .dm-name-line strong{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:var(--ds-text);font-size:var(--dm-name)}
+#main #dm-conversations .conversation-copy p{margin:4px 0 0;color:var(--ds-body);font-weight:400;font-size:var(--dm-preview);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#main #dm-conversations .conversation-meta{display:flex;flex-direction:column;align-items:flex-end;align-self:stretch;justify-content:center;flex:none;gap:7px;min-width:42px}
+#main #dm-conversations .conversation-meta time{white-space:nowrap;color:var(--activity-time-color);font-size:var(--dm-time)}
+#main #dm-conversations .unread-badge{display:inline-flex;align-items:center;justify-content:center;background:var(--activity-accent);color:var(--activity-ink);min-width:20px;height:20px;padding:0 5px;border-radius:999px;font-size:12px;box-shadow:none}
+#main #dm-conversations .crew-inbox-art{display:grid;place-items:center;width:44px;height:44px;flex:0 0 44px;border:0;border-radius:16px;background:color-mix(in srgb,#8eddd2 12%,transparent);color:#8eddd2}
+#main #dm-conversations .notice-art{background:color-mix(in srgb,var(--ds-accent-lavender) 12%,transparent);color:var(--ds-accent-lavender)}
+#main .message-workspace .message-thread-pane,#main .message-workspace .message-welcome{background:var(--ds-bg);min-height:0;overflow:hidden}
+#main .message-workspace .dm-thread-header{flex:none;display:flex;flex-wrap:nowrap;align-items:center;gap:8px;padding:12px 16px!important;margin:0;background:var(--ds-bg);border-bottom:1px solid var(--ds-line)}
+#main .message-workspace .dm-thread-header h1{min-width:0;margin:0;font-size:var(--dm-thread-title);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#main .message-workspace .dm-thread-header :is(.dm-back,.icon-button,.dm-block-button){width:44px;min-width:44px;height:44px;min-height:44px;background:none;box-shadow:none;border:0;color:var(--ds-body)}
+#main .message-workspace .dm-thread-header :is(.dm-back,.icon-button,.dm-block-button):hover{background:none;color:#8eddd2}
+#main .message-workspace .dm-thread-person{flex:1;min-width:0}
+#main .message-workspace .dm-thread-actions{display:flex;flex-wrap:nowrap;gap:0;flex:none;width:auto;margin:0;padding:0;border:0}
+#main .message-workspace .dm-back{font-size:0}
+#main .message-workspace .dm-block-button{padding:0!important;white-space:nowrap;font-size:13px}
+#main .message-workspace .dm-chat-panel{
+ display:grid;grid-template-columns:44px minmax(0,1fr) 44px;grid-template-rows:auto minmax(0,1fr) auto auto auto auto auto;
+ grid-template-areas:"earlier earlier earlier" "log log log" "connection connection connection" "error error error" "upload upload upload" "photo compose gift" "hint hint hint";
+ gap:0 6px;flex:1;min-height:0;width:100%;padding:12px 16px!important;margin:0;border:0!important;border-radius:0;background:var(--ds-bg)!important;box-shadow:none;overflow:hidden;
+}
+#main .message-workspace .crew-chat-panel{grid-template-columns:44px minmax(0,1fr);grid-template-areas:"earlier earlier" "log log" "connection connection" "error error" "upload upload" "photo compose" "hint hint"}
+#main .message-workspace #chat-log{grid-area:log;min-height:0;height:auto;max-height:none;overflow:auto;overscroll-behavior:contain;padding:8px 0 16px;scrollbar-width:thin}
+#main .message-workspace #chat-earlier{grid-area:earlier;justify-self:center;margin:0 0 6px;min-height:36px;width:auto;font-size:13px;white-space:nowrap}
+#main .message-workspace #chat-error{grid-area:error}
+#main .message-workspace #chat-connection{grid-area:connection}
+#main .message-workspace #chat-upload-status{grid-area:upload}
+#main .message-workspace .chat-attachment-tools{display:contents}
+#main .message-workspace .chat-attachment-tools>label{grid-area:photo;align-self:end}
+#main .message-workspace .chat-attachment-tools>[data-profile-gift]{grid-area:gift;align-self:end}
+#main .message-workspace #chat-compose{grid-area:compose}
+#main .message-workspace .chat-attachment-tools>small{grid-area:hint;margin:6px 0 0;color:var(--ds-muted);font-size:11px}
+#main .message-workspace :is(#chat-error,#chat-connection,#chat-upload-status):empty{display:none;margin:0}
+#main .message-workspace #dm-emoji-picker{grid-area:log;position:relative!important;inset:auto!important;align-self:end;justify-self:end;width:min(416px,100%);max-height:min(400px,100%)!important;min-height:0;margin:0 0 8px;z-index:5}
+#main .message-workspace .dm-message{display:flex;align-items:flex-start;gap:10px;margin:12px 0 0;min-width:0}
+#main .message-workspace .dm-message.mine{justify-content:flex-end}
+#main .message-workspace .dm-message.is-grouped{margin-top:5px}
+#main .message-workspace .dm-message.is-grouped:not(.mine){padding-left:46px}
+#main .message-workspace .dm-message>.dm-profile-link{width:36px;height:36px;flex:0 0 36px}
+#main .message-workspace .dm-message>.dm-profile-link .artist-portrait{width:36px;height:36px;margin:0}
+#main .message-workspace .dm-message-content{min-width:0;max-width:calc(100% - 46px)}
+#main .message-workspace .dm-author{color:var(--ds-body);font-size:13px;margin-bottom:4px}
+#main .message-workspace .dm-message-line{display:flex;align-items:flex-end;gap:6px;min-width:0}
+#main .message-workspace .dm-message.mine .dm-message-line{flex-direction:row-reverse}
+#main .message-workspace .dm-bubble{min-width:0;max-width:100%;padding:9px 12px;border:0;border-radius:15px 15px 15px 5px;background:color-mix(in srgb,var(--ds-accent-lavender) 12%,var(--ds-panel));color:var(--ds-text);box-shadow:none;font-size:15px;line-height:1.6;overflow-wrap:anywhere}
+#main .message-workspace .dm-message.mine .dm-bubble{background:color-mix(in srgb,#8eddd2 87%,white);color:var(--activity-ink);border:0;border-radius:15px 15px 5px 15px}
+#main .message-workspace .chat-message-meta{flex:none;display:flex;flex-direction:column;gap:3px;max-width:65px;color:var(--ds-muted);font-size:var(--dm-time)}
+#main .message-workspace .chat-message-meta time{white-space:nowrap;font-size:var(--dm-time)}
+#main .message-workspace .message-welcome{display:flex;flex-direction:column;justify-content:center;align-items:center;padding:24px;text-align:center}
+#main .message-workspace .message-welcome-icon{display:grid;place-items:center;background:none;border:0;box-shadow:none;width:56px;height:56px;color:#8eddd2}
+#main .message-workspace .message-welcome-icon::before,#main .message-workspace .message-welcome-icon::after{content:none}
+#main .message-workspace .dm-compose-preview{display:none}
+#main .message-workspace .dm-empty{padding:24px 12px;color:var(--ds-body);text-align:center}
+.dm-notice-channel{flex:none;padding:8px 16px}.dm-notice-channel select{max-width:100%;font-size:16px}
+.dm-new-person{display:flex;align-items:center;gap:12px;padding:14px 0}.dm-new-person strong{flex:1;min-width:0}.dm-new-person .artist-portrait{width:44px;height:44px;flex:none}.dm-new-person>svg{width:22px;height:22px}
+html[data-message-route] .page-wrap>.page-footer{display:none!important}
+html[data-message-route] #main{min-height:0;padding-bottom:12px!important}
+@media(max-width:800px),(max-width:1100px) and (pointer:coarse){
+ html[data-message-route],html[data-message-route] body{overflow:hidden;overscroll-behavior:none}
+ html[data-message-route] :is(.topbar,#mobile-topbar-toggle,.player){visibility:hidden;pointer-events:none}
+ html[data-message-route] #main{margin:0!important;padding:0!important}
+ #main > .message-workspace,body.chat-active #main > .message-workspace.has-thread,body.chat-keyboard #main > .message-workspace.has-thread{
+  --dm-title:20px;--dm-thread-title:16px;--dm-name:15px;--dm-preview:13px;--dm-time:11px;
+  position:fixed;inset:auto 0 auto 0;top:var(--chat-workspace-top,0px);z-index:90;width:100%;height:100dvh;max-width:none;margin:0;
+  grid-template-columns:minmax(0,1fr);border:0;border-radius:0;background:var(--ds-bg);
+  padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);
+ }
+ #main .message-workspace.has-thread>.message-list-pane,#main .message-workspace:not(.has-thread)>.message-welcome{display:none}
+ #main .message-workspace .message-list-pane{padding:8px 8px 0;border:0}
+ #main .message-workspace .dm-section-heading{gap:0;margin:0 0 8px}
+ #main .message-workspace .dm-section-heading h2{margin-right:auto}
+ #main .message-workspace .dm-mobile-exit{display:grid;margin-right:4px;color:var(--ds-body);flex:none}
+ #main .message-workspace .inbox-tools .text-link{font-size:12px;padding:0 4px}
+ #main #dm-conversations .conversation-row{padding:14px 10px;min-height:80px;gap:10px}
+ #main .message-workspace .dm-thread-header{padding:6px 8px!important;gap:4px}
+ #main .message-workspace .dm-thread-person>.artist-portrait{display:none}
+ #main .message-workspace .dm-chat-panel{padding:8px!important;gap:0 4px}
+ #main .message-workspace .chat-attachment-tools>small{font-size:10px;margin-top:4px}
+ #main .message-workspace .dm-message-content{max-width:calc(100% - 40px)}
+ #main .message-workspace .dm-message-line{gap:4px}
+ #main .message-workspace .dm-bubble{padding:8px 10px}
+}

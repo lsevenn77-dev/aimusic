@@ -1,0 +1,44 @@
+/* Extracted from the approved talking-room field, sheen, rim and glyphs. */
+#main :is(#voice-chat-form,#room-dm-compose,#chat-compose).chat-ui-composer,#main .chat-ui-field,#main .chat-ui-icon{
+ --chat-gloss:radial-gradient(39px 24px at 0% 0%,rgb(255 255 255/.34),rgb(255 255 255/.13) 30%,transparent 80%),radial-gradient(38px 25px at 100% 100%,rgb(255 255 255/.28),rgb(255 255 255/.10) 30%,transparent 80%);
+ --chat-edge:linear-gradient(130deg,rgb(255 255 255/.79),rgb(255 255 255/.25) 21%,rgb(255 255 255/.23) 70%,rgb(255 255 255/.75));
+ --chat-sheen:inset 0 .4px .7px rgb(255 255 255/.15),0 2px 5px rgb(0 0 0/.08);
+}
+#main :is(#voice-chat-form,#room-dm-compose,#chat-compose).chat-ui-composer{
+ display:flex!important;align-items:flex-end!important;flex:none;gap:6px!important;width:100%;min-width:0;
+ height:auto!important;min-height:44px;padding:0!important;margin:0!important;border:0!important;border-radius:0!important;background:none!important;box-shadow:none!important;
+}
+#main :is(#voice-chat-form,#room-dm-compose,#chat-compose).chat-ui-composer .chat-ui-field{
+ position:relative;display:flex;align-items:flex-end;flex:1 1 0;min-width:0;width:auto;height:auto!important;min-height:44px;
+ margin:0;padding:0;border:0;border-radius:24px;background:var(--chat-gloss);box-shadow:var(--chat-sheen);
+}
+#main :is(#voice-chat-form,#room-dm-compose,#chat-compose).chat-ui-composer .chat-ui-field::before,#main .chat-ui-surface::before{
+ content:"";position:absolute;inset:0;pointer-events:none;border-radius:inherit;padding:.65px;background:var(--chat-edge);
+ mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);mask-composite:exclude;
+ -webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;
+}
+#main :is(#voice-chat-form,#room-dm-compose,#chat-compose).chat-ui-composer .chat-ui-field:focus-within{outline:1px solid #8eddd2;outline-offset:1px}
+#main :is(#voice-chat-form,#room-dm-compose,#chat-compose).chat-ui-composer .chat-ui-field :is(textarea,[data-dm-editor]){
+ box-sizing:border-box;display:block;position:static;flex:1 1 0;min-width:0!important;width:100%;min-height:44px;max-height:116px!important;
+ padding:10px 0 10px 14px!important;margin:0;border:0!important;border-radius:24px;background:transparent!important;box-shadow:none!important;outline:0;
+ font-family:inherit;font-size:16px!important;line-height:24px!important;color:var(--ds-text);-webkit-text-fill-color:currentColor;
+ overflow-y:auto;overflow-x:hidden;overflow-wrap:anywhere;white-space:pre-wrap;resize:none;scrollbar-width:thin;
+}
+#main :is(#voice-chat-form,#room-dm-compose,#chat-compose).chat-ui-composer textarea::placeholder,#main :is(#voice-chat-form,#room-dm-compose,#chat-compose).chat-ui-composer [data-dm-editor]:empty::before{color:var(--ds-muted);font-size:inherit;white-space:nowrap}
+#main :is(#voice-chat-form,#room-dm-compose,#chat-compose).chat-ui-composer [data-dm-editor]:empty::before{display:block;overflow:hidden;text-overflow:ellipsis}
+#main :is(#voice-chat-form,#room-dm-compose,#chat-compose).chat-ui-composer .chat-ui-icon,#main .chat-ui-icon{
+ position:relative;inset:auto;display:inline-grid;place-items:center;align-self:flex-end;flex:0 0 44px;width:44px;height:44px;min-width:44px;min-height:44px;
+ padding:0;margin:0;border:0;border-radius:12px;background:transparent;box-shadow:none;color:var(--ds-text);cursor:pointer;transform:none;
+}
+#main .chat-ui-surface{background:var(--chat-gloss);box-shadow:var(--chat-sheen)}
+#main :is(#voice-chat-form,#room-dm-compose,#chat-compose).chat-ui-composer .chat-ui-icon svg,#main .chat-ui-icon svg{width:21px;height:21px;fill:none}
+#main :is(#voice-chat-form,#room-dm-compose,#chat-compose).chat-ui-composer .chat-ui-surface svg{fill:currentColor}
+#main :is(#voice-chat-form,#room-dm-compose,#chat-compose).chat-ui-composer .chat-ui-icon:hover,#main .chat-ui-icon:hover{color:var(--ds-accent-mint);filter:none;transform:none}
+#main :is(#voice-chat-form,#room-dm-compose,#chat-compose).chat-ui-composer .chat-ui-plain:is(:hover,:focus),#main .chat-ui-plain:is(:hover,:focus){background:transparent;box-shadow:none;border:0}
+#main .chat-ui-icon:focus-visible{outline:2px solid #8eddd2;outline-offset:-3px;border-radius:50%}
+#main .chat-ui-icon:disabled{opacity:.45;cursor:default}
+#main :is(#voice-chat-form,#room-dm-compose,#chat-compose).chat-ui-composer .form-error:empty{display:none}
+#main :is(#voice-chat-form,#room-dm-compose,#chat-compose).chat-ui-composer .dm-length{position:absolute;right:46px;bottom:2px;font-size:10px;pointer-events:none}
+#main :is(#voice-chat-form,#room-dm-compose,#chat-compose).chat-ui-composer .dm-length:not([hidden])~.chat-ui-icon{align-self:flex-end}
+#main :is(#voice-chat-form,#room-dm-compose,#chat-compose).chat-ui-composer .chat-ui-field:has(.dm-length:not([hidden])) :is(textarea,[data-dm-editor]){padding-bottom:20px!important}
+@media(max-width:380px){#main :is(#voice-chat-form,#room-dm-compose,#chat-compose).chat-ui-composer{gap:2px!important}#main :is(#voice-chat-form,#room-dm-compose,#chat-compose).chat-ui-composer .chat-ui-field :is(textarea,[data-dm-editor]){padding-left:10px!important}}

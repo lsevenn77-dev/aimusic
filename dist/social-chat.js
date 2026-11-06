@@ -33,47 +33,66 @@ function chatNickname(p){return p.chat_nickname??p.name;}
 function inboxTime(at){return Number(at)>0?new Date(at*1000).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',hourCycle:'h23',timeZone:'Asia/Seoul'}):'';}
 function conversationCopyHTML(p,name,emptyPreview,pinned=false){
  const preview=p.last_message_display??p.last_message;
- const pin=pinned?'<span class="dm-pin" role="img" aria-label="고정된 대화" title="고정된 대화">'+icon('dmPin')+'</span>':'';
+
  const mute=p.muted?'<span class="conversation-muted" role="img" aria-label="알림 끔" title="알림 끔">'+icon('bellOff')+'</span>':'';
- const dot=Number(p.unread)>0?'<i class="dm-unread-dot" aria-hidden="true"></i>':'';
- return '<div class="conversation-copy"><div class="dm-name-line"><strong title="'+esc(name)+'">'+(pinned?esc(name):userNickname(name,{profileId:p.id,userId:p.user_id}))+'</strong>'+pin+mute+dot+'</div><p>'+esc(preview?.includes('[aifect:')?AifectStickers.preview(preview):preview||emptyPreview)+'</p></div>';
+
+ return '<div class="conversation-copy"><div class="dm-name-line"><strong title="'+esc(name)+'">'+(pinned?esc(name):userNickname(name,{profileId:p.id,userId:p.user_id}))+'</strong>'+mute+'</div><p>'+esc(preview?.includes('[aifect:')?AifectStickers.preview(preview):preview||emptyPreview)+'</p></div>';
 }
 function conversationMetaHTML(p){
  const count=Number(p.unread)||0;
  return '<div class="conversation-meta"><time>'+inboxTime(p.updated)+'</time>'+(count>0?'<span class="unread-badge" aria-label="안 읽은 메시지 '+count+'개">'+count+'</span>':'')+'</div>';
 }
 function dmProfileLink(p,content,cls='dm-profile-link'){return '<a class="'+cls+'" href="#producer/'+esc(p.id)+'" aria-label="'+esc(chatNickname(p))+' 프로필 보기">'+content+'</a>';}
-let dmInboxFilter='all';
+let dmInboxQuery='';
 let dmInboxSnapshot=null;
-function rememberDmInbox(data){dmInboxSnapshot={uid:me?.id,data};}
-
-const dmInboxTabs=[['all','전체'],['unread','안 읽음'],['crew','크루'],['notice','공지']];
-function dmInboxTabsHTML(){return '<div class="dm-inbox-tabs" role="group" aria-label="메시지 분류">'+dmInboxTabs.map(([key,label])=>'<button type="button" data-dm-filter="'+key+'" aria-pressed="'+(dmInboxFilter===key)+'">'+label+'</button>').join('')+'</div>';}
-function dmInboxSelection(conversations,crew,filter){return {conversations:conversations.filter(p=>filter==='all'||filter==='unread'&&Number(p.unread)>0||filter==='notice'&&p.is_notice===true),crew:filter==='all'||filter==='crew'||filter==='unread'&&Number(crew?.unread)>0?crew:null};}
-function conversationListHTML(conversations,crew=null,selected=''){const chosen=dmInboxSelection(conversations,crew,dmInboxFilter);conversations=chosen.conversations;crew=chosen.crew;return crewInboxHTML(crew,selected)+(conversations.length?'<div class="conversation-list">'+conversations.map(p=>'<article data-list-row class="surface conversation-row'+(selected===p.id?' is-selected':'')+(Number(p.unread)>0?' is-unread':'')+'">'+dmProfileLink(p,portrait(p,'producer'))+'<a class="conversation-open" href="#dm/'+esc(p.id)+'"'+(selected===p.id?' aria-current="true"':'')+'>'+conversationCopyHTML(p,chatNickname(p),'대화를 시작해보세요.')+conversationMetaHTML(p)+'</a></article>').join('')+'</div>':crew?'':'<div class="dm-empty" role="status"><h2>'+({all:'아직 나눈 대화가 없어요',unread:'안 읽은 메시지가 없어요',crew:'가입한 크루가 없어요',notice:'받은 공지가 없어요'}[dmInboxFilter])+'</h2><p>'+({all:'프로필에서 DM을 보내 대화를 시작해보세요.',unread:'새 메시지가 오면 여기에 표시돼요.',crew:'크루에 가입하면 크루 채팅을 볼 수 있어요.',notice:'운영자 계정의 메시지를 이곳에 모아드려요.'}[dmInboxFilter])+'</p></div>');}
+function rememberDmInbox(data){if(dmInboxSnapshot?.uid!==me?.id)dmInboxQuery='';dmInboxSnapshot={uid:me?.id,data};}
+function dmOrderedConversations(conversations=[]){
+ const ordered=[...conversations].sort((a,b)=>Number(b.updated||0)-Number(a.updated||0));
+ return {notices:ordered.filter(p=>p.is_notice===true),direct:ordered.filter(p=>p.is_notice!==true)};
+}
+function dmSearchMatch(p,query,label=''){
+ return !query||[label,chatNickname(p||{}),p?.last_message_display,p?.last_message].join(' ').toLocaleLowerCase().includes(query.trim().toLocaleLowerCase());
+}
+function dmConversationRow(p,selected=''){
+ return '<article data-list-row class="conversation-row'+(selected===p.id?' is-selected':'')+(Number(p.unread)>0?' is-unread':'')+'">'+dmProfileLink(p,portrait(p,'producer'))+'<a class="conversation-open" href="#dm/'+esc(p.id)+'"'+(selected===p.id?' aria-current="true"':'')+'>'+conversationCopyHTML(p,chatNickname(p),'대화를 시작해보세요.')+conversationMetaHTML(p)+'</a></article>';
+}
+function noticeInboxHTML(notices,selected){
+ const latest=notices[0]||{},p={...latest,unread:notices.reduce((n,p)=>n+Number(p.unread||0),0),muted:notices.length>0&&notices.every(p=>p.muted)};
+ const active=selected==='notice'||notices.some(p=>p.id===selected);
+ return '<a data-list-row class="conversation-row pinned-notice'+(active?' is-selected':'')+'" href="#dm/notice"'+(active?' aria-current="true"':'')+'><span class="crew-inbox-art notice-art">'+voiceGlyph('megaphone')+'</span>'+conversationCopyHTML(p,'공지채팅','아직 받은 공지가 없어요.',true)+conversationMetaHTML(p)+'</a>';
+}
+function conversationListHTML(conversations=[],crew=null,selected=''){
+ const {notices,direct}=dmOrderedConversations(conversations),query=dmInboxQuery;
+ const notice=(!query||dmSearchMatch({},query,'공지채팅')||notices.some(p=>dmSearchMatch(p,query)))?noticeInboxHTML(notices,selected):'';
+ const crewRow=dmSearchMatch(crew,query,'크루채팅')?(crewInboxHTML(crew,selected)||'<a class="conversation-row pinned-crew" href="#community/crews"><span class="crew-inbox-art">'+icon('users')+'</span><div class="conversation-copy"><strong>크루채팅</strong><p>크루에 가입하면 대화할 수 있어요.</p></div></a>'):'';
+ const rows=direct.filter(p=>dmSearchMatch(p,query)).map(p=>dmConversationRow(p,selected)).join('');
+ return '<div class="conversation-list">'+notice+crewRow+rows+'</div>'+(!notice&&!crewRow&&!rows?'<div class="dm-empty" role="status"><p>검색 결과가 없어요.</p></div>':!direct.length&&!query?'<div class="dm-empty"><p>새 메시지로 대화를 시작해보세요.</p></div>':'');
+}
 function chatTextHTML(body){return esc(body).replace(/(?:[ \t]*\r?\n[ \t]*)?https:\/\/aifect\.co\.kr\/#(voice|live)\/([a-zA-Z0-9_-]{16,64})(?![a-zA-Z0-9_-])/g,(_,route,id)=>'<a class="small-button dm-room-invite" href="#'+route+'/'+id+'">방 입장하기</a>');}
 function chatBodyHTML(body){return body?.includes('[aifect:')?AifectStickers.render(body,chatTextHTML):chatTextHTML(body);}
 function chatHTML(messages,peer=null,crew=null){
- let day='';return messages.map(m=>{
+ let day='',previous=null;return messages.map(m=>{
   const currentDay=new Date(m.created*1000).toLocaleDateString('ko-KR',{timeZone:'Asia/Seoul'}),separator=currentDay!==day?'<div class="chat-day">'+currentDay+'</div>':'';day=currentDay;
-  if(m.kind==='system')return separator+'<div class="chat-system">'+esc(m.display_body??m.body)+(crew&&m.body.endsWith('님이 크루에 참여했습니다. 인사를 나눠보세요.')?' <button type="button" class="text-link" data-crew-hello="'+esc(m.id)+'" data-intro="'+(m.user_id===me?.id)+'">인사하기</button>':'')+'</div>';
+  if(m.kind==='system'){previous=null;return separator+'<div class="chat-system">'+esc(m.display_body??m.body)+(crew&&m.body.endsWith('님이 크루에 참여했습니다. 인사를 나눠보세요.')?' <button type="button" class="text-link" data-crew-hello="'+esc(m.id)+'" data-intro="'+(m.user_id===me?.id)+'">인사하기</button>':'')+'</div>';}
   const mine=m.sender_id===me?.id||m.user_id===me?.id,name=m.chat_nickname||m.name||(mine?'나':chatNickname(peer||{}))||'리스너',label=crew?crewDisplayName({...m,name}):name;
   const delivery=m.delivery==='sending'?'<small class="chat-delivery">전송 중…</small>':m.delivery==='failed'?'<button class="chat-retry" data-chat-retry="'+esc(m.id)+'">다시 보내기</button>':'';
   const person=peer||{id:m.profile_id,name:label,image_version:m.image_version,player_xp:m.player_xp,profile_frame:m.profile_frame,profile_frame_artwork:m.profile_frame_artwork};
+  const grouped=!separator&&previous?.sender===(m.sender_id||m.user_id)&&m.created-previous.created<300;
+  previous={sender:m.sender_id||m.user_id,created:m.created};
   const linked=!!person.id,face=portrait(person,'producer');
-  const avatar=!mine?(linked?dmProfileLink(person,face):'<span class="dm-profile-link">'+face+'</span>'):'';
-  const author=mine?'':'<span class="dm-author">'+userNickname(label,{profileId:person.id,userId:m.user_id||m.sender_id})+'</span>'+(crew?.owner&&m.profile_id?'<button type="button" class="icon-button chat-author-menu" data-crew-member="'+esc(m.profile_id)+'" data-crew="'+esc(crew.id)+'" aria-label="'+esc(label)+' 관리">'+icon('ui-menu-action')+'</button>':'');
+  const avatar=!mine&&!grouped?(linked?dmProfileLink(person,face):'<span class="dm-profile-link">'+face+'</span>'):'';
+  const author=mine||grouped?'':'<span class="dm-author">'+userNickname(label,{profileId:person.id,userId:m.user_id||m.sender_id})+'</span>'+(crew?.owner&&m.profile_id?'<button type="button" class="icon-button chat-author-menu" data-crew-member="'+esc(m.profile_id)+'" data-crew="'+esc(crew.id)+'" aria-label="'+esc(label)+' 관리">'+icon('ui-menu-action')+'</button>':'');
   const stamp=new Date(m.created*1000).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Seoul'});
   const invitation=!crew&&m.crew_invite_id?'<a class="small-button dm-crew-invite" href="#crew/'+esc(m.crew_invite_id)+'">'+icon('users')+' 초대받은 크루 보기 '+icon('chevron')+'</a>':'';
   const body=invitation?m.body.replace('\n크루 둘러보기: https://aifect.co.kr/#crew/'+m.crew_invite_id,''):m.body;
-  return separator+'<article class="dm-message '+(mine?'mine':'')+'" data-message="'+esc(m.id)+'">'+avatar+'<div class="dm-message-content">'+author+'<div class="dm-message-line"><div class="dm-bubble"><span class="chat-body">'+(m.image_id?chatImageHTML(m,!!crew):chatBodyHTML(body))+'</span>'+invitation+'</div><div class="chat-message-meta"><time>'+stamp+'</time>'+delivery+'</div></div></div></article>';
+  return separator+'<article class="dm-message '+(mine?'mine':'')+(grouped?' is-grouped':'')+'" data-message="'+esc(m.id)+'">'+avatar+'<div class="dm-message-content">'+author+'<div class="dm-message-line"><div class="dm-bubble"><span class="chat-body">'+(m.image_id?chatImageHTML(m,!!crew):chatBodyHTML(body))+'</span>'+invitation+'</div><div class="chat-message-meta"><time>'+stamp+'</time>'+delivery+'</div></div></div></article>';
  }).join('')||'<div class="chat-empty"><span>'+icon('message')+'</span><strong>음악에서 시작되는 대화</strong><p>반가운 인사나 좋았던 음악을 나눠보세요.</p></div>';
 }
 function chatPanelHTML(label,initial=null,peer=null,dm=!!peer){
  // The message workspace also enables the rich editor for crew channels.
  const direct=!!peer?.id;
  const composer=(dm?dmEmojiPickerHTML():'')+chatComposer(dm,direct);
- const controls=direct?chatAttachmentTools(peer,composer):chatAttachmentTools(peer)+composer;
+ const controls=chatAttachmentTools(peer,composer);
  return '<section class="surface chat-panel dm-chat-panel '+(direct?'dm-direct-thread':peer?'':'crew-chat-panel')+'"><button class="small-button chat-earlier" id="chat-earlier" '+(initial?.has_more?'':'hidden')+'>이전 대화 보기</button><div id="chat-log" role="log" aria-label="'+label+'">'+(initial?chatHTML(initial.messages,peer):'')+'</div><p id="chat-connection" class="quiet" role="status"></p><p id="chat-error" role="status"></p>'+controls+'</section>';
 }
 let socialCleanup=null;
@@ -140,7 +159,7 @@ function bindSocialChat(view){
   stopCrewInbox=id?watchSocialChat('?crew='+encodeURIComponent(id),refreshInbox,()=>{},refreshInbox):null;
  };
  const paintInbox=d=>{const root=$('#dm-conversations'),html=conversationListHTML(d.conversations,d.crew,view.selectedConversation||'');if(root&&root.innerHTML!==html)root.innerHTML=html;};
- const tabs=document.querySelector('.dm-inbox-tabs');const filter=e=>{const b=e.target.closest('[data-dm-filter]');if(!b)return;dmInboxFilter=b.dataset.dmFilter;tabs.querySelectorAll('[data-dm-filter]').forEach(t=>t.setAttribute('aria-pressed',String(t.dataset.dmFilter===dmInboxFilter)));if(inboxData)paintInbox(inboxData);};tabs?.addEventListener('click',filter);
+ const search=document.querySelector('#dm-inbox-search');const filter=()=>{dmInboxQuery=search.value;if(inboxData)paintInbox(inboxData);};search?.addEventListener('input',filter);
  let inboxFetching=false,inboxAgain=false,inboxVersion=0;
  const loadInbox=async()=>{if(!view?.inbox||!current())return;if(inboxFetching){inboxAgain=true;return;}inboxFetching=true;
   try{do{inboxAgain=false;const version=inboxVersion,d=await api('/api/dm');if(!current())return;if(version!==inboxVersion)continue;inboxData=d;rememberDmInbox(d);paintInbox(d);syncCrewInbox(d.crew);$('#dm-list-error').textContent='';}while(inboxAgain&&current());}
@@ -149,7 +168,7 @@ function bindSocialChat(view){
  const localInbox=e=>{if(current()&&view?.inbox&&e.detail){inboxVersion++;inboxData=e.detail;paintInbox(inboxData);}};const refreshInbox=()=>{void loadInbox();};if(view?.inbox){window.addEventListener('aifect:inbox-local',localInbox);window.addEventListener('aifect:inbox-refresh',refreshInbox);}
  if(view.inbox)syncCrewInbox(inboxData?.crew);
  const clearInboxEvents=()=>{stopCrewInbox?.();window.removeEventListener('aifect:inbox-local',localInbox);window.removeEventListener('aifect:inbox-refresh',refreshInbox);};
- if(view?.inbox&&!view.chat){if(view.refreshInbox)void loadInbox();const stop=watchSocialChat('',loadInbox,()=>{},()=>{$('#dm-list-error').textContent='로그인 상태를 다시 확인해주세요.';});socialCleanup=()=>{clearInboxEvents();stop();tabs?.removeEventListener('click',filter);};return;}
+ if(view?.inbox&&!view.chat){if(view.refreshInbox)void loadInbox();const stop=watchSocialChat('',loadInbox,()=>{},()=>{$('#dm-list-error').textContent='로그인 상태를 다시 확인해주세요.';});socialCleanup=()=>{clearInboxEvents();stop();search?.removeEventListener('input',filter);};return;}
  if(!view?.chat)return;
  if(view.refreshInbox)void loadInbox();
  const {path,peer,crew,initial}=view.chat,form=$('#chat-compose'),log=$('#chat-log'),earlier=$('#chat-earlier'),input=form.querySelector('textarea')||form.querySelector('[data-dm-editor]'),sendButton=form.querySelector('[data-chat-send]');
@@ -165,7 +184,7 @@ function bindSocialChat(view){
  setDraft(unsent.draft);unsent.pending.forEach((m,id)=>messages.set(id,m));
  let fetching=false,again=false,initialized=!!initial,lastHTML=null,sending=false,denied=false,chatGeneration=0;
  // The direct rich editor grows intrinsically up to its CSS max-height.
- const resizeInput=()=>{saveDraft();if(peer?.id&&editor)return;input.style.height='auto';input.style.height=Math.min(120,Math.max(46,(input.scrollHeight||44)+2))+'px';};
+ const resizeInput=()=>{saveDraft();resizeChatInput(input);};
  input.addEventListener('input',resizeInput);resizeInput();
  // Only a history read advances the cursor. A POST can return a newer message
  // before intervening messages from another member have arrived.
@@ -181,7 +200,7 @@ function bindSocialChat(view){
  const merge=incoming=>incoming.forEach(m=>{if(m.request_id&&(m.user_id===uid||m.sender_id===uid)){messages.delete('pending:'+m.request_id);unsent.pending.delete('pending:'+m.request_id);}messages.set(m.id,m);});
  merge(initial?.messages||[]);
  const mobileChat=()=>window.AifectMobileInput?.isMobile()??innerWidth<=800;
- const paint=(older=false,forceBottom=false)=>{const nearBottom=forceBottom||(!mobileChat()&&document.activeElement===input)||log.scrollHeight-log.scrollTop-log.clientHeight<90,top=log.scrollTop,height=log.scrollHeight;const html=chatHTML(sorted(),peer,crew);if(html===lastHTML){if(forceBottom)log.scrollTop=log.scrollHeight;return;}lastHTML=html;patchChatLog(log,html);if(older)log.scrollTop=top+log.scrollHeight-height;else if(nearBottom)log.scrollTop=log.scrollHeight;};
+ const paint=(older=false,forceBottom=false)=>{const nearBottom=forceBottom||log.scrollHeight-log.scrollTop-log.clientHeight<90,top=log.scrollTop,height=log.scrollHeight;const html=chatHTML(sorted(),peer,crew);if(html===lastHTML){if(forceBottom)log.scrollTop=log.scrollHeight;return;}lastHTML=html;patchChatLog(log,html);if(older)log.scrollTop=top+log.scrollHeight-height;else if(nearBottom)log.scrollTop=log.scrollHeight;};
  const deny=()=>{denied=true;socialCleanup?.();if(crew){chatGeneration++;unsent.pending.clear();setDraft('');saveDraft();messages.clear();latestSequence=0;lastHTML=null;paint(false,true);}if(editor)editor.disable();else input.disabled=true;sendButton.disabled=true;$('#chat-connection').textContent='연결 종료';$('#chat-error').textContent='로그인 또는 크루 가입 상태를 다시 확인해주세요.';};
  if(initial)paint(false,true);else log.innerHTML='<p class="quiet" role="status">대화를 불러오는 중…</p>';
  const load=async(older=false)=>{
@@ -239,29 +258,13 @@ function bindSocialChat(view){
  document.body.classList.add('chat-active');
  const panel=log.closest('.chat-panel');let pinned=true,frame=0;
  const onScroll=()=>{pinned=log.scrollHeight-log.scrollTop-log.clientHeight<90;};
- const anchor=()=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(()=>{if(!current())return;if(pinned||(!mobileChat()&&document.activeElement===input))log.scrollTop=log.scrollHeight;});};
+ const anchor=()=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(()=>{if(!current())return;if(pinned)log.scrollTop=log.scrollHeight;});};
  const workspace=panel.closest?.('.message-workspace'),target=workspace||panel;
  const viewport=()=>{
-  if(!current())return;
-  // The router binds while #main is display:none. Measuring that state returns
-  // top=0 and previously left the composer one header-height behind the tabs.
-  if(target.getClientRects&&!target.getClientRects().length)return;
-  resizeInput();
-  const vv=window.visualViewport,geometry=window.AifectMobileInput?.measure();if(geometry?.scaled)return;
-  const keyboard=mobileChat()&&!!geometry?.keyboard&&document.documentElement.hasAttribute('data-mobile-keyboard');
-  document.body.classList.toggle('chat-keyboard',keyboard);
-  if(workspace&&!mobileChat()){panel.style.height='';anchor();return;}
-  const bottom=geometry?.bottom??((vv?.height||innerHeight)+(vv?.offsetTop||0));
-  const header=document.querySelector('.topbar')?.getBoundingClientRect();
-  const top=workspace&&mobileChat()?(keyboard?(geometry?.top||0):(header?.bottom??90)):target.getBoundingClientRect().top;
-  if(workspace&&mobileChat())workspace.style.setProperty('--chat-workspace-top',top+'px');
-  const nav=document.querySelector('.mobile-navigation')?.getBoundingClientRect();
-  const player=document.querySelector('.player:not([hidden])')?.getBoundingClientRect();
-  const boundary=keyboard?bottom:Math.min(bottom,nav?.height?nav.top:bottom,player?.height?player.top:bottom);
-  const available=dmWorkspaceHeight(boundary,top,workspace?0:(keyboard?0:12),undefined,true);
-  workspace?.toggleAttribute('data-chat-compact',available<340);
-  target.style.height=available+'px';
-  if(workspace)panel.style.height='';anchor();
+  if(!current()||(target.getClientRects&&!target.getClientRects().length))return;resizeInput();
+  if(workspace){window.AifectMessageLayout?.fit();anchor();return;}
+  const vv=window.visualViewport,bottom=(vv?.height||innerHeight)+(vv?.offsetTop||0);
+  panel.style.height=Math.max(0,bottom-panel.getBoundingClientRect().top-12)+'px';anchor();
  };
  const resize=new ResizeObserver(anchor);resize.observe(log);
  log.addEventListener('scroll',onScroll,{passive:true});log.addEventListener('load',anchor,true);
@@ -272,7 +275,7 @@ function bindSocialChat(view){
  const readyFrame=requestAnimationFrame(viewport);
  window.addEventListener('aifect:input-viewport',viewport);
  window.addEventListener('aifect:topbar-layout',viewport);
- socialCleanup=()=>{saveDraft();stickers?.destroy();editor?.destroy();input.removeEventListener('input',resizeInput);clearInboxEvents();tabs?.removeEventListener('click',filter);document.body.classList.remove('chat-keyboard','chat-active');stopStream();stopInbox();resize.disconnect();layoutResize.disconnect();cancelAnimationFrame(frame);cancelAnimationFrame(readyFrame);log.removeEventListener('scroll',onScroll);log.removeEventListener('load',anchor,true);input.removeEventListener('focus',viewport);input.removeEventListener('blur',viewport);window.visualViewport?.removeEventListener('resize',viewport);window.visualViewport?.removeEventListener('scroll',viewport);window.removeEventListener('resize',viewport);window.removeEventListener('aifect:input-viewport',viewport);window.removeEventListener('aifect:topbar-layout',viewport);};
+ socialCleanup=()=>{saveDraft();stickers?.destroy();editor?.destroy();input.removeEventListener('input',resizeInput);clearInboxEvents();search?.removeEventListener('input',filter);document.body.classList.remove('chat-keyboard','chat-active');stopStream();stopInbox();resize.disconnect();layoutResize.disconnect();cancelAnimationFrame(frame);cancelAnimationFrame(readyFrame);log.removeEventListener('scroll',onScroll);log.removeEventListener('load',anchor,true);input.removeEventListener('focus',viewport);input.removeEventListener('blur',viewport);window.visualViewport?.removeEventListener('resize',viewport);window.visualViewport?.removeEventListener('scroll',viewport);window.removeEventListener('resize',viewport);window.removeEventListener('aifect:input-viewport',viewport);window.removeEventListener('aifect:topbar-layout',viewport);};
 }
 
 document.addEventListener('click',async event=>{

@@ -24,8 +24,8 @@ test('emoji insertion replaces the selection and cannot exceed the chat length l
 
 function boundChat(liveMode,command,refresh=async()=>{}){
  const nodes=new Map(),attrs={},picker={hidden:true,open:false,close(){this.open=false;}},button={setAttribute(key,value){attrs[key]=value;},focus(){}};
- const input={value:'😀💜👏',selectionStart:6,selectionEnd:6,maxLength:500,focus(){},dispatchEvent(){}};
- const form={elements:{body:input},reset(){input.value='';},requestSubmit(){this.pending=this.onsubmit();}};
+ const input={addEventListener(){},value:'😀💜👏',selectionStart:6,selectionEnd:6,maxLength:500,focus(){},dispatchEvent(){}};
+ const form={addEventListener(){},elements:{body:input},reset(){input.value='';},requestSubmit(){this.pending=this.onsubmit();}};
  nodes.set('#voice-chat-form',form);nodes.set('#voice-message',input);nodes.set('#voice-emoji-picker',picker);
  const get=selector=>{
   if(selector==='[data-voice="emoji"]')return button;
