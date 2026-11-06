@@ -91,7 +91,7 @@
  & #live-results strong {display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:var(--room-body);}
  & #live-results small {font-size:var(--room-caption);}
  & #live-results button {flex:none;min-height:36px;min-width:48px;font-size:var(--room-button);padding:4px 9px;white-space:nowrap;}
- & .live-start-popup {position:absolute;z-index:6;inset:50% auto auto 50%;translate:-50% -50%;width:min(290px,90%);padding:20px 12px;text-align:center;background:linear-gradient(135deg,#ffffff30,#ffffff05),#182231d9;backdrop-filter:blur(12px);}
+ & #live-invite.live-start-popup {position:absolute;z-index:6;inset:50% auto auto 50%;translate:-50% -50%;width:min(290px,90%);padding:20px 12px;text-align:center;background:linear-gradient(135deg,#ffffff30,#ffffff05),#182231d9;backdrop-filter:blur(12px);}
  & #room-turn-action {display:flex;justify-content:center;}
  & .live-start-popup p {margin:0 0 10px;font-size:var(--room-body);}
  & .live-start-popup output {display:block;font-size:28px;font-variant-numeric:tabular-nums;line-height:1.4;}
