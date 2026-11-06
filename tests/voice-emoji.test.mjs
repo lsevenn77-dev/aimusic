@@ -34,7 +34,7 @@ function boundChat(liveMode,command,refresh=async()=>{}){
  };
  const context=nicknameContext({bindRoomViewport(){},AbortController,Event,crypto,navigator:{mediaDevices:{}},localStorage:{getItem:()=>null},
   window:{innerWidth:390,innerHeight:844,addEventListener(){},removeEventListener(){}},
-  document:{addEventListener(){}},$:get,busyForm:(element,callback)=>callback});
+  document:{addEventListener(){}},toast(){},AifectStickers:{editor(el){return {get:()=>el.value,set:value=>{el.value=value;},destroy(){}};}},$:get,busyForm:(element,callback)=>callback});
  vm.runInContext(readFileSync(new URL('../dist/voice-rooms.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../dist/voice-room-controls.js',import.meta.url),'utf8')+'\nthis.client=new VoiceRoomClient("test-room");',context);
  const client=context.client;
  Object.assign(client,{liveMode,command,refresh,bindTalkViews(){},adoptRoomPopup(sheet){sheet.open=true;},joinAttempted:true,resumeSound(){},bindAudioSettings(){},giftSummary(){}});

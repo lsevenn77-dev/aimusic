@@ -44,7 +44,7 @@ test('diagnostics calculate interval loss/concealment without persisting network
 
 test('chat Enter sends once, Shift Enter and IME composition do not send',()=>{
  const elements=new Map();const get=id=>{if(!elements.has(id))elements.set(id,{value:'안녕하세요',addEventListener(){},requestSubmit(){this.sent=(this.sent||0)+1;}});return elements.get(id);};
- const c=nicknameContext({AbortController,navigator:{mediaDevices:{}},VoiceRoomClient:class{},$:get,busyForm:()=>()=>{}});
+ const c=nicknameContext({AbortController,navigator:{mediaDevices:{}},VoiceRoomClient:class{},toast(){},AifectStickers:{editor:el=>({get:()=>el.value,destroy(){}})},$:get,busyForm:()=>()=>{}});
  vm.runInContext(readFileSync(new URL('../dist/voice-room-controls.js',import.meta.url),'utf8')+';this.Client=VoiceRoomClient;',c);
  const client=new c.Client();client.preferences={echo:true};client.host={addEventListener(){},querySelector:get};client.bindTalkViews=()=>{};client.bindFinalControls();const input=get('#voice-message'),form=get('#voice-chat-form');
  let prevented=0;const enter={key:'Enter',preventDefault(){prevented++;}};

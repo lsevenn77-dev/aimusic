@@ -81,6 +81,7 @@ async function render(){
  if(window.handleEmbeddedProfile&&await window.handleEmbeddedProfile())return;
  if(typeof handleProfileEditRoute==='function'&&await handleProfileEditRoute())return;
  if(typeof sing!=='undefined'&&sing&&await retainSingRoute(sing))return;
+ if(typeof retainRoomRoute==='function'&&retainRoomRoute(location.hash.slice(1)))return;
  const serial=++presentationSerial,main=typeof $==='function'?$('#main'):null,raw=location.hash.slice(1)||'home';
  const presentation=window.AifectRender;
  const epoch=presentation?.begin(raw,main?.dataset.route,()=>{

@@ -34,7 +34,7 @@
   gap: 8px; padding: 0; margin: 16px 0 0; border: 0;
 }
 :is(#dialog, dialog).compact-popup .popup-prompt + :is(.inline-actions, .sing-exit-actions, footer) { margin-top: 0; }
-:is(#dialog, dialog).compact-popup :is(form, #dialog-content, .studio-settings, .recording-settings, .mypage-dialog, .dubbing-page) > :is(button.primary-button, button.small-button, a.primary-button, a.small-button):not(.dialog-close) {
+:is(#dialog, dialog).compact-popup :is(form:not(.room-song-search), #dialog-content, .studio-settings, .recording-settings, .mypage-dialog, .dubbing-page) > :is(button.primary-button, button.small-button, a.primary-button, a.small-button):not(.dialog-close) {
   display: flex; margin: 16px 0 0 auto;
 }
 :is(#dialog, dialog).compact-popup :is(.form-error, .studio-progress, [role="status"]):empty { display: none; }
