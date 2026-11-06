@@ -1,7 +1,7 @@
 import {legacyCrewNoticeDisplaySQL} from './crew-notice-display.js';
 import {crewGameCatalog} from './crew-game-catalog.js';
 import {profileCoverParticipation,dubRecruitingSQL,finished as dubFinishedSQL,dubAudioReadySQL} from './profile-works.js';
-import {syncCrewGrowth,crewGrowthView,crewCapacitySQL} from './crew-growth.js';
+import {syncCrewGrowth,crewGrowthSnapshot,crewMissionQuery,crewCapacitySQL} from './crew-growth.js';
 import {CREW_ROLE_LIMITS,CREW_ROLE_ALIAS,crewSettings,assertCrewLevel,auditCrew} from './crew-v3.js';
 import {dubbingVisibleSQL} from './dubbing-access.js';
 import {playerColumnsSQL} from './player.js';
@@ -25,7 +25,6 @@ const nameChangeAvailableAt=c=>c.name_changed_at?c.name_changed_at+CREW_RENAME_I
 const present=c=>({...c,...crewLevel(c.xp,c.highest_level,c.growth_started),xp:c.xp,name_change_available_at:nameChangeAvailableAt(c),can_rename:now()>=nameChangeAvailableAt(c)});
 const requestId=b=>{if(typeof b.request_id!=='string'||!/^[\w-]{16,64}$/.test(b.request_id))fail(400,'전송 요청을 다시 시작해주세요.');return b.request_id;};
 async function member(env,crewId,user){requireUser(user);const m=await one(env,'SELECT m.*,c.name crew_name,c.image_version crew_image_version FROM crew_members m JOIN crews c ON c.id=m.crew_id WHERE m.crew_id=? AND m.user_id=?',crewId,user.id);if(!m)fail(403,'크루에 가입한 멤버만 이용할 수 있어요.');return m;}
-function crewXpQueries(env,crewId){return [query(env,'SELECT 1'),query(env,'SELECT 1')];}
 async function syncXp(env,crewId){await syncCrewGrowth(env,crewId);}
 function crewNotice(env,cid,userId,body){return query(env,"INSERT INTO crew_messages(id,crew_id,user_id,body,request_id,created,kind) VALUES(?,?,?,?,?,?,'system')",id(),cid,userId,body,'system:'+id(),now());}
 async function memberName(env,userId){return (await one(env,`SELECT ${producerNameSQL()} name FROM producers p WHERE p.user_id=?`,userId))?.name||'크루원';}
@@ -45,20 +44,19 @@ async function crewHistory(env,cid,url,membership){
 }
 async function crewDetail(env,cid,user){
  await syncCrewGrowth(env,cid);
- // One DB round trip: synchronize XP, then read a consistent, live snapshot.
+ // One DB round trip after XP synchronization: read the entire live snapshot.
  // Do not cache membership, bans, or viewer-filtered music between requests.
  const result=await env.DB.batch([
- ...crewXpQueries(env,cid),
  query(env,`${crewSelect} WHERE c.id=?`,cid),
  query(env,'SELECT role,joined,joined_sequence,muted FROM crew_members WHERE crew_id=? AND user_id=?',cid,user?.id||''),
  query(env,`SELECT p.id,p.user_id,${playerColumnsSQL('p.user_id')},${producerNameSQL()} name,p.image_version,m.role,${producerNameSQL()} profile_name,(SELECT count(*) FROM follows f WHERE kind='producer' AND target_id=p.id) followers FROM crew_members m JOIN producers p ON p.user_id=m.user_id WHERE m.crew_id=? ORDER BY (m.role='owner') DESC,m.joined,m.rowid LIMIT 150`,cid),
  trackListQuery(env,`${VISIBLE()} AND (t.user_id IN (SELECT user_id FROM crew_members WHERE crew_id=?) OR (t.duet_parent_id IS NOT NULL AND dt.user_id IN (SELECT user_id FROM crew_members WHERE crew_id=?)) OR EXISTS(SELECT 1 FROM tracks child JOIN crew_members cm ON cm.user_id=child.user_id WHERE child.duet_parent_id=t.id AND cm.crew_id=? AND ${VISIBLE('child')} AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=? AND b.blocked_id=child.user_id) OR (b.blocked_id=? AND b.user_id=child.user_id))))`,[cid,cid,cid,user?.id||'',user?.id||''],'t.created DESC',-1),
- query(env,'SELECT 1 FROM crew_bans WHERE crew_id=? AND user_id=?',cid,user?.id||''),query(env,`SELECT p.id,p.root_id,p.owner_id,p.title,p.updated,p.created,p.state,p.visibility,${dubAudioReadySQL} audio_ready,'dubbing' kind,(SELECT name FROM producers WHERE user_id=p.owner_id) owner_name,EXISTS(SELECT 1 FROM dubbing_role_claims vc WHERE vc.project_id=p.id AND vc.user_id=?) viewer_claimed,(${dubRecruitingSQL()}) recruiting FROM dubbing_projects p JOIN users du ON du.id=p.owner_id WHERE du.provider!='deleted' AND p.visibility='public' AND ${dubbingVisibleSQL()} AND ((${dubFinishedSQL}) OR (${dubRecruitingSQL()})) AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=? AND b.blocked_id=p.owner_id) OR (b.blocked_id=? AND b.user_id=p.owner_id)) AND (p.owner_id IN (SELECT user_id FROM crew_members WHERE crew_id=?) OR EXISTS(SELECT 1 FROM dubbing_role_claims dc JOIN crew_members cm ON cm.user_id=dc.user_id WHERE dc.project_id=p.id AND cm.crew_id=?)) ORDER BY p.updated DESC`,user?.id||'',user?.id||'',user?.id||'',cid,cid)]);
- const c=result[2].results[0],membership=result[3].results[0]||null,members=result[4].results,tracks=result[5].results.map(trackClassification),ban=result[6].results[0];
+ query(env,'SELECT 1 FROM crew_bans WHERE crew_id=? AND user_id=?',cid,user?.id||''),query(env,`SELECT p.id,p.root_id,p.owner_id,p.title,p.updated,p.created,p.state,p.visibility,${dubAudioReadySQL} audio_ready,'dubbing' kind,(SELECT name FROM producers WHERE user_id=p.owner_id) owner_name,EXISTS(SELECT 1 FROM dubbing_role_claims vc WHERE vc.project_id=p.id AND vc.user_id=?) viewer_claimed,(${dubRecruitingSQL()}) recruiting FROM dubbing_projects p JOIN users du ON du.id=p.owner_id WHERE du.provider!='deleted' AND p.visibility='public' AND ${dubbingVisibleSQL()} AND ((${dubFinishedSQL}) OR (${dubRecruitingSQL()})) AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=? AND b.blocked_id=p.owner_id) OR (b.blocked_id=? AND b.user_id=p.owner_id)) AND (p.owner_id IN (SELECT user_id FROM crew_members WHERE crew_id=?) OR EXISTS(SELECT 1 FROM dubbing_role_claims dc JOIN crew_members cm ON cm.user_id=dc.user_id WHERE dc.project_id=p.id AND cm.crew_id=?)) ORDER BY p.updated DESC`,user?.id||'',user?.id||'',user?.id||'',cid,cid),crewMissionQuery(env,cid),query(env,'SELECT 1 FROM crew_members WHERE user_id=? LIMIT 1',user?.id||'')]);
+ const c=result[0].results[0],membership=result[1].results[0]||null,members=result[2].results,tracks=result[3].results.map(trackClassification),ban=result[4].results[0];
  if(!c)fail(404,'크루를 찾을 수 없어요.');if(c.join_policy==='invite_only'&&!membership)fail(403,'크루 회원만 볼 수 있어요.');const banned=!!ban;
- const dubbings=result[7].results.map(p=>({...p,can_join:!!user&&!!p.recruiting&&!p.viewer_claimed}));await profileCoverParticipation(env,tracks,user);
- const otherCrew=!membership&&user?await one(env,'SELECT 1 FROM crew_members WHERE user_id=?',user.id):null;
- return {other_crew:!!otherCrew,growth:await crewGrowthView(env,cid),dubbings,crew:present(c),membership:membership?{...membership,fishing_preview:true,game_catalog:crewGameCatalog(env,cid),canonical_role:CREW_ROLE_ALIAS[membership.role]}:null,members:members.map(m=>({...m,canonical_role:CREW_ROLE_ALIAS[m.role]})),tracks,banned,rules:{levels:CREW_LEVELS,...CREW_REWARDS},roles:CREW_ROLES};
+ const dubbings=result[5].results.map(p=>({...p,can_join:!!user&&!!p.recruiting&&!p.viewer_claimed}));await profileCoverParticipation(env,tracks,user);
+ const otherCrew=!membership&&user?result[7].results[0]:null;
+ return {other_crew:!!otherCrew,growth:crewGrowthSnapshot(c,result[6].results),dubbings,crew:present(c),membership:membership?{...membership,fishing_preview:true,game_catalog:crewGameCatalog(env,cid),canonical_role:CREW_ROLE_ALIAS[membership.role]}:null,members:members.map(m=>({...m,canonical_role:CREW_ROLE_ALIAS[m.role]})),tracks,banned,rules:{levels:CREW_LEVELS,...CREW_REWARDS},roles:CREW_ROLES};
 }
 async function peer(env,pid,user,withSettings=false){requireUser(user);const p=await one(env,`SELECT p.id,p.user_id,${playerColumnsSQL('p.user_id')},${producerNameSQL()} name,${producerNameSQL()} chat_nickname,p.image_version${withSettings?',COALESCE((SELECT muted FROM dm_settings WHERE user_id=? AND peer_id=p.user_id),0) muted,COALESCE((SELECT cleared_sequence FROM dm_settings WHERE user_id=? AND peer_id=p.user_id),0) cleared_sequence':''} FROM producers p WHERE p.id=?`,...(withSettings?[user.id,user.id,pid]:[pid]));if(!p)fail(404,'프로필을 찾을 수 없어요.');assertUnblocked(env,p.user_id);if(p.user_id===user.id)fail(400,'다른 이용자에게 메시지를 보내주세요.');return p;}
 export async function socialRoute(req,env,path,user){

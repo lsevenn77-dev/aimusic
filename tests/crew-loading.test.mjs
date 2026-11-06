@@ -12,7 +12,7 @@ test('crew detail synchronizes XP and reads current permissions/music with durab
  const get=async(user={id:'owner'},blocked=[])=>{
   const r=await socialRoute(new Request('https://aifect.test/api/crews/crew'),{DB:f.DB,AIFECT_BLOCKED:blocked},'/api/crews/crew',user);return r.json();
  };
- let d=await get();assert.ok(batches<=3);assert.ok(standalone>0);assert.equal(d.crew.xp,0);assert.equal(d.membership.role,'owner');assert.equal(d.members.length,1);assert.equal(d.tracks.length,3,'public originals by current members are included');
+ let d=await get();assert.ok(batches<=3);assert.equal(standalone,0,"an unchanged detail must not serialize standalone remote reads");assert.equal(d.crew.xp,0);assert.equal(d.membership.role,'owner');assert.equal(d.members.length,1);assert.equal(d.tracks.length,3,'public originals by current members are included');
  d=await get();assert.equal(d.crew.xp,0,'revisits cannot farm XP');
  assert.equal((await get(null)).membership,null,'guest never inherits membership');
  assert.equal((await get({id:'other'},['owner'])).tracks.length,0,'viewer blocks still filter music');
