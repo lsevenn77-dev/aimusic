@@ -2,10 +2,13 @@
 let voiceController=null;
 const voiceShellState=new Map();
 function setVoiceFocus(active){
- if(active){for(const el of (document.querySelectorAll?.('#sidebar,.topbar,.mobile-navigation,#player,.site-footer,.page-footer')||[])){if(!voiceShellState.has(el))voiceShellState.set(el,{hidden:el.hidden,display:el.style.display});el.hidden=true;el.style.display='none';}}
+ const fullscreen=active&&window.innerWidth<=800;
+ document.documentElement?.toggleAttribute('data-room-mobile',fullscreen);
+ document.querySelector?.('#main')?.toggleAttribute('data-room-entered',active);
+ if(fullscreen){for(const el of (document.querySelectorAll?.('#sidebar,.topbar,.mobile-navigation,#player,.site-footer,.page-footer')||[])){if(!voiceShellState.has(el))voiceShellState.set(el,{hidden:el.hidden,display:el.style.display});el.hidden=true;el.style.display='none';}}
  else{for(const [el,old] of voiceShellState){el.hidden=old.hidden;el.style.display=old.display;}voiceShellState.clear();}
- const wrap=document.querySelector?.('.page-wrap');if(wrap)wrap.toggleAttribute('data-room-focus',active);
- document.querySelector?.('#main')?.toggleAttribute('data-room-focus',active);
+ const wrap=document.querySelector?.('.page-wrap');if(wrap)wrap.toggleAttribute('data-room-focus',fullscreen);
+ document.querySelector?.('#main')?.toggleAttribute('data-room-focus',fullscreen);
 }
 
 let voiceEntryAudio=null;
@@ -31,7 +34,7 @@ function talkGiftPeople(from,to){
  return `<span class="talk-gift-from">${esc(from)}</span><img class="talk-gift-direction" src="/assets/gift-direction-double-chevron.svg" alt=""><span class="talk-gift-to">${esc(to)}</span>`;
 }
 function voiceChatMessageHTML(m,liveMode=false){
- const time=liveMode?`<time>${new Date(m.created).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})}</time>`:'';
+ const time='';
  if(m.kind==='system')return `<article class="voice-chat-system"><p>${esc(m.body)}</p>${time}</article>`;
  if(m.kind==='gift'){
   const gift=AifectGifts.giftById(m.gift?.type);
@@ -63,7 +66,7 @@ function bindVoice(base,id) {
  voiceController.bind(host);
 }
 class VoiceRoomClient {
- constructor(id){this.id=id;this.micAttempt=1;this.micState="muted";this.preferences={music:1,voice:1,input:1,preset:'studio',noise:true,echo:true,reverb:0};this.meters=new Map();this.state=null;this.closed=false;this.joined=false;this.generation=null;this.audios=new Map();this.volumes=new Map();this.mediaQueue=Promise.resolve();this.receiveKey=null;this.retries=0;this.seenGifts=new Set();this.talkGiftQueue=[];this.giftRequest=crypto.randomUUID();this.inviteRequest=crypto.randomUUID();this.onOnline=()=>this.reconnect();this.onPageHide=()=>{this.stopMedia();this.ws?.close();};window.addEventListener('pagehide',this.onPageHide);this.onVisibility=()=>{if(!document.hidden&&this.joined)this.refresh().catch(()=>this.reconnect());};window.addEventListener('online',this.onOnline);document.addEventListener('visibilitychange',this.onVisibility);}
+ constructor(id){this.id=id;this.micAttempt=1;this.micState="muted";this.preferences={music:1,voice:1,input:1,preset:'studio',noise:true,echo:true,reverb:0};this.meters=new Map();this.state=null;this.closed=false;this.joined=false;this.generation=null;this.audios=new Map();this.volumes=new Map();this.mediaQueue=Promise.resolve();this.receiveKey=null;this.retries=0;this.seenGifts=new Set();this.talkGiftQueue=[];this.giftRequest=crypto.randomUUID();this.inviteRequest=crypto.randomUUID();this.onOnline=()=>this.reconnect();this.onPageHide=()=>{this.foregroundMicDesired=this.micDesired===true;this.stopMedia();this.ws?.close();};window.addEventListener('pagehide',this.onPageHide);this.onVisibility=()=>{if(!document.hidden&&this.joined)void this.restoreForeground();};window.addEventListener('pageshow',this.onVisibility);window.addEventListener('focus',this.onVisibility);window.addEventListener('online',this.onOnline);document.addEventListener('visibilitychange',this.onVisibility);}
  path(action){return `rooms/${this.id}/${action}`;}
  command(action,b={}){return voiceRequest(this.path(action),{...b,generation:this.generation});}
  acceptState(state){
@@ -97,7 +100,16 @@ class VoiceRoomClient {
   });
   const gift=$('#voice-gift-form');gift.onchange=()=>{this.giftRequest=crypto.randomUUID();this.giftSummary();};gift.onsubmit=busyForm(gift,()=>this.openGiftDialog());
   $('#voice-monitor').onchange=()=>this.safe(()=>this.monitor());$('#voice-input').onchange=()=>this.safe(()=>this.changeMicrophone());$('#voice-output').onchange=()=>this.safe(()=>this.output());
-  this.bindAudioSettings();window.visualViewport?.removeEventListener('resize',this.onViewport);window.removeEventListener('resize',this.onViewport);this.onViewport=()=>{if(this.host?.isConnected){if(this.joined){setVoiceFocus(true);}const height=window.visualViewport?.height||window.innerHeight,top=Math.max(0,this.host.getBoundingClientRect().top);this.host.style?.setProperty('--voice-viewport',Math.max(0,height-top-(window.innerWidth>800?16:0))+'px');}};window.visualViewport?.addEventListener('resize',this.onViewport);window.addEventListener('resize',this.onViewport);this.onViewport();this.giftSummary();if(this.state)this.paint();else if(!this.joinAttempted)this.safe(()=>this.join());
+  this.bindAudioSettings();window.visualViewport?.removeEventListener('resize',this.onViewport);window.visualViewport?.removeEventListener('scroll',this.onViewport);window.removeEventListener('resize',this.onViewport);this.onViewport=()=>{
+   if(!this.host?.isConnected)return;
+   if(this.joined)setVoiceFocus(true);
+   const vv=window.visualViewport,height=vv?.height||window.innerHeight,offset=vv?.offsetTop||0,mobile=window.innerWidth<=800;
+   const top=mobile?offset:Math.max(0,this.host.getBoundingClientRect().top);
+   const player=document.querySelector?.('#player'),box=player?.getBoundingClientRect();
+   const bottom=!mobile&&box?.height&&box.top<height?Math.max(0,height-box.top):0;
+   this.host.style?.setProperty('--voice-viewport',Math.max(0,height-(mobile?0:top)-bottom-(mobile?0:16))+'px');
+   document.querySelector?.('#main')?.style?.setProperty('--voice-top',offset+'px');
+  };window.visualViewport?.addEventListener('resize',this.onViewport);window.visualViewport?.addEventListener('scroll',this.onViewport);window.addEventListener('resize',this.onViewport);this.onViewport();this.giftSummary();if(this.state)this.paint();else if(!this.joinAttempted)this.safe(()=>this.join());
  }
  async join(){
   if(this.closed||this.joining)return;this.joining=true;this.joinAttempted=true;this.epoch=(this.epoch||0)+1;
@@ -114,7 +126,7 @@ class VoiceRoomClient {
   }finally{this.joining=false;if(this.host?.isConnected&&!this.joined&&!this.closed)$('#voice-entry').hidden=false;}
  }
  connectionError(e){if([401,403,404,409].includes(e.status)){this.status(e.message);this.leave(false);return;}this.reconnect();}
- socket(){this.ws?.close();const u=new URL('/api/voice/'+this.path('socket'),location.href);u.searchParams.set('generation',this.generation);u.protocol=u.protocol==='https:'?'wss:':'ws:';const ws=this.ws=new WebSocket(u);
+ socket(){if(this.closed||!this.joined||this.ws&&this.ws.readyState<2&&this.socketGeneration===this.generation)return;clearTimeout(this.socketRetry);this.ws?.close();const u=new URL('/api/voice/'+this.path('socket'),location.href);u.searchParams.set('generation',this.generation);u.protocol=u.protocol==='https:'?'wss:':'ws:';this.socketGeneration=this.generation;const ws=this.ws=new WebSocket(u);
   {
    ws.onopen=()=>{
     if(this.closed||this.ws!==ws)return;
@@ -123,7 +135,23 @@ class VoiceRoomClient {
    };
   }
   ws.onmessage=e=>{try{const v=JSON.parse(e.data);if(v.type==='state'){this.acceptState(v.state);return;}if(v.type==='music'&&this.state){if(v.music?.revision>=(this.state.music?.revision??-1)){this.state.music=v.music;this.paintMusic();}return;}if(v.type==='gift')this.animateGift(v);this.refresh().catch(err=>this.connectionError(err));}catch{}};ws.onclose=e=>{if(!this.closed&&this.joined&&this.ws===ws){if([4000,4001].includes(e.code)){this.status('입장 정보가 바뀌었어요. 다시 입장해주세요.');this.leave(false);return;}this.status('실시간 연결 복구 중…');clearTimeout(this.socketRetry);this.socketRetry=setTimeout(()=>{if(!this.closed)this.socket();},3000);}};}
- async refresh(){if(this.closed||!this.joined)return;if(this.refreshing){this.refreshAgain=true;return;}this.refreshing=true;const epoch=this.epoch;try{const started=Date.now(),state=await this.command('heartbeat');if(state.serverNow)this.musicClock=state.serverNow-(started+Date.now())/2;if(this.closed||epoch!==this.epoch)return;if(state.revision<(this.state?.revision??-1))return;if((state.music?.revision??-1)<(this.state?.music?.revision??-1))state.music=this.state.music;this.state=state;this.paint();await this.receive();}catch(e){if(!this.closed&&epoch===this.epoch)throw e;}finally{this.refreshing=false;if(this.refreshAgain){this.refreshAgain=false;void this.refresh().catch(e=>this.connectionError(e));}}}
+ async refresh(){
+  if(this.closed||!this.joined)return;
+  if(this.refreshTask){this.refreshAgain=true;return this.refreshTask;}
+  this.refreshing=true;
+  this.refreshTask=(async()=>{
+   try{do{
+    this.refreshAgain=false;const epoch=this.epoch,started=Date.now(),state=await this.command('heartbeat');
+    if(this.closed||epoch!==this.epoch)return;
+    if(state.serverNow)this.musicClock=state.serverNow-(started+Date.now())/2;
+    if(state.revision<(this.state?.revision??-1))continue;
+    if((state.music?.revision??-1)<(this.state?.music?.revision??-1))state.music=this.state.music;
+    this.state=state;this.paint();await this.receive();
+   }while(this.refreshAgain&&!this.closed&&this.joined);}
+   finally{this.refreshing=false;}
+  })();
+  try{return await this.refreshTask;}finally{this.refreshTask=null;}
+ }
  paint(){if(!this.host?.isConnected||!this.state)return;const s=this.state,self=s.members.find(p=>p.id===s.self);if(!self){this.leave(false);return;}$('#voice-entry').hidden=true;$('#voice-content').hidden=false;$('#voice-title').textContent=s.room.title;$('#voice-title').title=s.room.title;
   const micOn=!!this.micSender?.track?.enabled&&!self.muted;
   const seatHTML=Array.from({length:8},(_,i)=>{const p=s.members.find(p=>p.seat===i);return '<div class="voice-seat">'+(p?`<div class="voice-seat-occupant"><button type="button" class="voice-person" data-voice="talk-profile" data-target="${esc(p.id)}" data-level-user="${esc(p.id)}" aria-label="${esc(p.name)} 프로필">${roomMemberAvatar(p)}<strong title="${esc(p.name)}">${p.role==='host'?'<span class="room-host-crown" aria-label="방장">'+voiceGlyph('crown')+'</span>':''}<span>${userNickname(p.name,{profileId:p.profile_id,userId:p.id})}</span></strong></button>${roomRelationButton(p,s.self,true)}</div>`:'<button type="button" class="voice-seat-empty" data-voice="request-mic" data-target="'+i+'" aria-label="'+(i+1)+'번 좌석 참여 신청">'+voiceGlyph('plus')+'</button>')+'</div>';}).join('');
@@ -228,10 +256,30 @@ class VoiceRoomClient {
   if(!m.playing){a.pause();this.musicBlocked=false;}else if(a.paused&&!a.ended)a.play().then(()=>{this.musicBlocked=false;this.updateListening();}).catch(error=>{if(!this.liveMode&&error?.name==='NotAllowedError')this.waitForMusicGesture=true;this.musicBlocked=true;this.musicNotice('대화 듣기를 눌러 소리를 켜주세요');this.updateListening();});
  }
  musicNotice(text){this.musicNoticeText=text;const el=typeof $==='function'?$('#voice-music-time'):null;if(el)el.textContent=text;}
+ async restoreForeground(){
+  if(this.closed||!this.joined||this.foregroundPending)return;
+  this.foregroundPending=true;
+  try{
+   await this.refresh();
+   if(this.closed||document.hidden)return;
+   this.liveNeedsResync=true;this.liveStartClock=null;this.livePlayBlocked=false;
+   // Preserve explicit per-user/music volume and microphone OFF intent.
+   this.resumeSound();
+   if(!this.ws||this.ws.readyState>=2)this.socket();
+   if(this.receiver?.connectionState==='failed'||this.receiver?.connectionState==='closed')this.receiveKey=null;
+   await this.receive();
+   const self=this.state?.members.find(m=>m.id===this.state.self);
+   if(this.foregroundMicDesired&&self?.seat!=null&&!self.locked&&(!this.liveMode||isLiveSingerTurn(this))){
+    this.micDesired=true;await this.enableMic();
+   }
+   this.foregroundMicDesired=false;
+   if(this.liveMode)liveSync(this);
+  }catch{this.scheduleReconnect();}finally{this.foregroundPending=false;}
+ }
  resumeSound(){
   if(this.closed)return;
   try{const Context=window.AudioContext||window.webkitAudioContext;if(Context&&!this.levelContext)this.levelContext=new Context({latencyHint:'interactive'});
-   if(this.levelContext)this.levelContext.onstatechange=()=>{if(!this.closed){this.applyListenVolumes();this.updateListening();}};
+   if(this.levelContext)this.levelContext.onstatechange=()=>{if(!this.closed){this.applyListenVolumes();this.updateListening();if(this.levelContext.state==='interrupted'&&!document.hidden)void this.restoreForeground();}};
    const resumed=this.levelContext?.resume();
    void resumed?.then(()=>{if(this.closed)return;this.applyListenVolumes();for(const a of this.audios.values())this.playRemote(a);this.syncMusic();this.updateListening();}).catch(()=>this.updateListening());
   }catch{}
@@ -305,7 +353,12 @@ class VoiceRoomClient {
  }
  giftSummary(){const form=$('#voice-gift-form');if(!form)return;const g=AifectGifts.GIFT_CATALOG.find(g=>g.id===form.elements.gift_type.value);$('#voice-gift-summary').textContent=`총 ${number((g?.gold||0)*Number(form.elements.quantity.value))} G · 보낸 선물은 취소할 수 없어요.`;}
  async action(action,target,button){this.actionTrigger=button;if(action==='dismiss'&&button){button.closest('dialog')?.close();return;}if(action==='resume-audio'){this.resumeSound();return;}if(await this.roomUIAction(action,target))return;if(action==='leave'){if(!this.joined){this.leave(false);location.hash='#voice';return;}this.showSheet('talk-leave');return;}if(action==='confirm-leave'){await this.command('leave');this.leave(false);location.hash=this.liveMode?'#live':'#voice';return;}if(action==='leave'){await this.leave();location.hash='#voice';return;}if(action==='close'){await this.command('close');this.leave(false);location.hash='#voice';return;}if(action==='enable-mic')return this.enableMic();if(action==='mute')return this.mute();if(!this.liveMode&&['request-mic','cancel-mic','approve-mic','reject-mic'].includes(action))return this.talkSeatAction(action,target,button);
-  if(action==='request-mic'&&this.state.members.find(p=>p.id===this.state.self)?.role==='host'){this.openSeatPicker(Number(target));return;}if(action==='release-mic')this.stopMicrophone();if(['mute-user','unlock','kick','ban','admin','revoke-admin'].includes(action))await this.command('moderate',{target_id:target,operation:action==='mute-user'?'mute':action});else {const self=this.state.members.find(p=>p.id===this.state.self);if(action==='request-mic'&&['host','admin'].includes(self.role))await this.command('approve-mic',{target_id:self.id,seat:Number(target)});else await this.command(action,{target_id:target,...(action==='request-mic'&&target!==undefined?{seat:Number(target)}:{})});}await this.refresh();}
+  if(action==='request-mic'&&this.state.members.find(p=>p.id===this.state.self)?.role==='host'){this.openSeatPicker(Number(target));return;}if(action==='release-mic'){
+   if(this.seatReleasePending)return;this.seatReleasePending=true;
+   this.micDesired=false;this.micAttempt=(this.micAttempt||0)+1;this.stopMicrophone();
+   try{this.acceptState(await this.command('release-mic',{invitation_id:this.state?.karaoke?.active?.invitation_id}));}
+   finally{this.seatReleasePending=false;this.paint();}return;
+  }if(['mute-user','unlock','kick','ban','admin','revoke-admin'].includes(action))await this.command('moderate',{target_id:target,operation:action==='mute-user'?'mute':action});else {const self=this.state.members.find(p=>p.id===this.state.self);if(action==='request-mic'&&['host','admin'].includes(self.role))await this.command('approve-mic',{target_id:self.id,seat:Number(target)});else await this.command(action,{target_id:target,...(action==='request-mic'&&target!==undefined?{seat:Number(target)}:{})});}await this.refresh();}
  pc(){const p=new RTCPeerConnection({iceServers:[{urls:'stun:stun.cloudflare.com:3478'}],bundlePolicy:'max-bundle',iceCandidatePoolSize:1});p.onconnectionstatechange=()=>{
   if(p.connectionState!=='failed'||this.closed)return;
   if(this.publisher===p){this.reconnect();return;}
@@ -477,7 +530,7 @@ class VoiceRoomClient {
  scheduleReconnect(){if(this.reconnectTimer||this.closed)return;this.reconnectTimer=setTimeout(()=>{this.reconnectTimer=null;this.reconnect();},Math.min(30000,1000*2**Math.min(this.retries++,5)));}
  async reconnect(){if(this.closed||this.reconnecting)return;const reconnectStarted=performance.now();this.reconnecting=true;this.status('연결이 끊겼어요. 다시 연결하는 중…');try{await this.join();}catch(e){this.status(e.message);if([401,403,404,409].includes(e.status))this.leave(false);else this.scheduleReconnect();}finally{this.reconnecting=false;this.diagnostics?.record('reconnectMs',performance.now()-reconnectStarted);}}
  stopMedia(){this.micDesired=false;this.micState='disconnected';this.warmSeat=null;this.micAttempt=(this.micAttempt||0)+1;this.micBusy=false;this.pendingStream?.getTracks().forEach(t=>t.stop());this.pendingStream=null;this.stopMicrophone();this.clearRemoteMeters();this.receiver?.close();this.receiver=null;for(const a of this.audios.values())this.releaseRemote(a);this.audios.clear();this.receiveKey=null;}
- leave(send=true){if(this.closed)return;clearInterval(this.roomClock);this.roomDM?.destroy();this.roomTitleObserver?.disconnect();this.talkViewEvents?.abort();this.roomShareAbort?.abort();clearTimeout(this.roomShareTimer);this.releaseRoomExternal?.();const leaving=send&&this.joined?fetch('/api/voice/'+this.path('leave'),{method:'POST',credentials:'same-origin',keepalive:true,headers:{'content-type':'application/json'},body:JSON.stringify({generation:this.generation}),signal:AbortSignal.timeout(8000)}).catch(()=>{}):Promise.resolve();this.closed=true;this.talkGiftQueue.length=0;this.finishTalkGift();setVoiceFocus(false);this.joined=false;this.stopMicTest?.();this.diagnostics?.stop();clearInterval(this.levelTimer);clearInterval(this.musicTimer);clearTimeout(this.volumeTimer);clearTimeout(this.searchTimer);this.searchAbort?.abort();window.removeEventListener('resize',this.onViewport);clearTimeout(this.receiveRetry);clearTimeout(this.seatInviteTimer);this.musicAudio?.pause();if(this.musicAudio){this.musicAudio.removeAttribute('src');this.musicAudio.load();}this.levelContext?.close().catch(()=>{});this.levelContext=null;clearInterval(this.heartbeat);clearTimeout(this.socketRetry);clearTimeout(this.reconnectTimer);clearTimeout(this.animationTimer);this.ws?.close();this.stopMedia();if(this.host?.isConnected){$('#voice-content').hidden=true;$('#voice-entry').hidden=false;}window.removeEventListener('online',this.onOnline);window.removeEventListener('pagehide',this.onPageHide);document.removeEventListener('visibilitychange',this.onVisibility);window.visualViewport?.removeEventListener('resize',this.onViewport);return leaving;}
+ leave(send=true){if(this.closed)return;clearInterval(this.roomClock);this.roomDM?.destroy();this.roomDMUnreadStop?.();document.documentElement?.removeAttribute('data-room-popup');this.roomTitleObserver?.disconnect();this.talkViewEvents?.abort();this.controlEvents?.abort();this.roomShareAbort?.abort();clearTimeout(this.roomShareTimer);this.releaseRoomExternal?.();const leaving=send&&this.joined?fetch('/api/voice/'+this.path('leave'),{method:'POST',credentials:'same-origin',keepalive:true,headers:{'content-type':'application/json'},body:JSON.stringify({generation:this.generation}),signal:AbortSignal.timeout(8000)}).catch(()=>{}):Promise.resolve();this.closed=true;this.talkGiftQueue.length=0;this.finishTalkGift();setVoiceFocus(false);this.joined=false;this.stopMicTest?.();this.diagnostics?.stop();clearInterval(this.levelTimer);clearInterval(this.musicTimer);clearTimeout(this.volumeTimer);clearTimeout(this.searchTimer);this.searchAbort?.abort();window.removeEventListener('resize',this.onViewport);clearTimeout(this.receiveRetry);clearTimeout(this.seatInviteTimer);this.musicAudio?.pause();if(this.musicAudio){this.musicAudio.removeAttribute('src');this.musicAudio.load();}this.levelContext?.close().catch(()=>{});this.levelContext=null;clearInterval(this.heartbeat);clearTimeout(this.socketRetry);clearTimeout(this.reconnectTimer);clearTimeout(this.animationTimer);this.ws?.close();this.stopMedia();if(this.host?.isConnected){$('#voice-content').hidden=true;$('#voice-entry').hidden=false;}window.removeEventListener('online',this.onOnline);window.removeEventListener('pagehide',this.onPageHide);document.removeEventListener('visibilitychange',this.onVisibility);window.removeEventListener('pageshow',this.onVisibility);window.removeEventListener('focus',this.onVisibility);window.visualViewport?.removeEventListener('resize',this.onViewport);window.visualViewport?.removeEventListener('scroll',this.onViewport);return leaving;}
  animateGift(event){
   if(this.closed||!event.gift?.id||this.seenGifts.has(event.gift.id))return;
   this.seenGifts.add(event.gift.id);

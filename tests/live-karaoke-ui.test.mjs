@@ -12,7 +12,7 @@ function context(overrides={}){
   paint(){} warmMicrophone(){this.warmCount++;} action(action){calls.push(['base-action',action]);}
   leave(){this.closed=true;calls.push(['leave',this.id]);return Promise.resolve();}
  }
- const nodes=new Map(),node=()=>({textContent:'',innerHTML:'',hidden:false,value:0,readyState:0,isConnected:true,attributes:new Map(),children:new Map(),
+ const nodes=new Map(),node=()=>({textContent:'',innerHTML:'',hidden:false,value:0,readyState:0,isConnected:true,style:{},attributes:new Map(),children:new Map(),
   setAttribute(name,value){this.attributes.set(name,value);},
   getAttribute(name){return this.attributes.get(name);},
   querySelector(selector){if(!this.children.has(selector))this.children.set(selector,node());return this.children.get(selector);}
@@ -54,6 +54,15 @@ function monitorFixture(){
    karaoke:{phase:'ready',readyExpiresAt:Date.now()+10000,active:{user_id:'self',track:{id:'one',artist:'가수',title:'곡',duration:90}},queue:[]}}};
  return {c,client,nodes,vocal,broadcast};
 }
+
+test('MR start waits for an initial buffer and volume uses the Web Audio gain on iOS-compatible paths',()=>{
+ const {c}=context();let end=.2;
+ c.client={liveWords:[{}],liveAudio:{readyState:2,duration:120,buffered:{length:1,start:()=>0,end:()=>end}},levelContext:{currentTime:4}};
+ assert.equal(vm.runInContext('liveTrackReady(client)',c),false);end=3;
+ assert.equal(vm.runInContext('liveTrackReady(client)',c),true);
+ const changes=[];c.client.livePitch={gain:{gain:{setTargetAtTime:(...args)=>changes.push(args)}}};
+ vm.runInContext('liveSetVolume(client,0)',c);assert.equal(c.client.liveAudio.volume,1);assert.equal(changes[0][0],0);
+});
 
 test('stage monitoring taps only the singer vocal and leaves the outgoing connection intact on toggles',async()=>{
  const {c,client,nodes,vocal,broadcast}=monitorFixture();

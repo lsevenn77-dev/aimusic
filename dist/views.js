@@ -238,7 +238,7 @@ async function renderRoute(showCachedRoute){
   else if(base==='sing'){const d=await loadSingRoute(param,new URLSearchParams(paramQuery?.split('?')[1]||''),readApi);if(ticket!==renderId)return;if(d.chooseMode){history.replaceState(history.state,'','#song/'+encodeURIComponent(param));await render();openRecordingMode(d);return;}routeSing=d;html=singHTML(d);}
   else if(base==='cover'){const {track:o}=await readApi('/api/tracks/'+param);remember([o]);html=coverUploadHTML(o);}
   else if(base==='gifts')html=await finalGiftShopView(param,readApi);
-  else if(base==='gold')html=(param==='history'?heading('보낸 선물 내역')+'<a class="text-link" href="#gold">골드 충전으로</a>'+sentGiftHistoryHTML(await readApi('/api/gold')):goldHTML(await readApi('/api/gold')));
+  else if(base==='gold')html=(param==='history'?heading('보낸 선물 내역')+'<a class="text-link" href="#gold">골드 충전으로</a>'+sentGiftHistoryHTML(await readApi('/api/gifts/sent?offset='+encodeURIComponent(new URLSearchParams(location.hash.split('?')[1]||'').get('offset')||'0'))):goldHTML(await readApi('/api/gold')));
   else if(base==='admin'&&param==='track-review'){const q=new URLSearchParams(paramQuery?.split('?')[1]||'');html=trackReviewHTML(await readApi('/api/admin/track-review?'+q.toString()));if(authConfig?.admin)html+='<section class="surface"><button class="small-button danger-button" data-purge-all-covers>사이트 전체 커버곡 삭제</button></section>';}
   else if(base==='admin'&&param==='partners')html=partnerAdminHTML(await readApi('/api/admin/diamonds'));
   else if(base==='admin')html=adminHTML(await readApi('/api/admin/payouts'+(param?'?period='+encodeURIComponent(param):'')));

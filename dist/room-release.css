@@ -184,11 +184,11 @@
 
   & #voice-chat { display:flex; flex-direction:column; align-items:stretch; justify-content:flex-start; flex:1 1 0; gap:4px; min-height:0; height:0; width:100%; margin:0 0 8px; padding:1px 6px 3px; overflow-y:auto; overflow-x:hidden; scrollbar-width:thin; overscroll-behavior:contain; border:0; background:none; box-shadow:none; }
   & #voice-chat .voice-chat-message { display:flex; flex-flow:row nowrap; flex:none; align-items:flex-start; justify-content:flex-start; gap:8px; min-width:0; margin:0; padding:0; border:0; background:transparent; }
-  & #voice-chat .voice-chat-message.is-self { flex-direction:row-reverse; text-align:right; align-self:stretch; }
+  & #voice-chat .voice-chat-message.is-self { flex-direction:row; text-align:left; align-self:stretch; }
   & #voice-chat .voice-chat-avatar { display:grid; place-items:center; flex:0 0 var(--room-avatar-slot); width:var(--room-avatar-slot); height:var(--room-avatar-slot); border:0; padding:0; margin:0; }
   & #voice-chat .voice-chat-avatar :is(img:not([aria-hidden]),.avatar-fallback) { width:var(--room-chat-photo); height:var(--room-chat-photo); max-width:100%; min-width:0; margin:0; object-fit:cover; border-radius:50%; }
   & #voice-chat .voice-chat-message > div { display:flex; flex-direction:column; align-items:flex-start; gap:2px; min-width:0; max-width:calc(100% - var(--room-avatar-slot) - 8px); }
-  & #voice-chat .is-self > div { align-items:flex-end; }
+  & #voice-chat .is-self > div { align-items:flex-start; }
   & #voice-chat .voice-chat-message header { display:flex; gap:5px; align-items:center; width:auto; max-width:100%; margin:0; padding:0; background:none; }
   & #voice-chat .voice-chat-message b { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#f7f8fc; font-size:12.2px; font-weight:700; line-height:17px; }
   & #voice-chat .voice-chat-message time { color:var(--room-muted); font-size:10px; }
@@ -577,3 +577,38 @@
 @media(min-width:801px) and (max-height:699px) {
   #main[data-room-focus] .voice-room[data-voice-room] #voice-seats { padding-block:18px; row-gap:8px; }
 }
+
+/* Room reliability: keep the approved surfaces, constrain only entered rooms. */
+#main .voice-room .live-stage-main {position:relative}
+#main .voice-room .live-countdown {position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:64px;height:64px;display:grid;place-items:center;z-index:3;background:var(--room-page);border-radius:50%;pointer-events:none}
+#main .voice-room .live-countdown[hidden] {display:none}
+#main .voice-room .live-countdown svg {position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg)}
+#main .voice-room .live-countdown circle {fill:none;stroke:var(--ds-accent-lavender);stroke-width:3;stroke-dasharray:100;stroke-linecap:round}
+#main .voice-room .live-countdown strong {font-size:24px;color:var(--room-mint)}
+#main .voice-room #room-turn-action {display:flex;flex-wrap:wrap;gap:5px}
+#main .voice-room .room-live-guide {flex-wrap:wrap}
+#main .voice-room .room-live-guide button,#main .voice-room .talk-central [data-voice=release-mic] {min-height:44px}
+#main .voice-room .room-header [data-voice=inbox] {position:relative}
+#main .voice-room .room-header [data-unread-dm]::after {content:"";position:absolute;right:4px;top:4px;width:6px;height:6px;border-radius:50%;background:var(--ds-accent-lavender)}
+:root[data-room-popup] #main .voice-room :is(.voice-stage,#voice-chat) {overflow:hidden}
+#main .voice-room .room-popup {overscroll-behavior:contain}
+@media(min-width:801px){
+ #main[data-room-entered] {padding-top:12px;padding-bottom:12px;min-height:0}
+ #main[data-room-entered] .voice-room[data-voice-room] {--room-height:var(--voice-viewport,calc(100dvh - 180px));height:var(--room-height);width:100%;max-width:none;margin:0}
+}
+@media(max-width:800px){
+ :root[data-room-mobile],:root[data-room-mobile] body {overflow:hidden;overscroll-behavior:none}
+ #main[data-room-focus],:root[data-mobile-keyboard] #main[data-room-focus] {top:var(--voice-top,0px)!important;bottom:auto!important;height:var(--mobile-input-height,100dvh)!important}
+ #main[data-room-focus] .voice-room[data-voice-room] {--room-height:var(--voice-viewport,100dvh);height:var(--room-height)!important;padding-top:env(safe-area-inset-top)}
+ #main[data-room-focus] .voice-room[data-voice-room] :is(input:not([type=range]),textarea,[contenteditable=true]),#main[data-room-focus] .voice-room[data-voice-room] #voice-message {font-size:16px!important}
+ #main .voice-room #voice-chat img.cat-chat-sticker:not(.cat-word-ink) {width:calc(var(--cat-art-size) * .5);height:calc(var(--cat-art-size) * .5);vertical-align:calc(.5cap - var(--cat-art-size) * .25);object-fit:contain}
+ #main .voice-room #voice-chat .cat-word-slot {width:calc(var(--cat-slot-width) * .5);height:calc(var(--cat-slot-height) * .5);padding-block-start:calc(var(--cat-art-inset) * .5);vertical-align:calc(.38em - var(--cat-below-ink) * .5)}
+ #main .voice-room #voice-chat .cat-word-slot img.cat-word-ink {width:calc(var(--cat-slot-width) * .5);height:calc(var(--cat-art-height) * .5);max-width:none}
+ #main .voice-room #voice-content .voice-chat-panel .room-popup[open] {max-height:calc(var(--room-height) - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px)!important;max-width:100%!important;box-sizing:border-box}
+ #main .voice-room #voice-content .voice-chat-panel #talk-leave[open] {max-height:calc(var(--room-height) - 64px)!important}
+ #main .voice-room #voice-content .voice-chat-panel #voice-emoji-picker[open] {max-height:min(260px,calc(var(--room-height) - var(--room-composer) - 24px))!important}
+ #main .voice-room #voice-content .voice-chat-panel :is(#room-inbox,#voice-sound,#voice-room-settings)[open] {max-height:calc(var(--room-height) - env(safe-area-inset-top) - 16px)!important}
+ :root[data-mobile-keyboard] #main .voice-room #voice-content .voice-chat-panel .room-popup[data-input-viewport][open] {position:absolute!important;top:auto!important;bottom:0!important;height:auto;max-height:calc(var(--room-height) - 8px)!important}
+}
+
+html[data-room-popup] body{overflow:hidden}

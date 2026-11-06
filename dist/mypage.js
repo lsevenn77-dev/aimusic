@@ -310,7 +310,7 @@ async function myPageView(base,param,raw,readApi=api){
    </div>`};
 }
 async function myActivityData(readApi=api){
- const paths={wallet:'/api/gold/balance',player:'/api/me/player',activity:'/api/me/profile?section=activity',notifications:'/api/notifications',inventory:'/api/me/gift-inventory'};
+ const paths={wallet:'/api/gold/balance',player:'/api/me/player',activity:'/api/me/profile?section=activity',inventory:'/api/me/gift-inventory'};
  return Object.fromEntries(await Promise.all(Object.entries(paths).map(async([key,path])=>{try{return [key,await readApi(path,'GET',undefined,{fresh:true})];}catch(e){return [key,{error:e.message}];}})));
 }
 function myError(d){return d?.error?`<p class="mp-empty" role="alert">${esc(d.error)} <button class="text-link" data-mp-retry>다시 시도</button></p>`:'';}
@@ -326,13 +326,12 @@ function myActivityHTML(a){
 }
 function myRelationsRows(items,publicView=false){return items.length?`<div class="mp-relations">${items.map(r=>`<a class="mp-relation" href="${publicView?'#producer/'+esc(r.profile_id):'#relations'}"><span class="mp-mini-avatar">${avatarImage({id:r.profile_id,name:r.name,image_version:r.image_version})}</span><span><strong>${memberNickname(r)} ${icon('heart')}</strong><small>Lv.${r.level} · ${number(r.xp)} / ${r.next_xp===null?'MAX':number(r.next_xp)} XP</small><progress value="${r.progress}" max="1" aria-label="${esc(r.name)} 관계 경험치"></progress></span></a>`).join('')}</div>`:myEmpty('관계를 맺은 회원이 없어요. 프로필에서 관계를 신청해보세요.');}
 function myActivityAside(d,a){
- const c=d.crew,received=a.activity?.received||[],recent=a.activity?.recent||[],notes=a.notifications?.items||[];
+ const c=d.crew,received=a.activity?.received||[];
  const rows=items=>`<div class="mp-activity-rows">${items.join('')}</div>`;
  return mySection('내 크루',c?`<a class="mp-my-crew" href="#crew/${esc(c.id)}">${crewPicture(c,'crew-circle')}<span><strong>${crewNameHTML(c)}</strong><small>크루 멤버 ${number(c.members)}명</small></span>${icon('chevron')}</a><p class="mp-muted">${esc(c.description||'음악을 함께 나누는 우리 크루')}</p>`:myEmpty('현재 소속된 크루가 없어요.'),myAll(c?'#crew/'+c.id:'#community/crews?browse=1'))+
  mySection('받은 선물',myError(a.activity)||(received.length?rows(received.slice(0,3).map(g=>`<a href="${g.sender_profile_id?'#producer/'+esc(g.sender_profile_id):'#notifications?filter=gifts'}"><span class="mp-mini-avatar">${avatarImage({id:g.sender_profile_id,name:g.sender_name,image_version:g.image_version})}</span><span><strong>${userNickname(g.sender_name,{profileId:g.sender_profile_id,userId:g.sender_id})}</strong><small>${esc(g.gift_name||'선물')} × ${g.quantity}</small></span><time>${myDate(g.created)}</time></a>`)):myEmpty('아직 받은 선물이 없어요.')),myAll('#notifications?filter=gifts'))+
- mySection('최근 활동',myError(a.activity)||(recent.length?rows(recent.slice(0,3).map(r=>`<a href="#${esc(r.route)}/${esc(r.target)}">${icon(r.kind==='like'?'heart':r.kind==='comment'?'message':'gift')}<span><strong>${{like:'음악에 좋아요를 눌렀어요',comment:'댓글을 남겼어요',gift:'선물을 보냈어요'}[r.kind]}</strong><small>${esc(r.title||'')}</small></span><time>${myDate(r.created)}</time></a>`)):myEmpty('최근 활동이 없어요.')), '<button class="mp-all" data-mp-recent>전체보기 '+icon('chevron')+'</button>')+
- mySection('알림 기록',myError(a.notifications)||(notes.length?rows(notes.slice(0,3).map(n=>`<a href="#notifications">${icon(n.kind.includes('gift')?'gift':'bell')}<span><strong>${userNickname(n.actor_name,{profileId:n.actor_profile_id,userId:n.actor_user_id})}</strong><small>${esc(n.gift_name||n.source_title||'새로운 활동 알림')}</small></span><time>${myDate(n.created)}</time></a>`)):myEmpty('새로운 알림이 없어요.')),myAll('#notifications'))+
- mySection('계정 관리',`<nav class="mp-account-links"><a href="#membership">${icon('ticket')} 구독 · 이용권 관리 ${icon('chevron')}</a><a href="#payouts">${icon('wallet')} 정산 내역 ${icon('chevron')}</a><a href="#account">${icon('settings')} 계정 설정 ${icon('chevron')}</a></nav>`);
+ mySection('보낸 선물 내역',`<a class="mp-all" href="#gold/history">받은 대상 · 선물 · 수량 · 보낸 날짜 ${icon('chevron')}</a>`)+
+ mySection('계정 관리',`<nav class="mp-account-links"><a href="#membership">${icon('ticket')} 구독 · 이용권 관리 ${icon('chevron')}</a><a href="#payouts">${icon('wallet')} 정산 내역 ${icon('chevron')}</a></nav>`);
 }
 async function mySelectTab(tab,updateURL=true,readApi=api){
  const s=myPageState;if(!s?.own||s.account!==me?.id)return;
@@ -402,7 +401,6 @@ document.addEventListener('click',async e=>{
  if(b.dataset.mpTab){void mySelectTab(b.dataset.mpTab);return;}
  if(b.hasAttribute('data-mp-retry')){void mySelectTab('activity',false);return;}
  if(b.hasAttribute('data-mp-artists')){dialog('<div class="mypage-dialog"><h2>소속 아티스트</h2>'+identityCards(myPageState.d.artists||[],'artist')+'</div>');return;}
- if(b.hasAttribute('data-mp-recent')){dialog('<div class="mypage-dialog"><h2>최근 활동</h2>'+((myPageState.activity?.activity?.recent||[]).map(r=>`<p><a href="#${esc(r.route)}/${esc(r.target)}">${esc(r.title||'선물')} · ${myDate(r.created)}</a></p>`).join('')||myEmpty('최근 활동이 없어요.'))+'</div>');return;}
  if(b.dataset.mpDubbingPlay){b.disabled=true;try{const d=await api('/api/dubbing/projects/'+encodeURIComponent(b.dataset.mpDubbingPlay)),p=d.project||d,url=p.recording?.final?.audioUrl;if(!b.isConnected)return;if(url)myDubbingDialog(p,url);else location.hash='dubbing/'+b.dataset.mpDubbingPlay;}catch(err){toast(err.message);}finally{b.disabled=false;}}
 });
 

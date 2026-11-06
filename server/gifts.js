@@ -1,3 +1,5 @@
+import {sentGifts} from './sent-gifts.js';
+import {giftSettlement} from './gift-settlement.js';
 import {assertDubbingGiftContext,giftBlockReason} from './gift-eligibility.js';
 import {artistGiftSource,checkArtistGiftReplay,giftSourceEntry,giftTargetSource} from './gift-source.js';
 import {producerNameSQL,publicNameSQL} from './identity.js';
@@ -84,6 +86,7 @@ export function settlementMonths(months,current){
 }
 
 export async function giftRoute(req,env,path,user,verifiedSource){
+ if(path==='/api/gifts/sent')return sentGifts(req,env,user);
  if(path==='/api/gold/history')return walletHistory(req,env,user);
  const method=req.method;
  if(path==='/api/gifts/catalog'&&method==='GET')return json({gifts:GIFT_CATALOG,silver_gifts:SILVER_GIFT_CATALOG,free_gift:FREE_GIFT,gold_krw:GOLD_KRW,...goldCheckoutStatus(env,user)});
@@ -150,16 +153,15 @@ export async function giftRoute(req,env,path,user,verifiedSource){
 
  const replay=async()=>{if(!requestId)return null;const old=await one(env,'SELECT id,track_id,creator_profile_id,gold,gift_type,gift_name,quantity FROM gifts WHERE sender_id=? AND request_id=?',user.id,requestId);if(!old)return null;await checkArtistGiftReplay(env,'gold',old.id,source);if(old.track_id!==track.id||(personal&&old.creator_profile_id!==track.producer_id)||old.gold!==gold||old.quantity!==quantity||old.gift_type!==(selected?.id??null))fail(409,'이미 사용된 선물 요청이에요. 새로 선택해주세요.');return json({gift:{id:old.id,gold:old.gold,type:old.gift_type,name:old.gift_name,quantity:old.quantity},balance:await goldBalance(env,user.id)});};
  const previous=await replay();if(previous)return previous;
- const creator=track.kind==='cover'?(await one(env,'SELECT producer_id FROM tracks WHERE id=?',track.original_id)).producer_id:track.producer_id;
  const lots=await rows(env,"SELECT id,gold,used,price_krw,fee_krw,tax_krw FROM gold_purchases WHERE user_id=? AND status='paid' AND used<gold AND NOT EXISTS(SELECT 1 FROM gold_orders o WHERE o.id=gold_purchases.id AND o.state!='paid') AND NOT EXISTS(SELECT 1 FROM play_purchases pp WHERE 'play_'||pp.token_hash=gold_purchases.id AND pp.state='refunded') ORDER BY paid_at,id",user.id);
  let spent;try{spent=allocateLots(lots,gold);}catch{fail(409,'골드가 부족해요. 충전한 뒤 다시 선물해주세요.');}
- const net=spent.reduce((sum,l)=>sum+l.net_mw,0),share=splitGift(track.kind,net,(await partnerState(env,track.user_id)).tier==='partner'),gid=id(),at=now();
+ const net=spent.reduce((sum,l)=>sum+l.net_mw,0),share=await giftSettlement(env,track,net),gid=id(),at=now();
  try{
   // The lot check constraint rejects overspending or spending a refunded lot, which rolls the whole batch back.
   await env.DB.batch([
    ...spent.map(l=>query(env,'UPDATE gold_purchases SET used=used+? WHERE id=?',l.gold,l.purchase_id)),
    query(env,'INSERT INTO gifts(id,sender_id,track_id,gold,net_mw,singer_profile_id,creator_profile_id,singer_mw,creator_mw,platform_mw,month,created,gift_type,gift_name,request_id,quantity) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-    gid,user.id,track.id,gold,net,track.kind==='cover'?track.producer_id:null,creator,share.singer,share.creator,share.platform,giftMonth(at),at,selected?.id??null,selected?.name??null,requestId,quantity),
+    gid,user.id,track.id,gold,net,share.singerProfile,share.creatorProfile,share.singer,share.creator,share.platform,giftMonth(at),at,selected?.id??null,selected?.name??null,requestId,quantity),
    giftSourceEntry(env,'gold',gid,source),
    ...spent.map(l=>query(env,'INSERT INTO gift_lots(gift_id,purchase_id,gold,net_mw) VALUES(?,?,?,?)',gid,l.purchase_id,l.gold,l.net_mw)),
   ]);

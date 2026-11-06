@@ -13,6 +13,11 @@ function roomInviteButtons(invitation){
 Object.assign(VoiceRoomClient.prototype,{
  bindRoomRelease(){
   const options={signal:this.talkViewEvents.signal},room=this.host;
+  this.roomDMUnreadStop?.();
+  let unreadLoading=false;
+  const unread=async()=>{if(unreadLoading)return;unreadLoading=true;try{const d=await api('/api/dm/summary','GET',undefined,{fresh:true});if(!this.closed&&!options.signal.aborted){const button=room.querySelector('[data-voice=inbox]');button?.toggleAttribute('data-unread-dm',d.direct_unread>0);button?.setAttribute('aria-label',d.direct_unread>0?'메시지 · 안 읽은 DM 있음':'메시지');}}catch{}finally{unreadLoading=false;}};
+  void unread();this.roomDMUnreadStop=watchSocialChat('',()=>{void unread();this.roomInboxChanged?.();},()=>{},()=>{room.querySelector('[data-voice=inbox]')?.removeAttribute('data-unread-dm');});
+  window.addEventListener('aifect:dm-read',unread,options);
   const scrollTitle=()=>{
    const title=room.querySelector('.talk-track strong');
    if(!title)return;
@@ -106,7 +111,7 @@ function roomMessages(client,sheet){
  const events=new AbortController(),options={signal:events.signal};
  let peer=null,serial=0,stream=null,stickers=null,editor=null,timer,paused=false;
  const current=t=>!client.closed&&!events.signal.aborted&&sheet.open&&t===serial;
- function reset(){serial++;clearTimeout(timer);stream?.();stream=null;stickers?.destroy();stickers=null;editor?.destroy();editor=null;return serial;}
+ function reset(){serial++;clearTimeout(timer);stream?.();stream=null;client.roomInboxChanged=null;stickers?.destroy();stickers=null;editor?.destroy();editor=null;return serial;}
  const destroy=()=>{reset();events.abort();};
  sheet.addEventListener('close',()=>{if(!sheet.open&&!paused)destroy();},options);
  const report=e=>{if(!events.signal.aborted){const status=sheet.querySelector('[data-room-dm-status]');if(status)status.textContent=e.message;}};
@@ -126,7 +131,7 @@ function roomMessages(client,sheet){
   };
   list.onclick=e=>{const id=e.target.closest('[data-room-peer]')?.dataset.roomPeer;if(id)thread(id).catch(report);};
   input.oninput=()=>{clearTimeout(timer);timer=setTimeout(()=>load().catch(report),150);};
-  await load();if(current(t))stream=watchSocialChat('',()=>load().catch(report),()=>{},()=>load().catch(report));
+  await load();if(current(t))client.roomInboxChanged=()=>load().catch(report);
  }
  async function thread(id){
   const t=reset(),path='/api/dm/'+encodeURIComponent(id);
@@ -140,7 +145,7 @@ function roomMessages(client,sheet){
    const atEnd=log.scrollHeight-log.scrollTop-log.clientHeight<36||!messages.size;
    for(const m of batch){messages.set(m.id,m);cursor=Math.max(cursor,m.sequence);}
    log.innerHTML=chatHTML([...messages.values()],peer);if(atEnd)log.scrollTop=log.scrollHeight;
-   if(batch.some(m=>m.sender_id!==me.id)&&cursor)await api(path,'PATCH',{sequence:cursor});
+   if(batch.some(m=>m.sender_id!==me.id)&&cursor){await api(path,'PATCH',{sequence:cursor});window.dispatchEvent(new Event('aifect:dm-read'));}
   }
   const reload=async()=>{
    if(!current(t))return;if(reading){again=true;return;}reading=true;

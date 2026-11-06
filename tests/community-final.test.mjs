@@ -16,13 +16,16 @@ test('theme options exclude expired, stored and other-owner grants; active owner
 test('focus restores original shell state and never activates for a room URL without membership',()=>{
  const elements=[{hidden:false,style:{display:'flex'}},{hidden:true,style:{display:''}}],attrs=new Map();
  const wrapper={toggleAttribute:(k,v)=>attrs.set(k,v)};
- const c=nicknameContext({document:{querySelectorAll:()=>elements,querySelector:()=>wrapper},me:{id:'owner'}});
+ const c=nicknameContext({window:{innerWidth:390},document:{querySelectorAll:()=>elements,querySelector:()=>wrapper},me:{id:'owner'}});
  const source=readFileSync(new URL('../dist/voice-rooms.js',import.meta.url),'utf8');
  vm.runInContext(source.slice(0,source.indexOf('let voiceEntryAudio')),c);
  vm.runInContext(source.slice(source.indexOf('function cleanupVoiceRoute'),source.indexOf('function bindVoice(')),c);
  c.cleanupVoiceRoute('voice','room');assert.equal(attrs.get('data-room-focus'),false);
  c.setVoiceFocus(true);assert.ok(elements.every(e=>e.hidden&&e.style.display==='none'));
  c.setVoiceFocus(true);c.setVoiceFocus(false);assert.deepEqual(elements,[{hidden:false,style:{display:'flex'}},{hidden:true,style:{display:''}}]);
+ c.window.innerWidth=1440;c.setVoiceFocus(true);
+ assert.equal(attrs.get('data-room-focus'),false);assert.equal(attrs.get('data-room-entered'),true);
+ assert.deepEqual(elements,[{hidden:false,style:{display:'flex'}},{hidden:true,style:{display:''}}]);
 });
 test('all nine versioned theme files have exact WebP dimensions and existing product IDs/prices',()=>{
  const dimensions={roomCard:[1024,1024],roomDesktop:[1920,1080],roomMobile:[1080,1920]};

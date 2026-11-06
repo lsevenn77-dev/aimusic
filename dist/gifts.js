@@ -144,7 +144,7 @@ async function giftDialog(tid,initial=null,personal=false){
     const sent=owned;let key=ownedRequests.get(sent.id);if(!key){key=crypto.randomUUID();ownedRequests.set(sent.id,key);}setSend('보내는 중…',true);
     await api('/api/me/gift-inventory/'+encodeURIComponent(sent.id)+'/send','POST',{profile_id:recipientId,request_id:key,...(artistId?{artist_id:artistId}:{}),...(fromMessage?{from_message:true}:{}),...(!personal?{track_id:tid}:/^#(?:inventory|gift-inventory|gifts)\b/.test(route)?{}:{from_profile:true})});
     if(serial!==giftDialogSerial||!form.isConnected||account!==me?.id)return;
-    dialog(`<section class="gift-success"><div class="gift-celebration">${giftArt(sent)}</div><h2>${esc(sent.gift_name)} 1개를 보냈어요</h2><p>${esc(t.producer)}님의 프로필에 전달했어요.</p><p>보유 선물 사용 · 실버·골드 추가 차감 없음</p><button class="primary-button" data-close-dialog>확인</button></section>`);await render();return;
+    dialog(`<section class="gift-success"><div class="gift-celebration">${giftArt(sent)}</div><h2>${esc(sent.gift_name)} 1개를 보냈어요</h2><p>${esc(!personal?t.title:(t.producer||profile?.name||'선택한 대상'))}${!personal?' 곡에':'님에게'} 전달했어요.</p><p>보유 선물 사용 · 실버·골드 추가 차감 없음</p><button class="primary-button" data-close-dialog>확인</button></section>`);await render();return;
    }
    if(category!=='gifts')throw Error('선물할 상품을 선택해주세요.');
    if(!Number.isInteger(quantity)||quantity<1||quantity>100)throw new Error('수량을 확인해주세요.');

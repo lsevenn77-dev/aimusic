@@ -274,8 +274,8 @@ test('gift websocket event refreshes chat immediately and coalesces updates arri
  socket.onmessage({data:JSON.stringify({type:'gift',gift:{id:'receipt'}})});
  socket.onmessage({data:JSON.stringify({type:'changed'})});
  assert.equal(animated,1);assert.equal(pending.length,1);
- pending[0]({revision:1});await first;assert.equal(pending.length,2,'one follow-up replaces the skipped events');
- pending[1]({revision:2});await new Promise(resolve=>setImmediate(resolve));
+ pending[0]({revision:1});await new Promise(resolve=>setImmediate(resolve));assert.equal(pending.length,2,'one follow-up replaces the skipped events');
+ pending[1]({revision:2});await first;
  assert.deepEqual(painted,[1,2]);assert.equal(client.refreshAgain,false);
  client.closed=true;
 });

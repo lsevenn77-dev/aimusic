@@ -1,6 +1,7 @@
 // Room controls share VoiceRoomClient's server snapshots and media graph.
 Object.assign(VoiceRoomClient.prototype,{
  bindFinalControls(){
+  this.controlEvents?.abort();this.controlEvents=new AbortController();const options={signal:this.controlEvents.signal};
   const form=$('#voice-chat-form'),input=$('#voice-message');
   const picker=$('#voice-emoji-picker');
   this.stickers?.destroy();
@@ -17,24 +18,24 @@ Object.assign(VoiceRoomClient.prototype,{
    close:()=>this.toggleEmojiPicker(false,true)
   });
   input.onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing&&e.keyCode!==229){e.preventDefault();if((this.stickers?.body()??input.value).trim())form.requestSubmit();}};
-  this.host.querySelector('.voice-chat-panel').addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#voice-emoji-picker').hidden){e.preventDefault();e.stopPropagation();this.toggleEmojiPicker(false,true);}});
+  this.host.querySelector('.voice-chat-panel').addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#voice-emoji-picker').hidden){e.preventDefault();e.stopPropagation();this.toggleEmojiPicker(false,true);}},options);
   this.bindTalkViews();
   const supported=navigator.mediaDevices?.getSupportedConstraints?.()||{};
   for(const [id,key] of [['voice-echo','echoCancellation'],['voice-noise','noiseSuppression']])if(supported[key]===false){$('#'+id).disabled=true;$('#'+id).title='이 브라우저에서 지원하지 않는 설정이에요.';}
   $('#voice-echo').checked=this.preferences.echo;$('#voice-echo').onchange=()=>this.safe(async()=>{this.preferences.echo=$('#voice-echo').checked;await this.stream?.getAudioTracks()[0]?.applyConstraints({echoCancellation:this.preferences.echo});});
   $('#voice-playlist-volume').oninput=()=>{this.preferences.music=Number($('#voice-playlist-volume').value)/100;this.syncPersonalVolume();this.syncMusic();};
-  this.host.addEventListener('close',e=>{if(e.target.id==='voice-sound')this.stopMicTest();},true);
-  this.host.addEventListener('cancel',e=>{if(e.target.id==='voice-sound')this.stopMicTest();},true);
-  this.host.addEventListener('input',e=>{if(e.target.id==='voice-mini-volume'||e.target.id==='voice-personal-volume'){this.preferences.music=Number(e.target.value)/100;this.syncPersonalVolume();this.syncMusic();}});
+  this.host.addEventListener('close',e=>{if(e.target.id==='voice-sound')this.stopMicTest();},{...options,capture:true});
+  this.host.addEventListener('cancel',e=>{if(e.target.id==='voice-sound')this.stopMicTest();},{...options,capture:true});
+  this.host.addEventListener('input',e=>{if(e.target.id==='voice-mini-volume'||e.target.id==='voice-personal-volume'){this.preferences.music=Number(e.target.value)/100;this.syncPersonalVolume();this.syncMusic();}},options);
   // No room track list is queried until the host submits a search.
   $('#voice-music-results').innerHTML='';
-  this.host.addEventListener('input',e=>this.updateDesignField(e.target));
-  this.host.addEventListener('change',e=>this.updateDesignField(e.target));
-  this.host.addEventListener('click',e=>{if(!e.target.closest('#voice-member-tools,#talk-dock-member-tools,.voice-member-more,.talk-strip-person'))this.closeMemberTools();});
-  $('#voice-members').addEventListener?.('scroll',()=>{if(this.liveMode)this.closeMemberTools();});
-  $('#voice-members').addEventListener?.('close',()=>this.closeMemberTools());
-  $('#voice-members').addEventListener?.('keydown',e=>{if(e.key==='Escape'&&!$('#voice-member-tools').hidden){e.preventDefault();e.stopPropagation();this.closeMemberTools(true);}});
-  $('#voice-music-sheet').addEventListener?.('keydown',e=>{if(e.key==='Escape'){e.preventDefault();$('#voice-music-sheet').close();}});
+  this.host.addEventListener('input',e=>this.updateDesignField(e.target),options);
+  this.host.addEventListener('change',e=>this.updateDesignField(e.target),options);
+  this.host.addEventListener('click',e=>{if(!e.target.closest('#voice-member-tools,#talk-dock-member-tools,.voice-member-more,.talk-strip-person'))this.closeMemberTools();},options);
+  $('#voice-members').addEventListener?.('scroll',()=>{if(this.liveMode)this.closeMemberTools();},options);
+  $('#voice-members').addEventListener?.('close',()=>this.closeMemberTools(),options);
+  $('#voice-members').addEventListener?.('keydown',e=>{if(e.key==='Escape'&&!$('#voice-member-tools').hidden){e.preventDefault();e.stopPropagation();this.closeMemberTools(true);}},options);
+  $('#voice-music-sheet').addEventListener?.('keydown',e=>{if(e.key==='Escape'){e.preventDefault();$('#voice-music-sheet').close();}},options);
  },
  updateDesignField(el){
   if(el?.type==='range'){const pct=(Number(el.value)-Number(el.min||0))/(Number(el.max||100)-Number(el.min||0))*100;el.style.setProperty('--range-fill',pct+'%');const output=this.host.querySelector(`[data-value-for="${el.id}"]`);if(output)output.textContent=Math.round(el.value)+'%';}
@@ -105,6 +106,7 @@ Object.assign(VoiceRoomClient.prototype,{
   const mic=this.host.querySelector('.talk-central [data-voice=toggle-mic]');
   if(mic.dataset.on!==String(micOn)){mic.dataset.on=String(micOn);mic.innerHTML=voiceGlyph(micOn?'talkMic':'talkMicOff')+'<span class="talk-switch" aria-hidden="true"></span>';}
   mic.hidden=!seated;mic.disabled=self.locked||!seated;
+  const down=this.host.querySelector('.talk-central [data-voice=release-mic]');if(down){down.hidden=!seated;down.disabled=!!this.seatReleasePending;}
   mic.setAttribute('aria-pressed',String(micOn));mic.setAttribute('aria-label',micOn?'내 마이크 끄기':'내 마이크 켜기');
   mic.setAttribute('aria-busy',String(!!this.micBusy));
   const themeKey=JSON.stringify([s.room.id,s.room.host_id,s.room.settings_revision||0]);
@@ -185,7 +187,7 @@ Object.assign(VoiceRoomClient.prototype,{
   if(action==='mic-test'){if(this.testGraph)this.stopMicTest();else await this.startMicTest();return true;}
   return false;
  },
- syncPersonalVolume(){this.preferences.voice=this.preferences.music;this.applyListenVolumes();if(this.liveMode){this.liveVolume=this.preferences.music;if(this.liveAudio)this.liveAudio.volume=this.liveVolume;}if(!this.liveMode){
+ syncPersonalVolume(){this.preferences.voice=this.preferences.music;this.applyListenVolumes();if(this.liveMode){this.liveVolume=this.preferences.music;liveSetVolume(this,this.liveVolume);}if(!this.liveMode){
   const volumeButton=this.host?.querySelector?.('#voice-music-player [data-voice=personal-volume]');
   if(volumeButton)volumeButton.innerHTML=voiceGlyph(this.preferences.music===0?'talkVolumeOff':'talkVolume');
   for(const b of this.host?.querySelectorAll?.('[data-voice=personal-mute]')||[])b.setAttribute('aria-pressed',String(this.preferences.music===0));try{localStorage.setItem('aifect.talkingRoom.listenVolume',String(this.preferences.music));}catch{}}for(const id of ['voice-music-volume','voice-listen-volume','live-mr-volume','voice-playlist-volume','voice-mini-volume','voice-personal-volume']){const el=$('#'+id);if(el){el.value=this.preferences.music*100;this.updateDesignField(el);}}},
@@ -237,6 +239,7 @@ Object.assign(VoiceRoomClient.prototype,{
   for(const button of this.host.querySelectorAll('.room-header button')){button.setAttribute('aria-haspopup','dialog');button.setAttribute('aria-controls',ids[button.dataset.voice]);button.setAttribute('aria-expanded','false');}
   const outside=e=>{
    const popup=this.talkPopup;if(!popup?.open||popup.contains(e.target))return;
+   if(popup.id==='voice-emoji-picker'&&e.target.closest('#voice-chat-form'))return;
    const entry=e.target.closest('[data-voice]');if(entry&&this.host.contains(entry)&&ids[entry.dataset.voice])return;
    if(e.type==='pointerdown'){e.preventDefault();return;}
    e.preventDefault();e.stopImmediatePropagation();this.closeRoomPopup();
@@ -245,7 +248,7 @@ Object.assign(VoiceRoomClient.prototype,{
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&this.talkPopup?.open&&!e.defaultPrevented){e.preventDefault();this.closeRoomPopup();}},{...options,capture:true});
   this.host.addEventListener('close',e=>{
    if(e.target!==this.talkPopup||e.target.open)return;
-   this.talkPopup=null;this.settingsTicket=(this.settingsTicket||0)+1;
+   this.talkPopup=null;document.documentElement?.removeAttribute('data-room-popup');this.settingsTicket=(this.settingsTicket||0)+1;
    this.host.querySelectorAll('.room-header [aria-expanded=true]').forEach(b=>b.setAttribute('aria-expanded','false'));
    if(e.target.id==='voice-sound')this.stopMicTest();
    if(e.target.id==='voice-emoji-picker'){e.target.hidden=true;this.host.querySelector('[data-voice="emoji"]')?.setAttribute('aria-expanded','false');}
@@ -262,7 +265,7 @@ Object.assign(VoiceRoomClient.prototype,{
   // Keep destructive room controls in the scrolling body, above the fixed footer.
   $('#voice-settings-form .live-form-fields').append(this.host.querySelector('#voice-room-settings [data-voice=close]'));
  },
- closeRoomPopup(){const p=this.talkPopup;if(p?.classList.contains('profile-preview')){closeProfilePreview();if(this.talkPopup===p){this.talkPopup=null;this.popupTrigger?.focus({preventScroll:true});}}else p?.close();},
+ closeRoomPopup(){const p=this.talkPopup;if(p?.classList.contains('profile-preview')){closeProfilePreview();if(this.talkPopup===p){this.talkPopup=null;document.documentElement?.removeAttribute('data-room-popup');this.popupTrigger?.focus({preventScroll:true});}}else p?.close();},
  showTalkPopup(id,trigger){const sheet=document.getElementById(id);if(sheet)this.adoptRoomPopup(sheet,trigger);},
  adoptRoomPopup(sheet,trigger=this.actionTrigger){
   if(sheet===this.talkPopup&&sheet.open){this.closeRoomPopup();return;}
@@ -270,7 +273,7 @@ Object.assign(VoiceRoomClient.prototype,{
   this.talkPopup=null;if(previous?.open){if(previous.classList.contains('profile-preview'))closeProfilePreview();else if(previous.id==='voice-emoji-picker')this.toggleEmojiPicker(false);else previous.close();}
   this.settingsTicket=(this.settingsTicket||0)+1;
   if(origin?.isConnected&&!origin.closest('dialog'))this.popupTrigger=origin;
-  this.talkPopup=sheet;sheet.classList.add('room-popup');sheet.removeAttribute('aria-modal');sheet.tabIndex=-1;
+  this.talkPopup=sheet;document.documentElement?.setAttribute('data-room-popup','');sheet.classList.add('room-popup');sheet.removeAttribute('aria-modal');sheet.tabIndex=-1;
   if(sheet.id==='dialog'&&!this.roomExternalHome)this.roomExternalHome={parent:sheet.parentNode,next:sheet.nextSibling};
   this.host.querySelector('.voice-chat-panel').append(sheet);
   this.host.querySelectorAll('.room-header [aria-expanded]').forEach(b=>b.setAttribute('aria-expanded',String(b.getAttribute('aria-controls')===sheet.id)));

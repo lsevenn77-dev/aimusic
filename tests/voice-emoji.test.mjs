@@ -32,7 +32,7 @@ function boundChat(liveMode,command,refresh=async()=>{}){
   if(!nodes.has(selector))nodes.set(selector,{value:'',elements:{},addEventListener(){}});
   return nodes.get(selector);
  };
- const context=nicknameContext({Event,crypto,navigator:{mediaDevices:{}},localStorage:{getItem:()=>null},
+ const context=nicknameContext({AbortController,Event,crypto,navigator:{mediaDevices:{}},localStorage:{getItem:()=>null},
   window:{innerWidth:390,innerHeight:844,addEventListener(){},removeEventListener(){}},
   document:{addEventListener(){}},$:get,busyForm:(element,callback)=>callback});
  vm.runInContext(readFileSync(new URL('../dist/voice-rooms.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../dist/voice-room-controls.js',import.meta.url),'utf8')+'\nthis.client=new VoiceRoomClient("test-room");',context);

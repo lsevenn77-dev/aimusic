@@ -63,6 +63,7 @@ export async function studioRoute(req,env,path,user){
     AND NOT EXISTS(SELECT 1 FROM artist_follow_blocks WHERE artist_id=artists.id)
     AND NOT EXISTS(SELECT 1 FROM follows WHERE kind='artist' AND target_id=artists.id)
     AND NOT EXISTS(SELECT 1 FROM activity_notifications WHERE artist_id=artists.id)
+    AND NOT EXISTS(SELECT 1 FROM gift_sources WHERE source_type='artist' AND source_id=artists.id)
     RETURNING id`,entityId,entity.producer_id,entity.name),
    query(env,`UPDATE profile_artist_pins SET ids_json=(SELECT json_group_array(value) FROM json_each(profile_artist_pins.ids_json) WHERE value!=?)
     WHERE producer_id=? AND NOT EXISTS(SELECT 1 FROM artists WHERE id=?)`,entityId,entity.producer_id,entityId)

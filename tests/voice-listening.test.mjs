@@ -53,3 +53,32 @@ test('leaving the microphone seat does not change listening gains or start captu
  h.client.state.members[0].seat=1;h.client.applyListenVolumes();h.client.state.members[0].seat=null;h.client.applyListenVolumes();
  assert.equal(a.voiceGain.gain.value,1);assert.equal(h.contexts[0].sources.length,1);assert.equal(h.captures,0);
 });
+
+test('foreground waits for an in-flight refresh and its queued fresh state before restoring sound',async()=>{
+ const h=setup(),client=h.client;let resolveFirst,reads=0,resumes=0;
+ const first=new Promise(resolve=>resolveFirst=resolve),ended={self:'listener',members:client.state.members,revision:2,karaoke:{phase:'idle',active:null}};
+ Object.assign(client,{joined:true,epoch:1,state:{...ended,revision:0,karaoke:{phase:'singing',active:{user_id:'host'}}},
+  command(){reads++;return reads===1?first:Promise.resolve(ended);},paint(){},receive:async()=>{},ws:{readyState:0},
+  resumeSound(){assert.equal(this.state.karaoke.phase,'idle');resumes++;},socket(){throw Error('must keep the connecting socket');},scheduleReconnect(){throw Error('unexpected reconnect');}});
+ const background=client.refresh(),foreground=client.restoreForeground();
+ assert.equal(resumes,0);resolveFirst({...ended,revision:1,karaoke:{phase:'singing',active:{user_id:'host'}}});
+ await Promise.all([background,foreground]);assert.equal(reads,2);assert.equal(resumes,1);assert.equal(client.refreshTask,null);
+});
+
+test('foreground preserves explicit listening mute and never reopens a microphone after seat loss',async()=>{
+ const h=setup(),client=h.client;let mics=0;
+ Object.assign(client,{joined:true,preferences:{voice:0,music:0},refresh:async()=>{},receive:async()=>{},ws:{readyState:1},foregroundMicDesired:true,
+  enableMic(){mics++;},scheduleReconnect(){throw Error('unexpected reconnect');}});
+ const audio={srcObject:{},play:()=>Promise.resolve()};client.audios.set('host',audio);
+ await client.restoreForeground();assert.equal(mics,0);assert.equal(client.preferences.music,0);assert.equal(audio.voiceGain.gain.value,0);
+ assert.equal(client.foregroundMicDesired,false);
+});
+
+test('repeated socket opens reuse CONNECTING or OPEN sockets and replace only a changed room generation',()=>{
+ const h=setup(),client=h.client,opened=[];
+ h.context.WebSocket=class {constructor(url){this.url=url;this.readyState=0;opened.push(this);}close(){this.readyState=3;}};
+ Object.assign(client,{joined:true,id:'fixture',generation:'first',status(){}});
+ client.socket();client.socket();assert.equal(opened.length,1);
+ opened[0].readyState=1;client.socket();assert.equal(opened.length,1);
+ client.generation='second';client.socket();assert.equal(opened.length,2);assert.equal(opened[0].readyState,3);
+});
