@@ -11,11 +11,6 @@
   --ui-control-height:44px;
   font-size:var(--pc-font-body);
  }
- #dialog:has(.shop-checkout) .shop-product-summary>img{width:calc(88px * var(--gift-ui-scale));height:calc(88px * var(--gift-ui-scale))}
- #dialog:has(.shop-checkout) .is-duration .shop-product-summary>img{width:calc(120px * var(--gift-ui-scale));height:calc(100px * var(--gift-ui-scale))}
- #dialog:has(.shop-checkout) .shop-quantity button{width:48.4px;height:48.4px}
- #dialog:has(.shop-checkout) .shop-checkout :is(input:not([type=radio],[type=checkbox]),textarea){min-height:48.4px}
- #dialog:has(.shop-checkout) .shop-checkout-actions>*{height:50.6px;min-height:50.6px}
 }
 /* Narrow screens retain the approved rows, scroll behavior and touch targets. */
 @media(max-width:800px){
@@ -24,8 +19,6 @@
   --gift-ui-scale:1;--ui-type-scale:1;--ui-space-scale:1;--ui-icon-scale:1;
  }
 }
-/* Payment totals are neutral white; product/period prices keep their gold. */
-#dialog:has(.shop-checkout) .shop-money .shop-value-payment{color:var(--ds-text)}
 
 /* Approved compact purchase layout. Scope by dialog contents so entry points
    outside the shop share the same layout; the two-row gift picker is separate. */
@@ -54,7 +47,6 @@
 #dialog .shop-checkout .shop-periods small{font-size:13px;line-height:1.2;color:var(--ds-text);white-space:nowrap}
 #dialog .shop-checkout .shop-quantity{gap:8px;margin-bottom:10px}
 #dialog .shop-checkout .shop-quantity button{width:44px;height:44px;min-height:44px;font-size:22px}
-#dialog:has(.shop-checkout) .shop-checkout :is(input:not([type=radio],[type=checkbox]),textarea){min-height:44px;padding:8px 10px;font-size:16px}
 #dialog .shop-checkout .shop-money{padding-top:10px;margin-top:0}
 #dialog .shop-checkout .shop-money p{gap:8px;margin:0;line-height:1.4;font-size:15px;flex-wrap:wrap}
 #dialog .shop-checkout .shop-money p>span{color:var(--ds-text)}

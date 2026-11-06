@@ -1,0 +1,94 @@
+/* Opt-in presentation only. dialog()/gift-sheet keep their focus, close and scroll behavior. */
+#dialog.shop-dialog{--gift-ui-scale:1;--ui-space-scale:1;--ui-type-scale:1;--ui-icon-scale:1;--shop-outline:#8f7da888;--shop-surface:linear-gradient(155deg,#181e32,#191e30 48%,#302a40);--shop-purple:linear-gradient(180deg,#b45ce8,#8434c7);box-sizing:border-box;width:min(460px,calc(100vw - 24px));max-width:calc(100vw - 24px);height:fit-content;min-height:0;max-height:calc(100dvh - 24px);inset:0;margin:auto;padding:20px;overflow:auto;overscroll-behavior:contain;border:1px solid #a48abe88;border-radius:16px;background:var(--shop-surface);box-shadow:0 12px 40px #170f2b44;color:var(--ds-text);font-size:15px;scrollbar-width:thin;scrollbar-color:#77658c #151b2c}
+#dialog.shop-dialog::backdrop{background:#080c16b3;backdrop-filter:none}
+#dialog.shop-dialog #dialog-content{display:block;min-height:0;height:auto;max-height:none;overflow:visible}
+#dialog.shop-dialog #dialog-close{top:8px;right:8px;width:44px;height:44px;min-height:44px;padding:0;font-size:0;line-height:1;box-shadow:none}
+#dialog.shop-dialog :is(h2,h3){color:var(--ds-text)}
+#dialog.shop-dialog h2{font-size:20px;line-height:28px;margin:0 36px 18px 0}
+#dialog.shop-dialog h2:focus{outline:none}
+#dialog.shop-dialog p{font-size:14px;line-height:1.6;color:var(--ds-body);overflow-wrap:anywhere}
+#dialog.shop-dialog :is(button,a.small-button,a.primary-button){box-sizing:border-box;line-height:1.3;gap:6px;align-items:center;justify-content:center;text-align:center}
+#dialog.shop-dialog :is(.primary-button,.gift-send-button){display:inline-flex;min-height:44px;margin-top:0;padding:10px 16px;border:1px solid #b57adc;border-radius:12px;background:var(--shop-purple);box-shadow:inset 0 1px 2px #ffffff40;color:#fff;font-size:14px;font-weight:700;cursor:pointer}
+#dialog.shop-dialog :is(.primary-button,.gift-send-button):hover{filter:brightness(1.1)}
+#dialog.shop-dialog :is(.small-button,.gift-charge-button,.gift-silver-button,.gift-target,.shop-recipient){border:1px solid var(--shop-outline);border-radius:10px;background:#151b2c;color:var(--ds-text);box-shadow:none}
+#dialog.shop-dialog :is(.small-button,.gift-target){min-height:44px}
+#dialog.shop-dialog :is(.gift-target,.shop-recipient){justify-content:space-between;text-align:left;padding:10px}
+#dialog.shop-dialog :is(.gift-target,.shop-recipient)[aria-pressed=true]{border-color:var(--ds-selected);background:#302342}
+#dialog.shop-dialog :is(input:not([type=radio],[type=checkbox]),textarea,select){box-sizing:border-box;min-height:44px;min-width:0;max-width:100%;padding:10px 12px;border:1px solid var(--shop-outline);border-radius:10px;background:#111827;color:var(--ds-text);font:inherit;font-size:16px}
+#dialog.shop-dialog textarea{width:100%;resize:vertical}
+#dialog.shop-dialog button:disabled{opacity:.5;cursor:not-allowed;filter:none}
+#dialog.shop-dialog :is(.form-error,.field-help){font-size:13px;line-height:1.5;margin:10px 0 0}
+#dialog.shop-dialog .form-error:empty{display:none}
+#dialog.shop-dialog .form-error{color:#f4a8ce}
+#dialog.shop-dialog :focus-visible{outline:2px solid var(--ds-selected);outline-offset:3px}
+#dialog.shop-dialog .shop-coin{width:20px;height:20px;max-width:none;max-height:none;margin:0;aspect-ratio:1;object-fit:contain}
+.shop-checkout{width:100%;min-width:0}
+#dialog.shop-dialog .shop-product-summary{display:flex;align-items:center;gap:16px;margin:0 0 16px;min-width:0}
+#dialog.shop-dialog .shop-product-summary>img{width:80px;height:80px;object-fit:contain;flex:none;margin:0;background:transparent}
+.shop-product-summary>div{min-width:0}
+.shop-product-summary h3{font-size:17px;line-height:1.5;margin:0;overflow-wrap:anywhere}
+#dialog.shop-dialog .shop-product-summary p{font-size:13px;margin:5px 0 0}
+.shop-field,.shop-periods legend{display:block;font-size:14px;margin:0 0 8px;color:var(--ds-text)}
+.shop-field small{color:var(--ds-body)}
+.shop-periods{border:0;padding:0;margin:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.shop-periods label{position:relative;min-width:0;cursor:pointer}
+.shop-periods input{position:absolute;opacity:0;width:1px;height:1px;min-height:0}
+.shop-periods label>span{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:9px 3px;min-height:66px;border:1px solid var(--shop-outline);border-radius:10px;background:#151b2c;font-size:14px;line-height:1.3;text-align:center}
+.shop-periods small{font-size:13px;color:var(--ds-text)}
+.shop-periods :checked+span{border-color:var(--ds-selected);background:#302342}
+.shop-periods :focus-visible+span{outline:2px solid var(--ds-selected);outline-offset:2px}
+.shop-quantity{display:flex;gap:8px;margin:0}
+#dialog.shop-dialog .shop-quantity button{flex:none;width:44px;height:44px;border:1px solid var(--shop-outline);background:#151b2c;border-radius:10px;color:var(--ds-text);font-size:22px}
+.shop-quantity input{flex:1;min-width:0;text-align:center}
+.shop-money{margin:0 0 18px}
+#dialog.shop-dialog .shop-money p{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:7px 0;font-size:14px}
+.shop-money strong{font-size:18px;color:var(--ds-text);font-weight:700}
+.shop-money .shop-wallet-line strong{font-size:14px;font-weight:600}
+#dialog.shop-dialog .shop-insufficient{flex-wrap:wrap;color:#f4a8ce;font-size:13px}
+.shop-insufficient a{color:var(--ds-text);text-decoration:underline}
+.shop-checkout-actions{display:flex;gap:10px;margin-top:20px}
+#dialog.shop-dialog .shop-checkout-actions>*{flex:1;min-width:0;min-height:44px;margin:0;padding:10px;font-size:14px;white-space:nowrap}
+.shop-search{display:flex;gap:8px}.shop-search input{width:100%;min-width:0}.shop-search button{flex:none}
+.shop-recipients{display:grid;gap:8px;margin-top:12px}
+.shop-recipient{display:flex;align-items:center;gap:12px;min-width:0;font:inherit;cursor:pointer}
+.shop-recipient img{width:40px;height:40px;object-fit:cover;border-radius:50%;flex:none}
+.shop-recipient>span:first-of-type{flex:1;min-width:0}.shop-recipient strong{display:block;font-size:14px;overflow-wrap:anywhere}
+.shop-recipient small,.shop-recipient-state{display:block;font-size:12px;color:var(--ds-body);margin-top:4px}
+.shop-receiver small{display:block;margin-top:6px;color:var(--ds-body)}
+.shop-review{font-size:14px;margin:0}.shop-review>div{display:flex;justify-content:space-between;gap:16px;margin:12px 0}
+.shop-review dt{color:var(--ds-body);flex:none}.shop-review dd{margin:0;text-align:right;overflow-wrap:anywhere;min-width:0}.shop-note{white-space:pre-wrap}
+.shop-theme-preview{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;min-width:0;padding-top:28px}
+.shop-theme-preview>img{display:block;width:auto;height:auto;max-width:100%;max-height:min(540px,calc(100dvh - 240px));object-fit:contain;border-radius:10px}
+#dialog.shop-dialog .shop-theme-preview h2{font-size:17px;line-height:1.4;margin:0;text-align:center}
+.shop-preview-info .shop-card-price{display:flex;align-items:center;justify-content:center;gap:5px;margin-top:7px}
+.shop-theme-preview .primary-button{width:100%}
+/* Preserve the compact gift list's measured rows, five-column grid and fixed footer. */
+#dialog.shop-dialog:has(.gift-dialog--compact){width:min(560px,calc(100vw - 24px));overflow:hidden}
+#dialog.shop-dialog.gift-sheet{--gift-dialog-line:var(--shop-outline);background:var(--shop-surface)}
+#dialog.shop-dialog.gift-sheet .gift-dialog.gift-dialog--compact{background:transparent}
+#dialog.shop-dialog .gift-dialog.gift-dialog--compact .gift-dialog-footer{background:#171c2d;border-color:var(--shop-outline)}
+#dialog.shop-dialog .gift-dialog--compact h2{margin-bottom:0;font-size:19px}
+#dialog.shop-dialog .gift-dialog.gift-dialog--compact .gift-choice{background:var(--shop-surface);border-color:var(--shop-outline);border-radius:9px}
+#dialog.shop-dialog .gift-dialog.gift-dialog--compact .gift-choice.selected{border-color:#cfa9ed;box-shadow:inset 0 0 0 1px #b681d7}
+#dialog.shop-dialog .gift-dialog.gift-dialog--compact .gift-choice .shop-coin{width:14px;height:14px}
+#dialog.shop-dialog .gift-dialog.gift-dialog--compact .gift-choice .shop-currency-amount{gap:3px}
+#dialog.shop-dialog .gift-dialog.gift-dialog--compact .gift-category-tabs [aria-pressed=true]{background:var(--shop-purple);color:#fff;border-color:#bd8ae2}
+#dialog.shop-dialog .gift-dialog.gift-dialog--compact .gift-balance-cell .shop-coin{width:20px;height:20px}
+#dialog.shop-dialog .gift-dialog.gift-dialog--compact .gift-footer-grid :is(.gift-charge-button,.gift-silver-button){border-color:var(--shop-outline);background:#151b2c;color:var(--ds-text)}
+#dialog.shop-dialog .gift-dialog.gift-dialog--compact .gift-footer-grid .gift-send-button{border-color:#b57adc;background:var(--shop-purple);box-shadow:inset 0 1px 2px #ffffff40;color:#fff}
+#dialog.shop-dialog .gift-dialog.gift-dialog--compact .gift-footer-grid .gift-send-button:disabled{opacity:.5;cursor:not-allowed}
+#dialog.shop-dialog .gift-dialog.gift-dialog--compact .gift-footer-grid select{min-height:36px;padding:5px 20px 5px 5px;font-size:16px}
+#dialog.shop-dialog .gift-dialog.gift-dialog--compact .gift-context-detail .shop-coin{width:16px;height:16px}
+#dialog.shop-dialog:has(.decoration-dialog) .gift-options{height:auto;min-height:0;max-height:none;overflow:visible}
+#dialog.shop-dialog:has(.decoration-dialog) .gift-checkout{border:0;padding:0}
+#dialog.shop-dialog .gift-success .gift-celebration{box-shadow:none}
+@media(max-width:767px){
+ #dialog.shop-dialog{width:calc(100vw - 24px);max-height:calc(100dvh - 20px);padding:18px 14px calc(18px + env(safe-area-inset-bottom));border-radius:14px}
+ #dialog.shop-dialog h2{font-size:18px;line-height:26px;margin-bottom:16px}
+ #dialog.shop-dialog .shop-product-summary{gap:12px}
+ #dialog.shop-dialog .shop-product-summary>img{width:64px;height:64px}
+ .shop-product-summary h3{font-size:16px}.shop-periods label>span{font-size:13px;padding-inline:2px}
+ .shop-periods small{font-size:12px}#dialog.shop-dialog .shop-periods .shop-coin{width:17px;height:17px}
+ #dialog.shop-dialog .gift-dialog--compact .gift-recipient{max-width:58%}
+ #dialog.shop-dialog .gift-dialog.gift-dialog--compact .gift-footer-grid{gap:6px}
+}
