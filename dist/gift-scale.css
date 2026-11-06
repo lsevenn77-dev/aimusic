@@ -11,13 +11,6 @@
   --ui-control-height:44px;
   font-size:var(--pc-font-body);
  }
- #main:is([data-route="gifts"],[data-route^="gifts/"]) .shop-track{--shop-card-width:calc(144.43px * var(--gift-ui-scale))}
- #main:is([data-route="gifts"],[data-route^="gifts/"]) .shop-product img{width:calc(65.78px * var(--gift-ui-scale));height:calc(65.78px * var(--gift-ui-scale))}
- #main:is([data-route="gifts"],[data-route^="gifts/"]) .shop-frame-product img{width:calc(90px * var(--gift-ui-scale));height:calc(90px * var(--gift-ui-scale))}
- #main:is([data-route="gifts"],[data-route^="gifts/"]) .shop-theme-product img{width:100%;height:auto}
- #main:is([data-route="gifts"],[data-route^="gifts/"]) .shop-actions a{height:44px;min-height:44px}
- #main:is([data-route="gifts"],[data-route^="gifts/"]) .shop-heading .shop-balance :is(img,.gold-coin){width:22px;height:22px}
- #main:is([data-route="gifts"],[data-route^="gifts/"]) .shop-arrow-glyph svg{width:calc(17.16px * var(--gift-ui-scale));height:calc(17.16px * var(--gift-ui-scale))}
  #dialog:has(.shop-checkout) .shop-product-summary>img{width:calc(88px * var(--gift-ui-scale));height:calc(88px * var(--gift-ui-scale))}
  #dialog:has(.shop-checkout) .is-duration .shop-product-summary>img{width:calc(120px * var(--gift-ui-scale));height:calc(100px * var(--gift-ui-scale))}
  #dialog:has(.shop-checkout) .shop-quantity button{width:48.4px;height:48.4px}

@@ -14,27 +14,27 @@ test('registered theme duration prices stay within one SKU card, without merging
  const theme=DECORATIONS.theme_starlight_lounge,other={...theme,sku:'distinct_registered_sku'};
  const products=context.shopThemeProducts([theme,theme,DECORATIONS.frame_aurora_ring,other]);
  assert.deepEqual(Array.from(products,p=>p.sku),[theme.sku,other.sku]);
- const html=context.shopShelf('themes','테마',products,PERIOD_LABELS);
- assert.equal((html.match(/class="shop-item shop-theme-card"/g)||[]).length,2);
- assert.ok(html.includes('100 G</span><span class="shop-price-period"> / 7일~'));
+ const html=context.shopCards(products,PERIOD_LABELS);
+ assert.equal((html.match(/data-shop-category="themes"/g)||[]).length,2);
+ assert.ok(html.includes('100</span><span class="shop-price-period"> / 7일~'));
  assert.ok(!html.includes('data-product-gift='));
  assert.ok(html.includes('data-theme-sku="'+theme.sku+'"'));
  assert.ok(html.includes('data-theme-preview="'+theme.assetPaths.roomMobile+'"'));
- assert.equal((html.match(/data-decoration="/g)||[]).length,2);
+ assert.equal((html.match(/data-decoration="/g)||[]).length,4);
  assert.deepEqual(theme.periodPrices,{P7D:100,P1M:300,P3M:790});
 });
 
 test('theme card uses the actual lowest price even when the shortest period costs more',()=>{
  const theme={...DECORATIONS.theme_starlight_lounge,periodPrices:{P7D:500,P1M:300,P3M:790}};
- assert.ok(context.shopShelf('themes','테마',[theme],PERIOD_LABELS).includes('300 G</span><span class="shop-price-period"> / 1개월~'));
+ assert.ok(context.shopCards([theme],PERIOD_LABELS).includes('300</span><span class="shop-price-period"> / 1개월~'));
  const periods=context.shopProductPeriods({...theme,periodPrices:{P1M:300,P3M:790}},PERIOD_LABELS);
  assert.deepEqual(Array.from(periods,([key,label])=>[key,label]),[['P1M','1개월'],['P3M','3개월']]);
 });
 
 test('ordinary gifts retain their IDs, prices and purchase controls, with no theme preview',()=>{
- const html=context.shopShelf('gold','골드 상품',[{id:'heart',name:'하트',image:'/registered.png',gold:50}]);
+ const html=context.shopCards([{id:'heart',name:'하트',image:'/registered.png',gold:50}]);
  assert.ok(html.includes('data-gift-buy="heart"'));
- assert.ok(html.includes('50 G'));
+ assert.ok(html.includes('50</span>')&&html.includes('coin-g.svg'));
  assert.ok(!html.includes('data-theme-preview'));
- assert.ok(!html.includes('shop-theme-card'));
+ assert.ok(!html.includes('data-shop-category="themes"'));
 });

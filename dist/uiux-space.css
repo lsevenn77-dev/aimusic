@@ -62,9 +62,6 @@
 #main:is([data-route="community"],[data-route^="community/"]) .v3-toolbar{margin-top:18px}
 
 /* Product cards and all checkout dialogs retain their original boundaries. */
-#main[data-route="gifts"] .shop-shelf{border:0;border-top:1px solid var(--ds-line);border-radius:0;padding:8px 0;margin-bottom:8px;background:transparent;box-shadow:none}
-#main[data-route="gifts"] .shop-actions{align-items:stretch}
-#main[data-route="gifts"] .shop-actions a{justify-content:center}
 
 /* Song: remove wrapper duplication while preserving lyrics/player boundaries. */
 #main[data-route^="song/"] .song-covers-panel,
@@ -107,7 +104,6 @@
  #main .play-page .play-project-row small{font-size:11px}
  #main:is([data-route="community"],[data-route^="community/"])>.music-community-tabs{margin:0 0 12px}
  #main:is([data-route="community"],[data-route^="community/"]) .v3-toolbar{margin:12px 0}
- #main[data-route="gifts"] .shop-heading{gap:8px;margin-bottom:8px}
  #main .mypage-layout .mp-profile{padding:8px 0 16px;gap:12px}
  #main .mypage-layout .mp-profile-actions{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%;gap:6px;justify-content:stretch;margin:0}
  #main .mypage-layout.mp-own .mp-profile-actions{grid-template-columns:repeat(2,minmax(0,1fr))}
