@@ -46,7 +46,8 @@ class MainActivity:ComponentActivity(){
   ads=ListeningAds(this)
   enableEdgeToEdge(statusBarStyle=SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),navigationBarStyle=SystemBarStyle.dark(android.graphics.Color.TRANSPARENT))
   setContent {
-   LaunchedEffect(model.user,model.membership){if(model.user!=null){ads.prepare();push(intent)
+   LaunchedEffect(model.user){if(model.user!=null)push(intent)}
+   LaunchedEffect(model.user,model.membership,model.loading){if(model.user!=null&&!model.loading){ads.prepare();
     if(android.os.Build.VERSION.SDK_INT>=33&&com.google.firebase.FirebaseApp.getApps(this@MainActivity).isNotEmpty()&&
      checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)!=android.content.pm.PackageManager.PERMISSION_GRANTED){
      val prefs=getSharedPreferences("native_push",0)

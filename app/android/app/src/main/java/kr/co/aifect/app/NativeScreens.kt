@@ -84,8 +84,8 @@ internal val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=
   val navConfiguration=androidx.compose.ui.platform.LocalConfiguration.current
   val compactNavLabels=navConfiguration.screenWidthDp<360||navConfiguration.fontScale>1.2f
   val chatLifecycle=androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
-  LaunchedEffect(m.user?.optString("id")){m.unreadMessages=0;m.inboxCrew=null;if(m.user!=null)chatLifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.RESUMED){while(true){try{m.refreshMessageSummary()}catch(e:Exception){if(e is kotlinx.coroutines.CancellationException)throw e};delay(8000)}}}
-  LaunchedEffect(m.user?.optString("id")){if(m.user!=null)chatLifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.RESUMED){while(true){try{m.refreshActivitySummary()}catch(e:Exception){if(e is kotlinx.coroutines.CancellationException)throw e};delay(30000)}}}
+  LaunchedEffect(m.user?.optString("id"),m.loading){m.unreadMessages=0;m.inboxCrew=null;if(m.user!=null&&!m.loading)chatLifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.RESUMED){while(true){try{m.refreshMessageSummary()}catch(e:Exception){if(e is kotlinx.coroutines.CancellationException)throw e};delay(8000)}}}
+  LaunchedEffect(m.user?.optString("id"),m.loading){if(m.user!=null&&!m.loading)chatLifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.RESUMED){while(true){try{m.refreshActivitySummary()}catch(e:Exception){if(e is kotlinx.coroutines.CancellationException)throw e};delay(30000)}}}
   LaunchedEffect(m.notice){m.notice?.let {snack.showSnackbar(it);m.notice=null}}
   BackHandler(m.tab==4){m.leaveLibrary()}
   BackHandler(m.showGifts||m.fullPlayer||m.detail!=null||m.selectedList!=null||m.profile!=null||m.showLogin||m.showAccount||m.collection!=null||m.rankOpen){

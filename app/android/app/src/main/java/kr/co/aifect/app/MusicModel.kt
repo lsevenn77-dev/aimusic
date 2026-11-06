@@ -423,15 +423,23 @@ class MusicModel(app:Application):AndroidViewModel(app) {
    refreshing=true;error=null
    try{
     hydratePublic()
-    try{loadMe(loadPrivate=false)}catch(e:Exception){if(e is CancellationException)throw e;failure(e);error="계정 상태를 불러오지 못했어요."}
-    val scope=readScope();hydratePublic();if(user!=null)refreshLibrary(fresh=true)
+    try{loadMe(loadPrivate=false,loadGallery=false)}catch(e:Exception){if(e is CancellationException)throw e;failure(e);error="계정 상태를 불러오지 못했어요."}
+    val scope=readScope();hydratePublic()
     suspend fun update(path:String,apply:(JSONObject)->Unit){
      try{val data=api.call(path,fresh=true);ensureRead(scope);apply(data)}catch(e:Exception){if(e is CancellationException)throw e;if(sameAccount(scope)){if(e is ApiException&&e.status==401)failure(e);error=e.message}}
     }
     supervisorScope {
      listOf(
       async{update("/api/catalog?section=tracks&chart=top"){home=it.tracks()}},
-      async{update("/api/catalog?section=tracks&limit=40"){latest=it.tracks()}},
+      async{update("/api/catalog?section=tracks&limit=40"){latest=it.tracks()}}
+     ).awaitAll()
+    }
+    // Give the first screen the connection slots before library, profile, and
+    // discovery prefetch. Slow optional lists must not keep Home loading.
+    ensureRead(scope);loading=false
+    if(user!=null){refreshLibrary(fresh=true);refreshMyGallery()}
+    supervisorScope {
+     listOf(
       async{update("/api/community?kind=cover"){recentCovers=it.tracks()}},
       async{update("/api/duets"){duetInvitations=it.tracks();duetError=null}},
       async{update("/api/karaoke"){singable=it.tracks()}},
@@ -451,13 +459,13 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   api.peek("/api/playlists?sort=popular")?.let{publicLists=it.optJSONArray("playlists").objects()}
   api.peek("/api/catalog?section=producers&limit=20")?.let{people=it.optJSONArray("producers").objects()}
  }
- suspend fun loadMe(loadPrivate:Boolean=true){
+ suspend fun loadMe(loadPrivate:Boolean=true,loadGallery:Boolean=true){
   val generation=accountGeneration
   val me=api.call("/api/me",fresh=true);currentCoroutineContext().ensureActive();if(generation!=accountGeneration)throw CancellationException("Account changed while loading its state")
   val nextMembership=me.optJSONObject("membership")?:JSONObject()
   if(user?.optString("id")==me.optJSONObject("user")?.optString("id")&&membership.optLong("premium_until")!=nextMembership.optLong("premium_until")){api.invalidateReads();profileCache.clear();resetLyrics()}
   user=me.optJSONObject("user");membership=nextMembership
-  if(user!=null)refreshMyGallery()
+  if(user!=null&&loadGallery)refreshMyGallery()
   SongAdBreaks.configure(getApplication(),user?.optString("id"),membership.optLong("premium_until",0))
   providers=me.optJSONArray("providers")?.let { a->(0 until a.length()).map { a.getString(it) } }?:emptyList()
   emailEnabled=me.optBoolean("emailEnabled")
