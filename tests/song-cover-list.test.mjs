@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -92,7 +93,7 @@ test('blocked performers are omitted consistently from lists, counts and child p
  assert.equal((await f.call('/api/tracks/one/covers?view=children&parent=source')).status,403);
 });
 test('row markup has separate native links and controls, exact tabs, escaped IDs and shared line play icon',()=>{
- const c=vm.createContext({esc:s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),number:String,time:()=> '0:45',cover:()=>'<img>',liked:()=>false,icon:n=>`<i data-icon="${n}"></i>`});
+ const c=nicknameContext({esc:s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),number:String,time:()=> '0:45',cover:()=>'<img>',liked:()=>false,icon:n=>`<i data-icon="${n}"></i>`});
  vm.runInContext(readFileSync(new URL('../dist/song-covers.js',import.meta.url),'utf8'),c);
  const track={id:'cover',title:'<Long title>',producer:'Singer',rank:1,cover_mode:'duet',original_id:'original',completions:2,participants:1,can_join:true};
  const html=c.songCoversPanelHTML({id:'original'},{view:'all',covers:[track],counts:{all:1,recent:1,duet:1},accepts_covers:true},'all');
@@ -113,7 +114,7 @@ test('row markup has separate native links and controls, exact tabs, escaped IDs
 });
 
  test('two-line metadata omits unavailable fields and exposes real duet performers in child rows',()=>{
- const c=vm.createContext({esc:v=>String(v??''),number:String,time:()=> '0:45',cover:()=>'',liked:()=>false,icon:()=>''});vm.runInContext(readFileSync(new URL('../dist/song-covers.js',import.meta.url),'utf8'),c);
+ const c=nicknameContext({esc:v=>String(v??''),number:String,time:()=> '0:45',cover:()=>'',liked:()=>false,icon:()=>''});vm.runInContext(readFileSync(new URL('../dist/song-covers.js',import.meta.url),'utf8'),c);
  const t={id:'a',title:'제목',producer:'참여자',duet_partner:'먼저 부른 사람',genre:'Rock',duration:45,cover_mode:'duet'};
  assert.match(c.songCoverRowHTML(t),/>참여자 · 듀엣<\/span>/);
  assert.match(c.songCoverRowHTML(t,{child:true}),/먼저 부른 사람 & 참여자 · 듀엣/);

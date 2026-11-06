@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -7,7 +8,7 @@ const source=name=>readFileSync(new URL('../dist/'+name,import.meta.url),'utf8')
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 function menu(user='owner',liked=false){
- const listeners={},c=vm.createContext({me:user?{id:user}:null,trackMap:new Map([['one',{id:'one',user_id:'owner',title:'<Song "title">',kind:'original'}]]),esc,icon:n=>`<svg data-icon="${n}"></svg>`,liked:()=>liked,dialog:html=>{c.html=html;},paintInteractions:()=>{},$:()=>({addEventListener:(name,fn)=>listeners[name]=fn})});
+ const listeners={},c=nicknameContext({me:user?{id:user}:null,trackMap:new Map([['one',{id:'one',user_id:'owner',title:'<Song "title">',kind:'original'}]]),esc,icon:n=>`<svg data-icon="${n}"></svg>`,liked:()=>liked,dialog:html=>{c.html=html;},paintInteractions:()=>{},$:()=>({addEventListener:(name,fn)=>listeners[name]=fn})});
  vm.runInContext(source('gifts.js').split('\n').slice(0,2).join('\n'),c);
  const text=source('explorer.js');vm.runInContext(text.slice(text.indexOf('function trackMenu('),text.indexOf('function queueDialog(')),c);
  c.trackMenu('one');return {c,listeners};
@@ -39,7 +40,7 @@ test('chart menu reuses existing song actions in an anchored popover, never adds
  assert.doesNotMatch(c.html,/data-chart-playlist|플리 만들기|data-delete-track/);
 });
 function deletion(fail=false){
- const calls=[],form={},removed=[],c=vm.createContext({esc,dialog:html=>{c.html=html;},$:selector=>selector==='#delete-track-form'?form:{close:()=>calls.push('close')},busyForm:(_,fn)=>fn,uploadRequest:async()=>{calls.push('delete');if(fail)throw Error('삭제 실패');},invalidateReads:()=>calls.push('invalidate'),current:{id:'cover',original_id:'one'},closePlayer:()=>calls.push('stop'),queue:['one','cover','safe'],trackMap:new Map([['one',{id:'one'}],['cover',{id:'cover',original_id:'one'}],['safe',{id:'safe'}]]),routeTracks:[{id:'one'},{id:'cover',original_id:'one'},{id:'safe'}],library:{likes:[{id:'one'},{id:'safe'}]},pendingResume:{id:'cover'},sessionStorage:{removeItem:key=>removed.push(key)},saveQueue:()=>calls.push('queue'),toast:()=>{},refreshLibrary:async fresh=>calls.push('library:'+fresh),render:async()=>calls.push('render')});
+ const calls=[],form={},removed=[],c=nicknameContext({esc,dialog:html=>{c.html=html;},$:selector=>selector==='#delete-track-form'?form:{close:()=>calls.push('close')},busyForm:(_,fn)=>fn,uploadRequest:async()=>{calls.push('delete');if(fail)throw Error('삭제 실패');},invalidateReads:()=>calls.push('invalidate'),current:{id:'cover',original_id:'one'},closePlayer:()=>calls.push('stop'),queue:['one','cover','safe'],trackMap:new Map([['one',{id:'one'}],['cover',{id:'cover',original_id:'one'}],['safe',{id:'safe'}]]),routeTracks:[{id:'one'},{id:'cover',original_id:'one'},{id:'safe'}],library:{likes:[{id:'one'},{id:'safe'}]},pendingResume:{id:'cover'},sessionStorage:{removeItem:key=>removed.push(key)},saveQueue:()=>calls.push('queue'),toast:()=>{},refreshLibrary:async fresh=>calls.push('library:'+fresh),render:async()=>calls.push('render')});
  const text=source('actions.js');vm.runInContext(text.slice(text.indexOf('function deleteTrackDialog('),text.indexOf('async function uploadFile(')),c);c.deleteTrackDialog('one','<Song>','original');return {c,calls,form,removed};
 }
 test('deletion waits for confirmation, invalidates dependent reads and removes unavailable queue entries',async()=>{

@@ -80,7 +80,7 @@ export function mount(root,{crew,viewer,api,esc}){
   const list=records.filter(row=>row.place<=100).map(row=>{
    const key=kind==='crew'?row.crew_id:row.profile_id;
    const avatar=key&&row.image_version?'<img alt="" loading="lazy" src="/media/'+kind+'/'+encodeURIComponent(key)+'?v='+encodeURIComponent(row.image_version)+'">':'';
-   return '<li><b>'+Number(row.place)+'</b><i class="arc-avatar" aria-hidden="true">'+esc(Array.from(row.name||'✦')[0])+avatar+'</i><span>'+esc(row.name)+'</span><strong>'+Number(row.points).toLocaleString()+'점</strong></li>';
+   return '<li><b>'+Number(row.place)+'</b><i class="arc-avatar" aria-hidden="true">'+esc(Array.from(row.name||'✦')[0])+avatar+'</i><span>'+(kind==='crew'?esc(row.name):userNickname(row.name,{profileId:row.profile_id,userId:row.user_id}))+'</span><strong>'+Number(row.points).toLocaleString()+'점</strong></li>';
   }).join('');
   return '<section class="jump-leaders"><div class="arc-rank-title"><h2>'+title+'</h2><small>TOP 100</small></div><p>'+description+'</p><div class="arc-scroll" tabindex="0" role="region" aria-label="'+title+' 최대 100위">'+
    (list?'<ol>'+list+'</ol>':'<div class="arc-empty"><span aria-hidden="true">✧</span>아직 공식 기록이 없어요.</div>')+

@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -23,7 +24,7 @@ function galleryUpload({failAttempt=0}={}){
    queueMicrotask(()=>{active--;if(attempt===failAttempt)this.onerror();else{saved.push(request);this.onload();}this.onloadend();});
   }
  }
- const context=vm.createContext({
+ const context=nicknameContext({
   Blob,File,XMLHttpRequest:XHR,setTimeout:()=>1,clearTimeout(){},invalidateReads(){},
   DataTransfer:class{files=[];items={add:file=>this.files.push(file)};},
   createImageBitmap:async file=>{decoded++;const [width,height]=sizes.get(file);return {width,height,close(){released++;}};},

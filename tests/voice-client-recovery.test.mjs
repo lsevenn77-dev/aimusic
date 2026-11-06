@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -5,7 +6,7 @@ import vm from 'node:vm';
 
 function clientHarness(extra={}){
  const timers=[];
- const context=vm.createContext({
+ const context=nicknameContext({
   RTCPeerConnection:class {close(){this.closed=true;}},
   setTimeout(fn){timers.push(fn);return timers.length;},clearTimeout(){},
   ...extra

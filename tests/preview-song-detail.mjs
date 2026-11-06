@@ -43,6 +43,7 @@ const widths=[320,360,375,390,430,768,1024,1440,1920],tracks=['one','long','two'
 const server=createServer(async(req,res)=>{
  try{
   const u=new URL(req.url,'http://127.0.0.1:'+port);
+  if(u.pathname==='/qa-nicknames.js'){res.setHeader('content-type','text/javascript');res.end(await readFile('tests/nickname-browser-qa.js'));return;}
   if(u.pathname==='/qa-runtime.js'){res.setHeader('content-type','text/javascript');res.end("addEventListener('error',e=>{if(e.error)document.documentElement.dataset.qaErrors=(document.documentElement.dataset.qaErrors||'')+' '+e.error.message;});");return;}
   if(u.pathname==='/qa-metrics.js'){res.setHeader('content-type','text/javascript');res.end(await readFile('tests/song-detail-qa.js'));return;}
   if(u.pathname==='/qa-requests'){res.setHeader('content-type','application/json');res.end(JSON.stringify(requests.slice(-200)));return;}
@@ -59,7 +60,7 @@ const server=createServer(async(req,res)=>{
   for await(const chunk of req)body.push(chunk);
   const response=await worker.fetch(new Request(u,{method:req.method,headers:{...req.headers,cookie:user==='guest'?'':'aifect_session='+user},body:body.length?Buffer.concat(body):undefined}),env,{waitUntil(p){p.catch(()=>{});}});
   requests.push({method:req.method,path:u.pathname,status:response.status});let payload=Buffer.from(await response.arrayBuffer()),headers=Object.fromEntries(response.headers);
-  if((headers['content-type']||'').includes('text/html')){payload=Buffer.from(payload.toString().replace('<head>','<head><script src="/qa-runtime.js"></script>'));delete headers['content-length'];}
+  if((headers['content-type']||'').includes('text/html')){payload=Buffer.from(payload.toString().replace('</body>',process.argv.includes('--nicknames')?'<script defer src="/qa-nicknames.js"></script></body>':'</body>').replace('<head>','<head><script src="/qa-runtime.js"></script>'));delete headers['content-length'];}
   res.writeHead(response.status,headers);res.end(payload);
  }catch(e){console.error(e);res.writeHead(500);res.end('Local preview error');}
 }).listen(port,'127.0.0.1',()=>console.log('Local preview: http://127.0.0.1:'+port+'/qa-layout?width=1440'));

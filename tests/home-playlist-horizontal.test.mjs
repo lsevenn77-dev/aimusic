@@ -1,10 +1,11 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 const home=readFileSync('dist/home.js','utf8');
 function context(){
- const c=vm.createContext({Map,console,window:{addEventListener(){}},me:null,esc:String,number:String,playlistArt:()=>'<div class="collection-art"></div>',icon:n=>`<svg data-icon="${n}"></svg>`});
+ const c=nicknameContext({Map,console,window:{addEventListener(){}},me:null,esc:String,number:String,playlistArt:()=>'<div class="collection-art"></div>',icon:n=>`<svg data-icon="${n}"></svg>`});
  const explorer=readFileSync('dist/explorer.js','utf8');vm.runInContext(explorer.slice(explorer.indexOf('function recommendedPlaylistCard'),explorer.indexOf('function discoveryTabs')),c);vm.runInContext(home,c);return c;
 }
 test('home and recommendations share the same card while the library retains its compact variant',()=>{

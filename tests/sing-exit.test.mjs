@@ -1,10 +1,11 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 
 function session(mode){
- const records=new Map(),c=vm.createContext({
+ const records=new Map(),c=nicknameContext({
   document:{addEventListener(){},querySelectorAll:()=>[]},window:{addEventListener(){}},me:{id:'account'},Float32Array,
   setTimeout(){throw Error('Draft persistence must not be scheduled');}, clearTimeout(){},
   singingKey:()=>0,records,crypto,

@@ -15,7 +15,7 @@ function activityRowHTML(n){
  const avatar=n.actor_profile_id&&n.actor_image_version?'/media/producer/'+encodeURIComponent(n.actor_profile_id)+'?v='+encodeURIComponent(n.actor_image_version||'default'):'/assets/default-avatar.png';
  const destination=href||'#notifications?unavailable='+encodeURIComponent(n.unavailable_reason||'1');
  const purpose=gift?'선물 받은 곳 보기':['comment','fan_comment','fan_post'].includes(n.kind)?'댓글·응원 보기':n.kind==='artist_follower'?'아티스트 보기':n.kind==='work_status'?'작품 관리':n.kind.startsWith('crew_')?'크루·요청 보기':'작품 보기';
- const detail=gift?giftDetail:['artist_name','source_title','detail'].filter(k=>n[k]).map(k=>`<span title="${esc(n[k])}">${esc(n[k])}</span>`).join('');
+ const detail=gift?giftDetail:['artist_name','source_title','detail'].filter(k=>n[k]).map(k=>`<span title="${esc(n[k])}">${k==='artist_name'?userNickname(n[k],{artistId:n.artist_id,entityType:'artist'}):esc(n[k])}</span>`).join('');
  const created=new Date(n.created*1000);
  const time=created.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',hourCycle:'h23',timeZone:'Asia/Seoul'});
  const unreadDot=n.read_at?'':'<i class="activity-dot" aria-label="읽지 않음"></i>';
@@ -23,7 +23,7 @@ function activityRowHTML(n){
   <div class="activity-avatar">${unreadDot}<img src="${esc(avatar)}" alt="" loading="lazy"></div>
   <div class="activity-copy">
    <div class="activity-meta"><span>${label}</span><span aria-hidden="true">·</span><time datetime="${created.toISOString()}">${esc(time)}</time></div>
-   <p><strong>${esc(n.actor_name)}</strong>${n.kind==='work_status'?' · ':'님이 '}${action}</p><div class="activity-detail">${detail}</div>
+   <p><strong>${userNickname(n.actor_name,{profileId:n.actor_profile_id,userId:n.actor_user_id})}</strong>${n.kind==='work_status'?' · ':'님이 '}${action}</p><div class="activity-detail">${detail}</div>
   </div>
  </${rowTag}>`;
 }

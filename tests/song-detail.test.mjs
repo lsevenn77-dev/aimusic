@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -8,7 +9,7 @@ const samples=JSON.parse(read('tests/fixtures/song-detail-descriptions.json'));
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const track={id:'song',title:'곡 제목',kind:'original',user_id:'other',producer_id:'person',producer:'제작자',artist_id:'artist',artist:'아티스트',has_ai_artist:true,karaoke_ready:true,lyrics_mode:'synced',genre:'Pop',duration:120,likes:12,plays:20,comments:2,description:''};
 function header(user='owner',active=false){
- const c=vm.createContext({me:user?{id:user}:null,esc,number:n=>Number(n).toLocaleString('en-US'),time:()=> '2:00',liked:()=>active,hasArtist:t=>t.kind!=='cover'&&!!t.has_ai_artist,credits:t=>'<a href="#artist/'+esc(t.artist_id)+'">'+esc(t.artist)+'</a>',cover:t=>'<div class="album-art">'+esc(t.title)+'</div>',songReleaseDateHTML:()=>''});
+ const c=nicknameContext({me:user?{id:user}:null,esc,number:n=>Number(n).toLocaleString('en-US'),time:()=> '2:00',liked:()=>active,hasArtist:t=>t.kind!=='cover'&&!!t.has_ai_artist,credits:t=>'<a href="#artist/'+esc(t.artist_id)+'">'+esc(t.artist)+'</a>',cover:t=>'<div class="album-art">'+esc(t.title)+'</div>',songReleaseDateHTML:()=>''});
  vm.runInContext(read('dist/icons.js'),c);
  const views=read('dist/views.js');
  vm.runInContext(views.slice(views.indexOf('function songCredits('),views.indexOf('function coversPanelHTML(')),c);
@@ -118,7 +119,7 @@ test('catalog, detail credits and gift rankings omit only crew data, preserving 
  const before=f.sql.prepare('SELECT * FROM crew_members ORDER BY user_id').all();
  const detail=(await f.call('/api/tracks/one')).body.track;
  assert.equal(detail.producer,'코코(별)');
- assert.match(header().songDetailCreditsHTML(detail),/>코코\(별\)<\/a>/);
+ assert.match(header().songDetailCreditsHTML(detail),/data-profile-preview="producer"[^>]*>코코\(별\)<\/span>/);
  const catalog=(await f.call('/api/catalog?section=tracks')).body.tracks;
  assert.equal(catalog.find(x=>x.id==='one').producer,'코코(별)');
  const gifts=(await f.call('/api/tracks/one/gifts')).body;

@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -12,12 +13,12 @@ const read=f=>readFileSync(new URL('../dist/'+f,import.meta.url),'utf8');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 test('shell search is bound before home renders, supports Enter submission and repeat queries',()=>{
  let focused=0,prevented=0,renders=0;const form={query:' Caught Ya! ',elements:{q:{focus(){focused++;}}}},location={hash:'#home'};
- const c=vm.createContext({$:s=>s==='#global-search'?form:null,FormData:class{constructor(f){this.f=f;}get(){return this.f.query;}},location,render(){renders++;}});
+ const c=nicknameContext({$:s=>s==='#global-search'?form:null,FormData:class{constructor(f){this.f=f;}get(){return this.f.query;}},location,render(){renders++;}});
  vm.runInContext(read('actions.js').split('function formError')[0],c);
  form.onsubmit({preventDefault(){prevented++;}});assert.equal(location.hash,'#search/Caught%20Ya!');assert.equal(prevented,1);
  form.onsubmit({preventDefault(){}});assert.equal(renders,1);form.query='  ';form.onsubmit({preventDefault(){}});assert.equal(focused,1);assert.equal(location.hash,'#search/Caught%20Ya!');
 });
-function ui(){const c=vm.createContext({me:null,queueMicrotask,document:{addEventListener(){}},window:{addEventListener(){}},setInterval(){},esc,empty:()=>'<p>EMPTY</p>',time:s=>'0:'+String(Number(s)||0).padStart(2,'0'),number:n=>Number(n||0).toLocaleString('ko-KR'),icon:()=>'',heading:s=>'<h1>'+s+'</h1>',communityNavigation:()=>'',portrait:()=>'',followed:()=>false,liked:()=>false,giftButton:()=>'',cover:()=>'',credits:()=>''});for(const f of ['music-ui.js','social-layouts.js','social-chat.js','release-refinements.js'])vm.runInContext(read(f),c);return c;}
+function ui(){const c=nicknameContext({me:null,queueMicrotask,document:{addEventListener(){}},window:{addEventListener(){}},setInterval(){},esc,empty:()=>'<p>EMPTY</p>',time:s=>'0:'+String(Number(s)||0).padStart(2,'0'),number:n=>Number(n||0).toLocaleString('ko-KR'),icon:()=>'',heading:s=>'<h1>'+s+'</h1>',communityNavigation:()=>'',portrait:()=>'',followed:()=>false,liked:()=>false,giftButton:()=>'',cover:()=>'',credits:()=>''});for(const f of ['music-ui.js','social-layouts.js','social-chat.js','release-refinements.js'])vm.runInContext(read(f),c);return c;}
 test('release date is the registered timestamp in Korea, without inventing missing dates',()=>{
  const c=ui(),created=Date.parse('2026-10-12T16:00:00Z')/1000,fallback=c.songReleaseDateHTML({created}),explicit=c.songReleaseDateHTML({created,release_date:'2026-10-01'});
  assert.match(fallback,/datetime="2026-10-13">2026.10.13/);assert.match(explicit,/datetime="2026-10-01">2026.10.01/);assert.equal(c.songReleaseDateHTML({}), '');
@@ -71,6 +72,6 @@ test('bundling retains classic global order, CSS relative paths and stable conte
  const directory=await mkdtemp(join(tmpdir(),'aifect-bundle-test-'));t.after(()=>rm(directory,{recursive:true,force:true}));const url=pathToFileURL(directory+'/');
  await writeFile(join(directory,'a.js'),'var step=1; function shared(){ return step; }');await writeFile(join(directory,'b.js'),'step+=2; var outcome=shared();');await writeFile(join(directory,'a.css'),'.x{color:red;background:url(assets/a.webp)}');await writeFile(join(directory,'b.css'),'.x{color:blue}');
  const html='<link rel="stylesheet" href="a.css"><link rel="stylesheet" href="b.css"><script defer src="a.js?v=1"></script><script defer src="b.js"></script>',built=await bundleClient(html,url);assert.equal((built.match(/<script/g)||[]).length,1);assert.equal((built.match(/<link/g)||[]).length,1);assert.equal(await bundleClient(html,url),built);
- const script=built.match(/src="\/([^"]+)"/)[1],css=built.match(/href="\/([^"]+)"/)[1],context=vm.createContext({});vm.runInContext(await readFile(join(directory,script),'utf8'),context);assert.equal(context.outcome,3);assert.match(await readFile(join(directory,css),'utf8'),/assets\/a.webp/);
+ const script=built.match(/src="\/([^"]+)"/)[1],css=built.match(/href="\/([^"]+)"/)[1],context=nicknameContext({});vm.runInContext(await readFile(join(directory,script),'utf8'),context);assert.equal(context.outcome,3);assert.match(await readFile(join(directory,css),'utf8'),/assets\/a.webp/);
  await writeFile(join(directory,'b.js'),'step+=3; var outcome=shared();');assert.notEqual(await bundleClient(html,url),built);
 });

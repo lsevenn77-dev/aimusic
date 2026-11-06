@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -7,7 +8,7 @@ import * as AifectDubbing from '../shared/dubbing.js';
 import {options,sampleScript,memoryBucket} from './dubbing-fixtures.mjs';
 
 function playUI(){
- const c=vm.createContext({window:{addEventListener(){}},URLSearchParams,esc:s=>String(s??'').replaceAll('&','&amp;').replaceAll('"','&quot;'),icon:name=>`<svg data-icon="${name}" aria-hidden="true"></svg>`,heading:()=>'<h1>플레이</h1>',cover:()=>'<img class="existing-cover">',card:t=>`<article class="album-card"><a href="#song/${t.id}">${t.title}</a></article>`});
+ const c=nicknameContext({window:{addEventListener(){}},URLSearchParams,esc:s=>String(s??'').replaceAll('&','&amp;').replaceAll('"','&quot;'),icon:name=>`<svg data-icon="${name}" aria-hidden="true"></svg>`,heading:()=>'<h1>플레이</h1>',cover:()=>'<img class="existing-cover">',card:t=>`<article class="album-card"><a href="#song/${t.id}">${t.title}</a></article>`});
  vm.runInContext(readFileSync(new URL('../dist/dubbing-casting.js',import.meta.url),'utf8'),c);
  vm.runInContext(readFileSync(new URL('../dist/play-page.js',import.meta.url),'utf8'),c);return c;
 }
@@ -152,7 +153,7 @@ test('song pagination searches beyond the first page and duet entry keeps existi
 
 
 test('dubbing artwork failures use the existing default artwork once and never touch music/profile images',()=>{
- const c=vm.createContext({AifectDubbing});vm.runInContext(readFileSync(new URL('../dist/play-page.js',import.meta.url),'utf8'),c);
+ const c=nicknameContext({AifectDubbing});vm.runInContext(readFileSync(new URL('../dist/play-page.js',import.meta.url),'utf8'),c);
  let src='/assets/dubbing-genres/action.webp',writes=0;
  const image={matches:s=>s==='img.play-dubbing-art',getAttribute:()=>src,setAttribute(k,v){assert.equal(k,'src');src=v;writes++;}};
  c.playDubbingArtworkError({target:image});assert.equal(src,AifectDubbing.dubbingGenreArtwork());assert.equal(writes,1);
@@ -166,7 +167,7 @@ test('browse artwork keeps each project genre and detail URL across recommended 
  const f=await setup(t),action=await f.dub('액션 작품'),romance=await f.dub('로맨스 작품');
  for(const [work,genres] of [[action,['액션']],[romance,['로맨스']]])f.sql.prepare("UPDATE dubbing_projects SET options_json=json_set(options_json,'$.genres',json(?)) WHERE id=?").run(JSON.stringify(genres),work.id);
  f.sql.exec("INSERT INTO follows VALUES('owner','producer','friend',0)");
- const c=vm.createContext({AifectDubbing,esc:s=>String(s??''),time:String,icon:()=>''});vm.runInContext(readFileSync(new URL('../dist/play-page.js',import.meta.url),'utf8'),c);
+ const c=nicknameContext({AifectDubbing,esc:s=>String(s??''),time:String,icon:()=>''});vm.runInContext(readFileSync(new URL('../dist/play-page.js',import.meta.url),'utf8'),c);
  for(const tab of ['recommended','following']){
   const r=await f.call('/api/play/works?tab='+tab);assert.equal(r.status,200);
   for(const [work,slug] of [[action,'action'],[romance,'romance']]){
@@ -179,7 +180,7 @@ test('browse artwork keeps each project genre and detail URL across recommended 
 });
 
  test('compact browse controls preserve work types and put the select next to search',()=>{
- const c=vm.createContext({esc:String,icon:()=>'',Date});vm.runInContext(readFileSync(new URL('../dist/play-page.js',import.meta.url),'utf8'),c);
+ const c=nicknameContext({esc:String,icon:()=>'',Date});vm.runInContext(readFileSync(new URL('../dist/play-page.js',import.meta.url),'utf8'),c);
  const html=c.playToolbar({mode:'browse',tab:'following',type:'duet'});
  assert.match(html,/play-discovery-tools/);assert.match(html,/id="play-search"/);assert.match(html,/aria-label="플레이 작품 검색"/);assert.match(html,/value="duet" selected/);
  assert.deepEqual([...html.matchAll(/option value="([^"]+)"/g)].map(m=>m[1]),['all','solo','duet','dubbing']);
@@ -187,7 +188,7 @@ test('browse artwork keeps each project genre and detail URL across recommended 
  });
 
  test('flat PLAY drafts preserve solo and duet resume URLs and deletion keys',()=>{
- const c=vm.createContext({esc:s=>String(s??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('\"','&quot;'),icon:()=>'',heading:()=>'',time:String,Date,document:{addEventListener(){}}});
+ const c=nicknameContext({esc:s=>String(s??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('\"','&quot;'),icon:()=>'',heading:()=>'',time:String,Date,document:{addEventListener(){}}});
  vm.runInContext(readFileSync(new URL('../dist/sing-drafts.js',import.meta.url),'utf8'),c);vm.runInContext(readFileSync(new URL('../dist/play-page.js',import.meta.url),'utf8'),c);
  const drafts=[{draftKey:'owner:one',id:'one',mode:'solo',part:'male',title:'<길고 긴 제목>',artist:'음악가',duration:12,updated:0},{draftKey:'owner:two:duet:female:first',id:'two',mode:'duet',part:'female',duration:22,updated:0},{draftKey:'owner:one:duet:male:parent',id:'one',mode:'duet',part:'male',parent:'parent',duration:32,updated:0}];
  const old=c.karaokeDraftsHTML(drafts),html=c.playDraftRows(drafts);
@@ -234,7 +235,7 @@ test('PLAY duet expansion fetches children once, toggles locally and keeps child
  class Element{closest(){return this;}}
  class Button extends Element{constructor(){super();this.dataset={playDuetChildren:'half',original:'original'};this.disabled=false;}setAttribute(k,v){attrs[k]=v;}removeAttribute(k){delete attrs[k];}}
  const button=new Button(),root={dataset:{},isConnected:true,addEventListener(type,fn){this.listener=fn;},querySelector(){return button;}};
- const c=vm.createContext({URLSearchParams,Element,HTMLButtonElement:Button,CSS:{escape:s=>s},document:{getElementById:()=>target},esc:String,icon:()=>'',
+ const c=nicknameContext({URLSearchParams,Element,HTMLButtonElement:Button,CSS:{escape:s=>s},document:{getElementById:()=>target},esc:String,icon:()=>'',
   api:async path=>{calls.push(path);return {covers:[{id:'child',duet_parent_id:'half'}],next_offset:null};},remember(){},paintInteractions(){},bindSongCoverPlayback(){},toast(){},
   songCoverRowHTML:t=>'<button data-play="'+t.id+'">child</button>',setSongCoverExpanded(b,t,on){t.hidden=!on;b.setAttribute('aria-expanded',String(on));}});
  vm.runInContext(readFileSync(new URL('../dist/play-page.js',import.meta.url),'utf8'),c);c.bindPlayDuetChildren(root);

@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {fixture} from './fixture.mjs';
@@ -7,7 +8,7 @@ import vm from 'node:vm';
 
 test('public artist representative image editor is visible only to the owner',()=>{
  const context={document:{addEventListener(){}},heading:()=>'',portrait:()=>'<div>portrait</div>',esc:String,number:String,followed:()=>false,section:()=>'',list:()=>'',icon:()=>''};
- vm.createContext(context);vm.runInContext(readFileSync(new URL('../dist/artist-fanpage.js',import.meta.url),'utf8'),context);vm.runInContext(readFileSync(new URL('../dist/artist-gallery.js',import.meta.url),'utf8'),context);
+ nicknameContext(context);vm.runInContext(readFileSync(new URL('../dist/artist-fanpage.js',import.meta.url),'utf8'),context);vm.runInContext(readFileSync(new URL('../dist/artist-gallery.js',import.meta.url),'utf8'),context);
  const data={profile:{name:'Artist'},tracks:[],followers:0};
  assert.doesNotMatch(context.artistPageHTML(data,'artist'),/data-artist-image/);
  assert.match(context.artistPageHTML({...data,can_manage:true},'artist'),/data-artist-image="artist"/);
@@ -17,7 +18,7 @@ test('public artist representative image editor is visible only to the owner',()
 function imagePicker(uploadFile=async()=>{}){
  const listeners={},notices=[];let clicks=0,renders=0;
  const context={document:{addEventListener(type,fn){(listeners[type]??=[]).push(fn);}},uploadFile,location:{hash:'#artist/artist'},render:async()=>{renders++;},toast:message=>notices.push(message)};
- vm.createContext(context);vm.runInContext(readFileSync(new URL('../dist/artist-gallery.js',import.meta.url),'utf8'),context);
+ nicknameContext(context);vm.runInContext(readFileSync(new URL('../dist/artist-gallery.js',import.meta.url),'utf8'),context);
  const group={querySelector:selector=>selector==='[data-artist-image]'?input:button};
  const button={disabled:false,closest:()=>group};
  const input={disabled:false,files:[],value:'',dataset:{artistImage:'artist'},click(){clicks++;},closest:()=>group};

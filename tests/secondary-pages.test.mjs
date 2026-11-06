@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -6,7 +7,7 @@ const read=name=>readFileSync(new URL('../dist/'+name,import.meta.url),'utf8');
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function setup(entries=[]){
  const records=new Map(entries.map(d=>[d.key,d])),handlers=[];
- const c=vm.createContext({me:{id:'owner'},document:{addEventListener(type,fn){handlers.push(fn);}},esc,icon:()=>'<svg></svg>',heading:title=>'<h1>'+title+'</h1>',time:String,number:String,section:()=>'',trackArtworkPath:()=>'/assets/aifect-mark.svg',cover:()=>'<img alt="">',credits:t=>esc(t.artist),Date,URLSearchParams});
+ const c=nicknameContext({me:{id:'owner'},document:{addEventListener(type,fn){handlers.push(fn);}},esc,icon:()=>'<svg></svg>',heading:title=>'<h1>'+title+'</h1>',time:String,number:String,section:()=>'',trackArtworkPath:()=>'/assets/aifect-mark.svg',cover:()=>'<img alt="">',credits:t=>esc(t.artist),Date,URLSearchParams});
  vm.runInContext(read('sing-drafts.js'),c);
  // Async transactional adapter: writes commit together; abort rolls every write back.
  c.openDraftDB=async()=>({transaction(){let pending=0,stopped=false;const copy=new Map(records),tx={objectStore:()=>store,abort(){stopped=true;queueMicrotask(()=>tx.onabort?.());}};
@@ -57,7 +58,7 @@ test('responsive cards and studio spacing are packaged after previous theme laye
  assert.ok(read('index.html').indexOf('secondary-pages.css')>read('index.html').indexOf('release-refinements.css'));
 });
 test('shuffle uses the reference horizontal crossing arrows in playback, queue and browse actions',()=>{
- const c=vm.createContext({});vm.runInContext(read('icons.js'),c);
+ const c=nicknameContext({});vm.runInContext(read('icons.js'),c);
  const svg=vm.runInContext("icon('shuffle')",c);
  assert.match(svg,/M3 7h3c5 0 7 10 12 10h3/);assert.match(svg,/M14\.1 9\.4/);assert.doesNotMatch(svg,/M6 3h12a3|M3 5h3c5/);
  assert.match(read('index.html'),/id="shuffle"[^>]*aria-pressed="false"><i data-icon="shuffle"/);

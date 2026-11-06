@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -91,7 +92,7 @@ test('failed R2 artwork writes, duplicate create requests and lost completion re
 
 test('all web thumbnails use the same resolver including older cached artwork payloads',()=>{
  const app=readFileSync(new URL('../dist/app.js',import.meta.url),'utf8');
- const c=vm.createContext({});vm.runInContext(app.slice(app.indexOf('function trackArtworkPath('),app.indexOf('function cover(t,')),c);vm.runInContext(readFileSync(new URL('../dist/home.js',import.meta.url),'utf8'),c);
+ const c=nicknameContext({});vm.runInContext(app.slice(app.indexOf('function trackArtworkPath('),app.indexOf('function cover(t,')),c);vm.runInContext(readFileSync(new URL('../dist/home.js',import.meta.url),'utf8'),c);
  for(const resolve of [c.trackArtworkPath,c.homeArtworkPath]){
   const old={id:'work',kind:'cover',has_cover:1,cover_version:'profile-old',original_id:'one',original_has_cover:1,original_cover_version:'art'};
   assert.equal(resolve(old),'/media/one/cover?artwork=track&v=art');

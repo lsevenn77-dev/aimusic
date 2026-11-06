@@ -30,7 +30,7 @@ test('talking directory returns only followed current members, public rooms and 
  const read=async(user='owner')=>(await f.call(path,'GET',undefined,user)).body;
  const result=await read();assert.equal(result.enabled,true);assert.equal(result.next_cursor,null);assert.equal(result.rooms.length,1);
  const card=result.rooms[0];assert.equal(card.member_count,7);assert.equal(card.max_members,12);
- assert.deepEqual(card.host_profile,{name:card.host_name,profile_id:'producer',image_version:'host-photo'});
+ assert.deepEqual(card.host_profile,{name:card.host_name,profile_id:'producer',user_id:'owner',image_version:'host-photo'});
  assert.equal(card.followed_count,5);assert.equal(card.followed_profiles.length,3);
  assert.deepEqual(card.followed_profiles.map(p=>p.profile_id),['profile-0','profile-1','profile-2']);
  assert.equal(card.followed_profiles[0].image_version,'v0');assert.ok(!('member_ids' in card));

@@ -52,7 +52,7 @@ function collectionCard(p,layout='grid'){
  const owned=me?.id===p.user_id;
  const actions=`<div class="collection-card-actions"><a href="#playlist/${p.id}" aria-label="${esc(p.name)} 열기">열기</a></div>`;
  if(layout==='horizontal')return homePlaylistCard(p,null,{compact:true,footer:actions});
- return `<article class="collection-card ${p.locked?'collection-locked':''}"><a href="#playlist/${p.id}" class="collection-main">${playlistArt(p)}<span class="collection-kind">${owned?'내 플레이리스트':esc(p.owner_name||'리스너')+'의 선곡'}</span><h2>${p.locked?'<small class="locked-badge">보관 중</small>':''}${esc(p.name)}</h2><p>${esc(p.description||'좋아하는 음악을 모은 플레이리스트')}</p><small>${p.tracks}곡 · ${p.is_public?'공개':'비공개'}</small></a>${actions}</article>`;
+ return `<article class="collection-card ${p.locked?'collection-locked':''}"><a href="#playlist/${p.id}" class="collection-main">${playlistArt(p)}<span class="collection-kind">${owned?'내 플레이리스트 · '+playlistOwnerNickname(p):playlistOwnerNickname(p)+'의 선곡'}</span><h2>${p.locked?'<small class="locked-badge">보관 중</small>':''}${esc(p.name)}</h2><p>${esc(p.description||'좋아하는 음악을 모은 플레이리스트')}</p><small>${p.tracks}곡 · ${p.is_public?'공개':'비공개'}</small></a>${actions}</article>`;
 }
 function collectionGrid(items,message='아직 플레이리스트가 없어요'){return items.length?`<div class="collection-grid">${items.map(collectionCard).join('')}</div>`:empty(message,'좋아하는 음악을 모아 나만의 플레이리스트를 만들어보세요.','#library/playlists','내 보관함');}
 // Shared only by home and public recommendations. Library cards keep their compact layout.
@@ -65,11 +65,11 @@ function recommendedPlaylistCard(p){
    ${playlistArt(p,'public-playlist-cover')}
    <div class="public-playlist-info"><h2 class="public-playlist-name" title="${name}">${name}</h2>
     ${p.description?`<p class="public-playlist-description" title="${esc(p.description)}">${esc(p.description)}</p>`:''}
-    <ol class="public-playlist-preview" aria-label="수록곡 미리보기">${preview.map((t,i)=>`<li title="${esc(t.title)}${t.artist?' · '+esc(t.artist):''}"><span class="public-playlist-index">${String(i+1).padStart(2,'0')}</span><span class="public-playlist-song">${esc(t.title)}</span><span class="public-playlist-artist">${esc(t.artist||'')}</span></li>`).join('')}</ol>
+    <ol class="public-playlist-preview" aria-label="수록곡 미리보기">${preview.map((t,i)=>`<li title="${esc(t.title)}${t.artist?' · '+esc(t.artist):''}"><span class="public-playlist-index">${String(i+1).padStart(2,'0')}</span><span class="public-playlist-song">${esc(t.title)}</span><span class="public-playlist-artist">${t.kind==='cover'?trackPerformers(t):trackNickname(t)}</span></li>`).join('')}</ol>
     ${extra?`<p class="public-playlist-extra">외 ${number(extra)}곡</p>`:''}
    </div>
   </a>
-  <div class="public-playlist-footer"><span class="public-playlist-owner" title="${owner}">${icon('user')}<span>${owner}</span></span>
+  <div class="public-playlist-footer"><span class="public-playlist-owner" title="${owner}">${icon('user')}<span>${playlistOwnerNickname(p)}</span></span>
    <span class="public-playlist-stats">${number(total)}곡 수록</span>
   </div>
  </article>`;
@@ -124,7 +124,7 @@ async function explorerView(base,param,raw,embedded=false,readApi=api){
  if(base==='playlist'){
  const d=await readApi('/api/playlists/'+param),p=d.playlist,owned=me?.id===p.user_id;
   if(p.locked&&owned)return {html:lockedPlaylistHTML(p),tracks:[],playlist:p};
-  return {html:`<a class="text-link" href="#${owned?'library/playlists':'collections'}">← ${owned?'내 보관함':'추천 플레이리스트'}</a><section class="collection-hero">${playlistArt(p)}<div><span class="eyebrow">${p.is_public?'PUBLIC PLAYLIST':'PRIVATE PLAYLIST'}</span><h1>${esc(p.name)}</h1><p class="collection-description">${esc(p.description||'좋아하는 음악을 모아 나누는 나만의 선곡')}</p><p class="field-help">${esc(p.owner_name)} · ${d.tracks.length}곡 · ${time(p.duration)}</p><div class="inline-actions playlist-actions"><button class="primary-button" data-play-all ${d.tracks.length?'':'disabled'}>전체 재생 ${icon('ui-play-action')}</button>${owned?`<button class="small-button" data-pick-playlist="${p.id}">곡 추가</button><button class="small-button" data-order-playlist="${p.id}">곡 순서 편집</button><button class="small-button" data-edit-playlist="${p.id}">이미지 · 목록 설정</button><button class="text-link" data-delete-playlist="${p.id}">삭제</button>`:''}${p.is_public?'<button class="small-button" data-share>링크 복사</button>':''}</div></div></section><div class="explorer-toolbar"><input id="playlist-filter" aria-label="플레이리스트 안에서 곡 검색" placeholder="이 플레이리스트에서 곡 검색"></div><div id="playlist-song-list">${list(d.tracks,owned?p.id:null)}</div>`,tracks:d.tracks,playlist:p};
+  return {html:`<a class="text-link" href="#${owned?'library/playlists':'collections'}">← ${owned?'내 보관함':'추천 플레이리스트'}</a><section class="collection-hero">${playlistArt(p)}<div><span class="eyebrow">${p.is_public?'PUBLIC PLAYLIST':'PRIVATE PLAYLIST'}</span><h1>${esc(p.name)}</h1><p class="collection-description">${esc(p.description||'좋아하는 음악을 모아 나누는 나만의 선곡')}</p><p class="field-help">${playlistOwnerNickname(p)} · ${d.tracks.length}곡 · ${time(p.duration)}</p><div class="inline-actions playlist-actions"><button class="primary-button" data-play-all ${d.tracks.length?'':'disabled'}>전체 재생 ${icon('ui-play-action')}</button>${owned?`<button class="small-button" data-pick-playlist="${p.id}">곡 추가</button><button class="small-button" data-order-playlist="${p.id}">곡 순서 편집</button><button class="small-button" data-edit-playlist="${p.id}">이미지 · 목록 설정</button><button class="text-link" data-delete-playlist="${p.id}">삭제</button>`:''}${p.is_public?'<button class="small-button" data-share>링크 복사</button>':''}</div></div></section><div class="explorer-toolbar"><input id="playlist-filter" aria-label="플레이리스트 안에서 곡 검색" placeholder="이 플레이리스트에서 곡 검색"></div><div id="playlist-song-list">${list(d.tracks,owned?p.id:null)}</div>`,tracks:d.tracks,playlist:p};
  }
  return null;
 }

@@ -1,10 +1,11 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
 test('music play slots remain hollow while legacy navigation/player artwork is isolated',()=>{
- const c=vm.createContext({});vm.runInContext(read('dist/icons.js'),c);
+ const c=nicknameContext({});vm.runInContext(read('dist/icons.js'),c);
  const render=n=>vm.runInContext(`icon(${JSON.stringify(n)})`,c);
  for(const name of ['play','minus','plus','menu']){
   const html=render('ui-'+name+'-action');assert.match(html,/outline-gradient-action/);
@@ -17,7 +18,7 @@ test('music play slots remain hollow while legacy navigation/player artwork is i
  assert.match(render('audio-play'),/assets\/card-play.svg/);
 });
 test('dropdown opening changes ARIA and visibility without replacing the reference V path',()=>{
- const c=vm.createContext({});vm.runInContext(read('dist/song-covers.js'),c);
+ const c=nicknameContext({});vm.runInContext(read('dist/song-covers.js'),c);
  const attrs={},arrow={innerHTML:'<svg><path d="m6 9 6 6 6-6"/></svg>'};
  const button={setAttribute(k,v){attrs[k]=v;},querySelector(){return arrow;}},target={hidden:true};
  const original=arrow.innerHTML;

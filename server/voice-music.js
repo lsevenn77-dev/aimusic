@@ -10,7 +10,7 @@ export async function roomTrack(env,id){
  if(t.kind!=='original'||!t.rights_accepted||!await one(env,'SELECT track_id FROM voice_music_permissions WHERE track_id=? AND owner_id=? AND terms=?',t.id,t.user_id,VOICE_MUSIC_TERMS))fail(403,'권리자가 토킹룸 공동 감상을 허용한 원곡만 선택할 수 있어요.');
  const detail=(await trackList(env,'t.id=?',[t.id]))[0];
  if(!detail||!Number.isFinite(detail.duration)||detail.duration<=0)fail(409,'재생 가능한 음원을 준비하고 있어요.');
- return {id:detail.id,title:detail.title,artist:detail.artist||detail.producer,duration:detail.duration,cover:artworkURL(detail)};
+ return {id:detail.id,title:detail.title,artist:detail.artist||detail.producer,artist_id:detail.artist_id,has_ai_artist:detail.has_ai_artist,producer:detail.producer,producer_id:detail.producer_id,user_id:detail.user_id,duration:detail.duration,cover:artworkURL(detail)};
 }
 export async function voiceMusicRoute(req,env,user,room,action,b,call){
  if(!['music-search','music-consent','music','music-stream'].includes(action))return null;

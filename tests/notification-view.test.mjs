@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -7,7 +8,7 @@ const source=readFileSync(new URL('../dist/notifications.js',import.meta.url),'u
 const tick=()=>new Promise(r=>setImmediate(r));
 function setup(){
  const requests=[],badge={setAttribute(){}},error={},root={isConnected:true,querySelectorAll:()=>[],querySelector:s=>s==='[data-activity-settings]'?null:error},listeners={};
- const c=vm.createContext({me:{id:'owner'},document:{hidden:false,querySelectorAll:()=>[badge],addEventListener:(k,fn)=>listeners[k]=fn,removeEventListener(){}},window:{addEventListener(){}},setInterval(){},$:()=>root,location:{hash:'#notifications'},toast(){},api:async(path,method,body)=>{requests.push({path,method,body});return {unread:0};}});
+ const c=nicknameContext({me:{id:'owner'},document:{hidden:false,querySelectorAll:()=>[badge],addEventListener:(k,fn)=>listeners[k]=fn,removeEventListener(){}},window:{addEventListener(){}},setInterval(){},$:()=>root,location:{hash:'#notifications'},toast(){},api:async(path,method,body)=>{requests.push({path,method,body});return {unread:0};}});
  vm.runInContext(source,c);c.view={activity:{account:'owner',unread:2,read_through:2,items:[{id:'one',read_at:0},{id:'two',read_at:0}]}};
  return {c,badge,error,requests,root,listeners,run:s=>vm.runInContext(s,c)};
 }

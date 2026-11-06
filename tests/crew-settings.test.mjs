@@ -1,10 +1,11 @@
+import {nicknameContext} from './nickname-context.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 import {fixture} from './fixture.mjs';
 
-const client=vm.createContext({});
+const client=nicknameContext({});
 for(const file of ['social-layouts.js','crew-settings.js']){
  vm.runInContext(readFileSync(new URL('../dist/'+file,import.meta.url),'utf8'),client);
 }

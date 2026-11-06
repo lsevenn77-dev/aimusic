@@ -169,7 +169,7 @@ function bindLiveKaraoke(c){
   c.liveSearchAbort?.abort();const controller=c.liveSearchAbort=new AbortController(),serial=c.liveSearchSerial=(c.liveSearchSerial||0)+1;
   let data;try{data=await voiceRequest(c.path('karaoke-search')+'?generation='+encodeURIComponent(c.generation)+'&q='+encodeURIComponent(q),undefined,'GET',controller.signal);}catch(e){if(controller.signal.aborted||c.closed||serial!==c.liveSearchSerial)return;out.textContent='검색하지 못했어요. 잠시 후 다시 검색해주세요.';throw e;}
   if(c.closed||!out.isConnected||serial!==c.liveSearchSerial)return;
-  out.innerHTML=data.tracks.length?data.tracks.map(t=>`<div class="live-result"><div><strong>${esc(t.title)}</strong><small>${esc(t.artist||'')} · ${time(t.duration)}</small></div><button class="small-button" type="button" data-voice="karaoke-request" data-target="${esc(t.id)}">신청</button></div>`).join(''):'<p class="quiet">MR과 가사가 준비된 곡을 찾지 못했어요.</p>';
+  out.innerHTML=data.tracks.length?data.tracks.map(t=>`<div class="live-result"><div><strong>${esc(t.title)}</strong><small>${trackNickname(t)} · ${time(t.duration)}</small></div><button class="small-button" type="button" data-voice="karaoke-request" data-target="${esc(t.id)}">신청</button></div>`).join(''):'<p class="quiet">MR과 가사가 준비된 곡을 찾지 못했어요.</p>';
  });};
  const volume=c.host.querySelector('#live-mr-volume'),delay=c.host.querySelector('#live-delay');
  volume.value=Math.round(c.liveVolume*100);volume.oninput=()=>{c.liveVolume=Number(volume.value)/100;if(c.liveAudio)c.liveAudio.volume=c.liveVolume;};
@@ -259,7 +259,7 @@ function paintLiveKaraoke(c){
 
 
  const current=c.host.querySelector('#live-current');
- const view=singer?`<span class="room-singer-avatar">${avatarImage({...singer,profile_id:singer.profile_id})}${typeof roomRelationButton==='function'?roomRelationButton(singer,s.self,true):''}</span><strong>${esc(singer.name)}</strong>`:'<span>'+icon('mic')+'</span><strong>가창자 대기 중</strong>';
+ const view=singer?`<span class="room-singer-avatar">${avatarImage({...singer,profile_id:singer.profile_id})}${typeof roomRelationButton==='function'?roomRelationButton(singer,s.self,true):''}</span><strong>${userNickname(singer.name,{profileId:singer.profile_id,userId:singer.id})}</strong>`:'<span>'+icon('mic')+'</span><strong>가창자 대기 중</strong>';
  if(current.innerHTML!==view)current.innerHTML=view;
  c.host.dataset.singerProfile=singer?.publishing&&!singer.muted?singer.profile_id||'':'';
  for(const btn of c.host.querySelectorAll('[data-voice="karaoke-key"]')){
@@ -267,12 +267,12 @@ function paintLiveKaraoke(c){
   btn.disabled=!active||(!host&&singer?.id!==s.self)||!!c.liveCommandPending||Math.abs(key+Number(btn.dataset.target))>6;
   if(btn.dataset.target==='reset')btn.textContent=key?(key>0?'+':'−')+Math.abs(key):'원키';
  }
- c.host.querySelector('#live-song').textContent=active?active.track.title+' · '+active.track.artist:'신청 순서대로 노래를 불러봐요.';
+ c.host.querySelector('#live-song').innerHTML=active?esc(active.track.title)+' · '+trackNickname(active.track):'신청 순서대로 노래를 불러봐요.';
  const hasQueued=k?.queue?.some(q=>q.user_id===s.self),isSinger=active?.user_id===s.self,singingMic=!!singer?.publishing&&!singer.muted;
  const buttons=[];
  const next=k?.queue?.[0],nextName=next&&(s.members.find(p=>p.id===next.user_id)?.name||next.name);
  const nextCard=c.host.querySelector('#live-next-card');
- if(nextCard){nextCard.hidden=!!active||!next;nextCard.innerHTML=!active&&next?`${avatarImage({...s.members.find(p=>p.id===next.user_id),name:nextName})}<div><small>다음 순서</small><strong>${esc(nextName)}님</strong><p>${esc(next.track.title)} · ${esc(next.track.artist)}</p></div>`:'';}
+ if(nextCard){nextCard.hidden=!!active||!next;nextCard.innerHTML=!active&&next?`${avatarImage({...s.members.find(p=>p.id===next.user_id),name:nextName})}<div><small>다음 순서</small><strong>${userNickname(nextName,{userId:next.user_id})}님</strong><p>${esc(next.track.title)} · ${esc(next.track.artist)}</p></div>`:'';}
  c.host.dataset.livePhase=k?.phase||'idle';
  const immediate=[];
  if(isSinger&&['invited','ready'].includes(k.phase)){

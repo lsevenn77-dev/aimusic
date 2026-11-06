@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -46,7 +47,7 @@ async function fixture(options={}){
   return {ok:response.ok!==false,json:async()=>response.data};
  };
  const document={getElementById:element,querySelectorAll(){return radios;},querySelector(){return radios.find(radio=>radio.checked)||null;},createElement(){if(!options.missingSDK)throw Error('Fixture already provides SDK');return {remove(){timeline.push('sdk:remove');}};},head:{append(script){if(!options.missingSDK)throw Error('Unexpected SDK load');queueMicrotask(()=>script.onerror());}}};
- const context=vm.createContext({document,location,history:{replaceState(_state,_title,url){timeline.push('history:replace');const clean=new URL(url,ORIGIN);location.pathname=clean.pathname;location.search=clean.search;location.hash=clean.hash;}},sessionStorage,fetch,window,URL,URLSearchParams,Date,setTimeout,clearTimeout});
+ const context=nicknameContext({document,location,history:{replaceState(_state,_title,url){timeline.push('history:replace');const clean=new URL(url,ORIGIN);location.pathname=clean.pathname;location.search=clean.search;location.hash=clean.hash;}},sessionStorage,fetch,window,URL,URLSearchParams,Date,setTimeout,clearTimeout});
  vm.runInContext(source,context,{filename:'gold-payment-checkout.js'});await drain();
  return {element,elements,radios,calls,timeline,sdkCalls,markupWrites,stored,location,showPage:persisted=>windowListeners.get('pageshow')?.({persisted}),text:()=>[...elements.values()].map(node=>node.textContent).join('\n'),
   async consent(){element('checkout-consent').checked=true;await element('checkout-consent').dispatch('change');},async submit(){return element('checkout-form').dispatch('submit');},

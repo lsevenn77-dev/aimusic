@@ -17,3 +17,5 @@ declare function songCredits(track:SongDetailTrack):string;
 declare function songReleaseDateHTML(track:SongDetailTrack):string;
 declare function trackModerationToolsHTML(track:SongDetailTrack):string;
 declare function registerRouteCleanup(cleanup:()=>void):()=>void;
+
+declare function trackNickname(t:any,role?:string):string;

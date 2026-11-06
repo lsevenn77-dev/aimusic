@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -17,7 +18,7 @@ function directory(){
  const root=new Element();root.querySelector=key=>key==='dialog[open]'?null:get(key);root.querySelectorAll=()=>filters;
  get('.talk-status').querySelector=get;
  const timers=new Map(),requests=[],cleanups=[];let seq=0;
- const c=vm.createContext({
+ const c=nicknameContext({
   me:{id:'viewer'},location:{hash:'#community'},talkingRoomReturn:null,liveRoomLabels:{karaoke:'노래방',talk:'토킹룸'},
   URLSearchParams,AbortController,Date,Map,IntersectionObserver:class{observe(){}unobserve(){}disconnect(){}},
   document:{hidden:false,addEventListener(){},removeEventListener(){},get activeElement(){return focused;}},

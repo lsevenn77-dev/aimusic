@@ -1,10 +1,11 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 import {fixture} from './fixture.mjs';
 const source=name=>readFileSync(new URL('../dist/'+name,import.meta.url),'utf8');
-function client(){const c=vm.createContext({me:{id:'owner'},window:{addEventListener(){},dispatchEvent(e){c.lastEvent=e;}},document:{addEventListener(){},querySelectorAll:()=>[]},setInterval(){},CustomEvent:class {constructor(type,args){this.type=type;this.detail=args.detail;}},esc:s=>String(s??''),number:String,icon:name=>'<svg data-icon="'+name+'"></svg>',portrait:()=>'<span></span>'});vm.runInContext(source('social-chat.js')+'\n'+source('chat-features.js')+'\n'+source('notifications.js'),c);return c;}
+function client(){const c=nicknameContext({me:{id:'owner'},window:{addEventListener(){},dispatchEvent(e){c.lastEvent=e;}},document:{addEventListener(){},querySelectorAll:()=>[]},setInterval(){},CustomEvent:class {constructor(type,args){this.type=type;this.detail=args.detail;}},esc:s=>String(s??''),number:String,icon:name=>'<svg data-icon="'+name+'"></svg>',portrait:()=>'<span></span>'});vm.runInContext(source('social-chat.js')+'\n'+source('chat-features.js')+'\n'+source('notifications.js'),c);return c;}
 test('chat labels preserve the complete stored nickname and keep crew membership separate',async t=>{
  const f=await fixture(t);f.sql.exec("INSERT INTO producers(id,user_id,name,nickname_confirmed,created) VALUES('friend','other','Hi(vi)',1,0);INSERT INTO crews(id,owner_id,name,created) VALUES('crew','owner','CREW',0);INSERT INTO crew_members(crew_id,user_id,role,joined) VALUES('crew','owner','owner',0),('crew','other','member',0)");
  await f.call('/api/dm/friend','POST',{body:'hello',request_id:crypto.randomUUID()});

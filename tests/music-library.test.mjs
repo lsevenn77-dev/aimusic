@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -57,7 +58,7 @@ test('owned playlists retain editing and visibility; historical saved lists are 
  assert.equal((await f.call('/api/playlists/'+publicId,'GET',null,'other')).status,200);
 });
 test('swipes reject vertical/diagonal/slow/edge/multitouch gestures and clamp to three categories',()=>{
- const c=vm.createContext({URLSearchParams});vm.runInContext(source,c);
+ const c=nicknameContext({URLSearchParams});vm.runInContext(source,c);
  const start={x:200,y:200,time:0,width:390};
  const swipe=(end,index=1,patch={})=>c.musicLibrarySwipe({...start,...patch},{time:300,y:205,...end},index);
  assert.equal(swipe({x:100}),2);assert.equal(swipe({x:280}),0);
@@ -66,7 +67,7 @@ test('swipes reject vertical/diagonal/slow/edge/multitouch gestures and clamp to
  assert.equal(swipe({x:100},2),2);assert.equal(swipe({x:280},0),0);
 });
 test('legacy query state stays bounded and likes is the initial category',()=>{
- const c=vm.createContext({URLSearchParams});vm.runInContext(source,c);
+ const c=nicknameContext({URLSearchParams});vm.runInContext(source,c);
  assert.equal(c.musicLibraryOptions('profile?view=library').section,'likes');assert.equal(c.musicLibraryOptions('profile?view=library&section=uploads').section,'likes');
  assert.equal(c.musicLibraryOptions('profile?view=library&section=playlists&sort=name').sort,'title');
  assert.equal(c.musicLibraryOptions('profile?view=library&q='+'a'.repeat(200)).q.length,100);

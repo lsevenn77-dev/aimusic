@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -59,7 +60,7 @@ test('all linked creative and social records prevent cascading artist deletion',
 
 test('cancel sends no delete request; confirmation sends exactly the selected artist and refreshes after success',async()=>{
  const calls=[];let accepted=false;
- const ctx=vm.createContext({document:{addEventListener(){}},confirm:()=>accepted,api:async(...args)=>calls.push(args),render:async()=>calls.push('render'),toast:msg=>calls.push(msg)});
+ const ctx=nicknameContext({document:{addEventListener(){}},confirm:()=>accepted,api:async(...args)=>calls.push(args),render:async()=>calls.push('render'),toast:msg=>calls.push(msg)});
  vm.runInContext(readFileSync('dist/artist-directory.js','utf8'),ctx);
  const artist={id:'selected',name:'선택한 아티스트'};
  await ctx.deleteDirectoryArtist(artist);assert.deepEqual(calls,[]);

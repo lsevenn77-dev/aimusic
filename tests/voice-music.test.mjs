@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {emptyRoomMusic,changeRoomMusic,roomMusicPosition} from '../shared/voice-music.js';
@@ -31,7 +32,7 @@ test('invalid volume, commands, queue size and indices are rejected',()=>{
  assert.throws(()=>changeRoomMusic(m,{operation:'remove',index:0}));assert.throws(()=>changeRoomMusic(m,{operation:'unknown'}));
  let q=m;for(let i=0;i<50;i++)q=changeRoomMusic(q,{operation:'enqueue'},song(String(i)));assert.throws(()=>changeRoomMusic(q,{operation:'enqueue'},song('extra')));
 });
-function clientFixture(){const c=vm.createContext({crypto,window:{addEventListener(){},removeEventListener(){}},document:{addEventListener(){},removeEventListener(){}},setInterval,clearInterval,setTimeout,clearTimeout});vm.runInContext(readFileSync(new URL('../dist/voice-rooms.js',import.meta.url),'utf8')+';this.Client=VoiceRoomClient;',c);const client=new c.Client('test');client.generation='generation';client.musicAudio={volume:1,currentTime:0,readyState:1,paused:true,ended:false,load(){},pause(){this.paused=true;},play(){this.paused=false;return Promise.resolve();}};client.musicTrack='one:generation';return client;}
+function clientFixture(){const c=nicknameContext({crypto,window:{addEventListener(){},removeEventListener(){}},document:{addEventListener(){},removeEventListener(){}},setInterval,clearInterval,setTimeout,clearTimeout});vm.runInContext(readFileSync(new URL('../dist/voice-rooms.js',import.meta.url),'utf8')+';this.Client=VoiceRoomClient;',c);const client=new c.Client('test');client.generation='generation';client.musicAudio={volume:1,currentTime:0,readyState:1,paused:true,ended:false,load(){},pause(){this.paused=true;},play(){this.paused=false;return Promise.resolve();}};client.musicTrack='one:generation';return client;}
 test('two independent clients converge on room time while preserving personal music volume',()=>{
  const m=playing(changeRoomMusic(emptyRoomMusic(),{operation:'enqueue'},song('one'),Date.now()-35000),Date.now()-35000),a=clientFixture(),b=clientFixture();m.volume=.8;m.balance=.5;
  a.state={music:m};b.state={music:structuredClone(m)};a.preferences.music=.25;b.preferences.music=1;a.syncMusic();b.syncMusic();
@@ -57,7 +58,7 @@ test('enqueue never autoplays, and editing a paused queue does not start audio',
  m=changeRoomMusic(m,{operation:'enqueue'},song('three'),4000);assert.equal(m.queue[m.index].id,'two');assert.equal(m.position,1);assert.equal(m.starts,1);
 });
 test('repeat button cycles off to one to all to off and track endings obey each mode',async()=>{
- const c=vm.createContext({VoiceRoomClient:class{}});
+ const c=nicknameContext({VoiceRoomClient:class{}});
  vm.runInContext(readFileSync(new URL('../dist/voice-room-controls.js',import.meta.url),'utf8')+';this.Client=VoiceRoomClient;',c);
  const client=new c.Client();client.state={music:emptyRoomMusic()};client.musicCommand=async(operation,b)=>{client.state.music=changeRoomMusic(client.state.music,{operation,...b});};
  for(const mode of ['one','all','off']){await client.finalAction('music-repeat');assert.equal(client.state.music.repeat,mode);}

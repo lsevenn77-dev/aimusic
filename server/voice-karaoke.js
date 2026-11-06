@@ -7,7 +7,7 @@ import {namedArtistSQL} from './artist-identity.js';
 import {producerNameSQL} from './identity.js';
 import {identifier} from '../realtime/protocol.js';
 
-const readable=t=>({id:t.id,title:t.title,artist:t.artist||t.producer,duration:t.duration,
+const readable=t=>({id:t.id,title:t.title,artist:t.artist||t.producer,artist_id:t.artist_id,has_ai_artist:t.has_ai_artist,producer:t.producer,producer_id:t.producer_id,user_id:t.user_id,duration:t.duration,
  cover:artworkURL(t)});
 // Reuse the creator's recorded AIFECT karaoke MR/cover permission, without
 // widening it to unconsented, unavailable, or unsupported-length recordings.
@@ -16,7 +16,7 @@ const eligible=()=>`${VISIBLE()} AND ${SINGABLE()} AND t.rights_accepted>0 AND t
 // Keep consent, readiness and the caller's block list authoritative on every request.
 async function liveTracks(env,where,args,limit){
  const blocked=env.AIFECT_BLOCKED||[];
- return rows(env,`SELECT t.id,t.title,t.duration,t.cover_version,CASE WHEN (t.has_cover=1 OR t.cover_version!='') AND t.cover_version NOT LIKE 'profile-%' THEN t.id END artwork_id,
+ return rows(env,`SELECT t.id,t.title,t.duration,t.artist_id,t.producer_id,t.user_id,${namedArtistSQL()} has_ai_artist,${producerNameSQL()} producer,t.cover_version,CASE WHEN (t.has_cover=1 OR t.cover_version!='') AND t.cover_version NOT LIKE 'profile-%' THEN t.id END artwork_id,
   CASE WHEN ${namedArtistSQL()} THEN a.name ELSE ${producerNameSQL()} END artist
   FROM tracks t JOIN artists a ON a.id=t.artist_id JOIN producers p ON p.id=t.producer_id
   WHERE ${eligible()} AND ${where}${blocked.length?' AND t.user_id NOT IN ('+blocked.map(()=>'?').join(',')+')':''}

@@ -1,5 +1,5 @@
 function opportunityHref(pid,type,sort='recent',offset=0){return '#karaoke/browse?'+new URLSearchParams({profileOwner:pid,type,participation:'open',sort,offset});}
-function opportunityCards(items,type){return items.length?'<div class="home-music-grid">'+items.map(t=>type==='duet'?playMusicCard(t,t.can_participate?'duet':null):playDubbingCard({...t,type:'dubbing',ownerName:t.owner_name||'',genres:JSON.parse(t.options_json||'{}').genres||[]}).replace('</article>','<a class="small-button play-record-link" href="#dubbing/'+esc(t.id)+'">'+(t.can_participate?'배역 확인 · 참여하기':'배역 확인')+'</a></article>')).join('')+'</div>':myEmpty('현재 참여 가능한 공개 작품이 없어요.');}
+function opportunityCards(items,type){return items.length?'<div class="home-music-grid">'+items.map(t=>type==='duet'?playMusicCard(t,t.can_participate?'duet':null):playDubbingCard({...t,type:'dubbing',ownerName:t.owner_name||'',ownerId:t.owner_id,genres:JSON.parse(t.options_json||'{}').genres||[]}).replace('</article>','<a class="small-button play-record-link" href="#dubbing/'+esc(t.id)+'">'+(t.can_participate?'배역 확인 · 참여하기':'배역 확인')+'</a></article>')).join('')+'</div>':myEmpty('현재 참여 가능한 공개 작품이 없어요.');}
 async function profileCollectionView(base,param,raw,readApi=api){
  const q=new URLSearchParams(raw.split('?')[1]||'');
  if(base==='karaoke'&&param==='browse'&&q.get('participation')==='open'){

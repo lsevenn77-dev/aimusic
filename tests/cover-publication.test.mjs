@@ -1,10 +1,11 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 import {fixture} from './fixture.mjs';
 const fd=(kind,consent=false)=>({get:()=>kind,has:key=>key==='duet_consent'&&consent});
-function browser(){const c=vm.createContext({window:{},document:{addEventListener(){}},JSON});vm.runInContext(readFileSync(new URL('../dist/karaoke.js',import.meta.url),'utf8'),c);return c;}
+function browser(){const c=nicknameContext({window:{},document:{addEventListener(){}},JSON});vm.runInContext(readFileSync(new URL('../dist/karaoke.js',import.meta.url),'utf8'),c);return c;}
 test('publication requires an explicit choice, independent of the remembered recorder mode',()=>{
  const c=browser();
  for(const mode of ['solo','duet']){
@@ -25,7 +26,7 @@ test('a joined performance cannot remove its partner or become a new invitation'
 });
 test('file uploads require explicit publication and stop before audio on inconsistent server metadata',async()=>{
  const form={dataset:{original:'one'}},sent=[],files=[];
- const c=vm.createContext({crypto,$:selector=>selector==='#cover-upload-form'?form:null,document:{addEventListener(){}},window:{},validateImage:async()=>{}});
+ const c=nicknameContext({crypto,$:selector=>selector==='#cover-upload-form'?form:null,document:{addEventListener(){}},window:{},validateImage:async()=>{}});
  vm.runInContext(readFileSync(new URL('../dist/actions.js',import.meta.url),'utf8').split('document.addEventListener')[0],c);
  c.uploadStage=()=>{};c.existingUploadSubmitted=async()=>false;c.sendUploadFiles=async(...args)=>files.push(args);
  c.uploadRequest=async(path,method,body)=>{sent.push(body);return {id:'draft',publish_as:body.publish_as,cover_mode:body.cover_mode,duet_parent_id:null};};

@@ -48,7 +48,7 @@ let messageBadgeBusy=false,messageBadgeAccount=null,messageBadgeAgain=false,mess
 async function blockedPeopleView(profileId='',known=null,readApi=api){
  const d=known||await readApi('/api/blocks'),people=profileId?d.blocks.filter(p=>p.profile_id===profileId):d.blocks;
  if(profileId&&!people.length)return null;
- const inbox=me?.id&&dmInboxSnapshot?.uid===me.id?dmInboxSnapshot.data:{conversations:[]},thread='<header class="dm-thread-header"><a class="small-button" href="#dm">'+icon('back')+' 대화 목록</a><h1>차단 관리</h1></header><section class="blocked-people"><p>차단한 상대와는 메시지를 주고받을 수 없어요. 기존 대화는 삭제되지 않으며, 해제하면 다시 확인할 수 있어요.</p>'+ (people.length?people.map(p=>'<article><strong>'+esc(p.name)+'</strong><button class="small-button" data-person-unblock="'+esc(p.id)+'" data-block-name="'+esc(p.name)+'">차단 해제</button></article>').join(''):'<p class="social-empty">차단한 이용자가 없어요.</p>')+'</section>';
+ const inbox=me?.id&&dmInboxSnapshot?.uid===me.id?dmInboxSnapshot.data:{conversations:[]},thread='<header class="dm-thread-header"><a class="small-button" href="#dm">'+icon('back')+' 대화 목록</a><h1>차단 관리</h1></header><section class="blocked-people"><p>차단한 상대와는 메시지를 주고받을 수 없어요. 기존 대화는 삭제되지 않으며, 해제하면 다시 확인할 수 있어요.</p>'+ (people.length?people.map(p=>'<article><strong>'+userNickname(p.name,{profileId:p.profile_id,userId:p.id})+'</strong><button class="small-button" data-person-unblock="'+esc(p.id)+'" data-block-name="'+esc(p.name)+'">차단 해제</button></article>').join(''):'<p class="social-empty">차단한 이용자가 없어요.</p>')+'</section>';
  return {html:dmInboxHTML(inbox,thread,profileId),inbox:true,refreshInbox:true,selectedConversation:profileId};
 }
 document.addEventListener('click',async e=>{

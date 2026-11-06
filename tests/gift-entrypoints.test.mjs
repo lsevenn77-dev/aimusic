@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -16,7 +17,7 @@ function shopBrowser(){
  const calls=[],opened=[],modal={open:true,classList:{remove(){}},addEventListener(){},removeEventListener(){},close(){this.open=false;}},close=control(),frame=DECORATIONS.frame_aurora_ring;
  const catalog={products:Object.values(DECORATIONS),periods:{P7D:'7일',P1M:'1개월',P3M:'3개월'},inventory:[{id:'stored-frame',item_key:frame.sku,period_code:'P1M',stored:true,available:true,product:frame}]};
  let form,html='';
- const context=vm.createContext({crypto,AifectGifts,giftDialogSerial:0,accountReady:Promise.resolve(),me:{id:'owner'},esc,number:String,frameEffects:{set(){}},DEFAULT_AVATAR:'/default-avatar',
+ const context=nicknameContext({crypto,AifectGifts,giftDialogSerial:0,accountReady:Promise.resolve(),me:{id:'owner'},esc,number:String,frameEffects:{set(){}},DEFAULT_AVATAR:'/default-avatar',
   shopProductPeriods:(product,periods)=>Object.entries(periods).filter(([key])=>Number.isFinite(product.periodPrices[key])),decorationProductImage:product=>product.assetPaths.overlay||product.assetPaths.roomCard,
   $:selector=>selector==='#dialog'?modal:selector==='#dialog-close'?close:selector==='#shop-order'?form:selector==='.shop-checkout h2'?control():null,formError:()=>form.error,
   dialog(value){html=value;if(form)form.isConnected=false;if(!value.includes('id="shop-order"'))return;const elements=[];
@@ -51,7 +52,7 @@ test('room recipient chooser filters only supplied members and keeps the room tr
  const opened=[],changed=[],calls=[],form={isConnected:true,elements:{q:{value:''}},error:{textContent:''}},modal={open:true,close(){}},list={buttons:[],querySelectorAll(){return this.buttons;}};
  Object.defineProperty(list,'innerHTML',{set(html){this.html=html;this.buttons=[...html.matchAll(/data-gift-recipient="([^"]+)"/g)].map(match=>({dataset:{giftRecipient:match[1]}}));},get(){return this.html;}});
  const roomGift={recipients:[{id:'friend',name:'친구'},{id:'member-two',name:'다른 참여자'}],send:async()=>({}),onRecipientChange:id=>changed.push(id)},selection={id:'heart',quantity:5,roomGift};
- const context=vm.createContext({crypto,AifectGifts,esc,me:{id:'owner',profile_id:'self'},accountReady:Promise.resolve(),icon:()=>'',dialog(){},$:selector=>selector==='#dialog'?modal:selector==='#gift-recipient-search'?form:list,formError:()=>form.error,
+ const context=nicknameContext({crypto,AifectGifts,esc,me:{id:'owner',profile_id:'self'},accountReady:Promise.resolve(),icon:()=>'',dialog(){},$:selector=>selector==='#dialog'?modal:selector==='#gift-recipient-search'?form:list,formError:()=>form.error,
   busyForm:(_form,work)=>async event=>{event.preventDefault();await work();},api:async(...args)=>{calls.push(args);throw Error('room chooser must not search all members');},askLogin(){},});
  vm.runInContext(gifts,context);context.profileGiftDialog=(id,initial)=>opened.push({id,initial});await context.chooseGiftRecipient(selection);assert.equal(list.buttons.length,2);
  form.elements.q.value='없는 회원';await form.onsubmit({preventDefault(){}});assert.equal(list.buttons.length,0);

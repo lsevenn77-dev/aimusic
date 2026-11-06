@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -6,7 +7,7 @@ import vm from 'node:vm';
 const read = name => readFileSync(new URL('../dist/' + name, import.meta.url), 'utf8');
 
 test('common room sound settings keep device and personal volume controls, but no diagnostics UI', () => {
-  const context = vm.createContext({
+  const context = nicknameContext({
     esc: value => String(value),
     icon: name => '<span>' + name + '</span>',
     number: value => String(value),

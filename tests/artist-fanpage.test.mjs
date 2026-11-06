@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -35,7 +36,7 @@ test('fanpage uploads preserve portrait originals while other photo uploads keep
  const source=readFileSync(new URL('../dist/actions.js',import.meta.url),'utf8'),start=source.indexOf('async function uploadFile('),end=source.indexOf('async function playlistDialog(',start),crops=[],sent=[];
  class XHR{constructor(){this.upload={};this.status=201;this.responseText='{}';}open(){}setRequestHeader(){}send(file){sent.push(file);this.onload();this.onloadend();}}
  const context={cropPhoto:async(file,options)=>{crops.push(options.shape);return {...file,cropped:true};},optimizeUploadImage:async file=>file,invalidateReads(){},XMLHttpRequest:XHR,setTimeout:()=>1,clearTimeout(){}};
- vm.createContext(context);vm.runInContext(source.slice(start,end),context);const file={type:'image/webp',width:900,height:1200};
+ nicknameContext(context);vm.runInContext(source.slice(start,end),context);const file={type:'image/webp',width:900,height:1200};
  await context.uploadFile('/api/artists/artist/gallery',file,undefined,{preserveAspectRatio:true});assert.equal(sent[0],file);assert.equal(crops.length,0);
  await context.uploadFile('/api/producers/producer/gallery',file);assert.equal(crops[0],'square');
  await context.uploadFile('/api/studio/artists/artist/image',file);assert.equal(crops[1],'circle');
@@ -149,7 +150,7 @@ function fanCarouselFixture({reduced=false,count=3}={}){
  root.querySelector=selector=>elements[selector]||null;carousel.querySelector=selector=>elements[selector]||null;
  root.querySelectorAll=selector=>selector==='[data-card-index]'?cards:selector==='[data-fan-dot]'?dots:[];doc.querySelector=()=>root;doc.hidden=false;doc.defaultView=win;media.matches=reduced;
  let serial=0,clock=0;class ClockDate extends Date{static now(){return clock;}}
- const context={URLSearchParams,location:{hash:'#artist/artist?tab=gallery'},document:doc,window:win,Date:ClockDate,performance:{now:()=>clock},getComputedStyle:el=>({transform:el.style.transform||'none',opacity:el.style.opacity||'1',filter:el.style.filter||'none',lineHeight:'20px'}),icon:()=>'',AbortController,matchMedia:()=>media,registerRouteCleanup:fn=>{cleanups.push(fn);return fn;},setTimeout(fn,ms){assert.equal(ms,7000);const key=++serial;timers.set(key,fn);return key;},clearTimeout:key=>timers.delete(key),requestAnimationFrame:fn=>{fn();return ++serial;},cancelAnimationFrame(){},queueMicrotask:fn=>fn()};vm.createContext(context);vm.runInContext(readFileSync(new URL('../dist/artist-fanpage.js',import.meta.url),'utf8'),context);context.bindArtistFanpage();
+ const context={URLSearchParams,location:{hash:'#artist/artist?tab=gallery'},document:doc,window:win,Date:ClockDate,performance:{now:()=>clock},getComputedStyle:el=>({transform:el.style.transform||'none',opacity:el.style.opacity||'1',filter:el.style.filter||'none',lineHeight:'20px'}),icon:()=>'',AbortController,matchMedia:()=>media,registerRouteCleanup:fn=>{cleanups.push(fn);return fn;},setTimeout(fn,ms){assert.equal(ms,7000);const key=++serial;timers.set(key,fn);return key;},clearTimeout:key=>timers.delete(key),requestAnimationFrame:fn=>{fn();return ++serial;},cancelAnimationFrame(){},queueMicrotask:fn=>fn()};nicknameContext(context);vm.runInContext(readFileSync(new URL('../dist/artist-fanpage.js',import.meta.url),'utf8'),context);context.bindArtistFanpage();
  const fire=(element,type,props={},elapsed=1000)=>{
   clock+=elapsed;if(elapsed>=750)finishAnimations();const event=new Event(type,{cancelable:true});
   const defaults=type.startsWith('pointer')?{pointerId:1,pointerType:'touch',button:0,isPrimary:true}:type==='click'?{detail:1}:{};
@@ -223,7 +224,7 @@ test('cancelled photo drags recover without overriding manual pause or reduced m
 });
 test('artist introduction keeps escaped paragraphs and exposes its collapsed toggle',()=>{
  const escape=v=>String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
- const context={esc:escape,number:String,portrait:()=>'',followed:()=>false,icon:()=>'',artistMusicList:()=>''};vm.createContext(context);vm.runInContext(readFileSync(new URL('../dist/artist-fanpage.js',import.meta.url),'utf8'),context);
+ const context={esc:escape,number:String,portrait:()=>'',followed:()=>false,icon:()=>'',artistMusicList:()=>''};nicknameContext(context);vm.runInContext(readFileSync(new URL('../dist/artist-fanpage.js',import.meta.url),'utf8'),context);
  const bio='첫 번째 소개입니다.\n두 번째 줄 & 새로운 이야기.\n<script>소개 원문</script>';
  const html=context.artistFanpageHTML({profile:{name:'Artist',bio},tracks:[],gallery:[]},'artist');
  assert.ok(html.includes(escape(bio)),'expanding must be able to reveal every original paragraph');assert.doesNotMatch(html,/<script>소개 원문/);assert.match(html,/data-fan-bio(?:\s|>)/);
@@ -231,7 +232,7 @@ test('artist introduction keeps escaped paragraphs and exposes its collapsed tog
 });
 test('photo counts, six tabs, XSS escaping and page-only compact music renderer',()=>{
  const escape=v=>String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
- const context={document:{addEventListener(){}},esc:escape,number:String,portrait:()=>'',followed:()=>false,icon:()=>'',list:()=>'',remember(){},liked:()=>false,cover:()=>''};vm.createContext(context);
+ const context={document:{addEventListener(){}},esc:escape,number:String,portrait:()=>'',followed:()=>false,icon:()=>'',list:()=>'',remember(){},liked:()=>false,cover:()=>''};nicknameContext(context);
  for(const file of ['artist-gallery.js','artist-fanpage.js'])vm.runInContext(readFileSync(new URL('../dist/'+file,import.meta.url),'utf8'),context);
  for(const count of [0,1,3,10,20]){
   const d={profile:{name:'<script>x</script>',bio:'소개'},tracks:[],followers:2,gallery:Array.from({length:count},(_,i)=>({id:'p'+i,url:'/photo/'+i,carousel:i<10}))};
@@ -244,14 +245,14 @@ test('photo counts, six tabs, XSS escaping and page-only compact music renderer'
 test('gallery file selection keeps its original aspect ratio before upload',async()=>{
  const handlers={};
  const context={document:{addEventListener(type,fn){handlers[type]=fn;}}};
- vm.createContext(context);vm.runInContext(readFileSync(new URL('../dist/image-crop.js',import.meta.url),'utf8'),context);
+ nicknameContext(context);vm.runInContext(readFileSync(new URL('../dist/image-crop.js',import.meta.url),'utf8'),context);
  const files=[{name:'portrait.png',type:'image/png',size:100}],input={files,isConnected:true,matches(selector){return selector.split(',').includes('#gallery-upload-form input[type=file]');}};
  await handlers.change({target:input});
  assert.equal(input.files,files,'gallery selection must not invoke the square crop editor or replace the original files');
 });
 
 test('header shares one action row and restricts settings without widening portrait permissions',()=>{
- const c={esc:v=>String(v??''),number:String,portrait:()=>'<div class="artist-portrait"></div>',followed:()=>true,icon:name=>name,artistMusicList:()=>''};vm.createContext(c);vm.runInContext(readFileSync(new URL('../dist/artist-fanpage.js',import.meta.url),'utf8'),c);
+ const c={esc:v=>String(v??''),number:String,portrait:()=>'<div class="artist-portrait"></div>',followed:()=>true,icon:name=>name,artistMusicList:()=>''};nicknameContext(c);vm.runInContext(readFileSync(new URL('../dist/artist-fanpage.js',import.meta.url),'utf8'),c);
  const data={profile:{name:'Artist'},tracks:[],gallery:[]};
  const visitor=c.artistFanpageHTML(data,'artist');assert.doesNotMatch(visitor,/data-fan-menu-toggle/);assert.match(visitor,/aria-pressed="true"><span data-follow-label="팔로우">팔로우<\/span><\/button>/);assert.doesNotMatch(visitor,/팔로잉/);
  const owner=c.artistFanpageHTML({...data,can_manage:true},'artist');assert.equal((owner.match(/data-follow=/g)||[]).length,1);assert.equal((owner.match(/data-share /g)||[]).length,1);assert.match(owner,/data-fan-menu-toggle/);assert.match(owner,/id="fan-header-menu"[^>]+hidden/);assert.doesNotMatch(owner,/fan-photo-entry|fan-manage-actions|artist-image-change/);
@@ -276,7 +277,7 @@ test('fan post and reply APIs expose only public avatar metadata and refresh ver
 });
 
 test('header prioritizes custom banner, returns to versioned portrait and then aurora',()=>{
- const c={esc:v=>String(v).replaceAll('"','&quot;')};vm.createContext(c);
+ const c={esc:v=>String(v).replaceAll('"','&quot;')};nicknameContext(c);
  vm.runInContext(readFileSync(new URL('../dist/artist-fanpage.js',import.meta.url),'utf8'),c);
  const p={image_version:'v1'};
  const custom=c.fanHeaderBackground(p,{banner_version:'banner'},'artist');

@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -6,7 +7,7 @@ import {readFileSync} from 'node:fs';
 const read=f=>readFileSync(new URL('../dist/'+f,import.meta.url),'utf8');
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function context(){
- const c=vm.createContext({document:{addEventListener(){}},window:{},me:{id:'owner'},esc,icon:()=>'<svg></svg>',number:n=>String(n||0),cover:()=>'<img alt="">',heading:t=>'<h1>'+esc(t)+'</h1>',inboxControlsHTML:()=>'',conversationListHTML:()=>'<p>conversations</p>'});
+ const c=nicknameContext({document:{addEventListener(){}},window:{},me:{id:'owner'},esc,icon:()=>'<svg></svg>',number:n=>String(n||0),cover:()=>'<img alt="">',heading:t=>'<h1>'+esc(t)+'</h1>',inboxControlsHTML:()=>'',conversationListHTML:()=>'<p>conversations</p>'});
  vm.runInContext(read('page-redesign.js'),c);return c;
 }
 test('My gallery follows profile identity and precedes music; visitor has no mutation controls',()=>{

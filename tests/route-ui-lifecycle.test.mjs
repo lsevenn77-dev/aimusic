@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -17,7 +18,7 @@ test('all direct fragments hide public HTML until the current app render is read
 
 test('a pending playlist dialog cannot reopen over a different route',async()=>{
  const read=deferred();let opened=0;
- const c=vm.createContext({renderId:1,me:{id:'owner'},library:{playlists:[]},refreshLibrary:()=>read.promise,dialog:()=>opened++,$:()=>({}),esc:String});
+ const c=nicknameContext({renderId:1,me:{id:'owner'},library:{playlists:[]},refreshLibrary:()=>read.promise,dialog:()=>opened++,$:()=>({}),esc:String});
  const action=source('actions.js').match(/async function addToPlaylist[^\r\n]*/)[0];vm.runInContext(action,c);
  const opening=c.addToPlaylist('song');c.renderId++;read.resolve();await opening;
  assert.equal(opened,0);
@@ -26,7 +27,7 @@ test('a pending playlist dialog cannot reopen over a different route',async()=>{
 test('profile activity replaces outgoing tab data with a local loading state',async()=>{
  const read=deferred(),content={innerHTML:'OLD WORKS',isConnected:true,setAttribute(){},removeAttribute(){}},aside={innerHTML:'OLD ASIDE'};
  const nodes={'#mp-content':content,'#mp-aside-content':aside,'.mp-segment':{dataset:{},querySelectorAll:()=>[]}};
- const c=vm.createContext({api:async()=>({}),me:{id:'owner'},window:{addEventListener(){}},document:{addEventListener(){}},$:selector=>nodes[selector],icons(){},paintInteractions(){},syncSongCoverPlayback(){}});
+ const c=nicknameContext({api:async()=>({}),me:{id:'owner'},window:{addEventListener(){}},document:{addEventListener(){}},$:selector=>nodes[selector],icons(){},paintInteractions(){},syncSongCoverPlayback(){}});
  vm.runInContext(source('mypage.js'),c);c.myActivityData=()=>read.promise;c.myActivityHTML=()=>'<p>NEW ACTIVITY</p>';c.myActivityAside=()=>'<p>NEW ASIDE</p>';
  vm.runInContext("myPageState={own:true,account:'owner',tab:'works',d:{}}",c);
  const opening=c.mySelectTab('activity',false);
@@ -38,7 +39,7 @@ test('profile tab shows the account-validated header and local loader before its
  const read=deferred(),content={innerHTML:'OLD WORKS',isConnected:true,setAttribute(){},removeAttribute(){}},aside={innerHTML:'OLD ASIDE'};
  const main={dataset:{route:'profile'},querySelector:()=>true};
  const nodes={'#main':main,'#mp-content':content,'#mp-aside-content':aside,'.mp-segment':{dataset:{},querySelectorAll:()=>[]}};
- const c=vm.createContext({api:async()=>({}),renderId:1,URLSearchParams,me:{id:'owner'},window:{addEventListener(){}},document:{addEventListener(){}},$:selector=>nodes[selector],icons(){},paintInteractions(){},syncSongCoverPlayback(){}});
+ const c=nicknameContext({api:async()=>({}),renderId:1,URLSearchParams,me:{id:'owner'},window:{addEventListener(){}},document:{addEventListener(){}},$:selector=>nodes[selector],icons(){},paintInteractions(){},syncSongCoverPlayback(){}});
  vm.runInContext(source('mypage.js'),c);
  c.myActivityData=()=>read.promise;c.myActivityHTML=()=>'<p>NEW ACTIVITY</p>';c.myActivityAside=()=>'<p>NEW ASIDE</p>';
  vm.runInContext("myPageState={own:true,account:'owner',tab:'works',d:{}}",c);
@@ -60,7 +61,7 @@ test('profile tab shows the account-validated header and local loader before its
 function skin(){
  let observer,scans=0,styles=0;
  const item={matches:()=>false,classList:{contains:()=>false,add(){}},scrollWidth:100,clientWidth:100};
- const c=vm.createContext({MutationObserver:class{constructor(fn){observer=fn;}observe(){}},requestAnimationFrame:fn=>{fn();return 0;},getComputedStyle:()=>{styles++;return {overflowX:'hidden'};},window:{addEventListener(){}},document:{body:{},querySelector:()=>null,querySelectorAll:selector=>{scans++;return selector.startsWith('#main')?[item]:[];}}});
+ const c=nicknameContext({MutationObserver:class{constructor(fn){observer=fn;}observe(){}},requestAnimationFrame:fn=>{fn();return 0;},getComputedStyle:()=>{styles++;return {overflowX:'hidden'};},window:{addEventListener(){}},document:{body:{},querySelector:()=>null,querySelectorAll:selector=>{scans++;return selector.startsWith('#main')?[item]:[];}}});
  vm.runInContext(source('unified-search.js'),c);scans=0;styles=0;
  return {fire:records=>observer(records),counts:()=>({scans,styles})};
 }
@@ -74,20 +75,20 @@ test('nonoverflowing elements do not need computed-style reads during scrollbar 
 });
 test('an image decoded after leaving the editor releases its bitmap without opening a crop dialog',async()=>{
  const read=deferred();let closed=0,created=0;
- const c=vm.createContext({renderId:1,decodeUploadImage:()=>read.promise,document:{addEventListener(){},createElement(){created++;throw Error('Must not open a dialog');}}});
+ const c=nicknameContext({renderId:1,decodeUploadImage:()=>read.promise,document:{addEventListener(){},createElement(){created++;throw Error('Must not open a dialog');}}});
  vm.runInContext(source('image-crop.js'),c);
  const opening=c.cropPhotoEditor({type:'image/png',size:10});c.renderId++;
  read.resolve({width:100,height:100,close(){closed++;}});await assert.rejects(opening,/취소/);assert.equal(closed,1);assert.equal(created,0);
 });
 
 test('entering the talk-room lobby with no active voice room releases focus without interrupting navigation',()=>{
- const focus=[];const c=vm.createContext({me:{id:'member'},voiceController:null,setVoiceFocus:value=>focus.push(value)});
+ const focus=[];const c=nicknameContext({me:{id:'member'},voiceController:null,setVoiceFocus:value=>focus.push(value)});
  vm.runInContext(source('voice-rooms.js').match(/function cleanupVoiceRoute[^\r\n]*/)[0],c);
  c.cleanupVoiceRoute('voice',undefined);assert.deepEqual(focus,[false]);
 });
 test('a late playlist limit check cannot open a membership dialog over the next page',async()=>{
  const pending=deferred();let checked=0;
- const c=vm.createContext({me:{id:'owner'},renderId:7,refreshLibrary:()=>pending.promise,canCreatePlaylist:()=>{checked++;return false;}});
+ const c=nicknameContext({me:{id:'owner'},renderId:7,refreshLibrary:()=>pending.promise,canCreatePlaylist:()=>{checked++;return false;}});
  vm.runInContext(source('actions.js').match(/async function playlistDialog[^\r\n]*/)[0],c);
  const work=c.playlistDialog();c.renderId++;pending.resolve();await work;assert.equal(checked,0);
 });

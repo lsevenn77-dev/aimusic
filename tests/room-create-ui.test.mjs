@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -23,7 +24,7 @@ function lobby({mode='talk',filter='all',crews=[{id:'my-crew',name:'우리 크�
  const calls=[],cleanups=[],toasts=[],listeners=new Map();let autoResponse=async()=>({suggested_titles:{...suggestions,talk:'새로운 대화',karaoke:'새로운 노래'}}),listening=0;
  const history={state:null,pushState(state){this.state=state;},back(){this.state=null;listeners.get('popstate')?.();}};
  const location={hash:'#community',replace(route){this.hash=route;}};
- const context=vm.createContext({
+ const context=nicknameContext({
   document:{querySelector:selector=>selector==='.talk-directory'?root:null},window:{addEventListener(name,fn){listeners.set(name,fn);},removeEventListener(name){listeners.delete(name);}},
   me:{id:'local-user'},crypto:{randomUUID},URLSearchParams,history,location,requestAnimationFrame:fn=>fn(),toast:message=>toasts.push(message),
   voiceRequest:async(path,payload)=>{calls.push({path,payload});if(path==='options')return {crews,themes:[],suggested_titles:suggestions,suggested_title:suggestions.talk};if(path.startsWith('options?'))return autoResponse(path);if(path==='rooms')return {room:{id:'created-room',mode:payload.mode}};throw Error('Unexpected request: '+path);},

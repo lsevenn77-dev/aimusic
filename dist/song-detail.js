@@ -67,7 +67,7 @@ function songActionIcon(name){
 }
 function songDetailCreditsHTML(t){
  if(t.kind==='cover')return songCredits(t);
- const producer=esc(t.producer||'창작자'),href=t.producer_id?'#producer/'+esc(t.producer_id):'';
+ const producer=trackNickname(t,'producer')||'창작자',href=t.producer_id?'#producer/'+esc(t.producer_id):'';
  return '<div class="song-credits">'+(hasArtist(t)?'<div><span class="song-artist-label">AI ARTIST</span>'+credits(t)+'</div>':'')+
  '<div><span class="song-producer-label">PRODUCER</span>'+(href?'<a href="'+href+'">'+producer+'</a>':'<span class="song-producer-name">'+producer+'</span>')+'</div></div>';
 }

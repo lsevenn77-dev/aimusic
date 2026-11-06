@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -29,7 +30,7 @@ function fixture({visual = true, mobile = true} = {}) {
   const media = Object.assign(emitter(), {matches:mobile});
   const window = emitter(), document = Object.assign(emitter(), {documentElement:root, activeElement:input});
   if (visual) window.visualViewport = vv;
-  const context = vm.createContext({window, document, innerHeight:844, innerWidth:390,
+  const context = nicknameContext({window, document, innerHeight:844, innerWidth:390,
     screen:{orientation:{type:'portrait-primary'}}, matchMedia:()=>media, Event:class {constructor(type) {this.type=type;}},
     requestAnimationFrame:fn=>{frames.set(++serial,fn);return serial;}, cancelAnimationFrame:id=>frames.delete(id),
     setTimeout:fn=>{timers.set(++serial,fn);return serial;}, clearTimeout:id=>timers.delete(id)});
@@ -102,7 +103,7 @@ test('a popup closed during typing is not resized or scrolled after its input di
 test('chat viewport sizing removes its desktop minimum only while the keyboard is visible', () => {
   const source=readFileSync(new URL('../dist/social-chat.js',import.meta.url),'utf8');
   const definition=source.match(/function dmWorkspaceHeight\([^\n]+/)[0];
-  const context=vm.createContext({});vm.runInContext(definition,context);
+  const context=nicknameContext({});vm.runInContext(definition,context);
   assert.equal(context.dmWorkspaceHeight(300,188,12,undefined,true),100);
   assert.equal(context.dmWorkspaceHeight(180,188,12,undefined,true),0);
   assert.equal(context.dmWorkspaceHeight(300,188,78,undefined),180);

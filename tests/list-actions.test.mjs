@@ -1,10 +1,11 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
 const item=Object.freeze({id:'work',title:'Title',genre:'Rock',genres:['Rock'],duration:187,created:1700000000,producer:'Singer',producer_id:'singer',artist:'AI',artist_id:'artist',kind:'cover',cover_mode:'duet',original_id:'original',can_join:true,duet_open:1,participants:2,completions:3,likes:4});
-function context(){return vm.createContext({esc:s=>String(s??''),time:()=> '3:07',number:String,icon:n=>'<svg data-icon="'+n+'"></svg>',cover:()=>'<img>',liked:()=>false,remember(){},hasArtist:()=>false,credits:()=> 'Singer',songCredits:()=> 'Singer',songReleaseDateHTML:()=>'<time>2023.11.14</time>',trackModerationToolsHTML:()=>'',me:null,AifectDubbing:{dubbingGenreArtwork:()=>'/art.webp'},document:{addEventListener(){}}});}
+function context(){return nicknameContext({esc:s=>String(s??''),time:()=> '3:07',number:String,icon:n=>'<svg data-icon="'+n+'"></svg>',cover:()=>'<img>',liked:()=>false,remember(){},hasArtist:()=>false,credits:()=> 'Singer',songCredits:()=> 'Singer',songReleaseDateHTML:()=>'<time>2023.11.14</time>',trackModerationToolsHTML:()=>'',me:null,AifectDubbing:{dubbingGenreArtwork:()=>'/art.webp'},document:{addEventListener(){}}});}
 test('compact rows omit metadata, cover detail keeps duration and date, and original detail keeps genre',()=>{
  const c=context(),app=read('dist/app.js');
  vm.runInContext(app.slice(app.indexOf('function card('),app.indexOf('function identityCards(')),c);

@@ -6,7 +6,7 @@ import {viewerBlockedIds} from './auth.js';
 async function directoryHosts(env,rooms){
  if(!rooms.length)return new Map();
  const ids=JSON.stringify([...new Set(rooms.map(r=>r.host_id))]);
- const hosts=await rows(env,`SELECT u.id,${publicNameSQL()} name,p.id profile_id,p.image_version
+ const hosts=await rows(env,`SELECT u.id,u.id user_id,${publicNameSQL()} name,p.id profile_id,p.image_version
   FROM users u LEFT JOIN producers p ON p.user_id=u.id
   WHERE u.id IN (SELECT value FROM json_each(?)) AND u.provider!='deleted'`,ids);
  return new Map(hosts.map(({id,...profile})=>[id,profile]));

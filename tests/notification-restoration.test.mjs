@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -17,7 +18,7 @@ function client(api){
  }};
  const add=(event,fn)=>{const callbacks=listeners.get(event)||new Set();callbacks.add(fn);listeners.set(event,callbacks);};
  const remove=(event,fn)=>listeners.get(event)?.delete(fn);
- const context=vm.createContext({
+ const context=nicknameContext({
   me:{id:'owner'},api,AbortController,URLSearchParams,
   document:{hidden:false,querySelectorAll:()=>[],addEventListener:add,removeEventListener:remove},
   window:{scrollY:0,addEventListener:add,removeEventListener:remove,scrollTo(value){scrolls.push(value);}},

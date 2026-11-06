@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -51,7 +52,7 @@ test('home empty data, public API, and deleted accounts do not leak fallback con
  assert.deepEqual(await homeTracks({DB:f.DB},16,at),{tracks:[],releases:[]});
 });
 test('two-row selection preserves scores, fills distinct shelves, then reuses real songs when sparse',()=>{
- const c=vm.createContext({Map,console});vm.runInContext(readFileSync('dist/home.js','utf8'),c);
+ const c=nicknameContext({Map,console});vm.runInContext(readFileSync('dist/home.js','utf8'),c);
  const tracks=Array.from({length:65},(_,i)=>({id:'t'+i,artist_id:'a'+(i%8),genre:'g'+(i%5),moods:['m'+(i%3)],likes:i===62?3:0}));
  const data={tracks:[...tracks,tracks[0]],releases:tracks.slice(0,16).map(t=>t.id)};
  for(const [music,discovery] of [[6,6],[10,14],[16,14]]){

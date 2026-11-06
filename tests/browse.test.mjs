@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -6,7 +7,7 @@ import {readFileSync} from 'node:fs';
 function viewContext(responses={},user=null){
  const calls=[];
  const esc=s=>String(s??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
- const context=vm.createContext({document:{addEventListener(){}},me:user,inApp:false,location:{hash:'#library/covers'},URLSearchParams,Date,esc,number:n=>String(n),
+ const context=nicknameContext({document:{addEventListener(){}},me:user,inApp:false,location:{hash:'#library/covers'},URLSearchParams,Date,esc,number:n=>String(n),
   heading:(title,description='')=>`<h1>${esc(title)}</h1><p>${esc(description)}</p>`,gate:()=>'<p>LOGIN REQUIRED</p>',giftButton:()=>'',icon:()=>'',
   empty:(title,description,href,label)=>`<p>${esc(title)}</p><a href="${href}">${esc(label)}</a>`,
   portrait:()=>'',followed:()=>false,cover:()=>'',credits:()=>'',trackStats:()=>'',time:()=>'',liked:()=>false,duetLobbyHTML:()=>'<h2>참여를 기다리는 듀엣</h2>',
@@ -37,7 +38,7 @@ test('community filters covers and originals through the public API',async()=>{
 });
 test('private library and following routes require login before fetching personal data',async()=>{
  const {view,calls}=viewContext();for(const [base,param] of [['community','following'],['library','history'],['library','covers'],['library','originals']])assert.match((await view(base,param)).html,/LOGIN REQUIRED/);assert.deepEqual(calls,[]);
- const c=vm.createContext({URLSearchParams,me:null,location:{hash:'#library/following'},gate:()=>'LOGIN REQUIRED'});
+ const c=nicknameContext({URLSearchParams,me:null,location:{hash:'#library/following'},gate:()=>'LOGIN REQUIRED'});
  vm.runInContext(readFileSync(new URL('../dist/menu-integration.js',import.meta.url),'utf8'),c);
  vm.runInContext(readFileSync(new URL('../dist/follow-management.js',import.meta.url),'utf8'),c);
  const canonical=c.menuAlias(c.location.hash);assert.equal(canonical,'#follow?tab=following');

@@ -1,10 +1,11 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {fixture} from './fixture.mjs';
 
-const context=vm.createContext({document:{addEventListener(){}}});
+const context=nicknameContext({document:{addEventListener(){}}});
 vm.runInContext(readFileSync('dist/artist-directory.js','utf8'),context);
 const change=(ids,id,action)=>Array.from(context.directoryPinChange(ids,id,action));
 test('pin drafts preserve order, enforce the limit, and leave saved IDs untouched',()=>{

@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -8,7 +9,7 @@ import * as AifectPlayer from '../shared/player.js';
 const source=name=>readFileSync(new URL('../dist/'+name,import.meta.url),'utf8');
 const esc=s=>String(s??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;');
 function ui(extra={}){
- const c=vm.createContext({URLSearchParams,AifectPlayer,DEFAULT_AVATAR:'/assets/default-avatar.png',me:{id:'owner'},apiRevision:0,authConfig:{},location:{hash:'#inventory'},document:{addEventListener(){}},window:{addEventListener(){}},esc,number:String,icon:()=>'',portrait:()=>'<img alt="프로필">',heading:t=>'<h1>'+t+'</h1>',gate:()=>'<p>LOGIN</p>',playerProgressHTML:()=>'',...extra});
+ const c=nicknameContext({URLSearchParams,AifectPlayer,DEFAULT_AVATAR:'/assets/default-avatar.png',me:{id:'owner'},apiRevision:0,authConfig:{},location:{hash:'#inventory'},document:{addEventListener(){}},window:{addEventListener(){}},esc,number:String,icon:()=>'',portrait:()=>'<img alt="프로필">',heading:t=>'<h1>'+t+'</h1>',gate:()=>'<p>LOGIN</p>',playerProgressHTML:()=>'',...extra});
  for(const name of ['decorations.js','music-library.js','inventory.js','mypage.js','menu-integration.js'])vm.runInContext(source(name),c);
  return c;
 }

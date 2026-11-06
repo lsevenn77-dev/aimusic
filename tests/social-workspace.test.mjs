@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -5,7 +6,7 @@ import {readFileSync} from 'node:fs';
 const read=f=>readFileSync(new URL('../dist/'+f,import.meta.url),'utf8');
 const esc=v=>String(v??'').replaceAll('<','&lt;').replaceAll('"','&quot;');
 function fixture(api=async()=>({})){
- const listeners=[],paints=[],c=vm.createContext({me:{id:'self'},api,document:{hidden:false,addEventListener:(t,f)=>{if(t==='click')listeners.push(f);}},window:{addEventListener(){}},setInterval(){},esc,icon:()=>'',number:String,portrait:()=>'',heading:t=>'<h1>'+t+'</h1>',empty:()=>'<p>Empty</p>',cover:()=>'',trackStats:()=>'',communityFeed:()=>'<div>feed</div>',communityNavigation:()=>'<nav>tabs</nav>'});
+ const listeners=[],paints=[],c=nicknameContext({me:{id:'self'},api,document:{hidden:false,addEventListener:(t,f)=>{if(t==='click')listeners.push(f);}},window:{addEventListener(){}},setInterval(){},esc,icon:()=>'',number:String,portrait:()=>'',heading:t=>'<h1>'+t+'</h1>',empty:()=>'<p>Empty</p>',cover:()=>'',trackStats:()=>'',communityFeed:()=>'<div>feed</div>',communityNavigation:()=>'<nav>tabs</nav>'});
  for(const f of ['chat-features.js','social-chat.js','page-redesign.js','social-layouts.js','release-refinements.js'])vm.runInContext(read(f),c);
  c.paintMessageBadge=n=>paints.push(n);
  return {c,listeners,paints};

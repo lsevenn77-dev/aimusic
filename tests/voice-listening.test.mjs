@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -13,7 +14,7 @@ function setup(){
   createMediaStreamSource(stream){this.sources.push(stream);return {connect(){},disconnect(){}};}
  }
  const host={querySelector:()=>button};
- const context=vm.createContext({URL,window:{AudioContext:Context},document:{addEventListener:(name,fn)=>events.set(name,fn),querySelector:()=>host},navigator:{mediaDevices:{getUserMedia(){captures++;throw Error('listeners must never capture');}}},me:{id:'listener'},location:new URL('https://example.test/'),setTimeout(fn){timers.set(++next,fn);return next;},clearTimeout(id){timers.delete(id);},bindVoiceLobby(){},$:()=>null});
+ const context=nicknameContext({URL,window:{AudioContext:Context},document:{addEventListener:(name,fn)=>events.set(name,fn),querySelector:()=>host},navigator:{mediaDevices:{getUserMedia(){captures++;throw Error('listeners must never capture');}}},me:{id:'listener'},location:new URL('https://example.test/'),setTimeout(fn){timers.set(++next,fn);return next;},clearTimeout(id){timers.delete(id);},bindVoiceLobby(){},$:()=>null});
  vm.runInContext(source+';this.Client=VoiceRoomClient;',context);
  const client=Object.assign(Object.create(context.Client.prototype),{host,closed:false,audios:new Map(),volumes:new Map(),preferences:{voice:1},syncMusic(){},state:{self:'listener',members:[{id:'listener',seat:null,muted:true,locked:true},{id:'host',muted:false},{id:'guest',muted:false}]}});
  const click=(href='#voice/fixture',extra={})=>({button:0,target:{closest:()=>({href,target:'',hasAttribute:()=>false})},...extra});

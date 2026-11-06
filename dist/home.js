@@ -33,11 +33,11 @@ function homePlaylistCard(p,tracks=null,{compact=false,footer=''}={}){
   <div class="home-playlist-art"><a href="#playlist/${esc(p.id)}" aria-label="${esc(p.name)} 상세">${art}</a></div>
   <a class="home-playlist-info" href="#playlist/${esc(p.id)}">
    <h3 class="home-playlist-name" title="${esc(p.name)}">${esc(p.name)}</h3>
-   <div class="home-playlist-count"><span>${number(Number(p.tracks)||0)}곡${p.locked?' · 보관 중':''}</span></div>
+   <div class="home-playlist-count">${playlistOwnerNickname(p)} <span>${number(Number(p.tracks)||0)}곡${p.locked?' · 보관 중':''}</span></div>
   </a>${footer}</article>`;
 }
 
-function homeProfileCard(p,kind){return `<article class="home-profile-card"><a href="#${kind}/${esc(p.id)}" title="${esc(p.name)}"><div class="profile-frame-canvas avatar-frame-host">${avatarImage(p,kind,false)}</div><div class="home-profile-name"><span>${esc(p.name)}</span>${p.partner_badge?`<span class="partner-badge" aria-label="${esc(p.partner_badge)}">✓ ${esc(p.partner_badge)}</span>`:''}</div></a></article>`;}
+function homeProfileCard(p,kind){return `<article class="home-profile-card"><a href="#${kind}/${esc(p.id)}" title="${esc(p.name)}"><div class="profile-frame-canvas avatar-frame-host">${avatarImage(p,kind,false)}</div><div class="home-profile-name"><span>${userNickname(p.name,{profileId:kind==='artist'?null:p.id,artistId:p.id,entityType:kind,userId:p.user_id})}</span>${p.partner_badge?`<span class="partner-badge" aria-label="${esc(p.partner_badge)}">✓ ${esc(p.partner_badge)}</span>`:''}</div></a></article>`;}
 // Home curation only: keep Ina's data, directory entry and profile route intact.
 const homeExcludedArtistIds=new Set(['0c2ecb21-3deb-4828-a48f-9ccf810eadff']);
 function homeProfileSection(kind,title,href){return `<section id="home-${kind}s" class="listening-section home-profile-section" data-home-kind="${kind}"><div class="section-heading"><h2 id="home-${kind}-heading">${esc(title)}</h2>${kind==='producer'?'':`<a class="home-more-link" href="${href}" aria-label="${esc(title)} 더보기">+더보기</a>`}</div><div id="home-${kind}-panel" role="group" aria-labelledby="home-${kind}-heading" aria-busy="true"><p class="home-load-message" role="status">프로필을 불러오고 있어요.</p></div></section>`;}

@@ -20,3 +20,7 @@ declare function api(path:string):Promise<SongCoverPage>;
 declare function remember(tracks:SongCover[]):void;
 declare function paintInteractions():void;
 declare function toast(message:string):void;
+
+declare function userNickname(name:unknown,identity?:{profileId?:string;userId?:string;artistId?:string;entityType?:string},options?:object):string;
+declare function trackNickname(track:unknown,role?:string):string;
+declare function trackPerformers(track:unknown):string;

@@ -1,10 +1,11 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 
 function fixture(open){
- const panel={innerHTML:'',classList:{toggle(){}}},ctx=vm.createContext({playSerial:0,inApp:false,window:{Capacitor:{isNativePlatform:()=>true,Plugins:{AifectKaraoke:{open}}}},document:{addEventListener(){}},audio:{pause(){}},$:()=>panel,esc:s=>s,icon:()=>'',toast(){},location:{hash:''}});
+ const panel={innerHTML:'',classList:{toggle(){}}},ctx=nicknameContext({playSerial:0,inApp:false,window:{Capacitor:{isNativePlatform:()=>true,Plugins:{AifectKaraoke:{open}}}},document:{addEventListener(){}},audio:{pause(){}},$:()=>panel,esc:s=>s,icon:()=>'',toast(){},location:{hash:''}});
  vm.runInContext(readFileSync(new URL('../dist/karaoke.js',import.meta.url),'utf8'),ctx);
  vm.runInContext("sing={id:'song',state:'idle'}",ctx);
  return {ctx,panel,run:()=>vm.runInContext('startSinging()',ctx),state:()=>vm.runInContext('sing.state',ctx)};

@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -5,7 +6,7 @@ import {readFileSync} from 'node:fs';
 const read=name=>readFileSync(new URL('../dist/'+name,import.meta.url),'utf8');
 function setup(data={}){
  const calls=[],esc=s=>String(s??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
- const c=vm.createContext({me:{id:'owner'},esc,icon:()=>'',cover:t=>'<img alt="'+esc(t.title)+'">',credits:t=>esc(t.producer),time:String,number:String,moodOptions:[],remember(){},api:async(...args)=>{calls.push(args);if(!data[args[0]])throw Error('Unexpected API');return data[args[0]];}});
+ const c=nicknameContext({me:{id:'owner'},esc,icon:()=>'',cover:t=>'<img alt="'+esc(t.title)+'">',credits:t=>esc(t.producer),time:String,number:String,moodOptions:[],remember(){},api:async(...args)=>{calls.push(args);if(!data[args[0]])throw Error('Unexpected API');return data[args[0]];}});
  for(const name of ['music-ui.js','singing-hub.js','browse.js'])vm.runInContext(read(name),c);
  return {c,calls};
 }

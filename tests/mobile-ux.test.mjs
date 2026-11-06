@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -14,7 +15,7 @@ test('collapse and restore never change playback, and expose their current state
 });
 
 function chatContext(){
-  const c=vm.createContext({me:{id:'self'},Date,number:String,esc:s=>String(s??'').replaceAll('<','&lt;').replaceAll('"','&quot;'),portrait:()=>'',icon:()=>'',
+  const c=nicknameContext({me:{id:'self'},Date,number:String,esc:s=>String(s??'').replaceAll('<','&lt;').replaceAll('"','&quot;'),portrait:()=>'',icon:()=>'',
     document:{addEventListener(){}},window:{addEventListener(){}},setInterval(){}});
   vm.runInContext(read('chat-features.js'),c);vm.runInContext(read('social-chat.js'),c);return c;
 }
@@ -33,7 +34,7 @@ test('whole-room deletion belongs only in the DM header, not inbox rows or messa
 function clearContext({confirmed=true,request=async()=>({})}={}){
   const listeners=[],calls=[],confirmations=[],notices=[];let renders=0;
   const button={disabled:false,dataset:{dmClear:'peer'}};
-  const c=vm.createContext({me:{id:'self'},location:{hash:'#dm/peer'},confirm:message=>{confirmations.push(message);return confirmed;},
+  const c=nicknameContext({me:{id:'self'},location:{hash:'#dm/peer'},confirm:message=>{confirmations.push(message);return confirmed;},
     api:async(...args)=>{calls.push(args);return request(...args);},render:async()=>{renders++;},toast:message=>notices.push(message),
     document:{addEventListener:(name,fn)=>{if(name==='click')listeners.push(fn);}},window:{addEventListener(){}},setInterval(){}});
   vm.runInContext(read('chat-features.js'),c);c.refreshMessageBadge=()=>{};

@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -15,7 +16,7 @@ function setup(reduced=false){
  const motion={matches:reduced,addEventListener:(n,f)=>globalEvents.set('motion',f),removeEventListener:()=>globalEvents.delete('motion')};
  const document={hidden:false,addEventListener:(n,f)=>globalEvents.set(n,f),removeEventListener:n=>globalEvents.delete(n),createElement:()=>({setAttribute(){},addEventListener(name,fn){this[name]=fn;},remove(){const i=outgoing.indexOf(this);if(i>=0)outgoing.splice(i,1);}})};
  const audioEvents=new Map(),audio={paused:true,ended:false,addEventListener:(n,f)=>audioEvents.set(n,f),removeEventListener:n=>audioEvents.delete(n)};
- const c=vm.createContext({document,audio,current:null,window:{matchMedia:()=>motion,addEventListener:(n,f)=>globalEvents.set(n,f),removeEventListener:n=>globalEvents.delete(n)},setTimeout:(f,delay)=>{assert.ok([5500,850,500].includes(delay));(delay===5500?timers:fades).set(++serial,f);return serial;},clearTimeout:id=>{timers.delete(id);fades.delete(id);},esc:String,icon:n=>n});
+ const c=nicknameContext({document,audio,current:null,window:{matchMedia:()=>motion,addEventListener:(n,f)=>globalEvents.set(n,f),removeEventListener:n=>globalEvents.delete(n)},setTimeout:(f,delay)=>{assert.ok([5500,850,500].includes(delay));(delay===5500?timers:fades).set(++serial,f);return serial;},clearTimeout:id=>{timers.delete(id);fades.delete(id);},esc:String,icon:n=>n});
  vm.runInContext(readFileSync(new URL('../dist/home.js',import.meta.url),'utf8'),c);c.releaseHTML=t=>t.id;
  const tracks=['one','two','three'].map(id=>({id,title:id}));
  const mount=list=>c.mountFeatureCarousel(root,list||tracks,{coverflow:true});

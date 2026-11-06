@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -80,7 +81,7 @@ test('restoration never opens a playback session or plays media; user playback s
  const source=readFileSync('dist/app.js','utf8'),restore=source.slice(source.indexOf('async function resumeAfterLogin()'),source.indexOf('async function report()'));
  const elements=new Map(),element=()=>({textContent:'',value:0,max:0,innerHTML:'',setAttribute(){}});
  const calls=[],audio={paused:true,pause(){this.paused=true;},play(){throw Error('restore must not play');}};
- const c=vm.createContext({pendingResume:{id:'one',time:23},current:null,playSerial:0,me:{id:'owner'},preview:false,restoredPosition:0,audio,
+ const c=nicknameContext({pendingResume:{id:'one',time:23},current:null,playSerial:0,me:{id:'owner'},preview:false,restoredPosition:0,audio,
   api:async path=>{calls.push(path);return {track:{id:'one',duration:60}};},remember(){},renderPlayerActions(){},setCurrentLyrics(){},refreshLyricsPanel(){},setPlayerVisible(){},playerClock:String,icon:()=>'',window:{},$:id=>{if(!elements.has(id))elements.set(id,element());return elements.get(id);}});
  vm.runInContext(restore,c);await c.resumeAfterLogin();assert.deepEqual(calls,['/api/tracks/one']);assert.equal(c.audio.paused,true);assert.equal(c.restoredPosition,23);assert.equal(elements.get('#seek').value,23);
  assert.match(source.slice(source.indexOf('async function play('),source.indexOf('async function resumeAfterLogin()')),/await audio\.play\(\)/);

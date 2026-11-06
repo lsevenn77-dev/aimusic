@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
@@ -97,7 +98,7 @@ test('chat ordering handles identical timestamps, retention rollover and old per
 test('room screen joins once automatically, never opens microphone, and offers retry only on failure',async()=>{
  const elements=new Map(),get=id=>{if(!elements.has(id))elements.set(id,{hidden:true,value:'',elements:{},attributes:{},setAttribute(k,v){this.attributes[k]=v;},querySelector:()=>({})});return elements.get(id);};
  let calls=0,reply,fail=false,mics=0;
- const c=vm.createContext({performance,crypto,AbortSignal,window:{addEventListener(){},removeEventListener(){}},document:{addEventListener(){},removeEventListener(){}},navigator:{mediaDevices:{getUserMedia(){mics++;throw Error('must stay muted');}}},fetch:async()=>{calls++;return new Promise(resolve=>{reply=()=>resolve(Response.json(fail?{error:'full'}:{generation:'g',members:[],room:{}},{status:fail?409:200}));});},audio:{pause(){}},api:()=>Promise.resolve({conversations:[]}),toast(){},busyForm:()=>()=>{},setInterval:()=>0,clearInterval(){},setTimeout,clearTimeout,$:get});
+ const c=nicknameContext({performance,crypto,AbortSignal,window:{addEventListener(){},removeEventListener(){}},document:{addEventListener(){},removeEventListener(){}},navigator:{mediaDevices:{getUserMedia(){mics++;throw Error('must stay muted');}}},fetch:async()=>{calls++;return new Promise(resolve=>{reply=()=>resolve(Response.json(fail?{error:'full'}:{generation:'g',members:[],room:{}},{status:fail?409:200}));});},audio:{pause(){}},api:()=>Promise.resolve({conversations:[]}),toast(){},busyForm:()=>()=>{},setInterval:()=>0,clearInterval(){},setTimeout,clearTimeout,$:get});
  vm.runInContext(readFileSync(new URL('../dist/voice-rooms.js',import.meta.url),'utf8')+'\nthis.Client=VoiceRoomClient;',c);
  const setup=()=>{const client=new c.Client('test');client.bindRoomEcho=()=>{};client.bindFinalControls=()=>{};client.giftSummary=()=>{};client.paint=()=>{};client.socket=()=>{};client.receive=async()=>{};const original=client.join.bind(client);client.join=()=>client.pending=original();return client;};
  const host={isConnected:true,getBoundingClientRect:()=>({top:0}),querySelector:()=>({})},client=setup();client.bindFinalControls=()=>{};client.bind(host);client.bindFinalControls=()=>{};client.bind(host);assert.equal(calls,1);assert.equal(get('#voice-entry').hidden,true);reply();await client.pending;
@@ -113,7 +114,7 @@ test('room gift entry uses the shared dialog and keeps delivery bound to current
  ]),requests=[],dialogs=[],sheets=[];
  const receipt={gift:{id:'receipt-room',type:'balloon',name:'풍선',gold:15,quantity:3},balance:85,animation_pending:true};
  let response=receipt,status=201;
- const c=vm.createContext({crypto,AifectGifts,window:{addEventListener(){}},document:{addEventListener(){}},$:id=>elements.get(id),profileGiftDialog:(id,initial)=>dialogs.push({id,initial}),fetch:async(url,options)=>{requests.push({url,body:JSON.parse(options.body)});return Response.json(response,{status});}});
+ const c=nicknameContext({crypto,AifectGifts,window:{addEventListener(){}},document:{addEventListener(){}},$:id=>elements.get(id),profileGiftDialog:(id,initial)=>dialogs.push({id,initial}),fetch:async(url,options)=>{requests.push({url,body:JSON.parse(options.body)});return Response.json(response,{status});}});
  vm.runInContext(readFileSync(new URL('../dist/voice-rooms.js',import.meta.url),'utf8')+'\nthis.Client=VoiceRoomClient;',c);
  const client=new c.Client('test-room'),self={id:'self',profile_id:'self-profile',name:'Self'},guest={id:'guest',profile_id:'guest-profile',name:'Guest'},other={id:'other',profile_id:'other-profile',name:'Other'};
  Object.assign(client,{joined:true,generation:'generation-1',host:{isConnected:true},state:{self:'self',members:[self,guest,other,{id:'no-profile',name:'Unavailable'}]}});client.showSheet=id=>sheets.push(id);
@@ -248,7 +249,7 @@ test('gift chat notices are ordered, persisted once and restricted to members pr
 });
 
 test('talk gift history uses the recorded names, quantity and catalogue art and preserves older messages',()=>{
- const c=vm.createContext({AifectGifts,number:String,esc:s=>String(s).replaceAll('<','&lt;'),giftArt:g=>`<img src="${g.image}" alt="">`,icon:()=>''});
+ const c=nicknameContext({AifectGifts,number:String,esc:s=>String(s).replaceAll('<','&lt;'),giftArt:g=>`<img src="${g.image}" alt="">`,icon:()=>''});
  vm.runInContext(readFileSync(new URL('../dist/voice-rooms.js',import.meta.url),'utf8'),c);
  const message={kind:'gift',name:'<from>',recipient_name:'<to>',gift:{type:'lollipop',name:'막대사탕',quantity:7},body:'원래 알림 문장',created:0};
  const html=c.voiceChatMessageHTML(message);
@@ -263,7 +264,7 @@ test('talk gift history uses the recorded names, quantity and catalogue art and 
 
 test('gift websocket event refreshes chat immediately and coalesces updates arriving during a refresh',async()=>{
  class Socket{constructor(){Socket.current=this;}close(){}}
- const c=vm.createContext({performance,crypto,URL,WebSocket:Socket,location:{href:'https://aifect.test/#voice/test'},window:{addEventListener(){},removeEventListener(){}},document:{addEventListener(){},removeEventListener(){}},setTimeout,clearTimeout,setInterval,clearInterval});
+ const c=nicknameContext({performance,crypto,URL,WebSocket:Socket,location:{href:'https://aifect.test/#voice/test'},window:{addEventListener(){},removeEventListener(){}},document:{addEventListener(){},removeEventListener(){}},setTimeout,clearTimeout,setInterval,clearInterval});
  vm.runInContext(readFileSync(new URL('../dist/voice-rooms.js',import.meta.url),'utf8')+'\nthis.Client=VoiceRoomClient;',c);
  const client=new c.Client('test');client.joined=true;client.epoch=1;
  const pending=[],painted=[];let animated=0;
@@ -309,7 +310,7 @@ test('lost SFU responses keep cleanup pending until late allocations are closed'
 });
 
 test('frontend ignores old heartbeat after rejoin and stops a late microphone grant after leaving',async()=>{
- const c=vm.createContext({performance,crypto,window:{addEventListener(){},removeEventListener(){}},document:{addEventListener(){},removeEventListener(){}},navigator:{mediaDevices:{}},fetch:async()=>Response.json({}),setInterval,clearInterval,setTimeout,clearTimeout,$:()=>({value:''})});
+ const c=nicknameContext({performance,crypto,window:{addEventListener(){},removeEventListener(){}},document:{addEventListener(){},removeEventListener(){}},navigator:{mediaDevices:{}},fetch:async()=>Response.json({}),setInterval,clearInterval,setTimeout,clearTimeout,$:()=>({value:''})});
  vm.runInContext(readFileSync(new URL('../dist/voice-rooms.js',import.meta.url),'utf8')+'\nthis.Client=VoiceRoomClient;',c);
  const client=new c.Client('test');client.joined=true;client.epoch=1;client.state={revision:2};let reply;client.command=()=>new Promise(r=>reply=r);client.paint=()=>assert.fail('stale response painted');
  const pending=client.refresh();client.epoch=2;reply({revision:1});await pending;assert.equal(client.state.revision,2);

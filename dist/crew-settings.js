@@ -233,7 +233,7 @@ function bindCrewActivity(ui) {
   try{
    const d=await api(ui.path+'/'+tab,'GET',undefined,{fresh:true,signal:ui.signal});
    if(!ui.modal.open||ticket!==serial)return;
-   body.innerHTML=tab==='applications'?d.applications.map(a=>`<div class="crew-manage-row" data-applicant="${esc(a.user_id)}"><strong>${esc(a.name)}</strong><div class="crew-row-actions"><button class="small-button" data-decision="approve">승인</button><button class="small-button" data-decision="reject">거절</button></div></div>`).join('')||'<p>대기 중인 가입 신청이 없어요.</p>':
+   body.innerHTML=tab==='applications'?d.applications.map(a=>`<div class="crew-manage-row" data-applicant="${esc(a.user_id)}"><strong>${memberNickname(a)}</strong><div class="crew-row-actions"><button class="small-button" data-decision="approve">승인</button><button class="small-button" data-decision="reject">거절</button></div></div>`).join('')||'<p>대기 중인 가입 신청이 없어요.</p>':
     d.events.map(e=>`<article class="crew-audit-event"><strong>${esc(labels[e.action]||e.action)}</strong><small>${esc(new Date(e.created*1000).toLocaleString('ko-KR',{timeZone:'Asia/Seoul'}))}</small>${e.detail?`<p>${esc(e.detail)}</p>`:''}</article>`).join('')||'<p>아직 운영 기록이 없어요.</p>';
   }catch(e){if(ui.modal.open&&ticket===serial){ui.error.textContent=e.message;body.innerHTML='<button class="small-button" data-retry>다시 불러오기</button>';}}
  }

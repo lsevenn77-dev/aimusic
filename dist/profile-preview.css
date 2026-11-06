@@ -50,6 +50,9 @@ dialog.profile-preview .profile-preview-card {
 .profile-preview-actions :is(a,button)>span {font-size:inherit;font-weight:inherit}
 .profile-preview-actions svg {width:17px;height:17px;flex:none}
 [data-profile-preview] {cursor:pointer}
+.user-nickname {font:inherit;color:inherit;letter-spacing:inherit}
+.user-nickname[data-profile-preview]:hover {text-decoration:underline;text-underline-offset:3px}
+.user-nickname[data-profile-preview]:focus-visible {outline:1px solid currentColor;outline-offset:3px;border-radius:2px}
 @media (max-width:800px) {
  dialog.profile-preview {
   --preview-photo:76px; --preview-action-size:13px;

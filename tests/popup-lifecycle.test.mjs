@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -11,7 +12,7 @@ function fixture(){
   if(selector==='.popup-prompt,h2'){const label=this.innerHTML.match(/<(?:h2|p class="popup-prompt")>([^<]+)</);return label?{textContent:label[1]}:null;}
   return selector.split(',').some(part=>part[0]==='.'?this.innerHTML.includes('class="'+part.slice(1)+'"'):this.innerHTML.includes('id="'+part.slice(1)+'"'))?{}:null;
  }};
- const c=vm.createContext({$:selector=>selector==='#dialog'?modal:content,decorateNativeAudioPlay(){}});
+ const c=nicknameContext({$:selector=>selector==='#dialog'?modal:content,decorateNativeAudioPlay(){}});
  vm.runInContext(app.slice(app.indexOf('function prepareCompactPopup('),app.indexOf('function dialog(html)')),c);
  vm.runInContext(app.split('\n').filter(line=>line.startsWith('function dialog(html)')||line.startsWith("$('#dialog').addEventListener('close'")).join('\n'),c);
  return {modal,classes,open:html=>c.dialog(html),close(){modal.open=false;listeners.close?.call(modal);},dispatchClose(){listeners.close?.call(modal);}};

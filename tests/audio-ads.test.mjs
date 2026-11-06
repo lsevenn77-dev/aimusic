@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -32,7 +33,7 @@ test('60% qualifies, just under 60% and seeking alone do not',()=>{
 });
 test('manual song selection records the old listen before checking the ad boundary',async()=>{
  const cadence=core.createAudioAdCadence(4),checks=[];
- const context=vm.createContext({document:{addEventListener(){},querySelector(){}},Audio:class{constructor(){this.duration=180;this.played={length:1,start:()=>0,end:()=>108};}pause(){}},sessionStorage:{getItem:()=>null},window:{AifectAudioAds:{active:false,completed:value=>cadence.complete(value),beforeTrack(){checks.push(cadence.count);throw Error('boundary reached');}}},AifectAudioAdsCore:core,AifectGenres:{GENRES:[]}});
+ const context=nicknameContext({document:{addEventListener(){},querySelector(){}},Audio:class{constructor(){this.duration=180;this.played={length:1,start:()=>0,end:()=>108};}pause(){}},sessionStorage:{getItem:()=>null},window:{AifectAudioAds:{active:false,completed:value=>cadence.complete(value),beforeTrack(){checks.push(cadence.count);throw Error('boundary reached');}}},AifectAudioAdsCore:core,AifectGenres:{GENRES:[]}});
  vm.runInContext(readFileSync(new URL('../dist/app.js',import.meta.url),'utf8'),context);
  vm.runInContext("current={id:'old-song'};playSession='old-session';",context);
  await assert.rejects(vm.runInContext("play('new-song')",context),/boundary reached/);

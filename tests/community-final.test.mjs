@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -15,7 +16,7 @@ test('theme options exclude expired, stored and other-owner grants; active owner
 test('focus restores original shell state and never activates for a room URL without membership',()=>{
  const elements=[{hidden:false,style:{display:'flex'}},{hidden:true,style:{display:''}}],attrs=new Map();
  const wrapper={toggleAttribute:(k,v)=>attrs.set(k,v)};
- const c=vm.createContext({document:{querySelectorAll:()=>elements,querySelector:()=>wrapper},me:{id:'owner'}});
+ const c=nicknameContext({document:{querySelectorAll:()=>elements,querySelector:()=>wrapper},me:{id:'owner'}});
  const source=readFileSync(new URL('../dist/voice-rooms.js',import.meta.url),'utf8');
  vm.runInContext(source.slice(0,source.indexOf('let voiceEntryAudio')),c);
  vm.runInContext(source.slice(source.indexOf('function cleanupVoiceRoute'),source.indexOf('function bindVoice(')),c);

@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -15,7 +16,7 @@ const comment=(id,extras={})=>({
 });
 
 function render(comments,memberId){
- const ctx=vm.createContext({
+ const ctx=nicknameContext({
   comments,me:memberId?{id:memberId}:null,track:{id:'one'},
   esc:value=>String(value??''),icon:name=>'<svg data-icon="'+name+'"></svg>',
   avatarImage:()=>'<span class="avatar"></span>',time:()=> '00:00'
@@ -53,7 +54,7 @@ test('moving a touch cancels the timer even if the browser later fires contextme
  const start=source.indexOf('(function installCommentLongPressActions()'),end=source.indexOf('})();',start);
  const listeners={},timers=new Map(),card={isConnected:true},body={closest:selector=>selector==='[data-comment-card]'?card:null};
  let next=0;
- const ctx=vm.createContext({document:{addEventListener:(type,fn)=>{listeners[type]=fn;}},
+ const ctx=nicknameContext({document:{addEventListener:(type,fn)=>{listeners[type]=fn;}},
   window:{matchMedia:()=>({matches:true})},setTimeout:(fn,ms)=>{assert.equal(ms,520);timers.set(++next,fn);return next;},clearTimeout:id=>timers.delete(id)});
  vm.runInContext(source.slice(start,end+5),ctx);
  const touch={target:body,isPrimary:true,pointerType:'touch',button:0,pointerId:1,clientX:30,clientY:30};

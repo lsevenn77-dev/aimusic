@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -29,7 +30,7 @@ test('crew detail, refresh endpoint and web render share the exact single select
  assert.equal(menu.games.length,1);assert.equal(menu.games[0].id,'racing');
  assert.equal((await f.call('/api/crews/'+cid+'/games','GET',null,'other')).status,403);
  assert.equal((await f.call('/api/crews/'+cid+'/games','GET',null,null)).status,401);
- const context=vm.createContext({esc:String,icon:()=>'',number:String,catalog:menu});
+ const context=nicknameContext({esc:String,icon:()=>'',number:String,catalog:menu});
  vm.runInContext(readFileSync(new URL('../dist/social-layouts.js',import.meta.url),'utf8'),context);
  const html=vm.runInContext('crewGameMenuHTML(catalog)',context);
  assert.equal((html.match(/class="crew-game-entry"/g)||[]).length,1);

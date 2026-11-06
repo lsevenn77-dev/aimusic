@@ -73,7 +73,7 @@ export async function notificationsRoute(req,env,path,user){
  WHERE n.recipient=? AND ${allowed} ${type} ${cursor?'AND (n.created<? OR (n.created=? AND n.id<?))':''}
  ORDER BY n.created DESC,n.id DESC LIMIT 21`,user.id,...(cursor?[cursor.created,cursor.created,cursor.id]:[]));
  const more=items.length>20;items.length=Math.min(items.length,20);
- return json({items:await Promise.all(items.map(async n=>{const {recipient,actor_id,...item}=n;return {...item,...await resolveNotification(env,n)};})),unread,read_through,next:more?items.at(-1).id:null});
+ return json({items:await Promise.all(items.map(async n=>{const {recipient,actor_id,...item}=n;return {...item,actor_user_id:actor_id,...await resolveNotification(env,n)};})),unread,read_through,next:more?items.at(-1).id:null});
 }
 
 // Room access is enforced by the normal room entry flow. Check liveness only

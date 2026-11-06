@@ -37,10 +37,10 @@ async function dto(env,p,user){
  const claims=await rows(env,`SELECT c.role_id,c.user_id,${publicNameSQL('u')} name FROM dubbing_role_claims c JOIN users u ON u.id=c.user_id
   WHERE c.project_id=? AND u.provider!='deleted'`,p.id);
  const script=JSON.parse(p.script_json);
- return {removed:!!p.removed,community:await dubbingCommunityStatus(env,p,user),reports:p.owner_id===user?.id?await dubbingOwnerReports(env,p):[],id:p.id,title:p.title,ownerName:p.owner_name,isOwner:p.owner_id===user?.id,options:JSON.parse(p.options_json),script,
+ return {removed:!!p.removed,community:await dubbingCommunityStatus(env,p,user),reports:p.owner_id===user?.id?await dubbingOwnerReports(env,p):[],id:p.id,title:p.title,ownerName:p.owner_name,ownerId:p.owner_id,isOwner:p.owner_id===user?.id,options:JSON.parse(p.options_json),script,
   source:p.source,rootId:p.root_id||p.id,versions:await dubbingVersions(env,p,user),state:p.state,visibility:p.visibility,revision:p.revision,duration:p.duration,created:p.created,updated:p.updated,
   roles:script.roles.map(r=>{const c=claims.find(c=>c.role_id===r.id);const blocked=c&&env.AIFECT_BLOCKED?.includes(c.user_id);
-   return {...r,claimed:!!c,mine:c?.user_id===user?.id,participant:c?(blocked?'참여자':c.name):null};}),
+   return {...r,claimed:!!c,mine:c?.user_id===user?.id,participant:c?(blocked?'참여자':c.name):null,participantUserId:c&&!blocked?c.user_id:null};}),
   canEdit:!p.removed&&!p.root_id&&p.owner_id===user?.id&&!p.first_recorded_at&&claims.length===0&&p.visibility==='private'&&!await one(env,'SELECT id FROM dubbing_projects WHERE root_id=? LIMIT 1',p.id),recordingAvailable:recordingEnabled(env),recording:await dubbingRecordingStatus(env,p,user),
   casting:await castingInfo(env,p,user),sound:await dubbingSoundStatus(env,p)};
 }
@@ -76,7 +76,7 @@ export async function dubbingRoute(req,env,path,user){
   if(tab==='mine')requireUser(user);
   const offset=Math.max(0,Math.min(10000,Math.floor(Number(url.searchParams.get('offset'))||0)));
   const where=tab==='mine'?`(p.owner_id=? OR EXISTS(SELECT 1 FROM dubbing_role_claims c WHERE c.project_id=p.id AND c.user_id=?))`:`p.visibility='public'${tab==='open'?" AND p.root_id IS NULL":" AND p.state='complete'"}`;
-  const list=await rows(env,`SELECT p.id,p.title,p.options_json,p.role_count,p.duration,p.state,p.visibility,p.created,p.updated,${publicNameSQL('u')} owner_name,
+  const list=await rows(env,`SELECT p.id,p.owner_id,p.title,p.options_json,p.role_count,p.duration,p.state,p.visibility,p.created,p.updated,${publicNameSQL('u')} owner_name,
    EXISTS(SELECT 1 FROM dubbing_sound_jobs j WHERE j.project_id=p.id AND j.script_key=p.script_key AND j.state='ready' AND j.mode='ai' AND COALESCE(j.output_key,'')!=''
     AND EXISTS(SELECT 1 FROM json_each(j.timeline_json,'$.sounds') cue WHERE json_extract(cue.value,'$.kind') IN ('sfx','ambient') AND json_extract(cue.value,'$.volume')>0)) has_sound_effects,
    (SELECT COUNT(*) FROM dubbing_role_claims c WHERE c.project_id=p.id) participants FROM dubbing_projects p JOIN users u ON u.id=p.owner_id
@@ -86,7 +86,7 @@ export async function dubbingRoute(req,env,path,user){
    ORDER BY ${tab==='popular'?'(SELECT COUNT(*) FROM likes WHERE dubbing_id=p.id) DESC,':''}${tab==='latest'?'p.updated':'p.created'} DESC,p.id LIMIT 25 OFFSET ?`,
    ...(tab==='mine'?[user.id,user.id]:[]),user?.id||'',user?.id||'',...(search?['%'+search+'%','%'+search+'%']:[]),...(genre?[genre]:[]),offset);
   return json({projects:list.map(p=>({id:p.id,title:p.title,genres:JSON.parse(p.options_json).genres,roleCount:p.role_count,duration:p.duration,
-   state:p.state,visibility:p.visibility,reusable:tab==='open',hasSoundEffects:!!p.has_sound_effects,ownerName:p.owner_name,participants:p.participants,created:p.created})),nextOffset:list.length===25?offset+25:null});
+   state:p.state,visibility:p.visibility,reusable:tab==='open',hasSoundEffects:!!p.has_sound_effects,ownerName:p.owner_name,ownerId:p.owner_id,participants:p.participants,created:p.created})),nextOffset:list.length===25?offset+25:null});
  }
  if(path==='/api/dubbing/generations'&&method==='POST'){
   requireUser(user);await assertDubbingCreator(env,user.id);const body=await req.json(),gid=uuid(body.requestId),options=dubbingOptions(body.options),inputHash=await hash(JSON.stringify(options));

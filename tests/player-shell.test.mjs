@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -16,7 +17,7 @@ function fixture(){
  const audio={currentTime:25,duration:NaN,volume:.75,muted:false,paused:false,addEventListener(k,fn){audioEvents[k]=fn;}};
  const document={querySelector:s=>e(s)||null,addEventListener(k,fn){documentEvents[k]=fn;},createElement:()=>({getContext:()=>({measureText:t=>({width:t.length*8})})})};
  const requestedLyrics=[];
- const context=vm.createContext({document,audio,openPlayerLyrics:()=>requestedLyrics.push(context.current.id),window:{},getComputedStyle:()=>({fontFamily:'sans-serif',paddingLeft:'10px',paddingRight:'10px',columnGap:'10px',gridTemplateColumns:'1px 220px 1px',display:'flex'}),ResizeObserver:class{observe(){}},MutationObserver:class{observe(){}},current:{id:'one'},shuffle:false,repeatMode:0,esc:s=>String(s??'').replaceAll('<','&lt;').replaceAll('"','&quot;'),cover:()=>'<img>',icon:s=>'<svg>'+s+'</svg>',liked:()=>true,giftButton:t=>t.own?'':'<button data-gift="'+t.id+'"><span>선물</span></button>'});
+ const context=nicknameContext({document,audio,openPlayerLyrics:()=>requestedLyrics.push(context.current.id),window:{},getComputedStyle:()=>({fontFamily:'sans-serif',paddingLeft:'10px',paddingRight:'10px',columnGap:'10px',gridTemplateColumns:'1px 220px 1px',display:'flex'}),ResizeObserver:class{observe(){}},MutationObserver:class{observe(){}},current:{id:'one'},shuffle:false,repeatMode:0,esc:s=>String(s??'').replaceAll('<','&lt;').replaceAll('"','&quot;'),cover:()=>'<img>',icon:s=>'<svg>'+s+'</svg>',liked:()=>true,giftButton:t=>t.own?'':'<button data-gift="'+t.id+'"><span>선물</span></button>'});
  vm.runInContext(artistRule,context);vm.runInContext(source,context);
  return {e,context,audio,audioEvents,documentEvents,requestedLyrics,click:s=>e(s).events.click(),view:()=>e('.player').dataset.playerView,run:s=>vm.runInContext(s,context),resize:n=>{width=n;context.window.AifectPlayerShell.refresh();}};
 }

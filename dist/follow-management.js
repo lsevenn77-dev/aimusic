@@ -51,7 +51,7 @@ function bindFollowManagement({params,d,tab,aid}){
     acts='<button class="small-button" data-follow="'+esc(key)+'" aria-pressed="'+!!r.following+'"><span data-follow-label>'+(r.following?'팔로잉':'팔로우')+'</span></button>';
    }
    const scope=r.scope_name?r.scope_name+'에서 차단':r.artist_id&&tab==='blocks'?'내가 차단한 아티스트':tab==='blocks'?'개인 계정':'';
-   return '<li data-key="'+esc(r.key)+'">'+check+photo+'<div class="fm-name"><strong '+(!mode?'data-fm="photo" role="button" tabindex="0" aria-haspopup="dialog" data-profile-preview="'+esc(r.artist_id?'artist:'+r.artist_id:r.profile_id||'member:'+r.uid)+'"':'')+' title="'+esc(r.name)+'">'+esc(r.name)+'</strong>'+(scope?'<small>'+esc(scope)+'</small>':'')+'</div><div class="fm-actions">'+acts+'</div></li>';
+   return '<li data-key="'+esc(r.key)+'">'+check+photo+'<div class="fm-name"><strong '+(!mode?'data-fm="photo" role="button" tabindex="0" aria-haspopup="dialog" data-profile-preview="'+esc(r.artist_id?'artist:'+r.artist_id:r.profile_id||'member:'+r.uid)+'"':'')+' title="'+esc(r.name)+'">'+userNickname(r.name,{profileId:r.profile_id,userId:r.uid,artistId:r.artist_id,entityType:r.artist_id?'artist':'user'})+'</strong>'+(scope?'<small>'+esc(scope)+'</small>':'')+'</div><div class="fm-actions">'+acts+'</div></li>';
   }).join('');
   if(ready&&!rows.length&&!status.textContent)status.textContent=input.value.trim()?'검색 결과가 없어요.':'아직 등록된 대상이 없어요.';
  }

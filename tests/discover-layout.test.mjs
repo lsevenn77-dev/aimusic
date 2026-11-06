@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -9,7 +10,7 @@ const source=readFileSync('dist/explorer.js','utf8');
 const esc=s=>String(s??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
 function context(){
  const calls=[];
- const c=vm.createContext({$:s=>s==='#dialog'?{addEventListener(){}}:null,document:{addEventListener(){}},AifectGenres:{GENRES,MOODS},genres:['전체',...GENRES],esc,icon:()=>'<svg></svg>',URLSearchParams,console,me:null,
+ const c=nicknameContext({$:s=>s==='#dialog'?{addEventListener(){}}:null,document:{addEventListener(){}},AifectGenres:{GENRES,MOODS},genres:['전체',...GENRES],esc,icon:()=>'<svg></svg>',URLSearchParams,console,me:null,
   fetch:async()=>({ok:true,json:async()=>manifest}),api:async path=>{calls.push(path);return path.startsWith('/api/playlists')?{playlists:[]}:{moods:MOODS,tracks:[{id:'one'}]};},
   section:title=>'<h2>'+esc(title)+'</h2>',grid:tracks=>'<div data-existing-grid>'+tracks.map(t=>t.id).join(',')+'</div>',heading:title=>'<h1>'+esc(title)+'</h1>',gate:()=>'<div>login</div>',empty:()=>'',location:{hash:'#discover'}});
  vm.runInContext(source,c);return {c,calls};

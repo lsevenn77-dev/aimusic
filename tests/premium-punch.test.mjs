@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {fixture} from './fixture.mjs';
@@ -23,7 +24,7 @@ test('completed punch keeps original audio and draft untouched until acceptance,
   let saves=0;const original=Float32Array.from({length:100},(_,i)=>i/100),buffer=data=>({getChannelData:()=>data,copyToChannel:v=>data.set(v),duration:data.length/10});
   const s={state:'singing',voice:buffer(original),punchRange:{start:2,end:4},punchSelection:{first:0,last:1},mr:{duration:10},ctx:{sampleRate:10,currentTime:104,createBuffer:(_n,len)=>buffer(new Float32Array(len))}};
   s.run={recordAt:2,recordClock:102,from:0,t0:100,punchRange:s.punchRange,chunks:[{t:102,d:new Float32Array(20).fill(-.2)}],src:{stop(){}},monitor:{gain:{}},node:{port:{postMessage(){s.run.flushed();}}}};
-  const context=vm.createContext({sing:s,Float32Array,setTimeout,clearTimeout,singLive:s=>s?.state==='singing',cancelAnimationFrame(){},paintPunchCountdown(){},updateTransport(){},setSingStatus(){},releaseRun(){},renderSingPanel(){},showPunchComplete(s){s.punchPage='result';},saveSingDraft(){saves++;},K:()=>({replaceTakeRange})});
+  const context=nicknameContext({sing:s,Float32Array,setTimeout,clearTimeout,singLive:s=>s?.state==='singing',cancelAnimationFrame(){},paintPunchCountdown(){},updateTransport(){},setSingStatus(){},releaseRun(){},renderSingPanel(){},showPunchComplete(s){s.punchPage='result';},saveSingDraft(){saves++;},K:()=>({replaceTakeRange})});
   vm.runInContext(finish,context);await context.finishSinging({discardPunch});
   assert.strictEqual(s.voice.getChannelData(0),original);assert.equal(saves,0);
   if(discardPunch){assert.equal(s.punchPage,'select');assert.equal(s.pendingPunch,undefined);}else{

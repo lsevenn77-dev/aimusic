@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -25,7 +26,7 @@ test('profile counters separate actual account follows, completed public works a
 });
 
 test('own header uses unified list counts in label-first order, separate totals and persisted public ID',()=>{
- const c=vm.createContext({me:{id:'owner'},document:{addEventListener(){}},window:{addEventListener(){}},esc:String,number:String,icon:()=>'',playerAvatarClass:()=>'',avatarImage:()=>'',playerBadgeHTML:()=>''});
+ const c=nicknameContext({me:{id:'owner'},document:{addEventListener(){}},window:{addEventListener(){}},esc:String,number:String,icon:()=>'',playerAvatarClass:()=>'',avatarImage:()=>'',playerBadgeHTML:()=>''});
  vm.runInContext(readFileSync('dist/mypage.js','utf8'),c);
  const html=c.myProfileHeader({profile:{id:'p',user_id:'owner',name:'Artist',public_id:'REAL1234'},human_followers:3,followers:13,ai_followers:10,following_count:8,profile_following_count:1,profile_work_count:5,produced_track_count:4});
  assert.match(html,/팔로워 <b>13<\/b>.*팔로잉 <b>8<\/b>.*작품 <b>5<\/b>.*제작곡 <b>4<\/b>/s);
@@ -50,7 +51,7 @@ test('a public dashboard shows only valid equipped artwork from the player ident
 });
 
 test('header management requires two matching IDs and blank bios leave no row',()=>{
- const c=vm.createContext({me:null,document:{addEventListener(){}},window:{addEventListener(){}},esc:String,number:String,icon:()=>'',avatarImage:()=>'',playerAvatarClass:()=>'',playerBadgeHTML:()=>''});
+ const c=nicknameContext({me:null,document:{addEventListener(){}},window:{addEventListener(){}},esc:String,number:String,icon:()=>'',avatarImage:()=>'',playerAvatarClass:()=>'',playerBadgeHTML:()=>''});
  vm.runInContext(readFileSync('dist/mypage.js','utf8'),c);
  const profile={id:'target',user_id:'owner',name:'Same nickname',image_version:'photo',banner_version:'banner'};
  for(const [me,userId,owner] of [[null,undefined,false],[{},undefined,false],[{id:'visitor'},'owner',false],[{id:'owner'},'owner',true]]){
@@ -67,7 +68,7 @@ test('header management requires two matching IDs and blank bios leave no row',(
 
 test('copy handler writes exactly the current ID and confirms only successful clipboard writes',async()=>{
  const handlers=[],messages=[],written=[];
- const c=vm.createContext({document:{body:{},addEventListener(type,fn){if(type==='click')handlers.push(fn);}},MutationObserver:class{observe(){}},navigator:{clipboard:{async writeText(id){written.push(id);}}},toast:s=>messages.push(s)});
+ const c=nicknameContext({document:{body:{},addEventListener(type,fn){if(type==='click')handlers.push(fn);}},MutationObserver:class{observe(){}},navigator:{clipboard:{async writeText(id){written.push(id);}}},toast:s=>messages.push(s)});
  vm.runInContext(readFileSync('dist/account-settings.js','utf8'),c);
  const handler=handlers.at(-1),button={dataset:{copyPublicId:'PERSISTED987'},closest:()=>true};
  await handler({target:{closest:()=>button}});assert.deepEqual(written,['PERSISTED987']);assert.deepEqual(messages,['ID가 복사되었습니다.']);

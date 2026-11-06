@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -5,7 +6,7 @@ import {readFileSync} from 'node:fs';
 function fixture(){
  let sent=0;const attrs={},picker={hidden:true,open:false,close(){this.open=false;}},button={setAttribute(k,v){attrs[k]=v;},focus(){}},input={value:'',selectionStart:0,selectionEnd:0,maxLength:500,focus(){},dispatchEvent(){},setRangeText(text,start,end){this.value=this.value.slice(0,start)+text+this.value.slice(end);this.selectionStart=this.selectionEnd=start+text.length;}};
  const nodes={'#voice-emoji-picker':picker,'#voice-message':input,'#voice-chat-form':{requestSubmit(){sent++;input.value='';input.selectionStart=input.selectionEnd=0;}}};
- const c=vm.createContext({VoiceRoomClient:class{},Event,$:s=>nodes[s]});vm.runInContext(readFileSync(new URL('../dist/voice-room-controls.js',import.meta.url),'utf8')+';this.client=new VoiceRoomClient();',c);
+ const c=nicknameContext({VoiceRoomClient:class{},Event,$:s=>nodes[s]});vm.runInContext(readFileSync(new URL('../dist/voice-room-controls.js',import.meta.url),'utf8')+';this.client=new VoiceRoomClient();',c);
  c.client.adoptRoomPopup=sheet=>{sheet.open=true;};c.client.host={querySelector:()=>button};return {client:c.client,input,picker,attrs,sent:()=>sent};
 }
 test('chat emoji picker stays open while composing repeated choices and supports explicit close',async()=>{
@@ -31,7 +32,7 @@ function boundChat(liveMode,command,refresh=async()=>{}){
   if(!nodes.has(selector))nodes.set(selector,{value:'',elements:{},addEventListener(){}});
   return nodes.get(selector);
  };
- const context=vm.createContext({Event,crypto,navigator:{mediaDevices:{}},localStorage:{getItem:()=>null},
+ const context=nicknameContext({Event,crypto,navigator:{mediaDevices:{}},localStorage:{getItem:()=>null},
   window:{innerWidth:390,innerHeight:844,addEventListener(){},removeEventListener(){}},
   document:{addEventListener(){}},$:get,busyForm:(element,callback)=>callback});
  vm.runInContext(readFileSync(new URL('../dist/voice-rooms.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../dist/voice-room-controls.js',import.meta.url),'utf8')+'\nthis.client=new VoiceRoomClient("test-room");',context);

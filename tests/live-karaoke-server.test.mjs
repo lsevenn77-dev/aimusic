@@ -156,7 +156,7 @@ test('search uses a bounded metadata query without engagement aggregation or the
  const song=queries.find(q=>q.includes('SELECT t.id,t.title'));
  assert.ok(song);assert.match(song,/LIMIT \?/);assert.doesNotMatch(song,/COUNT\(|SUM\(|FROM gifts|FROM listens|FROM comments/i);
  assert.ok(!queries.some(q=>q.includes('FROM player_inventory')),'search must not fetch room cosmetics');
- assert.deepEqual(Object.keys(result.body.tracks[0]).sort(),['artist','cover','duration','id','title']);
+ assert.deepEqual(Object.keys(result.body.tracks[0]).sort(),['artist','artist_id','cover','duration','has_ai_artist','id','producer','producer_id','title','user_id']);
  for(let i=0;i<50;i++)f.addSong('bulk-'+i);
  assert.equal((await f.search(r,r.state)).body.tracks.length,40);
 });

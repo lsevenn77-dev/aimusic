@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -8,7 +9,7 @@ const esc=value=>String(value??'').replaceAll('&','&amp;').replaceAll('<','&lt;'
 function context(){
  const listeners=[],calls=[],opened=[],forms={'#mp-inventory-recipient':{},'#mp-recipient-confirm':{},'#mp-confirm-send':{},'#mp-send-error':{},'#mp-gift-grant':{}};
  let html='',closed=false;
- const c=vm.createContext({crypto:webcrypto,URLSearchParams,esc,number:String,me:{id:'owner'},authConfig:{admin:true},document:{addEventListener:(name,fn)=>{if(name==='click')listeners.push(fn);}},$:id=>id==='#dialog'?{close(){closed=true;}}:forms[id],mySection:(title,body)=>`<h2>${title}</h2>${body}`,busyForm:(form,submit)=>submit,dialog:value=>{html=value;},profileGiftDialog:(id,initial)=>opened.push({id,initial}),toast(){},render:async()=>{},api:async(path,method='GET',body)=>{calls.push({path,method,body});return path.includes('/recipient?')?{profile:{id:'recipient',name:'받는 <회원>',public_id:'QXF7082',public_number:17}}:{};}});
+ const c=nicknameContext({crypto:webcrypto,URLSearchParams,esc,number:String,me:{id:'owner'},authConfig:{admin:true},document:{addEventListener:(name,fn)=>{if(name==='click')listeners.push(fn);}},$:id=>id==='#dialog'?{close(){closed=true;}}:forms[id],mySection:(title,body)=>`<h2>${title}</h2>${body}`,busyForm:(form,submit)=>submit,dialog:value=>{html=value;},profileGiftDialog:(id,initial)=>opened.push({id,initial}),toast(){},render:async()=>{},api:async(path,method='GET',body)=>{calls.push({path,method,body});return path.includes('/recipient?')?{profile:{id:'recipient',name:'받는 <회원>',public_id:'QXF7082',public_number:17}}:{};}});
  vm.runInContext(source('inventory.js'),c);vm.runInContext(source('profile-management.js'),c);
  return {c,forms,listeners,calls,opened,get html(){return html;},get closed(){return closed;}};
 }

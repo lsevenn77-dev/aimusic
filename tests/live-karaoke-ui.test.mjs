@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -17,7 +18,7 @@ function context(overrides={}){
   querySelector(selector){if(!this.children.has(selector))this.children.set(selector,node());return this.children.get(selector);}
  });
  const host={isConnected:true,dataset:{},querySelector:sel=>{if(!nodes.has(sel))nodes.set(sel,node());return nodes.get(sel);},querySelectorAll:()=>[]};
- const c=vm.createContext({
+ const c=nicknameContext({
   icon:()=>'<svg></svg>',esc:s=>String(s??'').replaceAll('<','&lt;').replaceAll('"','&quot;'),number:x=>String(x),time:x=>String(x),avatarImage:()=>'<img>',
   AifectGifts:{GIFT_CATALOG:[]},URL,URLSearchParams,AbortController,crypto,Date,
   voiceView:async()=>({html:'regular room'}),communityNavigation:()=>'<nav class="tabs"><a href="#community">토킹룸</a><a href="#community/crews">크루</a><a href="#community/rankings">랭킹</a></nav>',

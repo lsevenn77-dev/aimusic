@@ -1,10 +1,11 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 import {fixture} from './fixture.mjs';
 const source=name=>readFileSync(new URL('../dist/'+name,import.meta.url),'utf8');
-function context(extra={}){const c=vm.createContext({URLSearchParams,location:{hash:'#profile'},...extra});vm.runInContext(source('menu-integration.js'),c);return c;}
+function context(extra={}){const c=nicknameContext({URLSearchParams,location:{hash:'#profile'},...extra});vm.runInContext(source('menu-integration.js'),c);return c;}
 
 test('legacy menu routes preserve identifiers, repeated query parameters and canonical stability',()=>{
  const c=context(),cases={

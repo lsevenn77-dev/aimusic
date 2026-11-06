@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -5,7 +6,7 @@ import vm from 'node:vm';
 const source=readFileSync(new URL('../dist/voice-rooms.js',import.meta.url),'utf8');
 function harness(extra={}){
  let now=0,next=0;const timers=new Map(),events=[];
- const context=vm.createContext({performance:{now:()=>now},setTimeout(fn,ms){timers.set(++next,{fn,at:now+ms});return next;},clearTimeout(id){timers.delete(id);},...extra});
+ const context=nicknameContext({performance:{now:()=>now},setTimeout(fn,ms){timers.set(++next,{fn,at:now+ms});return next;},clearTimeout(id){timers.delete(id);},...extra});
  vm.runInContext(source+';this.Client=VoiceRoomClient;',context);
  const client=Object.assign(Object.create(context.Client.prototype),{diagnostics:{record:(...v)=>events.push(v)}});
  const pc=Object.assign(new EventTarget(),{iceGatheringState:'gathering',connectionState:'new',localDescription:{sdp:'v=0\r\na=candidate:1 1 udp 1 192.0.2.1 1000 typ host\r\n'}});

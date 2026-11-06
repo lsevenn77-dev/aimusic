@@ -14,7 +14,7 @@ function talkingRoomCard(room){
  const art=path&&/^\/assets\/[\w/-]+\.webp$/.test(path)&&(!room.themeUntil||room.themeUntil>Date.now())
   ?`<img class="talk-cover" src="${esc(path)}" alt="" loading="lazy" decoding="async">`:'';
  return `<a class="v3-room-card" data-talk-id="${esc(room.id)}" data-room-mode="${mode}" href="#${mode==='karaoke'?'live':'voice'}/${esc(room.id)}">
-  <div class="live-card-head"><span class="talk-host">${avatarImage(room.host_profile||{name:host},'producer',false,false)}<span title="${esc(host)}">${esc(host)}</span></span>
+  <div class="live-card-head"><span class="talk-host">${avatarImage(room.host_profile||{name:host},'producer',false,false)}<span title="${esc(host)}">${userNickname(host,{profileId:room.host_profile?.profile_id||room.host_profile?.id,userId:room.host_profile?.user_id||room.host_id})}</span></span>
    ${Number.isInteger(room.member_count)&&Number.isInteger(room.max_members)?`<span class="v3-room-count" aria-label="${restricted?'입장 제한, ':''}참여 ${room.member_count}명, 정원 ${room.max_members}명">${icon(restricted?'lock':'users')}${room.member_count}/${room.max_members}</span>`:''}
   </div><div class="v3-room-art" data-theme="${esc(room.theme?.sku||room.background||'navy')}">${art}
    ${profiles.length?`<span class="talk-follows" role="group" aria-label="팔로우한 참여자">${profiles.map(p=>avatarImage(p,'producer',false,false)).join('')}</span>`:''}

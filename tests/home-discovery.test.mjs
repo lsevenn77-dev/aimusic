@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -35,7 +36,7 @@ test('profile discovery excludes blocked creators, hidden originals and cover-on
 });
 
 test('home cards expose only profile identity and playlist metadata, preserving shared avatar behavior elsewhere',()=>{
- const c=vm.createContext({URL,URLSearchParams,Map,console,AifectGenres:{GENRES:[],MOODS:[]},window:{addEventListener(){}},Audio:class{},sessionStorage:{getItem:()=>null},document:{querySelectorAll:()=>[],addEventListener(){}}});
+ const c=nicknameContext({URL,URLSearchParams,Map,console,AifectGenres:{GENRES:[],MOODS:[]},window:{addEventListener(){}},Audio:class{},sessionStorage:{getItem:()=>null},document:{querySelectorAll:()=>[],addEventListener(){}}});
  for(const file of ['icons.js','app.js','home.js'])vm.runInContext(readFileSync(new URL('../dist/'+file,import.meta.url),'utf8'),c);
  const explorer=readFileSync(new URL('../dist/explorer.js',import.meta.url),'utf8');
  vm.runInContext(explorer.slice(explorer.indexOf('function recommendedPlaylistCard'),explorer.indexOf('function discoveryTabs')),c);
@@ -43,7 +44,9 @@ test('home cards expose only profile identity and playlist metadata, preserving 
  const p={id:'real-id',name:'긴 이름 <실제>',image_version:'v1',partner_badge:'공식 파트너',followers:999,plays:888,genre:'Rock'};
  const html=c.homeProfileCard(p,'producer');
  assert.match(html,/href="#producer\/real-id"/);assert.match(html,/긴 이름 &lt;실제&gt;/);assert.match(html,/partner-badge/);
- assert.doesNotMatch(html,/999|888|Rock|data-profile-preview|tabindex|rank|팔로워/);
+ assert.doesNotMatch(html,/999|888|Rock|rank|팔로워/);
+ assert.match(html,/data-user-nickname data-profile-preview="real-id"/);
+ assert.doesNotMatch(html.match(/<img[^>]*>/)[0],/data-profile-preview|tabindex/);
  assert.match(c.avatarImage(p,'producer'),/data-profile-preview/);
  const artist=c.homeProfileCard({...p,producer_id:'owner-profile'},'artist');
  assert.match(artist,/src="\/media\/artist\/real-id\?v=v1"/);

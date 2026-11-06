@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -46,7 +47,7 @@ test('dubbing children exclude drafts, unavailable mixes, private, unrelated and
 
 
 function profileClient(me={id:'owner'}){
- const context=vm.createContext({me,URLSearchParams,esc:String,number:String,icon:n=>`<svg data-icon="${n}"></svg>`,cover:()=>'<img>',castingMineTabs:()=>'<nav>내 원작</nav>',AifectDubbing:{dubbingGenreArtwork:()=>'/art'},document:{addEventListener(){}},window:{addEventListener(){}}});
+ const context=nicknameContext({me,URLSearchParams,esc:String,number:String,icon:n=>`<svg data-icon="${n}"></svg>`,cover:()=>'<img>',castingMineTabs:()=>'<nav>내 원작</nav>',AifectDubbing:{dubbingGenreArtwork:()=>'/art'},document:{addEventListener(){}},window:{addEventListener(){}}});
  vm.runInContext(readFileSync(new URL('../dist/mypage.js',import.meta.url),'utf8'),context);
  return context;
 }

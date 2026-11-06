@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -8,7 +9,7 @@ function client({user={id:'owner'},range='all',post,quota=true}={}){
  const calls=[],messages=[],button={innerHTML:'만들기',setAttribute(){},removeAttribute(){}},picker={},counter={},error={scrollIntoView(){}},values=new Map([['name','월간 인기 차트'],['range',range],['track_ids',[]]]);
  let shown=false;
  const form={querySelector:s=>s==='[type="submit"]'?button:s==='#chart-track-picker'?picker:s==='[name="range"]:checked'?{value:values.get('range')}:s==='[data-chart-selected-count]'?counter:s.includes('form-error')?error:null,querySelectorAll:()=>values.get('track_ids')},modal={open:false,addEventListener(){},removeEventListener(){},close(){this.open=false;}};
- const c=vm.createContext({renderId:0,me:user,location:{hash:'#charts?period=month'},chartTabs:()=>'',icon:()=>'',number:String,esc:String,formField:()=>'',formError:()=>error,uploadStage(){},toast:s=>messages.push(s),window:{addEventListener(){},removeEventListener(){}},
+ const c=nicknameContext({renderId:0,me:user,location:{hash:'#charts?period=month'},chartTabs:()=>'',icon:()=>'',number:String,esc:String,formField:()=>'',formError:()=>error,uploadStage(){},toast:s=>messages.push(s),window:{addEventListener(){},removeEventListener(){}},
   $:s=>s==='#dialog'?modal:s==='#chart-playlist-form'&&shown?form:null,
   dialog(html){shown=true;modal.open=true;c.html=html;},askLogin(){calls.push('login');},refreshLibrary:async()=>{},canCreatePlaylist:()=>quota,
   FormData:class{get(k){return values.get(k);}getAll(k){return values.get(k)||[];}},api:async(path,method,body)=>{calls.push({path,method,body});return post?post():{id:'created'};}

@@ -26,7 +26,7 @@ export async function dubbingCommunityRoute(req,env,p,user,action,tail){
    EXISTS(SELECT 1 FROM comment_reports r WHERE r.comment_id=c.id AND r.user_id=?) reported
    FROM comments c JOIN users u ON u.id=c.user_id WHERE c.dubbing_id=? AND c.deleted_at=0 AND u.provider!='deleted'
    AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=? AND b.blocked_id=c.user_id) OR (b.blocked_id=? AND b.user_id=c.user_id)) ORDER BY c.created DESC,c.id DESC LIMIT 31 OFFSET ?`,uid,p.id,uid,uid,offset);
-  return json({comments:list.slice(0,30).map(({user_id,...c})=>({...c,mine:user_id===uid,canDelete:!!uid&&(user_id===uid||p.owner_id===uid),canReport:!!uid&&user_id!==uid&&!c.reported})),nextOffset:list.length>30?offset+30:null});
+  return json({comments:list.slice(0,30).map(({user_id,...c})=>({...c,user_id,mine:user_id===uid,canDelete:!!uid&&(user_id===uid||p.owner_id===uid),canReport:!!uid&&user_id!==uid&&!c.reported})),nextOffset:list.length>30?offset+30:null});
  }
  requireUser(user);
  if(!tail&&method==='POST'){

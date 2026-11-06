@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -49,7 +50,7 @@ test('server artwork uses track cover/original fallback and never a performer po
 });
 function ui(){
  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
- const c=vm.createContext({URLSearchParams,esc,communityNavigation:()=>'<nav>unchanged navigation</nav>'});vm.runInContext(readFileSync(new URL('../dist/community-v3.js',import.meta.url),'utf8'),c);return c;
+ const c=nicknameContext({URLSearchParams,esc,communityNavigation:()=>'<nav>unchanged navigation</nav>'});vm.runInContext(readFileSync(new URL('../dist/community-v3.js',import.meta.url),'utf8'),c);return c;
 }
 test('ranking UI canonical links, minimal content, podium counts and errors',async()=>{
  const c=ui(),rows=Array.from({length:21},(_,i)=>({id:String(i),name:'A very long <name>'+i,href:'#artist/'+i,image_url:'/assets/default-avatar.svg',score:987,listeners:456,detail:'secret detail'}));

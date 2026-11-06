@@ -121,7 +121,7 @@ function roomMessages(client,sheet){
    const people=q?d.items:d.conversations;
    list.innerHTML=people.map(p=>{
     const id=q?p.profile_id:p.id;if(!id)return '';
-    return `<button type="button" data-room-peer="${esc(id)}">${avatarImage({...p,profile_id:id})}<span><strong>${esc(chatNickname(p))}</strong><small>${esc(AifectStickers.preview(p.last_message||''))}</small></span>${p.unread?`<b>${Number(p.unread)}</b>`:''}<time>${p.updated?esc(inboxTime(p.updated)):''}</time></button>`;
+    return `<button type="button" data-room-peer="${esc(id)}">${avatarImage({...p,profile_id:id})}<span><strong>${userNickname(chatNickname(p),{profileId:id,userId:p.user_id})}</strong><small>${esc(AifectStickers.preview(p.last_message||''))}</small></span>${p.unread?`<b>${Number(p.unread)}</b>`:''}<time>${p.updated?esc(inboxTime(p.updated)):''}</time></button>`;
    }).join('')||'<p>표시할 대화가 없어요.</p>';
   };
   list.onclick=e=>{const id=e.target.closest('[data-room-peer]')?.dataset.roomPeer;if(id)thread(id).catch(report);};
@@ -132,7 +132,7 @@ function roomMessages(client,sheet){
   const t=reset(),path='/api/dm/'+encodeURIComponent(id);
   const d=await api(path,'GET',undefined,{fresh:true});if(!current(t))return;
   peer=d.peer;
-  sheet.innerHTML=`<header class="room-dm-header"><button type="button" data-room-back aria-label="메시지 목록">‹</button>${avatarImage({...peer,profile_id:id})}<strong>${esc(chatNickname(peer))}</strong>${dmMuteButton({...peer,muted:d.settings?.muted})}</header><div class="room-dm-log" role="log"></div>${dmEmojiPickerHTML()}<form class="room-dm-composer"><label aria-label="사진 첨부" tabindex="0">${icon('image')}<input type="file" accept="image/jpeg,image/png,image/webp" hidden></label><div class="talk-message-field"><div role="textbox" contenteditable="true" aria-multiline="true" aria-label="메시지" aria-placeholder="메시지를 입력하세요…" data-dm-editor data-limit="2000"></div><button type="button" data-dm-emoji aria-label="이모티콘">${voiceGlyph('smile')}</button></div><button aria-label="보내기">${voiceGlyph('send')}</button><button type="button" data-room-dm-gift aria-label="선물">${voiceGlyph('present')}</button></form><small role="status" data-room-dm-status></small>`;
+  sheet.innerHTML=`<header class="room-dm-header"><button type="button" data-room-back aria-label="메시지 목록">‹</button>${avatarImage({...peer,profile_id:id})}<strong>${userNickname(chatNickname(peer),{profileId:id,userId:peer.user_id})}</strong>${dmMuteButton({...peer,muted:d.settings?.muted})}</header><div class="room-dm-log" role="log"></div>${dmEmojiPickerHTML()}<form class="room-dm-composer"><label aria-label="사진 첨부" tabindex="0">${icon('image')}<input type="file" accept="image/jpeg,image/png,image/webp" hidden></label><div class="talk-message-field"><div role="textbox" contenteditable="true" aria-multiline="true" aria-label="메시지" aria-placeholder="메시지를 입력하세요…" data-dm-editor data-limit="2000"></div><button type="button" data-dm-emoji aria-label="이모티콘">${voiceGlyph('smile')}</button></div><button aria-label="보내기">${voiceGlyph('send')}</button><button type="button" data-room-dm-gift aria-label="선물">${voiceGlyph('present')}</button></form><small role="status" data-room-dm-status></small>`;
   const log=sheet.querySelector('.room-dm-log'),form=sheet.querySelector('form'),input=form.querySelector("[data-dm-editor]"),file=form.querySelector('input[type=file]'),status=sheet.querySelector('[data-room-dm-status]');
   const messages=new Map();let cursor=0,reading=false,again=false,pending=null;
   async function merge(batch){

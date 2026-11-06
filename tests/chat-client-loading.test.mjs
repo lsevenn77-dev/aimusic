@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -9,7 +10,7 @@ function fixture(api){
  const log={innerHTML:'',scrollTop:0,scrollHeight:100,clientHeight:100,closest:()=>panel,addEventListener:(name,fn)=>events[name]=fn,removeEventListener(){}};
  const form={dataset:{},querySelector:selector=>selector==='textarea'?input:button};
  const nodes={'#chat-compose':form,'#chat-log':log,'#chat-earlier':earlier,'#chat-connection':{},'#chat-error':{}};
- const context=vm.createContext({renderId:1,me:{id:'user',name:'Me'},api,Date,Map,Math,Number,crypto,innerHeight:800,innerWidth:390,window:{addEventListener(){},removeEventListener(){}},ResizeObserver:class{constructor(fn){observers.push(fn)}observe(){}disconnect(){}},requestAnimationFrame:fn=>{fn();return 1},cancelAnimationFrame(){},bindChatImageUpload(){},refreshMessageBadge(){},document:{body:{classList:{add(){},toggle(){},remove(){}}},querySelector:selector=>nodes[selector],addEventListener(){}},$:selector=>nodes[selector],icon:()=>'',esc:value=>String(value??''),portrait:()=>'',playerLevel:()=>1,number:String});
+ const context=nicknameContext({renderId:1,me:{id:'user',name:'Me'},api,Date,Map,Math,Number,crypto,innerHeight:800,innerWidth:390,window:{addEventListener(){},removeEventListener(){}},ResizeObserver:class{constructor(fn){observers.push(fn)}observe(){}disconnect(){}},requestAnimationFrame:fn=>{fn();return 1},cancelAnimationFrame(){},bindChatImageUpload(){},refreshMessageBadge(){},document:{body:{classList:{add(){},toggle(){},remove(){}}},querySelector:selector=>nodes[selector],addEventListener(){}},$:selector=>nodes[selector],icon:()=>'',esc:value=>String(value??''),portrait:()=>'',playerLevel:()=>1,number:String});
  vm.runInContext(readFileSync(new URL('../dist/social-chat.js',import.meta.url),'utf8'),context);
  vm.runInContext('watchSocialChat=()=>()=>{};',context);
  return {context,input,button,log,nodes,events,inputEvents,form,panel,resize:()=>observers.forEach(fn=>fn())};

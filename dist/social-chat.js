@@ -1,6 +1,6 @@
 const crewRoleLabels={owner:'크루장',deputy:'부크루장',manager:'매니저',member:'크루원'};
 const crewDisplayName=p=>p.name+(p.role&&p.role!=='member'?'('+(crewRoleLabels[p.role]||'크루원')+')':'');
-function crewPeopleHTML(d){return d.members.map(p=>{const content=portrait(p,'producer')+'<span class="crew-person-copy"><strong>'+esc(p.name)+'</strong><small>'+esc(crewRoleLabels[p.role]||'크루원')+'</small></span>';return ['owner','deputy'].includes(d.membership?.role)&&p.role!=='owner'?`<button class="crew-person" data-crew-member="${esc(p.id)}" data-crew="${esc(d.crew.id)}">${content}</button>`:`<a href="#producer/${esc(p.id)}">${content}</a>`;}).join('');}
+function crewPeopleHTML(d){return d.members.map(p=>{const content=portrait(p,'producer')+'<span class="crew-person-copy"><strong>'+userNickname(p.name,{profileId:p.id,userId:p.user_id})+'</strong><small>'+esc(crewRoleLabels[p.role]||'크루원')+'</small></span>';return ['owner','deputy'].includes(d.membership?.role)&&p.role!=='owner'?`<button class="crew-person" data-crew-member="${esc(p.id)}" data-crew="${esc(d.crew.id)}">${content}</button>`:`<a href="#producer/${esc(p.id)}">${content}</a>`;}).join('');}
 const crewHellos={
  intro:['안녕하세요! 오늘부터 함께하게 됐어요.','반갑습니다. 여러분의 음악을 듣고 싶어요.','새로 가입했어요. 잘 부탁드려요!','안녕하세요, 함께 노래하게 되어 기뻐요.','첫인사 드립니다. 어떤 곡부터 들어볼까요?','반가워요! 앞으로 자주 이야기 나눠요.'],
  welcome:['어서 오세요! 함께하게 되어 반가워요.','환영합니다. 좋아하는 음악을 들려주세요!','반가워요. 편하게 이야기 나눠요.','크루에 오신 걸 환영해요!','안녕하세요! 함께 만들 음악이 기대돼요.','잘 오셨어요. 요즘 어떤 곡을 듣고 계세요?']
@@ -36,7 +36,7 @@ function conversationCopyHTML(p,name,emptyPreview,pinned=false){
  const pin=pinned?'<span class="dm-pin" role="img" aria-label="고정된 대화" title="고정된 대화">'+icon('dmPin')+'</span>':'';
  const mute=p.muted?'<span class="conversation-muted" role="img" aria-label="알림 끔" title="알림 끔">'+icon('bellOff')+'</span>':'';
  const dot=Number(p.unread)>0?'<i class="dm-unread-dot" aria-hidden="true"></i>':'';
- return '<div class="conversation-copy"><div class="dm-name-line"><strong title="'+esc(name)+'">'+esc(name)+'</strong>'+pin+mute+dot+'</div><p>'+esc(preview?.includes('[aifect:')?AifectStickers.preview(preview):preview||emptyPreview)+'</p></div>';
+ return '<div class="conversation-copy"><div class="dm-name-line"><strong title="'+esc(name)+'">'+(pinned?esc(name):userNickname(name,{profileId:p.id,userId:p.user_id}))+'</strong>'+pin+mute+dot+'</div><p>'+esc(preview?.includes('[aifect:')?AifectStickers.preview(preview):preview||emptyPreview)+'</p></div>';
 }
 function conversationMetaHTML(p){
  const count=Number(p.unread)||0;
@@ -62,7 +62,7 @@ function chatHTML(messages,peer=null,crew=null){
   const person=peer||{id:m.profile_id,name:label,image_version:m.image_version,player_xp:m.player_xp,profile_frame:m.profile_frame,profile_frame_artwork:m.profile_frame_artwork};
   const linked=!!person.id,face=portrait(person,'producer');
   const avatar=!mine?(linked?dmProfileLink(person,face):'<span class="dm-profile-link">'+face+'</span>'):'';
-  const author=mine?'':crew?.owner&&m.profile_id?'<button class="dm-author chat-author" data-crew-member="'+esc(m.profile_id)+'" data-crew="'+esc(crew.id)+'">'+esc(label)+'</button>':linked?dmProfileLink(person,esc(label),'dm-author'):'<span class="dm-author">'+esc(label)+'</span>';
+  const author=mine?'':'<span class="dm-author">'+userNickname(label,{profileId:person.id,userId:m.user_id||m.sender_id})+'</span>'+(crew?.owner&&m.profile_id?'<button type="button" class="icon-button chat-author-menu" data-crew-member="'+esc(m.profile_id)+'" data-crew="'+esc(crew.id)+'" aria-label="'+esc(label)+' 관리">'+icon('ui-menu-action')+'</button>':'');
   const stamp=new Date(m.created*1000).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Seoul'});
   const invitation=!crew&&m.crew_invite_id?'<a class="small-button dm-crew-invite" href="#crew/'+esc(m.crew_invite_id)+'">'+icon('users')+' 초대받은 크루 보기 '+icon('chevron')+'</a>':'';
   const body=invitation?m.body.replace('\n크루 둘러보기: https://aifect.co.kr/#crew/'+m.crew_invite_id,''):m.body;
@@ -281,7 +281,7 @@ document.addEventListener('click',async event=>{
   const cid=button.dataset.crew,pid=button.dataset.crewMember,d=await api('/api/crews/'+cid),person=d.members.find(p=>p.id===pid);
   if(!person)return toast('이미 크루에서 나간 멤버예요.');
   if(!['owner','deputy'].includes(d.membership?.role))return void(location.hash='producer/'+pid);
-  dialog(`<h2>${esc(person.name)}</h2><a class="text-link" href="#producer/${esc(pid)}" data-close-dialog>프로필 보기</a><form id="crew-role-form" ${d.membership?.role==='owner'?'':'hidden'}><label class="form-field">크루 직책<select name="role">${Object.entries(crewRoleLabels).filter(([role])=>role!=='owner').map(([role,label])=>`<option value="${role}" ${person.role===role?'selected':''}>${label}</option>`).join('')}</select></label><p class="field-help">직책 변경은 크루장, 강퇴는 크루장·부크루장이 할 수 있어요.</p><button class="primary-button">직책 저장</button><p class="form-error" role="alert"></p></form><button class="small-button crew-kick" id="crew-kick">크루에서 강퇴</button>`);
+  dialog(`<h2>${userNickname(person.name,{profileId:pid,userId:person.user_id})}</h2><a class="text-link" href="#producer/${esc(pid)}" data-close-dialog>프로필 보기</a><form id="crew-role-form" ${d.membership?.role==='owner'?'':'hidden'}><label class="form-field">크루 직책<select name="role">${Object.entries(crewRoleLabels).filter(([role])=>role!=='owner').map(([role,label])=>`<option value="${role}" ${person.role===role?'selected':''}>${label}</option>`).join('')}</select></label><p class="field-help">직책 변경은 크루장, 강퇴는 크루장·부크루장이 할 수 있어요.</p><button class="primary-button">직책 저장</button><p class="form-error" role="alert"></p></form><button class="small-button crew-kick" id="crew-kick">크루에서 강퇴</button>`);
   const refresh=async()=>{const draft=$('#chat-compose textarea')?.value;$('#dialog').close();await render();if(draft&&$('#chat-compose textarea'))$('#chat-compose textarea').value=draft;};
   const form=$('#crew-role-form');form.onsubmit=busyForm(form,async fd=>{await api(`/api/crews/${cid}/members/${pid}`,'PATCH',{role:fd.get('role')});await refresh();});
   $('#crew-kick').onclick=async()=>{if(!confirm(person.name+'님을 강퇴할까요? 이 크루에 다시 가입할 수 없게 됩니다.'))return;try{await api(`/api/crews/${cid}/members/${pid}`,'DELETE');await refresh();}catch(e){toast(e.message);}};

@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -11,7 +12,7 @@ const track=title=>({id:title,title,genre:'Rock',duration:30});
 function client(fetch){
  let now=1_790_000_000_000;
  class Clock extends Date {static now(){return now;}}
- const context=vm.createContext({fetch,AbortController,structuredClone,URL,URLSearchParams,Map,Date:Clock,console,AifectGenres:{GENRES:[]},window:{},Audio:class{},sessionStorage:{getItem:()=>null},document:{querySelectorAll:()=>[],addEventListener(){}}});
+ const context=nicknameContext({fetch,AbortController,structuredClone,URL,URLSearchParams,Map,Date:Clock,console,AifectGenres:{GENRES:[]},window:{},Audio:class{},sessionStorage:{getItem:()=>null},document:{querySelectorAll:()=>[],addEventListener(){}}});
  vm.runInContext(source('app.js'),context);
  vm.runInContext("toast=()=>{};me={id:'owner'};",context);
  return {context,run:code=>vm.runInContext(code,context),advance:ms=>{now+=ms;}};

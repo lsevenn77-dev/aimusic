@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -9,7 +10,7 @@ function setup(){
  const state={from:'song'},location={hash:'#song/one'},history={state,pushState(s){this.state=s;},replaceState(s,_,url){this.state=s;location.hash=url;},back(){back++;this.state=state;events.get('popstate')?.();}};
  const dlg={dataset:{},setAttribute(){},querySelectorAll:()=>buttons,addEventListener(k,f){handlers[k]=f;},showModal(){this.open=true;},close(){this.open=false;},remove(){attached=false;},getBoundingClientRect:()=>({left:100,right:400,top:100,bottom:250})};
  const document={addEventListener(){},documentElement:{style:{overflow:'auto'}},activeElement:{isConnected:true,focus(){focus++;}},body:{append(){attached=true;}},querySelector:()=>attached?dlg:null,createElement:()=>dlg};
- const c=vm.createContext({document,window:{addEventListener(k,f){events.set(k,f);},removeEventListener(k){events.delete(k);}},history,location,URLSearchParams,render(){renders++;},api:async()=>{requests++;return {track:{id:'one'}};},toast(message){c.error=message;}});
+ const c=nicknameContext({document,window:{addEventListener(k,f){events.set(k,f);},removeEventListener(k){events.delete(k);}},history,location,URLSearchParams,render(){renders++;},api:async()=>{requests++;return {track:{id:'one'}};},toast(message){c.error=message;}});
  vm.runInContext(source,c);
  const open=()=>vm.runInContext("openRecordingMode({track:{id:'one'}})",c);
  return {c,open,dlg,handlers,buttons,events,history,location,document,counts:()=>({back,renders,focus,requests,attached})};

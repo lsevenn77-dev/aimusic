@@ -122,7 +122,7 @@ async function improvementsView(base,param,raw,readApi=api){
 }
 async function libraryProfileHTML(readApi=api){
  if(!me)return '';const d=await readApi('/api/me/profile'),p=d.profile;
- return `<section class="surface library-profile"><a href="#profile/edit" aria-label="내 프로필 수정">${portrait(p,'producer')}</a><div><h2>${esc(p.name)}</h2><div class="inline-actions"><a href="#profile/edit">프로필 수정</a><a href="#library/followers">팔로워 ${d.follower_count}</a><a href="#library/following">팔로잉 ${d.following_count}</a></div></div><div class="inline-actions"><a href="#rewards" class="small-button">오늘의 실버</a><a href="#dm" class="small-button">DM</a><a href="#payouts" class="small-button">정산</a></div></section>`;
+ return `<section class="surface library-profile"><a href="#profile/edit" aria-label="내 프로필 수정">${portrait(p,'producer')}</a><div><h2>${userNickname(p.name,{profileId:p.id,userId:p.user_id})}</h2><div class="inline-actions"><a href="#profile/edit">프로필 수정</a><a href="#library/followers">팔로워 ${d.follower_count}</a><a href="#library/following">팔로잉 ${d.following_count}</a></div></div><div class="inline-actions"><a href="#rewards" class="small-button">오늘의 실버</a><a href="#dm" class="small-button">DM</a><a href="#payouts" class="small-button">정산</a></div></section>`;
 }
 function bindCrewForm(){
  const form=$('#crew-form'),modal=$('#dialog'),controller=new AbortController();

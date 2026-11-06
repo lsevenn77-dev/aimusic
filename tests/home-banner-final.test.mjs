@@ -1,9 +1,10 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 function geometry(){
- const c=vm.createContext({});
+ const c=nicknameContext({});
  vm.runInContext(readFileSync(new URL('../dist/home.js',import.meta.url),'utf8'),c);
  return c;
 }

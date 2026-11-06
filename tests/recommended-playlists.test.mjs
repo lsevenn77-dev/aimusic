@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -5,7 +6,7 @@ import {readFileSync} from 'node:fs';
 const source=readFileSync('dist/explorer.js','utf8');
 const escape=s=>String(s??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;');
 function client(){
- const c=vm.createContext({me:{id:'listener'},esc:escape,number:String,icon:s=>`<svg data-icon="${s}"></svg>`,playlistArt:()=>'<div>real art</div>',empty:m=>m});
+ const c=nicknameContext({me:{id:'listener'},esc:escape,number:String,icon:s=>`<svg data-icon="${s}"></svg>`,playlistArt:()=>'<div>real art</div>',empty:m=>m});
  vm.runInContext(source.slice(source.indexOf('function recommendedPlaylistCard'),source.indexOf('function discoveryTabs')),c);
  return {c};
 }

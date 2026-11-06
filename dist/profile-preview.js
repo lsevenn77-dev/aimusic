@@ -1,4 +1,4 @@
-// Identity links keep their destination for modified clicks and opening a new tab.
+// All identity text shares this dialog; explicit page/action links keep their actions.
 let profilePreviewSerial=0,profilePreviewDialog=null,profilePreviewOrigin=null,profilePreviewOverflow='';
 const profilePreviewSVG=path=>'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="'+path+'"/></svg>';
 const profilePreviewIcons={
@@ -39,7 +39,7 @@ function profilePreviewHTML(d){
  const p=d.profile, artist=!!d.artist, own=!!me&&p.user_id===me.id, kind=artist?'artist':'producer';
  const tools=artist?'':own?'<span class="profile-preview-own">내 프로필</span>':`<button type="button" data-preview-report>신고</button><span aria-hidden="true">|</span><button type="button" data-person-block="${esc(p.user_id)}" data-block-name="${esc(p.name)}">차단</button>`;
  const followers=artist?'tab=artists&amp;artist='+encodeURIComponent(p.id):'tab=followers&amp;user='+encodeURIComponent(p.user_id);
- const affiliation=artist&&p.producer_name?`<span class="preview-affiliation"><span title="${esc(p.producer_name)}">${esc(p.producer_name)}</span> 소속</span>`:'';
+ const affiliation=artist&&p.producer_name?`<span class="preview-affiliation"><span title="${esc(p.producer_name)}">${userNickname(p.producer_name,{profileId:p.producer_id})}</span> 소속</span>`:'';
  const crew=!artist&&d.crew?`<a class="profile-preview-crew" href="#crew/${encodeURIComponent(d.crew.id)}" title="${esc(d.crew.name)}">${d.crew.badge_url?`<img src="${esc(d.crew.badge_url)}" alt="크루 레벨 ${Number(d.crew.level)}" width="14" height="14">`:''}<span>${esc(d.crew.name)}</span></a>`:'';
  return `<section class="profile-preview-card" data-profile-kind="${artist?'artist':'user'}">
  <div class="profile-preview-image-slot"><button type="button" class="profile-preview-photo${playerAvatarClass(p)}" aria-label="프로필 사진 크게 보기">${avatarImage(p,kind,false)}${playerBadgeHTML(p)}</button></div>
@@ -63,13 +63,14 @@ async function openProfilePreview(id,origin){
    else{const own=await api('/api/me/profile');d={profile:own.profile,followers:own.follower_count,ai_followers:own.ai_followers,following_count:own.following_count,crew:null};}
   }
   if(!d&&id.startsWith('artist:'))d=await api('/api/artist-preview/'+encodeURIComponent(id.slice(7)));
+  if(!d&&id.startsWith('public:')){const member=await api('/api/members/'+encodeURIComponent(id.slice(7)));id='member:'+member.profile.user_id;}
   if(!d&&id.startsWith('member:'))d=await api('/api/member-preview/'+encodeURIComponent(id.slice(7)));
   if(!d)d=await api('/api/producers/'+encodeURIComponent(id)+'/preview');
   if(serial!==profilePreviewSerial||route!==location.hash||uid!==me?.id)return;
   const kind=d.artist?'artist':'producer';
   if(d.following!==undefined&&d.profile.id&&!pendingFollows.has(kind+'/'+d.profile.id))updateFollowLocal(kind,d.profile.id,d.following,d.profile);
   const panel=document.createElement('dialog');panel.className='profile-preview';panel.setAttribute('aria-labelledby','profile-preview-title');panel.setAttribute('aria-modal','true');panel.innerHTML=profilePreviewHTML(d);
-  panel.querySelectorAll('[data-profile-preview]').forEach(image=>{image.removeAttribute('data-profile-preview');image.removeAttribute('tabindex');image.removeAttribute('role');image.removeAttribute('aria-haspopup');});
+  panel.querySelectorAll('img[data-profile-preview]').forEach(image=>{image.removeAttribute('data-profile-preview');image.removeAttribute('tabindex');image.removeAttribute('role');image.removeAttribute('aria-haspopup');});
   // Close only the participant menu; the shared profile dialog sits above the active room.
   if(typeof voiceController!=='undefined'&&voiceController?.talkPopup?.open)voiceController.closeRoomPopup();
   profilePreviewOrigin=origin;profilePreviewOverflow=document.body.style.overflow;
@@ -78,7 +79,7 @@ async function openProfilePreview(id,origin){
   panel.addEventListener('cancel',event=>{event.preventDefault();closeProfilePreview();});
   panel.addEventListener('keydown',event=>{
    if(event.key!=='Tab')return;
-   const controls=[...panel.querySelectorAll('a[href],button:not(:disabled)')],first=controls[0],last=controls.at(-1);
+   const controls=[...panel.querySelectorAll('a[href],button:not(:disabled),[data-user-nickname][tabindex="0"]')],first=controls[0],last=controls.at(-1);
    if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}
    else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}
   });
@@ -103,30 +104,46 @@ const profilePreviewLinks=[
  '.song-credits a','.directory-photo','.directory-name a','.artist-card>a','.mp-artist-card',
  '.music-author','.crew-member-profile','.community-people-row a','.crew-person',
  '.dm-profile-link','.song-detail-producer a','.sing-card-person','.sing-cover-person',
- '.fan-affiliation','.sing-duet-context a','.fan-post-author a','.cover-collection-item .music-author'
+ '.fan-affiliation','.sing-duet-context a','.fan-post-author a','.cover-collection-item .music-author',
+ '.dm-thread-person','.dm-author','.cover-collection-person','.people-list-row',
+ '.crew-member-preview a','.crew-people a','.song-support-person a','.official-ai-support a',
+ '.ranking-row','.ranking-place a','.song-cover-performer','.song-cover-person',
+ '.singing-person','.studio-artist-name','.chart-song-credit a','.hub-artist',
+ '.hub-song-tile a','.hub-popular a','.community-song-credit a','.sing-card-person a',
+ '.crew-manage-row a','.mp-manage-row a','.mp-relation','.mp-activity-rows a',
+ '.song-support-person a','.karaoke-participation a'
 ].join(',');
 function previewTarget(target){
+ const nickname=target.closest('[data-user-nickname]');
+ if(nickname)return {key:nickname.dataset.profilePreview,origin:nickname};
  const marked=target.closest('[data-profile-preview]');
  const link=target.closest('a[href]');
  if(link){
-  const route=/^#(producer|artist)\/([\w-]+)$/.exec(link.getAttribute('href'));
+  const route=/^#(producer|artist|member|follower)\/([\w-]+)$/.exec(link.getAttribute('href'));
   if(route&&(link.matches(profilePreviewLinks)||marked))
-   return {key:(route[1]==='artist'?'artist:':'')+route[2],origin:link};
+   return {key:(route[1]==='artist'?'artist:':route[1]==='member'?'public:':route[1]==='follower'?'member:':'')+route[2],origin:link};
   return null;
  }
  return marked?{key:marked.dataset.profilePreview,origin:marked}:null;
 }
 document.addEventListener('click',event=>{
  const hit=previewTarget(event.target);
- if(!hit||event.button!==0||event.ctrlKey||event.metaKey||event.shiftKey||event.altKey)return;
+ if(!hit||event.button!==0)return;
  const origin=hit.origin,button=event.target.closest('button');
- if(origin.closest('dialog,label,[contenteditable="true"]')||(button&&button!==origin))return;
- event.preventDefault();event.stopImmediatePropagation();void openProfilePreview(hit.key,origin);
+ if(origin.closest('[contenteditable="true"]')||(!('userNickname' in origin.dataset)&&(origin.closest('label')||(button&&button!==origin))))return;
+ event.preventDefault();if(origin.dataset.profileStop!=='false')event.stopImmediatePropagation();void openProfilePreview(hit.key,origin);
 },true);
 document.addEventListener('keydown',event=>{
- if(event.ctrlKey||event.metaKey||event.shiftKey||event.altKey||!['Enter',' '].includes(event.key)||!event.target.matches('[data-profile-preview]')||event.target.closest('dialog,label')||event.target.closest('button'))return;
+ if(event.isComposing||!['Enter',' '].includes(event.key)||!event.target.matches('[data-profile-preview],a[href]'))return;
  const hit=previewTarget(event.target);if(!hit)return;
- event.preventDefault();event.stopImmediatePropagation();void openProfilePreview(hit.key,hit.origin);
+ if(hit.origin.closest('[contenteditable="true"]')||(!('userNickname' in hit.origin.dataset)&&(hit.origin.closest('label')||hit.origin.closest('button'))))return;
+ event.preventDefault();if(hit.origin.dataset.profileStop!=='false')event.stopImmediatePropagation();void openProfilePreview(hit.key,hit.origin);
+},true);
+// Room gestures and selection handlers must not run before the nickname's click.
+for(const type of ['pointerdown','pointerup','touchstart','touchend','dblclick','auxclick'])document.addEventListener(type,event=>{
+ const hit=event.target.closest('[data-user-nickname]');if(!hit)return;
+ if(hit.dataset.profileStop!=='false')event.stopImmediatePropagation();
+ if(type==='auxclick')event.preventDefault();
 },true);
 window.addEventListener('hashchange',closeProfilePreview);
 window.addEventListener('popstate',event=>{if(!event.photoOverlayHandled&&!document.querySelector('.photo-lightbox[open]'))closeProfilePreview();});

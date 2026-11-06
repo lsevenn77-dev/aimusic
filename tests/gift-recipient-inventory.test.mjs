@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -10,7 +11,7 @@ function node(dataset={}){return {dataset,hidden:false,disabled:false,isConnecte
 function browser(api,user={id:'owner'}){
  let html='',form,buttons=[],renders=0;
  const nodes={'#dialog':{open:true,classList:{add(){}},close(){this.open=false;}}};
- const c=vm.createContext({bindGiftCategoryTabs:async()=>{},AifectGifts,crypto,me:user,accountReady:Promise.resolve(),esc:s=>String(s??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;'),number:n=>String(n||0),icon:()=>'',remember(){},api,
+ const c=nicknameContext({bindGiftCategoryTabs:async()=>{},AifectGifts,crypto,me:user,accountReady:Promise.resolve(),esc:s=>String(s??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;'),number:n=>String(n||0),icon:()=>'',remember(){},api,
   $:selector=>nodes[selector]||null,FormData:class{},window:{addEventListener(){},removeEventListener(){}},uploadStage(){},formError:f=>f.error,toast(){},askLogin(){},render:async()=>{renders++;},
   dialog(value){html=value;if(form)form.isConnected=false;if(!value.includes('id="gift-form"'))return;
    form=node();form.error=node();const qty=node();buttons=[];
@@ -134,7 +135,7 @@ test('rapid double submit keeps the send button disabled and issues one request'
  assert.equal(b.nodes['#gift-send'].disabled,true);release();await first;assert.equal(calls.filter(r=>r.path.endsWith('/send')).length,1);
 });
 test('profile more button opens its preview and only other profiles expose the gift entry',()=>{
- const handlers={};const c=vm.createContext({me:{id:'self'},esc:String,number:String,icon:()=>'',avatarImage:()=>'',document:{addEventListener:(type,fn)=>handlers[type]=fn},window:{addEventListener(){}}});
+ const handlers={};const c=nicknameContext({me:{id:'self'},esc:String,number:String,icon:()=>'',avatarImage:()=>'',document:{addEventListener:(type,fn)=>handlers[type]=fn},window:{addEventListener(){}}});
  vm.runInContext(readFileSync(new URL('../dist/player-progress.js',import.meta.url),'utf8'),c);
  vm.runInContext(readFileSync(new URL('../dist/profile-preview.js',import.meta.url),'utf8'),c);
  const profile={id:'friend',user_id:'other',name:'친구'};

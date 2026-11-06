@@ -18,7 +18,7 @@ async function baseRecording(env,root){
  return one(env,`SELECT r.* FROM dubbing_recordings r JOIN dubbing_recording_permissions v ON v.recording_id=r.id WHERE r.project_id=? AND r.user_id=? AND r.state='submitted' AND v.visibility='public' AND v.license_version=? ORDER BY r.created LIMIT 1`,root.id,root.owner_id,CASTING_LICENSE);
 }
 async function members(env,pid,onlyRecord=null){
- const list=await rows(env,`SELECT r.id,r.role_id roleId,${publicNameSQL('u')} name,u.account_type,(SELECT id FROM producers WHERE user_id=u.id) profile_id,(SELECT image_version FROM producers WHERE user_id=u.id) image_version
+ const list=await rows(env,`SELECT r.id,r.user_id,r.role_id roleId,${publicNameSQL('u')} name,u.account_type,(SELECT id FROM producers WHERE user_id=u.id) profile_id,(SELECT image_version FROM producers WHERE user_id=u.id) image_version
  FROM dubbing_recordings r JOIN users u ON u.id=r.user_id WHERE r.project_id=? AND r.state='submitted' AND u.provider!='deleted' ${onlyRecord?'AND r.id=?':''} ORDER BY r.role_id`,pid,...(onlyRecord?[onlyRecord]:[]));
  return list.map(({id:recordId,...m})=>m);
 }
@@ -36,7 +36,7 @@ export async function castingRootView(env,pid,user){
  const combinations=[];for(const c of combos)combinations.push({...c,members:await members(env,c.id),expiresAt:c.state==='complete'?null:c.last_participation+CASTING_TTL});
  if(base)combinations.push({id:root.id,base:true,count:1,state:'base',members:await members(env,root.id,base.id),expiresAt:null});
  else if(root.visibility==='public')combinations.push({id:root.id,base:true,count:0,state:'open',members:[],expiresAt:null});
- return {root:{id:root.id,title:root.title,ownerName:root.owner_name,roleCount:root.role_count,genres:JSON.parse(root.options_json).genres,roles:script.roles,isOwner:uid===root.owner_id},combinations,baseReady:!!base,canStart:root.visibility==='public'};
+ return {root:{id:root.id,title:root.title,ownerName:root.owner_name,ownerId:root.owner_id,roleCount:root.role_count,genres:JSON.parse(root.options_json).genres,roles:script.roles,isOwner:uid===root.owner_id},combinations,baseReady:!!base,canStart:root.visibility==='public'};
 }
 async function readyBackground(env,p,required=true){
  const bg=await one(env,"SELECT * FROM dubbing_sound_jobs WHERE project_id=? AND script_key=? AND state='ready' AND output_key IS NOT NULL",p.id,p.script_key);
@@ -146,7 +146,7 @@ export async function dubbingCastingRoute(req,env,path,user){
   const where={original:'p.root_id IS NULL AND p.owner_id=?',recording:"p.state!='complete' AND EXISTS(SELECT 1 FROM dubbing_recordings r WHERE r.project_id=p.id AND r.user_id=?) AND NOT EXISTS(SELECT 1 FROM dubbing_casting_drafts d WHERE d.project_id=p.id AND d.committed_id IS NOT NULL)",produced:"p.state='complete' AND p.owner_id=?",acted:"p.state='complete' AND EXISTS(SELECT 1 FROM dubbing_recordings r WHERE r.project_id=p.id AND r.user_id=?)"}[kind];
   if(!where)fail(400,'내 작업 종류를 확인해주세요.');
   const needle='%'+(q.get('q')||'').slice(0,100)+'%';
-  const list=await rows(env,`SELECT p.id,p.title,p.state,p.visibility,p.options_json,p.role_count roleCount,p.duration,${publicNameSQL('u')} ownerName,(SELECT COUNT(*) FROM dubbing_recordings r WHERE r.project_id=p.id AND r.state='submitted') participants FROM dubbing_projects p JOIN users u ON u.id=p.owner_id WHERE ${dubbingVisibleSQL()} AND ${where} AND p.title LIKE ? ORDER BY p.updated DESC,p.id LIMIT 25 OFFSET ?`,user.id,needle,offset);
+  const list=await rows(env,`SELECT p.id,p.owner_id ownerId,p.title,p.state,p.visibility,p.options_json,p.role_count roleCount,p.duration,${publicNameSQL('u')} ownerName,(SELECT COUNT(*) FROM dubbing_recordings r WHERE r.project_id=p.id AND r.state='submitted') participants FROM dubbing_projects p JOIN users u ON u.id=p.owner_id WHERE ${dubbingVisibleSQL()} AND ${where} AND p.title LIKE ? ORDER BY p.updated DESC,p.id LIMIT 25 OFFSET ?`,user.id,needle,offset);
   return json({projects:list.map(({options_json,...p})=>({...p,genres:JSON.parse(options_json).genres})),nextOffset:list.length===25?offset+25:null});
  }
  const m=path.match(/^\/api\/dubbing\/casting\/([\w-]+)(?:\/(start|lines|audio|retarget|render|timing)(?:\/([\w-]+)\/([\w-]+))?)?$/);if(!m)fail(404,'더빙 참여 경로가 없습니다.');

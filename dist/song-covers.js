@@ -13,8 +13,8 @@ function songCoverRowHTML(t,{ranked=false,child=false,invitation=false,profile=f
   <a class="song-cover-detail${ordinal?' is-ranked':''}" href="#song/${id}" aria-label="${songPage?primary:title} 상세 보기">
    ${ordinal?`<span class="song-cover-rank" aria-label="${ordinal}${ranked?'위':'번'}">${ordinal}</span>`:''}
    <span class="song-cover-art">${cover(t,'mini-cover')}</span>
-   <span class="song-cover-copy"><strong title="${primary}">${primary}</strong>
-    ${playChild?'':`<span class="song-cover-meta" title="${esc(metadata)}">${esc(metadata)}</span>`}
+   <span class="song-cover-copy"><strong title="${primary}">${songPage?trackPerformers(t):playChild?trackNickname(t,'producer'):primary}</strong>
+    ${playChild?'':`<span class="song-cover-meta" title="${esc(metadata)}">${songPage?esc(metadata):trackPerformers(t)+(mode?' · '+mode:'')}</span>`}
    </span>
   </a>
   ${invitation?`<button type="button" class="list-action count-dropdown song-cover-expand" ${expandable?`data-cover-children="${id}" aria-controls="cover-children-${id}"`:'disabled'} aria-expanded="false" title="참여자 ${number(t.participants||0)}명 · 완성작 ${number(t.completions||0)}개"><span>${number(t.participants||0)}</span><span class="sr-only">명 참여</span><span data-cover-arrow aria-hidden="true">${icon('ui-chevron')}</span></button>`:''}
