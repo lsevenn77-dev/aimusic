@@ -22,7 +22,7 @@ export async function rhythmRoute(req,env,path,user,ms=Date.now()){
       rows(env,`WITH best AS (SELECT *,ROW_NUMBER() OVER(PARTITION BY user_id ORDER BY score DESC,finished,id) AS choice
         FROM crew_rhythm_runs WHERE week=? AND status='finished' AND crew_id IS NOT NULL),
         ranked AS (SELECT *,RANK() OVER(ORDER BY score DESC) AS place FROM best WHERE choice=1)
-        SELECT r.user_id AS id,${publicNameSQL()} AS name,r.score AS points,r.difficulty,r.place,(r.user_id=?) AS mine,p.id AS profile_id,p.image_version
+        SELECT r.user_id,r.user_id AS id,${publicNameSQL()} AS name,r.score AS points,r.difficulty,r.place,(r.user_id=?) AS mine,p.id AS profile_id,p.image_version
         FROM ranked r JOIN users u ON u.id=r.user_id LEFT JOIN producers p ON p.user_id=u.id WHERE r.place<=100 OR r.user_id=? ORDER BY r.place,r.finished,r.id`,week,uid,uid),
       rows(env,`WITH best AS (SELECT crew_id,user_id,MAX(score) AS points FROM crew_rhythm_runs
         WHERE week=? AND status='finished' AND crew_id IS NOT NULL GROUP BY crew_id,user_id),

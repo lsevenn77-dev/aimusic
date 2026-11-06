@@ -38,12 +38,13 @@ const BUCKET={
  async head(key){return {size:object(key).length};},
  async get(key,options){const data=object(key),body=options?.range?data.subarray(options.range.offset,options.range.offset+options.range.length):data;return {body,size:data.length};}
 };
-const env={DB:f.DB,BUCKET,ASSETS:{async fetch(req){const u=new URL(req.url),file=resolve(root,'.'+u.pathname);if(!file.startsWith(root+sep))return new Response('',{status:404});try{return new Response(await readFile(file),{headers:{'content-type':({'.txt':'text/html;charset=utf-8','.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.png':'image/png','.webp':'image/webp'})[extname(file)]||'application/octet-stream'}});}catch{return new Response('',{status:404});}}}};
+const env={DB:f.DB,BUCKET,ASSETS:{async fetch(req){const u=new URL(req.url),file=resolve(root,'.'+u.pathname);if(!file.startsWith(root+sep))return new Response('',{status:404});try{return new Response(await readFile(file),{headers:{'content-type':({'.html':'text/html;charset=utf-8','.txt':'text/html;charset=utf-8','.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.png':'image/png','.webp':'image/webp'})[extname(file)]||'application/octet-stream'}});}catch{return new Response('',{status:404});}}}};
 const widths=[320,360,375,390,430,768,1024,1440,1920],tracks=['one','long','two','three','invitation','own-cover','not-ready'];
 const server=createServer(async(req,res)=>{
  try{
   const u=new URL(req.url,'http://127.0.0.1:'+port);
   if(u.pathname==='/qa-nicknames.js'){res.setHeader('content-type','text/javascript');res.end(await readFile('tests/nickname-browser-qa.js'));return;}
+  if(u.pathname==='/qa-game-nicknames'){res.setHeader('content-type','text/html;charset=utf-8');res.end(`<link rel="stylesheet" href="/crew-game-lobby.css"><h1>실제 크루 게임 공통 순위 컴포넌트</h1><div id="ranks"></div><script type="module">import {renderGameRankings} from '/crew-game-lobby.js'; renderGameRankings(document.querySelector('#ranks'),{players:[{name:'코코(별)',profile_id:'friend',user_id:'other',place:1,points:10}],crews:[]});document.querySelector('#ranks').onclick=()=>document.body.dataset.parentClicked='yes';</script>`);return;}
   if(u.pathname==='/qa-runtime.js'){res.setHeader('content-type','text/javascript');res.end("addEventListener('error',e=>{if(e.error)document.documentElement.dataset.qaErrors=(document.documentElement.dataset.qaErrors||'')+' '+e.error.message;});");return;}
   if(u.pathname==='/qa-metrics.js'){res.setHeader('content-type','text/javascript');res.end(await readFile('tests/song-detail-qa.js'));return;}
   if(u.pathname==='/qa-requests'){res.setHeader('content-type','application/json');res.end(JSON.stringify(requests.slice(-200)));return;}

@@ -17,13 +17,14 @@ async function shareMemberProfile(p){
  }catch(error){if(error.name!=='AbortError')toast('프로필 링크를 공유하지 못했어요. 다시 시도해주세요.');}
 }
 
-function closeProfilePreview(){
+function closeProfilePreview(reason){
  ++profilePreviewSerial;
  if(!profilePreviewDialog)return;
  const panel=profilePreviewDialog;profilePreviewDialog=null;panel.close();panel.remove();
  document.body.style.overflow=profilePreviewOverflow;
  if(profilePreviewOrigin?.isConnected)profilePreviewOrigin.focus({preventScroll:true});
  profilePreviewOrigin=null;
+ if(reason==='dismiss')document.dispatchEvent(new Event('aifect-profile-dismiss'));
 }
 function profilePreviewActions(d, own) {
  const p=d.profile, id=encodeURIComponent(p.id||''), artist=!!d.artist;
@@ -76,7 +77,7 @@ async function openProfilePreview(id,origin){
   profilePreviewOrigin=origin;profilePreviewOverflow=document.body.style.overflow;
   document.body.style.overflow='hidden';profilePreviewDialog=panel;document.body.append(panel);
   panel.showModal();panel.querySelector('[data-preview-close]').focus();
-  panel.addEventListener('cancel',event=>{event.preventDefault();closeProfilePreview();});
+  panel.addEventListener('cancel',event=>{event.preventDefault();closeProfilePreview('dismiss');});
   panel.addEventListener('keydown',event=>{
    if(event.key!=='Tab')return;
    const controls=[...panel.querySelectorAll('a[href],button:not(:disabled),[data-user-nickname][tabindex="0"]')],first=controls[0],last=controls.at(-1);
@@ -85,8 +86,8 @@ async function openProfilePreview(id,origin){
   });
   panel.addEventListener('click',async event=>{
    const target=event.target;
-   if(target===panel){const r=panel.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)closeProfilePreview();return;}
-   if(target.closest('[data-preview-close]'))return closeProfilePreview();
+   if(target===panel){const r=panel.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)closeProfilePreview('dismiss');return;}
+   if(target.closest('[data-preview-close]'))return closeProfilePreview('dismiss');
    const gift=target.closest('[data-preview-gift]');if(gift){closeProfilePreview();await (d.artist?profileGiftDialog(d.profile.producer_id,{artistId:d.profile.id}):profileGiftDialog(gift.dataset.previewGift));return;}
    if(target.closest('[data-preview-report]')){closeProfilePreview();if(!me)return askLogin();toast('사용자 프로필 신고는 아직 연결되지 않았어요. 신고가 접수되지 않았습니다.');return;}
    const share=target.closest('[data-preview-share]');

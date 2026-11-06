@@ -20,7 +20,7 @@ test('stored gift public code lookup preserves the selected inventory ID when op
  assert.match(h.html,/name="public_id"/);assert.match(h.html,/pattern="\[A-Za-z\]\{3\}\[0-9\]\{4\}"/);assert.match(h.html,/QXF7082/);assert.doesNotMatch(h.html,/inputmode="numeric"|숫자 ID/);
  await h.forms['#mp-inventory-recipient'].onsubmit(new Map([['public_id',' qxf7082 ']]));
  assert.equal(h.calls.length,1);assert.equal(h.calls[0].path,'/api/me/gift-inventory/recipient?public_id=QXF7082');assert.equal(h.calls[0].method,'GET');
- assert.match(h.forms['#mp-recipient-confirm'].innerHTML,/ID: QXF7082/);assert.match(h.forms['#mp-recipient-confirm'].innerHTML,/받는 &lt;회원>/);assert.doesNotMatch(h.forms['#mp-recipient-confirm'].innerHTML,/ID: 17/);
+ assert.match(h.forms['#mp-recipient-confirm'].innerHTML,/ID: QXF7082/);assert.match(h.forms['#mp-recipient-confirm'].innerHTML,/받는 &lt;회원&gt;/);assert.doesNotMatch(h.forms['#mp-recipient-confirm'].innerHTML,/ID: 17/);
  await h.forms['#mp-confirm-send'].onclick();
  assert.equal(h.calls.length,1);assert.equal(h.opened.length,1);assert.equal(h.opened[0].id,'recipient');assert.equal(h.opened[0].initial.giftInventoryId,'stock-1');assert.equal(h.closed,false);
 });

@@ -87,6 +87,11 @@ async function fetchRequest(req,env,ctx){
   if(path==='/security/csp-report')return cspReport(req);
   if(path.startsWith('/internal/image-mirror/'))return await imageExportRequest(req,env);
   if(path==='/mcp')return await adminMcpRoute(req,env);
+  if(path==='/profile-popup'&&['GET','HEAD'].includes(req.method)){
+   const asset=await env.ASSETS.fetch(new Request(new URL('/aifect-profile-shell.txt',url)));
+   if(!asset.ok)return asset;
+   return new Response(req.method==='HEAD'?null:asset.body,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'private, no-store','content-security-policy':"frame-ancestors 'self'",'x-content-type-options':'nosniff','referrer-policy':'same-origin','x-robots-tag':'noindex, nofollow'}});
+  }
   const tossTestResponse=await tossTestCheckoutRoute(req,env,path);if(tossTestResponse)return tossTestResponse;
   const tossGoldTestResponse=await tossGoldTestCheckoutRoute(req,env,path);if(tossGoldTestResponse)return tossGoldTestResponse;
   // Google sign-in is registered for the public domain, not the legacy Sites

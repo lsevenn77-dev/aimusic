@@ -70,7 +70,7 @@ export async function racingRoute(req,env,path,user,ms=Date.now()){
     WHERE week=? AND score IS NOT NULL AND crew_id IS NOT NULL GROUP BY user_id
   ), ranked AS (
     SELECT user_id,points,RANK() OVER (ORDER BY points DESC) AS place FROM best
-  ) SELECT ${publicNameSQL()} AS name,p.id AS profile_id,p.image_version,r.points,r.place,(r.user_id=?) AS mine
+  ) SELECT r.user_id,${publicNameSQL()} AS name,p.id AS profile_id,p.image_version,r.points,r.place,(r.user_id=?) AS mine
     FROM ranked r JOIN users u ON u.id=r.user_id LEFT JOIN producers p ON p.user_id=r.user_id
     WHERE r.place<=100 OR r.user_id=? ORDER BY r.place,name,r.user_id`,week,uid,uid);
   const ranking=await rows(env,`WITH best AS (
