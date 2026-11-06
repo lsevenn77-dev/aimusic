@@ -2,7 +2,8 @@
 #dialog.shop-dialog{--gift-ui-scale:1;--ui-space-scale:1;--ui-type-scale:1;--ui-icon-scale:1;--shop-outline:#8f7da888;--shop-surface:linear-gradient(155deg,#181e32,#191e30 48%,#302a40);--shop-purple:linear-gradient(180deg,#b45ce8,#8434c7);box-sizing:border-box;width:min(460px,calc(100vw - 24px));max-width:calc(100vw - 24px);height:fit-content;min-height:0;max-height:calc(100dvh - 24px);inset:0;margin:auto;padding:20px;overflow:auto;overscroll-behavior:contain;border:1px solid #a48abe88;border-radius:16px;background:var(--shop-surface);box-shadow:0 12px 40px #170f2b44;color:var(--ds-text);font-size:15px;scrollbar-width:thin;scrollbar-color:#77658c #151b2c}
 #dialog.shop-dialog::backdrop{background:#080c16b3;backdrop-filter:none}
 #dialog.shop-dialog #dialog-content{display:block;min-height:0;height:auto;max-height:none;overflow:visible}
-#dialog.shop-dialog #dialog-close{top:8px;right:8px;width:44px;height:44px;min-height:44px;padding:0;font-size:0;line-height:1;box-shadow:none}
+/* The shared PC control-size rule is important; keep its text glyph hidden behind the shared X icon. */
+#dialog.shop-dialog #dialog-close{top:8px;right:8px;width:44px;height:44px;min-height:44px;padding:0;font-size:0!important;line-height:1;box-shadow:none}
 #dialog.shop-dialog :is(h2,h3){color:var(--ds-text)}
 #dialog.shop-dialog h2{font-size:20px;line-height:28px;margin:0 36px 18px 0}
 #dialog.shop-dialog h2:focus{outline:none}
