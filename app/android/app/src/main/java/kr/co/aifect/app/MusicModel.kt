@@ -162,6 +162,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
  var karaokeChart by mutableStateOf(false)
  var history by mutableStateOf<List<Song>>(emptyList())
  var showLogin by mutableStateOf(false)
+ var loginError by mutableStateOf<String?>(null)
  var browserLoginPending by mutableStateOf(NativeSession.get(app,"ticket").isNotBlank())
  var showAccount by mutableStateOf(false)
  var showAccountSettings by mutableStateOf(false)
@@ -414,12 +415,13 @@ class MusicModel(app:Application):AndroidViewModel(app) {
  }
  fun action(block:suspend ()->Unit) {
   if(busy)return
-  busy=true;mutationRevision++;profileCache.clear()
+  busy=true;if(showLogin)loginError=null;mutationRevision++;profileCache.clear()
   viewModelScope.launch { try{block()}catch(e:Exception){if(e is CancellationException)throw e;failure(e)}finally{busy=false} }
  }
  private fun failure(e:Exception) {
   if(e is ApiException && e.status==401){clearRestoredHome();user=null;showLogin=true}
   notice=e.message?: "연결을 확인하고 다시 시도해주세요."
+  if(showLogin)loginError=notice
  }
  fun refresh() {
   if(refreshing)return
@@ -753,7 +755,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   }catch(_:SignInCancelled) { /* Explicit cancellation is not an error. */ }
   catch(e:ApiException){throw e}
   catch(e:CancellationException){throw e}
-  catch(_:Exception){notice="계정 인증을 완료하지 못했어요. 다시 시도해주세요."}
+  catch(_:Exception){loginError="계정 인증을 완료하지 못했어요. 다시 시도하거나 브라우저 로그인을 이용해주세요.";notice=loginError}
   finally{api.clearGoogleBinding()}
  }
  fun socialLogin(provider:String="apple",open:(String)->Unit)=action {
@@ -779,7 +781,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
     NativeSession.put(getApplication(),"ticket","");NativeSession.put(getApplication(),"verifier","")
     browserLoginPending=false;closePlayer();loadMe();showLogin=false;notice="로그인했어요. 이제 전체곡을 즐겨보세요."
    }catch(e:Exception){
-    if(e is ApiException && e.status==409){if(reportPending)notice="브라우저에서 로그인을 마친 뒤 돌아와주세요.";return@launch}
+    if(e is ApiException && e.status==409){if(reportPending){loginError="브라우저에서 로그인을 마친 뒤 돌아와주세요.";notice=loginError};return@launch}
     if(e is ApiException && e.status in listOf(400,401)){browserLoginPending=false;NativeSession.put(getApplication(),"ticket","");NativeSession.put(getApplication(),"verifier","")}
     if(uri!=null||reportPending)failure(e)
    }

@@ -58,7 +58,7 @@ class MobileExperienceActivity:ComponentActivity(){
   button("‹","크루로 돌아가기"){requestLeave()}
   headerLabel=TextView(this).apply{text=MobileExperienceRoute.title(route);textSize=17f;setTextColor(Color.WHITE);maxLines=1;ellipsize=android.text.TextUtils.TruncateAt.END};bar.addView(headerLabel,LinearLayout.LayoutParams(0,dp(48),1f));headerLabel.gravity=Gravity.CENTER_VERTICAL
   button("⛶","전체 화면"){if(bar.visibility==View.VISIBLE){bar.visibility=View.GONE;Toast.makeText(this,"뒤로가기를 누르면 메뉴가 다시 보여요",Toast.LENGTH_SHORT).show()}}
-  if(route.startsWith("live/"))bar.visibility=View.GONE
+  if(MobileExperienceRoute.isRoom(route))bar.visibility=View.GONE
   content.addView(bar)
   loadingBar=ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);content.addView(loadingBar,LinearLayout.LayoutParams(-1,dp(2)))
   web=WebView(this).apply{
@@ -90,13 +90,13 @@ class MobileExperienceActivity:ComponentActivity(){
      if(!CurrentNavigation.sameOrigin(url,Endpoint.origin))return true
      val next=MobileExperienceRoute.fromUrl(url,Endpoint.origin)
      if(next!=null){route=next;headerLabel.text=MobileExperienceRoute.title(next);return false}
-     requestLeave();return true
+     if(MobileExperienceRoute.isRoom(route))finish()else requestLeave();return true
     }
     override fun onPageFinished(v:WebView,url:String){if(CurrentNavigation.sameOrigin(url,Endpoint.origin)){v.evaluateJavascript(mobileExperienceScript(route),null);suspended=false}}
     override fun doUpdateVisitedHistory(v:WebView,url:String,reload:Boolean){
      if(url=="about:blank"||!CurrentNavigation.sameOrigin(url,Endpoint.origin))return
      val next=MobileExperienceRoute.fromUrl(url,Endpoint.origin)
-     if(next!=null){route=next;headerLabel.text=MobileExperienceRoute.title(next)}else if(!reload)v.post{requestLeave()}
+     if(next!=null){route=next;headerLabel.text=MobileExperienceRoute.title(next)}else if(!reload)v.post{if(MobileExperienceRoute.fromUrl(v.url.orEmpty(),Endpoint.origin)==null){if(MobileExperienceRoute.isRoom(route))finish()else requestLeave()}}
     }
     override fun onReceivedError(v:WebView,r:WebResourceRequest,e:WebResourceError){if(r.isForMainFrame&&!disposed)showError()}
     override fun onReceivedHttpError(v:WebView,r:WebResourceRequest,e:WebResourceResponse){if(r.isForMainFrame&&!disposed)showError()}
@@ -105,7 +105,7 @@ class MobileExperienceActivity:ComponentActivity(){
   }
   content.addView(web,LinearLayout.LayoutParams(-1,0,1f));setContentView(root)
   ViewCompat.setOnApplyWindowInsetsListener(root){v,insets->val b=insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.ime());v.setPadding(b.left,b.top,b.right,b.bottom);insets}
-  onBackPressedDispatcher.addCallback(this,object:OnBackPressedCallback(true){override fun handleOnBackPressed(){when{custom!=null->hideCustom();!route.startsWith("live/")&&bar.visibility==View.GONE->bar.visibility=View.VISIBLE;else->requestLeave()}}})
+  onBackPressedDispatcher.addCallback(this,object:OnBackPressedCallback(true){override fun handleOnBackPressed(){when{custom!=null->hideCustom();!MobileExperienceRoute.isRoom(route)&&bar.visibility==View.GONE->bar.visibility=View.VISIBLE;else->requestLeave()}}})
   val cookies=CookieManager.getInstance()
   cookies.removeAllCookies{
    if(isFinishing)return@removeAllCookies
@@ -117,12 +117,30 @@ class MobileExperienceActivity:ComponentActivity(){
  private var leaving=false
  private fun requestLeave(){
   if(leaving||isFinishing)return;leaving=true
-  AlertDialog.Builder(this).setTitle(if(route.startsWith("live/"))"노래방에서 나갈까요?" else "게임에서 나갈까요?").setMessage(if(route.startsWith("live/"))"음성 연결과 마이크가 종료돼요." else "진행 중인 도전은 게임 화면에서 먼저 마쳐주세요.").setPositiveButton("나가기"){_,_->finish()}.setNegativeButton("계속하기"){_,_->leaving=false}.setOnCancelListener{leaving=false}.show()
+  if(MobileExperienceRoute.isRoom(route)&&!disposed&&CurrentNavigation.sameOrigin(web.url.orEmpty(),Endpoint.origin)){
+   // The page owns mode, active popup and leave cleanup. Mode switches stay inside it.
+   web.evaluateJavascript("typeof window.aifectRoomBack==='function' && window.aifectRoomBack()"){handled->
+    if(isFinishing)return@evaluateJavascript
+    if(handled=="true")leaving=false else showLeaveDialog()
+   }
+  }else showLeaveDialog()
+ }
+ private fun showLeaveDialog(){
+  val room=MobileExperienceRoute.isRoom(route)
+  val dialog=AlertDialog.Builder(ContextThemeWrapper(this,android.R.style.Theme_Material_Dialog_Alert))
+   .setTitle(if(room)MobileExperienceRoute.title(route)+"에서 나갈까요?" else "게임에서 나갈까요?")
+   .setMessage(if(room)"음성 연결과 마이크가 종료돼요." else "진행 중인 도전은 게임 화면에서 먼저 마쳐주세요.")
+   .setPositiveButton("나가기"){_,_->finish()}.setNegativeButton("머무르기"){_,_->leaving=false}.setOnCancelListener{leaving=false}.create()
+  dialog.setOnShowListener{
+   dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.rgb(19,27,38)))
+   for(which in listOf(AlertDialog.BUTTON_POSITIVE,AlertDialog.BUTTON_NEGATIVE))dialog.getButton(which).setTextColor(Color.rgb(214,186,255))
+  }
+  dialog.show()
  }
  private fun showError(){if(isFinishing)return;AlertDialog.Builder(this).setMessage("화면을 불러오지 못했어요. 연결을 확인하고 다시 시도해주세요.").setPositiveButton("다시 연결"){_,_->web.loadUrl(Endpoint.origin+MobileExperienceRoute.path(route))}.setNegativeButton("닫기"){_,_->finish()}.show()}
  override fun onPause(){if(::web.isInitialized&&!disposed){web.evaluateJavascript("window.dispatchEvent(new Event('blur'));",null);web.onPause()};super.onPause()}
  override fun onStop(){
-  if(::web.isInitialized&&!disposed&&route.startsWith("live/")&&!isChangingConfigurations){permission?.deny();permission=null;web.loadUrl("about:blank");suspended=true}
+  if(::web.isInitialized&&!disposed&&MobileExperienceRoute.isRoom(route)&&!isChangingConfigurations){permission?.deny();permission=null;web.loadUrl("about:blank");suspended=true}
   super.onStop()
  }
  override fun onResume(){super.onResume();if(::web.isInitialized&&!disposed){web.onResume();if(suspended)web.loadUrl(Endpoint.origin+MobileExperienceRoute.path(route))}}
@@ -130,7 +148,7 @@ class MobileExperienceActivity:ComponentActivity(){
 }
 
 internal fun mobileExperienceScript(route:String):String {
- val live=route.startsWith("live/")
+ val live=MobileExperienceRoute.isRoom(route)
  val css="""
  :root{color-scheme:dark;--sidebar:0px;--bg:#0b1024;--panel:#1a2038}
  html,body{max-width:100%;margin:0;overscroll-behavior:none}

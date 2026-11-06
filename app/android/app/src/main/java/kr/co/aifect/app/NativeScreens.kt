@@ -330,6 +330,8 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)P
  AppPage(title="로그인",onDismissRequest={if(!m.busy)m.showLogin=false},containerColor=Panel){
   Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).imePadding().padding(24.dp)){
    Text("취향이 이어지는 곳",fontSize=28.sp,fontWeight=FontWeight.Bold);Text("로그인하고 듣고, 부르고, 함께 나눠요.",color=Muted,fontSize=14.sp,modifier=Modifier.padding(top=8.dp,bottom=22.dp))
+   m.loginError?.let{Text(it,color=Color(0xFFFFB4A5),fontSize=14.sp,modifier=Modifier.fillMaxWidth().padding(bottom=14.dp).testTag("login-error"))}
+   if(m.busy)LinearProgressIndicator(Modifier.fillMaxWidth().padding(bottom=14.dp).testTag("login-progress"))
    if("google" in m.providers)BrandButton(onClick={social("google")},enabled=!m.busy,colors=ButtonDefaults.buttonColors(containerColor=Color.White,contentColor=Color(0xFF1F1F1F)),modifier=Modifier.fillMaxWidth().height(52.dp)){Text("Google로 계속하기",fontSize=15.sp)}
    if("google" in m.providers){
     if(BuildConfig.DEBUG&&BuildConfig.APPLICATION_ID.endsWith(".test"))Text("브라우저에서 Google 인증을 마친 뒤 왼쪽 위 닫기(X)를 눌러 테스트 앱으로 돌아오세요.",fontSize=12.sp,color=Muted,modifier=Modifier.padding(top=8.dp).testTag("browser-login-help"))
@@ -366,6 +368,7 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)P
     }
    }
    AccountMenuRow("계정 설정",Icons.Rounded.ManageAccounts){m.openAccountSettings()}
+   AccountMenuRow("로그아웃",Icons.AutoMirrored.Rounded.Logout,tint=Color(0xFFFFB4A5),enabled=!m.busy){m.logout()}
    AccountMenuRow("Premium · 골드 구매",Icons.Rounded.ShoppingBag){m.showBilling=true}
    AccountMenuRow("DM 보기",Icons.AutoMirrored.Rounded.Chat){m.showAccount=false;m.openMessages()}
    AccountMenuRow("알림 기록",Icons.Rounded.NotificationsNone){m.showNotifications=true}
@@ -375,7 +378,6 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)P
    AccountMenuRow("선물함",Icons.Rounded.CardGiftcard,tint=Pink){m.openGifts()}
    HorizontalDivider(Modifier.padding(vertical=12.dp),color=Stroke)
    AccountMenuRow("차단 관리 · 계정 삭제",Icons.Rounded.ManageAccounts){safety=true}
-   AccountMenuRow("로그아웃",Icons.AutoMirrored.Rounded.Logout,tint=Color(0xFFFFB4A5),enabled=!m.busy){m.logout()}
    TextButton(onClick={information=!information},modifier=Modifier.fillMaxWidth()){
     Text("이용 안내",color=Muted);Spacer(Modifier.weight(1f));Icon(if(information)Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,null,tint=Muted)
    }
@@ -395,7 +397,10 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)P
  var current by remember{mutableStateOf("")};var next by remember{mutableStateOf("")};var confirm by remember{mutableStateOf("")};var passwordOpen by rememberSaveable{mutableStateOf(false)}
  AppPage(title="설정",onDismissRequest={m.showAccountSettings=false},containerColor=Panel){
   Column(Modifier.fillMaxWidth().imePadding().verticalScroll(rememberScrollState()).padding(22.dp).testTag("account-settings")){
-   Text("계정 설정",fontSize=22.sp,fontWeight=FontWeight.Bold)
+   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
+    Text("계정 설정",Modifier.weight(1f),fontSize=22.sp,fontWeight=FontWeight.Bold)
+    TextButton(onClick={m.logout()},enabled=!m.busy,modifier=Modifier.testTag("settings-logout")){Text("로그아웃",color=Color(0xFFFFB4A5))}
+   }
    val pushContext=androidx.compose.ui.platform.LocalContext.current
    Text("푸시 알림",fontSize=18.sp,fontWeight=FontWeight.Bold,modifier=Modifier.padding(top=18.dp))
    listOf("dm" to "메시지", "comment" to "댓글 · 커버/듀엣 참여", "gift" to "선물").forEach{(kind,label)->

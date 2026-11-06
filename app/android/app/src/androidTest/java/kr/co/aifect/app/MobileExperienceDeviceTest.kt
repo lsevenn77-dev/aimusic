@@ -47,14 +47,48 @@ class MobileExperienceDeviceTest {
   ActivityScenario.launch<MobileExperienceActivity>(Intent(context,MobileExperienceActivity::class.java).putExtra("route","live/"+id)).use{scene->
    lateinit var w:WebView;scene.onActivity{w=web(it.window.decorView)!!}
    val open="[data-voice=karaoke-search-open]";waitJs(w,"!!document.querySelector("+JSONObject.quote(open)+")",45000);waitJs(w,"!!document.getElementById('aifect-mobile-experience') && document.documentElement.scrollWidth<=innerWidth+2");capture("karaoke-reference-room");tap(w,open)
-   waitJs(w,"!!document.querySelector('#live-query')");tap(w,"#live-query")
+   waitJs(w,"!!document.querySelector('#live-query')");val fullHeight=js(w,"innerHeight").toDouble();tap(w,"#live-query")
    val deadline=SystemClock.elapsedRealtime()+10000;var ime=false
    while(!ime&&SystemClock.elapsedRealtime()<deadline){scene.onActivity{ime=androidx.core.view.ViewCompat.getRootWindowInsets(w)?.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime())==true};SystemClock.sleep(100)}
    assertTrue("Android IME appeared",ime)
+   waitJs(w,"innerHeight < "+(fullHeight-100))
+   SystemClock.sleep(1200) // Let Android finish its IME inset animation before measuring.
    waitJs(w,"(()=>{const e=document.querySelector('#live-query'),r=e.getBoundingClientRect(),v=window.visualViewport;return document.activeElement===e && r.height>0 && r.top>=v.offsetTop-1 && r.bottom<=v.offsetTop+v.height+1})()")
    capture("karaoke-keyboard-visible")
   }
  }
+
+ @Test fun roomModeSwitchKeepsMembershipAndBackUsesCurrentMode(){
+  val args=InstrumentationRegistry.getArguments();val origin=args.getString("karaokeFixtureOrigin");val id=args.getString("karaokeFixtureRoom")
+  org.junit.Assume.assumeTrue(context.packageName.endsWith(".test")&&origin!=null&&id!=null)
+  Endpoint.configureTest(origin)
+  ActivityScenario.launch<MobileExperienceActivity>(Intent(context,MobileExperienceActivity::class.java).putExtra("route","live/"+id)).use{scene->
+   lateinit var w:WebView;scene.onActivity{w=web(it.window.decorView)!!}
+   waitJs(w,"typeof voiceController!=='undefined' && voiceController?.joined && !!document.getElementById('aifect-mobile-experience')",45000)
+   js(w,"window.__qaRoom={client:voiceController,generation:voiceController.generation,socket:voiceController.ws,initialChat:voiceController.state.chat.map(x=>x.id)};true")
+   for(mode in listOf("talk","karaoke","talk")){
+    tap(w,"[data-voice=settings]");waitJs(w,"document.querySelector('#voice-room-settings').open && !voiceController.settingsLoading")
+    tap(w,"#voice-settings-form label:has(input[name=mode][value="+mode+"])")
+    tap(w,"#voice-settings-form button[type=submit]")
+    waitJs(w,"voiceController.state.room.mode==="+JSONObject.quote(mode)+" && voiceController.liveMode==="+(mode=="karaoke")+" && !document.querySelector('#voice-room-settings').open")
+    assertEquals("same room connection and generation","true",js(w,"voiceController===window.__qaRoom.client && voiceController.generation===window.__qaRoom.generation && !voiceController.closed"))
+    assertEquals("mode changes never enable capture","true",js(w,"!voiceController.micDesired && !voiceController.stream && !document.querySelector('#talk-leave').open"))
+    assertEquals("existing chat preserved","true",js(w,"window.__qaRoom.initialChat.every(id=>voiceController.state.chat.some(m=>m.id===id))"))
+   }
+   scene.onActivity{it.onBackPressedDispatcher.onBackPressed()}
+   waitJs(w,"!!document.querySelector('#talk-leave[open]')")
+   assertEquals("talking room leave title","true",js(w,"document.querySelector('#talk-leave').textContent.includes('토킹룸에서 나갈까요?')"))
+   capture("talking-leave-current-mode")
+   tap(w,"#talk-leave [data-voice=dismiss]")
+   waitJs(w,"!document.querySelector('#talk-leave').open")
+   assertEquals("staying preserves membership","true",js(w,"voiceController.joined && !voiceController.closed"))
+   tap(w,"[data-voice=leave]");tap(w,"[data-voice=confirm-leave]")
+   val deadline=SystemClock.elapsedRealtime()+10000
+   while(scene.state!=androidx.lifecycle.Lifecycle.State.DESTROYED&&SystemClock.elapsedRealtime()<deadline)SystemClock.sleep(100)
+   assertEquals("actual leave closes the room Activity",androidx.lifecycle.Lifecycle.State.DESTROYED,scene.state)
+  }
+ }
+
  @Test fun allFourGamesFitPhoneAndReceiveTouches(){
   val crew=runBlocking{NativeApi(context).call("/api/crews?summary=1",fresh=true).optString("mine")}
   assertTrue("Existing signed-in crew required for device comparison",CurrentNavigation.safeID(crew)&&crew!="null")
