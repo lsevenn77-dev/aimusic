@@ -144,7 +144,7 @@ async function renderRoute(showCachedRoute){
  cleanupRouteBindings(main);
  const previous=navigationSnapshots.get(navigationKey(main.dataset.route));if(previous&&main.dataset.account===account)previous.scroll=window.scrollY||0;
  let cached=navigationSnapshots.get(navigationKey(raw));
- const pendingView=(typeof crewPendingView==='function'?crewPendingView(base,param,raw):null)||(typeof communityPendingView==='function'?communityPendingView(base,param,raw):null)||(typeof dmPendingView==='function'?dmPendingView(base,param,raw):null);
+ const pendingView=(typeof playPendingView==='function'?playPendingView(base,param,raw):null)||(typeof crewPendingView==='function'?crewPendingView(base,param,raw):null)||(typeof communityPendingView==='function'?communityPendingView(base,param,raw):null)||(typeof dmPendingView==='function'?dmPendingView(base,param,raw):null);
  if(!(cached&&cached.account===account&&cached.revision===apiRevision&&cached.until>Date.now())&&pendingView?.cached&&canCacheRoute(raw))cached={...pendingView,account,revision:apiRevision,until:Date.now()+60000,explorer:pendingView,scroll:0};
  const restored=canCacheRoute(raw)&&cached&&cached.account===account&&cached.revision===apiRevision&&cached.until>Date.now();
  let refreshWatch=null;
@@ -152,6 +152,7 @@ async function renderRoute(showCachedRoute){
  else main.setAttribute('aria-busy','true');
  if(!restored&&base!=='home'){const titles={inventory:'인벤토리',charts:'차트',karaoke:'플레이',community:'커뮤니티',library:'내 보관함',following:'팔로우',gifts:'상점',gold:'골드',dm:'DM 메시지',crew:'크루',payouts:'정산',rewards:'오늘의 실버',producer:'프로필',artist:'AI 아티스트',profile:'내 프로필',account:'내 계정',upload:'음원 업로드',studio:'스튜디오',search:'음악 검색',discover:'음악 발견',history:'최근 들은 음악'};main.classList.remove('motion-enter');main.innerHTML=pendingView?.html||(['dm','song','notifications'].includes(base)?'':heading(titles[base]||'음악 둘러보기'))+'<div class="route-loading" role="status"><span>불러오는 중…</span><div></div><div></div><div></div></div>';window.scrollTo({top:0,behavior:'instant'});}
  main.dataset.account=account;
+ if(pendingView?.play)bindPlayBanner(pendingView.play);
  main.classList.toggle('secondary-page',['charts','search','discover','collections','artists','producers','library','history','playlist','following','studio','manage','upload','cover','account','membership','rewards','payouts','inventory','gold'].includes(base)||base==='karaoke'&&param==='drafts');
  main.dataset.route=raw;
  main.dataset.commonBackground=String(!['karaoke','sing','cover','studio','manage','upload','dubbing'].includes(base));

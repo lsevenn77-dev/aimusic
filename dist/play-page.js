@@ -1,5 +1,5 @@
 // The Play carousel reuses the home controls and doesn't subscribe to the player.
-let playBannerCleanup=null;
+let playBannerCleanup=null,playBannerElement=null;
 const playBanners=[
  {id:'song',label:'노래',heading:['오늘은 네 목소리가','주인공'],description:['좋아하는 노래를 직접 부르고','솔로·듀엣 커버에','참여해 봐.']},
  {id:'dubbing',label:'더빙',heading:['목소리 하나로','달라지는 장면'],description:['다양한 캐릭터와 장면에','나만의 목소리를','입혀봐.']},
@@ -50,6 +50,23 @@ function playShell(s,content){
  return `<div class="play-page" data-play-mode="${s.mode}"><div class="home-content-refresh play-banner" id="play-banner" aria-label="플레이 추천 배너"></div>${playTabs([['song','노래'],['dubbing','더빙'],['browse','둘러보기']],s.mode,'플레이 종류',m=>playHref(m),'play-main-tabs')}
  <div class="play-subbar">${playTabs(playSections[s.mode],s.tab,'플레이 하위 메뉴',t=>playHref(s.mode,t,s.type),'play-category-tabs')}${s.mode==='dubbing'?'<a class="primary-button play-create" href="#dubbing/new">'+icon('ui-plus-action')+' 더빙 만들기</a>':''}</div>
  <section class="play-content" aria-label="${playSections[s.mode].find(([k])=>k===s.tab)[1]}">${content}</section></div>`;
+}
+// Show the selected banner while its list loads, then retain that same carousel
+// so the response cannot flash the first slide or restart its four-second clock.
+function playPendingView(base,param,raw){
+ if(base!=='karaoke'||param==='chart')return null;
+ const play=playSelection(param,raw);
+ return {play,html:playShell(play,'<div class="route-loading" role="status"><span>불러오는 중…</span><div></div><div></div><div></div></div>')};
+}
+function bindPlayBanner(play,root=document.querySelector('.play-page')){
+ const banner=root?.querySelector('#play-banner');if(!banner)return;
+ if(playBannerCleanup&&playBannerElement){
+  if(banner!==playBannerElement)banner.replaceWith(playBannerElement);
+  return;
+ }
+ playBannerElement=banner;
+ const dispose=mountFeatureCarousel(banner,playBanners,{renderSlide:playBannerHTML,label:'플레이 추천',previousLabel:'이전 플레이 배너',nextLabel:'다음 플레이 배너',dotsLabel:'플레이 배너 선택',syncAudio:false,initialId:play.mode,intervalMs:4000});
+ playBannerCleanup=()=>{dispose?.();playBannerElement=null;playBannerCleanup=null;};
 }
 function playEmpty(title,body,href,label){return `<div class="play-empty" role="status"><h2>${esc(title)}</h2><p>${esc(body)}</p>${href?`<a class="small-button" href="${esc(href)}">${esc(label)}</a>`:''}</div>`;}
 function playMusicCard(t,action){
@@ -153,9 +170,7 @@ async function playView(base,param,raw,readApi=api){
 function bindPlay(view){
  if(!view?.play)return;
  const root=document.querySelector('.play-page');if(!root)return;
- playBannerCleanup?.();
- const banner=root.querySelector('#play-banner');
- if(banner)playBannerCleanup=mountFeatureCarousel(banner,playBanners,{renderSlide:playBannerHTML,label:'플레이 추천',previousLabel:'이전 플레이 배너',nextLabel:'다음 플레이 배너',dotsLabel:'플레이 배너 선택',syncAudio:false});
+ bindPlayBanner(view.play,root);
  root.addEventListener('error',playDubbingArtworkError,true);
  bindPlayDuetChildren(root);
  if(view.play.mode==='dubbing'&&view.play.tab!=='mine')bindDubbingCasting(view,root);
