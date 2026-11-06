@@ -11,6 +11,7 @@
  border-radius:26px;box-shadow:var(--room-bubble-shadow);isolation:isolate;
  --room-x:26px;--room-pad-end:18px;--room-seat:70px;--room-singer:70px;--room-queue-photo:40px;--room-reserve:70px;
  padding:18px var(--room-x) var(--room-pad-end);
+ &[data-paid-theme] {background-image:linear-gradient(#0c121b55,#0c121b77),var(--decoration-desktop);background-size:cover;background-position:center;}
  & #voice-content {flex:1 1 0;min-height:0;}
  & .voice-columns,&.talking-room .voice-columns {width:100%;grid-template-columns:minmax(0,64fr) minmax(320px,36fr);grid-template-rows:minmax(0,1fr);gap:22px;}
  & .voice-columns > .voice-stage {container-type:inline-size;flex:none;min-height:0;height:100%;max-height:none;overflow:auto;}
@@ -109,6 +110,7 @@
   --room-lyric:calc(13.4px + var(--room-font-add));--room-lyric-active:calc(14.2px + var(--room-font-add));
   --room-seat:13cqw;--room-singer:14cqw;--room-reserve:48px;--room-queue-photo:24px;
   width:100%;height:var(--voice-viewport)!important;margin:0;padding:6px var(--room-x) var(--room-pad-end);border:0;border-radius:0;box-shadow:none;
+  &[data-paid-theme] {background-image:linear-gradient(#0c121b55,#0c121b77),var(--decoration-mobile,var(--decoration-desktop));}
   & .room-header {min-height:48px;margin-bottom:6px;}
   & .room-header h1 {font-size:var(--room-title);line-height:1.25;}
   & .room-heading small {font-size:var(--room-caption);line-height:1.3;}
