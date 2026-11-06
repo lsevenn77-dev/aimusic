@@ -32,9 +32,15 @@ export async function voiceKaraokeRoute(req,env,room,action,body,call){
  if(action==='karaoke-search'){
   if(req.method!=='GET')fail(405,'허용되지 않는 요청이에요.');
   const q=(url.searchParams.get('q')||'').trim().slice(0,80);
-  if(!q)return json({tracks:[]});
+  if(!q){
+   const collection=url.searchParams.get('collection');if(!['mine','popular'].includes(collection))return json({tracks:[]});
+   const library=await call('karaoke-library',{generation,collection});
+   const ids=(library.tracks||[]).filter(id=>typeof id==='string').slice(0,100);if(!ids.length)return json({tracks:[]});
+   const tracks=await liveTracks(env,'t.id IN ('+ids.map(()=>'?').join(',')+')',ids,100),order=new Map(ids.map((id,i)=>[id,i]));
+   return json({tracks:tracks.sort((a,b)=>order.get(a.id)-order.get(b.id)).slice(0,30).map(readable)});
+  }
   const where=`(t.title LIKE ? OR a.name LIKE ? OR (${producerNameSQL()}) LIKE ?)`;
-  const tracks=await liveTracks(env,where,['%'+q+'%','%'+q+'%','%'+q+'%'],40);
+  const tracks=await liveTracks(env,where,['%'+q+'%','%'+q+'%','%'+q+'%'],30);
   return json({tracks:tracks.map(readable)});
  }
  if(action!=='karaoke'||req.method!=='POST')fail(405,'허용되지 않는 요청이에요.');

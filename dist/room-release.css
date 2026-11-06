@@ -457,17 +457,7 @@
     & .room-connection { order:3; }
     & .voice-stage > .voice-unlock-audio { order:2; }
   }
-  :root[data-mobile-keyboard] #main[data-room-focus] .voice-room[data-voice-room] {
-    --room-stage-limit:48%;
-    & #live-karaoke-stage { height:210px; grid-template-rows:155px 51px; gap:4px; }
-    & .live-stage-main { grid-template-rows:54px minmax(0,1fr); padding:3px 6px 4px; }
-    & #live-current { --room-singer:30px; padding:0; }
-    & #live-current strong { max-width:100%; font-size:11px; line-height:16px; margin-top:2px; }
-    & #voice-seats { --room-seat:32px; flex-basis:112px; height:112px; gap:2px; padding:2px 4px; }
-    & #voice-seats .room-member-photo { margin:1px 0; }
-    & .live-request-area { --room-reserve:42px; padding:2px; }
-    & #live-queue { --room-avatar-slot:28px; --room-queue-photo:22px; }
-  }
+
 }
 /* At the 1120×740 benchmark the lyrics box runs from 190px below
    the card top to 35px above its bottom. Its content is centred vertically. */
@@ -557,11 +547,7 @@
 #main .voice-room .room-live-guide{display:flex;align-items:center;gap:5px;font-size:11px;order:3}
 #main .voice-room .room-live-guide button{min-height:28px;padding:2px 8px}
 #main .voice-room #live-lyrics .is-current .is-sung{color:inherit}
-@media(min-width:801px){
- .page-wrap[data-room-focus]{position:fixed!important;inset:0!important;width:100%!important;max-width:none!important;margin:0!important;padding:0!important;background:#0c121b!important;z-index:100}
- #main[data-room-focus]{position:relative!important;display:grid!important;place-items:center!important;width:100%!important;max-width:none!important;height:100dvh!important;margin:0!important;padding:0!important}
- #main[data-room-focus] .voice-room[data-voice-room]{--room-height:min(740px,100dvh);position:relative!important;inset:auto!important;width:min(1120px,100%)!important;height:var(--room-height)!important}
-}
+
 
 @media(min-width:801px) {
   #main[data-room-focus] .voice-room[data-voice-room] #voice-seats {
@@ -604,11 +590,6 @@
  #main .voice-room #voice-chat img.cat-chat-sticker:not(.cat-word-ink) {width:calc(var(--cat-art-size) * .5);height:calc(var(--cat-art-size) * .5);vertical-align:calc(.5cap - var(--cat-art-size) * .25);object-fit:contain}
  #main .voice-room #voice-chat .cat-word-slot {width:calc(var(--cat-slot-width) * .5);height:calc(var(--cat-slot-height) * .5);padding-block-start:calc(var(--cat-art-inset) * .5);vertical-align:calc(.38em - var(--cat-below-ink) * .5)}
  #main .voice-room #voice-chat .cat-word-slot img.cat-word-ink {width:calc(var(--cat-slot-width) * .5);height:calc(var(--cat-art-height) * .5);max-width:none}
- #main .voice-room #voice-content .voice-chat-panel .room-popup[open] {max-height:calc(var(--room-height) - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px)!important;max-width:100%!important;box-sizing:border-box}
- #main .voice-room #voice-content .voice-chat-panel #talk-leave[open] {max-height:calc(var(--room-height) - 64px)!important}
- #main .voice-room #voice-content .voice-chat-panel #voice-emoji-picker[open] {max-height:min(260px,calc(var(--room-height) - var(--room-composer) - 24px))!important}
- #main .voice-room #voice-content .voice-chat-panel :is(#room-inbox,#voice-sound,#voice-room-settings)[open] {max-height:calc(var(--room-height) - env(safe-area-inset-top) - 16px)!important}
- :root[data-mobile-keyboard] #main .voice-room #voice-content .voice-chat-panel .room-popup[data-input-viewport][open] {position:absolute!important;top:auto!important;bottom:0!important;height:auto;max-height:calc(var(--room-height) - 8px)!important}
 }
 
 html[data-room-popup] body{overflow:hidden}

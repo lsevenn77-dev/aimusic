@@ -12,7 +12,7 @@ import {readdir} from 'node:fs/promises';
 await mkdir('dist/server',{recursive:true});
 await mkdir('dist/client',{recursive:true});
 await build({entryPoints:['shared/room-backing-worklet.js'],outfile:'dist/client/room-backing-worklet.js',bundle:true,format:'esm',target:'es2022'});
-for(const file of ['room-release.css','room-release.js'])await cp('dist/'+file,'dist/client/'+file);
+for(const file of ['room-release.css','room-bubbles.css','room-release.js','room-layout.js'])await cp('dist/'+file,'dist/client/'+file);
 await build({entryPoints:['shared/chat-stickers.js'],outfile:'dist/client/chat-stickers.js',bundle:true,format:'iife',globalName:'AifectStickers',target:'es2022',minify:true});
 await cp('dist/chat-stickers.css','dist/client/chat-stickers.css');
 for(const file of ['chat-ui.js','chat-ui.css','messages-ui.js','messages-ui.css'])await cp('dist/'+file,'dist/client/'+file);
@@ -81,7 +81,7 @@ await cp('dist/gift-scale.css','dist/client/gift-scale.css');
 await cp('dist/sing-recording-scale.css','dist/client/sing-recording-scale.css');
 for(const name of await readdir('dist/client')){
  // These shared chat controls use final CSS pixels, matching their JS viewport/line metrics.
- if(!name.endsWith('.css')||name.startsWith('aifect-app-')||['ui-region-scale.css','room-release.css','chat-ui.css','messages-ui.css'].includes(name))continue;
+ if(!name.endsWith('.css')||name.startsWith('aifect-app-')||['ui-region-scale.css','room-release.css','room-bubbles.css','chat-ui.css','messages-ui.css'].includes(name))continue;
  const file='dist/client/'+name;
  await writeFile(file,regionTokenCSS(await readFile(file,'utf8')));
 }

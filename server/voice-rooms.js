@@ -89,7 +89,7 @@ export async function voiceRoomsRoute(req,env,path,user,ctx) {
   const data=await result(await voiceCall(env,actor,room,'state'));return json({theme:await resolveRoomDecoration(env,data.room)});
  }
  if(action==='state'&&req.method==='GET')return json(await decorateRoomResult(env,await result(await voiceCall(env,actor,room,'state'))));
- if(['karaoke-search','karaoke'].includes(action)){const b=req.method==='POST'?await req.json():{};await rate(env,'voice-karaoke:'+user.id,90,60);return voiceKaraokeRoute(req,env,room,action,b,async(a,input)=>{const data=await result(await voiceCall(env,actor,room,a,input));return a==='state'?data:decorateRoomResult(env,data);});}
+ if(['karaoke-search','karaoke'].includes(action)){const b=req.method==='POST'?await req.json():{};await rate(env,'voice-karaoke:'+user.id,90,60);return voiceKaraokeRoute(req,env,room,action,b,async(a,input)=>{const data=await result(await voiceCall(env,actor,room,a,input));return ['state','karaoke-library'].includes(a)?data:decorateRoomResult(env,data);});}
  if(['music-search','music-stream','music-consent','music'].includes(action)){const b=req.method==='POST'?await req.json():{};await rate(env,'voice-music:'+user.id,90,60);return voiceMusicRoute(req,env,user,room,action,b,async(a,input)=>result(await voiceCall(env,actor,room,a,input)));}
  if(req.method!=='POST')fail(405,'허용되지 않는 요청이에요.');
  await rate(env,'voice-api:'+user.id,180,60);
