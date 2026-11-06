@@ -103,11 +103,11 @@ Object.assign(VoiceRoomClient.prototype,{
    if(applicant)request.innerHTML=`<span class="talk-applicant"><strong title="${esc(applicant.name)}">${userNickname(applicant.name,{profileId:applicant.profile_id,userId:applicant.id})}</strong><small>좌석 신청 <time data-room-deadline="${Number(applicant.requestExpires)}"></time></small></span><button type="button" data-voice="approve-mic" data-target="${esc(applicant.id)}" data-request="${applicant.requestVersion??applicant.requestExpires}" ${busy}>수락</button><button type="button" data-voice="reject-mic" data-target="${esc(applicant.id)}" data-request="${applicant.requestVersion??applicant.requestExpires}" ${busy}>거절</button>`;
    else if(self.requested)request.innerHTML=`<span>좌석 신청 중 <time data-room-deadline="${Number(self.requestExpires)}"></time></span><button type="button" data-voice="cancel-mic" data-request="${self.requestVersion??self.requestExpires}" ${busy}>신청 취소</button>`;
    else if(s.seat_invites?.length){const i=s.seat_invites[0];request.innerHTML=roomInviteButtons(i);}
-   else request.textContent=this.micNoticeUntil>Date.now()?'마이크가 켜졌어요.':self.locked?'마이크 사용 제한':this.micState==='failed'?'마이크 연결 실패 · 다시 시도해주세요.':'좌석을 눌러 참여해보세요.';
+   else request.textContent=this.micNoticeUntil>Date.now()?'마이크가 켜졌어요.':self.locked?'마이크 사용 제한':this.micState==='failed'?'마이크 연결 실패 · 다시 시도해주세요.':seated?(micOn?'대화 중이에요.':'마이크를 켜고 대화해보세요.'):'좌석을 눌러 참여해보세요.';
   }
   const mic=this.host.querySelector('.talk-central [data-voice=toggle-mic]');
-  if(mic.dataset.on!==String(micOn)){mic.dataset.on=String(micOn);mic.innerHTML=voiceGlyph(micOn?'talkMic':'talkMicOff')+'<span class="talk-switch" aria-hidden="true"></span>';}
-  mic.hidden=!seated;mic.disabled=self.locked||!seated;
+  if(mic.dataset.on!==String(micOn)){mic.dataset.on=String(micOn);mic.innerHTML=voiceGlyph(micOn?'talkMic':'talkMicOff')+'<span>'+(micOn?'마이크 끄기':'마이크 켜기')+'</span>';}
+  mic.hidden=!seated;mic.disabled=self.locked||!seated||!!this.micBusy;
   const down=this.host.querySelector('.talk-central [data-voice=release-mic]');if(down){down.hidden=!seated;down.disabled=!!this.seatReleasePending;}
   mic.setAttribute('aria-pressed',String(micOn));mic.setAttribute('aria-label',micOn?'내 마이크 끄기':'내 마이크 켜기');
   mic.setAttribute('aria-busy',String(!!this.micBusy));
@@ -267,6 +267,7 @@ Object.assign(VoiceRoomClient.prototype,{
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&this.talkPopup?.open&&!e.defaultPrevented){e.preventDefault();this.closeRoomPopup();}},{...options,capture:true});
   this.host.addEventListener('close',e=>{
    if(e.target!==this.talkPopup||e.target.open)return;
+   this.roomResizeObserver?.unobserve?.(e.target);e.target.removeAttribute('data-room-anchored');
    this.talkPopup=null;document.documentElement?.removeAttribute('data-room-popup');this.settingsTicket=(this.settingsTicket||0)+1;
    this.host.querySelectorAll('.room-header [aria-expanded=true]').forEach(b=>b.setAttribute('aria-expanded','false'));
    if(e.target.id==='voice-sound')this.stopMicTest();
@@ -296,7 +297,8 @@ Object.assign(VoiceRoomClient.prototype,{
   if(sheet.id==='dialog'&&!this.roomExternalHome)this.roomExternalHome={parent:sheet.parentNode,next:sheet.nextSibling};
   this.host.querySelector('.voice-chat-panel').append(sheet);
   this.host.querySelectorAll('.room-header [aria-expanded]').forEach(b=>b.setAttribute('aria-expanded',String(b.getAttribute('aria-controls')===sheet.id)));
-  if(!sheet.open)sheet.show();sheet.scrollTop=0;sheet.focus({preventScroll:true});
+  if(!sheet.open)sheet.show();sheet.scrollTop=0;
+  positionRoomPopup(this);this.roomResizeObserver?.observe(sheet);sheet.focus({preventScroll:true});
  },
  releaseRoomExternal(){const sheet=document.getElementById('dialog'),home=this.roomExternalHome;if(home&&sheet){sheet.close();sheet.classList.remove('room-popup');home.parent.insertBefore(sheet,home.next?.parentNode===home.parent?home.next:null);this.roomExternalHome=null;}},
  bindRoomSettings(){

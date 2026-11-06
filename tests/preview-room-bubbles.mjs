@@ -30,7 +30,11 @@ for(const mode of ['talk','karaoke']){
 }
 const types={'.js':'text/javascript','.css':'text/css','.html':'text/html;charset=utf-8','.svg':'image/svg+xml','.webp':'image/webp','.woff2':'font/woff2','.png':'image/png'};
 const assets={async fetch(req){const u=new URL(req.url),file=resolve(root,'.'+u.pathname);if(!file.startsWith(root+sep))return new Response('',{status:404});try{return new Response(await readFile(file),{headers:{'content-type':types[extname(file)]||'application/octet-stream'}});}catch{return new Response('',{status:404});}}};
-const env={...f.siteEnv,ASSETS:assets,BUCKET:{async get(){return null;},async head(){return null;}}};
+// Optional generated tone exercises real media range requests without external audio.
+const tone=await readFile('work/qa-tone.m4a').catch(()=>null),audioKey=key=>/^(stream|karaoke)\//.test(key)&&key.endsWith('.m4a');
+const env={...f.siteEnv,ASSETS:assets,BUCKET:{async get(key,options){if(!tone||!audioKey(key))return null;const r=options?.range;return {body:r?tone.subarray(r.offset,r.offset+r.length):tone};},async head(key){return tone&&audioKey(key)?{size:tone.length}:null;}}};
+f.sql.exec("INSERT INTO gold_purchases(id,user_id,channel,gold,price_krw,fee_krw,tax_krw,status,created,paid_at) VALUES('qa-zero-value','owner','admin_test',1000,0,0,0,'paid',0,0)");
+f.sql.exec("INSERT INTO voice_music_permissions(track_id,owner_id,terms,accepted_at) SELECT id,user_id,'2026-10-20-room-listening',1 FROM tracks WHERE user_id='owner'");
 async function scenario(mode,name){
  const r=rooms[mode],d=r.room.data;
  if(!d.members.owner)r.state=await f.join(r,'owner');

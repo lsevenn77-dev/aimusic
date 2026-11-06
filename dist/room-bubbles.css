@@ -1,14 +1,13 @@
 /* Final room-only geometry. Shared site/profile components keep their own tokens. */
 #main[data-room-entered] .voice-room[data-voice-room] {
- --room-height:var(--voice-viewport); --room-bubble:linear-gradient(140deg,#ffffff20,transparent 35%,#ffffff04 70%,#00000012);
- --room-edge-light:#ffffff88; --room-edge-dark:#b6bcc530;
- --room-bubble-shadow:inset 1px 1px 2px #ffffff45,inset -1px -2px 4px #14192325,0 3px 9px #00000016;
+ --room-height:var(--voice-viewport); --room-bubble:transparent;
+ --room-edge-light:var(--ds-line); --room-edge-dark:var(--ds-line);
+ --room-bubble-shadow:none;
  --room-font-add:0px; --room-title:25px; --room-caption:12px; --room-body:14px; --room-button:14px;
  --room-lyric:22px; --room-lyric-active:24px; --room-name:13px; --room-queue-name:12px;
  width:min(100%,1298px);max-width:1298px;margin-inline:auto;transform:none;
  height:var(--room-height);max-height:none;min-height:0;overflow:visible;
- border:1px solid var(--room-edge-dark);border-top-color:var(--room-edge-light);border-left-color:#ffffff60;
- border-radius:26px;box-shadow:var(--room-bubble-shadow);isolation:isolate;
+ border:0;border-radius:0;box-shadow:none;isolation:isolate;
  --room-x:26px;--room-pad-end:18px;--room-seat:70px;--room-singer:70px;--room-queue-photo:40px;--room-reserve:70px;
  padding:18px var(--room-x) var(--room-pad-end);
  &[data-paid-theme] {background-image:linear-gradient(#0c121b55,#0c121b77),var(--decoration-desktop);background-size:cover;background-position:center;}
@@ -54,7 +53,7 @@
  & #voice-chat .voice-chat-system p {background:none;border:0;box-shadow:none;padding:0;font-size:var(--room-caption);line-height:1.3;margin:0;}
  & #voice-chat .voice-chat-system + .voice-chat-system {margin-top:-4px;}
  & :is(.live-stage-main,#voice-seats,.talk-central,#voice-music-player,.talk-message-field,#voice-chat-form > button,#live-actions button,.live-start-popup,.live-countdown) {
-  background:var(--room-bubble);border:1px solid var(--room-edge-dark);border-top-color:var(--room-edge-light);border-left-color:#ffffff65;border-radius:20px;box-shadow:var(--room-bubble-shadow);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);
+  background:var(--room-bubble);border:1px solid var(--ds-line);border-radius:16px;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none;
  }
  & :is(.live-stage-main,#voice-seats,.talk-central,#voice-music-player,.talk-message-field)::before,& :is(.live-stage-main,#voice-seats,.talk-central,#voice-music-player,.talk-message-field)::after {content:none;}
  & #voice-music-player [data-voice=music-play],& #voice-music-player [data-voice=music-pause] {width:42px;height:42px;border-radius:50%;background:var(--room-bubble);box-shadow:var(--room-bubble-shadow);border:1px solid #ffffff55;}
@@ -75,7 +74,7 @@
  & #voice-music-player #voice-mini-volume::-webkit-slider-runnable-track {background:linear-gradient(to right,#e4e5e8 var(--range-fill),#46484e var(--range-fill));}
  & #voice-music-player #voice-mini-volume::-webkit-slider-thumb {background:#e5e5e8;border:1px solid #52545a;}
  & #voice-music-player button {color:#e4e5e8;border-color:#ffffff55;}
- & #voice-content .voice-chat-panel .room-popup[open] {position:absolute!important;inset:auto 18px calc(var(--room-pad-end) + var(--room-composer) + 8px)!important;width:calc(100% - 36px)!important;max-width:100%!important;max-height:calc(var(--room-height) * .5)!important;background:linear-gradient(140deg,#ffffff28,#303640d9)!important;border-color:#ffffff70 #aab0b744 #aab0b744 #ffffff55;box-shadow:var(--room-bubble-shadow)!important;backdrop-filter:blur(18px);border-radius:22px;padding:14px!important;}
+ & #voice-content .voice-chat-panel .room-popup[open] {position:absolute!important;inset:auto 18px calc(var(--room-pad-end) + var(--room-composer) + 8px)!important;width:calc(100% - 36px)!important;max-width:100%!important;max-height:calc(var(--room-height) * .5)!important;background:var(--ds-panel)!important;border-color:var(--ds-line);box-shadow:none!important;backdrop-filter:none;-webkit-backdrop-filter:none;border-radius:22px;padding:14px!important;}
  & #voice-content .voice-chat-panel #talk-leave[open] {inset:70px 18px auto!important;width:min(360px,calc(100% - 36px))!important;}
  & #voice-content .voice-chat-panel #room-inbox[open] {height:calc(var(--room-height) * .5);}
  & #voice-content .voice-chat-panel #live-search-sheet[open] {inset:80px 18px calc(var(--room-composer) + 30px)!important;height:auto;max-height:none!important;display:flex;flex-direction:column;overflow:hidden;}
@@ -100,7 +99,7 @@
  & #live-countdown.live-countdown {border-radius:50%;z-index:5;}
 }
 @supports not (backdrop-filter:blur(1px)) {
- #main[data-room-entered] .voice-room[data-voice-room] {--room-bubble:linear-gradient(140deg,#ffffff26,#a0a5af18 45%,#00000018);}
+ #main[data-room-entered] .voice-room[data-voice-room] {--room-bubble:transparent;}
 }
 @media(max-width:800px){
  #main[data-room-focus],:root[data-mobile-keyboard] #main[data-room-focus] {position:fixed;inset:var(--voice-top,0px) 0 auto!important;height:auto!important;width:100%;padding:0!important;z-index:1;overflow:visible;}
@@ -158,4 +157,85 @@
   & #live-search-sheet .live-search-heading h2 {display:block!important;font-size:20px;color:inherit;margin:0;}
   & #live-search-sheet .live-search-heading button {display:grid!important;place-items:center;width:44px;height:44px;background:none;border:0;color:inherit;}
  }
+}
+/* Preserve both room trees; desktop height is set by the existing left column. */
+#main[data-room-entered] .voice-room[data-voice-room] {
+ & #voice-seats .voice-seat-empty svg {border:1px solid var(--ds-muted);border-radius:50%;background:none;}
+ & .talk-central [data-voice=release-mic],& .talk-central [data-voice=toggle-mic] {display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;width:auto;min-width:max-content;padding:4px 8px;border:1px solid var(--ds-line);border-radius:12px;background:var(--ds-panel);color:var(--ds-text);font-size:15px;flex:none;}
+ & .talk-central [data-voice=toggle-mic][aria-pressed=true] {color:var(--ds-mint);border-color:var(--ds-mint);background:var(--ds-panel);}
+ & .talk-central [data-voice=toggle-mic][aria-pressed=false] {color:var(--ds-muted);}
+ & .talk-central :is([data-voice=release-mic],[data-voice=toggle-mic]) svg {width:20px;height:20px;flex:none;}
+ & .room-popup::backdrop {background:transparent;backdrop-filter:none;}
+ & .room-live-guide {height:auto;flex:none;}
+ & .room-live-guide #live-stage-note {font-size:inherit;line-height:inherit;margin:0;}
+}
+@media(min-width:801px){
+ #main[data-room-entered] .voice-room[data-voice-room] {
+  height:auto!important;max-height:none;--room-pad-end:20px;padding-bottom:20px;
+  --room-title:24px;--room-body:15px;--room-button:15px;--room-caption:13px;--room-name:15px;--room-queue-name:15px;
+  & #voice-content {flex:none;height:auto;}
+  & .voice-columns,&.talking-room .voice-columns {height:auto;grid-template-rows:auto;align-items:stretch;}
+  & .voice-columns > .voice-stage {height:auto;overflow:visible;}
+  & #voice-content .voice-chat-panel {height:auto;contain:size;align-self:stretch;}
+  & .room-header h1 {font-size:24px;line-height:1.3;}
+  & .room-heading small {font-size:13px;}
+  & .room-header nav {gap:4px;}
+  & .room-header nav button {width:44px;height:44px;min-width:44px;min-height:44px;}
+  & .room-header nav button svg {width:22px;height:22px;}
+  & .talk-central #talk-request {font-size:16px;line-height:1.45;}
+  & .room-live-guide {font-size:16px;line-height:1.45;}
+  & .voice-unlock-audio {min-height:44px;font-size:15px;}
+  & .room-key button {min-width:44px;min-height:44px;font-size:14px;}
+  & #voice-music-player .talk-track strong {font-size:16px;line-height:1.35;}
+  & #voice-music-player .talk-track small {font-size:13px;}
+  & #voice-music-player button:not(.talk-track) {min-width:44px;min-height:44px;padding:8px;}
+  & #voice-music-player :is([data-voice=music-play],[data-voice=music-pause]) {width:50px;height:50px;border-radius:50%;}
+  & #voice-music-player button svg {width:22px;height:22px;}
+  & #voice-mini-volume {height:44px;min-height:44px;}
+  & #voice-chat .voice-chat-message time {font-size:13px;}
+  & #voice-chat-form {margin-top:auto;}
+  & #voice-content .voice-chat-panel .room-popup[data-room-anchored][open]:not(#live-search-sheet) {
+   position:fixed!important;inset:var(--room-popup-top) auto auto var(--room-popup-left)!important;
+   width:var(--room-popup-width)!important;max-width:var(--room-popup-width)!important;max-height:var(--room-popup-max)!important;
+   margin:0!important;translate:none;transform:none;z-index:90;background:var(--ds-panel)!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;
+   border:1px solid var(--ds-line);border-radius:16px;box-shadow:0 8px 24px #0003!important;
+  }
+  & #voice-content .voice-chat-panel #voice-room-settings[data-room-anchored][open] {display:flex;flex-direction:column;height:min(620px,var(--room-popup-max));overflow:hidden;}
+  & #voice-room-settings #voice-settings-form {display:flex;flex-direction:column;align-items:stretch;min-height:0;flex:1;width:100%;margin:0;overflow:hidden;}
+  & #voice-settings-form .live-form-fields {flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding-right:6px;}
+  & #voice-settings-form .room-settings-footer {flex:none;position:static;margin-top:12px;padding-top:12px;background:var(--ds-panel);border-top:1px solid var(--ds-line);}
+  & #voice-settings-form .room-settings-footer button {min-height:44px;font-size:15px;}
+ }
+}
+@media(max-width:800px){
+ #main[data-room-entered] .voice-room[data-voice-room] {
+  --room-send:44px;--room-composer:46px;
+  & .room-header nav button {width:44px;min-width:44px;height:44px;min-height:44px;}
+  & .room-header nav button svg {width:22px;height:22px;}
+  & .room-header h1 {white-space:normal;overflow-wrap:anywhere;line-height:1.25;}
+  & .voice-stage > #voice-music-player {min-height:57px;gap:2px;padding-inline:6px;}
+  & #voice-music-player .talk-track {min-width:0;flex:1;}
+  & #voice-music-player .talk-track strong {font-size:14px;}
+  & #voice-music-player button:not(.talk-track) {width:44px;min-width:44px;min-height:44px;height:44px;padding:8px;}
+  & #voice-music-player button svg {width:22px;height:22px;}
+  & #voice-music-player #voice-mini-volume {width:48px;min-width:40px;max-width:48px;height:44px;min-height:44px;}
+  & .talk-central {height:auto;min-height:56px;max-height:none;flex-wrap:wrap;gap:4px;padding:4px 8px;}
+  & .talk-central #talk-request {min-width:80px;flex:1;}
+  & .talk-central :is([data-voice=release-mic],[data-voice=toggle-mic]) {font-size:13px;min-height:44px;padding:3px 5px;gap:4px;}
+  & .talk-central :is([data-voice=release-mic],[data-voice=toggle-mic]) svg {width:18px;height:18px;}
+  & :is(#live-actions,.room-popup) button {min-height:44px;}
+  & #voice-chat-form .talk-message-field [data-voice=emoji] {width:44px;height:44px;min-width:44px;min-height:44px;}
+  & #voice-message {padding-right:48px;font-size:18px!important;}
+  & #voice-chat-form > button {width:44px;min-width:44px;min-height:44px;}
+  & .room-key button {min-width:44px;min-height:44px;}
+  & .room-live-guide {font-size:13px;line-height:1.45;}
+  & .voice-unlock-audio {min-height:44px;font-size:14px;}
+  & #live-queue {--room-queue-photo:44px;--room-avatar-slot:44px;}
+  & #live-queue .live-queue-avatar,& #live-queue .live-queue-avatar img {width:44px;height:44px;min-width:44px;}
+  & #live-timer {font-size:13px;}
+ }
+}
+@media(max-width:360px){
+ #main[data-room-entered] .voice-room[data-voice-room] .room-header {flex-wrap:wrap;}
+ #main[data-room-entered] .voice-room[data-voice-room] .room-heading {flex-basis:100%;}
 }

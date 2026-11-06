@@ -29,6 +29,7 @@ function bindRoomViewport(client){
   write(room,'--room-visual-top',top+'px');write(room,'--room-visual-height',(bottom-top)+'px');
   // Expose measured geometry for diagnostics and keep reads before writes next frame.
   client.roomBounds={top:start,bottom:end,width:box.width,visualHeight:bottom-top};
+  positionRoomPopup(client);
  };
  client.onViewport=()=>{if(!client.roomLayoutFrame)client.roomLayoutFrame=requestAnimationFrame(measure);};
  for(const type of ['resize','aifect:topbar-layout','aifect:input-viewport'])window.addEventListener(type,client.onViewport,options);
@@ -39,6 +40,29 @@ function bindRoomViewport(client){
   for(const el of new Set([main,room,composer,...shell].filter(Boolean)))client.roomResizeObserver.observe(el);
  }
  measure();
+}
+// Nonmodal desktop sheets use viewport coordinates, never the stretched chat column.
+function roomPopupPlacement(anchor,bounds,width,height,above=false){
+ const gap=8,w=Math.min(width,Math.max(0,bounds.right-bounds.left));
+ const below=Math.max(0,bounds.bottom-anchor.bottom-gap),over=Math.max(0,anchor.top-bounds.top-gap);
+ const up=above?over>0:below<Math.min(height,240)&&over>below;
+ const limit=Math.max(0,Math.min(620,up?over:below)),h=Math.min(height,limit);
+ return {left:Math.max(bounds.left,Math.min(anchor.right-w,bounds.right-w)),top:Math.max(bounds.top,Math.min(up?anchor.top-gap-h:anchor.bottom+gap,bounds.bottom-h)),width:w,maxHeight:limit};
+}
+function positionRoomPopup(client){
+ const sheet=client.talkPopup;if(!sheet?.open)return;
+ if(innerWidth<=800||sheet.id==='live-search-sheet'||sheet.classList.contains('profile-preview')){sheet.removeAttribute('data-room-anchored');return;}
+ const vv=window.visualViewport,room=client.host.getBoundingClientRect(),top=vv?.offsetTop||0,left=vv?.offsetLeft||0;
+ const bounds={left:Math.max(left+8,room.left),right:Math.min(left+(vv?.width||innerWidth)-8,room.right),top:top+8,bottom:Math.min(top+(vv?.height||innerHeight)-8,client.roomBounds?.bottom??Infinity)};
+ const trigger=client.popupTrigger?.isConnected?client.popupTrigger:client.host.querySelector('.room-header');
+ const anchor=trigger.getBoundingClientRect(),width=sheet.id==='voice-room-settings'?340:sheet.id==='voice-emoji-picker'?360:sheet.id==='dialog'||sheet.id==='room-inbox'?420:380;
+ sheet.setAttribute('data-room-anchored','');
+ const write=(key,value)=>{const next=value+'px';if(sheet.style.getPropertyValue(key)!==next)sheet.style.setProperty(key,next);};
+ const preferred=trigger.closest('#voice-chat-form')!==null;
+ const fit=roomPopupPlacement(anchor,bounds,width,620,preferred);
+ write('--room-popup-width',fit.width);write('--room-popup-max',fit.maxHeight);
+ const placed=roomPopupPlacement(anchor,bounds,fit.width,sheet.getBoundingClientRect().height,preferred);
+ write('--room-popup-left',placed.left);write('--room-popup-top',placed.top);
 }
 function roomFilledIcon(kind){
  const path=kind==='send'?'M21.4 2.6a.8.8 0 0 0-.9-.2L2.8 9.5a.8.8 0 0 0 0 1.5l6.8 2.2 2.2 6.8a.8.8 0 0 0 1.5 0l8.3-16.5a.8.8 0 0 0-.2-.9ZM10.8 12.1l6.6-5.5-5.5 6.6-.9 3-.9-3-3-.9 3.7-.2Z':'M11 10H3V7h3.3A3.3 3.3 0 1 1 12 4.2 3.3 3.3 0 1 1 17.7 7H21v3h-8V7h-2v3ZM10.7 5.5C9.3 2.8 6.3 4.2 8.5 5.8L11 6l-.3-.5Zm2.6 0L13 6l2.5-.2c2.2-1.6-.8-3-2.2-.3ZM4 12h7v9H4v-9Zm9 0h7v9h-7v-9Z';

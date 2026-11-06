@@ -46,15 +46,8 @@
   color:var(--room-text);
   box-shadow:none;
 
-  /* The black button/layout reference is not the room palette. Keep the
-     approved navy, violet and mint atmosphere on the free default theme. */
-  &:is([data-background=navy],:not([data-background])):not([data-paid-theme]) {
-    background:radial-gradient(ellipse at 88% 3%,#4c317b88,transparent 48%),
-               radial-gradient(ellipse at 18% 68%,#3d316c66,transparent 52%),
-               radial-gradient(ellipse at 98% 88%,#347f9155,transparent 40%),#0c1025;
-  }
-  &[data-background=sunset]:not([data-paid-theme]) { background:radial-gradient(ellipse at 35% 15%,#70435a77,transparent 65%),radial-gradient(ellipse at bottom,#24295466,transparent),#0c1422; }
-  &[data-background=night]:not([data-paid-theme]) { background:radial-gradient(ellipse at 70% 10%,#233d7477,transparent 48%),radial-gradient(ellipse at 20% 80%,#39295b55,transparent 45%),#050e1c; }
+  /* Default room surfaces follow the site's dark token. Explicit owned themes remain selectable. */
+  &:not([data-paid-theme]) { background:var(--ds-bg); }
   &:not([data-paid-theme])::before,&:not([data-paid-theme])::after { background:none; }
   & [hidden] { display:none!important; }
   & .room-header {

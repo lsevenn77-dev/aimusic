@@ -4,6 +4,32 @@ import {liveFixture} from './live-karaoke-fixture.mjs';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 
+test('anchored sheets clamp to the visible room width and flip above bottom controls',()=>{
+ const c=vm.createContext({document:{addEventListener(){}},window:{addEventListener(){}}});
+ vm.runInContext(readFileSync(new URL('../dist/room-layout.js',import.meta.url),'utf8'),c);
+ const bounds={left:260,right:1360,top:8,bottom:760};
+ const settings=c.roomPopupPlacement({top:140,bottom:184,right:1320},bounds,340,620);
+ assert.equal(settings.width,340);assert.equal(settings.top,192);assert.equal(settings.maxHeight,568);
+ const bottom=c.roomPopupPlacement({top:690,bottom:734,right:1340},bounds,420,300,true);
+ assert.equal(bottom.top,382);assert.ok(bottom.left>=bounds.left);assert.ok(bottom.left+bottom.width<=bounds.right);
+ const narrow=c.roomPopupPlacement({top:30,bottom:74,right:1100},{left:8,right:300,top:8,bottom:400},340,620);
+ assert.equal(narrow.width,292);assert.equal(narrow.left,8);assert.ok(narrow.top+narrow.maxHeight<=400);
+});
+
+test('talk controls expose labelled microphone states only for an eligible seated member',()=>{
+ const source=readFileSync(new URL('../dist/voice-room-controls.js',import.meta.url),'utf8');
+ const start=source.indexOf(' paintTalkPanel('),end=source.indexOf('\n showMicEnabledNotice',start);
+ const node=()=>({dataset:{},attrs:{},setAttribute(k,v){this.attrs[k]=v;}}),mic=node(),down=node(),request=node();
+ const c=vm.createContext({Date,voiceGlyph:n=>'<svg data-icon="'+n+'"></svg>',$:s=>s==='#talk-request'?request:{open:false},window:{dispatchEvent(){}},CustomEvent:class{}});
+ const fn=vm.runInContext('({'+source.slice(start,end)+'}).paintTalkPanel',c);
+ const self={id:'me',seat:null,locked:false},client={state:{self:'me',room:{id:'r',host_id:'me'},members:[self]},host:{querySelector:s=>s.includes('toggle-mic')?mic:down}};
+ fn.call(client,self,false);assert.equal(mic.hidden,true);assert.equal(down.hidden,true);assert.equal(mic.disabled,true);
+ self.seat=2;fn.call(client,self,false);assert.equal(down.hidden,false);assert.match(mic.innerHTML,/마이크 켜기/);assert.equal(mic.attrs['aria-pressed'],'false');
+ fn.call(client,self,true);assert.match(mic.innerHTML,/마이크 끄기/);assert.equal(mic.attrs['aria-pressed'],'true');
+ self.locked=true;fn.call(client,self,false);assert.equal(mic.disabled,true);assert.equal(request.textContent,'마이크 사용 제한');
+ self.locked=false;client.micBusy=true;fn.call(client,self,false);assert.equal(mic.disabled,true);assert.equal(mic.attrs['aria-busy'],'true');
+});
+
 test('measured room bounds coalesce resize events and follow actual bars and visual viewport',()=>{
  const frames=[],styles=()=>{const v=new Map();return {getPropertyValue:k=>v.get(k),setProperty:(k,x)=>v.set(k,x),get:k=>v.get(k)};};
  const main={style:styles(),toggleAttribute(){}},room={isConnected:true,style:styles(),querySelector:()=>({getBoundingClientRect:()=>({height:46})}),querySelectorAll:()=>[],getBoundingClientRect:()=>({top:57,width:390})};
