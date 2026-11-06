@@ -23,10 +23,13 @@ test('Android PLAY navigation keeps every existing route, selected state and cre
   assert.equal((html.match(/tabindex="0"/g)||[]).length,2);
   assert.ok(html.includes('href="'+c.playHref(mode,tab,'duet').replaceAll('&','&amp;')+'"'));
   if(mode==='dubbing'){
-   assert.ok(html.indexOf('play-category-tabs')<html.indexOf('play-create'));
-   assert.ok(html.indexOf('play-create')<html.indexOf('id="play-search"'));
-   assert.match(html,/play-create" href="#dubbing\/new"/);
-  }else assert.doesNotMatch(html,/play-create/);
+   const menu=html.match(/<nav[^>]*play-category-tabs[\s\S]*?<\/nav>/)[0];
+   assert.deepEqual([...menu.matchAll(/<span>(.*?)<\/span>/g)].map(m=>m[1]),['더빙 만들기','작품찾기','더빙참여','내 작업']);
+   assert.equal((menu.match(/href="#dubbing\/new"/g)||[]).length,1);
+   assert.equal((menu.match(/aria-selected="true"/g)||[]).length,1);
+   assert.ok(html.indexOf(menu)<html.indexOf('id="play-search"'));
+  }
+  assert.doesNotMatch(html,/play-create/,'the standalone creation row is removed');
   if(mode==='browse'){
    assert.ok(html.indexOf('id="play-search"')<html.indexOf('id="play-work-type"'));
    assert.match(html,/<option value="duet" selected>/);

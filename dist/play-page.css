@@ -48,7 +48,25 @@
 .play-page .play-category-tabs .tab svg{width:24px;height:24px;flex-shrink:0;stroke-width:1.6}
 .play-page .play-category-tabs .tab.active{border-color:var(--play-accent);background:color-mix(in srgb,var(--play-accent) 8%,var(--ds-panel));color:var(--play-accent)}
 .play-page .play-category-tabs .tab:hover{color:var(--ds-text)}
-.play-page .play-create{display:flex;width:100%;min-height:50px;margin:0;justify-content:center;gap:8px;border-radius:var(--ds-radius-card);background:var(--ds-gradient);color:var(--ds-ink);font-size:16px}
+/* Creation reuses the existing route and the same menu cell as the three lists. */
+#main > .play-page[data-play-mode="dubbing"] .play-dubbing-tabs {
+ grid-template-columns:repeat(4,minmax(0,1fr));
+ grid-auto-flow:row;
+ overflow:visible;
+}
+@media(max-width:600px){
+ #main > .play-page[data-play-mode="dubbing"] .play-dubbing-tabs {
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
+ }
+ #main > .play-page[data-play-mode="dubbing"] .play-dubbing-tabs .tab {
+  border:1px solid transparent;
+  border-radius:var(--ds-radius-sm);
+ }
+ #main > .play-page[data-play-mode="dubbing"] .play-dubbing-tabs .tab.active {
+  border-color:var(--play-accent);
+ }
+}
 .play-page .play-search{max-width:none;width:100%;margin:0 0 24px;display:flex;align-items:center;gap:12px}
 .play-page .play-search input{width:100%;min-width:0}
 .play-page .play-search button{white-space:nowrap;min-height:0}
@@ -301,7 +319,7 @@ img.play-dubbing-art{display:block;width:100%;height:auto;aspect-ratio:1;object-
     font-size: 14px;
     line-height: 1.55;
   }
-  :is(.play-create, .play-content .small-button, .dc-record, #play-more) {
+  :is(.play-content .small-button, .dc-record, #play-more) {
     font-size: 13px;
     line-height: 1.35;
     padding-block: 5px;
