@@ -52,7 +52,7 @@ test('authenticated official start, verified finish, retry and weekly individual
   assert.equal(sql.prepare("SELECT COUNT(*) AS n FROM crew_rhythm_runs WHERE status='finished'").get().n,1);
   assert.equal((await api('lobby',null,monday+7*86400000)).ranking.length,0);
 });
-test('shared daily quota, concurrent starts, abandoned sessions, day rollover and Friday cutoff',async t=>{
+test('shared daily quota, concurrent starts, abandoned sessions, day rollover and a Sunday start can finish after rollover',async t=>{
   const {api}=await setup(t);
   for(let n=0;n<3;n++){
     const attempts=await Promise.allSettled([0,1].map(()=>api('start',{difficulty:n===0?'normal':'hell',requestId:crypto.randomUUID()},monday+n*1000)));
@@ -64,9 +64,12 @@ test('shared daily quota, concurrent starts, abandoned sessions, day rollover an
   assert.equal((await api('lobby')).remaining,0);
   await assert.rejects(api('start',{difficulty:'hard',requestId:crypto.randomUUID()}));
   assert.equal((await api('lobby',null,monday+86400000)).remaining,3);
-  const cutoff=Date.parse('2026-11-06T21:59:00+09:00');
-  assert.equal((await api('lobby',null,cutoff)).open,false);
-  await assert.rejects(api('start',{difficulty:'hard',requestId:crypto.randomUUID()},cutoff));
+  const start=Date.parse('2026-11-08T23:59:59+09:00');
+  assert.equal((await api('lobby',null,start)).open,true);
+  const late=await api('start',{difficulty:'hard',requestId:crypto.randomUUID()},start);
+  await api('finish',{id:late.id,...perfect('hard')},start+70000);
+  assert.equal((await api('lobby',null,start+70000)).ranking.length,0);
+  assert.equal((await api('lobby',null,start)).ranking.length,1);
 });
 test('crew rankings take one best per member and only the top ten members',async t=>{
   const {api,sql}=await setup(t);

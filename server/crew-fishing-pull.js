@@ -4,13 +4,12 @@ import {inputElapsed} from '../dist/crew-fishing/timing.js';
 
 // Replay the displayed frames in order, then commit once. A retry of the same
 // sequence cannot grant another hit. Never use client-supplied score or status.
-export async function fishingPull(env,uid,body,{ms,receivedTime,day,open}){
+export async function fishingPull(env,uid,body,{ms,receivedTime}){
   if(typeof body?.id!=='string'||!Number.isSafeInteger(body.seq)||body.seq<1)fail(400,'올바르지 않은 당기기 요청이에요.');
   const find=()=>one(env,`SELECT f.* FROM crew_fishing_casts f JOIN crew_members m ON m.user_id=f.user_id AND m.crew_id=f.crew_id WHERE f.id=? AND f.user_id=?`,body.id,uid);
   const first=await find();
   if(!first)fail(404,'낚시 기록을 찾지 못했어요.');
   if(first.status!=='active')return first;
-  if(first.day!==day||!open)fail(409,'도전 시간이 지났어요. 대기실에서 다시 확인해주세요.');
   const batch=body.batch!==undefined;
   const frames=batch?body.batch:[body];
   if(!Array.isArray(frames)||!frames.length||frames.length>24||

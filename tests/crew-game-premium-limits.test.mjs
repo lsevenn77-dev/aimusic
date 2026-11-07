@@ -38,7 +38,7 @@ for(const name of Object.keys(games))test(name+': normal quota, same-day premium
   await assert.rejects(f.start(),{status:409});
   f.premium(monday/1000+3*86400);
   let data=await f.lobby();assert.equal(data.dailyLimit,base+1);assert.equal(data.remaining,1);assert.equal(data.premiumBonus,1);
-  if(name==='fishing')assert.equal(data.weeklyLimit,55);
+  if(name==='fishing')assert.equal(data.weeklyLimit,null);
   const attempts=await Promise.allSettled([f.start(),f.start()]);
   if(name==='fishing'){
     const ids=attempts.filter(x=>x.status==='fulfilled').map(x=>x.value.cast.id);
@@ -54,30 +54,29 @@ for(const name of Object.keys(games))test(name+': normal quota, same-day premium
   await f.start();assert.equal((await f.lobby()).remaining,base);f.end();
 });
 
-for(const name of Object.keys(games))test(name+': capture window reopens only the weekly cutoff and expires without resetting records',async t=>{
+for(const name of Object.keys(games))test(name+': official weekend attempts use only the daily quota and rotate the week on Monday',async t=>{
   const f=await setup(t,name),weekend=Date.parse('2026-11-07T10:00:00Z');
-  f.env.CREW_GAME_CAPTURE_WINDOW='2026-11-07T10:00:00Z/2026-11-07T10:30:00Z';
-  f.setTime(weekend-1);
-  if(name!=='racing')await assert.rejects(f.start(),{status:409});
   f.setTime(weekend);const before=await f.lobby();
   await f.start();f.end();assert.equal((await f.lobby()).remaining,before.remaining-1);
-  f.setTime(weekend+1800000);
-  if(name!=='racing'){assert.equal((await f.lobby()).open,false);await assert.rejects(f.start(),{status:409});}
-  f.setTime(weekend+7*86400000);if(name!=='racing')assert.equal((await f.lobby()).open,false);
+  f.setTime(Date.parse('2026-11-08T23:59:59+09:00'));await f.start();f.end();
+  assert.equal((await f.lobby()).week,before.week);
+  f.setTime(Date.parse('2026-11-09T00:00:00+09:00'));const fresh=await f.lobby();
+  assert.notEqual(fresh.week,before.week);assert.equal(fresh.remaining,before.dailyLimit);
 });
 
-test('premium fishing can use all 55 weekly casts, while practice never uses a quota',async t=>{
+test('premium fishing can exceed the old 55-cast weekly limit, while practice never uses a quota',async t=>{
   const f=await setup(t,'fishing');f.premium(monday/1000+7*86400);
   for(let day=0;day<5;day++){
     f.setTime(monday+day*86400000);
     for(let n=0;n<11;n++){await f.start();f.end();}
     assert.equal((await f.lobby()).remaining,0);
   }
-  const data=await f.lobby();assert.equal(data.weeklyRemaining,0);assert.equal(data.weeklyLimit,55);
+  const data=await f.lobby();assert.equal(data.weeklyRemaining,null);assert.equal(data.weeklyLimit,null);
   await assert.rejects(f.start(),{status:409});
+  f.setTime(monday+5*86400000);await f.start();f.end();
   const path='/api/crew-fishing/practice-cast';
   await fishingRoute(new Request('https://aifect.test'+path,{method:'POST'}),f.env,path,{id:'owner'},monday+4*86400000);
-  assert.equal(f.sql.prepare('SELECT COUNT(*) n FROM crew_fishing_casts').get().n,55);
+  assert.equal(f.sql.prepare('SELECT COUNT(*) n FROM crew_fishing_casts').get().n,56);
 });
 
 test('entitlement expires at its exact second and racing day boundaries use Korea time',async t=>{

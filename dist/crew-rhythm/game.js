@@ -498,7 +498,7 @@ import {VERSION,RULES,CHART,notesFor,computeScore,createRhythmRun,advanceRhythm,
       if(!pendingReport){try{pendingReport=JSON.parse(sessionStorage.getItem('aifect.rhythm.pending:'+lobbyInfo.userId));if(pendingReport)void submitReport();}catch{}}
       $('officialBtn').disabled=Boolean(pendingReport)||!lobbyInfo.open||!lobbyInfo.remaining;
       $('retryLobbyReportBtn').hidden=!pendingReport;
-      $('officialStatus').textContent=lobbyInfo.open?`오늘 남은 공식 도전 ${lobbyInfo.remaining} / ${lobbyInfo.dailyLimit??3}회 · 금요일 22시 마감`:'이번 주 공식 도전이 마감됐어요.';
+      $('officialStatus').textContent=lobbyInfo.open?`오늘 남은 공식 도전 ${lobbyInfo.remaining} / ${lobbyInfo.dailyLimit??3}회 · 한국시간 자정 초기화`:'이번 주 공식 도전이 마감됐어요.';
       $('teamScore').textContent=fmt(lobbyInfo.team)+'점';
       renderGameRankings($('rhythmRankings'),{crews:lobbyInfo.ranking,players:lobbyInfo.individualRanking,crewId:lobbyInfo.crew});
       updateLobby();

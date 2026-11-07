@@ -16,6 +16,14 @@ async function garage(env,uid) {
   return {owned,equipped:owned.includes(selection?.item_key)?selection.item_key:'c2'};
 }
 
+async function showroomState(env,uid){
+  if(!uid)return {signedIn:false,owned:['c2'],equipped:'c2',balance:null};
+  const [cars,balance]=await Promise.all([garage(env,uid),one(env,`SELECT
+    COALESCE((SELECT balance FROM free_gift_wallets WHERE user_id=?),0) AS S,
+    COALESCE((SELECT SUM(gold-used) FROM gold_purchases WHERE user_id=? AND used<gold AND ${decorationSpendableSQL}),0) AS G`,uid,uid)]);
+  return {signedIn:true,...cars,balance};
+}
+
 async function buyCar(env,uid,car) {
   if ((await garage(env,uid)).owned.includes(car.id)) return;
   let lots=[];
@@ -60,6 +68,7 @@ export function validateRace(course,events,ms,speedBonus=0){
 
 export async function racingRoute(req,env,path,user,ms=Date.now()){
   const action=path.slice('/api/crew-racing/'.length),uid=user?.id||'',{week,course}=raceCalendar(ms);
+  if(action==='garage'&&req.method==='GET')return json(await showroomState(env,uid));
   const membership=uid&&await one(env,'SELECT crew_id FROM crew_members WHERE user_id=?',uid);
   const crew=membership?.crew_id||'';
   if(action==='lobby'&&req.method==='GET'){
@@ -97,7 +106,7 @@ export async function racingRoute(req,env,path,user,ms=Date.now()){
       await run(env,`INSERT INTO player_inventory(id,user_id,item_key,source,source_ref,granted_at) VALUES(?,?,?,'race_equip','active',?)
         ON CONFLICT(user_id,source,source_ref) DO UPDATE SET item_key=excluded.item_key`,id(),uid,car.id,now());
     }
-    return json(await garage(env,uid));
+    return json(await showroomState(env,uid));
   }
   if(!crew)fail(403,'크루에 가입하면 공식 순위에 참여할 수 있어요.');
   if(action==='start'){

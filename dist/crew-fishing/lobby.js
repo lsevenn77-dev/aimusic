@@ -16,7 +16,7 @@ export function fishingLobby(lobby,cast){
  <span>${practice?'연습 · 횟수 제한 없음':`오늘 남은 낚시 <strong>${number(lobby.remaining)} / ${number(lobby.dailyLimit??10)}</strong>`}</span></div></section>
  ${practice?`<section class="fl-card fl-practice">${title('target','연습 낚시터')}<p>횟수 제한 없이 릴 타이밍을 익혀보세요. 연습 어획액은 공식 순위에 반영되지 않으며 새로고침하면 연습 기록이 초기화돼요.</p><a class="fl-secondary" href="${official}">공식 낚시터로</a></section>`:'<section id="fishingRankings" class="crew-game-board" aria-label="주간 게임 순위"></section>'}
  <section class="fl-card fl-records">${title('chart',practice?'내 연습 기록':'이번 주 낚시 기록')}
- <dl>${stat('fish',practice?'내 연습 어획액':'내 주간 어획액',number(lobby.mine)+'원')}${practice?stat('book','발견한 어종',number(lobby.discovered)+' / '+FISH.length):stat('crew','크루 주간 어획액',number(lobby.ours)+'원')+stat('ticket','주간 남은 기회',number(lobby.weeklyRemaining)+' / '+number(lobby.weeklyLimit??50))}</dl></section>
+ <dl>${stat('fish',practice?'내 연습 어획액':'내 주간 어획액',number(lobby.mine)+'원')}${practice?stat('book','발견한 어종',number(lobby.discovered)+' / '+FISH.length):stat('crew','크루 주간 어획액',number(lobby.ours)+'원')+stat('ticket','주간 횟수 제한','없음')}</dl></section>
  <section class="fl-card fl-sea"><div class="fl-sea-main">${title('waves',practice?'나의 연습 바다':'우리 크루의 바다')}
  <p>낚은 물고기와 어종별 최고 기록을 모아봐요.</p><div class="fl-sea-actions"><button class="fl-cta" data-act="aquarium">${icon('fish')}${practice?'연습 수족관':'크루 수족관'}</button><button class="fl-secondary" data-act="book">${icon('book')}물고기 도감</button></div></div>
  <div class="fl-sea-links"><a href="./design.html" data-fishing-catalog>${icon('book')}공식 어종 ${FISH.length}종 보기 ↗</a>${practice?'':`<a href="${official}&amp;mode=practice">${icon('target')}연습하기</a>`}</div></section>
@@ -24,5 +24,5 @@ export function fishingLobby(lobby,cast){
  <p>찌가 <em>민트색 성공 구간</em>에 들어오면 낚시 화면을 터치하세요.</p>
  <ol><li><span class="fl-scene fl-bob" aria-hidden="true"><i></i></span><b>① 입질 대기</b></li><li><span class="fl-scene fl-meter" aria-hidden="true"><i></i></span><b>② 타이밍 맞춰 터치</b></li><li><span class="fl-scene fl-catch" aria-hidden="true"><img src="./art/sky-flyer.webp" alt=""></span><b>③ 물고기 획득!</b></li></ol>
  <p>PC에서는 클릭 또는 스페이스바로 당길 수 있어요.<br>입질까지 1~15초, 입질 후 3초 안에 터치하세요.</p></section>
- <p class="fl-card fl-calendar">${icon('calendar')}${practice?'연습 기록은 공식 순위에 반영되지 않아요.':'한국시간 월요일 0시 개장 · 금요일 22시 마감 · 주간 어획액 기준'}</p></div>`;
+ <p class="fl-card fl-calendar">${icon('calendar')}${practice?'연습 기록은 공식 순위에 반영되지 않아요.':'주말에도 낚시할 수 있어요. 주간 어획액은 한국시간 월요일 0시부터 새로 집계해요.'}</p></div>`;
 }

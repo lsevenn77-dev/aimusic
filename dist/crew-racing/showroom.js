@@ -6,9 +6,12 @@ function model(id,view){
   if(view==='rear')return rearPreview(id);
   const im=new Image();im.src=front(id);im.alt='';im.decoding='async';return im;
 }
-export function createShowroom(cars,changeCar){
+export function createShowroom(cars,changeCar,refresh){
   const $=id=>document.getElementById(id), dialog=$('garageDialog'), opener=$('garageOpen');
   const garage=$('garage'),status=$('garageStatus');
+  const wallet=make('div','garage-wallet'), label=make('strong','','보유 재화'), amounts=make('span','wallet-amounts');
+  wallet.setAttribute('role','status'); wallet.append(label,amounts);status.before(wallet);
+  const format=n=>n.toLocaleString('ko-KR');
   let state,selected=cars[0].id,view='front';
   const featured=make('section','garage-stage'),picture=make('div','stage-car');
   const info=make('div','stage-info'),caption=make('small','','선택한 차량'),name=make('h3'),speed=make('p','stage-speed');
@@ -39,11 +42,16 @@ export function createShowroom(cars,changeCar){
       b.setAttribute('aria-label',row.name+' · 최고속도 '+(280+row.speedBonus)+' km/h, +'+row.speedBonus+(row.id===state.carId?' · 장착 중':''));
       if(b.dataset.view!==view){b.firstChild.replaceChildren(model(row.id,view));b.dataset.view=view;}
     }
-    action.textContent=on?'장착 중':owned?'장착하기':c.price.toLocaleString('ko-KR')+' '+c.currency+' · 구매하기';
-    action.disabled=on||!state.signedIn;
+    const balance=state.balance;
+    if(balance){
+      amounts.replaceChildren(make('span','wallet-s','실버 '+format(balance.S)+' S'),make('span','wallet-g','골드 '+format(balance.G)+' G'));
+    }else amounts.textContent=state.walletPhase==='error'?'잔액 확인 실패':state.signedIn===false?'로그인 후 확인':'잔액 확인 중…';
+    const missing=!owned&&balance?Math.max(0,c.price-balance[c.currency]):0;
+    action.textContent=on?'장착 중':owned?'장착하기':c.price.toLocaleString('ko-KR')+' '+c.currency+(missing?' · '+format(missing)+' '+c.currency+' 부족':' · 구매하기');
+    action.disabled=state.busy||on||!state.signedIn||(!owned&&(!balance||missing>0));
     action.onclick=()=>changeCar(owned?'equip':'buy',c,action);
   }
-  opener.onclick=()=>{selected=state.carId;view='front';paint();dialog.showModal();dialog.querySelector('.cgl-store-scroll').scrollTop=0;};
+  opener.onclick=()=>{selected=state.carId;view='front';paint();dialog.showModal();dialog.querySelector('.cgl-store-scroll').scrollTop=0;refresh();};
   $('garageClose').onclick=()=>dialog.close();
   dialog.addEventListener('click',event=>{if(event.target!==dialog)return;const r=dialog.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)dialog.close();});
   dialog.addEventListener('close',()=>opener.focus());

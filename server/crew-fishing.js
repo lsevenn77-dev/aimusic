@@ -1,4 +1,4 @@
-import {gameLimits,officialClose} from './crew-game-limits.js';
+import {gameLimits} from './crew-game-limits.js';
 import {one, rows, run, json, fail, id} from './db.js';
 import {requireUser} from './auth.js';
 import {publicNameSQL} from './identity.js';
@@ -44,9 +44,8 @@ function configuredLimits(env,uid,day){
     if(!overrides||Array.isArray(overrides)||!Object.hasOwn(overrides,uid))return LIMITS;
     const entry=overrides[uid];
     if(!entry||entry.day!==day||!Number.isSafeInteger(entry.dayLimit)||
-      !Number.isSafeInteger(entry.weekLimit)||entry.dayLimit<LIMITS.day||entry.dayLimit>1000||
-      entry.weekLimit<LIMITS.week||entry.weekLimit<entry.dayLimit||entry.weekLimit>5000)return LIMITS;
-    return {...LIMITS,day:entry.dayLimit,week:entry.weekLimit};
+      entry.dayLimit<LIMITS.day||entry.dayLimit>1000)return LIMITS;
+    return {...LIMITS,day:entry.dayLimit};
   }catch{return LIMITS;}
 }
 // A dated top-up can be issued to one user without replacing the shared overrides.
@@ -58,7 +57,7 @@ export function fishingLimits(env,uid,day){
   try{
     const grant=JSON.parse(raw);
     if(grant?.day!==day||!Number.isSafeInteger(grant.extra)||grant.extra<1||grant.extra>1000)return base;
-    return {...base,day:base.day+grant.extra,week:base.week+grant.extra};
+    return {...base,day:base.day+grant.extra};
   }catch{return base;}
 }
 async function ranking(env,week,personal,viewer){
@@ -75,11 +74,9 @@ export async function fishingRoute(req,env,path,user,ms=Date.now(),clock={receiv
   const respond=data=>json({...data,receivedTime:clock.receivedTime,serverTime:clock.receivedTime+performance.now()-clock.started});
   requireUser(user);
   const uid=user.id, action=path.slice('/api/crew-fishing/'.length), {day,week}=season(ms);
-  const open=ms<officialClose(env,ms,Date.parse(week+'T22:00:00+09:00')+4*86400000);
-  if(action==='pull'&&req.method==='POST')return respond({cast:view(await fishingPull(env,uid,await req.json(),{ms,receivedTime:clock.receivedTime,day,open}))});
+  if(action==='pull'&&req.method==='POST')return respond({cast:view(await fishingPull(env,uid,await req.json(),{ms,receivedTime:clock.receivedTime}))});
   const baseLimits=fishingLimits(env,uid,day);
   const quotaLimits=['lobby','cast'].includes(action)?await gameLimits(env,uid,ms,baseLimits.day):{premiumBonus:0,dailyLimit:baseLimits.day};
-  const limits={...baseLimits,day:quotaLimits.dailyLimit,week:baseLimits.week+quotaLimits.premiumBonus*5};
   const m=await one(env,`SELECT cm.crew_id,c.name,${publicNameSQL()} AS nickname FROM crew_members cm
     JOIN crews c ON c.id=cm.crew_id JOIN users u ON u.id=cm.user_id
     WHERE cm.user_id=?`,uid);
@@ -98,7 +95,7 @@ export async function fishingRoute(req,env,path,user,ms=Date.now(),clock={receiv
     return cast;
   }
   const active=async(readOnly=false)=>{
-    const saved=await one(env,"SELECT * FROM crew_fishing_casts WHERE user_id=? AND crew_id=? AND day=? AND status='active'",uid,crew,day);
+    const saved=await one(env,"SELECT * FROM crew_fishing_casts WHERE user_id=? AND crew_id=? AND status='active' AND (day=? OR (day=? AND COALESCE(end_ms,start_ms)>?)) ORDER BY start_ms DESC LIMIT 1",uid,crew,day,season(ms-86400000).day,clock.receivedTime-IDLE_MS);
     // A lobby refresh must not close a fish ahead of a tap already in transit.
     if(readOnly)return saved&&clock.receivedTime<idleDeadline(saved)?saved:null;
     const current=await expire(saved);
@@ -107,12 +104,12 @@ export async function fishingRoute(req,env,path,user,ms=Date.now(),clock={receiv
   const response=cast=>respond({cast:view(cast)});
   if(req.method==='GET' && action==='lobby'){
     const [quota,mine,ours,individual,crews,current]=await Promise.all([
-      one(env,'SELECT COUNT(*) AS total,COUNT(CASE WHEN day=? THEN 1 END) AS today FROM crew_fishing_casts WHERE user_id=? AND week=?',day,uid,week),
+      one(env,'SELECT COUNT(*) AS today FROM crew_fishing_casts WHERE user_id=? AND week=? AND day=?',uid,week,day),
       one(env,`SELECT COALESCE(SUM(${FISH_VALUE_SQL}),0) AS score FROM crew_fishing_casts WHERE week=? AND user_id=? AND status='caught'`,week,uid),
       one(env,`SELECT COALESCE(SUM(${FISH_VALUE_SQL}),0) AS score FROM crew_fishing_casts WHERE week=? AND crew_id=? AND status='caught'`,week,crew),
-      ranking(env,week,true,uid),ranking(env,week,false,crew),open?active(true):null]);
-    return respond({crew,name:m.name,week,day,open,...quotaLimits,dailyLimit:limits.day,weeklyLimit:limits.week,remaining:Math.max(0,Math.min(limits.day-quota.today,limits.week-quota.total)),
-      weeklyRemaining:Math.max(0,limits.week-quota.total),mine:mine.score,ours:ours.score,individual,crews,cast:view(current)});
+      ranking(env,week,true,uid),ranking(env,week,false,crew),active(true)]);
+    return respond({crew,name:m.name,week,day,open:true,...quotaLimits,weeklyLimit:null,weeklyRemaining:null,remaining:Math.max(0,quotaLimits.dailyLimit-quota.today),
+      mine:mine.score,ours:ours.score,individual,crews,cast:view(current)});
   }
   if(req.method==='GET'&&action==='book'){
     const records=await rows(env,`WITH best AS (SELECT user_id,fish,length,grade,nickname,end_ms,COUNT(*) OVER(PARTITION BY fish) AS count,
@@ -126,18 +123,16 @@ export async function fishingRoute(req,env,path,user,ms=Date.now(),clock={receiv
     if(!/^[a-z0-9-]{16,64}$/i.test(String(body?.requestId||'')))fail(400,'도전 식별자를 확인해주세요.');
     const previous=()=>one(env,'SELECT * FROM crew_fishing_casts WHERE user_id=? AND crew_id=? AND request_id=?',uid,crew,body.requestId);
     const existing=await previous();
-    if(existing && (existing.status!=='active'||(open&&existing.day===day)))return response(await expire(existing));
-    if(!open)fail(409,'이번 주 공식 낚시가 마감됐어요.');
+    if(existing)return response(await expire(existing));
     const current=await active();
     if(current)return response(current);
     const f=encounter();
     await run(env,`INSERT INTO crew_fishing_casts
       (id,user_id,crew_id,nickname,request_id,day,week,fish,grade,length,amount,start_ms,cycle_ms,goal,target,width)
       SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,? WHERE ${memberGuard}
-      AND (SELECT COUNT(*) FROM crew_fishing_casts WHERE user_id=? AND week=? AND day=?)<?
-      AND (SELECT COUNT(*) FROM crew_fishing_casts WHERE user_id=? AND week=?)<? ON CONFLICT DO NOTHING`,
+      AND (SELECT COUNT(*) FROM crew_fishing_casts WHERE user_id=? AND week=? AND day=?)<? ON CONFLICT DO NOTHING`,
       id(),uid,crew,m.nickname,body.requestId,day,week,f.fish,f.grade,f.length,f.amount,ms+biteDelay(),f.cycle,f.goal,f.target,f.width,
-      uid,crew,uid,week,day,limits.day,uid,week,limits.week);
+      uid,crew,uid,week,day,quotaLimits.dailyLimit);
     const cast=await previous()||await active();
     if(!cast || cast.day!==day)fail(409,'오늘 낚시 기회를 모두 사용했거나 도전이 만료됐어요.');
     return response(cast);

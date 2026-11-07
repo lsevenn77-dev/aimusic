@@ -75,7 +75,7 @@ test('warning survives recovery and starts only on a miss already at zero',()=>{
   }
 });
 test('KST calendar and Friday 22:00 boundary',()=>{
-  for(const [iso,open,week] of [['2026-11-06T21:59:59',true,'2026-11-02'],['2026-11-06T22:00:00',false,'2026-11-02'],['2026-11-08T23:59:59',false,'2026-11-02'],['2026-11-09T00:00:00',true,'2026-11-09']]){
+  for(const [iso,open,week] of [['2026-11-06T21:59:59',true,'2026-11-02'],['2026-11-06T22:00:00',true,'2026-11-02'],['2026-11-08T23:59:59',true,'2026-11-02'],['2026-11-09T00:00:00',true,'2026-11-09']]){
     const s=season(Date.parse(iso+'+09:00'));assert.deepEqual([s.open,s.week],[open,week]);
   }
 });
@@ -119,25 +119,35 @@ test('all catches are reappraised without rewriting snapshots, length records an
   assert.equal(lobby.individual[0].score,total);
   assert.equal(lobby.individual[0].place,1);assert.equal((await api('lobby',null,next)).ours,0);
 });
-test('daily and weekly quotas, active casts cannot cross cutoff or be scored by another member',async t=>{
+test('daily quotas last all seven days without a weekly cap; other users cannot score casts',async t=>{
   const {api,sql}=await setup(t);
-  for(let day=0;day<5;day++){
+  for(let day=0;day<7;day++){
     const ms=monday+day*86400000;
     for(let i=0;i<10;i++){
       const {cast}=await api('cast',{requestId:crypto.randomUUID()},ms);
       const pull={id:cast.id,seq:1};
       if(i===0)await assert.rejects(api('pull',pull,ms,'other'));
-      if(day===4&&i===9){
-        const close=Date.parse('2026-11-06T22:00:00+09:00');
-        await assert.rejects(api('pull',pull,close));
-        await assert.rejects(api('cast',{requestId:crypto.randomUUID()},close));
-      }
       sql.prepare("UPDATE crew_fishing_casts SET status='escaped' WHERE id=?").run(cast.id);
     }
     await assert.rejects(api('cast',{requestId:crypto.randomUUID()},ms));
   }
-  assert.equal((await api('lobby',null,monday+4*86400000)).weeklyRemaining,0);
+  assert.equal((await api('lobby',null,monday+6*86400000)).weeklyRemaining,null);
   assert.equal((await api('lobby',null,monday+7*86400000)).remaining,10);
+});
+
+test('a Sunday cast stays playable across midnight without charging the new day or week',async t=>{
+  const {api,sql}=await setup(t), roll=Date.parse('2026-11-09T00:00:00+09:00');
+  const {cast}=await api('cast',{requestId:crypto.randomUUID()},roll-1);
+  const fresh=await api('lobby',null,roll);
+  assert.equal(fresh.cast.id,cast.id);assert.equal(fresh.remaining,10);
+  assert.equal((await api('cast',{requestId:crypto.randomUUID()},roll)).cast.id,cast.id);
+  let caught;
+  for(let seq=1;seq<=cast.goal;seq++){
+    const hit=cast.start+Math.round(cast.cycle*(seq-1+(cast.target+cast.width/2)/200));
+    caught=(await api('pull',{id:cast.id,seq},hit)).cast;
+  }
+  assert.equal(caught.status,'caught');assert.equal((await api('lobby',null,roll+60000)).mine,0);
+  assert.equal(sql.prepare('SELECT week FROM crew_fishing_casts WHERE id=?').get(cast.id).week,'2026-11-02');
 });
 
 test('practice replays keep only one fish and one award', async () => {
@@ -161,7 +171,7 @@ test('account allowance grants 30 remaining after 10 casts, enforces the last ca
   }
   assert.equal((await api('lobby')).remaining,30);
   assert.equal((await api('lobby')).dailyLimit,40);
-  assert.equal((await api('lobby')).weeklyLimit,50);
+  assert.equal((await api('lobby')).weeklyLimit,null);
   assert.equal((await api('lobby',null,monday,'other')).remaining,10);
   assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM crew_fishing_casts').get().n,10);
   for(let i=0;i<30;i++){
@@ -175,33 +185,33 @@ test('account allowance grants 30 remaining after 10 casts, enforces the last ca
   assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM crew_fishing_casts').get().n,40);
 });
 
-test('one dated top-up gives ten usable casts at the weekly cap; keeps prior grants and other users unchanged',async t=>{
+test('one dated top-up adds ten usable casts even with fifty previous casts; keeps prior grants and other users unchanged',async t=>{
   const today=monday+2*86400000,day='2026-11-04',env={CREW_FISHING_BONUS_OWNER:JSON.stringify({day,extra:10}),
     CREW_FISHING_QUOTA_OVERRIDES:JSON.stringify({owner:{day,dayLimit:12,weekLimit:50}})};
   const {api,sql}=await setup(t,env);
   sql.exec("INSERT INTO crew_members(crew_id,user_id,role,joined) VALUES('crew','other','member',0)");
   const insert=sql.prepare("INSERT INTO crew_fishing_casts(id,user_id,crew_id,nickname,request_id,day,week,fish,grade,length,amount,start_ms,cycle_ms,goal,target,width,status) VALUES(?,'owner','crew','QA',?,'2026-11-03','2026-11-02','stripe-perch','B',1,1,0,1600,3,10,30,'escaped')");
   for(let n=0;n<50;n++)insert.run('seed'+n,'seed'+n);
-  const info=await api('lobby',null,today);assert.deepEqual([info.remaining,info.dailyLimit,info.weeklyLimit],[10,22,60]);
-  assert.equal((await api('lobby',null,today,'other')).weeklyLimit,50);
-  for(let n=0;n<10;n++){
+  const info=await api('lobby',null,today);assert.deepEqual([info.remaining,info.dailyLimit,info.weeklyLimit],[22,22,null]);
+  assert.equal((await api('lobby',null,today,'other')).weeklyLimit,null);
+  for(let n=0;n<22;n++){
     const {cast}=await api('cast',{requestId:crypto.randomUUID()},today);
     sql.prepare("UPDATE crew_fishing_casts SET status='escaped' WHERE id=?").run(cast.id);
   }
   assert.equal((await api('lobby',null,today)).remaining,0);await assert.rejects(api('cast',{requestId:crypto.randomUUID()},today),{status:409});
-  assert.equal((await api('lobby',null,today+86400000)).weeklyLimit,50);
+  assert.equal((await api('lobby',null,today+86400000)).weeklyLimit,null);
 });
 
 test('allowances reject malformed, lowering, mismatched and excessive settings',()=>{
   const day='2026-11-02',entry={day,dayLimit:40,weekLimit:50};
   for(const raw of [undefined,'{','null','[]','"text"',JSON.stringify({other:entry}),
-    ...[{day:'2026-11-03'},{dayLimit:9},{dayLimit:40.5},{weekLimit:49},{dayLimit:1001},{weekLimit:5001},{dayLimit:60}]
+    ...[{day:'2026-11-03'},{dayLimit:9},{dayLimit:40.5},{dayLimit:1001}]
       .map(patch=>JSON.stringify({owner:{...entry,...patch}}))]){
     const limit=fishingLimits({CREW_FISHING_QUOTA_OVERRIDES:raw},'owner',day);
-    assert.equal(limit.day,10);assert.equal(limit.week,50);
+    assert.equal(limit.day,10);
   }
   const limit=fishingLimits({CREW_FISHING_QUOTA_OVERRIDES:JSON.stringify({owner:entry})},'owner',day);
-  assert.equal(limit.day,40);assert.equal(limit.week,50);
+  assert.equal(limit.day,40);
 });
 
 test('official lobby is the default and practice leaves the official quota intact', async t => {

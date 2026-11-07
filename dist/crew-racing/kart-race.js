@@ -17,7 +17,7 @@ import {CARS,raceCalendar,SPEED_RULES} from "./catalog.js?v=kart2";
   const WEEK = isoWeek(new Date());
   // 검수용: 주소 끝에 #course=harbor 를 붙이면 그 코스로 열림 (화면에는 선택 메뉴 없음)
   const forced = ((globalThis.location && location.hash) || '').match(/course=(\w+)/);
-  // 기준: 2026년 45주(11/2 월요일 시작)가 레이싱 1회차 · 네온 리버사이드
+  // 기준: 2026년 45주(11/2 월요일 시작)가 레이싱 1회차 · 별빛 놀이공원
   const COURSE_ID = forced && Object.hasOwn(COURSES, forced[1]) ? forced[1] : raceCalendar().course;
   const COURSE=COURSES[COURSE_ID];
   const {step,segs,segAt,TRACK_LEN,FINISH_SEG}=createRace(COURSE_ID);
@@ -69,48 +69,6 @@ import {CARS,raceCalendar,SPEED_RULES} from "./catalog.js?v=kart2";
   let skyOffset = 0;
   let scenery=null, lastDrawTime=0, boostCamera=0;
   const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)');
-  // 배경 (고정 시드)
-  let seed = 11; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-  const towers = []; for (let x = 0; x < 1; ) { const w = .012 + rnd() * .03; towers.push({ x, w, h: .05 + rnd() * .16 * (x > .45 && x < .75 ? 1.8 : 1), spire: rnd() < .2 }); x += w + .002; }
-  const hills = Array.from({ length: 24 }, (_, i) => ({ x: i / 24, h: .02 + rnd() * .05 }));
-
-  function drawBg(v, off) {
-    const { w } = v, hz = v.horizon;
-    const sky = ctx.createLinearGradient(0, 0, 0, hz);
-    sky.addColorStop(0, '#2a2266'); sky.addColorStop(.45, '#6b48b8'); sky.addColorStop(.8, '#d77fc0'); sky.addColorStop(1, '#f2a7c6');
-    ctx.fillStyle = sky; ctx.fillRect(0, 0, w, hz + 2);
-    // 구름 띠
-    ctx.fillStyle = 'rgba(255,190,225,.18)';
-    for (let i = 0; i < 6; i++) { const cx = ((i * .23 - off * .2) % 1.2 + 1.2) % 1.2 * w - w * .1; ctx.beginPath(); ctx.ellipse(cx, hz * (.35 + (i % 3) * .1), w * .14, hz * .03, 0, 0, 7); ctx.fill(); }
-    // 먼 산
-    ctx.fillStyle = '#4b3a8e';
-    ctx.beginPath(); ctx.moveTo(0, hz);
-    for (let i = 0; i <= 48; i++) { const f = i / 48, hh = hills[i % 24].h; ctx.lineTo(f * w, hz - hh * v.h * .6 - Math.sin((f + off * .3) * 9) * v.h * .01); }
-    ctx.lineTo(w, hz); ctx.fill();
-    // 도시 스카이라인 (오른쪽 강 건너)
-    const base = hz - v.h * .005;
-    for (const t of towers) {
-      const x = ((t.x - off * .5) % 1 + 1) % 1 * w * 1.1 - w * .05, bw = t.w * w, bh = t.h * v.h * .55;
-      const g = ctx.createLinearGradient(0, base - bh, 0, base); g.addColorStop(0, '#5a4fb5'); g.addColorStop(1, '#2a2468');
-      ctx.fillStyle = g; ctx.fillRect(x, base - bh, bw, bh);
-      if (t.spire) { ctx.fillRect(x + bw / 2 - 1.5, base - bh - bh * .35, 3, bh * .35); ctx.fillStyle = '#ff6fb5'; ctx.fillRect(x + bw / 2 - 2, base - bh - bh * .35, 4, 4); }
-      ctx.fillStyle = 'rgba(255,225,170,.55)';
-      for (let yy = base - bh + 5; yy < base - 4; yy += 7) for (let xx = x + 3; xx < x + bw - 3; xx += 6) if ((xx * 7 + yy * 3) % 5 < 2) ctx.fillRect(xx, yy, 2, 3);
-    }
-    // 관람차
-    const fx = ((0.82 - off * .5) % 1 + 1) % 1 * w * 1.1 - w * .05, fr = v.h * .085, fy = base - fr - 2;
-    ctx.save(); ctx.strokeStyle = 'rgba(255,140,220,.85)'; ctx.lineWidth = 2; ctx.shadowColor = '#ff6fb5'; ctx.shadowBlur = 10;
-    ctx.beginPath(); ctx.arc(fx, fy, fr, 0, 7); ctx.stroke();
-    for (let i = 0; i < 12; i++) { const a = i * Math.PI / 6 + performance.now() / 9000; ctx.beginPath(); ctx.moveTo(fx, fy); ctx.lineTo(fx + Math.cos(a) * fr, fy + Math.sin(a) * fr); ctx.stroke(); }
-    ctx.restore();
-    // 강 (수평선 아래로 반사광)
-    const wg = ctx.createLinearGradient(0, hz, 0, hz + v.h * .12);
-    wg.addColorStop(0, '#5a3f9e'); wg.addColorStop(1, '#1a1640');
-    ctx.fillStyle = wg; ctx.fillRect(0, hz, w, v.h * .2);
-    ctx.fillStyle = 'rgba(255,200,240,.25)';
-    for (let i = 0; i < 40; i++) { const x = ((i * .061 - off * .5) % 1 + 1) % 1 * w, y = hz + 3 + (i % 7) * v.h * .012; ctx.fillRect(x, y, 10 + (i % 4) * 8, 1.5); }
-  }
-
   // 차량 (뒤에서 본 모습). ghost=true면 반투명 보라 홀로그램
   function drawCar(cx, by, w, o = {}) {
     const h = w * .5;
@@ -180,7 +138,7 @@ import {CARS,raceCalendar,SPEED_RULES} from "./catalog.js?v=kart2";
     const pSeg = segAt(S.z + PLAYER_Z), pPct = ((S.z + PLAYER_Z) % SEG) / SEG;
     const pY = pSeg.p1.world.y + (pSeg.p2.world.y - pSeg.p1.world.y) * pPct;
     skyOffset += pSeg.curve*(S.speed/CAR.maxSpeed)*.032*elapsed;
-    if (!scenery.drawBackground(ctx,v,skyOffset,S.x)) drawBg(v, skyOffset);
+    scenery.drawBackground(ctx,v,skyOffset,S.x,S.z/TRACK_LEN);
 
     let maxy = v.h, x = 0, dx = -(base.curve * basePct);
     const list = [];
@@ -410,9 +368,10 @@ import {CARS,raceCalendar,SPEED_RULES} from "./catalog.js?v=kart2";
     ctx.restore();
   }
 
-  let carId='c2', owned=new Set(['c2']), signedIn=false, crewMember=false;
-  const showroom=createShowroom(CARS,changeCar);
-  function renderShop(){showroom.update({carId,owned,signedIn});}
+  let carId='c2', owned=new Set(['c2']), signedIn=null, crewMember=false;
+  let balance=null,walletPhase='loading',garageEpoch=0,garagePending=false;
+  const showroom=createShowroom(CARS,changeCar,refreshGarage);
+  function renderShop(){showroom.update({carId,owned,signedIn,balance,walletPhase,busy:garagePending});}
 
   async function api(action,body){
     const response=await fetch('/api/crew-racing/'+action,body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{cache:'no-store'});
@@ -421,17 +380,26 @@ import {CARS,raceCalendar,SPEED_RULES} from "./catalog.js?v=kart2";
     return data;
   }
   function garageState(data){
+    signedIn=data.signedIn;
+    if(Object.hasOwn(data,'balance')){balance=data.balance;walletPhase='ready';}
     owned=new Set(data.owned);carId=CARS.some(c=>c.id===data.equipped)?data.equipped:'c2';
     renderShop();
+  }
+  async function refreshGarage(){
+    if(garagePending)return;
+    const ticket=++garageEpoch;balance=null;walletPhase='loading';renderShop();
+    try{const data=await api('garage');if(ticket===garageEpoch)garageState(data);}
+    catch{if(ticket===garageEpoch){walletPhase='error';renderShop();}}
   }
   function renderQuota(data){
     $('practiceBtn').textContent = crewMember&&!forced ? '▶ 이번 주 레이싱 도전' : '▶ 연습 주행 시작';
     $('raceQuota').textContent=crewMember&&!forced?`오늘 남은 공식 도전 ${data.remaining} / ${data.dailyLimit??3}회 · 한국시간 자정 초기화`:'연습 · 횟수 제한 없음';
   }
   async function loadLobby(){
+    const snapshot=garageEpoch;
     try{
       const data=await api('lobby');
-      signedIn=data.signedIn;crewMember=data.crewMember;renderQuota(data);garageState(data);document.querySelector('[data-race-mode]').textContent=crewMember&&!forced?'공식 랭킹 도전':'연습 모드';
+      crewMember=data.crewMember;renderQuota(data);if(garageEpoch===snapshot)garageState(data);document.querySelector('[data-race-mode]').textContent=crewMember&&!forced?'공식 랭킹 도전':'연습 모드';
       updateLobby();
       renderGameRankings($('racingRankings'),{crews:data.ranking,players:data.individualRanking,crewId:data.crew});
       decorateRankings($('racingRankings'));
@@ -441,14 +409,13 @@ import {CARS,raceCalendar,SPEED_RULES} from "./catalog.js?v=kart2";
       $('racingRankings').textContent='순위를 불러오지 못했어요.';
     }
   }
-  let garagePending=false;
   async function changeCar(action,c,button){
     if(garagePending)return;
     if(action==='buy'&&!confirm(c.name+'를 '+c.price+c.currency+'에 구매할까요?'))return;
-    garagePending=true;button.disabled=true;
+    ++garageEpoch;garagePending=true;button.disabled=true;
     try{garageState(await api(action,{car:c.id}));$('garageStatus').textContent=action==='buy'?'구매했어요. 장착하기를 눌러주세요.':c.name+' 장착 완료';}
-    catch(e){button.disabled=false;$('garageStatus').textContent=e.message;}
-    finally{garagePending=false;showroom.focusSelection();}
+    catch(e){$('garageStatus').textContent=e.message;garagePending=false;await refreshGarage();}
+    finally{garagePending=false;renderShop();showroom.focusSelection();}
   }
 
   // 자동 검사용 (게임 동작에는 영향 없음)

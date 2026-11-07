@@ -1,4 +1,4 @@
-import {gameLimits,officialClose} from './crew-game-limits.js';
+import {gameLimits} from './crew-game-limits.js';
 import {query,one,rows,json,fail,id,rate} from './db.js';
 import {requireUser} from './auth.js';
 import {publicNameSQL} from './identity.js';
@@ -12,11 +12,10 @@ const DAY=86400000, WEEK=7*DAY, KST=9*3600000;
 export function seasonTime(ms,env){
  const local=new Date(ms+KST),day=local.toISOString().slice(0,10);
  const monday=Date.parse(day)-(local.getUTCDay()+6)%7*DAY,week=new Date(monday).toISOString().slice(0,10);
- const closes=officialClose(env,ms,monday-KST+4*DAY+22*3600000);
  const date=env.CREW_JUMP_START_MONDAY||'',anchor=Date.parse(date);
  const configured=/^\d{4}-\d{2}-\d{2}$/.test(date)&&Number.isFinite(anchor)&&new Date(anchor).toISOString().startsWith(date)&&new Date(anchor).getUTCDay()===1;
  const game=configured?playableRotation[Math.floor((monday-anchor)/WEEK)%playableRotation.length]:null;
- return {day,week,closes,open:configured&&monday>=anchor&&ms<closes&&game==='jump',seed:'aifect/'+VERSION+'/'+week};
+ return {day,week,open:configured&&monday>=anchor&&game==='jump',seed:'aifect/'+VERSION+'/'+week};
 }
 export async function jumpRoute(req,env,path,user,ms=Date.now()){
  const match=/^\/api\/crews\/([\w-]+)\/jump(?:\/(start|finish|abandon|outfits(?:\/(?:buy|equip))?))?$/.exec(path);
@@ -25,7 +24,7 @@ export async function jumpRoute(req,env,path,user,ms=Date.now()){
  const crew=match[1],uid=user.id;
  if(!await one(env,'SELECT 1 FROM crew_members WHERE crew_id=? AND user_id=?',crew,uid))fail(403,'소속 크루에서 참여해주세요.');
  if(match[2]?.startsWith('outfits'))return jumpOutfitsRoute(req,env,match[2],uid);
- const calendar=seasonTime(ms,env),{day,week,seed,open,closes}=calendar;
+ const calendar=seasonTime(ms,env),{day,week,seed,open}=calendar;
  if(!match[2]&&req.method==='GET'){
   const limits=await gameLimits(env,uid,ms);
   const used=await one(env,'SELECT COUNT(*) n FROM crew_jump_runs WHERE day=? AND user_id=?',day,uid);
@@ -49,7 +48,7 @@ export async function jumpRoute(req,env,path,user,ms=Date.now()){
   ) SELECT c.name,c.image_version,r.* FROM ranked r JOIN crews c ON c.id=r.crew_id WHERE place<=100 OR crew_id=? ORDER BY place,c.name,r.crew_id`,week,crew);
   const own=ranking.find(r=>r.crew_id===crew);
   const mission=await one(env,'SELECT COUNT(score) completed FROM crew_jump_runs WHERE day=? AND user_id=? AND crew_id=?',day,uid,crew);
-  return json({week,open:open&&ms+COUNTDOWN_MS+RUN_TTL_MS<closes,seed,version:VERSION,...limits,remaining:Math.max(0,limits.dailyLimit-used.n),best:myRecord?.points??null,personalRank:myRecord?.place??null,individualRanking,team:own?.points??0,teamRank:own?.place??null,ranking,participated:mission.completed>0});
+  return json({week,open,seed,version:VERSION,...limits,remaining:Math.max(0,limits.dailyLimit-used.n),best:myRecord?.points??null,personalRank:myRecord?.place??null,individualRanking,team:own?.points??0,teamRank:own?.place??null,ranking,participated:mission.completed>0});
 
  }
  if(req.method!=='POST')fail(405,'지원하지 않는 요청입니다.');
@@ -57,7 +56,7 @@ export async function jumpRoute(req,env,path,user,ms=Date.now()){
  const body=await req.json();
  if(match[2]==='start'){
   const limits=await gameLimits(env,uid,ms);
-  if(!open||ms+COUNTDOWN_MS+RUN_TTL_MS>=closes)fail(409,'공식 도전 기간이 아니에요.');
+  if(!open)fail(409,'공식 도전 기간이 아니에요.');
   if(typeof body.requestId!=='string'||!/^[\w-]{12,64}$/.test(body.requestId))fail(400,'다시 시도해주세요.');
   // One SQLite statement serializes quota, active-round and crew checks across tabs.
   await query(env,`INSERT OR IGNORE INTO crew_jump_runs(id,user_id,crew_id,week,day,request_id,seed,version,starts)
@@ -84,7 +83,7 @@ export async function jumpRoute(req,env,path,user,ms=Date.now()){
  // A verified row is the durable participation event. Mission consumers can deduplicate by this key.
  const completion=score=>json({score,missionEventKey:'crew-jump:'+run.id});
  if(run.score!==null)return completion(run.score);
- if(run.version!==VERSION||!open||run.week!==week||ms>=closes||ms>run.starts+RUN_TTL_MS)fail(409,'제출 시간이 지났어요.');
+ if(run.version!==VERSION||ms>run.starts+RUN_TTL_MS)fail(409,'제출 시간이 지났어요.');
  let result;
  try{result=replay(run.seed,body.inputs)}catch{console.warn('crew_jump_invalid_replay');fail(400,'점프 기록을 확인해주세요.')}
  if(ms<run.starts+Math.floor(result.tick*1000/HZ)-100)fail(409,'도전을 마친 뒤 제출해주세요.');

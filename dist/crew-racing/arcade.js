@@ -100,19 +100,20 @@ function lampGlow() {
 
 // The tyre and barrier positions come from the same course projection used by the game engine.
 export function arcadeScenery() {
-  const city=texture('waterfront'), props=texture('harbor-toys'), karts=texture('kart-toys');
+  const park=texture('waterfront'), props=texture('harbor-toys'), karts=texture('kart-toys');
   const asphalt=asphaltTile(), sign=turnSign(), glow=lampGlow(), reduced=matchMedia('(prefers-reduced-motion: reduce)');
-  const promenade=['bunny','palm',null,'palm','cart',null,'palm',null];
-  function drawBackground(ctx,v,heading,lane) {
-    if(!city.naturalWidth) return false;
-    const scale=Math.max(v.w/city.naturalWidth,v.horizon/(city.naturalHeight*.67));
-    const w=city.naturalWidth*scale,h=city.naturalHeight*scale;
-    const y=v.horizon-h*.67;
-    const span=Math.max(0,w-v.w);
-    const x=-span*(.71+.15*Math.sin(heading*.68)+.018*lane);
-    ctx.fillStyle='#231c3b';ctx.fillRect(0,0,v.w,v.h);
-    ctx.drawImage(city,x,y,w,h);
-    return true;
+  const promenade=['bunny',null,'cart','palm',null,'bunny',null,'cart'];
+  function drawBackground(ctx,v,heading,lane,progress=0) {
+    ctx.fillStyle='#302955';ctx.fillRect(0,0,v.w,v.h);
+    if(!park.naturalWidth)return;
+    // Frame landmarks in the original park panorama: the wheel at x=.82,
+    // then the bandstand at .34. Never crop the wheel out of the starting grid.
+    const scale=Math.max(v.w/park.naturalWidth,v.horizon/(park.naturalHeight*.67));
+    const w=park.naturalWidth*scale,h=park.naturalHeight*scale;
+    const lap=Math.max(0,Math.min(1,progress));
+    const focus=.58+.24*Math.cos(lap*2*Math.PI)+.035*Math.sin(heading*.68)+.008*lane;
+    const left=Math.max(0,Math.min(w-v.w,focus*w-v.w*.54));
+    ctx.drawImage(park,-left,v.horizon-h*.67,w,h);
   }
   function drawRoad(ctx,segment,v,finishSegment) {
     const a=segment.p1.screen,b=segment.p2.screen, height=a.y-b.y;
@@ -172,7 +173,7 @@ export function arcadeScenery() {
     if(!kind || !props.naturalWidth)return true;
     if(kind==='lamp' && Math.sign(prop.x)!==(index%2 ? 1 : -1))return true;
     const a=segment.p1.screen;
-    const offset=kind==='lamp'?Math.sign(prop.x)*1.19 : -1.64;
+    const offset=kind==='lamp'?Math.sign(prop.x)*1.19 : (Math.floor(segment.i/36)%2?1:-1)*1.7;
     const x=a.x+a.w*offset,y=a.y;
     const h=a.scale*v.w*propHeights[kind];
     const frame=propFrames[kind], w=h*frame[2]/frame[3];

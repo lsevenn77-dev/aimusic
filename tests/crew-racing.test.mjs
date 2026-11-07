@@ -41,18 +41,24 @@ test('racing garage defaults to the sunset coupe and charges each owned car once
   const f=await decorationsFixture(t,{gold:150});
   const post=(action,car,user)=>f.call('/api/crew-racing/'+action,'POST',{car},user);
   assert.equal((await f.call('/api/crew-racing/lobby')).body.equipped,'c2');
+  const wallet=async uid=>(await f.call('/api/crew-racing/garage','GET',null,uid)).body.balance;
+  assert.equal(await wallet(''),null);assert.deepEqual(await wallet('other'),{S:0,G:0});
+  assert.deepEqual(await wallet('owner'),{S:0,G:150});
   assert.equal((await post('equip','c1')).status,403);
   assert.equal((await post('buy','c1','')).status,401);
   assert.equal((await post('buy','c1')).status,200);
   assert.equal((await post('buy','c1')).status,200);
   assert.equal(f.sql.prepare("SELECT used FROM gold_purchases WHERE id='funds'").get().used,100);
-  assert.equal((await post('equip','c1')).body.equipped,'c1');
+  const equipped=(await post('equip','c1')).body;
+  assert.equal(equipped.equipped,'c1');assert.deepEqual(equipped.balance,{S:0,G:50});
   assert.equal((await post('buy','pearl')).status,409);
   f.sql.exec("INSERT INTO free_gift_wallets(user_id,balance) VALUES('owner',201)");
-  assert.equal((await post('buy','c3')).status,200);
-  assert.equal((await post('buy','c3')).status,200);
+  assert.deepEqual((await post('buy','c3')).body.balance,{S:1,G:50});
+  assert.deepEqual((await post('buy','c3')).body.balance,{S:1,G:50});
   assert.equal((await post('buy','c5')).status,409);
   assert.equal(f.sql.prepare("SELECT balance FROM free_gift_wallets WHERE user_id='owner'").get().balance,1);
+  f.sql.exec("INSERT INTO gold_orders(id,user_id,request_id,state,created,expires,updated) VALUES('funds','owner','refund','refund_review',0,1,0)");
+  assert.deepEqual(await wallet('owner'),{S:1,G:0});
 });
 
 test('racing leaderboard uses one verified weekly best per crew member',async t=>{

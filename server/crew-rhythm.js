@@ -1,4 +1,4 @@
-import {gameLimits,officialClose} from './crew-game-limits.js';
+import {gameLimits} from './crew-game-limits.js';
 import {one,rows,run,json,fail,id,rate} from './db.js';
 import {requireUser} from './auth.js';
 import {publicNameSQL} from './identity.js';
@@ -9,9 +9,6 @@ const TTL=3600000;
 export async function rhythmRoute(req,env,path,user,ms=Date.now()){
   requireUser(user);
   const uid=user.id,action=path.slice('/api/crew-rhythm/'.length),{day,week}=season(ms);
-  const closes=officialClose(env,ms,Date.parse(week+'T00:00:00+09:00')+4*86400000+22*3600000);
-  const open=ms<closes;
-  const canStart=open&&ms+RULES.leadIn*1000+65000+30000<closes;
   const member=await one(env,'SELECT crew_id FROM crew_members WHERE user_id=?',uid);
   if(!member)fail(403,'크루에 가입하면 공식 랭킹에 참여할 수 있어요.');
   const crew=member.crew_id;
@@ -32,7 +29,7 @@ export async function rhythmRoute(req,env,path,user,ms=Date.now()){
         ranked AS (SELECT *,RANK() OVER(ORDER BY points DESC) AS place FROM totals)
         SELECT r.*,c.name,c.image_version FROM ranked r JOIN crews c ON c.id=r.crew_id WHERE place<=100 OR crew_id=? ORDER BY place,c.name,r.crew_id`,week,crew)
     ]);
-    return json({userId:uid,crew,day,week,open:canStart,...limits,remaining:Math.max(0,limits.dailyLimit-used.n),version:VERSION,song:CHART.title||'Double Tap',bests,
+    return json({userId:uid,crew,day,week,open:true,...limits,remaining:Math.max(0,limits.dailyLimit-used.n),version:VERSION,song:CHART.title||'Double Tap',bests,
       individualRanking,ranking,team:ranking.find(r=>r.crew_id===crew)?.points||0});
   }
   if(req.method!=='POST')fail(405,'지원하지 않는 요청이에요.');
@@ -40,7 +37,6 @@ export async function rhythmRoute(req,env,path,user,ms=Date.now()){
   const body=await req.json();
   if(action==='start'){
     const limits=await gameLimits(env,uid,ms);
-    if(!canStart)fail(409,'이번 주 공식 도전이 마감됐거나 남은 시간이 부족해요.');
     if(!Object.hasOwn(RULES.base,body.difficulty)||!/^[-\w]{12,64}$/.test(String(body.requestId||'')))fail(400,'도전 정보를 확인해주세요.');
     const previous=()=>one(env,'SELECT * FROM crew_rhythm_runs WHERE user_id=? AND request_id=?',uid,body.requestId);
     let record=await previous();
@@ -63,7 +59,7 @@ export async function rhythmRoute(req,env,path,user,ms=Date.now()){
   }
   if(action!=='finish')fail(404,'경로를 찾지 못했어요.');
   if(record.status==='finished')return json({score:record.score,maxCombo:record.max_combo,saved:true});
-  if(record.status!=='active'||record.version!==VERSION||!open||record.week!==week||ms>record.starts+TTL)fail(409,'기록 제출 시간이 지났어요.');
+  if(record.status!=='active'||record.version!==VERSION||ms>record.starts+TTL)fail(409,'기록 제출 시간이 지났어요.');
   let result;
   try{result=replayRhythm(record.difficulty,body.events,body.finishAt,body.reason);}catch{fail(400,'리듬 입력 기록을 확인해주세요.');}
   if(ms-record.starts+500<body.finishAt+RULES.leadIn*1000)fail(409,'도전을 마친 뒤 기록을 제출해주세요.');

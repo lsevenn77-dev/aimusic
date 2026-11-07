@@ -13,7 +13,7 @@ export const SIZES = {
   C: {weight:20, min:-1500, max:-501, percent:90},
   D: {weight:10, min:-2500, max:-1501, percent:80}
 };
-export const LIMITS = {day:10, week:50, warnings:2};
+export const LIMITS = {day:10, warnings:2};
 export const IDLE_MS = 3000;
 // Stored lengths use 1/10,000 cm units. Truncate at 0.1 cm before splitting;
 // displaying metres never changes the stored length or size-grade calculation.
@@ -28,9 +28,8 @@ export function season(ms){
   const kst = new Date(ms + 9*3600000);
   const day = kst.toISOString().slice(0,10);
   const weekday = (kst.getUTCDay()+6)%7;
-  const open = weekday<4 || (weekday===4 && kst.getUTCHours()<22);
   kst.setUTCDate(kst.getUTCDate()-weekday);
-  return {day, week:kst.toISOString().slice(0,10), open};
+  return {day, week:kst.toISOString().slice(0,10), open:true};
 }
 export function weighted(table, roll){
   for(const [key,entry] of Object.entries(table)){

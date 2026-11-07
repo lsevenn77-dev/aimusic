@@ -49,7 +49,7 @@ test('server accepts a full 140 second replay only after the new finish time',as
 });
 test('KST weekly window, midnight, and inactive season',()=>{
  const at=ms=>seasonTime(ms,env);assert.equal(at(monday-1).open,false);assert.equal(at(monday).open,true);assert.equal(at(monday+86400000).day,'2026-11-03');
- const end=monday+(4*24+22)*3600000;assert.ok(at(end-1).open);assert.equal(at(end).open,false);
+ const end=monday+(4*24+22)*3600000;assert.ok(at(end-1).open);assert.equal(at(end).open,true);
  assert.equal(at(monday+7*86400000).open,true);assert.notEqual(at(monday).seed,at(monday+7*86400000).seed);assert.equal(seasonTime(monday,{}).open,false);
 });
 function seedCrew(f){
@@ -86,16 +86,17 @@ test('playtest scoring caps combo bonuses, misses reset combo and terminal frame
  s.pattern.jellies.push({x:0,height:0});step(s);assert.equal(s.combo,0);
  assert.throws(()=>replay('air',[1,2,3]));
 });
-test('abandoned runs never score, do not restore attempts, and cutoff allows time for submission',async t=>{
+test('abandoned runs never score, do not restore attempts, and an active run keeps its starting week at rollover',async t=>{
  const f=await fixture(t);seedCrew(f);
  const call=(action,body,time)=>jumpRoute(new Request('https://aifect.test/',{method:'POST',body:JSON.stringify(body)}),{DB:f.DB,...env},'/api/crews/preview/jump/'+action,{id:'owner'},time).then(x=>x.json());
  const r=await call('start',{requestId:'abandon-then-try'},monday);await call('abandon',{id:r.id},monday+2000);
  await assert.rejects(call('finish',{id:r.id,inputs:[]},monday+12000),{status:409});
  await call('start',{requestId:'second-after-exit'},monday+5000);
  assert.equal(f.sql.prepare('SELECT COUNT(*) n FROM crew_jump_runs').get().n,2);
- const close=monday+118*3600000;
- await assert.rejects(call('start',{requestId:'before-the-close'},close-60000),{status:409});
- assert.equal(f.sql.prepare('SELECT COUNT(score) n FROM crew_jump_runs').get().n,0);
+ const rollover=monday+7*86400000;
+ const late=await call('start',{requestId:'sunday-night-run'},rollover-500);
+ await call('finish',{id:late.id,inputs:[]},rollover+15000);
+ assert.equal(f.sql.prepare('SELECT week FROM crew_jump_runs WHERE score IS NOT NULL').get().week,'2026-11-02');
 });
 
 test('three abandoned attempts exhaust the account quota across crews until KST midnight',async t=>{
