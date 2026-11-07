@@ -89,6 +89,39 @@ class MobileExperienceDeviceTest {
   }
  }
 
+ /** Run only against the disposable preview-crew-fishing SQLite server. */
+ @Test fun fishingLobbyFitsNativeChromeAndPracticeStaysInGame(){
+  val origin=InstrumentationRegistry.getArguments().getString("fishingFixtureOrigin")
+  org.junit.Assume.assumeTrue(context.packageName.endsWith(".test") && origin?.matches(Regex("http://127[.]0[.]0[.]1:[0-9]{2,5}"))==true)
+  Endpoint.configureTest(origin);check(Endpoint.origin==origin)
+  val previous=NativeSession.cookie(context)
+  try{
+   NativeSession.put(context,"cookie","")
+   ActivityScenario.launch<MobileExperienceActivity>(Intent(context,MobileExperienceActivity::class.java).putExtra("route","game/fishing/preview")).use{scene->
+    lateinit var w:WebView;scene.onActivity{w=web(it.window.decorView)!!}
+    val ready="!!document.querySelector('.fl-hero') && !!document.getElementById('aifect-mobile-experience')"
+    waitJs(w,ready)
+    assertEquals("one native header, no horizontal overflow","true",js(w,"getComputedStyle(document.querySelector('body>header')).display==='none' && document.documentElement.scrollWidth<=innerWidth+1"))
+    js(w,"window.__qaArtReady=false; Promise.all(['./art/lobby-sea-v1.webp','./art/lobby-aquarium-v1.webp'].map(src=>{const im=new Image();im.src=src;return im.decode()})).then(()=>window.__qaArtReady=true);true")
+    waitJs(w,"window.__qaArtReady===true")
+    val drawn=CountDownLatch(1)
+    ins.runOnMainSync{w.postVisualStateCallback(1,object:WebView.VisualStateCallback(){override fun onComplete(requestId:Long){w.postOnAnimation{w.postOnAnimation{drawn.countDown()}}}})}
+    assertTrue("WebView presented the illustrated lobby",drawn.await(8,TimeUnit.SECONDS))
+    ins.waitForIdleSync();capture("fishing-native-lobby")
+    for((button,title) in listOf("aquarium" to "크루 수족관","book" to "물고기 도감")){
+     tap(w,"[data-act="+button+"]");waitJs(w,"document.querySelector('h1')?.textContent==="+JSONObject.quote(title));tap(w,"[data-act=lobby]");waitJs(w,ready)
+    }
+    tap(w,"[data-fishing-catalog]");waitJs(w,"document.querySelectorAll('.book .specimen').length===27");tap(w,"[data-act=lobby]");waitJs(w,ready)
+    tap(w,"[data-act=rules]");waitJs(w,"document.querySelector('#rules').open");tap(w,"#rules button")
+    tap(w,"a[href*='mode=practice']");waitJs(w,ready+" && document.body.classList.contains('practice')")
+    assertEquals("practice preserves the crew route","true",js(w,"new URLSearchParams(location.search).get('crew')==='preview'"))
+    tap(w,"[data-act=start]");waitJs(w,"!!document.querySelector('.stage:not(.casting)')",22000)
+    capture("fishing-native-bite")
+    scene.onActivity{assertTrue("bite reached native haptics",it.javaClass.getDeclaredField("lastBiteAt").apply{isAccessible=true}.getLong(it)>0)}
+    tap(w,"[data-act=lobby]");waitJs(w,ready)
+   }
+  }finally{NativeSession.put(context,"cookie",previous)}
+ }
  @Test fun allFourGamesFitPhoneAndReceiveTouches(){
   val crew=runBlocking{NativeApi(context).call("/api/crews?summary=1",fresh=true).optString("mine")}
   assertTrue("Existing signed-in crew required for device comparison",CurrentNavigation.safeID(crew)&&crew!="null")

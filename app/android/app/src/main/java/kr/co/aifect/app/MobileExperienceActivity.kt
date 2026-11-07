@@ -38,6 +38,23 @@ class MobileExperienceActivity:ComponentActivity(){
  private var customCallback:WebChromeClient.CustomViewCallback?=null
  private var suspended=false
  private var disposed=false
+ private var fishingPort:WebMessagePort?=null
+ private var lastBiteAt=-1000L
+ private fun attachFishingHaptics(v:WebView,url:String){
+  fishingPort?.close();fishingPort=null
+  if(MobileExperienceRoute.fromUrl(url,Endpoint.origin)?.startsWith("game/fishing/")!=true)return
+  val ports=v.createWebMessageChannel()
+  fishingPort=ports[0]
+  ports[0].setWebMessageCallback(object:WebMessagePort.WebMessageCallback(){
+   override fun onMessage(port:WebMessagePort,msg:WebMessage){
+    val time=android.os.SystemClock.elapsedRealtime()
+    if(ports[0]!==fishingPort||disposed||isFinishing||!v.hasWindowFocus()||msg.data!="bite"||time-lastBiteAt<750L)return
+    if(MobileExperienceRoute.fromUrl(v.url.orEmpty(),Endpoint.origin)?.startsWith("game/fishing/")!=true)return
+    lastBiteAt=time;v.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+   }
+  })
+  v.postWebMessage(WebMessage("aifect:fishing-haptics",arrayOf(ports[1])),android.net.Uri.parse(Endpoint.origin))
+ }
  private val sessionListener=android.content.SharedPreferences.OnSharedPreferenceChangeListener{_,_->if(session!=NativeSession.cookie(this))finish()}
  private val microphonePermission=registerForActivityResult(ActivityResultContracts.RequestPermission()){granted->
   val pending=permission;permission=null
@@ -92,7 +109,7 @@ class MobileExperienceActivity:ComponentActivity(){
      if(next!=null){route=next;headerLabel.text=MobileExperienceRoute.title(next);return false}
      if(MobileExperienceRoute.isRoom(route))finish()else requestLeave();return true
     }
-    override fun onPageFinished(v:WebView,url:String){if(CurrentNavigation.sameOrigin(url,Endpoint.origin)){v.evaluateJavascript(mobileExperienceScript(route),null);suspended=false}}
+    override fun onPageFinished(v:WebView,url:String){if(!disposed&&CurrentNavigation.sameOrigin(url,Endpoint.origin)){v.evaluateJavascript(mobileExperienceScript(route),null);attachFishingHaptics(v,url);suspended=false}}
     override fun doUpdateVisitedHistory(v:WebView,url:String,reload:Boolean){
      if(url=="about:blank"||!CurrentNavigation.sameOrigin(url,Endpoint.origin))return
      val next=MobileExperienceRoute.fromUrl(url,Endpoint.origin)
@@ -144,7 +161,7 @@ class MobileExperienceActivity:ComponentActivity(){
   super.onStop()
  }
  override fun onResume(){super.onResume();if(::web.isInitialized&&!disposed){web.onResume();if(suspended)web.loadUrl(Endpoint.origin+MobileExperienceRoute.path(route))}}
- override fun onDestroy(){getSharedPreferences("native_session",0).unregisterOnSharedPreferenceChangeListener(sessionListener);permission?.deny();permission=null;if(::web.isInitialized&&!disposed){web.stopLoading();web.loadUrl("about:blank");web.removeAllViews();web.destroy();disposed=true};super.onDestroy()}
+ override fun onDestroy(){fishingPort?.close();fishingPort=null;getSharedPreferences("native_session",0).unregisterOnSharedPreferenceChangeListener(sessionListener);permission?.deny();permission=null;if(::web.isInitialized&&!disposed){web.stopLoading();web.loadUrl("about:blank");web.removeAllViews();web.destroy();disposed=true};super.onDestroy()}
 }
 
 internal fun mobileExperienceScript(route:String):String {
