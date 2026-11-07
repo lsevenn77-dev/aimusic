@@ -1,3 +1,4 @@
+import {fishingLobby} from './lobby.js';
 import {profileNickname} from '/nickname-profile-host.js';
 import {renderGameRankings} from '/crew-game-lobby.js';
 import {FISH} from './catalog.js';
@@ -22,10 +23,22 @@ const fmt=n=>Number(n).toLocaleString('ko-KR');
 const fishById=new Map(FISH.map(f=>[f.id,f]));
 const art=f=>`./art/${f.id}.webp`;
 let lobby,cast,screen='',pending=false,requestId=null,clockOffset=0,clockDelay=Infinity,frame=0,frameElapsed=null,book,scene=null,reel=null,biteTimer=0,idleTimer=0;
+let hapticPort=null,lastBite=null;
+window.addEventListener('message',event=>{
+  if(event.data==='aifect:fishing-haptics'&&event.ports?.length===1&&!event.source){
+    hapticPort?.close();hapticPort=event.ports[0];
+  }
+});
+function signalBite(){
+  if(lastBite===cast.id||document.hidden||now()>=cast.expiresAt)return;
+  lastBite=cast.id;
+  try{if(hapticPort){hapticPort.postMessage('bite');return;}}catch{/* A recreated WebView may no longer own this port. */}
+  try{globalThis.navigator?.vibrate?.(65);}catch{/* Haptics are optional. */}
+}
 const now=()=>performance.now()+clockOffset;
 function showError(message){errorBox.textContent=message;errorBox.hidden=!message}
 function paint(name,html){
-  clearTimeout(biteTimer);clearTimeout(idleTimer);reel?.dispose();reel=null;cancelAnimationFrame(frame);scene?.destroy();scene=null;screen=name;app.toggleAttribute('data-game-lobby',name==='lobby');app.classList.toggle('arcade-lobby',name==='lobby');app.classList.toggle('fishing-lobby',name==='lobby');app.innerHTML=html;window.scrollTo(0,0);
+  clearTimeout(biteTimer);clearTimeout(idleTimer);reel?.dispose();reel=null;cancelAnimationFrame(frame);scene?.destroy();scene=null;screen=name;app.toggleAttribute('data-game-lobby',name==='lobby');app.classList.toggle('fishing-lobby',name==='lobby');app.innerHTML=html;window.scrollTo(0,0);
 }
 async function fetchAPI(action,data){
   const before=performance.now();
@@ -60,24 +73,7 @@ async function refreshLobby(){
 }
 async function openLobby(refresh=true){
   if(refresh)await refreshLobby();
-  paint('lobby',`<div class="cgl-layout">
-  <section class="cgl-tile cgl-hero fishing-hero"><small class="cgl-eyebrow">AIFECT CREW GAMES</small><h1>별물결 낚시터</h1>
-    <p>${esc(lobby.name)}의 공동 낚시터</p><div class="cgl-fishing-art" aria-hidden="true"></div>
-    <p>별빛 아래에서 오늘의 물고기를 만나보세요.</p>
-    <button class="primary cgl-start" data-act="start" ${!lobby.practice&&(!lobby.open||(!cast&&!lobby.remaining))?'disabled':''}>${cast?'낚시 이어하기':lobby.practice||lobby.open?'낚시 시작':'이번 주 낚시 마감'}</button>
-    <span class="pill">${lobby.practice?'연습 · 횟수 제한 없음':`오늘 남은 낚시 ${lobby.remaining} / ${lobby.dailyLimit??10}`}</span>
-  </section>
-  ${lobby.practice?`<section class="cgl-tile cgl-practice-info"><small class="cgl-eyebrow">PRACTICE</small><h2>편하게 연습해 보세요</h2><p>횟수 제한 없이 릴 타이밍을 익힐 수 있어요.</p><p>연습 어획액은 공식 순위에 반영되지 않고 새로고침하면 연습 기록이 초기화돼요.</p><a class="cgl-pill" href="./">공식 낚시터</a></section>`:'<section id="fishingRankings" class="crew-game-board" aria-label="주간 게임 순위"></section>'}
-  <section class="cgl-tile cgl-records"><h2>${lobby.practice?'내 연습 기록':'이번 주 낚시 기록'}</h2><dl>
-    <div><dt>${lobby.practice?'내 연습 어획액':'내 주간 어획액'}</dt><dd>${fmt(lobby.mine)}원</dd></div>
-    ${lobby.practice?`<div><dt>이번에 발견한 어종</dt><dd>${fmt(lobby.discovered)} / 27</dd></div>`:`<div><dt>크루 주간 어획액</dt><dd>${fmt(lobby.ours)}원</dd></div><div><dt>주간 남은 기회</dt><dd>${lobby.weeklyRemaining} / ${lobby.weeklyLimit??50}</dd></div>`}
-  </dl></section>
-  <section class="cgl-tile cgl-collection"><h2>${lobby.practice?'나의 연습 수집 기록':'우리 크루의 바다'}</h2><p>낚은 물고기와 어종별 최고 기록을 모아봐요.</p>
-    <div class="links"><button class="cgl-pill" data-act="aquarium">${lobby.practice?'연습 수족관':'크루 수족관'}</button><button data-act="book">물고기 도감</button></div>
-    <div class="links cgl-text-links"><a href="./design.html">공식 어종 27종 보기 ↗</a>${lobby.practice?'':'<a href="?mode=practice">연습하기</a>'}</div>
-  </section>
-  <section class="cgl-tile cgl-help"><h2>조작 안내</h2><p>찌가 민트색 성공 구간에 들어오면 낚시 화면을 터치하세요.</p><p>PC는 화면 클릭 또는 스페이스바로 당길 수 있어요.</p><p>입질까지 1~15초가 걸려요. 입질 후 3초 동안 터치하지 않으면 물고기가 도망가요.</p></section>
-  </div><p class="cgl-footnote">${lobby.practice?'연습은 공식 순위에 반영되지 않아요.':'한국시간 월요일 0시 개장 · 금요일 22시 마감 · 주간 어획 금액으로 순위를 매겨요.'}</p>`);
+  paint('lobby',fishingLobby(lobby,cast));
   if(!lobby.practice)renderGameRankings(document.querySelector('#fishingRankings'),{crews:lobby.crews,players:lobby.individual,crewId:lobby.crew,crewDescription:'잡은 모든 물고기의 주간 평가액 합계',playerDescription:'개인별 주간 어획액 합계',unit:'원'});
 }
 function loop(){
@@ -139,6 +135,7 @@ function play(intro){
     if(now()<cast.start){biteTimer=setTimeout(begin,cast.start-now());return;}
     try{scene?.hooked();}catch{}
     stage.classList.remove('casting');stage.querySelector('h2').textContent='물고기가 걸렸어요';
+    if(waiting||intro)signalBite();
     loop();scheduleIdle();
   };
   if(waiting){
@@ -186,11 +183,15 @@ async function action(fn){
   try{await fn()}catch(e){showError(e.message);if(!app.querySelector('button'))paint('error','<section class="panel"><h2>낚시터에 입장할 수 없어요</h2><p>크루 계정으로 로그인한 뒤 다시 시도해주세요.</p><button data-act="lobby">다시 확인</button></section>')}
   finally{pending=false}
 }
-const actions={start,pull,lobby:openLobby,book:()=>collection('book'),aquarium:()=>collection('aquarium'),retry:async()=>{
+const actions={rules:()=>dialog.showModal(),start,pull,lobby:openLobby,book:()=>collection('book'),aquarium:()=>collection('aquarium'),retry:async()=>{
   await refreshLobby();
   if(lobby.open&&(lobby.remaining||cast))await start();else await openLobby(false);
 }};
 app.addEventListener('click',e=>{
+  if(e.target.closest('a[data-fishing-catalog]') && document.getElementById('aifect-mobile-experience')){
+    e.preventDefault();
+    paint('catalog',`<div class="titlebar"><h1>공식 어종 도감</h1><button data-act="lobby">대기실</button></div><div class="book">${FISH.map(f=>`<article class="specimen"><img src="${art(f)}" alt="" loading="lazy"><h2>${esc(f.name)}</h2><p>기준 길이 ${f.standardCm}cm</p><p>${esc(f.appearance)}</p></article>`).join('')}</div>`);return;
+  }
   const button=e.target.closest('button');
   if(button?.dataset.fish){action(()=>collection('book',button.dataset.fish));return}
   if(button){if(actions[button.dataset.act])action(actions[button.dataset.act]);return}

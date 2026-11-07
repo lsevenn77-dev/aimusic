@@ -54,6 +54,18 @@ for(const name of Object.keys(games))test(name+': normal quota, same-day premium
   await f.start();assert.equal((await f.lobby()).remaining,base);f.end();
 });
 
+for(const name of Object.keys(games))test(name+': capture window reopens only the weekly cutoff and expires without resetting records',async t=>{
+  const f=await setup(t,name),weekend=Date.parse('2026-11-07T10:00:00Z');
+  f.env.CREW_GAME_CAPTURE_WINDOW='2026-11-07T10:00:00Z/2026-11-07T10:30:00Z';
+  f.setTime(weekend-1);
+  if(name!=='racing')await assert.rejects(f.start(),{status:409});
+  f.setTime(weekend);const before=await f.lobby();
+  await f.start();f.end();assert.equal((await f.lobby()).remaining,before.remaining-1);
+  f.setTime(weekend+1800000);
+  if(name!=='racing'){assert.equal((await f.lobby()).open,false);await assert.rejects(f.start(),{status:409});}
+  f.setTime(weekend+7*86400000);if(name!=='racing')assert.equal((await f.lobby()).open,false);
+});
+
 test('premium fishing can use all 55 weekly casts, while practice never uses a quota',async t=>{
   const f=await setup(t,'fishing');f.premium(monday/1000+7*86400);
   for(let day=0;day<5;day++){

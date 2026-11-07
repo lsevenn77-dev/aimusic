@@ -16,6 +16,7 @@ const server=http.createServer(async(req,res)=>{
   if(req.headers.host!=='127.0.0.1:'+port||req.headers.origin&&req.headers.origin!==origin){res.writeHead(403).end();return}
   const u=new URL(req.url,origin);
   if(u.pathname==='/preview'){res.writeHead(302,{'set-cookie':'aifect_session=owner; HttpOnly; SameSite=Strict; Path=/','location':'/crew-fishing/'}).end();return}
+  if(u.pathname==='/crew-fishing/'&&u.searchParams.get('crew')==='preview')res.setHeader('set-cookie','aifect_session=owner; HttpOnly; SameSite=Strict; Path=/');
   if(u.pathname.startsWith('/api/')){
    const buffers=[];for await(const b of req)buffers.push(b);
    const r=await worker.fetch(new Request(u,{method:req.method,headers:req.headers,body:buffers.length?Buffer.concat(buffers):undefined}),env,{waitUntil(p){p.catch(()=>{})}});

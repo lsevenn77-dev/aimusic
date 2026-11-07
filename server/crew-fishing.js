@@ -1,4 +1,4 @@
-import {gameLimits} from './crew-game-limits.js';
+import {gameLimits,officialClose} from './crew-game-limits.js';
 import {one, rows, run, json, fail, id} from './db.js';
 import {requireUser} from './auth.js';
 import {publicNameSQL} from './identity.js';
@@ -23,7 +23,7 @@ export function encounter(random=randomBelow){
   const deviation=size.min+random(size.max-size.min+1);
   return {fish:fish.id, grade, length:fish.standardCm*(10000+deviation),
     amount:fishValue(fish.id,grade), cycle:TIERS[tier].cycle, goal:TIERS[tier].goal,
-    target:10+random(81-LIMITS.width), width:LIMITS.width};
+    target:10+random(81-TIERS[tier].width), width:TIERS[tier].width};
 }
 function view(r){
   if(!r)return null;
@@ -62,7 +62,8 @@ async function ranking(env,week,personal,viewer){
 export async function fishingRoute(req,env,path,user,ms=Date.now(),clock={receivedTime:ms,started:performance.now()}){
   const respond=data=>json({...data,receivedTime:clock.receivedTime,serverTime:clock.receivedTime+performance.now()-clock.started});
   requireUser(user);
-  const uid=user.id, action=path.slice('/api/crew-fishing/'.length), {day,week,open}=season(ms);
+  const uid=user.id, action=path.slice('/api/crew-fishing/'.length), {day,week}=season(ms);
+  const open=ms<officialClose(env,ms,Date.parse(week+'T22:00:00+09:00')+4*86400000);
   const baseLimits=fishingLimits(env,uid,day);
   const quotaLimits=['lobby','cast'].includes(action)?await gameLimits(env,uid,ms,baseLimits.day):{premiumBonus:0,dailyLimit:baseLimits.day};
   const limits={...baseLimits,day:quotaLimits.dailyLimit,week:baseLimits.week+quotaLimits.premiumBonus*5};

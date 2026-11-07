@@ -1,4 +1,4 @@
-import {gameLimits} from './crew-game-limits.js';
+import {gameLimits,officialClose} from './crew-game-limits.js';
 import {one,rows,run,json,fail,id,rate} from './db.js';
 import {requireUser} from './auth.js';
 import {publicNameSQL} from './identity.js';
@@ -8,8 +8,9 @@ import {season} from '../dist/crew-fishing/rules.js';
 const TTL=3600000;
 export async function rhythmRoute(req,env,path,user,ms=Date.now()){
   requireUser(user);
-  const uid=user.id,action=path.slice('/api/crew-rhythm/'.length),{day,week,open}=season(ms);
-  const closes=Date.parse(week+'T00:00:00+09:00')+4*86400000+22*3600000;
+  const uid=user.id,action=path.slice('/api/crew-rhythm/'.length),{day,week}=season(ms);
+  const closes=officialClose(env,ms,Date.parse(week+'T00:00:00+09:00')+4*86400000+22*3600000);
+  const open=ms<closes;
   const canStart=open&&ms+RULES.leadIn*1000+65000+30000<closes;
   const member=await one(env,'SELECT crew_id FROM crew_members WHERE user_id=?',uid);
   if(!member)fail(403,'크루에 가입하면 공식 랭킹에 참여할 수 있어요.');

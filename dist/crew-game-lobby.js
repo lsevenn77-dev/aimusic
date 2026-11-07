@@ -6,7 +6,7 @@ function board(title,description,records,own,kind,unit){
   const rows=records.filter(row=>Number(row.place)>0&&Number(row.place)<=100).map(row=>{
     const key=kind==='crew'?(row.crew_id||row.id):row.profile_id;
     const image=key&&row.image_version?`<img alt="" loading="lazy" decoding="async" src="/media/${kind}/${encodeURIComponent(key)}?v=${encodeURIComponent(row.image_version)}">`:'';
-    return `<li class="cgl-row"><b>${Number(row.place)}</b><i class="cgl-avatar" aria-hidden="true">${esc(Array.from(row.name||'✦')[0])}${image}</i><span class="cgl-name">${kind==='crew'?esc(row.name):profileNickname(row.name,{profileId:row.profile_id,userId:row.user_id})}${row.difficulty?`<small>${esc(row.difficulty.toUpperCase())}</small>`:''}</span><strong>${score(row)}${unit}</strong></li>`;
+    return `<li class="cgl-row" data-place="${Number(row.place)}"><b>${Number(row.place)}</b><i class="cgl-avatar" aria-hidden="true">${esc(Array.from(row.name||'✦')[0])}${image}</i><span class="cgl-name">${kind==='crew'?esc(row.name):profileNickname(row.name,{profileId:row.profile_id,userId:row.user_id})}${row.difficulty?`<small>${esc(row.difficulty.toUpperCase())}</small>`:''}</span><strong>${score(row)}${unit}</strong></li>`;
   }).join('');
   return `<section class="cgl-ranking"><header class="cgl-title"><h2>${title}</h2><small>TOP 100</small></header><p class="cgl-description">${esc(description)}</p><div class="cgl-scroll" tabindex="0" role="region" aria-label="${title} 최대 100위">${rows?`<ol>${rows}</ol>`:'<div class="cgl-empty"><span aria-hidden="true">✧</span>아직 공식 기록이 없어요.</div>'}</div><div class="cgl-own">${own}</div></section>`;
 }

@@ -1,0 +1,97 @@
+/* The native activity supplies its own navigation bar; standalone pages retain theirs. */
+html:has(#aifect-mobile-experience) body:has(.fishing-lobby)>header{display:none}
+body:has(.fishing-lobby){background:radial-gradient(ellipse at 85% 12%,#242447 0,transparent 49%),#0b1021}
+body:has(.fishing-lobby)>header{width:min(calc(100% - 28px),1080px);height:54px;border:0}
+body:has(.fishing-lobby)>header a,body:has(.fishing-lobby)>header button{display:inline-flex;align-items:center;min-height:44px;color:#e4d9ff;font-size:14px}
+body:has(.fishing-lobby)>header button{border:0;background:none}
+.fishing-lobby{--fl-muted:#c5c6df;--fl-mint:#8eddd2;--fl-gold:#ffe193;width:min(calc(100% - 28px),1080px);margin:0 auto;padding:4px 0 max(16px,env(safe-area-inset-bottom));color:#f8f6ff}
+.fl-layout{display:grid;gap:8px;grid-template-columns:minmax(0,1fr)}
+.fishing-lobby .fl-card,.fishing-lobby .cgl-ranking{position:relative;min-width:0;margin:0;border:1px solid #75689b;border-radius:16px;background:radial-gradient(ellipse at 12% 0%,#373254a8,transparent 65%),linear-gradient(130deg,#22253e,#191c33 75%,#252340);box-shadow:inset 0 1px 7px #a9a4fb14,0 2px 9px #05071955;padding:11px 15px}
+.fishing-lobby .fl-icon{flex:none;width:1.08em;height:1.08em;display:inline-block;vertical-align:-.12em}
+.fishing-lobby h2{display:flex;align-items:center;gap:6px;font-size:clamp(17px,3.8vw,22px);line-height:1.35;font-weight:780;letter-spacing:-.045em;margin:0}
+.fishing-lobby h2 .fl-icon{color:#e2d5ff}
+.fishing-lobby p,.fishing-lobby dt{color:var(--fl-muted);line-height:1.5;word-break:keep-all;overflow-wrap:anywhere}
+.fishing-lobby p{font-size:13px;margin:4px 0}
+.fishing-lobby :is(button,a){touch-action:manipulation}
+.fishing-lobby :is(button,a):focus-visible{outline:3px solid var(--fl-mint);outline-offset:2px}
+.fishing-lobby .fl-hero{min-height:clamp(192px,50vw,270px);display:flex;flex-direction:column;justify-content:space-between;gap:16px;isolation:isolate;overflow:hidden;background:#182044 url('./art/lobby-sea-v1.webp') 66% center/cover no-repeat;border-color:#726eb6;padding:clamp(14px,3.5vw,25px) clamp(18px,4.5vw,32px) 8px}
+.fl-hero::before{content:"";position:absolute;z-index:-1;inset:0;background:linear-gradient(0deg,#0d1029d9,transparent 40%),linear-gradient(90deg,#11153388,transparent 63%);pointer-events:none}
+.fl-intro{width:65%;text-shadow:0 2px 6px #0b112d}
+.fl-intro small,.fl-intro small b{font-size:11px;letter-spacing:.065em;font-weight:700;color:#f4eeff}.fl-intro small b{color:#c7c3ff}
+.fl-intro h1{font-size:clamp(23px,5.5vw,38px);font-weight:850;letter-spacing:-.05em;line-height:1.15;margin:5px 0 6px}
+.fl-intro h1::after{content:"✦";color:#f4de99;vertical-align:top;font-size:.48em;margin-inline-start:3px}
+.fishing-lobby .fl-intro p{color:#ecebff;font-size:14px;font-weight:600;margin:0}
+.fl-launch{display:grid;justify-items:center;gap:3px}
+.fl-launch span{font-size:12px;line-height:1.5;color:#eeeaff;text-shadow:0 1px 4px #0d1029}
+.fishing-lobby :is(.fl-cta,.fl-secondary){display:inline-flex;align-items:center;justify-content:center;gap:5px;min-height:44px;padding:7px 13px;line-height:1.22;font-size:14px;font-weight:750;border-radius:99px;text-decoration:none}
+.fishing-lobby .fl-cta{background:linear-gradient(164deg,#f1e3ff,#c8b0ff 45%,#a8b3fb);border:1px solid #e6d5ff;color:#2a2452}
+.fishing-lobby .fl-cta:disabled{opacity:1;cursor:default;color:#413b65;background:linear-gradient(165deg,#e1d2f8,#baa7e9 50%,#afb4ed)}
+.fishing-lobby .fl-secondary{background:#191b32d9;border:1px solid #9d95cb;color:#f0ebff}
+.fl-launch .fl-cta{width:min(83%,420px);min-height:44px;font-size:17px}
+.fishing-lobby #fishingRankings{margin:0;padding:0;border:0;border-radius:0;background:none;box-shadow:none}
+.fishing-lobby .cgl-pair{display:grid;gap:8px;grid-template-columns:minmax(0,1fr)}
+.fishing-lobby .cgl-ranking{display:block;border:1px solid #75689b;padding:9px 14px 7px}
+.fishing-lobby .cgl-title{width:100%;height:auto;margin:0;gap:6px}
+.fishing-lobby .cgl-title h2::before{content:"";width:18px;height:18px;background:#e3d3ff;clip-path:polygon(0 22%,25% 43%,50% 5%,76% 43%,100% 22%,87% 86%,13% 86%)}
+.fishing-lobby .cgl-ranking+section .cgl-title h2::before{clip-path:none;border-radius:0;background:radial-gradient(circle at 50% 26%,#e9ddff 0 25%,transparent 27%),radial-gradient(ellipse at 50% 100%,#e9ddff 0 43%,transparent 45%)}
+.fishing-lobby .cgl-title small{font-size:11px;letter-spacing:.05em;color:#d9baff}
+.fishing-lobby .cgl-description{margin:1px 0 4px;font-size:12px}
+.fishing-lobby .cgl-scroll{height:auto;min-height:0;max-height:100px;overflow:auto;border-block:1px solid #a08ec030}
+.fishing-lobby .cgl-scroll ol{padding:0;margin:0}
+.fishing-lobby .cgl-empty{position:static;display:flex;justify-content:center;align-items:center;gap:6px;min-height:46px;font-size:13px}
+.fishing-lobby .cgl-empty span{font-size:20px}
+.fishing-lobby .cgl-row{min-height:34px;padding:3px 4px;gap:7px;grid-template-columns:30px 25px minmax(0,1fr) auto;font-size:14px}
+.fishing-lobby .cgl-row:last-child{border:0}
+.fishing-lobby .cgl-row strong{font-size:14px}
+.fishing-lobby .cgl-row:is([data-place="1"],[data-place="2"],[data-place="3"])>b{display:grid;place-items:center;align-self:center;height:21px;padding-top:3px;background:#d8d1ed;color:#333551;line-height:1;font-size:13px;clip-path:polygon(0 18%,26% 34%,50% 0,75% 34%,100% 18%,87% 95%,13% 95%)}
+.fishing-lobby .cgl-row[data-place="1"]>b{background:linear-gradient(#fff0b1,#e3ad4a)}.fishing-lobby .cgl-row[data-place="1"] strong{color:var(--fl-gold)}
+.fishing-lobby .cgl-row[data-place="3"]>b{background:#dfb39b}
+.fishing-lobby .cgl-avatar{width:25px;height:25px;background:linear-gradient(150deg,#47476c,#30344d)}
+.fishing-lobby .cgl-own{padding-top:5px;text-align:center;font-size:14px;line-height:1.45;color:var(--fl-mint);font-weight:760}
+.fishing-lobby .cgl-own::before,.fishing-lobby .cgl-own::after{content:"✧";font-size:12px;margin:0 7px}
+.fl-records dl{display:flex;align-items:stretch;gap:0;margin:10px 0 0}
+.fl-records dl>div{flex:1;min-width:0;text-align:center;padding:0 3px}
+.fl-records dl>div+div{border-inline-start:1px solid #a599d536}
+.fl-records dt{display:flex;align-items:center;justify-content:center;gap:3px;flex-wrap:wrap;font-size:12px}.fl-records dt .fl-icon{color:#d7b7f2}
+.fl-records dd{margin:3px 0 0;color:var(--fl-gold);font-size:clamp(14px,3.7vw,21px);line-height:1.25;font-weight:780;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.fl-records dl>div:nth-child(3) dd{color:#f3efff}
+.fishing-lobby .fl-sea{padding:0;overflow:hidden}
+.fl-sea-main{position:relative;isolation:isolate;padding:12px 14px 8px}
+.fl-sea-main::before{content:"";position:absolute;z-index:-1;inset:4px 2px 3px auto;width:33%;background:url('./art/lobby-aquarium-v1.webp') right center/contain no-repeat;mix-blend-mode:screen;pointer-events:none}
+.fl-sea-main h2,.fl-sea-main>p{max-width:67%}
+.fl-sea-actions{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;width:72%}
+.fl-sea-actions :is(.fl-secondary,.fl-cta){font-size:13px;padding-inline:9px}
+.fl-sea-links{display:flex;border-top:1px solid #a99bc143}
+.fl-sea-links a{flex:1;display:flex;justify-content:center;align-items:center;min-height:44px;gap:5px;padding:4px;text-decoration:none;font-size:13px;color:#e8dbff}
+.fl-sea-links a+a{border-inline-start:1px solid #a99bc128}
+.fl-guide-title{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.fl-guide-title button{font-size:12px;color:#d3c3ee;border:0;background:none;min-height:44px;padding:4px;margin-block:-8px}
+.fl-guide em{color:var(--fl-mint);font-style:normal}
+.fl-guide ol{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;list-style:none;margin:8px 0;padding:0}
+.fl-guide li{min-width:0;text-align:center;position:relative}
+.fl-guide li+li::before{content:"›";position:absolute;left:-12px;top:14px;color:#cbb6ee;font-size:20px;font-weight:800;line-height:1}
+.fl-guide li b{display:block;font-size:12px;line-height:1.4;margin-top:3px;word-break:keep-all;color:#eae5f6}
+.fl-scene{position:relative;display:grid;place-items:center;height:45px;border-radius:10px;border:1px solid #7974b1;overflow:hidden;background:radial-gradient(ellipse at 50% 105%,#335d99,#22274c 60%,#1b1a33)}
+.fl-bob::before,.fl-bob::after{content:"";position:absolute;bottom:6px;width:58%;height:9px;border-radius:50%;border:1px solid #90d4ef77;box-shadow:0 0 4px #73c6ff66}.fl-bob::after{bottom:9px;width:36%;height:6px}
+.fl-bob i{position:relative;z-index:1;width:12px;height:16px;border-radius:50%;background:linear-gradient(0deg,#c3e8ff 48%,#db515a 50%,#ff9595);box-shadow:0 2px 6px #05091c}
+.fl-bob i::before{content:"";position:absolute;bottom:95%;left:5px;width:2px;height:7px;background:#f9a97b}
+.fl-meter i{width:77%;height:10px;border-radius:5px;background:linear-gradient(90deg,#b19bff,#dbceff 38%,#7aefd6 39% 67%,#5297e1 68%,#7cacf1);box-shadow:0 0 9px #9ca4eb77}.fl-meter i::after{content:"";position:absolute;top:29%;bottom:29%;left:56%;width:2px;background:#fff}
+.fl-catch img{width:78%;height:92%;object-fit:contain;filter:drop-shadow(0 0 6px #75bbfc)}
+.fishing-lobby .fl-calendar{display:flex;align-items:center;gap:7px;padding:8px 12px;margin:0;font-size:12px;color:#ded8ed}
+.fl-practice .fl-secondary{margin-top:7px}
+.fishing-lobby .cgl-ranking+.cgl-ranking{margin:0;padding:9px 14px 7px;border:1px solid #75689b}
+.fl-records dt{display:block;text-wrap:balance}.fl-records dt .fl-icon{margin-right:3px}
+.fl-sea-main::before{mask-image:linear-gradient(90deg,transparent,#000 12% 96%,transparent)}
+@media(max-width:760px){.fishing-lobby .fl-hero{background-position:96% center}}
+@media(max-width:355px){
+ .fl-sea-main::before{width:29%;inset-inline-end:0}.fl-sea-actions{width:100%;margin-top:12px}.fl-sea-main::before{bottom:36px}
+ .fl-records dl{flex-wrap:wrap;row-gap:8px}.fl-records dt{font-size:12px}.fl-records dt .fl-icon{display:none}
+}
+@media(min-width:761px){
+ .fl-layout{grid-template-columns:minmax(0,1.16fr) minmax(0,1fr);grid-template-areas:"hero rank" "record rank" "sea guide" "calendar calendar";gap:14px}
+ .fl-hero{grid-area:hero}.fl-records{grid-area:record}.fl-sea{grid-area:sea}.fl-guide{grid-area:guide}
+ .fl-calendar{grid-area:calendar}.fl-practice,#fishingRankings{grid-area:rank}
+ .fishing-lobby .fl-hero{min-height:235px}.fishing-lobby .cgl-pair{height:100%;grid-template-rows:1fr 1fr;gap:14px}
+ .fishing-lobby .cgl-ranking{display:flex;flex-direction:column}.fishing-lobby .cgl-scroll{flex:1;max-height:150px}.fishing-lobby .cgl-own{margin-top:auto}
+ .fl-sea-main{padding:18px 20px}.fl-sea-actions{margin-top:19px}.fl-practice{display:grid;align-content:center;gap:7px}
+}

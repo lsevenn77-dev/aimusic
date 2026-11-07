@@ -41,6 +41,8 @@ test('27 species and exact probability intervals, all grade endpoints and specie
         const f=encounter(()=>draws.shift());
         const species=FISH.find(x=>x.id===f.fish);
         assert.equal(species.tier,tier);assert.equal(f.grade,grade);
+        assert.equal(f.width,{common:30,rare:26,unique:22,legend:18,mythic:15}[tier]);
+        assert.ok(f.target>=10&&f.target+f.width<=90);
         assert.equal(f.length,species.standardCm*(10000+delta));
         assert.equal(f.amount,fishValue(f.fish,grade));
       }

@@ -1,4 +1,4 @@
-import {gameLimits} from './crew-game-limits.js';
+import {gameLimits,officialClose} from './crew-game-limits.js';
 import {query,one,rows,json,fail,id,rate} from './db.js';
 import {requireUser} from './auth.js';
 import {publicNameSQL} from './identity.js';
@@ -12,7 +12,7 @@ const DAY=86400000, WEEK=7*DAY, KST=9*3600000;
 export function seasonTime(ms,env){
  const local=new Date(ms+KST),day=local.toISOString().slice(0,10);
  const monday=Date.parse(day)-(local.getUTCDay()+6)%7*DAY,week=new Date(monday).toISOString().slice(0,10);
- const closes=monday-KST+4*DAY+22*3600000;
+ const closes=officialClose(env,ms,monday-KST+4*DAY+22*3600000);
  const date=env.CREW_JUMP_START_MONDAY||'',anchor=Date.parse(date);
  const configured=/^\d{4}-\d{2}-\d{2}$/.test(date)&&Number.isFinite(anchor)&&new Date(anchor).toISOString().startsWith(date)&&new Date(anchor).getUTCDay()===1;
  const game=configured?playableRotation[Math.floor((monday-anchor)/WEEK)%playableRotation.length]:null;
