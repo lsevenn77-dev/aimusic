@@ -159,6 +159,23 @@ test('account allowance grants 30 remaining after 10 casts, enforces the last ca
   assert.equal(sql.prepare('SELECT COUNT(*) AS n FROM crew_fishing_casts').get().n,40);
 });
 
+test('one dated top-up gives ten usable casts at the weekly cap; keeps prior grants and other users unchanged',async t=>{
+  const today=monday+2*86400000,day='2026-11-04',env={CREW_FISHING_BONUS_OWNER:JSON.stringify({day,extra:10}),
+    CREW_FISHING_QUOTA_OVERRIDES:JSON.stringify({owner:{day,dayLimit:12,weekLimit:50}})};
+  const {api,sql}=await setup(t,env);
+  sql.exec("INSERT INTO crew_members(crew_id,user_id,role,joined) VALUES('crew','other','member',0)");
+  const insert=sql.prepare("INSERT INTO crew_fishing_casts(id,user_id,crew_id,nickname,request_id,day,week,fish,grade,length,amount,start_ms,cycle_ms,goal,target,width,status) VALUES(?,'owner','crew','QA',?,'2026-11-03','2026-11-02','stripe-perch','B',1,1,0,1600,3,10,30,'escaped')");
+  for(let n=0;n<50;n++)insert.run('seed'+n,'seed'+n);
+  const info=await api('lobby',null,today);assert.deepEqual([info.remaining,info.dailyLimit,info.weeklyLimit],[10,22,60]);
+  assert.equal((await api('lobby',null,today,'other')).weeklyLimit,50);
+  for(let n=0;n<10;n++){
+    const {cast}=await api('cast',{requestId:crypto.randomUUID()},today);
+    sql.prepare("UPDATE crew_fishing_casts SET status='escaped' WHERE id=?").run(cast.id);
+  }
+  assert.equal((await api('lobby',null,today)).remaining,0);await assert.rejects(api('cast',{requestId:crypto.randomUUID()},today),{status:409});
+  assert.equal((await api('lobby',null,today+86400000)).weeklyLimit,50);
+});
+
 test('allowances reject malformed, lowering, mismatched and excessive settings',()=>{
   const day='2026-11-02',entry={day,dayLimit:40,weekLimit:50};
   for(const raw of [undefined,'{','null','[]','"text"',JSON.stringify({other:entry}),

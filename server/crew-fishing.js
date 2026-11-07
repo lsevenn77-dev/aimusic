@@ -36,7 +36,7 @@ function view(r){
 }
 const memberGuard='EXISTS(SELECT 1 FROM crew_members WHERE user_id=? AND crew_id=?)';
 // Operator-configured allowances expire at the next KST day without changing catch records.
-export function fishingLimits(env,uid,day){
+function configuredLimits(env,uid,day){
   try{
     const raw=env.CREW_FISHING_QUOTA_OVERRIDES;
     if(typeof raw!=='string'||raw.length>16384)return LIMITS;
@@ -48,6 +48,18 @@ export function fishingLimits(env,uid,day){
       entry.weekLimit<LIMITS.week||entry.weekLimit<entry.dayLimit||entry.weekLimit>5000)return LIMITS;
     return {...LIMITS,day:entry.dayLimit,week:entry.weekLimit};
   }catch{return LIMITS;}
+}
+// A dated top-up can be issued to one user without replacing the shared overrides.
+export function fishingLimits(env,uid,day){
+  const base=configuredLimits(env,uid,day);
+  if(!/^[a-z0-9-]{1,64}$/.test(uid))return base;
+  const raw=env['CREW_FISHING_BONUS_'+uid.toUpperCase().replaceAll('-','_')];
+  if(typeof raw!=='string'||raw.length>80)return base;
+  try{
+    const grant=JSON.parse(raw);
+    if(grant?.day!==day||!Number.isSafeInteger(grant.extra)||grant.extra<1||grant.extra>1000)return base;
+    return {...base,day:base.day+grant.extra,week:base.week+grant.extra};
+  }catch{return base;}
 }
 async function ranking(env,week,personal,viewer){
   const name=personal?publicNameSQL():'c.name';
