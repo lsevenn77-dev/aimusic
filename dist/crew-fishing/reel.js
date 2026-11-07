@@ -1,7 +1,7 @@
 import {position,progressAfter,IDLE_MS} from './rules.js';
 
 // Show the shared rules immediately; submit the same frames in order for official records.
-export function createReel({initial,request,onChange,onConfirmed=()=>{},onFinish=()=>{},onError=()=>{}}){
+export function createReel({initial,request,requestBatch,onChange,onConfirmed=()=>{},onFinish=()=>{},onError=()=>{}}){
   let confirmed={expiresAt:initial.start+IDLE_MS,...initial},shown={...confirmed},queue=[],sending=false,disposed=false;
   const matches=(a,b)=>['seq','progress','warnings','status','lastPass'].every(key=>a[key]===b[key]);
   async function drain(){
@@ -9,16 +9,25 @@ export function createReel({initial,request,onChange,onConfirmed=()=>{},onFinish
     sending=true;
     try{
       while(queue.length&&!disposed){
-        const job=queue[0];let result;
+        // A slow acknowledgement must not make each waiting tap pay another round trip.
+        const jobs=[];
+        if(requestBatch){for(const j of queue){if(j.input.timeout||jobs.length===24)break;jobs.push(j);}}
+        const batch=jobs.length>0;if(!batch)jobs.push(queue[0]);
+        const job=jobs.at(-1);let result;
         try{
-          result=(await request(job.input)).cast;
+          const send=()=>batch?requestBatch(jobs.map(j=>j.input)):request(job.input);
+          try{result=(await send()).cast;}catch(e){
+            if(disposed)return;
+            if(e.retryable!==true)throw e;
+            result=(await send()).cast; // Same cast and sequence, including a lost acknowledgement.
+          }
           if(!result||result.id!==confirmed.id)throw Error('낚시 판정을 다시 확인해주세요.');
         }catch(error){
           if(disposed)return;
           queue=[];shown={...confirmed};onChange(shown,'reset');onError(error);return;
         }
         if(disposed)return;
-        queue.shift();confirmed={...result};
+        queue.splice(0,jobs.length);confirmed={...result};
         if(!matches(confirmed,job.expected)){
           queue=[];shown={...confirmed};onChange(shown,'reset');
         }else if(!queue.length)shown={...confirmed};

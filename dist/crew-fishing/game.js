@@ -46,12 +46,13 @@ async function fetchAPI(action,data){
   try{
     const response=await fetch('/api/crew-fishing/'+action+(action==='lobby' && new URLSearchParams(location.search).get('mode')==='practice'?'?mode=practice':''),{...(data?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}:{cache:'no-store'}),signal:controller.signal});
     const result=await response.json();
-    if(!response.ok)throw Error(result.error||'낚시 정보를 불러오지 못했어요.');
+    if(!response.ok)throw Object.assign(Error(result.error||'낚시 정보를 불러오지 못했어요.'),{retryable:response.status>=500});
     const sample=clockSample(before,performance.now(),result);
     if(sample&&sample.delay<=clockDelay){clockOffset=sample.offset;clockDelay=sample.delay;}
     return result;
   }catch(error){
-    if(controller.signal.aborted)throw Error('연결이 지연됐어요. 다시 눌러주세요. 낚시 기록은 중복으로 소모되지 않아요.');
+    if(controller.signal.aborted)throw Object.assign(Error('서버 응답을 받지 못했어요. 연결을 확인해주세요.'),{retryable:true});
+    if(error instanceof TypeError)error.retryable=true;
     throw error;
   }finally{clearTimeout(timer);}
 }
@@ -111,15 +112,16 @@ function play(intro){
     ending=animationDeadline(()=>cast.status==='caught'?scene?.land():scene?.escape(),3000);
   };
   reel=createReel({initial:cast,request:input=>api('pull',input),
+    requestBatch:practice?undefined:frames=>api('pull',{id:frames[0].id,seq:frames[0].seq,sentElapsed:now()-cast.start,batch:frames.map(({seq,elapsed})=>({seq,elapsed}))}),
     onChange:(next,kind)=>{
       cast=next;
       if(kind==='reset'){
         ending=null;stage.classList.remove('ending');
         try{scene?.hooked();}catch{}
       }
-      if(kind!=='touch')updateMeter(kind==='success'?'성공! 당겼어요.':kind==='idle'?'물고기가 도망갔어요.':kind==='warning'||kind==='miss'?'줄이 느슨해졌어요. 다시 당겨보세요.':'막대에 맞춰 다시 당기세요.');
+      if(kind!=='touch')updateMeter(kind==='success'?'성공! 당겼어요.':kind==='idle'?'마지막 입력을 확인하고 있어요.':kind==='warning'||kind==='miss'?'줄이 느슨해졌어요. 다시 당겨보세요.':'막대에 맞춰 다시 당기세요.');
       try{scene?.pull(kind,cast.progress);}catch{}
-      if(cast.status!=='active')endVisual();else{scheduleIdle();if(kind==='reset')loop();}
+      if(cast.status!=='active'){if(kind!=='idle')endVisual();}else{scheduleIdle();if(kind==='reset')loop();}
     },
     onConfirmed:(next,settled)=>{if(settled){cast=next;scheduleIdle();}},
     onFinish:async next=>{

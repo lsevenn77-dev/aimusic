@@ -45,7 +45,7 @@ function page({delay=15000,renderer='missing'}={}){
       else if(action==='cast')result={cast:{...state}};
       else if(action==='pull'){
         if(body.timeout)state={...state,status:'escaped',fish:FISH[0].id,length:120000,grade:'B',value:0};
-        else state={...state,seq:body.seq,lastPass:Math.floor(body.elapsed/800),progress:1,expiresAt:state.start+body.elapsed+3000};
+        else {const f=body.batch?.at(-1)??body;state={...state,seq:f.seq,lastPass:Math.floor(f.elapsed/800),progress:1,expiresAt:state.start+f.elapsed+3000};}
         result={cast:{...state}};
       }else if(action==='book')result={name:'QA',records:[{fish:FISH[0].id,length:125000,grade:'B',nickname:'최대어 기록자',end_ms:1,count:99}]};
       return {ok:true,json:async()=>({...result,receivedTime:ms,serverTime:ms})};

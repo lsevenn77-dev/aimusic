@@ -3,8 +3,8 @@ import {one, rows, run, json, fail, id} from './db.js';
 import {requireUser} from './auth.js';
 import {publicNameSQL} from './identity.js';
 import {FISH} from '../dist/crew-fishing/catalog.js';
-import {TIERS,SIZES,LIMITS,IDLE_MS,weighted,position,progressAfter,season} from '../dist/crew-fishing/rules.js';
-import {inputElapsed} from '../dist/crew-fishing/timing.js';
+import {TIERS,SIZES,LIMITS,IDLE_MS,weighted,season} from '../dist/crew-fishing/rules.js';
+import {fishingPull} from './crew-fishing-pull.js';
 import {fishValue} from '../dist/crew-fishing/pricing.js';
 import {FISH_VALUE_SQL} from './crew-fishing-pricing.js';
 
@@ -76,6 +76,7 @@ export async function fishingRoute(req,env,path,user,ms=Date.now(),clock={receiv
   requireUser(user);
   const uid=user.id, action=path.slice('/api/crew-fishing/'.length), {day,week}=season(ms);
   const open=ms<officialClose(env,ms,Date.parse(week+'T22:00:00+09:00')+4*86400000);
+  if(action==='pull'&&req.method==='POST')return respond({cast:view(await fishingPull(env,uid,await req.json(),{ms,receivedTime:clock.receivedTime,day,open}))});
   const baseLimits=fishingLimits(env,uid,day);
   const quotaLimits=['lobby','cast'].includes(action)?await gameLimits(env,uid,ms,baseLimits.day):{premiumBonus:0,dailyLimit:baseLimits.day};
   const limits={...baseLimits,day:quotaLimits.dailyLimit,week:baseLimits.week+quotaLimits.premiumBonus*5};
@@ -96,8 +97,11 @@ export async function fishingRoute(req,env,path,user,ms=Date.now(),clock={receiv
     }
     return cast;
   }
-  const active=async()=>{
-    const current=await expire(await one(env,"SELECT * FROM crew_fishing_casts WHERE user_id=? AND crew_id=? AND day=? AND status='active'",uid,crew,day));
+  const active=async(readOnly=false)=>{
+    const saved=await one(env,"SELECT * FROM crew_fishing_casts WHERE user_id=? AND crew_id=? AND day=? AND status='active'",uid,crew,day);
+    // A lobby refresh must not close a fish ahead of a tap already in transit.
+    if(readOnly)return saved&&clock.receivedTime<idleDeadline(saved)?saved:null;
+    const current=await expire(saved);
     return current?.status==='active'?current:null;
   };
   const response=cast=>respond({cast:view(cast)});
@@ -106,7 +110,7 @@ export async function fishingRoute(req,env,path,user,ms=Date.now(),clock={receiv
       one(env,'SELECT COUNT(*) AS total,COUNT(CASE WHEN day=? THEN 1 END) AS today FROM crew_fishing_casts WHERE user_id=? AND week=?',day,uid,week),
       one(env,`SELECT COALESCE(SUM(${FISH_VALUE_SQL}),0) AS score FROM crew_fishing_casts WHERE week=? AND user_id=? AND status='caught'`,week,uid),
       one(env,`SELECT COALESCE(SUM(${FISH_VALUE_SQL}),0) AS score FROM crew_fishing_casts WHERE week=? AND crew_id=? AND status='caught'`,week,crew),
-      ranking(env,week,true,uid),ranking(env,week,false,crew),open?active():null]);
+      ranking(env,week,true,uid),ranking(env,week,false,crew),open?active(true):null]);
     return respond({crew,name:m.name,week,day,open,...quotaLimits,dailyLimit:limits.day,weeklyLimit:limits.week,remaining:Math.max(0,Math.min(limits.day-quota.today,limits.week-quota.total)),
       weeklyRemaining:Math.max(0,limits.week-quota.total),mine:mine.score,ours:ours.score,individual,crews,cast:view(current)});
   }
@@ -138,32 +142,6 @@ export async function fishingRoute(req,env,path,user,ms=Date.now(),clock={receiv
     if(!cast || cast.day!==day)fail(409,'오늘 낚시 기회를 모두 사용했거나 도전이 만료됐어요.');
     return response(cast);
   }
-  if(typeof body?.id!=='string'||!Number.isSafeInteger(body.seq)||body.seq<1)fail(400,'올바르지 않은 당기기 요청이에요.');
-  const find=()=>one(env,'SELECT * FROM crew_fishing_casts WHERE id=? AND user_id=? AND crew_id=?',body.id,uid,crew);
-  const cast=await find();
-  if(!cast)fail(404,'낚시 기록을 찾지 못했어요.');
-  if(cast.status!=='active')return response(cast);
-  if(cast.day!==day||!open)fail(409,'도전 시간이 지났어요. 대기실에서 다시 확인해주세요.');
-  if(body.seq<=cast.seq)return response(cast);
-  if(body.seq!==cast.seq+1)fail(409,'도전 상태를 다시 확인해주세요.');
-  if(body.timeout===true)return response(await expire(cast));
-  let elapsed;
-  try{elapsed=inputElapsed({start:cast.start_ms},body.elapsed,clock.receivedTime);}catch(error){fail(409,error.message);}
-  if(elapsed<0||clock.receivedTime<cast.start_ms)return response(cast);
-  const touchedAt=cast.start_ms+elapsed;
-  if(touchedAt>=idleDeadline(cast))return response(await expire(cast,touchedAt));
-  if(touchedAt<(cast.end_ms??cast.start_ms))return response(cast);
-  const pass=Math.floor(2*elapsed/cast.cycle_ms);
-  const p=position(elapsed,cast.cycle_ms), hit=p>=cast.target&&p<=cast.target+cast.width;
-  // Repeated taps on one pass reset inactivity but can never earn another hit.
-  const next=pass<=cast.last_pass?cast:progressAfter(cast,hit);
-  await run(env,`UPDATE crew_fishing_casts SET progress=?,warnings=?,seq=?,last_pass=?,status=?,end_ms=?,
-    notice=CASE WHEN ?='caught' THEN CASE
-      WHEN NOT EXISTS(SELECT 1 FROM crew_fishing_casts WHERE crew_id=? AND fish=? AND status='caught') THEN 'new'
-      WHEN ?>(SELECT MAX(length) FROM crew_fishing_casts WHERE crew_id=? AND fish=? AND status='caught') THEN 'best'
-      END END WHERE id=? AND status='active' AND seq=? AND ${memberGuard}`,
-    next.progress,next.warnings,body.seq,pass,next.status,next.status==='active'?touchedAt:ms,next.status,crew,cast.fish,cast.length,
-    crew,cast.fish,cast.id,cast.seq,uid,crew);
-  return response(await find());
+  fail(404,'경로를 찾지 못했어요.');
 }
 

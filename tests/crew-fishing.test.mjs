@@ -51,6 +51,22 @@ test('27 species and exact probability intervals, all grade endpoints and specie
     tierRoll+=cfg.weight;
   }
 });
+test('touches queued behind a slow acknowledgement catch once, while a genuine three-second gap still escapes',async t=>{
+  const {api,sql}=await setup(t);
+  const c=(await api('cast',{requestId:crypto.randomUUID()})).cast;
+  sql.prepare('UPDATE crew_fishing_casts SET target=30,width=30,cycle_ms=1600,goal=4 WHERE id=?').run(c.id);
+  const first=await api('pull',{id:c.id,seq:1,elapsed:400},c.start+490);assert.equal(first.cast.progress,1);
+  const packet={id:c.id,seq:2,sentElapsed:3500,batch:[{seq:2,elapsed:1200},{seq:3,elapsed:2000},{seq:4,elapsed:2800}]};
+  await assert.rejects(api('pull',{...packet,sentElapsed:7000},c.start+3600),{status:409});
+  await assert.rejects(api('pull',{...packet,batch:[{seq:2,elapsed:9000}]},c.start+3600),{status:409});
+  assert.equal((await api('lobby',null,c.start+3450)).cast,null); // Read-only refresh while touches are in flight.
+  const result=await api('pull',packet,c.start+3600);assert.equal(result.cast.status,'caught');assert.equal(result.cast.seq,4);
+  assert.equal((await api('pull',packet,c.start+5900)).cast.value,result.cast.value);
+  assert.equal((await api('lobby',null,c.start+6000)).remaining,9);
+  const other=(await api('cast',{requestId:crypto.randomUUID()},c.start+6200)).cast;
+  const late=await api('pull',{id:other.id,seq:1,sentElapsed:3400,batch:[{seq:1,elapsed:3300}]},other.start+3500);
+  assert.equal(late.cast.notice,'idle');assert.equal(late.cast.status,'escaped');
+});
 test('warning survives recovery and starts only on a miss already at zero',()=>{
   let state={goal:3,progress:0,warnings:0};
   for(const [hit,p,w,end] of [[false,0,1,'active'],[true,1,1,'active'],[false,0,1,'active'],[false,0,2,'escaped']]){

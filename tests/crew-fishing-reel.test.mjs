@@ -45,6 +45,18 @@ test('failed or rejected delivery restores confirmed state and allows another in
   assert.equal(f.changes.at(-1).state.warnings,1);
   assert.equal(f.changes.at(-1).kind,'reset');
 });
+test('a slow response batches all waiting frames and retransmits an unacknowledged batch unchanged',async()=>{
+  const packets=[],finish=[],calls=[];
+  const r=createReel({initial,request:()=>{throw Error('unexpected single pull')},onChange(){},onFinish:c=>finish.push(c),requestBatch:frames=>{
+    packets.push(frames);return new Promise((yes,no)=>calls.push({yes,no}));
+  }});
+  r.tap(400);r.tap(1200);r.tap(2000);
+  assert.equal(packets.length,1);
+  calls[0].yes({cast:{...initial,seq:1,lastPass:0,progress:1}});await tick();
+  assert.deepEqual(packets[1].map(x=>x.elapsed),[1200,2000]);
+  calls[1].no(Object.assign(Error('lost reply'),{retryable:true}));await tick();assert.deepEqual(packets[2],packets[1]);
+  calls[2].yes({cast:{...initial,seq:3,lastPass:2,progress:3,status:'caught'}});await tick();assert.equal(finish.length,1);
+});
 test('leaving a game ignores late responses',async()=>{
   const f=setup();f.reel.tap(400);f.reel.dispose();f.resolve(0);await tick();
   assert.equal(f.confirmed.length,0);assert.equal(f.finishes.length,0);
