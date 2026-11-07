@@ -4,7 +4,7 @@ import {requireUser} from './auth.js';
 import {publicNameSQL} from './identity.js';
 import {allocateLots} from '../shared/gifts.js';
 import {decorationSpendableSQL} from './decorations.js';
-import {CARS,raceCalendar} from '../dist/crew-racing/catalog.js';
+import {CARS,raceCalendar,SPEED_RULES} from '../dist/crew-racing/catalog.js';
 import {newRun,createRace,computeScore,STEP} from '../dist/crew-racing/physics.js';
 
 async function garage(env,uid) {
@@ -38,7 +38,7 @@ async function buyCar(env,uid,car) {
   }
 }
 
-export function validateRace(course,events,ms){
+export function validateRace(course,events,ms,speedBonus=0){
   if(!Array.isArray(events)||events.length>7700)fail(400,'올바르지 않은 입력 기록이에요.');
   let last=-1;
   for(const event of events){
@@ -47,7 +47,7 @@ export function validateRace(course,events,ms){
     if(!Number.isInteger(tick)||tick<=last||tick>=7700||!Number.isInteger(mask)||mask<0||mask>7)fail(400,'올바르지 않은 입력 기록이에요.');
     last=tick;
   }
-  const race=createRace(course),state=newRun();
+  const race=createRace(course),state=newRun(speedBonus);
   let tick=0,index=0,mask=0;
   while(!state.ended&&tick<7700){
     if(events[index]?.[0]===tick)mask=events[index++][1];
@@ -102,20 +102,26 @@ export async function racingRoute(req,env,path,user,ms=Date.now()){
   if(!crew)fail(403,'크루에 가입하면 공식 순위에 참여할 수 있어요.');
   if(action==='start'){
     if(body.course!==course)fail(409,'이번 주 코스가 바뀌었어요. 대기실을 새로고침해주세요.');
-    const key=id();
+    if(body.rules!==SPEED_RULES)fail(409,'차량 최고속도 규칙이 바뀌었어요. 레이싱을 다시 열어주세요.');
+    const {equipped}=await garage(env,uid);
+    const {speedBonus}=CARS.find(c=>c.id===equipped);
+    // The opaque run ID is stored and matched in full. Freeze the server-owned rule/bonus
+    // at start; a pre-upgrade plain UUID keeps its original physics until it finishes.
+    const key=id()+'.'+SPEED_RULES+'-'+speedBonus;
     const limits=await gameLimits(env,uid,ms),day=gameDayWindow(ms);
     await run(env,`INSERT INTO crew_racing_runs(id,user_id,crew_id,week,course,starts)
       SELECT ?,?,?,?,?,? WHERE (SELECT COUNT(*) FROM crew_racing_runs WHERE user_id=? AND starts>=? AND starts<?)<?`,
       key,uid,crew,week,course,ms,uid,day.start,day.end,limits.dailyLimit);
     if(!await one(env,'SELECT id FROM crew_racing_runs WHERE id=?',key))fail(409,`오늘 공식 도전 ${limits.dailyLimit}회를 모두 사용했어요. 한국시간 자정에 초기화돼요.`);
     const used=await one(env,'SELECT COUNT(*) n FROM crew_racing_runs WHERE user_id=? AND starts>=? AND starts<?',uid,day.start,day.end);
-    return json({id:key,...limits,remaining:Math.max(0,limits.dailyLimit-used.n)});
+    return json({id:key,equipped,speedBonus,...limits,remaining:Math.max(0,limits.dailyLimit-used.n)});
   }
   if(action==='finish'){
     const record=await one(env,'SELECT * FROM crew_racing_runs WHERE id=? AND user_id=?',String(body.id),uid);
     if(!record||record.crew_id!==crew)fail(404,'주행 기록을 찾지 못했어요.');
     if(record.score!==null)return json({score:record.score});
-    const score=validateRace(record.course,body.events,ms-record.starts);
+    const bonus=Number(/\.kart2-(0|2|4|6|8|10)$/.exec(record.id)?.[1] || 0);
+    const score=validateRace(record.course,body.events,ms-record.starts,bonus);
     await run(env,'UPDATE crew_racing_runs SET score=? WHERE id=? AND score IS NULL',score,record.id);
     return json(await one(env,'SELECT score FROM crew_racing_runs WHERE id=?',record.id));
   }

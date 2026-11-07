@@ -24,7 +24,7 @@ async function setup(t,name){
     return (await game.route(new Request('https://aifect.test'+path,{method:body?'POST':'GET',body:body&&JSON.stringify(body)}),env,path,{id:'owner',premium_until:9999999999},ms)).json();
   };
   const lobby=()=>call(game.lobby);
-  const start=()=>call(game.start,{requestId:crypto.randomUUID(),difficulty:'normal',course:raceCalendar(ms).course,premiumBonus:999,dailyLimit:999});
+  const start=()=>call(game.start,{requestId:crypto.randomUUID(),difficulty:'normal',course:raceCalendar(ms).course,...(name==='racing'?{rules:'kart2'}:{}),premiumBonus:999,dailyLimit:999});
   const end=()=>f.sql.exec(`UPDATE ${game.table} SET ${game.end}`);
   const premium=(until,apple=false)=>f.sql.prepare(`UPDATE users SET ${apple?'apple_premium_until':'premium_until'}=? WHERE id='owner'`).run(until);
   return {...f,env,lobby,start,end,premium,setTime:value=>ms=value};

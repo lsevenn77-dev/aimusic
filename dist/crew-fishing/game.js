@@ -1,9 +1,9 @@
-import {fishingLobby} from './lobby.js';
+import {fishingLobby} from './shore-lobby.js';
 import {profileNickname} from '/nickname-profile-host.js';
 import {renderGameRankings} from '/crew-game-lobby.js';
 import {FISH} from './catalog.js';
 import {TIERS,position,formatLength} from './rules.js';
-import {createScene} from './scene.js';
+import {createScene} from './shore-scene.js';
 import {bindMobileReelInput} from './mobile-input.js';
 import {createRequestId} from './request-id.js';
 import {animationDeadline} from './animation.js';
@@ -62,7 +62,7 @@ async function api(action,data){
   const result=await fetchAPI(action,data);
   if(!result.practice){if(action==='lobby')practice=null;return result;}
   if(practice?.scope!==result.scope){
-    const {practiceSession}=await import('./practice.js');
+    const {practiceSession}=await import('./shore-practice.js');
     practice=practiceSession(result,async()=>(await fetchAPI('practice-cast',{})).draw,()=>performance.now()+clockOffset);
   }
   return practice.lobby();

@@ -168,3 +168,12 @@ a.iconbtn { text-decoration: none; color: var(--ink); }
 .mobile-song { grid-column: 1 / -1; display:flex; align-items:center; gap:9px; }
 .mobile-song img { width:34px; height:34px; border-radius:7px; }
 .mobile-song small { margin-left:auto; color:var(--pink); }
+
+/* Use the same phone hit targets and lobby spacing in a browser as in the Android game host. */
+@media(max-width:600px), (hover:none) and (pointer:coarse) {
+  #lobbyView.rhythm-lobby {box-sizing:border-box;padding:12px;max-width:100%;}
+  #lobbyView.rhythm-lobby .cgl-nav {flex-wrap:wrap;}
+  #lobbyView.rhythm-lobby :is(button,a), #play button {min-height:44px;touch-action:manipulation;}
+  #lobbyView.rhythm-lobby .startrow .cgl-start {min-height:48px;}
+  #play canvas {touch-action:none;user-select:none;-webkit-user-select:none;}
+}

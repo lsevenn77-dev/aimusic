@@ -5,7 +5,7 @@
     dnfMax: 390000,          // 미완주 최대 (진행도 비례) → 완주자가 항상 위
 
   };
-  // 차량 성능은 모두 동일
+  // Handling is shared; the equipped vehicle raises only the straight-line speed cap.
   const CAR = {
     maxSpeed: 11000, accel: 5200, boostMul: 1.32, boostTime: 1.6, boostCost: 50, boostKick: 1400,
     // 원심력: 급커브(6)는 드리프트하거나 속도가 줄어야 버팀, 중간 커브(4)는 일반 조향으로 버팀
@@ -39,8 +39,9 @@
       [25, 40, 25, -C.MED, -10], [0, 120, 0, 0]] },
   };
   const STEP = 1 / 120;
-  function newRun() {
+  function newRun(speedBonus = 0) {
     return {
+      topSpeed: CAR.maxSpeed * (1 + speedBonus / 280),
       t: 0, z: 0, x: 0, speed: 0, gauge: 50, boostT: 0, finished: false, ended: false, dnf: false,
       drift: false, holdT: 0, driftT: 0, driftDir: 0, charge: 0, exitT: null,
       drifts: 0, walls: 0, boosts: 0, shake: 0, sparks: [], tilt: 0, msg: null, countdown: 3.2,
@@ -102,7 +103,7 @@ function createRace(courseId){
           const perfect = S.exitT != null && S.t - S.exitT <= CAR.driftExitPerfect;
           const gain = Math.min(CAR.driftMaxGain, S.charge * (perfect ? 1.5 : 1));
           S.gauge = Math.min(100, S.gauge + gain); S.drifts++;
-          if (perfect) S.speed = Math.min(CAR.maxSpeed * 1.05, S.speed + 500);
+          if (perfect) S.speed = Math.min(S.topSpeed * 1.05, S.speed + 500);
           flash(S, perfect ? `PERFECT DRIFT +${Math.round(gain)}` : `드리프트 성공 +${Math.round(gain)}`, perfect ? '#3ef2c2' : '#d9c9ff');
         }
         S.drift = false; S.holdT = 0;
@@ -126,7 +127,7 @@ function createRace(courseId){
     if (S.boostT > 0) S.boostT -= dt;
 
     // 속도: 자동 가속, 코너에서 버티면 감속(드리프트는 덜 잃음)
-    const top = CAR.maxSpeed * (S.boostT > 0 ? CAR.boostMul : 1);
+    const top = S.topSpeed * (S.boostT > 0 ? CAR.boostMul : 1);
     if (S.speed < top) S.speed = Math.min(top, S.speed + CAR.accel * dt);
     else S.speed -= (S.speed - top) * Math.min(1, dt * 2.5);
     if (seg.curve) S.speed -= S.speed * dt * CAR.scrub * (Math.abs(seg.curve) / 6) * sp * sp * (S.drift ? CAR.driftScrub : 1);
