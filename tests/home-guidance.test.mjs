@@ -55,3 +55,24 @@ test('published banner variants match the visually reviewed asset manifest witho
   assert.equal(hashes.size,7,'each destination must show its own approved scene');
  }
 });
+
+test('desktop panorama files are complete WebP scenes matching the reviewed manifest',()=>{
+ const c=context(),banners=vm.runInContext('homeBanners',c);
+ const base=new URL('../dist/assets/home-banners/desktop-20261109/',import.meta.url);
+ const manifest=JSON.parse(readFileSync(new URL('manifest.json',base),'utf8'));
+ assert.equal(manifest.assets.length,banners.length);
+ const hashes=new Set();
+ for(const banner of banners){
+  const asset=manifest.assets.find(item=>item.id===banner.id);
+  assert.ok(asset,'missing desktop scene for '+banner.id);
+  const bytes=readFileSync(new URL('../dist'+c.homeBannerDesktopImage(banner.id),import.meta.url));
+  assert.equal(bytes.toString('ascii',0,4),'RIFF');
+  assert.equal(bytes.toString('ascii',8,12),'WEBP');
+  assert.equal(bytes.readUInt32LE(4)+8,bytes.length,'incomplete WebP: '+asset.file);
+  assert.equal(bytes.length,asset.bytes);
+  const hash=createHash('sha256').update(bytes).digest('hex');
+  assert.equal(hash,asset.sha256,asset.file+' differs from its reviewed scene');
+  hashes.add(hash);
+ }
+ assert.equal(hashes.size,banners.length,'each banner needs its own desktop scene');
+});

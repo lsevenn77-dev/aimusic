@@ -25,8 +25,8 @@ function homeCollectionGrid(items){let html=collectionGrid(items);for(const p of
 function homeMore(title,href){return href?`<a class="home-more-link" href="${href}" aria-label="${esc(title)} 더보기">+ 더보기</a>`:'';}
 function homeSection(title,href){return `<div class="section-heading"><h2>${esc(title)}</h2>${homeMore(title,href)}</div>`;}
 function homePlaceholder(){return '<div class="release-placeholder" role="status" aria-label="음악을 불러오는 중"><div></div><span>음악을 불러오고 있어요.</span></div>';}
-// Keep the approved 2:1 artwork on mobile. The shorter desktop Play frame
-// uses the same photograph with live copy so no painted headline is clipped.
+// Keep the approved 2:1 artwork on mobile. Dedicated desktop scenes fill the
+// shared Play frame beneath live copy, without downloading both image versions.
 const homeBanners=[
  {id:'studio',title:'스튜디오',headline:'스튜디오에서 내 제작곡을 올려보세요',cta:'제작곡 올리기',href:'#upload'},
  {id:'play',title:'플레이',headline:'플레이에서 마음에드는 노래를 불러보세요',cta:'노래하러 가기',href:'#karaoke'},
@@ -37,6 +37,7 @@ const homeBanners=[
  {id:'premium',title:'프리미엄',headline:'프리미엄으로 제작곡을 더 많이 올려보세요',cta:'프리미엄 혜택 보기',href:'#membership'}
 ];
 function homeBannerImage(id,width){return '/assets/home-banners/final-20261108/'+id+'-'+width+'.webp';}
+function homeBannerDesktopImage(id){return '/assets/home-banners/desktop-20261109/'+id+'-2172.webp';}
 const homeBannerDesktopCopy={
  studio:{lines:['스튜디오에서','내 제작곡을 올려보세요'],highlight:'내 제작곡'},
  play:{lines:['플레이에서','마음에드는 노래를 불러보세요'],highlight:'플레이'},
@@ -50,7 +51,7 @@ function homeBannerHTML(b,next){
  const sizes='(max-width: 800px) 100vw, calc(100vw - 340px)';
  const sources=id=>homeBannerImage(id,768)+' 768w, '+homeBannerImage(id,1536)+' 1536w';
  const copy=homeBannerDesktopCopy[b.id],headline=copy.lines.map(line=>'<span>'+esc(line).replace(esc(copy.highlight),'<em>'+esc(copy.highlight)+'</em>')+'</span>').join('');
- return `<a class="home-feature-slide home-promo-link" data-home-banner="${b.id}" href="${b.href}" aria-label="${esc(b.headline)}. ${esc(b.cta)}${b.chooseParticipation?' · 듀엣 또는 더빙 선택':''}" ${b.chooseParticipation?'data-home-participate aria-haspopup="dialog"':''} draggable="false"><img class="home-promo-original" src="${homeBannerImage(b.id,1536)}" srcset="${sources(b.id)}" sizes="${sizes}" width="1536" height="768" alt="" loading="eager" decoding="async" ${b.id==='studio'?'fetchpriority="high"':''} draggable="false"><span class="home-promo-desktop" aria-hidden="true"><span class="home-promo-photo" style="--home-promo-art:url('${homeBannerImage(b.id,1536)}')"></span><span class="home-feature-copy home-promo-copy"><span class="home-promo-headline">${headline}</span><span class="home-promo-cta">${esc(b.cta)} ${icon('arrow')}</span></span></span></a>${next?`<link rel="preload" as="image" href="${homeBannerImage(next.id,1536)}" imagesrcset="${sources(next.id)}" imagesizes="${sizes}" fetchpriority="low">`:''}`;
+ return `<a class="home-feature-slide home-promo-link" data-home-banner="${b.id}" href="${b.href}" aria-label="${esc(b.headline)}. ${esc(b.cta)}${b.chooseParticipation?' · 듀엣 또는 더빙 선택':''}" ${b.chooseParticipation?'data-home-participate aria-haspopup="dialog"':''} draggable="false"><picture class="home-promo-picture"><source media="(min-width: 801px)" srcset="${homeBannerDesktopImage(b.id)}" width="2172" height="724"><img class="home-promo-original" src="${homeBannerImage(b.id,1536)}" srcset="${sources(b.id)}" sizes="${sizes}" width="1536" height="768" alt="" loading="eager" decoding="async" ${b.id==='studio'?'fetchpriority="high"':''} draggable="false"></picture><span class="home-promo-desktop" aria-hidden="true"><span class="home-feature-copy home-promo-copy"><span class="home-promo-headline">${headline}</span><span class="home-promo-cta">${esc(b.cta)} ${icon('arrow')}</span></span></span></a>${next?`<link rel="preload" as="image" href="${homeBannerDesktopImage(next.id)}" media="(min-width: 801px)" fetchpriority="low"><link rel="preload" as="image" href="${homeBannerImage(next.id,1536)}" imagesrcset="${sources(next.id)}" imagesizes="${sizes}" media="(max-width: 800px)" fetchpriority="low">`:''}`;
 }
 function homeParticipationHTML(){
  return '<div class="home-participation"><h2>함께 만들 작품을 골라보세요</h2><div class="home-participation-options"><a class="small-button" href="#karaoke/duets">듀엣 참여하기 '+icon('chevron')+'</a><a class="small-button" href="#karaoke/dubbing?tab=join">더빙 참여하기 '+icon('chevron')+'</a></div></div>';

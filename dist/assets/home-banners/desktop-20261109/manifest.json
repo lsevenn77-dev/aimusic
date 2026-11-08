@@ -1,0 +1,62 @@
+{
+  "purpose": "Continuous generated desktop scenes; approved mobile artwork is unchanged.",
+  "generation": "image_gen built-in reference editing",
+  "assets": [
+    {
+      "id": "studio",
+      "file": "studio-2172.webp",
+      "width": 2172,
+      "height": 724,
+      "bytes": 200546,
+      "sha256": "277293b83ddbe73b8562934d2203a33d7b6c7d3fea639db5a6c6cef0176467a2"
+    },
+    {
+      "id": "play",
+      "file": "play-2172.webp",
+      "width": 2172,
+      "height": 724,
+      "bytes": 159982,
+      "sha256": "0730dd2651eab9fef6cd47a77fe9dc5d4338916d028b8a3d967b8f2ab9d22539"
+    },
+    {
+      "id": "participate",
+      "file": "participate-2172.webp",
+      "width": 2172,
+      "height": 724,
+      "bytes": 236868,
+      "sha256": "91f76a4da2e083bf3c4d0bdc639b9e5121db540c8a969549180b5af60865ad17"
+    },
+    {
+      "id": "artists",
+      "file": "artists-2172.webp",
+      "width": 2172,
+      "height": 724,
+      "bytes": 179286,
+      "sha256": "881056a8ef441de099f3faf468bd1575d357e06f81a46625b60ee21a04458459"
+    },
+    {
+      "id": "karaoke",
+      "file": "karaoke-2172.webp",
+      "width": 2172,
+      "height": 724,
+      "bytes": 157678,
+      "sha256": "08ae36efb8fe537078f167b8c9bea6b07f125fa2ca014c24f513a8b427aed02d"
+    },
+    {
+      "id": "talking",
+      "file": "talking-2172.webp",
+      "width": 2172,
+      "height": 724,
+      "bytes": 218176,
+      "sha256": "f7aded9e268c5ea64fbd13c4fc743bb918878c9f19a0012ff1959ce71b0c4e2b"
+    },
+    {
+      "id": "premium",
+      "file": "premium-2172.webp",
+      "width": 2172,
+      "height": 724,
+      "bytes": 208748,
+      "sha256": "b02f99117d874c2580c24af6285c8a31bf356b527ad9e9714c72374ec61b073f"
+    }
+  ]
+}
