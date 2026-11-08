@@ -72,7 +72,7 @@
 #main .message-workspace .dm-message-line{display:flex;align-items:flex-end;gap:6px;min-width:0}
 #main .message-workspace .dm-message.mine .dm-message-line{flex-direction:row-reverse}
 #main .message-workspace .dm-bubble{min-width:0;max-width:100%;padding:9px 12px;border:0;border-radius:15px 15px 15px 5px;background:color-mix(in srgb,var(--ds-accent-lavender) 12%,var(--ds-panel));color:var(--ds-text);box-shadow:none;font-size:15px;line-height:1.6;overflow-wrap:anywhere}
-#main .message-workspace .dm-message.mine .dm-bubble{background:color-mix(in srgb,#8eddd2 87%,white);color:var(--activity-ink);border:0;border-radius:15px 15px 5px 15px}
+#main .message-workspace .dm-message.mine .dm-bubble{background:color-mix(in srgb,var(--activity-accent) 25%,transparent);color:var(--ds-text);border:0;border-radius:15px 15px 5px 15px}
 #main .message-workspace .chat-message-meta{flex:none;display:flex;flex-direction:column;gap:3px;max-width:65px;color:var(--ds-muted);font-size:var(--dm-time)}
 #main .message-workspace .chat-message-meta time{white-space:nowrap;font-size:var(--dm-time)}
 #main .message-workspace .message-welcome{display:flex;flex-direction:column;justify-content:center;align-items:center;padding:24px;text-align:center}
