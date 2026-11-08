@@ -168,7 +168,12 @@ function bindSocialChat(view){
  const localInbox=e=>{if(current()&&view?.inbox&&e.detail){inboxVersion++;inboxData=e.detail;paintInbox(inboxData);}};const refreshInbox=()=>{void loadInbox();};if(view?.inbox){window.addEventListener('aifect:inbox-local',localInbox);window.addEventListener('aifect:inbox-refresh',refreshInbox);}
  if(view.inbox)syncCrewInbox(inboxData?.crew);
  const clearInboxEvents=()=>{stopCrewInbox?.();window.removeEventListener('aifect:inbox-local',localInbox);window.removeEventListener('aifect:inbox-refresh',refreshInbox);};
- if(view?.inbox&&!view.chat){if(view.refreshInbox)void loadInbox();const stop=watchSocialChat('',loadInbox,()=>{},()=>{$('#dm-list-error').textContent='로그인 상태를 다시 확인해주세요.';});socialCleanup=()=>{clearInboxEvents();stop();search?.removeEventListener('input',filter);};return;}
+ if(view?.inbox&&!view.chat){
+  if(view.refreshInbox)void loadInbox();
+  const stopNotice=view.welcomeNotice?bindWelcomeNotice(view,()=>{void loadInbox();void refreshMessageBadge();}):()=>{};
+  const stop=watchSocialChat('',loadInbox,()=>{},()=>{$('#dm-list-error').textContent='로그인 상태를 다시 확인해주세요.';});
+  socialCleanup=()=>{clearInboxEvents();stopNotice();stop();search?.removeEventListener('input',filter);};return;
+ }
  if(!view?.chat)return;
  if(view.refreshInbox)void loadInbox();
  const {path,peer,crew,initial}=view.chat,form=$('#chat-compose'),log=$('#chat-log'),earlier=$('#chat-earlier'),input=form.querySelector('textarea')||form.querySelector('[data-dm-editor]'),sendButton=form.querySelector('[data-chat-send]');

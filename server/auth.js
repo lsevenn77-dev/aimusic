@@ -1,4 +1,5 @@
 import {rememberAppleToken} from './account-safety.js';
+import {ensureWelcomeReceipt} from './welcome-notices.js';
 import {nickname,nicknameBatch} from './nicknames.js';
 import {publicUser,producerNameSQL,publicNameSQL} from './identity.js';
 import {createRemoteJWKSet,jwtVerify,SignJWT,importPKCS8} from 'jose';
@@ -54,6 +55,7 @@ export async function authRoute(req,env,path,user){
  const mobile=await mobileAuthRoute(req,env,path,user);if(mobile)return mobile;
  const native=await nativeAuthRoute(req,env,path);if(native)return native;
  if(path==='/api/me'){
+  if(user)await ensureWelcomeReceipt(env,user.id);
   const [plan,state]=await Promise.all([membership(env,user),user&&url.searchParams.get('state')==='1'?one(env,`SELECT (SELECT json_group_array(track_id) FROM likes WHERE user_id=? AND track_id IS NOT NULL) likes,(SELECT json_group_array(json_object('kind',kind,'target_id',target_id)) FROM follows WHERE user_id=?) follows`,user.id,user.id):null]);
   return json({user,admin:isAdmin(env,user),track_moderator:isTrackModerator(env,user),membership:plan,providers:providers(env),googleClientId:env.GOOGLE_CLIENT_ID||null,emailEnabled:!!env.AUTH_PEPPER,...(state?{interaction_state:{likes:JSON.parse(state.likes).map(id=>({id})),follows:JSON.parse(state.follows)}}:{})});
  }

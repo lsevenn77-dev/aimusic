@@ -1,4 +1,5 @@
 import {queuePlaylistCleanup} from './playlist-cleanup.js';
+import {queueWelcomeCampaign,welcomeNoticeRoute} from './welcome-notices.js';
 import {cspReport} from './csp-report.js';
 import {imageOriginRequest,imageExportRequest} from './image-mirror.js';
 import {tryPublicOrigin} from './cafe24-origin.js';
@@ -80,6 +81,7 @@ async function fetchRequest(req,env,ctx){
  const url=new URL(req.url),path=url.pathname;
  const fishingClock=path.startsWith('/api/crew-fishing/')?{receivedTime:Date.now(),started:performance.now()}:undefined;
  try{
+  queueWelcomeCampaign(req,env,ctx);
   if(url.hostname==='www.aifect.co.kr'){
    url.protocol='https:';url.host='aifect.co.kr';
    return Response.redirect(url.href,['GET','HEAD'].includes(req.method)?301:308);
@@ -161,6 +163,7 @@ async function fetchRequest(req,env,ctx){
   }
   const adminSession=await adminSessionRoute(req,env,path);if(adminSession)return adminSession;
   const user=(path.startsWith('/api/admin/')?await consoleViewer(req,env):null)||await viewer(req,env);
+  const welcome=await welcomeNoticeRoute(req,env,path,user);if(welcome)return welcome;
   if(path==='/api/admin/mcp/identity'){
    if(!isConsoleAdmin(user))fail(403,'기존 관리자 콘솔에 로그인해주세요.');
    if(req.method!=='GET')fail(405,'GET만 지원합니다.');

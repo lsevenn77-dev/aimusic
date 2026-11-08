@@ -28,6 +28,13 @@ export const activityNotifications=sqliteTable('activity_notifications',{
 export const users=sqliteTable('users',{
  accountType:text('account_type').notNull().default('human'),id:text('id').primaryKey(), email:text('email').notNull(), name:text('name').notNull(), password:text('password'), provider:text('provider').notNull().default('email'), subject:text('subject'), created:integer('created').notNull(), premiumUntil:integer('premium_until').notNull().default(0), applePremiumUntil:integer('apple_premium_until').notNull().default(0), playlistSelection:text('playlist_selection').notNull().default('[]')
 },t=>[uniqueIndex('users_identity').on(t.provider,t.subject),uniqueIndex('users_email_provider').on(t.email,t.provider)]);
+// Official welcome notices are separate from member-to-member conversations.
+export const welcomeCampaigns=sqliteTable('welcome_campaigns',{
+ id:text('id').primaryKey(),contentJson:text('content_json').notNull(),created:integer('created').notNull(),recipientMaxRowid:integer('recipient_max_rowid').notNull()
+});
+export const welcomeReceipts=sqliteTable('welcome_receipts',{
+ campaignId:text('campaign_id').notNull().references(()=>welcomeCampaigns.id),userId:text('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),created:integer('created').notNull(),readAt:integer('read_at').notNull().default(0),source:text('source').notNull()
+},t=>[primaryKey({columns:[t.campaignId,t.userId]}),index('welcome_receipts_unread').on(t.userId,t.readAt),check('welcome_receipt_source',sql`${t.source} IN ('broadcast','automatic')`)]);
 export const sessions=sqliteTable('sessions',{token:text('token').primaryKey(),userId:text('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),expires:integer('expires').notNull()});
 // Public identity is independent of authentication UUIDs. No FK: retired numbers
 // remain reserved after account deletion. Allocation/immutability live in SQL triggers.

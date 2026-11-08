@@ -109,29 +109,46 @@ Object.assign(VoiceRoomClient.prototype,{
 });
 function roomMessages(client,sheet){
  const events=new AbortController(),options={signal:events.signal};
- let peer=null,serial=0,stream=null,stickers=null,editor=null,timer,paused=false;
+ let peer=null,serial=0,stream=null,stickers=null,editor=null,noticeCleanup=null,timer,paused=false;
  const current=t=>!client.closed&&!events.signal.aborted&&sheet.open&&t===serial;
- function reset(){serial++;clearTimeout(timer);stream?.();stream=null;client.roomInboxChanged=null;stickers?.destroy();stickers=null;editor?.destroy();editor=null;return serial;}
+ function reset(){serial++;clearTimeout(timer);stream?.();stream=null;client.roomInboxChanged=null;stickers?.destroy();stickers=null;editor?.destroy();editor=null;noticeCleanup?.();noticeCleanup=null;return serial;}
  const destroy=()=>{reset();events.abort();};
  sheet.addEventListener('close',()=>{if(!sheet.open&&!paused)destroy();},options);
  const report=e=>{if(!events.signal.aborted){const status=sheet.querySelector('[data-room-dm-status]');if(status)status.textContent=e.message;}};
  async function inbox(){
   const t=reset();peer=null;
   sheet.innerHTML='<label class="room-dm-query">팔로우 검색<input type="search" aria-label="메시지를 보낼 팔로우 검색" placeholder="닉네임 검색"></label><div class="room-dm-list"></div><small data-room-dm-status role="status"></small>';
-  const input=sheet.querySelector('input'),list=sheet.querySelector('.room-dm-list');let search=0;
+  const input=sheet.querySelector('input'),list=sheet.querySelector('.room-dm-list'),noticeIds=new Set();let search=0;
   const load=async()=>{
    const q=input.value.trim(),seq=++search;
    const d=await api(q?'/api/follow-management?tab=following&kind=producers&sort=name&q='+encodeURIComponent(q):'/api/dm','GET',undefined,{fresh:true});
    if(!current(t)||seq!==search||q!==input.value.trim())return;
-   const people=q?d.items:d.conversations;
+   const people=q?d.items:d.conversations;noticeIds.clear();
    list.innerHTML=people.map(p=>{
     const id=q?p.profile_id:p.id;if(!id)return '';
-    return `<button type="button" data-room-peer="${esc(id)}">${avatarImage({...p,profile_id:id})}<span><strong>${userNickname(chatNickname(p),{profileId:id,userId:p.user_id})}</strong><small>${esc(AifectStickers.preview(p.last_message||''))}</small></span>${p.unread?`<b>${Number(p.unread)}</b>`:''}<time>${p.updated?esc(inboxTime(p.updated)):''}</time></button>`;
+    const notice=!q&&p.is_notice===true&&p.notice_type==='welcome'&&p.read_only===true;
+    if(notice)noticeIds.add(id);
+    const art=notice?'<span class="avatar-fallback room-welcome-art" aria-hidden="true">'+voiceGlyph('megaphone')+'</span>':avatarImage({...p,profile_id:id});
+    const name=notice?esc(chatNickname(p)):userNickname(chatNickname(p),{profileId:id,userId:p.user_id});
+    return `<button type="button" data-room-peer="${esc(id)}">${art}<span><strong>${name}</strong><small>${esc(AifectStickers.preview(p.last_message||''))}</small></span>${p.unread?`<b>${Number(p.unread)}</b>`:''}<time>${p.updated?esc(inboxTime(p.updated)):''}</time></button>`;
    }).join('')||'<p>표시할 대화가 없어요.</p>';
   };
-  list.onclick=e=>{const id=e.target.closest('[data-room-peer]')?.dataset.roomPeer;if(id)thread(id).catch(report);};
+  list.onclick=e=>{const id=e.target.closest('[data-room-peer]')?.dataset.roomPeer;if(id)(noticeIds.has(id)?welcome():thread(id)).catch(report);};
   input.oninput=()=>{clearTimeout(timer);timer=setTimeout(()=>load().catch(report),150);};
   await load();if(current(t))client.roomInboxChanged=()=>load().catch(report);
+ }
+ async function welcome(){
+  const t=reset(),uid=me?.id;
+  const d=await api('/api/notices/welcome','GET',undefined,{fresh:true});if(!current(t)||uid!==me?.id)return;
+  peer=null;
+  sheet.innerHTML='<header class="room-dm-header"><button type="button" data-room-back aria-label="메시지 목록">‹</button><span class="avatar-fallback room-welcome-art" aria-hidden="true">'+voiceGlyph('megaphone')+'</span><strong>공지채팅 · 아이팩트 안내</strong></header><div class="room-welcome-guide">'+welcomeGuideHTML(d)+'</div>';
+  sheet.querySelector('[data-room-back]').onclick=()=>inbox().catch(report);
+  noticeCleanup=bindWelcomeNotice({welcomeNotice:{campaign_id:d.campaign_id,read_at:d.read_at}},()=>{
+   if(!current(t)||uid!==me?.id)return;
+   window.dispatchEvent(new Event('aifect:dm-read'));
+   window.dispatchEvent(new Event('aifect:inbox-refresh'));
+   void refreshMessageBadge();
+  });
  }
  async function thread(id){
   const t=reset(),path='/api/dm/'+encodeURIComponent(id);

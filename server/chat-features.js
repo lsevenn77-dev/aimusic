@@ -13,12 +13,13 @@ export async function chatPeer(env,pid,user){
 export async function chatSettings(env,uid,peer){return await one(env,'SELECT muted,cleared_sequence FROM dm_settings WHERE user_id=? AND peer_id=?',uid,peer)||{muted:0,cleared_sequence:0};}
 export async function chatSummary(env,user){
  requireUser(user);
- const [directResult,crewResult]=await env.DB.batch([
+ const [directResult,crewResult,welcomeResult]=await env.DB.batch([
   query(env,`SELECT count(*) count FROM direct_messages d LEFT JOIN dm_settings s ON s.user_id=d.recipient_id AND s.peer_id=d.sender_id WHERE d.recipient_id=? AND d.read_at=0 AND d.rowid>COALESCE(s.cleared_sequence,0) AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=d.recipient_id AND b.blocked_id=d.sender_id) OR (b.user_id=d.sender_id AND b.blocked_id=d.recipient_id))`,user.id),
-  query(env,`SELECT c.id,c.name,c.image_version,m.joined_sequence,m.read_sequence,m.muted,(SELECT json_object('body',x.body,'display',${legacyCrewNoticeDisplaySQL('x')}) FROM crew_messages x WHERE x.crew_id=c.id AND x.rowid>=m.joined_sequence AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=m.user_id AND b.blocked_id=x.user_id) OR (b.blocked_id=m.user_id AND b.user_id=x.user_id)) ORDER BY x.rowid DESC LIMIT 1) last_entry,(SELECT x.created FROM crew_messages x WHERE x.crew_id=c.id AND x.rowid>=m.joined_sequence AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=m.user_id AND b.blocked_id=x.user_id) OR (b.blocked_id=m.user_id AND b.user_id=x.user_id)) ORDER BY x.rowid DESC LIMIT 1) updated,(SELECT count(*) FROM crew_messages x WHERE x.crew_id=c.id AND x.rowid>=m.joined_sequence AND x.rowid>m.read_sequence AND x.user_id!=m.user_id AND x.kind!='system' AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=m.user_id AND b.blocked_id=x.user_id) OR (b.blocked_id=m.user_id AND b.user_id=x.user_id))) unread FROM crew_members m JOIN crews c ON c.id=m.crew_id WHERE m.user_id=?`,user.id)
- ]),direct=directResult.results[0]||null,crew=crewResult.results[0]||null;
+  query(env,`SELECT c.id,c.name,c.image_version,m.joined_sequence,m.read_sequence,m.muted,(SELECT json_object('body',x.body,'display',${legacyCrewNoticeDisplaySQL('x')}) FROM crew_messages x WHERE x.crew_id=c.id AND x.rowid>=m.joined_sequence AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=m.user_id AND b.blocked_id=x.user_id) OR (b.blocked_id=m.user_id AND b.user_id=x.user_id)) ORDER BY x.rowid DESC LIMIT 1) last_entry,(SELECT x.created FROM crew_messages x WHERE x.crew_id=c.id AND x.rowid>=m.joined_sequence AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=m.user_id AND b.blocked_id=x.user_id) OR (b.blocked_id=m.user_id AND b.user_id=x.user_id)) ORDER BY x.rowid DESC LIMIT 1) updated,(SELECT count(*) FROM crew_messages x WHERE x.crew_id=c.id AND x.rowid>=m.joined_sequence AND x.rowid>m.read_sequence AND x.user_id!=m.user_id AND x.kind!='system' AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=m.user_id AND b.blocked_id=x.user_id) OR (b.blocked_id=m.user_id AND b.user_id=x.user_id))) unread FROM crew_members m JOIN crews c ON c.id=m.crew_id WHERE m.user_id=?`,user.id),
+  query(env,'SELECT count(*) count FROM welcome_receipts WHERE user_id=? AND read_at=0',user.id)
+ ]),direct=directResult.results[0]||null,crew=crewResult.results[0]||null,noticeUnread=welcomeResult.results[0]?.count||0;
  if(crew){const entry=JSON.parse(crew.last_entry);delete crew.last_entry;crew.last_message=entry?.body??null;if(entry?.display)crew.last_message_display=entry.display;}
- return {unread:(direct?.count||0)+(crew?.unread||0),direct_unread:direct?.count||0,crew};
+ return {unread:(direct?.count||0)+(crew?.unread||0)+noticeUnread,direct_unread:(direct?.count||0)+noticeUnread,notice_unread:noticeUnread,crew};
 }
 // Every request denies expired media; physical cleanup also runs on the encoder's
 // regular /internal queue calls, and retries failed R2 deletes without losing keys.
@@ -61,12 +62,13 @@ export async function chatFeaturesRoute(req,env,path,user){
  }
  if(path==='/api/dm/summary'&&method==='GET')return json(await chatSummary(env,user));
  if(path==='/api/dm/read-all'&&method==='POST'){
-  requireUser(user);await env.DB.batch([query(env,'UPDATE direct_messages SET read_at=? WHERE recipient_id=? AND read_at=0',now(),user.id),query(env,'UPDATE crew_members SET read_sequence=COALESCE((SELECT max(rowid) FROM crew_messages WHERE crew_id=crew_members.crew_id),0) WHERE user_id=?',user.id)]);return json({ok:true});
+  requireUser(user);await env.DB.batch([query(env,'UPDATE direct_messages SET read_at=? WHERE recipient_id=? AND read_at=0',now(),user.id),query(env,'UPDATE crew_members SET read_sequence=COALESCE((SELECT max(rowid) FROM crew_messages WHERE crew_id=crew_members.crew_id),0) WHERE user_id=?',user.id),query(env,'UPDATE welcome_receipts SET read_at=? WHERE user_id=? AND read_at=0',now(),user.id)]);return json({ok:true});
  }
  if(path==='/api/dm'&&method==='DELETE'){
   requireUser(user);await env.DB.batch([
    query(env,`INSERT INTO dm_settings(user_id,peer_id,cleared_sequence) SELECT ?,CASE WHEN sender_id=? THEN recipient_id ELSE sender_id END,max(rowid) FROM direct_messages WHERE sender_id=? OR recipient_id=? GROUP BY CASE WHEN sender_id=? THEN recipient_id ELSE sender_id END ON CONFLICT(user_id,peer_id) DO UPDATE SET cleared_sequence=max(dm_settings.cleared_sequence,excluded.cleared_sequence)`,user.id,user.id,user.id,user.id,user.id),
-   query(env,'UPDATE direct_messages SET read_at=? WHERE recipient_id=? AND read_at=0',now(),user.id)
+   query(env,'UPDATE direct_messages SET read_at=? WHERE recipient_id=? AND read_at=0',now(),user.id),
+   query(env,'UPDATE welcome_receipts SET read_at=? WHERE user_id=? AND read_at=0',now(),user.id)
   ]);return json({ok:true});
  }
  let m=path.match(/^\/api\/dm\/([\w-]+)(?:\/(settings|images))?$/);
