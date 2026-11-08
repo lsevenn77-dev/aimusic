@@ -36,14 +36,13 @@ function context(extra={}){
  });
  vm.runInContext(social,c);vm.runInContext(notices,c);return c;
 }
-test('welcome is one read-only guide with eight distinct destinations and two real stickers',()=>{
+test('welcome is one read-only guide with eight distinct destinations and no legacy stickers',()=>{
  const c=context(),html=c.welcomeGuideHTML(guide());
  assert.equal((html.match(/class="welcome-guide-section"/g)||[]).length,8);
  assert.equal((html.match(/class="text-link welcome-guide-link"/g)||[]).length,8);
  for(const [,title,label,href] of links){assert.ok(html.includes(escape(title)));assert.ok(html.includes(escape(label)));assert.ok(html.includes('href="'+href+'"'));}
- assert.equal((html.match(/<img /g)||[]).length,2);
- assert.match(html,/\/assets\/chat-stickers\/v1\/hand\/cat_hand_wave\.webp/);
- assert.match(html,/\/assets\/chat-stickers\/v1\/basic\/cat_basic_heart\.webp/);
+ assert.equal((html.match(/<img /g)||[]).length,0);
+ assert.doesNotMatch(html,/welcome-guide-sticker|cat_hand_wave|cat_basic_heart/);
  assert.doesNotMatch(html,/<form|<textarea|contenteditable|data-dm-mute|data-dm-clear|data-person-block|#producer\//);
  assert.ok(html.indexOf('welcome-guide-intro')<html.indexOf('data-welcome-section="play"'));
  assert.ok(html.indexOf('data-welcome-section="duet"')<html.indexOf('data-welcome-section="dubbing"'));
@@ -63,7 +62,7 @@ test('nicknames and guide fields stay text, and unsafe links or sticker tokens c
  assert.match(html,/&quot; onclick=&quot;alert\(4\)/);
  assert.doesNotMatch(html,/href="javascript:|attacker\.example|<script|<svg|<img src=x/);
  assert.equal((html.match(/class="text-link welcome-guide-link"/g)||[]).length,6);
- assert.equal((html.match(/<img /g)||[]).length,1);
+ assert.equal((html.match(/<img /g)||[]).length,0);
 });
 test('verified welcome channel uses its own endpoint while existing official DMs retain their route',async()=>{
  const c=context();c.dmProfileLink=()=>'<a href="#producer/operator">운영자</a>';c.dmThreadActions=()=>'<button data-dm-mute="operator">알림</button>';c.chatPanelHTML=()=>'<form id="chat-compose"></form>';

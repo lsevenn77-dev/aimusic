@@ -61,6 +61,8 @@ export async function welcomeNoticeRoute(req,env,path,user) {
   return json({ok:true});
  }
  const guide=JSON.parse(receipt.content_json),nickname=String(receipt.nickname||'').trim();
+ // Apply the owner's presentation change to saved notices without redelivery.
+ delete guide.stickers;
  guide.greeting=nickname?guide.greeting.replace('{닉네임}',()=>nickname):'반가워요! 👋\n아이팩트에 오신 걸 환영해요.';
  return json({peer:peer(receipt),campaign_id:WELCOME_CAMPAIGN_ID,created:receipt.created,read_at:receipt.read_at,guide});
 }

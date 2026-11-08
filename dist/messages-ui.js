@@ -1,9 +1,5 @@
 // Notice entries are server-verified administrator conversations or service guides.
 const welcomeGuideHrefs=new Set(['#karaoke','#live?mode=karaoke','#voice?mode=talk','#karaoke/duets','#karaoke/dubbing?tab=join','#artists','#upload','#membership']);
-function welcomeGuideSticker(key){
- if(!['cat_hand_wave','cat_basic_heart'].includes(key))return '';
- return '<span class="welcome-guide-sticker" aria-hidden="true">'+AifectStickers.render('[aifect:'+key+']',esc)+'</span>';
-}
 function welcomeGuideHTML(d){
  const g=d.guide;
  if(!g||typeof g.greeting!=='string'||!Array.isArray(g.sections)||!g.sections.length)throw new Error('이용 안내를 불러오지 못했어요. 다시 열어주세요.');
@@ -13,7 +9,7 @@ function welcomeGuideHTML(d){
   return '<section class="welcome-guide-section" data-welcome-section="'+esc(s.id)+'"><h3>'+esc(s.title)+'</h3><p>'+esc(s.body)+'</p>'+action+'</section>';
  }).join('');
  const created=Number(d.created),sent=created>0&&Number.isFinite(created)?'<time class="welcome-guide-time" datetime="'+new Date(created*1000).toISOString()+'">'+new Date(created*1000).toLocaleString('ko-KR',{timeZone:'Asia/Seoul',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'})+'</time>':'';
- return '<section id="welcome-guide-scroll" class="welcome-guide-scroll" tabindex="0" aria-label="아이팩트 이용 안내">'+sent+'<article class="welcome-guide" aria-labelledby="welcome-guide-title"><div class="welcome-guide-intro"><div class="welcome-guide-greeting"><h2 id="welcome-guide-title">'+esc(g.greeting).replace(/\r?\n/g,'<br>')+'</h2>'+welcomeGuideSticker(g.stickers?.greeting)+'</div>'+paragraphs(g.intro)+'</div>'+sections+'<footer class="welcome-guide-outro">'+paragraphs(g.closing)+welcomeGuideSticker(g.stickers?.closing)+'</footer></article></section><div id="welcome-guide-status" class="welcome-guide-status" role="status" hidden><span></span><button type="button" class="text-link" data-welcome-read-retry>다시 시도</button></div>';
+ return '<section id="welcome-guide-scroll" class="welcome-guide-scroll" tabindex="0" aria-label="아이팩트 이용 안내">'+sent+'<article class="welcome-guide" aria-labelledby="welcome-guide-title"><div class="welcome-guide-intro"><div class="welcome-guide-greeting"><h2 id="welcome-guide-title">'+esc(g.greeting).replace(/\r?\n/g,'<br>')+'</h2></div>'+paragraphs(g.intro)+'</div>'+sections+'<footer class="welcome-guide-outro">'+paragraphs(g.closing)+'</footer></article></section><div id="welcome-guide-status" class="welcome-guide-status" role="status" hidden><span></span><button type="button" class="text-link" data-welcome-read-retry>다시 시도</button></div>';
 }
 // Acknowledgement follows visible paint and stays tied to this account and route.
 function bindWelcomeNotice(view,acknowledged=()=>{}){

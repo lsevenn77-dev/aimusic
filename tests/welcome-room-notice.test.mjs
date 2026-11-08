@@ -75,7 +75,7 @@ function harness({hidden=false,peers=[welcomePeer],waitForGuide=false,waitForRea
  };
 }
 
-test('a room opens the verified welcome in its current sheet with all eight links and real stickers',async()=>{
+test('a room opens the verified welcome in its current sheet with all eight links and no stickers',async()=>{
  const h=harness();await h.view.inbox();
  assert.deepEqual(h.avatars,[]);assert.deepEqual(h.nicknames,[]);
  await h.click();
@@ -84,7 +84,7 @@ test('a room opens the verified welcome in its current sheet with all eight link
  assert.equal((h.sheet.innerHTML.match(/class="welcome-guide-section"/g)||[]).length,8);
  assert.equal((h.sheet.innerHTML.match(/class="text-link welcome-guide-link"/g)||[]).length,8);
  for(const section of WELCOME_GUIDE.sections)assert.ok(h.sheet.innerHTML.includes('href="'+section.href+'"'));
- assert.match(h.sheet.innerHTML,/\/hand\/cat_hand_wave\.webp/);assert.match(h.sheet.innerHTML,/\/basic\/cat_basic_heart\.webp/);
+ assert.doesNotMatch(h.sheet.innerHTML,/welcome-guide-sticker|cat_hand_wave|cat_basic_heart/);
  assert.doesNotMatch(h.sheet.innerHTML,/<form|<textarea|contenteditable|data-dm-mute|data-room-dm-gift|data-profile|#producer\//);
  assert.equal(h.calls.filter(call=>call.method==='PATCH').length,0);
  await h.paint();

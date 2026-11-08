@@ -96,10 +96,8 @@
 #main :is(.message-workspace,.room-welcome-guide) .welcome-guide-link:hover{text-decoration:underline;text-underline-offset:4px}
 #main :is(.message-workspace,.room-welcome-guide) .welcome-guide-link:focus-visible{outline:2px solid var(--ds-selected);outline-offset:3px;border-radius:4px}
 #main :is(.message-workspace,.room-welcome-guide) .welcome-guide-link>span{flex:none}
-#main :is(.message-workspace,.room-welcome-guide) .welcome-guide-sticker{display:inline-flex;align-items:center;justify-content:center;flex:none;max-width:100%;line-height:1}
 #main :is(.message-workspace,.room-welcome-guide) .welcome-guide-outro{margin-top:20px;padding-top:20px;border-top:1px solid var(--ds-line)}
 #main :is(.message-workspace,.room-welcome-guide) .welcome-guide-outro p{margin-bottom:4px}
-#main :is(.message-workspace,.room-welcome-guide) .welcome-guide-outro>.welcome-guide-sticker{margin-top:10px}
 #main :is(.message-workspace,.room-welcome-guide) .welcome-guide-status{flex:none;padding:8px 16px;color:var(--ds-body);font-size:13px;overflow-wrap:anywhere}
 #main :is(.message-workspace,.room-welcome-guide) .welcome-guide-status[hidden]{display:none}
 #main :is(.message-workspace,.room-welcome-guide) .welcome-guide-status button{min-height:44px;margin-left:8px;color:var(--ds-selected)}

@@ -18,6 +18,5 @@ export const WELCOME_GUIDE = {
   {id:'studio',title:'🎼 스튜디오에서 내 제작곡을 소개해요',body:'만들어둔 곡이 있다면 스튜디오에 올려보세요. 내 음악을 사람들에게 들려주고, 나의 노래를 좋아하는 사람들을 만나보세요.',label:'제작곡 올리기',href:'#upload'},
   {id:'premium',title:'💎 더 많은 제작곡을 올리고 싶다면',body:'소개하고 싶은 내 음악이 더 있나요? 더 많은 제작곡을 올릴 수 있는 프리미엄 혜택을 살펴보세요.',label:'프리미엄 혜택 보기',href:'#membership'}
  ],
- closing: ['노래 한 곡, 짧은 인사, 나만의 작품 하나로 시작해보세요.','아이팩트에서 즐거운 시간 보내세요! 💚'],
- stickers: {greeting:'cat_hand_wave',closing:'cat_basic_heart'}
+ closing: ['노래 한 곡, 짧은 인사, 나만의 작품 하나로 시작해보세요.','아이팩트에서 즐거운 시간 보내세요! 💚']
 };
