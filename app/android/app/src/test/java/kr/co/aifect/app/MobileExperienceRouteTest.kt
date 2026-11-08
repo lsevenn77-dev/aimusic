@@ -30,6 +30,10 @@ class MobileExperienceRouteTest {
   listOf("game/racing/../account","game/new/team","live/create","live/room?x=1","game/jump/","game/rhythm/team#account").forEach{assertFalse(it,MobileExperienceRoute.valid(it))}
   listOf("https://aifect.co.kr.evil.example/crew-rhythm/?crew=team","https://aifect.co.kr@evil.example/#live/room","http://aifect.co.kr/#live/room","https://aifect.co.kr/crew-rhythm/?crew=%2faccount").forEach{assertNull(it,MobileExperienceRoute.fromUrl(it,origin))}
  }
+ @Test fun gameHeadersShowApprovedNames(){
+  val names=mapOf("jump" to "점프러시","fishing" to "월척헌터","rhythm" to "비트콤보","racing" to "터보레이스")
+  names.forEach{(id,title)->assertEquals(title,MobileExperienceRoute.title("game/$id/team-1"))}
+ }
  @Test fun microphoneIsLimitedToLiveRoomAndExactOrigin(){
   assertTrue(MobileExperienceRoute.canUseMicrophone("live/room",origin,origin))
   assertFalse(MobileExperienceRoute.canUseMicrophone("game/rhythm/team",origin,origin))

@@ -27,6 +27,6 @@ internal object MobileExperienceRoute {
   return "game/$game/$crew".takeIf(::valid)
  }
  fun isRoom(route:String)=valid(route)&&(route.startsWith("live/")||route.startsWith("voice/"))
- fun title(route:String)=if(route.startsWith("voice/"))"토킹룸" else when(route.split('/').getOrNull(1)){"rhythm"->"리듬게임";"jump"->"점프게임";"racing"->"레이싱게임";"fishing"->"낚시게임";else->"노래방"}
+ fun title(route:String)=if(route.startsWith("voice/"))"토킹룸" else when(route.split('/').getOrNull(1)){"rhythm"->"비트콤보";"jump"->"점프러시";"racing"->"터보레이스";"fishing"->"월척헌터";else->"노래방"}
  fun canUseMicrophone(route:String,origin:String,requestOrigin:String)=isRoom(route)&&CurrentNavigation.sameOrigin(requestOrigin,origin)
 }
