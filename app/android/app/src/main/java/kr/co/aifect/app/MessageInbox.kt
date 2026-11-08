@@ -53,7 +53,7 @@ import java.net.URLEncoder
       }
       Column(Modifier.weight(1f).padding(horizontal=12.dp)){
        Text(crew.optString("name"),fontSize=15.sp,lineHeight=21.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis)
-       Text(crew.optString("last_message").ifBlank{"크루와 함께하는 대화"},fontSize=12.sp,lineHeight=18.sp,color=Muted,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=5.dp))
+       Text(stickerPreview(crew.optString("last_message")).ifBlank{"크루와 함께하는 대화"},fontSize=12.sp,lineHeight=18.sp,color=Muted,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=5.dp))
       }
       Column(horizontalAlignment=Alignment.End){Text("크루",fontSize=10.sp,color=StreamPurple);UnreadCount(crew.optInt("unread"))}
      }
@@ -66,7 +66,7 @@ import java.net.URLEncoder
       Box(Modifier.size(56.dp).testTag("dm-list-profile-"+p.optString("id")).clickable(onClickLabel="상대 페이지 보기"){openProfile(p)}){Avatar(p.optString("name"),p,56)}
       Column(Modifier.weight(1f).padding(horizontal=12.dp)){
        Row(verticalAlignment=Alignment.CenterVertically){Text(p.optString("name"),fontSize=15.sp,lineHeight=21.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.weight(1f));if(p.optInt("muted")==1)Icon(Icons.Rounded.NotificationsOff,"알림 꺼짐",Modifier.size(13.dp),tint=Muted)}
-       Text(p.optString("last_message"),fontSize=13.sp,lineHeight=18.sp,color=Muted,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=5.dp))
+       Text(stickerPreview(p.optString("last_message")),fontSize=13.sp,lineHeight=18.sp,color=Muted,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=5.dp))
       }
       Column(horizontalAlignment=Alignment.End){Text(socialTime(p.optLong("updated")),fontSize=10.sp,lineHeight=14.sp,color=Muted);UnreadCount(p.optInt("unread"))}
      }

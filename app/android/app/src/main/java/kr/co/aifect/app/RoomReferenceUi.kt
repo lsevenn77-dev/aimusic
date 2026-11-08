@@ -53,13 +53,21 @@ internal data class RoomSticker(val key:String,val label:String,val group:String
  Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())){listOf("basic" to "표정","hand" to "손짓","text" to "텍스트","prop" to "효과").forEach{(key,title)->TextButton({group=key}){Text(title,color=if(key==group)Aqua else Muted)}}}
  FlowRow(Modifier.fillMaxWidth()){library.filter{it.group==group}.forEach{item->Box(Modifier.size(46.dp).clickable(role=Role.Button,onClickLabel=item.label){insert("[aifect:"+item.key+"]")},contentAlignment=Alignment.Center){AsyncImage(item.url,item.label,Modifier.size(24.dp))}}}
 }
-@Composable internal fun RoomMessageBody(body:String){
- val library=roomStickers();val tags=remember(body){Regex("\\[aifect:([a-z0-9_]+)\\]").findAll(body).toList()}
- if(tags.isEmpty()){Text(body,fontSize=13.sp,lineHeight=18.sp,color=SoftText);return}
- val inline=mutableMapOf<String,androidx.compose.foundation.text.InlineTextContent>()
- val rich=androidx.compose.ui.text.buildAnnotatedString{var i=0;for(m in tags){append(body.substring(i,m.range.first));val s=library.firstOrNull{it.key==m.groupValues[1]};if(s==null)append(m.value)else{inline[s.key]=androidx.compose.foundation.text.InlineTextContent(androidx.compose.ui.text.Placeholder(22.sp,22.sp,androidx.compose.ui.text.PlaceholderVerticalAlign.TextCenter)){AsyncImage(s.url,s.label,Modifier.fillMaxSize())};appendInlineContent(s.key,s.label)};i=m.range.last+1};append(body.substring(i))}
- Text(rich,inlineContent=inline,fontSize=13.sp,lineHeight=22.sp,color=SoftText)
+private val StickerTag=Regex("\\[aifect:([a-z0-9_]+)\\]")
+// 목록 미리보기처럼 그림을 넣을 수 없는 곳: 웹과 같이 [라벨]로 바꾼다
+@Composable internal fun stickerPreview(body:String):String{
+ val library=roomStickers()
+ return remember(body,library){StickerTag.replace(body){m->library.firstOrNull{it.key==m.groupValues[1]}?.let{"["+it.label+"]"}?:m.value}}
 }
+// 메시지 본문의 [aifect:키]를 고양이 이모티콘 그림으로 그린다 (토킹룸·메시지함 공통)
+@Composable internal fun StickerText(body:String,fontSize:androidx.compose.ui.unit.TextUnit,lineHeight:androidx.compose.ui.unit.TextUnit,modifier:Modifier=Modifier,color:Color=Color.Unspecified,stickerSize:androidx.compose.ui.unit.TextUnit=22.sp){
+ val library=roomStickers();val tags=remember(body){StickerTag.findAll(body).toList()}
+ if(tags.isEmpty()){Text(body,modifier,fontSize=fontSize,lineHeight=lineHeight,color=color);return}
+ val inline=mutableMapOf<String,androidx.compose.foundation.text.InlineTextContent>()
+ val rich=androidx.compose.ui.text.buildAnnotatedString{var i=0;for(m in tags){append(body.substring(i,m.range.first));val s=library.firstOrNull{it.key==m.groupValues[1]};if(s==null)append(m.value)else{inline[s.key]=androidx.compose.foundation.text.InlineTextContent(androidx.compose.ui.text.Placeholder(stickerSize,stickerSize,androidx.compose.ui.text.PlaceholderVerticalAlign.TextCenter)){AsyncImage(s.url,s.label,Modifier.fillMaxSize())};appendInlineContent(s.key,s.label)};i=m.range.last+1};append(body.substring(i))}
+ Text(rich,modifier,inlineContent=inline,fontSize=fontSize,lineHeight=maxOf(lineHeight.value,stickerSize.value).sp,color=color)
+}
+@Composable internal fun RoomMessageBody(body:String){StickerText(body,13.sp,18.sp,color=SoftText)}
 @Composable internal fun RoomChatBubble(author:JSONObject,name:String,body:String,own:Boolean,profile:()->Unit){
  Row(Modifier.fillMaxWidth(),horizontalArrangement=if(own)Arrangement.End else Arrangement.Start,verticalAlignment=Alignment.Top){
   val avatar:@Composable ()->Unit={Box(Modifier.size(44.dp).clickable(role=Role.Button,onClickLabel=name+" 프로필",onClick=profile),contentAlignment=Alignment.Center){NativeMemberAvatar(author,28)}}

@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.outlined.SentimentSatisfiedAlt
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -474,17 +475,30 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
  Box(Modifier.size(size.dp).testTag(tag).clickable(onClickLabel="상대 페이지 보기",role=Role.Button,onClick=open).semantics(mergeDescendants=true){contentDescription="$name 페이지 보기"},contentAlignment=Alignment.Center){Avatar(name,person,size)}
 }
 
-@Composable private fun ChatComposer(body:String,change:(String)->Unit,label:String,busy:Boolean,modifier:Modifier=Modifier,tagPrefix:String?=null,enabled:Boolean=true,send:()->Unit){
+@Composable internal fun ChatComposer(body:String,change:(String)->Unit,label:String,busy:Boolean,modifier:Modifier=Modifier,tagPrefix:String?=null,enabled:Boolean=true,send:()->Unit){
  var value by remember(tagPrefix){mutableStateOf(TextFieldValue(body,TextRange(body.length)))}
  if(value.text!=body)value=TextFieldValue(body,TextRange(body.length))
  val changeValue:(TextFieldValue)->Unit={next->if(next.composition!=null||next.text.length<=2000){value=next;change(next.text)}}
- Row(modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
+ // 메시지함: 웹 모바일처럼 입력창 옆 버튼으로 고양이 이모티콘을 골라 커서 자리에 넣는다
+ val stickers=tagPrefix=="dm";var picking by remember(tagPrefix){mutableStateOf(false)};val keyboard=LocalSoftwareKeyboardController.current
+ androidx.activity.compose.BackHandler(picking){picking=false}
+ fun insertSticker(token:String){
+  val start=minOf(value.selection.start,value.selection.end).coerceIn(0,value.text.length);val end=maxOf(value.selection.start,value.selection.end).coerceIn(0,value.text.length)
+  val next=value.text.replaceRange(start,end,token)
+  if(next.length<=2000){value=TextFieldValue(next,TextRange(start+token.length));change(next)}
+  picking=false
+ }
+ Column(modifier.fillMaxWidth()){
+ if(stickers&&picking&&enabled)Surface(color=Panel,shape=RoundedCornerShape(18.dp),modifier=Modifier.fillMaxWidth().padding(bottom=8.dp).testTag("dm-sticker-picker")){Column(Modifier.padding(6.dp)){RoomStickerPicker(::insertSticker)}}
+ Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
+  if(stickers)IconButton(onClick={picking=!picking;if(picking)keyboard?.hide()},enabled=enabled,modifier=Modifier.size(44.dp).testTag("dm-sticker-toggle")){Icon(Icons.Outlined.SentimentSatisfiedAlt,if(picking)"이모티콘 닫기" else "이모티콘",tint=if(picking)Aqua else Muted)}
   val inputModifier=Modifier.weight(1f).then(tagPrefix?.let{Modifier.testTag("$it-input")}?:Modifier)
   val keyboardOptions=KeyboardOptions(imeAction=ImeAction.Send)
   val keyboardActions=KeyboardActions(onSend={if(enabled&&value.composition==null&&body.isNotBlank()&&body.length<=2000&&!busy)send()})
   if(tagPrefix=="dm")TextField(value,changeValue,placeholder={Text(label,fontSize=13.sp)},modifier=inputModifier,enabled=enabled,singleLine=true,keyboardOptions=keyboardOptions,keyboardActions=keyboardActions,shape=RoundedCornerShape(18.dp),colors=TextFieldDefaults.colors(focusedContainerColor=Panel,unfocusedContainerColor=Panel,disabledContainerColor=Panel,focusedIndicatorColor=androidx.compose.ui.graphics.Color.Transparent,unfocusedIndicatorColor=androidx.compose.ui.graphics.Color.Transparent,disabledIndicatorColor=androidx.compose.ui.graphics.Color.Transparent))
   else OutlinedTextField(value,changeValue,label={Text(label,fontSize=13.sp)},modifier=inputModifier,enabled=enabled,singleLine=true,keyboardOptions=keyboardOptions,keyboardActions=keyboardActions,shape=RoundedCornerShape(18.dp))
-  BrandButton(onClick=send,enabled=enabled&&body.isNotBlank()&&body.length<=2000&&!busy,modifier=Modifier.heightIn(min=48.dp).then(tagPrefix?.let{Modifier.testTag("$it-send")}?:Modifier),contentPadding=PaddingValues(horizontal=12.dp)){Text("보내기",fontSize=13.sp)}
+  BrandButton(onClick={picking=false;send()},enabled=enabled&&body.isNotBlank()&&body.length<=2000&&!busy,modifier=Modifier.heightIn(min=48.dp).then(tagPrefix?.let{Modifier.testTag("$it-send")}?:Modifier),contentPadding=PaddingValues(horizontal=12.dp)){Text("보내기",fontSize=13.sp)}
+ }
  }
 }
 @Composable private fun ChatHistory(m:MusicModel,messages:List<JSONObject>,earlier:Boolean,busy:Boolean,loadEarlier:()->Unit,userId:String?,crew:Boolean,peer:String="",retry:((JSONObject)->Unit)?=null,modifier:Modifier=Modifier,fill:Boolean=false,peerPerson:JSONObject?=null,openPeer:(()->Unit)?=null,emptyLabel:String?=null,loadError:String?=null,reload:(()->Unit)?=null,reloadEnabled:Boolean=true,author:((JSONObject)->Unit)?=null){
@@ -518,7 +532,7 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
       Column(Modifier.widthIn(max=260.dp),horizontalAlignment=if(mine)Alignment.End else Alignment.Start){
        if(crew&&!mine)Text(crewName(msg),color=Muted,fontSize=12.sp,modifier=Modifier.padding(bottom=4.dp).then(if(author!=null)Modifier.clickable{author(msg)}else Modifier))
        Surface(color=if(mine)Raised else Panel,shape=RoundedCornerShape(topStart=18.dp,topEnd=18.dp,bottomEnd=if(mine)4.dp else 18.dp,bottomStart=if(mine)18.dp else 4.dp)){
-        if(msg.optString("image_id").isNotBlank()&&msg.optString("image_id")!="null")ChatImage(m,msg,crew=crew) else Text(msg.optString("body"),fontSize=15.sp,lineHeight=23.sp,modifier=Modifier.padding(horizontal=13.dp,vertical=11.dp))
+        if(msg.optString("image_id").isNotBlank()&&msg.optString("image_id")!="null")ChatImage(m,msg,crew=crew) else StickerText(msg.optString("body"),fontSize=15.sp,lineHeight=23.sp,stickerSize=30.sp,modifier=Modifier.padding(horizontal=13.dp,vertical=11.dp))
        }
        msg.optString("crew_invite_id").takeIf{!crew&&it.isNotBlank()&&it!="null"}?.let{cid->
         OutlinedButton(onClick={m.openCrew(cid)},modifier=Modifier.testTag("dm-crew-invite-${msg.optString("id")}")){Text("초대받은 크루 보기",fontSize=12.sp)}
