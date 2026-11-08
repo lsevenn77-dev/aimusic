@@ -88,7 +88,7 @@
 }
 /* Align the image centre to the font's cap-height centre on every line. */
 #main img.cat-chat-sticker,#main .cat-picker img {
-  width:var(--cat-art-size);height:var(--cat-art-size);max-width:100%;object-fit:contain;
+  width:auto;height:var(--cat-art-size);max-width:100%;object-fit:contain;
 }
 #main img.cat-chat-sticker {
   display:inline-block;vertical-align:middle;vertical-align:calc(.5cap - var(--cat-art-size) * .5);

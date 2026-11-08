@@ -4,10 +4,11 @@ import {parts,stickers,token} from './chat-sticker-body.js';
 
 const groups = {basic: '고양이 표정', hand: '손 제스처', text: '텍스트', prop: '소품·효과'};
 const tabs = {basic: '기본', text: '텍스트', prop: '소품·효과'};
-// Final CSS pixels, shared by the picker, editable images and sent messages.
+// Final CSS heights, shared by the picker, editable images and sent messages.
+// All picture stickers use the established props/effects height; CSS preserves
+// each cropped asset's aspect ratio instead of fitting it into a square.
 const sizes = {
-  basic:38, hand:32.3, prop:22.8,
-  cat_hand_thumbsup:26.16, cat_hand_ok:26.16, cat_hand_wave:29.07, cat_hand_peace:29.07,
+  picture:22.8,
   text:{width:62.7,height:38}
 };
 
@@ -28,7 +29,7 @@ function image(key, className = '', surface = 'picker') {
   const version = assetVersion ?? (group === 'text' ? 'v2' : 'v1');
   let style = '';
   if (group !== 'text') {
-    style = `--cat-art-size:${sizes[key] ?? sizes[group]}px`;
+    style = `--cat-art-size:${sizes.picture}px`;
   } else if (surface === 'editor') {
     // Keep an editable word as one atomic image, with the same artwork box
     // and lettering baseline that its wrapper provides in a sent message.
