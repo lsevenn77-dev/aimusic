@@ -478,7 +478,7 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
 @Composable internal fun ChatComposer(body:String,change:(String)->Unit,label:String,busy:Boolean,modifier:Modifier=Modifier,tagPrefix:String?=null,enabled:Boolean=true,send:()->Unit){
  var value by remember(tagPrefix){mutableStateOf(TextFieldValue(body,TextRange(body.length)))}
  if(value.text!=body)value=TextFieldValue(body,TextRange(body.length))
- val changeValue:(TextFieldValue)->Unit={next->if(next.composition!=null||next.text.length<=2000){value=next;change(next.text)}}
+ val changeValue:(TextFieldValue)->Unit={raw->val next=if(tagPrefix=="dm")keepStickersWhole(value,raw)else raw;if(next.composition!=null||next.text.length<=2000){value=next;change(next.text)}}
  // 메시지함: 웹 모바일처럼 입력창 옆 버튼으로 고양이 이모티콘을 골라 커서 자리에 넣는다
  val stickers=tagPrefix=="dm";var picking by remember(tagPrefix){mutableStateOf(false)};val keyboard=LocalSoftwareKeyboardController.current
  androidx.activity.compose.BackHandler(picking){picking=false}
@@ -495,7 +495,7 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
   val inputModifier=Modifier.weight(1f).then(tagPrefix?.let{Modifier.testTag("$it-input")}?:Modifier)
   val keyboardOptions=KeyboardOptions(imeAction=ImeAction.Send)
   val keyboardActions=KeyboardActions(onSend={if(enabled&&value.composition==null&&body.isNotBlank()&&body.length<=2000&&!busy)send()})
-  if(tagPrefix=="dm")TextField(value,changeValue,placeholder={Text(label,fontSize=13.sp)},modifier=inputModifier,enabled=enabled,singleLine=true,keyboardOptions=keyboardOptions,keyboardActions=keyboardActions,shape=RoundedCornerShape(18.dp),colors=TextFieldDefaults.colors(focusedContainerColor=Panel,unfocusedContainerColor=Panel,disabledContainerColor=Panel,focusedIndicatorColor=androidx.compose.ui.graphics.Color.Transparent,unfocusedIndicatorColor=androidx.compose.ui.graphics.Color.Transparent,disabledIndicatorColor=androidx.compose.ui.graphics.Color.Transparent))
+  if(tagPrefix=="dm")StickerTextField(value,changeValue,label,inputModifier,enabled,keyboardOptions,keyboardActions,shape=RoundedCornerShape(18.dp),colors=TextFieldDefaults.colors(focusedContainerColor=Panel,unfocusedContainerColor=Panel,disabledContainerColor=Panel,focusedIndicatorColor=androidx.compose.ui.graphics.Color.Transparent,unfocusedIndicatorColor=androidx.compose.ui.graphics.Color.Transparent,disabledIndicatorColor=androidx.compose.ui.graphics.Color.Transparent))
   else OutlinedTextField(value,changeValue,label={Text(label,fontSize=13.sp)},modifier=inputModifier,enabled=enabled,singleLine=true,keyboardOptions=keyboardOptions,keyboardActions=keyboardActions,shape=RoundedCornerShape(18.dp))
   BrandButton(onClick={picking=false;send()},enabled=enabled&&body.isNotBlank()&&body.length<=2000&&!busy,modifier=Modifier.heightIn(min=48.dp).then(tagPrefix?.let{Modifier.testTag("$it-send")}?:Modifier),contentPadding=PaddingValues(horizontal=12.dp)){Text("보내기",fontSize=13.sp)}
  }

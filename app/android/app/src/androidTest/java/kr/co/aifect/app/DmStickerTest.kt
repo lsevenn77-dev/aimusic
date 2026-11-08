@@ -37,5 +37,10 @@ class DmStickerTest {
   ui.onNode(hasContentDescription("사랑") and hasAnyAncestor(hasTestTag("dm-sticker-picker"))).performClick()
   ui.onNodeWithTag("dm-sticker-picker").assertDoesNotExist()
   ui.runOnIdle{assertEquals("안녕 [aifect:cat_basic_love]",draft)}
+  // 입력창에서도 토큰 글자 대신 그림
+  ui.onAllNodesWithTag("dm-input-sticker",useUnmergedTree=true).assertCountEquals(1)
+  val field=ui.onNodeWithTag("dm-input").fetchSemanticsNode().config
+  val visible=field.getOrElseNullable(androidx.compose.ui.semantics.SemanticsProperties.Text){null}?.joinToString("").orEmpty()
+  assertFalse(visible,visible.contains("[aifect:"))
  }
 }

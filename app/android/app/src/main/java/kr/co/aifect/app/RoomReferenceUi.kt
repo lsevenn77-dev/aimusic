@@ -18,6 +18,8 @@ import androidx.compose.ui.graphics.*
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -68,6 +70,49 @@ private val StickerTag=Regex("\\[aifect:([a-z0-9_]+)\\]")
  Text(rich,modifier,inlineContent=inline,fontSize=fontSize,lineHeight=maxOf(lineHeight.value,stickerSize.value).sp,color=color)
 }
 @Composable internal fun RoomMessageBody(body:String){StickerText(body,13.sp,18.sp,color=SoftText)}
+
+// ───── 입력창의 이모티콘 ─────
+// 입력창에는 그림을 넣을 수 없어서, 토큰 자리를 빈칸 두 개로 바꿔 보이게 하고 그 위에 그림을 겹친다.
+// 커서는 토큰 안으로 들어가지 않고, 일부만 지우면 토큰 전체를 지운다.
+private const val StickerSlot="  "
+private class StickerSlots(private val tokens:List<IntRange>):androidx.compose.ui.text.input.OffsetMapping{
+ override fun originalToTransformed(offset:Int):Int{var shift=0
+  for(t in tokens){val s=t.first;val e=t.last+1;if(offset<=s)break;if(offset<e)return s-shift;shift+=(e-s)-StickerSlot.length}
+  return offset-shift}
+ override fun transformedToOriginal(offset:Int):Int{var shift=0
+  for(t in tokens){val s=t.first;val e=t.last+1;val ts=s-shift;if(offset<=ts)break;if(offset<ts+StickerSlot.length)return s;shift+=(e-s)-StickerSlot.length}
+  return offset+shift}
+}
+internal fun keepStickersWhole(old:androidx.compose.ui.text.input.TextFieldValue,next:androidx.compose.ui.text.input.TextFieldValue):androidx.compose.ui.text.input.TextFieldValue{
+ val a=old.text;val b=next.text;if(a==b)return next
+ var p=0;while(p<a.length&&p<b.length&&a[p]==b[p])p++
+ var s=0;while(s<a.length-p&&s<b.length-p&&a[a.length-1-s]==b[b.length-1-s])s++
+ var start=p;var end=a.length-s;val inserted=b.substring(p,b.length-s)
+ for(t in StickerTag.findAll(a)){val ts=t.range.first;val te=t.range.last+1;if(ts<end&&te>start||start==end&&ts<start&&start<te){start=minOf(start,ts);end=maxOf(end,te)}}
+ if(start==p&&end==a.length-s)return next
+ return androidx.compose.ui.text.input.TextFieldValue(a.substring(0,start)+inserted+a.substring(end),TextRange(start+inserted.length))
+}
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable internal fun StickerTextField(value:androidx.compose.ui.text.input.TextFieldValue,onValueChange:(androidx.compose.ui.text.input.TextFieldValue)->Unit,placeholder:String,modifier:Modifier,enabled:Boolean,keyboardOptions:androidx.compose.foundation.text.KeyboardOptions,keyboardActions:androidx.compose.foundation.text.KeyboardActions,colors:TextFieldColors,shape:androidx.compose.ui.graphics.Shape){
+ val library=roomStickers()
+ val tokens=remember(value.text,library){StickerTag.findAll(value.text).filter{m->library.any{it.key==m.groupValues[1]}}.toList()}
+ val transformation=remember(tokens){androidx.compose.ui.text.input.VisualTransformation{text->
+  val out=buildString{var i=0;for(t in tokens){append(text.text,i,t.range.first);append(StickerSlot);i=t.range.last+1};append(text.text,i,text.text.length)}
+  androidx.compose.ui.text.input.TransformedText(androidx.compose.ui.text.AnnotatedString(out),StickerSlots(tokens.map{it.range}))}}
+ var layout by remember{mutableStateOf<androidx.compose.ui.text.TextLayoutResult?>(null)}
+ val interaction=remember{androidx.compose.foundation.interaction.MutableInteractionSource()}
+ val density=androidx.compose.ui.platform.LocalDensity.current
+ val textStyle=LocalTextStyle.current.copy(color=if(enabled)MaterialTheme.colorScheme.onSurface else Muted)
+ androidx.compose.foundation.text.BasicTextField(value,onValueChange,modifier,enabled=enabled,textStyle=textStyle,keyboardOptions=keyboardOptions,keyboardActions=keyboardActions,singleLine=false,maxLines=5,visualTransformation=transformation,onTextLayout={layout=it},interactionSource=interaction,cursorBrush=SolidColor(Aqua)){inner->
+  TextFieldDefaults.DecorationBox(value.text,innerTextField={Box{inner()
+   layout?.let{l->var shift=0
+    tokens.forEach{t->val ts=t.range.first-shift;shift+=(t.range.last+1-t.range.first)-StickerSlot.length
+     if(ts+1<l.layoutInput.text.length){val r=l.getBoundingBox(ts).let{a->val b=l.getBoundingBox(ts+1);androidx.compose.ui.geometry.Rect(a.left,minOf(a.top,b.top),b.right,maxOf(a.bottom,b.bottom))}
+      val side=minOf(r.width,r.height);val s=library.first{it.key==t.groupValues[1]}
+      AsyncImage(s.url,s.label,Modifier.offset{androidx.compose.ui.unit.IntOffset((r.center.x-side/2).toInt(),(r.center.y-side/2).toInt())}.size(with(density){side.toDp()}).testTag("dm-input-sticker"))}}}
+  }},enabled=enabled,singleLine=false,visualTransformation=transformation,interactionSource=interaction,placeholder={Text(placeholder,fontSize=13.sp)},shape=shape,colors=colors)
+ }
+}
 @Composable internal fun RoomChatBubble(author:JSONObject,name:String,body:String,own:Boolean,profile:()->Unit){
  Row(Modifier.fillMaxWidth(),horizontalArrangement=if(own)Arrangement.End else Arrangement.Start,verticalAlignment=Alignment.Top){
   val avatar:@Composable ()->Unit={Box(Modifier.size(44.dp).clickable(role=Role.Button,onClickLabel=name+" 프로필",onClick=profile),contentAlignment=Alignment.Center){NativeMemberAvatar(author,28)}}
