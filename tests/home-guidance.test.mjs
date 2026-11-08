@@ -18,7 +18,7 @@ test('all seven approved banners expose a whole-image link and responsive WebP a
   assert.match(html,new RegExp('href="'+b.href.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'"'));
   assert.ok(html.includes(b.headline));assert.ok(html.includes(b.cta));
   assert.match(html,/width="1536" height="768"/);assert.match(html,/768w, [^"]+1536w/);
-  assert.equal((html.match(/<a\b/g)||[]).length,1,'the mobile CTA and painted button belong to the same link');
+  assert.equal((html.match(/<a\b/g)||[]).length,1,'the desktop copy and complete mobile artwork share one destination');
   for(const width of [768,1536]){
    const image=readFileSync(new URL('../dist'+c.homeBannerImage(b.id,width),import.meta.url));
    assert.equal(image.toString('ascii',0,4),'RIFF');assert.equal(image.toString('ascii',8,12),'WEBP');

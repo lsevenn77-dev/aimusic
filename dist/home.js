@@ -25,8 +25,8 @@ function homeCollectionGrid(items){let html=collectionGrid(items);for(const p of
 function homeMore(title,href){return href?`<a class="home-more-link" href="${href}" aria-label="${esc(title)} 더보기">+ 더보기</a>`:'';}
 function homeSection(title,href){return `<div class="section-heading"><h2>${esc(title)}</h2>${homeMore(title,href)}</div>`;}
 function homePlaceholder(){return '<div class="release-placeholder" role="status" aria-label="음악을 불러오는 중"><div></div><span>음악을 불러오고 있어요.</span></div>';}
-// Owner-approved artwork includes its headline and CTA. Keep the complete 2:1
-// composition, and make the whole image (including the painted button) a link.
+// Keep the approved 2:1 artwork on mobile. The shorter desktop Play frame
+// uses the same photograph with live copy so no painted headline is clipped.
 const homeBanners=[
  {id:'studio',title:'스튜디오',headline:'스튜디오에서 내 제작곡을 올려보세요',cta:'제작곡 올리기',href:'#upload'},
  {id:'play',title:'플레이',headline:'플레이에서 마음에드는 노래를 불러보세요',cta:'노래하러 가기',href:'#karaoke'},
@@ -37,10 +37,20 @@ const homeBanners=[
  {id:'premium',title:'프리미엄',headline:'프리미엄으로 제작곡을 더 많이 올려보세요',cta:'프리미엄 혜택 보기',href:'#membership'}
 ];
 function homeBannerImage(id,width){return '/assets/home-banners/final-20261108/'+id+'-'+width+'.webp';}
+const homeBannerDesktopCopy={
+ studio:{lines:['스튜디오에서','내 제작곡을 올려보세요'],highlight:'내 제작곡'},
+ play:{lines:['플레이에서','마음에드는 노래를 불러보세요'],highlight:'플레이'},
+ participate:{lines:['듀엣·더빙으로 함께','작품을 완성해보세요'],highlight:'듀엣·더빙'},
+ artists:{lines:['AI 아티스트를','팔로우하고 응원해보세요'],highlight:'AI 아티스트'},
+ karaoke:{lines:['노래방에서','사람들과 함께 노래해보세요'],highlight:'노래방'},
+ talking:{lines:['토킹룸에서','편하게 이야기해보세요'],highlight:'토킹룸'},
+ premium:{lines:['프리미엄으로 제작곡을','더 많이 올려보세요'],highlight:'프리미엄'}
+};
 function homeBannerHTML(b,next){
  const sizes='(max-width: 800px) 100vw, calc(100vw - 340px)';
  const sources=id=>homeBannerImage(id,768)+' 768w, '+homeBannerImage(id,1536)+' 1536w';
- return `<a class="home-feature-slide home-promo-link" data-home-banner="${b.id}" href="${b.href}" aria-label="${esc(b.headline)}. ${esc(b.cta)}${b.chooseParticipation?' · 듀엣 또는 더빙 선택':''}" ${b.chooseParticipation?'data-home-participate aria-haspopup="dialog"':''} draggable="false"><img src="${homeBannerImage(b.id,1536)}" srcset="${sources(b.id)}" sizes="${sizes}" width="1536" height="768" alt="" loading="eager" decoding="async" ${b.id==='studio'?'fetchpriority="high"':''} draggable="false"><span class="home-promo-mobile-cta" aria-hidden="true">${esc(b.cta)} ${icon('arrow')}</span></a>${next?`<link rel="preload" as="image" href="${homeBannerImage(next.id,1536)}" imagesrcset="${sources(next.id)}" imagesizes="${sizes}" fetchpriority="low">`:''}`;
+ const copy=homeBannerDesktopCopy[b.id],headline=copy.lines.map(line=>'<span>'+esc(line).replace(esc(copy.highlight),'<em>'+esc(copy.highlight)+'</em>')+'</span>').join('');
+ return `<a class="home-feature-slide home-promo-link" data-home-banner="${b.id}" href="${b.href}" aria-label="${esc(b.headline)}. ${esc(b.cta)}${b.chooseParticipation?' · 듀엣 또는 더빙 선택':''}" ${b.chooseParticipation?'data-home-participate aria-haspopup="dialog"':''} draggable="false"><img class="home-promo-original" src="${homeBannerImage(b.id,1536)}" srcset="${sources(b.id)}" sizes="${sizes}" width="1536" height="768" alt="" loading="eager" decoding="async" ${b.id==='studio'?'fetchpriority="high"':''} draggable="false"><span class="home-promo-desktop" aria-hidden="true"><span class="home-promo-photo" style="--home-promo-art:url('${homeBannerImage(b.id,1536)}')"></span><span class="home-feature-copy home-promo-copy"><span class="home-promo-headline">${headline}</span><span class="home-promo-cta">${esc(b.cta)} ${icon('arrow')}</span></span></span></a>${next?`<link rel="preload" as="image" href="${homeBannerImage(next.id,1536)}" imagesrcset="${sources(next.id)}" imagesizes="${sizes}" fetchpriority="low">`:''}`;
 }
 function homeParticipationHTML(){
  return '<div class="home-participation"><h2>함께 만들 작품을 골라보세요</h2><div class="home-participation-options"><a class="small-button" href="#karaoke/duets">듀엣 참여하기 '+icon('chevron')+'</a><a class="small-button" href="#karaoke/dubbing?tab=join">더빙 참여하기 '+icon('chevron')+'</a></div></div>';
@@ -251,7 +261,7 @@ function renderHome(ticket){
  const addTracks=tracks=>{remember(tracks);const known=new Set(routeTracks.map(t=>t.id));routeTracks.push(...tracks.filter(t=>!known.has(t.id)));};
  const paint=(target,html)=>{if(markup.get(target)!==html||!displayed.has(target)){target.innerHTML=html;markup.set(target,html);}displayed.add(target);target.removeAttribute('aria-busy');};
  const release=$('#home-release');
- homeCarouselCleanup=mountFeatureCarousel(release,homeBanners,{renderSlide:homeBannerHTML,label:'AIFECT 이용 안내',previousLabel:'이전 안내 배너',nextLabel:'다음 안내 배너',dotsLabel:'안내 배너 선택',syncAudio:false,showCount:true,pauseForDialogs:true});
+ homeCarouselCleanup=mountFeatureCarousel(release,homeBanners,{renderSlide:homeBannerHTML,label:'AIFECT 이용 안내',previousLabel:'이전 안내 배너',nextLabel:'다음 안내 배너',dotsLabel:'안내 배너 선택',syncAudio:false,pauseForDialogs:true});
  let pool=null,playlists=null,chartIds=[],lastLayout='',requested=0;
  const capacities=()=>({music:homeCapacity('#home-recommended>.home-music-grid'),discovery:homeCapacity('#home-discovery>.home-music-grid'),playlist:homeCapacity('#home-curations>.public-playlist-grid')});
  const shelf=(id,title,href,d)=>{const target=$('#'+id),tracks=(d.tracks||[]).slice(0,12);addTracks(tracks);paint(target,homeSection(title,href)+(tracks.length?'<div class="home-music-grid">'+tracks.map(homeCard).join('')+'</div>':'<p class="home-empty-inline">아직 공개된 음악이 없어요.</p>'));};
