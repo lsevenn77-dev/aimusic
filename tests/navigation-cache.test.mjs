@@ -8,6 +8,8 @@ const source=name=>readFileSync(new URL('../dist/'+name,import.meta.url),'utf8')
 const deferred=()=>{let resolve,reject;const promise=new Promise((yes,no)=>{resolve=yes;reject=no;});return {promise,resolve,reject};};
 const response=(value,status=200)=>({ok:status>=200&&status<300,status,json:async()=>value});
 const track=title=>({id:title,title,genre:'Rock',duration:30});
+// Six fixture columns reserve two rows, rounded up to a sixteen-slot request.
+const homeDiscoveryPath='/api/discovery?home=1&slots=16';
 
 function client(fetch){
  let now=1_790_000_000_000;
@@ -122,8 +124,8 @@ test('late-loaded components register cleanup without accessing their uninitiali
 });
 
 test('home replaces the outgoing page before a delayed voice leave acknowledgement',{timeout:3000},async()=>{
- const leaving=deferred(),catalog=deferred();
- const c=homeRenderer(async path=>path.includes('catalog')?catalog.promise:response({tracks:[],playlists:[]}));
+ const leaving=deferred(),discovery=deferred();
+ const c=homeRenderer(async path=>path===homeDiscoveryPath?discovery.promise:response({tracks:[],playlists:[]}));
  c.main.innerHTML='<article>OUTGOING ROOM</article>';
  c.context.cleanupVoiceRoute=()=>leaving.promise;
  // The real app always installs these async fast paths, even on home.
@@ -132,7 +134,7 @@ test('home replaces the outgoing page before a delayed voice leave acknowledgeme
  try{
   assert.match(c.main.innerHTML,/listening-home/,'home must paint in the navigation task, without waiting for a network acknowledgement');
   assert.doesNotMatch(c.main.innerHTML,/OUTGOING ROOM/);
- }finally{leaving.resolve();catalog.resolve(response({tracks:[]}));await opening;}
+ }finally{leaving.resolve();discovery.resolve(response({tracks:[]}));await opening;}
 });
 
 test('a superseded async fast path cannot dispose or replace the newly mounted home',async()=>{
@@ -153,13 +155,28 @@ test('leaving home cancels its requests and late completions cannot change the n
   if(delayed){const read=deferred();held.push(read);return read.promise;}
   return response({tracks:[track('CURRENT HOME')],playlists:[]});
  });
- const first=c.navigate('home');const previous=c.section('home-release');
+ const first=c.navigate('home');const previous=c.section('home-recommended');
  await c.navigate('history');assert.ok(signals.every(signal=>signal.aborted));
  delayed=false;await c.navigate('home');
  for(const read of held)read.resolve(response({tracks:[track('STALE HOME')],playlists:[]}));
  await first;await new Promise(resolve=>setImmediate(resolve));
- assert.equal(previous.isConnected,false);assert.match(c.section('home-release').innerHTML,/CURRENT HOME/);
- assert.doesNotMatch(c.section('home-release').innerHTML,/STALE HOME/);
+ assert.equal(previous.isConnected,false);assert.match(c.section('home-recommended').innerHTML,/CURRENT HOME/);
+ assert.doesNotMatch(c.section('home-recommended').innerHTML,/STALE HOME/);
+});
+
+test('home guidance banners render before music reads and survive a discovery failure',{timeout:3000},async()=>{
+ const discovery=deferred(),calls=[];
+ const c=homeRenderer(async path=>{calls.push(path);return path===homeDiscoveryPath?discovery.promise:response({tracks:[],playlists:[]});});
+ const opening=c.navigate('home');
+ try{
+  const banner=c.section('home-release'),html=banner.innerHTML;
+  assert.match(html,/href="#upload"/,'the first approved banner must already link to the upload page');
+  assert.doesNotMatch(html,/HOME_LOADING|음악을 불러오는 중/);
+  discovery.resolve(response({error:'offline'},503));await opening;await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(c.section('home-release').innerHTML,html,'music network failures must not overwrite the static guidance banner');
+  assert.match(c.section('home-recommended').innerHTML,/다시 시도/);
+  assert.ok(!calls.includes('/api/catalog?section=tracks&limit=12'),'the replaced featured-song banner must not start an unused catalog read');
+ }finally{discovery.resolve(response({tracks:[]}));await opening;}
 });
 
 test('aborting a home read does not cancel an independent reader of the same resource',async()=>{
@@ -188,7 +205,7 @@ test('hidden optional home bridge does not issue singing or community requests',
  const original=Object.getOwnPropertyDescriptor(c.main,'innerHTML');
  Object.defineProperty(c.main,'innerHTML',{get:original.get,set(html){original.set.call(c.main,html);if(c.section('home-bridge'))c.section('home-bridge').hidden=true;}});
  await c.navigate('home');await new Promise(resolve=>setImmediate(resolve));
- assert.equal(calls.length,6);assert.ok(calls.includes('/api/discovery/profiles?kind=artist&sort=popular'));assert.ok(calls.includes('/api/discovery/profiles?kind=producer&sort=popular'));assert.ok(!calls.includes('/api/karaoke'));assert.ok(!calls.includes('/api/community?kind=cover'));
+ assert.equal(calls.length,5);assert.ok(calls.includes('/api/discovery/profiles?kind=artist&sort=popular'));assert.ok(calls.includes('/api/discovery/profiles?kind=producer&sort=popular'));assert.ok(!calls.includes('/api/karaoke'));assert.ok(!calls.includes('/api/community?kind=cover'));
  assert.ok(calls.includes('/api/playlists?sort=recent&home=1'),'the visible playlist section must remain available');
 });
 
@@ -419,7 +436,7 @@ test('route snapshots evict old pages and expire after sixty seconds',async()=>{
 
 test('home hydrates playable shelves from display snapshots while expired reads refresh',{timeout:3000},async()=>{
  const paths=new Map([
-  ['/api/catalog?section=tracks&limit=12',{tracks:[track('Cached release')]}],
+  [homeDiscoveryPath,{tracks:[track('Cached recommendation')]}],
   ['/api/karaoke',{tracks:[track('Cached sing')]}],
   ['/api/community?kind=cover',{tracks:[track('Cached cover')]}],
   ['/api/playlists?sort=recent&home=1',{playlists:[{id:'selection',name:'Cached selection',tracks:1,is_public:1}]}]
@@ -429,25 +446,25 @@ test('home hydrates playable shelves from display snapshots while expired reads 
  c.advance(10001);refreshing=true;
  const opening=c.navigate('home');
  try{
-  for(const [id,title] of [['home-release','Cached release'],['home-sing','Cached sing'],['home-conversations','Cached cover'],['home-curations','Cached selection']])assert.match(c.section(id).innerHTML,new RegExp(title),'the '+id+' shelf should render synchronously from its display cache');
+  for(const [id,title] of [['home-recommended','Cached recommendation'],['home-sing','Cached sing'],['home-conversations','Cached cover'],['home-curations','Cached selection']])assert.match(c.section(id).innerHTML,new RegExp(title),'the '+id+' shelf should render synchronously from its display cache');
   assert.equal(calls.length,8,'every expired shelf must refresh despite being displayed from cache');
-  held.get('/api/catalog?section=tracks&limit=12').resolve(response({error:'offline'},503));
+  held.get(homeDiscoveryPath).resolve(response({error:'offline'},503));
   held.get('/api/karaoke').resolve(response({tracks:[track('Fresh sing')]}));
   held.get('/api/community?kind=cover').resolve(response({tracks:[track('Fresh cover')]}));
   held.get('/api/playlists?sort=recent&home=1').resolve(response({error:'offline'},503));
   await opening;await new Promise(resolve=>setImmediate(resolve));
-  assert.match(c.section('home-release').innerHTML,/Cached release/);assert.match(c.section('home-curations').innerHTML,/Cached selection/);
+  assert.match(c.section('home-recommended').innerHTML,/Cached recommendation/);assert.match(c.section('home-curations').innerHTML,/Cached selection/);
   assert.match(c.section('home-sing').innerHTML,/Fresh sing/);assert.match(c.section('home-conversations').innerHTML,/Fresh cover/);
  }finally{for(const control of held.values())control.resolve(response({tracks:[],playlists:[]}));await opening;}
 });
 
-test('home startup remains playable when the account resolves before the guest catalog',{timeout:3000},async()=>{
- const account=deferred(),guestCatalog=deferred();let ownerCatalogCalls=0;
+test('home startup remains playable when the account resolves before guest recommendations',{timeout:3000},async()=>{
+ const account=deferred(),guestDiscovery=deferred();let ownerDiscoveryCalls=0;
  const c=homeRenderer(async path=>{
   if(path==='/api/me?state=1')return account.promise;
-  if(path==='/api/catalog?section=tracks&limit=12'){
-   if(!c.run('me'))return guestCatalog.promise;
-   ownerCatalogCalls++;return response({tracks:[track('Owner playable song')]});
+  if(path===homeDiscoveryPath){
+   if(!c.run('me'))return guestDiscovery.promise;
+   ownerDiscoveryCalls++;return response({tracks:[track('Owner playable song')]});
   }
   if(path==='/api/playlists?sort=recent&home=1')return response({playlists:[]});
   return response({tracks:[]});
@@ -456,11 +473,11 @@ test('home startup remains playable when the account resolves before the guest c
  try{
   account.resolve(response({user:{id:'owner'},interaction_state:{likes:[{id:'liked'}],follows:[]},membership:{}}));
   await new Promise(resolve=>setImmediate(resolve));
-  guestCatalog.resolve(response({tracks:[track('Late guest catalog')]}));await startup;await new Promise(resolve=>setImmediate(resolve));
-  assert.equal(c.run('me.id'),'owner');assert.ok(ownerCatalogCalls>0,'resolving the account must restart the account-scoped home reads');
-  assert.match(c.section('home-release').innerHTML,/Owner playable song/);assert.doesNotMatch(c.section('home-release').innerHTML,/Late guest catalog/);
+  guestDiscovery.resolve(response({tracks:[track('Late guest recommendations')]}));await startup;await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(c.run('me.id'),'owner');assert.ok(ownerDiscoveryCalls>0,'resolving the account must restart the account-scoped home reads');
+  assert.match(c.section('home-recommended').innerHTML,/Owner playable song/);assert.doesNotMatch(c.section('home-recommended').innerHTML,/Late guest recommendations/);
   assert.equal(c.section('home-personal'),undefined,'home shortcuts must not be duplicated by an extra personal shelf');
- }finally{account.resolve(response({user:null}));guestCatalog.resolve(response({tracks:[]}));await startup;}
+ }finally{account.resolve(response({user:null}));guestDiscovery.resolve(response({tracks:[]}));await startup;}
 });
 
 test('home continues down through full music grids and optional discovery sections',async()=>{

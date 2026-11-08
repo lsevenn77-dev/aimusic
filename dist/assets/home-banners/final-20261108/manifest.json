@@ -1,0 +1,494 @@
+{
+  "schema_version": 2,
+  "asset_set": "aifect-home-final-20261108",
+  "created_at_utc": "2026-11-08T14:01:49+00:00",
+  "encoding": {
+    "software": "Pillow",
+    "software_version": "13.0.0",
+    "libwebp_version": "1.6.0",
+    "format": "WEBP",
+    "mime_type": "image/webp",
+    "quality": 92,
+    "method": 6,
+    "lossless": false,
+    "target_widths": [
+      1536,
+      768
+    ],
+    "resize_filter": "LANCZOS",
+    "content_reconstruction": false,
+    "crop": false,
+    "color_adjustments": false,
+    "metadata_policy": "EXIF/XMP omitted; source ICC profile preserved when present",
+    "input_policy": "Each output freshly encoded from its explicitly mapped approved JPEG source"
+  },
+  "visual_review": {
+    "all_source_images_reviewed": true,
+    "all_seven_output_categories_reviewed": true,
+    "viewed_outputs": [
+      "studio-768.webp",
+      "karaoke-768.webp",
+      "premium-768.webp",
+      "participate-768.webp",
+      "artists-768.webp",
+      "talking-768.webp",
+      "play-768.webp",
+      "play-1536.webp"
+    ],
+    "method": "Direct view_image of all seven approved JPEG originals and final output paths",
+    "checked_at_utc": "2026-11-08T14:03:15+00:00",
+    "all_disk_hashes_match_manifest_after_visual_review": true
+  },
+  "banners": [
+    {
+      "id": "studio",
+      "label": "스튜디오",
+      "visible_headline": "스튜디오에서 내 제작곡을 올려보세요",
+      "category_verified_from_visible_text": true,
+      "source": {
+        "filename": "6745CCBA-4712-42F0-B264-6B60E7E94FF0.jpeg",
+        "sha256": "85be3ceaf848388d156f166826e20cb55a2e67dfa39ad04b118ad4e21426011c",
+        "bytes": 319814,
+        "width": 1536,
+        "height": 768,
+        "aspect_ratio": "2:1",
+        "format": "JPEG",
+        "mime_type": "image/jpeg",
+        "mode": "RGB",
+        "exif_orientation": 1,
+        "icc_profile_bytes": 0,
+        "sha256_unchanged_after_encoding": true
+      },
+      "outputs": [
+        {
+          "filename": "studio-1536.webp",
+          "url": "/assets/home-banners/final-20261108/studio-1536.webp",
+          "sha256": "2c7b472e7e9212a1bc45c2c8f1c3a42566d34820fd63ca67c2f39bb106352b15",
+          "bytes": 163896,
+          "width": 1536,
+          "height": 768,
+          "aspect_ratio": "2:1",
+          "format": "WEBP",
+          "mime_type": "image/webp",
+          "mode": "RGB",
+          "frames": 1,
+          "resized": false,
+          "validation": {
+            "decoded_successfully": true,
+            "webp_signature_valid": true,
+            "dimensions_valid": true,
+            "fresh_encoded_bytes_match_disk": true
+          }
+        },
+        {
+          "filename": "studio-768.webp",
+          "url": "/assets/home-banners/final-20261108/studio-768.webp",
+          "sha256": "e0cecc67b13b3b9ab680efc3e5039c06cc818708f94508256a94620af15ba415",
+          "bytes": 65798,
+          "width": 768,
+          "height": 384,
+          "aspect_ratio": "2:1",
+          "format": "WEBP",
+          "mime_type": "image/webp",
+          "mode": "RGB",
+          "frames": 1,
+          "resized": true,
+          "validation": {
+            "decoded_successfully": true,
+            "webp_signature_valid": true,
+            "dimensions_valid": true,
+            "fresh_encoded_bytes_match_disk": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "karaoke",
+      "label": "노래방",
+      "visible_headline": "노래방에서 사람들과 함께 노래해보세요",
+      "category_verified_from_visible_text": true,
+      "source": {
+        "filename": "7AF92DE7-A817-4D87-9E5E-DF49DE1BBC3A.jpeg",
+        "sha256": "c73f2ee1bb0457bc2f85898b7017c408653a70891ff7c9a65e7036e6d3e34da5",
+        "bytes": 351728,
+        "width": 1536,
+        "height": 768,
+        "aspect_ratio": "2:1",
+        "format": "JPEG",
+        "mime_type": "image/jpeg",
+        "mode": "RGB",
+        "exif_orientation": 1,
+        "icc_profile_bytes": 0,
+        "sha256_unchanged_after_encoding": true
+      },
+      "outputs": [
+        {
+          "filename": "karaoke-1536.webp",
+          "url": "/assets/home-banners/final-20261108/karaoke-1536.webp",
+          "sha256": "c36b0eb037785dfb3a07df0a59f2c3e0dbb97e0c1776529d8f16301191e07e3f",
+          "bytes": 191928,
+          "width": 1536,
+          "height": 768,
+          "aspect_ratio": "2:1",
+          "format": "WEBP",
+          "mime_type": "image/webp",
+          "mode": "RGB",
+          "frames": 1,
+          "resized": false,
+          "validation": {
+            "decoded_successfully": true,
+            "webp_signature_valid": true,
+            "dimensions_valid": true,
+            "fresh_encoded_bytes_match_disk": true
+          }
+        },
+        {
+          "filename": "karaoke-768.webp",
+          "url": "/assets/home-banners/final-20261108/karaoke-768.webp",
+          "sha256": "7728e22b14ac2c6593bbc44bd1291ba56bb612c3a9381b0afc29b5ec2912ec8c",
+          "bytes": 68036,
+          "width": 768,
+          "height": 384,
+          "aspect_ratio": "2:1",
+          "format": "WEBP",
+          "mime_type": "image/webp",
+          "mode": "RGB",
+          "frames": 1,
+          "resized": true,
+          "validation": {
+            "decoded_successfully": true,
+            "webp_signature_valid": true,
+            "dimensions_valid": true,
+            "fresh_encoded_bytes_match_disk": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "premium",
+      "label": "프리미엄",
+      "visible_headline": "프리미엄으로 제작곡을 더 많이 올려보세요",
+      "category_verified_from_visible_text": true,
+      "source": {
+        "filename": "522D680F-6C78-411E-B43A-907E08DA24B4.jpeg",
+        "sha256": "4cd031b42bd807b5554632ed4140e333d77865ee98ea095473db1ee9e3f3b8c1",
+        "bytes": 372869,
+        "width": 1536,
+        "height": 768,
+        "aspect_ratio": "2:1",
+        "format": "JPEG",
+        "mime_type": "image/jpeg",
+        "mode": "RGB",
+        "exif_orientation": 1,
+        "icc_profile_bytes": 0,
+        "sha256_unchanged_after_encoding": true
+      },
+      "outputs": [
+        {
+          "filename": "premium-1536.webp",
+          "url": "/assets/home-banners/final-20261108/premium-1536.webp",
+          "sha256": "3f9c5ec00050766236e4718acc3124768edb2fbb63623c91ecb94ad32de6bb66",
+          "bytes": 200976,
+          "width": 1536,
+          "height": 768,
+          "aspect_ratio": "2:1",
+          "format": "WEBP",
+          "mime_type": "image/webp",
+          "mode": "RGB",
+          "frames": 1,
+          "resized": false,
+          "validation": {
+            "decoded_successfully": true,
+            "webp_signature_valid": true,
+            "dimensions_valid": true,
+            "fresh_encoded_bytes_match_disk": true
+          }
+        },
+        {
+          "filename": "premium-768.webp",
+          "url": "/assets/home-banners/final-20261108/premium-768.webp",
+          "sha256": "eaca2fede12a4d0ba5f92c385c46cd9dcaec896c97c29f20e12cfc9272430efa",
+          "bytes": 75712,
+          "width": 768,
+          "height": 384,
+          "aspect_ratio": "2:1",
+          "format": "WEBP",
+          "mime_type": "image/webp",
+          "mode": "RGB",
+          "frames": 1,
+          "resized": true,
+          "validation": {
+            "decoded_successfully": true,
+            "webp_signature_valid": true,
+            "dimensions_valid": true,
+            "fresh_encoded_bytes_match_disk": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "participate",
+      "label": "참여",
+      "visible_headline": "듀엣·더빙으로 함께 작품을 완성해보세요",
+      "category_verified_from_visible_text": true,
+      "source": {
+        "filename": "3DF0DFD1-FBEC-4B2C-8ED3-F06C3D2489AC.jpeg",
+        "sha256": "1a4dba03d51abb364bfbc932f3a76c59644dc0ab725dabc05f6a784a1112f121",
+        "bytes": 351747,
+        "width": 1536,
+        "height": 768,
+        "aspect_ratio": "2:1",
+        "format": "JPEG",
+        "mime_type": "image/jpeg",
+        "mode": "RGB",
+        "exif_orientation": 1,
+        "icc_profile_bytes": 0,
+        "sha256_unchanged_after_encoding": true
+      },
+      "outputs": [
+        {
+          "filename": "participate-1536.webp",
+          "url": "/assets/home-banners/final-20261108/participate-1536.webp",
+          "sha256": "c8057184859bed17b88f190babf5539f36678cdd2fd9aaf1984648fc28a8879e",
+          "bytes": 189598,
+          "width": 1536,
+          "height": 768,
+          "aspect_ratio": "2:1",
+          "format": "WEBP",
+          "mime_type": "image/webp",
+          "mode": "RGB",
+          "frames": 1,
+          "resized": false,
+          "validation": {
+            "decoded_successfully": true,
+            "webp_signature_valid": true,
+            "dimensions_valid": true,
+            "fresh_encoded_bytes_match_disk": true
+          }
+        },
+        {
+          "filename": "participate-768.webp",
+          "url": "/assets/home-banners/final-20261108/participate-768.webp",
+          "sha256": "639fbb16aefbed6f91c62f9e457906220adba6538ba57f54ca538ca23397c282",
+          "bytes": 69294,
+          "width": 768,
+          "height": 384,
+          "aspect_ratio": "2:1",
+          "format": "WEBP",
+          "mime_type": "image/webp",
+          "mode": "RGB",
+          "frames": 1,
+          "resized": true,
+          "validation": {
+            "decoded_successfully": true,
+            "webp_signature_valid": true,
+            "dimensions_valid": true,
+            "fresh_encoded_bytes_match_disk": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "artists",
+      "label": "AI 아티스트",
+      "visible_headline": "AI 아티스트를 팔로우하고 응원해보세요",
+      "category_verified_from_visible_text": true,
+      "source": {
+        "filename": "2FCC54DF-2AD2-4271-82B8-DD29E44B046A.jpeg",
+        "sha256": "9d4e16ddd6127a2ca53f157e55bc6b6d4b92141f2bb444027b9606ba371b6b3b",
+        "bytes": 358042,
+        "width": 1536,
+        "height": 768,
+        "aspect_ratio": "2:1",
+        "format": "JPEG",
+        "mime_type": "image/jpeg",
+        "mode": "RGB",
+        "exif_orientation": 1,
+        "icc_profile_bytes": 0,
+        "sha256_unchanged_after_encoding": true
+      },
+      "outputs": [
+        {
+          "filename": "artists-1536.webp",
+          "url": "/assets/home-banners/final-20261108/artists-1536.webp",
+          "sha256": "d803762f001c4fa1457bf41c1f946461b78aeee623f5772a8fbcd1b2d701139c",
+          "bytes": 191346,
+          "width": 1536,
+          "height": 768,
+          "aspect_ratio": "2:1",
+          "format": "WEBP",
+          "mime_type": "image/webp",
+          "mode": "RGB",
+          "frames": 1,
+          "resized": false,
+          "validation": {
+            "decoded_successfully": true,
+            "webp_signature_valid": true,
+            "dimensions_valid": true,
+            "fresh_encoded_bytes_match_disk": true
+          }
+        },
+        {
+          "filename": "artists-768.webp",
+          "url": "/assets/home-banners/final-20261108/artists-768.webp",
+          "sha256": "5329011e9c4f22d8ca80c01fb270210d221dfe90aca4057308b27adf2561df47",
+          "bytes": 69936,
+          "width": 768,
+          "height": 384,
+          "aspect_ratio": "2:1",
+          "format": "WEBP",
+          "mime_type": "image/webp",
+          "mode": "RGB",
+          "frames": 1,
+          "resized": true,
+          "validation": {
+            "decoded_successfully": true,
+            "webp_signature_valid": true,
+            "dimensions_valid": true,
+            "fresh_encoded_bytes_match_disk": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "talking",
+      "label": "토킹룸",
+      "visible_headline": "토킹룸에서 편하게 이야기해보세요",
+      "category_verified_from_visible_text": true,
+      "source": {
+        "filename": "68183442-D5E1-4FBF-A09E-3C514B8EA3EE.jpeg",
+        "sha256": "242a368a5f01946fb307050a71e44f1ff44e40090fcdba03447c610bf41425c0",
+        "bytes": 369924,
+        "width": 1536,
+        "height": 768,
+        "aspect_ratio": "2:1",
+        "format": "JPEG",
+        "mime_type": "image/jpeg",
+        "mode": "RGB",
+        "exif_orientation": 1,
+        "icc_profile_bytes": 0,
+        "sha256_unchanged_after_encoding": true
+      },
+      "outputs": [
+        {
+          "filename": "talking-1536.webp",
+          "url": "/assets/home-banners/final-20261108/talking-1536.webp",
+          "sha256": "e55e1c395db3bb083e31f557e21c4e165be436fd41a5f569f08c5d37207125f4",
+          "bytes": 205358,
+          "width": 1536,
+          "height": 768,
+          "aspect_ratio": "2:1",
+          "format": "WEBP",
+          "mime_type": "image/webp",
+          "mode": "RGB",
+          "frames": 1,
+          "resized": false,
+          "validation": {
+            "decoded_successfully": true,
+            "webp_signature_valid": true,
+            "dimensions_valid": true,
+            "fresh_encoded_bytes_match_disk": true
+          }
+        },
+        {
+          "filename": "talking-768.webp",
+          "url": "/assets/home-banners/final-20261108/talking-768.webp",
+          "sha256": "4445a53083a8a7a1da61b72e422ead3f394482d393e1e5d156ea21d6248179fe",
+          "bytes": 74238,
+          "width": 768,
+          "height": 384,
+          "aspect_ratio": "2:1",
+          "format": "WEBP",
+          "mime_type": "image/webp",
+          "mode": "RGB",
+          "frames": 1,
+          "resized": true,
+          "validation": {
+            "decoded_successfully": true,
+            "webp_signature_valid": true,
+            "dimensions_valid": true,
+            "fresh_encoded_bytes_match_disk": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "play",
+      "label": "플레이",
+      "visible_headline": "플레이에서 마음에드는 노래를 불러보세요",
+      "category_verified_from_visible_text": true,
+      "source": {
+        "filename": "EF617371-C587-46E1-812B-2F312CC27B8F.jpeg",
+        "sha256": "85aeee76f8bc9e1ef3853dc7905fdc578583524f9f2bde2a3e61c92d6a87c683",
+        "bytes": 286287,
+        "width": 1536,
+        "height": 768,
+        "aspect_ratio": "2:1",
+        "format": "JPEG",
+        "mime_type": "image/jpeg",
+        "mode": "RGB",
+        "exif_orientation": 1,
+        "icc_profile_bytes": 0,
+        "sha256_unchanged_after_encoding": true
+      },
+      "outputs": [
+        {
+          "filename": "play-1536.webp",
+          "url": "/assets/home-banners/final-20261108/play-1536.webp",
+          "sha256": "03536c64f459bcd31bf0fbf18d9bbcf02b87c684da219b6b535ed935947040ce",
+          "bytes": 132230,
+          "width": 1536,
+          "height": 768,
+          "aspect_ratio": "2:1",
+          "format": "WEBP",
+          "mime_type": "image/webp",
+          "mode": "RGB",
+          "frames": 1,
+          "resized": false,
+          "validation": {
+            "decoded_successfully": true,
+            "webp_signature_valid": true,
+            "dimensions_valid": true,
+            "fresh_encoded_bytes_match_disk": true
+          }
+        },
+        {
+          "filename": "play-768.webp",
+          "url": "/assets/home-banners/final-20261108/play-768.webp",
+          "sha256": "7a73e58d9f06e4190e378d43978c99970b836041f28bdd23e09d2eae77f16771",
+          "bytes": 54950,
+          "width": 768,
+          "height": 384,
+          "aspect_ratio": "2:1",
+          "format": "WEBP",
+          "mime_type": "image/webp",
+          "mode": "RGB",
+          "frames": 1,
+          "resized": true,
+          "validation": {
+            "decoded_successfully": true,
+            "webp_signature_valid": true,
+            "dimensions_valid": true,
+            "fresh_encoded_bytes_match_disk": true
+          }
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "source_count": 7,
+    "output_count": 14,
+    "source_bytes": 2410411,
+    "output_bytes": 1753296,
+    "output_bytes_by_width": {
+      "1536": 1275332,
+      "768": 477964
+    },
+    "all_source_sha256_unchanged": true,
+    "all_outputs_verified_webp": true,
+    "all_outputs_aspect_ratio_2_to_1": true,
+    "all_14_output_hashes_unique": true,
+    "all_disk_hashes_match_manifest": true,
+    "all_categories_visually_verified": true
+  }
+}

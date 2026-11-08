@@ -25,6 +25,26 @@ function homeCollectionGrid(items){let html=collectionGrid(items);for(const p of
 function homeMore(title,href){return href?`<a class="home-more-link" href="${href}" aria-label="${esc(title)} 더보기">+ 더보기</a>`:'';}
 function homeSection(title,href){return `<div class="section-heading"><h2>${esc(title)}</h2>${homeMore(title,href)}</div>`;}
 function homePlaceholder(){return '<div class="release-placeholder" role="status" aria-label="음악을 불러오는 중"><div></div><span>음악을 불러오고 있어요.</span></div>';}
+// Owner-approved artwork includes its headline and CTA. Keep the complete 2:1
+// composition, and make the whole image (including the painted button) a link.
+const homeBanners=[
+ {id:'studio',title:'스튜디오',headline:'스튜디오에서 내 제작곡을 올려보세요',cta:'제작곡 올리기',href:'#upload'},
+ {id:'play',title:'플레이',headline:'플레이에서 마음에드는 노래를 불러보세요',cta:'노래하러 가기',href:'#karaoke'},
+ {id:'participate',title:'듀엣·더빙',headline:'듀엣·더빙으로 함께 작품을 완성해보세요',cta:'참여하기',href:'#karaoke/duets',chooseParticipation:true},
+ {id:'artists',title:'AI 아티스트',headline:'AI 아티스트를 팔로우하고 응원해보세요',cta:'아티스트 만나기',href:'#artists'},
+ {id:'karaoke',title:'노래방',headline:'노래방에서 사람들과 함께 노래해보세요',cta:'노래방 가기',href:'#live?mode=karaoke'},
+ {id:'talking',title:'토킹룸',headline:'토킹룸에서 편하게 이야기해보세요',cta:'토킹룸 가기',href:'#voice?mode=talk'},
+ {id:'premium',title:'프리미엄',headline:'프리미엄으로 제작곡을 더 많이 올려보세요',cta:'프리미엄 혜택 보기',href:'#membership'}
+];
+function homeBannerImage(id,width){return '/assets/home-banners/final-20261108/'+id+'-'+width+'.webp';}
+function homeBannerHTML(b,next){
+ const sizes='(max-width: 800px) 100vw, calc(100vw - 340px)';
+ const sources=id=>homeBannerImage(id,768)+' 768w, '+homeBannerImage(id,1536)+' 1536w';
+ return `<a class="home-feature-slide home-promo-link" data-home-banner="${b.id}" href="${b.href}" aria-label="${esc(b.headline)}. ${esc(b.cta)}${b.chooseParticipation?' · 듀엣 또는 더빙 선택':''}" ${b.chooseParticipation?'data-home-participate aria-haspopup="dialog"':''} draggable="false"><img src="${homeBannerImage(b.id,1536)}" srcset="${sources(b.id)}" sizes="${sizes}" width="1536" height="768" alt="" loading="eager" decoding="async" ${b.id==='studio'?'fetchpriority="high"':''} draggable="false"><span class="home-promo-mobile-cta" aria-hidden="true">${esc(b.cta)} ${icon('arrow')}</span></a>${next?`<link rel="preload" as="image" href="${homeBannerImage(next.id,1536)}" imagesrcset="${sources(next.id)}" imagesizes="${sizes}" fetchpriority="low">`:''}`;
+}
+function homeParticipationHTML(){
+ return '<div class="home-participation"><h2>함께 만들 작품을 골라보세요</h2><div class="home-participation-options"><a class="small-button" href="#karaoke/duets">듀엣 참여하기 '+icon('chevron')+'</a><a class="small-button" href="#karaoke/dubbing?tab=join">더빙 참여하기 '+icon('chevron')+'</a></div></div>';
+}
 function homeRailHTML(id,label,content,kind){return `<div class="home-rail-shell">${kind==='profile'||id==='home-playlist-rail'?'':`<div class="home-rail-controls"><button type="button" data-home-scroll="-1" aria-controls="${id}" aria-label="${esc(label)} 이전 보기">${icon('chevron')}</button><button type="button" data-home-scroll="1" aria-controls="${id}" aria-label="${esc(label)} 다음 보기">${icon('chevron')}</button></div>`}<div id="${id}" class="home-rail home-${kind}-rail" role="region" aria-roledescription="캐러셀" aria-label="${esc(label)}" tabindex="0">${content}</div></div>`;}
 function homePlaylistCard(p,tracks=null,{compact=false,footer=''}={}){
  if(!compact)return recommendedPlaylistCard(p);
@@ -54,7 +74,7 @@ function mountHomeRail(target){
  homeRailCleanups.set(target.id,()=>{target.removeEventListener('click',click);target.removeEventListener('keydown',key);rail.removeEventListener('scroll',update);window.removeEventListener('resize',update);observer?.disconnect();});
 }
 function homeHTML(){return `<div class="listening-home listening-home-v2 home-content-refresh"><h1 class="sr-only">홈</h1>
- <section id="home-release" aria-label="추천 음악 배너" aria-busy="true">${homePlaceholder()}</section>
+ <section id="home-release" class="home-promo-carousel" aria-label="AIFECT 이용 안내 배너"></section>
  <section id="home-recommended" class="listening-section" aria-busy="true">${homeSection('추천 음악','#discover')}<div class="home-music-grid"></div><p class="home-load-message">음악을 불러오고 있어요.</p></section>
  <section id="home-popular" class="listening-section" aria-busy="true">${homeSection('인기 차트','#charts')}</section>
  <section id="home-more" class="listening-section" hidden></section>
@@ -95,11 +115,11 @@ function homeFloatPose(slot,g){
  return `translate3d(${sign*g.positions[d]*g.size*(1000-z)/1000}px,${d*d*1.5}px,${z}px) rotateY(${-sign*g.angles[d]}deg) scale(${g.scales[d]})`;
 }
 // Each consumer owns its cleanup; editorial slides never subscribe to audio.
-function mountFeatureCarousel(root,tracks,{renderSlide=releaseHTML,label='추천 음악',previousLabel='이전 추천곡',nextLabel='다음 추천곡',dotsLabel='추천곡 선택',syncAudio=true,coverflow=false,initialId,intervalMs=5500}={}){
+function mountFeatureCarousel(root,tracks,{renderSlide=releaseHTML,label='추천 음악',previousLabel='이전 추천곡',nextLabel='다음 추천곡',dotsLabel='추천곡 선택',syncAudio=true,coverflow=false,initialId,intervalMs=5500,showCount=false,pauseForDialogs=false}={}){
  if(!tracks.length)return;
  const multi=tracks.length>1;
  const initialIndex=Math.max(0,tracks.findIndex(t=>t.id===initialId));
- root.innerHTML=`<div class="home-feature" role="region" aria-roledescription="캐러셀" aria-label="${esc(label)}">${multi?`<button class="home-feature-arrow home-feature-prev" aria-label="${esc(previousLabel)}">${icon('chevron')}</button>`:''}<div class="home-feature-stage">${renderSlide(tracks[initialIndex],multi?tracks[(initialIndex+1)%tracks.length]:null,tracks,initialIndex)}</div>${multi?`<button class="home-feature-arrow home-feature-next" aria-label="${esc(nextLabel)}">${icon('chevron')}</button><div class="home-feature-pagination"><button class="home-feature-autoplay" aria-label="자동 롤링 일시정지">${icon('pause')}</button><div class="home-feature-dots" aria-label="${esc(dotsLabel)}">${tracks.map((t,i)=>`<button data-home-slide="${i}" aria-label="${i+1}. ${esc(t.title)}" aria-pressed="${i===initialIndex}"></button>`).join('')}</div></div>`:''}</div>`;
+ root.innerHTML=`<div class="home-feature" role="region" aria-roledescription="캐러셀" aria-label="${esc(label)}">${multi?`<button class="home-feature-arrow home-feature-prev" aria-label="${esc(previousLabel)}">${icon('chevron')}</button>`:''}<div class="home-feature-stage">${renderSlide(tracks[initialIndex],multi?tracks[(initialIndex+1)%tracks.length]:null,tracks,initialIndex)}</div>${multi?`<button class="home-feature-arrow home-feature-next" aria-label="${esc(nextLabel)}">${icon('chevron')}</button><div class="home-feature-pagination"><button class="home-feature-autoplay" aria-label="자동 롤링 일시정지">${icon('pause')}</button>${showCount?`<span class="home-feature-count" aria-label="${initialIndex+1} / ${tracks.length}">${initialIndex+1} / ${tracks.length}</span>`:''}<div class="home-feature-dots" aria-label="${esc(dotsLabel)}">${tracks.map((t,i)=>`<button data-home-slide="${i}" aria-label="${i+1}. ${esc(t.title)}" aria-pressed="${i===initialIndex}"></button>`).join('')}</div></div>`:''}</div>`;
  // Minimal DOM renderers used by navigation tests do not implement browser events.
  if(!root.addEventListener)return;
  const feature=root.querySelector('.home-feature'),stage=root.querySelector('.home-feature-stage'),motion=window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -107,7 +127,7 @@ function mountFeatureCarousel(root,tracks,{renderSlide=releaseHTML,label='추천
  const syncPlayback=()=>{if(!syncAudio)return;const b=stage.querySelector?.('.home-feature-slide .home-feature-play');if(!b||typeof audio==='undefined')return;const playing=current?.id===tracks[index].id&&!audio.paused&&!audio.ended&&!window.AifectAudioAds?.active;b.innerHTML=icon(playing?'ui-pause-action':'ui-play-action');b.setAttribute('aria-pressed',String(playing));b.setAttribute('aria-label',tracks[index].title+(playing?' 일시정지':' 재생'));};
  const clear=()=>{clearTimeout(timer);timer=null;};
  const clearTransition=()=>{clearTimeout(transitionTimer);transitionTimer=null;stage.querySelectorAll('.home-feature-outgoing').forEach(el=>el.remove());stage.removeAttribute('data-home-direction');};
- const schedule=()=>{clear();if(multi&&!start&&!manualPause&&!hover&&!focus&&!motion.matches&&!document.hidden)timer=setTimeout(()=>{if(!root.isConnected)return cleanup();go(index+1);},intervalMs);};
+ const schedule=()=>{clear();if(multi&&!start&&!manualPause&&!hover&&!focus&&!motion.matches&&!document.hidden&&!(pauseForDialogs&&document.querySelector?.('dialog[open]')))timer=setTimeout(()=>{if(!root.isConnected)return cleanup();go(index+1);},intervalMs);};
  const go=value=>{
   const target=(value+tracks.length)%tracks.length;if(target===index){schedule();return;}
   // Use the requested direction before wrapping the first/last slide index.
@@ -120,7 +140,8 @@ function mountFeatureCarousel(root,tracks,{renderSlide=releaseHTML,label='추천
   old.addEventListener('animationend',finish);
   if(motion.matches)finish();else transitionTimer=setTimeout(finish,coverflow?850:500);
   if(focus)focus=feature.contains(document.activeElement);
-  feature.querySelectorAll('.home-feature-dots [data-home-slide]').forEach((b,i)=>b.setAttribute('aria-pressed',String(i===index)));schedule();
+  feature.querySelectorAll('.home-feature-dots [data-home-slide]').forEach((b,i)=>b.setAttribute('aria-pressed',String(i===index)));
+  const count=feature.querySelector?.('.home-feature-count');if(count){count.textContent=(index+1)+' / '+tracks.length;count.setAttribute('aria-label',(index+1)+' / '+tracks.length);}schedule();
  };
  const click=e=>{
   if(suppressClick){suppressClick=false;if(e.detail!==0){e.preventDefault();e.stopPropagation();return;}}
@@ -166,7 +187,8 @@ function mountFeatureCarousel(root,tracks,{renderSlide=releaseHTML,label='추천
  // Only the displayed artwork is eager; preview/remaining slides load on demand.
  const motionChange=()=>{if(motion.matches)clearTransition();schedule();};
  document.addEventListener('visibilitychange',schedule);window.addEventListener('hashchange',cleanup);motion.addEventListener('change',motionChange);
- function cleanup(){clear();clearTransition();for(const [name,fn,options] of listeners)feature.removeEventListener(name,fn,options);if(syncAudio&&typeof audio!=='undefined')for(const event of playbackEvents)audio.removeEventListener(event,syncPlayback);document.removeEventListener('visibilitychange',schedule);window.removeEventListener('hashchange',cleanup);motion.removeEventListener('change',motionChange);}
+ if(pauseForDialogs)document.addEventListener('close',schedule,true);
+ function cleanup(){clear();clearTransition();for(const [name,fn,options] of listeners)feature.removeEventListener(name,fn,options);if(syncAudio&&typeof audio!=='undefined')for(const event of playbackEvents)audio.removeEventListener(event,syncPlayback);document.removeEventListener('visibilitychange',schedule);if(pauseForDialogs)document.removeEventListener('close',schedule,true);window.removeEventListener('hashchange',cleanup);motion.removeEventListener('change',motionChange);}
  schedule();return cleanup;
 }
 function updateHomeAccount(){
@@ -229,26 +251,15 @@ function renderHome(ticket){
  const addTracks=tracks=>{remember(tracks);const known=new Set(routeTracks.map(t=>t.id));routeTracks.push(...tracks.filter(t=>!known.has(t.id)));};
  const paint=(target,html)=>{if(markup.get(target)!==html||!displayed.has(target)){target.innerHTML=html;markup.set(target,html);}displayed.add(target);target.removeAttribute('aria-busy');};
  const release=$('#home-release');
- let pool=null,playlists=null,featured=[],chartIds=[],lastLayout='',requested=0;
+ homeCarouselCleanup=mountFeatureCarousel(release,homeBanners,{renderSlide:homeBannerHTML,label:'AIFECT 이용 안내',previousLabel:'이전 안내 배너',nextLabel:'다음 안내 배너',dotsLabel:'안내 배너 선택',syncAudio:false,showCount:true,pauseForDialogs:true});
+ let pool=null,playlists=null,chartIds=[],lastLayout='',requested=0;
  const capacities=()=>({music:homeCapacity('#home-recommended>.home-music-grid'),discovery:homeCapacity('#home-discovery>.home-music-grid'),playlist:homeCapacity('#home-curations>.public-playlist-grid')});
- const paintRelease=d=>{
-  addTracks(d.tracks);
-  homeCarouselCleanup?.();
-  homeCarouselCleanup=mountFeatureCarousel(release,d.tracks.slice(0,6));
-  if(d.tracks.length){
-   displayed.add(release);
-   release.removeAttribute('aria-busy');
-  }else{
-   paint(release,empty('첫 음악의 주인공이 되어주세요.','당신의 음악으로 새로운 취향을 시작하세요.','#upload','음악 올리기'));
-  }
-  featured=d.tracks.slice(0,6).map(t=>t.id);refreshShelves();
- };
  const shelf=(id,title,href,d)=>{const target=$('#'+id),tracks=(d.tracks||[]).slice(0,12);addTracks(tracks);paint(target,homeSection(title,href)+(tracks.length?'<div class="home-music-grid">'+tracks.map(homeCard).join('')+'</div>':'<p class="home-empty-inline">아직 공개된 음악이 없어요.</p>'));};
  const refreshShelves=()=>{
-  const limits=capacities(),key=[limits.music,limits.discovery,limits.playlist,...featured,'|',...chartIds].join(':');
+  const limits=capacities(),key=[limits.music,limits.discovery,limits.playlist,...chartIds].join(':');
   if(key===lastLayout)return;lastLayout=key;
   if(pool){
-   const {latest,recommended,discovery}=homeSelectMusic(pool,limits,[...featured,...chartIds]);
+   const {latest,recommended,discovery}=homeSelectMusic(pool,limits,chartIds);
    const render=(id,title,href,items)=>{
     const target=$('#'+id);addTracks(items);
     paint(target,homeSection(title,href)+'<div class="home-music-grid">'+items.map(homeCard).join('')+'</div>'+
@@ -283,6 +294,8 @@ function renderHome(ticket){
  };
  if(main.addEventListener){
   main.addEventListener('click',async e=>{
+   const participation=e.target.closest('[data-home-participate]');
+   if(participation&&!e.defaultPrevented&&!e.metaKey&&!e.ctrlKey&&!e.shiftKey&&!e.altKey){e.preventDefault();dialog(homeParticipationHTML());return;}
    const retry=e.target.closest('[data-home-profile-retry]');
    if(retry)void loadProfiles(retry.dataset.homeProfileRetry);
   },{signal:controller.signal});
@@ -294,9 +307,9 @@ function renderHome(ticket){
   requested=slots;
   return ['/api/discovery?home=1&slots='+slots,d=>{if(slots===requested){pool=d;lastLayout='';refreshShelves();}},'home-recommended'];
  };
- const jobs=[['/api/catalog?section=tracks&limit=12',paintRelease,'home-release'],discoveryJob(slotsFor()),['/api/catalog?section=tracks&chart=top&period=week&limit=12',paintChart,'home-popular'],['/api/karaoke',paintSing,'home-sing'],['/api/community?kind=cover',paintConversations,'home-conversations'],['/api/playlists?sort=recent&home=1',paintCurations,'home-curations']];
+ const jobs=[discoveryJob(slotsFor()),['/api/catalog?section=tracks&chart=top&period=week&limit=12',paintChart,'home-popular'],['/api/karaoke',paintSing,'home-sing'],['/api/community?kind=cover',paintConversations,'home-conversations'],['/api/playlists?sort=recent&home=1',paintCurations,'home-curations']];
  for(const [path,show] of jobs){const cached=peekApiRead(path,{display:true});if(cached)show(cached);}
- const load=async([path,show,id])=>{const target=$('#'+id);try{const d=await api(path,'GET',undefined,{signal:controller.signal});if(!controller.signal.aborted&&id==='home-release'&&ticket===renderId&&target.isConnected&&revision!==apiRevision)return renderHome(ticket);if(active(target)){show(d);updateHomeAccount();}}catch{if(active(target)&&!displayed.has(target)){paint(target,'<div class="home-load-error"><p>음악을 불러오지 못했어요.</p><button class="small-button">다시 시도</button></div>');target.querySelector('button').onclick=()=>load([path,show,id]);if(id==='home-recommended')paint($('#home-discovery'),homeSection('발견','#discover')+'<a class="text-link" href="#discover">음악 둘러보기</a>');}}};
+ const load=async([path,show,id])=>{const target=$('#'+id);try{const d=await api(path,'GET',undefined,{signal:controller.signal});if(!controller.signal.aborted&&id==='home-recommended'&&ticket===renderId&&target.isConnected&&revision!==apiRevision)return renderHome(ticket);if(active(target)){show(d);updateHomeAccount();}}catch{if(active(target)&&!displayed.has(target)){paint(target,'<div class="home-load-error"><p>음악을 불러오지 못했어요.</p><button class="small-button">다시 시도</button></div>');target.querySelector('button').onclick=()=>load([path,show,id]);if(id==='home-recommended')paint($('#home-discovery'),homeSection('발견','#discover')+'<a class="text-link" href="#discover">음악 둘러보기</a>');}}};
  const resize=()=>{
   // A like can invalidate API reads while this exact home is still mounted.
   // Its already visible shelves must continue responding to width changes.

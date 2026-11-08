@@ -46,11 +46,15 @@ function bindTalkingDirectory(root){
  const pane=root.querySelector('.talk-scroll');
  const tools=root.querySelector('.live-tools'),openSearch=root.querySelector('[data-live-search-open]'),closeSearch=root.querySelector('[data-live-search-close]'),clearSearch=root.querySelector('[data-live-search-clear]');
  const viewer=me?.id||'';
- const saved=talkingRoomReturn?.route===location.hash&&talkingRoomReturn.viewer===viewer&&talkingRoomReturn.until>Date.now()?talkingRoomReturn:null;
+ const requestedMode=new URLSearchParams(location.hash.split('?')[1]||'').get('mode');
+ const linkedMode=['all','karaoke','talk'].includes(requestedMode)?requestedMode:null;
+ // An explicit banner type takes priority. Discard a different filter's entire
+ // snapshot so its search, cursor and rooms cannot leak into the linked list.
+ const saved=talkingRoomReturn?.route===location.hash&&talkingRoomReturn.viewer===viewer&&talkingRoomReturn.until>Date.now()&&(!linkedMode||talkingRoomReturn.mode===linkedMode)?talkingRoomReturn:null;
  talkingRoomReturn=null;
  let items=new Map(saved?.items),cursor=saved?.cursor||null,done=saved?.done||false;
  let controller=null,debounce,expiry,disposed=false;
- let mode=saved?.mode||'all',refreshController,composing=false;
+ let mode=linkedMode||saved?.mode||'all',refreshController,composing=false;
  const layoutEvents=new AbortController();let layoutFrame=0;
  const measure=()=>{layoutFrame=0;if(disposed||!root.isConnected)return;const main=root.closest('#main'),vv=window.visualViewport,top=Math.max(main.getBoundingClientRect().top,vv?.offsetTop||0),bottom=(vv?.offsetTop||0)+(vv?.height||innerHeight);const player=document.querySelector('#player');const p=player?.getBoundingClientRect();const end=p?.height&&p.top>top&&getComputedStyle(player).display!=='none'?Math.min(bottom,p.top):bottom;main.style.setProperty('--live-directory-height',Math.max(0,end-top)+'px');};
  const layout=()=>{if(!layoutFrame)layoutFrame=requestAnimationFrame(measure);};

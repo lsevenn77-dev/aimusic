@@ -5,7 +5,7 @@ import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 
 // Exercise the real directory event handlers, including composition listeners.
-function directory(){
+function directory({hash='#community',saved=null}={}){
  let focused=null;
  class Element extends EventTarget {
   constructor(){super();this.dataset={};this.attributes=new Map();this.value='';this.hidden=false;this.style={};this.scrollTop=0;this.children=[];this.style={removeProperty(){}};}
@@ -19,7 +19,7 @@ function directory(){
  get('.talk-status').querySelector=get;
  const timers=new Map(),requests=[],cleanups=[];let seq=0;
  const c=nicknameContext({
-  me:{id:'viewer'},location:{hash:'#community'},talkingRoomReturn:null,liveRoomLabels:{karaoke:'노래방',talk:'토킹룸'},
+  me:{id:'viewer'},location:{hash},talkingRoomReturn:saved,talkingRoomCard:()=>'',liveRoomLabels:{karaoke:'노래방',talk:'토킹룸'},
   URLSearchParams,AbortController,Date,Map,requestAnimationFrame:()=>1,cancelAnimationFrame(){},ResizeObserver:class{observe(){}disconnect(){}},IntersectionObserver:class{observe(){}unobserve(){}disconnect(){}},
   document:{hidden:false,addEventListener(){},removeEventListener(){},get activeElement(){return focused;}},
   window:{scrollTo(){},addEventListener(){},removeEventListener(){}},
@@ -56,4 +56,34 @@ test('desktop queries remain discoverable when resizing into the mobile toolbar'
  const d=directory();await d.flush();const input=d.get('#v3-room-search');
  input.value='방장';input.oninput({});await d.flush();
  assert.equal(d.get('.live-tools').dataset.searchOpen,'true');assert.equal(d.requests.at(-1).get('q'),'방장');d.dispose();
+});
+
+test('banner room links select only validated types without locking later filter changes',async()=>{
+ for(const [hash,mode] of [['#live?mode=karaoke','karaoke'],['#voice?mode=talk','talk'],['#live?mode=all','all'],['#live?mode=invalid','all'],['#voice?mode=toString','all']]){
+  const d=directory({hash});await d.flush();
+  assert.equal(d.root.dataset.filter,mode,hash);assert.equal(d.requests[0].get('mode'),mode,hash);
+  assert.equal(d.requests[0].has('q'),false);assert.equal(d.requests[0].has('cursor'),false);
+  for(const filter of d.filters)assert.equal(filter.attributes.get('aria-pressed'),String(filter.dataset.roomFilter===mode));
+  d.filters.find(filter=>filter.dataset.roomFilter==='talk').onclick();await d.flush();
+  assert.equal(d.root.dataset.filter,'talk');assert.equal(d.requests.at(-1).get('mode'),'talk');d.dispose();
+ }
+});
+
+test('a banner type discards conflicting saved search, results and pagination together',async()=>{
+ const hash='#voice?mode=talk';
+ const saved={route:hash,viewer:'viewer',until:Date.now()+60000,mode:'karaoke',query:'이전 노래방',searchOpen:true,items:[['old-room',{id:'old-room',mode:'karaoke'}]],cursor:'old-cursor',done:true,scroll:300};
+ const d=directory({hash,saved});await d.flush();
+ assert.equal(d.root.dataset.filter,'talk');assert.equal(d.get('#v3-room-search').value,'');
+ assert.equal(d.get('.live-tools').dataset.searchOpen,'false');assert.equal(d.requests.length,1);
+ assert.equal(d.requests[0].get('mode'),'talk');assert.equal(d.requests[0].has('q'),false);assert.equal(d.requests[0].has('cursor'),false);d.dispose();
+});
+
+test('matching banner snapshots and ordinary routes retain the existing search restoration',async()=>{
+ for(const hash of ['#voice?mode=talk','#live','#live?mode=invalid']){
+  const saved={route:hash,viewer:'viewer',until:Date.now()+60000,mode:'talk',query:'책 이야기',searchOpen:true,items:[],cursor:'next-page',done:false,scroll:120};
+  const d=directory({hash,saved});await d.flush();const input=d.get('#v3-room-search');
+  assert.equal(d.root.dataset.filter,'talk',hash);assert.equal(input.value,'책 이야기',hash);assert.equal(d.get('.live-tools').dataset.searchOpen,'true');
+  input.value='새 이야기';input.oninput({});await d.flush();
+  assert.equal(d.requests.at(-1).get('mode'),'talk');assert.equal(d.requests.at(-1).get('q'),'새 이야기');assert.equal(d.requests.at(-1).has('cursor'),false);d.dispose();
+ }
 });

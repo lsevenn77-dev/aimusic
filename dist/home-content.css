@@ -1,4 +1,32 @@
 /* Home content only. Shared navigation, player and other routes retain their CSS. */
+/* Approved banners carry their own copy. Preserve every pixel of the 2:1 art;
+   keep navigation below it, and add a readable 44px action on narrow screens. */
+#home-release.home-promo-carousel .home-feature{display:grid;grid-template-columns:44px minmax(0,1fr) 44px;height:auto;min-height:0;background:transparent;overflow:visible}
+#home-release.home-promo-carousel .home-feature-stage{grid-column:1/-1;grid-row:1;height:auto;min-width:0;overflow:hidden}
+#home-release.home-promo-carousel .home-promo-link{display:block;position:relative;padding:0;width:100%;height:auto;color:var(--ds-text);text-decoration:none;user-select:none;-webkit-user-select:none}
+#home-release.home-promo-carousel .home-promo-link>img{display:block;width:100%;height:auto;aspect-ratio:2/1;object-fit:contain;border:0;border-radius:0}
+#home-release.home-promo-carousel .home-promo-link:focus-visible{outline-offset:-4px}
+#home-release.home-promo-carousel .home-promo-mobile-cta{display:none}
+#home-release.home-promo-carousel .home-feature-arrow{display:grid;position:static;grid-row:2;width:44px;height:44px;color:var(--ds-body)}
+#home-release.home-promo-carousel .home-feature-prev{grid-column:1}
+#home-release.home-promo-carousel .home-feature-next{grid-column:3}
+#home-release.home-promo-carousel .home-feature-pagination{position:static;grid-column:2;grid-row:2;transform:none;justify-content:center;min-width:0;color:var(--ds-body)}
+#home-release.home-promo-carousel .home-feature-pagination button{width:44px;height:44px;color:var(--ds-body)}
+#home-release.home-promo-carousel .home-feature-autoplay{display:grid}
+#home-release.home-promo-carousel .home-feature-dots button[aria-pressed=true]{color:var(--ds-selected)}
+#home-release.home-promo-carousel .home-feature-count{display:none;min-width:48px;text-align:center;font-size:13px;font-variant-numeric:tabular-nums;color:var(--ds-muted)}
+.home-participation-options{display:grid;gap:12px;margin-top:20px}
+.home-participation-options .small-button{display:flex;justify-content:space-between;min-height:48px;text-decoration:none}
+@media(max-width:600px){
+ #home-release.home-promo-carousel .home-promo-mobile-cta{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;padding:8px 14px;background:var(--ds-panel);font-size:14px;font-weight:650;line-height:1.4}
+ #home-release.home-promo-carousel .home-promo-mobile-cta svg{width:18px;height:18px;flex:none}
+ #home-release.home-promo-carousel .home-feature-dots{display:none}
+ #home-release.home-promo-carousel .home-feature-count{display:block}
+}
+@media(prefers-reduced-motion:reduce){
+ #home-release.home-promo-carousel .home-feature-autoplay{display:none}
+ #home-release.home-promo-carousel .home-feature-stage>*{animation:none!important}
+}
 .home-content-refresh .home-rail-shell{position:relative;min-width:0;padding-top:4px}
 .home-content-refresh .home-rail-controls{display:flex;justify-content:flex-end;gap:4px;margin:-10px 0 6px}
 .home-content-refresh .home-rail-controls button{display:grid;place-items:center;width:44px;height:44px;padding:0;border:0;border-radius:var(--ds-radius-button,12px);background:transparent;color:var(--ds-body);cursor:pointer}
