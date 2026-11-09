@@ -11,7 +11,7 @@
 @media(min-width:801px){
  #home-release.home-promo-carousel .home-promo-link{--home-promo-photo-scale:1;--home-promo-photo-height:calc(var(--home-feature-height,272px) * var(--home-promo-photo-scale));--home-promo-shift:16cqi;--home-promo-inset-max:224px;--home-promo-inset:clamp(48px,var(--home-promo-shift),var(--home-promo-inset-max))}
  #home-release.home-promo-carousel .home-promo-scenery{display:block;position:absolute;height:var(--home-promo-photo-height);background-image:var(--home-promo-scenery);background-size:auto 100%;background-repeat:no-repeat;pointer-events:none}
- #home-release.home-promo-carousel .home-promo-scenery-left{inset:0 calc(var(--home-promo-photo-height) * 1.8 + var(--home-promo-inset)) auto 0;background-position:right center}
+ #home-release.home-promo-carousel .home-promo-scenery-left{inset:0 calc(var(--home-promo-photo-height) * var(--home-promo-left-edge,1.8) + var(--home-promo-inset)) auto 0;background-position:right center}
  #home-release.home-promo-carousel .home-promo-scenery-right{inset:0 0 auto auto;width:calc(var(--home-promo-inset) + 1px);background-position:left center;background-size:max(100%,var(--home-promo-photo-height)) 100%}
  /* Overlap real scene detail across the former hard join. Only the leftmost
     8% of the source (empty scenery in all eight photos) blends; every person
@@ -19,15 +19,23 @@
  #home-release.home-promo-carousel .home-promo-picture{position:absolute;inset:0 var(--home-promo-inset) auto auto;width:auto;max-width:none;height:var(--home-promo-photo-height);aspect-ratio:2/1;mask-image:linear-gradient(90deg,transparent,#000 8%,#000);-webkit-mask-image:linear-gradient(90deg,transparent,#000 8%,#000)}
  #home-release.home-promo-carousel .home-promo-original{max-width:none;object-fit:contain;object-position:center}
  #home-release.home-promo-carousel [data-home-banner=artists]{--home-promo-photo-scale:1.25;--home-promo-shift:20cqi;--home-promo-inset-max:256px}
- /* The crew window has a small exposure change at its upper right edge.
-    Blend only the inspected people-free glass/trim; portraits stay opaque. */
- #home-release.home-promo-carousel [data-home-banner=crew] .home-promo-scenery-right{--home-promo-right-blend:calc(var(--home-promo-photo-height) * .0662983425);width:var(--home-promo-inset);z-index:1}
- #home-release.home-promo-carousel [data-home-banner=crew] .home-promo-scenery-right::before{content:"";position:absolute;top:0;left:calc(-1 * var(--home-promo-right-blend));width:var(--home-promo-right-blend);height:40%;background:url('/assets/home-banners/center-20261109/crew-right-top-blend-51.webp') left top/100% 100% no-repeat;mask-image:linear-gradient(90deg,transparent,#000),linear-gradient(180deg,#000 70%,transparent);-webkit-mask-image:linear-gradient(90deg,transparent,#000),linear-gradient(180deg,#000 70%,transparent);-webkit-mask-composite:source-in;mask-composite:intersect;pointer-events:none}
+ #home-release.home-promo-carousel [data-home-banner=crew]{--home-promo-photo-scale:1.2;--home-promo-shift:20cqi;--home-promo-inset-max:256px}
+ /* Revised scenery holds exactly 154 source pixels beyond its 2211px anchor.
+    Align that copied background with the unchanged original at every scale. */
+ #home-release.home-promo-carousel :is([data-home-banner=studio],[data-home-banner=play],[data-home-banner=karaoke],[data-home-banner=talking],[data-home-banner=crew]){--home-promo-left-edge:1.7994791667}
+ /* Two narrow background-only overlaps match the repaired window and wall.
+    Their inspected source bounds exclude every face, shoulder, body and hand. */
+ #home-release.home-promo-carousel [data-home-banner=crew] .home-promo-scenery-right{width:var(--home-promo-inset);z-index:1}
+ #home-release.home-promo-carousel [data-home-banner=crew] .home-promo-scenery-right::before,
+ #home-release.home-promo-carousel [data-home-banner=crew] .home-promo-scenery-right::after{content:"";position:absolute;left:calc(-1 * var(--home-promo-right-blend));width:var(--home-promo-right-blend);background-position:left top;background-size:100% 100%;background-repeat:no-repeat;mask-image:linear-gradient(90deg,transparent,#000),var(--home-promo-right-fade);-webkit-mask-image:linear-gradient(90deg,transparent,#000),var(--home-promo-right-fade);-webkit-mask-composite:source-in;mask-composite:intersect;pointer-events:none}
+ #home-release.home-promo-carousel [data-home-banner=crew] .home-promo-scenery-right::before{--home-promo-right-blend:calc(var(--home-promo-photo-height) * .0662983425);--home-promo-right-fade:linear-gradient(180deg,#000 96.4705882353%,transparent);top:0;height:calc(var(--home-promo-photo-height) * .4696132597);background-image:url('/assets/home-banners/repair-20261109/crew-right-window-blend-48.webp')}
+ #home-release.home-promo-carousel [data-home-banner=crew] .home-promo-scenery-right::after{--home-promo-right-blend:calc(var(--home-promo-photo-height) * .0276243094);--home-promo-right-fade:linear-gradient(180deg,transparent,#000 7.5%,#000 80%,transparent);top:calc(var(--home-promo-photo-height) * .4419889503);height:calc(var(--home-promo-photo-height) * .1104972376);background-image:url('/assets/home-banners/repair-20261109/crew-right-wall-blend-20.webp')}
  @container(max-width:790px){
   #home-release.home-promo-carousel .home-promo-link{--home-promo-inset:clamp(24px,8cqi,56px)}
  }
  @container(min-width:541px) and (max-width:650px){
   #home-release.home-promo-carousel .home-promo-link{--home-promo-inset:24px}
+  #home-release.home-promo-carousel [data-home-banner=crew]{--home-promo-photo-scale:1}
  }
 }
 /* Gently shade and soften the scenery behind the words. Both effects diminish
