@@ -373,7 +373,7 @@ function communityRankingRow(r,rank){
  return '<li><a class="ranking-row" href="'+esc(r.href)+'" aria-label="'+rank+'위 '+esc(r.name)+'"><span class="ranking-number">'+rank+'</span>'+communityRankingImage(r)+'<strong title="'+esc(r.name)+'">'+esc(r.name)+'</strong></a></li>';
 }
 function communityRankingResults(rows){
- if(!rows.length)return '<div class="ranking-empty" role="status"><img src="/assets/aifect-mark.svg" alt="" width="48" height="48"><h2>아직 집계된 순위가 없어요</h2><p>이번 주 유효한 활동이 쌓이면 순위를 표시해요.</p></div>';
+ if(!rows.length)return '<div class="ranking-empty" role="status"><h2>아직 집계된 순위가 없어요</h2><p>이번 주 유효한 활동이 쌓이면 순위를 표시해요.</p></div>';
  const podium=rows.slice(0,3).map((r,i)=>'<li class="ranking-place ranking-place-'+(i+1)+'"><a href="'+esc(r.href)+'" aria-label="'+(i+1)+'위 '+esc(r.name)+'">'+communityRankingImage(r)+'<span class="ranking-medal" aria-hidden="true">'+(i+1)+'</span><strong title="'+esc(r.name)+'">'+esc(r.name)+'</strong></a></li>').join('');
  return '<ol class="ranking-podium" aria-label="상위 3위">'+podium+'</ol><ol class="ranking-list" start="4" aria-label="4위 이하">'+rows.slice(3).map((r,i)=>communityRankingRow(r,i+4)).join('')+'</ol>';
 }
