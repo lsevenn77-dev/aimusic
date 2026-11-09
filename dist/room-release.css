@@ -573,8 +573,8 @@
 #main .voice-room #room-turn-action {display:flex;flex-wrap:wrap;gap:5px}
 #main .voice-room .room-live-guide {flex-wrap:wrap}
 #main .voice-room .room-live-guide button,#main .voice-room .talk-central [data-voice=release-mic] {min-height:44px}
-#main .voice-room .room-header [data-voice=inbox] {position:relative}
-#main .voice-room .room-header [data-unread-dm]::after {content:"";position:absolute;right:4px;top:4px;width:6px;height:6px;border-radius:50%;background:var(--ds-accent-lavender)}
+#main .voice-room [data-voice=inbox] {position:relative}
+#main .voice-room [data-voice=inbox][data-unread-dm]::after {content:"";position:absolute;right:4px;top:4px;width:6px;height:6px;border-radius:50%;background:var(--ds-accent-lavender)}
 :root[data-room-popup] #main .voice-room :is(.voice-stage,#voice-chat) {overflow:hidden}
 #main .voice-room .room-popup {overscroll-behavior:contain}
 @media(min-width:801px){

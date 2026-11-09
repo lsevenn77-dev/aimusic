@@ -35,12 +35,14 @@ function context(overrides={}){
  vm.runInContext(source('community.js'),c);
  vm.runInContext(source('voice-room-template.js'),c);
  vm.runInContext(source('community-v3.js'),c);
+ const controls=source('voice-room-controls.js'),avatarStart=controls.indexOf('function roomMemberAvatar(');
+ vm.runInContext(controls.slice(avatarStart,controls.indexOf('\nObject.assign(',avatarStart)),c);
  vm.runInContext(source('live-karaoke.js'),c);
  return {c,calls,events,host,nodes};
 }
 
 test('a mode snapshot changes the view once without leaving, rejoining or enabling capture',()=>{
- const {c,calls,host}=context();let captures=0,stops=0,replaced=0;
+ const cleared=[],{c,calls,host}=context({clearTimeout:id=>cleared.push(id)});let captures=0,stops=0,replaced=0;
  const nextHost={...host};host.replaceWith=()=>replaced++;
  c.document.createElement=()=>({content:{firstElementChild:nextHost}});
  c.document.querySelector=()=>({dataset:{}});
@@ -50,6 +52,7 @@ test('a mode snapshot changes the view once without leaving, rejoining or enabli
  const client=new c.VoiceRoomClient('one');
  Object.assign(client,{host,liveMode:true,joined:true,generation:'stable-generation',epoch:7,state:{room:{mode:'talk'}},
   ws:{id:'socket'},receiver:{id:'receiver'},heartbeat:42,levelContext:{id:'audio'},chatEditor:editor,
+  volumeTimer:'old-volume',roomShareTimer:'old-share',roomShareAbort:new AbortController(),
   stopMicrophone(){stops++;},stopMicTest(){},closeRoomPopup(){},releaseRoomExternal(){},onViewport(){},
   enableMic(){captures++;},micAttempt:0});
  c.voiceController=client;c.client=client;
@@ -61,6 +64,41 @@ test('a mode snapshot changes the view once without leaving, rejoining or enabli
  assert.equal(stops,1);assert.equal(captures,0);assert.equal(client.micDesired,false);
  assert.equal(editor.saved,'안녕 [aifect:cat_basic_laugh]');assert.equal(c.location.hash,'#voice/one');
  assert.equal(calls.filter(x=>x[0]==='leave'||x[0]==='request').length,0);
+ assert.equal(cleared.filter(id=>id==='old-volume').length,1);assert.equal(cleared.filter(id=>id==='old-share').length,1);
+ assert.equal(client.roomShareAbort.signal.aborted,true);
+});
+
+test('stopping karaoke audio closes the old worklet port and ignores late latency messages',async()=>{
+ const disconnected=[],closed=[],node=label=>({connect:target=>target,disconnect(){disconnected.push(label);}});
+ class Worklet{
+  constructor(){Object.assign(this,node('worklet'));this.port={onmessage:null,close(){closed.push('port');}};}
+ }
+ const {c}=context({AudioWorkletNode:Worklet});
+ const levelContext={audioWorklet:{addModule:async()=>{}},destination:{},createMediaElementSource:()=>node('source'),createGain:()=>({...node('gain'),gain:{value:1}})};
+ const audio={pause(){closed.push('pause');},removeAttribute(){closed.push('src');},load(){closed.push('load');}};
+ c.client={closed:false,liveAudio:audio,levelContext,liveAbort:new AbortController(),ws:{id:'retained'}};
+ await vm.runInContext('livePitchGraph(client)',c);
+ const oldPitch=c.client.livePitch,lateMessage=oldPitch.node.port.onmessage,request=c.client.liveAbort;
+ lateMessage({data:{latency:.25}});assert.equal(c.client.livePitchLatency,.25);
+ vm.runInContext('liveStopAudio(client)',c);
+ assert.equal(oldPitch.node.port.onmessage,null);assert.deepEqual(disconnected,['source','worklet','gain']);
+ assert.deepEqual(closed,['port','pause','src','load']);assert.equal(request.signal.aborted,true);
+ assert.equal(c.client.liveAudio,null);assert.equal(c.client.livePitch,null);assert.equal(c.client.levelContext,levelContext);assert.equal(c.client.ws.id,'retained');
+ c.client.livePitchLatency=.5;lateMessage({data:{latency:9}});assert.equal(c.client.livePitchLatency,.5);
+});
+
+test('current and queued singers keep the host crown by the nickname and mute only their avatars',()=>{
+ const {c,host,nodes}=context();
+ c.client={closed:false,host,liveTrack:'song',state:{self:'self',room:{mode:'karaoke',host_id:'self'},
+  members:[{id:'self',role:'host',name:'방장',muted:true},{id:'guest',role:'member',name:'참여자',muted:true}],
+  karaoke:{active:{user_id:'self',invitation_id:'turn',track:{id:'song',title:'곡',duration:90}},queue:[{user_id:'guest',track:{id:'song',title:'곡'}}],phase:'invited',inviteExpiresAt:Date.now()+15000}}};
+ vm.runInContext('paintLiveKaraoke(client)',c);
+ const current=nodes.get('#live-current').innerHTML,queue=nodes.get('#live-queue').innerHTML;
+ assert.match(current,/<span class="room-member-photo is-muted">/);assert.match(current,/class="room-muted-mark"/);
+ assert.match(current,/<strong><span class="room-host-crown"[^>]*>[\s\S]*?<\/span><span>/);
+ assert.equal((queue.match(/class="room-host-crown"/g)||[]).length,1);
+ assert.equal((queue.match(/class="room-member-photo is-muted"/g)||[]).length,2);
+ assert.doesNotMatch(current+queue,/<strong[^>]*is-muted/);
 });
 
 function monitorFixture(){

@@ -59,3 +59,62 @@ for(const mode of ['talk','karaoke'])test(mode+' settings and shares use authent
  assert.equal((await settings({max_members:31})).status,400);
  assert.equal((await settings({announcement:'가'.repeat(201)})).status,400);
 });
+
+for(const mode of ['talk','karaoke'])for(const action of ['publish','subscribe'])test(mode+' mode switch retires a '+action+' connection that finishes after saving',{timeout:10000},async t=>{
+ const f=await liveFixture(t),r=await f.create({mode,seating_mode:'free'}),guest=await f.join(r);
+ if(mode==='talk'){
+  assert.equal((await f.call(r.root+'request-mic','POST',{generation:guest.generation,seat:1},'other')).status,200);
+ }else{
+  const reserved=await f.command(r,guest,'request',{track_id:'one'},'other');assert.equal(reserved.status,200);
+  assert.equal((await f.command(r,guest,'accept',{invitation_id:reserved.body.karaoke.active.invitation_id},'other')).status,200);
+ }
+ const member=r.room.data.members.other;
+ if(action==='subscribe'){
+  member.pub={owner:'other',kind:'publish',sessionId:'source-before-switch',trackName:'old-source',mids:['0'],ready:true};
+  member.muted=false;
+ }
+ const generations=Object.fromEntries(Object.values(r.room.data.members).map(m=>[m.id,m.generation]));
+ let entered,release;
+ const started=new Promise(resolve=>{entered=resolve;}),session=new Promise(resolve=>{release=resolve;}),closed=[];
+ r.room.sfu={
+  async create(){entered();return session;},
+  async tracks(){throw Error('A retired negotiation must not create tracks after a mode switch');},
+  async close(id){closed.push(id);return {resolved:true};}
+ };
+ const user=action==='publish'?'other':'owner',generation=generations[user];
+ const pending=f.call(r.root+action,'POST',{generation,...(action==='publish'?{mid:'0',sessionDescription:{type:'offer',sdp:'v=0\r\nm=audio 9 UDP/TLS/RTP/SAVPF 111\r\na=mid:0\r\na=sendonly\r\n'}}:{})},user);
+ await started;
+ const changed=await f.call(r.root+'settings','POST',{generation:r.state.generation,revision:r.room.data.config.settings_revision||0,mode:mode==='talk'?'karaoke':'talk'});
+ assert.equal(changed.status,200,JSON.stringify(changed.body));
+ release('late-'+action);
+ const retired=await pending;assert.equal(retired.status,409,JSON.stringify(retired.body));
+ await r.room.queue;
+ assert.ok(closed.includes('late-'+action),'the late SFU session is retired instead of leaking');
+ for(const m of Object.values(r.room.data.members)){
+  assert.equal(m.generation,generations[m.id]);assert.equal(m.pub,null);assert.equal(m.sub,null);assert.equal(m.muted,true);
+ }
+ assert.equal(r.room.data.config.id,r.state.room.id);assert.deepEqual(Object.keys(r.room.data.members).sort(),['other','owner']);
+});
+
+test('failed settings persistence leaves the current song, queue and room type intact',async t=>{
+ const f=await liveFixture(t),r=await f.create(),guest=await f.join(r);
+ const requested=await f.command(r,guest,'request',{track_id:'one'},'other');assert.equal(requested.status,200);
+ assert.equal((await f.command(r,r.state,'request',{track_id:'one'})).status,200);
+ assert.equal((await f.command(r,guest,'accept',{invitation_id:requested.body.karaoke.active.invitation_id},'other')).status,200);
+ r.room.data.members.other.pub={ready:true};r.room.data.members.other.muted=false;
+ assert.equal((await f.command(r,guest,'start',{},'other')).status,200);
+ const before=structuredClone({config:r.room.data.config,karaoke:r.room.data.karaoke,chat:r.room.data.chat,music:r.room.data.music});
+ const prepare=r.room.env.ROOM_DB.prepare;
+ r.room.env.ROOM_DB.prepare=q=>{
+  if(q.startsWith('UPDATE voice_rooms SET title='))throw Error('Local simulated directory write failure');
+  return prepare(q);
+ };
+ const failed=await f.call(r.root+'settings','POST',{generation:r.state.generation,revision:r.room.data.config.settings_revision||0,mode:'talk'});
+ assert.equal(failed.status,500);
+ assert.deepEqual({config:r.room.data.config,karaoke:r.room.data.karaoke,chat:r.room.data.chat,music:r.room.data.music},before);
+ assert.equal(r.room.data.members.other.muted,false);assert.equal(r.room.data.members.other.pub.ready,true);
+ r.room.env.ROOM_DB.prepare=prepare;
+ const retry=await f.call(r.root+'settings','POST',{generation:r.state.generation,revision:r.room.data.config.settings_revision||0,mode:'talk'});
+ assert.equal(retry.status,200);assert.equal(retry.body.room.mode,'talk');assert.equal(retry.body.karaoke,null);
+ assert.equal(r.room.data.members.other.pub,null);assert.equal(r.room.data.karaoke.queue.length,0);
+});

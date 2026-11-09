@@ -4,16 +4,41 @@ import {liveFixture} from './live-karaoke-fixture.mjs';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 
-test('anchored sheets clamp to the visible room width and flip above bottom controls',()=>{
+test('room sheets align to the chat start line and width with a 500px maximum',()=>{
  const c=vm.createContext({document:{addEventListener(){}},window:{addEventListener(){}}});
  vm.runInContext(readFileSync(new URL('../dist/room-layout.js',import.meta.url),'utf8'),c);
  const bounds={left:260,right:1360,top:8,bottom:760};
- const settings=c.roomPopupPlacement({top:140,bottom:184,right:1320},bounds,340,620);
- assert.equal(settings.width,340);assert.equal(settings.top,192);assert.equal(settings.maxHeight,568);
- const bottom=c.roomPopupPlacement({top:690,bottom:734,right:1340},bounds,420,300,true);
- assert.equal(bottom.top,382);assert.ok(bottom.left>=bounds.left);assert.ok(bottom.left+bottom.width<=bounds.right);
- const narrow=c.roomPopupPlacement({top:30,bottom:74,right:1100},{left:8,right:300,top:8,bottom:400},340,620);
- assert.equal(narrow.width,292);assert.equal(narrow.left,8);assert.ok(narrow.top+narrow.maxHeight<=400);
+ const settings=c.roomPopupPlacement({left:940,top:184,right:1340,bottom:734},bounds);
+ assert.equal(settings.width,400);assert.equal(settings.left,940);assert.equal(settings.top,184);assert.equal(settings.maxHeight,500);
+ const short=c.roomPopupPlacement({left:940,top:184,right:1340,bottom:440},bounds);
+ assert.equal(short.top,184);assert.equal(short.maxHeight,256,'short chat columns constrain the popup, not the other way round');
+ const clipped=c.roomPopupPlacement({left:940,top:184,right:1340,bottom:900},{...bounds,bottom:480});
+ assert.equal(clipped.top,184);assert.equal(clipped.maxHeight,296,'the player and viewport are also hard limits');
+ const offscreen=c.roomPopupPlacement({left:940,top:20,right:1460,bottom:900},{...bounds,top:64});
+ assert.equal(offscreen.top,64);assert.equal(offscreen.width,420);assert.equal(offscreen.maxHeight,500);
+ const collapsed=c.roomPopupPlacement({left:940,top:480,right:1340,bottom:480},{...bounds,bottom:480});
+ assert.equal(collapsed.maxHeight,0);assert.ok(collapsed.top+collapsed.maxHeight<=480);
+});
+
+test('settings, people, search, profile and gift use one desktop chat anchor and release it on mobile',()=>{
+ const values=new Map(),attrs=new Set();let chat={left:940,top:184,right:1340,bottom:734};
+ const sheet={open:true,id:'voice-room-settings',classList:{contains:()=>false},
+  setAttribute:k=>attrs.add(k),removeAttribute:k=>attrs.delete(k),
+  style:{getPropertyValue:k=>values.get(k),setProperty:(k,v)=>values.set(k,v)}};
+ const host={getBoundingClientRect:()=>({left:260,top:90,right:1360,bottom:760}),querySelector:s=>s==='.voice-chat-panel'?{getBoundingClientRect:()=>chat}:null};
+ const c=vm.createContext({innerWidth:1440,innerHeight:900,document:{addEventListener(){}},window:{addEventListener(){}}});
+ vm.runInContext(readFileSync(new URL('../dist/room-layout.js',import.meta.url),'utf8'),c);
+ const client={host,talkPopup:sheet,roomBounds:{bottom:760}};
+ for(const id of ['voice-room-settings','voice-members','voice-sound','voice-invite-sheet','talk-leave','live-search-sheet','profile-preview','dialog']){
+  sheet.id=id;c.positionRoomPopup(client);assert.equal(attrs.has('data-room-anchored'),true,id);
+  assert.equal(values.get('--room-popup-left'),'940px',id);assert.equal(values.get('--room-popup-top'),'184px',id);
+  assert.equal(values.get('--room-popup-width'),'400px',id);assert.equal(values.get('--room-popup-max'),'500px',id);
+ }
+ chat={left:850,top:160,right:1210,bottom:460};c.positionRoomPopup(client);
+ assert.equal(values.get('--room-popup-left'),'850px');assert.equal(values.get('--room-popup-width'),'360px');assert.equal(values.get('--room-popup-max'),'300px');
+ c.innerWidth=390;c.positionRoomPopup(client);assert.equal(attrs.has('data-room-anchored'),false,'the existing mobile CSS retains ownership');
+ c.innerWidth=1440;sheet.classList.contains=name=>name==='room-emoji-dock';c.positionRoomPopup(client);
+ assert.equal(attrs.has('data-room-anchored'),false,'the inline sticker tray remains part of the composer');
 });
 
 test('talk controls expose labelled microphone states only for an eligible seated member',()=>{

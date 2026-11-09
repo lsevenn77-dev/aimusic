@@ -64,7 +64,7 @@ async function refreshMessageBadge(){
  const version=++messageBadgeVersion,uid=me?.id;if(!uid){paintMessageBadge(0);messageBadgeAccount=null;return;}
  if(document.hidden)return;
  if(messageBadgeBusy){messageBadgeAgain=true;return;}messageBadgeBusy=true;
- try{const d=await api('/api/dm/summary','GET',undefined,{fresh:true});if(uid===me?.id&&version===messageBadgeVersion){messageBadgeAccount=uid;paintMessageBadge(d.unread);document.querySelectorAll('.room-header [data-voice=inbox]').forEach(b=>b.toggleAttribute('data-unread-dm',d.direct_unread>0));}}
+ try{const d=await api('/api/dm/summary','GET',undefined,{fresh:true});if(uid===me?.id&&version===messageBadgeVersion){messageBadgeAccount=uid;paintMessageBadge(d.unread);document.querySelectorAll('.voice-room [data-voice=inbox]').forEach(b=>b.toggleAttribute('data-unread-dm',d.direct_unread>0));}}
  catch{}finally{messageBadgeBusy=false;if(messageBadgeAgain){messageBadgeAgain=false;void refreshMessageBadge();}}
 }
 function paintMessageBadge(count){document.querySelectorAll('[data-primary-view="dm"],#sidebar a[href="#dm"],.header-messages').forEach(link=>{let badge=link.querySelector('.nav-message-badge');if(!badge){badge=document.createElement('b');badge.className='nav-message-badge';link.append(badge);}badge.hidden=!count;badge.textContent='';badge.setAttribute('aria-label','안 읽은 메시지 '+count+'개');});}

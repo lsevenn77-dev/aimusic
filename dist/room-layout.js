@@ -11,7 +11,7 @@ function bindRoomViewport(client){
  };
  window.aifectRoomBack=back;
  events.signal.addEventListener('abort',()=>{if(window.aifectRoomBack===back)delete window.aifectRoomBack;},{once:true});
- const room=client.host,main=document.querySelector('#main'),composer=room.querySelector('#voice-chat-form'),transcript=room.querySelector('#voice-chat'),picker=room.querySelector('#voice-emoji-picker');
+ const room=client.host,main=document.querySelector('#main'),chatPanel=room.querySelector('.voice-chat-panel'),composer=room.querySelector('#voice-chat-form'),transcript=room.querySelector('#voice-chat'),picker=room.querySelector('#voice-emoji-picker');
  client.roomChatAtEnd=true;
  transcript?.addEventListener?.('scroll',()=>{
   // A keyboard resize must not be mistaken for the reader scrolling history.
@@ -47,7 +47,10 @@ function bindRoomViewport(client){
   write(room,'--voice-viewport',Math.max(0,end-start)+'px');
   if(composerHeight)write(room,'--room-composer',composerHeight+'px');
   const composerTop=composer?.getBoundingClientRect().top??end;
-  write(room,'--room-popup-available',Math.max(0,composerTop-start-16)+'px');
+  // Preserve the mobile bottom anchor, but keep short-screen sheets below the
+  // header so the same top controls can still close or switch the open popup.
+  const popupStart=mobile?Math.max(start,room.querySelector('.room-header')?.getBoundingClientRect().bottom??start):start;
+  write(room,'--room-popup-available',Math.max(0,composerTop-popupStart-16)+'px');
   write(document.documentElement,'--room-toast-bottom',Math.max(0,innerHeight-composerTop+10)+'px');
   write(room,'--room-visual-top',top+'px');write(room,'--room-visual-height',(bottom-top)+'px');
   // Expose measured geometry for diagnostics and keep reads before writes next frame.
@@ -60,35 +63,32 @@ function bindRoomViewport(client){
  };
  client.onViewport=()=>{if(!client.roomLayoutFrame)client.roomLayoutFrame=requestAnimationFrame(measure);};
  for(const type of ['resize','aifect:topbar-layout','aifect:input-viewport'])window.addEventListener(type,client.onViewport,options);
+ window.addEventListener('scroll',client.onViewport,{...options,capture:true,passive:true});
  window.visualViewport?.addEventListener('resize',client.onViewport,options);
  window.visualViewport?.addEventListener('scroll',client.onViewport,options);
  if(typeof ResizeObserver!=='undefined'){
   client.roomResizeObserver=new ResizeObserver(client.onViewport);
-  for(const el of new Set([main,room,composer,transcript,picker,...shell].filter(Boolean)))client.roomResizeObserver.observe(el);
+  for(const el of new Set([main,room,chatPanel,composer,transcript,picker,...shell].filter(Boolean)))client.roomResizeObserver.observe(el);
  }
  measure();
 }
-// Nonmodal desktop sheets use viewport coordinates, never the stretched chat column.
-function roomPopupPlacement(anchor,bounds,width,height,above=false){
- const gap=8,w=Math.min(width,Math.max(0,bounds.right-bounds.left));
- const below=Math.max(0,bounds.bottom-anchor.bottom-gap),over=Math.max(0,anchor.top-bounds.top-gap);
- const up=above?over>0:below<Math.min(height,240)&&over>below;
- const limit=Math.max(0,Math.min(620,up?over:below)),h=Math.min(height,limit);
- return {left:Math.max(bounds.left,Math.min(anchor.right-w,bounds.right-w)),top:Math.max(bounds.top,Math.min(up?anchor.top-gap-h:anchor.bottom+gap,bounds.bottom-h)),width:w,maxHeight:limit};
+// Every desktop sheet shares the chat column's start line and width. Content and
+// trigger position must not move the sheet or increase the room's layout height.
+function roomPopupPlacement(chat,bounds){
+ const left=Math.max(bounds.left,chat.left),right=Math.min(bounds.right,chat.right);
+ const top=Math.max(bounds.top,chat.top),bottom=Math.min(bounds.bottom,chat.bottom);
+ return {left,top,width:Math.max(0,right-left),maxHeight:Math.max(0,Math.min(500,bottom-top))};
 }
 function positionRoomPopup(client){
  const sheet=client.talkPopup;if(!sheet?.open)return;
- if(innerWidth<=800||sheet.id==='live-search-sheet'||sheet.classList.contains('profile-preview')){sheet.removeAttribute('data-room-anchored');return;}
+ if(innerWidth<=800||sheet.classList.contains('room-emoji-dock')){sheet.removeAttribute('data-room-anchored');return;}
+ const chat=client.host.querySelector('.voice-chat-panel');if(!chat)return;
  const vv=window.visualViewport,room=client.host.getBoundingClientRect(),top=vv?.offsetTop||0,left=vv?.offsetLeft||0;
- const bounds={left:Math.max(left+8,room.left),right:Math.min(left+(vv?.width||innerWidth)-8,room.right),top:top+8,bottom:Math.min(top+(vv?.height||innerHeight)-8,client.roomBounds?.bottom??Infinity)};
- const trigger=client.popupTrigger?.isConnected?client.popupTrigger:client.host.querySelector('.room-header');
- const anchor=trigger.getBoundingClientRect(),width=sheet.id==='voice-room-settings'?340:sheet.id==='voice-emoji-picker'?360:sheet.id==='dialog'||sheet.id==='room-inbox'?420:380;
+ const bounds={left:Math.max(left,room.left),right:Math.min(left+(vv?.width||innerWidth),room.right),top,bottom:Math.min(top+(vv?.height||innerHeight),client.roomBounds?.bottom??room.bottom)};
+ const placed=roomPopupPlacement(chat.getBoundingClientRect(),bounds);
  sheet.setAttribute('data-room-anchored','');
  const write=(key,value)=>{const next=value+'px';if(sheet.style.getPropertyValue(key)!==next)sheet.style.setProperty(key,next);};
- const preferred=trigger.closest('#voice-chat-form')!==null;
- const fit=roomPopupPlacement(anchor,bounds,width,620,preferred);
- write('--room-popup-width',fit.width);write('--room-popup-max',fit.maxHeight);
- const placed=roomPopupPlacement(anchor,bounds,fit.width,sheet.getBoundingClientRect().height,preferred);
+ write('--room-popup-width',placed.width);write('--room-popup-max',placed.maxHeight);
  write('--room-popup-left',placed.left);write('--room-popup-top',placed.top);
 }
 function roomFilledIcon(kind){

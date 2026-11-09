@@ -122,6 +122,20 @@ test('leaving releases event observers, restores session ownership and never res
  session.state='interrupted';session.emit('statechange');assert.equal(globalAudio.muted,false);
 });
 
+test('retired microphone tracks release their listeners without detaching an active test capture',()=>{
+ const {client,guard,session}=fixture(),mic=publishing(client),testTrack=new Track();
+ guard.watchMicrophone(client.stream);client.testRaw=stream(testTrack);guard.watchMicrophone(client.testRaw);
+ const listeningContext=client.levelContext;
+ client.stopMicrophone();guard.updateType();guard.watchMicrophone(client.testRaw);
+ assert.equal(mic.raw.readyState,'ended');assert.equal(mic.raw.listeners.get('mute').size,0);
+ assert.equal(guard.tracks.has(mic.raw),false);assert.equal(guard.tracks.size,1);
+ assert.equal(testTrack.listeners.get('mute').size,1);assert.equal(testTrack.readyState,'live');
+ assert.equal(guard.disposed,false);assert.equal(client.levelContext,listeningContext);assert.equal(session.type,'play-and-record');
+ mic.raw.emit('mute');assert.equal(guard.blocked,false);
+ testTrack.muted=true;testTrack.emit('mute');assert.equal(guard.blocked,true);
+ testTrack.stop();guard.updateType();assert.equal(guard.tracks.size,0);assert.equal(testTrack.listeners.get('mute').size,0);
+});
+
 
 test('turning the microphone off while restart waits for server cleanup cancels that restart',async()=>{
  let captures=0,finish,requests=0;

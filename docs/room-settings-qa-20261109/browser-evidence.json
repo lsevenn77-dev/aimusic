@@ -1,0 +1,56 @@
+{
+  "date": "2026-11-09",
+  "environment": "Real application in managed cloud Chrome, responsive iframes, isolated local router/SQLite/coordinator/WebSocket fixture",
+  "source": "Read-only DOM geometry and rendered-state observations collected during browser QA",
+  "round_trip": {
+    "room_id": "a5357a04-cb50-4ef4-a2c4-79abbca7ff21",
+    "title": "함께 이야기하는 밤",
+    "participants_before_and_after": 8,
+    "chat_message": "유형 왕복 전환 검증용 채팅",
+    "chat_preserved": true,
+    "desktop_host_and_member_synchronized": true,
+    "mobile_host_karaoke_then_talk": true,
+    "cancel_reopen_mode_desktop": "talk",
+    "cancel_reopen_mode_mobile": "talk"
+  },
+  "popup_actions": {
+    "desktop_same_button_open_dialogs_after": 0,
+    "desktop_switch_target": "voice-members",
+    "desktop_outside_click_open_dialogs_after": 0,
+    "desktop_discarded_draft_mode": "talk",
+    "mobile_switch_target": "voice-invite-sheet",
+    "mobile_outside_click_open_dialogs_after": 0,
+    "mobile_discarded_draft_mode": "talk",
+    "mobile_320_same_button_open_dialogs_after": 0,
+    "tablet_768_same_button_open_dialogs_after": 0
+  },
+  "geometry": {
+    "desktop_1440x900_talk": {"x": 998.015625, "y": 198.75, "width": 364.203125, "height": 470.296875, "matches_chat": true},
+    "desktop_1440x900_karaoke": {"x": 998.015625, "y": 198.75, "width": 364.203125, "height": 500},
+    "desktop_two_participants": {"count": 2, "height": 470.296875},
+    "desktop_1280x600": {"x": 886.734375, "y": 198.75, "width": 320, "height": 401.25, "bottom": 600},
+    "desktop_short_share": {"x": 886.734375, "y": 198.75, "width": 320, "height": 320},
+    "desktop_profile": {"x": 998.015625, "y": 198.75, "width": 364.203125, "height": 310.4375},
+    "mobile_390x844_chat": {"x": 10, "y": 479.9375, "width": 370, "height": 356.0625, "bottom": 836},
+    "mobile_390x844_settings": {"x": 10, "y": 222, "width": 370, "height": 560, "bottom": 782},
+    "mobile_320x700_settings": {"x": 10, "y": 137.75, "width": 300, "height": 500.25, "bottom": 638, "header_bottom": 129.75},
+    "tablet_768x1024_settings": {"x": 10, "y": 402, "width": 748, "height": 560, "bottom": 962},
+    "settings_body_scroll_top": 303,
+    "settings_footer_fixed": true,
+    "participant_list_scroll_top_observed": 105,
+    "width_320_no_horizontal_overflow": true,
+    "width_768_no_horizontal_overflow": true,
+    "header_button_touch_target_px": 44
+  },
+  "permissions": {
+    "host_revoke_then_allow_verified": true,
+    "host_kick_verified": true,
+    "kick_remaining_participants": 7,
+    "kick_target_absent": true,
+    "kick_host_retained": true,
+    "member_management_buttons": 0,
+    "member_settings_controls_disabled": true
+  },
+  "muted_list_style": {"image_opacity": "0.42", "nickname_opacity": "1", "mute_icon_opacity": "1", "row_background": "rgba(0, 0, 0, 0)", "row_border": "0px 0px 1px"},
+  "limitations": ["No physical mobile device or hardware audio quality test", "Separate deployed voice Worker fingerprint not verified", "Final screenshots were recaptured after restarting the disposable fixture; membership IDs are synthetic"]
+}

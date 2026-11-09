@@ -20,6 +20,11 @@ class RoomAudioSession {
  }
  updateType(){
   const c=this.client;
+  // A mode change retires capture without disposing the shared room session.
+  // Drop only ended tracks; live capture/test tracks still guard interruptions.
+  for(const [track,handler] of this.tracks)if(track.readyState==='ended'){
+   track.removeEventListener?.('mute',handler);this.tracks.delete(track);
+  }
   const captures=[c.stream,c.pendingStream,c.testRaw,c.testGraph?.stream].some(s=>s?.getAudioTracks?.().some(t=>t.readyState!=='ended'));
   this.setType(captures?'play-and-record':'playback');
  }

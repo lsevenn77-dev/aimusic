@@ -67,6 +67,7 @@ document.addEventListener('click',prepareLiveEntryClick);
 function liveNow(c){return Date.now()+(c.musicClock||0);}
 function liveStopAudio(c){
  c.liveAbort?.abort();c.liveAbort=null;clearTimeout(c.liveEndTimer);
+ if(c.livePitch?.node?.port){c.livePitch.node.port.onmessage=null;c.livePitch.node.port.close?.();}
  c.livePitch?.source.disconnect();c.livePitch?.node.disconnect();c.livePitch?.gain?.disconnect();c.livePitch=null;c.livePitchPending=null;
  if(c.liveAudio){c.liveAudio.pause();c.liveAudio.removeAttribute('src');c.liveAudio.load();c.liveAudio=null;}
  c.liveKeyDesired=null;c.liveKeyTurn=null;c.liveStartClock=null;c.livePlaybackTurn=null;c.livePitchLatency=0;c.liveToken=(c.liveToken||0)+1;c.liveWords=null;c.liveTrack=null;c.liveLyricHTML=null;
@@ -99,7 +100,7 @@ async function livePitchGraph(c){
   await c.liveWorkletModule;
   if(c.closed||c.liveAudio!==audio)return;
   const node=new AudioWorkletNode(ctx,'room-backing',{outputChannelCount:[2]});
-  node.port.onmessage=({data})=>{if(Number.isFinite(data?.latency))c.livePitchLatency=data.latency;};
+  node.port.onmessage=({data})=>{if(c.livePitch?.node===node&&Number.isFinite(data?.latency))c.livePitchLatency=data.latency;};
   const source=ctx.createMediaElementSource(audio);
   const gain=ctx.createGain();gain.gain.value=c.roomAudio?.blocked?0:(c.liveVolume??.75);audio.volume=1;
   source.connect(node).connect(gain).connect(ctx.destination);
@@ -309,7 +310,7 @@ function paintLiveKaraoke(c){
 
 
  const current=c.host.querySelector('#live-current');
- const view=singer?`<span class="room-singer-avatar">${avatarImage({...singer,profile_id:singer.profile_id})}${typeof roomRelationButton==='function'?roomRelationButton(singer,s.self,true):''}</span><strong>${userNickname(singer.name,{profileId:singer.profile_id,userId:singer.id})}</strong>`:'<span>'+icon('mic')+'</span><strong>가창자 대기 중</strong>';
+ const view=singer?`<span class="room-singer-avatar">${roomMemberAvatar(singer)}${typeof roomRelationButton==='function'?roomRelationButton(singer,s.self,true):''}</span><strong>${singer.role==='host'?'<span class="room-host-crown" aria-label="방장">'+voiceGlyph('crown')+'</span>':''}<span>${userNickname(singer.name,{profileId:singer.profile_id,userId:singer.id})}</span></strong>`:'<span>'+icon('mic')+'</span><strong>가창자 대기 중</strong>';
  if(c.liveCurrentHTML!==view){current.innerHTML=view;c.liveCurrentHTML=view;}
  c.host.dataset.singerProfile=singer?.publishing&&!singer.muted?singer.profile_id||'':'';
  for(const btn of c.host.querySelectorAll('[data-voice="karaoke-key"]')){
@@ -343,7 +344,7 @@ function paintLiveKaraoke(c){
   const q=visible[i];
   if(!q)return `<li><span class="room-empty-order">${i+1}</span><strong>순서</strong></li>`;
   const person=s.members.find(p=>p.id===q.user_id),name=person?.name||q.name;
-  return `<li class="${q.now?'is-current':''}" ${q.now?'aria-current="true"':''} title="${esc(name)} · ${esc(q.track.title)}"><span class="live-queue-avatar">${avatarImage({...person,name})}</span><strong>${esc(name)}</strong></li>`;
+  return `<li class="${q.now?'is-current':''}" ${q.now?'aria-current="true"':''} title="${esc(name)} · ${esc(q.track.title)}"><span class="live-queue-avatar">${roomMemberAvatar({...person,name})}</span><strong>${person?.role==='host'?'<span class="room-host-crown" aria-label="방장">'+voiceGlyph('crown')+'</span>':''}<span>${esc(name)}</span></strong></li>`;
  }).join('');
  const queue=c.host.querySelector('#live-queue');if(c.liveQueueHTML!==queueHTML){queue.innerHTML=queueHTML;c.liveQueueHTML=queueHTML;}
  if(active)livePrepareTrack(c,active);else {if(c.liveAudio||c.liveTrack||c.liveAbort)liveStopAudio(c);c.liveError='';}
@@ -476,6 +477,7 @@ VoiceRoomClient.prototype.paint=function(){
   window.removeEventListener('pagehide',this.livePageHide);
   this.musicAudio?.pause();this.searchAbort?.abort();this.liveSearchAbort?.abort();
   clearTimeout(this.searchTimer);this.searchSerial=(this.searchSerial||0)+1;
+  clearTimeout(this.volumeTimer);clearTimeout(this.roomShareTimer);this.roomShareAbort?.abort();
   this.liveSearchSerial=(this.liveSearchSerial||0)+1;
   this.roomDM?.destroy();this.roomDM=null;this.closeRoomPopup();this.releaseRoomExternal();
   this.host.replaceWith(host);this.liveMode=mode==='karaoke';

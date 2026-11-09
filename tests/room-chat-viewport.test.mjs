@@ -13,11 +13,11 @@ function node(){
   hasAttribute:k=>attrs.has(k),getBoundingClientRect:()=>({height:44,top:0,width:390})};
 }
 function viewportFixture(){
- const frames=[],main=node(),room=node(),root=node(),transcript=node(),composer=node(),picker={open:false,hidden:true};
+ const frames=[],main=node(),room=node(),root=node(),transcript=node(),composer=node(),header=node(),picker={open:false,hidden:true};
  const input={closest:selector=>selector==='#voice-chat-form'?composer:null};
  Object.assign(transcript,{scrollHeight:1000,clientHeight:240,_scrollTop:760});
  Object.defineProperty(transcript,'scrollTop',{get(){return this._scrollTop;},set(v){this._scrollTop=Math.min(Math.max(0,v),this.scrollHeight-this.clientHeight);}});
- const nodes={'#voice-chat-form':composer,'#voice-chat':transcript,'#voice-emoji-picker':picker};
+ const nodes={'#voice-chat-form':composer,'#voice-chat':transcript,'#voice-emoji-picker':picker,'.room-header':header};
  room.querySelector=s=>nodes[s];room.querySelectorAll=()=>[];room.getBoundingClientRect=()=>({top:57,width:390});
  const bar={hidden:false,matches:()=>true,getBoundingClientRect:()=>({top:0,bottom:57,height:57})};
  const vv={height:844,offsetTop:0,addEventListener(){}},document={activeElement:null,documentElement:root,querySelector:()=>main,querySelectorAll:()=>[bar],addEventListener(){}};
@@ -27,8 +27,25 @@ function viewportFixture(){
   requestAnimationFrame:fn=>(frames.push(fn),frames.length),ResizeObserver:class{observe(){}disconnect(){}}});
  vm.runInContext(layout,context);const client={host:room,joined:true};context.bindRoomViewport(client);
  const resize=()=>{client.onViewport();while(frames.length)frames.shift()();};
- return {context,client,room,main,transcript,picker,input,document,vv,resize,setKeyboard(value){keyboard=value;}};
+ return {context,client,room,main,transcript,composer,header,picker,input,document,vv,resize,setKeyboard(value){keyboard=value;}};
 }
+
+test('short mobile sheets retain their bottom anchor while leaving the header controls exposed',()=>{
+ const f=viewportFixture();
+ f.header.getBoundingClientRect=()=>({top:57,bottom:132,height:75});
+ let composerTop=790;
+ f.composer.getBoundingClientRect=()=>({top:composerTop,height:46});
+ f.resize();
+ assert.equal(f.room.values.get('--room-popup-available'),'642px');
+ assert.equal(Math.min(560,parseFloat(f.room.values.get('--room-popup-available'))),560,'ordinary mobile settings keep the existing height');
+ f.context.innerWidth=320;f.context.innerHeight=700;f.vv.height=700;composerTop=646;f.resize();
+ const available=parseFloat(f.room.values.get('--room-popup-available')),popupBottom=composerTop-8;
+ assert.equal(available,498);
+ assert.equal(popupBottom-available,140,'the lower anchor remains in place and the sheet begins 8px below the header');
+ assert.equal(f.room.values.get('--voice-viewport'),'643px','the popup cap does not resize the room');
+ f.context.innerWidth=1440;f.resize();
+ assert.equal(f.room.values.get('--room-popup-available'),'573px','desktop keeps its existing room-start calculation');
+});
 
 test('mobile typing follows the visible keyboard viewport and keeps latest room messages above the composer',()=>{
  const f=viewportFixture();assert.equal(f.transcript.scrollTop,760);
