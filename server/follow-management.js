@@ -10,6 +10,11 @@ const personal=(left,right)=>`EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_i
 export async function assertArtistInteraction(env,aid,uid){
  if(aid&&uid&&await one(env,'SELECT 1 FROM artist_follow_blocks WHERE artist_id=? AND user_id=?',aid,uid))fail(403,'이 아티스트와는 상호작용할 수 없어요.');
 }
+// This is the reverse personal follow edge; artist fans are a separate relationship.
+export async function producerFollowsViewer(env,ownerId,viewerId){
+ if(!viewerId||!ownerId||ownerId===viewerId)return false;
+ return !!await one(env,"SELECT 1 FROM follows f JOIN producers viewer ON viewer.id=f.target_id WHERE f.kind='producer' AND f.user_id=? AND viewer.user_id=?",ownerId,viewerId);
+}
 async function scope(env,user,q){
  const tab=q.get('tab')||'followers',aid=q.get('artist')||'',requested=q.get('user');
  if(!tabs.includes(tab)||aid&&tab!=='artists')fail(400,'목록을 확인해주세요.');

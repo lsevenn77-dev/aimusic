@@ -51,6 +51,32 @@ test('preview handles no crew, missing profiles, method and block restrictions',
  assert.equal((await f.call('/api/producers/producer/preview','GET',null,'other')).status,403);
 });
 
+test('public profile and preview report the reverse follow independently from the viewer follow',async t=>{
+ const f=await fixture(t),profile='/api/producers/producer',preview=profile+'/preview',follow=profile+'/follow';
+ const reads=[profile,preview,'/api/member-preview/owner'];
+ for(const path of reads){
+  assert.equal((await f.call(path,'GET',null,'other')).body.follows_viewer,false,'a viewer without a profile is not followed back');
+  assert.equal((await f.call(path,'GET',null,null)).body.follows_viewer,false,'guest relationship is false');
+ }
+ f.sql.exec("INSERT INTO producers(id,user_id,name,created) VALUES('other-profile','other','Other',0)");
+ let r=await f.call(follow,'PUT',null,'other');
+ assert.equal(r.body.following,true);assert.equal(r.body.follows_viewer,false,'forward follow alone is not mutual');
+ await f.call('/api/producers/other-profile/follow','PUT');
+ for(const path of reads){
+  r=await f.call(path,'GET',null,'other');assert.equal(r.status,200);assert.equal(r.body.follows_viewer,true,path);
+ }
+ assert.equal((await f.call(preview,'GET',null,'other')).body.following,true);
+ r=await f.call(follow,'DELETE',null,'other');
+ assert.equal(r.body.following,false);assert.equal(r.body.follows_viewer,true,'unfollowing does not remove the other person’s edge');
+ r=await f.call(preview,'GET',null,'other');assert.equal(r.body.following,false);assert.equal(r.body.follows_viewer,true);
+ await f.call('/api/producers/other-profile/follow','DELETE');
+ for(const path of reads)assert.equal((await f.call(path,'GET',null,'other')).body.follows_viewer,false);
+ await f.call(follow,'PUT',null,'other');await f.call('/api/producers/other-profile/follow','PUT');
+ await f.call('/api/blocks/other','PUT');
+ for(const path of reads)assert.equal((await f.call(path,'GET',null,'other')).status,403,'existing block restriction is preserved');
+ assert.equal((await f.call(follow,'PUT',null,'other')).status,403);
+});
+
  test('preview includes only valid equipped frame artwork and reflects unequip',async t=>{
  const f=await fixture(t);
  await f.call('/api/crews','POST',{name:'Frame crew'});
