@@ -1,0 +1,1228 @@
+{
+  "tool": "built-in image_gen.imagegen",
+  "purpose": "Move the unchanged mobile photograph inward on desktop and extend the existing scene seamlessly beyond both photo edges.",
+  "rendering": {
+    "original": "Exact existing mobile WebP, fully opaque at 2:1 and full banner height; shifted left by 6cqi up to84px on wide desktop,16–32px on compact desktop.",
+    "left": "Generated outside the original photo only. Right-aligned against the original left edge at the same display height.",
+    "right": "Generated outside the original photo only. Left-aligned against the original right edge; continues existing cut scene and clothing/props without adding new faces or hands.",
+    "mobile": "Existing mobile photos and framing are unchanged.",
+    "generated_center_used": false
+  },
+  "template_geometry": {
+    "width": 3072,
+    "height": 1024,
+    "photo_strip": {
+      "x": 0,
+      "y": 216,
+      "width": 3072,
+      "height": 592
+    },
+    "original": {
+      "x": 1704,
+      "y": 216,
+      "width": 1184,
+      "height": 592
+    },
+    "left_edit": {
+      "x": 0,
+      "y": 216,
+      "width": 1704,
+      "height": 592
+    },
+    "right_edit": {
+      "x": 2888,
+      "y": 216,
+      "width": 184,
+      "height": 592
+    },
+    "black_padding": "Excluded from every final asset"
+  },
+  "verification": {
+    "visual": "Direct inspection of source-preserving composites at1070x272 with original544x272 and64px right inset.",
+    "browser": "Final browser verification unavailable because the browser tool blocked the previous preview navigation."
+  },
+  "assets": [
+    {
+      "id": "studio",
+      "source_url": "/assets/home-banners/mobile-20261109/studio-1536.webp",
+      "source": {
+        "filename": "studio-1536.webp",
+        "sha256": "53418b74229d18a560119352a28ace399ae256e5797b7f8f10e5dbdc896e32a2",
+        "bytes": 147000,
+        "width": 1536,
+        "height": 768,
+        "format": "WEBP",
+        "mime_type": "image/webp"
+      },
+      "prompt": "Use case: precise-object-edit, protected-photo outpainting.\nThe input is an EXACT spatial edit template. Output EXACTLY 3072 x 1024 pixels (3:1) and preserve every existing nonwhite pixel's placement and scale.\nThere is a horizontal photograph strip y=216..807 inclusive, height592. The original photograph occupies x=1704..2887 inclusive, width1184. This exact original rectangle is PROTECTED and must remain unaltered. The two WHITE rectangles are the ONLY areas to fill: LEFT x=0..1703,y=216..807 and RIGHT x=2888..3071,y=216..807. Fill BOTH white areas completely. The top black padding y=0..215 and bottom black padding y=808..1023 must remain black at those exact heights; KEEP these bars for later cropping.\nCreate one seamless physical photograph continuing directly from BOTH exact edges of the original. Furniture lines, wall textures, objects cut by the edge, lighting, colors, exposure, perspective and depth of field must continue across the seams without a visible boundary. Do not move, resize, reinterpret or mirror the existing photo. Do not duplicate existing plants, speakers, furniture, faces or whole room sections. No blur slab, gradient block, vignette or dark cover-up. No new focal objects or redesign. Keep subtle natural original photographic depth of field.\nThe center original photo will later be placed back, FULLY OPAQUE and unchanged, over your center region. That means preserving exact continuity at x1704 and x2888 is essential; any re-framing or shifting of the original is unusable. The only deliverables taken from your image will be the newly generated LEFT and RIGHT strips.\nIn the LEFT fill: no people, bodies, heads, faces, skin, hands, silhouettes or human reflections. In the RIGHT narrow fill: no new people, heads, faces, hands or limbs; ONLY if existing clothing or an existing prop crosses that edge, continue that exact existing cut object/body surface naturally, without introducing a new gesture or duplicate anatomy. No text, letters, logos, labels, signs, UI or watermarks. No change to the protected people's facial identity, appearance, pose, garments or original framing.\n\nScene: exact same violet/purple recording studio. LEFT edge: the partial upper acoustic slat panel, dark purple wall planes, low rear ledge and violet light strip should continue directly leftward at the same heights and angles. Complete only the missing portion of the plant already clipped at the original left edge; do not repeat that plant. Keep the rest of the left room calm, with modest actual acoustic architecture. RIGHT edge: continue the exact purple-lit studio glass, the same edge of the laptop/worktop and any already-cut recording equipment coherently into the narrow strip; no extra laptop, chair, person, face or hands. All equipment edge lines must meet the untouched original at their current positions.",
+      "provenance": {
+        "input_template": {
+          "filename": "studio-canvas.png",
+          "width": 3072,
+          "height": 1024,
+          "format": "PNG",
+          "mime_type": "image/png",
+          "bytes": 3422373,
+          "sha256": "586e570cd4df640b246dbd6619a0033ac0fd9469523f537fb7145de4ef95695d",
+          "mode": "RGBA"
+        },
+        "generated": {
+          "filename": "exec-60cc143f-2abe-49f5-90e5-03737529b8e0.png",
+          "width": 2172,
+          "height": 724,
+          "format": "PNG",
+          "mime_type": "image/png",
+          "bytes": 1421012,
+          "sha256": "195a35f99283b8c6c15784ece51ee31acdb47e9476d79b102e354a36e7ff7fac",
+          "mode": "RGB"
+        },
+        "generation_runs": [
+          {
+            "id": "initial",
+            "prompt": "Use case: precise-object-edit, protected-photo outpainting.\nThe input is an EXACT spatial edit template. Output EXACTLY 3072 x 1024 pixels (3:1) and preserve every existing nonwhite pixel's placement and scale.\nThere is a horizontal photograph strip y=216..807 inclusive, height592. The original photograph occupies x=1704..2887 inclusive, width1184. This exact original rectangle is PROTECTED and must remain unaltered. The two WHITE rectangles are the ONLY areas to fill: LEFT x=0..1703,y=216..807 and RIGHT x=2888..3071,y=216..807. Fill BOTH white areas completely. The top black padding y=0..215 and bottom black padding y=808..1023 must remain black at those exact heights; KEEP these bars for later cropping.\nCreate one seamless physical photograph continuing directly from BOTH exact edges of the original. Furniture lines, wall textures, objects cut by the edge, lighting, colors, exposure, perspective and depth of field must continue across the seams without a visible boundary. Do not move, resize, reinterpret or mirror the existing photo. Do not duplicate existing plants, speakers, furniture, faces or whole room sections. No blur slab, gradient block, vignette or dark cover-up. No new focal objects or redesign. Keep subtle natural original photographic depth of field.\nThe center original photo will later be placed back, FULLY OPAQUE and unchanged, over your center region. That means preserving exact continuity at x1704 and x2888 is essential; any re-framing or shifting of the original is unusable. The only deliverables taken from your image will be the newly generated LEFT and RIGHT strips.\nIn the LEFT fill: no people, bodies, heads, faces, skin, hands, silhouettes or human reflections. In the RIGHT narrow fill: no new people, heads, faces, hands or limbs; ONLY if existing clothing or an existing prop crosses that edge, continue that exact existing cut object/body surface naturally, without introducing a new gesture or duplicate anatomy. No text, letters, logos, labels, signs, UI or watermarks. No change to the protected people's facial identity, appearance, pose, garments or original framing.\n\nScene: exact same violet/purple recording studio. LEFT edge: the partial upper acoustic slat panel, dark purple wall planes, low rear ledge and violet light strip should continue directly leftward at the same heights and angles. Complete only the missing portion of the plant already clipped at the original left edge; do not repeat that plant. Keep the rest of the left room calm, with modest actual acoustic architecture. RIGHT edge: continue the exact purple-lit studio glass, the same edge of the laptop/worktop and any already-cut recording equipment coherently into the narrow strip; no extra laptop, chair, person, face or hands. All equipment edge lines must meet the untouched original at their current positions.",
+            "input_template_filename": "studio-canvas.png",
+            "input_template_sha256": "586e570cd4df640b246dbd6619a0033ac0fd9469523f537fb7145de4ef95695d",
+            "generated": {
+              "filename": "exec-60cc143f-2abe-49f5-90e5-03737529b8e0.png",
+              "width": 2172,
+              "height": 724,
+              "format": "PNG",
+              "mime_type": "image/png",
+              "bytes": 1421012,
+              "sha256": "195a35f99283b8c6c15784ece51ee31acdb47e9476d79b102e354a36e7ff7fac",
+              "mode": "RGB"
+            },
+            "selected_sides": [
+              "left",
+              "right"
+            ]
+          }
+        ]
+      },
+      "outputs": [
+        {
+          "side": "left",
+          "filename": "studio-left-2211.webp",
+          "url": "/assets/home-banners/inset-20261109/studio-left-2211.webp",
+          "width": 2211,
+          "height": 768,
+          "bytes": 36022,
+          "sha256": "181672454999a62cee6933936578071270b7b229928fbcbfe7aeded41cba7067",
+          "format": "WEBP",
+          "mime_type": "image/webp",
+          "generation_run": "initial",
+          "generated_sha256": "195a35f99283b8c6c15784ece51ee31acdb47e9476d79b102e354a36e7ff7fac",
+          "crop": {
+            "x": 0,
+            "y": 153,
+            "width": 1205,
+            "height": 416
+          },
+          "crop_reason": "Generated ROI only. Excludes black bars and their one-pixel transition fringes; horizontal crop follows normalized template boundaries.",
+          "encoding": {
+            "resize": {
+              "width": 2211,
+              "height": 768,
+              "force_exact_size": true
+            },
+            "filter": "Lanczos",
+            "format": "webp",
+            "quality": 92,
+            "method": 6
+          }
+        },
+        {
+          "side": "right",
+          "filename": "studio-right-239.webp",
+          "url": "/assets/home-banners/inset-20261109/studio-right-239.webp",
+          "width": 239,
+          "height": 768,
+          "bytes": 7214,
+          "sha256": "7b44ac81507fad255fa6c5be07eeb10ee0479302cf9e769b64736334f531ced4",
+          "format": "WEBP",
+          "mime_type": "image/webp",
+          "generation_run": "initial",
+          "generated_sha256": "195a35f99283b8c6c15784ece51ee31acdb47e9476d79b102e354a36e7ff7fac",
+          "crop": {
+            "x": 2042,
+            "y": 153,
+            "width": 130,
+            "height": 416
+          },
+          "crop_reason": "Generated ROI only. Excludes black bars and their one-pixel transition fringes; horizontal crop follows normalized template boundaries.",
+          "encoding": {
+            "resize": {
+              "width": 239,
+              "height": 768,
+              "force_exact_size": true
+            },
+            "filter": "Lanczos",
+            "format": "webp",
+            "quality": 92,
+            "method": 6
+          }
+        }
+      ],
+      "visual_review": {
+        "composite_filename": "studio-1070x272.png",
+        "canvas": {
+          "width": 1070,
+          "height": 272
+        },
+        "opaque_original_overlay": {
+          "x": 462,
+          "y": 0,
+          "width": 544,
+          "height": 272,
+          "opacity": 1,
+          "mask": "none",
+          "source_url": "/assets/home-banners/mobile-20261109/studio-1536.webp"
+        },
+        "right_inset_pixels": 64,
+        "left_strip_position": "right-aligned against x462, height272; rightmost462px visible",
+        "right_strip_position": "left-aligned against x1006, height272; leftmost64px visible",
+        "inspected_original_and_final_strips": true,
+        "inspected_full_composite": true,
+        "left_contains_people": false,
+        "right_contains_new_faces_or_hands": false,
+        "person_source_unchanged": true,
+        "notes": "Exact original remains fully opaque. New strips extend room and already-cut props only. An additional small lamp in the far-left room extension was inspected and accepted by root; it does not overlap the original.",
+        "composite": {
+          "filename": "studio-1070x272.png",
+          "width": 1070,
+          "height": 272,
+          "format": "PNG",
+          "mime_type": "image/png",
+          "bytes": 1354711,
+          "sha256": "8148a83926ed739313a08bbb7f1b20a3df06d9c89731a15bad752fedc0c4c1d3",
+          "mode": "RGB"
+        }
+      }
+    },
+    {
+      "id": "play",
+      "source_url": "/assets/home-banners/mobile-20261109/play-1536.webp",
+      "source": {
+        "filename": "play-1536.webp",
+        "sha256": "b37c0c37e734a31d79407243871f5ba490ceb1546334e32f5c285330176fa162",
+        "bytes": 116056,
+        "width": 1536,
+        "height": 768,
+        "format": "WEBP",
+        "mime_type": "image/webp"
+      },
+      "prompt": "Use case: precise-object-edit, protected-photo outpainting.\nThe input is an EXACT spatial edit template. Output EXACTLY 3072 x 1024 pixels (3:1) and preserve every existing nonwhite pixel's placement and scale.\nThere is a horizontal photograph strip y=216..807 inclusive, height592. The original photograph occupies x=1704..2887 inclusive, width1184. This exact original rectangle is PROTECTED and must remain unaltered. The two WHITE rectangles are the ONLY areas to fill: LEFT x=0..1703,y=216..807 and RIGHT x=2888..3071,y=216..807. Fill BOTH white areas completely. The top black padding y=0..215 and bottom black padding y=808..1023 must remain black at those exact heights; KEEP these bars for later cropping.\nCreate one seamless physical photograph continuing directly from BOTH exact edges of the original. Furniture lines, wall textures, objects cut by the edge, lighting, colors, exposure, perspective and depth of field must continue across the seams without a visible boundary. Do not move, resize, reinterpret or mirror the existing photo. Do not duplicate existing plants, speakers, furniture, faces or whole room sections. No blur slab, gradient block, vignette or dark cover-up. No new focal objects or redesign. Keep subtle natural original photographic depth of field.\nThe center original photo will later be placed back, FULLY OPAQUE and unchanged, over your center region. That means preserving exact continuity at x1704 and x2888 is essential; any re-framing or shifting of the original is unusable. The only deliverables taken from your image will be the newly generated LEFT and RIGHT strips.\nIn the LEFT fill: no people, bodies, heads, faces, skin, hands, silhouettes or human reflections. In the RIGHT narrow fill: no new people, heads, faces, hands or limbs; ONLY if existing clothing or an existing prop crosses that edge, continue that exact existing cut object/body surface naturally, without introducing a new gesture or duplicate anatomy. No text, letters, logos, labels, signs, UI or watermarks. No change to the protected people's facial identity, appearance, pose, garments or original framing.\n\nScene: exact same muted teal/green rehearsal room. LEFT edge: extend the green acoustic wall and the LEFT part of the single black perforated music stand that is cut by the original photo boundary, maintaining its angle and height; no duplicate music stand or speaker. RIGHT edge: at upper area continue the existing recording-room glass/wall, and at lower area continue ONLY the small part of the woman's existing silver jacket shoulder/sleeve that is cut at the edge. The silver fabric continuation must join her original jacket directly at the same contour; do not invent a new arm, hand, head or another person. Do not narrow, enlarge or shift her body in the protected original. Calm natural green studio light throughout.",
+      "provenance": {
+        "input_template": {
+          "filename": "play-canvas.png",
+          "width": 3072,
+          "height": 1024,
+          "format": "PNG",
+          "mime_type": "image/png",
+          "bytes": 3243540,
+          "sha256": "63573b9d9bb9cee84f48584c920dd4799547152c321235f5168cb4972a81c3d4",
+          "mode": "RGBA"
+        },
+        "generated": {
+          "filename": "exec-53763fb6-1cf5-4f44-8bc7-439cb0a5b9a8.png",
+          "width": 2172,
+          "height": 724,
+          "format": "PNG",
+          "mime_type": "image/png",
+          "bytes": 1298680,
+          "sha256": "02ac3ed37fd7457827523ad4d077259810543dcba45529b5fc4acf5ed8f6c3b2",
+          "mode": "RGB"
+        },
+        "generation_runs": [
+          {
+            "id": "initial",
+            "prompt": "Use case: precise-object-edit, protected-photo outpainting.\nThe input is an EXACT spatial edit template. Output EXACTLY 3072 x 1024 pixels (3:1) and preserve every existing nonwhite pixel's placement and scale.\nThere is a horizontal photograph strip y=216..807 inclusive, height592. The original photograph occupies x=1704..2887 inclusive, width1184. This exact original rectangle is PROTECTED and must remain unaltered. The two WHITE rectangles are the ONLY areas to fill: LEFT x=0..1703,y=216..807 and RIGHT x=2888..3071,y=216..807. Fill BOTH white areas completely. The top black padding y=0..215 and bottom black padding y=808..1023 must remain black at those exact heights; KEEP these bars for later cropping.\nCreate one seamless physical photograph continuing directly from BOTH exact edges of the original. Furniture lines, wall textures, objects cut by the edge, lighting, colors, exposure, perspective and depth of field must continue across the seams without a visible boundary. Do not move, resize, reinterpret or mirror the existing photo. Do not duplicate existing plants, speakers, furniture, faces or whole room sections. No blur slab, gradient block, vignette or dark cover-up. No new focal objects or redesign. Keep subtle natural original photographic depth of field.\nThe center original photo will later be placed back, FULLY OPAQUE and unchanged, over your center region. That means preserving exact continuity at x1704 and x2888 is essential; any re-framing or shifting of the original is unusable. The only deliverables taken from your image will be the newly generated LEFT and RIGHT strips.\nIn the LEFT fill: no people, bodies, heads, faces, skin, hands, silhouettes or human reflections. In the RIGHT narrow fill: no new people, heads, faces, hands or limbs; ONLY if existing clothing or an existing prop crosses that edge, continue that exact existing cut object/body surface naturally, without introducing a new gesture or duplicate anatomy. No text, letters, logos, labels, signs, UI or watermarks. No change to the protected people's facial identity, appearance, pose, garments or original framing.\n\nScene: exact same muted teal/green rehearsal room. LEFT edge: extend the green acoustic wall and the LEFT part of the single black perforated music stand that is cut by the original photo boundary, maintaining its angle and height; no duplicate music stand or speaker. RIGHT edge: at upper area continue the existing recording-room glass/wall, and at lower area continue ONLY the small part of the woman's existing silver jacket shoulder/sleeve that is cut at the edge. The silver fabric continuation must join her original jacket directly at the same contour; do not invent a new arm, hand, head or another person. Do not narrow, enlarge or shift her body in the protected original. Calm natural green studio light throughout.",
+            "input_template_filename": "play-canvas.png",
+            "input_template_sha256": "63573b9d9bb9cee84f48584c920dd4799547152c321235f5168cb4972a81c3d4",
+            "generated": {
+              "filename": "exec-53763fb6-1cf5-4f44-8bc7-439cb0a5b9a8.png",
+              "width": 2172,
+              "height": 724,
+              "format": "PNG",
+              "mime_type": "image/png",
+              "bytes": 1298680,
+              "sha256": "02ac3ed37fd7457827523ad4d077259810543dcba45529b5fc4acf5ed8f6c3b2",
+              "mode": "RGB"
+            },
+            "selected_sides": [
+              "left"
+            ]
+          },
+          {
+            "id": "refined",
+            "prompt": "Use case: precise-object-edit, protected-photo outpainting.\nThe input is an EXACT spatial edit template. Output EXACTLY 3072 x 1024 pixels (3:1) and preserve every existing nonwhite pixel's placement and scale.\nThere is a horizontal photograph strip y=216..807 inclusive, height592. The original photograph occupies x=1704..2887 inclusive, width1184. This exact original rectangle is PROTECTED and must remain unaltered. The two WHITE rectangles are the ONLY areas to fill: LEFT x=0..1703,y=216..807 and RIGHT x=2888..3071,y=216..807. Fill BOTH white areas completely. The top black padding y=0..215 and bottom black padding y=808..1023 must remain black at those exact heights; KEEP these bars for later cropping.\nCreate one seamless physical photograph continuing directly from BOTH exact edges of the original. Furniture lines, wall textures, objects cut by the edge, lighting, colors, exposure, perspective and depth of field must continue across the seams without a visible boundary. Do not move, resize, reinterpret or mirror the existing photo. Do not duplicate existing plants, speakers, furniture, faces or whole room sections. No blur slab, gradient block, vignette or dark cover-up. No new focal objects or redesign. Keep subtle natural original photographic depth of field.\nThe center original photo will later be placed back, FULLY OPAQUE and unchanged, over your center region. That means preserving exact continuity at x1704 and x2888 is essential; any re-framing or shifting of the original is unusable. The only deliverables taken from your image will be the newly generated LEFT and RIGHT strips.\nIn the LEFT fill: no people, bodies, heads, faces, skin, hands, silhouettes or human reflections. In the RIGHT narrow fill: no new people, heads, faces, hands or limbs; ONLY if existing clothing or an existing prop crosses that edge, continue that exact existing cut object/body surface naturally, without introducing a new gesture or duplicate anatomy. No text, letters, logos, labels, signs, UI or watermarks. No change to the protected people's facial identity, appearance, pose, garments or original framing.\n\nScene: exact same muted teal/green rehearsal room. LEFT edge: extend the green acoustic wall and the LEFT part of the single black perforated music stand that is cut by the original photo boundary, maintaining its angle and height; no duplicate music stand or speaker. RIGHT edge: at upper area continue the existing recording-room glass/wall, and at lower area continue ONLY the small part of the woman's existing silver jacket shoulder/sleeve that is cut at the edge. The silver fabric continuation must join her original jacket directly at the same contour; do not invent a new arm, hand, head or another person. Do not narrow, enlarge or shift her body in the protected original. Calm natural green studio light throughout.\nCRITICAL SEAM REFINEMENT: Match the EXACT heights of the music-stand top edge at the LEFT boundary and the EXACT recording-booth bottom window rails and the tiny silver jacket fabric cut at the RIGHT boundary. The stand top edge must continue without even a small step or notch; do not lower or enlarge it. The right window frame rails must connect to the protected photograph at their exact vertical positions, with identical grey-green exposure. The right edge's narrow sliver of silver jacket must retain the exact purple/silver fabric brightness of the protected original; do not turn silver cloth green or replace it with wall. Do not shift or rescale any protected content. No added lamp or ceiling light. This is a spatial continuity repair, not a new room composition. Keep exact black bar bounds and 3072x1024 output.",
+            "input_template_filename": "play-canvas.png",
+            "input_template_sha256": "63573b9d9bb9cee84f48584c920dd4799547152c321235f5168cb4972a81c3d4",
+            "generated": {
+              "filename": "exec-056dfca7-b33c-4c37-9afa-09658ea0e2a2.png",
+              "width": 2172,
+              "height": 724,
+              "format": "PNG",
+              "mime_type": "image/png",
+              "bytes": 1215978,
+              "sha256": "1b4fb8f73a9418f7960c1a213fda755aa464d8633920f36820f78cfee21f3efa",
+              "mode": "RGB"
+            },
+            "selected_sides": [
+              "right"
+            ]
+          }
+        ]
+      },
+      "outputs": [
+        {
+          "side": "left",
+          "filename": "play-left-2211.webp",
+          "url": "/assets/home-banners/inset-20261109/play-left-2211.webp",
+          "width": 2211,
+          "height": 768,
+          "bytes": 16308,
+          "sha256": "1488e87d4ad3f393933999b48b075e6ee06bcbd0c35243a78166c79868c08638",
+          "format": "WEBP",
+          "mime_type": "image/webp",
+          "generation_run": "initial",
+          "generated_sha256": "02ac3ed37fd7457827523ad4d077259810543dcba45529b5fc4acf5ed8f6c3b2",
+          "crop": {
+            "x": 0,
+            "y": 176,
+            "width": 1205,
+            "height": 393
+          },
+          "crop_reason": "Generated left ROI only. Vertical crop moves the music-stand top edge into alignment with the unchanged original; excludes bottom padding fringe.",
+          "encoding": {
+            "resize": {
+              "width": 2211,
+              "height": 768,
+              "force_exact_size": true
+            },
+            "filter": "Lanczos",
+            "format": "webp",
+            "quality": 92,
+            "method": 6
+          }
+        },
+        {
+          "side": "right",
+          "filename": "play-right-239.webp",
+          "url": "/assets/home-banners/inset-20261109/play-right-239.webp",
+          "width": 239,
+          "height": 768,
+          "bytes": 3514,
+          "sha256": "555d3328b7b1953e8e6610895e44ec3c22b07f989b082f1b41d5fde9d208b058",
+          "format": "WEBP",
+          "mime_type": "image/webp",
+          "generation_run": "refined",
+          "generated_sha256": "1b4fb8f73a9418f7960c1a213fda755aa464d8633920f36820f78cfee21f3efa",
+          "crop": {
+            "x": 2042,
+            "y": 153,
+            "width": 130,
+            "height": 416
+          },
+          "crop_reason": "Generated ROI only. Excludes black bars and their one-pixel transition fringes; horizontal crop follows normalized template boundaries.",
+          "encoding": {
+            "resize": {
+              "width": 239,
+              "height": 768,
+              "force_exact_size": true
+            },
+            "filter": "Lanczos",
+            "format": "webp",
+            "quality": 92,
+            "method": 6
+          }
+        }
+      ],
+      "visual_review": {
+        "composite_filename": "play-1070x272.png",
+        "canvas": {
+          "width": 1070,
+          "height": 272
+        },
+        "opaque_original_overlay": {
+          "x": 462,
+          "y": 0,
+          "width": 544,
+          "height": 272,
+          "opacity": 1,
+          "mask": "none",
+          "source_url": "/assets/home-banners/mobile-20261109/play-1536.webp"
+        },
+        "right_inset_pixels": 64,
+        "left_strip_position": "right-aligned against x462, height272; rightmost462px visible",
+        "right_strip_position": "left-aligned against x1006, height272; leftmost64px visible",
+        "inspected_original_and_final_strips": true,
+        "inspected_full_composite": true,
+        "left_contains_people": false,
+        "right_contains_new_faces_or_hands": false,
+        "person_source_unchanged": true,
+        "notes": "Exact original remains fully opaque. New strips extend room and already-cut props only.",
+        "composite": {
+          "filename": "play-1070x272.png",
+          "width": 1070,
+          "height": 272,
+          "format": "PNG",
+          "mime_type": "image/png",
+          "bytes": 1224214,
+          "sha256": "e74b4d7b4e1888f1b2b2a5b8f0c855e1be60f1fb6cf5cdf36e55256ca9aa244c",
+          "mode": "RGB"
+        }
+      }
+    },
+    {
+      "id": "participate",
+      "source_url": "/assets/home-banners/mobile-20261109/participate-1536.webp",
+      "source": {
+        "filename": "participate-1536.webp",
+        "sha256": "83f5ea9c45f9ce8163834ed49e09eb2793ff40ff45cbc9cabf9b1edac417b8d0",
+        "bytes": 169218,
+        "width": 1536,
+        "height": 768,
+        "format": "WEBP",
+        "mime_type": "image/webp"
+      },
+      "prompt": "Use case: precise-object-edit, protected-photo outpainting.\nThe input is an EXACT spatial edit template. Output EXACTLY 3072 x 1024 pixels (3:1) and preserve every existing nonwhite pixel's placement and scale.\nThere is a horizontal photograph strip y=216..807 inclusive, height592. The original photograph occupies x=1704..2887 inclusive, width1184. This exact original rectangle is PROTECTED and must remain unaltered. The two WHITE rectangles are the ONLY areas to fill: LEFT x=0..1703,y=216..807 and RIGHT x=2888..3071,y=216..807. Fill BOTH white areas completely. The top black padding y=0..215 and bottom black padding y=808..1023 must remain black at those exact heights; KEEP these bars for later cropping.\nCreate one seamless physical photograph continuing directly from BOTH exact edges of the original. Furniture lines, wall textures, objects cut by the edge, lighting, colors, exposure, perspective and depth of field must continue across the seams without a visible boundary. Do not move, resize, reinterpret or mirror the existing photo. Do not duplicate existing plants, speakers, furniture, faces or whole room sections. No blur slab, gradient block, vignette or dark cover-up. No new focal objects or redesign. Keep subtle natural original photographic depth of field.\nThe center original photo will later be placed back, FULLY OPAQUE and unchanged, over your center region. That means preserving exact continuity at x1704 and x2888 is essential; any re-framing or shifting of the original is unusable. The only deliverables taken from your image will be the newly generated LEFT and RIGHT strips.\nIn the LEFT fill: no people, bodies, heads, faces, skin, hands, silhouettes or human reflections. In the RIGHT narrow fill: no new people, heads, faces, hands or limbs; ONLY if existing clothing or an existing prop crosses that edge, continue that exact existing cut object/body surface naturally, without introducing a new gesture or duplicate anatomy. No text, letters, logos, labels, signs, UI or watermarks. No change to the protected people's facial identity, appearance, pose, garments or original framing.\n\nScene: exact same warm coral/salmon recording studio. LEFT edge: continue the dark booth window and coral wall beneath it, with the same horizontal lower window edge, low narrow table and partly cut mixer; complete only the missing part of the existing mixer, with no duplicate mixer or plants. RIGHT edge: continue the coral wall above, and ONLY the already-cut man's ivory jacket side, the outer edge of his existing paper, and background where these cross the boundary. No new fingers, hands, arms, faces or additional people. Do not add a second page. Keep the current body/paper contour and coral vertical light reflection continuous with the protected original; no recamera or new pose. Warm soft real studio light.",
+      "provenance": {
+        "input_template": {
+          "filename": "participate-canvas.png",
+          "width": 3072,
+          "height": 1024,
+          "format": "PNG",
+          "mime_type": "image/png",
+          "bytes": 3589931,
+          "sha256": "4eb0f112ba4a64633537d1d594323310eb2a19a0edd62f2184239c5b1116a759",
+          "mode": "RGBA"
+        },
+        "generated": {
+          "filename": "exec-6f9a3097-901e-4bba-adf3-e033bf4fb17e.png",
+          "width": 2172,
+          "height": 724,
+          "format": "PNG",
+          "mime_type": "image/png",
+          "bytes": 1248266,
+          "sha256": "d42634558ef4ed0cf246d57a5bb27ddeff4e721972c22f23963faf4a381ebf04",
+          "mode": "RGB"
+        },
+        "generation_runs": [
+          {
+            "id": "initial",
+            "prompt": "Use case: precise-object-edit, protected-photo outpainting.\nThe input is an EXACT spatial edit template. Output EXACTLY 3072 x 1024 pixels (3:1) and preserve every existing nonwhite pixel's placement and scale.\nThere is a horizontal photograph strip y=216..807 inclusive, height592. The original photograph occupies x=1704..2887 inclusive, width1184. This exact original rectangle is PROTECTED and must remain unaltered. The two WHITE rectangles are the ONLY areas to fill: LEFT x=0..1703,y=216..807 and RIGHT x=2888..3071,y=216..807. Fill BOTH white areas completely. The top black padding y=0..215 and bottom black padding y=808..1023 must remain black at those exact heights; KEEP these bars for later cropping.\nCreate one seamless physical photograph continuing directly from BOTH exact edges of the original. Furniture lines, wall textures, objects cut by the edge, lighting, colors, exposure, perspective and depth of field must continue across the seams without a visible boundary. Do not move, resize, reinterpret or mirror the existing photo. Do not duplicate existing plants, speakers, furniture, faces or whole room sections. No blur slab, gradient block, vignette or dark cover-up. No new focal objects or redesign. Keep subtle natural original photographic depth of field.\nThe center original photo will later be placed back, FULLY OPAQUE and unchanged, over your center region. That means preserving exact continuity at x1704 and x2888 is essential; any re-framing or shifting of the original is unusable. The only deliverables taken from your image will be the newly generated LEFT and RIGHT strips.\nIn the LEFT fill: no people, bodies, heads, faces, skin, hands, silhouettes or human reflections. In the RIGHT narrow fill: no new people, heads, faces, hands or limbs; ONLY if existing clothing or an existing prop crosses that edge, continue that exact existing cut object/body surface naturally, without introducing a new gesture or duplicate anatomy. No text, letters, logos, labels, signs, UI or watermarks. No change to the protected people's facial identity, appearance, pose, garments or original framing.\n\nScene: exact same warm coral/salmon recording studio. LEFT edge: continue the dark booth window and coral wall beneath it, with the same horizontal lower window edge, low narrow table and partly cut mixer; complete only the missing part of the existing mixer, with no duplicate mixer or plants. RIGHT edge: continue the coral wall above, and ONLY the already-cut man's ivory jacket side, the outer edge of his existing paper, and background where these cross the boundary. No new fingers, hands, arms, faces or additional people. Do not add a second page. Keep the current body/paper contour and coral vertical light reflection continuous with the protected original; no recamera or new pose. Warm soft real studio light.",
+            "input_template_filename": "participate-canvas.png",
+            "input_template_sha256": "4eb0f112ba4a64633537d1d594323310eb2a19a0edd62f2184239c5b1116a759",
+            "generated": {
+              "filename": "exec-6f9a3097-901e-4bba-adf3-e033bf4fb17e.png",
+              "width": 2172,
+              "height": 724,
+              "format": "PNG",
+              "mime_type": "image/png",
+              "bytes": 1248266,
+              "sha256": "d42634558ef4ed0cf246d57a5bb27ddeff4e721972c22f23963faf4a381ebf04",
+              "mode": "RGB"
+            },
+            "selected_sides": [
+              "left",
+              "right"
+            ]
+          }
+        ]
+      },
+      "outputs": [
+        {
+          "side": "left",
+          "filename": "participate-left-2211.webp",
+          "url": "/assets/home-banners/inset-20261109/participate-left-2211.webp",
+          "width": 2211,
+          "height": 768,
+          "bytes": 22788,
+          "sha256": "04ef6d8798f88882e1f1fe40e5101ad26443f215ea819bac07d930ccfcbdfe7e",
+          "format": "WEBP",
+          "mime_type": "image/webp",
+          "generation_run": "initial",
+          "generated_sha256": "d42634558ef4ed0cf246d57a5bb27ddeff4e721972c22f23963faf4a381ebf04",
+          "crop": {
+            "x": 0,
+            "y": 153,
+            "width": 1205,
+            "height": 416
+          },
+          "crop_reason": "Generated ROI only. Excludes black bars and their one-pixel transition fringes; horizontal crop follows normalized template boundaries.",
+          "encoding": {
+            "resize": {
+              "width": 2211,
+              "height": 768,
+              "force_exact_size": true
+            },
+            "filter": "Lanczos",
+            "format": "webp",
+            "quality": 92,
+            "method": 6
+          }
+        },
+        {
+          "side": "right",
+          "filename": "participate-right-239.webp",
+          "url": "/assets/home-banners/inset-20261109/participate-right-239.webp",
+          "width": 239,
+          "height": 768,
+          "bytes": 3270,
+          "sha256": "f3acd18346acb6d04bcbb49bdbf6da347ad9011e0359861558a3e53e0d60b95a",
+          "format": "WEBP",
+          "mime_type": "image/webp",
+          "generation_run": "initial",
+          "generated_sha256": "d42634558ef4ed0cf246d57a5bb27ddeff4e721972c22f23963faf4a381ebf04",
+          "crop": {
+            "x": 2042,
+            "y": 153,
+            "width": 130,
+            "height": 416
+          },
+          "crop_reason": "Generated ROI only. Excludes black bars and their one-pixel transition fringes; horizontal crop follows normalized template boundaries.",
+          "encoding": {
+            "resize": {
+              "width": 239,
+              "height": 768,
+              "force_exact_size": true
+            },
+            "filter": "Lanczos",
+            "format": "webp",
+            "quality": 92,
+            "method": 6
+          }
+        }
+      ],
+      "visual_review": {
+        "composite_filename": "participate-1070x272.png",
+        "canvas": {
+          "width": 1070,
+          "height": 272
+        },
+        "opaque_original_overlay": {
+          "x": 462,
+          "y": 0,
+          "width": 544,
+          "height": 272,
+          "opacity": 1,
+          "mask": "none",
+          "source_url": "/assets/home-banners/mobile-20261109/participate-1536.webp"
+        },
+        "right_inset_pixels": 64,
+        "left_strip_position": "right-aligned against x462, height272; rightmost462px visible",
+        "right_strip_position": "left-aligned against x1006, height272; leftmost64px visible",
+        "inspected_original_and_final_strips": true,
+        "inspected_full_composite": true,
+        "left_contains_people": false,
+        "right_contains_new_faces_or_hands": false,
+        "person_source_unchanged": true,
+        "notes": "Exact original remains fully opaque. New strips extend room and already-cut props only.",
+        "composite": {
+          "filename": "participate-1070x272.png",
+          "width": 1070,
+          "height": 272,
+          "format": "PNG",
+          "mime_type": "image/png",
+          "bytes": 1323781,
+          "sha256": "48c603c67a1686c0c9ad78dc11a0fca4cce7f734dcfdb3e84812f8044956f182",
+          "mode": "RGB"
+        }
+      }
+    },
+    {
+      "id": "artists",
+      "source_url": "/assets/home-banners/mobile-20261109/artists-1536.webp",
+      "source": {
+        "filename": "artists-1536.webp",
+        "sha256": "2b949b594fa62a5fd29d587bca5c0aa07e3649867fac76114af1a056fe84ac0d",
+        "bytes": 174920,
+        "width": 1536,
+        "height": 768,
+        "format": "WEBP",
+        "mime_type": "image/webp"
+      },
+      "prompt": "Use case: precise-object-edit.\nAsset type: strictly masked LEFT AND RIGHT outpainting for an existing banner photograph.\nInput image 1 is the exact EDIT TARGET. Canvas: 3072 x 1024. Black top padding y=0..215 and black bottom padding y=808..1023 are locked. The actual panoramic photo strip is y=216..807, height 592. Its current original photograph is pasted at x=1704..2887, width 1184. Only two WHITE rectangles are blank: LEFT x=0..1703, y=216..807; RIGHT x=2888..3071, y=216..807.\nFill ONLY these two white rectangles, directly extending the SAME physical photo outward from each edge. The existing central photo must stay exactly the same size, at exactly the same coordinates. Do not alter or reframe its people, faces, hair, clothes, pose, gestures, hands, body proportions, existing props, image crop, colors or light. The centered source is the immutable original, not a loose inspiration. The center output will not be used; new outside strips are the only deliverable.\nExtend the exact deep plum/purple concert stage to the LEFT, continuing the quiet backdrop and reflective floor at precisely their current border heights. On the narrow RIGHT, continue only the existing stage structures, drums and lights and any tiny cut fabric ribbon that actually crosses the original edge. Do not add another performer, a face, a hand, or repeat the existing stage props. Preserve the source's actual photographic magenta light and restrained natural depth of field.\nPrecise seamless continuity is mandatory. At x=1704 and x=2888, join visible furniture, wall/floor lines, clothing edges and lighting to the EXACT source edge at each y coordinate. Extend the existing scene; do NOT recreate or mirror it, duplicate objects, add a blur/fade band, use a flat gradient, add people or redesign the venue. New left area contains background only. The narrow right area may only continue already cut existing clothing/body/props at their present edge and orientation; no new heads, faces, hands or independent limbs.\nOutput the EXACT 3072 x 1024 canvas and KEEP the black bars, unchanged. Never fill, shrink, remove or relocate the black bars. Never zoom, crop, move, stretch or rescale the pasted photo. No text, logos, watermark, graphic shapes, UI, posters with faces, new human reflections, silhouettes, duplicated humans or new decorative props. Use the source's physical materials, camera perspective, photographic depth of field, lighting and color. The new sides must visually connect to an opaque original-photo layer without a seam.",
+      "provenance": {
+        "input_template": {
+          "width": 3072,
+          "height": 1024,
+          "original_photo_roi": {
+            "x": 1704,
+            "y": 216,
+            "width": 1184,
+            "height": 592
+          },
+          "blank_left_roi": {
+            "x": 0,
+            "y": 216,
+            "width": 1704,
+            "height": 592
+          },
+          "blank_right_roi": {
+            "x": 2888,
+            "y": 216,
+            "width": 184,
+            "height": 592
+          },
+          "basename": "artists-canvas.png",
+          "sha256": "d60c440b23a1317606a2d4585ccc5f878b19b177c018ccfc35ebc334255ab107",
+          "bytes": 3285417,
+          "format": "PNG",
+          "filename": "artists-canvas.png"
+        },
+        "generated": {
+          "width": 2172,
+          "height": 724,
+          "central_photo_used": false,
+          "basename": "exec-f339705e-3037-4324-bc2a-2c41130d72cf.png",
+          "sha256": "ce8f6bd54691da145bccea7db7de1086e7880e301d486329d3565023a6e6e5e0",
+          "bytes": 1331062,
+          "format": "PNG",
+          "filename": "exec-f339705e-3037-4324-bc2a-2c41130d72cf.png"
+        },
+        "generation_runs": [
+          {
+            "id": "initial",
+            "prompt": "Use case: precise-object-edit.\nAsset type: strictly masked LEFT AND RIGHT outpainting for an existing banner photograph.\nInput image 1 is the exact EDIT TARGET. Canvas: 3072 x 1024. Black top padding y=0..215 and black bottom padding y=808..1023 are locked. The actual panoramic photo strip is y=216..807, height 592. Its current original photograph is pasted at x=1704..2887, width 1184. Only two WHITE rectangles are blank: LEFT x=0..1703, y=216..807; RIGHT x=2888..3071, y=216..807.\nFill ONLY these two white rectangles, directly extending the SAME physical photo outward from each edge. The existing central photo must stay exactly the same size, at exactly the same coordinates. Do not alter or reframe its people, faces, hair, clothes, pose, gestures, hands, body proportions, existing props, image crop, colors or light. The centered source is the immutable original, not a loose inspiration. The center output will not be used; new outside strips are the only deliverable.\nExtend the exact deep plum/purple concert stage to the LEFT, continuing the quiet backdrop and reflective floor at precisely their current border heights. On the narrow RIGHT, continue only the existing stage structures, drums and lights and any tiny cut fabric ribbon that actually crosses the original edge. Do not add another performer, a face, a hand, or repeat the existing stage props. Preserve the source's actual photographic magenta light and restrained natural depth of field.\nPrecise seamless continuity is mandatory. At x=1704 and x=2888, join visible furniture, wall/floor lines, clothing edges and lighting to the EXACT source edge at each y coordinate. Extend the existing scene; do NOT recreate or mirror it, duplicate objects, add a blur/fade band, use a flat gradient, add people or redesign the venue. New left area contains background only. The narrow right area may only continue already cut existing clothing/body/props at their present edge and orientation; no new heads, faces, hands or independent limbs.\nOutput the EXACT 3072 x 1024 canvas and KEEP the black bars, unchanged. Never fill, shrink, remove or relocate the black bars. Never zoom, crop, move, stretch or rescale the pasted photo. No text, logos, watermark, graphic shapes, UI, posters with faces, new human reflections, silhouettes, duplicated humans or new decorative props. Use the source's physical materials, camera perspective, photographic depth of field, lighting and color. The new sides must visually connect to an opaque original-photo layer without a seam.",
+            "input_template_filename": "artists-canvas.png",
+            "input_template_sha256": "d60c440b23a1317606a2d4585ccc5f878b19b177c018ccfc35ebc334255ab107",
+            "generated": {
+              "width": 2172,
+              "height": 724,
+              "central_photo_used": false,
+              "basename": "exec-f339705e-3037-4324-bc2a-2c41130d72cf.png",
+              "sha256": "ce8f6bd54691da145bccea7db7de1086e7880e301d486329d3565023a6e6e5e0",
+              "bytes": 1331062,
+              "format": "PNG",
+              "filename": "exec-f339705e-3037-4324-bc2a-2c41130d72cf.png"
+            },
+            "selected_sides": [
+              "left",
+              "right"
+            ]
+          }
+        ]
+      },
+      "outputs": [
+        {
+          "side": "left",
+          "filename": "artists-left-2211.webp",
+          "url": "/assets/home-banners/inset-20261109/artists-left-2211.webp",
+          "width": 2211,
+          "height": 768,
+          "bytes": 13494,
+          "sha256": "866ee143faa3f2fb07a58087682d4a46ac466beb4a2cc45c5ebc6f692f74968a",
+          "format": "WEBP",
+          "mime_type": "image/webp",
+          "generation_run": "initial",
+          "generated_sha256": "ce8f6bd54691da145bccea7db7de1086e7880e301d486329d3565023a6e6e5e0",
+          "crop": {
+            "x": 0,
+            "y": 153,
+            "width": 1205,
+            "height": 417
+          },
+          "crop_reason": "Generated 3:1 canvas returned 2172x724. Side coordinates normalized from 3072x1024, photo strip bounds measured, and right crop starts moved 1–3px outward to improve boundary alignment. All crops exclude the central original-photo ROI. No black padding is included.",
+          "encoding": {
+            "software": "ImageMagick convert",
+            "quality": 92,
+            "method": 6,
+            "crop_generated_sides_only": true,
+            "original_photo_modified": false
+          }
+        },
+        {
+          "side": "right",
+          "filename": "artists-right-239.webp",
+          "url": "/assets/home-banners/inset-20261109/artists-right-239.webp",
+          "width": 239,
+          "height": 768,
+          "bytes": 6972,
+          "sha256": "25c9ce87cdaa490a500fc12b74826b297850d06722b53e55ed66c88c461d8425",
+          "format": "WEBP",
+          "mime_type": "image/webp",
+          "generation_run": "initial",
+          "generated_sha256": "ce8f6bd54691da145bccea7db7de1086e7880e301d486329d3565023a6e6e5e0",
+          "crop": {
+            "x": 2043,
+            "y": 152,
+            "width": 129,
+            "height": 418
+          },
+          "crop_reason": "Generated 3:1 canvas returned 2172x724. Side coordinates normalized from 3072x1024, photo strip bounds measured, and right crop starts moved 1–3px outward to improve boundary alignment. All crops exclude the central original-photo ROI. No black padding is included.",
+          "encoding": {
+            "software": "ImageMagick convert",
+            "quality": 92,
+            "method": 6,
+            "crop_generated_sides_only": true,
+            "original_photo_modified": false
+          }
+        }
+      ],
+      "visual_review": {
+        "width": 1070,
+        "height": 272,
+        "original_rectangle": {
+          "x": 462,
+          "y": 0,
+          "width": 544,
+          "height": 272,
+          "opacity": 1
+        },
+        "right_inset": 64,
+        "left_alignment": "right",
+        "right_alignment": "left",
+        "new_faces": false,
+        "new_hands": false,
+        "original_identity_preserved": true,
+        "reviewed": true,
+        "basename": "artists-1070.png",
+        "sha256": "34bed6e59f867fc6a0dc0e47f841f9cb2257052c365e70ff0c06d4b3a72aab08",
+        "bytes": 339704,
+        "format": "PNG"
+      }
+    },
+    {
+      "id": "karaoke",
+      "source_url": "/assets/home-banners/mobile-20261109/karaoke-1536.webp",
+      "source": {
+        "filename": "karaoke-1536.webp",
+        "sha256": "f7fe983124f55d981e0b9e95b55510536d3ce21612ca7f954558e999f7a3e387",
+        "bytes": 153684,
+        "width": 1536,
+        "height": 768,
+        "format": "WEBP",
+        "mime_type": "image/webp"
+      },
+      "prompt": "Use case: precise-object-edit.\nAsset type: strictly masked LEFT AND RIGHT outpainting for an existing banner photograph.\nInput image 1 is the exact EDIT TARGET. Canvas: 3072 x 1024. Black top padding y=0..215 and black bottom padding y=808..1023 are locked. The actual panoramic photo strip is y=216..807, height 592. Its current original photograph is pasted at x=1704..2887, width 1184. Only two WHITE rectangles are blank: LEFT x=0..1703, y=216..807; RIGHT x=2888..3071, y=216..807.\nFill ONLY these two white rectangles, directly extending the SAME physical photo outward from each edge. The existing central photo must stay exactly the same size, at exactly the same coordinates. Do not alter or reframe its people, faces, hair, clothes, pose, gestures, hands, body proportions, existing props, image crop, colors or light. The centered source is the immutable original, not a loose inspiration. The center output will not be used; new outside strips are the only deliverable.\nExtend the exact navy acoustic padded walls and deep blue velvet sofa to the LEFT, joining every wall seam, rail and sofa top edge at its original height. On the narrow RIGHT, naturally continue the same existing woman's cut jacket/shoulder and the same blue sofa/table where they actually cross the edge, completing only the missing edge fragments. No new person, hand, face, arm gesture, drink, screen, microphone or duplicate speaker. Preserve the exact navy/cobalt illumination and perspective.\nPrecise seamless continuity is mandatory. At x=1704 and x=2888, join visible furniture, wall/floor lines, clothing edges and lighting to the EXACT source edge at each y coordinate. Extend the existing scene; do NOT recreate or mirror it, duplicate objects, add a blur/fade band, use a flat gradient, add people or redesign the venue. New left area contains background only. The narrow right area may only continue already cut existing clothing/body/props at their present edge and orientation; no new heads, faces, hands or independent limbs.\nOutput the EXACT 3072 x 1024 canvas and KEEP the black bars, unchanged. Never fill, shrink, remove or relocate the black bars. Never zoom, crop, move, stretch or rescale the pasted photo. No text, logos, watermark, graphic shapes, UI, posters with faces, new human reflections, silhouettes, duplicated humans or new decorative props. Use the source's physical materials, camera perspective, photographic depth of field, lighting and color. The new sides must visually connect to an opaque original-photo layer without a seam.",
+      "provenance": {
+        "input_template": {
+          "width": 3072,
+          "height": 1024,
+          "original_photo_roi": {
+            "x": 1704,
+            "y": 216,
+            "width": 1184,
+            "height": 592
+          },
+          "blank_left_roi": {
+            "x": 0,
+            "y": 216,
+            "width": 1704,
+            "height": 592
+          },
+          "blank_right_roi": {
+            "x": 2888,
+            "y": 216,
+            "width": 184,
+            "height": 592
+          },
+          "basename": "karaoke-canvas.png",
+          "sha256": "a4fbc2a0bc98430de2788710b845a752e08b6ff8e3bf982dda4eb53ff4a1b202",
+          "bytes": 3583632,
+          "format": "PNG",
+          "filename": "karaoke-canvas.png"
+        },
+        "generated": {
+          "width": 2172,
+          "height": 724,
+          "central_photo_used": false,
+          "basename": "exec-e3fb20de-53d7-4d1d-97b2-7becc8003f01.png",
+          "sha256": "a443312a0754567f66c28792c6ddcf4506d0d490159275dbf32b90bd83125beb",
+          "bytes": 1348327,
+          "format": "PNG",
+          "filename": "exec-e3fb20de-53d7-4d1d-97b2-7becc8003f01.png"
+        },
+        "generation_runs": [
+          {
+            "id": "initial",
+            "prompt": "Use case: precise-object-edit.\nAsset type: strictly masked LEFT AND RIGHT outpainting for an existing banner photograph.\nInput image 1 is the exact EDIT TARGET. Canvas: 3072 x 1024. Black top padding y=0..215 and black bottom padding y=808..1023 are locked. The actual panoramic photo strip is y=216..807, height 592. Its current original photograph is pasted at x=1704..2887, width 1184. Only two WHITE rectangles are blank: LEFT x=0..1703, y=216..807; RIGHT x=2888..3071, y=216..807.\nFill ONLY these two white rectangles, directly extending the SAME physical photo outward from each edge. The existing central photo must stay exactly the same size, at exactly the same coordinates. Do not alter or reframe its people, faces, hair, clothes, pose, gestures, hands, body proportions, existing props, image crop, colors or light. The centered source is the immutable original, not a loose inspiration. The center output will not be used; new outside strips are the only deliverable.\nExtend the exact navy acoustic padded walls and deep blue velvet sofa to the LEFT, joining every wall seam, rail and sofa top edge at its original height. On the narrow RIGHT, naturally continue the same existing woman's cut jacket/shoulder and the same blue sofa/table where they actually cross the edge, completing only the missing edge fragments. No new person, hand, face, arm gesture, drink, screen, microphone or duplicate speaker. Preserve the exact navy/cobalt illumination and perspective.\nPrecise seamless continuity is mandatory. At x=1704 and x=2888, join visible furniture, wall/floor lines, clothing edges and lighting to the EXACT source edge at each y coordinate. Extend the existing scene; do NOT recreate or mirror it, duplicate objects, add a blur/fade band, use a flat gradient, add people or redesign the venue. New left area contains background only. The narrow right area may only continue already cut existing clothing/body/props at their present edge and orientation; no new heads, faces, hands or independent limbs.\nOutput the EXACT 3072 x 1024 canvas and KEEP the black bars, unchanged. Never fill, shrink, remove or relocate the black bars. Never zoom, crop, move, stretch or rescale the pasted photo. No text, logos, watermark, graphic shapes, UI, posters with faces, new human reflections, silhouettes, duplicated humans or new decorative props. Use the source's physical materials, camera perspective, photographic depth of field, lighting and color. The new sides must visually connect to an opaque original-photo layer without a seam.",
+            "input_template_filename": "karaoke-canvas.png",
+            "input_template_sha256": "a4fbc2a0bc98430de2788710b845a752e08b6ff8e3bf982dda4eb53ff4a1b202",
+            "generated": {
+              "width": 2172,
+              "height": 724,
+              "central_photo_used": false,
+              "basename": "exec-e3fb20de-53d7-4d1d-97b2-7becc8003f01.png",
+              "sha256": "a443312a0754567f66c28792c6ddcf4506d0d490159275dbf32b90bd83125beb",
+              "bytes": 1348327,
+              "format": "PNG",
+              "filename": "exec-e3fb20de-53d7-4d1d-97b2-7becc8003f01.png"
+            },
+            "selected_sides": [
+              "left",
+              "right"
+            ]
+          }
+        ]
+      },
+      "outputs": [
+        {
+          "side": "left",
+          "filename": "karaoke-left-2211.webp",
+          "url": "/assets/home-banners/inset-20261109/karaoke-left-2211.webp",
+          "width": 2211,
+          "height": 768,
+          "bytes": 21132,
+          "sha256": "aed76c848026ea78bcd43d819514a62b2008c28dac2edb1ab80857fbee5e7371",
+          "format": "WEBP",
+          "mime_type": "image/webp",
+          "generation_run": "initial",
+          "generated_sha256": "a443312a0754567f66c28792c6ddcf4506d0d490159275dbf32b90bd83125beb",
+          "crop": {
+            "x": 0,
+            "y": 152,
+            "width": 1205,
+            "height": 417
+          },
+          "crop_reason": "Generated 3:1 canvas returned 2172x724. Side coordinates normalized from 3072x1024, photo strip bounds measured, and right crop starts moved 1–3px outward to improve boundary alignment. All crops exclude the central original-photo ROI. No black padding is included.",
+          "encoding": {
+            "software": "ImageMagick convert",
+            "quality": 92,
+            "method": 6,
+            "crop_generated_sides_only": true,
+            "original_photo_modified": false
+          }
+        },
+        {
+          "side": "right",
+          "filename": "karaoke-right-239.webp",
+          "url": "/assets/home-banners/inset-20261109/karaoke-right-239.webp",
+          "width": 239,
+          "height": 768,
+          "bytes": 3686,
+          "sha256": "2b0e571312e9917cabe66378fb489e4299e7935d0d7b25cc4a33b928644fc4c8",
+          "format": "WEBP",
+          "mime_type": "image/webp",
+          "generation_run": "initial",
+          "generated_sha256": "a443312a0754567f66c28792c6ddcf4506d0d490159275dbf32b90bd83125beb",
+          "crop": {
+            "x": 2045,
+            "y": 152,
+            "width": 127,
+            "height": 419
+          },
+          "crop_reason": "Generated 3:1 canvas returned 2172x724. Side coordinates normalized from 3072x1024, photo strip bounds measured, and right crop starts moved 1–3px outward to improve boundary alignment. All crops exclude the central original-photo ROI. No black padding is included.",
+          "encoding": {
+            "software": "ImageMagick convert",
+            "quality": 92,
+            "method": 6,
+            "crop_generated_sides_only": true,
+            "original_photo_modified": false
+          }
+        }
+      ],
+      "visual_review": {
+        "width": 1070,
+        "height": 272,
+        "original_rectangle": {
+          "x": 462,
+          "y": 0,
+          "width": 544,
+          "height": 272,
+          "opacity": 1
+        },
+        "right_inset": 64,
+        "left_alignment": "right",
+        "right_alignment": "left",
+        "new_faces": false,
+        "new_hands": false,
+        "original_identity_preserved": true,
+        "reviewed": true,
+        "basename": "karaoke-1070.png",
+        "sha256": "73a90d1e046b107a9e8b6b2f1a606fc01fd2c80be2bd7461dcff0f28dbd3a239",
+        "bytes": 361021,
+        "format": "PNG"
+      }
+    },
+    {
+      "id": "talking",
+      "source_url": "/assets/home-banners/mobile-20261109/talking-1536.webp",
+      "source": {
+        "filename": "talking-1536.webp",
+        "sha256": "6e3e3884274287ec347226d2fd8735b42b875aff997cdea496cd4757f3db0504",
+        "bytes": 191944,
+        "width": 1536,
+        "height": 768,
+        "format": "WEBP",
+        "mime_type": "image/webp"
+      },
+      "prompt": "Use case: precise-object-edit.\nAsset type: strictly masked LEFT AND RIGHT outpainting for an existing banner photograph.\nInput image 1 is the exact EDIT TARGET. Canvas: 3072 x 1024. Black top padding y=0..215 and black bottom padding y=808..1023 are locked. The actual panoramic photo strip is y=216..807, height 592. Its current original photograph is pasted at x=1704..2887, width 1184. Only two WHITE rectangles are blank: LEFT x=0..1703, y=216..807; RIGHT x=2888..3071, y=216..807.\nFill ONLY these two white rectangles, directly extending the SAME physical photo outward from each edge. The existing central photo must stay exactly the same size, at exactly the same coordinates. Do not alter or reframe its people, faces, hair, clothes, pose, gestures, hands, body proportions, existing props, image crop, colors or light. The centered source is the immutable original, not a loose inspiration. The center output will not be used; new outside strips are the only deliverable.\nExtend the exact dark teal lounge wall, blue sofa and partial plant to the LEFT. The foliage crossing the original left edge must belong to that same plant and connect naturally, not be duplicated. On the narrow RIGHT, continue only the visible cut edge of the same seated woman's hair, navy/light track jacket and trousers plus the same sofa/table edges, without inventing a new pose, hand or face. No extra plant, person, repeated drink, lamp, speaker or other duplicate prop. Match the original cozy teal and purple lighting.\nPrecise seamless continuity is mandatory. At x=1704 and x=2888, join visible furniture, wall/floor lines, clothing edges and lighting to the EXACT source edge at each y coordinate. Extend the existing scene; do NOT recreate or mirror it, duplicate objects, add a blur/fade band, use a flat gradient, add people or redesign the venue. New left area contains background only. The narrow right area may only continue already cut existing clothing/body/props at their present edge and orientation; no new heads, faces, hands or independent limbs.\nOutput the EXACT 3072 x 1024 canvas and KEEP the black bars, unchanged. Never fill, shrink, remove or relocate the black bars. Never zoom, crop, move, stretch or rescale the pasted photo. No text, logos, watermark, graphic shapes, UI, posters with faces, new human reflections, silhouettes, duplicated humans or new decorative props. Use the source's physical materials, camera perspective, photographic depth of field, lighting and color. The new sides must visually connect to an opaque original-photo layer without a seam.",
+      "provenance": {
+        "input_template": {
+          "width": 3072,
+          "height": 1024,
+          "original_photo_roi": {
+            "x": 1704,
+            "y": 216,
+            "width": 1184,
+            "height": 592
+          },
+          "blank_left_roi": {
+            "x": 0,
+            "y": 216,
+            "width": 1704,
+            "height": 592
+          },
+          "blank_right_roi": {
+            "x": 2888,
+            "y": 216,
+            "width": 184,
+            "height": 592
+          },
+          "basename": "talking-canvas.png",
+          "sha256": "da40afd36630786dcd0e5fc50fc3f59eef10f2236849c812ad10a96b5f0f53e4",
+          "bytes": 3541008,
+          "format": "PNG",
+          "filename": "talking-canvas.png"
+        },
+        "generated": {
+          "width": 2172,
+          "height": 724,
+          "central_photo_used": false,
+          "basename": "exec-5924b19f-b90b-435f-ad2c-aba644087182.png",
+          "sha256": "a137dd5021968ccce8eb3208c463bec871bdf40da7a108671ffbf850834a43e1",
+          "bytes": 1391956,
+          "format": "PNG",
+          "filename": "exec-5924b19f-b90b-435f-ad2c-aba644087182.png"
+        },
+        "generation_runs": [
+          {
+            "id": "initial",
+            "prompt": "Use case: precise-object-edit.\nAsset type: strictly masked LEFT AND RIGHT outpainting for an existing banner photograph.\nInput image 1 is the exact EDIT TARGET. Canvas: 3072 x 1024. Black top padding y=0..215 and black bottom padding y=808..1023 are locked. The actual panoramic photo strip is y=216..807, height 592. Its current original photograph is pasted at x=1704..2887, width 1184. Only two WHITE rectangles are blank: LEFT x=0..1703, y=216..807; RIGHT x=2888..3071, y=216..807.\nFill ONLY these two white rectangles, directly extending the SAME physical photo outward from each edge. The existing central photo must stay exactly the same size, at exactly the same coordinates. Do not alter or reframe its people, faces, hair, clothes, pose, gestures, hands, body proportions, existing props, image crop, colors or light. The centered source is the immutable original, not a loose inspiration. The center output will not be used; new outside strips are the only deliverable.\nExtend the exact dark teal lounge wall, blue sofa and partial plant to the LEFT. The foliage crossing the original left edge must belong to that same plant and connect naturally, not be duplicated. On the narrow RIGHT, continue only the visible cut edge of the same seated woman's hair, navy/light track jacket and trousers plus the same sofa/table edges, without inventing a new pose, hand or face. No extra plant, person, repeated drink, lamp, speaker or other duplicate prop. Match the original cozy teal and purple lighting.\nPrecise seamless continuity is mandatory. At x=1704 and x=2888, join visible furniture, wall/floor lines, clothing edges and lighting to the EXACT source edge at each y coordinate. Extend the existing scene; do NOT recreate or mirror it, duplicate objects, add a blur/fade band, use a flat gradient, add people or redesign the venue. New left area contains background only. The narrow right area may only continue already cut existing clothing/body/props at their present edge and orientation; no new heads, faces, hands or independent limbs.\nOutput the EXACT 3072 x 1024 canvas and KEEP the black bars, unchanged. Never fill, shrink, remove or relocate the black bars. Never zoom, crop, move, stretch or rescale the pasted photo. No text, logos, watermark, graphic shapes, UI, posters with faces, new human reflections, silhouettes, duplicated humans or new decorative props. Use the source's physical materials, camera perspective, photographic depth of field, lighting and color. The new sides must visually connect to an opaque original-photo layer without a seam.",
+            "input_template_filename": "talking-canvas.png",
+            "input_template_sha256": "da40afd36630786dcd0e5fc50fc3f59eef10f2236849c812ad10a96b5f0f53e4",
+            "generated": {
+              "width": 2172,
+              "height": 724,
+              "central_photo_used": false,
+              "basename": "exec-5924b19f-b90b-435f-ad2c-aba644087182.png",
+              "sha256": "a137dd5021968ccce8eb3208c463bec871bdf40da7a108671ffbf850834a43e1",
+              "bytes": 1391956,
+              "format": "PNG",
+              "filename": "exec-5924b19f-b90b-435f-ad2c-aba644087182.png"
+            },
+            "selected_sides": [
+              "left",
+              "right"
+            ]
+          }
+        ]
+      },
+      "outputs": [
+        {
+          "side": "left",
+          "filename": "talking-left-2211.webp",
+          "url": "/assets/home-banners/inset-20261109/talking-left-2211.webp",
+          "width": 2211,
+          "height": 768,
+          "bytes": 30490,
+          "sha256": "7d1b2ccf538ef468dc656e414505eaf1ae77ef182d1f641f2a458b214ae702c4",
+          "format": "WEBP",
+          "mime_type": "image/webp",
+          "generation_run": "initial",
+          "generated_sha256": "a137dd5021968ccce8eb3208c463bec871bdf40da7a108671ffbf850834a43e1",
+          "crop": {
+            "x": 0,
+            "y": 152,
+            "width": 1205,
+            "height": 418
+          },
+          "crop_reason": "Generated 3:1 canvas returned 2172x724. Side coordinates normalized from 3072x1024, photo strip bounds measured, and right crop starts moved 1–3px outward to improve boundary alignment. All crops exclude the central original-photo ROI. No black padding is included.",
+          "encoding": {
+            "software": "ImageMagick convert",
+            "quality": 92,
+            "method": 6,
+            "crop_generated_sides_only": true,
+            "original_photo_modified": false
+          }
+        },
+        {
+          "side": "right",
+          "filename": "talking-right-239.webp",
+          "url": "/assets/home-banners/inset-20261109/talking-right-239.webp",
+          "width": 239,
+          "height": 768,
+          "bytes": 5248,
+          "sha256": "a2af70a23482f6081ff0ba7f492934093a75b8dd4fb6a5e513fedb36525f7001",
+          "format": "WEBP",
+          "mime_type": "image/webp",
+          "generation_run": "initial",
+          "generated_sha256": "a137dd5021968ccce8eb3208c463bec871bdf40da7a108671ffbf850834a43e1",
+          "crop": {
+            "x": 2043,
+            "y": 153,
+            "width": 129,
+            "height": 417
+          },
+          "crop_reason": "Generated 3:1 canvas returned 2172x724. Side coordinates normalized from 3072x1024, photo strip bounds measured, and right crop starts moved 1–3px outward to improve boundary alignment. All crops exclude the central original-photo ROI. No black padding is included.",
+          "encoding": {
+            "software": "ImageMagick convert",
+            "quality": 92,
+            "method": 6,
+            "crop_generated_sides_only": true,
+            "original_photo_modified": false
+          }
+        }
+      ],
+      "visual_review": {
+        "width": 1070,
+        "height": 272,
+        "original_rectangle": {
+          "x": 462,
+          "y": 0,
+          "width": 544,
+          "height": 272,
+          "opacity": 1
+        },
+        "right_inset": 64,
+        "left_alignment": "right",
+        "right_alignment": "left",
+        "new_faces": false,
+        "new_hands": false,
+        "original_identity_preserved": true,
+        "reviewed": true,
+        "basename": "talking-1070.png",
+        "sha256": "89879f3b1a1d5b0b46a625e30389b1a4bd2b13ba8897b9fab4f45f0e6bf554a8",
+        "bytes": 412660,
+        "format": "PNG"
+      }
+    },
+    {
+      "id": "crew",
+      "source_url": "/assets/home-banners/seamless-20261109/crew-1536.webp",
+      "source": {
+        "filename": "crew-1536.webp",
+        "sha256": "196be700d4caff77d4af8f835fddbcc0eed34075cdf8d23ce6c95c2aa1e81564",
+        "bytes": 82764,
+        "width": 1536,
+        "height": 768,
+        "format": "WEBP",
+        "mime_type": "image/webp"
+      },
+      "prompt": "Use case: precise-object-edit. Asset type: STRICT two-sided outpaint of a fixed existing photographic banner template. Image 1 is the exact edit target, not a style reference. Output exactly 3072 x 1024. Keep its 3:1 canvas, framing and every coordinate fixed. KEEP the intentionally BLACK horizontal padding unchanged at y=0..215 and y=808..1023. The photographic strip is y=216..807, exactly 592 pixels high. Within this strip the untouched original photograph occupies x=1704..2887, width1184. Treat that rectangle as LOCKED source pixels: do not redraw, scale, move, relight, recolor, blur, recompose or crop any part of it. All people and all facial features, hairstyles, expressions, clothes, hands, instruments, props, edges and background details inside that photograph must stay at exactly their input positions. Fill ONLY the two white missing areas: LEFT x=0..1703,y=216..807; RIGHT x=2888..3071,y=216..807. Extend the SAME physical room continuously beyond both edges, with exact wall/panel/furniture/desk lines continuing at matching heights, same lens and perspective, same illumination, color and photographic detail. The added areas must connect invisibly to the locked photo. Do not mirror, duplicate, repeat, rearrange or independently recreate the room. Complete objects that cross the photo boundary only once. No new people, faces, heads, silhouettes, reflections of people, arms or hands. On the narrow right extension, continue only the existing cut clothing/body surface or prop that physically crosses that precise edge, without inventing another person or hand. No text, lettering, logos, watermark, graphics, neon effects, artificial haze, blurred filler, flat gradient blocks or white seams. Keep all black padding untouched; only fill white rectangles. Matching the exact boundary geometry is the most important requirement. Crew room: the wide LEFT extension continues the warm olive acoustic wall, same wood floor and slat section, and completes the single cropped background keyboard/stand at the left edge. Do not duplicate the lamp, keyboard, amplifier, plants or people. The narrow RIGHT extension completes only the same foreground electronic keyboard and its stand, the existing man's cropped dark-denim sleeve/side if needed, and the olive room/studio window beyond. Absolutely no extra hand, extra arm, new face, or new band member. Make the keyboard top edge, keys and leg diagonal connect exactly at the right boundary.",
+      "provenance": {
+        "input_template": {
+          "filename": "crew-canvas.png",
+          "sha256": "e5403af4bfe0cd4a7376ddeeb6d45a82befd76b16137ab1fa49672fcc7be3b1c",
+          "width": 3072,
+          "height": 1024
+        },
+        "generated": {
+          "filename": "exec-ee1ae5c4-b7a6-4373-b090-f4dc084bedc6.png",
+          "sha256": "bdce243b44c6f601ad6812bcf5cfdffa5c65ce04d573524c5e6ce64dd8d02cb1",
+          "width": 2172,
+          "height": 724
+        },
+        "generation_runs": [
+          {
+            "id": "initial",
+            "prompt": "Use case: precise-object-edit. Asset type: STRICT two-sided outpaint of a fixed existing photographic banner template. Image 1 is the exact edit target, not a style reference. Output exactly 3072 x 1024. Keep its 3:1 canvas, framing and every coordinate fixed. KEEP the intentionally BLACK horizontal padding unchanged at y=0..215 and y=808..1023. The photographic strip is y=216..807, exactly 592 pixels high. Within this strip the untouched original photograph occupies x=1704..2887, width1184. Treat that rectangle as LOCKED source pixels: do not redraw, scale, move, relight, recolor, blur, recompose or crop any part of it. All people and all facial features, hairstyles, expressions, clothes, hands, instruments, props, edges and background details inside that photograph must stay at exactly their input positions. Fill ONLY the two white missing areas: LEFT x=0..1703,y=216..807; RIGHT x=2888..3071,y=216..807. Extend the SAME physical room continuously beyond both edges, with exact wall/panel/furniture/desk lines continuing at matching heights, same lens and perspective, same illumination, color and photographic detail. The added areas must connect invisibly to the locked photo. Do not mirror, duplicate, repeat, rearrange or independently recreate the room. Complete objects that cross the photo boundary only once. No new people, faces, heads, silhouettes, reflections of people, arms or hands. On the narrow right extension, continue only the existing cut clothing/body surface or prop that physically crosses that precise edge, without inventing another person or hand. No text, lettering, logos, watermark, graphics, neon effects, artificial haze, blurred filler, flat gradient blocks or white seams. Keep all black padding untouched; only fill white rectangles. Matching the exact boundary geometry is the most important requirement. Crew room: the wide LEFT extension continues the warm olive acoustic wall, same wood floor and slat section, and completes the single cropped background keyboard/stand at the left edge. Do not duplicate the lamp, keyboard, amplifier, plants or people. The narrow RIGHT extension completes only the same foreground electronic keyboard and its stand, the existing man's cropped dark-denim sleeve/side if needed, and the olive room/studio window beyond. Absolutely no extra hand, extra arm, new face, or new band member. Make the keyboard top edge, keys and leg diagonal connect exactly at the right boundary.",
+            "input_template_filename": "crew-canvas.png",
+            "input_template_sha256": "e5403af4bfe0cd4a7376ddeeb6d45a82befd76b16137ab1fa49672fcc7be3b1c",
+            "generated": {
+              "filename": "exec-ee1ae5c4-b7a6-4373-b090-f4dc084bedc6.png",
+              "sha256": "bdce243b44c6f601ad6812bcf5cfdffa5c65ce04d573524c5e6ce64dd8d02cb1",
+              "width": 2172,
+              "height": 724
+            },
+            "selected_sides": [
+              "left",
+              "right"
+            ]
+          }
+        ]
+      },
+      "outputs": [
+        {
+          "side": "left",
+          "filename": "crew-left-2211.webp",
+          "url": "/assets/home-banners/inset-20261109/crew-left-2211.webp",
+          "width": 2211,
+          "height": 768,
+          "bytes": 22058,
+          "sha256": "ac0769c58c444c642076bbd300c882698857aaac04175a81b747a5e5a47a8570",
+          "format": "WEBP",
+          "mime_type": "image/webp",
+          "generation_run": "initial",
+          "generated_sha256": "bdce243b44c6f601ad6812bcf5cfdffa5c65ce04d573524c5e6ce64dd8d02cb1",
+          "crop": {
+            "x": 0,
+            "y": 153,
+            "width": 1205,
+            "height": 417
+          },
+          "crop_reason": "3072x1024 template coordinates normalized to actual2172x724 output; y153..569 removes only antialiased black padding. The generated center is discarded.",
+          "encoding": {
+            "software": "ImageMagick convert",
+            "quality": 92,
+            "webp_method": 6
+          }
+        },
+        {
+          "side": "right",
+          "filename": "crew-right-239.webp",
+          "url": "/assets/home-banners/inset-20261109/crew-right-239.webp",
+          "width": 239,
+          "height": 768,
+          "bytes": 5764,
+          "sha256": "2f278e538cca9a2562db1cc0ea3e674d46c3dc3772de52e83cedd987977454bf",
+          "format": "WEBP",
+          "mime_type": "image/webp",
+          "generation_run": "initial",
+          "generated_sha256": "bdce243b44c6f601ad6812bcf5cfdffa5c65ce04d573524c5e6ce64dd8d02cb1",
+          "crop": {
+            "x": 2042,
+            "y": 153,
+            "width": 130,
+            "height": 417
+          },
+          "crop_reason": "3072x1024 template coordinates normalized to actual2172x724 output; y153..569 removes only antialiased black padding. The generated center is discarded.",
+          "encoding": {
+            "software": "ImageMagick convert",
+            "quality": 92,
+            "webp_method": 6
+          }
+        }
+      ],
+      "visual_review": {
+        "viewport": {
+          "width": 1070,
+          "height": 272
+        },
+        "original_bounds": {
+          "x": 462,
+          "y": 0,
+          "width": 544,
+          "height": 272
+        },
+        "right_inset": 64,
+        "original_opacity": 1,
+        "seams_visually_reviewed": true,
+        "new_people_or_faces": false,
+        "duplicate_props": false,
+        "black_padding_in_output": false,
+        "original_file_unchanged": true
+      }
+    },
+    {
+      "id": "premium",
+      "source_url": "/assets/home-banners/mobile-20261109/premium-1536.webp",
+      "source": {
+        "filename": "premium-1536.webp",
+        "sha256": "990c78716f33069c6619fadf69406966f48d660159d3066eb98d1a28517d55be",
+        "bytes": 186530,
+        "width": 1536,
+        "height": 768,
+        "format": "WEBP",
+        "mime_type": "image/webp"
+      },
+      "prompt": "Use case: precise-object-edit. Asset type: STRICT two-sided outpaint of a fixed existing photographic banner template. Image 1 is the exact edit target, not a style reference. Output exactly 3072 x 1024. Keep its 3:1 canvas, framing and every coordinate fixed. KEEP the intentionally BLACK horizontal padding unchanged at y=0..215 and y=808..1023. The photographic strip is y=216..807, exactly 592 pixels high. Within this strip the untouched original photograph occupies x=1704..2887, width1184. Treat that rectangle as LOCKED source pixels: do not redraw, scale, move, relight, recolor, blur, recompose or crop any part of it. All people and all facial features, hairstyles, expressions, clothes, hands, instruments, props, edges and background details inside that photograph must stay at exactly their input positions. Fill ONLY the two white missing areas: LEFT x=0..1703,y=216..807; RIGHT x=2888..3071,y=216..807. Extend the SAME physical room continuously beyond both edges, with exact wall/panel/furniture/desk lines continuing at matching heights, same lens and perspective, same illumination, color and photographic detail. The added areas must connect invisibly to the locked photo. Do not mirror, duplicate, repeat, rearrange or independently recreate the room. Complete objects that cross the photo boundary only once. No new people, faces, heads, silhouettes, reflections of people, arms or hands. On the narrow right extension, continue only the existing cut clothing/body surface or prop that physically crosses that precise edge, without inventing another person or hand. No text, lettering, logos, watermark, graphics, neon effects, artificial haze, blurred filler, flat gradient blocks or white seams. Keep all black padding untouched; only fill white rectangles. Matching the exact boundary geometry is the most important requirement. Premium room: the wide LEFT extension continues the same navy vertical-slat wall and dark low listening desk and completes the one partly clipped turntable at the exact left edge without adding another turntable. The narrow RIGHT extension continues the same slanted record-display rack, brass rail horizontals, dark navy wall and lower cabinet precisely from the photo's right edge. Keep the original woman, held record and fingers entirely fixed. No additional person, hand, new record held in the air, duplicated lamp, headphone stand or independent new equipment.",
+      "provenance": {
+        "input_template": {
+          "filename": "premium-canvas.png",
+          "sha256": "35c68443d22c066a0c4563b9a2bafe0e26ead8090059ef1ad03d31481fcdf8aa",
+          "width": 3072,
+          "height": 1024
+        },
+        "generated": {
+          "filename": "exec-85dcea64-979e-4a07-a149-c14a5a813fab.png",
+          "sha256": "9c4d5c42de8448330dcbd402899cfefaca61213b56491de10666fcb75ef5df94",
+          "width": 2172,
+          "height": 724
+        },
+        "generation_runs": [
+          {
+            "id": "initial",
+            "prompt": "Use case: precise-object-edit. Asset type: STRICT two-sided outpaint of a fixed existing photographic banner template. Image 1 is the exact edit target, not a style reference. Output exactly 3072 x 1024. Keep its 3:1 canvas, framing and every coordinate fixed. KEEP the intentionally BLACK horizontal padding unchanged at y=0..215 and y=808..1023. The photographic strip is y=216..807, exactly 592 pixels high. Within this strip the untouched original photograph occupies x=1704..2887, width1184. Treat that rectangle as LOCKED source pixels: do not redraw, scale, move, relight, recolor, blur, recompose or crop any part of it. All people and all facial features, hairstyles, expressions, clothes, hands, instruments, props, edges and background details inside that photograph must stay at exactly their input positions. Fill ONLY the two white missing areas: LEFT x=0..1703,y=216..807; RIGHT x=2888..3071,y=216..807. Extend the SAME physical room continuously beyond both edges, with exact wall/panel/furniture/desk lines continuing at matching heights, same lens and perspective, same illumination, color and photographic detail. The added areas must connect invisibly to the locked photo. Do not mirror, duplicate, repeat, rearrange or independently recreate the room. Complete objects that cross the photo boundary only once. No new people, faces, heads, silhouettes, reflections of people, arms or hands. On the narrow right extension, continue only the existing cut clothing/body surface or prop that physically crosses that precise edge, without inventing another person or hand. No text, lettering, logos, watermark, graphics, neon effects, artificial haze, blurred filler, flat gradient blocks or white seams. Keep all black padding untouched; only fill white rectangles. Matching the exact boundary geometry is the most important requirement. Premium room: the wide LEFT extension continues the same navy vertical-slat wall and dark low listening desk and completes the one partly clipped turntable at the exact left edge without adding another turntable. The narrow RIGHT extension continues the same slanted record-display rack, brass rail horizontals, dark navy wall and lower cabinet precisely from the photo's right edge. Keep the original woman, held record and fingers entirely fixed. No additional person, hand, new record held in the air, duplicated lamp, headphone stand or independent new equipment.",
+            "input_template_filename": "premium-canvas.png",
+            "input_template_sha256": "35c68443d22c066a0c4563b9a2bafe0e26ead8090059ef1ad03d31481fcdf8aa",
+            "generated": {
+              "filename": "exec-85dcea64-979e-4a07-a149-c14a5a813fab.png",
+              "sha256": "9c4d5c42de8448330dcbd402899cfefaca61213b56491de10666fcb75ef5df94",
+              "width": 2172,
+              "height": 724
+            },
+            "selected_sides": [
+              "left",
+              "right"
+            ]
+          }
+        ]
+      },
+      "outputs": [
+        {
+          "side": "left",
+          "filename": "premium-left-2211.webp",
+          "url": "/assets/home-banners/inset-20261109/premium-left-2211.webp",
+          "width": 2211,
+          "height": 768,
+          "bytes": 21418,
+          "sha256": "20922717bb18136989d0ab5ddf4f55cea0ddb9c7109bf12176ada5d97a71d973",
+          "format": "WEBP",
+          "mime_type": "image/webp",
+          "generation_run": "initial",
+          "generated_sha256": "9c4d5c42de8448330dcbd402899cfefaca61213b56491de10666fcb75ef5df94",
+          "crop": {
+            "x": 0,
+            "y": 153,
+            "width": 1205,
+            "height": 417
+          },
+          "crop_reason": "3072x1024 template coordinates normalized to actual2172x724 output; y153..569 removes only antialiased black padding. The generated center is discarded.",
+          "encoding": {
+            "software": "ImageMagick convert",
+            "quality": 92,
+            "webp_method": 6
+          }
+        },
+        {
+          "side": "right",
+          "filename": "premium-right-239.webp",
+          "url": "/assets/home-banners/inset-20261109/premium-right-239.webp",
+          "width": 239,
+          "height": 768,
+          "bytes": 8424,
+          "sha256": "7ddd03a68ac04ce09ccc3cd7aebea2f41d4a6ca5445d5896be205cd57bfbc5d9",
+          "format": "WEBP",
+          "mime_type": "image/webp",
+          "generation_run": "initial",
+          "generated_sha256": "9c4d5c42de8448330dcbd402899cfefaca61213b56491de10666fcb75ef5df94",
+          "crop": {
+            "x": 2042,
+            "y": 153,
+            "width": 130,
+            "height": 417
+          },
+          "crop_reason": "3072x1024 template coordinates normalized to actual2172x724 output; y153..569 removes only antialiased black padding. The generated center is discarded.",
+          "encoding": {
+            "software": "ImageMagick convert",
+            "quality": 92,
+            "webp_method": 6
+          }
+        }
+      ],
+      "visual_review": {
+        "viewport": {
+          "width": 1070,
+          "height": 272
+        },
+        "original_bounds": {
+          "x": 462,
+          "y": 0,
+          "width": 544,
+          "height": 272
+        },
+        "right_inset": 64,
+        "original_opacity": 1,
+        "seams_visually_reviewed": true,
+        "new_people_or_faces": false,
+        "duplicate_props": false,
+        "black_padding_in_output": false,
+        "original_file_unchanged": true
+      }
+    }
+  ]
+}

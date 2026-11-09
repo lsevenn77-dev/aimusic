@@ -91,7 +91,7 @@ test('mobile retains the seven approved photos and uses the new full-frame crew 
 test('desktop and compact desktop reuse the exact mobile photo independently from generated scenery',()=>{
  const c=context(),banners=vm.runInContext('homeBanners',c);
  for(const [index,banner] of banners.entries()){
-  const original=c.homeBannerImage(banner.id,1536),background=c.homeBannerBackgroundImage(banner.id);
+  const original=c.homeBannerImage(banner.id,1536);
   const html=c.homeBannerHTML(banner,banners[(index+1)%banners.length]);
   const picture=html.match(/<picture\b[^>]*>[\s\S]*?<\/picture>/)?.[0];
   assert.ok(picture,banner.id+' needs the original photo as a separate layer');
@@ -99,17 +99,22 @@ test('desktop and compact desktop reuse the exact mobile photo independently fro
    assert.equal(pictureSourceAt(html,width),original,banner.id+' must retain the mobile original at '+width+'px');
   }
   assert.equal(attributes(picture.match(/<img\b[^>]*>/)?.[0]||'').src,original);
-  assert.ok(!picture.includes(background),'generated scenery must never replace the original portrait');
-  const scenery=Array.from(html.matchAll(/<span\b[^>]*>/g),match=>attributes(match[0])).find(tag=>tag.class?.split(/\s+/).includes('home-promo-scenery'));
-  assert.ok(scenery?.style?.includes(background),banner.id+' needs its own background-only layer');
-  assert.equal(scenery['aria-hidden'],'true','decorative scenery is not a second announced image');
+  const scenery=Array.from(html.matchAll(/<span\b[^>]*>/g),match=>attributes(match[0])).filter(tag=>tag.class?.split(/\s+/).includes('home-promo-scenery'));
+  assert.equal(scenery.length,2,'both exposed sides need their own matching outpaint');
+  for(const side of ['left','right']){
+   const background=c.homeBannerBackgroundImage(banner.id,side);
+   assert.ok(!picture.includes(background),'generated scenery must never replace the original portrait');
+   const layer=scenery.find(tag=>tag.class.split(/\s+/).includes('home-promo-scenery-'+side));
+   assert.ok(layer?.style?.includes(background),banner.id+' needs its own '+side+' extension');
+   assert.equal(layer['aria-hidden'],'true','decorative scenery is not a second announced image');
+  }
   assert.doesNotMatch(html,/\/assets\/home-banners\/(?:approved|desktop|desktop-close|seamless)-20261109\/[^"'\s<>]+-2172\.webp/,'old generated portraits must not return through a source or preload');
  }
 });
 
 test('desktop scenery matches reviewed WebP files and records the unchanged original photo provenance',()=>{
  const c=context(),banners=vm.runInContext('homeBanners',c);
- const base=new URL('../dist/assets/home-banners/background-20261109/',import.meta.url);
+ const base=new URL('../dist/assets/home-banners/inset-20261109/',import.meta.url);
  const manifestText=readFileSync(new URL('manifest.json',base),'utf8'),manifest=JSON.parse(manifestText);
  assert.equal(manifest.assets.length,banners.length);
  assert.deepEqual(manifest.assets.map(asset=>asset.id),Array.from(banners,banner=>banner.id));
@@ -117,7 +122,7 @@ test('desktop scenery matches reviewed WebP files and records the unchanged orig
  const hashes=new Set();
  for(const banner of banners){
   const asset=manifest.assets.find(item=>item.id===banner.id);
-  assert.ok(asset,'missing background-only scene for '+banner.id);
+  assert.ok(asset,'missing scene extensions for '+banner.id);
   assert.equal(asset.source_url,c.homeBannerImage(banner.id,1536));
   const original=readFileSync(new URL('../dist'+asset.source_url,import.meta.url));
   assert.equal(createHash('sha256').update(original).digest('hex'),asset.source.sha256,'background provenance must identify the actual unchanged mobile photo');
@@ -125,20 +130,22 @@ test('desktop scenery matches reviewed WebP files and records the unchanged orig
   assert.ok(asset.prompt.trim(),'generation prompt must be preserved for '+banner.id);
   assert.ok(asset.provenance.generated.filename.endsWith('.png'));
   assert.match(asset.provenance.generated.sha256,/^[a-f0-9]{64}$/);
-  const output=asset.outputs.find(item=>item.width===2172);
-  assert.ok(output,'missing full-size desktop scenery for '+banner.id);
-  assert.equal(output.filename,banner.id+'-2172.webp');
-  assert.equal(c.homeBannerBackgroundImage(banner.id),output.url,'rendered scenery must match its reviewed manifest');
-  assert.equal(output.width,2172);
-  assert.equal(output.height,681);
-  const bytes=readFileSync(new URL('../dist'+output.url,import.meta.url));
-  assert.equal(bytes.toString('ascii',0,4),'RIFF');
-  assert.equal(bytes.toString('ascii',8,12),'WEBP');
-  assert.equal(bytes.readUInt32LE(4)+8,bytes.length,'incomplete WebP: '+output.filename);
-  assert.equal(bytes.length,output.bytes);
-  const hash=createHash('sha256').update(bytes).digest('hex');
-  assert.equal(hash,output.sha256,output.filename+' differs from its reviewed background');
-  hashes.add(hash);
+  for(const [side,width] of [['left',2211],['right',239]]){
+   const output=asset.outputs.find(item=>item.side===side);
+   assert.ok(output,'missing '+side+' desktop scenery for '+banner.id);
+   assert.equal(output.filename,banner.id+'-'+side+'-'+width+'.webp');
+   assert.equal(c.homeBannerBackgroundImage(banner.id,side),output.url,'rendered scenery must match its reviewed manifest');
+   assert.equal(output.width,width);
+   assert.equal(output.height,768);
+   const bytes=readFileSync(new URL('../dist'+output.url,import.meta.url));
+   assert.equal(bytes.toString('ascii',0,4),'RIFF');
+   assert.equal(bytes.toString('ascii',8,12),'WEBP');
+   assert.equal(bytes.readUInt32LE(4)+8,bytes.length,'incomplete WebP: '+output.filename);
+   assert.equal(bytes.length,output.bytes);
+   const hash=createHash('sha256').update(bytes).digest('hex');
+   assert.equal(hash,output.sha256,output.filename+' differs from its reviewed background');
+   hashes.add(hash);
+  }
  }
- assert.equal(hashes.size,banners.length,'each banner needs its own background-only scene');
+ assert.equal(hashes.size,banners.length*2,'each banner needs its own left and right scene extension');
 });
