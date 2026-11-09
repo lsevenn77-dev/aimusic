@@ -9,7 +9,7 @@
   --studio-panel-bg: rgba(15, 22, 43, .87);
   position: relative;
   isolation: isolate;
-  background-color: #0c1220;
+  background-color: var(--ds-bg, #0c121b);
 }
 .page-wrap:has(> #main > .studio-manager)::after {
   content: "";
@@ -61,8 +61,8 @@
 .studio-manager .studio-quota-card { --ui-type-scale: 1; --ui-space-scale: 1; --ui-icon-scale: 1; --ui-control-height: 44px; --pc-font-section: 19px; --pc-font-body: 15px; --pc-font-control: 14px; --pc-font-card: 16px; --pc-font-meta: 13px; --pc-font-caption: 13px; --studio-quota-footer-space: calc(12px + 13px * 1.6); display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); align-items: stretch; gap: 12px; margin-bottom: 12px; min-width: 0; }
 .studio-manager :is(.studio-quota-upload-card,.studio-quota-membership) { position: relative; isolation: isolate; overflow: hidden; min-width: 0; padding: 24px 24px 20px; border: 1px solid; border-radius: var(--ds-radius-card, 16px); }
 .studio-manager :is(.studio-quota-upload-card,.studio-quota-membership)::before { content: ""; position: absolute; top: 0; left: 24px; right: 24px; height: 1px; pointer-events: none; background: linear-gradient(90deg, transparent, #d8c5ec3b, transparent); }
-.studio-manager .studio-quota-upload-card { --studio-quota-body: #bec3d2; --studio-quota-muted: #9da5bb; display: flex; flex-direction: column; background: radial-gradient(ellipse at 100% 0, #24243a, transparent 65%), #171c2b; border-color: #30364b; }
-.studio-manager .studio-quota-upload-card::before { background: linear-gradient(90deg, transparent, #b7b9d11f, transparent); }
+.studio-manager .studio-quota-upload-card { --studio-quota-body: #bec3d2; --studio-quota-muted: #9da5bb; display: flex; flex-direction: column; background: var(--ds-bg, #0c121b); border-color: #30364b; }
+.studio-manager .studio-quota-upload-card::before { background: none; }
 .studio-manager :is(.studio-quota-copy,.studio-quota-membership-copy) { box-sizing: border-box; min-width: 0; width: 100%; }
 .studio-manager :is(.studio-quota-copy,.studio-quota-membership-copy) h2 { margin: 0 0 8px; color: var(--studio-ink); font-size: var(--pc-font-section); font-weight: 600; line-height: 1.45; letter-spacing: -.035em; word-break: keep-all; overflow-wrap: anywhere; }
 .studio-manager :is(.studio-quota-copy,.studio-quota-membership-copy) p { margin: 0; color: var(--studio-quota-body, var(--ds-body)); font-size: var(--pc-font-body); line-height: 1.6; word-break: keep-all; overflow-wrap: anywhere; }
