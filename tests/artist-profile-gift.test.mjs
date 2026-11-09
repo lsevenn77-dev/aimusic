@@ -10,6 +10,20 @@ test('artist preview uses its public creator and artist follow state',async t=>{
  assert.equal(d.profile.bio,'등록된 소개글');
  assert.equal(d.profile.producer_name,'QA');
  assert.equal(d.profile.producer_id,'producer');assert.equal(d.following,true);assert.equal(d.followers,1);
+ assert.equal(d.follows_viewer,false);
+});
+test('an artist never inherits its creator personal follow-back state',async t=>{
+ const f=await fixture(t);
+ f.sql.exec("INSERT INTO producers(id,user_id,name,created) VALUES('other-profile','other','Other',0)");
+ await f.call('/api/producers/other-profile/follow','PUT');
+ assert.equal((await f.call('/api/producers/producer','GET',null,'other')).body.follows_viewer,true);
+ for(const method of ['PUT','DELETE']){
+  const r=await f.call('/api/artists/artist/follow',method,null,'other');
+  assert.equal(r.status,200);assert.equal(r.body.follows_viewer,false);assert.equal(r.body.following,method==='PUT');
+  for(const path of ['/api/artists/artist','/api/artist-preview/artist']){
+   const view=await f.call(path,'GET',null,'other');assert.equal(view.status,200);assert.equal(view.body.follows_viewer,false);
+  }
+ }
 });
 test('artist gifts credit one creator, bind their source and replay a concurrent send once',async t=>{
  const f=await fixture(t),path='/api/producers/producer/gifts';

@@ -3,7 +3,7 @@ import {requirePlaylistTrack,playlistCandidates} from './playlist-policy.js';
 import {exactSongScope,fallbackSongScope,songBlockScope} from './song-search.js';
 import {songTextMatch,searchText} from './search-match.js';
 import {giftBlockReason} from './gift-eligibility.js';
-import {followCounts,assertArtistInteraction} from './follow-management.js';
+import {followCounts,assertArtistInteraction,producerFollowsViewer} from './follow-management.js';
 import {canManageArtist} from './artist-fan-access.js';
 import {fanpageData} from './artist-fanpage.js';
 import {profileDashboard} from './profile-dashboard.js';
@@ -188,7 +188,7 @@ export async function catalogRoute(req,env,path,user){
    const own=kind==='producer'&&user?.id===entity.user_id,dashboardRequested=kind==='producer'&&url.searchParams.get('dashboard')==='1',manage=own&&dashboardRequested;
    const profileWorks=kind==='producer'&&dashboardRequested&&url.searchParams.get('work_list')==='1';
    const workLimit=profileWorks?-1:500;
-   const [count,tracks,covers,gifts,identity,gallery,inviteCrew,dashboard,ai]=await Promise.all([
+   const [count,tracks,covers,gifts,identity,gallery,inviteCrew,dashboard,ai,followsViewer]=await Promise.all([
     followCounts(env,owner.user_id,user?.id,kind==='artist'?entity.id:''),
     trackList(env,`${manage?"((t.user_id=? AND t.status!='deleted') OR "+VISIBLE()+')':VISIBLE()} AND t.kind='original' AND t.${kind}_id=?`,[...(manage?[user.id]:[]),entity.id], 't.created DESC',workLimit,manage,profileWorks),
     kind==='producer'?trackList(env,`${manage?"((t.user_id=? AND t.status!='deleted') OR "+VISIBLE()+')':VISIBLE()} AND t.kind='cover' AND (t.producer_id=? OR dt.producer_id=? OR EXISTS(SELECT 1 FROM tracks child WHERE child.duet_parent_id=t.id AND child.producer_id=? AND ${VISIBLE('child')}))`,[...(manage?[user.id]:[]),entity.id,entity.id,entity.id], 't.created DESC',workLimit,manage,profileWorks):null,
@@ -197,19 +197,24 @@ export async function catalogRoute(req,env,path,user){
     kind==='producer'?profileGallery(env,entity.id,own):artistGallery(env,entity.id,user),
     kind==='producer'&&user&&entity.user_id!==user.id?one(env,'SELECT c.id,c.name FROM crew_members cm JOIN crews c ON c.id=cm.crew_id WHERE cm.user_id=? AND NOT EXISTS(SELECT 1 FROM crew_members target WHERE target.crew_id=c.id AND target.user_id=?) AND NOT EXISTS(SELECT 1 FROM crew_bans WHERE crew_id=c.id AND user_id=?)',user.id,entity.user_id,entity.user_id):null,
     kind==='producer'?profileDashboard(env,entity,user,profileWorks):null,
-    kind==='producer'?supportFollowCount(env,entity.user_id,user?.id||null):0
+    kind==='producer'?supportFollowCount(env,entity.user_id,user?.id||null):0,
+    kind==='producer'?producerFollowsViewer(env,entity.user_id,user?.id):false
    ]);
    if(dashboardRequested)await profileCoverParticipation(env,covers,user);
    const profileIdentity=identity&&!own?{profile_frame:identity.profile_frame,profile_frame_artwork:identity.profile_frame_artwork}:identity;
    // Profile visitors receive public works, never their owner's private XP totals.
    if(!own)for(const track of [...tracks,...(covers||[])])delete track.player_xp;
-   return json({profile:kind==='producer'?{...entity,partner_badge:partnerBadge,...profileIdentity,public_number:dashboard.public_number,public_id:dashboard.public_id}:entity,tracks,followers:count.followers,human_followers:Math.max(0,count.followers-ai),ai_followers:ai,gallery,...(kind==='producer'?{...dashboard,following_count:count.following,covers,gifts,invite_crew:inviteCrew,gallery_limit:PROFILE_GALLERY_LIMIT}:{can_manage:await canManageArtist(env,entity.id,user),can_edit_portrait:user?.id===owner?.user_id,gallery_limit:GALLERY_LIMIT,fanpage:await fanpageData(env,entity.id)})});
+   return json({profile:kind==='producer'?{...entity,partner_badge:partnerBadge,...profileIdentity,public_number:dashboard.public_number,public_id:dashboard.public_id}:entity,tracks,followers:count.followers,human_followers:Math.max(0,count.followers-ai),ai_followers:ai,follows_viewer:followsViewer,gallery,...(kind==='producer'?{...dashboard,following_count:count.following,covers,gifts,invite_crew:inviteCrew,gallery_limit:PROFILE_GALLERY_LIMIT}:{can_manage:await canManageArtist(env,entity.id,user),can_edit_portrait:user?.id===owner?.user_id,gallery_limit:GALLERY_LIMIT,fanpage:await fanpageData(env,entity.id)})});
   }
   requireUser(user);
   if(method==='PUT')await run(env,'INSERT OR IGNORE INTO follows(user_id,kind,target_id,created) VALUES(?,?,?,?)',user.id,kind,entity.id,now());
   else if(method==='DELETE')await run(env,'DELETE FROM follows WHERE user_id=? AND kind=? AND target_id=?',user.id,kind,entity.id);else fail(405,'지원하지 않는 요청입니다.');
-  const ai=kind==='producer'?await supportFollowCount(env,entity.user_id,user?.id||null):0,counts=await followCounts(env,owner.user_id,user.id,kind==='artist'?entity.id:'');
-  return json({ok:true,following:method==='PUT',profile:entity,followers:counts.followers,human_followers:Math.max(0,counts.followers-ai),ai_followers:ai});
+  const [ai,counts,followsViewer]=await Promise.all([
+   kind==='producer'?supportFollowCount(env,entity.user_id,user.id):0,
+   followCounts(env,owner.user_id,user.id,kind==='artist'?entity.id:''),
+   kind==='producer'?producerFollowsViewer(env,entity.user_id,user.id):false
+  ]);
+  return json({ok:true,following:method==='PUT',profile:entity,followers:counts.followers,human_followers:Math.max(0,counts.followers-ai),ai_followers:ai,follows_viewer:followsViewer});
  }
  if(path==='/api/history'&&method==='GET'){requireUser(user);return json({tracks:await trackList(env,VISIBLE()+" AND t.id IN (SELECT track_id FROM listens WHERE user_id=?)",[user.id],`(SELECT MAX(started) FROM listens l WHERE l.track_id=t.id AND l.user_id='${user.id.replaceAll("'",'')}') DESC`)});}
  if(path==='/api/playlists/candidates'&&method==='GET')return playlistCandidates(req,env,user);

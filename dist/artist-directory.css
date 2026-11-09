@@ -66,6 +66,7 @@
 #main .artist-directory .directory-social{display:flex;align-items:center;justify-content:center;gap:8px;max-width:100%;min-width:0;margin-top:2px}
 #main .artist-directory .directory-followers{font-size:12px;min-width:0;overflow:hidden;text-overflow:ellipsis;margin:0}
 #main .artist-directory .directory-follow{gap:4px;font-size:12px;padding-inline:8px;min-width:0;margin:0;border:1px solid transparent;background:linear-gradient(var(--ds-bg),var(--ds-bg)) padding-box,linear-gradient(105deg,var(--ds-lilac),#8EDDD2) border-box;color:var(--ds-text)}
+#main .artist-directory .directory-follow[data-follow-presentation="profile"]{border-radius:10px;background:var(--ds-gradient);color:var(--ds-ink);font-weight:600;transition:filter .16s,color .16s,border-color .16s}
 #main .artist-directory.artist-directory-owned .directory-grid{grid-auto-rows:1fr}
 #main .artist-directory .directory-add-symbol{background:none;border:0;border-radius:0}
 #main .mp-artists-card{container-type:inline-size;container-name:artist-dashboard}

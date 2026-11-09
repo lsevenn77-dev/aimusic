@@ -1,6 +1,6 @@
 import {crewLevel} from '../shared/crews.js';
 import {namedArtistSQL} from './artist-identity.js';
-import {followCounts,assertArtistInteraction} from './follow-management.js';
+import {followCounts,assertArtistInteraction,producerFollowsViewer} from './follow-management.js';
 import {publicNumberSQL,profileActivity} from './profile-dashboard.js';
 import {playerIdentity,playerColumnsSQL} from './player.js';
 import {one,rows,query,id,now,str,json,fail,rate} from './db.js';
@@ -43,7 +43,7 @@ export async function profileRoute(req,env,path,user){
   const profile=await one(env,`SELECT a.id,a.name,a.bio,a.image_version,p.user_id,p.id producer_id,${producerNameSQL()} producer_name FROM artists a JOIN producers p ON p.id=a.producer_id JOIN users u ON u.id=p.user_id WHERE u.provider!='deleted' AND a.id=? AND ${namedArtistSQL()}`,fan[1]);
   if(!profile)fail(404,'아티스트를 찾을 수 없어요.');assertUnblocked(env,profile.user_id);await assertArtistInteraction(env,profile.id,user?.id);
   const [counts,following]=await Promise.all([followCounts(env,profile.user_id,user?.id,profile.id),user?one(env,"SELECT 1 FROM follows WHERE user_id=? AND kind='artist' AND target_id=?",user.id,profile.id):null]);
-  return json({profile,artist:true,...counts,following:!!following});
+  return json({profile,artist:true,...counts,following:!!following,follows_viewer:false});
  }
  const listener=path.match(/^\/api\/member-preview\/([\w-]+)$/);
  if(listener){
@@ -52,7 +52,7 @@ export async function profileRoute(req,env,path,user){
   if(!profile)fail(404,'회원을 찾을 수 없어요.');
   if(profile.id)return profileRoute(req,env,'/api/producers/'+profile.id+'/preview',user);
   const crew=await previewCrew(env,profile.user_id);
-  const c=await followCounts(env,profile.user_id,user?.id);return json({profile,followers:c.followers,following_count:c.following,crew});
+  const c=await followCounts(env,profile.user_id,user?.id);return json({profile,followers:c.followers,following_count:c.following,follows_viewer:false,crew});
  }
  const preview=path.match(/^\/api\/producers\/([\w-]+)\/preview$/);
  if(preview){
@@ -61,13 +61,14 @@ export async function profileRoute(req,env,path,user){
   if(!profile)fail(404,'프로필을 찾을 수 없습니다.');
   delete profile.player_xp; // Preview adds only the existing equipped artwork, without a level badge.
   assertUnblocked(env,profile.user_id);
-  const [counts,crew,following]=await Promise.all([
+  const [counts,crew,following,followsViewer]=await Promise.all([
    followCounts(env,profile.user_id,user?.id),
    previewCrew(env,profile.user_id),
-   user?one(env,"SELECT 1 found FROM follows WHERE user_id=? AND kind='producer' AND target_id=?",user.id,profile.id):null
+   user?one(env,"SELECT 1 found FROM follows WHERE user_id=? AND kind='producer' AND target_id=?",user.id,profile.id):null,
+   producerFollowsViewer(env,profile.user_id,user?.id)
   ]);
   const ai=await supportFollowCount(env,profile.user_id,user?.id||null);
-  return json({profile,followers:counts.followers,human_followers:Math.max(0,counts.followers-ai),ai_followers:ai,following_count:counts.following,following:!!following,crew});
+  return json({profile,followers:counts.followers,human_followers:Math.max(0,counts.followers-ai),ai_followers:ai,following_count:counts.following,following:!!following,follows_viewer:followsViewer,crew});
  }
  const follower=path.match(/^\/api\/followers\/([\w-]+)$/);
  if(follower){

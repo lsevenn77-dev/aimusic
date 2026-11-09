@@ -190,12 +190,11 @@
  margin:0;padding:0;text-align:center;white-space:nowrap;line-height:1;
 }
 .artist-fanpage .fan-follow-button{
- flex:none;min-height:32px;border:0;border-radius:999px;background:transparent;
- color:var(--ds-ink);font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;
+ --ui-space-scale:1;--ui-type-scale:1;--ui-control-height:44px;
+ flex:none;height:44px;min-height:44px;max-height:44px;padding:0 16px;border-radius:10px;
+ color:var(--ds-ink);font-family:inherit;font-size:14px;font-weight:600;line-height:1.4;cursor:pointer;
 }
-.artist-fanpage .fan-follow-button>span{height:32px;padding-inline:14px;border-radius:inherit;background:var(--ds-gradient)}
-.artist-fanpage .fan-follow-button[aria-pressed=true]>span{box-shadow:inset 0 0 0 2px var(--ds-ink)}
-.artist-fanpage .fan-follow-button:hover>span{filter:brightness(1.04)}
+.artist-fanpage .fan-follow-button>span{padding:0;border-radius:inherit;background:none}
 .artist-fanpage .fan-follow-button:disabled{cursor:wait;opacity:.7}
 .artist-fanpage .fan-tabs{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:0!important;width:100%;overflow:visible}
 .artist-fanpage .fan-tabs a{min-width:0;padding-inline:2px!important;white-space:nowrap}
@@ -235,8 +234,7 @@
 .artist-fanpage .fan-stats-group{min-width:0;max-width:100%;flex-wrap:wrap;gap:0 4px}
 .artist-fanpage .fan-stats-group>span{max-width:100%;white-space:normal;overflow-wrap:anywhere}
 .artist-fanpage .fan-stats-divider{display:none}
-.artist-fanpage .fan-follow-button{min-height:44px;font-size:13px}
-.artist-fanpage .fan-follow-button>span{height:30px;padding-inline:12px}
+.artist-fanpage .fan-follow-button{min-height:44px;font-size:14px}
 .artist-fanpage .fan-tabs{
  display:flex;gap:14px!important;max-width:100%;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none;
 }
@@ -351,7 +349,6 @@
 }
 #main .artist-fanpage .fan-stats-group{min-width:0;flex-wrap:wrap;gap:calc(8px)}
 #main .artist-fanpage .fan-follow-button{min-height:44px;font-size:var(--pc-font-control,14px);font-weight:600}
-#main .artist-fanpage .fan-follow-button>span{height:32px;padding-inline:calc(16px)}
 #main .artist-fanpage .fan-settings-menu{padding:calc(8px);border-radius:var(--ds-radius-input)}
 #main .artist-fanpage .fan-settings-menu :is(button,a){min-height:44px;padding:calc(10px) calc(12px);border-radius:var(--ds-radius-sm)}
 #main .artist-fanpage [data-profile-preview]:focus-visible{outline:2px solid var(--ds-selected);outline-offset:4px;border-radius:var(--ds-radius-sm)}
