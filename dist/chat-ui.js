@@ -19,5 +19,9 @@ function resizeChatInput(input){
 }
 function messageWorkspaceGeometry({mobile,height,offset=0,top=0,playerTop=Infinity}){
  const start=mobile?offset:top,bottom=mobile?offset+height:Math.min(offset+height,playerTop);
- return {top:start,height:Math.max(0,bottom-start-(mobile?0:16))};
+ if(mobile)return {top:start,height:Math.max(0,bottom-start)};
+ // Keep the desktop composer comfortably above the viewport/player edge.
+ // Short windows still fit the available space; mobile owns its full visual viewport.
+ const available=Math.max(0,bottom-start-24),preferred=Math.min(720,Math.round(height*.74));
+ return {top:start,height:Math.min(available,preferred)};
 }
