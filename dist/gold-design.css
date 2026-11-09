@@ -1,0 +1,232 @@
+/* Gold checkout uses the same management-page surfaces and type scale.
+   Only the charging page is styled; shared checkout and sent-gift views stay scoped. */
+#main .gold-page {
+  display:grid;
+  gap:calc(28px);
+  min-width:0;
+}
+#main .gold-page .gold-card {
+  display:grid;
+  grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);
+  align-items:center;
+  gap:calc(32px);
+  padding:calc(24px);
+  margin:0;
+}
+#main .gold-page .gold-wallet-summary {min-width:0}
+#main .gold-page .gold-wallet-summary>.eyebrow {
+  display:block;
+  color:var(--ds-muted);
+  font-size:var(--pc-font-meta,14px);
+  font-weight:500;
+  line-height:1.5;
+  letter-spacing:0;
+}
+#main .gold-page .gold-balance {
+  display:flex;
+  align-items:baseline;
+  flex-wrap:wrap;
+  gap:calc(8px);
+  margin:calc(8px) 0 calc(16px);
+  color:var(--ds-text);
+  font-size:clamp(30px,2.6vw,36px);
+  font-weight:700;
+  line-height:1.25;
+  letter-spacing:-.035em;
+  font-variant-numeric:tabular-nums;
+  overflow-wrap:anywhere;
+}
+#main .gold-page .gold-balance small {
+  font-size:var(--pc-font-section,20px);
+  font-weight:500;
+  letter-spacing:0;
+  color:var(--ds-muted);
+}
+#main .gold-page .gold-wallet-copy {
+  min-width:0;
+  padding-left:calc(28px);
+  border-left:1px solid var(--ds-line);
+}
+#main .gold-page .gold-wallet-copy p {
+  margin:0;
+  font-size:var(--pc-font-body,15px);
+  line-height:1.7;
+  color:var(--ds-body);
+  word-break:keep-all;
+  overflow-wrap:anywhere;
+}
+#main .gold-page .gold-wallet-copy .field-help {
+  margin-top:calc(12px);
+  color:var(--ds-muted);
+  font-size:var(--pc-font-meta,14px);
+}
+#main .gold-page .gold-products {min-width:0}
+#main .gold-page .gold-section-heading {margin:0 0 calc(16px)}
+#main .gold-page .gold-section-heading h2 {
+  margin:0;
+  color:var(--ds-text);
+  font-size:var(--pc-font-section,20px);
+  line-height:1.5;
+}
+#main .gold-page .gold-section-heading .field-help {
+  margin:calc(8px) 0 0;
+  font-size:var(--pc-font-meta,14px);
+  line-height:1.7;
+}
+#main .gold-page .gold-packs {
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:calc(20px);
+  margin:0;
+}
+#main .gold-page .gold-pack {
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+  min-width:0;
+  padding:calc(24px);
+  gap:calc(14px);
+  border-radius:var(--ds-radius-card);
+}
+#main .gold-page .gold-pack-main {min-width:0}
+#main .gold-page .gold-pack-label {
+  display:block;
+  margin-bottom:calc(6px);
+  color:var(--ds-muted);
+  font-size:var(--pc-font-caption,13px);
+  line-height:1.5;
+}
+#main .gold-page .gold-pack-main>strong {
+  display:flex;
+  align-items:baseline;
+  flex-wrap:wrap;
+  gap:calc(6px);
+  font-size:clamp(24px,2vw,28px);
+  line-height:1.35;
+  color:var(--ds-text);
+  font-variant-numeric:tabular-nums;
+  letter-spacing:-.025em;
+  overflow-wrap:anywhere;
+}
+#main .gold-page .gold-pack-main small {
+  color:var(--ds-muted);
+  font-size:var(--pc-font-card,16px);
+  font-weight:500;
+}
+#main .gold-page .gold-bonus {
+  display:grid;
+  gap:calc(5px);
+  margin:0 0 calc(4px);
+  color:var(--ds-muted);
+  font-size:var(--pc-font-meta,14px);
+  font-weight:400;
+  line-height:1.5;
+}
+#main .gold-page .gold-bonus span {
+  white-space:normal;
+  overflow-wrap:anywhere;
+}
+#main .gold-page .gold-bonus span+span {color:var(--ds-selected)}
+#main .gold-page .gold-pack-purchase {
+  display:grid;
+  gap:calc(16px);
+  padding-top:calc(18px);
+  margin-top:auto;
+  border-top:1px solid var(--ds-line);
+}
+#main .gold-page .gold-pack-price {
+  color:var(--ds-text);
+  font-size:var(--pc-font-section,20px);
+  line-height:1.5;
+  font-weight:600;
+  font-variant-numeric:tabular-nums;
+}
+#main .gold-page .gold-pack .primary-button {width:100%;min-width:0}
+#main .gold-page .gold-purchase-notes {margin-top:calc(16px)}
+#main .gold-page .gold-purchase-notes>.field-help {
+  margin:0;
+  font-size:var(--pc-font-meta,14px);
+  line-height:1.75;
+}
+#main .gold-page .gold-purchase-notes>.field-help+.field-help {margin-top:calc(10px)}
+#main .gold-page .gold-purchase-notes a {text-underline-offset:3px}
+#main .gold-page .billing-notice {
+  padding:calc(12px) calc(14px);
+  margin:calc(14px) 0 0;
+  border:0;
+  border-radius:var(--ds-radius-input);
+  background:var(--ds-soft);
+  color:var(--ds-body);
+  font-size:var(--pc-font-meta,14px);
+  line-height:1.7;
+}
+#main .gold-page .gold-products>.billing-notice {margin:0 0 calc(16px)}
+#main .gold-page .gold-orders {padding:calc(24px);min-width:0}
+#main .gold-page .gold-orders .gold-section-heading {margin-bottom:calc(8px)}
+#main .gold-page .gold-order-list {padding:0;background:none;border:0}
+#main .gold-page .gold-order-row {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto auto;
+  align-items:center;
+  gap:calc(16px);
+  padding:calc(16px) 0;
+  border-bottom:1px solid var(--ds-line);
+}
+#main .gold-page .gold-order-row:last-child {border-bottom:0;padding-bottom:0}
+#main .gold-page .gold-order-detail {min-width:0}
+#main .gold-page .gold-order-amount {
+  color:var(--ds-text);
+  font-size:var(--pc-font-body,15px);
+  font-variant-numeric:tabular-nums;
+  line-height:1.6;
+}
+#main .gold-page .gold-order-id {
+  display:block;
+  margin-top:calc(5px);
+  color:var(--ds-muted);
+  font-size:var(--pc-font-caption,13px);
+  line-height:1.6;
+  overflow-wrap:anywhere;
+}
+#main .gold-page .gold-order-state {
+  color:var(--ds-body);
+  font-size:var(--pc-font-meta,14px);
+  font-weight:500;
+  line-height:1.6;
+}
+#main .gold-page .gold-order-list>.empty-note {padding:calc(16px) 0 calc(4px);margin:0}
+#main .gold-page .gold-page-footer {margin-top:calc(-12px);min-width:0}
+#main .gold-page .gold-history-link {margin:0}
+@media(max-width:1100px) {
+  #main .gold-page .gold-card {gap:calc(24px);grid-template-columns:minmax(0,1fr) minmax(0,1.2fr)}
+  #main .gold-page .gold-wallet-copy {padding-left:calc(24px)}
+  #main .gold-page .gold-pack {padding:calc(20px)}
+  #main .gold-page .gold-packs {gap:calc(16px)}
+}
+@media(max-width:600px) {
+  #main .gold-page {gap:calc(24px)}
+  #main .gold-page .gold-card {grid-template-columns:1fr;padding:calc(20px) calc(16px);gap:calc(20px)}
+  #main .gold-page .gold-wallet-copy {padding:calc(16px) 0 0;border-left:0;border-top:1px solid var(--ds-line)}
+  #main .gold-page .gold-wallet-copy p {font-size:14px;line-height:1.7}
+  #main .gold-page .gold-wallet-copy .field-help {font-size:13px;margin-top:calc(10px)}
+  #main .gold-page .gold-balance {font-size:32px;margin-bottom:calc(12px)}
+  #main .gold-page .gold-packs {grid-template-columns:1fr;gap:calc(12px)}
+  #main .gold-page .gold-pack {
+    display:grid;
+    grid-template-columns:minmax(0,1fr) minmax(110px,.75fr);
+    align-items:center;
+    gap:calc(10px) calc(16px);
+    padding:calc(18px) calc(16px);
+  }
+  #main .gold-page .gold-pack-main {grid-column:1;grid-row:1}
+  #main .gold-page .gold-pack-main>strong {font-size:24px;gap:calc(5px)}
+  #main .gold-page .gold-bonus {grid-column:1;grid-row:2;font-size:13px;gap:calc(3px);margin:0}
+  #main .gold-page .gold-pack-purchase {grid-column:2;grid-row:1 / span 2;margin:0;padding:0;border:0;gap:calc(12px);text-align:right}
+  #main .gold-page .gold-pack-price {font-size:18px}
+  #main .gold-page .gold-pack .primary-button {padding-inline:calc(10px)}
+  #main .gold-page .gold-orders {padding:calc(20px) calc(16px)}
+  #main .gold-page .gold-order-row {grid-template-columns:minmax(0,1fr) auto;gap:calc(12px)}
+  #main .gold-page .gold-order-detail {grid-column:1 / -1}
+  #main .gold-page .gold-order-state {min-width:0}
+  #main .gold-page .gold-page-footer {margin-top:calc(-8px)}
+}
