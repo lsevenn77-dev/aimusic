@@ -1,0 +1,879 @@
+{
+  "asset_set": "desktop-close-20261109",
+  "source_commit": "a53b45defbf58269471cf48cff246737e7fd775f",
+  "task": "Vertically center the PC copy and show larger clean natural upper-body portraits.",
+  "generation": "Built-in image_gen reference editing; no programmatic creative image edits.",
+  "encoding": {
+    "software": "Pillow",
+    "quality": 94,
+    "method": 6,
+    "format": "WEBP",
+    "resize": false,
+    "crop": false,
+    "sharpen": false
+  },
+  "mobile_unchanged": true,
+  "selected": [
+    {
+      "id": "studio",
+      "generated_path": "/workspace/scratch/68339ef98bf2/generated_images/exec-79d42c90-c68d-42a8-ab6b-77934850192e.png",
+      "sha256": "a76ab1194de91b6c54272fba315e18dc498bd77e95bbaf59ea9f41c3247f3cdb",
+      "width": 2172,
+      "height": 724,
+      "output": "dist/assets/home-banners/desktop-close-20261109/studio-2172.webp"
+    },
+    {
+      "id": "play",
+      "generated_path": "/workspace/scratch/68339ef98bf2/generated_images/exec-73682abe-b2d6-4d87-9de2-1480330a94cf.png",
+      "sha256": "571992229c32aee8fecf04a6df29d6beab2b78c55e18cbed2405daf1ef9c225d",
+      "width": 2172,
+      "height": 724,
+      "output": "dist/assets/home-banners/desktop-close-20261109/play-2172.webp"
+    },
+    {
+      "id": "participate",
+      "generated_path": "/workspace/scratch/68339ef98bf2/generated_images/exec-6b5e33d7-eb6f-48dc-a5a3-9d6e2fa2b6f5.png",
+      "sha256": "f20723fcbb058d6cea28a8a89ad7fcf0174cab2d9e0ca7f6113188c52bcbb577",
+      "width": 2172,
+      "height": 724,
+      "output": "dist/assets/home-banners/desktop-close-20261109/participate-2172.webp"
+    },
+    {
+      "id": "artists",
+      "generated_path": "/workspace/scratch/68339ef98bf2/generated_images/exec-7121432e-b196-4488-a60f-74fa6030a8b4.png",
+      "sha256": "c066d5e7d80caafd8ad31b18eaea960d00a5a21f0b02a4c641fc0db40d0b64f6",
+      "width": 2172,
+      "height": 724,
+      "output": "dist/assets/home-banners/desktop-close-20261109/artists-2172.webp"
+    },
+    {
+      "id": "karaoke",
+      "generated_path": "/workspace/scratch/68339ef98bf2/generated_images/exec-9551fe6e-4af8-4025-99aa-8329bc854337.png",
+      "sha256": "d32bc1adbbf730f2f79c669861dd493c8f48a3f7692bd7a190bd6abd74d7edb7",
+      "width": 2172,
+      "height": 724,
+      "output": "dist/assets/home-banners/desktop-close-20261109/karaoke-2172.webp"
+    },
+    {
+      "id": "talking",
+      "generated_path": "/workspace/scratch/68339ef98bf2/generated_images/exec-a6bd696d-f9c4-4661-a4a1-5d20ce71714b.png",
+      "sha256": "c4af0562ac8b43908baac9f7048f8ad56b5156838d205e4521dce70f4f483984",
+      "width": 2172,
+      "height": 724,
+      "output": "dist/assets/home-banners/desktop-close-20261109/talking-2172.webp"
+    },
+    {
+      "id": "crew",
+      "generated_path": "/workspace/scratch/68339ef98bf2/generated_images/exec-002ff3da-94b8-4699-acfe-e986377a49b3.png",
+      "sha256": "ecb77af2479caa1aaaac05f9910081ff4766a26252c436d0b4bcd527761833c5",
+      "width": 2172,
+      "height": 724,
+      "output": "dist/assets/home-banners/desktop-close-20261109/crew-2172.webp"
+    },
+    {
+      "id": "premium",
+      "generated_path": "/workspace/scratch/68339ef98bf2/generated_images/exec-56414215-7510-4b4e-903f-928c150e888c.png",
+      "sha256": "64d77f3a09105d5cdb28fda9311001f56368dc0e7d1b8a255cfd683d4f18d939",
+      "width": 2172,
+      "height": 724,
+      "output": "dist/assets/home-banners/desktop-close-20261109/premium-2172.webp"
+    }
+  ],
+  "generation_records": [
+    {
+      "record": "pc-close-artists-20261109.json",
+      "content": {
+        "mode": "built-in image_gen reference editing",
+        "assets": [
+          {
+            "id": "artists",
+            "generated_path": "/workspace/scratch/68339ef98bf2/generated_images/exec-7121432e-b196-4488-a60f-74fa6030a8b4.png",
+            "selected_stage": "controlled-outpaint",
+            "variants": [
+              {
+                "stage": "initial-closeup",
+                "references": [
+                  "/workspace/scratch/68339ef98bf2/upload/image-edit-target-378a5ac1675f66af.png"
+                ],
+                "prompt": "Use case: identity-preserve.\nAsset type: clean high-detail PC homepage banner photograph for the existing AIFECT website.\nInput image 1 is the EXACT user-selected banner edit target. Use this exact person and scene as the edit source; do not substitute any other idol or illustration.\n\nPrimary request: make the idol MUCH closer and clearer, with convincing unwarped natural photography. Recompose from the small distant upper-body view into a prominent tight upper-body performance portrait, about 1.6–1.8 times the current visible head size. Preserve the young adult woman's exact recognizable face and facial proportions, silver-lavender wavy hair, star hair clip, warm lively smile and gaze, lavender jeweled stage outfit, in-ear monitor, microphone hand, and natural open waving hand. Each visible arm must connect anatomically to her shoulder; each hand has five normal fingers. Do not invent extra fingers, arms, jewelry, outfit edges or disconnected sleeves.\n\nKeep the same magenta/purple stage identity and photographic lighting. The stage trusses, drums, keyboard and practical lights should remain believable but softly out of focus, with simple clean geometry and depth. Remove ALL existing UI from the input: headline, subtitle, CTA pill, arrows, dots, pause icon, and surrounding page margins. The output must be CLEAN PHOTOGRAPHY ONLY; these graphics will be rendered accurately as HTML on the real website.\n\nComposition and crop safety: output landscape 3072 by 1024, exact 3:1 ratio, highest clean photographic detail. Leave the left approximately44% as continuous naturally defocused real stage, seamlessly joining the subject area; no flat color block or pasted gradient. Place her head center around73% of image width. Enlarge her head to about38–40% of the full source image height, with the entire hair top around24% of image height. Keep her complete head, face, microphone grip and waving palm in the middle vertical band from about22% to78%; the website crops the top and bottom into a shallow PC strip, so the important face and hand details must survive that crop. A close shoulder/chest portrait is appropriate; showing skirt, waist, legs or the whole stage floor is not necessary. Keep the waving hand comfortably inside91% width, beside the face instead of far above it. Preserve the existing friendly pose while bringing the action closer to the face and camera naturally. Enough of the microphone body should show to understand she is singing.\n\nVisual finish: premium youthful photorealistic editorial concert photography. Real skin with restrained pores, coherent individual hair strands, natural soft fabric folds and clean stitched garment edges. Smooth large forms and realistic optical depth of field. No noisy crawling textures, rippled skin, wobbly fabric, artificial crinkle overlays, moire patterns, melted features, waxy plastic skin, over-sharpened halos, gritty grain, fake bloom, added sparkles or fantasy effects. Do not sharpen every background detail. Keep the subject's exact beauty/identity and flattering real lighting. No text, logo, watermark, icons, buttons, frame or border.",
+                "generated_path": "/workspace/scratch/68339ef98bf2/generated_images/exec-6d742bae-6b97-4990-a88d-1c35a83fe889.png"
+              },
+              {
+                "stage": "controlled-outpaint",
+                "references": [
+                  "/workspace/scratch/68339ef98bf2/upload/image-edit-target-378a5ac1675f66af.png",
+                  "/workspace/scratch/68339ef98bf2/generated_images/exec-6d742bae-6b97-4990-a88d-1c35a83fe889.png"
+                ],
+                "prompt": "Use case: identity-preserve.\nImage1 is the EXACT user-selected original banner and the authoritative edit source for the woman's identity, outfit, smile, hands and stage. Image2 is our previous clean photographic close-up derived from image1. It has the desired detail quality but is TOO TIGHT vertically for the website crop.\nMake one precise framing correction. Produce clean photography only, 2172x724, exact3:1 landscape. Use the same young adult woman, exact face, silver-lavender hair/starclip, purple jeweled costume, microphone hand and open waving hand. No text, UI, buttons, dots, icons, page margins or logos.\nUse image2's entire photographic subject-and-background arrangement at approximately60% of its present size, keeping its center horizontally around72–74% of the canvas, and vertically centered. Naturally outpaint the same real magenta/purple stage around the smaller scene above, below and on both sides. This is optical zooming out with coherent scene continuation, not a pasted inset or a flat background fill. Keep the resulting subject significantly larger than the small figure in image1.\nPrecise framing: the top of her complete hair should be around160–175px down the724px canvas; the complete head should be about260px tall. Place her natural microphone hand and waving hand just as inimage2, with all key fingers and the microphone within roughly y160–550px. Preserve both arm connections and the existing pose; do NOT raise or fold her arms unnaturally to fit. Her lower torso can continue below this safe central band. Do not move her face toward an edge; keep rightmost hand inside92%width.\nThe top/bottom background are overscan that the website will crop away. Do not put her hair near the canvas top. This central safe zone is essential. Left44% should be uninterrupted naturally softly defocused stage room for laterHTMLcopy, with no panel or seam.\nPreserve smooth, sophisticated photorealistic skin, coherent strands of hair, normal cloth folds, clean garment edges and the original purple lighting. Soft optical background, no noisy crawling/crinkly textures, moire, painterly melting, halos or added effects.",
+                "generated_path": "/workspace/scratch/68339ef98bf2/generated_images/exec-7121432e-b196-4488-a60f-74fa6030a8b4.png"
+              }
+            ],
+            "review": {
+              "notes": "Selected outpaint retains the exact user-selected idol identity and natural microphone/waving pose. Hair begins around y117; per-scene object position32% keeps hair, face and key hand action in the widest272px frame. Browser QA pending."
+            }
+          }
+        ]
+      }
+    },
+    {
+      "record": "pc-close-studio-play-20261109.json",
+      "content": {
+        "mode": "built-in image_gen only",
+        "requested_dimensions": [
+          3072,
+          1024
+        ],
+        "actual_dimensions_to_verify": false,
+        "assets": [
+          {
+            "id": "studio",
+            "generated_path": "/workspace/scratch/68339ef98bf2/generated_images/exec-cbc9ee8e-1a17-48c0-91b4-d562b8a937f5.png",
+            "selected_stage": "controlled-outpaint",
+            "review": {
+              "selected": "controlled-outpaint",
+              "notes": "Controlled outpaint best preserves larger clean face plus original natural controller action. Hairtop approximately167px; fingertips about575px; knob region about580–600px. Widest1408x272 crop is tight: right54% may show hair and finger/knobtop, while controllerbox can crop. Browser QA remains necessary; exact requested160–550 safe band was not fully obeyed.",
+              "initial": "Large clean face and original natural action, but hair near top and controller at bottom; unsafe widest crop.",
+              "reframed": "Coordinate-based correction still too tall; do not prefer this over controlled outpaint."
+            },
+            "variants": [
+              {
+                "stage": "initial-closeup",
+                "id": "studio",
+                "source": "/workspace/scratch/68339ef98bf2/aifect-banner-refinement/.sites-checkout/dist/assets/home-banners/desktop-20261109/studio-2172.webp",
+                "prompt": "Use case: identity-preserve.\nAsset type: premium photoreal desktop music-platform home banner, clean photograph.\nImage 1 is the exact existing banner to improve. Preserve the SAME young adult's face identity, facial proportions, hair, outfit, expression, gaze, action, physical room and established color palette. Make a new native high-detail photographic rendering with a visibly MUCH CLOSER upper-body camera framing; do not merely enlarge a blurry raster.\nOutput 3072 x 1024, exact 3:1 landscape aspect ratio, high-detail editorial photography. The face must read about1.5–1.8 times larger than in the current desktop photograph, with clean defined eyes, natural fine hair strands and believable smooth skin detail. Retain the person's exact youthful attractiveness and individuality. No painterly or melted facial features, no wax skin, no gritty noise, no false sharpened texture, no moire on fabric or background, no oversharpening halos.\nComposition: leave the left approximately44% as continuous real softly defocused room for later HTML copy, joined seamlessly to the photographed scene. Do not add a solid color slab, dark gradient, artificial blur panel, or composited seam. Place the person's head center around72–75% of width, with the entire person and key action comfortably within the right95%, not crowded against the right edge. Upper body only; avoid showing large empty floor, a giant table or empty ceiling. Keep all of the head/hair and face, plus the key hand-held or operated object, within the central vertical band around22–78% of the canvas. Aim for hair top near24% of height and a large head/hair height around38–40%, with the action hand near55–76%. This will be displayed as a shallow272px-high responsive banner, so the full head and essential hand action must remain recognizable after vertical cropping. Shoulders and lower torso may continue naturally beyond the bottom of the frame.\nPeople should be sharply photographed and natural; room backgrounds should have smooth optical bokeh with realistic lighting and clear broad architectural perspective. No added skin distortion, detached sleeves, extra fingers, fused hands or broken props. No text, words, logo, branding, buttons, arrows, dots, interface elements, borders, frames, floating effects, fake lens-flare graphics or watermark. Do not redesign the scene.\nScene lock: the same handsome dark wavy-haired young man in the reference's silver/ivory windbreaker hoodie with lavender panels, light inner shirt and silver chain, seated in the SAME purple-lit music production studio. Preserve his gentle smile and downward three-quarter gaze toward his music work, not a new camera-facing pose. Show him much closer from upper chest upward with enough connected forearm and natural right hand clearly adjusting the small desktop music controller. Place that controller/hand action in the middle-lower central band, not at the bottom edge. His other hand can rest naturally near the slim laptop keyboard; a recognizable laptop edge and screen at the right is sufficient, no need to show the entire desk. Keep the equipment, softly focused recording booth glass, acoustic treatment, real studio speakers, restrained purple practical lighting and existing room textures consistent with the original. Focus on his attractive face and hands, with the controller readable. Keep the complete top and sides of his wavy hair within the frame.",
+                "generated_path": "/workspace/scratch/68339ef98bf2/generated_images/exec-2aa6c687-b116-4b54-859c-67f675474834.png",
+                "width": 2172,
+                "height": 724,
+                "mode": "RGB",
+                "sha256": "6416421b9c344ef7dc43df5227fcb595a3d4f0b10cc4aac0762b7688a6664260"
+              },
+              {
+                "stage": "coordinate-reframe",
+                "id": "studio",
+                "source": "/workspace/scratch/68339ef98bf2/generated_images/exec-2aa6c687-b116-4b54-859c-67f675474834.png",
+                "prompt": "Use case: identity-preserve. Targeted composition correction of image1 only.\nKeep this EXACT attractive man's facial identity, detailed face and hair, silver/lavender hoodie, expression, gaze, purple studio, photographic color and clean high-detail quality. Keep him working on the controller beside the laptop.\nThe current head touches the top and controller touches the bottom; that is unusable in a shallow website banner. Correct the spatial framing. Output3072x1024,3:1 photograph. Reserve the top23% as actual softly defocused purple studio above the complete hair. Position the man's complete head between24% and59% of image height, large and readable. His eye line about43%. Position his operating fingers and the recognizable controller between65% and77% of image height. He leans naturally slightly forward over a compact nearer/higher desktop so that face and hand action form one compact central vertical band; do not give him a long torso between his chin and hands. All facial identity and anatomy stays natural. A partial laptop screen/keyboard along the right is sufficient; do not retain the huge laptop or deep table at the expense of this action band. The complete hair AND fingers/controller must be visible in the middle56% of the whole image.\nMaintain head center around73% of width, person ending before95%, and approximately44% quiet continuous purple room on the left. Lower torso and a little foreground may run below the safe band, but no essential face/hair/action may. The man must still be substantially closer/larger than the original distant panoramic banner; this is a close upper-body composition with a compact working gesture, not a room-wide distant figure.\nNo text/UI, no new objects, no solidblock/seam/gradient fill, no glow effects, no painterly/melted detail, no moire, no oversharpening. Preserve smooth real bokeh and clean natural photographic skin/hair/fabric.",
+                "generated_path": "/workspace/scratch/68339ef98bf2/generated_images/exec-fdb2e9da-0ec0-4be3-a7cd-f6fc955d63a1.png",
+                "width": 2172,
+                "height": 724,
+                "mode": "RGB",
+                "sha256": "2279872628274b5b0a9516d116c7c43ad7634165dbb5d56f6746a81f90144bcf"
+              },
+              {
+                "stage": "controlled-outpaint",
+                "id": "studio",
+                "source": "/workspace/scratch/68339ef98bf2/generated_images/exec-2aa6c687-b116-4b54-859c-67f675474834.png",
+                "prompt": "Use case: identity-preserve. Controlled photographic zoom-out/outpainting of image1.\nThis is a precise framing operation, not a new composition. Keep EXACTLY the same person, recognizable face, hairstyle, expression, eye direction, clothing, body pose, hand pose, anatomy, action, equipment, colors and smooth high-quality photographic details in image1. Do not lift the hand, reposition any arm, change the face or redesign the room.\nOutput2172x724, exact3:1.\nZoom the ENTIRE existing photograph out to about63% of its present linear size. Treat the existing photo as a central inset whose upper-left is approximately28% of the new canvas width and20% of canvas height, with the original photographed person ending up centered at roughly72% width. Then NATURALLY OUTPAINT the same real room around that inset on top, bottom, left and right. The inserted scene must NOT have a visible edge, border, frame, rectangle, gradient fill or seam: it must blend into one continuous photograph with believable architectural perspective and matching optical bokeh. This must look like the same instant photographed from a slightly farther camera position.\nThe result must have about145–170px of genuine room ABOVE the whole top of the person's hair. In the finished2172x724 image, ALL essential hair/head and the hand working the controller must fit within the central vertical area aroundy160–550. Keep the subject much closer than a distant room panorama, but the head must not touch the canvas top and the important hand must not touch the canvas bottom. These placement constraints are more important than filling the canvas with the person.\nMaintain at least44% quiet continuous actual room to the left for later HTMLcopy and a comfortable margin at the right. Keep natural skin, individual hair strands, intact fabric/zipper, clean fingers and smooth photographic background. Do not add text, logos, buttons, arrows, dots, borders, UI, particles, decorative effects, new people, new equipment, fake sharpening, painterly detail or moire.\nScene lock: same purple studio, wavy-haired handsome man in silver/ivory and lavender hoodie, same gentle downward gaze/smile, naturally working on controller with laptop beside him. Preserve the original unaltered hand/controller action exactly.",
+                "generated_path": "/workspace/scratch/68339ef98bf2/generated_images/exec-cbc9ee8e-1a17-48c0-91b4-d562b8a937f5.png",
+                "width": 2172,
+                "height": 724,
+                "mode": "RGB",
+                "sha256": "13d32456ebc03805d4067ad4f9806062e4f6cb6c8694a8bc9d7780a48f2080d1"
+              },
+              {
+                "id": "studio",
+                "stage": "controlled-outpaint-75pct",
+                "source": "/workspace/scratch/68339ef98bf2/generated_images/exec-fdb2e9da-0ec0-4be3-a7cd-f6fc955d63a1.png",
+                "prompt": "Use case: identity-preserve. One precise controlled zoom-out/outpaint edit of image1.\nPreserve EXACTLY this same young man's recognizable face, individual features, wavy hairstyle, silver/ivory-and-lavender hoodie, gentle smile, downward gaze, natural forward-leaning seated posture, hand positions, fingers on the controller, laptop hand, room, props, lighting and clean photographic detail. His forward lean and short distance between face and controller hand are important; do not straighten him up, move his hands, or invent a different pose.\n\nOutput2172x724, exact3:1 landscape photograph. Uniformly reduce the EXISTING photographed person-and-scene to about75% of its current linear size, NOT60% and not a far-away room-wide view. Position the smaller original photographic scene with its old top-left approximately at18% of the new width and12% of the new height, then seamlessly OUTPAINT the same real purple studio above, below, left and right. This is a moderate framing adjustment and natural room extension, not a new scene or a pasted rectangular panel. Keep the person centered around72–74% width, with breathing room at the right. Keep the left44% quiet continuous softly defocused actual room for later HTMLcopy.\n\nConcrete target in the finished2172x724 image: the top of his complete wavy hair at approximatelyy120–140px; hair-to-chin height about300px; the operating fingertips and controller knobs aroundy570px. The existing head and controller gesture should remain close together vertically because he is leaning forward. Show the whole head, the natural attached forearm/hand, recognizable controller knob tops, and a little laptop edge. Lower torso or foreground can continue below. Do not turn him into a tiny distant figure. Do not keep his hair at the very top of the canvas.\nPreserve fine natural face/hair/fabric detail and smooth optical bokeh; no melting or painterly texture, no moire, no noise, no oversharpening. Maintain exactly the existing purple studio palette and photographic sophistication. No text,logo,UI,buttons,arrows,dots,border,frame,gradientblock,solidfill,seam,new object,duplicate equipment,decorative effects or watermark.",
+                "generated_path": "/workspace/scratch/68339ef98bf2/generated_images/exec-79d42c90-c68d-42a8-ab6b-77934850192e.png",
+                "width": 2172,
+                "height": 724,
+                "mode": "RGB",
+                "sha256": "a76ab1194de91b6c54272fba315e18dc498bd77e95bbaf59ea9f41c3247f3cdb",
+                "review": "Final requested75% controlled outpaint of coordinate-reframe candidate. Visual estimate: hairtop~130px, hair-to-chin~330px, operating fingertips~580px. Forward-leaning posture and same face preserved; visibly larger than63%controlled-outpaint. No further iterations. Existing selected candidate is intentionally unchanged."
+              }
+            ],
+            "width": 2172,
+            "height": 724
+          },
+          {
+            "id": "play",
+            "generated_path": "/workspace/scratch/68339ef98bf2/generated_images/exec-73682abe-b2d6-4d87-9de2-1480330a94cf.png",
+            "selected_stage": "coordinate-reframe",
+            "review": {
+              "selected": "coordinate-reframe",
+              "notes": "Coordinate reframe has stronger close-up size, complete jacket neckline and clear natural mic grip. Hair roughly136–475px, gripping fingers around430–535px. At widest1408x272 use approximatelyright39–40% to retain hair+fingers; lower microphone shaft/cable may crop. At1070x272 full microphone remains visible. Controlled-outpaint variant is more conservative if QA shows crop trouble.",
+              "initial": "Face large and clean, but hair touches canvas top; unsafe widest crop.",
+              "outpainted": "Safest responsive variant: hair approximately155–440px, grip390–500px, fullmic~540px. Face enlargement is more modest than coordinate reframe."
+            },
+            "variants": [
+              {
+                "stage": "initial-closeup",
+                "id": "play",
+                "source": "/workspace/scratch/68339ef98bf2/aifect-banner-refinement/.sites-checkout/dist/assets/home-banners/desktop-20261109/play-2172.webp",
+                "prompt": "Use case: identity-preserve.\nAsset type: premium photoreal desktop music-platform home banner, clean photograph.\nImage 1 is the exact existing banner to improve. Preserve the SAME young adult's face identity, facial proportions, hair, outfit, expression, gaze, action, physical room and established color palette. Make a new native high-detail photographic rendering with a visibly MUCH CLOSER upper-body camera framing; do not merely enlarge a blurry raster.\nOutput 3072 x 1024, exact 3:1 landscape aspect ratio, high-detail editorial photography. The face must read about1.5–1.8 times larger than in the current desktop photograph, with clean defined eyes, natural fine hair strands and believable smooth skin detail. Retain the person's exact youthful attractiveness and individuality. No painterly or melted facial features, no wax skin, no gritty noise, no false sharpened texture, no moire on fabric or background, no oversharpening halos.\nComposition: leave the left approximately44% as continuous real softly defocused room for later HTML copy, joined seamlessly to the photographed scene. Do not add a solid color slab, dark gradient, artificial blur panel, or composited seam. Place the person's head center around72–75% of width, with the entire person and key action comfortably within the right95%, not crowded against the right edge. Upper body only; avoid showing large empty floor, a giant table or empty ceiling. Keep all of the head/hair and face, plus the key hand-held or operated object, within the central vertical band around22–78% of the canvas. Aim for hair top near24% of height and a large head/hair height around38–40%, with the action hand near55–76%. This will be displayed as a shallow272px-high responsive banner, so the full head and essential hand action must remain recognizable after vertical cropping. Shoulders and lower torso may continue naturally beyond the bottom of the frame.\nPeople should be sharply photographed and natural; room backgrounds should have smooth optical bokeh with realistic lighting and clear broad architectural perspective. No added skin distortion, detached sleeves, extra fingers, fused hands or broken props. No text, words, logo, branding, buttons, arrows, dots, interface elements, borders, frames, floating effects, fake lens-flare graphics or watermark. Do not redesign the scene.\nScene lock: the SAME beautiful short black-bob-haired young woman with the small silver rectangular hair barrette and small hoop earrings, in the same full silver windbreaker over a navy top with a light neckline, singing happily into the same handheld wired microphone. Preserve her exact face, open singing smile and gaze gently toward the left side of the frame, not directly at camera. Keep the same teal rehearsal room with glass partitions, real speaker, music stand and teal practical light; the stand and room may be naturally softer and more peripheral in this tighter composition. The microphone and her gripping hand must be clearly recognizable with an anatomically natural wrist, exactly five normal fingers and a connected forearm. Keep the windbreaker neckline and zipper continuous on both sides of her chest, real intact clothing rather than a cropped or disconnected garment. Show her upper body much closer with a complete bob haircut and shoulders; do not use full-body/distant seating. Keep head, microphone head and gripping fingers in the22–78% vertical safe band.",
+                "generated_path": "/workspace/scratch/68339ef98bf2/generated_images/exec-f4253b32-955a-4774-98cd-ffd1b61b40d8.png",
+                "width": 2172,
+                "height": 724,
+                "mode": "RGB",
+                "sha256": "5d36aea78c3cb82c965f80696d848ed25223e96cb86a07845e0dffa517d2d61d"
+              },
+              {
+                "stage": "coordinate-reframe",
+                "id": "play",
+                "source": "/workspace/scratch/68339ef98bf2/generated_images/exec-f4253b32-955a-4774-98cd-ffd1b61b40d8.png",
+                "prompt": "Use case: identity-preserve. Targeted composition correction of image1 only.\nKeep this EXACT beautiful woman's facial identity and clean facial detail, short black bob, silver barrette, small earrings, natural open singing smile and leftward gaze, intact silver windbreaker/navy top, and anatomically correct hand gripping the wired microphone. Keep the same teal rehearsal-room colors, props and optical photographic bokeh.\nThe current hair nearly touches the top and the hand/mic sit too low for a shallow banner. Correct composition ONLY. Output3072x1024,3:1 photograph. Leave the top23% of the canvas as real softly defocused room ABOVE the complete bob haircut. Put the complete hair/head between24% and65% of image height. Keep the eye line about43%, smiling mouth around54%, and microphone plus gripping fingers between52% and76% of height. The entire hair and hand action must remain inside the central56% band, with connected wrist/forearm and continuous jacket neckline/zipper. Keep her upper body large and attractive, not tiny or room-wide distant. Head center around73–75% of width, with shoulders/body finishing before95% width. Approximately44% of the left side remains continuous softly defocused real teal room for later HTMLcopy.\nDo not crop the top of the hair to achieve the portrait. The essential head+mic+fingers span is shorter than the overall image height and must fit inside the central band. Lower torso can continue naturally below. Do not change facial identity, singing emotion, outfit or microphone grip. No text,logos,buttons,arrows,dots,UI,solidpanel,gradientblock,seams,extra effects,painterly/melted texture,moire or sharpening halos.",
+                "generated_path": "/workspace/scratch/68339ef98bf2/generated_images/exec-73682abe-b2d6-4d87-9de2-1480330a94cf.png",
+                "width": 2172,
+                "height": 724,
+                "mode": "RGB",
+                "sha256": "571992229c32aee8fecf04a6df29d6beab2b78c55e18cbed2405daf1ef9c225d"
+              },
+              {
+                "stage": "controlled-outpaint",
+                "id": "play",
+                "source": "/workspace/scratch/68339ef98bf2/generated_images/exec-f4253b32-955a-4774-98cd-ffd1b61b40d8.png",
+                "prompt": "Use case: identity-preserve. Controlled photographic zoom-out/outpainting of image1.\nThis is a precise framing operation, not a new composition. Keep EXACTLY the same person, recognizable face, hairstyle, expression, eye direction, clothing, body pose, hand pose, anatomy, action, equipment, colors and smooth high-quality photographic details in image1. Do not lift the hand, reposition any arm, change the face or redesign the room.\nOutput2172x724, exact3:1.\nZoom the ENTIRE existing photograph out to about63% of its present linear size. Treat the existing photo as a central inset whose upper-left is approximately28% of the new canvas width and20% of canvas height, with the original photographed person ending up centered at roughly72% width. Then NATURALLY OUTPAINT the same real room around that inset on top, bottom, left and right. The inserted scene must NOT have a visible edge, border, frame, rectangle, gradient fill or seam: it must blend into one continuous photograph with believable architectural perspective and matching optical bokeh. This must look like the same instant photographed from a slightly farther camera position.\nThe result must have about145–170px of genuine room ABOVE the whole top of the person's hair. In the finished2172x724 image, ALL essential hair/head and the microphone head and gripping fingers must fit within the central vertical area aroundy160–550. Keep the subject much closer than a distant room panorama, but the head must not touch the canvas top and the important hand must not touch the canvas bottom. These placement constraints are more important than filling the canvas with the person.\nMaintain at least44% quiet continuous actual room to the left for later HTMLcopy and a comfortable margin at the right. Keep natural skin, individual hair strands, intact fabric/zipper, clean fingers and smooth photographic background. Do not add text, logos, buttons, arrows, dots, borders, UI, particles, decorative effects, new people, new equipment, fake sharpening, painterly detail or moire.\nScene lock: same teal rehearsal room, same beautiful short-bob woman with silver barrette and small earrings in intact silver windbreaker/navy top, same open singing smile and leftward gaze, same natural microphone grip. Preserve the original unaltered microphone hand and connected forearm exactly.",
+                "generated_path": "/workspace/scratch/68339ef98bf2/generated_images/exec-c0158b0c-b9a4-41ed-80f0-1c8ca97729a3.png",
+                "width": 2172,
+                "height": 724,
+                "mode": "RGB",
+                "sha256": "4a002146499f4ab4c17d4e426709d32995699cf584e9163170527885beb51154"
+              }
+            ],
+            "width": 2172,
+            "height": 724
+          }
+        ]
+      }
+    },
+    {
+      "record": "pc-close-participate-karaoke-20261109.json",
+      "content": {
+        "task": "pc-close-participate-karaoke-20261109",
+        "requested_by": "root",
+        "source_commit": "a53b45defbf58269471cf48cff246737e7fd775f",
+        "mode": "built-in image_gen edit",
+        "requested_size": [
+          3072,
+          1024
+        ],
+        "crop_safe_vertical_range_percent": [
+          22,
+          78
+        ],
+        "repository_files_modified": false,
+        "assets": [
+          {
+            "id": "participate",
+            "reference_path": "/workspace/scratch/68339ef98bf2/aifect-banner-refinement/.sites-checkout/dist/assets/home-banners/desktop-20261109/participate-2172.webp",
+            "prompt": "Use case: identity-preserve.\nAsset type: photorealistic desktop homepage banner background, with no typography.\nInput image 1 is the EDIT TARGET and the sole reference for the exact identities, hairstyles, outfits, mood, and room.\nCreate an exact 3072 × 1024 pixel image, 3:1 landscape. Recompose the photograph into a MUCH CLOSER upper-body view of the SAME TWO adult people. Their heads should be approximately 1.5–1.8 times their size in the reference when compared as a fraction of the image height. Preserve each individual's facial geometry and recognizable likeness; do not cast replacement people or blend their faces.\n\nComposition is critical: place the left person's head center around x=62% and the right person's around x=81%; the pair's overall center is around x=72%. Keep the entire group within the right 50–95% of the image, rather than crowding the extreme right edge. Head tops should be around y=24%; each complete head, including hair, should be about 33–38% of image height. This photo will be vertically cropped on a desktop banner: ALL essential head tops, faces, hands, microphone grips, and the meaningful action must fit inside y=22–78%. Bring necessary hand actions to chest/chin level naturally. Shoulders and upper bodies can extend below this band; a full waist, complete table, knees, and floor are not required. Keep the faces and actions prominent. Do not retain the distant wide-room establishing-shot scale.\n\nThe left approximately 44% must remain a quiet continuous PHOTOGRAPH of the SAME room, naturally defocused, with subdued detail and believable depth and light. It must connect seamlessly through the middle into the people and their room: no flat color block, artificial gradient panel, vertical composite seam, pasted cutouts, borders, or split screen.\n\nPhotographic finish: attractive, polished young-adult beauty from the reference, softly modeled real skin, coherent fine skin texture, clean individual hair strands, intact clothing seams and fabric, natural hands and attached wrists/arms. Maintain youthful expressions. No rippled or liquefied skin, wormlike hair, distorted garment weave, moiré, waxy plastic faces, excessive sharpening, or halos. One coherent real camera photograph with natural depth of field.\nAbsolutely no headline, subtitle, lettering, CTA, button, logo, watermark, brand mark, UI, floating graphic, waveform, or decorative particles. Do not print any text even on clothing or equipment.\n\nScene and invariant cast: keep the original coral/salmon recording studio, acoustic wood panels, recording-booth glass, and restrained warm light. The woman stays on the left of the pair with the SAME brown ponytail, wispy fringe, facial features, light cream/white casual shirt over a coral ribbed top. The man stays on the right with the SAME wavy brown hair and face, cream track jacket with burgundy sleeve stripes over a dark plum shirt. Keep their natural happy smiles and mutual eye contact. Do not make either person older, angular, or generic.\n\nActivity: a close two-person recording session. Preserve one real condenser microphone and round pop filter between them, below their eye line, clearly visible and not covering either face. The woman is naturally singing/reading, with only the reference's small relaxed hand gesture near chest level. The man holds a small script sheet at upper-chest level with plausible attached fingers and wrists; keep a clear paper edge and both required grips within the central y=22–78% crop-safe band. The sheet should be unmarked/unreadable, with no printed letters. Avoid introducing a new dramatic gesture. The microphone stand may continue below the crop-safe band; do not devote space to a full tabletop. Preserve continuous sleeves and body anatomy. Faces, the microphone, and the script interaction are the main visual focus.",
+            "status": "accepted",
+            "attempts": [
+              {
+                "started_at": "2026-11-09T04:09:22.217Z",
+                "completed_at": "2026-11-09T04:10:32.245Z",
+                "prompt": "Use case: identity-preserve.\nAsset type: photorealistic desktop homepage banner background, with no typography.\nInput image 1 is the EDIT TARGET and the sole reference for the exact identities, hairstyles, outfits, mood, and room.\nCreate an exact 3072 × 1024 pixel image, 3:1 landscape. Recompose the photograph into a MUCH CLOSER upper-body view of the SAME TWO adult people. Their heads should be approximately 1.5–1.8 times their size in the reference when compared as a fraction of the image height. Preserve each individual's facial geometry and recognizable likeness; do not cast replacement people or blend their faces.\n\nComposition is critical: place the left person's head center around x=62% and the right person's around x=81%; the pair's overall center is around x=72%. Keep the entire group within the right 50–95% of the image, rather than crowding the extreme right edge. Head tops should be around y=24%; each complete head, including hair, should be about 33–38% of image height. This photo will be vertically cropped on a desktop banner: ALL essential head tops, faces, hands, microphone grips, and the meaningful action must fit inside y=22–78%. Bring necessary hand actions to chest/chin level naturally. Shoulders and upper bodies can extend below this band; a full waist, complete table, knees, and floor are not required. Keep the faces and actions prominent. Do not retain the distant wide-room establishing-shot scale.\n\nThe left approximately 44% must remain a quiet continuous PHOTOGRAPH of the SAME room, naturally defocused, with subdued detail and believable depth and light. It must connect seamlessly through the middle into the people and their room: no flat color block, artificial gradient panel, vertical composite seam, pasted cutouts, borders, or split screen.\n\nPhotographic finish: attractive, polished young-adult beauty from the reference, softly modeled real skin, coherent fine skin texture, clean individual hair strands, intact clothing seams and fabric, natural hands and attached wrists/arms. Maintain youthful expressions. No rippled or liquefied skin, wormlike hair, distorted garment weave, moiré, waxy plastic faces, excessive sharpening, or halos. One coherent real camera photograph with natural depth of field.\nAbsolutely no headline, subtitle, lettering, CTA, button, logo, watermark, brand mark, UI, floating graphic, waveform, or decorative particles. Do not print any text even on clothing or equipment.\n\nScene and invariant cast: keep the original coral/salmon recording studio, acoustic wood panels, recording-booth glass, and restrained warm light. The woman stays on the left of the pair with the SAME brown ponytail, wispy fringe, facial features, light cream/white casual shirt over a coral ribbed top. The man stays on the right with the SAME wavy brown hair and face, cream track jacket with burgundy sleeve stripes over a dark plum shirt. Keep their natural happy smiles and mutual eye contact. Do not make either person older, angular, or generic.\n\nActivity: a close two-person recording session. Preserve one real condenser microphone and round pop filter between them, below their eye line, clearly visible and not covering either face. The woman is naturally singing/reading, with only the reference's small relaxed hand gesture near chest level. The man holds a small script sheet at upper-chest level with plausible attached fingers and wrists; keep a clear paper edge and both required grips within the central y=22–78% crop-safe band. The sheet should be unmarked/unreadable, with no printed letters. Avoid introducing a new dramatic gesture. The microphone stand may continue below the crop-safe band; do not devote space to a full tabletop. Preserve continuous sleeves and body anatomy. Faces, the microphone, and the script interaction are the main visual focus.",
+                "tool_output_hint": "Generated images are saved to /workspace/scratch/68339ef98bf2/generated_images as /workspace/scratch/68339ef98bf2/generated_images/exec-4da13d92-6fa3-43c8-87de-729eccdbe699.png by default.\nIf you need to use a generated image at another path, copy it and leave the original in place unless the user explicitly asks you to delete it.\nThe generated image is already displayed to the user. There is no need to render it in the final response as a Markdown image or file link.",
+                "result_keys": [
+                  "image_url",
+                  "output_hint"
+                ],
+                "generated_path": "/workspace/scratch/68339ef98bf2/generated_images/exec-4da13d92-6fa3-43c8-87de-729eccdbe699.png",
+                "dimensions": [
+                  2172,
+                  724
+                ],
+                "file_sha256": "8c5a3a6b0dd7460809d572f463692a0360092566bfd1dae1dd1423b262a362da",
+                "review": {
+                  "accepted": false,
+                  "reason": "Heads and lower hand/microphone actions exceed the widest desktop center-crop safe band.",
+                  "identity_and_wardrobe": "Recognizable cast, hair, original clothing and mutual expressions preserved.",
+                  "photographic_quality": "No obvious rippling skin, moire, or disconnected hands observed.",
+                  "details": "Male hair near top and script-holding hands near bottom would be cropped."
+                }
+              },
+              {
+                "started_at": "2026-11-09T04:14:17.209Z",
+                "completed_at": "2026-11-09T04:14:52.183Z",
+                "prompt": "Use case: identity-preserve. Edit the supplied FIRST CANDIDATE photograph only by moving the camera BACK and reframing it.\n\nThis input is already a successful close photograph of the EXACT approved people: preserve both faces, hairstyles, smiles, eye contact, clothing, anatomy, hands, and all existing microphone/script relationships. Do not create replacement faces, change expressions, add gestures, or restyle their clothes. Preserve the photographic detail and original palette.\n\nThe current pair is TOO LARGE vertically for the desktop crop. Make the same entire pair AND their held objects approximately 60% of their CURRENT size relative to the canvas, with the pair's overall center at about 72% of image width. This is a camera pullback/outpainting correction, not another tighter close-up. Keep a 3:1 panoramic canvas, requested output 3072 x 1024 pixels.\n\nPlace the HIGHEST hair top around 23–25% down the final image, leaving a substantial area of real room above the heads. Keep the LOWEST essential hand/grip/microphone action at or above 76% down the image. All complete heads, faces, existing hands, wrists, and required held objects must fit in the central vertical band from 22% to 78%. Preserve normal relaxed arm and wrist positions: DO NOT lift hands or props unnaturally toward the chin just to satisfy this band. The microphone stand or nonessential lower torso may continue below it.\n\nNaturally extend the same coral/salmon recording studio, including real acoustic panels and booth glass above, below, and to the left of the now smaller pair. Create coherent real room geometry and matching photographic depth of field; the room must connect smoothly around the subjects. The left approximately 44% is quiet defocused real room for later HTML copy. Do not make a flat color panel, blurred pasted border, blank band, seam, collage, or obvious rectangular inserted image.\n\nKeep the woman's small relaxed existing hand gesture, the man's naturally held script sheet, and the condenser microphone with its circular pop filter between them. Show enough script edge and its attached grips to read as a recording session.\n\nUse natural, clean photographic fine detail: no warped or rippled skin, liquefied hair, moire, broken fabric, oversharpening, artificial halos, or plastic smoothing. No text, logos, CTA, UI, watermark, or floating decoration.",
+                "reference_path": "/workspace/scratch/68339ef98bf2/generated_images/exec-4da13d92-6fa3-43c8-87de-729eccdbe699.png",
+                "generated_path": "/workspace/scratch/68339ef98bf2/generated_images/exec-6b5e33d7-eb6f-48dc-a5a3-9d6e2fa2b6f5.png",
+                "tool_output_hint": "Generated images are saved to /workspace/scratch/68339ef98bf2/generated_images as /workspace/scratch/68339ef98bf2/generated_images/exec-6b5e33d7-eb6f-48dc-a5a3-9d6e2fa2b6f5.png by default.\nIf you need to use a generated image at another path, copy it and leave the original in place unless the user explicitly asks you to delete it.\nThe generated image is already displayed to the user. There is no need to render it in the final response as a Markdown image or file link.",
+                "result_keys": [
+                  "image_url",
+                  "output_hint"
+                ],
+                "dimensions": [
+                  2172,
+                  724
+                ],
+                "file_bytes": 1844512,
+                "file_sha256": "f20723fcbb058d6cea28a8a89ad7fcf0174cab2d9e0ca7f6113188c52bcbb577",
+                "review": {
+                  "accepted": true,
+                  "accepted_after": "Parent explicitly prioritized noticeably larger people over complete visibility of lower script edges/wrists at the widest desktop aspect ratio.",
+                  "identity_and_wardrobe": "Approved man and woman retain recognizable faces, hairstyles, cream/coral/plum outfits, smiles and mutual eye contact.",
+                  "photographic_quality": "Continuous coral recording studio and natural attached script grips/open-hand gesture. No obvious skin ripples, garment warps, disconnected hands, or moire observed.",
+                  "action_legibility": "Condenser microphone, circular pop filter, script sheet, singing woman and listening/reading man clearly communicate collaborative recording.",
+                  "crop_safety": "At 1070×272 center cover the important faces and hand action remain visible. At 1408×272 center cover, some lower script-holding hand/wrist is clipped; both complete faces, microphone and upper script remain visible. Object-position right 58%–60% trades slightly less top margin for more of the lower hand.",
+                  "composition": "Pair remains visibly enlarged versus initial wide desktop reference; group centered around 73% width with photographic room on the left.",
+                  "remaining_limitations": "Native output is 2172×724 despite requested 3072×1024. At the widest crop, lower wrists/forearm and table may crop by design."
+                }
+              }
+            ],
+            "generated_path": "/workspace/scratch/68339ef98bf2/generated_images/exec-6b5e33d7-eb6f-48dc-a5a3-9d6e2fa2b6f5.png",
+            "dimensions": [
+              2172,
+              724
+            ],
+            "review": {
+              "accepted": true,
+              "accepted_after": "Parent explicitly prioritized noticeably larger people over complete visibility of lower script edges/wrists at the widest desktop aspect ratio.",
+              "identity_and_wardrobe": "Approved man and woman retain recognizable faces, hairstyles, cream/coral/plum outfits, smiles and mutual eye contact.",
+              "photographic_quality": "Continuous coral recording studio and natural attached script grips/open-hand gesture. No obvious skin ripples, garment warps, disconnected hands, or moire observed.",
+              "action_legibility": "Condenser microphone, circular pop filter, script sheet, singing woman and listening/reading man clearly communicate collaborative recording.",
+              "crop_safety": "At 1070×272 center cover the important faces and hand action remain visible. At 1408×272 center cover, some lower script-holding hand/wrist is clipped; both complete faces, microphone and upper script remain visible. Object-position right 58%–60% trades slightly less top margin for more of the lower hand.",
+              "composition": "Pair remains visibly enlarged versus initial wide desktop reference; group centered around 73% width with photographic room on the left.",
+              "remaining_limitations": "Native output is 2172×724 despite requested 3072×1024. At the widest crop, lower wrists/forearm and table may crop by design."
+            },
+            "candidate_path": "/workspace/scratch/68339ef98bf2/generated_images/exec-6b5e33d7-eb6f-48dc-a5a3-9d6e2fa2b6f5.png",
+            "correction_prompt": "Use case: identity-preserve. Edit the supplied FIRST CANDIDATE photograph only by moving the camera BACK and reframing it.\n\nThis input is already a successful close photograph of the EXACT approved people: preserve both faces, hairstyles, smiles, eye contact, clothing, anatomy, hands, and all existing microphone/script relationships. Do not create replacement faces, change expressions, add gestures, or restyle their clothes. Preserve the photographic detail and original palette.\n\nThe current pair is TOO LARGE vertically for the desktop crop. Make the same entire pair AND their held objects approximately 60% of their CURRENT size relative to the canvas, with the pair's overall center at about 72% of image width. This is a camera pullback/outpainting correction, not another tighter close-up. Keep a 3:1 panoramic canvas, requested output 3072 x 1024 pixels.\n\nPlace the HIGHEST hair top around 23–25% down the final image, leaving a substantial area of real room above the heads. Keep the LOWEST essential hand/grip/microphone action at or above 76% down the image. All complete heads, faces, existing hands, wrists, and required held objects must fit in the central vertical band from 22% to 78%. Preserve normal relaxed arm and wrist positions: DO NOT lift hands or props unnaturally toward the chin just to satisfy this band. The microphone stand or nonessential lower torso may continue below it.\n\nNaturally extend the same coral/salmon recording studio, including real acoustic panels and booth glass above, below, and to the left of the now smaller pair. Create coherent real room geometry and matching photographic depth of field; the room must connect smoothly around the subjects. The left approximately 44% is quiet defocused real room for later HTML copy. Do not make a flat color panel, blurred pasted border, blank band, seam, collage, or obvious rectangular inserted image.\n\nKeep the woman's small relaxed existing hand gesture, the man's naturally held script sheet, and the condenser microphone with its circular pop filter between them. Show enough script edge and its attached grips to read as a recording session.\n\nUse natural, clean photographic fine detail: no warped or rippled skin, liquefied hair, moire, broken fabric, oversharpening, artificial halos, or plastic smoothing. No text, logos, CTA, UI, watermark, or floating decoration.",
+            "final_reframe_prompt": "Use case: identity-preserve. Edit this supplied coral recording-studio photograph. Make only a MINOR camera framing adjustment; it is already the correct cast and scene.\n\nPreserve EXACTLY both existing young adult identities, hairstyles, natural smiles and mutual eye contact; the woman's cream shirt over coral tank, the man's cream track jacket with burgundy stripes over plum shirt; their seated natural poses, the woman's existing gentle open-hand gesture, the man's exact script-holding hands, and the condenser microphone with circular pop filter. Do not invent new gestures, alter arm positions, or lift the script or wrists. Maintain natural attached fingers and complete sleeves.\n\nThe current pair and hand action are just too LOW in the panoramic frame. Slightly pull the camera back so the people and their recording equipment are about 92% of their CURRENT size, and reframe them approximately 50 source pixels HIGHER relative to this 2172 x 724 input. Keep their horizontal group center around 72% width. This is a modest adjustment, not a new distant wide shot. Their heads must remain clearly enlarged upper-body portraits.\n\nThe FINAL highest hair must be around 22–24% image height, and the FINAL lowest script-holding fingers must be no lower than 76% image height. At native 2172 x 724 this means hair about y=160–175, all important hand/grip action at y=550 or above. The entire real studio scene and table should remain perspective-coherent: reframe the camera slightly downward to include a little more foreground tabletop beneath the pair, while naturally extending the real studio around them. Do not independently lift bodies off their chairs or distort their seated anatomy. Their current relaxed arm and script positions must remain unchanged.\n\nKeep the 3:1 panoramic composition, requested 3072 x 1024. Preserve a calm defocused continuous coral/salmon acoustic studio across the left 44% for later HTML copy, with naturally connected booth glass, acoustic wall, furniture and lighting. No flat painted block, pasted blur, seam, letterbox bar, collage or inset rectangle.\n\nPreserve natural fine photographic skin, hair and fabric detail without ripples, moire, oversharpening, plastic smoothing or artificial halos. No text, logos, CTA, UI, watermark, decorative graphics or extra people.",
+            "final_reframe_prompt_status": "Prepared but NOT executed. Parent accepted minor lower-wrist/script cropping in order to preserve the larger faces."
+          },
+          {
+            "id": "karaoke",
+            "reference_path": "/workspace/scratch/68339ef98bf2/aifect-banner-refinement/.sites-checkout/dist/assets/home-banners/desktop-20261109/karaoke-2172.webp",
+            "prompt": "Use case: identity-preserve.\nAsset type: photorealistic desktop homepage banner background, with no typography.\nInput image 1 is the EDIT TARGET and the sole reference for the exact identities, hairstyles, outfits, mood, and room.\nCreate an exact 3072 × 1024 pixel image, 3:1 landscape. Recompose the photograph into a MUCH CLOSER upper-body view of the SAME TWO adult people. Their heads should be approximately 1.5–1.8 times their size in the reference when compared as a fraction of the image height. Preserve each individual's facial geometry and recognizable likeness; do not cast replacement people or blend their faces.\n\nComposition is critical: place the left person's head center around x=62% and the right person's around x=81%; the pair's overall center is around x=72%. Keep the entire group within the right 50–95% of the image, rather than crowding the extreme right edge. Head tops should be around y=24%; each complete head, including hair, should be about 33–38% of image height. This photo will be vertically cropped on a desktop banner: ALL essential head tops, faces, hands, microphone grips, and the meaningful action must fit inside y=22–78%. Bring necessary hand actions to chest/chin level naturally. Shoulders and upper bodies can extend below this band; a full waist, complete table, knees, and floor are not required. Keep the faces and actions prominent. Do not retain the distant wide-room establishing-shot scale.\n\nThe left approximately 44% must remain a quiet continuous PHOTOGRAPH of the SAME room, naturally defocused, with subdued detail and believable depth and light. It must connect seamlessly through the middle into the people and their room: no flat color block, artificial gradient panel, vertical composite seam, pasted cutouts, borders, or split screen.\n\nPhotographic finish: attractive, polished young-adult beauty from the reference, softly modeled real skin, coherent fine skin texture, clean individual hair strands, intact clothing seams and fabric, natural hands and attached wrists/arms. Maintain youthful expressions. No rippled or liquefied skin, wormlike hair, distorted garment weave, moiré, waxy plastic faces, excessive sharpening, or halos. One coherent real camera photograph with natural depth of field.\nAbsolutely no headline, subtitle, lettering, CTA, button, logo, watermark, brand mark, UI, floating graphic, waveform, or decorative particles. Do not print any text even on clothing or equipment.\n\nScene and invariant cast: keep the original deep-blue karaoke room, blue upholstered sofa, acoustic wall panels, a softly blurred karaoke screen, and restrained actual blue room lighting. The man stays on the left of the pair with the SAME tousled dark wavy hair and face, cream-and-navy track jacket over a navy shirt. The woman stays on the right with the SAME dark ponytail, wispy bangs and face, cream-and-navy track jacket over the original lavender top. Preserve their natural smiling expressions and eye contact with EACH OTHER, rather than both looking at the camera.\n\nActivity: each person is holding exactly ONE handheld microphone close to their own mouth and singing toward the other with natural joy. Preserve the ordinary relaxed microphone grips; each microphone belongs to one clearly attached hand and forearm. Keep both complete heads, both microphone capsules, both grips, and enough connected wrists and sleeves inside y=22–78%. No extra microphone, duplicated hand, disconnected forearm, clenched theatrical pose, or newly invented free-hand gesture. Their upper bodies are close and large in the frame; do not show full legs or a large round table. The sofa and background continue naturally to the left, but the two faces and singing action dominate the photograph.",
+            "status": "accepted",
+            "attempts": [
+              {
+                "started_at": "2026-11-09T04:09:22.217Z",
+                "completed_at": "2026-11-09T04:11:03.641Z",
+                "prompt": "Use case: identity-preserve.\nAsset type: photorealistic desktop homepage banner background, with no typography.\nInput image 1 is the EDIT TARGET and the sole reference for the exact identities, hairstyles, outfits, mood, and room.\nCreate an exact 3072 × 1024 pixel image, 3:1 landscape. Recompose the photograph into a MUCH CLOSER upper-body view of the SAME TWO adult people. Their heads should be approximately 1.5–1.8 times their size in the reference when compared as a fraction of the image height. Preserve each individual's facial geometry and recognizable likeness; do not cast replacement people or blend their faces.\n\nComposition is critical: place the left person's head center around x=62% and the right person's around x=81%; the pair's overall center is around x=72%. Keep the entire group within the right 50–95% of the image, rather than crowding the extreme right edge. Head tops should be around y=24%; each complete head, including hair, should be about 33–38% of image height. This photo will be vertically cropped on a desktop banner: ALL essential head tops, faces, hands, microphone grips, and the meaningful action must fit inside y=22–78%. Bring necessary hand actions to chest/chin level naturally. Shoulders and upper bodies can extend below this band; a full waist, complete table, knees, and floor are not required. Keep the faces and actions prominent. Do not retain the distant wide-room establishing-shot scale.\n\nThe left approximately 44% must remain a quiet continuous PHOTOGRAPH of the SAME room, naturally defocused, with subdued detail and believable depth and light. It must connect seamlessly through the middle into the people and their room: no flat color block, artificial gradient panel, vertical composite seam, pasted cutouts, borders, or split screen.\n\nPhotographic finish: attractive, polished young-adult beauty from the reference, softly modeled real skin, coherent fine skin texture, clean individual hair strands, intact clothing seams and fabric, natural hands and attached wrists/arms. Maintain youthful expressions. No rippled or liquefied skin, wormlike hair, distorted garment weave, moiré, waxy plastic faces, excessive sharpening, or halos. One coherent real camera photograph with natural depth of field.\nAbsolutely no headline, subtitle, lettering, CTA, button, logo, watermark, brand mark, UI, floating graphic, waveform, or decorative particles. Do not print any text even on clothing or equipment.\n\nScene and invariant cast: keep the original deep-blue karaoke room, blue upholstered sofa, acoustic wall panels, a softly blurred karaoke screen, and restrained actual blue room lighting. The man stays on the left of the pair with the SAME tousled dark wavy hair and face, cream-and-navy track jacket over a navy shirt. The woman stays on the right with the SAME dark ponytail, wispy bangs and face, cream-and-navy track jacket over the original lavender top. Preserve their natural smiling expressions and eye contact with EACH OTHER, rather than both looking at the camera.\n\nActivity: each person is holding exactly ONE handheld microphone close to their own mouth and singing toward the other with natural joy. Preserve the ordinary relaxed microphone grips; each microphone belongs to one clearly attached hand and forearm. Keep both complete heads, both microphone capsules, both grips, and enough connected wrists and sleeves inside y=22–78%. No extra microphone, duplicated hand, disconnected forearm, clenched theatrical pose, or newly invented free-hand gesture. Their upper bodies are close and large in the frame; do not show full legs or a large round table. The sofa and background continue naturally to the left, but the two faces and singing action dominate the photograph.",
+                "tool_output_hint": "Generated images are saved to /workspace/scratch/68339ef98bf2/generated_images as /workspace/scratch/68339ef98bf2/generated_images/exec-768f05a6-6356-40db-84d4-25fca9cc0d28.png by default.\nIf you need to use a generated image at another path, copy it and leave the original in place unless the user explicitly asks you to delete it.\nThe generated image is already displayed to the user. There is no need to render it in the final response as a Markdown image or file link.",
+                "result_keys": [
+                  "image_url",
+                  "output_hint"
+                ],
+                "generated_path": "/workspace/scratch/68339ef98bf2/generated_images/exec-768f05a6-6356-40db-84d4-25fca9cc0d28.png",
+                "dimensions": [
+                  2172,
+                  724
+                ],
+                "file_sha256": "6c00672249ec5dc1bf4c7d4c5b43cb8076ebf9df71a8943a7956cd00d9e5e069",
+                "review": {
+                  "accepted": false,
+                  "reason": "Heads and lower hand/microphone actions exceed the widest desktop center-crop safe band.",
+                  "identity_and_wardrobe": "Recognizable cast, hair, original clothing and mutual expressions preserved.",
+                  "photographic_quality": "No obvious rippling skin, moire, or disconnected hands observed.",
+                  "details": "Male hair near top and microphone/hand action low in frame would be cropped."
+                }
+              },
+              {
+                "started_at": "2026-11-09T04:14:17.209Z",
+                "completed_at": "2026-11-09T04:15:27.438Z",
+                "prompt": "Use case: identity-preserve. Edit the supplied FIRST CANDIDATE photograph only by moving the camera BACK and reframing it.\n\nThis input is already a successful close photograph of the EXACT approved people: preserve both faces, hairstyles, smiles, eye contact, clothing, anatomy, hands, and all existing microphone/script relationships. Do not create replacement faces, change expressions, add gestures, or restyle their clothes. Preserve the photographic detail and original palette.\n\nThe current pair is TOO LARGE vertically for the desktop crop. Make the same entire pair AND their held objects approximately 65% of their CURRENT size relative to the canvas, with the pair's overall center at about 72% of image width. This is a camera pullback/outpainting correction, not another tighter close-up. Keep a 3:1 panoramic canvas, requested output 3072 x 1024 pixels.\n\nPlace the HIGHEST hair top around 23–25% down the final image, leaving a substantial area of real room above the heads. Keep the LOWEST essential hand/grip/microphone action at or above 76% down the image. All complete heads, faces, existing hands, wrists, and required held objects must fit in the central vertical band from 22% to 78%. Preserve normal relaxed arm and wrist positions: DO NOT lift hands or props unnaturally toward the chin just to satisfy this band. The microphone stand or nonessential lower torso may continue below it.\n\nNaturally extend the same deep-blue karaoke room, including the actual acoustic wall and blue sofa above, below, and to the left of the now smaller pair. Create coherent real room geometry and matching photographic depth of field; the room must connect smoothly around the subjects. The left approximately 44% is quiet defocused real room for later HTML copy. Do not make a flat color panel, blurred pasted border, blank band, seam, collage, or obvious rectangular inserted image.\n\nKeep exactly one handheld microphone in each person's existing natural grip, with the capsules near their own mouths. They smile and sing toward each other. Keep both forearms and garment cuffs connected naturally.\n\nUse natural, clean photographic fine detail: no warped or rippled skin, liquefied hair, moire, broken fabric, oversharpening, artificial halos, or plastic smoothing. No text, logos, CTA, UI, watermark, or floating decoration.",
+                "reference_path": "/workspace/scratch/68339ef98bf2/generated_images/exec-768f05a6-6356-40db-84d4-25fca9cc0d28.png",
+                "generated_path": "/workspace/scratch/68339ef98bf2/generated_images/exec-9551fe6e-4af8-4025-99aa-8329bc854337.png",
+                "tool_output_hint": "Generated images are saved to /workspace/scratch/68339ef98bf2/generated_images as /workspace/scratch/68339ef98bf2/generated_images/exec-9551fe6e-4af8-4025-99aa-8329bc854337.png by default.\nIf you need to use a generated image at another path, copy it and leave the original in place unless the user explicitly asks you to delete it.\nThe generated image is already displayed to the user. There is no need to render it in the final response as a Markdown image or file link.",
+                "result_keys": [
+                  "image_url",
+                  "output_hint"
+                ],
+                "dimensions": [
+                  2172,
+                  724
+                ],
+                "file_bytes": 2007046,
+                "file_sha256": "d32bc1adbbf730f2f79c669861dd493c8f48a3f7692bd7a190bd6abd74d7edb7",
+                "review": {
+                  "accepted": true,
+                  "identity_and_wardrobe": "The approved man and woman, their hairstyles and cream/navy tracksuit layers are preserved.",
+                  "crop_safety": "Complete hair, faces, microphone capsules, grips, wrists and microphone tails are inside the central crop-safe band, approximately y=217–550 in the 724px source.",
+                  "photographic_quality": "Continuous deep-blue karaoke room; no obvious malformed fingers, disconnected wrists, rippling skin, clothing warps or moire observed.",
+                  "composition": "Pair at roughly 73% width; quiet left-hand photographic room retained.",
+                  "remaining_limitations": "Requested 3072×1024; tool returned native 2172×724. Nonessential lower torso may crop at wide desktop ratios."
+                }
+              }
+            ],
+            "generated_path": "/workspace/scratch/68339ef98bf2/generated_images/exec-9551fe6e-4af8-4025-99aa-8329bc854337.png",
+            "dimensions": [
+              2172,
+              724
+            ],
+            "review": {
+              "accepted": true,
+              "identity_and_wardrobe": "The approved man and woman, their hairstyles and cream/navy tracksuit layers are preserved.",
+              "crop_safety": "Complete hair, faces, microphone capsules, grips, wrists and microphone tails are inside the central crop-safe band, approximately y=217–550 in the 724px source.",
+              "photographic_quality": "Continuous deep-blue karaoke room; no obvious malformed fingers, disconnected wrists, rippling skin, clothing warps or moire observed.",
+              "composition": "Pair at roughly 73% width; quiet left-hand photographic room retained.",
+              "remaining_limitations": "Requested 3072×1024; tool returned native 2172×724. Nonessential lower torso may crop at wide desktop ratios."
+            },
+            "candidate_path": "/workspace/scratch/68339ef98bf2/generated_images/exec-9551fe6e-4af8-4025-99aa-8329bc854337.png",
+            "correction_prompt": "Use case: identity-preserve. Edit the supplied FIRST CANDIDATE photograph only by moving the camera BACK and reframing it.\n\nThis input is already a successful close photograph of the EXACT approved people: preserve both faces, hairstyles, smiles, eye contact, clothing, anatomy, hands, and all existing microphone/script relationships. Do not create replacement faces, change expressions, add gestures, or restyle their clothes. Preserve the photographic detail and original palette.\n\nThe current pair is TOO LARGE vertically for the desktop crop. Make the same entire pair AND their held objects approximately 65% of their CURRENT size relative to the canvas, with the pair's overall center at about 72% of image width. This is a camera pullback/outpainting correction, not another tighter close-up. Keep a 3:1 panoramic canvas, requested output 3072 x 1024 pixels.\n\nPlace the HIGHEST hair top around 23–25% down the final image, leaving a substantial area of real room above the heads. Keep the LOWEST essential hand/grip/microphone action at or above 76% down the image. All complete heads, faces, existing hands, wrists, and required held objects must fit in the central vertical band from 22% to 78%. Preserve normal relaxed arm and wrist positions: DO NOT lift hands or props unnaturally toward the chin just to satisfy this band. The microphone stand or nonessential lower torso may continue below it.\n\nNaturally extend the same deep-blue karaoke room, including the actual acoustic wall and blue sofa above, below, and to the left of the now smaller pair. Create coherent real room geometry and matching photographic depth of field; the room must connect smoothly around the subjects. The left approximately 44% is quiet defocused real room for later HTML copy. Do not make a flat color panel, blurred pasted border, blank band, seam, collage, or obvious rectangular inserted image.\n\nKeep exactly one handheld microphone in each person's existing natural grip, with the capsules near their own mouths. They smile and sing toward each other. Keep both forearms and garment cuffs connected naturally.\n\nUse natural, clean photographic fine detail: no warped or rippled skin, liquefied hair, moire, broken fabric, oversharpening, artificial halos, or plastic smoothing. No text, logos, CTA, UI, watermark, or floating decoration."
+          }
+        ],
+        "actual_first_output_size": [
+          {
+            "id": "participate",
+            "width": 2172,
+            "height": 724
+          },
+          {
+            "id": "karaoke",
+            "width": 2172,
+            "height": 724
+          }
+        ],
+        "completed_at": "2026-11-09T04:18:41.903Z",
+        "summary": "Two accepted native 2172×724 PNGs. No repository files/assets/manifests were edited. Root owns encoding, CSS and deployment."
+      }
+    },
+    {
+      "record": "pc-close-talking-crew-premium-20261109.json",
+      "content": {
+        "task": "PC close-up photographic banner assets",
+        "date": "2026-11-09",
+        "mode": "built-in image_gen",
+        "requestedDimensions": {
+          "width": 3072,
+          "height": 1024
+        },
+        "repository": "/workspace/scratch/68339ef98bf2/aifect-banner-refinement/.sites-checkout",
+        "sourceCommit": "a53b45defbf58269471cf48cff246737e7fd775f",
+        "assets": [
+          {
+            "id": "talking",
+            "original": "/workspace/scratch/68339ef98bf2/aifect-banner-refinement/.sites-checkout/dist/assets/home-banners/desktop-20261109/talking-2172.webp",
+            "attempts": [
+              {
+                "round": 1,
+                "prompt": "Use case: identity-preserve.\nAsset type: photographic desktop home banner background, one image only, requested exact canvas 3072 x 1024 pixels, horizontal 3:1.\nInput image 1 is the EDIT TARGET and the identity, wardrobe, room-color and lighting reference. Recompose this SAME scene much closer, rather than merely upscaling or sharpening it. Preserve all THREE exact young adult faces and hair: the dark wavy-haired man in the ivory/lavender hoodie with purple headphones around his neck, the silver-lilac-haired woman with star clip and purple over-ear headphones wearing the lavender off-shoulder knit, and the dark-haired woman with a messy bun in the navy/white track jacket. Preserve their individual facial proportions and their youthful adult age.\nPrimary change: a visibly much closer upper-body candid conversation photograph. Enlarge each head approximately 1.5 to 1.7 times relative to the current wide-room composition. Heads are approximately 30–34% of total image height, with hair tops near 24% image height. Head centers horizontally near 56%, 73%, 88% of the canvas; all three figures comfortably fit before 95% width. Keep essential faces, hands and interaction inside the central vertical band from 22% to 78% of the full image; top and bottom will be cropped in a short PC banner. This crop-safe band is critical.\nNatural action: the man turns toward the women and makes one small relaxed palm-up conversational gesture at chest level, with a clearly continuous forearm and wrist. The middle woman's chin rests gently on one natural hand, and BOTH of her pupils clearly look at the RIGHT WOMAN'S EYES. The right woman laughs warmly toward the middle woman, one naturally shaped hand near her own mouth. They are listening and talking, not singing, and nobody looks at the camera. Natural candid smiles and believable human anatomy.\nComposition: the left 44% remains a quiet, dark, continuous part of the same teal music lounge, naturally optically defocused, with subtle real wall and furniture depth suitable for later HTML text. Do NOT add text. Do NOT make a flat rectangular panel, cutout, collage seam or fake blur border. Close camera position and tasteful photographic depth. The navy sofa and a small hint of the three iced drinks may remain near the lower edge, but eliminate the excessive empty floor and full table view. A potted plant and warm lamp can remain soft distant background details.\nFinish: coherent high-end editorial photograph, realistic pores and individual hairs, soft teal and lilac practical room lighting, clean optical detail and natural fabric. No artificial ripples, smearing, melted features, waxy skin, moire, over-sharpening, neon doodles or floating effects. No text, typography, logos, UI, CTA, arrows, dots, watermark. No extra limbs or fingers, no detached wrists, no duplicate hands. Keep this as one seamless photograph.",
+                "path": "/workspace/scratch/68339ef98bf2/generated_images/exec-e10813e9-6511-4316-941f-197eecdc615a.png",
+                "review": {
+                  "status": "close_up_candidate_with_crop_risk",
+                  "positives": [
+                    "Same three cast identities and wardrobe retained",
+                    "Center woman looks into right woman's eyes",
+                    "Natural chin-rest, laughing hand and conversational palm-up hand",
+                    "Faces substantially enlarged"
+                  ],
+                  "limitations": [
+                    "Hair crowns close to top edge",
+                    "Group intrudes into intended left copy area",
+                    "Hands extend below ideal central crop-safe band"
+                  ],
+                  "anatomy": "No conspicuous extra, detached or fused arms/hands in normal-size visual inspection."
+                },
+                "actualDimensions": {
+                  "width": 2172,
+                  "height": 724
+                },
+                "requestedDimensions": {
+                  "width": 3072,
+                  "height": 1024
+                },
+                "status": "completed"
+              },
+              {
+                "round": 2,
+                "prompt": "Use case: identity-preserve. EDIT the supplied photo by CAMERA REFRAMING / NATURAL OUTPAINTING ONLY. Keep its exact people, faces, expressions, hairstyle, clothing, colors, props and existing natural hand/arm pose. Do not invent a different pose or new identity. One seamless photoreal photograph, no text, logos, UI, buttons, arrows, dots, decorative effects, border or watermark.\nOutput a 3:1 wide canvas, requested 3072 x 1024 pixels. CRITICAL correction: the current photo's heads touch the top and will be cut off by the website. Pull the camera BACK and extend the actual room above, below and toward the left. Place the ENTIRE hair crowns well below the top, around 23% of full canvas height; DO NOT put any crown at the top edge. Every essential face, hand and object must be wholly within y=22% through y=76% of the full frame. For a 2172 x 724 rendering that means all crowns start around y=165 px and the lowest important hand/record edge ends before y=550 px. The top 22% and bottom 22% are expendable photographic room context, not subjects. This placement matters more than filling the frame with a face.\nThe leftmost 44% should be a quiet naturally defocused continuous part of the same real room, suitable for later text without actually adding text. No flat fill rectangle, artificial blurred strip, composite seam, frame around an inset photo, or perspective discontinuity. Preserve natural coherent photographic detail, realistic skin, clean hair and fabric; no melting, rippled patterns, waxy retouching, moire, sharpen halos or extra anatomy. Talking room: reduce the photographic scale of the three-person scene to roughly 65% of the supplied close-up while retaining their precise candid conversation, smiles and hand positions. Center the group around x=73%. Aim for the man's head around x=56%, the lilac-haired woman's head around x=73%, and the right woman's head around x=88%, with all subjects inside x=95%. Heads remain about 30–33% of full image height, still a close upper-body impression in the final cropped banner. The middle woman's pupils MUST stay aimed at the right woman's eyes. Keep her chin resting on her hand, the man's relaxed palm-up gesture, and the right woman's natural laughing hand near her mouth. Keep each wrist and forearm anatomically continuous. The visible ends of the man's fingers must finish above y=76%. Add room space ABOVE the heads rather than raising arms. Keep the teal lounge, navy sofa, purple headphones, lavender knit, ivory/lilac hoodie and navy/white track jacket. The drinks can sit low near the expendable lower edge; do not lift the table or grow extra hands.",
+                "source": "/workspace/scratch/68339ef98bf2/generated_images/exec-e10813e9-6511-4316-941f-197eecdc615a.png",
+                "status": "completed",
+                "path": "/workspace/scratch/68339ef98bf2/generated_images/exec-f807d50e-5387-4848-be39-1e791f8604ab.png",
+                "actualDimensions": {
+                  "width": 2172,
+                  "height": 724
+                },
+                "requestedDimensions": {
+                  "width": 3072,
+                  "height": 1024
+                },
+                "review": {
+                  "status": "safer_framing_candidate_with_modest_enlargement",
+                  "positives": [
+                    "Natural eye contact and gestures",
+                    "All hair and meaningful hands inside approximately y=180 to550",
+                    "Left continuous lounge space remains quiet",
+                    "Same identity and wardrobe preserved"
+                  ],
+                  "limitations": [
+                    "Faces enlarge only moderately, roughly 1.3x by visual estimate, not a measured 1.4–1.7x",
+                    "Drinks and table extend into bottom crop region"
+                  ],
+                  "approximateNativeBounds": {
+                    "hairTop": 180,
+                    "chinBottom": 410,
+                    "gestureBottom": 550
+                  },
+                  "anatomy": "No conspicuous hand or forearm issue at normal viewing size."
+                }
+              },
+              {
+                "round": 3,
+                "prompt": "Use case: identity-preserve photographic banner edit. Edit the supplied 2172 by 724 photo into a new 3:1 landscape photograph, requested 3072 by 1024. Keep exactly these same three young adults, their faces, expressions, clothing, hair and accessories, and the same room, colors, props and conversational direction. Do not change their ages or identities. Photorealistic coherent lens rendering, natural skin and hair, no excessive retouching, wavy textures, sharpening halos or melting.\nCRITICAL: Make all three people noticeably LARGER than in the reference, approximately 20% larger head and shoulder dimensions. We want an engaging close upper-body scene, not a long shot. Move the group slightly LEFT so head centers are near x=57%, 73%, 88%; keep complete head silhouettes inside the image. Keep a quiet continuous naturally defocused part of the actual room across the leftmost 43% for later HTML copy; do not add copy. Do not create a blank panel or seam.\nUse the extra height above and below only as photographic breathing room for a later wide crop. At a native 2172x724 rendering, hair crowns should begin at y=150–165 and head sizes should be about 260 pixels tall. This means faces, hair and expressions will stay in the central crop, but lower elbows, laps, table edges and low wrists MAY be cropped; do NOT zoom back out just to fit a full torso, table, cups, elbows or wrists. Keep the actual meaningful hand gesture near y=500–560 when possible, with anatomically connected hands and forearms. No text, logos, letters, UI, buttons, arrows, dots, decorative effect overlays, borders or watermarks. One seamless photograph, not a collage.\nTALKING ROOM: Three friends sharing a candid friendly conversation on a deep blue sofa in a teal/navy music lounge, violet practical room accents. The left young man in the ivory and lavender hoodie is talking, with purple headphones naturally around his neck and one relaxed palm-up conversational hand gesture toward the women. The center silver-lilac haired woman in a lavender cable-knit sweater with purple headphones and a star hairclip rests her chin on her own hand and clearly looks into the eyes of the right woman. The right dark-haired woman with a loose bun, navy-white sporty jacket, laughs warmly with her own hand beside her mouth. Keep these exact friendly expressions and gaze directions. The chin-rest and laughter hands are near the faces, and the man's single naturally bent gesture hand is at upper chest level. A slight natural lean-in is welcome to make the faces visually closer without physically crowding them. Keep gestures below face level, never reaching up or pointing outward toward the camera. The drinks and table are allowed to be partly cropped at bottom; do not make them the focus. No overhead greenery or hanging vines; the original single background potted tree is enough.",
+                "source": "/workspace/scratch/68339ef98bf2/generated_images/exec-f807d50e-5387-4848-be39-1e791f8604ab.png",
+                "status": "completed",
+                "path": "/workspace/scratch/68339ef98bf2/generated_images/exec-a6bd696d-f9c4-4661-a4a1-5d20ce71714b.png",
+                "actualDimensions": {
+                  "width": 2172,
+                  "height": 724
+                },
+                "requestedDimensions": {
+                  "width": 3072,
+                  "height": 1024
+                },
+                "review": {
+                  "status": "larger_faces_candidate_requires_actual_frame_evaluation",
+                  "positives": [
+                    "Faces and shoulder proportions markedly larger",
+                    "Center-to-right eye contact preserved",
+                    "Natural relaxed palm-up hand, chin-rest and laughter poses",
+                    "Crisp coherent photo without obvious artificial ripples"
+                  ],
+                  "limitations": [
+                    "Hair crowns moved upward despite explicit framing prompt",
+                    "Cannot show the entire hair-to-low-hand span in a centered widest 272px frame",
+                    "Right subject is close to edge; review copy width and object-position"
+                  ],
+                  "approximateNativeBounds": {
+                    "hairTop": 60,
+                    "chinBottom": 395,
+                    "gestureBottom": 600
+                  },
+                  "anatomy": "Three own hands remain visibly connected to their forearms; no conspicuous extra limbs."
+                }
+              }
+            ],
+            "originalDimensions": {
+              "width": 2172,
+              "height": 724
+            },
+            "finalSelection": "Parent will select in actual PC frame; no new generation after hold."
+          },
+          {
+            "id": "crew",
+            "original": "/workspace/scratch/68339ef98bf2/aifect-banner-refinement/.sites-checkout/dist/assets/home-banners/desktop-20261109/crew-2172.webp",
+            "attempts": [
+              {
+                "round": 1,
+                "prompt": "Use case: identity-preserve.\nAsset type: photographic desktop home banner background, one image only, requested exact canvas 3072 x 1024 pixels, horizontal 3:1.\nInput image 1 is the EDIT TARGET. Preserve the EXACT same three young adult people, their distinct faces, hair, outfits and colors. Left: handsome dark wavy-haired man in an ivory overshirt over a dark top. Center: silver-lilac wavy-haired woman with a small purple star hair clip and sage-green cardigan over a white top. Right: dark-haired smiling woman with loose bangs and a bun, blue zip jacket over a white top. Same natural adult facial identity, not new generic models.\nPrimary change: re-photograph this same moment in a visibly MUCH closer upper-body composition, with each head 1.5–1.7 times larger relative to the existing wide-room reference. Each head occupies about 30–34% of full image height; hair tops near 24% image height. Place the three head centers around 56%, 73%, 88% canvas width, with the whole group comfortably inside the right 95% boundary. Critical faces, wrists, hands and action must lie in the central vertical 22–78% band because a short desktop banner crops the outer top and bottom.\nAction: a clear, relaxed, low THREE-PERSON FIST BUMP near 69–71% image height. Exactly THREE action fists, one anatomically correct hand and continuous visible forearm belonging to EACH person. The left man's forearm extends inward, the center woman's own forearm extends gently forward, the right woman's forearm extends inward from the opposite side. Their knuckles gently meet as three distinct fists in a small triangular meeting, not a fused pile of hands. Keep separate natural wrists, sleeves and believable elbow directions. Their other arms remain relaxed and unobtrusive. They smile at one another candidly: center woman looks directly toward the right woman's face; right woman meets her gaze, left man joins their shared laughter. No one stares into camera.\nScene: same warm sage-green music lounge, wooden acoustic slats, a few vinyl sleeves on a shelf, soft window daylight and warm lamps, leafy plants in pots. Left 44% is calm, naturally defocused CONTINUOUS lounge space for later HTML typography. No flat fill panel, fake seam or collage. Crop out the unnecessary full coffee table and excessive floor. A small natural corner of the existing laptop can appear low at the edge, not dominate the photograph.\nFinish: crisp coherent professional editorial photography, real skin texture, natural individual hairs and fabric detail, warm green and wood palette. No oversmoothing, rippled/melted detail, plastic skin, moire, crunchy sharpening, artificial sparkles or neon effects. NO text, logo, UI, button, CTA, arrows, dots or watermark. Preserve exactly these identities and wardrobes. No additional people, extra arms, duplicate hands or disconnected limbs.",
+                "path": "/workspace/scratch/68339ef98bf2/generated_images/exec-4475adbc-e000-44a3-a1ba-8eed5c4a5eef.png",
+                "review": {
+                  "status": "close_up_candidate_with_crop_risk",
+                  "positives": [
+                    "Same ivory overshirt, sage cardigan and blue jacket",
+                    "Clear three-person fist-bump action",
+                    "Friendly center-to-right eye contact",
+                    "Large faces"
+                  ],
+                  "limitations": [
+                    "Crowns touch or closely approach top edge",
+                    "Low fists near lower edge",
+                    "Group intrudes left of preferred copy-safe region"
+                  ],
+                  "anatomy": "Three fists and their own forearms are distinguishable at normal viewing size."
+                },
+                "actualDimensions": {
+                  "width": 2172,
+                  "height": 724
+                },
+                "requestedDimensions": {
+                  "width": 3072,
+                  "height": 1024
+                },
+                "status": "completed"
+              },
+              {
+                "round": 2,
+                "prompt": "Use case: identity-preserve. EDIT the supplied photo by CAMERA REFRAMING / NATURAL OUTPAINTING ONLY. Keep its exact people, faces, expressions, hairstyle, clothing, colors, props and existing natural hand/arm pose. Do not invent a different pose or new identity. One seamless photoreal photograph, no text, logos, UI, buttons, arrows, dots, decorative effects, border or watermark.\nOutput a 3:1 wide canvas, requested 3072 x 1024 pixels. CRITICAL correction: the current photo's heads touch the top and will be cut off by the website. Pull the camera BACK and extend the actual room above, below and toward the left. Place the ENTIRE hair crowns well below the top, around 23% of full canvas height; DO NOT put any crown at the top edge. Every essential face, hand and object must be wholly within y=22% through y=76% of the full frame. For a 2172 x 724 rendering that means all crowns start around y=165 px and the lowest important hand/record edge ends before y=550 px. The top 22% and bottom 22% are expendable photographic room context, not subjects. This placement matters more than filling the frame with a face.\nThe leftmost 44% should be a quiet naturally defocused continuous part of the same real room, suitable for later text without actually adding text. No flat fill rectangle, artificial blurred strip, composite seam, frame around an inset photo, or perspective discontinuity. Preserve natural coherent photographic detail, realistic skin, clean hair and fabric; no melting, rippled patterns, waxy retouching, moire, sharpen halos or extra anatomy. Crew: reduce the photographic scale of this three-person scene to roughly 65% of the supplied close-up, retaining EXACTLY the same low three-person fist-bump pose and eye contact. Center the group near x=73%, with head centers approximately x=56%, 73%, 88%, right edge inside 95%. Hair crowns start around y=23%; heads are still about 30–33% of image height. Keep all THREE separate fists together near y=70%, all fingers and wrists complete before y=76%, one action hand and forearm visibly attached to each of the three people. Do not move hands up beside faces, invent reaching arms, or fuse their fists. Keep the young man in ivory overshirt, middle silver-lilac-haired woman in sage cardigan, right dark-haired woman in blue zip jacket. The middle woman looks at the right woman's face; the right woman laughs back at her. Natural soft sage/wood lounge outpainting, a few potted plants and record sleeves, quiet dark-green continuous space on the left. A partial low laptop edge is fine, no full table filling the frame.",
+                "source": "/workspace/scratch/68339ef98bf2/generated_images/exec-4475adbc-e000-44a3-a1ba-8eed5c4a5eef.png",
+                "status": "completed",
+                "path": "/workspace/scratch/68339ef98bf2/generated_images/exec-6fd265b4-2181-42e0-8071-6e8070b794f7.png",
+                "actualDimensions": {
+                  "width": 2172,
+                  "height": 724
+                },
+                "requestedDimensions": {
+                  "width": 3072,
+                  "height": 1024
+                },
+                "review": {
+                  "status": "safer_framing_candidate_with_insufficient_enlargement",
+                  "positives": [
+                    "Whole hair silhouettes visible",
+                    "Natural eye contact and three-fist contact",
+                    "Continuous green/wood lounge depth",
+                    "Same faces and wardrobe retained"
+                  ],
+                  "limitations": [
+                    "Enlargement relative to source is only modest, visually about 1.1–1.2x",
+                    "Lowest fist/wrist extent near y580 can trim at widest centered crop"
+                  ],
+                  "approximateNativeBounds": {
+                    "hairTop": 180,
+                    "chinBottom": 420,
+                    "fistsTop": 510,
+                    "fistsBottom": 580
+                  },
+                  "anatomy": "Exactly three meeting fists; no conspicuous detached wrists or fused arms."
+                }
+              },
+              {
+                "round": 3,
+                "prompt": "Use case: identity-preserve photographic banner edit. Edit the supplied 2172 by 724 photo into a new 3:1 landscape photograph, requested 3072 by 1024. Keep exactly these same three young adults, their faces, expressions, clothing, hair and accessories, and the same room, colors, props and conversational direction. Do not change their ages or identities. Photorealistic coherent lens rendering, natural skin and hair, no excessive retouching, wavy textures, sharpening halos or melting.\nCRITICAL: Make all three people noticeably LARGER than in the reference, approximately 20% larger head and shoulder dimensions. We want an engaging close upper-body scene, not a long shot. Move the group slightly LEFT so head centers are near x=57%, 73%, 88%; keep complete head silhouettes inside the image. Keep a quiet continuous naturally defocused part of the actual room across the leftmost 43% for later HTML copy; do not add copy. Do not create a blank panel or seam.\nUse the extra height above and below only as photographic breathing room for a later wide crop. At a native 2172x724 rendering, hair crowns should begin at y=150–165 and head sizes should be about 260 pixels tall. This means faces, hair and expressions will stay in the central crop, but lower elbows, laps, table edges and low wrists MAY be cropped; do NOT zoom back out just to fit a full torso, table, cups, elbows or wrists. Keep the actual meaningful hand gesture near y=500–560 when possible, with anatomically connected hands and forearms. No text, logos, letters, UI, buttons, arrows, dots, decorative effect overlays, borders or watermarks. One seamless photograph, not a collage.\nCREW: Same friendly young adult trio, exact original ivory overshirt on the left man, sage cardigan on the silver-lilac haired center woman with small star hairclip, muted blue zip jacket on the dark-haired right woman. They lean slightly forward in the green and warm-wood music lounge and share exactly ONE natural three-person fist bump. There are exactly THREE fists meeting side by side in front of their upper torsos around y=520–565 in a native2172x724 photo: one own hand and forearm from each person. Keep the fists and contact point visible, with obvious continuous anatomical wrists and sleeves, correct finger shapes; no intertwined or fused fingers, no extra hands, no missing thumb shapes, no joined or detached limbs. Their three hands are low chest height, away from their faces. Center woman looks toward the right woman's face; right woman laughs and left man smiles toward them. Forearms can extend beyond the later crop edge if needed. Their faces must stay visibly larger than this reference, not the same size. A laptop at the very lower right can be mostly cut off; leave out the full table and laps. Preserve photorealistic side window light and natural room depth.",
+                "source": "/workspace/scratch/68339ef98bf2/generated_images/exec-6fd265b4-2181-42e0-8071-6e8070b794f7.png",
+                "status": "completed",
+                "path": "/workspace/scratch/68339ef98bf2/generated_images/exec-f4888767-f7df-4a7d-ac54-3bf218438bd4.png",
+                "actualDimensions": {
+                  "width": 2172,
+                  "height": 724
+                },
+                "requestedDimensions": {
+                  "width": 3072,
+                  "height": 1024
+                },
+                "review": {
+                  "status": "larger_faces_candidate_requires_actual_frame_evaluation",
+                  "positives": [
+                    "Meaningfully enlarged faces",
+                    "Same cast identities and wardrobe",
+                    "Natural laughing and eye-contact expressions",
+                    "Clear single three-person fist bump"
+                  ],
+                  "limitations": [
+                    "Crown height and low hand action again exceed requested central band",
+                    "Entire hair-to-fist span cannot fit in widest center-cropped 272px frame at full width",
+                    "Right subject shoulder is cropped at native right edge"
+                  ],
+                  "approximateNativeBounds": {
+                    "hairTop": 75,
+                    "chinBottom": 415,
+                    "fistsTop": 550,
+                    "fistsBottom": 645
+                  },
+                  "anatomy": "Three distinct own fists with connected wrists and sleeves; no conspicuous duplicate limbs."
+                }
+              },
+              {
+                "round": 4,
+                "prompt": "Use case: identity-preserve photographic pose correction. Edit the supplied reference photo; preserve exactly the same three young adults, their attractive youthful face identities, facial expressions, hairstyles, skin texture, clothing, and room colors. One seamless photorealistic 3:1 landscape photo, 2172 by 724 pixel composition (requested output 3072 by 1024 if supported). NO text, logos, letters, UI, buttons, dots, arrows, graphic effects, watermark or collage.\n\nMake ONE targeted composition correction: keep the people and their faces as LARGE as they are in this reference, but bring all three complete hair silhouettes, faces and the entire three-person fist bump into the CENTRAL horizontal band from y=140 to y=550 of a 2172x724 image. Do NOT solve this by scaling the people down, making a long shot, or moving the camera farther away. Face/head sizes should remain approximately 300px high, as engaging as the reference.\n\nReposition the group with more genuine photographic headroom: each hair crown begins around y=140, approximately 19% below the top edge. Preserve horizontal composition with heads around 56%, 72%, 89% width, and quiet continuous naturally blurred lounge across the leftmost 43%. The top area is just the same room continuing behind them, without any flat panel or pasted band. Keep all three heads intact.\n\nPOSE: They sit on the same green sofa and lean slightly forward and toward one another. They lift their own bent forearms into a relaxed CHEST-HEIGHT fist bump, NOT the current waist-height low gesture. The three touching fists must be entirely between y=460 and y=540 in the 2172x724 composition, roughly 64–75% down the canvas. This places the fist bump a small distance below their chins and alongside the lower chest, visible in the same narrow vertical band as their faces. Use natural bent elbows angled down and outward; elbows and lower torsos can go below the eventual crop. Do not raise the fists beside their faces, reach at the camera, enlarge hands, twist wrists, or join arms unnaturally. A candid little forward lean brings their expressive faces and the friendly gesture closer together naturally.\n\nThere are exactly THREE gently contacting closed fists, one from each person's own arm. Each hand has five normal digits: four naturally folded fingers and one thumb resting outside them. All three wrists connect continuously to the correct visible sleeve and forearm; no duplicate hand, detached wrist, fused fingers, missing fingers or extra limbs. Natural anatomy is the highest priority.\n\nRetain the exact ivory overshirt and dark shirt on the left man, sage-green cardigan and little pink star clip on the silver-lilac haired center woman, muted blue zip jacket and white top on the dark-haired bun woman at right. The man smiles toward the group, the center woman looks directly at the right woman's eyes, and the right woman laughs warmly toward her. Preserve the existing green/warm-wood music lounge, soft side window lighting and realistic depth. Background album shelf and ordinary potted plants remain naturally unobtrusive. Cropping out the table, laptop, laps and lower elbows is fine. Keep the face scale; re-stage the relaxed upper-body pose, don't zoom out. Natural coherent photography, no skin smoothing, melting, artificial ripples, moire or sharpness halos.",
+                "source": "/workspace/scratch/68339ef98bf2/generated_images/exec-f4888767-f7df-4a7d-ac54-3bf218438bd4.png",
+                "requestedDimensions": {
+                  "width": 3072,
+                  "height": 1024
+                },
+                "status": "completed",
+                "reason": "One additional authorized pose correction after actual1920 desktop preview; preserve face size, provide headroom and move fist bump to chest height.",
+                "path": "/workspace/scratch/68339ef98bf2/generated_images/exec-002ff3da-94b8-4699-acfe-e986377a49b3.png",
+                "actualDimensions": {
+                  "width": 2172,
+                  "height": 724
+                },
+                "review": {
+                  "status": "partial_pose_correction_crop_issue_remains",
+                  "positives": [
+                    "Hair crowns lowered to about y135, providing additional headroom",
+                    "Face sizes retained at about300px height",
+                    "Same three identities, hairstyles and clothing retained",
+                    "Natural friendly eye contact",
+                    "Three distinguishable fists connected to their own forearms"
+                  ],
+                  "limitations": [
+                    "The requested fist-bump repositioning to y460–540 was not sufficiently followed",
+                    "Actual fists remain approximately y550–650",
+                    "Therefore the complete head-to-fist range still cannot fit in the widest272px center-cropped banner at full width"
+                  ],
+                  "approximateNativeBounds": {
+                    "hairTop": 135,
+                    "headHeight": 300,
+                    "fistsTop": 550,
+                    "fistsBottom": 650
+                  },
+                  "anatomy": "No conspicuous extra hands or detached forearms; fists look coherent in normal-size visual inspection.",
+                  "iterationLimit": "One additional generation only, as authorized. No retry after this partial result."
+                }
+              }
+            ],
+            "originalDimensions": {
+              "width": 2172,
+              "height": 724
+            },
+            "finalSelection": "Parent will select in actual PC frame; no new generation after hold."
+          },
+          {
+            "id": "premium",
+            "original": "/workspace/scratch/68339ef98bf2/aifect-banner-refinement/.sites-checkout/dist/assets/home-banners/desktop-20261109/premium-2172.webp",
+            "attempts": [
+              {
+                "round": 1,
+                "prompt": "Use case: identity-preserve.\nAsset type: photographic desktop home banner background, one image only, requested exact canvas 3072 x 1024 pixels, horizontal 3:1.\nInput image 1 is the EDIT TARGET and exact identity/wardrobe reference. Preserve the SAME young adult blonde woman's specific face: same delicate oval proportions, almond eyes, softly smiling lips, natural nose, long warm-blonde wavy hair with fringe, small silver hoop earrings. Preserve her cream jacket over the dark navy top. Do not recast or beautify into a different generic face.\nPrimary change: a visibly MUCH closer upper-body photograph of her in the same navy-and-gold record store. Her head, from hair crown through chin, is about 35% of the entire image height and approximately 1.6 times larger than the current wide reference. Hair top near 24% image height, face around x67% and y42%; shoulders and upper chest occupy the central right half naturally.\nShe looks down and slightly toward the vinyl with a relaxed delighted smile, not into camera. Reposition the LP slightly to the side of her chest so BOTH her complete face and the ENTIRE BLACK CIRCULAR LP remain clearly visible. The record is a real round 12-inch vinyl disc with fine coherent grooves and the same plain warm-gold center label, no text. Disc center roughly x82%, y58%, diameter about 36% of image height: its complete circumference and BOTH supporting hands must fit within the central vertical 22–78% band and rightmost 94% of the canvas. Hold the disc naturally by its edges with one clearly attached hand on each side, continuous wrists and forearms. No fingers through the disc, no warped ellipse or missing edge, no extra hands. This crop-safe placement is essential for a short desktop banner.\nLeft 44% remains quiet naturally optically defocused navy record-shop space continuing seamlessly into the woman's environment, with restrained brass details and perhaps a subtle defocused turntable. No flat rectangular area or compositing seam. Background shelving uses actual square vinyl album sleeves in racks, with fewer readable/busy details; NOT wall picture frames. Keep warm golden practical highlights and a luxurious understated navy palette. Reduce empty foreground counter and excessive full-body room scale.\nFinish: realistic high-end lifestyle photography, naturally soft skin with visible texture, individual hair strands, accurate fabric, clean coherent optics. No wavy/rippled patterns, melted facial details, waxy skin, moire, sharpen halos or artificial sparkles. Absolutely NO typography, logo, UI, CTA, button, arrow, dot or watermark. One continuous photograph.",
+                "path": "/workspace/scratch/68339ef98bf2/generated_images/exec-31860925-a770-49d0-894b-a3dc6969bd08.png",
+                "review": {
+                  "status": "large_face_and_lp_candidate_with_crop_risk",
+                  "positives": [
+                    "Exact blonde woman identity and cream/navy clothing retained",
+                    "Natural two-handed circular LP hold",
+                    "Full circular black LP and neutral gold label",
+                    "Coherent navy/gold record-store background"
+                  ],
+                  "limitations": [
+                    "Crown touches top edge",
+                    "LP bottom near y685 may crop in a short PC frame",
+                    "Parent must evaluate actual scale and positioning"
+                  ],
+                  "anatomy": "Two natural visible hands, coherent LP circle and arms."
+                },
+                "actualDimensions": {
+                  "width": 2172,
+                  "height": 724
+                },
+                "requestedDimensions": {
+                  "width": 3072,
+                  "height": 1024
+                },
+                "status": "completed"
+              },
+              {
+                "round": 2,
+                "prompt": "Use case: identity-preserve. EDIT the supplied photo by CAMERA REFRAMING / NATURAL OUTPAINTING ONLY. Keep its exact people, faces, expressions, hairstyle, clothing, colors, props and existing natural hand/arm pose. Do not invent a different pose or new identity. One seamless photoreal photograph, no text, logos, UI, buttons, arrows, dots, decorative effects, border or watermark.\nOutput a 3:1 wide canvas, requested 3072 x 1024 pixels. CRITICAL correction: the current photo's heads touch the top and will be cut off by the website. Pull the camera BACK and extend the actual room above, below and toward the left. Place the ENTIRE hair crowns well below the top, around 23% of full canvas height; DO NOT put any crown at the top edge. Every essential face, hand and object must be wholly within y=22% through y=76% of the full frame. For a 2172 x 724 rendering that means all crowns start around y=165 px and the lowest important hand/record edge ends before y=550 px. The top 22% and bottom 22% are expendable photographic room context, not subjects. This placement matters more than filling the frame with a face.\nThe leftmost 44% should be a quiet naturally defocused continuous part of the same real room, suitable for later text without actually adding text. No flat fill rectangle, artificial blurred strip, composite seam, frame around an inset photo, or perspective discontinuity. Preserve natural coherent photographic detail, realistic skin, clean hair and fabric; no melting, rippled patterns, waxy retouching, moire, sharpen halos or extra anatomy. Premium: reduce the photographic scale of the woman-and-record scene to roughly 60% of the supplied close-up, keeping the EXACT same blonde woman's face and calm smile, cream jacket, navy top and her natural two-handed LP hold. Position her full hair crown around y=23% (NOT touching the top); head around x=67%, record to its right near x=82%. Keep her face AND the complete circular vinyl disc within the central y=22–76% band, with BOTH hands completely visible and attached. The bottom edge of the LP and the lowest fingers must end above y=76%, equivalent to y=550 on a 724-high image. Preserve the relaxed chest-level hold, don't raise the LP over the face or invent reaching arms. Let a little more real room appear above/below so the full record is safe when the website crops the top/bottom. Black vinyl with the same plain gold center label and no lettering. Continue the understated navy and warm gold record-store background, softly defocused real album sleeves on racks rather than wall frames. Keep its genuine photographic depth.",
+                "source": "/workspace/scratch/68339ef98bf2/generated_images/exec-31860925-a770-49d0-894b-a3dc6969bd08.png",
+                "status": "completed",
+                "path": "/workspace/scratch/68339ef98bf2/generated_images/exec-2dcffbc1-37d2-4de3-bd29-ab8395242d67.png",
+                "actualDimensions": {
+                  "width": 2172,
+                  "height": 724
+                },
+                "requestedDimensions": {
+                  "width": 3072,
+                  "height": 1024
+                },
+                "review": {
+                  "status": "safe_framing_candidate_but_insufficient_zoom",
+                  "positives": [
+                    "Hair crown around y165",
+                    "Full circular LP and both hands finish near y550",
+                    "Quiet continuous navy/gold room on left",
+                    "Natural identity and two-handed pose"
+                  ],
+                  "limitations": [
+                    "Root's side-by-side assessment: face enlargement is close to original and does not satisfy 'much closer' goal",
+                    "No further generation after root requested hold; both candidates retained for actual frame judgement"
+                  ],
+                  "approximateNativeBounds": {
+                    "hairTop": 165,
+                    "lpAndHandsBottom": 550
+                  },
+                  "anatomy": "Both hands naturally contact the intact circular LP; no conspicuous anatomy artifact."
+                }
+              }
+            ],
+            "originalDimensions": {
+              "width": 2172,
+              "height": 724
+            },
+            "finalSelection": "Parent will select in actual PC frame; no new generation after hold."
+          }
+        ],
+        "reviewMethod": "Visual inspection of original and each generated image; actual dimensions verified read-only with Pillow. Pixel bounds and relative enlargement are approximate visual estimates, not computer-vision measurements.",
+        "deliveryNotes": [
+          "Full prompts and source reference paths retained per attempt.",
+          "No repo source, assets, manifest, build, git commit or deployment modified by this image-only task.",
+          "No text/UI/logos/CTA were generated.",
+          "WebP encoding, object-position selection, actual desktop/mobile rendering and final QA are owned by parent.",
+          "User requested large engaging faces; second-round safe framing often compromises that enlargement.",
+          "All nine generated files are native2172x724PNG despite requested3072x1024.",
+          "After parent hold, one additional crew pose correction was expressly requested following1920px preview. Exactly one round4 attempt completed; no further retries."
+        ]
+      }
+    },
+    {
+      "record": "pc-close-premium-final-20261109.json",
+      "content": {
+        "id": "premium",
+        "selected_path": "/workspace/scratch/68339ef98bf2/generated_images/exec-56414215-7510-4b4e-903f-928c150e888c.png",
+        "variants": [
+          {
+            "stage": "raised-LP-closeup",
+            "prompt": "Use case: identity-preserve. Edit the same blonde young adult woman and record-store scene shown in both references into a MUCH CLOSER natural premium music-homepage photograph. Image1 is the current approved desktop scene; image2 is a clean close-up of exactly the same person, face, ivory jacket and navy top. Keep that same recognizable face, hair and clothing. Photoreal, youthful sophisticated editorial photography, not illustration.\n\nOutput 2172 by724, exact3:1. The LEFT44% is the real softly defocused navy-and-gold record store continuing naturally with no compositing seam. The person is a large chest-up portrait on the right, centered at74%width, looking warmly at the LP she is holding. Hair and head should be about300px tall, visibly about1.6times larger than the original scene. The top of her hair should sit around130px down the724px canvas. Her face and the hand-held LP should occupy the middle vertical band y130–560. The unused ceiling/floor at top and bottom are overscan for a shallow desktop crop.\n\nIMPORTANT NEW NATURAL POSE: she holds the black LP a little higher, beside her face and right shoulder, slightly toward screen-right; the LP's top is near her cheek/ear level, and its bottom near the upper chest. This is a believable record-store portrait showing her admiring a favorite record held near her face, NOT a low waist-level LP pose. Place the complete circular LP approximately x1700–1970 and y280–550; its plain gold center label is clear. Both hands lightly hold the lower side edges with anatomically natural fingers and relaxed wrists. Head and LP together should fit in a compact horizontal cluster, with large face on the left and circular LP on the right, allowing a substantially larger face inside a low-height banner. Do not shrink the person until it is a distant wide shot. Shoulders and torso may continue below the bottom crop.\n\nKeep natural skin, coherent hair, simple garment folds, clean jacket zipper/edges, smooth optical background bokeh. Show record sleeves as albums on real shelves behind her. No excessive grain, ripples, wavy faces, melted fingers, oversharpened halos, moire, repeated frame patterns, harsh beauty filtering or CGI plastic skin. No text, branding, logo, CTA, interface, borders, floating visual effects or decorative sparkles.",
+            "references": [
+              "dist/assets/home-banners/desktop-20261109/premium-2172.webp",
+              "/workspace/scratch/68339ef98bf2/generated_images/exec-31860925-a770-49d0-894b-a3dc6969bd08.png"
+            ],
+            "generated_path": "/workspace/scratch/68339ef98bf2/generated_images/exec-99c0794d-ef37-4ded-8815-8c6e91bd4870.png"
+          },
+          {
+            "stage": "raised-LP-outpaint",
+            "prompt": "Use case: outpaint. Make one precise optical zoom-out of this exact photograph. Preserve every identity, facial feature, expression, hand, finger, garment, LP, pose and lighting from the reference. Do not redesign or change the person. The woman is holding the LP beside her face, and this pose must stay exactly the same.\n\nThe current photo is too tall a close-up for a shallow web-banner crop. Render the entire current subject and scene at70% of its current size, with its center held around73% of the canvas width. Add natural matching record-store surroundings above, below and to both sides to fill the canvas. Output2172×724, exact3:1 landscape. This is real scene continuation, not a pasted rectangle. No seams, frames, flat fill, fake panels or extra effects.\n\nThere MUST be about120px of continuous defocused store background above her complete hair. Her complete head should stay visually large, around300px tall. Keep the whole LP and two holding hands naturally next to her face in the middle of the canvas, approximatelyy130–570. Do not stretch or reshape the LP. Keep the person and LP away from the far right edge. The left44% is naturally defocused store, with no people or text. No headline, button, logo, UI or watermark. Clean natural photographic skin, fingers and cloth, no wrinkles invented as texture, no sharpening artifacts.",
+            "references": [
+              "/workspace/scratch/68339ef98bf2/generated_images/exec-99c0794d-ef37-4ded-8815-8c6e91bd4870.png"
+            ],
+            "generated_path": "/workspace/scratch/68339ef98bf2/generated_images/exec-56414215-7510-4b4e-903f-928c150e888c.png"
+          }
+        ]
+      }
+    }
+  ],
+  "visual_qa": {
+    "preview": "Actual built application served through Sites managed preview; lower catalog API data is not available in this static preview.",
+    "desktop_1440": {
+      "frame": [
+        1070.6875,
+        272
+      ],
+      "all_eight_photos_visually_reviewed": true,
+      "copy_group_center_delta_px": 0,
+      "all_images_loaded": true,
+      "cta_control_overlap": false
+    },
+    "desktop_1920": {
+      "frame": [
+        1409,
+        272
+      ],
+      "reviewed": [
+        "studio",
+        "artists",
+        "premium",
+        "talking",
+        "crew"
+      ],
+      "note": "Wide close-up crops may trim the top of hair or lower torso. Faces and distinguishing actions remain visible; crew framing prioritizes complete fist bump."
+    },
+    "compact_860": {
+      "frame": [
+        553.1875,
+        272
+      ],
+      "premium_headline_height": 81,
+      "cta_bottom": 326.796875,
+      "controls_top": 338.5,
+      "cta_control_overlap": false
+    },
+    "compact_801": {
+      "frame": [
+        494.1875,
+        174
+      ],
+      "artist_cta_bottom_after_fix": 236.296875,
+      "controls_top": 240.5,
+      "cta_control_overlap": false,
+      "note": "Only the compact174px PC frame reserves34px for existing controls; the copy is centered within its usable area."
+    },
+    "mobile_390": {
+      "photo_frame": [
+        375,
+        187.5
+      ],
+      "source": "mobile-20261109/play-768.webp",
+      "object_fit": "contain",
+      "button_shadow": "none",
+      "controls_below_photo": true,
+      "horizontal_overflow": false
+    },
+    "mobile_320_768": {
+      "studio_cta_within_photo": true,
+      "controls_below_photo": true,
+      "horizontal_overflow": false
+    },
+    "focused_tests": {
+      "command": "node --test tests/home-guidance.test.mjs tests/home-carousel.test.mjs tests/play-banner.test.mjs tests/navigation-cache.test.mjs",
+      "passed": 64,
+      "failed": 0
+    },
+    "lint_play": "passed",
+    "typecheck_play": "passed"
+  },
+  "integration_base_commit": "67fbfa4029c3a960845899a4953a0c8e82f60e58"
+}

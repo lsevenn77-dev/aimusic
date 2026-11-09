@@ -72,7 +72,7 @@ test('published mobile banner variants match the visually reviewed asset manifes
 
 test('desktop panorama files are complete WebP scenes matching the reviewed manifest',()=>{
  const c=context(),banners=vm.runInContext('homeBanners',c);
- const base=new URL('../dist/assets/home-banners/desktop-20261109/',import.meta.url);
+ const base=new URL('../dist/assets/home-banners/desktop-close-20261109/',import.meta.url);
  const manifest=JSON.parse(readFileSync(new URL('manifest.json',base),'utf8'));
  assert.equal(manifest.assets.length,banners.length);
  const hashes=new Set();

@@ -25,7 +25,7 @@
 #home-release.home-promo-carousel [data-home-banner=talking]{--home-promo-bg:#0f2033;--home-promo-accent:var(--ds-accent-mint);--home-promo-shade-end:55%}
 #home-release.home-promo-carousel [data-home-banner=crew]{--home-promo-bg:var(--ds-panel);--home-promo-accent:var(--ds-accent-mint);--home-promo-position:right 35%;--home-promo-shade-end:55%}
 #home-release.home-promo-carousel [data-home-banner=premium]{--home-promo-bg:#202545;--home-promo-accent:#edca7e}
-#home-release.home-promo-carousel .home-promo-copy{position:relative;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:10px;box-sizing:border-box;height:calc(100% - 34px);width:60%;padding-left:clamp(84px,11cqi,160px);padding-right:12px}
+#home-release.home-promo-carousel .home-promo-copy{position:relative;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:10px;box-sizing:border-box;height:100%;width:60%;padding-left:clamp(84px,11cqi,160px);padding-right:12px}
 #home-release.home-promo-carousel .home-promo-headline{font-size:clamp(22px,3.2cqi,36px);line-height:1.35;font-weight:750;font-style:italic;letter-spacing:-.04em;word-break:keep-all;overflow-wrap:anywhere;text-shadow:0 2px 5px color-mix(in srgb,var(--ds-bg) 50%,transparent),0 4px 16px color-mix(in srgb,var(--ds-bg) 38%,transparent)}
 #home-release.home-promo-carousel .home-promo-headline>span{display:block}
 #home-release.home-promo-carousel .home-promo-headline em{font-style:inherit;color:var(--home-promo-accent)}
@@ -34,36 +34,19 @@
 #home-release.home-promo-carousel .home-promo-cta{display:inline-flex;align-items:center;justify-content:center;gap:16px;min-height:44px;padding:8px 24px;border:0;border-radius:999px;background:linear-gradient(100deg,var(--ds-mint),var(--ds-lavender),var(--ds-lilac));color:var(--ds-ink);font-size:16px;line-height:1.4;font-weight:750;text-shadow:none;white-space:nowrap;box-shadow:none}
 #home-release.home-promo-carousel .home-promo-cta svg{width:20px;height:20px;flex:none}
 #home-release.home-promo-carousel .home-promo-link:focus-visible .home-promo-cta{outline:2px solid var(--ds-text);outline-offset:3px}
-/* Move faces a little closer, while tapering the added zoom in wider frames
-   so microphones, hands, the controller and the full LP remain visible. */
+/* Close-up desktop photographs contain their own framing. Render them without
+   another transform so faces, hands and garment details are not enlarged twice. */
 @media(min-width:801px){
- @container(min-width:791px){
-  #home-release.home-promo-carousel .home-promo-original{transform:scale(var(--home-promo-zoom,1));transform-origin:var(--home-promo-origin,center)}
-  #home-release.home-promo-carousel [data-home-banner=studio]{--home-promo-zoom:1.34;--home-promo-origin:60% 50%;--home-promo-position:right 70%}
-  #home-release.home-promo-carousel [data-home-banner=participate]{--home-promo-zoom:1.38;--home-promo-origin:100% 50%;--home-promo-position:right 72%}
-  #home-release.home-promo-carousel [data-home-banner=play]{--home-promo-zoom:1.08;--home-promo-origin:75% 50%;--home-promo-position:right 40%}
-  #home-release.home-promo-carousel [data-home-banner=artists]{--home-promo-zoom:1.08;--home-promo-origin:70% 50%;--home-promo-position:right 37%}
-  #home-release.home-promo-carousel [data-home-banner=karaoke]{--home-promo-zoom:1.08;--home-promo-origin:75% 50%;--home-promo-position:right 48%}
-  #home-release.home-promo-carousel [data-home-banner=talking]{--home-promo-zoom:1.07;--home-promo-origin:60% 50%;--home-promo-position:right 48%}
-  #home-release.home-promo-carousel [data-home-banner=premium]{--home-promo-zoom:1.08;--home-promo-origin:70% 50%;--home-promo-position:right 45%}
- }
+ #home-release.home-promo-carousel .home-promo-original{object-position:var(--home-promo-close-position,right 50%);transform:none}
+ #home-release.home-promo-carousel [data-home-banner=studio]{--home-promo-close-position:right 54%}
+ #home-release.home-promo-carousel [data-home-banner=play]{--home-promo-close-position:right 40%}
+ #home-release.home-promo-carousel [data-home-banner=artists]{--home-promo-close-position:right 32%}
+ #home-release.home-promo-carousel [data-home-banner=participate]{--home-promo-close-position:right 59%}
+ #home-release.home-promo-carousel [data-home-banner=talking]{--home-promo-close-position:right 18%}
+ #home-release.home-promo-carousel [data-home-banner=crew]{--home-promo-close-position:right 60%}
+ #home-release.home-promo-carousel [data-home-banner=premium]{--home-promo-close-position:right 38%}
  @container(min-width:1101px){
-  #home-release.home-promo-carousel [data-home-banner=studio]{--home-promo-zoom:1.23;--home-promo-position:right 68%}
-  #home-release.home-promo-carousel [data-home-banner=participate]{--home-promo-zoom:1.25;--home-promo-position:right 70%}
-  #home-release.home-promo-carousel [data-home-banner=play]{--home-promo-zoom:1.07;--home-promo-position:right 37%}
-  #home-release.home-promo-carousel [data-home-banner=artists]{--home-promo-zoom:1.07;--home-promo-position:right 35%}
-  #home-release.home-promo-carousel [data-home-banner=karaoke]{--home-promo-zoom:1.07;--home-promo-position:right 46%}
-  #home-release.home-promo-carousel [data-home-banner=talking]{--home-promo-zoom:1.06;--home-promo-position:right 51%}
-  #home-release.home-promo-carousel [data-home-banner=premium]{--home-promo-zoom:1.06}
- }
- @container(min-width:1241px){
-  #home-release.home-promo-carousel [data-home-banner=studio]{--home-promo-zoom:1.12;--home-promo-position:right 67%}
-  #home-release.home-promo-carousel [data-home-banner=participate]{--home-promo-zoom:1.16;--home-promo-position:right 68%}
-  #home-release.home-promo-carousel [data-home-banner=play]{--home-promo-zoom:1.06;--home-promo-position:right 35%}
-  #home-release.home-promo-carousel [data-home-banner=artists]{--home-promo-zoom:1.06;--home-promo-position:right 34%}
-  #home-release.home-promo-carousel [data-home-banner=karaoke]{--home-promo-zoom:1.06;--home-promo-position:right 44%}
-  #home-release.home-promo-carousel [data-home-banner=talking]{--home-promo-zoom:1.05;--home-promo-position:right 53%}
-  #home-release.home-promo-carousel [data-home-banner=premium]{--home-promo-zoom:1.04}
+  #home-release.home-promo-carousel [data-home-banner=crew]{--home-promo-close-position:right 76%}
  }
 }
 .home-participation-options{display:grid;gap:12px;margin-top:20px}
@@ -81,7 +64,9 @@
  #home-release.home-promo-carousel [data-home-banner=talking]{--home-promo-shade-end:40%}
 }
 @container(max-width:540px){
- #home-release.home-promo-carousel .home-promo-copy{padding-left:48px;gap:8px}
+ /* In the compact 174px PC frame, reserve the existing control strip so its
+    transparent hit targets cannot cover the CTA. Mobile overrides height below. */
+ #home-release.home-promo-carousel .home-promo-copy{height:calc(100% - 34px);padding-left:48px;gap:8px}
  #home-release.home-promo-carousel .home-promo-headline{font-size:17px;line-height:1.25}
  #home-release.home-promo-carousel .home-promo-subtitle{font-size:12px}
  #home-release.home-promo-carousel .home-promo-cta{font-size:13px;min-height:36px;padding:6px 14px}

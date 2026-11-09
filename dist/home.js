@@ -38,7 +38,7 @@ const homeBanners=[
  {id:'premium',title:'프리미엄',headline:'프리미엄으로 제작곡을 더 많이 올려보세요',subtitle:'고음질로 음악을 더 깊이 즐겨요.',cta:'프리미엄 혜택 보기',href:'#membership'}
 ];
 function homeBannerImage(id,width){return '/assets/home-banners/mobile-20261109/'+id+'-'+width+'.webp';}
-function homeBannerDesktopImage(id){return '/assets/home-banners/desktop-20261109/'+id+'-2172.webp';}
+function homeBannerDesktopImage(id){return '/assets/home-banners/desktop-close-20261109/'+id+'-2172.webp';}
 const homeBannerDesktopCopy={
  studio:{lines:['스튜디오에서','내 제작곡을 올려보세요'],highlight:'내 제작곡'},
  play:{lines:['플레이에서','마음에드는 노래를 불러보세요'],highlight:'플레이'},
