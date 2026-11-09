@@ -9,7 +9,7 @@
 #home-release.home-promo-carousel .home-promo-original{display:block;width:100%;height:100%;object-fit:cover;object-position:var(--home-promo-focus,71% 20%);border:0;border-radius:0}
 #home-release.home-promo-carousel .home-promo-scenery{display:none}
 @media(min-width:801px){
- #home-release.home-promo-carousel .home-promo-link{--home-promo-photo-scale:1;--home-promo-photo-height:calc(var(--home-feature-height,272px) * var(--home-promo-photo-scale));--home-promo-shift:16cqi;--home-promo-inset-max:224px;--home-promo-inset:clamp(48px,var(--home-promo-shift),var(--home-promo-inset-max))}
+ #home-release.home-promo-carousel .home-promo-link{--home-promo-photo-scale:1;--home-promo-photo-height:calc(var(--home-feature-height,272px) * var(--home-promo-photo-scale));--home-promo-shift:16cqi;--home-promo-inset-max:224px;--home-promo-closeup-offset:0px;--home-promo-inset:calc(clamp(48px,var(--home-promo-shift),var(--home-promo-inset-max)) - var(--home-promo-closeup-offset))}
  #home-release.home-promo-carousel .home-promo-scenery{display:block;position:absolute;height:var(--home-promo-photo-height);background-image:var(--home-promo-scenery);background-size:auto 100%;background-repeat:no-repeat;pointer-events:none}
  #home-release.home-promo-carousel .home-promo-scenery-left{inset:0 calc(var(--home-promo-photo-height) * var(--home-promo-left-edge,1.8) + var(--home-promo-inset)) auto 0;background-position:right center}
  #home-release.home-promo-carousel .home-promo-scenery-right{inset:0 0 auto auto;width:calc(var(--home-promo-inset) + 1px);background-position:left center;background-size:max(100%,var(--home-promo-photo-height)) 100%}
@@ -21,11 +21,14 @@
  /* Desktop object corrections extend into the empty left side of the original
     photograph. Their transparent masks exclude every portrait; mobile keeps
     its approved source without any overlay. */
- #home-release.home-promo-carousel :is([data-home-banner=play],[data-home-banner=talking]) .home-promo-picture::after{content:"";position:absolute;inset:0;background-image:var(--home-promo-detail);background-size:100% 100%;background-repeat:no-repeat;pointer-events:none}
- #home-release.home-promo-carousel [data-home-banner=play]{--home-promo-detail:url('/assets/home-banners/detail-20261109/play-background-overlay-1536.webp')}
- #home-release.home-promo-carousel [data-home-banner=talking]{--home-promo-detail:url('/assets/home-banners/detail-20261109/talking-background-overlay-1536.webp')}
+ #home-release.home-promo-carousel :is([data-home-banner=play],[data-home-banner=karaoke],[data-home-banner=talking]) .home-promo-picture::after{content:"";position:absolute;inset:0;background-image:var(--home-promo-detail);background-size:100% 100%;background-repeat:no-repeat;pointer-events:none}
+ #home-release.home-promo-carousel [data-home-banner=play]{--home-promo-detail:url('/assets/home-banners/pc-refresh-20261109/play-background-overlay-1536.webp')}
+ #home-release.home-promo-carousel [data-home-banner=karaoke]{--home-promo-detail:url('/assets/home-banners/pc-refresh-20261109/karaoke-background-overlay-1536.webp')}
+ /* Move the right inset by half the added photo width so the closer group
+    keeps its existing center. Scenery and object overlays share this geometry. */
+ #home-release.home-promo-carousel [data-home-banner=talking]{--home-promo-detail:url('/assets/home-banners/pc-refresh-20261109/talking-background-overlay-1536.webp');--home-promo-photo-scale:1.1;--home-promo-closeup-offset:calc(var(--home-feature-height,272px) * .1)}
  #home-release.home-promo-carousel [data-home-banner=artists]{--home-promo-photo-scale:1.25;--home-promo-shift:20cqi;--home-promo-inset-max:256px}
- #home-release.home-promo-carousel [data-home-banner=crew]{--home-promo-photo-scale:1.2;--home-promo-shift:20cqi;--home-promo-inset-max:256px}
+ #home-release.home-promo-carousel [data-home-banner=crew]{--home-promo-photo-scale:1.32;--home-promo-shift:20cqi;--home-promo-inset-max:256px;--home-promo-closeup-offset:calc(var(--home-feature-height,272px) * .12)}
  /* Revised scenery holds exactly 154 source pixels beyond its 2211px anchor.
     Align that copied background with the unchanged original at every scale. */
  #home-release.home-promo-carousel :is([data-home-banner=studio],[data-home-banner=play],[data-home-banner=karaoke],[data-home-banner=talking],[data-home-banner=crew]){--home-promo-left-edge:1.7994791667}
@@ -37,11 +40,11 @@
  #home-release.home-promo-carousel [data-home-banner=crew] .home-promo-scenery-right::before{--home-promo-right-blend:calc(var(--home-promo-photo-height) * .0662983425);--home-promo-right-fade:linear-gradient(180deg,#000 96.4705882353%,transparent);top:0;height:calc(var(--home-promo-photo-height) * .4696132597);background-image:url('/assets/home-banners/repair-20261109/crew-right-window-blend-48.webp')}
  #home-release.home-promo-carousel [data-home-banner=crew] .home-promo-scenery-right::after{--home-promo-right-blend:calc(var(--home-promo-photo-height) * .0276243094);--home-promo-right-fade:linear-gradient(180deg,transparent,#000 7.5%,#000 80%,transparent);top:calc(var(--home-promo-photo-height) * .4419889503);height:calc(var(--home-promo-photo-height) * .1104972376);background-image:url('/assets/home-banners/repair-20261109/crew-right-wall-blend-20.webp')}
  @container(max-width:790px){
-  #home-release.home-promo-carousel .home-promo-link{--home-promo-inset:clamp(24px,8cqi,56px)}
+  #home-release.home-promo-carousel .home-promo-link{--home-promo-inset:max(0px,calc(clamp(24px,8cqi,56px) - var(--home-promo-closeup-offset)))}
  }
  @container(min-width:541px) and (max-width:650px){
-  #home-release.home-promo-carousel .home-promo-link{--home-promo-inset:24px}
-  #home-release.home-promo-carousel [data-home-banner=crew]{--home-promo-photo-scale:1}
+  #home-release.home-promo-carousel .home-promo-link{--home-promo-inset:max(0px,calc(24px - var(--home-promo-closeup-offset)))}
+  #home-release.home-promo-carousel [data-home-banner=crew]{--home-promo-photo-scale:1.1;--home-promo-closeup-offset:calc(var(--home-feature-height,272px) * .1)}
  }
 }
 /* Gently shade and soften the scenery behind the words. Both effects diminish
