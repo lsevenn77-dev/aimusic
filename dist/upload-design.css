@@ -1,0 +1,360 @@
+/* Original-upload presentation only. The existing form, dynamic fields,
+   artwork previews and upload/lyrics state remain owned by their renderers. */
+#main:is([data-route="upload"],[data-route^="upload?"]) .upload-quota {
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;
+  gap:calc(12px) calc(24px);margin:0 0 calc(24px);padding:calc(20px) calc(24px);
+  background:var(--ds-panel);border:1px solid var(--ds-line);border-radius:var(--ds-radius-card);
+  color:var(--ds-body);box-shadow:none;line-height:1.7;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) .upload-quota strong {
+  min-width:0;color:var(--ds-text);font-size:var(--pc-font-card,16px);font-weight:600;
+  overflow-wrap:anywhere;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) .upload-quota p {
+  margin:0;color:var(--ds-muted);font-size:var(--pc-font-meta,13px);line-height:1.8;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) .upload-layout {
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(240px,280px);
+  align-items:start;gap:calc(24px);min-width:0;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) .upload-layout > * {
+  min-width:0;max-width:100%;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form {
+  --input-focus-border:var(--ds-selected);
+  margin:0;padding:calc(28px);color:var(--ds-body);
+  font-size:var(--pc-font-body,14px);line-height:1.7;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .form-section-heading {
+  flex-wrap:nowrap;align-items:center;gap:calc(12px);
+  margin:calc(32px) 0 calc(20px);padding-top:calc(24px);border-top:1px solid var(--ds-line);
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form > .form-section-heading:first-child {
+  margin-top:0;padding-top:0;border-top:0;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .form-section-heading > span {
+  width:32px;height:32px;border:0;border-radius:var(--ds-radius-sm);
+  background:var(--ds-bg);color:var(--ds-muted);font-size:var(--pc-font-caption,13px);
+  font-weight:500;line-height:1;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .form-section-heading h2 {
+  min-width:0;margin:0;font-size:var(--pc-font-section,18px);font-weight:600;
+  line-height:1.5;overflow-wrap:anywhere;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .form-field {
+  margin-bottom:calc(20px);font-weight:500;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .form-field :is(input,select,textarea) {
+  font-weight:400;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form [aria-invalid="true"] {
+  border-color:var(--ds-error)!important;outline-color:var(--ds-error);
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form textarea {
+  min-height:112px;resize:vertical;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .field-help {
+  margin:calc(8px) 0 calc(16px);color:var(--ds-muted);
+  font-size:var(--pc-font-meta,13px)!important;font-weight:400;line-height:1.8;
+  overflow-wrap:anywhere;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .form-field > .field-help {
+  margin:0;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .file-zone {
+  gap:calc(12px);min-height:0;padding:calc(24px);
+  background:var(--ds-bg);border:1px dashed var(--ds-line);border-radius:var(--ds-radius-input);
+  text-align:center;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .file-zone > svg {
+  width:24px;height:24px;color:var(--ds-muted);
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .file-zone strong {
+  color:var(--ds-text);font-size:var(--pc-font-card,16px);font-weight:500;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .file-zone > span {
+  color:var(--ds-muted);font-size:var(--pc-font-meta,13px);line-height:1.6;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form input[type="file"] {
+  width:100%;min-width:0;max-width:100%;min-height:44px;margin:0;padding:0;
+  border:0;border-radius:0;background:transparent;color:var(--ds-body);
+  font-family:inherit;font-size:var(--pc-font-control,14px);line-height:1.5;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .file-zone input[type="file"] {
+  width:min(100%,360px);text-align:left;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form input[type="file"]::file-selector-button {
+  min-height:44px;margin:0 calc(12px) 0 0;padding:calc(10px) calc(12px);
+  border:1px solid var(--ds-line);border-radius:var(--ds-radius-sm);
+  background:var(--ds-soft);color:var(--ds-text);font:inherit;font-weight:500;cursor:pointer;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form input[type="file"]::file-selector-button:hover {
+  border-color:var(--ds-lavender);
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .image-field {
+  gap:calc(20px);margin:calc(20px) 0 calc(24px);padding:calc(20px);
+  border:1px solid var(--ds-line);border-radius:var(--ds-radius-input);background:var(--ds-bg);
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .image-preview {
+  background:var(--ds-panel);border-color:var(--ds-line);color:var(--ds-muted);
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .image-field .form-field {
+  margin:0;gap:calc(10px);
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .image-field .field-help {
+  margin:calc(12px) 0 0;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .image-selection {
+  margin-top:calc(8px);color:var(--ds-body);font-size:var(--pc-font-meta,13px);line-height:1.7;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .image-selection:empty {
+  display:none;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form [data-reset-image]:not([hidden]) {
+  display:inline-flex;align-items:center;min-height:44px;margin:calc(4px) 0 0;padding:0;
+  color:var(--ds-selected);font-size:var(--pc-font-control,14px);line-height:1.5;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .music-classification {
+  margin:0 0 calc(20px);padding:calc(20px);background:var(--ds-bg);
+  border:1px solid var(--ds-line);border-radius:var(--ds-radius-input);
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .classification-heading {
+  gap:calc(12px);align-items:flex-start;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .classification-heading > div {
+  min-width:0;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .classification-heading strong {
+  color:var(--ds-text);font-size:var(--pc-font-card,16px);font-weight:600;line-height:1.5;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .classification-heading .field-help {
+  margin:calc(8px) 0;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .classification-badge {
+  flex:none;padding:calc(4px) calc(8px);border-radius:var(--ds-radius-sm);
+  background:var(--ds-soft);color:var(--ds-body);font-size:var(--pc-font-caption,13px);
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .music-classification fieldset {
+  padding:calc(16px) 0 0;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .music-classification legend {
+  margin-bottom:calc(12px);color:var(--ds-text);font-size:var(--pc-font-control,14px);line-height:1.6;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .music-classification legend small {
+  margin-top:calc(4px);color:var(--ds-muted);font-size:var(--pc-font-caption,13px);line-height:1.6;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .classification-options {
+  gap:calc(8px);
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .classification-options span {
+  display:flex;align-items:center;min-height:44px;padding:calc(8px) calc(12px);
+  border:1px solid var(--ds-line);border-radius:var(--ds-radius-input);
+  background:var(--ds-panel);color:var(--ds-body);font-size:var(--pc-font-control,14px);line-height:1.5;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .classification-options input:checked + span {
+  background:var(--ds-soft);border-color:transparent;color:var(--ds-selected);
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .classification-options input:focus-visible + span {
+  outline:2px solid var(--ds-selected);outline-offset:3px;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .lyrics-editor {
+  margin:calc(28px) 0;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form #auto-lyrics-source {
+  min-height:200px;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form #lyrics-source {
+  min-height:160px;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form :is(.auto-lyrics-note,.alignment-status,.lyrics-cleanup-note,.lyric-preview-player) {
+  margin:calc(20px) 0;padding:calc(16px);background:var(--ds-bg);
+  border:1px solid var(--ds-line);border-radius:var(--ds-radius-input);
+  color:var(--ds-body);font-size:var(--pc-font-meta,13px);line-height:1.8;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .lyric-preview-player .inline-actions {
+  align-items:center;gap:calc(8px) calc(12px);
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .lyric-preview-player output {
+  color:var(--ds-body);font-size:var(--pc-font-meta,14px);line-height:1.5;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form #lyrics-preview-seek {
+  min-height:44px;margin-top:calc(8px);accent-color:var(--ds-progress);
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .lyric-preview-player .field-help {
+  margin:calc(8px) 0 0;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .lyrics-rows {
+  margin-top:calc(16px);scrollbar-color:var(--ds-muted) var(--ds-bg);
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .lyric-edit-row {
+  grid-template-columns:44px 112px minmax(0,1fr) 92px;
+  gap:calc(8px);padding:calc(10px) 0;border-bottom-color:var(--ds-line);
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .lyric-edit-row input {
+  min-height:44px;padding:calc(10px) calc(8px);border:1px solid var(--ds-line);
+  border-radius:var(--ds-radius-sm);background:var(--ds-bg);color:var(--ds-text);
+  font-size:var(--pc-font-control,14px);line-height:1.5;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .lyric-edit-row .lyric-number {
+  grid-column:1;grid-row:1;min-width:44px;min-height:44px;padding:0;
+  border:0;border-radius:var(--ds-radius-sm);background:transparent;color:var(--ds-muted);
+  font-size:var(--pc-font-control,14px);text-align:center;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .lyric-edit-row .lyric-time-input {
+  grid-column:2;grid-row:1;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .lyric-edit-row .lyric-text-input {
+  grid-column:3;grid-row:1;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .lyric-edit-row [data-stamp-row] {
+  grid-column:4;grid-row:1;justify-self:stretch;justify-content:center;
+  min-width:0;min-height:44px;padding:calc(8px) calc(4px);margin:0;
+  color:var(--ds-selected);font-size:var(--pc-font-control,14px);line-height:1.5;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .lyric-edit-row.has-time .lyric-time-input {
+  border-color:var(--ds-line);
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .lyric-edit-row.is-preview-current {
+  background:var(--ds-soft);
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .lyric-edit-row.is-preview-current .lyric-number {
+  color:var(--ds-selected);
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .participation {
+  gap:calc(8px) calc(16px);margin-top:calc(20px);
+  color:var(--ds-body);font-size:var(--pc-font-control,14px);line-height:1.6;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .participation label {
+  gap:calc(8px);min-height:44px;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form :is(.participation,.checkbox-line) input[type="checkbox"] {
+  flex:none;width:18px;height:18px;margin:0;accent-color:var(--ds-selected);
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .rights-check {
+  margin:calc(24px) 0;padding:calc(20px);border:1px solid var(--ds-line);
+  border-radius:var(--ds-radius-input);background:var(--ds-bg);color:var(--ds-body);
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .rights-check .field-help {
+  margin:0 0 calc(12px);
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .rights-check .checkbox-line {
+  min-height:44px;align-items:flex-start;gap:calc(10px);margin:0;
+  font-size:var(--pc-font-control,14px);line-height:1.8;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .rights-check .checkbox-line input {
+  margin-top:calc(4px);
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .rights-check .checkbox-line > span {
+  min-width:0;overflow-wrap:anywhere;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .rights-check > a {
+  display:inline-flex;align-items:center;min-height:44px;max-width:100%;margin-top:calc(8px);
+  color:var(--ds-selected);font-size:var(--pc-font-control,14px);line-height:1.6;text-underline-offset:4px;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form #upload-submit {
+  min-width:160px;min-height:44px;padding:calc(12px) calc(20px);
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form button:disabled {
+  background:var(--ds-bg);border-color:var(--ds-line);color:var(--ds-muted);opacity:1;filter:none;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .upload-progress {
+  margin-top:calc(20px);padding:calc(20px);background:var(--ds-bg);
+  border:1px solid var(--ds-line);border-radius:var(--ds-radius-input);color:var(--ds-body);
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .upload-progress progress {
+  accent-color:var(--ds-progress);
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .upload-progress progress::-webkit-progress-bar {
+  background:var(--ds-line);
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .upload-progress progress::-webkit-progress-value {
+  background:var(--ds-progress);
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .upload-progress progress::-moz-progress-bar {
+  background:var(--ds-progress);
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .upload-progress p {
+  margin:calc(12px) 0 calc(8px);font-size:var(--pc-font-body,14px);font-weight:500;line-height:1.7;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .upload-progress small {
+  color:var(--ds-muted);font-size:var(--pc-font-meta,13px);line-height:1.7;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .upload-progress[data-state="error"] {
+  border-color:var(--ds-error);
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form > .form-error:not(:empty) {
+  margin:calc(16px) 0 0;padding:calc(12px) calc(16px);border-left:2px solid var(--ds-error);
+  border-radius:var(--ds-radius-sm);background:var(--ds-bg);color:var(--ds-error);line-height:1.7;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) .upload-guide {
+  margin:0;padding:calc(24px);color:var(--ds-body);
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) .upload-guide .eyebrow {
+  color:var(--ds-muted);font-size:var(--pc-font-caption,13px);font-weight:500;letter-spacing:.08em;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) .upload-guide h2 {
+  margin:calc(12px) 0 calc(16px);font-size:var(--pc-font-section,20px);font-weight:600;line-height:1.6;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) .upload-guide p {
+  margin:calc(12px) 0 0;color:var(--ds-muted);font-size:var(--pc-font-body,14px);line-height:1.8;
+}
+#main:is([data-route="upload"],[data-route^="upload?"]) .upload-guide hr {
+  margin:calc(20px) 0;border-top-color:var(--ds-line);
+}
+@media(max-width:1100px) {
+  #main:is([data-route="upload"],[data-route^="upload?"]) .upload-layout {
+    grid-template-columns:minmax(0,1fr);
+  }
+}
+@media(max-width:800px) {
+  #main:is([data-route="upload"],[data-route^="upload?"]) #upload-form :is(input[type="file"],.lyric-edit-row input) {
+    font-size:16px!important;
+  }
+}
+@media(max-width:600px) {
+  #main:is([data-route="upload"],[data-route^="upload?"]) .upload-quota {
+    align-items:flex-start;gap:calc(10px);margin-bottom:calc(20px);padding:calc(16px);
+  }
+  #main:is([data-route="upload"],[data-route^="upload?"]) .upload-layout {
+    gap:calc(20px);
+  }
+  #main:is([data-route="upload"],[data-route^="upload?"]) #upload-form {
+    padding:calc(20px) calc(16px);
+  }
+  #main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .form-section-heading {
+    gap:calc(10px);margin-top:calc(28px);padding-top:calc(20px);
+  }
+  #main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .file-zone {
+    padding:calc(20px) calc(16px);
+  }
+  #main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .image-field {
+    flex-direction:column;align-items:stretch;gap:calc(16px);padding:calc(16px);
+  }
+  #main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .image-field .image-preview {
+    align-self:flex-start;
+  }
+  #main:is([data-route="upload"],[data-route^="upload?"]) #upload-form :is(.music-classification,.rights-check,.upload-progress,.lyric-preview-player) {
+    padding:calc(16px);
+  }
+  #main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .classification-heading {
+    flex-wrap:nowrap;
+  }
+  #main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .classification-options span {
+    padding:calc(8px) calc(10px);
+  }
+  #main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .lyric-edit-row {
+    grid-template-columns:44px 112px minmax(0,1fr);
+  }
+  #main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .lyric-edit-row .lyric-text-input {
+    grid-column:1 / -1;grid-row:2;
+  }
+  #main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .lyric-edit-row [data-stamp-row] {
+    grid-column:3;grid-row:1;
+  }
+  #main:is([data-route="upload"],[data-route^="upload?"]) #upload-form #upload-submit {
+    width:100%;min-width:0;
+  }
+  #main:is([data-route="upload"],[data-route^="upload?"]) .upload-guide {
+    padding:calc(20px);
+  }
+}
