@@ -68,13 +68,13 @@ function studioQuotaCard(value=studioQuota.membership,status=studioQuota.status)
   <div class="studio-quota-upload-card">
    <div class="studio-quota-meter" style="--studio-quota-progress:${progress}%" role="progressbar" aria-label="이번 달 제작곡 업로드" aria-valuemin="0" aria-valuemax="${q.limit}" aria-valuenow="${Math.min(q.used,q.limit)}" aria-valuetext="${q.used} / ${q.limit}곡 업로드"><div class="studio-quota-summary"><span>이번 달 제작곡</span><strong>${usage}곡</strong></div></div>
    <div class="studio-quota-copy"><p class="studio-quota-eyebrow">MY STUDIO</p><h2>완성한 음악을 들려주세요.</h2><p>나만의 제작곡을 아이팩트에 공개해보세요.</p></div>
-   <div class="studio-quota-art" aria-hidden="true"><div class="studio-quota-disc"></div><div class="studio-quota-sleeve"><div class="studio-quota-wave"><span style="--wave-height:8px"></span><span style="--wave-height:15px"></span><span style="--wave-height:24px"></span><span style="--wave-height:15px"></span><span style="--wave-height:34px"></span><span style="--wave-height:42px"></span><span style="--wave-height:23px"></span><span style="--wave-height:32px"></span><span style="--wave-height:19px"></span><span style="--wave-height:11px"></span><span style="--wave-height:6px"></span></div></div></div>
-   <div class="studio-quota-upload-actions">${studioUploadLink()}<span class="studio-quota-remaining">${remaining?`이번 달 ${number(remaining)}곡 더 가능`:'이번 달 제작곡 한도를 모두 사용했어요.'}</span></div>
+   <div class="studio-quota-upload-actions">${studioUploadLink()}${remaining?'':'<span class="studio-quota-remaining">이번 달 제작곡 한도를 모두 사용했어요.</span>'}</div>
    <p class="studio-quota-note">매월 1일 초기화(한국시간) · 커버곡 무제한</p>
   </div>
   <aside class="studio-quota-membership" aria-label="프리미엄 ${premium?'이용 현황':'안내'}">
-   <div class="studio-quota-disc studio-quota-disc-premium" aria-hidden="true"></div>
-   <div class="studio-quota-membership-copy">${premium?`<span class="studio-premium-state">${studioQuotaCrown()} PREMIUM 이용 중</span>`:`<p class="studio-quota-eyebrow">${studioQuotaCrown()} PREMIUM</p><h2><span>더 많은 음악을,</span> <span>더 자유롭게.</span></h2>`}${benefits}</div>
+   <div class="studio-quota-membership-copy"><div class="studio-quota-membership-head"><div class="studio-quota-membership-heading">${premium?`<span class="studio-premium-state">${studioQuotaCrown()} PREMIUM 이용 중</span>`:`<p class="studio-quota-eyebrow">${studioQuotaCrown()} PREMIUM</p><h2><span>더 많은 음악을,</span> <span>더 자유롭게.</span></h2>`}</div>
+    <div class="studio-quota-art" aria-hidden="true"><div class="studio-quota-art-shape"><div class="studio-quota-disc"></div><div class="studio-quota-sleeve"><div class="studio-quota-wave"><span style="--wave-height:8px"></span><span style="--wave-height:15px"></span><span style="--wave-height:24px"></span><span style="--wave-height:15px"></span><span style="--wave-height:34px"></span><span style="--wave-height:42px"></span><span style="--wave-height:23px"></span><span style="--wave-height:32px"></span><span style="--wave-height:19px"></span><span style="--wave-height:11px"></span><span style="--wave-height:6px"></span></div></div></div></div>
+   </div>${benefits}</div>
    ${premium?'':`<a class="small-button studio-upgrade" href="#membership">혜택 보기 ${icon('arrow')}</a>`}
   </aside>
  </section>`;

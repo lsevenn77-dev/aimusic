@@ -30,7 +30,8 @@ for(const [plan,used,limit,percent] of [['free',0,3,0],['free',1,3,100/3],['free
   assert.ok(Math.abs(progress-percent)<1e-10);
   assert.match(html,new RegExp(`aria-valuemax="${limit}" aria-valuenow="${used}"`));
   assert.match(html,/완성한 음악을 들려주세요\./);
-  assert.match(html,used<limit?new RegExp(`이번 달 ${limit-used}곡 더 가능`):/이번 달 제작곡 한도를 모두 사용했어요\./);
+  assert.doesNotMatch(html,/이번 달 \d+곡 더 가능/);
+  if(used>=limit)assert.match(html,/이번 달 제작곡 한도를 모두 사용했어요\./);
   assert.doesNotMatch(html,/data-icon="music"|data-icon="diamond"|PREMIUM으로 더 많이/);
   assert.equal((html.match(/매월 1일 초기화\(한국시간\) · 커버곡 무제한/g)||[]).length,1);
   assert.equal((html.match(/href="#upload"/g)||[]).length,1);
