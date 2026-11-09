@@ -7,8 +7,9 @@ const playBanners=[
 ].map(banner=>({...banner,title:banner.heading.join(' ')}));
 function playBannerHTML(banner){
  const art='/assets/play-banners/';
+ const desktopArt=banner.id==='browse'?'desktop-wide-20261109':'desktop-background-20261109';
  const lines=parts=>parts.map(part=>`<span>${esc(part)}</span>`).join(' ');
- return `<div class="home-feature-background play-banner-art" data-play-art="${banner.id}" aria-hidden="true" style="--desktop-art:url('${art}desktop-wide-20261109/${banner.id}-desktop.webp');--mobile-art:url('${art}selected-mobile/${banner.id}-mobile.webp')"></div>
+ return `<div class="home-feature-background play-banner-art" data-play-art="${banner.id}" aria-hidden="true" style="--desktop-art:url('${art}${desktopArt}/${banner.id}-desktop.webp');--mobile-art:url('${art}selected-mobile/${banner.id}-mobile.webp')"></div>
  <a class="home-feature-slide play-banner-link" data-play-banner="${banner.id}" href="${esc(playHref(banner.id))}" aria-label="${esc(banner.title)} · ${banner.label} 탭으로 이동">
    <div class="home-feature-copy"><span class="home-feature-label">${banner.label}</span>
      <h2>${lines(banner.heading)}</h2>
