@@ -42,11 +42,12 @@
   color: var(--studio-ink);
   min-width: 0;
 }
-.studio-manager .studio-topbar { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: start; gap: 12px; padding-bottom: 28px; min-height: clamp(100px, 9.4vw, 144px); }
-.studio-manager .studio-topbar > div { grid-column: 2; min-width: 0; text-align: center; }
-.studio-manager .studio-topbar > .studio-upload { justify-self: end; }
-.studio-manager h1 { margin: 0; font-size: 24px; line-height: 1.3; }
-.studio-manager .studio-subtitle { margin: 5px 0 0; font-size: 13px; color: var(--studio-muted); word-break: keep-all; }
+.studio-manager .studio-topbar { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 12px; padding: 12px 0 20px; min-height: clamp(100px, 9.4vw, 144px); }
+.studio-manager .studio-topbar > .studio-heading { grid-column: 2; grid-row: 1; display: grid; justify-items: center; gap: 8px; min-width: 0; text-align: center; }
+.studio-manager .studio-heading-label { color: var(--studio-muted); font-size: calc(11px); font-weight: 500; line-height: 1.4; letter-spacing: .2em; }
+.studio-manager .studio-topbar > .studio-upload { grid-column: 3; grid-row: 1; justify-self: end; min-height: max(44px, var(--ui-control-height, 44px)); }
+.studio-manager .studio-heading h1 { margin: 0; font-size: var(--pc-font-page, 24px); font-weight: 650; line-height: 1.3; letter-spacing: -.025em; }
+.studio-manager .studio-subtitle { margin: 0; max-width: 100%; font-size: var(--pc-font-body, 13px); line-height: 1.6; color: var(--ds-body); word-break: keep-all; overflow-wrap: anywhere; text-wrap: balance; }
 .studio-manager .studio-upload { display: inline-flex; align-items: center; justify-content: center; gap: 6px; flex: none; min-height: 38px; padding: 0 14px; font-size: 13px; background-color: #101628bb; }
 .studio-manager .studio-upload svg { width: 18.75px; height: 18.75px; }
 .studio-manager .studio-main-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-bottom: 1px solid var(--studio-line); margin-bottom: 12px; }
@@ -90,6 +91,7 @@
 @media (min-width: 801px) {
   /* Shared button icons are 16px × 1.25 on desktop before the Studio enlargement. */
   .studio-manager { --ui-icon-scale: 1.5625; }
+  .studio-manager .studio-heading-label { font-size: calc(12px); }
 }
 .studio-manager .studio-glance { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); padding: 12px 0; margin-bottom: 12px; background: none; border: 0; border-radius: 0; box-shadow: none; cursor: default; }
 .studio-manager .studio-glance > div { display: flex; align-items: center; justify-content: center; gap: 9px; min-width: 0; font-size: 13px; line-height: 1.5; }
@@ -156,8 +158,6 @@
     --studio-room-height: clamp(218px, 58vw, 285px);
     --studio-room-fade: 84%;
   }
-  .studio-manager h1 { font-size: 22px; }
-  .studio-manager .studio-subtitle { font-size: 12px; line-height: 1.5; }
   .studio-manager .studio-upload { font-size: 12px; padding: 0 10px; min-height: 44px; }
   .studio-manager .studio-main-tab { font-size: 15px; }
   .studio-manager .studio-glance { padding: 8px 0; }
@@ -187,7 +187,8 @@
 /* Keep the CTA clear of the title on phones and narrow desktop columns. */
 @media (max-width: 767px), (min-width: 801px) and (max-width: 1000px) {
   .studio-manager .studio-topbar { grid-template-columns: minmax(0, 1fr); gap: 8px; }
-  .studio-manager .studio-topbar > div { grid-column: 1; }
+  .studio-manager .studio-topbar > .studio-heading { grid-column: 1; }
+  .studio-manager .studio-topbar > .studio-upload { grid-column: 1; grid-row: 2; }
 }
 @media (max-width: 1000px) {
   .studio-manager .studio-quota-card { grid-template-columns: minmax(0, 1fr); gap: 10px; }
