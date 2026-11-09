@@ -77,7 +77,7 @@ function chatHTML(messages,peer=null,crew=null){
   const mine=m.sender_id===me?.id||m.user_id===me?.id,name=m.chat_nickname||m.name||(mine?'나':chatNickname(peer||{}))||'리스너',label=crew?crewDisplayName({...m,name}):name;
   const failed=mine&&m.delivery==='failed'&&String(m.id).startsWith('pending:');
   const delivery=m.delivery==='sending'?'<small class="chat-delivery">전송 중…</small>':'';
-  const actions=failed?'<div class="chat-failed-actions" role="group" aria-label="전송 실패 메시지 작업"><button type="button" class="chat-ui-icon chat-ui-plain chat-delivery-action chat-retry" data-chat-retry="'+esc(m.id)+'" aria-label="다시 보내기" title="다시 보내기">'+icon('restart')+'</button><button type="button" class="chat-ui-icon chat-ui-plain chat-delivery-action chat-discard" data-chat-discard="'+esc(m.id)+'" aria-label="전송 실패 메시지 삭제" title="전송 실패 메시지 삭제">'+icon('trash')+'</button></div>':'';
+  const actions=failed?'<div class="chat-failed-actions" role="group" aria-label="전송 실패 메시지 작업"><button type="button" class="chat-ui-icon chat-ui-plain chat-delivery-action chat-discard" data-chat-discard="'+esc(m.id)+'" aria-label="전송 실패 메시지 삭제" title="전송 실패 메시지 삭제">'+voiceGlyph('close')+'</button><button type="button" class="chat-ui-icon chat-ui-plain chat-delivery-action chat-retry" data-chat-retry="'+esc(m.id)+'" aria-label="다시 보내기" title="다시 보내기">'+icon('restart')+'</button></div>':'';
   const person=peer||{id:m.profile_id,name:label,image_version:m.image_version,player_xp:m.player_xp,profile_frame:m.profile_frame,profile_frame_artwork:m.profile_frame_artwork};
   const grouped=!separator&&previous?.sender===(m.sender_id||m.user_id)&&m.created-previous.created<300;
   previous={sender:m.sender_id||m.user_id,created:m.created};
@@ -87,7 +87,7 @@ function chatHTML(messages,peer=null,crew=null){
   const stamp=new Date(m.created*1000).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Seoul'});
   const invitation=!crew&&m.crew_invite_id?'<a class="small-button dm-crew-invite" href="#crew/'+esc(m.crew_invite_id)+'">'+icon('users')+' 초대받은 크루 보기 '+icon('chevron')+'</a>':'';
   const body=invitation?m.body.replace('\n크루 둘러보기: https://aifect.co.kr/#crew/'+m.crew_invite_id,''):m.body;
-  return separator+'<article class="dm-message '+(mine?'mine':'')+(grouped?' is-grouped':'')+(failed?' is-failed':'')+'" data-message="'+esc(m.id)+'">'+avatar+'<div class="dm-message-content">'+author+'<div class="dm-message-line"><div class="dm-bubble"><span class="chat-body">'+(m.image_id?chatImageHTML(m,!!crew):chatBodyHTML(body))+'</span>'+invitation+'</div><div class="chat-message-meta"><time>'+stamp+'</time>'+delivery+'</div></div>'+actions+'</div></article>';
+  return separator+'<article class="dm-message '+(mine?'mine':'')+(grouped?' is-grouped':'')+(failed?' is-failed':'')+'" data-message="'+esc(m.id)+'">'+avatar+'<div class="dm-message-content">'+author+'<div class="dm-message-line"><div class="dm-bubble"><span class="chat-body">'+(m.image_id?chatImageHTML(m,!!crew):chatBodyHTML(body))+'</span>'+invitation+'</div><div class="chat-message-meta">'+actions+'<time>'+stamp+'</time>'+delivery+'</div></div></div></article>';
  }).join('')||'<div class="chat-empty"><span>'+icon('message')+'</span><strong>음악에서 시작되는 대화</strong><p>반가운 인사나 좋았던 음악을 나눠보세요.</p></div>';
 }
 function chatPanelHTML(label,initial=null,peer=null,dm=!!peer){

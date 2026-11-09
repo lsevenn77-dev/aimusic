@@ -8,7 +8,7 @@
   display:none;content:none;
 }
 #main:is([data-route="notifications"],[data-route^="notifications?"]) > .activity-inbox {
-  min-width:0;margin-bottom:calc(32px);
+  min-width:0;padding-top:calc(20px);margin-bottom:calc(32px);
 }
 #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox > .activity-toolbar {
   position:static;inset:auto;z-index:auto;min-height:44px;
@@ -177,6 +177,9 @@
   font-size:var(--pc-font-control,14px);font-weight:500;line-height:1.5;
 }
 @media(max-width:800px) {
+  #main:is([data-route="notifications"],[data-route^="notifications?"]) > .activity-inbox {
+    padding-top:calc(16px);
+  }
   #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-row {
     min-height:80px;padding-block:calc(16px);gap:calc(12px);
   }
