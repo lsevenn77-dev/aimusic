@@ -88,8 +88,13 @@ internal class CurrentRead {
  val base=CurrentNavigation.playPath(mode,section,kind)
  val path=base+(if('?' in base)"&" else "?")+"offset=$offset"
  val read=currentRead(m,path,enabled=!gated&&!(mode=="song"&&section=="drafts"))
- var records by remember(mode,section,kind,m.user?.optString("id")){mutableStateOf<List<JSONObject>>(emptyList())}
- LaunchedEffect(read.data){read.data?.let{d->val incoming=d.optJSONArray(if(mode=="dubbing")"projects" else if(mode=="browse")"works" else "tracks").objects();records=(if(offset==0)incoming else records+incoming).distinctBy{it.optString("id")}}}
+ val account=m.user?.optString("id")
+ val listKey=CurrentNavigation.playListKey(mode,section,kind)
+ val tabLists=remember(account){mutableMapOf<String,List<JSONObject>>()}
+ var records by remember(listKey,account){mutableStateOf(tabLists[listKey].orEmpty())}
+ var appliedData by remember(listKey,account){mutableStateOf<JSONObject?>(null)}
+ LaunchedEffect(read.data){read.data?.let{d->val incoming=d.optJSONArray(if(mode=="dubbing")"projects" else if(mode=="browse")"works" else "tracks").objects();records=(if(offset==0)incoming else records+incoming).distinctBy{it.optString("id")};tabLists[listKey]=records;appliedData=d}}
+ val responseApplied=read.data==null||read.data===appliedData
  val filtered=records.filter{r->
   val match=query.isBlank()||listOf("title","artist","producer","ownerName","owner_name").any{r.optString(it).contains(query.trim(),true)}
   match&&(mode!="song"||section!="duets"||Song(r).openDuetFor(m.user?.optString("id")))&&(mode!="song"||section!="latest"||Song(r).cover)
@@ -105,7 +110,7 @@ internal class CurrentRead {
     if(mode=="dubbing")item{BrandButton(onClick={m.openCurrentWorkspace("dubbing/new","더빙 만들기")},modifier=Modifier.fillMaxWidth().testTag("dubbing-create")){Icon(Icons.Rounded.Add,null);Text("더빙 만들기")}}
     item{CurrentSearch(query,{query=it},if(mode=="song")"곡 · 아티스트 · 제작자 검색" else "작품 · 창작자 검색","play-search")}
     if(mode=="browse")item{SelectionField("작품 유형",mapOf("all" to "전체","solo" to "솔로","duet" to "듀엣","dubbing" to "더빙").getValue(kind),"play-kind-picker",Modifier.fillMaxWidth()){choosingKind=true}}
-    if(read.loading||read.error!=null)item{ReadStatus(read)}
+    if(CurrentNavigation.playLoaderVisible(read.loading,records.size,offset)||read.error!=null)item{ReadStatus(read)}
     items(filtered.chunked(2),key={row->row.joinToString("|"){it.optString("id")}}){row->
      Row(Modifier.fillMaxWidth().testTag("play-grid-row-"+row.first().optString("id")),horizontalArrangement=Arrangement.spacedBy(14.dp)){
       row.forEach{r->Box(Modifier.weight(1f).testTag("play-grid-card-"+r.optString("id"))){
@@ -119,7 +124,7 @@ internal class CurrentRead {
       if(row.size==1)Spacer(Modifier.weight(1f))
      }
     }
-    if(filtered.isEmpty()&&!read.loading&&read.error==null)item{CurrentEmpty(if(query.isNotBlank())"검색 결과가 없어요" else "아직 표시할 작품이 없어요",if(query.isNotBlank())"다른 제목이나 창작자를 찾아보세요." else "공개된 작품이 여기에 모여요.")}
+    if(CurrentNavigation.playEmptyVisible(filtered.size,read.loading,read.error!=null,responseApplied))item{CurrentEmpty(if(query.isNotBlank())"검색 결과가 없어요" else "아직 표시할 작품이 없어요",if(query.isNotBlank())"다른 제목이나 창작자를 찾아보세요." else "공개된 작품이 여기에 모여요.")}
     if(read.data?.has("nextOffset")==true&&!read.data!!.isNull("nextOffset"))item{OutlinedButton(onClick={offset=read.data!!.optInt("nextOffset")},enabled=!read.loading,modifier=Modifier.fillMaxWidth()){Text("더 보기")}}
    }
   }

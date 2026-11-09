@@ -501,6 +501,11 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
  }
  }
 }
+// A newer latest message always brings the chat to the bottom, even when several arrive
+// at once and the list keeps the previous last message in place. Loading earlier history
+// leaves the latest unchanged, so it never pulls the reader down.
+internal fun chatJumpsToLatest(initialized:Boolean,newerLatest:Boolean,composing:Boolean,firstVisibleIndex:Int):Boolean=
+ !initialized||newerLatest||composing||firstVisibleIndex<2
 @Composable private fun ChatHistory(m:MusicModel,messages:List<JSONObject>,earlier:Boolean,busy:Boolean,loadEarlier:()->Unit,userId:String?,crew:Boolean,peer:String="",retry:((JSONObject)->Unit)?=null,modifier:Modifier=Modifier,fill:Boolean=false,peerPerson:JSONObject?=null,openPeer:(()->Unit)?=null,emptyLabel:String?=null,loadError:String?=null,reload:(()->Unit)?=null,reloadEnabled:Boolean=true,author:((JSONObject)->Unit)?=null){
  DisposableEffect(m){m.visibleChatCount++;onDispose{m.visibleChatCount=(m.visibleChatCount-1).coerceAtLeast(0)}}
  val peerKey=peerPerson?.optString("id")
@@ -510,10 +515,11 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
  val keyboardHeight=WindowInsets.ime.getBottom(LocalDensity.current)
  val composing=keyboardHeight>0
  var historyHeight by remember{mutableIntStateOf(0)}
+ val shown=remember(peerKey,crew){arrayOfNulls<String>(1)}
  LaunchedEffect(messages.lastOrNull()?.optString("id"),keyboardHeight,historyHeight){
-  val latest=messages.lastOrNull()
-  val mine=latest?.optString(if(crew)"user_id" else "sender_id")==userId
-  if(messages.isNotEmpty()&&(!initialized||composing||mine||state.firstVisibleItemIndex<2)){state.scrollToItem(0);initialized=true}
+  val latest=messages.lastOrNull()?.optString("id")?:return@LaunchedEffect
+  if(chatJumpsToLatest(initialized,latest!=shown[0],composing,state.firstVisibleItemIndex)){state.scrollToItem(0);initialized=true}
+  shown[0]=latest
  }
  Column(modifier){
   if(earlier)TextButton(onClick=loadEarlier,enabled=!busy){Text("이전 대화 보기")}

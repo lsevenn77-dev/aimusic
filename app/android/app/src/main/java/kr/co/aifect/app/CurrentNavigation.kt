@@ -32,6 +32,12 @@ internal object CurrentNavigation {
   "browse"->"/api/play/works?tab=${if(section in setOf("recommended","following","popular","latest"))section else "recommended"}&type=${if(type in setOf("all","solo","duet","dubbing"))type else "all"}"
   else->when(section){"duets"->"/api/duets";"latest"->"/api/community?kind=cover";else->"/api/karaoke"}
  }
+ // A Play tab keeps the list it last showed while it refreshes, so switching tabs swaps
+ // only the list below the tabs instead of blanking it and drawing a loader first.
+ fun playListKey(mode:String,section:String,type:String):String="$mode|$section|$type"
+ // Before the arrived response reaches the list, an empty list is not yet a result.
+ fun playEmptyVisible(listed:Int,loading:Boolean,error:Boolean,responseApplied:Boolean):Boolean=listed==0&&!loading&&!error&&responseApplied
+ fun playLoaderVisible(loading:Boolean,shown:Int,offset:Int):Boolean=loading&&(shown==0||offset>0)
 }
 
 internal data class CurrentWorkspace(val route:String,val title:String){init{require(CurrentNavigation.workspaceRoute(route))}}

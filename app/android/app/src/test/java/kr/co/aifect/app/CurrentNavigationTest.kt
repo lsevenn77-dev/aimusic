@@ -22,4 +22,18 @@ class CurrentNavigationTest {
   assertEquals("/api/dubbing/projects?tab=mine",CurrentNavigation.playPath("dubbing","mine"))
   assertEquals("/api/play/works?tab=following&type=duet",CurrentNavigation.playPath("browse","following","duet"))
  }
+ @Test fun playTabsKeepTheirOwnListsAndDoNotFlashAnEmptyResultBeforeTheResponseLands(){
+  assertNotEquals(CurrentNavigation.playListKey("song","duets","all"),CurrentNavigation.playListKey("song","latest","all"))
+  assertNotEquals(CurrentNavigation.playListKey("browse","popular","all"),CurrentNavigation.playListKey("browse","popular","duet"))
+  // A response that has arrived but is not yet in the list is still pending.
+  assertFalse(CurrentNavigation.playEmptyVisible(0,loading=false,error=false,responseApplied=false))
+  assertTrue(CurrentNavigation.playEmptyVisible(0,loading=false,error=false,responseApplied=true))
+  assertFalse(CurrentNavigation.playEmptyVisible(0,loading=true,error=false,responseApplied=true))
+  assertFalse(CurrentNavigation.playEmptyVisible(3,loading=false,error=false,responseApplied=true))
+  // A tab that already shows its list refreshes in place; the first load and 더 보기 still show progress.
+  assertFalse(CurrentNavigation.playLoaderVisible(loading=true,shown=4,offset=0))
+  assertTrue(CurrentNavigation.playLoaderVisible(loading=true,shown=0,offset=0))
+  assertTrue(CurrentNavigation.playLoaderVisible(loading=true,shown=4,offset=20))
+  assertFalse(CurrentNavigation.playLoaderVisible(loading=false,shown=0,offset=0))
+ }
 }
