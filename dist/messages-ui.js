@@ -1,5 +1,5 @@
 // Notice entries are server-verified administrator conversations or service guides.
-const welcomeGuideHrefs=new Set(['#karaoke','#live?mode=karaoke','#voice?mode=talk','#karaoke/duets','#karaoke/dubbing?tab=join','#artists','#upload','#membership']);
+const welcomeGuideHrefs=new Set(['#karaoke','#live?mode=karaoke','#voice?mode=talk','#community/crews','#karaoke/duets','#karaoke/dubbing?tab=join','#artists','#upload','#membership']);
 function welcomeGuideHTML(d){
  const g=d.guide;
  if(!g||typeof g.greeting!=='string'||!Array.isArray(g.sections)||!g.sections.length)throw new Error('이용 안내를 불러오지 못했어요. 다시 열어주세요.');

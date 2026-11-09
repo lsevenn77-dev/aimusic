@@ -12,6 +12,7 @@ const links=[
  ['play','🎤 오늘 부를 노래는, 플레이에서','노래하러 가기','#karaoke'],
  ['karaoke','🎶 사람들과 함께 즐기는 노래방','노래방 가기','#live?mode=karaoke'],
  ['talking','💬 편하게 이야기 나누는 토킹룸','토킹룸 가기','#voice?mode=talk'],
+ ['crew','🎮 크루에 가입하고 크루게임도 즐겨요','크루 둘러보기','#community/crews'],
  ['duet','🎙️ 두 목소리가 어우러지는 듀엣','듀엣 참여하기','#karaoke/duets'],
  ['dubbing','🎧 여러 목소리로 완성하는 더빙','더빙 참여하기','#karaoke/dubbing?tab=join'],
  ['artists','✨ 나의 취향에 맞는 AI 아티스트','아티스트 만나기','#artists'],
@@ -36,10 +37,10 @@ function context(extra={}){
  });
  vm.runInContext(social,c);vm.runInContext(notices,c);return c;
 }
-test('welcome is one read-only guide with eight distinct destinations and no legacy stickers',()=>{
+test('welcome is one read-only guide with nine distinct destinations and no legacy stickers',()=>{
  const c=context(),html=c.welcomeGuideHTML(guide());
- assert.equal((html.match(/class="welcome-guide-section"/g)||[]).length,8);
- assert.equal((html.match(/class="text-link welcome-guide-link"/g)||[]).length,8);
+ assert.equal((html.match(/class="welcome-guide-section"/g)||[]).length,9);
+ assert.equal((html.match(/class="text-link welcome-guide-link"/g)||[]).length,9);
  for(const [,title,label,href] of links){assert.ok(html.includes(escape(title)));assert.ok(html.includes(escape(label)));assert.ok(html.includes('href="'+href+'"'));}
  assert.equal((html.match(/<img /g)||[]).length,0);
  assert.doesNotMatch(html,/welcome-guide-sticker|cat_hand_wave|cat_basic_heart/);
@@ -61,7 +62,7 @@ test('nicknames and guide fields stay text, and unsafe links or sticker tokens c
  assert.match(html,/&lt;svg onload=alert\(3\)&gt;/);
  assert.match(html,/&quot; onclick=&quot;alert\(4\)/);
  assert.doesNotMatch(html,/href="javascript:|attacker\.example|<script|<svg|<img src=x/);
- assert.equal((html.match(/class="text-link welcome-guide-link"/g)||[]).length,6);
+ assert.equal((html.match(/class="text-link welcome-guide-link"/g)||[]).length,7);
  assert.equal((html.match(/<img /g)||[]).length,0);
 });
 test('verified welcome channel uses its own endpoint while existing official DMs retain their route',async()=>{

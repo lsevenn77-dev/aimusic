@@ -75,14 +75,14 @@ function harness({hidden=false,peers=[welcomePeer],waitForGuide=false,waitForRea
  };
 }
 
-test('a room opens the verified welcome in its current sheet with all eight links and no stickers',async()=>{
+test('a room opens the verified welcome in its current sheet with all nine links and no stickers',async()=>{
  const h=harness();await h.view.inbox();
  assert.deepEqual(h.avatars,[]);assert.deepEqual(h.nicknames,[]);
  await h.click();
  assert.deepEqual(h.calls.map(call=>call.path),['/api/dm','/api/notices/welcome']);
  assert.equal(h.c.location.hash,'#voice/current-room');assert.equal(h.client.closed,false);assert.equal(h.sheet.open,true);
- assert.equal((h.sheet.innerHTML.match(/class="welcome-guide-section"/g)||[]).length,8);
- assert.equal((h.sheet.innerHTML.match(/class="text-link welcome-guide-link"/g)||[]).length,8);
+ assert.equal((h.sheet.innerHTML.match(/class="welcome-guide-section"/g)||[]).length,9);
+ assert.equal((h.sheet.innerHTML.match(/class="text-link welcome-guide-link"/g)||[]).length,9);
  for(const section of WELCOME_GUIDE.sections)assert.ok(h.sheet.innerHTML.includes('href="'+section.href+'"'));
  assert.doesNotMatch(h.sheet.innerHTML,/welcome-guide-sticker|cat_hand_wave|cat_basic_heart/);
  assert.doesNotMatch(h.sheet.innerHTML,/<form|<textarea|contenteditable|data-dm-mute|data-room-dm-gift|data-profile|#producer\//);

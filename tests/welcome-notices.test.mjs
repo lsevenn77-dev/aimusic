@@ -40,7 +40,7 @@ test('broadcast includes every existing human, including the operator and member
   const result=await f.call('/api/notices/welcome','GET',undefined,id);
   assert.equal(result.status,200);
   assert.equal(result.body.peer.read_only,true);
-  assert.equal(result.body.guide.sections.length,8);
+  assert.equal(result.body.guide.sections.length,9);
   assert.equal(result.body.guide.stickers,undefined);
  }
  const audit=f.sql.prepare("SELECT * FROM admin_audit WHERE action='welcome:broadcast'").all();
@@ -62,6 +62,7 @@ test('concurrent activation and startup retries create one receipt and never res
  const before={...receipt(f,'owner')};
  const stored=f.sql.prepare('SELECT content_json FROM welcome_campaigns WHERE id=?').get(WELCOME_CAMPAIGN_ID).content_json;
  const historical={...JSON.parse(stored),closing:['이미 전달된 안내의 저장본'],stickers:{greeting:'cat_hand_wave',closing:'cat_basic_heart'}};
+ historical.sections=historical.sections.filter(section=>section.id!=='crew');
  f.sql.prepare('UPDATE welcome_campaigns SET content_json=? WHERE id=?').run(JSON.stringify(historical),WELCOME_CAMPAIGN_ID);
  await Promise.all([activateWelcomeCampaign(env),...Array.from({length:8},()=>ensureWelcomeReceipt(env,'owner')),f.call('/api/me')]);
  assert.deepEqual({...receipt(f,'owner')},before);
@@ -70,6 +71,13 @@ test('concurrent activation and startup retries create one receipt and never res
  const guide=(await f.call('/api/notices/welcome')).body.guide;
  assert.deepEqual(guide.closing,historical.closing);
  assert.equal(guide.stickers,undefined);
+ assert.equal(guide.sections.filter(section=>section.id==='crew').length,1);
+ assert.equal(guide.sections.find(section=>section.id==='crew').href,'#community/crews');
+ assert.equal(guide.sections.findIndex(section=>section.id==='crew'),guide.sections.findIndex(section=>section.id==='talking')+1);
+ assert.equal((await f.call('/api/notices/welcome')).body.guide.sections.filter(section=>section.id==='crew').length,1);
+ assert.deepEqual({...receipt(f,'owner')},before);
+ assert.equal(count(f,'welcome_receipts'),2);
+ assert.equal(f.sql.prepare('SELECT content_json FROM welcome_campaigns WHERE id=?').get(WELCOME_CAMPAIGN_ID).content_json,JSON.stringify(historical));
 });
 
 test('the broadcast snapshot excludes later signups; common authenticated startup automatically delivers once for every login provider',async t=>{

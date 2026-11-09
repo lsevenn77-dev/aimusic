@@ -63,6 +63,10 @@ export async function welcomeNoticeRoute(req,env,path,user) {
  const guide=JSON.parse(receipt.content_json),nickname=String(receipt.nickname||'').trim();
  // Apply the owner's presentation change to saved notices without redelivery.
  delete guide.stickers;
+ if(!guide.sections.some(section=>section.id==='crew')){
+  const after=guide.sections.findIndex(section=>section.id==='talking');
+  guide.sections.splice(after<0?guide.sections.length:after+1,0,WELCOME_GUIDE.sections.find(section=>section.id==='crew'));
+ }
  guide.greeting=nickname?guide.greeting.replace('{닉네임}',()=>nickname):'반가워요! 👋\n아이팩트에 오신 걸 환영해요.';
  return json({peer:peer(receipt),campaign_id:WELCOME_CAMPAIGN_ID,created:receipt.created,read_at:receipt.read_at,guide});
 }
