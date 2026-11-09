@@ -55,16 +55,15 @@
  overflow:visible;
 }
 @media(max-width:600px){
+ /* Match the song menu's single row; let the creation label keep its full width. */
  #main > .play-page[data-play-mode="dubbing"] .play-dubbing-tabs {
-  grid-template-columns:repeat(2,minmax(0,1fr));
-  gap:8px;
+  grid-template-columns:none;
+  grid-auto-flow:column;
+  grid-auto-columns:minmax(max-content,1fr);
+  gap:4px;
  }
- #main > .play-page[data-play-mode="dubbing"] .play-dubbing-tabs .tab {
-  border:1px solid transparent;
-  border-radius:var(--ds-radius-sm);
- }
- #main > .play-page[data-play-mode="dubbing"] .play-dubbing-tabs .tab.active {
-  border-color:var(--play-accent);
+ #main > .play-page[data-play-mode="dubbing"] .play-dubbing-tabs.play-category-tabs .tab {
+  padding-inline:2px;
  }
 }
 .play-page .play-search{max-width:none;width:100%;margin:0 0 24px;display:flex;align-items:center;gap:12px}
