@@ -1,0 +1,218 @@
+/* Singing workspace presentation. Final CSS pixels: keep the existing 125%
+   recorder geometry, user-sized lyrics, timers and audio state untouched. */
+.page-wrap:has(> #main > #sing.web-studio),
+#main[data-route]:has(> #sing.web-studio) {
+  background:var(--ds-bg)!important;
+  background-image:none!important;
+}
+#main #sing.web-studio {
+  --studio-pink:var(--ds-selected);
+  --studio-blue:var(--ds-progress);
+  color:var(--ds-text);
+}
+#main #sing.web-studio:not(.is-reviewing):not(.is-punch-page) {
+  --record-bg:var(--ds-bg);
+  --record-panel:var(--ds-panel);
+  --record-border:var(--ds-line);
+  --record-active:var(--ds-soft);
+  --record-muted:var(--ds-muted);
+  --record-ring:var(--ds-gradient);
+}
+#main #sing.web-studio .studio-song-meta h1,
+#main #sing.web-studio:not(.is-reviewing):not(.is-punch-page) .studio-song-meta h1 {
+  margin:0;color:var(--ds-text);font-size:var(--pc-font-page,18px)!important;
+  font-weight:600;line-height:1.45;letter-spacing:-.035em;
+}
+#main #sing.web-studio .studio-song-meta :is(.record-credit,.review-credit),
+#main #sing.web-studio:not(.is-reviewing):not(.is-punch-page) .studio-song-meta :is(.record-credit,.review-credit) {
+  max-width:100%;margin:4px 0 0;color:var(--ds-muted);
+  font-size:var(--pc-font-meta,13px);font-weight:400;line-height:1.6;
+}
+#main #sing.web-studio .studio-page-label {
+  margin-bottom:4px;color:var(--ds-muted);font-size:var(--pc-font-caption,13px);
+  font-weight:400;line-height:1.5;
+}
+#main #sing.web-studio:not(.is-reviewing):not(.is-punch-page) {
+  .sing-artwork { border-radius:var(--ds-radius-input); }
+  .sing-back { border-radius:var(--ds-radius-input);color:var(--ds-body); }
+  .sing-back:hover { background:var(--ds-soft);color:var(--ds-text); }
+  .record-settings-icon {
+    border:1px solid var(--ds-line);border-radius:var(--ds-radius-input);
+    background:var(--ds-panel);color:var(--ds-body);box-shadow:none;
+  }
+  .record-settings-icon:hover { background:var(--ds-soft);color:var(--ds-text); }
+  #duet-guide button {
+    border:1px solid var(--ds-line);border-radius:var(--ds-radius-input);
+    background:var(--ds-panel);color:var(--ds-body);box-shadow:none;
+    font-size:var(--pc-font-control,14px);font-weight:500;
+  }
+  #duet-guide button:hover { background:var(--ds-soft);color:var(--ds-text); }
+  .sing-progress { color:var(--ds-muted);font-size:var(--pc-font-caption,13px); }
+  .sing-wheel button.current { border-color:var(--ds-line)!important; }
+  .sing-recording .studio-transport button svg {
+    border-color:var(--ds-line);color:var(--ds-body);box-shadow:none!important;
+  }
+  .sing-recording .studio-transport .studio-record svg { border-color:transparent;color:var(--ds-text); }
+  .sing-recording .studio-transport button span {
+    color:var(--ds-muted);font-size:var(--pc-font-control,14px)!important;font-weight:500;
+  }
+  .sing-recording .studio-transport button:not(:disabled):hover svg { filter:brightness(1.12); }
+  .sing-recording .studio-transport button:disabled { opacity:.4;cursor:default; }
+  .sing-status.show-notice {
+    border-color:var(--ds-line);border-radius:var(--ds-radius-input);
+    background:var(--ds-panel);color:var(--ds-body);
+    font-size:var(--pc-font-body,14px)!important;line-height:1.6;
+  }
+}
+
+/* The settings nodes move into the existing dialog on mobile. Keep their
+   control styling shared without changing dialog position or scroll ownership. */
+#main #sing.web-studio #sing-live-settings .studio-setting-card {
+  background:var(--ds-panel);border-color:var(--ds-line);
+  border-radius:var(--ds-radius-card);box-shadow:none;
+}
+#main #sing.web-studio #sing-live-settings h2 {
+  margin:0 0 12px;gap:10px;color:var(--ds-text);
+  font-size:var(--pc-font-section,18px)!important;font-weight:600;line-height:1.45;
+}
+#main #sing.web-studio #sing-live-settings h2 svg { color:var(--ds-muted); }
+:is(#main #sing.web-studio #sing-live-settings,#dialog.recording-settings-dialog .recording-settings) {
+  .studio-control-name,.studio-key,.studio-size,.sing-monitor {
+    color:var(--ds-body);font-size:var(--pc-font-control,14px)!important;
+    font-weight:400;line-height:1.5;
+  }
+  .studio-range output,.sing-monitor small {
+    color:var(--ds-muted);font-size:var(--pc-font-caption,13px)!important;line-height:1.5;
+  }
+  .studio-range output { font-variant-numeric:tabular-nums; }
+  .studio-key-stepper,.sing-lyric-sizes {
+    border-color:var(--ds-line);border-radius:var(--ds-radius-input);
+    background:var(--ds-bg);box-shadow:none;
+  }
+  .studio-key-stepper output { color:var(--ds-text);font-variant-numeric:tabular-nums; }
+  .studio-key button,.sing-lyric-sizes button {
+    color:var(--ds-body);font-size:var(--pc-font-control,14px)!important;
+    font-weight:500;border-radius:var(--ds-radius-sm);
+  }
+  .studio-preset-tile {
+    border-color:var(--ds-line)!important;border-radius:var(--ds-radius-input);
+    background:var(--ds-bg)!important;color:var(--ds-body);box-shadow:none;
+    font-size:var(--pc-font-control,14px)!important;font-weight:500;line-height:1.5;
+  }
+  .studio-preset-icon,.studio-preset-icon svg { color:inherit; }
+  .studio-preset-tile:not(:disabled):not([aria-pressed=true]):hover,
+  .studio-key button:not(:disabled):hover,
+  .sing-lyric-sizes button:not(:disabled):not([aria-pressed=true]):hover {
+    background:var(--ds-soft)!important;color:var(--ds-text);
+  }
+  .studio-preset-tile[aria-pressed=true],.sing-lyric-sizes [aria-pressed=true] {
+    background:var(--ds-soft)!important;color:var(--ds-selected)!important;
+    border-color:color-mix(in srgb,var(--ds-selected) 40%,var(--ds-line))!important;
+    box-shadow:none!important;
+  }
+  .microphone-check { border-color:var(--ds-line); }
+  .microphone-check-info strong { color:var(--ds-muted);font-size:var(--pc-font-caption,13px)!important; }
+  .microphone-check.is-connected strong { color:var(--ds-progress); }
+  .microphone-check-bars i { background:var(--ds-border); }
+  .microphone-check-bars i.is-active { background:var(--ds-progress); }
+  input[type=range] {
+    background-image:var(--ds-gradient),linear-gradient(var(--ds-border),var(--ds-border))!important;
+  }
+  input[type=range]::-webkit-slider-thumb { background:var(--ds-text); }
+  input[type=range]::-moz-range-thumb { background:var(--ds-text); }
+}
+#main #sing.web-studio .sing-progress input[type=range] {
+  background-image:var(--ds-gradient),linear-gradient(var(--ds-border),var(--ds-border))!important;
+}
+#main #sing.web-studio :is(button,a,input,select,textarea,summary):focus-visible {
+  outline:2px solid var(--ds-selected);outline-offset:3px;
+}
+
+/* Recorded takes and publication use the same surfaces while keeping their
+   existing tools, selection coordinates, steps and hidden-state behavior. */
+#main #sing.web-studio.is-reviewing .sing-head {
+  background:var(--ds-panel);border-color:var(--ds-line)!important;
+  border-radius:var(--ds-radius-card) var(--ds-radius-card) 0 0;
+}
+#main #sing.web-studio :is(.studio-edit-main,.studio-editor-inspector,.studio-punch-page) { color:var(--ds-body); }
+#main #sing.web-studio :is(.studio-edit-main,.studio-editor-inspector) {
+  background:var(--ds-panel);border-color:var(--ds-line);box-shadow:none;
+}
+#main #sing.web-studio :is(.studio-wave-editor,.studio-wave-surface,.studio-edit-detail,.studio-selected-lyrics,.studio-punch-result-lyrics) {
+  background:var(--ds-bg);border-color:var(--ds-line);border-radius:var(--ds-radius-input);box-shadow:none;
+}
+#main #sing.web-studio :is(.studio-wave-surface,.studio-publish-panel,.studio-rights) { border-color:var(--ds-line); }
+#main #sing.web-studio .take-steps [aria-current] b { background:var(--ds-gradient);color:var(--ds-ink); }
+#main #sing.web-studio .take-tools [aria-pressed=true] { border-color:var(--ds-selected);color:var(--ds-selected); }
+#main #sing.web-studio .take-editor .studio-edit-tools button {
+  border-color:var(--ds-line);border-radius:var(--ds-radius-input);
+  background:var(--ds-bg);color:var(--ds-body);font-weight:500;
+}
+#main #sing.web-studio .take-editor .studio-edit-tools [aria-selected=true] {
+  border-color:var(--ds-selected);background:var(--ds-soft);color:var(--ds-selected);
+}
+#main #sing.web-studio :is(.studio-sync-steps,.studio-tone-levels,.studio-noise-levels) button {
+  border-color:var(--ds-line);border-radius:var(--ds-radius-sm);
+  background:var(--ds-bg);color:var(--ds-body);font-size:var(--pc-font-control,14px);
+}
+#main #sing.web-studio :is(.studio-tone-levels,.studio-noise-levels) [aria-pressed=true] {
+  border-color:var(--ds-selected);background:var(--ds-soft);color:var(--ds-selected);
+}
+#main #sing.web-studio :is(.take-editor,.studio-punch-page) .primary-button {
+  background:var(--ds-gradient)!important;border-color:transparent;color:var(--ds-ink);
+  border-radius:var(--ds-radius-input);box-shadow:none;
+}
+#main #sing.web-studio .studio-publish-panel {
+  color:var(--ds-body);font-size:var(--pc-font-body,14px);line-height:1.6;
+}
+#main #sing.web-studio .studio-publish-panel :is(input:not([type=checkbox],[type=radio],[type=range],[type=file],[type=hidden]),select,textarea) {
+  min-height:44px;max-width:100%;border:1px solid var(--ds-line);
+  border-radius:var(--ds-radius-input);background:var(--ds-bg);color:var(--ds-text);
+}
+#main #sing.web-studio .studio-publish-panel textarea { padding:12px;line-height:1.6; }
+#main #sing.web-studio .studio-publish-panel :is(input,select,textarea)[aria-invalid=true] { border-color:var(--ds-error); }
+
+/* Empty direct entry never invents a song or opens the microphone. */
+#main .sing-entry-page { max-width:960px;margin:20px auto 32px;min-width:0; }
+#main .sing-entry-heading { margin:0 0 24px; }
+#main .sing-entry-heading h1 {
+  margin:0;color:var(--ds-text);font-size:var(--pc-font-page,23px);
+  font-weight:600;line-height:1.4;letter-spacing:-.035em;
+}
+#main .sing-entry-heading p {
+  margin:8px 0 0;color:var(--ds-muted);font-size:var(--pc-font-body,14px);line-height:1.6;
+}
+#main .sing-entry-state {
+  padding:40px 24px;display:flex;flex-direction:column;align-items:center;text-align:center;
+  border:1px solid var(--ds-line);border-radius:var(--ds-radius-card);background:var(--ds-panel);
+}
+#main .sing-entry-icon {
+  display:grid;place-items:center;width:52px;height:52px;margin-bottom:20px;
+  border-radius:var(--ds-radius-input);background:var(--ds-soft);color:var(--ds-selected);
+}
+#main .sing-entry-icon svg { width:26px;height:26px; }
+#main .sing-entry-state h2 { margin:0;color:var(--ds-text);font-size:var(--pc-font-section,18px);font-weight:600;line-height:1.5; }
+#main .sing-entry-state p { margin:8px 0 0;color:var(--ds-muted);font-size:var(--pc-font-body,14px);line-height:1.6;word-break:keep-all; }
+#main .sing-entry-actions { display:flex;justify-content:center;flex-wrap:wrap;gap:12px;margin-top:24px; }
+#main .sing-entry-actions :is(.primary-button,.small-button) {
+  min-height:44px;padding:10px 18px;justify-content:center;
+  border-radius:var(--ds-radius-input);font-size:var(--pc-font-control,14px);font-weight:500;
+}
+
+@media(min-width:1024px) {
+  #main #sing.web-studio:not(.is-reviewing):not(.is-punch-page):not(.is-punch-recording) {
+    .sing-head { gap:12px;padding:20px 24px 12px 16px!important; }
+    &::before { border-radius:var(--ds-radius-card); }
+    #sing-live-settings { gap:12px; }
+    #sing-live-settings .studio-setting-card { padding:16px clamp(16px,1.4vw,24px);border-radius:var(--ds-radius-card); }
+  }
+}
+@media(max-width:800px) {
+  #main #sing.web-studio .studio-publish-panel :is(input:not([type=checkbox],[type=radio],[type=range],[type=file],[type=hidden]),select,textarea) { font-size:16px!important; }
+  #main .sing-entry-page { margin-top:12px; }
+  #main .sing-entry-state { padding:32px 20px; }
+}
+@media(max-width:390px) {
+  #main .sing-entry-actions { width:100%;gap:8px; }
+  #main .sing-entry-actions a { width:100%; }
+}

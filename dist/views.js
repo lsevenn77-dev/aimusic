@@ -249,6 +249,7 @@ async function renderRoute(showCachedRoute){
   }else if(base==='account')html=accountHTML()+(authConfig?.track_moderator?'<p><a class="small-button" href="#admin/track-review">음원 검토 목록</a></p>':'');
   else if(base==='upload'){studioData=await readApi('/api/studio');html=uploadHTML(studioData);}
   else if(base==='karaoke'){const [d,duets]=await Promise.all([readApi('/api/karaoke'),readApi('/api/duets')]);nextTracks=[...d.tracks,...duets.tracks];html=karaokeListHTML(d.tracks,duets.tracks);}
+  else if(base==='sing'&&!param)html=singEntryHTML();
   else if(base==='sing'){const d=await loadSingRoute(param,new URLSearchParams(paramQuery?.split('?')[1]||''),readApi);if(ticket!==renderId)return;if(d.chooseMode){history.replaceState(history.state,'','#song/'+encodeURIComponent(param));await render();openRecordingMode(d);return;}routeSing=d;html=singHTML(d);}
   else if(base==='cover'){const {track:o}=await readApi('/api/tracks/'+param);remember([o]);html=coverUploadHTML(o);}
   else if(base==='gifts')html=await finalGiftShopView(param,readApi);
