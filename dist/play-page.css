@@ -413,7 +413,7 @@ img.play-dubbing-art{display:block;width:100%;height:auto;aspect-ratio:1;object-
   + .play-main-tabs { margin-block-start: 0; }
   .play-banner-art {
     --art: var(--desktop-art);
-    background: #101421 var(--art) 48% center / cover no-repeat;
+    background: #101421 var(--art) 48% 35% / cover no-repeat;
   }
   .play-banner-art::after {
     background: linear-gradient(90deg, #080e1c55, #080e1c26 34%, transparent 56%);
@@ -482,25 +482,6 @@ img.play-dubbing-art{display:block;width:100%;height:auto;aspect-ratio:1;object-
     .home-feature-copy { --play-label-size: 12px; --play-title-size: 20px; --play-body-size: 12px; }
     .home-feature-copy h2 { margin-top: 3px; }
     .home-feature-description { margin-top: 5px; }
-  }
-
-  @media (min-width: 801px) {
-    @container play-frame (min-aspect-ratio: 1988/664) {
-      /* Keep the original 1988 × 664 photo's people proportional. Extend only
-         its dark left 165px; cap the zoom-out at 16% even on wider monitors.
-         Height = max(frame height, 84% of the cover image's height); the
-         remaining 1823px use that same scale, with any excess height cropped. */
-      .play-banner-art::before {
-        content: "";
-        position: absolute;
-        left: 0;
-        top: 50%;
-        width: 100%;
-        height: max(100cqh, 28.056338cqi);
-        transform: translateY(-50%);
-        border-image: var(--art) 0 0 0 165 fill / 0 0 0 calc(100% - max(274.548193cqh, 77.028169cqi)) stretch;
-      }
-    }
   }
 
   @media (max-width: 800px) {
