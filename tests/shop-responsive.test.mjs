@@ -37,7 +37,7 @@ test('shop uses the shared page frame and Play carousel heights with zoom-safe s
  assert.match(css,/\.shop-banner\{[^}]*margin:0;/);
  assert.match(css,/@media\(max-width:800px\)\{\s*\.shop-page \.shop-banner\{margin-inline:calc\(-1 \* var\(--main-frame-gutter,20px\)\)\}/);
  assert.match(css,/@media\(max-width:800px\)\{#main:has\(>\.shop-page\)\{--main-frame-top:0px;/);
- assert.match(css,/\.shop-item-search input\{height:38px;font-size:16px/);
+ assert.match(css,/\.shop-item-search input\{height:42px;font-size:16px/);
  assert.ok(!css.includes('.is-silver .shop-card-buy'));
  assert.ok(css.includes('.page-wrap:has(>main>.shop-page)::before'));
 });
