@@ -134,3 +134,43 @@ test('failed unfollow restores the mutual state and leaves the button usable for
  for(const button of [c.page,c.popup])assertButton(button,{text:'팔로우',following:false});
  assert.equal(c.countLabel.textContent,'6');
 });
+
+test('a delayed profile preview cannot undo a completed page follow and retries with the current relationship',async()=>{
+ const c=client(),renders=[],updates=[],errors=[],panels=[];
+ c.context.location={hash:'#producer/target'};
+ c.context.window.addEventListener=()=>{};
+ Object.assign(c.context.document,{
+  body:{style:{overflow:''},append:panel=>panels.push(panel)},
+  createElement:()=>({
+   setAttribute(){},querySelectorAll:()=>[],querySelector:()=>({focus(){}}),
+   showModal(){this.open=true;},close(){this.open=false;},remove(){},addEventListener(){},
+  }),
+ });
+ vm.runInContext(readFileSync(new URL('../dist/profile-preview.js',import.meta.url),'utf8'),c.context);
+ c.context.profilePreviewHTML=data=>{renders.push(data);return '<section>Profile</section>';};
+ c.context.toast=message=>errors.push(message);
+ const originalUpdate=c.context.updateFollowLocal;
+ c.context.updateFollowLocal=(...args)=>{updates.push(args);return originalUpdate(...args);};
+ const preview=c.context.openProfilePreview('target',null);
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(c.requests.length,1);assert.equal(c.requests[0].path,'/api/producers/target/preview');
+ const follow=c.toggle(c.page);
+ c.requests[1].finish(response({following:true,follows_viewer:true,followers:8,profile:{id:'target',name:'Target'}}));
+ await follow;
+ const savedUpdates=updates.length;
+ assert.equal(c.run("followed('producer','target')"),true);
+ assertButton(c.page,{text:'맞팔중',following:true});
+ c.requests[0].finish(response({following:false,follows_viewer:false,followers:7,profile:{id:'target',name:'Target'}}));
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(c.requests.length,3,'the obsolete preview response must trigger one fresh preview read');
+ assert.equal(c.requests[2].path,'/api/producers/target/preview');assert.equal(c.requests[2].method,'GET');
+ assert.equal(updates.length,savedUpdates,'the obsolete response must not write shared follow state');
+ assert.equal(renders.length,0,'the obsolete profile must not be displayed');
+ assert.equal(c.run("followed('producer','target')"),true);
+ c.requests[2].finish(response({following:true,follows_viewer:true,followers:8,profile:{id:'target',name:'Target'}}));
+ await preview;
+ assert.equal(updates.length,savedUpdates+1);assert.equal(renders.length,1);assert.equal(renders[0].following,true);
+ assert.equal(panels.length,1);assert.equal(panels[0].open,true);assert.deepEqual(errors,[]);
+ for(const button of [c.page,c.popup])assertButton(button,{text:'맞팔중',following:true});
+ assert.equal(c.run("followed('producer','target')"),true);
+});
