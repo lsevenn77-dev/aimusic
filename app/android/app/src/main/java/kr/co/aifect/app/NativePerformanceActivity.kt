@@ -46,10 +46,12 @@ class NativePerformanceActivity:ComponentActivity(){
    fun leave(){stopService(Intent(this,NativeVoiceService::class.java));finish()}
    Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.systemBars).imePadding()){
     when {
-     route=="voice"||route=="live/create"->{
+     route=="voice"||route=="live/create"->Box(Modifier.fillMaxSize()){
+      RoomCreateBackdrop(Modifier.matchParentSize())
+      Column(Modifier.fillMaxSize()){
       NativeAudioHeader("방 만들기",{finish()})
       NativeRoomForm(api,initial=if(route=="live/create")payload("mode" to "karaoke")else JSONObject(),fullScreen=true,busy=busy,submissionError=error){body->if(!busy){busy=true;error=null;scope.launch{try{val result=api.call("/api/voice/rooms","POST",body.put("request_id",createId));val created=result.getJSONObject("room");if(body.optString("mode")=="karaoke"){openMobileExperience(this@NativePerformanceActivity,"live/"+created.getString("id"));finish()}else route="voice/"+created.getString("id")}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}finally{busy=false}}}}
-
+      }
      }
      route.startsWith("voice/")->{
       val id=route.substringAfter('/')
