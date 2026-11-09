@@ -52,7 +52,7 @@ await cp('dist/uiux-space.css','dist/client/uiux-space.css');
 await cp('dist/main-layout.css','dist/client/main-layout.css');
 await cp('dist/message-notification.css','dist/client/message-notification.css');
 await cp('dist/secondary-pages.css','dist/client/secondary-pages.css');
-for(const file of ['management-design.css','account-design.css','membership-design.css','payout-design.css','gold-design.css'])await cp('dist/'+file,'dist/client/'+file);
+for(const file of ['management-design.css','account-design.css','membership-design.css','payout-design.css','gold-design.css','rewards-design.css','inventory-design.css'])await cp('dist/'+file,'dist/client/'+file);
 await cp('dist/app-ads.txt','dist/client/app-ads.txt');
 await cp('dist/artist-gallery.js','dist/client/artist-gallery.js');
 for(const file of ['artist-directory.js','artist-directory.css'])await cp('dist/'+file,'dist/client/'+file);

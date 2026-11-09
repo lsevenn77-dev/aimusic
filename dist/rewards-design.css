@@ -1,0 +1,114 @@
+/* Page-only silver missions. The shared renderer and reward dialogs stay unchanged. */
+#main:is([data-route="gifts/rewards"],[data-route^="gifts/rewards?"],[data-route="rewards"],[data-route^="rewards?"]) > .text-link {
+  display:inline-flex;align-items:center;min-height:44px;
+  font-size:var(--pc-font-control,14px);line-height:1.5;
+}
+#main:is([data-route="gifts/rewards"],[data-route^="gifts/rewards?"],[data-route="rewards"],[data-route^="rewards?"]) .rewards-page {
+  width:100%;max-width:none;min-width:0;margin:0;
+}
+#main:is([data-route="gifts/rewards"],[data-route^="gifts/rewards?"],[data-route="rewards"],[data-route^="rewards?"]) #gift-shop-rewards {
+  min-width:0;
+}
+#main:is([data-route="gifts/rewards"],[data-route^="gifts/rewards?"],[data-route="rewards"],[data-route^="rewards?"]) .free-rewards {
+  margin:0;padding:0;min-width:0;background:transparent;border:0;border-radius:0;box-shadow:none;
+}
+#main:is([data-route="gifts/rewards"],[data-route^="gifts/rewards?"],[data-route="rewards"],[data-route^="rewards?"]) .free-rewards-title {
+  display:grid;grid-template-columns:52px minmax(0,1fr) auto;align-items:center;gap:calc(16px);
+  min-width:0;padding:calc(24px);background:var(--ds-panel);border:1px solid var(--ds-line);
+  border-radius:var(--ds-radius-card);box-shadow:none;
+}
+#main:is([data-route="gifts/rewards"],[data-route^="gifts/rewards?"],[data-route="rewards"],[data-route^="rewards?"]) .free-rewards-title .gift-art {
+  width:52px;height:52px;display:block;object-fit:contain;flex-shrink:0;
+}
+#main:is([data-route="gifts/rewards"],[data-route^="gifts/rewards?"],[data-route="rewards"],[data-route^="rewards?"]) .free-rewards-title>div {
+  min-width:0;
+}
+#main:is([data-route="gifts/rewards"],[data-route^="gifts/rewards?"],[data-route="rewards"],[data-route^="rewards?"]) .free-rewards-title strong {
+  display:block;color:var(--ds-text);font-size:var(--pc-font-card,16px);font-weight:600;
+  line-height:1.5;letter-spacing:-.02em;overflow-wrap:anywhere;
+}
+#main:is([data-route="gifts/rewards"],[data-route^="gifts/rewards?"],[data-route="rewards"],[data-route^="rewards?"]) .free-rewards-title p {
+  margin:calc(8px) 0 0;color:var(--ds-muted);font-size:var(--pc-font-meta,14px);line-height:1.8;
+  overflow-wrap:anywhere;
+}
+#main:is([data-route="gifts/rewards"],[data-route^="gifts/rewards?"],[data-route="rewards"],[data-route^="rewards?"]) .free-rewards-title p b {
+  display:inline-block;margin-inline:calc(4px);color:var(--ds-text);
+  font-size:calc(22px);font-weight:600;line-height:1.4;font-variant-numeric:tabular-nums;
+}
+#main:is([data-route="gifts/rewards"],[data-route^="gifts/rewards?"],[data-route="rewards"],[data-route^="rewards?"]) .free-gift-badge {
+  margin:0;padding:calc(5px) calc(10px);border:0;border-radius:var(--ds-radius-sm);
+  background:var(--ds-soft);color:var(--ds-body);font-size:var(--pc-font-caption,13px);font-weight:500;line-height:1.5;
+}
+#main:is([data-route="gifts/rewards"],[data-route^="gifts/rewards?"],[data-route="rewards"],[data-route^="rewards?"]) .daily-gift-actions {
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch;
+  gap:calc(16px);margin:calc(20px) 0 0;min-width:0;
+}
+#main:is([data-route="gifts/rewards"],[data-route^="gifts/rewards?"],[data-route="rewards"],[data-route^="rewards?"]) .daily-gift-task {
+  display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;align-content:start;
+  gap:calc(10px) calc(16px);min-width:0;padding:calc(20px);
+  background:var(--ds-panel);border:1px solid var(--ds-line);border-radius:var(--ds-radius-card);
+  box-shadow:none;color:var(--ds-body);font-size:var(--pc-font-body,15px);line-height:1.6;
+}
+#main:is([data-route="gifts/rewards"],[data-route^="gifts/rewards?"],[data-route="rewards"],[data-route^="rewards?"]) .daily-gift-task>span {
+  min-width:0;color:var(--ds-text);font-size:var(--pc-font-card,16px);font-weight:500;
+  line-height:1.6;overflow-wrap:anywhere;
+}
+#main:is([data-route="gifts/rewards"],[data-route^="gifts/rewards?"],[data-route="rewards"],[data-route^="rewards?"]) .daily-gift-task small {
+  display:block;margin-top:calc(6px);color:var(--ds-muted);
+  font-size:var(--pc-font-caption,13px);font-weight:400;line-height:1.6;word-break:keep-all;overflow-wrap:anywhere;
+}
+#main:is([data-route="gifts/rewards"],[data-route^="gifts/rewards?"],[data-route="rewards"],[data-route^="rewards?"]) .daily-gift-task>button {
+  min-width:104px;min-height:44px;max-width:100%;margin:0;padding:calc(10px) calc(14px);
+  justify-content:center;align-self:start;border-radius:var(--ds-radius-input);
+  font-size:var(--pc-font-control,14px);font-weight:500;line-height:1.5;white-space:nowrap;
+  box-shadow:none;font-variant-numeric:tabular-nums;
+}
+#main:is([data-route="gifts/rewards"],[data-route^="gifts/rewards?"],[data-route="rewards"],[data-route^="rewards?"]) .daily-gift-task>button:not(:disabled) {
+  background:var(--ds-lavender);border-color:transparent;color:var(--ds-ink);opacity:1;
+}
+#main:is([data-route="gifts/rewards"],[data-route^="gifts/rewards?"],[data-route="rewards"],[data-route^="rewards?"]) .daily-gift-task>button:not(:disabled):hover {
+  background:var(--ds-lilac);border-color:transparent;filter:none;
+}
+#main:is([data-route="gifts/rewards"],[data-route^="gifts/rewards?"],[data-route="rewards"],[data-route^="rewards?"]) .daily-gift-task>button:disabled {
+  background:var(--ds-bg);border-color:var(--ds-line);color:var(--ds-muted);opacity:1;filter:none;
+}
+#main:is([data-route="gifts/rewards"],[data-route^="gifts/rewards?"],[data-route="rewards"],[data-route^="rewards?"]) .daily-gift-task:not(:has(>.text-link))>button:disabled {
+  background:transparent;border-color:transparent;color:var(--ds-body);
+}
+#main:is([data-route="gifts/rewards"],[data-route^="gifts/rewards?"],[data-route="rewards"],[data-route^="rewards?"]) .daily-gift-task>.text-link {
+  display:inline-flex;align-items:center;justify-content:flex-end;grid-column:1/-1;justify-self:end;
+  min-height:44px;max-width:100%;margin:0;padding:calc(6px) 0;
+  color:var(--ds-selected);font-size:var(--pc-font-control,14px);font-weight:400;line-height:1.6;
+  text-align:right;white-space:normal;text-underline-offset:4px;
+}
+#main:is([data-route="gifts/rewards"],[data-route^="gifts/rewards?"],[data-route="rewards"],[data-route^="rewards?"]) .daily-gift-task>.text-link:hover {
+  color:var(--ds-text);text-decoration:underline;
+}
+#main:is([data-route="gifts/rewards"],[data-route^="gifts/rewards?"],[data-route="rewards"],[data-route^="rewards?"]) .free-rewards>.gift-fineprint {
+  margin:calc(20px) 0 0!important;padding:calc(16px) 0 0;
+  border-top:1px solid var(--ds-line);color:var(--ds-muted)!important;
+  font-size:var(--pc-font-meta,13px)!important;line-height:1.8!important;word-break:keep-all;overflow-wrap:anywhere;
+}
+@media(max-width:1100px){
+  #main:is([data-route="gifts/rewards"],[data-route^="gifts/rewards?"],[data-route="rewards"],[data-route^="rewards?"]) .daily-gift-actions {
+    grid-template-columns:1fr;
+  }
+}
+@media(max-width:600px){
+  #main:is([data-route="gifts/rewards"],[data-route^="gifts/rewards?"],[data-route="rewards"],[data-route^="rewards?"]) .free-rewards-title {
+    grid-template-columns:44px minmax(0,1fr);gap:calc(12px);padding:calc(20px) calc(16px);
+  }
+  #main:is([data-route="gifts/rewards"],[data-route^="gifts/rewards?"],[data-route="rewards"],[data-route^="rewards?"]) .free-rewards-title .gift-art {
+    width:44px;height:44px;
+  }
+  #main:is([data-route="gifts/rewards"],[data-route^="gifts/rewards?"],[data-route="rewards"],[data-route^="rewards?"]) .free-gift-badge {display:none}
+  #main:is([data-route="gifts/rewards"],[data-route^="gifts/rewards?"],[data-route="rewards"],[data-route^="rewards?"]) .daily-gift-actions {
+    gap:calc(12px);margin-top:calc(16px);
+  }
+  #main:is([data-route="gifts/rewards"],[data-route^="gifts/rewards?"],[data-route="rewards"],[data-route^="rewards?"]) .daily-gift-task {
+    gap:calc(8px) calc(12px);padding:calc(16px);
+  }
+  #main:is([data-route="gifts/rewards"],[data-route^="gifts/rewards?"],[data-route="rewards"],[data-route^="rewards?"]) .daily-gift-task>button {
+    min-width:96px;padding-inline:calc(10px);
+  }
+}

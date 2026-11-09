@@ -1,0 +1,416 @@
+/* Inventory presentation only. Product artwork, state and actions stay owned by
+   the existing inventory, player and decoration components. */
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory {
+  min-width:0;
+  color:var(--ds-body);
+  font-size:var(--pc-font-body,15px);
+  line-height:1.65;
+  overflow-wrap:anywhere;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .page-heading {
+  margin-bottom:calc(8px);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory > .text-link,
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .decoration-inventory-section > .text-link {
+  display:inline-flex;
+  align-items:center;
+  min-height:44px;
+  font-size:var(--pc-font-control,14px);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory :is(.player-equipped-preview,.player-item,.mp-stock-item,.decoration-inventory-item,.inventory-purchase,.inventory-level) {
+  min-width:0;
+  background:var(--ds-panel);
+  border:1px solid var(--ds-line);
+  border-radius:var(--ds-radius-card);
+  box-shadow:none;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .player-equipped-preview {
+  gap:calc(20px);
+  margin:calc(16px) 0 calc(24px);
+  padding:calc(16px) calc(20px);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .player-equipped-preview > .inventory-frame-original {
+  flex:none;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .player-equipped-preview > div {
+  min-width:0;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .player-equipped-preview h2 {
+  margin:0 0 calc(6px);
+  font-size:var(--pc-font-section,18px);
+  line-height:1.5;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .player-equipped-preview p {
+  margin:0;
+  color:var(--ds-muted);
+  font-size:var(--pc-font-body,14px);
+  line-height:1.7;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .ml-tabs {
+  gap:calc(20px);
+  margin:0 0 calc(24px);
+  padding:calc(2px) calc(2px) 0;
+  border-bottom:1px solid var(--ds-line);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .ml-tabs > button {
+  min-height:48px;
+  gap:calc(8px);
+  padding:calc(10px) calc(8px);
+  border:0;
+  border-bottom:2px solid transparent;
+  border-radius:0;
+  background:transparent;
+  color:var(--ds-muted);
+  font-size:var(--pc-font-control,14px);
+  font-weight:500;
+  line-height:1.5;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .ml-tabs > button[aria-selected="true"] {
+  color:var(--ds-selected);
+  border-bottom-color:var(--ds-selected);
+  font-weight:600;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .ml-tabs > button span {
+  min-width:24px;
+  padding:calc(2px) calc(7px);
+  border-radius:var(--ds-radius-input);
+  background:var(--ds-soft);
+  font-size:var(--pc-font-caption,13px);
+  line-height:1.5;
+  opacity:1;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .inventory-grid {
+  grid-template-columns:repeat(auto-fill,minmax(min(100%,260px),1fr));
+  gap:calc(20px);
+  margin:0 0 calc(24px);
+  align-items:stretch;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .inventory-grid > :is(.player-item,.mp-stock-item) {
+  margin:0;
+  padding:calc(20px);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .inventory-grid > .player-item {
+  gap:calc(16px);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .player-item-preview {
+  padding:0;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .player-item-status {
+  display:inline-flex;
+  align-items:center;
+  padding:calc(2px) calc(8px);
+  border:1px solid var(--ds-line);
+  border-radius:var(--ds-radius-input);
+  color:var(--ds-body);
+  font-size:var(--pc-font-meta,13px);
+  line-height:1.6;
+  letter-spacing:0;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .is-equipped .player-item-status {
+  background:var(--ds-soft);
+  color:var(--ds-selected);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .player-item-copy h2 {
+  margin:calc(10px) 0 calc(8px);
+  color:var(--ds-text);
+  font-size:var(--pc-font-card,16px)!important;
+  line-height:1.5;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .player-item-copy p {
+  margin:0 0 calc(12px);
+  color:var(--ds-body);
+  font-size:var(--pc-font-body,14px);
+  line-height:1.7;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .player-item-copy small {
+  color:var(--ds-muted);
+  font-size:var(--pc-font-meta,13px);
+  line-height:1.75;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .player-item-copy .inventory-reason {
+  margin-top:calc(8px);
+  padding-left:calc(10px);
+  border-left:2px solid var(--ds-line);
+  color:var(--ds-body);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .inventory-item-actions {
+  flex-direction:row;
+  gap:calc(8px);
+  padding-top:calc(4px);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .inventory-item-actions > :is(button,a) {
+  flex:1 1 140px;
+  width:100%;
+  min-width:0;
+  min-height:44px;
+  padding:calc(10px) calc(12px);
+  font-size:var(--pc-font-control,14px);
+  line-height:1.5;
+  text-align:center;
+  white-space:normal;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory :is(.primary-button,.small-button):disabled {
+  background:var(--ds-bg);
+  border-color:var(--ds-line);
+  color:var(--ds-muted);
+  opacity:1;
+  filter:none;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .mp-stock-item {
+  min-width:0;
+  align-items:stretch;
+  gap:calc(8px);
+  text-align:left;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .mp-stock-item > img {
+  align-self:center;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .mp-stock-item h3 {
+  margin:calc(4px) 0 0;
+  color:var(--ds-text);
+  font-size:var(--pc-font-card,16px);
+  line-height:1.5;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .mp-stock-item p {
+  color:var(--ds-muted);
+  font-size:var(--pc-font-meta,13px);
+  line-height:1.7;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .mp-stock-item button {
+  width:100%;
+  min-width:0;
+  min-height:44px;
+  margin-top:auto;
+  font-size:var(--pc-font-control,14px);
+  white-space:normal;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .decoration-inventory-item {
+  gap:calc(20px);
+  margin:0 0 calc(16px);
+  padding:calc(20px);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .decoration-inventory-item > img {
+  flex:none;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .decoration-inventory-item h3 {
+  font-size:var(--pc-font-card,16px);
+  line-height:1.5;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .decoration-inventory-item p {
+  margin:calc(8px) 0;
+  font-size:var(--pc-font-meta,13px);
+  line-height:1.75;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .decoration-actions {
+  flex-wrap:wrap;
+  gap:calc(8px);
+  margin-top:calc(12px);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .decoration-inventory-item :is(button,a.small-button) {
+  min-height:44px;
+  max-width:100%;
+  font-size:var(--pc-font-control,14px);
+  white-space:normal;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .decoration-inventory-section > h2 {
+  margin:calc(28px) 0 calc(12px);
+  font-size:var(--pc-font-section,20px);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .decoration-inventory-section > h2 span {
+  color:var(--ds-muted);
+  font-size:var(--pc-font-meta,14px);
+  font-weight:400;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .decoration-inventory-section > .field-help {
+  margin:0 0 calc(16px);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory :is(.inventory-purchase,.inventory-level) {
+  margin-top:calc(24px);
+  padding:calc(16px) calc(24px);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory :is(.inventory-purchase,.inventory-level) > summary {
+  min-height:44px;
+  padding-block:calc(8px);
+  color:var(--ds-text);
+  font-size:var(--pc-font-card,16px);
+  font-weight:600;
+  line-height:1.6;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory :is(.inventory-purchase,.inventory-level)[open] > summary {
+  margin-bottom:calc(16px);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .inventory-purchase > section.mp-card {
+  margin-top:calc(24px);
+  padding:0;
+  border:0;
+  background:transparent;
+  box-shadow:none;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .inventory-purchase .mp-section-head {
+  margin-bottom:calc(16px);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .inventory-purchase .mp-stock-grid {
+  grid-template-columns:repeat(auto-fill,minmax(min(100%,140px),1fr));
+  gap:calc(12px);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .inventory-purchase .mp-stock-item {
+  padding:calc(16px);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .inventory-purchase .mp-form-note {
+  margin:calc(16px) 0;
+  padding:calc(16px);
+  border-radius:var(--ds-radius-input);
+  background:var(--ds-bg);
+  font-size:var(--pc-font-body,14px);
+  line-height:1.75;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .inventory-purchase details.mp-card {
+  margin-top:calc(24px);
+  padding:calc(16px);
+  border:1px solid var(--ds-line);
+  border-radius:var(--ds-radius-input);
+  background:transparent;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .player-progress-card {
+  margin:calc(16px) 0;
+  padding:calc(16px);
+  border:1px solid var(--ds-line);
+  border-radius:var(--ds-radius-input);
+  background:var(--ds-bg);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .player-progress-title {
+  flex-wrap:wrap;
+  gap:calc(12px);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .player-progress-title h2 {
+  margin:calc(4px) 0 calc(12px);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .player-progress-title > strong {
+  font-size:var(--pc-font-card,16px);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .player-xp-track {
+  background:var(--ds-line);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .player-xp-track > span {
+  background:var(--ds-progress);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .player-progress-caption {
+  flex-wrap:wrap;
+  gap:calc(8px);
+  font-size:var(--pc-font-meta,13px);
+  line-height:1.7;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .inventory-level :is(p,li) {
+  font-size:var(--pc-font-body,14px);
+  line-height:1.8;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .inventory-level ul {
+  margin:calc(16px) 0;
+  padding-left:calc(20px);
+  color:var(--ds-body);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .mp-empty {
+  margin:calc(16px) 0;
+  padding:calc(24px);
+  border:1px solid var(--ds-line);
+  border-radius:var(--ds-radius-card);
+  background:var(--ds-panel);
+  color:var(--ds-muted);
+  font-size:var(--pc-font-body,14px);
+  line-height:1.75;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .mp-empty[role="alert"] {
+  color:var(--ds-body);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory [data-inventory-retry] {
+  display:inline-flex;
+  align-items:center;
+  min-height:44px;
+  padding:0 calc(8px);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .inventory-browse {
+  margin-bottom:0;
+}
+@media(max-width:600px) {
+  #main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .player-equipped-preview {
+    gap:calc(16px);
+    padding:calc(16px);
+    margin-bottom:calc(20px);
+  }
+  #main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .ml-tabs {
+    gap:calc(12px);
+    margin-bottom:calc(20px);
+  }
+  #main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .inventory-grid {
+    grid-template-columns:minmax(0,1fr);
+    gap:calc(16px);
+  }
+  #main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .inventory-grid > .player-item {
+    display:grid;
+    grid-template-columns:80px minmax(0,1fr);
+    align-items:start;
+    gap:calc(16px) calc(12px);
+    padding:calc(16px);
+  }
+  #main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .player-item-preview {
+    width:auto;
+    height:auto;
+    align-self:start;
+  }
+  #main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .inventory-item-actions {
+    grid-column:1 / -1;
+    padding-top:0;
+  }
+  #main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .inventory-grid > .mp-stock-item {
+    display:grid;
+    grid-template-columns:80px minmax(0,1fr);
+    align-items:start;
+    gap:calc(6px) calc(12px);
+    padding:calc(16px);
+  }
+  #main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .inventory-grid > .mp-stock-item > img {
+    grid-column:1;
+    grid-row:1 / span 4;
+    align-self:start;
+    justify-self:center;
+  }
+  #main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .inventory-grid > .mp-stock-item > :not(img):not(button) {
+    grid-column:2;
+    min-width:0;
+  }
+  #main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .inventory-grid > .mp-stock-item > button {
+    grid-column:1 / -1;
+    margin-top:calc(8px);
+  }
+  #main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .decoration-inventory-item {
+    gap:calc(12px);
+    padding:calc(16px);
+  }
+  #main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .decoration-actions > button {
+    flex:1 1 130px;
+    min-width:0;
+    width:100%;
+  }
+  #main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .decoration-inventory-item > div > :is(button,a.small-button) {
+    width:100%;
+  }
+  #main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory :is(.inventory-purchase,.inventory-level) {
+    margin-top:calc(20px);
+    padding:calc(12px) calc(16px);
+  }
+  #main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .inventory-purchase .mp-stock-grid {
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+  #main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .inventory-purchase .mp-stock-item {
+    padding:calc(12px) calc(8px);
+  }
+  #main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .inventory-purchase .mp-stock-item h3 {
+    font-size:14px;
+  }
+  #main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .inventory-purchase .mp-form-note {
+    padding:calc(12px);
+  }
+  #main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .mp-empty {
+    padding:calc(20px) calc(16px);
+  }
+}
