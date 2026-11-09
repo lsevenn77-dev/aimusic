@@ -242,6 +242,8 @@ internal fun manualDubbingScript(title:String,text:String,options:JSONObject):JS
    if(busy||project==null&&error==null)item{LinearProgressIndicator(Modifier.fillMaxWidth(),color=Pink,trackColor=Stroke)}
    project?.let{p->
     val script=p.getJSONObject("script");val roles=p.getJSONArray("roles").objects();val lines=script.optJSONArray("lines").objects().sortedBy{it.optInt("order")}
+    // The singer's own role comes first, as in the approved design; script colours keep the original order.
+    val roleCards=roles.sortedByDescending{it.optBoolean("mine")}
     item{DubbingSectionTitle("작품 정보")}
     item{
      DubbingInfoCard(p,sound,previewing,previewAt,{if(previewing)audio.stop()else audio.listen(sound.optString("audioUrl","/api/dubbing/projects/$id/background"))}){
@@ -254,7 +256,7 @@ internal fun manualDubbingScript(title:String,text:String,options:JSONObject):JS
     }
     if(p.optBoolean("isOwner")&&p.optString("visibility")=="private")item{BrandButton({confirm="publish"},enabled=!busy,modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)){Text("배역 모집 시작",fontSize=14.sp)}}
     item{DubbingSectionTitle("배역 선택","${roles.count{it.optBoolean("claimed")}} / ${roles.size}명 참여")}
-    items(roles,key={it.getString("id")}){r->
+    items(roleCards,key={it.getString("id")}){r->
      var more by remember{mutableStateOf(false)}
      val mine=r.optBoolean("mine")
      val cancel=mine&&p.optJSONObject("recording")?.optJSONArray("roles").objects().none{it.getString("roleId")==r.getString("id")}
