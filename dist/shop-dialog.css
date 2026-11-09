@@ -65,8 +65,8 @@
 .shop-theme-preview>img{display:block;width:auto;height:auto;max-width:100%;max-height:min(540px,calc(100dvh - 240px));object-fit:contain;border-radius:10px}
 #dialog.shop-dialog .shop-theme-preview h2{font-size:17px;line-height:1.4;margin:0;text-align:center}
 .shop-preview-info{width:min(100%,312px);min-width:0}
-.shop-preview-purchase-row{display:grid;grid-template-columns:minmax(0,1fr) 112px;align-items:center;gap:12px;margin-top:8px}
-.shop-preview-purchase-row .shop-card-price{display:flex;align-items:center;justify-content:flex-start;gap:5px;min-width:0;margin:0;line-height:1.4;font-variant-numeric:tabular-nums}
+.shop-preview-purchase-row{display:flex;flex-direction:column;align-items:center;gap:2px;margin-top:8px}
+.shop-preview-purchase-row .shop-card-price{display:flex;align-items:center;justify-content:center;gap:5px;min-width:0;margin:0;line-height:1.4;font-variant-numeric:tabular-nums}
 .shop-preview-purchase-row .shop-price-value{font-size:var(--pc-font-body,15px);font-weight:600;color:var(--ds-text)}
 /* Preserve the compact gift list's measured rows, responsive grid and fixed footer. */
 #dialog.shop-dialog:has(.gift-dialog--compact){width:min(560px,calc(100vw - 24px));overflow:hidden}

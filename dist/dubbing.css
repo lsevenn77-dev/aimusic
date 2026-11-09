@@ -82,6 +82,190 @@ body.has-player .dubbing-save-bar{position:static}
 #dubbing-options-form .dubbing-form-actions>button[hidden]{display:none}
 @media(max-width:540px){#dubbing-options-form .dubbing-form-actions{align-items:stretch}#dubbing-options-form .dubbing-form-actions>button{flex:1 1 100%;width:100%}}
 
+/* New-script form only. The wrapper is removed when the existing editor opens. */
+#main .dubbing-create-page {
+  --ui-control-height:44px;
+  min-width:0;color:var(--ds-body);font-size:var(--pc-font-body,15px);
+}
+#main .dubbing-create-page>.dubbing-back {
+  display:inline-flex;align-items:center;min-height:44px;
+  margin:0 0 calc(12px);color:var(--ds-muted);font-size:var(--pc-font-control,14px);
+}
+#main .dubbing-create-page>.dubbing-back:hover {color:var(--ds-selected)}
+#main .dubbing-create-page .dubbing-heading {margin:0 0 calc(24px)}
+#main .dubbing-create-page .dubbing-heading h1 {
+  margin:0 0 calc(8px);color:var(--ds-text);font-size:var(--pc-font-page,24px);
+  font-weight:700;line-height:1.4;letter-spacing:-.025em;overflow-wrap:anywhere;
+}
+#main .dubbing-create-page .dubbing-heading p {
+  margin:0;color:var(--ds-body);font-size:var(--pc-font-body,15px);line-height:1.7;
+  word-break:keep-all;overflow-wrap:anywhere;
+}
+#main .dubbing-create-page .dubbing-create-layout {
+  grid-template-columns:minmax(0,1fr) 280px;gap:calc(24px);
+}
+#main .dubbing-create-page #dubbing-options-form {
+  margin:0;padding:calc(24px);background:var(--ds-panel);
+  border:1px solid var(--ds-line);border-radius:var(--ds-radius-card);box-shadow:none;
+}
+#main .dubbing-create-page fieldset {margin:0 0 calc(28px);padding:0}
+#main .dubbing-create-page legend {
+  display:flex;align-items:center;flex-wrap:wrap;gap:calc(10px);
+  margin:0 0 calc(16px);padding:0;line-height:1.5;
+}
+#main .dubbing-create-page legend>span {
+  color:var(--ds-text);font-size:var(--pc-font-section,18px);font-weight:650;
+}
+#main .dubbing-create-page .dubbing-step-number {
+  color:var(--ds-muted);font-size:var(--pc-font-caption,13px);
+  font-weight:600;font-variant-numeric:tabular-nums;
+}
+#main .dubbing-create-page legend>small {
+  color:var(--ds-muted);font-size:var(--pc-font-caption,13px);font-weight:400;
+}
+#main .dubbing-create-page .dubbing-idea-heading small {
+  flex-basis:100%;margin:0;line-height:1.7;word-break:keep-all;overflow-wrap:anywhere;
+}
+#main .dubbing-create-page .dubbing-chips {gap:calc(8px)}
+#main .dubbing-create-page .dubbing-chips label {min-width:0;max-width:100%}
+#main .dubbing-create-page .dubbing-chips span {
+  display:flex;align-items:center;justify-content:center;min-height:44px;
+  padding:calc(10px) calc(16px);border:1px solid var(--ds-line);
+  border-radius:var(--ds-radius-sm);background:var(--ds-bg);color:var(--ds-body);
+  font-size:var(--pc-font-control,14px);font-weight:500;line-height:1.4;
+}
+#main .dubbing-create-page .dubbing-chips label:hover span {
+  border-color:var(--ds-lavender);background:var(--ds-soft);
+}
+#main .dubbing-create-page .dubbing-chips input:checked+span {
+  border-color:var(--ds-selected);background:var(--ds-soft);color:var(--ds-selected);
+  font-weight:600;
+}
+#main .dubbing-create-page .dubbing-chips input:focus-visible+span {
+  outline:2px solid var(--ds-selected);outline-offset:3px;
+}
+#main .dubbing-create-page .dubbing-chips input:disabled+span {
+  opacity:.55;cursor:not-allowed;
+}
+#main .dubbing-create-page .dubbing-form-grid {
+  grid-template-columns:repeat(2,minmax(0,1fr));gap:calc(16px);
+}
+#main .dubbing-create-page label {
+  min-width:0;margin:0 0 calc(12px);color:var(--ds-body);
+  font-size:var(--pc-font-body,14px);font-weight:500;line-height:1.6;
+}
+#main .dubbing-create-page :is(select,textarea) {
+  width:100%;min-width:0;max-width:100%;margin-top:calc(8px);
+  padding:calc(12px) calc(14px);border:1px solid var(--ds-border);
+  border-radius:var(--ds-radius-input);background:var(--ds-bg);color:var(--ds-text);
+  font-family:inherit;font-size:var(--pc-font-control,16px)!important;line-height:1.6;
+}
+#main .dubbing-create-page select {min-height:48px}
+#main .dubbing-create-page textarea {min-height:180px;resize:vertical}
+#main .dubbing-create-page textarea::placeholder {color:var(--ds-muted);opacity:1}
+#main .dubbing-create-page .dubbing-muted {
+  color:var(--ds-muted);font-size:var(--pc-font-caption,13px);line-height:1.7;
+}
+#main .dubbing-create-page fieldset>small.dubbing-muted {display:block;margin:0}
+#main .dubbing-create-page :is(.primary-button,.small-button) {
+  display:inline-flex;align-items:center;justify-content:center;gap:calc(8px);
+  min-height:44px;min-width:0;max-width:100%;padding:calc(10px) calc(16px);
+  border-radius:var(--ds-radius-input);font-size:var(--pc-font-control,14px);
+  font-weight:600;line-height:1.5;white-space:normal;overflow-wrap:anywhere;
+}
+#main .dubbing-create-page .primary-button {
+  background:var(--ds-gradient);color:var(--ds-ink);border:1px solid var(--ds-line);
+}
+#main .dubbing-create-page .small-button {
+  background:var(--ds-bg);color:var(--ds-text);border:1px solid var(--ds-border);box-shadow:none;
+}
+#main .dubbing-create-page .small-button:hover:not(:disabled) {
+  background:var(--ds-soft);border-color:var(--ds-lavender);
+}
+#main .dubbing-create-page :is(.primary-button,.small-button):disabled {
+  background:var(--ds-secondary);border-color:var(--ds-line);color:var(--ds-muted);
+  opacity:.6;box-shadow:none;filter:none;cursor:not-allowed;
+}
+#main .dubbing-create-page :is(button,a):focus-visible {
+  outline:2px solid var(--ds-selected);outline-offset:3px;
+}
+#main .dubbing-create-page .dubbing-random {margin:0 0 calc(16px)}
+#main .dubbing-create-page .dubbing-quota {
+  margin:0;padding:calc(20px);background:var(--ds-bg);
+  border:1px solid var(--ds-line);border-radius:var(--ds-radius-input);
+  color:var(--ds-body);font-size:var(--pc-font-meta,14px);line-height:1.7;
+  overflow-wrap:anywhere;
+}
+#main .dubbing-create-page .dubbing-quota strong {
+  display:block;color:var(--ds-text);font-size:var(--pc-font-card,16px);line-height:1.5;
+}
+#main .dubbing-create-page .dubbing-quota p {margin:calc(8px) 0}
+#main .dubbing-create-page .dubbing-quota>span {
+  display:block;margin:calc(12px) 0;padding-top:calc(12px);border-top:1px solid var(--ds-line);
+}
+#main .dubbing-create-page .dubbing-quota>span b {color:var(--ds-progress)}
+#main .dubbing-create-page .dubbing-quota small {
+  margin-top:calc(8px);color:var(--ds-muted);font-size:var(--pc-font-caption,13px);line-height:1.7;
+}
+#main .dubbing-create-page .dubbing-quota button {margin-top:calc(8px)}
+#main .dubbing-create-page .dubbing-generation-estimate {
+  margin:calc(20px) 0 0;color:var(--ds-body);font-size:var(--pc-font-meta,14px);line-height:1.7;
+}
+#main .dubbing-create-page .dubbing-generation-estimate small {
+  margin-top:calc(4px);color:var(--ds-muted);font-size:var(--pc-font-caption,13px);
+}
+#main .dubbing-create-page .dubbing-feedback {
+  margin:calc(12px) 0 0;font-size:var(--pc-font-meta,14px);overflow-wrap:anywhere;
+}
+#main .dubbing-create-page .dubbing-form-actions {
+  gap:calc(12px);margin-top:calc(20px);padding-top:calc(20px);border-top:1px solid var(--ds-line);
+}
+#main .dubbing-create-page [hidden] {display:none!important}
+#main .dubbing-create-page .dubbing-guide {
+  margin:0;padding:calc(8px) 0 calc(8px) calc(24px);
+  border:0;border-left:1px solid var(--ds-line);border-radius:0;background:transparent;box-shadow:none;
+}
+#main .dubbing-create-page .dubbing-guide h2 {
+  margin:0 0 calc(20px);font-size:var(--pc-font-section,18px);font-weight:650;line-height:1.5;
+}
+#main .dubbing-create-page .dubbing-guide ol {margin:0;padding-left:calc(20px)}
+#main .dubbing-create-page .dubbing-guide li {
+  margin-bottom:calc(20px);padding-left:calc(4px);font-size:var(--pc-font-meta,14px);
+}
+#main .dubbing-create-page .dubbing-guide li::marker {color:var(--ds-muted)}
+#main .dubbing-create-page .dubbing-guide li b {font-size:var(--pc-font-body,15px);font-weight:600}
+#main .dubbing-create-page .dubbing-guide li p {
+  margin:calc(8px) 0 0;font-size:var(--pc-font-meta,14px);line-height:1.7;
+  word-break:keep-all;overflow-wrap:anywhere;
+}
+#main .dubbing-create-page .dubbing-guide-note {
+  margin-top:calc(24px);padding:calc(20px) 0 0;border-top:1px solid var(--ds-line);
+  border-radius:0;background:transparent;font-size:var(--pc-font-meta,14px);line-height:1.8;
+}
+#main .dubbing-create-page .dubbing-guide-note small {
+  display:block;margin-top:calc(8px);color:var(--ds-muted);font-size:var(--pc-font-caption,13px);
+}
+@media(max-width:1100px) {
+  #main .dubbing-create-page .dubbing-create-layout {grid-template-columns:minmax(0,1fr)}
+  #main .dubbing-create-page .dubbing-guide {
+    border-left:0;border-top:1px solid var(--ds-line);padding:calc(24px) 0 0;
+  }
+}
+@media(max-width:800px) {
+  #main .dubbing-create-page .dubbing-heading {margin-bottom:calc(20px)}
+  #main .dubbing-create-page #dubbing-options-form {padding:calc(20px) calc(16px)}
+  #main .dubbing-create-page .dubbing-guide {display:none}
+  #main .dubbing-create-page .dubbing-quota {padding:calc(16px)}
+  #main .dubbing-create-page .dubbing-chips span {padding:calc(10px) calc(12px)}
+}
+@media(max-width:540px) {
+  #main .dubbing-create-page .dubbing-form-actions {align-items:stretch}
+  #main .dubbing-create-page .dubbing-form-actions>button {flex:1 1 100%;width:100%}
+}
+@media(max-width:390px) {
+  #main .dubbing-create-page .dubbing-form-grid {grid-template-columns:minmax(0,1fr);gap:calc(8px)}
+}
+
 .dubbing-card-badges{display:flex;flex-wrap:wrap;align-items:center;gap:6px}.dubbing-sound-badge{display:inline-flex;align-items:center;gap:4px;padding:4px 7px;border-radius:6px;border:1px solid #68bdb74d;background:#294f4d66;color:var(--ds-body);font-size:11px;line-height:1.35;white-space:nowrap}.dubbing-sound-badge svg{width:12px;height:12px;flex:none}
 
 .dubbing-record-cue{min-height:48px;display:grid;place-items:center;color:var(--ds-body);font-size:22px;font-weight:700;text-align:center}.dubbing-record-line.is-recorded .dubbing-record-line-number{color:var(--ds-progress)}

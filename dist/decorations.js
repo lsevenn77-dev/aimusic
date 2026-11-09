@@ -88,7 +88,7 @@ function shopStartingPrice(p,periods){
  const days=code=>{const m=/^P(\d+)([DMY])$/.exec(code);return m?Number(m[1])*({D:1,M:30,Y:365})[m[2]]:Infinity;};
  const options=shopProductPeriods(p,periods).sort(([a],[b])=>p.periodPrices[a]-p.periodPrices[b]||days(a)-days(b));
  const first=options[0];if(!first)return '';
- return shopCoin(p.currency||'G')+'<span class="shop-price-value">'+number(p.periodPrices[first[0]])+'</span>'+(p.kind==='TALKING_ROOM_THEME'?'':'<span class="shop-price-period"> / '+esc(first[1])+'~</span>');
+ return shopCoin(p.currency||'G')+'<span class="shop-price-value">'+number(p.periodPrices[first[0]])+'</span>';
 }
 function shopNormalizeSearch(value){return String(value??'').normalize('NFKC').toLocaleLowerCase().replace(/\s+/gu,'');}
 function shopCards(items,periods={}){
