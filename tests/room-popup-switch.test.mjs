@@ -8,10 +8,12 @@ function fixture(){
  let activeElement=null;
  function node(id=''){
   const attrs=new Map(),classes=new Set();
-  const element={id,open:false,hidden:false,isConnected:true,dataset:{},firstChild:{textContent:''},
+  const element={id,open:false,hidden:false,isConnected:true,dataset:{},children:[],parentElement:null,firstChild:{textContent:''},
    classList:{contains:name=>classes.has(name),add:name=>classes.add(name),toggle(name,on){if(on)classes.add(name);else classes.delete(name);}},
    setAttribute:(name,value)=>attrs.set(name,value),getAttribute:name=>attrs.get(name),removeAttribute:name=>attrs.delete(name),
-   append(){},prepend(){},after(){},querySelector:()=>node(),querySelectorAll:()=>[],closest:()=>null,contains(target){return target===this;},
+   append(...children){for(const child of children){if(child.parentElement)child.parentElement.children=child.parentElement.children.filter(n=>n!==child);this.children.push(child);child.parentElement=this;}},
+   prepend(...children){for(const child of [...children].reverse()){if(child.parentElement)child.parentElement.children=child.parentElement.children.filter(n=>n!==child);this.children.unshift(child);child.parentElement=this;}},
+   after(){},querySelector:()=>node(),querySelectorAll:()=>[],closest:()=>null,contains(target){return target===this;},
    show(){this.open=true;},close(){if(!this.open)return;this.open=false;closeEvents.push(()=>listeners.get('close')?.({target:this}));},
    focus(){focus.push(id);activeElement=this;},blur(){if(activeElement===this)activeElement=null;},addEventListener(){}};
   nodes.set(id,element);return element;

@@ -129,7 +129,7 @@ function roomMessages(client,sheet){
  const report=e=>{if(!events.signal.aborted){const status=sheet.querySelector('[data-room-dm-status]');if(status)status.textContent=e.message;}};
  async function inbox(){
   const t=reset();peer=null;
-  sheet.innerHTML='<label class="room-dm-query">팔로우 검색<input type="search" aria-label="메시지를 보낼 팔로우 검색" placeholder="닉네임 검색"></label><div class="room-dm-list"></div><small data-room-dm-status role="status"></small>';
+  sheet.innerHTML='<header class="room-popup-heading"><h2 id="room-inbox-title">메시지</h2></header><label class="room-dm-query">팔로우 검색<input type="search" aria-label="메시지를 보낼 팔로우 검색" placeholder="닉네임 검색"></label><div class="room-dm-list"></div><small data-room-dm-status role="status"></small>';
   const input=sheet.querySelector('input'),list=sheet.querySelector('.room-dm-list'),noticeIds=new Set();let search=0;
   const load=async()=>{
    const q=input.value.trim(),seq=++search;
