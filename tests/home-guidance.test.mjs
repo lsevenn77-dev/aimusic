@@ -18,7 +18,7 @@ test('all seven approved banners expose a whole-image link and responsive WebP a
   assert.match(html,new RegExp('href="'+b.href.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'"'));
   assert.ok(html.includes(b.headline));assert.ok(html.includes(b.cta));
   assert.match(html,/width="1536" height="768"/);assert.match(html,/768w, [^"]+1536w/);
-  assert.equal((html.match(/<a\b/g)||[]).length,1,'the desktop copy and complete mobile artwork share one destination');
+  assert.equal((html.match(/<a\b/g)||[]).length,1,'the artwork and live copy share one destination on desktop and mobile');
   for(const width of [768,1536]){
    const image=readFileSync(new URL('../dist'+c.homeBannerImage(b.id,width),import.meta.url));
    assert.equal(image.toString('ascii',0,4),'RIFF');assert.equal(image.toString('ascii',8,12),'WEBP');
@@ -37,8 +37,8 @@ test('participation exposes a choice of open duet or dubbing projects, not compl
  assert.doesNotMatch(html,/href="#karaoke\/browse"|data-pay|data-follow|data-record/);
 });
 
-test('published banner variants match the visually reviewed asset manifest without duplicate scenes',()=>{
- const base=new URL('../dist/assets/home-banners/final-20261108/',import.meta.url);
+test('published mobile banner variants match the visually reviewed asset manifest without duplicate scenes',()=>{
+ const base=new URL('../dist/assets/home-banners/mobile-20261109/',import.meta.url);
  const manifest=JSON.parse(readFileSync(new URL('manifest.json',base),'utf8'));
  assert.equal(manifest.banners.length,7);
  for(const width of [768,1536]){

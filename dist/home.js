@@ -25,8 +25,8 @@ function homeCollectionGrid(items){let html=collectionGrid(items);for(const p of
 function homeMore(title,href){return href?`<a class="home-more-link" href="${href}" aria-label="${esc(title)} 더보기">+ 더보기</a>`:'';}
 function homeSection(title,href){return `<div class="section-heading"><h2>${esc(title)}</h2>${homeMore(title,href)}</div>`;}
 function homePlaceholder(){return '<div class="release-placeholder" role="status" aria-label="음악을 불러오는 중"><div></div><span>음악을 불러오고 있어요.</span></div>';}
-// Keep the approved 2:1 artwork on mobile. Dedicated desktop scenes fill the
-// shared Play frame beneath live copy, without downloading both image versions.
+// Keep the approved 2:1 photo framing on mobile, with live copy on both sizes.
+// Dedicated desktop scenes fill Play's shared frame without a second download.
 const homeBanners=[
  {id:'studio',title:'스튜디오',headline:'스튜디오에서 내 제작곡을 올려보세요',cta:'제작곡 올리기',href:'#upload'},
  {id:'play',title:'플레이',headline:'플레이에서 마음에드는 노래를 불러보세요',cta:'노래하러 가기',href:'#karaoke'},
@@ -36,7 +36,7 @@ const homeBanners=[
  {id:'talking',title:'토킹룸',headline:'토킹룸에서 편하게 이야기해보세요',cta:'토킹룸 가기',href:'#voice?mode=talk'},
  {id:'premium',title:'프리미엄',headline:'프리미엄으로 제작곡을 더 많이 올려보세요',cta:'프리미엄 혜택 보기',href:'#membership'}
 ];
-function homeBannerImage(id,width){return '/assets/home-banners/final-20261108/'+id+'-'+width+'.webp';}
+function homeBannerImage(id,width){return '/assets/home-banners/mobile-20261109/'+id+'-'+width+'.webp';}
 function homeBannerDesktopImage(id){return '/assets/home-banners/desktop-20261109/'+id+'-2172.webp';}
 const homeBannerDesktopCopy={
  studio:{lines:['스튜디오에서','내 제작곡을 올려보세요'],highlight:'내 제작곡'},

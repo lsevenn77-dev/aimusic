@@ -1,50 +1,67 @@
 /* Home content only. Shared navigation, player and other routes retain their CSS. */
-/* Use Play's shared desktop frame height, including its controls. On mobile,
-   retain the complete approved artwork with only a compact indicator row. */
+/* Use Play's shared desktop frame height, including its controls. Mobile keeps
+   the approved 2:1 photo framing, with live copy inside and indicators below. */
 #home-release.home-promo-carousel .home-feature{height:var(--home-feature-height,272px);min-height:0;background:var(--ds-bg);overflow:hidden}
 #home-release.home-promo-carousel .home-feature-stage{height:100%;min-width:0;overflow:hidden}
 #home-release.home-promo-carousel .home-promo-link{--ui-space-scale:1;--ui-type-scale:1;display:block;position:relative;padding:0;width:100%;height:100%;color:var(--ds-text);text-decoration:none;user-select:none;-webkit-user-select:none;background:var(--home-promo-bg,var(--ds-bg))}
-#home-release.home-promo-carousel .home-promo-picture{display:block;width:100%;height:100%;overflow:hidden}
+#home-release.home-promo-carousel .home-promo-picture{display:block;position:relative;z-index:0;width:100%;height:100%;overflow:hidden}
 #home-release.home-promo-carousel .home-promo-original{display:block;width:100%;height:100%;object-fit:cover;object-position:var(--home-promo-position,right 45%);border:0;border-radius:0}
+/* Shade and soften only the scenery behind the words. A continuous mask fades
+   the effect out before the faces; the photograph itself stays sharp. */
+#home-release.home-promo-carousel .home-promo-link::before{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;background:color-mix(in srgb,var(--ds-bg) 64%,transparent);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);mask-image:linear-gradient(90deg,#000 0%,#000 var(--home-promo-shade-solid,30%),transparent var(--home-promo-shade-end,63%));-webkit-mask-image:linear-gradient(90deg,#000 0%,#000 var(--home-promo-shade-solid,30%),transparent var(--home-promo-shade-end,63%))}
 #home-release.home-promo-carousel .home-promo-link:focus-visible{outline-offset:-4px}
 #home-release.home-promo-carousel .home-feature-arrow{display:grid;width:44px;height:44px;color:var(--ds-text)}
 #home-release.home-promo-carousel .home-feature-pagination{--feature-step:32px;min-width:0;justify-content:center;color:var(--ds-text)}
 #home-release.home-promo-carousel .home-feature-pagination button{height:44px;color:var(--ds-text)}
 #home-release.home-promo-carousel .home-feature-autoplay{display:grid}
 #home-release.home-promo-carousel .home-feature-dots button[aria-pressed=true]{color:var(--ds-selected)}
-#home-release.home-promo-carousel .home-promo-desktop{display:block;position:absolute;inset:0;height:100%;overflow:hidden}
+#home-release.home-promo-carousel .home-promo-desktop{display:block;position:absolute;inset:0;z-index:2;height:100%;overflow:hidden}
 /* Full-frame photographs cover these scene-specific loading fallbacks. */
 #home-release.home-promo-carousel [data-home-banner=studio]{--home-promo-bg:#261f42;--home-promo-accent:var(--ds-selected);--home-promo-position:right 70%}
 #home-release.home-promo-carousel [data-home-banner=play]{--home-promo-bg:#294a4d;--home-promo-accent:var(--ds-accent-mint)}
-#home-release.home-promo-carousel [data-home-banner=participate]{--home-promo-bg:#735352;--home-promo-accent:var(--ds-accent-pink)}
+#home-release.home-promo-carousel [data-home-banner=participate]{--home-promo-bg:#735352;--home-promo-accent:var(--ds-accent-pink);--home-promo-shade-end:60%}
 #home-release.home-promo-carousel [data-home-banner=artists]{--home-promo-bg:#2f1b36;--home-promo-accent:var(--ds-accent-pink)}
 #home-release.home-promo-carousel [data-home-banner=karaoke]{--home-promo-bg:#222655;--home-promo-accent:var(--ds-accent-mint)}
-#home-release.home-promo-carousel [data-home-banner=talking]{--home-promo-bg:#0f2033;--home-promo-accent:var(--ds-accent-mint)}
+#home-release.home-promo-carousel [data-home-banner=talking]{--home-promo-bg:#0f2033;--home-promo-accent:var(--ds-accent-mint);--home-promo-shade-end:55%}
 #home-release.home-promo-carousel [data-home-banner=premium]{--home-promo-bg:#202545;--home-promo-accent:#edca7e}
 #home-release.home-promo-carousel .home-promo-copy{position:relative;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:18px;box-sizing:border-box;height:calc(100% - 34px);width:60%;padding-left:clamp(84px,11cqi,160px);padding-right:12px}
 #home-release.home-promo-carousel .home-promo-headline{font-size:clamp(22px,3.2cqi,36px);line-height:1.35;font-weight:750;font-style:italic;letter-spacing:-.04em;word-break:keep-all;overflow-wrap:anywhere;text-shadow:0 2px 5px color-mix(in srgb,var(--ds-bg) 50%,transparent),0 4px 16px color-mix(in srgb,var(--ds-bg) 38%,transparent)}
 #home-release.home-promo-carousel .home-promo-headline>span{display:block}
 #home-release.home-promo-carousel .home-promo-headline em{font-style:inherit;color:var(--home-promo-accent)}
 #home-release.home-promo-carousel .home-promo-headline .home-promo-latin{display:inline-block;font-size:1.12em;line-height:1;vertical-align:-.02em}
-#home-release.home-promo-carousel .home-promo-cta{display:inline-flex;align-items:center;justify-content:center;gap:16px;min-height:44px;padding:8px 24px;border:1px solid color-mix(in srgb,var(--ds-text) 38%,transparent);border-radius:999px;background:linear-gradient(180deg,color-mix(in srgb,var(--ds-text) 14%,transparent),transparent 60%),linear-gradient(100deg,var(--ds-mint),var(--ds-lavender),var(--ds-lilac));color:var(--ds-ink);font-size:16px;line-height:1.4;font-weight:750;text-shadow:none;white-space:nowrap;box-shadow:inset 0 1px 0 color-mix(in srgb,var(--ds-text) 55%,transparent),inset 0 -2px 0 color-mix(in srgb,var(--ds-ink) 10%,transparent),0 3px 0 color-mix(in srgb,var(--ds-ink) 18%,transparent),0 7px 16px color-mix(in srgb,var(--ds-bg) 22%,transparent);transition:transform .16s ease,box-shadow .16s ease}
+#home-release.home-promo-carousel .home-promo-cta{display:inline-flex;align-items:center;justify-content:center;gap:16px;min-height:44px;padding:8px 24px;border:0;border-radius:999px;background:linear-gradient(100deg,var(--ds-mint),var(--ds-lavender),var(--ds-lilac));color:var(--ds-ink);font-size:16px;line-height:1.4;font-weight:750;text-shadow:none;white-space:nowrap;box-shadow:none}
 #home-release.home-promo-carousel .home-promo-cta svg{width:20px;height:20px;flex:none}
 #home-release.home-promo-carousel .home-promo-link:focus-visible .home-promo-cta{outline:2px solid var(--ds-text);outline-offset:3px}
-#home-release.home-promo-carousel .home-promo-link:active .home-promo-cta{transform:translateY(2px);box-shadow:inset 0 1px 2px color-mix(in srgb,var(--ds-ink) 12%,transparent),0 1px 0 color-mix(in srgb,var(--ds-ink) 18%,transparent),0 3px 8px color-mix(in srgb,var(--ds-bg) 18%,transparent)}
-/* Enlarge only the distant scenes. Wider frames already magnify the photograph,
-   so taper the extra zoom to keep the hands, controller and script in view. */
+/* Move faces a little closer, while tapering the added zoom in wider frames
+   so microphones, hands, the controller and the full LP remain visible. */
 @media(min-width:801px){
  @container(min-width:791px){
   #home-release.home-promo-carousel .home-promo-original{transform:scale(var(--home-promo-zoom,1));transform-origin:var(--home-promo-origin,center)}
-  #home-release.home-promo-carousel [data-home-banner=studio]{--home-promo-zoom:1.28;--home-promo-origin:60% 50%;--home-promo-position:right 68%}
-  #home-release.home-promo-carousel [data-home-banner=participate]{--home-promo-zoom:1.30;--home-promo-origin:80% 50%;--home-promo-position:right 64%}
+  #home-release.home-promo-carousel [data-home-banner=studio]{--home-promo-zoom:1.34;--home-promo-origin:60% 50%;--home-promo-position:right 70%}
+  #home-release.home-promo-carousel [data-home-banner=participate]{--home-promo-zoom:1.38;--home-promo-origin:80% 50%;--home-promo-position:right 72%}
+  #home-release.home-promo-carousel [data-home-banner=play]{--home-promo-zoom:1.08;--home-promo-origin:75% 50%;--home-promo-position:right 40%}
+  #home-release.home-promo-carousel [data-home-banner=artists]{--home-promo-zoom:1.08;--home-promo-origin:70% 50%;--home-promo-position:right 37%}
+  #home-release.home-promo-carousel [data-home-banner=karaoke]{--home-promo-zoom:1.08;--home-promo-origin:75% 50%;--home-promo-position:right 48%}
+  #home-release.home-promo-carousel [data-home-banner=talking]{--home-promo-zoom:1.07;--home-promo-origin:60% 50%;--home-promo-position:right 48%}
+  #home-release.home-promo-carousel [data-home-banner=premium]{--home-promo-zoom:1.08;--home-promo-origin:70% 50%;--home-promo-position:right 45%}
  }
  @container(min-width:1101px){
-  #home-release.home-promo-carousel [data-home-banner=studio]{--home-promo-zoom:1.16}
-  #home-release.home-promo-carousel [data-home-banner=participate]{--home-promo-zoom:1.18}
+  #home-release.home-promo-carousel [data-home-banner=studio]{--home-promo-zoom:1.23;--home-promo-position:right 68%}
+  #home-release.home-promo-carousel [data-home-banner=participate]{--home-promo-zoom:1.25;--home-promo-position:right 70%}
+  #home-release.home-promo-carousel [data-home-banner=play]{--home-promo-zoom:1.07;--home-promo-position:right 37%}
+  #home-release.home-promo-carousel [data-home-banner=artists]{--home-promo-zoom:1.07;--home-promo-position:right 35%}
+  #home-release.home-promo-carousel [data-home-banner=karaoke]{--home-promo-zoom:1.07;--home-promo-position:right 46%}
+  #home-release.home-promo-carousel [data-home-banner=talking]{--home-promo-zoom:1.06;--home-promo-position:right 51%}
+  #home-release.home-promo-carousel [data-home-banner=premium]{--home-promo-zoom:1.06}
  }
  @container(min-width:1241px){
-  #home-release.home-promo-carousel [data-home-banner=studio]{--home-promo-zoom:1.06}
-  #home-release.home-promo-carousel [data-home-banner=participate]{--home-promo-zoom:1.10}
+  #home-release.home-promo-carousel [data-home-banner=studio]{--home-promo-zoom:1.12;--home-promo-position:right 67%}
+  #home-release.home-promo-carousel [data-home-banner=participate]{--home-promo-zoom:1.16;--home-promo-position:right 68%}
+  #home-release.home-promo-carousel [data-home-banner=play]{--home-promo-zoom:1.06;--home-promo-position:right 35%}
+  #home-release.home-promo-carousel [data-home-banner=artists]{--home-promo-zoom:1.06;--home-promo-position:right 34%}
+  #home-release.home-promo-carousel [data-home-banner=karaoke]{--home-promo-zoom:1.06;--home-promo-position:right 44%}
+  #home-release.home-promo-carousel [data-home-banner=talking]{--home-promo-zoom:1.05;--home-promo-position:right 53%}
+  #home-release.home-promo-carousel [data-home-banner=premium]{--home-promo-zoom:1.04}
  }
 }
 .home-participation-options{display:grid;gap:12px;margin-top:20px}
@@ -56,6 +73,8 @@
 }
 @container(min-width:541px) and (max-width:650px){
  #home-release.home-promo-carousel .home-promo-copy{width:40%;padding-left:54px}
+ #home-release.home-promo-carousel .home-promo-link{--home-promo-shade-solid:15%;--home-promo-shade-end:48%}
+ #home-release.home-promo-carousel [data-home-banner=talking]{--home-promo-shade-end:40%}
 }
 @container(max-width:540px){
  #home-release.home-promo-carousel .home-promo-copy{padding-left:48px;gap:8px}
@@ -65,10 +84,23 @@
 @media(max-width:800px){
  #home-release.home-promo-carousel .home-feature{display:grid;grid-template-rows:auto 44px;height:auto;background:transparent}
  #home-release.home-promo-carousel .home-feature-stage{grid-row:1;height:auto}
- #home-release.home-promo-carousel .home-promo-link{height:auto;background:transparent}
+ #home-release.home-promo-carousel .home-promo-link{height:auto;background:transparent;--home-promo-shade-solid:20%;--home-promo-shade-end:58%}
  #home-release.home-promo-carousel .home-promo-picture{height:auto}
  #home-release.home-promo-carousel .home-promo-original{height:auto;aspect-ratio:2/1;object-fit:contain}
- #home-release.home-promo-carousel .home-promo-desktop,#home-release.home-promo-carousel .home-feature-arrow{display:none}
+ #home-release.home-promo-carousel .home-promo-link::before{backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+ #home-release.home-promo-carousel .home-feature-arrow{display:none}
+ #home-release.home-promo-carousel .home-promo-copy{display:block;width:100%;height:100%;padding:0}
+ #home-release.home-promo-carousel .home-promo-headline{position:absolute;top:var(--home-promo-mobile-head-top,21%);left:5%;font-size:var(--home-promo-mobile-title-size,4.4cqi);line-height:1.32;letter-spacing:-.04em;white-space:nowrap;overflow-wrap:normal;word-break:normal}
+ #home-release.home-promo-carousel .home-promo-headline>span+span{font-size:var(--home-promo-mobile-second-size,1em)}
+ #home-release.home-promo-carousel .home-promo-cta{position:absolute;top:var(--home-promo-mobile-cta-top,56%);left:5%;min-height:clamp(28px,6.2cqi,47px);padding:5px clamp(10px,3cqi,23px);gap:clamp(7px,2cqi,15px);font-size:clamp(11px,3.1cqi,24px);line-height:1.35}
+ #home-release.home-promo-carousel .home-promo-cta svg{width:clamp(14px,3.7cqi,28px);height:clamp(14px,3.7cqi,28px)}
+ #home-release.home-promo-carousel [data-home-banner=studio]{--home-promo-mobile-head-top:16%;--home-promo-mobile-cta-top:52%}
+ #home-release.home-promo-carousel [data-home-banner=play]{--home-promo-mobile-head-top:23%;--home-promo-mobile-second-size:.86em;--home-promo-mobile-cta-top:55%}
+ #home-release.home-promo-carousel [data-home-banner=participate]{--home-promo-mobile-head-top:25%;--home-promo-mobile-cta-top:59%;--home-promo-shade-end:49%}
+ #home-release.home-promo-carousel [data-home-banner=artists]{--home-promo-mobile-head-top:24%;--home-promo-mobile-second-size:.94em;--home-promo-mobile-cta-top:59%}
+ #home-release.home-promo-carousel [data-home-banner=karaoke]{--home-promo-mobile-head-top:23%;--home-promo-mobile-second-size:.9em;--home-promo-mobile-cta-top:55%;--home-promo-shade-end:51%}
+ #home-release.home-promo-carousel [data-home-banner=talking]{--home-promo-mobile-head-top:17%;--home-promo-mobile-title-size:4.1cqi;--home-promo-mobile-second-size:.88em;--home-promo-mobile-cta-top:52%;--home-promo-shade-solid:15%;--home-promo-shade-end:41%}
+ #home-release.home-promo-carousel [data-home-banner=premium]{--home-promo-mobile-head-top:18%;--home-promo-mobile-cta-top:52%;--home-promo-shade-end:51%}
  #home-release.home-promo-carousel .home-feature-pagination{position:static;grid-row:2;transform:none;width:100%;min-width:0}
  #home-release.home-promo-carousel .home-feature-autoplay{width:44px;flex:0 0 44px}
  #home-release.home-promo-carousel .home-feature-dots{display:flex;flex:0 1 308px;min-width:0}

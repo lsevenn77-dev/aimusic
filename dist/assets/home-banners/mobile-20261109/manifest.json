@@ -1,0 +1,268 @@
+{
+  "schema_version": 3,
+  "asset_set": "aifect-home-mobile-clean-20261109",
+  "created_at_utc": "2026-11-09T02:14:55.193267+00:00",
+  "purpose": "Clean approved 2:1 mobile photographs for live HTML headline and flat chevron CTA; localized dark blur is CSS only.",
+  "generation": {
+    "mode": "built-in image_gen",
+    "edit": "Remove baked headline and CTA only",
+    "reference_set": "final-20261108",
+    "originals_retained": true
+  },
+  "encoding": {
+    "software": "Pillow",
+    "software_version": "13.0.0",
+    "libwebp_version": "1.6.0",
+    "format": "WEBP",
+    "mime_type": "image/webp",
+    "quality": 92,
+    "method": 6,
+    "resize_filter": "LANCZOS",
+    "crop": false,
+    "color_adjustments": false,
+    "target_widths": [
+      1536,
+      768
+    ]
+  },
+  "banners": [
+    {
+      "id": "studio",
+      "label": "스튜디오",
+      "headline": "스튜디오에서 내 제작곡을 올려보세요",
+      "reference": "/assets/home-banners/final-20261108/studio-1536.webp",
+      "source": {
+        "filename": "exec-9b180bfa-a2ed-4211-a9f0-df0d88cdb287.png",
+        "sha256": "d722efe4a012d13843acb6efd54100112b5c7c31b847da70e3a95fb93516cf4d",
+        "width": 1774,
+        "height": 887
+      },
+      "outputs": [
+        {
+          "filename": "studio-1536.webp",
+          "url": "/assets/home-banners/mobile-20261109/studio-1536.webp",
+          "sha256": "53418b74229d18a560119352a28ace399ae256e5797b7f8f10e5dbdc896e32a2",
+          "bytes": 147000,
+          "width": 1536,
+          "height": 768,
+          "format": "WEBP",
+          "mime_type": "image/webp"
+        },
+        {
+          "filename": "studio-768.webp",
+          "url": "/assets/home-banners/mobile-20261109/studio-768.webp",
+          "sha256": "8da1fcab535df946caa1a0869e7f0ba0f0df080f4819be67fa7154f3c8dd42c1",
+          "bytes": 57556,
+          "width": 768,
+          "height": 384,
+          "format": "WEBP",
+          "mime_type": "image/webp"
+        }
+      ]
+    },
+    {
+      "id": "play",
+      "label": "플레이",
+      "headline": "플레이에서 마음에드는 노래를 불러보세요",
+      "reference": "/assets/home-banners/final-20261108/play-1536.webp",
+      "source": {
+        "filename": "exec-511b73d9-cf5a-41f8-8a70-405245906af5.png",
+        "sha256": "0644e90e831c5ccf7901a73e421517fb81790446373379c059ccd6fa58fc06c1",
+        "width": 1774,
+        "height": 887
+      },
+      "outputs": [
+        {
+          "filename": "play-1536.webp",
+          "url": "/assets/home-banners/mobile-20261109/play-1536.webp",
+          "sha256": "b37c0c37e734a31d79407243871f5ba490ceb1546334e32f5c285330176fa162",
+          "bytes": 116056,
+          "width": 1536,
+          "height": 768,
+          "format": "WEBP",
+          "mime_type": "image/webp"
+        },
+        {
+          "filename": "play-768.webp",
+          "url": "/assets/home-banners/mobile-20261109/play-768.webp",
+          "sha256": "b3a2e4556cbe9c29c013c4aaf545e9d4cc9fca14ce264d0cce7c7afa94986280",
+          "bytes": 45152,
+          "width": 768,
+          "height": 384,
+          "format": "WEBP",
+          "mime_type": "image/webp"
+        }
+      ]
+    },
+    {
+      "id": "participate",
+      "label": "참여",
+      "headline": "듀엣·더빙으로 함께 작품을 완성해보세요",
+      "reference": "/assets/home-banners/final-20261108/participate-1536.webp",
+      "source": {
+        "filename": "exec-3fa45210-22eb-484a-8556-5ce782c16f1e.png",
+        "sha256": "08d3a0c2d20674118fa492f922baa98bd44bb3ea6d662bf1796fd9bdac5a33fc",
+        "width": 1774,
+        "height": 887
+      },
+      "outputs": [
+        {
+          "filename": "participate-1536.webp",
+          "url": "/assets/home-banners/mobile-20261109/participate-1536.webp",
+          "sha256": "83f5ea9c45f9ce8163834ed49e09eb2793ff40ff45cbc9cabf9b1edac417b8d0",
+          "bytes": 169218,
+          "width": 1536,
+          "height": 768,
+          "format": "WEBP",
+          "mime_type": "image/webp"
+        },
+        {
+          "filename": "participate-768.webp",
+          "url": "/assets/home-banners/mobile-20261109/participate-768.webp",
+          "sha256": "07d5be2e14ef5da6e7d94bc1bab4778ccd01d7dda25f7ca3dca348ed0bd77619",
+          "bytes": 59750,
+          "width": 768,
+          "height": 384,
+          "format": "WEBP",
+          "mime_type": "image/webp"
+        }
+      ]
+    },
+    {
+      "id": "artists",
+      "label": "AI 아티스트",
+      "headline": "AI 아티스트를 팔로우하고 응원해보세요",
+      "reference": "/assets/home-banners/final-20261108/artists-1536.webp",
+      "source": {
+        "filename": "exec-2658af7c-4619-4bce-bbbe-d95f7996744c.png",
+        "sha256": "0b368df1d5dff120166441e9232358c8c948750614fce7779fc5dc9efb9937bf",
+        "width": 1774,
+        "height": 887
+      },
+      "outputs": [
+        {
+          "filename": "artists-1536.webp",
+          "url": "/assets/home-banners/mobile-20261109/artists-1536.webp",
+          "sha256": "2b949b594fa62a5fd29d587bca5c0aa07e3649867fac76114af1a056fe84ac0d",
+          "bytes": 174920,
+          "width": 1536,
+          "height": 768,
+          "format": "WEBP",
+          "mime_type": "image/webp"
+        },
+        {
+          "filename": "artists-768.webp",
+          "url": "/assets/home-banners/mobile-20261109/artists-768.webp",
+          "sha256": "dde5d709adceb2fd036a887d45bf21d19927d9268fac7eef1a6112c0f1f9b1d3",
+          "bytes": 61834,
+          "width": 768,
+          "height": 384,
+          "format": "WEBP",
+          "mime_type": "image/webp"
+        }
+      ]
+    },
+    {
+      "id": "karaoke",
+      "label": "노래방",
+      "headline": "노래방에서 사람들과 함께 노래해보세요",
+      "reference": "/assets/home-banners/final-20261108/karaoke-1536.webp",
+      "source": {
+        "filename": "exec-cb00aee8-b611-4d37-a100-df74dee0a4dc.png",
+        "sha256": "cd9778650a21a76c7ac963e4f6966f9dfbec064536e67279e401e5074dd62434",
+        "width": 1774,
+        "height": 887
+      },
+      "outputs": [
+        {
+          "filename": "karaoke-1536.webp",
+          "url": "/assets/home-banners/mobile-20261109/karaoke-1536.webp",
+          "sha256": "f7fe983124f55d981e0b9e95b55510536d3ce21612ca7f954558e999f7a3e387",
+          "bytes": 153684,
+          "width": 1536,
+          "height": 768,
+          "format": "WEBP",
+          "mime_type": "image/webp"
+        },
+        {
+          "filename": "karaoke-768.webp",
+          "url": "/assets/home-banners/mobile-20261109/karaoke-768.webp",
+          "sha256": "5d49266c2dcf67a32277cffe1915b1d22a70b651b51617cb88cf7b541bc65831",
+          "bytes": 60198,
+          "width": 768,
+          "height": 384,
+          "format": "WEBP",
+          "mime_type": "image/webp"
+        }
+      ]
+    },
+    {
+      "id": "talking",
+      "label": "토킹룸",
+      "headline": "토킹룸에서 편하게 이야기해보세요",
+      "reference": "/assets/home-banners/final-20261108/talking-1536.webp",
+      "source": {
+        "filename": "exec-d7c7f7af-fa48-455d-bcc0-4909920c341f.png",
+        "sha256": "3afec2262ae3f92b7da18d374428727916dec6f797cdbbfac387147f4f495789",
+        "width": 1774,
+        "height": 887
+      },
+      "outputs": [
+        {
+          "filename": "talking-1536.webp",
+          "url": "/assets/home-banners/mobile-20261109/talking-1536.webp",
+          "sha256": "6e3e3884274287ec347226d2fd8735b42b875aff997cdea496cd4757f3db0504",
+          "bytes": 191944,
+          "width": 1536,
+          "height": 768,
+          "format": "WEBP",
+          "mime_type": "image/webp"
+        },
+        {
+          "filename": "talking-768.webp",
+          "url": "/assets/home-banners/mobile-20261109/talking-768.webp",
+          "sha256": "d27c765b4ea51e8aae05b4cb84b732a6301c8e13c019ae7e6d979e7207c5b578",
+          "bytes": 66266,
+          "width": 768,
+          "height": 384,
+          "format": "WEBP",
+          "mime_type": "image/webp"
+        }
+      ]
+    },
+    {
+      "id": "premium",
+      "label": "프리미엄",
+      "headline": "프리미엄으로 제작곡을 더 많이 올려보세요",
+      "reference": "/assets/home-banners/final-20261108/premium-1536.webp",
+      "source": {
+        "filename": "exec-920b458d-ebd6-4c7c-97b0-ba2433185918.png",
+        "sha256": "823ed753dbb7a3b9514092b532afb40624736e517ffba12512240ed72d3e0cc5",
+        "width": 1774,
+        "height": 887
+      },
+      "outputs": [
+        {
+          "filename": "premium-1536.webp",
+          "url": "/assets/home-banners/mobile-20261109/premium-1536.webp",
+          "sha256": "990c78716f33069c6619fadf69406966f48d660159d3066eb98d1a28517d55be",
+          "bytes": 186530,
+          "width": 1536,
+          "height": 768,
+          "format": "WEBP",
+          "mime_type": "image/webp"
+        },
+        {
+          "filename": "premium-768.webp",
+          "url": "/assets/home-banners/mobile-20261109/premium-768.webp",
+          "sha256": "cd9c3edaf4999c8fb23010223bf18d0325b413561cc2ed4137d7303334a929eb",
+          "bytes": 66856,
+          "width": 768,
+          "height": 384,
+          "format": "WEBP",
+          "mime_type": "image/webp"
+        }
+      ]
+    }
+  ]
+}
