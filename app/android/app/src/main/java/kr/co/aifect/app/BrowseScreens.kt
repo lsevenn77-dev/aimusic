@@ -96,6 +96,7 @@ private val PagePadding=PaddingValues(start=14.dp,end=14.dp,bottom=24.dp)
       if(m.singable.isNotEmpty())item{Section("이번엔 내 목소리로",action="부르기",onAction={m.selectTab(2)});m.singable.take(3).forEach{StreamingSongRow(it,m,m.singable,sing);Spacer(Modifier.height(6.dp))}}
       if(m.recentCovers.isNotEmpty())item{Section("같은 노래, 다른 목소리",action="더보기",onAction={m.browseCollection("커버곡 둘러보기","/api/community?kind=cover")});SongShelf(m.recentCovers.take(10),m)}
       if(m.publicLists.any{it.optInt("tracks")>0})item{Section("취향을 나누는 플레이리스트");PlaylistShelf(m.publicLists.filter{it.optInt("tracks")>0}.take(10),m)}
+      if(m.aiArtists.isNotEmpty())item(key="home-ai-artists"){Section("지금 뜨는 AI 아티스트",action="더보기",onAction={m.directoryKind="artists";m.selectTab(8)});HomeArtistShelf(m.aiArtists.take(12),m)}
       if(m.people.isNotEmpty())item{Section("음악 뒤의 사람들");LazyRow(Modifier.testTag("home-people-shelf"),horizontalArrangement=Arrangement.spacedBy(12.dp)){items(m.people.take(12),key={it.getString("id")}){PersonCard(it,m)}}}
      }else{
       item{Section("새롭게 도착한 음악","최근 공개된 제작곡을 차례로 들어보세요");PlayButtons(m.latest,m)}
@@ -345,6 +346,21 @@ private fun homeCount(value:Int):String {
    Row(Modifier.fillMaxWidth().padding(top=4.dp),verticalAlignment=Alignment.CenterVertically){
     Text(song.credit,fontSize=12.sp,lineHeight=17.sp,color=Muted,modifier=Modifier.weight(1f))
     IconButton(onClick={m.play(song,queue)}){Icon(Icons.Rounded.PlayCircle,"${song.title} 재생",tint=Pink,modifier=Modifier.size(24.dp))}
+   }
+  }
+ }
+}
+/** Round AI artist portraits with their names, as on the web home. */
+@Composable internal fun HomeArtistShelf(artists:List<JSONObject>,m:MusicModel){
+ LazyRow(Modifier.testTag("home-ai-artist-shelf"),horizontalArrangement=Arrangement.spacedBy(14.dp)){
+  items(artists,key={"artist-"+it.optString("id")}){a->
+   Column(Modifier.width(84.dp).clip(RoundedCornerShape(14.dp)).clickable(onClickLabel="${a.optString("name")} 아티스트 페이지"){m.openProfile(a.optString("id"),"artist")}.padding(vertical=4.dp).testTag("home-ai-artist-${a.optString("id")}"),horizontalAlignment=Alignment.CenterHorizontally){
+    Box(Modifier.size(74.dp).clip(CircleShape).background(Raised).border(1.dp,Stroke,CircleShape)){
+     DefaultProfileArtwork(a.optString("name"),Modifier.fillMaxSize())
+     val version=a.optString("image_version")
+     if(version.isNotBlank()&&version!="0"&&version!="null")AsyncImage(Endpoint.url("/media/artist/${a.optString("id")}?v=$version"),"${a.optString("name")} 아티스트 사진",Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
+    }
+    Text(a.optString("name"),Modifier.padding(top=8.dp),fontSize=13.sp,lineHeight=17.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis,textAlign=androidx.compose.ui.text.style.TextAlign.Center)
    }
   }
  }

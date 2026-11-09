@@ -130,6 +130,8 @@ class MusicModel(app:Application):AndroidViewModel(app) {
  private var feedRequest=0L
  var publicLists by mutableStateOf<List<JSONObject>>(emptyList())
  var people by mutableStateOf<List<JSONObject>>(emptyList())
+ /** 지금 뜨는 AI 아티스트 on the home screen, the same list the web home shows. */
+ var aiArtists by mutableStateOf<List<JSONObject>>(emptyList())
  var search by mutableStateOf("")
  var searchResults by mutableStateOf<List<Song>>(emptyList())
  var searchPeople by mutableStateOf<List<JSONObject>>(emptyList())
@@ -452,7 +454,8 @@ class MusicModel(app:Application):AndroidViewModel(app) {
       async{update("/api/karaoke"){singable=it.tracks()}},
       async{val path=communityPath(feedFilter);update(path){if(communityPath(feedFilter)==path){feed=it.tracks();displayedFeedPath=path}}},
       async{update("/api/playlists?sort=popular"){publicLists=it.optJSONArray("playlists").objects()}},
-      async{update("/api/catalog?section=producers&limit=20"){people=it.optJSONArray("producers").objects()}}
+      async{update("/api/catalog?section=producers&limit=20"){people=it.optJSONArray("producers").objects()}},
+      async{update("/api/discovery/profiles?kind=artist&sort=popular"){aiArtists=it.optJSONArray("profiles").objects()}}
      ).awaitAll()
     }
    }finally{loading=false;refreshing=false}
@@ -479,6 +482,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   api.peek("/api/duets")?.let{duetInvitations=it.tracks()}
   api.peek("/api/playlists?sort=popular")?.let{publicLists=it.optJSONArray("playlists").objects()}
   api.peek("/api/catalog?section=producers&limit=20")?.let{people=it.optJSONArray("producers").objects()}
+  api.peek("/api/discovery/profiles?kind=artist&sort=popular")?.let{aiArtists=it.optJSONArray("profiles").objects()}
  }
  suspend fun loadMe(loadPrivate:Boolean=true,loadGallery:Boolean=true){
   val generation=accountGeneration
@@ -721,7 +725,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
  fun checkNickname(name:String)=action {try{val result=api.call("/api/account/nickname?name="+java.net.URLEncoder.encode(name,"UTF-8"));nicknameCheck=if(result.optBoolean("available"))"사용할 수 있는 아이디입니다." else result.optString("message")}catch(e:Exception){if(e is CancellationException)throw e;accountError=e.message}}
  fun saveNickname(name:String)=action {accountError=null;try{api.call("/api/account/nickname","PUT",payload("name" to name));loadMe();loadOwnProfile(fresh=true);nicknameCheck="아이디를 변경했습니다.";notice="아이디를 변경했어요."}catch(e:Exception){if(e is CancellationException)throw e;accountError=e.message}}
  fun changePassword(current:String,next:String,done:()->Unit)=action {accountError=null;try{api.call("/api/account/password","PUT",payload("current_password" to current,"new_password" to next));done();notice="비밀번호를 변경했어요. 다른 기기는 다시 로그인해주세요."}catch(e:Exception){if(e is CancellationException)throw e;accountError=e.message}}
- suspend fun onBlocked(account:String){accountGeneration++;api.invalidateReads();clearPrivateState(true);home=emptyList();latest=emptyList();singable=emptyList();recentCovers=emptyList();people=emptyList();publicLists=emptyList();duetInvitations=emptyList();NativeChatCache.clear(getApplication(),account);refresh()}
+ suspend fun onBlocked(account:String){accountGeneration++;api.invalidateReads();clearPrivateState(true);home=emptyList();latest=emptyList();singable=emptyList();recentCovers=emptyList();people=emptyList();aiArtists=emptyList();publicLists=emptyList();duetInvitations=emptyList();NativeChatCache.clear(getApplication(),account);refresh()}
  @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
  suspend fun clearLocalAccount(account:String?,oldCookie:String=NativeSession.cookie(getApplication())){
    NativeSession.clear(getApplication());api.clearGoogleBinding();api.invalidateReads();browserLoginPending=false;user=null;membership=JSONObject();closePlayer();showLogin=false;showAccount=false
