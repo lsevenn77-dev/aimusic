@@ -19,7 +19,9 @@ function activityRowHTML(n){
  const created=new Date(n.created*1000);
  const time=created.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',hourCycle:'h23',timeZone:'Asia/Seoul'});
  const unreadDot=n.read_at?'':'<i class="activity-dot" aria-label="읽지 않음"></i>';
- return `<${rowTag} data-list-row class="activity-row${n.read_at?'':' is-unread'}" data-activity-id="${esc(n.id)}" ${passive?'':`data-activity-open="${esc(n.id)}" href="${esc(destination)}"`} aria-label="${esc(n.actor_name)} · ${label}${passive?'':' · '+purpose}">
+ const textAction=gift?`${giftName||product?.name||'선물'} × ${number(n.quantity)}개를 보냈어요.`:action;
+ const rowTitle=[`${n.actor_name||''}${n.kind==='work_status'?' · ':'님이 '}${textAction}`,gift?`${number(n.amount)} ${n.currency==='gold'?'G':'S'} · ${giftSource}`:['artist_name','source_title','detail'].filter(k=>n[k]).map(k=>n[k]).join(' · '),`${label} · ${time}`].filter(Boolean).join('\n');
+ return `<${rowTag} data-list-row class="activity-row${n.read_at?'':' is-unread'}" data-activity-id="${esc(n.id)}" ${passive?'':`data-activity-open="${esc(n.id)}" href="${esc(destination)}"`} title="${esc(rowTitle)}" aria-label="${esc(rowTitle)}${passive?'':' · '+purpose}">
   <div class="activity-avatar">${unreadDot}<img src="${esc(avatar)}" alt="" loading="lazy"></div>
   <div class="activity-copy">
    <div class="activity-meta"><span>${label}</span><span aria-hidden="true">·</span><time datetime="${created.toISOString()}">${esc(time)}</time></div>
