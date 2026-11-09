@@ -143,7 +143,7 @@ function studioWorksHTML(d){
  const filters=[['all','전체'],['published','공개'],['hidden','비공개']];
  if(original)filters.push(['processing','처리 중']);
  const choices=[...filters,...['failed','removed'].filter(key=>status===key||tracks.some(t=>t.status===key)).map(key=>[key,studioStatusText[key]])];
- return `${original?studioQuotaCard():''}<div class="studio-glance" aria-label="${kind} 현황">${stats.map(([label,value,compact])=>`<div><span${compact?' class="studio-stat-label-full"':''}>${label}</span>${compact?`<span class="studio-stat-label-compact">${compact}</span>`:''}<strong>${number(value)}</strong></div>`).join('')}</div>
+ return `<div class="studio-glance" aria-label="${kind} 현황">${stats.map(([label,value,compact])=>`<div><span${compact?' class="studio-stat-label-full"':''}>${label}</span>${compact?`<span class="studio-stat-label-compact">${compact}</span>`:''}<strong>${number(value)}</strong></div>`).join('')}</div>
  <div class="studio-works-surface">
   <div class="studio-filters${studioManage.searchOpen?' is-search-open':''}">
    <div class="studio-filter-buttons" role="group" aria-label="작품 상태">${choices.map(([key,label])=>`<button type="button" class="studio-filter-button" data-studio-filter="${key}" aria-pressed="${key===status}">${label}</button>`).join('')}</div>
@@ -163,6 +163,7 @@ function studioManagerHTML(d){
  studioQuota.status='loading';studioQuota.membership=null;
  return `<section class="studio-manager" data-studio-root>
   <header class="studio-topbar"><div class="studio-heading"><span class="studio-heading-label" aria-hidden="true">AIFECT STUDIO</span><h1>스튜디오</h1><p class="studio-subtitle">내가 제작한 곡과 커버곡을 한곳에서 관리하세요.</p></div></header>
+  ${studioQuotaCard()}
   <nav class="studio-main-tabs aifect-main-tabs" role="tablist" aria-label="작품 종류">${Object.entries(studioKinds).map(([id,label],index)=>`<button type="button" role="tab" id="studio-tab-${id}" aria-controls="studio-works" data-studio-type="${id}" data-tab-tone="${['pink','mint','purple'][index]}" aria-selected="${studioManage.type===id}" tabindex="${studioManage.type===id?'0':'-1'}" class="studio-main-tab">${label}</button>`).join('')}</nav>
   <div id="studio-works" role="tabpanel" aria-labelledby="studio-tab-${studioManage.type}" data-studio-pane="works">${studioWorksHTML(d)}</div>
  </section>`;
