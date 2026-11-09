@@ -16,6 +16,12 @@ function fixture(api){
  return {context,input,button,log,nodes,events,inputEvents,form,panel,resize:()=>observers.forEach(fn=>fn())};
 }
 
+const settleChat=()=>new Promise(resolve=>setImmediate(resolve));
+function chatActionEvent(action,id){
+ const selector='[data-chat-'+action+']',button={dataset:{[action==='retry'?'chatRetry':'chatDiscard']:id}};
+ return {preventDefault(){},target:{closest:query=>query.split(',').some(part=>part.trim()===selector)?button:null}};
+}
+
 test('keyboard resizing keeps latest content visible while composing without stealing history browsing',()=>{
  const f=fixture(()=>new Promise(()=>{}));
  f.context.bindSocialChat({chat:{path:'/api/crews/crew/messages',crew:{id:'crew'}}});
@@ -108,15 +114,100 @@ test('room drafts survive navigation and remain isolated by account and room',()
 test('duplicate submit is blocked, failed content survives room changes, retry reuses its request id',async()=>{
  const calls=[];let reject,resolve;
  const f=fixture((path,method,body)=>{if(method==='POST'){calls.push(body);return new Promise((yes,no)=>{resolve=yes;reject=no;});}return new Promise(()=>{});});
+ f.context.icon=name=>'<svg data-test-icon="'+name+'" aria-hidden="true"></svg>';
  const view={chat:{path:'/api/crews/crew/messages',crew:{id:'crew'},initial:{messages:[]}}};f.context.bindSocialChat(view);
- f.input.value='전송 실패에도 보존';f.form.onsubmit({preventDefault(){}});f.input.value='다음 초안';f.form.onsubmit({preventDefault(){}});
+ const message='전송 실패에도 보존 🎵 '.repeat(24).trim();
+ f.input.value=message;f.form.onsubmit({preventDefault(){}});f.input.value='다음 초안';f.form.onsubmit({preventDefault(){}});
  assert.equal(calls.length,1);assert.equal(f.input.value,'다음 초안');
- reject(new Error('offline'));await new Promise(r=>setImmediate(r));assert.match(f.log.innerHTML,/전송 실패에도 보존/);assert.match(f.log.innerHTML,/다시 보내기/);
+ reject(new Error('offline'));await settleChat();assert.ok(f.log.innerHTML.includes(message));assert.match(f.log.innerHTML,/class="[^"]*\bis-failed\b/);
+ for(const [action,label,glyph] of [['retry','다시 보내기','restart'],['discard','전송 실패 메시지 삭제','trash']]){
+  const button=f.log.innerHTML.match(new RegExp('<button([^>]*data-chat-'+action+'="[^"]+"[^>]*)>([\\s\\S]*?)</button>'));
+  assert.ok(button,action+' action is present');assert.match(button[1],/type="button"/);
+  assert.ok(button[1].includes('aria-label="'+label+'"'));assert.ok(button[1].includes('title="'+label+'"'));
+  assert.ok(button[2].includes('data-test-icon="'+glyph+'"'));assert.equal(button[2].replace(/<[^>]*>/g,'').trim(),'','failure actions have no visible text');
+ }
  vm.runInContext('socialCleanup()',f.context);f.context.bindSocialChat(view);assert.match(f.log.innerHTML,/전송 실패에도 보존/);assert.equal(f.input.value,'다음 초안');
- f.events.click({target:{closest:()=>({dataset:{chatRetry:'pending:'+calls[0].request_id}})}});
+ f.events.click(chatActionEvent('retry','pending:'+calls[0].request_id));
  assert.equal(calls.length,2);assert.equal(calls[0].request_id,calls[1].request_id);
  resolve({message:{id:'saved',request_id:calls[0].request_id,body:calls[0].body,user_id:'user',sequence:1,created:1}});await new Promise(r=>setImmediate(r));
- assert.doesNotMatch(f.log.innerHTML,/다시 보내기/);assert.equal(f.input.value,'다음 초안');
+ assert.doesNotMatch(f.log.innerHTML,/data-chat-retry|data-chat-discard|\bis-failed\b/);assert.equal(f.input.value,'다음 초안');
+});
+
+test('discard removes only the failed local message across reentry without requests or draft loss',async()=>{
+ const calls=[];const f=fixture(async(path,method,body)=>{calls.push({path,method,body});if(method==='POST')throw new Error('offline');return {};});
+ const view={chat:{path:'/api/dm/friend',peer:{id:'friend'},initial:{messages:[]}}};f.context.bindSocialChat(view);
+ for(const body of ['첫 번째 실패 🎵','두 번째 실패']){f.input.value=body;f.form.onsubmit({preventDefault(){}});await settleChat();}
+ f.input.value='작성 중인 별도 초안';f.inputEvents.input();
+ const first='pending:'+calls[0].body.request_id,second='pending:'+calls[1].body.request_id,before=calls.length;
+ f.events.click(chatActionEvent('discard',first));
+ assert.doesNotMatch(f.log.innerHTML,/첫 번째 실패/);assert.match(f.log.innerHTML,/두 번째 실패/);
+ assert.equal(f.nodes['#chat-error'].textContent,'offline');assert.equal(f.input.value,'작성 중인 별도 초안');assert.equal(f.button.disabled,false);assert.equal(calls.length,before);
+ vm.runInContext('socialCleanup()',f.context);f.context.renderId++;f.context.bindSocialChat(view);
+ assert.doesNotMatch(f.log.innerHTML,/첫 번째 실패/);assert.match(f.log.innerHTML,/두 번째 실패/);assert.equal(f.input.value,'작성 중인 별도 초안');
+ f.events.click(chatActionEvent('discard',second));
+ assert.doesNotMatch(f.log.innerHTML,/두 번째 실패|data-chat-retry|data-chat-discard/);assert.equal(f.nodes['#chat-error'].textContent,'');assert.equal(f.button.disabled,false);
+ vm.runInContext('socialCleanup()',f.context);f.context.renderId++;f.context.bindSocialChat(view);
+ assert.doesNotMatch(f.log.innerHTML,/첫 번째 실패|두 번째 실패/);assert.equal(f.input.value,'작성 중인 별도 초안');assert.equal(calls.length,before);
+});
+
+test('discard cannot remove an in-flight retry or a confirmed server message',async()=>{
+ const calls=[];let release;
+ const f=fixture((path,method,body)=>{calls.push({path,method,body});if(method==='POST')return calls.length===1?Promise.reject(new Error('offline')):new Promise(resolve=>release=resolve);return Promise.resolve({});});
+ f.context.bindSocialChat({chat:{path:'/api/dm/friend',peer:{id:'friend'},initial:{messages:[]}}});
+ f.input.value='재시도 중 보존';f.form.onsubmit({preventDefault(){}});await settleChat();
+ const id='pending:'+calls[0].body.request_id;
+ f.events.click(chatActionEvent('retry',id));assert.equal(calls.length,2);assert.equal(calls[1].body.request_id,calls[0].body.request_id);
+ f.events.click(chatActionEvent('discard',id));
+ assert.match(f.log.innerHTML,/재시도 중 보존/);assert.match(f.log.innerHTML,/전송 중/);assert.ok(f.log.innerHTML.includes('data-message="'+id+'"'));assert.equal(f.button.disabled,true);assert.equal(calls.length,2);
+ release({message:{id:'saved',request_id:calls[0].body.request_id,body:'재시도 중 보존',sender_id:'user',sequence:1,created:1}});await settleChat();
+ assert.equal((f.log.innerHTML.match(/data-message="saved"/g)||[]).length,1);assert.doesNotMatch(f.log.innerHTML,/data-message="pending:|data-chat-retry|data-chat-discard/);assert.equal(f.button.disabled,false);
+ const saved=f.log.innerHTML;
+ for(const staleId of [id,'saved','pending:missing']){f.events.click(chatActionEvent('discard',staleId));f.events.click(chatActionEvent('retry',staleId));}
+ assert.equal(f.log.innerHTML,saved);assert.equal(calls.length,2);
+});
+
+test('discarding failed content preserves an existing access error and disabled composer',async()=>{
+ const calls=[];const f=fixture(async(path,method,body)=>{calls.push({path,method,body});throw Object.assign(new Error('access revoked'),{status:403});});
+ f.context.bindSocialChat({chat:{path:'/api/dm/friend',peer:{id:'friend'},initial:{messages:[]}}});
+ f.input.value='권한 실패 메시지';f.form.onsubmit({preventDefault(){}});await settleChat();
+ const error=f.nodes['#chat-error'].textContent;assert.match(error,/로그인/);assert.equal(f.button.disabled,true);
+ f.events.click(chatActionEvent('discard','pending:'+calls[0].body.request_id));
+ assert.doesNotMatch(f.log.innerHTML,/권한 실패 메시지/);assert.equal(f.nodes['#chat-error'].textContent,error);assert.equal(f.button.disabled,true);assert.equal(f.input.disabled,true);assert.equal(calls.length,1);
+});
+
+test('stale route and account action handlers cannot discard or resend failed content',async t=>{
+ for(const changed of ['route','account'])await t.test(changed,async()=>{
+  const calls=[];const f=fixture(async(path,method,body)=>{calls.push({path,method,body});if(method==='POST')throw new Error('offline');return {};});
+  const view={chat:{path:'/api/dm/friend',peer:{id:'friend'},initial:{messages:[]}}};f.context.bindSocialChat(view);
+  f.input.value='이전 화면 실패 메시지';f.form.onsubmit({preventDefault(){}});await settleChat();
+  const oldClick=f.events.click,id='pending:'+calls[0].body.request_id,html=f.log.innerHTML;
+  vm.runInContext('socialCleanup()',f.context);
+  if(changed==='route')f.context.renderId++;else f.context.me={id:'different',name:'Different'};
+  oldClick(chatActionEvent('discard',id));oldClick(chatActionEvent('retry',id));
+  assert.equal(f.log.innerHTML,html);assert.equal(calls.length,1);
+  f.context.bindSocialChat(view);
+  if(changed==='route')assert.match(f.log.innerHTML,/이전 화면 실패 메시지/);else assert.doesNotMatch(f.log.innerHTML,/이전 화면 실패 메시지/);
+  const current=f.log.innerHTML;oldClick(chatActionEvent('discard',id));oldClick(chatActionEvent('retry',id));
+  assert.equal(f.log.innerHTML,current);assert.equal(calls.length,1);
+ });
+});
+
+test('a later server confirmation remains visible after the failed local copy is discarded',async()=>{
+ const calls=[];let changed,request;
+ const f=fixture(async(path,method,body)=>{
+  calls.push({path,method,body});
+  if(method==='POST'){request=body;throw new Error('response lost');}
+  if(method==='PATCH')return {};
+  return {messages:[{id:'confirmed',request_id:request.request_id,body:request.body,sender_id:'user',sequence:1,created:1}],has_more:false};
+ });
+ f.context.watchSocialChat=(query,onChange)=>{changed=onChange;return ()=>{};};
+ f.context.bindSocialChat({chat:{path:'/api/dm/friend',peer:{id:'friend'},initial:{messages:[]}}});
+ f.input.value='서버에서 늦게 확인한 메시지 🎵';f.form.onsubmit({preventDefault(){}});await settleChat();
+ f.events.click(chatActionEvent('discard','pending:'+request.request_id));
+ assert.doesNotMatch(f.log.innerHTML,/서버에서 늦게 확인한 메시지/);assert.equal(calls.length,1);
+ changed();await settleChat();
+ assert.match(f.log.innerHTML,/서버에서 늦게 확인한 메시지 🎵/);assert.equal((f.log.innerHTML.match(/data-message="confirmed"/g)||[]).length,1);
+ assert.doesNotMatch(f.log.innerHTML,/data-message="pending:|data-chat-retry|data-chat-discard|\bis-failed\b/);assert.equal(calls.filter(call=>call.method==='DELETE').length,0);
 });
 
 test('late history from a departed room cannot paint or acknowledge the next room',async()=>{
