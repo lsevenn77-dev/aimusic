@@ -1,10 +1,10 @@
 /* Shop-only layout. Preserve the common shell and all other page atmospheres. */
 .page-wrap:has(>main>.shop-page){background:var(--ds-bg)}
 .page-wrap:has(>main>.shop-page)::before,main:has(>.shop-page)::before{display:none}
-#main:has(>.shop-page){--main-frame-gutter:20px;--main-frame-top:10px;padding-bottom:32px;background:transparent;box-shadow:none}
+#main:has(>.shop-page){padding-bottom:32px;background:transparent;box-shadow:none}
 .shop-page{--ui-space-scale:1;--ui-type-scale:1;--ui-icon-scale:1;--ui-control-height:44px;--shop-outline:#8f7da888;--shop-purple:linear-gradient(180deg,#b45ce8,#8434c7);width:100%;min-width:0;container-type:inline-size;color:var(--ds-text);font-size:var(--pc-font-body,15px)}
-/* Match the Play frame from main-layout.css without narrowing the product grid. */
-.shop-page .shop-banner{--shop-play-gutter:47.25px;--shop-play-top:24.75px;min-width:0;border:0;border-radius:0;margin:calc(var(--shop-play-top) - var(--main-frame-top)) calc(var(--shop-play-gutter) - var(--main-frame-gutter)) 0;background:#17132b}
+/* The banner and products share the common page frame from main-layout.css. */
+.shop-page .shop-banner{min-width:0;border:0;border-radius:0;margin:0;background:#17132b}
 .shop-page .shop-banner .home-feature{container:shop-banner-frame / size}
 .shop-page .shop-banner .shop-banner-link{--shop-banner-accent:var(--ds-selected);display:flex;align-items:center;padding:12px max(68px,7cqi) 40px;background:linear-gradient(112deg,var(--ds-panel),color-mix(in srgb,var(--shop-banner-accent) 12%,var(--ds-bg)));color:var(--ds-text);text-decoration:none}
 .shop-page .shop-banner .shop-banner-link:focus-visible{outline-offset:-3px}
@@ -26,13 +26,11 @@
 .shop-page [data-shop-banner=themes] .shop-banner-gallery img{aspect-ratio:1;border-radius:var(--ds-radius-card,16px);object-fit:cover}
 .shop-page .shop-banner .home-feature-pagination{--feature-step:32px}
 .shop-page .shop-banner .home-feature-dots button::after{opacity:.9}
-@media(min-width:1300px){.shop-page .shop-banner{--shop-play-gutter:51.75px}}
-@media(max-width:1150px){.shop-page .shop-banner{--shop-play-gutter:31.5px;--shop-play-top:22.5px}}
 @container shop-banner-frame (max-width:790px){.shop-page .shop-banner .shop-banner-link{padding-left:64px}.shop-page .shop-banner-title{font-size:26px}.shop-page .shop-banner-description{font-size:14px}}
 @container shop-banner-frame (max-width:690px){.shop-page .shop-banner .shop-banner-link{padding-left:4.5cqi}.shop-page .shop-banner-copy{max-width:44cqi}.shop-page .shop-banner-title{font-size:22px}.shop-page .shop-banner-gallery{right:3cqi;width:45cqi}.shop-page .shop-banner .home-feature-arrow{top:auto;bottom:0}}
 @container shop-banner-frame (max-height:180px){.shop-page .shop-banner .shop-banner-link{padding-block:5px 30px}.shop-page .shop-banner-title{font-size:20px;margin-top:3px}.shop-page .shop-banner-description{font-size:12px;margin-top:5px}.shop-page .shop-banner-cta{min-height:24px;margin-top:2px;font-size:12px}}
 @media(max-width:800px){
- .shop-page .shop-banner{--shop-play-gutter:0px;--shop-play-top:0px}
+ .shop-page .shop-banner{margin-inline:calc(-1 * var(--main-frame-gutter,20px))}
  .shop-page .shop-banner .shop-banner-link{padding:10px 5cqi 32px}
  .shop-page .shop-banner-intro-art{left:34%}
  .shop-page .shop-banner-intro-art img{object-fit:cover;object-position:left center;mask-image:linear-gradient(90deg,transparent,#000 32%)}
@@ -99,7 +97,7 @@
 @media(min-width:1280px){.shop-page .shop-products{grid-template-columns:repeat(8,minmax(0,1fr))}}
 @media(min-width:768px) and (max-width:1000px){.shop-page .shop-products{grid-template-columns:repeat(5,minmax(0,1fr))}}
 @media(min-width:768px) and (max-width:1279px){.shop-page .shop-heading{flex-wrap:wrap}.shop-page .shop-balances{margin-left:auto}.shop-page .shop-actions a{padding-inline:9px}.shop-page .shop-toolbar{gap:14px}}
-@media(max-width:800px){#main:has(>.shop-page){--main-frame-gutter:12px;--main-frame-top:10px;padding-bottom:calc(24px + env(safe-area-inset-bottom))}}
+@media(max-width:800px){#main:has(>.shop-page){--main-frame-top:0px;padding-bottom:calc(24px + env(safe-area-inset-bottom))}}
 @media(max-width:767px){
  .shop-page .shop-heading{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px;margin:10px 0}
  .shop-page .shop-title{grid-area:1/1;gap:5px;font-size:19px}

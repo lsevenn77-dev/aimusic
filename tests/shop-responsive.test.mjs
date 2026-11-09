@@ -27,14 +27,16 @@ test('shop carousel preserves the approved desktop artwork and uses separate mob
  for(const unit of ['g','s']){const svg=readFileSync('dist/assets/shop/coin-'+unit+'.svg','utf8');assert.ok(svg.includes('<svg'));assert.ok(svg.includes('<radialGradient'));}
 });
 
-test('shop frame inherits Play carousel heights while preserving the product gutter and zoom-safe search',()=>{
+test('shop uses the shared page frame and Play carousel heights with zoom-safe search',()=>{
  const shared=readFileSync('dist/home-content.css','utf8');
  assert.match(shared,/\.home-content-refresh \.home-feature\{--home-feature-height:272px;/);
  assert.match(shared,/@media\(max-width:800px\)[\s\S]*--home-feature-height:224px/);
  assert.doesNotMatch(css,/\.shop-banner \.home-feature\{[^}]*(?:^|;)height:/);
- assert.match(css,/\.shop-banner\{[^}]*margin:calc\(var\(--shop-play-top\) - var\(--main-frame-top\)\) calc\(var\(--shop-play-gutter\) - var\(--main-frame-gutter\)\)/);
- assert.match(css,/@media\(max-width:800px\)\{\s*\.shop-page \.shop-banner\{--shop-play-gutter:0px;--shop-play-top:0px\}/);
- assert.match(css,/#main:has\(>\.shop-page\)\{--main-frame-gutter:20px;/);
+ assert.doesNotMatch(css,/--main-frame-gutter\s*:/,'shop must inherit the common page gutter at every breakpoint');
+ assert.doesNotMatch(css,/--shop-play-(?:gutter|top)/,'banner and products must use the same frame without duplicate sizing tokens');
+ assert.match(css,/\.shop-banner\{[^}]*margin:0;/);
+ assert.match(css,/@media\(max-width:800px\)\{\s*\.shop-page \.shop-banner\{margin-inline:calc\(-1 \* var\(--main-frame-gutter,20px\)\)\}/);
+ assert.match(css,/@media\(max-width:800px\)\{#main:has\(>\.shop-page\)\{--main-frame-top:0px;/);
  assert.match(css,/\.shop-item-search input\{height:38px;font-size:16px/);
  assert.ok(!css.includes('.is-silver .shop-card-buy'));
  assert.ok(css.includes('.page-wrap:has(>main>.shop-page)::before'));
