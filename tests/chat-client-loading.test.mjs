@@ -115,12 +115,13 @@ test('duplicate submit is blocked, failed content survives room changes, retry r
  const calls=[];let reject,resolve;
  const f=fixture((path,method,body)=>{if(method==='POST'){calls.push(body);return new Promise((yes,no)=>{resolve=yes;reject=no;});}return new Promise(()=>{});});
  f.context.icon=name=>'<svg data-test-icon="'+name+'" aria-hidden="true"></svg>';
+ f.context.voiceGlyph=f.context.icon;
  const view={chat:{path:'/api/crews/crew/messages',crew:{id:'crew'},initial:{messages:[]}}};f.context.bindSocialChat(view);
  const message='전송 실패에도 보존 🎵 '.repeat(24).trim();
  f.input.value=message;f.form.onsubmit({preventDefault(){}});f.input.value='다음 초안';f.form.onsubmit({preventDefault(){}});
  assert.equal(calls.length,1);assert.equal(f.input.value,'다음 초안');
  reject(new Error('offline'));await settleChat();assert.ok(f.log.innerHTML.includes(message));assert.match(f.log.innerHTML,/class="[^"]*\bis-failed\b/);
- for(const [action,label,glyph] of [['retry','다시 보내기','restart'],['discard','전송 실패 메시지 삭제','trash']]){
+ for(const [action,label,glyph] of [['discard','전송 실패 메시지 삭제','close'],['retry','다시 보내기','restart']]){
   const button=f.log.innerHTML.match(new RegExp('<button([^>]*data-chat-'+action+'="[^"]+"[^>]*)>([\\s\\S]*?)</button>'));
   assert.ok(button,action+' action is present');assert.match(button[1],/type="button"/);
   assert.ok(button[1].includes('aria-label="'+label+'"'));assert.ok(button[1].includes('title="'+label+'"'));

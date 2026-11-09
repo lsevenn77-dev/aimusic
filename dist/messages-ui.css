@@ -81,14 +81,15 @@
 #main .message-workspace .dm-message.mine .dm-bubble{background:color-mix(in srgb,var(--activity-accent) 25%,transparent);color:var(--ds-text);border:0;border-radius:15px 15px 5px 15px}
 #main .message-workspace .chat-message-meta{flex:none;display:flex;flex-direction:column;gap:3px;max-width:65px;color:var(--ds-muted);font-size:var(--dm-time)}
 #main .message-workspace .chat-message-meta time{white-space:nowrap;font-size:var(--dm-time)}
-/* Failed-send actions own a row below the bubble, outside the timestamp column. */
-#main .dm-message.mine.is-failed .dm-message-content{display:flex;flex-direction:column;align-items:flex-end;gap:0}
-#main .dm-message.mine.is-failed .dm-message-line{align-self:stretch}
-#main .chat-failed-actions{display:flex;flex:none;align-items:center;justify-content:flex-end;gap:4px;max-width:100%;margin:4px 0 0;padding:0}
+/* Failed-send actions sit above the time, to the left of their bubble. */
+#main .dm-message.mine.is-failed .chat-message-meta{flex:0 0 88px;min-width:88px;max-width:none;align-items:flex-end;gap:2px}
+#main .dm-message.mine.is-failed .chat-image{max-width:100%}
+#main .chat-failed-actions{display:flex;flex:none;align-items:center;justify-content:flex-end;gap:0;max-width:100%;margin:0;padding:0}
 #main .chat-failed-actions .chat-delivery-action{position:static;margin:0;padding:0;border:0;background:transparent;box-shadow:none;color:var(--ds-muted)}
 #main .chat-failed-actions .chat-delivery-action svg{width:18px;height:18px}
-#main .chat-failed-actions .chat-delivery-action:is(:hover,:focus-visible){color:var(--ds-text)}
-#main .chat-failed-actions .chat-discard:is(:hover,:focus-visible){color:var(--ds-accent-pink)}
+#main .chat-failed-actions .chat-retry:is(:hover,:focus-visible){color:var(--ds-text)}
+#main .chat-failed-actions .chat-discard,#main .chat-failed-actions .chat-discard:is(:hover,:focus-visible){color:var(--ds-error)}
+#main .chat-failed-actions .chat-discard svg{width:24px;height:24px}
 #main .message-workspace .message-welcome{display:flex;flex-direction:column;justify-content:center;align-items:center;padding:24px;text-align:center}
 #main .message-workspace .message-welcome-icon{display:grid;place-items:center;background:none;border:0;box-shadow:none;width:56px;height:56px;color:#8eddd2}
 #main .message-workspace .message-welcome-icon::before,#main .message-workspace .message-welcome-icon::after{content:none}
