@@ -116,7 +116,7 @@ function profilePreviewHTML(d){
 }
 async function openProfilePreview(id,origin){
  closeProfilePreview();const serial=profilePreviewSerial,route=location.hash;
- await accountReady;const uid=me?.id;
+ await accountReady;const uid=me?.id,revision=followRevision;
  try{
   let d;
   if(id==='self'){
@@ -129,6 +129,9 @@ async function openProfilePreview(id,origin){
   if(!d&&id.startsWith('member:'))d=await api('/api/member-preview/'+encodeURIComponent(id.slice(7)));
   if(!d)d=await api('/api/producers/'+encodeURIComponent(id)+'/preview');
   if(serial!==profilePreviewSerial||route!==location.hash||uid!==me?.id)return;
+  // A page follow may finish while this preview is loading. Read its new state
+  // before allowing an older response to replace the shared follow state.
+  if(revision!==followRevision)return openProfilePreview(id,origin);
   const kind=d.artist?'artist':'producer';
   if(d.following!==undefined&&d.profile.id&&!pendingFollows.has(kind+'/'+d.profile.id))updateFollowLocal(kind,d.profile.id,d.following,d.profile);
   const panel=document.createElement('dialog');panel.className='profile-preview';panel.setAttribute('aria-labelledby','profile-preview-title');panel.setAttribute('aria-modal','true');panel.innerHTML=profilePreviewHTML(d);
