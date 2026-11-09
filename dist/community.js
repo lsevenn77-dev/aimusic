@@ -12,6 +12,105 @@ function communityNavigation(tab){
  const tabs=[['live','라이브','#live'],['crews','크루','#crew'],['rankings','랭킹','#community/rankings']];
  return '<nav class="tabs music-community-tabs" aria-label="커뮤니티">'+tabs.map(([key,label,href])=>'<a class="tab '+(tab===key?'active':'')+'" href="'+href+'" '+(tab===key?'aria-current="page"':'')+'>'+label+'</a>').join('')+'</nav>';
 }
+// Only the three directory tabs share this shell. Rooms, crew detail/activity,
+// messages and the legacy feeds retain their own route lifecycle.
+function communityTabSelection(raw){
+ if(typeof raw!=='string')return null;
+ raw=raw.replace(/^#?\/?/,'');
+ const path=raw.split('?')[0],routes={live:'live',voice:'live',community:'live','community/voice':'live',crew:'crews','community/crews':'crews','community/rankings':'rankings'};
+ if(!Object.hasOwn(routes,path))return null;
+ const [base,param]=path.split('/');return {tab:routes[path],base,param,raw};
+}
+function communityTargetId(raw){try{return decodeURIComponent(raw);}catch{return raw;}}
+function communityRouteTargetsHTML(raw=''){
+ const routes=new Set(['live','voice','community','community/voice','crew','community/crews','community/crews?browse=1','crew?browse=1','community/rankings']);
+ for(const route of ['live','voice','community','community/voice'])for(const mode of ['all','karaoke','talk'])routes.add(route+'?mode='+mode);
+ for(const category of ['aiArtist','crew','work','dubbing'])for(const workKind of category==='work'?['solo','duet']:['solo'])routes.add(communityRankingHref({category,workKind}).slice(1));
+ if(raw)routes.add(raw);
+ return '<div hidden aria-hidden="true" data-community-route-targets>'+[...new Set([...routes].map(communityTargetId))].map(id=>'<span data-community-route-target id="'+esc(id)+'"></span>').join('')+'</div>';
+}
+function canRefreshCommunityRoute(raw){
+ const main=document.querySelector('#main');
+ return !!(communityTabSelection(raw)&&communityTabSelection(main?.dataset.route)&&main?.dataset.communityShell==='true'&&main.dataset.account===(me?.id||'guest')&&main.querySelector(':scope > .music-community-tabs[aria-label="커뮤니티"]'));
+}
+function holdCommunityViewport(main,pending=false){
+ const rect=main.getBoundingClientRect(),scale=main.offsetHeight?rect.height/main.offsetHeight:1;
+ const height=Math.max(pending?rect.height:0,(window.scrollY||0)>0?window.innerHeight-rect.top:0);
+ main.style.minHeight=height>0?Math.ceil(height/(scale||1))+'px':'';
+}
+function paintCommunityRoute(view,raw,ticket){
+ const main=document.querySelector('#main'),selection=communityTabSelection(raw),nav=main.querySelector(':scope > .music-community-tabs');
+ const x=window.scrollX||0,y=window.scrollY||0;
+ holdCommunityViewport(main,true);
+ const template=document.createElement('template');template.innerHTML=view.html;
+ template.content.querySelector('.music-community-tabs')?.remove();
+ for(const child of [...main.children])if(child!==nav&&!child.matches('[data-community-route-targets],[data-community-title]'))child.remove();
+ main.append(template.content);
+ for(const link of nav.querySelectorAll('a')){
+  const active=communityTabSelection(link.getAttribute('href'))?.tab===selection.tab;
+  link.classList.toggle('active',active);if(active)link.setAttribute('aria-current','page');else link.removeAttribute('aria-current');
+ }
+ const targets=main.querySelector('[data-community-route-targets]'),known=new Set([...targets.children].map(node=>node.id));
+ for(const targetRaw of [raw,...[...main.querySelectorAll('a[href^="#"]')].map(link=>link.getAttribute('href').slice(1))]){
+  if(!communityTabSelection(targetRaw))continue;
+  const id=communityTargetId(targetRaw);if(known.has(id))continue;
+  const target=document.createElement('span');target.setAttribute('data-community-route-target','');target.id=id;targets.append(target);known.add(id);
+ }
+ main._communityView=view;main.dataset.route=raw;main.removeAttribute('aria-busy');
+ routeTracks=remember(view.tracks||[]);
+ if(!view.pending&&!view.error)bindRenderedRoute(selection.base,selection.param,selection.tab==='live'?{...view,playVoice:true}:view,ticket);
+ const retry=main.querySelector('[data-community-retry]');if(retry)retry.onclick=()=>render();
+ holdCommunityViewport(main,!!view.pending);
+ if(window.scrollX!==x||window.scrollY!==y)window.scrollTo({left:x,top:y,behavior:'instant'});
+ return main;
+}
+function communityLoadingView(error=''){
+ return {pending:!error,error,tracks:[],html:'<section data-community-content'+(error?'':' aria-busy="true"')+'>'+(error?'<div class="ranking-empty" role="alert"><h2>콘텐츠를 불러오지 못했어요</h2><p>'+esc(error)+'</p><button type="button" class="small-button" data-community-retry>다시 시도</button></div>':'<div class="route-loading" role="status"><span>불러오는 중…</span><div></div><div></div><div></div></div>')+'</section>'};
+}
+async function refreshCommunityRoute(raw,ticket,readApi=api,visible){
+ const selection=communityTabSelection(raw);if(!selection)return false;
+ const main=document.querySelector('#main'),retained=canRefreshCommunityRoute(raw),account=me?.id||'guest',revision=apiRevision;
+ // Dispose content-owned polling, inline previews and dialogs, never the global
+ // Audio/player. First entry also leaves any previous editor/room normally.
+ clearInterval(socialTimer);socialTimer=null;socialCleanup?.();socialCleanup=null;
+ cleanupLyricsEditor();cleanupSing();
+ if(typeof cleanupHome==='function')cleanupHome();
+ if(typeof cleanupVoiceRoute==='function')void Promise.resolve(cleanupVoiceRoute(selection.base,selection.param)).catch(()=>{});
+ cleanupRouteBindings(main);updateBrowseNavigation(selection.base,selection.param);
+ if(!retained){
+  main.style.minHeight='';main.innerHTML='<h1 class="sr-only" data-community-title>커뮤니티</h1>'+communityRouteTargetsHTML(raw)+communityNavigation(selection.tab);
+  window.scrollTo({top:0,behavior:'instant'});
+ }
+ main.classList.remove('secondary-page','motion-enter');main.dataset.account=account;main.dataset.commonBackground='true';main.dataset.communityShell='true';
+ const pending=communityLoadingView();paintCommunityRoute(pending,raw,ticket);
+ const mounted=()=>ticket===renderId&&main.isConnected&&main._communityView===pending,current=()=>mounted()&&account===(me?.id||'guest');
+ visible?.();
+ const scroll=()=>{if(main.isConnected&&!main._communityView?.pending)holdCommunityViewport(main);};
+ window.addEventListener('scroll',scroll,{passive:true});
+ let timedOut=false;
+ const timer=setTimeout(()=>{if(current()){timedOut=true;paintCommunityRoute(communityLoadingView('연결이 지연되고 있어요. 다시 시도해주세요.'),raw,ticket);}},20000);
+ registerRouteCleanup(()=>{clearTimeout(timer);window.removeEventListener('scroll',scroll);if(!communityTabSelection(location.hash)){main.style.minHeight='';delete main.dataset.communityShell;}});
+ try{
+  await accountReady;
+  if(!mounted()||timedOut)return true;
+  if(account!==(me?.id||'guest')||revision!==apiRevision){void render();return true;}
+  if(typeof rememberMenuLogin==='function')rememberMenuLogin(selection.base,selection.param);
+  let view;
+  if(selection.tab==='live')view=await voiceView(selection.base==='live'?'live':'voice',undefined,readApi.signal);
+  else if(selection.tab==='crews')view=await improvementsView(selection.base,selection.param,raw,readApi);
+  else view=await communityRankingV3(raw,readApi);
+  if(!current()||timedOut)return true;
+  if(revision!==apiRevision){void render();return true;}
+  paintCommunityRoute(view,raw,ticket);
+ }catch(error){
+  if(current()&&error.name!=='AbortError'){
+   if(revision!==apiRevision&&error.status!==401&&error.status!==403)void render();
+   else paintCommunityRoute(communityLoadingView(error.message),raw,ticket);
+  }
+ }
+ finally{clearTimeout(timer);}
+ return true;
+}
 function communityRouteOptions(base,param,raw=''){
  const tab=base==='covers'?'covers':['covers','originals','duets','following','rankings'].includes(param)?param:'all';
  const q=new URLSearchParams(raw.split('?')[1]||''),open=tab==='duets'&&q.get('open')==='1';

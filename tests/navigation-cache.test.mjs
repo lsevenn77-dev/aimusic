@@ -249,11 +249,24 @@ test('a mutation finishing during navigation retries the current route instead o
 });
 
 test('community tabs paint before account initialization and public room data stays live',async()=>{
- const c=renderer(async()=>response({}));vm.runInContext(source('community.js'),c.context);
- c.run('browseView=(base,param,raw)=>base===\'community\'?communityView(base,param,raw):null;');
- let calls=0;c.context.voiceView=async()=>({html:c.context.communityNavigation('voice')+'<p>Live rooms '+(++calls)+'</p>'});
- const account=deferred();c.context.accountReady=account.promise;const opening=c.navigate('community');assert.match(c.main.innerHTML,/music-community-tabs/);account.resolve();await opening;assert.match(c.main.innerHTML,/Live rooms 1/);
- c.run('navigationSnapshots.clear();');c.context.location.hash='#history';c.advance(10001);await c.navigate('community');assert.match(c.main.innerHTML,/Live rooms 2/);
+ const c=renderer(async()=>response({tracks:[]}));vm.runInContext(source('community.js'),c.context);
+ // This string-only renderer has no template/fragment DOM. Isolate painting and
+ // hidden hash targets, while exercising the real partial route/account lifecycle.
+ Object.assign(c.main,{style:{},isConnected:true});c.context.communityRouteTargetsHTML=()=>'';
+ c.context.paintCommunityRoute=(view,raw)=>{
+  c.main.innerHTML=c.context.communityNavigation(c.context.communityTabSelection(raw).tab)+view.html;
+  c.main._communityView=view;c.main.dataset.route=raw;c.main.removeAttribute('aria-busy');return c.main;
+ };
+ let calls=0;c.context.voiceView=async base=>['live','voice'].includes(base)?{html:'<p>Live rooms '+(++calls)+'</p>'}:null;
+ const account=deferred();c.context.accountReady=account.promise;const opening=c.navigate('community');
+ try{
+  assert.match(c.main.innerHTML,/music-community-tabs/);assert.match(c.main.innerHTML,/data-community-content aria-busy="true"/);
+  assert.equal(calls,0,'the visible tab shell must not start room reads before account initialization');
+ }finally{account.resolve();await opening;}
+ assert.match(c.main.innerHTML,/Live rooms 1/);assert.equal(calls,1);
+ assert.equal(c.run('navigationSnapshots.has(navigationKey("community"))'),false,'the live directory must not become a whole-page snapshot');
+ await c.navigate('history');await c.navigate('community');
+ assert.match(c.main.innerHTML,/Live rooms 2/);assert.equal(calls,2,'an immediate return must enter the live directory lifecycle again');
 });
 test('money, membership, permissions, recording, editors and private chat never expose completed navigation caches',async()=>{
  let calls=0;const c=client(async()=>response({value:++calls}));

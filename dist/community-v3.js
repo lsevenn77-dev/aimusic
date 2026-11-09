@@ -23,7 +23,7 @@ function talkingRoomCard(room){
 function liveDirectoryHTML(defaultMode){
  const filters=Object.entries({all:'전체',...liveRoomLabels}).map(([value,label])=>
   `<button type="button" data-room-filter="${value}" aria-pressed="${value==='all'}">${value==='all'?'':liveTypeIcon(value)+`<span class="live-filter-vector" aria-hidden="true">${icon(value==='karaoke'?'mic-handheld':'message')}</span>`}${label}</button>`).join('');
- return `<div class="talk-directory" data-default-mode="${defaultMode}">${communityNavigation('live')}
+ return `${communityNavigation('live')}<div class="talk-directory" data-default-mode="${defaultMode}">
  <section class="community-v3 room-lobby live-directory" aria-label="라이브 방">
   <div class="live-tools"><div class="live-filters" role="group" aria-label="방 유형 필터">${filters}</div>
    <button type="button" class="live-search-toggle" data-live-search-open aria-label="방 검색" aria-controls="v3-room-search" aria-expanded="false">${icon('search')}</button>
@@ -40,28 +40,36 @@ function liveDirectoryHTML(defaultMode){
 }
 let talkingRoomReturn=null;
 
+function liveDirectoryAlias(raw){
+ return typeof raw==='string'&&['live','voice','community','community/voice'].includes(raw.replace(/^#?\/?/,'').split('?')[0]);
+}
 function bindTalkingDirectory(root){
  const grid=root.querySelector('.v3-room-grid'),search=root.querySelector('#v3-room-search'),create=root.querySelector('#v3-create-room');
  const status=root.querySelector('.talk-status'),message=status.querySelector('span'),retry=status.querySelector('button'),sentinel=root.querySelector('.talk-sentinel');
  const pane=root.querySelector('.talk-scroll');
  const tools=root.querySelector('.live-tools'),openSearch=root.querySelector('[data-live-search-open]'),closeSearch=root.querySelector('[data-live-search-close]'),clearSearch=root.querySelector('[data-live-search-clear]');
- const viewer=me?.id||'';
- const requestedMode=new URLSearchParams(location.hash.split('?')[1]||'').get('mode');
+ const route=location.hash,viewer=me?.id||'',revision=typeof apiRevision==='number'?apiRevision:0;
+ const currentRevision=()=>typeof apiRevision==='number'?apiRevision:0;
+ const currentViewer=()=>viewer===(me?.id||'');
+ const requestedMode=new URLSearchParams(route.split('?')[1]||'').get('mode');
  const linkedMode=['all','karaoke','talk'].includes(requestedMode)?requestedMode:null;
  // An explicit banner type takes priority. Discard a different filter's entire
  // snapshot so its search, cursor and rooms cannot leak into the linked list.
- const saved=talkingRoomReturn?.route===location.hash&&talkingRoomReturn.viewer===viewer&&talkingRoomReturn.until>Date.now()&&(!linkedMode||talkingRoomReturn.mode===linkedMode)?talkingRoomReturn:null;
+ const sameDirectory=talkingRoomReturn&&(talkingRoomReturn.route===route||liveDirectoryAlias(talkingRoomReturn.route)&&liveDirectoryAlias(route));
+ const saved=sameDirectory&&talkingRoomReturn.viewer===viewer&&(talkingRoomReturn.revision??0)===revision&&talkingRoomReturn.until>Date.now()&&(!linkedMode||talkingRoomReturn.mode===linkedMode)?talkingRoomReturn:null;
  talkingRoomReturn=null;
  let items=new Map(saved?.items),cursor=saved?.cursor||null,done=saved?.done||false;
  let controller=null,debounce,expiry,disposed=false;
  let mode=linkedMode||saved?.mode||'all',refreshController,composing=false;
+ let snapshotReady=!!saved,fetchedAt=saved?.fetchedAt||0,displayUntil=saved?.until||0,readFailed=!!saved?.readFailed,leavingForRoom=false;
+ const main=root.closest('#main');
  const layoutEvents=new AbortController();let layoutFrame=0;
- const measure=()=>{layoutFrame=0;if(disposed||!root.isConnected)return;const main=root.closest('#main'),vv=window.visualViewport,top=Math.max(main.getBoundingClientRect().top,vv?.offsetTop||0),bottom=(vv?.offsetTop||0)+(vv?.height||innerHeight);const player=document.querySelector('#player');const p=player?.getBoundingClientRect();const end=p?.height&&p.top>top&&getComputedStyle(player).display!=='none'?Math.min(bottom,p.top):bottom;main.style.setProperty('--live-directory-height',Math.max(0,end-top)+'px');};
+ const measure=()=>{layoutFrame=0;if(disposed||!root.isConnected||!main)return;const vv=window.visualViewport,top=Math.max(main.getBoundingClientRect().top,vv?.offsetTop||0),bottom=(vv?.offsetTop||0)+(vv?.height||innerHeight);const player=document.querySelector('#player');const p=player?.getBoundingClientRect();const end=p?.height&&p.top>top&&getComputedStyle(player).display!=='none'?Math.min(bottom,p.top):bottom;main.style.setProperty('--live-directory-height',Math.max(0,end-top)+'px');};
  const layout=()=>{if(!layoutFrame)layoutFrame=requestAnimationFrame(measure);};
  for(const name of ['resize','aifect:topbar-layout','aifect:input-viewport'])window.addEventListener(name,layout,{signal:layoutEvents.signal});
  window.visualViewport?.addEventListener('resize',layout,{signal:layoutEvents.signal});
- const layoutResize=new ResizeObserver(layout);layoutResize.observe(root.querySelector('.music-community-tabs'));layoutResize.observe(tools);
- window.scrollTo({top:0,behavior:'instant'});layout();
+ const layoutResize=new ResizeObserver(layout),navigation=main?.querySelector(':scope > .music-community-tabs');
+ if(navigation)layoutResize.observe(navigation);layoutResize.observe(tools);layout();
  function syncSearch(){
   clearSearch.hidden=!search.value;
   // A desktop query must stay visible when the directory becomes narrow.
@@ -99,6 +107,18 @@ function bindTalkingDirectory(root){
   status.dataset.state=state;
   message.textContent=text;retry.hidden=state!=='error';status.hidden=!text;
  }
+ function rememberRead(){
+  snapshotReady=true;readFailed=false;fetchedAt=Date.now();displayUntil=fetchedAt+120000;
+ }
+ function saveDirectory(fromRoom=false){
+  leavingForRoom=leavingForRoom||fromRoom;
+  if(!snapshotReady||composing||!currentViewer()||revision!==currentRevision()||displayUntil<=Date.now())return;
+  const state=status.dataset.state||'';
+  talkingRoomReturn={viewer,revision,route,until:displayUntil,fetchedAt,readFailed,fromRoom:leavingForRoom,
+   mode,query:search.value,items:[...items],cursor,done,scroll:pane.scrollTop,
+   enabled:root.dataset.enabled!=='false',searchOpen:tools.dataset.searchOpen==='true',
+   status:{text:state==='loading'?'':message.textContent,state:state==='loading'?'':state}};
+ }
  function expireCovers(){
   clearTimeout(expiry);let next=Infinity;
   for(const room of items.values()){
@@ -112,6 +132,7 @@ function bindTalkingDirectory(root){
  }
  function ready(){
   sentinel.hidden=done;
+  if(root.dataset.enabled==='false'){watchEnd(false);return;}
   if(!items.size&&done&&!composing){
    if(search.value.trim())notice('검색 결과가 없어요.');
    else notice('아직 열린 공개방이 없어요.','empty');
@@ -119,9 +140,9 @@ function bindTalkingDirectory(root){
   if(!done)watchEnd(true);
  }
  async function load(){
-  if(disposed||controller||done||composing)return;
+  if(disposed||controller||done||composing||!currentViewer())return;
   refreshController?.abort();
-  watchEnd(false);const active=controller=new AbortController();
+  watchEnd(false);const active=controller=new AbortController(),requestRevision=currentRevision();
   notice();grid.setAttribute('aria-busy','true');
   const pendingNotice=setTimeout(()=>{
    if(controller===active&&!disposed)notice('라이브 목록을 불러오는 중이에요.','loading');
@@ -130,9 +151,9 @@ function bindTalkingDirectory(root){
    const params=new URLSearchParams({limit:'24',mode}),query=search.value.trim();
    if(query)params.set('q',query);if(cursor)params.set('cursor',cursor);
    const page=await voiceRequest('public-rooms?'+params,undefined,'GET',active.signal);
-   if(active.signal.aborted||disposed)return;
+   if(active.signal.aborted||disposed||!currentViewer()||requestRevision!==currentRevision())return;
    root.dataset.enabled=String(page.enabled!==false);if(!create.dataset.opening)create.disabled=page.enabled===false;
-   if(page.enabled===false){done=true;notice('라이브 서비스 연결을 준비하고 있어요.');return;}
+   if(page.enabled===false){items.clear();grid.replaceChildren();cursor=null;done=true;sentinel.hidden=true;notice('라이브 서비스 연결을 준비하고 있어요.');rememberRead();return;}
    const added=[];
    for(const room of page.rooms){
     if(items.has(room.id))continue;
@@ -141,19 +162,20 @@ function bindTalkingDirectory(root){
    }
    grid.insertAdjacentHTML('beforeend',added.join(''));
    done=!page.next_cursor||page.next_cursor===cursor;cursor=page.next_cursor;
-   notice();expireCovers();ready();
-  }catch(e){if(!active.signal.aborted)notice('라이브 목록을 불러오지 못했어요.','error');}
+   notice();expireCovers();ready();rememberRead();
+  }catch(e){if(!active.signal.aborted&&!disposed&&currentViewer()){readFailed=true;notice('라이브 목록을 불러오지 못했어요.','error');}}
   finally{clearTimeout(pendingNotice);if(controller===active){controller=null;grid.setAttribute('aria-busy','false');}}
  }
  function reset(){
   clearTimeout(debounce);clearTimeout(expiry);refreshController?.abort();watchEnd(false);
   pane.scrollTop=0;
   controller?.abort();controller=null;items=new Map();cursor=null;done=false;
+  snapshotReady=false;fetchedAt=0;displayUntil=0;readFailed=false;
   grid.replaceChildren();notice();grid.setAttribute('aria-busy','true');
   debounce=setTimeout(load,220);
  }
  async function refresh(){
-  if(document.hidden||disposed||composing||controller||refreshController||!done&&!items.size||root.querySelector('dialog[open]'))return;
+  if(document.hidden||disposed||composing||controller||refreshController||!currentViewer()||!done&&!items.size||root.querySelector('dialog[open]'))return;
   const atTop=()=>pane.scrollTop<2;
   const refreshTop=atTop()&&!grid.contains(document.activeElement);
   const viewport=pane.getBoundingClientRect();
@@ -161,14 +183,16 @@ function bindTalkingDirectory(root){
    const rect=el.getBoundingClientRect();return rect.bottom>viewport.top&&rect.top<viewport.bottom;
   }).slice(0,24);
   if(!refreshTop&&!visible.length)return;
-  const active=refreshController=new AbortController();
+  const active=refreshController=new AbortController(),requestRevision=currentRevision();
   if(status.dataset.state==='empty')notice();
   const params=new URLSearchParams({limit:'24',mode,q:search.value.trim()});
   if(!refreshTop)params.set('ids',visible.map(el=>el.dataset.talkId).join(','));
   try{
    const page=await voiceRequest('public-rooms?'+params,undefined,'GET',active.signal);
-   if(active.signal.aborted||disposed||controller)return;
+   if(active.signal.aborted||disposed||controller||!currentViewer()||requestRevision!==currentRevision())return;
    if(refreshTop&&(!atTop()||grid.contains(document.activeElement)))return;
+   root.dataset.enabled=String(page.enabled!==false);if(!create.dataset.opening)create.disabled=page.enabled===false;
+   if(page.enabled===false){watchEnd(false);items.clear();grid.replaceChildren();cursor=null;done=true;sentinel.hidden=true;notice('라이브 서비스 연결을 준비하고 있어요.');rememberRead();return;}
    const latest=new Map(page.rooms.map(room=>{
     if(room.theme?.expires_at)room.themeUntil=Date.now()+(room.theme.expires_at-room.theme.server_now)*1000;
     return [room.id,room];
@@ -183,13 +207,12 @@ function bindTalkingDirectory(root){
     const next=document.createElement('template');next.innerHTML=talkingRoomCard(room);
     el.replaceChildren(...next.content.firstElementChild.childNodes);
    }
-   root.dataset.enabled=String(page.enabled!==false);if(!create.dataset.opening)create.disabled=page.enabled===false;
-   if(page.enabled===false){notice('라이브 서비스 연결을 준비하고 있어요.');return;}
    // An ID-only refresh can remove the last visible card without checking new rooms.
    if(!refreshTop&&!items.size){reset();return;}
-   notice();expireCovers();ready();
+   notice();expireCovers();ready();rememberRead();
   }catch{
-   if(!active.signal.aborted&&!disposed){
+   if(!active.signal.aborted&&!disposed&&currentViewer()){
+    readFailed=true;
     if(!items.size)notice('라이브 목록을 불러오지 못했어요.','error');
     for(const room of items.values())room.followed_profiles=[];
     grid.querySelectorAll('.talk-follows').forEach(group=>group.remove());
@@ -211,17 +234,19 @@ function bindTalkingDirectory(root){
  retry.onclick=()=>{done=false;void load();};
  grid.addEventListener('click',e=>{
   if(e.defaultPrevented||e.button!==0||e.ctrlKey||e.metaKey||e.shiftKey||e.altKey||!e.target.closest('[data-talk-id]'))return;
-  talkingRoomReturn={viewer,mode,searchOpen:tools.dataset.searchOpen==='true',route:location.hash,until:Date.now()+120000,query:search.value,items:[...items],cursor,done,scroll:pane.scrollTop};
+  saveDirectory(true);
  });
  registerRouteCleanup(()=>{
-  disposed=true;layoutEvents.abort();layoutResize.disconnect();cancelAnimationFrame(layoutFrame);root.closest('#main')?.style.removeProperty('--live-directory-height');clearInterval(poll);refreshController?.abort();document.removeEventListener('visibilitychange',refresh);observer.disconnect();controller?.abort();clearTimeout(debounce);clearTimeout(expiry);
+  saveDirectory();
+  disposed=true;layoutEvents.abort();layoutResize.disconnect();cancelAnimationFrame(layoutFrame);main?.style.removeProperty('--live-directory-height');clearInterval(poll);refreshController?.abort();document.removeEventListener('visibilitychange',refresh);observer.disconnect();controller?.abort();clearTimeout(debounce);clearTimeout(expiry);
   window.removeEventListener('aifect:follow-saved',refresh);
  });
  if(saved){
-  // The scroll snapshot may predate a leave or unfollow while inside a room.
-  for(const room of items.values())room.followed_profiles=[];
-  search.value=saved.query;syncSearch();root.dataset.enabled='true';create.disabled=false;grid.innerHTML=[...items.values()].map(talkingRoomCard).join('');expireCovers();
-  requestAnimationFrame(()=>{if(!disposed){pane.scrollTo({top:saved.scroll,behavior:'instant'});ready();void refresh();}});
+  // Returning from a room may predate a leave or unfollow, even inside the read TTL.
+  if(saved.fromRoom)for(const room of items.values())room.followed_profiles=[];
+  search.value=saved.query;syncSearch();root.dataset.enabled=String(saved.enabled!==false);create.disabled=saved.enabled===false;
+  grid.innerHTML=[...items.values()].map(talkingRoomCard).join('');notice(saved.status?.text||'',saved.status?.state||'');expireCovers();
+  requestAnimationFrame(()=>{if(!disposed){pane.scrollTo({top:saved.scroll,behavior:'instant'});if(saved.status?.state!=='error')ready();if(saved.fromRoom||readFailed||!fetchedAt||Date.now()-fetchedAt>=20000)void refresh();}});
  }else void load();
 }
 function bindVoiceLobby(){

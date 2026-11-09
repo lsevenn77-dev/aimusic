@@ -33,14 +33,14 @@
   if(!location.hash)history.replaceState(history.state,'',location.pathname+location.search+'#home');
   let targetId;
   try{targetId=decodeURIComponent(raw);}catch{targetId=new URLSearchParams('r='+raw.replaceAll('+','%2B').replaceAll('&','%26')).get('r');}
-  // Play keeps hidden targets for its tab URLs alongside its persistent shell.
+  // Tab directories keep hidden URL targets alongside their persistent shells.
   // Drop the generic ID to avoid duplicates. The initial shell needs one
   // retarget; subsequent native tab/history navigations already target it.
-  const playTarget=[...(document.querySelectorAll?.('[data-play-route-target]')||[])].find(target=>target.id===targetId);
-  if(playTarget){
+  const tabTarget=[...(document.querySelectorAll?.('[data-play-route-target],[data-community-route-target]')||[])].find(target=>target.id===targetId);
+  if(tabTarget){
    if(marker.id)marker.removeAttribute('id');
-   if(!playTarget.matches(':target'))location.replace(location.href);
-   return playTarget.matches(':target');
+   if(!tabTarget.matches(':target'))location.replace(location.href);
+   return tabTarget.matches(':target');
   }
   marker.id=targetId;
   // Updating an ID alone does not update :target. Same-fragment replacement

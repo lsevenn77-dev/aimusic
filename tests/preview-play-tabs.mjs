@@ -5,6 +5,7 @@ import {createServer} from 'node:http';
 import {readFile} from 'node:fs/promises';
 import {resolve,dirname,extname,sep} from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {Script} from 'node:vm';
 import assert from 'node:assert/strict';
 import {fixture} from './fixture.mjs';
 import {sampleScript,options} from './dubbing-fixtures.mjs';
@@ -74,8 +75,23 @@ for(let i=0;i<3;i++){
  }
 }
 
+// Community samples use the same real Worker/SQLite routes as the Play fixture.
+// The signed-in preview user remains outside a crew so its discovery UI is tested.
+const communityNow=Math.floor(Date.now()/1000),crewIds=[];
+for(let i=1;i<=6;i++){
+ const user='qa-crew-owner-'+i,id='qa-crew-'+i;crewIds.push(id);
+ f.sql.prepare('INSERT INTO users(id,email,name,created) VALUES(?,?,?,?)').run(user,user+'@example.test','샘플 크루장 '+i,communityNow);
+ f.sql.prepare('INSERT INTO producers(id,user_id,name,nickname_confirmed,created) VALUES(?,?,?,1,?)').run('qa-crew-producer-'+i,user,'샘플 크루장 '+i,communityNow);
+ f.sql.prepare('INSERT INTO crews(id,owner_id,name,description,interests,created) VALUES(?,?,?,?,?,?)').run(id,user,['밤하늘 합창단','멜로디 산책','우리의 작은 무대','별빛 보이스','푸른 밤 크루','다시 노래하는 날'][i-1],'함께 노래하고 음악을 나누는 로컬 검증용 크루예요.','Rock',communityNow-i);
+ f.sql.prepare("INSERT INTO crew_members(crew_id,user_id,role,joined) VALUES(?,?,'owner',?)").run(id,user,communityNow);
+ f.sql.prepare('INSERT INTO crew_xp(id,crew_id,user_id,amount,created) VALUES(?,?,?,?,?)').run('qa-weekly-xp-'+i,id,user,70-i*5,communityNow);
+}
+f.sql.prepare("UPDATE likes SET created=? WHERE user_id='other' AND track_id='one'").run(communityNow);
+f.sql.prepare('INSERT INTO likes(user_id,track_id,created) VALUES(?,?,?)').run('other','qa-complete-1',communityNow);
+f.sql.prepare('INSERT INTO likes(user_id,track_id,created) VALUES(?,?,?)').run('owner','qa-solo-1',communityNow);
+
 const counts=new Map(),requests=[];let rules=[],previewUser='owner';
-const stats=()=>({fixture:true,user:previewUser,songs:originalIds.length,duets:3,dubbings:dubbingIds,counts:Object.fromEntries(counts),requests:requests.slice(-300),rules});
+const stats=()=>({fixture:true,user:previewUser,songs:originalIds.length,duets:3,dubbings:dubbingIds,crews:crewIds.length,liveDirectory:'service-disabled fixture',counts:Object.fromEntries(counts),requests:requests.slice(-300),rules});
 const json=value=>new Response(JSON.stringify(value),{headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});
 const probeJS=String.raw`(()=>{
  const selectors={main:'#main',page:'.play-page',banner:'#play-banner',mainTabs:'.play-main-tabs',categoryTabs:'.play-category-tabs',search:'#play-search',content:'.play-content',results:'#play-results',header:'.topbar',sidebar:'.sidebar',player:'.player'};
@@ -227,6 +243,94 @@ const probeJS=String.raw`(()=>{
  window.addEventListener('hashchange',()=>setTimeout(send,100));
  window.AifectPlayQA={snapshot,reset,runSuite};
 })();`;
+const communityProbeJS=String.raw`(()=>{
+ if(window.name!=='aifect-community-qa')return;
+ const selectors={main:'#main',tabs:'.music-community-tabs[aria-label="커뮤니티"]',header:'.topbar',sidebar:'.sidebar',player:'.player'};
+ const refs=()=>Object.fromEntries(Object.entries(selectors).map(([name,selector])=>[name,document.querySelector(selector)]));
+ const playerAudio=()=>typeof audio==='undefined'?null:audio;
+ const labels={live:'라이브',crews:'크루',rankings:'랭킹'};
+ const area=()=>{const [base,param]=location.hash.slice(1).split('?')[0].split('/');return base==='crew'||base==='community'&&param==='crews'?'crews':base==='community'&&param==='rankings'?'rankings':['live','voice','community'].includes(base)&&(!param||param==='voice')?'live':null;};
+ const finalContent=()=>area()==='live'?document.querySelector('.talk-directory'):area()==='crews'?document.querySelector('.crew-discovery-layout,.crew-page'):area()==='rankings'?document.querySelector('.weekly-rankings'):null;
+ const ready=()=>!!(document.documentElement.dataset.renderState==='ready'&&document.querySelector('#main')?.dataset.route===location.hash.slice(1)&&document.querySelector(selectors.tabs)&&finalContent()&&!document.querySelector('.v3-room-grid[aria-busy="true"]'));
+ const fonts=()=>[...document.querySelectorAll(selectors.tabs+' a')].map(element=>{const style=getComputedStyle(element);let zoom=1;for(let node=element;node;node=node.parentElement)zoom*=parseFloat(getComputedStyle(node).zoom)||1;return {label:element.textContent.trim(),fontSize:style.fontSize,lineHeight:style.lineHeight,fontWeight:style.fontWeight,effectiveSize:Math.round(parseFloat(style.fontSize)*zoom*1000)/1000};});
+ const position=()=>({window:scrollY,livePane:document.querySelector('.talk-scroll')?.scrollTop??null});
+ let baseline=null,measure=null,frame=0,suite=null;
+ function snapshot(){const nodes=refs(),sound=playerAudio();return {ready:ready(),hash:location.hash,area:area(),width:innerWidth,height:innerHeight,position:position(),renderState:document.documentElement.dataset.renderState,mainDisplay:nodes.main?getComputedStyle(nodes.main).display:null,mainInert:nodes.main?.inert,selected:[...document.querySelectorAll(selectors.tabs+' [aria-current="page"]')].map(element=>({label:element.textContent.trim(),href:element.getAttribute('href')})),fonts:fonts(),sameNodes:baseline?Object.fromEntries(Object.keys(selectors).map(key=>[key,nodes[key]===baseline.nodes[key]])):null,audio:{sameInstance:baseline?sound===baseline.audio:null,paused:sound?.paused,currentTime:sound?.currentTime,readyState:sound?.readyState,source:sound?.getAttribute('src'),error:sound?.error?.message||null},measure,suite};}
+ const send=()=>parent.postMessage({type:'aifect-community-qa',snapshot:snapshot()},location.origin);
+ function observe(){
+  if(!baseline)return;measure.frames++;const nodes=refs();
+  if(!nodes.main||getComputedStyle(nodes.main).display==='none')measure.hiddenFrames++;
+  if(nodes.main?.inert)measure.inertFrames++;
+  if(document.documentElement.dataset.renderState!=='ready')measure.nonReadyFrames++;
+  for(const key of Object.keys(selectors))if(nodes[key]!==baseline.nodes[key])measure.changedNodeFrames[key]++;
+  measure.minScroll=Math.min(measure.minScroll,scrollY);measure.maxScroll=Math.max(measure.maxScroll,scrollY);
+  frame=requestAnimationFrame(observe);
+ }
+ function reset(){
+  cancelAnimationFrame(frame);if(baseline?.audio)for(const [name,handler] of baseline.handlers)baseline.audio.removeEventListener(name,handler);
+  baseline={nodes:refs(),audio:playerAudio(),handlers:[]};measure={frames:0,hiddenFrames:0,inertFrames:0,nonReadyFrames:0,changedNodeFrames:Object.fromEntries(Object.keys(selectors).map(key=>[key,0])),minScroll:scrollY,maxScroll:scrollY,audioEvents:{},startedAt:Date.now()};
+  if(baseline.audio)for(const name of ['pause','play','emptied','abort','ended']){const handler=()=>{measure.audioEvents[name]=(measure.audioEvents[name]||0)+1;};baseline.handlers.push([name,handler]);baseline.audio.addEventListener(name,handler);}
+  frame=requestAnimationFrame(observe);send();
+ }
+ const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+ const ensure=(condition,message)=>{if(!condition)throw Error(message);};
+ async function waitFor(predicate,label,timeout=8000){const until=performance.now()+timeout;while(performance.now()<until){if(await predicate())return;await delay(25);}throw Error('Timeout: '+label+' ('+location.hash+')');}
+ const apiStats=()=>fetch('/__qa/stats').then(response=>response.json());
+ const qaControl=payload=>fetch('/__qa/control',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)}).then(response=>response.json());
+ const rankReads=stats=>Object.entries(stats.counts).filter(([key])=>key.startsWith('GET /api/community/rankings?')).reduce((sum,[,count])=>sum+count,0);
+ function link(tab){const element=[...document.querySelectorAll(selectors.tabs+' a')].find(element=>element.textContent.trim()===labels[tab]);ensure(element,'Missing actual Community tab: '+tab);return element;}
+ async function navigate(tab){const before=position();link(tab).click();await waitFor(()=>area()===tab&&ready(),'Community '+tab);await delay(80);return {before,after:position()};}
+ function assertShell(tab,before){
+  const nodes=refs(),sound=playerAudio();for(const name of Object.keys(selectors))ensure(nodes[name]===baseline.nodes[name],'Replaced persistent node: '+name);
+  ensure(area()===tab,'URL does not match '+tab);const selected=[...document.querySelectorAll(selectors.tabs+' [aria-current="page"]')];ensure(selected.length===1&&selected[0].textContent.trim()===labels[tab],'Selected Community tab and URL differ');
+  ensure(sound===baseline.audio,'Global Audio instance was replaced');ensure(!sound.paused,'Global audio paused');ensure(sound.currentTime>=suite.audioStartedAt-.05,'Global playback position restarted');
+  if(before)ensure(Math.abs(scrollY-before.window)<=2,'Window scroll moved from '+before.window+' to '+scrollY);
+  return {hash:location.hash,selected:selected[0].textContent.trim(),before,after:position(),audioTime:sound.currentTime,fonts:fonts()};
+ }
+ async function ensureMusic(){
+  const playLink=document.querySelector('.sidebar a[href="#karaoke"]');ensure(playLink,'Actual Play navigation is missing');playLink.click();
+  await waitFor(()=>location.hash==='#karaoke'&&document.documentElement.dataset.renderState==='ready'&&document.querySelector('.play-category-tabs'),'Play initial page');
+  const duet=[...document.querySelectorAll('.play-category-tabs a')].find(element=>element.getAttribute('href')==='#karaoke/duets');ensure(duet,'Actual duet tab is missing');duet.click();
+  await waitFor(()=>location.hash==='#karaoke/duets'&&document.querySelector('.play-duet-play[data-play]')&&!document.querySelector('#play-results[aria-busy="true"]'),'Play duet list');
+  const sound=playerAudio();ensure(sound,'Global Audio was not initialized');if(sound.paused)document.querySelector('.play-duet-play[data-play]').click();
+  await waitFor(()=>!sound.paused&&sound.readyState>=2&&sound.currentTime>0,'real duet playback',10000);
+  const communityLink=document.querySelector('.sidebar a[href="#community"]');ensure(communityLink,'Actual Community navigation is missing');communityLink.click();await waitFor(()=>area()==='live'&&ready(),'Community return');await delay(80);
+ }
+ async function invalidateThroughRealLike(){const button=document.querySelector('.player [data-like]');ensure(button,'Player like action is missing');const before=button.getAttribute('aria-pressed');button.click();await waitFor(()=>!button.disabled&&button.getAttribute('aria-pressed')!==before,'local like API completion');}
+ async function runSuite(){
+  if(suite?.running)return;suite={running:true,width:innerWidth,height:innerHeight,startedAt:Date.now(),cases:[]};send();
+  const record=async(name,run)=>{suite.current=name;send();try{suite.cases.push({name,passed:true,...await run()});}catch(error){suite.cases.push({name,passed:false,error:error.message,hash:location.hash,position:position()});}send();};
+  try{
+   await qaControl({rules:[],reset:true});await waitFor(ready,'initial Community');await ensureMusic();suite.audioStartedAt=playerAudio().currentTime;reset();
+   const fontSamples={live:fonts()};suite.startPosition=position();
+   for(const [name,tab] of [['라이브에서 크루 탐색','crews'],['크루에서 랭킹','rankings'],['랭킹에서 라이브 복귀','live']])await record(name,async()=>{const moved=await navigate(tab);fontSamples[tab]=fonts();return assertShell(tab,moved.before);});
+   await record('세 화면의 공통 탭 글자 크기',async()=>{for(const tab of ['live','crews','rankings']){ensure(fontSamples[tab]?.length===3,'Missing font samples for '+tab);for(let i=0;i<3;i++)ensure(Math.abs(fontSamples[tab][i].effectiveSize-fontSamples.live[i].effectiveSize)<.1,'Community tab font differs on '+tab+': '+fontSamples[tab][i].effectiveSize+' / '+fontSamples.live[i].effectiveSize);}return {fontSamples};});
+   await record('랭킹 왕복 시 캐시 재사용',async()=>{await navigate('rankings');const before=await apiStats();await navigate('crews');const moved=await navigate('rankings'),after=await apiStats();ensure(rankReads(before)===rankReads(after),'Cached ranking requested data again');return {...assertShell('rankings',moved.before),rankingReads:{before:rankReads(before),after:rankReads(after)}};});
+   await record('브라우저 뒤로가기·앞으로가기',async()=>{await navigate('crews');const crewHash=location.hash;await navigate('rankings');const rankingHash=location.hash,before=position();history.back();await waitFor(()=>location.hash===crewHash&&ready(),'history.back');await delay(80);const backward=assertShell('crews',before);history.forward();await waitFor(()=>location.hash===rankingHash&&ready(),'history.forward');await delay(80);return {backward,forward:assertShell('rankings',before)};});
+   await record('크루와 랭킹 왕복 시 스크롤 유지',async()=>{await navigate('crews');window.scrollTo({top:120,left:0,behavior:'instant'});await delay(80);const before=position();ensure(before.window>=100,'Crew fixture did not provide height for scroll check');await navigate('rankings');const ranking=assertShell('rankings',before);await navigate('crews');return {ranking,crew:assertShell('crews',before)};});
+   await record('지연된 랭킹 요청 도중 크루로 이동',async()=>{
+    await navigate('crews');await invalidateThroughRealLike();await qaControl({rules:[{match:'/api/community/rankings',delayMs:1200}]});const before=await apiStats(),start=position();link('rankings').click();
+    await waitFor(async()=>rankReads(await apiStats())>rankReads(before),'delayed ranking request');await delay(80);
+    ensure(document.documentElement.dataset.renderState==='ready','Ranking request used global loading');ensure(document.querySelector(selectors.tabs)===baseline.nodes.tabs,'Loading replaced Community navigation');ensure(document.querySelector('[data-community-content][aria-busy="true"]'),'Ranking loading status was not scoped to its content');
+    const loading={hash:location.hash,mainInert:document.querySelector('#main').inert,localStatus:[...document.querySelectorAll('#main [role="status"],#main [aria-busy="true"]')].filter(element=>!element.closest(selectors.tabs)).map(element=>({text:element.textContent.trim().slice(0,100),busy:element.getAttribute('aria-busy')}))};
+    await navigate('crews');await delay(1350);ensure(document.querySelector('.crew-discovery-layout'),'Late ranking response replaced crew discovery');await qaControl({rules:[]});return {...assertShell('crews',start),loading,rankingReads:{before:rankReads(before),after:rankReads(await apiStats())}};
+   });
+   await record('랭킹 콘텐츠 오류와 재시도',async()=>{
+    await qaControl({rules:[]});await invalidateThroughRealLike();await qaControl({rules:[{match:'/api/community/rankings',failures:1,status:503}]});const start=position();await navigate('rankings');
+    const retry=document.querySelector('[data-ranking-retry],[data-community-retry]');ensure(retry,'Ranking content retry button was not shown');assertShell('rankings',start);retry.click();
+    await waitFor(()=>ready()&&!document.querySelector('[data-ranking-retry],[data-community-retry]')&&document.querySelector('.ranking-results'),'ranking retry');await delay(80);await qaControl({rules:[]});return assertShell('rankings',start);
+   });
+   await record('전체 화면과 음악 재생 연속성',async()=>{await delay(150);ensure(measure.frames>0,'No visible frames sampled');ensure(measure.hiddenFrames===0,'Main was hidden');ensure(measure.inertFrames===0,'Main became inert');ensure(measure.nonReadyFrames===0,'Global loading was shown');for(const [name,count] of Object.entries(measure.changedNodeFrames))ensure(!count,'Persistent '+name+' changed during '+count+' frames');for(const event of ['pause','emptied','abort','ended'])ensure(!measure.audioEvents[event],'Unexpected global audio event: '+event);ensure(playerAudio().currentTime>suite.audioStartedAt,'Playback time did not advance');return {...measure,audioFrom:suite.audioStartedAt,audioTo:playerAudio().currentTime};});
+  }catch(error){suite.error=error.message;}
+  finally{await qaControl({rules:[]}).catch(()=>{});suite.running=false;suite.finishedAt=Date.now();suite.passed=suite.cases.filter(result=>result.passed).length;suite.failed=suite.cases.filter(result=>!result.passed).length+(suite.error?1:0);suite.current=null;send();}
+ }
+ window.addEventListener('message',async event=>{
+  if(event.origin!==location.origin||event.source!==parent||event.data?.type!=='aifect-community-qa-control')return;
+  if(event.data.command==='reset')reset();else if(event.data.command==='snapshot')send();else if(event.data.command==='suite')void runSuite();else if(event.data.command==='back'){history.back();setTimeout(send,150);}else if(event.data.command==='forward'){history.forward();setTimeout(send,150);}else if(event.data.command==='seed-draft'){try{await ensureMusic();reset();}catch(error){parent.postMessage({type:'aifect-community-qa',error:error.message},location.origin);}}
+ });
+ window.addEventListener('hashchange',()=>setTimeout(send,100));window.AifectCommunityQA={snapshot,reset,runSuite};
+ void waitFor(ready,'Community bootstrap',20000).then(send).catch(error=>parent.postMessage({type:'aifect-community-qa',error:error.message},location.origin));
+})();`;
 const qaHTML=`<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AIFECT 탭 전환 로컬 QA</title>
 <style>body{margin:16px;background:#111722;color:#f0f1f7;font:14px system-ui,sans-serif}h1{font-size:20px}button,a{font:inherit;margin:3px;padding:9px;color:inherit;background:#253046;border:1px solid #59647c;border-radius:6px}a{display:inline-block}#viewport{overflow:auto;margin-top:12px}iframe{display:block;border:1px solid #59647c;background:#0c121b;width:1440px;height:900px}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#1b2332;padding:12px;max-height:460px;overflow:auto}.controls{position:sticky;top:0;z-index:10;display:flex;gap:4px;flex-wrap:wrap;align-items:center;background:#111722;padding-block:6px}#suite-state{display:block;min-width:160px;padding:8px;color:#c6d7f8}</style></head><body>
 <h1>AIFECT 플레이 탭 · 로컬 샘플 검증</h1><p>실제 앱과 메모리 샘플 데이터로 검사해. 회귀 테스트는 실제 탭 링크를 클릭하며, 스크롤 120px에서 시작해.</p>
@@ -252,13 +356,24 @@ window.addEventListener('message',event=>{
  show();
 });
 </script></body></html>`;
+const communityHTML=qaHTML
+ .replaceAll('AIFECT 플레이 탭','AIFECT 커뮤니티 탭')
+ .replace('실제 앱과 메모리 샘플 데이터로 검사해. 회귀 테스트는 실제 탭 링크를 클릭하며, 스크롤 120px에서 시작해.','실제 앱의 라이브·크루·랭킹 링크, URL 기록, 공통 탭 글자 크기와 음악 재생을 검사해. 크루·랭킹 왕복에서는 스크롤 120px 유지도 확인해. 라이브는 서비스 미연결 빈 목록으로 검사해.')
+ .replaceAll('aifect-play-qa','aifect-community-qa')
+ .replaceAll('/#karaoke','/#community')
+ .replace('<iframe id="app"','<iframe name="aifect-community-qa" id="app"')
+ .replace('<button id="suite">','<button id="suite" disabled>')
+ .replace('로컬 초안 추가','샘플 음악 재생')
+ .replace("{match:'/api/play/',delayMs:1500},{match:'/api/dubbing/projects',delayMs:1500}","{match:'/api/community/rankings',delayMs:1500},{match:'/api/crews',delayMs:1500}")
+ .replace("{match:'/api/play/',failures:1,status:503}","{match:'/api/community/rankings',failures:1,status:503}")
+ .replace(' if(client.suite){',' if(!client.suite){document.getElementById(\'suite\').disabled=!client.ready;suiteState.textContent=client.ready?\'테스트 준비 완료\':\'앱 준비 중…\';}\n if(client.suite){');
 const staticRoot=resolve('dist/client');
 const env={...featureEnv,DB:f.DB,ASSETS:{async fetch(req){
  const url=new URL(req.url),pathname=decodeURIComponent(url.pathname),file=resolve(staticRoot,'.'+(pathname==='/'?'/aifect-shell.txt':pathname));
  if(!file.startsWith(staticRoot+sep))return new Response('Not found',{status:404});
  try{
   let data=await readFile(file);const shell=/aifect-(?:profile-)?shell\.txt$/.test(file);
-  if(shell)data=Buffer.from(data.toString().replace('</body>','<script defer src="/__qa/probe.js"></script></body>'));
+  if(shell)data=Buffer.from(data.toString().replace('</body>','<script defer src="/__qa/probe.js"></script><script defer src="/__qa/community-probe.js"></script></body>'));
   const mime={'.txt':'text/plain; charset=utf-8','.html':'text/html; charset=utf-8','.css':'text/css','.js':'text/javascript','.svg':'image/svg+xml','.png':'image/png','.webp':'image/webp','.woff2':'font/woff2','.json':'application/json'}[extname(file)]||'application/octet-stream';
   return new Response(req.method==='HEAD'?null:data,{headers:{'content-type':mime,'cache-control':'no-store'}});
  }catch{return new Response('Build assets first: npm run build',{status:404});}
@@ -267,7 +382,9 @@ const context={waitUntil(p){pending.add(p);p.catch(()=>{}).finally(()=>pending.d
 async function handle(req){
  const url=new URL(req.url),path=url.pathname;
  if(path==='/qa')return new Response(qaHTML,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store'}});
+ if(path==='/qa-community')return new Response(communityHTML,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store'}});
  if(path==='/__qa/probe.js')return new Response(probeJS,{headers:{'content-type':'text/javascript','cache-control':'no-store'}});
+ if(path==='/__qa/community-probe.js')return new Response(communityProbeJS,{headers:{'content-type':'text/javascript','cache-control':'no-store'}});
  if(path==='/__qa/stats'||path==='/__qa/health')return json(stats());
  if(path==='/__qa/control'&&req.method==='POST'){
   const control=await req.json();
@@ -292,6 +409,7 @@ async function handle(req){
 }
 
 if(args.includes('--check')){
+ for(const [name,source] of [['play-probe',probeJS],['community-probe',communityProbeJS],['play-controller',qaHTML],['community-controller',communityHTML]])new Script(name.endsWith('controller')?source.match(/<script>([\s\S]*?)<\/script>/)[1]:source,{filename:name+'.js'});
  const read=async path=>{const response=await handle(new Request('http://127.0.0.1:'+port+path));assert.equal(response.status,200,path);return response.json();};
  assert.equal((await read('/api/play/songs?tab=recommended')).tracks.length,25);
  assert.equal((await read('/api/play/songs?tab=latest&offset=25')).tracks.length,5);
@@ -299,9 +417,14 @@ if(args.includes('--check')){
  assert.ok((await read('/api/play/works?tab=latest&type=all')).works.length>=7);
  assert.ok((await read('/api/dubbing/projects?tab=open')).projects.length);
  assert.ok((await read('/api/dubbing/casting/mine?kind=original')).projects.length);
+ assert.equal((await read('/api/crews?q=&summary=1&home=1')).crews.length,6);
+ assert.ok((await read('/api/community/rankings?category=aiArtist&period=week&workKind=solo&limit=20')).rows.length);
+ assert.equal((await read('/api/community/rankings?category=crew&period=week&workKind=solo&limit=20')).rows.length,6);
+ assert.equal((await read('/api/voice/public-rooms?limit=24&mode=all')).enabled,false);
+ const communityPage=await handle(new Request('http://127.0.0.1:'+port+'/qa-community'));assert.equal(communityPage.status,200);assert.match(await communityPage.text(),/name="aifect-community-qa"[^>]*src="\/#community"/);
  const stream=await handle(new Request('http://127.0.0.1:'+port+'/media/one/stream',{headers:{range:'bytes=0-43'}}));assert.equal(stream.status,206);assert.equal((await stream.arrayBuffer()).byteLength,44);assert.equal(stream.headers.get('content-type'),'audio/wav');
  await Promise.allSettled([...pending]);for(const cleanup of cleanups)await cleanup();
- console.log('Play tabs fixture verified: 30 songs, 3 duet halves, 3 dubbings, owner auth and WAV range streaming.');
+ console.log('Tab fixtures verified: Play /qa + Community /qa-community, 30 songs, 3 duet halves, 3 dubbings, 6 crews, weekly rankings, owner auth and WAV range streaming.');
 }else{
  const server=createServer(async(req,res)=>{
   try{
@@ -311,6 +434,6 @@ if(args.includes('--check')){
    res.writeHead(response.status,Object.fromEntries(response.headers));res.end(Buffer.from(await response.arrayBuffer()));
   }catch(error){console.error(error);res.writeHead(500,{'content-type':'application/json'});res.end(JSON.stringify({error:'Local preview error: '+error.message}));}
  });
- server.listen(port,host,()=>console.log('AIFECT local tab QA listening at http://'+host+':'+port+'/qa'));
+ server.listen(port,host,()=>console.log('AIFECT local tab QA listening at http://'+host+':'+port+'/qa and /qa-community'));
  for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>server.close(async()=>{await Promise.allSettled([...pending]);for(const cleanup of cleanups)await cleanup();process.exit(0);}));
 }

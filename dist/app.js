@@ -29,7 +29,7 @@ function invalidatesBrowseReads(path,method){
  if(/^\/api\/crews\/[\w-]+\/messages$/.test(path)&&method==='POST')return false;
  return true;
 }
-function canCacheApiRead(path){return /^\/api\/(catalog|karaoke|search|playlists|cover-rankings|discovery(?:\/profiles)?|discover(?:\/[^?]+)?|community|library|history|follows|duets|me\/profile|followers\/[\w-]+|artists\/[\w-]+|producers\/[\w-]+)(?:\?|$)/.test(path);}
+function canCacheApiRead(path){return /^\/api\/(catalog|karaoke|search|playlists|cover-rankings|discovery(?:\/profiles)?|discover(?:\/[^?]+)?|community(?:\/rankings)?|library|history|follows|duets|me\/profile|followers\/[\w-]+|artists\/[\w-]+|producers\/[\w-]+)(?:\?|$)/.test(path);}
 function peekApiRead(path,options={}){
  if(!canCacheApiRead(path))return null;
  const entry=apiReads.get((me?.id||'guest')+':'+path);

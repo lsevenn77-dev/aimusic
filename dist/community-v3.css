@@ -183,7 +183,6 @@ html:has(#main > .talk-directory, #main > .music-community-tabs[aria-label="커�
  scrollbar-gutter:stable;
 }
 /* Use Play's main-tab metrics, including its rendered scale, on all four destinations. */
-#main > .talk-directory > .music-community-tabs,
 #main > .music-community-tabs[aria-label="커뮤니티"] {
  --ui-type-scale:1;
  zoom:1.25;
@@ -248,7 +247,7 @@ html:has(#main > .talk-directory, #main > .music-community-tabs[aria-label="커�
 }
 #main:has(> .talk-directory) {margin-block:0;padding-bottom:0}
 #main > .talk-directory,.talk-directory > .live-directory {flex:1 1 auto}
-.talk-directory > .music-community-tabs {flex:none}
+#main:has(> .talk-directory) > .music-community-tabs {flex:none}
 /* Measure the space below the controls independently of the number of rooms. */
 .live-directory .live-list-space {
  flex:1 1 0;min-height:0;container-type:size;display:flex;flex-direction:column;
@@ -440,8 +439,8 @@ html:has(#main > .talk-directory, #main > .music-community-tabs[aria-label="커�
  .live-directory .talk-scroll {--room-columns:1}
 }
 @media(max-height:540px) {
- #main > .talk-directory > .music-community-tabs {zoom:1;margin-bottom:4px}
- #main > .talk-directory > .music-community-tabs > .tab {min-height:36px;padding-block:4px}
+ #main:has(> .talk-directory) > .music-community-tabs {zoom:1;margin-bottom:4px}
+ #main:has(> .talk-directory) > .music-community-tabs > .tab {min-height:36px;padding-block:4px}
  #main .room-lobby.live-directory {padding-block-start:4px}
  #main .room-lobby.live-directory {--list-spacing:6px}
 }
@@ -591,14 +590,10 @@ html:has(#main > .talk-directory, #main > .music-community-tabs[aria-label="커�
  #main:is([data-route="community/rankings"], [data-route^="community/rankings?"]) {
   --ranking-section-size: 21px;
 
-  /* The community navigation and weekly results both render at 125%. */
-  > :is(.music-community-tabs, .weekly-rankings) {
+  /* Only weekly results compensate for zoom; navigation keeps the shared tab size. */
+  > .weekly-rankings {
    --ranking-zoom: 1.25;
    --ranking-control-size: calc(var(--pc-font-control) / var(--ranking-zoom));
-  }
-
-  > .music-community-tabs > .tab {font-size:var(--ranking-control-size)!important}
-  > .weekly-rankings {
    :is(.ranking-categories a, .ranking-kinds a, .ranking-info summary, .ranking-more) {
     font-size:var(--ranking-control-size)!important;
    }

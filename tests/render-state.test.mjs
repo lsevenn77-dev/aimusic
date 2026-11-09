@@ -3,13 +3,13 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 const source=readFileSync('dist/render-state.js','utf8');
-function boot({marker=null,playTargets=[],hash='#home',route='home'}={}){
+function boot({marker=null,playTargets=[],communityTargets=[],hash='#home',route='home'}={}){
  const handlers=new Map(),timers=new Map(),nodes=new Map();let sequence=0,reloads=0,replacements=0;
  const root={dataset:{},toggleAttribute(name,on){this[name]=on;}},main={dataset:{route},inert:false,setAttribute(){},removeAttribute(){}};
  for(const id of ['route-pending-message','route-pending-actions','route-retry'])nodes.set(id,{});nodes.set('main',main);
- const location={hash,pathname:'/',search:'',href:'https://aifect.test/'+hash,reload(){reloads++;},replace(){replacements++;const playTarget=playTargets.find(target=>'#'+target.id===location.hash);if(marker)marker.targeted=!playTarget;for(const target of playTargets)target.targeted=target===playTarget;}};
+ const location={hash,pathname:'/',search:'',href:'https://aifect.test/'+hash,reload(){reloads++;},replace(){replacements++;const allTargets=[...playTargets,...communityTargets],playTarget=allTargets.find(target=>'#'+target.id===location.hash);if(marker)marker.targeted=!playTarget;for(const target of allTargets)target.targeted=target===playTarget;}};
  const history={state:{retained:true},replaceState(state,title,url){this.state=state;location.href='https://aifect.test'+url;location.hash=url.slice(url.indexOf('#'));}};
- const context=vm.createContext({URLSearchParams,document:{documentElement:root,getElementById:id=>nodes.get(id),querySelector:()=>marker,querySelectorAll:selector=>selector==='[data-play-route-target]'?playTargets:[]},location,history,window:{addEventListener(name,fn){handlers.set(name,fn);}},setTimeout(fn){const id=++sequence;timers.set(id,fn);return id;},clearTimeout(id){timers.delete(id);}});
+ const context=vm.createContext({URLSearchParams,document:{documentElement:root,getElementById:id=>nodes.get(id),querySelector:()=>marker,querySelectorAll:selector=>selector==='[data-play-route-target],[data-community-route-target]'?[...playTargets,...communityTargets]:[]},location,history,window:{addEventListener(name,fn){handlers.set(name,fn);}},setTimeout(fn){const id=++sequence;timers.set(id,fn);return id;},clearTimeout(id){timers.delete(id);}});
  vm.runInContext(source,context);const api=context.window.AifectRender;
  return {api,root,main,nodes,handlers,location,history,win:context.window,get replacements(){return replacements;},tick(){const tasks=[...timers.values()];timers.clear();tasks.forEach(fn=>fn());},get reloads(){return reloads;},get timers(){return timers.size;}};
 }
@@ -66,6 +66,20 @@ test('retained tab navigation keeps the mounted shell interactive and does not r
  assert.equal(marker.id,'song/one');assert.equal(c.root.dataset.renderState,'ready');
 });
 
+test('community native tabs and history retain the same ready shell',()=>{
+ const target=(id,targeted=false)=>({id,targeted,matches(){return this.targeted;},removeAttribute(name){if(name==='id')this.id='';}});
+ const marker=target('home'),live=target('live'),crew=target('crew'),ranking=target('community/rankings?category=aiArtist&period=week');
+ const targets=[live,crew,ranking],c=boot({marker,communityTargets:targets,hash:'#live',route:'live'});
+ c.api.ready(c.api.begin('live','home',()=>{}));assert.equal(c.replacements,1);assert.equal(marker.id,'');
+ for(const next of [crew,ranking,live,ranking,crew]){
+  const previous=c.main.dataset.route;c.location.hash='#'+next.id;
+  targets.forEach(node=>{node.targeted=node===next;});
+  const epoch=c.api.begin(next.id,previous,()=>{}, {retain:true});
+  assert.equal(c.root.dataset.renderState,'ready');assert.equal(c.main.inert,false);
+  c.main.dataset.route=next.id;c.api.ready(epoch);assert.equal(c.timers,0);assert.equal(c.replacements,1);
+ }
+});
+
 test('retained navigation still rejects stale completion and preserves failure recovery',()=>{
  const c=boot();c.api.ready(c.api.begin('home',undefined,()=>{}));
  const previous=c.api.begin('karaoke','home',()=>{}, {retain:true});
@@ -98,7 +112,7 @@ test('bare home URL is normalized without pushing history and no-JS fallback rem
  const id=c.api.begin('home',undefined,()=>{});c.api.ready(id);assert.equal(c.location.hash,'#home');assert.deepEqual(c.history.state,{retained:true});
  const html=readFileSync('dist/index.html','utf8'),css=readFileSync('dist/render-state.css','utf8');
  assert.ok(html.indexOf('data-render-target hidden')<html.indexOf('<main id="main"'));
- assert.match(css,/html\[data-render-state="ready"\]:not\(:has\(\[data-render-target\]:target,\[data-play-route-target\]:target\)\) #main\{display:none!important\}/);
+ assert.match(css,/html\[data-render-state="ready"\]:not\(:has\(\[data-render-target\]:target,\[data-play-route-target\]:target,\[data-community-route-target\]:target\)\) #main\{display:none!important\}/);
 });
 
 test('malformed UTF-8 fragments use the browser tolerant decoding and keep literal plus signs',()=>{

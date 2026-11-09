@@ -5,32 +5,44 @@ import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 
 // Exercise the real directory event handlers, including composition listeners.
-function directory({hash='#community',saved=null}={}){
- let focused=null;
+function directory({hash='#community',saved=null,viewer='viewer',revision=0,now=Date.now(),response=async()=>({enabled:true,rooms:[],next_cursor:null})}={}){
+ let focused=null,responder=response;
+ class Clock extends Date {static now(){return now;}}
  class Element extends EventTarget {
-  constructor(){super();this.dataset={};this.attributes=new Map();this.value='';this.hidden=false;this.style={};this.scrollTop=0;this.children=[];this.style={removeProperty(){}};}
+  constructor(){super();this.dataset={};this.attributes=new Map();this.value='';this.hidden=false;this.scrollTop=0;this.children=[];this.isConnected=true;this.textContent='';this.style={setProperty(){},removeProperty(){}};this._html='';}
   setAttribute(k,v){this.attributes.set(k,String(v));}
   focus(){focused=this;} blur(){if(focused===this)focused=null;}
-  replaceChildren(){} insertAdjacentHTML(){} contains(){return false;} closest(){return null;}
+  get innerHTML(){return this._html;}
+  set innerHTML(value){this._html=value;this.children=[...value.matchAll(/data-talk-id="([^"]+)"/g)].map(match=>{const child=new Element();child.dataset.talkId=match[1];return child;});}
+  replaceChildren(){this.innerHTML='';} insertAdjacentHTML(_position,html){this.innerHTML+=html;}
+  contains(){return false;} closest(){return null;} querySelectorAll(){return [];}
+  getBoundingClientRect(){return {top:0,bottom:500,height:500};}
+  scrollTo({top}){this.scrollTop=top;}
  }
  const nodes=new Map(),get=key=>{if(!nodes.has(key))nodes.set(key,new Element());return nodes.get(key);};
  const filters=['all','karaoke','talk'].map(value=>{const el=new Element();el.dataset.roomFilter=value;return el;});
  const root=new Element();root.querySelector=key=>key==='dialog[open]'?null:get(key);root.querySelectorAll=()=>filters;
+ const main=new Element(),navigation=new Element();main.querySelector=key=>key===':scope > .music-community-tabs'?navigation:null;root.closest=key=>key==='#main'?main:null;
  get('.talk-status').querySelector=get;
- const timers=new Map(),requests=[],cleanups=[];let seq=0;
+ const timers=new Map(),frames=new Map(),intervals=new Map(),requests=[],cleanups=[],observed=[],windowScrolls=[];let seq=0;
+ const window=new EventTarget();window.scrollTo=options=>windowScrolls.push(options);
+ const document=new EventTarget();document.hidden=false;document.querySelector=()=>null;Object.defineProperty(document,'activeElement',{get:()=>focused});
  const c=nicknameContext({
-  me:{id:'viewer'},location:{hash},talkingRoomReturn:saved,talkingRoomCard:()=>'',liveRoomLabels:{karaoke:'노래방',talk:'토킹룸'},
-  URLSearchParams,AbortController,Date,Map,requestAnimationFrame:()=>1,cancelAnimationFrame(){},ResizeObserver:class{observe(){}disconnect(){}},IntersectionObserver:class{observe(){}unobserve(){}disconnect(){}},
-  document:{hidden:false,addEventListener(){},removeEventListener(){},get activeElement(){return focused;}},
-  window:{scrollTo(){},addEventListener(){},removeEventListener(){}},
-  setTimeout:(fn,ms)=>{const id=++seq;timers.set(id,{fn,ms});return id;},clearTimeout:id=>timers.delete(id),setInterval:()=>1,clearInterval(){},
-  registerRouteCleanup:fn=>cleanups.push(fn),voiceRequest:async path=>{requests.push(new URLSearchParams(path.split('?')[1]));return {enabled:true,rooms:[],next_cursor:null};}
+  me:viewer?{id:viewer}:null,apiRevision:revision,location:{hash},talkingRoomReturn:saved,talkingRoomCard:room=>`<a data-talk-id="${room.id}">${room.followed_profiles?.length||0}</a>`,liveRoomLabels:{karaoke:'노래방',talk:'토킹룸'},
+  URLSearchParams,AbortController,Date:Clock,Map,requestAnimationFrame:fn=>{const id=++seq;frames.set(id,fn);return id;},cancelAnimationFrame:id=>frames.delete(id),ResizeObserver:class{observe(node){observed.push(node);}disconnect(){}},IntersectionObserver:class{observe(){}unobserve(){}disconnect(){}},
+  document,window,innerHeight:900,
+  setTimeout:(fn,ms)=>{const id=++seq;timers.set(id,{fn,ms});return id;},clearTimeout:id=>timers.delete(id),setInterval:(fn,ms)=>{const id=++seq;intervals.set(id,{fn,ms});return id;},clearInterval:id=>intervals.delete(id),
+  registerRouteCleanup:fn=>cleanups.push(fn),voiceRequest:async(path,_body,_method,signal)=>{const params=new URLSearchParams(path.split('?')[1]);requests.push(params);return responder(params,signal);}
  });
  const source=readFileSync(new URL('../dist/community-v3.js',import.meta.url),'utf8');
- vm.runInContext(source.slice(source.indexOf('function bindTalkingDirectory('),source.indexOf('function bindVoiceLobby(')),c);
+ vm.runInContext(source.slice(source.indexOf('function liveDirectoryAlias('),source.indexOf('function bindVoiceLobby(')),c);
  c.bindTalkingDirectory(root);
- const flush=async()=>{await Promise.resolve();await Promise.resolve();for(const [id,timer] of [...timers])if(timer.ms===220){timers.delete(id);await timer.fn();}await Promise.resolve();};
- return {root,get,filters,requests,flush,focused:()=>focused,dispose:()=>cleanups.forEach(fn=>fn())};
+ const settle=async()=>{for(let i=0;i<6;i++)await Promise.resolve();};
+ const flush=async()=>{await settle();for(const [id,timer] of [...timers])if(timer.ms===220){timers.delete(id);await timer.fn();}for(const [id,fn] of [...frames]){frames.delete(id);fn();}await settle();};
+ return {root,get,filters,requests,flush,navigation,observed,windowScrolls,context:c,focused:()=>focused,snapshot:()=>c.talkingRoomReturn,
+  advance:ms=>{now+=ms;},setResponse:fn=>{responder=fn;},poll:()=>[...intervals.values()].find(timer=>timer.ms===20000)?.fn(),
+  clickRoom:()=>{const event=new Event('click');Object.assign(event,{button:0});Object.defineProperty(event,'target',{value:{closest:()=>({})}});get('.v3-room-grid').dispatchEvent(event);},
+  dispose:()=>{cleanups.splice(0).forEach(fn=>fn());root.isConnected=false;}};
 }
 
 test('mobile search retains scope, ignores IME Enter, keeps the same input, clears and closes explicitly',async()=>{
@@ -85,5 +97,74 @@ test('matching banner snapshots and ordinary routes retain the existing search r
   assert.equal(d.root.dataset.filter,'talk',hash);assert.equal(input.value,'책 이야기',hash);assert.equal(d.get('.live-tools').dataset.searchOpen,'true');
   input.value='새 이야기';input.oninput({});await d.flush();
   assert.equal(d.requests.at(-1).get('mode'),'talk');assert.equal(d.requests.at(-1).get('q'),'새 이야기');assert.equal(d.requests.at(-1).has('cursor'),false);d.dispose();
+ }
+});
+
+const roomPage=()=>({enabled:true,rooms:[{id:'room-one',mode:'talk',followed_profiles:[{profile_id:'friend'}]}],next_cursor:null});
+
+test('tab cleanup captures the mounted route and restores directory aliases without a fresh request or window scroll',async()=>{
+ const d=directory({hash:'#community',now:100000,response:async()=>({...roomPage(),next_cursor:'next-page'})});await d.flush();
+ d.filters[2].onclick();await d.flush();
+ const input=d.get('#v3-room-search');input.value='책 이야기';input.oninput({});await d.flush();d.get('.talk-scroll').scrollTop=180;
+ d.context.location.hash='#crew';d.dispose();const saved=d.snapshot();
+ assert.equal(saved.route,'#community');assert.equal(saved.mode,'talk');assert.equal(saved.query,'책 이야기');assert.equal(saved.cursor,'next-page');assert.equal(saved.done,false);assert.equal(saved.scroll,180);assert.equal(saved.searchOpen,true);assert.equal(saved.fromRoom,false);
+ for(const hash of ['#live','#voice','#community/voice','#live?mode=talk']){
+  const back=directory({hash,saved,now:101000});await back.flush();
+  assert.equal(back.requests.length,0,hash);assert.equal(back.root.dataset.filter,'talk');assert.equal(back.get('#v3-room-search').value,'책 이야기');assert.equal(back.get('.talk-scroll').scrollTop,180);
+  assert.match(back.get('.v3-room-grid').innerHTML,/room-one/);assert.ok(back.observed.includes(back.navigation));assert.deepEqual(back.windowScrolls,[]);
+  back.dispose();assert.equal(back.snapshot().route,hash);
+ }
+ const changed=directory({hash:'#live?mode=karaoke',saved,now:101000});await changed.flush();
+ assert.equal(changed.requests.length,1);assert.equal(changed.root.dataset.filter,'karaoke');assert.equal(changed.get('#v3-room-search').value,'');assert.equal(changed.requests[0].has('cursor'),false);changed.dispose();
+});
+
+test('live reads become stale at twenty seconds and expire after two minutes without crossing account or API revision',async()=>{
+ const first=directory({hash:'#live',now:100000,response:async()=>roomPage()});await first.flush();
+ first.filters[2].onclick();await first.flush();first.get('#v3-room-search').value='이야기';first.get('#v3-room-search').oninput({});await first.flush();first.dispose();
+ const saved=first.snapshot();assert.equal(saved.fetchedAt,100000);assert.equal(saved.until,220000);
+ for(const [delta,requests,query] of [[19999,0,'이야기'],[20000,1,'이야기'],[120000,1,'']]){
+  const back=directory({hash:'#live',saved,now:100000+delta});await back.flush();
+  assert.equal(back.requests.length,requests,String(delta));assert.equal(back.get('#v3-room-search').value,query);back.dispose();
+ }
+ for(const scope of [{viewer:'other'},{viewer:null},{revision:1}]){
+  const other=directory({hash:'#live',saved,now:101000,...scope});await other.flush();
+  assert.equal(other.requests.length,1);assert.equal(other.root.dataset.filter,'all');assert.equal(other.get('#v3-room-search').value,'');other.dispose();
+ }
+});
+
+test('cached disabled and empty directories restore their exact status and retain the twenty-second poll',async()=>{
+ for(const enabled of [false,true]){
+  const response=async()=>({enabled,rooms:[],next_cursor:null});
+  const first=directory({hash:'#live',now:100000,response});await first.flush();
+  const text=first.get('span').textContent,state=first.get('.talk-status').dataset.state;first.dispose();
+  const back=directory({hash:'#live',saved:first.snapshot(),now:101000,response});await back.flush();
+  assert.equal(back.requests.length,0);assert.equal(back.root.dataset.enabled,String(enabled));assert.equal(back.get('#v3-create-room').disabled,!enabled);
+  assert.equal(back.get('span').textContent,text);assert.equal(back.get('.talk-status').dataset.state,state);assert.equal(back.get('.talk-status').hidden,false);assert.equal(back.get('.talk-sentinel').hidden,true);
+  back.advance(20000);await back.poll();await back.flush();assert.equal(back.requests.length,1);back.dispose();
+ }
+});
+
+test('failed and uncompleted queries never become successful snapshots; a failed refresh preserves only the old success time',async()=>{
+ const failed=directory({now:100000,response:async()=>{throw Error('offline');}});await failed.flush();
+ assert.equal(failed.get('.talk-status').dataset.state,'error');failed.dispose();assert.equal(failed.snapshot(),null);
+ const changed=directory({now:100000,response:async()=>roomPage()});await changed.flush();
+ changed.get('#v3-room-search').value='아직 조회하지 않은 검색';changed.get('#v3-room-search').oninput({});changed.dispose();assert.equal(changed.snapshot(),null);
+ const first=directory({hash:'#live',now:100000,response:async()=>roomPage()});await first.flush();first.advance(5000);first.setResponse(async()=>{throw Error('offline');});await first.poll();await first.flush();first.dispose();
+ const saved=first.snapshot();assert.equal(saved.fetchedAt,100000);assert.equal(saved.until,220000);assert.equal(saved.readFailed,true);assert.equal(saved.items[0][0],'room-one');assert.equal(saved.items[0][1].followed_profiles.length,0);
+ const back=directory({hash:'#live',saved,now:106000,response:async()=>roomPage()});await back.flush();assert.equal(back.requests.length,1);back.dispose();assert.equal(back.snapshot().fetchedAt,106000);
+});
+
+test('room return refreshes inside the freshness window and clears stale followed-member badges before that read',async()=>{
+ const first=directory({hash:'#live',now:100000,response:async()=>roomPage()});await first.flush();first.clickRoom();
+ first.context.location.hash='#voice/room-one';first.dispose();const saved=first.snapshot();assert.equal(saved.fromRoom,true);assert.equal(saved.route,'#live');
+ const back=directory({hash:'#live',saved,now:101000,response:async()=>roomPage()});
+ assert.match(back.get('.v3-room-grid').innerHTML,/>0<\/a>/);await back.flush();assert.equal(back.requests.length,1);assert.match(back.get('.v3-room-grid').innerHTML,/>1<\/a>/);back.dispose();
+});
+
+test('late reads cannot populate a snapshot after leaving, changing account or invalidating the API revision',async()=>{
+ for(const change of ['leave','account','revision']){
+  let resolve;const d=directory({now:100000,response:()=>new Promise(done=>{resolve=done;})});
+  if(change==='leave')d.dispose();else if(change==='account')d.context.me={id:'other'};else d.context.apiRevision++;
+  resolve(roomPage());await d.flush();if(change!=='leave')d.dispose();assert.equal(d.snapshot(),null,change);assert.equal(d.get('.v3-room-grid').innerHTML,'',change);
  }
 });
