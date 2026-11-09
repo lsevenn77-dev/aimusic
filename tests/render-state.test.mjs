@@ -3,13 +3,13 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 const source=readFileSync('dist/render-state.js','utf8');
-function boot({marker=null,playTargets=[],communityTargets=[],mypageTargets=[],hash='#home',route='home'}={}){
+function boot({marker=null,playTargets=[],communityTargets=[],mypageTargets=[],chartTargets=[],hash='#home',route='home'}={}){
  const handlers=new Map(),timers=new Map(),nodes=new Map();let sequence=0,reloads=0,replacements=0;
  const root={dataset:{},toggleAttribute(name,on){this[name]=on;}},main={dataset:{route},inert:false,setAttribute(){},removeAttribute(){}};
  for(const id of ['route-pending-message','route-pending-actions','route-retry'])nodes.set(id,{});nodes.set('main',main);
- const location={hash,pathname:'/',search:'',href:'https://aifect.test/'+hash,reload(){reloads++;},replace(){replacements++;const allTargets=[...playTargets,...communityTargets,...mypageTargets],playTarget=allTargets.find(target=>'#'+target.id===location.hash);if(marker)marker.targeted=!playTarget;for(const target of allTargets)target.targeted=target===playTarget;}};
+ const location={hash,pathname:'/',search:'',href:'https://aifect.test/'+hash,reload(){reloads++;},replace(){replacements++;const allTargets=[...playTargets,...communityTargets,...mypageTargets,...chartTargets],playTarget=allTargets.find(target=>'#'+target.id===location.hash);if(marker)marker.targeted=!playTarget;for(const target of allTargets)target.targeted=target===playTarget;}};
  const history={state:{retained:true},replaceState(state,title,url){this.state=state;location.href='https://aifect.test'+url;location.hash=url.slice(url.indexOf('#'));}};
- const targetGroups=[['[data-play-route-target]',playTargets],['[data-community-route-target]',communityTargets],['[data-mypage-route-target]',mypageTargets]];
+ const targetGroups=[['[data-play-route-target]',playTargets],['[data-community-route-target]',communityTargets],['[data-mypage-route-target]',mypageTargets],['[data-chart-route-target]',chartTargets]];
  const context=vm.createContext({URLSearchParams,document:{documentElement:root,getElementById:id=>nodes.get(id),querySelector:()=>marker,querySelectorAll:selector=>targetGroups.filter(([key])=>selector.split(',').map(part=>part.trim()).includes(key)).flatMap(([,targets])=>targets)},location,history,window:{addEventListener(name,fn){handlers.set(name,fn);}},setTimeout(fn){const id=++sequence;timers.set(id,fn);return id;},clearTimeout(id){timers.delete(id);}});
  vm.runInContext(source,context);const api=context.window.AifectRender;
  return {api,root,main,nodes,handlers,location,history,win:context.window,get replacements(){return replacements;},tick(){const tasks=[...timers.values()];timers.clear();tasks.forEach(fn=>fn());},get reloads(){return reloads;},get timers(){return timers.size;}};
@@ -109,6 +109,28 @@ test('retained navigation still rejects stale completion and preserves failure r
  assert.equal(c.root.dataset.renderState,'loading','a failed shell must be rebuilt before it can be retained');
 });
 
+test('chart tabs, periods and history retain the ready shell without replacing fragment history',()=>{
+ const target=(id,targeted=false)=>({id,targeted,matches(){return this.targeted;},removeAttribute(name){if(name==='id')this.id='';}});
+ const marker=target('home'),popular=target('charts?period=week'),covers=target('charts/covers?period=week'),releases=target('charts/releases?period=week'),monthly=target('charts/releases?period=month'),all=target('charts/releases?period=all');
+ const targets=[popular,covers,releases,monthly,all],c=boot({marker,chartTargets:targets,hash:'#'+popular.id,route:popular.id});
+ c.api.ready(c.api.begin(popular.id,'home',()=>{}));
+ assert.equal(c.root.dataset.renderState,'ready');assert.equal(c.replacements,1);assert.equal(marker.id,'');
+ for(const next of [covers,releases,monthly,all,monthly,releases,covers,popular]){
+  const previous=c.main.dataset.route;c.location.hash='#'+next.id;
+  targets.forEach(node=>{node.targeted=node===next;});
+  const epoch=c.api.begin(next.id,previous,()=>{}, {retain:true});
+  assert.equal(c.root.dataset.renderState,'ready');assert.equal(c.main.inert,false);
+  c.main.dataset.route=next.id;c.api.ready(epoch);
+  assert.equal(c.timers,0,'local chart loading must disarm the global timeout');
+  assert.equal(c.replacements,1,'native tabs and back/forward must not replace history');
+ }
+ c.location.hash='#song/one';targets.forEach(node=>{node.targeted=false;});
+ const leave=c.api.begin('song/one',popular.id,()=>{});
+ assert.equal(c.root.dataset.renderState,'loading');assert.equal(c.main.inert,true);
+ c.main.dataset.route='song/one';c.api.ready(leave);
+ assert.equal(marker.id,'song/one');assert.equal(c.root.dataset.renderState,'ready');
+});
+
 test('optional external resource failure cannot hide a running app',()=>{
  const c=boot(),id=c.api.begin('home',undefined,()=>{});c.api.ready(id);
  c.handlers.get('error')({target:{matches:()=>true,getAttribute:()=> 'https://optional.example/script.js'}});
@@ -131,7 +153,7 @@ test('bare home URL is normalized without pushing history and no-JS fallback rem
  const id=c.api.begin('home',undefined,()=>{});c.api.ready(id);assert.equal(c.location.hash,'#home');assert.deepEqual(c.history.state,{retained:true});
  const html=readFileSync('dist/index.html','utf8'),css=readFileSync('dist/render-state.css','utf8');
  assert.ok(html.indexOf('data-render-target hidden')<html.indexOf('<main id="main"'));
- assert.match(css,/html\[data-render-state="ready"\]:not\(:has\(\[data-render-target\]:target,\[data-play-route-target\]:target,\[data-community-route-target\]:target,\[data-mypage-route-target\]:target\)\) #main\{display:none!important\}/);
+ assert.match(css,/html\[data-render-state="ready"\]:not\(:has\(\[data-render-target\]:target,\[data-play-route-target\]:target,\[data-community-route-target\]:target,\[data-mypage-route-target\]:target,\[data-chart-route-target\]:target\)\) #main\{display:none!important\}/);
 });
 
 test('malformed UTF-8 fragments use the browser tolerant decoding and keep literal plus signs',()=>{
