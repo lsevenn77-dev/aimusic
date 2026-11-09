@@ -176,7 +176,7 @@
   padding:calc(10px) calc(16px);border-radius:var(--ds-radius-input);box-shadow:none;
   font-size:var(--pc-font-control,14px);font-weight:500;line-height:1.5;
 }
-/* Approved desktop inbox: one row for the message, source and type/time.
+/* Approved desktop inbox: separate message, amount, source, type and time columns.
    Keep the original DOM order and the stacked layout on smaller screens. */
 @media(min-width:1024px) {
   #main:is([data-route="notifications"],[data-route^="notifications?"]) > .activity-inbox {
@@ -189,34 +189,45 @@
     width:40px;height:40px;
   }
   #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-copy {
-    display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr) 188px;
-    align-items:center;gap:0 calc(20px);
+    display:grid;grid-template-columns:minmax(0,1.4fr) 80px minmax(0,1fr) 120px 62px;
+    align-items:center;gap:0 calc(32px);padding-inline-end:calc(40px);
   }
   #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-copy > p {
     grid-column:1;grid-row:1;min-width:0;margin:0;
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.5;
   }
   #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-copy > .activity-detail {
-    grid-column:2;grid-row:1;min-width:0;align-items:center;flex-wrap:nowrap;
+    grid-column:3;grid-row:1;min-width:0;align-items:center;flex-wrap:nowrap;
     overflow:hidden;white-space:nowrap;line-height:1.5;
   }
   #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-copy > .activity-meta {
-    grid-column:3;grid-row:1;min-width:0;justify-content:flex-end;flex-wrap:nowrap;
-    gap:calc(6px);white-space:nowrap;font-size:var(--pc-font-caption,13px);
+    display:contents;white-space:nowrap;font-size:var(--pc-font-caption,13px);
   }
   #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-meta > span:first-child {
-    min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    grid-column:4;grid-row:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
   }
-  #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-meta > :is([aria-hidden],time) {
-    flex:none;
+  #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-meta > time {
+    grid-column:5;grid-row:1;justify-self:end;white-space:nowrap;
   }
-  #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-gift-detail {
-    width:100%;gap:calc(8px);
+  #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-meta > [aria-hidden],
+  #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-gift-detail > .activity-gift-separator {
+    display:none;
+  }
+  #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-copy > .activity-detail:has(> .activity-gift-detail),
+  #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-copy > .activity-detail > .activity-gift-detail {
+    display:contents;
+  }
+  #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-gift-detail > .activity-value {
+    grid-column:2;grid-row:1;min-width:0;text-align:right;font-variant-numeric:tabular-nums;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.5;
+  }
+  #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-gift-detail > .activity-gift-source {
+    grid-column:3;grid-row:1;min-width:0;line-height:1.5;
   }
 }
 @media(min-width:1024px) and (max-width:1279px) {
   #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-copy {
-    grid-template-columns:minmax(0,1.9fr) minmax(0,1fr) 126px;
+    grid-template-columns:minmax(0,1.7fr) 64px minmax(0,1fr) 96px 46px;
     column-gap:calc(12px);
   }
 }
