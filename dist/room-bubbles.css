@@ -296,15 +296,18 @@
   & #live-timer {font-size:13px;}
  }
 }
-@media(max-width:360px){
- #main[data-room-entered] .voice-room[data-voice-room] .room-header {flex-wrap:wrap;}
- #main[data-room-entered] .voice-room[data-voice-room] .room-heading {flex-basis:100%;}
+/* Keep all six menu targets clear of the elapsed time on narrow phones. */
+@media(max-width:380px){
+ #main[data-room-entered] .voice-room[data-voice-room] {
+  & .room-header {grid-template-columns:minmax(0,1fr) auto;column-gap:8px;}
+  & .room-heading h1 {grid-column:1;}
+  & .room-heading small {grid-row:1;grid-column:2;justify-self:end;}
+  & .room-header nav {grid-column:1/-1;}
+ }
 }
 
 /* Shared member identity stays plain; muted state affects the portrait only. */
 #main[data-room-entered] .voice-room[data-voice-room] {
- & #voice-chat-form > [data-voice=inbox] svg {fill:none;stroke:currentColor;stroke-width:1.8;}
- & #voice-chat-form > [data-voice=inbox][aria-expanded=true] {background:var(--room-control-selected);color:var(--ds-text);}
  & #voice-members-list {gap:0;}
  & #voice-members-list .voice-member-row {flex:none;border:0;border-bottom:1px solid var(--ds-line);border-radius:0;background:none;box-shadow:none;}
  & #voice-members-list .voice-member-row:last-child {border-bottom:0;}
