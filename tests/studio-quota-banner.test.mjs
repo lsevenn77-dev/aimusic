@@ -26,7 +26,7 @@ for(const [plan,used,limit,percent] of [['free',0,3,0],['free',1,3,100/3],['free
  test(`banner ${plan} ${used}/${limit} renders server usage, exact progress and the right action`,()=>{
   const {ctx}=harness(),html=ctx.studioQuotaCard(membership(plan,used,limit),'ready');
   assert.match(html,new RegExp(`>${used} / ${limit}곡</strong>`));
-  const progress=Number(html.match(/style="width:([\d.]+)%"/)[1]);
+  const progress=Number(html.match(/style="--studio-quota-progress:([\d.]+)%"/)[1]);
   assert.ok(Math.abs(progress-percent)<1e-10);
   assert.match(html,new RegExp(`aria-valuemax="${limit}" aria-valuenow="${used}"`));
   assert.match(html,/완성한 음악을 들려주세요\./);
@@ -39,7 +39,7 @@ for(const [plan,used,limit,percent] of [['free',0,3,0],['free',1,3,100/3],['free
   assert.equal((html.match(/커버 업로드 무제한 · 광고 없음/g)||[]).length,1);
   if(plan==='premium'){
    assert.match(html,/<span class="studio-premium-state">/);assert.match(html,/PREMIUM 이용 중/);
-   assert.match(html,/월 10곡 업로드 가능/);
+   assert.match(html,/제작곡 월 10곡까지 업로드/);
    assert.doesNotMatch(html,/href="#membership"|<button|업그레이드|혜택 보기/);
   }else{
    assert.match(html,/혜택 보기/);assert.match(html,/href="#membership"/);
@@ -52,11 +52,11 @@ for(const [plan,used,limit,percent] of [['free',0,3,0],['free',1,3,100/3],['free
 test('limits remain dynamic, over-limit expiry usage is preserved and malformed data never looks free',()=>{
  const {ctx}=harness();
  assert.match(ctx.studioQuotaCard(membership('premium',6,12),'ready'),/6 \/ 12/);
- assert.match(ctx.studioQuotaCard(membership('premium',6,12),'ready'),/style="width:50%"/);
+ assert.match(ctx.studioQuotaCard(membership('premium',6,12),'ready'),/style="--studio-quota-progress:50%"/);
  assert.match(ctx.studioQuotaCard(membership('premium',6,12),'ready'),/월 12곡/);
  const expired=ctx.studioQuotaCard(membership('free',5,3),'ready');
  assert.match(expired,/5 \/ 3곡/);
- assert.match(expired,/style="width:100%"/);
+ assert.match(expired,/style="--studio-quota-progress:100%"/);
  assert.match(expired,/aria-valuemax="3" aria-valuenow="3"/);
  assert.match(expired,/이번 달 제작곡 한도를 모두 사용했어요\./);
  assert.doesNotMatch(expired,/-\d+곡 더 가능/);
