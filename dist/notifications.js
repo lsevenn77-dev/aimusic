@@ -151,13 +151,10 @@ function bindActivityLayout(root,active){
  let moving=false,unlock;
  const layout=()=>{
   if(!active())return;
-  const header=document.querySelector('.topbar'),rect=header?.getBoundingClientRect();
-  root.style.setProperty('--activity-header',Math.max(0,rect?.bottom||0)+'px');
   let bottom=16;
   document.querySelectorAll('.player,.mobile-navigation,#player-extension,#player-action-panel,#player-lyric').forEach(el=>{const r=el.getBoundingClientRect();if(r.height&&r.width&&getComputedStyle(el).visibility!=='hidden'&&!el.hidden)bottom=Math.max(bottom,innerHeight-r.top+12);});
   top.style.bottom=bottom+'px';top.hidden=window.scrollY<500;
   const r=root.getBoundingClientRect();top.style.right=Math.max(16,innerWidth-r.right)+'px';
-  root.classList.toggle('toolbar-stuck',r.top<Math.max(0,rect?.bottom||0)-1);
   if(window.scrollY<2){moving=false;top.disabled=false;}
  };
  top.onclick=()=>{if(moving)return;moving=true;top.disabled=true;window.scrollTo({top:0,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});clearTimeout(unlock);unlock=setTimeout(()=>{moving=false;top.disabled=false;},1500);};
