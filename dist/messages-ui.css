@@ -7,12 +7,14 @@
 }
 #main .message-workspace .message-list-pane{display:flex;flex-direction:column;min-width:0;min-height:0;padding:18px 12px;background:var(--ds-panel);border-right:1px solid var(--ds-line);overflow:hidden}
 #main .message-workspace .dm-section-heading{flex:none;display:flex;flex-wrap:nowrap;align-items:center;justify-content:space-between;gap:8px;margin:0 8px 12px}
-#main .message-workspace .dm-section-heading h2{font-size:var(--dm-title);font-weight:700}
-#main .message-workspace .inbox-tools{flex-wrap:nowrap;gap:8px;min-width:0}
-#main .message-workspace .dm-new-trigger{display:inline-flex;align-items:center;justify-content:center;flex:none;min-height:36px;padding:0 12px;border:0;border-radius:12px;background:none;color:var(--ds-selected);font:inherit;font-size:14px;line-height:1.4;white-space:nowrap;box-shadow:none}
+#main .message-workspace .dm-section-heading h2{margin:0;font-size:var(--dm-title);font-weight:700;white-space:nowrap}
+#main .message-workspace .inbox-tools{display:flex;align-items:center;flex:none;flex-wrap:nowrap;gap:0;min-width:0}
+#main .message-workspace .inbox-tools>:is(.dm-new-trigger,.text-link){position:relative;display:inline-flex;align-items:center;justify-content:center;flex:none;min-height:44px;padding:0 10px;line-height:1.4;white-space:nowrap}
+#main .message-workspace .inbox-tools>:is(button,a)+:is(button,a)::before{content:"";position:absolute;left:0;top:50%;width:1px;height:1em;transform:translateY(-50%);background:var(--ds-muted);opacity:.45;pointer-events:none}
+#main .message-workspace .dm-new-trigger{border:0;border-radius:12px;background:none;color:var(--ds-selected);font:inherit;font-size:14px;box-shadow:none}
 #main .message-workspace .dm-new-trigger:is(:hover,[aria-expanded="true"]){color:var(--ds-text)}
 #main .message-workspace .dm-new-trigger:focus-visible{outline:0;text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:4px}
-#main .message-workspace .inbox-tools .text-link{border:0;background:none;box-shadow:none;min-height:44px;padding:0 6px;color:var(--ds-body);font-size:14px}
+#main .message-workspace .inbox-tools .text-link{border:0;background:none;box-shadow:none;color:var(--ds-body);font-size:14px}
 #main .message-workspace .inbox-tools .text-link:hover{color:var(--ds-accent-mint);background:none}
 #main .message-workspace .dm-mobile-exit{display:none}
 #main .message-workspace .dm-search{display:flex;align-items:center;flex:none;gap:10px;margin:0 8px 14px;padding:0 12px;border:1px solid var(--ds-line);border-radius:12px;background:var(--ds-bg);color:var(--ds-muted)}
@@ -141,6 +143,9 @@
 #dialog.dm-new-dialog .dm-new-results>p{margin:0;padding:12px 4px;font-size:13px;line-height:1.6;color:var(--ds-muted)}
 html[data-message-route] .page-wrap>.page-footer{display:none!important}
 html[data-message-route] #main{min-height:0;padding-bottom:12px!important}
+@media(min-width:801px) and (max-width:1439px){
+ #main .message-workspace .inbox-tools>:is(.dm-new-trigger,.text-link){padding-inline:6px}
+}
 @media(min-width:801px) and (max-width:1100px) and (pointer:fine){
  #main > .message-workspace{grid-template-columns:minmax(0,1fr)}
  #main .message-workspace.has-thread>.message-list-pane,#main .message-workspace:not(.has-thread)>.message-welcome{display:none}
@@ -160,9 +165,7 @@ html[data-message-route] #main{min-height:0;padding-bottom:12px!important}
  #main .message-workspace .dm-section-heading{gap:0;margin:0 0 8px}
  #main .message-workspace .dm-section-heading h2{margin-right:auto}
  #main .message-workspace .dm-mobile-exit{display:grid;margin-right:4px;color:var(--ds-body);flex:none}
- #main .message-workspace .inbox-tools .text-link{font-size:12px;padding:0 4px}
- #main .message-workspace .inbox-tools{gap:4px}
- #main .message-workspace .dm-new-trigger{min-height:44px;padding:0 10px;font-size:12px}
+ #main .message-workspace .inbox-tools>:is(.dm-new-trigger,.text-link){padding:0 4px;font-size:12px}
  #main #dm-conversations .conversation-row{padding:14px 10px;min-height:80px;gap:10px}
  #main #dm-conversations .conversation-open{gap:16px}
  #main .message-workspace .dm-thread-header{padding:6px 8px!important;gap:4px}
