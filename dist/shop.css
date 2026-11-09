@@ -99,11 +99,10 @@
 .shop-page :focus-visible{outline:2px solid var(--shop-accent);outline-offset:3px}
 .shop-page .shop-empty{margin:24px 0;padding:20px;text-align:center;color:var(--ds-body);font-size:var(--pc-font-body,15px)}
 .shop-page .shop-empty[hidden]{display:none}
-.shop-page .shop-policy{margin-top:24px;padding-top:12px;border-top:1px solid var(--shop-outline);color:var(--ds-body);font-size:var(--pc-font-caption,13px);line-height:1.7}
-.shop-page .shop-policy summary{cursor:pointer;min-height:44px;align-content:center}
 .shop-page .shop-actions :is(svg,.shop-coin){width:20px;height:20px;flex:none;stroke-width:1.6}
 .shop-currency-amount{display:inline-flex;align-items:center;justify-content:center;gap:4px;white-space:nowrap;font-variant-numeric:tabular-nums;vertical-align:middle}
 @media(min-width:1280px){.shop-page .shop-products{grid-template-columns:repeat(8,minmax(0,1fr))}}
+@media(min-width:801px){.shop-page .shop-tabs{--pc-font-control:18px;max-width:none}.shop-page .shop-tabs button{line-height:1.4;gap:10px}}
 @media(min-width:768px) and (max-width:1000px){.shop-page .shop-products{grid-template-columns:repeat(5,minmax(0,1fr))}}
 @media(min-width:768px) and (max-width:1279px){.shop-page .shop-heading{flex-wrap:wrap}.shop-page .shop-balances{margin-left:auto}.shop-page .shop-actions a{padding-inline:9px}.shop-page .shop-toolbar{gap:14px}}
 @container(max-width:680px){.shop-page .shop-toolbar{grid-template-columns:minmax(0,1fr);gap:12px}.shop-page .shop-item-search{max-width:240px}.shop-page .shop-card-buy svg{display:none}}
@@ -134,7 +133,7 @@
  .shop-page .shop-card-price{gap:4px;min-height:24px;margin:2px 0 4px;flex-wrap:wrap}
  .shop-page .shop-card-price .shop-coin{width:16px;height:16px}
  .shop-page .shop-price-value{font-size:14px}
- .shop-page .shop-price-period{width:100%;font-size:11px}
+ .shop-page .shop-card[data-shop-category=frames] .shop-price-period{display:none}
  .shop-page :is(.shop-card-buy,.shop-card-preview){padding-inline:0;font-size:12px}
  .shop-page :is(.shop-card-buy,.shop-card-preview)::before{width:84%;min-width:min(56px,100%);max-width:84px;height:28px}
  .shop-page .shop-card-buy svg{display:none}
