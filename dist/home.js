@@ -88,7 +88,7 @@ function homeMore(title,href){return href?`<a class="home-more-link" href="${hre
 function homeSection(title,href){return `<div class="section-heading"><h2>${esc(title)}</h2>${homeMore(title,href)}</div>`;}
 function homePlaceholder(){return '<div class="release-placeholder" role="status" aria-label="음악을 불러오는 중"><div></div><span>음악을 불러오고 있어요.</span></div>';}
 // Keep the approved 2:1 photograph and every original person unchanged.
-// Desktop extends the scene outside both edges of that same opaque photo;
+// Desktop overlaps only empty scenery along the source's left edge;
 // never substitute a generated portrait at a desktop/compact breakpoint.
 const homeBanners=[
  {id:'studio',title:'스튜디오',headline:'스튜디오에서 내 제작곡을 올려보세요',subtitle:'완성한 음악을 직접 공개해요.',cta:'제작곡 올리기',href:'#upload'},
@@ -101,7 +101,7 @@ const homeBanners=[
  {id:'premium',title:'프리미엄',headline:'프리미엄으로 제작곡을 더 많이 올려보세요',subtitle:'고음질로 음악을 더 깊이 즐겨요.',cta:'프리미엄 혜택 보기',href:'#membership'}
 ];
 function homeBannerImage(id,width){return '/assets/home-banners/'+(id==='crew'?'seamless-20261109/':'mobile-20261109/')+id+'-'+width+'.webp';}
-function homeBannerBackgroundImage(id,side='left'){return '/assets/home-banners/inset-20261109/'+id+'-'+side+'-'+(side==='right'?239:2211)+'.webp';}
+function homeBannerBackgroundImage(id,side='left'){return '/assets/home-banners/center-20261109/'+id+'-'+side+'-'+(side==='right'?768:2365)+'.webp';}
 const homeBannerDesktopCopy={
  studio:{lines:['스튜디오에서','내 제작곡을 올려보세요'],highlight:'내 제작곡'},
  play:{lines:['플레이에서','마음에드는 노래를 불러보세요'],highlight:'플레이'},
@@ -116,7 +116,7 @@ function homeBannerText(text){
  return text.split(/([A-Za-z]+)/g).map((part,index)=>index%2?'<span class="home-promo-latin" lang="en">'+esc(part)+'</span>':esc(part)).join('');
 }
 function homeBannerHTML(b,next){
- const sizes='(max-width: 800px) 100vw, 544px';
+ const sizes='(max-width: 800px) 100vw, '+(b.id==='artists'?'680':'544')+'px';
  const sources=id=>homeBannerImage(id,768)+' 768w, '+homeBannerImage(id,1536)+' 1536w';
  const copy=homeBannerDesktopCopy[b.id],headline=copy.lines.map(line=>'<span>'+line.split(copy.highlight).map(homeBannerText).join('<em>'+homeBannerText(copy.highlight)+'</em>')+'</span>').join('');
  const scenery=id=>['left','right'].map(side=>`<span class="home-promo-scenery home-promo-scenery-${side}" aria-hidden="true" style="--home-promo-scenery:url('${homeBannerBackgroundImage(id,side)}')"></span>`).join('');
