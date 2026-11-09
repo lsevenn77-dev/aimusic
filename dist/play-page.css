@@ -486,6 +486,23 @@ img.play-dubbing-art{display:block;width:100%;height:auto;aspect-ratio:1;object-
 
   @media (min-width: 801px) {
     .play-banner-link { padding-left: 11cqi; }
+    /* Soften the copy-side scenery gradually while preserving the photo crop
+       and the sharp person. Both layers use the same background geometry. */
+    .play-banner-art:is([data-play-art="song"], [data-play-art="dubbing"])::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      background: inherit;
+      filter: blur(2px);
+      mask-image: linear-gradient(90deg, #000 0%, #000 32%, transparent 57%);
+      -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 32%, transparent 57%);
+    }
+    .play-banner-art:is([data-play-art="song"], [data-play-art="dubbing"])::after {
+      z-index: 1;
+      background: linear-gradient(90deg, #080e1cb3 0%, #080e1ca3 28%, #080e1c70 42%, #080e1c29 54%, transparent 63%);
+    }
     /* Lower the camera framing without losing the top of either person's hair.
        A small height reserve lets narrower PC frames crop their top as well. */
     .play-banner-art:is([data-play-art="song"], [data-play-art="dubbing"]) {
