@@ -279,7 +279,7 @@
 }
 /* The table defines the desktop height; the feature stretches in the same grid. */
 .home-content-refresh .home-chart-layout{display:grid;grid-template-columns:minmax(0,1fr);gap:20px;align-items:stretch;min-width:0}
-.home-content-refresh .home-chart-feature{display:block;position:relative;isolation:isolate;overflow:hidden;min-width:0;min-height:440px;border:1px solid color-mix(in srgb,var(--ds-mint) 26%,var(--ds-panel));border-radius:var(--ds-radius-card);background:var(--ds-panel);padding:0}
+.home-content-refresh .home-chart-feature{display:block;position:relative;isolation:isolate;overflow:hidden;min-width:0;min-height:440px;border:1px solid rgba(160,185,210,.08);border-radius:var(--ds-radius-card);background:var(--ds-panel);padding:0}
 .home-content-refresh .home-chart-stage,.home-content-refresh .home-chart-outgoing{position:absolute;inset:0}
 .home-content-refresh .home-chart-slide{box-sizing:border-box;position:absolute;inset:0;isolation:isolate;display:grid;grid-template-rows:18px minmax(0,1fr) auto;justify-items:center;gap:calc(12px);padding:calc(22px) calc(20px) calc(48px);min-width:0;min-height:0}
 .home-content-refresh .home-chart-backdrop{position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none;-webkit-mask-image:linear-gradient(to bottom,#000 0%,#000 14%,#0008 48%,transparent 83%);mask-image:linear-gradient(to bottom,#000 0%,#000 14%,#0008 48%,transparent 83%)}
