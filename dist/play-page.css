@@ -484,6 +484,27 @@ img.play-dubbing-art{display:block;width:100%;height:auto;aspect-ratio:1;object-
     .home-feature-description { margin-top: 5px; }
   }
 
+  @media (min-width: 801px) {
+    .play-banner-link { padding-left: 11cqi; }
+    /* Lower the camera framing without losing the top of either person's hair.
+       A small height reserve lets narrower PC frames crop their top as well. */
+    .play-banner-art:is([data-play-art="song"], [data-play-art="dubbing"]) {
+      --play-photo-height: max(108cqh, 33.333333cqi);
+      --play-photo-head-y: .213;
+      --play-photo-head-gap: 16px;
+      background-size: auto var(--play-photo-height);
+      background-position-y: max(
+        calc(100cqh - var(--play-photo-height)),
+        calc((100cqh - var(--play-photo-height)) * .35 - 18px),
+        calc(var(--play-photo-head-gap) - var(--play-photo-height) * var(--play-photo-head-y))
+      );
+    }
+    .play-banner-art[data-play-art="dubbing"] {
+      --play-photo-head-y: .192;
+      --play-photo-head-gap: 12px;
+    }
+  }
+
   @media (max-width: 800px) {
     .home-feature { margin-block-end: 16px; }
     .play-banner-art { --art: var(--mobile-art); background-position: center; }
