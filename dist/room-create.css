@@ -12,6 +12,8 @@
   background:var(--ds-surface);
   color:var(--ds-body);
   overflow:hidden;
+  /* The shared dialog animation replaces the translateY(-50%) centering. */
+  animation:none;
 }
 .live-directory #v3-room-create.compact-popup .voice-sheet-heading {
   flex:none;min-height:32px;margin:0 0 20px;padding:0;border:0;
