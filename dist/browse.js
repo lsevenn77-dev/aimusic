@@ -31,7 +31,7 @@ function updateBrowseNavigation(base,param){
  document.querySelectorAll('[data-primary-view]').forEach(a=>{const inSidebar=!!a.closest('.sidebar'),active=!(inSidebar&&hasSidebarPage)&&a.dataset.primaryView===(inSidebar&&['library','history'].includes(base)?'library':primary);a.classList.toggle('active',active);if(active)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});
  document.querySelectorAll('.nav-link[data-view]:not([data-primary-view])').forEach(a=>{const active=matchesPage(a);a.classList.toggle('active',active);if(active)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});
 }
-function chartTabs(active='',period='week'){return `<nav class="tabs music-community-tabs chart-tabs aifect-main-tabs" aria-label="차트 종류">${[['','인기차트'],['covers','커버차트'],['releases','신곡차트']].map(([key,label],index)=>`<a class="tab ${active===key?'active':''}" data-tab-tone="${['pink','mint','purple'][index]}" href="#charts${key?'/'+key:''}?period=${period}" ${active===key?'aria-current="page"':''}>${label}</a>`).join('')}</nav>`;}
+function chartTabs(active='',period='week'){return `<nav class="tabs music-community-tabs chart-tabs aifect-main-tabs" aria-label="차트 종류">${[['','인기차트'],['covers','커버차트'],['releases','신곡차트']].map(([key,label],index)=>`<a id="chart-tab-${key||'popular'}" class="tab ${active===key?'active':''}" data-chart-tab="${key}" data-tab-tone="${['pink','mint','purple'][index]}" href="#charts${key?'/'+key:''}?period=${period}" ${active!=='karaoke'?'aria-controls="chart-content"':''} ${active===key?'aria-current="page"':''}>${label}</a>`).join('')}</nav>`;}
 function libraryTabs(active='likes'){if(['artists','producers'].includes(active))active='following';return `<nav class="tabs" aria-label="보관함 종류">${[['likes','좋아요'],['playlists','플레이리스트'],['history','최근 들은 곡']].map(([key,label])=>`<a class="tab ${active===key?'active':''}" href="#profile?view=library&section=${key}" ${active===key?'aria-current="page"':''}>${label}</a>`).join('')}</nav>`;}
 function browsePlaybackActions(tracks,showCount=true){return `<div class="inline-actions playlist-actions"><button class="list-action primary-button" data-play-all ${tracks.length?'':'disabled'}>${icon('ui-play-action')} 전체 듣기</button><button class="list-action small-button" data-browse-shuffle ${tracks.length?'':'disabled'}>${icon('shuffle')} 섞어 듣기</button>${showCount?`<span class="field-help" data-browse-count>${tracks.length}곡</span>`:''}</div>`;}
 function browseQuickLinks(){return `<nav class="browse-shortcuts" aria-label="음악 즐기기"><a href="#charts">${icon('chart')}<strong>인기 차트</strong></a><a href="#charts/karaoke">${icon('mic')}<strong>노래방 차트</strong><small>듣고, 직접 부르고</small></a><a href="#community/covers">${icon('users')}<strong>커버곡 둘러보기</strong><small>같은 곡, 다른 목소리</small></a><a href="#collections">${icon('library')}<strong>추천 플레이리스트</strong><small>취향을 나누는 선곡</small></a></nav>`;}
@@ -58,9 +58,9 @@ function chartDate(date,short=false){
  return ['year','month','day'].map(key=>parts.find(part=>part.type===key).value).join('.');
 }
 function chartDefaultName(view){return `${chartKindLabels[view.chartKind||'']}차트 · ${chartPeriodLabels[view.chartPeriod]} · ${chartDate(new Date(),true)}`;}
-function chartPlaybackActions(tracks,kind='',period='week'){
+function chartPlaybackActions(tracks,kind='',period='week',includeTabs=true){
  const playable=tracks.filter(t=>t.playable!==false&&Number(t.duration)>0);
- return `${chartTabs(kind,period)}<div class="chart-toolbar"><button class="chart-action chart-listen" data-play-all ${playable.length?'':'disabled'}>${icon('ui-plays')}<span>전체 듣기</span></button><button class="chart-action chart-shuffle" data-browse-shuffle ${playable.length?'':'disabled'}>${icon('shuffle')}<span>섞어 듣기</span></button>${tracks.some(t=>AifectPlaylist.isPlaylistEligibleTrack(t))?`<button class="chart-action chart-create" data-chart-playlist ${tracks.length?'':'disabled'}>${icon('list-plus')}<span>플리 만들기</span></button>`:''}<details class="chart-period"><summary class="chart-action" aria-label="차트 기간: ${chartPeriodLabels[period]}"><span>${chartPeriodLabels[period]}</span>${icon('ui-chevron')}</summary><nav class="chart-period-menu" aria-label="차트 기간 선택">${Object.entries(chartPeriodLabels).map(([key,label])=>`<a href="#charts${kind?'/'+kind:''}?period=${key}" ${key===period?'aria-current="true"':''}>${label}</a>`).join('')}</nav></details></div>`;
+ return `${includeTabs?chartTabs(kind,period):''}<div class="chart-toolbar"><button class="chart-action chart-listen" data-play-all ${playable.length?'':'disabled'}>${icon('ui-plays')}<span>전체 듣기</span></button><button class="chart-action chart-shuffle" data-browse-shuffle ${playable.length?'':'disabled'}>${icon('shuffle')}<span>섞어 듣기</span></button>${tracks.some(t=>AifectPlaylist.isPlaylistEligibleTrack(t))?`<button class="chart-action chart-create" data-chart-playlist ${tracks.length?'':'disabled'}>${icon('list-plus')}<span>플리 만들기</span></button>`:''}<details class="chart-period"><summary class="chart-action" aria-label="차트 기간: ${chartPeriodLabels[period]}"><span>${chartPeriodLabels[period]}</span>${icon('ui-chevron')}</summary><nav class="chart-period-menu" aria-label="차트 기간 선택">${Object.entries(chartPeriodLabels).map(([key,label])=>`<a href="#charts${kind?'/'+kind:''}?period=${key}" ${key===period?'aria-current="true"':''}>${label}</a>`).join('')}</nav></details></div>`;
 }
 let chartPlaylistOpening=false,chartPlaylistSaving=false;
 function chartPlaylistIds(tracks,range,selected=[]){const picked=new Set(selected);return [...new Set(tracks.filter(t=>AifectPlaylist.isPlaylistEligibleTrack(t)&&(range==='all'||picked.has(t.id))).map(t=>t.id))];}
@@ -103,18 +103,148 @@ function bindChartToolbar(view){
  chartToolbarCleanup?.();chartToolbarCleanup=null;
  const root=$('.chart-toolbar');if(!root)return;
  const details=root.querySelector('.chart-period'),create=root.querySelector('[data-chart-playlist]');
- create.onclick=()=>chartPlaylistDialog(view).catch(e=>toast(e.message));
- details.addEventListener('click',e=>{const choice=e.target.closest('a');if(choice){details.querySelector('summary span').textContent=choice.textContent;details.open=false;}});
+ if(create)create.onclick=()=>chartPlaylistDialog(view).catch(e=>toast(e.message));
+ if(!details)return;
+ const choose=e=>{const choice=e.target.closest('a');if(choice){const label=details.querySelector('summary span');if(label)label.textContent=choice.textContent;details.open=false;}};
+ details.addEventListener('click',choose);
  const close=e=>{if(e.type==='keydown'){if(e.key==='Escape'&&details.open){details.open=false;details.querySelector('summary').focus();}}else if(!details.contains(e.target))details.open=false;};
  document.addEventListener('click',close);document.addEventListener('keydown',close);
- const cleanup=()=>{document.removeEventListener('click',close);document.removeEventListener('keydown',close);window.removeEventListener('hashchange',cleanup);};
+ const cleanup=()=>{details.removeEventListener('click',choose);document.removeEventListener('click',close);document.removeEventListener('keydown',close);window.removeEventListener('hashchange',cleanup);};
  chartToolbarCleanup=cleanup;window.addEventListener('hashchange',cleanup,{once:true});
 }
 async function popularChartView(raw='',kind='',readApi=api){
- const query=new URLSearchParams(raw.includes('?')?raw.split('?')[1]:''),requested=query.get('period'),period=['week','month','all'].includes(requested)?requested:'week';
- const d=await readApi('/api/catalog?section=tracks&full=1&chart='+({covers:'covers',releases:'new'}[kind]||'listens')+'&period='+period);
- const chart=d.chart,tracks=d.tracks;
- return {html:'<section class="charts-final">'+chartPlaybackActions(tracks,kind,period)+(tracks.length?chartPageTable(tracks,kind):empty('아직 집계된 곡이 없어요.','선택한 차트에 해당하는 공개 제작곡이 여기에 표시됩니다.','#home','홈으로'))+(chart?.comparison?.available?'':'<p class="field-help chart-comparison-note">같은 집계 기준의 전날 기록이 준비되면 순위 변동을 표시해요.</p>')+'</section>',tracks,chartPage:true,chartKind:kind,chartPeriod:period};
+ const selection=chartRouteSelection('charts'+(kind?'/'+kind:'')+(raw.includes('?')?'?'+raw.split('?')[1]:''));
+ return chartViewFromData(selection,await readChartData(selection,readApi),raw||selection.raw);
+}
+// These three chart tabs share one mounted shell. The legacy karaoke chart
+// keeps its own content, API and route lifecycle.
+const chartDataCache=new Map(),CHART_DATA_TTL=30000;
+const chartRevision=()=>typeof apiRevision==='number'?apiRevision:0;
+const chartAccount=()=>me?.id||'guest';
+function chartRouteSelection(raw=''){
+ if(typeof raw!=='string')return null;
+ raw=raw.replace(/^#?\/?/,'');
+ const [path,query='']=raw.split('?'),[base,param,...rest]=path.split('/');
+ if(base!=='charts'||param==='karaoke'||rest.length)return null;
+ const kind=['covers','releases'].includes(param)?param:'',requested=new URLSearchParams(query).get('period'),period=['week','month','all'].includes(requested)?requested:'week';
+ return {raw,kind,period,key:kind+':'+period};
+}
+function chartTargetId(raw){try{return decodeURIComponent(raw.replace(/^#/,''));}catch{return raw.replace(/^#/,'');}}
+function chartRouteTargetsHTML(raw=''){
+ const routes=new Set([raw,'charts','charts/top']);
+ for(const kind of ['','covers','releases'])for(const period of ['','week','month','all'])routes.add('charts'+(kind?'/'+kind:'')+(period?'?period='+period:''));
+ return '<div hidden aria-hidden="true" data-chart-route-targets>'+[...routes].filter(Boolean).map(route=>'<span data-chart-route-target id="'+esc(chartTargetId(route))+'"></span>').join('')+'</div>';
+}
+function rememberChartRouteTarget(raw,root=$('.charts-final')){
+ if(!chartRouteSelection(raw))return;
+ const host=root?.querySelector('[data-chart-route-targets]');if(!host)return;
+ const id=chartTargetId(raw);if([...host.children].some(node=>node.id===id))return;
+ const target=document.createElement('span');target.setAttribute('data-chart-route-target','');target.id=id;host.append(target);
+}
+function canRefreshChartRoute(raw){
+ const main=$('#main'),root=main?.querySelector('.charts-final'),state=root?._chartRouteState;
+ return !!(chartRouteSelection(raw)&&chartRouteSelection(main?.dataset.route)&&state&&!state.disposed&&state.account===chartAccount()&&main.dataset.account===chartAccount()&&root.querySelector('#chart-content')&&root.querySelector('.chart-tabs'));
+}
+function chartCacheKey(selection){return chartAccount()+':'+chartRevision()+':'+selection.key;}
+function cachedChartData(selection){
+ const entry=chartDataCache.get(chartCacheKey(selection));
+ return entry&&entry.until>Date.now()?structuredClone(entry):null;
+}
+async function readChartData(selection,readApi=api,force=false){
+ const account=chartAccount(),revision=chartRevision(),key=chartCacheKey(selection);
+ const check=()=>{if(account!==chartAccount()||revision!==chartRevision()||readApi.signal?.aborted||readApi.current&&!readApi.current())throw Object.assign(new Error('이전 차트의 요청입니다.'),{name:'AbortError'});};
+ check();const cached=!force&&cachedChartData(selection);if(cached)return cached;
+ const data=await readApi('/api/catalog?section=tracks&full=1&chart='+({covers:'covers',releases:'new'}[selection.kind]||'listens')+'&period='+selection.period,'GET',undefined,{fresh:true});check();
+ const entry={data:structuredClone(data),account,revision,until:Date.now()+CHART_DATA_TTL};
+ chartDataCache.delete(key);chartDataCache.set(key,entry);
+ while(chartDataCache.size>36)chartDataCache.delete(chartDataCache.keys().next().value);
+ return structuredClone(entry);
+}
+function chartViewFromData(selection,entry,raw=selection.raw){
+ const {kind,period}=selection,{chart,tracks}=entry.data;
+ const contentHtml=chartPlaybackActions(tracks,kind,period,false)+(tracks.length?chartPageTable(tracks,kind):empty('아직 집계된 곡이 없어요.','선택한 차트에 해당하는 공개 제작곡이 여기에 표시됩니다.','#home','홈으로'))+(chart?.comparison?.available?'':'<p class="field-help chart-comparison-note">같은 집계 기준의 전날 기록이 준비되면 순위 변동을 표시해요.</p>');
+ return {html:'<section class="charts-final">'+chartRouteTargetsHTML(raw)+chartTabs(kind,period)+'<div id="chart-content" role="region" aria-labelledby="chart-tab-'+(kind||'popular')+'">'+contentHtml+'</div></section>',contentHtml,tracks,chartPage:true,chartKind:kind,chartPeriod:period,chartUntil:entry.until,chartRevision:entry.revision,chartAccount:entry.account};
+}
+function holdChartViewport(panel,pending=false){
+ if(!panel?.style||!panel.getBoundingClientRect)return;
+ const rect=panel.getBoundingClientRect(),scale=panel.offsetHeight?rect.height/panel.offsetHeight:1;
+ const height=Math.max(pending?rect.height:0,(window.scrollY||0)>0?(window.innerHeight||0)-rect.top:0);
+ panel.style.minHeight=height>0?Math.ceil(height/(scale||1))+'px':'';
+}
+function paintChartTabs(root,selection){
+ for(const link of root.querySelectorAll('.chart-tabs a')){
+  const kind=link.dataset.chartTab,active=kind===selection.kind;
+  link.setAttribute('href','#charts'+(kind?'/'+kind:'')+'?period='+selection.period);
+  link.classList.toggle('active',active);if(active)link.setAttribute('aria-current','page');else link.removeAttribute('aria-current');
+  rememberChartRouteTarget(link.getAttribute('href'),root);
+ }
+ root.querySelector('#chart-content')?.setAttribute('aria-labelledby','chart-tab-'+(selection.kind||'popular'));
+ rememberChartRouteTarget(selection.raw,root);
+}
+function bindChartRoute(view){
+ if(!view?.chartPage||view.chartKind==='karaoke')return;
+ // Cached navigation binds the restored DOM before updating main.dataset.route.
+ const main=$('#main'),root=main?.querySelector('.charts-final'),panel=root?.querySelector('#chart-content'),selection=chartRouteSelection(location.hash)||chartRouteSelection(main?.dataset.route);
+ if(!root||!panel||!selection)return;
+ let state=root._chartRouteState;
+ if(!state||state.disposed){
+  state=root._chartRouteState={account:chartAccount(),request:0};
+  const navigate=e=>{
+   const link=e.target.closest('.chart-tabs a[href],.chart-period-menu a[href]');
+   if(!link||e.defaultPrevented||e.button>0||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey||link.target&&link.target!=='_self')return;
+   const href=link.getAttribute('href'),next=chartRouteSelection(href);if(!next)return;
+   e.preventDefault();rememberChartRouteTarget(href,root);
+   if(next.key===state.key){if(state.error)void refreshChartRoute(main.dataset.route,renderId,api,undefined,true);return;}
+   location.hash=href;
+  };
+  root.addEventListener('click',navigate);
+  const scroll=()=>{if(root.isConnected&&!state.pending)holdChartViewport(panel);};
+  window.addEventListener('scroll',scroll,{passive:true});
+  if(typeof registerRouteCleanup==='function')registerRouteCleanup(()=>{state.disposed=true;state.cancel?.();root.removeEventListener('click',navigate);window.removeEventListener('scroll',scroll);panel.style.minHeight='';});
+ }
+ Object.assign(state,{key:selection.key,revision:view.chartRevision,until:view.chartUntil,view,pending:false,error:false});
+ paintChartTabs(root,selection);
+}
+async function refreshChartRoute(raw,ticket,readApi=api,showCurrentTab,force=false){
+ if(!canRefreshChartRoute(raw))return false;
+ const selection=chartRouteSelection(raw),main=$('#main'),root=main.querySelector('.charts-final'),panel=root.querySelector('#chart-content'),state=root._chartRouteState,account=chartAccount(),revision=chartRevision();
+ state.cancel?.();const request=++state.request;
+ main.dataset.route=raw;main.removeAttribute('aria-busy');paintChartTabs(root,selection);
+ const mounted=()=>!state.disposed&&root.isConnected&&root===main.querySelector('.charts-final')&&root._chartRouteState===state&&state.request===request&&ticket===renderId&&main.dataset.route===raw&&location.hash.replace(/^#/,'')===raw&&account===chartAccount();
+ let timedOut=false,timer;
+ const current=()=>mounted()&&!timedOut&&revision===chartRevision()&&!readApi.signal?.aborted&&(!readApi.current||readApi.current());
+ if(!force&&state.key===selection.key&&!state.pending&&!state.error&&state.revision===revision&&state.until>Date.now()){
+  bindChartToolbar(state.view);showCurrentTab?.();return true;
+ }
+ const paint=entry=>{
+  const view=chartViewFromData(selection,entry,raw);
+  holdChartViewport(panel,true);panel.innerHTML=view.contentHtml;panel.removeAttribute('aria-busy');
+  Object.assign(state,{key:selection.key,revision,until:entry.until,view,pending:false,error:false});
+  routeTracks=remember(view.tracks);bindBrowse(view);icons();paintInteractions();holdChartViewport(panel);
+ };
+ const fail=message=>{
+  Object.assign(state,{key:selection.key,pending:false,error:true,view:null,until:0});routeTracks=[];
+  panel.removeAttribute('aria-busy');panel.innerHTML='<div class="surface empty-design" role="alert"><h2>차트를 불러오지 못했어요</h2><p>'+esc(message)+'</p><button type="button" class="small-button" data-chart-retry>다시 시도</button></div>';
+  panel.querySelector('[data-chart-retry]').onclick=()=>refreshChartRoute(raw,renderId,api,undefined,true);holdChartViewport(panel);
+ };
+ const cached=!force&&cachedChartData(selection);
+ if(cached&&current()){paint(cached);showCurrentTab?.();return true;}
+ chartToolbarCleanup?.();chartToolbarCleanup=null;
+ Object.assign(state,{key:selection.key,pending:true,error:false,view:null,until:0});routeTracks=[];
+ holdChartViewport(panel,true);panel.setAttribute('aria-busy','true');panel.innerHTML='<div class="route-loading" role="status"><span>차트를 불러오는 중…</span><div></div><div></div><div></div></div>';showCurrentTab?.();
+ const stopped=Symbol('chart-stopped'),controller=new AbortController();let stop;
+ const cancelled=new Promise(resolve=>{stop=()=>{controller.abort();resolve(stopped);};});state.cancel=stop;
+ readApi.signal?.addEventListener('abort',stop,{once:true});
+ const localRead=(path,method,body,options)=>readApi(path,method,body,{...options,signal:controller.signal});localRead.signal=controller.signal;localRead.current=current;
+ try{
+  const timeout=new Promise(resolve=>{timer=setTimeout(()=>{if(mounted())fail('연결이 지연되고 있어요. 다시 시도해주세요.');timedOut=true;controller.abort();resolve(stopped);},20000);});
+  const entry=await Promise.race([readChartData(selection,localRead,force),timeout,cancelled]);
+  if(entry!==stopped&&current())paint(entry);
+ }catch(error){
+  if(error.name==='AbortError'&&mounted()&&revision!==chartRevision()&&!readApi.signal?.aborted&&(!readApi.current||readApi.current()))return refreshChartRoute(raw,ticket,readApi,showCurrentTab,true);
+  if(mounted()&&!timedOut&&error.name!=='AbortError')fail(error.message);
+ }finally{clearTimeout(timer);readApi.signal?.removeEventListener('abort',stop);if(state.cancel===stop)state.cancel=null;}
+ return true;
 }
 async function browseView(base,param,raw,embedded=false,readApi=api){
  if(base==='karaoke'&&param==='browse')return playBrowseV3(raw,readApi);
@@ -151,6 +281,7 @@ function bindBrowse(view){
  bindCommunity(view);
  bindChartPlayback();
  if(view?.chartPage){
+  bindChartRoute(view);
   bindChartToolbar(view);
   routeTracks=view.tracks.filter(t=>t.playable!==false&&Number(t.duration)>0);
   document.querySelectorAll('[data-chart-row]').forEach(row=>{

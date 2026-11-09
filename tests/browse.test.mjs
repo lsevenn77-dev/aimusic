@@ -7,7 +7,7 @@ import {readFileSync} from 'node:fs';
 function viewContext(responses={},user=null){
  const calls=[];
  const esc=s=>String(s??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
- const context=nicknameContext({document:{addEventListener(){}},me:user,inApp:false,location:{hash:'#library/covers'},URLSearchParams,Date,esc,number:n=>String(n),
+ const context=nicknameContext({document:{addEventListener(){}},me:user,inApp:false,location:{hash:'#library/covers'},URLSearchParams,Date,structuredClone,esc,number:n=>String(n),
   heading:(title,description='')=>`<h1>${esc(title)}</h1><p>${esc(description)}</p>`,gate:()=>'<p>LOGIN REQUIRED</p>',giftButton:()=>'',icon:()=>'',
   empty:(title,description,href,label)=>`<p>${esc(title)}</p><a href="${href}">${esc(label)}</a>`,
   portrait:()=>'',followed:()=>false,cover:()=>'',credits:()=>'',trackStats:()=>'',time:()=>'',liked:()=>false,duetLobbyHTML:()=>'<h2>참여를 기다리는 듀엣</h2>',
