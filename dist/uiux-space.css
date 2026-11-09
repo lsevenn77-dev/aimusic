@@ -170,8 +170,6 @@
 #main[data-route^="notifications"] .activity-detail>span{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 #main[data-route^="notifications"] .activity-arrow{flex:none;color:var(--ds-muted)}
 #main[data-route^="notifications"] .activity-arrow svg{width:16px;height:16px}
-.activity-top{position:fixed;z-index:26;display:grid;place-items:center;width:44px;height:44px;border:1px solid var(--ds-line);border-radius:8px;background:var(--ds-panel);color:var(--ds-text);transition:opacity .15s,background .15s}
-.activity-top[hidden]{display:none}.activity-top:hover{color:#8EDDD2}.activity-top:disabled{opacity:.65}
 @media(max-width:800px){
  #main[data-route^="notifications"]:has(> .activity-page .activity-toolbar){--activity-text-size:14px;--activity-meta-size:12px;--main-frame-gutter:12px}
 }
@@ -182,13 +180,8 @@
 @media(max-width:600px){
  #main[data-route^="notifications"]:has(> .activity-inbox .activity-toolbar){--activity-dot-inset:calc(16px - var(--main-frame-gutter))}
 }
-@media(max-width:600px){#main[data-route^="notifications"] .activity-row{gap:10px}.activity-top{margin-bottom:env(safe-area-inset-bottom,0px)}}
-@media(prefers-reduced-motion:reduce){.activity-top,#main[data-route^="notifications"] .activity-row{transition:none}}
-/* Discrete display transitions progressively enhance show/hide on supported WebViews. */
-.activity-top{opacity:1;transition:opacity .15s,background .15s,display .15s;transition-behavior:allow-discrete}
-.activity-top[hidden]{opacity:0}
-@starting-style{.activity-top{opacity:0}}
-@media(prefers-reduced-motion:reduce){.activity-top{transition:none}}
+@media(max-width:600px){#main[data-route^="notifications"] .activity-row{gap:10px}}
+@media(prefers-reduced-motion:reduce){#main[data-route^="notifications"] .activity-row{transition:none}}
 /* Desktop inbox reading scale; preserve the compact mobile layout. */
 @media(min-width:801px){
  #main[data-route^="notifications"]>.activity-inbox{width:100%;max-width:1120px;min-width:0}

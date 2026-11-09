@@ -59,7 +59,7 @@ async function notificationsView(base,raw,readApi=api){
  return {activity:{...data,account:me.id,restoreCount:resume?.count,restoreScroll:resume?.scroll},tracks:[],html:`<section class="activity-page activity-inbox" aria-label="알림">
   <div class="activity-toolbar"><h1 class="activity-title">알림</h1><button type="button" class="activity-settings-trigger" aria-label="알림 설정" title="알림 설정" aria-haspopup="dialog" aria-controls="activity-preferences">${activitySettingsIcon}<span>알림 설정</span></button></div>
   ${activitySettingsHTML()}<div id="activity-list">${data.items.length?activityGroupsHTML(data.items):`<div class="activity-empty">${icon('bell')}<h2>아직 도착한 알림이 없어요</h2><p>누군가 내 곡에 참여하거나 선물을 보내면<br>이곳에서 확인할 수 있어요.</p></div>`}</div>
-  <button class="small-button activity-more" data-activity-more ${data.next?'':'hidden'}>이전 알림 더 보기</button><p class="activity-error" role="status"></p><button type="button" class="activity-top" aria-label="알림 맨 위로" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 10 6-6 6 6M12 4v16"/></svg></button></section>`};
+  <button class="small-button activity-more" data-activity-more ${data.next?'':'hidden'}>이전 알림 더 보기</button><p class="activity-error" role="status"></p></section>`};
 }
 function bindNotifications(view){
  const state=view?.activity,root=$('.activity-page');if(!state||!root||me?.id!==state.account)return;
@@ -111,7 +111,6 @@ function bindNotifications(view){
  };
  const timer=setInterval(refresh,30000),visible=()=>{if(!document.hidden)void refresh();};
  window.addEventListener('focus',refresh);document.addEventListener('visibilitychange',visible);
- const cleanupLayout=bindActivityLayout(root,active);
  let cancelRestore=()=>{};
  if(state.restoreCount&&typeof requestAnimationFrame==='function'){
   const controller=new AbortController(),more=root.querySelector('[data-activity-more]');
@@ -144,27 +143,9 @@ function bindNotifications(view){
   const [route,query='']=location.hash.slice(1).split('?'),params=new URLSearchParams(query);
   const isInbox=route==='notifications'&&!params.has('request')&&!params.has('unavailable');
   if(me?.id===state.account&&!isInbox)activityResume={account:state.account,count:state.items.length,scroll:window.scrollY};
-  disposed=true;cancelRestore();clearInterval(timer);window.removeEventListener('focus',refresh);document.removeEventListener('visibilitychange',visible);cleanupLayout();
+  disposed=true;cancelRestore();clearInterval(timer);window.removeEventListener('focus',refresh);document.removeEventListener('visibilitychange',visible);
  });
 }
-function bindActivityLayout(root,active){
- const top=root.querySelector('.activity-top');
- if(!top||typeof ResizeObserver==='undefined')return ()=>{};
- let moving=false,unlock;
- const layout=()=>{
-  if(!active())return;
-  let bottom=16;
-  document.querySelectorAll('.player,.mobile-navigation,#player-extension,#player-action-panel,#player-lyric').forEach(el=>{const r=el.getBoundingClientRect();if(r.height&&r.width&&getComputedStyle(el).visibility!=='hidden'&&!el.hidden)bottom=Math.max(bottom,innerHeight-r.top+12);});
-  top.style.bottom=bottom+'px';top.hidden=window.scrollY<500;
-  const r=root.getBoundingClientRect();top.style.right=Math.max(16,innerWidth-r.right)+'px';
-  if(window.scrollY<2){moving=false;top.disabled=false;}
- };
- top.onclick=()=>{if(moving)return;moving=true;top.disabled=true;window.scrollTo({top:0,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});clearTimeout(unlock);unlock=setTimeout(()=>{moving=false;top.disabled=false;},1500);};
- const observer=new ResizeObserver(layout);document.querySelectorAll('.topbar,.player,.mobile-navigation,#player-extension').forEach(el=>observer.observe(el));
- window.addEventListener('scroll',layout,{passive:true});window.addEventListener('resize',layout);window.visualViewport?.addEventListener('resize',layout);layout();
- return ()=>{observer.disconnect();clearTimeout(unlock);window.removeEventListener('scroll',layout);window.removeEventListener('resize',layout);window.visualViewport?.removeEventListener('resize',layout);};
-}
-
 function paintActivityBadge(count){document.querySelectorAll('.activity-badge').forEach(b=>{b.hidden=!count;b.textContent='';b.setAttribute('aria-label','읽지 않은 알림 '+count+'개');});}
 async function refreshActivityBadge(){
  const uid=me?.id||null;if(activityAccount!==uid){activityAccount=uid;activityCount=null;paintActivityBadge(0);}
