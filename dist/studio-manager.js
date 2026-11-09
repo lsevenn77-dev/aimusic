@@ -159,8 +159,7 @@ function studioWorksHTML(d){
 function studioManagerHTML(d){
  studioQuota.status='loading';studioQuota.membership=null;
  return `<section class="studio-manager" data-studio-root>
-  <header class="studio-topbar"><div class="studio-heading"><span class="studio-heading-label" aria-hidden="true">AIFECT STUDIO</span><h1>스튜디오</h1><p class="studio-subtitle">내가 제작한 곡과 커버곡을 한곳에서 관리하세요.</p></div>
-   ${studioManage.type==='cover'?studioUploadLink():''}</header>
+  <header class="studio-topbar"><div class="studio-heading"><span class="studio-heading-label" aria-hidden="true">AIFECT STUDIO</span><h1>스튜디오</h1><p class="studio-subtitle">내가 제작한 곡과 커버곡을 한곳에서 관리하세요.</p></div></header>
   <nav class="studio-main-tabs" role="tablist" aria-label="작품 종류">${Object.entries(studioKinds).map(([id,label])=>`<button type="button" role="tab" id="studio-tab-${id}" aria-controls="studio-works" data-studio-type="${id}" aria-selected="${studioManage.type===id}" tabindex="${studioManage.type===id?'0':'-1'}" class="studio-main-tab">${label}</button>`).join('')}</nav>
   <div id="studio-works" role="tabpanel" aria-labelledby="studio-tab-${studioManage.type}" data-studio-pane="works">${studioWorksHTML(d)}</div>
  </section>`;
@@ -298,10 +297,6 @@ function bindStudioManager(){
   if(filter!==undefined){changeFilter(filter);}
   else if(type!==undefined&&type!==studioManage.type){
    studioResetFilters(type);
-   // The cover tab has no quota banner. Keep its existing header action.
-   const header=root.querySelector('.studio-topbar');
-   if(type==='cover')header.insertAdjacentHTML('beforeend',studioUploadLink());
-   else header.querySelector('.studio-upload')?.remove();
    root.querySelectorAll('[data-studio-type]').forEach(tab=>{
     const active=tab.dataset.studioType===type;
     tab.setAttribute('aria-selected',String(active));tab.tabIndex=active?0:-1;

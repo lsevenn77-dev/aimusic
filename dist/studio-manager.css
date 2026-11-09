@@ -45,13 +45,12 @@
 .studio-manager .studio-topbar { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 12px; padding: 12px 0 20px; min-height: clamp(100px, 9.4vw, 144px); }
 .studio-manager .studio-topbar > .studio-heading { grid-column: 2; grid-row: 1; display: grid; justify-items: center; gap: 8px; min-width: 0; text-align: center; }
 .studio-manager .studio-heading-label { color: var(--studio-muted); font-size: calc(11px); font-weight: 500; line-height: 1.4; letter-spacing: .2em; }
-.studio-manager .studio-topbar > .studio-upload { grid-column: 3; grid-row: 1; justify-self: end; min-height: max(44px, var(--ui-control-height, 44px)); }
 .studio-manager .studio-heading h1 { margin: 0; font-size: var(--pc-font-page, 24px); font-weight: 650; line-height: 1.3; letter-spacing: -.025em; }
 .studio-manager .studio-subtitle { margin: 0; max-width: 100%; font-size: var(--pc-font-body, 13px); line-height: 1.6; color: var(--ds-body); word-break: keep-all; overflow-wrap: anywhere; text-wrap: balance; }
 .studio-manager .studio-upload { display: inline-flex; align-items: center; justify-content: center; gap: 6px; flex: none; min-height: 38px; padding: 0 14px; font-size: 13px; background-color: #101628bb; }
 .studio-manager .studio-upload svg { width: 18.75px; height: 18.75px; }
-.studio-manager .studio-main-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-bottom: 1px solid var(--studio-line); margin-bottom: 12px; }
-.studio-manager .studio-main-tab { position: relative; min-height: 50px; border: 0; background: transparent; color: var(--studio-ink); font: inherit; font-size: 17px; font-weight: 700; cursor: pointer; }
+.studio-manager .studio-main-tabs { --pc-font-control: 22px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-bottom: 1px solid var(--studio-line); margin-bottom: 12px; }
+.studio-manager .studio-main-tab { position: relative; min-height: 50px; border: 0; background: transparent; color: var(--studio-ink); font: inherit; font-size: calc(22px); font-weight: 700; line-height: 1.4; cursor: pointer; }
 .studio-manager .studio-main-tab[aria-selected="true"] { color: var(--studio-purple); }
 .studio-manager .studio-main-tab[aria-selected="true"]::after { content: ""; position: absolute; inset: auto 0 -1px; height: 3px; border-radius: 4px; background: linear-gradient(95deg, var(--studio-accent), #b4a0ef, #e5a0dd); }
 
@@ -159,7 +158,7 @@
     --studio-room-fade: 84%;
   }
   .studio-manager .studio-upload { font-size: 12px; padding: 0 10px; min-height: 44px; }
-  .studio-manager .studio-main-tab { font-size: 15px; }
+  .studio-manager .studio-main-tab { font-size: calc(20px); }
   .studio-manager .studio-glance { padding: 8px 0; }
   .studio-manager .studio-glance > div { flex-direction: column; gap: 2px; padding: 6px 2px; font-size: var(--pc-font-meta, 12px); text-align: center; word-break: keep-all; }
   .studio-manager .studio-glance .studio-stat-label-full { display: none; }
@@ -184,11 +183,10 @@
   .studio-manager .studio-action, .studio-manager .studio-bulk-button { flex: 1; padding: 0 4px; }
   .studio-manager :is(.studio-action,.studio-bulk-button,.studio-filter-button,.studio-select-all,.studio-work-select) { min-height: 44px; }
 }
-/* Keep the CTA clear of the title on phones and narrow desktop columns. */
+/* Let the centered title use the full width on compact Studio layouts. */
 @media (max-width: 767px), (min-width: 801px) and (max-width: 1000px) {
   .studio-manager .studio-topbar { grid-template-columns: minmax(0, 1fr); gap: 8px; }
   .studio-manager .studio-topbar > .studio-heading { grid-column: 1; }
-  .studio-manager .studio-topbar > .studio-upload { grid-column: 1; grid-row: 2; }
 }
 @media (max-width: 1000px) {
   .studio-manager .studio-quota-card { grid-template-columns: minmax(0, 1fr); gap: 10px; }
