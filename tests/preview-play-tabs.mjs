@@ -90,8 +90,24 @@ f.sql.prepare("UPDATE likes SET created=? WHERE user_id='other' AND track_id='on
 f.sql.prepare('INSERT INTO likes(user_id,track_id,created) VALUES(?,?,?)').run('other','qa-complete-1',communityNow);
 f.sql.prepare('INSERT INTO likes(user_id,track_id,created) VALUES(?,?,?)').run('owner','qa-solo-1',communityNow);
 
+// Private MyPage samples share this disposable account, never production data.
+// Keep its crew membership empty so the existing Community discovery QA remains valid.
+f.sql.prepare("UPDATE producers SET bio=? WHERE id='producer'").run('노래와 일상의 순간을 기록하는 로컬 검증용 프로필이에요.');
+for(const [i,id] of originalIds.slice(2,17).entries())f.sql.prepare('INSERT INTO likes(user_id,track_id,created) VALUES(?,?,?)').run('owner',id,communityNow-i);
+for(const [i,id] of originalIds.slice(0,6).entries())f.sql.prepare('INSERT INTO listens(id,track_id,listener,user_id,started,seconds,day,qualified) VALUES(?,?,?,?,?,?,?,1)').run('qa-history-'+i,id,'qa-owner','owner',communityNow-i*60,45,new Date().toISOString().slice(0,10));
+for(let i=1;i<=3;i++){
+ const id='qa-playlist-'+i;f.sql.prepare('INSERT INTO playlists(id,user_id,name,created) VALUES(?,?,?,?)').run(id,'owner',['다시 듣고 싶은 노래','함께 부르는 저녁','나의 작은 무대'][i-1],communityNow-i);
+ for(const [j,track] of originalIds.slice(i-1,i+3).entries())f.sql.prepare('INSERT INTO playlist_tracks(playlist_id,track_id,created) VALUES(?,?,?)').run(id,track,communityNow-j);
+}
+for(let i=0;i<2;i++){
+ const version='qa-moment-'+i;f.sql.prepare('INSERT INTO profile_photos(id,producer_id,image_version,image_type,created) VALUES(?,?,?,?,?)').run(version,'producer',version,'image/webp',communityNow-i);
+ objects.set('images/producer/producer/gallery/'+version,{bytes:artworks[i],httpMetadata:{contentType:'image/webp'}});
+}
+f.sql.prepare('INSERT INTO free_gift_wallets(user_id,balance) VALUES(?,?)').run('owner',1280);
+f.sql.prepare('INSERT INTO free_gifts(id,sender_id,recipient_profile_id,request_id,created,gift_type,gift_name,silver,quantity) VALUES(?,?,?,?,?,?,?,?,?)').run('qa-profile-gift','other','producer','qa-profile-gift',communityNow,'silver-letter','손편지',6,3);
+
 const counts=new Map(),requests=[];let rules=[],previewUser='owner';
-const stats=()=>({fixture:true,user:previewUser,songs:originalIds.length,duets:3,dubbings:dubbingIds,crews:crewIds.length,liveDirectory:'service-disabled fixture',counts:Object.fromEntries(counts),requests:requests.slice(-300),rules});
+const stats=()=>({fixture:true,user:previewUser,songs:originalIds.length,duets:3,dubbings:dubbingIds,crews:crewIds.length,myPage:{playlists:3,history:6,gallery:2},liveDirectory:'service-disabled fixture',counts:Object.fromEntries(counts),requests:requests.slice(-300),rules});
 const json=value=>new Response(JSON.stringify(value),{headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});
 const probeJS=String.raw`(()=>{
  const selectors={main:'#main',page:'.play-page',banner:'#play-banner',mainTabs:'.play-main-tabs',categoryTabs:'.play-category-tabs',search:'#play-search',content:'.play-content',results:'#play-results',header:'.topbar',sidebar:'.sidebar',player:'.player'};
@@ -331,6 +347,97 @@ const communityProbeJS=String.raw`(()=>{
  window.addEventListener('hashchange',()=>setTimeout(send,100));window.AifectCommunityQA={snapshot,reset,runSuite};
  void waitFor(ready,'Community bootstrap',20000).then(send).catch(error=>parent.postMessage({type:'aifect-community-qa',error:error.message},location.origin));
 })();`;
+const myPageProbeJS=String.raw`(()=>{
+ if(window.name!=='aifect-mypage-qa')return;
+ const selectors={main:'#main',page:'.mp-dashboard',profile:'.mp-profile-area',collections:'.mp-profile-collections',tabs:'.mp-segment',banner:'.mp-works-banner',content:'#mp-content',aside:'#mp-aside-content',header:'.topbar',sidebar:'.sidebar',player:'.player'};
+ const refs=()=>Object.fromEntries(Object.entries(selectors).map(([name,selector])=>[name,document.querySelector(selector)]));
+ const playerAudio=()=>typeof audio==='undefined'?null:audio;
+ function selection(){const params=new URLSearchParams(location.hash.split('?')[1]||'');return {tab:['library','activity'].includes(params.get('view'))?params.get('view'):'works',section:['history','playlists'].includes(params.get('section'))?params.get('section'):'likes'};}
+ const ready=()=>!!(/^#profile(?:\?|$)/.test(location.hash)&&document.documentElement.dataset.renderState==='ready'&&document.querySelector('#main')?.dataset.route===location.hash.slice(1)&&document.querySelector('.mp-dashboard.mp-own')&&document.querySelector('.mp-segment [aria-selected="true"]')?.dataset.mpTab===selection().tab&&!document.querySelector('#mp-content[aria-busy="true"],#mp-aside-content[aria-busy="true"],#ml-panel[aria-busy="true"]'));
+ let baseline=null,measure=null,frame=0,suite=null;
+ function snapshot(){const nodes=refs(),sound=playerAudio();return {ready:ready(),hash:location.hash,width:innerWidth,height:innerHeight,scrollY,renderState:document.documentElement.dataset.renderState,mainDisplay:nodes.main?getComputedStyle(nodes.main).display:null,mainInert:nodes.main?.inert,selection:selection(),selected:[...document.querySelectorAll('.mp-segment [aria-selected="true"],.ml-tabs [aria-selected="true"]')].map(element=>({label:element.textContent.trim(),tab:element.dataset.mpTab||element.dataset.libraryTab})),banner:nodes.banner?.textContent.trim(),contentBusy:nodes.content?.getAttribute('aria-busy'),libraryBusy:document.querySelector('#ml-panel')?.getAttribute('aria-busy'),sameNodes:baseline?Object.fromEntries(Object.keys(selectors).map(key=>[key,nodes[key]===baseline.nodes[key]])):null,audio:{sameInstance:baseline?sound===baseline.audio:null,paused:sound?.paused,currentTime:sound?.currentTime,readyState:sound?.readyState,error:sound?.error?.message||null},measure,suite};}
+ const send=()=>parent.postMessage({type:'aifect-mypage-qa',snapshot:snapshot()},location.origin);
+ function observe(){
+  if(!baseline)return;measure.frames++;const nodes=refs();
+  if(!nodes.main||getComputedStyle(nodes.main).display==='none')measure.hiddenFrames++;
+  if(nodes.main?.inert)measure.inertFrames++;
+  if(document.documentElement.dataset.renderState!=='ready')measure.nonReadyFrames++;
+  for(const key of Object.keys(selectors))if(nodes[key]!==baseline.nodes[key])measure.changedNodeFrames[key]++;
+  measure.minScroll=Math.min(measure.minScroll,scrollY);measure.maxScroll=Math.max(measure.maxScroll,scrollY);frame=requestAnimationFrame(observe);
+ }
+ function reset(){
+  cancelAnimationFrame(frame);if(baseline?.audio)for(const [name,handler] of baseline.handlers)baseline.audio.removeEventListener(name,handler);
+  baseline={nodes:refs(),audio:playerAudio(),handlers:[]};measure={frames:0,hiddenFrames:0,inertFrames:0,nonReadyFrames:0,changedNodeFrames:Object.fromEntries(Object.keys(selectors).map(key=>[key,0])),minScroll:scrollY,maxScroll:scrollY,audioEvents:{},startedAt:Date.now()};
+  if(baseline.audio)for(const name of ['pause','play','emptied','abort','ended']){const handler=()=>{measure.audioEvents[name]=(measure.audioEvents[name]||0)+1;};baseline.handlers.push([name,handler]);baseline.audio.addEventListener(name,handler);}
+  frame=requestAnimationFrame(observe);send();
+ }
+ const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms)),ensure=(condition,message)=>{if(!condition)throw Error(message);};
+ async function waitFor(predicate,label,timeout=8000){const until=performance.now()+timeout;while(performance.now()<until){if(await predicate())return;await delay(25);}throw Error('Timeout: '+label+' ('+location.hash+')');}
+ const apiStats=()=>fetch('/__qa/stats').then(response=>response.json());
+ const qaControl=payload=>fetch('/__qa/control',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)}).then(response=>response.json());
+ const readCount=(stats,path)=>Object.entries(stats.counts).filter(([key])=>key.startsWith('GET '+path)).reduce((sum,[,count])=>sum+count,0);
+ const libraryReads=(stats,section)=>Object.entries(stats.counts).filter(([key])=>key.startsWith('GET /api/me/music-library?')&&(!section||new URL(key.slice(4),location.origin).searchParams.get('section')===section)).reduce((sum,[,count])=>sum+count,0);
+ const dashboardReads=stats=>readCount(stats,'/api/producers/producer?dashboard=1&work_list=1');
+ function tabButton(tab){const button=document.querySelector('.mp-segment [data-mp-tab="'+tab+'"]');ensure(button,'Missing actual MyPage tab: '+tab);return button;}
+ function categoryButton(section){const button=document.querySelector('#music-library [data-library-tab="'+section+'"]');ensure(button,'Missing actual library category: '+section);return button;}
+ async function navigate(tab){const before=scrollY;tabButton(tab).click();await waitFor(()=>selection().tab===tab&&ready(),'MyPage '+tab);await delay(80);return before;}
+ async function category(section){const before=scrollY;categoryButton(section).click();await waitFor(()=>selection().tab==='library'&&selection().section===section&&ready()&&document.querySelector('.ml-tabs [aria-selected="true"]')?.dataset.libraryTab===section,'library '+section);await delay(80);return before;}
+ function assertShell(tab,before){
+  const nodes=refs(),sound=playerAudio();for(const name of Object.keys(selectors)){ensure(baseline.nodes[name],'Missing baseline node: '+name);ensure(nodes[name]===baseline.nodes[name],'Replaced persistent node: '+name);}
+  const selected=[...document.querySelectorAll('.mp-segment [aria-selected="true"]')];ensure(selected.length===1&&selected[0].dataset.mpTab===tab&&selection().tab===tab,'Selected MyPage tab and URL differ');
+  ensure(nodes.page.dataset.mpView===tab&&nodes.tabs.dataset.active===tab,'Dashboard selection state differs');ensure(nodes.content.getAttribute('aria-labelledby')==='mp-tab-'+tab,'Panel accessibility label differs');
+  ensure(Math.abs(scrollY-before)<=2,'Window scroll moved from '+before+' to '+scrollY);ensure(sound===baseline.audio,'Global Audio instance was replaced');ensure(!sound.paused,'Global audio paused');ensure(sound.currentTime>=suite.audioStartedAt-.05,'Global playback position restarted');
+  return {hash:location.hash,selected:tab,scrollBefore:before,scrollAfter:scrollY,banner:nodes.banner.textContent.trim(),audioTime:sound.currentTime};
+ }
+ function assertLibrary(section,common,before){
+  const result=assertShell('library',before);ensure(document.querySelector('#music-library')===common.root,'Library container was remounted');ensure(document.querySelector('#music-library .ml-tabs')===common.tabs,'Library tab bar was remounted');
+  ensure(document.querySelector('.ml-tabs [aria-selected="true"]')?.dataset.libraryTab===section&&selection().section===section,'Nested library selection and URL differ');
+  ensure(document.querySelector('#ml-panel')?.getAttribute('aria-labelledby')==='ml-tab-'+section,'Nested panel accessibility label differs');return {...result,section};
+ }
+ async function ensureMusic(){
+  const play=document.querySelector('.sidebar a[href="#karaoke"]');ensure(play,'Actual Play navigation is missing');play.click();await waitFor(()=>location.hash==='#karaoke'&&document.documentElement.dataset.renderState==='ready'&&document.querySelector('.play-category-tabs'),'Play initial page');
+  const duet=[...document.querySelectorAll('.play-category-tabs a')].find(element=>element.getAttribute('href')==='#karaoke/duets');ensure(duet,'Actual duet tab is missing');duet.click();await waitFor(()=>location.hash==='#karaoke/duets'&&document.querySelector('.play-duet-play[data-play]')&&!document.querySelector('#play-results[aria-busy="true"]'),'Play duet list');
+  const sound=playerAudio();ensure(sound,'Global Audio was not initialized');if(sound.paused)document.querySelector('.play-duet-play[data-play]').click();await waitFor(()=>!sound.paused&&sound.readyState>=2&&sound.currentTime>0,'real duet playback',10000);
+  const profile=document.querySelector('.sidebar a[href="#profile"]');ensure(profile,'Actual MyPage navigation is missing');profile.click();await waitFor(()=>ready()&&selection().tab==='works','MyPage return');await delay(100);
+ }
+ async function invalidateThroughRealLike(){const button=document.querySelector('.player [data-like]');ensure(button,'Player like action is missing');const before=button.getAttribute('aria-pressed');button.click();await waitFor(()=>!button.disabled&&button.getAttribute('aria-pressed')!==before,'local like API completion');}
+ function assertLocalLoading(selector){ensure(document.querySelector(selector),'Loading status is missing from its content');ensure(document.documentElement.dataset.renderState==='ready','Request used global loading');ensure(!document.querySelector('#main').inert,'Request made main inert');for(const [name,node] of Object.entries(baseline.nodes))ensure(refs()[name]===node,'Loading replaced '+name);return {hash:location.hash,contentBusy:document.querySelector('#mp-content')?.getAttribute('aria-busy'),panelBusy:document.querySelector('#ml-panel')?.getAttribute('aria-busy')};}
+ async function runSuite(){
+  if(suite?.running)return;suite={running:true,width:innerWidth,height:innerHeight,startedAt:Date.now(),cases:[]};send();
+  const record=async(name,run)=>{suite.current=name;send();try{suite.cases.push({name,passed:true,...await run()});}catch(error){suite.cases.push({name,passed:false,error:error.message,hash:location.hash,scrollY});}send();};
+  try{
+   await qaControl({rules:[],reset:true});await waitFor(ready,'initial MyPage');await ensureMusic();window.scrollTo({top:120,left:0,behavior:'instant'});await delay(100);ensure(scrollY>=100,'MyPage fixture did not provide height for scroll check');suite.startScroll=scrollY;suite.audioStartedAt=playerAudio().currentTime;reset();const initialReads=await apiStats();
+   for(const [name,tab] of [['내 작품에서 내 보관함','library'],['내 보관함에서 내 활동','activity'],['내 활동에서 내 작품 복귀','works']])await record(name,async()=>{const before=await navigate(tab),after=await apiStats();ensure(dashboardReads(after)===dashboardReads(initialReads),'Tab switch re-requested profile dashboard');if(tab==='library')ensure(document.querySelector('#music-library .ml-song'),'Library fixture did not render liked songs');if(tab==='activity')ensure(document.querySelector('.mp-activity-grid'),'Activity content did not render');return assertShell(tab,before);});
+   await record('보관함 좋아요·최근 감상·플레이리스트',async()=>{await navigate('library');const common={root:document.querySelector('#music-library'),tabs:document.querySelector('#music-library .ml-tabs')},results=[];for(const section of ['history','playlists','likes']){const before=await category(section);ensure(document.querySelector('#ml-items')?.children.length,'Nested library content is empty');results.push(assertLibrary(section,common,before));}return {results};});
+   await record('짧은 보관함 왕복 캐시와 활동 최신 조회',async()=>{
+    await navigate('library');const before=await apiStats();await navigate('works');await navigate('library');await category('history');await category('likes');const after=await apiStats();ensure(libraryReads(after,'likes')===libraryReads(before,'likes'),'Fresh liked-song data was requested again');ensure(dashboardReads(after)===dashboardReads(before),'Short tab return re-requested profile dashboard');
+    await navigate('activity');const first=await apiStats();await navigate('works');await navigate('activity');const second=await apiStats(),paths=['/api/gold/balance','/api/me/player','/api/me/profile?section=activity','/api/me/gift-inventory'];for(const path of paths)ensure(readCount(second,path)>readCount(first,path),'Activity must refresh '+path);
+    return {...assertShell('activity',suite.startScroll),libraryReads:{before:libraryReads(before,'likes'),after:libraryReads(after,'likes')},activityReads:Object.fromEntries(paths.map(path=>[path,{before:readCount(first,path),after:readCount(second,path)}]))};
+   });
+   await record('브라우저 뒤로가기·앞으로가기',async()=>{await navigate('works');const worksHash=location.hash;await navigate('activity');const activityHash=location.hash,before=scrollY;history.back();await waitFor(()=>location.hash===worksHash&&ready(),'history.back');await delay(80);const backward=assertShell('works',before);history.forward();await waitFor(()=>location.hash===activityHash&&ready(),'history.forward');await delay(80);const forward=assertShell('activity',before);await navigate('library');const likesHash=location.hash;await category('history');const historyHash=location.hash;history.back();await waitFor(()=>location.hash===likesHash&&ready(),'library history.back');await delay(80);ensure(document.querySelector('.ml-tabs [aria-selected="true"]')?.dataset.libraryTab==='likes','Back navigation selected the wrong library category');history.forward();await waitFor(()=>location.hash===historyHash&&ready(),'library history.forward');await delay(80);ensure(document.querySelector('.ml-tabs [aria-selected="true"]')?.dataset.libraryTab==='history','Forward navigation selected the wrong library category');return {backward,forward,nested:assertShell('library',before)};});
+   await record('이미 선택한 탭 재클릭',async()=>{await navigate('works');const before=await apiStats(),position=scrollY;tabButton('works').click();await delay(160);ensure(ready(),'Selected tab stopped being ready');const after=await apiStats();ensure(dashboardReads(after)===dashboardReads(before),'Selected tab re-requested profile');return assertShell('works',position);});
+   await record('지연된 보관함 요청 중 내 활동 이동',async()=>{
+    await navigate('works');await invalidateThroughRealLike();await qaControl({rules:[{match:'/api/me/music-library?',delayMs:1200}]});const before=await apiStats(),position=scrollY;tabButton('library').click();await waitFor(async()=>libraryReads(await apiStats())>libraryReads(before),'delayed library request');await delay(60);const loading=assertLocalLoading('#mp-content[aria-busy="true"]');await navigate('activity');await delay(1350);ensure(document.querySelector('.mp-activity-grid')&&!document.querySelector('#music-library'),'Late library result overwrote activity');await qaControl({rules:[]});return {...assertShell('activity',position),loading};
+   });
+   await record('보관함 콘텐츠 오류와 재시도',async()=>{
+    await navigate('works');await invalidateThroughRealLike();await qaControl({rules:[{match:'/api/me/music-library?',failures:1,status:503}]});const position=scrollY;await navigate('library');const retry=document.querySelector('#mp-content [data-mp-tab-retry]');ensure(retry,'MyPage content retry button was not shown');assertShell('library',position);retry.click();await waitFor(()=>ready()&&!document.querySelector('[data-mp-tab-retry]')&&document.querySelector('#music-library .ml-song'),'MyPage library retry');await delay(80);await qaControl({rules:[]});return assertShell('library',position);
+   });
+   await record('지연된 보관함 하위 요청 중 다른 카테고리 이동',async()=>{
+    await invalidateThroughRealLike();await qaControl({rules:[{match:'/api/me/music-library?section=history',delayMs:1200}]});const common={root:document.querySelector('#music-library'),tabs:document.querySelector('#music-library .ml-tabs')},before=await apiStats(),position=scrollY;categoryButton('history').click();await waitFor(async()=>libraryReads(await apiStats(),'history')>libraryReads(before,'history'),'delayed nested history request');await delay(60);const loading=assertLocalLoading('#ml-panel[aria-busy="true"]');await category('playlists');await delay(1350);ensure(document.querySelector('#ml-items .ml-playlists'),'Late history result overwrote playlists');await qaControl({rules:[]});return {...assertLibrary('playlists',common,position),loading};
+   });
+   await record('보관함 하위 카테고리 오류와 재시도',async()=>{
+    await invalidateThroughRealLike();await qaControl({rules:[{match:'/api/me/music-library?section=likes',failures:1,status:503}]});const common={root:document.querySelector('#music-library'),tabs:document.querySelector('#music-library .ml-tabs')},position=scrollY;categoryButton('likes').click();await waitFor(()=>document.querySelector('#ml-retry')&&ready(),'nested library error');assertShell('library',position);document.querySelector('#ml-retry').click();await waitFor(()=>ready()&&!document.querySelector('#ml-retry')&&document.querySelector('#ml-items .ml-song'),'nested library retry');await delay(80);await qaControl({rules:[]});return assertLibrary('likes',common,position);
+   });
+   await record('공통 화면·스크롤·음악 재생 연속성',async()=>{await delay(150);ensure(measure.frames>0,'No visible frames sampled');ensure(!measure.hiddenFrames&&!measure.inertFrames&&!measure.nonReadyFrames,'Global loading, hidden or inert main was observed');for(const [name,count] of Object.entries(measure.changedNodeFrames))ensure(!count,'Persistent '+name+' changed during '+count+' frames');for(const event of ['pause','emptied','abort','ended'])ensure(!measure.audioEvents[event],'Unexpected global audio event: '+event);ensure(playerAudio().currentTime>suite.audioStartedAt,'Playback time did not advance');ensure(Math.abs(measure.minScroll-suite.startScroll)<=2&&Math.abs(measure.maxScroll-suite.startScroll)<=2,'Window scroll changed during tab navigation');return {...measure,audioFrom:suite.audioStartedAt,audioTo:playerAudio().currentTime};});
+  }catch(error){suite.error=error.message;}
+  finally{await qaControl({rules:[]}).catch(()=>{});suite.running=false;suite.finishedAt=Date.now();suite.passed=suite.cases.filter(result=>result.passed).length;suite.failed=suite.cases.filter(result=>!result.passed).length+(suite.error?1:0);suite.current=null;send();}
+ }
+ window.addEventListener('message',async event=>{
+  if(event.origin!==location.origin||event.source!==parent||event.data?.type!=='aifect-mypage-qa-control')return;
+  if(event.data.command==='reset')reset();else if(event.data.command==='snapshot')send();else if(event.data.command==='suite')void runSuite();else if(event.data.command==='back'){history.back();setTimeout(send,150);}else if(event.data.command==='forward'){history.forward();setTimeout(send,150);}else if(event.data.command==='seed-draft'){try{await ensureMusic();reset();}catch(error){parent.postMessage({type:'aifect-mypage-qa',error:error.message},location.origin);}}
+ });
+ window.addEventListener('hashchange',()=>setTimeout(send,100));window.AifectMyPageQA={snapshot,reset,runSuite};void waitFor(ready,'MyPage bootstrap',20000).then(send).catch(error=>parent.postMessage({type:'aifect-mypage-qa',error:error.message},location.origin));
+})();`;
 const qaHTML=`<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AIFECT 탭 전환 로컬 QA</title>
 <style>body{margin:16px;background:#111722;color:#f0f1f7;font:14px system-ui,sans-serif}h1{font-size:20px}button,a{font:inherit;margin:3px;padding:9px;color:inherit;background:#253046;border:1px solid #59647c;border-radius:6px}a{display:inline-block}#viewport{overflow:auto;margin-top:12px}iframe{display:block;border:1px solid #59647c;background:#0c121b;width:1440px;height:900px}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#1b2332;padding:12px;max-height:460px;overflow:auto}.controls{position:sticky;top:0;z-index:10;display:flex;gap:4px;flex-wrap:wrap;align-items:center;background:#111722;padding-block:6px}#suite-state{display:block;min-width:160px;padding:8px;color:#c6d7f8}</style></head><body>
 <h1>AIFECT 플레이 탭 · 로컬 샘플 검증</h1><p>실제 앱과 메모리 샘플 데이터로 검사해. 회귀 테스트는 실제 탭 링크를 클릭하며, 스크롤 120px에서 시작해.</p>
@@ -367,13 +474,41 @@ const communityHTML=qaHTML
  .replace("{match:'/api/play/',delayMs:1500},{match:'/api/dubbing/projects',delayMs:1500}","{match:'/api/community/rankings',delayMs:1500},{match:'/api/crews',delayMs:1500}")
  .replace("{match:'/api/play/',failures:1,status:503}","{match:'/api/community/rankings',failures:1,status:503}")
  .replace(' if(client.suite){',' if(!client.suite){document.getElementById(\'suite\').disabled=!client.ready;suiteState.textContent=client.ready?\'테스트 준비 완료\':\'앱 준비 중…\';}\n if(client.suite){');
+const myPageReportJS=String.raw`let serverSnapshot=null,statsError=null,statsFetchedAt=null,statsPending=false,statsQueued=false;
+const paintReport=()=>{
+ const suite=client?.suite,summary={hash:client?.hash,ready:client?.ready,running:suite?.running,current:suite?.current,passed:suite?.passed,failed:suite?.failed,error:client?.error||suite?.error||null,failures:(suite?.cases||[]).filter(result=>!result.passed).map(({name,error,hash})=>({name,error,hash})),statsPending,statsError};
+ document.getElementById('client-summary').textContent=JSON.stringify(summary,null,2);
+ report.textContent=JSON.stringify({client,server:serverSnapshot,stats:{pending:statsPending,error:statsError,fetchedAt:statsFetchedAt}},null,2);
+};
+const show=()=>{
+ // Always publish the latest client outcome before any network work. Slow or
+ // failed statistics reads must not hide completed cases or their actual errors.
+ paintReport();if(statsPending){statsQueued=true;return;}
+ statsPending=true;const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),3000);
+ fetch('/__qa/stats',{signal:controller.signal,cache:'no-store'}).then(response=>{if(!response.ok)throw Error('Stats HTTP '+response.status);return response.json();}).then(server=>{serverSnapshot=server;statsFetchedAt=Date.now();statsError=null;}).catch(error=>{statsError=error.name==='AbortError'?'통계 요청이 3초 안에 완료되지 않았어요.':error.message;}).finally(()=>{
+  clearTimeout(timer);statsPending=false;paintReport();if(statsQueued){statsQueued=false;queueMicrotask(show);}
+ });
+};`;
+const myPageHTML=qaHTML
+ .replaceAll('AIFECT 플레이 탭','AIFECT 마이페이지 탭')
+ .replace('실제 앱과 메모리 샘플 데이터로 검사해. 회귀 테스트는 실제 탭 링크를 클릭하며, 스크롤 120px에서 시작해.','실제 내 작품·내 보관함·내 활동 버튼과 보관함 하위 카테고리를 검사해. 스크롤 120px, 프로필·배너·탭·플레이어 유지, URL 기록, 로컬 오류·지연을 확인해.')
+ .replaceAll('aifect-play-qa','aifect-mypage-qa')
+ .replaceAll('/#karaoke','/#profile')
+ .replace('<iframe id="app"','<iframe name="aifect-mypage-qa" id="app"')
+ .replace('<button id="suite">','<button id="suite" disabled>')
+ .replace('<div id="viewport">','<pre id="client-summary" aria-live="polite" style="max-height:220px">클라이언트 검사 결과를 기다리는 중…</pre><div id="viewport">')
+ .replace('로컬 초안 추가','샘플 음악 재생')
+ .replace("{match:'/api/play/',delayMs:1500},{match:'/api/dubbing/projects',delayMs:1500}","{match:'/api/me/music-library',delayMs:1500},{match:'/api/me/profile?section=activity',delayMs:1500}")
+ .replace("{match:'/api/play/',failures:1,status:503}","{match:'/api/me/music-library',failures:1,status:503}")
+ .replace("const show=async()=>{const server=await fetch('/__qa/stats').then(response=>response.json());report.textContent=JSON.stringify({client,server},null,2);};",myPageReportJS)
+ .replace(' if(client.suite){',' if(!client.suite){document.getElementById(\'suite\').disabled=!client.ready;suiteState.textContent=client.ready?\'테스트 준비 완료\':\'앱 준비 중…\';}\n if(client.suite){');
 const staticRoot=resolve('dist/client');
 const env={...featureEnv,DB:f.DB,ASSETS:{async fetch(req){
  const url=new URL(req.url),pathname=decodeURIComponent(url.pathname),file=resolve(staticRoot,'.'+(pathname==='/'?'/aifect-shell.txt':pathname));
  if(!file.startsWith(staticRoot+sep))return new Response('Not found',{status:404});
  try{
   let data=await readFile(file);const shell=/aifect-(?:profile-)?shell\.txt$/.test(file);
-  if(shell)data=Buffer.from(data.toString().replace('</body>','<script defer src="/__qa/probe.js"></script><script defer src="/__qa/community-probe.js"></script></body>'));
+  if(shell)data=Buffer.from(data.toString().replace('</body>','<script defer src="/__qa/probe.js"></script><script defer src="/__qa/community-probe.js"></script><script defer src="/__qa/mypage-probe.js"></script></body>'));
   const mime={'.txt':'text/plain; charset=utf-8','.html':'text/html; charset=utf-8','.css':'text/css','.js':'text/javascript','.svg':'image/svg+xml','.png':'image/png','.webp':'image/webp','.woff2':'font/woff2','.json':'application/json'}[extname(file)]||'application/octet-stream';
   return new Response(req.method==='HEAD'?null:data,{headers:{'content-type':mime,'cache-control':'no-store'}});
  }catch{return new Response('Build assets first: npm run build',{status:404});}
@@ -383,8 +518,10 @@ async function handle(req){
  const url=new URL(req.url),path=url.pathname;
  if(path==='/qa')return new Response(qaHTML,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store'}});
  if(path==='/qa-community')return new Response(communityHTML,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store'}});
+ if(path==='/qa-mypage')return new Response(myPageHTML,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store'}});
  if(path==='/__qa/probe.js')return new Response(probeJS,{headers:{'content-type':'text/javascript','cache-control':'no-store'}});
  if(path==='/__qa/community-probe.js')return new Response(communityProbeJS,{headers:{'content-type':'text/javascript','cache-control':'no-store'}});
+ if(path==='/__qa/mypage-probe.js')return new Response(myPageProbeJS,{headers:{'content-type':'text/javascript','cache-control':'no-store'}});
  if(path==='/__qa/stats'||path==='/__qa/health')return json(stats());
  if(path==='/__qa/control'&&req.method==='POST'){
   const control=await req.json();
@@ -409,7 +546,7 @@ async function handle(req){
 }
 
 if(args.includes('--check')){
- for(const [name,source] of [['play-probe',probeJS],['community-probe',communityProbeJS],['play-controller',qaHTML],['community-controller',communityHTML]])new Script(name.endsWith('controller')?source.match(/<script>([\s\S]*?)<\/script>/)[1]:source,{filename:name+'.js'});
+ for(const [name,source] of [['play-probe',probeJS],['community-probe',communityProbeJS],['mypage-probe',myPageProbeJS],['play-controller',qaHTML],['community-controller',communityHTML],['mypage-controller',myPageHTML]])new Script(name.endsWith('controller')?source.match(/<script>([\s\S]*?)<\/script>/)[1]:source,{filename:name+'.js'});
  const read=async path=>{const response=await handle(new Request('http://127.0.0.1:'+port+path));assert.equal(response.status,200,path);return response.json();};
  assert.equal((await read('/api/play/songs?tab=recommended')).tracks.length,25);
  assert.equal((await read('/api/play/songs?tab=latest&offset=25')).tracks.length,5);
@@ -421,10 +558,15 @@ if(args.includes('--check')){
  assert.ok((await read('/api/community/rankings?category=aiArtist&period=week&workKind=solo&limit=20')).rows.length);
  assert.equal((await read('/api/community/rankings?category=crew&period=week&workKind=solo&limit=20')).rows.length,6);
  assert.equal((await read('/api/voice/public-rooms?limit=24&mode=all')).enabled,false);
+ const profile=await read('/api/producers/producer?dashboard=1&work_list=1');assert.equal(profile.profile.user_id,'owner');assert.equal(profile.gallery.length,2);
+ const libraryPath='/api/me/music-library?section=';assert.equal((await read(libraryPath+'likes')).items.length,12);assert.equal((await read(libraryPath+'history')).total,6);assert.equal((await read(libraryPath+'playlists')).total,3);
+ assert.ok((await read('/api/me/profile?section=activity')).received.length);assert.equal(typeof (await read('/api/gold/balance')).balance,'number');assert.ok((await read('/api/me/player')).player);assert.ok(Array.isArray((await read('/api/me/gift-inventory')).items));
+ previewUser='other';assert.equal((await read(libraryPath+'playlists')).total,0,'private MyPage collections must stay account scoped');previewUser='owner';
  const communityPage=await handle(new Request('http://127.0.0.1:'+port+'/qa-community'));assert.equal(communityPage.status,200);assert.match(await communityPage.text(),/name="aifect-community-qa"[^>]*src="\/#community"/);
+ const myPage=await handle(new Request('http://127.0.0.1:'+port+'/qa-mypage'));assert.equal(myPage.status,200);assert.match(await myPage.text(),/name="aifect-mypage-qa"[^>]*src="\/#profile"/);
  const stream=await handle(new Request('http://127.0.0.1:'+port+'/media/one/stream',{headers:{range:'bytes=0-43'}}));assert.equal(stream.status,206);assert.equal((await stream.arrayBuffer()).byteLength,44);assert.equal(stream.headers.get('content-type'),'audio/wav');
  await Promise.allSettled([...pending]);for(const cleanup of cleanups)await cleanup();
- console.log('Tab fixtures verified: Play /qa + Community /qa-community, 30 songs, 3 duet halves, 3 dubbings, 6 crews, weekly rankings, owner auth and WAV range streaming.');
+ console.log('Tab fixtures verified: Play /qa + Community /qa-community + MyPage /qa-mypage, 30 songs, 3 duet halves, 3 dubbings, 6 crews, 3 private playlists, weekly rankings, account isolation and WAV range streaming.');
 }else{
  const server=createServer(async(req,res)=>{
   try{
@@ -434,6 +576,6 @@ if(args.includes('--check')){
    res.writeHead(response.status,Object.fromEntries(response.headers));res.end(Buffer.from(await response.arrayBuffer()));
   }catch(error){console.error(error);res.writeHead(500,{'content-type':'application/json'});res.end(JSON.stringify({error:'Local preview error: '+error.message}));}
  });
- server.listen(port,host,()=>console.log('AIFECT local tab QA listening at http://'+host+':'+port+'/qa and /qa-community'));
+ server.listen(port,host,()=>console.log('AIFECT local tab QA listening at http://'+host+':'+port+'/qa, /qa-community and /qa-mypage'));
  for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>server.close(async()=>{await Promise.allSettled([...pending]);for(const cleanup of cleanups)await cleanup();process.exit(0);}));
 }

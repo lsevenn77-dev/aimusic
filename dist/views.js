@@ -86,11 +86,12 @@ async function render(){
  const presentation=window.AifectRender;
  const retainPlay=typeof canRefreshPlayRoute==='function'&&canRefreshPlayRoute(raw);
  const retainCommunity=typeof canRefreshCommunityRoute==='function'&&canRefreshCommunityRoute(raw);
+ const retainMyPage=typeof canRefreshMyPageRoute==='function'&&canRefreshMyPageRoute(raw);
  const epoch=presentation?.begin(raw,main?.dataset.route,()=>{
   if(serial!==presentationSerial)return;
   ++renderId;navigationController?.abort();
   if(typeof cleanupHome==='function')cleanupHome();
- },{retain:retainPlay||retainCommunity});
+ },{retain:retainPlay||retainCommunity||retainMyPage});
  try{
   const outcome=await renderRoute(()=>presentation?.ready(epoch));
   if(serial===presentationSerial){
@@ -131,7 +132,7 @@ async function renderRoute(showCachedRoute){
  if(typeof refreshCommunityRoute==='function'&&await refreshCommunityRoute(raw,ticket,readApi,showCachedRoute))return;
  if(ticket!==renderId)return;
  if(base!=='home'){
-  if(typeof refreshMusicLibraryRoute==='function'&&await refreshMusicLibraryRoute(raw,ticket,false,readApi))return;
+  if(typeof refreshMusicLibraryRoute==='function'&&await refreshMusicLibraryRoute(raw,ticket,false,readApi,showCachedRoute))return;
   if(ticket!==renderId)return;
   if(typeof refreshMyPageRoute==='function'&&await refreshMyPageRoute(raw,ticket,readApi,showCachedRoute))return;
   if(ticket!==renderId)return;
