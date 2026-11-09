@@ -2,7 +2,10 @@
 .page-wrap:has(>main>.shop-page){background:var(--ds-bg)}
 .page-wrap:has(>main>.shop-page)::before,main:has(>.shop-page)::before{display:none}
 #main:has(>.shop-page){padding-bottom:32px;background:transparent;box-shadow:none}
-.shop-page{--ui-space-scale:1;--ui-type-scale:1;--ui-icon-scale:1;--ui-control-height:44px;--shop-outline:var(--ds-line);--shop-purple:linear-gradient(105deg,var(--ds-lilac),var(--ds-lavender));width:100%;min-width:0;container-type:inline-size;color:var(--ds-text);font-size:var(--pc-font-body,15px)}
+.shop-page{--ui-space-scale:1;--ui-type-scale:1;--ui-icon-scale:1;--ui-control-height:44px;--shop-outline:var(--ds-line);--shop-accent-gifts:#F17DB5;--shop-accent-frames:#B78CFF;--shop-accent-themes:#8EDDD2;--shop-accent:var(--shop-accent-gifts);width:100%;min-width:0;container-type:inline-size;color:var(--ds-text);font-size:var(--pc-font-body,15px)}
+/* Approved category palette: active tabs and their purchase actions share one accent. */
+.shop-page[data-shop-active=frames]{--shop-accent:var(--shop-accent-frames)}
+.shop-page[data-shop-active=themes]{--shop-accent:var(--shop-accent-themes)}
 /* The banner and products share the common page frame from main-layout.css. */
 .shop-page .shop-banner{min-width:0;border:0;border-radius:0;margin:0;background:#17132b}
 .shop-page .shop-banner .home-feature{container:shop-banner-frame / size}
@@ -64,14 +67,14 @@
 .shop-page .shop-toolbar{display:grid;grid-template-columns:minmax(0,1fr) minmax(200px,280px);align-items:center;gap:24px;margin-bottom:24px}
 .shop-page .shop-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%;max-width:460px;min-height:48px;min-width:0;border:0;border-bottom:1px solid var(--shop-outline);border-radius:0;background:transparent}
 .shop-page .shop-tabs button{display:flex;align-items:center;justify-content:center;gap:8px;min-width:0;min-height:48px;margin:0;padding:10px 8px;border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;color:var(--ds-muted);font:inherit;font-size:var(--pc-font-control,14px);font-weight:600;white-space:nowrap;cursor:pointer;transition:background .16s,color .16s}
-.shop-page .shop-tabs button[aria-selected=true]{border-bottom-color:var(--ds-selected);color:var(--ds-selected);box-shadow:none}
+.shop-page .shop-tabs button[aria-selected=true]{border-bottom-color:var(--shop-accent);color:var(--shop-accent);box-shadow:none}
 .shop-page .shop-tabs svg{width:22px;height:22px;stroke-width:1.6;flex:none}
 .shop-page .shop-item-search{display:flex;align-items:center;justify-self:end;gap:8px;width:100%;max-width:280px;height:44px;min-width:0;padding:0 12px;border:1px solid var(--ds-border);border-radius:var(--ds-radius-input);background:var(--ds-panel);color:var(--ds-muted);box-sizing:border-box}
 .shop-page .shop-item-search>svg{width:18px;height:18px;flex:none;stroke-width:1.6}
 /* The label keeps the 44px target; the shared PC input minimum must fit inside its border. */
 #main .shop-page .shop-item-search input{--ui-control-height:0px;display:block;flex:1;width:100%;min-width:0;height:42px;min-height:0;margin:0;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;color:var(--ds-text);font:inherit;font-size:var(--pc-font-control,14px);outline:none}
 .shop-page .shop-item-search input::placeholder{color:var(--ds-muted);opacity:1}
-.shop-page .shop-item-search:focus-within{border-color:var(--ds-selected);outline:1px solid var(--ds-selected);outline-offset:0}
+.shop-page .shop-item-search:focus-within{border-color:var(--shop-accent);outline:1px solid var(--shop-accent);outline-offset:0}
 .shop-page .shop-products{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));align-items:stretch;gap:16px 12px;min-width:0}
 .shop-page .shop-card{display:flex;flex-direction:column;align-items:stretch;min-width:0;padding:12px 8px 8px;border:1px solid var(--shop-outline);border-radius:var(--ds-radius-input);background:var(--ds-panel);box-shadow:none;transition:border-color .16s}
 .shop-page .shop-card[hidden]{display:none}
@@ -81,13 +84,13 @@
 .shop-page .shop-card-price{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:4px;min-height:24px;margin:8px 0 12px;line-height:1.4;color:var(--ds-body);font-variant-numeric:tabular-nums}
 .shop-page .shop-price-value{color:var(--ds-text);font-size:var(--pc-font-body,15px);font-weight:600}
 .shop-page .shop-price-period{font-size:var(--pc-font-caption,13px);color:var(--ds-muted);white-space:nowrap}
-.shop-page .shop-card-buy{display:flex;align-items:center;justify-content:center;align-self:center;gap:4px;min-width:0;min-height:44px;max-width:112px;width:100%;margin:auto 0 0;padding:8px 4px;border:1px solid transparent;border-radius:var(--ds-radius-input);background:var(--shop-purple);box-shadow:none;color:var(--ds-ink);font:inherit;font-size:var(--pc-font-control,14px);font-weight:600;line-height:1.3;white-space:nowrap;cursor:pointer;touch-action:manipulation;transition:filter .16s}
+.shop-page .shop-card-buy{display:flex;align-items:center;justify-content:center;align-self:center;gap:4px;min-width:0;min-height:44px;max-width:112px;width:100%;margin:auto 0 0;padding:8px 4px;border:1px solid transparent;border-radius:var(--ds-radius-input);background:var(--shop-accent);box-shadow:none;color:var(--ds-ink);font:inherit;font-size:var(--pc-font-control,14px);font-weight:600;line-height:1.3;white-space:nowrap;cursor:pointer;touch-action:manipulation;transition:filter .16s,background-color .16s}
 .shop-page .shop-card-buy svg{width:16px;height:16px;flex:none;stroke-width:1.6}
 .shop-page .shop-card-preview{align-self:center;min-height:44px;padding:4px 2px;margin:4px 0 0;border:0;border-radius:var(--ds-radius-sm);background:none;color:var(--ds-body);font:inherit;font-size:var(--pc-font-caption,13px);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
-@media(hover:hover){.shop-page .shop-card:hover{border-color:var(--ds-border)}.shop-page .shop-actions a:hover{border-color:var(--ds-selected);background:var(--ds-soft)}.shop-page .shop-tabs button:not([aria-selected=true]):hover{background:var(--ds-soft);color:var(--ds-text)}.shop-page .shop-card-buy:not(:disabled):hover{filter:brightness(1.06)}.shop-page .shop-card-preview:not(:disabled):hover{color:var(--ds-selected)}}
+@media(hover:hover){.shop-page .shop-card:hover{border-color:var(--ds-border)}.shop-page .shop-actions a:hover{border-color:var(--shop-accent);background:var(--ds-soft)}.shop-page .shop-tabs button:not([aria-selected=true]):hover{background:var(--ds-soft);color:var(--ds-text)}.shop-page .shop-card-buy:not(:disabled):hover{filter:brightness(1.06)}.shop-page .shop-card-preview:not(:disabled):hover{color:var(--shop-accent)}}
 .shop-page .shop-card-buy:not(:disabled):active{filter:brightness(.94)}
 .shop-page :is(.shop-card-buy,.shop-card-preview):disabled{background:var(--ds-secondary);color:var(--ds-disabled);opacity:.6;cursor:not-allowed;filter:none}
-.shop-page :focus-visible{outline:2px solid var(--ds-selected);outline-offset:3px}
+.shop-page :focus-visible{outline:2px solid var(--shop-accent);outline-offset:3px}
 .shop-page .shop-empty{margin:24px 0;padding:20px;text-align:center;color:var(--ds-body);font-size:var(--pc-font-body,15px)}
 .shop-page .shop-empty[hidden]{display:none}
 .shop-page .shop-policy{margin-top:24px;padding-top:12px;border-top:1px solid var(--shop-outline);color:var(--ds-body);font-size:var(--pc-font-caption,13px);line-height:1.7}
@@ -101,33 +104,38 @@
 @media(max-width:800px){#main:has(>.shop-page){--main-frame-top:0px;padding-bottom:calc(24px + env(safe-area-inset-bottom))}}
 @media(max-width:767px){
  .shop-page .shop-heading{display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px 8px;margin:16px 0}
- .shop-page .shop-title{grid-area:1/1;gap:8px;font-size:20px}
+ .shop-page .shop-title{grid-area:1/1;gap:8px;font-size:22px}
  .shop-page .shop-title svg{width:24px;height:24px}
- .shop-page .shop-balances{grid-area:1/2;justify-content:flex-end;flex-wrap:nowrap;gap:8px;margin:0;padding:0;border:0;background:transparent;font-size:11px}
- .shop-page .shop-balance{flex-wrap:wrap;justify-content:center;gap:4px;padding:0;min-height:44px}
- .shop-page .shop-balance+.shop-balance{padding-left:8px}
- .shop-page .shop-balance b{font-size:13px}
- .shop-page .shop-balances .shop-coin{width:16px;height:16px}
+ .shop-page .shop-balances{grid-area:1/2;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:center;justify-self:end;gap:12px;width:100%;max-width:280px;margin:0;padding:0;border:0;background:transparent;font-size:13px}
+ .shop-page .shop-balance{display:grid;grid-template-columns:20px minmax(0,1fr);grid-template-rows:auto auto;align-content:center;justify-content:start;gap:2px 6px;padding:0;min-height:44px}
+ .shop-page .shop-balance+.shop-balance{padding-left:12px}
+ .shop-page .shop-balance>span{grid-area:1/2;line-height:1.35}
+ .shop-page .shop-balance b{grid-area:2/2;font-size:14px;line-height:1.4}
+ .shop-page .shop-balances .shop-coin{grid-area:1/1/3/2;width:20px;height:20px}
  .shop-page .shop-actions{grid-area:2/1/3/3;width:100%;margin:0;gap:8px}
- .shop-page .shop-actions a{flex:1;min-width:0;min-height:44px;padding:0 4px;font-size:12px;gap:4px}
- .shop-page .shop-actions :is(svg,.shop-coin){width:18px;height:18px}
+ .shop-page .shop-actions a{flex:1;min-width:0;min-height:44px;padding:0 4px;font-size:14px;gap:6px}
+ .shop-page .shop-actions :is(svg,.shop-coin){width:20px;height:20px}
  .shop-page .shop-toolbar{grid-template-columns:minmax(0,1fr);gap:12px;margin-bottom:16px}
  .shop-page .shop-tabs{min-height:44px}
- .shop-page .shop-tabs button{min-height:44px;padding:8px 4px;font-size:14px;gap:8px}
- .shop-page .shop-tabs svg{width:20px;height:20px}
+ .shop-page .shop-tabs button{min-height:44px;padding:8px 4px;font-size:16px;gap:6px}
+ .shop-page .shop-tabs svg{width:22px;height:22px}
  .shop-page .shop-item-search{max-width:240px;height:44px;padding-inline:12px}
  #main .shop-page .shop-item-search input{height:42px;font-size:16px}
  .shop-page .shop-products{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px 6px}
- .shop-page .shop-card{padding:8px 4px;border-radius:var(--ds-radius-sm)}
+ .shop-page .shop-card{padding:8px 4px 2px;border-radius:var(--ds-radius-sm)}
  .shop-page .shop-card-art{width:100%;height:clamp(38px,11vw,48px);max-width:48px;margin-bottom:8px}
- .shop-page .shop-card-name{font-size:12px}
- .shop-page .shop-card-price{gap:4px;min-height:24px;margin:6px 0 8px;flex-wrap:wrap}
+ .shop-page .shop-card-name{font-size:13px}
+ .shop-page .shop-card-price{gap:4px;min-height:24px;margin:6px 0 4px;flex-wrap:wrap}
  .shop-page .shop-card-price .shop-coin{width:16px;height:16px}
- .shop-page .shop-price-value{font-size:12px}
+ .shop-page .shop-price-value{font-size:14px}
  .shop-page .shop-price-period{width:100%;font-size:11px}
- .shop-page .shop-card-buy{padding:8px 0;font-size:12px;border-radius:var(--ds-radius-sm)}
+ /* Compact 32px color face inside the existing 44px touch target. */
+ .shop-page .shop-card-buy{position:relative;isolation:isolate;height:44px;min-height:44px;padding:6px 0;border:0;border-radius:var(--ds-radius-sm);background:transparent;font-size:12px}
+ .shop-page .shop-card-buy::before{content:"";position:absolute;z-index:-1;left:50%;top:50%;width:84%;min-width:min(56px,100%);max-width:84px;height:32px;transform:translate(-50%,-50%);border-radius:var(--ds-radius-sm);background:var(--shop-accent);pointer-events:none;transition:background-color .16s}
+ .shop-page .shop-card-buy:disabled{background:transparent}
+ .shop-page .shop-card-buy:disabled::before{background:var(--ds-secondary)}
  .shop-page .shop-card-buy svg{display:none}
  .shop-page .shop-card-preview{font-size:11px;padding-inline:0}
 }
-@media(max-width:359px){.shop-page .shop-balances{gap:4px;font-size:10px}.shop-page .shop-balance{gap:4px}.shop-page .shop-balance+.shop-balance{padding-left:4px}.shop-page .shop-balance b{font-size:12px}.shop-page .shop-title{font-size:18px}}
-@media(prefers-reduced-motion:reduce){.shop-page :is(.shop-card,.shop-card-buy,.shop-tabs button,.shop-actions a){transition:none}}
+@media(max-width:359px){.shop-page .shop-balances{gap:8px}.shop-page .shop-balance{column-gap:4px}.shop-page .shop-balance+.shop-balance{padding-left:8px}.shop-page .shop-actions a{font-size:13px;gap:4px}.shop-page .shop-actions :is(svg,.shop-coin){width:18px;height:18px}}
+@media(prefers-reduced-motion:reduce){.shop-page :is(.shop-card,.shop-card-buy,.shop-tabs button,.shop-actions a),.shop-page .shop-card-buy::before{transition:none}}

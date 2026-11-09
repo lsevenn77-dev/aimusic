@@ -102,6 +102,10 @@
  #dialog.shop-dialog .gift-dialog.gift-dialog--compact .gift-footer-grid{gap:6px}
 }
 /* Purchase flow only: keep shared gift scaling out of the compact checkout. */
+#dialog.shop-dialog:has(.shop-checkout[data-shop-category=gifts]){--shop-accent:var(--shop-accent-gifts,#F17DB5)}
+#dialog.shop-dialog:has(.shop-checkout[data-shop-category=frames]){--shop-accent:var(--shop-accent-frames,#B78CFF)}
+#dialog.shop-dialog:has(.shop-checkout[data-shop-category=themes],.shop-theme-preview){--shop-accent:var(--shop-accent-themes,#8EDDD2)}
+#dialog.shop-dialog:has(.shop-checkout[data-shop-category],.shop-theme-preview){--shop-purple:var(--shop-accent);--ds-selected:var(--shop-accent);--ds-soft:color-mix(in srgb,var(--shop-accent) 12%,transparent)}
 #dialog.shop-dialog:has(> #dialog-content > .shop-checkout){--gift-ui-scale:1;--ui-space-scale:1;--ui-type-scale:1;--ui-icon-scale:1;width:min(432px,calc(100vw - 24px));padding:20px;border-radius:var(--ds-radius-card)}
 #dialog.shop-dialog .shop-checkout h2{margin:0 40px 12px 0;line-height:1.4;font-weight:600}
 #dialog.shop-dialog .shop-checkout .shop-product-summary{gap:14px;margin:0 0 14px;padding:4px 0;min-width:0}
