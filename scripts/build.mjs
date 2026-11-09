@@ -55,7 +55,7 @@ await cp('dist/uiux-space.css','dist/client/uiux-space.css');
 await cp('dist/main-layout.css','dist/client/main-layout.css');
 await cp('dist/message-notification.css','dist/client/message-notification.css');
 await cp('dist/secondary-pages.css','dist/client/secondary-pages.css');
-for(const file of ['management-design.css','account-design.css','membership-design.css','payout-design.css','gold-design.css','rewards-design.css','inventory-design.css','upload-design.css','notifications-design.css'])await cp('dist/'+file,'dist/client/'+file);
+for(const file of ['management-design.css','account-design.css','membership-design.css','payout-design.css','gold-design.css','rewards-design.css','inventory-design.css','upload-design.css','notifications-design.css','sing-design.css'])await cp('dist/'+file,'dist/client/'+file);
 await cp('dist/app-ads.txt','dist/client/app-ads.txt');
 await cp('dist/artist-gallery.js','dist/client/artist-gallery.js');
 for(const file of ['artist-directory.js','artist-directory.css'])await cp('dist/'+file,'dist/client/'+file);
@@ -88,9 +88,9 @@ await cp('dist/ui-region-scale.css','dist/client/ui-region-scale.css');
 await cp('dist/gift-scale.css','dist/client/gift-scale.css');
 await cp('dist/sing-recording-scale.css','dist/client/sing-recording-scale.css');
 for(const name of await readdir('dist/client')){
- // Shared chat controls and popup roles use final CSS pixels. Their feature
+ // Shared chat controls, singing presentation and popup roles use final CSS pixels. Their feature
  // geometry and the verified 20/15/14/13px popup type scale must not be remapped.
- if(!name.endsWith('.css')||name.startsWith('aifect-app-')||['ui-region-scale.css','room-release.css','room-bubbles.css','chat-ui.css','messages-ui.css','page-tabs.css','popup-design-system.css','popup-commerce-design.css','popup-room-design.css','room-popup-layout.css','popup-game-design.css'].includes(name))continue;
+ if(!name.endsWith('.css')||name.startsWith('aifect-app-')||['ui-region-scale.css','room-release.css','room-bubbles.css','chat-ui.css','messages-ui.css','page-tabs.css','sing-design.css','popup-design-system.css','popup-commerce-design.css','popup-room-design.css','room-popup-layout.css','popup-game-design.css'].includes(name))continue;
  const file='dist/client/'+name;
  await writeFile(file,regionTokenCSS(await readFile(file,'utf8')));
 }

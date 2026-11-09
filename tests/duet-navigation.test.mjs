@@ -28,6 +28,27 @@ test('ordinary entry asks once; explicit modes, legacy drafts and joining paths 
  assert.equal(vm.runInContext('singHTML(d)',c),'');
  const html=vm.runInContext('singModeHTML(d)',c);assert.match(html,/data-sing-mode="solo"/);assert.match(html,/data-sing-mode="duet"/);assert.doesNotMatch(html,/data-sing-start|data-duet-editor/);
 });
+test('the empty recording route keeps the sign-in gate and skips song reads without changing explicit recording routes',async()=>{
+ for(const [hash,me,mode] of [['#sing/',null,null],['#sing/',{id:'owner'},null],['#sing/one?mode=solo',{id:'owner'},'solo'],['#sing/one?mode=duet',{id:'owner'},'duet']]){
+  const requests=[],main={dataset:{},innerHTML:'',classList:{remove(){},toggle(){}},querySelectorAll:()=>[],setAttribute(){},removeAttribute(){}};
+  const c=context({
+   me,renderId:0,apiRevision:0,accountReady:Promise.resolve(),socialTimer:null,socialCleanup:null,
+   location:{hash},window:{addEventListener(){},scrollTo(){}},document:{addEventListener(){},querySelectorAll:()=>[]},$:selector=>selector==='#main'?main:null,
+   api:async path=>{requests.push(path);return {track:{id:'one'}};},
+   setMobileMenu(){},clearInterval(){},cleanupLyricsEditor(){},updateBrowseNavigation(){},
+   notificationsView:()=>null,playerView:()=>null,improvementsView:()=>null,browseView:()=>null,explorerView:()=>null,
+   remember:tracks=>tracks,heading:title=>'<h1>'+title+'</h1>',icon:()=>'<svg></svg>',gate:()=>'<p>SIGN_IN</p>',esc:String
+  });
+  vm.runInContext(readFileSync(new URL('../dist/views.js',import.meta.url),'utf8'),c);
+  c.bindRenderedRoute=()=>{};
+  c.singHTML=d=>'<section data-recording-mode="'+d.mode+'">'+d.track.id+'</section>';
+  await vm.runInContext('render()',c);
+  assert.deepEqual(requests,mode?['/api/karaoke/one']:[]);
+  if(!me){assert.match(main.innerHTML,/SIGN_IN/);assert.equal(c.returnRoute,hash);assert.doesNotMatch(main.innerHTML,/부를 곡 고르기/);}
+  else if(!mode){assert.match(main.innerHTML,/부를 곡을 먼저 골라주세요/);assert.match(main.innerHTML,/href="#karaoke"/);assert.match(main.innerHTML,/href="#karaoke\/drafts"/);}
+  else assert.match(main.innerHTML,new RegExp('data-recording-mode="'+mode+'">one'));
+ }
+});
 test('cancelled leaving preserves the current mode and never stops or saves the take',async()=>{
  for(const mode of ['solo','duet']){let restored='';const c=context({confirm:()=>false,renderId:0,location:{hash:'#sing/one?mode='+ (mode==='solo'?'duet':'solo')},setMobileMenu(){},history:{pushState(a,b,href){restored=href;}},finishSinging(){throw Error('must not stop');},saveSingDraft(){throw Error('must not save');}});vm.runInContext(readFileSync(new URL('../dist/views.js',import.meta.url),'utf8'),c);vm.runInContext(`sing={id:'one',mode:'${mode}',state:'singing',dirty:true};askSingExit=async()=>false`,c);await vm.runInContext('render()',c);assert.match(restored,new RegExp('mode='+mode));}
 });
