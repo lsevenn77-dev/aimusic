@@ -25,7 +25,7 @@
     max-height:var(--room-popup-limit)!important;
     overflow:hidden;
   }
-  & #voice-content .voice-chat-panel :is(#voice-room-settings,#voice-members,#voice-invite-sheet,#room-inbox,#live-search-sheet)[open] {
+  & #voice-content .voice-chat-panel :is(#voice-room-settings,#voice-members,#voice-invite-sheet,#room-inbox,#live-search-sheet).room-popup[open] {
     height:var(--room-popup-limit);
   }
   & #voice-content .voice-chat-panel :is(#voice-sound,#voice-music-sheet,#voice-seat-picker,#talk-themes)[open] {
