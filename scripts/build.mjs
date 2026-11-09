@@ -48,6 +48,7 @@ await cp('dist/icon-style-lock.css','dist/client/icon-style-lock.css');
 await cp('dist/icon-feedback.css','dist/client/icon-feedback.css');
 await cp('dist/popup-close.css','dist/client/popup-close.css');
 await cp('dist/popup-layout.css','dist/client/popup-layout.css');
+await cp('dist/room-create.css','dist/client/room-create.css');
 for(const file of ['user-nickname.js','profile-editor.js','profile-editor.css'])await cp('dist/'+file,'dist/client/'+file);
 await cp('dist/uiux-space.css','dist/client/uiux-space.css');
 await cp('dist/main-layout.css','dist/client/main-layout.css');
