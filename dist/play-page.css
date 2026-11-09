@@ -503,6 +503,9 @@ img.play-dubbing-art{display:block;width:100%;height:auto;aspect-ratio:1;object-
       z-index: 1;
       background: linear-gradient(90deg, #080e1cb3 0%, #080e1ca3 28%, #080e1c70 42%, #080e1c29 54%, transparent 63%);
     }
+    .play-banner-art[data-play-art="dubbing"]::after {
+      background: linear-gradient(90deg, #080e1cd6 0%, #080e1ccc 28%, #080e1c99 42%, #080e1c29 54%, transparent 63%);
+    }
     /* Lower the camera framing without losing the top of either person's hair.
        A small height reserve lets narrower PC frames crop their top as well. */
     .play-banner-art:is([data-play-art="song"], [data-play-art="dubbing"]) {
