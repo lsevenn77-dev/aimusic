@@ -87,7 +87,7 @@ function shopStartingPrice(p,periods){
  const days=code=>{const m=/^P(\d+)([DMY])$/.exec(code);return m?Number(m[1])*({D:1,M:30,Y:365})[m[2]]:Infinity;};
  const options=shopProductPeriods(p,periods).sort(([a],[b])=>p.periodPrices[a]-p.periodPrices[b]||days(a)-days(b));
  const first=options[0];if(!first)return '';
- return shopCoin(p.currency||'G')+'<span class="shop-price-value">'+number(p.periodPrices[first[0]])+'</span><span class="shop-price-period"> / '+esc(first[1])+'~</span>';
+ return shopCoin(p.currency||'G')+'<span class="shop-price-value">'+number(p.periodPrices[first[0]])+'</span>'+(p.kind==='TALKING_ROOM_THEME'?'':'<span class="shop-price-period"> / '+esc(first[1])+'~</span>');
 }
 function shopNormalizeSearch(value){return String(value??'').normalize('NFKC').toLocaleLowerCase().replace(/\s+/gu,'');}
 function shopCards(items,periods={}){
@@ -96,10 +96,12 @@ function shopCards(items,periods={}){
   const category=p.sku?(theme?'themes':'frames'):'gifts';
   const action=p.sku?'data-decoration="'+esc(p.sku)+'"':'data-gift-buy="'+esc(p.id)+'"';
   const price=p.sku?shopStartingPrice(p,periods):shopCoin(currency)+'<span class="shop-price-value">'+number(p.free?p.silver:p.gold)+'</span>';
+  const name=theme?esc(p.name).replace(/(.+?)\s*라운지$/u,'$1<br>라운지'):esc(p.name);
   return '<article class="shop-card '+(currency==='S'?'is-silver':'is-gold')+'" data-shop-category="'+category+'" data-shop-name="'+esc(p.name)+'">'+
-   '<button type="button" class="shop-card-select" '+action+' aria-label="'+esc(p.name)+' 상품 선택"><img class="shop-card-art" src="'+esc(p.sku?decorationProductImage(p):p.image)+'" alt="" loading="lazy"><strong class="shop-card-name" title="'+esc(p.name)+'">'+esc(p.name)+'</strong></button>'+
-   '<div class="shop-card-price">'+price+'</div><button type="button" class="shop-card-buy" '+action+' aria-label="'+esc(p.name)+' 구매하기">'+shopIcon('cart')+'<span>구매하기</span></button>'+
-   (theme?'<button type="button" class="shop-card-preview" data-theme-preview="'+esc(p.assetPaths.roomMobile||'')+'" data-theme-sku="'+esc(p.sku)+'" data-theme-name="'+esc(p.name)+'" aria-label="'+esc(p.name)+' 미리보기" '+(p.assetPaths.roomMobile?'':'disabled')+'>미리보기</button>':'')+'</article>';
+   '<button type="button" class="shop-card-select" '+action+' aria-label="'+esc(p.name)+' 상품 선택"><img class="shop-card-art" src="'+esc(p.sku?decorationProductImage(p):p.image)+'" alt="" loading="lazy"><strong class="shop-card-name" title="'+esc(p.name)+'">'+name+'</strong></button>'+
+   '<div class="shop-card-price">'+price+'</div><div class="shop-card-actions">'+
+   (theme?'<button type="button" class="shop-card-preview" data-theme-preview="'+esc(p.assetPaths.roomMobile||'')+'" data-theme-sku="'+esc(p.sku)+'" data-theme-name="'+esc(p.name)+'" aria-label="'+esc(p.name)+' 미리보기" '+(p.assetPaths.roomMobile?'':'disabled')+'>미리보기</button>':'')+
+   '<button type="button" class="shop-card-buy" '+action+' aria-label="'+esc(p.name)+' 구매하기">'+shopIcon('cart')+'<span>구매하기</span></button></div></article>';
  }).join('');
 }
 // The registered portrait room background only; never substitute the card/desktop art.

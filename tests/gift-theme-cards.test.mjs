@@ -16,7 +16,7 @@ test('registered theme duration prices stay within one SKU card, without merging
  assert.deepEqual(Array.from(products,p=>p.sku),[theme.sku,other.sku]);
  const html=context.shopCards(products,PERIOD_LABELS);
  assert.equal((html.match(/data-shop-category="themes"/g)||[]).length,2);
- assert.ok(html.includes('100</span><span class="shop-price-period"> / 7일~'));
+ assert.ok(html.includes('class="shop-price-value">100</span>')&&!html.includes('class="shop-price-period"'));
  assert.ok(!html.includes('data-product-gift='));
  assert.ok(html.includes('data-theme-sku="'+theme.sku+'"'));
  assert.ok(html.includes('data-theme-preview="'+theme.assetPaths.roomMobile+'"'));
@@ -26,7 +26,7 @@ test('registered theme duration prices stay within one SKU card, without merging
 
 test('theme card uses the actual lowest price even when the shortest period costs more',()=>{
  const theme={...DECORATIONS.theme_starlight_lounge,periodPrices:{P7D:500,P1M:300,P3M:790}};
- assert.ok(context.shopCards([theme],PERIOD_LABELS).includes('300</span><span class="shop-price-period"> / 1개월~'));
+ assert.ok(context.shopCards([theme],PERIOD_LABELS).includes('class="shop-price-value">300</span>'));
  const periods=context.shopProductPeriods({...theme,periodPrices:{P1M:300,P3M:790}},PERIOD_LABELS);
  assert.deepEqual(Array.from(periods,([key,label])=>[key,label]),[['P1M','1개월'],['P3M','3개월']]);
 });
