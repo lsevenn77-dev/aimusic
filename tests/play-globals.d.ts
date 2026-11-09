@@ -24,7 +24,7 @@ declare function bindSongCoverPlayback():void;
 declare function paintInteractions():void;
 declare function toast(message:string):void;
 
-declare function mountFeatureCarousel(root:Element,slides:any[],options?:any): (()=>void)|undefined;
+declare function mountFeatureCarousel(root:Element,slides:any[],options?:any): ((()=>void)&{select:(id:string)=>void})|undefined;
 
 declare function userNickname(name:unknown,identity?:{profileId?:string;userId?:string;artistId?:string;entityType?:string},options?:object):string;
 declare function trackNickname(track:unknown,role?:string):string;

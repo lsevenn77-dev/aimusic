@@ -1,5 +1,5 @@
 // The Play carousel reuses the home controls and doesn't subscribe to the player.
-let playBannerCleanup=null,playBannerElement=null;
+let playBannerCleanup=null,playBannerElement=null,playBannerMode=null;
 const playBanners=[
  {id:'song',label:'노래',heading:['오늘은 네 목소리가','주인공'],description:['좋아하는 노래를 직접 부르고','솔로·듀엣 커버에','참여해 봐.']},
  {id:'dubbing',label:'더빙',heading:['목소리 하나로','달라지는 장면'],description:['다양한 캐릭터와 장면에','나만의 목소리를','입혀봐.']},
@@ -82,15 +82,20 @@ function playPendingView(base,param,raw){
  const view={play,raw,items:[],tracks:[],nextOffset:null,pending:true};
  return {...view,html:playShell(play,playContentHTML(view),raw)};
 }
+function selectPlayBanner(mode){
+ if(!playBanners.some(banner=>banner.id===mode))return;
+ playBannerCleanup?.select?.(mode);playBannerMode=mode;
+}
 function bindPlayBanner(play,root=document.querySelector('.play-page')){
  const banner=root?.querySelector('#play-banner');if(!banner)return;
  if(playBannerCleanup&&playBannerElement){
   if(banner!==playBannerElement)banner.replaceWith(playBannerElement);
+  if(playBannerMode!==play.mode)selectPlayBanner(play.mode);
   return;
  }
- playBannerElement=banner;
+ playBannerElement=banner;playBannerMode=play.mode;
  const dispose=mountFeatureCarousel(banner,playBanners,{renderSlide:playBannerHTML,label:'플레이 추천',previousLabel:'이전 플레이 배너',nextLabel:'다음 플레이 배너',dotsLabel:'플레이 배너 선택',syncAudio:false,initialId:play.mode,intervalMs:4000,retainOnRoute:()=>typeof location!=='undefined'&&!!playRouteSelection(location.hash.slice(1))&&banner.isConnected});
- playBannerCleanup=()=>{dispose?.();playBannerElement=null;playBannerCleanup=null;};
+ playBannerCleanup=Object.assign(()=>{dispose?.();playBannerElement=null;playBannerMode=null;playBannerCleanup=null;},{select:dispose?.select});
 }
 function playEmpty(title,body,href,label){return `<div class="play-empty" role="status"><h2>${esc(title)}</h2><p>${esc(body)}</p>${href?`<a class="small-button" href="${esc(href)}">${esc(label)}</a>`:''}</div>`;}
 function playMusicCard(t,action){
@@ -311,6 +316,10 @@ function bindPlay(view){
   bindPlayDuetChildren(root);
   root.addEventListener('click',event=>{
    if(!(event.target instanceof Element))return;
+   if(!event.defaultPrevented&&!event.ctrlKey&&!event.metaKey&&!event.shiftKey&&!event.altKey&&(event.button==null||event.button===0)){
+    const tab=event.target.closest('.play-main-tabs a[role="tab"]');
+    if(tab)selectPlayBanner(playRouteSelection(tab.getAttribute('href'))?.mode);
+   }
    if(event.target.closest('[data-play-retry]')){playNavigationCache.delete(playCacheAccount()+':'+root._playView.raw);void render();}
   });
   root.addEventListener('keydown',e=>{
