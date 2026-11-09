@@ -28,13 +28,14 @@ function homePlaceholder(){return '<div class="release-placeholder" role="status
 // Keep the approved 2:1 photo framing on mobile, with live copy on both sizes.
 // Dedicated desktop scenes fill Play's shared frame without a second download.
 const homeBanners=[
- {id:'studio',title:'스튜디오',headline:'스튜디오에서 내 제작곡을 올려보세요',cta:'제작곡 올리기',href:'#upload'},
- {id:'play',title:'플레이',headline:'플레이에서 마음에드는 노래를 불러보세요',cta:'노래하러 가기',href:'#karaoke'},
- {id:'participate',title:'듀엣·더빙',headline:'듀엣·더빙으로 함께 작품을 완성해보세요',cta:'참여하기',href:'#karaoke/duets',chooseParticipation:true},
- {id:'artists',title:'AI 아티스트',headline:'AI 아티스트를 팔로우하고 응원해보세요',cta:'아티스트 만나기',href:'#artists'},
- {id:'karaoke',title:'노래방',headline:'노래방에서 사람들과 함께 노래해보세요',cta:'노래방 가기',href:'#live?mode=karaoke'},
- {id:'talking',title:'토킹룸',headline:'토킹룸에서 편하게 이야기해보세요',cta:'토킹룸 가기',href:'#voice?mode=talk'},
- {id:'premium',title:'프리미엄',headline:'프리미엄으로 제작곡을 더 많이 올려보세요',cta:'프리미엄 혜택 보기',href:'#membership'}
+ {id:'studio',title:'스튜디오',headline:'스튜디오에서 내 제작곡을 올려보세요',subtitle:'완성한 음악을 직접 공개해요.',cta:'제작곡 올리기',href:'#upload'},
+ {id:'play',title:'플레이',headline:'플레이에서 마음에드는 노래를 불러보세요',subtitle:'내 목소리로 커버곡을 남겨요.',cta:'노래하러 가기',href:'#karaoke'},
+ {id:'participate',title:'듀엣·더빙',headline:'듀엣·더빙으로 함께 작품을 완성해보세요',subtitle:'원하는 파트에 목소리를 더해요.',cta:'참여하기',href:'#karaoke/duets',chooseParticipation:true},
+ {id:'artists',title:'AI 아티스트',headline:'AI 아티스트를 팔로우하고 응원해보세요',subtitle:'팬라운지에서 응원을 전해요.',cta:'아티스트 만나기',href:'#artists'},
+ {id:'karaoke',title:'노래방',headline:'노래방에서 사람들과 함께 노래해보세요',subtitle:'노래를 나누고 서로 응원해요.',cta:'노래방 가기',href:'#live?mode=karaoke'},
+ {id:'talking',title:'토킹룸',headline:'토킹룸에서 편하게 이야기해보세요',subtitle:'취향을 나누고 친구를 만나요.',cta:'토킹룸 가기',href:'#voice?mode=talk'},
+ {id:'crew',title:'크루',headline:'크루에 가입하고 함께 즐겨보세요',subtitle:'음악을 나누고 게임도 함께해요.',cta:'크루 둘러보기',href:'#community/crews?browse=1'},
+ {id:'premium',title:'프리미엄',headline:'프리미엄으로 제작곡을 더 많이 올려보세요',subtitle:'고음질로 음악을 더 깊이 즐겨요.',cta:'프리미엄 혜택 보기',href:'#membership'}
 ];
 function homeBannerImage(id,width){return '/assets/home-banners/mobile-20261109/'+id+'-'+width+'.webp';}
 function homeBannerDesktopImage(id){return '/assets/home-banners/desktop-20261109/'+id+'-2172.webp';}
@@ -45,6 +46,7 @@ const homeBannerDesktopCopy={
  artists:{lines:['AI 아티스트를','팔로우하고 응원해보세요'],highlight:'AI 아티스트'},
  karaoke:{lines:['노래방에서','사람들과 함께 노래해보세요'],highlight:'노래방'},
  talking:{lines:['토킹룸에서','편하게 이야기해보세요'],highlight:'토킹룸'},
+ crew:{lines:['크루에 가입하고','함께 즐겨보세요'],highlight:'크루'},
  premium:{lines:['프리미엄으로 제작곡을','더 많이 올려보세요'],highlight:'프리미엄'}
 };
 function homeBannerText(text){
@@ -54,7 +56,7 @@ function homeBannerHTML(b,next){
  const sizes='(max-width: 800px) 100vw, calc(100vw - 340px)';
  const sources=id=>homeBannerImage(id,768)+' 768w, '+homeBannerImage(id,1536)+' 1536w';
  const copy=homeBannerDesktopCopy[b.id],headline=copy.lines.map(line=>'<span>'+line.split(copy.highlight).map(homeBannerText).join('<em>'+homeBannerText(copy.highlight)+'</em>')+'</span>').join('');
- return `<a class="home-feature-slide home-promo-link" data-home-banner="${b.id}" href="${b.href}" aria-label="${esc(b.headline)}. ${esc(b.cta)}${b.chooseParticipation?' · 듀엣 또는 더빙 선택':''}" ${b.chooseParticipation?'data-home-participate aria-haspopup="dialog"':''} draggable="false"><picture class="home-promo-picture"><source media="(min-width: 801px)" srcset="${homeBannerDesktopImage(b.id)}" width="2172" height="724"><img class="home-promo-original" src="${homeBannerImage(b.id,1536)}" srcset="${sources(b.id)}" sizes="${sizes}" width="1536" height="768" alt="" loading="eager" decoding="async" ${b.id==='studio'?'fetchpriority="high"':''} draggable="false"></picture><span class="home-promo-desktop" aria-hidden="true"><span class="home-feature-copy home-promo-copy"><span class="home-promo-headline">${headline}</span><span class="home-promo-cta">${esc(b.cta)} ${icon('chevron')}</span></span></span></a>${next?`<link rel="preload" as="image" href="${homeBannerDesktopImage(next.id)}" media="(min-width: 801px)" fetchpriority="low"><link rel="preload" as="image" href="${homeBannerImage(next.id,1536)}" imagesrcset="${sources(next.id)}" imagesizes="${sizes}" media="(max-width: 800px)" fetchpriority="low">`:''}`;
+ return `<a class="home-feature-slide home-promo-link" data-home-banner="${b.id}" href="${b.href}" aria-label="${esc(b.headline)}. ${esc(b.subtitle)} ${esc(b.cta)}${b.chooseParticipation?' · 듀엣 또는 더빙 선택':''}" ${b.chooseParticipation?'data-home-participate aria-haspopup="dialog"':''} draggable="false"><picture class="home-promo-picture"><source media="(min-width: 801px)" srcset="${homeBannerDesktopImage(b.id)}" width="2172" height="724"><img class="home-promo-original" src="${homeBannerImage(b.id,1536)}" srcset="${sources(b.id)}" sizes="${sizes}" width="1536" height="768" alt="" loading="eager" decoding="async" ${b.id==='studio'?'fetchpriority="high"':''} draggable="false"></picture><span class="home-promo-desktop" aria-hidden="true"><span class="home-feature-copy home-promo-copy"><span class="home-promo-headline">${headline}</span><span class="home-promo-subtitle">${esc(b.subtitle)}</span><span class="home-promo-cta">${esc(b.cta)} ${icon('chevron')}</span></span></span></a>${next?`<link rel="preload" as="image" href="${homeBannerDesktopImage(next.id)}" media="(min-width: 801px)" fetchpriority="low"><link rel="preload" as="image" href="${homeBannerImage(next.id,1536)}" imagesrcset="${sources(next.id)}" imagesizes="${sizes}" media="(max-width: 800px)" fetchpriority="low">`:''}`;
 }
 function homeParticipationHTML(){
  return '<div class="home-participation"><h2>함께 만들 작품을 골라보세요</h2><div class="home-participation-options"><a class="small-button" href="#karaoke/duets">듀엣 참여하기 '+icon('chevron')+'</a><a class="small-button" href="#karaoke/dubbing?tab=join">더빙 참여하기 '+icon('chevron')+'</a></div></div>';

@@ -10,9 +10,10 @@ function context(){
  return c;
 }
 
-test('all seven approved banners expose a whole-image link and responsive WebP artwork',()=>{
+test('all eight service banners expose a whole-banner link and responsive WebP artwork',()=>{
  const c=context(),banners=vm.runInContext('homeBanners',c);
- assert.equal(banners.length,7);assert.equal(new Set(banners.map(b=>b.id)).size,7);
+ assert.equal(banners.length,8);assert.equal(new Set(banners.map(b=>b.id)).size,8);
+ assert.deepEqual(Array.from(banners,b=>b.id),['studio','play','participate','artists','karaoke','talking','crew','premium']);
  for(const b of banners){
   const html=c.homeBannerHTML(b);
   assert.match(html,new RegExp('href="'+b.href.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'"'));
@@ -25,7 +26,20 @@ test('all seven approved banners expose a whole-image link and responsive WebP a
   }
  }
  const routes=Object.fromEntries(banners.map(b=>[b.id,b.href]));
- assert.deepEqual(routes,{studio:'#upload',play:'#karaoke',participate:'#karaoke/duets',artists:'#artists',karaoke:'#live?mode=karaoke',talking:'#voice?mode=talk',premium:'#membership'});
+ assert.deepEqual(routes,{studio:'#upload',play:'#karaoke',participate:'#karaoke/duets',artists:'#artists',karaoke:'#live?mode=karaoke',talking:'#voice?mode=talk',crew:'#community/crews?browse=1',premium:'#membership'});
+});
+
+test('each banner renders one subtitle and includes it in the accessible link name',()=>{
+ const c=context(),banners=vm.runInContext('homeBanners',c);
+ for(const b of banners){
+  assert.equal(typeof b.subtitle,'string',b.id+' needs a subtitle');
+  assert.ok(b.subtitle.trim(),b.id+' needs a non-empty subtitle');
+  const html=c.homeBannerHTML(b),subtitle=c.esc(b.subtitle);
+  const content=html.replace(/<[^>]+>/g,''),label=html.match(/<a\b[^>]*\baria-label="([^"]*)"/)?.[1]||'';
+  assert.equal(content.split(subtitle).length-1,1,b.id+' must show its subtitle once as live text');
+  assert.equal(label.split(subtitle).length-1,1,b.id+' must announce its subtitle once');
+  for(const text of [b.headline,b.cta])assert.ok(label.includes(c.esc(text)),b.id+' must announce its headline and destination action');
+ }
 });
 
 test('participation exposes a choice of open duet or dubbing projects, not completed works',()=>{
@@ -40,7 +54,7 @@ test('participation exposes a choice of open duet or dubbing projects, not compl
 test('published mobile banner variants match the visually reviewed asset manifest without duplicate scenes',()=>{
  const base=new URL('../dist/assets/home-banners/mobile-20261109/',import.meta.url);
  const manifest=JSON.parse(readFileSync(new URL('manifest.json',base),'utf8'));
- assert.equal(manifest.banners.length,7);
+ assert.equal(manifest.banners.length,8);
  for(const width of [768,1536]){
   const hashes=new Set();
   for(const banner of manifest.banners){
@@ -52,7 +66,7 @@ test('published mobile banner variants match the visually reviewed asset manifes
    assert.equal(bytes.length,output.bytes);assert.equal(output.height,width/2);
    hashes.add(hash);
   }
-  assert.equal(hashes.size,7,'each destination must show its own approved scene');
+  assert.equal(hashes.size,8,'each destination must show its own approved scene');
  }
 });
 

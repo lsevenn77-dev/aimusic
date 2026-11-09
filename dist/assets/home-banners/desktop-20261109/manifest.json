@@ -1,5 +1,5 @@
 {
-  "purpose": "Continuous generated desktop scenes; approved mobile artwork is unchanged.",
+  "purpose": "Continuous generated desktop scenes for the responsive home carousel; matching mobile photographs are maintained separately.",
   "generation": "image_gen built-in reference editing",
   "assets": [
     {
@@ -49,6 +49,14 @@
       "height": 724,
       "bytes": 218176,
       "sha256": "f7aded9e268c5ea64fbd13c4fc743bb918878c9f19a0012ff1959ce71b0c4e2b"
+    },
+    {
+      "id": "crew",
+      "file": "crew-2172.webp",
+      "width": 2172,
+      "height": 724,
+      "bytes": 341650,
+      "sha256": "43a9afa30f6ab07c37fa727f542183906e23b9af1d64690d8fddd2b5195e2de4"
     },
     {
       "id": "premium",

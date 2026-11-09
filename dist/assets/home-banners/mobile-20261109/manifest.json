@@ -2,12 +2,19 @@
   "schema_version": 3,
   "asset_set": "aifect-home-mobile-clean-20261109",
   "created_at_utc": "2026-11-09T02:14:55.193267+00:00",
-  "purpose": "Clean approved 2:1 mobile photographs for live HTML headline and flat chevron CTA; localized dark blur is CSS only.",
+  "purpose": "Clean 2:1 home-banner photographs for live HTML headline, subtitle and flat chevron CTA; localized dark blur is CSS only.",
   "generation": {
     "mode": "built-in image_gen",
     "edit": "Remove baked headline and CTA only",
     "reference_set": "final-20261108",
-    "originals_retained": true
+    "originals_retained": true,
+    "additional_scenes": [
+      {
+        "id": "crew",
+        "mode": "identity-preserving reference edit",
+        "provenance": "docs/home-banner-crew-20261109.json"
+      }
+    ]
   },
   "encoding": {
     "software": "Pillow",
@@ -223,6 +230,40 @@
           "url": "/assets/home-banners/mobile-20261109/talking-768.webp",
           "sha256": "d27c765b4ea51e8aae05b4cb84b732a6301c8e13c019ae7e6d979e7207c5b578",
           "bytes": 66266,
+          "width": 768,
+          "height": 384,
+          "format": "WEBP",
+          "mime_type": "image/webp"
+        }
+      ]
+    },
+    {
+      "id": "crew",
+      "label": "크루",
+      "headline": "크루에 가입하고 함께 즐겨보세요",
+      "reference": "/assets/home-banners/mobile-20261109/talking-1536.webp",
+      "source": {
+        "filename": "exec-f8b91a7a-2652-4d12-8b90-b59675027436.png",
+        "sha256": "c6c295d09b3f075f933a0d88b6476ad9c44dc7e33181a8af9c518bf4c6ca965f",
+        "width": 1774,
+        "height": 887
+      },
+      "outputs": [
+        {
+          "filename": "crew-1536.webp",
+          "url": "/assets/home-banners/mobile-20261109/crew-1536.webp",
+          "sha256": "6bf556de084140fb8145d884f22b9a7ffb4de9360eb2be77ff05f9a4054ef9c4",
+          "bytes": 217102,
+          "width": 1536,
+          "height": 768,
+          "format": "WEBP",
+          "mime_type": "image/webp"
+        },
+        {
+          "filename": "crew-768.webp",
+          "url": "/assets/home-banners/mobile-20261109/crew-768.webp",
+          "sha256": "54485037832ebf2fae2a02bf5a5cf2811035265460bf8e9eed23860551742ffe",
+          "bytes": 76410,
           "width": 768,
           "height": 384,
           "format": "WEBP",
