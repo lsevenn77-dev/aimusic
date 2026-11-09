@@ -1,10 +1,13 @@
 /* Popup dismiss controls only; preserve each dialog's positioning and handlers. */
 :is(#dialog .dialog-close#dialog-close, dialog .dialog-close, dialog .voice-dialog-close, dialog .profile-preview-close, #v3-room-create #v3-close-create, dialog.photo-lightbox > .small-button) {
-  display: grid; place-items: center; box-sizing: border-box;
+  display: flex; align-items: center; justify-content: center; gap: 0; box-sizing: border-box;
   width: 44px; height: 44px; min-width: 44px; min-height: 44px;
   flex-shrink: 0; padding: 0; border: 0; border-radius: 0;
   background: transparent; box-shadow: none; filter: none;
-  color: #E7ECF5; font-size: 0; line-height: 1; text-shadow: none;
+  /* Keep the accessible label, but never show the legacy text beside the mask.
+     PC semantic button typography is !important; the icon-only reset must win.
+     Flex also prevents a zero-size text node from creating a second grid row. */
+  color: #E7ECF5; font-size: 0 !important; line-height: 0; text-shadow: none;
   cursor: pointer; -webkit-tap-highlight-color: transparent;
 }
 :is(#dialog .dialog-close#dialog-close, dialog .dialog-close, dialog .voice-dialog-close, dialog .profile-preview-close, #v3-room-create #v3-close-create, dialog.photo-lightbox > .small-button):focus-visible { outline: 2px solid #8EDDD2; outline-offset: 2px; }

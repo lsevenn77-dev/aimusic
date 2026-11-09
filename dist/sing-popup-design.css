@@ -190,7 +190,7 @@
     :is(button,input,select,summary):focus-visible { outline:2px solid var(--ds-selected);outline-offset:-2px; }
     [hidden] { display:none!important; }
   }
-  #dialog-close { top:12px;right:12px;color:var(--ds-body); }
+  #dialog-close { top:calc(var(--sing-popup-pad) - 8px);right:var(--sing-popup-pad);color:var(--ds-body); }
   #dialog-close:hover { color:var(--ds-text); }
 }
 

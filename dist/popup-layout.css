@@ -17,9 +17,10 @@
 :is(#dialog, dialog).compact-popup :is(.field-help, .quiet, small, .studio-confirm-detail) { font-size: 13px; line-height: 1.6; }
 :is(#dialog, dialog).compact-popup h2 { font-size: 19px; font-weight: 600; line-height: 1.5; margin: 0 0 12px; padding: 0; }
 :is(#dialog, dialog).compact-popup .popup-prompt { color: var(--ds-text); font-size: var(--popup-body-size); font-weight: 500; line-height: 1.6; margin: 0 0 16px; text-align: start; }
-/* Reserve horizontal space for the existing close target, not a blank title row. */
-:is(#dialog, dialog).compact-popup :is(#dialog-content > :first-child, #dialog-content > :first-child > h2:first-child, #dialog-content > :first-child > .popup-prompt:first-child) { padding-inline-end: 44px; }
-:is(#dialog, dialog).compact-popup #dialog-content > :is(form, section, div):first-child { padding-inline-end: 0; }
+/* Reserve close-button space only on the title. A gutter on the first wrapper
+   narrows every tab, field and footer below it and cannot be reset by its skin. */
+#dialog.compact-popup #dialog-content > :is(h2, .popup-prompt):first-of-type,
+#dialog.compact-popup #dialog-content > :is(form, section, div):first-child > :is(h2, .popup-prompt):first-of-type { padding-inline-end: 44px; }
 :is(#dialog, dialog).compact-popup:has(> .voice-dialog-close) > :is(h2, .popup-prompt):first-of-type { padding-inline-end: 32px; }
 :is(#dialog, dialog).compact-popup :is(.dialog-close, .voice-dialog-close, .activity-settings-close) { top: 8px; right: 8px; }
 :is(#dialog, dialog).compact-popup :is(button, a.primary-button, a.small-button, label.small-button):not(:where(.dialog-close, .voice-dialog-close, .activity-settings-close, .profile-preview-close, .profile-preview-photo, .cgl-close, [data-directory-close], #v3-close-create)) {
@@ -64,9 +65,13 @@
 /* Song menus keep one icon, label and chevron column. Compact form buttons and
    inline music counters must not resize or center individual menu items. */
 #dialog.compact-popup:has(.track-options) {
- width:min(360px,calc(100vw - 32px));max-width:360px;padding:12px;
+ /* This menu has no title: keep the close target above its full-width rows. */
+ width:min(360px,calc(100vw - 32px));max-width:360px;padding:56px 12px 12px;
 }
-#dialog.compact-popup #dialog-content>.track-options {padding:0;margin:0}
+#dialog.compact-popup #dialog-content>.track-options {
+ padding:0;margin:0;
+ max-height:calc(100dvh - 104px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));
+}
 :is(#dialog,#chart-track-menu) .track-options>.track-option {
  box-sizing:border-box;display:grid!important;
  grid-template-columns:20px minmax(0,1fr) 18px;align-items:center;
