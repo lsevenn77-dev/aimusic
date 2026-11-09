@@ -1,5 +1,47 @@
 // Desktop composition reuses existing routes, media, playback and social actions.
 let myPageState=null,myPendingTabFocus='',myWorkSearchObserver=null;
+const myPageRevision=()=>typeof apiRevision==='number'?apiRevision:0;
+function myPageRouteSelection(raw=''){
+ raw=raw.replace(/^#\/?/,'');
+ const alias=typeof menuAlias==='function'?menuAlias('#'+raw):null;if(alias)raw=alias.slice(1);
+ if(!/^profile(?:\?|$)/.test(raw))return null;
+ const q=new URLSearchParams(raw.split('?')[1]||'');
+ if(['covers','originals'].includes(q.get('section')))return null;
+ return ['library','activity'].includes(q.get('view'))?q.get('view'):'works';
+}
+function canRefreshMyPageRoute(raw){
+ const s=myPageState,main=$('#main');
+ if(!s?.own||s.account!==me?.id||!main?.querySelector('.mp-dashboard.mp-own')||!myPageRouteSelection(raw))return false;
+ const previous=main.dataset.route||'';
+ if(['covers','originals'].includes(new URLSearchParams(previous.split('?')[1]||'').get('section')))return false;
+ return !!myPageRouteSelection(previous)||previous.split('?')[0]==='producer/'+s.d.profile?.id;
+}
+function myPageTargetId(raw){try{return decodeURIComponent(raw.replace(/^#/,''));}catch{return new URLSearchParams('r='+raw.replace(/^#/,'').replaceAll('+','%2B').replaceAll('&','%26')).get('r');}}
+function myPageRouteTargetsHTML(raw){
+ const routes=new Set([raw,'profile',...['works','library','activity'].map(tab=>myTabHref(tab,raw).slice(1))]);
+ return '<div hidden aria-hidden="true" data-mypage-route-targets>'+[...routes].map(route=>'<span data-mypage-route-target id="'+esc(myPageTargetId(route))+'"></span>').join('')+'</div>';
+}
+function rememberMyPageRouteTarget(raw){
+ if(!myPageRouteSelection(raw))return;
+ const host=$('#main')?.querySelector('[data-mypage-route-targets]');if(!host)return;
+ const id=myPageTargetId(raw);
+ if([...host.children].some(node=>node.id===id))return;
+ const target=document.createElement('span');target.setAttribute('data-mypage-route-target','');target.id=id;host.append(target);
+}
+function refreshMyPageProfile(){
+ // Profile edits must refresh the shared gallery/artists/header too. Ordinary
+ // tab navigation retains them; explicit successful edits use the full view.
+ if(myPageState?.own){myPageState.request=(myPageState.request||0)+1;myPageState=null;}
+ return render();
+}
+// Keep only enough content height to prevent the browser clamping the current
+// scroll position when a long tab is replaced by a loader or a shorter result.
+function holdMyPageViewport(node,pending=false){
+ if(!node?.style||!node.getBoundingClientRect)return;
+ const before=node.getBoundingClientRect(),scale=node.offsetHeight?before.height/node.offsetHeight:1;
+ const height=Math.max(pending?before.height:0,(window.scrollY||0)>0?(window.innerHeight||0)-before.top:0);
+ node.style.minHeight=height>0?Math.ceil(height/(scale||1))+'px':'';
+}
 const myDate=n=>n?new Date(n*1000).toLocaleDateString('ko-KR',{timeZone:'Asia/Seoul'}):'';
 const myEmpty=text=>`<p class="mp-empty">${esc(text)}</p>`;
 const myLoading=()=>'<p class="mp-empty" role="status">불러오는 중…</p>';
@@ -123,7 +165,7 @@ function myArtistAddDialog(){
   await validateImage(fd.get('image'));
   const {id}=await api('/api/studio/artists','POST',textFields(fd));
   if(fd.get('image')?.size)await uploadFile('/api/studio/artists/'+id+'/image',fd.get('image'));
-  $('#dialog').close();await render();toast('아티스트를 추가했어요.');
+  $('#dialog').close();await refreshMyPageProfile();toast('아티스트를 추가했어요.');
  });
 }
 
@@ -308,9 +350,9 @@ async function myPageView(base,param,raw,readApi=api){
  const own=isMyProfile(d.profile),q=new URLSearchParams(raw.split('?')[1]||''),tab=own&&['activity','library'].includes(q.get('view'))?q.get('view'):'works';
  if(full)return profileWorksPage(d,q);
  const collection=own&&tab==='library'?await myLibraryView(raw,readApi):own&&tab==='works'&&['covers','originals'].includes(q.get('section'))?await browseView('library',q.get('section'),raw,true,readApi):null;
- const state={d,own,tab,account:me?.id||'',activity:null};
+ const state={d,own,tab,account:me?.id||'',activity:null,worksRevision:myPageRevision(),worksUntil:Date.now()+30000,loadedTab:tab==='activity'?null:tab,loadedRevision:myPageRevision(),libraryRoute:tab==='library'?menuHref('profile',{},raw).slice(1):null};
  return {mypage:state,musicLibrary:collection?.musicLibrary,tracks:collection?.tracks||[...(d.tracks||[]),...(d.covers||[])],
-  html:`<div class="mypage-layout mp-member-page mp-dashboard ${own?'mp-own':''}" data-mp-view="${tab}">${myProfileHeader(d)}
+  html:`<div class="mypage-layout mp-member-page mp-dashboard ${own?'mp-own':''}" data-mp-view="${tab}">${own?myPageRouteTargetsHTML(raw):''}${myProfileHeader(d)}
    <div class="mp-profile-collections">${myMoments(d)}${myArtists(d)}</div>
    ${own?mySegment(tab)+myWorksBanner(tab):''}<div class="mp-main"><div id="mp-content" ${own?'role="tabpanel" aria-labelledby="mp-tab-'+tab+'"':''}>${collection?collection.html:tab==='works'?myWorksHTML(d,own?'main':'all'):myLoading()}</div></div>
    ${own?`<aside class="mp-aside" id="mp-aside"><div id="mp-aside-content">${collection?.libraryAside??(tab==='activity'?myLoading():myWorksHTML(d,'aside'))}</div>${myStudioBanner()}</aside>`:''}
@@ -318,7 +360,7 @@ async function myPageView(base,param,raw,readApi=api){
 }
 async function myActivityData(readApi=api){
  const paths={wallet:'/api/gold/balance',player:'/api/me/player',activity:'/api/me/profile?section=activity',inventory:'/api/me/gift-inventory'};
- return Object.fromEntries(await Promise.all(Object.entries(paths).map(async([key,path])=>{try{return [key,await readApi(path,'GET',undefined,{fresh:true})];}catch(e){return [key,{error:e.message}];}})));
+ return Object.fromEntries(await Promise.all(Object.entries(paths).map(async([key,path])=>{try{return [key,await readApi(path,'GET',undefined,{fresh:true})];}catch(e){if(e.name==='AbortError'||e.status===401||e.status===403)throw e;return [key,{error:e.message}];}})));
 }
 function myError(d){return d?.error?`<p class="mp-empty" role="alert">${esc(d.error)} <button class="text-link" data-mp-retry>다시 시도</button></p>`:'';}
 function myActivityHTML(a,d={}){
@@ -339,36 +381,84 @@ function myActivityAside(a){
  const rows=items=>`<div class="mp-activity-rows">${items.join('')}</div>`;
  return `<div class="mp-activity-aside">${mySection('받은 선물',myError(a.activity)||(received.length?rows(received.slice(0,3).map(g=>`<a href="${g.sender_profile_id?'#producer/'+esc(g.sender_profile_id):'#notifications?filter=gifts'}"><span class="mp-mini-avatar">${avatarImage({id:g.sender_profile_id,name:g.sender_name,image_version:g.image_version})}</span><span class="mp-gift-copy"><strong>${userNickname(g.sender_name,{profileId:g.sender_profile_id,userId:g.sender_id})}</strong><small>${esc(g.gift_name||'선물')} × ${g.quantity}</small><time>${myDate(g.created)}</time></span>${icon('chevron')}</a>`)):myEmpty('아직 받은 선물이 없어요.')),myAll('#notifications?filter=gifts'),null,'mp-activity-panel mp-received-card')}</div>`;
 }
-async function mySelectTab(tab,updateURL=true,readApi=api){
- const s=myPageState;if(!s?.own||s.account!==me?.id)return;
- if(updateURL){location.hash=myTabHref(tab);return;}
- s.tab=tab;const request=s.request=(s.request||0)+1;
- const page=$('.mp-dashboard');if(page){page.dataset.mpView=tab;const banner=page.querySelector('.mp-works-banner');if(banner)banner.outerHTML=myWorksBanner(tab);}
- const segment=$('.mp-segment');segment.dataset.active=tab;segment.querySelectorAll('[role="tab"]').forEach(b=>{const active=b.dataset.mpTab===tab;b.setAttribute('aria-selected',active);b.tabIndex=active?0:-1;});
- const content=$('#mp-content'),aside=$('#mp-aside-content');content.setAttribute('aria-labelledby','mp-tab-'+tab);content.removeAttribute('aria-busy');
- if(tab==='works'){content.innerHTML=myWorksHTML(s.d,'main');aside.innerHTML=myWorksHTML(s.d,'aside');routeTracks=remember([...(s.d.tracks||[]),...(s.d.covers||[])]);icons();paintInteractions();bindProfileWorkJoins(document.querySelector('.mp-dashboard'),s.d);syncSongCoverPlayback();return;}
- content.setAttribute('aria-busy','true');
- content.innerHTML=myLoading();aside.innerHTML=myLoading();
+async function mySelectTab(tab,updateURL=true,readApi=api,force=false){
+ const s=myPageState;if(!s?.own||s.account!==me?.id||!['works','library','activity'].includes(tab))return;
+ if(updateURL){
+  if(s.tab===tab&&myPageRouteSelection(location.hash)===tab)return;
+  const href=tab==='library'&&myPageRouteSelection(s.libraryRoute||'')==='library'?'#'+s.libraryRoute:myTabHref(tab);
+  rememberMyPageRouteTarget(href);location.hash=href;return;
+ }
+ const content=$('#mp-content'),aside=$('#mp-aside-content');if(!content||!aside)return;
+ const raw=location.hash.slice(1),ticket=renderId,revision=myPageRevision(),request=s.request=(s.request||0)+1;
+ const mounted=()=>myPageState===s&&s.request===request&&s.tab===tab&&s.account===me?.id&&content.isConnected&&ticket===renderId&&location.hash.slice(1)===raw;
+ const current=()=>mounted()&&!readApi.signal?.aborted&&(!readApi.current||readApi.current());
+ s.tab=tab;s.pending=true;s.loadedTab=null;
+ holdMyPageViewport(content,true);holdMyPageViewport(aside,true);
+ const page=$('.mp-dashboard');
+ if(page){
+  page.dataset.mpView=tab;
+  const banner=page.querySelector('.mp-works-banner>span');
+  // The banner and icon remain mounted; only their tab-specific copy changes.
+  if(banner){const template=document.createElement('template');template.innerHTML=myWorksBanner(tab);banner.innerHTML=template.content.querySelector('.mp-works-banner>span').innerHTML;}
+ }
+ const segment=$('.mp-segment');if(segment){segment.dataset.active=tab;segment.querySelectorAll('[role="tab"]').forEach(b=>{const active=b.dataset.mpTab===tab;b.setAttribute('aria-selected',active);b.tabIndex=active?0:-1;});}
+ content.setAttribute('aria-labelledby','mp-tab-'+tab);
+ const finish=()=>{s.pending=false;content.removeAttribute('aria-busy');aside.removeAttribute('aria-busy');holdMyPageViewport(content);holdMyPageViewport(aside);};
+ const paint=result=>{
+  if(tab==='works'){
+   s.d=result;content.innerHTML=myWorksHTML(result,'main');aside.innerHTML=myWorksHTML(result,'aside');routeTracks=remember([...(result.tracks||[]),...(result.covers||[])]);
+   bindProfileWorkJoins(page,result);syncSongCoverPlayback();
+  }else if(tab==='library'){
+   content.innerHTML=result.html;aside.innerHTML=result.libraryAside;remember(result.tracks||[]);bindMusicLibrary(result.musicLibrary);s.libraryRoute=raw;
+  }else{s.activity=result;content.innerHTML=myActivityHTML(result,s.d);aside.innerHTML=myActivityAside(result);routeTracks=[];}
+  s.loadedTab=tab;s.loadedRevision=revision;finish();icons();paintInteractions();
+ };
+ const showError=message=>{
+  s.loadedTab=null;content.innerHTML='<div role="alert">'+myEmpty(message)+'<button type="button" class="small-button" data-mp-tab-retry="'+tab+'">다시 시도</button></div>';aside.innerHTML='';finish();
+ };
+ if(tab==='works'&&!force&&s.worksRevision===revision&&s.worksUntil>Date.now()){paint(s.d);return;}
+ content.setAttribute('aria-busy','true');aside.setAttribute('aria-busy','true');content.innerHTML=myLoading();aside.innerHTML=myLoading();
+ let timedOut=false,timer;
+ const scopedRead=async(...args)=>{
+  const check=()=>{if(!current()||timedOut)throw Object.assign(new Error('이전 마이페이지의 요청입니다.'),{name:'AbortError'});};
+  check();const result=await readApi(...args);check();return result;
+ };
+ scopedRead.signal=readApi.signal;scopedRead.current=()=>current()&&!timedOut;
+ const timeout=new Promise(resolve=>{timer=setTimeout(()=>{if(current()){timedOut=true;showError('연결이 지연되고 있어요. 다시 시도해주세요.');}resolve();},20000);});
  try{
-  const result=tab==='library'?await myLibraryView(location.hash.slice(1),readApi):await myActivityData(readApi);
-  if(myPageState!==s||s.request!==request||s.tab!==tab||me?.id!==s.account||!content.isConnected)return;
-  if(tab==='library'){content.innerHTML=result.html;aside.innerHTML=result.libraryAside;remember(result.tracks||[]);bindMusicLibrary(result.musicLibrary);}
-  else{s.activity=result;content.innerHTML=myActivityHTML(result,s.d);aside.innerHTML=myActivityAside(result);routeTracks=[];}
-  content.removeAttribute('aria-busy');icons();paintInteractions();
- }catch(e){if(myPageState===s&&s.request===request&&content.isConnected){content.removeAttribute('aria-busy');content.innerHTML=myEmpty(e.message);aside.innerHTML='';const retry=document.createElement('button');retry.className='small-button';retry.textContent='다시 시도';retry.onclick=()=>mySelectTab(tab,false);content.append(retry);}}
+  const load=async()=>{
+   if(tab==='works'){
+    const id=s.d.profile?.id;
+    if(id)return scopedRead('/api/producers/'+encodeURIComponent(id)+'?dashboard=1&work_list=1','GET',undefined,{fresh:true});
+    const self=await scopedRead('/api/me/profile','GET',undefined,{fresh:true});
+    return self.profile.id?scopedRead('/api/producers/'+encodeURIComponent(self.profile.id)+'?dashboard=1&work_list=1','GET',undefined,{fresh:true}):{...s.d,profile:self.profile};
+   }
+   return tab==='library'?myLibraryView(raw,scopedRead):myActivityData(scopedRead);
+  };
+  const result=await Promise.race([load(),timeout]);
+  if(!current()||timedOut)return;
+  if(revision!==myPageRevision()){void render();return;}
+  if(tab==='works'){s.worksRevision=revision;s.worksUntil=Date.now()+30000;}
+  paint(result);
+ }catch(e){
+  if(current()&&!timedOut){
+   if(revision!==myPageRevision()&&e.status!==401&&e.status!==403)void render();
+   else if(e.name!=='AbortError')showError(e.message);
+  }
+ }finally{clearTimeout(timer);if(mounted())s.pending=false;}
 }
 async function refreshMyPageRoute(raw,ticket,readApi=api,showCurrentTab){
- const s=myPageState,main=$('#main');
- if(!s?.own||s.account!==me?.id||!main?.querySelector('.mp-own')||!/^profile(?:\?|$)/.test(raw))return false;
- const q=new URLSearchParams(raw.split('?')[1]||''),tab=['activity','library'].includes(q.get('view'))?q.get('view'):'works';
- // Legacy works collections use their existing list view, not the dashboard fast path.
- if(['covers','originals'].includes(q.get('section'))||['covers','originals'].includes(new URLSearchParams((main.dataset.route||'').split('?')[1]||'').get('section')))return false;
- if(s.tab===tab)return false;
- main.dataset.route=raw;
- const pending=mySelectTab(tab,false,readApi);
+ if(!canRefreshMyPageRoute(raw))return false;
+ const s=myPageState,main=$('#main'),tab=myPageRouteSelection(raw),previous=main.dataset.route;
+ if(myPageRouteSelection(previous)==='library')s.libraryRoute=previous;
+ rememberMyPageRouteTarget(raw);main.dataset.route=raw;
+ const fresh=tab==='works'?s.worksRevision===myPageRevision()&&s.worksUntil>Date.now():s.loadedRevision===myPageRevision();
+ const pending=s.tab===tab&&!s.pending&&s.loadedTab===tab&&fresh?Promise.resolve():mySelectTab(tab,false,readApi);
+ // Presentation is ready as soon as the content-local loading state exists.
+ // Profile/header bindings and the global player stay attached throughout.
  if(ticket===renderId)showCurrentTab?.();
  await pending;
- if(ticket===renderId&&myPendingTabFocus===tab)$('#mp-tab-'+tab)?.focus({preventScroll:true});myPendingTabFocus='';
+ if(ticket===renderId){if(myPendingTabFocus===tab)$('#mp-tab-'+tab)?.focus({preventScroll:true});myPendingTabFocus='';}
  return true;
 }
 const profileMobileLayout=window.matchMedia?.('(max-width: 800px)');
@@ -392,6 +482,13 @@ function bindMyPage(view){
  if(profile)bindMemberHeader(profile);
  if(view?.profileWorks)bindProfileWorks(view.profileWorks);
  if(!s){myPendingTabFocus='';return;}
+ if(s.own){
+  for(const tab of ['works','library','activity'])rememberMyPageRouteTarget(myTabHref(tab));
+  const content=$('#mp-content'),aside=$('#mp-aside-content');
+  const scroll=()=>{if(myPageState===s&&!s.pending&&content?.isConnected){holdMyPageViewport(content);holdMyPageViewport(aside);}};
+  window.addEventListener('scroll',scroll,{passive:true});
+  registerRouteCleanup(()=>{s.request=(s.request||0)+1;window.removeEventListener('scroll',scroll);});
+ }
  bindProfileWorkJoins(document.querySelector('.mp-dashboard'),s.d);
  if(profileMobileLayout)placeProfileArtists();
  if(s.tab==='activity')void mySelectTab('activity',false);
@@ -403,9 +500,10 @@ document.addEventListener('keydown',e=>{
  const b=e.target.closest('[data-mp-tab]');if(!b||e.ctrlKey||e.metaKey||e.altKey||!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();const tabs=['works','library','activity'],i=tabs.indexOf(b.dataset.mpTab),key=tabs[e.key==='Home'?0:e.key==='End'?tabs.length-1:(i+(e.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length];myPendingTabFocus=key;$('[data-mp-tab="'+key+'"]').focus({preventScroll:true});void mySelectTab(key);
 });
 document.addEventListener('click',async e=>{
- const b=e.target.closest('[data-mp-artist-add],[data-mp-tab],[data-mp-retry],[data-mp-artists],[data-mp-recent],[data-mp-dubbing-play]');if(!b)return;e.preventDefault();
+ const b=e.target.closest('[data-mp-artist-add],[data-mp-tab],[data-mp-retry],[data-mp-tab-retry],[data-mp-artists],[data-mp-recent],[data-mp-dubbing-play]');if(!b)return;e.preventDefault();
  if(b.hasAttribute('data-mp-artist-add')){myArtistAddDialog();return;}
  if(b.dataset.mpTab){void mySelectTab(b.dataset.mpTab);return;}
+ if(b.dataset.mpTabRetry){void mySelectTab(b.dataset.mpTabRetry,false,api,true);return;}
  if(b.hasAttribute('data-mp-retry')){void mySelectTab('activity',false);return;}
  if(b.hasAttribute('data-mp-artists')){dialog('<div class="mypage-dialog"><h2>소속 아티스트</h2>'+identityCards(myPageState.d.artists||[],'artist')+'</div>');return;}
  if(b.dataset.mpDubbingPlay){b.disabled=true;try{const d=await api('/api/dubbing/projects/'+encodeURIComponent(b.dataset.mpDubbingPlay)),p=d.project||d,url=p.recording?.final?.audioUrl;if(!b.isConnected)return;if(url)myDubbingDialog(p,url);else location.hash='dubbing/'+b.dataset.mpDubbingPlay;}catch(err){toast(err.message);}finally{b.disabled=false;}}

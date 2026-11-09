@@ -25,9 +25,9 @@ test('a pending playlist dialog cannot reopen over a different route',async()=>{
 });
 
 test('profile activity replaces outgoing tab data with a local loading state',async()=>{
- const read=deferred(),content={innerHTML:'OLD WORKS',isConnected:true,setAttribute(){},removeAttribute(){}},aside={innerHTML:'OLD ASIDE'};
+ const read=deferred(),content={innerHTML:'OLD WORKS',isConnected:true,setAttribute(){},removeAttribute(){}},aside={innerHTML:'OLD ASIDE',setAttribute(){},removeAttribute(){}};
  const nodes={'#mp-content':content,'#mp-aside-content':aside,'.mp-segment':{dataset:{},querySelectorAll:()=>[]}};
- const c=nicknameContext({api:async()=>({}),me:{id:'owner'},window:{addEventListener(){}},document:{addEventListener(){}},$:selector=>nodes[selector],icons(){},paintInteractions(){},syncSongCoverPlayback(){}});
+ const c=nicknameContext({api:async()=>({}),renderId:1,location:{hash:'#profile?view=activity'},me:{id:'owner'},setTimeout,clearTimeout,window:{addEventListener(){}},document:{addEventListener(){}},$:selector=>nodes[selector],icons(){},paintInteractions(){},syncSongCoverPlayback(){}});
  vm.runInContext(source('mypage.js'),c);c.myActivityData=()=>read.promise;c.myActivityHTML=()=>'<p>NEW ACTIVITY</p>';c.myActivityAside=()=>'<p>NEW ASIDE</p>';
  vm.runInContext("myPageState={own:true,account:'owner',tab:'works',d:{}}",c);
  const opening=c.mySelectTab('activity',false);
@@ -36,10 +36,11 @@ test('profile activity replaces outgoing tab data with a local loading state',as
 });
 
 test('profile tab shows the account-validated header and local loader before its fresh data returns',async()=>{
- const read=deferred(),content={innerHTML:'OLD WORKS',isConnected:true,setAttribute(){},removeAttribute(){}},aside={innerHTML:'OLD ASIDE'};
- const main={dataset:{route:'profile'},querySelector:()=>true};
+ const read=deferred(),content={innerHTML:'OLD WORKS',isConnected:true,setAttribute(){},removeAttribute(){}},aside={innerHTML:'OLD ASIDE',setAttribute(){},removeAttribute(){}};
+ const targets={children:[],append(node){this.children.push(node);}};
+ const main={dataset:{route:'profile'},querySelector:selector=>selector==='[data-mypage-route-targets]'?targets:selector==='.mp-dashboard.mp-own'?{}:null};
  const nodes={'#main':main,'#mp-content':content,'#mp-aside-content':aside,'.mp-segment':{dataset:{},querySelectorAll:()=>[]}};
- const c=nicknameContext({api:async()=>({}),renderId:1,URLSearchParams,me:{id:'owner'},window:{addEventListener(){}},document:{addEventListener(){}},$:selector=>nodes[selector],icons(){},paintInteractions(){},syncSongCoverPlayback(){}});
+ const c=nicknameContext({api:async()=>({}),renderId:1,location:{hash:'#profile?view=activity'},URLSearchParams,me:{id:'owner'},setTimeout,clearTimeout,window:{addEventListener(){}},document:{addEventListener(){},createElement:()=>({setAttribute(){}})},$:selector=>nodes[selector],icons(){},paintInteractions(){},syncSongCoverPlayback(){}});
  vm.runInContext(source('mypage.js'),c);
  c.myActivityData=()=>read.promise;c.myActivityHTML=()=>'<p>NEW ACTIVITY</p>';c.myActivityAside=()=>'<p>NEW ASIDE</p>';
  vm.runInContext("myPageState={own:true,account:'owner',tab:'works',d:{}}",c);

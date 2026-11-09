@@ -53,15 +53,15 @@ document.addEventListener('click',async e=>{
     // Remove successful files from a partial retry; never upload them a second time.
     const remaining=new DataTransfer();files.slice(done).forEach(file=>remaining.items.add(file));form.elements.photos.files=remaining.files;
     form.querySelector('.gallery-upload-status').textContent=done+'장 저장됨. 남은 사진만 다시 시도해주세요.';
-    if(done)await render();
+    if(done)await refreshMyPageProfile();
     throw error;
    }
-   $('#dialog').close();await render();toast('마이 갤러리에 사진을 추가했어요.');
+   $('#dialog').close();await refreshMyPageProfile();toast('마이 갤러리에 사진을 추가했어요.');
   });
  }else{
   const pid=button.dataset.profilePhotoOwner,photo=button.dataset.profilePhotoDelete;
   dialog('<p class="popup-prompt">이 사진을 삭제하시겠습니까?</p><p>이 사진은 마이페이지와 서버에서 삭제됩니다. 다시 올리려면 원본 사진이 필요해요.</p><form id="profile-gallery-delete"><div class="inline-actions"><button type="button" class="small-button" data-close-dialog>취소</button><button type="submit" class="primary-button">사진 삭제</button></div><p class="form-error" role="alert"></p></form>');
-  const form=$('#profile-gallery-delete');form.onsubmit=busyForm(form,async()=>{await api('/api/producers/'+encodeURIComponent(pid)+'/gallery/'+encodeURIComponent(photo),'DELETE');$('#dialog').close();await render();toast('사진을 삭제했어요.');});
+  const form=$('#profile-gallery-delete');form.onsubmit=busyForm(form,async()=>{await api('/api/producers/'+encodeURIComponent(pid)+'/gallery/'+encodeURIComponent(photo),'DELETE');$('#dialog').close();await refreshMyPageProfile();toast('사진을 삭제했어요.');});
  }
 });
 
