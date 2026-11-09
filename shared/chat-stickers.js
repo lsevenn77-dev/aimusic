@@ -9,7 +9,8 @@ const tabs = {basic: '기본', text: '텍스트', prop: '소품·효과'};
 // each cropped asset's aspect ratio instead of fitting it into a square.
 const sizes = {
   picture:22.8,
-  text:{width:62.7,height:38}
+  // Keep all lettering and decorations inside the composer's 24px text line.
+  text:{width:34.485,height:20.9}
 };
 
 // Fit to the established message box. A recropped asset keeps the source
