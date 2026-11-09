@@ -1,6 +1,21 @@
 package kr.co.aifect.app.karaoke;
 import org.junit.Test;import static org.junit.Assert.*;
 public class VocalPresetTest {
+ private static double tail(float size){RoomReverb room=new RoomReverb(48000);double late=0;for(int i=0;i<48000*2;i++){float v=room.process(i==0?1:0,size);if(i>=24000)late+=v*v;}return late;}
+ @Test public void karaokeStudioAndHallSoundClearlyDifferent(){
+  float[] karaoke=VocalPreset.values("karaoke",1),studio=VocalPreset.values("studio",1),hall=VocalPreset.values("hall",1);
+  // 노래방 leads with echo, 홀 with a long room, 스튜디오 with a bright, short sound.
+  assertTrue(karaoke[0]>hall[0]*3&&karaoke[0]>studio[0]*5);
+  assertTrue(hall[2]>karaoke[2]*3&&hall[2]>studio[2]*3);
+  assertTrue(studio[3]>hall[3]&&studio[3]>karaoke[3]);
+  // The reference setting between 노래방 and 홀 (echo 30%, room 30%) lands between them.
+  assertTrue(.30f<karaoke[0]&&.30f>hall[0]);
+  // Room size now changes how long the tail rings, not just its colour.
+  assertTrue(tail(1)>tail(.15f)*20);
+  assertEquals(VocalPreset.DEFAULT_STRENGTH,100);
+  assertEquals("custom",EffectMemory.validPreset("custom"));assertEquals("hall",EffectMemory.validPreset("hall"));assertEquals(EffectMemory.DEFAULT_PRESET,EffectMemory.validPreset("unknown"));
+  assertArrayEquals(new int[]{65,100,0,300},EffectMemory.sanitize(new int[]{90,140,-5,400}));
+ }
  @Test public void presetsAreDistinctAndStrengthZeroPreservesDry(){
   java.util.Set<String> values=new java.util.HashSet<>();for(String id:VocalPreset.IDS){float[] p=VocalPreset.values(id,.5f);values.add(java.util.Arrays.toString(p));float[] z=VocalPreset.values(id,0);assertEquals(0,z[0]+z[1]+z[3],0);}
   assertEquals(4,values.size());VocalEffects fx=new VocalEffects(48000);VocalEffects.Settings off=new VocalEffects.Settings(0,0,.5f,1,1,0,0,0,0);for(int i=0;i<48000;i++){float x=(float)Math.sin(i*.01)*.3f;assertEquals(x,fx.process(x,off),0);}

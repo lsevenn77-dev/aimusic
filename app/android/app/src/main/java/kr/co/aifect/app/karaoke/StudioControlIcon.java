@@ -11,6 +11,7 @@ final class StudioControlIcon extends Drawable {
   if(kind.equals("voice")){canvas.drawRoundRect(9,2,15,14,3,3,paint);p.moveTo(5,10);p.lineTo(5,12);p.cubicTo(5,21,19,21,19,12);p.lineTo(19,10);p.moveTo(12,19);p.lineTo(12,23);p.moveTo(8,23);p.lineTo(16,23);}
   else if(kind.equals("music")){p.moveTo(9,18);p.lineTo(9,5);p.lineTo(21,2);p.lineTo(21,15);p.moveTo(9,8);p.lineTo(21,5);canvas.drawCircle(6,18,3,paint);canvas.drawCircle(18,15,3,paint);}
   else if(kind.equals("size")){p.moveTo(12,2);p.lineTo(3,7);p.lineTo(3,17);p.lineTo(12,22);p.lineTo(21,17);p.lineTo(21,7);p.close();p.moveTo(3,7);p.lineTo(12,12);p.lineTo(21,7);p.moveTo(12,12);p.lineTo(12,22);}
+  else if(kind.equals("tune")){for(int i=0;i<3;i++){float y=6+i*6,x=new float[]{8,16,11}[i];p.moveTo(3,y);p.lineTo(21,y);canvas.drawCircle(x,y,2.4f,paint);}}
   else if(kind.equals("echo")){canvas.drawCircle(12,12,9,paint);canvas.drawCircle(12,12,5,paint);canvas.drawCircle(12,12,1,paint);}
   else{for(int i=0;i<5;i++){int x=4+i*4,h=new int[]{3,7,10,7,3}[i];p.moveTo(x,12-h);p.lineTo(x,12+h);}}
   canvas.drawPath(p,paint);canvas.restore();

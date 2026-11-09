@@ -18,13 +18,15 @@ public final class RoomReverb {
     }
     /** New 100% has the wet gain of the previous 50%; 1% steps remain linear. */
     public static float gain(float amount){return VocalEffects.clamp(amount,0,1)*.5f;}
+    static float feedback(float size){return .5f+VocalEffects.clamp(size,0,1)*.38f;}
     public static int restorePercent(int saved,int scaleVersion){return Math.max(0,Math.min(100,scaleVersion>=2?saved:saved*2));}
     public float process(float input,float size){
         if(!Float.isFinite(input))input=0;
         // Keep bass rumble and sharp sibilance out of the reflections, preserving the dry voice.
         low+=(input-low)*lowCoefficient;high+=(input-low-high)*highCoefficient;
         float delayed=preDelay[preAt];preDelay[preAt]=high;if(++preAt==preDelay.length)preAt=0;
-        float wet=0;for(Comb c:combs)wet+=c.process(delayed,.57f+VocalEffects.clamp(size,0,1)*.2f);
+        // Room size sets the tail length: about half a second when small, about two seconds at 100%.
+        float wet=0,decay=feedback(size);for(Comb c:combs)wet+=c.process(delayed,decay);
         wet*=.25f;for(AllPass d:diffusers)wet=d.process(wet);return wet;
     }
     private static final class Comb {

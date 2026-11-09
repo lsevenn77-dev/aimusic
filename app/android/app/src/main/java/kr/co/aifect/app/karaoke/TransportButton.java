@@ -14,16 +14,17 @@ final class TransportButton extends AppCompatButton {
  void setRecordingActive(boolean value){recordingActive=value;invalidate();}
  @Override protected void onMeasure(int widthSpec,int heightSpec){
   label.setTextSize(12*getResources().getDisplayMetrics().scaledDensity);
-  int height=compact?dp(52):dp(76)+(int)Math.ceil(label.getFontSpacing()*2);
-  setMeasuredDimension(resolveSize(dp(primary?96:64),widthSpec),resolveSize(height,heightSpec));
+  // The bottom bar follows the approved recording design: large round controls, a bigger centre record button.
+  int height=compact?dp(52):dp(92)+(int)Math.ceil(label.getFontSpacing()*2);
+  setMeasuredDimension(resolveSize(dp(primary?104:72),widthSpec),resolveSize(height,heightSpec));
  }
  @Override protected void onDraw(Canvas canvas){
-  float cx=getWidth()/2f,cy=compact?getHeight()/2f:dp(36),r=Math.min(dp(primary?32:22),Math.min(getWidth()/2f-dp(2),compact?getHeight()/2f-dp(2):dp(32)));
+  float cx=getWidth()/2f,cy=compact?getHeight()/2f:dp(44),r=Math.min(dp(primary?40:27),Math.min(getWidth()/2f-dp(2),compact?getHeight()/2f-dp(2):dp(42)));
   boolean bright=isEnabled()||recordingActive;int alpha=bright?255:90;
-  paint.setColor(primary?(isPressed()?0xffe4d2ff:0xffd6baff):isSelected()?0xffd6baff:0xff44434e);paint.setAlpha(alpha);paint.setStyle(primary?Paint.Style.FILL:Paint.Style.STROKE);paint.setStrokeWidth(dp(1));canvas.drawCircle(cx,cy,r,paint);
+  paint.setColor(primary?(isPressed()?0xffe4d2ff:0xffd6baff):isSelected()?0xffd6baff:0xff5b5a6a);paint.setAlpha(alpha);paint.setStyle(primary?Paint.Style.FILL:Paint.Style.STROKE);paint.setStrokeWidth(dp(1)*1.5f);canvas.drawCircle(cx,cy,r,paint);
   if(recordingActive||isFocused()){paint.setStyle(Paint.Style.STROKE);paint.setColor(0xffaeebdf);paint.setStrokeWidth(dp(2));canvas.drawCircle(cx,cy,Math.max(1,r-dp(4)),paint);}
   paint.setColor(primary?0xff16151b:0xfff5f2f6);paint.setAlpha(alpha);paint.setStrokeWidth(dp(primary?3:2));paint.setStyle(Paint.Style.STROKE);paint.setStrokeCap(Paint.Cap.ROUND);paint.setStrokeJoin(Paint.Join.ROUND);
-  float scale=primary?1.28f:1;canvas.save();canvas.translate(cx,cy);canvas.scale(scale,scale);Path path=new Path();
+  float scale=compact?1:primary?1.5f:1.15f;canvas.save();canvas.translate(cx,cy);canvas.scale(scale,scale);Path path=new Path();
   if(glyph.equals("mic")&&recordingActive){path.moveTo(-dp(4),-dp(7));path.lineTo(-dp(4),dp(7));path.moveTo(dp(4),-dp(7));path.lineTo(dp(4),dp(7));}
   else if(glyph.equals("mic")){canvas.drawRoundRect(-dp(4),-dp(11),dp(4),dp(3),dp(4),dp(4),paint);path.moveTo(-dp(8),-dp(1));path.lineTo(-dp(8),dp(2));path.cubicTo(-dp(8),dp(12),dp(8),dp(12),dp(8),dp(2));path.lineTo(dp(8),-dp(1));path.moveTo(0,dp(9));path.lineTo(0,dp(14));path.moveTo(-dp(4),dp(14));path.lineTo(dp(4),dp(14));}
   else if(glyph.equals("headphones")){canvas.drawArc(-dp(9),-dp(10),dp(9),dp(9),180,180,false,paint);path.moveTo(-dp(9),0);path.lineTo(-dp(9),dp(8));path.lineTo(-dp(5),dp(8));path.lineTo(-dp(5),0);path.close();path.moveTo(dp(9),0);path.lineTo(dp(9),dp(8));path.lineTo(dp(5),dp(8));path.lineTo(dp(5),0);path.close();}
@@ -34,7 +35,7 @@ final class TransportButton extends AppCompatButton {
   else {path.moveTo(-dp(5),-dp(8));path.lineTo(dp(8),0);path.lineTo(-dp(5),dp(8));path.close();}
   canvas.drawPath(path,paint);canvas.restore();if(compact)return;
   label.setColor(bright?0xfff4f0f4:0xff96919e);label.setTextSize(12*getResources().getDisplayMetrics().scaledDensity);
-  StaticLayout text=StaticLayout.Builder.obtain(getText(),0,getText().length(),label,Math.max(1,getWidth()-dp(4))).setAlignment(Layout.Alignment.ALIGN_CENTER).setIncludePad(false).setMaxLines(2).setEllipsize(TextUtils.TruncateAt.END).build();canvas.save();canvas.translate(dp(2),dp(76));text.draw(canvas);canvas.restore();
+  StaticLayout text=StaticLayout.Builder.obtain(getText(),0,getText().length(),label,Math.max(1,getWidth()-dp(4))).setAlignment(Layout.Alignment.ALIGN_CENTER).setIncludePad(false).setMaxLines(2).setEllipsize(TextUtils.TruncateAt.END).build();canvas.save();canvas.translate(dp(2),dp(92));text.draw(canvas);canvas.restore();
  }
  private int dp(int value){return Math.round(value*getResources().getDisplayMetrics().density);}
 }
