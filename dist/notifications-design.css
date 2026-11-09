@@ -16,6 +16,11 @@
   background:transparent;border:0;border-radius:0;box-shadow:none;
   backdrop-filter:none;-webkit-backdrop-filter:none;
 }
+#main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-toolbar > .activity-title {
+  flex:1;min-width:0;margin:0;color:var(--ds-text);
+  font-size:var(--pc-font-page,23px);font-weight:600;line-height:1.4;letter-spacing:-.035em;
+  text-align:left;text-shadow:none;
+}
 #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-toolbar > .activity-settings-trigger {
   min-width:44px;min-height:44px;height:44px;padding:0 calc(14px);gap:calc(8px);
   border:1px solid var(--ds-line);border-radius:var(--ds-radius-input);
@@ -26,8 +31,8 @@
   background:var(--ds-soft);border-color:var(--ds-lavender);color:var(--ds-text);
 }
 #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox > #activity-list {
-  min-width:0;padding:0 calc(20px) calc(4px);
-  background:var(--ds-panel);border:1px solid var(--ds-line);border-radius:var(--ds-radius-card);
+  min-width:0;padding:0;
+  background:transparent;border:0;border-radius:0;
   box-shadow:none;
 }
 #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-day {
@@ -37,7 +42,7 @@
   letter-spacing:0;
 }
 #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-day:first-child {
-  margin-top:calc(20px);
+  margin-top:0;
 }
 #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-row {
   --list-row-inset:0px;
@@ -172,9 +177,6 @@
   font-size:var(--pc-font-control,14px);font-weight:500;line-height:1.5;
 }
 @media(max-width:800px) {
-  #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox > #activity-list {
-    padding-inline:calc(16px);
-  }
   #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-row {
     min-height:80px;padding-block:calc(16px);gap:calc(12px);
   }
@@ -191,14 +193,11 @@
   #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox > .activity-toolbar {
     margin-bottom:calc(12px);
   }
-  #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox > #activity-list {
-    padding-inline:calc(12px);
-  }
   #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-day {
     margin-top:calc(20px);padding-bottom:calc(10px);
   }
   #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-day:first-child {
-    margin-top:calc(16px);
+    margin-top:0;
   }
   #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-row {
     gap:calc(10px);
