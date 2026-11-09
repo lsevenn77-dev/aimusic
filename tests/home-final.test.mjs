@@ -32,7 +32,10 @@ test('home chart renders seven ranks while the full chart keeps all rows and act
  assert.equal((c.songTable(tracks,{chart:true}).match(/data-song-row=/g)||[]).length,12);
  assert.equal(tracks[0].previous_rank,3);
  assert.match(html,/등록된 소개 &lt;설명&gt;/);assert.doesNotMatch(html,/등록된 소개 <설명>/);
- assert.doesNotMatch(c.homeChartHTML([{...c.track,chart_rank:2}]),/home-chart-feature/);
+ const partial=c.homeChartHTML([{...c.track,chart_rank:2}]);
+ assert.match(partial,/home-chart-feature/);assert.match(partial,/인기차트 2위/);
+ assert.equal((partial.match(/class="home-chart-sparkle"/g)||[]).length,2);
+ assert.doesNotMatch(partial,/home-chart-dots/);
 });
 test('home card keeps detail, artist, menu, play and full-title accessibility; hidden sections remain available',()=>{
  const c=setup(),html=c.homeCard(c.track);

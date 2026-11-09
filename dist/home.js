@@ -1,7 +1,8 @@
-let homeCarouselCleanup=null,homeImagesCleanup=null,homeRequestController=null;
+let homeCarouselCleanup=null,homeChartCarouselCleanup=null,homeImagesCleanup=null,homeRequestController=null;
 const homeRailCleanups=new Map();
 function cleanupHome(){
  homeBrowseObserver?.disconnect();homeCarouselCleanup?.();homeCarouselCleanup=null;
+ homeChartCarouselCleanup?.();homeChartCarouselCleanup=null;
  homeImagesCleanup?.();homeImagesCleanup=null;
  homeRequestController?.abort();homeRequestController=null;
  for(const cleanup of homeRailCleanups.values())cleanup();homeRailCleanups.clear();
@@ -12,14 +13,75 @@ function homeCover(t,cls='album-art',eager=false){
 }
 function homeReplaceArtwork(html,tracks,cls='album-art'){for(const t of tracks)html=html.replace(cover(t,cls),homeCover(t,cls));return html;}
 function homeCard(t){return homeReplaceArtwork(card(t),[t]).replace('class="album-title"','class="album-title" title="'+esc(t.title)+'"');}
-function homeChartHTML(tracks){
+// Keep the chart's existing order and ranks, including a partial top-three response.
+function homeChartFeatureTracks(tracks){
+ return tracks.slice(0,7).map((track,index)=>({track,rank:Number(track.chart_rank)||index+1})).filter(item=>Number.isInteger(item.rank)&&item.rank>=1&&item.rank<=3).slice(0,3);
+}
+function homeChartSlideHTML({track,rank}){
+ const art=homeArtworkPath(track),sparkle='<svg class="home-chart-sparkle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linejoin="round" focusable="false" aria-hidden="true"><path d="M12 2C12.9 8.7 15.3 11.1 22 12C15.3 12.9 12.9 15.3 12 22C11.1 15.3 8.7 12.9 2 12C8.7 11.1 11.1 8.7 12 2Z"/></svg>';
+ return `<div class="home-chart-slide" data-home-chart-id="${esc(track.id)}" role="group" aria-roledescription="슬라이드"><div class="home-chart-backdrop" aria-hidden="true">${art?`<img src="${esc(art)}" alt="" decoding="async">`:''}</div><span class="home-chart-rank-label">인기차트 ${rank}위</span><div class="home-chart-sparkles" aria-hidden="true">${sparkle.repeat(4-rank)}</div><a class="home-chart-cover" href="#song/${esc(track.id)}" aria-label="${esc(track.title)} 곡 정보">${homeCover(track,'home-chart-art',true)}</a><div class="home-chart-copy"><a class="home-chart-title" href="#song/${esc(track.id)}" title="${esc(track.title)}">${esc(track.title)}</a><div class="home-chart-artist">${credits(track)}</div><p>${esc(track.description||'')}</p><button type="button" class="list-action home-chart-listen" data-play="${esc(track.id)}" aria-label="${esc(track.title)} 지금 듣기">${icon('ui-play-action')}<span>지금 듣기</span></button></div></div>`;
+}
+function homeChartHTML(tracks,{initialId}={}){
  const visible=tracks.slice(0,7);
  const table=homeReplaceArtwork(songTable(visible,{chart:true}),visible,'mini-cover').replace('song-table-chart','song-table-chart chart-ui chart-ui--compact');
  const heading=homeSection('인기 차트','#charts');
- const top=visible.find((t,i)=>(t.chart_rank||i+1)===1);
- if(!top)return '<div class="home-chart-layout">'+heading+table+'</div>';
- const art=homeArtworkPath(top);
- return '<div class="home-chart-layout">'+heading+table+`<aside class="home-chart-feature" aria-label="현재 차트 1위 곡"><div class="home-chart-backdrop" aria-hidden="true">${art?`<img src="${esc(art)}" alt="">`:''}</div><a class="home-chart-cover" href="#song/${esc(top.id)}" aria-label="${esc(top.title)} 곡 정보">${homeCover(top,'home-chart-art')}</a><div class="home-chart-copy"><a class="home-chart-title" href="#song/${esc(top.id)}" title="${esc(top.title)}">${esc(top.title)}</a><div class="home-chart-artist">${credits(top)}</div>${top.description?`<p>${esc(top.description)}</p>`:''}<button class="list-action home-chart-listen" data-play="${esc(top.id)}" aria-label="${esc(top.title)} 지금 듣기">${icon('ui-play-action')}<span>지금 듣기</span></button></div></aside></div>`;
+ const featured=homeChartFeatureTracks(visible);
+ if(!featured.length)return '<div class="home-chart-layout">'+heading+table+'</div>';
+ const index=Math.max(0,featured.findIndex(item=>item.track.id===initialId));
+ return '<div class="home-chart-layout">'+heading+table+`<aside class="home-chart-feature" aria-label="인기차트 상위 곡" aria-roledescription="캐러셀"><div class="home-chart-stage" aria-live="off">${homeChartSlideHTML(featured[index])}</div>${featured.length>1?`<div class="home-chart-dots" role="group" aria-label="인기차트 곡 선택">${featured.map(({track,rank},i)=>`<button type="button" class="home-chart-dot" data-home-chart-slide="${i}" aria-label="${rank}위 ${esc(track.title)} 보기" aria-pressed="${i===index}"><span aria-hidden="true"></span></button>`).join('')}</div>`:''}</aside></div>`;
+}
+function mountHomeChartCarousel(root,tracks,{signal,initialId}={}){
+ const featured=homeChartFeatureTracks(tracks),feature=root?.querySelector?.('.home-chart-feature');
+ // Lightweight navigation renderers have no browser event/DOM implementation.
+ if(!featured.length||!feature?.addEventListener||signal?.aborted)return;
+ const stage=feature.querySelector('.home-chart-stage'),dots=[...feature.querySelectorAll('[data-home-chart-slide]')],motion=window.matchMedia('(prefers-reduced-motion: reduce)');
+ let index=Math.max(0,featured.findIndex(item=>item.track.id===initialId)),timer=null,fadeTimer=null,outgoing=null,disposed=false;
+ let hover=feature.matches?.(':hover')||false,focus=feature.contains(document.activeElement);
+ // The current cover is already in the DOM; warm only the other featured covers.
+ if(typeof Image==='function')featured.forEach(({track},i)=>{if(i!==index){const image=new Image();image.decoding='async';image.src=homeArtworkPath(track);}});
+ const clear=()=>{clearTimeout(timer);timer=null;};
+ const clearFade=()=>{clearTimeout(fadeTimer);fadeTimer=null;outgoing?.remove();outgoing=null;stage.classList.remove('is-transitioning');};
+ const schedule=()=>{
+  clear();
+  if(!disposed&&featured.length>1&&!hover&&!focus&&!motion.matches&&!document.hidden)timer=setTimeout(()=>{if(!feature.isConnected)return cleanup();go(index+1);},6000);
+ };
+ const go=value=>{
+  if(disposed||!Number.isInteger(value))return;
+  const next=(value+featured.length)%featured.length;if(next===index){schedule();return;}
+  clearFade();
+  if(!motion.matches){
+   outgoing=document.createElement('div');outgoing.className='home-chart-outgoing';outgoing.setAttribute('aria-hidden','true');outgoing.inert=true;outgoing.innerHTML=stage.innerHTML;
+  }
+  index=next;stage.innerHTML=homeChartSlideHTML(featured[index]);
+  if(outgoing){
+   const old=outgoing;stage.append(old);stage.classList.add('is-transitioning');
+   const finish=e=>{if(outgoing===old&&(!e||e.target===old))clearFade();};
+   old.addEventListener('animationend',finish);fadeTimer=setTimeout(finish,400);
+  }
+  dots.forEach((dot,i)=>dot.setAttribute('aria-pressed',String(i===index)));
+  schedule();
+ };
+ const select=e=>{
+  const dot=e.target.closest?.('[data-home-chart-slide]');if(!dot||!feature.contains(dot))return;
+  const next=Number(dot.dataset.homeChartSlide);if(next>=0&&next<featured.length)go(next);
+ };
+ const key=e=>{
+  const dot=e.target.closest?.('[data-home-chart-slide]');if(!dot||!feature.contains(dot))return;
+  const current=Number(dot.dataset.homeChartSlide),next=e.key==='ArrowRight'?current+1:e.key==='ArrowLeft'?current-1:e.key==='Home'?0:e.key==='End'?featured.length-1:null;
+  if(next===null)return;e.preventDefault();const target=(next+featured.length)%featured.length;go(target);dots[target]?.focus();
+ };
+ const enter=e=>{if(e.pointerType!=='touch'){hover=true;clear();}},leave=()=>{hover=false;schedule();},focusIn=()=>{focus=true;clear();},focusOut=e=>{focus=feature.contains(e.relatedTarget);schedule();};
+ const motionChange=()=>{if(motion.matches)clearFade();schedule();};
+ const listeners=[['click',select],['keydown',key],['pointerenter',enter],['pointerleave',leave],['focusin',focusIn],['focusout',focusOut]];
+ for(const [name,fn] of listeners)feature.addEventListener(name,fn);
+ document.addEventListener('visibilitychange',schedule);motion.addEventListener('change',motionChange);signal?.addEventListener('abort',cleanup,{once:true});
+ function cleanup(){
+  if(disposed)return;disposed=true;clear();clearFade();
+  for(const [name,fn] of listeners)feature.removeEventListener(name,fn);
+  document.removeEventListener('visibilitychange',schedule);motion.removeEventListener('change',motionChange);signal?.removeEventListener('abort',cleanup);
+ }
+ cleanup.currentId=()=>featured[index].track.id;
+ schedule();return cleanup;
 }
 function homeCollectionGrid(items){let html=collectionGrid(items);for(const p of items)html=homeReplaceArtwork(html,p.covers||[],'collection-tile');return html;}
 function homeMore(title,href){return href?`<a class="home-more-link" href="${href}" aria-label="${esc(title)} 더보기">+ 더보기</a>`:'';}
@@ -114,7 +176,7 @@ function releaseHTML(t,next){
 function bindHomeImages(root){
  homeImagesCleanup?.();homeImagesCleanup=null;
  if(!root?.addEventListener)return;
- const fallback=event=>{const img=event.target;if(img.tagName!=='IMG'||!img.closest('.home-track-art,.home-feature-background'))return;if(img.getAttribute('src')!=='/assets/aifect-mark.svg')img.src='/assets/aifect-mark.svg';};
+ const fallback=event=>{const img=event.target;if(img.tagName!=='IMG'||!img.closest('.home-track-art,.home-feature-background,.home-chart-backdrop'))return;if(img.getAttribute('src')!=='/assets/aifect-mark.svg')img.src='/assets/aifect-mark.svg';};
  root.addEventListener('error',fallback,true);
  homeImagesCleanup=()=>root.removeEventListener('error',fallback,true);
 }
@@ -300,7 +362,9 @@ function renderHome(ticket){
  };
  const paintChart=d=>{
   const target=$('#home-popular'),tracks=d.tracks||[];addTracks(tracks);
-  paint(target,tracks.length?homeChartHTML(tracks):homeSection('인기 차트','#charts')+'<p class="home-empty-inline">아직 집계된 음악이 없어요.</p>');
+  const initialId=homeChartCarouselCleanup?.currentId?.();homeChartCarouselCleanup?.();homeChartCarouselCleanup=null;
+  paint(target,tracks.length?homeChartHTML(tracks,{initialId}):homeSection('인기 차트','#charts')+'<p class="home-empty-inline">아직 집계된 음악이 없어요.</p>');
+  homeChartCarouselCleanup=mountHomeChartCarousel(target,tracks,{signal:controller.signal,initialId});
   chartIds=tracks.slice(0,7).map(t=>t.id);refreshShelves();bindChartPlayback();
  };
 
