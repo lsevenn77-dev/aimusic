@@ -319,3 +319,163 @@
 .artist-fanpage .fan-carousel:not([data-card-count="1"]) .fan-photocard{cursor:grab;user-select:none;-webkit-user-select:none}
 .artist-fanpage .fan-carousel.is-dragging .fan-card-stage,
 .artist-fanpage .fan-carousel.is-dragging .fan-photocard{cursor:grabbing}
+
+/* AIFECT fan-page refinement. Keep the existing photo layers, carousel and
+   interaction hooks; these rules own only the page's content presentation. */
+#main .artist-fanpage{--ui-control-height:44px;min-width:0;color:var(--ds-text)}
+#main .artist-fanpage .fan-header-actions{gap:calc(8px);min-height:44px}
+#main .artist-fanpage .fan-header-actions .fan-icon{
+ width:44px;height:44px;min-width:44px;padding:0;box-sizing:border-box;
+ border:1px solid var(--ds-line);border-radius:var(--ds-radius-input);
+ background:color-mix(in srgb,var(--ds-panel) 84%,transparent);color:var(--ds-body);box-shadow:none;
+}
+#main .artist-fanpage .fan-header-actions .fan-icon:hover,
+#main .artist-fanpage .fan-header-actions .fan-icon[aria-expanded=true]{background:var(--ds-panel);color:var(--ds-text)}
+#main .artist-fanpage .fan-identity{
+ align-items:flex-start;gap:calc(32px);padding:max(16px,var(--frame-headroom,0px)) 0 calc(24px);
+}
+#main .artist-fanpage .fan-identity-text{min-width:0}
+#main .artist-fanpage .fan-identity-text h1{
+ margin:0 0 calc(12px);font-size:var(--pc-font-page,clamp(24px,6.4vw,26px));
+ font-weight:700;line-height:1.28;color:var(--ds-text);
+}
+#main .artist-fanpage .fan-bio{
+ margin:0;font-size:var(--pc-font-body,15px);line-height:1.6;color:var(--ds-body);
+}
+#main .artist-fanpage .fan-affiliation{
+ margin-top:calc(8px);font-size:var(--pc-font-meta,13px);line-height:1.5;color:var(--ds-muted);
+}
+#main .artist-fanpage .fan-stats{
+ align-items:center;flex-wrap:wrap;gap:calc(4px) calc(12px);margin:calc(8px) 0 0;
+ font-size:var(--pc-font-meta,13px);line-height:1.5;color:var(--ds-body);
+}
+#main .artist-fanpage .fan-stats-group{min-width:0;flex-wrap:wrap;gap:calc(8px)}
+#main .artist-fanpage .fan-follow-button{min-height:44px;font-size:var(--pc-font-control,14px);font-weight:600}
+#main .artist-fanpage .fan-follow-button>span{height:32px;padding-inline:calc(16px)}
+#main .artist-fanpage .fan-settings-menu{padding:calc(8px);border-radius:var(--ds-radius-input)}
+#main .artist-fanpage .fan-settings-menu :is(button,a){min-height:44px;padding:calc(10px) calc(12px);border-radius:var(--ds-radius-sm)}
+#main .artist-fanpage [data-profile-preview]:focus-visible{outline:2px solid var(--ds-selected);outline-offset:4px;border-radius:var(--ds-radius-sm)}
+
+/* The shared main-tab component owns type, tone, height and selection lines. */
+#main .artist-fanpage .fan-tabs.aifect-main-tabs{margin:calc(16px) 0 calc(24px)}
+#main .artist-fanpage .fan-content{min-width:0}
+#main .artist-fanpage .fan-section{min-width:0;margin:0 0 calc(24px)}
+#main .artist-fanpage .fan-section>.section-heading{
+ align-items:center;justify-content:space-between;gap:calc(12px);margin:0 0 calc(16px);
+}
+#main .artist-fanpage :is(.fan-section h2,.fan-profile h2){
+ margin:0;font-size:var(--pc-font-section,19px);font-weight:650;line-height:1.4;color:var(--ds-text);
+}
+#main .artist-fanpage .fan-section>.section-heading>a{
+ display:inline-flex;align-items:center;min-height:44px;flex:none;
+ font-size:var(--pc-font-meta,13px);line-height:1.5;color:var(--ds-muted);
+}
+#main .artist-fanpage .fan-section>.section-heading>a:hover{color:var(--ds-text)}
+#main .artist-fanpage .fan-home-columns{gap:calc(20px);align-items:start}
+#main .artist-fanpage .fan-home-updates{gap:calc(20px)}
+#main .artist-fanpage .fan-home-columns .fan-section{
+ margin:0;padding:calc(24px);border:1px solid var(--ds-line);border-radius:var(--ds-radius-card);
+ background:color-mix(in srgb,var(--ds-panel) 82%,transparent);box-shadow:none;
+}
+#main .artist-fanpage .fan-empty{
+ margin:0;padding:calc(24px) 0;font-size:var(--pc-font-body,15px);line-height:1.6;color:var(--ds-muted);
+}
+#main .artist-fanpage .fan-content .small-button{
+ box-sizing:border-box;max-width:100%;padding:calc(10px) calc(16px);
+ border:1px solid var(--ds-line);border-radius:var(--ds-radius-input);
+ background:var(--ds-panel);color:var(--ds-text);font-size:var(--pc-font-control,14px);font-weight:500;line-height:1.5;
+}
+#main .artist-fanpage .fan-content .small-button:hover:not(:disabled){background:color-mix(in srgb,var(--ds-panel) 94%,var(--ds-lavender))}
+#main .artist-fanpage .fan-music-tools{align-items:center;flex-wrap:wrap;gap:calc(8px);margin:0 0 calc(16px)}
+#main .artist-fanpage .fan-music-tools .aifect-dropdown{
+ --dropdown-height:44px;--dropdown-border:var(--ds-line);margin-left:auto;flex:0 0 auto;
+}
+#main .artist-fanpage .fan-music-tools .aifect-dropdown-trigger{border-radius:var(--ds-radius-input);font-size:var(--pc-font-control,14px)}
+
+/* Keep all music actions and the existing scoped list container. Narrow rows
+   gain a second control line instead of squeezing the title between icons. */
+#main .artist-fanpage .artist-music-row{
+ grid-template-columns:calc(20px) calc(44px) minmax(0,1fr) auto;
+ gap:calc(12px);padding:calc(12px) 0;min-width:0;min-height:68px;box-sizing:border-box;
+}
+#main .artist-fanpage .artist-music-position{font-size:var(--pc-font-meta,13px)}
+#main .artist-fanpage :is(.artist-music-cover,.artist-music-cover .mini-cover){width:44px;height:44px}
+#main .artist-fanpage .artist-music-info{
+ display:grid;grid-template-columns:minmax(0,2fr) minmax(0,.8fr) minmax(0,1fr);
+ align-items:center;gap:calc(12px);line-height:1.5;min-width:0;
+}
+#main .artist-fanpage .artist-music-title{font-size:var(--pc-font-card,15px);font-weight:600;line-height:1.5}
+#main .artist-fanpage :is(.artist-music-singer,.artist-music-producer){font-size:var(--pc-font-meta,13px);line-height:1.5;color:var(--ds-muted)}
+#main .artist-fanpage .artist-music-credits{display:contents}
+#main .artist-fanpage .artist-music-separator{display:none}
+#main .artist-fanpage .artist-music-row>.artist-music-actions{--control-gap:0px;gap:0;margin-left:0}
+#main .artist-fanpage .artist-music-actions .list-action{min-width:44px;min-height:44px;padding:0}
+#main .artist-fanpage .artist-music-row:last-child{border-bottom:0}
+@container artist-music (max-width:700px){
+ #main .artist-fanpage .artist-music-row{grid-template-columns:calc(16px) calc(44px) minmax(0,1fr) auto;gap:calc(8px)}
+ #main .artist-fanpage .artist-music-info{display:flex;flex-direction:column;align-items:stretch;gap:calc(4px)}
+ #main .artist-fanpage .artist-music-credits{display:flex;align-items:center;gap:calc(4px);min-width:0}
+ #main .artist-fanpage .artist-music-credits .artist-music-separator{display:block;flex:none}
+ #main .artist-fanpage .artist-music-actions .list-action{width:44px;flex:0 0 44px}
+ #main .artist-fanpage .artist-music-like-count{display:none}
+}
+@container artist-music (max-width:380px){
+ #main .artist-fanpage .artist-music-row{grid-template-columns:calc(16px) calc(44px) minmax(0,1fr);row-gap:calc(4px)}
+ #main .artist-fanpage :is(.artist-music-position,.artist-music-cover){grid-row:1/3}
+ #main .artist-fanpage .artist-music-info{grid-column:3;grid-row:1}
+ #main .artist-fanpage .artist-music-row>.artist-music-actions{grid-column:3;grid-row:2;justify-self:end}
+}
+
+#main .artist-fanpage .fan-post{padding:calc(16px) 0}
+#main .artist-fanpage .fan-post:last-child{border-bottom:0}
+#main .artist-fanpage .fan-post-meta{align-items:center;gap:calc(8px);font-size:var(--pc-font-meta,13px);line-height:1.5}
+#main .artist-fanpage .fan-post h3{margin:calc(12px) 0 calc(8px);font-size:var(--pc-font-card,16px);line-height:1.5}
+#main .artist-fanpage .fan-post-body{margin:calc(8px) 0;font-size:var(--pc-font-body,15px);line-height:1.65}
+#main .artist-fanpage .fan-post-actions{align-items:center;gap:calc(4px) calc(8px)}
+#main .artist-fanpage .fan-text-button{
+ display:inline-flex;align-items:center;justify-content:center;gap:calc(6px);
+ min-width:44px;min-height:44px;padding:calc(4px) calc(8px);font-size:var(--pc-font-meta,13px);line-height:1.5;
+}
+#main .artist-fanpage .fan-text-button:is(.is-active,[aria-pressed=true]){color:var(--ds-social)}
+#main .artist-fanpage .fan-lounge-prompt{font-size:var(--pc-font-body,15px);font-weight:400;line-height:1.6}
+#main .artist-fanpage [data-fan-replies]:not(:empty){margin:calc(8px) 0 0 calc(12px);padding-left:calc(12px);min-width:0}
+#main .artist-fanpage .fan-reply-controls{gap:calc(8px);margin-top:calc(8px)}
+#main .artist-fanpage .fan-profile>section{margin:0;padding:calc(24px) 0;border-bottom:1px solid var(--ds-line)}
+#main .artist-fanpage .fan-profile>section:first-child{padding-top:0}
+#main .artist-fanpage .fan-profile>section:last-of-type{border-bottom:0}
+#main .artist-fanpage .fan-profile h2{margin:0 0 calc(12px)}
+#main .artist-fanpage .fan-profile p{margin:0;font-size:var(--pc-font-body,15px);line-height:1.7}
+#main .artist-fanpage .fan-profile>section>a{display:inline-flex;align-items:center;min-height:44px;font-size:var(--pc-font-body,15px)}
+#main .artist-fanpage .fan-profile>.small-button{margin:calc(8px) calc(8px) 0 0}
+#main .artist-fanpage .artist-photo-grid{gap:calc(16px)}
+#main .artist-fanpage .artist-photo-grid>figure{min-width:0}
+#main .artist-fanpage .artist-photo{border-radius:var(--ds-radius-input)}
+#main .artist-fanpage .fan-photo-like{gap:calc(6px);font-size:var(--pc-font-meta,13px)}
+
+@media(max-width:800px){
+ #main .artist-fanpage .fan-tabs.aifect-main-tabs{
+  grid-auto-columns:minmax(72px,1fr);margin:calc(12px) 0 calc(20px);
+  overflow-x:auto!important;overscroll-behavior-x:contain;scrollbar-width:none;
+ }
+ #main .artist-fanpage .fan-tabs.aifect-main-tabs::-webkit-scrollbar{display:none}
+ #main .artist-fanpage .fan-home-columns,
+ #main .artist-fanpage .fan-home-updates{gap:0}
+ #main .artist-fanpage .fan-home-columns .fan-section{
+  padding:calc(20px) 0;margin:0;border:0;border-radius:0;background:none;box-shadow:none;
+ }
+ #main .artist-fanpage .fan-home-music>.fan-section{padding-top:0}
+ #main .artist-fanpage .fan-home-updates>.fan-section{border-top:1px solid var(--ds-line)}
+ #main .artist-fanpage .fan-section>.section-heading{gap:calc(8px);margin-bottom:calc(12px)}
+ #main .artist-fanpage .fan-content .small-button{padding:calc(10px) calc(12px)}
+ #main .artist-fanpage .fan-profile>section{padding-block:calc(20px)}
+ #main .artist-fanpage .fan-profile>section:first-child{padding-top:0}
+ #main .artist-fanpage .artist-photo-grid{gap:calc(12px)}
+}
+@media(max-width:700px){
+ #main .artist-fanpage .fan-identity{column-gap:calc(16px);padding-top:max(12px,var(--frame-headroom,0px));padding-bottom:calc(20px)}
+ #main .artist-fanpage .fan-identity-text{gap:calc(6px)}
+ #main .artist-fanpage .fan-identity-text h1{margin-bottom:calc(2px)}
+ #main .artist-fanpage .fan-affiliation{margin-top:0}
+ #main .artist-fanpage .fan-stats{margin-top:0;gap:0 calc(8px)}
+ #main .artist-fanpage .fan-stats-group{gap:0 calc(4px)}
+}
