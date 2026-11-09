@@ -55,7 +55,7 @@ async function notificationsView(base,raw,readApi=api){
  const resume=activityResume?.account===me.id?activityResume:null;
  activityResume=null;
  return {activity:{...data,account:me.id,restoreCount:resume?.count,restoreScroll:resume?.scroll},tracks:[],html:`<section class="activity-page activity-inbox" aria-label="알림">
-  <div class="activity-toolbar"><button type="button" class="activity-settings-trigger" aria-label="알림 설정" title="알림 설정" aria-haspopup="dialog" aria-controls="activity-preferences">${activitySettingsIcon}<span>알림 설정</span></button></div>
+  <div class="activity-toolbar"><h1 class="activity-title">알림</h1><button type="button" class="activity-settings-trigger" aria-label="알림 설정" title="알림 설정" aria-haspopup="dialog" aria-controls="activity-preferences">${activitySettingsIcon}<span>알림 설정</span></button></div>
   ${activitySettingsHTML()}<div id="activity-list">${data.items.length?activityGroupsHTML(data.items):`<div class="activity-empty">${icon('bell')}<h2>아직 도착한 알림이 없어요</h2><p>누군가 내 곡에 참여하거나 선물을 보내면<br>이곳에서 확인할 수 있어요.</p></div>`}</div>
   <button class="small-button activity-more" data-activity-more ${data.next?'':'hidden'}>이전 알림 더 보기</button><p class="activity-error" role="status"></p><button type="button" class="activity-top" aria-label="알림 맨 위로" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 10 6-6 6 6M12 4v16"/></svg></button></section>`};
 }
