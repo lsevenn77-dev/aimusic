@@ -284,7 +284,7 @@ function bindProfileWorks(s){
  search.oninput=()=>paint();paint(false);
 }
 
-function mySegment(active){return `<div class="mp-segment" role="tablist" aria-label="마이페이지" data-active="${active}"><span class="mp-segment-slide" aria-hidden="true"></span>${[['works','내 작품'],['library','내 보관함'],['activity','내 활동']].map(([key,label])=>`<button type="button" role="tab" id="mp-tab-${key}" aria-controls="mp-content" aria-selected="${active===key}" tabindex="${active===key?0:-1}" data-mp-tab="${key}">${label}</button>`).join('')}</div>`;}
+function mySegment(active){return `<div class="mp-segment aifect-main-tabs" role="tablist" aria-label="마이페이지" data-active="${active}"><span class="mp-segment-slide" aria-hidden="true"></span>${[['works','내 작품'],['library','내 보관함'],['activity','내 활동']].map(([key,label],index)=>`<button type="button" role="tab" id="mp-tab-${key}" aria-controls="mp-content" aria-selected="${active===key}" tabindex="${active===key?0:-1}" data-mp-tab="${key}" data-tab-tone="${['pink','mint','purple'][index]}">${label}</button>`).join('')}</div>`;}
 function myWorksBanner(tab='works'){
  const copy={works:['음악의 시작부터 완성까지, ','나의 모든 작품을 한눈에.'],library:['좋아하는 음악과 다시 듣고 싶은 순간을 ','한곳에.'],activity:['아이팩트에서 함께한 ','활동과 기록을 한눈에.']}[tab]||['',''];
  return `<div class="mp-works-banner">${icon('sparkles',16)}<span>${copy[0]}<span class="mp-works-banner-accent">${copy[1]}</span></span></div>`;

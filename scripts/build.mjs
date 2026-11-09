@@ -31,6 +31,7 @@ await cp('dist/room-entry.css','dist/client/room-entry.css');
 await cp('dist/voice-audio.js','dist/client/voice-audio.js');
 await cp('dist/room-audio-session.js','dist/client/room-audio-session.js');
 await cp('dist/selection-states.css','dist/client/selection-states.css');
+await cp('dist/page-tabs.css','dist/client/page-tabs.css');
 for(const file of ['voice-rooms.js','voice-rooms.css','voice-room-design.css','voice-room-controls.js','voice-diagnostics.js','live-karaoke.js','live-karaoke.css'])await cp('dist/'+file,'dist/client/'+file);
 await cp('dist/music-card-controls.css','dist/client/music-card-controls.css');
 await cp('dist/song-sidebar.css','dist/client/song-sidebar.css');
@@ -86,7 +87,7 @@ await cp('dist/gift-scale.css','dist/client/gift-scale.css');
 await cp('dist/sing-recording-scale.css','dist/client/sing-recording-scale.css');
 for(const name of await readdir('dist/client')){
  // These shared chat controls use final CSS pixels, matching their JS viewport/line metrics.
- if(!name.endsWith('.css')||name.startsWith('aifect-app-')||['ui-region-scale.css','room-release.css','room-bubbles.css','chat-ui.css','messages-ui.css'].includes(name))continue;
+ if(!name.endsWith('.css')||name.startsWith('aifect-app-')||['ui-region-scale.css','room-release.css','room-bubbles.css','chat-ui.css','messages-ui.css','page-tabs.css'].includes(name))continue;
  const file='dist/client/'+name;
  await writeFile(file,regionTokenCSS(await readFile(file,'utf8')));
 }

@@ -66,7 +66,8 @@ function playTypeIcon(type){
  return `<span class="play-type-icon${type==='duet'?' play-duet-icon':type==='dubbing'?' play-dubbing-icon':''}" role="img" aria-label="${label}">${type==='duet'?icon('mic')+icon('mic'):type==='dubbing'?icon('message')+icon('waveform'):icon('mic')}</span>`;
 }
 function playTabs(items,active,label,href,extra=''){
- return `<nav class="tabs play-tabs ${extra}" role="tablist" aria-label="${label}">${items.map(([key,title,symbol])=>`<a class="tab ${active===key?'active':''}" role="tab" aria-selected="${active===key}" tabindex="${active===key?'0':'-1'}" ${active===key?'aria-current="page"':''} href="${esc(href(key))}">${symbol?icon(symbol):''}<span>${title}</span></a>`).join('')}</nav>`;
+ const primary=extra==='play-main-tabs';
+ return `<nav class="tabs play-tabs ${extra}${primary?' aifect-main-tabs':''}" role="tablist" aria-label="${label}">${items.map(([key,title,symbol],index)=>`<a class="tab ${active===key?'active':''}" role="tab" aria-selected="${active===key}" tabindex="${active===key?'0':'-1'}" ${active===key?'aria-current="page"':''} ${primary?`data-tab-tone="${['pink','mint','purple'][index]}"`:''} href="${esc(href(key))}">${symbol?icon(symbol):''}<span>${title}</span></a>`).join('')}</nav>`;
 }
 function playShell(s,content,raw=''){
  return `<div class="play-page" data-play-mode="${s.mode}">${playRouteTargetsHTML(raw)}<div class="home-content-refresh play-banner" id="play-banner" aria-label="플레이 추천 배너"></div>${playTabs([['song','노래'],['dubbing','더빙'],['browse','둘러보기']],s.mode,'플레이 종류',m=>playHref(m),'play-main-tabs')}

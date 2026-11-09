@@ -1,0 +1,143 @@
+/* AIFECT page tabs · approved 2026-11-09.
+   Final CSS pixels: do not apply regionTokenCSS or the legacy page zoom.
+   Only the six opted-in main tab rows own these overrides. Existing routing,
+   focus handling, page backgrounds and product accent colors remain local. */
+#main .aifect-main-tabs {
+  --aifect-tab-font-size: 16px;
+  --aifect-tab-height: 48px;
+  --aifect-tab-gap: 6px;
+  --ui-type-scale: 1;
+  --ui-space-scale: 1;
+  --ui-icon-scale: 1;
+  display: grid !important;
+  grid-template-columns: none !important;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  align-items: stretch;
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  height: auto !important;
+  min-height: 0 !important;
+  gap: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: inset 0 -1px var(--ds-line) !important;
+  overflow: visible !important;
+  zoom: 1 !important;
+}
+#main .aifect-main-tabs > .mp-segment-slide { display: none !important; }
+#main .aifect-main-tabs > [data-tab-tone] {
+  /* Feed legacy !important type rules the same final size at the tab itself. */
+  --pc-font-control: var(--aifect-tab-font-size);
+  --play-pc-control: var(--aifect-tab-font-size);
+  --ranking-control-size: var(--aifect-tab-font-size);
+  --chart-tab-label-size: var(--aifect-tab-font-size);
+  box-sizing: border-box;
+  position: relative;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-direction: row !important;
+  gap: var(--aifect-tab-gap) !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  height: var(--aifect-tab-height) !important;
+  min-height: var(--aifect-tab-height) !important;
+  margin: 0 !important;
+  padding: 0 4px !important;
+  border: 0 !important;
+  border-image: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--ds-muted) !important;
+  font-family: inherit;
+  font-size: var(--aifect-tab-font-size) !important;
+  font-weight: 600 !important;
+  line-height: 1.5 !important;
+  letter-spacing: 0 !important;
+  text-align: center;
+  text-decoration: none !important;
+  white-space: nowrap;
+  transform: none !important;
+  transition: color .16s ease;
+}
+#main .aifect-main-tabs > [data-tab-tone="pink"] { --aifect-tab-accent: var(--ds-accent-pink); }
+#main .aifect-main-tabs > [data-tab-tone="mint"] { --aifect-tab-accent: var(--ds-accent-mint); }
+#main .aifect-main-tabs > [data-tab-tone="purple"] { --aifect-tab-accent: var(--ds-accent-lavender); }
+#main .aifect-main-tabs > [data-tab-tone] > span { color: inherit; font-size: inherit; font-weight: inherit; }
+#main .aifect-main-tabs > [data-tab-tone] svg {
+  width: 18px !important;
+  height: 18px !important;
+  flex: 0 0 18px;
+  color: inherit !important;
+  stroke-width: 1.75;
+}
+/* A single pseudo-element covers the neutral track; the lines never add up. */
+#main .aifect-main-tabs > [data-tab-tone]::before,
+#main .aifect-main-tabs > [data-tab-tone]::after { content: none !important; }
+#main .aifect-main-tabs > [data-tab-tone]:is(.active, [aria-selected="true"], [aria-current="page"]) {
+  color: var(--aifect-tab-accent) !important;
+}
+#main .aifect-main-tabs > [data-tab-tone]:is(.active, [aria-selected="true"], [aria-current="page"])::after {
+  content: "" !important;
+  position: absolute;
+  inset: auto 0 0 !important;
+  width: auto !important;
+  height: 2px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: var(--aifect-tab-accent) !important;
+  box-shadow: none !important;
+  transform: none !important;
+  pointer-events: none;
+}
+@media (hover: hover) {
+  #main .aifect-main-tabs > [data-tab-tone]:not(.active):not([aria-selected="true"]):not([aria-current="page"]):hover {
+    color: var(--ds-body) !important;
+  }
+}
+
+/* Existing secondary menus keep their layout and selection treatment. Only
+   label typography shares a scale; counts inside labels retain their size. */
+#main :is(.play-category-tabs, .dc-mine-tabs, .mp-catalog-tabs, .ml-tabs,
+  .studio-filter-buttons, .live-filters, .ranking-categories, .ranking-kinds) {
+  --aifect-subtab-font-size: 14px;
+  --aifect-subtab-zoom: 1;
+}
+#main .play-page :is(.play-category-tabs, .dc-mine-tabs),
+#main .weekly-rankings :is(.ranking-categories, .ranking-kinds) {
+  --aifect-subtab-zoom: 1.25;
+}
+#main :is(.play-category-tabs, .dc-mine-tabs, .mp-catalog-tabs, .ml-tabs,
+  .studio-filter-buttons, .live-filters, .ranking-categories, .ranking-kinds) > :is(a, button) {
+  --aifect-subtab-label-size: calc(var(--aifect-subtab-font-size) / var(--aifect-subtab-zoom));
+  --pc-font-control: var(--aifect-subtab-label-size);
+  --play-pc-control: var(--aifect-subtab-label-size);
+  --ranking-control-size: var(--aifect-subtab-label-size);
+  font-size: var(--aifect-subtab-label-size) !important;
+  font-weight: 600;
+}
+@media (min-width: 801px) {
+  #main .aifect-main-tabs {
+    --aifect-tab-font-size: 18px;
+    --aifect-tab-height: 56px;
+    --aifect-tab-gap: 8px;
+  }
+  #main .aifect-main-tabs > [data-tab-tone] { padding-inline: 8px !important; }
+  #main :is(.play-category-tabs, .dc-mine-tabs, .mp-catalog-tabs, .ml-tabs,
+    .studio-filter-buttons, .live-filters, .ranking-categories, .ranking-kinds) {
+    --aifect-subtab-font-size: 15px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  #main .aifect-main-tabs > [data-tab-tone] { transition: none; }
+}
+@media (forced-colors: active) {
+  #main .aifect-main-tabs > [data-tab-tone]:is(.active, [aria-selected="true"], [aria-current="page"])::after {
+    background: CanvasText !important;
+  }
+}
