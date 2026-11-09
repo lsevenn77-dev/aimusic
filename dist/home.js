@@ -160,7 +160,7 @@ function mountHomeRail(target){
 }
 function homeHTML(){return `<div class="listening-home listening-home-v2 home-content-refresh"><h1 class="sr-only">홈</h1>
  <section id="home-release" class="home-promo-carousel" aria-label="AIFECT 이용 안내 배너"></section>
- <section id="home-recommended" class="listening-section" aria-busy="true">${homeSection('추천 음악','#discover')}<div class="home-music-grid"></div><p class="home-load-message">음악을 불러오고 있어요.</p></section>
+ <section id="home-recommended" class="listening-section" aria-busy="true">${homeSection('추천 음악','#charts?period=week')}<div class="home-music-grid"></div><p class="home-load-message">음악을 불러오고 있어요.</p></section>
  <section id="home-popular" class="listening-section" aria-busy="true">${homeSection('인기 차트','#charts')}</section>
  <section id="home-more" class="listening-section" hidden></section>
  ${homeProfileSection('artist','지금 뜨는 AI 아티스트','#artists?sort=popular')}
@@ -358,7 +358,7 @@ function renderHome(ticket){
     paint(target,homeSection(title,href)+'<div class="home-music-grid">'+items.map(homeCard).join('')+'</div>'+
      (!items.length?'<p class="home-empty-inline">아직 공개된 음악이 없어요.</p>':''));
    };
-   render('home-recommended','추천 음악','#discover',recommended);
+   render('home-recommended','추천 음악','#charts?period=week',recommended);
    render('home-discovery','발견','#discover',discovery);
    const more=$('#home-more');more.hidden=!latest.length;
    render('home-more','최신곡','#charts/releases',latest);
