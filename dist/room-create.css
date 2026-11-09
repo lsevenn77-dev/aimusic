@@ -1,0 +1,173 @@
+/* Room creation only. Reuse the site's palette and existing form/viewport behavior. */
+.live-directory #v3-room-create.compact-popup {
+  --popup-button-height:44px;
+  --popup-body-size:14px;
+  --ui-control-height:44px;
+  width:min(500px,calc(100% - 32px));
+  max-width:min(500px,calc(100% - 32px));
+  max-height:calc(var(--live-vh,100dvh) - 32px);
+  padding:24px;
+  border:1px solid var(--ds-line);
+  border-radius:var(--ds-radius-feature);
+  background:var(--ds-surface);
+  color:var(--ds-body);
+  overflow:hidden;
+}
+.live-directory #v3-room-create.compact-popup .voice-sheet-heading {
+  flex:none;min-height:32px;margin:0 0 20px;padding:0;border:0;
+}
+.live-directory #v3-room-create.compact-popup h2 {
+  margin:0;padding:0 44px 0 0;font-size:var(--pc-font-section,20px);
+  font-weight:600;line-height:1.4;letter-spacing:-.02em;
+}
+.live-directory #v3-room-create.compact-popup #v3-close-create {top:-6px;right:-10px}
+.live-directory #v3-room-create.compact-popup form {gap:0;overflow:hidden}
+.live-directory #v3-room-create.compact-popup .live-form-fields {
+  gap:18px;padding:2px 4px 2px 0;margin:0;
+  scrollbar-color:var(--ds-line) transparent;
+}
+.live-directory #v3-room-create.compact-popup .live-form-fields>label,
+.live-directory #v3-room-create.compact-popup fieldset {
+  gap:8px;font-size:var(--pc-font-control,14px);font-weight:500;line-height:1.5;
+}
+.live-directory #v3-room-create.compact-popup legend {
+  margin:0 0 8px;font-size:var(--pc-font-control,14px);font-weight:500;line-height:1.5;
+}
+.live-directory #v3-room-create.compact-popup :is(input:not([type=radio]),select,textarea) {
+  min-height:44px;padding:10px 12px;border:1px solid var(--ds-line);
+  border-radius:var(--ds-radius-input);background:var(--ds-panel);
+  color:var(--ds-text);font-weight:400;line-height:1.5;box-shadow:none;
+}
+.live-directory #v3-room-create.compact-popup :is(input,textarea)::placeholder {color:var(--ds-muted)}
+.live-directory #v3-room-create.compact-popup .live-mode>div {gap:8px}
+.live-directory #v3-room-create.compact-popup .live-mode label {
+  --room-mode-accent:var(--ds-accent-mint);
+  min-height:46px;gap:8px;border-radius:var(--ds-radius-input);
+  color:var(--ds-body);font-size:var(--pc-font-control,14px);font-weight:500;
+}
+.live-directory #v3-room-create.compact-popup .live-mode label:has([value=karaoke]) {--room-mode-accent:var(--ds-accent-pink)}
+.live-directory #v3-room-create.compact-popup .live-mode label:has(:checked) {
+  border-color:color-mix(in srgb,var(--room-mode-accent) 30%,transparent)!important;
+  background:color-mix(in srgb,var(--room-mode-accent) 12%,var(--ds-panel))!important;
+  color:var(--room-mode-accent);
+}
+.live-directory #v3-room-create.compact-popup .live-type-icon {--live-icon:18px;flex:none}
+.live-directory #v3-room-create.compact-popup .live-title-row {gap:8px;align-items:stretch}
+.live-directory #v3-room-create.compact-popup [data-auto-title] {
+  min-height:44px;height:44px;padding:0 12px;margin:0;
+  border:1px solid var(--ds-line);border-radius:var(--ds-radius-input);
+  background:var(--ds-soft);color:var(--ds-body);font-weight:400;white-space:nowrap;
+}
+.live-directory #v3-room-create.compact-popup .voice-visibility {gap:8px}
+.live-directory #v3-room-create.compact-popup .voice-visibility label {
+  min-height:44px;padding:10px 36px 10px 12px;gap:8px;
+  grid-template-columns:18px minmax(0,1fr);border-radius:var(--ds-radius-input);
+  color:var(--ds-body);line-height:1.4;
+}
+.live-directory #v3-room-create.compact-popup .voice-visibility strong {
+  font-size:var(--pc-font-control,14px);font-weight:500;color:inherit;
+}
+.live-directory #v3-room-create.compact-popup .voice-visibility label:has(:checked) {
+  background:color-mix(in srgb,var(--ds-selected) 12%,var(--ds-panel));
+  border-color:color-mix(in srgb,var(--ds-selected) 30%,transparent);color:var(--ds-selected);
+}
+.live-directory #v3-room-create.compact-popup .voice-visibility label:has(:checked) svg {color:var(--ds-selected)}
+.live-directory #v3-room-create.compact-popup :is(.voice-visibility,.voice-backgrounds) input[type=radio] {
+  appearance:none;box-sizing:border-box;width:16px;height:16px;min-height:0;
+  margin:0;padding:0;border:1px solid var(--ds-muted);border-radius:50%;
+  background:transparent;right:12px;top:50%;transform:translateY(-50%);
+}
+.live-directory #v3-room-create.compact-popup :is(.voice-visibility,.voice-backgrounds) input[type=radio]:checked {
+  border-color:var(--ds-selected);
+  background:radial-gradient(circle,var(--ds-selected) 0 4px,transparent 4.5px);
+}
+.live-directory #v3-room-create.compact-popup :is(.voice-visibility,.voice-backgrounds) label:has(:focus-visible) {
+  outline:2px solid var(--ds-selected);outline-offset:-2px;
+}
+.live-directory #v3-room-create.compact-popup .live-capacity-controls {
+  grid-template-columns:minmax(0,3fr) minmax(84px,1fr);gap:10px;align-items:stretch;
+}
+.live-directory #v3-room-create.compact-popup .live-capacity-presets {gap:6px}
+.live-directory #v3-room-create.compact-popup .live-capacity-presets button {
+  width:100%;height:44px;min-height:44px;padding:0 8px;
+  border:1px solid var(--ds-line);border-radius:var(--ds-radius-input);
+  font-weight:400;color:var(--ds-body);
+}
+.live-directory #v3-room-create.compact-popup .live-capacity-presets button[aria-pressed=true] {
+  background:color-mix(in srgb,var(--ds-selected) 12%,var(--ds-panel));
+  border-color:color-mix(in srgb,var(--ds-selected) 30%,transparent);color:var(--ds-selected);
+}
+.live-directory #v3-room-create.compact-popup .live-capacity-input input {height:44px;padding-right:28px}
+.live-directory #v3-room-create.compact-popup .voice-backgrounds {
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;
+}
+.live-directory #v3-room-create.compact-popup .voice-backgrounds label {
+  min-width:0;min-height:76px;padding:28px 10px 9px;isolation:isolate;
+  border:1px solid var(--ds-line);border-radius:var(--ds-radius-input);overflow:hidden;
+}
+.live-directory #v3-room-create.compact-popup .voice-backgrounds label::after {
+  content:'';position:absolute;inset:0;z-index:-1;pointer-events:none;
+  background:linear-gradient(transparent 20%,color-mix(in srgb,var(--ds-bg) 78%,transparent));
+}
+.live-directory #v3-room-create.compact-popup .voice-backgrounds label:has(:checked) {
+  border-color:var(--ds-selected);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ds-selected) 20%,transparent);
+}
+.live-directory #v3-room-create.compact-popup .voice-backgrounds input[type=radio] {
+  top:9px;right:9px;transform:none;background-color:var(--ds-panel);
+}
+.live-directory #v3-room-create.compact-popup .voice-backgrounds label>span {
+  min-width:0;max-width:100%;padding:0;border-radius:0;background:none;
+  color:var(--ds-text);font-size:var(--pc-font-caption,13px);font-weight:500;
+  line-height:1.45;white-space:normal;overflow-wrap:anywhere;
+}
+.live-directory #v3-room-create.compact-popup .voice-backgrounds label>span small {
+  margin:3px 0 0;color:var(--ds-body);font-size:var(--pc-font-caption,12px);font-weight:400;
+}
+.live-directory #v3-room-create.compact-popup .field-help {
+  margin:0;color:var(--ds-muted);font-size:var(--pc-font-caption,13px)!important;
+  line-height:1.6;font-weight:400;overflow-wrap:anywhere;
+}
+.live-directory #v3-room-create.compact-popup fieldset:has(.voice-backgrounds)+.field-help {margin-top:-10px}
+.live-directory #v3-room-create.compact-popup .field-help a {
+  display:inline-block;color:var(--ds-selected);text-underline-offset:3px;
+}
+.live-directory #v3-room-create.compact-popup .voice-notice-input textarea {
+  display:block;height:88px;min-height:88px;resize:vertical;
+  padding:10px 12px 30px!important;
+}
+.live-directory #v3-room-create.compact-popup #voice-notice-length {
+  right:12px;bottom:8px;color:var(--ds-muted);font-size:var(--pc-font-caption,12px);
+  font-weight:400;line-height:1.4;pointer-events:none;
+}
+.live-directory #v3-room-create.compact-popup .form-error:not(:empty) {
+  flex:none;margin:10px 0 0;color:var(--ds-error);font-size:var(--pc-font-caption,13px);line-height:1.5;
+}
+.live-directory #v3-room-create.compact-popup .voice-settings-save {
+  align-self:flex-end;flex:none;width:140px;min-height:44px;height:44px;
+  margin:16px 0 0;padding:0 20px;border:0;border-radius:999px;
+  background:var(--ds-gradient);color:var(--ds-ink);font-weight:600;box-shadow:none;
+}
+@media(max-width:800px) {
+  .live-directory #v3-room-create.compact-popup {
+    width:calc(100% - 24px);max-width:500px;
+    max-height:calc(var(--live-vh,100dvh) - 24px);
+    padding:20px 18px max(18px,env(safe-area-inset-bottom));
+  }
+  .live-directory #v3-room-create.compact-popup .voice-sheet-heading {margin-bottom:16px}
+  .live-directory #v3-room-create.compact-popup .live-form-fields {gap:16px}
+  .live-directory #v3-room-create.compact-popup :is(input:not([type=radio]),textarea,select) {font-size:16px!important}
+  .live-directory #v3-room-create.compact-popup .voice-settings-save {width:100%;margin-top:16px}
+}
+@media(max-width:360px) {
+  .live-directory #v3-room-create.compact-popup {padding-inline:14px}
+  .live-directory #v3-room-create.compact-popup .live-title-row {gap:6px}
+  .live-directory #v3-room-create.compact-popup [data-auto-title] {padding-inline:8px}
+  .live-directory #v3-room-create.compact-popup .live-capacity-controls {gap:6px;grid-template-columns:minmax(0,3fr) minmax(68px,1fr)}
+  .live-directory #v3-room-create.compact-popup .voice-backgrounds {gap:6px}
+  .live-directory #v3-room-create.compact-popup .voice-backgrounds label {padding-inline:7px}
+}
+@media(forced-colors:active) {
+  .live-directory #v3-room-create.compact-popup :is(.voice-visibility,.voice-backgrounds) input[type=radio] {
+    appearance:auto;background:none!important;forced-color-adjust:auto;
+  }
+}
