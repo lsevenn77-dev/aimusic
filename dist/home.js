@@ -149,7 +149,7 @@ function mountFeatureCarousel(root,tracks,{renderSlide=releaseHTML,label='추천
  // Minimal DOM renderers used by navigation tests do not implement browser events.
  if(!root.addEventListener)return;
  const feature=root.querySelector('.home-feature'),stage=root.querySelector('.home-feature-stage'),motion=window.matchMedia('(prefers-reduced-motion: reduce)');
- let index=initialIndex,timer=null,transitionTimer=null,manualPause=false,hover=false,focus=false,start=null,suppressClick=false;
+ let index=initialIndex,timer=null,transitionTimer=null,manualPause=false,hover=false,focus=false,start=null,suppressClick=false,disposed=false;
  const syncPlayback=()=>{if(!syncAudio)return;const b=stage.querySelector?.('.home-feature-slide .home-feature-play');if(!b||typeof audio==='undefined')return;const playing=current?.id===tracks[index].id&&!audio.paused&&!audio.ended&&!window.AifectAudioAds?.active;b.innerHTML=icon(playing?'ui-pause-action':'ui-play-action');b.setAttribute('aria-pressed',String(playing));b.setAttribute('aria-label',tracks[index].title+(playing?' 일시정지':' 재생'));};
  const clear=()=>{clearTimeout(timer);timer=null;};
  const clearTransition=()=>{clearTimeout(transitionTimer);transitionTimer=null;stage.querySelectorAll('.home-feature-outgoing').forEach(el=>el.remove());stage.removeAttribute('data-home-direction');};
@@ -215,7 +215,9 @@ function mountFeatureCarousel(root,tracks,{renderSlide=releaseHTML,label='추천
  const routeChange=()=>{if(!retainOnRoute?.())cleanup();};
  document.addEventListener('visibilitychange',schedule);window.addEventListener('hashchange',routeChange);motion.addEventListener('change',motionChange);
  if(pauseForDialogs)document.addEventListener('close',schedule,true);
- function cleanup(){clear();clearTransition();for(const [name,fn,options] of listeners)feature.removeEventListener(name,fn,options);if(syncAudio&&typeof audio!=='undefined')for(const event of playbackEvents)audio.removeEventListener(event,syncPlayback);document.removeEventListener('visibilitychange',schedule);if(pauseForDialogs)document.removeEventListener('close',schedule,true);window.removeEventListener('hashchange',routeChange);motion.removeEventListener('change',motionChange);}
+ function cleanup(){disposed=true;clear();clearTransition();for(const [name,fn,options] of listeners)feature.removeEventListener(name,fn,options);if(syncAudio&&typeof audio!=='undefined')for(const event of playbackEvents)audio.removeEventListener(event,syncPlayback);document.removeEventListener('visibilitychange',schedule);if(pauseForDialogs)document.removeEventListener('close',schedule,true);window.removeEventListener('hashchange',routeChange);motion.removeEventListener('change',motionChange);}
+ // Select by stable ID without remounting the shell or changing pause rules.
+ cleanup.select=id=>{const target=tracks.findIndex(track=>track.id===id);if(!disposed&&target>=0)go(target);};
  schedule();return cleanup;
 }
 function updateHomeAccount(){
