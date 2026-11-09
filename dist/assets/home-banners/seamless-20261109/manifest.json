@@ -1,0 +1,388 @@
+{
+  "created_at_utc": "2026-11-09T08:38:42.153889+00:00",
+  "purpose": "Continuous generated room panoramas without duplicated-image or blur-fill background layers",
+  "encoding": {
+    "software": "ImageMagick convert",
+    "format": "WEBP",
+    "mime_type": "image/webp",
+    "quality": 92,
+    "method": 6,
+    "resize_filter": "Lanczos (crew mobile only)",
+    "color_adjustments": false,
+    "sharpening": false,
+    "creative_postprocessing": false,
+    "desktop_operation": "Remove only generated outside black padding; preserve original image width and photographic content"
+  },
+  "assets": [
+    {
+      "id": "studio",
+      "source": {
+        "filename": "exec-75df051e-0272-49ae-b5cf-ce1aa4614ce5.png",
+        "sha256": "ad42118254f2131506c99a1e15bfceea9ee960e6503c59e1b97807e076fddb08",
+        "width": 2172,
+        "height": 724,
+        "format": "PNG",
+        "mime_type": "image/png",
+        "approved_source": {
+          "filename": "exec-d8646592-d912-4a4f-bb6d-4c5291d4eda6.png",
+          "sha256": "58af660873a37c04dadb373139b69bbc814ba6bfcd02804efcd88cddc7e8194d",
+          "width": 2172,
+          "height": 724,
+          "format": "PNG",
+          "mime_type": "image/png"
+        },
+        "crop": {
+          "x": 0,
+          "y": 138,
+          "width": 2172,
+          "height": 448,
+          "purpose": "Remove generated external top/bottom black padding only"
+        }
+      },
+      "outputs": [
+        {
+          "filename": "studio-2172.webp",
+          "url": "/assets/home-banners/seamless-20261109/studio-2172.webp",
+          "variant": "desktop",
+          "width": 2172,
+          "height": 448,
+          "bytes": 65618,
+          "sha256": "dd3d7590d1c08138da3f7355a16c8edf035b103c83ba53d55f6b085984ee10c7",
+          "format": "WEBP",
+          "mime_type": "image/webp"
+        }
+      ]
+    },
+    {
+      "id": "play",
+      "source": {
+        "filename": "exec-78d2d733-de10-4705-8dcc-3f1a314bee58.png",
+        "sha256": "478a24b922a456af2428276829aae2e37ab2f4ebb52cea2c37f7f518467cf658",
+        "width": 2172,
+        "height": 724,
+        "format": "PNG",
+        "mime_type": "image/png",
+        "approved_source": {
+          "filename": "exec-f368338c-e0bb-44da-9fe7-2458dfc2944f.png",
+          "sha256": "c4cf7225f656e2ef3b7083de7506ccc4581cfb1c366cc721ccc586dda73c27ee",
+          "width": 2172,
+          "height": 724,
+          "format": "PNG",
+          "mime_type": "image/png"
+        },
+        "crop": {
+          "x": 0,
+          "y": 123,
+          "width": 2172,
+          "height": 478,
+          "purpose": "Remove generated external black padding and its one-pixel antialiased boundary only"
+        }
+      },
+      "outputs": [
+        {
+          "filename": "play-2172.webp",
+          "url": "/assets/home-banners/seamless-20261109/play-2172.webp",
+          "variant": "desktop",
+          "width": 2172,
+          "height": 478,
+          "bytes": 53988,
+          "sha256": "c2e3de47a2e419b29f6f08df8eb78dc92a798f7834e7b938c985a01ffdd564d3",
+          "format": "WEBP",
+          "mime_type": "image/webp"
+        }
+      ]
+    },
+    {
+      "id": "participate",
+      "source": {
+        "filename": "exec-db0ba770-915c-42d6-9830-4d0b16e7e887.png",
+        "sha256": "5a3d5fc0b43dfb8553b8c53038ea404356f64e8fa1446c9c213d16bf04268e1f",
+        "width": 2172,
+        "height": 724,
+        "format": "PNG",
+        "mime_type": "image/png",
+        "approved_source": {
+          "filename": "exec-6d68227c-22e7-432d-85ef-c9ca5c542e3e.png",
+          "sha256": "c17f070fd7e8c205095ded743411458a88b139fc4d11c3e546a443884889ee49",
+          "width": 2172,
+          "height": 724,
+          "format": "PNG",
+          "mime_type": "image/png"
+        },
+        "crop": {
+          "x": 0,
+          "y": 180,
+          "width": 2172,
+          "height": 364,
+          "purpose": "Remove generated external black padding and antialiased boundary only"
+        }
+      },
+      "outputs": [
+        {
+          "filename": "participate-2172.webp",
+          "url": "/assets/home-banners/seamless-20261109/participate-2172.webp",
+          "variant": "desktop",
+          "width": 2172,
+          "height": 364,
+          "bytes": 61904,
+          "sha256": "046dda14b24aa1a4c9dffe633b6aa53cc471dd1912cb4ca00b8afa55095a71fd",
+          "format": "WEBP",
+          "mime_type": "image/webp"
+        }
+      ]
+    },
+    {
+      "id": "artists",
+      "source": {
+        "filename": "exec-c2f76ab1-cf01-4e85-a71d-d0f469ac649c.png",
+        "sha256": "64fc4be63bf716280a6bb1a4f553147f553ac2ad329b06da0be29a6ec96b2ef5",
+        "width": 2172,
+        "height": 724,
+        "format": "PNG",
+        "mime_type": "image/png",
+        "approved_source": {
+          "filename": "exec-1b78a614-6bac-4523-bf4a-206b240d43cf.png",
+          "sha256": "766243d84313c0366aef1216b33ab1c893f1b64d42569843e9bca50aef1bbbb1",
+          "width": 2172,
+          "height": 724,
+          "format": "PNG",
+          "mime_type": "image/png"
+        },
+        "crop": {
+          "x": 0,
+          "y": 163,
+          "width": 2172,
+          "height": 396,
+          "purpose": "Remove generated external black padding and its one-pixel antialiased boundary only"
+        }
+      },
+      "outputs": [
+        {
+          "filename": "artists-2172.webp",
+          "url": "/assets/home-banners/seamless-20261109/artists-2172.webp",
+          "variant": "desktop",
+          "width": 2172,
+          "height": 396,
+          "bytes": 73818,
+          "sha256": "bd0b3d8d41f03aec8418385b73defbb006602f00e343a9af6cbc30349a273e7e",
+          "format": "WEBP",
+          "mime_type": "image/webp"
+        }
+      ]
+    },
+    {
+      "id": "karaoke",
+      "source": {
+        "filename": "exec-aafb2167-50c0-413e-b9c2-e252f6a46448.png",
+        "sha256": "a347a3807d268d200bc17b6663afc22cd672a952bbf6fc97a12a3f22eff122b4",
+        "width": 2172,
+        "height": 724,
+        "format": "PNG",
+        "mime_type": "image/png",
+        "approved_source": {
+          "filename": "exec-f83150e3-6364-46c0-ac06-d8664b84c5de.png",
+          "sha256": "45fa0ee9bbd9cc86ef5d34067ced4709dbcad9efe38e3bc8c805ef1d5fb4fb93",
+          "width": 2172,
+          "height": 724,
+          "format": "PNG",
+          "mime_type": "image/png"
+        },
+        "crop": {
+          "x": 0,
+          "y": 128,
+          "width": 2172,
+          "height": 468,
+          "purpose": "Remove generated external top/bottom black padding only"
+        }
+      },
+      "outputs": [
+        {
+          "filename": "karaoke-2172.webp",
+          "url": "/assets/home-banners/seamless-20261109/karaoke-2172.webp",
+          "variant": "desktop",
+          "width": 2172,
+          "height": 468,
+          "bytes": 62428,
+          "sha256": "853a085cfef30ac9514cd4a740df7d25306b5c71e7b66ee34091869ac4b71207",
+          "format": "WEBP",
+          "mime_type": "image/webp"
+        }
+      ]
+    },
+    {
+      "id": "talking",
+      "source": {
+        "filename": "exec-483f475b-2741-4fd9-840b-6ab1fa51b343.png",
+        "sha256": "0eac2655a2395bac8e1f037161f4e432f96a30881c299551fcbaeb0b982e7982",
+        "width": 2172,
+        "height": 724,
+        "format": "PNG",
+        "mime_type": "image/png",
+        "approved_source": {
+          "filename": "exec-a1bc017a-3052-4865-bcf6-511b5f9dbaac.png",
+          "sha256": "6c8019d5096dd481e4d6d2bce454bf0f5851af179aee9455269a7f26efb32b23",
+          "width": 2172,
+          "height": 724,
+          "format": "PNG",
+          "mime_type": "image/png"
+        },
+        "crop": {
+          "x": 0,
+          "y": 168,
+          "width": 2172,
+          "height": 387,
+          "purpose": "Remove generated external black padding and its one-pixel antialiased boundary only"
+        }
+      },
+      "outputs": [
+        {
+          "filename": "talking-2172.webp",
+          "url": "/assets/home-banners/seamless-20261109/talking-2172.webp",
+          "variant": "desktop",
+          "width": 2172,
+          "height": 387,
+          "bytes": 71502,
+          "sha256": "92c9fc8e6a0afa851dc5b979fbb27152b495c032a41ec731a5001268cd894a15",
+          "format": "WEBP",
+          "mime_type": "image/webp"
+        }
+      ]
+    },
+    {
+      "id": "crew",
+      "source": {
+        "filename": "exec-bf82e1bd-4ec1-4683-bc5b-cd7a1666bffe.png",
+        "sha256": "3e595ac6ae2d439f83928f372a3e2163be6611f41f31543137d7e92102d28dfc",
+        "width": 2172,
+        "height": 724,
+        "format": "PNG",
+        "mime_type": "image/png",
+        "approved_source": {
+          "filename": "exec-69f08a71-3760-4a01-bb66-7e29159f8f71.png",
+          "sha256": "605feca2c9eebdf64970d7ecc9679c2a940f5de127d69082daedbee2efaf3b83",
+          "width": 2172,
+          "height": 724,
+          "format": "PNG",
+          "mime_type": "image/png"
+        },
+        "crop": {
+          "x": 0,
+          "y": 181,
+          "width": 2172,
+          "height": 362,
+          "purpose": "Remove generated external top/bottom black padding only"
+        }
+      },
+      "outputs": [
+        {
+          "filename": "crew-2172.webp",
+          "url": "/assets/home-banners/seamless-20261109/crew-2172.webp",
+          "variant": "desktop",
+          "width": 2172,
+          "height": 362,
+          "bytes": 69826,
+          "sha256": "8206ffa5d208b789b351826b8cabeb515197a221aa63116ccfc0111f408c1476",
+          "format": "WEBP",
+          "mime_type": "image/webp"
+        },
+        {
+          "filename": "crew-1536.webp",
+          "url": "/assets/home-banners/seamless-20261109/crew-1536.webp",
+          "variant": "mobile",
+          "width": 1536,
+          "height": 768,
+          "bytes": 82764,
+          "sha256": "196be700d4caff77d4af8f835fddbcc0eed34075cdf8d23ce6c95c2aa1e81564",
+          "format": "WEBP",
+          "mime_type": "image/webp"
+        },
+        {
+          "filename": "crew-768.webp",
+          "url": "/assets/home-banners/seamless-20261109/crew-768.webp",
+          "variant": "mobile",
+          "width": 768,
+          "height": 384,
+          "bytes": 31224,
+          "sha256": "f50c4b167970f18bef7839b1a34f1948fa45ea67912fdf390589c2f3069efe18",
+          "format": "WEBP",
+          "mime_type": "image/webp"
+        }
+      ],
+      "mobile_source": {
+        "filename": "exec-89015893-ac1e-4488-9fa4-0e0548fb12d9.png",
+        "sha256": "9da40da1381eb2785e289669cd11b9cf8ab16e3c50e8a680d2335c6b6a30029b",
+        "width": 1774,
+        "height": 887,
+        "format": "PNG",
+        "mime_type": "image/png",
+        "approved_source": {
+          "filename": "exec-69f08a71-3760-4a01-bb66-7e29159f8f71.png",
+          "sha256": "605feca2c9eebdf64970d7ecc9679c2a940f5de127d69082daedbee2efaf3b83",
+          "width": 2172,
+          "height": 724,
+          "format": "PNG",
+          "mime_type": "image/png"
+        },
+        "crop": null
+      }
+    },
+    {
+      "id": "premium",
+      "source": {
+        "filename": "exec-ad8062c0-251f-4b06-a185-28599200afdd.png",
+        "sha256": "04fb32e755f974b4ac9392ca49dbf656bc306311bb714d0eae0b3fb6a20c64ae",
+        "width": 2172,
+        "height": 724,
+        "format": "PNG",
+        "mime_type": "image/png",
+        "approved_source": {
+          "filename": "exec-eb9e6b30-89de-4ec3-b6d7-e945e16c52aa.png",
+          "sha256": "fdec7fc7d67bae36dd2206a7615906ddacf9ee38e7a438a5a050be78e40b29b1",
+          "width": 2172,
+          "height": 724,
+          "format": "PNG",
+          "mime_type": "image/png"
+        },
+        "intermediate_source": {
+          "filename": "exec-2ef86c5a-9bb5-4a65-90e8-75bc674f8512.png",
+          "sha256": "ca4467585ef04e924cd4e572135763da6baa586562ee4c9c1aa99019b33e0004",
+          "width": 2172,
+          "height": 724,
+          "format": "PNG",
+          "mime_type": "image/png"
+        },
+        "crop": {
+          "x": 0,
+          "y": 188,
+          "width": 2172,
+          "height": 349,
+          "purpose": "Remove generated external black padding and antialiased boundary only"
+        }
+      },
+      "outputs": [
+        {
+          "filename": "premium-2172.webp",
+          "url": "/assets/home-banners/seamless-20261109/premium-2172.webp",
+          "variant": "desktop",
+          "width": 2172,
+          "height": 349,
+          "bytes": 84712,
+          "sha256": "b0d330d2648043281ae156c2cea6470b283f054e1f7ef4e589ffd6d5d4cadad4",
+          "format": "WEBP",
+          "mime_type": "image/webp"
+        }
+      ]
+    }
+  ],
+  "updated_at_utc": "2026-11-09T08:44:22.038043+00:00",
+  "validation": {
+    "webp_container_magic_verified": true,
+    "decoded_format_and_dimensions_verified": true,
+    "output_hashes_verified": true,
+    "generated_and_approved_png_hashes_verified": true,
+    "protected_approved_and_mobile_files_unchanged": true,
+    "all_eight_desktop_assets_present": true,
+    "desktop_image_count": 8,
+    "mobile_image_count": 2
+  }
+}
