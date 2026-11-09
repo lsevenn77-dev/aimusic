@@ -157,7 +157,7 @@ Object.assign(VoiceRoomClient.prototype,{
   if(!picker)return;
   if(open){
    this.chatEditor?.remember?.();$('#voice-message')?.blur?.();
-   if(this.talkPopup?.open)this.closeRoomPopup();
+   if(this.talkPopup?.open)this.closeRoomPopup(false);
    picker.hidden=false;if(!picker.open)picker.show();
    picker.querySelector?.('[data-cat-tab][aria-pressed=true]')?.focus({preventScroll:true});
   }else if(picker.open)picker.close();
@@ -167,7 +167,10 @@ Object.assign(VoiceRoomClient.prototype,{
  },
  bindChatInteraction(form,input,picker,options){
   const refresh=()=>this.onViewport?.();
-  const typing=()=>{if(!picker.hidden)this.toggleEmojiPicker(false);refresh();};
+  const typing=()=>{
+   if(typeof window!=='undefined'&&window.innerWidth<=800&&this.talkPopup?.open)this.closeRoomPopup(false);
+   if(!picker.hidden)this.toggleEmojiPicker(false);refresh();
+  };
   input.addEventListener('focus',typing,options);
   input.addEventListener('pointerdown',typing,options);
   input.addEventListener('input',refresh,options);
@@ -304,6 +307,8 @@ Object.assign(VoiceRoomClient.prototype,{
   const outside=e=>{
    const popup=this.talkPopup;if(!popup?.open||popup.contains(e.target))return;
    const link=e.target.closest?.('a[href]');if(link&&!roomRouteMatches(new URL(link.href,location.href),this)){this.closeRoomPopup();return;}
+   // Let the same mobile tap both dismiss the sheet and place the editing caret.
+   if(typeof window!=='undefined'&&window.innerWidth<=800&&e.target.closest?.('#voice-message')){this.closeRoomPopup(false);return;}
    if(popup.id==='voice-emoji-picker'&&e.target.closest('#voice-chat-form'))return;
    const entry=e.target.closest('[data-voice]');if(entry&&this.host.contains(entry)&&ids[entry.dataset.voice])return;
    if(e.type==='pointerdown'){e.preventDefault();return;}
@@ -312,6 +317,7 @@ Object.assign(VoiceRoomClient.prototype,{
   document.addEventListener('pointerdown',outside,{...options,capture:true});document.addEventListener('click',outside,{...options,capture:true});
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&this.talkPopup?.open&&!e.defaultPrevented){e.preventDefault();this.closeRoomPopup();}},{...options,capture:true});
   this.host.addEventListener('close',e=>{
+   const restoreFocus=!this.roomPopupWithoutFocus?.has(e.target);this.roomPopupWithoutFocus?.delete(e.target);
    if(e.target!==this.talkPopup||e.target.open)return;
    this.roomResizeObserver?.unobserve?.(e.target);e.target.removeAttribute('data-room-anchored');
    this.talkPopup=null;document.documentElement?.removeAttribute('data-room-popup');this.settingsTicket=(this.settingsTicket||0)+1;
@@ -321,7 +327,7 @@ Object.assign(VoiceRoomClient.prototype,{
    if(e.target.id==='voice-sound')this.stopMicTest();
    if(e.target.id==='voice-emoji-picker'){e.target.hidden=true;this.host.querySelector('[data-voice="emoji"]')?.setAttribute('aria-expanded','false');}
    const trigger=this.popupTrigger;this.popupTrigger=null;
-   if(trigger?.isConnected&&!trigger.closest('dialog:not([open])'))trigger.focus({preventScroll:true});else this.host.querySelector('.room-header button')?.focus({preventScroll:true});
+   if(restoreFocus){if(trigger?.isConnected&&!trigger.closest('dialog:not([open])'))trigger.focus({preventScroll:true});else this.host.querySelector('.room-header button')?.focus({preventScroll:true});}
   },{...options,capture:true});
   const sound=$('#voice-sound'),advanced=sound.querySelector('.voice-audio-extra');
   for(const id of ['voice-noise','voice-echo','voice-input-meter'])advanced.append($('#'+id).closest('.voice-audio-card'));
@@ -333,12 +339,20 @@ Object.assign(VoiceRoomClient.prototype,{
   // Keep destructive room controls in the scrolling body, above the fixed footer.
   $('#voice-settings-form .live-form-fields').append(this.host.querySelector('#voice-room-settings [data-voice=close]'));
  },
- closeRoomPopup(){const p=this.talkPopup;if(p?.classList.contains('profile-preview')){closeProfilePreview();if(this.talkPopup===p){this.talkPopup=null;document.documentElement?.removeAttribute('data-room-popup');this.popupTrigger?.focus({preventScroll:true});}}else p?.close();},
+ closeRoomPopup(restoreFocus=true){
+  const p=this.talkPopup;if(!p)return;
+  if(!restoreFocus){this.roomPopupWithoutFocus??=new WeakSet();this.roomPopupWithoutFocus.add(p);}
+  if(p.classList.contains('profile-preview')){
+   closeProfilePreview(undefined,restoreFocus);
+   if(this.talkPopup===p){this.talkPopup=null;document.documentElement?.removeAttribute('data-room-popup');if(restoreFocus)this.popupTrigger?.focus({preventScroll:true});this.popupTrigger=null;}
+  }else p.close();
+ },
  showTalkPopup(id,trigger){const sheet=document.getElementById(id);if(sheet)this.adoptRoomPopup(sheet,trigger);},
  adoptRoomPopup(sheet,trigger=this.actionTrigger){
   if(sheet.id!=='voice-emoji-picker'&&!$('#voice-emoji-picker').hidden)this.toggleEmojiPicker(false);
   if(sheet===this.talkPopup&&sheet.open){this.closeRoomPopup();return;}
   const origin=trigger||document.activeElement,previous=this.talkPopup;
+  this.roomPopupWithoutFocus?.delete(sheet);
   // Native dialog close events are queued. Retire the previous surface now;
   // its late close handler must not clear or refocus the newly opened popup.
   if(previous){

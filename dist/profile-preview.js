@@ -75,7 +75,7 @@ async function shareMemberProfile(p){
  await load(false);
 }
 
-function closeProfilePreview(reason){
+function closeProfilePreview(reason,restoreFocus=true){
  ++profilePreviewSerial;
  if(!profilePreviewDialog)return;
  const panel=profilePreviewDialog;profilePreviewDialog=null;
@@ -83,7 +83,7 @@ function closeProfilePreview(reason){
  if(room?.talkPopup===panel){room.talkPopup=null;room.popupTrigger=null;document.documentElement.removeAttribute('data-room-popup');}
  panel.close();panel.remove();
  document.body.style.overflow=profilePreviewOverflow;
- if(profilePreviewOrigin?.isConnected)profilePreviewOrigin.focus({preventScroll:true});
+ if(restoreFocus&&profilePreviewOrigin?.isConnected)profilePreviewOrigin.focus({preventScroll:true});
  profilePreviewOrigin=null;
  if(reason==='dismiss')document.dispatchEvent(new Event('aifect-profile-dismiss'));
 }

@@ -1,6 +1,30 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import vm from 'node:vm';
+import {readFileSync} from 'node:fs';
 import {fixture} from './fixture.mjs';
+
+test('closing a room profile for chat input keeps the caret while normal dismissal restores focus',()=>{
+ const input={},events=[];let focused=0,closed=0,removed=0,unlocked=0;
+ const document={activeElement:input,addEventListener(){},dispatchEvent:e=>events.push(e.type),body:{style:{overflow:'hidden'}},documentElement:{removeAttribute(){unlocked++;}}};
+ const origin={isConnected:true,focus(){focused++;document.activeElement=origin;}};
+ const panel={open:true,classList:{contains:name=>name==='profile-preview'},close(){this.open=false;closed++;},remove(){removed++;}};
+ const context=vm.createContext({VoiceRoomClient:class{},Event,document,window:{addEventListener(){}},panel,origin});
+ for(const file of ['profile-preview.js','voice-room-controls.js'])vm.runInContext(readFileSync(new URL('../dist/'+file,import.meta.url),'utf8'),context);
+ const client=context.voiceController=new context.VoiceRoomClient();
+ const open=()=>{
+  panel.open=true;document.activeElement=input;document.body.style.overflow='hidden';client.talkPopup=panel;client.popupTrigger=origin;
+  vm.runInContext("profilePreviewDialog=panel;profilePreviewOrigin=origin;profilePreviewOverflow='auto';",context);
+ };
+ open();client.closeRoomPopup(false);
+ assert.equal(document.activeElement,input);assert.equal(focused,0);
+ assert.equal(client.talkPopup,null);assert.equal(client.popupTrigger,null);assert.equal(document.body.style.overflow,'auto');
+ assert.equal(closed,1);assert.equal(removed,1);assert.equal(unlocked,1);
+ open();client.closeRoomPopup();
+ assert.equal(document.activeElement,origin);assert.equal(focused,1);
+ open();context.closeProfilePreview('dismiss');
+ assert.equal(document.activeElement,origin);assert.equal(focused,2);assert.deepEqual(events,['aifect-profile-dismiss']);
+});
 
 test('profile preview returns real counts and the current crew level badge without private account data',async t=>{
  const f=await fixture(t);

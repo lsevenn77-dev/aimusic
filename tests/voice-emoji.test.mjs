@@ -29,6 +29,7 @@ function boundChat(liveMode,command,refresh=async()=>{}){
  const submitButton={addEventListener(name,callback){submitEvents[name]=callback;}};
  const form={addEventListener(){},elements:{body:input},querySelector:()=>submitButton,reset(){input.value='';},requestSubmit(){this.pending=this.onsubmit();}};
  nodes.set('#voice-chat-form',form);nodes.set('#voice-message',input);nodes.set('#voice-emoji-picker',picker);
+ const log={scrollHeight:1000,clientHeight:240,scrollTop:200};nodes.set('#voice-chat',log);
  const get=selector=>{
   if(selector==='[data-voice="emoji"]')return button;
   if(!nodes.has(selector))nodes.set(selector,{value:'',elements:{},addEventListener(){}});
@@ -41,11 +42,26 @@ function boundChat(liveMode,command,refresh=async()=>{}){
  const client=context.client;
  Object.assign(client,{liveMode,command,refresh,bindTalkViews(){},adoptRoomPopup(sheet){sheet.open=true;},joinAttempted:true,resumeSound(){},bindAudioSettings(){},giftSummary(){}});
  client.bind({isConnected:false,querySelector:get,addEventListener(){}});
- return {client,input,form,picker,attrs,submitEvents,blurs:()=>blurs,setComposing(value){if(value)accepted=input.value;composing=value;}};
+ return {client,input,form,picker,attrs,submitEvents,log,blurs:()=>blurs,setComposing(value){if(value)accepted=input.value;composing=value;}};
 }
 
 for(const liveMode of [false,true]){
  const mode=liveMode?'live karaoke':'talking room';
+ test(mode+' returns to the latest conversation only after an own send is confirmed',async()=>{
+  let acknowledge;const delivered=new Promise(resolve=>{acknowledge=resolve;});
+  const f=boundChat(liveMode,async()=>delivered,async()=>{
+   assert.equal(f.client.roomChatAtEnd,true);assert.equal(f.log.scrollTop,f.log.scrollHeight);
+  });
+  f.client.roomChatAtEnd=false;f.input.value='과거 대화를 읽다가 보낸 답장';f.form.requestSubmit();
+  assert.equal(f.client.roomChatAtEnd,false);assert.equal(f.log.scrollTop,200);
+  acknowledge();await f.form.pending;
+  assert.equal(f.client.roomChatAtEnd,true);
+ });
+ test(mode+' preserves the reader position when a send fails',async()=>{
+  const f=boundChat(liveMode,async()=>{throw Error('offline');});
+  f.client.roomChatAtEnd=false;f.form.requestSubmit();await assert.rejects(f.form.pending,/offline/);
+  assert.equal(f.client.roomChatAtEnd,false);assert.equal(f.log.scrollTop,200);
+ });
  test(mode+' closes the emoji picker only after successful send, for button and Enter',async()=>{
   for(const entry of ['button','enter']){
    let acknowledge;

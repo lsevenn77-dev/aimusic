@@ -91,6 +91,8 @@ class VoiceRoomClient {
    this.chatPending=this.chatPending?.body===body?this.chatPending:{body,request_id:crypto.randomUUID()};
    await this.command('chat',this.chatPending);
    if(this.closed||chat!==$('#voice-chat-form'))return;
+   // A confirmed own send returns to the conversation; passive arrivals keep history in place.
+   if(typeof window!=='undefined'&&window.innerWidth<=800){this.roomChatAtEnd=true;const log=$('#voice-chat');if(log)log.scrollTop=log.scrollHeight;}
    this.toggleEmojiPicker(false);
    if(!this.chatEditor.isComposing?.()&&this.chatEditor.get()===text)this.chatEditor.set('');
    stickers?.clear();this.chatPending=null;this.finishChatInteraction?.();
