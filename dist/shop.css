@@ -81,21 +81,20 @@
 .shop-page .shop-card-select{display:flex;flex-direction:column;align-items:center;width:100%;min-width:0;padding:0;margin:0;border:0;background:none;color:inherit;font:inherit;text-align:center;cursor:pointer}
 .shop-page .shop-card-art{display:block;width:100%;height:clamp(56px,4.7vw,72px);max-width:72px;object-fit:contain;margin:0 0 8px;background:transparent;border:0;border-radius:0}
 .shop-page .shop-card-name{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;align-content:center;overflow:hidden;text-overflow:ellipsis;width:100%;height:2.8em;margin:0;font-size:var(--pc-font-card,16px);font-weight:600;line-height:1.4;text-align:center;overflow-wrap:anywhere}
-.shop-page .shop-card[data-shop-category=themes] .shop-card-name:has(>br){display:block;white-space:nowrap}
 .shop-page .shop-card-price{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:4px;min-height:24px;margin:2px 0 12px;line-height:1.4;color:var(--ds-body);font-variant-numeric:tabular-nums}
 .shop-page .shop-price-value{color:var(--ds-text);font-size:var(--pc-font-body,15px);font-weight:600}
 .shop-page .shop-price-period{font-size:var(--pc-font-caption,13px);color:var(--ds-muted);white-space:nowrap}
 .shop-page .shop-card-actions{display:flex;flex-direction:column;align-items:center;margin-top:auto}
 /* Compact pill faces retain separate 44px pointer and keyboard targets. */
-.shop-page :is(.shop-card-buy,.shop-card-preview){position:relative;isolation:isolate;display:flex;align-items:center;justify-content:center;align-self:center;gap:4px;min-width:0;height:44px;min-height:44px;max-width:112px;width:100%;margin:0;padding:0 4px;border:0;border-radius:999px;background:transparent;box-shadow:none;color:var(--ds-ink);font:inherit;font-size:var(--pc-font-control,14px);font-weight:600;line-height:1.3;white-space:nowrap;text-decoration:none;cursor:pointer;touch-action:manipulation;transition:filter .16s}
-.shop-page :is(.shop-card-buy,.shop-card-preview)::before{content:"";position:absolute;z-index:-1;left:50%;top:50%;width:100%;height:32px;transform:translate(-50%,-50%);border-radius:inherit;background:var(--shop-accent);pointer-events:none;transition:background-color .16s}
-.shop-page .shop-card-buy svg{width:16px;height:16px;flex:none;stroke-width:1.6}
+.shop-page :is(.shop-card-buy,.shop-card-preview),#dialog.shop-dialog .shop-theme-preview .shop-card-buy{position:relative;isolation:isolate;display:flex;align-items:center;justify-content:center;align-self:center;gap:4px;min-width:0;height:44px;min-height:44px;max-width:112px;width:100%;margin:0;padding:0 4px;border:0;border-radius:999px;background:transparent;box-shadow:none;color:var(--ds-ink);font:inherit;font-size:var(--pc-font-control,14px);font-weight:600;line-height:1.3;white-space:nowrap;text-decoration:none;cursor:pointer;touch-action:manipulation;transition:filter .16s}
+.shop-page :is(.shop-card-buy,.shop-card-preview)::before,#dialog.shop-dialog .shop-theme-preview .shop-card-buy::before{content:"";position:absolute;z-index:-1;left:50%;top:50%;width:100%;height:32px;transform:translate(-50%,-50%);border-radius:inherit;background:var(--shop-accent);pointer-events:none;transition:background-color .16s}
+.shop-page .shop-card-buy svg,#dialog.shop-dialog .shop-theme-preview .shop-card-buy svg{width:16px;height:16px;flex:none;stroke-width:1.6}
 .shop-page .shop-card-preview{color:var(--ds-text)}
 .shop-page .shop-card-preview::before{background:var(--ds-secondary);border:1px solid var(--ds-border);box-sizing:border-box}
-@media(hover:hover){.shop-page .shop-card:hover{border-color:var(--ds-border)}.shop-page .shop-actions a:hover{border-color:var(--shop-accent);background:var(--ds-soft)}.shop-page .shop-tabs button:not([aria-selected=true]):hover{background:var(--ds-soft);color:var(--ds-text)}.shop-page :is(.shop-card-buy,.shop-card-preview):not(:disabled):hover{filter:brightness(1.06)}}
-.shop-page :is(.shop-card-buy,.shop-card-preview):not(:disabled):active{filter:brightness(.94)}
-.shop-page :is(.shop-card-buy,.shop-card-preview):disabled{color:var(--ds-disabled);opacity:.6;cursor:not-allowed;filter:none}
-.shop-page :is(.shop-card-buy,.shop-card-preview):disabled::before{background:var(--ds-secondary)}
+@media(hover:hover){.shop-page .shop-card:hover{border-color:var(--ds-border)}.shop-page .shop-actions a:hover{border-color:var(--shop-accent);background:var(--ds-soft)}.shop-page .shop-tabs button:not([aria-selected=true]):hover{background:var(--ds-soft);color:var(--ds-text)}.shop-page :is(.shop-card-buy,.shop-card-preview):not(:disabled):hover,#dialog.shop-dialog .shop-theme-preview .shop-card-buy:not(:disabled):hover{filter:brightness(1.06)}}
+.shop-page :is(.shop-card-buy,.shop-card-preview):not(:disabled):active,#dialog.shop-dialog .shop-theme-preview .shop-card-buy:not(:disabled):active{filter:brightness(.94)}
+.shop-page :is(.shop-card-buy,.shop-card-preview):disabled,#dialog.shop-dialog .shop-theme-preview .shop-card-buy:disabled{color:var(--ds-disabled);opacity:.6;cursor:not-allowed;filter:none}
+.shop-page :is(.shop-card-buy,.shop-card-preview):disabled::before,#dialog.shop-dialog .shop-theme-preview .shop-card-buy:disabled::before{background:var(--ds-secondary)}
 .shop-page :focus-visible{outline:2px solid var(--shop-accent);outline-offset:3px}
 .shop-page .shop-empty{margin:24px 0;padding:20px;text-align:center;color:var(--ds-body);font-size:var(--pc-font-body,15px)}
 .shop-page .shop-empty[hidden]{display:none}
@@ -134,9 +133,9 @@
  .shop-page .shop-card-price .shop-coin{width:16px;height:16px}
  .shop-page .shop-price-value{font-size:14px}
  .shop-page .shop-card[data-shop-category=frames] .shop-price-period{display:none}
- .shop-page :is(.shop-card-buy,.shop-card-preview){padding-inline:0;font-size:12px}
- .shop-page :is(.shop-card-buy,.shop-card-preview)::before{width:84%;min-width:min(56px,100%);max-width:84px;height:28px}
- .shop-page .shop-card-buy svg{display:none}
+ .shop-page :is(.shop-card-buy,.shop-card-preview),#dialog.shop-dialog .shop-theme-preview .shop-card-buy{padding-inline:0;font-size:12px}
+ .shop-page :is(.shop-card-buy,.shop-card-preview)::before,#dialog.shop-dialog .shop-theme-preview .shop-card-buy::before{width:84%;min-width:min(56px,100%);max-width:84px;height:28px}
+ .shop-page .shop-card-buy svg,#dialog.shop-dialog .shop-theme-preview .shop-card-buy svg{display:none}
 }
 @media(max-width:359px){.shop-page .shop-heading{gap:8px}.shop-page .shop-balances{gap:4px 8px}.shop-page .shop-actions a{font-size:13px;gap:4px}.shop-page .shop-actions :is(svg,.shop-coin){width:18px;height:18px}}
-@media(prefers-reduced-motion:reduce){.shop-page :is(.shop-card,.shop-card-buy,.shop-card-preview,.shop-tabs button,.shop-actions a),.shop-page :is(.shop-card-buy,.shop-card-preview)::before{transition:none}}
+@media(prefers-reduced-motion:reduce){.shop-page :is(.shop-card,.shop-card-buy,.shop-card-preview,.shop-tabs button,.shop-actions a),.shop-page :is(.shop-card-buy,.shop-card-preview)::before,#dialog.shop-dialog .shop-theme-preview .shop-card-buy,#dialog.shop-dialog .shop-theme-preview .shop-card-buy::before{transition:none}}

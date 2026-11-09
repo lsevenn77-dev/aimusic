@@ -70,6 +70,7 @@ function shopCoin(currency){
 }
 // A shared presentation component; amounts/currency remain supplied by the catalog or wallet.
 function shopPrice(amount,currency){return '<span class="shop-currency-amount">'+shopCoin(currency)+'<span>'+number(amount)+'</span></span>';}
+function shopProductDisplayName(p){const name=String(p.name??'');return p.kind==='TALKING_ROOM_THEME'?name.replace(/\s*라운지\s*$/u,'')||name:name;}
 function shopPopupContext(){return /^#(?:gifts(?:[/?]|$)|inventory(?:[/?]|$)|gift-inventory(?:[/?]|$))/.test(globalThis.location?.hash||'');}
 function shopCurrencyText(text){return esc(text).replace(/(\d[\d,]*) ([GS])\b/g,(_,amount,code)=>shopPrice(Number(amount.replaceAll(',','')),code));}
 function prepareShopPopup(modal,content){
@@ -96,12 +97,12 @@ function shopCards(items,periods={}){
   const category=p.sku?(theme?'themes':'frames'):'gifts';
   const action=p.sku?'data-decoration="'+esc(p.sku)+'"':'data-gift-buy="'+esc(p.id)+'"';
   const price=p.sku?shopStartingPrice(p,periods):shopCoin(currency)+'<span class="shop-price-value">'+number(p.free?p.silver:p.gold)+'</span>';
-  const name=theme?esc(p.name).replace(/(.+?)\s*라운지$/u,'$1<br>라운지'):esc(p.name);
+  const name=esc(shopProductDisplayName(p));
   return '<article class="shop-card '+(currency==='S'?'is-silver':'is-gold')+'" data-shop-category="'+category+'" data-shop-name="'+esc(p.name)+'">'+
-   '<button type="button" class="shop-card-select" '+action+' aria-label="'+esc(p.name)+' 상품 선택"><img class="shop-card-art" src="'+esc(p.sku?decorationProductImage(p):p.image)+'" alt="" loading="lazy"><strong class="shop-card-name" title="'+esc(p.name)+'">'+name+'</strong></button>'+
+   '<button type="button" class="shop-card-select" '+action+' aria-label="'+name+' 상품 선택"><img class="shop-card-art" src="'+esc(p.sku?decorationProductImage(p):p.image)+'" alt="" loading="lazy"><strong class="shop-card-name" title="'+name+'">'+name+'</strong></button>'+
    '<div class="shop-card-price">'+price+'</div><div class="shop-card-actions">'+
-   (theme?'<button type="button" class="shop-card-preview" data-theme-preview="'+esc(p.assetPaths.roomMobile||'')+'" data-theme-sku="'+esc(p.sku)+'" data-theme-name="'+esc(p.name)+'" aria-label="'+esc(p.name)+' 미리보기" '+(p.assetPaths.roomMobile?'':'disabled')+'>미리보기</button>':'')+
-   '<button type="button" class="shop-card-buy" '+action+' aria-label="'+esc(p.name)+' 구매하기">'+shopIcon('cart')+'<span>구매하기</span></button></div></article>';
+   (theme?'<button type="button" class="shop-card-preview" data-theme-preview="'+esc(p.assetPaths.roomMobile||'')+'" data-theme-sku="'+esc(p.sku)+'" data-theme-name="'+name+'" aria-label="'+name+' 미리보기" '+(p.assetPaths.roomMobile?'':'disabled')+'>미리보기</button>':'')+
+   '<button type="button" class="shop-card-buy" '+action+' aria-label="'+name+' 구매하기">'+shopIcon('cart')+'<span>구매하기</span></button></div></article>';
  }).join('');
 }
 // The registered portrait room background only; never substitute the card/desktop art.
@@ -117,7 +118,7 @@ async function shopThemePreview(button){
   const price=button.closest('.shop-card')?.querySelector('.shop-card-price')?.innerHTML||'';
   const modal=$('#dialog'),controller=new AbortController();
   modal.classList.remove('gift-sheet');
-  dialog('<section class="shop-theme-preview" aria-label="'+esc(button.dataset.themeName)+' 방 배경 미리보기"><img src="'+esc(src)+'" alt="'+esc(button.dataset.themeName)+' 세로형 토킹룸 방 배경"><div class="shop-preview-info"><h2>'+esc(button.dataset.themeName)+'</h2><div class="shop-card-price">'+price+'</div></div><button type="button" class="primary-button" data-product-gift="'+esc(button.dataset.themeSku)+'">상품 구매</button></section>');
+  dialog('<section class="shop-theme-preview" aria-label="'+esc(button.dataset.themeName)+' 방 배경 미리보기"><img src="'+esc(src)+'" alt="'+esc(button.dataset.themeName)+' 세로형 토킹룸 방 배경"><div class="shop-preview-info"><h2>'+esc(button.dataset.themeName)+'</h2><div class="shop-preview-purchase-row"><div class="shop-card-price">'+price+'</div><button type="button" class="shop-card-buy" data-product-gift="'+esc(button.dataset.themeSku)+'" aria-label="'+esc(button.dataset.themeName)+' 구매하기">'+shopIcon('cart')+'<span>구매하기</span></button></div></div></section>');
   const oldLabel=modal.getAttribute('aria-label');modal.setAttribute('aria-label',button.dataset.themeName+' 미리보기');
   modal.addEventListener('click',e=>{if(e.target!==modal)return;const r=modal.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)modal.close();},{signal:controller.signal});
   const close=()=>modal.close();window.addEventListener('popstate',close,{signal:controller.signal});window.addEventListener('hashchange',close,{signal:controller.signal});
@@ -224,9 +225,9 @@ async function shopPurchaseDialog(initial){
   const balance=()=>p.free?wallet?.silver_balance||0:wallet?.balance||0;
   const valid=()=>p.sku?periods.some(([key])=>key===state.period):Number.isInteger(state.quantity)&&state.quantity>=1&&state.quantity<=100;
   const product=()=>{
-   const img='<img src="'+esc(image)+'" alt="'+esc(p.name)+'">';
+   const name=esc(shopProductDisplayName(p)),img='<img src="'+esc(image)+'" alt="'+name+'">';
    const preview=state.step==='purchase'&&p.assetPaths?.effect?'<span class="frame-detail-layers">'+img+'</span>':img;
-   return '<div class="shop-product-summary">'+preview+'<div><h3>'+esc(p.name)+'</h3>'+(state.step==='purchase'?'':'<p>'+esc(p.sku?decorations.periods[state.period]:state.quantity+'개')+'</p>')+'</div></div>';
+   return '<div class="shop-product-summary">'+preview+'<div><h3>'+name+'</h3>'+(state.step==='purchase'?'':'<p>'+esc(p.sku?decorations.periods[state.period]:state.quantity+'개')+'</p>')+'</div></div>';
   };
   const money=()=>'<div class="shop-money" aria-live="polite"><p><span>총 결제 금액</span><strong class="shop-value-payment '+(p.free?'is-silver':'is-gold')+'">'+shopPrice(price(),unit)+'</strong></p>'+(me?'<p class="shop-wallet-line"><span>보유 '+(unit==='S'?'실버':'골드')+'</span><strong>'+shopPrice(balance(),unit)+'</strong></p>':'')+(me&&balance()<price()?'<p class="shop-insufficient">잔액이 부족해요. <a href="'+(p.free?'#gifts/rewards':'#gold')+'" data-close-dialog>'+(p.free?'실버 받기':'골드 충전')+'</a></p>':'')+'</div>';
   const resetKey=()=>{state.key=crypto.randomUUID();};
