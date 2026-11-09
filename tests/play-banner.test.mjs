@@ -18,7 +18,7 @@ function setup(reduced=false){
  for(const file of ['home.js','play-page.js'])vm.runInContext(readFileSync(new URL('../dist/'+file,import.meta.url),'utf8'),context);
  function root(){
   const stage={innerHTML:'',outgoing:[],querySelectorAll(){return this.outgoing.slice();},append(el){el.parent=this;this.outgoing.push(el);},contains(el){return this.outgoing.includes(el);},setAttribute(){},removeAttribute(){}};
-  const feature=Object.assign(eventTarget(),{querySelectorAll:()=>banner.dots,contains:()=>false});
+  const feature=Object.assign(eventTarget(),{hovered:false,querySelectorAll:()=>banner.dots,contains:target=>target===feature,matches:selector=>selector===':hover'&&feature.hovered});
   const banner={isConnected:true,dots:[],stage,feature,addEventListener(){},querySelector:s=>s==='.home-feature'?feature:stage,
    set innerHTML(html){this.html=html;stage.innerHTML=html.split('<div class="home-feature-stage">')[1].split('<button class="home-feature-arrow home-feature-next"')[0];this.dots=[...html.matchAll(/data-home-slide="(\d+)"[^>]*aria-pressed="(true|false)"/g)].map(m=>({index:Number(m[1]),pressed:m[2],setAttribute(k,v){if(k==='aria-pressed')this.pressed=v;}}));},
    replaceWith(other){this.isConnected=false;page.banner=other;other.isConnected=true;}
@@ -147,6 +147,32 @@ test('reselecting the active top tab rewinds a rolled banner without needing a h
  f.tick(3999);assert.equal(f.current(),'song');
  f.clickTab('song');f.tick(3999);assert.equal(f.current(),'song');f.tick(1);assert.equal(f.current(),'dubbing');
  const deadline=f.rolling()[0];f.bind('song');assert.equal(f.current(),'dubbing');assert.equal(f.rolling()[0],deadline);
+});
+
+test('a top tab click releases an abandoned banner gesture and rolls from the requested slide',()=>{
+ const f=setup();f.open('song');f.tick(3999);
+ f.banner.feature.fire('pointerdown',{pointerId:1,pointerType:'touch',clientX:180,clientY:30});
+ assert.equal(f.rolling().length,0);
+ // The original target can disappear before pointerup/cancel reaches it.
+ // A later external tab click is a new interaction, not that unfinished swipe.
+ f.clickTab('dubbing');f.navigate(f.context.playHref('dubbing'));
+ assert.equal(f.current(),'dubbing');assert.equal(f.rolling().length,1);
+ f.tick(3999);assert.equal(f.current(),'dubbing');f.tick(1);assert.equal(f.current(),'browse');
+});
+
+test('active top-tab reselection reconciles stale banner hover and focus with the current DOM',()=>{
+ for(const reason of ['hover','focus','both']){
+  const f=setup();f.open('song');f.tick(3999);
+  if(reason!=='focus')f.banner.feature.fire('pointerenter',{pointerType:'mouse'});
+  if(reason!=='hover')f.banner.feature.fire('focusin');
+  assert.equal(f.rolling().length,0);
+  // No pointerleave/focusout was delivered, but the pointer and active element
+  // are now outside the carousel. Selecting its existing ID must recover too.
+  assert.equal(f.banner.feature.matches(':hover'),false);
+  assert.equal(f.banner.feature.contains(f.document.activeElement),false);
+  f.clickTab('song');assert.equal(f.current(),'song');assert.equal(f.rolling().length,1,reason);
+  f.tick(3999);assert.equal(f.current(),'song');f.tick(1);assert.equal(f.current(),'dubbing');
+ }
 });
 
 test('mode history and rapid top-tab changes reuse one carousel and leave only one live clock',()=>{

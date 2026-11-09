@@ -216,8 +216,13 @@ function mountFeatureCarousel(root,tracks,{renderSlide=releaseHTML,label='추천
  document.addEventListener('visibilitychange',schedule);window.addEventListener('hashchange',routeChange);motion.addEventListener('change',motionChange);
  if(pauseForDialogs)document.addEventListener('close',schedule,true);
  function cleanup(){disposed=true;clear();clearTransition();for(const [name,fn,options] of listeners)feature.removeEventListener(name,fn,options);if(syncAudio&&typeof audio!=='undefined')for(const event of playbackEvents)audio.removeEventListener(event,syncPlayback);document.removeEventListener('visibilitychange',schedule);if(pauseForDialogs)document.removeEventListener('close',schedule,true);window.removeEventListener('hashchange',routeChange);motion.removeEventListener('change',motionChange);}
- // Select by stable ID without remounting the shell or changing pause rules.
- cleanup.select=id=>{const target=tracks.findIndex(track=>track.id===id);if(!disposed&&target>=0)go(target);};
+ // External tabs end any abandoned gesture and use the current hover/focus.
+ // Keep deliberate pauses and accessibility preferences when selecting by ID.
+ cleanup.select=id=>{
+  const target=tracks.findIndex(track=>track.id===id);if(disposed||target<0)return;
+  start=null;suppressClick=false;hover=feature.matches?.(':hover')||false;focus=feature.contains(document.activeElement);
+  go(target);
+ };
  schedule();return cleanup;
 }
 function updateHomeAccount(){
