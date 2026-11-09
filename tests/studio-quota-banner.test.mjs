@@ -25,20 +25,22 @@ function harness(){
 for(const [plan,used,limit,percent] of [['free',0,3,0],['free',1,3,100/3],['free',3,3,100],['premium',0,10,0],['premium',5,10,50],['premium',10,10,100]]){
  test(`banner ${plan} ${used}/${limit} renders server usage, exact progress and the right action`,()=>{
   const {ctx}=harness(),html=ctx.studioQuotaCard(membership(plan,used,limit),'ready');
-  assert.match(html,new RegExp(`>${used} / ${limit}</strong>`));
-  const progress=Number(html.match(/stroke-dasharray="([\d.]+) 100"/)[1]);
+  assert.match(html,new RegExp(`>${used} / ${limit}곡</strong>`));
+  const progress=Number(html.match(/style="width:([\d.]+)%"/)[1]);
   assert.ok(Math.abs(progress-percent)<1e-10);
-  assert.equal(html.includes('visibility="hidden"'),used===0,'zero has no painted progress arc');
   assert.match(html,new RegExp(`aria-valuemax="${limit}" aria-valuenow="${used}"`));
+  assert.match(html,/완성한 음악을 들려주세요\./);
+  assert.match(html,used<limit?new RegExp(`이번 달 ${limit-used}곡 더 가능`):/이번 달 제작곡 한도를 모두 사용했어요\./);
   assert.doesNotMatch(html,/data-icon="music"|data-icon="diamond"|PREMIUM으로 더 많이/);
   assert.equal((html.match(/매월 1일 초기화\(한국시간\) · 커버곡 무제한/g)||[]).length,1);
   assert.equal((html.match(/href="#upload"/g)||[]).length,1);
   if(plan==='premium'){
    assert.match(html,/<span class="studio-premium-state">/);assert.match(html,/PREMIUM 이용 중/);
-   assert.match(html,/월 10곡 제작 가능/);assert.match(html,/커버곡 제한 없이 업로드/);
-   assert.doesNotMatch(html,/href="#membership"|<button|업그레이드|더 자유롭게/);
+   assert.match(html,/월 10곡 업로드 가능/);assert.match(html,/커버곡 제한 없이 업로드/);
+   assert.doesNotMatch(html,/href="#membership"|<button|업그레이드|혜택 보기/);
   }else{
-   assert.match(html,/더 자유롭게, 더 많이 제작하세요!/);assert.match(html,/href="#membership"/);
+   assert.match(html,/혜택 보기/);assert.match(html,/href="#membership"/);
+   assert.match(html,/제작곡 월 10곡까지 업로드/);
    assert.doesNotMatch(html,/studio-premium-state|studio-quota-benefits/);
   }
  });
@@ -47,13 +49,17 @@ for(const [plan,used,limit,percent] of [['free',0,3,0],['free',1,3,100/3],['free
 test('limits remain dynamic, over-limit expiry usage is preserved and malformed data never looks free',()=>{
  const {ctx}=harness();
  assert.match(ctx.studioQuotaCard(membership('premium',6,12),'ready'),/6 \/ 12/);
- assert.match(ctx.studioQuotaCard(membership('premium',6,12),'ready'),/stroke-dasharray="50 100"/);
+ assert.match(ctx.studioQuotaCard(membership('premium',6,12),'ready'),/style="width:50%"/);
  assert.match(ctx.studioQuotaCard(membership('premium',6,12),'ready'),/월 12곡/);
- assert.match(ctx.studioQuotaCard(membership('free',5,3),'ready'),/5 \/ 3/);
- assert.match(ctx.studioQuotaCard(membership('free',5,3),'ready'),/stroke-dasharray="100 100"/);
+ const expired=ctx.studioQuotaCard(membership('free',5,3),'ready');
+ assert.match(expired,/5 \/ 3곡/);
+ assert.match(expired,/style="width:100%"/);
+ assert.match(expired,/aria-valuemax="3" aria-valuenow="3"/);
+ assert.match(expired,/이번 달 제작곡 한도를 모두 사용했어요\./);
+ assert.doesNotMatch(expired,/-\d+곡 더 가능/);
  for(const value of [null,{plan:'free'},membership('unknown',0,3),membership('free',0,0),membership('free',-1,3),membership('premium','5',10),membership('free',NaN,3),membership('free',1,Infinity),{plan:'free',upload_quota:{used:0,limit:3}}]){
   const html=ctx.studioQuotaCard(value,'ready');
-  assert.match(html,/다시 확인/);assert.doesNotMatch(html,/업그레이드|이용 중|progressbar|0 \/ 3/);
+  assert.match(html,/다시 확인/);assert.doesNotMatch(html,/혜택 보기|href="#membership"|이용 중|progressbar|0 \/ 3/);
  }
 });
 
@@ -68,7 +74,7 @@ test('fresh entitlement, upload increment, upgrade, cancellation with valid time
  // Cancelled renewal still has a valid entitlement. Only the server decides when it is free.
  h.listeners.get('window:focus')();await h.flush();assert.match(h.html,/PREMIUM 이용 중/);
  const expiry=[...h.timers.values()].find(t=>t.delay<3000);assert.ok(expiry);
- value=membership('free',5,3);expiry.fn();await h.flush();assert.match(h.html,/5 \/ 3/);assert.match(h.html,/PREMIUM 업그레이드/);
+ value=membership('free',5,3);expiry.fn();await h.flush();assert.match(h.html,/5 \/ 3/);assert.match(h.html,/혜택 보기/);
  for(const [path,method,body,options] of calls){assert.equal(path,'/api/me');assert.equal(method,'GET');assert.equal(body,undefined);assert.equal(options.fresh,true);assert.ok(options.signal);}
 });
 
@@ -77,7 +83,7 @@ test('failed and unauthenticated refreshes clear premium status; retry recovers'
  h.ctx.bindStudioQuota(h.root);await h.flush();assert.match(h.html,/PREMIUM 이용 중/);
  h.ctx.api=async()=>{throw Error('network');};h.listeners.get('window:focus')();await h.flush();
  assert.match(h.html,/확인하지 못했어요/);assert.doesNotMatch(h.html,/PREMIUM|5 \/ 10/);
- h.ctx.api=async()=>({user:null,membership:membership('free',0,3)});h.listeners.get('window:focus')();await h.flush();assert.doesNotMatch(h.html,/업그레이드/);
+ h.ctx.api=async()=>({user:null,membership:membership('free',0,3)});h.listeners.get('window:focus')();await h.flush();assert.doesNotMatch(h.html,/혜택 보기|href="#membership"/);
  h.ctx.api=async()=>({user:{id:'owner'},membership:membership('free',1,3)});
  h.listeners.get('root:click')({target:{closest:()=>true}});await h.flush();assert.match(h.html,/1 \/ 3/);
 });

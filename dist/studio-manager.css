@@ -54,36 +54,38 @@
 .studio-manager .studio-main-tab[aria-selected="true"] { color: var(--studio-purple); }
 .studio-manager .studio-main-tab[aria-selected="true"]::after { content: ""; position: absolute; inset: auto 0 -1px; height: 3px; border-radius: 4px; background: linear-gradient(95deg, var(--studio-accent), #b4a0ef, #e5a0dd); }
 
-.studio-manager .studio-quota-card,
 .studio-manager .studio-works-surface{ border: 1px solid var(--studio-line); border-radius: 12px; background-color: var(--studio-panel-bg); }
-.studio-manager .studio-quota-card { display: grid; grid-template-columns: 132px minmax(0, 1fr) auto; align-items: center; gap: 24px; margin-bottom: 12px; min-height: 172px; padding: 20px 24px; background-image: url('/assets/studio/studio-premium-banner.svg'); background-size: 100% 100%; border-color: #9885b74d; }
-.studio-manager .studio-quota-card:not(.studio-quota-pending) { grid-template-areas: "gauge copy membership" "gauge copy upload"; row-gap: 8px; }
-.studio-manager .studio-quota-card[data-quota-state="premium"] { grid-template-columns: 132px minmax(0, 1fr) auto auto; grid-template-areas: "gauge copy membership upload"; }
-.studio-quota-card > .studio-quota-gauge { grid-area: gauge; }
-.studio-quota-card:not(.studio-quota-pending) > .studio-quota-copy { grid-area: copy; }
-.studio-quota-card > .studio-quota-membership { grid-area: membership; }
-.studio-quota-card > .studio-upload { grid-area: upload; justify-self: center; white-space: nowrap; }
-.studio-manager .studio-quota-pending-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
-.studio-manager .studio-quota-gauge { position: relative; width: 132px; height: 132px; aspect-ratio: 1; flex: none; }
-.studio-manager .studio-quota-gauge > svg { display: block; width: 100%; height: 100%; fill: none; stroke-width: 7; transform: rotate(-90deg); }
-.studio-manager .studio-quota-track { stroke: #454364; }
-.studio-manager .studio-quota-progress { stroke: var(--studio-accent); stroke-linecap: butt; }
-.studio-manager .studio-quota-gauge-copy { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; white-space: nowrap; }
-.studio-manager .studio-quota-gauge-copy span { font-size: 11px; color: var(--studio-muted); }
-.studio-manager .studio-quota-gauge-copy strong { font-size: 24px; line-height: 1.2; font-variant-numeric: tabular-nums; }
-.studio-manager .studio-quota-copy { min-width: 0; }
-.studio-manager .studio-quota-copy h2 { margin: 0 0 8px; font-size: 19px; line-height: 1.4; word-break: keep-all; overflow-wrap: anywhere; }
-.studio-manager .studio-quota-copy p { margin: 0; color: var(--studio-ink); font-size: var(--pc-font-body, calc(13px * var(--ui-type-scale, 1))); line-height: 1.6; word-break: keep-all; overflow-wrap: anywhere; }
-.studio-manager .studio-quota-copy .studio-quota-note { margin-top: 6px; color: var(--studio-muted); font-size: var(--pc-font-meta, 12px); line-height: 1.5; white-space: nowrap; }
-.studio-manager .studio-quota-membership { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; min-width: 0; }
-.studio-manager :is(.studio-upgrade,.studio-premium-state) { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; max-width: 100%; padding: 8px 14px; border: 0; border-radius: 10px; font-size: 13px; line-height: 1.5; font-weight: 700; white-space: nowrap; color: var(--ds-ink, #14192a); }
-.studio-manager .studio-upgrade { margin: 0; background: linear-gradient(105deg, #a1e7df, #c8c0f7 52%, #e7b8e4); }
-.studio-manager .studio-premium-state { background: linear-gradient(105deg, #a1e7df, #e7b8e4); }
-.studio-manager :is(.studio-upgrade,.studio-premium-state) svg { width: 20px; height: 20px; flex: none; }
-.studio-manager .studio-quota-benefits { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; color: var(--studio-ink); font-size: 12px; line-height: 1.5; }
-.studio-manager .studio-quota-benefits li { display: flex; align-items: center; gap: 6px; word-break: keep-all; }
+/* The two cards share the existing banner slot and the live entitlement reader. */
+.studio-manager .studio-quota-card { --ui-type-scale: 1; --ui-icon-scale: 1; --ui-control-height: 44px; display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); align-items: stretch; gap: 12px; margin-bottom: 12px; min-width: 0; }
+.studio-manager :is(.studio-quota-upload-card,.studio-quota-membership) { min-width: 0; padding: 22px 24px; border: 1px solid var(--studio-line); border-radius: var(--ds-radius-card, 16px); }
+.studio-manager .studio-quota-upload-card { background: linear-gradient(115deg, color-mix(in srgb, var(--studio-accent) 10%, var(--ds-panel)), var(--ds-panel) 75%); }
+.studio-manager :is(.studio-quota-copy,.studio-quota-membership-copy) { min-width: 0; }
+.studio-manager :is(.studio-quota-copy,.studio-quota-membership-copy) h2 { margin: 0 0 6px; font-size: var(--pc-font-section, 18px); line-height: 1.4; word-break: keep-all; overflow-wrap: anywhere; }
+.studio-manager :is(.studio-quota-copy,.studio-quota-membership-copy) p { margin: 0; color: var(--ds-body); font-size: var(--pc-font-body, 13px); line-height: 1.6; word-break: keep-all; overflow-wrap: anywhere; }
+.studio-manager .studio-quota-card .studio-quota-eyebrow { display: flex; align-items: center; gap: 7px; margin: 0 0 8px; color: var(--studio-muted); font-size: var(--pc-font-caption, 12px); font-weight: 600; line-height: 1.4; letter-spacing: .06em; }
+.studio-manager .studio-quota-summary { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; margin-top: 16px; color: var(--studio-muted); font-size: var(--pc-font-meta, 13px); line-height: 1.5; word-break: keep-all; }
+.studio-manager .studio-quota-summary strong { color: var(--studio-ink); font-size: var(--pc-font-card, 16px); font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.studio-manager .studio-quota-meter { height: 4px; margin: 8px 0 16px; border: 0; border-radius: 4px; overflow: hidden; background: color-mix(in srgb, var(--studio-muted) 25%, transparent); }
+.studio-manager .studio-quota-progress { display: block; height: 100%; border-radius: inherit; background: var(--studio-accent); }
+.studio-manager .studio-quota-upload-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.studio-manager .studio-quota-card .studio-upload { min-height: 44px; padding: 8px 18px; border: 0; border-radius: 999px; background: var(--studio-accent); color: var(--ds-ink); font-size: var(--pc-font-control, 14px); font-weight: 600; line-height: 1.5; white-space: nowrap; box-shadow: none; }
+.studio-manager .studio-quota-card .studio-upload svg { width: 18px; height: 18px; color: inherit; }
+.studio-manager .studio-quota-remaining { color: var(--ds-body); font-size: var(--pc-font-caption, 13px); line-height: 1.5; word-break: keep-all; overflow-wrap: anywhere; }
+.studio-manager .studio-quota-note { margin: 12px 0 0; color: var(--studio-muted); font-size: var(--pc-font-caption, 12px); line-height: 1.6; word-break: keep-all; overflow-wrap: anywhere; }
+.studio-manager .studio-quota-membership { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 16px; background: linear-gradient(115deg, color-mix(in srgb, var(--ds-lilac) 12%, var(--ds-panel)), color-mix(in srgb, var(--studio-pink) 13%, var(--ds-panel))); }
+.studio-manager .studio-quota-membership .studio-quota-eyebrow { color: var(--ds-selected); }
+.studio-manager .studio-quota-membership-copy h2 > span { display: block; }
+.studio-manager .studio-quota-membership .studio-quota-eyebrow svg { width: 18px; height: 18px; flex: none; }
+.studio-manager .studio-quota-card .studio-upgrade { display: inline-flex; align-items: center; justify-content: center; gap: 6px; flex: none; margin: 0; min-height: 44px; max-width: 100%; padding: 8px 16px; border: 0; border-radius: 999px; background: color-mix(in srgb, var(--ds-lilac) 18%, var(--ds-panel)); color: var(--studio-ink); font-size: var(--pc-font-control, 13px); line-height: 1.5; font-weight: 500; white-space: nowrap; box-shadow: none; }
+.studio-manager .studio-quota-card .studio-upgrade svg { width: 16px; height: 16px; color: inherit; }
+.studio-manager .studio-quota-card :is(.studio-upload,.studio-upgrade):hover { filter: brightness(1.06); }
+.studio-manager .studio-premium-state { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; color: var(--ds-selected); font-size: var(--pc-font-card, 15px); line-height: 1.5; font-weight: 600; }
+.studio-manager .studio-premium-state svg { width: 20px; height: 20px; flex: none; }
+.studio-manager .studio-quota-benefits { display: grid; gap: 8px; margin: 14px 0 0; padding: 0; list-style: none; color: var(--ds-body); font-size: var(--pc-font-meta, 13px); line-height: 1.5; }
+.studio-manager .studio-quota-benefits li { display: flex; align-items: center; gap: 7px; word-break: keep-all; overflow-wrap: anywhere; }
 .studio-manager .studio-quota-benefits svg { flex: none; width: 16px; height: 16px; color: var(--studio-accent); }
-.studio-manager .studio-quota-pending { grid-template-columns: minmax(0, 1fr) auto; }
+.studio-manager .studio-quota-pending { grid-template-columns: minmax(0, 1fr) auto; align-items: center; padding: 22px 24px; border: 1px solid var(--studio-line); border-radius: var(--ds-radius-card, 16px); background: var(--ds-panel); }
+.studio-manager .studio-quota-pending-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: 8px; }
 .studio-manager .studio-quota-retry { min-height: 44px; }
 @media (min-width: 801px) {
   /* Shared button icons are 16px × 1.25 on desktop before the Studio enlargement. */
@@ -158,16 +160,6 @@
   .studio-manager .studio-subtitle { font-size: 12px; line-height: 1.5; }
   .studio-manager .studio-upload { font-size: 12px; padding: 0 10px; min-height: 44px; }
   .studio-manager .studio-main-tab { font-size: 15px; }
-  .studio-manager .studio-quota-card { grid-template-columns: minmax(0, 1fr); justify-items: center; gap: 16px; min-height: 0; padding: 20px 14px; text-align: center; }
-  .studio-manager .studio-quota-card:not(.studio-quota-pending) { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-areas: "gauge upload" "copy copy" "membership membership"; gap: 16px 8px; }
-  .studio-quota-card > .studio-quota-gauge { justify-self: end; }
-  .studio-quota-card > .studio-upload { justify-self: start; }
-  .studio-manager .studio-quota-gauge { width: 120px; height: 120px; }
-  .studio-manager .studio-quota-copy h2 { font-size: 16px; }
-  .studio-manager .studio-quota-copy p { font-size: 12px; line-height: 1.5; }
-  .studio-manager .studio-quota-membership { width: 100%; }
-  .studio-manager .studio-quota-benefits { text-align: left; }
-  .studio-manager .studio-upgrade { width: 100%; }
   .studio-manager .studio-glance { padding: 8px 0; }
   .studio-manager .studio-glance > div { flex-direction: column; gap: 2px; padding: 6px 2px; font-size: var(--pc-font-meta, 12px); text-align: center; word-break: keep-all; }
   .studio-manager .studio-glance .studio-stat-label-full { display: none; }
@@ -197,14 +189,19 @@
   .studio-manager .studio-topbar { grid-template-columns: minmax(0, 1fr); gap: 8px; }
   .studio-manager .studio-topbar > div { grid-column: 1; }
 }
-@media (min-width: 768px) and (max-width: 1150px) {
-  .studio-manager .studio-quota-card:not(.studio-quota-pending) { grid-template-columns: 132px minmax(0, 1fr) auto; grid-template-areas: "gauge copy copy" "gauge membership upload"; gap: 16px 8px; }
-  .studio-manager .studio-quota-membership { align-items: flex-start; }
-  .studio-quota-card > .studio-upload { min-height: 44px; padding-inline: 10px; }
+@media (max-width: 1000px) {
+  .studio-manager .studio-quota-card { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .studio-manager :is(.studio-quota-upload-card,.studio-quota-membership,.studio-quota-pending) { padding: 18px 20px; }
+  .studio-manager .studio-quota-membership { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; }
+  .studio-manager .studio-quota-membership-copy h2 { font-size: var(--pc-font-card, 16px); }
+  .studio-manager .studio-quota-membership-copy h2 > span { display: inline; }
+  .studio-manager .studio-quota-card .studio-upgrade { padding-inline: 14px; }
+  .studio-manager .studio-quota-benefits { margin-top: 10px; }
 }
-@media (min-width: 1151px) and (max-width: 1310px) {
-  .studio-manager .studio-quota-card[data-quota-state="premium"] { grid-template-columns: 132px minmax(0, 1fr) auto; grid-template-areas: "gauge copy membership" "gauge upload membership"; }
-  .studio-quota-card[data-quota-state="premium"] > .studio-upload { justify-self: start; }
+@media (max-width: 380px) {
+  .studio-manager .studio-quota-membership { grid-template-columns: minmax(0, 1fr); }
+  .studio-manager .studio-quota-card .studio-upgrade { justify-self: start; }
+  .studio-manager :is(.studio-quota-upload-card,.studio-quota-membership,.studio-quota-pending) { padding-inline: 16px; }
 }
 @media (max-width: 360px) {
   .studio-manager .studio-filter-button { padding-inline: 7px; }

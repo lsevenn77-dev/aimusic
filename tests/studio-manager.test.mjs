@@ -50,7 +50,7 @@ test('studio tabs isolate inventory, quota, upgrade and status summaries',()=>{
  assert.doesNotMatch(html,/data-studio-select="work-1"|정산 내역|id="producer-form"|artist-editors/);
  ctx.member.plan='premium';ctx.studioData.upload_quota={used:11,limit:10,remaining:0};
  const paid=ctx.studioQuotaCard({plan:'premium',upload_quota:{...ctx.studioData.upload_quota,covers_unlimited:true}},'ready');
- assert.match(paid,/11 \/ 10/);assert.match(paid,/stroke-dasharray="100 100"/);assert.doesNotMatch(paid,/href="#membership"/);
+ assert.match(paid,/11 \/ 10/);assert.match(paid,/studio-quota-progress" style="width:100%"/);assert.doesNotMatch(paid,/href="#membership"/);
  ctx.studioResetFilters('cover');ctx.member.plan='free';
  const covers=ctx.studioHTML(ctx.studioData);
  assert.match(covers,/전체 커버곡<\/span><strong>3/);

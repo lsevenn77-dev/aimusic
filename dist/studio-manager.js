@@ -61,18 +61,20 @@ function studioQuotaCard(value=studioQuota.membership,status=studioQuota.status)
  if(!ready)return `<section class="studio-quota-card studio-quota-pending" data-quota-state="${loading?'loading':'error'}" aria-label="이번 달 제작곡 한도" aria-busy="${loading}">
   <div class="studio-quota-copy" role="status"><h2>${loading?'이번 달 제작곡 정보를 확인하고 있어요.':'이용권과 제작곡 사용량을 확인하지 못했어요.'}</h2><p>회원등급과 남은 제작곡 수는 조회가 완료되면 표시돼요.</p></div>
   <div class="studio-quota-pending-actions">${loading?'':'<button type="button" class="small-button studio-quota-retry" data-studio-quota-refresh>다시 확인</button>'}${studioUploadLink()}</div></section>`;
- const q=value.upload_quota,premium=value.plan==='premium',progress=Math.min(100,q.used/q.limit*100);
+ const q=value.upload_quota,premium=value.plan==='premium',progress=Math.min(100,q.used/q.limit*100),remaining=Math.max(0,q.limit-q.used);
  const usage=`${number(q.used)} / ${number(q.limit)}`;
  return `<section class="studio-quota-card" data-quota-state="${value.plan}" aria-label="이번 달 제작곡 한도">
-  <div class="studio-quota-gauge" role="progressbar" aria-label="이번 달 제작곡" aria-valuemin="0" aria-valuemax="${q.limit}" aria-valuenow="${Math.min(q.used,q.limit)}" aria-valuetext="${q.used} / ${q.limit}곡">
-   <svg viewBox="0 0 120 120" aria-hidden="true" focusable="false"><circle class="studio-quota-track" cx="60" cy="60" r="54"/><circle class="studio-quota-progress" cx="60" cy="60" r="54" pathLength="100" stroke-dasharray="${progress} 100"${progress===0?' visibility="hidden"':''}/></svg>
-   <div class="studio-quota-gauge-copy" aria-hidden="true"><span>이번 달 제작곡</span><strong>${usage}</strong></div>
+  <div class="studio-quota-upload-card">
+   <div class="studio-quota-copy"><p class="studio-quota-eyebrow">MY STUDIO</p><h2>완성한 음악을 들려주세요.</h2><p>나만의 제작곡을 아이팩트에 공개해보세요.</p></div>
+   <div class="studio-quota-summary"><span>이번 달 제작곡 업로드</span><strong>${usage}곡</strong></div>
+   <div class="studio-quota-meter" role="progressbar" aria-label="이번 달 제작곡 업로드" aria-valuemin="0" aria-valuemax="${q.limit}" aria-valuenow="${Math.min(q.used,q.limit)}" aria-valuetext="${q.used} / ${q.limit}곡 업로드"><span class="studio-quota-progress" style="width:${progress}%" aria-hidden="true"></span></div>
+   <div class="studio-quota-upload-actions">${studioUploadLink()}<span class="studio-quota-remaining">${remaining?`이번 달 ${number(remaining)}곡 더 가능`:'이번 달 제작곡 한도를 모두 사용했어요.'}</span></div>
+   <p class="studio-quota-note">매월 1일 초기화(한국시간) · 커버곡 무제한</p>
   </div>
-  <div class="studio-quota-copy"><h2>${premium?`프리미엄 회원은 월 ${number(q.limit)}곡까지 제작할 수 있어요.`:'더 자유롭게, 더 많이 제작하세요!'}</h2>
-   ${premium?'':`<p>일반회원은 월 ${number(q.limit)}곡까지, PREMIUM은 월 10곡까지 제작할 수 있어요.</p>`}
-   <p class="studio-quota-note">매월 1일 초기화(한국시간) · 커버곡 무제한</p></div>
-  <div class="studio-quota-membership">${premium?`<span class="studio-premium-state">${studioQuotaCrown()} PREMIUM 이용 중</span><ul class="studio-quota-benefits"><li>${icon('check')}<span>월 ${number(q.limit)}곡 제작 가능</span></li><li>${icon('check')}<span>커버곡 제한 없이 업로드</span></li></ul>`:`<a class="primary-button studio-upgrade" href="#membership">${studioQuotaCrown()} PREMIUM 업그레이드</a>`}</div>
-  ${studioUploadLink()}
+  <aside class="studio-quota-membership" aria-label="프리미엄 ${premium?'이용 현황':'안내'}">
+   <div class="studio-quota-membership-copy">${premium?`<span class="studio-premium-state">${studioQuotaCrown()} PREMIUM 이용 중</span><ul class="studio-quota-benefits"><li>${icon('check')}<span>월 ${number(q.limit)}곡 업로드 가능</span></li><li>${icon('check')}<span>커버곡 제한 없이 업로드</span></li></ul>`:`<p class="studio-quota-eyebrow">${studioQuotaCrown()} PREMIUM</p><h2><span>더 많은 음악을,</span> <span>더 자유롭게.</span></h2><p>제작곡 월 10곡까지 업로드</p>`}</div>
+   ${premium?'':`<a class="small-button studio-upgrade" href="#membership">혜택 보기 ${icon('arrow')}</a>`}
+  </aside>
  </section>`;
 }
 function bindStudioQuota(root){
