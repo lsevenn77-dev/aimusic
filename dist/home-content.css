@@ -9,11 +9,20 @@
 #home-release.home-promo-carousel .home-promo-original{display:block;width:100%;height:100%;object-fit:cover;object-position:var(--home-promo-focus,71% 20%);border:0;border-radius:0}
 #home-release.home-promo-carousel .home-promo-scenery{display:none}
 @media(min-width:801px){
- #home-release.home-promo-carousel .home-promo-scenery{display:block;position:absolute;inset:0 calc(var(--home-feature-height,272px) * 2 - 1px) 0 0;background-image:var(--home-promo-scenery);background-size:cover;background-position:right center;pointer-events:none}
- /* Outpaint begins exactly at the original's left edge. The source photo
-    stays completely opaque, including all people, clothing, hands and props. */
- #home-release.home-promo-carousel .home-promo-picture{position:absolute;inset:0 0 0 auto;width:auto;max-width:none;height:100%;aspect-ratio:2/1}
+ #home-release.home-promo-carousel .home-promo-link{--home-promo-inset:clamp(24px,6cqi,84px)}
+ #home-release.home-promo-carousel .home-promo-scenery{display:block;position:absolute;background-image:var(--home-promo-scenery);background-size:auto 100%;background-repeat:no-repeat;pointer-events:none}
+ #home-release.home-promo-carousel .home-promo-scenery-left{inset:0 calc(var(--home-feature-height,272px) * 2 + var(--home-promo-inset) - 1px) 0 0;background-position:right center}
+ #home-release.home-promo-carousel .home-promo-scenery-right{inset:0 0 0 auto;width:calc(var(--home-promo-inset) + 1px);background-position:left center;background-size:max(100%,calc(var(--home-feature-height,272px) * 239 / 768)) 100%}
+ /* Keep the complete original opaque and move it inward as one layer. Both
+    outpaint strips use its vertical scale and meet underneath its edges. */
+ #home-release.home-promo-carousel .home-promo-picture{position:absolute;inset:0 var(--home-promo-inset) 0 auto;width:auto;max-width:none;height:100%;aspect-ratio:2/1}
  #home-release.home-promo-carousel .home-promo-original{max-width:none;object-fit:contain;object-position:center}
+ @container(max-width:790px){
+  #home-release.home-promo-carousel .home-promo-link{--home-promo-inset:clamp(16px,4cqi,32px)}
+ }
+ @container(min-width:541px) and (max-width:650px){
+  #home-release.home-promo-carousel .home-promo-link{--home-promo-inset:16px}
+ }
 }
 /* Gently shade and soften the scenery behind the words. Both effects diminish
    continuously from the left edge, leaving the faces and actions sharp. */
