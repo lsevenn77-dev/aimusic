@@ -23,7 +23,7 @@
     its approved source without any overlay. */
  #home-release.home-promo-carousel :is([data-home-banner=play],[data-home-banner=karaoke],[data-home-banner=talking]) .home-promo-picture::after{content:"";position:absolute;inset:0;background-image:var(--home-promo-detail);background-size:100% 100%;background-repeat:no-repeat;pointer-events:none}
  #home-release.home-promo-carousel [data-home-banner=play]{--home-promo-detail:url('/assets/home-banners/pc-refresh-20261109/play-background-overlay-1536.webp')}
- #home-release.home-promo-carousel [data-home-banner=karaoke]{--home-promo-detail:url('/assets/home-banners/pc-refresh-20261109/karaoke-background-overlay-1536.webp')}
+ #home-release.home-promo-carousel [data-home-banner=karaoke]{--home-promo-detail:url('/assets/home-banners/seam-20261110/karaoke-background-overlay-1536.webp')}
  /* Move the right inset by half the added photo width so the closer group
     keeps its existing center. Scenery and object overlays share this geometry. */
  #home-release.home-promo-carousel [data-home-banner=talking]{--home-promo-detail:url('/assets/home-banners/pc-refresh-20261109/talking-background-overlay-1536.webp');--home-promo-photo-scale:1.1;--home-promo-closeup-offset:calc(var(--home-feature-height,272px) * .1)}

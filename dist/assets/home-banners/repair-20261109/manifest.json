@@ -2018,7 +2018,10 @@
         "latest_detail_revision": "pc-refresh-20261109",
         "latest_detail_scope": "End the left sofa with a finite padded side and align upholstery and the separate wall trim.",
         "latest_generated_sha256": "628e8b18f3dc48072427a51b416c7bd4a8e7c1786a514e87dde4020285a9bf0b",
-        "original_portraits_unchanged": true
+        "original_portraits_unchanged": true,
+        "latest_overlay_revision": "seam-20261110",
+        "latest_overlay_scope": "Desktop only: lower the duplicated backrest lip immediately left of the man to meet the original cushion height; preserve the existing wall trim and its separation from the upholstery. Sofa left end, all other scene areas, original people, live copy and mobile photo are retained.",
+        "latest_overlay_generated_sha256": "f6cc47bccc19db551b7a6edfd75a11ea1d7573769d3e73663900a7fea8556ac0"
       },
       "original_sha256_verified_unchanged": true
     },
