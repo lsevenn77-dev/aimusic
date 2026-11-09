@@ -75,6 +75,21 @@ function fixture(read=async kind=>kind==='works'?profileData('REFRESHED'):kind==
  return {context:c,state:s,main,page,header,banner,copy,content,aside,tabs,segment,targets,window,requests,writes,asideWrites,events,hashChanges,timers,handlers,listeners,navigate,fire,cleanup,advance:ms=>{now+=ms;},get now(){return now;},get headerBinds(){return headerBinds;}};
 }
 
+// Model document coordinates so a scroll changes rect.top and exposes layout
+// feedback that the fixed rectangles in the navigation-only fixture cannot.
+function scrollingLayout(f,{scale=1,contentHeight=600,asideHeight=180}={}){
+ const top=650,heights={content:contentHeight,aside:asideHeight};
+ for(const key of ['content','aside']){
+  const node=f[key];
+  Object.defineProperty(node,'offsetHeight',{get:()=>Math.max(heights[key],parseFloat(node.style.minHeight)||0)});
+  node.getBoundingClientRect=()=>({top:top-f.window.scrollY,height:node.offsetHeight*scale});
+ }
+ return {heights,
+  scroll(y){f.window.scrollY=y;for(const listener of f.listeners.get('scroll')||[])listener();},
+  studioTop:()=>top+f.aside.offsetHeight*scale+24-f.window.scrollY
+ };
+}
+
 test('My page selection preserves dashboard aliases and excludes separate or legacy screens',()=>{
  const c=helpers();
  for(const [raw,tab] of [
@@ -165,6 +180,47 @@ test('same loaded tabs are handled without rebuilding the shell or repeating suc
  await f.navigate('profile?view=activity');const painted=f.writes.length,reads=f.requests.length;
  assert.equal(await f.navigate('profile?view=activity',()=>visible++),true);
  assert.equal(f.writes.length,painted);assert.equal(f.requests.length,reads);assert.equal(visible,2);assert.equal(f.events.includes('rerender'),false);
+});
+
+test('scrolling works and activity brings the studio banner into view without extending either column',async()=>{
+ for(const scale of [1,1.25])for(const tab of ['works','activity']){
+  const f=fixture();f.window.scrollY=0;f.window.innerHeight=900;
+  const layout=scrollingLayout(f,{scale});
+  if(tab==='activity')await f.navigate('profile?view=activity');
+  const documentHeight=Math.max(f.content.offsetHeight*scale,layout.studioTop()+190-650);
+  let previousTop=layout.studioTop();
+  for(const y of [100,300,600,900]){
+   layout.scroll(y);
+   assert.ok(layout.studioTop()<previousTop,`${tab}, scale ${scale}: the banner must move upward when scrolling down`);
+   assert.ok(layout.studioTop()<f.window.innerHeight,`${tab}: the banner must be reachable`);
+   assert.equal(f.content.offsetHeight,layout.heights.content,'scrolling must not lengthen the main column');
+   assert.equal(f.aside.offsetHeight,layout.heights.aside,'scrolling must not lengthen the area before the banner');
+   assert.equal(Math.max(f.content.offsetHeight*scale,layout.studioTop()+y+190-650),documentHeight);
+   previousTop=layout.studioTop();
+  }
+ }
+});
+
+test('long-to-short tab changes retain the viewport, then scrolling only releases the reserved height',async()=>{
+ for(const scale of [1,1.25]){
+  const held=deferred(),f=fixture(()=>held.promise);
+  f.window.scrollY=600;f.window.innerHeight=900;
+  const layout=scrollingLayout(f,{scale,contentHeight:1600,asideHeight:900});
+  const opening=f.navigate('profile?view=activity');
+  assert.equal(f.content.offsetHeight,1600,'the loader must retain the old content height');
+  layout.heights.content=320;layout.heights.aside=180;
+  held.resolve({label:'SHORT'});await opening;
+  assert.equal(f.window.scrollY,600,'replacing a long tab must not reset the viewport');
+  assert.ok(f.content.getBoundingClientRect().top+f.content.offsetHeight*scale>=900,'the shorter tab must support the current viewport');
+  const retained=[f.content.style.minHeight,f.aside.style.minHeight];
+  layout.scroll(900);
+  assert.deepEqual([f.content.style.minHeight,f.aside.style.minHeight],retained,'downward scrolling must not grow a previous height reservation');
+  assert.ok(layout.studioTop()<900,'the studio banner must enter the viewport after a tab change');
+  layout.scroll(100);
+  for(const [index,node] of [f.content,f.aside].entries())assert.ok(parseFloat(node.style.minHeight)<parseFloat(retained[index]),'upward scrolling releases excess space');
+  layout.scroll(0);
+  assert.equal(f.content.style.minHeight,'');assert.equal(f.aside.style.minHeight,'');
+ }
 });
 
 test('works reuse their account data before thirty seconds and read afresh at the exact boundary',async()=>{
