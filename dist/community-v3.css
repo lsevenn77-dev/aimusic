@@ -29,7 +29,6 @@
 .weekly-rankings .ranking-number{flex:0 0 28px;text-align:center;color:var(--ds-muted);font-size:1rem;font-variant-numeric:tabular-nums}
 .weekly-rankings .ranking-row strong{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:1rem;font-weight:600}
 .weekly-rankings .ranking-empty{text-align:center;padding:48px 16px;color:var(--ds-muted)}
-.weekly-rankings .ranking-empty img{opacity:.65;margin-bottom:12px}
 .weekly-rankings .ranking-empty h2{font-size:1.125rem;line-height:1.5;margin:0 0 8px}
 .weekly-rankings .ranking-empty p{font-size:.875rem;line-height:1.7;margin:0}
 .weekly-rankings .ranking-more-area{text-align:center}
