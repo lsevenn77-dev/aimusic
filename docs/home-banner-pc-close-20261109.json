@@ -875,5 +875,6 @@
     "lint_play": "passed",
     "typecheck_play": "passed"
   },
-  "integration_base_commit": "67fbfa4029c3a960845899a4953a0c8e82f60e58"
+  "integration_base_commit": "67fbfa4029c3a960845899a4953a0c8e82f60e58",
+  "latest_integration_base_commit": "c949190883c836b00912594b5697f642489f5d28"
 }
