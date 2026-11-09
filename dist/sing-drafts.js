@@ -19,9 +19,44 @@ async function restoreSingDraft(s){
 }
 async function removeSingDraft(s){await s.draftWrite?.catch(()=>{});await draftOp('delete',singDraftKey(s));}
 function queueSingDraft(s){s.revision=(s.revision||0)+1;s.dirty=true;s.draftError=false;paintDraftStatus(s);}
+function openSingDraftDelete(s=sing){
+ const valid=()=>sing===s&&s?.owner===me?.id&&!!s?.owner&&!!s.voice&&!singLive(s)&&!singBusy(s),dlg=$('#dialog');
+ if(!valid()||s.draftDeleteOpen||s.draftDeletePending||dlg.open)return;
+ const trigger=document.activeElement;s.draftDeleteOpen=true;
+ dialog('<div class="sing-draft-delete-dialog"><p class="popup-prompt">이 녹음과 초안을 삭제할까요?</p><p>지금 편집 중인 녹음과 이 기기에 저장한 초안이 삭제돼요. 삭제한 녹음은 복구할 수 없어요.</p><p class="field-help">이미 공개한 커버곡은 유지돼요.</p><div class="inline-actions"><button type="button" class="small-button" data-sing-draft-cancel>취소</button><button type="button" class="small-button danger-button" data-sing-draft-delete>초안 삭제</button></div><p class="form-error" role="alert" hidden></p></div>');
+ dlg.classList.add('sing-draft-delete-popup');
+ const content=dlg.querySelector('.sing-draft-delete-dialog'),cancel=content.querySelector('[data-sing-draft-cancel]'),confirm=content.querySelector('[data-sing-draft-delete]'),error=content.querySelector('[role="alert"]');
+ let disposed=false;
+ const active=()=>!disposed&&dlg.open&&dlg.querySelector('.sing-draft-delete-dialog')===content;
+ const cleanup=()=>{
+  if(disposed)return;disposed=true;s.draftDeleteOpen=false;
+  dlg.removeEventListener('close',cleanup);dlg.removeEventListener('cancel',onCancel);dlg.removeEventListener('click',onOutside);
+  if(!dlg.open||dlg.querySelector('.sing-draft-delete-dialog')===content||!dlg.querySelector('.sing-draft-delete-dialog'))dlg.classList.remove('sing-draft-delete-popup');
+  if(sing===s&&!dlg.open&&trigger?.isConnected)trigger.focus();
+ };
+ const dismiss=()=>{if(active())dlg.close();cleanup();};
+ const onCancel=event=>{event.preventDefault();dismiss();};
+ const onOutside=event=>{if(event.target!==dlg||!active())return;const r=dlg.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)dismiss();};
+ dlg.addEventListener('close',cleanup);dlg.addEventListener('cancel',onCancel);dlg.addEventListener('click',onOutside);
+ cancel.onclick=dismiss;
+ confirm.onclick=async()=>{
+  if(!active()||s.draftDeletePending)return;
+  if(!valid()){dismiss();return;}
+  const voice=s.voice;s.draftDeletePending=true;cancel.disabled=confirm.disabled=true;error.hidden=true;
+  try{
+   stopPreview();await removeSingDraft(s);
+   if(valid()&&s.voice===voice){s.voice=null;s.beforePunch=null;s.editMixBaseline=null;s.coverFile=null;s.publishRequest=null;s.savedAt=0;s.processed=null;s.dirty=false;s.cursor=0;s.state='idle';renderSingPanel();drawLyrics(0);}
+   dismiss();
+  }catch{
+   if(active()&&valid()){error.textContent='임시 녹음을 삭제하지 못했어요. 저장 공간을 확인하고 다시 시도해주세요.';error.hidden=false;cancel.disabled=confirm.disabled=false;confirm.focus();}
+   else{dismiss();if(sing===s&&s.owner===me?.id)setSingStatus('임시 녹음을 삭제하지 못했어요. 다시 시도해주세요.');}
+  }finally{s.draftDeletePending=false;}
+ };
+ cancel.focus();
+}
 document.addEventListener('click',async e=>{
  if(e.target.closest('[data-sing-draft]')&&singExitKind(sing)==='edit'&&!singBusy(sing)){const s=sing;try{await saveSingDraft(s);if(sing===s)setSingStatus('이 계정의 녹음을 현재 기기·브라우저에 초안을 저장했어요.');}catch{setSingStatus('임시저장하지 못했어요. 저장 공간을 확인해주세요.');}}
- if(e.target.closest('[data-discard-draft]')&&sing?.voice&&!singLive(sing)&&!singBusy(sing)&&confirm('이 기기에 임시저장한 녹음을 삭제할까요?')){const s=sing;try{stopPreview();await removeSingDraft(s);s.voice=null;s.beforePunch=null;s.editMixBaseline=null;s.coverFile=null;s.publishRequest=null;s.savedAt=0;s.processed=null;s.dirty=false;s.cursor=0;s.state='idle';renderSingPanel();drawLyrics(0);}catch(e){setSingStatus('임시 녹음을 삭제하지 못했어요. 다시 시도해주세요.');}}
+ if(e.target.closest('[data-discard-draft]'))openSingDraftDelete(sing);
 });
 
 function singDraftSummary(d){const suffix=d.key.slice((d.owner+':'+d.id).length),legacy=suffix.startsWith(':duet:')?suffix.slice(6).split(':'):null;return {key:'index:'+d.key,draftKey:d.key,owner:d.owner,id:d.id,title:d.title||'',artist:d.artist||'',mode:d.mode||(legacy?'duet':'solo'),part:d.part||legacy?.[0]||'male',parent:d.parent||(legacy?.[1]!=='first'?legacy?.[1]:'')||'',duration:(d.samples?.length||0)/Math.max(1,d.rate||32000),updated:d.updated||0};}

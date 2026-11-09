@@ -48,7 +48,7 @@ await cp('dist/icon-style-lock.css','dist/client/icon-style-lock.css');
 await cp('dist/icon-feedback.css','dist/client/icon-feedback.css');
 await cp('dist/popup-close.css','dist/client/popup-close.css');
 await cp('dist/popup-layout.css','dist/client/popup-layout.css');
-for(const file of ['popup-design-system.css','popup-commerce-design.css','popup-room-design.css','room-popup-layout.css','popup-game-design.css'])await cp('dist/'+file,'dist/client/'+file);
+for(const file of ['popup-design-system.css','popup-commerce-design.css','popup-room-design.css','room-popup-layout.css','popup-game-design.css','sing-popup-design.css'])await cp('dist/'+file,'dist/client/'+file);
 await cp('dist/room-create.css','dist/client/room-create.css');
 for(const file of ['user-nickname.js','profile-editor.js','profile-editor.css'])await cp('dist/'+file,'dist/client/'+file);
 await cp('dist/uiux-space.css','dist/client/uiux-space.css');
@@ -90,7 +90,7 @@ await cp('dist/sing-recording-scale.css','dist/client/sing-recording-scale.css')
 for(const name of await readdir('dist/client')){
  // Shared chat controls, singing presentation and popup roles use final CSS pixels. Their feature
  // geometry and the verified 20/15/14/13px popup type scale must not be remapped.
- if(!name.endsWith('.css')||name.startsWith('aifect-app-')||['ui-region-scale.css','room-release.css','room-bubbles.css','chat-ui.css','messages-ui.css','page-tabs.css','sing-design.css','popup-design-system.css','popup-commerce-design.css','popup-room-design.css','room-popup-layout.css','popup-game-design.css'].includes(name))continue;
+ if(!name.endsWith('.css')||name.startsWith('aifect-app-')||['ui-region-scale.css','room-release.css','room-bubbles.css','chat-ui.css','messages-ui.css','page-tabs.css','sing-design.css','popup-design-system.css','popup-commerce-design.css','popup-room-design.css','room-popup-layout.css','popup-game-design.css','sing-popup-design.css'].includes(name))continue;
  const file='dist/client/'+name;
  await writeFile(file,regionTokenCSS(await readFile(file,'utf8')));
 }
